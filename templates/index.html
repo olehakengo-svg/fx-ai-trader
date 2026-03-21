@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FX AI Trader — USD/JPY</title>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+/* ─── Reset & base ─────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg0:   #0d1117;
+  --bg1:   #161b22;
+  --bg2:   #21262d;
+  --bg3:   #30363d;
+  --text1: #e6edf3;
+  --text2: #c9d1d9;
+  --text3: #8b949e;
+  --text4: #484f58;
+  --blue:  #58a6ff;
+  --green: #3fb950;
+  --red:   #f85149;
+  --gold:  #e3b341;
+  --purple:#bc8cff;
+  --border:#21262d;
+  font-size: 13px;
+}
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg0);
+  color: var(--text1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Header ───────────────────────────────────── */
+.header {
+  flex-shrink: 0;
+  height: 52px;
+  background: var(--bg1);
+  border-bottom: 1px solid var(--bg3);
+  display: flex;
+  align-items: center;
+  padding: 0 18px;
+  gap: 18px;
+}
+.header-logo { font-size: 15px; font-weight: 700; color: var(--blue); white-space: nowrap; }
+.header-logo span { color: var(--text3); font-weight: 400; font-size: 12px; margin-left: 4px; }
+.header-price {
+  font-size: 22px; font-weight: 700;
+  font-family: 'SF Mono', 'Courier New', monospace;
+  transition: color .3s;
+}
+.price-up   { color: var(--green); }
+.price-down { color: var(--red); }
+.price-neutral { color: var(--text1); }
+.header-change { font-size: 12px; }
+.badge {
+  padding: 3px 9px; border-radius: 10px;
+  font-size: 11px; font-weight: 700; letter-spacing: .5px;
+}
+.badge-live    { background:#1a4731; color:var(--green); }
+.badge-loading { background:var(--bg2); color:var(--text3); }
+.badge-error   { background:#3d0000; color:var(--red); }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.countdown-wrap { color: var(--text3); font-size: 12px; }
+.btn-refresh {
+  padding: 5px 14px; background: var(--bg2);
+  border: 1px solid var(--bg3); border-radius: 6px;
+  color: var(--text2); font-size: 12px; cursor: pointer;
+  transition: background .2s, border-color .2s;
+}
+.btn-refresh:hover { background: var(--bg3); border-color: var(--blue); }
+.btn-refresh:disabled { opacity: .4; cursor: default; }
+
+/* ─── Main layout ──────────────────────────────── */
+.main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ─── Charts column ────────────────────────────── */
+.charts-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.chart-wrap {
+  position: relative;
+  border-bottom: 1px solid var(--border);
+}
+.chart-wrap:last-child { border-bottom: none; }
+
+#wrap-price { flex: 6; min-height: 0; }
+#wrap-rsi   { flex: 2; min-height: 0; }
+#wrap-macd  { flex: 2; min-height: 0; }
+
+.chart-label {
+  position: absolute; top: 7px; left: 10px;
+  z-index: 5; font-size: 10px; color: var(--text3);
+  font-weight: 600; letter-spacing: .4px; pointer-events: none;
+}
+.chart-inner { width: 100%; height: 100%; }
+
+/* Loading overlay */
+.loading-overlay {
+  position: absolute; inset: 0;
+  background: rgba(13,17,23,.85);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 20;
+}
+.spinner {
+  width: 36px; height: 36px;
+  border: 3px solid var(--bg3);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── Signal panel ─────────────────────────────── */
+.signal-panel {
+  width: 276px;
+  flex-shrink: 0;
+  background: var(--bg1);
+  border-left: 1px solid var(--bg3);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 14px;
+  gap: 12px;
+}
+.signal-panel::-webkit-scrollbar { width: 5px; }
+.signal-panel::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
+
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--bg3);
+  border-radius: 8px;
+  padding: 14px;
+}
+.card-title {
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1px;
+  color: var(--text3); margin-bottom: 10px;
+}
+
+/* Signal badge */
+.signal-badge {
+  width: 100%; padding: 10px 0;
+  border-radius: 7px; text-align: center;
+  font-size: 22px; font-weight: 900; letter-spacing: 3px;
+  margin-bottom: 10px;
+}
+.sig-buy  { background: #1a4731; color: var(--green); border: 1px solid #238636; }
+.sig-sell { background: #3d0000; color: var(--red);   border: 1px solid #da3633; }
+.sig-wait { background: var(--bg0); color: var(--gold); border: 1px solid #9e6a03; }
+
+/* Confidence */
+.conf-bar-wrap {
+  height: 6px; background: var(--bg3);
+  border-radius: 3px; overflow: hidden; margin-bottom: 5px;
+}
+.conf-bar-fill {
+  height: 100%; border-radius: 3px;
+  transition: width .6s ease;
+}
+.conf-high { background: var(--green); }
+.conf-mid  { background: var(--gold); }
+.conf-low  { background: var(--red); }
+.conf-row  { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); }
+.conf-row span:last-child { color: var(--text1); font-weight: 600; }
+
+/* Entry / SL / TP */
+.level-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 10px; border-radius: 6px; margin-bottom: 6px;
+}
+.level-row:last-child { margin-bottom: 0; }
+.lv-entry { background: var(--bg0); border: 1px solid var(--bg3); }
+.lv-sl    { background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.3); }
+.lv-tp    { background: rgba(63,185,80,.1); border: 1px solid rgba(63,185,80,.3); }
+.lv-label { font-size: 11px; font-weight: 600; color: var(--text3); }
+.lv-val {
+  font-size: 15px; font-weight: 700;
+  font-family: 'SF Mono', 'Courier New', monospace;
+}
+.lv-entry .lv-val { color: var(--text1); }
+.lv-sl    .lv-val { color: var(--red); }
+.lv-tp    .lv-val { color: var(--green); }
+
+.rr-row {
+  margin-top: 8px; text-align: center;
+  background: var(--bg0); border-radius: 5px;
+  padding: 5px; font-size: 11px; color: var(--text3);
+}
+.rr-row strong { color: var(--blue); }
+
+/* Indicator grid */
+.ind-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+.ind-cell {
+  background: var(--bg0); border: 1px solid var(--bg3);
+  border-radius: 6px; padding: 7px 9px;
+}
+.ind-lbl { font-size: 10px; color: var(--text3); margin-bottom: 2px; }
+.ind-val {
+  font-size: 13px; font-weight: 600;
+  font-family: 'SF Mono', 'Courier New', monospace;
+}
+
+/* Reasons */
+.reason-item {
+  font-size: 11px; color: var(--text2);
+  background: var(--bg0); border-radius: 4px;
+  padding: 5px 8px; margin-bottom: 5px; line-height: 1.5;
+}
+.reason-item:last-child { margin-bottom: 0; }
+
+.ml-row {
+  display: flex; justify-content: space-between;
+  font-size: 11px; color: var(--text3); margin-top: 8px;
+}
+.ml-row strong { color: var(--blue); }
+
+/* Footer */
+.panel-footer {
+  font-size: 10px; color: var(--text4);
+  text-align: center; padding-top: 4px;
+}
+
+/* Error card */
+.err-card {
+  background: rgba(248,81,73,.08);
+  border: 1px solid rgba(248,81,73,.3);
+  border-radius: 7px; padding: 10px;
+  font-size: 11px; color: var(--red); line-height: 1.5;
+}
+</style>
+</head>
+<body>
+
+<!-- ════════════ HEADER ════════════ -->
+<header class="header">
+  <div class="header-logo">FX AI Trader <span>USD/JPY 1分足</span></div>
+  <div class="header-price price-neutral" id="hdr-price">—</div>
+  <div class="header-change" id="hdr-change" style="color:var(--text3)">—</div>
+  <span class="badge badge-loading" id="hdr-badge">読込中</span>
+  <div class="header-right">
+    <div class="countdown-wrap">次回更新: <span id="cntdwn">—</span>秒</div>
+    <button class="btn-refresh" id="btn-refresh" onclick="refreshAll()">↺ 今すぐ更新</button>
+  </div>
+</header>
+
+<!-- ════════════ MAIN ════════════ -->
+<div class="main">
+
+  <!-- Charts -->
+  <div class="charts-col">
+
+    <!-- Price chart -->
+    <div class="chart-wrap" id="wrap-price">
+      <div class="chart-label">
+        USD/JPY 1分足 &nbsp;·&nbsp;
+        <span style="color:#58a6ff">EMA9</span>&nbsp;
+        <span style="color:#e3b341">EMA21</span>&nbsp;
+        <span style="color:#ff7b72">EMA50</span>&nbsp;·&nbsp;
+        <span style="color:#388bfd">BB(20,2)</span>
+      </div>
+      <div class="chart-inner" id="chart-price"></div>
+      <div class="loading-overlay" id="ov-price"><div class="spinner"></div></div>
+    </div>
+
+    <!-- RSI chart -->
+    <div class="chart-wrap" id="wrap-rsi">
+      <div class="chart-label">RSI (14)</div>
+      <div class="chart-inner" id="chart-rsi"></div>
+    </div>
+
+    <!-- MACD chart -->
+    <div class="chart-wrap" id="wrap-macd">
+      <div class="chart-label">MACD (12, 26, 9)</div>
+      <div class="chart-inner" id="chart-macd"></div>
+    </div>
+
+  </div><!-- /charts-col -->
+
+  <!-- Signal panel -->
+  <aside class="signal-panel" id="signal-panel">
+
+    <div id="err-box"></div>
+
+    <!-- Signal main -->
+    <div class="card">
+      <div class="card-title">AI シグナル</div>
+      <div class="signal-badge sig-wait" id="sig-badge">WAIT</div>
+      <div class="conf-bar-wrap">
+        <div class="conf-bar-fill conf-mid" id="conf-fill" style="width:50%"></div>
+      </div>
+      <div class="conf-row">
+        <span>信頼度スコア</span>
+        <span id="conf-pct">—</span>
+      </div>
+    </div>
+
+    <!-- Entry / SL / TP -->
+    <div class="card">
+      <div class="card-title">エントリーポイント</div>
+      <div class="level-row lv-entry">
+        <span class="lv-label">⏺ Entry</span>
+        <span class="lv-val" id="lv-entry">—</span>
+      </div>
+      <div class="level-row lv-sl">
+        <span class="lv-label">🛑 Stop Loss</span>
+        <span class="lv-val" id="lv-sl">—</span>
+      </div>
+      <div class="level-row lv-tp">
+        <span class="lv-label">🎯 Take Profit</span>
+        <span class="lv-val" id="lv-tp">—</span>
+      </div>
+      <div class="rr-row">
+        RR比 <strong id="rr-val">—</strong>
+        &nbsp;|&nbsp; ATR <span id="atr-val" style="color:var(--text3)">—</span>
+      </div>
+    </div>
+
+    <!-- Indicators -->
+    <div class="card">
+      <div class="card-title">テクニカル指標</div>
+      <div class="ind-grid">
+        <div class="ind-cell"><div class="ind-lbl">EMA 9</div><div class="ind-val" id="i-ema9">—</div></div>
+        <div class="ind-cell"><div class="ind-lbl">EMA 21</div><div class="ind-val" id="i-ema21">—</div></div>
+        <div class="ind-cell"><div class="ind-lbl">EMA 50</div><div class="ind-val" id="i-ema50">—</div></div>
+        <div class="ind-cell"><div class="ind-lbl">RSI (14)</div><div class="ind-val" id="i-rsi">—</div></div>
+        <div class="ind-cell"><div class="ind-lbl">MACD Hist</div><div class="ind-val" id="i-macdh">—</div></div>
+        <div class="ind-cell"><div class="ind-lbl">BB %B</div><div class="ind-val" id="i-bbpb">—</div></div>
+      </div>
+    </div>
+
+    <!-- Reasons -->
+    <div class="card">
+      <div class="card-title">シグナル根拠</div>
+      <div id="reasons-box"><div class="reason-item" style="color:var(--text3)">データ読込中...</div></div>
+      <div class="ml-row">
+        <span>AI上昇確率</span>
+        <strong id="ml-prob">—</strong>
+      </div>
+    </div>
+
+    <div class="panel-footer" id="last-upd">最終更新: —</div>
+
+  </aside>
+</div><!-- /main -->
+
+<script>
+// ════════════════════════════════════════════════════
+//  Chart setup
+// ════════════════════════════════════════════════════
+const CHART_OPTS = {
+  layout:  { background:{ color:'#0d1117' }, textColor:'#8b949e', fontSize:11 },
+  grid:    { vertLines:{ color:'#21262d' }, horzLines:{ color:'#21262d' } },
+  crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+  rightPriceScale: { borderColor:'#30363d' },
+  timeScale: { borderColor:'#30363d', timeVisible:true, secondsVisible:false },
+  handleScroll: { mouseWheel:true },
+  handleScale: { mouseWheel:true },
+};
+
+function makeChart(elId, extraOpts={}) {
+  const el = document.getElementById(elId);
+  return LightweightCharts.createChart(el, { ...CHART_OPTS, autoSize:true, ...extraOpts });
+}
+
+// ── Price chart ─────────────────────────────────────
+const priceChart  = makeChart('chart-price');
+const candleSeries = priceChart.addCandlestickSeries({
+  upColor:'#3fb950', downColor:'#f85149',
+  borderUpColor:'#3fb950', borderDownColor:'#f85149',
+  wickUpColor:'#3fb950', wickDownColor:'#f85149',
+});
+const ema9S  = priceChart.addLineSeries({ color:'#58a6ff', lineWidth:1.5, title:'EMA9',  lastValueVisible:false, priceLineVisible:false });
+const ema21S = priceChart.addLineSeries({ color:'#e3b341', lineWidth:1.5, title:'EMA21', lastValueVisible:false, priceLineVisible:false });
+const ema50S = priceChart.addLineSeries({ color:'#ff7b72', lineWidth:1.5, title:'EMA50', lastValueVisible:false, priceLineVisible:false });
+const bbUS   = priceChart.addLineSeries({ color:'rgba(56,139,253,.6)', lineWidth:1, lineStyle:2, lastValueVisible:false, priceLineVisible:false });
+const bbMS   = priceChart.addLineSeries({ color:'rgba(56,139,253,.35)', lineWidth:1, lineStyle:1, lastValueVisible:false, priceLineVisible:false });
+const bbLS   = priceChart.addLineSeries({ color:'rgba(56,139,253,.6)', lineWidth:1, lineStyle:2, lastValueVisible:false, priceLineVisible:false });
+
+let lineEntry=null, lineSL=null, lineTP=null;
+
+// ── RSI chart ────────────────────────────────────────
+const rsiChart  = makeChart('chart-rsi');
+const rsiSeries = rsiChart.addLineSeries({ color:'#bc8cff', lineWidth:1.5, lastValueVisible:true, priceLineVisible:false });
+const rsi70S    = rsiChart.addLineSeries({ color:'rgba(248,81,73,.5)', lineWidth:1, lineStyle:2, lastValueVisible:false, priceLineVisible:false });
+const rsi30S    = rsiChart.addLineSeries({ color:'rgba(63,185,80,.5)', lineWidth:1, lineStyle:2, lastValueVisible:false, priceLineVisible:false });
+
+// ── MACD chart ───────────────────────────────────────
+const macdChart   = makeChart('chart-macd');
+const macdLS      = macdChart.addLineSeries({ color:'#58a6ff', lineWidth:1.5, title:'MACD', lastValueVisible:true, priceLineVisible:false });
+const macdSigS    = macdChart.addLineSeries({ color:'#e3b341', lineWidth:1.5, title:'Signal', lastValueVisible:true, priceLineVisible:false });
+const macdHistS   = macdChart.addHistogramSeries({ lastValueVisible:false, priceLineVisible:false });
+
+// ── Sync timescales ─────────────────────────────────
+(function syncTs() {
+  const charts = [priceChart, rsiChart, macdChart];
+  let syncing = false;
+  charts.forEach((c, i) => {
+    c.timeScale().subscribeVisibleLogicalRangeChange(range => {
+      if (syncing || !range) return;
+      syncing = true;
+      charts.forEach((cc, j) => { if (j !== i) cc.timeScale().setVisibleLogicalRange(range); });
+      syncing = false;
+    });
+  });
+})();
+
+
+// ════════════════════════════════════════════════════
+//  Data & UI update
+// ════════════════════════════════════════════════════
+async function loadChartData() {
+  try {
+    const resp = await fetch('/api/chart');
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+
+    candleSeries.setData(data.map(d=>({time:d.time,open:d.open,high:d.high,low:d.low,close:d.close})));
+    ema9S .setData(data.map(d=>({time:d.time, value:d.ema9})));
+    ema21S.setData(data.map(d=>({time:d.time, value:d.ema21})));
+    ema50S.setData(data.map(d=>({time:d.time, value:d.ema50})));
+    bbUS  .setData(data.map(d=>({time:d.time, value:d.bb_upper})));
+    bbMS  .setData(data.map(d=>({time:d.time, value:d.bb_mid})));
+    bbLS  .setData(data.map(d=>({time:d.time, value:d.bb_lower})));
+
+    rsiSeries.setData(data.map(d=>({time:d.time, value:d.rsi})));
+    rsi70S   .setData(data.map(d=>({time:d.time, value:70})));
+    rsi30S   .setData(data.map(d=>({time:d.time, value:30})));
+
+    macdLS  .setData(data.map(d=>({time:d.time, value:d.macd})));
+    macdSigS.setData(data.map(d=>({time:d.time, value:d.macd_sig})));
+    macdHistS.setData(data.map(d=>({
+      time:d.time, value:d.macd_hist,
+      color: d.macd_hist >= 0 ? 'rgba(63,185,80,.7)' : 'rgba(248,81,73,.7)'
+    })));
+
+    priceChart.timeScale().scrollToRealTime();
+
+    // Scroll all to latest
+    [rsiChart, macdChart].forEach(c => c.timeScale().scrollToRealTime());
+
+    // Update header price
+    if (data.length > 0) {
+      const last = data[data.length-1];
+      const prev = data.length > 1 ? data[data.length-2] : null;
+      const hdrP = document.getElementById('hdr-price');
+      const hdrC = document.getElementById('hdr-change');
+      hdrP.textContent = last.close.toFixed(3);
+      if (prev) {
+        const diff = last.close - prev.close;
+        const pct  = (diff / prev.close * 100).toFixed(3);
+        hdrP.className = 'header-price ' + (diff >= 0 ? 'price-up' : 'price-down');
+        hdrC.textContent = (diff >= 0 ? '+' : '') + diff.toFixed(3) + ' (' + pct + '%)';
+        hdrC.style.color = diff >= 0 ? 'var(--green)' : 'var(--red)';
+      }
+    }
+
+    document.getElementById('ov-price').style.display = 'none';
+
+  } catch(e) {
+    console.error('Chart error:', e);
+  }
+}
+
+async function loadSignal() {
+  try {
+    const resp = await fetch('/api/signal');
+    const d    = await resp.json();
+
+    if (d.error) {
+      document.getElementById('err-box').innerHTML =
+        `<div class="err-card">⚠️ ${d.error}</div>`;
+      return;
+    }
+    document.getElementById('err-box').innerHTML = '';
+
+    // Signal badge
+    const badge = document.getElementById('sig-badge');
+    badge.textContent = d.signal;
+    badge.className = 'signal-badge ' +
+      (d.signal==='BUY'?'sig-buy': d.signal==='SELL'?'sig-sell':'sig-wait');
+
+    // Confidence
+    const c = d.confidence;
+    const fill = document.getElementById('conf-fill');
+    fill.style.width = c + '%';
+    fill.className = 'conf-bar-fill ' + (c>=70?'conf-high': c>=55?'conf-mid':'conf-low');
+    document.getElementById('conf-pct').textContent = c + '%';
+
+    // Price levels
+    document.getElementById('lv-entry').textContent = d.entry.toFixed(3);
+    document.getElementById('lv-sl')   .textContent = d.sl.toFixed(3);
+    document.getElementById('lv-tp')   .textContent = d.tp.toFixed(3);
+    document.getElementById('rr-val')  .textContent = '1:' + d.rr_ratio;
+    document.getElementById('atr-val') .textContent = d.atr.toFixed(3);
+
+    // Price lines on chart
+    if (lineEntry) candleSeries.removePriceLine(lineEntry);
+    if (lineSL)    candleSeries.removePriceLine(lineSL);
+    if (lineTP)    candleSeries.removePriceLine(lineTP);
+
+    if (d.signal !== 'WAIT') {
+      lineEntry = candleSeries.createPriceLine({ price:d.entry, color:'#c9d1d9', lineWidth:1, lineStyle:0, axisLabelVisible:true, title:'Entry' });
+      lineSL    = candleSeries.createPriceLine({ price:d.sl,    color:'#f85149', lineWidth:1, lineStyle:2, axisLabelVisible:true, title:'SL' });
+      lineTP    = candleSeries.createPriceLine({ price:d.tp,    color:'#3fb950', lineWidth:1, lineStyle:2, axisLabelVisible:true, title:'TP' });
+    }
+
+    // Indicators
+    const ind = d.indicators;
+    document.getElementById('i-ema9') .textContent = ind.ema9.toFixed(3);
+    document.getElementById('i-ema21').textContent = ind.ema21.toFixed(3);
+    document.getElementById('i-ema50').textContent = ind.ema50.toFixed(3);
+
+    const rsiEl = document.getElementById('i-rsi');
+    rsiEl.textContent = ind.rsi.toFixed(1);
+    rsiEl.style.color = ind.rsi > 70 ? 'var(--red)' : ind.rsi < 30 ? 'var(--green)' : 'var(--text1)';
+
+    const histEl = document.getElementById('i-macdh');
+    histEl.textContent = ind.macd_hist.toFixed(5);
+    histEl.style.color = ind.macd_hist >= 0 ? 'var(--green)' : 'var(--red)';
+
+    const bbRange = ind.bb_upper - ind.bb_lower;
+    const bbPb = bbRange > 0 ? ((d.entry - ind.bb_lower) / bbRange * 100).toFixed(1) + '%' : '—';
+    const bbEl = document.getElementById('i-bbpb');
+    bbEl.textContent = bbPb;
+    if (bbRange > 0) {
+      const pv = (d.entry - ind.bb_lower) / bbRange;
+      bbEl.style.color = pv < 0.2 ? 'var(--green)' : pv > 0.8 ? 'var(--red)' : 'var(--text1)';
+    }
+
+    // Reasons
+    const box = document.getElementById('reasons-box');
+    if (d.reasons && d.reasons.length) {
+      box.innerHTML = d.reasons.map(r => `<div class="reason-item">${r}</div>`).join('');
+    } else {
+      box.innerHTML = `<div class="reason-item" style="color:var(--text3)">明確なシグナルなし（様子見推奨）</div>`;
+    }
+    document.getElementById('ml-prob').textContent = d.ml_prob + '%';
+
+    // Status & timestamp
+    const badgeEl = document.getElementById('hdr-badge');
+    badgeEl.textContent = 'LIVE';
+    badgeEl.className = 'badge badge-live';
+    document.getElementById('last-upd').textContent =
+      '最終更新: ' + new Date().toLocaleTimeString('ja-JP') + '  (' + d.timestamp + ')';
+
+  } catch(e) {
+    console.error('Signal error:', e);
+    document.getElementById('err-box').innerHTML =
+      `<div class="err-card">⚠️ 接続エラー: ${e.message}</div>`;
+    document.getElementById('hdr-badge').className = 'badge badge-error';
+    document.getElementById('hdr-badge').textContent = 'ERROR';
+  }
+}
+
+
+// ════════════════════════════════════════════════════
+//  Auto-refresh
+// ════════════════════════════════════════════════════
+let _secs = 60;
+let _timer = null;
+
+async function refreshAll() {
+  const btn = document.getElementById('btn-refresh');
+  btn.disabled = true;
+  btn.textContent = '⏳ 更新中...';
+  try {
+    await Promise.all([loadChartData(), loadSignal()]);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↺ 今すぐ更新';
+    _secs = 60;
+  }
+}
+
+function startCountdown() {
+  if (_timer) clearInterval(_timer);
+  _timer = setInterval(() => {
+    _secs--;
+    document.getElementById('cntdwn').textContent = _secs;
+    if (_secs <= 0) {
+      _secs = 60;
+      refreshAll();
+    }
+  }, 1000);
+}
+
+// Boot
+document.addEventListener('DOMContentLoaded', () => {
+  refreshAll().then(() => startCountdown());
+});
+</script>
+</body>
+</html>
