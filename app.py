@@ -858,6 +858,264 @@ def get_htf_bias(symbol: str) -> dict:
 
 
 # ═══════════════════════════════════════════════════════
+#  A: COT Report — CFTC JPY先物ポジション
+# ═══════════════════════════════════════════════════════
+_cot_cache: dict = {}
+COT_TTL = 86400 * 7  # 1週間キャッシュ（COTは週次データ）
+
+
+def fetch_cot_data() -> tuple:
+    """
+    CFTC COT（Commitments of Traders）レポートから JPY先物ポジション取得。
+    Non-commercial（投機筋）ネットポジションでUSD/JPY方向を判断。
+    Returns: (score [-1,+1], detail dict)
+    """
+    global _cot_cache
+    now = datetime.now()
+    if _cot_cache.get("ts") and (now - _cot_cache["ts"]).total_seconds() < COT_TTL:
+        return _cot_cache.get("score", 0.0), _cot_cache.get("detail", {})
+
+    import urllib.request as _ur, json as _js, urllib.parse as _up
+
+    endpoints = [
+        "https://publicreporting.cftc.gov/api/odata/v1/CorrectionsCommitmentsOfTraders",
+        "https://publicreporting.cftc.gov/api/odata/v1/CommitmentsOfTraders",
+    ]
+    mkt = "JAPANESE YEN - CHICAGO MERCANTILE EXCHANGE"
+    sel = ("Report_Date_as_YYYY_MM_DD,Noncomm_Positions_Long_All,"
+           "Noncomm_Positions_Short_All,Comm_Positions_Long_All,"
+           "Comm_Positions_Short_All")
+
+    for endpoint in endpoints:
+        try:
+            filter_str = f"Market_and_Exchange_Names eq '{mkt}'"
+            url = (f"{endpoint}?$filter={_up.quote(filter_str)}"
+                   f"&$orderby=Report_Date_as_YYYY_MM_DD%20desc"
+                   f"&$top=5&$select={sel}")
+            req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0",
+                                             "Accept": "application/json"})
+            with _ur.urlopen(req, timeout=10) as r:
+                data = _js.load(r)
+            records = data.get("value", [])
+            if not records:
+                continue
+            rec = records[0]
+            nc_long  = int(rec.get("Noncomm_Positions_Long_All",  0) or 0)
+            nc_short = int(rec.get("Noncomm_Positions_Short_All", 0) or 0)
+            cm_long  = int(rec.get("Comm_Positions_Long_All",     0) or 0)
+            cm_short = int(rec.get("Comm_Positions_Short_All",    0) or 0)
+
+            nc_net  = nc_long - nc_short   # 正=円買い
+            cm_net  = cm_long - cm_short
+
+            # JPY先物long=円高=USD/JPY下落 → スコア反転
+            nc_norm = max(-1.0, min(1.0,  nc_net / 80000.0))
+            cm_norm = max(-1.0, min(1.0, -cm_net / 80000.0))
+            score   = -(nc_norm * 0.6 + cm_norm * 0.4)
+
+            detail = {
+                "report_date": rec.get("Report_Date_as_YYYY_MM_DD", ""),
+                "nc_long": nc_long, "nc_short": nc_short, "nc_net": nc_net,
+                "cm_long": cm_long, "cm_short": cm_short, "cm_net": cm_net,
+                "source": "CFTC OData",
+            }
+            if   nc_net >  30000: detail["signal"] = "🔴 投機筋 大口円買い（USD/JPY 下落圧力）"
+            elif nc_net < -30000: detail["signal"] = "🟢 投機筋 大口円売り（USD/JPY 上昇圧力）"
+            elif nc_net >  10000: detail["signal"] = "🟠 投機筋 円買い優位"
+            elif nc_net < -10000: detail["signal"] = "🟡 投機筋 円売り優位"
+            else:                 detail["signal"] = "⚪ 投機筋 ポジション中立"
+
+            score = round(max(-1.0, min(1.0, score)), 4)
+            _cot_cache = {"score": score, "detail": detail, "ts": now}
+            return score, detail
+        except Exception as e:
+            print(f"[COT/{endpoint.split('/')[-1]}] {e}")
+            continue
+
+    detail = {"error": "COT取得失敗", "signal": "⚪ COTデータ取得不可（中立）"}
+    return 0.0, detail
+
+
+# ═══════════════════════════════════════════════════════
+#  B: Order Block Detection  (SMC オーダーブロック)
+# ═══════════════════════════════════════════════════════
+def detect_order_blocks(df: pd.DataFrame, atr_mult: float = 1.5,
+                        lookback: int = 80) -> tuple:
+    """
+    SMC Order Block:
+    - Bull OB: 強気インパルス直前の最後の陰線 → サポートゾーン
+    - Bear OB: 弱気インパルス直前の最後の陽線 → レジスタンスゾーン
+    Returns: (score [-1,+1], list of OB zone dicts)
+    """
+    if len(df) < 20:
+        return 0.0, []
+
+    sub      = df.tail(lookback)
+    atr_mean = float(sub["atr"].mean()) if float(sub["atr"].mean()) > 0 else 1e-4
+    closes   = sub["Close"].values
+    opens    = sub["Open"].values
+    highs    = sub["High"].values
+    lows     = sub["Low"].values
+    atrs     = sub["atr"].values
+    tidx     = sub.index
+    n        = len(sub)
+    ob_zones = []
+
+    for i in range(1, n - 2):
+        imp_i    = i + 1
+        imp_body = abs(closes[imp_i] - opens[imp_i])
+        imp_atr  = atrs[imp_i] if atrs[imp_i] > 0 else atr_mean
+        if imp_body < atr_mult * imp_atr:
+            continue  # インパルスキャンドル条件を満たさない
+
+        ts = tidx[i]
+        t  = int(ts.timestamp()) if hasattr(ts, "timestamp") else int(ts)
+
+        if closes[imp_i] > opens[imp_i]:    # 強気インパルス
+            if closes[i] < opens[i]:         # 直前陰線 → Bull OB
+                ob_zones.append({"type": "bull",
+                    "high": round(float(highs[i]), 3),
+                    "low":  round(float(lows[i]),  3),
+                    "time": t, "label": "🟩 Bull OB"})
+        elif closes[imp_i] < opens[imp_i]:  # 弱気インパルス
+            if closes[i] > opens[i]:         # 直前陽線 → Bear OB
+                ob_zones.append({"type": "bear",
+                    "high": round(float(highs[i]), 3),
+                    "low":  round(float(lows[i]),  3),
+                    "time": t, "label": "🟥 Bear OB"})
+
+    ob_zones = ob_zones[-10:]   # 最新10件
+    if not ob_zones:
+        return 0.0, []
+
+    current_price = float(df["Close"].iloc[-1])
+    current_atr   = float(df["atr"].iloc[-1])
+    score = 0.0
+    for ob in ob_zones[-5:]:
+        tol = current_atr * 0.5
+        if ob["type"] == "bull" and ob["low"] - tol <= current_price <= ob["high"] + tol:
+            score += 1.5
+        elif ob["type"] == "bear" and ob["low"] - tol <= current_price <= ob["high"] + tol:
+            score -= 1.5
+
+    return round(max(-1.0, min(1.0, score / 3.0)), 4), ob_zones
+
+
+# ═══════════════════════════════════════════════════════
+#  C: Fake Breakout / Stop Hunt Filter
+# ═══════════════════════════════════════════════════════
+def detect_fake_breakout(df: pd.DataFrame, sr_levels: list,
+                         lookback_candles: int = 8) -> tuple:
+    """
+    フェイクブレイクアウト（逆指値狩り）を検出。
+    ウィックがS/Rを超えたが実体が戻る → 逆方向への期待。
+    Returns: (score [-1,+1], list of signal strings)
+    """
+    if len(df) < 5 or not sr_levels:
+        return 0.0, []
+
+    recent  = df.tail(lookback_candles)
+    atr_val = float(df["atr"].iloc[-1])
+    score   = 0.0
+    signals = []
+    seen    = set()
+
+    for idx_i in range(len(recent)):
+        row = recent.iloc[idx_i]
+        h, l = float(row["High"]), float(row["Low"])
+        o, c = float(row["Open"]), float(row["Close"])
+        body_high = max(o, c)
+        body_low  = min(o, c)
+        weight = 1.5 if idx_i == len(recent) - 1 else 0.6
+
+        for level in sr_levels:
+            tol   = atr_val * 0.4
+            key_b = (round(level, 2), "bull")
+            key_r = (round(level, 2), "bear")
+
+            # Bull Fake Break: ウィックが level 以下まで伸び、実体は level 上で引け
+            if (l < level - tol and body_low > level - tol * 3
+                    and c > level and key_b not in seen):
+                seen.add(key_b)
+                score += weight
+                signals.append(f"🎣 強気フェイクブレイク (S:{level:.3f}) 逆指値狩り→反発期待")
+
+            # Bear Fake Break: ウィックが level 以上まで伸び、実体は level 下で引け
+            elif (h > level + tol and body_high < level + tol * 3
+                    and c < level and key_r not in seen):
+                seen.add(key_r)
+                score -= weight
+                signals.append(f"🎣 弱気フェイクブレイク (R:{level:.3f}) 逆指値狩り→下落期待")
+
+    return round(max(-1.0, min(1.0, score / 3.0)), 4), signals[:4]
+
+
+# ═══════════════════════════════════════════════════════
+#  D: Liquidity Map — Equal Highs / Equal Lows
+# ═══════════════════════════════════════════════════════
+def detect_liquidity_zones(df: pd.DataFrame, window: int = 5,
+                           tolerance_pct: float = 0.0012,
+                           lookback: int = 120) -> list:
+    """
+    均等高値（EQH）・均等安値（EQL）を検出してリクイディティゾーンを生成。
+    大口はこれらの逆指値集中帯を刈り取ってから反転する傾向。
+    Returns: list of {type, price, strength, time, label}
+    """
+    if len(df) < window * 4:
+        return []
+
+    sub  = df.tail(lookback)
+    H    = sub["High"].values
+    L    = sub["Low"].values
+    n    = len(sub)
+    tidx = sub.index
+
+    swing_highs: list = []
+    swing_lows:  list = []
+    for i in range(window, n - window):
+        if H[i] == H[max(0, i - window): i + window + 1].max():
+            swing_highs.append((i, float(H[i])))
+        if L[i] == L[max(0, i - window): i + window + 1].min():
+            swing_lows.append((i, float(L[i])))
+
+    def cluster_pts(pts):
+        if len(pts) < 2:
+            return []
+        sorted_p = sorted(pts, key=lambda x: x[1])
+        clusters, cur = [], [sorted_p[0]]
+        for pt in sorted_p[1:]:
+            ref = cur[0][1]
+            if ref > 0 and abs(pt[1] - ref) / ref <= tolerance_pct:
+                cur.append(pt)
+            else:
+                if len(cur) >= 2:
+                    clusters.append(cur)
+                cur = [pt]
+        if len(cur) >= 2:
+            clusters.append(cur)
+        return clusters
+
+    zones = []
+    for cl in cluster_pts(swing_highs)[-4:]:
+        avg_p = sum(p for _, p in cl) / len(cl)
+        max_i = max(i for i, _ in cl)
+        ts    = tidx[max_i]
+        t     = int(ts.timestamp()) if hasattr(ts, "timestamp") else int(ts)
+        zones.append({"type": "equal_high", "price": round(float(avg_p), 3),
+                      "strength": len(cl), "time": t,
+                      "label": f"EQH ×{len(cl)} 買い逆指値集中"})
+    for cl in cluster_pts(swing_lows)[-4:]:
+        avg_p = sum(p for _, p in cl) / len(cl)
+        max_i = max(i for i, _ in cl)
+        ts    = tidx[max_i]
+        t     = int(ts.timestamp()) if hasattr(ts, "timestamp") else int(ts)
+        zones.append({"type": "equal_low", "price": round(float(avg_p), 3),
+                      "strength": len(cl), "time": t,
+                      "label": f"EQL ×{len(cl)} 売り逆指値集中"})
+    return zones
+
+
+# ═══════════════════════════════════════════════════════
 #  Master signal aggregator
 # ═══════════════════════════════════════════════════════
 def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"):
@@ -878,6 +1136,10 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     fund_sc, fund_detail    = fundamental_score()               # ⑩ ファンダメンタル
     news_data               = get_news_sentiment()              # ⑪ ニュース
     dw_data                 = get_daily_weekly_direction(symbol) # ⑫ 大局観
+    cot_sc,  cot_detail     = fetch_cot_data()                  # A: COT大口ポジ
+    ob_sc,   ob_zones       = detect_order_blocks(df)            # B: OBゾーン
+    fb_sc,   fb_rsns        = detect_fake_breakout(df, sr_levels) # C: フェイクブレイク
+    liq_zones               = detect_liquidity_zones(df)         # D: 流動性ゾーン
 
     # ── Normalize each component to [-1, +1] ───────
     rule_n   = max(-1.0, min(1.0, rule_sc   / 8.0))
@@ -891,23 +1153,29 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     fund_n   = max(-1.0, min(1.0, fund_sc))
     news_n   = max(-1.0, min(1.0, float(news_data.get("score", 0.0))))
     dw_n     = max(-1.0, min(1.0, float(dw_data.get("overall_score", 0.0))))
+    cot_n    = max(-1.0, min(1.0, cot_sc))
+    ob_n     = max(-1.0, min(1.0, ob_sc))
+    fb_n     = max(-1.0, min(1.0, fb_sc))
 
     # ── Weighted combination ────────────────────────
-    #  rule 18%, candle 9%, dow 11%, vol 5%, div 5%,
-    #  mtf 14%, momentum 9%, institutional 11%, fundamental 8%,
-    #  news 5%, daily/weekly 5%
+    #  rule 15%, candle 8%, dow 10%, vol 4%, div 4%,
+    #  mtf 11%, momentum 8%, institutional 10%, fundamental 7%,
+    #  news 4%, daily/weekly 4%, COT 5%, OB 5%, FakeBreak 5%
     combined = (
-        rule_n   * 0.18 +
-        candle_n * 0.09 +
-        dow_n    * 0.11 +
-        vol_n    * 0.05 +
-        div_n    * 0.05 +
-        mtf_n    * 0.14 +
-        mom_n    * 0.09 +
-        inst_n   * 0.11 +
-        fund_n   * 0.08 +
-        news_n   * 0.05 +
-        dw_n     * 0.05
+        rule_n   * 0.15 +
+        candle_n * 0.08 +
+        dow_n    * 0.10 +
+        vol_n    * 0.04 +
+        div_n    * 0.04 +
+        mtf_n    * 0.11 +
+        mom_n    * 0.08 +
+        inst_n   * 0.10 +
+        fund_n   * 0.07 +
+        news_n   * 0.04 +
+        dw_n     * 0.04 +
+        cot_n    * 0.05 +
+        ob_n     * 0.05 +
+        fb_n     * 0.05
     )
 
     # ⑦ Session multiplier
@@ -976,6 +1244,9 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     dw_rsns = []
     if dw_data.get("bias"):
         dw_rsns.append(f"🔭 {dw_data['bias']}")
+    cot_rsns = []
+    if cot_detail.get("signal") and "中立" not in cot_detail.get("signal", ""):
+        cot_rsns.append(f"📋 COT: {cot_detail['signal']}")
 
     # Assemble reasons
     all_reasons = (
@@ -988,6 +1259,8 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
         fund_rsns +
         news_rsns +
         dw_rsns +
+        cot_rsns +
+        fb_rsns +
         ([session["label"]] if session["mult"] < 0.85 or session["mult"] >= 1.2 else [])
     )
 
@@ -1027,6 +1300,9 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
             "bb_pband": round(float(row["bb_pband"]), 3),
         },
         "reasons":  all_reasons,
+        "cot":       cot_detail,
+        "ob_zones":  ob_zones,
+        "liq_zones": liq_zones,
         "score_detail": {
             "rule":          round(rule_n,   3),
             "candle":        round(candle_n, 3),
@@ -1039,6 +1315,9 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
             "fundamental":   round(fund_n,   3),
             "news":          round(news_n,   3),
             "daily_weekly":  round(dw_n,     3),
+            "cot":           round(cot_n,    3),
+            "order_block":   round(ob_n,     3),
+            "fake_breakout": round(fb_n,     3),
             "combined":      round(combined, 3),
         },
     }
@@ -1491,9 +1770,12 @@ def api_chart():
                 "macd_sig":  round(float(row["macd_sig"]),   5),
                 "macd_hist": round(float(row["macd_hist"]),  5),
             })
-        markers = detect_large_player_markers(df_chart)
+        markers   = detect_large_player_markers(df_chart)
+        _, ob_zns = detect_order_blocks(df_chart)
+        liq_zns   = detect_liquidity_zones(df_chart)
         return jsonify({"candles": candles, "sr_levels": sr, "channel": ch,
-                        "lp_markers": markers})
+                        "lp_markers": markers, "ob_zones": ob_zns,
+                        "liq_zones": liq_zns})
     except Exception as e:
         import traceback
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500

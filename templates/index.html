@@ -222,6 +222,19 @@ body{background:var(--bg0);color:var(--t1);
 .btn-notif{padding:3px 10px;background:var(--bg2);border:1px solid var(--bg3);
   border-radius:5px;color:var(--t3);font-size:10px;cursor:pointer;white-space:nowrap}
 .btn-notif.on{background:rgba(63,185,80,.15);border-color:var(--green);color:var(--green)}
+
+/* ── COT / SMC cards ─────────────────────────── */
+.cot-bar{border-radius:6px;padding:6px 10px;font-size:11px;font-weight:700;
+  text-align:center;margin-bottom:8px}
+.cot-bull{background:rgba(63,185,80,.12);color:var(--green);border:1px solid rgba(63,185,80,.3)}
+.cot-bear{background:rgba(248,81,73,.1);color:var(--red);border:1px solid rgba(248,81,73,.28)}
+.cot-neu{background:var(--bg0);color:var(--t3);border:1px solid var(--bg3)}
+.smc-row{display:flex;justify-content:space-between;align-items:center;
+  padding:4px 8px;border-radius:5px;margin-bottom:3px;font-size:10px;
+  background:var(--bg0);border:1px solid var(--bg3)}
+.smc-bull{border-color:rgba(63,185,80,.35)!important;background:rgba(63,185,80,.06)!important}
+.smc-bear{border-color:rgba(248,81,73,.3)!important;background:rgba(248,81,73,.05)!important}
+.smc-liq{border-color:rgba(188,140,255,.3)!important;background:rgba(188,140,255,.05)!important}
 </style>
 </head>
 <body>
@@ -267,7 +280,10 @@ body{background:var(--bg0);color:var(--t1);
         <span style="color:rgba(56,139,253,.8)">- BB(20,2)</span>&nbsp;
         <span style="color:#f0883e">- - Channel</span>&nbsp;
         <span style="color:var(--red);opacity:.7">— R</span>&nbsp;
-        <span style="color:var(--green);opacity:.7">— S</span>
+        <span style="color:var(--green);opacity:.7">— S</span>&nbsp;
+        <span style="color:rgba(63,185,80,.65)">■OB↑</span>&nbsp;
+        <span style="color:rgba(248,81,73,.6)">■OB↓</span>&nbsp;
+        <span style="color:rgba(188,140,255,.7)">• Liq</span>
       </div>
       <div class="chart-inner" id="chart-price"></div>
       <div class="loading-overlay" id="ov-price"><div class="spinner"></div></div>
@@ -302,6 +318,21 @@ body{background:var(--bg0);color:var(--t1);
           <div class="htf-tf-rsi" id="htf-h4-rsi">RSI —</div>
         </div>
       </div>
+    </div>
+
+    <!-- COT（大口先物ポジション）-->
+    <div class="card">
+      <div class="card-title">📋 COT — CFTC 大口ポジション <span style="font-size:9px;color:var(--t4)">(週次)</span></div>
+      <div class="cot-bar cot-neu" id="cot-signal">— 読込中</div>
+      <div class="macro-row"><span class="macro-lbl">投機筋 NC Net</span><span id="cot-nc-net" class="macro-val">—</span></div>
+      <div class="macro-row"><span class="macro-lbl">商業筋 CM Net</span><span id="cot-cm-net" class="macro-val">—</span></div>
+      <div class="macro-row"><span class="macro-lbl">レポート日</span><span id="cot-date" class="macro-val" style="font-size:10px">—</span></div>
+    </div>
+
+    <!-- SMC（オーダーブロック + 流動性ゾーン）-->
+    <div class="card">
+      <div class="card-title">🧱 SMC — オーダーブロック / 流動性</div>
+      <div id="smc-list"><div style="color:var(--t3);font-size:11px">読込中...</div></div>
     </div>
 
     <!-- Main signal -->
@@ -359,6 +390,9 @@ body{background:var(--bg0);color:var(--t1);
         <div class="score-cell"><div class="sc-label">📊 ファンダメンタル</div><div class="sc-bar-wrap"><div class="sc-bar-fill" id="sb-fund" style="width:50%"></div></div><div class="sc-val" id="sv-fund">—</div></div>
         <div class="score-cell"><div class="sc-label">📰 ニュース</div><div class="sc-bar-wrap"><div class="sc-bar-fill" id="sb-news" style="width:50%"></div></div><div class="sc-val" id="sv-news">—</div></div>
         <div class="score-cell"><div class="sc-label">🔭 日足・週足</div><div class="sc-bar-wrap"><div class="sc-bar-fill" id="sb-dw" style="width:50%"></div></div><div class="sc-val" id="sv-dw">—</div></div>
+        <div class="score-cell"><div class="sc-label">📋 COT大口ポジ</div><div class="sc-bar-wrap"><div class="sc-bar-fill" id="sb-cot" style="width:50%"></div></div><div class="sc-val" id="sv-cot">—</div></div>
+        <div class="score-cell"><div class="sc-label">🧱 OBゾーン</div><div class="sc-bar-wrap"><div class="sc-bar-fill" id="sb-ob" style="width:50%"></div></div><div class="sc-val" id="sv-ob">—</div></div>
+        <div class="score-cell"><div class="sc-label">🎣 フェイクブレイク</div><div class="sc-bar-wrap"><div class="sc-bar-fill" id="sb-fb" style="width:50%"></div></div><div class="sc-val" id="sv-fb">—</div></div>
       </div>
     </div>
 
@@ -482,10 +516,65 @@ const chMS  = pChart.addLineSeries({color:'rgba(255,255,255,.18)',lineWidth:1,li
 
 let lineE=null,lineSL=null,lineTP=null;
 let srLines=[];
+let obLines=[];
+let liqLines=[];
 
 function clearSrLines(){
   srLines.forEach(l=>{try{candleS.removePriceLine(l)}catch(_){}});
   srLines=[];
+}
+function clearObLines(){
+  obLines.forEach(l=>{try{candleS.removePriceLine(l)}catch(_){}});
+  obLines=[];
+}
+function clearLiqLines(){
+  liqLines.forEach(l=>{try{candleS.removePriceLine(l)}catch(_){}});
+  liqLines=[];
+}
+function drawObZones(zones){
+  clearObLines();
+  if(!zones||!zones.length)return;
+  zones.slice(-6).forEach(ob=>{
+    const isBull=ob.type==='bull';
+    const col=isBull?'rgba(63,185,80,.6)':'rgba(248,81,73,.55)';
+    obLines.push(candleS.createPriceLine({price:ob.high,color:col,lineWidth:1,
+      lineStyle:LightweightCharts.LineStyle.Solid,axisLabelVisible:false,
+      title:isBull?'■OB↑':'■OB↓'}));
+    obLines.push(candleS.createPriceLine({price:ob.low,color:col,lineWidth:1,
+      lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:false,title:''}));
+  });
+}
+function drawLiqZones(zones){
+  clearLiqLines();
+  if(!zones||!zones.length)return;
+  zones.forEach(z=>{
+    liqLines.push(candleS.createPriceLine({
+      price:z.price,color:'rgba(188,140,255,.65)',lineWidth:1,
+      lineStyle:LightweightCharts.LineStyle.Dotted,axisLabelVisible:true,
+      title:z.type==='equal_high'?`EQH×${z.strength}`:`EQL×${z.strength}`
+    }));
+  });
+}
+function updateSmcCard(obZones,liqZones){
+  const box=document.getElementById('smc-list');
+  if(!box)return;
+  const items=[];
+  if(obZones&&obZones.length){
+    obZones.slice(-5).forEach(ob=>{
+      const isBull=ob.type==='bull';
+      const cls=isBull?'smc-bull':'smc-bear';
+      items.push(`<div class="smc-row ${cls}"><span>${ob.label}</span>`+
+        `<span style="font-family:'SF Mono',monospace">${ob.low.toFixed(3)}–${ob.high.toFixed(3)}</span></div>`);
+    });
+  }
+  if(liqZones&&liqZones.length){
+    liqZones.forEach(z=>{
+      const icon=z.type==='equal_high'?'🔴':'🟢';
+      items.push(`<div class="smc-row smc-liq"><span>${icon} ${z.label}</span>`+
+        `<span style="font-family:'SF Mono',monospace;color:#bc8cff">${z.price.toFixed(3)}</span></div>`);
+    });
+  }
+  box.innerHTML=items.length?items.join(''):'<div style="color:var(--t3);font-size:11px">SMCゾーン検出なし</div>';
 }
 function addSrLines(levels,cp){
   clearSrLines();
@@ -555,7 +644,7 @@ async function loadChartData(){
     const r=await fetch(`/api/chart?tf=${currentTf}`);
     const data=await r.json();
     if(data.error) throw new Error(data.error);
-    const {candles,sr_levels,channel,lp_markers}=data;
+    const {candles,sr_levels,channel,lp_markers,ob_zones,liq_zones}=data;
 
     candleS.setData(candles.map(d=>({time:d.time,open:d.open,high:d.high,low:d.low,close:d.close})));
     e9S .setData(candles.map(d=>({time:d.time,value:d.ema9})));
@@ -619,6 +708,11 @@ async function loadChartData(){
       }).join('');
       document.getElementById('sr-list').innerHTML=html||'<div style="color:var(--t3);font-size:11px">なし</div>';
     }
+
+    // OB zones & Liquidity zones
+    drawObZones(ob_zones||[]);
+    drawLiqZones(liq_zones||[]);
+    updateSmcCard(ob_zones||[],liq_zones||[]);
 
     // Scroll
     [pChart,rChart,mChart].forEach(c=>c.timeScale().scrollToRealTime());
@@ -733,6 +827,24 @@ async function loadSignal(){
       renderScoreBar('sb-fund',  'sv-fund',   sd.fundamental!=null?sd.fundamental:0);
       renderScoreBar('sb-news',  'sv-news',   sd.news!=null?sd.news:0);
       renderScoreBar('sb-dw',    'sv-dw',     sd.daily_weekly!=null?sd.daily_weekly:0);
+      if(sd.cot!=null)          renderScoreBar('sb-cot','sv-cot', sd.cot);
+      if(sd.order_block!=null)  renderScoreBar('sb-ob', 'sv-ob',  sd.order_block);
+      if(sd.fake_breakout!=null)renderScoreBar('sb-fb', 'sv-fb',  sd.fake_breakout);
+    }
+
+    // COT card
+    if(d.cot){
+      const cot=d.cot;
+      const cotEl=document.getElementById('cot-signal');
+      if(cotEl){
+        cotEl.textContent=cot.signal||'—';
+        const nc=cot.nc_net||0;
+        cotEl.className='cot-bar '+(nc>10000?'cot-bear':nc<-10000?'cot-bull':'cot-neu');
+      }
+      const setC=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v||'—';};
+      setC('cot-nc-net', cot.nc_net!=null?(cot.nc_net>0?'+':'')+cot.nc_net.toLocaleString():cot.error||'取得中');
+      setC('cot-cm-net', cot.cm_net!=null?(cot.cm_net>0?'+':'')+cot.cm_net.toLocaleString():'—');
+      setC('cot-date',   cot.report_date||cot.error||'—');
     }
 
     // News card (from signal response)
