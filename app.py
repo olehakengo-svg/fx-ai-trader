@@ -57,7 +57,25 @@ MTF_HIGHER = {
 
 # Caches
 _data_cache:  dict = {}  # (symbol,interval,period) -> (df, timestamp)
-CACHE_TTL = 300          # 5 min data cache
+_bt_cache:    dict = {}  # backtest result cache
+_news_cache:  dict = {}  # news sentiment cache
+CACHE_TTL    = 300       # 5 min data cache
+BT_CACHE_TTL = 21600     # 6 hour backtest cache
+NEWS_TTL     = 1800      # 30 min news cache
+
+# Swing-mode ATR multipliers per timeframe
+TF_SL_MULT = {
+    "1m": 1.5, "5m": 1.5, "15m": 1.5, "30m": 1.8,
+    "1h": 2.2, "4h": 2.5, "1d": 3.0, "1w": 3.5, "1M": 4.0,
+}
+TF_TP_MULT = {
+    "1m": 2.5, "5m": 2.5, "15m": 2.5, "30m": 3.0,
+    "1h": 3.3, "4h": 3.8, "1d": 5.0, "1w": 6.0, "1M": 7.0,
+}
+TF_MIN_RR = {
+    "1m": 1.2, "5m": 1.2, "15m": 1.3, "30m": 1.4,
+    "1h": 1.5, "4h": 1.6, "1d": 1.8, "1w": 1.8, "1M": 2.0,
+}
 
 
 # ═══════════════════════════════════════════════════════
@@ -472,29 +490,36 @@ def find_parallel_channel(df, window=5, lookback=100):
 # ═══════════════════════════════════════════════════════
 #  ⑥ S/R スナップ SL/TP
 # ═══════════════════════════════════════════════════════
-def calc_sl_tp_v3(entry: float, signal: str, atr: float, sr_levels: list):
-    """SL/TP calculation snapped to nearest S/R level."""
+def calc_sl_tp_v3(entry: float, signal: str, atr: float, sr_levels: list,
+                  tf: str = "1m"):
+    """
+    SL/TP calculation snapped to nearest S/R level.
+    ATR multipliers scale with timeframe (larger = swing-style).
+    """
+    sl_mult  = TF_SL_MULT.get(tf, 1.5)
+    tp_mult  = TF_TP_MULT.get(tf, 2.5)
+    min_rr   = TF_MIN_RR.get(tf, 1.2)
+
     if signal == "BUY":
-        raw_sl = entry - atr * 1.5
-        raw_tp = entry + atr * 2.5
+        raw_sl = entry - atr * sl_mult
+        raw_tp = entry + atr * tp_mult
         sl_candidates = [l for l in sr_levels if l < entry - atr * 0.3]
         tp_candidates = [l for l in sr_levels if l > entry + atr * 0.5]
         sl = max(sl_candidates) - atr * 0.15 if sl_candidates else raw_sl
         tp = min(tp_candidates) - atr * 0.10 if tp_candidates else raw_tp
     else:  # SELL
-        raw_sl = entry + atr * 1.5
-        raw_tp = entry - atr * 2.5
+        raw_sl = entry + atr * sl_mult
+        raw_tp = entry - atr * tp_mult
         sl_candidates = [l for l in sr_levels if l > entry + atr * 0.3]
         tp_candidates = [l for l in sr_levels if l < entry - atr * 0.5]
         sl = min(sl_candidates) + atr * 0.15 if sl_candidates else raw_sl
         tp = max(tp_candidates) + atr * 0.10 if tp_candidates else raw_tp
 
-    # Ensure minimum RR of 1.2
-    if abs(tp - entry) < abs(sl - entry) * 1.2:
-        if signal == "BUY":
-            tp = entry + abs(sl - entry) * 1.5
-        else:
-            tp = entry - abs(sl - entry) * 1.5
+    # Ensure minimum RR
+    if abs(tp - entry) < abs(sl - entry) * min_rr:
+        tp = (entry + abs(sl - entry) * (min_rr + 0.3)
+              if signal == "BUY"
+              else entry - abs(sl - entry) * (min_rr + 0.3))
 
     return round(sl, 3), round(tp, 3)
 
@@ -747,8 +772,10 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     mtf_sc,     mtf_details = mtf_confluence(symbol, tf)
     session                 = get_session_info()
     mom_sc                  = momentum_score(df)
-    inst_sc, inst_detail    = institutional_flow_score()   # ⑨ 大口フロー
-    fund_sc, fund_detail    = fundamental_score()          # ⑩ ファンダメンタル
+    inst_sc, inst_detail    = institutional_flow_score()        # ⑨ 大口フロー
+    fund_sc, fund_detail    = fundamental_score()               # ⑩ ファンダメンタル
+    news_data               = get_news_sentiment()              # ⑪ ニュース
+    dw_data                 = get_daily_weekly_direction(symbol) # ⑫ 大局観
 
     # ── Normalize each component to [-1, +1] ───────
     rule_n   = max(-1.0, min(1.0, rule_sc   / 8.0))
@@ -760,24 +787,36 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     mom_n    = max(-1.0, min(1.0, mom_sc))
     inst_n   = max(-1.0, min(1.0, inst_sc))
     fund_n   = max(-1.0, min(1.0, fund_sc))
+    news_n   = max(-1.0, min(1.0, float(news_data.get("score", 0.0))))
+    dw_n     = max(-1.0, min(1.0, float(dw_data.get("overall_score", 0.0))))
 
     # ── Weighted combination ────────────────────────
-    #  rule 20%, candle 10%, dow 12%, vol 6%, div 6%,
-    #  mtf 15%, momentum 10%, institutional 12%, fundamental 9%
+    #  rule 18%, candle 9%, dow 11%, vol 5%, div 5%,
+    #  mtf 14%, momentum 9%, institutional 11%, fundamental 8%,
+    #  news 5%, daily/weekly 5%
     combined = (
-        rule_n   * 0.20 +
-        candle_n * 0.10 +
-        dow_n    * 0.12 +
-        vol_n    * 0.06 +
-        div_n    * 0.06 +
-        mtf_n    * 0.15 +
-        mom_n    * 0.10 +
-        inst_n   * 0.12 +
-        fund_n   * 0.09
+        rule_n   * 0.18 +
+        candle_n * 0.09 +
+        dow_n    * 0.11 +
+        vol_n    * 0.05 +
+        div_n    * 0.05 +
+        mtf_n    * 0.14 +
+        mom_n    * 0.09 +
+        inst_n   * 0.11 +
+        fund_n   * 0.08 +
+        news_n   * 0.05 +
+        dw_n     * 0.05
     )
 
     # ⑦ Session multiplier
     combined *= session["mult"]
+
+    # ── 日足・週足 逆方向フィルター（スイング時）──────────────
+    # 1H/4H/1D でdw_scoreが強く反対 → 信頼度を抑制
+    if tf in ("1h", "4h", "1d"):
+        dw_overall = float(dw_data.get("overall_score", 0.0))
+        if (combined > 0 and dw_overall < -0.5) or (combined < 0 and dw_overall > 0.5):
+            combined *= 0.6  # 大局逆行 → 信頼度60%に抑制
 
     # ⑧ Strict threshold
     THRESHOLD = 0.28
@@ -786,24 +825,31 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     elif combined < -THRESHOLD: signal, conf = "SELL", int(min(95, 50 + abs(combined) * 55))
     else:                       signal, conf = "WAIT", int(max(25, 50 - abs(combined) * 40))
 
-    # ⑥ S/R-snapped SL/TP
+    # ⑥ S/R-snapped SL/TP（TF対応スイングモード）
     act_signal = signal if signal != "WAIT" else "BUY"
-    sl, tp = calc_sl_tp_v3(entry, act_signal, atr, sr_levels)
+    sl, tp = calc_sl_tp_v3(entry, act_signal, atr, sr_levels, tf=tf)
     rr     = round(abs(tp - entry) / max(abs(sl - entry), 1e-6), 2)
 
-    # ── Institutional / Fundamental reasons ────────
+    # ── Institutional / Fundamental / News reasons ───
     inst_rsns = []
-    if inst_detail.get("dxy_trend"):
-        inst_rsns.append(f"🏦 DXY: {inst_detail['dxy_trend']}" +
-                         (f" ({inst_detail['dxy']})" if "dxy" in inst_detail else ""))
-    if inst_detail.get("jpy_futures"):
-        inst_rsns.append(f"🏦 JPY先物: {inst_detail['jpy_futures']}")
+    if inst_detail.get("jpy_direction"):
+        inst_rsns.append(f"🏦 JPY先物: {inst_detail['jpy_direction']}")
+    if inst_detail.get("dxy_flow"):
+        inst_rsns.append(f"🏦 DXY({inst_detail.get('dxy','?')}): {inst_detail['dxy_flow']}")
+    if inst_detail.get("vix_signal"):
+        inst_rsns.append(f"😨 VIX({inst_detail.get('vix','?')}): {inst_detail['vix_signal']}")
     fund_rsns = []
     if fund_detail.get("rate_trend"):
         fund_rsns.append(f"📊 米10年債: {fund_detail['rate_trend']}" +
                          (f" ({fund_detail['us10y']}%)" if "us10y" in fund_detail else ""))
     if fund_detail.get("spread") is not None:
         fund_rsns.append(f"📊 米日金利差: {fund_detail['spread']}%")
+    news_rsns = []
+    if news_data.get("sentiment"):
+        news_rsns.append(f"📰 ニュース: {news_data['sentiment']}")
+    dw_rsns = []
+    if dw_data.get("bias"):
+        dw_rsns.append(f"🔭 {dw_data['bias']}")
 
     # Assemble reasons
     all_reasons = (
@@ -814,6 +860,8 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
         div_rsns +
         inst_rsns +
         fund_rsns +
+        news_rsns +
+        dw_rsns +
         ([session["label"]] if session["mult"] < 0.85 or session["mult"] >= 1.2 else [])
     )
 
@@ -835,6 +883,9 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
         "dow_trend":     dow_rsn,
         "institutional": inst_detail,
         "fundamental":   fund_detail,
+        "news":          news_data,
+        "daily_weekly":  dw_data,
+        "swing_mode":    tf in ("1h", "4h", "1d", "1w"),
         "indicators": {
             "ema9":     round(float(row["ema9"]),  3),
             "ema21":    round(float(row["ema21"]), 3),
@@ -859,9 +910,278 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
             "momentum":      round(mom_n,    3),
             "institutional": round(inst_n,   3),
             "fundamental":   round(fund_n,   3),
+            "news":          round(news_n,   3),
+            "daily_weekly":  round(dw_n,     3),
             "combined":      round(combined, 3),
         },
     }
+
+
+# ═══════════════════════════════════════════════════════
+#  日足・週足 大局方向確認（スイング用）
+# ═══════════════════════════════════════════════════════
+def get_daily_weekly_direction(symbol: str = "USDJPY=X") -> dict:
+    """
+    日足・週足のトレンド方向を返す。
+    スイングトレードの大局観フィルターとして使用。
+    """
+    result = {}
+    try:
+        # 日足 (EMA50 + EMA21 + RSI)
+        d = fetch_ohlcv(symbol, period="1y",  interval="1d")
+        d = add_indicators(d)
+        dr = d.iloc[-1]
+        daily_dir = 1.0 if float(dr["Close"]) > float(dr["ema50"]) else -1.0
+        daily_rsi = round(float(dr["rsi"]), 1)
+        daily_macd = "強気" if float(dr["macd_hist"]) > 0 else "弱気"
+        result["daily"] = {
+            "trend":    "上昇" if daily_dir > 0 else "下落",
+            "score":    daily_dir,
+            "rsi":      daily_rsi,
+            "macd":     daily_macd,
+            "ema50":    round(float(dr["ema50"]), 3),
+        }
+    except Exception as e:
+        print(f"[DW/daily] {e}")
+
+    try:
+        # 週足 (EMA21)
+        w = fetch_ohlcv(symbol, period="5y",  interval="1wk")
+        w = add_indicators(w)
+        wr = w.iloc[-1]
+        weekly_dir = 1.0 if float(wr["Close"]) > float(wr["ema21"]) else -1.0
+        weekly_rsi = round(float(wr["rsi"]), 1)
+        result["weekly"] = {
+            "trend":  "上昇" if weekly_dir > 0 else "下落",
+            "score":  weekly_dir,
+            "rsi":    weekly_rsi,
+            "ema21":  round(float(wr["ema21"]), 3),
+        }
+    except Exception as e:
+        print(f"[DW/weekly] {e}")
+
+    # 大局スコア（日60% 週40%）
+    d_s = result.get("daily",  {}).get("score", 0.0)
+    w_s = result.get("weekly", {}).get("score", 0.0)
+    overall = round(d_s * 0.6 + w_s * 0.4, 2)
+    if overall > 0.2:
+        bias = "📈 大局：買い優位（日足・週足上昇）"
+    elif overall < -0.2:
+        bias = "📉 大局：売り優位（日足・週足下落）"
+    else:
+        bias = "⚖️ 大局：中立（混在）"
+    result["overall_score"] = overall
+    result["bias"] = bias
+    return result
+
+
+# ═══════════════════════════════════════════════════════
+#  ニュースセンチメント（yfinance news + Yahoo RSS）
+# ═══════════════════════════════════════════════════════
+def get_news_sentiment() -> dict:
+    """
+    USD/JPY関連ニュースを取得しキーワードベースでセンチメント判定。
+    30分キャッシュ。
+    """
+    global _news_cache
+    now = datetime.now()
+    if _news_cache.get("ts") and (now - _news_cache["ts"]).total_seconds() < NEWS_TTL:
+        return _news_cache["result"]
+
+    headlines = []
+    try:
+        for sym in ["USDJPY=X", "JPY=X", "DX-Y.NYB"]:
+            try:
+                items = yf.Ticker(sym).news or []
+                for it in items[:6]:
+                    t = (it.get("title") or
+                         (it.get("content") or {}).get("title") or "")
+                    if t and t not in headlines:
+                        headlines.append(t)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # Yahoo Finance RSS フォールバック
+    if len(headlines) < 3:
+        try:
+            import urllib.request, xml.etree.ElementTree as ET
+            url = ("https://feeds.finance.yahoo.com/rss/2.0/headline"
+                   "?s=USDJPY%3DX&region=US&lang=en-US")
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=5) as r:
+                root = ET.parse(r).getroot()
+                for item in root.iter("item"):
+                    el = item.find("title")
+                    if el is not None and el.text and el.text not in headlines:
+                        headlines.append(el.text)
+        except Exception:
+            pass
+
+    headlines = list(dict.fromkeys(headlines))[:10]
+
+    # キーワードスコアリング
+    BULL = ["hawkish", "rate hike", "strong dollar", "dollar gains", "usd rises",
+            "fed hike", "yields rise", "risk on", "円安", "ドル高", "利上げ",
+            "buy usd", "usd strength", "dollar rally", "positive"]
+    BEAR = ["dovish", "rate cut", "weak dollar", "dollar drops", "usd falls",
+            "fed cut", "yields fall", "risk off", "recession", "slowdown",
+            "円高", "ドル安", "利下げ", "safe haven", "sell usd", "usd weakness"]
+    score = 0.0
+    for h in headlines:
+        hl = h.lower()
+        for kw in BULL:
+            if kw in hl: score += 1.0
+        for kw in BEAR:
+            if kw in hl: score -= 1.0
+
+    n = max(len(headlines), 1)
+    score = max(-1.0, min(1.0, score / n))
+
+    if   score >  0.15: sentiment = "📈 USD強気（円安方向）"
+    elif score < -0.15: sentiment = "📉 USD弱気（円高方向）"
+    else:               sentiment = "⚖️ 中立"
+
+    result = {
+        "score":     round(score, 3),
+        "sentiment": sentiment,
+        "headlines": headlines[:5],
+        "count":     len(headlines),
+    }
+    _news_cache["result"] = result
+    _news_cache["ts"]     = now
+    return result
+
+
+# ═══════════════════════════════════════════════════════
+#  バックテスト（1H / 90日・勝率・期待値算出）
+# ═══════════════════════════════════════════════════════
+def run_backtest(symbol: str = "USDJPY=X",
+                 lookback_days: int = 90) -> dict:
+    """
+    1H足を使ったシンプルなバックテスト。
+    - ルールベースシグナル × 日足EMAフィルター
+    - スプレッド3pip考慮
+    - SL: 2.2×ATR, TP: 3.3×ATR（1H スイング設定）
+    - 最大保有: 48時間
+    6時間キャッシュ。
+    """
+    global _bt_cache
+    now = datetime.now()
+    if _bt_cache.get("ts") and (now - _bt_cache["ts"]).total_seconds() < BT_CACHE_TTL:
+        return _bt_cache["result"]
+
+    try:
+        df = fetch_ohlcv(symbol, period=f"{lookback_days}d", interval="1h")
+        df = add_indicators(df)
+        df = df.dropna()
+        if len(df) < 100:
+            return {"error": "データ不足"}
+
+        # 日足EMAで大局フィルター取得
+        try:
+            d_df = fetch_ohlcv(symbol, period="1y", interval="1d")
+            d_df = add_indicators(d_df)
+            # 1H dataframeの日付に対応する日足EMA50を付与
+            d_ema50 = d_df["ema50"].resample("1H").ffill() if hasattr(d_df.index, "freq") else d_df["ema50"]
+        except Exception:
+            d_ema50 = None
+
+        SPREAD   = 0.030   # 3 pips
+        SL_MULT  = TF_SL_MULT["1h"]  # 2.2
+        TP_MULT  = TF_TP_MULT["1h"]  # 3.3
+        MAX_HOLD = 48      # bars (hours)
+        MIN_SCORE= 3.5     # rule_signal閾値
+
+        trades = []
+        for i in range(50, len(df) - MAX_HOLD - 1):
+            row = df.iloc[i]
+            rule_sc, _ = rule_signal(row)
+            if abs(rule_sc) < MIN_SCORE:
+                continue
+
+            # 日足EMAフィルター（逆張り排除）
+            ema21_prev = float(df["ema21"].iloc[i - 5])
+            ema21_cur  = float(row["ema21"])
+            ema_trend  = 1.0 if ema21_cur > ema21_prev else -1.0
+            sig_dir    = 1.0 if rule_sc > 0 else -1.0
+            if sig_dir != ema_trend:
+                continue
+
+            signal = "BUY" if rule_sc > 0 else "SELL"
+            entry  = float(row["Close"])
+            atr    = float(row["atr"])
+            if atr <= 0:
+                continue
+
+            # Apply spread
+            if signal == "BUY":
+                ep = entry + SPREAD / 2
+                sl = ep - atr * SL_MULT
+                tp = ep + atr * TP_MULT
+            else:
+                ep = entry - SPREAD / 2
+                sl = ep + atr * SL_MULT
+                tp = ep - atr * TP_MULT
+
+            # Forward test
+            outcome   = None
+            bars_held = 0
+            for j in range(1, MAX_HOLD + 1):
+                fut = df.iloc[i + j]
+                hi  = float(fut["High"])
+                lo  = float(fut["Low"])
+                if signal == "BUY":
+                    if hi >= tp: outcome = "WIN";  bars_held = j; break
+                    if lo <= sl: outcome = "LOSS"; bars_held = j; break
+                else:
+                    if lo <= tp: outcome = "WIN";  bars_held = j; break
+                    if hi >= sl: outcome = "LOSS"; bars_held = j; break
+
+            if outcome:
+                trades.append({
+                    "outcome":   outcome,
+                    "bars_held": bars_held,
+                    "rr_actual": round(TP_MULT / SL_MULT, 2),
+                })
+
+        if len(trades) < 10:
+            result = {"error": "サンプル数不足 (最低10トレード必要)",
+                      "trades": len(trades)}
+        else:
+            wins  = sum(1 for t in trades if t["outcome"] == "WIN")
+            total = len(trades)
+            wr    = round(wins / total * 100, 1)
+            avg_h = round(sum(t["bars_held"] for t in trades) / total, 1)
+            rr    = round(TP_MULT / SL_MULT, 2)
+            ev    = round((wr / 100 * TP_MULT) - ((1 - wr / 100) * SL_MULT), 3)
+
+            if   ev > 0.3: verdict = "✅ 期待値プラス（推奨）"
+            elif ev > 0:   verdict = "🟡 期待値わずかプラス（要注意）"
+            else:          verdict = "❌ 期待値マイナス（不推奨）"
+
+            result = {
+                "win_rate":        wr,
+                "trades":          total,
+                "wins":            wins,
+                "losses":          total - wins,
+                "rr":              rr,
+                "avg_hold_hours":  avg_h,
+                "expected_value":  ev,
+                "verdict":         verdict,
+                "period":          f"過去{lookback_days}日",
+                "sl_mult":         SL_MULT,
+                "tp_mult":         TP_MULT,
+            }
+
+        _bt_cache["result"] = result
+        _bt_cache["ts"]     = now
+        return result
+    except Exception as e:
+        import traceback
+        print(f"[BACKTEST] {traceback.format_exc()}")
+        return {"error": str(e)}
 
 
 # ═══════════════════════════════════════════════════════
@@ -979,10 +1299,32 @@ def api_chart():
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 
+@app.route("/api/backtest")
+def api_backtest():
+    """バックテスト結果（6時間キャッシュ）"""
+    try:
+        result = run_backtest("USDJPY=X", lookback_days=90)
+        return jsonify(result)
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@app.route("/api/news")
+def api_news():
+    """最新ニュース・センチメント（30分キャッシュ）"""
+    try:
+        result = get_news_sentiment()
+        dw     = get_daily_weekly_direction("USDJPY=X")
+        return jsonify({"news": result, "daily_weekly": dw})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print("=" * 55)
-    print("  FX AI Trader v3  —  USD/JPY Multi-TF Dashboard")
+    print("  FX AI Trader v5  —  USD/JPY Swing Day Trade")
     print(f"  http://localhost:{port}")
     print("=" * 55)
     app.run(debug=False, port=port, host="0.0.0.0")
