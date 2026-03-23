@@ -6,117 +6,116 @@
 <title>FX AI Trader — USD/JPY</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
-/* ─── Reset & base ─────────────────────────────── */
+/* ─── Reset ────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg0:   #0d1117;
-  --bg1:   #161b22;
-  --bg2:   #21262d;
-  --bg3:   #30363d;
-  --text1: #e6edf3;
-  --text2: #c9d1d9;
-  --text3: #8b949e;
-  --text4: #484f58;
-  --blue:  #58a6ff;
-  --green: #3fb950;
-  --red:   #f85149;
-  --gold:  #e3b341;
-  --purple:#bc8cff;
-  --border:#21262d;
-  font-size: 13px;
+  --bg0:    #0d1117;
+  --bg1:    #161b22;
+  --bg2:    #21262d;
+  --bg3:    #30363d;
+  --text1:  #e6edf3;
+  --text2:  #c9d1d9;
+  --text3:  #8b949e;
+  --text4:  #484f58;
+  --blue:   #58a6ff;
+  --green:  #3fb950;
+  --red:    #f85149;
+  --gold:   #e3b341;
+  --orange: #f0883e;
+  --purple: #bc8cff;
 }
 html, body { height: 100%; overflow: hidden; }
 body {
   background: var(--bg0);
   color: var(--text1);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
-  display: flex;
-  flex-direction: column;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  display: flex; flex-direction: column;
+  font-size: 13px;
 }
 
 /* ─── Header ───────────────────────────────────── */
 .header {
-  flex-shrink: 0;
-  height: 52px;
+  flex-shrink: 0; height: 52px;
   background: var(--bg1);
   border-bottom: 1px solid var(--bg3);
-  display: flex;
-  align-items: center;
-  padding: 0 18px;
-  gap: 18px;
+  display: flex; align-items: center;
+  padding: 0 14px; gap: 12px;
 }
-.header-logo { font-size: 15px; font-weight: 700; color: var(--blue); white-space: nowrap; }
-.header-logo span { color: var(--text3); font-weight: 400; font-size: 12px; margin-left: 4px; }
-.header-price {
-  font-size: 22px; font-weight: 700;
+.logo { font-size: 14px; font-weight: 700; color: var(--blue); white-space: nowrap; }
+.logo small { color: var(--text3); font-weight: 400; font-size: 11px; margin-left: 3px; }
+
+.hdr-price {
+  font-size: 20px; font-weight: 700;
   font-family: 'SF Mono', 'Courier New', monospace;
-  transition: color .3s;
 }
-.price-up   { color: var(--green); }
-.price-down { color: var(--red); }
-.price-neutral { color: var(--text1); }
-.header-change { font-size: 12px; }
+.hdr-price.up   { color: var(--green); }
+.hdr-price.down { color: var(--red); }
+
+.hdr-chg { font-size: 11px; }
+
+/* Timeframe bar */
+.tf-bar { display: flex; gap: 3px; background: var(--bg0); border-radius: 6px; padding: 3px; }
+.tf-btn {
+  padding: 4px 8px; border: none; border-radius: 4px;
+  background: transparent; color: var(--text3);
+  font-size: 11px; font-weight: 700; cursor: pointer;
+  transition: all .15s;
+}
+.tf-btn:hover  { background: var(--bg2); color: var(--text1); }
+.tf-btn.active { background: var(--blue); color: #fff; }
+
+/* badge */
 .badge {
-  padding: 3px 9px; border-radius: 10px;
-  font-size: 11px; font-weight: 700; letter-spacing: .5px;
+  padding: 3px 8px; border-radius: 10px;
+  font-size: 10px; font-weight: 700; letter-spacing: .4px;
 }
-.badge-live    { background:#1a4731; color:var(--green); }
-.badge-loading { background:var(--bg2); color:var(--text3); }
-.badge-error   { background:#3d0000; color:var(--red); }
-.header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
-.countdown-wrap { color: var(--text3); font-size: 12px; }
+.badge-live    { background: #1a4731; color: var(--green); }
+.badge-loading { background: var(--bg2); color: var(--text3); }
+.badge-error   { background: #3d0000; color: var(--red); }
+
+.hdr-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.countdown { color: var(--text3); font-size: 11px; white-space: nowrap; }
 .btn-refresh {
-  padding: 5px 14px; background: var(--bg2);
+  padding: 4px 12px; background: var(--bg2);
   border: 1px solid var(--bg3); border-radius: 6px;
-  color: var(--text2); font-size: 12px; cursor: pointer;
-  transition: background .2s, border-color .2s;
+  color: var(--text2); font-size: 11px; cursor: pointer;
+  transition: background .2s;
 }
-.btn-refresh:hover { background: var(--bg3); border-color: var(--blue); }
+.btn-refresh:hover    { background: var(--bg3); }
 .btn-refresh:disabled { opacity: .4; cursor: default; }
 
 /* ─── Main layout ──────────────────────────────── */
-.main {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-  min-height: 0;
-}
+.main { flex: 1; display: flex; overflow: hidden; min-height: 0; }
 
-/* ─── Charts column ────────────────────────────── */
-.charts-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  min-width: 0;
-}
+/* ─── Charts ───────────────────────────────────── */
+.charts-col { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
 
 .chart-wrap {
   position: relative;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #1c2128;
 }
-.chart-wrap:last-child { border-bottom: none; }
-
 #wrap-price { flex: 6; min-height: 0; }
 #wrap-rsi   { flex: 2; min-height: 0; }
 #wrap-macd  { flex: 2; min-height: 0; }
 
 .chart-label {
-  position: absolute; top: 7px; left: 10px;
+  position: absolute; top: 6px; left: 10px;
   z-index: 5; font-size: 10px; color: var(--text3);
-  font-weight: 600; letter-spacing: .4px; pointer-events: none;
+  font-weight: 600; pointer-events: none; white-space: nowrap;
 }
 .chart-inner { width: 100%; height: 100%; }
+
+/* Legend dots */
+.leg { display: inline-block; width: 8px; height: 2px; border-radius: 1px; margin-right: 3px; vertical-align: middle; }
 
 /* Loading overlay */
 .loading-overlay {
   position: absolute; inset: 0;
   background: rgba(13,17,23,.85);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 20;
+  display: flex; align-items: center; justify-content: center; z-index: 20;
 }
 .spinner {
-  width: 36px; height: 36px;
+  width: 34px; height: 34px;
   border: 3px solid var(--bg3);
   border-top-color: var(--blue);
   border-radius: 50%;
@@ -126,24 +125,19 @@ body {
 
 /* ─── Signal panel ─────────────────────────────── */
 .signal-panel {
-  width: 276px;
-  flex-shrink: 0;
+  width: 272px; flex-shrink: 0;
   background: var(--bg1);
   border-left: 1px solid var(--bg3);
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  padding: 14px;
-  gap: 12px;
+  display: flex; flex-direction: column;
+  overflow-y: auto; padding: 12px; gap: 10px;
 }
-.signal-panel::-webkit-scrollbar { width: 5px; }
-.signal-panel::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 3px; }
+.signal-panel::-webkit-scrollbar { width: 4px; }
+.signal-panel::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 2px; }
 
 .card {
   background: var(--bg2);
   border: 1px solid var(--bg3);
-  border-radius: 8px;
-  padding: 14px;
+  border-radius: 8px; padding: 12px;
 }
 .card-title {
   font-size: 10px; font-weight: 700;
@@ -152,49 +146,38 @@ body {
 }
 
 /* Signal badge */
-.signal-badge {
-  width: 100%; padding: 10px 0;
-  border-radius: 7px; text-align: center;
-  font-size: 22px; font-weight: 900; letter-spacing: 3px;
-  margin-bottom: 10px;
+.sig-badge {
+  width: 100%; padding: 9px 0; border-radius: 7px;
+  text-align: center; font-size: 20px; font-weight: 900;
+  letter-spacing: 3px; margin-bottom: 10px;
 }
 .sig-buy  { background: #1a4731; color: var(--green); border: 1px solid #238636; }
 .sig-sell { background: #3d0000; color: var(--red);   border: 1px solid #da3633; }
 .sig-wait { background: var(--bg0); color: var(--gold); border: 1px solid #9e6a03; }
 
 /* Confidence */
-.conf-bar-wrap {
-  height: 6px; background: var(--bg3);
-  border-radius: 3px; overflow: hidden; margin-bottom: 5px;
-}
-.conf-bar-fill {
-  height: 100%; border-radius: 3px;
-  transition: width .6s ease;
-}
-.conf-high { background: var(--green); }
-.conf-mid  { background: var(--gold); }
-.conf-low  { background: var(--red); }
-.conf-row  { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); }
-.conf-row span:last-child { color: var(--text1); font-weight: 600; }
+.conf-bar { height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; margin-bottom: 5px; }
+.conf-fill { height: 100%; border-radius: 3px; transition: width .5s ease; }
+.conf-h { background: var(--green); }
+.conf-m { background: var(--gold); }
+.conf-l { background: var(--red); }
+.conf-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); }
+.conf-row span:last-child { color: var(--text1); font-weight: 700; }
 
-/* Entry / SL / TP */
-.level-row {
+/* Levels */
+.lv-row {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 7px 10px; border-radius: 6px; margin-bottom: 6px;
+  padding: 6px 10px; border-radius: 6px; margin-bottom: 6px;
 }
-.level-row:last-child { margin-bottom: 0; }
+.lv-row:last-child { margin-bottom: 0; }
 .lv-entry { background: var(--bg0); border: 1px solid var(--bg3); }
-.lv-sl    { background: rgba(248,81,73,.1); border: 1px solid rgba(248,81,73,.3); }
-.lv-tp    { background: rgba(63,185,80,.1); border: 1px solid rgba(63,185,80,.3); }
+.lv-sl    { background: rgba(248,81,73,.08); border: 1px solid rgba(248,81,73,.3); }
+.lv-tp    { background: rgba(63,185,80,.08); border: 1px solid rgba(63,185,80,.3); }
 .lv-label { font-size: 11px; font-weight: 600; color: var(--text3); }
-.lv-val {
-  font-size: 15px; font-weight: 700;
-  font-family: 'SF Mono', 'Courier New', monospace;
-}
+.lv-val   { font-size: 14px; font-weight: 700; font-family: 'SF Mono', 'Courier New', monospace; }
 .lv-entry .lv-val { color: var(--text1); }
 .lv-sl    .lv-val { color: var(--red); }
 .lv-tp    .lv-val { color: var(--green); }
-
 .rr-row {
   margin-top: 8px; text-align: center;
   background: var(--bg0); border-radius: 5px;
@@ -203,19 +186,36 @@ body {
 .rr-row strong { color: var(--blue); }
 
 /* Indicator grid */
-.ind-grid {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 7px;
-}
+.ind-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .ind-cell {
   background: var(--bg0); border: 1px solid var(--bg3);
-  border-radius: 6px; padding: 7px 9px;
+  border-radius: 6px; padding: 6px 8px;
 }
 .ind-lbl { font-size: 10px; color: var(--text3); margin-bottom: 2px; }
-.ind-val {
-  font-size: 13px; font-weight: 600;
+.ind-val { font-size: 12px; font-weight: 600; font-family: 'SF Mono', 'Courier New', monospace; }
+
+/* S/R level list */
+.sr-list { display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; }
+.sr-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 8px; border-radius: 5px; font-size: 11px;
   font-family: 'SF Mono', 'Courier New', monospace;
 }
+.sr-res { background: rgba(248,81,73,.1); color: var(--red);   border: 1px solid rgba(248,81,73,.25); }
+.sr-sup { background: rgba(63,185,80,.1); color: var(--green); border: 1px solid rgba(63,185,80,.25); }
+.sr-near{ background: rgba(227,179,65,.1);color: var(--gold);  border: 1px solid rgba(227,179,65,.35); font-weight:700; }
+.sr-tag { font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; }
+.sr-tag-res  { background: rgba(248,81,73,.2);  color: var(--red); }
+.sr-tag-sup  { background: rgba(63,185,80,.2);  color: var(--green); }
+.sr-tag-near { background: rgba(227,179,65,.25); color: var(--gold); }
+
+/* Channel info */
+.ch-card { background: var(--bg0); border: 1px solid var(--bg3); border-radius: 6px; padding: 8px 10px; }
+.ch-row  { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; color: var(--text3); }
+.ch-row:last-child { margin-bottom: 0; }
+.ch-row span:last-child { font-weight: 700; font-family: 'SF Mono', 'Courier New', monospace; color: var(--text1); }
+.ch-trend-up   { color: var(--green) !important; }
+.ch-trend-down { color: var(--red)   !important; }
 
 /* Reasons */
 .reason-item {
@@ -224,111 +224,120 @@ body {
   padding: 5px 8px; margin-bottom: 5px; line-height: 1.5;
 }
 .reason-item:last-child { margin-bottom: 0; }
-
-.ml-row {
-  display: flex; justify-content: space-between;
-  font-size: 11px; color: var(--text3); margin-top: 8px;
-}
+.ml-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); margin-top: 8px; }
 .ml-row strong { color: var(--blue); }
 
-/* Footer */
-.panel-footer {
-  font-size: 10px; color: var(--text4);
-  text-align: center; padding-top: 4px;
-}
-
-/* Error card */
+.panel-footer { font-size: 10px; color: var(--text4); text-align: center; }
 .err-card {
-  background: rgba(248,81,73,.08);
-  border: 1px solid rgba(248,81,73,.3);
-  border-radius: 7px; padding: 10px;
-  font-size: 11px; color: var(--red); line-height: 1.5;
+  background: rgba(248,81,73,.08); border: 1px solid rgba(248,81,73,.3);
+  border-radius: 7px; padding: 10px; font-size: 11px; color: var(--red); line-height: 1.5;
 }
 </style>
 </head>
 <body>
 
-<!-- ════════════ HEADER ════════════ -->
+<!-- ═══════════ HEADER ═══════════ -->
 <header class="header">
-  <div class="header-logo">FX AI Trader <span>USD/JPY 1分足</span></div>
-  <div class="header-price price-neutral" id="hdr-price">—</div>
-  <div class="header-change" id="hdr-change" style="color:var(--text3)">—</div>
+  <div class="logo">FX AI Trader <small>USD/JPY</small></div>
+  <div class="hdr-price" id="hdr-price">—</div>
+  <div class="hdr-chg"   id="hdr-chg" style="color:var(--text3)">—</div>
   <span class="badge badge-loading" id="hdr-badge">読込中</span>
-  <div class="header-right">
-    <div class="countdown-wrap">次回更新: <span id="cntdwn">—</span>秒</div>
-    <button class="btn-refresh" id="btn-refresh" onclick="refreshAll()">↺ 今すぐ更新</button>
+
+  <!-- Timeframe buttons -->
+  <div class="tf-bar">
+    <button class="tf-btn active" data-tf="1m"  onclick="setTf('1m')">1m</button>
+    <button class="tf-btn"        data-tf="5m"  onclick="setTf('5m')">5m</button>
+    <button class="tf-btn"        data-tf="15m" onclick="setTf('15m')">15m</button>
+    <button class="tf-btn"        data-tf="30m" onclick="setTf('30m')">30m</button>
+    <button class="tf-btn"        data-tf="1h"  onclick="setTf('1h')">1h</button>
+    <button class="tf-btn"        data-tf="4h"  onclick="setTf('4h')">4h</button>
+    <button class="tf-btn"        data-tf="1d"  onclick="setTf('1d')">1D</button>
+    <button class="tf-btn"        data-tf="1w"  onclick="setTf('1w')">1W</button>
+    <button class="tf-btn"        data-tf="1M"  onclick="setTf('1M')">1M</button>
+  </div>
+
+  <div class="hdr-right">
+    <div class="countdown">次回更新: <span id="cntdwn">—</span>秒</div>
+    <button class="btn-refresh" id="btn-refresh" onclick="refreshAll()">↺ 更新</button>
   </div>
 </header>
 
-<!-- ════════════ MAIN ════════════ -->
+<!-- ═══════════ MAIN ═══════════ -->
 <div class="main">
 
   <!-- Charts -->
   <div class="charts-col">
 
-    <!-- Price chart -->
     <div class="chart-wrap" id="wrap-price">
       <div class="chart-label">
-        USD/JPY 1分足 &nbsp;·&nbsp;
-        <span style="color:#58a6ff">EMA9</span>&nbsp;
-        <span style="color:#e3b341">EMA21</span>&nbsp;
-        <span style="color:#ff7b72">EMA50</span>&nbsp;·&nbsp;
-        <span style="color:#388bfd">BB(20,2)</span>
+        <span style="color:#58a6ff"><span class="leg" style="background:#58a6ff"></span>EMA9</span>&nbsp;
+        <span style="color:#e3b341"><span class="leg" style="background:#e3b341"></span>EMA21</span>&nbsp;
+        <span style="color:#ff7b72"><span class="leg" style="background:#ff7b72"></span>EMA50</span>&nbsp;
+        <span style="color:rgba(56,139,253,.8)"><span class="leg" style="background:rgba(56,139,253,.8)"></span>BB(20,2)</span>&nbsp;
+        <span style="color:#f0883e"><span class="leg" style="background:#f0883e;height:1px;border-top:1px dashed #f0883e;"></span>Channel</span>&nbsp;
+        <span style="color:var(--red)"><span class="leg" style="background:var(--red);opacity:.5"></span>R</span>&nbsp;
+        <span style="color:var(--green)"><span class="leg" style="background:var(--green);opacity:.5"></span>S</span>
       </div>
       <div class="chart-inner" id="chart-price"></div>
       <div class="loading-overlay" id="ov-price"><div class="spinner"></div></div>
     </div>
 
-    <!-- RSI chart -->
     <div class="chart-wrap" id="wrap-rsi">
       <div class="chart-label">RSI (14)</div>
       <div class="chart-inner" id="chart-rsi"></div>
     </div>
 
-    <!-- MACD chart -->
     <div class="chart-wrap" id="wrap-macd">
       <div class="chart-label">MACD (12, 26, 9)</div>
       <div class="chart-inner" id="chart-macd"></div>
     </div>
 
-  </div><!-- /charts-col -->
+  </div>
 
   <!-- Signal panel -->
-  <aside class="signal-panel" id="signal-panel">
+  <aside class="signal-panel">
 
     <div id="err-box"></div>
 
-    <!-- Signal main -->
+    <!-- Signal -->
     <div class="card">
-      <div class="card-title">AI シグナル</div>
-      <div class="signal-badge sig-wait" id="sig-badge">WAIT</div>
-      <div class="conf-bar-wrap">
-        <div class="conf-bar-fill conf-mid" id="conf-fill" style="width:50%"></div>
-      </div>
-      <div class="conf-row">
-        <span>信頼度スコア</span>
-        <span id="conf-pct">—</span>
-      </div>
+      <div class="card-title">AI シグナル &nbsp;<span id="tf-label" style="color:var(--blue)">1m</span></div>
+      <div class="sig-badge sig-wait" id="sig-badge">WAIT</div>
+      <div class="conf-bar"><div class="conf-fill conf-m" id="conf-fill" style="width:50%"></div></div>
+      <div class="conf-row"><span>信頼度</span><span id="conf-pct">—</span></div>
     </div>
 
     <!-- Entry / SL / TP -->
     <div class="card">
       <div class="card-title">エントリーポイント</div>
-      <div class="level-row lv-entry">
+      <div class="lv-row lv-entry">
         <span class="lv-label">⏺ Entry</span>
         <span class="lv-val" id="lv-entry">—</span>
       </div>
-      <div class="level-row lv-sl">
+      <div class="lv-row lv-sl">
         <span class="lv-label">🛑 Stop Loss</span>
         <span class="lv-val" id="lv-sl">—</span>
       </div>
-      <div class="level-row lv-tp">
+      <div class="lv-row lv-tp">
         <span class="lv-label">🎯 Take Profit</span>
         <span class="lv-val" id="lv-tp">—</span>
       </div>
-      <div class="rr-row">
-        RR比 <strong id="rr-val">—</strong>
-        &nbsp;|&nbsp; ATR <span id="atr-val" style="color:var(--text3)">—</span>
+      <div class="rr-row">RR比 <strong id="rr-val">—</strong> ／ ATR <span id="atr-val" style="color:var(--text3)">—</span></div>
+    </div>
+
+    <!-- S/R Levels -->
+    <div class="card">
+      <div class="card-title">水平線 — サポート / レジスタンス</div>
+      <div class="sr-list" id="sr-list">
+        <div style="color:var(--text3);font-size:11px">読込中...</div>
+      </div>
+    </div>
+
+    <!-- Parallel Channel -->
+    <div class="card">
+      <div class="card-title">平行チャネル</div>
+      <div class="ch-card" id="ch-info">
+        <div style="color:var(--text3);font-size:11px">読込中...</div>
       </div>
     </div>
 
@@ -349,242 +358,340 @@ body {
     <div class="card">
       <div class="card-title">シグナル根拠</div>
       <div id="reasons-box"><div class="reason-item" style="color:var(--text3)">データ読込中...</div></div>
-      <div class="ml-row">
-        <span>AI上昇確率</span>
-        <strong id="ml-prob">—</strong>
-      </div>
+      <div class="ml-row"><span>AI 上昇確率</span><strong id="ml-prob">—</strong></div>
     </div>
 
     <div class="panel-footer" id="last-upd">最終更新: —</div>
 
   </aside>
-</div><!-- /main -->
+</div>
 
 <script>
-// ════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 //  Chart setup
-// ════════════════════════════════════════════════════
-const CHART_OPTS = {
+// ════════════════════════════════════════════════════════
+const BASE_OPTS = {
   layout:  { background:{ color:'#0d1117' }, textColor:'#8b949e', fontSize:11 },
-  grid:    { vertLines:{ color:'#21262d' }, horzLines:{ color:'#21262d' } },
+  grid:    { vertLines:{ color:'#1c2128' }, horzLines:{ color:'#1c2128' } },
   crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
   rightPriceScale: { borderColor:'#30363d' },
   timeScale: { borderColor:'#30363d', timeVisible:true, secondsVisible:false },
-  handleScroll: { mouseWheel:true },
-  handleScale: { mouseWheel:true },
+  handleScroll:{ mouseWheel:true }, handleScale:{ mouseWheel:true },
 };
 
-function makeChart(elId, extraOpts={}) {
-  const el = document.getElementById(elId);
-  return LightweightCharts.createChart(el, { ...CHART_OPTS, autoSize:true, ...extraOpts });
-}
+const makeChart = (id, extra={}) =>
+  LightweightCharts.createChart(document.getElementById(id), { ...BASE_OPTS, autoSize:true, ...extra });
 
-// ── Price chart ─────────────────────────────────────
+// ── Price chart ───────────────────────────────────────
 const priceChart  = makeChart('chart-price');
 const candleSeries = priceChart.addCandlestickSeries({
   upColor:'#3fb950', downColor:'#f85149',
   borderUpColor:'#3fb950', borderDownColor:'#f85149',
   wickUpColor:'#3fb950', wickDownColor:'#f85149',
 });
-const ema9S  = priceChart.addLineSeries({ color:'#58a6ff', lineWidth:1.5, title:'EMA9',  lastValueVisible:false, priceLineVisible:false });
-const ema21S = priceChart.addLineSeries({ color:'#e3b341', lineWidth:1.5, title:'EMA21', lastValueVisible:false, priceLineVisible:false });
-const ema50S = priceChart.addLineSeries({ color:'#ff7b72', lineWidth:1.5, title:'EMA50', lastValueVisible:false, priceLineVisible:false });
-const bbUS   = priceChart.addLineSeries({ color:'rgba(56,139,253,.6)', lineWidth:1, lineStyle:2, lastValueVisible:false, priceLineVisible:false });
-const bbMS   = priceChart.addLineSeries({ color:'rgba(56,139,253,.35)', lineWidth:1, lineStyle:1, lastValueVisible:false, priceLineVisible:false });
-const bbLS   = priceChart.addLineSeries({ color:'rgba(56,139,253,.6)', lineWidth:1, lineStyle:2, lastValueVisible:false, priceLineVisible:false });
+const ema9S   = priceChart.addLineSeries({ color:'#58a6ff',           lineWidth:1.5, lastValueVisible:false, priceLineVisible:false });
+const ema21S  = priceChart.addLineSeries({ color:'#e3b341',           lineWidth:1.5, lastValueVisible:false, priceLineVisible:false });
+const ema50S  = priceChart.addLineSeries({ color:'#ff7b72',           lineWidth:1.5, lastValueVisible:false, priceLineVisible:false });
+const bbUS    = priceChart.addLineSeries({ color:'rgba(56,139,253,.55)', lineWidth:1, lineStyle:2, lastValueVisible:false, priceLineVisible:false });
+const bbMS    = priceChart.addLineSeries({ color:'rgba(56,139,253,.3)',  lineWidth:1, lineStyle:1, lastValueVisible:false, priceLineVisible:false });
+const bbLS    = priceChart.addLineSeries({ color:'rgba(56,139,253,.55)', lineWidth:1, lineStyle:2, lastValueVisible:false, priceLineVisible:false });
 
+// Parallel channel series (dashed orange)
+const chUpS   = priceChart.addLineSeries({ color:'rgba(240,136,62,.75)', lineWidth:1.5, lineStyle:2, lastValueVisible:false, priceLineVisible:false, title:'CH↑' });
+const chDnS   = priceChart.addLineSeries({ color:'rgba(240,136,62,.75)', lineWidth:1.5, lineStyle:2, lastValueVisible:false, priceLineVisible:false, title:'CH↓' });
+const chMidS  = priceChart.addLineSeries({ color:'rgba(255,255,255,.2)', lineWidth:1,   lineStyle:3, lastValueVisible:false, priceLineVisible:false, title:'CH mid' });
+
+// Entry / SL / TP price lines
 let lineEntry=null, lineSL=null, lineTP=null;
 
-// ── RSI chart ────────────────────────────────────────
+// S/R price lines
+let srLines = [];
+function clearSrLines() {
+  srLines.forEach(l => { try { candleSeries.removePriceLine(l); } catch(_){} });
+  srLines = [];
+}
+function addSrLines(levels, currentPrice) {
+  clearSrLines();
+  levels.forEach(price => {
+    const diff = Math.abs(price - currentPrice) / currentPrice;
+    const near = diff < 0.003;
+    const isR  = price > currentPrice;
+    const l = candleSeries.createPriceLine({
+      price,
+      color: near
+        ? 'rgba(227,179,65,.8)'
+        : isR ? 'rgba(248,81,73,.55)' : 'rgba(63,185,80,.55)',
+      lineWidth: near ? 2 : 1,
+      lineStyle: LightweightCharts.LineStyle.Dashed,
+      axisLabelVisible: true,
+      title: near ? '★' : (isR ? 'R' : 'S'),
+    });
+    srLines.push(l);
+  });
+}
+
+// ── RSI chart ─────────────────────────────────────────
 const rsiChart  = makeChart('chart-rsi');
 const rsiSeries = rsiChart.addLineSeries({ color:'#bc8cff', lineWidth:1.5, lastValueVisible:true, priceLineVisible:false });
-const rsi70S    = rsiChart.addLineSeries({ color:'rgba(248,81,73,.5)', lineWidth:1, lineStyle:2, lastValueVisible:false, priceLineVisible:false });
-const rsi30S    = rsiChart.addLineSeries({ color:'rgba(63,185,80,.5)', lineWidth:1, lineStyle:2, lastValueVisible:false, priceLineVisible:false });
+const rsi70S    = rsiChart.addLineSeries({ color:'rgba(248,81,73,.45)', lineWidth:1, lineStyle:2, lastValueVisible:false, priceLineVisible:false });
+const rsi30S    = rsiChart.addLineSeries({ color:'rgba(63,185,80,.45)', lineWidth:1, lineStyle:2, lastValueVisible:false, priceLineVisible:false });
 
-// ── MACD chart ───────────────────────────────────────
-const macdChart   = makeChart('chart-macd');
-const macdLS      = macdChart.addLineSeries({ color:'#58a6ff', lineWidth:1.5, title:'MACD', lastValueVisible:true, priceLineVisible:false });
-const macdSigS    = macdChart.addLineSeries({ color:'#e3b341', lineWidth:1.5, title:'Signal', lastValueVisible:true, priceLineVisible:false });
-const macdHistS   = macdChart.addHistogramSeries({ lastValueVisible:false, priceLineVisible:false });
+// ── MACD chart ────────────────────────────────────────
+const macdChart  = makeChart('chart-macd');
+const macdLS     = macdChart.addLineSeries({ color:'#58a6ff', lineWidth:1.5, lastValueVisible:true,  priceLineVisible:false });
+const macdSigS   = macdChart.addLineSeries({ color:'#e3b341', lineWidth:1.5, lastValueVisible:true,  priceLineVisible:false });
+const macdHistS  = macdChart.addHistogramSeries({ lastValueVisible:false, priceLineVisible:false });
 
-// ── Sync timescales ─────────────────────────────────
-(function syncTs() {
+// ── Sync timescales ───────────────────────────────────
+(function() {
   const charts = [priceChart, rsiChart, macdChart];
-  let syncing = false;
+  let sync = false;
   charts.forEach((c, i) => {
     c.timeScale().subscribeVisibleLogicalRangeChange(range => {
-      if (syncing || !range) return;
-      syncing = true;
-      charts.forEach((cc, j) => { if (j !== i) cc.timeScale().setVisibleLogicalRange(range); });
-      syncing = false;
+      if (sync || !range) return;
+      sync = true;
+      charts.forEach((cc, j) => { if (j!==i) cc.timeScale().setVisibleLogicalRange(range); });
+      sync = false;
     });
   });
 })();
 
 
-// ════════════════════════════════════════════════════
-//  Data & UI update
-// ════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
+//  Timeframe state
+// ════════════════════════════════════════════════════════
+let currentTf = '1m';
+
+function setTf(tf) {
+  currentTf = tf;
+  document.querySelectorAll('.tf-btn').forEach(b => b.classList.toggle('active', b.dataset.tf === tf));
+  document.getElementById('tf-label').textContent = tf;
+  refreshAll();
+}
+
+
+// ════════════════════════════════════════════════════════
+//  Chart data loader
+// ════════════════════════════════════════════════════════
 async function loadChartData() {
   try {
-    const resp = await fetch('/api/chart');
+    const resp = await fetch(`/api/chart?tf=${currentTf}`);
     const data = await resp.json();
     if (data.error) throw new Error(data.error);
 
-    candleSeries.setData(data.map(d=>({time:d.time,open:d.open,high:d.high,low:d.low,close:d.close})));
-    ema9S .setData(data.map(d=>({time:d.time, value:d.ema9})));
-    ema21S.setData(data.map(d=>({time:d.time, value:d.ema21})));
-    ema50S.setData(data.map(d=>({time:d.time, value:d.ema50})));
-    bbUS  .setData(data.map(d=>({time:d.time, value:d.bb_upper})));
-    bbMS  .setData(data.map(d=>({time:d.time, value:d.bb_mid})));
-    bbLS  .setData(data.map(d=>({time:d.time, value:d.bb_lower})));
+    const { candles, sr_levels, channel } = data;
 
-    rsiSeries.setData(data.map(d=>({time:d.time, value:d.rsi})));
-    rsi70S   .setData(data.map(d=>({time:d.time, value:70})));
-    rsi30S   .setData(data.map(d=>({time:d.time, value:30})));
+    // ── Candlestick + indicators ─────────────────────
+    candleSeries.setData(candles.map(d=>({time:d.time,open:d.open,high:d.high,low:d.low,close:d.close})));
+    ema9S .setData(candles.map(d=>({time:d.time,value:d.ema9})));
+    ema21S.setData(candles.map(d=>({time:d.time,value:d.ema21})));
+    ema50S.setData(candles.map(d=>({time:d.time,value:d.ema50})));
+    bbUS  .setData(candles.map(d=>({time:d.time,value:d.bb_upper})));
+    bbMS  .setData(candles.map(d=>({time:d.time,value:d.bb_mid})));
+    bbLS  .setData(candles.map(d=>({time:d.time,value:d.bb_lower})));
 
-    macdLS  .setData(data.map(d=>({time:d.time, value:d.macd})));
-    macdSigS.setData(data.map(d=>({time:d.time, value:d.macd_sig})));
-    macdHistS.setData(data.map(d=>({
+    rsiSeries.setData(candles.map(d=>({time:d.time,value:d.rsi})));
+    rsi70S   .setData(candles.map(d=>({time:d.time,value:70})));
+    rsi30S   .setData(candles.map(d=>({time:d.time,value:30})));
+
+    macdLS  .setData(candles.map(d=>({time:d.time,value:d.macd})));
+    macdSigS.setData(candles.map(d=>({time:d.time,value:d.macd_sig})));
+    macdHistS.setData(candles.map(d=>({
       time:d.time, value:d.macd_hist,
-      color: d.macd_hist >= 0 ? 'rgba(63,185,80,.7)' : 'rgba(248,81,73,.7)'
+      color: d.macd_hist>=0 ? 'rgba(63,185,80,.7)' : 'rgba(248,81,73,.7)'
     })));
 
-    priceChart.timeScale().scrollToRealTime();
+    // ── Parallel channel ──────────────────────────────
+    if (channel) {
+      chUpS .setData(channel.upper);
+      chDnS .setData(channel.lower);
+      chMidS.setData(channel.middle);
+      // Update channel info panel
+      const last = candles[candles.length-1];
+      const upVal  = channel.upper [channel.upper .length-1]?.value ?? '—';
+      const dnVal  = channel.lower [channel.lower .length-1]?.value ?? '—';
+      const midVal = channel.middle[channel.middle.length-1]?.value ?? '—';
+      const trendCls = channel.trend==='up' ? 'ch-trend-up' : 'ch-trend-down';
+      const trendTxt = channel.trend==='up' ? '↗ 上昇チャネル' : '↘ 下降チャネル';
+      document.getElementById('ch-info').innerHTML = `
+        <div class="ch-row"><span>方向</span><span class="${trendCls}">${trendTxt}</span></div>
+        <div class="ch-row"><span>上限ライン</span><span>${typeof upVal==='number'?upVal.toFixed(3):upVal}</span></div>
+        <div class="ch-row"><span>ミドルライン</span><span>${typeof midVal==='number'?midVal.toFixed(3):midVal}</span></div>
+        <div class="ch-row"><span>下限ライン</span><span>${typeof dnVal==='number'?dnVal.toFixed(3):dnVal}</span></div>
+      `;
+    } else {
+      chUpS .setData([]);
+      chDnS .setData([]);
+      chMidS.setData([]);
+      document.getElementById('ch-info').innerHTML =
+        `<div style="color:var(--text3);font-size:11px">データ不足のため計算不可</div>`;
+    }
 
-    // Scroll all to latest
-    [rsiChart, macdChart].forEach(c => c.timeScale().scrollToRealTime());
+    // ── S/R levels ────────────────────────────────────
+    if (sr_levels && candles.length > 0) {
+      const cp = candles[candles.length-1].close;
+      addSrLines(sr_levels, cp);
+      renderSrPanel(sr_levels, cp);
+    } else {
+      clearSrLines();
+      document.getElementById('sr-list').innerHTML =
+        `<div style="color:var(--text3);font-size:11px">S/Rレベルなし</div>`;
+    }
 
-    // Update header price
-    if (data.length > 0) {
-      const last = data[data.length-1];
-      const prev = data.length > 1 ? data[data.length-2] : null;
-      const hdrP = document.getElementById('hdr-price');
-      const hdrC = document.getElementById('hdr-change');
-      hdrP.textContent = last.close.toFixed(3);
+    // ── Scroll to latest ──────────────────────────────
+    [priceChart, rsiChart, macdChart].forEach(c => c.timeScale().scrollToRealTime());
+    document.getElementById('ov-price').style.display = 'none';
+
+    // ── Header price ──────────────────────────────────
+    if (candles.length > 0) {
+      const last = candles[candles.length-1];
+      const prev = candles.length>1 ? candles[candles.length-2] : null;
+      const priceEl = document.getElementById('hdr-price');
+      const chgEl   = document.getElementById('hdr-chg');
+      priceEl.textContent = last.close.toFixed(3);
       if (prev) {
         const diff = last.close - prev.close;
-        const pct  = (diff / prev.close * 100).toFixed(3);
-        hdrP.className = 'header-price ' + (diff >= 0 ? 'price-up' : 'price-down');
-        hdrC.textContent = (diff >= 0 ? '+' : '') + diff.toFixed(3) + ' (' + pct + '%)';
-        hdrC.style.color = diff >= 0 ? 'var(--green)' : 'var(--red)';
+        const pct  = (diff/prev.close*100).toFixed(3);
+        priceEl.className = 'hdr-price ' + (diff>=0?'up':'down');
+        chgEl.textContent = (diff>=0?'+':'') + diff.toFixed(3) + ' ('+pct+'%)';
+        chgEl.style.color = diff>=0 ? 'var(--green)' : 'var(--red)';
       }
     }
 
-    document.getElementById('ov-price').style.display = 'none';
-
   } catch(e) {
     console.error('Chart error:', e);
+    document.getElementById('err-box').innerHTML = `<div class="err-card">⚠️ ${e.message}</div>`;
   }
 }
 
+function renderSrPanel(levels, currentPrice) {
+  const html = levels.map(price => {
+    const diff = Math.abs(price-currentPrice)/currentPrice;
+    const near = diff < 0.003;
+    const isR  = price > currentPrice;
+    let cls, tag, tagCls;
+    if (near) {
+      cls = 'sr-near'; tag = '近接'; tagCls = 'sr-tag-near';
+    } else if (isR) {
+      cls = 'sr-res';  tag = 'R';    tagCls = 'sr-tag-res';
+    } else {
+      cls = 'sr-sup';  tag = 'S';    tagCls = 'sr-tag-sup';
+    }
+    const distPips = Math.round(Math.abs(price-currentPrice)*100);
+    return `<div class="sr-item ${cls}">
+      <span>${price.toFixed(3)}</span>
+      <span style="display:flex;gap:5px;align-items:center">
+        <span style="color:var(--text3);font-size:10px">${distPips}p</span>
+        <span class="sr-tag ${tagCls}">${tag}</span>
+      </span>
+    </div>`;
+  }).join('');
+  document.getElementById('sr-list').innerHTML = html || `<div style="color:var(--text3);font-size:11px">S/Rレベルなし</div>`;
+}
+
+
+// ════════════════════════════════════════════════════════
+//  Signal loader
+// ════════════════════════════════════════════════════════
 async function loadSignal() {
   try {
-    const resp = await fetch('/api/signal');
+    const resp = await fetch(`/api/signal?tf=${currentTf}`);
     const d    = await resp.json();
-
     if (d.error) {
-      document.getElementById('err-box').innerHTML =
-        `<div class="err-card">⚠️ ${d.error}</div>`;
+      document.getElementById('err-box').innerHTML = `<div class="err-card">⚠️ ${d.error}</div>`;
       return;
     }
     document.getElementById('err-box').innerHTML = '';
 
-    // Signal badge
+    // Badge
     const badge = document.getElementById('sig-badge');
     badge.textContent = d.signal;
-    badge.className = 'signal-badge ' +
+    badge.className = 'sig-badge ' +
       (d.signal==='BUY'?'sig-buy': d.signal==='SELL'?'sig-sell':'sig-wait');
 
     // Confidence
     const c = d.confidence;
     const fill = document.getElementById('conf-fill');
-    fill.style.width = c + '%';
-    fill.className = 'conf-bar-fill ' + (c>=70?'conf-high': c>=55?'conf-mid':'conf-low');
-    document.getElementById('conf-pct').textContent = c + '%';
+    fill.style.width = c+'%';
+    fill.className = 'conf-fill ' + (c>=70?'conf-h': c>=55?'conf-m':'conf-l');
+    document.getElementById('conf-pct').textContent = c+'%';
 
     // Price levels
     document.getElementById('lv-entry').textContent = d.entry.toFixed(3);
     document.getElementById('lv-sl')   .textContent = d.sl.toFixed(3);
     document.getElementById('lv-tp')   .textContent = d.tp.toFixed(3);
-    document.getElementById('rr-val')  .textContent = '1:' + d.rr_ratio;
+    document.getElementById('rr-val')  .textContent = '1:'+d.rr_ratio;
     document.getElementById('atr-val') .textContent = d.atr.toFixed(3);
 
-    // Price lines on chart
-    if (lineEntry) candleSeries.removePriceLine(lineEntry);
-    if (lineSL)    candleSeries.removePriceLine(lineSL);
-    if (lineTP)    candleSeries.removePriceLine(lineTP);
+    // Chart price lines
+    if (lineEntry) try { candleSeries.removePriceLine(lineEntry); } catch(_){}
+    if (lineSL)    try { candleSeries.removePriceLine(lineSL);    } catch(_){}
+    if (lineTP)    try { candleSeries.removePriceLine(lineTP);    } catch(_){}
+    lineEntry = lineSL = lineTP = null;
 
     if (d.signal !== 'WAIT') {
-      lineEntry = candleSeries.createPriceLine({ price:d.entry, color:'#c9d1d9', lineWidth:1, lineStyle:0, axisLabelVisible:true, title:'Entry' });
-      lineSL    = candleSeries.createPriceLine({ price:d.sl,    color:'#f85149', lineWidth:1, lineStyle:2, axisLabelVisible:true, title:'SL' });
-      lineTP    = candleSeries.createPriceLine({ price:d.tp,    color:'#3fb950', lineWidth:1, lineStyle:2, axisLabelVisible:true, title:'TP' });
+      lineEntry = candleSeries.createPriceLine({ price:d.entry, color:'rgba(200,210,220,.8)', lineWidth:1, lineStyle:0, axisLabelVisible:true, title:'Entry' });
+      lineSL    = candleSeries.createPriceLine({ price:d.sl,    color:'rgba(248,81,73,.8)',   lineWidth:1, lineStyle:2, axisLabelVisible:true, title:'SL' });
+      lineTP    = candleSeries.createPriceLine({ price:d.tp,    color:'rgba(63,185,80,.8)',   lineWidth:1, lineStyle:2, axisLabelVisible:true, title:'TP' });
     }
 
     // Indicators
-    const ind = d.indicators;
-    document.getElementById('i-ema9') .textContent = ind.ema9.toFixed(3);
-    document.getElementById('i-ema21').textContent = ind.ema21.toFixed(3);
-    document.getElementById('i-ema50').textContent = ind.ema50.toFixed(3);
+    const i = d.indicators;
+    document.getElementById('i-ema9') .textContent = i.ema9.toFixed(3);
+    document.getElementById('i-ema21').textContent = i.ema21.toFixed(3);
+    document.getElementById('i-ema50').textContent = i.ema50.toFixed(3);
 
     const rsiEl = document.getElementById('i-rsi');
-    rsiEl.textContent = ind.rsi.toFixed(1);
-    rsiEl.style.color = ind.rsi > 70 ? 'var(--red)' : ind.rsi < 30 ? 'var(--green)' : 'var(--text1)';
+    rsiEl.textContent = i.rsi.toFixed(1);
+    rsiEl.style.color = i.rsi>70?'var(--red)': i.rsi<30?'var(--green)':'var(--text1)';
 
     const histEl = document.getElementById('i-macdh');
-    histEl.textContent = ind.macd_hist.toFixed(5);
-    histEl.style.color = ind.macd_hist >= 0 ? 'var(--green)' : 'var(--red)';
+    histEl.textContent = i.macd_hist.toFixed(5);
+    histEl.style.color = i.macd_hist>=0?'var(--green)':'var(--red)';
 
-    const bbRange = ind.bb_upper - ind.bb_lower;
-    const bbPb = bbRange > 0 ? ((d.entry - ind.bb_lower) / bbRange * 100).toFixed(1) + '%' : '—';
+    const bbRange = i.bb_upper - i.bb_lower;
     const bbEl = document.getElementById('i-bbpb');
-    bbEl.textContent = bbPb;
     if (bbRange > 0) {
-      const pv = (d.entry - ind.bb_lower) / bbRange;
-      bbEl.style.color = pv < 0.2 ? 'var(--green)' : pv > 0.8 ? 'var(--red)' : 'var(--text1)';
-    }
+      const pv = (d.entry - i.bb_lower) / bbRange;
+      bbEl.textContent = (pv*100).toFixed(1)+'%';
+      bbEl.style.color = pv<0.2?'var(--green)': pv>0.8?'var(--red)':'var(--text1)';
+    } else { bbEl.textContent = '—'; }
 
     // Reasons
     const box = document.getElementById('reasons-box');
-    if (d.reasons && d.reasons.length) {
-      box.innerHTML = d.reasons.map(r => `<div class="reason-item">${r}</div>`).join('');
-    } else {
-      box.innerHTML = `<div class="reason-item" style="color:var(--text3)">明確なシグナルなし（様子見推奨）</div>`;
-    }
-    document.getElementById('ml-prob').textContent = d.ml_prob + '%';
+    box.innerHTML = d.reasons && d.reasons.length
+      ? d.reasons.map(r=>`<div class="reason-item">${r}</div>`).join('')
+      : `<div class="reason-item" style="color:var(--text3)">明確なシグナルなし（様子見推奨）</div>`;
+    document.getElementById('ml-prob').textContent = d.ml_prob+'%';
 
-    // Status & timestamp
-    const badgeEl = document.getElementById('hdr-badge');
-    badgeEl.textContent = 'LIVE';
-    badgeEl.className = 'badge badge-live';
+    // Badge & timestamp
+    const bdg = document.getElementById('hdr-badge');
+    bdg.textContent = 'LIVE'; bdg.className = 'badge badge-live';
     document.getElementById('last-upd').textContent =
       '最終更新: ' + new Date().toLocaleTimeString('ja-JP') + '  (' + d.timestamp + ')';
 
   } catch(e) {
     console.error('Signal error:', e);
-    document.getElementById('err-box').innerHTML =
-      `<div class="err-card">⚠️ 接続エラー: ${e.message}</div>`;
     document.getElementById('hdr-badge').className = 'badge badge-error';
     document.getElementById('hdr-badge').textContent = 'ERROR';
   }
 }
 
 
-// ════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════
 //  Auto-refresh
-// ════════════════════════════════════════════════════
-let _secs = 60;
-let _timer = null;
+// ════════════════════════════════════════════════════════
+let _secs = 60, _timer = null;
 
 async function refreshAll() {
   const btn = document.getElementById('btn-refresh');
   btn.disabled = true;
-  btn.textContent = '⏳ 更新中...';
+  btn.textContent = '⏳';
   try {
     await Promise.all([loadChartData(), loadSignal()]);
   } finally {
     btn.disabled = false;
-    btn.textContent = '↺ 今すぐ更新';
+    btn.textContent = '↺ 更新';
     _secs = 60;
   }
 }
@@ -594,14 +701,10 @@ function startCountdown() {
   _timer = setInterval(() => {
     _secs--;
     document.getElementById('cntdwn').textContent = _secs;
-    if (_secs <= 0) {
-      _secs = 60;
-      refreshAll();
-    }
+    if (_secs <= 0) { _secs = 60; refreshAll(); }
   }, 1000);
 }
 
-// Boot
 document.addEventListener('DOMContentLoaded', () => {
   refreshAll().then(() => startCountdown());
 });
