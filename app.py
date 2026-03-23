@@ -24,8 +24,6 @@ warnings.filterwarnings("ignore")
 from ta.trend import EMAIndicator, MACD
 from ta.momentum import RSIIndicator
 from ta.volatility import BollingerBands, AverageTrueRange
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import StandardScaler
 
 app = Flask(__name__)
 
@@ -58,7 +56,6 @@ MTF_HIGHER = {
 }
 
 # Caches
-_model_cache: dict = {}
 _data_cache:  dict = {}  # (symbol,interval,period) -> (df, timestamp)
 CACHE_TTL = 300          # 5 min data cache
 
@@ -503,55 +500,31 @@ def calc_sl_tp_v3(entry: float, signal: str, atr: float, sr_levels: list):
 
 
 # ═══════════════════════════════════════════════════════
-#  ML  (same training approach, cached per TF)
+#  Momentum score  (lightweight replacement for ML)
 # ═══════════════════════════════════════════════════════
-def make_features(df):
-    f = pd.DataFrame(index=df.index)
-    f["ema9_r"]   = df["Close"]/df["ema9"]  - 1
-    f["ema21_r"]  = df["Close"]/df["ema21"] - 1
-    f["ema50_r"]  = df["Close"]/df["ema50"] - 1
-    f["e9_21"]    = df["ema9"] /df["ema21"] - 1
-    f["e21_50"]   = df["ema21"]/df["ema50"] - 1
-    f["rsi_n"]    = df["rsi"] / 100
-    f["rsi_ob"]   = (df["rsi"] > 70).astype(float)
-    f["rsi_os"]   = (df["rsi"] < 30).astype(float)
-    f["macd_n"]   = df["macd_hist"] / df["atr"].replace(0, np.nan)
-    f["bb_pb"]    = df["bb_pband"]
-    f["ret1"]     = df["Close"].pct_change(1)
-    f["ret5"]     = df["Close"].pct_change(5)
-    f["ret10"]    = df["Close"].pct_change(10)
-    return f.dropna()
-
-
-def get_cache(tf):
-    if tf not in _model_cache:
-        _model_cache[tf] = {"model": None, "scaler": None, "trained_at": None}
-    return _model_cache[tf]
-
-
-def train_model_if_needed(tf="1m"):
-    cache = get_cache(tf)
-    now   = datetime.now()
-    if cache["trained_at"] and (now - cache["trained_at"]).total_seconds() < 3600:
-        return
+def momentum_score(df: pd.DataFrame) -> float:
+    """Returns a score in [-1, +1] based on price/indicator momentum."""
     try:
-        df_t   = fetch_ohlcv("USDJPY=X", period="60d", interval="1h")
-        df_t   = add_indicators(df_t)
-        feats  = make_features(df_t)
-        labels = (df_t["Close"].shift(-1) > df_t["Close"]).astype(int)
-        idx    = feats.index.intersection(labels.dropna().index)
-        X, y   = feats.loc[idx], labels.loc[idx]
-        if len(X) < 100: return
-        sc  = StandardScaler()
-        Xs  = sc.fit_transform(X)
-        clf = RandomForestClassifier(
-            n_estimators=200, max_depth=6,
-            min_samples_leaf=5, random_state=42, n_jobs=-1)
-        clf.fit(Xs, y)
-        cache["model"], cache["scaler"], cache["trained_at"] = clf, sc, now
-        print(f"[ML] {tf} trained — {len(X)} samples")
-    except Exception as e:
-        print(f"[ML] Training error: {e}")
+        n   = min(10, len(df))
+        rec = df.iloc[-n:]
+
+        # 1) Price momentum: avg return over last n candles
+        ret = rec["Close"].pct_change().dropna()
+        price_mom = float(np.tanh(ret.mean() / max(ret.std(), 1e-8)))
+
+        # 2) RSI momentum: direction of RSI over last 5 bars
+        rsi_chg = float(df["rsi"].iloc[-1] - df["rsi"].iloc[-6]) if len(df) >= 7 else 0.0
+        rsi_mom = max(-1.0, min(1.0, rsi_chg / 20.0))
+
+        # 3) EMA alignment strength
+        row    = df.iloc[-1]
+        spread = float(row["ema9"] - row["ema50"])
+        atr    = float(row["atr"]) if float(row["atr"]) > 0 else 1e-4
+        ema_mom = max(-1.0, min(1.0, spread / (atr * 3.0)))
+
+        return round((price_mom * 0.4 + rsi_mom * 0.3 + ema_mom * 0.3), 4)
+    except Exception:
+        return 0.0
 
 
 # ═══════════════════════════════════════════════════════
@@ -606,18 +579,8 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     mtf_sc,     mtf_details = mtf_confluence(symbol, tf)
     session                 = get_session_info()
 
-    # ── ML ─────────────────────────────────────────
-    ml_prob = 0.5
-    train_model_if_needed(tf)
-    cache = get_cache(tf)
-    if cache["model"] is not None:
-        try:
-            feats = make_features(df)
-            if len(feats):
-                xs = cache["scaler"].transform(feats.iloc[-1:].values)
-                ml_prob = float(cache["model"].predict_proba(xs)[0][1])
-        except Exception:
-            pass
+    # ── Momentum score (lightweight, no sklearn) ───
+    mom_sc = momentum_score(df)
 
     # ── Normalize each component to [-1, +1] ───────
     rule_n   = max(-1.0, min(1.0, rule_sc   / 8.0))
@@ -626,11 +589,11 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     vol_n    = max(-1.0, min(1.0, vol_sc    / 2.0))
     div_n    = max(-1.0, min(1.0, div_sc    / 2.5))
     mtf_n    = max(-1.0, min(1.0, mtf_sc    / 3.0))
-    ml_adj   = (ml_prob - 0.5) * 2.0
+    mom_n    = max(-1.0, min(1.0, mom_sc))
 
     # ── Weighted combination ────────────────────────
     #  weight: rules 25%, candle 12%, dow 15%, vol 8%,
-    #          div 8%, mtf 17%, ml 15%
+    #          div 8%, mtf 17%, momentum 15%
     combined = (
         rule_n   * 0.25 +
         candle_n * 0.12 +
@@ -638,7 +601,7 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
         vol_n    * 0.08 +
         div_n    * 0.08 +
         mtf_n    * 0.17 +
-        ml_adj   * 0.15
+        mom_n    * 0.15
     )
 
     # ⑦ Session multiplier
@@ -696,7 +659,6 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
             "bb_pband": round(float(row["bb_pband"]), 3),
         },
         "reasons":  all_reasons,
-        "ml_prob":  round(ml_prob * 100, 1),
         "score_detail": {
             "rule":      round(rule_n,   3),
             "candle":    round(candle_n, 3),
@@ -704,7 +666,7 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
             "volume":    round(vol_n,    3),
             "divergence":round(div_n,    3),
             "mtf":       round(mtf_n,    3),
-            "ml":        round(ml_adj/2, 3),
+            "momentum":  round(mom_n,    3),
             "combined":  round(combined, 3),
         },
     }

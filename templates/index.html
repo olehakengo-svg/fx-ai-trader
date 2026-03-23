@@ -296,7 +296,7 @@ body{background:var(--bg0);color:var(--t1);
     <div class="card">
       <div class="card-title">シグナル根拠</div>
       <div id="reasons-box"><div class="reason-item" style="color:var(--t3)">データ読込中...</div></div>
-      <div class="ml-row"><span>AI 上昇確率</span><strong id="ml-prob">—</strong></div>
+      <div class="ml-row"><span>モメンタム</span><strong id="ml-prob">—</strong></div>
     </div>
 
     <div class="footer-note" id="last-upd">最終更新: —</div>
@@ -573,7 +573,8 @@ async function loadSignal(){
     box.innerHTML=d.reasons&&d.reasons.length
       ?d.reasons.map(r=>`<div class="reason-item">${r}</div>`).join('')
       :`<div class="reason-item" style="color:var(--t3)">明確なシグナルなし（様子見推奨）</div>`;
-    document.getElementById('ml-prob').textContent=d.ml_prob+'%';
+    const momVal=d.score_detail&&d.score_detail.momentum!=null?Math.round(d.score_detail.momentum*100)+'%':'—';
+    document.getElementById('ml-prob').textContent=momVal;
 
     // Header badge + timestamp
     const hb=document.getElementById('hdr-badge');
