@@ -1192,6 +1192,15 @@ def run_backtest(symbol: str = "USDJPY=X",
                     "rr_actual": round(TP_MULT / SL_MULT, 2),
                 })
 
+        def _calc_stats(trade_list):
+            if len(trade_list) < 5:
+                return None
+            w = sum(1 for t in trade_list if t["outcome"] == "WIN")
+            n = len(trade_list)
+            wr = round(w / n * 100, 1)
+            ev = round((wr / 100 * TP_MULT) - ((1 - wr / 100) * SL_MULT), 3)
+            return {"trades": n, "win_rate": wr, "expected_value": ev}
+
         if len(trades) < 10:
             result = {"error": "サンプル数不足 (最低10トレード必要)",
                       "trades": len(trades)}
@@ -1207,6 +1216,58 @@ def run_backtest(symbol: str = "USDJPY=X",
             elif ev > 0:   verdict = "🟡 期待値わずかプラス（要注意）"
             else:          verdict = "❌ 期待値マイナス（不推奨）"
 
+            # ── Walk-forward: 90日を3窓(各30日)に分割 ──────────────
+            total_bars   = len(df)
+            window_bars  = total_bars // 3
+            wf_windows   = []
+            for w_idx in range(3):
+                w_start = 50 + w_idx * window_bars
+                w_end   = w_start + window_bars
+                label   = f"{lookback_days - (w_idx+1)*30}〜{lookback_days - w_idx*30}日前"
+                w_trades = []
+                for i in range(w_start, min(w_end, len(df) - MAX_HOLD - 1)):
+                    row    = df.iloc[i]
+                    sub_df = df.iloc[:i + 1]
+                    rule_sc, _   = rule_signal(row)
+                    rule_n       = max(-1.0, min(1.0, rule_sc / 8.0))
+                    candle_sc, _ = detect_candle_patterns(sub_df)
+                    candle_n     = max(-1.0, min(1.0, candle_sc / 4.0))
+                    dow_sc, _    = dow_theory_analysis(sub_df)
+                    dow_n        = max(-1.0, min(1.0, dow_sc / 2.5))
+                    ema21_prev   = float(df["ema21"].iloc[i - 5])
+                    ema21_cur    = float(row["ema21"])
+                    ema_trend    = 1.0 if ema21_cur > ema21_prev else -1.0
+                    combined     = rule_n * 0.50 + candle_n * 0.20 + dow_n * 0.30
+                    if (combined > 0 and ema_trend < 0) or (combined < 0 and ema_trend > 0):
+                        continue
+                    if abs(combined) < MIN_COMBINED:
+                        continue
+                    sig   = "BUY" if combined > 0 else "SELL"
+                    ep    = float(row["Close"])
+                    atr_v = float(row["atr"])
+                    if atr_v <= 0:
+                        continue
+                    ep    = ep + SPREAD/2 if sig == "BUY" else ep - SPREAD/2
+                    sl_v  = ep - atr_v * SL_MULT if sig == "BUY" else ep + atr_v * SL_MULT
+                    tp_v  = ep + atr_v * TP_MULT if sig == "BUY" else ep - atr_v * TP_MULT
+                    for j in range(1, MAX_HOLD + 1):
+                        if i + j >= len(df):
+                            break
+                        fut = df.iloc[i + j]
+                        hi, lo = float(fut["High"]), float(fut["Low"])
+                        if sig == "BUY":
+                            if hi >= tp_v: w_trades.append({"outcome":"WIN","bars_held":j,"rr_actual":rr}); break
+                            if lo <= sl_v: w_trades.append({"outcome":"LOSS","bars_held":j,"rr_actual":rr}); break
+                        else:
+                            if lo <= tp_v: w_trades.append({"outcome":"WIN","bars_held":j,"rr_actual":rr}); break
+                            if hi >= sl_v: w_trades.append({"outcome":"LOSS","bars_held":j,"rr_actual":rr}); break
+                stats = _calc_stats(w_trades)
+                if stats:
+                    wf_windows.append({"label": label, **stats})
+
+            profitable_windows = sum(1 for w in wf_windows if w.get("expected_value", -1) > 0)
+            consistency = f"{profitable_windows}/{len(wf_windows)} 窓でプラス期待値"
+
             result = {
                 "win_rate":        wr,
                 "trades":          total,
@@ -1219,6 +1280,8 @@ def run_backtest(symbol: str = "USDJPY=X",
                 "period":          f"過去{lookback_days}日",
                 "sl_mult":         SL_MULT,
                 "tp_mult":         TP_MULT,
+                "walk_forward":    wf_windows,
+                "consistency":     consistency,
             }
 
         _bt_cache["result"] = result

@@ -186,6 +186,31 @@ body{background:var(--bg0);color:var(--t1);
 .footer-note{font-size:10px;color:var(--t4);text-align:center}
 .err-card{background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);
   border-radius:7px;padding:10px;font-size:11px;color:var(--red);line-height:1.5}
+
+/* ── Position Sizing ─────────────────────────── */
+.ps-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.ps-lbl{font-size:11px;color:var(--t3);white-space:nowrap;width:72px}
+.ps-input{flex:1;background:var(--bg0);border:1px solid var(--bg3);border-radius:5px;
+  color:var(--t1);font-size:12px;padding:4px 8px;outline:none;font-family:'SF Mono',monospace}
+.ps-input:focus{border-color:var(--blue)}
+.ps-result{background:var(--bg0);border:1px solid var(--bg3);border-radius:6px;padding:8px 10px;margin-top:4px}
+.ps-result-row{display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px}
+.ps-result-row:last-child{margin-bottom:0}
+.ps-result-lbl{color:var(--t3)}
+.ps-result-val{font-weight:700;font-family:'SF Mono',monospace}
+
+/* ── Walk-forward ────────────────────────────── */
+.wf-row{display:flex;justify-content:space-between;align-items:center;
+  padding:4px 8px;border-radius:5px;margin-bottom:3px;
+  background:var(--bg0);border:1px solid var(--bg3);font-size:10px}
+.wf-label{color:var(--t3);flex:1}
+.wf-wr{font-weight:700;width:36px;text-align:right}
+.wf-ev{font-family:'SF Mono',monospace;width:46px;text-align:right}
+
+/* ── Notification btn ────────────────────────── */
+.btn-notif{padding:3px 10px;background:var(--bg2);border:1px solid var(--bg3);
+  border-radius:5px;color:var(--t3);font-size:10px;cursor:pointer;white-space:nowrap}
+.btn-notif.on{background:rgba(63,185,80,.15);border-color:var(--green);color:var(--green)}
 </style>
 </head>
 <body>
@@ -211,6 +236,7 @@ body{background:var(--bg0);color:var(--t1);
   </div>
 
   <div class="hdr-right">
+    <button class="btn-notif" id="btn-notif" onclick="toggleNotif()">🔔 通知OFF</button>
     <div class="countdown">次回更新: <span id="cntdwn">—</span>秒</div>
     <button class="btn-refresh" id="btn-refresh" onclick="refreshAll()">↺ 更新</button>
   </div>
@@ -266,6 +292,27 @@ body{background:var(--bg0);color:var(--t1);
       <div class="lv-row lv-s"><span class="lv-label">🛑 Stop Loss</span><span class="lv-val" id="lv-s">—</span></div>
       <div class="lv-row lv-t"><span class="lv-label">🎯 Take Profit</span><span class="lv-val" id="lv-t">—</span></div>
       <div class="rr-row">RR比 <strong id="rr-val">—</strong> ／ ATR <span id="atr-val" style="color:var(--t3)">—</span></div>
+    </div>
+
+    <!-- Position Sizing -->
+    <div class="card">
+      <div class="card-title">💰 ポジションサイジング</div>
+      <div class="ps-row">
+        <span class="ps-lbl">口座残高</span>
+        <input class="ps-input" id="ps-balance" type="number" value="10000" min="100" step="100" oninput="calcPositionSize()">
+        <span style="font-size:11px;color:var(--t3)">USD</span>
+      </div>
+      <div class="ps-row">
+        <span class="ps-lbl">リスク率</span>
+        <input class="ps-input" id="ps-risk" type="number" value="1" min="0.1" max="5" step="0.1" oninput="calcPositionSize()">
+        <span style="font-size:11px;color:var(--t3)">%</span>
+      </div>
+      <div class="ps-result" id="ps-result">
+        <div class="ps-result-row"><span class="ps-result-lbl">SL距離</span><span class="ps-result-val" id="ps-sl-pips">— pips</span></div>
+        <div class="ps-result-row"><span class="ps-result-lbl">リスク金額</span><span class="ps-result-val" id="ps-risk-usd">— USD</span></div>
+        <div class="ps-result-row"><span class="ps-result-lbl">推奨ロット数</span><span class="ps-result-val" id="ps-lots" style="color:var(--blue);font-size:13px">— lots</span></div>
+        <div class="ps-result-row"><span class="ps-result-lbl">推奨単位数</span><span class="ps-result-val" id="ps-units">— units</span></div>
+      </div>
     </div>
 
     <!-- Score breakdown (NEW) -->
@@ -603,6 +650,13 @@ async function loadSignal(){
     document.getElementById('rr-val').textContent='1:'+d.rr_ratio;
     document.getElementById('atr-val').textContent=d.atr.toFixed(3);
 
+    // Position sizing連携
+    _psEntry=d.entry; _psSL=d.sl;
+    calcPositionSize();
+
+    // 通知
+    _checkAndNotify(d.signal,d.entry,d.sl,d.tp,d.confidence,d.tf);
+
     // Chart lines
     if(lineE)try{candleS.removePriceLine(lineE)}catch(_){}
     if(lineSL)try{candleS.removePriceLine(lineSL)}catch(_){}
@@ -781,14 +835,106 @@ async function loadBacktest(){
       `<div class="bt-stat"><span class="bt-label">期待値</span><span class="bt-val" style="color:${evCol}">${d.expected_value>0?'+':''}${d.expected_value}</span></div>`+
       `<div class="bt-stat"><span class="bt-label">平均保有</span><span class="bt-val">${d.avg_hold_hours}時間</span></div>`+
       `<div class="bt-stat"><span class="bt-label">集計期間</span><span class="bt-val">${d.period||'—'}</span></div>`;
+
+    // Walk-forward
+    if(d.walk_forward&&d.walk_forward.length){
+      const wfHtml=d.walk_forward.map(w=>{
+        const evCol=w.expected_value>0?'var(--green)':'var(--red)';
+        const wrCol=w.win_rate>=50?'var(--green)':w.win_rate>=42?'var(--gold)':'var(--red)';
+        return`<div class="wf-row">
+          <span class="wf-label">${w.label}</span>
+          <span class="wf-wr" style="color:${wrCol}">${w.win_rate}%</span>
+          <span class="wf-ev" style="color:${evCol}">${w.expected_value>0?'+':''}${w.expected_value}</span>
+          <span style="color:var(--t4);font-size:10px;margin-left:4px">${w.trades}件</span>
+        </div>`;
+      }).join('');
+      box.innerHTML+=`
+        <div style="font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-top:10px;margin-bottom:5px">Walk-Forward 分析</div>
+        ${wfHtml}
+        <div style="font-size:10px;color:var(--t3);margin-top:5px;text-align:center">${d.consistency||''}</div>`;
+    }
   }catch(e){
     box.innerHTML=`<div style="color:var(--t3);font-size:11px">取得失敗: ${e.message}</div>`;
   }
 }
 
+// ════════════════════════════════════════════════
+//  ブラウザ通知アラート
+// ════════════════════════════════════════════════
+let _notifEnabled=false;
+let _lastSignal=null;
+let _lastEntry=null;
+
+function toggleNotif(){
+  if(!_notifEnabled){
+    if(!('Notification' in window)){alert('このブラウザは通知に対応していません');return;}
+    Notification.requestPermission().then(p=>{
+      if(p==='granted'){
+        _notifEnabled=true;
+        document.getElementById('btn-notif').textContent='🔔 通知ON';
+        document.getElementById('btn-notif').classList.add('on');
+        new Notification('FX AI Trader',{body:'BUY/SELLシグナル通知を有効にしました',icon:'/favicon.ico'});
+      }else{
+        alert('通知の許可が必要です。ブラウザの設定から許可してください。');
+      }
+    });
+  }else{
+    _notifEnabled=false;
+    document.getElementById('btn-notif').textContent='🔔 通知OFF';
+    document.getElementById('btn-notif').classList.remove('on');
+  }
+}
+
+function _checkAndNotify(sig,entry,sl,tp,conf,tf){
+  if(!_notifEnabled||sig==='WAIT') return;
+  // シグナルが変化したときのみ通知
+  const key=sig+':'+entry;
+  if(key===_lastSignal) return;
+  _lastSignal=key;
+  const emoji=sig==='BUY'?'📈':'📉';
+  const body=`${emoji} ${sig}  Entry:${entry}  SL:${sl}  TP:${tp}\n信頼度:${conf}%  [${tf}]`;
+  const n=new Notification(`FX AI Trader — ${sig}シグナル`,{
+    body,icon:'/favicon.ico',requireInteraction:true
+  });
+  n.onclick=()=>{window.focus();n.close();};
+}
+
+// ════════════════════════════════════════════════
+//  ポジションサイジング計算
+// ════════════════════════════════════════════════
+let _psEntry=null,_psSL=null;
+
+function calcPositionSize(){
+  const balance=parseFloat(document.getElementById('ps-balance').value)||0;
+  const riskPct=parseFloat(document.getElementById('ps-risk').value)||1;
+  const entry=_psEntry,sl=_psSL;
+  if(!entry||!sl){return;}
+
+  // SL距離（pips）: USDJPY 1pip=0.01
+  const slDist=Math.abs(entry-sl);
+  const slPips=Math.round(slDist*100);
+
+  // リスク金額（USD）
+  const riskUSD=balance*riskPct/100;
+
+  // pip価値（USD/標準ロット）= 100,000 * 0.01 / entry
+  const pipValuePerLot=1000/entry;
+
+  // ロット数
+  const lots=slPips>0&&pipValuePerLot>0
+    ?Math.floor((riskUSD/slPips/pipValuePerLot)*100)/100
+    :0;
+  const units=Math.round(lots*100000);
+
+  document.getElementById('ps-sl-pips').textContent=slPips+' pips';
+  document.getElementById('ps-risk-usd').textContent='$'+riskUSD.toFixed(0);
+  document.getElementById('ps-lots').textContent=lots.toFixed(2)+' lots';
+  document.getElementById('ps-units').textContent=units.toLocaleString()+' units';
+}
+
 document.addEventListener('DOMContentLoaded',()=>{
   refreshAll().then(()=>startCountdown());
-  loadBacktest();  // 非同期でバックテスト読込
+  loadBacktest();
 });
 </script>
 </body>
