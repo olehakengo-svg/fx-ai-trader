@@ -1434,26 +1434,39 @@ def get_news_sentiment() -> dict:
     BEAR = ["dovish", "rate cut", "weak dollar", "dollar drops", "usd falls",
             "fed cut", "yields fall", "risk off", "recession", "slowdown",
             "円高", "ドル安", "利下げ", "safe haven", "sell usd", "usd weakness"]
-    score = 0.0
+    kw_score = 0.0
     for h in headlines:
         hl = h.lower()
         for kw in BULL:
-            if kw in hl: score += 1.0
+            if kw in hl: kw_score += 1.0
         for kw in BEAR:
-            if kw in hl: score -= 1.0
+            if kw in hl: kw_score -= 1.0
 
     n = max(len(headlines), 1)
-    score = max(-1.0, min(1.0, score / n))
+    kw_score = max(-1.0, min(1.0, kw_score / n))
+
+    # AI分析（Claude Haiku）で60%ブレンド
+    ai_result = analyze_news_ai(headlines)
+    ai_score  = ai_result.get("score", 0.0)
+    use_ai    = ai_result.get("source") == "claude_ai"
+
+    if use_ai:
+        score = ai_score * 0.6 + kw_score * 0.4
+    else:
+        score = kw_score
+    score = max(-1.0, min(1.0, score))
 
     if   score >  0.15: sentiment = "📈 USD強気（円安方向）"
     elif score < -0.15: sentiment = "📉 USD弱気（円高方向）"
     else:               sentiment = "⚖️ 中立"
 
     result = {
-        "score":     round(score, 3),
-        "sentiment": sentiment,
-        "headlines": headlines[:5],
-        "count":     len(headlines),
+        "score":       round(score, 3),
+        "sentiment":   sentiment,
+        "headlines":   headlines[:5],
+        "count":       len(headlines),
+        "ai_analysis": ai_result if use_ai else None,
+        "kw_score":    round(kw_score, 3),
     }
     _news_cache["result"] = result
     _news_cache["ts"]     = now
@@ -1716,6 +1729,445 @@ def detect_large_player_markers(df: pd.DataFrame, vol_window: int = 20,
 
 
 # ═══════════════════════════════════════════════════════
+#  Mode: Day Flow — NY引け後の1日トレードプラン
+# ═══════════════════════════════════════════════════════
+_dayplan_cache: dict = {}
+DAYPLAN_TTL = 3600  # 1時間キャッシュ
+
+
+def get_session_range(symbol: str, session: str = "tokyo") -> dict:
+    """指定セッション(UTC)の高値・安値・中値を取得。"""
+    try:
+        df_1h = fetch_ohlcv(symbol, period="5d", interval="1h")
+        if df_1h.index.tz is None:
+            df_1h.index = df_1h.index.tz_localize("UTC")
+
+        now_utc     = datetime.now(timezone.utc)
+        today_start = now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        hours_map = {"tokyo": (0, 9), "london": (8, 17), "ny": (13, 22)}
+        s_start, s_end = hours_map.get(session, (0, 9))
+
+        bars = df_1h[
+            (df_1h.index >= today_start) &
+            (df_1h.index.hour >= s_start) & (df_1h.index.hour < s_end)
+        ]
+        if len(bars) == 0:
+            yesterday = today_start - pd.Timedelta(days=1)
+            bars = df_1h[
+                (df_1h.index >= yesterday) & (df_1h.index < today_start) &
+                (df_1h.index.hour >= s_start) & (df_1h.index.hour < s_end)
+            ]
+        if len(bars) == 0:
+            return {}
+
+        high = float(bars["High"].max())
+        low  = float(bars["Low"].min())
+        return {"high": round(high, 3), "low": round(low, 3),
+                "mid": round((high + low) / 2, 3), "bars": len(bars)}
+    except Exception as e:
+        print(f"[SESSION_RANGE/{session}] {e}")
+        return {}
+
+
+def compute_dayflow_plan(symbol: str = "USDJPY=X") -> dict:
+    """
+    NY引け後に翌日のトレードプランを算出。
+    標準ピボットポイント + 前日高安 + セッション別エントリーゾーンを返す。
+    """
+    global _dayplan_cache
+    now = datetime.now()
+    if (_dayplan_cache.get("ts") and
+            (now - _dayplan_cache["ts"]).total_seconds() < DAYPLAN_TTL):
+        return _dayplan_cache["result"]
+
+    try:
+        df_d = fetch_ohlcv(symbol, period="30d", interval="1d")
+        if len(df_d) < 3:
+            return {"error": "データ不足"}
+
+        prev  = df_d.iloc[-2]
+        today = df_d.iloc[-1]
+        ph, pl, pc = float(prev["High"]), float(prev["Low"]), float(prev["Close"])
+        tc         = float(today["Close"])
+
+        # 標準ピボットポイント
+        pivot = (ph + pl + pc) / 3
+        r1 = 2 * pivot - pl;   s1 = 2 * pivot - ph
+        r2 = pivot + ph - pl;  s2 = pivot - ph + pl
+        r3 = r1 + ph - pl;     s3 = s1 - ph + pl
+
+        # 週足オープン
+        df_w = fetch_ohlcv(symbol, period="10d", interval="1wk")
+        wo   = round(float(df_w["Open"].iloc[-1]), 3) if len(df_w) > 0 else round(pivot, 3)
+
+        # 日足ATR
+        df_di = add_indicators(df_d.tail(20).copy())
+        datr  = round(float(df_di["atr"].iloc[-1]), 3) if len(df_di) > 0 else 0.3
+
+        # 方向バイアス
+        if tc > pivot and tc > wo:
+            bias_lbl = "📈 強気（ピボット＆週足オープン上）→ BUY優先"
+        elif tc < pivot and tc < wo:
+            bias_lbl = "📉 弱気（ピボット＆週足オープン下）→ SELL優先"
+        elif tc > pivot:
+            bias_lbl = "🟡 やや強気（ピボット上）→ BUY方向"
+        else:
+            bias_lbl = "🟡 やや弱気（ピボット下）→ SELL方向"
+
+        tokyo  = get_session_range(symbol, "tokyo")
+        london = get_session_range(symbol, "london")
+
+        result = {
+            "date":      str(today.name.date()) if hasattr(today.name, "date") else str(today.name),
+            "bias":      bias_lbl,
+            "bias_dir":  "bull" if tc > pivot else "bear",
+            "current":   round(tc, 3),
+            "daily_atr": datr,
+            "levels": {
+                "r3": round(r3, 3), "r2": round(r2, 3), "r1": round(r1, 3),
+                "pivot": round(pivot, 3),
+                "s1": round(s1, 3), "s2": round(s2, 3), "s3": round(s3, 3),
+            },
+            "prev_day":     {"high": round(ph, 3), "low": round(pl, 3), "close": round(pc, 3)},
+            "weekly_open":  wo,
+            "buy_plan": {
+                "entry": round(s1, 3),
+                "sl":    round(s2 - datr * 0.2, 3),
+                "tp1":   round(pivot, 3),
+                "tp2":   round(r1, 3),
+                "note":  "S1でロング → TP1:ピボット / TP2:R1",
+            },
+            "sell_plan": {
+                "entry": round(r1, 3),
+                "sl":    round(r2 + datr * 0.2, 3),
+                "tp1":   round(pivot, 3),
+                "tp2":   round(s1, 3),
+                "note":  "R1でショート → TP1:ピボット / TP2:S1",
+            },
+            "tokyo_range":  tokyo,
+            "london_range": london,
+            "session_strategy": [
+                "🌅 東京: レンジ高値付近SELL / 安値付近BUY（レンジトレード）",
+                "🇬🇧 ロンドン: 東京レンジブレイク方向に追随",
+                "🗽 NY: ロンドントレンド継続 or ピボット反転監視",
+            ],
+        }
+        _dayplan_cache["result"] = result
+        _dayplan_cache["ts"]     = now
+        return result
+    except Exception as e:
+        import traceback; print(f"[DAYPLAN] {traceback.format_exc()}")
+        return {"error": str(e)}
+
+
+# ═══════════════════════════════════════════════════════
+#  Mode: Session Strategy — セッション別トレード
+# ═══════════════════════════════════════════════════════
+def compute_session_signal(df: pd.DataFrame, tf: str, sr_levels: list,
+                           symbol: str = "USDJPY=X") -> dict:
+    """
+    セッション別戦略:
+    - 東京: アジアレンジのレンジトレード（高値SELL / 安値BUY）
+    - ロンドン: 東京レンジブレイク方向追随
+    - NY: 1H+4H継続 or ピボット反転
+    ベースシグナル70% + セッションバイアス30% で合成。
+    """
+    session = get_session_info()
+    sname   = session["name"]
+    row     = df.iloc[-1]
+    entry   = float(row["Close"])
+    atr     = float(row["atr"])
+
+    base          = compute_signal(df, tf, sr_levels, symbol)
+    base_combined = base["score_detail"]["combined"]
+
+    tokyo  = get_session_range(symbol, "tokyo")
+    t_high = tokyo.get("high")
+    t_low  = tokyo.get("low")
+    t_mid  = tokyo.get("mid")
+
+    ses_bias  = 0.0
+    ses_notes = []
+    s_type    = "off"
+
+    if "Tokyo" in sname or "東京" in sname:
+        s_type = "range"
+        if t_high and t_low and t_high != t_low:
+            r_pct = (entry - t_low) / (t_high - t_low)
+            if r_pct >= 0.80:
+                ses_bias = -0.65; ses_notes.append(f"🌅 東京レンジ上限({t_high:.3f})接近 → SELL")
+            elif r_pct <= 0.20:
+                ses_bias =  0.65; ses_notes.append(f"🌅 東京レンジ下限({t_low:.3f})接近 → BUY")
+            elif r_pct >= 0.60:
+                ses_bias = -0.20; ses_notes.append("🌅 レンジ上半部 → やや慎重")
+            elif r_pct <= 0.40:
+                ses_bias =  0.20; ses_notes.append("🌅 レンジ下半部 → やや強気")
+            else:
+                ses_notes.append(f"🌅 東京レンジ中央({t_mid:.3f}) → WAIT")
+        else:
+            ses_notes.append("🌅 東京レンジ形成中 → WAIT")
+
+    elif "London" in sname or "ロンドン" in sname:
+        s_type = "breakout"
+        if t_high and t_low:
+            if entry > t_high + atr * 0.3:
+                ses_bias =  0.70; ses_notes.append(f"🇬🇧 東京高値({t_high:.3f})ブレイク → BUY")
+            elif entry < t_low - atr * 0.3:
+                ses_bias = -0.70; ses_notes.append(f"🇬🇧 東京安値({t_low:.3f})ブレイク → SELL")
+            elif entry > t_high:
+                ses_bias =  0.35; ses_notes.append("🇬🇧 東京高値上 → BUY方向")
+            elif entry < t_low:
+                ses_bias = -0.35; ses_notes.append("🇬🇧 東京安値下 → SELL方向")
+            else:
+                ses_notes.append(f"🇬🇧 東京レンジ内 ({t_low:.3f}–{t_high:.3f}) → ブレイク待ち")
+        else:
+            ses_notes.append("🇬🇧 ロンドン開幕 → 東京レンジ確認中")
+
+    elif "New York" in sname or "NY" in sname:
+        s_type = "continuation"
+        htf = get_htf_bias(symbol)
+        dp  = compute_dayflow_plan(symbol)
+        pivot = dp.get("levels", {}).get("pivot")
+        if htf["agreement"] == "bull":
+            ses_bias = 0.50; ses_notes.append("🗽 NY: 1H+4H強気 → BUY継続")
+            if pivot and entry > pivot:
+                ses_notes.append(f"✅ ピボット({pivot:.3f})上 → BUY確度高")
+        elif htf["agreement"] == "bear":
+            ses_bias = -0.50; ses_notes.append("🗽 NY: 1H+4H弱気 → SELL継続")
+            if pivot and entry < pivot:
+                ses_notes.append(f"✅ ピボット({pivot:.3f})下 → SELL確度高")
+        else:
+            ses_notes.append("🗽 NY: 不明確 → 様子見")
+            if pivot and abs(entry - pivot) < atr * 0.5:
+                ses_notes.append(f"⚠️ ピボット({pivot:.3f})近辺 → 反転注意")
+    else:
+        ses_notes.append("🌙 閑散時間帯 → トレード非推奨")
+
+    final = base_combined * 0.70 + ses_bias * 0.30
+    THRESHOLD = 0.25
+    if   final >  THRESHOLD: signal, conf = "BUY",  int(min(90, 50 + final * 50))
+    elif final < -THRESHOLD: signal, conf = "SELL", int(min(90, 50 + abs(final) * 50))
+    else:                    signal, conf = "WAIT", int(max(25, 50 - abs(final) * 35))
+
+    act = signal if signal != "WAIT" else ("BUY" if final >= 0 else "SELL")
+    sl, tp = calc_sl_tp_v3(entry, act, atr, sr_levels, tf=tf)
+    rr = round(abs(tp - entry) / max(abs(sl - entry), 1e-6), 2)
+
+    # セッション別戦略のキー (フロントエンド用)
+    ses_key = "tokyo" if ("Tokyo" in sname or "東京" in sname) else \
+              "london" if ("London" in sname or "ロンドン" in sname) else \
+              "ny" if ("New York" in sname or "NY" in sname) else "off"
+    return {
+        **base,
+        "signal": signal, "confidence": conf,
+        "sl": sl, "tp": tp, "rr_ratio": rr,
+        "mode": "session", "session_bias": round(ses_bias, 3),
+        "session_strategy": {
+            "type":       s_type, "session":    sname,
+            "bias":       round(ses_bias, 3), "notes": ses_notes,
+            "tokyo_high": round(t_high, 3) if t_high else None,
+            "tokyo_low":  round(t_low,  3) if t_low  else None,
+            "tokyo_mid":  round(t_mid,  3) if t_mid  else None,
+        },
+        "session_info": {
+            "session":       ses_key,
+            "strategy_note": ses_notes[0] if ses_notes else "—",
+            "tokyo_range": {
+                "high": round(t_high, 3) if t_high else None,
+                "low":  round(t_low,  3) if t_low  else None,
+            },
+        },
+        "reasons": ses_notes + base.get("reasons", []),
+    }
+
+
+# ═══════════════════════════════════════════════════════
+#  Mode: Scalping — 1H足ベーススキャルピング（1m/5m/15m）
+# ═══════════════════════════════════════════════════════
+def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
+                         symbol: str = "USDJPY=X") -> dict:
+    """
+    スキャルピングモード (推奨: 1m/5m/15m)。
+    1H+4H トレンドをハードフィルターとして使用。
+    EMA9プルバック + RSIリセット + MACD/BB確認 でエントリー判断。
+    SL=ATR×0.8 / TP=ATR×1.2 固定（スピード重視）。
+    """
+    htf    = get_htf_bias(symbol)
+    row    = df.iloc[-1]
+    entry  = float(row["Close"])
+    atr    = float(row["atr"])
+    rsi    = float(row["rsi"])
+    ema9   = float(row["ema9"])
+    ema21  = float(row["ema21"])
+    ema50  = float(row["ema50"])
+    macdh  = float(row["macd_hist"])
+    bbpb   = float(row["bb_pband"])
+    session = get_session_info()
+
+    h1_sc  = htf.get("h1", {}).get("score", 0.0)
+    h4_sc  = htf.get("h4", {}).get("score", 0.0)
+
+    score   = 0.0
+    reasons = []
+
+    # ── 1H+4H ハードフィルター ──
+    if htf["agreement"] == "bull":
+        d_mult = 1.0;  reasons.append("📈 1H+4H 強気 → BUYのみ有効")
+    elif htf["agreement"] == "bear":
+        d_mult = -1.0; reasons.append("📉 1H+4H 弱気 → SELLのみ有効")
+    else:
+        d_mult = 0.5;  reasons.append("⚖️ 1H+4H 不一致 → シグナル抑制中")
+
+    # ── EMA9 プルバック ──
+    if d_mult > 0:
+        if ema9 > ema21 > ema50:
+            if entry <= ema9 * 1.0015:
+                score += 2.0; reasons.append(f"✅ EMA9プルバック({ema9:.3f}) BUYゾーン")
+            else:
+                score += 0.8; reasons.append("↗ EMA9>EMA21>EMA50 上昇列")
+        elif ema9 > ema21:
+            score += 0.5; reasons.append("↗ EMA9>EMA21")
+    elif d_mult < 0:
+        if ema9 < ema21 < ema50:
+            if entry >= ema9 * 0.9985:
+                score -= 2.0; reasons.append(f"✅ EMA9プルバック({ema9:.3f}) SELLゾーン")
+            else:
+                score -= 0.8; reasons.append("↘ EMA9<EMA21<EMA50 下降列")
+        elif ema9 < ema21:
+            score -= 0.5; reasons.append("↘ EMA9<EMA21")
+
+    # ── RSI ──
+    if d_mult > 0:
+        if rsi < 30:   score += 1.5; reasons.append(f"✅ RSI 売られ過ぎ({rsi:.0f})")
+        elif rsi < 50: score += 1.0; reasons.append(f"✅ RSI({rsi:.0f}) リセット中")
+    elif d_mult < 0:
+        if rsi > 70:   score -= 1.5; reasons.append(f"✅ RSI 買われ過ぎ({rsi:.0f})")
+        elif rsi > 50: score -= 1.0; reasons.append(f"✅ RSI({rsi:.0f}) リセット中")
+
+    # ── MACD ──
+    if d_mult > 0 and macdh > 0:  score += 0.6; reasons.append("✅ MACDヒスト正")
+    elif d_mult > 0 and macdh < 0: score -= 0.3
+    elif d_mult < 0 and macdh < 0: score -= 0.6; reasons.append("✅ MACDヒスト負")
+    elif d_mult < 0 and macdh > 0: score += 0.3
+
+    # ── ボリンジャーバンド ──
+    if d_mult > 0 and bbpb < 0.25:
+        score += 0.5; reasons.append(f"✅ BB下限付近({bbpb:.2f}) スキャルBUYゾーン")
+    elif d_mult < 0 and bbpb > 0.75:
+        score -= 0.5; reasons.append(f"✅ BB上限付近({bbpb:.2f}) スキャルSELLゾーン")
+
+    # ── 方向フィルター & セッション補正 ──
+    score *= (d_mult if abs(d_mult) == 1.0 else 0.55)
+    if session["name"] in ("NY × London", "New York", "London"):
+        score *= 1.10; reasons.append(f"🟢 {session['name']}（流動性高）")
+    elif session["name"] == "Off-hours":
+        score *= 0.50; reasons.append("⚠️ 閑散時間帯（スキャル非推奨）")
+
+    # TF警告
+    if tf not in ("1m", "5m", "15m"):
+        reasons.append(f"⚠️ {tf}足 — スキャルは1m/5m/15m推奨")
+
+    # ── SL / TP（タイト固定）──
+    SCALP_SL, SCALP_TP, THRESHOLD = 0.8, 1.2, 0.35
+    if   score >  THRESHOLD: signal, conf = "BUY",  int(min(88, 50 + score * 22))
+    elif score < -THRESHOLD: signal, conf = "SELL", int(min(88, 50 + abs(score) * 22))
+    else:                    signal, conf = "WAIT", int(max(25, 50 - abs(score) * 25))
+
+    act = signal if signal != "WAIT" else ("BUY" if score >= 0 else "SELL")
+    sl  = round(entry - atr * SCALP_SL, 3) if act == "BUY" else round(entry + atr * SCALP_SL, 3)
+    tp  = round(entry + atr * SCALP_TP, 3) if act == "BUY" else round(entry - atr * SCALP_TP, 3)
+    rr  = round(abs(tp - entry) / max(abs(sl - entry), 1e-6), 2)
+
+    ts_str = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
+    return {
+        "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
+        "entry": round(entry, 3), "signal": signal, "confidence": conf,
+        "sl": sl, "tp": tp, "rr_ratio": rr, "atr": round(atr, 3),
+        "session": session, "htf_bias": htf, "swing_mode": False,
+        "reasons": reasons, "mode": "scalp",
+        "scalp_score": round(score, 3),
+        "indicators": {
+            "ema9":      round(ema9,  3), "ema21": round(ema21, 3),
+            "ema50":     round(ema50, 3), "rsi":   round(rsi,   1),
+            "macd":      round(float(row["macd"]), 5),
+            "macd_sig":  round(float(row["macd_sig"]), 5),
+            "macd_hist": round(macdh, 5),
+            "bb_upper":  round(float(row["bb_upper"]), 3),
+            "bb_mid":    round(float(row["bb_mid"]),   3),
+            "bb_lower":  round(float(row["bb_lower"]), 3),
+            "bb_pband":  round(bbpb,  3),
+        },
+        "score_detail": {
+            "h1_score": round(h1_sc, 3), "h4_score": round(h4_sc, 3),
+            "combined": round(score, 3),
+        },
+        "scalp_info": {
+            "htf_label":     htf.get("label", "—"),
+            "htf_direction": 1 if htf["agreement"] == "bull" else (-1 if htf["agreement"] == "bear" else 0),
+            "scalp_score":   round(score, 3),
+            "sl_pips":       round(atr * 0.8 * 100, 1),
+            "tp_pips":       round(atr * 1.2 * 100, 1),
+        },
+    }
+
+
+# ═══════════════════════════════════════════════════════
+#  News AI — Claude APIでニュースをファンダメンタル分析
+# ═══════════════════════════════════════════════════════
+_news_ai_cache: dict = {}
+NEWS_AI_TTL = 1800  # 30分キャッシュ
+
+
+def analyze_news_ai(headlines: list) -> dict:
+    """
+    Claude claude-haiku-4-5-20251001でニュースヘッドラインをUSD/JPYファンダメンタル分析。
+    ANTHROPIC_API_KEY 未設定時はキーワード分析にフォールバック。
+    """
+    global _news_ai_cache
+    now = datetime.now()
+
+    cache_key = str(sorted(set(headlines[:10])))
+    if (_news_ai_cache.get("key") == cache_key and _news_ai_cache.get("ts") and
+            (now - _news_ai_cache["ts"]).total_seconds() < NEWS_AI_TTL):
+        return _news_ai_cache["result"]
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key or not headlines:
+        return {"score": 0.0, "sentiment": "⚖️ 中立", "key_factor": "—",
+                "risk": "—", "source": "keyword"}
+
+    try:
+        import anthropic as _ant, json as _js
+        client = _ant.Anthropic(api_key=api_key)
+        hl_text = "\n".join(f"- {h}" for h in headlines[:10])
+        prompt = (
+            "あなたはFXアナリストです。以下のUSD/JPY関連ニュースヘッドラインを読み、"
+            "USD/JPYの方向性をJSON形式のみで回答してください（説明不要）。\n\n"
+            f"【ニュース】\n{hl_text}\n\n"
+            '{"score": -1.0から1.0の数値（正=USD強気/円安, 負=USD弱気/円高, 0=中立）,'
+            '"sentiment": "📈 USD強気（円安方向）" または "📉 USD弱気（円高方向）" または "⚖️ 中立",'
+            '"key_factor": "最重要ファクター40字以内",'
+            '"risk": "主なリスク40字以内"}'
+        )
+        msg = client.messages.create(
+            model="claude-haiku-4-5-20251001", max_tokens=300,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        text = msg.content[0].text.strip()
+        s, e = text.find("{"), text.rfind("}") + 1
+        result = _js.loads(text[s:e])
+        result["source"] = "claude_ai"
+        result["score"]  = max(-1.0, min(1.0, float(result.get("score", 0.0))))
+        _news_ai_cache = {"key": cache_key, "result": result, "ts": now}
+        return result
+    except Exception as ex:
+        print(f"[NEWS_AI] {ex}")
+        return {"score": 0.0, "sentiment": "⚖️ 中立（AI分析失敗）",
+                "key_factor": "取得失敗", "risk": "—", "source": "error"}
+
+
+# ═══════════════════════════════════════════════════════
 #  Flask routes
 # ═══════════════════════════════════════════════════════
 @app.route("/")
@@ -1725,14 +2177,37 @@ def index():
 
 @app.route("/api/signal")
 def api_signal():
-    tf  = request.args.get("tf", "1m")
-    cfg = TF_CFG.get(tf, TF_CFG["1m"])
+    tf   = request.args.get("tf", "1m")
+    mode = request.args.get("mode", "standard")
+    cfg  = TF_CFG.get(tf, TF_CFG["1m"])
     try:
         df = fetch_ohlcv("USDJPY=X", period=cfg["period"], interval=cfg["interval"])
         if cfg["resample"]: df = resample_df(df, cfg["resample"])
         df = add_indicators(df)
         sr = find_sr_levels(df, window=cfg["sr_w"], tolerance_pct=cfg["sr_tol"])
-        return jsonify(compute_signal(df, tf, sr))
+        if mode == "scalp":
+            result = compute_scalp_signal(df, tf, sr, "USDJPY=X")
+        elif mode == "session":
+            result = compute_session_signal(df, tf, sr, "USDJPY=X")
+        elif mode == "dayflow":
+            result = compute_signal(df, tf, sr)
+            plan   = compute_dayflow_plan("USDJPY=X")
+            result["day_plan"] = plan
+            result["mode"]     = "dayflow"
+        else:
+            result = compute_signal(df, tf, sr)
+        return jsonify(result)
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@app.route("/api/day_plan")
+def api_day_plan():
+    """Day Flow用ピボットプランを返す（1時間キャッシュ）"""
+    try:
+        plan = compute_dayflow_plan("USDJPY=X")
+        return jsonify(plan)
     except Exception as e:
         import traceback
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500

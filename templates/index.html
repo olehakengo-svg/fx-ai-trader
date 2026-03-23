@@ -235,6 +235,38 @@ body{background:var(--bg0);color:var(--t1);
 .smc-bull{border-color:rgba(63,185,80,.35)!important;background:rgba(63,185,80,.06)!important}
 .smc-bear{border-color:rgba(248,81,73,.3)!important;background:rgba(248,81,73,.05)!important}
 .smc-liq{border-color:rgba(188,140,255,.3)!important;background:rgba(188,140,255,.05)!important}
+
+/* ── Mode selector ───────────────────────────── */
+.mode-bar{display:flex;gap:3px;padding:2px 0}
+.mode-btn{flex:1;padding:5px 2px;border:1px solid var(--bg3);border-radius:5px;
+  background:var(--bg0);color:var(--t3);font-size:10px;font-weight:700;
+  cursor:pointer;text-align:center;transition:all .15s;letter-spacing:.3px}
+.mode-btn:hover{background:var(--bg2);color:var(--t1)}
+.mode-std.active{background:rgba(88,166,255,.18);border-color:var(--blue);color:var(--blue)}
+.mode-day.active{background:rgba(227,179,65,.15);border-color:var(--gold);color:var(--gold)}
+.mode-ses.active{background:rgba(63,185,80,.15);border-color:var(--green);color:var(--green)}
+.mode-sca.active{background:rgba(188,140,255,.15);border-color:var(--purple);color:var(--purple)}
+
+/* ── Day Plan card ───────────────────────────── */
+.dp-row{display:flex;justify-content:space-between;align-items:center;
+  padding:4px 8px;border-radius:5px;margin-bottom:3px;font-size:11px;
+  background:var(--bg0);border:1px solid var(--bg3)}
+.dp-row:last-child{margin-bottom:0}
+.dp-lbl{color:var(--t3)}
+.dp-val{font-weight:700;font-family:'SF Mono',monospace}
+.dp-plan{border-radius:6px;padding:8px 10px;margin-top:6px}
+.dp-plan-buy{background:rgba(63,185,80,.06);border:1px solid rgba(63,185,80,.25)}
+.dp-plan-sell{background:rgba(248,81,73,.06);border:1px solid rgba(248,81,73,.25)}
+.dp-plan-title{font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.5px;margin-bottom:6px}
+
+/* ── Session / Scalp badges ──────────────────── */
+.ses-badge{display:inline-block;padding:3px 8px;border-radius:8px;
+  font-size:10px;font-weight:700;margin-bottom:6px}
+.ses-range{background:rgba(227,179,65,.15);color:var(--gold);border:1px solid rgba(227,179,65,.3)}
+.ses-break{background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.3)}
+.ses-cont{background:rgba(88,166,255,.15);color:var(--blue);border:1px solid rgba(88,166,255,.3)}
+.ses-off{background:var(--bg0);color:var(--t4);border:1px solid var(--bg3)}
 </style>
 </head>
 <body>
@@ -301,6 +333,61 @@ body{background:var(--bg0);color:var(--t1);
   <!-- Signal panel -->
   <aside class="panel">
     <div id="err-box"></div>
+
+    <!-- Mode selector -->
+    <div class="card">
+      <div class="card-title">🎯 売買モード</div>
+      <div class="mode-bar">
+        <button class="mode-btn mode-std active" onclick="setMode('standard')">標準</button>
+        <button class="mode-btn mode-day"        onclick="setMode('dayflow')">DayFlow</button>
+        <button class="mode-btn mode-ses"        onclick="setMode('session')">セッション</button>
+        <button class="mode-btn mode-sca"        onclick="setMode('scalp')">スキャルプ</button>
+      </div>
+    </div>
+
+    <!-- Day Flow Plan card (dayflowモード時のみ表示) -->
+    <div class="card" id="card-dayflow" style="display:none">
+      <div class="card-title">📅 Day Flow プラン <span style="font-size:9px;color:var(--t4)">(前日H/L/C基準)</span></div>
+      <div id="dp-levels">
+        <div class="dp-row" style="border-color:rgba(248,81,73,.35)"><span class="dp-lbl" style="color:var(--red)">R3</span><span class="dp-val" id="dp-r3">—</span></div>
+        <div class="dp-row" style="border-color:rgba(248,81,73,.25)"><span class="dp-lbl" style="color:var(--red)">R2</span><span class="dp-val" id="dp-r2">—</span></div>
+        <div class="dp-row" style="border-color:rgba(248,81,73,.18)"><span class="dp-lbl" style="color:rgba(248,81,73,.8)">R1 🎯SELL</span><span class="dp-val" id="dp-r1">—</span></div>
+        <div class="dp-row" style="border-color:rgba(227,179,65,.4)"><span class="dp-lbl" style="color:var(--gold)">Pivot</span><span class="dp-val" style="color:var(--gold)" id="dp-pivot">—</span></div>
+        <div class="dp-row" style="border-color:rgba(63,185,80,.18)"><span class="dp-lbl" style="color:rgba(63,185,80,.8)">S1 🎯BUY</span><span class="dp-val" id="dp-s1">—</span></div>
+        <div class="dp-row" style="border-color:rgba(63,185,80,.25)"><span class="dp-lbl" style="color:var(--green)">S2</span><span class="dp-val" id="dp-s2">—</span></div>
+        <div class="dp-row" style="border-color:rgba(63,185,80,.35)"><span class="dp-lbl" style="color:var(--green)">S3</span><span class="dp-val" id="dp-s3">—</span></div>
+      </div>
+      <div class="dp-plan dp-plan-buy" style="margin-top:8px">
+        <div class="dp-plan-title" style="color:var(--green)">🟢 BUYプラン</div>
+        <div id="dp-buy-detail" style="font-size:11px;color:var(--t3);line-height:1.6">—</div>
+      </div>
+      <div class="dp-plan dp-plan-sell" style="margin-top:6px">
+        <div class="dp-plan-title" style="color:var(--red)">🔴 SELLプラン</div>
+        <div id="dp-sell-detail" style="font-size:11px;color:var(--t3);line-height:1.6">—</div>
+      </div>
+      <div id="dp-session-notes" style="margin-top:8px;font-size:10px;color:var(--t4);line-height:1.5"></div>
+    </div>
+
+    <!-- Session Strategy card (sessionモード時のみ表示) -->
+    <div class="card" id="card-session" style="display:none">
+      <div class="card-title">🕐 セッション戦略</div>
+      <div id="ses-mode-badge" class="ses-badge ses-off">— セッション</div>
+      <div id="ses-notes" style="font-size:11px;color:var(--t3);line-height:1.6;margin-bottom:8px">—</div>
+      <div class="dp-row"><span class="dp-lbl">東京 高値</span><span class="dp-val" id="ses-t-high">—</span></div>
+      <div class="dp-row"><span class="dp-lbl">東京 安値</span><span class="dp-val" id="ses-t-low">—</span></div>
+      <div class="dp-row"><span class="dp-lbl">レンジ幅</span><span class="dp-val" id="ses-t-range">— pips</span></div>
+      <div class="dp-row" style="margin-top:4px"><span class="dp-lbl">セッションスコア</span><span class="dp-val" id="ses-score">—</span></div>
+    </div>
+
+    <!-- Scalp Mode card (scalpモード時のみ表示) -->
+    <div class="card" id="card-scalp" style="display:none">
+      <div class="card-title">⚡ スキャルピングモード <span style="font-size:9px;color:var(--t4)">(1m/5m/15m)</span></div>
+      <div class="dp-row"><span class="dp-lbl">1H バイアス</span><span class="dp-val" id="sc-htf-bias">—</span></div>
+      <div class="dp-row"><span class="dp-lbl">スキャルプスコア</span><span class="dp-val" id="sc-score">—</span></div>
+      <div class="dp-row"><span class="dp-lbl">SL (ATR×0.8)</span><span class="dp-val" id="sc-sl">— pips</span></div>
+      <div class="dp-row"><span class="dp-lbl">TP (ATR×1.2)</span><span class="dp-val" id="sc-tp">— pips</span></div>
+      <div style="margin-top:8px;font-size:10px;color:var(--t4)">⚠️ 1H足の方向に順張り。EMA9プルバックでエントリー。</div>
+    </div>
 
     <!-- HTF Bias (1H + 4H) -->
     <div class="card">
@@ -407,7 +494,12 @@ body{background:var(--bg0);color:var(--t1);
     <!-- 最新ニュース -->
     <div class="card">
       <div class="card-title">📰 最新ニュース</div>
-      <div id="news-sentiment-badge" style="font-size:12px;font-weight:600;margin-bottom:8px">—</div>
+      <div id="news-sentiment-badge" style="font-size:12px;font-weight:600;margin-bottom:4px">—</div>
+      <div id="news-ai-box" style="display:none;margin-bottom:8px;padding:6px 8px;background:rgba(88,166,255,.06);border:1px solid rgba(88,166,255,.2);border-radius:6px;font-size:10px;line-height:1.6">
+        <div style="color:var(--blue);font-weight:700;margin-bottom:3px">🤖 AI分析 (Claude Haiku)</div>
+        <div id="news-ai-factor" style="color:var(--t2)">—</div>
+        <div id="news-ai-risk" style="color:var(--gold);margin-top:2px">—</div>
+      </div>
       <div id="news-list"><div style="color:var(--t3);font-size:11px">読込中...</div></div>
     </div>
 
@@ -518,6 +610,7 @@ let lineE=null,lineSL=null,lineTP=null;
 let srLines=[];
 let obLines=[];
 let liqLines=[];
+let dpLines=[];
 
 function clearSrLines(){
   srLines.forEach(l=>{try{candleS.removePriceLine(l)}catch(_){}});
@@ -616,11 +709,86 @@ const macdHS  = mChart.addHistogramSeries({lastValueVisible:false,priceLineVisib
 //  State
 // ════════════════════════════════════════════════
 let currentTf='1m';
+let currentMode='standard';
+
 function setTf(tf){
   currentTf=tf;
   document.querySelectorAll('.tf-btn').forEach(b=>b.classList.toggle('active',b.dataset.tf===tf));
   document.getElementById('tf-lbl').textContent=tf;
   refreshAll();
+}
+
+function setMode(mode){
+  currentMode=mode;
+  // ボタンのアクティブ状態
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  const clsMap={standard:'mode-std',dayflow:'mode-day',session:'mode-ses',scalp:'mode-sca'};
+  const btn=document.querySelector('.mode-btn.'+clsMap[mode]);
+  if(btn)btn.classList.add('active');
+  // カードの表示切替
+  document.getElementById('card-dayflow').style.display=mode==='dayflow'?'':'none';
+  document.getElementById('card-session').style.display=mode==='session'?'':'none';
+  document.getElementById('card-scalp').style.display=mode==='scalp'?'':'none';
+  // Day Flowモードはプランを読込
+  if(mode==='dayflow')loadDayPlan();
+  // シグナルを再取得
+  loadSignal();
+}
+
+function clearDpLines(){
+  dpLines.forEach(l=>{try{candleS.removePriceLine(l)}catch(_){}});
+  dpLines=[];
+}
+function drawDayPlanLevels(plan){
+  clearDpLines();
+  if(!plan||!plan.levels)return;
+  const lv=plan.levels;
+  const defs=[
+    {key:'r3',col:'rgba(248,81,73,.45)',lbl:'R3',w:1},
+    {key:'r2',col:'rgba(248,81,73,.55)',lbl:'R2',w:1},
+    {key:'r1',col:'rgba(248,81,73,.75)',lbl:'R1 SELL',w:2},
+    {key:'pivot',col:'rgba(227,179,65,.8)',lbl:'Pivot',w:2},
+    {key:'s1',col:'rgba(63,185,80,.75)',lbl:'S1 BUY',w:2},
+    {key:'s2',col:'rgba(63,185,80,.55)',lbl:'S2',w:1},
+    {key:'s3',col:'rgba(63,185,80,.45)',lbl:'S3',w:1},
+  ];
+  defs.forEach(d=>{
+    const v=lv[d.key];
+    if(!v)return;
+    dpLines.push(candleS.createPriceLine({
+      price:v,color:d.col,lineWidth:d.w,
+      lineStyle:LightweightCharts.LineStyle.Dashed,
+      axisLabelVisible:true,title:d.lbl
+    }));
+  });
+}
+
+async function loadDayPlan(){
+  try{
+    const r=await fetch('/api/day_plan');
+    const d=await r.json();
+    if(d.error){console.warn('DayPlan:',d.error);return;}
+    const lv=d.levels||{};
+    const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v!=null?Number(v).toFixed(3):'—';};
+    set('dp-pivot',lv.pivot);set('dp-r1',lv.r1);set('dp-r2',lv.r2);set('dp-r3',lv.r3);
+    set('dp-s1',lv.s1);set('dp-s2',lv.s2);set('dp-s3',lv.s3);
+    // BUYプラン
+    const bp=d.buy_plan||{};
+    const bEl=document.getElementById('dp-buy-detail');
+    if(bEl)bEl.innerHTML=`Entry: <b>${bp.entry!=null?Number(bp.entry).toFixed(3):'—'}</b>（${bp.note||'S1到達'}）<br>`+
+      `SL: ${bp.sl!=null?Number(bp.sl).toFixed(3):'—'} / TP1: ${bp.tp1!=null?Number(bp.tp1).toFixed(3):'—'} / TP2: ${bp.tp2!=null?Number(bp.tp2).toFixed(3):'—'}`;
+    // SELLプラン
+    const sp=d.sell_plan||{};
+    const sEl=document.getElementById('dp-sell-detail');
+    if(sEl)sEl.innerHTML=`Entry: <b>${sp.entry!=null?Number(sp.entry).toFixed(3):'—'}</b>（${sp.note||'R1到達'}）<br>`+
+      `SL: ${sp.sl!=null?Number(sp.sl).toFixed(3):'—'} / TP1: ${sp.tp1!=null?Number(sp.tp1).toFixed(3):'—'} / TP2: ${sp.tp2!=null?Number(sp.tp2).toFixed(3):'—'}`;
+    // Session notes
+    const notes=d.session_strategy||[];
+    const nEl=document.getElementById('dp-session-notes');
+    if(nEl)nEl.innerHTML=notes.map(n=>`• ${n}`).join('<br>');
+    // Chart lines
+    drawDayPlanLevels(d);
+  }catch(e){console.error('loadDayPlan:',e);}
 }
 
 // ════════════════════════════════════════════════
@@ -741,7 +909,7 @@ async function loadChartData(){
 // ════════════════════════════════════════════════
 async function loadSignal(){
   try{
-    const r=await fetch(`/api/signal?tf=${currentTf}`);
+    const r=await fetch(`/api/signal?tf=${currentTf}&mode=${currentMode}`);
     const d=await r.json();
     if(d.error){document.getElementById('err-box').innerHTML=`<div class="err-card">⚠️ ${d.error}</div>`;return;}
     document.getElementById('err-box').innerHTML='';
@@ -857,6 +1025,53 @@ async function loadSignal(){
       if(nl&&nw.headlines&&nw.headlines.length){
         nl.innerHTML=nw.headlines.map(h=>`<div class="news-item">${h}</div>`).join('');
       }
+      // AI分析表示
+      const aiBox=document.getElementById('news-ai-box');
+      if(aiBox&&nw.ai_analysis){
+        const ai=nw.ai_analysis;
+        document.getElementById('news-ai-factor').textContent='主要因: '+(ai.key_factor||'—');
+        document.getElementById('news-ai-risk').textContent='⚠️ リスク: '+(ai.risk||'—');
+        aiBox.style.display='';
+      }else if(aiBox){aiBox.style.display='none';}
+    }
+
+    // セッションモード固有情報
+    if(currentMode==='session'&&d.session_info){
+      const si=d.session_info;
+      const smb=document.getElementById('ses-mode-badge');
+      if(smb){
+        const sname=si.session||'off';
+        const clsMap={tokyo:'ses-range',london:'ses-break',ny:'ses-cont',off:'ses-off'};
+        smb.className='ses-badge '+(clsMap[sname]||'ses-off');
+        smb.textContent={tokyo:'🌏 東京セッション',london:'🇬🇧 ロンドンセッション',
+          ny:'🗽 NYセッション',off:'時間外'}[sname]||sname;
+      }
+      const sn=document.getElementById('ses-notes');
+      if(sn)sn.textContent=si.strategy_note||'—';
+      if(si.tokyo_range){
+        const tr=si.tokyo_range;
+        const sh=document.getElementById('ses-t-high'),sl=document.getElementById('ses-t-low');
+        const sr=document.getElementById('ses-t-range'),sc=document.getElementById('ses-score');
+        if(sh&&tr.high)sh.textContent=Number(tr.high).toFixed(3);
+        if(sl&&tr.low)sl.textContent=Number(tr.low).toFixed(3);
+        const pips=tr.high&&tr.low?Math.round((tr.high-tr.low)*100):null;
+        if(sr)sr.textContent=pips!=null?pips+' pips':'— pips';
+        if(sc)sc.textContent=d.session_bias!=null?(d.session_bias>0?'+':'')+Number(d.session_bias).toFixed(2):'—';
+      }
+    }
+
+    // スキャルプモード固有情報
+    if(currentMode==='scalp'&&d.scalp_info){
+      const si=d.scalp_info;
+      const hb=document.getElementById('sc-htf-bias');
+      if(hb){hb.textContent=si.htf_label||'—';
+        hb.style.color=si.htf_direction>0?'var(--green)':si.htf_direction<0?'var(--red)':'var(--gold)';}
+      const ss=document.getElementById('sc-score');
+      if(ss){ss.textContent=si.scalp_score!=null?(si.scalp_score>0?'+':'')+Number(si.scalp_score).toFixed(2):'—';
+        ss.style.color=si.scalp_score>0?'var(--green)':si.scalp_score<0?'var(--red)':'var(--t3)';}
+      const slE=document.getElementById('sc-sl'),tpE=document.getElementById('sc-tp');
+      if(slE)slE.textContent=si.sl_pips!=null?si.sl_pips+' pips':'— pips';
+      if(tpE)tpE.textContent=si.tp_pips!=null?si.tp_pips+' pips':'— pips';
     }
 
     // Daily/Weekly direction card (from signal response)
@@ -967,8 +1182,12 @@ let _secs=60,_timer=null;
 async function refreshAll(){
   const btn=document.getElementById('btn-refresh');
   btn.disabled=true;btn.textContent='⏳';
-  try{await Promise.all([loadChartData(),loadSignal()]);}
-  finally{btn.disabled=false;btn.textContent='↺ 更新';_secs=60;}
+  try{
+    const tasks=[loadChartData(),loadSignal()];
+    if(currentMode==='dayflow')tasks.push(loadDayPlan());
+    else clearDpLines();
+    await Promise.all(tasks);
+  }finally{btn.disabled=false;btn.textContent='↺ 更新';_secs=60;}
 }
 function startCountdown(){
   if(_timer)clearInterval(_timer);
