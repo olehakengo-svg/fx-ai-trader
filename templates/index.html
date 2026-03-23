@@ -382,11 +382,21 @@ body{background:var(--bg0);color:var(--t1);
     <!-- Scalp Mode card (scalpモード時のみ表示) -->
     <div class="card" id="card-scalp" style="display:none">
       <div class="card-title">⚡ スキャルピングモード <span style="font-size:9px;color:var(--t4)">(1m/5m/15m)</span></div>
-      <div class="dp-row"><span class="dp-lbl">1H バイアス</span><span class="dp-val" id="sc-htf-bias">—</span></div>
+      <div class="dp-row"><span class="dp-lbl">1H+4H バイアス</span><span class="dp-val" id="sc-htf-bias">—</span></div>
       <div class="dp-row"><span class="dp-lbl">スキャルプスコア</span><span class="dp-val" id="sc-score">—</span></div>
-      <div class="dp-row"><span class="dp-lbl">SL (ATR×0.8)</span><span class="dp-val" id="sc-sl">— pips</span></div>
-      <div class="dp-row"><span class="dp-lbl">TP (ATR×1.2)</span><span class="dp-val" id="sc-tp">— pips</span></div>
-      <div style="margin-top:8px;font-size:10px;color:var(--t4)">⚠️ 1H足の方向に順張り。EMA9プルバックでエントリー。</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:6px 0">
+        <div class="dp-row" style="margin:0;flex-direction:column;align-items:flex-start;gap:2px">
+          <span class="dp-lbl">RSI(5)</span>
+          <span class="dp-val" id="sc-rsi5" style="font-size:13px">—</span>
+        </div>
+        <div class="dp-row" style="margin:0;flex-direction:column;align-items:flex-start;gap:2px">
+          <span class="dp-lbl">Stoch K/D</span>
+          <span class="dp-val" id="sc-stoch" style="font-size:13px">—</span>
+        </div>
+      </div>
+      <div class="dp-row"><span class="dp-lbl">SL (ATR7×0.8)</span><span class="dp-val" id="sc-sl">— pips</span></div>
+      <div class="dp-row"><span class="dp-lbl">TP (ATR7×1.3)</span><span class="dp-val" id="sc-tp">— pips</span></div>
+      <div style="margin-top:8px;font-size:10px;color:var(--t4)">⚠️ 1H+4H一致方向のみ。EMA9プルバック+RSI5リセット+Stochクロスでエントリー。</div>
     </div>
 
     <!-- HTF Bias (1H + 4H) -->
@@ -1070,8 +1080,23 @@ async function loadSignal(){
       if(hb){hb.textContent=si.htf_label||'—';
         hb.style.color=si.htf_direction>0?'var(--green)':si.htf_direction<0?'var(--red)':'var(--gold)';}
       const ss=document.getElementById('sc-score');
-      if(ss){ss.textContent=si.scalp_score!=null?(si.scalp_score>0?'+':'')+Number(si.scalp_score).toFixed(2):'—';
-        ss.style.color=si.scalp_score>0?'var(--green)':si.scalp_score<0?'var(--red)':'var(--t3)';}
+      if(ss){
+        const sv=si.scalp_score??0;
+        ss.textContent=(sv>0?'+':'')+sv.toFixed(2);
+        ss.style.color=sv>0.4?'var(--green)':sv<-0.4?'var(--red)':'var(--t3)';
+      }
+      // RSI5
+      const rsiEl=document.getElementById('sc-rsi5');
+      if(rsiEl&&si.rsi5!=null){
+        rsiEl.textContent=si.rsi5.toFixed(0);
+        rsiEl.style.color=si.rsi5<25?'var(--green)':si.rsi5>75?'var(--red)':'var(--t1)';
+      }
+      // Stochastic
+      const stEl=document.getElementById('sc-stoch');
+      if(stEl&&si.stoch_k!=null){
+        stEl.textContent=si.stoch_k.toFixed(0)+' / '+(si.stoch_d??'—');
+        stEl.style.color=si.stoch_k<20?'var(--green)':si.stoch_k>80?'var(--red)':'var(--t1)';
+      }
       const slE=document.getElementById('sc-sl'),tpE=document.getElementById('sc-tp');
       if(slE)slE.textContent=si.sl_pips!=null?si.sl_pips+' pips':'— pips';
       if(tpE)tpE.textContent=si.tp_pips!=null?si.tp_pips+' pips':'— pips';

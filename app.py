@@ -22,7 +22,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 from ta.trend import EMAIndicator, MACD
-from ta.momentum import RSIIndicator
+from ta.momentum import RSIIndicator, StochasticOscillator
 from ta.volatility import BollingerBands, AverageTrueRange
 
 app = Flask(__name__)
@@ -89,12 +89,19 @@ def _fetch_raw(symbol: str, period: str, interval: str) -> pd.DataFrame:
     return df.dropna()
 
 
+# TF別キャッシュTTL (スキャルプ足は短く)
+_TF_CACHE_TTL = {
+    "1m": 30, "5m": 45, "15m": 90, "30m": 120,
+    "1h": 300, "4h": 300, "1d": 600, "1wk": 1800, "1mo": 3600,
+}
+
 def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
     key = (symbol, interval, period)
     now = datetime.now()
+    ttl = _TF_CACHE_TTL.get(interval, CACHE_TTL)
     if key in _data_cache:
         cached_df, ts = _data_cache[key]
-        if (now - ts).total_seconds() < CACHE_TTL:
+        if (now - ts).total_seconds() < ttl:
             return cached_df.copy()
     df = _fetch_raw(symbol, period, interval)
     _data_cache[key] = (df, now)
@@ -128,6 +135,12 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df["bb_lower"]  = bb.bollinger_lband()
     df["bb_pband"]  = bb.bollinger_pband()
     df["atr"]       = AverageTrueRange(h, l, c, window=14).average_true_range()
+    # スキャルプ用高速指標
+    df["rsi5"]      = RSIIndicator(c, window=5).rsi()
+    df["atr7"]      = AverageTrueRange(h, l, c, window=7).average_true_range()
+    stoch = StochasticOscillator(h, l, c, window=5, smooth_window=3)
+    df["stoch_k"]   = stoch.stoch()
+    df["stoch_d"]   = stoch.stoch_signal()
     return df.dropna()
 
 
@@ -2008,6 +2021,7 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     ema50  = float(row["ema50"])
     macdh  = float(row["macd_hist"])
     bbpb   = float(row["bb_pband"])
+    atr7   = float(row["atr7"]) if "atr7" in row.index else atr  # 短期ATR(7)
     session = get_session_info()
 
     h1_sc  = htf.get("h1", {}).get("score", 0.0)
@@ -2025,42 +2039,68 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         d_mult = 0.5;  reasons.append("⚖️ 1H+4H 不一致 → シグナル抑制中")
 
     # ── EMA9 プルバック ──
-    if d_mult > 0:
+    # mixed(0.5)のときは方向が不明瞭なのでスキップ
+    if d_mult == 1.0:
         if ema9 > ema21 > ema50:
-            if entry <= ema9 * 1.0015:
+            if entry <= ema9 * 1.001:   # EMA9の0.1%以内まで引いたときのみ
                 score += 2.0; reasons.append(f"✅ EMA9プルバック({ema9:.3f}) BUYゾーン")
-            else:
+            elif entry <= ema9 * 1.003:
                 score += 0.8; reasons.append("↗ EMA9>EMA21>EMA50 上昇列")
-        elif ema9 > ema21:
-            score += 0.5; reasons.append("↗ EMA9>EMA21")
-    elif d_mult < 0:
-        if ema9 < ema21 < ema50:
-            if entry >= ema9 * 0.9985:
-                score -= 2.0; reasons.append(f"✅ EMA9プルバック({ema9:.3f}) SELLゾーン")
             else:
+                score += 0.3; reasons.append("↗ EMA上昇配列（プルバック待ち）")
+        elif ema9 > ema21:
+            score += 0.4; reasons.append("↗ EMA9>EMA21")
+    elif d_mult == -1.0:
+        if ema9 < ema21 < ema50:
+            if entry >= ema9 * 0.999:   # EMA9の0.1%以内まで戻したときのみ
+                score -= 2.0; reasons.append(f"✅ EMA9プルバック({ema9:.3f}) SELLゾーン")
+            elif entry >= ema9 * 0.997:
                 score -= 0.8; reasons.append("↘ EMA9<EMA21<EMA50 下降列")
+            else:
+                score -= 0.3; reasons.append("↘ EMA下降配列（戻り待ち）")
         elif ema9 < ema21:
-            score -= 0.5; reasons.append("↘ EMA9<EMA21")
+            score -= 0.4; reasons.append("↘ EMA9<EMA21")
+    else:
+        reasons.append("⚖️ EMA方向不明瞭 → スキップ")
 
-    # ── RSI ──
-    if d_mult > 0:
-        if rsi < 30:   score += 1.5; reasons.append(f"✅ RSI 売られ過ぎ({rsi:.0f})")
-        elif rsi < 50: score += 1.0; reasons.append(f"✅ RSI({rsi:.0f}) リセット中")
-    elif d_mult < 0:
-        if rsi > 70:   score -= 1.5; reasons.append(f"✅ RSI 買われ過ぎ({rsi:.0f})")
-        elif rsi > 50: score -= 1.0; reasons.append(f"✅ RSI({rsi:.0f}) リセット中")
+    # ── RSI(5) 高速版 + RSI(14) 補助 ──
+    rsi5  = float(row.get("rsi5", rsi))  # 高速RSI(5)
+    if d_mult == 1.0:
+        if rsi5 < 25:   score += 1.8; reasons.append(f"✅ RSI5 売られ過ぎ({rsi5:.0f}) 強BUYシグナル")
+        elif rsi5 < 45: score += 1.2; reasons.append(f"✅ RSI5({rsi5:.0f}) リセット完了")
+        elif rsi5 < 55: score += 0.5; reasons.append(f"↗ RSI5({rsi5:.0f}) 中立圏")
+        if rsi < 40:    score += 0.4  # RSI14補助
+    elif d_mult == -1.0:
+        if rsi5 > 75:   score -= 1.8; reasons.append(f"✅ RSI5 買われ過ぎ({rsi5:.0f}) 強SELLシグナル")
+        elif rsi5 > 55: score -= 1.2; reasons.append(f"✅ RSI5({rsi5:.0f}) リセット完了")
+        elif rsi5 > 45: score -= 0.5; reasons.append(f"↘ RSI5({rsi5:.0f}) 中立圏")
+        if rsi > 60:    score -= 0.4  # RSI14補助
 
     # ── MACD ──
-    if d_mult > 0 and macdh > 0:  score += 0.6; reasons.append("✅ MACDヒスト正")
-    elif d_mult > 0 and macdh < 0: score -= 0.3
-    elif d_mult < 0 and macdh < 0: score -= 0.6; reasons.append("✅ MACDヒスト負")
-    elif d_mult < 0 and macdh > 0: score += 0.3
+    if d_mult == 1.0 and macdh > 0:   score += 0.6; reasons.append("✅ MACDヒスト正")
+    elif d_mult == 1.0 and macdh < 0:  score -= 0.3
+    elif d_mult == -1.0 and macdh < 0: score -= 0.6; reasons.append("✅ MACDヒスト負")
+    elif d_mult == -1.0 and macdh > 0: score += 0.3
 
     # ── ボリンジャーバンド ──
-    if d_mult > 0 and bbpb < 0.25:
-        score += 0.5; reasons.append(f"✅ BB下限付近({bbpb:.2f}) スキャルBUYゾーン")
-    elif d_mult < 0 and bbpb > 0.75:
-        score -= 0.5; reasons.append(f"✅ BB上限付近({bbpb:.2f}) スキャルSELLゾーン")
+    if d_mult == 1.0 and bbpb < 0.25:
+        score += 0.6; reasons.append(f"✅ BB下限付近({bbpb:.2f}) スキャルBUYゾーン")
+    elif d_mult == -1.0 and bbpb > 0.75:
+        score -= 0.6; reasons.append(f"✅ BB上限付近({bbpb:.2f}) スキャルSELLゾーン")
+
+    # ── Stochastic(5,3,3) — クロス確認 ──
+    stoch_k = float(row.get("stoch_k", 50.0))
+    stoch_d = float(row.get("stoch_d", 50.0))
+    if d_mult == 1.0:
+        if stoch_k < 20 and stoch_k > stoch_d:
+            score += 1.0; reasons.append(f"✅ Stoch ゴールデンクロス({stoch_k:.0f}) 売られ過ぎ圏")
+        elif stoch_k < 40 and stoch_k > stoch_d:
+            score += 0.5; reasons.append(f"↗ Stoch({stoch_k:.0f}) 上向き")
+    elif d_mult == -1.0:
+        if stoch_k > 80 and stoch_k < stoch_d:
+            score -= 1.0; reasons.append(f"✅ Stoch デッドクロス({stoch_k:.0f}) 買われ過ぎ圏")
+        elif stoch_k > 60 and stoch_k < stoch_d:
+            score -= 0.5; reasons.append(f"↘ Stoch({stoch_k:.0f}) 下向き")
 
     # ── 方向フィルター & セッション補正 ──
     # ※ scoreはすでに方向性あり（正=BUY,負=SELL）→ d_multの符号は使わず倍率のみ適用
@@ -2075,14 +2115,16 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         reasons.append(f"⚠️ {tf}足 — スキャルは1m/5m/15m推奨")
 
     # ── SL / TP（タイト固定）──
-    SCALP_SL, SCALP_TP, THRESHOLD = 0.8, 1.2, 0.35
-    if   score >  THRESHOLD: signal, conf = "BUY",  int(min(88, 50 + score * 22))
-    elif score < -THRESHOLD: signal, conf = "SELL", int(min(88, 50 + abs(score) * 22))
-    else:                    signal, conf = "WAIT", int(max(25, 50 - abs(score) * 25))
+    SCALP_SL, SCALP_TP, THRESHOLD = 0.8, 1.3, 0.40
+    if   score >  THRESHOLD: signal, conf = "BUY",  int(min(88, 50 + score * 20))
+    elif score < -THRESHOLD: signal, conf = "SELL", int(min(88, 50 + abs(score) * 20))
+    else:                    signal, conf = "WAIT", int(max(20, 50 - abs(score) * 25))
 
     act = signal if signal != "WAIT" else ("BUY" if score >= 0 else "SELL")
-    sl  = round(entry - atr * SCALP_SL, 3) if act == "BUY" else round(entry + atr * SCALP_SL, 3)
-    tp  = round(entry + atr * SCALP_TP, 3) if act == "BUY" else round(entry - atr * SCALP_TP, 3)
+    # ATR7（短期）をSL/TPに使用 → よりタイトなスキャルプ設定
+    atr_scalp = atr7 if atr7 > 0 else atr
+    sl  = round(entry - atr_scalp * SCALP_SL, 3) if act == "BUY" else round(entry + atr_scalp * SCALP_SL, 3)
+    tp  = round(entry + atr_scalp * SCALP_TP, 3) if act == "BUY" else round(entry - atr_scalp * SCALP_TP, 3)
     rr  = round(abs(tp - entry) / max(abs(sl - entry), 1e-6), 2)
 
     ts_str = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
@@ -2115,8 +2157,11 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             "htf_label":     htf.get("label", "—"),
             "htf_direction": 1 if htf["agreement"] == "bull" else (-1 if htf["agreement"] == "bear" else 0),
             "scalp_score":   round(score, 3),
-            "sl_pips":       round(atr * 0.8 * 100, 1),
-            "tp_pips":       round(atr * 1.2 * 100, 1),
+            "sl_pips":       round(atr_scalp * SCALP_SL * 100, 1),
+            "tp_pips":       round(atr_scalp * SCALP_TP * 100, 1),
+            "atr7":          round(atr7, 3),
+            "rsi5":          round(float(row.get("rsi5", 50)), 1),
+            "stoch_k":       round(float(row.get("stoch_k", 50)), 1),
         },
     }
 
@@ -2250,6 +2295,9 @@ def api_chart():
                 "bb_mid":   round(float(row["bb_mid"]),  3),
                 "bb_lower": round(float(row["bb_lower"]),3),
                 "rsi":       round(float(row["rsi"]),        1),
+                "rsi5":      round(float(row.get("rsi5", row["rsi"])), 1),
+                "stoch_k":   round(float(row.get("stoch_k", 50)), 1),
+                "stoch_d":   round(float(row.get("stoch_d", 50)), 1),
                 "macd":      round(float(row["macd"]),       5),
                 "macd_sig":  round(float(row["macd_sig"]),   5),
                 "macd_hist": round(float(row["macd_hist"]),  5),
