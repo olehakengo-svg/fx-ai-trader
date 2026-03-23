@@ -680,11 +680,42 @@ def institutional_flow_score():
 # ═══════════════════════════════════════════════════════
 #  ⑩ Fundamental Score  (米日金利差 + 米10年債)
 # ═══════════════════════════════════════════════════════
+_jp10y_cache: dict = {}
+JP10Y_TTL = 86400  # 24時間キャッシュ（日次データのため）
+
+def fetch_jp10y() -> float:
+    """
+    日本10年国債利回りをFRED（OECD経由）から取得。
+    取得失敗時は直近キャッシュ値 or 1.5%にフォールバック。
+    """
+    global _jp10y_cache
+    now = datetime.now()
+    if _jp10y_cache.get("ts") and (now - _jp10y_cache["ts"]).total_seconds() < JP10Y_TTL:
+        return _jp10y_cache["value"]
+    try:
+        import urllib.request, csv, io
+        url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=IRLTLT01JPM156N"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            rows = list(csv.reader(io.TextIOWrapper(r)))
+        # 最終行（最新値）を取得
+        for row in reversed(rows):
+            if len(row) == 2 and row[1] not in ("", "."):
+                value = float(row[1])
+                _jp10y_cache = {"value": value, "ts": now}
+                return value
+    except Exception as e:
+        print(f"[JP10Y] FRED取得失敗: {e}")
+    # フォールバック: 前回キャッシュ or 1.5%（BOJ利上げ後の近似値）
+    return _jp10y_cache.get("value", 1.5)
+
+
 def fundamental_score():
     """
     米日ファンダメンタル:
       - ^TNX : 米10年債利回り（上昇=USD強）
-      - 米日金利差（US10Y - JP10Y≈0.5%）: 拡大=USD強
+      - 米日金利差（US10Y - JP10Y）: 拡大=USD強
+      - JP10Y: FREDからリアルタイム取得
     Returns: (score [-1,+1], detail dict)
     """
     try:
@@ -697,22 +728,23 @@ def fundamental_score():
 
         # 5日間の金利変化方向
         chg = (us10y - us10y_prev) / max(us10y_prev, 1e-4)
-        yield_trend = max(-1.0, min(1.0, chg * 20.0))  # 感度調整
+        yield_trend = max(-1.0, min(1.0, chg * 20.0))
 
-        # 米日金利差（日本10年≈0.5%固定近似）
-        jp10y  = 0.5
-        spread = us10y - jp10y
-        spread_n = max(-1.0, min(1.0, (spread - 2.5) / 2.5))
+        # 日本10年利回りをリアルタイム取得
+        jp10y    = fetch_jp10y()
+        spread   = us10y - jp10y
+        # 中立水準を動的に設定: 金利差2%=中立（BOJ利上げ後）
+        spread_n = max(-1.0, min(1.0, (spread - 2.0) / 2.0))
 
         score = (yield_level * 0.30 +
                  yield_trend * 0.40 +
                  spread_n   * 0.30)
 
         detail = {
-            "us10y":       round(us10y, 2),
-            "jp10y":       jp10y,
-            "spread":      round(spread, 2),
-            "rate_trend":  "上昇（USD強）" if yield_trend > 0 else "低下（USD弱）",
+            "us10y":      round(us10y, 2),
+            "jp10y":      round(jp10y, 2),
+            "spread":     round(spread, 2),
+            "rate_trend": "上昇（USD強）" if yield_trend > 0 else "低下（USD弱）",
         }
         return round(max(-1.0, min(1.0, score)), 4), detail
     except Exception as e:
@@ -826,7 +858,11 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     else:                       signal, conf = "WAIT", int(max(25, 50 - abs(combined) * 40))
 
     # ⑥ S/R-snapped SL/TP（TF対応スイングモード）
-    act_signal = signal if signal != "WAIT" else "BUY"
+    # WAIT時はcombinedの符号で方向を決定（0の場合はBUY）
+    if signal == "WAIT":
+        act_signal = "BUY" if combined >= 0 else "SELL"
+    else:
+        act_signal = signal
     sl, tp = calc_sl_tp_v3(entry, act_signal, atr, sr_levels, tf=tf)
     rr     = round(abs(tp - entry) / max(abs(sl - entry), 1e-6), 2)
 
@@ -1060,8 +1096,9 @@ def get_news_sentiment() -> dict:
 def run_backtest(symbol: str = "USDJPY=X",
                  lookback_days: int = 90) -> dict:
     """
-    1H足を使ったシンプルなバックテスト。
-    - ルールベースシグナル × 日足EMAフィルター
+    1H足を使ったバックテスト（実シグナルに近いロジック）。
+    - rule_signal + candle_pattern + dow_theory の複合スコアでエントリー判定
+    - EMA21トレンドフィルター（逆張り排除）
     - スプレッド3pip考慮
     - SL: 2.2×ATR, TP: 3.3×ATR（1H スイング設定）
     - 最大保有: 48時間
@@ -1079,37 +1116,46 @@ def run_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足"}
 
-        # 日足EMAで大局フィルター取得
-        try:
-            d_df = fetch_ohlcv(symbol, period="1y", interval="1d")
-            d_df = add_indicators(d_df)
-            # 1H dataframeの日付に対応する日足EMA50を付与
-            d_ema50 = d_df["ema50"].resample("1H").ffill() if hasattr(d_df.index, "freq") else d_df["ema50"]
-        except Exception:
-            d_ema50 = None
-
         SPREAD   = 0.030   # 3 pips
         SL_MULT  = TF_SL_MULT["1h"]  # 2.2
         TP_MULT  = TF_TP_MULT["1h"]  # 3.3
         MAX_HOLD = 48      # bars (hours)
-        MIN_SCORE= 3.5     # rule_signal閾値
+        # 正規化後の複合スコア閾値（compute_signalのTHRESHOLD=0.28に相当）
+        MIN_COMBINED = 0.28
 
         trades = []
         for i in range(50, len(df) - MAX_HOLD - 1):
-            row = df.iloc[i]
-            rule_sc, _ = rule_signal(row)
-            if abs(rule_sc) < MIN_SCORE:
-                continue
+            row    = df.iloc[i]
+            sub_df = df.iloc[:i + 1]
 
-            # 日足EMAフィルター（逆張り排除）
+            # rule_signal（正規化: /8.0）
+            rule_sc, _ = rule_signal(row)
+            rule_n     = max(-1.0, min(1.0, rule_sc / 8.0))
+
+            # ローソク足パターン（正規化: /4.0）
+            candle_sc, _ = detect_candle_patterns(sub_df)
+            candle_n     = max(-1.0, min(1.0, candle_sc / 4.0))
+
+            # ダウ理論（正規化: /2.5）
+            dow_sc, _  = dow_theory_analysis(sub_df)
+            dow_n      = max(-1.0, min(1.0, dow_sc / 2.5))
+
+            # EMA21トレンドフィルター（方向の一致確認）
             ema21_prev = float(df["ema21"].iloc[i - 5])
             ema21_cur  = float(row["ema21"])
             ema_trend  = 1.0 if ema21_cur > ema21_prev else -1.0
-            sig_dir    = 1.0 if rule_sc > 0 else -1.0
-            if sig_dir != ema_trend:
+
+            # 複合スコア（実シグナルのウェイトに準じた簡易版）
+            combined = rule_n * 0.50 + candle_n * 0.20 + dow_n * 0.30
+
+            # EMAトレンドと逆方向はスキップ
+            if (combined > 0 and ema_trend < 0) or (combined < 0 and ema_trend > 0):
                 continue
 
-            signal = "BUY" if rule_sc > 0 else "SELL"
+            if abs(combined) < MIN_COMBINED:
+                continue
+
+            signal = "BUY" if combined > 0 else "SELL"
             entry  = float(row["Close"])
             atr    = float(row["atr"])
             if atr <= 0:
