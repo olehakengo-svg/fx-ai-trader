@@ -788,6 +788,76 @@ def rule_signal(row: pd.Series):
 
 
 # ═══════════════════════════════════════════════════════
+#  1H / 4H 上位足バイアス（ハードフィルター用）
+# ═══════════════════════════════════════════════════════
+_htf_cache: dict = {}
+HTF_TTL = 300  # 5分キャッシュ
+
+def get_htf_bias(symbol: str) -> dict:
+    """
+    1H足と4H足のEMAトレンド構造から上位足バイアスを取得。
+    - 両足一致強気  → BUYのみ許可
+    - 両足一致弱気  → SELLのみ許可
+    - 不一致        → シグナル抑制
+    Returns: {score, h1, h4, agreement, label}
+    """
+    global _htf_cache
+    now = datetime.now()
+    key = symbol
+    if _htf_cache.get(key) and (now - _htf_cache[key]["ts"]).total_seconds() < HTF_TTL:
+        return _htf_cache[key]["data"]
+
+    results = {}
+    for tf_key, cfg in [("1h", TF_CFG["1h"]), ("4h", TF_CFG["4h"])]:
+        try:
+            df_h = fetch_ohlcv(symbol, period=cfg["period"], interval=cfg["interval"])
+            if cfg.get("resample"):
+                df_h = resample_df(df_h, cfg["resample"])
+            df_h = add_indicators(df_h)
+            row  = df_h.iloc[-1]
+            c    = float(row["Close"])
+            e9   = float(row["ema9"])
+            e21  = float(row["ema21"])
+            e50  = float(row["ema50"])
+            rsi  = float(row["rsi"])
+
+            if   c > e9 > e21 > e50:  sc = 1.0;  lbl = "↗↗ 強気（全EMA上昇列）"
+            elif c > e21 and e9 > e21: sc = 0.6;  lbl = "↗ 強気（EMA21超）"
+            elif c > e21:              sc = 0.3;  lbl = "↗ 弱強気（EMA21超）"
+            elif c < e9 < e21 < e50:  sc = -1.0; lbl = "↘↘ 弱気（全EMA下降列）"
+            elif c < e21 and e9 < e21: sc = -0.6; lbl = "↘ 弱気（EMA21下）"
+            elif c < e21:              sc = -0.3; lbl = "↘ 弱弱気（EMA21下）"
+            else:                      sc = 0.0;  lbl = "↔ 中立"
+
+            results[tf_key] = {
+                "score": sc, "label": lbl,
+                "rsi": round(rsi, 1),
+                "ema9": round(e9, 3), "ema21": round(e21, 3), "ema50": round(e50, 3),
+                "close": round(c, 3),
+            }
+        except Exception as e:
+            print(f"[HTF/{tf_key}] {e}")
+            results[tf_key] = {"score": 0.0, "label": "取得失敗", "rsi": 50.0}
+
+    h1_sc = results.get("1h", {}).get("score", 0.0)
+    h4_sc = results.get("4h", {}).get("score", 0.0)
+
+    # 4H優先の加重平均（4H=60%, 1H=40%）
+    avg = round(h1_sc * 0.40 + h4_sc * 0.60, 3)
+
+    if   h1_sc > 0.2 and h4_sc > 0.2:  agreement = "bull"; label = "📈 1H+4H 上昇一致 → BUYのみ有効"
+    elif h1_sc < -0.2 and h4_sc < -0.2: agreement = "bear"; label = "📉 1H+4H 下降一致 → SELLのみ有効"
+    else:                                agreement = "mixed"; label = "⚖️ 1H+4H 不一致 → シグナル抑制中"
+
+    data = {
+        "score": avg, "agreement": agreement, "label": label,
+        "h1": results.get("1h", {}), "h4": results.get("4h", {}),
+    }
+    _htf_cache[key] = {"data": data, "ts": now}
+    return data
+
+
+# ═══════════════════════════════════════════════════════
 #  Master signal aggregator
 # ═══════════════════════════════════════════════════════
 def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"):
@@ -844,11 +914,31 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     combined *= session["mult"]
 
     # ── 日足・週足 逆方向フィルター（スイング時）──────────────
-    # 1H/4H/1D でdw_scoreが強く反対 → 信頼度を抑制
     if tf in ("1h", "4h", "1d"):
         dw_overall = float(dw_data.get("overall_score", 0.0))
         if (combined > 0 and dw_overall < -0.5) or (combined < 0 and dw_overall > 0.5):
-            combined *= 0.6  # 大局逆行 → 信頼度60%に抑制
+            combined *= 0.6
+
+    # ── 1H / 4H ハードフィルター（最重要）────────────────────
+    # 1H+4H のトレンドと逆方向のシグナルを完全カット
+    htf = get_htf_bias(symbol)
+    htf_agreement = htf["agreement"]
+
+    if htf_agreement == "bull":
+        # 両足強気 → BUYのみ有効、SELLは0に
+        if combined < 0:
+            combined = 0.0
+        else:
+            combined = min(1.0, combined * 1.2)  # BUY方向を強化
+    elif htf_agreement == "bear":
+        # 両足弱気 → SELLのみ有効、BUYは0に
+        if combined > 0:
+            combined = 0.0
+        else:
+            combined = max(-1.0, combined * 1.2)  # SELL方向を強化
+    else:
+        # 不一致 → 全体的に抑制（閾値を実質的に引き上げ）
+        combined *= 0.60
 
     # ⑧ Strict threshold
     THRESHOLD = 0.28
@@ -922,6 +1012,7 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
         "news":          news_data,
         "daily_weekly":  dw_data,
         "swing_mode":    tf in ("1h", "4h", "1d", "1w"),
+        "htf_bias":      htf,
         "indicators": {
             "ema9":     round(float(row["ema9"]),  3),
             "ema21":    round(float(row["ema21"]), 3),

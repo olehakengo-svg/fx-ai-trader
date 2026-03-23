@@ -207,6 +207,17 @@ body{background:var(--bg0);color:var(--t1);
 .wf-wr{font-weight:700;width:36px;text-align:right}
 .wf-ev{font-family:'SF Mono',monospace;width:46px;text-align:right}
 
+/* ── HTF Bias bar ────────────────────────────── */
+.htf-bar{border-radius:7px;padding:8px 12px;margin-bottom:0;font-size:11px;font-weight:700;text-align:center;letter-spacing:.3px}
+.htf-bull{background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.4)}
+.htf-bear{background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.35)}
+.htf-mix{background:rgba(227,179,65,.1);color:var(--gold);border:1px solid rgba(227,179,65,.3)}
+.htf-tf-row{display:flex;gap:6px;margin-top:7px}
+.htf-tf-cell{flex:1;background:var(--bg0);border:1px solid var(--bg3);border-radius:5px;padding:5px 7px}
+.htf-tf-lbl{font-size:10px;font-weight:800;color:var(--blue);margin-bottom:2px}
+.htf-tf-trend{font-size:10px;font-weight:600;margin-bottom:1px}
+.htf-tf-rsi{font-size:10px;color:var(--t3);font-family:'SF Mono',monospace}
+
 /* ── Notification btn ────────────────────────── */
 .btn-notif{padding:3px 10px;background:var(--bg2);border:1px solid var(--bg3);
   border-radius:5px;color:var(--t3);font-size:10px;cursor:pointer;white-space:nowrap}
@@ -274,6 +285,24 @@ body{background:var(--bg0);color:var(--t1);
   <!-- Signal panel -->
   <aside class="panel">
     <div id="err-box"></div>
+
+    <!-- HTF Bias (1H + 4H) -->
+    <div class="card">
+      <div class="card-title">🧭 上位足トレンド（1H + 4H）</div>
+      <div class="htf-bar htf-mix" id="htf-label">— 読込中</div>
+      <div class="htf-tf-row">
+        <div class="htf-tf-cell">
+          <div class="htf-tf-lbl">1H</div>
+          <div class="htf-tf-trend" id="htf-h1-trend">—</div>
+          <div class="htf-tf-rsi" id="htf-h1-rsi">RSI —</div>
+        </div>
+        <div class="htf-tf-cell">
+          <div class="htf-tf-lbl">4H</div>
+          <div class="htf-tf-trend" id="htf-h4-trend">—</div>
+          <div class="htf-tf-rsi" id="htf-h4-rsi">RSI —</div>
+        </div>
+      </div>
+    </div>
 
     <!-- Main signal -->
     <div class="card">
@@ -650,6 +679,28 @@ async function loadSignal(){
     document.getElementById('lv-t').textContent=d.tp.toFixed(3);
     document.getElementById('rr-val').textContent='1:'+d.rr_ratio;
     document.getElementById('atr-val').textContent=d.atr.toFixed(3);
+
+    // HTF Bias表示
+    if(d.htf_bias){
+      const htf=d.htf_bias;
+      const lbl=document.getElementById('htf-label');
+      const clsMap={bull:'htf-bull',bear:'htf-bear',mixed:'htf-mix'};
+      lbl.textContent=htf.label||'—';
+      lbl.className='htf-bar '+(clsMap[htf.agreement]||'htf-mix');
+
+      const setTf=(idT,idR,info)=>{
+        if(!info) return;
+        const el=document.getElementById(idT);
+        const re=document.getElementById(idR);
+        if(el){
+          el.textContent=info.label||'—';
+          el.style.color=info.score>0.2?'var(--green)':info.score<-0.2?'var(--red)':'var(--gold)';
+        }
+        if(re) re.textContent='RSI '+(info.rsi||'—');
+      };
+      setTf('htf-h1-trend','htf-h1-rsi',htf.h1);
+      setTf('htf-h4-trend','htf-h4-rsi',htf.h4);
+    }
 
     // Position sizing連携
     _psEntry=d.entry; _psSL=d.sl;
