@@ -166,6 +166,13 @@ body{background:var(--bg0);color:var(--t1);
 .ml-row{display:flex;justify-content:space-between;font-size:11px;color:var(--t3);margin-top:8px}
 .ml-row strong{color:var(--blue)}
 
+.macro-row{display:flex;justify-content:space-between;align-items:center;
+  padding:4px 0;border-bottom:1px solid var(--border);font-size:11px}
+.macro-row:last-child{border-bottom:none}
+.macro-lbl{color:var(--t3)}
+.macro-val{color:var(--t1);font-weight:600;font-size:11px}
+.macro-section-title{font-size:10px;font-weight:700;color:var(--blue);
+  text-transform:uppercase;letter-spacing:.5px;padding:6px 0 2px;}
 .footer-note{font-size:10px;color:var(--t4);text-align:center}
 .err-card{background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);
   border-radius:7px;padding:10px;font-size:11px;color:var(--red);line-height:1.5}
@@ -258,6 +265,27 @@ body{background:var(--bg0);color:var(--t1);
         <div class="score-cell"><div class="sc-label">出来高/OBV</div><div class="sc-bar-wrap"><div class="sc-bar-fill" id="sb-vol" style="width:50%"></div></div><div class="sc-val" id="sv-vol">—</div></div>
         <div class="score-cell"><div class="sc-label">ダイバージェンス</div><div class="sc-bar-wrap"><div class="sc-bar-fill" id="sb-div" style="width:50%"></div></div><div class="sc-val" id="sv-div">—</div></div>
         <div class="score-cell"><div class="sc-label">MTFコンフルエンス</div><div class="sc-bar-wrap"><div class="sc-bar-fill" id="sb-mtf" style="width:50%"></div></div><div class="sc-val" id="sv-mtf">—</div></div>
+        <div class="score-cell"><div class="sc-label">🏦 機関投資家フロー</div><div class="sc-bar-wrap"><div class="sc-bar-fill" id="sb-inst" style="width:50%"></div></div><div class="sc-val" id="sv-inst">—</div></div>
+        <div class="score-cell"><div class="sc-label">📊 ファンダメンタル</div><div class="sc-bar-wrap"><div class="sc-bar-fill" id="sb-fund" style="width:50%"></div></div><div class="sc-val" id="sv-fund">—</div></div>
+      </div>
+    </div>
+
+    <!-- Macro / Fundamental info card -->
+    <div class="card">
+      <div class="card-title">マクロ情報</div>
+      <div id="macro-box">
+        <div class="macro-section-title">🏦 大口参入状況</div>
+        <div class="macro-row"><span class="macro-lbl">JPY先物 出来高比</span><span id="m-jpy-vol" class="macro-val">—</span></div>
+        <div class="macro-row"><span class="macro-lbl">JPY先物 大口方向</span><span id="m-jpy-dir" class="macro-val">—</span></div>
+        <div class="macro-row"><span class="macro-lbl">DXY（ドル指数）</span><span id="m-dxy" class="macro-val">—</span></div>
+        <div class="macro-row"><span class="macro-lbl">DXY 大口フロー</span><span id="m-dxy-flow" class="macro-val">—</span></div>
+        <div class="macro-row"><span class="macro-lbl">DXY 出来高比</span><span id="m-dxy-vol" class="macro-val">—</span></div>
+        <div class="macro-row"><span class="macro-lbl">VIX（恐怖指数）</span><span id="m-vix" class="macro-val">—</span></div>
+        <div class="macro-row"><span class="macro-lbl">リスクセンチメント</span><span id="m-vix-sig" class="macro-val">—</span></div>
+        <div class="macro-section-title" style="margin-top:8px">📊 ファンダメンタル</div>
+        <div class="macro-row"><span class="macro-lbl">米10年債利回り</span><span id="m-us10y" class="macro-val">—</span></div>
+        <div class="macro-row"><span class="macro-lbl">米日金利差</span><span id="m-spread" class="macro-val">—</span></div>
+        <div class="macro-row"><span class="macro-lbl">金利トレンド</span><span id="m-rate-tr" class="macro-val">—</span></div>
       </div>
     </div>
 
@@ -408,7 +436,7 @@ async function loadChartData(){
     const r=await fetch(`/api/chart?tf=${currentTf}`);
     const data=await r.json();
     if(data.error) throw new Error(data.error);
-    const {candles,sr_levels,channel}=data;
+    const {candles,sr_levels,channel,lp_markers}=data;
 
     candleS.setData(candles.map(d=>({time:d.time,open:d.open,high:d.high,low:d.low,close:d.close})));
     e9S .setData(candles.map(d=>({time:d.time,value:d.ema9})));
@@ -442,6 +470,20 @@ async function loadChartData(){
       chUS.setData([]);chDS.setData([]);chMS.setData([]);
       document.getElementById('ch-info').innerHTML=
         '<div style="color:var(--t3);font-size:11px">データ不足のため計算不可</div>';
+    }
+
+    // 大口参入マーカー（バブル）
+    if(lp_markers&&lp_markers.length){
+      candleS.setMarkers(lp_markers.map(m=>({
+        time:     m.time,
+        position: m.position,
+        color:    m.color,
+        shape:    m.shape,
+        text:     m.text,
+        size:     1.5,
+      })));
+    } else {
+      candleS.setMarkers([]);
     }
 
     // S/R
@@ -537,6 +579,43 @@ async function loadSignal(){
       renderScoreBar('sb-vol',   'sv-vol',    sd.volume);
       renderScoreBar('sb-div',   'sv-div',    sd.divergence);
       renderScoreBar('sb-mtf',   'sv-mtf',    sd.mtf);
+      renderScoreBar('sb-inst',  'sv-inst',   sd.institutional!=null?sd.institutional:0);
+      renderScoreBar('sb-fund',  'sv-fund',   sd.fundamental!=null?sd.fundamental:0);
+    }
+
+    // Macro info card
+    if(d.institutional||d.fundamental){
+      const ins=d.institutional||{}, fun=d.fundamental||{};
+      const setM=(id,val,col)=>{
+        const el=document.getElementById(id);
+        if(!el)return;
+        el.textContent=val||'—';
+        if(col)el.style.color=col;
+      };
+      // 大口参入
+      const jvol=ins.jpy_vol_ratio||'—';
+      const jspike=ins.jpy_spike;
+      setM('m-jpy-vol', jvol+(jspike?' 🔥':''), jspike?'var(--yellow)':'var(--t1)');
+      setM('m-jpy-dir', ins.jpy_direction||'—',
+        ins.jpy_direction&&ins.jpy_direction.includes('USD買')?'var(--green)':
+        ins.jpy_direction&&ins.jpy_direction.includes('円買')?'var(--red)':'var(--t3)');
+      setM('m-dxy',     ins.dxy!=null?String(ins.dxy):'—');
+      const dvol=ins.dxy_vol_ratio||'—';
+      const dspike=ins.dxy_spike;
+      setM('m-dxy-vol', dvol+(dspike?' 🔥':''), dspike?'var(--yellow)':'var(--t1)');
+      setM('m-dxy-flow',ins.dxy_flow||'—',
+        ins.dxy_flow&&ins.dxy_flow.includes('買い')?'var(--green)':
+        ins.dxy_flow&&ins.dxy_flow.includes('売り')?'var(--red)':'var(--t3)');
+      setM('m-vix',     ins.vix!=null?String(ins.vix):'—',
+        ins.vix>25?'var(--red)':ins.vix<15?'var(--green)':'var(--t1)');
+      setM('m-vix-sig', ins.vix_signal||'—',
+        ins.vix_signal&&ins.vix_signal.includes('リスクオフ')?'var(--red)':
+        ins.vix_signal&&ins.vix_signal.includes('リスクオン')?'var(--green)':'var(--t3)');
+      // ファンダメンタル
+      setM('m-us10y',  fun.us10y!=null?fun.us10y+'%':'—');
+      setM('m-spread', fun.spread!=null?fun.spread+'%':'—');
+      setM('m-rate-tr',fun.rate_trend||'—',
+        fun.rate_trend&&fun.rate_trend.includes('強')?'var(--green)':'var(--red)');
     }
 
     // MTF confluence

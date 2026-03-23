@@ -528,6 +528,174 @@ def momentum_score(df: pd.DataFrame) -> float:
 
 
 # ═══════════════════════════════════════════════════════
+#  ⑨ Institutional Flow  (Volume Spike + Force Index + VIX)
+# ═══════════════════════════════════════════════════════
+def _vol_force(df, vol_window: int = 20):
+    """
+    出来高×価格方向でForce Indexを計算。
+    Returns (force_score[-1,+1], vol_ratio, is_spike)
+    force > 0 = 買い圧力, < 0 = 売り圧力
+    """
+    try:
+        vol   = df["Volume"].fillna(0).astype(float)
+        close = df["Close"].astype(float)
+        if vol.sum() == 0:
+            return 0.0, 0.0, False
+        avg_vol = vol.iloc[-vol_window:].mean()
+        cur_vol = float(vol.iloc[-1])
+        ratio   = cur_vol / max(avg_vol, 1.0)
+        # 直近3本の価格方向
+        if len(close) >= 4:
+            price_dir = 1.0 if float(close.iloc[-1]) > float(close.iloc[-4]) else -1.0
+        else:
+            price_dir = 0.0
+        # Force Index = 方向 × 正規化出来高（最大4倍でクリップ）
+        force    = price_dir * min(ratio, 4.0) / 4.0
+        is_spike = ratio >= 2.0
+        return round(force, 4), round(ratio, 2), is_spike
+    except Exception:
+        return 0.0, 0.0, False
+
+
+def institutional_flow_score():
+    """
+    大口ファンド参入を3つの視点で検知:
+      ① JPY先物 (6J=F) 出来高×方向 Force Index  → 平均比2倍以上で大口参入シグナル
+      ② DXY  (DX-Y.NYB) 出来高×方向 Force Index → USD機関フローの実際の売買量
+      ③ VIX  (^VIX)                             → 上昇=リスクオフ=円高圧力
+    Returns: (score [-1,+1], detail dict)
+    """
+    score      = 0.0
+    weight_sum = 0.0
+    detail     = {}
+
+    # ── ① JPY先物 出来高スパイク + Force Index ──────────────────
+    try:
+        jpy = fetch_ohlcv("6J=F", period="40d", interval="1d")
+        jpy = add_indicators(jpy)
+        jpy_force, jpy_ratio, jpy_spike = _vol_force(jpy)
+        # JPY先物は逆相関（先物上昇=円高=USD/JPY下落）
+        jpy_s = -jpy_force
+
+        score      += jpy_s * 0.40
+        weight_sum += 0.40
+        detail["jpy_vol_ratio"] = f"{jpy_ratio:.1f}x"
+        detail["jpy_spike"]     = jpy_spike
+
+        if jpy_ratio >= 1.5:
+            if jpy_s > 0.25:
+                detail["jpy_direction"] = "🟢 大口USD買い（USD/JPY↑）"
+            elif jpy_s < -0.25:
+                detail["jpy_direction"] = "🔴 大口円買い（USD/JPY↓）"
+            else:
+                detail["jpy_direction"] = "⚪ 大口方向不明"
+        else:
+            detail["jpy_direction"] = "⚫ 通常出来高（様子見）"
+        if jpy_spike:
+            detail["jpy_direction"] += " 🔥"
+    except Exception as e:
+        print(f"[INST/JPY] {e}")
+
+    # ── ② DXY 出来高スパイク + Force Index ──────────────────────
+    try:
+        dxy = fetch_ohlcv("DX-Y.NYB", period="40d", interval="1d")
+        dxy = add_indicators(dxy)
+        dxy_force, dxy_ratio, dxy_spike = _vol_force(dxy)
+
+        score      += dxy_force * 0.35
+        weight_sum += 0.35
+        detail["dxy"]           = round(float(dxy["Close"].iloc[-1]), 2)
+        detail["dxy_vol_ratio"] = f"{dxy_ratio:.1f}x"
+        detail["dxy_spike"]     = dxy_spike
+
+        if dxy_ratio >= 1.5:
+            if dxy_force > 0.25:
+                detail["dxy_flow"] = "🟢 大口USD買い"
+            elif dxy_force < -0.25:
+                detail["dxy_flow"] = "🔴 大口USD売り"
+            else:
+                detail["dxy_flow"] = "⚪ 方向不明"
+        else:
+            detail["dxy_flow"] = "⚫ 通常出来高"
+        if dxy_spike:
+            detail["dxy_flow"] += " 🔥"
+    except Exception as e:
+        print(f"[INST/DXY] {e}")
+
+    # ── ③ VIX（リスクオフ指標）───────────────────────────────────
+    try:
+        vix_df  = fetch_ohlcv("^VIX", period="20d", interval="1d")
+        vix_cur = float(vix_df["Close"].iloc[-1])
+        vix_avg = float(vix_df["Close"].mean())
+        vix_chg = float(vix_df["Close"].iloc[-1] - vix_df["Close"].iloc[-2])
+
+        # VIX高い/上昇 = リスクオフ = 円高圧力 = USD/JPY↓
+        vix_level = max(-1.0, min(1.0, -(vix_cur - 20.0) / 10.0))  # 20=中立
+        vix_trend = -1.0 if vix_chg > 0 else 1.0
+        vix_s     = vix_level * 0.5 + vix_trend * 0.5
+
+        score      += vix_s * 0.25
+        weight_sum += 0.25
+        detail["vix"] = round(vix_cur, 1)
+        if vix_cur > 25:
+            detail["vix_signal"] = "🔴 高VIX リスクオフ（円高圧力）"
+        elif vix_cur < 15:
+            detail["vix_signal"] = "🟢 低VIX リスクオン（円安圧力）"
+        else:
+            detail["vix_signal"] = "⚪ VIX中立"
+    except Exception as e:
+        print(f"[INST/VIX] {e}")
+
+    if weight_sum == 0:
+        return 0.0, {}
+    normalized = score / weight_sum
+    return round(max(-1.0, min(1.0, normalized)), 4), detail
+
+
+# ═══════════════════════════════════════════════════════
+#  ⑩ Fundamental Score  (米日金利差 + 米10年債)
+# ═══════════════════════════════════════════════════════
+def fundamental_score():
+    """
+    米日ファンダメンタル:
+      - ^TNX : 米10年債利回り（上昇=USD強）
+      - 米日金利差（US10Y - JP10Y≈0.5%）: 拡大=USD強
+    Returns: (score [-1,+1], detail dict)
+    """
+    try:
+        tnx = fetch_ohlcv("^TNX", period="30d", interval="1d")
+        us10y      = float(tnx["Close"].iloc[-1])
+        us10y_prev = float(tnx["Close"].iloc[-6]) if len(tnx) >= 7 else us10y
+
+        # 金利水準スコア: 3%=中立, 1-6%の範囲で正規化
+        yield_level = max(-1.0, min(1.0, (us10y - 3.0) / 2.0))
+
+        # 5日間の金利変化方向
+        chg = (us10y - us10y_prev) / max(us10y_prev, 1e-4)
+        yield_trend = max(-1.0, min(1.0, chg * 20.0))  # 感度調整
+
+        # 米日金利差（日本10年≈0.5%固定近似）
+        jp10y  = 0.5
+        spread = us10y - jp10y
+        spread_n = max(-1.0, min(1.0, (spread - 2.5) / 2.5))
+
+        score = (yield_level * 0.30 +
+                 yield_trend * 0.40 +
+                 spread_n   * 0.30)
+
+        detail = {
+            "us10y":       round(us10y, 2),
+            "jp10y":       jp10y,
+            "spread":      round(spread, 2),
+            "rate_trend":  "上昇（USD強）" if yield_trend > 0 else "低下（USD弱）",
+        }
+        return round(max(-1.0, min(1.0, score)), 4), detail
+    except Exception as e:
+        print(f"[FUND] {e}")
+        return 0.0, {}
+
+
+# ═══════════════════════════════════════════════════════
 #  Rule-based signal (original 4 indicators)
 # ═══════════════════════════════════════════════════════
 def rule_signal(row: pd.Series):
@@ -578,9 +746,9 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     div_sc,     div_rsns    = detect_divergence(df)
     mtf_sc,     mtf_details = mtf_confluence(symbol, tf)
     session                 = get_session_info()
-
-    # ── Momentum score (lightweight, no sklearn) ───
-    mom_sc = momentum_score(df)
+    mom_sc                  = momentum_score(df)
+    inst_sc, inst_detail    = institutional_flow_score()   # ⑨ 大口フロー
+    fund_sc, fund_detail    = fundamental_score()          # ⑩ ファンダメンタル
 
     # ── Normalize each component to [-1, +1] ───────
     rule_n   = max(-1.0, min(1.0, rule_sc   / 8.0))
@@ -590,18 +758,22 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     div_n    = max(-1.0, min(1.0, div_sc    / 2.5))
     mtf_n    = max(-1.0, min(1.0, mtf_sc    / 3.0))
     mom_n    = max(-1.0, min(1.0, mom_sc))
+    inst_n   = max(-1.0, min(1.0, inst_sc))
+    fund_n   = max(-1.0, min(1.0, fund_sc))
 
     # ── Weighted combination ────────────────────────
-    #  weight: rules 25%, candle 12%, dow 15%, vol 8%,
-    #          div 8%, mtf 17%, momentum 15%
+    #  rule 20%, candle 10%, dow 12%, vol 6%, div 6%,
+    #  mtf 15%, momentum 10%, institutional 12%, fundamental 9%
     combined = (
-        rule_n   * 0.25 +
-        candle_n * 0.12 +
-        dow_n    * 0.15 +
-        vol_n    * 0.08 +
-        div_n    * 0.08 +
-        mtf_n    * 0.17 +
-        mom_n    * 0.15
+        rule_n   * 0.20 +
+        candle_n * 0.10 +
+        dow_n    * 0.12 +
+        vol_n    * 0.06 +
+        div_n    * 0.06 +
+        mtf_n    * 0.15 +
+        mom_n    * 0.10 +
+        inst_n   * 0.12 +
+        fund_n   * 0.09
     )
 
     # ⑦ Session multiplier
@@ -619,6 +791,20 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     sl, tp = calc_sl_tp_v3(entry, act_signal, atr, sr_levels)
     rr     = round(abs(tp - entry) / max(abs(sl - entry), 1e-6), 2)
 
+    # ── Institutional / Fundamental reasons ────────
+    inst_rsns = []
+    if inst_detail.get("dxy_trend"):
+        inst_rsns.append(f"🏦 DXY: {inst_detail['dxy_trend']}" +
+                         (f" ({inst_detail['dxy']})" if "dxy" in inst_detail else ""))
+    if inst_detail.get("jpy_futures"):
+        inst_rsns.append(f"🏦 JPY先物: {inst_detail['jpy_futures']}")
+    fund_rsns = []
+    if fund_detail.get("rate_trend"):
+        fund_rsns.append(f"📊 米10年債: {fund_detail['rate_trend']}" +
+                         (f" ({fund_detail['us10y']}%)" if "us10y" in fund_detail else ""))
+    if fund_detail.get("spread") is not None:
+        fund_rsns.append(f"📊 米日金利差: {fund_detail['spread']}%")
+
     # Assemble reasons
     all_reasons = (
         rule_rsns +
@@ -626,6 +812,8 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
         candle_rsns +
         vol_rsns +
         div_rsns +
+        inst_rsns +
+        fund_rsns +
         ([session["label"]] if session["mult"] < 0.85 or session["mult"] >= 1.2 else [])
     )
 
@@ -642,9 +830,11 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
         "tp":         tp,
         "rr_ratio":   rr,
         "atr":        round(atr, 3),
-        "session":    session,
-        "mtf":        mtf_details,
-        "dow_trend":  dow_rsn,
+        "session":       session,
+        "mtf":           mtf_details,
+        "dow_trend":     dow_rsn,
+        "institutional": inst_detail,
+        "fundamental":   fund_detail,
         "indicators": {
             "ema9":     round(float(row["ema9"]),  3),
             "ema21":    round(float(row["ema21"]), 3),
@@ -660,16 +850,70 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
         },
         "reasons":  all_reasons,
         "score_detail": {
-            "rule":      round(rule_n,   3),
-            "candle":    round(candle_n, 3),
-            "dow":       round(dow_n,    3),
-            "volume":    round(vol_n,    3),
-            "divergence":round(div_n,    3),
-            "mtf":       round(mtf_n,    3),
-            "momentum":  round(mom_n,    3),
-            "combined":  round(combined, 3),
+            "rule":          round(rule_n,   3),
+            "candle":        round(candle_n, 3),
+            "dow":           round(dow_n,    3),
+            "volume":        round(vol_n,    3),
+            "divergence":    round(div_n,    3),
+            "mtf":           round(mtf_n,    3),
+            "momentum":      round(mom_n,    3),
+            "institutional": round(inst_n,   3),
+            "fundamental":   round(fund_n,   3),
+            "combined":      round(combined, 3),
         },
     }
+
+
+# ═══════════════════════════════════════════════════════
+#  大口参入マーカー生成（チャート描画用）
+# ═══════════════════════════════════════════════════════
+def detect_large_player_markers(df: pd.DataFrame, vol_window: int = 20,
+                                spike_thresh: float = 2.0) -> list:
+    """
+    USD/JPYチャート上に大口参入バブルマーカーを生成する。
+    出来高が直近vol_window本平均のspike_thresh倍以上 → 大口参入と判定。
+    Returns list of {time, position, color, shape, text}
+    """
+    markers = []
+    vol = df["Volume"].fillna(0).astype(float)
+    if vol.sum() == 0:
+        # 出来高データなし → 価格変動でVOL代用（ATRスパイク）
+        atr_mean = df["atr"].rolling(vol_window).mean()
+        proxy    = df["atr"] / atr_mean.replace(0, np.nan)
+        vol      = proxy.fillna(1.0)
+        spike_thresh = 1.8  # ATR代用の場合閾値を下げる
+
+    avg_vol = vol.rolling(vol_window).mean()
+
+    for i in range(vol_window, len(df)):
+        row    = df.iloc[i]
+        cur_v  = float(vol.iloc[i])
+        avg_v  = float(avg_vol.iloc[i])
+        if avg_v <= 0:
+            continue
+        ratio = cur_v / avg_v
+        if ratio < spike_thresh:
+            continue
+
+        ts = df.index[i]
+        t  = int(ts.timestamp()) if hasattr(ts, "timestamp") else int(ts)
+
+        # 方向判定（直前3本との比較）
+        prev_close = float(df["Close"].iloc[i - 3]) if i >= 3 else float(df["Close"].iloc[0])
+        cur_close  = float(row["Close"])
+        is_buy     = cur_close > prev_close
+
+        label = f"🏦 {ratio:.1f}x"
+        markers.append({
+            "time":     t,
+            "position": "belowBar" if is_buy  else "aboveBar",
+            "color":    "#3fb950"  if is_buy  else "#f85149",
+            "shape":    "arrowUp"  if is_buy  else "arrowDown",
+            "text":     label,
+        })
+
+    # 直近50本の中で強いスパイクのみ（過去100本を表示上限）
+    return markers[-100:]
 
 
 # ═══════════════════════════════════════════════════════
@@ -727,7 +971,9 @@ def api_chart():
                 "macd_sig":  round(float(row["macd_sig"]),   5),
                 "macd_hist": round(float(row["macd_hist"]),  5),
             })
-        return jsonify({"candles": candles, "sr_levels": sr, "channel": ch})
+        markers = detect_large_player_markers(df_chart)
+        return jsonify({"candles": candles, "sr_levels": sr, "channel": ch,
+                        "lp_markers": markers})
     except Exception as e:
         import traceback
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
