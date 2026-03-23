@@ -1430,6 +1430,74 @@ def api_news():
         return jsonify({"error": str(e)}), 500
 
 
+# ── TwelveData リアルタイム価格キャッシュ ──────────────────────
+_price_cache: dict = {}
+PRICE_TTL = 8  # 8秒キャッシュ（Basic枠: 8req/min）
+
+@app.route("/api/price")
+def api_price():
+    """
+    TwelveDataからUSD/JPYリアルタイム価格を取得。
+    TWELVEDATA_API_KEY 環境変数が未設定の場合はyfinanceにフォールバック。
+    """
+    global _price_cache
+    now = datetime.now()
+    if _price_cache.get("ts") and (now - _price_cache["ts"]).total_seconds() < PRICE_TTL:
+        return jsonify(_price_cache["data"])
+
+    api_key = os.environ.get("TWELVEDATA_API_KEY", "")
+
+    if api_key:
+        try:
+            import urllib.request, json as _json
+            url = (f"https://api.twelvedata.com/quote"
+                   f"?symbol=USD/JPY&apikey={api_key}&dp=3")
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=5) as r:
+                q = _json.load(r)
+            if q.get("status") == "error":
+                raise ValueError(q.get("message", "TwelveData error"))
+            data = {
+                "price":       float(q["close"]),
+                "open":        float(q["open"]),
+                "high":        float(q["high"]),
+                "low":         float(q["low"]),
+                "prev_close":  float(q["previous_close"]),
+                "change":      round(float(q["close"]) - float(q["previous_close"]), 3),
+                "change_pct":  round((float(q["close"]) - float(q["previous_close"]))
+                                     / float(q["previous_close"]) * 100, 4),
+                "datetime":    q.get("datetime", ""),
+                "source":      "twelvedata",
+            }
+            _price_cache = {"data": data, "ts": now}
+            return jsonify(data)
+        except Exception as e:
+            print(f"[PRICE/TwelveData] {e}")
+
+    # フォールバック: yfinance最新足
+    try:
+        df = fetch_ohlcv("USDJPY=X", period="1d", interval="1m")
+        last = df.iloc[-1]
+        prev = df.iloc[-2]
+        price = float(last["Close"])
+        prev_price = float(prev["Close"])
+        data = {
+            "price":      round(price, 3),
+            "open":       round(float(last["Open"]), 3),
+            "high":       round(float(last["High"]), 3),
+            "low":        round(float(last["Low"]),  3),
+            "prev_close": round(prev_price, 3),
+            "change":     round(price - prev_price, 3),
+            "change_pct": round((price - prev_price) / prev_price * 100, 4),
+            "datetime":   str(last.name),
+            "source":     "yfinance",
+        }
+        _price_cache = {"data": data, "ts": now}
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print("=" * 55)

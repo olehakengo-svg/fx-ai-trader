@@ -220,6 +220,7 @@ body{background:var(--bg0);color:var(--t1);
   <div class="logo">FX AI Trader <small>v3 / USD/JPY</small></div>
   <div class="hdr-price" id="hdr-price">—</div>
   <div class="hdr-chg"   id="hdr-chg" style="color:var(--t3)">—</div>
+  <span id="price-source" style="font-size:9px;color:var(--t4);margin-left:2px"></span>
   <span class="badge badge-loading" id="hdr-badge">読込中</span>
   <span class="session-badge sb-yellow" id="session-badge">— セッション</span>
 
@@ -932,9 +933,48 @@ function calcPositionSize(){
   document.getElementById('ps-units').textContent=units.toLocaleString()+' units';
 }
 
+// ════════════════════════════════════════════════
+//  リアルタイム価格更新（10秒ごと /api/price）
+// ════════════════════════════════════════════════
+let _lastPrice=null;
+async function loadLivePrice(){
+  try{
+    const r=await fetch('/api/price');
+    const d=await r.json();
+    if(d.error||!d.price) return;
+
+    const pe=document.getElementById('hdr-price');
+    const ce=document.getElementById('hdr-chg');
+    const se=document.getElementById('price-source');
+
+    // 価格変化で点滅
+    if(_lastPrice!==null&&d.price!==_lastPrice){
+      pe.style.transition='none';
+      pe.style.opacity='0.4';
+      setTimeout(()=>{pe.style.transition='opacity .3s';pe.style.opacity='1';},50);
+    }
+    _lastPrice=d.price;
+
+    pe.textContent=d.price.toFixed(3);
+    pe.className='hdr-price '+(d.change>=0?'up':'down');
+    ce.textContent=(d.change>=0?'+':'')+d.change.toFixed(3)
+      +' ('+(d.change_pct>=0?'+':'')+d.change_pct.toFixed(3)+'%)';
+    ce.style.color=d.change>=0?'var(--green)':'var(--red)';
+
+    // データソース表示
+    if(se) se.textContent=d.source==='twelvedata'?'📡RT':'⏱delayed';
+  }catch(_){}
+}
+
+function startLivePriceTicker(){
+  loadLivePrice();
+  setInterval(loadLivePrice, 10000); // 10秒ごと
+}
+
 document.addEventListener('DOMContentLoaded',()=>{
   refreshAll().then(()=>startCountdown());
   loadBacktest();
+  startLivePriceTicker();
 });
 </script>
 </body>
