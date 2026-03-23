@@ -1954,10 +1954,15 @@ def compute_session_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     sl, tp = calc_sl_tp_v3(entry, act, atr, sr_levels, tf=tf)
     rr = round(abs(tp - entry) / max(abs(sl - entry), 1e-6), 2)
 
-    # セッション別戦略のキー (フロントエンド用)
-    ses_key = "tokyo" if ("Tokyo" in sname or "東京" in sname) else \
-              "london" if ("London" in sname or "ロンドン" in sname) else \
-              "ny" if ("New York" in sname or "NY" in sname) else "off"
+    # セッション別戦略のキー (フロントエンド用) — 重複セッションはNY優先
+    if "New York" in sname or "NY" in sname:
+        ses_key = "ny"
+    elif "Tokyo" in sname or "東京" in sname:
+        ses_key = "tokyo"
+    elif "London" in sname or "ロンドン" in sname:
+        ses_key = "london"
+    else:
+        ses_key = "off"
     return {
         **base,
         "signal": signal, "confidence": conf,
@@ -2058,7 +2063,8 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         score -= 0.5; reasons.append(f"✅ BB上限付近({bbpb:.2f}) スキャルSELLゾーン")
 
     # ── 方向フィルター & セッション補正 ──
-    score *= (d_mult if abs(d_mult) == 1.0 else 0.55)
+    # ※ scoreはすでに方向性あり（正=BUY,負=SELL）→ d_multの符号は使わず倍率のみ適用
+    score *= (1.0 if abs(d_mult) == 1.0 else 0.55)
     if session["name"] in ("NY × London", "New York", "London"):
         score *= 1.10; reasons.append(f"🟢 {session['name']}（流動性高）")
     elif session["name"] == "Off-hours":
@@ -2099,8 +2105,11 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             "bb_pband":  round(bbpb,  3),
         },
         "score_detail": {
-            "h1_score": round(h1_sc, 3), "h4_score": round(h4_sc, 3),
-            "combined": round(score, 3),
+            "h1_score":  round(h1_sc, 3), "h4_score": round(h4_sc, 3),
+            "combined":  round(score, 3),
+            # スキャルプで使うコンポーネントをスコアバーに反映
+            "mtf":       round(max(-1.0, min(1.0, (h1_sc + h4_sc) / 2)), 3),
+            "rule":      round(max(-1.0, min(1.0, score / max(abs(score), 1e-6) * 0.5)), 3) if score != 0 else 0.0,
         },
         "scalp_info": {
             "htf_label":     htf.get("label", "—"),

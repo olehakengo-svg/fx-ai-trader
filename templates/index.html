@@ -720,15 +720,17 @@ function setTf(tf){
 
 function setMode(mode){
   currentMode=mode;
+  // DayFlow以外に切り替えたらピボットラインをクリア
+  if(mode!=='dayflow') clearDpLines();
   // ボタンのアクティブ状態
   document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
   const clsMap={standard:'mode-std',dayflow:'mode-day',session:'mode-ses',scalp:'mode-sca'};
   const btn=document.querySelector('.mode-btn.'+clsMap[mode]);
   if(btn)btn.classList.add('active');
-  // カードの表示切替
-  document.getElementById('card-dayflow').style.display=mode==='dayflow'?'':'none';
-  document.getElementById('card-session').style.display=mode==='session'?'':'none';
-  document.getElementById('card-scalp').style.display=mode==='scalp'?'':'none';
+  // カードの表示切替（display:blockで確実に表示）
+  document.getElementById('card-dayflow').style.display=mode==='dayflow'?'block':'none';
+  document.getElementById('card-session').style.display=mode==='session'?'block':'none';
+  document.getElementById('card-scalp').style.display=mode==='scalp'?'block':'none';
   // Day Flowモードはプランを読込
   if(mode==='dayflow')loadDayPlan();
   // シグナルを再取得
@@ -982,22 +984,23 @@ async function loadSignal(){
       lineTP=candleS.createPriceLine({price:d.tp,   color:'rgba(63,185,80,.8)',  lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'TP'});
     }
 
-    // Score breakdown
+    // Score breakdown（nullセーフ: スキャルプ/セッションモードは一部のみ）
     if(d.score_detail){
       const sd=d.score_detail;
-      renderScoreBar('sb-rule',  'sv-rule',   sd.rule);
-      renderScoreBar('sb-candle','sv-candle', sd.candle);
-      renderScoreBar('sb-dow',   'sv-dow',    sd.dow);
-      renderScoreBar('sb-vol',   'sv-vol',    sd.volume);
-      renderScoreBar('sb-div',   'sv-div',    sd.divergence);
-      renderScoreBar('sb-mtf',   'sv-mtf',    sd.mtf);
-      renderScoreBar('sb-inst',  'sv-inst',   sd.institutional!=null?sd.institutional:0);
-      renderScoreBar('sb-fund',  'sv-fund',   sd.fundamental!=null?sd.fundamental:0);
-      renderScoreBar('sb-news',  'sv-news',   sd.news!=null?sd.news:0);
-      renderScoreBar('sb-dw',    'sv-dw',     sd.daily_weekly!=null?sd.daily_weekly:0);
-      if(sd.cot!=null)          renderScoreBar('sb-cot','sv-cot', sd.cot);
-      if(sd.order_block!=null)  renderScoreBar('sb-ob', 'sv-ob',  sd.order_block);
-      if(sd.fake_breakout!=null)renderScoreBar('sb-fb', 'sv-fb',  sd.fake_breakout);
+      const sb=(bar,val,sv)=>renderScoreBar(bar,sv,val??0);
+      sb('sb-rule',   sd.rule,         'sv-rule');
+      sb('sb-candle', sd.candle,       'sv-candle');
+      sb('sb-dow',    sd.dow,          'sv-dow');
+      sb('sb-vol',    sd.volume,       'sv-vol');
+      sb('sb-div',    sd.divergence,   'sv-div');
+      sb('sb-mtf',    sd.mtf,          'sv-mtf');
+      sb('sb-inst',   sd.institutional,'sv-inst');
+      sb('sb-fund',   sd.fundamental,  'sv-fund');
+      sb('sb-news',   sd.news,         'sv-news');
+      sb('sb-dw',     sd.daily_weekly, 'sv-dw');
+      sb('sb-cot',    sd.cot,          'sv-cot');
+      sb('sb-ob',     sd.order_block,  'sv-ob');
+      sb('sb-fb',     sd.fake_breakout,'sv-fb');
     }
 
     // COT card
