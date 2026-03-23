@@ -89,11 +89,81 @@ def _fetch_raw(symbol: str, period: str, interval: str) -> pd.DataFrame:
     return df.dropna()
 
 
-# TF別キャッシュTTL (スキャルプ足は短く)
+# TF別キャッシュTTL
 _TF_CACHE_TTL = {
-    "1m": 30, "5m": 45, "15m": 90, "30m": 120,
-    "1h": 300, "4h": 300, "1d": 600, "1wk": 1800, "1mo": 3600,
+    "1m": 20, "5m": 30, "15m": 60, "30m": 90,
+    "1h": 180, "4h": 300, "1d": 600, "1wk": 1800, "1mo": 3600,
 }
+
+# TwelveData対応: interval変換マップ (yfinance → TwelveData)
+_TD_INTERVAL_MAP = {
+    "1m": "1min", "5m": "5min", "15m": "15min", "30m": "30min",
+    "1h": "1h", "1d": "1day", "1wk": "1week", "1mo": "1month",
+}
+# TwelveData対応: symbol変換マップ (yfinance → TwelveData)
+_TD_SYMBOL_MAP = {
+    "USDJPY=X": "USD/JPY",
+    "JPY=X":    "USD/JPY",
+}
+# TwelveDataを優先使用するinterval (USD/JPYのみ)
+_TD_INTERVALS = {"1m", "5m", "15m", "30m", "1h"}
+# TwelveDataでリクエストするバー数
+_TD_OUTPUTSIZE = {
+    "1m": 800, "5m": 800, "15m": 600, "30m": 400, "1h": 500,
+}
+
+# データソース記録 (最後に使ったソース)
+_last_data_source: dict = {}
+
+
+def fetch_ohlcv_twelvedata(symbol: str, interval: str) -> pd.DataFrame:
+    """
+    TwelveData time_series APIからOHLCVデータを取得しDataFrameで返す。
+    TWELVEDATA_API_KEY 環境変数が必要。
+    """
+    import urllib.request as _ur, json as _js
+    api_key = os.environ.get("TWELVEDATA_API_KEY", "")
+    if not api_key:
+        raise ValueError("TWELVEDATA_API_KEY not set")
+
+    td_sym   = _TD_SYMBOL_MAP.get(symbol)
+    if not td_sym:
+        raise ValueError(f"Symbol {symbol} not in TwelveData map")
+
+    td_iv    = _TD_INTERVAL_MAP.get(interval)
+    if not td_iv:
+        raise ValueError(f"Interval {interval} not in TwelveData map")
+
+    size     = _TD_OUTPUTSIZE.get(interval, 500)
+    url      = (f"https://api.twelvedata.com/time_series"
+                f"?symbol={td_sym}&interval={td_iv}"
+                f"&outputsize={size}&apikey={api_key}&dp=5&timezone=UTC&format=JSON")
+
+    req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    with _ur.urlopen(req, timeout=10) as r:
+        data = _js.load(r)
+
+    if data.get("status") == "error":
+        raise ValueError(f"TwelveData: {data.get('message','unknown error')}")
+
+    values = data.get("values", [])
+    if not values:
+        raise ValueError("TwelveData: empty values")
+
+    # values はnewest-first → reverse で古い順に並べ直す
+    values = list(reversed(values))
+    rows = [{
+        "Open":   float(v["open"]),
+        "High":   float(v["high"]),
+        "Low":    float(v["low"]),
+        "Close":  float(v["close"]),
+        "Volume": float(v.get("volume", 0)),
+    } for v in values]
+    idx = pd.DatetimeIndex(
+        [pd.Timestamp(v["datetime"], tz="UTC") for v in values]
+    )
+    return pd.DataFrame(rows, index=idx).dropna()
+
 
 def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
     key = (symbol, interval, period)
@@ -103,7 +173,25 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
         cached_df, ts = _data_cache[key]
         if (now - ts).total_seconds() < ttl:
             return cached_df.copy()
-    df = _fetch_raw(symbol, period, interval)
+
+    df = None
+    # ── TwelveData優先: USD/JPY の短期TFのみ ──
+    if (os.environ.get("TWELVEDATA_API_KEY") and
+            symbol in _TD_SYMBOL_MAP and
+            interval in _TD_INTERVALS):
+        try:
+            df = fetch_ohlcv_twelvedata(symbol, interval)
+            _last_data_source[interval] = "twelvedata"
+            print(f"[TD/{interval}] {len(df)}本取得")
+        except Exception as e:
+            print(f"[TD/{interval}] {e} → yfinanceにフォールバック")
+            df = None
+
+    # ── フォールバック: yfinance ──
+    if df is None:
+        df = _fetch_raw(symbol, period, interval)
+        _last_data_source[interval] = "yfinance"
+
     _data_cache[key] = (df, now)
     return df.copy()
 
@@ -2250,6 +2338,9 @@ def api_signal():
             result["mode"]     = "dayflow"
         else:
             result = compute_signal(df, tf, sr)
+        # データソース情報を付加
+        result["ohlcv_source"] = _last_data_source.get(cfg["interval"], "yfinance")
+        result["bar_count"]    = len(df)
         return jsonify(result)
     except Exception as e:
         import traceback
@@ -2305,9 +2396,11 @@ def api_chart():
         markers   = detect_large_player_markers(df_chart)
         _, ob_zns = detect_order_blocks(df_chart)
         liq_zns   = detect_liquidity_zones(df_chart)
+        src       = _last_data_source.get(cfg["interval"], "yfinance")
         return jsonify({"candles": candles, "sr_levels": sr, "channel": ch,
                         "lp_markers": markers, "ob_zones": ob_zns,
-                        "liq_zones": liq_zns})
+                        "liq_zones": liq_zns,
+                        "ohlcv_source": src, "bar_count": len(df_chart)})
     except Exception as e:
         import traceback
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500

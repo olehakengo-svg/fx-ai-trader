@@ -277,6 +277,7 @@ body{background:var(--bg0);color:var(--t1);
   <div class="hdr-price" id="hdr-price">—</div>
   <div class="hdr-chg"   id="hdr-chg" style="color:var(--t3)">—</div>
   <span id="price-source" style="font-size:9px;color:var(--t4);margin-left:2px"></span>
+  <span id="ohlcv-source" style="font-size:9px;padding:2px 6px;border-radius:4px;margin-left:2px;display:none"></span>
   <span class="badge badge-loading" id="hdr-badge">読込中</span>
   <span class="session-badge sb-yellow" id="session-badge">— セッション</span>
 
@@ -898,6 +899,17 @@ async function loadChartData(){
     [pChart,rChart,mChart].forEach(c=>c.timeScale().scrollToRealTime());
     document.getElementById('ov-price').style.display='none';
 
+    // OHLCVデータソースバッジ
+    const srcEl=document.getElementById('ohlcv-source');
+    if(srcEl&&data.ohlcv_source){
+      const isTD=data.ohlcv_source==='twelvedata';
+      srcEl.style.display='inline';
+      srcEl.textContent=isTD?`📡RT ${data.bar_count||''}本`:`⏱遅延 ${data.bar_count||''}本`;
+      srcEl.style.background=isTD?'rgba(63,185,80,.15)':'rgba(248,81,73,.1)';
+      srcEl.style.color=isTD?'var(--green)':'var(--red)';
+      srcEl.style.border=isTD?'1px solid rgba(63,185,80,.3)':'1px solid rgba(248,81,73,.25)';
+    }
+
     // Header price
     if(candles.length){
       const last=candles[candles.length-1],prev=candles.length>1?candles[candles.length-2]:null;
@@ -1193,8 +1205,11 @@ async function loadSignal(){
     // Header badge + timestamp
     const hb=document.getElementById('hdr-badge');
     hb.textContent='LIVE';hb.className='badge badge-live';
+    const srcLabel=d.ohlcv_source==='twelvedata'?'📡TwelveData RT':'⏱yfinance';
+    const intLabel=_refreshSecs()+'秒更新';
     document.getElementById('last-upd').textContent=
-      '最終更新: '+new Date().toLocaleTimeString('ja-JP')+'  ('+d.timestamp+')';
+      '最終更新: '+new Date().toLocaleTimeString('ja-JP')
+      +' ['+srcLabel+' / '+intLabel+']  ('+d.timestamp+')';
 
   }catch(e){
     console.error('Signal:',e);
@@ -1204,9 +1219,14 @@ async function loadSignal(){
 }
 
 // ════════════════════════════════════════════════
-//  Auto-refresh
+//  Auto-refresh（モード別インターバル）
 // ════════════════════════════════════════════════
-let _secs=60,_timer=null;
+// スキャルプ: 30秒, その他: 60秒
+const _REFRESH_INTERVAL = {standard:60, scalp:30, session:45, dayflow:60};
+let _secs=60, _timer=null;
+
+function _refreshSecs(){return _REFRESH_INTERVAL[currentMode]||60;}
+
 async function refreshAll(){
   const btn=document.getElementById('btn-refresh');
   btn.disabled=true;btn.textContent='⏳';
@@ -1215,13 +1235,17 @@ async function refreshAll(){
     if(currentMode==='dayflow')tasks.push(loadDayPlan());
     else clearDpLines();
     await Promise.all(tasks);
-  }finally{btn.disabled=false;btn.textContent='↺ 更新';_secs=60;}
+  }finally{
+    btn.disabled=false;btn.textContent='↺ 更新';
+    _secs=_refreshSecs();
+  }
 }
 function startCountdown(){
   if(_timer)clearInterval(_timer);
+  _secs=_refreshSecs();
   _timer=setInterval(()=>{
     _secs--;document.getElementById('cntdwn').textContent=_secs;
-    if(_secs<=0){_secs=60;refreshAll();}
+    if(_secs<=0){_secs=_refreshSecs();refreshAll();}
   },1000);
 }
 // ── バックテスト読込（ページ初期化時のみ、6Hキャッシュ）────────────────
