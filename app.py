@@ -2864,6 +2864,39 @@ def compute_swing_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     }
 
 
+def _get_dxy_trend_for_bt() -> str:
+    """
+    BTシミュレーション用の簡易Layer1バイアス判定。
+    DXY（ドル指数）の日足EMA21を使ってUSDトレンドを判定。
+    "bull" / "bear" / "neutral" を返す。
+    キャッシュ付き（1時間）。
+    """
+    cache_key = "_dxy_trend_bt"
+    now_ts = datetime.now().timestamp()
+    cached = _data_cache.get(cache_key)
+    if cached and (now_ts - cached[1]) < 3600:
+        return cached[0]
+    try:
+        dxy_df = fetch_ohlcv("DX-Y.NYB", period="60d", interval="1d")
+        dxy_df = add_indicators(dxy_df)
+        if len(dxy_df) < 5:
+            return "neutral"
+        last = dxy_df.iloc[-1]
+        close = float(last["Close"])
+        ema21 = float(last["ema21"])
+        ema50 = float(last["ema50"])
+        if close > ema21 and ema21 > ema50:
+            trend = "bull"
+        elif close < ema21 and ema21 < ema50:
+            trend = "bear"
+        else:
+            trend = "neutral"
+        _data_cache[cache_key] = (trend, now_ts)
+        return trend
+    except Exception:
+        return "neutral"
+
+
 # ═══════════════════════════════════════════════════════
 #  バックテスト（1H / 90日・勝率・期待値算出）
 # ═══════════════════════════════════════════════════════
@@ -2936,6 +2969,9 @@ def run_backtest(symbol: str = "USDJPY=X",
             sig = "BUY" if combined > 0 else "SELL"
             return sig, atr
 
+        # Layer 1 シミュレーション（DXYトレンドによる大口バイアス）
+        l1_bias = _get_dxy_trend_for_bt()
+
         trades = []
         last_trade_bar = -99
         for i in range(max(50, EMA_LB + 1), len(df) - MAX_HOLD - 1):
@@ -2944,6 +2980,11 @@ def run_backtest(symbol: str = "USDJPY=X",
             sig, atr = _signal_ok(i)
             if sig is None:
                 continue
+            # Layer 1: カウンタートレンド減点（スコア代替: combined相当を0.30倍→閾値未満→スキップ）
+            if l1_bias == "bull" and sig == "SELL":
+                continue  # USDブル局面でのSELLは70%減点→閾値未満
+            elif l1_bias == "bear" and sig == "BUY":
+                continue  # USDベア局面でのBUYは70%減点→閾値未満
             # エントリーは次の足のOpen（ルックアヘッドバイアス排除）
             if i + 1 >= len(df):
                 continue
@@ -3145,6 +3186,9 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足（最低100本必要）", "trades": 0, "mode": "scalp"}
 
+        # Layer 1 シミュレーション（DXYトレンドによる大口バイアス）
+        l1_bias = _get_dxy_trend_for_bt()
+
         SPREAD       = 0.003   # 0.3 pip（超短期スプレッド）
         SL_MULT      = 0.5     # ATR×0.5: 超タイトSL
         TP_MULT      = 0.9     # ATR×0.9: 快速利確
@@ -3267,6 +3311,13 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             # ADX × セッションマルチプライヤー適用
             score *= adx_mult * ses_mult
+
+            # Layer 1: カウンタートレンド減点
+            _sig_dir = "BUY" if score > 0 else "SELL"
+            if l1_bias == "bull" and _sig_dir == "SELL":
+                score *= 0.30   # USDブル局面でのSELLは70%減点
+            elif l1_bias == "bear" and _sig_dir == "BUY":
+                score *= 0.30   # USDベア局面でのBUYは70%減点
 
             # スコア閾値（クリーンデータ向け緩和: 1.0→0.05）
             if abs(score) < 0.05:
@@ -3413,6 +3464,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足", "trades": 0, "mode": "daytrade"}
 
+        # Layer 1 シミュレーション（DXYトレンドによる大口バイアス）
+        l1_bias = _get_dxy_trend_for_bt()
+
         SPREAD    = 0.010   # 1.0 pip（15m足）
         SL_MULT   = 1.3     # クリーンデータ向け調整: 0.8→1.3（RR改善）
         TP_MULT   = 2.0     # RR=1:1.54（ターゲット維持）
@@ -3463,6 +3517,15 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 sig = "BUY"
             else:
                 sig = "SELL"
+
+            # Layer 1: カウンタートレンド減点
+            l1_score = 1.0
+            if l1_bias == "bull" and sig == "SELL":
+                l1_score *= 0.30   # USDブル局面でのSELLは70%減点
+            elif l1_bias == "bear" and sig == "BUY":
+                l1_score *= 0.30   # USDベア局面でのBUYは70%減点
+            if l1_score < 0.35:
+                continue
 
             # RSIフィルター（過熱ゾーン除外）
             if sig == "BUY"  and rsi > 80: continue
