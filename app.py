@@ -2523,7 +2523,7 @@ def _check_trend_changed_and_clear_bt(mode: str, symbol: str = "USDJPY=X") -> di
 #  スキャルピング専用バックテスト（5m/15m足）
 # ═══════════════════════════════════════════════════════
 _scalp_bt_cache: dict = {}
-SCALP_BT_TTL = 3600  # 1時間キャッシュ
+SCALP_BT_TTL = 1800  # 30分キャッシュ（トレンド転換時の再計算を早める）
 
 def run_scalp_backtest(symbol: str = "USDJPY=X",
                        lookback_days: int = 30,
@@ -2807,7 +2807,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 #  学術根拠: EMA200 + ADX25フィルター + フィボ38.2-61.8%エントリー
 # ═══════════════════════════════════════════════════════
 _dt_bt_cache: dict = {}
-DT_BT_TTL = 3600  # 1時間キャッシュ
+DT_BT_TTL = 1800  # 30分キャッシュ（トレンド転換時の再計算を早める）
 
 def run_daytrade_backtest(symbol: str = "USDJPY=X",
                           lookback_days: int = 90,
@@ -2897,14 +2897,16 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             if sig == "SELL" and not (macdh < macdh_p): continue
 
             # ★ EMA200スロープ方向チェック（1Dトレンドプロキシ, Neely & Weller 2011）
-            # 30m×20本 = 600分 = 10時間 ≈ 1日足のトレンド方向を近似
+            # 30m×48本 = 1440分 = 1日足のトレンド方向を近似（20本→48本に修正）
             # 4H+1D MIXEDトレンド時の誤シグナルを排除
-            ema200_slope_ref = float(df["ema200"].iloc[max(0, i - 20)]
+            ema200_slope_ref = float(df["ema200"].iloc[max(0, i - 48)]
                                      if "ema200" in df.columns
-                                     else df["ema50"].iloc[max(0, i - 20)])
+                                     else df["ema50"].iloc[max(0, i - 48)])
             ema200_slope_rising = ema200 > ema200_slope_ref
-            if sig == "BUY"  and not ema200_slope_rising: continue  # 上昇シグナルvs下降1D
-            if sig == "SELL" and ema200_slope_rising:      continue  # 下降シグナルvs上昇1D
+            # スロープ感度: ±0.02円以上の変化のみ有効（ノイズ除去）
+            ema200_slope_diff = ema200 - ema200_slope_ref
+            if sig == "BUY"  and ema200_slope_diff < -0.02: continue  # 1D明確下降中のBUY除外
+            if sig == "SELL" and ema200_slope_diff >  0.02: continue  # 1D明確上昇中のSELL除外
 
             # エントリーは次の足のOpen（ルックアヘッドバイアス排除）
             if i + 1 >= len(df): continue
