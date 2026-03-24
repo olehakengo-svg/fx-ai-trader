@@ -43,11 +43,14 @@ TF_CFG = {
 }
 
 # ① MTF: higher timeframes to check per current TF
+# 【修正】30m と 1h は同じ上位足（4H+1D）を参照するよう統一。
+# 以前: 30m=["1h","4h","1d"] → 1H が上昇なら 30m に+1.5加点されるが
+#   1H自身には同じ恩恵がない → 30m BUY / 1h SELL という逆転バグの原因
 MTF_HIGHER = {
-    "1m":  ["5m", "15m", "1h"],
-    "5m":  ["15m", "1h", "4h"],
-    "15m": ["1h", "4h", "1d"],
-    "30m": ["1h", "4h", "1d"],
+    "1m":  ["15m", "1h", "4h"],
+    "5m":  ["1h", "4h", "1d"],
+    "15m": ["4h", "1d"],
+    "30m": ["4h", "1d"],   # 旧["1h","4h","1d"]: 1Hを除外して1hと揃える
     "1h":  ["4h", "1d"],
     "4h":  ["1d", "1w"],
     "1d":  ["1w"],
@@ -1058,10 +1061,14 @@ def rule_signal(row: pd.Series):
     elif row["Close"] < row["ema21"]: score -= 0.8; reasons.append("↘ 中期下落（EMA21下）")
 
     rsi = row["rsi"]
-    if   rsi < 25: score += 2.5; reasons.append(f"✅ RSI 極度売られ過ぎ ({rsi:.0f})")
-    elif rsi < 35: score += 1.5; reasons.append(f"✅ RSI 売られ過ぎ ({rsi:.0f})")
-    elif rsi > 75: score -= 2.5; reasons.append(f"🔻 RSI 極度買われ過ぎ ({rsi:.0f})")
-    elif rsi > 65: score -= 1.5; reasons.append(f"🔻 RSI 買われ過ぎ ({rsi:.0f})")
+    # 【修正】RSI を平均回帰でなくトレンド整合フィルタとして使用。
+    # 旧: RSI>65 → -1.5 (上昇トレンド中の正常な RSI 68 を SELL 圧力扱い → バグ)
+    # 新: 真の過熱・枯渇域 (< 22 / > 78) のみシグナル、中間帯は中立
+    if   rsi < 22: score += 2.0; reasons.append(f"✅ RSI 極度売られ過ぎ ({rsi:.0f}) — 反転圏")
+    elif rsi < 30: score += 1.0; reasons.append(f"↗ RSI 売られ過ぎ ({rsi:.0f})")
+    elif rsi > 78: score -= 2.0; reasons.append(f"🔻 RSI 極度買われ過ぎ ({rsi:.0f}) — 反転圏")
+    elif rsi > 70: score -= 1.0; reasons.append(f"↘ RSI 買われ過ぎ ({rsi:.0f})")
+    # RSI 30–70: トレンドモメンタムの正常域 — ペナルティなし
 
     if   row["macd_hist"]>0 and row["macd"]>row["macd_sig"]:
         score += 1.5; reasons.append("✅ MACDゴールデンクロス")
@@ -1607,10 +1614,16 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
         if (combined > 0 and dw_overall < -0.5) or (combined < 0 and dw_overall > 0.5):
             combined *= 0.6
 
-    # ── 1H / 4H ハードフィルター（最重要）────────────────────
-    # 1H+4H のトレンドと逆方向のシグナルを完全カット
-    htf = get_htf_bias(symbol)
-    htf_agreement = htf["agreement"]
+    # ── HTFバイアスフィルター（最重要）────────────────────────
+    # 【修正】表示は常に 1H+4H (UIカード維持), フィルタ論理のみ TF 依存:
+    #   tf=1h: 4H+1D でフィルタ (1H が自身の HTF に入る循環参照を回避)
+    #   その他: 1H+4H でフィルタ (上位足確認)
+    htf = get_htf_bias(symbol)  # UI表示用 (常に 1H+4H)
+    if tf == "1h":
+        htf_filter = get_htf_bias_daytrade(symbol)  # 4H+1D フィルタ (循環参照回避)
+    else:
+        htf_filter = htf  # 1H+4H フィルタ
+    htf_agreement = htf_filter.get("agreement", "mixed")
 
     if htf_agreement == "bull":
         # 両足強気 → BUYのみ有効、SELLは0に
