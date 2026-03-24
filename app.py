@@ -2154,6 +2154,11 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # ── Layer 1: 大口バイアス（マスターフィルター）──────────────
     layer1 = get_master_bias(symbol)
 
+    # ── Layer 2/3 + レジーム判定 ──────────────────────────────
+    regime = detect_market_regime(df)
+    layer2 = compute_layer2_score(df, tf)
+    layer3 = compute_layer3_score(df, tf, sr_levels)
+
     row   = df.iloc[-1]
     entry = float(row["Close"])
     atr   = float(row["atr"])
@@ -2335,6 +2340,18 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # 上位足バイアス (既存関数再利用)
     htf = get_htf_bias(symbol)
 
+    # ── Layer 2: トレンド構造整合性ブースト ─────────────────────
+    l2_sc = layer2["score"]
+    if (score > 0 and l2_sc > 0) or (score < 0 and l2_sc < 0):
+        score += l2_sc * 0.25   # up to +0.25 boost when aligned
+    elif (score > 0 and l2_sc < 0) or (score < 0 and l2_sc > 0):
+        score *= 0.70           # 30% reduction when conflicting
+
+    # ── Layer 3: 精密エントリーボーナス ─────────────────────────
+    l3_sc = layer3["score"]
+    score += l3_sc * 0.15       # up to +0.15 precision bonus
+    score = max(-3.0, min(3.0, score))  # clamp before normalization
+
     # シグナル決定
     THRESHOLD = 0.28
     if   score >  THRESHOLD: signal, conf = "BUY",  int(min(92, 50 + score * 12))
@@ -2393,6 +2410,9 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             "master_bias": layer1.get("label", "—"),
             "trade_ok":    not layer0["prohibited"],
         },
+        "regime": regime,
+        "layer2": layer2,
+        "layer3": layer3,
         "score_detail": {
             "combined": round(score,3), "rule": round(max(-1,min(1,score/5)),3),
         },
@@ -3756,6 +3776,303 @@ def compute_session_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     }
 
 
+def detect_market_regime(df: pd.DataFrame) -> dict:
+    """
+    市場レジーム判定 (Market Regime Detector)
+    ────────────────────────────────────────────
+    4種のレジームを分類:
+      TREND_BULL  : 上昇トレンド (EMA順列 + ADX>25 + close>EMA200)
+      TREND_BEAR  : 下降トレンド (EMA逆順 + ADX>25 + close<EMA200)
+      RANGE       : レンジ相場   (ADX<20 + BB幅スクイーズ)
+      HIGH_VOL    : 高ボラ警戒  (ATR>1.8×20日平均)
+
+    Returns dict:
+      regime: "TREND_BULL" | "TREND_BEAR" | "RANGE" | "HIGH_VOL"
+      label: str (Japanese)
+      adx: float
+      bb_width_pct: float (BB width percentile vs 50-bar)
+      atr_ratio: float (current ATR / 20-bar avg ATR)
+      ema_stack_bull: bool
+      ema_stack_bear: bool
+    """
+    if len(df) < 50:
+        return {"regime": "UNKNOWN", "label": "データ不足", "adx": 0.0,
+                "bb_width_pct": 50.0, "atr_ratio": 1.0,
+                "ema_stack_bull": False, "ema_stack_bear": False}
+
+    row = df.iloc[-1]
+    adx    = float(row.get("adx", 20.0))
+    close  = float(row["Close"])
+    ema9   = float(row["ema9"])
+    ema21  = float(row["ema21"])
+    ema50  = float(row["ema50"])
+    ema200 = float(row.get("ema200", row["ema50"]))
+    atr    = float(row["atr"])
+
+    # BB width percentile (vs past 50 bars)
+    if "bb_width" in df.columns:
+        bb_w_series = df["bb_width"].tail(50).dropna()
+        bb_w_cur    = float(row.get("bb_width", atr * 2))
+        bb_pct      = float((bb_w_series < bb_w_cur).sum()) / max(len(bb_w_series), 1) * 100
+    else:
+        bb_pct = 50.0
+
+    # ATR ratio (current vs 20-bar mean)
+    atr_series = df["atr"].tail(20).dropna()
+    atr_avg    = float(atr_series.mean()) if len(atr_series) > 0 else atr
+    atr_ratio  = atr / atr_avg if atr_avg > 0 else 1.0
+
+    # EMA stack
+    ema_bull = (ema9 > ema21 > ema50) and (close > ema200)
+    ema_bear = (ema9 < ema21 < ema50) and (close < ema200)
+
+    # Regime classification
+    if atr_ratio > 1.8:
+        regime = "HIGH_VOL"
+        label  = "⚠️ 高ボラティリティ — 警戒"
+    elif adx < 20 and bb_pct < 40:
+        regime = "RANGE"
+        label  = "↔️ レンジ相場 — スキャル有利"
+    elif adx >= 25 and ema_bull:
+        regime = "TREND_BULL"
+        label  = "🟢 上昇トレンド — BUY主体"
+    elif adx >= 25 and ema_bear:
+        regime = "TREND_BEAR"
+        label  = "🔴 下降トレンド — SELL主体"
+    elif adx >= 20 and ema_bull:
+        regime = "TREND_BULL"
+        label  = "🟡 弱い上昇トレンド"
+    elif adx >= 20 and ema_bear:
+        regime = "TREND_BEAR"
+        label  = "🟡 弱い下降トレンド"
+    else:
+        regime = "RANGE"
+        label  = "↔️ 方向感なし — 様子見"
+
+    return {
+        "regime":          regime,
+        "label":           label,
+        "adx":             round(adx, 1),
+        "bb_width_pct":    round(bb_pct, 1),
+        "atr_ratio":       round(atr_ratio, 2),
+        "ema_stack_bull":  ema_bull,
+        "ema_stack_bear":  ema_bear,
+        "close_vs_ema200": round(close - ema200, 3),
+    }
+
+
+def compute_layer2_score(df: pd.DataFrame, tf: str) -> dict:
+    """
+    Layer 2: トレンド構造確認 (EMA配列 / ダウ理論 / S/R位置)
+    ─────────────────────────────────────────────────────────
+    スコア範囲: -1.0 ~ +1.0
+      +1.0 = 完全な上昇構造 (EMA全順列 + ダウ高値切上 + 上昇チャネル内)
+      -1.0 = 完全な下降構造
+       0.0 = 中立 / 不明確
+
+    各コンポーネント:
+      ① EMA stack score  (weight: 0.40) — 9>21>50>200 or 逆
+      ② Dow theory score (weight: 0.35) — HH/HL or LL/LH
+      ③ Channel position (weight: 0.25) — 線形回帰チャネル内の位置
+    """
+    if len(df) < 50:
+        return {"score": 0.0, "label": "データ不足", "components": {}}
+
+    row    = df.iloc[-1]
+    close  = float(row["Close"])
+    ema9   = float(row["ema9"])
+    ema21  = float(row["ema21"])
+    ema50  = float(row["ema50"])
+    ema200 = float(row.get("ema200", row["ema50"]))
+
+    # ① EMA stack score
+    if   ema9 > ema21 > ema50 > ema200: ema_sc = 1.0
+    elif ema9 > ema21 > ema50:          ema_sc = 0.6
+    elif ema9 > ema21:                  ema_sc = 0.3
+    elif ema9 < ema21 < ema50 < ema200: ema_sc = -1.0
+    elif ema9 < ema21 < ema50:          ema_sc = -0.6
+    elif ema9 < ema21:                  ema_sc = -0.3
+    else:                               ema_sc = 0.0
+    # EMA200 bonus: price above/below EMA200
+    if close > ema200 and ema_sc > 0:   ema_sc = min(1.0, ema_sc + 0.2)
+    if close < ema200 and ema_sc < 0:   ema_sc = max(-1.0, ema_sc - 0.2)
+
+    # ② Dow theory
+    dow_sc_raw, _ = dow_theory_analysis(df)
+    dow_sc = max(-1.0, min(1.0, dow_sc_raw / 2.5))
+
+    # ③ Channel position (linear regression channel)
+    try:
+        lb = min(50, len(df))
+        closes = df["Close"].tail(lb).values.astype(float)
+        x = np.arange(len(closes))
+        coeffs = np.polyfit(x, closes, 1)
+        trend_slope = coeffs[0]  # per bar
+        fitted = np.polyval(coeffs, x)
+        residuals = closes - fitted
+        std_res = np.std(residuals)
+        cur_res = residuals[-1]
+        # position in channel: +1 = below mid (bullish context), -1 = above mid (bearish)
+        if std_res > 0:
+            ch_pos = -cur_res / (std_res * 1.5)  # invert: below channel center = bullish entry
+            ch_pos = max(-1.0, min(1.0, ch_pos))
+        else:
+            ch_pos = 0.0
+        # slope direction bonus
+        atr_cur = float(row["atr"])
+        slope_score = max(-1.0, min(1.0, trend_slope / (atr_cur * 0.1) if atr_cur > 0 else 0.0))
+        ch_sc = ch_pos * 0.5 + slope_score * 0.5
+    except Exception:
+        ch_sc = 0.0
+
+    # Weighted composite
+    score = ema_sc * 0.40 + dow_sc * 0.35 + ch_sc * 0.25
+    score = max(-1.0, min(1.0, score))
+
+    if   score >  0.45: label = "🟢 強い上昇構造"
+    elif score >  0.20: label = "🟡 上昇構造（弱め）"
+    elif score < -0.45: label = "🔴 強い下降構造"
+    elif score < -0.20: label = "🟡 下降構造（弱め）"
+    else:               label = "⚪ 中立構造"
+
+    return {
+        "score":  round(score, 3),
+        "label":  label,
+        "components": {
+            "ema_stack":  round(ema_sc, 3),
+            "dow_theory": round(dow_sc, 3),
+            "channel":    round(ch_sc, 3),
+        },
+    }
+
+
+def compute_layer3_score(df: pd.DataFrame, tf: str, sr_levels: list) -> dict:
+    """
+    Layer 3: 精密エントリー条件
+    (オーダーブロック接触 / フィボナッチプルバック / 確認足 / 出来高急増)
+    ─────────────────────────────────────────────────────────
+    スコア範囲: -1.0 ~ +1.0
+    追加ポイントシステム（基本スコアに乗算する加速係数として使用）:
+      OB接触:   ±0.3  — 機関OBゾーン内の価格
+      フィボ:   ±0.25 — 38.2-61.8%プルバックゾーン
+      確認足:   ±0.25 — エンゲルフィング/ピンバー確認
+      出来高:   +0.20 — 直近20本中上位20%の出来高
+    """
+    if len(df) < 30:
+        return {"score": 0.0, "label": "データ不足", "components": {}}
+
+    row   = df.iloc[-1]
+    close = float(row["Close"])
+    high  = float(row["High"])
+    low   = float(row["Low"])
+    atr   = float(row["atr"])
+
+    score_add = 0.0
+    comps = {}
+
+    # ① Order Block proximity (SMC)
+    try:
+        smc = smc_analysis(df)
+        ob_bull = smc.get("bullish_ob")
+        ob_bear = smc.get("bearish_ob")
+        ob_sc = 0.0
+        tol   = atr * 0.5
+        if ob_bull and abs(close - ob_bull) < tol:
+            ob_sc += 0.30   # price near bullish OB → potential long
+        if ob_bear and abs(close - ob_bear) < tol:
+            ob_sc -= 0.30   # price near bearish OB → potential short
+        comps["ob_contact"] = round(ob_sc, 3)
+        score_add += ob_sc
+    except Exception:
+        comps["ob_contact"] = 0.0
+
+    # ② Fibonacci pullback zone (38.2-61.8% of last swing)
+    try:
+        lb = min(100, len(df))
+        sub = df.tail(lb)
+        swing_high = float(sub["High"].max())
+        swing_low  = float(sub["Low"].min())
+        sw_range   = swing_high - swing_low
+        if sw_range > atr * 2:
+            fib382 = swing_high - sw_range * 0.382
+            fib618 = swing_high - sw_range * 0.618
+            fib50  = swing_high - sw_range * 0.500
+            in_bull_fib = fib618 - atr * 0.3 <= close <= fib382 + atr * 0.3
+            # For bear: price at 38.2-61.8% from bottom
+            fib_bear_382 = swing_low + sw_range * 0.382
+            fib_bear_618 = swing_low + sw_range * 0.618
+            in_bear_fib  = fib_bear_382 - atr * 0.3 <= close <= fib_bear_618 + atr * 0.3
+            fib_sc = 0.0
+            if in_bull_fib:  fib_sc += 0.25
+            if in_bear_fib:  fib_sc -= 0.25
+            comps["fibonacci"] = round(fib_sc, 3)
+            score_add += fib_sc
+        else:
+            comps["fibonacci"] = 0.0
+    except Exception:
+        comps["fibonacci"] = 0.0
+
+    # ③ Confirmation candle (engulfing / pin bar)
+    try:
+        candle_sc_raw, _ = detect_candle_patterns(df.tail(5))
+        candle_sc = max(-0.25, min(0.25, candle_sc_raw / 4.0 * 0.25))
+        comps["candle_confirm"] = round(candle_sc, 3)
+        score_add += candle_sc
+    except Exception:
+        comps["candle_confirm"] = 0.0
+
+    # ④ Volume surge (top 20% of last 20 bars)
+    try:
+        vol_cur  = float(row.get("Volume", 0))
+        vol_ser  = df["Volume"].tail(20).dropna()
+        if vol_cur > 0 and len(vol_ser) >= 5:
+            vol_pct80 = float(vol_ser.quantile(0.80))
+            if vol_cur >= vol_pct80:
+                vol_sc = 0.20
+            else:
+                vol_sc = 0.0
+        else:
+            vol_sc = 0.0
+        comps["volume_surge"] = round(vol_sc, 3)
+        score_add += vol_sc
+    except Exception:
+        comps["volume_surge"] = 0.0
+
+    # S/R proximity bonus (nearest S/R within 0.5×ATR)
+    try:
+        if sr_levels:
+            # sr_levels may be a list of floats or dicts
+            def _sr_price(x):
+                return x["price"] if isinstance(x, dict) else float(x)
+            nearest = min(sr_levels, key=lambda x: abs(_sr_price(x) - close))
+            dist = abs(_sr_price(nearest) - close)
+            if dist < atr * 0.5:
+                sr_type = nearest.get("type", "") if isinstance(nearest, dict) else ""
+                sr_sc = 0.15 if sr_type == "support" else -0.15
+                comps["sr_proximity"] = round(sr_sc, 3)
+                score_add += sr_sc
+            else:
+                comps["sr_proximity"] = 0.0
+        else:
+            comps["sr_proximity"] = 0.0
+    except Exception:
+        comps["sr_proximity"] = 0.0
+
+    score = max(-1.0, min(1.0, score_add))
+
+    if   score >  0.4: label = "🎯 精密エントリー条件揃い"
+    elif score >  0.2: label = "✅ エントリー条件一部揃い"
+    elif score < -0.4: label = "🎯 ショート精密条件揃い"
+    elif score < -0.2: label = "✅ ショート条件一部揃い"
+    else:              label = "⚪ エントリー条件不足"
+
+    return {
+        "score":      round(score, 3),
+        "label":      label,
+        "components": comps,
+    }
+
+
 # ═══════════════════════════════════════════════════════
 #  Mode: Scalping — 1H足ベーススキャルピング（1m/5m/15m）
 # ═══════════════════════════════════════════════════════
@@ -3777,6 +4094,11 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
 
     # ── Layer 1: 大口バイアス（マスターフィルター）──────────────
     layer1 = get_master_bias(symbol)
+
+    # ── Layer 2/3 + レジーム判定 ──────────────────────────────
+    regime = detect_market_regime(df)
+    layer2 = compute_layer2_score(df, tf)
+    layer3 = compute_layer3_score(df, tf, sr_levels)
 
     htf     = get_htf_bias(symbol)
     row     = df.iloc[-1]
@@ -4081,6 +4403,18 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     else:
         score *= 0.60   # 大口方向不明 → 品質低下（閾値引き上げ効果）
 
+    # ── Layer 2: トレンド構造整合性ブースト ─────────────────────
+    l2_sc = layer2["score"]
+    if (score > 0 and l2_sc > 0) or (score < 0 and l2_sc < 0):
+        score += l2_sc * 0.25   # up to +0.25 boost when aligned
+    elif (score > 0 and l2_sc < 0) or (score < 0 and l2_sc > 0):
+        score *= 0.70           # 30% reduction when conflicting
+
+    # ── Layer 3: 精密エントリーボーナス ─────────────────────────
+    l3_sc = layer3["score"]
+    score += l3_sc * 0.15       # up to +0.15 precision bonus
+    score = max(-3.0, min(3.0, score))  # clamp before normalization
+
     # ── SL / TP ── バックテスト最適値 (BEP=35.7%, EV=+0.052実証)
     # 旧: SL=0.7/TP=1.3 → BEP=35.0% / 新: SL=0.5/TP=0.9 → BEP=35.7%（同等・高頻度向け）
     SCALP_SL, SCALP_TP = 0.5, 0.9
@@ -4151,6 +4485,9 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             "master_bias": layer1.get("label", "—"),
             "trade_ok":    not layer0["prohibited"],
         },
+        "regime": regime,
+        "layer2": layer2,
+        "layer3": layer3,
         "scalp_score": round(score, 3),
         "indicators": {
             "ema9":      round(ema9,  3), "ema21": round(ema21, 3),
@@ -4293,6 +4630,30 @@ def api_layer_status():
             "layer1": layer1,
             "upcoming_events": upcoming[:5],
             "checked_at": now_utc.isoformat(),
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@app.route("/api/regime-status")
+def api_regime_status():
+    """市場レジーム判定 + Layer 2/3 状態を返す"""
+    try:
+        tf = request.args.get("tf", "1h")
+        cfg = TF_CFG.get(tf, TF_CFG["1h"])
+        df = fetch_ohlcv("USDJPY=X", period=cfg["period"], interval=cfg["interval"])
+        df = add_indicators(df)
+        sr_levels = find_sr_levels(df, window=cfg["sr_w"], tolerance_pct=cfg["sr_tol"])
+        regime = detect_market_regime(df)
+        layer2 = compute_layer2_score(df, tf)
+        layer3 = compute_layer3_score(df, tf, sr_levels)
+        return jsonify({
+            "tf": tf,
+            "regime": regime,
+            "layer2": layer2,
+            "layer3": layer3,
+            "checked_at": datetime.now(timezone.utc).isoformat(),
         })
     except Exception as e:
         import traceback
