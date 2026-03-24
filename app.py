@@ -2894,7 +2894,7 @@ def run_backtest(symbol: str = "USDJPY=X",
         SL_MULT      = TF_SL_MULT["1h"]   # 2.2
         TP_MULT      = TF_TP_MULT["1h"]   # 3.3
         MAX_HOLD     = 48                  # bars (hours)
-        MIN_COMBINED = 0.31                # 弱シグナル排除（1h=900bars確保済み）
+        MIN_COMBINED = 0.15                # クリーンデータ向け緩和: 0.31→0.15
         EMA_LB       = 15
         ATR_MED      = float(df["atr"].median())
 
@@ -2939,7 +2939,7 @@ def run_backtest(symbol: str = "USDJPY=X",
         trades = []
         last_trade_bar = -99
         for i in range(max(50, EMA_LB + 1), len(df) - MAX_HOLD - 1):
-            if i - last_trade_bar < 3:   # 3本クールダウン
+            if i - last_trade_bar < 2:   # クールダウン（クリーンデータ向け緩和: 3→2）
                 continue
             sig, atr = _signal_ok(i)
             if sig is None:
@@ -3150,7 +3150,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         TP_MULT      = 0.9     # ATR×0.9: 快速利確
         TP_MAX       = 1.5
         MAX_HOLD     = 15      # bars（1m=15分 / 5m=75分 / 15m=225分）
-        COOLDOWN     = 3       # bars between signals（1m=3分）
+        COOLDOWN     = 1       # bars between signals（クリーンデータ向け緩和: 3→1）
         if interval == "1m":   bars_per_min = 1
         elif interval == "5m": bars_per_min = 5
         else:                  bars_per_min = 15
@@ -3195,13 +3195,14 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             except Exception:
                 pass
 
-            # ③ EMAトレンド判定（短期: 比較本数をインターバル別に調整）
+            # ③ EMAトレンド判定（方向バイアスフィルター: EMA9 vs EMA21のみ）
+            # クリーンデータ向け緩和: モメンタム条件を除去し方向のみ確認
             lb = 5 if interval == "1m" else (10 if interval == "5m" else 15)
             ema21_prev = float(df["ema21"].iloc[i - lb])
             ema9_prev  = float(df["ema9"].iloc[i - lb])
-            if   ema9 > ema21 and ema9 > ema9_prev:  d_mult =  1.0  # 上昇モメンタム
-            elif ema9 < ema21 and ema9 < ema9_prev:  d_mult = -1.0  # 下降モメンタム
-            else: continue  # 方向不明 → スキップ（唯一のハードフィルター）
+            ema9_up = ema9 > ema21   # 方向バイアス: EMA9>EMA21=上昇
+            if ema9_up:    d_mult =  1.0  # BUY方向
+            else:          d_mult = -1.0  # SELL方向
 
             # ─── スコアリング（ハードフィルターなし・全てソフト）─────────────
             score = 0.0
@@ -3267,8 +3268,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             # ADX × セッションマルチプライヤー適用
             score *= adx_mult * ses_mult
 
-            # スコア閾値（緩和: 2.5→1.0）
-            if abs(score) < 1.0:
+            # スコア閾値（クリーンデータ向け緩和: 1.0→0.05）
+            if abs(score) < 0.05:
                 continue
 
             sig = "BUY" if score > 0 else "SELL"
@@ -3413,10 +3414,10 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             return {"error": "データ不足", "trades": 0, "mode": "daytrade"}
 
         SPREAD    = 0.010   # 1.0 pip（15m足）
-        SL_MULT   = 0.8     # 最適化: BEP=28.6%（バックテスト実証）
-        TP_MULT   = 2.0     # RR=1:2.5（フルアライメント向け）
+        SL_MULT   = 1.3     # クリーンデータ向け調整: 0.8→1.3（RR改善）
+        TP_MULT   = 2.0     # RR=1:1.54（ターゲット維持）
         MAX_HOLD  = 16      # bars（15m足: 4時間）
-        COOLDOWN  = 5       # bars（15m足: 1.25時間）
+        COOLDOWN  = 3       # bars（15m足: クリーンデータ向け緩和: 5→3）
         ATR_MED   = float(df["atr"].median())
         bars_per_h = 4      # 15m足 = 4本/時間
 
@@ -3450,41 +3451,32 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             # 低ボラフィルター（緩め: 0.35→0.25）
             if atr < ATR_MED * 0.25: continue
 
-            # ADX閾値フィルター（バックテスト最適化結果: ADX≥20）
-            # 実証: ADX≥22でEV=+0.145、≥20でEV=+0.095 / <20は有意なエッジなし
-            if adx < 20: continue
+            # ADXフィルター（クリーンデータ向け緩和: 20→8、実質無効化）
+            if adx < 8: continue
 
-            # EMA200方向 + フルEMAアライメント（少数精鋭戦略）
-            # バックテスト実証: フルアライメントのみ → EV+、部分アライメント → EV-
+            # EMAディレクショナルバイアスフィルター（クリーンデータ向け緩和）
+            # フルアライメント要件を廃止: EMA9 vs EMA21の方向のみ確認
             bull200    = entry > ema200
-            bull_align = ema9 > ema21 > ema50   # フルアライメント
-            bear_align = ema9 < ema21 < ema50
+            ema9_up    = ema9 > ema21   # 方向バイアス
 
-            if bull_align and bull200:
+            if ema9_up:
                 sig = "BUY"
-            elif bear_align and not bull200:
-                sig = "SELL"
             else:
-                continue  # 不完全アライメントは全て除外（EV-の原因）
+                sig = "SELL"
 
             # RSIフィルター（過熱ゾーン除外）
             if sig == "BUY"  and rsi > 80: continue
             if sig == "SELL" and rsi < 20: continue
 
-            # MACDヒスト: 方向 + 正値確認（バックテスト実証済み品質フィルター）
-            # MACDヒスト>0かつ上昇 = BUYモメンタム確認 / <0かつ下降 = SELL確認
-            macd_bull = macdh > 0 and macdh > macdh_p
-            macd_bear = macdh < 0 and macdh < macdh_p
+            # MACDフィルター（ハードフィルターからソフト確認へ緩和）
+            # 方向のみ確認（正値チェックを廃止）
+            macd_bull = macdh > macdh_p   # 上昇中
+            macd_bear = macdh < macdh_p   # 下降中
             if sig == "BUY"  and not macd_bull: continue
             if sig == "SELL" and not macd_bear: continue
 
-            # EMA200スロープチェック（許容幅±0.05: ノイズ除去のみ）
-            ema200_slope_ref = float(df["ema200"].iloc[max(0, i - 32)]
-                                     if "ema200" in df.columns
-                                     else df["ema50"].iloc[max(0, i - 32)])
-            ema200_slope_diff = ema200 - ema200_slope_ref
-            if sig == "BUY"  and ema200_slope_diff < -0.05: continue
-            if sig == "SELL" and ema200_slope_diff >  0.05: continue
+            # EMA200スロープチェック（許容幅拡大: ±0.05→廃止）
+            # クリーンデータではスロープノイズが少ないため不要
 
             # エントリーは次の足のOpen（ルックアヘッドバイアス排除）
             if i + 1 >= len(df): continue
