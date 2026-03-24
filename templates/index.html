@@ -755,6 +755,90 @@ body{background:var(--bg0);color:var(--t1);
       </div>
     </div>
 
+    <!-- Market Regime + Layer 2/3 card -->
+    <div class="card" id="card-regime">
+      <div class="card-title">🎛️ マーケットレジーム &amp; L2/L3</div>
+      <div id="regime-bar" style="border-radius:6px;padding:7px 10px;margin-bottom:8px;font-size:11px;font-weight:700;text-align:center;background:var(--bg0);border:1px solid var(--bg3);color:var(--t3)">— 読込中</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px">
+        <div style="background:var(--bg0);border:1px solid var(--bg3);border-radius:5px;padding:5px 7px">
+          <div style="font-size:9px;color:var(--t4);margin-bottom:2px">ADX</div>
+          <div id="regime-adx" style="font-size:12px;font-weight:700;font-family:'SF Mono',monospace">—</div>
+        </div>
+        <div style="background:var(--bg0);border:1px solid var(--bg3);border-radius:5px;padding:5px 7px">
+          <div style="font-size:9px;color:var(--t4);margin-bottom:2px">ATR比</div>
+          <div id="regime-atr-ratio" style="font-size:12px;font-weight:700;font-family:'SF Mono',monospace">—</div>
+        </div>
+      </div>
+      <!-- L2 Trend Structure -->
+      <div style="font-size:9px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">L2 トレンド構造</div>
+      <div id="l2-bar" style="border-radius:5px;padding:5px 9px;font-size:10px;font-weight:600;background:var(--bg0);border:1px solid var(--bg3);color:var(--t3);margin-bottom:6px">—</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-bottom:6px">
+        <div style="background:var(--bg0);border:1px solid var(--bg3);border-radius:4px;padding:4px 5px;text-align:center">
+          <div style="font-size:9px;color:var(--t4)">EMA</div>
+          <div id="l2-ema" style="font-size:10px;font-weight:700">—</div>
+        </div>
+        <div style="background:var(--bg0);border:1px solid var(--bg3);border-radius:4px;padding:4px 5px;text-align:center">
+          <div style="font-size:9px;color:var(--t4)">Dow</div>
+          <div id="l2-dow" style="font-size:10px;font-weight:700">—</div>
+        </div>
+        <div style="background:var(--bg0);border:1px solid var(--bg3);border-radius:4px;padding:4px 5px;text-align:center">
+          <div style="font-size:9px;color:var(--t4)">Channel</div>
+          <div id="l2-ch" style="font-size:10px;font-weight:700">—</div>
+        </div>
+      </div>
+      <!-- L3 Precision Entry -->
+      <div style="font-size:9px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px">L3 精密エントリー</div>
+      <div id="l3-bar" style="border-radius:5px;padding:5px 9px;font-size:10px;font-weight:600;background:var(--bg0);border:1px solid var(--bg3);color:var(--t3);margin-bottom:4px">—</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px">
+        <div style="background:var(--bg0);border:1px solid var(--bg3);border-radius:4px;padding:4px 6px">
+          <div style="font-size:9px;color:var(--t4)">OB接触</div>
+          <div id="l3-ob" style="font-size:10px;font-weight:700">—</div>
+        </div>
+        <div style="background:var(--bg0);border:1px solid var(--bg3);border-radius:4px;padding:4px 6px">
+          <div style="font-size:9px;color:var(--t4)">フィボ</div>
+          <div id="l3-fib" style="font-size:10px;font-weight:700">—</div>
+        </div>
+        <div style="background:var(--bg0);border:1px solid var(--bg3);border-radius:4px;padding:4px 6px">
+          <div style="font-size:9px;color:var(--t4)">出来高</div>
+          <div id="l3-vol" style="font-size:10px;font-weight:700">—</div>
+        </div>
+        <div style="background:var(--bg0);border:1px solid var(--bg3);border-radius:4px;padding:4px 6px">
+          <div style="font-size:9px;color:var(--t4)">S/R近接</div>
+          <div id="l3-sr" style="font-size:10px;font-weight:700">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Performance KPI card -->
+    <div class="card" id="card-kpi">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>📊 パフォーマンス KPI</span>
+        <span id="kpi-total-trades" style="font-size:10px;color:var(--t4)">0トレード</span>
+      </div>
+      <div id="kpi-all-pass" style="display:none;border-radius:5px;padding:5px 8px;margin-bottom:6px;font-size:10px;font-weight:700;text-align:center;background:rgba(63,185,80,.15);border:1px solid rgba(63,185,80,.4);color:var(--green)">🏆 全KPI達成</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px">
+        <div style="background:var(--bg0);border:1px solid var(--bg3);border-radius:5px;padding:6px 8px">
+          <div style="font-size:9px;color:var(--t4);margin-bottom:2px">勝率 (目標≥55%)</div>
+          <div id="kpi-wr" style="font-size:14px;font-weight:700;font-family:'SF Mono',monospace">—%</div>
+        </div>
+        <div style="background:var(--bg0);border:1px solid var(--bg3);border-radius:5px;padding:6px 8px">
+          <div style="font-size:9px;color:var(--t4);margin-bottom:2px">EV (目標≥0.08R)</div>
+          <div id="kpi-ev" style="font-size:14px;font-weight:700;font-family:'SF Mono',monospace">—R</div>
+        </div>
+        <div style="background:var(--bg0);border:1px solid var(--bg3);border-radius:5px;padding:6px 8px">
+          <div style="font-size:9px;color:var(--t4);margin-bottom:2px">Sharpe (目標≥1.0)</div>
+          <div id="kpi-sharpe" style="font-size:14px;font-weight:700;font-family:'SF Mono',monospace">—</div>
+        </div>
+        <div style="background:var(--bg0);border:1px solid var(--bg3);border-radius:5px;padding:6px 8px">
+          <div style="font-size:9px;color:var(--t4);margin-bottom:2px">MaxDD (目標≤15%)</div>
+          <div id="kpi-dd" style="font-size:14px;font-weight:700;font-family:'SF Mono',monospace">—%</div>
+        </div>
+      </div>
+      <div class="macro-row"><span class="macro-lbl">日次取引回数</span><span id="kpi-daily-rate" class="macro-val">—/日</span></div>
+      <div class="macro-row"><span class="macro-lbl">平均RR比</span><span id="kpi-avg-rr" class="macro-val">—</span></div>
+      <div style="margin-top:8px;font-size:10px;color:var(--t4)">📝 手動記録: POST /api/performance/record</div>
+    </div>
+
     <!-- Reasons -->
     <div class="card">
       <div class="card-title">シグナル根拠</div>
@@ -1495,6 +1579,33 @@ async function loadSignal(){
       be.style.color=pv<0.2?'var(--green)':pv>0.8?'var(--red)':'var(--t1)';
     }else be.textContent='—';
 
+    // Layer 2/3 from signal response (live update without separate API call)
+    if(d.layer_status){
+      const ls=d.layer_status;
+      // Layer 1 badge update (from signal, faster than polling)
+      const l1b=document.getElementById('l1-badge');
+      const mb=ls.master_bias||'';
+      if(l1b&&mb)l1b.textContent=mb;
+    }
+    // Regime / Layer2 / Layer3 — update from signal data if present
+    if(d.regime){
+      const reg=d.regime;
+      const rb=document.getElementById('regime-bar');
+      if(rb){rb.textContent=reg.label||reg.regime||'—';}
+      const adxEl=document.getElementById('regime-adx');
+      if(adxEl&&reg.adx!=null)adxEl.textContent=reg.adx.toFixed(1);
+    }
+    if(d.layer2){
+      const l2=d.layer2;
+      const l2bar=document.getElementById('l2-bar');
+      if(l2bar)l2bar.textContent=l2.label||'—';
+    }
+    if(d.layer3){
+      const l3=d.layer3;
+      const l3bar=document.getElementById('l3-bar');
+      if(l3bar)l3bar.textContent=l3.label||'—';
+    }
+
     // Reasons
     const box=document.getElementById('reasons-box');
     box.innerHTML=d.reasons&&d.reasons.length
@@ -1532,7 +1643,7 @@ async function refreshAll(){
   const btn=document.getElementById('btn-refresh');
   btn.disabled=true;btn.textContent='⏳';
   try{
-    const tasks=[loadChartData(),loadSignal()];
+    const tasks=[loadChartData(),loadSignal(),loadRegimeStatus()];
     if(currentMode==='dayflow')tasks.push(loadDayPlan());
     else clearDpLines();
     await Promise.all(tasks);
@@ -1629,6 +1740,117 @@ function startLayerPoll(){
   if(_layerPollTimer)clearInterval(_layerPollTimer);
   loadLayerStatus(); // 即時1回
   _layerPollTimer=setInterval(loadLayerStatus, 5*60*1000); // 5分ごと
+}
+
+// ── Market Regime + Layer 2/3 ────────────────────────────────────
+let _regimePollTimer=null;
+async function loadRegimeStatus(){
+  try{
+    const res=await fetch(`/api/regime-status?tf=${currentTf}`);
+    const d=await res.json();
+    if(!d||d.error)return;
+
+    // Regime bar
+    const reg=d.regime||{};
+    const regBar=document.getElementById('regime-bar');
+    const regime=reg.regime||'UNKNOWN';
+    if(regBar){
+      regBar.textContent=reg.label||regime;
+      if(regime==='TREND_BULL'){regBar.style.background='rgba(63,185,80,.12)';regBar.style.border='1px solid rgba(63,185,80,.35)';regBar.style.color='var(--green)';}
+      else if(regime==='TREND_BEAR'){regBar.style.background='rgba(248,81,73,.1)';regBar.style.border='1px solid rgba(248,81,73,.3)';regBar.style.color='var(--red)';}
+      else if(regime==='HIGH_VOL'){regBar.style.background='rgba(240,136,62,.1)';regBar.style.border='1px solid rgba(240,136,62,.3)';regBar.style.color='var(--orange)';}
+      else{regBar.style.background='rgba(227,179,65,.08)';regBar.style.border='1px solid rgba(227,179,65,.25)';regBar.style.color='var(--gold)';}
+    }
+    const adxEl=document.getElementById('regime-adx');
+    const atrEl=document.getElementById('regime-atr-ratio');
+    if(adxEl)adxEl.textContent=reg.adx!=null?reg.adx.toFixed(1):'—';
+    if(atrEl){
+      const r=reg.atr_ratio||1;
+      atrEl.textContent=r.toFixed(2)+'×';
+      atrEl.style.color=r>1.8?'var(--red)':r>1.2?'var(--gold)':'var(--t1)';
+    }
+
+    // Layer 2
+    const l2=d.layer2||{};
+    const l2bar=document.getElementById('l2-bar');
+    if(l2bar){
+      l2bar.textContent=l2.label||'—';
+      const sc=l2.score||0;
+      if(sc>0.2){l2bar.style.color='var(--green)';l2bar.style.borderColor='rgba(63,185,80,.35)';}
+      else if(sc<-0.2){l2bar.style.color='var(--red)';l2bar.style.borderColor='rgba(248,81,73,.3)';}
+      else{l2bar.style.color='var(--gold)';l2bar.style.borderColor='rgba(227,179,65,.25)';}
+    }
+    const comps2=l2.components||{};
+    const fmtSc=v=>{if(v==null)return'—';const s=v.toFixed(2);return(v>=0?'+':'')+s;};
+    const colSc=v=>v>0.1?'var(--green)':v<-0.1?'var(--red)':'var(--gold)';
+    const l2ema=document.getElementById('l2-ema');
+    const l2dow=document.getElementById('l2-dow');
+    const l2ch=document.getElementById('l2-ch');
+    if(l2ema){l2ema.textContent=fmtSc(comps2.ema_stack);l2ema.style.color=colSc(comps2.ema_stack||0);}
+    if(l2dow){l2dow.textContent=fmtSc(comps2.dow_theory);l2dow.style.color=colSc(comps2.dow_theory||0);}
+    if(l2ch){l2ch.textContent=fmtSc(comps2.channel);l2ch.style.color=colSc(comps2.channel||0);}
+
+    // Layer 3
+    const l3=d.layer3||{};
+    const l3bar=document.getElementById('l3-bar');
+    if(l3bar){
+      l3bar.textContent=l3.label||'—';
+      const sc=l3.score||0;
+      if(sc>0.2){l3bar.style.color='var(--purple)';l3bar.style.borderColor='rgba(188,140,255,.35)';}
+      else if(sc<-0.2){l3bar.style.color='var(--red)';l3bar.style.borderColor='rgba(248,81,73,.3)';}
+      else{l3bar.style.color='var(--t3)';l3bar.style.borderColor='var(--bg3)';}
+    }
+    const comps3=l3.components||{};
+    const fmtOB=v=>v>0?'↑BUY':v<0?'↓SELL':'—';
+    const l3ob=document.getElementById('l3-ob');
+    const l3fib=document.getElementById('l3-fib');
+    const l3vol=document.getElementById('l3-vol');
+    const l3sr=document.getElementById('l3-sr');
+    if(l3ob){l3ob.textContent=fmtOB(comps3.ob_contact);l3ob.style.color=colSc(comps3.ob_contact||0);}
+    if(l3fib){l3fib.textContent=comps3.fibonacci!=null?(comps3.fibonacci>0?'✓ 38-62%':comps3.fibonacci<0?'↓反発':'—'):'—';l3fib.style.color=colSc(comps3.fibonacci||0);}
+    if(l3vol){l3vol.textContent=comps3.volume_surge>0?'🔥急増':'普通';l3vol.style.color=comps3.volume_surge>0?'var(--orange)':'var(--t3)';}
+    if(l3sr){l3sr.textContent=fmtSc(comps3.sr_proximity);l3sr.style.color=colSc(comps3.sr_proximity||0);}
+  }catch(e){console.warn('[regime-status]',e);}
+}
+function startRegimePoll(){
+  if(_regimePollTimer)clearInterval(_regimePollTimer);
+  loadRegimeStatus();
+  _regimePollTimer=setInterval(loadRegimeStatus, 5*60*1000);
+}
+
+// ── Performance KPI ───────────────────────────────────────────────
+async function loadKPI(){
+  try{
+    const res=await fetch('/api/performance?last=100');
+    const d=await res.json();
+    if(!d||d.error)return;
+    const kpi=d.kpi||{};
+    const n=kpi.total_trades||0;
+    const wrEl=document.getElementById('kpi-wr');
+    const evEl=document.getElementById('kpi-ev');
+    const shEl=document.getElementById('kpi-sharpe');
+    const ddEl=document.getElementById('kpi-dd');
+    const totEl=document.getElementById('kpi-total-trades');
+    const drEl=document.getElementById('kpi-daily-rate');
+    const rrEl=document.getElementById('kpi-avg-rr');
+    const allEl=document.getElementById('kpi-all-pass');
+    if(totEl)totEl.textContent=n+'トレード';
+    if(n===0){
+      if(wrEl)wrEl.textContent='—%';
+      if(evEl)evEl.textContent='—R';
+      if(shEl)shEl.textContent='—';
+      if(ddEl)ddEl.textContent='—%';
+      return;
+    }
+    const pass=kpi.kpi_pass||{};
+    if(wrEl){wrEl.textContent=(kpi.win_rate||0).toFixed(1)+'%';wrEl.style.color=pass.win_rate?'var(--green)':'var(--red)';}
+    if(evEl){evEl.textContent=(kpi.ev_per_trade>=0?'+':'')+((kpi.ev_per_trade||0).toFixed(3))+'R';evEl.style.color=pass.ev?'var(--green)':'var(--red)';}
+    if(shEl){shEl.textContent=(kpi.sharpe||0).toFixed(2);shEl.style.color=pass.sharpe?'var(--green)':'var(--red)';}
+    if(ddEl){ddEl.textContent=(kpi.max_dd_pct||0).toFixed(1)+'%';ddEl.style.color=pass.max_dd?'var(--green)':'var(--red)';}
+    if(drEl)drEl.textContent=(kpi.daily_trade_rate||0).toFixed(1)+'/日';
+    if(rrEl)rrEl.textContent=(kpi.avg_rr||0).toFixed(2);
+    if(allEl)allEl.style.display=kpi.all_pass?'block':'none';
+  }catch(e){console.warn('[kpi]',e);}
 }
 
 // ── トレンドステータス定期ポーリング（30分ごと）─────────────────────
@@ -1935,6 +2157,8 @@ document.addEventListener('DOMContentLoaded',()=>{
   startLivePriceTicker();
   startTrendPoll();   // トレンドステータス30分ごとポーリング開始
   startLayerPoll();   // Layer 0/1ステータス5分ごとポーリング開始
+  startRegimePoll();  // Market Regime + L2/L3 5分ごとポーリング開始
+  loadKPI();          // パフォーマンスKPI初回ロード
 });
 </script>
 </body>
