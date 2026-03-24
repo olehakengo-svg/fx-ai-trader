@@ -677,8 +677,8 @@ def _vol_force(df, vol_window: int = 20):
             price_dir = 0.0
         # Force Index = 方向 × 正規化出来高（最大4倍でクリップ）
         force    = price_dir * min(ratio, 4.0) / 4.0
-        is_spike = ratio >= 2.0
-        return round(force, 4), round(ratio, 2), is_spike
+        is_spike = bool(ratio >= 2.0)
+        return float(round(force, 4)), float(round(ratio, 2)), is_spike
     except Exception:
         return 0.0, 0.0, False
 
