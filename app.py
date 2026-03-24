@@ -504,6 +504,12 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
 
     days = _period_to_days(period)
 
+    # ── データ十分性の閾値計算（全ソース共通）──
+    _bars_per_day = {"1m": 1440, "5m": 288, "15m": 96, "30m": 48,
+                     "1h": 24, "4h": 6, "1d": 1}
+    expected = days * _bars_per_day.get(interval, 24) * 0.55  # FX=24h×55%稼働
+    min_bars = max(100, expected * 0.30)
+
     # ── ① Massive API優先: USDJPY の全TF ──
     _MASSIVE_SYMBOLS = {"USDJPY=X", "JPY=X"}
     _MASSIVE_INTERVALS = {"1m", "5m", "15m", "30m", "1h", "4h", "1d"}
@@ -512,11 +518,6 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
             interval in _MASSIVE_INTERVALS):
         try:
             df = fetch_ohlcv_massive(symbol, interval, days)
-            # 期待バー数の30%未満ならデータ不足 → フォールバック
-            _bars_per_day = {"1m": 1440, "5m": 288, "15m": 96, "30m": 48,
-                             "1h": 24, "4h": 6, "1d": 1}
-            expected = days * _bars_per_day.get(interval, 24) * 0.55  # FX=24h×55%稼働
-            min_bars = max(100, expected * 0.30)
             if df is not None and len(df) >= min_bars:
                 _last_data_source[interval] = "massive"
                 print(f"[Massive/{interval}] {len(df)}本取得 (期待{int(expected)})")
@@ -535,8 +536,14 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
             interval in _TD_INTERVALS):
         try:
             df = fetch_ohlcv_twelvedata(symbol, interval)
-            _last_data_source[interval] = "twelvedata"
-            print(f"[TD/{interval}] {len(df)}本取得")
+            # TwelveDataも期待バー数の30%未満なら不足扱い
+            if df is not None and len(df) >= min_bars:
+                _last_data_source[interval] = "twelvedata"
+                print(f"[TD/{interval}] {len(df)}本取得 (十分)")
+            else:
+                actual = len(df) if df is not None else 0
+                print(f"[TD/{interval}] {actual}本 < {int(min_bars)}本 → yfinanceにフォールバック")
+                df = None
         except Exception as e:
             print(f"[TD/{interval}] {e} → yfinanceにフォールバック")
             df = None
