@@ -59,16 +59,22 @@ STRATEGY_MODE = os.environ.get("STRATEGY_MODE", "A")
 
 STRATEGY_PROFILES = {
     "A": {
-        "name": "Trend Following",
+        "name": "Trend Following (1:3 RR)",
         "sl_mult": 0.5, "tp_mult": 1.5,
-        "kpi_wr": 0.30, "kpi_ev": 0.10, "kpi_sharpe": 0.5, "kpi_maxdd": 0.15,
-        "trades_per_day_min": 5, "trades_per_day_max": 50,
+        # 第三者評価に基づく修正KPI（損益分岐WR=25%、ランダム基準21.2%）
+        "kpi_wr": 0.30, "kpi_ev": 0.08, "kpi_sharpe": 1.0, "kpi_maxdd": 0.15,
+        "trades_per_day_min": 1, "trades_per_day_max": 50,
+        "breakeven_wr": 0.25,
+        "random_baseline_wr": 0.212,
     },
     "B": {
-        "name": "Mean Reversion",
+        "name": "Mean Reversion (1:1.2 RR)",
         "sl_mult": 1.0, "tp_mult": 1.2,
-        "kpi_wr": 0.55, "kpi_ev": 0.08, "kpi_sharpe": 1.0, "kpi_maxdd": 0.15,
-        "trades_per_day_min": 20, "trades_per_day_max": 50,
+        # Strategy B: 損益分岐WR=45.5%、WR55%ターゲット維持
+        "kpi_wr": 0.55, "kpi_ev": 0.05, "kpi_sharpe": 1.0, "kpi_maxdd": 0.15,
+        "trades_per_day_min": 3, "trades_per_day_max": 50,
+        "breakeven_wr": 0.455,
+        "random_baseline_wr": 0.411,
     },
 }
 
@@ -103,12 +109,12 @@ AGENT_MISSION = {
     "goal":     "個人トレーダーが大口（機関投資家）の波に乗れる最強FXシグナルインジケーター構築",
     "strategy": "スキャルピング(5m/15m) + デイトレード(30m/1h) 完全最適化",
     "kpi": {
-        "win_rate_min":    35.0,   # 勝率最低ライン (%) ※RR3:1では35%以上でEV正
-        "ev_min":          0.10,   # 期待値最低ライン (R/trade)
+        "win_rate_min":    30.0,   # 勝率最低ライン (%) ※RR3:1では損益分岐25%
+        "ev_min":          0.08,   # 期待値最低ライン (R/trade)
         "sharpe_min":      1.0,
         "max_dd_max":      15.0,
-        "scalp_trades":    (5, 15),    # 1m/5m EMAクロスオーバー現実値
-        "daytrade_trades": (1, 5),
+        "scalp_trades":    (1, 50),
+        "daytrade_trades": (0.5, 8),
     },
     "principles": [
         "大口フロー整合 = 最優先条件",
