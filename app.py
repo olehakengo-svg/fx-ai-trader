@@ -512,10 +512,17 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
             interval in _MASSIVE_INTERVALS):
         try:
             df = fetch_ohlcv_massive(symbol, interval, days)
-            if df is not None and len(df) >= 10:
+            # 期待バー数の30%未満ならデータ不足 → フォールバック
+            _bars_per_day = {"1m": 1440, "5m": 288, "15m": 96, "30m": 48,
+                             "1h": 24, "4h": 6, "1d": 1}
+            expected = days * _bars_per_day.get(interval, 24) * 0.55  # FX=24h×55%稼働
+            min_bars = max(100, expected * 0.30)
+            if df is not None and len(df) >= min_bars:
                 _last_data_source[interval] = "massive"
-                print(f"[Massive/{interval}] {len(df)}本取得")
+                print(f"[Massive/{interval}] {len(df)}本取得 (期待{int(expected)})")
             else:
+                actual = len(df) if df is not None else 0
+                print(f"[Massive/{interval}] {actual}本 < 最低{int(min_bars)}本 → フォールバック")
                 df = None
         except Exception as e:
             print(f"[Massive/{interval}] {e} → フォールバック")
