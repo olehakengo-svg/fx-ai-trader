@@ -3230,14 +3230,6 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             if atr_20avg > 0 and atr_val > atr_20avg * 2.5:
                 continue  # 異常ボラティリティ → スキップ
 
-            # Rolling regime filter: only trade in TREND (ADX_50 >= 20), skip RANGE/HIGH_VOL
-            atr_50avg = float(df["atr"].iloc[max(0,i-50):i].mean()) if i >= 50 else atr_20avg
-            adx_50avg = float(df["adx"].iloc[max(0,i-50):i].mean()) if i >= 50 else adx
-            rolling_regime = "TREND" if adx_50avg >= 20 else "RANGE"
-            if atr_50avg > 0 and atr_val > atr_50avg * 3.0:
-                rolling_regime = "HIGH_VOL"
-            if rolling_regime != "TREND":
-                continue  # EMAクロスオーバーはトレンド相場のみで有効
 
             # Signal: EMA crossover + EMA50 direction + session only
             # Remove: MACD filter, EMA200 filter, RSI filter from scalp (too many simultaneous conditions)
@@ -3457,9 +3449,6 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             if cross_up   and ema9 < ema50: continue
             if cross_down and ema9 > ema50: continue
 
-            # EMA200 macro filter
-            if cross_up   and float(row["Close"]) < ema200 * 0.998: continue
-            if cross_down and float(row["Close"]) > ema200 * 1.002: continue
 
             # MACD confirmation: only enforce when ADX is very weak
             if cross_up   and macdh < macdh_p and adx < 10: continue
