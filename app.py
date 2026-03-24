@@ -57,6 +57,38 @@ TF_CFG = {
 # ═══════════════════════════════════════════════════════
 STRATEGY_MODE = os.environ.get("STRATEGY_MODE", "A")
 
+# ═══════════════════════════════════════════════════════
+#  時間帯×方向バイアス — Massive API 10,518バー第三者評価結果
+#  SL=4pip TP=12pip (1:3 RR) ランダム2,094トレード検証
+# ═══════════════════════════════════════════════════════
+HOUR_DIRECTION_BIAS = {
+    # hour_utc: (best_direction, WR%, edge_vs_random)
+    0:  ("SHORT", 31.3, 10.1),
+    1:  ("LONG",  26.2,  5.0),
+    2:  ("LONG",  24.3,  3.1),
+    3:  (None,    18.9, -2.3),   # デッドゾーン — 取引回避
+    4:  ("LONG",  29.7,  8.5),
+    5:  (None,    25.0,  3.8),   # 方向性なし
+    6:  ("SHORT", 27.7,  6.5),
+    7:  ("LONG",  25.0,  3.8),
+    8:  ("LONG",  31.8, 10.6),   # ロンドンオープン 🔥
+    9:  ("LONG",  27.7,  6.5),
+    10: ("SHORT", 29.1,  7.9),
+    11: (None,    20.9, -0.3),   # デッドゾーン
+    12: ("LONG",  26.4,  5.2),
+    13: ("LONG",  27.7,  6.5),
+    14: ("SHORT", 29.5,  8.3),
+    15: ("LONG",  27.1,  5.9),
+    16: ("SHORT", 24.3,  3.1),
+    17: ("LONG",  25.7,  4.5),
+    18: ("SHORT", 22.9,  1.7),
+    19: ("LONG",  25.7,  4.5),
+    20: ("SHORT", 30.6,  9.4),   # NY終盤 🔥
+    21: ("SHORT", 42.8, 21.6),   # 最強ゾーン 🔥🔥🔥
+    22: ("SHORT", 31.5, 10.3),   # 🔥
+    23: ("SHORT", 22.4,  1.2),
+}
+
 STRATEGY_PROFILES = {
     "A": {
         "name": "Trend Following (1:3 RR)",
@@ -3311,11 +3343,21 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             sig = "BUY" if cross_up else "SELL"
 
-            # Session: London + NY (07:00-20:00 UTC)
+            # 時間帯×方向バイアスフィルター（第三者評価データ駆動）
             try:
                 h = row.name.hour
-                if not (7 <= h < 20):
-                    continue
+                bias_info = HOUR_DIRECTION_BIAS.get(h)
+                if bias_info:
+                    best_dir, best_wr, edge = bias_info
+                    # デッドゾーン回避（エッジ < 0）
+                    if best_dir is None or edge < 0:
+                        continue
+                    # 方向が逆のエントリーはエッジ5pp以上の場合のみブロック
+                    if edge >= 5.0:
+                        if sig == "BUY" and best_dir == "SHORT":
+                            continue
+                        if sig == "SELL" and best_dir == "LONG":
+                            continue
             except Exception:
                 pass
             if i + 1 >= len(df):
@@ -3500,15 +3542,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
             if atr <= 0: continue
 
-            # Session: London + NY (07:00-20:00 UTC)
-            try:
-                h = row.name.hour
-                if not (7 <= h < 20):
-                    continue
-            except Exception:
-                pass
-
-            # ADX: trend exists (low threshold to capture more trades)
+            # ADX: trend exists
             if adx < 8:
                 continue
 
@@ -3523,7 +3557,6 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             if cross_up   and ema9 < ema50: continue
             if cross_down and ema9 > ema50: continue
 
-
             # MACD confirmation: only enforce when ADX is very weak
             if cross_up   and macdh < macdh_p and adx < 10: continue
             if cross_down and macdh > macdh_p and adx < 10: continue
@@ -3533,6 +3566,22 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             if cross_down and rsi < 30: continue
 
             sig = "BUY" if cross_up else "SELL"
+
+            # 時間帯×方向バイアスフィルター（第三者評価データ駆動）
+            try:
+                h = row.name.hour
+                bias_info = HOUR_DIRECTION_BIAS.get(h)
+                if bias_info:
+                    best_dir, best_wr, edge = bias_info
+                    if best_dir is None or edge < 0:
+                        continue
+                    if edge >= 5.0:
+                        if sig == "BUY" and best_dir == "SHORT":
+                            continue
+                        if sig == "SELL" and best_dir == "LONG":
+                            continue
+            except Exception:
+                pass
 
             # エントリーは次の足のOpen（ルックアヘッドバイアス排除）
             if i + 1 >= len(df): continue
