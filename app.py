@@ -52,6 +52,26 @@ TF_CFG = {
     "1M":  dict(interval="1mo", period="max",  resample=None,  sr_w=2,  sr_tol=0.0150, ch_lb=20),
 }
 
+# ═══════════════════════════════════════════════════════
+#  Strategy Mode: "A" (Trend Following) or "B" (Mean Reversion)
+# ═══════════════════════════════════════════════════════
+STRATEGY_MODE = os.environ.get("STRATEGY_MODE", "A")
+
+STRATEGY_PROFILES = {
+    "A": {
+        "name": "Trend Following",
+        "sl_mult": 0.5, "tp_mult": 1.5,
+        "kpi_wr": 0.30, "kpi_ev": 0.10, "kpi_sharpe": 0.5, "kpi_maxdd": 0.15,
+        "trades_per_day_min": 5, "trades_per_day_max": 50,
+    },
+    "B": {
+        "name": "Mean Reversion",
+        "sl_mult": 1.0, "tp_mult": 1.2,
+        "kpi_wr": 0.55, "kpi_ev": 0.08, "kpi_sharpe": 1.0, "kpi_maxdd": 0.15,
+        "trades_per_day_min": 20, "trades_per_day_max": 50,
+    },
+}
+
 # ① MTF: higher timeframes to check per current TF
 # 【修正】30m と 1h は同じ上位足（4H+1D）を参照するよう統一。
 # 以前: 30m=["1h","4h","1d"] → 1H が上昇なら 30m に+1.5加点されるが
@@ -233,12 +253,13 @@ def compute_kpi(records: list) -> dict:
     else:
         daily_rate = 0.0
 
-    # KPI pass/fail vs AGENT_MISSION targets
+    # KPI pass/fail vs active strategy profile targets
+    profile = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
     kpi_pass = {
-        "win_rate": win_rate >= AGENT_MISSION["kpi"]["win_rate_min"],
-        "ev":       ev       >= AGENT_MISSION["kpi"]["ev_min"],
-        "sharpe":   sharpe   >= AGENT_MISSION["kpi"]["sharpe_min"],
-        "max_dd":   max_dd_pct <= AGENT_MISSION["kpi"]["max_dd_max"],
+        "win_rate": win_rate >= profile["kpi_wr"] * 100,
+        "ev":       ev       >= profile["kpi_ev"],
+        "sharpe":   sharpe   >= profile["kpi_sharpe"],
+        "max_dd":   max_dd_pct <= profile["kpi_maxdd"] * 100,
     }
 
     return {
@@ -3233,8 +3254,9 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             return {"error": "データ不足（最低100本必要）", "trades": 0, "mode": "scalp"}
 
         SPREAD       = 0.002   # 0.2 pip
-        SL_MULT      = 0.5    # ATR × 0.5 (tight scalp stop)
-        TP_MULT      = 1.5    # ATR × 1.5 → RR 3:1 (損益分岐WR=25%、ランダムベース=22%)
+        profile      = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
+        SL_MULT      = profile["sl_mult"]   # strategy-dependent
+        TP_MULT      = profile["tp_mult"]   # strategy-dependent
         MAX_HOLD     = 20     # 20 bars
         COOLDOWN     = 3      # 3 bars min between trades
         if interval == "1m":   bars_per_min = 1
@@ -3441,8 +3463,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             return {"error": "データ不足", "trades": 0, "mode": "daytrade"}
 
         SPREAD    = 0.010   # 1.0 pip（15m足）
-        SL_MULT   = 1.2    # ATR × 1.2
-        TP_MULT   = 2.0    # ATR × 2.0 → RR = 1:1.67
+        profile   = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
+        SL_MULT   = profile["sl_mult"]   # strategy-dependent
+        TP_MULT   = profile["tp_mult"]   # strategy-dependent
         MAX_HOLD  = 20     # bars (5 hours at 15m)
         COOLDOWN  = 1      # bars (allows more trades per day)
         bars_per_h = 4     # 15m足 = 4本/時間
@@ -6148,6 +6171,22 @@ def api_backtest():
     except Exception as e:
         import traceback
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@app.route("/api/strategy-mode", methods=["GET", "POST"])
+def api_strategy_mode():
+    """Get or set the active strategy mode (A=Trend Following, B=Mean Reversion)."""
+    global STRATEGY_MODE
+    if request.method == "POST":
+        mode = request.json.get("mode", "A").upper()
+        if mode in STRATEGY_PROFILES:
+            STRATEGY_MODE = mode
+            # Clear BT caches to force re-run with new params
+            _scalp_bt_cache.clear()
+            _dt_bt_cache.clear()
+            return jsonify({"status": "ok", "mode": mode, "profile": STRATEGY_PROFILES[mode]})
+        return jsonify({"error": f"Invalid mode: {mode}"}), 400
+    return jsonify({"mode": STRATEGY_MODE, "profile": STRATEGY_PROFILES[STRATEGY_MODE]})
 
 
 @app.route("/api/trend-status")
