@@ -791,8 +791,10 @@ def fetch_jp10y() -> float:
     """
     global _jp10y_cache
     now = datetime.now()
-    if _jp10y_cache.get("ts") and (now - _jp10y_cache["ts"]).total_seconds() < JP10Y_TTL:
-        return _jp10y_cache["value"]
+    if _jp10y_cache.get("ts"):
+        ttl = 3600 if _jp10y_cache.get("is_fallback") else JP10Y_TTL
+        if (now - _jp10y_cache["ts"]).total_seconds() < ttl:
+            return _jp10y_cache["value"]
 
     import urllib.request as _ur, csv, io
 
@@ -827,8 +829,11 @@ def fetch_jp10y() -> float:
     except Exception as e:
         print(f"[JP10Y] stooq失敗: {e}")
 
-    # ── ③ フォールバック: 前回キャッシュ or 1.5% ─────────────────
-    return _jp10y_cache.get("value", 1.5)
+    # ── ③ フォールバック: 前回キャッシュ or 1.5%（1時間キャッシュして再試行を抑制）
+    fallback = _jp10y_cache.get("value", 1.5)
+    _jp10y_cache = {"value": fallback, "ts": now, "is_fallback": True}
+    print(f"[JP10Y] フォールバック: {fallback}%（1h後に再試行）")
+    return fallback
 
 
 def fundamental_score():
@@ -1070,19 +1075,14 @@ def fetch_cot_data() -> tuple:
         reader    = csv.reader(io.StringIO(content))
         header    = [c.strip().strip('"').lower() for c in next(reader)]
 
-        def _col(*keywords):
-            """ヘッダーからキーワードを含むカラムインデックスを検索。"""
-            for kw in keywords:
-                for i, h in enumerate(header):
-                    if kw.lower() in h:
-                        return i
-            return None
-
-        nc_long_i  = _col("noncommercial positions-long",  "noncomm_positions_long")
-        nc_short_i = _col("noncommercial positions-short", "noncomm_positions_short")
-        cm_long_i  = _col("commercial positions-long",     "comm_positions_long")
-        cm_short_i = _col("commercial positions-short",    "comm_positions_short")
-        date_i     = _col("as of date", "report_date")
+        # CFTC Legacy Futures Only 固定カラム位置（0-based）
+        # col0=Market_and_Exchange_Names, col1=As_of_Date_In_Form_YYMMDD,
+        # col7=Open_Interest_All, col8=NonComm_Positions_Long_All,
+        # col9=NonComm_Positions_Short_All, col10=NonComm_Postions_Spread_All,
+        # col11=Comm_Positions_Long_All, col12=Comm_Positions_Short_All
+        nc_long_i, nc_short_i = 8, 9
+        cm_long_i, cm_short_i = 11, 12
+        date_i = 1
 
         def _int(row, idx):
             if idx is None or idx >= len(row):
