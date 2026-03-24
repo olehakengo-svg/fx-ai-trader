@@ -100,6 +100,152 @@ _master_bias_cache: dict = {}
 CALENDAR_TTL    = 3600   # 1時間
 MASTER_BIAS_TTL = 900    # 15分
 
+# ═══════════════════════════════════════════════════════
+#  Performance Monitor — KPI追跡 & フィードバックループ
+# ═══════════════════════════════════════════════════════
+import json as _json
+_PERF_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "perf_data.json")
+_perf_records: list = []   # in-memory store
+_PERF_MAX_RECORDS = 1000   # keep last 1000 trades
+
+def _load_perf_data() -> list:
+    """ファイルからパフォーマンスデータを読み込む"""
+    global _perf_records
+    try:
+        if os.path.exists(_PERF_FILE):
+            with open(_PERF_FILE, "r") as f:
+                _perf_records = _json.load(f)
+    except Exception:
+        _perf_records = []
+    return _perf_records
+
+def _save_perf_data():
+    """パフォーマンスデータをファイルに保存"""
+    try:
+        with open(_PERF_FILE, "w") as f:
+            _json.dump(_perf_records[-_PERF_MAX_RECORDS:], f)
+    except Exception:
+        pass
+
+def record_trade_result(
+    signal:     str,     # "BUY" | "SELL"
+    mode:       str,     # "scalp" | "daytrade"
+    tf:         str,     # "5m" | "15m" | "1h" etc.
+    outcome:    str,     # "WIN" | "LOSS" | "BREAKEVEN"
+    rr_ratio:   float,   # risk-reward ratio (e.g. 1.5)
+    entry:      float,
+    exit_price: float,
+    sl:         float,
+    tp:         float,
+    confidence: int,     # 0-100
+    layer1_dir: str = "neutral",  # "bull" | "bear" | "neutral"
+    regime:     str = "UNKNOWN",
+) -> dict:
+    """
+    1トレードの結果を記録する。
+    outcome="WIN" → R倍 = rr_ratio
+    outcome="LOSS" → R倍 = -1.0
+    outcome="BREAKEVEN" → R倍 = 0.0
+    """
+    global _perf_records
+    r_multiple = rr_ratio if outcome == "WIN" else (-1.0 if outcome == "LOSS" else 0.0)
+    record = {
+        "ts":         datetime.now(timezone.utc).isoformat(),
+        "signal":     signal,
+        "mode":       mode,
+        "tf":         tf,
+        "outcome":    outcome,
+        "r_multiple": round(r_multiple, 3),
+        "rr_ratio":   round(rr_ratio, 3),
+        "entry":      round(entry, 3),
+        "exit_price": round(exit_price, 3),
+        "sl":         round(sl, 3),
+        "tp":         round(tp, 3),
+        "confidence": confidence,
+        "layer1_dir": layer1_dir,
+        "regime":     regime,
+    }
+    _perf_records.append(record)
+    if len(_perf_records) > _PERF_MAX_RECORDS:
+        _perf_records = _perf_records[-_PERF_MAX_RECORDS:]
+    _save_perf_data()
+    return record
+
+def compute_kpi(records: list) -> dict:
+    """
+    KPIを計算する。
+    勝率, 期待値, Sharpe比, 最大ドローダウン, 日次取引回数
+    """
+    if not records:
+        return {
+            "total_trades": 0, "win_rate": 0.0, "ev_per_trade": 0.0,
+            "sharpe": 0.0, "max_dd_pct": 0.0,
+            "avg_rr": 0.0, "daily_trade_rate": 0.0,
+            "kpi_pass": {"win_rate": False, "ev": False, "sharpe": False, "max_dd": False},
+        }
+
+    r_list = [r["r_multiple"] for r in records]
+    outcomes = [r["outcome"] for r in records]
+    n = len(records)
+
+    wins  = outcomes.count("WIN")
+    win_rate = wins / n * 100
+    ev   = sum(r_list) / n
+
+    # Sharpe (annualized, assume daily trades → 252 periods)
+    if n >= 2:
+        std_r = float(np.std(r_list))
+        sharpe = (ev / std_r * np.sqrt(252)) if std_r > 0 else 0.0
+    else:
+        sharpe = 0.0
+
+    # Max drawdown in R
+    equity = 0.0
+    peak   = 0.0
+    max_dd = 0.0
+    for r in r_list:
+        equity += r
+        if equity > peak: peak = equity
+        dd = peak - equity
+        if dd > max_dd: max_dd = dd
+    # Express as % of peak (or as R if peak=0)
+    max_dd_pct = (max_dd / max(abs(peak), 1.0)) * 100 if peak > 0 else max_dd * 10
+
+    # Daily trade rate
+    if n >= 2:
+        try:
+            first_ts = datetime.fromisoformat(records[0]["ts"])
+            last_ts  = datetime.fromisoformat(records[-1]["ts"])
+            days_elapsed = max(1, (last_ts - first_ts).total_seconds() / 86400)
+            daily_rate = n / days_elapsed
+        except Exception:
+            daily_rate = 0.0
+    else:
+        daily_rate = 0.0
+
+    # KPI pass/fail vs AGENT_MISSION targets
+    kpi_pass = {
+        "win_rate": win_rate >= AGENT_MISSION["kpi"]["win_rate_min"],
+        "ev":       ev       >= AGENT_MISSION["kpi"]["ev_min"],
+        "sharpe":   sharpe   >= AGENT_MISSION["kpi"]["sharpe_min"],
+        "max_dd":   max_dd_pct <= AGENT_MISSION["kpi"]["max_dd_max"],
+    }
+
+    return {
+        "total_trades":   n,
+        "win_rate":       round(win_rate, 1),
+        "ev_per_trade":   round(ev, 4),
+        "sharpe":         round(sharpe, 2),
+        "max_dd_pct":     round(max_dd_pct, 1),
+        "avg_rr":         round(sum(r["rr_ratio"] for r in records) / n, 2),
+        "daily_trade_rate": round(daily_rate, 1),
+        "kpi_pass":       kpi_pass,
+        "all_pass":       all(kpi_pass.values()),
+    }
+
+# 起動時にデータ読み込み
+_load_perf_data()
+
 # Swing-mode ATR multipliers per timeframe
 TF_SL_MULT = {
     "1m": 1.5, "5m": 1.5, "15m": 1.5, "30m": 1.8,
@@ -4597,6 +4743,90 @@ def analyze_news_ai(headlines: list) -> dict:
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/api/performance")
+def api_performance():
+    """
+    パフォーマンスモニター — KPI状態を返す
+    ?last=100  最新N件でKPI計算 (default: 全件)
+    ?mode=scalp  モード別フィルタ
+    """
+    try:
+        records = list(_perf_records)  # copy
+
+        mode = request.args.get("mode", "")
+        if mode:
+            records = [r for r in records if r.get("mode") == mode]
+
+        last = request.args.get("last", "")
+        if last.isdigit():
+            records = records[-int(last):]
+
+        kpi = compute_kpi(records)
+
+        # モード別内訳
+        scalp_recs = [r for r in _perf_records if r.get("mode") == "scalp"]
+        dt_recs    = [r for r in _perf_records if r.get("mode") == "daytrade"]
+
+        return jsonify({
+            "kpi":            kpi,
+            "kpi_target":     AGENT_MISSION["kpi"],
+            "scalp_kpi":      compute_kpi(scalp_recs[-50:]) if scalp_recs else {},
+            "daytrade_kpi":   compute_kpi(dt_recs[-30:])   if dt_recs   else {},
+            "recent_trades":  _perf_records[-10:],          # last 10 records
+            "total_recorded": len(_perf_records),
+            "checked_at":     datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@app.route("/api/performance/record", methods=["POST"])
+def api_record_performance():
+    """
+    トレード結果を手動記録する。
+    POST JSON body:
+    {
+        "signal":     "BUY",
+        "mode":       "scalp",
+        "tf":         "5m",
+        "outcome":    "WIN",        // WIN | LOSS | BREAKEVEN
+        "rr_ratio":   1.5,
+        "entry":      150.123,
+        "exit_price": 150.456,
+        "sl":         150.000,
+        "tp":         150.600,
+        "confidence": 72
+    }
+    """
+    try:
+        data = request.get_json(force=True) or {}
+        required = ["signal", "mode", "tf", "outcome", "rr_ratio", "entry", "exit_price", "sl", "tp"]
+        missing  = [k for k in required if k not in data]
+        if missing:
+            return jsonify({"error": f"Missing fields: {missing}"}), 400
+
+        record = record_trade_result(
+            signal     = data["signal"],
+            mode       = data["mode"],
+            tf         = data["tf"],
+            outcome    = data["outcome"],
+            rr_ratio   = float(data["rr_ratio"]),
+            entry      = float(data["entry"]),
+            exit_price = float(data["exit_price"]),
+            sl         = float(data["sl"]),
+            tp         = float(data["tp"]),
+            confidence = int(data.get("confidence", 50)),
+            layer1_dir = data.get("layer1_dir", "neutral"),
+            regime     = data.get("regime", "UNKNOWN"),
+        )
+        kpi = compute_kpi(_perf_records[-50:])  # last 50 for rolling KPI
+        return jsonify({"ok": True, "record": record, "rolling_kpi": kpi})
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 400
 
 
 @app.route("/api/layer-status")
