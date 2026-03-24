@@ -387,6 +387,13 @@ body{background:var(--bg0);color:var(--t1);
     <!-- Scalp Mode card (scalpモード時のみ表示) -->
     <div class="card" id="card-scalp" style="display:none">
       <div class="card-title">⚡ スキャルピングモード <span style="font-size:9px;color:var(--t4)">(1m/5m/15m)</span></div>
+      <!-- トレンドステータスバー -->
+      <div id="sc-trend-bar" style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);margin-bottom:6px;font-size:11px">
+        <span style="color:var(--t4);white-space:nowrap">1H+4H:</span>
+        <span id="sc-trend-label" style="font-weight:600;flex:1">取得中…</span>
+        <span id="sc-trend-dot" style="width:8px;height:8px;border-radius:50%;background:var(--t4);flex-shrink:0"></span>
+        <span id="sc-trend-changed" style="font-size:9px;color:var(--gold);display:none">⚡転換!</span>
+      </div>
       <div class="dp-row"><span class="dp-lbl">1H+4H バイアス</span><span class="dp-val" id="sc-htf-bias">—</span></div>
       <div class="dp-row"><span class="dp-lbl">スキャルプスコア</span><span class="dp-val" id="sc-score">—</span></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:6px 0">
@@ -408,16 +415,24 @@ body{background:var(--bg0);color:var(--t1);
         </div>
       </div>
       <div class="dp-row"><span class="dp-lbl">BB幅ランク</span><span class="dp-val" id="sc-bbw">—%ile</span></div>
-      <div class="dp-row"><span class="dp-lbl">SL (ATR7×0.8)</span><span class="dp-val" id="sc-sl">— pips</span></div>
+      <div class="dp-row"><span class="dp-lbl">SL (ATR7×0.7)</span><span class="dp-val" id="sc-sl">— pips</span></div>
       <div class="dp-row"><span class="dp-lbl">TP (ATR7×1.3)</span><span class="dp-val" id="sc-tp">— pips</span></div>
-      <div style="margin-top:8px;font-size:10px;color:var(--t4)">📚 ADX20+/BBスクイーズ回避/RSI5+RSI9/出来高確認/London-NY13-17UTC優先 (Wilder/Axiory/Krohn2024/IJSAT2025)</div>
+      <div style="margin-top:8px;font-size:10px;color:var(--t4)">📚 ADX20+/BBスクイーズ回避/RSI5+RSI9/出来高確認/London-NY13-17UTC優先 (Wilder/Axiory/Krohn2024/IJSAT2025) | BEP WR: 35%</div>
     </div>
 
     <!-- Day Trade card (daytradeモード時のみ表示) -->
     <div class="card" id="card-daytrade" style="display:none">
       <div class="card-title">📈 デイトレードモード <span style="font-size:9px;color:var(--t4)">(30m/1h)</span></div>
+      <!-- トレンドステータスバー -->
+      <div id="dt-trend-bar" style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);margin-bottom:6px;font-size:11px">
+        <span style="color:var(--t4);white-space:nowrap">4H+1D:</span>
+        <span id="dt-trend-label" style="font-weight:600;flex:1">取得中…</span>
+        <span id="dt-trend-dot" style="width:8px;height:8px;border-radius:50%;background:var(--t4);flex-shrink:0"></span>
+        <span id="dt-trend-changed" style="font-size:9px;color:var(--gold);display:none">⚡転換!</span>
+      </div>
+      <div class="dp-row"><span class="dp-lbl">4H+1D マスタートレンド</span><span class="dp-val" id="dt-htf-agree">—</span></div>
       <div class="dp-row"><span class="dp-lbl">EMA200</span><span class="dp-val" id="dt-ema200">—</span></div>
-      <div class="dp-row"><span class="dp-lbl">ADX(14)</span><span class="dp-val" id="dt-adx">—</span></div>
+      <div class="dp-row"><span class="dp-lbl">ADX(14) ≥25推奨</span><span class="dp-val" id="dt-adx">—</span></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:6px 0">
         <div class="dp-row" style="margin:0;flex-direction:column;align-items:flex-start;gap:2px">
           <span class="dp-lbl">+DI</span>
@@ -429,7 +444,7 @@ body{background:var(--bg0);color:var(--t1);
         </div>
       </div>
       <div class="dp-row"><span class="dp-lbl">フィボゾーン</span><span class="dp-val" id="dt-fib" style="font-size:11px">—</span></div>
-      <div style="margin-top:8px;font-size:10px;color:var(--t4)">📚 EMA200フィルター+ADX25+フィボ38-62%+London/NY 13-17UTC最高品質</div>
+      <div style="margin-top:8px;font-size:10px;color:var(--t4)">📚 4H+1D上位足 → EMA200 → ADX≥25 → フィボ38-62% → London/NY優先 | BTキャッシュ: <span id="dt-bt-status">—</span></div>
     </div>
 
     <!-- Swing card (swingモード時のみ表示) -->
@@ -1199,6 +1214,38 @@ async function loadSignal(){
         fibEl.textContent=`38.2%:${di.fib.r382.toFixed(3)} / 61.8%:${di.fib.r618?.toFixed(3)||'—'}`;
         fibEl.style.color='var(--gold)';
       }
+      // 4H+1D マスタートレンド
+      if(d.htf_bias_daytrade){
+        const hd=d.htf_bias_daytrade;
+        const haEl=document.getElementById('dt-htf-agree');
+        if(haEl){
+          haEl.textContent=hd.agreement||'—';
+          haEl.style.color=hd.agreement==='bull'?'var(--green)':hd.agreement==='bear'?'var(--red)':'var(--gold)';
+        }
+        // トレンドバー更新
+        const dtLbl=document.getElementById('dt-trend-label');
+        const dtDot=document.getElementById('dt-trend-dot');
+        if(dtLbl)dtLbl.textContent=hd.label||hd.agreement||'—';
+        if(dtDot)dtDot.style.background=hd.agreement==='bull'?'var(--green)':hd.agreement==='bear'?'var(--red)':'var(--gold)';
+      }
+      // トレンド転換通知
+      if(d.trend_check&&d.trend_check.changed){
+        const chEl=document.getElementById('dt-trend-changed');
+        if(chEl){chEl.style.display='inline';setTimeout(()=>{chEl.style.display='none';},10000);}
+      }
+    }
+
+    // スキャルプのトレンドバー更新（htf_bias から）
+    if(currentMode==='scalp'&&d.htf_bias){
+      const hb=d.htf_bias;
+      const scLbl=document.getElementById('sc-trend-label');
+      const scDot=document.getElementById('sc-trend-dot');
+      if(scLbl)scLbl.textContent=hb.label||hb.agreement||'—';
+      if(scDot)scDot.style.background=hb.agreement==='bull'?'var(--green)':hb.agreement==='bear'?'var(--red)':'var(--gold)';
+      if(d.trend_check&&d.trend_check.changed){
+        const chEl=document.getElementById('sc-trend-changed');
+        if(chEl){chEl.style.display='inline';setTimeout(()=>{chEl.style.display='none';},10000);}
+      }
     }
 
     // スイングモード固有情報
@@ -1353,6 +1400,39 @@ function startCountdown(){
     if(_secs<=0){_secs=_refreshSecs();refreshAll();}
   },1000);
 }
+// ── トレンドステータス定期ポーリング（30分ごと）─────────────────────
+let _trendPollTimer=null;
+async function pollTrendStatus(){
+  try{
+    const res=await fetch('/api/trend-status');
+    const d=await res.json();
+    if(!d||d.error)return;
+
+    // スキャルプ 1H+4H
+    const sc=d.scalp||{};
+    const scLbl=document.getElementById('sc-trend-label');
+    const scDot=document.getElementById('sc-trend-dot');
+    if(scLbl)scLbl.textContent=sc.label||sc.agreement||'—';
+    if(scDot)scDot.style.background=sc.agreement==='bull'?'var(--green)':sc.agreement==='bear'?'var(--red)':'var(--gold)';
+
+    // デイトレード 4H+1D
+    const dt=d.daytrade||{};
+    const dtLbl=document.getElementById('dt-trend-label');
+    const dtDot=document.getElementById('dt-trend-dot');
+    if(dtLbl)dtLbl.textContent=dt.label||dt.agreement||'—';
+    if(dtDot)dtDot.style.background=dt.agreement==='bull'?'var(--green)':dt.agreement==='bear'?'var(--red)':'var(--gold)';
+
+    // DTキャッシュ状態
+    const btSt=document.getElementById('dt-bt-status');
+    if(btSt)btSt.textContent=dt.bt_cached?'キャッシュ済':'未計算';
+  }catch(e){console.warn('[trend-status]',e);}
+}
+function startTrendPoll(){
+  if(_trendPollTimer)clearInterval(_trendPollTimer);
+  pollTrendStatus(); // 即時1回
+  _trendPollTimer=setInterval(pollTrendStatus, 30*60*1000); // 30分ごと
+}
+
 // ── バックテスト読込（モード切替時・初期化時）────────────────────────
 let _btMode=null; // 最後に読んだモード
 async function loadBacktest(forceMode){
@@ -1534,6 +1614,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   refreshAll().then(()=>startCountdown());
   loadBacktest();
   startLivePriceTicker();
+  startTrendPoll();   // トレンドステータス30分ごとポーリング開始
 });
 </script>
 </body>

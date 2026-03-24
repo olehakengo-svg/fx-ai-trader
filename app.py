@@ -999,6 +999,10 @@ def rule_signal(row: pd.Series):
 _htf_cache: dict = {}
 HTF_TTL = 300  # 5分キャッシュ
 
+# ─── デイトレード用 4H+1D 上位足キャッシュ ────────────────────────
+_htf_dt_cache: dict = {}
+HTF_DT_TTL = 900  # 15分キャッシュ（4H足は変化が遅い）
+
 def get_htf_bias(symbol: str) -> dict:
     """
     1H足と4H足のEMAトレンド構造から上位足バイアスを取得。
@@ -1060,6 +1064,78 @@ def get_htf_bias(symbol: str) -> dict:
         "h1": results.get("1h", {}), "h4": results.get("4h", {}),
     }
     _htf_cache[key] = {"data": data, "ts": now}
+    return data
+
+
+def get_htf_bias_daytrade(symbol: str) -> dict:
+    """
+    デイトレード用: 4H足と1D足のEMAトレンド構造からマスタートレンドバイアスを取得。
+    スキャルプの1H+4Hより一段上のタイムフレームを使用。
+    - 両足一致強気  → BUYのみ許可 (4H+1D上昇)
+    - 両足一致弱気  → SELLのみ許可 (4H+1D下降)
+    - 不一致        → シグナル抑制
+    Returns: {score, h4, d1, agreement, label}
+    """
+    global _htf_dt_cache
+    now = datetime.now()
+    key = symbol
+    if _htf_dt_cache.get(key) and (now - _htf_dt_cache[key]["ts"]).total_seconds() < HTF_DT_TTL:
+        return _htf_dt_cache[key]["data"]
+
+    results = {}
+    for tf_key, cfg in [("h4", TF_CFG["4h"]), ("d1", TF_CFG["1d"])]:
+        try:
+            df_h = fetch_ohlcv(symbol, period=cfg["period"], interval=cfg["interval"])
+            if cfg.get("resample"):
+                df_h = resample_df(df_h, cfg["resample"])
+            df_h = add_indicators(df_h)
+            row    = df_h.iloc[-1]
+            c      = float(row["Close"])
+            e9     = float(row["ema9"])
+            e21    = float(row["ema21"])
+            e50    = float(row["ema50"])
+            ema200 = float(row.get("ema200", row["ema50"]))
+            rsi    = float(row["rsi"])
+
+            # EMAアライメントスコア
+            if   c > e9 > e21 > e50:  sc = 1.0;  lbl = "↗↗ 強気（全EMA上昇列）"
+            elif c > e21 and e9 > e21: sc = 0.6;  lbl = "↗ 強気（EMA21超）"
+            elif c > e21:              sc = 0.3;  lbl = "↗ 弱強気（EMA21超）"
+            elif c < e9 < e21 < e50:  sc = -1.0; lbl = "↘↘ 弱気（全EMA下降列）"
+            elif c < e21 and e9 < e21: sc = -0.6; lbl = "↘ 弱気（EMA21下）"
+            elif c < e21:              sc = -0.3; lbl = "↘ 弱弱気（EMA21下）"
+            else:                      sc = 0.0;  lbl = "↔ 中立"
+
+            # EMA200によるボーナス補正（Neely & Weller 2011）
+            if c > ema200: sc = min(1.0, sc + 0.1)
+            else:          sc = max(-1.0, sc - 0.1)
+
+            results[tf_key] = {
+                "score":  sc, "label": lbl,
+                "rsi":    round(rsi, 1),
+                "ema9":   round(e9, 3), "ema21": round(e21, 3),
+                "ema50":  round(e50, 3), "ema200": round(ema200, 3),
+                "close":  round(c, 3),
+            }
+        except Exception as e:
+            print(f"[HTF_DT/{tf_key}] {e}")
+            results[tf_key] = {"score": 0.0, "label": "取得失敗", "rsi": 50.0}
+
+    h4_sc = results.get("h4", {}).get("score", 0.0)
+    d1_sc = results.get("d1", {}).get("score", 0.0)
+
+    # 1D優先の加重平均（マスタートレンド=1D 60%, 中期=4H 40%）
+    avg = round(h4_sc * 0.40 + d1_sc * 0.60, 3)
+
+    if   h4_sc > 0.2  and d1_sc > 0.2:  agreement = "bull"; label = "📈 4H+1D 上昇一致 → BUYのみ有効"
+    elif h4_sc < -0.2 and d1_sc < -0.2: agreement = "bear"; label = "📉 4H+1D 下降一致 → SELLのみ有効"
+    else:                                agreement = "mixed"; label = "⚖️ 4H+1D 不一致 → シグナル抑制中"
+
+    data = {
+        "score": avg, "agreement": agreement, "label": label,
+        "h4": results.get("h4", {}), "d1": results.get("d1", {}),
+    }
+    _htf_dt_cache[key] = {"data": data, "ts": now}
     return data
 
 
@@ -1762,9 +1838,19 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     score   = 0.0
     reasons = []
 
-    # ① ADX レジームフィルター (Wilder 1978)
-    if adx >= 30:
-        adx_mult = 1.0; reasons.append(f"✅ ADX{adx:.0f}: 強トレンド確認")
+    # ⓪ 4H+1D マスタートレンドフィルター（デイトレード専用上位足バイアス）
+    htf_dt       = get_htf_bias_daytrade(symbol)
+    htf_agreement = htf_dt.get("agreement", "mixed")
+    if htf_agreement == "bull":
+        reasons.append(f"📈 {htf_dt.get('label','4H+1D 上昇一致')} → BUYバイアス")
+    elif htf_agreement == "bear":
+        reasons.append(f"📉 {htf_dt.get('label','4H+1D 下降一致')} → SELLバイアス")
+    else:
+        reasons.append(f"⚖️ {htf_dt.get('label','4H+1D 不一致')} → シグナル抑制")
+
+    # ① ADX レジームフィルター (Wilder 1978) ── Window2分析: ADX>25が高勝率の鍵
+    if adx >= 25:
+        adx_mult = 1.0; reasons.append(f"✅ ADX{adx:.0f}≥25: 強トレンド確認（Wilder 1978）")
     elif adx >= 20:
         adx_mult = 0.75; reasons.append(f"⚠️ ADX{adx:.0f}: 中程度トレンド")
     else:
@@ -1799,6 +1885,14 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     if (act == "BUY" and not bull200) or (act == "SELL" and bull200):
         score *= 0.4
         reasons.append("⚠️ EMA200と逆方向 → シグナル減衰")
+
+    # 4H+1D マスタートレンドとの整合性チェック（ハードフィルター）
+    if htf_agreement == "bear" and act == "BUY":
+        score *= 0.25   # 4H+1D弱気時のBUYは大幅減衰
+        reasons.append("🚫 4H+1D 下降トレンド中のBUY → 大幅減衰（逆張り非推奨）")
+    elif htf_agreement == "bull" and act == "SELL":
+        score *= 0.25   # 4H+1D強気時のSELLは大幅減衰
+        reasons.append("🚫 4H+1D 上昇トレンド中のSELL → 大幅減衰（逆張り非推奨）")
 
     # ④ フィボナッチプルバックゾーン（38.2-61.8%が最高確率）
     fib = _calc_fibonacci_levels(df, lookback=80)
@@ -1917,6 +2011,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             "fib": fib if fib else {},
             "score": round(score,3),
         },
+        "htf_bias_daytrade": htf_dt,
         "score_detail": {
             "combined": round(score,3), "rule": round(max(-1,min(1,score/5)),3),
         },
@@ -2287,6 +2382,58 @@ def run_backtest(symbol: str = "USDJPY=X",
 
 
 # ═══════════════════════════════════════════════════════
+#  トレンド転換検出 → バックテストキャッシュ自動クリア
+# ═══════════════════════════════════════════════════════
+_trend_state: dict = {}  # mode -> last known agreement ("bull"/"bear"/"mixed")
+_trend_changed_at: dict = {}  # mode -> datetime of last trend change
+
+
+def _check_trend_changed_and_clear_bt(mode: str, symbol: str = "USDJPY=X") -> dict:
+    """
+    上位足トレンド状態を確認し、転換していればBTキャッシュをクリアする。
+    スキャルプ   : 1H+4H アライメント監視
+    デイトレード : 4H+1D アライメント監視
+
+    Returns: {changed: bool, prev: str, current: str, label: str}
+    """
+    global _trend_state, _trend_changed_at, _scalp_bt_cache, _dt_bt_cache
+    try:
+        if mode == "scalp":
+            bias = get_htf_bias(symbol)          # 1H+4H
+        elif mode == "daytrade":
+            bias = get_htf_bias_daytrade(symbol)  # 4H+1D
+        else:
+            return {"changed": False, "prev": "n/a", "current": "n/a", "label": ""}
+
+        current   = bias.get("agreement", "mixed")
+        prev      = _trend_state.get(mode)
+        _trend_state[mode] = current
+        changed   = (prev is not None and prev != current)
+
+        if changed:
+            _trend_changed_at[mode] = datetime.now()
+            if mode == "scalp":
+                _scalp_bt_cache.clear()
+                print(f"[TREND] Scalp {prev}→{current}: BT cache cleared")
+            elif mode == "daytrade":
+                _dt_bt_cache.clear()
+                print(f"[TREND] Daytrade {prev}→{current}: BT cache cleared")
+
+        return {
+            "changed":  changed,
+            "prev":     prev or "初回",
+            "current":  current,
+            "label":    bias.get("label", ""),
+            "score":    bias.get("score", 0.0),
+            "changed_at": _trend_changed_at.get(mode, "").strftime("%Y-%m-%d %H:%M UTC")
+                          if _trend_changed_at.get(mode) else None,
+        }
+    except Exception as e:
+        print(f"[_check_trend] {e}")
+        return {"changed": False, "prev": "error", "current": "error", "label": str(e)}
+
+
+# ═══════════════════════════════════════════════════════
 #  スキャルピング専用バックテスト（5m/15m足）
 # ═══════════════════════════════════════════════════════
 _scalp_bt_cache: dict = {}
@@ -2317,7 +2464,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             return {"error": "データ不足（最低200本必要）", "trades": 0, "mode": "scalp"}
 
         SPREAD       = 0.005   # 0.5 pip
-        SL_MULT      = 0.8
+        SL_MULT      = 0.7    # 0.8→0.7に縮小: BEP WR 38.1%→35.0%へ改善
         TP_MULT      = 1.3
         TP_MAX       = 2.0
         MAX_HOLD     = 20      # bars
@@ -2621,8 +2768,10 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             # 低ボラフィルター（緩め）
             if atr < ATR_MED * 0.35: continue
 
-            # ADX最低閾値（トレンド環境のみ）
-            if adx < 18: continue
+            # ADX閾値フィルター（Window2分析: ADX≥25が高勝率の鍵）
+            # Walk-forward分析でWindow2(66.7%WR)はADX>25の相場と相関
+            if adx < 20: continue           # ADX<20: レンジ → スキップ
+            adx_quality = 1.0 if adx >= 25 else 0.7  # ADX25以上で品質向上
 
             # EMA200方向 + EMAアライメント（一致のみ許可、逆張り不可）
             bull200 = entry > ema200
@@ -3397,8 +3546,8 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     if tf not in ("1m", "5m", "15m"):
         reasons.append(f"⚠️ {tf}足 — スキャルは1m/5m/15m推奨")
 
-    # ── SL / TP ──
-    SCALP_SL, SCALP_TP = 0.8, 1.3
+    # ── SL / TP ──  SL: 0.8→0.7 (BEP WR: 38.1%→35.0%)
+    SCALP_SL, SCALP_TP = 0.7, 1.3
     # 必須条件チェック（バックテストと同条件）
     has_pb        = any("EMA9プルバック" in r and ("BUYゾーン" in r or "SELLゾーン" in r) for r in reasons)
     has_rsi_reset = any("RSI5" in r and ("売られ過ぎ" in r or "リセット完了" in r or "買われ過ぎ" in r) for r in reasons)
@@ -3564,6 +3713,12 @@ def api_signal():
     mode = request.args.get("mode", "standard")
     cfg  = TF_CFG.get(tf, TF_CFG["1m"])
     try:
+        # ─ トレンド転換チェック（スキャルプ/デイトレ）─────────────
+        # 上位足トレンドが転換していればBTキャッシュを自動クリア
+        trend_info = None
+        if mode in ("scalp", "daytrade"):
+            trend_info = _check_trend_changed_and_clear_bt(mode)
+
         df = fetch_ohlcv("USDJPY=X", period=cfg["period"], interval=cfg["interval"])
         if cfg["resample"]: df = resample_df(df, cfg["resample"])
         df = add_indicators(df)
@@ -3586,6 +3741,9 @@ def api_signal():
         # データソース情報を付加
         result["ohlcv_source"] = _last_data_source.get(cfg["interval"], "yfinance")
         result["bar_count"]    = len(df)
+        # トレンド転換情報を付加（スキャルプ/デイトレのみ）
+        if trend_info:
+            result["trend_check"] = trend_info
         return jsonify(result)
     except Exception as e:
         import traceback
@@ -3669,6 +3827,83 @@ def api_backtest():
         else:
             result = run_backtest("USDJPY=X", lookback_days=90)
         return jsonify(result)
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@app.route("/api/trend-status")
+def api_trend_status():
+    """
+    スキャルプ(1H+4H)・デイトレード(4H+1D)のトレンド状態を返す。
+    UI上でリアルタイムトレンド確認・BTキャッシュ状態確認に使用。
+    """
+    try:
+        scalp_bias = get_htf_bias("USDJPY=X")
+        dt_bias    = get_htf_bias_daytrade("USDJPY=X")
+        now_utc    = datetime.now(timezone.utc).isoformat()
+
+        return jsonify({
+            "checked_at": now_utc,
+            "scalp": {
+                "mode":       "scalp",
+                "tfs":        "1H+4H",
+                "agreement":  scalp_bias.get("agreement"),
+                "label":      scalp_bias.get("label"),
+                "score":      scalp_bias.get("score"),
+                "h1":         scalp_bias.get("h1", {}),
+                "h4":         scalp_bias.get("h4", {}),
+                "last_trend_state": _trend_state.get("scalp", "未チェック"),
+                "trend_changed_at": _trend_changed_at.get("scalp", ""),
+                "bt_cached":  bool(_scalp_bt_cache),
+            },
+            "daytrade": {
+                "mode":       "daytrade",
+                "tfs":        "4H+1D",
+                "agreement":  dt_bias.get("agreement"),
+                "label":      dt_bias.get("label"),
+                "score":      dt_bias.get("score"),
+                "h4":         dt_bias.get("h4", {}),
+                "d1":         dt_bias.get("d1", {}),
+                "last_trend_state": _trend_state.get("daytrade", "未チェック"),
+                "trend_changed_at": _trend_changed_at.get("daytrade", ""),
+                "bt_cached":  bool(_dt_bt_cache),
+            },
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@app.route("/api/cron")
+def api_cron():
+    """
+    外部cronサービスから定期的に呼ばれるトレンド確認エンドポイント。
+    スキャルプ  : 1H毎に呼ぶ  (/api/cron?mode=scalp)
+    デイトレード: 4H毎に呼ぶ  (/api/cron?mode=daytrade)
+
+    トレンド転換検出時: バックテストキャッシュをクリア → 次回BT要求時に自動再計算。
+    外部cron設定例: cron-job.org でURL登録 → 間隔設定
+    """
+    mode = request.args.get("mode", "scalp")
+    try:
+        trend_result = _check_trend_changed_and_clear_bt(mode)
+        return jsonify({
+            "mode":         mode,
+            "ok":           True,
+            "trend_changed": trend_result.get("changed", False),
+            "prev":         trend_result.get("prev"),
+            "current":      trend_result.get("current"),
+            "label":        trend_result.get("label"),
+            "score":        trend_result.get("score"),
+            "bt_cache_cleared": trend_result.get("changed", False),
+            "changed_at":   trend_result.get("changed_at"),
+            "checked_at":   datetime.now(timezone.utc).isoformat(),
+            "schedule_recommendation": {
+                "scalp":    "1H毎 (1H足ローソク足クローズに合わせて)",
+                "daytrade": "4H毎 (4H足ローソク足クローズに合わせて)",
+            }.get(mode, ""),
+        })
     except Exception as e:
         import traceback
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
