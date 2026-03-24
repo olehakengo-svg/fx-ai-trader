@@ -1895,6 +1895,20 @@ async function forceRefreshBT(){
   if(btn){btn.disabled=false;btn.textContent='🔄 今すぐ更新';}
 }
 
+// ── KPI ヘルパー関数 ─────────────────────────────────────────────────
+function kpiColor(val, greenThresh, yellowThresh, higherIsBetter=true){
+  if(higherIsBetter){
+    return val>=greenThresh?'var(--green)':val>=yellowThresh?'var(--gold)':'var(--red)';
+  } else {
+    return val<=greenThresh?'var(--green)':val<=yellowThresh?'var(--gold)':'var(--red)';
+  }
+}
+function kpiBadge(val, greenThresh, yellowThresh, higherIsBetter=true){
+  const pass=higherIsBetter?val>=greenThresh:val<=greenThresh;
+  const warn=higherIsBetter?val>=yellowThresh:val<=yellowThresh;
+  return pass?'✅':warn?'⚠️':'❌';
+}
+
 // ── バックテスト読込（モード切替時・初期化時）────────────────────────
 let _btMode=null; // 最後に読んだモード
 async function loadBacktest(forceMode, forceCache=false){
@@ -1924,28 +1938,53 @@ async function loadBacktest(forceMode, forceCache=false){
       box.innerHTML=`<div style="color:var(--t3);font-size:11px">⚠️ ${d.error}${d.trades!=null?' ('+d.trades+'件)':''}</div>`;
       return;
     }
-    const evCol=d.expected_value>0.3?'var(--green)':d.expected_value>0?'var(--yellow)':'var(--red)';
+    const evCol=kpiColor(d.expected_value,0.08,0,true);
     const vrCol=d.expected_value>0?'rgba(63,185,80,.1)':'rgba(248,81,73,.1)';
     const vrBdr=d.expected_value>0?'var(--green)':'var(--red)';
     const holdLabel=isScalp?`${d.avg_hold_min??'—'}分`:isSwing?`${d.avg_hold_days??'—'}日`:`${d.avg_hold_hours??'—'}時間`;
-    const mddCol=d.max_drawdown>5?'var(--red)':d.max_drawdown>2?'var(--yellow)':'var(--green)';
-    const shrCol=d.sharpe>0.3?'var(--green)':d.sharpe>0?'var(--yellow)':'var(--red)';
+    const mddVal=d.max_drawdown??0;
+    const mddCol=kpiColor(mddVal,10,15,false);
+    const shrVal=d.sharpe??0;
+    const shrCol=kpiColor(shrVal,1.0,0.3,true);
+    const wrVal=d.win_rate??0;
+    const wrCol=kpiColor(wrVal,55,45,true);
+    const tpdVal=d.trades_per_day??0;
+    const tpdCol=isScalp?(tpdVal>=3&&tpdVal<=20?'var(--green)':'var(--gold)'):'var(--t2)';
+    // KPI badges
+    const wrBadge=kpiBadge(wrVal,55,45,true);
+    const evBadge=kpiBadge(d.expected_value,0.08,0,true);
+    const shrBadge=kpiBadge(shrVal,1.0,0.3,true);
+    const mddBadge=kpiBadge(mddVal,10,15,false);
+    const tpdBadge=isScalp?(tpdVal>=3&&tpdVal<=20?'✅':'⚠️'):'';
     box.innerHTML=
       `<div class="bt-verdict" style="background:${vrCol};border:1px solid ${vrBdr};color:${evCol}">${d.verdict||'—'}</div>`+
-      `<div class="bt-stat"><span class="bt-label">勝率</span><span class="bt-val" style="color:${d.win_rate>=55?'var(--green)':d.win_rate>=45?'var(--yellow)':'var(--red)'}">${d.win_rate}%</span></div>`+
-      `<div class="bt-stat"><span class="bt-label">トレード数</span><span class="bt-val">${d.trades}件 (勝${d.wins??'—'}/負${d.losses??'—'})${isScalp&&d.trades_per_day?` <span style="color:var(--t4);font-size:10px">${d.trades_per_day}件/日</span>`:''}</span></div>`+
+      `<div class="bt-stat"><span class="bt-label">勝率</span><span class="bt-val" style="color:${wrCol}">${wrVal}% <span style="font-size:11px">${wrBadge}</span></span></div>`+
+      `<div class="bt-stat"><span class="bt-label">トレード数</span><span class="bt-val">${d.trades}件 (勝${d.wins??'—'}/負${d.losses??'—'})${isScalp&&d.trades_per_day?` <span style="color:${tpdCol};font-size:10px">${d.trades_per_day}件/日 ${tpdBadge}</span>`:''}</span></div>`+
       `<div class="bt-stat"><span class="bt-label">RR比</span><span class="bt-val">1:${d.rr}</span></div>`+
-      `<div class="bt-stat"><span class="bt-label">期待値</span><span class="bt-val" style="color:${evCol}">${d.expected_value>0?'+':''}${d.expected_value}</span></div>`+
-      `<div class="bt-stat"><span class="bt-label">最大DD</span><span class="bt-val" style="color:${mddCol}">${d.max_drawdown??'—'} RR</span></div>`+
-      `<div class="bt-stat"><span class="bt-label">シャープ</span><span class="bt-val" style="color:${shrCol}">${d.sharpe??'—'}</span></div>`+
+      `<div class="bt-stat"><span class="bt-label">期待値</span><span class="bt-val" style="color:${evCol}">${d.expected_value>0?'+':''}${d.expected_value} <span style="font-size:11px">${evBadge}</span></span></div>`+
+      `<div class="bt-stat"><span class="bt-label">最大DD</span><span class="bt-val" style="color:${mddCol}">${d.max_drawdown??'—'} RR <span style="font-size:11px">${mddBadge}</span></span></div>`+
+      `<div class="bt-stat"><span class="bt-label">シャープ</span><span class="bt-val" style="color:${shrCol}">${d.sharpe??'—'} <span style="font-size:11px">${shrBadge}</span></span></div>`+
       `<div class="bt-stat"><span class="bt-label">平均保有</span><span class="bt-val">${holdLabel}</span></div>`+
       `<div class="bt-stat"><span class="bt-label">集計期間</span><span class="bt-val">${d.period||'—'}</span></div>`;
 
     // Walk-forward
     if(d.walk_forward&&d.walk_forward.length){
+      // Visual WR bar: one mini-bar per window
+      const wfBarHtml=d.walk_forward.map(w=>{
+        const wrPct=Math.min(Math.max(w.win_rate,0),100);
+        const barCol=w.win_rate>=55?'var(--green)':w.win_rate>=45?'var(--gold)':'var(--red)';
+        const barH=Math.round(16+(wrPct-40)*0.6); // height scales 40%->16px .. 70%->34px
+        return`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1" title="${w.label}: WR ${w.win_rate}%">
+          <div style="font-size:8px;color:var(--t4);white-space:nowrap;overflow:hidden;max-width:100%;text-overflow:ellipsis">${w.label.replace('Window ','W')}</div>
+          <div style="width:100%;background:var(--bg3);border-radius:3px;height:32px;display:flex;align-items:flex-end;overflow:hidden">
+            <div style="width:100%;height:${Math.round(wrPct*0.9)}%;background:${barCol};border-radius:2px;transition:height .3s"></div>
+          </div>
+          <div style="font-size:8px;font-weight:700;color:${barCol}">${w.win_rate}%</div>
+        </div>`;
+      }).join('');
       const wfHtml=d.walk_forward.map(w=>{
         const evC=w.expected_value>0?'var(--green)':'var(--red)';
-        const wrC=w.win_rate>=50?'var(--green)':w.win_rate>=42?'var(--gold)':'var(--red)';
+        const wrC=w.win_rate>=55?'var(--green)':w.win_rate>=45?'var(--gold)':'var(--red)';
         return`<div class="wf-row">
           <span class="wf-label">${w.label}</span>
           <span class="wf-wr" style="color:${wrC}">${w.win_rate}%</span>
@@ -1954,7 +1993,8 @@ async function loadBacktest(forceMode, forceCache=false){
         </div>`;
       }).join('');
       box.innerHTML+=`
-        <div style="font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-top:10px;margin-bottom:5px">Walk-Forward 分析</div>
+        <div style="font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-top:10px;margin-bottom:6px">Walk-Forward 分析</div>
+        <div style="display:flex;gap:3px;margin-bottom:8px;height:56px;align-items:flex-end">${wfBarHtml}</div>
         ${wfHtml}
         <div style="font-size:10px;color:var(--t3);margin-top:5px;text-align:center">${d.consistency||''}</div>`;
     }
