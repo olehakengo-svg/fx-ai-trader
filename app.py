@@ -277,7 +277,10 @@ TF_MIN_RR = {
 def _fetch_raw(symbol: str, period: str, interval: str) -> pd.DataFrame:
     ticker = yf.Ticker(symbol)
     df = ticker.history(period=period, interval=interval, auto_adjust=True)
-    if df.index.tz is not None:
+    # DatetimeIndex であることを保証してからtz操作
+    if not isinstance(df.index, pd.DatetimeIndex):
+        df.index = pd.to_datetime(df.index, utc=True)
+    elif getattr(df.index, "tz", None) is not None:
         df.index = df.index.tz_convert("UTC")
     return df.dropna()
 
@@ -5696,6 +5699,13 @@ def run_historical_pattern_analysis(
         # ── 1. データ取得 ──
         # Massive API経由（長期データ）、失敗したらyfinanceフォールバック
         df = fetch_ohlcv(symbol, period=f"{lookback_days}d", interval=interval)
+        # インデックスを UTC DatetimeIndex に正規化（Massive/yfinance どちらでも動作）
+        if not isinstance(df.index, pd.DatetimeIndex):
+            df.index = pd.to_datetime(df.index, utc=True)
+        elif df.index.tz is None:
+            df.index = df.index.tz_localize("UTC")
+        else:
+            df.index = df.index.tz_convert("UTC")
         df = add_indicators(df)
         df = df.dropna()
 
