@@ -66,6 +66,40 @@ CACHE_TTL    = 300       # 5 min data cache
 BT_CACHE_TTL = 21600     # 6 hour backtest cache
 NEWS_TTL     = 1800      # 30 min news cache
 
+# ═══════════════════════════════════════════════════════
+#  MISSION — 全エージェント共通ミッション定義
+# ═══════════════════════════════════════════════════════
+AGENT_MISSION = {
+    "goal":     "個人トレーダーが大口（機関投資家）の波に乗れる最強FXシグナルインジケーター構築",
+    "strategy": "スキャルピング(5m/15m) + デイトレード(30m/1h) 完全最適化",
+    "kpi": {
+        "win_rate_min":    55.0,   # 勝率最低ライン (%)
+        "ev_min":          0.08,   # 期待値最低ライン (R/trade)
+        "sharpe_min":      1.0,
+        "max_dd_max":      15.0,
+        "scalp_trades":    (20, 50),
+        "daytrade_trades": (3, 8),
+    },
+    "principles": [
+        "大口フロー整合 = 最優先条件",
+        "逆張り原則禁止",
+        "重要イベント前後30分は取引停止",
+        "シグナル → 通知 → 手動発注（自動発注は対象外）",
+    ],
+    "layer_hierarchy": {
+        0: "取引禁止条件チェック (経済指標/セッション/ボラティリティ)",
+        1: "大口バイアス判定 — MASTER FILTER (機関投資家フロー方向)",
+        2: "トレンド構造確認 (EMA配列/ダウ理論/S/R位置)",
+        3: "精密エントリー条件 (OB接触/フィボ/確認足/出来高)",
+    },
+}
+
+# Layer 0/1 キャッシュ
+_calendar_cache:    dict = {}
+_master_bias_cache: dict = {}
+CALENDAR_TTL    = 3600   # 1時間
+MASTER_BIAS_TTL = 900    # 15分
+
 # Swing-mode ATR multipliers per timeframe
 TF_SL_MULT = {
     "1m": 1.5, "5m": 1.5, "15m": 1.5, "30m": 1.8,
@@ -497,6 +531,203 @@ def detect_divergence(df: pd.DataFrame, lookback: int = 30):
         reasons.append("✅ MACD 強気ダイバージェンス（底打ちモメンタム）")
 
     return score, reasons
+
+
+# ═══════════════════════════════════════════════════════
+#  Layer 0: 取引禁止条件チェック
+# ═══════════════════════════════════════════════════════
+def get_economic_calendar() -> list:
+    """
+    ForexFactory カレンダーから今週の高インパクト USD/JPY 指標を取得。
+    1時間キャッシュ。失敗時は空リストを返す（取引は停止しない）。
+    """
+    global _calendar_cache
+    now = datetime.now()
+    if _calendar_cache.get("ts") and (now - _calendar_cache["ts"]).total_seconds() < CALENDAR_TTL:
+        return _calendar_cache.get("events", [])
+
+    import urllib.request as _ur, json as _js
+    events = []
+    try:
+        url = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
+        req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with _ur.urlopen(req, timeout=8) as r:
+            data = _js.load(r)
+        for ev in data:
+            if ev.get("impact") == "High" and ev.get("currency") in ("USD", "JPY"):
+                events.append({
+                    "title":    ev.get("title", ""),
+                    "currency": ev.get("currency", ""),
+                    "date":     ev.get("date", ""),
+                    "impact":   "High",
+                })
+        print(f"[Calendar] {len(events)}件の高インパクト指標取得")
+    except Exception as e:
+        print(f"[Calendar] {e}")
+
+    _calendar_cache = {"events": events, "ts": now}
+    return events
+
+
+def is_trade_prohibited(df=None) -> dict:
+    """
+    Layer 0: 取引禁止条件チェック
+
+    禁止条件:
+      ① 低流動性セッション (22:00-07:00 UTC)
+      ② 重要経済指標の前後30分 (USD/JPY 高インパクト)
+      ③ 異常ボラティリティ (現在ATR > 20期間平均の2.5倍)
+
+    Returns:
+      {"prohibited": bool, "reason": str, "layer": 0, ...}
+    """
+    now_utc  = datetime.now(timezone.utc)
+    hour_utc = now_utc.hour
+
+    # ① 低流動性セッション (22:00-07:00 UTC)
+    if hour_utc >= 22 or hour_utc < 7:
+        return {
+            "prohibited": True,
+            "reason":     f"⏰ 低流動性セッション ({hour_utc:02d}:00 UTC) — London Open 07:00 UTC まで待機",
+            "layer": 0, "check": "session",
+        }
+
+    # ② 経済指標チェック (±30分)
+    try:
+        events = get_economic_calendar()
+        for ev in events:
+            try:
+                ev_dt = datetime.fromisoformat(
+                    ev["date"].replace("Z", "+00:00")
+                ).astimezone(timezone.utc)
+                diff_min = (ev_dt - now_utc).total_seconds() / 60
+                if -30 <= diff_min <= 30:
+                    sign = "前" if diff_min > 0 else "後"
+                    return {
+                        "prohibited": True,
+                        "reason":     f"⚠️ 重要指標{sign}{abs(diff_min):.0f}分: {ev['currency']} {ev['title']}",
+                        "layer": 0, "check": "event", "event": ev,
+                    }
+            except Exception:
+                continue
+    except Exception as e:
+        print(f"[Layer0/Calendar] {e}")
+
+    # ③ 異常ボラティリティ
+    if df is not None and "atr" in df.columns and len(df) >= 20:
+        try:
+            atr_cur = float(df["atr"].iloc[-1])
+            atr_avg = float(df["atr"].tail(20).mean())
+            if atr_avg > 0 and atr_cur > atr_avg * 2.5:
+                ratio = round(atr_cur / atr_avg, 1)
+                return {
+                    "prohibited": True,
+                    "reason":     f"🌪️ 異常ボラティリティ (ATR = 平均の{ratio}倍) — 正常化まで待機",
+                    "layer": 0, "check": "volatility", "atr_ratio": ratio,
+                }
+        except Exception:
+            pass
+
+    return {"prohibited": False, "reason": "", "layer": 0, "check": "ok"}
+
+
+# ═══════════════════════════════════════════════════════
+#  Layer 1: 大口バイアス判定 — MASTER FILTER
+# ═══════════════════════════════════════════════════════
+def get_master_bias(symbol: str) -> dict:
+    """
+    Layer 1: 大口（機関投資家）フロー方向をマスターフィルターとして判定。
+
+    3つの大口指標の多数決 (2/3以上一致で方向確定):
+      ① 機関フロースコア (JPY先物 + DXY + VIX)
+      ② COT大口投機筋ネットポジション (CFTC)
+      ③ DXY短期EMAトレンド (ドルインデックス方向)
+
+    direction: "bull" → USD買い優位 (USD/JPY↑)
+               "bear" → USD売り優位 (USD/JPY↓)
+               "neutral" → 大口方向不一致 → シグナル品質低下
+
+    Returns: {direction, confidence, label, components, votes}
+    """
+    global _master_bias_cache
+    now = datetime.now()
+    key = symbol
+    cached = _master_bias_cache.get(key)
+    if cached and (now - cached["ts"]).total_seconds() < MASTER_BIAS_TTL:
+        return cached["data"]
+
+    votes      = []   # +1=bull, -1=bear, 0=neutral
+    components = {}
+
+    # ① 機関フロースコア (JPY先物 + DXY + VIX)
+    try:
+        inst_sc, inst_detail = institutional_flow_score()
+        if   inst_sc >  0.2: votes.append(1);  comp_dir = "bull"
+        elif inst_sc < -0.2: votes.append(-1); comp_dir = "bear"
+        else:                 votes.append(0);  comp_dir = "neutral"
+        components["inst"] = {"direction": comp_dir, "score": round(inst_sc, 3),
+                              "detail": inst_detail}
+    except Exception as e:
+        print(f"[MasterBias/inst] {e}")
+        components["inst"] = {"direction": "neutral", "score": 0.0}
+
+    # ② COT大口投機筋ネットポジション
+    try:
+        cot_sc, cot_detail = fetch_cot_data()
+        if   cot_sc >  0.2: votes.append(1);  comp_dir = "bull"
+        elif cot_sc < -0.2: votes.append(-1); comp_dir = "bear"
+        else:                votes.append(0);  comp_dir = "neutral"
+        components["cot"] = {"direction": comp_dir, "score": round(cot_sc, 3),
+                             "detail": cot_detail}
+    except Exception as e:
+        print(f"[MasterBias/cot] {e}")
+        components["cot"] = {"direction": "neutral", "score": 0.0}
+
+    # ③ DXY短期EMAトレンド
+    try:
+        dxy_df  = fetch_ohlcv("DX-Y.NYB", period="30d", interval="1d")
+        dxy_df  = add_indicators(dxy_df)
+        dxy_row = dxy_df.iloc[-1]
+        dxy_c   = float(dxy_row["Close"])
+        dxy_e9  = float(dxy_row["ema9"])
+        dxy_e21 = float(dxy_row["ema21"])
+        if   dxy_c > dxy_e9 > dxy_e21: votes.append(1);  comp_dir = "bull"
+        elif dxy_c < dxy_e9 < dxy_e21: votes.append(-1); comp_dir = "bear"
+        else:                            votes.append(0);  comp_dir = "neutral"
+        components["dxy"] = {"direction": comp_dir, "value": round(dxy_c, 2),
+                             "ema9": round(dxy_e9, 2), "ema21": round(dxy_e21, 2)}
+    except Exception as e:
+        print(f"[MasterBias/dxy] {e}")
+        components["dxy"] = {"direction": "neutral", "value": 0.0}
+
+    # 多数決
+    bull_v  = votes.count(1)
+    bear_v  = votes.count(-1)
+    neut_v  = votes.count(0)
+    total   = max(len(votes), 1)
+
+    if bull_v >= 2:
+        direction  = "bull"
+        confidence = round(bull_v / total, 2)
+        label = f"📈 大口バイアス: USD買い優位 ({bull_v}/{total}一致) — BUYシグナル優先"
+    elif bear_v >= 2:
+        direction  = "bear"
+        confidence = round(bear_v / total, 2)
+        label = f"📉 大口バイアス: USD売り優位 ({bear_v}/{total}一致) — SELLシグナル優先"
+    else:
+        direction  = "neutral"
+        confidence = 0.0
+        label = f"⚖️ 大口バイアス: 方向不一致 ({bull_v}↑/{bear_v}↓/{neut_v}→) — シグナル品質低下"
+
+    data = {
+        "direction":  direction,
+        "confidence": confidence,
+        "label":      label,
+        "components": components,
+        "votes": {"bull": bull_v, "bear": bear_v, "neutral": neut_v},
+    }
+    _master_bias_cache[key] = {"data": data, "ts": now}
+    return data
 
 
 # ═══════════════════════════════════════════════════════
@@ -1917,6 +2148,12 @@ def get_news_sentiment() -> dict:
 # ═══════════════════════════════════════════════════════
 def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                             symbol: str = "USDJPY=X") -> dict:
+    # ── Layer 0: 取引禁止チェック ──────────────────────────────
+    layer0 = is_trade_prohibited(df)
+
+    # ── Layer 1: 大口バイアス（マスターフィルター）──────────────
+    layer1 = get_master_bias(symbol)
+
     row   = df.iloc[-1]
     entry = float(row["Close"])
     atr   = float(row["atr"])
@@ -2045,6 +2282,44 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # ADXマルチプライヤー適用
     score *= adx_mult
 
+    # ── Layer 1: 大口バイアス適用 ─────────────────────────────
+    bias_dir = layer1["direction"]
+    if bias_dir == "bull":
+        if score < 0:  score *= 0.15
+        else:          score *= 1.15
+    elif bias_dir == "bear":
+        if score > 0:  score *= 0.15
+        else:          score *= 1.15
+    else:
+        score *= 0.60  # 大口方向不明 → 品質低下
+
+    # ── Layer 0: 取引禁止時の早期リターン ─────────────────────
+    if layer0["prohibited"]:
+        session = get_session_info()
+        ts_str  = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
+        return {
+            "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
+            "entry": round(entry, 3), "signal": "WAIT", "confidence": 0,
+            "sl": round(entry - atr * 0.8, 3), "tp": round(entry + atr * 2.0, 3),
+            "rr_ratio": 2.5, "atr": round(atr, 3),
+            "session": session, "htf_bias": get_htf_bias(symbol),
+            "swing_mode": tf in ("1h","4h","1d"),
+            "reasons": [f"🚫 {layer0['reason']}"],
+            "mode": "daytrade", "score": 0.0,
+            "indicators": {"ema9": round(ema9,3), "ema21": round(ema21,3),
+                          "ema50": round(ema50,3), "ema200": round(ema200,3),
+                          "adx": round(adx,1), "rsi": round(rsi,1),
+                          "macd": 0.0, "macd_sig": 0.0, "macd_hist": round(macdh,5),
+                          "bb_upper": 0.0, "bb_mid": 0.0, "bb_lower": 0.0, "bb_pband": round(bbpb,3)},
+            "daytrade_info": {"adx": round(adx,1), "adx_pos": round(adx_p,1),
+                             "adx_neg": round(adx_n,1), "ema200": round(ema200,3),
+                             "fib": {}, "score": 0.0},
+            "htf_bias_daytrade": htf_dt,
+            "layer_status": {"layer0": layer0, "layer1": layer1,
+                            "master_bias": layer1.get("label","—"), "trade_ok": False},
+            "score_detail": {"combined": 0.0, "rule": 0.0},
+        }
+
     # セッションフィルター: London/NY重複 13-17 UTC = 最高品質 (Krohn et al. 2024)
     try:
         h = df.index[-1].hour
@@ -2112,6 +2387,12 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             "score": round(score,3),
         },
         "htf_bias_daytrade": htf_dt,
+        "layer_status": {
+            "layer0": layer0,
+            "layer1": layer1,
+            "master_bias": layer1.get("label", "—"),
+            "trade_ok":    not layer0["prohibited"],
+        },
         "score_detail": {
             "combined": round(score,3), "rule": round(max(-1,min(1,score/5)),3),
         },
@@ -3491,6 +3772,12 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
       - 1H+4H トレンドをハードフィルターとして使用
     SL=ATR7×0.8 / TP=S/Rスナップ or ATR7×1.3
     """
+    # ── Layer 0: 取引禁止チェック ──────────────────────────────
+    layer0 = is_trade_prohibited(df)
+
+    # ── Layer 1: 大口バイアス（マスターフィルター）──────────────
+    layer1 = get_master_bias(symbol)
+
     htf     = get_htf_bias(symbol)
     row     = df.iloc[-1]
     entry   = float(row["Close"])
@@ -3512,6 +3799,33 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
 
     h1_sc = htf.get("h1", {}).get("score", 0.0)
     h4_sc = htf.get("h4", {}).get("score", 0.0)
+
+    # ── Layer 0 早期リターン（取引禁止時）─────────────────────
+    if layer0["prohibited"]:
+        atr_scalp = float(df["atr7"].iloc[-1]) if "atr7" in df.columns else atr
+        session   = get_session_info()
+        ts_str    = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
+        return {
+            "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
+            "entry": round(entry, 3), "signal": "WAIT", "confidence": 0,
+            "sl": round(entry - atr * 0.5, 3), "tp": round(entry + atr * 0.9, 3),
+            "rr_ratio": 1.8, "atr": round(atr, 3),
+            "session": session, "htf_bias": htf, "swing_mode": False,
+            "reasons": [f"🚫 {layer0['reason']}"],
+            "mode": "scalp", "scalp_score": 0.0,
+            "layer_status": {"layer0": layer0, "layer1": layer1,
+                             "master_bias": layer1.get("label","—"), "trade_ok": False},
+            "indicators": {
+                "ema9": round(ema9,3), "ema21": round(ema21,3), "ema50": round(ema50,3),
+                "rsi": round(rsi,1), "macd": 0.0, "macd_sig": 0.0, "macd_hist": 0.0,
+                "bb_upper": 0.0, "bb_mid": 0.0, "bb_lower": 0.0, "bb_pband": round(bbpb,3),
+            },
+            "scalp_info": {"htf_label": layer0["reason"], "htf_direction": 0,
+                          "scalp_score": 0.0, "sl_pips": 0, "tp_pips": 0,
+                          "atr7": round(atr,3), "rsi5": round(rsi5,1),
+                          "rsi9": round(rsi,1), "stoch_k": round(stoch_k,1),
+                          "adx": round(adx,1), "bb_width_pct": 0},
+        }
 
     # ── 学術根拠S/R計算 ─────────────────────────────────────
     round_sr   = detect_round_number_sr(entry)          # Osler (2000)
@@ -3756,6 +4070,17 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     if tf not in ("1m", "5m", "15m"):
         reasons.append(f"⚠️ {tf}足 — スキャルは1m/5m/15m推奨")
 
+    # ── Layer 1: 大口バイアス適用 ─────────────────────────────
+    bias_dir = layer1["direction"]
+    if bias_dir == "bull":
+        if score < 0:   score *= 0.15   # 大口買い優位時のSELL → 大幅減衰
+        else:           score *= 1.15   # 大口買い方向一致 → 若干強化
+    elif bias_dir == "bear":
+        if score > 0:   score *= 0.15   # 大口売り優位時のBUY → 大幅減衰
+        else:           score *= 1.15   # 大口売り方向一致 → 若干強化
+    else:
+        score *= 0.60   # 大口方向不明 → 品質低下（閾値引き上げ効果）
+
     # ── SL / TP ── バックテスト最適値 (BEP=35.7%, EV=+0.052実証)
     # 旧: SL=0.7/TP=1.3 → BEP=35.0% / 新: SL=0.5/TP=0.9 → BEP=35.7%（同等・高頻度向け）
     SCALP_SL, SCALP_TP = 0.5, 0.9
@@ -3820,6 +4145,12 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         "sl": sl, "tp": tp, "rr_ratio": rr, "atr": round(atr, 3),
         "session": session, "htf_bias": htf, "swing_mode": False,
         "reasons": reasons, "mode": "scalp",
+        "layer_status": {
+            "layer0": layer0,
+            "layer1": layer1,
+            "master_bias": layer1.get("label", "—"),
+            "trade_ok":    not layer0["prohibited"],
+        },
         "scalp_score": round(score, 3),
         "indicators": {
             "ema9":      round(ema9,  3), "ema21": round(ema21, 3),
@@ -3929,6 +4260,43 @@ def analyze_news_ai(headlines: list) -> dict:
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/api/layer-status")
+def api_layer_status():
+    """
+    Layer 0-1 のリアルタイム状態を返す。
+    UIのレイヤーステータスバナーに使用。
+    """
+    try:
+        layer0 = is_trade_prohibited()
+        layer1 = get_master_bias("USDJPY=X")
+        calendar_events = get_economic_calendar()
+        now_utc = datetime.now(timezone.utc)
+
+        # 直近・次の高インパクト指標を抽出
+        upcoming = []
+        for ev in calendar_events:
+            try:
+                ev_dt = datetime.fromisoformat(
+                    ev["date"].replace("Z", "+00:00")
+                ).astimezone(timezone.utc)
+                diff_min = (ev_dt - now_utc).total_seconds() / 60
+                if -60 <= diff_min <= 240:
+                    upcoming.append({**ev, "diff_min": round(diff_min, 0)})
+            except Exception:
+                continue
+        upcoming.sort(key=lambda x: x["diff_min"])
+
+        return jsonify({
+            "layer0": layer0,
+            "layer1": layer1,
+            "upcoming_events": upcoming[:5],
+            "checked_at": now_utc.isoformat(),
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 
 @app.route("/api/signal")

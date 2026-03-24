@@ -236,6 +236,14 @@ body{background:var(--bg0);color:var(--t1);
 .smc-bear{border-color:rgba(248,81,73,.3)!important;background:rgba(248,81,73,.05)!important}
 .smc-liq{border-color:rgba(188,140,255,.3)!important;background:rgba(188,140,255,.05)!important}
 
+/* ── Layer 0/1 status ────────────────────────── */
+.l1-bull{background:rgba(63,185,80,.18)!important;border-color:rgba(63,185,80,.45)!important;color:var(--green)!important}
+.l1-bear{background:rgba(248,81,73,.14)!important;border-color:rgba(248,81,73,.38)!important;color:var(--red)!important}
+.l1-neu{background:rgba(227,179,65,.1)!important;border-color:rgba(227,179,65,.35)!important;color:var(--gold)!important}
+.l0-ok{background:rgba(63,185,80,.12)!important;border-color:rgba(63,185,80,.35)!important;color:var(--green)!important}
+.l0-ng{background:rgba(248,81,73,.12)!important;border-color:rgba(248,81,73,.35)!important;color:var(--red)!important}
+.vote-bull{color:var(--green)!important}.vote-bear{color:var(--red)!important}.vote-neu{color:var(--gold)!important}
+
 /* ── Mode selector ───────────────────────────── */
 .mode-bar{display:flex;gap:3px;padding:2px 0}
 .mode-btn{flex:1;padding:5px 2px;border:1px solid var(--bg3);border-radius:5px;
@@ -348,6 +356,39 @@ body{background:var(--bg0);color:var(--t1);
         <button class="mode-btn mode-day"        onclick="setMode('dayflow')" style="flex:1 0 28%">📅 DayFlow<br><span style="font-size:9px;font-weight:400">ピボット</span></button>
         <button class="mode-btn mode-ses"        onclick="setMode('session')" style="flex:1 0 28%">🕐 セッション<br><span style="font-size:9px;font-weight:400">時間帯</span></button>
       </div>
+    </div>
+
+    <!-- Layer 0/1 ステータスバナー -->
+    <div id="card-layer-status" class="card" style="padding:10px 12px">
+      <!-- Layer 0: 取引禁止チェック -->
+      <div id="l0-bar" style="display:flex;align-items:center;gap:8px;border-radius:6px;padding:7px 10px;margin-bottom:8px;font-size:11px;font-weight:700;background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.35);color:var(--green)">
+        <span id="l0-icon">✅</span>
+        <span id="l0-text" style="flex:1">取引可能 — チェック中…</span>
+        <span id="l0-layer" style="font-size:9px;opacity:.65">L0</span>
+      </div>
+      <!-- Layer 1: 大口バイアス -->
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:7px">
+        <span style="font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.6px">L1 大口バイアス</span>
+        <div id="l1-badge" style="padding:2px 9px;border-radius:10px;font-size:10px;font-weight:700;background:var(--bg0);border:1px solid var(--bg3);color:var(--t3)">— 読込中</div>
+        <span id="l1-conf" style="font-size:10px;color:var(--t4);margin-left:auto">—%</span>
+      </div>
+      <!-- Layer 1 votes row -->
+      <div id="l1-votes" style="display:flex;gap:4px;margin-bottom:7px">
+        <div style="flex:1;background:var(--bg0);border:1px solid var(--bg3);border-radius:5px;padding:4px 6px;text-align:center">
+          <div style="font-size:9px;color:var(--t4);margin-bottom:1px">機関Flow</div>
+          <div id="l1-v-inst" style="font-size:11px;font-weight:700;color:var(--t3)">—</div>
+        </div>
+        <div style="flex:1;background:var(--bg0);border:1px solid var(--bg3);border-radius:5px;padding:4px 6px;text-align:center">
+          <div style="font-size:9px;color:var(--t4);margin-bottom:1px">COT</div>
+          <div id="l1-v-cot" style="font-size:11px;font-weight:700;color:var(--t3)">—</div>
+        </div>
+        <div style="flex:1;background:var(--bg0);border:1px solid var(--bg3);border-radius:5px;padding:4px 6px;text-align:center">
+          <div style="font-size:9px;color:var(--t4);margin-bottom:1px">DXY EMA</div>
+          <div id="l1-v-dxy" style="font-size:11px;font-weight:700;color:var(--t3)">—</div>
+        </div>
+      </div>
+      <!-- Upcoming events -->
+      <div id="l0-events" style="font-size:10px;color:var(--t4);line-height:1.6"></div>
     </div>
 
     <!-- Day Flow Plan card (dayflowモード時のみ表示) -->
@@ -1508,6 +1549,88 @@ function startCountdown(){
     if(_secs<=0){_secs=_refreshSecs();refreshAll();}
   },1000);
 }
+// ── Layer 0/1 ステータス ──────────────────────────────────────────
+let _layerPollTimer=null;
+async function loadLayerStatus(){
+  try{
+    const res=await fetch('/api/layer-status');
+    const d=await res.json();
+    if(!d)return;
+
+    // ── Layer 0 ──
+    const l0=d.layer0||{};
+    const l0bar=document.getElementById('l0-bar');
+    const l0icon=document.getElementById('l0-icon');
+    const l0text=document.getElementById('l0-text');
+    if(l0bar&&l0icon&&l0text){
+      if(l0.prohibited){
+        l0bar.className='';
+        l0bar.style.cssText='display:flex;align-items:center;gap:8px;border-radius:6px;padding:7px 10px;margin-bottom:8px;font-size:11px;font-weight:700;background:rgba(248,81,73,.12);border:1px solid rgba(248,81,73,.35);color:var(--red)';
+        l0icon.textContent='🚫';
+        l0text.textContent=l0.reason||'取引禁止';
+      }else{
+        l0bar.className='';
+        l0bar.style.cssText='display:flex;align-items:center;gap:8px;border-radius:6px;padding:7px 10px;margin-bottom:8px;font-size:11px;font-weight:700;background:rgba(63,185,80,.12);border:1px solid rgba(63,185,80,.35);color:var(--green)';
+        l0icon.textContent='✅';
+        l0text.textContent='取引可能 — 条件クリア';
+      }
+    }
+
+    // ── Layer 1 ──
+    const l1=d.layer1||{};
+    const l1badge=document.getElementById('l1-badge');
+    const l1conf=document.getElementById('l1-conf');
+    if(l1badge){
+      const dir=l1.direction||'neutral';
+      const lbl=l1.label||dir;
+      l1badge.textContent=lbl;
+      l1badge.className='';
+      l1badge.style.cssText='padding:2px 9px;border-radius:10px;font-size:10px;font-weight:700;';
+      if(dir==='bull'){l1badge.style.background='rgba(63,185,80,.18)';l1badge.style.border='1px solid rgba(63,185,80,.45)';l1badge.style.color='var(--green)';}
+      else if(dir==='bear'){l1badge.style.background='rgba(248,81,73,.14)';l1badge.style.border='1px solid rgba(248,81,73,.38)';l1badge.style.color='var(--red)';}
+      else{l1badge.style.background='rgba(227,179,65,.1)';l1badge.style.border='1px solid rgba(227,179,65,.35)';l1badge.style.color='var(--gold)';}
+    }
+    if(l1conf){
+      const c=l1.confidence;
+      l1conf.textContent=c!=null?Math.round(c*100)+'%':'—%';
+    }
+
+    // ── Layer 1 votes ──
+    const votes=l1.votes||[];
+    const voteLabels=['l1-v-inst','l1-v-cot','l1-v-dxy'];
+    votes.forEach((v,i)=>{
+      const el=document.getElementById(voteLabels[i]);
+      if(!el)return;
+      if(v===1){el.textContent='↑BUY';el.style.color='var(--green)';}
+      else if(v===-1){el.textContent='↓SEL';el.style.color='var(--red)';}
+      else{el.textContent='→NEU';el.style.color='var(--gold)';}
+    });
+
+    // ── Upcoming events ──
+    const evBox=document.getElementById('l0-events');
+    const evs=d.upcoming_events||[];
+    if(evBox){
+      if(evs.length===0){evBox.textContent='📅 直近4時間: 重要指標なし';}
+      else{
+        evBox.innerHTML=evs.map(ev=>{
+          const diffMin=Math.round((new Date(ev.date)-new Date())/60000);
+          const sign=diffMin>=0?'+':'-';
+          const abs=Math.abs(diffMin);
+          const tStr=abs<60?`${sign}${abs}分`:`${sign}${Math.round(abs/60)}時間`;
+          const impact=ev.impact||'';
+          const col=impact==='High'?'var(--red)':impact==='Medium'?'var(--gold)':'var(--t4)';
+          return `<span style="color:${col}">●</span> ${ev.currency} ${ev.title} <span style="color:var(--t4)">(${tStr})</span>`;
+        }).join('<br>');
+      }
+    }
+  }catch(e){console.warn('[layer-status]',e);}
+}
+function startLayerPoll(){
+  if(_layerPollTimer)clearInterval(_layerPollTimer);
+  loadLayerStatus(); // 即時1回
+  _layerPollTimer=setInterval(loadLayerStatus, 5*60*1000); // 5分ごと
+}
+
 // ── トレンドステータス定期ポーリング（30分ごと）─────────────────────
 let _trendPollTimer=null;
 async function pollTrendStatus(){
@@ -1811,6 +1934,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   loadMoneyMgmt();
   startLivePriceTicker();
   startTrendPoll();   // トレンドステータス30分ごとポーリング開始
+  startLayerPoll();   // Layer 0/1ステータス5分ごとポーリング開始
 });
 </script>
 </body>
