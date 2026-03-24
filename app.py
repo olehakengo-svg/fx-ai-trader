@@ -261,6 +261,14 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df["adx"]       = adx_ind.adx()
     df["adx_pos"]   = adx_ind.adx_pos()   # +DI
     df["adx_neg"]   = adx_ind.adx_neg()   # -DI
+    # ドンチアンチャネル20本 (Brock, Lakonishok, LeBaron 1992 JoF)
+    # 20日高値/安値ブレイクアウト → 89年間のDJIAで統計的有意性確認
+    df["don_high20"] = df["High"].rolling(20).max()
+    df["don_low20"]  = df["Low"].rolling(20).min()
+    df["don_mid20"]  = (df["don_high20"] + df["don_low20"]) / 2
+    # ドンチアン位置 (0=下限付近, 1=上限付近)
+    don_range = (df["don_high20"] - df["don_low20"]).replace(0, np.nan)
+    df["don_pct"]    = (c - df["don_low20"]) / don_range
     return df.dropna()
 
 
@@ -2623,6 +2631,12 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             if d_mult ==  1.0 and not ema200_rising: continue  # 5m↑ vs 4H↓ = MIXED
             if d_mult == -1.0 and ema200_rising:      continue  # 5m↓ vs 4H↑ = MIXED
 
+            # ★ ドンチアンチャネル位置フィルター (Brock et al. 1992 JoF)
+            # SELLは上位50%圏のみ、BUYは下位50%圏のみエントリー許可
+            don_p = float(row.get("don_pct", 0.5))
+            if d_mult == -1.0 and don_p < 0.45: continue  # SELL: ドンチアン下半部はスキップ
+            if d_mult ==  1.0 and don_p > 0.55: continue  # BUY:  ドンチアン上半部はスキップ
+
             score = 0.0
             has_pullback  = False
             has_rsi_reset = False
@@ -3498,6 +3512,11 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     round_sr   = detect_round_number_sr(entry)          # Osler (2000)
     vpoc       = get_volume_poc(df, lookback=200)        # Gärtner & Kübler (2016)
     reg_ch     = get_regression_channel(df, lookback=50) # Lo et al. (2000)
+    # ドンチアンチャネル指標
+    don_high   = float(row.get("don_high20", entry + atr))
+    don_low    = float(row.get("don_low20",  entry - atr))
+    don_mid    = float(row.get("don_mid20",  entry))
+    don_pct    = float(row.get("don_pct",    0.5))       # 0=下限, 1=上限
     # ラウンドナンバーをS/Rレベルに追加（重複除去）
     enhanced_sr = sorted(set(sr_levels + round_sr))
 
@@ -3686,6 +3705,48 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     if near_round:
         reasons.append(f"🔵 ラウンドナンバー({near_round[0]:.2f})近接: 指値集中ゾーン(Osler 2000)")
 
+    # ⑪ ドンチアンチャネル位置 (Brock, Lakonishok, LeBaron 1992 JoF) ─
+    # SELLバイアス: don_pct>0.7(上限近接)が最高品質
+    # BUYバイアス : don_pct<0.3(下限近接)が最高品質
+    if d_mult == -1.0:  # SELL方向
+        if don_pct > 0.75:
+            score -= 1.3
+            reasons.append(f"✅ ドンチアン上限圏({don_pct:.0%}): 最高品質SELLゾーン(BLL 1992 JoF)")
+        elif don_pct > 0.55:
+            score -= 0.6
+            reasons.append(f"↘ ドンチアン上半部({don_pct:.0%}): SELL有利")
+        elif don_pct < 0.25:
+            score += 0.8   # 逆方向ペナルティ
+            reasons.append(f"⚠️ ドンチアン下限圏({don_pct:.0%}): SELL逆方向 → 抑制")
+    elif d_mult == 1.0:  # BUY方向
+        if don_pct < 0.25:
+            score += 1.3
+            reasons.append(f"✅ ドンチアン下限圏({don_pct:.0%}): 最高品質BUYゾーン(BLL 1992 JoF)")
+        elif don_pct < 0.45:
+            score += 0.6
+            reasons.append(f"↗ ドンチアン下半部({don_pct:.0%}): BUY有利")
+        elif don_pct > 0.75:
+            score -= 0.8
+            reasons.append(f"⚠️ ドンチアン上限圏({don_pct:.0%}): BUY逆方向 → 抑制")
+
+    # ⑫ オプション満期時刻フィルター (Anderegg et al. 2022 ETH/SNB) ─
+    # 10:00 NY cut (≈14:30-15:30 UTC), 3:00 Tokyo cut (≈17:30-18:30 UTC)
+    # ガンマヘッジが最大化 → 価格磁石効果が強まり予測困難
+    try:
+        _now_h = datetime.now(timezone.utc).hour
+        _now_m = datetime.now(timezone.utc).minute
+        _min   = _now_h * 60 + _now_m
+        _ny_cut    = (14*60+30 <= _min <= 15*60+30)   # NY 10:00 AM EDT
+        _tk_cut    = (17*60+30 <= _min <= 18*60+30)   # Tokyo 3:00 AM JST
+        if _ny_cut:
+            score *= 0.80
+            reasons.append("⚠️ NY オプション満期前後(10AM EDT±30分): ガンマヘッジ増大 → サイズ縮小推奨 (Anderegg 2022)")
+        elif _tk_cut:
+            score *= 0.85
+            reasons.append("⚠️ Tokyo オプション満期前後(3AM JST±30分): ガンマ注意 (Anderegg 2022)")
+    except Exception:
+        pass
+
     # TF警告
     if tf not in ("1m", "5m", "15m"):
         reasons.append(f"⚠️ {tf}足 — スキャルは1m/5m/15m推奨")
@@ -3791,6 +3852,12 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             "vpoc":        vpoc,                              # 機関投資家S/R
             "reg_channel": reg_ch,                            # Lo et al. 2000
             "enhanced_sr": enhanced_sr[:12],                  # 強化S/Rレベル
+            "donchian": {                                     # BLL 1992 JoF
+                "high": round(don_high, 3),
+                "low":  round(don_low,  3),
+                "mid":  round(don_mid,  3),
+                "pct":  round(don_pct,  3),                  # 0=下限, 1=上限
+            },
         },
     }
 

@@ -415,9 +415,13 @@ body{background:var(--bg0);color:var(--t1);
         </div>
       </div>
       <div class="dp-row"><span class="dp-lbl">BB幅ランク</span><span class="dp-val" id="sc-bbw">—%ile</span></div>
+      <div class="dp-row"><span class="dp-lbl">ドンチアン位置</span><span class="dp-val" id="sc-don-pct">—</span></div>
+      <div class="dp-row"><span class="dp-lbl">回帰チャネル偏差</span><span class="dp-val" id="sc-reg-score">—</span></div>
+      <div class="dp-row"><span class="dp-lbl">VPOC</span><span class="dp-val" id="sc-vpoc">—</span></div>
+      <div class="dp-row"><span class="dp-lbl">直近ラウンドS/R</span><span class="dp-val" id="sc-round-sr" style="font-size:11px">—</span></div>
       <div class="dp-row"><span class="dp-lbl">SL (ATR7×0.7)</span><span class="dp-val" id="sc-sl">— pips</span></div>
       <div class="dp-row"><span class="dp-lbl">TP (ATR7×1.3)</span><span class="dp-val" id="sc-tp">— pips</span></div>
-      <div style="margin-top:8px;font-size:10px;color:var(--t4)">📚 ADX20+/BBスクイーズ回避/RSI5+RSI9/出来高確認/London-NY13-17UTC優先 (Wilder/Axiory/Krohn2024/IJSAT2025) | BEP WR: 35%</div>
+      <div style="margin-top:8px;font-size:10px;color:var(--t4)">📚 Donchian(BLL1992)/RoundNum(Osler2000)/VPOC/RegCh(Lo2000)/ADX(Wilder)/RSI(Axiory)/Session(Krohn2024)/Options(Anderegg2022) | BEP WR: 35%</div>
     </div>
 
     <!-- Day Trade card (daytradeモード時のみ表示) -->
@@ -1194,6 +1198,33 @@ async function loadSignal(){
       const slE=document.getElementById('sc-sl'),tpE=document.getElementById('sc-tp');
       if(slE)slE.textContent=si.sl_pips!=null?si.sl_pips+' pips':'— pips';
       if(tpE)tpE.textContent=si.tp_pips!=null?si.tp_pips+' pips':'— pips';
+
+      // 学術根拠S/R情報
+      const asr=d.academic_sr||{};
+      // ドンチアン位置 (BLL 1992)
+      const donEl=document.getElementById('sc-don-pct');
+      if(donEl&&asr.donchian){
+        const dp=asr.donchian.pct;
+        const dpPct=Math.round(dp*100);
+        donEl.textContent=`${dpPct}% (H:${asr.donchian.high} L:${asr.donchian.low})`;
+        donEl.style.color=dp>0.75?'var(--red)':dp<0.25?'var(--green)':dp>0.5?'#f0883e':'var(--t1)';
+      }
+      // 回帰チャネル偏差 (Lo 2000)
+      const regEl=document.getElementById('sc-reg-score');
+      if(regEl&&asr.reg_channel){
+        const rs=asr.reg_channel.score;
+        const rLabel=rs>0.6?'上限圏(SELL)':rs>0.3?'上半部':rs<-0.6?'下限圏(BUY)':rs<-0.3?'下半部':'中立';
+        regEl.textContent=`${rs>0?'+':''}${rs?.toFixed(2)||'—'} ${rLabel}`;
+        regEl.style.color=rs>0.5?'var(--red)':rs<-0.5?'var(--green)':'var(--t3)';
+      }
+      // VPOC
+      const vpEl=document.getElementById('sc-vpoc');
+      if(vpEl)vpEl.textContent=asr.vpoc!=null?asr.vpoc.toFixed(3):'—';
+      // ラウンドナンバーS/R (Osler 2000)
+      const rnEl=document.getElementById('sc-round-sr');
+      if(rnEl&&asr.round_sr&&asr.round_sr.length){
+        rnEl.textContent=asr.round_sr.slice(0,5).join(' / ');
+      }
     }
 
     // デイトレードモード固有情報
