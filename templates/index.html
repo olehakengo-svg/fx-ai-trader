@@ -277,6 +277,85 @@ body{background:var(--bg0);color:var(--t1);
 .ses-break{background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.3)}
 .ses-cont{background:rgba(88,166,255,.15);color:var(--blue);border:1px solid rgba(88,166,255,.3)}
 .ses-off{background:var(--bg0);color:var(--t4);border:1px solid var(--bg3)}
+
+/* ── Strategy A/B toggle ───────────────────── */
+.strat-bar{display:flex;gap:2px;background:var(--bg0);border-radius:6px;padding:3px}
+.strat-btn{padding:4px 10px;border:none;border-radius:4px;
+  background:transparent;color:var(--t3);
+  font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;white-space:nowrap}
+.strat-btn:hover{background:var(--bg2);color:var(--t1)}
+.strat-btn.active{background:var(--blue);color:#fff}
+
+/* ── KPI Card Enhanced ─────────────────────── */
+#card-kpi{border:1px solid rgba(88,166,255,.25);box-shadow:0 0 12px rgba(88,166,255,.08)}
+.kpi-badge{display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;
+  letter-spacing:.3px;margin-left:4px;vertical-align:middle}
+.kpi-badge-pass{background:rgba(63,185,80,.18);color:var(--green);border:1px solid rgba(63,185,80,.35)}
+.kpi-badge-fail{background:rgba(248,81,73,.14);color:var(--red);border:1px solid rgba(248,81,73,.3)}
+.kpi-badge-warn{background:rgba(227,179,65,.14);color:var(--gold);border:1px solid rgba(227,179,65,.3)}
+.kpi-spark{display:inline-block;width:32px;height:12px;vertical-align:middle;margin-left:4px;
+  background:linear-gradient(90deg,transparent 0%,var(--blue) 50%,transparent 100%);
+  border-radius:2px;opacity:.35}
+.kpi-cell{background:var(--bg0);border:1px solid var(--bg3);border-radius:5px;padding:6px 8px;
+  transition:border-color .2s,box-shadow .2s}
+.kpi-cell:hover{border-color:rgba(88,166,255,.4);box-shadow:0 0 6px rgba(88,166,255,.1)}
+
+/* ── Signal badge pulse animation ──────────── */
+@keyframes sig-pulse{
+  0%,100%{box-shadow:0 0 0 0 transparent}
+  50%{box-shadow:0 0 12px 3px rgba(63,185,80,.35)}
+}
+@keyframes sig-pulse-sell{
+  0%,100%{box-shadow:0 0 0 0 transparent}
+  50%{box-shadow:0 0 12px 3px rgba(248,81,73,.35)}
+}
+.sig-buy{animation:sig-pulse 2s ease-in-out infinite}
+.sig-sell{animation:sig-pulse-sell 2s ease-in-out infinite}
+
+/* ── Card hover transitions ────────────────── */
+.card{transition:border-color .2s ease,box-shadow .2s ease,transform .15s ease}
+.card:hover{border-color:rgba(88,166,255,.2);box-shadow:0 2px 8px rgba(0,0,0,.25);transform:translateY(-1px)}
+
+/* ── Improved scrollbar ────────────────────── */
+.panel::-webkit-scrollbar{width:6px}
+.panel::-webkit-scrollbar-track{background:var(--bg0);border-radius:3px}
+.panel::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px;border:1px solid var(--bg1)}
+.panel::-webkit-scrollbar-thumb:hover{background:var(--t4)}
+
+/* ── Header gradient ───────────────────────── */
+.hdr{background:linear-gradient(180deg,#1a2233 0%,var(--bg1) 100%)}
+
+/* ── Mode selector KPI indicator ───────────── */
+.mode-kpi-status{font-size:8px;display:block;margin-top:1px;line-height:1}
+.mode-bt-summary{font-size:9px;color:var(--t4);text-align:center;margin-top:4px;line-height:1.4}
+
+/* ── Footer status bar ─────────────────────── */
+.footer-bar{flex-shrink:0;height:26px;background:var(--bg1);
+  border-top:1px solid var(--bg3);
+  display:flex;align-items:center;padding:0 14px;gap:16px;
+  font-size:10px;color:var(--t4)}
+.footer-bar .fb-item{display:flex;align-items:center;gap:4px;white-space:nowrap}
+.footer-bar .fb-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.fb-dot-on{background:var(--green);box-shadow:0 0 4px var(--green)}
+.fb-dot-off{background:var(--red);box-shadow:0 0 4px var(--red)}
+
+/* ── Mobile responsiveness ─────────────────── */
+@media(max-width:768px){
+  .hdr{height:auto;min-height:52px;flex-wrap:wrap;padding:8px 10px;gap:6px}
+  .logo{font-size:13px;flex-basis:100%}
+  .hdr-price{font-size:18px}
+  .tf-bar{overflow-x:auto;flex-shrink:1;-webkit-overflow-scrolling:touch}
+  .tf-btn{min-width:44px;min-height:44px;padding:8px 10px;font-size:12px}
+  .strat-btn{min-width:44px;min-height:44px;padding:8px 10px;font-size:12px}
+  .hdr-right{flex-basis:100%;justify-content:flex-end}
+  .btn-refresh,.btn-notif{min-height:44px;min-width:44px;padding:8px 12px;font-size:12px}
+  .charts-col{display:none!important}
+  .panel{width:100%;border-left:none}
+  .main{flex-direction:column}
+  .mode-btn{min-height:44px;font-size:11px}
+  .card{padding:14px}
+  .footer-bar{height:auto;min-height:26px;flex-wrap:wrap;padding:4px 10px;gap:8px}
+}
 </style>
 </head>
 <body>
@@ -301,6 +380,11 @@ body{background:var(--bg0);color:var(--t1);
     <button class="tf-btn"        data-tf="1d"  onclick="setTf('1d')">1D</button>
     <button class="tf-btn"        data-tf="1w"  onclick="setTf('1w')">1W</button>
     <button class="tf-btn"        data-tf="1M"  onclick="setTf('1M')">1M</button>
+  </div>
+
+  <div class="strat-bar">
+    <button class="strat-btn active" data-strat="A" onclick="setStrategy('A')">A: Trend</button>
+    <button class="strat-btn" data-strat="B" onclick="setStrategy('B')">B: Mean Rev</button>
   </div>
 
   <div class="hdr-right">
@@ -356,6 +440,7 @@ body{background:var(--bg0);color:var(--t1);
         <button class="mode-btn mode-day"        onclick="setMode('dayflow')" style="flex:1 0 28%">📅 DayFlow<br><span style="font-size:9px;font-weight:400">ピボット</span></button>
         <button class="mode-btn mode-ses"        onclick="setMode('session')" style="flex:1 0 28%">🕐 セッション<br><span style="font-size:9px;font-weight:400">時間帯</span></button>
       </div>
+      <div class="mode-bt-summary" id="mode-bt-summary">BT結果: 読込中...</div>
     </div>
 
     <!-- Layer 0/1 ステータスバナー -->
@@ -809,29 +894,49 @@ body{background:var(--bg0);color:var(--t1);
       </div>
     </div>
 
-    <!-- Performance KPI card -->
+    <!-- Performance KPI card (enhanced) -->
     <div class="card" id="card-kpi">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
-        <span>📊 パフォーマンス KPI</span>
+        <span style="font-size:11px;letter-spacing:1.2px">📊 パフォーマンス KPI</span>
         <span id="kpi-total-trades" style="font-size:10px;color:var(--t4)">0トレード</span>
       </div>
       <div id="kpi-all-pass" style="display:none;border-radius:5px;padding:5px 8px;margin-bottom:6px;font-size:10px;font-weight:700;text-align:center;background:rgba(63,185,80,.15);border:1px solid rgba(63,185,80,.4);color:var(--green)">🏆 全KPI達成</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px">
-        <div style="background:var(--bg0);border:1px solid var(--bg3);border-radius:5px;padding:6px 8px">
-          <div style="font-size:9px;color:var(--t4);margin-bottom:2px">勝率 (目標≥55%)</div>
-          <div id="kpi-wr" style="font-size:14px;font-weight:700;font-family:'SF Mono',monospace">—%</div>
+        <div class="kpi-cell">
+          <div style="font-size:9px;color:var(--t4);margin-bottom:2px;display:flex;align-items:center;justify-content:space-between">
+            <span>勝率 (目標≥55%)</span><span id="kpi-wr-badge" class="kpi-badge kpi-badge-warn">--</span>
+          </div>
+          <div style="display:flex;align-items:center">
+            <span id="kpi-wr" style="font-size:14px;font-weight:700;font-family:'SF Mono',monospace">—%</span>
+            <span class="kpi-spark" id="kpi-wr-spark"></span>
+          </div>
         </div>
-        <div style="background:var(--bg0);border:1px solid var(--bg3);border-radius:5px;padding:6px 8px">
-          <div style="font-size:9px;color:var(--t4);margin-bottom:2px">EV (目標≥0.08R)</div>
-          <div id="kpi-ev" style="font-size:14px;font-weight:700;font-family:'SF Mono',monospace">—R</div>
+        <div class="kpi-cell">
+          <div style="font-size:9px;color:var(--t4);margin-bottom:2px;display:flex;align-items:center;justify-content:space-between">
+            <span>EV (目標≥0.08R)</span><span id="kpi-ev-badge" class="kpi-badge kpi-badge-warn">--</span>
+          </div>
+          <div style="display:flex;align-items:center">
+            <span id="kpi-ev" style="font-size:14px;font-weight:700;font-family:'SF Mono',monospace">—R</span>
+            <span class="kpi-spark" id="kpi-ev-spark"></span>
+          </div>
         </div>
-        <div style="background:var(--bg0);border:1px solid var(--bg3);border-radius:5px;padding:6px 8px">
-          <div style="font-size:9px;color:var(--t4);margin-bottom:2px">Sharpe (目標≥1.0)</div>
-          <div id="kpi-sharpe" style="font-size:14px;font-weight:700;font-family:'SF Mono',monospace">—</div>
+        <div class="kpi-cell">
+          <div style="font-size:9px;color:var(--t4);margin-bottom:2px;display:flex;align-items:center;justify-content:space-between">
+            <span>Sharpe (目標≥1.0)</span><span id="kpi-sharpe-badge" class="kpi-badge kpi-badge-warn">--</span>
+          </div>
+          <div style="display:flex;align-items:center">
+            <span id="kpi-sharpe" style="font-size:14px;font-weight:700;font-family:'SF Mono',monospace">—</span>
+            <span class="kpi-spark" id="kpi-sharpe-spark"></span>
+          </div>
         </div>
-        <div style="background:var(--bg0);border:1px solid var(--bg3);border-radius:5px;padding:6px 8px">
-          <div style="font-size:9px;color:var(--t4);margin-bottom:2px">MaxDD (目標≤15%)</div>
-          <div id="kpi-dd" style="font-size:14px;font-weight:700;font-family:'SF Mono',monospace">—%</div>
+        <div class="kpi-cell">
+          <div style="font-size:9px;color:var(--t4);margin-bottom:2px;display:flex;align-items:center;justify-content:space-between">
+            <span>MaxDD (目標≤15%)</span><span id="kpi-dd-badge" class="kpi-badge kpi-badge-warn">--</span>
+          </div>
+          <div style="display:flex;align-items:center">
+            <span id="kpi-dd" style="font-size:14px;font-weight:700;font-family:'SF Mono',monospace">—%</span>
+            <span class="kpi-spark" id="kpi-dd-spark"></span>
+          </div>
         </div>
       </div>
       <div class="macro-row"><span class="macro-lbl">日次取引回数</span><span id="kpi-daily-rate" class="macro-val">—/日</span></div>
@@ -848,6 +953,26 @@ body{background:var(--bg0);color:var(--t1);
 
     <div class="footer-note" id="last-upd">最終更新: —</div>
   </aside>
+</div>
+
+<!-- ═══ FOOTER STATUS BAR ═══ -->
+<div class="footer-bar" id="footer-bar">
+  <div class="fb-item">
+    <span class="fb-dot fb-dot-on" id="fb-conn-dot"></span>
+    <span id="fb-conn-text">Online</span>
+  </div>
+  <div class="fb-item">
+    <span style="color:var(--t3)">Data:</span>
+    <span id="fb-data-source">--</span>
+  </div>
+  <div class="fb-item">
+    <span style="color:var(--t3)">Updated:</span>
+    <span id="fb-last-update">--</span>
+  </div>
+  <div class="fb-item">
+    <span style="color:var(--t3)">Strategy:</span>
+    <span id="fb-strategy" style="color:var(--blue);font-weight:700">A</span>
+  </div>
 </div>
 
 <script>
@@ -984,6 +1109,17 @@ const macdHS  = mChart.addHistogramSeries({lastValueVisible:false,priceLineVisib
 // ════════════════════════════════════════════════
 let currentTf='1m';
 let currentMode='standard';
+let currentStrategy='A';
+
+function setStrategy(mode){
+  currentStrategy=mode;
+  document.querySelectorAll('.strat-btn').forEach(b=>b.classList.toggle('active',b.dataset.strat===mode));
+  const fbStrat=document.getElementById('fb-strategy');
+  if(fbStrat)fbStrat.textContent=mode;
+  fetch('/api/strategy-mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:mode})})
+    .then(()=>refreshAll())
+    .catch(e=>console.warn('strategy-mode:',e));
+}
 
 function setTf(tf){
   currentTf=tf;
@@ -1619,14 +1755,28 @@ async function loadSignal(){
     hb.textContent='LIVE';hb.className='badge badge-live';
     const srcLabel=d.ohlcv_source==='twelvedata'?'📡TwelveData RT':'⏱yfinance';
     const intLabel=_refreshSecs()+'秒更新';
+    const nowStr=new Date().toLocaleTimeString('ja-JP');
     document.getElementById('last-upd').textContent=
-      '最終更新: '+new Date().toLocaleTimeString('ja-JP')
+      '最終更新: '+nowStr
       +' ['+srcLabel+' / '+intLabel+']  ('+d.timestamp+')';
+    // Footer status bar update
+    const fbSrc=document.getElementById('fb-data-source');
+    if(fbSrc)fbSrc.textContent=d.ohlcv_source==='twelvedata'?'TwelveData RT':(d.ohlcv_source||'yfinance');
+    const fbUpd=document.getElementById('fb-last-update');
+    if(fbUpd)fbUpd.textContent=nowStr;
+    const fbConn=document.getElementById('fb-conn-dot');
+    const fbConnT=document.getElementById('fb-conn-text');
+    if(fbConn){fbConn.className='fb-dot fb-dot-on';}
+    if(fbConnT)fbConnT.textContent='Online';
 
   }catch(e){
     console.error('Signal:',e);
     document.getElementById('hdr-badge').className='badge badge-error';
     document.getElementById('hdr-badge').textContent='ERROR';
+    const fbConn=document.getElementById('fb-conn-dot');
+    const fbConnT=document.getElementById('fb-conn-text');
+    if(fbConn){fbConn.className='fb-dot fb-dot-off';}
+    if(fbConnT)fbConnT.textContent='Offline';
   }
 }
 
@@ -1850,6 +2000,14 @@ async function loadKPI(){
     if(drEl)drEl.textContent=(kpi.daily_trade_rate||0).toFixed(1)+'/日';
     if(rrEl)rrEl.textContent=(kpi.avg_rr||0).toFixed(2);
     if(allEl)allEl.style.display=kpi.all_pass?'block':'none';
+    // KPI badges
+    const setBadge=(id,passed)=>{const el=document.getElementById(id);if(!el)return;
+      el.textContent=passed?'PASS':'FAIL';
+      el.className='kpi-badge '+(passed?'kpi-badge-pass':'kpi-badge-fail');};
+    setBadge('kpi-wr-badge',pass.win_rate);
+    setBadge('kpi-ev-badge',pass.ev);
+    setBadge('kpi-sharpe-badge',pass.sharpe);
+    setBadge('kpi-dd-badge',pass.max_dd);
   }catch(e){console.warn('[kpi]',e);}
 }
 
@@ -1966,6 +2124,14 @@ async function loadBacktest(forceMode, forceCache=false){
       `<div class="bt-stat"><span class="bt-label">シャープ</span><span class="bt-val" style="color:${shrCol}">${d.sharpe??'—'} <span style="font-size:11px">${shrBadge}</span></span></div>`+
       `<div class="bt-stat"><span class="bt-label">平均保有</span><span class="bt-val">${holdLabel}</span></div>`+
       `<div class="bt-stat"><span class="bt-label">集計期間</span><span class="bt-val">${d.period||'—'}</span></div>`;
+
+    // Update mode selector BT summary
+    const btSummaryEl=document.getElementById('mode-bt-summary');
+    if(btSummaryEl){
+      const allPass=wrVal>=55&&d.expected_value>=0.08&&shrVal>=1.0&&mddVal<=15;
+      btSummaryEl.innerHTML=`WR:${wrVal}% EV:${d.expected_value>0?'+':''}${d.expected_value} Sharpe:${(shrVal).toFixed(2)} `+
+        (allPass?'<span style="color:var(--green)">✅ KPI PASS</span>':'<span style="color:var(--red)">❌ KPI FAIL</span>');
+    }
 
     // Walk-forward
     if(d.walk_forward&&d.walk_forward.length){
