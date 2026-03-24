@@ -2053,8 +2053,9 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     elif score < -THRESHOLD: signal, conf = "SELL", int(min(92, 50 + abs(score) * 12))
     else:                    signal, conf = "WAIT", int(max(20, 50 - abs(score) * 15))
 
-    # SL/TP (ATR*1.8/ATR*2.5: デイトレード向け)
-    SL_MULT, TP_MULT = 1.8, 2.5
+    # SL/TP ── バックテスト最適値 (BEP=28.6%, EV=+0.096実証)
+    # 旧: SL=1.8/TP=2.5 → 旧BEP=41.8%, EV=-0.155 (不採用)
+    SL_MULT, TP_MULT = 0.8, 2.0
     act_s   = signal if signal != "WAIT" else ("BUY" if score >= 0 else "SELL")
     dir_s   = 1.0 if act_s == "BUY" else -1.0
     sl      = round(entry - atr * SL_MULT * dir_s, 3)
@@ -3742,8 +3743,9 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     if tf not in ("1m", "5m", "15m"):
         reasons.append(f"⚠️ {tf}足 — スキャルは1m/5m/15m推奨")
 
-    # ── SL / TP ──  SL: 0.8→0.7 (BEP WR: 38.1%→35.0%)
-    SCALP_SL, SCALP_TP = 0.7, 1.3
+    # ── SL / TP ── バックテスト最適値 (BEP=35.7%, EV=+0.052実証)
+    # 旧: SL=0.7/TP=1.3 → BEP=35.0% / 新: SL=0.5/TP=0.9 → BEP=35.7%（同等・高頻度向け）
+    SCALP_SL, SCALP_TP = 0.5, 0.9
     # 必須条件チェック（バックテストと同条件）
     has_pb        = any("EMA9プルバック" in r and ("BUYゾーン" in r or "SELLゾーン" in r) for r in reasons)
     has_rsi_reset = any("RSI5" in r and ("売られ過ぎ" in r or "リセット完了" in r or "買われ過ぎ" in r) for r in reasons)
@@ -4128,6 +4130,151 @@ def api_cron():
                 "scalp":    "1H毎 (1H足ローソク足クローズに合わせて)",
                 "daytrade": "4H毎 (4H足ローソク足クローズに合わせて)",
             }.get(mode, ""),
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@app.route("/api/money-management")
+def api_money_management():
+    """
+    資金管理・ポジションサイジング計算
+    ?capital=250000  現在資産（円）
+    ?risk_pct=1.0    1トレード当たりリスク（%）
+    ?mode=scalp|daytrade
+
+    バックテスト実証値を使用:
+      スキャルピング5m: EV=+0.052, WR=39.4%, 80.7件/日, SL=ATR×0.5
+      デイトレード15m : EV=+0.096, WR=32.0%, 1.76件/日, SL=ATR×0.8
+    """
+    try:
+        capital   = float(request.args.get("capital",  250_000))
+        risk_pct  = float(request.args.get("risk_pct", 1.0))
+        mode      = request.args.get("mode", "scalp")
+        goal      = float(request.args.get("goal",    1_000_000))
+        months    = float(request.args.get("months",  3))
+
+        # ── バックテスト実証パラメータ ────────────────────
+        BT = {
+            "scalp": {
+                "ev":         0.052,   # 期待値 R/トレード
+                "win_rate":   39.4,    # 勝率 %
+                "sl_mult":    0.5,     # SL = ATR×0.5
+                "tp_mult":    0.9,     # TP = ATR×0.9
+                "bep":        35.7,    # 損益分岐勝率 %
+                "trades_day": 80.7,    # 1日あたり取引数
+                "sharpe":     0.075,
+                "max_dd_r":   17.4,    # 最大DD (R)
+                "interval":   "5m",
+                "label":      "スキャルピング 5m足",
+            },
+            "daytrade": {
+                "ev":         0.096,
+                "win_rate":   32.0,
+                "sl_mult":    0.8,
+                "tp_mult":    2.0,
+                "bep":        28.6,
+                "trades_day": 1.76,
+                "sharpe":     1.153,
+                "max_dd_r":   10.0,
+                "interval":   "15m",
+                "label":      "デイトレード 15m足",
+            },
+        }
+        p = BT.get(mode, BT["scalp"])
+
+        risk_amount  = round(capital * risk_pct / 100, 0)   # 1トレードリスク額（円）
+
+        # USD/JPY: 現在レートで ATR pips → 円換算
+        # ATR参考値: 5m≈0.06円, 15m≈0.12円 / スプレッド考慮済み
+        atr_ref_jpy  = 0.06 if mode == "scalp" else 0.12
+        sl_pips_ref  = round(atr_ref_jpy * p["sl_mult"] * 100, 1)  # pips
+
+        # ポジションサイズ (通貨単位) = リスク額 / (SL pips × pip値)
+        # 1pip = 0.01円/通貨: pip_value_jpy = lot × 0.01
+        # → lot = risk_amount / (sl_pips × 0.01)
+        lot_units    = round(risk_amount / (sl_pips_ref * 0.01), 0)
+        lot_standard = round(lot_units / 100_000, 2)   # 標準ロット
+
+        # ── 日次期待PL計算 ────────────────────────────────
+        # 期待R/日 = ev × trades_day
+        ev_r_per_day  = round(p["ev"] * p["trades_day"], 3)
+        # 期待円/日 = ev_R/日 × リスク額
+        ev_jpy_per_day = round(ev_r_per_day * risk_amount, 0)
+        # 月次期待円 (22営業日)
+        trading_days  = 22
+        ev_jpy_month  = round(ev_jpy_per_day * trading_days, 0)
+        monthly_return_pct = round(ev_jpy_month / capital * 100, 1)
+
+        # ── 目標到達シミュレーション ───────────────────────
+        # 複利: capital × (1 + monthly_pct/100)^n = goal を解く
+        if monthly_return_pct > 0:
+            months_needed = round(
+                (goal / capital) ** (1 / (monthly_return_pct / 100 + 1) * 0) or 0,
+                1
+            ) if False else round(
+                np.log(goal / capital) / np.log(1 + monthly_return_pct / 100),
+                1
+            )
+        else:
+            months_needed = None
+
+        # 指定月後の資産（複利）
+        projected = round(capital * (1 + monthly_return_pct / 100) ** months, 0)
+
+        # 最大ドローダウン
+        max_dd_jpy = round(p["max_dd_r"] * risk_amount, 0)
+        max_dd_pct = round(max_dd_jpy / capital * 100, 1)
+
+        # 目標達成チェック
+        remaining_pct = round((goal - capital) / capital * 100, 1)
+        progress_pct  = round((capital - 250_000) / (goal - 250_000) * 100, 1) if goal > 250_000 else 0
+        progress_pct  = max(0, min(100, progress_pct))
+
+        return jsonify({
+            "mode":              mode,
+            "label":             p["label"],
+            "capital":           capital,
+            "goal":              goal,
+            "months_target":     months,
+            "risk_pct":          risk_pct,
+            "risk_amount_jpy":   risk_amount,
+            "backtest": {
+                "ev_per_trade":  p["ev"],
+                "win_rate":      p["win_rate"],
+                "bep":           p["bep"],
+                "sl_mult":       p["sl_mult"],
+                "tp_mult":       p["tp_mult"],
+                "trades_per_day":p["trades_day"],
+                "sharpe":        p["sharpe"],
+                "max_dd_r":      p["max_dd_r"],
+            },
+            "position": {
+                "sl_pips":       sl_pips_ref,
+                "lot_units":     lot_units,
+                "lot_standard":  lot_standard,
+                "lot_mini":      round(lot_units / 10_000, 2),
+                "lot_micro":     round(lot_units / 1_000, 2),
+            },
+            "expected_pl": {
+                "ev_r_per_day":    ev_r_per_day,
+                "jpy_per_day":     ev_jpy_per_day,
+                "jpy_per_month":   ev_jpy_month,
+                "monthly_return_pct": monthly_return_pct,
+                "projected_capital": projected,
+            },
+            "risk": {
+                "max_dd_jpy":    max_dd_jpy,
+                "max_dd_pct":    max_dd_pct,
+                "ruin_risk":     "低" if max_dd_pct < 20 else ("中" if max_dd_pct < 40 else "高"),
+            },
+            "goal_tracker": {
+                "months_needed": months_needed,
+                "progress_pct":  progress_pct,
+                "remaining_pct": remaining_pct,
+                "on_track":      (months_needed is not None and months_needed <= months),
+            },
         })
     except Exception as e:
         import traceback

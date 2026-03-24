@@ -555,6 +555,61 @@ body{background:var(--bg0);color:var(--t1);
       </div>
     </div>
 
+    <!-- 💰 資金管理 -->
+    <div class="card" id="card-mm">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>💰 資金管理・ポジションサイジング</span>
+        <button onclick="loadMoneyMgmt()" title="更新"
+          style="font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--t2);cursor:pointer">🔄</button>
+      </div>
+      <!-- 目標トラッカー -->
+      <div style="margin-bottom:8px;padding:7px 10px;border-radius:8px;background:rgba(56,139,253,.08);border:1px solid rgba(56,139,253,.2)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+          <span style="font-size:11px;color:var(--blue);font-weight:700">🎯 目標: 25万 → 100万円 (3ヶ月)</span>
+          <span id="mm-progress-pct" style="font-size:11px;font-weight:700;color:var(--blue)">0%</span>
+        </div>
+        <div style="height:6px;border-radius:3px;background:rgba(255,255,255,0.1);overflow:hidden">
+          <div id="mm-progress-bar" style="height:100%;border-radius:3px;background:linear-gradient(90deg,var(--blue),var(--green));width:0%;transition:width .5s"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10px;color:var(--t4)">
+          <span>¥250,000</span><span id="mm-months-needed" style="color:var(--t3)">—</span><span>¥1,000,000</span>
+        </div>
+      </div>
+      <!-- 資産入力 -->
+      <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
+        <span style="font-size:11px;color:var(--t3);white-space:nowrap">現在資産</span>
+        <input id="mm-capital" type="number" value="250000" min="10000" step="10000"
+          style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--t1);font-size:12px;padding:4px 8px;outline:none"
+          oninput="loadMoneyMgmt()">
+        <span style="font-size:11px;color:var(--t3)">円</span>
+        <span style="font-size:11px;color:var(--t3);white-space:nowrap;margin-left:4px">リスク</span>
+        <input id="mm-risk" type="number" value="1.0" min="0.1" max="5" step="0.1"
+          style="width:55px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--t1);font-size:12px;padding:4px 8px;outline:none"
+          oninput="loadMoneyMgmt()">
+        <span style="font-size:11px;color:var(--t3)">%</span>
+      </div>
+      <!-- ポジションサイズ -->
+      <div class="dp-row"><span>1トレードリスク額</span><span id="mm-risk-jpy" style="color:var(--gold);font-weight:700">—</span></div>
+      <div class="dp-row"><span>推奨ロット数(マイクロ)</span><span id="mm-lot-micro" style="color:var(--t1);font-weight:700">—</span></div>
+      <div class="dp-row"><span>推奨ロット数(ミニ)</span><span id="mm-lot-mini" style="color:var(--t1)">—</span></div>
+      <div class="dp-row"><span>SL参考幅</span><span id="mm-sl-pips" style="color:var(--red)">—</span></div>
+      <!-- 期待値 -->
+      <div style="margin-top:8px;padding:7px 10px;border-radius:8px;background:rgba(63,185,80,.06);border:1px solid rgba(63,185,80,.2)">
+        <div style="font-size:10px;font-weight:700;color:var(--green);margin-bottom:5px">📊 期待収益 (<span id="mm-mode-label">スキャル5m</span>)</div>
+        <div class="dp-row"><span>日次期待益</span><span id="mm-ev-day" style="color:var(--green);font-weight:700">—</span></div>
+        <div class="dp-row"><span>月次期待益 (22日)</span><span id="mm-ev-month" style="color:var(--green);font-weight:700">—</span></div>
+        <div class="dp-row"><span>月次リターン率</span><span id="mm-monthly-pct" style="color:var(--green);font-weight:700">—</span></div>
+        <div class="dp-row"><span>3ヶ月後試算(複利)</span><span id="mm-projected" style="color:var(--blue);font-weight:700">—</span></div>
+      </div>
+      <!-- リスク -->
+      <div style="margin-top:6px;padding:6px 10px;border-radius:8px;background:rgba(248,81,73,.06);border:1px solid rgba(248,81,73,.2)">
+        <div style="font-size:10px;font-weight:700;color:var(--red);margin-bottom:4px">⚠️ リスク指標</div>
+        <div class="dp-row"><span>最大ドローダウン試算</span><span id="mm-max-dd" style="color:var(--red)">—</span></div>
+        <div class="dp-row"><span>破産リスク評価</span><span id="mm-ruin" style="color:var(--t2)">—</span></div>
+        <div class="dp-row"><span>BT勝率 / 損益分岐</span><span id="mm-wr-bep" style="color:var(--t2)">—</span></div>
+      </div>
+    </div>
+
     <!-- バックテスト結果 -->
     <div class="card">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
@@ -1660,9 +1715,42 @@ function startLivePriceTicker(){
   setInterval(loadLivePrice, 8000); // 8秒ごと（PRICE_TTLに合わせる）
 }
 
+// ── 資金管理カード読込 ────────────────────────────────────────────────
+async function loadMoneyMgmt(){
+  const capital = parseFloat(document.getElementById('mm-capital')?.value)||250000;
+  const risk    = parseFloat(document.getElementById('mm-risk')?.value)||1.0;
+  const mode    = currentMode==='daytrade'?'daytrade':'scalp';
+  let d;
+  try{
+    const r = await fetch(`/api/money-management?capital=${capital}&risk_pct=${risk}&mode=${mode}&goal=1000000&months=3`);
+    d = await r.json();
+  }catch(e){return;}
+  if(d.error) return;
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+  set('mm-risk-jpy',  `¥${Math.round(d.risk_amount_jpy).toLocaleString()}`);
+  set('mm-lot-micro', `${d.position.lot_micro} lot`);
+  set('mm-lot-mini',  `${d.position.lot_mini} lot`);
+  set('mm-sl-pips',   `${d.position.sl_pips} pips`);
+  set('mm-ev-day',    `¥${Math.round(d.expected_pl.jpy_per_day).toLocaleString()}`);
+  set('mm-ev-month',  `¥${Math.round(d.expected_pl.jpy_per_month).toLocaleString()}`);
+  set('mm-monthly-pct', `+${d.expected_pl.monthly_return_pct}%`);
+  set('mm-projected', `¥${Math.round(d.expected_pl.projected_capital).toLocaleString()}`);
+  set('mm-max-dd',    `¥${Math.round(d.risk.max_dd_jpy).toLocaleString()} (${d.risk.max_dd_pct}%)`);
+  set('mm-ruin',      d.risk.ruin_risk);
+  set('mm-wr-bep',    `${d.backtest.win_rate}% / ${d.backtest.bep}%`);
+  set('mm-mode-label', d.label);
+  const prog = Math.min(d.goal_tracker.progress_pct, 100);
+  set('mm-progress-pct', `${prog}%`);
+  const bar = document.getElementById('mm-progress-bar');
+  if(bar) bar.style.width=`${prog}%`;
+  const mn = d.goal_tracker.months_needed;
+  set('mm-months-needed', mn ? `目標到達: 約${mn}ヶ月` : '—');
+}
+
 document.addEventListener('DOMContentLoaded',()=>{
   refreshAll().then(()=>startCountdown());
   loadBacktest();
+  loadMoneyMgmt();
   startLivePriceTicker();
   startTrendPoll();   // トレンドステータス30分ごとポーリング開始
 });
