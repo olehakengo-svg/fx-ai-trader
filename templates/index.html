@@ -1275,15 +1275,17 @@ async function loadBacktest(forceMode){
     const evCol=d.expected_value>0.3?'var(--green)':d.expected_value>0?'var(--yellow)':'var(--red)';
     const vrCol=d.expected_value>0?'rgba(63,185,80,.1)':'rgba(248,81,73,.1)';
     const vrBdr=d.expected_value>0?'var(--green)':'var(--red)';
-    const holdLabel=isScalp
-      ?`${d.avg_hold_min??'—'}分`
-      :`${d.avg_hold_hours??'—'}時間`;
+    const holdLabel=isScalp?`${d.avg_hold_min??'—'}分`:`${d.avg_hold_hours??'—'}時間`;
+    const mddCol=d.max_drawdown>5?'var(--red)':d.max_drawdown>2?'var(--yellow)':'var(--green)';
+    const shrCol=d.sharpe>0.3?'var(--green)':d.sharpe>0?'var(--yellow)':'var(--red)';
     box.innerHTML=
       `<div class="bt-verdict" style="background:${vrCol};border:1px solid ${vrBdr};color:${evCol}">${d.verdict||'—'}</div>`+
       `<div class="bt-stat"><span class="bt-label">勝率</span><span class="bt-val" style="color:${d.win_rate>=55?'var(--green)':d.win_rate>=45?'var(--yellow)':'var(--red)'}">${d.win_rate}%</span></div>`+
-      `<div class="bt-stat"><span class="bt-label">トレード数</span><span class="bt-val">${d.trades}件 (勝${d.wins}/負${d.losses})</span></div>`+
+      `<div class="bt-stat"><span class="bt-label">トレード数</span><span class="bt-val">${d.trades}件 (勝${d.wins??'—'}/負${d.losses??'—'})${isScalp&&d.trades_per_day?` <span style="color:var(--t4);font-size:10px">${d.trades_per_day}件/日</span>`:''}</span></div>`+
       `<div class="bt-stat"><span class="bt-label">RR比</span><span class="bt-val">1:${d.rr}</span></div>`+
       `<div class="bt-stat"><span class="bt-label">期待値</span><span class="bt-val" style="color:${evCol}">${d.expected_value>0?'+':''}${d.expected_value}</span></div>`+
+      `<div class="bt-stat"><span class="bt-label">最大DD</span><span class="bt-val" style="color:${mddCol}">${d.max_drawdown??'—'} RR</span></div>`+
+      `<div class="bt-stat"><span class="bt-label">シャープ</span><span class="bt-val" style="color:${shrCol}">${d.sharpe??'—'}</span></div>`+
       `<div class="bt-stat"><span class="bt-label">平均保有</span><span class="bt-val">${holdLabel}</span></div>`+
       `<div class="bt-stat"><span class="bt-label">集計期間</span><span class="bt-val">${d.period||'—'}</span></div>`;
 

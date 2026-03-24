@@ -1699,69 +1699,78 @@ def run_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足"}
 
-        SPREAD   = 0.030   # 3 pips
-        SL_MULT  = TF_SL_MULT["1h"]  # 2.2
-        TP_MULT  = TF_TP_MULT["1h"]  # 3.3
-        MAX_HOLD = 48      # bars (hours)
-        # 正規化後の複合スコア閾値（compute_signalのTHRESHOLD=0.28に相当）
-        MIN_COMBINED = 0.28
+        SPREAD       = 0.030   # 3 pips
+        SL_MULT      = TF_SL_MULT["1h"]   # 2.2
+        TP_MULT      = TF_TP_MULT["1h"]   # 3.3
+        MAX_HOLD     = 48                  # bars (hours)
+        MIN_COMBINED = 0.38                # ↑ 0.28→0.38 シグナル精度向上
+        EMA_LB       = 15                  # ↑ 5→15 トレンド判定安定化
+        ATR_MED      = float(df["atr"].median())
 
-        trades = []
-        for i in range(50, len(df) - MAX_HOLD - 1):
+        def _signal_ok(i):
+            """標準モード エントリー条件（重複排除）"""
             row    = df.iloc[i]
             sub_df = df.iloc[:i + 1]
-
-            # rule_signal（正規化: /8.0）
-            rule_sc, _ = rule_signal(row)
-            rule_n     = max(-1.0, min(1.0, rule_sc / 8.0))
-
-            # ローソク足パターン（正規化: /4.0）
+            rule_sc, _   = rule_signal(row)
+            rule_n       = max(-1.0, min(1.0, rule_sc / 8.0))
             candle_sc, _ = detect_candle_patterns(sub_df)
             candle_n     = max(-1.0, min(1.0, candle_sc / 4.0))
-
-            # ダウ理論（正規化: /2.5）
-            dow_sc, _  = dow_theory_analysis(sub_df)
-            dow_n      = max(-1.0, min(1.0, dow_sc / 2.5))
-
-            # EMA21トレンドフィルター（方向の一致確認）
-            ema21_prev = float(df["ema21"].iloc[i - 5])
-            ema21_cur  = float(row["ema21"])
-            ema_trend  = 1.0 if ema21_cur > ema21_prev else -1.0
-
-            # 複合スコア（実シグナルのウェイトに準じた簡易版）
-            combined = rule_n * 0.50 + candle_n * 0.20 + dow_n * 0.30
-
-            # EMAトレンドと逆方向はスキップ
-            if (combined > 0 and ema_trend < 0) or (combined < 0 and ema_trend > 0):
-                continue
-
+            dow_sc, _    = dow_theory_analysis(sub_df)
+            dow_n        = max(-1.0, min(1.0, dow_sc / 2.5))
+            combined     = rule_n * 0.50 + candle_n * 0.20 + dow_n * 0.30
             if abs(combined) < MIN_COMBINED:
+                return None, None
+            # EMA15本トレンドフィルター
+            ema21_prev = float(df["ema21"].iloc[i - EMA_LB])
+            ema21_cur  = float(row["ema21"])
+            ema50_cur  = float(row["ema50"])
+            ema_trend  = 1.0 if ema21_cur > ema21_prev else -1.0
+            if (combined > 0 and ema_trend < 0) or (combined < 0 and ema_trend > 0):
+                return None, None
+            # EMA50との乖離チェック（EMA50方向と一致必須）
+            ema50_dir = 1.0 if ema21_cur > ema50_cur else -1.0
+            if (combined > 0 and ema50_dir < 0) or (combined < 0 and ema50_dir > 0):
+                return None, None
+            # RSI確認フィルター
+            rsi = float(row["rsi"])
+            if combined > 0 and rsi > 68:   return None, None  # 買われ過ぎゾーンはBUYしない
+            if combined < 0 and rsi < 32:   return None, None  # 売られ過ぎゾーンはSELLしない
+            # 低ボラティリティフィルター
+            atr = float(row["atr"])
+            if atr < ATR_MED * 0.5:
+                return None, None
+            # セッションフィルター: London + NY のみ (8〜20 UTC)
+            try:
+                h = row.name.hour
+                if not (8 <= h < 20):
+                    return None, None
+            except Exception:
+                pass
+            sig = "BUY" if combined > 0 else "SELL"
+            return sig, atr
+
+        trades = []
+        last_trade_bar = -99
+        for i in range(max(50, EMA_LB + 1), len(df) - MAX_HOLD - 1):
+            if i - last_trade_bar < 3:   # 3本クールダウン
                 continue
-
-            signal = "BUY" if combined > 0 else "SELL"
-            entry  = float(row["Close"])
-            atr    = float(row["atr"])
-            if atr <= 0:
+            sig, atr = _signal_ok(i)
+            if sig is None:
                 continue
+            # エントリーは次の足のOpen（ルックアヘッドバイアス排除）
+            if i + 1 >= len(df):
+                continue
+            ep = float(df.iloc[i + 1]["Open"])
+            ep = ep + SPREAD / 2 if sig == "BUY" else ep - SPREAD / 2
+            sl = ep - atr * SL_MULT if sig == "BUY" else ep + atr * SL_MULT
+            tp = ep + atr * TP_MULT if sig == "BUY" else ep - atr * TP_MULT
 
-            # Apply spread
-            if signal == "BUY":
-                ep = entry + SPREAD / 2
-                sl = ep - atr * SL_MULT
-                tp = ep + atr * TP_MULT
-            else:
-                ep = entry - SPREAD / 2
-                sl = ep + atr * SL_MULT
-                tp = ep - atr * TP_MULT
-
-            # Forward test
-            outcome   = None
-            bars_held = 0
+            outcome = None; bars_held = 0
             for j in range(1, MAX_HOLD + 1):
-                fut = df.iloc[i + j]
-                hi  = float(fut["High"])
-                lo  = float(fut["Low"])
-                if signal == "BUY":
+                if i + 1 + j >= len(df): break
+                fut = df.iloc[i + 1 + j]
+                hi, lo = float(fut["High"]), float(fut["Low"])
+                if sig == "BUY":
                     if hi >= tp: outcome = "WIN";  bars_held = j; break
                     if lo <= sl: outcome = "LOSS"; bars_held = j; break
                 else:
@@ -1769,20 +1778,29 @@ def run_backtest(symbol: str = "USDJPY=X",
                     if hi >= sl: outcome = "LOSS"; bars_held = j; break
 
             if outcome:
-                trades.append({
-                    "outcome":   outcome,
-                    "bars_held": bars_held,
-                    "rr_actual": round(TP_MULT / SL_MULT, 2),
-                })
+                last_trade_bar = i
+                trades.append({"outcome": outcome, "bars_held": bars_held,
+                                "sig": sig, "ep": round(ep, 3),
+                                "sl": round(sl, 3), "tp": round(tp, 3),
+                                "bar_idx": i})
 
         def _calc_stats(trade_list):
             if len(trade_list) < 5:
                 return None
-            w = sum(1 for t in trade_list if t["outcome"] == "WIN")
-            n = len(trade_list)
+            w  = sum(1 for t in trade_list if t["outcome"] == "WIN")
+            n  = len(trade_list)
             wr = round(w / n * 100, 1)
             ev = round((wr / 100 * TP_MULT) - ((1 - wr / 100) * SL_MULT), 3)
             return {"trades": n, "win_rate": wr, "expected_value": ev}
+
+        def _max_dd(trade_list):
+            """最大ドローダウン（RR単位）"""
+            eq, peak, dd = 0.0, 0.0, 0.0
+            for t in trade_list:
+                eq += TP_MULT if t["outcome"] == "WIN" else -SL_MULT
+                if eq > peak: peak = eq
+                if peak - eq > dd: dd = peak - eq
+            return round(dd, 3)
 
         if len(trades) < 10:
             result = {"error": "サンプル数不足 (最低10トレード必要)",
@@ -1794,62 +1812,36 @@ def run_backtest(symbol: str = "USDJPY=X",
             avg_h = round(sum(t["bars_held"] for t in trades) / total, 1)
             rr    = round(TP_MULT / SL_MULT, 2)
             ev    = round((wr / 100 * TP_MULT) - ((1 - wr / 100) * SL_MULT), 3)
+            mdd   = _max_dd(trades)
+            # 簡易シャープ比（RR単位の期待値 / 標準偏差）
+            pnls  = [TP_MULT if t["outcome"] == "WIN" else -SL_MULT for t in trades]
+            pnl_std = float(np.std(pnls)) if len(pnls) > 1 else 1.0
+            sharpe  = round(float(np.mean(pnls)) / max(pnl_std, 1e-6), 3)
 
             if   ev > 0.3: verdict = "✅ 期待値プラス（推奨）"
             elif ev > 0:   verdict = "🟡 期待値わずかプラス（要注意）"
             else:          verdict = "❌ 期待値マイナス（不推奨）"
 
-            # ── Walk-forward: 90日を3窓(各30日)に分割 ──────────────
-            total_bars   = len(df)
-            window_bars  = total_bars // 3
-            wf_windows   = []
+            # ── Walk-forward: 3窓 (各30日) ───────────────────────────
+            wf_windows = []
             for w_idx in range(3):
-                w_start = 50 + w_idx * window_bars
-                w_end   = w_start + window_bars
-                label   = f"{lookback_days - (w_idx+1)*30}〜{lookback_days - w_idx*30}日前"
-                w_trades = []
-                for i in range(w_start, min(w_end, len(df) - MAX_HOLD - 1)):
-                    row    = df.iloc[i]
-                    sub_df = df.iloc[:i + 1]
-                    rule_sc, _   = rule_signal(row)
-                    rule_n       = max(-1.0, min(1.0, rule_sc / 8.0))
-                    candle_sc, _ = detect_candle_patterns(sub_df)
-                    candle_n     = max(-1.0, min(1.0, candle_sc / 4.0))
-                    dow_sc, _    = dow_theory_analysis(sub_df)
-                    dow_n        = max(-1.0, min(1.0, dow_sc / 2.5))
-                    ema21_prev   = float(df["ema21"].iloc[i - 5])
-                    ema21_cur    = float(row["ema21"])
-                    ema_trend    = 1.0 if ema21_cur > ema21_prev else -1.0
-                    combined     = rule_n * 0.50 + candle_n * 0.20 + dow_n * 0.30
-                    if (combined > 0 and ema_trend < 0) or (combined < 0 and ema_trend > 0):
-                        continue
-                    if abs(combined) < MIN_COMBINED:
-                        continue
-                    sig   = "BUY" if combined > 0 else "SELL"
-                    ep    = float(row["Close"])
-                    atr_v = float(row["atr"])
-                    if atr_v <= 0:
-                        continue
-                    ep    = ep + SPREAD/2 if sig == "BUY" else ep - SPREAD/2
-                    sl_v  = ep - atr_v * SL_MULT if sig == "BUY" else ep + atr_v * SL_MULT
-                    tp_v  = ep + atr_v * TP_MULT if sig == "BUY" else ep - atr_v * TP_MULT
-                    for j in range(1, MAX_HOLD + 1):
-                        if i + j >= len(df):
-                            break
-                        fut = df.iloc[i + j]
-                        hi, lo = float(fut["High"]), float(fut["Low"])
-                        if sig == "BUY":
-                            if hi >= tp_v: w_trades.append({"outcome":"WIN","bars_held":j,"rr_actual":rr}); break
-                            if lo <= sl_v: w_trades.append({"outcome":"LOSS","bars_held":j,"rr_actual":rr}); break
-                        else:
-                            if lo <= tp_v: w_trades.append({"outcome":"WIN","bars_held":j,"rr_actual":rr}); break
-                            if hi >= sl_v: w_trades.append({"outcome":"LOSS","bars_held":j,"rr_actual":rr}); break
+                d_from = lookback_days - (w_idx + 1) * 30
+                d_to   = lookback_days - w_idx * 30
+                label  = f"{d_from}〜{d_to}日前"
+                # bar_idxで時間帯を近似（均等3分割）
+                b_from = len(df) * w_idx // 3
+                b_to   = len(df) * (w_idx + 1) // 3
+                w_trades = [t for t in trades if b_from <= t["bar_idx"] < b_to]
                 stats = _calc_stats(w_trades)
                 if stats:
                     wf_windows.append({"label": label, **stats})
 
             profitable_windows = sum(1 for w in wf_windows if w.get("expected_value", -1) > 0)
             consistency = f"{profitable_windows}/{len(wf_windows)} 窓でプラス期待値"
+
+            # 直近10トレードログ
+            trade_log = [{"sig": t["sig"], "outcome": t["outcome"],
+                          "bars": t["bars_held"]} for t in trades[-10:]]
 
             result = {
                 "win_rate":        wr,
@@ -1859,6 +1851,8 @@ def run_backtest(symbol: str = "USDJPY=X",
                 "rr":              rr,
                 "avg_hold_hours":  avg_h,
                 "expected_value":  ev,
+                "max_drawdown":    mdd,
+                "sharpe":          sharpe,
                 "verdict":         verdict,
                 "period":          f"過去{lookback_days}日",
                 "sl_mult":         SL_MULT,
@@ -1906,16 +1900,21 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         if len(df) < 200:
             return {"error": "データ不足（最低200本必要）", "trades": 0, "mode": "scalp"}
 
-        SPREAD    = 0.005   # 0.5 pip
-        SL_MULT   = 0.8
-        TP_MULT   = 1.3
-        TP_MAX    = 2.0     # S/R調整後の上限倍率
-        MAX_HOLD  = 20      # bars
-        THRESHOLD = 0.55    # 厳格化後閾値（③と同条件）
+        SPREAD       = 0.005   # 0.5 pip
+        SL_MULT      = 0.8
+        TP_MULT      = 1.3
+        TP_MAX       = 2.0
+        MAX_HOLD     = 20      # bars
+        COOLDOWN     = 5       # bars between signals
         bars_per_min = 5 if interval == "5m" else 15
 
         trades = []
+        last_trade_bar = -99
+
         for i in range(60, len(df) - MAX_HOLD - 1):
+            if i - last_trade_bar < COOLDOWN:
+                continue
+
             row     = df.iloc[i]
             entry   = float(row["Close"])
             atr7    = float(row["atr7"]) if "atr7" in row.index else float(row["atr"])
@@ -1930,23 +1929,32 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             if atr7 <= 0:
                 continue
 
-            # EMAトレンド判定（10本前との比較）
-            ema21_prev = float(df["ema21"].iloc[i - 10])
+            # セッションフィルター: London + NY (8〜18 UTC)
+            try:
+                h = row.name.hour
+                if not (8 <= h < 18):
+                    continue
+            except Exception:
+                pass
+
+            # EMAトレンド判定（20本前との比較で安定化）
+            ema21_prev = float(df["ema21"].iloc[i - 20])
             if   ema21 > ema21_prev and ema21 > ema50: d_mult =  1.0
             elif ema21 < ema21_prev and ema21 < ema50: d_mult = -1.0
-            else: continue  # トレンド不明瞭はスキップ
+            else: continue
 
             score = 0.0
-            has_pullback = False
+            has_pullback  = False
+            has_rsi_reset = False  # ← 新規必須条件
 
             if d_mult == 1.0:
                 if ema9 > ema21 > ema50:
                     if entry <= ema9 * 1.001:   score += 2.0; has_pullback = True
                     elif entry <= ema9 * 1.003: score += 0.8
                     else:                       score += 0.3
-                elif ema9 > ema21:              score += 0.4
-                if rsi5 < 25:   score += 1.8
-                elif rsi5 < 45: score += 1.2
+                elif ema9 > ema21: score += 0.4
+                if rsi5 < 25:   score += 1.8; has_rsi_reset = True
+                elif rsi5 < 45: score += 1.2; has_rsi_reset = True
                 elif rsi5 < 55: score += 0.5
                 if macdh > 0:   score += 0.6
                 if bbpb < 0.25: score += 0.6
@@ -1957,24 +1965,30 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                     if entry >= ema9 * 0.999:   score -= 2.0; has_pullback = True
                     elif entry >= ema9 * 0.997: score -= 0.8
                     else:                       score -= 0.3
-                elif ema9 < ema21:              score -= 0.4
-                if rsi5 > 75:   score -= 1.8
-                elif rsi5 > 55: score -= 1.2
+                elif ema9 < ema21: score -= 0.4
+                if rsi5 > 75:   score -= 1.8; has_rsi_reset = True
+                elif rsi5 > 55: score -= 1.2; has_rsi_reset = True
                 elif rsi5 > 45: score -= 0.5
                 if macdh < 0:   score -= 0.6
                 if bbpb > 0.75: score -= 0.6
                 if stoch_k > 80 and stoch_k < stoch_d:  score -= 1.0
                 elif stoch_k > 60 and stoch_k < stoch_d: score -= 0.5
 
-            # ③ EMA9プルバック必須 + THRESHOLD=0.55
-            if not has_pullback or abs(score) < THRESHOLD:
+            # 必須条件: EMA9プルバック AND RSI5リセット
+            if not has_pullback or not has_rsi_reset:
+                continue
+            if abs(score) < 3.0:   # 絶対スコア閾値（PB2.0 + RSI1.2 = 3.2 最低ライン）
                 continue
 
             sig = "BUY" if score > 0 else "SELL"
-            ep  = entry + SPREAD / 2 if sig == "BUY" else entry - SPREAD / 2
+            # エントリーは次の足のOpen
+            if i + 1 >= len(df):
+                continue
+            ep  = float(df.iloc[i + 1]["Open"])
+            ep  = ep + SPREAD / 2 if sig == "BUY" else ep - SPREAD / 2
             sl  = ep - atr7 * SL_MULT if sig == "BUY" else ep + atr7 * SL_MULT
 
-            # ② TP: S/Rスナップ（直近100本から簡易S/R算出）
+            # TP: S/Rスナップ
             sub_sr = find_sr_levels(df.iloc[max(0, i - 100):i + 1],
                                     window=5, tolerance_pct=0.002)
             if sig == "BUY":
@@ -1983,17 +1997,15 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             else:
                 tp_cands = [l for l in sub_sr if ep - atr7 * TP_MAX < l < ep - atr7 * 0.3]
                 tp = round(max(tp_cands) + atr7 * 0.05, 3) if tp_cands else round(ep - atr7 * TP_MULT, 3)
-            # 最小RR保証（1.0以上）
             sl_dist = abs(ep - sl)
             if abs(tp - ep) < sl_dist:
                 tp = round(ep + sl_dist * 1.2, 3) if sig == "BUY" else round(ep - sl_dist * 1.2, 3)
 
-            outcome = None
-            bars_held = 0
+            actual_rr = round(abs(tp - ep) / max(sl_dist, 1e-6), 2)
+            outcome = None; bars_held = 0
             for j in range(1, MAX_HOLD + 1):
-                if i + j >= len(df):
-                    break
-                fut = df.iloc[i + j]
+                if i + 1 + j >= len(df): break
+                fut = df.iloc[i + 1 + j]
                 hi, lo = float(fut["High"]), float(fut["Low"])
                 if sig == "BUY":
                     if hi >= tp: outcome = "WIN";  bars_held = j; break
@@ -2003,7 +2015,18 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                     if hi >= sl: outcome = "LOSS"; bars_held = j; break
 
             if outcome:
-                trades.append({"outcome": outcome, "bars_held": bars_held, "sig": sig})
+                last_trade_bar = i
+                trades.append({"outcome": outcome, "bars_held": bars_held,
+                                "sig": sig, "ep": round(ep, 3),
+                                "actual_rr": actual_rr, "bar_idx": i})
+
+        def _max_dd_scalp(trade_list):
+            eq, peak, dd = 0.0, 0.0, 0.0
+            for t in trade_list:
+                eq += TP_MULT if t["outcome"] == "WIN" else -SL_MULT
+                if eq > peak: peak = eq
+                if peak - eq > dd: dd = peak - eq
+            return round(dd, 3)
 
         if len(trades) < 10:
             result = {
@@ -2018,6 +2041,10 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             rr    = round(TP_MULT / SL_MULT, 2)
             ev    = round((wr / 100 * TP_MULT) - ((1 - wr / 100) * SL_MULT), 3)
             avg_h = round(sum(t["bars_held"] for t in trades) / total, 1)
+            mdd   = _max_dd_scalp(trades)
+            pnls  = [TP_MULT if t["outcome"] == "WIN" else -SL_MULT for t in trades]
+            sharpe = round(float(np.mean(pnls)) / max(float(np.std(pnls)), 1e-6), 3)
+            per_day = round(total / lookback_days, 1)
 
             if   ev > 0.3: verdict = "✅ 期待値プラス（スキャル推奨）"
             elif ev > 0:   verdict = "🟡 期待値わずかプラス（要注意）"
@@ -2028,8 +2055,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             wf_windows = []
             for w in range(3):
                 wt = trades[w * wlen:(w + 1) * wlen]
-                if len(wt) < 5:
-                    continue
+                if len(wt) < 5: continue
                 ww  = sum(1 for t in wt if t["outcome"] == "WIN")
                 wwr = round(ww / len(wt) * 100, 1)
                 wev = round((wwr / 100 * TP_MULT) - ((1 - wwr / 100) * SL_MULT), 3)
@@ -2037,6 +2063,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                                    "win_rate": wwr, "expected_value": wev})
 
             profitable = sum(1 for w in wf_windows if w.get("expected_value", -1) > 0)
+            trade_log  = [{"sig": t["sig"], "outcome": t["outcome"],
+                           "bars": t["bars_held"]} for t in trades[-10:]]
             result = {
                 "win_rate":       wr,
                 "trades":         total,
@@ -2045,14 +2073,17 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "rr":             rr,
                 "avg_hold_bars":  avg_h,
                 "avg_hold_min":   round(avg_h * bars_per_min, 1),
+                "trades_per_day": per_day,
                 "expected_value": ev,
+                "max_drawdown":   mdd,
+                "sharpe":         sharpe,
                 "verdict":        verdict,
                 "period":         f"過去{lookback_days}日 ({interval}足)",
                 "sl_mult":        SL_MULT,
                 "tp_mult":        TP_MULT,
-                "threshold":      THRESHOLD,
                 "walk_forward":   wf_windows,
                 "consistency":    f"{profitable}/{len(wf_windows)} 窓でプラス期待値",
+                "trade_log":      trade_log,
                 "mode":           "scalp",
             }
 
@@ -2490,15 +2521,22 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         reasons.append(f"⚠️ {tf}足 — スキャルは1m/5m/15m推奨")
 
     # ── SL / TP ──
-    SCALP_SL, SCALP_TP, THRESHOLD = 0.8, 1.3, 0.55  # ③ THRESHOLD 0.40→0.55
-    # ③ EMA9プルバック必須チェック
-    has_pb = any("EMA9プルバック" in r and ("BUYゾーン" in r or "SELLゾーン" in r) for r in reasons)
-    if not has_pb and abs(score) >= THRESHOLD:
-        reasons.append("⛔ EMA9プルバック未確認 → WAIT（プルバック待機推奨）")
-        signal, conf = "WAIT", int(max(20, 50 - abs(score) * 10))
-    elif score >  THRESHOLD: signal, conf = "BUY",  int(min(88, 50 + score * 20))
-    elif score < -THRESHOLD: signal, conf = "SELL", int(min(88, 50 + abs(score) * 20))
-    else:                    signal, conf = "WAIT", int(max(20, 50 - abs(score) * 25))
+    SCALP_SL, SCALP_TP = 0.8, 1.3
+    # 必須条件チェック（バックテストと同条件）
+    has_pb        = any("EMA9プルバック" in r and ("BUYゾーン" in r or "SELLゾーン" in r) for r in reasons)
+    has_rsi_reset = any("RSI5" in r and ("売られ過ぎ" in r or "リセット完了" in r or "買われ過ぎ" in r) for r in reasons)
+    if not has_pb:
+        reasons.append("⛔ EMA9プルバック未確認 → WAIT（押し目/戻り待機）")
+        signal, conf = "WAIT", int(max(15, 50 - abs(score) * 10))
+    elif not has_rsi_reset:
+        reasons.append("⛔ RSI5未リセット → WAIT（RSI5<45 or >55 を待機）")
+        signal, conf = "WAIT", int(max(15, 50 - abs(score) * 10))
+    elif abs(score) < 3.0:
+        reasons.append(f"⛔ スコア不足({score:.1f}<3.0) → WAIT")
+        signal, conf = "WAIT", int(max(15, 50 - abs(score) * 10))
+    elif score >  0: signal, conf = "BUY",  int(min(90, 50 + score * 8))
+    elif score <  0: signal, conf = "SELL", int(min(90, 50 + abs(score) * 8))
+    else:            signal, conf = "WAIT", 20
 
     act = signal if signal != "WAIT" else ("BUY" if score >= 0 else "SELL")
     atr_scalp = atr7 if atr7 > 0 else atr
