@@ -697,7 +697,7 @@ def institutional_flow_score():
 
     # ── ① JPY先物 出来高スパイク + Force Index ──────────────────
     try:
-        jpy = fetch_ohlcv("6J=F", period="40d", interval="1d")
+        jpy = fetch_ohlcv("6J=F", period="120d", interval="1d")
         jpy = add_indicators(jpy)
         jpy_force, jpy_ratio, jpy_spike = _vol_force(jpy)
         # JPY先物は逆相関（先物上昇=円高=USD/JPY下落）
@@ -724,7 +724,7 @@ def institutional_flow_score():
 
     # ── ② DXY 出来高スパイク + Force Index ──────────────────────
     try:
-        dxy = fetch_ohlcv("DX-Y.NYB", period="40d", interval="1d")
+        dxy = fetch_ohlcv("DX-Y.NYB", period="120d", interval="1d")
         dxy = add_indicators(dxy)
         dxy_force, dxy_ratio, dxy_spike = _vol_force(dxy)
 
@@ -797,7 +797,7 @@ def fetch_jp10y() -> float:
         import urllib.request, csv, io
         url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=IRLTLT01JPM156N"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=8) as r:
+        with urllib.request.urlopen(req, timeout=5) as r:
             rows = list(csv.reader(io.TextIOWrapper(r)))
         # 最終行（最新値）を取得
         for row in reversed(rows):
@@ -965,9 +965,32 @@ _cot_cache: dict = {}
 COT_TTL = 86400 * 7  # 1週間キャッシュ（COTは週次データ）
 
 
+def _cot_make_result(nc_long, nc_short, cm_long, cm_short, report_date, source):
+    """COT数値からスコアとdetailを生成するヘルパー。"""
+    nc_net  = nc_long - nc_short   # 正=円買い
+    cm_net  = cm_long - cm_short
+    nc_norm = max(-1.0, min(1.0,  nc_net / 80000.0))
+    cm_norm = max(-1.0, min(1.0, -cm_net / 80000.0))
+    score   = -(nc_norm * 0.6 + cm_norm * 0.4)
+    detail  = {
+        "report_date": report_date,
+        "nc_long": nc_long, "nc_short": nc_short, "nc_net": nc_net,
+        "cm_long": cm_long, "cm_short": cm_short, "cm_net": cm_net,
+        "source": source,
+    }
+    if   nc_net >  30000: detail["signal"] = "🔴 投機筋 大口円買い（USD/JPY 下落圧力）"
+    elif nc_net < -30000: detail["signal"] = "🟢 投機筋 大口円売り（USD/JPY 上昇圧力）"
+    elif nc_net >  10000: detail["signal"] = "🟠 投機筋 円買い優位"
+    elif nc_net < -10000: detail["signal"] = "🟡 投機筋 円売り優位"
+    else:                 detail["signal"] = "⚪ 投機筋 ポジション中立"
+    return round(max(-1.0, min(1.0, score)), 4), detail
+
+
 def fetch_cot_data() -> tuple:
     """
     CFTC COT（Commitments of Traders）レポートから JPY先物ポジション取得。
+    方法①: CFTC OData API  (新API、不安定なことあり)
+    方法②: CFTC deafut.txt (レガシーテキストファイル、より安定)
     Non-commercial（投機筋）ネットポジションでUSD/JPY方向を判断。
     Returns: (score [-1,+1], detail dict)
     """
@@ -976,17 +999,18 @@ def fetch_cot_data() -> tuple:
     if _cot_cache.get("ts") and (now - _cot_cache["ts"]).total_seconds() < COT_TTL:
         return _cot_cache.get("score", 0.0), _cot_cache.get("detail", {})
 
-    import urllib.request as _ur, json as _js, urllib.parse as _up
+    import urllib.request as _ur, json as _js, urllib.parse as _up, csv, io
 
+    mkt = "JAPANESE YEN - CHICAGO MERCANTILE EXCHANGE"
+
+    # ── 方法①: CFTC OData API ──────────────────────────────────
     endpoints = [
         "https://publicreporting.cftc.gov/api/odata/v1/CorrectionsCommitmentsOfTraders",
         "https://publicreporting.cftc.gov/api/odata/v1/CommitmentsOfTraders",
     ]
-    mkt = "JAPANESE YEN - CHICAGO MERCANTILE EXCHANGE"
     sel = ("Report_Date_as_YYYY_MM_DD,Noncomm_Positions_Long_All,"
            "Noncomm_Positions_Short_All,Comm_Positions_Long_All,"
            "Comm_Positions_Short_All")
-
     for endpoint in endpoints:
         try:
             filter_str = f"Market_and_Exchange_Names eq '{mkt}'"
@@ -1000,38 +1024,71 @@ def fetch_cot_data() -> tuple:
             records = data.get("value", [])
             if not records:
                 continue
-            rec = records[0]
+            rec      = records[0]
             nc_long  = int(rec.get("Noncomm_Positions_Long_All",  0) or 0)
             nc_short = int(rec.get("Noncomm_Positions_Short_All", 0) or 0)
             cm_long  = int(rec.get("Comm_Positions_Long_All",     0) or 0)
             cm_short = int(rec.get("Comm_Positions_Short_All",    0) or 0)
-
-            nc_net  = nc_long - nc_short   # 正=円買い
-            cm_net  = cm_long - cm_short
-
-            # JPY先物long=円高=USD/JPY下落 → スコア反転
-            nc_norm = max(-1.0, min(1.0,  nc_net / 80000.0))
-            cm_norm = max(-1.0, min(1.0, -cm_net / 80000.0))
-            score   = -(nc_norm * 0.6 + cm_norm * 0.4)
-
-            detail = {
-                "report_date": rec.get("Report_Date_as_YYYY_MM_DD", ""),
-                "nc_long": nc_long, "nc_short": nc_short, "nc_net": nc_net,
-                "cm_long": cm_long, "cm_short": cm_short, "cm_net": cm_net,
-                "source": "CFTC OData",
-            }
-            if   nc_net >  30000: detail["signal"] = "🔴 投機筋 大口円買い（USD/JPY 下落圧力）"
-            elif nc_net < -30000: detail["signal"] = "🟢 投機筋 大口円売り（USD/JPY 上昇圧力）"
-            elif nc_net >  10000: detail["signal"] = "🟠 投機筋 円買い優位"
-            elif nc_net < -10000: detail["signal"] = "🟡 投機筋 円売り優位"
-            else:                 detail["signal"] = "⚪ 投機筋 ポジション中立"
-
-            score = round(max(-1.0, min(1.0, score)), 4)
+            score, detail = _cot_make_result(
+                nc_long, nc_short, cm_long, cm_short,
+                rec.get("Report_Date_as_YYYY_MM_DD", ""), "CFTC OData")
             _cot_cache = {"score": score, "detail": detail, "ts": now}
+            print(f"[COT/OData] nc_net={nc_long-nc_short:+d} score={score}")
             return score, detail
         except Exception as e:
             print(f"[COT/{endpoint.split('/')[-1]}] {e}")
             continue
+
+    # ── 方法②: CFTC Legacy Text File (deafut.txt) ──────────────
+    # CFTCが毎週金曜に公開するレガシーテキスト形式（カンマ区切り・引用符付き）
+    try:
+        url = "https://www.cftc.gov/dea/newcot/deafut.txt"
+        req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with _ur.urlopen(req, timeout=15) as r:
+            content = r.read().decode("utf-8", errors="replace")
+
+        reader    = csv.reader(io.StringIO(content))
+        header    = [c.strip().strip('"').lower() for c in next(reader)]
+
+        def _col(*keywords):
+            """ヘッダーからキーワードを含むカラムインデックスを検索。"""
+            for kw in keywords:
+                for i, h in enumerate(header):
+                    if kw.lower() in h:
+                        return i
+            return None
+
+        nc_long_i  = _col("noncommercial positions-long",  "noncomm_positions_long")
+        nc_short_i = _col("noncommercial positions-short", "noncomm_positions_short")
+        cm_long_i  = _col("commercial positions-long",     "comm_positions_long")
+        cm_short_i = _col("commercial positions-short",    "comm_positions_short")
+        date_i     = _col("as of date", "report_date")
+
+        def _int(row, idx):
+            if idx is None or idx >= len(row):
+                return 0
+            return int(row[idx].replace(",", "").strip() or "0")
+
+        for row in reader:
+            if not row:
+                continue
+            name = row[0].strip().strip('"')
+            if "JAPANESE YEN" not in name.upper():
+                continue
+            nc_long  = _int(row, nc_long_i)
+            nc_short = _int(row, nc_short_i)
+            cm_long  = _int(row, cm_long_i)
+            cm_short = _int(row, cm_short_i)
+            rdate    = row[date_i].strip().strip('"') if date_i else ""
+            score, detail = _cot_make_result(
+                nc_long, nc_short, cm_long, cm_short, rdate, "CFTC deafut.txt")
+            _cot_cache = {"score": score, "detail": detail, "ts": now}
+            print(f"[COT/deafut] {rdate} nc_net={nc_long-nc_short:+d} score={score}")
+            return score, detail
+
+        print("[COT/deafut] JAPANESE YEN not found in file")
+    except Exception as e:
+        print(f"[COT/deafut] {e}")
 
     detail = {"error": "COT取得失敗", "signal": "⚪ COTデータ取得不可（中立）"}
     return 0.0, detail
