@@ -3263,7 +3263,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             if cross_up   and ema9 < ema50: continue
             if cross_down and ema9 > ema50: continue
 
-            # ADX: minimal trend exists
+            # ADX: dead market filter (パターン分析でWEAK 15-20が最低WRだが
+            # 非有意パターンのため hard filter にしない → ML特徴量で活用)
             if adx < 12: continue
 
             sig = "BUY" if cross_up else "SELL"
@@ -5389,14 +5390,14 @@ def run_strategy_evaluation(symbol: str = "USDJPY=X",
             return {"error": "データ不足"}
 
         SPREAD  = 0.003
-        SL_MULT = 0.8
+        SL_MULT = 0.5    # BT と同じ RR3:1 設定に統一
         TP_MULT = 1.5
-        MAX_HOLD = 12
+        MAX_HOLD = 20
 
         # ── A. Run our actual strategy BT ──
         our_result = run_scalp_backtest(symbol, lookback_days=lookback_days, interval=interval)
         our_wr = our_result.get("win_rate") or 0.0
-        our_trades = our_result.get("total_trades") or 0
+        our_trades = our_result.get("trades") or our_result.get("total_trades") or 0
 
         # ── B. Random Entry Baseline ──
         _random.seed(42)
@@ -5469,9 +5470,9 @@ def run_strategy_evaluation(symbol: str = "USDJPY=X",
             "strategy": {
                 "win_rate":    round(our_wr, 1),
                 "total_trades": our_trades,
-                "ev_per_trade": our_result.get("ev_per_trade"),
+                "ev_per_trade": our_result.get("expected_value") or our_result.get("ev_per_trade"),
                 "sharpe":      our_result.get("sharpe"),
-                "max_dd_pct":  our_result.get("max_dd_pct"),
+                "max_dd_pct":  our_result.get("max_drawdown") or our_result.get("max_dd_pct"),
             },
             "baseline_random": {
                 "win_rate":    rand_wr,
@@ -5498,7 +5499,7 @@ def run_strategy_evaluation(symbol: str = "USDJPY=X",
                 ),
             },
             "kpi_targets": {
-                "wr_55_pass":     our_wr >= 55.0,
+                "wr_target_pass": our_wr >= AGENT_MISSION["kpi"]["win_rate_min"],
                 "beats_random":   our_wr > rand_wr,
                 "stat_sig":       significant,
             },
