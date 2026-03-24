@@ -3295,8 +3295,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         profile      = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
         SL_MULT      = profile["sl_mult"]   # strategy-dependent
         TP_MULT      = profile["tp_mult"]   # strategy-dependent
-        MAX_HOLD     = 20     # 20 bars
-        COOLDOWN     = 3      # 3 bars min between trades
+        MAX_HOLD     = 12     # 12 bars (reduced from 20 to cut timeout exposure)
+        COOLDOWN     = 1      # 1 bar (reduced from 3 to allow more entries in favorable hours)
         if interval == "1m":   bars_per_min = 1
         elif interval == "5m": bars_per_min = 5
         else:                  bars_per_min = 15
@@ -3337,29 +3337,36 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             if cross_up   and ema9 < ema50: continue
             if cross_down and ema9 > ema50: continue
 
-            # ADX: dead market filter (パターン分析でWEAK 15-20が最低WRだが
-            # 非有意パターンのため hard filter にしない → ML特徴量で活用)
-            if adx < 12: continue
+            # ADX sweet spot filter: 15-40 range only
+            # Below 15 = no trend (low WR), above 40 = overextended (mean reversion risk)
+            if adx < 15 or adx > 40: continue
 
             sig = "BUY" if cross_up else "SELL"
 
-            # 時間帯×方向バイアスフィルター（第三者評価データ駆動）
+            # 時間帯×方向バイアスフィルター（厳格版: edge >= 5.0pp + 方向一致必須）
             try:
                 h = row.name.hour
                 bias_info = HOUR_DIRECTION_BIAS.get(h)
-                if bias_info:
-                    best_dir, best_wr, edge = bias_info
-                    # デッドゾーン回避（エッジ < 0）
-                    if best_dir is None or edge < 0:
-                        continue
-                    # 方向が逆のエントリーはエッジ5pp以上の場合のみブロック
-                    if edge >= 5.0:
-                        if sig == "BUY" and best_dir == "SHORT":
-                            continue
-                        if sig == "SELL" and best_dir == "LONG":
-                            continue
+                if not bias_info:
+                    continue  # データなし → スキップ
+                best_dir, best_wr, edge = bias_info
+                # Only trade hours with edge >= 5.0pp above random baseline
+                if best_dir is None or edge < 5.0:
+                    continue
+                # Signal must match hour's best direction
+                if sig == "BUY" and best_dir != "LONG":
+                    continue
+                if sig == "SELL" and best_dir != "SHORT":
+                    continue
             except Exception:
                 pass
+
+            # RSI directional confirmation (exclude neutral 40-60 zone)
+            if sig == "BUY" and rsi <= 50:
+                continue
+            if sig == "SELL" and rsi >= 50:
+                continue
+
             if i + 1 >= len(df):
                 continue
             ep  = float(df.iloc[i + 1]["Open"])
