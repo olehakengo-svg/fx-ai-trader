@@ -1703,7 +1703,7 @@ def run_backtest(symbol: str = "USDJPY=X",
         SL_MULT      = TF_SL_MULT["1h"]   # 2.2
         TP_MULT      = TF_TP_MULT["1h"]   # 3.3
         MAX_HOLD     = 48                  # bars (hours)
-        MIN_COMBINED = 0.38                # ↑ 0.28→0.38 シグナル精度向上
+        MIN_COMBINED = 0.33                # 0.38→0.33 過剰フィルター緩和
         EMA_LB       = 15                  # ↑ 5→15 トレンド判定安定化
         ATR_MED      = float(df["atr"].median())
 
@@ -1727,14 +1727,10 @@ def run_backtest(symbol: str = "USDJPY=X",
             ema_trend  = 1.0 if ema21_cur > ema21_prev else -1.0
             if (combined > 0 and ema_trend < 0) or (combined < 0 and ema_trend > 0):
                 return None, None
-            # EMA50との乖離チェック（EMA50方向と一致必須）
-            ema50_dir = 1.0 if ema21_cur > ema50_cur else -1.0
-            if (combined > 0 and ema50_dir < 0) or (combined < 0 and ema50_dir > 0):
-                return None, None
-            # RSI確認フィルター
+            # RSI確認フィルター（過熱ゾーンのみ除外）
             rsi = float(row["rsi"])
-            if combined > 0 and rsi > 68:   return None, None  # 買われ過ぎゾーンはBUYしない
-            if combined < 0 and rsi < 32:   return None, None  # 売られ過ぎゾーンはSELLしない
+            if combined > 0 and rsi > 72:   return None, None  # 買われ過ぎゾーンはBUYしない
+            if combined < 0 and rsi < 28:   return None, None  # 売られ過ぎゾーンはSELLしない
             # 低ボラティリティフィルター
             atr = float(row["atr"])
             if atr < ATR_MED * 0.5:
@@ -1905,7 +1901,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         TP_MULT      = 1.3
         TP_MAX       = 2.0
         MAX_HOLD     = 20      # bars
-        COOLDOWN     = 5       # bars between signals
+        COOLDOWN     = 3       # bars between signals (5→3 過剰フィルター緩和)
         bars_per_min = 5 if interval == "5m" else 15
 
         trades = []
@@ -1937,8 +1933,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             except Exception:
                 pass
 
-            # EMAトレンド判定（20本前との比較で安定化）
-            ema21_prev = float(df["ema21"].iloc[i - 20])
+            # EMAトレンド判定（15本前との比較）
+            ema21_prev = float(df["ema21"].iloc[i - 15])
             if   ema21 > ema21_prev and ema21 > ema50: d_mult =  1.0
             elif ema21 < ema21_prev and ema21 < ema50: d_mult = -1.0
             else: continue
@@ -1954,8 +1950,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                     else:                       score += 0.3
                 elif ema9 > ema21: score += 0.4
                 if rsi5 < 25:   score += 1.8; has_rsi_reset = True
-                elif rsi5 < 45: score += 1.2; has_rsi_reset = True
-                elif rsi5 < 55: score += 0.5
+                elif rsi5 < 52: score += 1.2; has_rsi_reset = True  # 45→52 緩和
+                elif rsi5 < 60: score += 0.5
                 if macdh > 0:   score += 0.6
                 if bbpb < 0.25: score += 0.6
                 if stoch_k < 20 and stoch_k > stoch_d:  score += 1.0
@@ -1967,8 +1963,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                     else:                       score -= 0.3
                 elif ema9 < ema21: score -= 0.4
                 if rsi5 > 75:   score -= 1.8; has_rsi_reset = True
-                elif rsi5 > 55: score -= 1.2; has_rsi_reset = True
-                elif rsi5 > 45: score -= 0.5
+                elif rsi5 > 48: score -= 1.2; has_rsi_reset = True  # 55→48 緩和
+                elif rsi5 > 40: score -= 0.5
                 if macdh < 0:   score -= 0.6
                 if bbpb > 0.75: score -= 0.6
                 if stoch_k > 80 and stoch_k < stoch_d:  score -= 1.0
@@ -1977,7 +1973,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             # 必須条件: EMA9プルバック AND RSI5リセット
             if not has_pullback or not has_rsi_reset:
                 continue
-            if abs(score) < 3.0:   # 絶対スコア閾値（PB2.0 + RSI1.2 = 3.2 最低ライン）
+            if abs(score) < 2.5:   # 絶対スコア閾値（3.0→2.5 緩和）
                 continue
 
             sig = "BUY" if score > 0 else "SELL"
