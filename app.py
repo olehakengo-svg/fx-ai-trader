@@ -3230,6 +3230,15 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             if atr_20avg > 0 and atr_val > atr_20avg * 2.5:
                 continue  # 異常ボラティリティ → スキップ
 
+            # Rolling regime filter: only trade in TREND (ADX_50 >= 20), skip RANGE/HIGH_VOL
+            atr_50avg = float(df["atr"].iloc[max(0,i-50):i].mean()) if i >= 50 else atr_20avg
+            adx_50avg = float(df["adx"].iloc[max(0,i-50):i].mean()) if i >= 50 else adx
+            rolling_regime = "TREND" if adx_50avg >= 20 else "RANGE"
+            if atr_50avg > 0 and atr_val > atr_50avg * 3.0:
+                rolling_regime = "HIGH_VOL"
+            if rolling_regime != "TREND":
+                continue  # EMAクロスオーバーはトレンド相場のみで有効
+
             # Signal: EMA crossover + EMA50 direction + session only
             # Remove: MACD filter, EMA200 filter, RSI filter from scalp (too many simultaneous conditions)
 
@@ -3396,9 +3405,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
         SPREAD    = 0.010   # 1.0 pip（15m足）
         SL_MULT   = 1.2    # ATR × 1.2
-        TP_MULT   = 2.4    # ATR × 2.4 → RR = 2.0
-        MAX_HOLD  = 16     # bars (4 hours at 15m)
-        COOLDOWN  = 4      # bars (1 hour at 15m)
+        TP_MULT   = 2.0    # ATR × 2.0 → RR = 1:1.67
+        MAX_HOLD  = 20     # bars (5 hours at 15m)
+        COOLDOWN  = 1      # bars (allows more trades per day)
         bars_per_h = 4     # 15m足 = 4本/時間
 
         trades = []
@@ -3425,16 +3434,16 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
             if atr <= 0: continue
 
-            # Session: London + NY (07:00-19:00 UTC)
+            # Session: London + NY (07:00-20:00 UTC)
             try:
                 h = row.name.hour
-                if not (7 <= h < 19):
+                if not (7 <= h < 20):
                     continue
             except Exception:
                 pass
 
-            # ADX: trend exists
-            if adx < 18:
+            # ADX: trend exists (low threshold to capture more trades)
+            if adx < 8:
                 continue
 
             # EMA crossover
@@ -3452,9 +3461,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             if cross_up   and float(row["Close"]) < ema200 * 0.998: continue
             if cross_down and float(row["Close"]) > ema200 * 1.002: continue
 
-            # MACD confirmation: only enforce when ADX is weak
-            if cross_up   and macdh < macdh_p and adx < 22: continue
-            if cross_down and macdh > macdh_p and adx < 22: continue
+            # MACD confirmation: only enforce when ADX is very weak
+            if cross_up   and macdh < macdh_p and adx < 10: continue
+            if cross_down and macdh > macdh_p and adx < 10: continue
 
             # RSI
             if cross_up   and rsi > 70: continue
