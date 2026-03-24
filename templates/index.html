@@ -243,6 +243,8 @@ body{background:var(--bg0);color:var(--t1);
   cursor:pointer;text-align:center;transition:all .15s;letter-spacing:.3px}
 .mode-btn:hover{background:var(--bg2);color:var(--t1)}
 .mode-std.active{background:rgba(88,166,255,.18);border-color:var(--blue);color:var(--blue)}
+.mode-dtr.active{background:rgba(240,136,62,.18);border-color:var(--orange);color:var(--orange)}
+.mode-swg.active{background:rgba(63,220,200,.15);border-color:#3fdcc8;color:#3fdcc8}
 .mode-day.active{background:rgba(227,179,65,.15);border-color:var(--gold);color:var(--gold)}
 .mode-ses.active{background:rgba(63,185,80,.15);border-color:var(--green);color:var(--green)}
 .mode-sca.active{background:rgba(188,140,255,.15);border-color:var(--purple);color:var(--purple)}
@@ -338,11 +340,13 @@ body{background:var(--bg0);color:var(--t1);
     <!-- Mode selector -->
     <div class="card">
       <div class="card-title">🎯 売買モード</div>
-      <div class="mode-bar">
-        <button class="mode-btn mode-std active" onclick="setMode('standard')">標準</button>
-        <button class="mode-btn mode-day"        onclick="setMode('dayflow')">DayFlow</button>
-        <button class="mode-btn mode-ses"        onclick="setMode('session')">セッション</button>
-        <button class="mode-btn mode-sca"        onclick="setMode('scalp')">スキャルプ</button>
+      <div class="mode-bar" style="flex-wrap:wrap;gap:3px">
+        <button class="mode-btn mode-sca" onclick="setMode('scalp')" style="flex:1 0 28%">⚡ スキャルプ<br><span style="font-size:9px;font-weight:400">1m-15m</span></button>
+        <button class="mode-btn mode-dtr" onclick="setMode('daytrade')" style="flex:1 0 28%">📈 デイトレ<br><span style="font-size:9px;font-weight:400">30m-1h</span></button>
+        <button class="mode-btn mode-swg" onclick="setMode('swing')" style="flex:1 0 28%">🌊 スイング<br><span style="font-size:9px;font-weight:400">4h-1d</span></button>
+        <button class="mode-btn mode-std active" onclick="setMode('standard')" style="flex:1 0 28%">🔬 標準<br><span style="font-size:9px;font-weight:400">マルチ</span></button>
+        <button class="mode-btn mode-day"        onclick="setMode('dayflow')" style="flex:1 0 28%">📅 DayFlow<br><span style="font-size:9px;font-weight:400">ピボット</span></button>
+        <button class="mode-btn mode-ses"        onclick="setMode('session')" style="flex:1 0 28%">🕐 セッション<br><span style="font-size:9px;font-weight:400">時間帯</span></button>
       </div>
     </div>
 
@@ -398,6 +402,35 @@ body{background:var(--bg0);color:var(--t1);
       <div class="dp-row"><span class="dp-lbl">SL (ATR7×0.8)</span><span class="dp-val" id="sc-sl">— pips</span></div>
       <div class="dp-row"><span class="dp-lbl">TP (ATR7×1.3)</span><span class="dp-val" id="sc-tp">— pips</span></div>
       <div style="margin-top:8px;font-size:10px;color:var(--t4)">⚠️ 1H+4H一致方向のみ。EMA9プルバック+RSI5リセット+Stochクロスでエントリー。</div>
+    </div>
+
+    <!-- Day Trade card (daytradeモード時のみ表示) -->
+    <div class="card" id="card-daytrade" style="display:none">
+      <div class="card-title">📈 デイトレードモード <span style="font-size:9px;color:var(--t4)">(30m/1h)</span></div>
+      <div class="dp-row"><span class="dp-lbl">EMA200</span><span class="dp-val" id="dt-ema200">—</span></div>
+      <div class="dp-row"><span class="dp-lbl">ADX(14)</span><span class="dp-val" id="dt-adx">—</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:6px 0">
+        <div class="dp-row" style="margin:0;flex-direction:column;align-items:flex-start;gap:2px">
+          <span class="dp-lbl">+DI</span>
+          <span class="dp-val" id="dt-adx-pos" style="font-size:13px;color:var(--green)">—</span>
+        </div>
+        <div class="dp-row" style="margin:0;flex-direction:column;align-items:flex-start;gap:2px">
+          <span class="dp-lbl">-DI</span>
+          <span class="dp-val" id="dt-adx-neg" style="font-size:13px;color:var(--red)">—</span>
+        </div>
+      </div>
+      <div class="dp-row"><span class="dp-lbl">フィボゾーン</span><span class="dp-val" id="dt-fib" style="font-size:11px">—</span></div>
+      <div style="margin-top:8px;font-size:10px;color:var(--t4)">📚 EMA200フィルター+ADX25+フィボ38-62%+London/NY 13-17UTC最高品質</div>
+    </div>
+
+    <!-- Swing card (swingモード時のみ表示) -->
+    <div class="card" id="card-swing" style="display:none">
+      <div class="card-title">🌊 スイングトレードモード <span style="font-size:9px;color:var(--t4)">(4h/1d)</span></div>
+      <div class="dp-row"><span class="dp-lbl">EMA200</span><span class="dp-val" id="sw-ema200">—</span></div>
+      <div class="dp-row"><span class="dp-lbl">EMA200スロープ</span><span class="dp-val" id="sw-ema200-slope">—</span></div>
+      <div class="dp-row"><span class="dp-lbl">フィボ61.8%</span><span class="dp-val" id="sw-fib618">—</span></div>
+      <div class="dp-row"><span class="dp-lbl">フィボヒット</span><span class="dp-val" id="sw-fib-hit">—</span></div>
+      <div style="margin-top:8px;font-size:10px;color:var(--t4)">📚 12-1モメンタム+EMA200+フィボ61.8%+RSIダイバージェンス (Menkhoff 2012)</div>
     </div>
 
     <!-- HTF Bias (1H + 4H) -->
@@ -731,23 +764,27 @@ function setTf(tf){
 
 function setMode(mode){
   currentMode=mode;
-  // DayFlow以外に切り替えたらピボットラインをクリア
   if(mode!=='dayflow') clearDpLines();
-  // ボタンのアクティブ状態
   document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
-  const clsMap={standard:'mode-std',dayflow:'mode-day',session:'mode-ses',scalp:'mode-sca'};
+  const clsMap={standard:'mode-std',dayflow:'mode-day',session:'mode-ses',
+                scalp:'mode-sca',daytrade:'mode-dtr',swing:'mode-swg'};
   const btn=document.querySelector('.mode-btn.'+clsMap[mode]);
   if(btn)btn.classList.add('active');
-  // カードの表示切替（display:blockで確実に表示）
+  // カード表示切替
   document.getElementById('card-dayflow').style.display=mode==='dayflow'?'block':'none';
   document.getElementById('card-session').style.display=mode==='session'?'block':'none';
   document.getElementById('card-scalp').style.display=mode==='scalp'?'block':'none';
-  // Day Flowモードはプランを読込
-  if(mode==='dayflow')loadDayPlan();
-  // バックテストをモードに合わせて再読込（キャッシュリセット）
+  document.getElementById('card-daytrade').style.display=mode==='daytrade'?'block':'none';
+  document.getElementById('card-swing').style.display=mode==='swing'?'block':'none';
+  // TF選択肢をモードに合わせてハイライト（推奨TF）
+  const recTf={scalp:'5m',daytrade:'30m',swing:'1d',standard:'1h',dayflow:'1h',session:'1h'};
+  if(recTf[mode] && recTf[mode]!==currentTf){
+    const tfb=document.querySelector(`.tf-btn[data-tf="${recTf[mode]}"]`);
+    if(tfb){ setTf(recTf[mode]); return; } // setTf内でrefreshAll含む
+  }
+  if(mode==='dayflow') loadDayPlan();
   _btMode=null;
   loadBacktest(mode);
-  // シグナルを再取得
   loadSignal();
 }
 
@@ -1117,6 +1154,44 @@ async function loadSignal(){
       if(tpE)tpE.textContent=si.tp_pips!=null?si.tp_pips+' pips':'— pips';
     }
 
+    // デイトレードモード固有情報
+    if(currentMode==='daytrade'&&d.daytrade_info){
+      const di=d.daytrade_info;
+      const e2=document.getElementById('dt-ema200');
+      if(e2)e2.textContent=di.ema200!=null?di.ema200.toFixed(3):'—';
+      const adxEl=document.getElementById('dt-adx');
+      if(adxEl){
+        adxEl.textContent=di.adx!=null?di.adx.toFixed(1):'—';
+        adxEl.style.color=di.adx>=25?'var(--green)':di.adx>=20?'var(--gold)':'var(--red)';
+      }
+      const apEl=document.getElementById('dt-adx-pos'), anEl=document.getElementById('dt-adx-neg');
+      if(apEl)apEl.textContent=di.adx_pos!=null?di.adx_pos.toFixed(1):'—';
+      if(anEl)anEl.textContent=di.adx_neg!=null?di.adx_neg.toFixed(1):'—';
+      const fibEl=document.getElementById('dt-fib');
+      if(fibEl&&di.fib&&di.fib.r382){
+        fibEl.textContent=`38.2%:${di.fib.r382.toFixed(3)} / 61.8%:${di.fib.r618?.toFixed(3)||'—'}`;
+        fibEl.style.color='var(--gold)';
+      }
+    }
+
+    // スイングモード固有情報
+    if(currentMode==='swing'&&d.swing_info){
+      const si=d.swing_info;
+      const e2=document.getElementById('sw-ema200');
+      if(e2)e2.textContent=si.ema200!=null?si.ema200.toFixed(3):'—';
+      const slopeEl=document.getElementById('sw-ema200-slope');
+      if(slopeEl&&si.ema200_slope!=null){
+        const sl=si.ema200_slope;
+        slopeEl.textContent=(sl>0?'▲ 上昇':'▼ 下降')+` (${sl.toFixed(5)})`;
+        slopeEl.style.color=sl>0?'var(--green)':'var(--red)';
+      }
+      const f618=document.getElementById('sw-fib618');
+      if(f618&&si.fib&&si.fib.r618)f618.textContent=si.fib.r618.toFixed(3);
+      const fhEl=document.getElementById('sw-fib-hit');
+      if(fhEl){fhEl.textContent=si.fib_hit?'✅ ゾーン内':'—';
+        fhEl.style.color=si.fib_hit?'var(--green)':'var(--t3)';}
+    }
+
     // Daily/Weekly direction card (from signal response)
     if(d.daily_weekly){
       const dw=d.daily_weekly;
@@ -1225,7 +1300,7 @@ async function loadSignal(){
 //  Auto-refresh（モード別インターバル）
 // ════════════════════════════════════════════════
 // スキャルプ: 15秒, その他: 60秒
-const _REFRESH_INTERVAL = {standard:60, scalp:15, session:45, dayflow:60};
+const _REFRESH_INTERVAL = {standard:60, scalp:15, daytrade:30, swing:120, session:45, dayflow:60};
 let _secs=60, _timer=null;
 
 function _refreshSecs(){return _REFRESH_INTERVAL[currentMode]||60;}
@@ -1259,13 +1334,18 @@ async function loadBacktest(forceMode){
   if(!box)return;
   const mode=forceMode||currentMode;
   const isScalp=mode==='scalp';
-  // 同じモードで取得済みならスキップ（スキャルは1hキャッシュ、標準は6hキャッシュ）
+  const isDaytrade=mode==='daytrade';
+  const isSwing=mode==='swing';
   if(_btMode===mode) return;
   _btMode=mode;
-  if(lbl) lbl.textContent=isScalp?'(5m/過去30日 スキャル専用)':'(1H/過去90日)';
+  const lblMap={scalp:'(5m/過去30日)',daytrade:'(30m/過去90日)',swing:'(1d/過去365日)',standard:'(1H/過去90日)'};
+  if(lbl) lbl.textContent=lblMap[mode]||'(1H/過去90日)';
   box.innerHTML='<div style="color:var(--t3);font-size:11px">⏳ 計算中...</div>';
   try{
-    const url=isScalp?`/api/backtest?mode=scalp&tf=${currentTf}`:'/api/backtest';
+    const urlMap={scalp:`/api/backtest?mode=scalp&tf=${currentTf}`,
+                  daytrade:'/api/backtest?mode=daytrade',
+                  swing:'/api/backtest?mode=swing'};
+    const url=urlMap[mode]||'/api/backtest';
     const r=await fetch(url);
     const d=await r.json();
     if(d.error){
@@ -1275,7 +1355,7 @@ async function loadBacktest(forceMode){
     const evCol=d.expected_value>0.3?'var(--green)':d.expected_value>0?'var(--yellow)':'var(--red)';
     const vrCol=d.expected_value>0?'rgba(63,185,80,.1)':'rgba(248,81,73,.1)';
     const vrBdr=d.expected_value>0?'var(--green)':'var(--red)';
-    const holdLabel=isScalp?`${d.avg_hold_min??'—'}分`:`${d.avg_hold_hours??'—'}時間`;
+    const holdLabel=isScalp?`${d.avg_hold_min??'—'}分`:isSwing?`${d.avg_hold_days??'—'}日`:`${d.avg_hold_hours??'—'}時間`;
     const mddCol=d.max_drawdown>5?'var(--red)':d.max_drawdown>2?'var(--yellow)':'var(--green)';
     const shrCol=d.sharpe>0.3?'var(--green)':d.sharpe>0?'var(--yellow)':'var(--red)';
     box.innerHTML=
