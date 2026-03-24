@@ -92,11 +92,11 @@ HOUR_DIRECTION_BIAS = {
 STRATEGY_PROFILES = {
     "A": {
         "name": "Trend Following",
-        "scalp_sl": 0.8, "scalp_tp": 1.2,    # 1:1.5 RR for scalp
+        "scalp_sl": 0.8, "scalp_tp": 1.8,    # 1:2.25 RR for scalp (BE=30.8%)
         "daytrade_sl": 0.5, "daytrade_tp": 1.5,  # 1:3 RR for daytrade (keep as-is)
         "kpi_wr": 0.30, "kpi_ev": 0.08, "kpi_sharpe": 1.0, "kpi_maxdd": 0.15,
-        "breakeven_wr": 0.40,  # for 1:1.5 RR
-        "random_baseline_wr": 0.35,
+        "breakeven_wr": 0.308,  # for 1:2.25 RR → SL/(SL+TP)=0.8/2.6
+        "random_baseline_wr": 0.28,
         "trades_per_day_min": 1, "trades_per_day_max": 50,
     },
     "B": {
