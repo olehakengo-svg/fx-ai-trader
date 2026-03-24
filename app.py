@@ -5672,6 +5672,380 @@ def get_analyst_opinion(question: str, market_context: dict = None) -> dict:
         return {"error": str(e), "opinion": None}
 
 
+def run_historical_pattern_analysis(
+    symbol: str = "USDJPY=X",
+    interval: str = "1h",
+    lookback_days: int = 730,   # 2 years
+) -> dict:
+    """
+    Massive APIの過去データを使った勝ちパターン分析エンジン。
+
+    分析軸:
+      ① 時間帯別WR   (東京/ロンドン/NY/ディープナイト)
+      ② 曜日別WR     (月〜金)
+      ③ ADXレベル別  (デッドゾーン/弱トレンド/中トレンド/強トレンド)
+      ④ ATRレジーム  (低ボラ/通常/高ボラ)
+      ⑤ EMAアライン  (弱/中/強アライメント)
+
+    各パターンについてZ検定で有意性を検証し、
+    p < 0.05 のものだけを「発見パターン」として記録する。
+    """
+    import math
+
+    try:
+        # ── 1. データ取得 ──
+        # Massive API経由（長期データ）、失敗したらyfinanceフォールバック
+        df = fetch_ohlcv(symbol, period=f"{lookback_days}d", interval=interval)
+        df = add_indicators(df)
+        df = df.dropna()
+
+        if len(df) < 200:
+            return {"error": "データ不足 (200本以上必要)", "bars": len(df)}
+
+        # ── 2. BTシミュレーション（EMAクロスオーバー戦略、RR=3:1）──
+        SPREAD  = 0.003
+        SL_MULT = 0.5
+        TP_MULT = 1.5
+        MAX_HOLD = 20
+        COOLDOWN = 2
+
+        trades = []
+        last_bar = -99
+
+        for i in range(50, len(df) - MAX_HOLD - 2):
+            if i - last_bar < COOLDOWN:
+                continue
+
+            row      = df.iloc[i]
+            prev_row = df.iloc[i - 1]
+
+            try:
+                ema9   = float(row["ema9"])
+                ema21  = float(row["ema21"])
+                ema50  = float(row["ema50"])
+                ema9_p = float(prev_row["ema9"])
+                ema21_p= float(prev_row["ema21"])
+                atr    = float(row.get("atr", 0.01))
+                adx    = float(row.get("adx", 20.0))
+                rsi    = float(row["rsi"])
+            except Exception:
+                continue
+
+            if atr <= 0:
+                continue
+
+            cross_up   = (ema9_p <= ema21_p) and (ema9 > ema21)
+            cross_down = (ema9_p >= ema21_p) and (ema9 < ema21)
+
+            if not cross_up and not cross_down:
+                continue
+            if cross_up   and ema9 < ema50: continue
+            if cross_down and ema9 > ema50: continue
+            if adx < 12: continue
+
+            # ATRスパイクフィルター
+            atr_avg = float(df["atr"].iloc[max(0, i-20):i].mean())
+            if atr_avg > 0 and atr > atr_avg * 2.5:
+                continue
+
+            sig = "BUY" if cross_up else "SELL"
+
+            # 特徴量を記録（パターン分析用）
+            try:
+                hour    = row.name.hour
+                weekday = row.name.weekday()  # 0=Mon, 4=Fri
+            except Exception:
+                hour, weekday = 12, 2
+
+            # セッション分類
+            if 0 <= hour < 7:
+                session = "TOKYO_EARLY"
+            elif 7 <= hour < 9:
+                session = "LONDON_OPEN"
+            elif 9 <= hour < 13:
+                session = "LONDON"
+            elif 13 <= hour < 17:
+                session = "NY_OPEN"
+            elif 17 <= hour < 20:
+                session = "NY"
+            else:
+                session = "DEEP_NIGHT"
+
+            # ADXバケット
+            if adx < 15:
+                adx_bucket = "DEAD"
+            elif adx < 20:
+                adx_bucket = "WEAK"
+            elif adx < 30:
+                adx_bucket = "MED"
+            else:
+                adx_bucket = "STRONG"
+
+            # ATRレジーム
+            atr_ratio = atr / (atr_avg + 1e-6)
+            if atr_ratio < 0.7:
+                atr_regime = "LOW_VOL"
+            elif atr_ratio < 1.5:
+                atr_regime = "NORMAL"
+            else:
+                atr_regime = "HIGH_VOL"
+
+            # EMAアライメント強度
+            ema_align = abs(ema9 - ema21) / (atr + 1e-6)
+            if ema_align < 0.3:
+                ema_strength = "WEAK"
+            elif ema_align < 0.8:
+                ema_strength = "MED"
+            else:
+                ema_strength = "STRONG"
+
+            # エントリー実行
+            if i + 1 >= len(df):
+                continue
+            ep = float(df.iloc[i + 1]["Open"])
+            ep = ep + SPREAD / 2 if sig == "BUY" else ep - SPREAD / 2
+            sl = ep - atr * SL_MULT if sig == "BUY" else ep + atr * SL_MULT
+            tp = ep + atr * TP_MULT if sig == "BUY" else ep - atr * TP_MULT
+
+            outcome = None
+            for j in range(1, MAX_HOLD + 1):
+                if i + 1 + j >= len(df):
+                    break
+                fut = df.iloc[i + 1 + j]
+                hi2, lo2 = float(fut["High"]), float(fut["Low"])
+                if sig == "BUY":
+                    if hi2 >= tp: outcome = 1; break
+                    if lo2 <= sl: outcome = 0; break
+                else:
+                    if lo2 <= tp: outcome = 1; break
+                    if hi2 >= sl: outcome = 0; break
+
+            if outcome is not None:
+                last_bar = i
+                trades.append({
+                    "outcome":      outcome,
+                    "hour":         hour,
+                    "weekday":      weekday,
+                    "session":      session,
+                    "adx_bucket":   adx_bucket,
+                    "atr_regime":   atr_regime,
+                    "ema_strength": ema_strength,
+                    "sig":          sig,
+                    "adx":          round(adx, 1),
+                })
+
+        if len(trades) < 30:
+            return {"error": f"シグナルサンプル不足 ({len(trades)}件)", "bars": len(df)}
+
+        import pandas as _pd_local
+        df_trades = _pd_local.DataFrame(trades)
+        total_wr   = df_trades["outcome"].mean()
+        total_n    = len(df_trades)
+
+        # ── 3. パターン別WR計算 + Z検定 ──
+        def z_test(group_wins, group_n, baseline_p):
+            """H0: このグループのWR = ベースラインWR に対してZ検定"""
+            if group_n < 5:
+                return 0.0, 1.0, False
+            p_hat = group_wins / group_n
+            se = math.sqrt(baseline_p * (1 - baseline_p) / group_n)
+            if se == 0:
+                return 0.0, 1.0, False
+            z = (p_hat - baseline_p) / se
+            p_val = 2 * (1 - 0.5 * (1 + math.erf(abs(z) / math.sqrt(2))))
+            return round(z, 3), round(p_val, 4), p_val < 0.05
+
+        patterns = {}
+
+        # ─ A. 時間帯別 ─
+        hour_patterns = {}
+        for h in range(24):
+            g = df_trades[df_trades["hour"] == h]
+            if len(g) < 3:
+                continue
+            wins = g["outcome"].sum()
+            n    = len(g)
+            wr   = wins / n
+            z, pv, sig_flag = z_test(wins, n, total_wr)
+            hour_patterns[h] = {
+                "wr": round(wr * 100, 1),
+                "n":  n,
+                "z":  z,
+                "p":  pv,
+                "significant": sig_flag,
+                "edge": round((wr - total_wr) * 100, 1),
+            }
+        patterns["by_hour"] = hour_patterns
+
+        # ─ B. 曜日別 ─
+        day_names = ["Mon", "Tue", "Wed", "Thu", "Fri"]
+        weekday_patterns = {}
+        for d in range(5):
+            g = df_trades[df_trades["weekday"] == d]
+            if len(g) < 3:
+                continue
+            wins = g["outcome"].sum()
+            n    = len(g)
+            wr   = wins / n
+            z, pv, sig_flag = z_test(wins, n, total_wr)
+            weekday_patterns[day_names[d]] = {
+                "wr": round(wr * 100, 1),
+                "n":  n,
+                "z":  z,
+                "p":  pv,
+                "significant": sig_flag,
+                "edge": round((wr - total_wr) * 100, 1),
+            }
+        patterns["by_weekday"] = weekday_patterns
+
+        # ─ C. セッション別 ─
+        session_patterns = {}
+        for s in df_trades["session"].unique():
+            g = df_trades[df_trades["session"] == s]
+            wins = g["outcome"].sum()
+            n    = len(g)
+            wr   = wins / n
+            z, pv, sig_flag = z_test(wins, n, total_wr)
+            session_patterns[s] = {
+                "wr": round(wr * 100, 1),
+                "n":  n,
+                "z":  z,
+                "p":  pv,
+                "significant": sig_flag,
+                "edge": round((wr - total_wr) * 100, 1),
+            }
+        patterns["by_session"] = session_patterns
+
+        # ─ D. ADXバケット別 ─
+        adx_patterns = {}
+        for bucket in ["DEAD", "WEAK", "MED", "STRONG"]:
+            g = df_trades[df_trades["adx_bucket"] == bucket]
+            if len(g) < 3:
+                continue
+            wins = g["outcome"].sum()
+            n    = len(g)
+            wr   = wins / n
+            z, pv, sig_flag = z_test(wins, n, total_wr)
+            adx_patterns[bucket] = {
+                "wr": round(wr * 100, 1),
+                "n":  n,
+                "z":  z,
+                "p":  pv,
+                "significant": sig_flag,
+                "edge": round((wr - total_wr) * 100, 1),
+            }
+        patterns["by_adx"] = adx_patterns
+
+        # ─ E. ATRレジーム別 ─
+        atr_patterns = {}
+        for regime in ["LOW_VOL", "NORMAL", "HIGH_VOL"]:
+            g = df_trades[df_trades["atr_regime"] == regime]
+            if len(g) < 3:
+                continue
+            wins = g["outcome"].sum()
+            n    = len(g)
+            wr   = wins / n
+            z, pv, sig_flag = z_test(wins, n, total_wr)
+            atr_patterns[regime] = {
+                "wr": round(wr * 100, 1),
+                "n":  n,
+                "z":  z,
+                "p":  pv,
+                "significant": sig_flag,
+                "edge": round((wr - total_wr) * 100, 1),
+            }
+        patterns["by_atr_regime"] = atr_patterns
+
+        # ─ F. EMAアライメント強度別 ─
+        ema_patterns = {}
+        for strength in ["WEAK", "MED", "STRONG"]:
+            g = df_trades[df_trades["ema_strength"] == strength]
+            if len(g) < 3:
+                continue
+            wins = g["outcome"].sum()
+            n    = len(g)
+            wr   = wins / n
+            z, pv, sig_flag = z_test(wins, n, total_wr)
+            ema_patterns[strength] = {
+                "wr": round(wr * 100, 1),
+                "n":  n,
+                "z":  z,
+                "p":  pv,
+                "significant": sig_flag,
+                "edge": round((wr - total_wr) * 100, 1),
+            }
+        patterns["by_ema_strength"] = ema_patterns
+
+        # ── 4. 有意パターン抽出（p < 0.05）──
+        significant_findings = []
+        for axis, axis_data in patterns.items():
+            for label, data in axis_data.items():
+                if data.get("significant"):
+                    edge = data["edge"]
+                    direction = "HIGH_WR" if edge > 0 else "LOW_WR"
+                    significant_findings.append({
+                        "axis":      axis.replace("by_", ""),
+                        "condition": str(label),
+                        "wr":        data["wr"],
+                        "edge_pp":   edge,
+                        "n":         data["n"],
+                        "z":         data["z"],
+                        "p":         data["p"],
+                        "direction": direction,
+                    })
+        # edge絶対値でソート
+        significant_findings.sort(key=lambda x: abs(x["edge_pp"]), reverse=True)
+
+        # ── 5. fxanalyst_memory.md に記録 ──
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+        finding_lines = []
+        for f in significant_findings[:15]:  # 上位15件
+            sign = "✅高WR" if f["direction"] == "HIGH_WR" else "❌低WR"
+            finding_lines.append(
+                f"  - {sign} [{f['axis']}={f['condition']}]: "
+                f"WR={f['wr']}% (edge={f['edge_pp']:+.1f}pp, n={f['n']}, p={f['p']})"
+            )
+
+        memory_entry = f"""
+## 過去パターン分析結果 ({ts})
+
+- 分析期間: {lookback_days}日 / 足種: {interval}
+- 総シグナル数: {total_n}件
+- 全体WR: {round(total_wr*100,1)}%
+
+### 統計的有意パターン (p < 0.05)
+{chr(10).join(finding_lines) if finding_lines else "  - 有意パターンなし（サンプル不足の可能性）"}
+
+"""
+        _append_analyst_note(memory_entry)
+
+        return {
+            "total_trades":   total_n,
+            "overall_wr":     round(total_wr * 100, 1),
+            "interval":       interval,
+            "lookback_days":  lookback_days,
+            "patterns":       patterns,
+            "significant_findings": significant_findings,
+            "bars_analyzed":  len(df),
+        }
+
+    except Exception as e:
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()[-500:]}
+
+
+@app.route("/api/pattern-analysis")
+def api_pattern_analysis():
+    """
+    過去データの勝ちパターン分析
+    ?interval=1h&days=730 (デフォルト: 1h足 / 730日=2年)
+    """
+    interval = request.args.get("interval", "1h")
+    days     = int(request.args.get("days", "730"))
+    result   = run_historical_pattern_analysis("USDJPY=X", interval=interval, lookback_days=days)
+    return jsonify(result)
+
+
 @app.route("/api/analyst-opinion")
 def api_analyst_opinion():
     """
