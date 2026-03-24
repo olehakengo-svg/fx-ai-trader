@@ -109,7 +109,7 @@ _TD_SYMBOL_MAP = {
 _TD_INTERVALS = {"1m", "5m", "15m", "30m", "1h"}
 # TwelveDataでリクエストするバー数
 _TD_OUTPUTSIZE = {
-    "1m": 500, "5m": 600, "15m": 600, "30m": 400, "1h": 500,
+    "1m": 500, "5m": 600, "15m": 600, "30m": 800, "1h": 900,
 }
 
 # データソース記録 (最後に使ったソース)
@@ -2123,8 +2123,8 @@ def run_backtest(symbol: str = "USDJPY=X",
         SL_MULT      = TF_SL_MULT["1h"]   # 2.2
         TP_MULT      = TF_TP_MULT["1h"]   # 3.3
         MAX_HOLD     = 48                  # bars (hours)
-        MIN_COMBINED = 0.33                # 0.38→0.33 過剰フィルター緩和
-        EMA_LB       = 15                  # ↑ 5→15 トレンド判定安定化
+        MIN_COMBINED = 0.28                # EMA200追加によるdropna減少を考慮して緩和
+        EMA_LB       = 15
         ATR_MED      = float(df["atr"].median())
 
         def _signal_ok(i):
@@ -2153,7 +2153,7 @@ def run_backtest(symbol: str = "USDJPY=X",
             if combined < 0 and rsi < 28:   return None, None  # 売られ過ぎゾーンはSELLしない
             # 低ボラティリティフィルター
             atr = float(row["atr"])
-            if atr < ATR_MED * 0.5:
+            if atr < ATR_MED * 0.35:
                 return None, None
             # セッションフィルター: London + NY のみ (8〜20 UTC)
             try:
@@ -2592,7 +2592,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         trades = []
         last_bar = -99
 
-        for i in range(max(250, 15), len(df) - MAX_HOLD - 1):
+        for i in range(max(210, 15), len(df) - MAX_HOLD - 1):
             if i - last_bar < COOLDOWN:
                 continue
 
@@ -2611,9 +2611,6 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             macdh_p = float(df["macd_hist"].iloc[i-1])
             if atr <= 0: continue
 
-            # ADX最低閾値
-            if adx < 20: continue
-
             # セッションフィルター: 7-20 UTC
             try:
                 h = row.name.hour
@@ -2621,32 +2618,30 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             except Exception:
                 pass
 
-            # 低ボラフィルター
-            if atr < ATR_MED * 0.5: continue
+            # 低ボラフィルター（緩め）
+            if atr < ATR_MED * 0.35: continue
 
-            # EMA200方向 + EMAアライメント + ADX方向
+            # EMA200方向 + EMAアライメント
             bull200 = entry > ema200
-            bull_align = ema9 > ema21 > ema50 and adx_p > adx_n
-            bear_align = ema9 < ema21 < ema50 and adx_n > adx_p
+            bull_align = ema9 > ema21 > ema50
+            bear_align = ema9 < ema21 < ema50
 
             if bull_align and bull200:
                 sig = "BUY"
             elif bear_align and not bull200:
                 sig = "SELL"
-            elif bull_align and not bull200:
-                if adx < 25: continue  # EMA200と不一致 + ADX弱い → スキップ
+            elif bull_align and adx > 25:   # EMA200と不一致でも強トレンドなら許可
                 sig = "BUY"
-            elif bear_align and bull200:
-                if adx < 25: continue
+            elif bear_align and adx > 25:
                 sig = "SELL"
             else:
                 continue
 
             # RSIフィルター（過熱ゾーン除外）
-            if sig == "BUY"  and rsi > 72: continue
-            if sig == "SELL" and rsi < 28: continue
+            if sig == "BUY"  and rsi > 75: continue
+            if sig == "SELL" and rsi < 25: continue
 
-            # MACDヒスト方向確認
+            # MACDヒスト方向確認（方向のみ、正負は問わない）
             if sig == "BUY"  and not (macdh > macdh_p): continue
             if sig == "SELL" and not (macdh < macdh_p): continue
 
@@ -2746,8 +2741,8 @@ SW_BT_TTL = 21600  # 6時間キャッシュ
 def run_swing_backtest(symbol: str = "USDJPY=X",
                        lookback_days: int = 365) -> dict:
     """
-    スイングトレードバックテスト（1d足, 365日）
-    EMA200 + 12-1モメンタム + フィボ61.8% + RSI + MACD確認
+    スイングトレードバックテスト（1d足, 2年分）
+    EMA200 + RSI + MACD方向確認
     SL: ATR*2.5 / TP: ATR*4.5 / 最大保有: 20日
     """
     global _sw_bt_cache
@@ -2756,7 +2751,8 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
         return _sw_bt_cache["result"]
 
     try:
-        df = fetch_ohlcv(symbol, period=f"{lookback_days}d", interval="1d")
+        # EMA200のwarmup確保のため最低2年分取得（yfinanceは1d無制限）
+        df = fetch_ohlcv(symbol, period="730d", interval="1d")
         df = add_indicators(df)
         df = df.dropna()
         if len(df) < 60:
@@ -2766,13 +2762,15 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
         SL_MULT  = 2.5
         TP_MULT  = 4.5
         MAX_HOLD = 20      # 日
-        COOLDOWN = 8       # 日
+        COOLDOWN = 6       # 日（8→6 緩和）
         ATR_MED  = float(df["atr"].median())
+        # 直近lookback_days分のみバックテスト対象
+        cutoff_i = max(210, len(df) - lookback_days)
 
         trades = []
         last_bar = -99
 
-        for i in range(250, len(df) - MAX_HOLD - 1):
+        for i in range(cutoff_i, len(df) - MAX_HOLD - 1):
             if i - last_bar < COOLDOWN: continue
 
             row    = df.iloc[i]
@@ -2802,27 +2800,13 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
             else:
                 continue
 
-            # RSIフィルター（スイング: 極端ゾーン外）
-            if sig == "BUY"  and rsi > 78: continue
-            if sig == "SELL" and rsi < 22: continue
-            # 押し目/戻り確認（RSI適度な引き）
-            if sig == "BUY"  and rsi > 65: continue  # まだ高すぎ → 押し目を待つ
-            if sig == "SELL" and rsi < 35: continue  # まだ低すぎ → 戻りを待つ
+            # RSIフィルター（スイング: 過熱極端のみ除外）
+            if sig == "BUY"  and rsi > 82: continue
+            if sig == "SELL" and rsi < 18: continue
 
-            # MACDヒスト方向確認
-            if sig == "BUY"  and not (macdh > macdh_p and macdh > 0): continue
-            if sig == "SELL" and not (macdh < macdh_p and macdh < 0): continue
-
-            # フィボナッチ確認（直近60日）
-            fib = _calc_fibonacci_levels(df.iloc[:i+1], lookback=60)
-            if fib:
-                r618 = fib.get("r618")
-                r382 = fib.get("r382")
-                # フィボゾーン外はスキップ（厳格化）
-                if sig == "BUY" and r618 and entry > r382:
-                    continue  # まだ押し目が浅い
-                if sig == "SELL" and r618 and entry < r382:
-                    continue  # まだ戻りが浅い
+            # MACDヒスト方向確認（方向のみ、符号は問わない）
+            if sig == "BUY"  and not (macdh > macdh_p): continue
+            if sig == "SELL" and not (macdh < macdh_p): continue
 
             if i + 1 >= len(df): continue
             ep  = float(df.iloc[i+1]["Open"])
