@@ -3317,6 +3317,27 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             if atr_20avg > 0 and atr_val > atr_20avg * 2.5:
                 continue  # 異常ボラティリティ → スキップ
 
+            # BB Squeeze filter — skip consolidation periods
+            if "bb_upper" in df.columns and "bb_lower" in df.columns:
+                bb_upper = df["bb_upper"].iloc[i]
+                bb_lower = df["bb_lower"].iloc[i]
+                bb_mid = (bb_upper + bb_lower) / 2.0
+                if bb_mid > 0:
+                    bb_width = (bb_upper - bb_lower) / bb_mid
+                    # Rolling 50-bar BB width for percentile
+                    if i >= 50:
+                        recent_widths = []
+                        for j in range(i - 50, i):
+                            u = df["bb_upper"].iloc[j]
+                            l = df["bb_lower"].iloc[j]
+                            m = (u + l) / 2.0
+                            if m > 0:
+                                recent_widths.append((u - l) / m)
+                        if recent_widths:
+                            pctile = sum(1 for w in recent_widths if w < bb_width) / len(recent_widths)
+                            if pctile < 0.25:
+                                continue  # Bottom 25% BB width = squeeze/consolidation
+
             # ── EMA Crossover Signal (最良WR: 37.5%@RR3:1, EV=+0.25R) ──
             ema9   = float(row["ema9"])
             ema21  = float(row["ema21"])
@@ -3332,6 +3353,13 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             if not cross_up and not cross_down:
                 continue
+
+            # EMA21 slope confirmation — reject crossovers in flat market
+            ema21_slope = (ema21 - df["ema21"].iloc[i - 3]) / 3.0  # 3-bar slope
+            if cross_up and ema21_slope < 0:
+                continue  # EMA21 declining during bullish crossover = false signal
+            if cross_down and ema21_slope > 0:
+                continue  # EMA21 rising during bearish crossover = false signal
 
             # EMA50 trend direction filter
             if cross_up   and ema9 < ema50: continue
