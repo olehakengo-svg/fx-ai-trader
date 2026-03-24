@@ -786,28 +786,48 @@ JP10Y_TTL = 86400  # 24時間キャッシュ（日次データのため）
 
 def fetch_jp10y() -> float:
     """
-    日本10年国債利回りをFRED（OECD経由）から取得。
-    取得失敗時は直近キャッシュ値 or 1.5%にフォールバック。
+    日本10年国債利回りを複数ソースから取得。
+    ①FRED CSV → ②stooq.com → ③前回キャッシュ or 1.5%
     """
     global _jp10y_cache
     now = datetime.now()
     if _jp10y_cache.get("ts") and (now - _jp10y_cache["ts"]).total_seconds() < JP10Y_TTL:
         return _jp10y_cache["value"]
+
+    import urllib.request as _ur, csv, io
+
+    # ── ① FRED ──────────────────────────────────────────────────
     try:
-        import urllib.request, csv, io
         url = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=IRLTLT01JPM156N"
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        with urllib.request.urlopen(req, timeout=5) as r:
+        req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with _ur.urlopen(req, timeout=5) as r:
             rows = list(csv.reader(io.TextIOWrapper(r)))
-        # 最終行（最新値）を取得
         for row in reversed(rows):
             if len(row) == 2 and row[1] not in ("", "."):
                 value = float(row[1])
                 _jp10y_cache = {"value": value, "ts": now}
+                print(f"[JP10Y] FRED: {value}%")
                 return value
     except Exception as e:
-        print(f"[JP10Y] FRED取得失敗: {e}")
-    # フォールバック: 前回キャッシュ or 1.5%（BOJ利上げ後の近似値）
+        print(f"[JP10Y] FRED失敗: {e}")
+
+    # ── ② stooq.com（日次データ）────────────────────────────────
+    try:
+        url = "https://stooq.com/q/d/l/?s=10yjpy.b&i=d"
+        req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with _ur.urlopen(req, timeout=5) as r:
+            rows = list(csv.reader(io.TextIOWrapper(r)))
+        # フォーマット: Date,Open,High,Low,Close,Volume
+        for row in reversed(rows[1:]):
+            if len(row) >= 5 and row[4] not in ("", "null", "N/D"):
+                value = float(row[4])
+                _jp10y_cache = {"value": value, "ts": now}
+                print(f"[JP10Y] stooq: {value}%")
+                return value
+    except Exception as e:
+        print(f"[JP10Y] stooq失敗: {e}")
+
+    # ── ③ フォールバック: 前回キャッシュ or 1.5% ─────────────────
     return _jp10y_cache.get("value", 1.5)
 
 
