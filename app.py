@@ -91,22 +91,22 @@ HOUR_DIRECTION_BIAS = {
 
 STRATEGY_PROFILES = {
     "A": {
-        "name": "Trend Following (1:3 RR)",
-        "sl_mult": 0.5, "tp_mult": 1.5,
-        # 第三者評価に基づく修正KPI（損益分岐WR=25%、ランダム基準21.2%）
+        "name": "Trend Following",
+        "scalp_sl": 0.8, "scalp_tp": 1.2,    # 1:1.5 RR for scalp
+        "daytrade_sl": 0.5, "daytrade_tp": 1.5,  # 1:3 RR for daytrade (keep as-is)
         "kpi_wr": 0.30, "kpi_ev": 0.08, "kpi_sharpe": 1.0, "kpi_maxdd": 0.15,
+        "breakeven_wr": 0.40,  # for 1:1.5 RR
+        "random_baseline_wr": 0.35,
         "trades_per_day_min": 1, "trades_per_day_max": 50,
-        "breakeven_wr": 0.25,
-        "random_baseline_wr": 0.212,
     },
     "B": {
-        "name": "Mean Reversion (1:1.2 RR)",
-        "sl_mult": 1.0, "tp_mult": 1.2,
-        # Strategy B: 損益分岐WR=45.5%、WR55%ターゲット維持
-        "kpi_wr": 0.55, "kpi_ev": 0.05, "kpi_sharpe": 1.0, "kpi_maxdd": 0.15,
-        "trades_per_day_min": 3, "trades_per_day_max": 50,
-        "breakeven_wr": 0.455,
-        "random_baseline_wr": 0.411,
+        "name": "Mean Reversion",
+        "scalp_sl": 1.0, "scalp_tp": 1.0,    # 1:1 RR for scalp
+        "daytrade_sl": 1.0, "daytrade_tp": 1.2,  # keep
+        "kpi_wr": 0.55, "kpi_ev": 0.05, "kpi_sharpe": 0.8, "kpi_maxdd": 0.15,
+        "breakeven_wr": 0.50,
+        "random_baseline_wr": 0.45,
+        "trades_per_day_min": 1, "trades_per_day_max": 50,
     },
 }
 
@@ -3293,8 +3293,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
         SPREAD       = 0.002   # 0.2 pip
         profile      = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
-        SL_MULT      = profile["sl_mult"]   # strategy-dependent
-        TP_MULT      = profile["tp_mult"]   # strategy-dependent
+        SL_MULT      = profile["scalp_sl"]   # scalp-specific SL
+        TP_MULT      = profile["scalp_tp"]   # scalp-specific TP
         MAX_HOLD     = 12     # 12 bars (reduced from 20 to cut timeout exposure)
         COOLDOWN     = 1      # 1 bar (reduced from 3 to allow more entries in favorable hours)
         if interval == "1m":   bars_per_min = 1
@@ -3337,21 +3337,20 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             if cross_up   and ema9 < ema50: continue
             if cross_down and ema9 > ema50: continue
 
-            # ADX sweet spot filter: 15-40 range only
-            # Below 15 = no trend (low WR), above 40 = overextended (mean reversion risk)
-            if adx < 15 or adx > 40: continue
+            # ADX filter: require minimum trend strength
+            if adx < 12: continue
 
             sig = "BUY" if cross_up else "SELL"
 
-            # 時間帯×方向バイアスフィルター（厳格版: edge >= 5.0pp + 方向一致必須）
+            # 時間帯×方向バイアスフィルター（edge >= 2.0pp + 方向一致必須）
             try:
                 h = row.name.hour
                 bias_info = HOUR_DIRECTION_BIAS.get(h)
                 if not bias_info:
                     continue  # データなし → スキップ
                 best_dir, best_wr, edge = bias_info
-                # Only trade hours with edge >= 5.0pp above random baseline
-                if best_dir is None or edge < 5.0:
+                # Only trade hours with edge >= 2.0pp above random baseline
+                if best_dir is None or edge < 2.0:
                     continue
                 # Signal must match hour's best direction
                 if sig == "BUY" and best_dir != "LONG":
@@ -3519,8 +3518,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
         SPREAD    = 0.010   # 1.0 pip（15m足）
         profile   = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
-        SL_MULT   = profile["sl_mult"]   # strategy-dependent
-        TP_MULT   = profile["tp_mult"]   # strategy-dependent
+        SL_MULT   = profile["daytrade_sl"]   # daytrade-specific SL
+        TP_MULT   = profile["daytrade_tp"]   # daytrade-specific TP
         MAX_HOLD  = 20     # bars (5 hours at 15m)
         COOLDOWN  = 1      # bars (allows more trades per day)
         bars_per_h = 4     # 15m足 = 4本/時間
