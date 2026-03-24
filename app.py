@@ -247,10 +247,13 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     df["atr"]       = AverageTrueRange(h, l, c, window=14).average_true_range()
     # スキャルプ用高速指標
     df["rsi5"]      = RSIIndicator(c, window=5).rsi()
+    df["rsi9"]      = RSIIndicator(c, window=9).rsi()   # 5m最適バランス (Axiory研究)
     df["atr7"]      = AverageTrueRange(h, l, c, window=7).average_true_range()
     stoch = StochasticOscillator(h, l, c, window=5, smooth_window=3)
     df["stoch_k"]   = stoch.stoch()
     df["stoch_d"]   = stoch.stoch_signal()
+    # BBバンド幅（スクイーズ検出用）
+    df["bb_width"]  = (df["bb_upper"] - df["bb_lower"]) / df["bb_mid"].replace(0, np.nan)
     # デイトレード / スイング用追加指標
     df["ema100"]    = EMAIndicator(c, window=100).ema_indicator()
     df["ema200"]    = EMAIndicator(c, window=200).ema_indicator()
@@ -2318,8 +2321,11 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         TP_MULT      = 1.3
         TP_MAX       = 2.0
         MAX_HOLD     = 20      # bars
-        COOLDOWN     = 3       # bars between signals (5→3 過剰フィルター緩和)
+        COOLDOWN     = 3       # bars between signals
         bars_per_min = 5 if interval == "5m" else 15
+
+        # BBバンド幅パーセンタイル（スクイーズ検出）
+        bb_w_series = (df["bb_upper"] - df["bb_lower"]) / df["bb_mid"].replace(0, np.nan)
 
         trades = []
         last_trade_bar = -99
@@ -2332,6 +2338,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             entry   = float(row["Close"])
             atr7    = float(row["atr7"]) if "atr7" in row.index else float(row["atr"])
             rsi5    = float(row.get("rsi5", row["rsi"]))
+            rsi9    = float(row.get("rsi9", row["rsi"]))  # RSI9追加
             stoch_k = float(row.get("stoch_k", 50.0))
             stoch_d = float(row.get("stoch_d", 50.0))
             macdh   = float(row["macd_hist"])
@@ -2339,14 +2346,38 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             ema9    = float(row["ema9"])
             ema21   = float(row["ema21"])
             ema50   = float(row["ema50"])
+            adx     = float(row.get("adx", 25.0))
             if atr7 <= 0:
                 continue
 
-            # セッションフィルター: London + NY (8〜18 UTC)
+            # ① ADXフィルター (Wilder 1978): レンジ相場は減衰
+            if adx < 20:
+                adx_mult = 0.45
+            elif adx >= 25:
+                adx_mult = 1.1
+            else:
+                adx_mult = 0.85
+
+            # ② BBスクイーズフィルター: バンド幅が下位20%→スキップ
+            if i >= 50:
+                bw_pct = float(pd.Series(bb_w_series.values[:i+1]).rank(pct=True).iloc[-1])
+                if bw_pct < 0.2:
+                    continue  # スクイーズ中はエントリー回避
+
+            # ③ セッションフィルター (Krohn et al. 2024)
+            ses_mult = 1.0
             try:
                 h = row.name.hour
-                if not (8 <= h < 18):
-                    continue
+                if 13 <= h < 17:
+                    ses_mult = 1.15   # London/NY重複: 最高品質
+                elif 7 <= h < 9:
+                    ses_mult = 1.08   # London前場: 方向性ブレイク
+                elif 9 <= h < 21:
+                    ses_mult = 1.0    # 通常セッション
+                elif 21 <= h or h < 1:
+                    continue          # Post-NY: 超閑散 → スキップ
+                else:
+                    ses_mult = 0.65   # 東京深夜: 流動性低
             except Exception:
                 pass
 
@@ -2358,7 +2389,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             score = 0.0
             has_pullback  = False
-            has_rsi_reset = False  # ← 新規必須条件
+            has_rsi_reset = False
 
             if d_mult == 1.0:
                 if ema9 > ema21 > ema50:
@@ -2366,9 +2397,11 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                     elif entry <= ema9 * 1.003: score += 0.8
                     else:                       score += 0.3
                 elif ema9 > ema21: score += 0.4
+                # RSI5リセット + RSI9モメンタム (Axiory研究)
                 if rsi5 < 25:   score += 1.8; has_rsi_reset = True
-                elif rsi5 < 52: score += 1.2; has_rsi_reset = True  # 45→52 緩和
+                elif rsi5 < 52: score += 1.2; has_rsi_reset = True
                 elif rsi5 < 60: score += 0.5
+                if rsi9 < 50 and rsi9 > 30: score += 0.6  # RSI9モメンタム確認
                 if macdh > 0:   score += 0.6
                 if bbpb < 0.25: score += 0.6
                 if stoch_k < 20 and stoch_k > stoch_d:  score += 1.0
@@ -2380,12 +2413,23 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                     else:                       score -= 0.3
                 elif ema9 < ema21: score -= 0.4
                 if rsi5 > 75:   score -= 1.8; has_rsi_reset = True
-                elif rsi5 > 48: score -= 1.2; has_rsi_reset = True  # 55→48 緩和
+                elif rsi5 > 48: score -= 1.2; has_rsi_reset = True
                 elif rsi5 > 40: score -= 0.5
+                if rsi9 > 50 and rsi9 < 70: score -= 0.6  # RSI9モメンタム確認
                 if macdh < 0:   score -= 0.6
                 if bbpb > 0.75: score -= 0.6
                 if stoch_k > 80 and stoch_k < stoch_d:  score -= 1.0
                 elif stoch_k > 60 and stoch_k < stoch_d: score -= 0.5
+
+            # 出来高確認 (IJSAT 2025)
+            if "Volume" in df.columns:
+                vol_now = float(df["Volume"].iloc[i])
+                vol_avg = float(df["Volume"].iloc[max(0,i-20):i].mean())
+                if vol_avg > 0 and vol_now > vol_avg * 1.5:
+                    score += 0.7 if d_mult == 1.0 else -0.7
+
+            # ADX + セッションマルチプライヤー適用
+            score *= adx_mult * ses_mult
 
             # 必須条件: EMA9プルバック AND RSI5リセット
             if not has_pullback or not has_rsi_reset:
@@ -3181,30 +3225,64 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                          symbol: str = "USDJPY=X") -> dict:
     """
     スキャルピングモード (推奨: 1m/5m/15m)。
-    1H+4H トレンドをハードフィルターとして使用。
-    EMA9プルバック + RSIリセット + MACD/BB確認 でエントリー判断。
-    SL=ATR×0.8 / TP=ATR×1.2 固定（スピード重視）。
+    学術根拠:
+      - ADX>20フィルター: レンジ相場での誤シグナル排除 (Wilder 1978)
+      - RSI(9): 5m足での最適バランス (Axiory研究: RSI5は過ノイズ/RSI14は遅すぎ)
+      - セッション精緻化: London前場07-09UTC + 重複13-17UTC (Krohn et al. 2024 JoF)
+      - 出来高急増確認: Sharpe+37-78% (IJSAT 2025)
+      - BBバンド幅スクイーズ回避: ブレイクアウト待ち優先
+      - 1H+4H トレンドをハードフィルターとして使用
+    SL=ATR7×0.8 / TP=S/Rスナップ or ATR7×1.3
     """
-    htf    = get_htf_bias(symbol)
-    row    = df.iloc[-1]
-    entry  = float(row["Close"])
-    atr    = float(row["atr"])
-    rsi    = float(row["rsi"])
-    ema9   = float(row["ema9"])
-    ema21  = float(row["ema21"])
-    ema50  = float(row["ema50"])
-    macdh  = float(row["macd_hist"])
-    bbpb   = float(row["bb_pband"])
-    atr7   = float(row["atr7"]) if "atr7" in row.index else atr  # 短期ATR(7)
+    htf     = get_htf_bias(symbol)
+    row     = df.iloc[-1]
+    entry   = float(row["Close"])
+    atr     = float(row["atr"])
+    rsi     = float(row["rsi"])
+    ema9    = float(row["ema9"])
+    ema21   = float(row["ema21"])
+    ema50   = float(row["ema50"])
+    macdh   = float(row["macd_hist"])
+    bbpb    = float(row["bb_pband"])
+    atr7    = float(row["atr7"]) if "atr7" in row.index else atr
+    adx     = float(row.get("adx", 25.0))
+    rsi5    = float(row.get("rsi5", rsi))
+    rsi9    = float(row.get("rsi9", rsi))     # 5m最適 (Axiory研究)
+    stoch_k = float(row.get("stoch_k", 50.0))
+    stoch_d = float(row.get("stoch_d", 50.0))
+    bb_width = float(row.get("bb_width", 0.01))
     session = get_session_info()
 
-    h1_sc  = htf.get("h1", {}).get("score", 0.0)
-    h4_sc  = htf.get("h4", {}).get("score", 0.0)
+    h1_sc = htf.get("h1", {}).get("score", 0.0)
+    h4_sc = htf.get("h4", {}).get("score", 0.0)
 
     score   = 0.0
     reasons = []
 
-    # ── 1H+4H ハードフィルター ──
+    # ① ADXレジームフィルター (Wilder 1978) ─────────────────
+    if adx >= 25:
+        adx_mult = 1.1
+        reasons.append(f"✅ ADX{adx:.0f}>25: 強トレンド — スキャル最適環境")
+    elif adx >= 20:
+        adx_mult = 0.85
+        reasons.append(f"⚠️ ADX{adx:.0f}: 中程度トレンド")
+    else:
+        adx_mult = 0.45
+        reasons.append(f"⛔ ADX{adx:.0f}<20: レンジ相場 → スキャル難易度高（Wilder 1978）")
+
+    # ② BBバンド幅スクイーズ検出 ─────────────────────────────
+    # スクイーズ = BBが狭い → ブレイクアウト待機、スキャル回避
+    bb_width_series = df.get("bb_width", df["bb_upper"] - df["bb_lower"])
+    bb_width_pct = float(pd.Series(df["bb_width"].values if "bb_width" in df.columns
+                                   else (df["bb_upper"] - df["bb_lower"]).values
+                                   ).rolling(50).rank(pct=True).iloc[-1]) if len(df) > 50 else 0.5
+    if bb_width_pct < 0.2:
+        adx_mult *= 0.6
+        reasons.append(f"⛔ BBスクイーズ中(幅{bb_width_pct:.0%}パーセンタイル): ブレイク前 → エントリー回避")
+    elif bb_width_pct > 0.7:
+        reasons.append(f"✅ BB拡張中({bb_width_pct:.0%}): ボラティリティ良好")
+
+    # ③ 1H+4H ハードフィルター ─────────────────────────────
     if htf["agreement"] == "bull":
         d_mult = 1.0;  reasons.append("📈 1H+4H 強気 → BUYのみ有効")
     elif htf["agreement"] == "bear":
@@ -3212,11 +3290,10 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     else:
         d_mult = 0.5;  reasons.append("⚖️ 1H+4H 不一致 → シグナル抑制中")
 
-    # ── EMA9 プルバック ──
-    # mixed(0.5)のときは方向が不明瞭なのでスキップ
+    # ④ EMA9 プルバック ──────────────────────────────────────
     if d_mult == 1.0:
         if ema9 > ema21 > ema50:
-            if entry <= ema9 * 1.001:   # EMA9の0.1%以内まで引いたときのみ
+            if entry <= ema9 * 1.001:
                 score += 2.0; reasons.append(f"✅ EMA9プルバック({ema9:.3f}) BUYゾーン")
             elif entry <= ema9 * 1.003:
                 score += 0.8; reasons.append("↗ EMA9>EMA21>EMA50 上昇列")
@@ -3226,7 +3303,7 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             score += 0.4; reasons.append("↗ EMA9>EMA21")
     elif d_mult == -1.0:
         if ema9 < ema21 < ema50:
-            if entry >= ema9 * 0.999:   # EMA9の0.1%以内まで戻したときのみ
+            if entry >= ema9 * 0.999:
                 score -= 2.0; reasons.append(f"✅ EMA9プルバック({ema9:.3f}) SELLゾーン")
             elif entry >= ema9 * 0.997:
                 score -= 0.8; reasons.append("↘ EMA9<EMA21<EMA50 下降列")
@@ -3237,52 +3314,94 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     else:
         reasons.append("⚖️ EMA方向不明瞭 → スキップ")
 
-    # ── RSI(5) 高速版 + RSI(14) 補助 ──
-    rsi5  = float(row.get("rsi5", rsi))  # 高速RSI(5)
+    # ⑤ RSI(5)リセット + RSI(9)モメンタム確認 (Axiory研究) ─────
+    # RSI5: 過売り/過買いリセット検出（感度重視）
+    # RSI9: エントリー方向のモメンタム確認（バランス重視）
     if d_mult == 1.0:
-        if rsi5 < 25:   score += 1.8; reasons.append(f"✅ RSI5 売られ過ぎ({rsi5:.0f}) 強BUYシグナル")
-        elif rsi5 < 45: score += 1.2; reasons.append(f"✅ RSI5({rsi5:.0f}) リセット完了")
-        elif rsi5 < 55: score += 0.5; reasons.append(f"↗ RSI5({rsi5:.0f}) 中立圏")
-        if rsi < 40:    score += 0.4  # RSI14補助
+        if rsi5 < 25:
+            score += 1.8; reasons.append(f"✅ RSI5極度売られ過ぎ({rsi5:.0f}): 強BUYシグナル")
+        elif rsi5 < 45:
+            score += 1.2; reasons.append(f"✅ RSI5({rsi5:.0f}) リセット完了")
+        elif rsi5 < 55:
+            score += 0.5; reasons.append(f"↗ RSI5({rsi5:.0f}) 中立圏")
+        # RSI9モメンタム確認（Axiory: 5mの最適バランス設定）
+        if rsi9 < 50 and rsi9 > 30:
+            score += 0.6; reasons.append(f"✅ RSI9({rsi9:.0f})<50: モメンタム回復中（Axiory 5m最適）")
+        if rsi < 40:
+            score += 0.4  # RSI14補助
     elif d_mult == -1.0:
-        if rsi5 > 75:   score -= 1.8; reasons.append(f"✅ RSI5 買われ過ぎ({rsi5:.0f}) 強SELLシグナル")
-        elif rsi5 > 55: score -= 1.2; reasons.append(f"✅ RSI5({rsi5:.0f}) リセット完了")
-        elif rsi5 > 45: score -= 0.5; reasons.append(f"↘ RSI5({rsi5:.0f}) 中立圏")
-        if rsi > 60:    score -= 0.4  # RSI14補助
+        if rsi5 > 75:
+            score -= 1.8; reasons.append(f"✅ RSI5極度買われ過ぎ({rsi5:.0f}): 強SELLシグナル")
+        elif rsi5 > 55:
+            score -= 1.2; reasons.append(f"✅ RSI5({rsi5:.0f}) リセット完了")
+        elif rsi5 > 45:
+            score -= 0.5; reasons.append(f"↘ RSI5({rsi5:.0f}) 中立圏")
+        # RSI9モメンタム確認
+        if rsi9 > 50 and rsi9 < 70:
+            score -= 0.6; reasons.append(f"🔻 RSI9({rsi9:.0f})>50: 下落モメンタム確認")
+        if rsi > 60:
+            score -= 0.4
 
-    # ── MACD ──
+    # ⑥ MACD ────────────────────────────────────────────────
     if d_mult == 1.0 and macdh > 0:   score += 0.6; reasons.append("✅ MACDヒスト正")
     elif d_mult == 1.0 and macdh < 0:  score -= 0.3
     elif d_mult == -1.0 and macdh < 0: score -= 0.6; reasons.append("✅ MACDヒスト負")
     elif d_mult == -1.0 and macdh > 0: score += 0.3
 
-    # ── ボリンジャーバンド ──
+    # ⑦ ボリンジャーバンド ─────────────────────────────────────
     if d_mult == 1.0 and bbpb < 0.25:
         score += 0.6; reasons.append(f"✅ BB下限付近({bbpb:.2f}) スキャルBUYゾーン")
     elif d_mult == -1.0 and bbpb > 0.75:
         score -= 0.6; reasons.append(f"✅ BB上限付近({bbpb:.2f}) スキャルSELLゾーン")
 
-    # ── Stochastic(5,3,3) — クロス確認 ──
-    stoch_k = float(row.get("stoch_k", 50.0))
-    stoch_d = float(row.get("stoch_d", 50.0))
+    # ⑧ Stochastic(5,3,3) ────────────────────────────────────
     if d_mult == 1.0:
         if stoch_k < 20 and stoch_k > stoch_d:
-            score += 1.0; reasons.append(f"✅ Stoch ゴールデンクロス({stoch_k:.0f}) 売られ過ぎ圏")
+            score += 1.0; reasons.append(f"✅ Stoch GC({stoch_k:.0f}) 売られ過ぎ圏")
         elif stoch_k < 40 and stoch_k > stoch_d:
             score += 0.5; reasons.append(f"↗ Stoch({stoch_k:.0f}) 上向き")
     elif d_mult == -1.0:
         if stoch_k > 80 and stoch_k < stoch_d:
-            score -= 1.0; reasons.append(f"✅ Stoch デッドクロス({stoch_k:.0f}) 買われ過ぎ圏")
+            score -= 1.0; reasons.append(f"✅ Stoch DC({stoch_k:.0f}) 買われ過ぎ圏")
         elif stoch_k > 60 and stoch_k < stoch_d:
             score -= 0.5; reasons.append(f"↘ Stoch({stoch_k:.0f}) 下向き")
 
-    # ── 方向フィルター & セッション補正 ──
-    # ※ scoreはすでに方向性あり（正=BUY,負=SELL）→ d_multの符号は使わず倍率のみ適用
+    # ⑨ 出来高急増確認 (IJSAT 2025: Sharpe+37-78%) ─────────────
+    if "Volume" in df.columns:
+        vol_now = float(df["Volume"].iloc[-1])
+        vol_avg = float(df["Volume"].tail(20).mean())
+        if vol_avg > 0 and vol_now > vol_avg * 1.5:
+            score += 0.7 if d_mult == 1.0 else -0.7
+            reasons.append(f"✅ 出来高{vol_now/vol_avg:.1f}x急増: 機関参入シグナル(IJSAT 2025)")
+        elif vol_avg > 0 and vol_now < vol_avg * 0.4:
+            score *= 0.8
+            reasons.append(f"⚠️ 出来高低水準({vol_now/vol_avg:.1f}x): エントリー品質低下")
+
+    # ⑩ ADXマルチプライヤー + 方向フィルター ───────────────────
+    score *= adx_mult
     score *= (1.0 if abs(d_mult) == 1.0 else 0.55)
-    if session["name"] in ("NY × London", "New York", "London"):
-        score *= 1.10; reasons.append(f"🟢 {session['name']}（流動性高）")
-    elif session["name"] == "Off-hours":
-        score *= 0.50; reasons.append("⚠️ 閑散時間帯（スキャル非推奨）")
+
+    # ⑪ セッション精緻化 (Krohn et al. 2024 JoF) ────────────────
+    # London前場07-09UTC: 東京/ロンドン重複、方向性ブレイクアウト
+    # London/NY重複13-17UTC: 最高流動性、最高品質シグナル
+    try:
+        h = df.index[-1].hour
+        if 13 <= h < 17:
+            score *= 1.15
+            reasons.append(f"🟢 London/NY重複({h}UTC): 最高流動性・最高品質(Krohn 2024)")
+        elif 7 <= h < 9:
+            score *= 1.08
+            reasons.append(f"🟡 London前場({h}UTC): 方向性ブレイクアウト期待(Krohn 2024)")
+        elif 9 <= h < 13 or 17 <= h < 21:
+            pass  # 通常セッション
+        elif 21 <= h or h < 1:
+            score *= 0.40
+            reasons.append(f"⛔ Post-NY/Pre-Tokyo({h}UTC): 超閑散時間帯 — スキャル非推奨(Neely & Weller)")
+        else:  # 1-7 UTC
+            score *= 0.65
+            reasons.append(f"⚠️ 東京時間({h}UTC): 流動性低下 — USD/JPY慎重")
+    except Exception:
+        pass
 
     # TF警告
     if tf not in ("1m", "5m", "15m"):
@@ -3378,7 +3497,10 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             "tp_pips":       round(atr_scalp * SCALP_TP * 100, 1),
             "atr7":          round(atr7, 3),
             "rsi5":          round(float(row.get("rsi5", 50)), 1),
+            "rsi9":          round(rsi9, 1),
             "stoch_k":       round(float(row.get("stoch_k", 50)), 1),
+            "adx":           round(adx, 1),
+            "bb_width_pct":  round(bb_width_pct * 100, 0),
         },
     }
 
