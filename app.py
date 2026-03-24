@@ -2924,67 +2924,73 @@ def run_backtest(symbol: str = "USDJPY=X",
             return {"error": "データ不足"}
 
         SPREAD       = 0.030   # 3 pips
-        SL_MULT      = TF_SL_MULT["1h"]   # 2.2
-        TP_MULT      = TF_TP_MULT["1h"]   # 3.3
-        MAX_HOLD     = 48                  # bars (hours)
-        MIN_COMBINED = 0.15                # クリーンデータ向け緩和: 0.31→0.15
-        EMA_LB       = 15
-        ATR_MED      = float(df["atr"].median())
+        SL_MULT      = 2.0    # ATR × 2.0
+        TP_MULT      = 3.5    # ATR × 3.5 → RR ≈ 1.75
+        MAX_HOLD     = 48     # bars (48 hours at 1H)
+        COOLDOWN     = 2      # bars
 
         def _signal_ok(i):
-            """標準モード エントリー条件（重複排除）"""
-            row    = df.iloc[i]
-            sub_df = df.iloc[:i + 1]
-            rule_sc, _   = rule_signal(row)
-            rule_n       = max(-1.0, min(1.0, rule_sc / 8.0))
-            candle_sc, _ = detect_candle_patterns(sub_df)
-            candle_n     = max(-1.0, min(1.0, candle_sc / 4.0))
-            dow_sc, _    = dow_theory_analysis(sub_df)
-            dow_n        = max(-1.0, min(1.0, dow_sc / 2.5))
-            combined     = rule_n * 0.50 + candle_n * 0.20 + dow_n * 0.30
-            if abs(combined) < MIN_COMBINED:
-                return None, None
-            # EMA15本トレンドフィルター
-            ema21_prev = float(df["ema21"].iloc[i - EMA_LB])
-            ema21_cur  = float(row["ema21"])
-            ema50_cur  = float(row["ema50"])
-            ema_trend  = 1.0 if ema21_cur > ema21_prev else -1.0
-            if (combined > 0 and ema_trend < 0) or (combined < 0 and ema_trend > 0):
-                return None, None
-            # RSI確認フィルター（過熱ゾーンのみ除外）
-            rsi = float(row["rsi"])
-            if combined > 0 and rsi > 72:   return None, None  # 買われ過ぎゾーンはBUYしない
-            if combined < 0 and rsi < 28:   return None, None  # 売られ過ぎゾーンはSELLしない
-            # 低ボラティリティフィルター
-            atr = float(row["atr"])
-            if atr < ATR_MED * 0.35:
-                return None, None
-            # セッションフィルター: London + NY のみ (8〜20 UTC)
+            """EMAクロスオーバー + トレンドフィルター + セッション"""
+            row      = df.iloc[i]
+            prev_row = df.iloc[i-1]
+
+            ema9    = float(row["ema9"])
+            ema21   = float(row["ema21"])
+            ema50   = float(row["ema50"])
+            ema200  = float(row.get("ema200", row["ema50"]))
+            ema9_p  = float(prev_row["ema9"])
+            ema21_p = float(prev_row["ema21"])
+            atr     = float(row["atr"])
+            adx     = float(row.get("adx", 20.0))
+            rsi     = float(row["rsi"])
+            macdh   = float(row["macd_hist"])
+            macdh_p = float(df["macd_hist"].iloc[i-1])
+
+            # Session: London + NY (08:00-20:00 UTC)
             try:
                 h = row.name.hour
                 if not (8 <= h < 20):
                     return None, None
             except Exception:
                 pass
-            sig = "BUY" if combined > 0 else "SELL"
-            return sig, atr
 
-        # Layer 1 シミュレーション（DXYトレンドによる大口バイアス）
-        l1_bias = _get_dxy_trend_for_bt()
+            if adx < 20:
+                return None, None
+
+            # EMA crossover
+            cross_up   = (ema9_p <= ema21_p) and (ema9 > ema21)
+            cross_down = (ema9_p >= ema21_p) and (ema9 < ema21)
+            if not cross_up and not cross_down:
+                return None, None
+
+            # EMA50 trend filter
+            if cross_up   and ema9 < ema50: return None, None
+            if cross_down and ema9 > ema50: return None, None
+
+            # EMA200 macro
+            close = float(row["Close"])
+            if cross_up   and close < ema200 * 0.997: return None, None
+            if cross_down and close > ema200 * 1.003: return None, None
+
+            # MACD direction
+            if cross_up   and macdh < macdh_p: return None, None
+            if cross_down and macdh > macdh_p: return None, None
+
+            # RSI
+            if cross_up   and rsi > 70: return None, None
+            if cross_down and rsi < 30: return None, None
+
+            sig = "BUY" if cross_up else "SELL"
+            return sig, atr
 
         trades = []
         last_trade_bar = -99
-        for i in range(max(50, EMA_LB + 1), len(df) - MAX_HOLD - 1):
-            if i - last_trade_bar < 2:   # クールダウン（クリーンデータ向け緩和: 3→2）
+        for i in range(50, len(df) - MAX_HOLD - 1):
+            if i - last_trade_bar < COOLDOWN:
                 continue
             sig, atr = _signal_ok(i)
             if sig is None:
                 continue
-            # Layer 1: カウンタートレンド減点（スコア代替: combined相当を0.30倍→閾値未満→スキップ）
-            if l1_bias == "bull" and sig == "SELL":
-                continue  # USDブル局面でのSELLは70%減点→閾値未満
-            elif l1_bias == "bear" and sig == "BUY":
-                continue  # USDベア局面でのBUYは70%減点→閾値未満
             # エントリーは次の足のOpen（ルックアヘッドバイアス排除）
             if i + 1 >= len(df):
                 continue
@@ -3186,15 +3192,11 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足（最低100本必要）", "trades": 0, "mode": "scalp"}
 
-        # Layer 1 シミュレーション（DXYトレンドによる大口バイアス）
-        l1_bias = _get_dxy_trend_for_bt()
-
         SPREAD       = 0.003   # 0.3 pip（超短期スプレッド）
-        SL_MULT      = 0.5     # ATR×0.5: 超タイトSL
-        TP_MULT      = 0.9     # ATR×0.9: 快速利確
-        TP_MAX       = 1.5
-        MAX_HOLD     = 15      # bars（1m=15分 / 5m=75分 / 15m=225分）
-        COOLDOWN     = 1       # bars between signals（クリーンデータ向け緩和: 3→1）
+        SL_MULT      = 0.8    # ATR × 0.8
+        TP_MULT      = 1.5    # ATR × 1.5 → RR ≈ 1.9
+        MAX_HOLD     = 12     # bars
+        COOLDOWN     = 2      # bars (10 min at 5m)
         if interval == "1m":   bars_per_min = 1
         elif interval == "5m": bars_per_min = 5
         else:                  bars_per_min = 15
@@ -3206,124 +3208,52 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             if i - last_trade_bar < COOLDOWN:
                 continue
 
-            row     = df.iloc[i]
-            entry   = float(row["Close"])
-            atr7    = float(row["atr7"]) if "atr7" in row.index else float(row["atr"])
-            rsi5    = float(row.get("rsi5", row["rsi"]))
-            rsi9    = float(row.get("rsi9", row["rsi"]))
-            stoch_k = float(row.get("stoch_k", 50.0))
-            stoch_d = float(row.get("stoch_d", 50.0))
-            macdh   = float(row["macd_hist"])
-            bbpb    = float(row["bb_pband"])
-            ema9    = float(row["ema9"])
-            ema21   = float(row["ema21"])
-            ema50   = float(row["ema50"])
-            adx     = float(row.get("adx", 20.0))
-            if atr7 <= 0:
-                continue
+            row      = df.iloc[i]
+            prev_row = df.iloc[i-1]
 
-            # ① ADXマルチプライヤー（ハードフィルターなし・スコア増減のみ）
-            if adx >= 25:   adx_mult = 1.15
-            elif adx >= 15: adx_mult = 1.0
-            else:           adx_mult = 0.75
+            # Indicators
+            ema9     = float(row["ema9"])
+            ema21    = float(row["ema21"])
+            ema50    = float(row["ema50"])
+            ema9_p   = float(prev_row["ema9"])
+            ema21_p  = float(prev_row["ema21"])
+            atr7     = float(row["atr7"]) if "atr7" in row.index else float(row["atr"])
+            adx      = float(row.get("adx", 20.0))
+            rsi      = float(row["rsi"])
 
-            # ② セッションマルチプライヤー（超閑散帯のみ軽減・スキップなし）
-            ses_mult = 1.0
+            # Session filter: London + NY only (07:00-20:00 UTC)
             try:
                 h = row.name.hour
-                if 13 <= h < 17:   ses_mult = 1.20  # London/NY重複: 最高品質
-                elif 7 <= h < 9:   ses_mult = 1.10  # London前場
-                elif 9 <= h < 21:  ses_mult = 1.0   # 通常セッション
-                elif 21 <= h < 23: ses_mult = 0.70  # Post-NY: スコア減衰のみ
-                else:              ses_mult = 0.55  # 深夜〜早朝: 大幅減衰のみ
+                if not (7 <= h < 20):
+                    continue
             except Exception:
                 pass
 
-            # ③ EMAトレンド判定（方向バイアスフィルター: EMA9 vs EMA21のみ）
-            # クリーンデータ向け緩和: モメンタム条件を除去し方向のみ確認
-            lb = 5 if interval == "1m" else (10 if interval == "5m" else 15)
-            ema21_prev = float(df["ema21"].iloc[i - lb])
-            ema9_prev  = float(df["ema9"].iloc[i - lb])
-            ema9_up = ema9 > ema21   # 方向バイアス: EMA9>EMA21=上昇
-            if ema9_up:    d_mult =  1.0  # BUY方向
-            else:          d_mult = -1.0  # SELL方向
-
-            # ─── スコアリング（ハードフィルターなし・全てソフト）─────────────
-            score = 0.0
-
-            if d_mult == 1.0:  # BUY
-                # EMAアライメントボーナス
-                if ema9 > ema21 > ema50:  score += 1.5   # フルアライメント
-                elif ema9 > ema21:         score += 0.8   # 部分アライメント
-                # プルバック近接ボーナス（EMA9への押し目）
-                if   entry <= ema9 * 1.001: score += 1.2  # EMA9直上（完璧な押し目）
-                elif entry <= ema9 * 1.005: score += 0.6  # EMA9近傍
-                # RSIモメンタム（過熱域は小さなペナルティのみ）
-                if   rsi5 < 30:   score += 1.5
-                elif rsi5 < 50:   score += 1.0
-                elif rsi5 < 65:   score += 0.4
-                elif rsi5 > 80:   score -= 0.5  # 過熱ペナルティ（スキップしない）
-                if rsi9 > 40 and rsi9 < 65: score += 0.4
-                # モメンタム指標
-                if macdh > 0:    score += 0.5
-                if bbpb < 0.3:   score += 0.5
-                if stoch_k < 25 and stoch_k > stoch_d: score += 0.8
-                elif stoch_k < 45 and stoch_k > stoch_d: score += 0.4
-                # EMA200方向ボーナス（ハードフィルターからスコアへ変換）
-                ema200_val  = float(row.get("ema200", entry))
-                ema200_ref  = float(df["ema200"].iloc[max(0, i - lb * 3)]
-                                    if "ema200" in df.columns else df["ema50"].iloc[max(0, i - lb * 3)])
-                if ema200_val > ema200_ref: score += 0.6  # 4Hトレンド一致ボーナス
-                else:                       score -= 0.3  # 逆トレンドペナルティのみ
-                # ドンチアンボーナス（ハードフィルターからスコアへ）
-                don_p = float(row.get("don_pct", 0.5))
-                if don_p < 0.35: score += 0.5   # チャネル下位でBUY = 押し目
-                elif don_p > 0.75: score -= 0.3  # チャネル上位でBUY = ペナルティのみ
-            else:  # SELL
-                if ema9 < ema21 < ema50: score -= 1.5
-                elif ema9 < ema21:        score -= 0.8
-                if   entry >= ema9 * 0.999: score -= 1.2
-                elif entry >= ema9 * 0.995: score -= 0.6
-                if   rsi5 > 70:    score -= 1.5
-                elif rsi5 > 50:    score -= 1.0
-                elif rsi5 > 35:    score -= 0.4
-                elif rsi5 < 20:    score += 0.5
-                if rsi9 < 60 and rsi9 > 35: score -= 0.4
-                if macdh < 0:     score -= 0.5
-                if bbpb > 0.7:    score -= 0.5
-                if stoch_k > 75 and stoch_k < stoch_d: score -= 0.8
-                elif stoch_k > 55 and stoch_k < stoch_d: score -= 0.4
-                ema200_val = float(row.get("ema200", entry))
-                ema200_ref = float(df["ema200"].iloc[max(0, i - lb * 3)]
-                                   if "ema200" in df.columns else df["ema50"].iloc[max(0, i - lb * 3)])
-                if ema200_val < ema200_ref: score -= 0.6
-                else:                       score += 0.3
-                don_p = float(row.get("don_pct", 0.5))
-                if don_p > 0.65:   score -= 0.5
-                elif don_p < 0.25: score += 0.3
-
-            # 出来高ボーナス
-            if "Volume" in df.columns:
-                vol_now = float(df["Volume"].iloc[i])
-                vol_avg = float(df["Volume"].iloc[max(0,i-20):i].mean())
-                if vol_avg > 0 and vol_now > vol_avg * 1.3:
-                    score += 0.4 if d_mult == 1.0 else -0.4
-
-            # ADX × セッションマルチプライヤー適用
-            score *= adx_mult * ses_mult
-
-            # Layer 1: カウンタートレンド減点
-            _sig_dir = "BUY" if score > 0 else "SELL"
-            if l1_bias == "bull" and _sig_dir == "SELL":
-                score *= 0.30   # USDブル局面でのSELLは70%減点
-            elif l1_bias == "bear" and _sig_dir == "BUY":
-                score *= 0.30   # USDベア局面でのBUYは70%減点
-
-            # スコア閾値（クリーンデータ向け緩和: 1.0→0.05）
-            if abs(score) < 0.05:
+            # ADX filter: not dead market
+            if adx < 15:
                 continue
 
-            sig = "BUY" if score > 0 else "SELL"
+            # ATR filter: not squeeze
+            atr_avg = float(df["atr"].iloc[max(0,i-20):i].mean())
+            if atr7 < atr_avg * 0.5:
+                continue
+
+            # EMA crossover detection
+            cross_up   = (ema9_p <= ema21_p) and (ema9 > ema21)
+            cross_down = (ema9_p >= ema21_p) and (ema9 < ema21)
+
+            if not cross_up and not cross_down:
+                continue
+
+            # Trend filter: trade in direction of EMA50
+            if cross_up   and ema9 < ema50: continue
+            if cross_down and ema9 > ema50: continue
+
+            # RSI filter: avoid extreme zones for crossovers
+            if cross_up   and rsi > 72: continue
+            if cross_down and rsi < 28: continue
+
+            sig = "BUY" if cross_up else "SELL"
             if i + 1 >= len(df):
                 continue
             ep  = float(df.iloc[i + 1]["Open"])
@@ -3464,82 +3394,73 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足", "trades": 0, "mode": "daytrade"}
 
-        # Layer 1 シミュレーション（DXYトレンドによる大口バイアス）
-        l1_bias = _get_dxy_trend_for_bt()
-
         SPREAD    = 0.010   # 1.0 pip（15m足）
-        SL_MULT   = 1.3     # クリーンデータ向け調整: 0.8→1.3（RR改善）
-        TP_MULT   = 2.0     # RR=1:1.54（ターゲット維持）
-        MAX_HOLD  = 16      # bars（15m足: 4時間）
-        COOLDOWN  = 3       # bars（15m足: クリーンデータ向け緩和: 5→3）
-        ATR_MED   = float(df["atr"].median())
-        bars_per_h = 4      # 15m足 = 4本/時間
+        SL_MULT   = 1.2    # ATR × 1.2
+        TP_MULT   = 2.4    # ATR × 2.4 → RR = 2.0
+        MAX_HOLD  = 16     # bars (4 hours at 15m)
+        COOLDOWN  = 4      # bars (1 hour at 15m)
+        bars_per_h = 4     # 15m足 = 4本/時間
 
         trades = []
         last_bar = -99
 
-        for i in range(max(210, 15), len(df) - MAX_HOLD - 1):
+        for i in range(50, len(df) - MAX_HOLD - 1):
             if i - last_bar < COOLDOWN:
                 continue
 
-            row     = df.iloc[i]
-            entry   = float(row["Close"])
-            atr     = float(row["atr"])
-            ema9    = float(row["ema9"])
-            ema21   = float(row["ema21"])
-            ema50   = float(row["ema50"])
-            ema200  = float(row.get("ema200", row["ema50"]))
-            adx     = float(row.get("adx", 15.0))
-            rsi     = float(row["rsi"])
-            macdh   = float(row["macd_hist"])
-            macdh_p = float(df["macd_hist"].iloc[i-1])
+            row      = df.iloc[i]
+            prev_row = df.iloc[i-1]
+
+            ema9   = float(row["ema9"])
+            ema21  = float(row["ema21"])
+            ema50  = float(row["ema50"])
+            ema200 = float(row.get("ema200", row["ema50"]))
+            ema9_p = float(prev_row["ema9"])
+            ema21_p= float(prev_row["ema21"])
+            atr    = float(row["atr"])
+            adx    = float(row.get("adx", 20.0))
+            macdh  = float(row["macd_hist"])
+            macdh_p= float(df["macd_hist"].iloc[i-1])
+            rsi    = float(row["rsi"])
+
             if atr <= 0: continue
 
-            # セッションフィルター: 7-21 UTC（1時間延長）
+            # Session: London + NY (07:00-19:00 UTC)
             try:
                 h = row.name.hour
-                if not (7 <= h < 21): continue
+                if not (7 <= h < 19):
+                    continue
             except Exception:
                 pass
 
-            # 低ボラフィルター（緩め: 0.35→0.25）
-            if atr < ATR_MED * 0.25: continue
-
-            # ADXフィルター（クリーンデータ向け緩和: 20→8、実質無効化）
-            if adx < 8: continue
-
-            # EMAディレクショナルバイアスフィルター（クリーンデータ向け緩和）
-            # フルアライメント要件を廃止: EMA9 vs EMA21の方向のみ確認
-            bull200    = entry > ema200
-            ema9_up    = ema9 > ema21   # 方向バイアス
-
-            if ema9_up:
-                sig = "BUY"
-            else:
-                sig = "SELL"
-
-            # Layer 1: カウンタートレンド減点
-            l1_score = 1.0
-            if l1_bias == "bull" and sig == "SELL":
-                l1_score *= 0.30   # USDブル局面でのSELLは70%減点
-            elif l1_bias == "bear" and sig == "BUY":
-                l1_score *= 0.30   # USDベア局面でのBUYは70%減点
-            if l1_score < 0.35:
+            # ADX: trend exists
+            if adx < 18:
                 continue
 
-            # RSIフィルター（過熱ゾーン除外）
-            if sig == "BUY"  and rsi > 80: continue
-            if sig == "SELL" and rsi < 20: continue
+            # EMA crossover
+            cross_up   = (ema9_p <= ema21_p) and (ema9 > ema21)
+            cross_down = (ema9_p >= ema21_p) and (ema9 < ema21)
 
-            # MACDフィルター（ハードフィルターからソフト確認へ緩和）
-            # 方向のみ確認（正値チェックを廃止）
-            macd_bull = macdh > macdh_p   # 上昇中
-            macd_bear = macdh < macdh_p   # 下降中
-            if sig == "BUY"  and not macd_bull: continue
-            if sig == "SELL" and not macd_bear: continue
+            if not cross_up and not cross_down:
+                continue
 
-            # EMA200スロープチェック（許容幅拡大: ±0.05→廃止）
-            # クリーンデータではスロープノイズが少ないため不要
+            # Trend confirmation: EMA50 direction
+            if cross_up   and ema9 < ema50: continue
+            if cross_down and ema9 > ema50: continue
+
+            # EMA200 macro filter
+            if cross_up   and float(row["Close"]) < ema200 * 0.998: continue
+            if cross_down and float(row["Close"]) > ema200 * 1.002: continue
+
+            # MACD confirmation: histogram moving in trade direction
+            if cross_up   and macdh < macdh_p: continue
+            if cross_down and macdh > macdh_p: continue
+
+            # RSI
+            if cross_up   and rsi > 70: continue
+            if cross_down and rsi < 30: continue
+
+            sig = "BUY" if cross_up else "SELL"
 
             # エントリーは次の足のOpen（ルックアヘッドバイアス排除）
             if i + 1 >= len(df): continue
