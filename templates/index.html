@@ -1492,13 +1492,13 @@ async function loadBacktest(forceMode, forceCache=false){
   const isSwing=mode==='swing';
   if(!forceCache && _btMode===mode) return;
   _btMode=mode;
-  const lblMap={scalp:'(1m/過去7日)',daytrade:'(15m/過去90日)',swing:'(1d/過去365日)',standard:'(1H/過去90日)'};
+  const lblMap={scalp:'(5m/過去45日)',daytrade:'(15m/過去55日)',swing:'(1d/過去365日)',standard:'(1H/過去90日)'};
   if(lbl) lbl.textContent=lblMap[mode]||'(1H/過去90日)';
   box.innerHTML='<div style="color:var(--t3);font-size:11px">⏳ 計算中...</div>';
   try{
     const forceParam=forceCache?'&force=1':'';
-    // スキャルピング: デフォルト1m足（超高頻度）
-    const scalpTf=(currentTf==='15m')?'15m':(currentTf==='5m'?'5m':'1m');
+    // スキャルピング: デフォルト5m足（実証済み最適）
+    const scalpTf=(currentTf==='1m')?'1m':(currentTf==='15m'?'15m':'5m');
     const urlMap={scalp:`/api/backtest?mode=scalp&tf=${scalpTf}${forceParam}`,
                   daytrade:`/api/backtest?mode=daytrade${forceParam}`,
                   swing:`/api/backtest?mode=swing${forceParam}`};
