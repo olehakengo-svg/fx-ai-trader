@@ -496,7 +496,7 @@ body{background:var(--bg0);color:var(--t1);
 
     <!-- バックテスト結果 -->
     <div class="card">
-      <div class="card-title">📈 バックテスト結果 <span style="font-size:9px;color:var(--t4)">(1H/過去90日)</span></div>
+      <div class="card-title">📈 バックテスト結果 <span id="bt-label" style="font-size:9px;color:var(--t4)">(1H/過去90日)</span></div>
       <div id="bt-box">
         <div style="color:var(--t3);font-size:11px">読込中...</div>
       </div>
@@ -744,6 +744,9 @@ function setMode(mode){
   document.getElementById('card-scalp').style.display=mode==='scalp'?'block':'none';
   // Day Flowモードはプランを読込
   if(mode==='dayflow')loadDayPlan();
+  // バックテストをモードに合わせて再読込（キャッシュリセット）
+  _btMode=null;
+  loadBacktest(mode);
   // シグナルを再取得
   loadSignal();
 }
@@ -1248,38 +1251,51 @@ function startCountdown(){
     if(_secs<=0){_secs=_refreshSecs();refreshAll();}
   },1000);
 }
-// ── バックテスト読込（ページ初期化時のみ、6Hキャッシュ）────────────────
-async function loadBacktest(){
+// ── バックテスト読込（モード切替時・初期化時）────────────────────────
+let _btMode=null; // 最後に読んだモード
+async function loadBacktest(forceMode){
   const box=document.getElementById('bt-box');
+  const lbl=document.getElementById('bt-label');
   if(!box)return;
+  const mode=forceMode||currentMode;
+  const isScalp=mode==='scalp';
+  // 同じモードで取得済みならスキップ（スキャルは1hキャッシュ、標準は6hキャッシュ）
+  if(_btMode===mode) return;
+  _btMode=mode;
+  if(lbl) lbl.textContent=isScalp?'(5m/過去30日 スキャル専用)':'(1H/過去90日)';
+  box.innerHTML='<div style="color:var(--t3);font-size:11px">⏳ 計算中...</div>';
   try{
-    const r=await fetch('/api/backtest');
+    const url=isScalp?`/api/backtest?mode=scalp&tf=${currentTf}`:'/api/backtest';
+    const r=await fetch(url);
     const d=await r.json();
     if(d.error){
-      box.innerHTML=`<div style="color:var(--t3);font-size:11px">${d.error}</div>`;
+      box.innerHTML=`<div style="color:var(--t3);font-size:11px">⚠️ ${d.error}${d.trades!=null?' ('+d.trades+'件)':''}</div>`;
       return;
     }
     const evCol=d.expected_value>0.3?'var(--green)':d.expected_value>0?'var(--yellow)':'var(--red)';
     const vrCol=d.expected_value>0?'rgba(63,185,80,.1)':'rgba(248,81,73,.1)';
     const vrBdr=d.expected_value>0?'var(--green)':'var(--red)';
+    const holdLabel=isScalp
+      ?`${d.avg_hold_min??'—'}分`
+      :`${d.avg_hold_hours??'—'}時間`;
     box.innerHTML=
       `<div class="bt-verdict" style="background:${vrCol};border:1px solid ${vrBdr};color:${evCol}">${d.verdict||'—'}</div>`+
       `<div class="bt-stat"><span class="bt-label">勝率</span><span class="bt-val" style="color:${d.win_rate>=55?'var(--green)':d.win_rate>=45?'var(--yellow)':'var(--red)'}">${d.win_rate}%</span></div>`+
       `<div class="bt-stat"><span class="bt-label">トレード数</span><span class="bt-val">${d.trades}件 (勝${d.wins}/負${d.losses})</span></div>`+
       `<div class="bt-stat"><span class="bt-label">RR比</span><span class="bt-val">1:${d.rr}</span></div>`+
       `<div class="bt-stat"><span class="bt-label">期待値</span><span class="bt-val" style="color:${evCol}">${d.expected_value>0?'+':''}${d.expected_value}</span></div>`+
-      `<div class="bt-stat"><span class="bt-label">平均保有</span><span class="bt-val">${d.avg_hold_hours}時間</span></div>`+
+      `<div class="bt-stat"><span class="bt-label">平均保有</span><span class="bt-val">${holdLabel}</span></div>`+
       `<div class="bt-stat"><span class="bt-label">集計期間</span><span class="bt-val">${d.period||'—'}</span></div>`;
 
     // Walk-forward
     if(d.walk_forward&&d.walk_forward.length){
       const wfHtml=d.walk_forward.map(w=>{
-        const evCol=w.expected_value>0?'var(--green)':'var(--red)';
-        const wrCol=w.win_rate>=50?'var(--green)':w.win_rate>=42?'var(--gold)':'var(--red)';
+        const evC=w.expected_value>0?'var(--green)':'var(--red)';
+        const wrC=w.win_rate>=50?'var(--green)':w.win_rate>=42?'var(--gold)':'var(--red)';
         return`<div class="wf-row">
           <span class="wf-label">${w.label}</span>
-          <span class="wf-wr" style="color:${wrCol}">${w.win_rate}%</span>
-          <span class="wf-ev" style="color:${evCol}">${w.expected_value>0?'+':''}${w.expected_value}</span>
+          <span class="wf-wr" style="color:${wrC}">${w.win_rate}%</span>
+          <span class="wf-ev" style="color:${evC}">${w.expected_value>0?'+':''}${w.expected_value}</span>
           <span style="color:var(--t4);font-size:10px;margin-left:4px">${w.trades}件</span>
         </div>`;
       }).join('');
