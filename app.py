@@ -4154,6 +4154,8 @@ def api_money_management():
         mode      = request.args.get("mode", "scalp")
         goal      = float(request.args.get("goal",    1_000_000))
         months    = float(request.args.get("months",  3))
+        # 現在の USD/JPY レート（フロントから渡す、デフォルト150円）
+        usdjpy    = float(request.args.get("rate",     150.0))
 
         # ── バックテスト実証パラメータ ────────────────────
         BT = {
@@ -4186,16 +4188,53 @@ def api_money_management():
 
         risk_amount  = round(capital * risk_pct / 100, 0)   # 1トレードリスク額（円）
 
-        # USD/JPY: 現在レートで ATR pips → 円換算
-        # ATR参考値: 5m≈0.06円, 15m≈0.12円 / スプレッド考慮済み
+        # USD/JPY: ATR参考値 (5m≈0.06円, 15m≈0.12円)
         atr_ref_jpy  = 0.06 if mode == "scalp" else 0.12
         sl_pips_ref  = round(atr_ref_jpy * p["sl_mult"] * 100, 1)  # pips
 
-        # ポジションサイズ (通貨単位) = リスク額 / (SL pips × pip値)
-        # 1pip = 0.01円/通貨: pip_value_jpy = lot × 0.01
-        # → lot = risk_amount / (sl_pips × 0.01)
-        lot_units    = round(risk_amount / (sl_pips_ref * 0.01), 0)
-        lot_standard = round(lot_units / 100_000, 2)   # 標準ロット
+        # ── ポジションサイズ計算（SBI FX 25倍レバレッジ）─────────────
+        # 1pip = 0.01円/通貨 (USD/JPY)
+        # SBI最小単位 = 1,000通貨（1口）
+        LEVERAGE = 25
+        # ① リスク額ベースの理想口数
+        raw_units     = risk_amount / (sl_pips_ref * 0.01) if sl_pips_ref > 0 else 0
+        lot_sbi_risk  = max(1, int(raw_units / 1_000))
+
+        # ② 証拠金キャップ: 資本の50%まで（SBI維持率200%=ロスカット50%の4倍余裕）
+        # 推奨は余裕係数を変えられるように margin_cap_pct で管理
+        margin_cap_pct = 50.0   # 資本の何%まで証拠金に使うか（安全上限）
+        max_margin_ok  = capital * margin_cap_pct / 100
+        lot_sbi_margin = max(1, int(max_margin_ok * LEVERAGE / (1_000 * usdjpy)))
+
+        # 実際の推奨口数 = 両者の小さい方
+        lot_sbi       = min(lot_sbi_risk, lot_sbi_margin)
+        margin_limited = (lot_sbi < lot_sbi_risk)   # 証拠金上限で口数が絞られた
+        lot_units     = lot_sbi * 1_000              # 実取引通貨数（1,000単位）
+
+        # 最大取引可能口数（資本100%使用した場合の理論上限）
+        max_lot_sbi = max(0, int(capital * LEVERAGE / (1_000 * usdjpy)))
+
+        # 必要証拠金 = 取引通貨数 × USD/JPYレート / レバレッジ
+        required_margin  = round(lot_units * usdjpy / LEVERAGE, 0)
+        margin_ratio_pct = round(required_margin / capital * 100, 1)
+        margin_surplus   = round(capital - required_margin, 0)
+
+        # 証拠金維持率 = 資本 / 必要証拠金 × 100（SBIロスカット閾値: 50%）
+        maint_ratio = round(capital / required_margin * 100, 0) if required_margin > 0 else 9999
+
+        # 証拠金安全ラベル
+        if margin_ratio_pct < 30:
+            margin_safety = "✅ 余裕"
+        elif margin_ratio_pct < 50:
+            margin_safety = "⚠️ 注意"
+        else:
+            margin_safety = "🚨 危険（追証リスク）"
+
+        # 実際のSLリスク額（口数確定後）
+        actual_sl_jpy   = round(lot_units * sl_pips_ref * 0.01, 0)
+        actual_risk_pct = round(actual_sl_jpy / capital * 100, 2)
+
+        lot_standard = round(lot_units / 100_000, 2)   # 標準ロット（参考）
 
         # ── 日次期待PL計算 ────────────────────────────────
         # 期待R/日 = ev × trades_day
@@ -4251,11 +4290,27 @@ def api_money_management():
                 "max_dd_r":      p["max_dd_r"],
             },
             "position": {
-                "sl_pips":       sl_pips_ref,
-                "lot_units":     lot_units,
-                "lot_standard":  lot_standard,
-                "lot_mini":      round(lot_units / 10_000, 2),
-                "lot_micro":     round(lot_units / 1_000, 2),
+                "sl_pips":          sl_pips_ref,
+                "lot_units":        lot_units,          # 取引通貨数
+                "lot_sbi":          lot_sbi,            # SBI口数 (1口=1,000通貨)
+                "lot_sbi_risk":     lot_sbi_risk,       # リスク額ベースの理想口数
+                "lot_sbi_margin":   lot_sbi_margin,     # 証拠金上限ベースの最大口数
+                "margin_limited":   margin_limited,     # 証拠金上限で絞られたか
+                "required_margin":  required_margin,    # 必要証拠金（円）
+                "margin_ratio_pct": margin_ratio_pct,   # 証拠金占有率（%）
+                "maint_ratio":      maint_ratio,        # 証拠金維持率（%）SBI閾値50%
+                "margin_surplus":   margin_surplus,     # 証拠金余力（円）
+                "margin_safety":    margin_safety,      # 安全度ラベル
+                "margin_cap_pct":   margin_cap_pct,     # 使用した証拠金上限設定
+                "max_lot_sbi":      max_lot_sbi,        # 資本で取れる理論最大口数
+                "actual_sl_jpy":    actual_sl_jpy,      # 実効SLリスク額（円）
+                "actual_risk_pct":  actual_risk_pct,    # 実効リスク率（%）
+                "usdjpy_rate":      usdjpy,             # 使用レート
+                "leverage":         LEVERAGE,
+                # 後方互換
+                "lot_standard":     lot_standard,
+                "lot_mini":         round(lot_units / 10_000, 2),
+                "lot_micro":        lot_sbi,
             },
             "expected_pl": {
                 "ev_r_per_day":    ev_r_per_day,

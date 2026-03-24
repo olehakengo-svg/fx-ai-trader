@@ -588,11 +588,26 @@ body{background:var(--bg0);color:var(--t1);
           oninput="loadMoneyMgmt()">
         <span style="font-size:11px;color:var(--t3)">%</span>
       </div>
-      <!-- ポジションサイズ -->
+      <!-- ポジションサイズ（SBI FX 25倍レバレッジ） -->
       <div class="dp-row"><span>1トレードリスク額</span><span id="mm-risk-jpy" style="color:var(--gold);font-weight:700">—</span></div>
-      <div class="dp-row"><span>推奨ロット数(マイクロ)</span><span id="mm-lot-micro" style="color:var(--t1);font-weight:700">—</span></div>
-      <div class="dp-row"><span>推奨ロット数(ミニ)</span><span id="mm-lot-mini" style="color:var(--t1)">—</span></div>
-      <div class="dp-row"><span>SL参考幅</span><span id="mm-sl-pips" style="color:var(--red)">—</span></div>
+      <!-- SBI推奨口数（強調表示） -->
+      <div style="display:flex;justify-content:space-between;align-items:center;
+                  background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.3);
+                  border-radius:8px;padding:6px 10px;margin:4px 0">
+        <span style="font-size:11px;font-weight:700;color:var(--blue)">📌 SBI推奨口数 <small style="font-weight:400;color:var(--t3)">(25倍 / 1口=1,000通貨)</small></span>
+        <span id="mm-lot-sbi" style="font-size:15px;font-weight:700;color:var(--blue)">—</span>
+      </div>
+      <!-- 証拠金制限警告（必要時のみ表示） -->
+      <div id="mm-margin-warn" style="display:none;font-size:10px;color:var(--gold);
+           background:rgba(227,179,65,.08);border:1px solid rgba(227,179,65,.25);
+           border-radius:6px;padding:5px 8px;margin-bottom:4px">—</div>
+      <div class="dp-row"><span style="font-size:11px">取引通貨数</span><span id="mm-lot-units" style="color:var(--t2)">—</span></div>
+      <div class="dp-row"><span style="font-size:11px">必要証拠金</span><span id="mm-margin" style="color:var(--orange);font-weight:700">—</span></div>
+      <div class="dp-row"><span style="font-size:11px">証拠金占有率</span><span id="mm-margin-ratio" style="font-weight:700">—</span></div>
+      <div class="dp-row"><span style="font-size:11px">証拠金余力</span><span id="mm-margin-surplus" style="color:var(--t2)">—</span></div>
+      <div class="dp-row"><span style="font-size:11px">最大取引可能</span><span id="mm-max-lot" style="color:var(--t3);font-size:11px">—</span></div>
+      <div class="dp-row"><span style="font-size:11px">SL参考幅</span><span id="mm-sl-pips" style="color:var(--red)">—</span></div>
+      <div class="dp-row"><span style="font-size:11px">実効リスク額/率</span><span id="mm-actual-risk" style="color:var(--gold)">—</span></div>
       <!-- 期待値 -->
       <div style="margin-top:8px;padding:7px 10px;border-radius:8px;background:rgba(63,185,80,.06);border:1px solid rgba(63,185,80,.2)">
         <div style="font-size:10px;font-weight:700;color:var(--green);margin-bottom:5px">📊 期待収益 (<span id="mm-mode-label">スキャル5m</span>)</div>
@@ -1715,30 +1730,73 @@ function startLivePriceTicker(){
   setInterval(loadLivePrice, 8000); // 8秒ごと（PRICE_TTLに合わせる）
 }
 
-// ── 資金管理カード読込 ────────────────────────────────────────────────
+// ── 資金管理カード読込（SBI FX 25倍レバレッジ対応）──────────────────
 async function loadMoneyMgmt(){
   const capital = parseFloat(document.getElementById('mm-capital')?.value)||250000;
   const risk    = parseFloat(document.getElementById('mm-risk')?.value)||1.0;
   const mode    = currentMode==='daytrade'?'daytrade':'scalp';
+  const rate    = _lastPrice || 150.0;   // 現在のUSD/JPYレート（ライブ価格）
   let d;
   try{
-    const r = await fetch(`/api/money-management?capital=${capital}&risk_pct=${risk}&mode=${mode}&goal=1000000&months=3`);
+    const r = await fetch(`/api/money-management?capital=${capital}&risk_pct=${risk}&mode=${mode}&goal=1000000&months=3&rate=${rate}`);
     d = await r.json();
   }catch(e){return;}
   if(d.error) return;
   const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
-  set('mm-risk-jpy',  `¥${Math.round(d.risk_amount_jpy).toLocaleString()}`);
-  set('mm-lot-micro', `${d.position.lot_micro} lot`);
-  set('mm-lot-mini',  `${d.position.lot_mini} lot`);
-  set('mm-sl-pips',   `${d.position.sl_pips} pips`);
-  set('mm-ev-day',    `¥${Math.round(d.expected_pl.jpy_per_day).toLocaleString()}`);
-  set('mm-ev-month',  `¥${Math.round(d.expected_pl.jpy_per_month).toLocaleString()}`);
+
+  // ── 基本リスク額 ──
+  set('mm-risk-jpy', `¥${Math.round(d.risk_amount_jpy).toLocaleString()}`);
+
+  // ── SBI FX ポジション情報 ──
+  const pos = d.position;
+  const units = pos.lot_units;
+
+  // SBI推奨口数（証拠金制限メッセージ付き）
+  const lotEl = document.getElementById('mm-lot-sbi');
+  if(lotEl){
+    lotEl.textContent = `${pos.lot_sbi} 口`;
+    if(pos.margin_limited){
+      lotEl.title = `リスク額ベースでは${pos.lot_sbi_risk}口が理想ですが、証拠金上限(資本の${pos.margin_cap_pct}%)により${pos.lot_sbi}口に制限されています`;
+      lotEl.style.color = 'var(--gold)';
+    } else {
+      lotEl.style.color = 'var(--blue)';
+    }
+  }
+  // 証拠金制限時の注意バナー
+  const warnEl = document.getElementById('mm-margin-warn');
+  if(warnEl) warnEl.style.display = pos.margin_limited ? 'block' : 'none';
+  if(warnEl && pos.margin_limited){
+    warnEl.textContent = `⚠️ 証拠金上限のため${pos.lot_sbi_risk}口→${pos.lot_sbi}口に調整。資本増やすかリスク%を下げてください`;
+  }
+
+  set('mm-lot-units', `${units.toLocaleString()} 通貨 (${(units/10000).toFixed(1)}万通貨)`);
+  set('mm-margin',    `¥${Math.round(pos.required_margin).toLocaleString()}`);
+
+  // 証拠金占有率 + 維持率（色付き）
+  const mrEl = document.getElementById('mm-margin-ratio');
+  if(mrEl){
+    const pct = pos.margin_ratio_pct;
+    mrEl.textContent = `${pct}%  (維持率${pos.maint_ratio}%)  ${pos.margin_safety}`;
+    mrEl.style.color = pct < 30 ? 'var(--green)' : pct < 50 ? 'var(--gold)' : 'var(--red)';
+  }
+  set('mm-margin-surplus', `¥${Math.round(pos.margin_surplus).toLocaleString()}`);
+  set('mm-max-lot',   `最大 ${pos.max_lot_sbi} 口 (${(pos.max_lot_sbi*1000).toLocaleString()}通貨)`);
+  set('mm-sl-pips',   `${pos.sl_pips} pips`);
+  set('mm-actual-risk', `¥${Math.round(pos.actual_sl_jpy).toLocaleString()} (${pos.actual_risk_pct}%)`);
+
+  // ── 期待収益 ──
+  set('mm-ev-day',      `¥${Math.round(d.expected_pl.jpy_per_day).toLocaleString()}`);
+  set('mm-ev-month',    `¥${Math.round(d.expected_pl.jpy_per_month).toLocaleString()}`);
   set('mm-monthly-pct', `+${d.expected_pl.monthly_return_pct}%`);
-  set('mm-projected', `¥${Math.round(d.expected_pl.projected_capital).toLocaleString()}`);
-  set('mm-max-dd',    `¥${Math.round(d.risk.max_dd_jpy).toLocaleString()} (${d.risk.max_dd_pct}%)`);
-  set('mm-ruin',      d.risk.ruin_risk);
-  set('mm-wr-bep',    `${d.backtest.win_rate}% / ${d.backtest.bep}%`);
+  set('mm-projected',   `¥${Math.round(d.expected_pl.projected_capital).toLocaleString()}`);
+
+  // ── リスク指標 ──
+  set('mm-max-dd',  `¥${Math.round(d.risk.max_dd_jpy).toLocaleString()} (${d.risk.max_dd_pct}%)`);
+  set('mm-ruin',    d.risk.ruin_risk);
+  set('mm-wr-bep',  `${d.backtest.win_rate}% / ${d.backtest.bep}%`);
   set('mm-mode-label', d.label);
+
+  // ── 目標トラッカー ──
   const prog = Math.min(d.goal_tracker.progress_pct, 100);
   set('mm-progress-pct', `${prog}%`);
   const bar = document.getElementById('mm-progress-bar');
