@@ -2123,7 +2123,7 @@ def run_backtest(symbol: str = "USDJPY=X",
         SL_MULT      = TF_SL_MULT["1h"]   # 2.2
         TP_MULT      = TF_TP_MULT["1h"]   # 3.3
         MAX_HOLD     = 48                  # bars (hours)
-        MIN_COMBINED = 0.28                # EMA200追加によるdropna減少を考慮して緩和
+        MIN_COMBINED = 0.31                # 弱シグナル排除（1h=900bars確保済み）
         EMA_LB       = 15
         ATR_MED      = float(df["atr"].median())
 
@@ -2621,7 +2621,10 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             # 低ボラフィルター（緩め）
             if atr < ATR_MED * 0.35: continue
 
-            # EMA200方向 + EMAアライメント
+            # ADX最低閾値（トレンド環境のみ）
+            if adx < 18: continue
+
+            # EMA200方向 + EMAアライメント（一致のみ許可、逆張り不可）
             bull200 = entry > ema200
             bull_align = ema9 > ema21 > ema50
             bear_align = ema9 < ema21 < ema50
@@ -2630,12 +2633,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 sig = "BUY"
             elif bear_align and not bull200:
                 sig = "SELL"
-            elif bull_align and adx > 25:   # EMA200と不一致でも強トレンドなら許可
-                sig = "BUY"
-            elif bear_align and adx > 25:
-                sig = "SELL"
             else:
-                continue
+                continue  # EMA200と不一致はスキップ
 
             # RSIフィルター（過熱ゾーン除外）
             if sig == "BUY"  and rsi > 75: continue
@@ -2789,20 +2788,27 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
             # EMA200方向フィルター（必須）
             bull200 = entry > ema200
 
+            # EMA200傾き（10日スロープ）— 方向性を確認してからエントリー
+            ema200_prev = float(df["ema200"].iloc[i - 10]) if i >= 10 else ema200
+            ema200_rising = ema200 > ema200_prev
+
             # EMAアライメント
             bull_align = ema21 > ema50
             bear_align = ema21 < ema50
 
-            if bull200 and bull_align:
+            if bull200 and bull_align and ema200_rising:
                 sig = "BUY"
-            elif not bull200 and bear_align:
+            elif not bull200 and bear_align and not ema200_rising:
                 sig = "SELL"
             else:
                 continue
 
-            # RSIフィルター（スイング: 過熱極端のみ除外）
-            if sig == "BUY"  and rsi > 82: continue
-            if sig == "SELL" and rsi < 18: continue
+            # ADX最低閾値（トレンド環境のみ）
+            if adx < 15: continue
+
+            # RSIモメンタム確認（スイング: 方向性に沿ったゾーン）
+            if sig == "BUY"  and not (40 <= rsi <= 78): continue  # 押し目ゾーン
+            if sig == "SELL" and not (22 <= rsi <= 60): continue  # 戻りゾーン
 
             # MACDヒスト方向確認（方向のみ、符号は問わない）
             if sig == "BUY"  and not (macdh > macdh_p): continue
