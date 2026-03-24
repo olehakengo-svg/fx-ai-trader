@@ -91,7 +91,7 @@ def _fetch_raw(symbol: str, period: str, interval: str) -> pd.DataFrame:
 
 # TF別キャッシュTTL
 _TF_CACHE_TTL = {
-    "1m": 20, "5m": 30, "15m": 60, "30m": 90,
+    "1m": 10, "5m": 15, "15m": 45, "30m": 90,
     "1h": 180, "4h": 300, "1d": 600, "1wk": 1800, "1mo": 3600,
 }
 
@@ -109,7 +109,7 @@ _TD_SYMBOL_MAP = {
 _TD_INTERVALS = {"1m", "5m", "15m", "30m", "1h"}
 # TwelveDataでリクエストするバー数
 _TD_OUTPUTSIZE = {
-    "1m": 800, "5m": 800, "15m": 600, "30m": 400, "1h": 500,
+    "1m": 500, "5m": 600, "15m": 600, "30m": 400, "1h": 500,
 }
 
 # データソース記録 (最後に使ったソース)
@@ -165,6 +165,28 @@ def fetch_ohlcv_twelvedata(symbol: str, interval: str) -> pd.DataFrame:
     return pd.DataFrame(rows, index=idx).dropna()
 
 
+def _rt_patch(df: pd.DataFrame, symbol: str, interval: str) -> pd.DataFrame:
+    """
+    価格キャッシュ(_price_cache)が新鮮なら、最終足のClose/High/Lowをリアルタイム更新。
+    OHLCVを再取得せずに現在足を常に最新化するため、足型ズレを大幅に削減する。
+    USD/JPY の 1m/5m のみ対象。
+    """
+    if interval not in ("1m", "5m") or symbol not in _TD_SYMBOL_MAP:
+        return df
+    pc = _price_cache  # グローバル参照（モジュール初期化後は常に存在）
+    if not pc.get("ts"):
+        return df
+    age = (datetime.now() - pc["ts"]).total_seconds()
+    if age > 10:
+        return df
+    price = float(pc["data"]["price"])
+    last  = df.index[-1]
+    df.at[last, "Close"] = price
+    df.at[last, "High"]  = max(float(df.at[last, "High"]), price)
+    df.at[last, "Low"]   = min(float(df.at[last, "Low"]),  price)
+    return df
+
+
 def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
     key = (symbol, interval, period)
     now = datetime.now()
@@ -172,7 +194,7 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
     if key in _data_cache:
         cached_df, ts = _data_cache[key]
         if (now - ts).total_seconds() < ttl:
-            return cached_df.copy()
+            return _rt_patch(cached_df.copy(), symbol, interval)
 
     df = None
     # ── TwelveData優先: USD/JPY の短期TFのみ ──

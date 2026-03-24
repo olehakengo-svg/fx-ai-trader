@@ -1221,8 +1221,8 @@ async function loadSignal(){
 // ════════════════════════════════════════════════
 //  Auto-refresh（モード別インターバル）
 // ════════════════════════════════════════════════
-// スキャルプ: 30秒, その他: 60秒
-const _REFRESH_INTERVAL = {standard:60, scalp:30, session:45, dayflow:60};
+// スキャルプ: 15秒, その他: 60秒
+const _REFRESH_INTERVAL = {standard:60, scalp:15, session:45, dayflow:60};
 let _secs=60, _timer=null;
 
 function _refreshSecs(){return _REFRESH_INTERVAL[currentMode]||60;}
@@ -1402,7 +1402,7 @@ async function loadLivePrice(){
 
 function startLivePriceTicker(){
   loadLivePrice();
-  setInterval(loadLivePrice, 10000); // 10秒ごと
+  setInterval(loadLivePrice, 8000); // 8秒ごと（PRICE_TTLに合わせる）
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
