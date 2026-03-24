@@ -832,7 +832,7 @@ def detect_round_number_sr(price: float, window_pips: float = 200.0) -> list:
     return sorted(levels)
 
 
-def get_volume_poc(df: pd.DataFrame, lookback: int = 200) -> float | None:
+def get_volume_poc(df: pd.DataFrame, lookback: int = 200) -> "float | None":
     """
     Volume Point of Control (VPOC) — 機関投資家が最も取引した価格帯。
     学術根拠: Gärtner & Kübler (2016), Czyżewski et al. (2020)
