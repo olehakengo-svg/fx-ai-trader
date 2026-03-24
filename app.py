@@ -4033,9 +4033,19 @@ def api_chart():
 def api_backtest():
     """バックテスト結果（モード別キャッシュ）
     ?mode=scalp&tf=5m / ?mode=daytrade / ?mode=swing / ?mode=standard
+    ?force=1 でキャッシュを無視して即時再計算
     """
     try:
-        mode = request.args.get("mode", "standard")
+        mode  = request.args.get("mode", "standard")
+        force = request.args.get("force", "0") == "1"
+
+        # force=1: 対象モードのキャッシュをクリアして再計算
+        if force:
+            if mode == "scalp":      _scalp_bt_cache.clear()
+            elif mode == "daytrade": _dt_bt_cache.clear()
+            elif mode == "swing":    _sw_bt_cache.clear()
+            else:                    _bt_cache.clear()
+
         if mode == "scalp":
             tf       = request.args.get("tf", "5m")
             interval = "15m" if tf == "15m" else "5m"

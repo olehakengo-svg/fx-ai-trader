@@ -557,7 +557,14 @@ body{background:var(--bg0);color:var(--t1);
 
     <!-- バックテスト結果 -->
     <div class="card">
-      <div class="card-title">📈 バックテスト結果 <span id="bt-label" style="font-size:9px;color:var(--t4)">(1H/過去90日)</span></div>
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>📈 バックテスト結果 <span id="bt-label" style="font-size:9px;color:var(--t4)">(1H/過去90日)</span></span>
+        <button id="btn-bt-refresh" onclick="forceRefreshBT()" title="キャッシュをクリアして今すぐ再計算"
+          style="font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid var(--border);
+                 background:var(--card);color:var(--t2);cursor:pointer;white-space:nowrap">
+          🔄 今すぐ更新
+        </button>
+      </div>
       <div id="bt-box">
         <div style="color:var(--t3);font-size:11px">読込中...</div>
       </div>
@@ -1464,9 +1471,18 @@ function startTrendPoll(){
   _trendPollTimer=setInterval(pollTrendStatus, 30*60*1000); // 30分ごと
 }
 
+// ── バックテスト強制更新（手動ボタン用）────────────────────────────
+async function forceRefreshBT(){
+  const btn=document.getElementById('btn-bt-refresh');
+  if(btn){btn.disabled=true;btn.textContent='⏳ 更新中...';}
+  _btMode=null; // キャッシュフラグをリセット（同一モードでも再取得）
+  await loadBacktest(currentMode, true);
+  if(btn){btn.disabled=false;btn.textContent='🔄 今すぐ更新';}
+}
+
 // ── バックテスト読込（モード切替時・初期化時）────────────────────────
 let _btMode=null; // 最後に読んだモード
-async function loadBacktest(forceMode){
+async function loadBacktest(forceMode, forceCache=false){
   const box=document.getElementById('bt-box');
   const lbl=document.getElementById('bt-label');
   if(!box)return;
@@ -1474,16 +1490,17 @@ async function loadBacktest(forceMode){
   const isScalp=mode==='scalp';
   const isDaytrade=mode==='daytrade';
   const isSwing=mode==='swing';
-  if(_btMode===mode) return;
+  if(!forceCache && _btMode===mode) return;
   _btMode=mode;
   const lblMap={scalp:'(5m/過去30日)',daytrade:'(30m/過去90日)',swing:'(1d/過去365日)',standard:'(1H/過去90日)'};
   if(lbl) lbl.textContent=lblMap[mode]||'(1H/過去90日)';
   box.innerHTML='<div style="color:var(--t3);font-size:11px">⏳ 計算中...</div>';
   try{
-    const urlMap={scalp:`/api/backtest?mode=scalp&tf=${currentTf}`,
-                  daytrade:'/api/backtest?mode=daytrade',
-                  swing:'/api/backtest?mode=swing'};
-    const url=urlMap[mode]||'/api/backtest';
+    const forceParam=forceCache?'&force=1':'';
+    const urlMap={scalp:`/api/backtest?mode=scalp&tf=${currentTf}${forceParam}`,
+                  daytrade:`/api/backtest?mode=daytrade${forceParam}`,
+                  swing:`/api/backtest?mode=swing${forceParam}`};
+    const url=urlMap[mode]||(forceCache?'/api/backtest?force=1':'/api/backtest');
     const r=await fetch(url);
     const d=await r.json();
     if(d.error){
