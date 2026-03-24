@@ -3318,6 +3318,15 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "error":  f"サンプル数不足（{len(trades)}トレード）",
                 "trades": len(trades),
                 "mode":   "scalp",
+                "debug": {
+                    "bars_total": len(df),
+                    "bars_after_indicators": len(df),
+                    "date_range": f"{df.index[0]} → {df.index[-1]}" if len(df) > 0 else "empty",
+                    "ema9_sample": float(df["ema9"].iloc[-1]) if len(df) > 0 else None,
+                    "adx_sample": float(df.get("adx", pd.Series([0])).iloc[-1]) if len(df) > 0 else None,
+                    "interval": interval,
+                    "lookback_days": lookback_days,
+                },
             }
         else:
             wins  = sum(1 for t in trades if t["outcome"] == "WIN")
