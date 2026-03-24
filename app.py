@@ -1855,6 +1855,194 @@ def run_backtest(symbol: str = "USDJPY=X",
 
 
 # ═══════════════════════════════════════════════════════
+#  スキャルピング専用バックテスト（5m/15m足）
+# ═══════════════════════════════════════════════════════
+_scalp_bt_cache: dict = {}
+SCALP_BT_TTL = 3600  # 1時間キャッシュ
+
+def run_scalp_backtest(symbol: str = "USDJPY=X",
+                       lookback_days: int = 30,
+                       interval: str = "5m") -> dict:
+    """
+    スキャルピング専用バックテスト。
+    実際のcompute_scalp_signalと同じロジック（EMA9PB必須/RSI5/Stoch/MACD/BB）で検証。
+    ② TP: S/Rレベルを考慮した動的調整（最大ATR7×2.0）
+    ③ EMA9プルバック必須 + THRESHOLD=0.55（厳格化後と同条件）
+    SL: ATR7×0.8 / MAX_HOLD: 20bars / 1時間キャッシュ。
+    """
+    global _scalp_bt_cache
+    cache_key = f"{interval}_{lookback_days}"
+    now = datetime.now()
+    cached = _scalp_bt_cache.get(cache_key)
+    if cached and (now - cached["ts"]).total_seconds() < SCALP_BT_TTL:
+        return cached["result"]
+
+    try:
+        df = fetch_ohlcv(symbol, period=f"{lookback_days}d", interval=interval)
+        df = add_indicators(df)
+        df = df.dropna()
+        if len(df) < 200:
+            return {"error": "データ不足（最低200本必要）", "trades": 0, "mode": "scalp"}
+
+        SPREAD    = 0.005   # 0.5 pip
+        SL_MULT   = 0.8
+        TP_MULT   = 1.3
+        TP_MAX    = 2.0     # S/R調整後の上限倍率
+        MAX_HOLD  = 20      # bars
+        THRESHOLD = 0.55    # 厳格化後閾値（③と同条件）
+        bars_per_min = 5 if interval == "5m" else 15
+
+        trades = []
+        for i in range(60, len(df) - MAX_HOLD - 1):
+            row     = df.iloc[i]
+            entry   = float(row["Close"])
+            atr7    = float(row["atr7"]) if "atr7" in row.index else float(row["atr"])
+            rsi5    = float(row.get("rsi5", row["rsi"]))
+            stoch_k = float(row.get("stoch_k", 50.0))
+            stoch_d = float(row.get("stoch_d", 50.0))
+            macdh   = float(row["macd_hist"])
+            bbpb    = float(row["bb_pband"])
+            ema9    = float(row["ema9"])
+            ema21   = float(row["ema21"])
+            ema50   = float(row["ema50"])
+            if atr7 <= 0:
+                continue
+
+            # EMAトレンド判定（10本前との比較）
+            ema21_prev = float(df["ema21"].iloc[i - 10])
+            if   ema21 > ema21_prev and ema21 > ema50: d_mult =  1.0
+            elif ema21 < ema21_prev and ema21 < ema50: d_mult = -1.0
+            else: continue  # トレンド不明瞭はスキップ
+
+            score = 0.0
+            has_pullback = False
+
+            if d_mult == 1.0:
+                if ema9 > ema21 > ema50:
+                    if entry <= ema9 * 1.001:   score += 2.0; has_pullback = True
+                    elif entry <= ema9 * 1.003: score += 0.8
+                    else:                       score += 0.3
+                elif ema9 > ema21:              score += 0.4
+                if rsi5 < 25:   score += 1.8
+                elif rsi5 < 45: score += 1.2
+                elif rsi5 < 55: score += 0.5
+                if macdh > 0:   score += 0.6
+                if bbpb < 0.25: score += 0.6
+                if stoch_k < 20 and stoch_k > stoch_d:  score += 1.0
+                elif stoch_k < 40 and stoch_k > stoch_d: score += 0.5
+            else:
+                if ema9 < ema21 < ema50:
+                    if entry >= ema9 * 0.999:   score -= 2.0; has_pullback = True
+                    elif entry >= ema9 * 0.997: score -= 0.8
+                    else:                       score -= 0.3
+                elif ema9 < ema21:              score -= 0.4
+                if rsi5 > 75:   score -= 1.8
+                elif rsi5 > 55: score -= 1.2
+                elif rsi5 > 45: score -= 0.5
+                if macdh < 0:   score -= 0.6
+                if bbpb > 0.75: score -= 0.6
+                if stoch_k > 80 and stoch_k < stoch_d:  score -= 1.0
+                elif stoch_k > 60 and stoch_k < stoch_d: score -= 0.5
+
+            # ③ EMA9プルバック必須 + THRESHOLD=0.55
+            if not has_pullback or abs(score) < THRESHOLD:
+                continue
+
+            sig = "BUY" if score > 0 else "SELL"
+            ep  = entry + SPREAD / 2 if sig == "BUY" else entry - SPREAD / 2
+            sl  = ep - atr7 * SL_MULT if sig == "BUY" else ep + atr7 * SL_MULT
+
+            # ② TP: S/Rスナップ（直近100本から簡易S/R算出）
+            sub_sr = find_sr_levels(df.iloc[max(0, i - 100):i + 1],
+                                    window=5, tolerance_pct=0.002)
+            if sig == "BUY":
+                tp_cands = [l for l in sub_sr if ep + atr7 * 0.3 < l < ep + atr7 * TP_MAX]
+                tp = round(min(tp_cands) - atr7 * 0.05, 3) if tp_cands else round(ep + atr7 * TP_MULT, 3)
+            else:
+                tp_cands = [l for l in sub_sr if ep - atr7 * TP_MAX < l < ep - atr7 * 0.3]
+                tp = round(max(tp_cands) + atr7 * 0.05, 3) if tp_cands else round(ep - atr7 * TP_MULT, 3)
+            # 最小RR保証（1.0以上）
+            sl_dist = abs(ep - sl)
+            if abs(tp - ep) < sl_dist:
+                tp = round(ep + sl_dist * 1.2, 3) if sig == "BUY" else round(ep - sl_dist * 1.2, 3)
+
+            outcome = None
+            bars_held = 0
+            for j in range(1, MAX_HOLD + 1):
+                if i + j >= len(df):
+                    break
+                fut = df.iloc[i + j]
+                hi, lo = float(fut["High"]), float(fut["Low"])
+                if sig == "BUY":
+                    if hi >= tp: outcome = "WIN";  bars_held = j; break
+                    if lo <= sl: outcome = "LOSS"; bars_held = j; break
+                else:
+                    if lo <= tp: outcome = "WIN";  bars_held = j; break
+                    if hi >= sl: outcome = "LOSS"; bars_held = j; break
+
+            if outcome:
+                trades.append({"outcome": outcome, "bars_held": bars_held, "sig": sig})
+
+        if len(trades) < 10:
+            result = {
+                "error":  f"サンプル数不足（{len(trades)}トレード）",
+                "trades": len(trades),
+                "mode":   "scalp",
+            }
+        else:
+            wins  = sum(1 for t in trades if t["outcome"] == "WIN")
+            total = len(trades)
+            wr    = round(wins / total * 100, 1)
+            rr    = round(TP_MULT / SL_MULT, 2)
+            ev    = round((wr / 100 * TP_MULT) - ((1 - wr / 100) * SL_MULT), 3)
+            avg_h = round(sum(t["bars_held"] for t in trades) / total, 1)
+
+            if   ev > 0.3: verdict = "✅ 期待値プラス（スキャル推奨）"
+            elif ev > 0:   verdict = "🟡 期待値わずかプラス（要注意）"
+            else:          verdict = "❌ 期待値マイナス（スキャル不推奨）"
+
+            # Walk-forward: 3窓
+            wlen = max(1, len(trades) // 3)
+            wf_windows = []
+            for w in range(3):
+                wt = trades[w * wlen:(w + 1) * wlen]
+                if len(wt) < 5:
+                    continue
+                ww  = sum(1 for t in wt if t["outcome"] == "WIN")
+                wwr = round(ww / len(wt) * 100, 1)
+                wev = round((wwr / 100 * TP_MULT) - ((1 - wwr / 100) * SL_MULT), 3)
+                wf_windows.append({"label": f"窓{w + 1}", "trades": len(wt),
+                                   "win_rate": wwr, "expected_value": wev})
+
+            profitable = sum(1 for w in wf_windows if w.get("expected_value", -1) > 0)
+            result = {
+                "win_rate":       wr,
+                "trades":         total,
+                "wins":           wins,
+                "losses":         total - wins,
+                "rr":             rr,
+                "avg_hold_bars":  avg_h,
+                "avg_hold_min":   round(avg_h * bars_per_min, 1),
+                "expected_value": ev,
+                "verdict":        verdict,
+                "period":         f"過去{lookback_days}日 ({interval}足)",
+                "sl_mult":        SL_MULT,
+                "tp_mult":        TP_MULT,
+                "threshold":      THRESHOLD,
+                "walk_forward":   wf_windows,
+                "consistency":    f"{profitable}/{len(wf_windows)} 窓でプラス期待値",
+                "mode":           "scalp",
+            }
+
+        _scalp_bt_cache[cache_key] = {"result": result, "ts": now}
+        return result
+    except Exception as e:
+        import traceback
+        print(f"[SCALP_BT] {traceback.format_exc()}")
+        return {"error": str(e), "mode": "scalp"}
+
+
+# ═══════════════════════════════════════════════════════
 #  大口参入マーカー生成（チャート描画用）
 # ═══════════════════════════════════════════════════════
 def detect_large_player_markers(df: pd.DataFrame, vol_window: int = 20,
@@ -2279,17 +2467,53 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     if tf not in ("1m", "5m", "15m"):
         reasons.append(f"⚠️ {tf}足 — スキャルは1m/5m/15m推奨")
 
-    # ── SL / TP（タイト固定）──
-    SCALP_SL, SCALP_TP, THRESHOLD = 0.8, 1.3, 0.40
-    if   score >  THRESHOLD: signal, conf = "BUY",  int(min(88, 50 + score * 20))
+    # ── SL / TP ──
+    SCALP_SL, SCALP_TP, THRESHOLD = 0.8, 1.3, 0.55  # ③ THRESHOLD 0.40→0.55
+    # ③ EMA9プルバック必須チェック
+    has_pb = any("EMA9プルバック" in r and ("BUYゾーン" in r or "SELLゾーン" in r) for r in reasons)
+    if not has_pb and abs(score) >= THRESHOLD:
+        reasons.append("⛔ EMA9プルバック未確認 → WAIT（プルバック待機推奨）")
+        signal, conf = "WAIT", int(max(20, 50 - abs(score) * 10))
+    elif score >  THRESHOLD: signal, conf = "BUY",  int(min(88, 50 + score * 20))
     elif score < -THRESHOLD: signal, conf = "SELL", int(min(88, 50 + abs(score) * 20))
     else:                    signal, conf = "WAIT", int(max(20, 50 - abs(score) * 25))
 
     act = signal if signal != "WAIT" else ("BUY" if score >= 0 else "SELL")
-    # ATR7（短期）をSL/TPに使用 → よりタイトなスキャルプ設定
     atr_scalp = atr7 if atr7 > 0 else atr
-    sl  = round(entry - atr_scalp * SCALP_SL, 3) if act == "BUY" else round(entry + atr_scalp * SCALP_SL, 3)
-    tp  = round(entry + atr_scalp * SCALP_TP, 3) if act == "BUY" else round(entry - atr_scalp * SCALP_TP, 3)
+
+    # SL: ATR7ベース（タイト固定）
+    sl = round(entry - atr_scalp * SCALP_SL, 3) if act == "BUY" else round(entry + atr_scalp * SCALP_SL, 3)
+
+    # ② TP: S/Rレベルを考慮した動的調整（最大ATR7×2.0）
+    SCALP_TP_MAX = 2.0
+    if act == "BUY":
+        tp_cands = [l for l in sr_levels if entry + atr_scalp * 0.3 < l < entry + atr_scalp * SCALP_TP_MAX]
+        if tp_cands:
+            tp = round(min(tp_cands) - atr_scalp * 0.05, 3)
+            reasons.append(f"🎯 TP → S/R {min(tp_cands):.3f} に調整")
+        else:
+            tp = round(entry + atr_scalp * SCALP_TP, 3)
+        # ③ 直近S/Rが近すぎる場合は警告
+        near_sr = [l for l in sr_levels if entry < l < entry + atr_scalp * 0.5]
+        if near_sr:
+            reasons.append(f"⚠️ 直近S/R({min(near_sr):.3f})近接 → TP到達前に反発リスク")
+    else:
+        tp_cands = [l for l in sr_levels if entry - atr_scalp * SCALP_TP_MAX < l < entry - atr_scalp * 0.3]
+        if tp_cands:
+            tp = round(max(tp_cands) + atr_scalp * 0.05, 3)
+            reasons.append(f"🎯 TP → S/R {max(tp_cands):.3f} に調整")
+        else:
+            tp = round(entry - atr_scalp * SCALP_TP, 3)
+        near_sr = [l for l in sr_levels if entry - atr_scalp * 0.5 < l < entry]
+        if near_sr:
+            reasons.append(f"⚠️ 直近S/R({max(near_sr):.3f})近接 → TP到達前に反発リスク")
+
+    # 最小RR保証（1.0以上）
+    sl_dist = abs(entry - sl)
+    if abs(tp - entry) < sl_dist:
+        tp = round(entry + sl_dist * 1.2, 3) if act == "BUY" else round(entry - sl_dist * 1.2, 3)
+        reasons.append("⚠️ RR不足 → TP最小RR1.2に拡張")
+
     rr  = round(abs(tp - entry) / max(abs(sl - entry), 1e-6), 2)
 
     ts_str = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
@@ -2485,9 +2709,17 @@ def api_chart():
 
 @app.route("/api/backtest")
 def api_backtest():
-    """バックテスト結果（6時間キャッシュ）"""
+    """バックテスト結果（標準: 6h キャッシュ、スキャル: 1h キャッシュ）
+    ?mode=scalp&tf=5m でスキャル専用バックテストを返す。
+    """
     try:
-        result = run_backtest("USDJPY=X", lookback_days=90)
+        mode = request.args.get("mode", "standard")
+        if mode == "scalp":
+            tf       = request.args.get("tf", "5m")
+            interval = "15m" if tf == "15m" else "5m"
+            result   = run_scalp_backtest("USDJPY=X", lookback_days=30, interval=interval)
+        else:
+            result = run_backtest("USDJPY=X", lookback_days=90)
         return jsonify(result)
     except Exception as e:
         import traceback
