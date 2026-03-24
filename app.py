@@ -944,6 +944,7 @@ def get_master_bias(symbol: str) -> dict:
                               "detail": inst_detail}
     except Exception as e:
         print(f"[MasterBias/inst] {e}")
+        votes.append(0)  # データ取得失敗→中立票
         components["inst"] = {"direction": "neutral", "score": 0.0}
 
     # ② COT大口投機筋ネットポジション
@@ -956,6 +957,7 @@ def get_master_bias(symbol: str) -> dict:
                              "detail": cot_detail}
     except Exception as e:
         print(f"[MasterBias/cot] {e}")
+        votes.append(0)  # データ取得失敗→中立票
         components["cot"] = {"direction": "neutral", "score": 0.0}
 
     # ③ DXY短期EMAトレンド
@@ -973,6 +975,7 @@ def get_master_bias(symbol: str) -> dict:
                              "ema9": round(dxy_e9, 2), "ema21": round(dxy_e21, 2)}
     except Exception as e:
         print(f"[MasterBias/dxy] {e}")
+        votes.append(0)  # データ取得失敗→中立票
         components["dxy"] = {"direction": "neutral", "value": 0.0}
 
     # 多数決
@@ -3221,37 +3224,34 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             adx      = float(row.get("adx", 20.0))
             rsi      = float(row["rsi"])
 
-            # Session filter: London + NY only (07:00-20:00 UTC)
-            try:
-                h = row.name.hour
-                if not (7 <= h < 20):
-                    continue
-            except Exception:
-                pass
+            # ATR regime filter: skip high volatility spikes (ATR > 2.5x 20-bar avg)
+            atr_val = float(row["atr7"]) if "atr7" in row.index else float(row["atr"])
+            atr_20avg = float(df["atr"].iloc[max(0,i-20):i].mean())
+            if atr_20avg > 0 and atr_val > atr_20avg * 2.5:
+                continue  # 異常ボラティリティ → スキップ
 
-            # ADX filter: not dead market
-            if adx < 15:
-                continue
+            # Signal: EMA crossover + EMA50 direction + session only
+            # Remove: MACD filter, EMA200 filter, RSI filter from scalp (too many simultaneous conditions)
 
-            # ATR filter: not squeeze
-            atr_avg = float(df["atr"].iloc[max(0,i-20):i].mean())
-            if atr7 < atr_avg * 0.5:
-                continue
-
-            # EMA crossover detection
             cross_up   = (ema9_p <= ema21_p) and (ema9 > ema21)
             cross_down = (ema9_p >= ema21_p) and (ema9 < ema21)
 
             if not cross_up and not cross_down:
                 continue
 
-            # Trend filter: trade in direction of EMA50
+            # EMA50 trend direction filter only
             if cross_up   and ema9 < ema50: continue
             if cross_down and ema9 > ema50: continue
 
-            # RSI filter: avoid extreme zones for crossovers
-            if cross_up   and rsi > 72: continue
-            if cross_down and rsi < 28: continue
+            # ADX: not dead market
+            if adx < 12: continue
+
+            # Session: London + NY (07:00-20:00 UTC)
+            try:
+                h = row.name.hour
+                if not (7 <= h < 20): continue
+            except Exception:
+                pass
 
             sig = "BUY" if cross_up else "SELL"
             if i + 1 >= len(df):
@@ -3452,9 +3452,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             if cross_up   and float(row["Close"]) < ema200 * 0.998: continue
             if cross_down and float(row["Close"]) > ema200 * 1.002: continue
 
-            # MACD confirmation: histogram moving in trade direction
-            if cross_up   and macdh < macdh_p: continue
-            if cross_down and macdh > macdh_p: continue
+            # MACD confirmation: only enforce when ADX is weak
+            if cross_up   and macdh < macdh_p and adx < 22: continue
+            if cross_down and macdh > macdh_p and adx < 22: continue
 
             # RSI
             if cross_up   and rsi > 70: continue
@@ -3488,8 +3488,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                                 "sl": round(sl,3), "tp": round(tp,3),
                                 "bar_idx": i})
 
-        if len(trades) < 5:
-            result = {"error": f"サンプル数不足（{len(trades)}トレード）",
+        if len(trades) < 20:
+            result = {"error": f"サンプル数不足（20トレード未満）",
                       "trades": len(trades), "mode": "daytrade"}
         else:
             wins = sum(1 for t in trades if t["outcome"] == "WIN")
@@ -4352,6 +4352,9 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     layer3 = compute_layer3_score(df, tf, sr_levels)
 
     htf     = get_htf_bias(symbol)
+    # 30m足は4H+1Dを参照（MTF_HIGHERと整合）
+    if tf == "30m":
+        htf = get_htf_bias_daytrade(symbol)
     row     = df.iloc[-1]
     entry   = float(row["Close"])
     atr     = float(row["atr"])
@@ -4664,6 +4667,16 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # ── Layer 3: 精密エントリーボーナス ─────────────────────────
     l3_sc = layer3["score"]
     score += l3_sc * 0.15       # up to +0.15 precision bonus
+    # EMAクロスオーバー確認（BTとの整合性）
+    if len(df) >= 2:
+        ema9_prev  = float(df["ema9"].iloc[-2])
+        ema21_prev = float(df["ema21"].iloc[-2])
+        ema9_cross_up   = (ema9_prev <= ema21_prev) and (ema9 > ema21)
+        ema9_cross_down = (ema9_prev >= ema21_prev) and (ema9 < ema21)
+        if ema9_cross_up:
+            score += 1.5   # クロスオーバー確認ボーナス
+        elif ema9_cross_down:
+            score -= 1.5
     score = max(-3.0, min(3.0, score))  # clamp before normalization
 
     # ── SL / TP ── バックテスト最適値 (BEP=35.7%, EV=+0.052実証)
