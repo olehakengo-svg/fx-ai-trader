@@ -5516,6 +5516,181 @@ def api_evaluation():
     return jsonify(result)
 
 
+# ─────────────────────────────────────────────────────────────────
+# FX ANALYST AGENT — 常駐学習型アナリスト（Claude API + MD記憶）
+# ─────────────────────────────────────────────────────────────────
+_ANALYST_MEMORY_FILE = "fxanalyst_memory.md"
+_ANALYST_LOG_MAX     = 50   # MDに記録するアナリストノートの最大行数
+
+def _read_analyst_memory() -> str:
+    """MDファイルから記憶を読み込む。なければ空文字。"""
+    try:
+        path = os.path.join(os.path.dirname(__file__), _ANALYST_MEMORY_FILE)
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read()
+    except Exception:
+        pass
+    return ""
+
+def _append_analyst_note(note: str) -> None:
+    """アナリストノートをMDに追記する。"""
+    try:
+        path = os.path.join(os.path.dirname(__file__), _ANALYST_MEMORY_FILE)
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+        entry = f"\n### {ts}\n{note}\n"
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(entry)
+    except Exception as e:
+        print(f"[Analyst] append failed: {e}")
+
+def _append_bt_result_to_memory(bt_result: dict, mode: str) -> None:
+    """BT結果をMDの戦略評価ログに追記する。"""
+    try:
+        wr  = bt_result.get("win_rate", "?")
+        ev  = bt_result.get("ev_per_trade", "?")
+        tpd = bt_result.get("trades_per_day", "?")
+        err = bt_result.get("error")
+        if err:
+            return  # エラー結果は記録しない
+        ts = datetime.now().strftime("%Y-%m-%d")
+        verdict = "✅" if (ev or 0) >= 0.10 else ("⚠️" if (ev or 0) >= 0 else "❌")
+        row = f"| {ts} | {mode} | — | {wr}% | {ev}R | {verdict} | {tpd}件/日 |\n"
+        path = os.path.join(os.path.dirname(__file__), _ANALYST_MEMORY_FILE)
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
+            # 評価ログテーブルの後に挿入
+            marker = "| 日付 | 戦略 | タイムフレーム | WR |"
+            if marker in content:
+                # 次の行（---|---行）を探してその後に追記
+                idx = content.index(marker)
+                next_nl = content.index("\n", idx + len(marker))
+                sep_line_end = content.index("\n", next_nl + 1)
+                content = content[:sep_line_end+1] + row + content[sep_line_end+1:]
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(content)
+    except Exception as e:
+        print(f"[Analyst] bt_log failed: {e}")
+
+def get_analyst_opinion(question: str, market_context: dict = None) -> dict:
+    """
+    FXアナリストエージェントに意見を求める。
+    - fxanalyst_memory.md の知見を記憶として参照
+    - 学術的知見（効率市場仮説・テクニカル分析の限界など）を内蔵
+    - Claude API で分析・回答
+    """
+    try:
+        api_key = os.environ.get("ANTHROPIC_API_KEY")
+        if not api_key:
+            return {"error": "ANTHROPIC_API_KEY not set", "opinion": None}
+
+        import anthropic as _anthropic
+        client = _anthropic.Anthropic(api_key=api_key)
+
+        memory = _read_analyst_memory()
+
+        # 学術的知見ライブラリ（内蔵）
+        academic_context = """
+## 学術的知見ライブラリ（FXアナリスト参照用）
+
+### 効率市場仮説（EMH）と技術分析
+- **弱形効率性**: 過去価格パターンは現在価格に織り込み済み（Fama 1970）
+- **実証研究**: Lo & MacKinlay (1988) — 短期的な自己相関が存在し弱形効率性に疑義
+- **FX市場の非効率**: Neely & Weller (2003) — テクニカルフィルターがランダムウォークを凌駕する期間が存在
+- **マーケットマイクロストラクチャー**: Lyons (2001) — ディーラー間フローが短期価格を動かす（情報の非対称性）
+
+### EMAクロスオーバー戦略
+- **Brock et al. (1992)**: DJIA1897-1986で移動平均ルールが有意な超過リターン（取引コスト前）
+- **メタ分析（Park & Irwin 2007）**: 95論文中56が正のリターン、ただし近年は効果が薄れる傾向
+- **FXへの適用**: Schulmeister (2009) — 外国為替での技術ルールは正EV（特に1990-2000年代）
+- **崩壊の兆候**: Zafeiriou (2018) — アルゴトレーダーの参加増加でEMAクロスの収益性低下
+
+### リスク・リターンと最適RR比
+- **ケリー基準**: f = (WR × RR - (1-WR)) / RR → 最適フラクション
+  - WR=35%, RR=3: f = (0.35×3 - 0.65) / 3 = 0.383 → 資金の38%がケリー推奨
+- **プロスペクト理論 (Kahneman & Tversky 1979)**: 損失は利益の2.25倍に感じられる → 高RR戦略は心理的に継続困難
+- **シャープレシオの限界**: 非正規分布リターンでは不適切（FXはファットテール）
+
+### USDJPY固有の特性
+- **キャリートレード影響**: Brunnermeier et al. (2009) — JPYは「クラッシュリスク通貨」。円高急騰は非線形
+- **BOJ介入**: Ito & Yabu (2007) — 介入は短期的に価格を動かすが長期効果は限定的
+- **セッション効果**: Dacorogna et al. (1993) — 東京セッション中は値動きが小さく、ロンドン/NYオープン時に拡大
+- **月曜日効果**: Berument & Kiymaz (2001) — FXでは月曜の流動性が低く、スプレッドが広がりやすい
+
+### バックテストの落とし穴
+- **過学習（Pézier 2008）**: パラメーター数が多いほどBT結果は楽観的 → 独立データでの検証必須
+- **生存バイアス**: 過去に有効だった戦略のみが研究対象になる傾向
+- **市場体制変化 (Lo 2004)**: Adaptive Market Hypothesis — 有効な戦略は市場参加者が模倣して収益性が低下
+"""
+
+        # 市場コンテキスト
+        ctx_str = ""
+        if market_context:
+            ctx_str = f"\n## 現在の市場データ\n```json\n{str(market_context)[:1000]}\n```\n"
+
+        system_prompt = f"""あなたはUSDP FX市場（特にUSD/JPY）の経験豊富なFXアナリストです。
+以下の3つの情報源を統合して、具体的・実践的な意見を日本語で提供してください：
+
+1. **蓄積された知見（Memory）** — このシステムの過去BT結果と学習内容
+2. **学術的知見** — FX市場に関する査読済み研究の知見
+3. **現在の市場データ** — 直近のシグナルとBT結果
+
+回答の原則:
+- 具体的な数値や根拠を示す
+- 「わからない」場合は正直に言う
+- 改善提案は優先度と期待効果を付けて提示
+- 学術的根拠があれば論文名/著者を引用
+- 200-400字程度で簡潔に
+
+## システム蓄積Knowledge (Memory)
+{memory[:3000] if memory else "（まだ記録なし）"}
+
+{academic_context}
+{ctx_str}"""
+
+        response = client.messages.create(
+            model="claude-opus-4-5",
+            max_tokens=800,
+            system=system_prompt,
+            messages=[{"role": "user", "content": question}]
+        )
+
+        opinion = response.content[0].text if response.content else ""
+
+        # アナリストノートに記録
+        _append_analyst_note(f"**質問**: {question[:100]}\n\n**回答**: {opinion[:500]}")
+
+        return {
+            "opinion":      opinion,
+            "model":        "claude-opus-4-5",
+            "memory_used":  bool(memory),
+            "question":     question,
+        }
+
+    except Exception as e:
+        return {"error": str(e), "opinion": None}
+
+
+@app.route("/api/analyst-opinion")
+def api_analyst_opinion():
+    """
+    FXアナリストエージェントへの問い合わせ
+    GET: ?q=質問文
+    POST: {"question": "質問文", "context": {...}}
+    """
+    if request.method == "POST":
+        data = request.get_json(force=True) or {}
+        question = data.get("question", "現在の戦略を評価してください")
+        context  = data.get("context")
+    else:
+        question = request.args.get("q", "現在の戦略の強みと弱みを分析してください")
+        context  = None
+
+    result = get_analyst_opinion(question, context)
+    return jsonify(result)
+
+
 @app.route("/api/ml-train")
 def api_ml_train():
     """Trigger ML model training."""
