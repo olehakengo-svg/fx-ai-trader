@@ -3332,6 +3332,22 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         trades = []
         last_trade_bar = -99
 
+        # ── 戦略的エントリー: SR/OBプリコンピュテーション (ルックアヘッドバイアス排除) ──
+        SR_RECALC = 100
+        _sr_cache = {}
+        _ob_cache = {}
+        for _ci in range(200, len(df), SR_RECALC):
+            _sr_slice = df.iloc[max(0, _ci - 300):_ci]
+            _sr_cache[_ci // SR_RECALC] = find_sr_levels(
+                _sr_slice, window=5, tolerance_pct=0.003, min_touches=2, max_levels=8)
+            try:
+                _, _obs = detect_order_blocks(
+                    df.iloc[max(0, _ci - 100):_ci], atr_mult=1.5, lookback=80)
+                _ob_cache[_ci // SR_RECALC] = _obs
+            except Exception:
+                _ob_cache[_ci // SR_RECALC] = []
+        HIGH_VOL_HOURS = {0,1,2,3,4,5,6,7,8,9,13,14,15,16,17}
+
         for i in range(50, len(df) - MAX_HOLD - 1):
             if i - last_trade_bar < COOLDOWN:
                 continue
@@ -3339,32 +3355,30 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             row      = df.iloc[i]
             prev_row = df.iloc[i-1]
 
-            # Volume filter: skip dead-market bars (Massive API includes off-hours)
-            # yfinance returns Volume=0 for FX, so only filter when volume data exists
+            # Volume filter: skip dead-market bars
             if "Volume" in df.columns:
                 vol = float(row["Volume"])
                 if vol > 0 and vol < 100:
-                    continue  # 出来高不足 → スキップ
+                    continue
 
-            # Bar range filter: skip bars with no meaningful movement
+            # Bar range filter
             bar_range = float(row["High"]) - float(row["Low"])
             if bar_range < 0.015:
-                continue  # レンジ狭すぎ → スキップ
+                continue
 
-            # ATR regime filter: skip high volatility spikes (ATR > 2.5x 20-bar avg)
+            # ATR regime filter
             atr_val = float(row["atr7"]) if "atr7" in row.index else float(row["atr"])
             atr_20avg = float(df["atr"].iloc[max(0,i-20):i].mean())
             if atr_20avg > 0 and atr_val > atr_20avg * 2.5:
-                continue  # 異常ボラティリティ → スキップ
+                continue
 
-            # BB Squeeze filter — skip consolidation periods
+            # BB Squeeze filter
             if "bb_upper" in df.columns and "bb_lower" in df.columns:
                 bb_upper = df["bb_upper"].iloc[i]
                 bb_lower = df["bb_lower"].iloc[i]
                 bb_mid = (bb_upper + bb_lower) / 2.0
                 if bb_mid > 0:
                     bb_width = (bb_upper - bb_lower) / bb_mid
-                    # Rolling 50-bar BB width for percentile
                     if i >= 50:
                         recent_widths = []
                         for j in range(i - 50, i):
@@ -3376,9 +3390,9 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                         if recent_widths:
                             pctile = sum(1 for w in recent_widths if w < bb_width) / len(recent_widths)
                             if pctile < 0.25:
-                                continue  # Bottom 25% BB width = squeeze/consolidation
+                                continue
 
-            # ── EMA Crossover Signal (最良WR: 37.5%@RR3:1, EV=+0.25R) ──
+            # ── 共通インジケーター読み取り ──
             ema9   = float(row["ema9"])
             ema21  = float(row["ema21"])
             ema50  = float(row["ema50"])
@@ -3387,60 +3401,123 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             atr7   = float(row["atr7"]) if "atr7" in row.index else float(row["atr"])
             adx    = float(row.get("adx", 20.0))
             rsi    = float(row["rsi"])
+            close_p = float(row["Close"])
+            open_p  = float(row["Open"])
+            low_p   = float(row["Low"])
+            high_p  = float(row["High"])
 
             cross_up   = (ema9_p <= ema21_p) and (ema9 > ema21)
             cross_down = (ema9_p >= ema21_p) and (ema9 < ema21)
 
-            # Tokyo BB bounce (hours 0-6): alternative entry when no EMA crossover
-            tokyo_bb = False
             try:
                 h = row.name.hour
             except Exception:
                 h = -1
 
-            if not cross_up and not cross_down:
-                if 0 <= h <= 6:
-                    bb_pband_bt = float(row.get("bb_pband", 0.5)) if "bb_pband" in row.index else 0.5
-                    if bb_pband_bt <= 0.08 and rsi < 38 and adx < 25:
+            # SR/OBレベル取得（ルックアヘッドなし）
+            _sr_key = i // SR_RECALC
+            current_sr = _sr_cache.get(_sr_key, [])
+            current_obs = _ob_cache.get(_sr_key, [])
+
+            sig = None
+            entry_type = "ema_cross"
+            tokyo_bb = False
+
+            # ═══ Entry Type 1: EMA9/21 Crossover (トレンドフォロー) ═══
+            if cross_up or cross_down:
+                ema21_slope = (ema21 - df["ema21"].iloc[i - 3]) / 3.0
+                valid = True
+                if cross_up and ema21_slope < 0: valid = False
+                if cross_down and ema21_slope > 0: valid = False
+                if cross_up and ema9 < ema50: valid = False
+                if cross_down and ema9 > ema50: valid = False
+                if adx < 12: valid = False
+                if valid:
+                    sig = "BUY" if cross_up else "SELL"
+                    entry_type = "ema_cross"
+
+            # ═══ Entry Type 2: Tokyo BB Bounce (東京セッション平均回帰) ═══
+            if sig is None and 0 <= h <= 6:
+                bb_pband_bt = float(row.get("bb_pband", 0.5)) if "bb_pband" in row.index else 0.5
+                if bb_pband_bt <= 0.08 and rsi < 38 and adx < 25:
+                    sig = "BUY"
+                    tokyo_bb = True
+                    entry_type = "tokyo_bb"
+                elif bb_pband_bt >= 0.92 and rsi > 62 and adx < 25:
+                    sig = "SELL"
+                    tokyo_bb = True
+                    entry_type = "tokyo_bb"
+
+            # ═══ Entry Type 3: SR Bounce (水平線反発) ═══
+            # 価格がSR水平線に接触 + 反転足 + RSI確認 → 反発エントリー
+            if sig is None and current_sr and h in HIGH_VOL_HOURS:
+                tol_sr = atr7 * 0.4
+                for level in current_sr:
+                    # BUY: 安値がサポート付近 + 陽線(反発) + RSI売られすぎ〜中立
+                    if (abs(low_p - level) < tol_sr and close_p > open_p
+                            and close_p > level and rsi < 45 and adx < 30):
                         sig = "BUY"
-                        tokyo_bb = True
-                    elif bb_pband_bt >= 0.92 and rsi > 62 and adx < 25:
+                        entry_type = "sr_bounce"
+                        break
+                    # SELL: 高値がレジスタンス付近 + 陰線(反落) + RSI買われすぎ〜中立
+                    if (abs(high_p - level) < tol_sr and close_p < open_p
+                            and close_p < level and rsi > 55 and adx < 30):
                         sig = "SELL"
-                        tokyo_bb = True
-                    else:
-                        continue
-                else:
-                    continue
-            else:
-                # EMA21 slope confirmation — reject crossovers in flat market
-                ema21_slope = (ema21 - df["ema21"].iloc[i - 3]) / 3.0  # 3-bar slope
-                if cross_up and ema21_slope < 0:
-                    continue  # EMA21 declining during bullish crossover = false signal
-                if cross_down and ema21_slope > 0:
-                    continue  # EMA21 rising during bearish crossover = false signal
+                        entry_type = "sr_bounce"
+                        break
 
-                # EMA50 trend direction filter
-                if cross_up   and ema9 < ema50: continue
-                if cross_down and ema9 > ema50: continue
+            # ═══ Entry Type 4: SR Breakout (水平線ブレイクアウト) ═══
+            # SR突破 + 出来高急増 + EMAトレンド順方向 → ブレイクアウトエントリー
+            if sig is None and current_sr and h in HIGH_VOL_HOURS:
+                prev_close_p = float(prev_row["Close"])
+                tol_bk = atr7 * 0.15
+                has_vol = "Volume" in df.columns
+                vol_p = float(row["Volume"]) if has_vol else 0
+                vol_avg = float(df["Volume"].iloc[max(0,i-20):i].mean()) if has_vol and i > 20 else 0
+                vol_ok = (vol_p > vol_avg * 1.3) if vol_avg > 100 else True
 
-                # ADX filter: require minimum trend strength
-                if adx < 12: continue
+                for level in current_sr:
+                    # BUY breakout: レジスタンスを上抜け + 出来高確認
+                    if (close_p > level + tol_bk and prev_close_p <= level + tol_bk
+                            and ema9 > ema21 and adx > 18 and vol_ok):
+                        sig = "BUY"
+                        entry_type = "sr_breakout"
+                        break
+                    # SELL breakout: サポートを下抜け + 出来高確認
+                    if (close_p < level - tol_bk and prev_close_p >= level - tol_bk
+                            and ema9 < ema21 and adx > 18 and vol_ok):
+                        sig = "SELL"
+                        entry_type = "sr_breakout"
+                        break
 
-                sig = "BUY" if cross_up else "SELL"
+            # ═══ Entry Type 5: OB Retest (オーダーブロック再テスト) ═══
+            # 大口の流動性ゾーンに価格が戻る + EMAトレンド順 + RSI確認
+            if sig is None and current_obs and h in HIGH_VOL_HOURS:
+                for ob in current_obs[-5:]:
+                    if (ob["type"] == "bull" and ob["low"] <= close_p <= ob["high"]
+                            and rsi < 45 and ema9 > ema21):
+                        sig = "BUY"
+                        entry_type = "ob_retest"
+                        break
+                    if (ob["type"] == "bear" and ob["low"] <= close_p <= ob["high"]
+                            and rsi > 55 and ema9 < ema21):
+                        sig = "SELL"
+                        entry_type = "ob_retest"
+                        break
 
-            # 高ボラ時間帯フィルター（Massive APIデータ分析に基づく）
-            # 高レンジ: 0-9 UTC (Tokyo/London), 13-17 UTC (NY)
-            # 低レンジ: 19-22 UTC (NY閉場前) → 除外
+            if sig is None:
+                continue
+
+            # ── 時間帯・方向バイアスフィルター ──
             try:
-                HIGH_VOL_HOURS = {0,1,2,3,4,5,6,7,8,9,13,14,15,16,17}
                 if h not in HIGH_VOL_HOURS:
-                    continue  # 低ボラ時間帯 → スキップ
+                    continue
 
-                if not tokyo_bb:
+                # SR Bounceは逆張りなので方向バイアスをスキップ
+                if entry_type not in ("tokyo_bb", "sr_bounce", "ob_retest"):
                     bias_info = HOUR_DIRECTION_BIAS.get(h)
                     if bias_info:
                         best_dir, best_wr, edge = bias_info
-                        # 方向バイアスがある場合は一致を要求（edge >= 2pp）
                         if best_dir is not None and edge >= 2.0:
                             if sig == "BUY" and best_dir != "LONG":
                                 continue
@@ -3449,9 +3526,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             except Exception:
                 pass
 
-            # RSI directional confirmation (exclude neutral 40-60 zone)
-            # Skip for Tokyo BB bounce — RSI already checked in BB condition
-            if not tokyo_bb:
+            # RSI directional confirmation（SR Bounce/OB Retestは独自RSI条件済み）
+            if entry_type in ("ema_cross", "sr_breakout"):
                 if sig == "BUY" and rsi <= 50:
                     continue
                 if sig == "SELL" and rsi >= 50:
@@ -3462,19 +3538,34 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             ep  = float(df.iloc[i + 1]["Open"])
             ep  = ep + SPREAD / 2 if sig == "BUY" else ep - SPREAD / 2
 
-            # Tokyo BB bounce: tighter SL, TP targeting BB mid
-            if tokyo_bb:
-                SL_MULT_TOKYO = 0.6
-                TP_MULT_TOKYO = 1.0
-                sl = ep - atr7 * SL_MULT_TOKYO if sig == "BUY" else ep + atr7 * SL_MULT_TOKYO
-                tp = round(ep + atr7 * TP_MULT_TOKYO, 3) if sig == "BUY" else round(ep - atr7 * TP_MULT_TOKYO, 3)
+            # ── エントリータイプ別 SL/TP ──
+            if entry_type == "tokyo_bb":
+                sl_m, tp_m = 0.6, 1.0      # 平均回帰: タイトSL, BB中央狙い
+            elif entry_type == "sr_bounce":
+                sl_m, tp_m = 0.5, 1.5      # SR背後にSL, 中距離TP
+            elif entry_type == "sr_breakout":
+                sl_m, tp_m = SL_MULT, 2.0  # 標準SL, ワイドTP(モメンタム継続)
+            elif entry_type == "ob_retest":
+                sl_m, tp_m = 0.6, 1.5      # OBゾーン背後にSL
             else:
-                sl  = ep - atr7 * SL_MULT if sig == "BUY" else ep + atr7 * SL_MULT
-                # TP: 固定ATR倍数（高頻度向けに軽量化・S/Rスナップなし）
-                tp = round(ep + atr7 * TP_MULT, 3) if sig == "BUY" else round(ep - atr7 * TP_MULT, 3)
-            sl_dist = abs(ep - sl)
+                sl_m, tp_m = SL_MULT, TP_MULT
 
+            sl = ep - atr7 * sl_m if sig == "BUY" else ep + atr7 * sl_m
+            tp = round(ep + atr7 * tp_m, 3) if sig == "BUY" else round(ep - atr7 * tp_m, 3)
+
+            # SR-aware SL snap: SR水平線をSLの盾として活用
+            if current_sr and entry_type not in ("tokyo_bb",):
+                for level in sorted(current_sr, reverse=(sig == "BUY")):
+                    if sig == "BUY" and level < ep and level > sl:
+                        sl = level - atr7 * 0.1  # SRの少し下にSL
+                        break
+                    if sig == "SELL" and level > ep and level < sl:
+                        sl = level + atr7 * 0.1  # SRの少し上にSL
+                        break
+
+            sl_dist = abs(ep - sl)
             actual_rr = round(abs(tp - ep) / max(sl_dist, 1e-6), 2)
+
             outcome = None; bars_held = 0
             for j in range(1, MAX_HOLD + 1):
                 if i + 1 + j >= len(df): break
@@ -3503,12 +3594,17 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 last_trade_bar = i
                 trades.append({"outcome": outcome, "bars_held": bars_held,
                                 "sig": sig, "ep": round(ep, 3),
-                                "actual_rr": actual_rr, "bar_idx": i})
+                                "actual_rr": actual_rr, "bar_idx": i,
+                                "entry_type": entry_type,
+                                "sl_m": sl_m, "tp_m": tp_m})
+
+        def _pnl(t):
+            return t.get("tp_m", TP_MULT) if t["outcome"] == "WIN" else -t.get("sl_m", SL_MULT)
 
         def _max_dd_scalp(trade_list):
             eq, peak, dd = 0.0, 0.0, 0.0
             for t in trade_list:
-                eq += TP_MULT if t["outcome"] == "WIN" else -SL_MULT
+                eq += _pnl(t)
                 if eq > peak: peak = eq
                 if peak - eq > dd: dd = peak - eq
             return round(dd, 3)
@@ -3534,10 +3630,11 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             total = len(trades)
             wr    = round(wins / total * 100, 1)
             rr    = round(TP_MULT / SL_MULT, 2)
-            ev    = round((wr / 100 * TP_MULT) - ((1 - wr / 100) * SL_MULT), 3)
+            # 混合エントリータイプ対応: 実際のPnLベースでEV算出
+            ev    = round(sum(_pnl(t) for t in trades) / total, 3)
             avg_h = round(sum(t["bars_held"] for t in trades) / total, 1)
             mdd   = _max_dd_scalp(trades)
-            pnls  = [TP_MULT if t["outcome"] == "WIN" else -SL_MULT for t in trades]
+            pnls  = [_pnl(t) for t in trades]
             sharpe = round(float(np.mean(pnls)) / max(float(np.std(pnls)), 1e-6), 3)
             per_day = round(total / lookback_days, 1)
 
@@ -3545,7 +3642,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             elif ev > 0:   verdict = "🟡 期待値わずかプラス（要注意）"
             else:          verdict = "❌ 期待値マイナス（スキャル不推奨）"
 
-            # Walk-forward: 3窓
+            # Walk-forward: 3窓（実PnLベース）
             wlen = max(1, len(trades) // 3)
             wf_windows = []
             for w in range(3):
@@ -3553,13 +3650,29 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 if len(wt) < 5: continue
                 ww  = sum(1 for t in wt if t["outcome"] == "WIN")
                 wwr = round(ww / len(wt) * 100, 1)
-                wev = round((wwr / 100 * TP_MULT) - ((1 - wwr / 100) * SL_MULT), 3)
+                wev = round(sum(_pnl(t) for t in wt) / len(wt), 3)
                 wf_windows.append({"label": f"窓{w + 1}", "trades": len(wt),
                                    "win_rate": wwr, "expected_value": wev})
 
             profitable = sum(1 for w in wf_windows if w.get("expected_value", -1) > 0)
+
+            # エントリータイプ別統計
+            entry_stats = {}
+            for t in trades:
+                et = t.get("entry_type", "ema_cross")
+                if et not in entry_stats:
+                    entry_stats[et] = {"wins": 0, "total": 0, "pnl": 0.0}
+                entry_stats[et]["total"] += 1
+                entry_stats[et]["pnl"] += _pnl(t)
+                if t["outcome"] == "WIN":
+                    entry_stats[et]["wins"] += 1
+            for k, v in entry_stats.items():
+                v["win_rate"] = round(v["wins"] / v["total"] * 100, 1)
+                v["ev"] = round(v["pnl"] / v["total"], 3)
+
             trade_log  = [{"sig": t["sig"], "outcome": t["outcome"],
-                           "bars": t["bars_held"]} for t in trades[-10:]]
+                           "bars": t["bars_held"],
+                           "type": t.get("entry_type", "ema_cross")} for t in trades[-10:]]
             result = {
                 "win_rate":       wr,
                 "trades":         total,
@@ -3578,6 +3691,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "tp_mult":        TP_MULT,
                 "walk_forward":   wf_windows,
                 "consistency":    f"{profitable}/{len(wf_windows)} 窓でプラス期待値",
+                "entry_breakdown": entry_stats,
                 "trade_log":      trade_log,
                 "mode":           "scalp",
                 "data_source":    _last_data_source.get(interval, "yfinance"),
@@ -3639,6 +3753,24 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         trades = []
         last_bar = -99
 
+        # ── 戦略的エントリー: SR/OB/Fibプリコンピュテーション ──
+        DT_SR_RECALC = 80
+        _dt_sr_cache = {}
+        _dt_ob_cache = {}
+        _dt_fib_cache = {}
+        for _ci in range(200, len(df), DT_SR_RECALC):
+            _sr_slice = df.iloc[max(0, _ci - 400):_ci]
+            _dt_sr_cache[_ci // DT_SR_RECALC] = find_sr_levels(
+                _sr_slice, window=5, tolerance_pct=0.003, min_touches=2, max_levels=8)
+            try:
+                _, _obs = detect_order_blocks(
+                    df.iloc[max(0, _ci - 120):_ci], atr_mult=1.5, lookback=100)
+                _dt_ob_cache[_ci // DT_SR_RECALC] = _obs
+            except Exception:
+                _dt_ob_cache[_ci // DT_SR_RECALC] = []
+            _dt_fib_cache[_ci // DT_SR_RECALC] = _calc_fibonacci_levels(
+                df.iloc[max(0, _ci - 80):_ci], lookback=60)
+
         for i in range(50, len(df) - MAX_HOLD - 1):
             if i - last_bar < COOLDOWN:
                 continue
@@ -3646,17 +3778,18 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             row      = df.iloc[i]
             prev_row = df.iloc[i-1]
 
-            # Volume filter: skip dead-market bars (Massive API includes off-hours)
+            # Volume filter
             if "Volume" in df.columns:
                 vol = float(row["Volume"])
                 if vol > 0 and vol < 100:
                     continue
 
-            # Bar range filter: skip near-zero-range bars
+            # Bar range filter
             bar_range = float(row["High"]) - float(row["Low"])
             if bar_range < 0.015:
                 continue
 
+            # ── 共通インジケーター ──
             ema9   = float(row["ema9"])
             ema21  = float(row["ema21"])
             ema50  = float(row["ema50"])
@@ -3668,43 +3801,120 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             macdh  = float(row["macd_hist"])
             macdh_p= float(df["macd_hist"].iloc[i-1])
             rsi    = float(row["rsi"])
-            bb_pband = float(row.get("bb_pband", 0.5))
+            close_p = float(row["Close"])
+            open_p  = float(row["Open"])
+            low_p   = float(row["Low"])
+            high_p  = float(row["High"])
 
             if atr <= 0: continue
 
-            # ADX: require some trend (not dead flat)
-            if adx < 10:
-                continue
+            try:
+                h = row.name.hour
+            except Exception:
+                h = -1
 
-            # ── デイトレード用: EMA21/50クロスオーバー（遅延シグナルで精度向上）──
+            # SR/OB/Fib取得
+            _dt_key = i // DT_SR_RECALC
+            dt_sr = _dt_sr_cache.get(_dt_key, [])
+            dt_obs = _dt_ob_cache.get(_dt_key, [])
+            dt_fib = _dt_fib_cache.get(_dt_key, {})
+
+            sig = None
+            entry_type = "ema_cross"
+
+            # ═══ Entry Type 1: EMA21/50 Crossover (トレンドフォロー) ═══
             cross_up   = (ema21_p <= ema50_p) and (ema21 > ema50)
             cross_down = (ema21_p >= ema50_p) and (ema21 < ema50)
 
-            if not cross_up and not cross_down:
+            if cross_up or cross_down:
+                valid = True
+                if adx < 10: valid = False
+                if cross_up and ema9 < ema21: valid = False
+                if cross_down and ema9 > ema21: valid = False
+                if cross_up and macdh < 0 and adx < 15: valid = False
+                if cross_down and macdh > 0 and adx < 15: valid = False
+                if cross_up and rsi > 65: valid = False
+                if cross_down and rsi < 35: valid = False
+                if cross_up and rsi < 45: valid = False
+                if cross_down and rsi > 55: valid = False
+                if valid:
+                    sig = "BUY" if cross_up else "SELL"
+                    entry_type = "ema_cross"
+
+            # ═══ Entry Type 2: SR + Fib Confluence (水平線×フィボ合流) ═══
+            # SR水平線とフィボリトレースメント(38.2-61.8%)が重なる高確率ゾーン
+            if sig is None and dt_sr and dt_fib and adx >= 10:
+                tol_fib = atr * 0.5
+                fib_levels = [dt_fib.get(k) for k in ("r382", "r500", "r618") if dt_fib.get(k)]
+                fib_trend = dt_fib.get("trend", "")
+
+                for sr_level in dt_sr:
+                    for fib_level in fib_levels:
+                        if abs(sr_level - fib_level) > tol_fib:
+                            continue
+                        confluence_level = (sr_level + fib_level) / 2.0
+                        # BUY: 価格がコンフルエンスゾーンに到達 + 陽線 + 上昇トレンド
+                        if (abs(low_p - confluence_level) < tol_fib
+                                and close_p > open_p and close_p > confluence_level
+                                and fib_trend == "up" and ema9 > ema50
+                                and rsi > 35 and rsi < 60):
+                            sig = "BUY"
+                            entry_type = "sr_fib_confluence"
+                            break
+                        # SELL: 価格がコンフルエンスゾーンに到達 + 陰線 + 下降トレンド
+                        if (abs(high_p - confluence_level) < tol_fib
+                                and close_p < open_p and close_p < confluence_level
+                                and fib_trend == "down" and ema9 < ema50
+                                and rsi > 40 and rsi < 65):
+                            sig = "SELL"
+                            entry_type = "sr_fib_confluence"
+                            break
+                    if sig: break
+
+            # ═══ Entry Type 3: SR Breakout (水平線ブレイクアウト) ═══
+            if sig is None and dt_sr and adx > 15:
+                prev_close_p = float(prev_row["Close"])
+                tol_bk = atr * 0.2
+                has_vol = "Volume" in df.columns
+                vol_p = float(row["Volume"]) if has_vol else 0
+                vol_avg = float(df["Volume"].iloc[max(0,i-20):i].mean()) if has_vol and i > 20 else 0
+                vol_ok = (vol_p > vol_avg * 1.3) if vol_avg > 100 else True
+
+                for level in dt_sr:
+                    if (close_p > level + tol_bk and prev_close_p <= level + tol_bk
+                            and ema21 > ema50 and vol_ok and rsi > 50 and rsi < 75):
+                        sig = "BUY"
+                        entry_type = "sr_breakout"
+                        break
+                    if (close_p < level - tol_bk and prev_close_p >= level - tol_bk
+                            and ema21 < ema50 and vol_ok and rsi > 25 and rsi < 50):
+                        sig = "SELL"
+                        entry_type = "sr_breakout"
+                        break
+
+            # ═══ Entry Type 4: OB Retest (オーダーブロック再テスト) ═══
+            if sig is None and dt_obs and adx >= 10:
+                for ob in dt_obs[-5:]:
+                    if (ob["type"] == "bull" and ob["low"] <= close_p <= ob["high"]
+                            and close_p > open_p and rsi < 50
+                            and ema21 > ema50):
+                        sig = "BUY"
+                        entry_type = "ob_retest"
+                        break
+                    if (ob["type"] == "bear" and ob["low"] <= close_p <= ob["high"]
+                            and close_p < open_p and rsi > 50
+                            and ema21 < ema50):
+                        sig = "SELL"
+                        entry_type = "ob_retest"
+                        break
+
+            if sig is None:
                 continue
 
-            # EMA9がクロス方向に揃っていること（モメンタム確認）
-            if cross_up   and ema9 < ema21: continue
-            if cross_down and ema9 > ema21: continue
-
-            # MACD histogram: クロス方向と一致（ADX低い時のみ強制）
-            if cross_up   and macdh < 0 and adx < 15: continue
-            if cross_down and macdh > 0 and adx < 15: continue
-
-            # RSI: 過熱圏を除外（30-70の範囲内のみ）
-            if cross_up   and rsi > 65: continue
-            if cross_down and rsi < 35: continue
-            # RSI方向確認: BUYならRSI>45, SELLならRSI<55
-            if cross_up   and rsi < 45: continue
-            if cross_down and rsi > 55: continue
-
-            sig = "BUY" if cross_up else "SELL"
-
-            # 時間帯×方向バイアスフィルター（第三者評価データ駆動）
+            # ── 時間帯×方向バイアスフィルター ──
             try:
-                h = row.name.hour
                 bias_info = HOUR_DIRECTION_BIAS.get(h)
-                if bias_info:
+                if bias_info and entry_type not in ("sr_fib_confluence", "ob_retest"):
                     best_dir, best_wr, edge = bias_info
                     if best_dir is None or edge < 0:
                         continue
@@ -3716,12 +3926,33 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             except Exception:
                 pass
 
-            # エントリーは次の足のOpen（ルックアヘッドバイアス排除）
+            # エントリーは次の足のOpen
             if i + 1 >= len(df): continue
             ep  = float(df.iloc[i+1]["Open"])
             ep  = ep + SPREAD/2 if sig == "BUY" else ep - SPREAD/2
-            sl  = ep - atr * SL_MULT if sig == "BUY" else ep + atr * SL_MULT
-            tp  = ep + atr * TP_MULT if sig == "BUY" else ep - atr * TP_MULT
+
+            # ── エントリータイプ別 SL/TP ──
+            if entry_type == "sr_fib_confluence":
+                sl_m, tp_m = 0.5, 1.5   # コンフルエンス背後にタイトSL
+            elif entry_type == "sr_breakout":
+                sl_m, tp_m = SL_MULT, 2.0  # ブレイクアウト: ワイドTP
+            elif entry_type == "ob_retest":
+                sl_m, tp_m = 0.5, 1.5   # OBゾーン背後にSL
+            else:
+                sl_m, tp_m = SL_MULT, TP_MULT
+
+            sl = ep - atr * sl_m if sig == "BUY" else ep + atr * sl_m
+            tp = ep + atr * tp_m if sig == "BUY" else ep - atr * tp_m
+
+            # SR-aware SL snap
+            if dt_sr and entry_type != "ema_cross":
+                for level in sorted(dt_sr, reverse=(sig == "BUY")):
+                    if sig == "BUY" and level < ep and level > sl:
+                        sl = level - atr * 0.1
+                        break
+                    if sig == "SELL" and level > ep and level < sl:
+                        sl = level + atr * 0.1
+                        break
 
             outcome = None; bars_held = 0
             for j in range(1, MAX_HOLD + 1):
@@ -3752,7 +3983,11 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 trades.append({"outcome": outcome, "bars_held": bars_held,
                                 "sig": sig, "ep": round(ep,3),
                                 "sl": round(sl,3), "tp": round(tp,3),
-                                "bar_idx": i})
+                                "bar_idx": i, "entry_type": entry_type,
+                                "sl_m": sl_m, "tp_m": tp_m})
+
+        def _dt_pnl(t):
+            return t.get("tp_m", TP_MULT) if t["outcome"] == "WIN" else -t.get("sl_m", SL_MULT)
 
         if len(trades) < 20:
             result = {"error": f"サンプル数不足（20トレード未満）",
@@ -3761,19 +3996,19 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             wins = sum(1 for t in trades if t["outcome"] == "WIN")
             n    = len(trades)
             wr   = round(wins / n * 100, 1)
-            ev   = round((wr/100 * TP_MULT) - ((1-wr/100) * SL_MULT), 3)
+            ev   = round(sum(_dt_pnl(t) for t in trades) / n, 3)
             avg_hold_h = round(np.mean([t["bars_held"] for t in trades]) / bars_per_h, 1)
 
             # 最大ドローダウン
             eq, peak, mdd = 0.0, 0.0, 0.0
             for t in trades:
-                eq += TP_MULT if t["outcome"] == "WIN" else -SL_MULT
+                eq += _dt_pnl(t)
                 if eq > peak: peak = eq
                 if peak - eq > mdd: mdd = peak - eq
             mdd = round(mdd, 3)
 
             # Sharpe
-            rets = [TP_MULT if t["outcome"]=="WIN" else -SL_MULT for t in trades]
+            rets = [_dt_pnl(t) for t in trades]
             sharpe = round(np.mean(rets) / max(np.std(rets), 1e-6) * np.sqrt(252), 3) if len(rets) > 1 else 0.0
 
             # Walk-forward (3窓)
@@ -3784,10 +4019,24 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 if len(wt) < 5: continue
                 ww = sum(1 for t in wt if t["outcome"]=="WIN")
                 wwr = round(ww/len(wt)*100, 1)
-                wev = round((wwr/100*TP_MULT)-((1-wwr/100)*SL_MULT), 3)
+                wev = round(sum(_dt_pnl(t) for t in wt) / len(wt), 3)
                 wf_windows.append({"label": f"窓{wi+1}", "window": wi+1, "trades": len(wt),
                                    "win_rate": wwr, "expected_value": wev})
             profitable = sum(1 for w in wf_windows if w.get("expected_value", -1) > 0)
+
+            # エントリータイプ別統計
+            dt_entry_stats = {}
+            for t in trades:
+                et = t.get("entry_type", "ema_cross")
+                if et not in dt_entry_stats:
+                    dt_entry_stats[et] = {"wins": 0, "total": 0, "pnl": 0.0}
+                dt_entry_stats[et]["total"] += 1
+                dt_entry_stats[et]["pnl"] += _dt_pnl(t)
+                if t["outcome"] == "WIN":
+                    dt_entry_stats[et]["wins"] += 1
+            for k, v in dt_entry_stats.items():
+                v["win_rate"] = round(v["wins"] / v["total"] * 100, 1)
+                v["ev"] = round(v["pnl"] / v["total"], 3)
 
             trades_per_day = round(n / lookback_days, 2)
             verdict = ("✅ 良好" if ev > 0.15 and profitable >= 2 else
@@ -3799,11 +4048,12 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "max_drawdown": mdd, "sharpe": sharpe,
                 "trades_per_day": trades_per_day,
                 "verdict": verdict,
-                "beta": ev < 0.15,  # β flag for UI
+                "beta": ev < 0.15,
                 "period": f"過去{lookback_days}日 ({interval}足)",
                 "sl_mult": SL_MULT, "tp_mult": TP_MULT,
                 "walk_forward": wf_windows,
                 "consistency": f"{profitable}/{len(wf_windows)} 窓でプラス期待値",
+                "entry_breakdown": dt_entry_stats,
                 "trade_log": trades[-20:],
                 "mode": "daytrade",
                 "data_source": _last_data_source.get(interval, "yfinance"),
