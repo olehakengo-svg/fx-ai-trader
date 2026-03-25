@@ -3370,8 +3370,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             # ── TP精度向上: Multi-target TP with Fibonacci extensions ──
             # SR+Fib confluence / OB retest: Fib 127.2% / 161.8%を活用
             if entry_type in ("sr_fib_confluence", "ob_retest") and dt_fib:
-                _fib_high = dt_fib.get("high", 0)
-                _fib_low  = dt_fib.get("low", 0)
+                _fib_high = dt_fib.get("swing_high", 0)
+                _fib_low  = dt_fib.get("swing_low", 0)
                 _fib_range = _fib_high - _fib_low
                 if _fib_range > 0:
                     if sig == "BUY":
