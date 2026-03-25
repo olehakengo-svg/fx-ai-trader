@@ -5676,8 +5676,16 @@ def api_chart():
         if cfg["resample"]: df = resample_df(df, cfg["resample"])
         df       = add_indicators(df)
         df_chart = df.tail(400)
-        sr       = find_sr_levels(df, window=cfg["sr_w"], tolerance_pct=cfg["sr_tol"])
-        ch       = find_parallel_channel(df_chart, window=cfg["sr_w"], lookback=cfg["ch_lb"])
+        # SR: 強度スコアリング版（チャート描画用）
+        bars_per_day_map = {"1m": 1440, "5m": 288, "15m": 96, "30m": 48,
+                            "1h": 24, "4h": 6, "1d": 1, "1w": 0.143}
+        bpd = bars_per_day_map.get(cfg["interval"], 24)
+        sr_weighted = find_sr_levels_weighted(
+            df, window=cfg["sr_w"], tolerance_pct=cfg["sr_tol"],
+            min_touches=2, max_levels=12, bars_per_day=bpd)
+        # 後方互換: floatリストも返す
+        sr = [s["price"] for s in sr_weighted]
+        ch = find_parallel_channel(df_chart, window=cfg["sr_w"], lookback=cfg["ch_lb"])
 
         candles = []
         for ts, row in df_chart.iterrows():
@@ -5706,7 +5714,8 @@ def api_chart():
         _, ob_zns = detect_order_blocks(df_chart)
         liq_zns   = detect_liquidity_zones(df_chart)
         src       = _last_data_source.get(cfg["interval"], "yfinance")
-        return jsonify({"candles": candles, "sr_levels": sr, "channel": ch,
+        return jsonify({"candles": candles, "sr_levels": sr,
+                        "sr_weighted": sr_weighted, "channel": ch,
                         "lp_markers": markers, "ob_zones": ob_zns,
                         "liq_zones": liq_zns,
                         "ohlcv_source": src, "bar_count": len(df_chart)})

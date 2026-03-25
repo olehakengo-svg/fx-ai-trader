@@ -390,7 +390,7 @@ body{background:var(--bg0);color:var(--t1);
   <div class="hdr-right">
     <button class="btn-notif" id="btn-notif" onclick="toggleNotif()">🔔 通知OFF</button>
     <div class="countdown">次回更新: <span id="cntdwn">—</span>秒</div>
-    <button class="btn-refresh" id="btn-refresh" onclick="refreshAll()">↺ 更新</button>
+    <button class="btn-refresh" id="btn-refresh" onclick="refreshAll(true)">↺ 更新</button>
   </div>
 </header>
 
@@ -1072,20 +1072,43 @@ function updateSmcCard(obZones,liqZones){
   }
   box.innerHTML=items.length?items.join(''):'<div style="color:var(--t3);font-size:11px">SMCゾーン検出なし</div>';
 }
-function addSrLines(levels,cp){
+function addSrLines(levels,cp,weighted){
   clearSrLines();
-  levels.forEach(p=>{
-    const diff=Math.abs(p-cp)/cp,near=diff<0.003,isR=p>cp;
-    const l=candleS.createPriceLine({
-      price:p,
-      color:near?'rgba(227,179,65,.85)':(isR?'rgba(248,81,73,.55)':'rgba(63,185,80,.55)'),
-      lineWidth:near?2:1,
-      lineStyle:LightweightCharts.LineStyle.Dashed,
-      axisLabelVisible:true,
-      title:near?'★':(isR?'R':'S')
+  // weighted版がある場合は強度スコア付きで描画
+  if(weighted&&weighted.length){
+    weighted.forEach(sr=>{
+      const p=sr.price,s=sr.strength||0,t=sr.touches||0,isStrong=sr.is_strong||false;
+      const diff=Math.abs(p-cp)/cp,near=diff<0.003,isR=p>cp;
+      // 強度に応じた色・太さ
+      const alpha=Math.min(0.9,0.3+s*0.7);
+      const lw=isStrong?3:(s>=0.4?2:1);
+      let color;
+      if(near) color=`rgba(227,179,65,${alpha})`;
+      else if(isStrong) color=isR?`rgba(248,81,73,${alpha})`:`rgba(63,185,80,${alpha})`;
+      else color=isR?`rgba(248,81,73,${alpha*0.7})`:`rgba(63,185,80,${alpha*0.7})`;
+      // ラベル: 強度+タッチ回数
+      const tag=near?'★':(isR?'R':'S');
+      const label=isStrong?`${tag}■${t}t`:`${tag} ${t}t`;
+      const l=candleS.createPriceLine({
+        price:p,color:color,lineWidth:lw,
+        lineStyle:isStrong?LightweightCharts.LineStyle.Solid:LightweightCharts.LineStyle.Dashed,
+        axisLabelVisible:true,title:label
+      });
+      srLines.push(l);
     });
-    srLines.push(l);
-  });
+  }else{
+    // fallback: float配列（後方互換）
+    levels.forEach(p=>{
+      const diff=Math.abs(p-cp)/cp,near=diff<0.003,isR=p>cp;
+      const l=candleS.createPriceLine({
+        price:p,
+        color:near?'rgba(227,179,65,.85)':(isR?'rgba(248,81,73,.55)':'rgba(63,185,80,.55)'),
+        lineWidth:near?2:1,lineStyle:LightweightCharts.LineStyle.Dashed,
+        axisLabelVisible:true,title:near?'★':(isR?'R':'S')
+      });
+      srLines.push(l);
+    });
+  }
 }
 
 const rChart  = mkChart('chart-rsi');
@@ -1121,7 +1144,7 @@ function setStrategy(mode){
   const fbStrat=document.getElementById('fb-strategy');
   if(fbStrat)fbStrat.textContent=mode;
   fetch('/api/strategy-mode',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:mode})})
-    .then(()=>refreshAll())
+    .then(()=>refreshAll(true))
     .catch(e=>console.warn('strategy-mode:',e));
 }
 
@@ -1129,7 +1152,8 @@ function setTf(tf){
   currentTf=tf;
   document.querySelectorAll('.tf-btn').forEach(b=>b.classList.toggle('active',b.dataset.tf===tf));
   document.getElementById('tf-lbl').textContent=tf;
-  refreshAll();
+  _lastSignalTime=0; // TF変更時はシグナルリセット
+  refreshAll(true);
 }
 
 function showModeCards(mode){
@@ -1241,7 +1265,7 @@ async function loadChartData(){
     const r=await fetch(`/api/chart?tf=${currentTf}`);
     const data=await r.json();
     if(data.error) throw new Error(data.error);
-    const {candles,sr_levels,channel,lp_markers,ob_zones,liq_zones}=data;
+    const {candles,sr_levels,sr_weighted,channel,lp_markers,ob_zones,liq_zones}=data;
 
     candleS.setData(candles.map(d=>({time:d.time,open:d.open,high:d.high,low:d.low,close:d.close})));
     e9S .setData(candles.map(d=>({time:d.time,value:d.ema9})));
@@ -1298,14 +1322,19 @@ async function loadChartData(){
     // S/R
     if(sr_levels&&candles.length){
       const cp=candles[candles.length-1].close;
-      addSrLines(sr_levels,cp);
-      const html=sr_levels.map(p=>{
+      addSrLines(sr_levels,cp,sr_weighted);
+      // SR一覧: 強度情報付き
+      const srData=sr_weighted&&sr_weighted.length?sr_weighted:sr_levels.map(p=>({price:p,strength:0,touches:0,is_strong:false,type:'both'}));
+      const html=srData.sort((a,b)=>b.strength-a.strength).map(sr=>{
+        const p=sr.price,s=sr.strength||0,t=sr.touches||0,isStrong=sr.is_strong;
         const diff=Math.abs(p-cp)/cp,near=diff<0.003,isR=p>cp;
         const cls=near?'sr-near':(isR?'sr-res':'sr-sup');
         const tag=near?'★':(isR?'R':'S');
         const tagCls=near?'sr-tag-n':(isR?'sr-tag-r':'sr-tag-s');
         const pips=Math.round(diff*cp*100);
-        return`<div class="sr-item ${cls}"><span>${p.toFixed(3)}</span><span style="display:flex;gap:5px;align-items:center"><span style="color:var(--t3);font-size:10px">${pips}p</span><span class="sr-tag ${tagCls}">${tag}</span></span></div>`;
+        const strBar=`<div style="display:inline-block;width:${Math.round(s*40)}px;height:4px;background:${isStrong?'var(--blue)':'var(--t4)'};border-radius:2px;vertical-align:middle;margin-left:4px" title="強度:${(s*100).toFixed(0)}% タッチ:${t}回"></div>`;
+        const strongBadge=isStrong?'<span style="color:var(--blue);font-size:8px;font-weight:700;margin-left:2px">■</span>':'';
+        return`<div class="sr-item ${cls}"><span>${p.toFixed(3)}${strongBadge}${strBar}</span><span style="display:flex;gap:5px;align-items:center"><span style="color:var(--t3);font-size:10px">${pips}p ${t}t</span><span class="sr-tag ${tagCls}">${tag}</span></span></div>`;
       }).join('');
       document.getElementById('sr-list').innerHTML=html||'<div style="color:var(--t3);font-size:11px">なし</div>';
     }
@@ -1845,21 +1874,52 @@ async function loadSignal(){
 }
 
 // ════════════════════════════════════════════════
-//  Auto-refresh（モード別インターバル）
+//  Auto-refresh（足確定ベース + チャートリアルタイム更新）
 // ════════════════════════════════════════════════
-// スキャルプ: 15秒, その他: 60秒
-const _REFRESH_INTERVAL = {standard:60, scalp:15, daytrade:30, swing:120, session:45, dayflow:60};
-let _secs=60, _timer=null;
+// シグナル: 足確定時のみ更新（5m足→5分, 30m足→30分, 1d足→日次）
+// チャート/価格: 30秒ごとにリアルタイム更新
+const _CHART_REFRESH = 30;  // チャート更新: 30秒ごと
+// 足確定間隔（秒）— シグナルはこの間隔でのみ再計算
+const _BAR_INTERVAL = {
+  scalp:    300,    // 5m足 = 300秒
+  daytrade: 1800,   // 30m足 = 1800秒
+  swing:    3600,   // 1d足だが1時間ごとにチェック
+  standard: 3600,   // 1h足 = 3600秒
+  session:  1800,   // 30分
+  dayflow:  3600,   // 1h
+};
+let _secs=30, _timer=null;
+let _lastSignalTime=0;   // 最後にシグナルを更新したタイムスタンプ
+let _signalLocked=false;  // シグナル固定フラグ
 
-function _refreshSecs(){return _REFRESH_INTERVAL[currentMode]||60;}
+function _refreshSecs(){return _CHART_REFRESH;}
+function _barIntervalSecs(){return _BAR_INTERVAL[currentMode]||3600;}
 
-async function refreshAll(){
+// 次の足確定時刻を計算
+function _nextBarClose(){
+  const interval=_barIntervalSecs();
+  const now=Math.floor(Date.now()/1000);
+  return Math.ceil(now/interval)*interval;
+}
+
+// 足確定チェック: 前回のシグナル更新から足確定間隔が経過したか
+function _shouldUpdateSignal(){
+  const now=Date.now();
+  const interval=_barIntervalSecs()*1000;
+  return (now-_lastSignalTime)>=interval;
+}
+
+async function refreshAll(forceSignal=false){
   const btn=document.getElementById('btn-refresh');
   btn.disabled=true;btn.textContent='⏳';
-  // カード表示状態を維持（auto-refresh後も正しく表示）
   showModeCards(currentMode);
   try{
-    const tasks=[loadChartData(),loadSignal(),loadRegimeStatus()];
+    const tasks=[loadChartData(),loadRegimeStatus()];
+    // シグナルは足確定時 or 強制更新時のみ
+    if(forceSignal||_shouldUpdateSignal()){
+      tasks.push(loadSignal());
+      _lastSignalTime=Date.now();
+    }
     if(currentMode==='dayflow')tasks.push(loadDayPlan());
     else clearDpLines();
     await Promise.all(tasks);
@@ -1872,7 +1932,18 @@ function startCountdown(){
   if(_timer)clearInterval(_timer);
   _secs=_refreshSecs();
   _timer=setInterval(()=>{
-    _secs--;document.getElementById('cntdwn').textContent=_secs;
+    _secs--;
+    // カウントダウン表示: 次の足確定までの秒数を表示
+    const nextBar=_nextBarClose();
+    const secsToBar=Math.max(0,nextBar-Math.floor(Date.now()/1000));
+    const barMin=Math.floor(secsToBar/60);
+    const barSec=secsToBar%60;
+    const cntEl=document.getElementById('cntdwn');
+    if(secsToBar>0&&secsToBar<=_barIntervalSecs()){
+      cntEl.textContent=`${_secs}s (足確定 ${barMin}:${barSec.toString().padStart(2,'0')})`;
+    }else{
+      cntEl.textContent=_secs;
+    }
     if(_secs<=0){_secs=_refreshSecs();refreshAll();}
   },1000);
 }
@@ -2451,7 +2522,7 @@ async function loadMoneyMgmt(){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-  refreshAll().then(()=>startCountdown());
+  refreshAll(true).then(()=>startCountdown());
   loadBacktest();
   loadMoneyMgmt();
   startLivePriceTicker();
