@@ -3423,25 +3423,9 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             entry_type = "ema_cross"
             tokyo_bb = False
 
-            # ═══ Entry Type 1: EMA9/21 Crossover + SR近接 (トレンドフォロー) ═══
-            # SR水平線の近く(1.5×ATR以内)でのクロスのみ → 精度向上
-            if cross_up or cross_down:
-                ema21_slope = (ema21 - df["ema21"].iloc[i - 3]) / 3.0
-                valid = True
-                if cross_up and ema21_slope < 0: valid = False
-                if cross_down and ema21_slope > 0: valid = False
-                if cross_up and ema9 < ema50: valid = False
-                if cross_down and ema9 > ema50: valid = False
-                if adx < 12: valid = False
-                # SR近接フィルター: クロスがSR水平線付近で発生していること
-                if valid and current_sr:
-                    near_sr = any(abs(close_p - lv) < atr7 * 1.5 for lv in current_sr)
-                    if not near_sr: valid = False
-                if valid:
-                    sig = "BUY" if cross_up else "SELL"
-                    entry_type = "ema_cross"
+            # (EMA Cross 除外 — BT検証でEV=-0.002〜-0.325: SR Bounce/OBが上位互換)
 
-            # ═══ Entry Type 2: Tokyo BB Bounce (東京セッション平均回帰) ═══
+            # ═══ Entry Type 1: Tokyo BB Bounce (東京セッション平均回帰) ═══
             if sig is None and 0 <= h <= 6:
                 bb_pband_bt = float(row.get("bb_pband", 0.5)) if "bb_pband" in row.index else 0.5
                 if bb_pband_bt <= 0.08 and rsi < 38 and adx < 25:
@@ -3510,11 +3494,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 pass
 
             # RSI directional confirmation（SR Bounce/OB Retestは独自RSI条件済み）
-            if entry_type in ("ema_cross",):
-                if sig == "BUY" and rsi <= 50:
-                    continue
-                if sig == "SELL" and rsi >= 50:
-                    continue
+            # (EMA Cross除外済み — RSI方向フィルターは各エントリー内で処理)
 
             if i + 1 >= len(df):
                 continue
