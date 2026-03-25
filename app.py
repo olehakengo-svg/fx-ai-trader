@@ -3423,7 +3423,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             entry_type = "ema_cross"
             tokyo_bb = False
 
-            # ═══ Entry Type 1: EMA9/21 Crossover (トレンドフォロー) ═══
+            # ═══ Entry Type 1: EMA9/21 Crossover + SR近接 (トレンドフォロー) ═══
+            # SR水平線の近く(1.5×ATR以内)でのクロスのみ → 精度向上
             if cross_up or cross_down:
                 ema21_slope = (ema21 - df["ema21"].iloc[i - 3]) / 3.0
                 valid = True
@@ -3432,6 +3433,10 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 if cross_up and ema9 < ema50: valid = False
                 if cross_down and ema9 > ema50: valid = False
                 if adx < 12: valid = False
+                # SR近接フィルター: クロスがSR水平線付近で発生していること
+                if valid and current_sr:
+                    near_sr = any(abs(close_p - lv) < atr7 * 1.5 for lv in current_sr)
+                    if not near_sr: valid = False
                 if valid:
                     sig = "BUY" if cross_up else "SELL"
                     entry_type = "ema_cross"
@@ -3466,31 +3471,9 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                         entry_type = "sr_bounce"
                         break
 
-            # ═══ Entry Type 4: SR Breakout (水平線ブレイクアウト) ═══
-            # SR突破 + 出来高急増 + EMAトレンド順方向 → ブレイクアウトエントリー
-            if sig is None and current_sr and h in HIGH_VOL_HOURS:
-                prev_close_p = float(prev_row["Close"])
-                tol_bk = atr7 * 0.15
-                has_vol = "Volume" in df.columns
-                vol_p = float(row["Volume"]) if has_vol else 0
-                vol_avg = float(df["Volume"].iloc[max(0,i-20):i].mean()) if has_vol and i > 20 else 0
-                vol_ok = (vol_p > vol_avg * 1.3) if vol_avg > 100 else True
+            # (SR Breakout 除外 — BT検証でEV=-0.078: フェイクブレイクアウトが多発)
 
-                for level in current_sr:
-                    # BUY breakout: レジスタンスを上抜け + 出来高確認
-                    if (close_p > level + tol_bk and prev_close_p <= level + tol_bk
-                            and ema9 > ema21 and adx > 18 and vol_ok):
-                        sig = "BUY"
-                        entry_type = "sr_breakout"
-                        break
-                    # SELL breakout: サポートを下抜け + 出来高確認
-                    if (close_p < level - tol_bk and prev_close_p >= level - tol_bk
-                            and ema9 < ema21 and adx > 18 and vol_ok):
-                        sig = "SELL"
-                        entry_type = "sr_breakout"
-                        break
-
-            # ═══ Entry Type 5: OB Retest (オーダーブロック再テスト) ═══
+            # ═══ Entry Type 4: OB Retest (オーダーブロック再テスト) ═══
             # 大口の流動性ゾーンに価格が戻る + EMAトレンド順 + RSI確認
             if sig is None and current_obs and h in HIGH_VOL_HOURS:
                 for ob in current_obs[-5:]:
@@ -3527,7 +3510,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 pass
 
             # RSI directional confirmation（SR Bounce/OB Retestは独自RSI条件済み）
-            if entry_type in ("ema_cross", "sr_breakout"):
+            if entry_type in ("ema_cross",):
                 if sig == "BUY" and rsi <= 50:
                     continue
                 if sig == "SELL" and rsi >= 50:
@@ -3543,8 +3526,6 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 sl_m, tp_m = 0.6, 1.0      # 平均回帰: タイトSL, BB中央狙い
             elif entry_type == "sr_bounce":
                 sl_m, tp_m = 0.5, 1.5      # SR背後にSL, 中距離TP
-            elif entry_type == "sr_breakout":
-                sl_m, tp_m = SL_MULT, 2.0  # 標準SL, ワイドTP(モメンタム継続)
             elif entry_type == "ob_retest":
                 sl_m, tp_m = 0.6, 1.5      # OBゾーン背後にSL
             else:
@@ -3871,28 +3852,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                             break
                     if sig: break
 
-            # ═══ Entry Type 3: SR Breakout (水平線ブレイクアウト) ═══
-            if sig is None and dt_sr and adx > 15:
-                prev_close_p = float(prev_row["Close"])
-                tol_bk = atr * 0.2
-                has_vol = "Volume" in df.columns
-                vol_p = float(row["Volume"]) if has_vol else 0
-                vol_avg = float(df["Volume"].iloc[max(0,i-20):i].mean()) if has_vol and i > 20 else 0
-                vol_ok = (vol_p > vol_avg * 1.3) if vol_avg > 100 else True
+            # (SR Breakout 除外 — BT検証でEV=-0.120: フェイクブレイクアウト多発)
 
-                for level in dt_sr:
-                    if (close_p > level + tol_bk and prev_close_p <= level + tol_bk
-                            and ema21 > ema50 and vol_ok and rsi > 50 and rsi < 75):
-                        sig = "BUY"
-                        entry_type = "sr_breakout"
-                        break
-                    if (close_p < level - tol_bk and prev_close_p >= level - tol_bk
-                            and ema21 < ema50 and vol_ok and rsi > 25 and rsi < 50):
-                        sig = "SELL"
-                        entry_type = "sr_breakout"
-                        break
-
-            # ═══ Entry Type 4: OB Retest (オーダーブロック再テスト) ═══
+            # ═══ Entry Type 3: OB Retest (オーダーブロック再テスト) ═══
             if sig is None and dt_obs and adx >= 10:
                 for ob in dt_obs[-5:]:
                     if (ob["type"] == "bull" and ob["low"] <= close_p <= ob["high"]
@@ -3934,8 +3896,6 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             # ── エントリータイプ別 SL/TP ──
             if entry_type == "sr_fib_confluence":
                 sl_m, tp_m = 0.5, 1.5   # コンフルエンス背後にタイトSL
-            elif entry_type == "sr_breakout":
-                sl_m, tp_m = SL_MULT, 2.0  # ブレイクアウト: ワイドTP
             elif entry_type == "ob_retest":
                 sl_m, tp_m = 0.5, 1.5   # OBゾーン背後にSL
             else:
