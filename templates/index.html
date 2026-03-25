@@ -629,6 +629,9 @@ body{background:var(--bg0);color:var(--t1);
       <div class="conf-row" id="swing-mode-row" style="display:none">
         <span style="color:var(--blue);font-size:10px">🔄 スイングモード（SL/TP拡張）</span>
       </div>
+      <div id="entry-type-badge" style="margin-top:6px;display:none">
+        <span id="entry-type-label" style="display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:.3px"></span>
+      </div>
     </div>
 
     <!-- Entry / SL / TP -->
@@ -1006,6 +1009,7 @@ const chDS  = pChart.addLineSeries({color:'rgba(240,136,62,.75)',lineWidth:1.5,l
 const chMS  = pChart.addLineSeries({color:'rgba(255,255,255,.18)',lineWidth:1,lineStyle:3,lastValueVisible:false,priceLineVisible:false});
 
 let lineE=null,lineSL=null,lineTP=null;
+let _lastLpMarkers=[],_lastCandles=[];
 let srLines=[];
 let obLines=[];
 let liqLines=[];
@@ -1273,6 +1277,10 @@ async function loadChartData(){
         '<div style="color:var(--t3);font-size:11px">データ不足のため計算不可</div>';
     }
 
+    // キャッシュ保存（シグナルマーカー統合用）
+    _lastCandles=candles;
+    _lastLpMarkers=lp_markers||[];
+
     // 大口参入マーカー（バブル）
     if(lp_markers&&lp_markers.length){
       candleS.setMarkers(lp_markers.map(m=>({
@@ -1371,6 +1379,29 @@ async function loadSignal(){
     const smr=document.getElementById('swing-mode-row');
     if(smr)smr.style.display=d.swing_mode?'flex':'none';
 
+    // Entry type badge
+    const etBadge=document.getElementById('entry-type-badge');
+    const etLabel=document.getElementById('entry-type-label');
+    if(etBadge&&etLabel&&d.entry_type&&d.signal!=='WAIT'){
+      const etMap={
+        tokyo_bb:           {icon:'🏯',label:'Tokyo BB',     bg:'rgba(139,92,246,.15)',  color:'#a78bfa',border:'rgba(139,92,246,.4)'},
+        sr_bounce:          {icon:'📐',label:'SR Bounce',    bg:'rgba(59,130,246,.15)',  color:'#60a5fa',border:'rgba(59,130,246,.4)'},
+        ob_retest:          {icon:'🏦',label:'OB Retest',    bg:'rgba(245,158,11,.15)',  color:'#fbbf24',border:'rgba(245,158,11,.4)'},
+        strong_sr_breakout: {icon:'🔥',label:'SR Breakout',  bg:'rgba(239,68,68,.15)',   color:'#f87171',border:'rgba(239,68,68,.4)'},
+        ema_cross:          {icon:'📊',label:'EMA Cross',    bg:'rgba(34,197,94,.15)',   color:'#4ade80',border:'rgba(34,197,94,.4)'},
+        sr_fib_confluence:  {icon:'🎯',label:'SR+Fib',       bg:'rgba(14,165,233,.15)',  color:'#38bdf8',border:'rgba(14,165,233,.4)'},
+        ema_trend:          {icon:'📈',label:'EMA Trend',    bg:'rgba(34,197,94,.15)',   color:'#4ade80',border:'rgba(34,197,94,.4)'},
+      };
+      const et=etMap[d.entry_type]||{icon:'❓',label:d.entry_type,bg:'rgba(120,120,120,.15)',color:'#999',border:'rgba(120,120,120,.3)'};
+      etLabel.textContent=et.icon+' '+et.label;
+      etLabel.style.background=et.bg;
+      etLabel.style.color=et.color;
+      etLabel.style.border='1px solid '+et.border;
+      etBadge.style.display='block';
+    }else if(etBadge){
+      etBadge.style.display='none';
+    }
+
     // Levels
     const eVal=document.getElementById('lv-e');
     const sVal=document.getElementById('lv-s');
@@ -1416,9 +1447,32 @@ async function loadSignal(){
     if(lineTP)try{candleS.removePriceLine(lineTP)}catch(_){}
     lineE=lineSL=lineTP=null;
     if(d.signal!=='WAIT'){
-      lineE =candleS.createPriceLine({price:d.entry,color:'rgba(200,210,220,.8)',lineWidth:1,lineStyle:0,axisLabelVisible:true,title:'Entry'});
+      const etShort={tokyo_bb:'BB',sr_bounce:'SR',ob_retest:'OB',strong_sr_breakout:'BRK',
+        ema_cross:'EMA',sr_fib_confluence:'Fib',ema_trend:'EMA'};
+      const etTitle=(etShort[d.entry_type]||'')+(d.entry_type?' Entry':'Entry');
+      lineE =candleS.createPriceLine({price:d.entry,color:'rgba(200,210,220,.8)',lineWidth:1,lineStyle:0,axisLabelVisible:true,title:etTitle});
       lineSL=candleS.createPriceLine({price:d.sl,   color:'rgba(248,81,73,.8)',  lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'SL'});
       lineTP=candleS.createPriceLine({price:d.tp,   color:'rgba(63,185,80,.8)',  lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'TP'});
+
+      // チャート上にエントリータイプマーカーを追加
+      if(d.entry_type){
+        const etIcons={tokyo_bb:'🏯',sr_bounce:'📐',ob_retest:'🏦',strong_sr_breakout:'🔥',
+          ema_cross:'📊',sr_fib_confluence:'🎯',ema_trend:'📈'};
+        const mColor=d.signal==='BUY'?'#22c55e':'#ef4444';
+        const mPos=d.signal==='BUY'?'belowBar':'aboveBar';
+        const mShape=d.signal==='BUY'?'arrowUp':'arrowDown';
+        const mText=(etIcons[d.entry_type]||'')+(etShort[d.entry_type]||d.entry_type);
+        // 既存のlp_markersと統合
+        const existingMarkers=_lastLpMarkers||[];
+        const sigTime=_lastCandles&&_lastCandles.length?_lastCandles[_lastCandles.length-1].time:0;
+        if(sigTime){
+          const allMarkers=[...existingMarkers.map(m=>({
+            time:m.time,position:m.position,color:m.color,shape:m.shape,text:m.text,size:1.5
+          })),{time:sigTime,position:mPos,color:mColor,shape:mShape,text:mText,size:2}];
+          allMarkers.sort((a,b)=>a.time-b.time);
+          candleS.setMarkers(allMarkers);
+        }
+      }
     }
 
     // Score breakdown（nullセーフ: スキャルプ/セッションモードは一部のみ）

@@ -1968,6 +1968,21 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         tp = round(entry + sl_d * 1.8 * dir_s, 3)
     rr = round(abs(tp - entry) / max(sl_d, 1e-6), 2)
 
+    # ── エントリータイプ判定（BT戦略と整合）──
+    _dt_entry_type = "unknown"
+    if signal != "WAIT":
+        _has_sr_fib = any("Fib" in r or "フィボ" in r for r in reasons)
+        _has_ob     = any("OB" in r or "オーダーブロック" in r for r in reasons)
+        _has_ema    = any("EMA" in r and ("クロス" in r or "ゴールデン" in r or "デッド" in r) for r in reasons)
+        if _has_ob:
+            _dt_entry_type = "ob_retest"
+        elif _has_sr_fib:
+            _dt_entry_type = "sr_fib_confluence"
+        elif _has_ema:
+            _dt_entry_type = "ema_cross"
+        else:
+            _dt_entry_type = "ema_cross"
+
     session = get_session_info()
     ts_str  = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
     return {
@@ -1976,6 +1991,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         "sl": sl, "tp": tp, "rr_ratio": rr, "atr": round(atr, 3),
         "session": session, "htf_bias": htf, "swing_mode": tf in ("1h","4h","1d"),
         "reasons": reasons, "mode": "daytrade",
+        "entry_type": _dt_entry_type,
         "score": round(score, 3),
         "indicators": {
             "ema9": round(ema9,3), "ema21": round(ema21,3),
@@ -2150,6 +2166,21 @@ def compute_swing_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         tp = round(entry + sl_d * 2.5 * dir_s, 3)
     rr = round(abs(tp - entry) / max(sl_d, 1e-6), 2)
 
+    # ── エントリータイプ判定（BT戦略と整合）──
+    _sw_entry_type = "unknown"
+    if signal != "WAIT":
+        _has_fib    = any("Fib" in r or "フィボ" in r for r in reasons)
+        _has_sr     = any("S/R" in r or "水平線" in r for r in reasons)
+        _has_ema_sw = any("EMA" in r and ("200" in r or "アライメント" in r) for r in reasons)
+        if _has_sr and _has_fib:
+            _sw_entry_type = "sr_bounce"
+        elif _has_sr:
+            _sw_entry_type = "sr_bounce"
+        elif _has_ema_sw:
+            _sw_entry_type = "ema_trend"
+        else:
+            _sw_entry_type = "ema_trend"
+
     session = get_session_info()
     ts_str  = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
     return {
@@ -2158,6 +2189,7 @@ def compute_swing_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         "sl": sl, "tp": tp, "rr_ratio": rr, "atr": round(atr, 3),
         "session": session, "htf_bias": htf, "swing_mode": True,
         "reasons": reasons, "mode": "swing",
+        "entry_type": _sw_entry_type,
         "score": round(score, 3),
         "indicators": {
             "ema21": round(ema21,3), "ema50": round(ema50,3), "ema200": round(ema200,3),
@@ -5289,6 +5321,24 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
 
     rr  = round(abs(tp - entry) / max(abs(sl - entry), 1e-6), 2)
 
+    # ── エントリータイプ判定（BT戦略と整合）──
+    _entry_type = "unknown"
+    if tokyo_mode and signal != "WAIT":
+        _entry_type = "tokyo_bb"
+    elif signal != "WAIT":
+        # BT戦略のエントリータイプを推定
+        _has_sr_bounce = any("S/R" in r and ("バウンス" in r or "近接" in r or "反発" in r) for r in reasons)
+        _has_ema_pb    = any("EMA9プルバック" in r and ("BUY" in r or "SELL" in r) for r in reasons)
+        _has_ob        = any("OB" in r or "オーダーブロック" in r for r in reasons)
+        if _has_ob:
+            _entry_type = "ob_retest"
+        elif _has_sr_bounce:
+            _entry_type = "sr_bounce"
+        elif _has_ema_pb:
+            _entry_type = "ema_cross"
+        else:
+            _entry_type = "ema_cross"
+
     ts_str = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
     return {
         "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
@@ -5297,6 +5347,7 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         "sl": sl, "tp": tp, "rr_ratio": rr, "atr": round(atr, 3),
         "session": session, "htf_bias": htf, "swing_mode": False,
         "reasons": reasons, "mode": "scalp",
+        "entry_type": _entry_type,
         "layer_status": {
             "layer0": layer0,
             "layer1": layer1,
