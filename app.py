@@ -93,7 +93,7 @@ STRATEGY_PROFILES = {
     "A": {
         "name": "Trend Following",
         "scalp_sl": 0.75, "scalp_tp": 1.8,    # 1:2.4 RR for scalp (BE=29.4%)
-        "daytrade_sl": 0.65, "daytrade_tp": 1.5,  # 1:2.31 RR for daytrade (BE=30.2%)
+        "daytrade_sl": 0.7, "daytrade_tp": 1.5,  # 1:2.14 RR for daytrade (BE=31.8%)
         "kpi_wr": 0.30, "kpi_ev": 0.08, "kpi_sharpe": 1.0, "kpi_maxdd": 0.15,
         "breakeven_wr": 0.294,  # for 1:2.4 RR → SL/(SL+TP)=0.75/2.55
         "random_baseline_wr": 0.28,
@@ -6478,7 +6478,7 @@ def api_backtest():
                 interval, lookback = "5m", 180
             result = run_scalp_backtest("USDJPY=X", lookback_days=lookback, interval=interval)
         elif mode == "daytrade":
-            result = run_daytrade_backtest("USDJPY=X", lookback_days=365, interval="15m")
+            result = run_daytrade_backtest("USDJPY=X", lookback_days=180, interval="15m")
         elif mode == "swing":
             result   = run_swing_backtest("USDJPY=X", lookback_days=365)
         else:
