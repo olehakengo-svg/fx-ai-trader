@@ -19,7 +19,7 @@ body{background:var(--bg0);color:var(--t1);
   display:flex;flex-direction:column;font-size:13px}
 
 /* ── Header ─────────────────────────────────── */
-.hdr{flex-shrink:0;height:52px;background:var(--bg1);
+.hdr{flex-shrink:0;height:52px;
   border-bottom:1px solid var(--bg3);
   display:flex;align-items:center;padding:0 14px;gap:10px;overflow:hidden}
 .logo{font-size:14px;font-weight:700;color:var(--blue);white-space:nowrap}
@@ -79,8 +79,6 @@ body{background:var(--bg0);color:var(--t1);
 .panel{width:276px;flex-shrink:0;background:var(--bg1);
   border-left:1px solid var(--bg3);
   display:flex;flex-direction:column;overflow-y:auto;padding:12px;gap:10px}
-.panel::-webkit-scrollbar{width:4px}
-.panel::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:2px}
 
 .card{background:var(--bg2);border:1px solid var(--bg3);border-radius:8px;padding:12px}
 .card-title{font-size:10px;font-weight:700;text-transform:uppercase;
@@ -167,14 +165,14 @@ body{background:var(--bg0);color:var(--t1);
 .ml-row strong{color:var(--blue)}
 
 .macro-row{display:flex;justify-content:space-between;align-items:center;
-  padding:4px 0;border-bottom:1px solid var(--border);font-size:11px}
+  padding:4px 0;border-bottom:1px solid var(--bg3);font-size:11px}
 .macro-row:last-child{border-bottom:none}
 .macro-lbl{color:var(--t3)}
 .macro-val{color:var(--t1);font-weight:600;font-size:11px}
 .macro-section-title{font-size:10px;font-weight:700;color:var(--blue);
   text-transform:uppercase;letter-spacing:.5px;padding:6px 0 2px;}
 .bt-stat{display:flex;justify-content:space-between;align-items:center;
-  padding:5px 0;border-bottom:1px solid var(--border);font-size:11px}
+  padding:5px 0;border-bottom:1px solid var(--bg3);font-size:11px}
 .bt-stat:last-child{border-bottom:none}
 .bt-label{color:var(--t3)}
 .bt-val{font-weight:700;font-size:13px}
@@ -182,7 +180,7 @@ body{background:var(--bg0);color:var(--t1);
   padding:6px;border-radius:6px;margin-bottom:8px}
 .news-item{font-size:10px;color:var(--t2);background:var(--bg0);
   border-radius:4px;padding:5px 8px;margin-bottom:4px;line-height:1.5;
-  border-left:2px solid var(--border)}
+  border-left:2px solid var(--bg3)}
 .footer-note{font-size:10px;color:var(--t4);text-align:center}
 .err-card{background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);
   border-radius:7px;padding:10px;font-size:11px;color:var(--red);line-height:1.5}
@@ -688,7 +686,7 @@ body{background:var(--bg0);color:var(--t1);
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>💰 資金管理・ポジションサイジング</span>
         <button onclick="loadMoneyMgmt()" title="更新"
-          style="font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--t2);cursor:pointer">🔄</button>
+          style="font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid var(--bg3);background:var(--bg2);color:var(--t2);cursor:pointer">🔄</button>
       </div>
       <!-- 目標トラッカー -->
       <div style="margin-bottom:8px;padding:7px 10px;border-radius:8px;background:rgba(56,139,253,.08);border:1px solid rgba(56,139,253,.2)">
@@ -707,12 +705,12 @@ body{background:var(--bg0);color:var(--t1);
       <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
         <span style="font-size:11px;color:var(--t3);white-space:nowrap">現在資産</span>
         <input id="mm-capital" type="number" value="250000" min="10000" step="10000"
-          style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--t1);font-size:12px;padding:4px 8px;outline:none"
+          style="flex:1;background:var(--bg2);border:1px solid var(--bg3);border-radius:6px;color:var(--t1);font-size:12px;padding:4px 8px;outline:none"
           oninput="loadMoneyMgmt()">
         <span style="font-size:11px;color:var(--t3)">円</span>
         <span style="font-size:11px;color:var(--t3);white-space:nowrap;margin-left:4px">リスク</span>
         <input id="mm-risk" type="number" value="1.0" min="0.1" max="5" step="0.1"
-          style="width:55px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--t1);font-size:12px;padding:4px 8px;outline:none"
+          style="width:55px;background:var(--bg2);border:1px solid var(--bg3);border-radius:6px;color:var(--t1);font-size:12px;padding:4px 8px;outline:none"
           oninput="loadMoneyMgmt()">
         <span style="font-size:11px;color:var(--t3)">%</span>
       </div>
@@ -758,8 +756,8 @@ body{background:var(--bg0);color:var(--t1);
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>📈 バックテスト結果 <span id="bt-label" style="font-size:9px;color:var(--t4)">(1H/過去90日)</span></span>
         <button id="btn-bt-refresh" onclick="forceRefreshBT()" title="キャッシュをクリアして今すぐ再計算"
-          style="font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid var(--border);
-                 background:var(--card);color:var(--t2);cursor:pointer;white-space:nowrap">
+          style="font-size:11px;padding:2px 8px;border-radius:6px;border:1px solid var(--bg3);
+                 background:var(--bg2);color:var(--t2);cursor:pointer;white-space:nowrap">
           🔄 今すぐ更新
         </button>
       </div>
@@ -1219,6 +1217,7 @@ function renderScoreBar(idBar,idVal,val){
   const pct=Math.round(Math.abs(val)*100);
   const fill=document.getElementById(idBar);
   const valEl=document.getElementById(idVal);
+  if(!fill||!valEl)return;
   fill.style.width=pct+'%';
   fill.style.background=val>0.1?'var(--green)':val<-0.1?'var(--red)':'var(--gold)';
   valEl.textContent=(val>0?'+':'')+val.toFixed(2);
@@ -1368,9 +1367,12 @@ async function loadSignal(){
     if(smr)smr.style.display=d.swing_mode?'flex':'none';
 
     // Levels
-    document.getElementById('lv-e').textContent=d.entry.toFixed(3);
-    document.getElementById('lv-s').textContent=d.sl.toFixed(3);
-    document.getElementById('lv-t').textContent=d.tp.toFixed(3);
+    const eVal=document.getElementById('lv-e');
+    const sVal=document.getElementById('lv-s');
+    const tVal=document.getElementById('lv-t');
+    eVal.textContent=d.entry!=null?d.entry.toFixed(3):'--';
+    sVal.textContent=d.sl!=null?d.sl.toFixed(3):'--';
+    tVal.textContent=d.tp!=null?d.tp.toFixed(3):'--';
     document.getElementById('rr-val').textContent='1:'+d.rr_ratio;
     document.getElementById('atr-val').textContent=d.atr.toFixed(3);
 
@@ -1665,14 +1667,14 @@ async function loadSignal(){
       // 大口参入
       const jvol=ins.jpy_vol_ratio||'—';
       const jspike=ins.jpy_spike;
-      setM('m-jpy-vol', jvol+(jspike?' 🔥':''), jspike?'var(--yellow)':'var(--t1)');
+      setM('m-jpy-vol', jvol+(jspike?' 🔥':''), jspike?'var(--gold)':'var(--t1)');
       setM('m-jpy-dir', ins.jpy_direction||'—',
         ins.jpy_direction&&ins.jpy_direction.includes('USD買')?'var(--green)':
         ins.jpy_direction&&ins.jpy_direction.includes('円買')?'var(--red)':'var(--t3)');
       setM('m-dxy',     ins.dxy!=null?String(ins.dxy):'—');
       const dvol=ins.dxy_vol_ratio||'—';
       const dspike=ins.dxy_spike;
-      setM('m-dxy-vol', dvol+(dspike?' 🔥':''), dspike?'var(--yellow)':'var(--t1)');
+      setM('m-dxy-vol', dvol+(dspike?' 🔥':''), dspike?'var(--gold)':'var(--t1)');
       setM('m-dxy-flow',ins.dxy_flow||'—',
         ins.dxy_flow&&ins.dxy_flow.includes('買い')?'var(--green)':
         ins.dxy_flow&&ins.dxy_flow.includes('売り')?'var(--red)':'var(--t3)');
@@ -1701,6 +1703,7 @@ async function loadSignal(){
 
     // Indicators
     const i=d.indicators;
+    if(!i)return;
     document.getElementById('i-ema9').textContent=i.ema9.toFixed(3);
     document.getElementById('i-ema21').textContent=i.ema21.toFixed(3);
     document.getElementById('i-ema50').textContent=i.ema50.toFixed(3);
@@ -2278,9 +2281,11 @@ async function loadLivePrice(){
   }catch(_){}
 }
 
+let _livePriceInterval=null;
 function startLivePriceTicker(){
+  if(_livePriceInterval)clearInterval(_livePriceInterval);
   loadLivePrice();
-  setInterval(loadLivePrice, 8000); // 8秒ごと（PRICE_TTLに合わせる）
+  _livePriceInterval=setInterval(loadLivePrice, 8000); // 8秒ごと（PRICE_TTLに合わせる）
 }
 
 // ── 資金管理カード読込（SBI FX 25倍レバレッジ対応）──────────────────

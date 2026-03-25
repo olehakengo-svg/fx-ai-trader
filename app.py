@@ -130,6 +130,7 @@ MTF_HIGHER = {
 _data_cache:  dict = {}  # (symbol,interval,period) -> (df, timestamp)
 _bt_cache:    dict = {}  # backtest result cache
 _news_cache:  dict = {}  # news sentiment cache
+_price_cache: dict = {}  # TwelveData realtime price cache
 CACHE_TTL    = 300       # 5 min data cache
 BT_CACHE_TTL = 21600     # 6 hour backtest cache
 NEWS_TTL     = 1800      # 30 min news cache
@@ -3094,11 +3095,23 @@ def run_backtest(symbol: str = "USDJPY=X",
                 fut = df.iloc[i + 1 + j]
                 hi, lo = float(fut["High"]), float(fut["Low"])
                 if sig == "BUY":
-                    if hi >= tp: outcome = "WIN";  bars_held = j; break
-                    if lo <= sl: outcome = "LOSS"; bars_held = j; break
+                    hit_tp = hi >= tp
+                    hit_sl = lo <= sl
+                    if hit_tp and hit_sl:
+                        outcome = "LOSS"; bars_held = j; break
+                    elif hit_tp:
+                        outcome = "WIN";  bars_held = j; break
+                    elif hit_sl:
+                        outcome = "LOSS"; bars_held = j; break
                 else:
-                    if lo <= tp: outcome = "WIN";  bars_held = j; break
-                    if hi >= sl: outcome = "LOSS"; bars_held = j; break
+                    hit_tp = lo <= tp
+                    hit_sl = hi >= sl
+                    if hit_tp and hit_sl:
+                        outcome = "LOSS"; bars_held = j; break
+                    elif hit_tp:
+                        outcome = "WIN";  bars_held = j; break
+                    elif hit_sl:
+                        outcome = "LOSS"; bars_held = j; break
 
             if outcome:
                 last_trade_bar = i
@@ -3426,11 +3439,23 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 fut = df.iloc[i + 1 + j]
                 hi, lo = float(fut["High"]), float(fut["Low"])
                 if sig == "BUY":
-                    if hi >= tp: outcome = "WIN";  bars_held = j; break
-                    if lo <= sl: outcome = "LOSS"; bars_held = j; break
+                    hit_tp = hi >= tp
+                    hit_sl = lo <= sl
+                    if hit_tp and hit_sl:
+                        outcome = "LOSS"; bars_held = j; break
+                    elif hit_tp:
+                        outcome = "WIN";  bars_held = j; break
+                    elif hit_sl:
+                        outcome = "LOSS"; bars_held = j; break
                 else:
-                    if lo <= tp: outcome = "WIN";  bars_held = j; break
-                    if hi >= sl: outcome = "LOSS"; bars_held = j; break
+                    hit_tp = lo <= tp
+                    hit_sl = hi >= sl
+                    if hit_tp and hit_sl:
+                        outcome = "LOSS"; bars_held = j; break
+                    elif hit_tp:
+                        outcome = "WIN";  bars_held = j; break
+                    elif hit_sl:
+                        outcome = "LOSS"; bars_held = j; break
 
             if outcome:
                 last_trade_bar = i
@@ -3647,11 +3672,23 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 fut = df.iloc[i+1+j]
                 hi, lo = float(fut["High"]), float(fut["Low"])
                 if sig == "BUY":
-                    if hi >= tp: outcome = "WIN";  bars_held = j; break
-                    if lo <= sl: outcome = "LOSS"; bars_held = j; break
+                    hit_tp = hi >= tp
+                    hit_sl = lo <= sl
+                    if hit_tp and hit_sl:
+                        outcome = "LOSS"; bars_held = j; break
+                    elif hit_tp:
+                        outcome = "WIN";  bars_held = j; break
+                    elif hit_sl:
+                        outcome = "LOSS"; bars_held = j; break
                 else:
-                    if lo <= tp: outcome = "WIN";  bars_held = j; break
-                    if hi >= sl: outcome = "LOSS"; bars_held = j; break
+                    hit_tp = lo <= tp
+                    hit_sl = hi >= sl
+                    if hit_tp and hit_sl:
+                        outcome = "LOSS"; bars_held = j; break
+                    elif hit_tp:
+                        outcome = "WIN";  bars_held = j; break
+                    elif hit_sl:
+                        outcome = "LOSS"; bars_held = j; break
 
             if outcome:
                 last_bar = i
@@ -3819,11 +3856,23 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
                 fut = df.iloc[i+1+j]
                 hi, lo = float(fut["High"]), float(fut["Low"])
                 if sig == "BUY":
-                    if hi >= tp: outcome = "WIN";  bars_held = j; break
-                    if lo <= sl: outcome = "LOSS"; bars_held = j; break
+                    hit_tp = hi >= tp
+                    hit_sl = lo <= sl
+                    if hit_tp and hit_sl:
+                        outcome = "LOSS"; bars_held = j; break
+                    elif hit_tp:
+                        outcome = "WIN";  bars_held = j; break
+                    elif hit_sl:
+                        outcome = "LOSS"; bars_held = j; break
                 else:
-                    if lo <= tp: outcome = "WIN";  bars_held = j; break
-                    if hi >= sl: outcome = "LOSS"; bars_held = j; break
+                    hit_tp = lo <= tp
+                    hit_sl = hi >= sl
+                    if hit_tp and hit_sl:
+                        outcome = "LOSS"; bars_held = j; break
+                    elif hit_tp:
+                        outcome = "WIN";  bars_held = j; break
+                    elif hit_sl:
+                        outcome = "LOSS"; bars_held = j; break
 
             if outcome:
                 last_bar = i
@@ -4635,18 +4684,18 @@ def compute_layer3_score(df: pd.DataFrame, tf: str, sr_levels: list) -> dict:
 
     # ① Order Block proximity (SMC)
     try:
-        smc = smc_analysis(df)
-        ob_bull = smc.get("bullish_ob")
-        ob_bear = smc.get("bearish_ob")
+        ob_sc_raw, ob_zones_l3 = detect_order_blocks(df)
+        ob_bull = any(z.get("type") == "OB_UP" for z in ob_zones_l3)
+        ob_bear = any(z.get("type") == "OB_DN" for z in ob_zones_l3)
         ob_sc = 0.0
-        tol   = atr * 0.5
-        if ob_bull and abs(close - ob_bull) < tol:
+        if ob_bull:
             ob_sc += 0.30   # price near bullish OB → potential long
-        if ob_bear and abs(close - ob_bear) < tol:
+        if ob_bear:
             ob_sc -= 0.30   # price near bearish OB → potential short
         comps["ob_contact"] = round(ob_sc, 3)
         score_add += ob_sc
     except Exception:
+        ob_bull = ob_bear = False
         comps["ob_contact"] = 0.0
 
     # ② Fibonacci pullback zone (38.2-61.8% of last swing)
@@ -5153,7 +5202,7 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     return {
         "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
         "entry": round(entry, 3), "signal": signal, "confidence": conf,
-        "ml_confidence": get_ml_confidence(df, len(df)-1, sig),
+        "ml_confidence": get_ml_confidence(df, len(df)-1, signal),
         "sl": sl, "tp": tp, "rr_ratio": rr, "atr": round(atr, 3),
         "session": session, "htf_bias": htf, "swing_mode": False,
         "reasons": reasons, "mode": "scalp",
@@ -6212,7 +6261,7 @@ def api_pattern_analysis():
     return jsonify(result)
 
 
-@app.route("/api/analyst-opinion")
+@app.route("/api/analyst-opinion", methods=["GET", "POST"])
 def api_analyst_opinion():
     """
     FXアナリストエージェントへの問い合わせ
@@ -6586,7 +6635,6 @@ def api_news():
 
 
 # ── TwelveData リアルタイム価格キャッシュ ──────────────────────
-_price_cache: dict = {}
 PRICE_TTL = 8  # 8秒キャッシュ（Basic枠: 8req/min）
 
 @app.route("/api/price")
