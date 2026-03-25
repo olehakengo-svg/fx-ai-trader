@@ -2729,13 +2729,14 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             tp = round(ep + atr7 * tp_m, 3) if sig == "BUY" else round(ep - atr7 * tp_m, 3)
 
             # ── SR-aware SL snap: SR水平線をSLの盾として活用 ──
+            # SR-shield enhancement: バッファを0.20×ATRに拡大（騙しヒゲ対策）
             if current_sr and entry_type not in ("tokyo_bb",):
                 for level in sorted(current_sr, reverse=(sig == "BUY")):
                     if sig == "BUY" and level < ep and level > sl:
-                        sl = level - atr7 * 0.15  # SRの少し下にSL（騙しバッファ拡大）
+                        sl = level - atr7 * 0.20  # SRの少し下にSL（騙しバッファ拡大）
                         break
                     if sig == "SELL" and level > ep and level < sl:
-                        sl = level + atr7 * 0.15  # SRの少し上にSL
+                        sl = level + atr7 * 0.20  # SRの少し上にSL
                         break
 
             # ── TP精度向上: SR-aware TP snap ──
@@ -2756,17 +2757,56 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                             tp = level + atr7 * 0.05
                         break
 
-            # ── TP精度向上: ADX-scaled TP ──
-            # 強トレンド(ADX>30)ではTP延伸、弱トレンド/レンジ(ADX<15)では短縮
+            # ── TP精度向上: Volatility-regime TP scaling ──
+            # ATRパーセンタイル + ADXの複合アプローチ（単純ADXスケーリングを置換）
             if entry_type not in ("tokyo_bb",):
-                if adx >= 30:
-                    tp_stretch = 1.15  # +15% TP延伸（トレンド強い）
-                elif adx >= 20:
-                    tp_stretch = 1.0   # 標準
+                # ATRパーセンタイル計算（直近50本）
+                _atr_window = df["atr"].iloc[max(0, i - 50):i].values
+                if len(_atr_window) > 5:
+                    _atr_pctile = float(sum(1 for a in _atr_window if a < atr7) / len(_atr_window))
                 else:
-                    tp_stretch = 0.85  # -15% TP短縮（レンジ寄り）
+                    _atr_pctile = 0.5
+                # 複合レジーム判定
+                if _atr_pctile > 0.75 and adx > 25:
+                    tp_stretch = 1.25   # 強トレンド+高ボラ: TP延伸
+                elif _atr_pctile > 0.75 and adx < 20:
+                    tp_stretch = 0.75   # チョッピー高ボラ: TP短縮
+                elif _atr_pctile < 0.25:
+                    tp_stretch = 0.90   # 低ボラ: やや短縮
+                else:
+                    tp_stretch = 1.0    # 標準
                 tp_dist = abs(tp - ep)
                 tp = ep + tp_dist * tp_stretch if sig == "BUY" else ep - tp_dist * tp_stretch
+
+            # ── TP精度向上: Multi-target TP with Fibonacci extensions ──
+            # SR bounce / OB retest: Fib 127.2% / 161.8%を活用
+            if entry_type in ("sr_bounce", "ob_retest") and current_sr:
+                # 簡易Fib extension: 直近80本のHigh/Lowからレンジ算出
+                _fib_slice = df.iloc[max(0, i - 80):i]
+                _fib_hi = float(_fib_slice["High"].max())
+                _fib_lo = float(_fib_slice["Low"].min())
+                _fib_rng = _fib_hi - _fib_lo
+                if _fib_rng > 0:
+                    if sig == "BUY":
+                        _fib_127 = _fib_hi + _fib_rng * 0.272  # 127.2%
+                        _fib_161 = _fib_hi + _fib_rng * 0.618  # 161.8%
+                        # Fib 127.2%がATR-based TPより近ければ採用
+                        if _fib_127 > ep + atr7 * 0.3 and _fib_127 < tp:
+                            tp = _fib_127
+                        # Fib 161.8%がSRと合流（0.3×ATR以内）ならTP延伸
+                        for _sr_lv in current_sr:
+                            if abs(_fib_161 - _sr_lv) < atr7 * 0.3 and _fib_161 > tp:
+                                tp = _fib_161
+                                break
+                    else:
+                        _fib_127 = _fib_lo - _fib_rng * 0.272
+                        _fib_161 = _fib_lo - _fib_rng * 0.618
+                        if _fib_127 < ep - atr7 * 0.3 and _fib_127 > tp:
+                            tp = _fib_127
+                        for _sr_lv in current_sr:
+                            if abs(_fib_161 - _sr_lv) < atr7 * 0.3 and _fib_161 < tp:
+                                tp = _fib_161
+                                break
 
             # ── TP精度向上: Tokyo BB → BB中央値を動的TP ──
             if entry_type == "tokyo_bb" and "bb_upper" in df.columns:
@@ -2782,20 +2822,45 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             sl_dist = abs(ep - sl)
             actual_rr = round(abs(tp - ep) / max(sl_dist, 1e-6), 2)
 
-            # ── SL騙し回避バッファ: ヒゲがSLを超えてもATR×5%のバッファが必要 ──
-            sl_buffer = atr7 * 0.05
+            # ── SL anti-fake-out: Close-based confirmation + genuine breakdown detection ──
+            # ヒゲだけの騙しを防止しつつ、大きな動きは即時SLトリガー
+            _sl_genuine_threshold = atr7 * 0.3  # ATR×0.3超のヒゲは本物のブレイクダウン
 
             outcome = None; bars_held = 0
+            _be_activated = False  # Breakeven activated flag (60% TP reached)
+            _current_sl = sl       # 動的SL（breakeven/time-decay用）
             for j in range(1, MAX_HOLD + 1):
                 if i + 1 + j >= len(df): break
                 fut = df.iloc[i + 1 + j]
                 hi, lo = float(fut["High"]), float(fut["Low"])
                 fut_close = float(fut["Close"])
+
+                # ── Partial TP / Trailing: 60% TP到達でSLをbreakevenに移動 ──
+                tp_dist_total = abs(tp - ep)
+                if sig == "BUY":
+                    _progress = hi - ep  # 最高到達点
+                    if _progress >= tp_dist_total * 0.6:
+                        _be_activated = True
+                        _current_sl = max(_current_sl, ep)  # breakeven
+                else:
+                    _progress = ep - lo
+                    if _progress >= tp_dist_total * 0.6:
+                        _be_activated = True
+                        _current_sl = min(_current_sl, ep)  # breakeven
+
+                # ── Time-decay SL tightening: MAX_HOLD×60%経過後 ──
+                if j >= int(MAX_HOLD * 0.6):
+                    if sig == "BUY" and fut_close > ep:
+                        _current_sl = max(_current_sl, ep)  # 利益中: breakeven
+                    elif sig == "SELL" and fut_close < ep:
+                        _current_sl = min(_current_sl, ep)
+
                 if sig == "BUY":
                     hit_tp = hi >= tp
-                    hit_sl = lo <= sl - sl_buffer  # 騙しバッファ: SLを明確に割る必要
+                    # Close-based SL: CLOSEがSL以下 OR ヒゲがATR×0.3超の深さ
+                    _wick_depth = _current_sl - lo
+                    hit_sl = (fut_close <= _current_sl) or (_wick_depth > _sl_genuine_threshold)
                     if hit_tp and hit_sl:
-                        # 同一バー両ヒット: CLOSEの位置で判定（従来は常にLOSS）
                         if fut_close >= ep:
                             outcome = "WIN"; bars_held = j; break
                         else:
@@ -2803,10 +2868,17 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                     elif hit_tp:
                         outcome = "WIN";  bars_held = j; break
                     elif hit_sl:
-                        outcome = "LOSS"; bars_held = j; break
+                        # Breakeven SL hit after 60% TP reached → partial win
+                        if _be_activated and _current_sl >= ep:
+                            outcome = "WIN"; bars_held = j
+                            tp_m_actual = round(tp_dist_total * 0.6 / max(atr7, 1e-6), 3)
+                            break
+                        else:
+                            outcome = "LOSS"; bars_held = j; break
                 else:
                     hit_tp = lo <= tp
-                    hit_sl = hi >= sl + sl_buffer  # 騙しバッファ
+                    _wick_depth = hi - _current_sl
+                    hit_sl = (fut_close >= _current_sl) or (_wick_depth > _sl_genuine_threshold)
                     if hit_tp and hit_sl:
                         if fut_close <= ep:
                             outcome = "WIN"; bars_held = j; break
@@ -2815,7 +2887,12 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                     elif hit_tp:
                         outcome = "WIN";  bars_held = j; break
                     elif hit_sl:
-                        outcome = "LOSS"; bars_held = j; break
+                        if _be_activated and _current_sl <= ep:
+                            outcome = "WIN"; bars_held = j
+                            tp_m_actual = round(tp_dist_total * 0.6 / max(atr7, 1e-6), 3)
+                            break
+                        else:
+                            outcome = "LOSS"; bars_held = j; break
 
             if outcome:
                 last_trade_bar = i
@@ -3054,24 +3131,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             sig = None
             entry_type = "ema_cross"
 
-            # ═══ Entry Type 1: EMA21/50 Crossover (トレンドフォロー) ═══
-            cross_up   = (ema21_p <= ema50_p) and (ema21 > ema50)
-            cross_down = (ema21_p >= ema50_p) and (ema21 < ema50)
-
-            if cross_up or cross_down:
-                valid = True
-                if adx < 10: valid = False
-                if cross_up and ema9 < ema21: valid = False
-                if cross_down and ema9 > ema21: valid = False
-                if cross_up and macdh < 0 and adx < 15: valid = False
-                if cross_down and macdh > 0 and adx < 15: valid = False
-                if cross_up and rsi > 65: valid = False
-                if cross_down and rsi < 35: valid = False
-                if cross_up and rsi < 45: valid = False
-                if cross_down and rsi > 55: valid = False
-                if valid:
-                    sig = "BUY" if cross_up else "SELL"
-                    entry_type = "ema_cross"
+            # (EMA21/50 Crossover 除外 — BT検証でEV=-0.092: SR+Fib/OBが上位互換)
 
             # ═══ Entry Type 2: SR + Fib Confluence (水平線×フィボ合流) ═══
             # SR水平線とフィボリトレースメント(38.2-61.8%)が重なる高確率ゾーン
@@ -3155,14 +3215,14 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             sl = ep - atr * sl_m if sig == "BUY" else ep + atr * sl_m
             tp = ep + atr * tp_m if sig == "BUY" else ep - atr * tp_m
 
-            # ── SR-aware SL snap（騙しバッファ拡大） ──
+            # ── SR-aware SL snap（SR-shield enhancement: バッファ0.20×ATRに拡大） ──
             if dt_sr and entry_type != "ema_cross":
                 for level in sorted(dt_sr, reverse=(sig == "BUY")):
                     if sig == "BUY" and level < ep and level > sl:
-                        sl = level - atr * 0.15
+                        sl = level - atr * 0.20
                         break
                     if sig == "SELL" and level > ep and level < sl:
-                        sl = level + atr * 0.15
+                        sl = level + atr * 0.20
                         break
 
             # ── TP精度向上: SR-aware TP snap ──
@@ -3181,46 +3241,93 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                             tp = level + atr * 0.05
                         break
 
-            # ── TP精度向上: ADX-scaled TP ──
-            if adx >= 30:
-                _dt_tp_stretch = 1.20   # +20% TP延伸（強トレンド）
-            elif adx >= 20:
-                _dt_tp_stretch = 1.0
+            # ── TP精度向上: Volatility-regime TP scaling ──
+            # ATRパーセンタイル + ADXの複合アプローチ（単純ADXスケーリングを置換）
+            _dt_atr_window = df["atr"].iloc[max(0, i - 50):i].values
+            if len(_dt_atr_window) > 5:
+                _dt_atr_pctile = float(sum(1 for a in _dt_atr_window if a < atr) / len(_dt_atr_window))
             else:
-                _dt_tp_stretch = 0.85   # -15% TP短縮
+                _dt_atr_pctile = 0.5
+            if _dt_atr_pctile > 0.75 and adx > 25:
+                _dt_tp_stretch = 1.25   # 強トレンド+高ボラ: TP延伸
+            elif _dt_atr_pctile > 0.75 and adx < 20:
+                _dt_tp_stretch = 0.75   # チョッピー高ボラ: TP短縮
+            elif _dt_atr_pctile < 0.25:
+                _dt_tp_stretch = 0.90   # 低ボラ: やや短縮
+            else:
+                _dt_tp_stretch = 1.0    # 標準
             _dt_tp_dist = abs(tp - ep)
             tp = ep + _dt_tp_dist * _dt_tp_stretch if sig == "BUY" else ep - _dt_tp_dist * _dt_tp_stretch
 
-            # ── TP精度向上: Fib extension for SR+Fib entry ──
-            if entry_type == "sr_fib_confluence" and dt_fib:
+            # ── TP精度向上: Multi-target TP with Fibonacci extensions ──
+            # SR+Fib confluence / OB retest: Fib 127.2% / 161.8%を活用
+            if entry_type in ("sr_fib_confluence", "ob_retest") and dt_fib:
                 _fib_high = dt_fib.get("high", 0)
                 _fib_low  = dt_fib.get("low", 0)
                 _fib_range = _fib_high - _fib_low
                 if _fib_range > 0:
                     if sig == "BUY":
-                        _fib_ext = _fib_high + _fib_range * 0.272  # Fib 127.2%
-                        if _fib_ext > ep + atr * 0.3:
-                            tp = _fib_ext
+                        _fib_127 = _fib_high + _fib_range * 0.272  # Fib 127.2%
+                        _fib_161 = _fib_high + _fib_range * 0.618  # Fib 161.8%
+                        # Fib 127.2%がATR-based TPより近ければ採用
+                        if _fib_127 > ep + atr * 0.3 and _fib_127 < tp:
+                            tp = _fib_127
+                        # Fib 161.8%がSRと合流（0.3×ATR以内）ならTP延伸
+                        if dt_sr:
+                            for _sr_lv in dt_sr:
+                                if abs(_fib_161 - _sr_lv) < atr * 0.3 and _fib_161 > tp:
+                                    tp = _fib_161
+                                    break
                     else:
-                        _fib_ext = _fib_low - _fib_range * 0.272
-                        if _fib_ext < ep - atr * 0.3:
-                            tp = _fib_ext
+                        _fib_127 = _fib_low - _fib_range * 0.272
+                        _fib_161 = _fib_low - _fib_range * 0.618
+                        if _fib_127 < ep - atr * 0.3 and _fib_127 > tp:
+                            tp = _fib_127
+                        if dt_sr:
+                            for _sr_lv in dt_sr:
+                                if abs(_fib_161 - _sr_lv) < atr * 0.3 and _fib_161 < tp:
+                                    tp = _fib_161
+                                    break
 
             tp = round(tp, 3)
             tp_m_actual = round(abs(tp - ep) / max(atr, 1e-6), 3)
 
-            # ── SL騙し回避バッファ ──
-            _dt_sl_buffer = atr * 0.05
+            # ── SL anti-fake-out: Close-based confirmation + genuine breakdown detection ──
+            _dt_sl_genuine_threshold = atr * 0.3  # ATR×0.3超のヒゲは本物のブレイクダウン
 
             outcome = None; bars_held = 0
+            _dt_be_activated = False  # Breakeven activated flag (60% TP reached)
+            _dt_current_sl = sl       # 動的SL（breakeven/time-decay用）
             for j in range(1, MAX_HOLD + 1):
                 if i+1+j >= len(df): break
                 fut = df.iloc[i+1+j]
                 hi, lo = float(fut["High"]), float(fut["Low"])
                 fut_close = float(fut["Close"])
+
+                # ── Partial TP / Trailing: 60% TP到達でSLをbreakevenに移動 ──
+                _dt_tp_dist_total = abs(tp - ep)
+                if sig == "BUY":
+                    _dt_progress = hi - ep
+                    if _dt_progress >= _dt_tp_dist_total * 0.6:
+                        _dt_be_activated = True
+                        _dt_current_sl = max(_dt_current_sl, ep)
+                else:
+                    _dt_progress = ep - lo
+                    if _dt_progress >= _dt_tp_dist_total * 0.6:
+                        _dt_be_activated = True
+                        _dt_current_sl = min(_dt_current_sl, ep)
+
+                # ── Time-decay SL tightening: MAX_HOLD×60%経過後 ──
+                if j >= int(MAX_HOLD * 0.6):
+                    if sig == "BUY" and fut_close > ep:
+                        _dt_current_sl = max(_dt_current_sl, ep)
+                    elif sig == "SELL" and fut_close < ep:
+                        _dt_current_sl = min(_dt_current_sl, ep)
+
                 if sig == "BUY":
                     hit_tp = hi >= tp
-                    hit_sl = lo <= sl - _dt_sl_buffer
+                    _dt_wick_depth = _dt_current_sl - lo
+                    hit_sl = (fut_close <= _dt_current_sl) or (_dt_wick_depth > _dt_sl_genuine_threshold)
                     if hit_tp and hit_sl:
                         if fut_close >= ep:
                             outcome = "WIN"; bars_held = j; break
@@ -3229,10 +3336,16 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                     elif hit_tp:
                         outcome = "WIN";  bars_held = j; break
                     elif hit_sl:
-                        outcome = "LOSS"; bars_held = j; break
+                        if _dt_be_activated and _dt_current_sl >= ep:
+                            outcome = "WIN"; bars_held = j
+                            tp_m_actual = round(_dt_tp_dist_total * 0.6 / max(atr, 1e-6), 3)
+                            break
+                        else:
+                            outcome = "LOSS"; bars_held = j; break
                 else:
                     hit_tp = lo <= tp
-                    hit_sl = hi >= sl + _dt_sl_buffer
+                    _dt_wick_depth = hi - _dt_current_sl
+                    hit_sl = (fut_close >= _dt_current_sl) or (_dt_wick_depth > _dt_sl_genuine_threshold)
                     if hit_tp and hit_sl:
                         if fut_close <= ep:
                             outcome = "WIN"; bars_held = j; break
@@ -3241,7 +3354,12 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                     elif hit_tp:
                         outcome = "WIN";  bars_held = j; break
                     elif hit_sl:
-                        outcome = "LOSS"; bars_held = j; break
+                        if _dt_be_activated and _dt_current_sl <= ep:
+                            outcome = "WIN"; bars_held = j
+                            tp_m_actual = round(_dt_tp_dist_total * 0.6 / max(atr, 1e-6), 3)
+                            break
+                        else:
+                            outcome = "LOSS"; bars_held = j; break
 
             if outcome:
                 last_bar = i
