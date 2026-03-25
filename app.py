@@ -3632,7 +3632,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         profile   = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
         SL_MULT   = profile["daytrade_sl"]   # daytrade-specific SL
         TP_MULT   = profile["daytrade_tp"]   # daytrade-specific TP
-        MAX_HOLD  = 12     # bars (3 hours at 15m — tight to reduce timeout losses)
+        MAX_HOLD  = 16     # bars (4 hours at 15m)
         COOLDOWN  = 1      # bars (allows more trades per day)
         bars_per_h = 4     # 15m足 = 4本/時間
 
@@ -3791,7 +3791,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
             trades_per_day = round(n / lookback_days, 2)
             verdict = ("✅ 良好" if ev > 0.15 and profitable >= 2 else
-                       "🟡 期待値わずかプラス（要注意）" if ev > 0 else "❌ 不採用")
+                       "🟡 β版 — 期待値プラスだが直近WF弱め" if ev > 0 else "❌ 不採用")
 
             result = {
                 "trades": n, "win_rate": wr, "expected_value": ev,
@@ -3799,6 +3799,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "max_drawdown": mdd, "sharpe": sharpe,
                 "trades_per_day": trades_per_day,
                 "verdict": verdict,
+                "beta": ev < 0.15,  # β flag for UI
                 "period": f"過去{lookback_days}日 ({interval}足)",
                 "sl_mult": SL_MULT, "tp_mult": TP_MULT,
                 "walk_forward": wf_windows,
@@ -6478,7 +6479,7 @@ def api_backtest():
                 interval, lookback = "5m", 180
             result = run_scalp_backtest("USDJPY=X", lookback_days=lookback, interval=interval)
         elif mode == "daytrade":
-            result = run_daytrade_backtest("USDJPY=X", lookback_days=180, interval="15m")
+            result = run_daytrade_backtest("USDJPY=X", lookback_days=365, interval="15m")
         elif mode == "swing":
             result   = run_swing_backtest("USDJPY=X", lookback_days=365)
         else:
