@@ -93,7 +93,7 @@ STRATEGY_PROFILES = {
     "A": {
         "name": "Trend Following",
         "scalp_sl": 0.75, "scalp_tp": 1.8,    # 1:2.4 RR for scalp (BE=29.4%)
-        "daytrade_sl": 0.7, "daytrade_tp": 1.5,  # 1:2.14 RR for daytrade (BE=31.8%)
+        "daytrade_sl": 0.6, "daytrade_tp": 1.5,  # 1:2.5 RR for daytrade (BE=28.6%)
         "kpi_wr": 0.30, "kpi_ev": 0.08, "kpi_sharpe": 1.0, "kpi_maxdd": 0.15,
         "breakeven_wr": 0.294,  # for 1:2.4 RR → SL/(SL+TP)=0.75/2.55
         "random_baseline_wr": 0.28,
@@ -3632,7 +3632,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         profile   = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
         SL_MULT   = profile["daytrade_sl"]   # daytrade-specific SL
         TP_MULT   = profile["daytrade_tp"]   # daytrade-specific TP
-        MAX_HOLD  = 16     # bars (4 hours at 15m — reduced to cut timeout losses)
+        MAX_HOLD  = 12     # bars (3 hours at 15m — tight to reduce timeout losses)
         COOLDOWN  = 1      # bars (allows more trades per day)
         bars_per_h = 4     # 15m足 = 4本/時間
 
