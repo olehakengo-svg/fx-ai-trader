@@ -2180,7 +2180,7 @@ async function loadBacktest(forceMode, forceCache=false){
     // Entry Breakdown (エントリータイプ別成績)
     if(d.entry_breakdown&&Object.keys(d.entry_breakdown).length){
       const typeLabels={ema_cross:'📊 EMA Cross',tokyo_bb:'🏯 Tokyo BB',sr_bounce:'📐 SR Bounce',
-        ob_retest:'🏦 OB Retest',sr_fib_confluence:'🎯 SR+Fib',sr_breakout:'💥 Breakout'};
+        ob_retest:'🏦 OB Retest',sr_fib_confluence:'🎯 SR+Fib',sr_breakout:'💥 Breakout',strong_sr_breakout:'🔥 Strong Breakout'};
       const ebHtml=Object.entries(d.entry_breakdown)
         .sort((a,b)=>b[1].ev-a[1].ev)
         .map(([k,v])=>{

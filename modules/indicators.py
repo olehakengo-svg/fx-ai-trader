@@ -306,6 +306,106 @@ def find_sr_levels(df, window=5, tolerance_pct=0.003, min_touches=2, max_levels=
     return [l["price"] for l in lvls[:max_levels]]
 
 
+def find_sr_levels_weighted(df, window=5, tolerance_pct=0.003, min_touches=2,
+                            max_levels=10, bars_per_day=288):
+    """
+    SR水平線の強度スコアリング版。
+    Returns list of dicts:
+    {
+        "price": float,        # SR価格
+        "touches": int,        # タッチ回数
+        "days_span": float,    # 最初のタッチから最後のタッチまでの日数
+        "strength": float,     # 0-1 正規化スコア
+        "is_strong": bool,     # strength >= 0.6
+        "type": str,           # "support" | "resistance" | "both"
+    }
+
+    Strength scoring:
+    - touches weight: 40%  (normalized: touches / max_touches)
+    - days_span weight: 35% (normalized: span / max_span)
+    - recency weight: 25%  (normalized: recency_score)
+    """
+    H, L, n = df["High"].values, df["Low"].values, len(df)
+    # Collect pivot points with bar indices and source (high/low)
+    pts = []  # (price, bar_index, source)  source: "H" or "L"
+    for i in range(window, n - window):
+        if H[i] == H[i - window:i + window + 1].max():
+            pts.append((float(H[i]), i, "H"))
+        if L[i] == L[i - window:i + window + 1].min():
+            pts.append((float(L[i]), i, "L"))
+    if not pts:
+        return []
+
+    # Sort by price for clustering
+    pts.sort(key=lambda x: x[0])
+    clusters = [[pts[0]]]
+    for p in pts[1:]:
+        if (p[0] - clusters[-1][0][0]) / clusters[-1][0][0] <= tolerance_pct:
+            clusters[-1].append(p)
+        else:
+            clusters.append([p])
+
+    # Build rich SR objects
+    results = []
+    # Collect all stats first for normalization
+    raw_levels = []
+    for cl in clusters:
+        if len(cl) < min_touches:
+            continue
+        prices = [x[0] for x in cl]
+        indices = [x[1] for x in cl]
+        sources = [x[2] for x in cl]
+        price = round(float(np.median(prices)), 3)
+        touches = len(cl)
+        first_idx, last_idx = min(indices), max(indices)
+        days_span = (last_idx - first_idx) / max(bars_per_day, 1)
+        # Recency: distance of most recent touch from end of data
+        recency_bars = n - 1 - last_idx
+        # Source type classification
+        h_count = sum(1 for s in sources if s == "H")
+        l_count = sum(1 for s in sources if s == "L")
+        if h_count > l_count * 2:
+            sr_type = "resistance"
+        elif l_count > h_count * 2:
+            sr_type = "support"
+        else:
+            sr_type = "both"
+        raw_levels.append({
+            "price": price,
+            "touches": touches,
+            "days_span": round(days_span, 2),
+            "recency_bars": recency_bars,
+            "type": sr_type,
+        })
+
+    if not raw_levels:
+        return []
+
+    # Normalize components 0-1
+    max_touches = max(r["touches"] for r in raw_levels)
+    max_span = max(r["days_span"] for r in raw_levels) or 1.0
+    max_recency = max(r["recency_bars"] for r in raw_levels) or 1.0
+
+    for r in raw_levels:
+        t_score = r["touches"] / max_touches if max_touches > 0 else 0
+        s_score = r["days_span"] / max_span if max_span > 0 else 0
+        # Recency: closer to end = higher score (invert)
+        rec_score = 1.0 - (r["recency_bars"] / max_recency) if max_recency > 0 else 0.5
+        strength = round(0.40 * t_score + 0.35 * s_score + 0.25 * rec_score, 3)
+        results.append({
+            "price": r["price"],
+            "touches": r["touches"],
+            "days_span": r["days_span"],
+            "strength": strength,
+            "is_strong": strength >= 0.6,
+            "type": r["type"],
+        })
+
+    # Sort by strength descending, limit to max_levels
+    results.sort(key=lambda x: -x["strength"])
+    return results[:max_levels]
+
+
 # ═══════════════════════════════════════════════════════
 #  Fibonacci retracement levels
 # ═══════════════════════════════════════════════════════

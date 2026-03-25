@@ -53,7 +53,8 @@ from modules.data import (
     _TD_SYMBOL_MAP, _TD_INTERVALS, _TF_CACHE_TTL,
 )
 from modules.indicators import (
-    add_indicators, find_sr_levels, detect_order_blocks,
+    add_indicators, find_sr_levels, find_sr_levels_weighted,
+    detect_order_blocks,
     _calc_fibonacci_levels, detect_candle_patterns,
     dow_theory_analysis, volume_obv_analysis, detect_divergence,
 )
@@ -2544,12 +2545,14 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
         # ── 戦略的エントリー: SR/OBプリコンピュテーション (ルックアヘッドバイアス排除) ──
         SR_RECALC = 100
-        _sr_cache = {}
+        _sr_cache = {}    # Now stores list of SR dicts with strength
         _ob_cache = {}
+        _scalp_bpd = 288 if bars_per_min == 5 else 96  # bars_per_day for SR strength
         for _ci in range(200, len(df), SR_RECALC):
             _sr_slice = df.iloc[max(0, _ci - 300):_ci]
-            _sr_cache[_ci // SR_RECALC] = find_sr_levels(
-                _sr_slice, window=5, tolerance_pct=0.003, min_touches=2, max_levels=8)
+            _sr_cache[_ci // SR_RECALC] = find_sr_levels_weighted(
+                _sr_slice, window=5, tolerance_pct=0.003, min_touches=2,
+                max_levels=8, bars_per_day=_scalp_bpd)
             try:
                 _, _obs = detect_order_blocks(
                     df.iloc[max(0, _ci - 100):_ci], atr_mult=1.5, lookback=80)
@@ -2630,7 +2633,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             # SR/OBレベル取得（ルックアヘッドなし）
             _sr_key = i // SR_RECALC
-            current_sr = _sr_cache.get(_sr_key, [])
+            current_sr_weighted = _sr_cache.get(_sr_key, [])
+            current_sr = [sr["price"] for sr in current_sr_weighted]
             current_obs = _ob_cache.get(_sr_key, [])
 
             sig = None
@@ -2653,9 +2657,15 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             # ═══ Entry Type 3: SR Bounce (水平線反発) ═══
             # 価格がSR水平線に接触 + 反転足 + RSI確認 → 反発エントリー
-            if sig is None and current_sr and h in HIGH_VOL_HOURS:
+            # strength >= 0.3 フィルターで弱いSRをノイズとして除外
+            _sr_bounce_strong = False
+            if sig is None and current_sr_weighted and h in HIGH_VOL_HOURS:
                 tol_sr = atr7 * 0.4
-                for level in current_sr:
+                for sr_obj in current_sr_weighted:
+                    if sr_obj["strength"] < 0.3:
+                        continue  # 弱いSRは無視
+                    level = sr_obj["price"]
+                    _sr_bounce_strong = sr_obj["is_strong"]  # strength >= 0.6
                     # BUY: 安値がサポート付近 + 陽線(反発) + RSI売られすぎ〜中立
                     if (abs(low_p - level) < tol_sr and close_p > open_p
                             and close_p > level and rsi < 45 and adx < 30):
@@ -2669,7 +2679,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                         entry_type = "sr_bounce"
                         break
 
-            # (SR Breakout 除外 — BT検証でEV=-0.078: フェイクブレイクアウトが多発)
+            # (旧SR Breakout 除外 — BT検証でEV=-0.078: フェイクブレイクアウトが多発)
 
             # ═══ Entry Type 4: OB Retest (オーダーブロック再テスト) ═══
             # 大口の流動性ゾーンに価格が戻る + EMAトレンド順 + RSI確認
@@ -2686,6 +2696,38 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                         entry_type = "ob_retest"
                         break
 
+            # ═══ Entry Type 5: Strong SR Breakout (高信頼ブレイクアウト) ═══
+            # 数日間売り買いが拮抗した強いSRを突破 → 高信頼ブレイクアウト
+            if sig is None and current_sr_weighted:
+                for sr in current_sr_weighted:
+                    if not sr["is_strong"]:
+                        continue  # Only strong walls
+                    if sr["touches"] < 3:
+                        continue  # Minimum 3 touches
+                    level = sr["price"]
+
+                    # Bullish breakout: close decisively above strong resistance
+                    if (sr["type"] in ("resistance", "both")
+                            and close_p > level + atr7 * 0.1
+                            and open_p < level
+                            and close_p > open_p
+                            and adx >= 15
+                            and rsi > 50 and rsi < 75):
+                        sig = "BUY"
+                        entry_type = "strong_sr_breakout"
+                        break
+
+                    # Bearish breakout: close decisively below strong support
+                    if (sr["type"] in ("support", "both")
+                            and close_p < level - atr7 * 0.1
+                            and open_p > level
+                            and close_p < open_p
+                            and adx >= 15
+                            and rsi > 25 and rsi < 50):
+                        sig = "SELL"
+                        entry_type = "strong_sr_breakout"
+                        break
+
             if sig is None:
                 continue
 
@@ -2695,7 +2737,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                     continue
 
                 # SR Bounceは逆張りなので方向バイアスをスキップ
-                if entry_type not in ("tokyo_bb", "sr_bounce", "ob_retest"):
+                if entry_type not in ("tokyo_bb", "sr_bounce", "ob_retest", "strong_sr_breakout"):
                     bias_info = HOUR_DIRECTION_BIAS.get(h)
                     if bias_info:
                         best_dir, best_wr, edge = bias_info
@@ -2720,8 +2762,13 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 sl_m, tp_m = 0.6, 1.0      # 平均回帰: タイトSL, BB中央狙い
             elif entry_type == "sr_bounce":
                 sl_m, tp_m = 0.5, 1.5      # SR背後にSL, 中距離TP
+                # Strong SR (>= 0.6) はより信頼性が高いのでタイトSL
+                if _sr_bounce_strong:
+                    sl_m *= 0.8
             elif entry_type == "ob_retest":
                 sl_m, tp_m = 0.6, 1.5      # OBゾーン背後にSL
+            elif entry_type == "strong_sr_breakout":
+                sl_m, tp_m = 0.4, 1.8      # ブレイクレベル背後にタイトSL, 延伸TP
             else:
                 sl_m, tp_m = SL_MULT, TP_MULT
 
@@ -2739,21 +2786,29 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                         sl = level + atr7 * 0.20  # SRの少し上にSL
                         break
 
-            # ── TP精度向上: SR-aware TP snap ──
-            # 次のSR水平線が存在し、ATR基準TPより手前にある場合はSRをTP目標に
-            if current_sr and entry_type not in ("tokyo_bb",):
-                for level in sorted(current_sr, reverse=(sig == "SELL")):
+            # ── TP精度向上: SR-aware TP snap (強度対応版) ──
+            # Strong SR (>= 0.6) → TP目標として使用 (高確率で価格が停滞)
+            # Weak SR (< 0.3) → TPを引き寄せない (突破される可能性高)
+            # Strong SR beyond TP → 0.5ATRまでならTP延伸
+            if current_sr_weighted and entry_type not in ("tokyo_bb",):
+                for sr_obj in sorted(current_sr_weighted,
+                                     key=lambda x: x["price"],
+                                     reverse=(sig == "SELL")):
+                    if sr_obj["strength"] < 0.3:
+                        continue  # 弱いSRはTP吸着に使わない
+                    level = sr_obj["price"]
+                    is_strong = sr_obj["is_strong"]
                     if sig == "BUY" and level > ep + atr7 * 0.3:
-                        # SRがTP方向にあり、最低0.3ATR以上離れている
                         if level < tp:
-                            tp = level - atr7 * 0.05  # SRの少し手前でTP（到達率向上）
-                        elif level < tp + atr7 * 0.5:
-                            tp = level - atr7 * 0.05  # SRが少し遠い場合もSRに吸着
+                            tp = level - atr7 * 0.05
+                        elif is_strong and level < tp + atr7 * 0.5:
+                            # Strong SRが少し遠い場合はTP延伸
+                            tp = level - atr7 * 0.05
                         break
                     if sig == "SELL" and level < ep - atr7 * 0.3:
                         if level > tp:
                             tp = level + atr7 * 0.05
-                        elif level > tp - atr7 * 0.5:
+                        elif is_strong and level > tp - atr7 * 0.5:
                             tp = level + atr7 * 0.05
                         break
 
@@ -3059,13 +3114,14 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
         # ── 戦略的エントリー: SR/OB/Fibプリコンピュテーション ──
         DT_SR_RECALC = 80
-        _dt_sr_cache = {}
+        _dt_sr_cache = {}    # Now stores list of SR dicts with strength
         _dt_ob_cache = {}
         _dt_fib_cache = {}
         for _ci in range(200, len(df), DT_SR_RECALC):
             _sr_slice = df.iloc[max(0, _ci - 400):_ci]
-            _dt_sr_cache[_ci // DT_SR_RECALC] = find_sr_levels(
-                _sr_slice, window=5, tolerance_pct=0.003, min_touches=2, max_levels=8)
+            _dt_sr_cache[_ci // DT_SR_RECALC] = find_sr_levels_weighted(
+                _sr_slice, window=5, tolerance_pct=0.003, min_touches=2,
+                max_levels=8, bars_per_day=96)
             try:
                 _, _obs = detect_order_blocks(
                     df.iloc[max(0, _ci - 120):_ci], atr_mult=1.5, lookback=100)
@@ -3124,7 +3180,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
             # SR/OB/Fib取得
             _dt_key = i // DT_SR_RECALC
-            dt_sr = _dt_sr_cache.get(_dt_key, [])
+            dt_sr_weighted = _dt_sr_cache.get(_dt_key, [])
+            dt_sr = [sr["price"] for sr in dt_sr_weighted]
             dt_obs = _dt_ob_cache.get(_dt_key, [])
             dt_fib = _dt_fib_cache.get(_dt_key, {})
 
@@ -3135,12 +3192,18 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
             # ═══ Entry Type 2: SR + Fib Confluence (水平線×フィボ合流) ═══
             # SR水平線とフィボリトレースメント(38.2-61.8%)が重なる高確率ゾーン
-            if sig is None and dt_sr and dt_fib and adx >= 10:
+            # strength >= 0.3 フィルターで弱いSRをノイズとして除外
+            _dt_sr_bounce_strong = False
+            if sig is None and dt_sr_weighted and dt_fib and adx >= 10:
                 tol_fib = atr * 0.5
                 fib_levels = [dt_fib.get(k) for k in ("r382", "r500", "r618") if dt_fib.get(k)]
                 fib_trend = dt_fib.get("trend", "")
 
-                for sr_level in dt_sr:
+                for sr_obj in dt_sr_weighted:
+                    if sr_obj["strength"] < 0.3:
+                        continue  # 弱いSRは無視
+                    sr_level = sr_obj["price"]
+                    _dt_sr_bounce_strong = sr_obj["is_strong"]
                     for fib_level in fib_levels:
                         if abs(sr_level - fib_level) > tol_fib:
                             continue
@@ -3163,7 +3226,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                             break
                     if sig: break
 
-            # (SR Breakout 除外 — BT検証でEV=-0.120: フェイクブレイクアウト多発)
+            # (旧SR Breakout 除外 — BT検証でEV=-0.120: フェイクブレイクアウト多発)
 
             # ═══ Entry Type 3: OB Retest (オーダーブロック再テスト) ═══
             if sig is None and dt_obs and adx >= 10:
@@ -3181,13 +3244,45 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                         entry_type = "ob_retest"
                         break
 
+            # ═══ Entry Type 4: Strong SR Breakout (高信頼ブレイクアウト) ═══
+            # 数日間売り買いが拮抗した強いSRを突破 → 高信頼ブレイクアウト
+            if sig is None and dt_sr_weighted:
+                for sr in dt_sr_weighted:
+                    if not sr["is_strong"]:
+                        continue
+                    if sr["touches"] < 3:
+                        continue
+                    level = sr["price"]
+
+                    # Bullish breakout: close decisively above strong resistance
+                    if (sr["type"] in ("resistance", "both")
+                            and close_p > level + atr * 0.1
+                            and open_p < level
+                            and close_p > open_p
+                            and adx >= 15
+                            and rsi > 50 and rsi < 75):
+                        sig = "BUY"
+                        entry_type = "strong_sr_breakout"
+                        break
+
+                    # Bearish breakout: close decisively below strong support
+                    if (sr["type"] in ("support", "both")
+                            and close_p < level - atr * 0.1
+                            and open_p > level
+                            and close_p < open_p
+                            and adx >= 15
+                            and rsi > 25 and rsi < 50):
+                        sig = "SELL"
+                        entry_type = "strong_sr_breakout"
+                        break
+
             if sig is None:
                 continue
 
             # ── 時間帯×方向バイアスフィルター ──
             try:
                 bias_info = HOUR_DIRECTION_BIAS.get(h)
-                if bias_info and entry_type not in ("sr_fib_confluence", "ob_retest"):
+                if bias_info and entry_type not in ("sr_fib_confluence", "ob_retest", "strong_sr_breakout"):
                     best_dir, best_wr, edge = bias_info
                     if best_dir is None or edge < 0:
                         continue
@@ -3207,8 +3302,13 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             # ── エントリータイプ別 SL/TP ──
             if entry_type == "sr_fib_confluence":
                 sl_m, tp_m = 0.5, 1.5   # コンフルエンス背後にタイトSL
+                # Strong SR (>= 0.6) はより信頼性が高いのでタイトSL
+                if _dt_sr_bounce_strong:
+                    sl_m *= 0.8
             elif entry_type == "ob_retest":
                 sl_m, tp_m = 0.5, 1.5   # OBゾーン背後にSL
+            elif entry_type == "strong_sr_breakout":
+                sl_m, tp_m = 0.5, 2.0   # ブレイクレベル背後にタイトSL, 延伸TP
             else:
                 sl_m, tp_m = SL_MULT, TP_MULT
 
@@ -3225,19 +3325,27 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                         sl = level + atr * 0.20
                         break
 
-            # ── TP精度向上: SR-aware TP snap ──
-            if dt_sr:
-                for level in sorted(dt_sr, reverse=(sig == "SELL")):
+            # ── TP精度向上: SR-aware TP snap (強度対応版) ──
+            # Strong SR (>= 0.6) → TP目標として使用
+            # Weak SR (< 0.3) → TPを引き寄せない
+            if dt_sr_weighted:
+                for sr_obj in sorted(dt_sr_weighted,
+                                     key=lambda x: x["price"],
+                                     reverse=(sig == "SELL")):
+                    if sr_obj["strength"] < 0.3:
+                        continue
+                    level = sr_obj["price"]
+                    is_strong = sr_obj["is_strong"]
                     if sig == "BUY" and level > ep + atr * 0.3:
                         if level < tp:
                             tp = level - atr * 0.05
-                        elif level < tp + atr * 0.5:
+                        elif is_strong and level < tp + atr * 0.5:
                             tp = level - atr * 0.05
                         break
                     if sig == "SELL" and level < ep - atr * 0.3:
                         if level > tp:
                             tp = level + atr * 0.05
-                        elif level > tp - atr * 0.5:
+                        elif is_strong and level > tp - atr * 0.5:
                             tp = level + atr * 0.05
                         break
 
