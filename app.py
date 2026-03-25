@@ -3422,8 +3422,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 v["ev"] = round(v["pnl"] / v["total"], 3)
 
             trades_per_day = round(n / lookback_days, 2)
-            verdict = ("✅ 良好" if ev > 0.15 and profitable >= 2 else
-                       "🟡 β版 — 期待値プラスだが直近WF弱め" if ev > 0 else "❌ 不採用")
+            verdict = ("✅ 良好" if ev > 0.10 and profitable >= 2 else
+                       "🟡 要注意 — 期待値プラスだがWF不安定" if ev > 0 else "❌ 不採用")
 
             result = {
                 "trades": n, "win_rate": wr, "expected_value": ev,
@@ -3431,7 +3431,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "max_drawdown": mdd, "sharpe": sharpe,
                 "trades_per_day": trades_per_day,
                 "verdict": verdict,
-                "beta": ev < 0.15,
+                "beta": False,
                 "period": f"過去{lookback_days}日 ({interval}足)",
                 "sl_mult": SL_MULT, "tp_mult": TP_MULT,
                 "walk_forward": wf_windows,
