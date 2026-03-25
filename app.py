@@ -4045,7 +4045,7 @@ def compute_dayflow_plan(symbol: str = "USDJPY=X") -> dict:
         return _dayplan_cache["result"]
 
     try:
-        df_d = fetch_ohlcv(symbol, period="30d", interval="1d")
+        df_d = fetch_ohlcv(symbol, period="1y", interval="1d")
         if len(df_d) < 3:
             return {"error": "データ不足"}
 
@@ -4064,9 +4064,17 @@ def compute_dayflow_plan(symbol: str = "USDJPY=X") -> dict:
         df_w = fetch_ohlcv(symbol, period="10d", interval="1wk")
         wo   = round(float(df_w["Open"].iloc[-1]), 3) if len(df_w) > 0 else round(pivot, 3)
 
-        # 日足ATR
-        df_di = add_indicators(df_d.tail(20).copy())
-        datr  = round(float(df_di["atr"].iloc[-1]), 3) if len(df_di) > 0 else 0.3
+        # 日足ATR — need at least 201 rows for EMA200 in add_indicators
+        MIN_ROWS_FOR_INDICATORS = 201
+        if len(df_d) >= MIN_ROWS_FOR_INDICATORS:
+            df_di = add_indicators(df_d.copy())
+            datr  = round(float(df_di["atr"].iloc[-1]), 3) if len(df_di) > 0 else 0.3
+        else:
+            # Not enough data for full indicators; compute ATR directly
+            atr_series = AverageTrueRange(
+                df_d["High"], df_d["Low"], df_d["Close"], window=min(14, len(df_d) - 1)
+            ).average_true_range()
+            datr = round(float(atr_series.dropna().iloc[-1]), 3) if len(atr_series.dropna()) > 0 else 0.3
 
         # 方向バイアス
         if tc > pivot and tc > wo:

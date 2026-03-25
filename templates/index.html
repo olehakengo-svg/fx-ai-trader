@@ -1128,6 +1128,15 @@ function setTf(tf){
   refreshAll();
 }
 
+function showModeCards(mode){
+  // カード表示切替: 選択モードのカードだけ表示し、他を非表示にする
+  const modeCards=['dayflow','session','scalp','daytrade','swing'];
+  modeCards.forEach(m=>{
+    const el=document.getElementById('card-'+m);
+    if(el) el.style.display=(m===mode)?'block':'none';
+  });
+}
+
 function setMode(mode){
   currentMode=mode;
   if(mode!=='dayflow') clearDpLines();
@@ -1137,11 +1146,7 @@ function setMode(mode){
   const btn=document.querySelector('.mode-btn.'+clsMap[mode]);
   if(btn)btn.classList.add('active');
   // カード表示切替
-  document.getElementById('card-dayflow').style.display=mode==='dayflow'?'block':'none';
-  document.getElementById('card-session').style.display=mode==='session'?'block':'none';
-  document.getElementById('card-scalp').style.display=mode==='scalp'?'block':'none';
-  document.getElementById('card-daytrade').style.display=mode==='daytrade'?'block':'none';
-  document.getElementById('card-swing').style.display=mode==='swing'?'block':'none';
+  showModeCards(mode);
   // TF選択肢をモードに合わせてハイライト（推奨TF）
   const recTf={scalp:'5m',daytrade:'30m',swing:'1d',standard:'1h',dayflow:'1h',session:'1h'};
   if(recTf[mode] && recTf[mode]!==currentTf){
@@ -1797,6 +1802,8 @@ function _refreshSecs(){return _REFRESH_INTERVAL[currentMode]||60;}
 async function refreshAll(){
   const btn=document.getElementById('btn-refresh');
   btn.disabled=true;btn.textContent='⏳';
+  // カード表示状態を維持（auto-refresh後も正しく表示）
+  showModeCards(currentMode);
   try{
     const tasks=[loadChartData(),loadSignal(),loadRegimeStatus()];
     if(currentMode==='dayflow')tasks.push(loadDayPlan());
