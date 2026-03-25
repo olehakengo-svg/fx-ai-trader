@@ -476,7 +476,7 @@ def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
     for page in range(max_pages):
         req = _ur.Request(url + params, headers={"User-Agent": "Mozilla/5.0"})
         try:
-            with _ur.urlopen(req, timeout=15) as r:
+            with _ur.urlopen(req, timeout=45) as r:
                 data = _js.load(r)
         except Exception as e:
             if page == 0:
@@ -3498,6 +3498,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "consistency":    f"{profitable}/{len(wf_windows)} 窓でプラス期待値",
                 "trade_log":      trade_log,
                 "mode":           "scalp",
+                "data_source":    _last_data_source.get(interval, "yfinance"),
+                "bars_fetched":   len(df),
             }
 
         _scalp_bt_cache[cache_key] = {"result": result, "ts": now}
@@ -3694,6 +3696,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "consistency": f"{profitable}/{len(wf_windows)} 窓でプラス期待値",
                 "trade_log": trades[-20:],
                 "mode": "daytrade",
+                "data_source": _last_data_source.get(interval, "yfinance"),
+                "bars_fetched": len(df),
             }
 
         _dt_bt_cache[cache_key] = {"result": result, "ts": now}
