@@ -92,10 +92,10 @@ HOUR_DIRECTION_BIAS = {
 STRATEGY_PROFILES = {
     "A": {
         "name": "Trend Following",
-        "scalp_sl": 0.8, "scalp_tp": 1.8,    # 1:2.25 RR for scalp (BE=30.8%)
-        "daytrade_sl": 0.5, "daytrade_tp": 1.5,  # 1:3 RR for daytrade (keep as-is)
+        "scalp_sl": 0.75, "scalp_tp": 1.8,    # 1:2.4 RR for scalp (BE=29.4%)
+        "daytrade_sl": 0.7, "daytrade_tp": 2.0,  # 1:2.86 RR for daytrade (BE=25.9%)
         "kpi_wr": 0.30, "kpi_ev": 0.08, "kpi_sharpe": 1.0, "kpi_maxdd": 0.15,
-        "breakeven_wr": 0.308,  # for 1:2.25 RR → SL/(SL+TP)=0.8/2.6
+        "breakeven_wr": 0.294,  # for 1:2.4 RR → SL/(SL+TP)=0.75/2.55
         "random_baseline_wr": 0.28,
         "trades_per_day_min": 1, "trades_per_day_max": 50,
     },
@@ -3632,7 +3632,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         profile   = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
         SL_MULT   = profile["daytrade_sl"]   # daytrade-specific SL
         TP_MULT   = profile["daytrade_tp"]   # daytrade-specific TP
-        MAX_HOLD  = 20     # bars (5 hours at 15m)
+        MAX_HOLD  = 16     # bars (4 hours at 15m — reduced to cut timeout losses)
         COOLDOWN  = 1      # bars (allows more trades per day)
         bars_per_h = 4     # 15m足 = 4本/時間
 
@@ -3645,6 +3645,17 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
             row      = df.iloc[i]
             prev_row = df.iloc[i-1]
+
+            # Volume filter: skip dead-market bars (Massive API includes off-hours)
+            if "Volume" in df.columns:
+                vol = float(row["Volume"])
+                if vol > 0 and vol < 100:
+                    continue
+
+            # Bar range filter: skip near-zero-range bars
+            bar_range = float(row["High"]) - float(row["Low"])
+            if bar_range < 0.015:
+                continue
 
             ema9   = float(row["ema9"])
             ema21  = float(row["ema21"])
@@ -3660,8 +3671,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
             if atr <= 0: continue
 
-            # ADX: trend exists
-            if adx < 8:
+            # ADX: require meaningful trend (raised from 8 to 15)
+            if adx < 15:
                 continue
 
             # EMA crossover
@@ -3671,13 +3682,16 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             if not cross_up and not cross_down:
                 continue
 
-            # Trend confirmation: EMA50 direction
+            # Trend confirmation: EMA50 + EMA200 direction
             if cross_up   and ema9 < ema50: continue
             if cross_down and ema9 > ema50: continue
+            # EMA200 macro trend alignment (strong filter for 365d reliability)
+            if cross_up   and ema50 < ema200: continue
+            if cross_down and ema50 > ema200: continue
 
-            # MACD confirmation: only enforce when ADX is very weak
-            if cross_up   and macdh < macdh_p and adx < 10: continue
-            if cross_down and macdh > macdh_p and adx < 10: continue
+            # MACD confirmation: only enforce when ADX is moderate
+            if cross_up   and macdh < macdh_p and adx < 20: continue
+            if cross_down and macdh > macdh_p and adx < 20: continue
 
             # RSI
             if cross_up   and rsi > 70: continue
@@ -3775,8 +3789,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             profitable = sum(1 for w in wf_windows if w.get("expected_value", -1) > 0)
 
             trades_per_day = round(n / lookback_days, 2)
-            verdict = ("✅ 良好" if ev > 0.3 and wr > 50 else
-                       "⚠️ 要改善" if ev > 0 else "❌ 不採用")
+            verdict = ("✅ 良好" if ev > 0.15 and profitable >= 2 else
+                       "🟡 期待値わずかプラス（要注意）" if ev > 0 else "❌ 不採用")
 
             result = {
                 "trades": n, "win_rate": wr, "expected_value": ev,
