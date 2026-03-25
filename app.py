@@ -946,11 +946,22 @@ def is_trade_prohibited(df=None) -> dict:
     now_utc  = datetime.now(timezone.utc)
     hour_utc = now_utc.hour
 
-    # ① 低流動性セッション (22:00-07:00 UTC)
-    if hour_utc >= 22 or hour_utc < 7:
+    # ① 低流動性セッション
+    # 22:00-23:59 UTC: 深夜 — 出来高不足で取引禁止
+    # 00:00-06:59 UTC: 東京セッション — 平均回帰戦略で稼働
+    if hour_utc >= 22:
         return {
             "prohibited": True,
-            "reason":     f"⏰ 低流動性セッション ({hour_utc:02d}:00 UTC) — London Open 07:00 UTC まで待機",
+            "reason":     f"🌙 深夜セッション ({hour_utc:02d}:00 UTC) — 出来高不足",
+            "layer": 0, "check": "session",
+        }
+    if hour_utc < 7:
+        # 東京セッション: 取引は許可、専用戦略で稼働
+        # (経済指標・異常ボラチェックは引き続き下で実施)
+        tokyo_result = {
+            "prohibited": False,
+            "tokyo_mode": True,
+            "reason": "🏯 東京セッション — 平均回帰戦略で稼働中",
             "layer": 0, "check": "session",
         }
 
@@ -989,6 +1000,10 @@ def is_trade_prohibited(df=None) -> dict:
                 }
         except Exception:
             pass
+
+    # 東京セッション中なら tokyo_mode フラグ付きで返す
+    if hour_utc < 7:
+        return tokyo_result
 
     return {"prohibited": False, "reason": "", "layer": 0, "check": "ok"}
 
@@ -2663,8 +2678,8 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     else:
         score *= 0.60  # 大口方向不明 → 品質低下
 
-    # ── Layer 0: 取引禁止時の早期リターン ─────────────────────
-    if layer0["prohibited"]:
+    # ── Layer 0: 取引禁止時の早期リターン（東京モードはスキップ）──
+    if layer0["prohibited"] and not layer0.get("tokyo_mode", False):
         session = get_session_info()
         ts_str  = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
         return {
@@ -3376,60 +3391,87 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             cross_up   = (ema9_p <= ema21_p) and (ema9 > ema21)
             cross_down = (ema9_p >= ema21_p) and (ema9 < ema21)
 
+            # Tokyo BB bounce (hours 0-6): alternative entry when no EMA crossover
+            tokyo_bb = False
+            try:
+                h = row.name.hour
+            except Exception:
+                h = -1
+
             if not cross_up and not cross_down:
-                continue
+                if 0 <= h <= 6:
+                    bb_pband_bt = float(row.get("bb_pband", 0.5)) if "bb_pband" in row.index else 0.5
+                    if bb_pband_bt <= 0.08 and rsi < 38 and adx < 25:
+                        sig = "BUY"
+                        tokyo_bb = True
+                    elif bb_pband_bt >= 0.92 and rsi > 62 and adx < 25:
+                        sig = "SELL"
+                        tokyo_bb = True
+                    else:
+                        continue
+                else:
+                    continue
+            else:
+                # EMA21 slope confirmation — reject crossovers in flat market
+                ema21_slope = (ema21 - df["ema21"].iloc[i - 3]) / 3.0  # 3-bar slope
+                if cross_up and ema21_slope < 0:
+                    continue  # EMA21 declining during bullish crossover = false signal
+                if cross_down and ema21_slope > 0:
+                    continue  # EMA21 rising during bearish crossover = false signal
 
-            # EMA21 slope confirmation — reject crossovers in flat market
-            ema21_slope = (ema21 - df["ema21"].iloc[i - 3]) / 3.0  # 3-bar slope
-            if cross_up and ema21_slope < 0:
-                continue  # EMA21 declining during bullish crossover = false signal
-            if cross_down and ema21_slope > 0:
-                continue  # EMA21 rising during bearish crossover = false signal
+                # EMA50 trend direction filter
+                if cross_up   and ema9 < ema50: continue
+                if cross_down and ema9 > ema50: continue
 
-            # EMA50 trend direction filter
-            if cross_up   and ema9 < ema50: continue
-            if cross_down and ema9 > ema50: continue
+                # ADX filter: require minimum trend strength
+                if adx < 12: continue
 
-            # ADX filter: require minimum trend strength
-            if adx < 12: continue
-
-            sig = "BUY" if cross_up else "SELL"
+                sig = "BUY" if cross_up else "SELL"
 
             # 高ボラ時間帯フィルター（Massive APIデータ分析に基づく）
             # 高レンジ: 0-9 UTC (Tokyo/London), 13-17 UTC (NY)
             # 低レンジ: 19-22 UTC (NY閉場前) → 除外
             try:
-                h = row.name.hour
                 HIGH_VOL_HOURS = {0,1,2,3,4,5,6,7,8,9,13,14,15,16,17}
                 if h not in HIGH_VOL_HOURS:
                     continue  # 低ボラ時間帯 → スキップ
 
-                bias_info = HOUR_DIRECTION_BIAS.get(h)
-                if bias_info:
-                    best_dir, best_wr, edge = bias_info
-                    # 方向バイアスがある場合は一致を要求（edge >= 2pp）
-                    if best_dir is not None and edge >= 2.0:
-                        if sig == "BUY" and best_dir != "LONG":
-                            continue
-                        if sig == "SELL" and best_dir != "SHORT":
-                            continue
+                if not tokyo_bb:
+                    bias_info = HOUR_DIRECTION_BIAS.get(h)
+                    if bias_info:
+                        best_dir, best_wr, edge = bias_info
+                        # 方向バイアスがある場合は一致を要求（edge >= 2pp）
+                        if best_dir is not None and edge >= 2.0:
+                            if sig == "BUY" and best_dir != "LONG":
+                                continue
+                            if sig == "SELL" and best_dir != "SHORT":
+                                continue
             except Exception:
                 pass
 
             # RSI directional confirmation (exclude neutral 40-60 zone)
-            if sig == "BUY" and rsi <= 50:
-                continue
-            if sig == "SELL" and rsi >= 50:
-                continue
+            # Skip for Tokyo BB bounce — RSI already checked in BB condition
+            if not tokyo_bb:
+                if sig == "BUY" and rsi <= 50:
+                    continue
+                if sig == "SELL" and rsi >= 50:
+                    continue
 
             if i + 1 >= len(df):
                 continue
             ep  = float(df.iloc[i + 1]["Open"])
             ep  = ep + SPREAD / 2 if sig == "BUY" else ep - SPREAD / 2
-            sl  = ep - atr7 * SL_MULT if sig == "BUY" else ep + atr7 * SL_MULT
 
-            # TP: 固定ATR倍数（高頻度向けに軽量化・S/Rスナップなし）
-            tp = round(ep + atr7 * TP_MULT, 3) if sig == "BUY" else round(ep - atr7 * TP_MULT, 3)
+            # Tokyo BB bounce: tighter SL, TP targeting BB mid
+            if tokyo_bb:
+                SL_MULT_TOKYO = 0.6
+                TP_MULT_TOKYO = 1.0
+                sl = ep - atr7 * SL_MULT_TOKYO if sig == "BUY" else ep + atr7 * SL_MULT_TOKYO
+                tp = round(ep + atr7 * TP_MULT_TOKYO, 3) if sig == "BUY" else round(ep - atr7 * TP_MULT_TOKYO, 3)
+            else:
+                sl  = ep - atr7 * SL_MULT if sig == "BUY" else ep + atr7 * SL_MULT
+                # TP: 固定ATR倍数（高頻度向けに軽量化・S/Rスナップなし）
+                tp = round(ep + atr7 * TP_MULT, 3) if sig == "BUY" else round(ep - atr7 * TP_MULT, 3)
             sl_dist = abs(ep - sl)
 
             actual_rr = round(abs(tp - ep) / max(sl_dist, 1e-6), 2)
@@ -4872,6 +4914,100 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                           "adx": round(adx,1), "bb_width_pct": 0},
             "ml_confidence": 0.5,
         }
+
+    # ── 東京セッション: BBバウンス平均回帰戦略 ──────────────
+    tokyo_mode = layer0.get("tokyo_mode", False)
+    if tokyo_mode:
+        # BB %B (price position within Bollinger Bands)
+        bb_pband = float(row.get("bb_pband", 0.5)) if "bb_pband" in row.index else 0.5
+        rsi_tok = float(row["rsi"])
+        adx_tok = float(row.get("adx", 20.0))
+        atr7_tok = float(row["atr7"]) if "atr7" in row.index else float(row["atr"])
+
+        # Only trade in ranging market (ADX < 25)
+        if adx_tok < 25:
+            signal = "WAIT"
+            score_tok = 0.0
+
+            # BB Lower bounce + RSI oversold → BUY
+            if bb_pband <= 0.08 and rsi_tok < 38:
+                signal = "BUY"
+                score_tok = 2.5 + (38 - rsi_tok) * 0.05  # stronger RSI extreme = higher score
+            # BB Upper bounce + RSI overbought → SELL
+            elif bb_pband >= 0.92 and rsi_tok > 62:
+                signal = "SELL"
+                score_tok = 2.5 + (rsi_tok - 62) * 0.05
+
+            if signal != "WAIT":
+                entry_tok = float(row["Close"])
+                spread = 0.002
+                entry_tok = entry_tok + spread / 2 if signal == "BUY" else entry_tok - spread / 2
+
+                sl_mult = 0.6  # Tighter SL for mean reversion
+                sl_tok = entry_tok - atr7_tok * sl_mult if signal == "BUY" else entry_tok + atr7_tok * sl_mult
+
+                # TP: BB middle band (mean reversion target)
+                bb_mid = float(row.get("bb_middle", (row.get("bb_upper", entry_tok) + row.get("bb_lower", entry_tok)) / 2))
+                if "bb_middle" not in row.index and "bb_upper" in row.index:
+                    bb_mid = (float(row["bb_upper"]) + float(row["bb_lower"])) / 2
+                tp_tok = bb_mid
+
+                # Ensure minimum RR of 1.0
+                sl_dist = abs(entry_tok - sl_tok)
+                tp_dist = abs(tp_tok - entry_tok)
+                if tp_dist < sl_dist:
+                    tp_tok = entry_tok + sl_dist * 1.2 if signal == "BUY" else entry_tok - sl_dist * 1.2
+
+                rr = round(abs(tp_tok - entry_tok) / max(abs(entry_tok - sl_tok), 1e-6), 2)
+                confidence = min(int(score_tok * 15), 95)
+
+                session_tok = get_session_info()
+                ts_str = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
+
+                return {
+                    "signal": signal, "confidence": confidence,
+                    "entry": round(entry_tok, 3), "sl": round(sl_tok, 3), "tp": round(tp_tok, 3),
+                    "atr": round(atr7_tok, 4), "rr_ratio": rr, "score": round(score_tok, 2),
+                    "session": session_tok, "timestamp": ts_str,
+                    "mode": "scalp", "tf": tf, "symbol": symbol,
+                    "swing_mode": False, "bar_count": len(df),
+                    "ohlcv_source": df.attrs.get("source", "unknown"),
+                    "scalp_score": round(score_tok, 2),
+                    "scalp_info": {
+                        "strategy": "tokyo_bb_bounce",
+                        "bb_pband": round(bb_pband, 3),
+                        "rsi": round(rsi_tok, 1),
+                        "adx": round(adx_tok, 1),
+                        "note": "🏯 東京セッション: BBバウンス平均回帰",
+                    },
+                    "reasons": [
+                        f"🏯 東京セッション平均回帰戦略",
+                        f"BB %B: {bb_pband:.3f} ({'下限バウンス' if signal == 'BUY' else '上限バウンス'})",
+                        f"RSI: {rsi_tok:.1f} ({'売られすぎ' if signal == 'BUY' else '買われすぎ'})",
+                        f"ADX: {adx_tok:.1f} (レンジ相場確認)",
+                        f"TP: BBミドルバンド {bb_mid:.3f}",
+                    ],
+                    "indicators": {
+                        "ema9": float(row["ema9"]), "ema21": float(row["ema21"]),
+                        "ema50": float(row["ema50"]),
+                        "rsi": round(rsi_tok, 1),
+                        "macd": float(row.get("macd", 0)),
+                        "macd_signal": float(row.get("macd_signal", 0)),
+                        "macd_hist": float(row.get("macd_hist", 0)),
+                        "bb_upper": float(row.get("bb_upper", 0)),
+                        "bb_lower": float(row.get("bb_lower", 0)),
+                        "adx": round(adx_tok, 1),
+                        "atr": round(atr7_tok, 4),
+                    },
+                    "htf_bias": htf,
+                    "layer_status": {
+                        "layer0": layer0, "layer1": layer1,
+                        "master_bias": layer1.get("label", "—"),
+                        "trade_ok": True,
+                    },
+                    "ml_confidence": 0.5,
+                }
+            # If no BB bounce signal, fall through to standard logic with tokyo info
 
     # ── 学術根拠S/R計算 ─────────────────────────────────────
     round_sr   = detect_round_number_sr(entry)          # Osler (2000)
