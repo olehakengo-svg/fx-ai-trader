@@ -93,7 +93,7 @@ STRATEGY_PROFILES = {
     "A": {
         "name": "Trend Following",
         "scalp_sl": 0.75, "scalp_tp": 1.8,    # 1:2.4 RR for scalp (BE=29.4%)
-        "daytrade_sl": 0.7, "daytrade_tp": 2.0,  # 1:2.86 RR for daytrade (BE=25.9%)
+        "daytrade_sl": 0.7, "daytrade_tp": 1.5,  # 1:2.14 RR for daytrade (BE=31.8%)
         "kpi_wr": 0.30, "kpi_ev": 0.08, "kpi_sharpe": 1.0, "kpi_maxdd": 0.15,
         "breakeven_wr": 0.294,  # for 1:2.4 RR → SL/(SL+TP)=0.75/2.55
         "random_baseline_wr": 0.28,
@@ -3661,41 +3661,42 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             ema21  = float(row["ema21"])
             ema50  = float(row["ema50"])
             ema200 = float(row.get("ema200", row["ema50"]))
-            ema9_p = float(prev_row["ema9"])
-            ema21_p= float(prev_row["ema21"])
+            ema21_p = float(prev_row["ema21"])
+            ema50_p = float(prev_row["ema50"])
             atr    = float(row["atr"])
             adx    = float(row.get("adx", 20.0))
             macdh  = float(row["macd_hist"])
             macdh_p= float(df["macd_hist"].iloc[i-1])
             rsi    = float(row["rsi"])
+            bb_pband = float(row.get("bb_pband", 0.5))
 
             if atr <= 0: continue
 
-            # ADX: require meaningful trend (raised from 8 to 15)
-            if adx < 15:
+            # ADX: require some trend (not dead flat)
+            if adx < 10:
                 continue
 
-            # EMA crossover
-            cross_up   = (ema9_p <= ema21_p) and (ema9 > ema21)
-            cross_down = (ema9_p >= ema21_p) and (ema9 < ema21)
+            # ── デイトレード用: EMA21/50クロスオーバー（遅延シグナルで精度向上）──
+            cross_up   = (ema21_p <= ema50_p) and (ema21 > ema50)
+            cross_down = (ema21_p >= ema50_p) and (ema21 < ema50)
 
             if not cross_up and not cross_down:
                 continue
 
-            # Trend confirmation: EMA50 + EMA200 direction
-            if cross_up   and ema9 < ema50: continue
-            if cross_down and ema9 > ema50: continue
-            # EMA200 macro trend alignment (strong filter for 365d reliability)
-            if cross_up   and ema50 < ema200: continue
-            if cross_down and ema50 > ema200: continue
+            # EMA9がクロス方向に揃っていること（モメンタム確認）
+            if cross_up   and ema9 < ema21: continue
+            if cross_down and ema9 > ema21: continue
 
-            # MACD confirmation: only enforce when ADX is moderate
-            if cross_up   and macdh < macdh_p and adx < 20: continue
-            if cross_down and macdh > macdh_p and adx < 20: continue
+            # MACD histogram: クロス方向と一致（ADX低い時のみ強制）
+            if cross_up   and macdh < 0 and adx < 15: continue
+            if cross_down and macdh > 0 and adx < 15: continue
 
-            # RSI
-            if cross_up   and rsi > 70: continue
-            if cross_down and rsi < 30: continue
+            # RSI: 過熱圏を除外（30-70の範囲内のみ）
+            if cross_up   and rsi > 65: continue
+            if cross_down and rsi < 35: continue
+            # RSI方向確認: BUYならRSI>45, SELLならRSI<55
+            if cross_up   and rsi < 45: continue
+            if cross_down and rsi > 55: continue
 
             sig = "BUY" if cross_up else "SELL"
 
