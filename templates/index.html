@@ -349,7 +349,10 @@ body{background:var(--bg0);color:var(--t1);
   .strat-btn{min-width:44px;min-height:44px;padding:8px 10px;font-size:12px}
   .hdr-right{flex-basis:100%;justify-content:flex-end}
   .btn-refresh,.btn-notif{min-height:44px;min-width:44px;padding:8px 12px;font-size:12px}
-  .charts-col{display:none!important}
+  .charts-col{display:flex!important;flex:none!important;height:300px;order:-1;flex-direction:column}
+  #wrap-price{flex:1!important;min-height:280px}
+  #wrap-rsi,#wrap-macd{display:none;flex:none!important}
+  .chart-label{font-size:8px;top:4px;left:6px;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
   .panel{width:100%;border-left:none;overflow-y:visible}
   .main{flex-direction:column!important;overflow:visible!important;height:auto!important;flex:none!important}
   .mode-btn{min-height:44px;font-size:11px}
@@ -414,6 +417,9 @@ body{background:var(--bg0);color:var(--t1);
       </div>
       <div class="chart-inner" id="chart-price"></div>
       <div class="loading-overlay" id="ov-price"><div class="spinner"></div></div>
+    </div>
+    <div id="mobile-sub-toggle" style="display:none;padding:4px 8px;background:var(--bg1);border-bottom:1px solid var(--bg3);text-align:center">
+      <button onclick="toggleMobileSub()" style="background:var(--bg2);color:var(--t2);border:1px solid var(--bg3);border-radius:4px;padding:4px 12px;font-size:10px;cursor:pointer" id="mob-sub-btn">RSI / MACD 展開 ▼</button>
     </div>
     <div class="chart-wrap" id="wrap-rsi">
       <div class="chart-label">RSI (14) &nbsp;— 70 overbought / 30 oversold</div>
@@ -1129,6 +1135,41 @@ const macdHS  = mChart.addHistogramSeries({lastValueVisible:false,priceLineVisib
     cc.forEach((cc2,j)=>{if(j!==i)cc2.timeScale().setVisibleLogicalRange(r)});
     sync=false;
   }));
+})();
+
+// ── Mobile chart support ──
+const isMobile=()=>window.innerWidth<=768;
+let _mobSubOpen=false;
+function toggleMobileSub(){
+  _mobSubOpen=!_mobSubOpen;
+  const rsi=document.getElementById('wrap-rsi'),macd=document.getElementById('wrap-macd');
+  const btn=document.getElementById('mob-sub-btn');
+  if(_mobSubOpen){
+    rsi.style.display='block';macd.style.display='block';
+    rsi.style.height='120px';macd.style.height='120px';
+    btn.textContent='RSI / MACD 閉じる ▲';
+    setTimeout(()=>{rChart.resize(rsi.clientWidth,120);mChart.resize(macd.clientWidth,120)},50);
+  }else{
+    rsi.style.display='none';macd.style.display='none';
+    btn.textContent='RSI / MACD 展開 ▼';
+  }
+}
+(()=>{
+  const chk=()=>{
+    const tog=document.getElementById('mobile-sub-toggle');
+    if(!tog)return;
+    tog.style.display=isMobile()?'block':'none';
+    if(!isMobile()){
+      const r=document.getElementById('wrap-rsi'),m=document.getElementById('wrap-macd');
+      r.style.display='';m.style.display='';r.style.height='';m.style.height='';
+    }
+    if(isMobile()){
+      const w=document.querySelector('.charts-col');
+      if(w) pChart.resize(w.clientWidth,300);
+    }
+  };
+  window.addEventListener('resize',chk);
+  setTimeout(chk,200);
 })();
 
 // ════════════════════════════════════════════════
