@@ -3311,6 +3311,18 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             row      = df.iloc[i]
             prev_row = df.iloc[i-1]
 
+            # Volume filter: skip dead-market bars (Massive API includes off-hours)
+            # yfinance returns Volume=0 for FX, so only filter when volume data exists
+            if "Volume" in df.columns:
+                vol = float(row["Volume"])
+                if vol > 0 and vol < 100:
+                    continue  # 出来高不足 → スキップ
+
+            # Bar range filter: skip bars with no meaningful movement
+            bar_range = float(row["High"]) - float(row["Low"])
+            if bar_range < 0.015:
+                continue  # レンジ狭すぎ → スキップ
+
             # ATR regime filter: skip high volatility spikes (ATR > 2.5x 20-bar avg)
             atr_val = float(row["atr7"]) if "atr7" in row.index else float(row["atr"])
             atr_20avg = float(df["atr"].iloc[max(0,i-20):i].mean())
@@ -3370,21 +3382,24 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             sig = "BUY" if cross_up else "SELL"
 
-            # 時間帯×方向バイアスフィルター（edge >= 2.0pp + 方向一致必須）
+            # 高ボラ時間帯フィルター（Massive APIデータ分析に基づく）
+            # 高レンジ: 0-9 UTC (Tokyo/London), 13-17 UTC (NY)
+            # 低レンジ: 19-22 UTC (NY閉場前) → 除外
             try:
                 h = row.name.hour
+                HIGH_VOL_HOURS = {0,1,2,3,4,5,6,7,8,9,13,14,15,16,17}
+                if h not in HIGH_VOL_HOURS:
+                    continue  # 低ボラ時間帯 → スキップ
+
                 bias_info = HOUR_DIRECTION_BIAS.get(h)
-                if not bias_info:
-                    continue  # データなし → スキップ
-                best_dir, best_wr, edge = bias_info
-                # Only trade hours with edge >= 2.0pp above random baseline
-                if best_dir is None or edge < 2.0:
-                    continue
-                # Signal must match hour's best direction
-                if sig == "BUY" and best_dir != "LONG":
-                    continue
-                if sig == "SELL" and best_dir != "SHORT":
-                    continue
+                if bias_info:
+                    best_dir, best_wr, edge = bias_info
+                    # 方向バイアスがある場合は一致を要求（edge >= 2pp）
+                    if best_dir is not None and edge >= 2.0:
+                        if sig == "BUY" and best_dir != "LONG":
+                            continue
+                        if sig == "SELL" and best_dir != "SHORT":
+                            continue
             except Exception:
                 pass
 
