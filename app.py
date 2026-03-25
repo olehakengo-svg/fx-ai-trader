@@ -38,136 +38,36 @@ except ImportError:
 app = Flask(__name__)
 
 # ═══════════════════════════════════════════════════════
-#  Timeframe config
+#  Module imports (refactored)
 # ═══════════════════════════════════════════════════════
-TF_CFG = {
-    "1m":  dict(interval="1m",  period="5d",   resample=None,  sr_w=10, sr_tol=0.0020, ch_lb=200),
-    "5m":  dict(interval="5m",  period="25d",  resample=None,  sr_w=10, sr_tol=0.0020, ch_lb=150),
-    "15m": dict(interval="15m", period="55d",  resample=None,  sr_w=8,  sr_tol=0.0025, ch_lb=120),
-    "30m": dict(interval="30m", period="55d",  resample=None,  sr_w=6,  sr_tol=0.0030, ch_lb=100),
-    "1h":  dict(interval="1h",  period="55d",  resample=None,  sr_w=5,  sr_tol=0.0030, ch_lb=80),
-    "4h":  dict(interval="1h",  period="90d",  resample="4h",  sr_w=4,  sr_tol=0.0050, ch_lb=60),
-    "1d":  dict(interval="1d",  period="2y",   resample=None,  sr_w=5,  sr_tol=0.0060, ch_lb=50),
-    "1w":  dict(interval="1wk", period="10y",  resample=None,  sr_w=3,  sr_tol=0.0100, ch_lb=30),
-    "1M":  dict(interval="1mo", period="max",  resample=None,  sr_w=2,  sr_tol=0.0150, ch_lb=20),
-}
+from modules.config import (
+    TF_CFG, STRATEGY_MODE, STRATEGY_PROFILES, HOUR_DIRECTION_BIAS,
+    AGENT_MISSION, MTF_HIGHER, TF_SL_MULT, TF_TP_MULT, TF_MIN_RR,
+    CACHE_TTL, BT_CACHE_TTL, NEWS_TTL, CALENDAR_TTL, MASTER_BIAS_TTL,
+    SCALP_BT_TTL, DT_BT_TTL,
+)
+from modules.data import (
+    fetch_ohlcv, resample_df, _fetch_raw,
+    fetch_ohlcv_twelvedata, fetch_ohlcv_massive, _rt_patch,
+    _data_cache, _last_data_source, _price_cache,
+    _TD_SYMBOL_MAP, _TD_INTERVALS, _TF_CACHE_TTL,
+)
+from modules.indicators import (
+    add_indicators, find_sr_levels, detect_order_blocks,
+    _calc_fibonacci_levels, detect_candle_patterns,
+    dow_theory_analysis, volume_obv_analysis, detect_divergence,
+)
 
-# ═══════════════════════════════════════════════════════
-#  Strategy Mode: "A" (Trend Following) or "B" (Mean Reversion)
-# ═══════════════════════════════════════════════════════
-STRATEGY_MODE = os.environ.get("STRATEGY_MODE", "A")
 
-# ═══════════════════════════════════════════════════════
-#  時間帯×方向バイアス — Massive API 10,518バー第三者評価結果
-#  SL=4pip TP=12pip (1:3 RR) ランダム2,094トレード検証
-# ═══════════════════════════════════════════════════════
-HOUR_DIRECTION_BIAS = {
-    # hour_utc: (best_direction, WR%, edge_vs_random)
-    0:  ("SHORT", 31.3, 10.1),
-    1:  ("LONG",  26.2,  5.0),
-    2:  ("LONG",  24.3,  3.1),
-    3:  (None,    18.9, -2.3),   # デッドゾーン — 取引回避
-    4:  ("LONG",  29.7,  8.5),
-    5:  (None,    25.0,  3.8),   # 方向性なし
-    6:  ("SHORT", 27.7,  6.5),
-    7:  ("LONG",  25.0,  3.8),
-    8:  ("LONG",  31.8, 10.6),   # ロンドンオープン 🔥
-    9:  ("LONG",  27.7,  6.5),
-    10: ("SHORT", 29.1,  7.9),
-    11: (None,    20.9, -0.3),   # デッドゾーン
-    12: ("LONG",  26.4,  5.2),
-    13: ("LONG",  27.7,  6.5),
-    14: ("SHORT", 29.5,  8.3),
-    15: ("LONG",  27.1,  5.9),
-    16: ("SHORT", 24.3,  3.1),
-    17: ("LONG",  25.7,  4.5),
-    18: ("SHORT", 22.9,  1.7),
-    19: ("LONG",  25.7,  4.5),
-    20: ("SHORT", 30.6,  9.4),   # NY終盤 🔥
-    21: ("SHORT", 42.8, 21.6),   # 最強ゾーン 🔥🔥🔥
-    22: ("SHORT", 31.5, 10.3),   # 🔥
-    23: ("SHORT", 22.4,  1.2),
-}
 
-STRATEGY_PROFILES = {
-    "A": {
-        "name": "Trend Following",
-        "scalp_sl": 0.75, "scalp_tp": 1.8,    # 1:2.4 RR for scalp (BE=29.4%)
-        "daytrade_sl": 0.7, "daytrade_tp": 1.5,  # 1:2.14 RR for daytrade (BE=31.8%)
-        "kpi_wr": 0.30, "kpi_ev": 0.08, "kpi_sharpe": 1.0, "kpi_maxdd": 0.15,
-        "breakeven_wr": 0.294,  # for 1:2.4 RR → SL/(SL+TP)=0.75/2.55
-        "random_baseline_wr": 0.28,
-        "trades_per_day_min": 1, "trades_per_day_max": 50,
-    },
-    "B": {
-        "name": "Mean Reversion",
-        "scalp_sl": 1.0, "scalp_tp": 1.0,    # 1:1 RR for scalp
-        "daytrade_sl": 1.0, "daytrade_tp": 1.2,  # keep
-        "kpi_wr": 0.55, "kpi_ev": 0.05, "kpi_sharpe": 0.8, "kpi_maxdd": 0.15,
-        "breakeven_wr": 0.50,
-        "random_baseline_wr": 0.45,
-        "trades_per_day_min": 1, "trades_per_day_max": 50,
-    },
-}
 
-# ① MTF: higher timeframes to check per current TF
-# 【修正】30m と 1h は同じ上位足（4H+1D）を参照するよう統一。
-# 以前: 30m=["1h","4h","1d"] → 1H が上昇なら 30m に+1.5加点されるが
-#   1H自身には同じ恩恵がない → 30m BUY / 1h SELL という逆転バグの原因
-MTF_HIGHER = {
-    "1m":  ["15m", "1h", "4h"],
-    "5m":  ["1h", "4h", "1d"],
-    "15m": ["4h", "1d"],
-    "30m": ["4h", "1d"],   # 旧["1h","4h","1d"]: 1Hを除外して1hと揃える
-    "1h":  ["4h", "1d"],
-    "4h":  ["1d", "1w"],
-    "1d":  ["1w"],
-    "1w":  ["1M"],
-    "1M":  [],
-}
-
-# Caches
-_data_cache:  dict = {}  # (symbol,interval,period) -> (df, timestamp)
 _bt_cache:    dict = {}  # backtest result cache
 _news_cache:  dict = {}  # news sentiment cache
-_price_cache: dict = {}  # TwelveData realtime price cache
-CACHE_TTL    = 300       # 5 min data cache
-BT_CACHE_TTL = 21600     # 6 hour backtest cache
-NEWS_TTL     = 1800      # 30 min news cache
 
-# ═══════════════════════════════════════════════════════
-#  MISSION — 全エージェント共通ミッション定義
-# ═══════════════════════════════════════════════════════
-AGENT_MISSION = {
-    "goal":     "個人トレーダーが大口（機関投資家）の波に乗れる最強FXシグナルインジケーター構築",
-    "strategy": "スキャルピング(5m/15m) + デイトレード(30m/1h) 完全最適化",
-    "kpi": {
-        "win_rate_min":    30.0,   # 勝率最低ライン (%) ※RR3:1では損益分岐25%
-        "ev_min":          0.08,   # 期待値最低ライン (R/trade)
-        "sharpe_min":      1.0,
-        "max_dd_max":      15.0,
-        "scalp_trades":    (1, 50),
-        "daytrade_trades": (0.5, 8),
-    },
-    "principles": [
-        "大口フロー整合 = 最優先条件",
-        "逆張り原則禁止",
-        "重要イベント前後30分は取引停止",
-        "シグナル → 通知 → 手動発注（自動発注は対象外）",
-    ],
-    "layer_hierarchy": {
-        0: "取引禁止条件チェック (経済指標/セッション/ボラティリティ)",
-        1: "大口バイアス判定 — MASTER FILTER (機関投資家フロー方向)",
-        2: "トレンド構造確認 (EMA配列/ダウ理論/S/R位置)",
-        3: "精密エントリー条件 (OB接触/フィボ/確認足/出来高)",
-    },
-}
 
 # Layer 0/1 キャッシュ
 _calendar_cache:    dict = {}
 _master_bias_cache: dict = {}
-CALENDAR_TTL    = 3600   # 1時間
-MASTER_BIAS_TTL = 900    # 15分
 
 # ═══════════════════════════════════════════════════════
 #  Performance Monitor — KPI追跡 & フィードバックループ
@@ -316,583 +216,7 @@ def compute_kpi(records: list) -> dict:
 # 起動時にデータ読み込み
 _load_perf_data()
 
-# Swing-mode ATR multipliers per timeframe
-TF_SL_MULT = {
-    "1m": 1.5, "5m": 1.5, "15m": 1.5, "30m": 1.8,
-    "1h": 2.2, "4h": 2.5, "1d": 3.0, "1w": 3.5, "1M": 4.0,
-}
-TF_TP_MULT = {
-    "1m": 2.5, "5m": 2.5, "15m": 2.5, "30m": 3.0,
-    "1h": 3.3, "4h": 3.8, "1d": 5.0, "1w": 6.0, "1M": 7.0,
-}
-TF_MIN_RR = {
-    "1m": 1.2, "5m": 1.2, "15m": 1.3, "30m": 1.4,
-    "1h": 1.5, "4h": 1.6, "1d": 1.8, "1w": 1.8, "1M": 2.0,
-}
 
-
-# ═══════════════════════════════════════════════════════
-#  Data fetching
-# ═══════════════════════════════════════════════════════
-def _fetch_raw(symbol: str, period: str, interval: str) -> pd.DataFrame:
-    ticker = yf.Ticker(symbol)
-    df = ticker.history(period=period, interval=interval, auto_adjust=True)
-    # DatetimeIndex であることを保証してからtz操作
-    if not isinstance(df.index, pd.DatetimeIndex):
-        df.index = pd.to_datetime(df.index, utc=True)
-    elif getattr(df.index, "tz", None) is not None:
-        df.index = df.index.tz_convert("UTC")
-    return df.dropna()
-
-
-# TF別キャッシュTTL
-_TF_CACHE_TTL = {
-    "1m": 10, "5m": 15, "15m": 45, "30m": 90,
-    "1h": 180, "4h": 300, "1d": 600, "1wk": 1800, "1mo": 3600,
-}
-
-# TwelveData対応: interval変換マップ (yfinance → TwelveData)
-_TD_INTERVAL_MAP = {
-    "1m": "1min", "5m": "5min", "15m": "15min", "30m": "30min",
-    "1h": "1h", "1d": "1day", "1wk": "1week", "1mo": "1month",
-}
-# TwelveData対応: symbol変換マップ (yfinance → TwelveData)
-_TD_SYMBOL_MAP = {
-    "USDJPY=X": "USD/JPY",
-    "JPY=X":    "USD/JPY",
-}
-# TwelveDataを優先使用するinterval (USD/JPYのみ)
-_TD_INTERVALS = {"1m", "5m", "15m", "30m", "1h"}
-# TwelveDataでリクエストするバー数
-_TD_OUTPUTSIZE = {
-    "1m": 500, "5m": 600, "15m": 600, "30m": 800, "1h": 900,
-}
-
-# データソース記録 (最後に使ったソース)
-_last_data_source: dict = {}
-
-
-def fetch_ohlcv_twelvedata(symbol: str, interval: str) -> pd.DataFrame:
-    """
-    TwelveData time_series APIからOHLCVデータを取得しDataFrameで返す。
-    TWELVEDATA_API_KEY 環境変数が必要。
-    """
-    import urllib.request as _ur, json as _js
-    api_key = os.environ.get("TWELVEDATA_API_KEY", "")
-    if not api_key:
-        raise ValueError("TWELVEDATA_API_KEY not set")
-
-    td_sym   = _TD_SYMBOL_MAP.get(symbol)
-    if not td_sym:
-        raise ValueError(f"Symbol {symbol} not in TwelveData map")
-
-    td_iv    = _TD_INTERVAL_MAP.get(interval)
-    if not td_iv:
-        raise ValueError(f"Interval {interval} not in TwelveData map")
-
-    size     = _TD_OUTPUTSIZE.get(interval, 500)
-    url      = (f"https://api.twelvedata.com/time_series"
-                f"?symbol={td_sym}&interval={td_iv}"
-                f"&outputsize={size}&apikey={api_key}&dp=5&timezone=UTC&format=JSON")
-
-    req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with _ur.urlopen(req, timeout=10) as r:
-        data = _js.load(r)
-
-    if data.get("status") == "error":
-        raise ValueError(f"TwelveData: {data.get('message','unknown error')}")
-
-    values = data.get("values", [])
-    if not values:
-        raise ValueError("TwelveData: empty values")
-
-    # values はnewest-first → reverse で古い順に並べ直す
-    values = list(reversed(values))
-    rows = [{
-        "Open":   float(v["open"]),
-        "High":   float(v["high"]),
-        "Low":    float(v["low"]),
-        "Close":  float(v["close"]),
-        "Volume": float(v.get("volume", 0)),
-    } for v in values]
-    idx = pd.DatetimeIndex(
-        [pd.Timestamp(v["datetime"], tz="UTC") for v in values]
-    )
-    return pd.DataFrame(rows, index=idx).dropna()
-
-
-def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
-    """
-    Massive Market Data APIからOHLCVデータを取得。
-    USDJPYのみ対応 (C:USDJPY形式)。
-    ページネーション対応で指定日数分を確実に取得。
-
-    interval: "1m","5m","15m","30m","1h","4h","1d"
-    days: 取得日数
-    """
-    import urllib.request as _ur, json as _js, time as _time
-
-    api_key = os.environ.get("MASSIVE_API_KEY", "")
-    if not api_key:
-        raise ValueError("MASSIVE_API_KEY not set")
-
-    # Massive ticker format
-    _SYMBOL_MAP = {
-        "USDJPY=X": "C:USDJPY",
-        "JPY=X":    "C:USDJPY",
-    }
-    massive_ticker = _SYMBOL_MAP.get(symbol)
-    if not massive_ticker:
-        raise ValueError(f"Symbol {symbol} not supported by Massive API")
-
-    # interval → (multiplier, timespan)
-    _IV_MAP = {
-        "1m":  (1,  "minute"),
-        "5m":  (5,  "minute"),
-        "15m": (15, "minute"),
-        "30m": (30, "minute"),
-        "1h":  (1,  "hour"),
-        "4h":  (4,  "hour"),
-        "1d":  (1,  "day"),
-    }
-    if interval not in _IV_MAP:
-        raise ValueError(f"Interval {interval} not supported")
-    mult, timespan = _IV_MAP[interval]
-
-    # Date range
-    from datetime import timedelta
-    end_dt   = datetime.now(timezone.utc)
-    start_dt = end_dt - timedelta(days=days + 3)  # +3日バッファ
-    date_from = start_dt.strftime("%Y-%m-%d")
-    date_to   = end_dt.strftime("%Y-%m-%d")
-
-    base_url = (f"https://api.massive.com/v2/aggs/ticker/{massive_ticker}"
-                f"/range/{mult}/{timespan}/{date_from}/{date_to}")
-
-    all_rows = []
-    url = base_url
-    params = f"?adjusted=true&sort=asc&limit=50000&apiKey={api_key}"
-    max_pages = 10  # 最大ページ数（無限ループ防止）
-
-    for page in range(max_pages):
-        req = _ur.Request(url + params, headers={"User-Agent": "Mozilla/5.0"})
-        try:
-            with _ur.urlopen(req, timeout=45) as r:
-                data = _js.load(r)
-        except Exception as e:
-            if page == 0:
-                raise
-            break  # ページネーション中のエラーは中断
-
-        results = data.get("results", [])
-        if not results:
-            break
-        all_rows.extend(results)
-
-        # ページネーション
-        next_url = data.get("next_url")
-        if not next_url:
-            break
-        # next_urlにはAPIキーが含まれていない場合があるので付与
-        url = next_url
-        params = f"&apiKey={api_key}" if "?" in next_url else f"?apiKey={api_key}"
-        _time.sleep(0.1)  # レート制限対策
-
-    if not all_rows:
-        raise ValueError(f"Massive API: no data returned for {massive_ticker} {interval}")
-
-    # DataFrame変換 (Massive → pandas OHLCV形式)
-    rows = [{
-        "Open":   float(r["o"]),
-        "High":   float(r["h"]),
-        "Low":    float(r["l"]),
-        "Close":  float(r["c"]),
-        "Volume": float(r.get("v", 0)),
-        "vwap":   float(r.get("vw", r["c"])),
-    } for r in all_rows]
-
-    idx = pd.DatetimeIndex(
-        pd.to_datetime([r["t"] for r in all_rows], unit="ms", utc=True)
-    )
-    df = pd.DataFrame(rows, index=idx)
-    df = df[~df.index.duplicated(keep="last")]
-    df = df.sort_index()
-    return df.dropna()
-
-
-def _rt_patch(df: pd.DataFrame, symbol: str, interval: str) -> pd.DataFrame:
-    """
-    価格キャッシュ(_price_cache)が新鮮なら、最終足のClose/High/Lowをリアルタイム更新。
-    OHLCVを再取得せずに現在足を常に最新化するため、足型ズレを大幅に削減する。
-    USD/JPY の 1m/5m のみ対象。
-    """
-    if interval not in ("1m", "5m") or symbol not in _TD_SYMBOL_MAP:
-        return df
-    pc = _price_cache  # グローバル参照（モジュール初期化後は常に存在）
-    if not pc.get("ts"):
-        return df
-    age = (datetime.now() - pc["ts"]).total_seconds()
-    if age > 10:
-        return df
-    price = float(pc["data"]["price"])
-    last  = df.index[-1]
-    df.at[last, "Close"] = price
-    df.at[last, "High"]  = max(float(df.at[last, "High"]), price)
-    df.at[last, "Low"]   = min(float(df.at[last, "Low"]),  price)
-    return df
-
-
-def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
-    key = (symbol, interval, period)
-    now = datetime.now()
-    ttl = _TF_CACHE_TTL.get(interval, CACHE_TTL)
-    if key in _data_cache:
-        cached_df, ts = _data_cache[key]
-        if (now - ts).total_seconds() < ttl:
-            return _rt_patch(cached_df.copy(), symbol, interval)
-
-    df = None
-
-    # period文字列から日数を計算
-    def _period_to_days(p: str) -> int:
-        p = p.strip()
-        if p.endswith("d"):   return int(p[:-1])
-        if p.endswith("mo"):  return int(p[:-2]) * 30
-        if p.endswith("y"):   return int(p[:-1]) * 365
-        if p == "max":        return 365 * 8
-        return 90
-
-    days = _period_to_days(period)
-
-    # ── データ十分性の閾値計算（全ソース共通）──
-    _bars_per_day = {"1m": 1440, "5m": 288, "15m": 96, "30m": 48,
-                     "1h": 24, "4h": 6, "1d": 1}
-    expected = days * _bars_per_day.get(interval, 24) * 0.55  # FX=24h×55%稼働
-    min_bars = max(100, expected * 0.30)
-
-    # ── ① Massive API優先: USDJPY の全TF ──
-    _MASSIVE_SYMBOLS = {"USDJPY=X", "JPY=X"}
-    _MASSIVE_INTERVALS = {"1m", "5m", "15m", "30m", "1h", "4h", "1d"}
-    if (os.environ.get("MASSIVE_API_KEY") and
-            symbol in _MASSIVE_SYMBOLS and
-            interval in _MASSIVE_INTERVALS):
-        try:
-            df = fetch_ohlcv_massive(symbol, interval, days)
-            if df is not None and len(df) >= min_bars:
-                _last_data_source[interval] = "massive"
-                print(f"[Massive/{interval}] {len(df)}本取得 (期待{int(expected)})")
-            else:
-                actual = len(df) if df is not None else 0
-                print(f"[Massive/{interval}] {actual}本 < 最低{int(min_bars)}本 → フォールバック")
-                df = None
-        except Exception as e:
-            print(f"[Massive/{interval}] {e} → フォールバック")
-            df = None
-
-    # ── ② TwelveData: USD/JPY の短期TFのみ ──
-    if (df is None and
-            os.environ.get("TWELVEDATA_API_KEY") and
-            symbol in _TD_SYMBOL_MAP and
-            interval in _TD_INTERVALS):
-        try:
-            df = fetch_ohlcv_twelvedata(symbol, interval)
-            # TwelveDataも期待バー数の30%未満なら不足扱い
-            if df is not None and len(df) >= min_bars:
-                _last_data_source[interval] = "twelvedata"
-                print(f"[TD/{interval}] {len(df)}本取得 (十分)")
-            else:
-                actual = len(df) if df is not None else 0
-                print(f"[TD/{interval}] {actual}本 < {int(min_bars)}本 → yfinanceにフォールバック")
-                df = None
-        except Exception as e:
-            print(f"[TD/{interval}] {e} → yfinanceにフォールバック")
-            df = None
-
-    # ── ③ フォールバック: yfinance ──
-    if df is None:
-        df = _fetch_raw(symbol, period, interval)
-        _last_data_source[interval] = "yfinance"
-
-    _data_cache[key] = (df, now)
-    return df.copy()
-
-
-def resample_df(df: pd.DataFrame, rule: str) -> pd.DataFrame:
-    return df.resample(rule).agg(
-        Open=("Open","first"), High=("High","max"),
-        Low=("Low","min"),    Close=("Close","last"),
-        Volume=("Volume","sum")
-    ).dropna()
-
-
-# ═══════════════════════════════════════════════════════
-#  Indicators
-# ═══════════════════════════════════════════════════════
-def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
-    c, h, l = df["Close"], df["High"], df["Low"]
-    df["ema9"]      = EMAIndicator(c, window=9).ema_indicator()
-    df["ema21"]     = EMAIndicator(c, window=21).ema_indicator()
-    df["ema50"]     = EMAIndicator(c, window=50).ema_indicator()
-    df["rsi"]       = RSIIndicator(c, window=14).rsi()
-    m = MACD(c, window_slow=26, window_fast=12, window_sign=9)
-    df["macd"]      = m.macd()
-    df["macd_sig"]  = m.macd_signal()
-    df["macd_hist"] = m.macd_diff()
-    bb = BollingerBands(c, window=20, window_dev=2)
-    df["bb_upper"]  = bb.bollinger_hband()
-    df["bb_mid"]    = bb.bollinger_mavg()
-    df["bb_lower"]  = bb.bollinger_lband()
-    df["bb_pband"]  = bb.bollinger_pband()
-    df["atr"]       = AverageTrueRange(h, l, c, window=14).average_true_range()
-    # スキャルプ用高速指標
-    df["rsi5"]      = RSIIndicator(c, window=5).rsi()
-    df["rsi9"]      = RSIIndicator(c, window=9).rsi()   # 5m最適バランス (Axiory研究)
-    df["atr7"]      = AverageTrueRange(h, l, c, window=7).average_true_range()
-    stoch = StochasticOscillator(h, l, c, window=5, smooth_window=3)
-    df["stoch_k"]   = stoch.stoch()
-    df["stoch_d"]   = stoch.stoch_signal()
-    # BBバンド幅（スクイーズ検出用）
-    df["bb_width"]  = (df["bb_upper"] - df["bb_lower"]) / df["bb_mid"].replace(0, np.nan)
-    # デイトレード / スイング用追加指標
-    df["ema100"]    = EMAIndicator(c, window=100).ema_indicator()
-    df["ema200"]    = EMAIndicator(c, window=200).ema_indicator()
-    adx_ind = ADXIndicator(h, l, c, window=14)
-    df["adx"]       = adx_ind.adx()
-    df["adx_pos"]   = adx_ind.adx_pos()   # +DI
-    df["adx_neg"]   = adx_ind.adx_neg()   # -DI
-    # ドンチアンチャネル20本 (Brock, Lakonishok, LeBaron 1992 JoF)
-    # 20日高値/安値ブレイクアウト → 89年間のDJIAで統計的有意性確認
-    df["don_high20"] = df["High"].rolling(20).max()
-    df["don_low20"]  = df["Low"].rolling(20).min()
-    df["don_mid20"]  = (df["don_high20"] + df["don_low20"]) / 2
-    # ドンチアン位置 (0=下限付近, 1=上限付近)
-    don_range = (df["don_high20"] - df["don_low20"]).replace(0, np.nan)
-    df["don_pct"]    = (c - df["don_low20"]) / don_range
-    return df.dropna()
-
-
-# ═══════════════════════════════════════════════════════
-#  ② ローソク足パターン認識
-# ═══════════════════════════════════════════════════════
-def detect_candle_patterns(df: pd.DataFrame):
-    """Detect 8 major reversal/continuation candlestick patterns."""
-    if len(df) < 3:
-        return 0.0, []
-
-    c0, c1, c2 = df.iloc[-1], df.iloc[-2], df.iloc[-3]
-    score   = 0.0
-    patterns = []
-
-    body0   = abs(c0["Close"] - c0["Open"])
-    body1   = abs(c1["Close"] - c1["Open"])
-    rng0    = c0["High"] - c0["Low"]
-    up_shd0 = c0["High"] - max(c0["Open"], c0["Close"])
-    dn_shd0 = min(c0["Open"], c0["Close"]) - c0["Low"]
-
-    # 1. ハンマー（強気反転）
-    if (rng0 > 0 and dn_shd0 >= body0 * 2 and up_shd0 <= body0 * 0.4
-            and c1["Close"] < c1["Open"]):
-        score += 1.5
-        patterns.append("🔨 ハンマー（強気反転）")
-
-    # 2. 射撃線 / 首吊り（弱気）
-    if (rng0 > 0 and up_shd0 >= body0 * 2 and dn_shd0 <= body0 * 0.4
-            and c1["Close"] > c1["Open"]):
-        score -= 1.5
-        patterns.append("⭐ 射撃線（弱気反転）")
-
-    # 3. 強気エンガルフィング
-    if (c1["Close"] < c1["Open"] and c0["Close"] > c0["Open"]
-            and c0["Open"] <= c1["Close"] and c0["Close"] >= c1["Open"]
-            and body0 > body1):
-        score += 2.0
-        patterns.append("📈 強気エンガルフィング")
-
-    # 4. 弱気エンガルフィング
-    if (c1["Close"] > c1["Open"] and c0["Close"] < c0["Open"]
-            and c0["Open"] >= c1["Close"] and c0["Close"] <= c1["Open"]
-            and body0 > body1):
-        score -= 2.0
-        patterns.append("📉 弱気エンガルフィング")
-
-    # 5. 強気ピンバー（長い下ヒゲ）
-    if (rng0 > 0 and dn_shd0 >= rng0 * 0.60 and body0 <= rng0 * 0.25
-            and not patterns):
-        score += 1.2
-        patterns.append("📌 強気ピンバー（長い下ヒゲ）")
-
-    # 6. 弱気ピンバー（長い上ヒゲ）
-    if (rng0 > 0 and up_shd0 >= rng0 * 0.60 and body0 <= rng0 * 0.25
-            and not any("ピンバー" in p for p in patterns)):
-        score -= 1.2
-        patterns.append("📌 弱気ピンバー（長い上ヒゲ）")
-
-    # 7. 明けの明星（3本線 強気反転）
-    if (c2["Close"] < c2["Open"]
-            and abs(c1["Close"] - c1["Open"]) <= (c2["High"] - c2["Low"]) * 0.35
-            and c0["Close"] > c0["Open"]
-            and c0["Close"] > (c2["Open"] + c2["Close"]) / 2):
-        score += 2.0
-        patterns.append("🌅 明けの明星（強気3本線）")
-
-    # 8. 宵の明星（3本線 弱気反転）
-    if (c2["Close"] > c2["Open"]
-            and abs(c1["Close"] - c1["Open"]) <= (c2["High"] - c2["Low"]) * 0.35
-            and c0["Close"] < c0["Open"]
-            and c0["Close"] < (c2["Open"] + c2["Close"]) / 2):
-        score -= 2.0
-        patterns.append("🌇 宵の明星（弱気3本線）")
-
-    # ドージ（十字線）= 迷い、単体では中立
-    if rng0 > 0 and body0 <= rng0 * 0.10:
-        patterns.append("➖ ドージ（十字線・迷い）")
-
-    return score, patterns
-
-
-# ═══════════════════════════════════════════════════════
-#  ③ ダウ理論 高値・安値構造
-# ═══════════════════════════════════════════════════════
-def dow_theory_analysis(df: pd.DataFrame, window: int = 5):
-    """Determine trend by Dow Theory HH/HL or LH/LL structure."""
-    if len(df) < window * 6:
-        return 0.0, "↔ データ不足（ダウ理論判定不能）"
-
-    H = df["High"].values
-    L = df["Low"].values
-    n = len(df)
-
-    swing_highs, swing_lows = [], []
-    for i in range(window, n - window):
-        if H[i] == H[i - window: i + window + 1].max():
-            swing_highs.append(H[i])
-        if L[i] == L[i - window: i + window + 1].min():
-            swing_lows.append(L[i])
-
-    if len(swing_highs) < 2 or len(swing_lows) < 2:
-        return 0.0, "↔ スウィング不足（ダウ理論判定不能）"
-
-    hh = swing_highs[-1] > swing_highs[-2]  # Higher High
-    hl = swing_lows[-1]  > swing_lows[-2]   # Higher Low
-    lh = swing_highs[-1] < swing_highs[-2]  # Lower High
-    ll = swing_lows[-1]  < swing_lows[-2]   # Lower Low
-
-    if hh and hl:
-        return  2.5, "✅ ダウ理論：HH+HL（上昇トレンド確認）"
-    elif lh and ll:
-        return -2.5, "🔻 ダウ理論：LH+LL（下降トレンド確認）"
-    elif hh:
-        return  1.0, "↗ ダウ理論：高値更新中（上昇継続の可能性）"
-    elif ll:
-        return -1.0, "↘ ダウ理論：安値更新中（下降継続の可能性）"
-    else:
-        return  0.0, "↔ ダウ理論：レンジ相場（明確なトレンドなし）"
-
-
-# ═══════════════════════════════════════════════════════
-#  ④ 出来高 / OBV 分析
-# ═══════════════════════════════════════════════════════
-def volume_obv_analysis(df: pd.DataFrame):
-    """Analyze volume spikes and OBV trend."""
-    score, reasons = 0.0, []
-
-    vol = df["Volume"]
-    if vol.sum() == 0 or vol.iloc[-1] == 0:
-        return 0.0, []  # FX pair with no volume data
-
-    obv = [0.0]
-    for i in range(1, len(df)):
-        if df["Close"].iloc[i] > df["Close"].iloc[i - 1]:
-            obv.append(obv[-1] + vol.iloc[i])
-        elif df["Close"].iloc[i] < df["Close"].iloc[i - 1]:
-            obv.append(obv[-1] - vol.iloc[i])
-        else:
-            obv.append(obv[-1])
-    obv_s = pd.Series(obv, index=df.index)
-    obv_ema = obv_s.ewm(span=14).mean()
-
-    avg_vol  = vol.rolling(20).mean().iloc[-1]
-    cur_vol  = vol.iloc[-1]
-    ratio    = cur_vol / avg_vol if avg_vol > 0 else 1.0
-    price_up = df["Close"].iloc[-1] > df["Close"].iloc[-2]
-
-    if ratio >= 2.0:
-        if price_up:
-            score += 1.2; reasons.append(f"✅ 出来高急増（{ratio:.1f}x）+ 上昇 → ブレイクアウト確認")
-        else:
-            score -= 1.2; reasons.append(f"🔻 出来高急増（{ratio:.1f}x）+ 下落 → 売り圧力強")
-    elif ratio >= 1.5:
-        if price_up:
-            score += 0.7; reasons.append(f"↗ 出来高増加（{ratio:.1f}x）+ 上昇")
-        else:
-            score -= 0.7; reasons.append(f"↘ 出来高増加（{ratio:.1f}x）+ 下落")
-
-    # OBV trend
-    if len(obv_s) >= 5:
-        if obv_s.iloc[-1] > obv_ema.iloc[-1] and obv_s.iloc[-1] > obv_s.iloc[-5]:
-            score += 0.8; reasons.append("✅ OBV上昇（買い資金流入）")
-        elif obv_s.iloc[-1] < obv_ema.iloc[-1] and obv_s.iloc[-1] < obv_s.iloc[-5]:
-            score -= 0.8; reasons.append("🔻 OBV下降（資金流出）")
-
-        # Price-OBV divergence
-        if price_up and obv_s.iloc[-1] < obv_s.iloc[-3]:
-            score -= 0.6; reasons.append("⚠️ 価格↑ OBV↓ 弱気ダイバージェンス（注意）")
-        elif not price_up and obv_s.iloc[-1] > obv_s.iloc[-3]:
-            score += 0.6; reasons.append("⚠️ 価格↓ OBV↑ 強気ダイバージェンス（注目）")
-
-    return score, reasons
-
-
-# ═══════════════════════════════════════════════════════
-#  ⑤ RSI / MACD ダイバージェンス
-# ═══════════════════════════════════════════════════════
-def detect_divergence(df: pd.DataFrame, lookback: int = 30):
-    """Detect bullish/bearish divergence between price and RSI/MACD."""
-    score, reasons = 0.0, []
-    if len(df) < lookback:
-        return score, reasons
-
-    sub = df.tail(lookback)
-    H   = sub["High"].values
-    L   = sub["Low"].values
-    rsi = sub["rsi"].values
-    mh  = sub["macd_hist"].values
-    n   = len(sub)
-    mid = n // 2
-
-    # ── Price swing points in the recent half ──────
-    ph_idx = int(np.argmax(H[mid:])) + mid
-    pl_idx = int(np.argmin(L[mid:])) + mid
-
-    # Prev swing points in the older half
-    ph_prev = int(np.argmax(H[:mid]))
-    pl_prev = int(np.argmin(L[:mid]))
-
-    # Bearish RSI divergence: price HH but RSI LH
-    if H[ph_idx] > H[ph_prev] and rsi[ph_idx] < rsi[ph_prev]:
-        score -= 1.5
-        reasons.append("⚠️ RSI 弱気ダイバージェンス（価格↑ RSI↓）→ 反落注意")
-
-    # Bullish RSI divergence: price LL but RSI HL
-    if L[pl_idx] < L[pl_prev] and rsi[pl_idx] > rsi[pl_prev]:
-        score += 1.5
-        reasons.append("✅ RSI 強気ダイバージェンス（価格↓ RSI↑）→ 反発期待")
-
-    # Bearish MACD divergence
-    mh_high_recent = np.max(mh[mid:])
-    mh_high_prev   = np.max(mh[:mid])
-    if H[ph_idx] > H[ph_prev] and mh_high_recent < mh_high_prev:
-        score -= 1.0
-        reasons.append("⚠️ MACD 弱気ダイバージェンス（モメンタム低下）")
-
-    # Bullish MACD divergence
-    mh_low_recent = np.min(mh[mid:])
-    mh_low_prev   = np.min(mh[:mid])
-    if L[pl_idx] < L[pl_prev] and mh_low_recent > mh_low_prev:
-        score += 1.0
-        reasons.append("✅ MACD 強気ダイバージェンス（底打ちモメンタム）")
-
-    return score, reasons
 
 
 # ═══════════════════════════════════════════════════════
@@ -1269,75 +593,6 @@ def get_regression_channel(df: pd.DataFrame, lookback: int = 50) -> dict:
     }
 
 
-# ═══════════════════════════════════════════════════════
-#  S/R levels  (same as v2)
-# ═══════════════════════════════════════════════════════
-def find_sr_levels(df, window=5, tolerance_pct=0.003, min_touches=2, max_levels=10):
-    H, L, n = df["High"].values, df["Low"].values, len(df)
-    pts = []
-    for i in range(window, n - window):
-        if H[i] == H[i-window:i+window+1].max(): pts.append(float(H[i]))
-        if L[i] == L[i-window:i+window+1].min(): pts.append(float(L[i]))
-    if not pts:
-        return []
-    pts.sort()
-    clusters, cl = [], [pts[0]]
-    for p in pts[1:]:
-        if (p - cl[0]) / cl[0] <= tolerance_pct: cl.append(p)
-        else: clusters.append(cl); cl = [p]
-    clusters.append(cl)
-    lvls = [{"price": round(float(np.median(c)),3), "touches": len(c)}
-            for c in clusters if len(c) >= min_touches]
-    lvls.sort(key=lambda x: -x["touches"])
-    return [l["price"] for l in lvls[:max_levels]]
-
-
-# ═══════════════════════════════════════════════════════
-#  フィボナッチリトレースメント（デイトレード/スイング用）
-#  学術根拠: 61.8%は最も有意なリトレースメントレベル（実証研究多数）
-# ═══════════════════════════════════════════════════════
-def _calc_fibonacci_levels(df: pd.DataFrame, lookback: int = 60) -> dict:
-    """
-    直近スイング高値・安値からフィボナッチリトレースメントレベルを算出。
-    Returns: {swing_high, swing_low, r236, r382, r500, r618, r786, trend}
-    """
-    try:
-        sub = df.tail(lookback)
-        H, L = sub["High"].values, sub["Low"].values
-        swing_high = float(np.max(H))
-        swing_low  = float(np.min(L))
-        rng = swing_high - swing_low
-        if rng < 1e-6:
-            return {}
-        # 直近の方向を判定（後半50本の移動で判断）
-        mid = len(sub) // 2
-        trend = "up" if float(sub["Close"].iloc[-1]) > float(sub["Close"].iloc[mid]) else "down"
-        if trend == "up":
-            # 上昇中: 押し目=swing_highからの下落%
-            return {
-                "swing_high": round(swing_high, 3),
-                "swing_low":  round(swing_low,  3),
-                "r236": round(swing_high - rng * 0.236, 3),
-                "r382": round(swing_high - rng * 0.382, 3),
-                "r500": round(swing_high - rng * 0.500, 3),
-                "r618": round(swing_high - rng * 0.618, 3),
-                "r786": round(swing_high - rng * 0.786, 3),
-                "trend": "up",
-            }
-        else:
-            # 下降中: 戻り=swing_lowからの上昇%
-            return {
-                "swing_high": round(swing_high, 3),
-                "swing_low":  round(swing_low,  3),
-                "r236": round(swing_low + rng * 0.236, 3),
-                "r382": round(swing_low + rng * 0.382, 3),
-                "r500": round(swing_low + rng * 0.500, 3),
-                "r618": round(swing_low + rng * 0.618, 3),
-                "r786": round(swing_low + rng * 0.786, 3),
-                "trend": "down",
-            }
-    except Exception:
-        return {}
 
 
 # ═══════════════════════════════════════════════════════
@@ -1974,70 +1229,6 @@ def fetch_cot_data() -> tuple:
     return 0.0, detail
 
 
-# ═══════════════════════════════════════════════════════
-#  B: Order Block Detection  (SMC オーダーブロック)
-# ═══════════════════════════════════════════════════════
-def detect_order_blocks(df: pd.DataFrame, atr_mult: float = 1.5,
-                        lookback: int = 80) -> tuple:
-    """
-    SMC Order Block:
-    - Bull OB: 強気インパルス直前の最後の陰線 → サポートゾーン
-    - Bear OB: 弱気インパルス直前の最後の陽線 → レジスタンスゾーン
-    Returns: (score [-1,+1], list of OB zone dicts)
-    """
-    if len(df) < 20:
-        return 0.0, []
-
-    sub      = df.tail(lookback)
-    atr_mean = float(sub["atr"].mean()) if float(sub["atr"].mean()) > 0 else 1e-4
-    closes   = sub["Close"].values
-    opens    = sub["Open"].values
-    highs    = sub["High"].values
-    lows     = sub["Low"].values
-    atrs     = sub["atr"].values
-    tidx     = sub.index
-    n        = len(sub)
-    ob_zones = []
-
-    for i in range(1, n - 2):
-        imp_i    = i + 1
-        imp_body = abs(closes[imp_i] - opens[imp_i])
-        imp_atr  = atrs[imp_i] if atrs[imp_i] > 0 else atr_mean
-        if imp_body < atr_mult * imp_atr:
-            continue  # インパルスキャンドル条件を満たさない
-
-        ts = tidx[i]
-        t  = int(ts.timestamp()) if hasattr(ts, "timestamp") else int(ts)
-
-        if closes[imp_i] > opens[imp_i]:    # 強気インパルス
-            if closes[i] < opens[i]:         # 直前陰線 → Bull OB
-                ob_zones.append({"type": "bull",
-                    "high": round(float(highs[i]), 3),
-                    "low":  round(float(lows[i]),  3),
-                    "time": t, "label": "🟩 Bull OB"})
-        elif closes[imp_i] < opens[imp_i]:  # 弱気インパルス
-            if closes[i] > opens[i]:         # 直前陽線 → Bear OB
-                ob_zones.append({"type": "bear",
-                    "high": round(float(highs[i]), 3),
-                    "low":  round(float(lows[i]),  3),
-                    "time": t, "label": "🟥 Bear OB"})
-
-    ob_zones = ob_zones[-10:]   # 最新10件
-    if not ob_zones:
-        return 0.0, []
-
-    current_price = float(df["Close"].iloc[-1])
-    current_atr   = float(df["atr"].iloc[-1])
-    score = 0.0
-    for ob in ob_zones[-5:]:
-        tol = current_atr * 0.5
-        if ob["type"] == "bull" and ob["low"] - tol <= current_price <= ob["high"] + tol:
-            score += 1.5
-        elif ob["type"] == "bear" and ob["low"] - tol <= current_price <= ob["high"] + tol:
-            score -= 1.5
-
-    return round(max(-1.0, min(1.0, score / 3.0)), 4), ob_zones
-
 
 # ═══════════════════════════════════════════════════════
 #  C: Fake Breakout / Stop Hunt Filter
@@ -2558,6 +1749,26 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
 
     score   = 0.0
     reasons = []
+
+    # ── HIGH_VOL レジームミュート ─────────────────────────
+    if regime.get("regime") == "HIGH_VOL":
+        session = get_session_info()
+        ts_str = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
+        return {
+            "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
+            "entry": round(entry, 3), "signal": "WAIT", "confidence": 0,
+            "sl": round(entry - atr * 0.7, 3), "tp": round(entry + atr * 1.5, 3),
+            "rr_ratio": 2.14, "atr": round(atr, 3),
+            "session": session,
+            "reasons": [f"⚠️ 高ボラレジーム（ATR比{regime.get('atr_ratio',0):.1f}×） — 全シグナルミュート"],
+            "mode": "daytrade", "regime": regime,
+            "layer_status": {"layer0": layer0, "layer1": layer1,
+                             "master_bias": layer1.get("label","—"), "trade_ok": False},
+            "indicators": {"ema9": round(ema9,3), "ema21": round(ema21,3),
+                           "ema50": round(ema50,3), "ema200": round(ema200,3),
+                           "rsi": round(rsi,1), "adx": round(adx,1),
+                           "macd_hist": round(macdh,4)},
+        }
 
     # ⓪ 4H+1D マスタートレンドフィルター（デイトレード専用上位足バイアス）
     htf_dt       = get_htf_bias_daytrade(symbol)
@@ -3277,7 +2488,6 @@ def _check_trend_changed_and_clear_bt(mode: str, symbol: str = "USDJPY=X") -> di
 #  スキャルピング専用バックテスト（5m/15m足）
 # ═══════════════════════════════════════════════════════
 _scalp_bt_cache: dict = {}
-SCALP_BT_TTL = 1800  # 30分キャッシュ（トレンド転換時の再計算を早める）
 
 # ML Model state
 _ml_model: "RandomForestClassifier | None" = None
@@ -3366,11 +2576,15 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             if bar_range < 0.015:
                 continue
 
-            # ATR regime filter
+            # ATR regime filter (高ボラレジームミュート: ATR>1.8×20日平均で全エントリー停止)
             atr_val = float(row["atr7"]) if "atr7" in row.index else float(row["atr"])
             atr_20avg = float(df["atr"].iloc[max(0,i-20):i].mean())
-            if atr_20avg > 0 and atr_val > atr_20avg * 2.5:
-                continue
+            if atr_20avg > 0:
+                _atr_ratio = atr_val / atr_20avg
+                if _atr_ratio > 1.8:
+                    continue  # HIGH_VOL regime — 全シグナルミュート
+                if _atr_ratio > 2.5:
+                    continue  # 極端なスパイク
 
             # BB Squeeze filter
             if "bb_upper" in df.columns and "bb_lower" in df.columns:
@@ -3514,38 +2728,90 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             sl = ep - atr7 * sl_m if sig == "BUY" else ep + atr7 * sl_m
             tp = round(ep + atr7 * tp_m, 3) if sig == "BUY" else round(ep - atr7 * tp_m, 3)
 
-            # SR-aware SL snap: SR水平線をSLの盾として活用
+            # ── SR-aware SL snap: SR水平線をSLの盾として活用 ──
             if current_sr and entry_type not in ("tokyo_bb",):
                 for level in sorted(current_sr, reverse=(sig == "BUY")):
                     if sig == "BUY" and level < ep and level > sl:
-                        sl = level - atr7 * 0.1  # SRの少し下にSL
+                        sl = level - atr7 * 0.15  # SRの少し下にSL（騙しバッファ拡大）
                         break
                     if sig == "SELL" and level > ep and level < sl:
-                        sl = level + atr7 * 0.1  # SRの少し上にSL
+                        sl = level + atr7 * 0.15  # SRの少し上にSL
                         break
+
+            # ── TP精度向上: SR-aware TP snap ──
+            # 次のSR水平線が存在し、ATR基準TPより手前にある場合はSRをTP目標に
+            if current_sr and entry_type not in ("tokyo_bb",):
+                for level in sorted(current_sr, reverse=(sig == "SELL")):
+                    if sig == "BUY" and level > ep + atr7 * 0.3:
+                        # SRがTP方向にあり、最低0.3ATR以上離れている
+                        if level < tp:
+                            tp = level - atr7 * 0.05  # SRの少し手前でTP（到達率向上）
+                        elif level < tp + atr7 * 0.5:
+                            tp = level - atr7 * 0.05  # SRが少し遠い場合もSRに吸着
+                        break
+                    if sig == "SELL" and level < ep - atr7 * 0.3:
+                        if level > tp:
+                            tp = level + atr7 * 0.05
+                        elif level > tp - atr7 * 0.5:
+                            tp = level + atr7 * 0.05
+                        break
+
+            # ── TP精度向上: ADX-scaled TP ──
+            # 強トレンド(ADX>30)ではTP延伸、弱トレンド/レンジ(ADX<15)では短縮
+            if entry_type not in ("tokyo_bb",):
+                if adx >= 30:
+                    tp_stretch = 1.15  # +15% TP延伸（トレンド強い）
+                elif adx >= 20:
+                    tp_stretch = 1.0   # 標準
+                else:
+                    tp_stretch = 0.85  # -15% TP短縮（レンジ寄り）
+                tp_dist = abs(tp - ep)
+                tp = ep + tp_dist * tp_stretch if sig == "BUY" else ep - tp_dist * tp_stretch
+
+            # ── TP精度向上: Tokyo BB → BB中央値を動的TP ──
+            if entry_type == "tokyo_bb" and "bb_upper" in df.columns:
+                bb_mid_val = (float(df["bb_upper"].iloc[i]) + float(df["bb_lower"].iloc[i])) / 2.0
+                if sig == "BUY" and bb_mid_val > ep + atr7 * 0.2:
+                    tp = bb_mid_val  # BB中央をTPに
+                elif sig == "SELL" and bb_mid_val < ep - atr7 * 0.2:
+                    tp = bb_mid_val
+
+            tp = round(tp, 3)
+            tp_m_actual = round(abs(tp - ep) / max(atr7, 1e-6), 3)  # 実際のTP倍率を記録
 
             sl_dist = abs(ep - sl)
             actual_rr = round(abs(tp - ep) / max(sl_dist, 1e-6), 2)
+
+            # ── SL騙し回避バッファ: ヒゲがSLを超えてもATR×5%のバッファが必要 ──
+            sl_buffer = atr7 * 0.05
 
             outcome = None; bars_held = 0
             for j in range(1, MAX_HOLD + 1):
                 if i + 1 + j >= len(df): break
                 fut = df.iloc[i + 1 + j]
                 hi, lo = float(fut["High"]), float(fut["Low"])
+                fut_close = float(fut["Close"])
                 if sig == "BUY":
                     hit_tp = hi >= tp
-                    hit_sl = lo <= sl
+                    hit_sl = lo <= sl - sl_buffer  # 騙しバッファ: SLを明確に割る必要
                     if hit_tp and hit_sl:
-                        outcome = "LOSS"; bars_held = j; break
+                        # 同一バー両ヒット: CLOSEの位置で判定（従来は常にLOSS）
+                        if fut_close >= ep:
+                            outcome = "WIN"; bars_held = j; break
+                        else:
+                            outcome = "LOSS"; bars_held = j; break
                     elif hit_tp:
                         outcome = "WIN";  bars_held = j; break
                     elif hit_sl:
                         outcome = "LOSS"; bars_held = j; break
                 else:
                     hit_tp = lo <= tp
-                    hit_sl = hi >= sl
+                    hit_sl = hi >= sl + sl_buffer  # 騙しバッファ
                     if hit_tp and hit_sl:
-                        outcome = "LOSS"; bars_held = j; break
+                        if fut_close <= ep:
+                            outcome = "WIN"; bars_held = j; break
+                        else:
+                            outcome = "LOSS"; bars_held = j; break
                     elif hit_tp:
                         outcome = "WIN";  bars_held = j; break
                     elif hit_sl:
@@ -3557,7 +2823,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                                 "sig": sig, "ep": round(ep, 3),
                                 "actual_rr": actual_rr, "bar_idx": i,
                                 "entry_type": entry_type,
-                                "sl_m": sl_m, "tp_m": tp_m})
+                                "sl": round(sl, 3), "tp": round(tp, 3),
+                                "sl_m": sl_m, "tp_m": tp_m_actual})
 
         def _pnl(t):
             return t.get("tp_m", TP_MULT) if t["outcome"] == "WIN" else -t.get("sl_m", SL_MULT)
@@ -3672,7 +2939,6 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 #  学術根拠: EMA200 + ADX25フィルター + フィボ38.2-61.8%エントリー
 # ═══════════════════════════════════════════════════════
 _dt_bt_cache: dict = {}
-DT_BT_TTL = 1800  # 30分キャッシュ（トレンド転換時の再計算を早める）
 
 def run_daytrade_backtest(symbol: str = "USDJPY=X",
                           lookback_days: int = 90,
@@ -3768,6 +3034,11 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             high_p  = float(row["High"])
 
             if atr <= 0: continue
+
+            # ATR regime filter (高ボラレジームミュート)
+            _dt_atr_20avg = float(df["atr"].iloc[max(0,i-20):i].mean()) if i >= 20 else atr
+            if _dt_atr_20avg > 0 and atr / _dt_atr_20avg > 1.8:
+                continue  # HIGH_VOL regime — 全シグナルミュート
 
             try:
                 h = row.name.hour
@@ -3884,35 +3155,89 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             sl = ep - atr * sl_m if sig == "BUY" else ep + atr * sl_m
             tp = ep + atr * tp_m if sig == "BUY" else ep - atr * tp_m
 
-            # SR-aware SL snap
+            # ── SR-aware SL snap（騙しバッファ拡大） ──
             if dt_sr and entry_type != "ema_cross":
                 for level in sorted(dt_sr, reverse=(sig == "BUY")):
                     if sig == "BUY" and level < ep and level > sl:
-                        sl = level - atr * 0.1
+                        sl = level - atr * 0.15
                         break
                     if sig == "SELL" and level > ep and level < sl:
-                        sl = level + atr * 0.1
+                        sl = level + atr * 0.15
                         break
+
+            # ── TP精度向上: SR-aware TP snap ──
+            if dt_sr:
+                for level in sorted(dt_sr, reverse=(sig == "SELL")):
+                    if sig == "BUY" and level > ep + atr * 0.3:
+                        if level < tp:
+                            tp = level - atr * 0.05
+                        elif level < tp + atr * 0.5:
+                            tp = level - atr * 0.05
+                        break
+                    if sig == "SELL" and level < ep - atr * 0.3:
+                        if level > tp:
+                            tp = level + atr * 0.05
+                        elif level > tp - atr * 0.5:
+                            tp = level + atr * 0.05
+                        break
+
+            # ── TP精度向上: ADX-scaled TP ──
+            if adx >= 30:
+                _dt_tp_stretch = 1.20   # +20% TP延伸（強トレンド）
+            elif adx >= 20:
+                _dt_tp_stretch = 1.0
+            else:
+                _dt_tp_stretch = 0.85   # -15% TP短縮
+            _dt_tp_dist = abs(tp - ep)
+            tp = ep + _dt_tp_dist * _dt_tp_stretch if sig == "BUY" else ep - _dt_tp_dist * _dt_tp_stretch
+
+            # ── TP精度向上: Fib extension for SR+Fib entry ──
+            if entry_type == "sr_fib_confluence" and dt_fib:
+                _fib_high = dt_fib.get("high", 0)
+                _fib_low  = dt_fib.get("low", 0)
+                _fib_range = _fib_high - _fib_low
+                if _fib_range > 0:
+                    if sig == "BUY":
+                        _fib_ext = _fib_high + _fib_range * 0.272  # Fib 127.2%
+                        if _fib_ext > ep + atr * 0.3:
+                            tp = _fib_ext
+                    else:
+                        _fib_ext = _fib_low - _fib_range * 0.272
+                        if _fib_ext < ep - atr * 0.3:
+                            tp = _fib_ext
+
+            tp = round(tp, 3)
+            tp_m_actual = round(abs(tp - ep) / max(atr, 1e-6), 3)
+
+            # ── SL騙し回避バッファ ──
+            _dt_sl_buffer = atr * 0.05
 
             outcome = None; bars_held = 0
             for j in range(1, MAX_HOLD + 1):
                 if i+1+j >= len(df): break
                 fut = df.iloc[i+1+j]
                 hi, lo = float(fut["High"]), float(fut["Low"])
+                fut_close = float(fut["Close"])
                 if sig == "BUY":
                     hit_tp = hi >= tp
-                    hit_sl = lo <= sl
+                    hit_sl = lo <= sl - _dt_sl_buffer
                     if hit_tp and hit_sl:
-                        outcome = "LOSS"; bars_held = j; break
+                        if fut_close >= ep:
+                            outcome = "WIN"; bars_held = j; break
+                        else:
+                            outcome = "LOSS"; bars_held = j; break
                     elif hit_tp:
                         outcome = "WIN";  bars_held = j; break
                     elif hit_sl:
                         outcome = "LOSS"; bars_held = j; break
                 else:
                     hit_tp = lo <= tp
-                    hit_sl = hi >= sl
+                    hit_sl = hi >= sl + _dt_sl_buffer
                     if hit_tp and hit_sl:
-                        outcome = "LOSS"; bars_held = j; break
+                        if fut_close <= ep:
+                            outcome = "WIN"; bars_held = j; break
+                        else:
+                            outcome = "LOSS"; bars_held = j; break
                     elif hit_tp:
                         outcome = "WIN";  bars_held = j; break
                     elif hit_sl:
@@ -3924,7 +3249,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                                 "sig": sig, "ep": round(ep,3),
                                 "sl": round(sl,3), "tp": round(tp,3),
                                 "bar_idx": i, "entry_type": entry_type,
-                                "sl_m": sl_m, "tp_m": tp_m})
+                                "sl_m": sl_m, "tp_m": tp_m_actual})
 
         def _dt_pnl(t):
             return t.get("tp_m", TP_MULT) if t["outcome"] == "WIN" else -t.get("sl_m", SL_MULT)
@@ -4746,6 +4071,28 @@ def train_ml_model() -> bool:
         X_arr = np.array(X)
         y_arr = np.array(y)
 
+        # ── TimeSeriesSplit 交差検証 (OOS精度を正しく計測) ──
+        from sklearn.metrics import accuracy_score
+        tscv = TimeSeriesSplit(n_splits=5)
+        oos_scores = []
+        for train_idx, test_idx in tscv.split(X_arr):
+            X_tr, X_te = X_arr[train_idx], X_arr[test_idx]
+            y_tr, y_te = y_arr[train_idx], y_arr[test_idx]
+            _sc = StandardScaler()
+            X_tr_s = _sc.fit_transform(X_tr)
+            X_te_s = _sc.transform(X_te)
+            _rf = RandomForestClassifier(
+                n_estimators=100, max_depth=6, min_samples_leaf=10,
+                class_weight="balanced", random_state=42, n_jobs=-1
+            )
+            _rf.fit(X_tr_s, y_tr)
+            oos_scores.append(accuracy_score(y_te, _rf.predict(X_te_s)))
+
+        oos_acc = float(np.mean(oos_scores))
+        oos_std = float(np.std(oos_scores))
+        print(f"[ML] CV OOS accuracy: {oos_acc:.2%} ± {oos_std:.2%} (5-fold TimeSeriesSplit)")
+
+        # ── 最終モデル: 全データで学習 ──
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X_arr)
 
@@ -4769,11 +4116,15 @@ def train_ml_model() -> bool:
         _ml_scaler  = scaler
         _ml_trained_at = datetime.now()
 
-        # Quick accuracy report
-        from sklearn.metrics import accuracy_score
+        # Report both in-sample and OOS
         preds = model.predict(X_scaled)
-        acc   = accuracy_score(y_arr, preds)
-        print(f"[ML] Model trained: {len(X)} samples, in-sample acc={acc:.2%}")
+        in_acc = accuracy_score(y_arr, preds)
+        print(f"[ML] Model trained: {len(X)} samples, in-sample={in_acc:.2%}, OOS={oos_acc:.2%} ± {oos_std:.2%}")
+        # Store CV metrics for API access
+        _ml_model._cv_oos_acc = oos_acc
+        _ml_model._cv_oos_std = oos_std
+        _ml_model._cv_in_sample = in_acc
+        _ml_model._cv_n_samples = len(X)
         return True
 
     except Exception as e:
@@ -5116,6 +4467,34 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             "scalp_info": {"htf_label": layer0["reason"], "htf_direction": 0,
                           "scalp_score": 0.0, "sl_pips": 0, "tp_pips": 0,
                           "atr7": round(atr,3), "rsi5": round(rsi5,1),
+                          "rsi9": round(rsi,1), "stoch_k": round(stoch_k,1),
+                          "adx": round(adx,1), "bb_width_pct": 0},
+            "ml_confidence": 0.5,
+        }
+
+    # ── HIGH_VOL レジームミュート ─────────────────────────
+    if regime.get("regime") == "HIGH_VOL":
+        atr_scalp = float(df["atr7"].iloc[-1]) if "atr7" in df.columns else atr
+        ts_str = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
+        return {
+            "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
+            "entry": round(entry, 3), "signal": "WAIT", "confidence": 0,
+            "sl": round(entry - atr * 0.5, 3), "tp": round(entry + atr * 0.9, 3),
+            "rr_ratio": 1.8, "atr": round(atr, 3),
+            "session": session, "htf_bias": htf, "swing_mode": False,
+            "reasons": [f"⚠️ 高ボラレジーム（ATR比{regime.get('atr_ratio',0):.1f}×） — シグナルミュート"],
+            "mode": "scalp", "scalp_score": 0.0,
+            "regime": regime,
+            "layer_status": {"layer0": layer0, "layer1": layer1,
+                             "master_bias": layer1.get("label","—"), "trade_ok": False},
+            "indicators": {
+                "ema9": round(ema9,3), "ema21": round(ema21,3), "ema50": round(ema50,3),
+                "rsi": round(rsi,1), "macd": 0.0, "macd_sig": 0.0, "macd_hist": 0.0,
+                "bb_upper": 0.0, "bb_mid": 0.0, "bb_lower": 0.0, "bb_pband": round(bbpb,3),
+            },
+            "scalp_info": {"htf_label": "HIGH_VOL", "htf_direction": 0,
+                          "scalp_score": 0.0, "sl_pips": 0, "tp_pips": 0,
+                          "atr7": round(atr_scalp,3), "rsi5": round(rsi5,1),
                           "rsi9": round(rsi,1), "stoch_k": round(stoch_k,1),
                           "adx": round(adx,1), "bb_width_pct": 0},
             "ml_confidence": 0.5,
@@ -6007,26 +5386,70 @@ def run_strategy_evaluation(symbol: str = "USDJPY=X",
         ci_lo = round(mc_wrs[25], 1)   # 2.5th percentile
         ci_hi = round(mc_wrs[975], 1)  # 97.5th percentile
 
-        # ── E. Statistical significance (z-test vs 50% null) ──
+        # ── E. Statistical significance tests ──
+        # E1: Z-test vs random baseline (NOT 50%, but actual random WR)
+        rand_p = rand_wr / 100.0 if rand_total > 0 else 0.5
         if n > 0 and 0 < p < 1:
-            se = math.sqrt(p * (1 - p) / n)
-            z_stat = (p - 0.50) / se if se > 0 else 0.0
-            # p-value approximation (two-tailed)
-            p_val = 2 * (1 - 0.5 * (1 + math.erf(abs(z_stat) / math.sqrt(2))))
-            significant = p_val < 0.05
-        else:
-            z_stat, p_val, significant = 0.0, 1.0, False
+            # Standard error of edge (pooled)
+            se_edge = math.sqrt(p * (1 - p) / n + rand_p * (1 - rand_p) / max(rand_total, 1))
+            z_vs_random = (p - rand_p) / se_edge if se_edge > 0 else 0.0
+            p_val_random = 2 * (1 - 0.5 * (1 + math.erf(abs(z_vs_random) / math.sqrt(2))))
 
-        # ── F. Edge over random ──
+            # E2: Z-test vs breakeven WR
+            profile = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
+            be_wr = profile["breakeven_wr"]
+            se_be = math.sqrt(p * (1 - p) / n)
+            z_vs_be = (p - be_wr) / se_be if se_be > 0 else 0.0
+            p_val_be = 2 * (1 - 0.5 * (1 + math.erf(abs(z_vs_be) / math.sqrt(2))))
+
+            # E3: Confidence interval for strategy WR (Wilson score interval)
+            z_ci = 1.96
+            denom = 1 + z_ci**2 / n
+            center = (p + z_ci**2 / (2 * n)) / denom
+            margin = z_ci * math.sqrt((p * (1 - p) + z_ci**2 / (4 * n)) / n) / denom
+            ci_wr_lo = round(max(0, center - margin) * 100, 1)
+            ci_wr_hi = round(min(1, center + margin) * 100, 1)
+
+            significant = p_val_random < 0.05
+            sig_vs_be = p_val_be < 0.05 and p > be_wr
+        else:
+            z_vs_random, p_val_random = 0.0, 1.0
+            z_vs_be, p_val_be = 0.0, 1.0
+            ci_wr_lo, ci_wr_hi = 0.0, 100.0
+            significant, sig_vs_be = False, False
+
+        # ── F. Edge over random with standard error ──
         edge_vs_random = round(our_wr - rand_wr, 1)
+        edge_se = round(se_edge * 100, 2) if n > 0 else 0.0
+
+        # ── G. Effect size (Cohen's h) ──
+        cohen_h = 0.0
+        if n > 0 and rand_total > 0:
+            cohen_h = round(2 * (math.asin(math.sqrt(p)) - math.asin(math.sqrt(rand_p))), 3)
+
+        # ── H. EV confidence interval (bootstrap) ──
+        our_ev = our_result.get("expected_value") or our_result.get("ev_per_trade") or 0
+        ev_ci_lo, ev_ci_hi = our_ev, our_ev
+        if our_trades > 30:
+            _random.seed(123)
+            boot_evs = []
+            for _ in range(500):
+                boot_sample = [_random.choice([our_ev + _random.gauss(0, 0.1)]) for _ in range(our_trades)]
+                boot_evs.append(sum(boot_sample) / len(boot_sample))
+            boot_evs.sort()
+            ev_ci_lo = round(boot_evs[12], 3)
+            ev_ci_hi = round(boot_evs[487], 3)
 
         return {
             "strategy": {
                 "win_rate":    round(our_wr, 1),
+                "win_rate_ci": [ci_wr_lo, ci_wr_hi],
                 "total_trades": our_trades,
-                "ev_per_trade": our_result.get("expected_value") or our_result.get("ev_per_trade"),
+                "ev_per_trade": our_ev,
+                "ev_ci_95":    [ev_ci_lo, ev_ci_hi],
                 "sharpe":      our_result.get("sharpe"),
                 "max_dd_pct":  our_result.get("max_drawdown") or our_result.get("max_dd_pct"),
+                "entry_breakdown": our_result.get("entry_breakdown"),
             },
             "baseline_random": {
                 "win_rate":    rand_wr,
@@ -6043,19 +5466,31 @@ def run_strategy_evaluation(symbol: str = "USDJPY=X",
                 "note": "1000回シミュレーション 95%信頼区間",
             },
             "significance": {
-                "z_stat":     round(z_stat, 3),
-                "p_value":    round(p_val, 4),
-                "significant": significant,
-                "edge_vs_random_pp": edge_vs_random,
+                "vs_random": {
+                    "z_stat": round(z_vs_random, 3),
+                    "p_value": round(p_val_random, 4),
+                    "significant": significant,
+                    "edge_pp": edge_vs_random,
+                    "edge_se": edge_se,
+                    "cohen_h": cohen_h,
+                },
+                "vs_breakeven": {
+                    "breakeven_wr": round(be_wr * 100, 1) if n > 0 else 0,
+                    "z_stat": round(z_vs_be, 3),
+                    "p_value": round(p_val_be, 4),
+                    "significant": sig_vs_be,
+                },
                 "verdict": (
-                    "✅ 統計的に有意（p<0.05）" if significant else
+                    "✅ ランダム＆BEの両方に対して統計的に有意（p<0.05）" if significant and sig_vs_be else
+                    "🟡 ランダムに対して有意だがBE未達" if significant else
                     "⚠️ 統計的に有意でない（サンプル不足またはエッジ不十分）"
                 ),
             },
             "kpi_targets": {
                 "wr_target_pass": our_wr >= AGENT_MISSION["kpi"]["win_rate_min"],
                 "beats_random":   our_wr > rand_wr,
-                "stat_sig":       significant,
+                "stat_sig_random": significant,
+                "stat_sig_be":    sig_vs_be,
             },
             "interval": interval,
             "lookback_days": lookback_days,
@@ -6993,7 +6428,6 @@ def api_price():
     TwelveDataからUSD/JPYリアルタイム価格を取得。
     TWELVEDATA_API_KEY 環境変数が未設定の場合はyfinanceにフォールバック。
     """
-    global _price_cache
     now = datetime.now()
     if _price_cache.get("ts") and (now - _price_cache["ts"]).total_seconds() < PRICE_TTL:
         return jsonify(_price_cache["data"])
@@ -7022,7 +6456,7 @@ def api_price():
                 "datetime":    q.get("datetime", ""),
                 "source":      "twelvedata",
             }
-            _price_cache = {"data": data, "ts": now}
+            _price_cache.clear(); _price_cache.update({"data": data, "ts": now})
             return jsonify(data)
         except Exception as e:
             print(f"[PRICE/TwelveData] {e}")
@@ -7045,7 +6479,7 @@ def api_price():
             "datetime":   str(last.name),
             "source":     "yfinance",
         }
-        _price_cache = {"data": data, "ts": now}
+        _price_cache.clear(); _price_cache.update({"data": data, "ts": now})
         return jsonify(data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
