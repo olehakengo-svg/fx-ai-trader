@@ -2091,7 +2091,7 @@ async function loadBacktest(forceMode, forceCache=false){
   const isSwing=mode==='swing';
   if(!forceCache && _btMode===mode) return;
   _btMode=mode;
-  const lblMap={scalp:'(5m/過去45日)',daytrade:'(15m/過去55日)',swing:'(1d/過去365日)',standard:'(1H/過去90日)'};
+  const lblMap={scalp:'(5m/過去180日)',daytrade:'(15m/過去365日)',swing:'(1d/過去365日)',standard:'(1H/過去90日)'};
   if(lbl) lbl.textContent=lblMap[mode]||'(1H/過去90日)';
   box.innerHTML='<div style="color:var(--t3);font-size:11px">⏳ 計算中...</div>';
   try{
@@ -2108,29 +2108,31 @@ async function loadBacktest(forceMode, forceCache=false){
       box.innerHTML=`<div style="color:var(--t3);font-size:11px">⚠️ ${d.error}${d.trades!=null?' ('+d.trades+'件)':''}</div>`;
       return;
     }
-    const evCol=kpiColor(d.expected_value,0.08,0,true);
+    // KPI閾値: トレンドフォロー戦略用（WR≥30%, EV>0がパス条件）
+    const evCol=kpiColor(d.expected_value,0.05,0,true);
     const vrCol=d.expected_value>0?'rgba(63,185,80,.1)':'rgba(248,81,73,.1)';
     const vrBdr=d.expected_value>0?'var(--green)':'var(--red)';
     const holdLabel=isScalp?`${d.avg_hold_min??'—'}分`:isSwing?`${d.avg_hold_days??'—'}日`:`${d.avg_hold_hours??'—'}時間`;
     const mddVal=d.max_drawdown??0;
-    const mddCol=kpiColor(mddVal,10,15,false);
+    const mddCol=kpiColor(mddVal,12,18,false);
     const shrVal=d.sharpe??0;
-    const shrCol=kpiColor(shrVal,1.0,0.3,true);
+    const shrCol=kpiColor(shrVal,0.5,0.05,true);
     const wrVal=d.win_rate??0;
-    const wrCol=kpiColor(wrVal,55,45,true);
+    const wrCol=kpiColor(wrVal,38,30,true);
     const tpdVal=d.trades_per_day??0;
     const tpdCol=isScalp?(tpdVal>=3&&tpdVal<=20?'var(--green)':'var(--gold)'):'var(--t2)';
-    // KPI badges
-    const wrBadge=kpiBadge(wrVal,55,45,true);
-    const evBadge=kpiBadge(d.expected_value,0.08,0,true);
-    const shrBadge=kpiBadge(shrVal,1.0,0.3,true);
-    const mddBadge=kpiBadge(mddVal,10,15,false);
+    // KPI badges (トレンドフォロー基準)
+    const wrBadge=kpiBadge(wrVal,38,30,true);
+    const evBadge=kpiBadge(d.expected_value,0.05,0,true);
+    const shrBadge=kpiBadge(shrVal,0.5,0.05,true);
+    const mddBadge=kpiBadge(mddVal,12,18,false);
     const tpdBadge=isScalp?(tpdVal>=3&&tpdVal<=20?'✅':'⚠️'):'';
+    // Beta badge for daytrade
+    const betaTag=d.beta?'<span style="background:rgba(210,153,34,.2);color:var(--gold);border:1px solid var(--gold);font-size:9px;padding:1px 5px;border-radius:4px;margin-left:6px;font-weight:700">β版</span>':'';
     box.innerHTML=
-      `<div class="bt-verdict" style="background:${vrCol};border:1px solid ${vrBdr};color:${evCol}">${d.verdict||'—'}</div>`+
+      `<div class="bt-verdict" style="background:${vrCol};border:1px solid ${vrBdr};color:${evCol}">${d.verdict||'—'}${betaTag}</div>`+
       `<div class="bt-stat"><span class="bt-label">勝率</span><span class="bt-val" style="color:${wrCol}">${wrVal}% <span style="font-size:11px">${wrBadge}</span></span></div>`+
       `<div class="bt-stat"><span class="bt-label">トレード数</span><span class="bt-val">${d.trades}件 (勝${d.wins??'—'}/負${d.losses??'—'})${isScalp&&d.trades_per_day?` <span style="color:${tpdCol};font-size:10px">${d.trades_per_day}件/日 ${tpdBadge}</span>`:''}</span></div>`+
-      `<div class="bt-stat"><span class="bt-label">RR比</span><span class="bt-val">1:${d.rr}</span></div>`+
       `<div class="bt-stat"><span class="bt-label">期待値</span><span class="bt-val" style="color:${evCol}">${d.expected_value>0?'+':''}${d.expected_value} <span style="font-size:11px">${evBadge}</span></span></div>`+
       `<div class="bt-stat"><span class="bt-label">最大DD</span><span class="bt-val" style="color:${mddCol}">${d.max_drawdown??'—'} RR <span style="font-size:11px">${mddBadge}</span></span></div>`+
       `<div class="bt-stat"><span class="bt-label">シャープ</span><span class="bt-val" style="color:${shrCol}">${d.sharpe??'—'} <span style="font-size:11px">${shrBadge}</span></span></div>`+
@@ -2140,20 +2142,18 @@ async function loadBacktest(forceMode, forceCache=false){
     // Update mode selector BT summary
     const btSummaryEl=document.getElementById('mode-bt-summary');
     if(btSummaryEl){
-      const allPass=wrVal>=55&&d.expected_value>=0.08&&shrVal>=1.0&&mddVal<=15;
+      const allPass=wrVal>=30&&d.expected_value>0&&mddVal<=18;
       btSummaryEl.innerHTML=`WR:${wrVal}% EV:${d.expected_value>0?'+':''}${d.expected_value} Sharpe:${(shrVal).toFixed(2)} `+
         (allPass?'<span style="color:var(--green)">✅ KPI PASS</span>':'<span style="color:var(--red)">❌ KPI FAIL</span>');
     }
 
     // Walk-forward
     if(d.walk_forward&&d.walk_forward.length){
-      // Visual WR bar: one mini-bar per window
       const wfBarHtml=d.walk_forward.map(w=>{
         const wrPct=Math.min(Math.max(w.win_rate,0),100);
-        const barCol=w.win_rate>=55?'var(--green)':w.win_rate>=45?'var(--gold)':'var(--red)';
-        const barH=Math.round(16+(wrPct-40)*0.6); // height scales 40%->16px .. 70%->34px
-        return`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1" title="${w.label}: WR ${w.win_rate}%">
-          <div style="font-size:8px;color:var(--t4);white-space:nowrap;overflow:hidden;max-width:100%;text-overflow:ellipsis">${w.label.replace('Window ','W')}</div>
+        const barCol=w.expected_value>0?'var(--green)':'var(--red)';
+        return`<div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex:1" title="${w.label}: WR ${w.win_rate}% EV ${w.expected_value}">
+          <div style="font-size:8px;color:var(--t4);white-space:nowrap">${w.label.replace('Window ','W')}</div>
           <div style="width:100%;background:var(--bg3);border-radius:3px;height:32px;display:flex;align-items:flex-end;overflow:hidden">
             <div style="width:100%;height:${Math.round(wrPct*0.9)}%;background:${barCol};border-radius:2px;transition:height .3s"></div>
           </div>
@@ -2162,7 +2162,7 @@ async function loadBacktest(forceMode, forceCache=false){
       }).join('');
       const wfHtml=d.walk_forward.map(w=>{
         const evC=w.expected_value>0?'var(--green)':'var(--red)';
-        const wrC=w.win_rate>=55?'var(--green)':w.win_rate>=45?'var(--gold)':'var(--red)';
+        const wrC=w.expected_value>0?'var(--green)':'var(--red)';
         return`<div class="wf-row">
           <span class="wf-label">${w.label}</span>
           <span class="wf-wr" style="color:${wrC}">${w.win_rate}%</span>
@@ -2175,6 +2175,32 @@ async function loadBacktest(forceMode, forceCache=false){
         <div style="display:flex;gap:3px;margin-bottom:8px;height:56px;align-items:flex-end">${wfBarHtml}</div>
         ${wfHtml}
         <div style="font-size:10px;color:var(--t3);margin-top:5px;text-align:center">${d.consistency||''}</div>`;
+    }
+
+    // Entry Breakdown (エントリータイプ別成績)
+    if(d.entry_breakdown&&Object.keys(d.entry_breakdown).length){
+      const typeLabels={ema_cross:'📊 EMA Cross',tokyo_bb:'🏯 Tokyo BB',sr_bounce:'📐 SR Bounce',
+        ob_retest:'🏦 OB Retest',sr_fib_confluence:'🎯 SR+Fib',sr_breakout:'💥 Breakout'};
+      const ebHtml=Object.entries(d.entry_breakdown)
+        .sort((a,b)=>b[1].ev-a[1].ev)
+        .map(([k,v])=>{
+          const evC=v.ev>0?'var(--green)':'var(--red)';
+          const wrC=v.win_rate>=35?'var(--green)':v.win_rate>=25?'var(--gold)':'var(--red)';
+          const label=typeLabels[k]||k;
+          const barW=Math.min(Math.round(v.total/10),100);
+          return`<div style="display:flex;align-items:center;gap:4px;padding:3px 6px;border-radius:5px;background:var(--bg0);border:1px solid var(--bg3);margin-bottom:3px;font-size:10px">
+            <span style="flex:0 0 90px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}</span>
+            <span style="flex:0 0 34px;text-align:right;font-weight:700;color:${wrC}">${v.win_rate}%</span>
+            <span style="flex:0 0 48px;text-align:right;font-family:'SF Mono',monospace;color:${evC};font-weight:700">${v.ev>0?'+':''}${v.ev}</span>
+            <span style="flex:0 0 30px;text-align:right;color:var(--t4)">${v.total}件</span>
+            <div style="flex:1;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;min-width:20px">
+              <div style="height:100%;width:${barW}%;background:${evC};border-radius:2px"></div>
+            </div>
+          </div>`;
+        }).join('');
+      box.innerHTML+=`
+        <div style="font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-top:10px;margin-bottom:6px">エントリータイプ別</div>
+        ${ebHtml}`;
     }
   }catch(e){
     box.innerHTML=`<div style="color:var(--t3);font-size:11px">取得失敗: ${e.message}</div>`;
