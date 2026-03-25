@@ -3567,11 +3567,12 @@ _sw_bt_cache: dict = {}
 SW_BT_TTL = 21600  # 6時間キャッシュ
 
 def run_swing_backtest(symbol: str = "USDJPY=X",
-                       lookback_days: int = 365) -> dict:
+                       lookback_days: int = 730) -> dict:
     """
     スイングトレードバックテスト（1d足, 2年分）
-    EMA200 + RSI + MACD方向確認
-    SL: ATR*2.5 / TP: ATR*4.5 / 最大保有: 20日
+    3エントリータイプ: EMA Trend, SR Bounce, Strong Breakout
+    SR強度スコアリング付き、エントリー別SL/TP
+    目標: 月4-6回 (年50-72件)
     """
     global _sw_bt_cache
     now = datetime.now()
@@ -3579,30 +3580,51 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
         return _sw_bt_cache["result"]
 
     try:
-        # EMA200のwarmup確保のため最低2年分取得（yfinanceは1d無制限）
-        df = fetch_ohlcv(symbol, period="730d", interval="1d")
+        df = fetch_ohlcv(symbol, period="1095d", interval="1d")
         df = add_indicators(df)
         df = df.dropna()
-        if len(df) < 60:
+        if len(df) < 100:
             return {"error": "データ不足", "trades": 0, "mode": "swing"}
 
-        SPREAD   = 0.030   # 3 pip
-        SL_MULT  = 2.5
-        TP_MULT  = 4.5
-        MAX_HOLD = 20      # 日
-        COOLDOWN = 6       # 日（8→6 緩和）
-        ATR_MED  = float(df["atr"].median())
-        # 直近lookback_days分のみバックテスト対象
-        cutoff_i = max(210, len(df) - lookback_days)
+        SPREAD   = 0.030
+        SL_MULT  = 2.0     # デフォルトSL
+        TP_MULT  = 3.5     # デフォルトTP
+        MAX_HOLD = 25      # 日
+        COOLDOWN = 3       # 日（6→3 緩和: 月4-6回目標）
+
+        cutoff_i = max(250, len(df) - lookback_days)
+
+        # ── SR/OB/Fib プリコンピュート（1d足 = bars_per_day=1）──
+        SW_SR_RECALC = 20   # 20日ごとに再計算
+        _sw_sr_cache = {}
+        _sw_ob_cache = {}
+        _sw_fib_cache = {}
+        for _ci in range(200, len(df), SW_SR_RECALC):
+            _sr_slice = df.iloc[max(0, _ci - 200):_ci]
+            _sw_sr_cache[_ci // SW_SR_RECALC] = find_sr_levels_weighted(
+                _sr_slice, window=3, tolerance_pct=0.005, min_touches=2,
+                max_levels=10, bars_per_day=1)
+            try:
+                _, _obs = detect_order_blocks(
+                    df.iloc[max(0, _ci - 60):_ci], atr_mult=1.5, lookback=50)
+                _sw_ob_cache[_ci // SW_SR_RECALC] = _obs
+            except Exception:
+                _sw_ob_cache[_ci // SW_SR_RECALC] = []
+            _sw_fib_cache[_ci // SW_SR_RECALC] = _calc_fibonacci_levels(
+                df.iloc[max(0, _ci - 120):_ci], lookback=100)
 
         trades = []
         last_bar = -99
 
         for i in range(cutoff_i, len(df) - MAX_HOLD - 1):
-            if i - last_bar < COOLDOWN: continue
+            if i - last_bar < COOLDOWN:
+                continue
 
             row    = df.iloc[i]
-            entry  = float(row["Close"])
+            close_p = float(row["Close"])
+            open_p  = float(row["Open"])
+            high_p  = float(row["High"])
+            low_p   = float(row["Low"])
             atr    = float(row["atr"])
             ema21  = float(row["ema21"])
             ema50  = float(row["ema50"])
@@ -3610,53 +3632,140 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
             adx    = float(row.get("adx", 20.0))
             rsi    = float(row["rsi"])
             macdh  = float(row["macd_hist"])
-            macdh_p = float(df["macd_hist"].iloc[i-1])
-            if atr <= 0: continue
-            if atr < ATR_MED * 0.4: continue
-
-            # EMA200方向フィルター（必須）
-            bull200 = entry > ema200
-
-            # EMA200傾き（10日スロープ）— 方向性を確認してからエントリー
-            ema200_prev = float(df["ema200"].iloc[i - 10]) if i >= 10 else ema200
-            ema200_rising = ema200 > ema200_prev
-
-            # EMAアライメント
-            bull_align = ema21 > ema50
-            bear_align = ema21 < ema50
-
-            if bull200 and bull_align and ema200_rising:
-                sig = "BUY"
-            elif not bull200 and bear_align and not ema200_rising:
-                sig = "SELL"
-            else:
+            macdh_p = float(df["macd_hist"].iloc[i-1]) if i > 0 else 0
+            if atr <= 0:
                 continue
 
-            # ADX最低閾値（トレンド環境のみ）
-            if adx < 15: continue
+            # ── SR/OB/Fib 取得 ──
+            sr_key = i // SW_SR_RECALC
+            current_sr = _sw_sr_cache.get(sr_key, _sw_sr_cache.get(sr_key - 1, []))
+            current_ob = _sw_ob_cache.get(sr_key, _sw_ob_cache.get(sr_key - 1, []))
+            current_fib = _sw_fib_cache.get(sr_key, _sw_fib_cache.get(sr_key - 1, {}))
 
-            # RSIモメンタム確認（スイング: 方向性に沿ったゾーン）
-            if sig == "BUY"  and not (40 <= rsi <= 78): continue  # 押し目ゾーン
-            if sig == "SELL" and not (22 <= rsi <= 60): continue  # 戻りゾーン
+            # 基本トレンド判定（軽量: EMA21 vs EMA50のみ）
+            bull_trend = ema21 > ema50
+            bear_trend = ema21 < ema50
 
-            # MACDヒスト方向確認（方向のみ、符号は問わない）
-            if sig == "BUY"  and not (macdh > macdh_p): continue
-            if sig == "SELL" and not (macdh < macdh_p): continue
+            sig = None
+            entry_type = None
 
-            if i + 1 >= len(df): continue
-            ep  = float(df.iloc[i+1]["Open"])
-            ep  = ep + SPREAD/2 if sig == "BUY" else ep - SPREAD/2
-            sl  = ep - atr * SL_MULT if sig == "BUY" else ep + atr * SL_MULT
-            tp  = ep + atr * TP_MULT if sig == "BUY" else ep - atr * TP_MULT
+            # ═══ Entry Type 1: EMA Trend (EMA21/50 + RSI + MACD方向) ═══
+            # フィルター: EMA200方向を推奨だが必須にしない
+            if sig is None and adx >= 15:
+                bull200 = close_p > ema200
+                if bull_trend and (macdh > macdh_p) and 35 <= rsi <= 75:
+                    if bull200:
+                        sig = "BUY"
+                        entry_type = "ema_trend"
+                elif bear_trend and (macdh < macdh_p) and 25 <= rsi <= 65:
+                    if not bull200:
+                        sig = "SELL"
+                        entry_type = "ema_trend"
 
-            outcome = None; bars_held = 0
+            # ═══ Entry Type 2: SR Bounce (水平線反発) ═══
+            if sig is None and current_sr:
+                tol_sr = atr * 0.6
+                for sr in current_sr:
+                    level = sr["price"]
+                    strength = sr["strength"]
+                    # strength >= 0.3 で反発候補（スイングは緩め）
+                    if strength < 0.3:
+                        continue
+                    # BUY: サポートに接近 + 陽線 + RSI売られすぎゾーン
+                    if (abs(low_p - level) < tol_sr and close_p > open_p
+                            and close_p > level and rsi < 55 and bull_trend):
+                        sig = "BUY"
+                        entry_type = "sr_bounce"
+                        break
+                    # SELL: レジスタンスに接近 + 陰線 + RSI買われすぎゾーン
+                    if (abs(high_p - level) < tol_sr and close_p < open_p
+                            and close_p < level and rsi > 45 and bear_trend):
+                        sig = "SELL"
+                        entry_type = "sr_bounce"
+                        break
+
+            # ═══ Entry Type 3: Strong SR Breakout (高信頼ブレイクアウト) ═══
+            if sig is None and current_sr:
+                for sr in current_sr:
+                    if sr["touches"] < 3:
+                        continue
+                    if sr["strength"] < 0.5:
+                        continue
+                    level = sr["price"]
+                    brk_margin = atr * 0.3
+                    # BUY breakout: 終値がレジスタンスを上抜け + 強い陽線
+                    if (close_p > level + brk_margin and open_p <= level + brk_margin
+                            and close_p > open_p and rsi > 50 and adx >= 12):
+                        sig = "BUY"
+                        entry_type = "strong_sr_breakout"
+                        break
+                    # SELL breakout: 終値がサポートを下抜け + 強い陰線
+                    if (close_p < level - brk_margin and open_p >= level - brk_margin
+                            and close_p < open_p and rsi < 50 and adx >= 12):
+                        sig = "SELL"
+                        entry_type = "strong_sr_breakout"
+                        break
+
+            if sig is None:
+                continue
+
+            # ── エントリー別SL/TP ──
+            if entry_type == "ema_trend":
+                sl_m, tp_m = 2.0, 3.5      # トレンドフォロー: 広めSL, 大きめTP
+            elif entry_type == "sr_bounce":
+                sl_m, tp_m = 1.5, 3.0      # SR背後にSL, 反発TP
+            elif entry_type == "strong_sr_breakout":
+                sl_m, tp_m = 1.8, 4.0      # ブレイク後の勢いに乗る
+            else:
+                sl_m, tp_m = SL_MULT, TP_MULT
+
+            if i + 1 >= len(df):
+                continue
+            ep = float(df.iloc[i+1]["Open"])
+            ep = ep + SPREAD/2 if sig == "BUY" else ep - SPREAD/2
+            sl = ep - atr * sl_m if sig == "BUY" else ep + atr * sl_m
+            tp = ep + atr * tp_m if sig == "BUY" else ep - atr * tp_m
+
+            # ── SR-aware SL snap（SR背後にSL配置）──
+            if current_sr and entry_type != "strong_sr_breakout":
+                sr_prices = [s["price"] for s in current_sr]
+                for level in sorted(sr_prices, reverse=(sig == "BUY")):
+                    if sig == "BUY" and level < ep and level > sl:
+                        sl = level - atr * 0.15
+                        break
+                    if sig == "SELL" and level > ep and level < sl:
+                        sl = level + atr * 0.15
+                        break
+
+            # ── SR-aware TP snap（次のSRレベルをTP候補に）──
+            if current_sr:
+                sr_prices = [s["price"] for s in current_sr]
+                if sig == "BUY":
+                    tp_cands = [s for s in sr_prices if s > ep + atr * 0.5]
+                    if tp_cands:
+                        nearest_sr_tp = min(tp_cands)
+                        if nearest_sr_tp < tp:
+                            tp = nearest_sr_tp - atr * 0.1
+                else:
+                    tp_cands = [s for s in sr_prices if s < ep - atr * 0.5]
+                    if tp_cands:
+                        nearest_sr_tp = max(tp_cands)
+                        if nearest_sr_tp > tp:
+                            tp = nearest_sr_tp + atr * 0.1
+
+            # ── Close-based SL（騙し回避: 終値ベースでSL判定）──
+            outcome = None
+            bars_held = 0
             for j in range(1, MAX_HOLD + 1):
-                if i+1+j >= len(df): break
+                if i+1+j >= len(df):
+                    break
                 fut = df.iloc[i+1+j]
                 hi, lo = float(fut["High"]), float(fut["Low"])
+                fut_close = float(fut["Close"])
                 if sig == "BUY":
                     hit_tp = hi >= tp
-                    hit_sl = lo <= sl
+                    # SL: 終値ベース（ヒゲ騙し回避）
+                    hit_sl = fut_close <= sl
                     if hit_tp and hit_sl:
                         outcome = "LOSS"; bars_held = j; break
                     elif hit_tp:
@@ -3665,7 +3774,7 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
                         outcome = "LOSS"; bars_held = j; break
                 else:
                     hit_tp = lo <= tp
-                    hit_sl = hi >= sl
+                    hit_sl = fut_close >= sl
                     if hit_tp and hit_sl:
                         outcome = "LOSS"; bars_held = j; break
                     elif hit_tp:
@@ -3678,27 +3787,50 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
                 trades.append({"outcome": outcome, "bars_held": bars_held,
                                 "sig": sig, "ep": round(ep,3),
                                 "sl": round(sl,3), "tp": round(tp,3),
+                                "sl_m": sl_m, "tp_m": tp_m,
+                                "entry_type": entry_type,
                                 "bar_idx": i})
 
         if len(trades) < 8:
             result = {"error": f"サンプル数不足（{len(trades)}トレード）",
                       "trades": len(trades), "mode": "swing"}
         else:
-            wins = sum(1 for t in trades if t["outcome"] == "WIN")
+            def _pnl_sw(t):
+                return t.get("tp_m", TP_MULT) if t["outcome"] == "WIN" else -t.get("sl_m", SL_MULT)
+
             n    = len(trades)
+            wins = sum(1 for t in trades if t["outcome"] == "WIN")
             wr   = round(wins / n * 100, 1)
-            ev   = round((wr/100 * TP_MULT) - ((1-wr/100) * SL_MULT), 3)
+            ev   = round(sum(_pnl_sw(t) for t in trades) / n, 3)
             avg_hold = round(np.mean([t["bars_held"] for t in trades]), 1)
 
             eq, peak, mdd = 0.0, 0.0, 0.0
             for t in trades:
-                eq += TP_MULT if t["outcome"]=="WIN" else -SL_MULT
+                eq += _pnl_sw(t)
                 if eq > peak: peak = eq
                 if peak - eq > mdd: mdd = peak - eq
             mdd = round(mdd, 3)
 
-            rets = [TP_MULT if t["outcome"]=="WIN" else -SL_MULT for t in trades]
-            sharpe = round(np.mean(rets) / max(np.std(rets), 1e-6) * np.sqrt(252), 3) if len(rets) > 1 else 0.0
+            rets = [_pnl_sw(t) for t in trades]
+            sharpe = round(np.mean(rets) / max(np.std(rets), 1e-6) * np.sqrt(252/avg_hold), 3) if len(rets) > 1 else 0.0
+
+            # Entry breakdown
+            entry_stats = {}
+            for t in trades:
+                et = t.get("entry_type", "ema_trend")
+                if et not in entry_stats:
+                    entry_stats[et] = {"wins": 0, "total": 0, "pnl": 0.0}
+                entry_stats[et]["total"] += 1
+                entry_stats[et]["pnl"] += _pnl_sw(t)
+                if t["outcome"] == "WIN":
+                    entry_stats[et]["wins"] += 1
+            entry_breakdown = {}
+            for et, st in entry_stats.items():
+                entry_breakdown[et] = {
+                    "wins": st["wins"], "total": st["total"],
+                    "win_rate": round(st["wins"]/st["total"]*100, 1) if st["total"] else 0,
+                    "ev": round(st["pnl"]/st["total"], 3) if st["total"] else 0,
+                }
 
             wf_windows = []
             ws = max(4, n // 3)
@@ -3707,16 +3839,19 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
                 if len(wt) < 4: continue
                 ww = sum(1 for t in wt if t["outcome"]=="WIN")
                 wwr = round(ww/len(wt)*100, 1)
-                wev = round((wwr/100*TP_MULT)-((1-wwr/100)*SL_MULT), 3)
-                wf_windows.append({"window": wi+1, "trades": len(wt), "win_rate": wwr, "ev": wev})
-            profitable = sum(1 for w in wf_windows if w["ev"] > 0)
+                wev = round(sum(_pnl_sw(t) for t in wt)/len(wt), 3)
+                wf_windows.append({"window": wi+1, "label": f"窓{wi+1}",
+                                   "trades": len(wt), "win_rate": wwr,
+                                   "expected_value": wev})
+            profitable = sum(1 for w in wf_windows if w["expected_value"] > 0)
 
             trades_per_day = round(n / lookback_days, 3)
-            verdict = ("✅ 良好" if ev > 0.5 and wr > 50 else
-                       "⚠️ 要改善" if ev > 0 else "❌ 不採用")
+            verdict = ("✅ 良好" if ev > 0.15 and profitable >= 2 else
+                       "🟡 β版 — 期待値プラスだが要監視" if ev > 0 else "❌ 不採用")
 
             result = {
                 "trades": n, "win_rate": wr, "expected_value": ev,
+                "wins": wins, "losses": n - wins,
                 "avg_hold_days": avg_hold,
                 "max_drawdown": mdd, "sharpe": sharpe,
                 "trades_per_day": trades_per_day,
@@ -3725,6 +3860,7 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
                 "sl_mult": SL_MULT, "tp_mult": TP_MULT,
                 "walk_forward": wf_windows,
                 "consistency": f"{profitable}/{len(wf_windows)} 窓でプラス期待値",
+                "entry_breakdown": entry_breakdown,
                 "trade_log": trades[-10:],
                 "mode": "swing",
             }
