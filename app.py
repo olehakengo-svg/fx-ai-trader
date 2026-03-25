@@ -6454,16 +6454,16 @@ def api_backtest():
 
         if mode == "scalp":
             tf = request.args.get("tf", "5m")
-            # 5m=45日（推奨・EV+0.052実証済み）/ 1m=7日（実験的・高ノイズ）/ 15m=55日
+            # 5m=180日（半年・統計的有意性確保）/ 1m=7日（実験的・高ノイズ）/ 15m=90日
             if tf == "1m":
                 interval, lookback = "1m", 7
             elif tf == "15m":
-                interval, lookback = "15m", 55
+                interval, lookback = "15m", 90
             else:  # 5m がデフォルト
-                interval, lookback = "5m", 45
+                interval, lookback = "5m", 180
             result = run_scalp_backtest("USDJPY=X", lookback_days=lookback, interval=interval)
         elif mode == "daytrade":
-            result = run_daytrade_backtest("USDJPY=X", lookback_days=90, interval="15m")
+            result = run_daytrade_backtest("USDJPY=X", lookback_days=365, interval="15m")
         elif mode == "swing":
             result   = run_swing_backtest("USDJPY=X", lookback_days=365)
         else:
