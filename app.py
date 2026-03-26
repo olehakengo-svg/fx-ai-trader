@@ -2722,9 +2722,9 @@ def run_backtest(symbol: str = "USDJPY=X",
                 # Close-based SL actual loss: when LOSS and close exceeded SL level
                 if outcome == "LOSS":
                     if sig == "BUY" and fut_close < sl:
-                        trade_dict["actual_sl_m"] = round(abs(fut_close - ep) / max(atr, 1e-6), 3)
+                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr, 1e-6), sl_m * 1.2), 3)
                     elif sig == "SELL" and fut_close > sl:
-                        trade_dict["actual_sl_m"] = round(abs(fut_close - ep) / max(atr, 1e-6), 3)
+                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr, 1e-6), sl_m * 1.2), 3)
                 trades.append(trade_dict)
 
         def _pnl(t):
@@ -3341,12 +3341,12 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                                 "entry_type": entry_type,
                                 "sl": round(sl, 3), "tp": round(tp, 3),
                                 "sl_m": sl_m, "tp_m": tp_m_actual}
-                # Close-based SL actual loss: when LOSS and close exceeded SL level
+                # Close-based SL actual loss: SL指値で約定 + 最大20%スリッページ
                 if outcome == "LOSS":
                     if sig == "BUY" and fut_close < sl:
-                        trade_dict["actual_sl_m"] = round(abs(fut_close - ep) / max(atr7, 1e-6), 3)
+                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr7, 1e-6), sl_m * 1.2), 3)
                     elif sig == "SELL" and fut_close > sl:
-                        trade_dict["actual_sl_m"] = round(abs(fut_close - ep) / max(atr7, 1e-6), 3)
+                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr7, 1e-6), sl_m * 1.2), 3)
                 trades.append(trade_dict)
 
         def _pnl(t):
@@ -3951,9 +3951,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 # Close-based SL actual loss: when LOSS and close exceeded SL level
                 if outcome == "LOSS":
                     if sig == "BUY" and fut_close < sl:
-                        trade_dict["actual_sl_m"] = round(abs(fut_close - ep) / max(atr, 1e-6), 3)
+                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr, 1e-6), sl_m * 1.2), 3)
                     elif sig == "SELL" and fut_close > sl:
-                        trade_dict["actual_sl_m"] = round(abs(fut_close - ep) / max(atr, 1e-6), 3)
+                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr, 1e-6), sl_m * 1.2), 3)
                 trades.append(trade_dict)
 
         def _dt_pnl(t):
@@ -4275,9 +4275,9 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
                 # Close-based SL actual loss: when LOSS and close exceeded SL level
                 if outcome == "LOSS":
                     if sig == "BUY" and fut_close < sl:
-                        trade_dict["actual_sl_m"] = round(abs(fut_close - ep) / max(atr, 1e-6), 3)
+                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr, 1e-6), sl_m * 1.2), 3)
                     elif sig == "SELL" and fut_close > sl:
-                        trade_dict["actual_sl_m"] = round(abs(fut_close - ep) / max(atr, 1e-6), 3)
+                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr, 1e-6), sl_m * 1.2), 3)
                 trades.append(trade_dict)
 
         if len(trades) < 8:
