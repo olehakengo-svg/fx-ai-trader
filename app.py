@@ -2553,24 +2553,26 @@ def run_backtest(symbol: str = "USDJPY=X",
             entry_type = "ema_cross"
 
             # ═══ Entry Type 1: SR Bounce (両方向, 1H足強化フィルター) ═══
-            # strength≥0.5, touches≥3 で1H足ノイズを排除
+            # strength≥0.6, touches≥4, EMA方向一致で高品質バウンスのみ
             if sig is None and std_sr_weighted:
-                tol_sr = atr * 0.4
+                tol_sr = atr * 0.35
                 for sr_obj in std_sr_weighted:
-                    if sr_obj["strength"] < 0.5 or sr_obj["touches"] < 3:
+                    if sr_obj["strength"] < 0.6 or sr_obj["touches"] < 4:
                         continue
                     level = sr_obj["price"]
-                    # BUY: support bounce
+                    # BUY: support bounce + EMA21上向き
                     if (abs(low_p - level) < tol_sr
                             and close_p > open_p and close_p > level
-                            and rsi < 50 and adx < 30):
+                            and rsi > 30 and rsi < 48
+                            and adx < 28 and ema9 > ema21):
                         sig = "BUY"
                         entry_type = "sr_bounce"
                         break
-                    # SELL: resistance bounce
+                    # SELL: resistance bounce + EMA21下向き
                     if (abs(high_p - level) < tol_sr
                             and close_p < open_p and close_p < level
-                            and rsi > 50 and adx < 30):
+                            and rsi > 52 and rsi < 70
+                            and adx < 28 and ema9 < ema21):
                         sig = "SELL"
                         entry_type = "sr_bounce"
                         break
