@@ -1944,44 +1944,164 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     score += l3_sc * 0.15       # up to +0.15 precision bonus
     score = max(-3.0, min(3.0, score))  # clamp before normalization
 
-    # シグナル決定
-    THRESHOLD = 0.28
-    if   score >  THRESHOLD: signal, conf = "BUY",  int(min(92, 50 + score * 12))
-    elif score < -THRESHOLD: signal, conf = "SELL", int(min(92, 50 + abs(score) * 12))
-    else:                    signal, conf = "WAIT", int(max(20, 50 - abs(score) * 15))
+    # ── ハイブリッドシグナル決定: SR構造主導 + EMAスコア確度補正 ──
+    # EMAスコア（既存の score 変数）を確度ブースターとして使用
+    ema_score = score  # 保存（SR構造判定後に確度補正に使用）
 
-    # SL/TP ── バックテスト最適値 (BEP=28.6%, EV=+0.096実証)
-    # 旧: SL=1.8/TP=2.5 → 旧BEP=41.8%, EV=-0.155 (不採用)
-    SL_MULT, TP_MULT = 0.8, 2.0
-    act_s   = signal if signal != "WAIT" else ("BUY" if score >= 0 else "SELL")
-    dir_s   = 1.0 if act_s == "BUY" else -1.0
-    sl      = round(entry - atr * SL_MULT * dir_s, 3)
-    tp_raw  = round(entry + atr * TP_MULT * dir_s, 3)
+    # SR構造による方向・シグナル決定
+    _dt_sr_weighted = []
+    _dt_nearest_scenario = None
+    try:
+        _dt_sr_weighted = find_sr_levels_weighted(
+            df, window=5, tolerance_pct=0.003, min_touches=2,
+            max_levels=8, bars_per_day=96 if "15m" in tf or "30m" in tf else 24)
+    except Exception:
+        pass
+
+    _dt_above = [s for s in _dt_sr_weighted if s["price"] > entry + atr * 0.1
+                 and s["strength"] >= 0.4 and s["touches"] >= 2]
+    _dt_below = [s for s in _dt_sr_weighted if s["price"] < entry - atr * 0.1
+                 and s["strength"] >= 0.4 and s["touches"] >= 2]
+    _dt_above.sort(key=lambda x: x["price"])
+    _dt_below.sort(key=lambda x: -x["price"])
+
+    signal = "WAIT"
+    conf = 30
+    _dt_entry_type = "unknown"
+    SL_MULT, TP_MULT = 0.4, 1.5
+
+    # SR構造ベースのシグナル判定（BT dual_sr_bounce/breakout と整合）
+    _sr_signal_found = False
+
+    # A: 下のSRバウンス → BUY
+    if _dt_below:
+        _sup = _dt_below[0]
+        _sup_tol = atr * 0.4
+        if abs(float(row["Low"]) - _sup["price"]) < _sup_tol and entry > _sup["price"]:
+            if entry > float(row["Open"]) and rsi < 55 and adx < 35:
+                signal = "BUY"
+                _dt_entry_type = "dual_sr_bounce"
+                _sr_signal_found = True
+                _dt_nearest_scenario = {"type": "bounce", "sr": _sup}
+
+    # B: 上のSRバウンス → SELL
+    if not _sr_signal_found and _dt_above:
+        _res = _dt_above[0]
+        _res_tol = atr * 0.4
+        if abs(float(row["High"]) - _res["price"]) < _res_tol and entry < _res["price"]:
+            if entry < float(row["Open"]) and rsi > 45 and adx < 35:
+                signal = "SELL"
+                _dt_entry_type = "dual_sr_bounce"
+                _sr_signal_found = True
+                _dt_nearest_scenario = {"type": "bounce", "sr": _res}
+
+    # C: 下のSR下抜けブレイク → SELL
+    if not _sr_signal_found and _dt_below:
+        _sup = _dt_below[0]
+        if (_sup["is_strong"] and _sup["touches"] >= 3
+                and entry < _sup["price"] - atr * 0.1
+                and entry < float(row["Open"]) and adx >= 12):
+            signal = "SELL"
+            _dt_entry_type = "dual_sr_breakout"
+            _sr_signal_found = True
+            _dt_nearest_scenario = {"type": "breakout", "sr": _sup}
+
+    # D: 上のSR上抜けブレイク → BUY
+    if not _sr_signal_found and _dt_above:
+        _res = _dt_above[0]
+        if (_res["is_strong"] and _res["touches"] >= 3
+                and entry > _res["price"] + atr * 0.1
+                and entry > float(row["Open"]) and adx >= 12):
+            signal = "BUY"
+            _dt_entry_type = "dual_sr_breakout"
+            _sr_signal_found = True
+            _dt_nearest_scenario = {"type": "breakout", "sr": _res}
+
+    # SR+Fib / OB Retest フォールバック（既存スコアが強い場合）
+    if not _sr_signal_found:
+        _has_sr_fib = any("Fib" in r or "フィボ" in r for r in reasons)
+        _has_ob     = any("OB" in r or "オーダーブロック" in r for r in reasons)
+        THRESHOLD = 0.28
+        if ema_score > THRESHOLD:
+            signal = "BUY"
+            _dt_entry_type = "sr_fib_confluence" if _has_sr_fib else ("ob_retest" if _has_ob else "ema_cross")
+        elif ema_score < -THRESHOLD:
+            signal = "SELL"
+            _dt_entry_type = "sr_fib_confluence" if _has_sr_fib else ("ob_retest" if _has_ob else "ema_cross")
+
+    # ── EMAスコアによる確度補正 ──
+    # SR構造が方向を決め、EMAスコアが確度を上下させる
+    if signal != "WAIT":
+        base_conf = 50
+        # SR構造ボーナス
+        if _dt_nearest_scenario:
+            sr_s = _dt_nearest_scenario["sr"]["strength"]
+            base_conf += int(sr_s * 15)  # 強度95% → +14pt
+            if _dt_nearest_scenario["sr"]["touches"] >= 5:
+                base_conf += 5  # 多タッチボーナス
+        # EMAスコアブースト（同方向なら+、逆方向なら-）
+        if signal == "BUY":
+            ema_boost = int(np.clip(ema_score * 8, -15, 15))
+        else:
+            ema_boost = int(np.clip(-ema_score * 8, -15, 15))
+        # EMAトレンド整合ボーナス
+        if signal == "BUY" and ema9 > ema21 > ema50:
+            ema_boost += 5
+            reasons.append("✅ EMA順列 (9>21>50): SR BUY確度UP")
+        elif signal == "SELL" and ema9 < ema21 < ema50:
+            ema_boost += 5
+            reasons.append("✅ EMA逆順列 (9<21<50): SR SELL確度UP")
+        elif signal == "BUY" and ema9 < ema21:
+            ema_boost -= 5
+            reasons.append("⚠️ EMA逆行 (9<21): SR BUYだが確度DOWN")
+        elif signal == "SELL" and ema9 > ema21:
+            ema_boost -= 5
+            reasons.append("⚠️ EMA逆行 (9>21): SR SELLだが確度DOWN")
+        # MACD整合
+        if signal == "BUY" and macdh > 0 and macdh > macdh_prev:
+            ema_boost += 3
+        elif signal == "SELL" and macdh < 0 and macdh < macdh_prev:
+            ema_boost += 3
+
+        conf = int(np.clip(base_conf + ema_boost, 25, 92))
+    else:
+        conf = int(max(20, 50 - abs(ema_score) * 15))
+
+    # SL/TP ── SR構造ベース
+    act_s = signal if signal != "WAIT" else ("BUY" if ema_score >= 0 else "SELL")
+    dir_s = 1.0 if act_s == "BUY" else -1.0
+
+    if _dt_entry_type == "dual_sr_bounce":
+        SL_MULT, TP_MULT = 0.4, 1.5
+        # TP: 対面SRまでの距離
+        if act_s == "BUY" and _dt_above:
+            _tp_dist = abs(_dt_above[0]["price"] - entry) / max(atr, 1e-6)
+            TP_MULT = min(_tp_dist * 0.95, 2.5)
+        elif act_s == "SELL" and _dt_below:
+            _tp_dist = abs(entry - _dt_below[0]["price"]) / max(atr, 1e-6)
+            TP_MULT = min(_tp_dist * 0.95, 2.5)
+    elif _dt_entry_type == "dual_sr_breakout":
+        SL_MULT, TP_MULT = 0.4, 2.0
+    else:
+        SL_MULT, TP_MULT = 0.8, 2.0
+
+    sl   = round(entry - atr * SL_MULT * dir_s, 3)
+    tp   = round(entry + atr * TP_MULT * dir_s, 3)
+
+    # SR-aware TP snap
     if act_s == "BUY":
         tp_cands = [l for l in sr_levels if entry + atr*0.3 < l < entry + atr*TP_MULT*1.5]
-        tp = round(min(tp_cands) - 0.005, 3) if tp_cands else tp_raw
+        if tp_cands:
+            tp = round(min(tp_cands) - 0.005, 3)
     else:
         tp_cands = [l for l in sr_levels if entry - atr*TP_MULT*1.5 < l < entry - atr*0.3]
-        tp = round(max(tp_cands) + 0.005, 3) if tp_cands else tp_raw
+        if tp_cands:
+            tp = round(max(tp_cands) + 0.005, 3)
+
     sl_d = abs(entry - sl)
     if abs(tp - entry) < sl_d * 1.3:
         tp = round(entry + sl_d * 1.8 * dir_s, 3)
     rr = round(abs(tp - entry) / max(sl_d, 1e-6), 2)
-
-    # ── エントリータイプ判定（BT戦略と整合）──
-    _dt_entry_type = "unknown"
-    if signal != "WAIT":
-        _has_sr_fib = any("Fib" in r or "フィボ" in r for r in reasons)
-        _has_ob     = any("OB" in r or "オーダーブロック" in r for r in reasons)
-        _has_ema    = any("EMA" in r and ("クロス" in r or "ゴールデン" in r or "デッド" in r) for r in reasons)
-        if _has_ob:
-            _dt_entry_type = "ob_retest"
-        elif _has_sr_fib:
-            _dt_entry_type = "sr_fib_confluence"
-        elif _has_ema:
-            _dt_entry_type = "ema_cross"
-        else:
-            _dt_entry_type = "ema_cross"
 
     session = get_session_info()
     ts_str  = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
