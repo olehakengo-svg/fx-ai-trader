@@ -647,6 +647,7 @@ body{background:var(--bg0);color:var(--t1);
       <div class="lv-row lv-s"><span class="lv-label">🛑 Stop Loss</span><span class="lv-val" id="lv-s">—</span></div>
       <div class="lv-row lv-t"><span class="lv-label">🎯 Take Profit</span><span class="lv-val" id="lv-t">—</span></div>
       <div class="rr-row">RR比 <strong id="rr-val">—</strong> ／ ATR <span id="atr-val" style="color:var(--t3)">—</span></div>
+      <div id="dual-scenario-box" style="display:none;margin-top:8px"></div>
     </div>
 
     <!-- Position Sizing -->
@@ -1458,6 +1459,8 @@ async function loadSignal(){
         sr_bounce:          {icon:'📐',label:'SR Bounce',    bg:'rgba(59,130,246,.15)',  color:'#60a5fa',border:'rgba(59,130,246,.4)'},
         ob_retest:          {icon:'🏦',label:'OB Retest',    bg:'rgba(245,158,11,.15)',  color:'#fbbf24',border:'rgba(245,158,11,.4)'},
         strong_sr_breakout: {icon:'🔥',label:'SR Breakout',  bg:'rgba(239,68,68,.15)',   color:'#f87171',border:'rgba(239,68,68,.4)'},
+        dual_sr_bounce:     {icon:'🔄',label:'SR Bounce',    bg:'rgba(99,102,241,.15)',  color:'#818cf8',border:'rgba(99,102,241,.4)'},
+        dual_sr_breakout:   {icon:'💥',label:'SR Break',     bg:'rgba(251,146,60,.15)',  color:'#fb923c',border:'rgba(251,146,60,.4)'},
         ema_cross:          {icon:'📊',label:'EMA Cross',    bg:'rgba(34,197,94,.15)',   color:'#4ade80',border:'rgba(34,197,94,.4)'},
         sr_fib_confluence:  {icon:'🎯',label:'SR+Fib',       bg:'rgba(14,165,233,.15)',  color:'#38bdf8',border:'rgba(14,165,233,.4)'},
         ema_trend:          {icon:'📈',label:'EMA Trend',    bg:'rgba(34,197,94,.15)',   color:'#4ade80',border:'rgba(34,197,94,.4)'},
@@ -1543,6 +1546,97 @@ async function loadSignal(){
           candleS.setMarkers(allMarkers);
         }
       }
+    }
+
+    // ── デュアルシナリオ: チャート描画 + パネル表示 ──
+    // 既存のシナリオラインをクリア
+    if(!window._scenarioLines) window._scenarioLines=[];
+    window._scenarioLines.forEach(l=>{try{candleS.removePriceLine(l)}catch(_){}});
+    window._scenarioLines=[];
+    const scenarioBox=document.getElementById('dual-scenario-box');
+    if(d.dual_scenarios && d.dual_scenarios.length && currentMode==='daytrade'){
+      const dirIcon={BUY:'🟢',SELL:'🔴'};
+      const typeIcon={bounce:'🔄',breakout:'🔥'};
+      // チャート上にトリガーライン + 矢印マーカー描画
+      const futureMarkers=[];
+      const lastTime=_lastCandles&&_lastCandles.length?_lastCandles[_lastCandles.length-1].time:0;
+      d.dual_scenarios.forEach((sc,idx)=>{
+        const isBuy=sc.direction==='BUY';
+        const trigCol=sc.trigger_type==='bounce'
+          ?(isBuy?'rgba(34,197,94,.6)':'rgba(239,68,68,.6)')
+          :(isBuy?'rgba(59,130,246,.6)':'rgba(245,158,11,.6)');
+        const lineStyle=sc.trigger_type==='bounce'?2:0; // dashed for bounce, solid for breakout
+        // トリガーライン
+        const tLine=candleS.createPriceLine({
+          price:sc.trigger_price,color:trigCol,lineWidth:2,lineStyle:lineStyle,
+          axisLabelVisible:true,
+          title:`${sc.id} ${typeIcon[sc.trigger_type]||''} ${sc.direction}`
+        });
+        window._scenarioLines.push(tLine);
+        // TP目標ライン (薄く)
+        const tpLine=candleS.createPriceLine({
+          price:sc.tp,color:isBuy?'rgba(63,185,80,.3)':'rgba(248,81,73,.3)',
+          lineWidth:1,lineStyle:2,axisLabelVisible:false,
+          title:`${sc.id}-TP`
+        });
+        window._scenarioLines.push(tpLine);
+        // SLライン (薄く)
+        const slLine=candleS.createPriceLine({
+          price:sc.sl,color:isBuy?'rgba(248,81,73,.3)':'rgba(63,185,80,.3)',
+          lineWidth:1,lineStyle:2,axisLabelVisible:false,
+          title:`${sc.id}-SL`
+        });
+        window._scenarioLines.push(slLine);
+        // 矢印マーカー（未来のチャート上に配置）
+        if(lastTime){
+          const futTime=lastTime+300*(idx+2); // 少し未来にオフセット
+          futureMarkers.push({
+            time:futTime,
+            position:isBuy?'belowBar':'aboveBar',
+            color:isBuy?'#22c55e':'#ef4444',
+            shape:isBuy?'arrowUp':'arrowDown',
+            text:`${sc.id}:${sc.label}`,
+            size:1.8
+          });
+        }
+      });
+      // 既存マーカーと統合してチャートに設定
+      if(futureMarkers.length){
+        const existM=_lastLpMarkers?_lastLpMarkers.map(m=>({
+          time:m.time,position:m.position,color:m.color,shape:m.shape,text:m.text,size:1.5
+        })):[];
+        const allM=[...existM,...futureMarkers].sort((a,b)=>a.time-b.time);
+        candleS.setMarkers(allM);
+      }
+      // パネル表示
+      if(scenarioBox){
+        const scHtml=d.dual_scenarios.map(sc=>{
+          const isBuy=sc.direction==='BUY';
+          const bgCol=isBuy?'rgba(34,197,94,.08)':'rgba(239,68,68,.08)';
+          const bdCol=isBuy?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)';
+          const txtCol=isBuy?'var(--green)':'var(--red)';
+          const typeTag=sc.trigger_type==='bounce'
+            ?'<span style="background:rgba(59,130,246,.15);color:#60a5fa;padding:1px 4px;border-radius:3px;font-size:9px">反発</span>'
+            :'<span style="background:rgba(245,158,11,.15);color:#fbbf24;padding:1px 4px;border-radius:3px;font-size:9px">ブレイク</span>';
+          return`<div style="background:${bgCol};border:1px solid ${bdCol};border-radius:6px;padding:6px 8px;margin-bottom:4px">
+            <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
+              <span style="font-weight:700;color:${txtCol};font-size:12px">${dirIcon[sc.direction]} ${sc.id}</span>
+              ${typeTag}
+              <span style="font-size:10px;color:var(--t3);margin-left:auto">RR 1:${sc.rr}</span>
+            </div>
+            <div style="font-size:10px;color:var(--t2);margin-bottom:2px">${sc.condition}</div>
+            <div style="display:flex;gap:8px;font-size:10px;font-family:'SF Mono',monospace">
+              <span style="color:var(--t3)">Entry <span style="color:var(--t1)">${sc.entry.toFixed(3)}</span></span>
+              <span style="color:var(--red)">SL ${sc.sl.toFixed(3)}</span>
+              <span style="color:var(--green)">TP ${sc.tp.toFixed(3)}</span>
+            </div>
+          </div>`;
+        }).join('');
+        scenarioBox.innerHTML=`<div style="font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">📋 デュアルシナリオ</div>${scHtml}`;
+        scenarioBox.style.display='block';
+      }
+    }else if(scenarioBox){
+      scenarioBox.style.display='none';
     }
 
     // Score breakdown（nullセーフ: スキャルプ/セッションモードは一部のみ）
@@ -2346,7 +2440,8 @@ async function loadBacktest(forceMode, forceCache=false){
     // Entry Breakdown (エントリータイプ別成績)
     if(d.entry_breakdown&&Object.keys(d.entry_breakdown).length){
       const typeLabels={ema_cross:'📊 EMA Cross',tokyo_bb:'🏯 Tokyo BB',sr_bounce:'📐 SR Bounce',
-        ob_retest:'🏦 OB Retest',sr_fib_confluence:'🎯 SR+Fib',sr_breakout:'💥 Breakout',strong_sr_breakout:'🔥 Strong Breakout'};
+        ob_retest:'🏦 OB Retest',sr_fib_confluence:'🎯 SR+Fib',sr_breakout:'💥 Breakout',strong_sr_breakout:'🔥 Strong BRK',
+        dual_sr_bounce:'🔄 Dual Bounce',dual_sr_breakout:'💥 Dual Break'};
       const ebHtml=Object.entries(d.entry_breakdown)
         .sort((a,b)=>b[1].ev-a[1].ev)
         .map(([k,v])=>{

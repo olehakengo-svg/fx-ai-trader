@@ -1985,6 +1985,95 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
 
     session = get_session_info()
     ts_str  = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
+
+    # ── デュアルシナリオ生成（SR構造ベース）──────────────────
+    # 上下の強いSRを特定し、バウンス/ブレイクの2シナリオを準備
+    dual_scenarios = []
+    try:
+        sr_weighted = find_sr_levels_weighted(df, window=5, tolerance_pct=0.003,
+                                              min_touches=2, max_levels=8,
+                                              bars_per_day=96 if "15m" in tf or "30m" in tf else 24)
+        _above = [s for s in sr_weighted if s["price"] > entry + atr * 0.15
+                  and s["strength"] >= 0.4 and s["touches"] >= 2]
+        _below = [s for s in sr_weighted if s["price"] < entry - atr * 0.15
+                  and s["strength"] >= 0.4 and s["touches"] >= 2]
+        _above.sort(key=lambda x: x["price"])
+        _below.sort(key=lambda x: -x["price"])
+
+        # シナリオA: 下のSRでバウンス → BUY
+        if _below:
+            sup = _below[0]
+            _tp_a = _above[0]["price"] if _above else round(sup["price"] + atr * 2.0, 3)
+            dual_scenarios.append({
+                "id": "A", "label": "サポート反発 → BUY",
+                "direction": "BUY",
+                "trigger_price": round(sup["price"], 3),
+                "trigger_type": "bounce",
+                "entry": round(sup["price"] + atr * 0.1, 3),
+                "sl": round(sup["price"] - atr * 0.4, 3),
+                "tp": round(_tp_a - atr * 0.05, 3),
+                "sr_strength": sup["strength"],
+                "sr_touches": sup["touches"],
+                "rr": round(abs(_tp_a - sup["price"]) / max(atr * 0.4, 1e-6), 2),
+                "condition": f"SR {sup['price']:.3f} (強度{sup['strength']:.0%}, {sup['touches']}回タッチ)で陽線反転",
+            })
+
+        # シナリオB: 上のSRでバウンス → SELL
+        if _above:
+            res = _above[0]
+            _tp_b = _below[0]["price"] if _below else round(res["price"] - atr * 2.0, 3)
+            dual_scenarios.append({
+                "id": "B", "label": "レジスタンス反発 → SELL",
+                "direction": "SELL",
+                "trigger_price": round(res["price"], 3),
+                "trigger_type": "bounce",
+                "entry": round(res["price"] - atr * 0.1, 3),
+                "sl": round(res["price"] + atr * 0.4, 3),
+                "tp": round(_tp_b + atr * 0.05, 3),
+                "sr_strength": res["strength"],
+                "sr_touches": res["touches"],
+                "rr": round(abs(res["price"] - _tp_b) / max(atr * 0.4, 1e-6), 2),
+                "condition": f"SR {res['price']:.3f} (強度{res['strength']:.0%}, {res['touches']}回タッチ)で陰線反転",
+            })
+
+        # シナリオC: 下のSRブレイク → SELL（Strong SRのみ）
+        if _below and _below[0]["is_strong"] and _below[0]["touches"] >= 3:
+            sup = _below[0]
+            _next_sup = _below[1]["price"] if len(_below) > 1 else round(sup["price"] - atr * 2.0, 3)
+            dual_scenarios.append({
+                "id": "C", "label": "サポート下抜け → SELL",
+                "direction": "SELL",
+                "trigger_price": round(sup["price"], 3),
+                "trigger_type": "breakout",
+                "entry": round(sup["price"] - atr * 0.1, 3),
+                "sl": round(sup["price"] + atr * 0.3, 3),
+                "tp": round(_next_sup + atr * 0.05, 3),
+                "sr_strength": sup["strength"],
+                "sr_touches": sup["touches"],
+                "rr": round(abs(sup["price"] - _next_sup) / max(atr * 0.3, 1e-6), 2),
+                "condition": f"SR {sup['price']:.3f} (強度{sup['strength']:.0%})を終値で下抜け＋出来高増",
+            })
+
+        # シナリオD: 上のSRブレイク → BUY（Strong SRのみ）
+        if _above and _above[0]["is_strong"] and _above[0]["touches"] >= 3:
+            res = _above[0]
+            _next_res = _above[1]["price"] if len(_above) > 1 else round(res["price"] + atr * 2.0, 3)
+            dual_scenarios.append({
+                "id": "D", "label": "レジスタンス上抜け → BUY",
+                "direction": "BUY",
+                "trigger_price": round(res["price"], 3),
+                "trigger_type": "breakout",
+                "entry": round(res["price"] + atr * 0.1, 3),
+                "sl": round(res["price"] - atr * 0.3, 3),
+                "tp": round(_next_res - atr * 0.05, 3),
+                "sr_strength": res["strength"],
+                "sr_touches": res["touches"],
+                "rr": round(abs(_next_res - res["price"]) / max(atr * 0.3, 1e-6), 2),
+                "condition": f"SR {res['price']:.3f} (強度{res['strength']:.0%})を終値で上抜け＋出来高増",
+            })
+    except Exception:
+        pass
+
     return {
         "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
         "entry": round(entry, 3), "signal": signal, "confidence": conf,
@@ -1992,6 +2081,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         "session": session, "htf_bias": htf, "swing_mode": tf in ("1h","4h","1d"),
         "reasons": reasons, "mode": "daytrade",
         "entry_type": _dt_entry_type,
+        "dual_scenarios": dual_scenarios,
         "score": round(score, 3),
         "indicators": {
             "ema9": round(ema9,3), "ema21": round(ema21,3),
