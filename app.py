@@ -3222,6 +3222,69 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
             # (EMA21/50 Crossover 除外 — BT検証でEV=-0.092: SR+Fib/OBが上位互換)
 
+            # ═══ Entry Type 5: Dual SR Scenario (デュアルシナリオ) ═══
+            # 上下の強いSRを特定し、バウンスorブレイクで両方向対応
+            # マスターバイアスに依存せず、SR構造が方向を決定
+            if sig is None and dt_sr_weighted and len(dt_sr_weighted) >= 2:
+                _above_srs = [s for s in dt_sr_weighted if s["price"] > close_p + atr * 0.15
+                              and s["strength"] >= 0.4 and s["touches"] >= 2]
+                _below_srs = [s for s in dt_sr_weighted if s["price"] < close_p - atr * 0.15
+                              and s["strength"] >= 0.4 and s["touches"] >= 2]
+                if _above_srs:
+                    _above_srs.sort(key=lambda x: x["price"])
+                if _below_srs:
+                    _below_srs.sort(key=lambda x: -x["price"])
+
+                # --- シナリオA: 下のSRでバウンス → BUY ---
+                if _below_srs:
+                    _nearest_sup = _below_srs[0]
+                    _sup_level = _nearest_sup["price"]
+                    _sup_tol = atr * 0.4
+                    if (abs(low_p - _sup_level) < _sup_tol
+                            and close_p > _sup_level
+                            and close_p > open_p       # 陽線反転
+                            and rsi < 55 and adx < 35):
+                        sig = "BUY"
+                        entry_type = "dual_sr_bounce"
+
+                # --- シナリオA': 上のSRでバウンス → SELL ---
+                if sig is None and _above_srs:
+                    _nearest_res = _above_srs[0]
+                    _res_level = _nearest_res["price"]
+                    _res_tol = atr * 0.4
+                    if (abs(high_p - _res_level) < _res_tol
+                            and close_p < _res_level
+                            and close_p < open_p       # 陰線反転
+                            and rsi > 45 and adx < 35):
+                        sig = "SELL"
+                        entry_type = "dual_sr_bounce"
+
+                # --- シナリオB: 下のSRを終値で下抜け → SELL (breakout) ---
+                if sig is None and _below_srs:
+                    _nearest_sup = _below_srs[0]
+                    _sup_level = _nearest_sup["price"]
+                    if (_nearest_sup["is_strong"] and _nearest_sup["touches"] >= 3
+                            and close_p < _sup_level - atr * 0.1
+                            and open_p > _sup_level
+                            and close_p < open_p
+                            and adx >= 12
+                            and rsi > 20 and rsi < 50):
+                        sig = "SELL"
+                        entry_type = "dual_sr_breakout"
+
+                # --- シナリオB': 上のSRを終値で上抜け → BUY (breakout) ---
+                if sig is None and _above_srs:
+                    _nearest_res = _above_srs[0]
+                    _res_level = _nearest_res["price"]
+                    if (_nearest_res["is_strong"] and _nearest_res["touches"] >= 3
+                            and close_p > _res_level + atr * 0.1
+                            and open_p < _res_level
+                            and close_p > open_p
+                            and adx >= 12
+                            and rsi > 50 and rsi < 80):
+                        sig = "BUY"
+                        entry_type = "dual_sr_breakout"
+
             # ═══ Entry Type 2: SR + Fib Confluence (水平線×フィボ合流) ═══
             # SR水平線とフィボリトレースメント(38.2-61.8%)が重なる高確率ゾーン
             # strength >= 0.3 フィルターで弱いSRをノイズとして除外
@@ -3314,7 +3377,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             # ── 時間帯×方向バイアスフィルター ──
             try:
                 bias_info = HOUR_DIRECTION_BIAS.get(h)
-                if bias_info and entry_type not in ("sr_fib_confluence", "ob_retest", "strong_sr_breakout"):
+                if bias_info and entry_type not in ("sr_fib_confluence", "ob_retest", "strong_sr_breakout", "dual_sr_bounce", "dual_sr_breakout"):
                     best_dir, best_wr, edge = bias_info
                     if best_dir is None or edge < 0:
                         continue
@@ -3341,6 +3404,21 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 sl_m, tp_m = 0.5, 1.5   # OBゾーン背後にSL
             elif entry_type == "strong_sr_breakout":
                 sl_m, tp_m = 0.5, 2.0   # ブレイクレベル背後にタイトSL, 延伸TP
+            elif entry_type == "dual_sr_bounce":
+                sl_m, tp_m = 0.4, 1.2   # SR背後タイトSL, 対面SRまでTP
+                # TP: 対面SRまでの距離を使用
+                if sig == "BUY" and _above_srs:
+                    _target_sr = _above_srs[0]["price"]
+                    _sr_dist = abs(_target_sr - ep) / max(atr, 1e-6)
+                    if _sr_dist > 0.5:
+                        tp_m = min(_sr_dist * 0.95, 2.5)  # 対面SR×95%、上限2.5ATR
+                elif sig == "SELL" and _below_srs:
+                    _target_sr = _below_srs[0]["price"]
+                    _sr_dist = abs(ep - _target_sr) / max(atr, 1e-6)
+                    if _sr_dist > 0.5:
+                        tp_m = min(_sr_dist * 0.95, 2.5)
+            elif entry_type == "dual_sr_breakout":
+                sl_m, tp_m = 0.4, 2.0   # ブレイクレベル背後タイトSL
             else:
                 sl_m, tp_m = SL_MULT, TP_MULT
 
