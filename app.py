@@ -2482,7 +2482,7 @@ def run_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足", "trades": 0, "mode": "standard"}
 
-        SPREAD   = 0.030   # 3 pips
+        SPREAD   = 0.025   # 2.5 pips
         SL_MULT  = 1.5     # default ATR mult
         TP_MULT  = 2.5     # default ATR mult
         MAX_HOLD = 24      # bars (24 hours)
@@ -2714,14 +2714,24 @@ def run_backtest(symbol: str = "USDJPY=X",
 
             if outcome:
                 last_bar = i
-                trades.append({"outcome": outcome, "bars_held": bars_held,
+                trade_dict = {"outcome": outcome, "bars_held": bars_held,
                                 "sig": sig, "ep": round(ep, 3),
                                 "sl": round(sl, 3), "tp": round(tp, 3),
                                 "bar_idx": i, "entry_type": entry_type,
-                                "sl_m": sl_m, "tp_m": tp_m_actual})
+                                "sl_m": sl_m, "tp_m": tp_m_actual}
+                # Close-based SL actual loss: when LOSS and close exceeded SL level
+                if outcome == "LOSS":
+                    if sig == "BUY" and fut_close < sl:
+                        trade_dict["actual_sl_m"] = round(abs(fut_close - ep) / max(atr, 1e-6), 3)
+                    elif sig == "SELL" and fut_close > sl:
+                        trade_dict["actual_sl_m"] = round(abs(fut_close - ep) / max(atr, 1e-6), 3)
+                trades.append(trade_dict)
 
         def _pnl(t):
-            return t.get("tp_m", TP_MULT) if t["outcome"] == "WIN" else -t.get("sl_m", SL_MULT)
+            if t["outcome"] == "WIN":
+                return t.get("tp_m", TP_MULT)
+            else:
+                return -t.get("actual_sl_m", t.get("sl_m", SL_MULT))
 
         if len(trades) < 10:
             result = {"error": "サンプル数不足 (最低10トレード必要)",
@@ -2900,7 +2910,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足（最低100本必要）", "trades": 0, "mode": "scalp"}
 
-        SPREAD       = 0.002   # 0.2 pip
+        SPREAD       = 0.005   # 0.5 pip
         profile      = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
         SL_MULT      = profile["scalp_sl"]   # scalp-specific SL
         TP_MULT      = profile["scalp_tp"]   # scalp-specific TP
@@ -3127,6 +3137,10 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             ep  = float(df.iloc[i + 1]["Open"])
             ep  = ep + SPREAD / 2 if sig == "BUY" else ep - SPREAD / 2
 
+            # Tokyo session wider spread
+            if entry_type == "tokyo_bb":
+                ep = ep + 0.005 if sig == "BUY" else ep - 0.005  # Tokyo session wider spread
+
             # ── エントリータイプ別 SL/TP ──
             if entry_type == "tokyo_bb":
                 sl_m, tp_m = 0.6, 1.0      # 平均回帰: タイトSL, BB中央狙い
@@ -3321,15 +3335,25 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             if outcome:
                 last_trade_bar = i
-                trades.append({"outcome": outcome, "bars_held": bars_held,
+                trade_dict = {"outcome": outcome, "bars_held": bars_held,
                                 "sig": sig, "ep": round(ep, 3),
                                 "actual_rr": actual_rr, "bar_idx": i,
                                 "entry_type": entry_type,
                                 "sl": round(sl, 3), "tp": round(tp, 3),
-                                "sl_m": sl_m, "tp_m": tp_m_actual})
+                                "sl_m": sl_m, "tp_m": tp_m_actual}
+                # Close-based SL actual loss: when LOSS and close exceeded SL level
+                if outcome == "LOSS":
+                    if sig == "BUY" and fut_close < sl:
+                        trade_dict["actual_sl_m"] = round(abs(fut_close - ep) / max(atr7, 1e-6), 3)
+                    elif sig == "SELL" and fut_close > sl:
+                        trade_dict["actual_sl_m"] = round(abs(fut_close - ep) / max(atr7, 1e-6), 3)
+                trades.append(trade_dict)
 
         def _pnl(t):
-            return t.get("tp_m", TP_MULT) if t["outcome"] == "WIN" else -t.get("sl_m", SL_MULT)
+            if t["outcome"] == "WIN":
+                return t.get("tp_m", TP_MULT)
+            else:
+                return -t.get("actual_sl_m", t.get("sl_m", SL_MULT))
 
         def _max_dd_scalp(trade_list):
             eq, peak, dd = 0.0, 0.0, 0.0
@@ -3471,7 +3495,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足", "trades": 0, "mode": "daytrade"}
 
-        SPREAD    = 0.010   # 1.0 pip（15m足）
+        SPREAD    = 0.015   # 1.5 pip（15m足）
         profile   = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
         SL_MULT   = profile["daytrade_sl"]   # daytrade-specific SL
         TP_MULT   = profile["daytrade_tp"]   # daytrade-specific TP
@@ -3919,14 +3943,24 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
             if outcome:
                 last_bar = i
-                trades.append({"outcome": outcome, "bars_held": bars_held,
+                trade_dict = {"outcome": outcome, "bars_held": bars_held,
                                 "sig": sig, "ep": round(ep,3),
                                 "sl": round(sl,3), "tp": round(tp,3),
                                 "bar_idx": i, "entry_type": entry_type,
-                                "sl_m": sl_m, "tp_m": tp_m_actual})
+                                "sl_m": sl_m, "tp_m": tp_m_actual}
+                # Close-based SL actual loss: when LOSS and close exceeded SL level
+                if outcome == "LOSS":
+                    if sig == "BUY" and fut_close < sl:
+                        trade_dict["actual_sl_m"] = round(abs(fut_close - ep) / max(atr, 1e-6), 3)
+                    elif sig == "SELL" and fut_close > sl:
+                        trade_dict["actual_sl_m"] = round(abs(fut_close - ep) / max(atr, 1e-6), 3)
+                trades.append(trade_dict)
 
         def _dt_pnl(t):
-            return t.get("tp_m", TP_MULT) if t["outcome"] == "WIN" else -t.get("sl_m", SL_MULT)
+            if t["outcome"] == "WIN":
+                return t.get("tp_m", TP_MULT)
+            else:
+                return -t.get("actual_sl_m", t.get("sl_m", SL_MULT))
 
         if len(trades) < 20:
             result = {"error": f"サンプル数不足（20トレード未満）",
@@ -4232,19 +4266,29 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
 
             if outcome:
                 last_bar = i
-                trades.append({"outcome": outcome, "bars_held": bars_held,
+                trade_dict = {"outcome": outcome, "bars_held": bars_held,
                                 "sig": sig, "ep": round(ep,3),
                                 "sl": round(sl,3), "tp": round(tp,3),
                                 "sl_m": sl_m, "tp_m": tp_m,
                                 "entry_type": entry_type,
-                                "bar_idx": i})
+                                "bar_idx": i}
+                # Close-based SL actual loss: when LOSS and close exceeded SL level
+                if outcome == "LOSS":
+                    if sig == "BUY" and fut_close < sl:
+                        trade_dict["actual_sl_m"] = round(abs(fut_close - ep) / max(atr, 1e-6), 3)
+                    elif sig == "SELL" and fut_close > sl:
+                        trade_dict["actual_sl_m"] = round(abs(fut_close - ep) / max(atr, 1e-6), 3)
+                trades.append(trade_dict)
 
         if len(trades) < 8:
             result = {"error": f"サンプル数不足（{len(trades)}トレード）",
                       "trades": len(trades), "mode": "swing"}
         else:
             def _pnl_sw(t):
-                return t.get("tp_m", TP_MULT) if t["outcome"] == "WIN" else -t.get("sl_m", SL_MULT)
+                if t["outcome"] == "WIN":
+                    return t.get("tp_m", TP_MULT)
+                else:
+                    return -t.get("actual_sl_m", t.get("sl_m", SL_MULT))
 
             n    = len(trades)
             wins = sum(1 for t in trades if t["outcome"] == "WIN")
