@@ -2462,13 +2462,13 @@ def _get_dxy_trend_for_bt() -> str:
 def run_backtest(symbol: str = "USDJPY=X",
                  lookback_days: int = 90) -> dict:
     """
-    1H足を使ったバックテスト（実シグナルに近いロジック）。
-    - rule_signal + candle_pattern + dow_theory の複合スコアでエントリー判定
-    - EMA21トレンドフィルター（逆張り排除）
-    - スプレッド3pip考慮
-    - SL: 2.2×ATR, TP: 3.3×ATR（1H スイング設定）
-    - 最大保有: 48時間
-    6時間キャッシュ。
+    1H足バックテスト — SR構造ベース + EMAフィルター（他モードと統一設計）
+    エントリータイプ:
+      ① SR Bounce: 強いSR水平線での反発（両方向）
+      ② Strong SR Breakout: 強SR突破（確定足）
+      ③ EMA Cross: EMA9/21クロス（ADX≥15, EMA50方向一致）
+    SL/TP: エントリータイプ別、SR-aware snap
+    最大保有: 24本（24時間）、Close-based SL
     """
     global _bt_cache
     now = datetime.now()
@@ -2480,190 +2480,315 @@ def run_backtest(symbol: str = "USDJPY=X",
         df = add_indicators(df)
         df = df.dropna()
         if len(df) < 100:
-            return {"error": "データ不足"}
+            return {"error": "データ不足", "trades": 0, "mode": "standard"}
 
-        SPREAD       = 0.030   # 3 pips
-        SL_MULT      = 2.0    # ATR × 2.0
-        TP_MULT      = 3.5    # ATR × 3.5 → RR ≈ 1.75
-        MAX_HOLD     = 48     # bars (48 hours at 1H)
-        COOLDOWN     = 2      # bars
+        SPREAD   = 0.030   # 3 pips
+        SL_MULT  = 1.5     # default ATR mult
+        TP_MULT  = 2.5     # default ATR mult
+        MAX_HOLD = 24      # bars (24 hours)
+        COOLDOWN = 1
 
-        def _signal_ok(i):
-            """EMAクロスオーバー + トレンドフィルター + セッション"""
+        trades = []
+        last_bar = -99
+
+        # SR/OBプリコンピュテーション（1H足: 24本/日）
+        STD_SR_RECALC = 50
+        _std_sr_cache = {}
+        _std_ob_cache = {}
+        for _ci in range(100, len(df), STD_SR_RECALC):
+            _sr_slice = df.iloc[max(0, _ci - 300):_ci]
+            _std_sr_cache[_ci // STD_SR_RECALC] = find_sr_levels_weighted(
+                _sr_slice, window=5, tolerance_pct=0.003, min_touches=2,
+                max_levels=8, bars_per_day=24)
+            try:
+                _, _obs = detect_order_blocks(
+                    df.iloc[max(0, _ci - 100):_ci], atr_mult=1.5, lookback=80)
+                _std_ob_cache[_ci // STD_SR_RECALC] = _obs
+            except Exception:
+                _std_ob_cache[_ci // STD_SR_RECALC] = []
+
+        for i in range(50, len(df) - MAX_HOLD - 1):
+            if i - last_bar < COOLDOWN:
+                continue
+
             row      = df.iloc[i]
             prev_row = df.iloc[i-1]
 
             ema9    = float(row["ema9"])
             ema21   = float(row["ema21"])
             ema50   = float(row["ema50"])
-            ema200  = float(row.get("ema200", row["ema50"]))
             ema9_p  = float(prev_row["ema9"])
             ema21_p = float(prev_row["ema21"])
             atr     = float(row["atr"])
             adx     = float(row.get("adx", 20.0))
             rsi     = float(row["rsi"])
-            macdh   = float(row["macd_hist"])
-            macdh_p = float(df["macd_hist"].iloc[i-1])
+            close_p = float(row["Close"])
+            open_p  = float(row["Open"])
+            high_p  = float(row["High"])
+            low_p   = float(row["Low"])
 
-            # Session: London + NY (08:00-20:00 UTC)
+            if atr <= 0:
+                continue
+
+            # セッションフィルター: London+NY (07-20 UTC)
             try:
                 h = row.name.hour
-                if not (8 <= h < 20):
-                    return None, None
+                if not (7 <= h < 20):
+                    continue
             except Exception:
                 pass
 
-            if adx < 20:
-                return None, None
-
-            # EMA crossover
-            cross_up   = (ema9_p <= ema21_p) and (ema9 > ema21)
-            cross_down = (ema9_p >= ema21_p) and (ema9 < ema21)
-            if not cross_up and not cross_down:
-                return None, None
-
-            # EMA50 trend filter
-            if cross_up   and ema9 < ema50: return None, None
-            if cross_down and ema9 > ema50: return None, None
-
-            # EMA200 macro
-            close = float(row["Close"])
-            if cross_up   and close < ema200 * 0.997: return None, None
-            if cross_down and close > ema200 * 1.003: return None, None
-
-            # MACD direction
-            if cross_up   and macdh < macdh_p: return None, None
-            if cross_down and macdh > macdh_p: return None, None
-
-            # RSI
-            if cross_up   and rsi > 70: return None, None
-            if cross_down and rsi < 30: return None, None
-
-            sig = "BUY" if cross_up else "SELL"
-            return sig, atr
-
-        trades = []
-        last_trade_bar = -99
-        for i in range(50, len(df) - MAX_HOLD - 1):
-            if i - last_trade_bar < COOLDOWN:
+            # ATR regime filter
+            _std_atr_avg = float(df["atr"].iloc[max(0,i-20):i].mean()) if i >= 20 else atr
+            if _std_atr_avg > 0 and atr / _std_atr_avg > 1.8:
                 continue
-            sig, atr = _signal_ok(i)
+
+            # SR/OB取得
+            _std_key = i // STD_SR_RECALC
+            std_sr_weighted = _std_sr_cache.get(_std_key, [])
+            std_sr = [sr["price"] for sr in std_sr_weighted]
+            std_obs = _std_ob_cache.get(_std_key, [])
+
+            sig = None
+            entry_type = "ema_cross"
+
+            # ═══ Entry Type 1: SR Bounce (両方向) ═══
+            if sig is None and std_sr_weighted:
+                tol_sr = atr * 0.5
+                for sr_obj in std_sr_weighted:
+                    if sr_obj["strength"] < 0.3:
+                        continue
+                    level = sr_obj["price"]
+                    # BUY: support bounce
+                    if (abs(low_p - level) < tol_sr
+                            and close_p > open_p and close_p > level
+                            and rsi < 55 and adx < 35):
+                        sig = "BUY"
+                        entry_type = "sr_bounce"
+                        break
+                    # SELL: resistance bounce
+                    if (abs(high_p - level) < tol_sr
+                            and close_p < open_p and close_p < level
+                            and rsi > 45 and adx < 35):
+                        sig = "SELL"
+                        entry_type = "sr_bounce"
+                        break
+
+            # ═══ Entry Type 2: Strong SR Breakout ═══
+            if sig is None and std_sr_weighted:
+                for sr_obj in std_sr_weighted:
+                    if not sr_obj["is_strong"] or sr_obj["touches"] < 3:
+                        continue
+                    level = sr_obj["price"]
+                    if (sr_obj["type"] in ("resistance", "both")
+                            and close_p > level + atr * 0.1
+                            and open_p < level
+                            and close_p > open_p
+                            and adx >= 12 and rsi > 50 and rsi < 75):
+                        sig = "BUY"
+                        entry_type = "strong_sr_breakout"
+                        break
+                    if (sr_obj["type"] in ("support", "both")
+                            and close_p < level - atr * 0.1
+                            and open_p > level
+                            and close_p < open_p
+                            and adx >= 12 and rsi > 25 and rsi < 50):
+                        sig = "SELL"
+                        entry_type = "strong_sr_breakout"
+                        break
+
+            # ═══ Entry Type 3: EMA9/21 Cross (緩和版) ═══
+            if sig is None:
+                cross_up   = (ema9_p <= ema21_p) and (ema9 > ema21)
+                cross_down = (ema9_p >= ema21_p) and (ema9 < ema21)
+                if cross_up and adx >= 15 and ema9 > ema50 and rsi < 70:
+                    sig = "BUY"
+                    entry_type = "ema_cross"
+                elif cross_down and adx >= 15 and ema9 < ema50 and rsi > 30:
+                    sig = "SELL"
+                    entry_type = "ema_cross"
+
             if sig is None:
                 continue
-            # エントリーは次の足のOpen（ルックアヘッドバイアス排除）
+
+            # エントリーは次の足のOpen
             if i + 1 >= len(df):
                 continue
             ep = float(df.iloc[i + 1]["Open"])
             ep = ep + SPREAD / 2 if sig == "BUY" else ep - SPREAD / 2
-            sl = ep - atr * SL_MULT if sig == "BUY" else ep + atr * SL_MULT
-            tp = ep + atr * TP_MULT if sig == "BUY" else ep - atr * TP_MULT
 
+            # エントリータイプ別 SL/TP
+            if entry_type == "sr_bounce":
+                sl_m, tp_m = 0.8, 2.0
+            elif entry_type == "strong_sr_breakout":
+                sl_m, tp_m = 0.8, 2.5
+            elif entry_type == "ema_cross":
+                sl_m, tp_m = 1.5, 2.5
+            else:
+                sl_m, tp_m = SL_MULT, TP_MULT
+
+            sl = ep - atr * sl_m if sig == "BUY" else ep + atr * sl_m
+            tp = ep + atr * tp_m if sig == "BUY" else ep - atr * tp_m
+
+            # SR-aware SL snap
+            if std_sr and entry_type != "ema_cross":
+                for level in sorted(std_sr, reverse=(sig == "BUY")):
+                    if sig == "BUY" and level < ep and level > sl:
+                        sl = level - atr * 0.15
+                        break
+                    if sig == "SELL" and level > ep and level < sl:
+                        sl = level + atr * 0.15
+                        break
+
+            # SR-aware TP snap
+            if std_sr_weighted:
+                for sr_obj in sorted(std_sr_weighted,
+                                     key=lambda x: x["price"],
+                                     reverse=(sig == "SELL")):
+                    if sr_obj["strength"] < 0.3:
+                        continue
+                    level = sr_obj["price"]
+                    if sig == "BUY" and level > ep + atr * 0.3 and level < tp:
+                        tp = level - atr * 0.05
+                        break
+                    if sig == "SELL" and level < ep - atr * 0.3 and level > tp:
+                        tp = level + atr * 0.05
+                        break
+
+            tp = round(tp, 3)
+            tp_m_actual = round(abs(tp - ep) / max(atr, 1e-6), 3)
+
+            # Close-based SL + breakeven trailing
             outcome = None; bars_held = 0
+            _be_activated = False
+            _current_sl = sl
             for j in range(1, MAX_HOLD + 1):
                 if i + 1 + j >= len(df): break
                 fut = df.iloc[i + 1 + j]
                 hi, lo = float(fut["High"]), float(fut["Low"])
+                fut_close = float(fut["Close"])
+
+                # Partial TP trailing
+                _tp_dist = abs(tp - ep)
+                if sig == "BUY" and hi - ep >= _tp_dist * 0.6:
+                    _be_activated = True
+                    _current_sl = max(_current_sl, ep)
+                elif sig == "SELL" and ep - lo >= _tp_dist * 0.6:
+                    _be_activated = True
+                    _current_sl = min(_current_sl, ep)
+
+                _genuine = atr * 0.3
                 if sig == "BUY":
                     hit_tp = hi >= tp
-                    hit_sl = lo <= sl
+                    hit_sl = (fut_close <= _current_sl) or (_current_sl - lo > _genuine)
                     if hit_tp and hit_sl:
-                        outcome = "LOSS"; bars_held = j; break
+                        outcome = "WIN" if fut_close >= ep else "LOSS"
+                        bars_held = j; break
                     elif hit_tp:
-                        outcome = "WIN";  bars_held = j; break
+                        outcome = "WIN"; bars_held = j; break
                     elif hit_sl:
-                        outcome = "LOSS"; bars_held = j; break
+                        if _be_activated and _current_sl >= ep:
+                            outcome = "WIN"; bars_held = j
+                            tp_m_actual = round(_tp_dist * 0.6 / max(atr, 1e-6), 3)
+                        else:
+                            outcome = "LOSS"; bars_held = j
+                        break
                 else:
                     hit_tp = lo <= tp
-                    hit_sl = hi >= sl
+                    hit_sl = (fut_close >= _current_sl) or (hi - _current_sl > _genuine)
                     if hit_tp and hit_sl:
-                        outcome = "LOSS"; bars_held = j; break
+                        outcome = "WIN" if fut_close <= ep else "LOSS"
+                        bars_held = j; break
                     elif hit_tp:
-                        outcome = "WIN";  bars_held = j; break
+                        outcome = "WIN"; bars_held = j; break
                     elif hit_sl:
-                        outcome = "LOSS"; bars_held = j; break
+                        if _be_activated and _current_sl <= ep:
+                            outcome = "WIN"; bars_held = j
+                            tp_m_actual = round(_tp_dist * 0.6 / max(atr, 1e-6), 3)
+                        else:
+                            outcome = "LOSS"; bars_held = j
+                        break
 
             if outcome:
-                last_trade_bar = i
+                last_bar = i
                 trades.append({"outcome": outcome, "bars_held": bars_held,
                                 "sig": sig, "ep": round(ep, 3),
                                 "sl": round(sl, 3), "tp": round(tp, 3),
-                                "bar_idx": i})
+                                "bar_idx": i, "entry_type": entry_type,
+                                "sl_m": sl_m, "tp_m": tp_m_actual})
 
-        def _calc_stats(trade_list):
-            if len(trade_list) < 5:
-                return None
-            w  = sum(1 for t in trade_list if t["outcome"] == "WIN")
-            n  = len(trade_list)
-            wr = round(w / n * 100, 1)
-            ev = round((wr / 100 * TP_MULT) - ((1 - wr / 100) * SL_MULT), 3)
-            return {"trades": n, "win_rate": wr, "expected_value": ev}
-
-        def _max_dd(trade_list):
-            """最大ドローダウン（RR単位）"""
-            eq, peak, dd = 0.0, 0.0, 0.0
-            for t in trade_list:
-                eq += TP_MULT if t["outcome"] == "WIN" else -SL_MULT
-                if eq > peak: peak = eq
-                if peak - eq > dd: dd = peak - eq
-            return round(dd, 3)
+        def _pnl(t):
+            return t.get("tp_m", TP_MULT) if t["outcome"] == "WIN" else -t.get("sl_m", SL_MULT)
 
         if len(trades) < 10:
             result = {"error": "サンプル数不足 (最低10トレード必要)",
-                      "trades": len(trades)}
+                      "trades": len(trades), "mode": "standard"}
         else:
             wins  = sum(1 for t in trades if t["outcome"] == "WIN")
             total = len(trades)
             wr    = round(wins / total * 100, 1)
             avg_h = round(sum(t["bars_held"] for t in trades) / total, 1)
-            rr    = round(TP_MULT / SL_MULT, 2)
-            ev    = round((wr / 100 * TP_MULT) - ((1 - wr / 100) * SL_MULT), 3)
-            mdd   = _max_dd(trades)
-            # 簡易シャープ比（RR単位の期待値 / 標準偏差）
-            pnls  = [TP_MULT if t["outcome"] == "WIN" else -SL_MULT for t in trades]
-            pnl_std = float(np.std(pnls)) if len(pnls) > 1 else 1.0
-            sharpe  = round(float(np.mean(pnls)) / max(pnl_std, 1e-6), 3)
+            ev    = round(sum(_pnl(t) for t in trades) / total, 3)
+            # MaxDD
+            eq, peak, mdd = 0.0, 0.0, 0.0
+            for t in trades:
+                eq += _pnl(t)
+                if eq > peak: peak = eq
+                if peak - eq > mdd: mdd = peak - eq
+            mdd = round(mdd, 3)
+            # Sharpe
+            rets = [_pnl(t) for t in trades]
+            sharpe = round(np.mean(rets) / max(np.std(rets), 1e-6) * np.sqrt(252), 3) if len(rets) > 1 else 0.0
 
-            if   ev > 0.3: verdict = "✅ 期待値プラス（推奨）"
-            elif ev > 0:   verdict = "🟡 期待値わずかプラス（要注意）"
-            else:          verdict = "❌ 期待値マイナス（不推奨）"
-
-            # ── Walk-forward: 3窓 (各30日) ───────────────────────────
+            # Walk-forward 3窓
             wf_windows = []
-            for w_idx in range(3):
-                d_from = lookback_days - (w_idx + 1) * 30
-                d_to   = lookback_days - w_idx * 30
-                label  = f"{d_from}〜{d_to}日前"
-                # bar_idxで時間帯を近似（均等3分割）
-                b_from = len(df) * w_idx // 3
-                b_to   = len(df) * (w_idx + 1) // 3
-                w_trades = [t for t in trades if b_from <= t["bar_idx"] < b_to]
-                stats = _calc_stats(w_trades)
-                if stats:
-                    wf_windows.append({"label": label, **stats})
+            window_size = total // 3
+            for wi in range(3):
+                wt = trades[wi*window_size:(wi+1)*window_size]
+                if len(wt) < 5: continue
+                ww = sum(1 for t in wt if t["outcome"] == "WIN")
+                wwr = round(ww / len(wt) * 100, 1)
+                wev = round(sum(_pnl(t) for t in wt) / len(wt), 3)
+                wf_windows.append({"label": f"窓{wi+1}", "window": wi+1,
+                                   "trades": len(wt), "win_rate": wwr,
+                                   "expected_value": wev})
+            profitable = sum(1 for w in wf_windows if w.get("expected_value", -1) > 0)
+            consistency = f"{profitable}/{len(wf_windows)} 窓でプラス期待値"
 
-            profitable_windows = sum(1 for w in wf_windows if w.get("expected_value", -1) > 0)
-            consistency = f"{profitable_windows}/{len(wf_windows)} 窓でプラス期待値"
+            # エントリータイプ別統計
+            entry_stats = {}
+            for t in trades:
+                et = t.get("entry_type", "ema_cross")
+                if et not in entry_stats:
+                    entry_stats[et] = {"wins": 0, "total": 0, "pnl": 0.0}
+                entry_stats[et]["total"] += 1
+                entry_stats[et]["pnl"] += _pnl(t)
+                if t["outcome"] == "WIN":
+                    entry_stats[et]["wins"] += 1
+            for k, v in entry_stats.items():
+                v["win_rate"] = round(v["wins"] / v["total"] * 100, 1)
+                v["ev"] = round(v["pnl"] / v["total"], 3)
 
-            # 直近10トレードログ
-            trade_log = [{"sig": t["sig"], "outcome": t["outcome"],
-                          "bars": t["bars_held"]} for t in trades[-10:]]
+            verdict = ("✅ 良好" if ev > 0.10 and profitable >= 2 else
+                       "🟡 要注意" if ev > 0 else "❌ 不採用")
 
             result = {
                 "win_rate":        wr,
                 "trades":          total,
                 "wins":            wins,
                 "losses":          total - wins,
-                "rr":              rr,
                 "avg_hold_hours":  avg_h,
                 "expected_value":  ev,
                 "max_drawdown":    mdd,
                 "sharpe":          sharpe,
                 "verdict":         verdict,
-                "period":          f"過去{lookback_days}日",
+                "period":          f"過去{lookback_days}日 (1H足)",
                 "sl_mult":         SL_MULT,
                 "tp_mult":         TP_MULT,
                 "walk_forward":    wf_windows,
                 "consistency":     consistency,
+                "entry_breakdown": entry_stats,
+                "mode":            "standard",
             }
 
         _bt_cache["result"] = result
@@ -2672,7 +2797,7 @@ def run_backtest(symbol: str = "USDJPY=X",
     except Exception as e:
         import traceback
         print(f"[BACKTEST] {traceback.format_exc()}")
-        return {"error": str(e)}
+        return {"error": str(e), "mode": "standard"}
 
 
 # ═══════════════════════════════════════════════════════
