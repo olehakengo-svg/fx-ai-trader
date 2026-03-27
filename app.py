@@ -874,44 +874,115 @@ def fetch_jp10y() -> float:
 
 def fundamental_score():
     """
-    米日ファンダメンタル:
+    米日ファンダメンタル総合:
       - ^TNX : 米10年債利回り（上昇=USD強）
       - 米日金利差（US10Y - JP10Y）: 拡大=USD強
-      - JP10Y: FREDからリアルタイム取得
+      - DXYトレンド: ドル指数の方向（上昇=USD強）
+      - VIXリスクセンチメント: 高VIX=円高圧力
+      - 経済カレンダー: 今後24h以内の高インパクト指標
     Returns: (score [-1,+1], detail dict)
     """
+    detail = {}
+    sub_scores = {}
+
+    # ── 1. 米10年債 + 金利差 ──
     try:
         tnx = fetch_ohlcv("^TNX", period="30d", interval="1d")
         us10y      = float(tnx["Close"].iloc[-1])
         us10y_prev = float(tnx["Close"].iloc[-6]) if len(tnx) >= 7 else us10y
 
-        # 金利水準スコア: 3%=中立, 1-6%の範囲で正規化
         yield_level = max(-1.0, min(1.0, (us10y - 3.0) / 2.0))
-
-        # 5日間の金利変化方向
         chg = (us10y - us10y_prev) / max(us10y_prev, 1e-4)
         yield_trend = max(-1.0, min(1.0, chg * 20.0))
 
-        # 日本10年利回りをリアルタイム取得
         jp10y    = fetch_jp10y()
         spread   = us10y - jp10y
-        # 中立水準を動的に設定: 金利差2%=中立（BOJ利上げ後）
         spread_n = max(-1.0, min(1.0, (spread - 2.0) / 2.0))
 
-        score = (yield_level * 0.30 +
-                 yield_trend * 0.40 +
-                 spread_n   * 0.30)
+        rate_sc = yield_level * 0.30 + yield_trend * 0.40 + spread_n * 0.30
+        sub_scores["rate"] = round(max(-1.0, min(1.0, rate_sc)), 3)
 
-        detail = {
-            "us10y":      round(us10y, 2),
-            "jp10y":      round(jp10y, 2),
-            "spread":     round(spread, 2),
-            "rate_trend": "上昇（USD強）" if yield_trend > 0 else "低下（USD弱）",
-        }
-        return round(max(-1.0, min(1.0, score)), 4), detail
+        detail["us10y"]      = round(us10y, 2)
+        detail["jp10y"]      = round(jp10y, 2)
+        detail["spread"]     = round(spread, 2)
+        detail["spread_chg"] = "拡大中" if spread > (float(tnx["Close"].iloc[-6]) - jp10y if len(tnx) >= 7 else spread) else "縮小中"
+        detail["rate_trend"] = "上昇（USD強）" if yield_trend > 0 else "低下（USD弱）"
     except Exception as e:
-        print(f"[FUND] {e}")
-        return 0.0, {}
+        print(f"[FUND/rate] {e}")
+        sub_scores["rate"] = 0.0
+
+    # ── 2. DXYトレンド ──
+    try:
+        dxy = fetch_ohlcv("DX-Y.NYB", period="30d", interval="1d")
+        dxy_c    = float(dxy["Close"].iloc[-1])
+        dxy_prev = float(dxy["Close"].iloc[-6]) if len(dxy) >= 7 else dxy_c
+        dxy_chg  = (dxy_c - dxy_prev) / max(dxy_prev, 1e-4)
+        dxy_sc   = max(-1.0, min(1.0, dxy_chg * 15.0))
+        sub_scores["dxy"] = round(dxy_sc, 3)
+        detail["dxy"]       = round(dxy_c, 2)
+        detail["dxy_trend"] = "上昇（USD強）" if dxy_sc > 0.1 else ("下落（USD弱）" if dxy_sc < -0.1 else "横ばい")
+    except Exception as e:
+        print(f"[FUND/dxy] {e}")
+        sub_scores["dxy"] = 0.0
+
+    # ── 3. VIXリスクセンチメント ──
+    try:
+        vix_df  = fetch_ohlcv("^VIX", period="20d", interval="1d")
+        vix_cur = float(vix_df["Close"].iloc[-1])
+        vix_sc  = max(-1.0, min(1.0, -(vix_cur - 20.0) / 10.0))
+        sub_scores["vix"] = round(vix_sc, 3)
+        detail["vix"]        = round(vix_cur, 1)
+        detail["vix_regime"] = "リスクオフ（円高圧力）" if vix_cur > 25 else ("リスクオン（円安圧力）" if vix_cur < 15 else "中立")
+    except Exception as e:
+        print(f"[FUND/vix] {e}")
+        sub_scores["vix"] = 0.0
+
+    # ── 4. 経済カレンダー（今後24h） ──
+    upcoming_events = []
+    try:
+        events = get_economic_calendar()
+        now_utc = datetime.now(timezone.utc)
+        for ev in events:
+            try:
+                ev_dt = datetime.fromisoformat(
+                    ev["date"].replace("Z", "+00:00")
+                ).astimezone(timezone.utc)
+                diff_h = (ev_dt - now_utc).total_seconds() / 3600
+                if -1 <= diff_h <= 24:
+                    upcoming_events.append({
+                        "title":    ev["title"],
+                        "currency": ev["currency"],
+                        "time":     ev_dt.strftime("%m/%d %H:%M UTC"),
+                        "hours_until": round(diff_h, 1),
+                        "status":   "発表済み" if diff_h < 0 else ("間もなく" if diff_h < 1 else "待機中"),
+                    })
+            except Exception:
+                pass
+    except Exception:
+        pass
+    detail["upcoming_events"] = upcoming_events[:5]
+
+    # ── 総合スコア: 金利40% + DXY30% + VIX30% ──
+    score = (sub_scores.get("rate", 0) * 0.40 +
+             sub_scores.get("dxy", 0)  * 0.30 +
+             sub_scores.get("vix", 0)  * 0.30)
+    score = round(max(-1.0, min(1.0, score)), 4)
+
+    # 総合バイアスサマリー
+    if score > 0.25:
+        detail["bias"]       = "USD強気（円安方向）"
+        detail["bias_level"] = "strong_bull" if score > 0.5 else "bull"
+    elif score < -0.25:
+        detail["bias"]       = "USD弱気（円高方向）"
+        detail["bias_level"] = "strong_bear" if score < -0.5 else "bear"
+    else:
+        detail["bias"]       = "中立（方向感なし）"
+        detail["bias_level"] = "neutral"
+
+    detail["sub_scores"]  = sub_scores
+    detail["total_score"] = score
+
+    return score, detail
 
 
 # ═══════════════════════════════════════════════════════
@@ -1469,11 +1540,17 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     if inst_detail.get("vix_signal"):
         inst_rsns.append(f"😨 VIX({inst_detail.get('vix','?')}): {inst_detail['vix_signal']}")
     fund_rsns = []
+    if fund_detail.get("bias"):
+        fund_rsns.append(f"📊 ファンダ総合: {fund_detail['bias']}")
     if fund_detail.get("rate_trend"):
         fund_rsns.append(f"📊 米10年債: {fund_detail['rate_trend']}" +
                          (f" ({fund_detail['us10y']}%)" if "us10y" in fund_detail else ""))
     if fund_detail.get("spread") is not None:
-        fund_rsns.append(f"📊 米日金利差: {fund_detail['spread']}%")
+        fund_rsns.append(f"📊 金利差: {fund_detail['spread']}% ({fund_detail.get('spread_chg','—')})")
+    if fund_detail.get("dxy_trend"):
+        fund_rsns.append(f"📊 DXY: {fund_detail['dxy_trend']}")
+    if fund_detail.get("vix_regime") and "中立" not in fund_detail.get("vix_regime", ""):
+        fund_rsns.append(f"😨 {fund_detail['vix_regime']}")
     news_rsns = []
     if news_data.get("sentiment"):
         news_rsns.append(f"📰 ニュース: {news_data['sentiment']}")
@@ -2115,8 +2192,12 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     _master_dir = "BUY" if ema_score >= 0 else "SELL"
     _master_str = abs(ema_score)  # 0-3のEMA確度スコア
     # EMA整合フラグ生成関数
+    # ファンダバイアス（デュアルシナリオ確度補正用）
+    _fund_bias = htf_dt.get("agreement", "mixed")  # bull/bear/mixed
+    _fund_total = fund_detail.get("total_score", 0.0) if fund_detail else 0.0
+
     def _ema_alignment(sc_dir):
-        """シナリオ方向とマスターEMA方向の整合スコア (0-100)"""
+        """シナリオ方向とマスターEMA+ファンダ方向の整合スコア (0-100)"""
         aligned = (sc_dir == _master_dir)
         base = 60 if aligned else 25
         # EMAスコアが強いほど整合/非整合の影響が大きい
@@ -2140,6 +2221,25 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             boost += 3
         elif sc_dir == "SELL" and 35 <= rsi <= 65:
             boost += 3
+        # ── ファンダメンタル整合 ──
+        # 金利差・DXY・VIXの総合バイアスがシナリオ方向と一致するか
+        if sc_dir == "BUY" and _fund_total > 0.15:
+            boost += int(min(_fund_total * 10, 8))  # USD強=BUY支援
+        elif sc_dir == "SELL" and _fund_total < -0.15:
+            boost += int(min(abs(_fund_total) * 10, 8))  # USD弱=SELL支援
+        elif sc_dir == "BUY" and _fund_total < -0.25:
+            boost -= 5  # USD弱なのにBUY=ペナルティ
+        elif sc_dir == "SELL" and _fund_total > 0.25:
+            boost -= 5  # USD強なのにSELL=ペナルティ
+        # 4H+1Dマスタートレンドとの整合
+        if _fund_bias == "bull" and sc_dir == "BUY":
+            boost += 5
+        elif _fund_bias == "bear" and sc_dir == "SELL":
+            boost += 5
+        elif _fund_bias == "bull" and sc_dir == "SELL":
+            boost -= 6
+        elif _fund_bias == "bear" and sc_dir == "BUY":
+            boost -= 6
         return int(np.clip(base + boost, 10, 95))
 
     try:

@@ -819,9 +819,16 @@ body{background:var(--bg0);color:var(--t1);
         <div class="macro-row"><span class="macro-lbl">VIX（恐怖指数）</span><span id="m-vix" class="macro-val">—</span></div>
         <div class="macro-row"><span class="macro-lbl">リスクセンチメント</span><span id="m-vix-sig" class="macro-val">—</span></div>
         <div class="macro-section-title" style="margin-top:8px">📊 ファンダメンタル</div>
+        <div id="fund-bias-summary" style="padding:4px 8px;border-radius:4px;margin-bottom:4px;font-size:11px;font-weight:700;display:none"></div>
         <div class="macro-row"><span class="macro-lbl">米10年債利回り</span><span id="m-us10y" class="macro-val">—</span></div>
+        <div class="macro-row"><span class="macro-lbl">日10年債利回り</span><span id="m-jp10y" class="macro-val">—</span></div>
         <div class="macro-row"><span class="macro-lbl">米日金利差</span><span id="m-spread" class="macro-val">—</span></div>
+        <div class="macro-row"><span class="macro-lbl">金利差動向</span><span id="m-spread-chg" class="macro-val">—</span></div>
         <div class="macro-row"><span class="macro-lbl">金利トレンド</span><span id="m-rate-tr" class="macro-val">—</span></div>
+        <div class="macro-row"><span class="macro-lbl">DXYトレンド</span><span id="m-dxy-trend" class="macro-val">—</span></div>
+        <div class="macro-row"><span class="macro-lbl">VIXリスク</span><span id="m-vix-regime" class="macro-val">—</span></div>
+        <div class="macro-section-title" style="margin-top:8px">📅 経済カレンダー（24h以内）</div>
+        <div id="econ-calendar-list" style="font-size:10px;color:var(--t3)">読込中...</div>
       </div>
     </div>
 
@@ -2007,9 +2014,50 @@ async function loadSignal(){
         ins.vix_signal&&ins.vix_signal.includes('リスクオン')?'var(--green)':'var(--t3)');
       // ファンダメンタル
       setM('m-us10y',  fun.us10y!=null?fun.us10y+'%':'—');
+      setM('m-jp10y',  fun.jp10y!=null?fun.jp10y+'%':'—');
       setM('m-spread', fun.spread!=null?fun.spread+'%':'—');
+      setM('m-spread-chg', fun.spread_chg||'—',
+        fun.spread_chg==='拡大中'?'var(--green)':'var(--red)');
       setM('m-rate-tr',fun.rate_trend||'—',
         fun.rate_trend&&fun.rate_trend.includes('強')?'var(--green)':'var(--red)');
+      setM('m-dxy-trend', fun.dxy_trend||'—',
+        fun.dxy_trend&&fun.dxy_trend.includes('強')?'var(--green)':
+        fun.dxy_trend&&fun.dxy_trend.includes('弱')?'var(--red)':'var(--t3)');
+      setM('m-vix-regime', fun.vix_regime||'—',
+        fun.vix_regime&&fun.vix_regime.includes('リスクオフ')?'var(--red)':
+        fun.vix_regime&&fun.vix_regime.includes('リスクオン')?'var(--green)':'var(--t3)');
+      // ファンダ総合バイアス
+      const fbEl=document.getElementById('fund-bias-summary');
+      if(fbEl&&fun.bias){
+        const bl=fun.bias_level||'neutral';
+        const bCol=bl.includes('bull')?'rgba(34,197,94,.12)':bl.includes('bear')?'rgba(239,68,68,.12)':'rgba(120,120,120,.08)';
+        const bBd=bl.includes('bull')?'rgba(34,197,94,.3)':bl.includes('bear')?'rgba(239,68,68,.3)':'rgba(120,120,120,.2)';
+        const bTxt=bl.includes('bull')?'var(--green)':bl.includes('bear')?'var(--red)':'var(--t3)';
+        const bIcon=bl.includes('bull')?'📈':bl.includes('bear')?'📉':'⚖️';
+        fbEl.innerHTML=`${bIcon} ${fun.bias}${fun.total_score!=null?' <span style="font-weight:400;font-size:10px">('+fun.total_score.toFixed(2)+')</span>':''}`;
+        fbEl.style.background=bCol;
+        fbEl.style.border='1px solid '+bBd;
+        fbEl.style.color=bTxt;
+        fbEl.style.display='block';
+      }
+      // 経済カレンダー
+      const calEl=document.getElementById('econ-calendar-list');
+      if(calEl&&fun.upcoming_events){
+        if(fun.upcoming_events.length===0){
+          calEl.innerHTML='<div style="color:var(--t3);font-size:10px">24h以内の高インパクト指標なし</div>';
+        }else{
+          calEl.innerHTML=fun.upcoming_events.map(ev=>{
+            const stCol=ev.status==='間もなく'?'var(--red)':ev.status==='発表済み'?'var(--t3)':'var(--gold)';
+            const urgTag=ev.status==='間もなく'?'<span style="background:rgba(239,68,68,.2);color:var(--red);padding:0 3px;border-radius:2px;font-size:8px;margin-left:3px">注意</span>':'';
+            return `<div style="display:flex;align-items:center;gap:4px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03)">
+              <span style="color:${ev.currency==='USD'?'var(--green)':'var(--red)'};font-size:9px;font-weight:600">${ev.currency}</span>
+              <span style="flex:1;color:var(--t2)">${ev.title}</span>${urgTag}
+              <span style="color:${stCol};font-size:9px">${ev.time}</span>
+              <span style="color:var(--t3);font-size:9px">${ev.hours_until>0?ev.hours_until.toFixed(1)+'h後':ev.status}</span>
+            </div>`;
+          }).join('');
+        }
+      }
     }
 
     // MTF confluence
