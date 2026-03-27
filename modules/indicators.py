@@ -56,7 +56,12 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     # ドンチアン位置 (0=下限付近, 1=上限付近)
     don_range = (df["don_high20"] - df["don_low20"]).replace(0, np.nan)
     df["don_pct"]    = (c - df["don_low20"]) / don_range
-    return df.dropna()
+    # EMA200のウォームアップ期間のみNaN除去（先頭200行）
+    # 全行dropna()だとデータの40%が消失するため、
+    # 必須列のみでsubsetを指定して最小限の削除にとどめる
+    core_cols = ["ema9", "ema21", "rsi", "macd", "atr", "bb_upper"]
+    existing = [col for col in core_cols if col in df.columns]
+    return df.dropna(subset=existing)
 
 
 # ═══════════════════════════════════════════════════════
@@ -152,9 +157,9 @@ def dow_theory_analysis(df: pd.DataFrame, window: int = 5):
 
     swing_highs, swing_lows = [], []
     for i in range(window, n - window):
-        if H[i] == H[i - window: i + window + 1].max():
+        if H[i] >= H[i - window: i + window + 1].max() - 1e-10:
             swing_highs.append(H[i])
-        if L[i] == L[i - window: i + window + 1].min():
+        if L[i] <= L[i - window: i + window + 1].min() + 1e-10:
             swing_lows.append(L[i])
 
     if len(swing_highs) < 2 or len(swing_lows) < 2:
@@ -201,7 +206,9 @@ def volume_obv_analysis(df: pd.DataFrame):
 
     avg_vol  = vol.rolling(20).mean().iloc[-1]
     cur_vol  = vol.iloc[-1]
-    ratio    = cur_vol / avg_vol if avg_vol > 0 else 1.0
+    if pd.isna(avg_vol) or pd.isna(cur_vol) or avg_vol <= 0:
+        return 0.0, []  # NaN or zero volume → skip
+    ratio    = cur_vol / avg_vol
     price_up = df["Close"].iloc[-1] > df["Close"].iloc[-2]
 
     if ratio >= 2.0:

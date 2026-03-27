@@ -8,12 +8,16 @@ OHLCV data retrieval from multiple sources:
 """
 
 import os
+import threading
 import pandas as pd
 import numpy as np
 import yfinance as yf
 from datetime import datetime, timezone
 
 from modules.config import CACHE_TTL
+
+# スレッドセーフティ用ロック
+_cache_lock = threading.Lock()
 
 # ═══════════════════════════════════════════════════════
 #  Module-level caches and state
@@ -84,9 +88,12 @@ def fetch_ohlcv_twelvedata(symbol: str, interval: str) -> pd.DataFrame:
     size     = _TD_OUTPUTSIZE.get(interval, 500)
     url      = (f"https://api.twelvedata.com/time_series"
                 f"?symbol={td_sym}&interval={td_iv}"
-                f"&outputsize={size}&apikey={api_key}&dp=5&timezone=UTC&format=JSON")
+                f"&outputsize={size}&dp=5&timezone=UTC&format=JSON")
 
-    req = _ur.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    req = _ur.Request(url, headers={
+        "User-Agent": "Mozilla/5.0",
+        "Authorization": f"apikey {api_key}",
+    })
     with _ur.urlopen(req, timeout=10) as r:
         data = _js.load(r)
 
@@ -165,11 +172,12 @@ def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
 
     all_rows = []
     url = base_url
-    params = f"?adjusted=true&sort=asc&limit=50000&apiKey={api_key}"
+    params = "?adjusted=true&sort=asc&limit=50000"
+    _headers = {"User-Agent": "Mozilla/5.0", "Authorization": f"Bearer {api_key}"}
     max_pages = 10  # 最大ページ数（無限ループ防止）
 
     for page in range(max_pages):
-        req = _ur.Request(url + params, headers={"User-Agent": "Mozilla/5.0"})
+        req = _ur.Request(url + params, headers=_headers)
         try:
             with _ur.urlopen(req, timeout=45) as r:
                 data = _js.load(r)
@@ -187,9 +195,9 @@ def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
         next_url = data.get("next_url")
         if not next_url:
             break
-        # next_urlにはAPIキーが含まれていない場合があるので付与
+        # next_urlにはパラメータが含まれている場合がある
         url = next_url
-        params = f"&apiKey={api_key}" if "?" in next_url else f"?apiKey={api_key}"
+        params = ""  # next_urlに既にパラメータが含まれる（APIキーはヘッダーで送信）
         _time.sleep(0.1)  # レート制限対策
 
     if not all_rows:
@@ -225,13 +233,22 @@ def _rt_patch(df: pd.DataFrame, symbol: str, interval: str) -> pd.DataFrame:
     """
     if interval not in ("1m", "5m") or symbol not in _TD_SYMBOL_MAP:
         return df
-    pc = _price_cache  # モジュールレベル dict 参照
+    if len(df) == 0:
+        return df
+    with _cache_lock:
+        pc = dict(_price_cache)  # スナップショットをコピー
     if not pc.get("ts"):
         return df
-    age = (datetime.now() - pc["ts"]).total_seconds()
+    ts = pc["ts"]
+    # naive/aware統一: tsがawareならnowもaware、naiveならnaive
+    now = datetime.now(timezone.utc) if ts.tzinfo else datetime.now()
+    age = (now - ts).total_seconds()
     if age > 10:
         return df
-    price = float(pc["data"]["price"])
+    try:
+        price = float(pc["data"]["price"])
+    except (KeyError, TypeError, ValueError):
+        return df
     last  = df.index[-1]
     df.at[last, "Close"] = price
     df.at[last, "High"]  = max(float(df.at[last, "High"]), price)
@@ -244,10 +261,13 @@ def _rt_patch(df: pd.DataFrame, symbol: str, interval: str) -> pd.DataFrame:
 # ═══════════════════════════════════════════════════════
 def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
     key = (symbol, interval, period)
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     ttl = _TF_CACHE_TTL.get(interval, CACHE_TTL)
     if key in _data_cache:
         cached_df, ts = _data_cache[key]
+        # naive/aware統一
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
         if (now - ts).total_seconds() < ttl:
             return _rt_patch(cached_df.copy(), symbol, interval)
 

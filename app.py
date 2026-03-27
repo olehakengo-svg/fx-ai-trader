@@ -2106,9 +2106,42 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     session = get_session_info()
     ts_str  = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
 
-    # ── デュアルシナリオ生成（SR構造ベース）──────────────────
+    # ── デュアルシナリオ生成（SR構造 × EMA整合ハイブリッド）──────
     # 上下の強いSRを特定し、バウンス/ブレイクの2シナリオを準備
+    # マスター方向（EMA/ADX）との整合度を各シナリオに付与
     dual_scenarios = []
+
+    # マスター方向判定（EMAスコアベース）
+    _master_dir = "BUY" if ema_score >= 0 else "SELL"
+    _master_str = abs(ema_score)  # 0-3のEMA確度スコア
+    # EMA整合フラグ生成関数
+    def _ema_alignment(sc_dir):
+        """シナリオ方向とマスターEMA方向の整合スコア (0-100)"""
+        aligned = (sc_dir == _master_dir)
+        base = 60 if aligned else 25
+        # EMAスコアが強いほど整合/非整合の影響が大きい
+        boost = int(min(_master_str * 12, 30)) if aligned else -int(min(_master_str * 8, 20))
+        # EMAアライメント追加
+        if sc_dir == "BUY" and ema9 > ema21 > ema50:
+            boost += 10
+        elif sc_dir == "SELL" and ema9 < ema21 < ema50:
+            boost += 10
+        elif sc_dir == "BUY" and ema9 < ema21:
+            boost -= 8
+        elif sc_dir == "SELL" and ema9 > ema21:
+            boost -= 8
+        # MACD整合
+        if sc_dir == "BUY" and macdh > 0:
+            boost += 5
+        elif sc_dir == "SELL" and macdh < 0:
+            boost += 5
+        # RSI整合
+        if sc_dir == "BUY" and 35 <= rsi <= 65:
+            boost += 3
+        elif sc_dir == "SELL" and 35 <= rsi <= 65:
+            boost += 3
+        return int(np.clip(base + boost, 10, 95))
+
     try:
         sr_weighted = find_sr_levels_weighted(df, window=5, tolerance_pct=0.003,
                                               min_touches=2, max_levels=8,
@@ -2124,6 +2157,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         if _below:
             sup = _below[0]
             _tp_a = _above[0]["price"] if _above else round(sup["price"] + atr * 2.0, 3)
+            _ea = _ema_alignment("BUY")
             dual_scenarios.append({
                 "id": "A", "label": "サポート反発 → BUY",
                 "direction": "BUY",
@@ -2136,12 +2170,16 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 "sr_touches": sup["touches"],
                 "rr": round(abs(_tp_a - sup["price"]) / max(atr * 0.4, 1e-6), 2),
                 "condition": f"SR {sup['price']:.3f} (強度{sup['strength']:.0%}, {sup['touches']}回タッチ)で陽線反転",
+                "master_aligned": _master_dir == "BUY",
+                "ema_confidence": _ea,
+                "combined_score": round(sup["strength"] * 0.5 + _ea / 100 * 0.5, 3),
             })
 
         # シナリオB: 上のSRでバウンス → SELL
         if _above:
             res = _above[0]
             _tp_b = _below[0]["price"] if _below else round(res["price"] - atr * 2.0, 3)
+            _eb = _ema_alignment("SELL")
             dual_scenarios.append({
                 "id": "B", "label": "レジスタンス反発 → SELL",
                 "direction": "SELL",
@@ -2154,12 +2192,16 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 "sr_touches": res["touches"],
                 "rr": round(abs(res["price"] - _tp_b) / max(atr * 0.4, 1e-6), 2),
                 "condition": f"SR {res['price']:.3f} (強度{res['strength']:.0%}, {res['touches']}回タッチ)で陰線反転",
+                "master_aligned": _master_dir == "SELL",
+                "ema_confidence": _eb,
+                "combined_score": round(res["strength"] * 0.5 + _eb / 100 * 0.5, 3),
             })
 
         # シナリオC: 下のSRブレイク → SELL（Strong SRのみ）
         if _below and _below[0]["is_strong"] and _below[0]["touches"] >= 3:
             sup = _below[0]
             _next_sup = _below[1]["price"] if len(_below) > 1 else round(sup["price"] - atr * 2.0, 3)
+            _ec = _ema_alignment("SELL")
             dual_scenarios.append({
                 "id": "C", "label": "サポート下抜け → SELL",
                 "direction": "SELL",
@@ -2172,12 +2214,16 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 "sr_touches": sup["touches"],
                 "rr": round(abs(sup["price"] - _next_sup) / max(atr * 0.3, 1e-6), 2),
                 "condition": f"SR {sup['price']:.3f} (強度{sup['strength']:.0%})を終値で下抜け＋出来高増",
+                "master_aligned": _master_dir == "SELL",
+                "ema_confidence": _ec,
+                "combined_score": round(sup["strength"] * 0.5 + _ec / 100 * 0.5, 3),
             })
 
         # シナリオD: 上のSRブレイク → BUY（Strong SRのみ）
         if _above and _above[0]["is_strong"] and _above[0]["touches"] >= 3:
             res = _above[0]
             _next_res = _above[1]["price"] if len(_above) > 1 else round(res["price"] + atr * 2.0, 3)
+            _ed = _ema_alignment("BUY")
             dual_scenarios.append({
                 "id": "D", "label": "レジスタンス上抜け → BUY",
                 "direction": "BUY",
@@ -2190,7 +2236,18 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 "sr_touches": res["touches"],
                 "rr": round(abs(_next_res - res["price"]) / max(atr * 0.3, 1e-6), 2),
                 "condition": f"SR {res['price']:.3f} (強度{res['strength']:.0%})を終値で上抜け＋出来高増",
+                "master_aligned": _master_dir == "BUY",
+                "ema_confidence": _ed,
+                "combined_score": round(res["strength"] * 0.5 + _ed / 100 * 0.5, 3),
             })
+
+        # combined_score降順でソート → 最初がベストシナリオ
+        dual_scenarios.sort(key=lambda x: x["combined_score"], reverse=True)
+        # ベストシナリオにフラグ付与
+        if dual_scenarios:
+            dual_scenarios[0]["recommended"] = True
+            for sc in dual_scenarios[1:]:
+                sc["recommended"] = False
     except Exception:
         pass
 

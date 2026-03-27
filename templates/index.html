@@ -1570,7 +1570,7 @@ async function loadSignal(){
         const tLine=candleS.createPriceLine({
           price:sc.trigger_price,color:trigCol,lineWidth:2,lineStyle:lineStyle,
           axisLabelVisible:true,
-          title:`${sc.id} ${typeIcon[sc.trigger_type]||''} ${sc.direction}`
+          title:`${sc.id} ${typeIcon[sc.trigger_type]||''} ${sc.direction}${sc.recommended?' ★':''}`
         });
         window._scenarioLines.push(tLine);
         // TP目標ライン (薄く)
@@ -1608,21 +1608,34 @@ async function loadSignal(){
         const allM=[...existM,...futureMarkers].sort((a,b)=>a.time-b.time);
         candleS.setMarkers(allM);
       }
-      // パネル表示
+      // パネル表示（マスター整合 + EMA確度表示）
       if(scenarioBox){
         const scHtml=d.dual_scenarios.map(sc=>{
           const isBuy=sc.direction==='BUY';
-          const bgCol=isBuy?'rgba(34,197,94,.08)':'rgba(239,68,68,.08)';
-          const bdCol=isBuy?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)';
+          const isRec=sc.recommended;
+          const aligned=sc.master_aligned;
+          // 推奨シナリオは明るい背景、非整合は暗い
+          const bgCol=isRec
+            ?(isBuy?'rgba(34,197,94,.15)':'rgba(239,68,68,.15)')
+            :(isBuy?'rgba(34,197,94,.04)':'rgba(239,68,68,.04)');
+          const bdCol=isRec
+            ?(isBuy?'rgba(34,197,94,.5)':'rgba(239,68,68,.5)')
+            :(isBuy?'rgba(34,197,94,.15)':'rgba(239,68,68,.15)');
           const txtCol=isBuy?'var(--green)':'var(--red)';
           const typeTag=sc.trigger_type==='bounce'
             ?'<span style="background:rgba(59,130,246,.15);color:#60a5fa;padding:1px 4px;border-radius:3px;font-size:9px">反発</span>'
             :'<span style="background:rgba(245,158,11,.15);color:#fbbf24;padding:1px 4px;border-radius:3px;font-size:9px">ブレイク</span>';
-          return`<div style="background:${bgCol};border:1px solid ${bdCol};border-radius:6px;padding:6px 8px;margin-bottom:4px">
-            <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
+          const recTag=isRec?'<span style="background:rgba(250,204,21,.2);color:#fbbf24;padding:1px 4px;border-radius:3px;font-size:9px;font-weight:700">★推奨</span>':'';
+          const alignTag=aligned
+            ?'<span style="color:#22c55e;font-size:9px" title="EMAトレンドと一致">✓EMA整合</span>'
+            :'<span style="color:#f59e0b;font-size:9px" title="EMAトレンドと逆行">⚠逆行</span>';
+          const eConf=sc.ema_confidence!=null?sc.ema_confidence:'—';
+          return`<div style="background:${bgCol};border:1px solid ${bdCol};border-radius:6px;padding:6px 8px;margin-bottom:4px;${isRec?'box-shadow:0 0 6px rgba(250,204,21,.15)':'opacity:.75'}">
+            <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;flex-wrap:wrap">
               <span style="font-weight:700;color:${txtCol};font-size:12px">${dirIcon[sc.direction]} ${sc.id}</span>
-              ${typeTag}
-              <span style="font-size:10px;color:var(--t3);margin-left:auto">RR 1:${sc.rr}</span>
+              ${typeTag}${recTag}
+              ${alignTag}
+              <span style="font-size:10px;color:var(--t3);margin-left:auto">EMA ${eConf}% | RR 1:${sc.rr}</span>
             </div>
             <div style="font-size:10px;color:var(--t2);margin-bottom:2px">${sc.condition}</div>
             <div style="display:flex;gap:8px;font-size:10px;font-family:'SF Mono',monospace">
@@ -1632,7 +1645,7 @@ async function loadSignal(){
             </div>
           </div>`;
         }).join('');
-        scenarioBox.innerHTML=`<div style="font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">📋 デュアルシナリオ</div>${scHtml}`;
+        scenarioBox.innerHTML=`<div style="font-size:10px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">📋 デュアルシナリオ（EMAハイブリッド）</div>${scHtml}`;
         scenarioBox.style.display='block';
       }
     }else if(scenarioBox){
@@ -1681,7 +1694,13 @@ async function loadSignal(){
         nb.style.color=nw.score>0.1?'var(--green)':nw.score<-0.1?'var(--red)':'var(--t3)';}
       const nl=document.getElementById('news-list');
       if(nl&&nw.headlines&&nw.headlines.length){
-        nl.innerHTML=nw.headlines.map(h=>`<div class="news-item">${h}</div>`).join('');
+        nl.innerHTML='';
+        nw.headlines.forEach(h=>{
+          const div=document.createElement('div');
+          div.className='news-item';
+          div.textContent=h;
+          nl.appendChild(div);
+        });
       }
       // AI分析表示
       const aiBox=document.getElementById('news-ai-box');
@@ -2129,11 +2148,13 @@ async function loadLayerStatus(){
     }
 
     // ── Layer 1 votes ──
-    const votes=l1.votes||[];
+    const votes=l1.votes||{};
+    const voteKeys=['inst','cot','dxy'];
     const voteLabels=['l1-v-inst','l1-v-cot','l1-v-dxy'];
-    votes.forEach((v,i)=>{
+    voteKeys.forEach((k,i)=>{
       const el=document.getElementById(voteLabels[i]);
       if(!el)return;
+      const v=Array.isArray(votes)?votes[i]:(votes[k]!=null?votes[k]:0);
       if(v===1){el.textContent='↑BUY';el.style.color='var(--green)';}
       else if(v===-1){el.textContent='↓SEL';el.style.color='var(--red)';}
       else{el.textContent='→NEU';el.style.color='var(--gold)';}

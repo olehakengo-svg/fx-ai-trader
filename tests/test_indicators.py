@@ -55,10 +55,13 @@ class TestAddIndicators:
         for col in ("don_high20", "don_low20", "don_mid20", "don_pct"):
             assert col in result.columns, f"Missing column '{col}'"
 
-    def test_no_nan_after_dropna(self, sample_ohlcv):
+    def test_no_nan_in_core_cols_after_dropna(self, sample_ohlcv):
         result = add_indicators(sample_ohlcv)
-        # add_indicators calls dropna(), so no NaN values should remain
-        assert not result.isnull().any().any(), "NaN values found after add_indicators"
+        # add_indicators calls dropna(subset=core_cols) to preserve data
+        # Core columns (ema9, ema21, rsi, macd, atr, bb_upper) should have no NaN
+        core_cols = ["ema9", "ema21", "rsi", "macd", "atr", "bb_upper"]
+        for col in core_cols:
+            assert not result[col].isnull().any(), f"NaN found in core column '{col}'"
 
     def test_fewer_rows_after_indicators(self, sample_ohlcv):
         result = add_indicators(sample_ohlcv)
