@@ -640,6 +640,12 @@ body{background:var(--bg0);color:var(--t1);
       </div>
     </div>
 
+    <!-- SR推奨エントリー (NEW) -->
+    <div class="card" id="sr-recommend-card" style="display:none">
+      <div class="card-title">📍 SR推奨エントリー <span style="font-size:9px;color:var(--t3);font-weight:400">（今の時間帯）</span></div>
+      <div id="sr-recommend-content"></div>
+    </div>
+
     <!-- Entry / SL / TP -->
     <div class="card">
       <div class="card-title">エントリーポイント</div>
@@ -1505,6 +1511,80 @@ async function loadSignal(){
       };
       setTf('htf-h1-trend','htf-h1-rsi',htf.h1);
       setTf('htf-h4-trend','htf-h4-rsi',htf.h4);
+    }
+
+    // ── SR推奨エントリーパネル ──
+    const srCard=document.getElementById('sr-recommend-card');
+    const srContent=document.getElementById('sr-recommend-content');
+    if(srCard&&srContent&&d.sr_entry_map&&currentMode==='daytrade'){
+      const m=d.sr_entry_map;
+      let html='';
+      // 現在ゾーン表示
+      const zoneMap={
+        support_near:  {icon:'🟢',label:'サポート付近',color:'var(--green)',desc:'反発BUYが有利なゾーン'},
+        resistance_near:{icon:'🔴',label:'レジスタンス付近',color:'var(--red)',desc:'反発SELLが有利なゾーン'},
+        mid_range:     {icon:'⚖️',label:'レンジ中央',color:'var(--gold)',desc:'方向感なし — SR接近を待つ'},
+        neutral:       {icon:'↔️',label:'中立ゾーン',color:'var(--t3)',desc:'SR間の中間帯'},
+      };
+      const z=zoneMap[m.current_zone]||zoneMap.neutral;
+      html+=`<div style="background:rgba(30,35,50,.6);border-radius:5px;padding:5px 8px;margin-bottom:6px">
+        <div style="display:flex;align-items:center;gap:5px">
+          <span style="font-size:14px">${z.icon}</span>
+          <span style="font-size:11px;font-weight:700;color:${z.color}">${z.label}</span>
+          <span style="font-size:9px;color:var(--t3);margin-left:auto">${z.desc}</span>
+        </div>
+      </div>`;
+      // 上下SR表示
+      const renderSR=(sr,label,icon)=>{
+        if(!sr) return '';
+        const strBar=Math.round(sr.strength*100);
+        const strCol=strBar>=70?'var(--green)':strBar>=40?'var(--gold)':'var(--t3)';
+        const strongTag=sr.is_strong?'<span style="background:rgba(250,204,21,.2);color:#fbbf24;padding:0 3px;border-radius:2px;font-size:8px;margin-left:3px">STRONG</span>':'';
+        return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+          <span style="font-size:11px">${icon}</span>
+          <span style="font-size:11px;color:var(--t1);font-family:'SF Mono',monospace;font-weight:600">${sr.price.toFixed(3)}</span>
+          ${strongTag}
+          <span style="font-size:9px;color:var(--t3)">${sr.touches}回タッチ</span>
+          <div style="flex:1;display:flex;align-items:center;gap:3px;justify-content:flex-end">
+            <div style="width:40px;height:4px;background:rgba(255,255,255,.08);border-radius:2px;overflow:hidden">
+              <div style="width:${strBar}%;height:100%;background:${strCol};border-radius:2px"></div>
+            </div>
+            <span style="font-size:9px;color:${strCol}">${strBar}%</span>
+          </div>
+          <span style="font-size:9px;color:var(--t3)">${sr.distance_pips}p</span>
+          <span style="font-size:9px;color:${sr.action.includes('BUY')?'var(--green)':sr.action.includes('SELL')?'var(--red)':'var(--t3)'}">${sr.action}</span>
+        </div>`;
+      };
+      html+=renderSR(m.nearest_resistance,'レジスタンス','🔺');
+      html+=`<div style="text-align:center;padding:2px 0;font-size:10px;color:var(--blue)">── 現在値 ${d.entry?d.entry.toFixed(3):'—'} ──</div>`;
+      html+=renderSR(m.nearest_support,'サポート','🔻');
+      // 推奨エントリー
+      if(m.recommended){
+        const r=m.recommended;
+        const rBuy=r.direction==='BUY';
+        const rCol=rBuy?'rgba(34,197,94,.12)':'rgba(239,68,68,.12)';
+        const rBd=rBuy?'rgba(34,197,94,.4)':'rgba(239,68,68,.4)';
+        const rTxt=rBuy?'var(--green)':'var(--red)';
+        html+=`<div style="background:${rCol};border:1px solid ${rBd};border-radius:5px;padding:6px 8px;margin-top:6px">
+          <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px">
+            <span style="font-size:12px">${rBuy?'🟢':'🔴'}</span>
+            <span style="font-size:11px;font-weight:700;color:${rTxt}">★ 推奨: ${r.label}</span>
+            <span style="font-size:9px;color:var(--t3);margin-left:auto">EMA確度 ${r.ema_confidence}%</span>
+          </div>
+          <div style="font-size:9px;color:var(--t2);margin-bottom:4px">${r.condition}</div>
+          <div style="display:flex;gap:8px;font-size:10px;font-family:'SF Mono',monospace">
+            <span style="color:var(--t3)">Entry <span style="color:var(--t1);font-weight:600">${r.entry.toFixed(3)}</span></span>
+            <span style="color:var(--red)">SL ${r.sl.toFixed(3)}</span>
+            <span style="color:var(--green)">TP ${r.tp.toFixed(3)}</span>
+            <span style="color:var(--t3)">RR 1:${r.rr}</span>
+          </div>
+          <div style="font-size:9px;color:var(--t3);margin-top:3px">SR根拠: ${r.sr_basis.toFixed(3)}</div>
+        </div>`;
+      }
+      srContent.innerHTML=html;
+      srCard.style.display='block';
+    }else if(srCard){
+      srCard.style.display='none';
     }
 
     // Position sizing連携

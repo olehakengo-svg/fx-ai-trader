@@ -2251,6 +2251,69 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     except Exception:
         pass
 
+    # ── SR Entry Map: 現在価格から見た上下SR＋推奨エントリー根拠 ──
+    sr_entry_map = {"nearest_support": None, "nearest_resistance": None,
+                    "current_zone": "neutral", "recommended": None}
+    try:
+        _sr_all = find_sr_levels_weighted(
+            df, window=5, tolerance_pct=0.003, min_touches=2,
+            max_levels=10, bars_per_day=96 if "15m" in tf or "30m" in tf else 24)
+        _sr_sup = sorted([s for s in _sr_all if s["price"] < entry - atr * 0.05],
+                         key=lambda x: -x["price"])
+        _sr_res = sorted([s for s in _sr_all if s["price"] > entry + atr * 0.05],
+                         key=lambda x: x["price"])
+        if _sr_sup:
+            s0 = _sr_sup[0]
+            dist_pips = round((entry - s0["price"]) * 100, 1)
+            sr_entry_map["nearest_support"] = {
+                "price": round(s0["price"], 3), "strength": s0["strength"],
+                "touches": s0["touches"], "is_strong": s0["is_strong"],
+                "type": s0.get("type", "support"),
+                "distance_pips": dist_pips,
+                "action": "BUY反発" if dist_pips < atr * 100 * 0.5 else "待機",
+            }
+        if _sr_res:
+            r0 = _sr_res[0]
+            dist_pips = round((r0["price"] - entry) * 100, 1)
+            sr_entry_map["nearest_resistance"] = {
+                "price": round(r0["price"], 3), "strength": r0["strength"],
+                "touches": r0["touches"], "is_strong": r0["is_strong"],
+                "type": r0.get("type", "resistance"),
+                "distance_pips": dist_pips,
+                "action": "SELL反発" if dist_pips < atr * 100 * 0.5 else "待機",
+            }
+        # 現在価格のゾーン判定
+        if _sr_sup and _sr_res:
+            sup_d = entry - _sr_sup[0]["price"]
+            res_d = _sr_res[0]["price"] - entry
+            range_w = sup_d + res_d
+            if range_w > 0:
+                pos_ratio = sup_d / range_w  # 0=サポート付近, 1=レジスタンス付近
+                if pos_ratio < 0.25:
+                    sr_entry_map["current_zone"] = "support_near"
+                elif pos_ratio > 0.75:
+                    sr_entry_map["current_zone"] = "resistance_near"
+                elif 0.4 <= pos_ratio <= 0.6:
+                    sr_entry_map["current_zone"] = "mid_range"
+                else:
+                    sr_entry_map["current_zone"] = "neutral"
+        # 推奨エントリー: デュアルシナリオの★推奨をそのまま引用
+        if dual_scenarios:
+            rec = dual_scenarios[0]
+            sr_entry_map["recommended"] = {
+                "direction": rec["direction"],
+                "entry": rec["entry"],
+                "sl": rec["sl"],
+                "tp": rec["tp"],
+                "rr": rec["rr"],
+                "label": rec["label"],
+                "condition": rec["condition"],
+                "ema_confidence": rec.get("ema_confidence", 0),
+                "sr_basis": rec["trigger_price"],
+            }
+    except Exception:
+        pass
+
     return {
         "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
         "entry": round(entry, 3), "signal": signal, "confidence": conf,
@@ -2259,6 +2322,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         "reasons": reasons, "mode": "daytrade",
         "entry_type": _dt_entry_type,
         "dual_scenarios": dual_scenarios,
+        "sr_entry_map": sr_entry_map,
         "score": round(score, 3),
         "indicators": {
             "ema9": round(ema9,3), "ema21": round(ema21,3),
