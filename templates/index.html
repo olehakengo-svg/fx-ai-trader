@@ -2872,7 +2872,7 @@ async function toggleDemo(mode){
   _syncDemoButtons();
   loadDemoStatus();
   if(!_demoPollTimer&&(_demoModes.daytrade||_demoModes.scalp)){
-    _demoPollTimer=setInterval(loadDemoStatus, 8000);
+    _demoPollTimer=setInterval(loadDemoStatus, 2000);
   }
   if(!_demoModes.daytrade&&!_demoModes.scalp&&_demoPollTimer){
     clearInterval(_demoPollTimer);_demoPollTimer=null;
@@ -2894,9 +2894,16 @@ function _syncDemoButtons(){
   }
 }
 
+let _demoStatusBusy=false;
+let _lastDemoLogHtml='';
 async function loadDemoStatus(){
+  if(_demoStatusBusy)return;
+  _demoStatusBusy=true;
   try{
-    const r=await fetch('/api/demo/status');
+    const ctrl=new AbortController();
+    const to=setTimeout(()=>ctrl.abort(),4000);
+    const r=await fetch('/api/demo/status',{signal:ctrl.signal});
+    clearTimeout(to);
     const d=await r.json();
     _demoRunning=d.running;
 
@@ -2945,9 +2952,9 @@ async function loadDemoStatus(){
     }
 
     // Stats
-    const stats=d.stats;
+    const stats=d.stats||{};
     const statsEl=document.getElementById('demo-stats');
-    if(stats&&stats.total>0){
+    if(stats.total>0){
       document.getElementById('ds-total').textContent=stats.total;
       document.getElementById('ds-wr').textContent=stats.win_rate+'%';
       document.getElementById('ds-wr').style.color=stats.win_rate>=40?'var(--green)':'var(--red)';
@@ -2958,27 +2965,37 @@ async function loadDemoStatus(){
       statsEl.style.display='block';
     }
 
-    // Log
+    // Log — 変更がある場合のみDOM更新（フリッカー防止）
     const logEl=document.getElementById('demo-log');
     if(d.recent_log&&d.recent_log.length>0){
-      logEl.innerHTML=d.recent_log.slice(-15).map(l=>{
+      const newHtml=d.recent_log.slice(-20).map(l=>{
         let cls='';
         if(l.includes('📥'))cls='demo-log-in';
         else if(l.includes('✅'))cls='demo-log-out-w';
         else if(l.includes('❌'))cls='demo-log-out-l';
         return `<div class="${cls}">${_h(l)}</div>`;
       }).join('');
-      logEl.scrollTop=logEl.scrollHeight;
+      if(newHtml!==_lastDemoLogHtml){
+        logEl.innerHTML=newHtml;
+        logEl.scrollTop=logEl.scrollHeight;
+        _lastDemoLogHtml=newHtml;
+      }
     }
+    // ログが空でも前回の表示を保持（消えない）
 
-    // Show learning + trades sections
-    document.getElementById('demo-learning').style.display=d.running||stats.total>0?'block':'none';
-    document.getElementById('demo-trades-table').style.display=stats&&stats.total>0?'block':'none';
+    // Show learning + trades sections — 一度表示したら隠さない
+    const learnEl=document.getElementById('demo-learning');
+    const tradesEl=document.getElementById('demo-trades-table');
+    if(d.running||stats.total>0) learnEl.style.display='block';
+    if(stats.total>0) tradesEl.style.display='block';
 
     // Load trade history
-    if(stats&&stats.total>0) loadDemoTrades();
+    if(stats.total>0) loadDemoTrades();
   }catch(e){
-    console.error('[DemoStatus]',e);
+    // 通信エラー時はDOMを更新しない（前回の表示を保持＝フリッカー防止）
+    if(e.name!=='AbortError') console.warn('[DemoStatus]',e.message||e);
+  }finally{
+    _demoStatusBusy=false;
   }
 }
 
