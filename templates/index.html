@@ -108,6 +108,11 @@ body{background:var(--bg0);color:var(--t1);
 .lv-label{font-size:11px;font-weight:600;color:var(--t3)}
 .lv-val{font-size:14px;font-weight:700;font-family:'SF Mono','Courier New',monospace}
 .lv-e .lv-val{color:var(--t1)}.lv-s .lv-val{color:var(--red)}.lv-t .lv-val{color:var(--green)}
+.demo-stat{display:inline-flex;flex-direction:column;align-items:center;background:var(--bg0);border-radius:4px;padding:3px 8px;min-width:45px}
+.demo-stat-lbl{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.3px}
+.demo-stat-val{font-size:12px;font-weight:700;color:var(--t1)}
+.demo-log-in{color:#22c55e}.demo-log-out-w{color:#22c55e}.demo-log-out-l{color:#ef4444}
+.demo-trade-row{display:flex;gap:4px;align-items:center;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03);font-size:9px}
 .rr-row{margin-top:8px;text-align:center;background:var(--bg0);
   border-radius:5px;padding:5px;font-size:11px;color:var(--t3)}
 .rr-row strong{color:var(--blue)}
@@ -624,6 +629,43 @@ body{background:var(--bg0);color:var(--t1);
     <div class="card">
       <div class="card-title">🧱 SMC — オーダーブロック / 流動性</div>
       <div id="smc-list"><div style="color:var(--t3);font-size:11px">読込中...</div></div>
+    </div>
+
+    <!-- Demo Trader -->
+    <div class="card" id="demo-card">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>🤖 デモトレーダー</span>
+        <div style="display:flex;gap:4px">
+          <button id="demo-start-btn" onclick="toggleDemo()" style="font-size:9px;padding:2px 8px;border-radius:4px;border:1px solid rgba(34,197,94,.4);background:rgba(34,197,94,.1);color:#22c55e;cursor:pointer">▶ 起動</button>
+        </div>
+      </div>
+      <div id="demo-status" style="font-size:10px;color:var(--t3);margin-bottom:4px">停止中</div>
+      <!-- Open Position -->
+      <div id="demo-open-pos" style="display:none;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:5px;padding:5px 8px;margin-bottom:6px"></div>
+      <!-- Stats -->
+      <div id="demo-stats" style="display:none">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+          <span class="demo-stat"><span class="demo-stat-lbl">Trades</span><span id="ds-total" class="demo-stat-val">0</span></span>
+          <span class="demo-stat"><span class="demo-stat-lbl">WR</span><span id="ds-wr" class="demo-stat-val">0%</span></span>
+          <span class="demo-stat"><span class="demo-stat-lbl">PnL</span><span id="ds-pnl" class="demo-stat-val">0p</span></span>
+          <span class="demo-stat"><span class="demo-stat-lbl">EV</span><span id="ds-ev" class="demo-stat-val">0</span></span>
+        </div>
+      </div>
+      <!-- Trade Log -->
+      <div id="demo-log" style="max-height:200px;overflow-y:auto;font-size:9px;font-family:'SF Mono',monospace;line-height:1.4;color:var(--t3)">
+        <div style="color:var(--t3)">起動すると取引ログが表示されます</div>
+      </div>
+      <!-- Learning -->
+      <div id="demo-learning" style="display:none;margin-top:6px;border-top:1px solid rgba(255,255,255,.05);padding-top:4px">
+        <div style="font-size:9px;font-weight:600;color:var(--blue);margin-bottom:2px">🧠 学習エンジン</div>
+        <div id="demo-insights" style="font-size:9px;color:var(--t3)"></div>
+        <button onclick="runDemoLearning()" style="font-size:8px;padding:1px 6px;border-radius:3px;border:1px solid rgba(99,102,241,.3);background:rgba(99,102,241,.08);color:#818cf8;cursor:pointer;margin-top:3px">学習実行</button>
+      </div>
+      <!-- Recent Trades Table -->
+      <div id="demo-trades-table" style="display:none;margin-top:6px;border-top:1px solid rgba(255,255,255,.05);padding-top:4px">
+        <div style="font-size:9px;font-weight:600;color:var(--t2);margin-bottom:3px">📋 トレード履歴</div>
+        <div id="demo-trades-list" style="max-height:180px;overflow-y:auto"></div>
+      </div>
     </div>
 
     <!-- Main signal -->
@@ -2811,15 +2853,162 @@ async function loadMoneyMgmt(){
   set('mm-months-needed', mn ? `目標到達: 約${mn}ヶ月` : '—');
 }
 
+// ── Demo Trader UI ──────────────────────────────────
+let _demoRunning=false;
+let _demoPollTimer=null;
+
+async function toggleDemo(){
+  const btn=document.getElementById('demo-start-btn');
+  if(_demoRunning){
+    await fetch('/api/demo/stop',{method:'POST'});
+    _demoRunning=false;
+    btn.textContent='▶ 起動';
+    btn.style.borderColor='rgba(34,197,94,.4)';
+    btn.style.color='#22c55e';
+    btn.style.background='rgba(34,197,94,.1)';
+    if(_demoPollTimer){clearInterval(_demoPollTimer);_demoPollTimer=null;}
+  }else{
+    await fetch('/api/demo/start',{method:'POST'});
+    _demoRunning=true;
+    btn.textContent='⏹ 停止';
+    btn.style.borderColor='rgba(239,68,68,.4)';
+    btn.style.color='#ef4444';
+    btn.style.background='rgba(239,68,68,.1)';
+    loadDemoStatus();
+    _demoPollTimer=setInterval(loadDemoStatus, 10000);
+  }
+}
+
+async function loadDemoStatus(){
+  try{
+    const r=await fetch('/api/demo/status');
+    const d=await r.json();
+    _demoRunning=d.running;
+
+    // Status text
+    const stEl=document.getElementById('demo-status');
+    stEl.innerHTML=d.running
+      ?'<span style="color:#22c55e">● 稼働中</span> <span style="color:var(--t3)">| 確度≥'+d.params.confidence_threshold+'%</span>'
+      :'<span style="color:var(--t3)">● 停止中</span>';
+
+    // Button sync
+    const btn=document.getElementById('demo-start-btn');
+    if(d.running){
+      btn.textContent='⏹ 停止';btn.style.color='#ef4444';btn.style.borderColor='rgba(239,68,68,.4)';btn.style.background='rgba(239,68,68,.1)';
+    }else{
+      btn.textContent='▶ 起動';btn.style.color='#22c55e';btn.style.borderColor='rgba(34,197,94,.4)';btn.style.background='rgba(34,197,94,.1)';
+    }
+
+    // Open position
+    const posEl=document.getElementById('demo-open-pos');
+    if(d.open_trades&&d.open_trades.length>0){
+      const t=d.open_trades[0];
+      const isBuy=t.direction==='BUY';
+      const price=_lastPrice||t.entry_price;
+      const unrealPnl=isBuy?((price-t.entry_price)*100):((t.entry_price-price)*100);
+      posEl.innerHTML=`
+        <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
+          <span style="font-size:12px">${isBuy?'🟢':'🔴'}</span>
+          <span style="font-weight:700;color:${isBuy?'var(--green)':'var(--red)'};font-size:11px">${t.direction}</span>
+          <span style="font-size:10px;color:var(--t2)">@ ${t.entry_price.toFixed(3)}</span>
+          <span style="font-size:9px;color:var(--t3);margin-left:auto">${_h(t.entry_type)}</span>
+        </div>
+        <div style="display:flex;gap:8px;font-size:9px;font-family:'SF Mono',monospace">
+          <span style="color:var(--red)">SL ${t.sl.toFixed(3)}</span>
+          <span style="color:var(--green)">TP ${t.tp.toFixed(3)}</span>
+          <span style="color:${unrealPnl>=0?'var(--green)':'var(--red)'}">P&L ${unrealPnl>=0?'+':''}${unrealPnl.toFixed(1)}p</span>
+        </div>`;
+      posEl.style.display='block';
+    }else{
+      posEl.style.display='none';
+    }
+
+    // Stats
+    const stats=d.stats;
+    const statsEl=document.getElementById('demo-stats');
+    if(stats&&stats.total>0){
+      document.getElementById('ds-total').textContent=stats.total;
+      document.getElementById('ds-wr').textContent=stats.win_rate+'%';
+      document.getElementById('ds-wr').style.color=stats.win_rate>=40?'var(--green)':'var(--red)';
+      document.getElementById('ds-pnl').textContent=(stats.total_pnl>=0?'+':'')+stats.total_pnl+'p';
+      document.getElementById('ds-pnl').style.color=stats.total_pnl>=0?'var(--green)':'var(--red)';
+      document.getElementById('ds-ev').textContent=(stats.ev>=0?'+':'')+stats.ev;
+      document.getElementById('ds-ev').style.color=stats.ev>=0?'var(--green)':'var(--red)';
+      statsEl.style.display='block';
+    }
+
+    // Log
+    const logEl=document.getElementById('demo-log');
+    if(d.recent_log&&d.recent_log.length>0){
+      logEl.innerHTML=d.recent_log.slice(-15).map(l=>{
+        let cls='';
+        if(l.includes('📥'))cls='demo-log-in';
+        else if(l.includes('✅'))cls='demo-log-out-w';
+        else if(l.includes('❌'))cls='demo-log-out-l';
+        return `<div class="${cls}">${_h(l)}</div>`;
+      }).join('');
+      logEl.scrollTop=logEl.scrollHeight;
+    }
+
+    // Show learning + trades sections
+    document.getElementById('demo-learning').style.display=d.running||stats.total>0?'block':'none';
+    document.getElementById('demo-trades-table').style.display=stats&&stats.total>0?'block':'none';
+
+    // Load trade history
+    if(stats&&stats.total>0) loadDemoTrades();
+  }catch(e){
+    console.error('[DemoStatus]',e);
+  }
+}
+
+async function loadDemoTrades(){
+  try{
+    const r=await fetch('/api/demo/trades?status=closed&limit=20');
+    const d=await r.json();
+    const list=document.getElementById('demo-trades-list');
+    if(!d.trades||!d.trades.length){list.innerHTML='<div style="color:var(--t3);font-size:9px">まだトレードなし</div>';return;}
+    list.innerHTML=d.trades.map(t=>{
+      const isW=t.outcome==='WIN';
+      const time=t.exit_time?t.exit_time.split('T')[1]?.substring(0,5)||'':'';
+      return `<div class="demo-trade-row">
+        <span style="color:${t.direction==='BUY'?'var(--green)':'var(--red)'};font-weight:600;width:28px">${t.direction}</span>
+        <span style="color:var(--t2);width:55px">${t.entry_price?.toFixed(3)||'—'}</span>
+        <span style="color:var(--t3)">→</span>
+        <span style="color:var(--t2);width:55px">${t.exit_price?.toFixed(3)||'—'}</span>
+        <span style="color:${isW?'var(--green)':'var(--red)'};font-weight:600;width:40px">${t.pnl_pips>=0?'+':''}${t.pnl_pips?.toFixed(1)||0}p</span>
+        <span style="color:${isW?'var(--green)':'var(--red)'}">  ${isW?'✅':'❌'}</span>
+        <span style="color:var(--t3);margin-left:auto;font-size:8px">${_h(t.entry_type)} ${time}</span>
+      </div>`;
+    }).join('');
+  }catch(e){}
+}
+
+async function runDemoLearning(){
+  try{
+    const r=await fetch('/api/demo/learning?run=true');
+    const d=await r.json();
+    const el=document.getElementById('demo-insights');
+    if(d.insights&&d.insights.length){
+      el.innerHTML=d.insights.slice(0,5).map(i=>`<div>${_h(i)}</div>`).join('');
+    }
+    if(d.adjustments&&d.adjustments.length){
+      el.innerHTML+='<div style="color:var(--gold);margin-top:2px">⚙️ '+d.adjustments.length+'件のパラメータ調整を適用</div>';
+    }
+    loadDemoStatus();
+  }catch(e){}
+}
+
 document.addEventListener('DOMContentLoaded',()=>{
   refreshAll(true).then(()=>startCountdown());
   loadBacktest();
   loadMoneyMgmt();
   startLivePriceTicker();
-  startTrendPoll();   // トレンドステータス30分ごとポーリング開始
-  startLayerPoll();   // Layer 0/1ステータス5分ごとポーリング開始
-  startRegimePoll();  // Market Regime + L2/L3 5分ごとポーリング開始
-  loadKPI();          // パフォーマンスKPI初回ロード
+  startTrendPoll();
+  startLayerPoll();
+  startRegimePoll();
+  loadKPI();
+  // Demo trader initial status check
+  loadDemoStatus();
 });
 </script>
 </body>

@@ -7605,10 +7605,121 @@ def api_price():
         return jsonify({"error": str(e)}), 500
 
 
+# ═══════════════════════════════════════════════════════
+#  Demo Trader — 自動デモトレードシステム
+# ═══════════════════════════════════════════════════════
+from modules.demo_db import DemoDB
+from modules.demo_trader import DemoTrader
+
+_demo_db = DemoDB(db_path=os.path.join(os.path.dirname(__file__), "demo_trades.db"))
+_demo_trader = DemoTrader(db=_demo_db, interval_sec=60)
+
+# ── トレードルール定義 ──
+TRADE_RULES = {
+    "rule_version": "1.0",
+    "description": "FX AI Trader シグナルベースのデモトレードルール",
+    "rules": [
+        "① エントリーは本ツールのAIシグナル（BUY/SELL）が発生した場合のみ行う",
+        "② 確度(confidence)が閾値以上の場合のみエントリー（初期値55%、学習で調整）",
+        "③ SR水平線の根拠があるシグナルを優先（dual_sr_bounce > dual_sr_breakout > ema_cross）",
+        "④ Layer0（取引禁止時間帯）が禁止の場合はエントリーしない",
+        "⑤ Layer1（大口バイアス）と逆方向のシグナルはエントリーしない",
+        "⑥ SL/TPはツールが算出した値を使用（学習エンジンによる微調整のみ許容）",
+        "⑦ シグナルが反転した場合は即座にポジションクローズ",
+        "⑧ 同時保有は最大1ポジション",
+        "⑨ 高ボラレジーム(HIGH_VOL)では全シグナルWAIT",
+        "⑩ 学習エンジンが除外したエントリータイプ・時間帯では取引しない",
+    ],
+    "learning_policy": [
+        "A. 失敗トレードの原因分析が最優先（なぜ負けたか→どのパラメータが原因か）",
+        "B. 勝率・EV・SLヒット率からパラメータを自動調整",
+        "C. エントリータイプ別・時間帯別・レジーム別の勝率を追跡",
+        "D. 低勝率のエントリータイプや時間帯は自動除外",
+        "E. 調整履歴は全てDBに記録（監査可能）",
+        "F. 最小サンプル10件未満では調整しない（過学習防止）",
+    ],
+}
+
+
+@app.route("/api/demo/status")
+def api_demo_status():
+    status = _demo_trader.get_status()
+    status["trade_rules"] = TRADE_RULES
+    return jsonify(status)
+
+
+@app.route("/api/demo/start", methods=["POST"])
+def api_demo_start():
+    result = _demo_trader.start()
+    return jsonify(result)
+
+
+@app.route("/api/demo/stop", methods=["POST"])
+def api_demo_stop():
+    result = _demo_trader.stop()
+    return jsonify(result)
+
+
+@app.route("/api/demo/trades")
+def api_demo_trades():
+    limit = request.args.get("limit", 50, type=int)
+    offset = request.args.get("offset", 0, type=int)
+    status_filter = request.args.get("status", "all")
+
+    if status_filter == "open":
+        trades = _demo_db.get_open_trades()
+    elif status_filter == "closed":
+        trades = _demo_db.get_closed_trades(limit=limit, offset=offset)
+    else:
+        open_t = _demo_db.get_open_trades()
+        closed_t = _demo_db.get_closed_trades(limit=limit, offset=offset)
+        trades = open_t + closed_t
+
+    return jsonify({"trades": trades, "count": len(trades)})
+
+
+@app.route("/api/demo/stats")
+def api_demo_stats():
+    stats = _demo_db.get_stats()
+    return jsonify(stats)
+
+
+@app.route("/api/demo/params", methods=["GET", "POST"])
+def api_demo_params():
+    if request.method == "POST":
+        updates = request.get_json() or {}
+        result = _demo_trader.set_params(updates)
+        return jsonify(result)
+    return jsonify(_demo_trader.get_params())
+
+
+@app.route("/api/demo/learning")
+def api_demo_learning():
+    # 手動学習トリガー or 履歴取得
+    trigger = request.args.get("run", "false").lower() == "true"
+    if trigger:
+        result = _demo_trader.run_learning()
+        return jsonify(result)
+    # 履歴のみ
+    adjustments = _demo_db.get_adjustments(limit=30)
+    learning_data = _demo_db.get_trades_for_learning()
+    return jsonify({
+        "adjustments": adjustments,
+        "analysis": learning_data,
+        "current_params": _demo_trader.get_params(),
+    })
+
+
+@app.route("/api/demo/rules")
+def api_demo_rules():
+    return jsonify(TRADE_RULES)
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print("=" * 55)
     print("  FX AI Trader v5  —  USD/JPY Swing Day Trade")
     print(f"  http://localhost:{port}")
+    print("  Demo Trader: /api/demo/start (POST) で起動")
     print("=" * 55)
     app.run(debug=False, port=port, host="0.0.0.0")
