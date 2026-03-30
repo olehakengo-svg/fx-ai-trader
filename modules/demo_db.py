@@ -251,14 +251,28 @@ class DemoDB:
             conn.close()
 
     def get_logs(self, limit: int = 100) -> list:
-        """Return recent logs formatted as '[HH:MM:SS] message', newest first."""
+        """Return recent logs formatted with date, newest first."""
         conn = self._conn()
         rows = conn.execute(
-            "SELECT timestamp, message FROM demo_logs ORDER BY id DESC LIMIT ?",
+            "SELECT timestamp, message, created_at FROM demo_logs ORDER BY id DESC LIMIT ?",
             (limit,),
         ).fetchall()
         conn.close()
-        return [f"[{r['timestamp']}] {r['message']}" for r in rows]
+        result = []
+        for r in rows:
+            # created_at has full datetime; extract date part for display
+            ca = r['created_at'] or ''
+            date_part = ca[:10] if len(ca) >= 10 else ''
+            ts = r['timestamp'] or ''
+            result.append(f"[{date_part} {ts}] {r['message']}")
+        return result
+
+    def get_log_count(self) -> int:
+        """Return total number of log entries."""
+        conn = self._conn()
+        count = conn.execute("SELECT COUNT(*) FROM demo_logs").fetchone()[0]
+        conn.close()
+        return count
 
     # ── Learning adjustments ──────────────────────────
 

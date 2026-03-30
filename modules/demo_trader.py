@@ -53,7 +53,14 @@ class DemoTrader:
         }
         self._trade_count_since_learn = 0
         self._last_signals = {}   # mode -> last signal dict
+        # 起動時にDBから過去ログを復元
         self._log = []
+        try:
+            db_logs = self._db.get_logs(500)
+            # get_logs returns newest-first, reverse for chronological order
+            self._log = list(reversed(db_logs))
+        except Exception:
+            pass
 
     # ── Public API ────────────────────────────────────
 
@@ -111,20 +118,13 @@ class DemoTrader:
                 "interval": cfg["interval_sec"],
                 "last_signal": self._last_signals.get(m),
             }
-        # Restore logs from DB if in-memory log is empty (restart recovery)
-        if not self._log:
-            try:
-                self._log = list(reversed(self._db.get_logs(200)))
-            except Exception:
-                pass
-
         return {
             "running": self.is_running(),
             "modes": modes_status,
             "params": self._params.copy(),
             "open_trades": open_trades,
             "stats": stats,
-            "recent_log": list(self._log[-200:]),
+            "recent_log": list(self._log[-500:]),
             "trades_since_learn": self._trade_count_since_learn,
         }
 
@@ -366,11 +366,13 @@ class DemoTrader:
                     self._params["session_blacklist"].append(h)
 
     def _add_log(self, msg: str):
-        ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
-        entry = f"[{ts}] {msg}"
+        now = datetime.now(timezone.utc)
+        ts = now.strftime("%H:%M:%S")
+        date_str = now.strftime("%Y-%m-%d")
+        entry = f"[{date_str} {ts}] {msg}"
         self._log.append(entry)
-        if len(self._log) > 200:
-            self._log = self._log[-200:]
+        if len(self._log) > 500:
+            self._log = self._log[-500:]
         try:
             self._db.add_log(ts, msg)
         except Exception:

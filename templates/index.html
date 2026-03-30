@@ -112,6 +112,7 @@ body{background:var(--bg0);color:var(--t1);
 .demo-stat-lbl{font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.3px}
 .demo-stat-val{font-size:12px;font-weight:700;color:var(--t1)}
 .demo-log-in{color:#22c55e}.demo-log-out-w{color:#22c55e}.demo-log-out-l{color:#ef4444}
+.demo-log-start{color:var(--blue);font-weight:600}
 .demo-trade-row{display:flex;gap:4px;align-items:center;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03);font-size:9px}
 .rr-row{margin-top:8px;text-align:center;background:var(--bg0);
   border-radius:5px;padding:5px;font-size:11px;color:var(--t3)}
@@ -2968,12 +2969,21 @@ async function loadDemoStatus(){
     // Log — 変更がある場合のみDOM更新（フリッカー防止）
     const logEl=document.getElementById('demo-log');
     if(d.recent_log&&d.recent_log.length>0){
+      let lastDate='';
       const newHtml=d.recent_log.map(l=>{
         let cls='';
         if(l.includes('📥'))cls='demo-log-in';
         else if(l.includes('✅'))cls='demo-log-out-w';
         else if(l.includes('❌'))cls='demo-log-out-l';
-        return `<div class="${cls}" style="padding:1px 0;border-bottom:1px solid rgba(255,255,255,.03)">${_h(l)}</div>`;
+        if(l.includes('モード起動'))cls+=' demo-log-start';
+        // Extract date for day separator
+        const dm=l.match(/^\[(\d{4}-\d{2}-\d{2})/);
+        let sep='';
+        if(dm&&dm[1]!==lastDate){
+          lastDate=dm[1];
+          sep=`<div style="text-align:center;font-size:8px;color:var(--blue);padding:3px 0;margin:2px 0;border-top:1px solid rgba(88,166,255,.15);font-weight:600">── ${lastDate} ──</div>`;
+        }
+        return sep+`<div class="${cls}" style="padding:1px 0;border-bottom:1px solid rgba(255,255,255,.03)">${_h(l)}</div>`;
       }).join('');
       if(newHtml!==_lastDemoLogHtml){
         const wasAtBottom=logEl.scrollHeight-logEl.scrollTop-logEl.clientHeight<30;
