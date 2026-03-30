@@ -174,7 +174,7 @@ tr:hover{background:rgba(255,255,255,.02)}
     <div class="table-wrap">
       <table id="trade-table">
         <thead>
-          <tr><th>#</th><th>モード</th><th>方向</th><th>Entry</th><th>Exit</th><th>PnL</th><th>R倍</th><th>結果</th><th>タイプ</th><th>理由</th><th>Entry時間</th><th>Exit時間</th></tr>
+          <tr><th>#</th><th>モード</th><th>方向</th><th>Entry</th><th>SL</th><th>TP</th><th>Exit</th><th>PnL</th><th>R倍</th><th>結果</th><th>理由</th><th>タイプ</th><th>Entry時間</th><th>Exit時間</th></tr>
         </thead>
         <tbody id="trade-tbody"></tbody>
       </table>
@@ -623,7 +623,7 @@ async function loadTradeTable(){
     const d=await r.json();
     const tbody=document.getElementById('trade-tbody');
     if(!d.trades||!d.trades.length){
-      tbody.innerHTML='<tr><td colspan="12" style="text-align:center;color:var(--t3)">まだトレードなし — デモトレーダーを起動してください</td></tr>';
+      tbody.innerHTML='<tr><td colspan="14" style="text-align:center;color:var(--t3)">まだトレードなし — デモトレーダーを起動してください</td></tr>';
       return;
     }
     const tfLabel={'1m':'スキャルプ','5m':'スキャルプ','15m':'デイトレ','30m':'デイトレ','1h':'スタンダード'};
@@ -646,12 +646,14 @@ async function loadTradeTable(){
         <td><span class="tag ${mTag}">${tfLabel[t.tf]||t.tf}</span></td>
         <td style="color:${dirCol};font-weight:600">${t.direction}</td>
         <td style="font-family:monospace">${fmt(t.entry_price)}</td>
+        <td style="font-family:monospace;color:var(--red)">${fmt(t.sl)}</td>
+        <td style="font-family:monospace;color:var(--green)">${fmt(t.tp)}</td>
         <td style="font-family:monospace">${fmt(t.exit_price)}</td>
         <td style="color:${pnlCol};font-weight:600">${pnlStr}p</td>
         <td>${rStr}</td>
         <td><span class="tag ${oTag}">${t.outcome||t.status||'OPEN'}</span></td>
+        <td style="font-size:9px;color:var(--t3);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_h(t.close_reason||reasons)}</td>
         <td style="font-size:10px">${_h(t.entry_type)}</td>
-        <td style="font-size:9px;color:var(--t3);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_h(reasons)}</td>
         <td style="font-size:9px;color:var(--t3)">${entryT}</td>
         <td style="font-size:9px;color:var(--t3)">${exitT}</td>
       </tr>`;

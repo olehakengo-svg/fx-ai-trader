@@ -3045,7 +3045,9 @@ async function loadDemoTrades(){
     list.innerHTML=d.trades.map(t=>{
       const isW=t.outcome==='WIN';
       const time=t.exit_time?t.exit_time.split('T')[1]?.substring(0,5)||'':'';
-      return `<div class="demo-trade-row">
+      const sl=t.sl?.toFixed(3)||'—';
+      const tp=t.tp?.toFixed(3)||'—';
+      return `<div class="demo-trade-row" style="flex-wrap:wrap">
         <span style="color:${t.direction==='BUY'?'var(--green)':'var(--red)'};font-weight:600;width:28px">${t.direction}</span>
         <span style="color:var(--t2);width:55px">${t.entry_price?.toFixed(3)||'—'}</span>
         <span style="color:var(--t3)">→</span>
@@ -3053,6 +3055,13 @@ async function loadDemoTrades(){
         <span style="color:${isW?'var(--green)':'var(--red)'};font-weight:600;width:40px">${t.pnl_pips>=0?'+':''}${t.pnl_pips?.toFixed(1)||0}p</span>
         <span style="color:${isW?'var(--green)':'var(--red)'}">  ${isW?'✅':'❌'}</span>
         <span style="color:var(--t3);margin-left:auto;font-size:8px">${_h(t.entry_type)} ${time}</span>
+        <div style="width:100%;font-size:8px;color:var(--t4);padding-left:28px;margin-top:1px">
+          <span style="color:var(--red)">SL ${sl}</span>
+          <span style="margin:0 4px">|</span>
+          <span style="color:var(--green)">TP ${tp}</span>
+          <span style="margin:0 4px">|</span>
+          <span>${t.close_reason||''}</span>
+        </div>
       </div>`;
     }).join('');
   }catch(e){}
