@@ -2578,11 +2578,13 @@ def compute_swing_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         score += candle_sc * 0.5
         reasons.extend(candle_rsns[:1])
 
-    # ⑨ ADX（スイングは低ADXでも有効: トレンド初期を捉えるため閾値低め）
+    # ⑨ ADX（スイングは低ADXでも有効: トレンド初期を捉えるため緩和）
     if adx > 20:
-        reasons.append(f"✅ ADX{adx:.0f}: トレンド強度確認")
+        score *= 1.1; reasons.append(f"✅ ADX{adx:.0f}: トレンド強度確認")
+    elif adx > 12:
+        reasons.append(f"⚠️ ADX{adx:.0f}: トレンド弱め（許容）")
     else:
-        score *= 0.75; reasons.append(f"⚠️ ADX{adx:.0f}: トレンド弱め")
+        score *= 0.85; reasons.append(f"⚠️ ADX{adx:.0f}<12: 弱トレンド")
 
     # ⑩ ダウ理論
     dow_sc, dow_rsn = dow_theory_analysis(df)
@@ -2595,8 +2597,8 @@ def compute_swing_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     fund_sc, fund_detail = fundamental_score()
     score += fund_sc * 0.3  # ファンダメンタル補完
 
-    # シグナル決定
-    THRESHOLD = 0.25
+    # シグナル決定（緩和版: 取引頻度UP）
+    THRESHOLD = 0.15
     if   score >  THRESHOLD: signal, conf = "BUY",  int(min(92, 50 + score * 10))
     elif score < -THRESHOLD: signal, conf = "SELL", int(min(92, 50 + abs(score) * 10))
     else:                    signal, conf = "WAIT", int(max(20, 50 - abs(score) * 12))
@@ -4374,58 +4376,55 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
             entry_type = None
 
             # ═══ Entry Type 1: EMA Trend (EMA21/50 + RSI + MACD方向) ═══
-            # フィルター: EMA200方向を推奨だが必須にしない
-            if sig is None and adx >= 15:
+            # 緩和版: EMA200必須→推奨、ADX/RSI範囲拡大
+            if sig is None and adx >= 10:
                 bull200 = close_p > ema200
-                if bull_trend and (macdh > macdh_p) and 35 <= rsi <= 75:
-                    if bull200:
-                        sig = "BUY"
-                        entry_type = "ema_trend"
-                elif bear_trend and (macdh < macdh_p) and 25 <= rsi <= 65:
-                    if not bull200:
-                        sig = "SELL"
-                        entry_type = "ema_trend"
+                if bull_trend and (macdh > macdh_p) and 30 <= rsi <= 80:
+                    sig = "BUY"
+                    entry_type = "ema_trend"
+                elif bear_trend and (macdh < macdh_p) and 20 <= rsi <= 70:
+                    sig = "SELL"
+                    entry_type = "ema_trend"
 
             # ═══ Entry Type 2: SR Bounce (水平線反発) ═══
             if sig is None and current_sr:
-                tol_sr = atr * 0.6
+                tol_sr = atr * 0.8   # 旧0.6 → 許容幅拡大
                 for sr in current_sr:
                     level = sr["price"]
                     strength = sr["strength"]
-                    # strength >= 0.3 で反発候補（スイングは緩め）
-                    if strength < 0.3:
+                    if strength < 0.2:   # 旧0.3 → 緩和
                         continue
-                    # BUY: サポートに接近 + 陽線 + RSI売られすぎゾーン
+                    # BUY: サポートに接近 + 陽線 + RSI制限緩和
                     if (abs(low_p - level) < tol_sr and close_p > open_p
-                            and close_p > level and rsi < 55 and bull_trend):
+                            and close_p > level and rsi < 65):
                         sig = "BUY"
                         entry_type = "sr_bounce"
                         break
-                    # SELL: レジスタンスに接近 + 陰線 + RSI買われすぎゾーン
+                    # SELL: レジスタンスに接近 + 陰線 + RSI制限緩和
                     if (abs(high_p - level) < tol_sr and close_p < open_p
-                            and close_p < level and rsi > 45 and bear_trend):
+                            and close_p < level and rsi > 35):
                         sig = "SELL"
                         entry_type = "sr_bounce"
                         break
 
-            # ═══ Entry Type 3: Strong SR Breakout (高信頼ブレイクアウト) ═══
+            # ═══ Entry Type 3: Strong SR Breakout (ブレイクアウト) ═══
             if sig is None and current_sr:
                 for sr in current_sr:
-                    if sr["touches"] < 3:
+                    if sr["touches"] < 2:    # 旧3 → 緩和
                         continue
-                    if sr["strength"] < 0.5:
+                    if sr["strength"] < 0.3:  # 旧0.5 → 緩和
                         continue
                     level = sr["price"]
-                    brk_margin = atr * 0.3
-                    # BUY breakout: 終値がレジスタンスを上抜け + 強い陽線
+                    brk_margin = atr * 0.25   # 旧0.3 → 小さめブレイクも検出
+                    # BUY breakout
                     if (close_p > level + brk_margin and open_p <= level + brk_margin
-                            and close_p > open_p and rsi > 50 and adx >= 12):
+                            and close_p > open_p and rsi > 40 and adx >= 8):
                         sig = "BUY"
                         entry_type = "strong_sr_breakout"
                         break
-                    # SELL breakout: 終値がサポートを下抜け + 強い陰線
+                    # SELL breakout
                     if (close_p < level - brk_margin and open_p >= level - brk_margin
-                            and close_p < open_p and rsi < 50 and adx >= 12):
+                            and close_p < open_p and rsi < 60 and adx >= 8):
                         sig = "SELL"
                         entry_type = "strong_sr_breakout"
                         break

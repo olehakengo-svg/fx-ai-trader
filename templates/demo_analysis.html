@@ -72,9 +72,9 @@ tr:hover{background:rgba(255,255,255,.02)}
     <!-- Demo Trader Controls -->
     <div style="display:flex;gap:4px;align-items:center;border:1px solid var(--bg2);border-radius:6px;padding:3px 8px">
       <span style="font-size:10px;color:var(--t3);margin-right:4px">デモ稼働:</span>
-      <button id="dt-btn" class="demo-btn demo-btn-dt" onclick="toggleDemo('daytrade')">📊 デイトレ ▶</button>
-      <button id="sc-btn" class="demo-btn demo-btn-sc" onclick="toggleDemo('scalp')">⚡ スキャルプ ▶</button>
-      <button id="sw-btn" class="demo-btn demo-btn-sw" onclick="toggleDemo('swing')">🌊 スイング ▶</button>
+      <button id="dt-btn" class="demo-btn demo-btn-dt" onclick="toggleDemo('daytrade')" style="min-width:80px">📊 デイトレ ▶</button>
+      <button id="sc-btn" class="demo-btn demo-btn-sc" onclick="toggleDemo('scalp')" style="min-width:90px">⚡ スキャルプ ▶</button>
+      <button id="sw-btn" class="demo-btn demo-btn-sw" onclick="toggleDemo('swing')" style="min-width:80px">🌊 スイング ▶</button>
       <span id="demo-status-text" style="font-size:9px;color:var(--t3);margin-left:4px">停止中</span>
     </div>
     <button class="btn btn-primary" onclick="runLearning()">🧠 学習実行</button>
