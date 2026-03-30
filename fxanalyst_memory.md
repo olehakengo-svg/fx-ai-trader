@@ -5,6 +5,16 @@
 
 ---
 
+## デプロイ情報
+
+| 項目 | URL |
+|------|-----|
+| 本番環境 (Render) | https://fx-ai-trader.onrender.com/ |
+| デモ分析ページ | https://fx-ai-trader.onrender.com/demo-analysis |
+| GitHub リポジトリ | https://github.com/olehakengo-svg/fx-ai-trader |
+
+---
+
 ## 戦略評価ログ
 
 | 日付 | 戦略 | タイムフレーム | WR | EV/trade | 判定 | メモ |
