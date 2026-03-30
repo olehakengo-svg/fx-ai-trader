@@ -239,20 +239,29 @@ async function toggleDemo(mode){
   }catch(e){console.error('Demo toggle error:',e)}
 }
 
-let _lastLogHtml='';  // ログ表示を保持（フリッカー防止）
+let _lastLogHtml='';
+let _lastLogCount=0;
 let _statusFetchInFlight=false;
 
 async function loadDemoStatus(){
-  if(_statusFetchInFlight)return;  // 前回のリクエストが未完了なら重複防止
+  if(_statusFetchInFlight)return;
   _statusFetchInFlight=true;
+  let r,d;
   try{
     const controller=new AbortController();
-    const timeout=setTimeout(()=>controller.abort(),4000);  // 4秒タイムアウト
-    const r=await fetch('/api/demo/status',{signal:controller.signal});
+    const timeout=setTimeout(()=>controller.abort(),4000);
+    r=await fetch('/api/demo/status',{signal:controller.signal});
     clearTimeout(timeout);
-    const d=await r.json();
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    d=await r.json();
+  }catch(e){
+    if(e.name!=='AbortError') console.warn('[DemoStatus fetch]',e.message||e);
+    _statusFetchInFlight=false;
+    return; // フェッチ失敗 → DOM一切触らない
+  }
 
-    // エラーレスポンスチェック（サーバー側で例外が発生した場合）
+  // ── フェッチ成功時のみDOM更新 ──
+  try{
     if(d.error){console.warn('[DemoStatus] Server error:',d.error)}
 
     const dtBtn=document.getElementById('dt-btn');
@@ -293,15 +302,17 @@ async function loadDemoStatus(){
           <span style="color:var(--t3);font-size:9px">${_h(t.entry_type)}</span>
         </div>`;
       }).join('');
-    }else{
+    }else if(posEl.style.display==='block'){
       posEl.style.display='none';
     }
 
-    // Log — 変更があった場合のみDOM更新（フリッカー防止）
-    const logEl=document.getElementById('demo-log');
-    if(d.recent_log&&d.recent_log.length){
+    // Log — ログ件数が変わった時だけDOM更新（フリッカー完全防止）
+    const logs=d.recent_log||[];
+    if(logs.length>0&&logs.length!==_lastLogCount){
+      _lastLogCount=logs.length;
+      const logEl=document.getElementById('demo-log');
       let lastDate='';
-      const newHtml=d.recent_log.map(l=>{
+      const newHtml=logs.map(l=>{
         let cls='';
         if(l.includes('📥'))cls='demo-log-in';
         else if(l.includes('✅'))cls='demo-log-out-w';
@@ -322,10 +333,9 @@ async function loadDemoStatus(){
         _lastLogHtml=newHtml;
       }
     }
-    // ログが空でも前回の表示を保持（消えない）
-  }catch(e){
-    // 通信エラー時はDOM更新しない（前回の表示を保持）
-    if(e.name!=='AbortError') console.warn('[DemoStatus]',e.message||e);
+    // ログが空 or 件数同じ → DOMを一切触らない
+  }catch(domErr){
+    console.warn('[DemoStatus DOM]',domErr.message||domErr);
   }finally{
     _statusFetchInFlight=false;
   }

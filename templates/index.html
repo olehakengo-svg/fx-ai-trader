@@ -2863,21 +2863,25 @@ let _demoPollTimer=null;
 async function toggleDemo(mode){
   const btnId=mode==='daytrade'?'demo-dt-btn':'demo-sc-btn';
   const btn=document.getElementById(btnId);
-  if(_demoModes[mode]){
-    await fetch('/api/demo/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});
-    _demoModes[mode]=false;
-  }else{
-    await fetch('/api/demo/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});
-    _demoModes[mode]=true;
-  }
+  try{
+    if(_demoModes[mode]){
+      await fetch('/api/demo/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});
+      _demoModes[mode]=false;
+    }else{
+      await fetch('/api/demo/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});
+      _demoModes[mode]=true;
+    }
+  }catch(e){console.warn('[toggleDemo]',e);}
   _syncDemoButtons();
-  loadDemoStatus();
+  // ポーリング管理（重複防止）
   if(!_demoPollTimer&&(_demoModes.daytrade||_demoModes.scalp)){
     _demoPollTimer=setInterval(loadDemoStatus, 2000);
   }
   if(!_demoModes.daytrade&&!_demoModes.scalp&&_demoPollTimer){
     clearInterval(_demoPollTimer);_demoPollTimer=null;
   }
+  // トグル後は少し待ってからステータス取得（サーバー反映待ち）
+  setTimeout(()=>loadDemoStatus(), 300);
 }
 
 function _syncDemoButtons(){
@@ -2897,15 +2901,29 @@ function _syncDemoButtons(){
 
 let _demoStatusBusy=false;
 let _lastDemoLogHtml='';
+let _lastDemoLogCount=0;
+let _demoTradesLoaded=false;
+let _demoLearnShown=false;
+let _demoTradesShown=false;
 async function loadDemoStatus(){
   if(_demoStatusBusy)return;
   _demoStatusBusy=true;
+  let r,d;
   try{
     const ctrl=new AbortController();
     const to=setTimeout(()=>ctrl.abort(),4000);
-    const r=await fetch('/api/demo/status',{signal:ctrl.signal});
+    r=await fetch('/api/demo/status',{signal:ctrl.signal});
     clearTimeout(to);
-    const d=await r.json();
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    d=await r.json();
+  }catch(e){
+    if(e.name!=='AbortError') console.warn('[DemoStatus fetch]',e.message||e);
+    _demoStatusBusy=false;
+    return; // ← フェッチ失敗時は何もしない（DOM保持）
+  }
+
+  // ── ここから先はフェッチ成功時のみ実行 ──
+  try{
     _demoRunning=d.running;
 
     // Status text (multi-mode)
@@ -2948,7 +2966,7 @@ async function loadDemoStatus(){
         </div>`;
       }).join('');
       posEl.style.display='block';
-    }else{
+    }else if(posEl.style.display==='block'){
       posEl.style.display='none';
     }
 
@@ -2966,17 +2984,18 @@ async function loadDemoStatus(){
       statsEl.style.display='block';
     }
 
-    // Log — 変更がある場合のみDOM更新（フリッカー防止）
-    const logEl=document.getElementById('demo-log');
-    if(d.recent_log&&d.recent_log.length>0){
+    // Log — ログ件数が変わった時だけDOM更新（フリッカー完全防止）
+    const logs=d.recent_log||[];
+    if(logs.length>0&&logs.length!==_lastDemoLogCount){
+      _lastDemoLogCount=logs.length;
+      const logEl=document.getElementById('demo-log');
       let lastDate='';
-      const newHtml=d.recent_log.map(l=>{
+      const newHtml=logs.map(l=>{
         let cls='';
         if(l.includes('📥'))cls='demo-log-in';
         else if(l.includes('✅'))cls='demo-log-out-w';
         else if(l.includes('❌'))cls='demo-log-out-l';
         if(l.includes('モード起動'))cls+=' demo-log-start';
-        // Extract date for day separator
         const dm=l.match(/^\[(\d{4}-\d{2}-\d{2})/);
         let sep='';
         if(dm&&dm[1]!==lastDate){
@@ -2992,19 +3011,26 @@ async function loadDemoStatus(){
         _lastDemoLogHtml=newHtml;
       }
     }
-    // ログが空でも前回の表示を保持（消えない）
+    // ログが空でもDOMを触らない（前回表示を完全保持）
 
-    // Show learning + trades sections — 一度表示したら隠さない
-    const learnEl=document.getElementById('demo-learning');
-    const tradesEl=document.getElementById('demo-trades-table');
-    if(d.running||stats.total>0) learnEl.style.display='block';
-    if(stats.total>0) tradesEl.style.display='block';
+    // Show learning + trades sections — 一度表示したら二度と隠さない
+    if(!_demoLearnShown&&(d.running||stats.total>0)){
+      document.getElementById('demo-learning').style.display='block';
+      _demoLearnShown=true;
+    }
+    if(!_demoTradesShown&&stats.total>0){
+      document.getElementById('demo-trades-table').style.display='block';
+      _demoTradesShown=true;
+    }
 
-    // Load trade history
-    if(stats.total>0) loadDemoTrades();
-  }catch(e){
-    // 通信エラー時はDOMを更新しない（前回の表示を保持＝フリッカー防止）
-    if(e.name!=='AbortError') console.warn('[DemoStatus]',e.message||e);
+    // Load trade history（初回のみ or stats変化時）
+    if(stats.total>0&&!_demoTradesLoaded){
+      _demoTradesLoaded=true;
+      loadDemoTrades();
+    }
+  }catch(domErr){
+    console.warn('[DemoStatus DOM]',domErr.message||domErr);
+    // DOM操作エラーでも何も消さない
   }finally{
     _demoStatusBusy=false;
   }
