@@ -3705,7 +3705,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 _dt_bt_cache: dict = {}
 
 def run_daytrade_backtest(symbol: str = "USDJPY=X",
-                          lookback_days: int = 90,
+                          lookback_days: int = 55,
                           interval: str = "15m") -> dict:
     """
     高頻度デイトレードBT（15m足 / 90日）
