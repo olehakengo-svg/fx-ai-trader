@@ -385,6 +385,10 @@ class DemoTrader:
             self._check_signal_reverse(trade, current_price, signal, confidence, mode)
 
         # 3. 新規エントリー判定
+        # 再取得（SIGNAL_REVERSEでクローズされた可能性）
+        open_trades = self._db.get_open_trades()
+        mode_trades = [t for t in open_trades if t.get("tf") == tf]
+
         if len(mode_trades) >= self._params["max_open_trades"]:
             return
         if signal == "WAIT":
@@ -393,6 +397,17 @@ class DemoTrader:
             return
         if entry_type in self._params["entry_type_blacklist"]:
             return
+
+        # ── 重複エントリー防止 ──
+        # 同方向のポジションが既にあればスキップ
+        existing_dirs = [t["direction"] for t in mode_trades]
+        if signal in existing_dirs:
+            return
+
+        # 直近エントリー価格と近すぎる場合スキップ（ノイズ防止）
+        for t in mode_trades:
+            if abs(t["entry_price"] - current_price) < 0.02:  # 2pips以内
+                return
 
         try:
             hour_now = datetime.now(timezone.utc).hour
@@ -460,13 +475,27 @@ class DemoTrader:
         direction = trade["direction"]
         trade_id = trade["trade_id"]
 
+        # 最低保持時間チェック（scalp:60秒, daytrade:5分, swing:1時間）
+        min_hold_sec = {"scalp": 60, "daytrade": 300, "swing": 3600}.get(mode, 60)
+        try:
+            entry_time = datetime.fromisoformat(trade["entry_time"])
+            if entry_time.tzinfo is None:
+                entry_time = entry_time.replace(tzinfo=timezone.utc)
+            age = (datetime.now(timezone.utc) - entry_time).total_seconds()
+            if age < min_hold_sec:
+                return  # 最低保持時間未達 → SIGNAL_REVERSE しない
+        except Exception:
+            pass
+
         close_reason = None
 
+        # SIGNAL_REVERSE は confidence が閾値より高い場合のみ
+        reverse_threshold = max(self._params["confidence_threshold"] + 10, 50)
         if (direction == "BUY" and new_signal == "SELL" and
-                new_conf >= self._params["confidence_threshold"]):
+                new_conf >= reverse_threshold):
             close_reason = "SIGNAL_REVERSE"
         elif (direction == "SELL" and new_signal == "BUY" and
-              new_conf >= self._params["confidence_threshold"]):
+              new_conf >= reverse_threshold):
             close_reason = "SIGNAL_REVERSE"
 
         if close_reason:
