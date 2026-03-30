@@ -5960,7 +5960,7 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             score += 1.5   # クロスオーバー確認ボーナス
         elif ema9_cross_down:
             score -= 1.5
-    score = max(-3.0, min(3.0, score))  # clamp before normalization
+    score = max(-8.0, min(8.0, score))  # clamp before normalization
 
     # ── SL / TP ── バックテスト最適値 (BEP=35.7%, EV=+0.052実証)
     # 旧: SL=0.7/TP=1.3 → BEP=35.0% / 新: SL=0.5/TP=0.9 → BEP=35.7%（同等・高頻度向け）
@@ -5968,17 +5968,21 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # 必須条件チェック（バックテストと同条件）
     has_pb        = any("EMA9プルバック" in r and ("BUYゾーン" in r or "SELLゾーン" in r) for r in reasons)
     has_rsi_reset = any("RSI5" in r and ("売られ過ぎ" in r or "リセット完了" in r or "買われ過ぎ" in r) for r in reasons)
-    if not has_pb:
-        reasons.append("⛔ EMA9プルバック未確認 → WAIT（押し目/戻り待機）")
-        signal, conf = "WAIT", int(max(15, 50 - abs(score) * 10))
-    elif not has_rsi_reset:
-        reasons.append("⛔ RSI5未リセット → WAIT（RSI5<45 or >55 を待機）")
-        signal, conf = "WAIT", int(max(15, 50 - abs(score) * 10))
-    elif abs(score) < 3.0:
-        reasons.append(f"⛔ スコア不足({score:.1f}<3.0) → WAIT")
-        signal, conf = "WAIT", int(max(15, 50 - abs(score) * 10))
-    elif score >  0: signal, conf = "BUY",  int(min(90, 50 + score * 8))
-    elif score <  0: signal, conf = "SELL", int(min(90, 50 + abs(score) * 8))
+    # スコア閾値: 2.0（旧3.0は厳しすぎて取引不能だった）
+    SCALP_SCORE_THRESHOLD = 2.0
+    if not has_pb and not has_rsi_reset:
+        # 両方欠ける場合のみ強制WAIT（片方あればスコアで判定）
+        reasons.append("⛔ EMA9プルバック・RSI5リセット未確認 → WAIT")
+        signal, conf = "WAIT", int(max(15, 50 - abs(score) * 5))
+    elif abs(score) < SCALP_SCORE_THRESHOLD:
+        missing = []
+        if not has_pb:   missing.append("プルバック未確認")
+        if not has_rsi_reset: missing.append("RSI5未リセット")
+        extra = f" ({', '.join(missing)})" if missing else ""
+        reasons.append(f"⛔ スコア不足({score:.1f}<{SCALP_SCORE_THRESHOLD}){extra} → WAIT")
+        signal, conf = "WAIT", int(max(15, 50 - abs(score) * 5))
+    elif score >  0: signal, conf = "BUY",  int(min(90, 50 + score * 5))
+    elif score <  0: signal, conf = "SELL", int(min(90, 50 + abs(score) * 5))
     else:            signal, conf = "WAIT", 20
 
     act = signal if signal != "WAIT" else ("BUY" if score >= 0 else "SELL")
