@@ -2165,18 +2165,18 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     dir_s = 1.0 if act_s == "BUY" else -1.0
 
     if _dt_entry_type == "dual_sr_bounce":
-        SL_MULT, TP_MULT = 0.5, 2.0
+        SL_MULT, TP_MULT = 0.6, 1.0
         # TP: 対面SRまでの距離
         if act_s == "BUY" and _dt_above:
             _tp_dist = abs(_dt_above[0]["price"] - entry) / max(atr, 1e-6)
             TP_MULT = min(_tp_dist * 0.95, 2.5)
         elif act_s == "SELL" and _dt_below:
             _tp_dist = abs(entry - _dt_below[0]["price"]) / max(atr, 1e-6)
-            TP_MULT = min(_tp_dist * 0.95, 2.5)
+            TP_MULT = min(_tp_dist * 0.85, 1.5)
     elif _dt_entry_type == "dual_sr_breakout":
-        SL_MULT, TP_MULT = 0.4, 2.0
+        SL_MULT, TP_MULT = 0.6, 1.2
     else:
-        SL_MULT, TP_MULT = 0.8, 2.0
+        SL_MULT, TP_MULT = 0.7, 1.0
 
     sl   = round(entry - atr * SL_MULT * dir_s, 3)
     tp   = round(entry + atr * TP_MULT * dir_s, 3)
@@ -3385,18 +3385,17 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             if entry_type == "tokyo_bb":
                 ep = ep + 0.005 if sig == "BUY" else ep - 0.005  # Tokyo session wider spread
 
-            # ── エントリータイプ別 SL/TP ──
+            # ── エントリータイプ別 SL/TP（WR50%+目標: RR≈1:1） ──
             if entry_type == "tokyo_bb":
-                sl_m, tp_m = 0.6, 1.0      # 平均回帰: タイトSL, BB中央狙い
+                sl_m, tp_m = 1.0, 0.75     # 平均回帰: 広SL, タイトTP確実回収
             elif entry_type == "sr_bounce":
-                sl_m, tp_m = 0.5, 1.5      # SR背後にSL, 中距離TP
-                # Strong SR (>= 0.6) はより信頼性が高いのでタイトSL
+                sl_m, tp_m = 0.9, 0.85     # SR背後に広めSL
                 if _sr_bounce_strong:
-                    sl_m *= 0.8
+                    sl_m *= 0.9
             elif entry_type == "ob_retest":
-                sl_m, tp_m = 0.6, 1.5      # OBゾーン背後にSL
+                sl_m, tp_m = 1.0, 0.85     # OBゾーン背後
             elif entry_type == "strong_sr_breakout":
-                sl_m, tp_m = 0.4, 1.8      # ブレイクレベル背後にタイトSL, 延伸TP
+                sl_m, tp_m = 0.8, 1.0      # ブレイク
             else:
                 sl_m, tp_m = SL_MULT, TP_MULT
 
@@ -4000,31 +3999,30 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             ep  = float(df.iloc[i+1]["Open"])
             ep  = ep + SPREAD/2 if sig == "BUY" else ep - SPREAD/2
 
-            # ── エントリータイプ別 SL/TP ──
+            # ── エントリータイプ別 SL/TP（WR50%+目標: RR≈1:1.3） ──
             if entry_type == "sr_fib_confluence":
-                sl_m, tp_m = 0.5, 1.5   # コンフルエンス背後にタイトSL
-                # Strong SR (>= 0.6) はより信頼性が高いのでタイトSL
+                sl_m, tp_m = 0.7, 0.9   # コンフルエンス: 信頼性高 → タイトTP確実回収
                 if _dt_sr_bounce_strong:
-                    sl_m *= 0.8
+                    sl_m *= 0.85
             elif entry_type == "ob_retest":
-                sl_m, tp_m = 0.5, 1.5   # OBゾーン背後にSL
+                sl_m, tp_m = 0.7, 0.9   # OBゾーン背後
             elif entry_type == "strong_sr_breakout":
-                sl_m, tp_m = 0.5, 2.0   # ブレイクレベル背後にタイトSL, 延伸TP
+                sl_m, tp_m = 0.6, 1.2   # ブレイク: やや広TP
             elif entry_type == "dual_sr_bounce":
-                sl_m, tp_m = 0.4, 1.2   # SR背後タイトSL, 対面SRまでTP
-                # TP: 対面SRまでの距離を使用
+                sl_m, tp_m = 0.6, 0.8   # SR背後広めSL, 対面SRまでタイトTP
+                # TP: 対面SRまでの距離（上限抑制）
                 if sig == "BUY" and _above_srs:
                     _target_sr = _above_srs[0]["price"]
                     _sr_dist = abs(_target_sr - ep) / max(atr, 1e-6)
                     if _sr_dist > 0.5:
-                        tp_m = min(_sr_dist * 0.95, 2.5)  # 対面SR×95%、上限2.5ATR
+                        tp_m = min(_sr_dist * 0.85, 1.5)
                 elif sig == "SELL" and _below_srs:
                     _target_sr = _below_srs[0]["price"]
                     _sr_dist = abs(ep - _target_sr) / max(atr, 1e-6)
                     if _sr_dist > 0.5:
-                        tp_m = min(_sr_dist * 0.95, 2.5)
+                        tp_m = min(_sr_dist * 0.85, 1.5)
             elif entry_type == "dual_sr_breakout":
-                sl_m, tp_m = 0.4, 2.0   # ブレイクレベル背後タイトSL
+                sl_m, tp_m = 0.6, 1.2   # ブレイク
             else:
                 sl_m, tp_m = SL_MULT, TP_MULT
 
@@ -5993,9 +5991,8 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             score -= 1.5
     score = max(-8.0, min(8.0, score))  # clamp before normalization
 
-    # ── SL / TP ── TP拡大で1トレードあたりの獲得pips UP
-    # 旧: SL=0.5/TP=0.9 → 新: SL=0.6/TP=1.8 (RR 1:3, BEP=25%)
-    SCALP_SL, SCALP_TP = 0.6, 1.8
+    # ── SL / TP ── WR50%+目標: SL広め・TP近め (RR≈1:1.1, BEP=48%)
+    SCALP_SL, SCALP_TP = 0.9, 1.0
     # 必須条件チェック（緩和版: 取引頻度重視、100pips/日目標）
     has_pb        = any("EMA9プルバック" in r and ("BUYゾーン" in r or "SELLゾーン" in r) for r in reasons)
     has_rsi_reset = any("RSI5" in r and ("売られ過ぎ" in r or "リセット完了" in r or "買われ過ぎ" in r or "中立圏" in r) for r in reasons)
