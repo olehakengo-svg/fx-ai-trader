@@ -71,10 +71,34 @@ class DemoDB:
                     created_at      TEXT DEFAULT CURRENT_TIMESTAMP
                 );
 
+                CREATE TABLE IF NOT EXISTS learning_results (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp       TEXT DEFAULT (datetime('now')),
+                    mode            TEXT NOT NULL,
+                    sample_size     INTEGER,
+                    overall_wr      REAL,
+                    overall_ev      REAL,
+                    data_json       TEXT,
+                    insights_json   TEXT,
+                    adjustments_json TEXT
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_trades_status ON demo_trades(status);
                 CREATE INDEX IF NOT EXISTS idx_trades_entry_type ON demo_trades(entry_type);
                 CREATE INDEX IF NOT EXISTS idx_trades_created ON demo_trades(created_at);
+                CREATE INDEX IF NOT EXISTS idx_trades_tf ON demo_trades(tf);
+                CREATE INDEX IF NOT EXISTS idx_learning_results_mode ON learning_results(mode);
             """)
+            # Add mode column to existing demo_trades if missing
+            try:
+                conn.execute("ALTER TABLE demo_trades ADD COLUMN mode TEXT DEFAULT ''")
+            except Exception:
+                pass  # column already exists
+            # Add mode column to learning_adjustments if missing
+            try:
+                conn.execute("ALTER TABLE learning_adjustments ADD COLUMN mode TEXT DEFAULT ''")
+            except Exception:
+                pass
             conn.commit()
             conn.close()
 
@@ -84,7 +108,8 @@ class DemoDB:
                    entry_type: str, confidence: int, tf: str = "15m",
                    reasons: list = None, regime: dict = None,
                    layer1_dir: str = "", score: float = 0.0,
-                   ema_conf: int = 0, sr_basis: float = 0.0) -> str:
+                   ema_conf: int = 0, sr_basis: float = 0.0,
+                   mode: str = "") -> str:
         """Record a new trade open. Returns trade_id."""
         trade_id = str(uuid.uuid4())[:12]
         now_str = datetime.now(timezone.utc).isoformat()
@@ -94,13 +119,13 @@ class DemoDB:
                 INSERT INTO demo_trades
                     (trade_id, status, direction, entry_price, entry_time,
                      sl, tp, entry_type, confidence, tf, reasons, regime,
-                     layer1_dir, score, ema_conf, sr_basis)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                     layer1_dir, score, ema_conf, sr_basis, mode)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """, (trade_id, "OPEN", direction, entry_price, now_str,
                   sl, tp, entry_type, confidence, tf,
                   json.dumps(reasons or [], ensure_ascii=False),
                   json.dumps(regime or {}, ensure_ascii=False),
-                  layer1_dir, score, ema_conf, sr_basis))
+                  layer1_dir, score, ema_conf, sr_basis, mode))
             conn.commit()
             conn.close()
         return trade_id
@@ -226,14 +251,15 @@ class DemoDB:
     # ── Learning adjustments ──────────────────────────
 
     def save_adjustment(self, parameter: str, old_val: float, new_val: float,
-                        reason: str, win_rate: float, ev: float, sample: int):
+                        reason: str, win_rate: float, ev: float, sample: int,
+                        mode: str = ""):
         with self._lock:
             conn = self._conn()
             conn.execute("""
                 INSERT INTO learning_adjustments
-                    (parameter, old_value, new_value, reason, win_rate_at, ev_at, sample_size)
-                VALUES (?,?,?,?,?,?,?)
-            """, (parameter, old_val, new_val, reason, win_rate, ev, sample))
+                    (parameter, old_value, new_value, reason, win_rate_at, ev_at, sample_size, mode)
+                VALUES (?,?,?,?,?,?,?,?)
+            """, (parameter, old_val, new_val, reason, win_rate, ev, sample, mode))
             conn.commit()
             conn.close()
 
@@ -285,9 +311,56 @@ class DemoDB:
         conn.close()
         return [dict(r) for r in rows]
 
-    def get_trades_for_learning(self, min_trades: int = 10) -> dict:
-        """Return structured data for the learning engine."""
+    def save_learning_result(self, mode: str, sample: int, wr: float, ev: float,
+                            data: dict, insights: list, adjustments: list):
+        """学習分析結果をDBに永続保存"""
+        with self._lock:
+            conn = self._conn()
+            conn.execute("""
+                INSERT INTO learning_results
+                    (mode, sample_size, overall_wr, overall_ev, data_json, insights_json, adjustments_json)
+                VALUES (?,?,?,?,?,?,?)
+            """, (mode, sample, wr, ev,
+                  json.dumps(data, ensure_ascii=False),
+                  json.dumps(insights, ensure_ascii=False),
+                  json.dumps(adjustments, ensure_ascii=False)))
+            conn.commit()
+            conn.close()
+
+    def get_learning_results(self, mode: str = None, limit: int = 50) -> list:
+        """学習分析履歴を取得"""
+        conn = self._conn()
+        if mode:
+            rows = conn.execute(
+                "SELECT * FROM learning_results WHERE mode=? ORDER BY timestamp DESC LIMIT ?",
+                (mode, limit)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM learning_results ORDER BY timestamp DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+        conn.close()
+        result = []
+        for r in rows:
+            d = dict(r)
+            for k in ("data_json", "insights_json", "adjustments_json"):
+                try:
+                    d[k] = json.loads(d[k]) if d[k] else {}
+                except Exception:
+                    pass
+            result.append(d)
+        return result
+
+    def get_trades_for_learning(self, min_trades: int = 10, mode: str = None) -> dict:
+        """Return structured data for the learning engine. mode でフィルタ可能"""
         closed = self.get_all_closed()
+        if mode:
+            # modeカラムがある場合はそれで、なければtfで推定
+            tf_map = {"daytrade": "15m", "scalp": "1m", "swing": "4h"}
+            target_tf = tf_map.get(mode, "")
+            closed = [t for t in closed if (t.get("mode") == mode) or
+                      (not t.get("mode") and t.get("tf") == target_tf)]
         if len(closed) < min_trades:
             return {"ready": False, "sample": len(closed), "min_required": min_trades}
 

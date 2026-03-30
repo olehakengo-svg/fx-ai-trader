@@ -29,6 +29,14 @@ MODE_CONFIG = {
         "label": "スキャルピング",
         "icon": "⚡",
     },
+    "swing": {
+        "interval_sec": 300,      # 5分ごとにチェック（スイングは低頻度）
+        "tf": "4h",
+        "period": "60d",
+        "signal_fn": "compute_swing_signal",
+        "label": "スイング",
+        "icon": "🌊",
+    },
 }
 
 
@@ -149,10 +157,19 @@ class DemoTrader:
             self._add_log(f"⚙️ パラメータ更新: {applied}")
         return {"applied": applied, "params": self._params.copy()}
 
-    def run_learning(self) -> dict:
-        result = self._engine.evaluate(self._params)
-        self._apply_adjustments(result.get("adjustments", []))
-        return result
+    def run_learning(self, mode: str = None) -> dict:
+        """手動学習トリガー。modeなしで全モード実行、指定で個別実行"""
+        if mode:
+            result = self._engine.evaluate(self._params, mode=mode)
+            self._apply_adjustments(result.get("adjustments", []))
+            return result
+        # 全モード分析
+        all_results = {}
+        for m in MODE_CONFIG.keys():
+            r = self._engine.evaluate(self._params, mode=m)
+            self._apply_adjustments(r.get("adjustments", []))
+            all_results[m] = r
+        return all_results
 
     # ── Main Loop (per mode) ──────────────────────────
 
@@ -177,6 +194,8 @@ class DemoTrader:
 
         if mode == "daytrade":
             from app import compute_daytrade_signal as compute_fn
+        elif mode == "swing":
+            from app import compute_swing_signal as compute_fn
         else:
             from app import compute_scalp_signal as compute_fn
 
@@ -276,6 +295,7 @@ class DemoTrader:
             score=sig.get("score", 0),
             ema_conf=ema_conf,
             sr_basis=sr_basis,
+            mode=mode,
         )
 
         self._add_log(
@@ -330,24 +350,31 @@ class DemoTrader:
 
             self._trade_count_since_learn += 1
             if self._trade_count_since_learn >= self._params["learn_every_n"]:
-                self._trigger_learning()
+                self._trigger_learning(current_mode=mode)
 
-    def _trigger_learning(self):
+    def _trigger_learning(self, current_mode: str = None):
         self._trade_count_since_learn = 0
-        try:
-            result = self._engine.evaluate(self._params)
-            adjustments = result.get("adjustments", [])
-            insights = result.get("insights", [])
+        # モード別に学習分析を実行
+        modes_to_learn = [current_mode] if current_mode else list(MODE_CONFIG.keys())
+        for mode in modes_to_learn:
+            try:
+                cfg = MODE_CONFIG.get(mode, {})
+                label = cfg.get("label", mode)
+                result = self._engine.evaluate(self._params, mode=mode)
+                adjustments = result.get("adjustments", [])
+                insights = result.get("insights", [])
 
-            if adjustments:
-                self._apply_adjustments(adjustments)
-                self._add_log(f"🧠 学習完了: {len(adjustments)}件の調整を適用")
-                for ins in insights[:3]:
-                    self._add_log(f"   {ins}")
-            else:
-                self._add_log(f"🧠 学習完了: 調整なし (WR {result['data'].get('overall_wr',0)}%)")
-        except Exception as e:
-            self._add_log(f"⚠️ 学習エラー: {e}")
+                if adjustments:
+                    self._apply_adjustments(adjustments)
+                    self._add_log(f"🧠 [{label}] 学習完了: {len(adjustments)}件の調整を適用")
+                    for ins in insights[:3]:
+                        self._add_log(f"   {ins}")
+                else:
+                    wr = result['data'].get('overall_wr', 0)
+                    sample = result['data'].get('sample', 0)
+                    self._add_log(f"🧠 [{label}] 学習完了: 調整なし (WR {wr}%, {sample}件)")
+            except Exception as e:
+                self._add_log(f"⚠️ [{mode}] 学習エラー: {e}")
 
     def _apply_adjustments(self, adjustments: list):
         for adj in adjustments:

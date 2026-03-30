@@ -20,18 +20,20 @@ class LearningEngine:
     def __init__(self, db: DemoDB):
         self._db = db
 
-    def evaluate(self, current_params: dict) -> dict:
+    def evaluate(self, current_params: dict, mode: str = None) -> dict:
         """
         過去トレードを分析し、パラメータ調整提案を返す。
+        mode を指定するとそのモードのトレードのみ分析。
 
         Returns:
             {
                 "adjustments": [{"param": str, "old": float, "new": float, "reason": str}],
                 "insights": [str],
-                "data": dict  # 分析に使ったデータ
+                "data": dict,
+                "mode": str
             }
         """
-        data = self._db.get_trades_for_learning(min_trades=MIN_SAMPLE)
+        data = self._db.get_trades_for_learning(min_trades=MIN_SAMPLE, mode=mode)
         if not data["ready"]:
             return {
                 "adjustments": [],
@@ -141,7 +143,9 @@ class LearningEngine:
         # 全体サマリー insight
         insights.insert(0, f"📋 全体: {sample}件, WR {overall_wr}%, EV {overall_ev}")
 
-        # DB記録
+        mode_label = mode or "all"
+
+        # DB記録 — 調整履歴
         for adj in adjustments:
             self._db.save_adjustment(
                 parameter=adj["param"],
@@ -151,10 +155,26 @@ class LearningEngine:
                 win_rate=overall_wr,
                 ev=overall_ev,
                 sample=sample,
+                mode=mode_label,
             )
+
+        # DB記録 — 学習分析結果を永続保存
+        try:
+            self._db.save_learning_result(
+                mode=mode_label,
+                sample=sample,
+                wr=overall_wr,
+                ev=overall_ev,
+                data=data,
+                insights=insights,
+                adjustments=adjustments,
+            )
+        except Exception:
+            pass
 
         return {
             "adjustments": adjustments,
             "insights": insights,
             "data": data,
+            "mode": mode_label,
         }

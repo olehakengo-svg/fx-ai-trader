@@ -7802,15 +7802,21 @@ def api_demo_params():
 def api_demo_learning():
     # 手動学習トリガー or 履歴取得
     trigger = request.args.get("run", "false").lower() == "true"
+    mode = request.args.get("mode")  # daytrade / scalp / swing / None(全モード)
     if trigger:
-        result = _demo_trader.run_learning()
+        result = _demo_trader.run_learning(mode=mode)
         return jsonify(result)
-    # 履歴のみ
+    # 履歴のみ — モード別分析データ + 過去の学習結果
+    results = {}
+    for m in ["daytrade", "scalp", "swing"]:
+        results[m] = {
+            "analysis": _demo_db.get_trades_for_learning(mode=m),
+            "history": _demo_db.get_learning_results(mode=m, limit=20),
+        }
     adjustments = _demo_db.get_adjustments(limit=30)
-    learning_data = _demo_db.get_trades_for_learning()
     return jsonify({
         "adjustments": adjustments,
-        "analysis": learning_data,
+        "by_mode": results,
         "current_params": _demo_trader.get_params(),
     })
 

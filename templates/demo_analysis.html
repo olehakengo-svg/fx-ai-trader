@@ -35,6 +35,7 @@ tr:hover{background:rgba(255,255,255,.02)}
 .tag-open{background:rgba(59,130,246,.12);color:var(--blue);border:1px solid rgba(59,130,246,.25)}
 .tag-dt{background:rgba(59,130,246,.12);color:var(--blue)}
 .tag-sc{background:rgba(245,158,11,.12);color:var(--gold)}
+.tag-sw{background:rgba(20,184,166,.12);color:#2dd4bf}
 .insight-card{background:var(--bg);border-radius:6px;padding:8px 12px;margin-bottom:6px;font-size:11px;border-left:3px solid var(--bg2)}
 .insight-good{border-left-color:var(--green)}
 .insight-bad{border-left-color:var(--red)}
@@ -49,6 +50,8 @@ tr:hover{background:rgba(255,255,255,.02)}
 .demo-btn-dt.active{background:rgba(59,130,246,.25);border-color:#60a5fa}
 .demo-btn-sc{border:1px solid rgba(245,158,11,.4);background:rgba(245,158,11,.08);color:#fbbf24}
 .demo-btn-sc.active{background:rgba(245,158,11,.25);border-color:#fbbf24}
+.demo-btn-sw{border:1px solid rgba(20,184,166,.4);background:rgba(20,184,166,.08);color:#2dd4bf}
+.demo-btn-sw.active{background:rgba(20,184,166,.25);border-color:#2dd4bf}
 .status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:3px}
 .status-dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
 .status-dot.off{background:var(--red)}
@@ -71,6 +74,7 @@ tr:hover{background:rgba(255,255,255,.02)}
       <span style="font-size:10px;color:var(--t3);margin-right:4px">デモ稼働:</span>
       <button id="dt-btn" class="demo-btn demo-btn-dt" onclick="toggleDemo('daytrade')">📊 デイトレ ▶</button>
       <button id="sc-btn" class="demo-btn demo-btn-sc" onclick="toggleDemo('scalp')">⚡ スキャルプ ▶</button>
+      <button id="sw-btn" class="demo-btn demo-btn-sw" onclick="toggleDemo('swing')">🌊 スイング ▶</button>
       <span id="demo-status-text" style="font-size:9px;color:var(--t3);margin-left:4px">停止中</span>
     </div>
     <button class="btn btn-primary" onclick="runLearning()">🧠 学習実行</button>
@@ -305,20 +309,25 @@ async function loadDemoStatus(){
 
     const dtBtn=document.getElementById('dt-btn');
     const scBtn=document.getElementById('sc-btn');
+    const swBtn=document.getElementById('sw-btn');
     const statusText=document.getElementById('demo-status-text');
     const modes=d.modes||{};
 
     const dtOn=modes.daytrade&&modes.daytrade.running;
     const scOn=modes.scalp&&modes.scalp.running;
+    const swOn=modes.swing&&modes.swing.running;
 
     dtBtn.textContent=dtOn?'📊 デイトレ ■':'📊 デイトレ ▶';
     dtBtn.className='demo-btn demo-btn-dt'+(dtOn?' active':'');
     scBtn.textContent=scOn?'⚡ スキャルプ ■':'⚡ スキャルプ ▶';
     scBtn.className='demo-btn demo-btn-sc'+(scOn?' active':'');
+    swBtn.textContent=swOn?'🌊 スイング ■':'🌊 スイング ▶';
+    swBtn.className='demo-btn demo-btn-sw'+(swOn?' active':'');
 
     const parts=[];
     if(dtOn)parts.push('📊デイトレ稼働中');
     if(scOn)parts.push('⚡スキャルプ稼働中');
+    if(swOn)parts.push('🌊スイング稼働中');
     statusText.innerHTML=parts.length?
       '<span class="status-dot on"></span>'+parts.join(' / '):
       '<span class="status-dot off"></span>停止中';
@@ -330,8 +339,8 @@ async function loadDemoStatus(){
       posEl.innerHTML=d.open_trades.map(t=>{
         const isBuy=t.direction==='BUY';
         const col=isBuy?'var(--green)':'var(--red)';
-        const mTag=(t.tf==='1m'||t.tf==='5m')?'tag-sc':'tag-dt';
-        const mLabel=(t.tf==='1m'||t.tf==='5m')?'⚡スキャルプ':'📊デイトレ';
+        const mTag=t.mode==='swing'?'tag-sw':(t.tf==='1m'||t.tf==='5m')?'tag-sc':'tag-dt';
+        const mLabel=t.mode==='swing'?'🌊スイング':(t.tf==='1m'||t.tf==='5m')?'⚡スキャルプ':'📊デイトレ';
         return `<div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:5px;padding:5px 10px;margin-bottom:4px;display:flex;align-items:center;gap:10px;font-size:11px">
           <span class="tag ${mTag}">${mLabel}</span>
           <span style="color:${col};font-weight:700">${t.direction}</span>
@@ -644,11 +653,11 @@ async function loadTradeTable(){
       tbody.innerHTML='<tr><td colspan="14" style="text-align:center;color:var(--t3)">まだトレードなし — デモトレーダーを起動してください</td></tr>';
       return;
     }
-    const tfLabel={'1m':'スキャルプ','5m':'スキャルプ','15m':'デイトレ','30m':'デイトレ','1h':'スタンダード'};
+    const tfLabel={'1m':'スキャルプ','5m':'スキャルプ','15m':'デイトレ','30m':'デイトレ','1h':'スタンダード','4h':'スイング','1d':'スイング'};
     tbody.innerHTML=d.trades.map((t,i)=>{
       const isWin=t.outcome==='WIN';
       const isBuy=t.direction==='BUY';
-      const mTag=t.tf==='1m'||t.tf==='5m'?'tag-sc':'tag-dt';
+      const mTag=t.mode==='swing'?'tag-sw':(t.tf==='1m'||t.tf==='5m')?'tag-sc':'tag-dt';
       const oTag=isWin?'tag-win':t.outcome==='LOSS'?'tag-loss':'tag-open';
       const fmt=v=>v!=null?v.toFixed(3):'—';
       const pnlStr=t.pnl_pips!=null?(t.pnl_pips>=0?'+':'')+t.pnl_pips.toFixed(1):'—';
