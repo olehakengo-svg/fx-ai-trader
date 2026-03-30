@@ -242,6 +242,45 @@ async function toggleDemo(mode){
 let _lastLogHtml='';
 let _lastLogCount=0;
 let _statusFetchInFlight=false;
+let _logFetchBusy=false;
+
+async function _fetchAndRenderLogs(){
+  if(_logFetchBusy)return;
+  _logFetchBusy=true;
+  try{
+    const r=await fetch('/api/demo/logs');
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const data=await r.json();
+    const logs=data.logs||[];
+    if(!logs.length){_logFetchBusy=false;return;}
+    const logEl=document.getElementById('demo-log');
+    let lastDate='';
+    const newHtml=logs.map(l=>{
+      let cls='';
+      if(l.includes('📥'))cls='demo-log-in';
+      else if(l.includes('✅'))cls='demo-log-out-w';
+      else if(l.includes('❌'))cls='demo-log-out-l';
+      if(l.includes('モード起動'))cls+=' demo-log-start';
+      const dm=l.match(/^\[(\d{4}-\d{2}-\d{2})/);
+      let sep='';
+      if(dm&&dm[1]!==lastDate){
+        lastDate=dm[1];
+        sep=`<div style="text-align:center;font-size:9px;color:var(--blue);padding:3px 0;margin:2px 0;border-top:1px solid rgba(88,166,255,.15);font-weight:600">── ${lastDate} ──</div>`;
+      }
+      return sep+`<div class="${cls}" style="padding:1px 0;border-bottom:1px solid rgba(255,255,255,.03)">${_h(l)}</div>`;
+    }).join('');
+    if(newHtml!==_lastLogHtml){
+      const wasAtBottom=logEl.scrollHeight-logEl.scrollTop-logEl.clientHeight<30;
+      logEl.innerHTML=newHtml;
+      if(wasAtBottom) logEl.scrollTop=logEl.scrollHeight;
+      _lastLogHtml=newHtml;
+    }
+  }catch(e){
+    console.warn('[LogFetch]',e.message||e);
+  }finally{
+    _logFetchBusy=false;
+  }
+}
 
 async function loadDemoStatus(){
   if(_statusFetchInFlight)return;
@@ -306,34 +345,13 @@ async function loadDemoStatus(){
       posEl.style.display='none';
     }
 
-    // Log — ログ件数が変わった時だけDOM更新（フリッカー完全防止）
-    const logs=d.recent_log||[];
-    if(logs.length>0&&logs.length!==_lastLogCount){
-      _lastLogCount=logs.length;
-      const logEl=document.getElementById('demo-log');
-      let lastDate='';
-      const newHtml=logs.map(l=>{
-        let cls='';
-        if(l.includes('📥'))cls='demo-log-in';
-        else if(l.includes('✅'))cls='demo-log-out-w';
-        else if(l.includes('❌'))cls='demo-log-out-l';
-        if(l.includes('モード起動'))cls+=' demo-log-start';
-        const dm=l.match(/^\[(\d{4}-\d{2}-\d{2})/);
-        let sep='';
-        if(dm&&dm[1]!==lastDate){
-          lastDate=dm[1];
-          sep=`<div style="text-align:center;font-size:9px;color:var(--blue);padding:3px 0;margin:2px 0;border-top:1px solid rgba(88,166,255,.15);font-weight:600">── ${lastDate} ──</div>`;
-        }
-        return sep+`<div class="${cls}" style="padding:1px 0;border-bottom:1px solid rgba(255,255,255,.03)">${_h(l)}</div>`;
-      }).join('');
-      if(newHtml!==_lastLogHtml){
-        const wasAtBottom=logEl.scrollHeight-logEl.scrollTop-logEl.clientHeight<30;
-        logEl.innerHTML=newHtml;
-        if(wasAtBottom) logEl.scrollTop=logEl.scrollHeight;
-        _lastLogHtml=newHtml;
-      }
+    // Log — ログ件数変化時のみログAPIを呼んでDOM更新（フリッカー完全防止）
+    const serverLogCount=d.log_count||0;
+    if(serverLogCount>0&&serverLogCount!==_lastLogCount){
+      _lastLogCount=serverLogCount;
+      _fetchAndRenderLogs();
     }
-    // ログが空 or 件数同じ → DOMを一切触らない
+    // ログ件数同じ → DOMを一切触らない
   }catch(domErr){
     console.warn('[DemoStatus DOM]',domErr.message||domErr);
   }finally{
@@ -692,7 +710,7 @@ async function runLearning(){
 
 // ── Load All ──
 async function loadAll(){
-  await Promise.all([loadStats(),loadEquity(),loadTradeChart(),loadLearning(),loadTradeTable(),loadDemoStatus()]);
+  await Promise.all([loadStats(),loadEquity(),loadTradeChart(),loadLearning(),loadTradeTable(),loadDemoStatus(),_fetchAndRenderLogs()]);
 }
 
 // ── Init ──

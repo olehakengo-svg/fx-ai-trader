@@ -7693,6 +7693,16 @@ def api_demo_status():
         })
 
 
+@app.route("/api/demo/logs")
+def api_demo_logs():
+    """全ログ履歴を返す（過去セッション含む）"""
+    try:
+        logs = _demo_trader.get_all_logs()
+        return jsonify({"logs": logs, "count": len(logs)})
+    except Exception as e:
+        return jsonify({"logs": [], "count": 0, "error": str(e)})
+
+
 @app.route("/api/demo/start", methods=["POST"])
 def api_demo_start():
     data = request.get_json(silent=True) or {}
