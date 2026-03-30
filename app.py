@@ -7676,9 +7676,17 @@ TRADE_RULES = {
 
 @app.route("/api/demo/status")
 def api_demo_status():
-    status = _demo_trader.get_status()
-    status["trade_rules"] = TRADE_RULES
-    return jsonify(status)
+    try:
+        status = _demo_trader.get_status()
+        status["trade_rules"] = TRADE_RULES
+        return jsonify(status)
+    except Exception as e:
+        print(f"[api_demo_status] Error: {e}")
+        return jsonify({
+            "running": False, "modes": {},
+            "params": {}, "open_trades": [], "stats": {},
+            "recent_log": [], "error": str(e),
+        })
 
 
 @app.route("/api/demo/start", methods=["POST"])

@@ -238,10 +238,22 @@ async function toggleDemo(mode){
   }catch(e){console.error('Demo toggle error:',e)}
 }
 
+let _lastLogHtml='';  // ログ表示を保持（フリッカー防止）
+let _statusFetchInFlight=false;
+
 async function loadDemoStatus(){
+  if(_statusFetchInFlight)return;  // 前回のリクエストが未完了なら重複防止
+  _statusFetchInFlight=true;
   try{
-    const r=await fetch('/api/demo/status');
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),4000);  // 4秒タイムアウト
+    const r=await fetch('/api/demo/status',{signal:controller.signal});
+    clearTimeout(timeout);
     const d=await r.json();
+
+    // エラーレスポンスチェック（サーバー側で例外が発生した場合）
+    if(d.error){console.warn('[DemoStatus] Server error:',d.error)}
+
     const dtBtn=document.getElementById('dt-btn');
     const scBtn=document.getElementById('sc-btn');
     const statusText=document.getElementById('demo-status-text');
@@ -269,8 +281,8 @@ async function loadDemoStatus(){
       posEl.innerHTML=d.open_trades.map(t=>{
         const isBuy=t.direction==='BUY';
         const col=isBuy?'var(--green)':'var(--red)';
-        const mTag=t.tf==='1m'?'tag-sc':'tag-dt';
-        const mLabel=t.tf==='1m'?'スキャルプ':'デイトレ';
+        const mTag=(t.tf==='1m'||t.tf==='5m')?'tag-sc':'tag-dt';
+        const mLabel=(t.tf==='1m'||t.tf==='5m')?'⚡スキャルプ':'📊デイトレ';
         return `<div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:5px;padding:5px 10px;margin-bottom:4px;display:flex;align-items:center;gap:10px;font-size:11px">
           <span class="tag ${mTag}">${mLabel}</span>
           <span style="color:${col};font-weight:700">${t.direction}</span>
@@ -284,14 +296,24 @@ async function loadDemoStatus(){
       posEl.style.display='none';
     }
 
-    // Log
+    // Log — 変更があった場合のみDOM更新（フリッカー防止）
     const logEl=document.getElementById('demo-log');
     if(d.recent_log&&d.recent_log.length){
-      logEl.innerHTML=d.recent_log.slice(-30).reverse().map(l=>
+      const newHtml=d.recent_log.slice(-50).reverse().map(l=>
         `<div style="padding:1px 0;border-bottom:1px solid rgba(255,255,255,.02)">${_h(l)}</div>`
       ).join('');
+      if(newHtml!==_lastLogHtml){
+        logEl.innerHTML=newHtml;
+        _lastLogHtml=newHtml;
+      }
     }
-  }catch(e){console.warn('[DemoStatus]',e)}
+    // ログが空でも前回の表示を保持（消えない）
+  }catch(e){
+    // 通信エラー時はDOM更新しない（前回の表示を保持）
+    if(e.name!=='AbortError') console.warn('[DemoStatus]',e.message||e);
+  }finally{
+    _statusFetchInFlight=false;
+  }
 }
 
 // ── Load Stats ──
@@ -650,9 +672,10 @@ async function loadAll(){
 document.addEventListener('DOMContentLoaded',()=>{
   initCharts();
   loadAll();
-  // Auto refresh: stats+equity+table every 30s, demo status every 5s
-  setInterval(()=>{loadStats();loadEquity();loadTradeTable()},30000);
-  setInterval(loadDemoStatus,5000);
+  // Auto refresh intervals
+  setInterval(loadDemoStatus,1000);         // ステータス+ログ: 1秒
+  setInterval(()=>{loadStats();loadEquity();loadTradeTable()},5000);  // 統計+P/L+履歴: 5秒
+  setInterval(loadTradeChart,10000);        // チャート: 10秒（データ取得が重いため）
 });
 </script>
 </body>
