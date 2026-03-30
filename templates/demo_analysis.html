@@ -11,7 +11,7 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px}
 a{color:var(--blue);text-decoration:none}
-.top-bar{background:var(--bg1);border-bottom:1px solid var(--bg2);padding:10px 20px;display:flex;align-items:center;gap:12px}
+.top-bar{background:var(--bg1);border-bottom:1px solid var(--bg2);padding:10px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .top-bar h1{font-size:16px;font-weight:700}
 .back-link{font-size:12px;color:var(--t2);padding:3px 10px;border:1px solid var(--bg2);border-radius:4px}
 .back-link:hover{background:var(--bg2)}
@@ -31,6 +31,7 @@ tr:hover{background:rgba(255,255,255,.02)}
 .tag{display:inline-block;font-size:8px;padding:1px 5px;border-radius:3px;font-weight:600}
 .tag-win{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.25)}
 .tag-loss{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.25)}
+.tag-open{background:rgba(59,130,246,.12);color:var(--blue);border:1px solid rgba(59,130,246,.25)}
 .tag-dt{background:rgba(59,130,246,.12);color:var(--blue)}
 .tag-sc{background:rgba(245,158,11,.12);color:var(--gold)}
 .insight-card{background:var(--bg);border-radius:6px;padding:8px 12px;margin-bottom:6px;font-size:11px;border-left:3px solid var(--bg2)}
@@ -38,13 +39,23 @@ tr:hover{background:rgba(255,255,255,.02)}
 .insight-bad{border-left-color:var(--red)}
 .insight-neutral{border-left-color:var(--blue)}
 .adj-item{font-size:10px;padding:4px 8px;background:var(--bg);border-radius:4px;margin-bottom:3px;display:flex;gap:8px;align-items:center}
-.btn{font-size:11px;padding:5px 14px;border-radius:5px;border:1px solid var(--bg2);background:var(--bg);color:var(--t1);cursor:pointer}
+.btn{font-size:11px;padding:5px 14px;border-radius:5px;border:1px solid var(--bg2);background:var(--bg);color:var(--t1);cursor:pointer;transition:background .15s}
 .btn:hover{background:var(--bg2)}
 .btn-primary{background:rgba(99,102,241,.15);border-color:rgba(99,102,241,.4);color:var(--purple)}
+.demo-btn{font-size:10px;padding:4px 12px;border-radius:5px;cursor:pointer;font-weight:600;transition:all .15s}
+.demo-btn:hover{filter:brightness(1.2)}
+.demo-btn-dt{border:1px solid rgba(59,130,246,.4);background:rgba(59,130,246,.08);color:#60a5fa}
+.demo-btn-dt.active{background:rgba(59,130,246,.25);border-color:#60a5fa}
+.demo-btn-sc{border:1px solid rgba(245,158,11,.4);background:rgba(245,158,11,.08);color:#fbbf24}
+.demo-btn-sc.active{background:rgba(245,158,11,.25);border-color:#fbbf24}
+.status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:3px}
+.status-dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
+.status-dot.off{background:var(--red)}
 #equity-chart{width:100%;height:250px}
 #trade-chart{width:100%;height:400px}
 .chart-legend{display:flex;gap:12px;font-size:10px;color:var(--t3);margin-top:4px}
 .legend-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:3px}
+.chart-msg{display:flex;align-items:center;justify-content:center;height:100%;color:var(--t3);font-size:12px}
 @media(max-width:900px){.grid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -53,7 +64,14 @@ tr:hover{background:rgba(255,255,255,.02)}
 <div class="top-bar">
   <h1>🧠 Demo Trading Analysis</h1>
   <a href="/" class="back-link">← メイン画面へ戻る</a>
-  <div style="margin-left:auto;display:flex;gap:6px">
+  <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+    <!-- Demo Trader Controls -->
+    <div style="display:flex;gap:4px;align-items:center;border:1px solid var(--bg2);border-radius:6px;padding:3px 8px">
+      <span style="font-size:10px;color:var(--t3);margin-right:4px">デモ稼働:</span>
+      <button id="dt-btn" class="demo-btn demo-btn-dt" onclick="toggleDemo('daytrade')">📊 デイトレ ▶</button>
+      <button id="sc-btn" class="demo-btn demo-btn-sc" onclick="toggleDemo('scalp')">⚡ スキャルプ ▶</button>
+      <span id="demo-status-text" style="font-size:9px;color:var(--t3);margin-left:4px">停止中</span>
+    </div>
     <button class="btn btn-primary" onclick="runLearning()">🧠 学習実行</button>
     <button class="btn" onclick="loadAll()">🔄 更新</button>
   </div>
@@ -73,6 +91,8 @@ tr:hover{background:rgba(255,255,255,.02)}
       <div class="stat-box"><div class="stat-label">Wins</div><div class="stat-val" id="s-wins" style="color:var(--green)">—</div></div>
       <div class="stat-box"><div class="stat-label">Losses</div><div class="stat-val" id="s-losses" style="color:var(--red)">—</div></div>
     </div>
+    <!-- Open Positions -->
+    <div id="open-positions" style="display:none;margin-bottom:8px"></div>
     <!-- Entry Type Breakdown -->
     <div id="type-breakdown" style="display:flex;gap:8px;flex-wrap:wrap"></div>
   </div>
@@ -90,12 +110,20 @@ tr:hover{background:rgba(255,255,255,.02)}
 
   <!-- Price Chart with IN/OUT markers -->
   <div class="card full">
-    <div class="card-title">📉 トレードチャート（IN/OUT描画）</div>
+    <div class="card-title">
+      📉 トレードチャート（IN/OUT描画）
+      <select id="chart-tf" onchange="reloadChart()" style="margin-left:auto;font-size:10px;padding:2px 6px;background:var(--bg);color:var(--t1);border:1px solid var(--bg2);border-radius:4px">
+        <option value="1m">1分足</option>
+        <option value="5m">5分足</option>
+        <option value="15m" selected>15分足</option>
+        <option value="1h">1時間足</option>
+      </select>
+    </div>
     <div id="trade-chart"></div>
     <div class="chart-legend">
       <span><span class="legend-dot" style="background:var(--green)"></span>BUY IN</span>
       <span><span class="legend-dot" style="background:var(--red)"></span>SELL IN</span>
-      <span>△ TP Hit &nbsp; ▽ SL Hit &nbsp; ◇ Signal Reverse</span>
+      <span>○ TP Hit &nbsp; □ SL Hit &nbsp; ◇ Signal Reverse</span>
     </div>
   </div>
 
@@ -129,6 +157,14 @@ tr:hover{background:rgba(255,255,255,.02)}
     <div id="time-analysis"></div>
   </div>
 
+  <!-- Demo Trader Log -->
+  <div class="card full">
+    <div class="card-title">📝 デモトレーダーログ</div>
+    <div id="demo-log" style="max-height:200px;overflow-y:auto;font-size:10px;font-family:monospace;color:var(--t3)">
+      <div>ログなし</div>
+    </div>
+  </div>
+
   <!-- Full Trade History -->
   <div class="card full">
     <div class="card-title">📋 全取引履歴</div>
@@ -147,7 +183,7 @@ tr:hover{background:rgba(255,255,255,.02)}
 <script>
 function _h(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
 
-let equityChart=null, equitySeries=null, markerSeries=null;
+let equityChart=null, equitySeries=null;
 let tradeChart=null, candleSeries=null;
 
 // ── Init Charts ──
@@ -180,6 +216,80 @@ function initCharts(){
     upColor:'#22c55e',downColor:'#ef4444',borderUpColor:'#22c55e',borderDownColor:'#ef4444',
     wickUpColor:'#22c55e',wickDownColor:'#ef4444',
   });
+}
+
+// ── Demo Trader Control ──
+async function toggleDemo(mode){
+  try{
+    const statusR=await fetch('/api/demo/status');
+    const statusD=await statusR.json();
+    const isRunning=statusD.modes&&statusD.modes[mode]&&statusD.modes[mode].running;
+    const action=isRunning?'stop':'start';
+    const r=await fetch(`/api/demo/${action}`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({mode:mode}),
+    });
+    const d=await r.json();
+    console.log(`Demo ${mode} ${action}:`,d);
+    setTimeout(loadDemoStatus,500);
+  }catch(e){console.error('Demo toggle error:',e)}
+}
+
+async function loadDemoStatus(){
+  try{
+    const r=await fetch('/api/demo/status');
+    const d=await r.json();
+    const dtBtn=document.getElementById('dt-btn');
+    const scBtn=document.getElementById('sc-btn');
+    const statusText=document.getElementById('demo-status-text');
+    const modes=d.modes||{};
+
+    const dtOn=modes.daytrade&&modes.daytrade.running;
+    const scOn=modes.scalp&&modes.scalp.running;
+
+    dtBtn.textContent=dtOn?'📊 デイトレ ■':'📊 デイトレ ▶';
+    dtBtn.className='demo-btn demo-btn-dt'+(dtOn?' active':'');
+    scBtn.textContent=scOn?'⚡ スキャルプ ■':'⚡ スキャルプ ▶';
+    scBtn.className='demo-btn demo-btn-sc'+(scOn?' active':'');
+
+    const parts=[];
+    if(dtOn)parts.push('📊デイトレ稼働中');
+    if(scOn)parts.push('⚡スキャルプ稼働中');
+    statusText.innerHTML=parts.length?
+      '<span class="status-dot on"></span>'+parts.join(' / '):
+      '<span class="status-dot off"></span>停止中';
+
+    // Open positions
+    const posEl=document.getElementById('open-positions');
+    if(d.open_trades&&d.open_trades.length){
+      posEl.style.display='block';
+      posEl.innerHTML=d.open_trades.map(t=>{
+        const isBuy=t.direction==='BUY';
+        const col=isBuy?'var(--green)':'var(--red)';
+        const mTag=t.tf==='1m'?'tag-sc':'tag-dt';
+        const mLabel=t.tf==='1m'?'スキャルプ':'デイトレ';
+        return `<div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:5px;padding:5px 10px;margin-bottom:4px;display:flex;align-items:center;gap:10px;font-size:11px">
+          <span class="tag ${mTag}">${mLabel}</span>
+          <span style="color:${col};font-weight:700">${t.direction}</span>
+          <span>@ ${t.entry_price?.toFixed(3)||'—'}</span>
+          <span style="color:var(--t3)">SL ${t.sl?.toFixed(3)||'—'}</span>
+          <span style="color:var(--t3)">TP ${t.tp?.toFixed(3)||'—'}</span>
+          <span style="color:var(--t3);font-size:9px">${_h(t.entry_type)}</span>
+        </div>`;
+      }).join('');
+    }else{
+      posEl.style.display='none';
+    }
+
+    // Log
+    const logEl=document.getElementById('demo-log');
+    if(d.recent_log&&d.recent_log.length){
+      logEl.innerHTML=d.recent_log.slice(-30).reverse().map(l=>
+        `<div style="padding:1px 0;border-bottom:1px solid rgba(255,255,255,.02)">${_h(l)}</div>`
+      ).join('');
+    }
+  }catch(e){console.warn('[DemoStatus]',e)}
 }
 
 // ── Load Stats ──
@@ -215,7 +325,12 @@ async function loadEquity(){
   try{
     const r=await fetch('/api/demo/equity');
     const d=await r.json();
-    if(!d.curve||!d.curve.length)return;
+    if(!d.curve||!d.curve.length){
+      // Show zero baseline
+      const now=Math.floor(Date.now()/1000);
+      equitySeries.setData([{time:now-3600,value:0},{time:now,value:0}]);
+      return;
+    }
 
     const data=d.curve.map((p,i)=>{
       let t;
@@ -225,56 +340,46 @@ async function loadEquity(){
 
     // Deduplicate timestamps
     const seen=new Set();
-    const unique=data.filter(p=>{if(seen.has(p.time)){return false}seen.add(p.time);return true});
+    const unique=data.filter(p=>{
+      if(seen.has(p.time)){p.time+=1}
+      if(seen.has(p.time))return false;
+      seen.add(p.time);return true;
+    });
 
     if(unique.length>0) equitySeries.setData(unique);
-
-    // Markers for wins/losses
-    const markers=d.curve.map((p,i)=>{
-      let t;
-      try{t=Math.floor(new Date(p.time).getTime()/1000)}catch(e){t=i*3600}
-      return {
-        time:t,
-        position:p.outcome==='WIN'?'aboveBar':'belowBar',
-        color:p.outcome==='WIN'?'#22c55e':'#ef4444',
-        shape:p.outcome==='WIN'?'circle':'circle',
-        text:p.pnl>=0?'+'+p.pnl.toFixed(1):p.pnl.toFixed(1),
-        size:0.5,
-      };
-    }).filter(m=>m.time>0).sort((a,b)=>a.time-b.time);
-
-    // Deduplicate marker times
-    const mSeen=new Set();
-    const mUnique=markers.filter(m=>{if(mSeen.has(m.time)){m.time+=1}mSeen.add(m.time);return true});
-    // Area series doesn't support markers directly, but we note the data
-  }catch(e){console.error(e)}
+  }catch(e){console.error('[Equity]',e)}
 }
 
 // ── Load Trade Chart ──
 async function loadTradeChart(){
   try{
-    // Fetch price data
-    const pr=await fetch('/api/price');
-    const pd=await pr.json();
+    const tf=document.getElementById('chart-tf').value;
 
-    // Fetch OHLCV for chart
-    const cr=await fetch('/api/signal?mode=daytrade');
-    const cd=await cr.json();
+    // Load candle data
+    const chartR=await fetch('/api/chart-data?tf='+tf);
+    const chartD=await chartR.json();
 
-    // Load 15m candles via dedicated endpoint or use existing
+    if(chartD.error){
+      console.warn('[ChartData] Error:',chartD.error);
+    }
+
+    if(chartD.candles&&chartD.candles.length){
+      // Deduplicate and sort
+      const seen=new Set();
+      const candles=chartD.candles
+        .filter(c=>{if(seen.has(c.time))return false;seen.add(c.time);return true;})
+        .sort((a,b)=>a.time-b.time);
+      candleSeries.setData(candles);
+      console.log(`[Chart] Loaded ${candles.length} candles (${tf})`);
+    }else{
+      console.warn('[Chart] No candle data returned');
+      // Show empty message
+    }
+
+    // Load trades and draw IN/OUT markers
     const dr=await fetch('/api/demo/trades?status=all&limit=200');
     const dd=await dr.json();
 
-    // Try to load candle data from the chart endpoint
-    try{
-      const chartR=await fetch('/api/chart-data?tf=15m');
-      const chartD=await chartR.json();
-      if(chartD.candles&&chartD.candles.length){
-        candleSeries.setData(chartD.candles);
-      }
-    }catch(e){}
-
-    // Draw IN/OUT markers
     if(dd.trades&&dd.trades.length){
       const markers=[];
       dd.trades.forEach(t=>{
@@ -283,7 +388,7 @@ async function loadTradeChart(){
         if(t.entry_time){
           try{
             const et=Math.floor(new Date(t.entry_time).getTime()/1000);
-            markers.push({
+            if(et>0)markers.push({
               time:et,
               position:isBuy?'belowBar':'aboveBar',
               color:isBuy?'#22c55e':'#ef4444',
@@ -294,12 +399,12 @@ async function loadTradeChart(){
           }catch(e){}
         }
         // Exit marker
-        if(t.exit_time&&t.exit_price){
+        if(t.exit_time&&t.exit_price!=null){
           try{
             const xt=Math.floor(new Date(t.exit_time).getTime()/1000);
             const isWin=t.outcome==='WIN';
             const shapeMap={TP_HIT:'circle',SL_HIT:'square',SIGNAL_REVERSE:'diamond'};
-            markers.push({
+            if(xt>0)markers.push({
               time:xt,
               position:isBuy?'aboveBar':'belowBar',
               color:isWin?'#22c55e':'#ef4444',
@@ -311,12 +416,19 @@ async function loadTradeChart(){
         }
       });
       markers.sort((a,b)=>a.time-b.time);
-      // Deduplicate
-      const seen=new Set();
-      markers.forEach(m=>{while(seen.has(m.time))m.time++;seen.add(m.time)});
+      // Deduplicate timestamps
+      const seen2=new Set();
+      markers.forEach(m=>{while(seen2.has(m.time))m.time++;seen2.add(m.time)});
       if(markers.length) candleSeries.setMarkers(markers);
     }
-  }catch(e){console.error(e)}
+
+    // Fit content
+    tradeChart.timeScale().fitContent();
+  }catch(e){console.error('[TradeChart]',e)}
+}
+
+function reloadChart(){
+  loadTradeChart();
 }
 
 // ── Load Learning Analysis ──
@@ -329,7 +441,7 @@ async function loadLearning(){
     const insEl=document.getElementById('learning-insights');
     const analysis=d.analysis||{};
     if(!analysis.ready){
-      insEl.innerHTML=`<div class="insight-card insight-neutral">データ不足: ${analysis.sample||0}/${analysis.min_required||10}件</div>`;
+      insEl.innerHTML=`<div class="insight-card insight-neutral">データ不足: ${analysis.sample||0}/${analysis.min_required||10}件のトレードが必要</div>`;
     }else{
       let html='';
       // Overall
@@ -451,7 +563,7 @@ async function loadTradeTable(){
     const d=await r.json();
     const tbody=document.getElementById('trade-tbody');
     if(!d.trades||!d.trades.length){
-      tbody.innerHTML='<tr><td colspan="12" style="text-align:center;color:var(--t3)">まだトレードなし</td></tr>';
+      tbody.innerHTML='<tr><td colspan="12" style="text-align:center;color:var(--t3)">まだトレードなし — デモトレーダーを起動してください</td></tr>';
       return;
     }
     const tfLabel={'1m':'スキャルプ','5m':'スキャルプ','15m':'デイトレ','30m':'デイトレ','1h':'スタンダード'};
@@ -459,7 +571,7 @@ async function loadTradeTable(){
       const isWin=t.outcome==='WIN';
       const isBuy=t.direction==='BUY';
       const mTag=t.tf==='1m'||t.tf==='5m'?'tag-sc':'tag-dt';
-      const oTag=isWin?'tag-win':'tag-loss';
+      const oTag=isWin?'tag-win':t.outcome==='LOSS'?'tag-loss':'tag-open';
       const fmt=v=>v!=null?v.toFixed(3):'—';
       const pnlStr=t.pnl_pips!=null?(t.pnl_pips>=0?'+':'')+t.pnl_pips.toFixed(1):'—';
       const rStr=t.pnl_r!=null?(t.pnl_r>=0?'+':'')+t.pnl_r.toFixed(2)+'R':'—';
@@ -467,15 +579,17 @@ async function loadTradeTable(){
       try{const rs=JSON.parse(t.reasons||'[]');reasons=rs.slice(0,2).join(', ')}catch(e){}
       const entryT=t.entry_time?t.entry_time.replace('T',' ').substring(0,19):'—';
       const exitT=t.exit_time?t.exit_time.replace('T',' ').substring(0,19):'—';
+      const dirCol=isBuy?'var(--green)':'var(--red)';
+      const pnlCol=t.pnl_pips>=0?'var(--green)':'var(--red)';
       return `<tr>
         <td>${d.trades.length-i}</td>
         <td><span class="tag ${mTag}">${tfLabel[t.tf]||t.tf}</span></td>
-        <td style="color:${isBuy?'var(--green)':'var(--red)';font-weight:600}">${t.direction}</td>
+        <td style="color:${dirCol};font-weight:600">${t.direction}</td>
         <td style="font-family:monospace">${fmt(t.entry_price)}</td>
         <td style="font-family:monospace">${fmt(t.exit_price)}</td>
-        <td style="color:${t.pnl_pips>=0?'var(--green)':'var(--red)'};font-weight:600">${pnlStr}p</td>
+        <td style="color:${pnlCol};font-weight:600">${pnlStr}p</td>
         <td>${rStr}</td>
-        <td><span class="tag ${oTag}">${t.outcome||t.status}</span></td>
+        <td><span class="tag ${oTag}">${t.outcome||t.status||'OPEN'}</span></td>
         <td style="font-size:10px">${_h(t.entry_type)}</td>
         <td style="font-size:9px;color:var(--t3);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_h(reasons)}</td>
         <td style="font-size:9px;color:var(--t3)">${entryT}</td>
@@ -516,15 +630,16 @@ async function runLearning(){
 
 // ── Load All ──
 async function loadAll(){
-  await Promise.all([loadStats(),loadEquity(),loadTradeChart(),loadLearning(),loadTradeTable()]);
+  await Promise.all([loadStats(),loadEquity(),loadTradeChart(),loadLearning(),loadTradeTable(),loadDemoStatus()]);
 }
 
 // ── Init ──
 document.addEventListener('DOMContentLoaded',()=>{
   initCharts();
   loadAll();
-  // Auto refresh every 30s
+  // Auto refresh: stats+equity+table every 30s, demo status every 5s
   setInterval(()=>{loadStats();loadEquity();loadTradeTable()},30000);
+  setInterval(loadDemoStatus,5000);
 });
 </script>
 </body>
