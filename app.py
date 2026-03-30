@@ -6166,6 +6166,11 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/demo-analysis")
+def demo_analysis_page():
+    return render_template("demo_analysis.html")
+
+
 @app.route("/api/performance")
 def api_performance():
     """
@@ -7686,6 +7691,52 @@ def api_demo_trades():
 def api_demo_stats():
     stats = _demo_db.get_stats()
     return jsonify(stats)
+
+
+@app.route("/api/demo/equity")
+def api_demo_equity():
+    """累積P/Lカーブ用データ"""
+    closed = _demo_db.get_all_closed()
+    cumulative = 0.0
+    curve = []
+    for t in closed:
+        cumulative += t.get("pnl_pips", 0)
+        curve.append({
+            "time": t.get("exit_time", t.get("entry_time", "")),
+            "pnl": t.get("pnl_pips", 0),
+            "cumulative": round(cumulative, 1),
+            "trade_id": t.get("trade_id", ""),
+            "direction": t.get("direction", ""),
+            "entry_type": t.get("entry_type", ""),
+            "outcome": t.get("outcome", ""),
+            "tf": t.get("tf", ""),
+        })
+    return jsonify({"curve": curve, "total_pnl": round(cumulative, 1), "count": len(curve)})
+
+
+@app.route("/api/chart-data")
+def api_chart_data():
+    """OHLCVキャンドルデータ（分析ページ用）"""
+    tf = request.args.get("tf", "15m")
+    period_map = {"1m": "1d", "5m": "5d", "15m": "5d", "1h": "30d", "4h": "60d", "1d": "120d"}
+    period = period_map.get(tf, "5d")
+    try:
+        df = fetch_ohlcv("USDJPY=X", period=period, interval=tf)
+        if df is None or df.empty:
+            return jsonify({"candles": [], "error": "No data"})
+        candles = []
+        for idx, row in df.iterrows():
+            ts = int(idx.timestamp()) if hasattr(idx, 'timestamp') else 0
+            candles.append({
+                "time": ts,
+                "open": round(float(row["Open"]), 3),
+                "high": round(float(row["High"]), 3),
+                "low": round(float(row["Low"]), 3),
+                "close": round(float(row["Close"]), 3),
+            })
+        return jsonify({"candles": candles, "tf": tf, "count": len(candles)})
+    except Exception as e:
+        return jsonify({"candles": [], "error": str(e)})
 
 
 @app.route("/api/demo/params", methods=["GET", "POST"])

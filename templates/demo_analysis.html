@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FX AI Trader — Demo Analysis</title>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+:root{--bg:#0d1117;--bg1:#161b22;--bg2:#1c2128;--t1:#e6edf3;--t2:#8b949e;--t3:#6e7681;
+--green:#22c55e;--red:#ef4444;--blue:#3b82f6;--gold:#fbbf24;--purple:#a78bfa}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px}
+a{color:var(--blue);text-decoration:none}
+.top-bar{background:var(--bg1);border-bottom:1px solid var(--bg2);padding:10px 20px;display:flex;align-items:center;gap:12px}
+.top-bar h1{font-size:16px;font-weight:700}
+.back-link{font-size:12px;color:var(--t2);padding:3px 10px;border:1px solid var(--bg2);border-radius:4px}
+.back-link:hover{background:var(--bg2)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px;max-width:1600px;margin:0 auto}
+.full{grid-column:1/-1}
+.card{background:var(--bg1);border:1px solid var(--bg2);border-radius:8px;padding:14px}
+.card-title{font-size:12px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.stat-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.stat-box{background:var(--bg);border-radius:6px;padding:8px 14px;text-align:center;min-width:80px;flex:1}
+.stat-label{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.3px}
+.stat-val{font-size:18px;font-weight:700;margin-top:2px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--bg2);color:var(--t3);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.3px}
+td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.03)}
+tr:hover{background:rgba(255,255,255,.02)}
+.tag{display:inline-block;font-size:8px;padding:1px 5px;border-radius:3px;font-weight:600}
+.tag-win{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.25)}
+.tag-loss{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.25)}
+.tag-dt{background:rgba(59,130,246,.12);color:var(--blue)}
+.tag-sc{background:rgba(245,158,11,.12);color:var(--gold)}
+.insight-card{background:var(--bg);border-radius:6px;padding:8px 12px;margin-bottom:6px;font-size:11px;border-left:3px solid var(--bg2)}
+.insight-good{border-left-color:var(--green)}
+.insight-bad{border-left-color:var(--red)}
+.insight-neutral{border-left-color:var(--blue)}
+.adj-item{font-size:10px;padding:4px 8px;background:var(--bg);border-radius:4px;margin-bottom:3px;display:flex;gap:8px;align-items:center}
+.btn{font-size:11px;padding:5px 14px;border-radius:5px;border:1px solid var(--bg2);background:var(--bg);color:var(--t1);cursor:pointer}
+.btn:hover{background:var(--bg2)}
+.btn-primary{background:rgba(99,102,241,.15);border-color:rgba(99,102,241,.4);color:var(--purple)}
+#equity-chart{width:100%;height:250px}
+#trade-chart{width:100%;height:400px}
+.chart-legend{display:flex;gap:12px;font-size:10px;color:var(--t3);margin-top:4px}
+.legend-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:3px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <h1>🧠 Demo Trading Analysis</h1>
+  <a href="/" class="back-link">← メイン画面へ戻る</a>
+  <div style="margin-left:auto;display:flex;gap:6px">
+    <button class="btn btn-primary" onclick="runLearning()">🧠 学習実行</button>
+    <button class="btn" onclick="loadAll()">🔄 更新</button>
+  </div>
+</div>
+
+<div class="grid">
+
+  <!-- Stats Overview -->
+  <div class="card full">
+    <div class="card-title">📊 パフォーマンスサマリー</div>
+    <div class="stat-row" id="stats-row">
+      <div class="stat-box"><div class="stat-label">Total Trades</div><div class="stat-val" id="s-total">—</div></div>
+      <div class="stat-box"><div class="stat-label">Win Rate</div><div class="stat-val" id="s-wr">—</div></div>
+      <div class="stat-box"><div class="stat-label">Total P/L</div><div class="stat-val" id="s-pnl">—</div></div>
+      <div class="stat-box"><div class="stat-label">EV / Trade</div><div class="stat-val" id="s-ev">—</div></div>
+      <div class="stat-box"><div class="stat-label">Avg R</div><div class="stat-val" id="s-avgr">—</div></div>
+      <div class="stat-box"><div class="stat-label">Wins</div><div class="stat-val" id="s-wins" style="color:var(--green)">—</div></div>
+      <div class="stat-box"><div class="stat-label">Losses</div><div class="stat-val" id="s-losses" style="color:var(--red)">—</div></div>
+    </div>
+    <!-- Entry Type Breakdown -->
+    <div id="type-breakdown" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+  </div>
+
+  <!-- Equity Curve -->
+  <div class="card full">
+    <div class="card-title">📈 累積P/Lカーブ</div>
+    <div id="equity-chart"></div>
+    <div class="chart-legend">
+      <span><span class="legend-dot" style="background:var(--blue)"></span>累積P/L (pips)</span>
+      <span><span class="legend-dot" style="background:var(--green)"></span>WIN</span>
+      <span><span class="legend-dot" style="background:var(--red)"></span>LOSS</span>
+    </div>
+  </div>
+
+  <!-- Price Chart with IN/OUT markers -->
+  <div class="card full">
+    <div class="card-title">📉 トレードチャート（IN/OUT描画）</div>
+    <div id="trade-chart"></div>
+    <div class="chart-legend">
+      <span><span class="legend-dot" style="background:var(--green)"></span>BUY IN</span>
+      <span><span class="legend-dot" style="background:var(--red)"></span>SELL IN</span>
+      <span>△ TP Hit &nbsp; ▽ SL Hit &nbsp; ◇ Signal Reverse</span>
+    </div>
+  </div>
+
+  <!-- Learning Insights -->
+  <div class="card">
+    <div class="card-title">🧠 学習エンジン分析</div>
+    <div id="learning-insights"><div style="color:var(--t3)">学習実行ボタンを押してください</div></div>
+    <div style="margin-top:8px">
+      <div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:4px">現在のパラメータ</div>
+      <div id="current-params" style="font-size:10px;color:var(--t3)"></div>
+    </div>
+  </div>
+
+  <!-- Adjustment History -->
+  <div class="card">
+    <div class="card-title">📋 調整履歴</div>
+    <div id="adj-history" style="max-height:350px;overflow-y:auto">
+      <div style="color:var(--t3);font-size:11px">まだ調整なし</div>
+    </div>
+  </div>
+
+  <!-- Entry Type Analysis -->
+  <div class="card">
+    <div class="card-title">🎯 エントリータイプ別分析</div>
+    <div id="type-analysis"></div>
+  </div>
+
+  <!-- Time/Regime Analysis -->
+  <div class="card">
+    <div class="card-title">⏰ 時間帯・レジーム別分析</div>
+    <div id="time-analysis"></div>
+  </div>
+
+  <!-- Full Trade History -->
+  <div class="card full">
+    <div class="card-title">📋 全取引履歴</div>
+    <div class="table-wrap">
+      <table id="trade-table">
+        <thead>
+          <tr><th>#</th><th>モード</th><th>方向</th><th>Entry</th><th>Exit</th><th>PnL</th><th>R倍</th><th>結果</th><th>タイプ</th><th>理由</th><th>Entry時間</th><th>Exit時間</th></tr>
+        </thead>
+        <tbody id="trade-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function _h(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
+
+let equityChart=null, equitySeries=null, markerSeries=null;
+let tradeChart=null, candleSeries=null;
+
+// ── Init Charts ──
+function initCharts(){
+  // Equity curve
+  const eqEl=document.getElementById('equity-chart');
+  equityChart=LightweightCharts.createChart(eqEl,{
+    layout:{background:{color:'#0d1117'},textColor:'#8b949e',fontSize:11},
+    grid:{vertLines:{color:'#1c2128'},horzLines:{color:'#1c2128'}},
+    rightPriceScale:{borderColor:'#30363d'},
+    timeScale:{borderColor:'#30363d',timeVisible:true},
+    height:250,
+  });
+  equitySeries=equityChart.addAreaSeries({
+    lineColor:'#3b82f6',topColor:'rgba(59,130,246,.3)',bottomColor:'rgba(59,130,246,.02)',
+    lineWidth:2,
+  });
+
+  // Trade chart
+  const tcEl=document.getElementById('trade-chart');
+  tradeChart=LightweightCharts.createChart(tcEl,{
+    layout:{background:{color:'#0d1117'},textColor:'#8b949e',fontSize:11},
+    grid:{vertLines:{color:'#1c2128'},horzLines:{color:'#1c2128'}},
+    rightPriceScale:{borderColor:'#30363d'},
+    timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},
+    crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+    height:400,
+  });
+  candleSeries=tradeChart.addCandlestickSeries({
+    upColor:'#22c55e',downColor:'#ef4444',borderUpColor:'#22c55e',borderDownColor:'#ef4444',
+    wickUpColor:'#22c55e',wickDownColor:'#ef4444',
+  });
+}
+
+// ── Load Stats ──
+async function loadStats(){
+  try{
+    const r=await fetch('/api/demo/stats');
+    const d=await r.json();
+    const set=(id,v,col)=>{const el=document.getElementById(id);if(el){el.textContent=v;if(col)el.style.color=col;}};
+    set('s-total',d.total||0);
+    set('s-wr',d.win_rate!=null?d.win_rate+'%':'—',d.win_rate>=40?'var(--green)':'var(--red)');
+    set('s-pnl',d.total_pnl!=null?(d.total_pnl>=0?'+':'')+d.total_pnl+'p':'—',d.total_pnl>=0?'var(--green)':'var(--red)');
+    set('s-ev',d.ev!=null?(d.ev>=0?'+':'')+d.ev:'—',d.ev>=0?'var(--green)':'var(--red)');
+    set('s-avgr',d.avg_r!=null?(d.avg_r>=0?'+':'')+d.avg_r+'R':'—');
+    set('s-wins',d.wins||0);
+    set('s-losses',d.losses||0);
+    // Type breakdown badges
+    const tb=document.getElementById('type-breakdown');
+    if(d.by_type&&tb){
+      tb.innerHTML=Object.entries(d.by_type).map(([k,v])=>{
+        const col=v.win_rate>=40?'var(--green)':v.win_rate>=30?'var(--gold)':'var(--red)';
+        return `<div style="background:var(--bg);border-radius:5px;padding:5px 10px;text-align:center">
+          <div style="font-size:9px;color:var(--t3)">${_h(k)}</div>
+          <div style="font-size:14px;font-weight:700;color:${col}">${v.win_rate}%</div>
+          <div style="font-size:9px;color:var(--t3)">${v.trades}件 / ${v.pnl>=0?'+':''}${v.pnl.toFixed(1)}p</div>
+        </div>`;
+      }).join('');
+    }
+  }catch(e){console.error(e)}
+}
+
+// ── Load Equity Curve ──
+async function loadEquity(){
+  try{
+    const r=await fetch('/api/demo/equity');
+    const d=await r.json();
+    if(!d.curve||!d.curve.length)return;
+
+    const data=d.curve.map((p,i)=>{
+      let t;
+      try{t=Math.floor(new Date(p.time).getTime()/1000)}catch(e){t=i*3600}
+      return {time:t,value:p.cumulative};
+    }).filter(p=>p.time>0).sort((a,b)=>a.time-b.time);
+
+    // Deduplicate timestamps
+    const seen=new Set();
+    const unique=data.filter(p=>{if(seen.has(p.time)){return false}seen.add(p.time);return true});
+
+    if(unique.length>0) equitySeries.setData(unique);
+
+    // Markers for wins/losses
+    const markers=d.curve.map((p,i)=>{
+      let t;
+      try{t=Math.floor(new Date(p.time).getTime()/1000)}catch(e){t=i*3600}
+      return {
+        time:t,
+        position:p.outcome==='WIN'?'aboveBar':'belowBar',
+        color:p.outcome==='WIN'?'#22c55e':'#ef4444',
+        shape:p.outcome==='WIN'?'circle':'circle',
+        text:p.pnl>=0?'+'+p.pnl.toFixed(1):p.pnl.toFixed(1),
+        size:0.5,
+      };
+    }).filter(m=>m.time>0).sort((a,b)=>a.time-b.time);
+
+    // Deduplicate marker times
+    const mSeen=new Set();
+    const mUnique=markers.filter(m=>{if(mSeen.has(m.time)){m.time+=1}mSeen.add(m.time);return true});
+    // Area series doesn't support markers directly, but we note the data
+  }catch(e){console.error(e)}
+}
+
+// ── Load Trade Chart ──
+async function loadTradeChart(){
+  try{
+    // Fetch price data
+    const pr=await fetch('/api/price');
+    const pd=await pr.json();
+
+    // Fetch OHLCV for chart
+    const cr=await fetch('/api/signal?mode=daytrade');
+    const cd=await cr.json();
+
+    // Load 15m candles via dedicated endpoint or use existing
+    const dr=await fetch('/api/demo/trades?status=all&limit=200');
+    const dd=await dr.json();
+
+    // Try to load candle data from the chart endpoint
+    try{
+      const chartR=await fetch('/api/chart-data?tf=15m');
+      const chartD=await chartR.json();
+      if(chartD.candles&&chartD.candles.length){
+        candleSeries.setData(chartD.candles);
+      }
+    }catch(e){}
+
+    // Draw IN/OUT markers
+    if(dd.trades&&dd.trades.length){
+      const markers=[];
+      dd.trades.forEach(t=>{
+        const isBuy=t.direction==='BUY';
+        // Entry marker
+        if(t.entry_time){
+          try{
+            const et=Math.floor(new Date(t.entry_time).getTime()/1000);
+            markers.push({
+              time:et,
+              position:isBuy?'belowBar':'aboveBar',
+              color:isBuy?'#22c55e':'#ef4444',
+              shape:isBuy?'arrowUp':'arrowDown',
+              text:'IN '+(t.entry_price?.toFixed(1)||''),
+              size:1.5,
+            });
+          }catch(e){}
+        }
+        // Exit marker
+        if(t.exit_time&&t.exit_price){
+          try{
+            const xt=Math.floor(new Date(t.exit_time).getTime()/1000);
+            const isWin=t.outcome==='WIN';
+            const shapeMap={TP_HIT:'circle',SL_HIT:'square',SIGNAL_REVERSE:'diamond'};
+            markers.push({
+              time:xt,
+              position:isBuy?'aboveBar':'belowBar',
+              color:isWin?'#22c55e':'#ef4444',
+              shape:shapeMap[t.close_reason]||'circle',
+              text:'OUT '+(t.pnl_pips>=0?'+':'')+t.pnl_pips?.toFixed(1)+'p',
+              size:1.5,
+            });
+          }catch(e){}
+        }
+      });
+      markers.sort((a,b)=>a.time-b.time);
+      // Deduplicate
+      const seen=new Set();
+      markers.forEach(m=>{while(seen.has(m.time))m.time++;seen.add(m.time)});
+      if(markers.length) candleSeries.setMarkers(markers);
+    }
+  }catch(e){console.error(e)}
+}
+
+// ── Load Learning Analysis ──
+async function loadLearning(){
+  try{
+    const r=await fetch('/api/demo/learning');
+    const d=await r.json();
+
+    // Insights from analysis data
+    const insEl=document.getElementById('learning-insights');
+    const analysis=d.analysis||{};
+    if(!analysis.ready){
+      insEl.innerHTML=`<div class="insight-card insight-neutral">データ不足: ${analysis.sample||0}/${analysis.min_required||10}件</div>`;
+    }else{
+      let html='';
+      // Overall
+      const wr=analysis.overall_wr||0;
+      const ev=analysis.overall_ev||0;
+      const cls=wr>=40?'insight-good':wr>=30?'insight-neutral':'insight-bad';
+      html+=`<div class="insight-card ${cls}">
+        <div style="font-weight:700">全体: WR ${wr}% / EV ${ev>=0?'+':''}${ev}</div>
+        <div style="color:var(--t3);font-size:10px">${analysis.sample}件のトレードを分析</div>
+      </div>`;
+      // By type
+      if(analysis.by_type){
+        html+='<div style="font-size:10px;font-weight:600;color:var(--t2);margin:8px 0 4px">エントリータイプ別</div>';
+        Object.entries(analysis.by_type).forEach(([k,v])=>{
+          const c=v.wr>=40?'insight-good':v.wr>=30?'insight-neutral':'insight-bad';
+          const verdict=v.wr>=40?'👍 良好':v.wr>=30?'➡️ 普通':'👎 要改善';
+          html+=`<div class="insight-card ${c}">
+            <span style="font-weight:600">${_h(k)}</span>: WR ${v.wr}% / EV ${v.ev>=0?'+':''}${v.ev} (${v.n}件)
+            <span style="margin-left:auto;font-size:10px">${verdict}</span>
+          </div>`;
+        });
+      }
+      insEl.innerHTML=html;
+    }
+
+    // Type analysis card
+    const taEl=document.getElementById('type-analysis');
+    if(analysis.by_type&&taEl){
+      let html='';
+      Object.entries(analysis.by_type).forEach(([k,v])=>{
+        const barW=Math.max(5,v.wr);
+        const col=v.wr>=40?'var(--green)':v.wr>=30?'var(--gold)':'var(--red)';
+        html+=`<div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px">
+            <span style="color:var(--t1);font-weight:600">${_h(k)}</span>
+            <span style="color:${col}">${v.wr}% (${v.n}件)</span>
+          </div>
+          <div style="height:6px;background:var(--bg);border-radius:3px;overflow:hidden">
+            <div style="width:${barW}%;height:100%;background:${col};border-radius:3px"></div>
+          </div>
+          <div style="font-size:9px;color:var(--t3);margin-top:1px">EV: ${v.ev>=0?'+':''}${v.ev} pips/trade</div>
+        </div>`;
+      });
+      taEl.innerHTML=html||'<div style="color:var(--t3)">データなし</div>';
+    }
+
+    // Time/regime analysis
+    const trEl=document.getElementById('time-analysis');
+    if(trEl){
+      let html='';
+      if(analysis.by_hour&&Object.keys(analysis.by_hour).length){
+        html+='<div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:4px">時間帯別</div>';
+        const hours=Object.entries(analysis.by_hour).sort((a,b)=>Number(a[0])-Number(b[0]));
+        html+='<div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:8px">';
+        hours.forEach(([h,v])=>{
+          const col=v.wr>=40?'var(--green)':v.wr>=30?'var(--gold)':'var(--red)';
+          html+=`<div style="background:var(--bg);border-radius:3px;padding:3px 6px;text-align:center;min-width:40px">
+            <div style="font-size:8px;color:var(--t3)">${h}h</div>
+            <div style="font-size:11px;font-weight:700;color:${col}">${v.wr}%</div>
+            <div style="font-size:8px;color:var(--t3)">${v.n}</div>
+          </div>`;
+        });
+        html+='</div>';
+      }
+      if(analysis.by_regime&&Object.keys(analysis.by_regime).length){
+        html+='<div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:4px">レジーム別</div>';
+        Object.entries(analysis.by_regime).forEach(([k,v])=>{
+          const col=v.wr>=40?'var(--green)':v.wr>=30?'var(--gold)':'var(--red)';
+          html+=`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.03)">
+            <span style="font-size:11px">${_h(k)}</span>
+            <span style="color:${col};font-size:11px;font-weight:600">${v.wr}% (${v.n}件, EV${v.ev>=0?'+':''}${v.ev})</span>
+          </div>`;
+        });
+      }
+      if(analysis.by_layer1&&Object.keys(analysis.by_layer1).length){
+        html+='<div style="font-size:10px;font-weight:600;color:var(--t2);margin:8px 0 4px">Layer1方向別</div>';
+        Object.entries(analysis.by_layer1).forEach(([k,v])=>{
+          const col=v.wr>=40?'var(--green)':v.wr>=30?'var(--gold)':'var(--red)';
+          html+=`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.03)">
+            <span style="font-size:11px">${_h(k)}</span>
+            <span style="color:${col};font-size:11px;font-weight:600">${v.wr}% (${v.n}件)</span>
+          </div>`;
+        });
+      }
+      trEl.innerHTML=html||'<div style="color:var(--t3)">データなし</div>';
+    }
+
+    // Params
+    const pEl=document.getElementById('current-params');
+    const params=d.current_params||{};
+    pEl.innerHTML=Object.entries(params).map(([k,v])=>{
+      const val=Array.isArray(v)?v.join(', ')||'なし':v;
+      return `<div style="display:flex;justify-content:space-between;padding:1px 0"><span>${_h(k)}</span><span style="color:var(--t1)">${_h(String(val))}</span></div>`;
+    }).join('');
+
+    // Adjustment history
+    const ahEl=document.getElementById('adj-history');
+    if(d.adjustments&&d.adjustments.length){
+      ahEl.innerHTML=d.adjustments.map(a=>{
+        const icon=a.parameter.includes('blacklist')?'🚫':a.parameter.includes('confidence')?'📈':'⚙️';
+        return `<div class="adj-item">
+          <span>${icon}</span>
+          <span style="color:var(--t1);font-weight:600;min-width:120px">${_h(a.parameter)}</span>
+          <span style="color:var(--red)">${a.old_value}</span>
+          <span style="color:var(--t3)">→</span>
+          <span style="color:var(--green)">${a.new_value}</span>
+          <span style="color:var(--t3);flex:1;font-size:9px">${_h(a.reason)}</span>
+          <span style="color:var(--t3);font-size:9px">${_h(a.timestamp?.split('T')[0]||'')}</span>
+        </div>`;
+      }).join('');
+    }
+  }catch(e){console.error(e)}
+}
+
+// ── Load Trade Table ──
+async function loadTradeTable(){
+  try{
+    const r=await fetch('/api/demo/trades?status=all&limit=200');
+    const d=await r.json();
+    const tbody=document.getElementById('trade-tbody');
+    if(!d.trades||!d.trades.length){
+      tbody.innerHTML='<tr><td colspan="12" style="text-align:center;color:var(--t3)">まだトレードなし</td></tr>';
+      return;
+    }
+    const tfLabel={'1m':'スキャルプ','5m':'スキャルプ','15m':'デイトレ','30m':'デイトレ','1h':'スタンダード'};
+    tbody.innerHTML=d.trades.map((t,i)=>{
+      const isWin=t.outcome==='WIN';
+      const isBuy=t.direction==='BUY';
+      const mTag=t.tf==='1m'||t.tf==='5m'?'tag-sc':'tag-dt';
+      const oTag=isWin?'tag-win':'tag-loss';
+      const fmt=v=>v!=null?v.toFixed(3):'—';
+      const pnlStr=t.pnl_pips!=null?(t.pnl_pips>=0?'+':'')+t.pnl_pips.toFixed(1):'—';
+      const rStr=t.pnl_r!=null?(t.pnl_r>=0?'+':'')+t.pnl_r.toFixed(2)+'R':'—';
+      let reasons='';
+      try{const rs=JSON.parse(t.reasons||'[]');reasons=rs.slice(0,2).join(', ')}catch(e){}
+      const entryT=t.entry_time?t.entry_time.replace('T',' ').substring(0,19):'—';
+      const exitT=t.exit_time?t.exit_time.replace('T',' ').substring(0,19):'—';
+      return `<tr>
+        <td>${d.trades.length-i}</td>
+        <td><span class="tag ${mTag}">${tfLabel[t.tf]||t.tf}</span></td>
+        <td style="color:${isBuy?'var(--green)':'var(--red)';font-weight:600}">${t.direction}</td>
+        <td style="font-family:monospace">${fmt(t.entry_price)}</td>
+        <td style="font-family:monospace">${fmt(t.exit_price)}</td>
+        <td style="color:${t.pnl_pips>=0?'var(--green)':'var(--red)'};font-weight:600">${pnlStr}p</td>
+        <td>${rStr}</td>
+        <td><span class="tag ${oTag}">${t.outcome||t.status}</span></td>
+        <td style="font-size:10px">${_h(t.entry_type)}</td>
+        <td style="font-size:9px;color:var(--t3);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_h(reasons)}</td>
+        <td style="font-size:9px;color:var(--t3)">${entryT}</td>
+        <td style="font-size:9px;color:var(--t3)">${exitT}</td>
+      </tr>`;
+    }).join('');
+  }catch(e){console.error(e)}
+}
+
+// ── Run Learning ──
+async function runLearning(){
+  try{
+    const r=await fetch('/api/demo/learning?run=true');
+    const d=await r.json();
+    // Show insights
+    const insEl=document.getElementById('learning-insights');
+    if(d.insights&&d.insights.length){
+      insEl.innerHTML=d.insights.map(ins=>{
+        const cls=ins.includes('好調')||ins.includes('良好')?'insight-good':
+                  ins.includes('低調')||ins.includes('除外')||ins.includes('引上げ')?'insight-bad':'insight-neutral';
+        return `<div class="insight-card ${cls}">${_h(ins)}</div>`;
+      }).join('');
+    }
+    if(d.adjustments&&d.adjustments.length){
+      insEl.innerHTML+=`<div class="insight-card insight-neutral" style="border-left-color:var(--purple)">
+        ⚙️ ${d.adjustments.length}件のパラメータ調整を適用しました
+      </div>`;
+      d.adjustments.forEach(a=>{
+        insEl.innerHTML+=`<div class="insight-card" style="font-size:10px;border-left-color:var(--gold)">
+          ${_h(a.param)}: ${a.old} → ${a.new} — ${_h(a.reason)}
+        </div>`;
+      });
+    }
+    // Reload everything
+    loadAll();
+  }catch(e){console.error(e)}
+}
+
+// ── Load All ──
+async function loadAll(){
+  await Promise.all([loadStats(),loadEquity(),loadTradeChart(),loadLearning(),loadTradeTable()]);
+}
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded',()=>{
+  initCharts();
+  loadAll();
+  // Auto refresh every 30s
+  setInterval(()=>{loadStats();loadEquity();loadTradeTable()},30000);
+});
+</script>
+</body>
+</html>
