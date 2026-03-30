@@ -7612,7 +7612,7 @@ from modules.demo_db import DemoDB
 from modules.demo_trader import DemoTrader
 
 _demo_db = DemoDB(db_path=os.path.join(os.path.dirname(__file__), "demo_trades.db"))
-_demo_trader = DemoTrader(db=_demo_db, interval_sec=60)
+_demo_trader = DemoTrader(db=_demo_db)
 
 # ── トレードルール定義 ──
 TRADE_RULES = {
@@ -7650,13 +7650,17 @@ def api_demo_status():
 
 @app.route("/api/demo/start", methods=["POST"])
 def api_demo_start():
-    result = _demo_trader.start()
+    data = request.get_json(silent=True) or {}
+    mode = data.get("mode", request.args.get("mode", "daytrade"))
+    result = _demo_trader.start(mode=mode)
     return jsonify(result)
 
 
 @app.route("/api/demo/stop", methods=["POST"])
 def api_demo_stop():
-    result = _demo_trader.stop()
+    data = request.get_json(silent=True) or {}
+    mode = data.get("mode", request.args.get("mode", None))
+    result = _demo_trader.stop(mode=mode)
     return jsonify(result)
 
 

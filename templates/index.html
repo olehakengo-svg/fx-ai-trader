@@ -635,11 +635,12 @@ body{background:var(--bg0);color:var(--t1);
     <div class="card" id="demo-card">
       <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
         <span>🤖 デモトレーダー</span>
-        <div style="display:flex;gap:4px">
-          <button id="demo-start-btn" onclick="toggleDemo()" style="font-size:9px;padding:2px 8px;border-radius:4px;border:1px solid rgba(34,197,94,.4);background:rgba(34,197,94,.1);color:#22c55e;cursor:pointer">▶ 起動</button>
-        </div>
       </div>
-      <div id="demo-status" style="font-size:10px;color:var(--t3);margin-bottom:4px">停止中</div>
+      <div style="display:flex;gap:4px;margin-bottom:6px">
+        <button id="demo-dt-btn" onclick="toggleDemo('daytrade')" style="font-size:9px;padding:2px 8px;border-radius:4px;border:1px solid rgba(59,130,246,.4);background:rgba(59,130,246,.08);color:#60a5fa;cursor:pointer">📊 デイトレ ▶</button>
+        <button id="demo-sc-btn" onclick="toggleDemo('scalp')" style="font-size:9px;padding:2px 8px;border-radius:4px;border:1px solid rgba(245,158,11,.4);background:rgba(245,158,11,.08);color:#fbbf24;cursor:pointer">⚡ スキャルプ ▶</button>
+      </div>
+      <div id="demo-status" style="font-size:10px;color:var(--t3);margin-bottom:4px">全モード停止中</div>
       <!-- Open Position -->
       <div id="demo-open-pos" style="display:none;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:5px;padding:5px 8px;margin-bottom:6px"></div>
       <!-- Stats -->
@@ -2853,29 +2854,42 @@ async function loadMoneyMgmt(){
   set('mm-months-needed', mn ? `目標到達: 約${mn}ヶ月` : '—');
 }
 
-// ── Demo Trader UI ──────────────────────────────────
-let _demoRunning=false;
+// ── Demo Trader UI (Multi-mode) ─────────────────────
+let _demoModes={daytrade:false,scalp:false};
 let _demoPollTimer=null;
 
-async function toggleDemo(){
-  const btn=document.getElementById('demo-start-btn');
-  if(_demoRunning){
-    await fetch('/api/demo/stop',{method:'POST'});
-    _demoRunning=false;
-    btn.textContent='▶ 起動';
-    btn.style.borderColor='rgba(34,197,94,.4)';
-    btn.style.color='#22c55e';
-    btn.style.background='rgba(34,197,94,.1)';
-    if(_demoPollTimer){clearInterval(_demoPollTimer);_demoPollTimer=null;}
+async function toggleDemo(mode){
+  const btnId=mode==='daytrade'?'demo-dt-btn':'demo-sc-btn';
+  const btn=document.getElementById(btnId);
+  if(_demoModes[mode]){
+    await fetch('/api/demo/stop',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});
+    _demoModes[mode]=false;
   }else{
-    await fetch('/api/demo/start',{method:'POST'});
-    _demoRunning=true;
-    btn.textContent='⏹ 停止';
-    btn.style.borderColor='rgba(239,68,68,.4)';
-    btn.style.color='#ef4444';
-    btn.style.background='rgba(239,68,68,.1)';
-    loadDemoStatus();
-    _demoPollTimer=setInterval(loadDemoStatus, 10000);
+    await fetch('/api/demo/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode})});
+    _demoModes[mode]=true;
+  }
+  _syncDemoButtons();
+  loadDemoStatus();
+  if(!_demoPollTimer&&(_demoModes.daytrade||_demoModes.scalp)){
+    _demoPollTimer=setInterval(loadDemoStatus, 8000);
+  }
+  if(!_demoModes.daytrade&&!_demoModes.scalp&&_demoPollTimer){
+    clearInterval(_demoPollTimer);_demoPollTimer=null;
+  }
+}
+
+function _syncDemoButtons(){
+  const dtBtn=document.getElementById('demo-dt-btn');
+  const scBtn=document.getElementById('demo-sc-btn');
+  if(_demoModes.daytrade){
+    dtBtn.textContent='📊 デイトレ ⏹';dtBtn.style.borderColor='rgba(239,68,68,.4)';dtBtn.style.color='#ef4444';dtBtn.style.background='rgba(239,68,68,.08)';
+  }else{
+    dtBtn.textContent='📊 デイトレ ▶';dtBtn.style.borderColor='rgba(59,130,246,.4)';dtBtn.style.color='#60a5fa';dtBtn.style.background='rgba(59,130,246,.08)';
+  }
+  if(_demoModes.scalp){
+    scBtn.textContent='⚡ スキャルプ ⏹';scBtn.style.borderColor='rgba(239,68,68,.4)';scBtn.style.color='#ef4444';scBtn.style.background='rgba(239,68,68,.08)';
+  }else{
+    scBtn.textContent='⚡ スキャルプ ▶';scBtn.style.borderColor='rgba(245,158,11,.4)';scBtn.style.color='#fbbf24';scBtn.style.background='rgba(245,158,11,.08)';
   }
 }
 
@@ -2885,39 +2899,45 @@ async function loadDemoStatus(){
     const d=await r.json();
     _demoRunning=d.running;
 
-    // Status text
+    // Status text (multi-mode)
     const stEl=document.getElementById('demo-status');
-    stEl.innerHTML=d.running
-      ?'<span style="color:#22c55e">● 稼働中</span> <span style="color:var(--t3)">| 確度≥'+d.params.confidence_threshold+'%</span>'
-      :'<span style="color:var(--t3)">● 停止中</span>';
+    const modes=d.modes||{};
+    const dtOn=modes.daytrade?.running;
+    const scOn=modes.scalp?.running;
+    _demoModes.daytrade=!!dtOn;
+    _demoModes.scalp=!!scOn;
+    _syncDemoButtons();
 
-    // Button sync
-    const btn=document.getElementById('demo-start-btn');
-    if(d.running){
-      btn.textContent='⏹ 停止';btn.style.color='#ef4444';btn.style.borderColor='rgba(239,68,68,.4)';btn.style.background='rgba(239,68,68,.1)';
-    }else{
-      btn.textContent='▶ 起動';btn.style.color='#22c55e';btn.style.borderColor='rgba(34,197,94,.4)';btn.style.background='rgba(34,197,94,.1)';
-    }
+    let stParts=[];
+    if(dtOn) stParts.push('<span style="color:#60a5fa">📊 デイトレ稼働</span>');
+    if(scOn) stParts.push('<span style="color:#fbbf24">⚡ スキャルプ稼働</span>');
+    if(!stParts.length) stParts.push('<span style="color:var(--t3)">● 全モード停止中</span>');
+    stEl.innerHTML=stParts.join(' ')+(d.params?' <span style="color:var(--t3);font-size:9px">| 確度≥'+d.params.confidence_threshold+'%</span>':'');
 
-    // Open position
+    // Open positions (multiple modes possible)
     const posEl=document.getElementById('demo-open-pos');
     if(d.open_trades&&d.open_trades.length>0){
-      const t=d.open_trades[0];
-      const isBuy=t.direction==='BUY';
-      const price=_lastPrice||t.entry_price;
-      const unrealPnl=isBuy?((price-t.entry_price)*100):((t.entry_price-price)*100);
-      posEl.innerHTML=`
-        <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
-          <span style="font-size:12px">${isBuy?'🟢':'🔴'}</span>
-          <span style="font-weight:700;color:${isBuy?'var(--green)':'var(--red)'};font-size:11px">${t.direction}</span>
-          <span style="font-size:10px;color:var(--t2)">@ ${t.entry_price.toFixed(3)}</span>
-          <span style="font-size:9px;color:var(--t3);margin-left:auto">${_h(t.entry_type)}</span>
-        </div>
-        <div style="display:flex;gap:8px;font-size:9px;font-family:'SF Mono',monospace">
-          <span style="color:var(--red)">SL ${t.sl.toFixed(3)}</span>
-          <span style="color:var(--green)">TP ${t.tp.toFixed(3)}</span>
-          <span style="color:${unrealPnl>=0?'var(--green)':'var(--red)'}">P&L ${unrealPnl>=0?'+':''}${unrealPnl.toFixed(1)}p</span>
+      const tfLabel={'1m':'⚡スキャ','5m':'⚡スキャ','15m':'📊デイトレ','30m':'📊デイトレ','1h':'📊デイトレ'};
+      posEl.innerHTML=d.open_trades.map(t=>{
+        const isBuy=t.direction==='BUY';
+        const price=_lastPrice||t.entry_price;
+        const unrealPnl=isBuy?((price-t.entry_price)*100):((t.entry_price-price)*100);
+        const mLabel=tfLabel[t.tf]||t.tf;
+        return `<div style="margin-bottom:4px">
+          <div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">
+            <span style="font-size:8px;background:rgba(99,102,241,.15);color:#818cf8;padding:0 3px;border-radius:2px">${mLabel}</span>
+            <span style="font-size:11px">${isBuy?'🟢':'🔴'}</span>
+            <span style="font-weight:700;color:${isBuy?'var(--green)':'var(--red)'};font-size:11px">${t.direction}</span>
+            <span style="font-size:10px;color:var(--t2)">@ ${t.entry_price.toFixed(3)}</span>
+            <span style="font-size:9px;color:var(--t3);margin-left:auto">${_h(t.entry_type)}</span>
+          </div>
+          <div style="display:flex;gap:8px;font-size:9px;font-family:'SF Mono',monospace">
+            <span style="color:var(--red)">SL ${t.sl.toFixed(3)}</span>
+            <span style="color:var(--green)">TP ${t.tp.toFixed(3)}</span>
+            <span style="color:${unrealPnl>=0?'var(--green)':'var(--red)'}">P&L ${unrealPnl>=0?'+':''}${unrealPnl.toFixed(1)}p</span>
+          </div>
         </div>`;
+      }).join('');
       posEl.style.display='block';
     }else{
       posEl.style.display='none';
