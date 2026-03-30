@@ -2,6 +2,9 @@
 Auto Demo Trader — Background threads that monitor daytrade/scalp signals
 and execute virtual trades with full IN/OUT recording.
 Supports simultaneous daytrade + scalp mode operation.
+
+v2: SL/TP判定をリアルタイム価格で高頻度チェック（2秒間隔）
+    シグナル計算とは分離し、判定遅延を解消
 """
 import threading
 import time
@@ -15,7 +18,7 @@ from modules.daily_review import DailyReviewEngine
 # モード別設定
 MODE_CONFIG = {
     "daytrade": {
-        "interval_sec": 30,       # 30秒ごとにチェック（旧60s → 頻度2倍）
+        "interval_sec": 30,       # 30秒ごとにシグナルチェック
         "tf": "15m",
         "period": "5d",
         "signal_fn": "compute_daytrade_signal",
@@ -23,7 +26,7 @@ MODE_CONFIG = {
         "icon": "📊",
     },
     "scalp": {
-        "interval_sec": 10,       # 10秒ごとにチェック（旧15s → 頻度1.5倍）
+        "interval_sec": 10,       # 10秒ごとにシグナルチェック
         "tf": "1m",
         "period": "1d",
         "signal_fn": "compute_scalp_signal",
@@ -40,6 +43,9 @@ MODE_CONFIG = {
     },
 }
 
+# SL/TPチェック間隔（秒）— シグナル計算とは独立して高頻度実行
+SLTP_CHECK_INTERVAL = 2
+
 
 class DemoTrader:
     def __init__(self, db: DemoDB):
@@ -50,6 +56,10 @@ class DemoTrader:
 
         # モード別ランナー管理
         self._runners = {}   # mode -> {"running": bool, "thread": Thread}
+
+        # SL/TPチェッカー（全モード共通、高頻度）
+        self._sltp_running = False
+        self._sltp_thread = None
 
         # デイリーレビューエンジンを自動起動
         self._daily_review.start()
@@ -88,6 +98,10 @@ class DemoTrader:
             )
             self._runners[mode]["thread"] = t
             t.start()
+
+            # SL/TPチェッカーが未起動なら起動
+            self._ensure_sltp_checker()
+
             self._add_log(f"{cfg['icon']} {cfg['label']}モード起動")
             return {"status": "started", "mode": mode}
 
@@ -103,6 +117,11 @@ class DemoTrader:
                     cfg = MODE_CONFIG.get(m, {})
                     self._add_log(f"🔴 {cfg.get('label', m)}モード停止")
                     stopped.append(m)
+
+            # 全モード停止ならSL/TPチェッカーも停止
+            if not self.is_running():
+                self._sltp_running = False
+
             return {"status": "stopped", "modes": stopped}
 
     def is_running(self, mode: str = None) -> bool:
@@ -139,6 +158,7 @@ class DemoTrader:
             "log_count": log_count,
             "trades_since_learn": self._trade_count_since_learn,
             "daily_review_active": self._daily_review.is_running(),
+            "sltp_checker_active": self._sltp_running,
         }
 
     def get_all_logs(self) -> list:
@@ -192,6 +212,112 @@ class DemoTrader:
             all_results[m] = r
         return all_results
 
+    # ── SL/TP Realtime Checker ────────────────────────
+    # シグナル計算とは独立して、リアルタイム価格で2秒ごとにSL/TPチェック
+
+    def _ensure_sltp_checker(self):
+        """SL/TPリアルタイムチェッカーを起動（未起動の場合のみ）"""
+        if self._sltp_running:
+            return
+        self._sltp_running = True
+        self._sltp_thread = threading.Thread(
+            target=self._sltp_loop, daemon=True,
+            name="DemoTrader-SLTP-Checker"
+        )
+        self._sltp_thread.start()
+
+    def _sltp_loop(self):
+        """2秒ごとにリアルタイム価格を取得してSL/TPチェック"""
+        while self._sltp_running:
+            try:
+                self._check_sltp_realtime()
+            except Exception as e:
+                print(f"[SLTP-Checker] Error: {e}")
+            time.sleep(SLTP_CHECK_INTERVAL)
+
+    def _get_realtime_price(self) -> float:
+        """
+        リアルタイム価格を最速で取得:
+        1. _price_cache（TwelveData/yfinance）が10秒以内なら使用
+        2. フォールバック: 1m足の最新Close
+        """
+        try:
+            from modules.data import _price_cache, _cache_lock
+            with _cache_lock:
+                pc = dict(_price_cache)
+            if pc.get("ts"):
+                ts = pc["ts"]
+                now = datetime.now(ts.tzinfo) if ts.tzinfo else datetime.now()
+                age = (now - ts).total_seconds()
+                if age < 15:  # 15秒以内のキャッシュなら使用
+                    return float(pc["data"]["price"])
+        except Exception:
+            pass
+
+        # フォールバック: 1m足のキャッシュ済み最新Close
+        try:
+            from app import fetch_ohlcv
+            df = fetch_ohlcv("USDJPY=X", period="1d", interval="1m")
+            if df is not None and len(df) > 0:
+                return float(df.iloc[-1]["Close"])
+        except Exception:
+            pass
+
+        return 0
+
+    def _check_sltp_realtime(self):
+        """全オープントレードをリアルタイム価格でSL/TPチェック"""
+        open_trades = self._db.get_open_trades()
+        if not open_trades:
+            return
+
+        price = self._get_realtime_price()
+        if price <= 0:
+            return
+
+        for trade in open_trades:
+            direction = trade["direction"]
+            sl = trade["sl"]
+            tp = trade["tp"]
+            trade_id = trade["trade_id"]
+            tf = trade.get("tf", "")
+            mode = trade.get("mode", "")
+
+            close_reason = None
+
+            if direction == "BUY":
+                if price <= sl:
+                    close_reason = "SL_HIT"
+                elif price >= tp:
+                    close_reason = "TP_HIT"
+            else:
+                if price >= sl:
+                    close_reason = "SL_HIT"
+                elif price <= tp:
+                    close_reason = "TP_HIT"
+
+            if close_reason:
+                # モード判定
+                if not mode:
+                    mode = {"1m": "scalp", "15m": "daytrade", "4h": "swing"}.get(tf, "")
+                cfg = MODE_CONFIG.get(mode, {})
+
+                result = self._db.close_trade(trade_id, price, close_reason)
+                pnl = result.get("pnl_pips", 0)
+                outcome = result.get("outcome", "?")
+                icon = "✅" if outcome == "WIN" else "❌"
+
+                self._add_log(
+                    f"{cfg.get('icon','')} 📤 OUT [{cfg.get('label','?')}]: {icon} {outcome} | "
+                    f"{direction} @ {trade['entry_price']:.3f} → {price:.3f} | "
+                    f"PnL: {pnl:+.1f} pips | "
+                    f"Reason: {close_reason} | ID: {trade_id}"
+                )
+
+                self._trade_count_since_learn += 1
+                if self._trade_count_since_learn >= self._params["learn_every_n"]:
+                    self._trigger_learning(current_mode=mode)
+
     # ── Main Loop (per mode) ──────────────────────────
 
     def _run(self, mode: str):
@@ -207,7 +333,8 @@ class DemoTrader:
             time.sleep(interval)
 
     def _tick(self, mode: str):
-        """One cycle for a specific mode."""
+        """One cycle for a specific mode — シグナル計算 + 新規エントリー判定のみ。
+        SL/TPチェックは _sltp_loop が2秒間隔で独立実行。"""
         cfg = MODE_CONFIG[mode]
 
         # Import here to avoid circular imports
@@ -251,11 +378,11 @@ class DemoTrader:
         confidence = sig.get("confidence", 0)
         entry_type = sig.get("entry_type", "unknown")
 
-        # 2. このモードのオープンポジション管理
+        # 2. シグナル反転によるクローズ判定（SL/TPは _sltp_loop が処理）
         open_trades = self._db.get_open_trades()
         mode_trades = [t for t in open_trades if t.get("tf") == tf]
         for trade in mode_trades:
-            self._manage_open_trade(trade, current_price, signal, confidence, mode)
+            self._check_signal_reverse(trade, current_price, signal, confidence, mode)
 
         # 3. 新規エントリー判定
         if len(mode_trades) >= self._params["max_open_trades"]:
@@ -326,35 +453,21 @@ class DemoTrader:
             f"ID: {trade_id}"
         )
 
-    def _manage_open_trade(self, trade: dict, current_price: float,
-                           new_signal: str, new_conf: int, mode: str):
-        """Check SL/TP hit or signal reversal for an open trade."""
+    def _check_signal_reverse(self, trade: dict, current_price: float,
+                               new_signal: str, new_conf: int, mode: str):
+        """シグナル反転によるクローズ判定のみ（SL/TPは _sltp_loop が処理）"""
         cfg = MODE_CONFIG.get(mode, {})
         direction = trade["direction"]
-        sl = trade["sl"]
-        tp = trade["tp"]
         trade_id = trade["trade_id"]
 
         close_reason = None
 
-        if direction == "BUY":
-            if current_price <= sl:
-                close_reason = "SL_HIT"
-            elif current_price >= tp:
-                close_reason = "TP_HIT"
-        else:
-            if current_price >= sl:
-                close_reason = "SL_HIT"
-            elif current_price <= tp:
-                close_reason = "TP_HIT"
-
-        if not close_reason:
-            if (direction == "BUY" and new_signal == "SELL" and
-                    new_conf >= self._params["confidence_threshold"]):
-                close_reason = "SIGNAL_REVERSE"
-            elif (direction == "SELL" and new_signal == "BUY" and
-                  new_conf >= self._params["confidence_threshold"]):
-                close_reason = "SIGNAL_REVERSE"
+        if (direction == "BUY" and new_signal == "SELL" and
+                new_conf >= self._params["confidence_threshold"]):
+            close_reason = "SIGNAL_REVERSE"
+        elif (direction == "SELL" and new_signal == "BUY" and
+              new_conf >= self._params["confidence_threshold"]):
+            close_reason = "SIGNAL_REVERSE"
 
         if close_reason:
             result = self._db.close_trade(trade_id, current_price, close_reason)
