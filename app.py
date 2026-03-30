@@ -905,7 +905,8 @@ def fundamental_score():
         detail["us10y"]      = round(us10y, 2)
         detail["jp10y"]      = round(jp10y, 2)
         detail["spread"]     = round(spread, 2)
-        detail["spread_chg"] = "拡大中" if spread > (float(tnx["Close"].iloc[-6]) - jp10y if len(tnx) >= 7 else spread) else "縮小中"
+        # 金利差方向: US10Yの変化方向で近似（JP10Yの変動は相対的に小さい）
+        detail["spread_chg"] = "拡大中" if yield_trend > 0.05 else ("縮小中" if yield_trend < -0.05 else "横ばい")
         detail["rate_trend"] = "上昇（USD強）" if yield_trend > 0 else "低下（USD弱）"
     except Exception as e:
         print(f"[FUND/rate] {e}")
@@ -1832,6 +1833,8 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     if regime.get("regime") == "HIGH_VOL":
         session = get_session_info()
         ts_str = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
+        _hv_fund_sc, _hv_fund_detail = fundamental_score()
+        _hv_inst_sc, _hv_inst_detail = institutional_flow_score()
         return {
             "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
             "entry": round(entry, 3), "signal": "WAIT", "confidence": 0,
@@ -1840,12 +1843,21 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             "session": session,
             "reasons": [f"⚠️ 高ボラレジーム（ATR比{regime.get('atr_ratio',0):.1f}×） — 全シグナルミュート"],
             "mode": "daytrade", "regime": regime,
+            "htf_bias": get_htf_bias(symbol),
+            "dual_scenarios": [], "sr_entry_map": {},
+            "entry_type": "wait", "score": 0.0,
             "layer_status": {"layer0": layer0, "layer1": layer1,
                              "master_bias": layer1.get("label","—"), "trade_ok": False},
             "indicators": {"ema9": round(ema9,3), "ema21": round(ema21,3),
                            "ema50": round(ema50,3), "ema200": round(ema200,3),
                            "rsi": round(rsi,1), "adx": round(adx,1),
-                           "macd_hist": round(macdh,4)},
+                           "macd": 0.0, "macd_sig": 0.0,
+                           "macd_hist": round(macdh,4),
+                           "bb_upper": 0.0, "bb_mid": 0.0, "bb_lower": 0.0,
+                           "bb_pband": round(bbpb,3)},
+            "fundamental": _hv_fund_detail,
+            "institutional": _hv_inst_detail,
+            "score_detail": {"combined": 0.0, "rule": 0.0},
         }
 
     # ⓪ 4H+1D マスタートレンドフィルター（デイトレード専用上位足バイアス）
@@ -2183,6 +2195,10 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     session = get_session_info()
     ts_str  = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
 
+    # ── ファンダメンタル + 大口フロー取得（デュアルシナリオ・マクロ表示用）──
+    fund_sc, fund_detail = fundamental_score()
+    inst_sc, inst_detail = institutional_flow_score()
+
     # ── デュアルシナリオ生成（SR構造 × EMA整合ハイブリッド）──────
     # 上下の強いSRを特定し、バウンス/ブレイクの2シナリオを準備
     # マスター方向（EMA/ADX）との整合度を各シナリオに付与
@@ -2191,7 +2207,6 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # マスター方向判定（EMAスコアベース）
     _master_dir = "BUY" if ema_score >= 0 else "SELL"
     _master_str = abs(ema_score)  # 0-3のEMA確度スコア
-    # EMA整合フラグ生成関数
     # ファンダバイアス（デュアルシナリオ確度補正用）
     _fund_bias = htf_dt.get("agreement", "mixed")  # bull/bear/mixed
     _fund_total = fund_detail.get("total_score", 0.0) if fund_detail else 0.0
@@ -2348,8 +2363,8 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             dual_scenarios[0]["recommended"] = True
             for sc in dual_scenarios[1:]:
                 sc["recommended"] = False
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[DualScenario] {e}")
 
     # ── SR Entry Map: 現在価格から見た上下SR＋推奨エントリー根拠 ──
     sr_entry_map = {"nearest_support": None, "nearest_resistance": None,
@@ -2411,8 +2426,8 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 "ema_confidence": rec.get("ema_confidence", 0),
                 "sr_basis": rec["trigger_price"],
             }
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[SREntryMap] {e}")
 
     return {
         "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
@@ -2452,6 +2467,8 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         "regime": regime,
         "layer2": layer2,
         "layer3": layer3,
+        "fundamental": fund_detail,
+        "institutional": inst_detail,
         "score_detail": {
             "combined": round(score,3), "rule": round(max(-1,min(1,score/5)),3),
         },

@@ -1000,6 +1000,11 @@ body{background:var(--bg0);color:var(--t1);
 
 <script>
 // ════════════════════════════════════════════════
+//  Utility: HTML escape for safe innerHTML insertion
+// ════════════════════════════════════════════════
+function _h(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ════════════════════════════════════════════════
 //  Chart init
 // ════════════════════════════════════════════════
 const COPTS = {
@@ -1857,7 +1862,7 @@ async function loadSignal(){
       // Stochastic
       const stEl=document.getElementById('sc-stoch');
       if(stEl&&si.stoch_k!=null){
-        stEl.textContent=si.stoch_k.toFixed(0)+' / '+(si.stoch_d??'—');
+        stEl.textContent=si.stoch_k.toFixed(0)+' / '+(si.stoch_d!=null?si.stoch_d.toFixed(0):'—');
         stEl.style.color=si.stoch_k<20?'var(--green)':si.stoch_k>80?'var(--red)':'var(--t1)';
       }
       // BBバンド幅パーセンタイル
@@ -2050,10 +2055,10 @@ async function loadSignal(){
             const stCol=ev.status==='間もなく'?'var(--red)':ev.status==='発表済み'?'var(--t3)':'var(--gold)';
             const urgTag=ev.status==='間もなく'?'<span style="background:rgba(239,68,68,.2);color:var(--red);padding:0 3px;border-radius:2px;font-size:8px;margin-left:3px">注意</span>':'';
             return `<div style="display:flex;align-items:center;gap:4px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.03)">
-              <span style="color:${ev.currency==='USD'?'var(--green)':'var(--red)'};font-size:9px;font-weight:600">${ev.currency}</span>
-              <span style="flex:1;color:var(--t2)">${ev.title}</span>${urgTag}
-              <span style="color:${stCol};font-size:9px">${ev.time}</span>
-              <span style="color:var(--t3);font-size:9px">${ev.hours_until>0?ev.hours_until.toFixed(1)+'h後':ev.status}</span>
+              <span style="color:${ev.currency==='USD'?'var(--green)':'var(--red)'};font-size:9px;font-weight:600">${_h(ev.currency)}</span>
+              <span style="flex:1;color:var(--t2)">${_h(ev.title)}</span>${urgTag}
+              <span style="color:${stCol};font-size:9px">${_h(ev.time)}</span>
+              <span style="color:var(--t3);font-size:9px">${ev.hours_until>0?ev.hours_until.toFixed(1)+'h後':_h(ev.status)}</span>
             </div>`;
           }).join('');
         }
