@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 from modules.demo_db import DemoDB
 from modules.learning_engine import LearningEngine
+from modules.daily_review import DailyReviewEngine
 
 # モード別設定
 MODE_CONFIG = {
@@ -44,10 +45,14 @@ class DemoTrader:
     def __init__(self, db: DemoDB):
         self._db = db
         self._engine = LearningEngine(db)
+        self._daily_review = DailyReviewEngine(db, self._engine)
         self._lock = threading.Lock()
 
         # モード別ランナー管理
         self._runners = {}   # mode -> {"running": bool, "thread": Thread}
+
+        # デイリーレビューエンジンを自動起動
+        self._daily_review.start()
 
         # チューナブルパラメータ（学習エンジンが調整、全モード共通）
         # 100pips/日目標: 確度閾値DOWN + 同時ポジション増で取引回数大幅UP
@@ -133,6 +138,7 @@ class DemoTrader:
             "stats": stats,
             "log_count": log_count,
             "trades_since_learn": self._trade_count_since_learn,
+            "daily_review_active": self._daily_review.is_running(),
         }
 
     def get_all_logs(self) -> list:
@@ -157,6 +163,20 @@ class DemoTrader:
         if applied:
             self._add_log(f"⚙️ パラメータ更新: {applied}")
         return {"applied": applied, "params": self._params.copy()}
+
+    def run_daily_review(self, target_date: str = None) -> dict:
+        """手動でデイリーレビューを実行"""
+        return self._daily_review.run_review_now(
+            target_date=target_date, params=self._params
+        )
+
+    def get_daily_reviews(self, limit: int = 30, mode: str = None) -> list:
+        """デイリーレビュー履歴を取得"""
+        return self._daily_review.get_review_history(limit=limit, mode=mode)
+
+    def get_algo_changes(self, limit: int = 50) -> list:
+        """アルゴリズム変更ログを取得"""
+        return self._daily_review.get_algo_changes(limit=limit)
 
     def run_learning(self, mode: str = None) -> dict:
         """手動学習トリガー。modeなしで全モード実行、指定で個別実行"""

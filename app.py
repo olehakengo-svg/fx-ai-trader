@@ -7836,6 +7836,30 @@ def api_demo_rules():
     return jsonify(TRADE_RULES)
 
 
+@app.route("/api/demo/daily-review")
+def api_demo_daily_review():
+    """デイリーレビュー: 手動実行 or 履歴取得"""
+    run = request.args.get("run", "false").lower() == "true"
+    target_date = request.args.get("date")
+    mode = request.args.get("mode")
+
+    if run:
+        result = _demo_trader.run_daily_review(target_date=target_date)
+        return jsonify(result)
+
+    # 履歴取得
+    reviews = _demo_trader.get_daily_reviews(limit=30, mode=mode)
+    return jsonify({"reviews": reviews, "count": len(reviews)})
+
+
+@app.route("/api/demo/algo-changes")
+def api_demo_algo_changes():
+    """アルゴリズム変更ログ"""
+    limit = int(request.args.get("limit", 50))
+    changes = _demo_trader.get_algo_changes(limit=limit)
+    return jsonify({"changes": changes, "count": len(changes)})
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print("=" * 55)

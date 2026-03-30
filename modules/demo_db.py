@@ -83,11 +83,42 @@ class DemoDB:
                     adjustments_json TEXT
                 );
 
+                CREATE TABLE IF NOT EXISTS daily_reviews (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    review_date     TEXT NOT NULL,
+                    mode            TEXT NOT NULL,
+                    trades_today    INTEGER DEFAULT 0,
+                    wins_today      INTEGER DEFAULT 0,
+                    pnl_today       REAL DEFAULT 0,
+                    wr_today        REAL DEFAULT 0,
+                    ev_today        REAL DEFAULT 0,
+                    cumulative_trades INTEGER DEFAULT 0,
+                    cumulative_wr   REAL DEFAULT 0,
+                    cumulative_ev   REAL DEFAULT 0,
+                    adjustments_json TEXT,
+                    insights_json   TEXT,
+                    params_snapshot TEXT,
+                    created_at      TEXT DEFAULT (datetime('now')),
+                    UNIQUE(review_date, mode)
+                );
+
+                CREATE TABLE IF NOT EXISTS algo_change_log (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp       TEXT DEFAULT (datetime('now')),
+                    change_type     TEXT NOT NULL,
+                    description     TEXT NOT NULL,
+                    params_before   TEXT,
+                    params_after    TEXT,
+                    triggered_by    TEXT DEFAULT 'daily_review'
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_trades_status ON demo_trades(status);
                 CREATE INDEX IF NOT EXISTS idx_trades_entry_type ON demo_trades(entry_type);
                 CREATE INDEX IF NOT EXISTS idx_trades_created ON demo_trades(created_at);
                 CREATE INDEX IF NOT EXISTS idx_trades_tf ON demo_trades(tf);
                 CREATE INDEX IF NOT EXISTS idx_learning_results_mode ON learning_results(mode);
+                CREATE INDEX IF NOT EXISTS idx_daily_reviews_date ON daily_reviews(review_date);
+                CREATE INDEX IF NOT EXISTS idx_algo_change_log_ts ON algo_change_log(timestamp);
             """)
             # Add mode column to existing demo_trades if missing
             try:
@@ -351,6 +382,113 @@ class DemoDB:
                     pass
             result.append(d)
         return result
+
+    # ── Daily Review ──────────────────────────────────
+
+    def save_daily_review(self, review_date: str, mode: str, trades_today: int,
+                          wins_today: int, pnl_today: float, wr_today: float,
+                          ev_today: float, cumulative_trades: int,
+                          cumulative_wr: float, cumulative_ev: float,
+                          adjustments: list, insights: list, params_snapshot: dict):
+        """デイリーレビュー結果を保存（同日・同モードは上書き）"""
+        with self._lock:
+            conn = self._conn()
+            conn.execute("""
+                INSERT OR REPLACE INTO daily_reviews
+                    (review_date, mode, trades_today, wins_today, pnl_today,
+                     wr_today, ev_today, cumulative_trades, cumulative_wr,
+                     cumulative_ev, adjustments_json, insights_json, params_snapshot)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+            """, (review_date, mode, trades_today, wins_today, pnl_today,
+                  wr_today, ev_today, cumulative_trades, cumulative_wr,
+                  cumulative_ev,
+                  json.dumps(adjustments, ensure_ascii=False),
+                  json.dumps(insights, ensure_ascii=False),
+                  json.dumps(params_snapshot, ensure_ascii=False)))
+            conn.commit()
+            conn.close()
+
+    def get_daily_reviews(self, limit: int = 30, mode: str = None) -> list:
+        """デイリーレビュー履歴を取得"""
+        conn = self._conn()
+        if mode:
+            rows = conn.execute(
+                "SELECT * FROM daily_reviews WHERE mode=? ORDER BY review_date DESC LIMIT ?",
+                (mode, limit)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM daily_reviews ORDER BY review_date DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+        conn.close()
+        result = []
+        for r in rows:
+            d = dict(r)
+            for k in ("adjustments_json", "insights_json", "params_snapshot"):
+                try:
+                    d[k] = json.loads(d[k]) if d[k] else {}
+                except Exception:
+                    pass
+            result.append(d)
+        return result
+
+    def save_algo_change(self, change_type: str, description: str,
+                         params_before: dict, params_after: dict,
+                         triggered_by: str = "daily_review"):
+        """アルゴリズム変更ログを記録"""
+        with self._lock:
+            conn = self._conn()
+            conn.execute("""
+                INSERT INTO algo_change_log
+                    (change_type, description, params_before, params_after, triggered_by)
+                VALUES (?,?,?,?,?)
+            """, (change_type, description,
+                  json.dumps(params_before, ensure_ascii=False),
+                  json.dumps(params_after, ensure_ascii=False),
+                  triggered_by))
+            conn.commit()
+            conn.close()
+
+    def get_algo_changes(self, limit: int = 50) -> list:
+        """アルゴリズム変更ログ取得"""
+        conn = self._conn()
+        rows = conn.execute(
+            "SELECT * FROM algo_change_log ORDER BY timestamp DESC LIMIT ?",
+            (limit,)
+        ).fetchall()
+        conn.close()
+        result = []
+        for r in rows:
+            d = dict(r)
+            for k in ("params_before", "params_after"):
+                try:
+                    d[k] = json.loads(d[k]) if d[k] else {}
+                except Exception:
+                    pass
+            result.append(d)
+        return result
+
+    def get_trades_by_date(self, date_str: str, mode: str = None) -> list:
+        """指定日のクローズドトレードを取得"""
+        conn = self._conn()
+        if mode:
+            tf_map = {"daytrade": "15m", "scalp": "1m", "swing": "4h"}
+            target_tf = tf_map.get(mode, "")
+            rows = conn.execute(
+                """SELECT * FROM demo_trades
+                   WHERE status='CLOSED' AND exit_time LIKE ?
+                   AND (mode=? OR (mode='' AND tf=?))
+                   ORDER BY exit_time""",
+                (f"{date_str}%", mode, target_tf)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM demo_trades WHERE status='CLOSED' AND exit_time LIKE ? ORDER BY exit_time",
+                (f"{date_str}%",)
+            ).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
 
     def get_trades_for_learning(self, min_trades: int = 10, mode: str = None) -> dict:
         """Return structured data for the learning engine. mode でフィルタ可能"""
