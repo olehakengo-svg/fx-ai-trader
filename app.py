@@ -5704,15 +5704,19 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     reasons = []
 
     # ① ADXレジームフィルター (Wilder 1978) ─────────────────
+    # 1m足ではADX<20が頻出するため、ペナルティを緩和
     if adx >= 25:
         adx_mult = 1.1
         reasons.append(f"✅ ADX{adx:.0f}>25: 強トレンド — スキャル最適環境")
-    elif adx >= 20:
-        adx_mult = 0.85
+    elif adx >= 18:
+        adx_mult = 0.90
         reasons.append(f"⚠️ ADX{adx:.0f}: 中程度トレンド")
+    elif adx >= 12:
+        adx_mult = 0.70
+        reasons.append(f"⚠️ ADX{adx:.0f}<18: 弱トレンド（Wilder 1978）")
     else:
         adx_mult = 0.45
-        reasons.append(f"⛔ ADX{adx:.0f}<20: レンジ相場 → スキャル難易度高（Wilder 1978）")
+        reasons.append(f"⛔ ADX{adx:.0f}<12: 超レンジ相場 → スキャル非推奨")
 
     # ② BBバンド幅スクイーズ検出 ─────────────────────────────
     # スクイーズ = BBが狭い → ブレイクアウト待機、スキャル回避
@@ -5956,10 +5960,10 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # ── Layer 1: 大口バイアス適用 ─────────────────────────────
     bias_dir = layer1["direction"]
     if bias_dir == "bull":
-        if score < 0:   score *= 0.15   # 大口買い優位時のSELL → 大幅減衰
+        if score < 0:   score *= 0.50   # 大口買い優位時のSELL → 中程度減衰（旧0.15は1m足で厳しすぎた）
         else:           score *= 1.15   # 大口買い方向一致 → 若干強化
     elif bias_dir == "bear":
-        if score > 0:   score *= 0.15   # 大口売り優位時のBUY → 大幅減衰
+        if score > 0:   score *= 0.50   # 大口売り優位時のBUY → 中程度減衰（旧0.15は1m足で厳しすぎた）
         else:           score *= 1.15   # 大口売り方向一致 → 若干強化
     else:
         score *= 0.80   # 大口方向不明 → 軽度品質低下（旧0.60は厳しすぎた）
@@ -5991,9 +5995,9 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     SCALP_SL, SCALP_TP = 0.5, 0.9
     # 必須条件チェック（バックテストと同条件）
     has_pb        = any("EMA9プルバック" in r and ("BUYゾーン" in r or "SELLゾーン" in r) for r in reasons)
-    has_rsi_reset = any("RSI5" in r and ("売られ過ぎ" in r or "リセット完了" in r or "買われ過ぎ" in r) for r in reasons)
-    # スコア閾値: 2.0（旧3.0は厳しすぎて取引不能だった）
-    SCALP_SCORE_THRESHOLD = 2.0
+    has_rsi_reset = any("RSI5" in r and ("売られ過ぎ" in r or "リセット完了" in r or "買われ過ぎ" in r or "中立圏" in r) for r in reasons)
+    # スコア閾値: 1.5（旧2.0でも乗算チェーン後に到達困難だった）
+    SCALP_SCORE_THRESHOLD = 1.5
     if not has_pb and not has_rsi_reset:
         # 両方欠ける場合のみ強制WAIT（片方あればスコアで判定）
         reasons.append("⛔ EMA9プルバック・RSI5リセット未確認 → WAIT")
