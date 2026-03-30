@@ -1872,13 +1872,15 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     else:
         reasons.append(f"⚖️ {htf_dt.get('label','4H+1D 不一致')} → シグナル抑制")
 
-    # ① ADX レジームフィルター (Wilder 1978) ── Window2分析: ADX>25が高勝率の鍵
+    # ① ADX レジームフィルター (Wilder 1978) ── 緩和版: 取引頻度重視
     if adx >= 25:
-        adx_mult = 1.0; reasons.append(f"✅ ADX{adx:.0f}≥25: 強トレンド確認（Wilder 1978）")
-    elif adx >= 20:
-        adx_mult = 0.75; reasons.append(f"⚠️ ADX{adx:.0f}: 中程度トレンド")
+        adx_mult = 1.1; reasons.append(f"✅ ADX{adx:.0f}≥25: 強トレンド確認（Wilder 1978）")
+    elif adx >= 18:
+        adx_mult = 0.85; reasons.append(f"⚠️ ADX{adx:.0f}: 中程度トレンド")
+    elif adx >= 12:
+        adx_mult = 0.65; reasons.append(f"⚠️ ADX{adx:.0f}: 弱トレンド（頻度重視で許容）")
     else:
-        adx_mult = 0.35; reasons.append(f"⛔ ADX{adx:.0f}<20: レンジ相場（シグナル減衰）")
+        adx_mult = 0.45; reasons.append(f"⛔ ADX{adx:.0f}<12: レンジ相場（シグナル減衰）")
 
     # ② EMA200方向フィルター（最重要, Neely & Weller 2011）
     bull200 = entry > ema200
@@ -1905,18 +1907,18 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     else:
         score -= 0.5; act = "SELL"
 
-    # EMA200逆方向のシグナルを減衰
+    # EMA200逆方向のシグナルを減衰（緩和版: 取引頻度確保）
     if (act == "BUY" and not bull200) or (act == "SELL" and bull200):
-        score *= 0.4
-        reasons.append("⚠️ EMA200と逆方向 → シグナル減衰")
+        score *= 0.65
+        reasons.append("⚠️ EMA200と逆方向 → 軽度減衰")
 
-    # 4H+1D マスタートレンドとの整合性チェック（ハードフィルター）
+    # 4H+1D マスタートレンドとの整合性チェック（緩和版: 取引頻度確保）
     if htf_agreement == "bear" and act == "BUY":
-        score *= 0.25   # 4H+1D弱気時のBUYは大幅減衰
-        reasons.append("🚫 4H+1D 下降トレンド中のBUY → 大幅減衰（逆張り非推奨）")
+        score *= 0.50   # 4H+1D弱気時のBUY → 中程度減衰（逆張りだが許容）
+        reasons.append("⚠️ 4H+1D 下降トレンド中のBUY → 中程度減衰")
     elif htf_agreement == "bull" and act == "SELL":
-        score *= 0.25   # 4H+1D強気時のSELLは大幅減衰
-        reasons.append("🚫 4H+1D 上昇トレンド中のSELL → 大幅減衰（逆張り非推奨）")
+        score *= 0.50   # 4H+1D強気時のSELL → 中程度減衰
+        reasons.append("⚠️ 4H+1D 上昇トレンド中のSELL → 中程度減衰")
 
     # ④ フィボナッチプルバックゾーン（38.2-61.8%が最高確率）
     fib = _calc_fibonacci_levels(df, lookback=80)
@@ -1970,16 +1972,16 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # ADXマルチプライヤー適用
     score *= adx_mult
 
-    # ── Layer 1: 大口バイアス適用 ─────────────────────────────
+    # ── Layer 1: 大口バイアス適用（緩和版: 取引頻度確保）────────
     bias_dir = layer1["direction"]
     if bias_dir == "bull":
-        if score < 0:  score *= 0.15
+        if score < 0:  score *= 0.55   # 逆方向でも半分は残す
         else:          score *= 1.15
     elif bias_dir == "bear":
-        if score > 0:  score *= 0.15
+        if score > 0:  score *= 0.55
         else:          score *= 1.15
     else:
-        score *= 0.60  # 大口方向不明 → 品質低下
+        score *= 0.80  # 大口方向不明 → 軽度減衰
 
     # ── Layer 0: 取引禁止時の早期リターン（東京モードはスキップ）──
     if layer0["prohibited"] and not layer0.get("tokyo_mode", False):
@@ -2008,7 +2010,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             "score_detail": {"combined": 0.0, "rule": 0.0},
         }
 
-    # セッションフィルター: London/NY重複 13-17 UTC = 最高品質 (Krohn et al. 2024)
+    # セッションフィルター: London/NY重複 = ボーナス（オフセッションも許容）
     try:
         h = df.index[-1].hour
         if 13 <= h < 17:
@@ -2016,7 +2018,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         elif 7 <= h < 20:
             pass  # 通常時間
         else:
-            score *= 0.4; reasons.append(f"⚠️ オフセッション({h}UTC): エントリー品質低下")
+            score *= 0.70; reasons.append(f"⚠️ オフセッション({h}UTC): 軽度減衰")
     except Exception:
         pass
 
@@ -2112,7 +2114,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     if not _sr_signal_found:
         _has_sr_fib = any("Fib" in r or "フィボ" in r for r in reasons)
         _has_ob     = any("OB" in r or "オーダーブロック" in r for r in reasons)
-        THRESHOLD = 0.28
+        THRESHOLD = 0.20   # 旧0.28 → 取引頻度UP（緩和しすぎ防止）
         if ema_score > THRESHOLD:
             signal = "BUY"
             _dt_entry_type = "sr_fib_confluence" if _has_sr_fib else ("ob_retest" if _has_ob else "ema_cross")
@@ -2163,7 +2165,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     dir_s = 1.0 if act_s == "BUY" else -1.0
 
     if _dt_entry_type == "dual_sr_bounce":
-        SL_MULT, TP_MULT = 0.4, 1.5
+        SL_MULT, TP_MULT = 0.5, 2.0
         # TP: 対面SRまでの距離
         if act_s == "BUY" and _dt_above:
             _tp_dist = abs(_dt_above[0]["price"] - entry) / max(atr, 1e-6)
@@ -5865,11 +5867,11 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         elif 9 <= h < 13 or 17 <= h < 21:
             pass  # 通常セッション
         elif 21 <= h or h < 1:
-            score *= 0.40
-            reasons.append(f"⛔ Post-NY/Pre-Tokyo({h}UTC): 超閑散時間帯 — スキャル非推奨(Neely & Weller)")
+            score *= 0.60
+            reasons.append(f"⚠️ Post-NY/Pre-Tokyo({h}UTC): 閑散時間帯 — 軽度減衰")
         else:  # 1-7 UTC
-            score *= 0.65
-            reasons.append(f"⚠️ 東京時間({h}UTC): 流動性低下 — USD/JPY慎重")
+            score *= 0.75
+            reasons.append(f"⚠️ 東京時間({h}UTC): USD/JPYは取引可能")
     except Exception:
         pass
 
@@ -5990,24 +5992,21 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             score -= 1.5
     score = max(-8.0, min(8.0, score))  # clamp before normalization
 
-    # ── SL / TP ── バックテスト最適値 (BEP=35.7%, EV=+0.052実証)
-    # 旧: SL=0.7/TP=1.3 → BEP=35.0% / 新: SL=0.5/TP=0.9 → BEP=35.7%（同等・高頻度向け）
-    SCALP_SL, SCALP_TP = 0.5, 0.9
-    # 必須条件チェック（バックテストと同条件）
+    # ── SL / TP ── TP拡大で1トレードあたりの獲得pips UP
+    # 旧: SL=0.5/TP=0.9 → 新: SL=0.6/TP=1.8 (RR 1:3, BEP=25%)
+    SCALP_SL, SCALP_TP = 0.6, 1.8
+    # 必須条件チェック（緩和版: 取引頻度重視、100pips/日目標）
     has_pb        = any("EMA9プルバック" in r and ("BUYゾーン" in r or "SELLゾーン" in r) for r in reasons)
     has_rsi_reset = any("RSI5" in r and ("売られ過ぎ" in r or "リセット完了" in r or "買われ過ぎ" in r or "中立圏" in r) for r in reasons)
-    # スコア閾値: 1.5（旧2.0でも乗算チェーン後に到達困難だった）
-    SCALP_SCORE_THRESHOLD = 1.5
-    if not has_pb and not has_rsi_reset:
-        # 両方欠ける場合のみ強制WAIT（片方あればスコアで判定）
-        reasons.append("⛔ EMA9プルバック・RSI5リセット未確認 → WAIT")
+    has_ema_cross = any("クロスオーバー" in r for r in reasons)
+    # スコア閾値: 0.8（旧1.5→取引頻度大幅UP）
+    SCALP_SCORE_THRESHOLD = 0.8
+    # 条件が全くない場合のみWAIT（1つでもあればスコアで判定）
+    if not has_pb and not has_rsi_reset and not has_ema_cross and abs(score) < SCALP_SCORE_THRESHOLD * 2:
+        reasons.append("⛔ エントリー条件未達 → WAIT")
         signal, conf = "WAIT", int(max(15, 50 - abs(score) * 5))
     elif abs(score) < SCALP_SCORE_THRESHOLD:
-        missing = []
-        if not has_pb:   missing.append("プルバック未確認")
-        if not has_rsi_reset: missing.append("RSI5未リセット")
-        extra = f" ({', '.join(missing)})" if missing else ""
-        reasons.append(f"⛔ スコア不足({score:.1f}<{SCALP_SCORE_THRESHOLD}){extra} → WAIT")
+        reasons.append(f"⛔ スコア不足({score:.1f}<{SCALP_SCORE_THRESHOLD}) → WAIT")
         signal, conf = "WAIT", int(max(15, 50 - abs(score) * 5))
     elif score >  0: signal, conf = "BUY",  int(min(90, 50 + score * 5))
     elif score <  0: signal, conf = "SELL", int(min(90, 50 + abs(score) * 5))

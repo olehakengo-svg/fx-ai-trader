@@ -14,7 +14,7 @@ from modules.learning_engine import LearningEngine
 # モード別設定
 MODE_CONFIG = {
     "daytrade": {
-        "interval_sec": 60,       # 1分ごとにチェック
+        "interval_sec": 30,       # 30秒ごとにチェック（旧60s → 頻度2倍）
         "tf": "15m",
         "period": "5d",
         "signal_fn": "compute_daytrade_signal",
@@ -22,7 +22,7 @@ MODE_CONFIG = {
         "icon": "📊",
     },
     "scalp": {
-        "interval_sec": 15,       # 15秒ごとにチェック（スキャルプは高頻度）
+        "interval_sec": 10,       # 10秒ごとにチェック（旧15s → 頻度1.5倍）
         "tf": "1m",
         "period": "1d",
         "signal_fn": "compute_scalp_signal",
@@ -50,9 +50,10 @@ class DemoTrader:
         self._runners = {}   # mode -> {"running": bool, "thread": Thread}
 
         # チューナブルパラメータ（学習エンジンが調整、全モード共通）
+        # 100pips/日目標: 確度閾値DOWN + 同時ポジション増で取引回数大幅UP
         self._params = {
-            "confidence_threshold": 55,
-            "max_open_trades": 1,   # モードあたり最大ポジション
+            "confidence_threshold": 40,   # 旧55 → 低確度でもエントリー許容
+            "max_open_trades": 3,         # 旧1 → モードあたり3ポジション並行
             "sl_adjust": 1.0,
             "tp_adjust": 1.0,
             "entry_type_blacklist": [],
