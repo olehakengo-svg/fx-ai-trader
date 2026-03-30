@@ -4313,10 +4313,10 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
             return {"error": "データ不足", "trades": 0, "mode": "swing"}
 
         SPREAD   = 0.030
-        SL_MULT  = 2.0     # デフォルトSL
-        TP_MULT  = 3.5     # デフォルトTP
-        MAX_HOLD = 25      # 日
-        COOLDOWN = 3       # 日（6→3 緩和: 月4-6回目標）
+        SL_MULT  = 1.5     # デフォルトSL
+        TP_MULT  = 3.0     # デフォルトTP（RR 1:2）
+        MAX_HOLD = 20      # 日
+        COOLDOWN = 1       # 日（旧3→高頻度化）
 
         cutoff_i = max(250, len(df) - lookback_days)
 
@@ -4375,70 +4375,72 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
             sig = None
             entry_type = None
 
-            # ═══ Entry Type 1: EMA Trend (EMA21/50 + RSI + MACD方向) ═══
-            # 緩和版: EMA200必須→推奨、ADX/RSI範囲拡大
-            if sig is None and adx >= 10:
-                bull200 = close_p > ema200
-                if bull_trend and (macdh > macdh_p) and 30 <= rsi <= 80:
+            # ═══ Entry Type 1: SR Bounce（優先度最高）═══
+            if sig is None and current_sr:
+                tol_sr = atr * 1.0
+                for sr in current_sr:
+                    level = sr["price"]
+                    if sr["strength"] < 0.15:
+                        continue
+                    # BUY: サポート近接 + RSIが売られ過ぎ寄り
+                    if abs(low_p - level) < tol_sr and close_p > level and rsi < 60:
+                        sig = "BUY"
+                        entry_type = "sr_bounce"
+                        break
+                    # SELL: レジスタンス近接 + RSIが買われ過ぎ寄り
+                    if abs(high_p - level) < tol_sr and close_p < level and rsi > 40:
+                        sig = "SELL"
+                        entry_type = "sr_bounce"
+                        break
+
+            # ═══ Entry Type 3: SR Breakout (タッチ数・強度緩和) ═══
+            if sig is None and current_sr:
+                for sr in current_sr:
+                    if sr["strength"] < 0.2:
+                        continue
+                    level = sr["price"]
+                    brk_margin = atr * 0.15
+                    if close_p > level + brk_margin and rsi > 35:
+                        sig = "BUY"
+                        entry_type = "strong_sr_breakout"
+                        break
+                    if close_p < level - brk_margin and rsi < 65:
+                        sig = "SELL"
+                        entry_type = "strong_sr_breakout"
+                        break
+
+            # ═══ Entry Type 4: EMA Trend (最後のフォールバック、MACD方向一致が必要) ═══
+            if sig is None and adx >= 12:
+                if bull_trend and macdh > macdh_p and 30 <= rsi <= 75:
                     sig = "BUY"
                     entry_type = "ema_trend"
-                elif bear_trend and (macdh < macdh_p) and 20 <= rsi <= 70:
+                elif bear_trend and macdh < macdh_p and 25 <= rsi <= 70:
                     sig = "SELL"
                     entry_type = "ema_trend"
 
-            # ═══ Entry Type 2: SR Bounce (水平線反発) ═══
-            if sig is None and current_sr:
-                tol_sr = atr * 0.8   # 旧0.6 → 許容幅拡大
-                for sr in current_sr:
-                    level = sr["price"]
-                    strength = sr["strength"]
-                    if strength < 0.2:   # 旧0.3 → 緩和
-                        continue
-                    # BUY: サポートに接近 + 陽線 + RSI制限緩和
-                    if (abs(low_p - level) < tol_sr and close_p > open_p
-                            and close_p > level and rsi < 65):
-                        sig = "BUY"
-                        entry_type = "sr_bounce"
-                        break
-                    # SELL: レジスタンスに接近 + 陰線 + RSI制限緩和
-                    if (abs(high_p - level) < tol_sr and close_p < open_p
-                            and close_p < level and rsi > 35):
-                        sig = "SELL"
-                        entry_type = "sr_bounce"
-                        break
-
-            # ═══ Entry Type 3: Strong SR Breakout (ブレイクアウト) ═══
-            if sig is None and current_sr:
-                for sr in current_sr:
-                    if sr["touches"] < 2:    # 旧3 → 緩和
-                        continue
-                    if sr["strength"] < 0.3:  # 旧0.5 → 緩和
-                        continue
-                    level = sr["price"]
-                    brk_margin = atr * 0.25   # 旧0.3 → 小さめブレイクも検出
-                    # BUY breakout
-                    if (close_p > level + brk_margin and open_p <= level + brk_margin
-                            and close_p > open_p and rsi > 40 and adx >= 8):
-                        sig = "BUY"
-                        entry_type = "strong_sr_breakout"
-                        break
-                    # SELL breakout
-                    if (close_p < level - brk_margin and open_p >= level - brk_margin
-                            and close_p < open_p and rsi < 60 and adx >= 8):
-                        sig = "SELL"
-                        entry_type = "strong_sr_breakout"
-                        break
+            # ═══ Entry Type 5: EMAクロス ═══
+            if sig is None:
+                ema9_p  = float(df_bt["ema9"].iloc[i-1]) if i > 0 else ema9
+                ema21_p = float(df_bt["ema21"].iloc[i-1]) if i > 0 else ema21
+                if ema9_p <= ema21_p and ema9 > ema21 and rsi > 40:
+                    sig = "BUY"
+                    entry_type = "ema_cross"
+                elif ema9_p >= ema21_p and ema9 < ema21 and rsi < 60:
+                    sig = "SELL"
+                    entry_type = "ema_cross"
 
             if sig is None:
                 continue
 
             # ── エントリー別SL/TP ──
             if entry_type == "ema_trend":
-                sl_m, tp_m = 2.0, 3.5      # トレンドフォロー: 広めSL, 大きめTP
+                sl_m, tp_m = 1.5, 3.0      # トレンドフォロー
             elif entry_type == "sr_bounce":
-                sl_m, tp_m = 1.5, 3.0      # SR背後にSL, 反発TP
+                sl_m, tp_m = 1.2, 2.5      # SR背後にSL
             elif entry_type == "strong_sr_breakout":
-                sl_m, tp_m = 1.8, 4.0      # ブレイク後の勢いに乗る
+                sl_m, tp_m = 1.3, 3.5      # ブレイク
+            elif entry_type == "ema_cross":
+                sl_m, tp_m = 1.3, 2.5      # クロスシグナル
             else:
                 sl_m, tp_m = SL_MULT, TP_MULT
 
