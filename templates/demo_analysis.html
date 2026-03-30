@@ -162,7 +162,7 @@ tr:hover{background:rgba(255,255,255,.02)}
   <!-- Demo Trader Log -->
   <div class="card full">
     <div class="card-title">📝 デモトレーダーログ</div>
-    <div id="demo-log" style="max-height:200px;overflow-y:auto;font-size:10px;font-family:monospace;color:var(--t3)">
+    <div id="demo-log" style="max-height:160px;overflow-y:auto;font-size:10px;font-family:monospace;line-height:1.5;color:var(--t3);scrollbar-width:thin;scrollbar-color:var(--bg3) transparent">
       <div>ログなし</div>
     </div>
   </div>
@@ -299,11 +299,13 @@ async function loadDemoStatus(){
     // Log — 変更があった場合のみDOM更新（フリッカー防止）
     const logEl=document.getElementById('demo-log');
     if(d.recent_log&&d.recent_log.length){
-      const newHtml=d.recent_log.slice(-50).reverse().map(l=>
-        `<div style="padding:1px 0;border-bottom:1px solid rgba(255,255,255,.02)">${_h(l)}</div>`
+      const newHtml=d.recent_log.map(l=>
+        `<div style="padding:1px 0;border-bottom:1px solid rgba(255,255,255,.03)">${_h(l)}</div>`
       ).join('');
       if(newHtml!==_lastLogHtml){
+        const wasAtBottom=logEl.scrollHeight-logEl.scrollTop-logEl.clientHeight<30;
         logEl.innerHTML=newHtml;
+        if(wasAtBottom) logEl.scrollTop=logEl.scrollHeight;
         _lastLogHtml=newHtml;
       }
     }

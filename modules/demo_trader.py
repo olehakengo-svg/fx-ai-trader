@@ -124,7 +124,7 @@ class DemoTrader:
             "params": self._params.copy(),
             "open_trades": open_trades,
             "stats": stats,
-            "recent_log": list(self._log[-30:]),
+            "recent_log": list(self._log[-200:]),
             "trades_since_learn": self._trade_count_since_learn,
         }
 
