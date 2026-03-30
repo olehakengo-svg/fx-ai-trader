@@ -64,6 +64,13 @@ class DemoDB:
                     sample_size     INTEGER
                 );
 
+                CREATE TABLE IF NOT EXISTS demo_logs (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp       TEXT NOT NULL,
+                    message         TEXT NOT NULL,
+                    created_at      TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+
                 CREATE INDEX IF NOT EXISTS idx_trades_status ON demo_trades(status);
                 CREATE INDEX IF NOT EXISTS idx_trades_entry_type ON demo_trades(entry_type);
                 CREATE INDEX IF NOT EXISTS idx_trades_created ON demo_trades(created_at);
@@ -229,6 +236,31 @@ class DemoDB:
             """, (parameter, old_val, new_val, reason, win_rate, ev, sample))
             conn.commit()
             conn.close()
+
+    # ── Demo Logs ──────────────────────────────────
+
+    def add_log(self, timestamp: str, message: str):
+        """Persist a demo trader log entry."""
+        with self._lock:
+            conn = self._conn()
+            conn.execute(
+                "INSERT INTO demo_logs (timestamp, message) VALUES (?, ?)",
+                (timestamp, message),
+            )
+            conn.commit()
+            conn.close()
+
+    def get_logs(self, limit: int = 100) -> list:
+        """Return recent logs formatted as '[HH:MM:SS] message', newest first."""
+        conn = self._conn()
+        rows = conn.execute(
+            "SELECT timestamp, message FROM demo_logs ORDER BY id DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        conn.close()
+        return [f"[{r['timestamp']}] {r['message']}" for r in rows]
+
+    # ── Learning adjustments ──────────────────────────
 
     def get_adjustments(self, limit: int = 20) -> list:
         conn = self._conn()

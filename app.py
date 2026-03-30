@@ -389,7 +389,9 @@ def get_master_bias(symbol: str) -> dict:
 
     # ③ DXY短期EMAトレンド
     try:
-        dxy_df  = fetch_ohlcv("DX-Y.NYB", period="30d", interval="1d")
+        dxy_df  = fetch_ohlcv("DX-Y.NYB", period="90d", interval="1d")
+        if dxy_df is None or len(dxy_df) < 30:
+            raise ValueError(f"DXY data insufficient: {len(dxy_df) if dxy_df is not None else 0} rows")
         dxy_df  = add_indicators(dxy_df)
         dxy_row = dxy_df.iloc[-1]
         dxy_c   = float(dxy_row["Close"])
@@ -5725,12 +5727,30 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         reasons.append(f"✅ BB拡張中({bb_width_pct:.0%}): ボラティリティ良好")
 
     # ③ 1H+4H ハードフィルター ─────────────────────────────
+    # mixed時は1m足のEMA配列で方向を決定（スキャルプは短期優先）
+    htf_mixed = False
     if htf["agreement"] == "bull":
         d_mult = 1.0;  reasons.append("📈 1H+4H 強気 → BUYのみ有効")
     elif htf["agreement"] == "bear":
         d_mult = -1.0; reasons.append("📉 1H+4H 弱気 → SELLのみ有効")
     else:
-        d_mult = 0.5;  reasons.append("⚖️ 1H+4H 不一致 → シグナル抑制中")
+        htf_mixed = True
+        # 1m足自身のEMA配列で方向判定（スキャルプは短期TFの流れに従う）
+        if ema9 > ema21 > ema50:
+            d_mult = 1.0
+            reasons.append("⚖️ 1H+4H不一致 → 1m足EMA上昇配列でBUY方向（品質低下）")
+        elif ema9 < ema21 < ema50:
+            d_mult = -1.0
+            reasons.append("⚖️ 1H+4H不一致 → 1m足EMA下降配列でSELL方向（品質低下）")
+        elif ema9 > ema21:
+            d_mult = 1.0
+            reasons.append("⚖️ 1H+4H不一致 → 1m足EMA9>EMA21でBUY方向（品質低下）")
+        elif ema9 < ema21:
+            d_mult = -1.0
+            reasons.append("⚖️ 1H+4H不一致 → 1m足EMA9<EMA21でSELL方向（品質低下）")
+        else:
+            d_mult = 0.0
+            reasons.append("⚖️ 1H+4H不一致 + 1m足EMA不明瞭 → 方向判定不可")
 
     # ④ EMA9 プルバック ──────────────────────────────────────
     if d_mult == 1.0:
@@ -5821,7 +5841,11 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
 
     # ⑩ ADXマルチプライヤー + 方向フィルター ───────────────────
     score *= adx_mult
-    score *= (1.0 if abs(d_mult) == 1.0 else 0.55)
+    if d_mult == 0.0:
+        score *= 0.30       # 方向判定不可 → 大幅減衰
+    elif htf_mixed:
+        score *= 0.70       # HTF不一致だが1m足で方向あり → 軽度減衰
+    # else: abs(d_mult)==1.0 → 減衰なし
 
     # ⑪ セッション精緻化 (Krohn et al. 2024 JoF) ────────────────
     # London前場07-09UTC: 東京/ロンドン重複、方向性ブレイクアウト
@@ -5938,7 +5962,7 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         if score > 0:   score *= 0.15   # 大口売り優位時のBUY → 大幅減衰
         else:           score *= 1.15   # 大口売り方向一致 → 若干強化
     else:
-        score *= 0.60   # 大口方向不明 → 品質低下（閾値引き上げ効果）
+        score *= 0.80   # 大口方向不明 → 軽度品質低下（旧0.60は厳しすぎた）
 
     # ── Layer 2: トレンド構造整合性ブースト ─────────────────────
     l2_sc = layer2["score"]
@@ -7228,12 +7252,12 @@ def api_backtest():
             if tf == "1m":
                 interval, lookback = "1m", 7
             elif tf == "15m":
-                interval, lookback = "15m", 90
+                interval, lookback = "15m", 55  # Yahoo 15m上限60日
             else:  # 5m がデフォルト
-                interval, lookback = "5m", 180
+                interval, lookback = "5m", 55   # Yahoo 5m上限60日
             result = run_scalp_backtest("USDJPY=X", lookback_days=lookback, interval=interval)
         elif mode == "daytrade":
-            result = run_daytrade_backtest("USDJPY=X", lookback_days=365, interval="15m")
+            result = run_daytrade_backtest("USDJPY=X", lookback_days=55, interval="15m")
         elif mode == "swing":
             result   = run_swing_backtest("USDJPY=X", lookback_days=365)
         else:

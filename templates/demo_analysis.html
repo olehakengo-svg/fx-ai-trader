@@ -120,10 +120,12 @@ tr:hover{background:rgba(255,255,255,.02)}
       </select>
     </div>
     <div id="trade-chart"></div>
-    <div class="chart-legend">
-      <span><span class="legend-dot" style="background:var(--green)"></span>BUY IN</span>
-      <span><span class="legend-dot" style="background:var(--red)"></span>SELL IN</span>
-      <span>○ TP Hit &nbsp; □ SL Hit &nbsp; ◇ Signal Reverse</span>
+    <div class="chart-legend" style="flex-wrap:wrap">
+      <span><span class="legend-dot" style="background:#22c55e"></span>📊 DT BUY</span>
+      <span><span class="legend-dot" style="background:#ef4444"></span>📊 DT SELL</span>
+      <span><span class="legend-dot" style="background:#fbbf24"></span>⚡ SC BUY</span>
+      <span><span class="legend-dot" style="background:#f97316"></span>⚡ SC SELL</span>
+      <span style="margin-left:8px">○ TP &nbsp; □ SL &nbsp; ◇ Reverse</span>
     </div>
   </div>
 
@@ -376,7 +378,7 @@ async function loadTradeChart(){
       // Show empty message
     }
 
-    // Load trades and draw IN/OUT markers
+    // Load trades and draw IN/OUT markers with mode distinction
     const dr=await fetch('/api/demo/trades?status=all&limit=200');
     const dd=await dr.json();
 
@@ -384,6 +386,14 @@ async function loadTradeChart(){
       const markers=[];
       dd.trades.forEach(t=>{
         const isBuy=t.direction==='BUY';
+        const isScalp=t.tf==='1m'||t.tf==='5m';
+        const modeIcon=isScalp?'⚡':'📊';
+        const modeLabel=isScalp?'SC':'DT';
+        // Mode-based colors: scalp=gold/orange, daytrade=blue/cyan
+        const inColor=isScalp
+          ?(isBuy?'#fbbf24':'#f97316')   // scalp: gold(BUY)/orange(SELL)
+          :(isBuy?'#22c55e':'#ef4444');   // daytrade: green(BUY)/red(SELL)
+
         // Entry marker
         if(t.entry_time){
           try{
@@ -391,10 +401,10 @@ async function loadTradeChart(){
             if(et>0)markers.push({
               time:et,
               position:isBuy?'belowBar':'aboveBar',
-              color:isBuy?'#22c55e':'#ef4444',
+              color:inColor,
               shape:isBuy?'arrowUp':'arrowDown',
-              text:'IN '+(t.entry_price?.toFixed(1)||''),
-              size:1.5,
+              text:modeIcon+' IN '+(t.entry_price?.toFixed(1)||''),
+              size:isScalp?1.0:1.5,
             });
           }catch(e){}
         }
@@ -404,13 +414,16 @@ async function loadTradeChart(){
             const xt=Math.floor(new Date(t.exit_time).getTime()/1000);
             const isWin=t.outcome==='WIN';
             const shapeMap={TP_HIT:'circle',SL_HIT:'square',SIGNAL_REVERSE:'diamond'};
+            const outColor=isWin
+              ?(isScalp?'#fbbf24':'#22c55e')    // WIN: scalp=gold, dt=green
+              :(isScalp?'#f97316':'#ef4444');     // LOSS: scalp=orange, dt=red
             if(xt>0)markers.push({
               time:xt,
               position:isBuy?'aboveBar':'belowBar',
-              color:isWin?'#22c55e':'#ef4444',
+              color:outColor,
               shape:shapeMap[t.close_reason]||'circle',
-              text:'OUT '+(t.pnl_pips>=0?'+':'')+t.pnl_pips?.toFixed(1)+'p',
-              size:1.5,
+              text:modeIcon+' OUT '+(t.pnl_pips>=0?'+':'')+t.pnl_pips?.toFixed(1)+'p',
+              size:isScalp?1.0:1.5,
             });
           }catch(e){}
         }

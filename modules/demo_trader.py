@@ -111,6 +111,13 @@ class DemoTrader:
                 "interval": cfg["interval_sec"],
                 "last_signal": self._last_signals.get(m),
             }
+        # Restore logs from DB if in-memory log is empty (restart recovery)
+        if not self._log:
+            try:
+                self._log = list(reversed(self._db.get_logs(200)))
+            except Exception:
+                pass
+
         return {
             "running": self.is_running(),
             "modes": modes_status,
@@ -364,4 +371,8 @@ class DemoTrader:
         self._log.append(entry)
         if len(self._log) > 200:
             self._log = self._log[-200:]
+        try:
+            self._db.add_log(ts, msg)
+        except Exception:
+            pass
         print(f"[DemoTrader] {msg}")
