@@ -57,3 +57,10 @@
 - **tokyo_bb entry_type修正**: 早期リターンにentry_type追加（BT分析精度向上）
 - **HTF cache修正**: compute_daytrade_signalのHTFバイアスもhtf_cacheを使用（BT時）
 - **EMA spread multiplier**: ema_pullbackスコアをEMA9-21スプレッドで調整
+- **SL後クールダウン**: 直近exit後に同方向/同価格帯の即再エントリー禁止(scalp120s/DT600s/swing7200s)
+- **SIGNAL_REVERSE保持延長**: scalp60→180s, DT300→600s（ウィップソー防止）
+- **Layer1方向チェック**: demo_traderでlayer1(bull/bear)逆行トレードをブロック
+- **sr_fib_confluence閾値**: 0.20→0.35 + EMA方向整合必須（本番0%WR対策）
+- **dual_sr_bounce**: EMA方向一致を条件追加（本番0%WR対策）
+- **自動起動**: サーバー起動時に全3モード自動起動（Render再起動対策）
+- **スレッド耐性**: 連続エラー時のバックオフ追加（スレッド停止防止）
