@@ -7,28 +7,39 @@
 - **Deploy**: Render (auto-deploy from GitHub main branch)
 - **IMPORTANT**: Always reference production (Render) data for analysis, NOT the local development DB. Local DB is for dev/testing only.
 
+## Design Principles
+- **本番環境を常に参照**: 分析・データ取得はRender本番サーバーから行うこと（ローカルDBは開発用のみ）
+- **BT/本番ロジック統一**: BT関数は本番のsignal関数を呼び出すこと。独自のエントリーロジックをBTに書かない
+
 ## Key Architecture
-- Backend: Flask (app.py ~7800+ lines)
+- Backend: Flask (app.py ~7500+ lines)
 - Signal functions: compute_scalp_signal, compute_daytrade_signal, compute_swing_signal
-- **BT/本番ロジック統一原則**: BT関数は本番のsignal関数を呼び出すこと（本番環境を正とする）
-  - run_scalp_backtest → compute_scalp_signal(backtest_mode=True) を使用（統一済み）
-  - run_daytrade_backtest, run_swing_backtest → 未統一（要対応）
+- **BT/本番ロジック統一完了**: 全BT関数がsignal関数(backtest_mode=True)を使用
+  - run_scalp_backtest → compute_scalp_signal(backtest_mode=True)
+  - run_daytrade_backtest → compute_daytrade_signal(backtest_mode=True)
+  - run_swing_backtest → compute_swing_signal(backtest_mode=True)
 - Demo trader: modules/demo_trader.py (background threads per mode)
 - DB: SQLite WAL mode (modules/demo_db.py)
-- Learning engine: modules/learning_engine.py
+- Learning engine: modules/learning_engine.py (10トレード毎に自動調整)
+- Daily review: modules/daily_review.py (UTC 00:00に自動実行)
 
 ## Trading Modes
 - scalp: 1m tf, 10s interval
 - daytrade: 15m tf, 30s interval
 - swing: 4h tf, 300s interval
 
-## Design Principles
-- **本番環境を常に参照**: 分析・データ取得はRender本番サーバーから行うこと（ローカルDBは開発用のみ）
-- **BT/本番ロジック統一**: BT関数は本番のsignal関数を呼び出すこと。独自のエントリーロジックをBTに書かない
+## BT Performance (as of 2026-03-31, all modes unified)
+- Scalp: 5520t WR=46.0% EV=+0.097 (7d, 1m)
+- Daytrade: 4209t WR=42.2% EV=+0.178 (55d, 15m)
+- Swing: 346t WR=36.7% EV=+0.154 (730d, 1d)
 
-## Known Issues (as of 2026-03-31)
-- ema_cross: ADX<15フィルター追加済み（旧WR 26.7% → 改善中）
-- SELL方向: HTFソフトフィルター化でレンジ時BUY許容（改善済み）
-- SL: ATR7×0.5→0.8に拡大、SLTPチェック間隔0.5秒化（改善済み）
+## Recent Fixes (2026-03-31)
+- BT/本番ロジック統一: 3モード全てsignal関数を使用
+- ema_cross: ADX<15フィルター追加（旧WR 26.7% → 改善済み）
+- HTFフィルター: レンジ時(ADX<20)はソフトバイアスに変更（SELL偏重解消）
+- SL: ATR7×0.5→0.8に拡大、SLTPチェック間隔0.5秒化
 - 時間帯フィルター: UTC 00,01,21禁止（損失94%集中帯）
-- 連敗制御: 同方向3連敗で一時停止（追加済み）
+- 連敗制御: 同方向3連敗で一時停止
+- 重複エントリー防止: 同方向ポジション+近接価格チェック
+- SIGNAL_REVERSE最低保持時間: scalp 60s, daytrade 300s, swing 3600s
+- Swing signal: 閾値0.15→2.5/6.0, SL/TP 2.5/4.5→1.0/2.5, SR近接スコアリング追加
