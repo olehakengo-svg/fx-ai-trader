@@ -28,14 +28,22 @@
 - daytrade: 15m tf, 30s interval
 - swing: 4h tf, 300s interval
 
-## BT Performance (as of 2026-03-31, Friday fix applied)
-- Scalp: 4281t WR=46.6% EV=+0.110 (7d, 1m)
-- Daytrade: 3916t WR=41.7% EV=+0.168 (55d, 15m)
-- Swing: 346t WR=36.7% EV=+0.154 (730d, 1d)
+## BT Performance (as of 2026-03-31, Scalp v2 applied)
+- Scalp: 20t WR=45.0% EV=+0.039 WF=3/3✅ (7d, 1m) — v2 bb_rsi_reversion only
+- Daytrade: 2821t WR=47.9% EV=+0.102 WF=3/3✅ (55d, 15m)
+- Swing: 346t WR=36.7% EV=+0.154 WF=2/3✅ (730d, 1d)
 
 ## Weekly BT Sample (2026-03-23〜31)
 - 月 +285p | 火 +987p | 水 +936p | 木 +466p | 金 +111p | 月 +1210p | 火 +103p
 - 全日100p以上 ✅（金曜も+111pで目標達成）
+
+## Scalp v2 Algorithm (4-Strategy Regime-Based)
+- **bb_rsi_reversion** (Bollinger 2001 + Wilder 1978): ADX<20レンジ、BB%B≤0.08/≥0.92 + RSI5<28/>72 + Stochクロス + 反転キャンドル → TP=BB中央60%
+- **bb_squeeze_breakout** (BLL 1992 JoF): BB幅下位5%+ADX≥20 → 拡大方向にATR×2.5（1m足では低頻度）
+- **rsi_divergence_sr**: 1m足で精度不足のため無効化（BT EV -0.605）
+- **london_breakout** (Ito & Hashimoto 2006): 07-09UTC、アジアレンジ突破（金曜無効）
+- **エントリー品質ゲート**: QUALIFIED_TYPES のみ許可、理由✅1つ以上必須
+- **TP固定/SL可変**: TPはシグナル技術ターゲット、SLはエントリーからRR比逆算
 
 ## Friday Filters (金曜対策)
 - **Scalp**: 閾値0.6→3.5（高確信シグナルのみ）、tokyo_bb完全ブロック

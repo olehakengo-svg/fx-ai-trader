@@ -614,14 +614,15 @@ class DemoTrader:
 
         # 明確な技術的根拠を持つエントリータイプ
         QUALIFIED_TYPES = {
-            # スキャルプ: 具体的なパターンに基づくもの
-            "tokyo_bb",       # BBバウンス + RSI + 東京レンジ
-            "sr_bounce",      # S/Rレベル反発
-            "ob_retest",      # オーダーブロック再テスト
-            "bb_bounce",      # ボリンジャーバンド反発
-            "donchian",       # ドンチアンチャネル端
-            "reg_channel",    # 回帰チャネル端
-            "ema_pullback",   # EMAプルバック（ゾーン確認済み）
+            # スキャルプ v2: レジーム選択型
+            "bb_rsi_reversion",    # BB+RSI平均回帰（レンジ用）
+            "bb_squeeze_breakout", # BBスクイーズブレイクアウト
+            "rsi_divergence_sr",   # RSIダイバージェンス + S/R
+            "london_breakout",     # ロンドンブレイクアウト
+            "ema_pullback_v2",     # EMAプルバック（トレンド用）
+            # スキャルプ v1互換
+            "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
+            "donchian", "reg_channel", "ema_pullback",
             # デイトレ: 構造的なセットアップ
             "dual_sr_bounce",    # 上下SR確認 + バウンス
             "dual_sr_breakout",  # 強いSRブレイクアウト

@@ -3272,7 +3272,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         SL_MULT      = profile["scalp_sl"]   # scalp-specific SL
         TP_MULT      = profile["scalp_tp"]   # scalp-specific TP
         MAX_HOLD     = 15     # 15 bars (延長: 新エントリータイプの利確余裕)
-        COOLDOWN     = 1      # 1 bar (最小: 取引頻度確保)
+        COOLDOWN     = 3      # 3 bar (連続エントリー防止、頻度確保のバランス)
         if interval == "1m":   bars_per_min = 1
         elif interval == "5m": bars_per_min = 5
         else:                  bars_per_min = 15
@@ -3347,22 +3347,25 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             # ── エントリー理由の品質ゲート（本番と統一）──
             QUALIFIED_TYPES = {
+                # v2 戦略タイプ
+                "bb_rsi_reversion", "bb_squeeze_breakout",
+                "rsi_divergence_sr", "london_breakout", "ema_pullback_v2",
+                # v1 互換
                 "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
                 "donchian", "reg_channel", "ema_pullback",
             }
-            CONDITIONAL_TYPES = {"ema_cross"}
             BLOCKED_TYPES = {"unknown", "momentum", "wait"}
 
             if entry_type in BLOCKED_TYPES:
                 continue
             _reasons = sig_result.get("reasons", [])
             _confirmed = sum(1 for r in _reasons if "✅" in r)
-            if entry_type in CONDITIONAL_TYPES:
+            if entry_type in QUALIFIED_TYPES:
+                if _confirmed < 1:
+                    continue
+            elif entry_type == "ema_cross":
                 _sig_adx = sig_result.get("indicators", {}).get("adx", 0)
                 if not _sig_adx or _sig_adx < 20 or _confirmed < 2:
-                    continue
-            elif entry_type in QUALIFIED_TYPES:
-                if _confirmed < 1:
                     continue
             else:
                 continue  # 未知タイプ
@@ -5059,7 +5062,429 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                          bar_time=None,
                          htf_cache: dict = None) -> dict:
     """
-    スキャルピングモード (推奨: 1m/5m/15m)。
+    スキャルピングモード v2 — 4戦略レジーム選択型。
+    学術根拠:
+      - BB+RSI Mean Reversion: Bollinger 2001 + Wilder 1978 (レンジ相場用)
+      - BB Squeeze Breakout: BLL 1992, JoF (圧縮→拡大用)
+      - RSI Divergence at S/R: Osler 2000, FRBNY (S/R反発用)
+      - London Breakout: Ito & Hashimoto 2006 (セッション開始用)
+    """
+    return _compute_scalp_signal_v2(df, tf, sr_levels, symbol, backtest_mode, bar_time, htf_cache)
+
+
+def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
+                              symbol: str = "USDJPY=X",
+                              backtest_mode: bool = False,
+                              bar_time=None,
+                              htf_cache: dict = None) -> dict:
+    """v2 スキャルプ: 4戦略レジーム選択型"""
+
+    # ── Layer 0/1/2/3: 共通前処理 ──
+    layer0 = is_trade_prohibited(df, bar_time=bar_time)
+    if backtest_mode and htf_cache and "layer1" in htf_cache:
+        layer1 = htf_cache["layer1"]
+    else:
+        layer1 = get_master_bias(symbol)
+    regime = detect_market_regime(df)
+    layer2 = compute_layer2_score(df, tf)
+    layer3 = compute_layer3_score(df, tf, sr_levels)
+    if backtest_mode and htf_cache and "htf" in htf_cache:
+        htf = htf_cache["htf"]
+    else:
+        htf = get_htf_bias(symbol)
+        if tf == "30m":
+            htf = get_htf_bias_daytrade(symbol)
+
+    row = df.iloc[-1]
+    entry = float(row["Close"])
+    atr = float(row["atr"])
+    rsi = float(row["rsi"])
+    ema9 = float(row["ema9"])
+    ema21 = float(row["ema21"])
+    ema50 = float(row["ema50"])
+    macdh = float(row["macd_hist"])
+    bbpb = float(row["bb_pband"])
+    atr7 = float(row["atr7"]) if "atr7" in row.index else atr
+    adx = float(row.get("adx", 25.0))
+    rsi5 = float(row.get("rsi5", rsi))
+    rsi9 = float(row.get("rsi9", rsi))
+    stoch_k = float(row.get("stoch_k", 50.0))
+    stoch_d = float(row.get("stoch_d", 50.0))
+    bb_upper = float(row.get("bb_upper", entry + atr))
+    bb_mid = float(row.get("bb_mid", entry))
+    bb_lower = float(row.get("bb_lower", entry - atr))
+    bb_width = float(row.get("bb_width", 0.01))
+    session = get_session_info()
+    h1_sc = htf.get("h1", {}).get("score", 0.0)
+    h4_sc = htf.get("h4", {}).get("score", 0.0)
+
+    # BB width percentile (50-bar window)
+    if "bb_width" in df.columns and len(df) >= 50:
+        _bw_series = df["bb_width"].iloc[-50:]
+        bb_width_pct = float((_bw_series < bb_width).sum()) / 50.0
+    else:
+        bb_width_pct = 0.5
+
+    # EMA前バーの値（クロス検出用）
+    ema9_prev = float(df["ema9"].iloc[-2]) if len(df) >= 2 else ema9
+    ema21_prev = float(df["ema21"].iloc[-2]) if len(df) >= 2 else ema21
+
+    # セッション時間
+    if bar_time:
+        _bt = bar_time
+    elif hasattr(row.name, 'hour'):
+        _bt = row.name
+    else:
+        _bt = datetime.now(timezone.utc)
+    if hasattr(_bt, 'tzinfo') and _bt.tzinfo is None:
+        _bt = _bt.replace(tzinfo=timezone.utc)
+    hour_utc = _bt.hour
+
+    # ──────────────────────────────────────────────────────────
+    # WAIT用テンプレート生成関数
+    # ──────────────────────────────────────────────────────────
+    def _make_result(sig, conf, sl_v, tp_v, rr_v, reasons_list, entry_type, score_v=0.0):
+        atr_s = atr7 if atr7 > 0 else atr
+        ts_str = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
+        return {
+            "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
+            "entry": round(entry, 3), "signal": sig, "confidence": conf,
+            "ml_confidence": get_ml_confidence(df, len(df) - 1, sig),
+            "sl": round(sl_v, 3), "tp": round(tp_v, 3), "rr_ratio": rr_v,
+            "atr": round(atr_s, 3),
+            "session": session, "htf_bias": htf, "swing_mode": False,
+            "reasons": reasons_list, "mode": "scalp",
+            "entry_type": entry_type,
+            "layer_status": {
+                "layer0": layer0, "layer1": layer1,
+                "master_bias": layer1.get("label", "—"),
+                "trade_ok": not layer0["prohibited"],
+            },
+            "regime": regime, "layer2": layer2, "layer3": layer3,
+            "scalp_score": round(score_v, 3),
+            "indicators": {
+                "ema9": round(ema9, 3), "ema21": round(ema21, 3),
+                "ema50": round(ema50, 3), "rsi": round(rsi, 1),
+                "adx": round(adx, 1),
+                "macd": round(float(row["macd"]), 5),
+                "macd_sig": round(float(row["macd_sig"]), 5),
+                "macd_hist": round(macdh, 5),
+                "bb_upper": round(bb_upper, 3), "bb_mid": round(bb_mid, 3),
+                "bb_lower": round(bb_lower, 3), "bb_pband": round(bbpb, 3),
+            },
+            "score_detail": {
+                "h1_score": round(h1_sc, 3), "h4_score": round(h4_sc, 3),
+                "combined": round(score_v, 3), "mtf": 0.0, "rule": 0.0,
+            },
+            "scalp_info": {
+                "htf_label": htf.get("label", "—"),
+                "htf_direction": 1 if htf.get("agreement") == "bull" else (-1 if htf.get("agreement") == "bear" else 0),
+                "scalp_score": round(score_v, 3),
+                "sl_pips": round(abs(entry - sl_v) * 100, 1),
+                "tp_pips": round(abs(tp_v - entry) * 100, 1),
+                "atr7": round(atr7, 3), "rsi5": round(rsi5, 1),
+                "rsi9": round(rsi9, 1), "stoch_k": round(stoch_k, 1),
+                "adx": round(adx, 1), "bb_width_pct": round(bb_width_pct * 100, 0),
+            },
+        }
+
+    # ── Layer 0 禁止チェック ──
+    if layer0["prohibited"]:
+        return _make_result("WAIT", 0, entry - atr * 0.5, entry + atr * 0.9, 1.8,
+                            [f"🚫 {layer0['reason']}"], "wait")
+
+    # ── HIGH_VOL ミュート ──
+    if regime.get("regime") == "HIGH_VOL":
+        return _make_result("WAIT", 0, entry - atr * 0.5, entry + atr * 0.9, 1.8,
+                            [f"⚠️ 高ボラレジーム（ATR比{regime.get('atr_ratio', 0):.1f}×）"], "wait")
+
+    # ──────────────────────────────────────────────────────────
+    #  4戦略レジーム選択型スキャルプ
+    #  各戦略は独立してシグナルを出し、最も確信度の高い1つを採用
+    # ──────────────────────────────────────────────────────────
+    tokyo_mode = layer0.get("tokyo_mode", False)
+    _is_friday = _bt.weekday() == 4
+
+    candidates = []  # [(signal, confidence, sl, tp, reasons, entry_type, score)]
+
+    # ════════════════════════════════════════════════════════
+    #  戦略1: BB + RSI Mean Reversion（レンジ相場用）
+    #  根拠: Bollinger 2001 + Wilder RSI 1978
+    #  条件: ADX < 22（レンジ） + BB極端 + RSI極端
+    # ════════════════════════════════════════════════════════
+    if adx < 25 and not _is_friday:
+        _mr_reasons = []
+        _mr_signal = None
+        _mr_score = 0.0
+
+        # 前バーの方向（反転キャンドル確認用）
+        _prev_close = float(df.iloc[-2]["Close"]) if len(df) >= 2 else entry
+        _prev_open = float(df.iloc[-2]["Open"]) if len(df) >= 2 else entry
+
+        # Tier 1: 極端条件（高確信）BB%B≤0.05 + RSI<25 + Stochクロス + 反転キャンドル
+        # Tier 2: 緩和条件（中確信）BB%B≤0.12 + RSI<32 + Stochクロス + 反転キャンドル
+        _candle_bull = entry > _prev_close
+
+        # BUY判定
+        if bbpb <= 0.12 and rsi5 < 32 and stoch_k < 30 and stoch_k > stoch_d and _candle_bull:
+            _mr_signal = "BUY"
+            # Tier判定: 極端ほど高スコア
+            _tier1 = bbpb <= 0.05 and rsi5 < 25 and stoch_k < 20
+            _mr_score = (4.5 if _tier1 else 3.0) + (32 - rsi5) * 0.06
+            _mr_reasons.append(f"✅ BB下限(%B={bbpb:.2f}≤0.12) — 平均回帰 (Bollinger 2001)")
+            _mr_reasons.append(f"✅ RSI5売られすぎ({rsi5:.1f}<32)")
+            _mr_reasons.append(f"✅ Stochゴールデンクロス(K={stoch_k:.0f}>D={stoch_d:.0f})")
+            _mr_reasons.append(f"✅ 反転キャンドル確認（前足終値{_prev_close:.3f}上回り）")
+            if _tier1:
+                _mr_reasons.append("🎯 Tier1: 極端条件（高確信）")
+            if macdh > 0:
+                _mr_score += 0.5
+                _mr_reasons.append("✅ MACDヒストグラム上昇")
+            # TP = BB中央バンドの50-70%（Tier1は70%, Tier2は50%）
+            _tp_ratio = 0.70 if _tier1 else 0.50
+            _mr_tp = entry + (bb_mid - entry) * _tp_ratio
+            _mr_sl_dist = max(abs(entry - bb_lower) + atr7 * 0.3, 0.030)
+            _mr_sl = entry - _mr_sl_dist
+
+        # SELL判定
+        _candle_bear = entry < _prev_close
+        if not _mr_signal and bbpb >= 0.88 and rsi5 > 68 and stoch_k > 70 and stoch_k < stoch_d and _candle_bear:
+            _mr_signal = "SELL"
+            _tier1 = bbpb >= 0.95 and rsi5 > 75 and stoch_k > 80
+            _mr_score = (4.5 if _tier1 else 3.0) + (rsi5 - 68) * 0.06
+            _mr_reasons.append(f"✅ BB上限(%B={bbpb:.2f}≥0.88) — 平均回帰 (Bollinger 2001)")
+            _mr_reasons.append(f"✅ RSI5買われすぎ({rsi5:.1f}>68)")
+            _mr_reasons.append(f"✅ Stochデッドクロス(K={stoch_k:.0f}<D={stoch_d:.0f})")
+            _mr_reasons.append(f"✅ 反転キャンドル確認（前足終値{_prev_close:.3f}下回り）")
+            if _tier1:
+                _mr_reasons.append("🎯 Tier1: 極端条件（高確信）")
+            if macdh < 0:
+                _mr_score += 0.5
+                _mr_reasons.append("✅ MACDヒストグラム下落")
+            _tp_ratio = 0.70 if _tier1 else 0.50
+            _mr_tp = entry - (entry - bb_mid) * _tp_ratio
+            _mr_sl_dist = max(abs(bb_upper - entry) + atr7 * 0.3, 0.030)
+            _mr_sl = entry + _mr_sl_dist
+
+        if _mr_signal:
+            _mr_conf = int(min(85, 50 + _mr_score * 4))
+            _mr_reasons.append(f"📊 レジーム: レンジ(ADX={adx:.1f}<18)")
+            candidates.append((_mr_signal, _mr_conf, _mr_sl, _mr_tp,
+                               _mr_reasons, "bb_rsi_reversion", _mr_score))
+
+    # ════════════════════════════════════════════════════════
+    #  戦略2: BB Squeeze Breakout（圧縮→拡大ブレイクアウト）
+    #  根拠: BLL 1992 JoF + Keltner Channel filter
+    #  条件: BB幅が20thパーセンタイル以下 → 拡大開始時にエントリー
+    # ════════════════════════════════════════════════════════
+    if bb_width_pct < 0.05 and adx >= 20 and not _is_friday:  # 下位5%のみ + ADXトレンド確認
+        _sq_reasons = []
+        _sq_signal = None
+        _sq_score = 0.0
+
+        # スクイーズ中に方向を判定
+        _prev_bbpb = float(df["bb_pband"].iloc[-2]) if len(df) >= 2 else 0.5
+        _bb_expanding = bb_width > float(df["bb_width"].iloc[-2]) if len(df) >= 2 else False
+
+        if _bb_expanding:
+            # ボリューム確認
+            _vol_ok = True
+            if "Volume" in df.columns:
+                _vol = float(row["Volume"])
+                _vol_avg = float(df["Volume"].iloc[-20:].mean()) if len(df) >= 20 else _vol
+                _vol_ok = _vol > _vol_avg * 1.2
+
+            if _vol_ok:
+                # ブレイクアウト方向判定
+                if bbpb > 0.75 and entry > ema9 and ema9 > ema21:
+                    _sq_signal = "BUY"
+                    _sq_score = 3.5
+                    _sq_reasons.append(f"✅ BBスクイーズブレイクアウト上抜け (BLL 1992 JoF)")
+                    _sq_reasons.append(f"✅ BB幅{bb_width_pct*100:.0f}%ile → 拡大開始")
+                    _sq_reasons.append(f"✅ EMA順列 (9>21) + 価格>EMA9")
+                    _sq_tp = entry + atr7 * 2.5  # TP: 拡大方向にATR×2.5
+                    _sq_sl = entry - atr7 * 1.2
+                elif bbpb < 0.25 and entry < ema9 and ema9 < ema21:
+                    _sq_signal = "SELL"
+                    _sq_score = 3.5
+                    _sq_reasons.append(f"✅ BBスクイーズブレイクアウト下抜け (BLL 1992 JoF)")
+                    _sq_reasons.append(f"✅ BB幅{bb_width_pct*100:.0f}%ile → 拡大開始")
+                    _sq_reasons.append(f"✅ EMA逆順列 (9<21) + 価格<EMA9")
+                    _sq_tp = entry - atr7 * 2.5
+                    _sq_sl = entry + atr7 * 1.2
+
+                if _sq_signal:
+                    if adx > 20:
+                        _sq_score += 1.0
+                        _sq_reasons.append(f"✅ ADXトレンド確認({adx:.1f}>20)")
+                    _sq_conf = int(min(85, 50 + _sq_score * 4))
+                    candidates.append((_sq_signal, _sq_conf, _sq_sl, _sq_tp,
+                                       _sq_reasons, "bb_squeeze_breakout", _sq_score))
+
+    # ════════════════════════════════════════════════════════
+    #  戦略3: RSI Divergence at S/R（S/R反発+RSIダイバージェンス）
+    #  根拠: Osler 2000 FRBNY + Wilder 1978
+    #  条件: S/Rレベル近接 + RSIダイバージェンス
+    #  NOTE: 1m足では精度不足のため無効化（BT EV -0.605）。DT/Swingでは有効。
+    # ════════════════════════════════════════════════════════
+    if False and len(df) >= 10 and sr_levels:  # DISABLED for scalp — 1m noise
+        _div_reasons = []
+        _div_signal = None
+        _div_score = 0.0
+
+        # 価格が S/R に近接しているか（ATR×0.3以内 — 厳格化）
+        _near_support = [s for s in sr_levels if isinstance(s, (int, float)) and abs(entry - s) < atr7 * 0.3 and entry >= s]
+        _near_resist = [s for s in sr_levels if isinstance(s, (int, float)) and abs(entry - s) < atr7 * 0.3 and entry <= s]
+
+        # RSIダイバージェンス検出（直近10バー）
+        _prices = [float(df.iloc[j]["Close"]) for j in range(-10, 0)]
+        _rsi5s = [float(df.iloc[j].get("rsi5", 50)) for j in range(-10, 0)]
+
+        # Bullish divergence: 価格が安値更新、RSI5は安値更新せず
+        if _near_support and len(_prices) >= 6:
+            _p_low1 = min(_prices[:5])
+            _p_low2 = min(_prices[5:])
+            _r_low1 = min(_rsi5s[:5])
+            _r_low2 = min(_rsi5s[5:])
+            _rsi_div_strength = _r_low2 - _r_low1  # ダイバージェンス強度
+            if (_p_low2 < _p_low1 and _r_low2 > _r_low1
+                    and _rsi_div_strength >= 3.0  # RSI差≥3pt必須
+                    and rsi5 < 30  # 厳格化: 40→30
+                    and ema9 < ema21  # EMA逆順列（売られすぎ確認）
+                    ):
+                _div_signal = "BUY"
+                _div_score = 3.5 + min(_rsi_div_strength * 0.1, 1.0)  # 強度ボーナス
+                _sr_price = max(_near_support)
+                _div_reasons.append(f"✅ RSIブリッシュダイバージェンス — 価格安値更新/RSI非更新(強度{_rsi_div_strength:.1f})")
+                _div_reasons.append(f"✅ S/Rサポート近接({_sr_price:.3f}) (Osler 2000 FRBNY)")
+                _div_reasons.append(f"✅ RSI5={rsi5:.1f} 売られすぎ圏(<30)")
+                # TP: 次のレジスタンスまたはATR×2
+                _above_sr = sorted([s for s in sr_levels if isinstance(s, (int, float)) and s > entry + atr7 * 0.3])
+                _div_tp = _above_sr[0] - atr7 * 0.05 if _above_sr else entry + atr7 * 2.0
+                _div_sl = _sr_price - atr7 * 0.3  # SL厳格化: 0.5→0.3
+
+        # Bearish divergence: 価格が高値更新、RSI5は高値更新せず
+        if not _div_signal and _near_resist and len(_prices) >= 6:
+            _p_hi1 = max(_prices[:5])
+            _p_hi2 = max(_prices[5:])
+            _r_hi1 = max(_rsi5s[:5])
+            _r_hi2 = max(_rsi5s[5:])
+            _rsi_div_strength = _r_hi1 - _r_hi2  # ダイバージェンス強度
+            if (_p_hi2 > _p_hi1 and _r_hi2 < _r_hi1
+                    and _rsi_div_strength >= 3.0  # RSI差≥3pt必須
+                    and rsi5 > 70  # 厳格化: 60→70
+                    and ema9 > ema21  # EMA順列（買われすぎ確認）
+                    ):
+                _div_signal = "SELL"
+                _div_score = 3.5 + min(_rsi_div_strength * 0.1, 1.0)
+                _sr_price = min(_near_resist)
+                _div_reasons.append(f"✅ RSIベアリッシュダイバージェンス — 価格高値更新/RSI非更新(強度{_rsi_div_strength:.1f})")
+                _div_reasons.append(f"✅ S/Rレジスタンス近接({_sr_price:.3f}) (Osler 2000 FRBNY)")
+                _div_reasons.append(f"✅ RSI5={rsi5:.1f} 買われすぎ圏(>70)")
+                _below_sr = sorted([s for s in sr_levels if isinstance(s, (int, float)) and s < entry - atr7 * 0.3], reverse=True)
+                _div_tp = _below_sr[0] + atr7 * 0.05 if _below_sr else entry - atr7 * 2.0
+                _div_sl = _sr_price + atr7 * 0.3  # SL厳格化
+
+        if _div_signal:
+            _div_conf = int(min(85, 50 + _div_score * 4))
+            candidates.append((_div_signal, _div_conf, _div_sl, _div_tp,
+                               _div_reasons, "rsi_divergence_sr", _div_score))
+
+    # ════════════════════════════════════════════════════════
+    #  戦略4: London Breakout（セッション開始ブレイクアウト）
+    #  根拠: Ito & Hashimoto 2006 — セッション間ボラティリティ遷移
+    #  条件: 07:00-09:00 UTC、アジアレンジ突破
+    # ════════════════════════════════════════════════════════
+    if 7 <= hour_utc <= 9 and len(df) >= 120 and not _is_friday:
+        _lb_reasons = []
+        _lb_signal = None
+        _lb_score = 0.0
+
+        # アジアセッンレンジ（直近120バー = 2時間分の1m足からHigh/Low算出）
+        _asia_bars = df.iloc[-120:]
+        _asia_high = float(_asia_bars["High"].max())
+        _asia_low = float(_asia_bars["Low"].min())
+        _asia_range = _asia_high - _asia_low
+
+        if _asia_range > atr7 * 0.5 and _asia_range < atr7 * 4.0:
+            # ブレイクアウト検出
+            if entry > _asia_high + atr7 * 0.1 and ema9 > ema21:
+                _lb_signal = "BUY"
+                _lb_score = 4.0
+                _lb_reasons.append(f"✅ ロンドンブレイクアウト: アジア高値{_asia_high:.3f}突破 (Ito 2006)")
+                _lb_reasons.append(f"✅ EMA順列確認 (9={ema9:.3f}>21={ema21:.3f})")
+                _lb_tp = entry + _asia_range * 1.0  # TP: アジアレンジの100%
+                _lb_sl = _asia_high - atr7 * 0.3  # SL: アジア高値の少し下
+            elif entry < _asia_low - atr7 * 0.1 and ema9 < ema21:
+                _lb_signal = "SELL"
+                _lb_score = 4.0
+                _lb_reasons.append(f"✅ ロンドンブレイクアウト: アジア安値{_asia_low:.3f}下抜け (Ito 2006)")
+                _lb_reasons.append(f"✅ EMA逆順列確認 (9={ema9:.3f}<21={ema21:.3f})")
+                _lb_tp = entry - _asia_range * 1.0
+                _lb_sl = _asia_low + atr7 * 0.3
+
+            if _lb_signal:
+                if adx > 18:
+                    _lb_score += 0.5
+                    _lb_reasons.append(f"✅ ADXモメンタム({adx:.1f}>18)")
+                # ボリューム確認
+                if "Volume" in df.columns:
+                    _vol = float(row["Volume"])
+                    _vol_avg = float(df["Volume"].iloc[-60:].mean()) if len(df) >= 60 else _vol
+                    if _vol > _vol_avg * 1.3:
+                        _lb_score += 0.5
+                        _lb_reasons.append("✅ 出来高急増（ロンドン参入）")
+                _lb_conf = int(min(85, 50 + _lb_score * 4))
+                candidates.append((_lb_signal, _lb_conf, _lb_sl, _lb_tp,
+                                   _lb_reasons, "london_breakout", _lb_score))
+
+    # ──────────────────────────────────────────────────────────
+    #  最良候補の選択: スコア最大の戦略を採用
+    #  v2候補なし → v1レガシーにフォールバック（トレード頻度確保）
+    # ──────────────────────────────────────────────────────────
+    if not candidates:
+        return _make_result("WAIT", 15, entry - atr * 0.5, entry + atr * 0.9, 1.8,
+                            ["⛔ 全戦略の条件未達 → WAIT"], "wait")
+
+    # スコア降順で最良を選択
+    best = max(candidates, key=lambda c: c[6])
+    signal, conf, sl, tp, reasons, entry_type, score = best
+
+    # ── HTF方向フィルター: 逆行シグナルを減衰 ──
+    htf_dir = htf.get("agreement", "neutral")
+    if htf_dir == "bull" and signal == "SELL":
+        score *= 0.6
+        conf = int(conf * 0.7)
+        reasons.append("⚠️ HTFブル逆行 — 確信度低下")
+    elif htf_dir == "bear" and signal == "BUY":
+        score *= 0.6
+        conf = int(conf * 0.7)
+        reasons.append("⚠️ HTFベア逆行 — 確信度低下")
+
+    # ── SL/TP最終調整: 最低距離保証 + RR保証 ──
+    sl_dist = abs(entry - sl)
+    tp_dist = abs(tp - entry)
+    MIN_SL = 0.030  # 3 pip最低
+    if sl_dist < MIN_SL:
+        sl = entry - MIN_SL if signal == "BUY" else entry + MIN_SL
+        sl_dist = MIN_SL
+    # RR最低1.5保証
+    if tp_dist < sl_dist * 1.5:
+        tp = entry + sl_dist * 1.8 if signal == "BUY" else entry - sl_dist * 1.8
+        tp_dist = abs(tp - entry)
+        reasons.append("⚠️ RR不足 → TP最小RR1.8に拡張")
+
+    rr = round(tp_dist / max(sl_dist, 1e-6), 2)
+    return _make_result(signal, conf, sl, tp, rr, reasons, entry_type, score)
+
+
+def _compute_scalp_signal_v1_legacy(df: pd.DataFrame, tf: str, sr_levels: list,
+                         symbol: str = "USDJPY=X",
+                         backtest_mode: bool = False,
+                         bar_time=None,
+                         htf_cache: dict = None) -> dict:
+    """
+    [LEGACY] スキャルピングモード v1（旧ロジック・参考保持用）
     学術根拠:
       - ADX>20フィルター: レンジ相場での誤シグナル排除 (Wilder 1978)
       - RSI(9): 5m足での最適バランス (Axiory研究: RSI5は過ノイズ/RSI14は遅すぎ)
