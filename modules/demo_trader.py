@@ -82,6 +82,8 @@ class DemoTrader:
         self._last_signals = {}   # mode -> last signal dict
         # 連敗トラッカー: mode -> {"direction": str, "count": int}
         self._consec_losses = {}  # mode -> {dir -> consecutive_loss_count}
+        # SL後クールダウン: mode -> {"price": float, "time": datetime, "direction": str}
+        self._last_exit = {}      # mode -> last exit info
 
     # ── Public API ────────────────────────────────────
 
@@ -319,6 +321,16 @@ class DemoTrader:
                     f"Reason: {close_reason} | ID: {trade_id}"
                 )
 
+                # ── クールダウン記録（SL後の即再エントリー防止）──
+                self._last_exit[mode] = {
+                    "price": trade["entry_price"],
+                    "exit_price": price,
+                    "time": datetime.now(timezone.utc),
+                    "direction": direction,
+                    "reason": close_reason,
+                    "outcome": outcome,
+                }
+
                 # ── 連敗カウンター更新 ──
                 if mode not in self._consec_losses:
                     self._consec_losses[mode] = {}
@@ -340,12 +352,22 @@ class DemoTrader:
         """Background thread main loop for a specific mode."""
         cfg = MODE_CONFIG[mode]
         interval = cfg["interval_sec"]
+        _consecutive_errors = 0
         while self._runners.get(mode, {}).get("running", False):
             try:
                 self._tick(mode)
+                _consecutive_errors = 0  # 成功したらリセット
             except Exception as e:
-                self._add_log(f"❌ [{cfg['label']}] エラー: {e}")
-                print(f"[DemoTrader/{mode}] Error: {e}")
+                _consecutive_errors += 1
+                self._add_log(f"❌ [{cfg['label']}] エラー({_consecutive_errors}): {e}")
+                print(f"[DemoTrader/{mode}] Error #{_consecutive_errors}: {e}")
+                import traceback; traceback.print_exc()
+                # エラー連続時は待ち時間を延長して回復を待つ
+                if _consecutive_errors >= 5:
+                    time.sleep(min(interval * 3, 300))
+                else:
+                    time.sleep(interval)
+                continue  # sleepが重複しないようにcontinue
             time.sleep(interval)
 
     def _tick(self, mode: str):
@@ -434,6 +456,18 @@ class DemoTrader:
             if abs(t["entry_price"] - current_price) < 0.03:  # 3pips以内
                 return
 
+        # ── SL後クールダウン: 直近のSL/LOSSと同一価格帯・同方向なら再エントリー禁止 ──
+        last_ex = self._last_exit.get(mode)
+        if last_ex:
+            _cooldown_sec = {"scalp": 120, "daytrade": 600, "swing": 7200}.get(mode, 120)
+            _ex_age = (datetime.now(timezone.utc) - last_ex["time"]).total_seconds()
+            if _ex_age < _cooldown_sec:
+                # クールダウン期間中: 同方向 or 同価格帯なら禁止
+                if last_ex["direction"] == signal:
+                    return  # 同方向は必ずブロック
+                if abs(last_ex["price"] - current_price) < 0.05:  # 5pips以内
+                    return  # 近接価格もブロック
+
         # ── 時間帯フィルター（UTC 00,01,21時禁止: 本番損失の94%がここ）──
         try:
             hour_now = datetime.now(timezone.utc).hour
@@ -461,6 +495,15 @@ class DemoTrader:
         layer_status = sig.get("layer_status", {})
         if not layer_status.get("trade_ok", True):
             return
+
+        # ── Layer1（上位足バイアス）方向チェック ──
+        # layer1_dir が bull なら SELL 禁止、bear なら BUY 禁止
+        _l1 = layer_status.get("layer1", {})
+        _l1_dir = _l1.get("direction", "neutral") if isinstance(_l1, dict) else "neutral"
+        if _l1_dir == "bull" and signal == "SELL":
+            return  # 上位足上昇バイアスにSELL逆行 → スキップ
+        if _l1_dir == "bear" and signal == "BUY":
+            return  # 上位足下降バイアスにBUY逆行 → スキップ
 
         # ── エントリー実行 ──
         sl = sig.get("sl", 0)
@@ -517,8 +560,8 @@ class DemoTrader:
         direction = trade["direction"]
         trade_id = trade["trade_id"]
 
-        # 最低保持時間チェック（scalp:60秒, daytrade:5分, swing:1時間）
-        min_hold_sec = {"scalp": 60, "daytrade": 300, "swing": 3600}.get(mode, 60)
+        # 最低保持時間チェック（scalp:3分, daytrade:10分, swing:1時間）
+        min_hold_sec = {"scalp": 180, "daytrade": 600, "swing": 3600}.get(mode, 180)
         try:
             entry_time = datetime.fromisoformat(trade["entry_time"])
             if entry_time.tzinfo is None:
@@ -552,6 +595,16 @@ class DemoTrader:
                 f"PnL: {pnl:+.1f} pips | "
                 f"Reason: {close_reason} | ID: {trade_id}"
             )
+
+            # ── クールダウン記録 ──
+            self._last_exit[mode] = {
+                "price": trade["entry_price"],
+                "exit_price": current_price,
+                "time": datetime.now(timezone.utc),
+                "direction": direction,
+                "reason": close_reason,
+                "outcome": outcome,
+            }
 
             # ── 連敗カウンター更新（SIGNAL_REVERSE分）──
             if mode not in self._consec_losses:
