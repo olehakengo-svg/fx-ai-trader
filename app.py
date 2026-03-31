@@ -2846,7 +2846,7 @@ def run_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足", "trades": 0, "mode": "standard"}
 
-        SPREAD   = 0.025   # 2.5 pips
+        SPREAD   = 0.002   # 0.2 pip（実際のスプレッド）
         SL_MULT  = 1.5     # default ATR mult
         TP_MULT  = 2.5     # default ATR mult
         MAX_HOLD = 24      # bars (24 hours)
@@ -3267,7 +3267,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足（最低100本必要）", "trades": 0, "mode": "scalp"}
 
-        SPREAD       = 0.015   # 1.5 pip (realistic spread)
+        SPREAD       = 0.002   # 0.2 pip (実際のスプレッド)
         profile      = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
         SL_MULT      = profile["scalp_sl"]   # scalp-specific SL
         TP_MULT      = profile["scalp_tp"]   # scalp-specific TP
@@ -3626,7 +3626,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足", "trades": 0, "mode": "daytrade"}
 
-        SPREAD    = 0.015   # 1.5 pip（15m足）
+        SPREAD    = 0.002   # 0.2 pip（実際のスプレッド）
         profile   = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
         SL_MULT   = profile["daytrade_sl"]   # daytrade-specific SL
         TP_MULT   = profile["daytrade_tp"]   # daytrade-specific TP
@@ -3948,7 +3948,7 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足", "trades": 0, "mode": "swing"}
 
-        SPREAD   = 0.030
+        SPREAD   = 0.002   # 0.2 pip（実際のスプレッド）
         SL_MULT  = 1.5     # デフォルトSL
         TP_MULT  = 3.0     # デフォルトTP（RR 1:2）
         MAX_HOLD = 20      # 日
@@ -4662,7 +4662,7 @@ def train_ml_model() -> bool:
             return False
 
         # Simulate trades using BT logic to generate labeled samples
-        SPREAD  = 0.003
+        SPREAD  = 0.002   # 0.2 pip
         SL_MULT = 0.8
         TP_MULT = 1.5
         MAX_HOLD = 12
@@ -5458,18 +5458,110 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     #  根拠: ADX≥25のトレンド相場（全時間の63%）でStochの一時的逆行から回復
     #  条件: 明確なトレンド + EMA整列 + Stochが極値から回復
     # ════════════════════════════════════════════════════════
-    # 戦略5: Stoch Trend Pullback — DISABLED (BT EV -0.255, 1mスプレッド制約)
-    # トレンドプルバックは1.5pipスプレッド下で利益確保困難
-    # 将来的にスプレッド改善時に再有効化を検討
+    # ════════════════════════════════════════════════════════
+    #  戦略5: Stochastic Trend Pullback（トレンド方向のStoch押し目/戻り）
+    #  根拠: ADX≥25のトレンド相場（全時間の63%）でStochの一時的逆行から回復
+    #  条件: 明確なトレンド + EMA整列 + Stochが極値から回復
+    # ════════════════════════════════════════════════════════
+    if adx >= 28 and not _is_friday and len(df) >= 5:
+        _st_reasons = []
+        _st_signal = None
+        _st_score = 0.0
+
+        _prev_stoch_k = float(df.iloc[-2].get("stoch_k", 50)) if len(df) >= 2 else 50
+
+        # BUY: 上昇トレンド中のStoch売られすぎ回復
+        if (ema9 > ema21 and entry > ema21
+                and stoch_k > stoch_d  # Stochゴールデンクロス
+                and _prev_stoch_k < 20  # 前バーで売られすぎ圏
+                and stoch_k < 40  # まだ上昇余地あり
+                and rsi5 > 38 and rsi5 < 52
+                and bbpb > 0.25 and bbpb < 0.55
+                ):
+            _st_signal = "BUY"
+            _st_score = 3.2 + min((adx - 28) * 0.04, 0.8)
+            _st_reasons.append(f"✅ トレンドプルバック: Stoch売られすぎ回復(K={stoch_k:.0f}, 前={_prev_stoch_k:.0f})")
+            _st_reasons.append(f"✅ 上昇トレンド確認 (EMA9>21, ADX={adx:.1f}≥28)")
+            _st_reasons.append(f"✅ Stochゴールデンクロス(K>D: {stoch_k:.0f}>{stoch_d:.0f})")
+            _st_tp = entry + min(abs(bb_mid - entry) * 0.6, atr7 * 1.2)
+            _st_sl = entry - atr7 * 0.8
+
+        # SELL: 下降トレンド中のStoch買われすぎ回復
+        elif (ema9 < ema21 and entry < ema21
+                and stoch_k < stoch_d
+                and _prev_stoch_k > 80
+                and stoch_k > 60
+                and rsi5 > 48 and rsi5 < 62
+                and bbpb > 0.45 and bbpb < 0.75
+                ):
+            _st_signal = "SELL"
+            _st_score = 3.2 + min((adx - 28) * 0.04, 0.8)
+            _st_reasons.append(f"✅ トレンドプルバック: Stoch買われすぎ回復(K={stoch_k:.0f}, 前={_prev_stoch_k:.0f})")
+            _st_reasons.append(f"✅ 下降トレンド確認 (EMA9<21, ADX={adx:.1f}≥28)")
+            _st_reasons.append(f"✅ Stochデッドクロス(K<D: {stoch_k:.0f}<{stoch_d:.0f})")
+            _st_tp = entry - min(abs(entry - bb_mid) * 0.6, atr7 * 1.2)
+            _st_sl = entry + atr7 * 0.8
+
+        if _st_signal:
+            _st_conf = int(min(80, 45 + _st_score * 4))
+            _st_reasons.append(f"📊 レジーム: トレンド(ADX={adx:.1f}≥28)")
+            candidates.append((_st_signal, _st_conf, _st_sl, _st_tp,
+                               _st_reasons, "stoch_trend_pullback", _st_score))
 
     # ════════════════════════════════════════════════════════
     #  戦略6: MACD Histogram Reversal at BB Extreme
     #  根拠: モメンタム消耗 + 価格極端 = 高確率反転
     #  条件: BB極端 + MACDヒストグラム反転（ゼロクロスor方向転換）
     # ════════════════════════════════════════════════════════
-    # 戦略6: MACD-H Reversal — bb_rsi_reversionのスコアブーストとして統合
-    # 独立戦略としてはBT EV -0.479。BB極端条件が重複するため、
-    # bb_rsi_reversionのスコアにMACD-H反転ボーナスを含める方式に変更（戦略1内で処理済み）
+    # ════════════════════════════════════════════════════════
+    #  戦略6: MACD Histogram Reversal at BB Extreme
+    #  根拠: モメンタム消耗 + 価格極端 = 高確率反転
+    #  NOTE: 独立戦略としてBT EV -0.175。bb_rsi_reversionのスコアブーストとして統合済み。
+    # ════════════════════════════════════════════════════════
+    if False and len(df) >= 3 and not _is_friday:  # DISABLED — bb_rsi_reversion内で統合
+        _mh_reasons = []
+        _mh_signal = None
+        _mh_score = 0.0
+
+        _macdh_prev = float(df.iloc[-2].get("macdh", 0)) if "macdh" in df.columns else 0
+        _macdh_prev2 = float(df.iloc[-3].get("macdh", 0)) if len(df) >= 3 and "macdh" in df.columns else 0
+
+        # BUY: BB下限 + MACD-H上向き反転 + Stochクロス必須
+        if (bbpb < 0.15
+                and macdh > _macdh_prev
+                and _macdh_prev <= _macdh_prev2
+                and rsi5 < 35
+                and stoch_k > stoch_d
+                ):
+            _mh_signal = "BUY"
+            _mh_score = 3.5
+            _mh_reasons.append(f"✅ MACD-Hモメンタム反転上昇(H={macdh:.4f}, 前={_macdh_prev:.4f})")
+            _mh_reasons.append(f"✅ BB下限圏(%B={bbpb:.2f}<0.15)")
+            _mh_reasons.append(f"✅ RSI5売られすぎ({rsi5:.1f}<35)")
+            _mh_reasons.append(f"✅ Stochゴールデンクロス(K>D)")
+            _mh_tp = entry + (bb_mid - entry) * 0.55
+            _mh_sl = entry - atr7 * 1.0
+
+        # SELL: BB上限 + MACD-H下向き反転 + Stochクロス必須
+        elif (bbpb > 0.85
+                and macdh < _macdh_prev
+                and _macdh_prev >= _macdh_prev2
+                and rsi5 > 65
+                and stoch_k < stoch_d
+                ):
+            _mh_signal = "SELL"
+            _mh_score = 3.5
+            _mh_reasons.append(f"✅ MACD-Hモメンタム反転下落(H={macdh:.4f}, 前={_macdh_prev:.4f})")
+            _mh_reasons.append(f"✅ BB上限圏(%B={bbpb:.2f}>0.85)")
+            _mh_reasons.append(f"✅ RSI5買われすぎ({rsi5:.1f}>65)")
+            _mh_reasons.append(f"✅ Stochデッドクロス(K<D)")
+            _mh_tp = entry - (entry - bb_mid) * 0.55
+            _mh_sl = entry + atr7 * 1.0
+
+        if _mh_signal:
+            _mh_conf = int(min(80, 45 + _mh_score * 4))
+            candidates.append((_mh_signal, _mh_conf, _mh_sl, _mh_tp,
+                               _mh_reasons, "macdh_reversal", _mh_score))
 
     # ════════════════════════════════════════════════════════
     #  戦略7: Engulfing at BB Band（包み足パターン at BB極端）
@@ -6712,7 +6804,7 @@ def run_strategy_evaluation(symbol: str = "USDJPY=X",
         if len(df) < 200:
             return {"error": "データ不足"}
 
-        SPREAD  = 0.003
+        SPREAD  = 0.002   # 0.2 pip
         SL_MULT = 0.5    # BT と同じ RR3:1 設定に統一
         TP_MULT = 1.5
         MAX_HOLD = 20
@@ -7093,7 +7185,7 @@ def run_historical_pattern_analysis(
             return {"error": "データ不足 (200本以上必要)", "bars": len(df)}
 
         # ── 2. BTシミュレーション（EMAクロスオーバー戦略、RR=3:1）──
-        SPREAD  = 0.003
+        SPREAD  = 0.002   # 0.2 pip
         SL_MULT = 0.5
         TP_MULT = 1.5
         MAX_HOLD = 20
