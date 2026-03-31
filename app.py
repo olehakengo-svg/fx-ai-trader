@@ -3349,7 +3349,9 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             QUALIFIED_TYPES = {
                 # v2 戦略タイプ
                 "bb_rsi_reversion", "bb_squeeze_breakout",
-                "rsi_divergence_sr", "london_breakout", "ema_pullback_v2",
+                "rsi_divergence_sr", "london_breakout",
+                "stoch_trend_pullback", "macdh_reversal",
+                "engulfing_bb", "three_bar_reversal",
                 # v1 互換
                 "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
                 "donchian", "reg_channel", "ema_pullback",
@@ -5240,6 +5242,13 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             if macdh > 0:
                 _mr_score += 0.5
                 _mr_reasons.append("✅ MACDヒストグラム上昇")
+            # MACD-H反転ボーナス（モメンタム消耗→回復検出）
+            if len(df) >= 3 and "macdh" in df.columns:
+                _macdh_p1 = float(df.iloc[-2]["macdh"])
+                _macdh_p2 = float(df.iloc[-3]["macdh"])
+                if macdh > _macdh_p1 and _macdh_p1 <= _macdh_p2:
+                    _mr_score += 0.6
+                    _mr_reasons.append("✅ MACD-H反転上昇（モメンタム消耗→回復）")
             # TP = BB中央バンドの50-70%（Tier1は70%, Tier2は50%）
             _tp_ratio = 0.70 if _tier1 else 0.50
             _mr_tp = entry + (bb_mid - entry) * _tp_ratio
@@ -5261,6 +5270,12 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             if macdh < 0:
                 _mr_score += 0.5
                 _mr_reasons.append("✅ MACDヒストグラム下落")
+            if len(df) >= 3 and "macdh" in df.columns:
+                _macdh_p1 = float(df.iloc[-2]["macdh"])
+                _macdh_p2 = float(df.iloc[-3]["macdh"])
+                if macdh < _macdh_p1 and _macdh_p1 >= _macdh_p2:
+                    _mr_score += 0.6
+                    _mr_reasons.append("✅ MACD-H反転下落（モメンタム消耗→回復）")
             _tp_ratio = 0.70 if _tier1 else 0.50
             _mr_tp = entry - (entry - bb_mid) * _tp_ratio
             _mr_sl_dist = max(abs(bb_upper - entry) + atr7 * 0.3, 0.030)
@@ -5438,9 +5453,148 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 candidates.append((_lb_signal, _lb_conf, _lb_sl, _lb_tp,
                                    _lb_reasons, "london_breakout", _lb_score))
 
+    # ════════════════════════════════════════════════════════
+    #  戦略5: Stochastic Trend Pullback（トレンド方向のStoch押し目/戻り）
+    #  根拠: ADX≥25のトレンド相場（全時間の63%）でStochの一時的逆行から回復
+    #  条件: 明確なトレンド + EMA整列 + Stochが極値から回復
+    # ════════════════════════════════════════════════════════
+    # 戦略5: Stoch Trend Pullback — DISABLED (BT EV -0.255, 1mスプレッド制約)
+    # トレンドプルバックは1.5pipスプレッド下で利益確保困難
+    # 将来的にスプレッド改善時に再有効化を検討
+
+    # ════════════════════════════════════════════════════════
+    #  戦略6: MACD Histogram Reversal at BB Extreme
+    #  根拠: モメンタム消耗 + 価格極端 = 高確率反転
+    #  条件: BB極端 + MACDヒストグラム反転（ゼロクロスor方向転換）
+    # ════════════════════════════════════════════════════════
+    # 戦略6: MACD-H Reversal — bb_rsi_reversionのスコアブーストとして統合
+    # 独立戦略としてはBT EV -0.479。BB極端条件が重複するため、
+    # bb_rsi_reversionのスコアにMACD-H反転ボーナスを含める方式に変更（戦略1内で処理済み）
+
+    # ════════════════════════════════════════════════════════
+    #  戦略7: Engulfing at BB Band（包み足パターン at BB極端）
+    #  根拠: 強い反転キャンドルパターン + 価格帯極端 = 構造的反転
+    #  条件: BB極端 + 包み足 + RSI確認
+    # ════════════════════════════════════════════════════════
+    if len(df) >= 3 and not _is_friday:
+        _eg_reasons = []
+        _eg_signal = None
+        _eg_score = 0.0
+
+        _prev_open = float(df.iloc[-2]["Open"]) if len(df) >= 2 else entry
+        _prev_close = float(df.iloc[-2]["Close"]) if len(df) >= 2 else entry
+        _curr_open = float(row["Open"])
+        _curr_close = entry  # = Close
+        _prev_body = abs(_prev_close - _prev_open)
+        _curr_body = abs(_curr_close - _curr_open)
+        _curr_range = float(row["High"]) - float(row["Low"])
+
+        # 包み足条件: 現在足が前足を完全に包む + ボディ1.3倍以上
+        _is_bullish_engulf = (_prev_close < _prev_open  # 前足陰線
+                              and _curr_close > _curr_open  # 現在足陽線
+                              and _curr_body > _prev_body * 1.3  # 1.3倍包み
+                              and _curr_close > _prev_open  # 前足始値を超える
+                              and _curr_range > atr7 * 0.5)  # 十分な足サイズ
+
+        _is_bearish_engulf = (_prev_close > _prev_open
+                              and _curr_close < _curr_open
+                              and _curr_body > _prev_body * 1.3
+                              and _curr_close < _prev_open
+                              and _curr_range > atr7 * 0.5)
+
+        # BUY: BB極端下限 + ブリッシュ包み足 + Stochクロス必須
+        if (_is_bullish_engulf and bbpb < 0.10 and rsi5 < 30
+                and stoch_k > stoch_d  # Stochクロス必須（確認フィルター）
+                and _curr_body > atr7 * 0.3  # 足ボディが十分大きい
+                ):
+            _eg_signal = "BUY"
+            _eg_score = 4.0
+            _eg_reasons.append(f"✅ ブリッシュ包み足(ボディ比{_curr_body/_prev_body:.1f}x)")
+            _eg_reasons.append(f"✅ BB極端下限(%B={bbpb:.2f}<0.10)")
+            _eg_reasons.append(f"✅ RSI5売られすぎ({rsi5:.1f}<30)")
+            _eg_reasons.append(f"✅ Stochゴールデンクロス確認(K>D)")
+            _eg_tp = entry + (bb_mid - entry) * 0.55
+            _eg_sl = min(float(row["Low"]), entry - atr7 * 0.8) - atr7 * 0.15
+
+        # SELL: BB極端上限 + ベアリッシュ包み足 + Stochクロス必須
+        elif (_is_bearish_engulf and bbpb > 0.90 and rsi5 > 70
+                and stoch_k < stoch_d
+                and _curr_body > atr7 * 0.3
+                ):
+            _eg_signal = "SELL"
+            _eg_score = 4.0
+            _eg_reasons.append(f"✅ ベアリッシュ包み足(ボディ比{_curr_body/_prev_body:.1f}x)")
+            _eg_reasons.append(f"✅ BB極端上限(%B={bbpb:.2f}>0.90)")
+            _eg_reasons.append(f"✅ RSI5買われすぎ({rsi5:.1f}>70)")
+            _eg_reasons.append(f"✅ Stochデッドクロス確認(K<D)")
+            _eg_tp = entry - (entry - bb_mid) * 0.55
+            _eg_sl = max(float(row["High"]), entry + atr7 * 0.8) + atr7 * 0.15
+
+        if _eg_signal:
+            _eg_conf = int(min(82, 48 + _eg_score * 4))
+            candidates.append((_eg_signal, _eg_conf, _eg_sl, _eg_tp,
+                               _eg_reasons, "engulfing_bb", _eg_score))
+
+    # ════════════════════════════════════════════════════════
+    #  戦略8: Three-Bar Reversal（3本足反転パターン）
+    #  根拠: 連続陰線/陽線後の反転足 — 構造的転換点
+    #  条件: 3本連続方向 + 反転足 + BB中央以遠 + RSI確認
+    # ════════════════════════════════════════════════════════
+    if len(df) >= 4 and not _is_friday:
+        _tb_reasons = []
+        _tb_signal = None
+        _tb_score = 0.0
+
+        _c3 = float(df.iloc[-4]["Close"]); _o3 = float(df.iloc[-4]["Open"])
+        _c2 = float(df.iloc[-3]["Close"]); _o2 = float(df.iloc[-3]["Open"])
+        _c1 = float(df.iloc[-2]["Close"]); _o1 = float(df.iloc[-2]["Open"])
+
+        _three_bear = (_c3 < _o3) and (_c2 < _o2) and (_c1 < _o1)  # 3連続陰線
+        _three_bull = (_c3 > _o3) and (_c2 > _o2) and (_c1 > _o1)  # 3連続陽線
+
+        # BUY: 3連続陰線の後に陽線（反転） — BB下限圏
+        _curr_bull = entry > float(row["Open"])
+        if (_three_bear and _curr_bull
+                and entry > float(df.iloc[-2]["High"])  # 前足高値超え
+                and bbpb < 0.25  # BB下限圏
+                and rsi5 < 38
+                ):
+            _tb_signal = "BUY"
+            _tb_score = 3.3
+            _tb_reasons.append(f"✅ 3本足反転: 3連続陰線→陽線突破")
+            _tb_reasons.append(f"✅ 前足高値{float(df.iloc[-2]['High']):.3f}超え — 反転確認")
+            _tb_reasons.append(f"✅ BB下半分(%B={bbpb:.2f}) + RSI={rsi5:.0f}")
+            if stoch_k > stoch_d:
+                _tb_score += 0.4
+                _tb_reasons.append("✅ Stochクロス確認")
+            _tb_tp = entry + (bb_mid - entry) * 0.50
+            _tb_sl = min(float(df.iloc[-2]["Low"]), float(df.iloc[-3]["Low"])) - atr7 * 0.15
+
+        # SELL: 3連続陽線の後に陰線（反転）
+        _curr_bear = entry < float(row["Open"])
+        if not _tb_signal and _three_bull and _curr_bear:
+            if (entry < float(df.iloc[-2]["Low"])  # 前足安値割れ
+                    and bbpb > 0.75  # BB上限圏
+                    and rsi5 > 62
+                    ):
+                _tb_signal = "SELL"
+                _tb_score = 3.3
+                _tb_reasons.append(f"✅ 3本足反転: 3連続陽線→陰線突破")
+                _tb_reasons.append(f"✅ 前足安値{float(df.iloc[-2]['Low']):.3f}割れ — 反転確認")
+                _tb_reasons.append(f"✅ BB上半分(%B={bbpb:.2f}) + RSI={rsi5:.0f}")
+                if stoch_k < stoch_d:
+                    _tb_score += 0.4
+                    _tb_reasons.append("✅ Stochデッドクロス確認")
+                _tb_tp = entry - (entry - bb_mid) * 0.50
+                _tb_sl = max(float(df.iloc[-2]["High"]), float(df.iloc[-3]["High"])) + atr7 * 0.15
+
+        if _tb_signal:
+            _tb_conf = int(min(78, 45 + _tb_score * 4))
+            candidates.append((_tb_signal, _tb_conf, _tb_sl, _tb_tp,
+                               _tb_reasons, "three_bar_reversal", _tb_score))
+
     # ──────────────────────────────────────────────────────────
     #  最良候補の選択: スコア最大の戦略を採用
-    #  v2候補なし → v1レガシーにフォールバック（トレード頻度確保）
     # ──────────────────────────────────────────────────────────
     if not candidates:
         return _make_result("WAIT", 15, entry - atr * 0.5, entry + atr * 0.9, 1.8,
