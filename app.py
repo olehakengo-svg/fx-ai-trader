@@ -7431,13 +7431,13 @@ def api_demo_algo_changes():
 
 def _auto_start_trader():
     """サーバー起動時に全モード自動起動（Render再起動対策）"""
-    import threading as _threading
     import time as _time
-    _time.sleep(3)  # Flask初期化完了を待つ
+    _time.sleep(10)  # Gunicorn/Flask完全初期化を待つ
     for _mode in ["scalp", "daytrade", "swing"]:
         try:
             _demo_trader.start(mode=_mode)
             print(f"[AutoStart] {_mode} started")
+            _time.sleep(5)  # モード間で間隔を空ける（メモリ負荷分散）
         except Exception as _e:
             print(f"[AutoStart] {_mode} failed: {_e}")
 

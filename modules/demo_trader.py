@@ -398,6 +398,10 @@ class DemoTrader:
         cfg = MODE_CONFIG[mode]
         interval = cfg["interval_sec"]
         _consecutive_errors = 0
+        # モード別スタートオフセット（同時APIコール防止 → メモリ節約）
+        _start_delay = {"scalp": 0, "daytrade": 5, "swing": 10}.get(mode, 0)
+        if _start_delay:
+            time.sleep(_start_delay)
         try:
             while self._runners.get(mode, {}).get("running", False):
                 try:
@@ -405,7 +409,10 @@ class DemoTrader:
                     _consecutive_errors = 0
                 except Exception as e:
                     _consecutive_errors += 1
-                    self._add_log(f"❌ [{cfg['label']}] エラー({_consecutive_errors}): {e}")
+                    try:
+                        self._add_log(f"❌ [{cfg['label']}] エラー({_consecutive_errors}): {e}")
+                    except Exception:
+                        pass
                     print(f"[DemoTrader/{mode}] Error #{_consecutive_errors}: {e}")
                     import traceback; traceback.print_exc()
                     if _consecutive_errors >= 5:
@@ -418,11 +425,13 @@ class DemoTrader:
             print(f"[DemoTrader/{mode}] FATAL: {fatal}")
             import traceback; traceback.print_exc()
         finally:
-            # スレッド終了時にフラグをリセット（再起動を可能にする）
             runner = self._runners.get(mode, {})
             if runner:
                 runner["running"] = False
-            self._add_log(f"🔴 [{cfg['label']}] スレッド終了 — 自動再起動待ち")
+            try:
+                self._add_log(f"🔴 [{cfg['label']}] スレッド終了 — 自動再起動待ち")
+            except Exception:
+                pass
             print(f"[DemoTrader/{mode}] Thread exited, running flag reset to False")
 
     def _tick(self, mode: str):
