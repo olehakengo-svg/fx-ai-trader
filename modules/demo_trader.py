@@ -455,10 +455,13 @@ class DemoTrader:
 
         # ── ema_cross品質フィルター ──
         # 本番データ: ema_cross WR26.7% EV-1.0 → ADX低い時は禁止
+        # scalp: ADX<15で禁止（15-20はロンドン/NY時間に必要）
+        # daytrade: ADX<15で禁止（15m足はADX低めでも機能する）
         if entry_type == "ema_cross":
             sig_adx = sig.get("indicators", {}).get("adx", 0)
-            if sig_adx and sig_adx < 20:
-                return  # ADX<20でのema_crossはレンジノイズ → スキップ
+            adx_min = 15  # 旧20→15に緩和（ロンドン/NY帯の取引確保）
+            if sig_adx and sig_adx < adx_min:
+                return
 
         layer_status = sig.get("layer_status", {})
         if not layer_status.get("trade_ok", True):
