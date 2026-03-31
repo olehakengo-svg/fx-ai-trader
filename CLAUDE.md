@@ -37,7 +37,7 @@
 
 ## BT Performance (as of 2026-03-31, Scalp v2.2 + DT optimized + 1H Zone v2)
 - **Combined: 92.7 ATR/day（目標80-120 達成）**
-- Scalp: 1561t WR=63.4% EV=+0.355 WF=3/3✅ (7d, 1m) — 5戦略アクティブ
+- Scalp: 1569t WR=63.5% EV=+0.359 WF=3/3✅ (7d, 1m) — 6戦略アクティブ
 - Daytrade 15m: 149t WR=72.5% EV=+0.597 WF=3/3✅ (7d, 15m)
 - Daytrade 1h(Zone): 158t WR=43.7% EV=+0.151 WF=3/3✅ (30d, 1h) — 39.5 pip/day
 - Swing: 346t WR=36.7% EV=+0.154 WF=2/3✅ (730d, 1d)
@@ -47,6 +47,7 @@
 - **macdh_reversal**: 239t WR=61.1% EV=+0.336 PnL=80.2p — BB<0.25/>0.75, MACD-H方向転換
 - **engulfing_bb**: 124t WR=60.5% EV=+0.192 PnL=23.8p — 包み足 at BB<0.30/>0.70
 - **stoch_trend_pullback**: 107t WR=65.4% EV=+0.486 PnL=52.0p — ADX≥20, Stoch押し目回復
+- **trend_rebound**: 5t WR=80.0% EV=+0.696 PnL=3.5p — ADX≥35, Stoch<12/>88, RSI<28/>72, BB<0.12/>0.88, 陽陰線確認
 - **three_bar_reversal**: 4t — 低頻度
 - **DISABLED**: rsi_divergence_sr (EV-0.607, ATR TPでも改善せず)
 - **MAX_HOLD=40バー**, COOLDOWN=1, MIN_RR=1.2, ATR TP (Tier1:×2.0, Tier2:×1.5)

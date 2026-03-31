@@ -3774,6 +3774,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "rsi_divergence_sr", "london_breakout",
                 "stoch_trend_pullback", "macdh_reversal",
                 "engulfing_bb", "three_bar_reversal",
+                "trend_rebound",  # 強トレンド時リバウンド
                 # v1 互換
                 "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
                 "donchian", "reg_channel", "ema_pullback",
@@ -6485,6 +6486,86 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             _tb_conf = int(min(78, 45 + _tb_score * 4))
             candidates.append((_tb_signal, _tb_conf, _tb_sl, _tb_tp,
                                _tb_reasons, "three_bar_reversal", _tb_score))
+
+    # ════════════════════════════════════════════════════════
+    #  戦略6: Trend Rebound（強トレンド時の逆張りリバウンド）
+    #  根拠: Jegadeesh 1990 "Predictable Behavior" — 極端なオシレーター
+    #        からの平均回帰、ゴムバンド効果
+    #  条件: ADX ≥ 35 + 3指標（Stoch + RSI + BB）全て極端 + 足形確認
+    #  TP: ATR×1.0-1.5（反発だけ取る）, SL: ATR×0.5（タイトカット）
+    # ════════════════════════════════════════════════════════
+    if adx >= 35:
+        _tr_signal = None
+        _tr_score = 0.0
+        _tr_reasons = []
+        _tr_tp = 0
+        _tr_sl = 0
+
+        _macdh_prev_tr = float(df.iloc[-2].get("macdh", float(df["macd_hist"].iloc[-2]))) if len(df) >= 2 else macdh
+        _prev_stoch_k_tr = float(df.iloc[-2].get("stoch_k", 50)) if len(df) >= 2 else 50
+
+        # ── 下降トレンド中のBUYリバウンド ──
+        # 条件: Stoch極端低 + RSI極端低 + BB下限突破 + 陽線確認
+        if (stoch_k < 12
+                and rsi5 < 28
+                and bbpb < 0.12
+                and entry > float(row["Open"])  # 陽線確認
+                ):
+            _tr_signal = "BUY"
+            _tr_score = 3.5
+            _tr_reasons.append(f"✅ Trend Rebound BUY: ADX={adx:.0f}≥35（強下降トレンド中）[Jegadeesh 1990]")
+            _tr_reasons.append(f"✅ Stoch極低({stoch_k:.0f}<12) + RSI極低({rsi5:.0f}<28) + BB%B={bbpb:.2f}<0.12")
+            _tr_reasons.append(f"✅ 陽線反転確認(Close>Open)")
+
+            # MACD-H反転上昇でボーナス
+            if macdh > _macdh_prev_tr:
+                _tr_score += 0.5
+                _tr_reasons.append(f"✅ MACD-H反転上昇(H={macdh:.4f})")
+
+            # Stochクロスでボーナス
+            if stoch_k > stoch_d:
+                _tr_score += 0.5
+                _tr_reasons.append(f"✅ Stoch GC(K={stoch_k:.0f}>D={stoch_d:.0f})")
+
+            # Stochが前バーより回復でボーナス
+            if stoch_k > _prev_stoch_k_tr:
+                _tr_score += 0.3
+                _tr_reasons.append(f"✅ Stoch回復(前={_prev_stoch_k_tr:.0f}→{stoch_k:.0f})")
+
+            # TP: 短い反発（ATR×1.0〜1.5）
+            _tr_tp = entry + atr7 * (1.5 if _tr_score >= 4.0 else 1.0)
+            # SL: タイトカット（ATR×0.5）
+            _tr_sl = entry - atr7 * 0.5
+
+        # ── 上昇トレンド中のSELLリバウンド ──
+        elif (stoch_k > 88
+                and rsi5 > 72
+                and bbpb > 0.88
+                and entry < float(row["Open"])  # 陰線確認
+                ):
+            _tr_signal = "SELL"
+            _tr_score = 3.5
+            _tr_reasons.append(f"✅ Trend Rebound SELL: ADX={adx:.0f}≥35（強上昇トレンド中）[Jegadeesh 1990]")
+            _tr_reasons.append(f"✅ Stoch極高({stoch_k:.0f}>88) + RSI極高({rsi5:.0f}>72) + BB%B={bbpb:.2f}>0.88")
+            _tr_reasons.append(f"✅ 陰線反転確認(Close<Open)")
+
+            if macdh < _macdh_prev_tr:
+                _tr_score += 0.5
+                _tr_reasons.append(f"✅ MACD-H反転下落(H={macdh:.4f})")
+            if stoch_k < stoch_d:
+                _tr_score += 0.5
+                _tr_reasons.append(f"✅ Stoch DC(K={stoch_k:.0f}<D={stoch_d:.0f})")
+            if stoch_k < _prev_stoch_k_tr:
+                _tr_score += 0.3
+                _tr_reasons.append(f"✅ Stoch反落(前={_prev_stoch_k_tr:.0f}→{stoch_k:.0f})")
+
+            _tr_tp = entry - atr7 * (1.5 if _tr_score >= 4.0 else 1.0)
+            _tr_sl = entry + atr7 * 0.5
+
+        if _tr_signal:
+            _tr_conf = int(min(80, 45 + _tr_score * 4))
+            candidates.append((_tr_signal, _tr_conf, _tr_sl, _tr_tp,
+                               _tr_reasons, "trend_rebound", _tr_score))
 
     # ──────────────────────────────────────────────────────────
     #  最良候補の選択: スコア最大の戦略を採用

@@ -664,6 +664,7 @@ class DemoTrader:
             "macdh_reversal",        # MACD-H反転 at BB極端
             "engulfing_bb",          # 包み足 at BB極端
             "three_bar_reversal",    # 3本足反転パターン
+            "trend_rebound",         # 強トレンド時リバウンド
             # スキャルプ v1互換
             "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
             "donchian", "reg_channel", "ema_pullback",
