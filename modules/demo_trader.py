@@ -139,8 +139,13 @@ class DemoTrader:
 
     def is_running(self, mode: str = None) -> bool:
         if mode:
-            return self._runners.get(mode, {}).get("running", False)
-        return any(r.get("running", False) for r in self._runners.values())
+            r = self._runners.get(mode, {})
+            t = r.get("thread")
+            return r.get("running", False) and (t.is_alive() if t else False)
+        return any(
+            r.get("running", False) and (r.get("thread").is_alive() if r.get("thread") else False)
+            for r in self._runners.values()
+        )
 
     def get_status(self) -> dict:
         open_trades = self._db.get_open_trades()
@@ -148,8 +153,10 @@ class DemoTrader:
         modes_status = {}
         for m, cfg in MODE_CONFIG.items():
             runner = self._runners.get(m, {})
+            _thread = runner.get("thread")
+            _actually_running = runner.get("running", False) and (_thread.is_alive() if _thread else False)
             modes_status[m] = {
-                "running": runner.get("running", False),
+                "running": _actually_running,
                 "label": cfg["label"],
                 "icon": cfg["icon"],
                 "tf": cfg["tf"],
@@ -250,31 +257,26 @@ class DemoTrader:
         self._health_thread.start()
 
     def _health_loop(self):
-        """30秒ごとに全モードのスレッド生存を確認、死んでいれば再起動"""
+        """60秒ごとに全モードのスレッド生存を確認、死んでいれば再起動"""
         while True:
-            time.sleep(30)
+            time.sleep(60)
             try:
                 for mode in list(self._started_modes):
+                    # start()メソッドを再利用（ロック内で安全に再起動）
                     runner = self._runners.get(mode, {})
                     thread = runner.get("thread")
                     is_alive = thread.is_alive() if thread else False
-                    is_running = runner.get("running", False)
 
-                    if not is_alive or not is_running:
-                        # スレッドが死んでいる → 再起動
+                    if not is_alive:
                         cfg = MODE_CONFIG.get(mode, {})
-                        print(f"[HealthChecker] {mode} dead (alive={is_alive}, running={is_running}), restarting...")
-                        runner["running"] = False  # 念のためリセット
-                        # 再起動
-                        self._runners[mode] = {"running": True, "thread": None}
-                        t = threading.Thread(
-                            target=self._run, args=(mode,), daemon=True,
-                            name=f"DemoTrader-{mode}"
-                        )
-                        self._runners[mode]["thread"] = t
-                        t.start()
-                        self._ensure_sltp_checker()
-                        self._add_log(f"🔄 [{cfg.get('label', mode)}] 自動再起動")
+                        print(f"[HealthChecker] {mode} thread dead, restarting via start()...")
+                        # runningフラグをFalseにリセット（start()のalready_runningガードを回避）
+                        with self._lock:
+                            runner["running"] = False
+                        # start()で安全に再起動
+                        result = self.start(mode)
+                        print(f"[HealthChecker] {mode} restart result: {result}")
+                        time.sleep(5)  # モード間でインターバル
             except Exception as e:
                 print(f"[HealthChecker] Error: {e}")
 
