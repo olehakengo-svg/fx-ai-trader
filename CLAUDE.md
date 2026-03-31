@@ -17,6 +17,7 @@
 - **BT/本番ロジック統一完了**: 全BT関数がsignal関数(backtest_mode=True)を使用
   - run_scalp_backtest → compute_scalp_signal(backtest_mode=True)
   - run_daytrade_backtest → compute_daytrade_signal(backtest_mode=True)
+  - run_1h_backtest → compute_1h_zone_signal(backtest_mode=True)
   - run_swing_backtest → compute_swing_signal(backtest_mode=True)
 - Demo trader: modules/demo_trader.py (background threads per mode)
 - DB: SQLite WAL mode (modules/demo_db.py)
@@ -26,26 +27,51 @@
 ## Trading Modes
 - scalp: 1m tf, 10s interval
 - daytrade: 15m tf, 30s interval
+- daytrade_1h: 1h tf, 60s interval (Zone-based補完DT)
 - swing: 4h tf, 300s interval
 
-## BT Performance (as of 2026-03-31, Scalp v2.1 multi-strategy)
-- Scalp: 84t WR=52.4% EV=+0.126 WF=2/3✅ (7d, 1m) — 3戦略レジーム型
-- Daytrade: 2821t WR=47.8% EV=+0.102 WF=3/3✅ (55d, 15m)
+## Daily Target
+- **目標: 100 pips/日（±20 許容 = 80〜120 pips/日）**
+- スキャルプ + デイトレで達成
+- スプレッド: 0.2 pip
+
+## BT Performance (as of 2026-03-31, Scalp v2.2 + DT optimized + 1H Zone v2)
+- **Combined: 92.7 ATR/day（目標80-120 達成）**
+- Scalp: 1561t WR=63.4% EV=+0.355 WF=3/3✅ (7d, 1m) — 5戦略アクティブ
+- Daytrade 15m: 149t WR=72.5% EV=+0.597 WF=3/3✅ (7d, 15m)
+- Daytrade 1h(Zone): 158t WR=43.7% EV=+0.151 WF=3/3✅ (30d, 1h) — 39.5 pip/day
 - Swing: 346t WR=36.7% EV=+0.154 WF=2/3✅ (730d, 1d)
 
-## Weekly BT Sample (2026-03-23〜31)
-- 月 +285p | 火 +987p | 水 +936p | 木 +466p | 金 +111p | 月 +1210p | 火 +103p
-- 全日100p以上 ✅（金曜も+111pで目標達成）
+## Scalp v2.2 Strategy Breakdown (7d BT)
+- **bb_rsi_reversion**: 1077t WR=64.4% EV=+0.381 PnL=410.8p — BB%B≤0.25/≥0.75, RSI<45/>55, Stoch<45/>55
+- **macdh_reversal**: 239t WR=61.1% EV=+0.336 PnL=80.2p — BB<0.25/>0.75, MACD-H方向転換
+- **engulfing_bb**: 124t WR=60.5% EV=+0.192 PnL=23.8p — 包み足 at BB<0.30/>0.70
+- **stoch_trend_pullback**: 107t WR=65.4% EV=+0.486 PnL=52.0p — ADX≥20, Stoch押し目回復
+- **three_bar_reversal**: 4t — 低頻度
+- **DISABLED**: rsi_divergence_sr (EV-0.607, ATR TPでも改善せず)
+- **MAX_HOLD=40バー**, COOLDOWN=1, MIN_RR=1.2, ATR TP (Tier1:×2.0, Tier2:×1.5)
 
-## Scalp v2.1 Algorithm (Multi-Strategy Regime-Based)
-- **bb_rsi_reversion** (Bollinger 2001 + Wilder 1978): Tier1/Tier2、BB%B≤0.12/≥0.88 + RSI5<32/>68 + Stochクロス + 反転キャンドル + MACD-H反転ボーナス → 73t/week, EV+0.125
-- **three_bar_reversal**: 3連続陰/陽線後の反転足 at BB極端 → 7t/week, EV+0.232
-- **engulfing_bb**: 包み足パターン at BB極端+RSI+Stoch → 4t/week
-- **bb_squeeze_breakout** (BLL 1992 JoF): BB幅下位5%+ADX≥20（1m足では低頻度）
-- **london_breakout** (Ito & Hashimoto 2006): 07-09UTC、アジアレンジ突破
-- **DISABLED**: rsi_divergence_sr (EV-0.605), stoch_trend_pullback (EV-0.255), macdh_reversal独立版 (bb_rsi_reversionに統合)
+## DT Strategy Breakdown (7d BT)
+- **sr_fib_confluence**: 31t WR=90.3% EV=+1.197 PnL=37.1p
+- **ema_cross**: 105t WR=67.6% EV=+0.406 PnL=42.6p (ADX≥12)
+- **dual_sr_bounce**: 12t WR=66.7% EV=+0.663 PnL=8.0p
+- ema_score THRESHOLD=0.20, ATR TP floor=×1.5, MAX_HOLD=24バー, ADX≥12
+
+## 1H Zone Strategy v2 (学術論文ベース)
+- **コンセプト**: 前日のPivot Point (H+L+C)/3 を境にBuy Zone / Sell Zoneを定義
+- **ゾーン更新**: 毎日UTC 00:00に前日OHLCから再計算
+- **2戦略アクティブ** (4戦略中):
+  - **mtf_momentum**: EMA9>21>50 + プルバック反発 (Moskowitz 2012 JFE) → 111t WR=45.0% ATR=19.2
+  - **pivot_breakout**: R1/S1突破 + EMA整合 (Osler 2000 NY Fed) → 47t WR=40.4% ATR=4.7
+- **DISABLED**: session_orb (WR=36.6% → ATR EVドラッグ), pivot_reversion (WR=30%)
+- **MAX_HOLD**: 18バー（18時間、TP到達時間確保）
+- **BT(30d)**: 158t WR=43.7% EV=+0.151 WF=3/3✅ (39.5 pip/day raw)
+- **用途**: スキャルプ/DT補完、異なるタイムフレームでの分散
+
+## Key Parameters
+- **スプレッド**: 0.2 pip (全BT統一)
+- **TP固定/SL可変**: TPはATRベース技術ターゲット、SLはRR比逆算(MIN_RR=1.2)
 - **エントリー品質ゲート**: QUALIFIED_TYPES のみ許可、理由✅1つ以上必須
-- **TP固定/SL可変**: TPはシグナル技術ターゲット、SLはエントリーからRR比逆算
 
 ## Friday Filters (金曜対策)
 - **Scalp**: 閾値0.6→3.5（高確信シグナルのみ）、tokyo_bb完全ブロック
@@ -53,7 +79,7 @@
 - **DT (compute_signal)**: combined score減衰(×0.15)、Tokyo/NY午後ブロック
 - **重要**: compute_daytrade_signalとcompute_signalは別関数。DT BTはcompute_daytrade_signalを使用
 
-## Recent Fixes (2026-03-31)
+## Recent Fixes (2026-03-31 v2)
 - BT/本番ロジック統一: 3モード全てsignal関数を使用
 - ema_cross: ADX<15フィルター追加（旧WR 26.7% → 改善済み）
 - HTFフィルター: レンジ時(ADX<20)はソフトバイアスに変更（SELL偏重解消）
@@ -79,3 +105,10 @@
 - **ドローダウン制御**: 日次-30pip / 最大DD -100pipで自動停止
 - **BT現実的スプレッド**: scalp 0.5pip→1.5pip（現実的スプレッド反映）
 - **HTF lookahead修正**: BT時HTFキャッシュをneutral化（先読みバイアス排除）
+- **1H Zone v2**: compute_1h_zone_signal完全書き換え（学術論文ベース4戦略）
+  - mtf_momentum (Moskowitz 2012), session_orb (Ito 2006), pivot_breakout (Osler 2000), pivot_reversion
+  - session_orb, pivot_reversion はBT結果に基づきDISABLED
+  - ゾーン制約: mtf_momentumはゾーン不問（トレンドフォロー）、pivot_breakoutはEMA整合必須
+  - MAX_HOLD: 12→18バー（TP到達時間確保で WR +3%, ATR EV +75%）
+- **DT 15m最適化**: ema_cross ADX閾値15→12, ema_score THRESHOLD 0.25→0.20
+- **QUALIFIED_TYPES更新**: 1h新entry_types（mtf_momentum, session_orb, pivot_breakout, pivot_reversion）

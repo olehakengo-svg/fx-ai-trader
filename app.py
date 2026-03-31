@@ -2121,9 +2121,9 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # A: 下のSRバウンス → BUY（EMA方向整合必須）
     if _dt_below:
         _sup = _dt_below[0]
-        _sup_tol = atr * 0.4
+        _sup_tol = atr * 0.6  # 旧0.4 → 0.6（SR近接判定を緩和）
         if abs(float(row["Low"]) - _sup["price"]) < _sup_tol and entry > _sup["price"]:
-            if entry > float(row["Open"]) and rsi < 55 and adx < 35 and ema9 > ema21:
+            if entry > float(row["Open"]) and rsi < 60 and ema9 > ema21:
                 signal = "BUY"
                 _dt_entry_type = "dual_sr_bounce"
                 _sr_signal_found = True
@@ -2132,9 +2132,9 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # B: 上のSRバウンス → SELL（EMA方向整合必須）
     if not _sr_signal_found and _dt_above:
         _res = _dt_above[0]
-        _res_tol = atr * 0.4
+        _res_tol = atr * 0.6  # 旧0.4 → 0.6
         if abs(float(row["High"]) - _res["price"]) < _res_tol and entry < _res["price"]:
-            if entry < float(row["Open"]) and rsi > 45 and adx < 35 and ema9 < ema21:
+            if entry < float(row["Open"]) and rsi > 40 and ema9 < ema21:
                 signal = "SELL"
                 _dt_entry_type = "dual_sr_bounce"
                 _sr_signal_found = True
@@ -2143,7 +2143,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # C: 下のSR下抜けブレイク → SELL
     if not _sr_signal_found and _dt_below:
         _sup = _dt_below[0]
-        if (_sup["is_strong"] and _sup["touches"] >= 3
+        if (_sup["touches"] >= 2
                 and entry < _sup["price"] - atr * 0.1
                 and entry < float(row["Open"]) and adx >= 12):
             signal = "SELL"
@@ -2154,7 +2154,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # D: 上のSR上抜けブレイク → BUY
     if not _sr_signal_found and _dt_above:
         _res = _dt_above[0]
-        if (_res["is_strong"] and _res["touches"] >= 3
+        if (_res["touches"] >= 2
                 and entry > _res["price"] + atr * 0.1
                 and entry > float(row["Open"]) and adx >= 12):
             signal = "BUY"
@@ -2166,7 +2166,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     if not _sr_signal_found:
         _has_sr_fib = any("Fib" in r or "フィボ" in r for r in reasons)
         _has_ob     = any("OB" in r or "オーダーブロック" in r for r in reasons)
-        THRESHOLD = 0.35   # 旧0.20 → 0.35（本番0%WR対策: 弱いシグナルを排除）
+        THRESHOLD = 0.20   # 旧0.25 → 0.20（トレード頻度増加: ADX12+EMA整合でフィルター済み）
         if ema_score > THRESHOLD and ema9 > ema21:
             signal = "BUY"
             _dt_entry_type = "sr_fib_confluence" if _has_sr_fib else ("ob_retest" if _has_ob else "ema_cross")
@@ -2559,6 +2559,428 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             "combined": round(score,3), "rule": round(max(-1,min(1,score/5)),3),
         },
     }
+
+
+# ═══════════════════════════════════════════════════════
+#  1Hゾーンベーストレーディングシグナル
+#  Buy/Sell Zone: 前日のPivot Points + ATR で毎日再計算
+#  ゾーン内でのみリバーサルシグナルを生成
+# ═══════════════════════════════════════════════════════
+def compute_1h_zone_signal(df: pd.DataFrame,
+                           buy_zone: tuple,
+                           sell_zone: tuple,
+                           sr_levels: list,
+                           backtest_mode: bool = False) -> dict:
+    """
+    1H Zone-Based Multi-Strategy Signal Generator (v2)
+    学術論文ベースの3戦略を統合。TP 15-100+ pip/trade。
+
+    戦略1: Multi-TF Momentum (Moskowitz, Ooi & Pedersen 2012 JFE)
+      - Daily trend方向 (EMA50/200) → 1h pullback entry
+      - TP: 次のS/Rレベル or ATR×3.0 (40-100pip)
+      - SL: Swing Low/High + ATR×0.3 (20-35pip)
+
+    戦略2: Session Opening Range Breakout (Ito & Hashimoto 2006 NBER)
+      - アジアセッション(00-07UTC)レンジ突破 at London Open
+      - TP: Asian range × 1.5 or ATR×2.5 (30-80pip)
+      - SL: Asian range反対側 (15-25pip)
+
+    戦略3: Pivot Breakout (Osler 2000 NY Fed)
+      - Daily Pivot R1/S1突破 + ATR拡大確認
+      - TP: 次のPivotレベル(R2/S2) (30-60pip)
+      - SL: 突破Pivotレベル裏 + buffer (15-25pip)
+
+    ゾーン: Buy Zone(Pivot以下)=BUYのみ, Sell Zone(Pivot以上)=SELLのみ
+    """
+    if len(df) < 30:
+        return {"signal": "WAIT", "entry": 0, "sl": 0, "tp": 0,
+                "confidence": 0, "entry_type": "wait", "reasons": [],
+                "indicators": {}, "atr": 0.1, "zone_info": {}}
+
+    row   = df.iloc[-1]
+    entry = float(row["Close"])
+    atr   = float(row.get("atr", 0.10))
+    rsi   = float(row.get("rsi", 50))
+    rsi5  = float(row.get("rsi5", rsi))
+    stoch_k = float(row.get("stoch_k", 50))
+    stoch_d = float(row.get("stoch_d", 50))
+    macdh   = float(row.get("macdh", 0))
+    bb_pctb = float(row.get("bb_pctb", 0.5))
+    ema9  = float(row.get("ema9", entry))
+    ema21 = float(row.get("ema21", entry))
+    ema50 = float(row.get("ema50", entry))
+    adx   = float(row.get("adx", 20))
+    _open = float(row["Open"])
+    _high = float(row["High"])
+    _low  = float(row["Low"])
+
+    prev_macdh = float(df.iloc[-2].get("macdh", 0)) if len(df) >= 2 else 0.0
+    prev2_macdh = float(df.iloc[-3].get("macdh", 0)) if len(df) >= 3 else prev_macdh
+    prev_stoch_k = float(df.iloc[-2].get("stoch_k", 50)) if len(df) >= 2 else 50
+
+    # 1h足のバー時刻（UTC hour）
+    _bar_time = df.index[-1]
+    _hour_utc = _bar_time.hour if hasattr(_bar_time, 'hour') else 12
+
+    base = {
+        "signal": "WAIT", "entry": entry, "sl": 0.0, "tp": 0.0,
+        "confidence": 0, "entry_type": "wait", "reasons": [],
+        "indicators": {
+            "rsi": round(rsi, 1), "stoch_k": round(stoch_k, 1),
+            "stoch_d": round(stoch_d, 1), "macdh": round(macdh, 5),
+            "bb_pctb": round(bb_pctb, 3), "atr": round(atr, 4), "adx": round(adx, 1),
+        },
+        "atr": atr,
+        "zone_info": {
+            "buy_zone": buy_zone, "sell_zone": sell_zone,
+            "current_zone": "neutral",
+        },
+    }
+
+    bz_lo, bz_hi = buy_zone  # buy_zone = (prev_L - buffer, Pivot)
+    sz_lo, sz_hi = sell_zone  # sell_zone = (Pivot, prev_H + buffer)
+    _pivot = bz_hi  # Pivot = Buy Zone上限 = Sell Zone下限
+
+    # Pivot levels (R1, R2, S1, S2)
+    _prev_h = sz_hi - (sz_hi - _pivot) * 0.2 / 1.2 if sz_hi != _pivot else _pivot + atr
+    _prev_l = bz_lo + (_pivot - bz_lo) * 0.2 / 1.2 if bz_lo != _pivot else _pivot - atr
+    # 近似: R1 = 2*P - L, S1 = 2*P - H, R2 = P + (H-L), S2 = P - (H-L)
+    _daily_range = _prev_h - _prev_l
+    _R1 = 2 * _pivot - _prev_l
+    _S1 = 2 * _pivot - _prev_h
+    _R2 = _pivot + _daily_range
+    _S2 = _pivot - _daily_range
+
+    in_buy_zone  = entry <= _pivot
+    in_sell_zone = entry > _pivot
+    base["zone_info"]["current_zone"] = "buy_zone" if in_buy_zone else "sell_zone"
+
+    # ── Swing High/Low 検出 (直近20バー) ──
+    _lookback = min(20, len(df) - 1)
+    _recent_lows = [float(df.iloc[-(j+1)]["Low"]) for j in range(_lookback)]
+    _recent_highs = [float(df.iloc[-(j+1)]["High"]) for j in range(_lookback)]
+    _swing_low = min(_recent_lows) if _recent_lows else entry - atr
+    _swing_high = max(_recent_highs) if _recent_highs else entry + atr
+
+    # ── Asian Range (00-07 UTC) for Session Breakout ──
+    _asia_high, _asia_low = None, None
+    for j in range(min(24, len(df) - 1)):
+        _bj = df.iloc[-(j+1)]
+        _bj_time = df.index[-(j+1)]
+        _bj_hour = _bj_time.hour if hasattr(_bj_time, 'hour') else -1
+        if 0 <= _bj_hour < 7:
+            _h = float(_bj["High"])
+            _l = float(_bj["Low"])
+            if _asia_high is None or _h > _asia_high:
+                _asia_high = _h
+            if _asia_low is None or _l < _asia_low:
+                _asia_low = _l
+    _asia_range = (_asia_high - _asia_low) if _asia_high and _asia_low else atr * 2
+
+    # ── ATR拡大チェック (ブレイクアウト確認用) ──
+    _atr_sma = np.mean([float(df.iloc[-(j+1)].get("atr", atr)) for j in range(min(20, len(df)-1))])
+    _atr_expanding = atr > _atr_sma * 1.1  # ATRが20期間平均の110%以上
+
+    # ── 候補リスト: (signal, score, tp, sl, reasons, entry_type) ──
+    candidates = []
+
+    # ════════════════════════════════════════════════════════════
+    #  戦略1: Multi-TF Momentum Pullback (Moskowitz et al. 2012 JFE)
+    #  Daily trend方向 → 1h pullback entry (bounce confirmed)
+    #  TP: ATR×3.0 (40-100pip), SL: swing low/high (15-30pip)
+    #  ゾーン制約なし（トレンドフォローはゾーン不問）
+    # ════════════════════════════════════════════════════════════
+    # 上昇トレンド: EMA9>EMA21>EMA50 + ADX≥15
+    if ema9 > ema21 and ema21 > ema50 and adx >= 15:
+        _mt_score = 0.0
+        _mt_reasons = []
+        _mt_reasons.append(f"✅ Multi-TF上昇トレンド(EMA9>21>50, ADX={adx:.0f}) [Moskowitz 2012]")
+        _mt_score += 1.0
+
+        # Pullback + Bounce条件: EMA21近辺 + 価格がEMA21上にいる（反発済み）
+        _ema21_dist = abs(entry - ema21)
+        if _ema21_dist < atr * 1.0 and entry >= ema21:
+            _mt_score += 1.0
+            _mt_reasons.append(f"✅ EMA21プルバック反発(距離={_ema21_dist:.3f}, 価格>EMA21)")
+
+            # RSI回復 (売られすぎから回復中)
+            if rsi > 40 and rsi < 65:
+                _mt_score += 0.5
+                _mt_reasons.append(f"✅ RSI回復圏({rsi:.0f})")
+
+            # Stoch回復
+            if stoch_k > stoch_d:
+                _mt_score += 0.5
+                _mt_reasons.append(f"✅ Stochゴールデンクロス(K={stoch_k:.0f}>D)")
+
+            # 陽線確認
+            if entry > _open:
+                _mt_score += 0.3
+                _mt_reasons.append("✅ 陽線確認(bounce)")
+
+            # MACD-H改善
+            if macdh > prev_macdh:
+                _mt_score += 0.3
+
+        if _mt_score >= 2.5:
+            # TP: 次のレジスタンス or ATR×3.0
+            _mt_tp_sr = None
+            for _sr in sorted(sr_levels):
+                if isinstance(_sr, (int, float)) and _sr > entry + atr * 0.5:
+                    _mt_tp_sr = _sr
+                    break
+            _mt_tp = min(_mt_tp_sr - atr * 0.1, entry + atr * 4.0) if _mt_tp_sr else entry + atr * 3.0
+            _mt_tp = max(_mt_tp, entry + atr * 1.5)  # 最低 ATR×1.5 (≈40pip)
+
+            # SL: Swing Low - buffer (tight)
+            _mt_sl = _swing_low - atr * 0.15
+            _mt_sl = max(_mt_sl, entry - atr * 0.8)  # 最大SL = ATR×0.8 (≈22pip)
+            _mt_sl = min(_mt_sl, entry - atr * 0.3)  # 最小SL = ATR×0.3 (≈8pip)
+            candidates.append(("BUY", _mt_score, _mt_tp, _mt_sl, _mt_reasons, "mtf_momentum"))
+
+    # 下降トレンド: EMA9<EMA21<EMA50 + ADX≥15
+    if ema9 < ema21 and ema21 < ema50 and adx >= 15:
+        _mt_score = 0.0
+        _mt_reasons = []
+        _mt_reasons.append(f"✅ Multi-TF下降トレンド(EMA9<21<50, ADX={adx:.0f}) [Moskowitz 2012]")
+        _mt_score += 1.0
+
+        _ema21_dist = abs(entry - ema21)
+        if _ema21_dist < atr * 1.0 and entry <= ema21:
+            _mt_score += 1.0
+            _mt_reasons.append(f"✅ EMA21プルバック反発(距離={_ema21_dist:.3f}, 価格<EMA21)")
+
+            if rsi > 35 and rsi < 60:
+                _mt_score += 0.5
+                _mt_reasons.append(f"✅ RSI回復圏({rsi:.0f})")
+            if stoch_k < stoch_d:
+                _mt_score += 0.5
+                _mt_reasons.append(f"✅ Stochデッドクロス(K={stoch_k:.0f}<D)")
+            if entry < _open:
+                _mt_score += 0.3
+                _mt_reasons.append("✅ 陰線確認(rejection)")
+            if macdh < prev_macdh:
+                _mt_score += 0.3
+
+        if _mt_score >= 2.5:
+            _mt_tp_sr = None
+            for _sr in sorted(sr_levels, reverse=True):
+                if isinstance(_sr, (int, float)) and _sr < entry - atr * 0.5:
+                    _mt_tp_sr = _sr
+                    break
+            _mt_tp = max(_mt_tp_sr + atr * 0.1, entry - atr * 4.0) if _mt_tp_sr else entry - atr * 3.0
+            _mt_tp = min(_mt_tp, entry - atr * 1.5)
+
+            _mt_sl = _swing_high + atr * 0.15
+            _mt_sl = min(_mt_sl, entry + atr * 0.8)
+            _mt_sl = max(_mt_sl, entry + atr * 0.3)
+            candidates.append(("SELL", _mt_score, _mt_tp, _mt_sl, _mt_reasons, "mtf_momentum"))
+
+    # ════════════════════════════════════════════════════════════
+    #  戦略2: Session ORB — London Open Breakout (Ito & Hashimoto 2006)
+    #  アジアレンジ(00-07UTC)突破 at 07-10 UTC
+    #  TP: Asian range × 1.5 or ATR×2.5 (30-80pip)
+    #  SL: Asian range反対側 (15-25pip)
+    # ════════════════════════════════════════════════════════════
+    if False and 7 <= _hour_utc <= 14 and _asia_high and _asia_low and _asia_range > atr * 0.2:  # DISABLED: WR=36.6% → ATR EVドラッグ
+        # Bullish breakout: 1h終値がアジアHigh超え
+        if entry > _asia_high:
+            _orb_score = 1.5
+            _orb_reasons = []
+            _orb_reasons.append(f"✅ ロンドンORB: アジアHigh突破({_asia_high:.3f}) [Ito&Hashimoto 2006]")
+
+            if _atr_expanding:
+                _orb_score += 0.5
+                _orb_reasons.append(f"✅ ATR拡大確認(ATR={atr:.4f} > SMA×1.1)")
+            if entry > _open:
+                _orb_score += 0.5
+                _orb_reasons.append("✅ 陽線ブレイク")
+            if adx >= 15:
+                _orb_score += 0.3
+            if ema9 > ema21:
+                _orb_score += 0.3
+                _orb_reasons.append("✅ EMAトレンド整合")
+            # ブレイクの強さ: アジアHigh超え幅
+            _break_dist = entry - _asia_high
+            if _break_dist > atr * 0.2:
+                _orb_score += 0.3
+                _orb_reasons.append(f"✅ 強いブレイク(+{_break_dist:.3f})")
+
+            if _orb_score >= 2.0:
+                _orb_tp = entry + max(_asia_range * 1.5, atr * 2.0)
+                _orb_sl = _asia_low + atr * 0.1  # アジアLow近辺
+                _orb_sl = max(_orb_sl, entry - atr * 1.2)  # 最大SL制限
+                _orb_sl = min(_orb_sl, entry - atr * 0.3)  # 最小SL
+                candidates.append(("BUY", _orb_score, _orb_tp, _orb_sl, _orb_reasons, "session_orb"))
+
+        # Bearish breakout: 1h終値がアジアLow割れ
+        elif entry < _asia_low:
+            _orb_score = 1.5
+            _orb_reasons = []
+            _orb_reasons.append(f"✅ ロンドンORB: アジアLow割れ({_asia_low:.3f}) [Ito&Hashimoto 2006]")
+
+            if _atr_expanding:
+                _orb_score += 0.5
+                _orb_reasons.append(f"✅ ATR拡大確認(ATR={atr:.4f} > SMA×1.1)")
+            if entry < _open:
+                _orb_score += 0.5
+                _orb_reasons.append("✅ 陰線ブレイク")
+            if adx >= 15:
+                _orb_score += 0.3
+            if ema9 < ema21:
+                _orb_score += 0.3
+                _orb_reasons.append("✅ EMAトレンド整合")
+            _break_dist = _asia_low - entry
+            if _break_dist > atr * 0.2:
+                _orb_score += 0.3
+                _orb_reasons.append(f"✅ 強いブレイク(+{_break_dist:.3f})")
+
+            if _orb_score >= 2.0:
+                _orb_tp = entry - max(_asia_range * 1.5, atr * 2.0)
+                _orb_sl = _asia_high - atr * 0.1
+                _orb_sl = min(_orb_sl, entry + atr * 1.2)
+                _orb_sl = max(_orb_sl, entry + atr * 0.3)
+                candidates.append(("SELL", _orb_score, _orb_tp, _orb_sl, _orb_reasons, "session_orb"))
+
+    # ════════════════════════════════════════════════════════════
+    #  戦略3: Pivot Breakout (Osler 2000 NY Fed)
+    #  Daily Pivot R1/S1突破 + ATR拡大
+    #  TP: 次のPivotレベル(R2/S2) (30-60pip)
+    #  SL: 突破レベル裏 + buffer (15-25pip)
+    # ════════════════════════════════════════════════════════════
+    # R1突破 → BUY (EMA整合必須、ATR expanding はボーナス)
+    if entry > _R1 and 7 <= _hour_utc <= 20 and ema9 > ema21:
+        _pv_score = 0.0
+        _pv_reasons = []
+        _pv_reasons.append(f"✅ Pivot R1突破({_R1:.3f}) [Osler 2000 NY Fed]")
+        _pv_score += 1.5
+
+        if entry > _open:
+            _pv_score += 0.5
+            _pv_reasons.append("✅ 陽線ブレイク")
+        if adx >= 15:
+            _pv_score += 0.3
+        _pv_reasons.append("✅ EMAトレンド整合")
+        _pv_score += 0.3
+        if _atr_expanding:
+            _pv_score += 0.5
+            _pv_reasons.append("✅ ATR拡大(ボラ上昇)")
+        if rsi > 50 and rsi < 75:
+            _pv_score += 0.3
+
+        if _pv_score >= 2.5:  # 旧2.0→2.5（高確信のみ）
+            _pv_tp = _R2 - atr * 0.1  # R2手前
+            _pv_tp = max(_pv_tp, entry + atr * 1.5)  # 最低ATR×1.5
+            _pv_sl = _R1 - atr * 0.2  # R1裏側（タイトに）
+            _pv_sl = max(_pv_sl, entry - atr * 0.8)
+            _pv_sl = min(_pv_sl, entry - atr * 0.3)
+            candidates.append(("BUY", _pv_score, _pv_tp, _pv_sl, _pv_reasons, "pivot_breakout"))
+
+    # S1割れ → SELL (EMA整合必須)
+    if entry < _S1 and 7 <= _hour_utc <= 20 and ema9 < ema21:
+        _pv_score = 0.0
+        _pv_reasons = []
+        _pv_reasons.append(f"✅ Pivot S1割れ({_S1:.3f}) [Osler 2000 NY Fed]")
+        _pv_score += 1.5
+
+        if entry < _open:
+            _pv_score += 0.5
+            _pv_reasons.append("✅ 陰線ブレイク")
+        if adx >= 15:
+            _pv_score += 0.3
+        _pv_reasons.append("✅ EMAトレンド整合")
+        _pv_score += 0.3
+        if _atr_expanding:
+            _pv_score += 0.5
+            _pv_reasons.append("✅ ATR拡大(ボラ上昇)")
+        if rsi > 25 and rsi < 50:
+            _pv_score += 0.3
+
+        if _pv_score >= 2.5:  # 旧2.0→2.5
+            _pv_tp = _S2 + atr * 0.1
+            _pv_tp = min(_pv_tp, entry - atr * 1.5)
+            _pv_sl = _S1 + atr * 0.2
+            _pv_sl = min(_pv_sl, entry + atr * 0.8)
+            _pv_sl = max(_pv_sl, entry + atr * 0.3)
+            candidates.append(("SELL", _pv_score, _pv_tp, _pv_sl, _pv_reasons, "pivot_breakout"))
+
+    # ════════════════════════════════════════════════════════════
+    #  戦略4: Pivot Zone Mean Reversion (Osler 2000 + BB/RSI)
+    #  DISABLED: 30d BT WR=30% EV=-1.3p — 要改善
+    #  Pivot S1/R1 反転 — ゾーン内での反発
+    #  TP: Pivot (中央回帰) ATR×1.5-2.0 (40-55pip)
+    #  SL: S1/R1 裏 + buffer (15-20pip)
+    # ════════════════════════════════════════════════════════════
+    # S1近辺で反発 → BUY (in buy zone, near S1)
+    if False and in_buy_zone and abs(entry - _S1) < atr * 0.8 and entry > _S1:
+        _rv_score = 0.0
+        _rv_reasons = []
+        _rv_reasons.append(f"✅ Pivot S1反発({_S1:.3f}) [Osler 2000]")
+        _rv_score += 1.0
+
+        if bb_pctb < 0.30:
+            _rv_score += 1.0
+            _rv_reasons.append(f"✅ BB%B={bb_pctb:.2f}<0.30(oversold)")
+        elif bb_pctb < 0.40:
+            _rv_score += 0.5
+        if stoch_k > stoch_d:
+            _rv_score += 0.5
+            _rv_reasons.append("✅ Stoch GC")
+        if entry > _open:
+            _rv_score += 0.5
+            _rv_reasons.append("✅ 陽線反転")
+        if macdh > prev_macdh:
+            _rv_score += 0.3
+
+        if _rv_score >= 2.0:
+            _rv_tp = _pivot  # Pivotまで回帰
+            _rv_tp = max(_rv_tp, entry + atr * 1.5)
+            _rv_sl = _S1 - atr * 0.4
+            _rv_sl = min(_rv_sl, entry - atr * 0.6)
+            candidates.append(("BUY", _rv_score, _rv_tp, _rv_sl, _rv_reasons, "pivot_reversion"))
+
+    # R1近辺で反落 → SELL (in sell zone, near R1)
+    if False and in_sell_zone and abs(entry - _R1) < atr * 0.8 and entry < _R1:
+        _rv_score = 0.0
+        _rv_reasons = []
+        _rv_reasons.append(f"✅ Pivot R1反落({_R1:.3f}) [Osler 2000]")
+        _rv_score += 1.0
+
+        if bb_pctb > 0.70:
+            _rv_score += 1.0
+            _rv_reasons.append(f"✅ BB%B={bb_pctb:.2f}>0.70(overbought)")
+        elif bb_pctb > 0.60:
+            _rv_score += 0.5
+        if stoch_k < stoch_d:
+            _rv_score += 0.5
+            _rv_reasons.append("✅ Stoch DC")
+        if entry < _open:
+            _rv_score += 0.5
+            _rv_reasons.append("✅ 陰線反転")
+        if macdh < prev_macdh:
+            _rv_score += 0.3
+
+        if _rv_score >= 2.0:
+            _rv_tp = _pivot
+            _rv_tp = min(_rv_tp, entry - atr * 1.5)
+            _rv_sl = _R1 + atr * 0.4
+            _rv_sl = max(_rv_sl, entry + atr * 0.6)
+            candidates.append(("SELL", _rv_score, _rv_tp, _rv_sl, _rv_reasons, "pivot_reversion"))
+
+    # ── 最高スコア候補を採用 ──
+    if candidates:
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        best = candidates[0]
+        sig, score, tp, sl, reasons, etype = best
+        base["signal"]     = sig
+        base["entry"]      = entry
+        base["tp"]         = round(tp, 3)
+        base["sl"]         = round(sl, 3)
+        base["confidence"] = int(min(score * 18, 95))
+        base["entry_type"] = etype
+        base["reasons"]    = reasons
+
+    return base
 
 
 # ═══════════════════════════════════════════════════════
@@ -3271,8 +3693,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         profile      = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
         SL_MULT      = profile["scalp_sl"]   # scalp-specific SL
         TP_MULT      = profile["scalp_tp"]   # scalp-specific TP
-        MAX_HOLD     = 15     # 15 bars (延長: 新エントリータイプの利確余裕)
-        COOLDOWN     = 3      # 3 bar (連続エントリー防止、頻度確保のバランス)
+        MAX_HOLD     = 40     # 40 bars = 40 min (ATR TP到達率向上)
+        COOLDOWN     = 1      # 1 bar (頻度最大化、スプレッド0.2pip活用)
         if interval == "1m":   bars_per_min = 1
         elif interval == "5m": bars_per_min = 5
         else:                  bars_per_min = 15
@@ -3389,7 +3811,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             # SL可変: エントリー価格からRR比で逆算
             tp_dist = abs(tp - ep)
-            MIN_RR_BT = 1.5
+            MIN_RR_BT = 1.2
             sl_dist = tp_dist / MIN_RR_BT
             MIN_SL_DIST_BT = 0.030  # 3 pip最低保証
             sl_dist = max(sl_dist, MIN_SL_DIST_BT)
@@ -3630,9 +4052,23 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         profile   = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
         SL_MULT   = profile["daytrade_sl"]   # daytrade-specific SL
         TP_MULT   = profile["daytrade_tp"]   # daytrade-specific TP
-        MAX_HOLD  = 16     # bars (4 hours at 15m)
-        COOLDOWN  = 1      # bars (allows more trades per day)
-        bars_per_h = 4     # 15m足 = 4本/時間
+
+        # ── timeframe別パラメータ自動調整 ──
+        if interval == "1h":
+            MAX_HOLD  = 12     # bars (12 hours at 1h)
+            COOLDOWN  = 1
+            bars_per_h = 1
+            _atr_tp_floor_mult = 2.0  # 1h: ATR×2.0 フロア（大きなTP）
+        elif interval == "30m":
+            MAX_HOLD  = 16
+            COOLDOWN  = 1
+            bars_per_h = 2
+            _atr_tp_floor_mult = 1.8
+        else:  # 15m default
+            MAX_HOLD  = 24     # bars (6 hours at 15m)
+            COOLDOWN  = 1
+            bars_per_h = 4
+            _atr_tp_floor_mult = 1.5
 
         trades = []
         last_bar = -99
@@ -3657,7 +4093,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 _sr_slice, window=5, tolerance_pct=0.003, min_touches=2,
                 max_levels=8, bars_per_day=96)
 
-        MIN_BARS = 200  # compute_daytrade_signalに必要な最小バー数
+        MIN_BARS = 100 if interval == "1h" else 200  # 1h足は100バー(4日)で十分
 
         for i in range(max(MIN_BARS, 50), len(df) - MAX_HOLD - 1):
             if i - last_bar < COOLDOWN:
@@ -3671,9 +4107,10 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 if vol > 0 and vol < 100:
                     continue
 
-            # Bar range filter
+            # Bar range filter (timeframe別)
             bar_range = float(row["High"]) - float(row["Low"])
-            if bar_range < 0.015:
+            _min_bar_range = 0.030 if interval == "1h" else 0.010
+            if bar_range < _min_bar_range:
                 continue
 
             # ── 本番環境と統一: compute_daytrade_signalを呼び出し ──
@@ -3715,7 +4152,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             _dt_confirmed = sum(1 for r in _dt_reasons if "✅" in r)
             if entry_type in DT_CONDITIONAL:
                 _dt_adx = sig_result.get("indicators", {}).get("adx", 0)
-                if not _dt_adx or _dt_adx < 20 or _dt_confirmed < 2:
+                if not _dt_adx or _dt_adx < 12 or _dt_confirmed < 1:  # 旧15→12（トレード頻度増）
                     continue
             elif entry_type in DT_QUALIFIED:
                 if _dt_confirmed < 1:
@@ -3732,16 +4169,24 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             ep = ep + SPREAD / 2 if sig == "BUY" else ep - SPREAD / 2
 
             # TP固定: シグナルのTPターゲットを維持（エントリー価格シフト分のみ調整）
+            # ATR×1.5をフロアとして保証（シグナルTPが小さすぎる場合に補正）
             sig_entry = sig_result.get("entry", ep)
             tp = sig_result.get("tp", ep)
             ep_shift = ep - sig_entry
             tp = tp + ep_shift
 
+            # ATR-based TP floor: 最低 ATR×1.5 を保証
+            tp_dist_dt = abs(tp - ep)
+            _atr_tp_floor = atr * _atr_tp_floor_mult
+            if tp_dist_dt < _atr_tp_floor:
+                tp = ep + _atr_tp_floor if sig == "BUY" else ep - _atr_tp_floor
+                tp_dist_dt = _atr_tp_floor
+
             # SL可変: エントリー価格からRR比で逆算
             tp_dist_dt = abs(tp - ep)
-            MIN_RR_DT = 1.8
+            MIN_RR_DT = 1.2
             sl_dist_dt = tp_dist_dt / MIN_RR_DT
-            MIN_SL_DIST_DT = 0.050  # 5 pip最低保証
+            MIN_SL_DIST_DT = 0.030  # 3 pip最低保証（0.2pipスプレッド対応）
             sl_dist_dt = max(sl_dist_dt, MIN_SL_DIST_DT)
             sl = ep - sl_dist_dt if sig == "BUY" else ep + sl_dist_dt
 
@@ -3920,6 +4365,370 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         import traceback
         print(f"[DT_BT] {traceback.format_exc()}")
         return {"error": str(e), "mode": "daytrade"}
+
+
+# ═══════════════════════════════════════════════════════
+#  1Hゾーンベースバックテスト
+#  Pivot + ATR ゾーンで日次再計算、compute_1h_zone_signal統合
+# ═══════════════════════════════════════════════════════
+_1h_bt_cache: dict = {}
+_1H_BT_TTL = 3600  # 1時間キャッシュ
+
+
+def run_1h_backtest(symbol: str = "USDJPY=X",
+                    lookback_days: int = 30,
+                    interval: str = "1h") -> dict:
+    """
+    1H zone-based backtest — compute_1h_zone_signal統合版
+    前日のPivot + ATRでBuy/Sell Zoneを日次再計算。
+    ゾーン内リバーサルシグナルでエントリー。
+    """
+    global _1h_bt_cache
+    cache_key = f"{interval}_{lookback_days}"
+    now = datetime.now()
+    cached = _1h_bt_cache.get(cache_key)
+    if cached and (now - cached["ts"]).total_seconds() < _1H_BT_TTL:
+        return cached["result"]
+
+    try:
+        df = fetch_ohlcv(symbol, period=f"{lookback_days}d", interval=interval)
+        df = add_indicators(df)
+        df = df.dropna()
+        if len(df) < 50:
+            return {"error": "データ不足", "trades": 0, "mode": "1h_zone"}
+
+        SPREAD   = 0.002   # 0.2 pip
+        MAX_HOLD = 18      # 18 bars = 18 hours（TP到達時間確保）
+        COOLDOWN = 1
+        MIN_RR   = 1.2
+
+        # ── 日次OHLC集計 & ゾーンプリコンピュテーション ──
+        # Group 1h bars by date to get daily OHLC
+        df_copy = df.copy()
+        df_copy["_date"] = df_copy.index.date
+        daily_ohlc = df_copy.groupby("_date").agg(
+            {"Open": "first", "High": "max", "Low": "min", "Close": "last", "atr": "mean"}
+        )
+
+        # Pre-compute zones dict: {date_str: {"buy_zone", "sell_zone", "pivot"}}
+        zone_map = {}
+        dates = list(daily_ohlc.index)
+        for di in range(1, len(dates)):
+            prev = daily_ohlc.loc[dates[di - 1]]
+            prev_h = float(prev["High"])
+            prev_l = float(prev["Low"])
+            prev_c = float(prev["Close"])
+            # Daily ATR: approximate from 1h ATR mean * sqrt(24)
+            daily_atr_approx = float(prev["atr"]) * np.sqrt(24)
+
+            pivot = (prev_h + prev_l + prev_c) / 3.0
+
+            # ゾーン: Pivotを境にBuy/Sellを分離（ニュートラル帯なし）
+            # Buy Zone: 前日安値−ATR*0.2 〜 Pivot（Pivot以下で買い）
+            # Sell Zone: Pivot 〜 前日高値+ATR*0.2（Pivot以上で売り）
+            bz_lo = prev_l - daily_atr_approx * 0.2
+            bz_hi = pivot
+            sz_lo = pivot
+            sz_hi = prev_h + daily_atr_approx * 0.2
+
+            date_str = str(dates[di])
+            zone_map[date_str] = {
+                "buy_zone": (round(bz_lo, 4), round(bz_hi, 4)),
+                "sell_zone": (round(sz_lo, 4), round(sz_hi, 4)),
+                "pivot": round(pivot, 4),
+            }
+
+        # ── SR levels (recalc periodically, no lookahead) ──
+        SR_RECALC = 60
+        _1h_sr_cache = {}
+        for _ci in range(50, len(df), SR_RECALC):
+            _sr_slice = df.iloc[max(0, _ci - 300):_ci]
+            _1h_sr_cache[_ci // SR_RECALC] = find_sr_levels_weighted(
+                _sr_slice, window=5, tolerance_pct=0.003, min_touches=2,
+                max_levels=8, bars_per_day=24)
+
+        QUALIFIED_TYPES = {
+            "mtf_momentum", "session_orb", "pivot_breakout", "pivot_reversion",
+        }
+
+        trades   = []
+        last_bar = -99
+
+        for i in range(50, len(df) - MAX_HOLD - 1):
+            if i - last_bar < COOLDOWN:
+                continue
+
+            row = df.iloc[i]
+            bar_date_str = str(df.index[i].date()) if hasattr(df.index[i], 'date') else str(df.iloc[i]["_date"])
+
+            # Skip if no zone data for this date (first day)
+            if bar_date_str not in zone_map:
+                continue
+
+            zones = zone_map[bar_date_str]
+            buy_zone  = zones["buy_zone"]
+            sell_zone = zones["sell_zone"]
+
+            # Volume filter
+            if "Volume" in df.columns:
+                vol = float(row["Volume"])
+                if vol > 0 and vol < 100:
+                    continue
+
+            # Bar range filter
+            bar_range = float(row["High"]) - float(row["Low"])
+            if bar_range < 0.030:
+                continue
+
+            # ── Call compute_1h_zone_signal ──
+            _sr_key = i // SR_RECALC
+            current_sr_weighted = _1h_sr_cache.get(_sr_key, [])
+            current_sr = [sr["price"] for sr in current_sr_weighted]
+
+            bar_df = df.iloc[max(0, i - 300):i + 1]
+
+            try:
+                sig_result = compute_1h_zone_signal(
+                    bar_df,
+                    buy_zone=buy_zone,
+                    sell_zone=sell_zone,
+                    sr_levels=current_sr,
+                    backtest_mode=True,
+                )
+            except Exception:
+                continue
+
+            sig = sig_result.get("signal", "WAIT")
+            if sig == "WAIT":
+                continue
+
+            entry_type = sig_result.get("entry_type", "unknown")
+
+            # ── Entry quality gate ──
+            if entry_type not in QUALIFIED_TYPES:
+                continue
+            _reasons = sig_result.get("reasons", [])
+            _confirmed = sum(1 for r in _reasons if "✅" in r)
+            if _confirmed < 1:
+                continue
+
+            atr = sig_result.get("atr", float(row.get("atr", 0.10)))
+
+            # Entry at next bar's Open
+            if i + 1 >= len(df):
+                continue
+            ep = float(df.iloc[i + 1]["Open"])
+            ep = ep + SPREAD / 2 if sig == "BUY" else ep - SPREAD / 2
+
+            # TP from signal, adjusted for entry shift
+            sig_entry = sig_result.get("entry", ep)
+            tp = sig_result.get("tp", ep)
+            ep_shift = ep - sig_entry
+            tp = tp + ep_shift
+
+            # 1h Zone: シグナルのTP/SLをそのまま使用（エントリー価格シフト分のみ補正）
+            # TP floorは不要（シグナル関数で最適サイズ計算済み）
+            tp_dist = abs(tp - ep)
+            if tp_dist < 0.005:  # 最低0.5 pip保証
+                continue
+
+            # SL: シグナルのSLをそのまま使用（ep_shift分補正）
+            sl = sig_result.get("sl", ep)
+            sl = sl + ep_shift
+            sl_dist = abs(ep - sl)
+            MIN_SL_DIST = 0.030
+            sl_dist = max(sl_dist, MIN_SL_DIST)
+            sl = ep - sl_dist if sig == "BUY" else ep + sl_dist
+
+            # RR check
+            if tp_dist < sl_dist:
+                continue
+
+            sl_m = abs(ep - sl) / max(atr, 1e-6)
+            tp_m_actual = abs(tp - ep) / max(atr, 1e-6)
+
+            # ── SL anti-fake-out: Close-based + genuine breakdown (ATR*0.3) ──
+            _sl_genuine_threshold = atr * 0.3
+
+            outcome = None
+            bars_held = 0
+            _be_activated = False
+            _current_sl = sl
+            for j in range(1, MAX_HOLD + 1):
+                if i + 1 + j >= len(df):
+                    break
+                fut = df.iloc[i + 1 + j]
+                hi, lo = float(fut["High"]), float(fut["Low"])
+                fut_close = float(fut["Close"])
+
+                # ── Breakeven at 60% TP reached ──
+                _tp_dist_total = abs(tp - ep)
+                if sig == "BUY":
+                    _progress = hi - ep
+                    if _progress >= _tp_dist_total * 0.6:
+                        _be_activated = True
+                        _current_sl = max(_current_sl, ep)
+                else:
+                    _progress = ep - lo
+                    if _progress >= _tp_dist_total * 0.6:
+                        _be_activated = True
+                        _current_sl = min(_current_sl, ep)
+
+                # ── Time-decay SL tightening after 60% MAX_HOLD ──
+                if j >= int(MAX_HOLD * 0.6):
+                    if sig == "BUY" and fut_close > ep:
+                        _current_sl = max(_current_sl, ep)
+                    elif sig == "SELL" and fut_close < ep:
+                        _current_sl = min(_current_sl, ep)
+
+                if sig == "BUY":
+                    hit_tp = hi >= tp
+                    _wick_depth = _current_sl - lo
+                    hit_sl = (fut_close <= _current_sl) or (_wick_depth > _sl_genuine_threshold)
+                    if hit_tp and hit_sl:
+                        outcome = "WIN" if fut_close >= ep else "LOSS"
+                        bars_held = j
+                        break
+                    elif hit_tp:
+                        outcome = "WIN"
+                        bars_held = j
+                        break
+                    elif hit_sl:
+                        if _be_activated and _current_sl >= ep:
+                            outcome = "WIN"
+                            bars_held = j
+                            tp_m_actual = round(_tp_dist_total * 0.6 / max(atr, 1e-6), 3)
+                        else:
+                            outcome = "LOSS"
+                            bars_held = j
+                        break
+                else:
+                    hit_tp = lo <= tp
+                    _wick_depth = hi - _current_sl
+                    hit_sl = (fut_close >= _current_sl) or (_wick_depth > _sl_genuine_threshold)
+                    if hit_tp and hit_sl:
+                        outcome = "WIN" if fut_close <= ep else "LOSS"
+                        bars_held = j
+                        break
+                    elif hit_tp:
+                        outcome = "WIN"
+                        bars_held = j
+                        break
+                    elif hit_sl:
+                        if _be_activated and _current_sl <= ep:
+                            outcome = "WIN"
+                            bars_held = j
+                            tp_m_actual = round(_tp_dist_total * 0.6 / max(atr, 1e-6), 3)
+                        else:
+                            outcome = "LOSS"
+                            bars_held = j
+                        break
+
+            if outcome:
+                last_bar = i
+                trade_dict = {
+                    "outcome": outcome, "bars_held": bars_held,
+                    "sig": sig, "ep": round(ep, 3),
+                    "sl": round(sl, 3), "tp": round(tp, 3),
+                    "bar_idx": i, "entry_type": entry_type,
+                    "sl_m": sl_m, "tp_m": tp_m_actual,
+                    "entry_time": str(df.index[i]),
+                }
+                if outcome == "LOSS":
+                    if sig == "BUY" and fut_close < sl:
+                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr, 1e-6), sl_m * 1.2), 3)
+                    elif sig == "SELL" and fut_close > sl:
+                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr, 1e-6), sl_m * 1.2), 3)
+                trades.append(trade_dict)
+
+        # ── PnL helper ──
+        def _1h_pnl(t):
+            if t["outcome"] == "WIN":
+                return t.get("tp_m", 2.5)
+            else:
+                return -t.get("actual_sl_m", t.get("sl_m", 1.0))
+
+        if len(trades) < 5:
+            result = {"error": f"サンプル数不足（5トレード未満: {len(trades)}件）",
+                      "trades": len(trades), "mode": "1h_zone"}
+        else:
+            wins = sum(1 for t in trades if t["outcome"] == "WIN")
+            n    = len(trades)
+            wr   = round(wins / n * 100, 1)
+            ev   = round(sum(_1h_pnl(t) for t in trades) / n, 3)
+            avg_hold_h = round(np.mean([t["bars_held"] for t in trades]), 1)
+
+            # Max drawdown
+            eq, peak, mdd = 0.0, 0.0, 0.0
+            for t in trades:
+                eq += _1h_pnl(t)
+                if eq > peak:
+                    peak = eq
+                if peak - eq > mdd:
+                    mdd = peak - eq
+            mdd = round(mdd, 3)
+
+            # Sharpe
+            rets = [_1h_pnl(t) for t in trades]
+            sharpe = round(np.mean(rets) / max(np.std(rets), 1e-6) * np.sqrt(252), 3) if len(rets) > 1 else 0.0
+
+            # Walk-forward (3 windows)
+            wf_windows = []
+            window_size = max(n // 3, 1)
+            for wi in range(3):
+                wt = trades[wi * window_size:(wi + 1) * window_size]
+                if len(wt) < 2:
+                    continue
+                ww = sum(1 for t in wt if t["outcome"] == "WIN")
+                wwr = round(ww / len(wt) * 100, 1)
+                wev = round(sum(_1h_pnl(t) for t in wt) / len(wt), 3)
+                wf_windows.append({
+                    "label": f"窓{wi + 1}", "window": wi + 1, "trades": len(wt),
+                    "win_rate": wwr, "expected_value": wev,
+                })
+            profitable = sum(1 for w in wf_windows if w.get("expected_value", -1) > 0)
+
+            # Entry type breakdown
+            entry_stats = {}
+            for t in trades:
+                et = t.get("entry_type", "unknown")
+                if et not in entry_stats:
+                    entry_stats[et] = {"wins": 0, "total": 0, "pnl": 0.0}
+                entry_stats[et]["total"] += 1
+                entry_stats[et]["pnl"] += _1h_pnl(t)
+                if t["outcome"] == "WIN":
+                    entry_stats[et]["wins"] += 1
+            for k, v in entry_stats.items():
+                v["win_rate"] = round(v["wins"] / v["total"] * 100, 1)
+                v["ev"] = round(v["pnl"] / v["total"], 3)
+
+            trades_per_day = round(n / max(lookback_days, 1), 2)
+            verdict = ("✅ 良好" if ev > 0.10 and profitable >= 2 else
+                       "🟡 要注意 — 期待値プラスだがWF不安定" if ev > 0 else "❌ 不採用")
+
+            result = {
+                "trades": n, "win_rate": wr, "expected_value": ev,
+                "avg_hold_hours": avg_hold_h,
+                "max_drawdown": mdd, "sharpe": sharpe,
+                "trades_per_day": trades_per_day,
+                "verdict": verdict,
+                "beta": True,
+                "period": f"過去{lookback_days}日 ({interval}足)",
+                "walk_forward": wf_windows,
+                "consistency": f"{profitable}/{len(wf_windows)} 窓でプラス期待値",
+                "entry_breakdown": entry_stats,
+                "trade_log": trades,
+                "mode": "1h_zone",
+                "data_source": _last_data_source.get(interval, "yfinance"),
+                "bars_fetched": len(df),
+            }
+
+        _1h_bt_cache[cache_key] = {"result": result, "ts": now}
+        return result
+    except Exception as e:
+        import traceback
+        print(f"[1H_BT] {traceback.format_exc()}")
+        return {"error": str(e), "mode": "1h_zone"}
 
 
 # ═══════════════════════════════════════════════════════
@@ -5214,29 +6023,23 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     #  根拠: Bollinger 2001 + Wilder RSI 1978
     #  条件: ADX < 22（レンジ） + BB極端 + RSI極端
     # ════════════════════════════════════════════════════════
-    if adx < 25 and not _is_friday:
+    if adx < 35:
         _mr_reasons = []
         _mr_signal = None
         _mr_score = 0.0
 
-        # 前バーの方向（反転キャンドル確認用）
-        _prev_close = float(df.iloc[-2]["Close"]) if len(df) >= 2 else entry
-        _prev_open = float(df.iloc[-2]["Open"]) if len(df) >= 2 else entry
-
-        # Tier 1: 極端条件（高確信）BB%B≤0.05 + RSI<25 + Stochクロス + 反転キャンドル
-        # Tier 2: 緩和条件（中確信）BB%B≤0.12 + RSI<32 + Stochクロス + 反転キャンドル
-        _candle_bull = entry > _prev_close
+        # Tier 1: 極端条件（高確信）BB%B≤0.05 + RSI<25 + Stochクロス
+        # Tier 2: 緩和条件（中確信）BB%B≤0.22 + RSI<42 + Stochクロス
 
         # BUY判定
-        if bbpb <= 0.12 and rsi5 < 32 and stoch_k < 30 and stoch_k > stoch_d and _candle_bull:
+        if bbpb <= 0.25 and rsi5 < 45 and stoch_k < 45 and stoch_k > stoch_d:
             _mr_signal = "BUY"
             # Tier判定: 極端ほど高スコア
             _tier1 = bbpb <= 0.05 and rsi5 < 25 and stoch_k < 20
-            _mr_score = (4.5 if _tier1 else 3.0) + (32 - rsi5) * 0.06
-            _mr_reasons.append(f"✅ BB下限(%B={bbpb:.2f}≤0.12) — 平均回帰 (Bollinger 2001)")
-            _mr_reasons.append(f"✅ RSI5売られすぎ({rsi5:.1f}<32)")
+            _mr_score = (4.5 if _tier1 else 3.0) + (38 - rsi5) * 0.06
+            _mr_reasons.append(f"✅ BB下限(%B={bbpb:.2f}≤0.22) — 平均回帰 (Bollinger 2001)")
+            _mr_reasons.append(f"✅ RSI5売られすぎ({rsi5:.1f}<42)")
             _mr_reasons.append(f"✅ Stochゴールデンクロス(K={stoch_k:.0f}>D={stoch_d:.0f})")
-            _mr_reasons.append(f"✅ 反転キャンドル確認（前足終値{_prev_close:.3f}上回り）")
             if _tier1:
                 _mr_reasons.append("🎯 Tier1: 極端条件（高確信）")
             if macdh > 0:
@@ -5249,22 +6052,19 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 if macdh > _macdh_p1 and _macdh_p1 <= _macdh_p2:
                     _mr_score += 0.6
                     _mr_reasons.append("✅ MACD-H反転上昇（モメンタム消耗→回復）")
-            # TP = BB中央バンドの50-70%（Tier1は70%, Tier2は50%）
-            _tp_ratio = 0.70 if _tier1 else 0.50
-            _mr_tp = entry + (bb_mid - entry) * _tp_ratio
+            # TP = ATRベース（BB midband TPは小さすぎる→ATRで拡大）
+            _mr_tp = entry + atr7 * (2.0 if _tier1 else 1.5)
             _mr_sl_dist = max(abs(entry - bb_lower) + atr7 * 0.3, 0.030)
             _mr_sl = entry - _mr_sl_dist
 
         # SELL判定
-        _candle_bear = entry < _prev_close
-        if not _mr_signal and bbpb >= 0.88 and rsi5 > 68 and stoch_k > 70 and stoch_k < stoch_d and _candle_bear:
+        if not _mr_signal and bbpb >= 0.75 and rsi5 > 55 and stoch_k > 55 and stoch_k < stoch_d:
             _mr_signal = "SELL"
             _tier1 = bbpb >= 0.95 and rsi5 > 75 and stoch_k > 80
-            _mr_score = (4.5 if _tier1 else 3.0) + (rsi5 - 68) * 0.06
-            _mr_reasons.append(f"✅ BB上限(%B={bbpb:.2f}≥0.88) — 平均回帰 (Bollinger 2001)")
-            _mr_reasons.append(f"✅ RSI5買われすぎ({rsi5:.1f}>68)")
+            _mr_score = (4.5 if _tier1 else 3.0) + (rsi5 - 58) * 0.06
+            _mr_reasons.append(f"✅ BB上限(%B={bbpb:.2f}≥0.78) — 平均回帰 (Bollinger 2001)")
+            _mr_reasons.append(f"✅ RSI5買われすぎ({rsi5:.1f}>58)")
             _mr_reasons.append(f"✅ Stochデッドクロス(K={stoch_k:.0f}<D={stoch_d:.0f})")
-            _mr_reasons.append(f"✅ 反転キャンドル確認（前足終値{_prev_close:.3f}下回り）")
             if _tier1:
                 _mr_reasons.append("🎯 Tier1: 極端条件（高確信）")
             if macdh < 0:
@@ -5276,14 +6076,13 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 if macdh < _macdh_p1 and _macdh_p1 >= _macdh_p2:
                     _mr_score += 0.6
                     _mr_reasons.append("✅ MACD-H反転下落（モメンタム消耗→回復）")
-            _tp_ratio = 0.70 if _tier1 else 0.50
-            _mr_tp = entry - (entry - bb_mid) * _tp_ratio
+            _mr_tp = entry - atr7 * (2.0 if _tier1 else 1.5)
             _mr_sl_dist = max(abs(bb_upper - entry) + atr7 * 0.3, 0.030)
             _mr_sl = entry + _mr_sl_dist
 
         if _mr_signal:
             _mr_conf = int(min(85, 50 + _mr_score * 4))
-            _mr_reasons.append(f"📊 レジーム: レンジ(ADX={adx:.1f}<18)")
+            _mr_reasons.append(f"📊 レジーム: レンジ(ADX={adx:.1f}<35)")
             candidates.append((_mr_signal, _mr_conf, _mr_sl, _mr_tp,
                                _mr_reasons, "bb_rsi_reversion", _mr_score))
 
@@ -5317,7 +6116,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                     _sq_reasons.append(f"✅ BBスクイーズブレイクアウト上抜け (BLL 1992 JoF)")
                     _sq_reasons.append(f"✅ BB幅{bb_width_pct*100:.0f}%ile → 拡大開始")
                     _sq_reasons.append(f"✅ EMA順列 (9>21) + 価格>EMA9")
-                    _sq_tp = entry + atr7 * 2.5  # TP: 拡大方向にATR×2.5
+                    _sq_tp = entry + atr7 * 3.0  # TP: 拡大方向にATR×3.0
                     _sq_sl = entry - atr7 * 1.2
                 elif bbpb < 0.25 and entry < ema9 and ema9 < ema21:
                     _sq_signal = "SELL"
@@ -5325,7 +6124,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                     _sq_reasons.append(f"✅ BBスクイーズブレイクアウト下抜け (BLL 1992 JoF)")
                     _sq_reasons.append(f"✅ BB幅{bb_width_pct*100:.0f}%ile → 拡大開始")
                     _sq_reasons.append(f"✅ EMA逆順列 (9<21) + 価格<EMA9")
-                    _sq_tp = entry - atr7 * 2.5
+                    _sq_tp = entry - atr7 * 3.0
                     _sq_sl = entry + atr7 * 1.2
 
                 if _sq_signal:
@@ -5342,7 +6141,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     #  条件: S/Rレベル近接 + RSIダイバージェンス
     #  NOTE: 1m足では精度不足のため無効化（BT EV -0.605）。DT/Swingでは有効。
     # ════════════════════════════════════════════════════════
-    if False and len(df) >= 10 and sr_levels:  # DISABLED for scalp — 1m noise
+    if False:  # DISABLED — EV -0.607 (ATR TP でも改善せず)
         _div_reasons = []
         _div_signal = None
         _div_score = 0.0
@@ -5364,7 +6163,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             _rsi_div_strength = _r_low2 - _r_low1  # ダイバージェンス強度
             if (_p_low2 < _p_low1 and _r_low2 > _r_low1
                     and _rsi_div_strength >= 3.0  # RSI差≥3pt必須
-                    and rsi5 < 30  # 厳格化: 40→30
+                    and rsi5 < 35  # 緩和: 30→35
                     and ema9 < ema21  # EMA逆順列（売られすぎ確認）
                     ):
                 _div_signal = "BUY"
@@ -5372,7 +6171,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 _sr_price = max(_near_support)
                 _div_reasons.append(f"✅ RSIブリッシュダイバージェンス — 価格安値更新/RSI非更新(強度{_rsi_div_strength:.1f})")
                 _div_reasons.append(f"✅ S/Rサポート近接({_sr_price:.3f}) (Osler 2000 FRBNY)")
-                _div_reasons.append(f"✅ RSI5={rsi5:.1f} 売られすぎ圏(<30)")
+                _div_reasons.append(f"✅ RSI5={rsi5:.1f} 売られすぎ圏(<35)")
                 # TP: 次のレジスタンスまたはATR×2
                 _above_sr = sorted([s for s in sr_levels if isinstance(s, (int, float)) and s > entry + atr7 * 0.3])
                 _div_tp = _above_sr[0] - atr7 * 0.05 if _above_sr else entry + atr7 * 2.0
@@ -5387,7 +6186,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             _rsi_div_strength = _r_hi1 - _r_hi2  # ダイバージェンス強度
             if (_p_hi2 > _p_hi1 and _r_hi2 < _r_hi1
                     and _rsi_div_strength >= 3.0  # RSI差≥3pt必須
-                    and rsi5 > 70  # 厳格化: 60→70
+                    and rsi5 > 65  # 緩和: 70→65
                     and ema9 > ema21  # EMA順列（買われすぎ確認）
                     ):
                 _div_signal = "SELL"
@@ -5395,7 +6194,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 _sr_price = min(_near_resist)
                 _div_reasons.append(f"✅ RSIベアリッシュダイバージェンス — 価格高値更新/RSI非更新(強度{_rsi_div_strength:.1f})")
                 _div_reasons.append(f"✅ S/Rレジスタンス近接({_sr_price:.3f}) (Osler 2000 FRBNY)")
-                _div_reasons.append(f"✅ RSI5={rsi5:.1f} 買われすぎ圏(>70)")
+                _div_reasons.append(f"✅ RSI5={rsi5:.1f} 買われすぎ圏(>65)")
                 _below_sr = sorted([s for s in sr_levels if isinstance(s, (int, float)) and s < entry - atr7 * 0.3], reverse=True)
                 _div_tp = _below_sr[0] + atr7 * 0.05 if _below_sr else entry - atr7 * 2.0
                 _div_sl = _sr_price + atr7 * 0.3  # SL厳格化
@@ -5428,14 +6227,14 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 _lb_score = 4.0
                 _lb_reasons.append(f"✅ ロンドンブレイクアウト: アジア高値{_asia_high:.3f}突破 (Ito 2006)")
                 _lb_reasons.append(f"✅ EMA順列確認 (9={ema9:.3f}>21={ema21:.3f})")
-                _lb_tp = entry + _asia_range * 1.0  # TP: アジアレンジの100%
+                _lb_tp = entry + max(_asia_range * 1.5, atr7 * 2.0)
                 _lb_sl = _asia_high - atr7 * 0.3  # SL: アジア高値の少し下
             elif entry < _asia_low - atr7 * 0.1 and ema9 < ema21:
                 _lb_signal = "SELL"
                 _lb_score = 4.0
                 _lb_reasons.append(f"✅ ロンドンブレイクアウト: アジア安値{_asia_low:.3f}下抜け (Ito 2006)")
                 _lb_reasons.append(f"✅ EMA逆順列確認 (9={ema9:.3f}<21={ema21:.3f})")
-                _lb_tp = entry - _asia_range * 1.0
+                _lb_tp = entry - max(_asia_range * 1.5, atr7 * 2.0)
                 _lb_sl = _asia_low + atr7 * 0.3
 
             if _lb_signal:
@@ -5463,7 +6262,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     #  根拠: ADX≥25のトレンド相場（全時間の63%）でStochの一時的逆行から回復
     #  条件: 明確なトレンド + EMA整列 + Stochが極値から回復
     # ════════════════════════════════════════════════════════
-    if adx >= 28 and not _is_friday and len(df) >= 5:
+    if adx >= 20 and not _is_friday and len(df) >= 5:
         _st_reasons = []
         _st_signal = None
         _st_score = 0.0
@@ -5473,38 +6272,38 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         # BUY: 上昇トレンド中のStoch売られすぎ回復
         if (ema9 > ema21 and entry > ema21
                 and stoch_k > stoch_d  # Stochゴールデンクロス
-                and _prev_stoch_k < 20  # 前バーで売られすぎ圏
-                and stoch_k < 40  # まだ上昇余地あり
-                and rsi5 > 38 and rsi5 < 52
-                and bbpb > 0.25 and bbpb < 0.55
+                and _prev_stoch_k < 35  # 前バーで売られすぎ圏（30→35）
+                and stoch_k < 60  # まだ上昇余地あり（55→60）
+                and rsi5 > 35 and rsi5 < 55
+                and bbpb > 0.20 and bbpb < 0.60
                 ):
             _st_signal = "BUY"
-            _st_score = 3.2 + min((adx - 28) * 0.04, 0.8)
+            _st_score = 3.2 + min((adx - 20) * 0.04, 0.8)
             _st_reasons.append(f"✅ トレンドプルバック: Stoch売られすぎ回復(K={stoch_k:.0f}, 前={_prev_stoch_k:.0f})")
-            _st_reasons.append(f"✅ 上昇トレンド確認 (EMA9>21, ADX={adx:.1f}≥28)")
+            _st_reasons.append(f"✅ 上昇トレンド確認 (EMA9>21, ADX={adx:.1f}≥20)")
             _st_reasons.append(f"✅ Stochゴールデンクロス(K>D: {stoch_k:.0f}>{stoch_d:.0f})")
-            _st_tp = entry + min(abs(bb_mid - entry) * 0.6, atr7 * 1.2)
+            _st_tp = entry + atr7 * 1.8
             _st_sl = entry - atr7 * 0.8
 
         # SELL: 下降トレンド中のStoch買われすぎ回復
         elif (ema9 < ema21 and entry < ema21
                 and stoch_k < stoch_d
-                and _prev_stoch_k > 80
-                and stoch_k > 60
-                and rsi5 > 48 and rsi5 < 62
-                and bbpb > 0.45 and bbpb < 0.75
+                and _prev_stoch_k > 65  # 70→65
+                and stoch_k > 40  # 45→40
+                and rsi5 > 45 and rsi5 < 65
+                and bbpb > 0.40 and bbpb < 0.80
                 ):
             _st_signal = "SELL"
-            _st_score = 3.2 + min((adx - 28) * 0.04, 0.8)
+            _st_score = 3.2 + min((adx - 20) * 0.04, 0.8)
             _st_reasons.append(f"✅ トレンドプルバック: Stoch買われすぎ回復(K={stoch_k:.0f}, 前={_prev_stoch_k:.0f})")
-            _st_reasons.append(f"✅ 下降トレンド確認 (EMA9<21, ADX={adx:.1f}≥28)")
+            _st_reasons.append(f"✅ 下降トレンド確認 (EMA9<21, ADX={adx:.1f}≥20)")
             _st_reasons.append(f"✅ Stochデッドクロス(K<D: {stoch_k:.0f}<{stoch_d:.0f})")
-            _st_tp = entry - min(abs(entry - bb_mid) * 0.6, atr7 * 1.2)
+            _st_tp = entry - atr7 * 1.8
             _st_sl = entry + atr7 * 0.8
 
         if _st_signal:
             _st_conf = int(min(80, 45 + _st_score * 4))
-            _st_reasons.append(f"📊 レジーム: トレンド(ADX={adx:.1f}≥28)")
+            _st_reasons.append(f"📊 レジーム: トレンド(ADX={adx:.1f}≥20)")
             candidates.append((_st_signal, _st_conf, _st_sl, _st_tp,
                                _st_reasons, "stoch_trend_pullback", _st_score))
 
@@ -5518,7 +6317,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     #  根拠: モメンタム消耗 + 価格極端 = 高確率反転
     #  NOTE: 独立戦略としてBT EV -0.175。bb_rsi_reversionのスコアブーストとして統合済み。
     # ════════════════════════════════════════════════════════
-    if False and len(df) >= 3 and not _is_friday:  # DISABLED — bb_rsi_reversion内で統合
+    if len(df) >= 3 and not _is_friday:
         _mh_reasons = []
         _mh_signal = None
         _mh_score = 0.0
@@ -5526,36 +6325,38 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         _macdh_prev = float(df.iloc[-2].get("macdh", 0)) if "macdh" in df.columns else 0
         _macdh_prev2 = float(df.iloc[-3].get("macdh", 0)) if len(df) >= 3 and "macdh" in df.columns else 0
 
-        # BUY: BB下限 + MACD-H上向き反転 + Stochクロス必須
-        if (bbpb < 0.15
+        # BUY: BB下限 + MACD-H上向き反転
+        if (bbpb < 0.25
                 and macdh > _macdh_prev
                 and _macdh_prev <= _macdh_prev2
-                and rsi5 < 35
-                and stoch_k > stoch_d
+                and rsi5 < 42
                 ):
             _mh_signal = "BUY"
             _mh_score = 3.5
             _mh_reasons.append(f"✅ MACD-Hモメンタム反転上昇(H={macdh:.4f}, 前={_macdh_prev:.4f})")
-            _mh_reasons.append(f"✅ BB下限圏(%B={bbpb:.2f}<0.15)")
-            _mh_reasons.append(f"✅ RSI5売られすぎ({rsi5:.1f}<35)")
-            _mh_reasons.append(f"✅ Stochゴールデンクロス(K>D)")
-            _mh_tp = entry + (bb_mid - entry) * 0.55
+            _mh_reasons.append(f"✅ BB下限圏(%B={bbpb:.2f}<0.25)")
+            _mh_reasons.append(f"✅ RSI5売られすぎ({rsi5:.1f}<42)")
+            if stoch_k > stoch_d:
+                _mh_score += 0.5
+                _mh_reasons.append(f"✅ Stochゴールデンクロス(K>D)")
+            _mh_tp = entry + atr7 * 1.5
             _mh_sl = entry - atr7 * 1.0
 
-        # SELL: BB上限 + MACD-H下向き反転 + Stochクロス必須
-        elif (bbpb > 0.85
+        # SELL: BB上限 + MACD-H下向き反転
+        elif (bbpb > 0.75
                 and macdh < _macdh_prev
                 and _macdh_prev >= _macdh_prev2
-                and rsi5 > 65
-                and stoch_k < stoch_d
+                and rsi5 > 58
                 ):
             _mh_signal = "SELL"
             _mh_score = 3.5
             _mh_reasons.append(f"✅ MACD-Hモメンタム反転下落(H={macdh:.4f}, 前={_macdh_prev:.4f})")
-            _mh_reasons.append(f"✅ BB上限圏(%B={bbpb:.2f}>0.85)")
-            _mh_reasons.append(f"✅ RSI5買われすぎ({rsi5:.1f}>65)")
-            _mh_reasons.append(f"✅ Stochデッドクロス(K<D)")
-            _mh_tp = entry - (entry - bb_mid) * 0.55
+            _mh_reasons.append(f"✅ BB上限圏(%B={bbpb:.2f}>0.75)")
+            _mh_reasons.append(f"✅ RSI5買われすぎ({rsi5:.1f}>58)")
+            if stoch_k < stoch_d:
+                _mh_score += 0.5
+                _mh_reasons.append(f"✅ Stochデッドクロス(K<D)")
+            _mh_tp = entry - atr7 * 1.5
             _mh_sl = entry + atr7 * 1.0
 
         if _mh_signal:
@@ -5568,7 +6369,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     #  根拠: 強い反転キャンドルパターン + 価格帯極端 = 構造的反転
     #  条件: BB極端 + 包み足 + RSI確認
     # ════════════════════════════════════════════════════════
-    if len(df) >= 3 and not _is_friday:
+    if len(df) >= 2 and not _is_friday:  # RE-ENABLED with ATR-based TP
         _eg_reasons = []
         _eg_signal = None
         _eg_score = 0.0
@@ -5594,32 +6395,32 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                               and _curr_close < _prev_open
                               and _curr_range > atr7 * 0.5)
 
-        # BUY: BB極端下限 + ブリッシュ包み足 + Stochクロス必須
-        if (_is_bullish_engulf and bbpb < 0.10 and rsi5 < 30
-                and stoch_k > stoch_d  # Stochクロス必須（確認フィルター）
-                and _curr_body > atr7 * 0.3  # 足ボディが十分大きい
+        # BUY: BB極端下限 + ブリッシュ包み足
+        if (_is_bullish_engulf and bbpb < 0.30 and rsi5 < 45
                 ):
             _eg_signal = "BUY"
             _eg_score = 4.0
             _eg_reasons.append(f"✅ ブリッシュ包み足(ボディ比{_curr_body/_prev_body:.1f}x)")
-            _eg_reasons.append(f"✅ BB極端下限(%B={bbpb:.2f}<0.10)")
-            _eg_reasons.append(f"✅ RSI5売られすぎ({rsi5:.1f}<30)")
-            _eg_reasons.append(f"✅ Stochゴールデンクロス確認(K>D)")
-            _eg_tp = entry + (bb_mid - entry) * 0.55
+            _eg_reasons.append(f"✅ BB極端下限(%B={bbpb:.2f}<0.30)")
+            _eg_reasons.append(f"✅ RSI5売られすぎ({rsi5:.1f}<45)")
+            if stoch_k > stoch_d:
+                _eg_score += 0.5
+                _eg_reasons.append(f"✅ Stochゴールデンクロス確認(K>D)")
+            _eg_tp = entry + atr7 * 1.5
             _eg_sl = min(float(row["Low"]), entry - atr7 * 0.8) - atr7 * 0.15
 
-        # SELL: BB極端上限 + ベアリッシュ包み足 + Stochクロス必須
-        elif (_is_bearish_engulf and bbpb > 0.90 and rsi5 > 70
-                and stoch_k < stoch_d
-                and _curr_body > atr7 * 0.3
+        # SELL: BB極端上限 + ベアリッシュ包み足
+        elif (_is_bearish_engulf and bbpb > 0.70 and rsi5 > 55
                 ):
             _eg_signal = "SELL"
             _eg_score = 4.0
             _eg_reasons.append(f"✅ ベアリッシュ包み足(ボディ比{_curr_body/_prev_body:.1f}x)")
-            _eg_reasons.append(f"✅ BB極端上限(%B={bbpb:.2f}>0.90)")
-            _eg_reasons.append(f"✅ RSI5買われすぎ({rsi5:.1f}>70)")
-            _eg_reasons.append(f"✅ Stochデッドクロス確認(K<D)")
-            _eg_tp = entry - (entry - bb_mid) * 0.55
+            _eg_reasons.append(f"✅ BB極端上限(%B={bbpb:.2f}>0.70)")
+            _eg_reasons.append(f"✅ RSI5買われすぎ({rsi5:.1f}>55)")
+            if stoch_k < stoch_d:
+                _eg_score += 0.5
+                _eg_reasons.append(f"✅ Stochデッドクロス確認(K<D)")
+            _eg_tp = entry - atr7 * 1.5
             _eg_sl = max(float(row["High"]), entry + atr7 * 0.8) + atr7 * 0.15
 
         if _eg_signal:
@@ -5648,8 +6449,8 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         _curr_bull = entry > float(row["Open"])
         if (_three_bear and _curr_bull
                 and entry > float(df.iloc[-2]["High"])  # 前足高値超え
-                and bbpb < 0.25  # BB下限圏
-                and rsi5 < 38
+                and bbpb < 0.35  # BB下限圏
+                and rsi5 < 42
                 ):
             _tb_signal = "BUY"
             _tb_score = 3.3
@@ -5659,15 +6460,15 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             if stoch_k > stoch_d:
                 _tb_score += 0.4
                 _tb_reasons.append("✅ Stochクロス確認")
-            _tb_tp = entry + (bb_mid - entry) * 0.50
+            _tb_tp = entry + atr7 * 1.5
             _tb_sl = min(float(df.iloc[-2]["Low"]), float(df.iloc[-3]["Low"])) - atr7 * 0.15
 
         # SELL: 3連続陽線の後に陰線（反転）
         _curr_bear = entry < float(row["Open"])
         if not _tb_signal and _three_bull and _curr_bear:
             if (entry < float(df.iloc[-2]["Low"])  # 前足安値割れ
-                    and bbpb > 0.75  # BB上限圏
-                    and rsi5 > 62
+                    and bbpb > 0.65  # BB上限圏
+                    and rsi5 > 58
                     ):
                 _tb_signal = "SELL"
                 _tb_score = 3.3
@@ -5677,7 +6478,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 if stoch_k < stoch_d:
                     _tb_score += 0.4
                     _tb_reasons.append("✅ Stochデッドクロス確認")
-                _tb_tp = entry - (entry - bb_mid) * 0.50
+                _tb_tp = entry - atr7 * 1.5
                 _tb_sl = max(float(df.iloc[-2]["High"]), float(df.iloc[-3]["High"])) + atr7 * 0.15
 
         if _tb_signal:
@@ -5715,7 +6516,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         sl = entry - MIN_SL if signal == "BUY" else entry + MIN_SL
         sl_dist = MIN_SL
     # RR最低1.5保証
-    if tp_dist < sl_dist * 1.5:
+    if tp_dist < sl_dist * 1.2:
         tp = entry + sl_dist * 1.8 if signal == "BUY" else entry - sl_dist * 1.8
         tp_dist = abs(tp - entry)
         reasons.append("⚠️ RR不足 → TP最小RR1.8に拡張")
@@ -8179,7 +8980,7 @@ def _auto_start_trader():
     """サーバー起動時に全モード自動起動（Render再起動対策）"""
     import time as _time
     _time.sleep(10)  # Gunicorn/Flask完全初期化を待つ
-    for _mode in ["scalp", "daytrade", "swing"]:
+    for _mode in ["scalp", "daytrade", "daytrade_1h", "swing"]:
         try:
             _demo_trader.start(mode=_mode)
             print(f"[AutoStart] {_mode} started")

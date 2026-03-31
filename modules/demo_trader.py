@@ -41,6 +41,14 @@ MODE_CONFIG = {
         "label": "スイング",
         "icon": "🌊",
     },
+    "daytrade_1h": {
+        "interval_sec": 60,       # 1分ごとにチェック（1h足の補完DT）
+        "tf": "1h",
+        "period": "30d",
+        "signal_fn": "compute_1h_zone_signal",
+        "label": "デイトレ1H(Zone)",
+        "icon": "🕐",
+    },
 }
 
 # SL/TPチェック間隔（秒）— シグナル計算とは独立して高頻度実行
@@ -528,6 +536,8 @@ class DemoTrader:
             from app import compute_daytrade_signal as compute_fn
         elif mode == "swing":
             from app import compute_swing_signal as compute_fn
+        elif mode == "daytrade_1h":
+            from app import compute_1h_zone_signal as compute_fn
         else:
             from app import compute_scalp_signal as compute_fn
 
@@ -559,7 +569,38 @@ class DemoTrader:
                 return
 
             sr = find_sr_levels(df)
-            sig = compute_fn(df, tf, sr, "USDJPY=X")
+
+            # ── 1H Zone mode: ゾーン計算 + 専用シグナル呼び出し ──
+            if mode == "daytrade_1h":
+                import numpy as _np
+                # 前日のOHLCからゾーン計算
+                _1h_dates = {}
+                for idx in df.index:
+                    _d = str(idx.date()) if hasattr(idx, 'date') else str(idx)[:10]
+                    if _d not in _1h_dates:
+                        _1h_dates[_d] = {"H": float(df.loc[idx, "High"]),
+                                         "L": float(df.loc[idx, "Low"]),
+                                         "C": float(df.loc[idx, "Close"]),
+                                         "atr": float(df.loc[idx].get("atr", 0.10))}
+                    else:
+                        _1h_dates[_d]["H"] = max(_1h_dates[_d]["H"], float(df.loc[idx, "High"]))
+                        _1h_dates[_d]["L"] = min(_1h_dates[_d]["L"], float(df.loc[idx, "Low"]))
+                        _1h_dates[_d]["C"] = float(df.loc[idx, "Close"])
+                        _1h_dates[_d]["atr"] = float(df.loc[idx].get("atr", 0.10))
+
+                _sorted_dates = sorted(_1h_dates.keys())
+                if len(_sorted_dates) >= 2:
+                    _prev_day = _1h_dates[_sorted_dates[-2]]
+                    _pivot = (_prev_day["H"] + _prev_day["L"] + _prev_day["C"]) / 3.0
+                    _daily_atr = _prev_day["atr"] * _np.sqrt(24)
+                    _buy_zone = (_prev_day["L"] - _daily_atr * 0.2, _pivot)
+                    _sell_zone = (_pivot, _prev_day["H"] + _daily_atr * 0.2)
+                    sig = compute_fn(df, buy_zone=_buy_zone, sell_zone=_sell_zone,
+                                     sr_levels=sr, backtest_mode=False)
+                else:
+                    return  # ゾーン計算不可（データ不足）
+            else:
+                sig = compute_fn(df, tf, sr, "USDJPY=X")
         except Exception as e:
             self._add_log(f"⚠️ [{cfg['label']}] シグナル取得失敗: {e}")
             return
@@ -630,6 +671,11 @@ class DemoTrader:
             "dual_sr_bounce",    # 上下SR確認 + バウンス
             "dual_sr_breakout",  # 強いSRブレイクアウト
             "sr_fib_confluence", # SR + フィボナッチ合流
+            # 1H Zone: 学術論文ベース戦略
+            "mtf_momentum",          # Multi-TF Momentum (Moskowitz 2012)
+            "session_orb",           # Session ORB (Ito & Hashimoto 2006)
+            "pivot_breakout",        # Pivot Breakout (Osler 2000)
+            "pivot_reversion",       # Pivot Reversion (Osler 2000 + BB/RSI)
         }
 
         # 弱い理由のエントリータイプ（追加条件が必要）
@@ -671,7 +717,7 @@ class DemoTrader:
         # ── SL後クールダウン: 直近のSL/LOSSと同一価格帯・同方向なら再エントリー禁止 ──
         last_ex = self._last_exit.get(mode)
         if last_ex:
-            _cooldown_sec = {"scalp": 120, "daytrade": 600, "swing": 7200}.get(mode, 120)
+            _cooldown_sec = {"scalp": 120, "daytrade": 600, "daytrade_1h": 1800, "swing": 7200}.get(mode, 120)
             _ex_age = (datetime.now(timezone.utc) - last_ex["time"]).total_seconds()
             if _ex_age < _cooldown_sec:
                 if last_ex["direction"] == signal:
@@ -776,7 +822,7 @@ class DemoTrader:
         trade_id = trade["trade_id"]
 
         # 最低保持時間チェック（scalp:3分, daytrade:10分, swing:1時間）
-        min_hold_sec = {"scalp": 180, "daytrade": 600, "swing": 3600}.get(mode, 180)
+        min_hold_sec = {"scalp": 180, "daytrade": 600, "daytrade_1h": 1800, "swing": 3600}.get(mode, 180)
         try:
             entry_time = datetime.fromisoformat(trade["entry_time"])
             if entry_time.tzinfo is None:
