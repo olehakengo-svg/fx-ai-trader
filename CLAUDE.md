@@ -103,7 +103,7 @@
 - **スレッド耐性**: 連続エラー時のバックオフ追加（スレッド停止防止）
 - **DB接続リーク修正(B3)**: 全DB操作に_safe_conn()コンテキストマネージャ導入（try/finally保証）
 - **ウォッチドッグ自動復旧**: 60秒毎にrunning=Falseモードを自動復旧（B4 breakバグ対策）
-- **max_open_trades**: 3→5（スキャルプ+DT+Swing共存可能に）
+- **max_open_trades**: 3→20（同モード重複エントリー許可、エントリーポイント発生時は複数ポジションOK）
 - **auto_start二重起動防止**: _auto_start_doneフラグ（モジュール二重importレース対策）
 - **stop()時_started_modes除去**: ウォッチドッグが明示stop済みモードを復旧しない
 - **ドローダウン制御**: 日次-30pip / 最大DD -100pipで自動停止

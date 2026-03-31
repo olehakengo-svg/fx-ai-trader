@@ -81,7 +81,7 @@ class DemoTrader:
         # チューナブルパラメータ（学習エンジンが調整、全モード共通）
         self._params = {
             "confidence_threshold": 40,
-            "max_open_trades": 5,
+            "max_open_trades": 20,
             "sl_adjust": 1.0,
             "tp_adjust": 1.0,
             "entry_type_blacklist": [],
