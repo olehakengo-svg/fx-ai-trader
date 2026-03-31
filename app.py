@@ -8926,6 +8926,18 @@ def api_demo_stop():
     return jsonify(result)
 
 
+@app.route("/api/demo/restart", methods=["POST"])
+def api_demo_restart():
+    """全モード強制再起動"""
+    results = {}
+    for _mode in ["scalp", "daytrade", "daytrade_1h", "swing"]:
+        # 一旦停止してから再起動
+        _demo_trader.stop(mode=_mode)
+        import time as _t; _t.sleep(0.5)
+        results[_mode] = _demo_trader.start(mode=_mode)
+    return jsonify({"status": "restarted", "modes": results})
+
+
 @app.route("/api/demo/trades")
 def api_demo_trades():
     limit = request.args.get("limit", 50, type=int)
@@ -9069,13 +9081,24 @@ def _auto_start_trader():
 
     import time as _time
     _time.sleep(10)  # Gunicorn/Flask完全初期化を待つ
-    for _mode in ["scalp", "daytrade", "daytrade_1h", "swing"]:
+    _all_modes = ["scalp", "daytrade", "daytrade_1h", "swing"]
+    for _mode in _all_modes:
         try:
-            _demo_trader.start(mode=_mode)
-            print(f"[AutoStart] {_mode} started")
+            result = _demo_trader.start(mode=_mode)
+            print(f"[AutoStart] {_mode} → {result.get('status', 'unknown')}")
             _time.sleep(5)  # モード間で間隔を空ける（メモリ負荷分散）
         except Exception as _e:
             print(f"[AutoStart] {_mode} failed: {_e}")
+
+    # 起動確認: 30秒後に全モードの状態を検証
+    _time.sleep(30)
+    for _mode in _all_modes:
+        try:
+            if not _demo_trader.is_running(mode=_mode):
+                print(f"[AutoStart/Verify] {_mode} not running — force restarting")
+                _demo_trader.start(mode=_mode)
+        except Exception as _e:
+            print(f"[AutoStart/Verify] {_mode} check failed: {_e}")
 
 # Render/Gunicorn環境では __name__ != "__main__" なので、
 # モジュール読み込み時に自動起動スレッドを開始

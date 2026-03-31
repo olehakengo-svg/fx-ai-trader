@@ -101,7 +101,9 @@ class DemoTrader:
         self._last_exit = {}      # mode -> last exit info
         # 起動済みモード追跡（ヘルスチェッカー用）
         self._started_modes = set()
+        self._user_stopped_modes = set()  # 明示的にstop()されたモード（ウォッチドッグ対象外）
         self._health_thread = None
+        self._watchdog_thread = None
 
     # ── Public API ────────────────────────────────────
 
@@ -119,11 +121,14 @@ class DemoTrader:
             # モードを有効化
             self._runners[mode] = {"running": True, "thread": None}
             self._started_modes.add(mode)
+            self._user_stopped_modes.discard(mode)
 
             # メインループスレッドが未起動なら起動
             self._ensure_main_loop()
             # SL/TPチェッカーが未起動なら起動
             self._ensure_sltp_checker()
+            # ウォッチドッグスレッド（独立監視）
+            self._ensure_watchdog()
 
             cfg = MODE_CONFIG[mode]
             self._add_log(f"{cfg['icon']} {cfg['label']}モード起動")
@@ -138,8 +143,8 @@ class DemoTrader:
                 runner = self._runners.get(m, {})
                 if runner.get("running"):
                     runner["running"] = False
-                    # ウォッチドッグ自動復旧を防止するため _started_modes からも除去
-                    self._started_modes.discard(m)
+                    # ウォッチドッグ自動復旧を防止するためユーザー停止セットに記録
+                    self._user_stopped_modes.add(m)
                     cfg = MODE_CONFIG.get(m, {})
                     self._add_log(f"🔴 {cfg.get('label', m)}モード停止")
                     stopped.append(m)
@@ -265,6 +270,54 @@ class DemoTrader:
             name="DemoTrader-MainLoop"
         )
         self._health_thread.start()
+
+    def _ensure_watchdog(self):
+        """独立ウォッチドッグスレッドを起動（メインループとは別スレッド）"""
+        if self._watchdog_thread and self._watchdog_thread.is_alive():
+            return
+        self._watchdog_thread = threading.Thread(
+            target=self._watchdog_loop, daemon=True,
+            name="DemoTrader-Watchdog"
+        )
+        self._watchdog_thread.start()
+
+    def _watchdog_loop(self):
+        """独立ウォッチドッグ: 30秒毎にモード生存確認・自動復旧"""
+        print("[Watchdog] Independent watchdog thread started")
+        time.sleep(30)  # 初回は30秒待機（auto_start完了を待つ）
+        while True:
+            try:
+                restored = []
+                for m in list(self._started_modes):
+                    if m in self._user_stopped_modes:
+                        continue  # ユーザーが明示的に停止したモードはスキップ
+                    runner = self._runners.get(m)
+                    if runner is None or not runner.get("running", False):
+                        print(f"[Watchdog] {m} found stopped — auto-restarting")
+                        self._runners[m] = {"running": True, "thread": None}
+                        restored.append(m)
+
+                # メインループスレッドが死んでいたら再起動
+                if self._started_modes and not (self._health_thread and self._health_thread.is_alive()):
+                    print("[Watchdog] MainLoop thread dead — restarting")
+                    self._ensure_main_loop()
+
+                # SL/TPチェッカーが死んでいたら再起動
+                if self._started_modes and not (self._sltp_thread and self._sltp_thread.is_alive()):
+                    print("[Watchdog] SLTP thread dead — restarting")
+                    self._ensure_sltp_checker()
+
+                if restored:
+                    try:
+                        labels = [MODE_CONFIG.get(m, {}).get('label', m) for m in restored]
+                        self._add_log(f"🔄 ウォッチドッグ自動復旧: {', '.join(labels)}")
+                    except Exception:
+                        pass
+            except Exception as e:
+                print(f"[Watchdog] Error: {e}")
+                import traceback; traceback.print_exc()
+
+            time.sleep(30)  # 30秒間隔でチェック
 
     def _sltp_loop(self):
         """高頻度でリアルタイム価格を取得してSL/TPチェック"""
@@ -423,7 +476,6 @@ class DemoTrader:
         print("[DemoTrader] MainLoop started")
         _last_tick = {}  # mode -> last tick time
         _consecutive_errors = {}  # mode -> error count
-        _watchdog_last = 0  # 最終ウォッチドッグチェック時刻
         import gc
 
         while True:
@@ -431,22 +483,6 @@ class DemoTrader:
                 # まだモード未登録の場合は待機
                 time.sleep(2)
                 continue
-
-            # ── ウォッチドッグ: 60秒毎に停止モードを自動復旧 ──
-            now_wd = time.time()
-            if now_wd - _watchdog_last > 60:
-                _watchdog_last = now_wd
-                for m in list(self._started_modes):
-                    runner = self._runners.get(m)
-                    if runner is None or not runner.get("running", False):
-                        # 明示的stop()されていないのにrunning=Falseなら自動復旧
-                        print(f"[Watchdog] {m} found stopped — auto-restarting")
-                        self._runners[m] = {"running": True, "thread": None}
-                        try:
-                            cfg = MODE_CONFIG.get(m, {})
-                            self._add_log(f"🔄 [{cfg.get('label', m)}] ウォッチドッグ自動復旧")
-                        except Exception:
-                            pass
 
             try:
                 now = time.time()
