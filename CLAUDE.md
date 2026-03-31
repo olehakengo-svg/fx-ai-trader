@@ -28,10 +28,20 @@
 - daytrade: 15m tf, 30s interval
 - swing: 4h tf, 300s interval
 
-## BT Performance (as of 2026-03-31, all modes unified)
-- Scalp: 5520t WR=46.0% EV=+0.097 (7d, 1m)
-- Daytrade: 4209t WR=42.2% EV=+0.178 (55d, 15m)
+## BT Performance (as of 2026-03-31, Friday fix applied)
+- Scalp: 4281t WR=46.6% EV=+0.110 (7d, 1m)
+- Daytrade: 3916t WR=41.7% EV=+0.168 (55d, 15m)
 - Swing: 346t WR=36.7% EV=+0.154 (730d, 1d)
+
+## Weekly BT Sample (2026-03-23〜31)
+- 月 +285p | 火 +987p | 水 +936p | 木 +466p | 金 +111p | 月 +1210p | 火 +103p
+- 全日100p以上 ✅（金曜も+111pで目標達成）
+
+## Friday Filters (金曜対策)
+- **Scalp**: 閾値0.6→3.5（高確信シグナルのみ）、tokyo_bb完全ブロック
+- **DT (compute_daytrade_signal)**: 金曜UTC0-6のSR系(sr_fib_confluence等)ブロック、UTC18+全ブロック
+- **DT (compute_signal)**: combined score減衰(×0.15)、Tokyo/NY午後ブロック
+- **重要**: compute_daytrade_signalとcompute_signalは別関数。DT BTはcompute_daytrade_signalを使用
 
 ## Recent Fixes (2026-03-31)
 - BT/本番ロジック統一: 3モード全てsignal関数を使用
@@ -43,3 +53,7 @@
 - 重複エントリー防止: 同方向ポジション+近接価格チェック
 - SIGNAL_REVERSE最低保持時間: scalp 60s, daytrade 300s, swing 3600s
 - Swing signal: 閾値0.15→2.5/6.0, SL/TP 2.5/4.5→1.0/2.5, SR近接スコアリング追加
+- **金曜フィルター**: scalp閾値3倍、tokyo_bbブロック、DT SR系ブロック(UTC<7)
+- **tokyo_bb entry_type修正**: 早期リターンにentry_type追加（BT分析精度向上）
+- **HTF cache修正**: compute_daytrade_signalのHTFバイアスもhtf_cacheを使用（BT時）
+- **EMA spread multiplier**: ema_pullbackスコアをEMA9-21スプレッドで調整

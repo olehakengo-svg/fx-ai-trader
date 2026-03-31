@@ -1501,9 +1501,15 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     # 【修正】表示は常に 1H+4H (UIカード維持), フィルタ論理のみ TF 依存:
     #   tf=1h: 4H+1D でフィルタ (1H が自身の HTF に入る循環参照を回避)
     #   その他: 1H+4H でフィルタ (上位足確認)
-    htf = get_htf_bias(symbol)  # UI表示用 (常に 1H+4H)
+    if backtest_mode and htf_cache and "htf" in htf_cache:
+        htf = htf_cache["htf"]
+    else:
+        htf = get_htf_bias(symbol)  # UI表示用 (常に 1H+4H)
     if tf == "1h":
-        htf_filter = get_htf_bias_daytrade(symbol)  # 4H+1D フィルタ (循環参照回避)
+        if backtest_mode and htf_cache and "htf_dt" in htf_cache:
+            htf_filter = htf_cache["htf_dt"]
+        else:
+            htf_filter = get_htf_bias_daytrade(symbol)  # 4H+1D フィルタ (循環参照回避)
     else:
         htf_filter = htf  # 1H+4H フィルタ
     htf_agreement = htf_filter.get("agreement", "mixed")
@@ -1527,9 +1533,33 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     # ⑧ Strict threshold
     THRESHOLD = 0.28
 
-    if   combined >  THRESHOLD: signal, conf = "BUY",  int(min(95, 50 + combined * 55))
-    elif combined < -THRESHOLD: signal, conf = "SELL", int(min(95, 50 + abs(combined) * 55))
-    else:                       signal, conf = "WAIT", int(max(25, 50 - abs(combined) * 40))
+    # 金曜フィルター: 週末前の薄商い＋ポジション解消で方向性低下
+    _is_friday_dt = False
+    try:
+        _dt_bar = bar_time if bar_time else datetime.now(timezone.utc)
+        _dt_dow = _dt_bar.weekday() if hasattr(_dt_bar, 'weekday') else df.index[-1].weekday()
+        if _dt_dow == 4:  # 金曜日
+            _is_friday_dt = True
+            _fri_hour = _dt_bar.hour if hasattr(_dt_bar, 'hour') else 12
+            if _fri_hour >= 10:
+                # 金曜UTC10時以降: 完全ブロック（NY前～クローズは損失集中）
+                combined = 0.0
+                reasons.append("🚫 金曜UTC10時以降: DT完全ブロック")
+            elif _fri_hour < 7:
+                # 金曜東京セッション(UTC0-6): 完全ブロック（低流動性+週末=高損失率）
+                combined = 0.0
+                reasons.append("🚫 金曜東京セッション: DT完全ブロック")
+            else:
+                # 金曜London(UTC7-9): 85%減衰で超高確信のみ通す
+                combined *= 0.15
+                reasons.append("⚠️ 金曜London: 週末リスク → スコア85%減衰")
+    except Exception:
+        pass
+
+    _dt_threshold = 0.45 if _is_friday_dt else THRESHOLD  # 金曜は閾値も大幅引き上げ
+    if   combined >  _dt_threshold: signal, conf = "BUY",  int(min(95, 50 + combined * 55))
+    elif combined < -_dt_threshold: signal, conf = "SELL", int(min(95, 50 + abs(combined) * 55))
+    else:                           signal, conf = "WAIT", int(max(25, 50 - abs(combined) * 40))
 
     # ⑥ S/R-snapped SL/TP（TF対応スイングモード）
     # WAIT時はcombinedの符号で方向を決定（0の場合はBUY）
@@ -2459,6 +2489,26 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     except Exception as e:
         print(f"[SREntryMap] {e}")
 
+    # ── 金曜フィルター: 週末前はDTを時間帯別にブロック ──
+    if signal != "WAIT":
+        try:
+            _dt_fri_bar = bar_time if bar_time else datetime.now(timezone.utc)
+            _dt_fri_dow = _dt_fri_bar.weekday() if hasattr(_dt_fri_bar, 'weekday') else df.index[-1].weekday()
+            if _dt_fri_dow == 4:  # 金曜日
+                _dt_fri_h = _dt_fri_bar.hour if hasattr(_dt_fri_bar, 'hour') else 12
+                if _dt_fri_h < 7 and _dt_entry_type in ("sr_fib_confluence", "dual_sr_bounce", "dual_sr_breakout"):
+                    # 金曜東京(UTC0-6): SR系エントリーをブロック（低流動性で偽シグナル多発）
+                    signal = "WAIT"
+                    conf = 20
+                    reasons.append(f"🚫 金曜{_dt_fri_h}UTC: SR系DT({_dt_entry_type})ブロック")
+                elif _dt_fri_h >= 18:
+                    # 金曜UTC18以降: 全シグナルブロック（クローズ間近）
+                    signal = "WAIT"
+                    conf = 20
+                    reasons.append(f"🚫 金曜{_dt_fri_h}UTC: DTクローズ前ブロック")
+        except Exception:
+            pass
+
     return {
         "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
         "entry": round(entry, 3), "signal": signal, "confidence": conf,
@@ -3382,7 +3432,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                               "actual_rr": actual_rr, "bar_idx": i,
                               "entry_type": entry_type,
                               "sl": round(sl, 3), "tp": round(tp, 3),
-                              "sl_m": round(sl_m, 3), "tp_m": round(tp_m_actual, 3)}
+                              "sl_m": round(sl_m, 3), "tp_m": round(tp_m_actual, 3),
+                              "entry_time": str(bar_time)}
                 if outcome == "LOSS":
                     if sig == "BUY" and fut_close < sl:
                         trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr7, 1e-6), sl_m * 1.2), 3)
@@ -3467,7 +3518,10 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             trade_log  = [{"sig": t["sig"], "outcome": t["outcome"],
                            "bars": t["bars_held"],
-                           "type": t.get("entry_type", "ema_cross")} for t in trades[-10:]]
+                           "type": t.get("entry_type", "ema_cross"),
+                           "entry_time": t.get("entry_time", ""),
+                           "sl_m": t.get("sl_m", 0), "tp_m": t.get("tp_m", 0),
+                           "actual_sl_m": t.get("actual_sl_m", None)} for t in trades]
             result = {
                 "win_rate":       wr,
                 "trades":         total,
@@ -3698,7 +3752,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                                 "sig": sig, "ep": round(ep,3),
                                 "sl": round(sl,3), "tp": round(tp,3),
                                 "bar_idx": i, "entry_type": entry_type,
-                                "sl_m": sl_m, "tp_m": tp_m_actual}
+                                "sl_m": sl_m, "tp_m": tp_m_actual,
+                                "entry_time": str(bar_time)}
                 # Close-based SL actual loss: when LOSS and close exceeded SL level
                 if outcome == "LOSS":
                     if sig == "BUY" and fut_close < sl:
@@ -3778,7 +3833,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "walk_forward": wf_windows,
                 "consistency": f"{profitable}/{len(wf_windows)} 窓でプラス期待値",
                 "entry_breakdown": dt_entry_stats,
-                "trade_log": trades[-20:],
+                "trade_log": trades,
                 "mode": "daytrade",
                 "data_source": _last_data_source.get(interval, "yfinance"),
                 "bars_fetched": len(df),
@@ -5057,8 +5112,18 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             signal = "WAIT"
             score_tok = 0.0
 
+            # 金曜日はtokyo_bbを完全ブロック（週末リスクで平均回帰が機能しない）
+            _tok_bar_dt = bar_time if bar_time else datetime.now(timezone.utc)
+            _tok_is_friday = False
+            try:
+                _tok_is_friday = _tok_bar_dt.weekday() == 4
+            except Exception:
+                pass
+            if _tok_is_friday:
+                # 金曜東京セッションはWAITを返す
+                pass
             # BB Lower bounce + RSI oversold → BUY
-            if bb_pband <= 0.08 and rsi_tok < 38:
+            elif bb_pband <= 0.08 and rsi_tok < 38:
                 signal = "BUY"
                 score_tok = 2.5 + (38 - rsi_tok) * 0.05  # stronger RSI extreme = higher score
             # BB Upper bounce + RSI overbought → SELL
@@ -5105,6 +5170,7 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                     "swing_mode": False, "bar_count": len(df),
                     "ohlcv_source": df.attrs.get("source", "unknown"),
                     "scalp_score": round(score_tok, 2),
+                    "entry_type": "tokyo_bb",
                     "scalp_info": {
                         "strategy": "tokyo_bb_bounce",
                         "bb_pband": round(bb_pband, 3),
@@ -5225,12 +5291,16 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             reasons.append("⚖️ 1H+4H不一致 + 1m足EMA不明瞭 → 方向判定不可")
 
     # ④ EMA9 プルバック ──────────────────────────────────────
+    # 改善: EMA間スプレッドが狭い(レンジ)時はスコア減衰
+    atr_ref = atr7 if atr7 > 0 else atr
+    _ema_spread = abs(ema9 - ema21) / max(atr_ref, 1e-6)
+    _ema_pb_mult = 1.0 if _ema_spread > 0.3 else (0.4 if _ema_spread > 0.15 else 0.15)
     if d_mult == 1.0:
         if ema9 > ema21 > ema50:
             if entry <= ema9 * 1.001:
-                score += 2.0; reasons.append(f"✅ EMA9プルバック({ema9:.3f}) BUYゾーン")
+                score += 2.0 * _ema_pb_mult; reasons.append(f"✅ EMA9プルバック({ema9:.3f}) BUYゾーン")
             elif entry <= ema9 * 1.003:
-                score += 0.8; reasons.append("↗ EMA9>EMA21>EMA50 上昇列")
+                score += 0.8 * _ema_pb_mult; reasons.append("↗ EMA9>EMA21>EMA50 上昇列")
             else:
                 score += 0.3; reasons.append("↗ EMA上昇配列（プルバック待ち）")
         elif ema9 > ema21:
@@ -5238,9 +5308,9 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     elif d_mult == -1.0:
         if ema9 < ema21 < ema50:
             if entry >= ema9 * 0.999:
-                score -= 2.0; reasons.append(f"✅ EMA9プルバック({ema9:.3f}) SELLゾーン")
+                score -= 2.0 * _ema_pb_mult; reasons.append(f"✅ EMA9プルバック({ema9:.3f}) SELLゾーン")
             elif entry >= ema9 * 0.997:
-                score -= 0.8; reasons.append("↘ EMA9<EMA21<EMA50 下降列")
+                score -= 0.8 * _ema_pb_mult; reasons.append("↘ EMA9<EMA21<EMA50 下降列")
             else:
                 score -= 0.3; reasons.append("↘ EMA下降配列（戻り待ち）")
         elif ema9 < ema21:
@@ -5338,6 +5408,17 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         else:  # 1-7 UTC
             score *= 0.75
             reasons.append(f"⚠️ 東京時間({h}UTC): USD/JPYは取引可能")
+    except Exception:
+        pass
+
+    # ⑪b 金曜フィルター: 週末前ポジション解消で方向性が不安定
+    _is_friday_scalp = False
+    try:
+        _bar_dt = bar_time if bar_time else datetime.now(timezone.utc)
+        _dow = _bar_dt.weekday() if hasattr(_bar_dt, 'weekday') else df.index[-1].weekday()
+        if _dow == 4:  # 金曜日
+            _is_friday_scalp = True
+            reasons.append("⚠️ 金曜日: 閾値引き上げ（高確信シグナルのみ許可）")
     except Exception:
         pass
 
@@ -5480,6 +5561,9 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     has_any_entry = has_pb or has_rsi_reset or has_ema_cross or has_don or has_bb_zone or has_stoch
     # スコア閾値: 0.6（旧0.8→ロンドン/NY帯の取引頻度確保）
     SCALP_SCORE_THRESHOLD = 0.6
+    # 金曜日は閾値引き上げ: 高確信シグナルのみ通す（ema_pullback等の低品質除外）
+    if _is_friday_scalp:
+        SCALP_SCORE_THRESHOLD = 3.5  # 通常0.6 → 金曜3.5（超高確信のみ）
     # 条件が全くない場合のみWAIT（1つでもあればスコアで判定）
     if not has_any_entry and abs(score) < SCALP_SCORE_THRESHOLD * 2:
         reasons.append("⛔ エントリー条件未達 → WAIT")
