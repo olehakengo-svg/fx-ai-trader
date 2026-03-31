@@ -6,6 +6,7 @@ import sqlite3
 import threading
 import json
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timezone
 
 
@@ -21,9 +22,17 @@ class DemoDB:
         conn.execute("PRAGMA journal_mode=WAL")
         return conn
 
+    @contextmanager
+    def _safe_conn(self):
+        """コンテキストマネージャ: 例外時もconn.close()を保証（接続リーク防止）"""
+        conn = self._conn()
+        try:
+            yield conn
+        finally:
+            conn.close()
+
     def _init_tables(self):
-        with self._lock:
-            conn = self._conn()
+        with self._lock, self._safe_conn() as conn:
             conn.executescript("""
                 CREATE TABLE IF NOT EXISTS demo_trades (
                     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -131,7 +140,6 @@ class DemoDB:
             except Exception:
                 pass
             conn.commit()
-            conn.close()
 
     # ── Trade CRUD ──────────────────────────────────
 
@@ -145,65 +153,62 @@ class DemoDB:
         trade_id = str(uuid.uuid4())[:12]
         now_str = datetime.now(timezone.utc).isoformat()
         with self._lock:
-            conn = self._conn()
-            conn.execute("""
-                INSERT INTO demo_trades
-                    (trade_id, status, direction, entry_price, entry_time,
-                     sl, tp, entry_type, confidence, tf, reasons, regime,
-                     layer1_dir, score, ema_conf, sr_basis, mode)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            """, (trade_id, "OPEN", direction, entry_price, now_str,
-                  sl, tp, entry_type, confidence, tf,
-                  json.dumps(reasons or [], ensure_ascii=False),
-                  json.dumps(regime or {}, ensure_ascii=False),
-                  layer1_dir, score, ema_conf, sr_basis, mode))
-            conn.commit()
-            conn.close()
+            with self._safe_conn() as conn:
+                conn.execute("""
+                    INSERT INTO demo_trades
+                        (trade_id, status, direction, entry_price, entry_time,
+                         sl, tp, entry_type, confidence, tf, reasons, regime,
+                         layer1_dir, score, ema_conf, sr_basis, mode)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """, (trade_id, "OPEN", direction, entry_price, now_str,
+                      sl, tp, entry_type, confidence, tf,
+                      json.dumps(reasons or [], ensure_ascii=False),
+                      json.dumps(regime or {}, ensure_ascii=False),
+                      layer1_dir, score, ema_conf, sr_basis, mode))
+                conn.commit()
         return trade_id
 
     def close_trade(self, trade_id: str, exit_price: float,
                     close_reason: str = "TP_HIT") -> dict:
         """Close an open trade, compute PnL."""
         with self._lock:
-            conn = self._conn()
-            row = conn.execute(
-                "SELECT * FROM demo_trades WHERE trade_id=? AND status='OPEN'",
-                (trade_id,)
-            ).fetchone()
-            if not row:
-                conn.close()
-                return {"error": "Trade not found or already closed"}
+            with self._safe_conn() as conn:
+                row = conn.execute(
+                    "SELECT * FROM demo_trades WHERE trade_id=? AND status='OPEN'",
+                    (trade_id,)
+                ).fetchone()
+                if not row:
+                    return {"error": "Trade not found or already closed"}
 
-            entry_p = row["entry_price"]
-            direction = row["direction"]
-            sl = row["sl"]
-            now_str = datetime.now(timezone.utc).isoformat()
+                entry_p = row["entry_price"]
+                direction = row["direction"]
+                sl = row["sl"]
+                now_str = datetime.now(timezone.utc).isoformat()
 
-            # PnL計算 (pips: ×100 for JPY pairs)
-            if direction == "BUY":
-                pnl_pips = round((exit_price - entry_p) * 100, 1)
-            else:
-                pnl_pips = round((entry_p - exit_price) * 100, 1)
+                # PnL計算 (pips: ×100 for JPY pairs)
+                if direction == "BUY":
+                    pnl_pips = round((exit_price - entry_p) * 100, 1)
+                else:
+                    pnl_pips = round((entry_p - exit_price) * 100, 1)
 
-            sl_dist = abs(entry_p - sl)
-            pnl_r = round(pnl_pips / (sl_dist * 100) if sl_dist > 0 else 0, 2)
+                sl_dist = abs(entry_p - sl)
+                pnl_r = round(pnl_pips / (sl_dist * 100) if sl_dist > 0 else 0, 2)
 
-            if pnl_pips > 0.5:
-                outcome = "WIN"
-            elif pnl_pips < -0.5:
-                outcome = "LOSS"
-            else:
-                outcome = "BREAKEVEN"
+                if pnl_pips > 0.5:
+                    outcome = "WIN"
+                elif pnl_pips < -0.5:
+                    outcome = "LOSS"
+                else:
+                    outcome = "BREAKEVEN"
 
-            conn.execute("""
-                UPDATE demo_trades SET
-                    status='CLOSED', exit_price=?, exit_time=?,
-                    pnl_pips=?, pnl_r=?, outcome=?, close_reason=?
-                WHERE trade_id=?
-            """, (exit_price, now_str, pnl_pips, pnl_r, outcome,
-                  close_reason, trade_id))
-            conn.commit()
-            conn.close()
+                conn.execute("""
+                    UPDATE demo_trades SET
+                        status='CLOSED', exit_price=?, exit_time=?,
+                        pnl_pips=?, pnl_r=?, outcome=?, close_reason=?
+                    WHERE trade_id=?
+                """, (exit_price, now_str, pnl_pips, pnl_r, outcome,
+                      close_reason, trade_id))
+                conn.commit()
 
         return {
             "trade_id": trade_id, "outcome": outcome,
@@ -212,38 +217,34 @@ class DemoDB:
         }
 
     def get_open_trades(self) -> list:
-        conn = self._conn()
-        rows = conn.execute(
-            "SELECT * FROM demo_trades WHERE status='OPEN' ORDER BY entry_time DESC"
-        ).fetchall()
-        conn.close()
-        return [dict(r) for r in rows]
+        with self._safe_conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM demo_trades WHERE status='OPEN' ORDER BY entry_time DESC"
+            ).fetchall()
+            return [dict(r) for r in rows]
 
     def get_closed_trades(self, limit: int = 50, offset: int = 0) -> list:
-        conn = self._conn()
-        rows = conn.execute(
-            "SELECT * FROM demo_trades WHERE status='CLOSED' ORDER BY exit_time DESC LIMIT ? OFFSET ?",
-            (limit, offset)
-        ).fetchall()
-        conn.close()
-        return [dict(r) for r in rows]
+        with self._safe_conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM demo_trades WHERE status='CLOSED' ORDER BY exit_time DESC LIMIT ? OFFSET ?",
+                (limit, offset)
+            ).fetchall()
+            return [dict(r) for r in rows]
 
     def get_all_closed(self) -> list:
-        conn = self._conn()
-        rows = conn.execute(
-            "SELECT * FROM demo_trades WHERE status='CLOSED' ORDER BY exit_time"
-        ).fetchall()
-        conn.close()
-        return [dict(r) for r in rows]
+        with self._safe_conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM demo_trades WHERE status='CLOSED' ORDER BY exit_time"
+            ).fetchall()
+            return [dict(r) for r in rows]
 
     def get_stats(self) -> dict:
         """Compute aggregate stats from closed trades."""
-        conn = self._conn()
-        rows = conn.execute(
-            "SELECT pnl_pips, pnl_r, outcome, entry_type, confidence, close_reason "
-            "FROM demo_trades WHERE status='CLOSED'"
-        ).fetchall()
-        conn.close()
+        with self._safe_conn() as conn:
+            rows = conn.execute(
+                "SELECT pnl_pips, pnl_r, outcome, entry_type, confidence, close_reason "
+                "FROM demo_trades WHERE status='CLOSED'"
+            ).fetchall()
 
         if not rows:
             return {"total": 0, "win_rate": 0, "total_pnl": 0, "ev": 0,
@@ -285,39 +286,35 @@ class DemoDB:
                         reason: str, win_rate: float, ev: float, sample: int,
                         mode: str = ""):
         with self._lock:
-            conn = self._conn()
-            conn.execute("""
-                INSERT INTO learning_adjustments
-                    (parameter, old_value, new_value, reason, win_rate_at, ev_at, sample_size, mode)
-                VALUES (?,?,?,?,?,?,?,?)
-            """, (parameter, old_val, new_val, reason, win_rate, ev, sample, mode))
-            conn.commit()
-            conn.close()
+            with self._safe_conn() as conn:
+                conn.execute("""
+                    INSERT INTO learning_adjustments
+                        (parameter, old_value, new_value, reason, win_rate_at, ev_at, sample_size, mode)
+                    VALUES (?,?,?,?,?,?,?,?)
+                """, (parameter, old_val, new_val, reason, win_rate, ev, sample, mode))
+                conn.commit()
 
     # ── Demo Logs ──────────────────────────────────
 
     def add_log(self, timestamp: str, message: str):
         """Persist a demo trader log entry."""
         with self._lock:
-            conn = self._conn()
-            conn.execute(
-                "INSERT INTO demo_logs (timestamp, message) VALUES (?, ?)",
-                (timestamp, message),
-            )
-            conn.commit()
-            conn.close()
+            with self._safe_conn() as conn:
+                conn.execute(
+                    "INSERT INTO demo_logs (timestamp, message) VALUES (?, ?)",
+                    (timestamp, message),
+                )
+                conn.commit()
 
     def get_logs(self, limit: int = 100) -> list:
         """Return recent logs formatted with date, newest first."""
-        conn = self._conn()
-        rows = conn.execute(
-            "SELECT timestamp, message, created_at FROM demo_logs ORDER BY id DESC LIMIT ?",
-            (limit,),
-        ).fetchall()
-        conn.close()
+        with self._safe_conn() as conn:
+            rows = conn.execute(
+                "SELECT timestamp, message, created_at FROM demo_logs ORDER BY id DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
         result = []
         for r in rows:
-            # created_at has full datetime; extract date part for display
             ca = r['created_at'] or ''
             date_part = ca[:10] if len(ca) >= 10 else ''
             ts = r['timestamp'] or ''
@@ -326,52 +323,47 @@ class DemoDB:
 
     def get_log_count(self) -> int:
         """Return total number of log entries."""
-        conn = self._conn()
-        count = conn.execute("SELECT COUNT(*) FROM demo_logs").fetchone()[0]
-        conn.close()
-        return count
+        with self._safe_conn() as conn:
+            return conn.execute("SELECT COUNT(*) FROM demo_logs").fetchone()[0]
 
     # ── Learning adjustments ──────────────────────────
 
     def get_adjustments(self, limit: int = 20) -> list:
-        conn = self._conn()
-        rows = conn.execute(
-            "SELECT * FROM learning_adjustments ORDER BY timestamp DESC LIMIT ?",
-            (limit,)
-        ).fetchall()
-        conn.close()
-        return [dict(r) for r in rows]
+        with self._safe_conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM learning_adjustments ORDER BY timestamp DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+            return [dict(r) for r in rows]
 
     def save_learning_result(self, mode: str, sample: int, wr: float, ev: float,
                             data: dict, insights: list, adjustments: list):
         """学習分析結果をDBに永続保存"""
         with self._lock:
-            conn = self._conn()
-            conn.execute("""
-                INSERT INTO learning_results
-                    (mode, sample_size, overall_wr, overall_ev, data_json, insights_json, adjustments_json)
-                VALUES (?,?,?,?,?,?,?)
-            """, (mode, sample, wr, ev,
-                  json.dumps(data, ensure_ascii=False),
-                  json.dumps(insights, ensure_ascii=False),
-                  json.dumps(adjustments, ensure_ascii=False)))
-            conn.commit()
-            conn.close()
+            with self._safe_conn() as conn:
+                conn.execute("""
+                    INSERT INTO learning_results
+                        (mode, sample_size, overall_wr, overall_ev, data_json, insights_json, adjustments_json)
+                    VALUES (?,?,?,?,?,?,?)
+                """, (mode, sample, wr, ev,
+                      json.dumps(data, ensure_ascii=False),
+                      json.dumps(insights, ensure_ascii=False),
+                      json.dumps(adjustments, ensure_ascii=False)))
+                conn.commit()
 
     def get_learning_results(self, mode: str = None, limit: int = 50) -> list:
         """学習分析履歴を取得"""
-        conn = self._conn()
-        if mode:
-            rows = conn.execute(
-                "SELECT * FROM learning_results WHERE mode=? ORDER BY timestamp DESC LIMIT ?",
-                (mode, limit)
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                "SELECT * FROM learning_results ORDER BY timestamp DESC LIMIT ?",
-                (limit,)
-            ).fetchall()
-        conn.close()
+        with self._safe_conn() as conn:
+            if mode:
+                rows = conn.execute(
+                    "SELECT * FROM learning_results WHERE mode=? ORDER BY timestamp DESC LIMIT ?",
+                    (mode, limit)
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM learning_results ORDER BY timestamp DESC LIMIT ?",
+                    (limit,)
+                ).fetchall()
         result = []
         for r in rows:
             d = dict(r)
@@ -392,36 +384,34 @@ class DemoDB:
                           adjustments: list, insights: list, params_snapshot: dict):
         """デイリーレビュー結果を保存（同日・同モードは上書き）"""
         with self._lock:
-            conn = self._conn()
-            conn.execute("""
-                INSERT OR REPLACE INTO daily_reviews
-                    (review_date, mode, trades_today, wins_today, pnl_today,
-                     wr_today, ev_today, cumulative_trades, cumulative_wr,
-                     cumulative_ev, adjustments_json, insights_json, params_snapshot)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
-            """, (review_date, mode, trades_today, wins_today, pnl_today,
-                  wr_today, ev_today, cumulative_trades, cumulative_wr,
-                  cumulative_ev,
-                  json.dumps(adjustments, ensure_ascii=False),
-                  json.dumps(insights, ensure_ascii=False),
-                  json.dumps(params_snapshot, ensure_ascii=False)))
-            conn.commit()
-            conn.close()
+            with self._safe_conn() as conn:
+                conn.execute("""
+                    INSERT OR REPLACE INTO daily_reviews
+                        (review_date, mode, trades_today, wins_today, pnl_today,
+                         wr_today, ev_today, cumulative_trades, cumulative_wr,
+                         cumulative_ev, adjustments_json, insights_json, params_snapshot)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """, (review_date, mode, trades_today, wins_today, pnl_today,
+                      wr_today, ev_today, cumulative_trades, cumulative_wr,
+                      cumulative_ev,
+                      json.dumps(adjustments, ensure_ascii=False),
+                      json.dumps(insights, ensure_ascii=False),
+                      json.dumps(params_snapshot, ensure_ascii=False)))
+                conn.commit()
 
     def get_daily_reviews(self, limit: int = 30, mode: str = None) -> list:
         """デイリーレビュー履歴を取得"""
-        conn = self._conn()
-        if mode:
-            rows = conn.execute(
-                "SELECT * FROM daily_reviews WHERE mode=? ORDER BY review_date DESC LIMIT ?",
-                (mode, limit)
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                "SELECT * FROM daily_reviews ORDER BY review_date DESC LIMIT ?",
-                (limit,)
-            ).fetchall()
-        conn.close()
+        with self._safe_conn() as conn:
+            if mode:
+                rows = conn.execute(
+                    "SELECT * FROM daily_reviews WHERE mode=? ORDER BY review_date DESC LIMIT ?",
+                    (mode, limit)
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM daily_reviews ORDER BY review_date DESC LIMIT ?",
+                    (limit,)
+                ).fetchall()
         result = []
         for r in rows:
             d = dict(r)
@@ -438,26 +428,24 @@ class DemoDB:
                          triggered_by: str = "daily_review"):
         """アルゴリズム変更ログを記録"""
         with self._lock:
-            conn = self._conn()
-            conn.execute("""
-                INSERT INTO algo_change_log
-                    (change_type, description, params_before, params_after, triggered_by)
-                VALUES (?,?,?,?,?)
-            """, (change_type, description,
-                  json.dumps(params_before, ensure_ascii=False),
-                  json.dumps(params_after, ensure_ascii=False),
-                  triggered_by))
-            conn.commit()
-            conn.close()
+            with self._safe_conn() as conn:
+                conn.execute("""
+                    INSERT INTO algo_change_log
+                        (change_type, description, params_before, params_after, triggered_by)
+                    VALUES (?,?,?,?,?)
+                """, (change_type, description,
+                      json.dumps(params_before, ensure_ascii=False),
+                      json.dumps(params_after, ensure_ascii=False),
+                      triggered_by))
+                conn.commit()
 
     def get_algo_changes(self, limit: int = 50) -> list:
         """アルゴリズム変更ログ取得"""
-        conn = self._conn()
-        rows = conn.execute(
-            "SELECT * FROM algo_change_log ORDER BY timestamp DESC LIMIT ?",
-            (limit,)
-        ).fetchall()
-        conn.close()
+        with self._safe_conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM algo_change_log ORDER BY timestamp DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
         result = []
         for r in rows:
             d = dict(r)
@@ -471,24 +459,23 @@ class DemoDB:
 
     def get_trades_by_date(self, date_str: str, mode: str = None) -> list:
         """指定日のクローズドトレードを取得"""
-        conn = self._conn()
-        if mode:
-            tf_map = {"daytrade": "15m", "scalp": "1m", "swing": "4h"}
-            target_tf = tf_map.get(mode, "")
-            rows = conn.execute(
-                """SELECT * FROM demo_trades
-                   WHERE status='CLOSED' AND exit_time LIKE ?
-                   AND (mode=? OR (mode='' AND tf=?))
-                   ORDER BY exit_time""",
-                (f"{date_str}%", mode, target_tf)
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                "SELECT * FROM demo_trades WHERE status='CLOSED' AND exit_time LIKE ? ORDER BY exit_time",
-                (f"{date_str}%",)
-            ).fetchall()
-        conn.close()
-        return [dict(r) for r in rows]
+        with self._safe_conn() as conn:
+            if mode:
+                tf_map = {"daytrade": "15m", "scalp": "1m", "swing": "4h"}
+                target_tf = tf_map.get(mode, "")
+                rows = conn.execute(
+                    """SELECT * FROM demo_trades
+                       WHERE status='CLOSED' AND exit_time LIKE ?
+                       AND (mode=? OR (mode='' AND tf=?))
+                       ORDER BY exit_time""",
+                    (f"{date_str}%", mode, target_tf)
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM demo_trades WHERE status='CLOSED' AND exit_time LIKE ? ORDER BY exit_time",
+                    (f"{date_str}%",)
+                ).fetchall()
+            return [dict(r) for r in rows]
 
     def get_trades_for_learning(self, min_trades: int = 10, mode: str = None) -> dict:
         """Return structured data for the learning engine. mode でフィルタ可能"""

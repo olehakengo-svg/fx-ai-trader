@@ -77,6 +77,8 @@ class DemoTrader:
             "learn_every_n": 10,
             # 同方向連敗制御: N連敗で同方向エントリーを一時停止
             "max_consecutive_losses": 5,
+            "daily_loss_limit_pips": -30,  # 日次損失上限（pip）
+            "max_drawdown_pips": -100,     # 最大DD上限（pip）
         }
         self._trade_count_since_learn = 0
         self._last_signals = {}   # mode -> last signal dict
@@ -245,13 +247,14 @@ class DemoTrader:
         self._health_thread.start()
 
     def _sltp_loop(self):
-        """2秒ごとにリアルタイム価格を取得してSL/TPチェック"""
+        """高頻度でリアルタイム価格を取得してSL/TPチェック"""
         while self._sltp_running:
             try:
                 self._check_sltp_realtime()
             except Exception as e:
                 print(f"[SLTP-Checker] Error: {e}")
             time.sleep(SLTP_CHECK_INTERVAL)
+        print("[SLTP-Checker] Thread terminated cleanly")
 
     def _get_realtime_price(self) -> float:
         """
@@ -332,15 +335,16 @@ class DemoTrader:
                     f"Reason: {close_reason} | ID: {trade_id}"
                 )
 
-                # ── クールダウン記録（SL後の即再エントリー防止）──
-                self._last_exit[mode] = {
-                    "price": trade["entry_price"],
-                    "exit_price": price,
-                    "time": datetime.now(timezone.utc),
-                    "direction": direction,
-                    "reason": close_reason,
-                    "outcome": outcome,
-                }
+                # ── クールダウン記録（SL後の即再エントリー防止、WINは除外）──
+                if outcome != "WIN":
+                    self._last_exit[mode] = {
+                        "price": trade["entry_price"],
+                        "exit_price": price,
+                        "time": datetime.now(timezone.utc),
+                        "direction": direction,
+                        "reason": close_reason,
+                        "outcome": outcome,
+                    }
 
                 # ── 連敗カウンター更新 ──
                 if mode not in self._consec_losses:
@@ -368,6 +372,19 @@ class DemoTrader:
         import gc
 
         while True:
+            # ── B4: 全モード停止ならループ終了 ──
+            any_active = any(
+                self._runners.get(m, {}).get("running", False)
+                for m in self._started_modes
+            )
+            if not any_active and self._started_modes:
+                print("[MainLoop] All modes stopped — exiting loop")
+                break
+            if not self._started_modes:
+                # まだモード未登録の場合は待機
+                time.sleep(2)
+                continue
+
             try:
                 now = time.time()
                 for mode in list(self._started_modes):
@@ -407,6 +424,32 @@ class DemoTrader:
                 import traceback; traceback.print_exc()
 
             time.sleep(2)  # メインループの最小間隔
+
+        print("[MainLoop] Thread terminated cleanly")
+
+    def _check_drawdown(self) -> bool:
+        """日次損失・最大DD制限チェック。制限到達ならTrue（トレード禁止）"""
+        try:
+            stats = self._db.get_stats()
+            total_pnl = stats.get("total_pnl", 0)
+
+            # 最大DD制限
+            if total_pnl <= self._params["max_drawdown_pips"]:
+                return True
+
+            # 日次損失制限
+            today_trades = self._db.get_closed_trades(limit=100)
+            today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+            daily_pnl = sum(
+                t.get("pnl_pips", 0) for t in today_trades
+                if t.get("exit_time", "").startswith(today)
+            )
+            if daily_pnl <= self._params["daily_loss_limit_pips"]:
+                return True
+
+            return False
+        except Exception:
+            return False
 
     def _tick(self, mode: str):
         """One cycle for a specific mode — シグナル計算 + 新規エントリー判定のみ。
@@ -485,6 +528,8 @@ class DemoTrader:
             return
         if signal == "WAIT":
             return
+        if self._check_drawdown():
+            return  # 日次損失 or 最大DD制限到達
         if confidence < self._params["confidence_threshold"]:
             return
         if entry_type in self._params["entry_type_blacklist"]:
@@ -638,15 +683,16 @@ class DemoTrader:
                 f"Reason: {close_reason} | ID: {trade_id}"
             )
 
-            # ── クールダウン記録 ──
-            self._last_exit[mode] = {
-                "price": trade["entry_price"],
-                "exit_price": current_price,
-                "time": datetime.now(timezone.utc),
-                "direction": direction,
-                "reason": close_reason,
-                "outcome": outcome,
-            }
+            # ── クールダウン記録（WINは除外）──
+            if outcome != "WIN":
+                self._last_exit[mode] = {
+                    "price": trade["entry_price"],
+                    "exit_price": current_price,
+                    "time": datetime.now(timezone.utc),
+                    "direction": direction,
+                    "reason": close_reason,
+                    "outcome": outcome,
+                }
 
             # ── 連敗カウンター更新（SIGNAL_REVERSE分）──
             if mode not in self._consec_losses:

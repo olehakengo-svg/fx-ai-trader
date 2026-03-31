@@ -3261,7 +3261,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足（最低100本必要）", "trades": 0, "mode": "scalp"}
 
-        SPREAD       = 0.005   # 0.5 pip
+        SPREAD       = 0.015   # 1.5 pip (realistic spread)
         profile      = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
         SL_MULT      = profile["scalp_sl"]   # scalp-specific SL
         TP_MULT      = profile["scalp_tp"]   # scalp-specific TP
@@ -3274,17 +3274,16 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         trades = []
         last_trade_bar = -99
 
-        # ── HTF/Layer1キャッシュ: BT全体で1回だけ取得 ──
+        # ── HTF bias: BT mode = neutral (ルックアヘッドバイアス排除) ──
+        # get_htf_bias() は現在のyfinanceデータを使うためBTでは無効化
         try:
-            _htf_cache = {
-                "htf": get_htf_bias(symbol),
-                "layer1": get_master_bias(symbol),
-            }
+            _layer1 = get_master_bias(symbol)
         except Exception:
-            _htf_cache = {
-                "htf": {"agreement": "mixed", "h1": {}, "h4": {}},
-                "layer1": {"direction": "neutral", "label": "—", "score": 0},
-            }
+            _layer1 = {"direction": "neutral", "label": "—", "score": 0}
+        _htf_cache = {
+            "htf": {"score": 0, "agreement": "neutral", "label": "BT: HTFバイアス無効"},
+            "layer1": _layer1,
+        }
 
         # ── SR/OBプリコンピュテーション (ルックアヘッドバイアス排除) ──
         SR_RECALC = 100
@@ -3594,17 +3593,16 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         trades = []
         last_bar = -99
 
-        # ── HTF/Layer1キャッシュ: BT全体で1回だけ取得 ──
+        # ── HTF bias: BT mode = neutral (ルックアヘッドバイアス排除) ──
+        # get_htf_bias_daytrade() は現在のyfinanceデータを使うためBTでは無効化
         try:
-            _htf_cache = {
-                "htf": get_htf_bias_daytrade(symbol),
-                "layer1": get_master_bias(symbol),
-            }
+            _layer1 = get_master_bias(symbol)
         except Exception:
-            _htf_cache = {
-                "htf": {"agreement": "mixed", "h4": {}, "d1": {}},
-                "layer1": {"direction": "neutral", "label": "—", "score": 0},
-            }
+            _layer1 = {"direction": "neutral", "label": "—", "score": 0}
+        _htf_cache = {
+            "htf": {"score": 0, "agreement": "neutral", "label": "BT: HTFバイアス無効"},
+            "layer1": _layer1,
+        }
 
         # ── SR/OBプリコンピュテーション (ルックアヘッドバイアス排除) ──
         DT_SR_RECALC = 80
@@ -3903,17 +3901,16 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
         trades = []
         last_bar = -99
 
-        # ── HTF/Layer1キャッシュ: BT全体で1回だけ取得 ──
+        # ── HTF bias: BT mode = neutral (ルックアヘッドバイアス排除) ──
+        # get_htf_bias() は現在のyfinanceデータを使うためBTでは無効化
         try:
-            _htf_cache = {
-                "htf": get_htf_bias(symbol),
-                "layer1": get_master_bias(symbol),
-            }
+            _layer1 = get_master_bias(symbol)
         except Exception:
-            _htf_cache = {
-                "htf": {"agreement": "mixed", "h1": {}, "h4": {}},
-                "layer1": {"direction": "neutral", "label": "—", "score": 0},
-            }
+            _layer1 = {"direction": "neutral", "label": "—", "score": 0}
+        _htf_cache = {
+            "htf": {"score": 0, "agreement": "neutral", "label": "BT: HTFバイアス無効"},
+            "layer1": _layer1,
+        }
 
         MIN_BARS = 250  # compute_swing_signalに必要な最小バー数
 
