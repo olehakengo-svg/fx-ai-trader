@@ -2233,6 +2233,12 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     sl   = round(entry - atr * SL_MULT * dir_s, 3)
     tp   = round(entry + atr * TP_MULT * dir_s, 3)
 
+    # 最低SL距離保証: 5.0pips（DT用 — スプレッド+ノイズ余裕）
+    DT_MIN_SL_PIPS = 0.050  # 5.0 pips for JPY pairs
+    _dt_sl_dist = abs(entry - sl)
+    if _dt_sl_dist < DT_MIN_SL_PIPS:
+        sl = round(entry - DT_MIN_SL_PIPS * dir_s, 3)
+
     # SR-aware TP snap
     if act_s == "BUY":
         tp_cands = [l for l in sr_levels if entry + atr*0.3 < l < entry + atr*TP_MULT*1.5]
@@ -5546,7 +5552,7 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
 
     # ── SL / TP ── 本番分析反映: SL拡大でノイズ耐性UP
     # 旧0.5/1.3 → SL_HIT率が85%で平均スリッページ+0.6pのため SL拡大
-    SCALP_SL, SCALP_TP = 0.8, 1.6
+    SCALP_SL, SCALP_TP = 1.2, 2.0
     # 必須条件チェック（緩和版: 取引頻度重視、100pips/日目標）
     has_pb        = any("EMA9プルバック" in r and ("BUYゾーン" in r or "SELLゾーン" in r) for r in reasons)
     has_rsi_reset = any("RSI5" in r and ("売られ過ぎ" in r or "リセット完了" in r or "買われ過ぎ" in r or "中立圏" in r) for r in reasons)
@@ -5575,11 +5581,17 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     act = signal if signal != "WAIT" else ("BUY" if score >= 0 else "SELL")
     atr_scalp = atr7 if atr7 > 0 else atr
 
-    # SL: ATR7ベース（タイト固定）
+    # SL: ATR7ベース + 最低距離保証
     sl = round(entry - atr_scalp * SCALP_SL, 3) if act == "BUY" else round(entry + atr_scalp * SCALP_SL, 3)
+    # 最低SL距離: 3.0pips（スプレッド1.0-2.0pip + ノイズ余裕）
+    MIN_SL_PIPS = 0.030  # 3.0 pips for JPY pairs
+    sl_dist_raw = abs(entry - sl)
+    if sl_dist_raw < MIN_SL_PIPS:
+        sl = round(entry - MIN_SL_PIPS, 3) if act == "BUY" else round(entry + MIN_SL_PIPS, 3)
+        reasons.append(f"⚠️ SL距離拡大: {sl_dist_raw*100:.1f}p → {MIN_SL_PIPS*100:.1f}p（最低保証）")
 
     # ② TP: S/Rレベルを考慮した動的調整（最大ATR7×2.0）
-    SCALP_TP_MAX = 2.0
+    SCALP_TP_MAX = 2.5
     if act == "BUY":
         tp_cands = [l for l in sr_levels if entry + atr_scalp * 0.3 < l < entry + atr_scalp * SCALP_TP_MAX]
         if tp_cands:
@@ -5602,11 +5614,11 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         if near_sr:
             reasons.append(f"⚠️ 直近S/R({max(near_sr):.3f})近接 → TP到達前に反発リスク")
 
-    # 最小RR保証（1.0以上）
+    # 最小RR保証（1.5以上: SL拡大に合わせてTPも十分確保）
     sl_dist = abs(entry - sl)
-    if abs(tp - entry) < sl_dist:
-        tp = round(entry + sl_dist * 1.2, 3) if act == "BUY" else round(entry - sl_dist * 1.2, 3)
-        reasons.append("⚠️ RR不足 → TP最小RR1.2に拡張")
+    if abs(tp - entry) < sl_dist * 1.5:
+        tp = round(entry + sl_dist * 1.8, 3) if act == "BUY" else round(entry - sl_dist * 1.8, 3)
+        reasons.append("⚠️ RR不足 → TP最小RR1.8に拡張")
 
     rr  = round(abs(tp - entry) / max(abs(sl - entry), 1e-6), 2)
 

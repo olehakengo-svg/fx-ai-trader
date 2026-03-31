@@ -98,6 +98,11 @@ class DemoTrader:
             return {"status": "error", "message": f"Unknown mode: {mode}"}
 
         with self._lock:
+            # 既に起動中ならスキップ（多重起動防止）
+            runner = self._runners.get(mode, {})
+            if runner.get("running", False):
+                return {"status": "already_running", "mode": mode}
+
             # モードを有効化
             self._runners[mode] = {"running": True, "thread": None}
             self._started_modes.add(mode)
@@ -287,7 +292,7 @@ class DemoTrader:
         return 0
 
     def _check_sltp_realtime(self):
-        """全オープントレードをリアルタイム価格でSL/TPチェック"""
+        """全オープントレードをリアルタイム価格でSL/TPチェック + 最大保持時間強制クローズ"""
         open_trades = self._db.get_open_trades()
         if not open_trades:
             return
@@ -295,6 +300,9 @@ class DemoTrader:
         price = self._get_realtime_price()
         if price <= 0:
             return
+
+        # 最大保持時間（秒）: scalp=30分, daytrade=8時間, swing=72時間
+        MAX_HOLD_SEC = {"scalp": 1800, "daytrade": 28800, "swing": 259200}
 
         for trade in open_trades:
             direction = trade["direction"]
@@ -316,6 +324,20 @@ class DemoTrader:
                     close_reason = "SL_HIT"
                 elif price <= tp:
                     close_reason = "TP_HIT"
+
+            # ── 最大保持時間チェック（SL/TPに到達していなくても強制クローズ）──
+            if not close_reason:
+                try:
+                    entry_time = datetime.fromisoformat(trade.get("entry_time", ""))
+                    if entry_time.tzinfo is None:
+                        entry_time = entry_time.replace(tzinfo=timezone.utc)
+                    hold_sec = (datetime.now(timezone.utc) - entry_time).total_seconds()
+                    _mode = mode or {"1m": "scalp", "15m": "daytrade", "4h": "swing"}.get(tf, "")
+                    max_hold = MAX_HOLD_SEC.get(_mode, 259200)
+                    if hold_sec > max_hold:
+                        close_reason = "MAX_HOLD_TIME"
+                except Exception:
+                    pass
 
             if close_reason:
                 # モード判定
