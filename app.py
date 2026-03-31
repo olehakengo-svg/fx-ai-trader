@@ -3344,9 +3344,31 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 continue
 
             entry_type = sig_result.get("entry_type", "unknown")
+
+            # ── エントリー理由の品質ゲート（本番と統一）──
+            QUALIFIED_TYPES = {
+                "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
+                "donchian", "reg_channel", "ema_pullback",
+            }
+            CONDITIONAL_TYPES = {"ema_cross"}
+            BLOCKED_TYPES = {"unknown", "momentum", "wait"}
+
+            if entry_type in BLOCKED_TYPES:
+                continue
+            _reasons = sig_result.get("reasons", [])
+            _confirmed = sum(1 for r in _reasons if "✅" in r)
+            if entry_type in CONDITIONAL_TYPES:
+                _sig_adx = sig_result.get("indicators", {}).get("adx", 0)
+                if not _sig_adx or _sig_adx < 20 or _confirmed < 2:
+                    continue
+            elif entry_type in QUALIFIED_TYPES:
+                if _confirmed < 1:
+                    continue
+            else:
+                continue  # 未知タイプ
+
             ep = sig_result.get("entry", float(row["Close"]))
-            sl = sig_result.get("sl", ep)
-            tp = sig_result.get("tp", ep)
+            tp = sig_result.get("tp", ep)  # TP = 技術的ターゲット（固定）
             atr7 = sig_result.get("atr", float(row.get("atr7", row.get("atr", 0.07))))
 
             # BT用: 次バーのOpenでエントリー（スリッページ反映）
@@ -3355,11 +3377,22 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             ep = float(df.iloc[i + 1]["Open"])
             ep = ep + SPREAD / 2 if sig == "BUY" else ep - SPREAD / 2
 
-            # SL/TPをcompute_scalp_signalの値ベースで再計算（epの差分を反映）
+            # TP固定: シグナルのTPターゲットを維持（エントリー価格シフト分のみ調整）
             sig_entry = sig_result.get("entry", ep)
             ep_shift = ep - sig_entry
-            sl = sl + ep_shift
             tp = tp + ep_shift
+
+            # SL可変: エントリー価格からRR比で逆算
+            tp_dist = abs(tp - ep)
+            MIN_RR_BT = 1.5
+            sl_dist = tp_dist / MIN_RR_BT
+            MIN_SL_DIST_BT = 0.030  # 3 pip最低保証
+            sl_dist = max(sl_dist, MIN_SL_DIST_BT)
+            sl = ep - sl_dist if sig == "BUY" else ep + sl_dist
+
+            # RR不足チェック
+            if tp_dist < sl_dist:
+                continue
 
             sl_m = abs(ep - sl) / max(atr7, 1e-6)
             tp_m_actual = abs(tp - ep) / max(atr7, 1e-6)
@@ -3662,6 +3695,29 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 continue
 
             entry_type = sig_result.get("entry_type", "unknown")
+
+            # ── エントリー理由の品質ゲート（本番と統一）──
+            DT_QUALIFIED = {
+                "dual_sr_bounce", "dual_sr_breakout",
+                "sr_fib_confluence", "ob_retest",
+            }
+            DT_CONDITIONAL = {"ema_cross"}
+            DT_BLOCKED = {"unknown", "wait"}
+
+            if entry_type in DT_BLOCKED:
+                continue
+            _dt_reasons = sig_result.get("reasons", [])
+            _dt_confirmed = sum(1 for r in _dt_reasons if "✅" in r)
+            if entry_type in DT_CONDITIONAL:
+                _dt_adx = sig_result.get("indicators", {}).get("adx", 0)
+                if not _dt_adx or _dt_adx < 20 or _dt_confirmed < 2:
+                    continue
+            elif entry_type in DT_QUALIFIED:
+                if _dt_confirmed < 1:
+                    continue
+            else:
+                continue  # 未知タイプ
+
             atr = sig_result.get("atr", float(row.get("atr", 0.07)))
 
             # BT用: 次バーのOpenでエントリー（スリッページ反映）
@@ -3670,13 +3726,23 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             ep = float(df.iloc[i + 1]["Open"])
             ep = ep + SPREAD / 2 if sig == "BUY" else ep - SPREAD / 2
 
-            # SL/TPをcompute_daytrade_signalの値ベースで再計算（epの差分を反映）
+            # TP固定: シグナルのTPターゲットを維持（エントリー価格シフト分のみ調整）
             sig_entry = sig_result.get("entry", ep)
-            sl = sig_result.get("sl", ep)
             tp = sig_result.get("tp", ep)
             ep_shift = ep - sig_entry
-            sl = sl + ep_shift
             tp = tp + ep_shift
+
+            # SL可変: エントリー価格からRR比で逆算
+            tp_dist_dt = abs(tp - ep)
+            MIN_RR_DT = 1.8
+            sl_dist_dt = tp_dist_dt / MIN_RR_DT
+            MIN_SL_DIST_DT = 0.050  # 5 pip最低保証
+            sl_dist_dt = max(sl_dist_dt, MIN_SL_DIST_DT)
+            sl = ep - sl_dist_dt if sig == "BUY" else ep + sl_dist_dt
+
+            # RR不足チェック
+            if tp_dist_dt < sl_dist_dt:
+                continue
 
             sl_m = abs(ep - sl) / max(atr, 1e-6)
             tp_m_actual = abs(tp - ep) / max(atr, 1e-6)
