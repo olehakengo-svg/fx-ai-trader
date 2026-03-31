@@ -84,6 +84,9 @@ class DemoTrader:
         self._consec_losses = {}  # mode -> {dir -> consecutive_loss_count}
         # SL後クールダウン: mode -> {"price": float, "time": datetime, "direction": str}
         self._last_exit = {}      # mode -> last exit info
+        # 起動済みモード追跡（ヘルスチェッカー用）
+        self._started_modes = set()
+        self._health_thread = None
 
     # ── Public API ────────────────────────────────────
 
@@ -108,6 +111,9 @@ class DemoTrader:
 
             # SL/TPチェッカーが未起動なら起動
             self._ensure_sltp_checker()
+            # ヘルスチェッカー起動
+            self._started_modes.add(mode)
+            self._ensure_health_checker()
 
             self._add_log(f"{cfg['icon']} {cfg['label']}モード起動")
             return {"status": "started", "mode": mode}
@@ -233,6 +239,45 @@ class DemoTrader:
         )
         self._sltp_thread.start()
 
+    def _ensure_health_checker(self):
+        """ヘルスチェッカーを起動（死んだスレッドを自動再起動）"""
+        if self._health_thread and self._health_thread.is_alive():
+            return
+        self._health_thread = threading.Thread(
+            target=self._health_loop, daemon=True,
+            name="DemoTrader-HealthChecker"
+        )
+        self._health_thread.start()
+
+    def _health_loop(self):
+        """30秒ごとに全モードのスレッド生存を確認、死んでいれば再起動"""
+        while True:
+            time.sleep(30)
+            try:
+                for mode in list(self._started_modes):
+                    runner = self._runners.get(mode, {})
+                    thread = runner.get("thread")
+                    is_alive = thread.is_alive() if thread else False
+                    is_running = runner.get("running", False)
+
+                    if not is_alive or not is_running:
+                        # スレッドが死んでいる → 再起動
+                        cfg = MODE_CONFIG.get(mode, {})
+                        print(f"[HealthChecker] {mode} dead (alive={is_alive}, running={is_running}), restarting...")
+                        runner["running"] = False  # 念のためリセット
+                        # 再起動
+                        self._runners[mode] = {"running": True, "thread": None}
+                        t = threading.Thread(
+                            target=self._run, args=(mode,), daemon=True,
+                            name=f"DemoTrader-{mode}"
+                        )
+                        self._runners[mode]["thread"] = t
+                        t.start()
+                        self._ensure_sltp_checker()
+                        self._add_log(f"🔄 [{cfg.get('label', mode)}] 自動再起動")
+            except Exception as e:
+                print(f"[HealthChecker] Error: {e}")
+
     def _sltp_loop(self):
         """2秒ごとにリアルタイム価格を取得してSL/TPチェック"""
         while self._sltp_running:
@@ -353,22 +398,32 @@ class DemoTrader:
         cfg = MODE_CONFIG[mode]
         interval = cfg["interval_sec"]
         _consecutive_errors = 0
-        while self._runners.get(mode, {}).get("running", False):
-            try:
-                self._tick(mode)
-                _consecutive_errors = 0  # 成功したらリセット
-            except Exception as e:
-                _consecutive_errors += 1
-                self._add_log(f"❌ [{cfg['label']}] エラー({_consecutive_errors}): {e}")
-                print(f"[DemoTrader/{mode}] Error #{_consecutive_errors}: {e}")
-                import traceback; traceback.print_exc()
-                # エラー連続時は待ち時間を延長して回復を待つ
-                if _consecutive_errors >= 5:
-                    time.sleep(min(interval * 3, 300))
-                else:
-                    time.sleep(interval)
-                continue  # sleepが重複しないようにcontinue
-            time.sleep(interval)
+        try:
+            while self._runners.get(mode, {}).get("running", False):
+                try:
+                    self._tick(mode)
+                    _consecutive_errors = 0
+                except Exception as e:
+                    _consecutive_errors += 1
+                    self._add_log(f"❌ [{cfg['label']}] エラー({_consecutive_errors}): {e}")
+                    print(f"[DemoTrader/{mode}] Error #{_consecutive_errors}: {e}")
+                    import traceback; traceback.print_exc()
+                    if _consecutive_errors >= 5:
+                        time.sleep(min(interval * 3, 300))
+                    else:
+                        time.sleep(interval)
+                    continue
+                time.sleep(interval)
+        except BaseException as fatal:
+            print(f"[DemoTrader/{mode}] FATAL: {fatal}")
+            import traceback; traceback.print_exc()
+        finally:
+            # スレッド終了時にフラグをリセット（再起動を可能にする）
+            runner = self._runners.get(mode, {})
+            if runner:
+                runner["running"] = False
+            self._add_log(f"🔴 [{cfg['label']}] スレッド終了 — 自動再起動待ち")
+            print(f"[DemoTrader/{mode}] Thread exited, running flag reset to False")
 
     def _tick(self, mode: str):
         """One cycle for a specific mode — シグナル計算 + 新規エントリー判定のみ。
