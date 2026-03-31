@@ -9057,8 +9057,16 @@ def api_demo_algo_changes():
     return jsonify({"changes": changes, "count": len(changes)})
 
 
+_auto_start_done = False  # 二重起動防止フラグ
+
 def _auto_start_trader():
     """サーバー起動時に全モード自動起動（Render再起動対策）"""
+    global _auto_start_done
+    if _auto_start_done:
+        print("[AutoStart] Already executed — skipping duplicate")
+        return
+    _auto_start_done = True
+
     import time as _time
     _time.sleep(10)  # Gunicorn/Flask完全初期化を待つ
     for _mode in ["scalp", "daytrade", "daytrade_1h", "swing"]:

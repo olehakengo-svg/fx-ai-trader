@@ -81,7 +81,7 @@ class DemoTrader:
         # チューナブルパラメータ（学習エンジンが調整、全モード共通）
         self._params = {
             "confidence_threshold": 40,
-            "max_open_trades": 3,
+            "max_open_trades": 5,
             "sl_adjust": 1.0,
             "tp_adjust": 1.0,
             "entry_type_blacklist": [],
@@ -138,6 +138,8 @@ class DemoTrader:
                 runner = self._runners.get(m, {})
                 if runner.get("running"):
                     runner["running"] = False
+                    # ウォッチドッグ自動復旧を防止するため _started_modes からも除去
+                    self._started_modes.discard(m)
                     cfg = MODE_CONFIG.get(m, {})
                     self._add_log(f"🔴 {cfg.get('label', m)}モード停止")
                     stopped.append(m)
@@ -421,21 +423,30 @@ class DemoTrader:
         print("[DemoTrader] MainLoop started")
         _last_tick = {}  # mode -> last tick time
         _consecutive_errors = {}  # mode -> error count
+        _watchdog_last = 0  # 最終ウォッチドッグチェック時刻
         import gc
 
         while True:
-            # ── B4: 全モード停止ならループ終了 ──
-            any_active = any(
-                self._runners.get(m, {}).get("running", False)
-                for m in self._started_modes
-            )
-            if not any_active and self._started_modes:
-                print("[MainLoop] All modes stopped — exiting loop")
-                break
             if not self._started_modes:
                 # まだモード未登録の場合は待機
                 time.sleep(2)
                 continue
+
+            # ── ウォッチドッグ: 60秒毎に停止モードを自動復旧 ──
+            now_wd = time.time()
+            if now_wd - _watchdog_last > 60:
+                _watchdog_last = now_wd
+                for m in list(self._started_modes):
+                    runner = self._runners.get(m)
+                    if runner is None or not runner.get("running", False):
+                        # 明示的stop()されていないのにrunning=Falseなら自動復旧
+                        print(f"[Watchdog] {m} found stopped — auto-restarting")
+                        self._runners[m] = {"running": True, "thread": None}
+                        try:
+                            cfg = MODE_CONFIG.get(m, {})
+                            self._add_log(f"🔄 [{cfg.get('label', m)}] ウォッチドッグ自動復旧")
+                        except Exception:
+                            pass
 
             try:
                 now = time.time()
@@ -476,8 +487,6 @@ class DemoTrader:
                 import traceback; traceback.print_exc()
 
             time.sleep(2)  # メインループの最小間隔
-
-        print("[MainLoop] Thread terminated cleanly")
 
     def _check_drawdown(self) -> bool:
         """日次損失・最大DD制限チェック。制限到達ならTrue（トレード禁止）"""
