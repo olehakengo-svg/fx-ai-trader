@@ -442,12 +442,14 @@ class DemoTrader:
 
         tf = cfg["tf"]
         period = cfg["period"]
+        print(f"[DemoTrader/{mode}] _tick start: tf={tf}, period={period}")
 
         # 1. データ取得 + シグナル計算
         try:
             # scalp(1m)はperiod拡大でEMA200を確保
             fetch_period = "5d" if tf == "1m" else period
             df = fetch_ohlcv("USDJPY=X", period=fetch_period, interval=tf)
+            print(f"[DemoTrader/{mode}] fetched {len(df)} bars")
             df = add_indicators(df)
             # EMA200がNaNの行のみ除去（全列dropnaだと必要な行まで消える）
             essential_cols = [c for c in ["Close", "EMA9", "EMA21", "RSI", "ADX", "ATR"]
