@@ -400,12 +400,16 @@ class DemoTrader:
         cfg = MODE_CONFIG[mode]
         interval = cfg["interval_sec"]
         _consecutive_errors = 0
+        # 自分のrunner dictへの参照を保持（レース条件防止）
+        _my_runner = self._runners.get(mode, {})
+        _my_thread = threading.current_thread()
         # モード別スタートオフセット（同時APIコール防止 → メモリ節約）
         _start_delay = {"scalp": 0, "daytrade": 5, "swing": 10}.get(mode, 0)
         if _start_delay:
             time.sleep(_start_delay)
+        print(f"[DemoTrader/{mode}] Thread started: {_my_thread.name}")
         try:
-            while self._runners.get(mode, {}).get("running", False):
+            while _my_runner.get("running", False):
                 try:
                     self._tick(mode)
                     _consecutive_errors = 0
@@ -427,14 +431,16 @@ class DemoTrader:
             print(f"[DemoTrader/{mode}] FATAL: {fatal}")
             import traceback; traceback.print_exc()
         finally:
-            runner = self._runners.get(mode, {})
-            if runner:
-                runner["running"] = False
-            try:
-                self._add_log(f"🔴 [{cfg['label']}] スレッド終了 — 自動再起動待ち")
-            except Exception:
-                pass
-            print(f"[DemoTrader/{mode}] Thread exited, running flag reset to False")
+            # 自分のrunnerのみリセット（別スレッドのrunnerを壊さない）
+            _my_runner["running"] = False
+            # 現在のrunnerが自分のものの場合のみログ出力
+            current_runner = self._runners.get(mode, {})
+            if current_runner is _my_runner:
+                try:
+                    self._add_log(f"🔴 [{cfg['label']}] スレッド終了 — 自動再起動待ち")
+                except Exception:
+                    pass
+            print(f"[DemoTrader/{mode}] Thread {_my_thread.name} exited")
 
     def _tick(self, mode: str):
         """One cycle for a specific mode — シグナル計算 + 新規エントリー判定のみ。
