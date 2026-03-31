@@ -591,9 +591,8 @@ class DemoTrader:
         mode_trades = [t for t in open_trades
                        if t.get("mode") == mode or (not t.get("mode") and t.get("tf") == tf)]
 
-        # モード別同時ポジション上限: 各モード1ポジションまで（重複エントリー防止）
-        MAX_PER_MODE = {"scalp": 1, "daytrade": 1, "swing": 1}
-        if len(mode_trades) >= MAX_PER_MODE.get(mode, 1):
+        # 全モード合計ポジション上限
+        if len(open_trades) >= self._params["max_open_trades"]:
             return
         if signal == "WAIT":
             return
@@ -601,14 +600,69 @@ class DemoTrader:
             return  # 日次損失 or 最大DD制限到達
         if confidence < self._params["confidence_threshold"]:
             return
-        if entry_type in self._params["entry_type_blacklist"]:
-            return
 
-        # ── 重複エントリー防止 ──
-        # 直近エントリー価格と近すぎる場合スキップ（ノイズ防止）
+        # ── 重複エントリー防止（同価格帯の重複のみブロック）──
         for t in mode_trades:
             if abs(t["entry_price"] - current_price) < 0.03:  # 3pips以内
                 return
+
+        # ══════════════════════════════════════════════════════════════
+        # ── エントリー理由の品質ゲート ──
+        # 「なぜここでエントリーするのか」が明確な場合のみ通す
+        # ══════════════════════════════════════════════════════════════
+        reasons = sig.get("reasons", [])
+
+        # 明確な技術的根拠を持つエントリータイプ
+        QUALIFIED_TYPES = {
+            # スキャルプ: 具体的なパターンに基づくもの
+            "tokyo_bb",       # BBバウンス + RSI + 東京レンジ
+            "sr_bounce",      # S/Rレベル反発
+            "ob_retest",      # オーダーブロック再テスト
+            "bb_bounce",      # ボリンジャーバンド反発
+            "donchian",       # ドンチアンチャネル端
+            "reg_channel",    # 回帰チャネル端
+            "ema_pullback",   # EMAプルバック（ゾーン確認済み）
+            # デイトレ: 構造的なセットアップ
+            "dual_sr_bounce",    # 上下SR確認 + バウンス
+            "dual_sr_breakout",  # 強いSRブレイクアウト
+            "sr_fib_confluence", # SR + フィボナッチ合流
+        }
+
+        # 弱い理由のエントリータイプ（追加条件が必要）
+        CONDITIONAL_TYPES = {
+            "ema_cross",      # EMAクロスだけでは不十分 → 追加確認必要
+        }
+
+        # 完全ブロック（理由なしエントリー）
+        BLOCKED_TYPES = {
+            "unknown",        # 理由不明
+            "momentum",       # スコアのみ、具体的根拠なし
+            "wait",           # WAITシグナル
+        }
+
+        if entry_type in BLOCKED_TYPES:
+            return  # 理由不明 → エントリー禁止
+
+        if entry_type in CONDITIONAL_TYPES:
+            # ema_cross: ADX≥20 かつ ✅理由が2つ以上ある場合のみ許可
+            sig_adx = sig.get("indicators", {}).get("adx", 0)
+            confirmed_count = sum(1 for r in reasons if "✅" in r)
+            if not sig_adx or sig_adx < 20:
+                return  # トレンド弱い → ema_crossは信頼性低い
+            if confirmed_count < 2:
+                return  # 確認シグナル不足
+
+        if entry_type in QUALIFIED_TYPES:
+            # 明確な理由あり → ✅が最低1つあることを確認
+            confirmed_count = sum(1 for r in reasons if "✅" in r)
+            if confirmed_count < 1:
+                return  # テクニカル確認なし
+
+        if entry_type not in QUALIFIED_TYPES and entry_type not in CONDITIONAL_TYPES:
+            return  # 未知のタイプ → 安全側でブロック
+
+        if entry_type in self._params["entry_type_blacklist"]:
+            return
 
         # ── SL後クールダウン: 直近のSL/LOSSと同一価格帯・同方向なら再エントリー禁止 ──
         last_ex = self._last_exit.get(mode)
@@ -616,13 +670,12 @@ class DemoTrader:
             _cooldown_sec = {"scalp": 120, "daytrade": 600, "swing": 7200}.get(mode, 120)
             _ex_age = (datetime.now(timezone.utc) - last_ex["time"]).total_seconds()
             if _ex_age < _cooldown_sec:
-                # クールダウン期間中: 同方向 or 同価格帯なら禁止
                 if last_ex["direction"] == signal:
-                    return  # 同方向は必ずブロック
-                if abs(last_ex["price"] - current_price) < 0.05:  # 5pips以内
-                    return  # 近接価格もブロック
+                    return
+                if abs(last_ex["price"] - current_price) < 0.05:
+                    return
 
-        # ── 時間帯フィルター（UTC 00,01,21時禁止: 本番損失の94%がここ）──
+        # ── 時間帯フィルター（UTC 00,01,21時禁止）──
         try:
             hour_now = datetime.now(timezone.utc).hour
             if hour_now in self._params["session_blacklist"]:
@@ -634,48 +687,45 @@ class DemoTrader:
         max_cl = self._params.get("max_consecutive_losses", 3)
         mode_cl = self._consec_losses.get(mode, {})
         if mode_cl.get(signal, 0) >= max_cl:
-            return  # 同方向で連敗上限に達した → スキップ
-
-        # ── ema_cross品質フィルター ──
-        # 本番データ: ema_cross WR26.7% EV-1.0 → ADX低い時は禁止
-        # scalp: ADX<15で禁止（15-20はロンドン/NY時間に必要）
-        # daytrade: ADX<15で禁止（15m足はADX低めでも機能する）
-        if entry_type == "ema_cross":
-            sig_adx = sig.get("indicators", {}).get("adx", 0)
-            adx_min = 15  # 旧20→15に緩和（ロンドン/NY帯の取引確保）
-            if sig_adx and sig_adx < adx_min:
-                return
+            return
 
         layer_status = sig.get("layer_status", {})
         if not layer_status.get("trade_ok", True):
             return
 
         # ── Layer1（COT/機関バイアス）方向チェック — スイングのみ ──
-        # スキャルプ/DTはHTF bias（1H+4H価格構造）で既にフィルターされている
-        # COT（週次データ）で短期トレードをブロックするのは過度に制限的
         if mode == "swing":
             _l1 = layer_status.get("layer1", {})
             _l1_dir = _l1.get("direction", "neutral") if isinstance(_l1, dict) else "neutral"
             if _l1_dir == "bull" and signal == "SELL":
-                return  # COT上昇バイアスにSELL逆行 → スキップ
+                return
             if _l1_dir == "bear" and signal == "BUY":
-                return  # COT下降バイアスにBUY逆行 → スキップ
+                return
 
-        # ── エントリー実行 ──
-        sl = sig.get("sl", 0)
-        tp = sig.get("tp", 0)
+        # ══════════════════════════════════════════════════════════════
+        # ── TP固定 / SLエントリーから逆算 ──
+        # TPは技術的ターゲット（SR/Fib/BB等）で固定。
+        # SLはエントリー価格からRR比で逆算（TPが遠ければSLも余裕あり）。
+        # ══════════════════════════════════════════════════════════════
+        tp = sig.get("tp", 0)  # シグナル関数が算出した技術的ターゲット（固定）
 
-        # 学習によるSL/TP調整
-        if self._params["sl_adjust"] != 1.0:
-            sl_dist = abs(current_price - sl)
-            sl_dist *= self._params["sl_adjust"]
-            sl = current_price - sl_dist if signal == "BUY" else current_price + sl_dist
-            sl = round(sl, 3)
-        if self._params["tp_adjust"] != 1.0:
-            tp_dist = abs(tp - current_price)
-            tp_dist *= self._params["tp_adjust"]
-            tp = current_price + tp_dist if signal == "BUY" else current_price - tp_dist
-            tp = round(tp, 3)
+        tp_dist = abs(tp - current_price)
+        # 最小RR比: リスクに対してリワードが十分あることを保証
+        MIN_RR = {"scalp": 1.5, "daytrade": 1.8, "swing": 2.0}.get(mode, 1.5)
+        # SL = エントリーからTP距離 / RR比
+        sl_dist = tp_dist / MIN_RR
+        # 最低SL距離保証（スプレッド+ノイズ対策）
+        MIN_SL_DIST = {"scalp": 0.030, "daytrade": 0.050, "swing": 0.100}.get(mode, 0.030)
+        sl_dist = max(sl_dist, MIN_SL_DIST)
+
+        if signal == "BUY":
+            sl = round(current_price - sl_dist, 3)
+        else:
+            sl = round(current_price + sl_dist, 3)
+
+        # TP距離がSL距離より小さい場合はRR不足 → エントリー見送り
+        if tp_dist < sl_dist:
+            return
 
         # SR推奨情報
         sr_map = sig.get("sr_entry_map", {})
@@ -702,11 +752,16 @@ class DemoTrader:
             mode=mode,
         )
 
+        # エントリー理由の要約（✅マーク付きの理由を抽出）
+        _confirmed_reasons = [r for r in reasons if "✅" in r]
+        _reason_summary = " / ".join(_confirmed_reasons[:3]) if _confirmed_reasons else entry_type
+
+        rr_actual = round(tp_dist / sl_dist, 1) if sl_dist > 0 else 0
         self._add_log(
             f"{cfg['icon']} 📥 IN [{cfg['label']}]: {signal} @ {current_price:.3f} | "
-            f"SL {sl:.3f} TP {tp:.3f} | "
+            f"SL {sl:.3f}({sl_dist*100:.1f}p) TP {tp:.3f}({tp_dist*100:.1f}p) RR1:{rr_actual} | "
             f"Type: {entry_type} | Conf: {confidence}% | "
-            f"ID: {trade_id}"
+            f"理由: {_reason_summary} | ID: {trade_id}"
         )
 
     def _check_signal_reverse(self, trade: dict, current_price: float,
