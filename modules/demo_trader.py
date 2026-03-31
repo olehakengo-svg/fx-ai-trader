@@ -553,14 +553,16 @@ class DemoTrader:
         if not layer_status.get("trade_ok", True):
             return
 
-        # ── Layer1（上位足バイアス）方向チェック ──
-        # layer1_dir が bull なら SELL 禁止、bear なら BUY 禁止
-        _l1 = layer_status.get("layer1", {})
-        _l1_dir = _l1.get("direction", "neutral") if isinstance(_l1, dict) else "neutral"
-        if _l1_dir == "bull" and signal == "SELL":
-            return  # 上位足上昇バイアスにSELL逆行 → スキップ
-        if _l1_dir == "bear" and signal == "BUY":
-            return  # 上位足下降バイアスにBUY逆行 → スキップ
+        # ── Layer1（COT/機関バイアス）方向チェック — スイングのみ ──
+        # スキャルプ/DTはHTF bias（1H+4H価格構造）で既にフィルターされている
+        # COT（週次データ）で短期トレードをブロックするのは過度に制限的
+        if mode == "swing":
+            _l1 = layer_status.get("layer1", {})
+            _l1_dir = _l1.get("direction", "neutral") if isinstance(_l1, dict) else "neutral"
+            if _l1_dir == "bull" and signal == "SELL":
+                return  # COT上昇バイアスにSELL逆行 → スキップ
+            if _l1_dir == "bear" and signal == "BUY":
+                return  # COT下降バイアスにBUY逆行 → スキップ
 
         # ── エントリー実行 ──
         sl = sig.get("sl", 0)
