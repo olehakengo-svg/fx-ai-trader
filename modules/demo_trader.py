@@ -292,7 +292,7 @@ class DemoTrader:
         return 0
 
     def _check_sltp_realtime(self):
-        """全オープントレードをリアルタイム価格でSL/TPチェック + 最大保持時間強制クローズ"""
+        """全オープントレードをリアルタイム価格でSL/TPチェック + 最大保持時間 + 週末クローズ"""
         open_trades = self._db.get_open_trades()
         if not open_trades:
             return
@@ -303,6 +303,10 @@ class DemoTrader:
 
         # 最大保持時間（秒）: scalp=30分, daytrade=8時間, swing=72時間
         MAX_HOLD_SEC = {"scalp": 1800, "daytrade": 28800, "swing": 259200}
+
+        # 週末クローズ判定（金曜21:45 UTC以降 = 閉場15分前に全ポジクローズ）
+        _now_utc = datetime.now(timezone.utc)
+        _is_pre_weekend = (_now_utc.weekday() == 4 and _now_utc.hour >= 21 and _now_utc.minute >= 45)
 
         for trade in open_trades:
             direction = trade["direction"]
@@ -324,6 +328,10 @@ class DemoTrader:
                     close_reason = "SL_HIT"
                 elif price <= tp:
                     close_reason = "TP_HIT"
+
+            # ── 週末前クローズ（金曜21:45 UTC以降に全ポジ強制クローズ）──
+            if not close_reason and _is_pre_weekend:
+                close_reason = "WEEKEND_CLOSE"
 
             # ── 最大保持時間チェック（SL/TPに到達していなくても強制クローズ）──
             if not close_reason:
@@ -473,10 +481,31 @@ class DemoTrader:
         except Exception:
             return False
 
+    @staticmethod
+    def _is_fx_market_closed() -> bool:
+        """FX市場が閉場中か判定（金曜22:00 UTC 〜 日曜22:00 UTC）"""
+        now = datetime.now(timezone.utc)
+        wd = now.weekday()  # 0=Mon ... 6=Sun
+        h = now.hour
+        # 土曜 全日
+        if wd == 5:
+            return True
+        # 日曜 22:00 UTCまで閉場
+        if wd == 6 and h < 22:
+            return True
+        # 金曜 22:00以降閉場
+        if wd == 4 and h >= 22:
+            return True
+        return False
+
     def _tick(self, mode: str):
         """One cycle for a specific mode — シグナル計算 + 新規エントリー判定のみ。
         SL/TPチェックは _sltp_loop が2秒間隔で独立実行。"""
         cfg = MODE_CONFIG[mode]
+
+        # FX市場閉場中はスキップ（週末ギャップ回避）
+        if self._is_fx_market_closed():
+            return
 
         # Import here to avoid circular imports
         from app import fetch_ohlcv, add_indicators, find_sr_levels
@@ -537,16 +566,20 @@ class DemoTrader:
 
         # 2. シグナル反転によるクローズ判定（SL/TPは _sltp_loop が処理）
         open_trades = self._db.get_open_trades()
-        mode_trades = [t for t in open_trades if t.get("tf") == tf]
+        mode_trades = [t for t in open_trades
+                       if t.get("mode") == mode or (not t.get("mode") and t.get("tf") == tf)]
         for trade in mode_trades:
             self._check_signal_reverse(trade, current_price, signal, confidence, mode)
 
         # 3. 新規エントリー判定
         # 再取得（SIGNAL_REVERSEでクローズされた可能性）
         open_trades = self._db.get_open_trades()
-        mode_trades = [t for t in open_trades if t.get("tf") == tf]
+        mode_trades = [t for t in open_trades
+                       if t.get("mode") == mode or (not t.get("mode") and t.get("tf") == tf)]
 
-        if len(mode_trades) >= self._params["max_open_trades"]:
+        # モード別同時ポジション上限: 各モード1ポジションまで（重複エントリー防止）
+        MAX_PER_MODE = {"scalp": 1, "daytrade": 1, "swing": 1}
+        if len(mode_trades) >= MAX_PER_MODE.get(mode, 1):
             return
         if signal == "WAIT":
             return
