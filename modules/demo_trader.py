@@ -48,6 +48,11 @@ MODE_CONFIG = {
 SLTP_CHECK_INTERVAL = 0.5
 
 
+class _NoPriceError(Exception):
+    """価格取得不可を示す内部例外"""
+    pass
+
+
 class DemoTrader:
     def __init__(self, db: DemoDB):
         self._db = db
@@ -253,9 +258,18 @@ class DemoTrader:
 
     def _sltp_loop(self):
         """高頻度でリアルタイム価格を取得してSL/TPチェック"""
+        _no_price_count = 0
         while self._sltp_running:
             try:
                 self._check_sltp_realtime()
+                _no_price_count = 0
+            except _NoPriceError:
+                _no_price_count += 1
+                # 30回連続失敗（15秒間）で警告ログ
+                if _no_price_count == 30:
+                    self._add_log("⚠️ [SLTP] 価格取得不可が15秒継続 — API障害の可能性")
+                if _no_price_count % 120 == 0:  # 60秒ごとに再警告
+                    print(f"[SLTP-Checker] No price for {_no_price_count * SLTP_CHECK_INTERVAL:.0f}s")
             except Exception as e:
                 print(f"[SLTP-Checker] Error: {e}")
             time.sleep(SLTP_CHECK_INTERVAL)
@@ -299,7 +313,7 @@ class DemoTrader:
 
         price = self._get_realtime_price()
         if price <= 0:
-            return
+            raise _NoPriceError("realtime price unavailable")
 
         # 最大保持時間（秒）: scalp=30分, daytrade=8時間, swing=72時間
         MAX_HOLD_SEC = {"scalp": 1800, "daytrade": 28800, "swing": 259200}
