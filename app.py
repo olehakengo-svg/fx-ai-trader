@@ -2118,23 +2118,23 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # SR構造ベースのシグナル判定（BT dual_sr_bounce/breakout と整合）
     _sr_signal_found = False
 
-    # A: 下のSRバウンス → BUY
+    # A: 下のSRバウンス → BUY（EMA方向整合必須）
     if _dt_below:
         _sup = _dt_below[0]
         _sup_tol = atr * 0.4
         if abs(float(row["Low"]) - _sup["price"]) < _sup_tol and entry > _sup["price"]:
-            if entry > float(row["Open"]) and rsi < 55 and adx < 35:
+            if entry > float(row["Open"]) and rsi < 55 and adx < 35 and ema9 > ema21:
                 signal = "BUY"
                 _dt_entry_type = "dual_sr_bounce"
                 _sr_signal_found = True
                 _dt_nearest_scenario = {"type": "bounce", "sr": _sup}
 
-    # B: 上のSRバウンス → SELL
+    # B: 上のSRバウンス → SELL（EMA方向整合必須）
     if not _sr_signal_found and _dt_above:
         _res = _dt_above[0]
         _res_tol = atr * 0.4
         if abs(float(row["High"]) - _res["price"]) < _res_tol and entry < _res["price"]:
-            if entry < float(row["Open"]) and rsi > 45 and adx < 35:
+            if entry < float(row["Open"]) and rsi > 45 and adx < 35 and ema9 < ema21:
                 signal = "SELL"
                 _dt_entry_type = "dual_sr_bounce"
                 _sr_signal_found = True
@@ -2162,15 +2162,15 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             _sr_signal_found = True
             _dt_nearest_scenario = {"type": "breakout", "sr": _res}
 
-    # SR+Fib / OB Retest フォールバック（既存スコアが強い場合）
+    # SR+Fib / OB Retest フォールバック（強いスコア + EMAトレンド整合のみ）
     if not _sr_signal_found:
         _has_sr_fib = any("Fib" in r or "フィボ" in r for r in reasons)
         _has_ob     = any("OB" in r or "オーダーブロック" in r for r in reasons)
-        THRESHOLD = 0.20   # 旧0.28 → 取引頻度UP（緩和しすぎ防止）
-        if ema_score > THRESHOLD:
+        THRESHOLD = 0.35   # 旧0.20 → 0.35（本番0%WR対策: 弱いシグナルを排除）
+        if ema_score > THRESHOLD and ema9 > ema21:
             signal = "BUY"
             _dt_entry_type = "sr_fib_confluence" if _has_sr_fib else ("ob_retest" if _has_ob else "ema_cross")
-        elif ema_score < -THRESHOLD:
+        elif ema_score < -THRESHOLD and ema9 < ema21:
             signal = "SELL"
             _dt_entry_type = "sr_fib_confluence" if _has_sr_fib else ("ob_retest" if _has_ob else "ema_cross")
 
@@ -7429,11 +7429,28 @@ def api_demo_algo_changes():
     return jsonify({"changes": changes, "count": len(changes)})
 
 
+def _auto_start_trader():
+    """サーバー起動時に全モード自動起動（Render再起動対策）"""
+    import threading as _threading
+    import time as _time
+    _time.sleep(3)  # Flask初期化完了を待つ
+    for _mode in ["scalp", "daytrade", "swing"]:
+        try:
+            _demo_trader.start(mode=_mode)
+            print(f"[AutoStart] {_mode} started")
+        except Exception as _e:
+            print(f"[AutoStart] {_mode} failed: {_e}")
+
+# Render/Gunicorn環境では __name__ != "__main__" なので、
+# モジュール読み込み時に自動起動スレッドを開始
+import threading as _threading_mod
+_auto_start_thread = _threading_mod.Thread(target=_auto_start_trader, daemon=True)
+_auto_start_thread.start()
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print("=" * 55)
     print("  FX AI Trader v5  —  USD/JPY Swing Day Trade")
     print(f"  http://localhost:{port}")
-    print("  Demo Trader: /api/demo/start (POST) で起動")
     print("=" * 55)
     app.run(debug=False, port=port, host="0.0.0.0")

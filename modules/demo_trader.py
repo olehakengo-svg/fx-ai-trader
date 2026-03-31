@@ -76,7 +76,7 @@ class DemoTrader:
             "session_blacklist": [0, 1, 21],
             "learn_every_n": 10,
             # 同方向連敗制御: N連敗で同方向エントリーを一時停止
-            "max_consecutive_losses": 3,
+            "max_consecutive_losses": 5,
         }
         self._trade_count_since_learn = 0
         self._last_signals = {}   # mode -> last signal dict
@@ -429,14 +429,9 @@ class DemoTrader:
             return
 
         # ── 重複エントリー防止 ──
-        # 同方向のポジションが既にあればスキップ
-        existing_dirs = [t["direction"] for t in mode_trades]
-        if signal in existing_dirs:
-            return
-
         # 直近エントリー価格と近すぎる場合スキップ（ノイズ防止）
         for t in mode_trades:
-            if abs(t["entry_price"] - current_price) < 0.02:  # 2pips以内
+            if abs(t["entry_price"] - current_price) < 0.03:  # 3pips以内
                 return
 
         # ── 時間帯フィルター（UTC 00,01,21時禁止: 本番損失の94%がここ）──
