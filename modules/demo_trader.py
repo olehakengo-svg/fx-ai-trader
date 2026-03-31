@@ -44,7 +44,8 @@ MODE_CONFIG = {
 }
 
 # SL/TPチェック間隔（秒）— シグナル計算とは独立して高頻度実行
-SLTP_CHECK_INTERVAL = 2
+# 旧2秒 → 0.5秒: スリッページ削減（本番で50%のSL_HITが0.5p超過していた）
+SLTP_CHECK_INTERVAL = 0.5
 
 
 class DemoTrader:
@@ -65,18 +66,22 @@ class DemoTrader:
         self._daily_review.start()
 
         # チューナブルパラメータ（学習エンジンが調整、全モード共通）
-        # 100pips/日目標: 確度閾値DOWN + 同時ポジション増で取引回数大幅UP
         self._params = {
-            "confidence_threshold": 40,   # 旧55 → 低確度でもエントリー許容
-            "max_open_trades": 3,         # 旧1 → モードあたり3ポジション並行
+            "confidence_threshold": 40,
+            "max_open_trades": 3,
             "sl_adjust": 1.0,
             "tp_adjust": 1.0,
             "entry_type_blacklist": [],
-            "session_blacklist": [],
+            # 時間帯フィルター: UTC 00,01,21時を禁止（本番で全損失の94%を占める）
+            "session_blacklist": [0, 1, 21],
             "learn_every_n": 10,
+            # 同方向連敗制御: N連敗で同方向エントリーを一時停止
+            "max_consecutive_losses": 3,
         }
         self._trade_count_since_learn = 0
         self._last_signals = {}   # mode -> last signal dict
+        # 連敗トラッカー: mode -> {"direction": str, "count": int}
+        self._consec_losses = {}  # mode -> {dir -> consecutive_loss_count}
 
     # ── Public API ────────────────────────────────────
 
@@ -314,6 +319,17 @@ class DemoTrader:
                     f"Reason: {close_reason} | ID: {trade_id}"
                 )
 
+                # ── 連敗カウンター更新 ──
+                if mode not in self._consec_losses:
+                    self._consec_losses[mode] = {}
+                if outcome == "WIN":
+                    # 勝ち → 同方向のカウンターリセット
+                    self._consec_losses[mode][direction] = 0
+                else:
+                    # 負け → 同方向のカウンターを+1
+                    self._consec_losses[mode][direction] = \
+                        self._consec_losses[mode].get(direction, 0) + 1
+
                 self._trade_count_since_learn += 1
                 if self._trade_count_since_learn >= self._params["learn_every_n"]:
                     self._trigger_learning(current_mode=mode)
@@ -352,9 +368,23 @@ class DemoTrader:
 
         # 1. データ取得 + シグナル計算
         try:
-            df = fetch_ohlcv("USDJPY=X", period=period, interval=tf)
+            # scalp(1m)はperiod拡大でEMA200を確保
+            fetch_period = "5d" if tf == "1m" else period
+            df = fetch_ohlcv("USDJPY=X", period=fetch_period, interval=tf)
             df = add_indicators(df)
-            df = df.dropna()
+            # EMA200がNaNの行のみ除去（全列dropnaだと必要な行まで消える）
+            essential_cols = [c for c in ["Close", "EMA9", "EMA21", "RSI", "ADX", "ATR"]
+                             if c.lower() in [x.lower() for x in df.columns]]
+            # 大文字小文字を実際のカラム名に合わせる
+            actual_cols = []
+            lower_map = {c.lower(): c for c in df.columns}
+            for c in ["close", "ema9", "ema21", "rsi", "adx", "atr"]:
+                if c in lower_map:
+                    actual_cols.append(lower_map[c])
+            if actual_cols:
+                df = df.dropna(subset=actual_cols)
+            else:
+                df = df.dropna()
             if len(df) < 50:
                 return
 
@@ -409,12 +439,26 @@ class DemoTrader:
             if abs(t["entry_price"] - current_price) < 0.02:  # 2pips以内
                 return
 
+        # ── 時間帯フィルター（UTC 00,01,21時禁止: 本番損失の94%がここ）──
         try:
             hour_now = datetime.now(timezone.utc).hour
             if hour_now in self._params["session_blacklist"]:
                 return
         except Exception:
             pass
+
+        # ── 連敗制御: 同方向N連敗で一時停止 ──
+        max_cl = self._params.get("max_consecutive_losses", 3)
+        mode_cl = self._consec_losses.get(mode, {})
+        if mode_cl.get(signal, 0) >= max_cl:
+            return  # 同方向で連敗上限に達した → スキップ
+
+        # ── ema_cross品質フィルター ──
+        # 本番データ: ema_cross WR26.7% EV-1.0 → ADX低い時は禁止
+        if entry_type == "ema_cross":
+            sig_adx = sig.get("indicators", {}).get("adx", 0)
+            if sig_adx and sig_adx < 20:
+                return  # ADX<20でのema_crossはレンジノイズ → スキップ
 
         layer_status = sig.get("layer_status", {})
         if not layer_status.get("trade_ok", True):
@@ -510,6 +554,15 @@ class DemoTrader:
                 f"PnL: {pnl:+.1f} pips | "
                 f"Reason: {close_reason} | ID: {trade_id}"
             )
+
+            # ── 連敗カウンター更新（SIGNAL_REVERSE分）──
+            if mode not in self._consec_losses:
+                self._consec_losses[mode] = {}
+            if outcome == "WIN":
+                self._consec_losses[mode][direction] = 0
+            else:
+                self._consec_losses[mode][direction] = \
+                    self._consec_losses[mode].get(direction, 0) + 1
 
             self._trade_count_since_learn += 1
             if self._trade_count_since_learn >= self._params["learn_every_n"]:

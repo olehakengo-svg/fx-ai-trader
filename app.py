@@ -5636,8 +5636,12 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 spread = 0.002
                 entry_tok = entry_tok + spread / 2 if signal == "BUY" else entry_tok - spread / 2
 
-                sl_mult = 0.6  # Tighter SL for mean reversion
-                sl_tok = entry_tok - atr7_tok * sl_mult if signal == "BUY" else entry_tok + atr7_tok * sl_mult
+                # 本番分析: tokyo_bbのSLスリッページが最悪(+8.4p超過)
+                # SL拡大: 0.6→1.2×ATR + 最低3pipsバッファ（低流動性対策）
+                sl_mult = 1.2
+                sl_raw = atr7_tok * sl_mult
+                sl_raw = max(sl_raw, 0.03)  # 最低3pips
+                sl_tok = entry_tok - sl_raw if signal == "BUY" else entry_tok + sl_raw
 
                 # TP: BB middle band (mean reversion target)
                 bb_mid = float(row.get("bb_middle", (row.get("bb_upper", entry_tok) + row.get("bb_lower", entry_tok)) / 2))
@@ -5744,13 +5748,28 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     elif bb_width_pct > 0.7:
         reasons.append(f"✅ BB拡張中({bb_width_pct:.0%}): ボラティリティ良好")
 
-    # ③ 1H+4H ハードフィルター ─────────────────────────────
-    # mixed時は1m足のEMA配列で方向を決定（スキャルプは短期優先）
+    # ③ 1H+4H フィルター ─────────────────────────────
+    # 本番分析: ADX<20(レンジ)でHTFハードフィルター→SELL偏重13連敗
+    # → レンジ時はHTFをソフトバイアスに変更（反転トレードも許容）
+    is_range = adx < 20
     htf_mixed = False
     if htf["agreement"] == "bull":
-        d_mult = 1.0;  reasons.append("📈 1H+4H 強気 → BUYのみ有効")
+        if is_range:
+            d_mult = 1.0
+            reasons.append("📈 1H+4H 強気 (レンジ: BUY優先だが反転も許容)")
+        else:
+            d_mult = 1.0;  reasons.append("📈 1H+4H 強気 → BUYのみ有効")
     elif htf["agreement"] == "bear":
-        d_mult = -1.0; reasons.append("📉 1H+4H 弱気 → SELLのみ有効")
+        if is_range:
+            # レンジ時: HTF方向をバイアスとして使うが、1m足のEMA配列も考慮
+            if ema9 > ema21:
+                d_mult = 1.0  # 1m足が上昇中 → BUY許容
+                reasons.append("⚖️ 1H+4H弱気だが ADX<20レンジ + 1m足上昇 → BUY方向（逆張り許容）")
+            else:
+                d_mult = -1.0
+                reasons.append("📉 1H+4H 弱気 + 1m足下降 → SELL方向")
+        else:
+            d_mult = -1.0; reasons.append("📉 1H+4H 弱気(トレンド) → SELLのみ有効")
     else:
         htf_mixed = True
         # 1m足自身のEMA配列で方向判定（スキャルプは短期TFの流れに従う）
@@ -5993,19 +6012,27 @@ def compute_scalp_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     l3_sc = layer3["score"]
     score += l3_sc * 0.15       # up to +0.15 precision bonus
     # EMAクロスオーバー確認（BTとの整合性）
+    # 本番データ分析: ema_cross WR26.7% EV-1.0 → ADX<20のレンジでは無効化
     if len(df) >= 2:
         ema9_prev  = float(df["ema9"].iloc[-2])
         ema21_prev = float(df["ema21"].iloc[-2])
         ema9_cross_up   = (ema9_prev <= ema21_prev) and (ema9 > ema21)
         ema9_cross_down = (ema9_prev >= ema21_prev) and (ema9 < ema21)
+        # ADX>=20の場合のみフルボーナス、ADX<20はレンジノイズなので減衰
+        cross_bonus = 1.5 if adx >= 20 else 0.3
         if ema9_cross_up:
-            score += 1.5   # クロスオーバー確認ボーナス
+            score += cross_bonus
+            if adx >= 20:
+                reasons.append(f"✅ EMA9/21ゴールデンクロス(ADX{adx:.0f}≥20)")
         elif ema9_cross_down:
-            score -= 1.5
+            score -= cross_bonus
+            if adx >= 20:
+                reasons.append(f"✅ EMA9/21デッドクロス(ADX{adx:.0f}≥20)")
     score = max(-8.0, min(8.0, score))  # clamp before normalization
 
-    # ── SL / TP ── 100pips/日目標: タイトSL・延伸TP (RR≈1:2.5)
-    SCALP_SL, SCALP_TP = 0.5, 1.3
+    # ── SL / TP ── 本番分析反映: SL拡大でノイズ耐性UP
+    # 旧0.5/1.3 → SL_HIT率が85%で平均スリッページ+0.6pのため SL拡大
+    SCALP_SL, SCALP_TP = 0.8, 1.6
     # 必須条件チェック（緩和版: 取引頻度重視、100pips/日目標）
     has_pb        = any("EMA9プルバック" in r and ("BUYゾーン" in r or "SELLゾーン" in r) for r in reasons)
     has_rsi_reset = any("RSI5" in r and ("売られ過ぎ" in r or "リセット完了" in r or "買われ過ぎ" in r or "中立圏" in r) for r in reasons)
