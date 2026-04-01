@@ -116,3 +116,7 @@
   - MAX_HOLD: 12→18バー（TP到達時間確保で WR +3%, ATR EV +75%）
 - **DT 15m最適化**: ema_cross ADX閾値15→12, ema_score THRESHOLD 0.25→0.20
 - **QUALIFIED_TYPES更新**: 1h新entry_types（mtf_momentum, session_orb, pivot_breakout, pivot_reversion）
+- **リバウンド対策①**: 全方向サーキットブレーカー — 方向問わず直近30分N回負けでモード一時停止(scalp:4, DT:3)
+- **リバウンド対策②**: 価格ベロシティフィルター — 直近10分で+8pip以上の急動方向に逆行するエントリーをブロック [Cont 2001]
+- **リバウンド対策③**: ADXレジーム逆行ブロック — ADX≥35の強トレンド中にトレンド逆行エントリーを抑制(trend_rebound除く)
+- **リバウンド対策④**: ブレイクイーブン+トレーリングストップ — 60%TP到達でSLをBE+0.5pip、80%TP到達でSLをTP50%地点に移動
