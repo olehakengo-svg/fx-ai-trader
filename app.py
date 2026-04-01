@@ -1930,12 +1930,20 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     else:
         adx_mult = 0.45; reasons.append(f"⛔ ADX{adx:.0f}<12: レンジ相場（シグナル減衰）")
 
-    # ② EMA200方向フィルター（最重要, Neely & Weller 2011）
+    # ② EMA200方向フィルター + スロープ分析（Neely & Weller 2011）
     bull200 = entry > ema200
-    if bull200:
-        reasons.append(f"✅ EMA200({ema200:.3f})上位: 上昇バイアス")
+    _dt_ema200_slope = (ema200 - float(df["ema200"].iloc[-min(20, len(df)-1)])) if "ema200" in df.columns and len(df) >= 2 else 0
+    _dt_ema200_rising = _dt_ema200_slope > 0
+    if bull200 and _dt_ema200_rising:
+        score += 0.5
+        reasons.append(f"✅ EMA200({ema200:.3f})上位+上昇中: 強い上昇バイアス")
+    elif bull200:
+        reasons.append(f"✅ EMA200({ema200:.3f})上位: 上昇バイアス(slope弱)")
+    elif not bull200 and not _dt_ema200_rising:
+        score -= 0.5
+        reasons.append(f"🔻 EMA200({ema200:.3f})下位+下降中: 強い下降バイアス")
     else:
-        reasons.append(f"🔻 EMA200({ema200:.3f})下位: 下降バイアス")
+        reasons.append(f"🔻 EMA200({ema200:.3f})下位: 下降バイアス(slope弱)")
 
     # ③ EMAアライメント + +DI/-DI方向
     if ema9 > ema21 > ema50 and adx_p > adx_n:
@@ -1955,10 +1963,15 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     else:
         score -= 0.5; act = "SELL"
 
-    # EMA200逆方向のシグナルを減衰（緩和版: 取引頻度確保）
+    # EMA200逆方向のシグナルを減衰（スロープ考慮版）
     if (act == "BUY" and not bull200) or (act == "SELL" and bull200):
-        score *= 0.65
-        reasons.append("⚠️ EMA200と逆方向 → 軽度減衰")
+        # スロープも逆行 → より強いペナルティ
+        if (act == "BUY" and not _dt_ema200_rising) or (act == "SELL" and _dt_ema200_rising):
+            score *= 0.50
+            reasons.append("⚠️ EMA200+スロープ逆行 → 強減衰")
+        else:
+            score *= 0.65
+            reasons.append("⚠️ EMA200と逆方向 → 軽度減衰")
 
     # 4H+1D マスタートレンドとの整合性チェック（緩和版: 取引頻度確保）
     if htf_agreement == "bear" and act == "BUY":
@@ -2683,6 +2696,7 @@ def compute_1h_zone_signal(df: pd.DataFrame,
     ema9  = float(row.get("ema9", entry))
     ema21 = float(row.get("ema21", entry))
     ema50 = float(row.get("ema50", entry))
+    ema200_1h = float(row.get("ema200", ema50))
     adx   = float(row.get("adx", 20))
     _open = float(row["Open"])
     _high = float(row["High"])
@@ -2768,6 +2782,10 @@ def compute_1h_zone_signal(df: pd.DataFrame,
     if ema9 > ema21 and ema21 > ema50 and adx >= 15:
         _mt_score = 0.0
         _mt_reasons = []
+        # 4層EMAアラインメント: 9>21>50>200 で最大ボーナス
+        if entry > ema200_1h and ema50 > ema200_1h:
+            _mt_score += 0.5
+            _mt_reasons.append(f"✅ 4層EMA上昇(9>21>50>200={ema200_1h:.3f}) — 強トレンド")
         _mt_reasons.append(f"✅ Multi-TF上昇トレンド(EMA9>21>50, ADX={adx:.0f}) [Moskowitz 2012]")
         _mt_score += 1.0
 
@@ -2816,6 +2834,10 @@ def compute_1h_zone_signal(df: pd.DataFrame,
     if ema9 < ema21 and ema21 < ema50 and adx >= 15:
         _mt_score = 0.0
         _mt_reasons = []
+        # 4層EMAアラインメント: 9<21<50<200 で最大ボーナス
+        if entry < ema200_1h and ema50 < ema200_1h:
+            _mt_score += 0.5
+            _mt_reasons.append(f"✅ 4層EMA下降(9<21<50<200={ema200_1h:.3f}) — 強トレンド")
         _mt_reasons.append(f"✅ Multi-TF下降トレンド(EMA9<21<50, ADX={adx:.0f}) [Moskowitz 2012]")
         _mt_score += 1.0
 
@@ -3046,6 +3068,17 @@ def compute_1h_zone_signal(df: pd.DataFrame,
         candidates.sort(key=lambda x: x[1], reverse=True)
         best = candidates[0]
         sig, score, tp, sl, reasons, etype = best
+
+        # ── EMA200 方向フィルター（1H Zone用）──
+        # 1h 200EMA ≈ 200時間 ≈ 8.3営業日 → 中期トレンド方向
+        _h1_bull200 = entry > ema200_1h
+        if sig == "BUY" and not _h1_bull200:
+            score *= 0.75
+            reasons.append(f"⚠️ EMA200下({ema200_1h:.3f})でBUY → 減衰")
+        elif sig == "SELL" and _h1_bull200:
+            score *= 0.75
+            reasons.append(f"⚠️ EMA200上({ema200_1h:.3f})でSELL → 減衰")
+
         base["signal"]     = sig
         base["entry"]      = entry
         base["tp"]         = round(tp, 3)
@@ -6020,6 +6053,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     ema9 = float(row["ema9"])
     ema21 = float(row["ema21"])
     ema50 = float(row["ema50"])
+    ema200 = float(row.get("ema200", ema50))  # fallback to ema50
     macdh = float(row["macd_hist"])
     bbpb = float(row["bb_pband"])
     atr7 = float(row["atr7"]) if "atr7" in row.index else atr
@@ -6046,6 +6080,13 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     # EMA前バーの値（クロス検出用）
     ema9_prev = float(df["ema9"].iloc[-2]) if len(df) >= 2 else ema9
     ema21_prev = float(df["ema21"].iloc[-2]) if len(df) >= 2 else ema21
+
+    # ── EMA200 分析（方向フィルター + 近接回避 + バウンスボーナス）──
+    # 5m 200EMA ≈ 1000分 ≈ 16.7時間 → 日中トレンドの凝縮版
+    _ema200_dist = (entry - ema200) / atr if atr > 0 else 0  # ATR正規化距離（正=上、負=下）
+    _ema200_slope = (ema200 - float(df["ema200"].iloc[-min(20, len(df)-1)])) if "ema200" in df.columns and len(df) >= 2 else 0
+    _ema200_bull = entry > ema200  # 価格がEMA200の上
+    _ema200_proximity = abs(_ema200_dist) < 0.3  # ATR×0.3以内 = チョッピーゾーン
 
     # セッション時間
     if bar_time:
@@ -6082,7 +6123,8 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             "scalp_score": round(score_v, 3),
             "indicators": {
                 "ema9": round(ema9, 3), "ema21": round(ema21, 3),
-                "ema50": round(ema50, 3), "rsi": round(rsi, 1),
+                "ema50": round(ema50, 3), "ema200": round(ema200, 3),
+                "rsi": round(rsi, 1),
                 "adx": round(adx, 1),
                 "macd": round(float(row["macd"]), 5),
                 "macd_sig": round(float(row["macd_sig"]), 5),
@@ -6103,6 +6145,9 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 "atr7": round(atr7, 3), "rsi5": round(rsi5, 1),
                 "rsi9": round(rsi9, 1), "stoch_k": round(stoch_k, 1),
                 "adx": round(adx, 1), "bb_width_pct": round(bb_width_pct * 100, 0),
+                "ema200_dist": round(_ema200_dist, 2),
+                "ema200_bull": _ema200_bull,
+                "ema200_proximity": _ema200_proximity,
             },
         }
 
@@ -6890,6 +6935,41 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     # スコア降順で最良を選択
     best = max(candidates, key=lambda c: c[6])
     signal, conf, sl, tp, reasons, entry_type, score = best
+
+    # ── EMA200 近接回避ゾーン ──
+    # 200EMA付近は攻防ラインでウィップソーが多い → エントリー抑制
+    # ただしtrend_rebound/v_reversalは極端な状況なので除外
+    if _ema200_proximity and entry_type not in ("trend_rebound", "v_reversal"):
+        score *= 0.5
+        conf = int(conf * 0.6)
+        reasons.append(f"⚠️ EMA200近接ゾーン(距離{_ema200_dist:.2f}ATR) — チョッピー回避")
+
+    # ── EMA200 方向フィルター ──
+    # 200EMA上のSELL / 200EMA下のBUY → 逆行ペナルティ
+    # trend_reboundは逆張り戦略なので除外
+    if entry_type not in ("trend_rebound", "v_reversal"):
+        if _ema200_bull and signal == "SELL":
+            _penalty = 0.70 if _ema200_slope > 0 else 0.80  # 上昇中の逆行はより厳しく
+            score *= _penalty
+            conf = int(conf * 0.85)
+            reasons.append(f"⚠️ EMA200上からSELL(dist={_ema200_dist:+.2f}ATR) — 方向逆行")
+        elif not _ema200_bull and signal == "BUY":
+            _penalty = 0.70 if _ema200_slope < 0 else 0.80  # 下降中の逆行はより厳しく
+            score *= _penalty
+            conf = int(conf * 0.85)
+            reasons.append(f"⚠️ EMA200下からBUY(dist={_ema200_dist:+.2f}ATR) — 方向逆行")
+
+    # ── EMA200 バウンスボーナス ──
+    # EMA200に近接してからの反転 → 高確信ボーナス
+    if abs(_ema200_dist) < 0.5 and abs(_ema200_dist) >= 0.1:  # 近いが近接ゾーン外
+        if _ema200_bull and signal == "BUY" and _ema200_slope >= 0:
+            # 200EMA上で、サポートとして跳ね返り → ボーナス
+            score += 0.8
+            reasons.append(f"✅ EMA200サポートバウンス(dist={_ema200_dist:.2f}ATR)")
+        elif not _ema200_bull and signal == "SELL" and _ema200_slope <= 0:
+            # 200EMA下で、レジスタンスとして跳ね返り → ボーナス
+            score += 0.8
+            reasons.append(f"✅ EMA200レジスタンスバウンス(dist={_ema200_dist:.2f}ATR)")
 
     # ── HTF方向フィルター: 逆行シグナルを減衰 ──
     htf_dir = htf.get("agreement", "neutral")
