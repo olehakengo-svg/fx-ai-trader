@@ -1963,14 +1963,14 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     else:
         score -= 0.5; act = "SELL"
 
-    # EMA200逆方向のシグナルを減衰（スロープ考慮版）
+    # EMA200逆方向のシグナルを減衰（スロープ考慮版・15m短期向け緩和）
     if (act == "BUY" and not bull200) or (act == "SELL" and bull200):
-        # スロープも逆行 → より強いペナルティ
+        # スロープも逆行 → ペナルティ（ただし15m短期なので過度に抑制しない）
         if (act == "BUY" and not _dt_ema200_rising) or (act == "SELL" and _dt_ema200_rising):
-            score *= 0.50
-            reasons.append("⚠️ EMA200+スロープ逆行 → 強減衰")
+            score *= 0.60
+            reasons.append("⚠️ EMA200+スロープ逆行 → 減衰")
         else:
-            score *= 0.65
+            score *= 0.75
             reasons.append("⚠️ EMA200と逆方向 → 軽度減衰")
 
     # 4H+1D マスタートレンドとの整合性チェック（緩和版: 取引頻度確保）
@@ -2710,6 +2710,13 @@ def compute_1h_zone_signal(df: pd.DataFrame,
     _bar_time = df.index[-1]
     _hour_utc = _bar_time.hour if hasattr(_bar_time, 'hour') else 12
 
+    # 時間帯フィルター: UTC 0,1,21は損失集中帯 → エントリー禁止
+    if _hour_utc in (0, 1, 21):
+        return {"signal": "WAIT", "entry": entry, "sl": 0.0, "tp": 0.0,
+                "confidence": 0, "entry_type": "wait",
+                "reasons": [f"⛔ 損失集中時間帯(UTC {_hour_utc}) → WAIT"],
+                "indicators": {}, "atr": atr, "zone_info": {}}
+
     base = {
         "signal": "WAIT", "entry": entry, "sl": 0.0, "tp": 0.0,
         "confidence": 0, "entry_type": "wait", "reasons": [],
@@ -2814,7 +2821,7 @@ def compute_1h_zone_signal(df: pd.DataFrame,
             if macdh > prev_macdh:
                 _mt_score += 0.3
 
-        if _mt_score >= 2.5:
+        if _mt_score >= 2.0:  # 2.5→2.0 (EMA整合+プルバック=コアシグナル、ボーナスは補強)
             # TP: 次のレジスタンス or ATR×3.0
             _mt_tp_sr = None
             for _sr in sorted(sr_levels):
@@ -2827,7 +2834,7 @@ def compute_1h_zone_signal(df: pd.DataFrame,
             # SL: Swing Low - buffer (tight)
             _mt_sl = _swing_low - atr * 0.15
             _mt_sl = max(_mt_sl, entry - atr * 0.8)  # 最大SL = ATR×0.8 (≈22pip)
-            _mt_sl = min(_mt_sl, entry - atr * 0.3)  # 最小SL = ATR×0.3 (≈8pip)
+            _mt_sl = min(_mt_sl, entry - atr * 0.5)  # 最小SL 0.3→0.5 ATR (ノイズ回避)
             candidates.append(("BUY", _mt_score, _mt_tp, _mt_sl, _mt_reasons, "mtf_momentum"))
 
     # 下降トレンド: EMA9<EMA21<EMA50 + ADX≥15
@@ -2858,7 +2865,7 @@ def compute_1h_zone_signal(df: pd.DataFrame,
             if macdh < prev_macdh:
                 _mt_score += 0.3
 
-        if _mt_score >= 2.5:
+        if _mt_score >= 2.0:  # 2.5→2.0
             _mt_tp_sr = None
             for _sr in sorted(sr_levels, reverse=True):
                 if isinstance(_sr, (int, float)) and _sr < entry - atr * 0.5:
@@ -2869,7 +2876,7 @@ def compute_1h_zone_signal(df: pd.DataFrame,
 
             _mt_sl = _swing_high + atr * 0.15
             _mt_sl = min(_mt_sl, entry + atr * 0.8)
-            _mt_sl = max(_mt_sl, entry + atr * 0.3)
+            _mt_sl = max(_mt_sl, entry + atr * 0.5)  # SL ceiling 0.3→0.5 ATR (ノイズ回避)
             candidates.append(("SELL", _mt_score, _mt_tp, _mt_sl, _mt_reasons, "mtf_momentum"))
 
     # ════════════════════════════════════════════════════════════
@@ -2965,11 +2972,9 @@ def compute_1h_zone_signal(df: pd.DataFrame,
             _pv_score += 0.3
 
         if _pv_score >= 2.5:  # 旧2.0→2.5（高確信のみ）
-            _pv_tp = _R2 - atr * 0.1  # R2手前
+            _pv_tp = _R1 + (_R2 - _R1) * 0.5  # R1-R2の50%地点（R2は遠すぎる）
             _pv_tp = max(_pv_tp, entry + atr * 1.5)  # 最低ATR×1.5
-            _pv_sl = _R1 - atr * 0.2  # R1裏側（タイトに）
-            _pv_sl = max(_pv_sl, entry - atr * 0.8)
-            _pv_sl = min(_pv_sl, entry - atr * 0.3)
+            _pv_sl = max(entry - atr * 0.5, _R1 - atr * 0.3)  # SL統一0.5 ATR
             candidates.append(("BUY", _pv_score, _pv_tp, _pv_sl, _pv_reasons, "pivot_breakout"))
 
     # S1割れ → SELL (EMA整合必須)
@@ -2993,11 +2998,9 @@ def compute_1h_zone_signal(df: pd.DataFrame,
             _pv_score += 0.3
 
         if _pv_score >= 2.5:  # 旧2.0→2.5
-            _pv_tp = _S2 + atr * 0.1
-            _pv_tp = min(_pv_tp, entry - atr * 1.5)
-            _pv_sl = _S1 + atr * 0.2
-            _pv_sl = min(_pv_sl, entry + atr * 0.8)
-            _pv_sl = max(_pv_sl, entry + atr * 0.3)
+            _pv_tp = _S1 - (_S1 - _S2) * 0.5  # S1-S2の50%地点
+            _pv_tp = min(_pv_tp, entry - atr * 1.5)  # 最低ATR×1.5
+            _pv_sl = min(entry + atr * 0.5, _S1 + atr * 0.3)  # SL統一0.5 ATR
             candidates.append(("SELL", _pv_score, _pv_tp, _pv_sl, _pv_reasons, "pivot_breakout"))
 
     # ════════════════════════════════════════════════════════════
@@ -4349,21 +4352,21 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 hi, lo = float(fut["High"]), float(fut["Low"])
                 fut_close = float(fut["Close"])
 
-                # ── Partial TP / Trailing: 60% TP到達でSLをbreakevenに移動 ──
+                # ── Partial TP / Trailing: 40% TP到達でSLをbreakevenに移動 ──
                 _dt_tp_dist_total = abs(tp - ep)
                 if sig == "BUY":
                     _dt_progress = hi - ep
-                    if _dt_progress >= _dt_tp_dist_total * 0.6:
+                    if _dt_progress >= _dt_tp_dist_total * 0.4:  # 60%→40% (早期BE化)
                         _dt_be_activated = True
-                        _dt_current_sl = max(_dt_current_sl, ep)
+                        _dt_current_sl = max(_dt_current_sl, ep + 0.002)  # BE+0.2pip
                 else:
                     _dt_progress = ep - lo
-                    if _dt_progress >= _dt_tp_dist_total * 0.6:
+                    if _dt_progress >= _dt_tp_dist_total * 0.4:  # 60%→40%
                         _dt_be_activated = True
-                        _dt_current_sl = min(_dt_current_sl, ep)
+                        _dt_current_sl = min(_dt_current_sl, ep - 0.002)  # BE+0.2pip
 
-                # ── Time-decay SL tightening: MAX_HOLD×60%経過後 ──
-                if j >= int(MAX_HOLD * 0.6):
+                # ── Time-decay SL tightening: MAX_HOLD×50%経過後 ──
+                if j >= int(MAX_HOLD * 0.5):  # 60%→50% (早期利確保護)
                     if sig == "BUY" and fut_close > ep:
                         _dt_current_sl = max(_dt_current_sl, ep)
                     elif sig == "SELL" and fut_close < ep:
