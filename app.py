@@ -2162,6 +2162,80 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             _sr_signal_found = True
             _dt_nearest_scenario = {"type": "breakout", "sr": _res}
 
+    # ── E: 三尊天井 / 逆三尊（15m足: ノイズ少なく有効）──
+    # Bulkowski (2005): H&S patterns on 15m+ have 65-70% follow-through
+    if not _sr_signal_found and len(df) >= 30:
+        _dt_hs_window = 3  # 15m足: 前後3本（前後45分の極値）
+        _dt_lookback = min(40, len(df) - 1)
+        _dt_hs_df = df.iloc[-_dt_lookback:]
+        _dt_h_arr = _dt_hs_df["High"].values.flatten()
+        _dt_l_arr = _dt_hs_df["Low"].values.flatten()
+
+        _dt_swing_highs = []
+        _dt_swing_lows = []
+        for _si in range(_dt_hs_window, len(_dt_hs_df) - _dt_hs_window):
+            _loc_h = _dt_h_arr[max(0, _si - _dt_hs_window):_si + _dt_hs_window + 1]
+            _loc_l = _dt_l_arr[max(0, _si - _dt_hs_window):_si + _dt_hs_window + 1]
+            if _dt_h_arr[_si] == _loc_h.max() and _dt_h_arr[_si] > _dt_h_arr[_si - 1]:
+                _dt_swing_highs.append((_si, float(_dt_h_arr[_si])))
+            if _dt_l_arr[_si] == _loc_l.min() and _dt_l_arr[_si] < _dt_l_arr[_si - 1]:
+                _dt_swing_lows.append((_si, float(_dt_l_arr[_si])))
+
+        # 三尊天井 → SELL
+        for _hi in range(len(_dt_swing_highs) - 2):
+            _s1i, _s1p = _dt_swing_highs[_hi]
+            _s2i, _s2p = _dt_swing_highs[_hi + 1]
+            _s3i, _s3p = _dt_swing_highs[_hi + 2]
+            if not (_s2p > _s1p and _s2p > _s3p):
+                continue
+            if _s3i - _s1i > 30 or _s3i - _s1i < 6:
+                continue
+            _hp = min(_s2p - _s1p, _s2p - _s3p) * 100
+            _sd = abs(_s1p - _s3p) * 100
+            if _hp < 5.0 or _sd > _hp * 0.6:  # 15m: 5pip以上の prominence
+                continue
+            _neck_lows = [(_li, _lp) for _li, _lp in _dt_swing_lows if _s1i < _li < _s3i]
+            if not _neck_lows:
+                continue
+            _neckline = min(_neck_lows, key=lambda x: x[1])[1]
+            if _s3i < len(_dt_hs_df) - 2:
+                _nd = (entry - _neckline) * 100
+                if -3.0 <= _nd <= 2.0 and entry < float(row["Open"]) and ema9 < ema21:
+                    signal = "SELL"
+                    _dt_entry_type = "hs_neckbreak"
+                    _sr_signal_found = True
+                    reasons.append(f"✅ 三尊天井: L={_s1p:.3f} H={_s2p:.3f} R={_s3p:.3f} [Bulkowski 2005]")
+                    reasons.append(f"✅ ネックライン{_neckline:.3f}({_nd:+.1f}pip), prominence={_hp:.1f}pip")
+                    break
+
+        # 逆三尊 → BUY
+        if not _sr_signal_found:
+            for _li in range(len(_dt_swing_lows) - 2):
+                _s1i, _s1p = _dt_swing_lows[_li]
+                _s2i, _s2p = _dt_swing_lows[_li + 1]
+                _s3i, _s3p = _dt_swing_lows[_li + 2]
+                if not (_s2p < _s1p and _s2p < _s3p):
+                    continue
+                if _s3i - _s1i > 30 or _s3i - _s1i < 6:
+                    continue
+                _hp = min(_s1p - _s2p, _s3p - _s2p) * 100
+                _sd = abs(_s1p - _s3p) * 100
+                if _hp < 5.0 or _sd > _hp * 0.6:
+                    continue
+                _neck_highs = [(_hi2, _hp2) for _hi2, _hp2 in _dt_swing_highs if _s1i < _hi2 < _s3i]
+                if not _neck_highs:
+                    continue
+                _neckline = max(_neck_highs, key=lambda x: x[1])[1]
+                if _s3i < len(_dt_hs_df) - 2:
+                    _nd = (_neckline - entry) * 100
+                    if -3.0 <= _nd <= 2.0 and entry > float(row["Open"]) and ema9 > ema21:
+                        signal = "BUY"
+                        _dt_entry_type = "ihs_neckbreak"
+                        _sr_signal_found = True
+                        reasons.append(f"✅ 逆三尊: L={_s1p:.3f} H={_s2p:.3f} R={_s3p:.3f} [Bulkowski 2005]")
+                        reasons.append(f"✅ ネックライン{_neckline:.3f}({_nd:+.1f}pip), prominence={_hp:.1f}pip")
+                        break
+
     # SR+Fib / OB Retest フォールバック（強いスコア + EMAトレンド整合のみ）
     if not _sr_signal_found:
         _has_sr_fib = any("Fib" in r or "フィボ" in r for r in reasons)
@@ -3803,6 +3877,9 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "engulfing_bb", "three_bar_reversal",
                 "trend_rebound",  # 強トレンド時リバウンド
                 "v_reversal",     # V字リバウンドキャプチャ
+                "hs_neckbreak",   # 三尊天井ネックライン割れ
+                "ihs_neckbreak",  # 逆三尊ネックライン突破
+                "sr_touch_bounce", # 水平線タッチ反発
                 # v1 互換
                 "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
                 "donchian", "reg_channel", "ema_pullback",
@@ -4171,6 +4248,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             DT_QUALIFIED = {
                 "dual_sr_bounce", "dual_sr_breakout",
                 "sr_fib_confluence", "ob_retest",
+                "hs_neckbreak", "ihs_neckbreak",  # 三尊/逆三尊
             }
             DT_CONDITIONAL = {"ema_cross"}
             DT_BLOCKED = {"unknown", "wait"}
@@ -6596,7 +6674,98 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                                _tr_reasons, "trend_rebound", _tr_score))
 
     # ════════════════════════════════════════════════════════
-    #  戦略7: V字リバウンドキャプチャ（急落/急騰後の反転検出）
+    #  戦略7: [DISABLED for scalp] 水平線タッチ + 三尊/逆三尊
+    #  1m足ではノイズが多すぎ: 三尊 WR=10%, SR touch WR=52% EV=-0.4
+    #  → 15m DT足専用として compute_daytrade_signal に実装済み
+    #  → スキャルプでは既存のbb_rsi_reversionがSR反発を自然にカバー
+    # ════════════════════════════════════════════════════════
+    if False and len(df) >= 50:
+        _hs_signal = None
+        _hs_score = 0.0
+        _hs_reasons = []
+        _hs_tp = 0
+        _hs_sl = 0
+        _hs_entry_type = None
+
+        # Stoch前バー（ベロシティ比較用）
+        _prev_stoch_hs = float(df.iloc[-2].get("stoch_k", 50)) if len(df) >= 2 else 50
+
+        # ── 水平線タッチ + 反発（SR Bounce Enhanced）──
+        # 既存のsr_bounceより厳格: 2回以上反発実績 + 陽/陰線確認 + RSI整合
+        if sr_levels:
+            for _sr in sr_levels:
+                _sr_price = float(_sr["price"]) if isinstance(_sr, dict) else float(_sr)
+                _sr_touches = _sr.get("touches", 2) if isinstance(_sr, dict) else 2
+                _sr_strength = _sr.get("strength", 0.5) if isinstance(_sr, dict) else 0.5
+                _sr_type = _sr.get("type", "both") if isinstance(_sr, dict) else "both"
+
+                _sr_dist = abs(entry - _sr_price) * 100  # pip
+                if _sr_dist > atr7 * 100 * 0.4:  # ATRの40%以内
+                    continue
+                if _sr_touches < 2:
+                    continue
+
+                # Support touch → BUY
+                if entry > _sr_price and _sr_dist < atr7 * 100 * 0.3:
+                    if (_sr_type in ("support", "both")
+                            and entry > float(row["Open"])  # 陽線確認
+                            and rsi > 35 and rsi < 60       # 売られすぎではないがまだ余地
+                            and stoch_k > _prev_stoch_hs    # Stoch回復中
+                            ):
+                        _hs_signal = "BUY"
+                        _hs_score = 3.5
+                        _hs_entry_type = "sr_touch_bounce"
+                        _hs_reasons.append(f"✅ 水平線サポートタッチ: {_sr_price:.3f}(距離{_sr_dist:.1f}pip) [Osler 2000]")
+                        _hs_reasons.append(f"✅ タッチ{_sr_touches}回, 強度={_sr_strength:.2f}")
+                        _hs_reasons.append(f"✅ 陽線反発確認 + RSI={rsi:.0f}")
+                        if _sr_strength >= 0.6:
+                            _hs_score += 0.5
+                            _hs_reasons.append(f"✅ 強いSR(strength≥0.6)")
+                        if ema9 > ema21:
+                            _hs_score += 0.5
+                            _hs_reasons.append(f"✅ EMA上昇順列")
+                        # TP: 次のresistanceまたはATR×1.5
+                        _above_sr = sorted([float(s["price"]) if isinstance(s, dict) else float(s)
+                                           for s in sr_levels
+                                           if (float(s["price"]) if isinstance(s, dict) else float(s)) > entry + atr7 * 0.3])
+                        _hs_tp = (_above_sr[0] - 0.003) if _above_sr else entry + atr7 * 1.5
+                        _hs_sl = _sr_price - atr7 * 0.5
+                        break
+
+                # Resistance touch → SELL
+                elif entry < _sr_price and _sr_dist < atr7 * 100 * 0.3:
+                    if (_sr_type in ("resistance", "both")
+                            and entry < float(row["Open"])  # 陰線確認
+                            and rsi > 40 and rsi < 65
+                            and stoch_k < _prev_stoch_hs    # Stoch反落中
+                            ):
+                        _hs_signal = "SELL"
+                        _hs_score = 3.5
+                        _hs_entry_type = "sr_touch_bounce"
+                        _hs_reasons.append(f"✅ 水平線レジスタンスタッチ: {_sr_price:.3f}(距離{_sr_dist:.1f}pip) [Osler 2000]")
+                        _hs_reasons.append(f"✅ タッチ{_sr_touches}回, 強度={_sr_strength:.2f}")
+                        _hs_reasons.append(f"✅ 陰線反発確認 + RSI={rsi:.0f}")
+                        if _sr_strength >= 0.6:
+                            _hs_score += 0.5
+                            _hs_reasons.append(f"✅ 強いSR(strength≥0.6)")
+                        if ema9 < ema21:
+                            _hs_score += 0.5
+                            _hs_reasons.append(f"✅ EMA下降順列")
+                        _below_sr = sorted([float(s["price"]) if isinstance(s, dict) else float(s)
+                                           for s in sr_levels
+                                           if (float(s["price"]) if isinstance(s, dict) else float(s)) < entry - atr7 * 0.3],
+                                          reverse=True)
+                        _hs_tp = (_below_sr[0] + 0.003) if _below_sr else entry - atr7 * 1.5
+                        _hs_sl = _sr_price + atr7 * 0.5
+                        break
+
+        if _hs_signal and _hs_entry_type:
+            _hs_conf = int(min(85, 50 + _hs_score * 5))
+            candidates.append((_hs_signal, _hs_conf, _hs_sl, _hs_tp,
+                               _hs_reasons, _hs_entry_type, _hs_score))
+
+    # ════════════════════════════════════════════════════════
+    #  戦略8: V字リバウンドキャプチャ（急落/急騰後の反転検出）
     #  根拠: Cont (2001) "Empirical properties of asset returns"
     #        — 極端な価格変動後の平均回帰、FX市場のV字反転パターン
     #        Jegadeesh & Titman (1993) — 短期反転効果

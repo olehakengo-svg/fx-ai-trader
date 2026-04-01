@@ -796,6 +796,9 @@ class DemoTrader:
             "three_bar_reversal",    # 3本足反転パターン
             "trend_rebound",         # 強トレンド時リバウンド
             "v_reversal",            # V字リバウンドキャプチャ（急落/急騰後の反転）
+            "hs_neckbreak",          # 三尊天井ネックライン割れ
+            "ihs_neckbreak",         # 逆三尊ネックライン突破
+            "sr_touch_bounce",       # 水平線タッチ反発
             # スキャルプ v1互換
             "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
             "donchian", "reg_channel", "ema_pullback",
