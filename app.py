@@ -9283,15 +9283,18 @@ TRADE_RULES = {
 
 @app.route("/healthz")
 def healthz():
-    """Renderヘルスチェック用 — スレッド生存確認 + 自動復旧トリガー"""
+    """Renderヘルスチェック用 — スレッド生存確認 + 自動復旧トリガー + フォールバックtick"""
     try:
         status = _demo_trader.get_status()  # self-healing内蔵
+        # スレッドが死んでいる場合、リクエスト駆動でtick実行
+        _demo_trader.request_tick()
         return jsonify({
             "status": "ok",
             "main_loop": status.get("main_loop_alive"),
             "watchdog": status.get("watchdog_alive"),
             "sltp": status.get("sltp_checker_active"),
             "tick_counts": status.get("tick_counts"),
+            "restarts": status.get("main_loop_restarts"),
         })
     except Exception as e:
         return jsonify({"status": "error", "error": str(e)}), 500
@@ -9300,10 +9303,12 @@ def healthz():
 def api_demo_status():
     try:
         status = _demo_trader.get_status()
+        # スレッドが死んでいる場合、リクエスト駆動でtick実行
+        _demo_trader.request_tick()
         status["trade_rules"] = TRADE_RULES
         return jsonify(status)
     except Exception as e:
-        print(f"[api_demo_status] Error: {e}")
+        print(f"[api_demo_status] Error: {e}", flush=True)
         return jsonify({
             "running": False, "modes": {},
             "params": {}, "open_trades": [], "stats": {},

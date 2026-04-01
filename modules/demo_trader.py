@@ -117,6 +117,7 @@ class DemoTrader:
         self._user_stopped_modes = set()  # 明示的にstop()されたモード（ウォッチドッグ対象外）
         self._health_thread = None
         self._watchdog_thread = None
+        self._last_request_tick = {}  # mode -> timestamp (リクエスト駆動tick用)
 
     # ── Public API ────────────────────────────────────
 
@@ -257,6 +258,47 @@ class DemoTrader:
             "tick_counts": getattr(self, '_tick_counts', None),
             "main_loop_restarts": getattr(self, '_main_loop_restart_count', 0),
         }
+
+    def request_tick(self):
+        """リクエスト駆動tick: バックグラウンドスレッドが死んでいる場合のフォールバック。
+        APIリクエスト時に呼ばれ、各モードのtickを実行する。
+        スレッドが生きている場合はスキップ（二重実行防止）。"""
+        if self._health_thread and self._health_thread.is_alive():
+            return  # メインループが生きていれば不要
+        if not self._started_modes:
+            return
+        now = time.time()
+        ticked = []
+        for mode in list(self._started_modes):
+            if mode in self._user_stopped_modes:
+                continue
+            runner = self._runners.get(mode, {})
+            if not runner.get("running", False):
+                continue
+            cfg = MODE_CONFIG[mode]
+            interval = cfg["interval_sec"]
+            last = self._last_request_tick.get(mode, 0)
+            if now - last < interval:
+                continue
+            try:
+                self._tick(mode)
+                self._last_request_tick[mode] = time.time()
+                _tc = getattr(self, '_tick_counts', {})
+                _tc[mode] = _tc.get(mode, 0) + 1
+                self._tick_counts = _tc
+                ticked.append(mode)
+            except Exception as e:
+                print(f"[RequestTick/{mode}] Error: {e}", flush=True)
+                self._last_request_tick[mode] = time.time()
+        if ticked:
+            print(f"[RequestTick] Executed: {ticked}", flush=True)
+
+        # SL/TPチェックも実行（SLTPスレッドが死んでいる場合）
+        if not (self._sltp_thread and self._sltp_thread.is_alive()):
+            try:
+                self._check_sltp_realtime()
+            except Exception:
+                pass
 
     def get_all_logs(self) -> list:
         """DBから全ログを古い順で取得"""
