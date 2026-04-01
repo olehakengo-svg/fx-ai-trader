@@ -198,7 +198,8 @@ class DemoTrader:
             log_count = 0
 
         # MTFバイアス情報
-        _bias = self._15m_tactical_bias
+        with self._lock:
+            _bias = dict(self._15m_tactical_bias)
         _bias_info = None
         if _bias["direction"] and _bias["updated_at"]:
             _age = (datetime.now(timezone.utc) - _bias["updated_at"]).total_seconds()
@@ -579,11 +580,11 @@ class DemoTrader:
         self._main_loop_error = None
 
         try:
-          while True:
-            if not self._started_modes:
-                # まだモード未登録の場合は待機
-                time.sleep(2)
-                continue
+            while True:
+                if not self._started_modes:
+                    # まだモード未登録の場合は待機
+                    time.sleep(2)
+                    continue
 
             try:
                 now = time.time()
@@ -599,27 +600,10 @@ class DemoTrader:
                     if now - last < interval:
                         continue  # まだ間隔に達していない
 
-                    # ── このモードのtickを実行（タイムアウト付き）──
-                    TICK_TIMEOUT = 120  # 最大120秒（API遅延対策）
+                    # ── このモードのtickを実行 ──
                     try:
                         _tick_start = time.time()
-                        # タイムアウト付きでtickを別スレッドで実行
-                        _tick_exc = [None]
-                        def _run_tick():
-                            try:
-                                self._tick(mode)
-                            except Exception as ex:
-                                _tick_exc[0] = ex
-                        _t = threading.Thread(target=_run_tick, daemon=True)
-                        _t.start()
-                        _t.join(timeout=TICK_TIMEOUT)
-                        if _t.is_alive():
-                            # タイムアウト: tickがハングしている
-                            print(f"[MainLoop/{mode}] TIMEOUT after {TICK_TIMEOUT}s — skipping")
-                            _last_tick[mode] = time.time()
-                            continue
-                        if _tick_exc[0]:
-                            raise _tick_exc[0]
+                        self._tick(mode)
                         _tick_dur = time.time() - _tick_start
                         _consecutive_errors[mode] = 0
                         _last_tick[mode] = time.time()
@@ -651,15 +635,15 @@ class DemoTrader:
             time.sleep(2)  # メインループの最小間隔
 
         except BaseException as fatal:
-          # SystemExit, KeyboardInterrupt等も含む全致命的エラーをキャッチ
-          self._main_loop_status = "DEAD"
-          self._main_loop_error = f"{type(fatal).__name__}: {fatal}"
-          print(f"[MainLoop] FATAL: {type(fatal).__name__}: {fatal}")
-          import traceback; traceback.print_exc()
-          try:
-              self._add_log(f"💀 メインループ致命的エラー: {type(fatal).__name__}: {fatal}")
-          except Exception:
-              pass
+            # SystemExit, KeyboardInterrupt等も含む全致命的エラーをキャッチ
+            self._main_loop_status = "DEAD"
+            self._main_loop_error = f"{type(fatal).__name__}: {fatal}"
+            print(f"[MainLoop] FATAL: {type(fatal).__name__}: {fatal}")
+            import traceback; traceback.print_exc()
+            try:
+                self._add_log(f"💀 メインループ致命的エラー: {type(fatal).__name__}: {fatal}")
+            except Exception:
+                pass
 
     def _check_drawdown(self) -> bool:
         """日次損失・最大DD制限チェック。制限到達ならTrue（トレード禁止）"""
@@ -814,14 +798,15 @@ class DemoTrader:
             _trend_patterns = {"ema_cross", "mtf_momentum", "pivot_breakout"}
             if _dt_etype in _strong_patterns or _dt_etype in _trend_patterns:
                 _bias_strength = "strong" if _dt_etype in _strong_patterns else "trend"
-                self._15m_tactical_bias = {
-                    "direction": signal,
-                    "entry_type": _dt_etype,
-                    "confidence": sig.get("confidence", 0),
-                    "updated_at": datetime.now(timezone.utc),
-                    "signal_price": current_price,
-                    "strength": _bias_strength,
-                }
+                with self._lock:
+                    self._15m_tactical_bias = {
+                        "direction": signal,
+                        "entry_type": _dt_etype,
+                        "confidence": sig.get("confidence", 0),
+                        "updated_at": datetime.now(timezone.utc),
+                        "signal_price": current_price,
+                        "strength": _bias_strength,
+                    }
 
         # ── 価格ヒストリー記録（ベロシティ計算用）──
         _now_rec = datetime.now(timezone.utc)
@@ -1041,8 +1026,10 @@ class DemoTrader:
         # trend:  逆方向confidence減衰
         # ══════════════════════════════════════════════════════════════
         _mtf_tp_bonus = 1.0  # TP倍率（順方向時に拡大）
-        if mode == "scalp" and self._15m_tactical_bias["direction"]:
-            _bias = self._15m_tactical_bias
+        with self._lock:
+            _bias_snapshot = dict(self._15m_tactical_bias)
+        if mode == "scalp" and _bias_snapshot["direction"]:
+            _bias = _bias_snapshot
             _bias_age = (datetime.now(timezone.utc) - _bias["updated_at"]).total_seconds() if _bias["updated_at"] else 99999
             _bias_valid = _bias_age < 3600  # 1時間以内のバイアスのみ有効
 

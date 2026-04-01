@@ -2678,8 +2678,8 @@ def compute_1h_zone_signal(df: pd.DataFrame,
     rsi5  = float(row.get("rsi5", rsi))
     stoch_k = float(row.get("stoch_k", 50))
     stoch_d = float(row.get("stoch_d", 50))
-    macdh   = float(row.get("macdh", 0))
-    bb_pctb = float(row.get("bb_pctb", 0.5))
+    macdh   = float(row.get("macd_hist", 0))
+    bb_pctb = float(row.get("bb_pband", 0.5))
     ema9  = float(row.get("ema9", entry))
     ema21 = float(row.get("ema21", entry))
     ema50 = float(row.get("ema50", entry))
@@ -2688,8 +2688,8 @@ def compute_1h_zone_signal(df: pd.DataFrame,
     _high = float(row["High"])
     _low  = float(row["Low"])
 
-    prev_macdh = float(df.iloc[-2].get("macdh", 0)) if len(df) >= 2 else 0.0
-    prev2_macdh = float(df.iloc[-3].get("macdh", 0)) if len(df) >= 3 else prev_macdh
+    prev_macdh = float(df.iloc[-2].get("macd_hist", 0)) if len(df) >= 2 else 0.0
+    prev2_macdh = float(df.iloc[-3].get("macd_hist", 0)) if len(df) >= 3 else prev_macdh
     prev_stoch_k = float(df.iloc[-2].get("stoch_k", 50)) if len(df) >= 2 else 50
 
     # 1h足のバー時刻（UTC hour）
@@ -6153,9 +6153,9 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 _mr_score += 0.5
                 _mr_reasons.append("✅ MACDヒストグラム上昇")
             # MACD-H反転ボーナス（モメンタム消耗→回復検出）
-            if len(df) >= 3 and "macdh" in df.columns:
-                _macdh_p1 = float(df.iloc[-2]["macdh"])
-                _macdh_p2 = float(df.iloc[-3]["macdh"])
+            if len(df) >= 3 and "macd_hist" in df.columns:
+                _macdh_p1 = float(df.iloc[-2]["macd_hist"])
+                _macdh_p2 = float(df.iloc[-3]["macd_hist"])
                 if macdh > _macdh_p1 and _macdh_p1 <= _macdh_p2:
                     _mr_score += 0.6
                     _mr_reasons.append("✅ MACD-H反転上昇（モメンタム消耗→回復）")
@@ -6177,9 +6177,9 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             if macdh < 0:
                 _mr_score += 0.5
                 _mr_reasons.append("✅ MACDヒストグラム下落")
-            if len(df) >= 3 and "macdh" in df.columns:
-                _macdh_p1 = float(df.iloc[-2]["macdh"])
-                _macdh_p2 = float(df.iloc[-3]["macdh"])
+            if len(df) >= 3 and "macd_hist" in df.columns:
+                _macdh_p1 = float(df.iloc[-2]["macd_hist"])
+                _macdh_p2 = float(df.iloc[-3]["macd_hist"])
                 if macdh < _macdh_p1 and _macdh_p1 >= _macdh_p2:
                     _mr_score += 0.6
                     _mr_reasons.append("✅ MACD-H反転下落（モメンタム消耗→回復）")
@@ -6429,8 +6429,8 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         _mh_signal = None
         _mh_score = 0.0
 
-        _macdh_prev = float(df.iloc[-2].get("macdh", 0)) if "macdh" in df.columns else 0
-        _macdh_prev2 = float(df.iloc[-3].get("macdh", 0)) if len(df) >= 3 and "macdh" in df.columns else 0
+        _macdh_prev = float(df.iloc[-2].get("macd_hist", 0)) if "macd_hist" in df.columns else 0
+        _macdh_prev2 = float(df.iloc[-3].get("macd_hist", 0)) if len(df) >= 3 and "macd_hist" in df.columns else 0
 
         # BUY: BB下限 + MACD-H上向き反転
         if (bbpb < 0.25
@@ -6607,7 +6607,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         _tr_tp = 0
         _tr_sl = 0
 
-        _macdh_prev_tr = float(df.iloc[-2].get("macdh", float(df["macd_hist"].iloc[-2]))) if len(df) >= 2 else macdh
+        _macdh_prev_tr = float(df.iloc[-2].get("macd_hist", 0)) if len(df) >= 2 else macdh
         _prev_stoch_k_tr = float(df.iloc[-2].get("stoch_k", 50)) if len(df) >= 2 else 50
 
         # ── 下降トレンド中のBUYリバウンド ──
@@ -6797,8 +6797,8 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         # ── V字底: 急落後のBUYリバウンド ──
         # 強化条件: 8pip以上の急落 + RSI<25 + BB%B<0.10 + Stoch<15 + 陽線 + Stoch回復必須
         _prev_stoch_vr = float(df.iloc[-2].get("stoch_k", 50)) if len(df) >= 2 else 50
-        _prev_bbpb_vr = float(df.iloc[-2].get("bb_pctb", 0.5)) if len(df) >= 2 else 0.5
-        _vr_macdh_prev = float(df.iloc[-2].get("macdh", float(df["macd_hist"].iloc[-2]))) if len(df) >= 2 else macdh
+        _prev_bbpb_vr = float(df.iloc[-2].get("bb_pband", 0.5)) if len(df) >= 2 else 0.5
+        _vr_macdh_prev = float(df.iloc[-2].get("macd_hist", 0)) if len(df) >= 2 else macdh
 
         # 陽線/陰線のボディ比率（実体の大きさ / ヒゲ含む全長）
         _vr_high = float(row["High"])
