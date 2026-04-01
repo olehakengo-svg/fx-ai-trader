@@ -3802,6 +3802,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "stoch_trend_pullback", "macdh_reversal",
                 "engulfing_bb", "three_bar_reversal",
                 "trend_rebound",  # 強トレンド時リバウンド
+                "v_reversal",     # V字リバウンドキャプチャ
                 # v1 互換
                 "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
                 "donchian", "reg_channel", "ema_pullback",
@@ -6593,6 +6594,122 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             _tr_conf = int(min(80, 45 + _tr_score * 4))
             candidates.append((_tr_signal, _tr_conf, _tr_sl, _tr_tp,
                                _tr_reasons, "trend_rebound", _tr_score))
+
+    # ════════════════════════════════════════════════════════
+    #  戦略7: V字リバウンドキャプチャ（急落/急騰後の反転検出）
+    #  根拠: Cont (2001) "Empirical properties of asset returns"
+    #        — 極端な価格変動後の平均回帰、FX市場のV字反転パターン
+    #        Jegadeesh & Titman (1993) — 短期反転効果
+    #  条件: 直近N本で大幅下落/上昇 + RSIダイバージェンス + 3指標極端 + 足形確認
+    #  ADX不問（trend_reboundと差別化: あちらはADX≥35限定の逆張り）
+    #  TP: ATR×2.0（V字は大きく反発する）, SL: ATR×0.7（確認後エントリー）
+    # ════════════════════════════════════════════════════════
+    if len(df) >= 20:
+        _vr_signal = None
+        _vr_score = 0.0
+        _vr_reasons = []
+        _vr_tp = 0
+        _vr_sl = 0
+
+        # 直近10本の価格変動（pip）
+        _vr_lookback = min(10, len(df) - 1)
+        _vr_price_10 = float(df["Close"].iloc[-_vr_lookback - 1])
+        _vr_drop = (_vr_price_10 - entry) * 100   # 正=下落幅(pip)
+        _vr_surge = (entry - _vr_price_10) * 100   # 正=上昇幅(pip)
+
+        # RSIダイバージェンス検出（直近5本）
+        _vr_rsi_vals = [float(df.iloc[-j].get("rsi", 50)) for j in range(1, min(6, len(df)))]
+        _vr_price_vals = [float(df["Close"].iloc[-j]) for j in range(1, min(6, len(df)))]
+        _vr_rsi_min_idx = _vr_rsi_vals.index(min(_vr_rsi_vals)) if _vr_rsi_vals else 0
+        _vr_rsi_max_idx = _vr_rsi_vals.index(max(_vr_rsi_vals)) if _vr_rsi_vals else 0
+        _vr_price_min_idx = _vr_price_vals.index(min(_vr_price_vals)) if _vr_price_vals else 0
+        _vr_price_max_idx = _vr_price_vals.index(max(_vr_price_vals)) if _vr_price_vals else 0
+
+        # ── V字底: 急落後のBUYリバウンド ──
+        # 強化条件: 8pip以上の急落 + RSI<25 + BB%B<0.10 + Stoch<15 + 陽線 + Stoch回復必須
+        _prev_stoch_vr = float(df.iloc[-2].get("stoch_k", 50)) if len(df) >= 2 else 50
+        _prev_bbpb_vr = float(df.iloc[-2].get("bb_pctb", 0.5)) if len(df) >= 2 else 0.5
+        _vr_macdh_prev = float(df.iloc[-2].get("macdh", float(df["macd_hist"].iloc[-2]))) if len(df) >= 2 else macdh
+
+        # 陽線/陰線のボディ比率（実体の大きさ / ヒゲ含む全長）
+        _vr_high = float(row["High"])
+        _vr_low = float(row["Low"])
+        _vr_bar_range = _vr_high - _vr_low if _vr_high > _vr_low else 0.001
+        _vr_body_ratio = abs(entry - float(row["Open"])) / _vr_bar_range
+
+        if (_vr_drop >= 8.0                          # 直近10本で8pip以上下落（浅い動き排除）
+                and rsi < 25                          # RSI14 極端売られすぎ
+                and bbpb < 0.10                       # BB下限圏（より厳格）
+                and stoch_k < 15                      # Stoch極端売られすぎ
+                and entry > float(row["Open"])        # 陽線確認（反転兆候）
+                and _vr_body_ratio >= 0.25            # 実体ある陽線（十字線排除）
+                and stoch_k > _prev_stoch_vr          # Stoch回復確認（必須）
+                ):
+            _vr_signal = "BUY"
+            _vr_score = 3.5
+            _vr_reasons.append(f"✅ V字底検出: 直近{_vr_lookback}本で-{_vr_drop:.1f}pip急落 [Cont 2001]")
+            _vr_reasons.append(f"✅ 3指標極端: RSI={rsi:.0f}<25, BB%B={bbpb:.2f}<0.10, Stoch={stoch_k:.0f}<15")
+            _vr_reasons.append(f"✅ 陽線+Stoch回復確認(前={_prev_stoch_vr:.0f}→{stoch_k:.0f})")
+
+            # RSI Bullish Divergence: 価格新安値 vs RSI底上げ（高確信ボーナス）
+            if (_vr_price_min_idx < _vr_rsi_min_idx and len(_vr_rsi_vals) >= 3
+                    and _vr_rsi_vals[0] > min(_vr_rsi_vals)):
+                _vr_score += 1.5
+                _vr_reasons.append(f"✅ RSI Bullish Divergence: 価格新安値 vs RSI底上げ [Jegadeesh 1993]")
+
+            # BB%B回復（前バーより上昇）
+            if bbpb > _prev_bbpb_vr:
+                _vr_score += 0.5
+                _vr_reasons.append(f"✅ BB%B回復({_prev_bbpb_vr:.2f}→{bbpb:.2f})")
+
+            # MACD-Hの反転
+            if macdh > _vr_macdh_prev:
+                _vr_score += 0.5
+                _vr_reasons.append(f"✅ MACD-H反転上昇")
+
+            # TP: ATR×1.5（確実に取る）
+            _vr_tp = entry + atr7 * 1.5
+            # SL: 直近安値 or ATR×0.7
+            _recent_low = float(df["Low"].iloc[-3:].min())
+            _vr_sl = min(entry - atr7 * 0.7, _recent_low - 0.002)
+
+        # ── V字天井: 急騰後のSELLリバウンド ──
+        elif (_vr_surge >= 8.0                        # 直近10本で8pip以上上昇
+                and rsi > 75                          # RSI14 極端買われすぎ
+                and bbpb > 0.90                       # BB上限圏（より厳格）
+                and stoch_k > 85                      # Stoch極端買われすぎ
+                and entry < float(row["Open"])        # 陰線確認（反転兆候）
+                and _vr_body_ratio >= 0.25            # 実体ある陰線（十字線排除）
+                and stoch_k < _prev_stoch_vr          # Stoch反落確認（必須）
+                ):
+            _vr_signal = "SELL"
+            _vr_score = 3.5
+            _vr_reasons.append(f"✅ V字天井検出: 直近{_vr_lookback}本で+{_vr_surge:.1f}pip急騰 [Cont 2001]")
+            _vr_reasons.append(f"✅ 3指標極端: RSI={rsi:.0f}>75, BB%B={bbpb:.2f}>0.90, Stoch={stoch_k:.0f}>85")
+            _vr_reasons.append(f"✅ 陰線+Stoch反落確認(前={_prev_stoch_vr:.0f}→{stoch_k:.0f})")
+
+            # RSI Bearish Divergence
+            if (_vr_price_max_idx < _vr_rsi_max_idx and len(_vr_rsi_vals) >= 3
+                    and _vr_rsi_vals[0] < max(_vr_rsi_vals)):
+                _vr_score += 1.5
+                _vr_reasons.append(f"✅ RSI Bearish Divergence: 価格新高値 vs RSI天井下げ")
+
+            if bbpb < _prev_bbpb_vr:
+                _vr_score += 0.5
+                _vr_reasons.append(f"✅ BB%B反落({_prev_bbpb_vr:.2f}→{bbpb:.2f})")
+
+            if macdh < _vr_macdh_prev:
+                _vr_score += 0.5
+                _vr_reasons.append(f"✅ MACD-H反転下落")
+
+            _vr_tp = entry - atr7 * 1.5
+            _recent_high = float(df["High"].iloc[-3:].max())
+            _vr_sl = max(entry + atr7 * 0.7, _recent_high + 0.002)
+
+        if _vr_signal:
+            _vr_conf = int(min(85, 50 + _vr_score * 5))
+            candidates.append((_vr_signal, _vr_conf, _vr_sl, _vr_tp,
+                               _vr_reasons, "v_reversal", _vr_score))
 
     # ──────────────────────────────────────────────────────────
     #  最良候補の選択: スコア最大の戦略を採用
