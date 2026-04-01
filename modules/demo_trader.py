@@ -285,12 +285,19 @@ class DemoTrader:
         """独立ウォッチドッグ: 30秒毎にモード生存確認・自動復旧"""
         print("[Watchdog] Independent watchdog thread started")
         time.sleep(30)  # 初回は30秒待機（auto_start完了を待つ）
+        _check_count = 0
         while True:
             try:
+                _check_count += 1
                 restored = []
-                for m in list(self._started_modes):
+
+                # 全4モードを強制チェック（_started_modesに依存しない）
+                _all_modes = ["scalp", "daytrade", "daytrade_1h", "swing"]
+                for m in _all_modes:
                     if m in self._user_stopped_modes:
                         continue  # ユーザーが明示的に停止したモードはスキップ
+                    if m not in self._started_modes:
+                        continue  # 一度もstart()されていないモードはスキップ
                     runner = self._runners.get(m)
                     if runner is None or not runner.get("running", False):
                         print(f"[Watchdog] {m} found stopped — auto-restarting")
@@ -301,11 +308,13 @@ class DemoTrader:
                 if self._started_modes and not (self._health_thread and self._health_thread.is_alive()):
                     print("[Watchdog] MainLoop thread dead — restarting")
                     self._ensure_main_loop()
+                    restored.append("MainLoop")
 
                 # SL/TPチェッカーが死んでいたら再起動
                 if self._started_modes and not (self._sltp_thread and self._sltp_thread.is_alive()):
                     print("[Watchdog] SLTP thread dead — restarting")
                     self._ensure_sltp_checker()
+                    restored.append("SLTP")
 
                 if restored:
                     try:
@@ -313,6 +322,17 @@ class DemoTrader:
                         self._add_log(f"🔄 ウォッチドッグ自動復旧: {', '.join(labels)}")
                     except Exception:
                         pass
+
+                # 10回毎（5分毎）にヘルスビート出力
+                if _check_count % 10 == 0:
+                    _running = [m for m in _all_modes
+                                if self._runners.get(m, {}).get("running", False)]
+                    _stopped = [m for m in _all_modes
+                                if m in self._started_modes and not self._runners.get(m, {}).get("running", False)]
+                    _ml = "alive" if (self._health_thread and self._health_thread.is_alive()) else "DEAD"
+                    print(f"[Watchdog/HB] #{_check_count} running={_running} stopped={_stopped} "
+                          f"started={list(self._started_modes)} user_stopped={list(self._user_stopped_modes)} "
+                          f"mainloop={_ml}")
             except Exception as e:
                 print(f"[Watchdog] Error: {e}")
                 import traceback; traceback.print_exc()
@@ -431,6 +451,8 @@ class DemoTrader:
                 cfg = MODE_CONFIG.get(mode, {})
 
                 result = self._db.close_trade(trade_id, price, close_reason)
+                if "error" in result:
+                    continue  # 別スレッドで既にクローズ済み → スキップ
                 pnl = result.get("pnl_pips", 0)
                 outcome = result.get("outcome", "?")
                 icon = "✅" if outcome == "WIN" else "❌"
@@ -687,10 +709,18 @@ class DemoTrader:
         if confidence < self._params["confidence_threshold"]:
             return
 
-        # ── 重複エントリー防止（同価格帯の重複のみブロック）──
+        # ── 重複エントリー防止 ──
+        # (A) 同価格帯ブロック（3pip以内）
         for t in mode_trades:
             if abs(t["entry_price"] - current_price) < 0.03:  # 3pips以内
                 return
+        # (B) 同方向ポジション上限（モード別）
+        #     scalp: 上限2, DT: 上限3, DT1h: 上限2, swing: 上限2
+        _dir_limits = {"scalp": 2, "daytrade": 3, "daytrade_1h": 2, "swing": 2}
+        _max_same_dir = _dir_limits.get(mode, 2)
+        _same_dir_count = sum(1 for t in mode_trades if t.get("direction") == signal)
+        if _same_dir_count >= _max_same_dir:
+            return
 
         # ══════════════════════════════════════════════════════════════
         # ── エントリー理由の品質ゲート ──
@@ -892,6 +922,8 @@ class DemoTrader:
 
         if close_reason:
             result = self._db.close_trade(trade_id, current_price, close_reason)
+            if "error" in result:
+                return  # 別スレッドで既にクローズ済み → スキップ
             pnl = result.get("pnl_pips", 0)
             outcome = result.get("outcome", "?")
             icon = "✅" if outcome == "WIN" else "❌"

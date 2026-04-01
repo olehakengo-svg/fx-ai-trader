@@ -201,14 +201,19 @@ class DemoDB:
                 else:
                     outcome = "BREAKEVEN"
 
-                conn.execute("""
+                # Atomic: UPDATE only if still OPEN (race condition防止)
+                cursor = conn.execute("""
                     UPDATE demo_trades SET
                         status='CLOSED', exit_price=?, exit_time=?,
                         pnl_pips=?, pnl_r=?, outcome=?, close_reason=?
-                    WHERE trade_id=?
+                    WHERE trade_id=? AND status='OPEN'
                 """, (exit_price, now_str, pnl_pips, pnl_r, outcome,
                       close_reason, trade_id))
                 conn.commit()
+
+                if cursor.rowcount == 0:
+                    # 別スレッドが先にクローズ済み
+                    return {"error": "Trade already closed by another thread"}
 
         return {
             "trade_id": trade_id, "outcome": outcome,

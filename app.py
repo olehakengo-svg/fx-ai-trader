@@ -3023,6 +3023,27 @@ def compute_swing_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     else:
         score -= 0.8; reasons.append(f"↘ EMA200下位（スロープ弱）")
 
+    # ①b Faber (2007) + Moskowitz TSMOM — 暴落時のハードフィルター
+    # 条件: 価格<EMA21 AND EMA21下降 AND 直近3日下落 → BUY完全ブロック
+    ema21_slope = ema21 - float(df["ema21"].iloc[-min(5, len(df)-1)])
+    _dist_below_ema21 = (ema21 - entry) / max(atr, 1e-6)
+    _ema21_falling = ema21_slope < -atr * 0.05
+    _sw_buy_blocked = False  # BUYブロックフラグ
+
+    _short_ret = 0.0
+    if len(df) >= 16:
+        _short_ret = (entry - float(df["Close"].iloc[-16])) / float(df["Close"].iloc[-16])
+
+    # 条件A: 価格がEMA21下 + EMA21下降中 + 直近下落
+    if _dist_below_ema21 > 0.3 and _ema21_falling and _short_ret < -0.003:
+        _sw_buy_blocked = True
+        reasons.append(f"🛡️ Faber+TSMOM: EMA21下{_dist_below_ema21:.1f}ATR+下降+短期{_short_ret*100:.1f}% → BUY禁止")
+
+    # 条件B: EMA21 < EMA50 かつ価格がEMA50を大幅に下回る(>1ATR) → 中期反転確定
+    if entry < ema50 and ema21 < ema50 and (ema50 - entry) > atr * 1.0:
+        _sw_buy_blocked = True
+        reasons.append(f"🛡️ 中期反転: 価格EMA50下{(ema50-entry)/atr:.1f}ATR+EMA21<50 → BUY禁止")
+
     # ② 12-1ヶ月モメンタム (Menkhoff et al. 2012)
     if len(df) >= 240:  # 約1年分（1h足なら多め）
         mom_close = float(df["Close"].iloc[-min(240,len(df)-22)])
@@ -3132,6 +3153,11 @@ def compute_swing_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     if   score >  THRESHOLD: signal, conf = "BUY",  int(min(92, 50 + score * 6))
     elif score < -THRESHOLD: signal, conf = "SELL", int(min(92, 50 + abs(score) * 6))
     else:                    signal, conf = "WAIT", int(max(20, 50 - abs(score) * 12))
+
+    # Faber+TSMOM ハードブロック: 下降局面でのBUYを強制WAIT
+    if _sw_buy_blocked and signal == "BUY":
+        signal, conf = "WAIT", 30
+        reasons.append("⛔ BUYブロック適用（Faber/TSMOMフィルタ）")
 
     # SL/TP (ATR*1.0/ATR*2.5: RR=1:2.5でブレイクイーブンWR=29%)
     SL_MULT, TP_MULT = 1.0, 2.5
