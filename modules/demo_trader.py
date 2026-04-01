@@ -33,14 +33,16 @@ MODE_CONFIG = {
         "label": "スキャルピング",
         "icon": "⚡",
     },
-    "swing": {
-        "interval_sec": 300,      # 5分ごとにチェック（スイングは低頻度）
-        "tf": "4h",
-        "period": "60d",
-        "signal_fn": "compute_swing_signal",
-        "label": "スイング",
-        "icon": "🌊",
-    },
+    # "swing": DISABLED — BT WR=36.7% EV=+0.154 WF=2/3, 本番0トレード
+    # 他3モード(scalp/DT/1H)の平均WR=59.4%に対し足を引っ張るため無効化
+    # "swing": {
+    #     "interval_sec": 300,
+    #     "tf": "4h",
+    #     "period": "60d",
+    #     "signal_fn": "compute_swing_signal",
+    #     "label": "スイング",
+    #     "icon": "🌊",
+    # },
     "daytrade_1h": {
         "interval_sec": 60,       # 1分ごとにチェック（1h足の補完DT）
         "tf": "1h",
