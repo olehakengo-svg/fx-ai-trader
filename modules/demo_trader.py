@@ -178,8 +178,8 @@ class DemoTrader:
 
     def get_status(self) -> dict:
         # ── Self-healing FIRST: ステータス計算前に死んだスレッドを自動復旧 ──
+        _healed = []
         if self._started_modes:
-            _healed = []
             if not (self._health_thread and self._health_thread.is_alive()):
                 print("[StatusHeal] MainLoop dead — restarting", flush=True)
                 self._ensure_main_loop()
@@ -197,13 +197,18 @@ class DemoTrader:
                 if m not in self._user_stopped_modes:
                     runner = self._runners.get(m)
                     if runner is None or not runner.get("running", False):
+                        print(f"[StatusHeal] Mode {m} not running (runner={runner}) — restarting", flush=True)
                         self._runners[m] = {"running": True, "thread": None}
                         _healed.append(m)
             if _healed:
+                print(f"[StatusHeal] Healed: {_healed} | started={list(self._started_modes)} "
+                      f"user_stopped={list(self._user_stopped_modes)}", flush=True)
                 try:
                     self._add_log(f"🔄 StatusHeal自動復旧: {', '.join(_healed)}")
                 except Exception:
                     pass
+        else:
+            print(f"[StatusHeal] No started_modes! Runners={list(self._runners.keys())}", flush=True)
 
         # ── ステータス計算（self-healing後の最新状態を反映） ──
         open_trades = self._db.get_open_trades()
@@ -257,6 +262,8 @@ class DemoTrader:
             "watchdog_alive": bool(self._watchdog_thread and self._watchdog_thread.is_alive()),
             "tick_counts": getattr(self, '_tick_counts', None),
             "main_loop_restarts": getattr(self, '_main_loop_restart_count', 0),
+            "_started_modes": list(self._started_modes),
+            "_user_stopped_modes": list(self._user_stopped_modes),
         }
 
     def request_tick(self):
