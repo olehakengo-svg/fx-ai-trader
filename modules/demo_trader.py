@@ -221,6 +221,10 @@ class DemoTrader:
             "daily_review_active": self._daily_review.is_running(),
             "sltp_checker_active": self._sltp_running,
             "mtf_bias": _bias_info,
+            "main_loop_alive": bool(self._health_thread and self._health_thread.is_alive()),
+            "main_loop_status": getattr(self, '_main_loop_status', 'unknown'),
+            "main_loop_error": getattr(self, '_main_loop_error', None),
+            "watchdog_alive": bool(self._watchdog_thread and self._watchdog_thread.is_alive()),
         }
 
     def get_all_logs(self) -> list:
@@ -571,7 +575,11 @@ class DemoTrader:
         _consecutive_errors = {}  # mode -> error count
         import gc
 
-        while True:
+        self._main_loop_status = "running"
+        self._main_loop_error = None
+
+        try:
+          while True:
             if not self._started_modes:
                 # まだモード未登録の場合は待機
                 time.sleep(2)
@@ -641,6 +649,17 @@ class DemoTrader:
                 import traceback; traceback.print_exc()
 
             time.sleep(2)  # メインループの最小間隔
+
+        except BaseException as fatal:
+          # SystemExit, KeyboardInterrupt等も含む全致命的エラーをキャッチ
+          self._main_loop_status = "DEAD"
+          self._main_loop_error = f"{type(fatal).__name__}: {fatal}"
+          print(f"[MainLoop] FATAL: {type(fatal).__name__}: {fatal}")
+          import traceback; traceback.print_exc()
+          try:
+              self._add_log(f"💀 メインループ致命的エラー: {type(fatal).__name__}: {fatal}")
+          except Exception:
+              pass
 
     def _check_drawdown(self) -> bool:
         """日次損失・最大DD制限チェック。制限到達ならTrue（トレード禁止）"""
