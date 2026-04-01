@@ -80,7 +80,7 @@ class DemoTrader:
 
         # チューナブルパラメータ（学習エンジンが調整、全モード共通）
         self._params = {
-            "confidence_threshold": 40,
+            "confidence_threshold": 30,  # デモ: 30%（学習データ蓄積優先、本番は40推奨）
             "max_open_trades": 20,
             "sl_adjust": 1.0,
             "tp_adjust": 1.0,
@@ -270,6 +270,7 @@ class DemoTrader:
             "main_loop_restarts": getattr(self, '_main_loop_restart_count', 0),
             "_started_modes": list(self._started_modes),
             "_user_stopped_modes": list(self._user_stopped_modes),
+            "block_counts": getattr(self, '_block_counts', {}),
         }
 
     def request_tick(self):
@@ -959,28 +960,35 @@ class DemoTrader:
         mode_trades = [t for t in open_trades
                        if t.get("mode") == mode or (not t.get("mode") and t.get("tf") == tf)]
 
+        # ── エントリーフィルター（ブロック理由カウント付き） ──
+        if not hasattr(self, '_block_counts'):
+            self._block_counts = {}
+        def _block(reason):
+            k = f"{mode}:{reason}"
+            self._block_counts[k] = self._block_counts.get(k, 0) + 1
+            return
+
         # 全モード合計ポジション上限
         if len(open_trades) >= self._params["max_open_trades"]:
-            return
+            _block("max_open"); return
         if signal == "WAIT":
-            return
+            return  # WAITはカウントしない（大半がWAIT）
         if self._check_drawdown():
-            return  # 日次損失 or 最大DD制限到達
+            _block("drawdown"); return
         if confidence < self._params["confidence_threshold"]:
-            return
+            _block(f"conf<{self._params['confidence_threshold']}(was:{confidence})"); return
 
         # ── 重複エントリー防止 ──
         # (A) 同価格帯ブロック（3pip以内）
         for t in mode_trades:
-            if abs(t["entry_price"] - current_price) < 0.03:  # 3pips以内
-                return
+            if abs(t["entry_price"] - current_price) < 0.03:
+                _block("same_price_3pip"); return
         # (B) 同方向ポジション上限（モード別）
-        #     scalp: 上限2, DT: 上限3, DT1h: 上限2, swing: 上限2
         _dir_limits = {"scalp": 2, "daytrade": 3, "daytrade_1h": 2, "swing": 2}
         _max_same_dir = _dir_limits.get(mode, 2)
         _same_dir_count = sum(1 for t in mode_trades if t.get("direction") == signal)
         if _same_dir_count >= _max_same_dir:
-            return
+            _block("same_dir_limit"); return
 
         # ══════════════════════════════════════════════════════════════
         # ── エントリー理由の品質ゲート ──
@@ -1007,21 +1015,30 @@ class DemoTrader:
             # スキャルプ v1互換
             "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
             "donchian", "reg_channel", "ema_pullback",
+            # スキャルプ v2.3: リバーサル戦略
+            "sr_channel_reversal",       # SR/並行チャネル反発
+            "fib_reversal",              # フィボナッチリトレースメント反発
+            "mtf_reversal_confluence",   # MTF RSI+MACD一致
             # デイトレ: 構造的なセットアップ
             "dual_sr_bounce",    # 上下SR確認 + バウンス
             "dual_sr_breakout",  # 強いSRブレイクアウト
             "sr_fib_confluence", # SR + フィボナッチ合流
+            "ema_cross",         # EMAクロス (BT 147t WR=72.8%)
+            "dt_fib_reversal",           # DT フィボリバーサル
+            "dt_sr_channel_reversal",    # DT SR/チャネルバウンス
+            "ema200_trend_reversal",     # DT EMA200トレンド転換
             # 1H Zone: 学術論文ベース戦略
             "mtf_momentum",          # Multi-TF Momentum (Moskowitz 2012)
             "session_orb",           # Session ORB (Ito & Hashimoto 2006)
             "pivot_breakout",        # Pivot Breakout (Osler 2000)
             "pivot_reversion",       # Pivot Reversion (Osler 2000 + BB/RSI)
+            "h1_fib_reversal",           # 1H フィボリバーサル
+            "h1_ema200_trend_reversal",  # 1H EMA200トレンド転換
         }
 
         # 弱い理由のエントリータイプ（追加条件が必要）
-        CONDITIONAL_TYPES = {
-            "ema_cross",      # EMAクロスだけでは不十分 → 追加確認必要
-        }
+        # ema_cross: BT 147t WR=72.8% → QUALIFIED に昇格（ADX+EMA整合はapp.py側で制御済み）
+        CONDITIONAL_TYPES = set()
 
         # 完全ブロック（理由なしエントリー）
         BLOCKED_TYPES = {
@@ -1031,39 +1048,37 @@ class DemoTrader:
         }
 
         if entry_type in BLOCKED_TYPES:
-            return  # 理由不明 → エントリー禁止
+            _block(f"blocked_type:{entry_type}"); return
 
         if entry_type in CONDITIONAL_TYPES:
-            # ema_cross: ADX≥20 かつ ✅理由が2つ以上ある場合のみ許可
             sig_adx = sig.get("indicators", {}).get("adx", 0)
             confirmed_count = sum(1 for r in reasons if "✅" in r)
             if not sig_adx or sig_adx < 20:
-                return  # トレンド弱い → ema_crossは信頼性低い
+                _block(f"cond_adx<20:{entry_type}"); return
             if confirmed_count < 2:
-                return  # 確認シグナル不足
+                _block(f"cond_reasons<2:{entry_type}"); return
 
         if entry_type in QUALIFIED_TYPES:
-            # 明確な理由あり → ✅が最低1つあることを確認
             confirmed_count = sum(1 for r in reasons if "✅" in r)
             if confirmed_count < 1:
-                return  # テクニカル確認なし
+                _block(f"no_confirm:{entry_type}"); return
 
         if entry_type not in QUALIFIED_TYPES and entry_type not in CONDITIONAL_TYPES:
-            return  # 未知のタイプ → 安全側でブロック
+            _block(f"unknown_type:{entry_type}"); return
 
         if entry_type in self._params["entry_type_blacklist"]:
-            return
+            _block(f"blacklisted:{entry_type}"); return
 
-        # ── SL後クールダウン: 直近のSL/LOSSと同一価格帯・同方向なら再エントリー禁止 ──
+        # ── SL後クールダウン ──
         last_ex = self._last_exit.get(mode)
         if last_ex:
             _cooldown_sec = {"scalp": 120, "daytrade": 600, "daytrade_1h": 1800, "swing": 7200}.get(mode, 120)
             _ex_age = (datetime.now(timezone.utc) - last_ex["time"]).total_seconds()
             if _ex_age < _cooldown_sec:
                 if last_ex["direction"] == signal:
-                    return
+                    _block(f"cooldown_same_dir({int(_ex_age)}s)"); return
                 if abs(last_ex["price"] - current_price) < 0.05:
-                    return
+                    _block(f"cooldown_same_zone({int(_ex_age)}s)"); return
 
         # ── 時間帯×モード別フィルター ──
         # アジア(00-07): レンジ → DT禁止（スキャルプのみ）
@@ -1076,10 +1091,10 @@ class DemoTrader:
             # モード別時間帯制限
             if mode == "daytrade":
                 if hour_now < 7 or hour_now >= 21:
-                    return  # DT: アジア・クローズ帯禁止
+                    _block(f"session_block(h={hour_now})"); return
             elif mode == "daytrade_1h":
                 if hour_now < 3 or hour_now >= 22:
-                    return  # 1H: 深夜・クローズ帯禁止
+                    _block(f"session_block(h={hour_now})"); return
             # scalp/swingは時間帯制限なし（デモモード: データ蓄積優先）
         except Exception:
             pass
@@ -1088,7 +1103,7 @@ class DemoTrader:
         max_cl = self._params.get("max_consecutive_losses", 3)
         mode_cl = self._consec_losses.get(mode, {})
         if mode_cl.get(signal, 0) >= max_cl:
-            return
+            _block(f"consec_loss({mode_cl.get(signal,0)})"); return
 
         # ══════════════════════════════════════════════════════════════
         # ── リバウンド対策①②③: デモモードでは無効化 ──
