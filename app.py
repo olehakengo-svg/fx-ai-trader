@@ -3044,6 +3044,7 @@ def compute_swing_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         _sw_buy_blocked = True
         reasons.append(f"🛡️ 中期反転: 価格EMA50下{(ema50-entry)/atr:.1f}ATR+EMA21<50 → BUY禁止")
 
+
     # ② 12-1ヶ月モメンタム (Menkhoff et al. 2012)
     if len(df) >= 240:  # 約1年分（1h足なら多め）
         mom_close = float(df["Close"].iloc[-min(240,len(df)-22)])
