@@ -103,6 +103,15 @@ class DemoTrader:
         self._total_losses_window = []  # [(timestamp, mode, pips)] 直近の全損失記録
         self._price_history = []        # [(timestamp, price)] 価格推移記録（ベロシティ計算用）
         self._trade_high_water = {}     # trade_id -> max favorable price（BE/トレーリング用）
+        # ── MTF連携: 15m DT → 1m Scalp 戦略バイアス ──
+        self._15m_tactical_bias = {
+            "direction": None,       # "BUY" | "SELL" | None
+            "entry_type": None,      # "hs_neckbreak", "ihs_neckbreak", etc.
+            "confidence": 0,
+            "updated_at": None,      # datetime
+            "signal_price": 0,       # シグナル発生時の価格
+            "strength": None,        # "strong" | "trend" | None
+        }
         # 起動済みモード追跡（ヘルスチェッカー用）
         self._started_modes = set()
         self._user_stopped_modes = set()  # 明示的にstop()されたモード（ウォッチドッグ対象外）
@@ -188,6 +197,19 @@ class DemoTrader:
         except Exception:
             log_count = 0
 
+        # MTFバイアス情報
+        _bias = self._15m_tactical_bias
+        _bias_info = None
+        if _bias["direction"] and _bias["updated_at"]:
+            _age = (datetime.now(timezone.utc) - _bias["updated_at"]).total_seconds()
+            _bias_info = {
+                "direction": _bias["direction"],
+                "entry_type": _bias["entry_type"],
+                "strength": _bias.get("strength", ""),
+                "age_sec": int(_age),
+                "active": _age < 3600,
+            }
+
         return {
             "running": self.is_running(),
             "modes": modes_status,
@@ -198,6 +220,7 @@ class DemoTrader:
             "trades_since_learn": self._trade_count_since_learn,
             "daily_review_active": self._daily_review.is_running(),
             "sltp_checker_active": self._sltp_running,
+            "mtf_bias": _bias_info,
         }
 
     def get_all_logs(self) -> list:
@@ -732,6 +755,28 @@ class DemoTrader:
         current_price = sig.get("entry", 0)
         signal = sig.get("signal", "WAIT")
 
+        # ══════════════════════════════════════════════════════════════
+        # ── MTF連携: 15m DT シグナル → 1m Scalp バイアス更新 ──
+        # DT/DT1hの構造的パターン（三尊/逆三尊/SR等）を記録し、
+        # スキャルプが順方向エントリーを強化 / 逆方向を抑制する
+        # ══════════════════════════════════════════════════════════════
+        if mode in ("daytrade", "daytrade_1h") and signal != "WAIT":
+            _dt_etype = sig.get("entry_type", "")
+            # 構造的パターン（強いバイアス）とトレンドシグナル（軽いバイアス）
+            _strong_patterns = {"hs_neckbreak", "ihs_neckbreak", "dual_sr_bounce",
+                                "dual_sr_breakout", "sr_fib_confluence"}
+            _trend_patterns = {"ema_cross", "mtf_momentum", "pivot_breakout"}
+            if _dt_etype in _strong_patterns or _dt_etype in _trend_patterns:
+                _bias_strength = "strong" if _dt_etype in _strong_patterns else "trend"
+                self._15m_tactical_bias = {
+                    "direction": signal,
+                    "entry_type": _dt_etype,
+                    "confidence": sig.get("confidence", 0),
+                    "updated_at": datetime.now(timezone.utc),
+                    "signal_price": current_price,
+                    "strength": _bias_strength,
+                }
+
         # ── 価格ヒストリー記録（ベロシティ計算用）──
         _now_rec = datetime.now(timezone.utc)
         self._price_history.append((_now_rec, current_price))
@@ -944,13 +989,56 @@ class DemoTrader:
                 return
 
         # ══════════════════════════════════════════════════════════════
+        # ── MTF連携: 15m DT バイアスによるスキャルプ戦略変更 ──
+        # 15mで三尊/逆三尊/SR構造を検出 → 1mスキャルプの方向をバイアス
+        # strong: 逆方向ブロック + 順方向TP拡大
+        # trend:  逆方向confidence減衰
+        # ══════════════════════════════════════════════════════════════
+        _mtf_tp_bonus = 1.0  # TP倍率（順方向時に拡大）
+        if mode == "scalp" and self._15m_tactical_bias["direction"]:
+            _bias = self._15m_tactical_bias
+            _bias_age = (datetime.now(timezone.utc) - _bias["updated_at"]).total_seconds() if _bias["updated_at"] else 99999
+            _bias_valid = _bias_age < 3600  # 1時間以内のバイアスのみ有効
+
+            if _bias_valid:
+                _bias_dir = _bias["direction"]
+                _bias_strength = _bias.get("strength", "trend")
+                _bias_etype = _bias.get("entry_type", "")
+
+                if _bias_strength == "strong":
+                    # 強い構造的パターン（三尊/逆三尊/SR等）
+                    if signal != _bias_dir:
+                        # 逆方向エントリーをブロック（trend_rebound除外）
+                        if entry_type != "trend_rebound":
+                            return  # 15m構造パターンと逆行 → ブロック
+                    else:
+                        # 順方向: TPを1.3倍に拡大（大きな動きが期待できる）
+                        _mtf_tp_bonus = 1.3
+
+                elif _bias_strength == "trend":
+                    # トレンドシグナル（ema_cross等）
+                    if signal != _bias_dir:
+                        # 逆方向: confidence を20%減衰
+                        confidence = int(confidence * 0.8)
+                        if confidence < self._params["confidence_threshold"]:
+                            return  # 閾値未満に落ちた → ブロック
+
+        # ══════════════════════════════════════════════════════════════
         # ── TP固定 / SLエントリーから逆算 ──
         # TPは技術的ターゲット（SR/Fib/BB等）で固定。
         # SLはエントリー価格からRR比で逆算（TPが遠ければSLも余裕あり）。
         # ══════════════════════════════════════════════════════════════
         tp = sig.get("tp", 0)  # シグナル関数が算出した技術的ターゲット（固定）
 
-        tp_dist = abs(tp - current_price)
+        tp_dist = abs(tp - current_price) * _mtf_tp_bonus  # MTF順方向時にTP拡大
+        if tp_dist <= 0:
+            return  # TPが無効（0または現在価格と同一）→ エントリー見送り
+        if _mtf_tp_bonus > 1.0:
+            # TP価格を再計算
+            if signal == "BUY":
+                tp = current_price + tp_dist
+            else:
+                tp = current_price - tp_dist
         # 最小RR比: リスクに対してリワードが十分あることを保証
         MIN_RR = {"scalp": 1.5, "daytrade": 1.8, "swing": 2.0}.get(mode, 1.5)
         # SL = エントリーからTP距離 / RR比
