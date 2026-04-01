@@ -35,38 +35,44 @@
 - スキャルプ + デイトレで達成
 - スプレッド: 0.2 pip
 
-## BT Performance (as of 2026-03-31, Scalp v2.2 + DT optimized + 1H Zone v2)
-- **Combined: 92.7 ATR/day（目標80-120 達成）**
-- Scalp: 1569t WR=63.5% EV=+0.359 WF=3/3✅ (7d, 1m) — 6戦略アクティブ
-- Daytrade 15m: 149t WR=72.5% EV=+0.597 WF=3/3✅ (7d, 15m)
-- Daytrade 1h(Zone): 158t WR=43.7% EV=+0.151 WF=3/3✅ (30d, 1h) — 39.5 pip/day
+## BT Performance (as of 2026-04-01, Scalp v2.3 + DT v2 + 1H Zone v3)
+- Scalp: 1667t WR=63.2% EV=+0.325 WF=3/3✅ (7d, 1m) — 8戦略アクティブ
+- Daytrade 15m: 169t WR=75.7% EV=+0.562 WF=3/3✅ (7d, 15m) — 6戦略
+- Daytrade 1h(Zone): 148t WR=41.9% EV=+0.191 WF=3/3✅ (30d, 1h)
 - Swing: 346t WR=36.7% EV=+0.154 WF=2/3✅ (730d, 1d)
 
-## Scalp v2.2 Strategy Breakdown (7d BT)
-- **bb_rsi_reversion**: 1077t WR=64.4% EV=+0.381 PnL=410.8p — BB%B≤0.25/≥0.75, RSI<45/>55, Stoch<45/>55
-- **macdh_reversal**: 239t WR=61.1% EV=+0.336 PnL=80.2p — BB<0.25/>0.75, MACD-H方向転換
-- **engulfing_bb**: 124t WR=60.5% EV=+0.192 PnL=23.8p — 包み足 at BB<0.30/>0.70
-- **stoch_trend_pullback**: 107t WR=65.4% EV=+0.486 PnL=52.0p — ADX≥20, Stoch押し目回復
-- **trend_rebound**: 5t WR=80.0% EV=+0.696 PnL=3.5p — ADX≥35, Stoch<12/>88, RSI<28/>72, BB<0.12/>0.88, 陽陰線確認
-- **three_bar_reversal**: 4t — 低頻度
-- **DISABLED**: rsi_divergence_sr (EV-0.607, ATR TPでも改善せず)
+## Scalp v2.3 Strategy Breakdown (7d BT)
+- **bb_rsi_reversion**: 855t WR=62.9% EV=+0.331 — BB%B≤0.25/≥0.75, RSI<45/>55, Stoch<45/>55
+- **fib_reversal**: 216t WR=65.7% EV=+0.422 — フィボ38.2%/50%/61.8%反発, RSI+MACD+Stoch確認
+- **sr_channel_reversal**: 197t WR=63.5% EV=+0.281 — SR/並行チャネルバウンス, RSI+Stoch+MACD
+- **macdh_reversal**: 193t WR=63.7% EV=+0.341 — BB<0.25/>0.75, MACD-H方向転換
+- **engulfing_bb**: 106t WR=59.4% EV=+0.169 — 包み足 at BB<0.30/>0.70
+- **stoch_trend_pullback**: 92t WR=62.0% EV=+0.296 — ADX≥20, Stoch押し目回復
+- **trend_rebound**: 7t WR=71.4% EV=+0.546 — ADX≥35, 極端逆転
+- **mtf_reversal_confluence**: ライブ専用（HTFキャッシュBT非対応）— RSI+MACD多時間軸一致
+- **DISABLED**: rsi_divergence_sr (EV-0.607)
 - **MAX_HOLD=40バー**, COOLDOWN=1, MIN_RR=1.2, ATR TP (Tier1:×2.0, Tier2:×1.5)
 
-## DT Strategy Breakdown (7d BT)
-- **sr_fib_confluence**: 31t WR=90.3% EV=+1.197 PnL=37.1p
-- **ema_cross**: 105t WR=67.6% EV=+0.406 PnL=42.6p (ADX≥12)
-- **dual_sr_bounce**: 12t WR=66.7% EV=+0.663 PnL=8.0p
+## DT v2 Strategy Breakdown (7d BT)
+- **ema_cross**: 126t WR=76.2% EV=+0.575 (ADX≥12)
+- **sr_fib_confluence**: 42t WR=76.2% EV=+0.566
+- **dual_sr_bounce**: 1t — 低頻度
+- **dt_fib_reversal**: フォールバック — フィボ38.2%/50%/61.8%反発
+- **dt_sr_channel_reversal**: フォールバック — SR/チャネルバウンス
+- **ema200_trend_reversal**: フォールバック — EMA200ブレイクリテスト
 - ema_score THRESHOLD=0.20, ATR TP floor=×1.5, MAX_HOLD=24バー, ADX≥12
 
-## 1H Zone Strategy v2 (学術論文ベース)
+## 1H Zone Strategy v3 (学術論文ベース + リバーサル拡張)
 - **コンセプト**: 前日のPivot Point (H+L+C)/3 を境にBuy Zone / Sell Zoneを定義
 - **ゾーン更新**: 毎日UTC 00:00に前日OHLCから再計算
-- **2戦略アクティブ** (4戦略中):
-  - **mtf_momentum**: EMA9>21>50 + プルバック反発 (Moskowitz 2012 JFE) → 111t WR=45.0% ATR=19.2
-  - **pivot_breakout**: R1/S1突破 + EMA整合 (Osler 2000 NY Fed) → 47t WR=40.4% ATR=4.7
-- **DISABLED**: session_orb (WR=36.6% → ATR EVドラッグ), pivot_reversion (WR=30%)
+- **4戦略アクティブ** (6戦略中):
+  - **mtf_momentum**: 95t WR=43.2% EV=+0.212 — EMA9>21>50 + プルバック反発 (Moskowitz 2012)
+  - **pivot_breakout**: 47t WR=38.3% EV=+0.132 — R1/S1突破 + EMA整合 (Osler 2000)
+  - **h1_fib_reversal**: 4t WR=50% EV=+0.309 — フィボ120バー反発, MACD+RSI, SL=0.8ATR
+  - **h1_ema200_trend_reversal**: 2t WR=50% EV=+0.350 — EMA200クロスリテスト, ADX≥15
+- **DISABLED**: session_orb (WR=36.6%), pivot_reversion (WR=30%)
 - **MAX_HOLD**: 18バー（18時間、TP到達時間確保）
-- **BT(30d)**: 158t WR=43.7% EV=+0.151 WF=3/3✅ (39.5 pip/day raw)
+- **BT(30d)**: 148t WR=41.9% EV=+0.191 WF=3/3✅
 - **用途**: スキャルプ/DT補完、異なるタイムフレームでの分散
 
 ## Key Parameters
@@ -120,3 +126,8 @@
 - **リバウンド対策②**: 価格ベロシティフィルター — 直近10分で+8pip以上の急動方向に逆行するエントリーをブロック [Cont 2001]
 - **リバウンド対策③**: ADXレジーム逆行ブロック — ADX≥35の強トレンド中にトレンド逆行エントリーを抑制(trend_rebound除く)
 - **リバウンド対策④**: ブレイクイーブン+トレーリングストップ — 60%TP到達でSLをBE+0.5pip、80%TP到達でSLをTP50%地点に移動
+- **Scalp v2.3リバーサル追加**: sr_channel_reversal(SR/チャネル反発), fib_reversal(フィボ反発), mtf_reversal_confluence(MTF RSI+MACD一致)
+- **DT v2リバーサル追加**: dt_fib_reversal, dt_sr_channel_reversal, ema200_trend_reversal（フォールバック戦略）
+- **1H Zone v3**: h1_fib_reversal(フィボ120バー反発, EMA必須→ボーナス), h1_ema200_trend_reversal(EMA200リテスト, ADX≥15)
+- **スレッド自己回復強化**: get_status()でMainLoop/Watchdog/SLTP/全モードを自動復旧、BaseException catch、request_tick fallback
+- **Gunicorn gthread**: --worker-class gthread + timeout 300s（スレッド安定化）
