@@ -9281,6 +9281,21 @@ TRADE_RULES = {
 }
 
 
+@app.route("/healthz")
+def healthz():
+    """Renderヘルスチェック用 — スレッド生存確認 + 自動復旧トリガー"""
+    try:
+        status = _demo_trader.get_status()  # self-healing内蔵
+        return jsonify({
+            "status": "ok",
+            "main_loop": status.get("main_loop_alive"),
+            "watchdog": status.get("watchdog_alive"),
+            "sltp": status.get("sltp_checker_active"),
+            "tick_counts": status.get("tick_counts"),
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "error": str(e)}), 500
+
 @app.route("/api/demo/status")
 def api_demo_status():
     try:
@@ -9471,30 +9486,38 @@ def _auto_start_trader():
     """サーバー起動時に全モード自動起動（Render再起動対策）"""
     global _auto_start_done
     if _auto_start_done:
-        print("[AutoStart] Already executed — skipping duplicate")
+        print("[AutoStart] Already executed — skipping duplicate", flush=True)
         return
     _auto_start_done = True
 
     import time as _time
+    print(f"[AutoStart] Waiting 10s for initialization... (PID={os.getpid()})", flush=True)
     _time.sleep(10)  # Gunicorn/Flask完全初期化を待つ
     _all_modes = ["scalp", "daytrade", "daytrade_1h", "swing"]
     for _mode in _all_modes:
         try:
             result = _demo_trader.start(mode=_mode)
-            print(f"[AutoStart] {_mode} → {result.get('status', 'unknown')}")
-            _time.sleep(5)  # モード間で間隔を空ける（メモリ負荷分散）
+            print(f"[AutoStart] {_mode} → {result.get('status', 'unknown')}", flush=True)
+            _time.sleep(3)  # モード間で間隔を空ける
         except Exception as _e:
-            print(f"[AutoStart] {_mode} failed: {_e}")
+            print(f"[AutoStart] {_mode} failed: {_e}", flush=True)
+            import traceback; traceback.print_exc()
 
-    # 起動確認: 30秒後に全モードの状態を検証
-    _time.sleep(30)
+    # 起動確認: 15秒後に全スレッドの状態を検証
+    _time.sleep(15)
+    _status = _demo_trader.get_status()
+    print(f"[AutoStart/Verify] main_loop={_status.get('main_loop_alive')} "
+          f"main_status={_status.get('main_loop_status')} "
+          f"watchdog={_status.get('watchdog_alive')} "
+          f"sltp={_status.get('sltp_checker_active')} "
+          f"ticks={_status.get('tick_counts')}", flush=True)
     for _mode in _all_modes:
         try:
             if not _demo_trader.is_running(mode=_mode):
-                print(f"[AutoStart/Verify] {_mode} not running — force restarting")
+                print(f"[AutoStart/Verify] {_mode} not running — force restarting", flush=True)
                 _demo_trader.start(mode=_mode)
         except Exception as _e:
-            print(f"[AutoStart/Verify] {_mode} check failed: {_e}")
+            print(f"[AutoStart/Verify] {_mode} check failed: {_e}", flush=True)
 
 # Render/Gunicorn環境では __name__ != "__main__" なので、
 # モジュール読み込み時に自動起動スレッドを開始

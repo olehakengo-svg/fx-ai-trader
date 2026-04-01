@@ -211,6 +211,34 @@ class DemoTrader:
                 "active": _age < 3600,
             }
 
+        # ── Self-healing: ステータス確認時に死んだスレッドを自動復旧 ──
+        if self._started_modes:
+            _healed = []
+            if not (self._health_thread and self._health_thread.is_alive()):
+                print("[StatusHeal] MainLoop dead — restarting", flush=True)
+                self._ensure_main_loop()
+                _healed.append("MainLoop")
+            if not (self._watchdog_thread and self._watchdog_thread.is_alive()):
+                print("[StatusHeal] Watchdog dead — restarting", flush=True)
+                self._ensure_watchdog()
+                _healed.append("Watchdog")
+            if not (self._sltp_thread and self._sltp_thread.is_alive()):
+                print("[StatusHeal] SLTP dead — restarting", flush=True)
+                self._ensure_sltp_checker()
+                _healed.append("SLTP")
+            # running=Falseになったモードも復旧
+            for m in list(self._started_modes):
+                if m not in self._user_stopped_modes:
+                    runner = self._runners.get(m)
+                    if runner is None or not runner.get("running", False):
+                        self._runners[m] = {"running": True, "thread": None}
+                        _healed.append(m)
+            if _healed:
+                try:
+                    self._add_log(f"🔄 StatusHeal自動復旧: {', '.join(_healed)}")
+                except Exception:
+                    pass
+
         return {
             "running": self.is_running(),
             "modes": modes_status,
@@ -226,6 +254,7 @@ class DemoTrader:
             "main_loop_status": getattr(self, '_main_loop_status', 'unknown'),
             "main_loop_error": getattr(self, '_main_loop_error', None),
             "watchdog_alive": bool(self._watchdog_thread and self._watchdog_thread.is_alive()),
+            "tick_counts": getattr(self, '_tick_counts', None),
         }
 
     def get_all_logs(self) -> list:
@@ -283,15 +312,16 @@ class DemoTrader:
     # シグナル計算とは独立して、リアルタイム価格で2秒ごとにSL/TPチェック
 
     def _ensure_sltp_checker(self):
-        """SL/TPリアルタイムチェッカーを起動（未起動の場合のみ）"""
-        if self._sltp_running:
-            return
+        """SL/TPリアルタイムチェッカーを起動（未起動またはスレッド死亡時に再起動）"""
+        if self._sltp_thread and self._sltp_thread.is_alive():
+            return  # スレッドが生きていれば何もしない
         self._sltp_running = True
         self._sltp_thread = threading.Thread(
             target=self._sltp_loop, daemon=True,
             name="DemoTrader-SLTP-Checker"
         )
         self._sltp_thread.start()
+        print(f"[EnsureSLTP] Thread started: {self._sltp_thread.is_alive()}", flush=True)
 
     def _ensure_main_loop(self):
         """メインループスレッドを起動（未起動の場合のみ）"""
@@ -320,9 +350,10 @@ class DemoTrader:
 
     def _watchdog_loop(self):
         """独立ウォッチドッグ: 30秒毎にモード生存確認・自動復旧"""
-        print("[Watchdog] Independent watchdog thread started")
+        print("[Watchdog] Independent watchdog thread started", flush=True)
         time.sleep(30)  # 初回は30秒待機（auto_start完了を待つ）
         _check_count = 0
+        _restart_count = 0  # 自身のリスタート回数
         while True:
             try:
                 _check_count += 1
@@ -337,19 +368,19 @@ class DemoTrader:
                         continue  # 一度もstart()されていないモードはスキップ
                     runner = self._runners.get(m)
                     if runner is None or not runner.get("running", False):
-                        print(f"[Watchdog] {m} found stopped — auto-restarting")
+                        print(f"[Watchdog] {m} found stopped — auto-restarting", flush=True)
                         self._runners[m] = {"running": True, "thread": None}
                         restored.append(m)
 
                 # メインループスレッドが死んでいたら再起動
                 if self._started_modes and not (self._health_thread and self._health_thread.is_alive()):
-                    print("[Watchdog] MainLoop thread dead — restarting")
+                    print("[Watchdog] MainLoop thread dead — restarting", flush=True)
                     self._ensure_main_loop()
                     restored.append("MainLoop")
 
                 # SL/TPチェッカーが死んでいたら再起動
                 if self._started_modes and not (self._sltp_thread and self._sltp_thread.is_alive()):
-                    print("[Watchdog] SLTP thread dead — restarting")
+                    print("[Watchdog] SLTP thread dead — restarting", flush=True)
                     self._ensure_sltp_checker()
                     restored.append("SLTP")
 
@@ -367,33 +398,44 @@ class DemoTrader:
                     _stopped = [m for m in _all_modes
                                 if m in self._started_modes and not self._runners.get(m, {}).get("running", False)]
                     _ml = "alive" if (self._health_thread and self._health_thread.is_alive()) else "DEAD"
+                    _tc = getattr(self, '_tick_counts', {})
                     print(f"[Watchdog/HB] #{_check_count} running={_running} stopped={_stopped} "
                           f"started={list(self._started_modes)} user_stopped={list(self._user_stopped_modes)} "
-                          f"mainloop={_ml}")
-            except Exception as e:
-                print(f"[Watchdog] Error: {e}")
+                          f"mainloop={_ml} ticks={_tc} restarts={_restart_count}", flush=True)
+            except BaseException as e:
+                # SystemExit, KeyboardInterruptも含め全例外をcatch（スレッド死亡防止）
+                _restart_count += 1
+                print(f"[Watchdog] BaseException caught (restart #{_restart_count}): "
+                      f"{type(e).__name__}: {e}", flush=True)
                 import traceback; traceback.print_exc()
+                # SystemExitの場合でも30秒待って再試行（スレッドを殺さない）
+                time.sleep(30)
+                continue
 
             time.sleep(30)  # 30秒間隔でチェック
 
     def _sltp_loop(self):
         """高頻度でリアルタイム価格を取得してSL/TPチェック"""
+        print("[SLTP-Checker] Thread started", flush=True)
         _no_price_count = 0
-        while self._sltp_running:
-            try:
-                self._check_sltp_realtime()
-                _no_price_count = 0
-            except _NoPriceError:
-                _no_price_count += 1
-                # 30回連続失敗（15秒間）で警告ログ
-                if _no_price_count == 30:
-                    self._add_log("⚠️ [SLTP] 価格取得不可が15秒継続 — API障害の可能性")
-                if _no_price_count % 120 == 0:  # 60秒ごとに再警告
-                    print(f"[SLTP-Checker] No price for {_no_price_count * SLTP_CHECK_INTERVAL:.0f}s")
-            except Exception as e:
-                print(f"[SLTP-Checker] Error: {e}")
-            time.sleep(SLTP_CHECK_INTERVAL)
-        print("[SLTP-Checker] Thread terminated cleanly")
+        try:
+            while self._sltp_running:
+                try:
+                    self._check_sltp_realtime()
+                    _no_price_count = 0
+                except _NoPriceError:
+                    _no_price_count += 1
+                    if _no_price_count == 30:
+                        self._add_log("⚠️ [SLTP] 価格取得不可が15秒継続 — API障害の可能性")
+                    if _no_price_count % 120 == 0:
+                        print(f"[SLTP-Checker] No price for {_no_price_count * SLTP_CHECK_INTERVAL:.0f}s", flush=True)
+                except Exception as e:
+                    print(f"[SLTP-Checker] Error: {e}", flush=True)
+                time.sleep(SLTP_CHECK_INTERVAL)
+            print("[SLTP-Checker] Thread terminated cleanly (sltp_running=False)", flush=True)
+        except BaseException as e:
+            print(f"[SLTP-Checker] BaseException: {type(e).__name__}: {e}", flush=True)
+            import traceback; traceback.print_exc()
 
     def _get_realtime_price(self) -> float:
         """
@@ -577,14 +619,17 @@ class DemoTrader:
         """全モードを1つのスレッドで順次処理（メモリ安全）。
         scalp=10s, daytrade=30s, swing=300s の間隔で各モードをtick。"""
         import sys
+        # ステータスを即座に設定（"unknown"状態を最小化）
+        self._main_loop_status = "starting"
+        self._main_loop_error = None
         print("[DemoTrader] MainLoop started", flush=True)
         sys.stdout.flush()
         _last_tick = {}
         _consecutive_errors = {}
-        import gc
+        _restart_count = getattr(self, '_main_loop_restart_count', 0)
+        self._main_loop_restart_count = _restart_count + 1
 
         self._main_loop_status = "running"
-        self._main_loop_error = None
         _loop_iter = 0
 
         try:
@@ -596,10 +641,12 @@ class DemoTrader:
                 try:
                     now = time.time()
                     _loop_iter += 1
-                    if _loop_iter <= 3 or _loop_iter % 30 == 0:
+                    if _loop_iter <= 5 or _loop_iter % 30 == 0:
                         _modes_list = list(self._started_modes)
                         _running_modes = [m for m in _modes_list if self._runners.get(m, {}).get("running", False)]
-                        print(f"[MainLoop] iter={_loop_iter} started={_modes_list} running={_running_modes}", flush=True)
+                        _tc = getattr(self, '_tick_counts', {})
+                        print(f"[MainLoop] iter={_loop_iter} started={_modes_list} "
+                              f"running={_running_modes} ticks={_tc} restart#{_restart_count}", flush=True)
                     for mode in list(self._started_modes):
                         runner = self._runners.get(mode, {})
                         if not runner.get("running", False):
@@ -622,8 +669,8 @@ class DemoTrader:
                             _tick_count = getattr(self, '_tick_counts', {})
                             _tick_count[mode] = _tick_count.get(mode, 0) + 1
                             self._tick_counts = _tick_count
-                            if _tick_count[mode] % 10 == 0 or _tick_dur > 30:
-                                print(f"[MainLoop/{mode}] tick #{_tick_count[mode]} ok ({_tick_dur:.1f}s)")
+                            if _tick_count[mode] <= 3 or _tick_count[mode] % 10 == 0 or _tick_dur > 30:
+                                print(f"[MainLoop/{mode}] tick #{_tick_count[mode]} ok ({_tick_dur:.1f}s)", flush=True)
                         except Exception as e:
                             errs = _consecutive_errors.get(mode, 0) + 1
                             _consecutive_errors[mode] = errs
@@ -631,15 +678,19 @@ class DemoTrader:
                                 self._add_log(f"❌ [{cfg['label']}] エラー({errs}): {e}")
                             except Exception:
                                 pass
-                            print(f"[MainLoop/{mode}] Error #{errs}: {e}")
+                            print(f"[MainLoop/{mode}] Error #{errs}: {e}", flush=True)
                             import traceback; traceback.print_exc()
                             _last_tick[mode] = time.time()
 
-                        gc.collect()
+                            # 10回連続エラーでバックオフ（API制限等）
+                            if errs >= 10:
+                                print(f"[MainLoop/{mode}] Too many errors, backing off 60s", flush=True)
+                                time.sleep(60)
+
                         time.sleep(1)
 
                 except Exception as e:
-                    print(f"[MainLoop] Outer error: {e}")
+                    print(f"[MainLoop] Outer error: {e}", flush=True)
                     import traceback; traceback.print_exc()
 
                 time.sleep(2)
@@ -648,7 +699,7 @@ class DemoTrader:
             # SystemExit, KeyboardInterrupt等も含む全致命的エラーをキャッチ
             self._main_loop_status = "DEAD"
             self._main_loop_error = f"{type(fatal).__name__}: {fatal}"
-            print(f"[MainLoop] FATAL: {type(fatal).__name__}: {fatal}")
+            print(f"[MainLoop] FATAL: {type(fatal).__name__}: {fatal}", flush=True)
             import traceback; traceback.print_exc()
             try:
                 self._add_log(f"💀 メインループ致命的エラー: {type(fatal).__name__}: {fatal}")
