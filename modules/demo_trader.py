@@ -582,57 +582,54 @@ class DemoTrader:
         try:
             while True:
                 if not self._started_modes:
-                    # まだモード未登録の場合は待機
                     time.sleep(2)
                     continue
 
-            try:
-                now = time.time()
-                for mode in list(self._started_modes):
-                    runner = self._runners.get(mode, {})
-                    if not runner.get("running", False):
-                        continue
+                try:
+                    now = time.time()
+                    for mode in list(self._started_modes):
+                        runner = self._runners.get(mode, {})
+                        if not runner.get("running", False):
+                            continue
 
-                    cfg = MODE_CONFIG[mode]
-                    interval = cfg["interval_sec"]
-                    last = _last_tick.get(mode, 0)
+                        cfg = MODE_CONFIG[mode]
+                        interval = cfg["interval_sec"]
+                        last = _last_tick.get(mode, 0)
 
-                    if now - last < interval:
-                        continue  # まだ間隔に達していない
+                        if now - last < interval:
+                            continue
 
-                    # ── このモードのtickを実行 ──
-                    try:
-                        _tick_start = time.time()
-                        self._tick(mode)
-                        _tick_dur = time.time() - _tick_start
-                        _consecutive_errors[mode] = 0
-                        _last_tick[mode] = time.time()
-                        # 10回に1回 or 遅いtickのみヘルスビート出力
-                        _tick_count = getattr(self, '_tick_counts', {})
-                        _tick_count[mode] = _tick_count.get(mode, 0) + 1
-                        self._tick_counts = _tick_count
-                        if _tick_count[mode] % 10 == 0 or _tick_dur > 30:
-                            print(f"[MainLoop/{mode}] tick #{_tick_count[mode]} ok ({_tick_dur:.1f}s)")
-                    except Exception as e:
-                        errs = _consecutive_errors.get(mode, 0) + 1
-                        _consecutive_errors[mode] = errs
+                        # ── このモードのtickを実行 ──
                         try:
-                            self._add_log(f"❌ [{cfg['label']}] エラー({errs}): {e}")
-                        except Exception:
-                            pass
-                        print(f"[MainLoop/{mode}] Error #{errs}: {e}")
-                        import traceback; traceback.print_exc()
-                        _last_tick[mode] = time.time()  # エラー時もインターバルリセット
+                            _tick_start = time.time()
+                            self._tick(mode)
+                            _tick_dur = time.time() - _tick_start
+                            _consecutive_errors[mode] = 0
+                            _last_tick[mode] = time.time()
+                            _tick_count = getattr(self, '_tick_counts', {})
+                            _tick_count[mode] = _tick_count.get(mode, 0) + 1
+                            self._tick_counts = _tick_count
+                            if _tick_count[mode] % 10 == 0 or _tick_dur > 30:
+                                print(f"[MainLoop/{mode}] tick #{_tick_count[mode]} ok ({_tick_dur:.1f}s)")
+                        except Exception as e:
+                            errs = _consecutive_errors.get(mode, 0) + 1
+                            _consecutive_errors[mode] = errs
+                            try:
+                                self._add_log(f"❌ [{cfg['label']}] エラー({errs}): {e}")
+                            except Exception:
+                                pass
+                            print(f"[MainLoop/{mode}] Error #{errs}: {e}")
+                            import traceback; traceback.print_exc()
+                            _last_tick[mode] = time.time()
 
-                    # モード間でメモリ解放
-                    gc.collect()
-                    time.sleep(1)  # モード間の間隔
+                        gc.collect()
+                        time.sleep(1)
 
-            except Exception as e:
-                print(f"[MainLoop] Outer error: {e}")
-                import traceback; traceback.print_exc()
+                except Exception as e:
+                    print(f"[MainLoop] Outer error: {e}")
+                    import traceback; traceback.print_exc()
 
-            time.sleep(2)  # メインループの最小間隔
+                time.sleep(2)
 
         except BaseException as fatal:
             # SystemExit, KeyboardInterrupt等も含む全致命的エラーをキャッチ
