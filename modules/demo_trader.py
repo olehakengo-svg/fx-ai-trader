@@ -179,36 +179,42 @@ class DemoTrader:
     def get_status(self) -> dict:
         # ── Self-healing FIRST: ステータス計算前に死んだスレッドを自動復旧 ──
         _healed = []
-        if self._started_modes:
-            if not (self._health_thread and self._health_thread.is_alive()):
-                print("[StatusHeal] MainLoop dead — restarting", flush=True)
-                self._ensure_main_loop()
-                _healed.append("MainLoop")
-            if not (self._watchdog_thread and self._watchdog_thread.is_alive()):
-                print("[StatusHeal] Watchdog dead — restarting", flush=True)
-                self._ensure_watchdog()
-                _healed.append("Watchdog")
-            if not (self._sltp_thread and self._sltp_thread.is_alive()):
-                print("[StatusHeal] SLTP dead — restarting", flush=True)
-                self._ensure_sltp_checker()
-                _healed.append("SLTP")
-            # running=Falseになったモードも復旧
-            for m in list(self._started_modes):
-                if m not in self._user_stopped_modes:
-                    runner = self._runners.get(m)
-                    if runner is None or not runner.get("running", False):
-                        print(f"[StatusHeal] Mode {m} not running (runner={runner}) — restarting", flush=True)
-                        self._runners[m] = {"running": True, "thread": None}
-                        _healed.append(m)
-            if _healed:
-                print(f"[StatusHeal] Healed: {_healed} | started={list(self._started_modes)} "
-                      f"user_stopped={list(self._user_stopped_modes)}", flush=True)
-                try:
-                    self._add_log(f"🔄 StatusHeal自動復旧: {', '.join(_healed)}")
-                except Exception:
-                    pass
-        else:
-            print(f"[StatusHeal] No started_modes! Runners={list(self._runners.keys())}", flush=True)
+
+        # _started_modesが空でも全モード起動を試みる（デプロイ直後のauto_start未完了対策）
+        _target_modes = list(self._started_modes) if self._started_modes else list(MODE_CONFIG.keys())
+
+        # スレッド復旧
+        if not (self._health_thread and self._health_thread.is_alive()):
+            print("[StatusHeal] MainLoop dead — restarting", flush=True)
+            self._ensure_main_loop()
+            _healed.append("MainLoop")
+        if not (self._watchdog_thread and self._watchdog_thread.is_alive()):
+            print("[StatusHeal] Watchdog dead — restarting", flush=True)
+            self._ensure_watchdog()
+            _healed.append("Watchdog")
+        if not (self._sltp_thread and self._sltp_thread.is_alive()):
+            print("[StatusHeal] SLTP dead — restarting", flush=True)
+            self._ensure_sltp_checker()
+            _healed.append("SLTP")
+
+        # モード復旧（_started_modesが空でも全モード起動）
+        for m in _target_modes:
+            if m in self._user_stopped_modes:
+                continue
+            runner = self._runners.get(m)
+            if runner is None or not runner.get("running", False):
+                print(f"[StatusHeal] Mode {m} not running — restarting", flush=True)
+                self._runners[m] = {"running": True, "thread": None}
+                self._started_modes.add(m)
+                _healed.append(m)
+
+        if _healed:
+            print(f"[StatusHeal] Healed: {_healed} | started={list(self._started_modes)} "
+                  f"user_stopped={list(self._user_stopped_modes)}", flush=True)
+            try:
+                self._add_log(f"🔄 StatusHeal自動復旧: {', '.join(_healed)}")
+            except Exception:
+                pass
 
         # ── ステータス計算（self-healing後の最新状態を反映） ──
         open_trades = self._db.get_open_trades()
@@ -272,8 +278,13 @@ class DemoTrader:
         スレッドが生きている場合はスキップ（二重実行防止）。"""
         if self._health_thread and self._health_thread.is_alive():
             return  # メインループが生きていれば不要
+        # _started_modesが空なら全モードをターゲット
         if not self._started_modes:
-            return
+            for m in MODE_CONFIG.keys():
+                if m not in self._user_stopped_modes:
+                    self._started_modes.add(m)
+                    self._runners[m] = {"running": True, "thread": None}
+            print(f"[RequestTick] Force-started all modes: {list(self._started_modes)}", flush=True)
         now = time.time()
         ticked = []
         for mode in list(self._started_modes):
