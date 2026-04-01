@@ -3916,6 +3916,10 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "hs_neckbreak",   # 三尊天井ネックライン割れ
                 "ihs_neckbreak",  # 逆三尊ネックライン突破
                 "sr_touch_bounce", # 水平線タッチ反発
+                # v3 リバーサル戦略
+                "sr_channel_reversal",      # SR/チャネルバウンス
+                "fib_reversal",             # フィボナッチリトレースメント反発
+                "mtf_reversal_confluence",  # MTF RSI+MACDクロス一致
                 # v1 互換
                 "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
                 "donchian", "reg_channel", "ema_pullback",
@@ -6927,6 +6931,258 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             _vr_conf = int(min(85, 50 + _vr_score * 5))
             candidates.append((_vr_signal, _vr_conf, _vr_sl, _vr_tp,
                                _vr_reasons, "v_reversal", _vr_score))
+
+    # ════════════════════════════════════════════════════════
+    #  戦略11: SR/Channel Bounce Reversal（水平線・並行チャネル反発）
+    #  根拠: Osler 2000 (NY Fed), Support/Resistance as price memory
+    #  条件: 価格がSRレベルまたはチャネル境界に到達 + RSI/Stochで反転確認
+    # ════════════════════════════════════════════════════════
+    if sr_levels and len(df) >= 10 and not _is_friday:
+        _src_signal = None
+        _src_score = 0.0
+        _src_reasons = []
+
+        # 並行チャネル検出
+        _channel = find_parallel_channel(df, window=5, lookback=min(100, len(df) - 1))
+        _ch_upper = float(_channel["upper"][-1]["value"]) if _channel else None
+        _ch_lower = float(_channel["lower"][-1]["value"]) if _channel else None
+
+        # SR近接判定（ATR×0.3以内）
+        _sr_proximity_buy = [l for l in sr_levels if 0 < entry - l < atr * 0.3]
+        _sr_proximity_sell = [l for l in sr_levels if 0 < l - entry < atr * 0.3]
+
+        # チャネル下限近接 (BUY候補)
+        _at_ch_lower = _ch_lower and abs(entry - _ch_lower) < atr * 0.3
+        # チャネル上限近接 (SELL候補)
+        _at_ch_upper = _ch_upper and abs(entry - _ch_upper) < atr * 0.3
+
+        # BUY: SRサポート or チャネル下限 + RSI反転 + Stoch反転
+        if (_sr_proximity_buy or _at_ch_lower) and rsi5 < 45 and stoch_k > stoch_d:
+            _src_score = 3.0
+            _src_signal = "BUY"
+
+            if _sr_proximity_buy:
+                _nearest_sr = max(_sr_proximity_buy)
+                _touch_dist = abs(entry - _nearest_sr) / atr
+                _src_score += max(0, (0.3 - _touch_dist) * 3.0)  # 近いほどボーナス
+                _src_reasons.append(f"✅ SRサポート反発({_nearest_sr:.3f}, dist={_touch_dist:.2f}ATR)")
+            if _at_ch_lower:
+                _src_score += 0.8
+                _src_reasons.append(f"✅ チャネル下限反発({_ch_lower:.3f})")
+            if rsi5 < 35:
+                _src_score += 0.5
+                _src_reasons.append(f"✅ RSI5過売({rsi5:.0f})")
+            if stoch_k < 30 and stoch_k > stoch_d:
+                _src_score += 0.5
+                _src_reasons.append(f"✅ Stoch反転上昇({stoch_k:.0f}>{stoch_d:.0f})")
+            if macdh > 0 or (len(df) >= 3 and macdh > float(df["macd_hist"].iloc[-2])):
+                _src_score += 0.4
+                _src_reasons.append("✅ MACD-H反転上昇")
+            # 陽線確認
+            if entry > float(row["Open"]):
+                _src_score += 0.3
+
+            _src_tp = entry + atr7 * 1.5
+            _nearest_sup = max(_sr_proximity_buy) if _sr_proximity_buy else (_ch_lower if _ch_lower else entry - atr7 * 0.5)
+            _src_sl = min(entry - atr7 * 0.5, _nearest_sup - atr7 * 0.15)
+
+        # SELL: SRレジスタンス or チャネル上限 + RSI反転 + Stoch反転
+        elif (_sr_proximity_sell or _at_ch_upper) and rsi5 > 55 and stoch_k < stoch_d:
+            _src_score = 3.0
+            _src_signal = "SELL"
+
+            if _sr_proximity_sell:
+                _nearest_sr = min(_sr_proximity_sell)
+                _touch_dist = abs(_nearest_sr - entry) / atr
+                _src_score += max(0, (0.3 - _touch_dist) * 3.0)
+                _src_reasons.append(f"✅ SRレジスタンス反発({_nearest_sr:.3f}, dist={_touch_dist:.2f}ATR)")
+            if _at_ch_upper:
+                _src_score += 0.8
+                _src_reasons.append(f"✅ チャネル上限反発({_ch_upper:.3f})")
+            if rsi5 > 65:
+                _src_score += 0.5
+                _src_reasons.append(f"✅ RSI5過買({rsi5:.0f})")
+            if stoch_k > 70 and stoch_k < stoch_d:
+                _src_score += 0.5
+                _src_reasons.append(f"✅ Stoch反転下降({stoch_k:.0f}<{stoch_d:.0f})")
+            if macdh < 0 or (len(df) >= 3 and macdh < float(df["macd_hist"].iloc[-2])):
+                _src_score += 0.4
+                _src_reasons.append("✅ MACD-H反転下降")
+            if entry < float(row["Open"]):
+                _src_score += 0.3
+
+            _src_tp = entry - atr7 * 1.5
+            _nearest_res = min(_sr_proximity_sell) if _sr_proximity_sell else (_ch_upper if _ch_upper else entry + atr7 * 0.5)
+            _src_sl = max(entry + atr7 * 0.5, _nearest_res + atr7 * 0.15)
+
+        if _src_signal and _src_score >= 3.0:
+            _src_conf = int(min(85, 45 + _src_score * 5))
+            candidates.append((_src_signal, _src_conf, _src_sl, _src_tp,
+                               _src_reasons, "sr_channel_reversal", _src_score))
+
+    # ════════════════════════════════════════════════════════
+    #  戦略12: Fibonacci Reversal（フィボナッチリトレースメント反発）
+    #  根拠: Fibonacci 38.2%/50%/61.8%はリバーサルの高確率ゾーン
+    #  条件: フィボレベル近接 + RSI/Stoch反転 + ローソク足確認
+    # ════════════════════════════════════════════════════════
+    if len(df) >= 60 and not _is_friday:
+        _fib = _calc_fibonacci_levels(df, lookback=60)
+        if _fib and _fib.get("trend"):
+            _fib_signal = None
+            _fib_score = 0.0
+            _fib_reasons = []
+            _fib_trend = _fib["trend"]
+            _fib_levels = {
+                "38.2%": _fib.get("r382", 0),
+                "50.0%": _fib.get("r500", 0),
+                "61.8%": _fib.get("r618", 0),
+            }
+
+            # 各フィボレベルとの近接チェック
+            _fib_touch = None
+            for _fib_name, _fib_val in _fib_levels.items():
+                if _fib_val and abs(entry - _fib_val) < atr * 0.25:
+                    _fib_touch = (_fib_name, _fib_val)
+                    break
+
+            if _fib_touch:
+                _fn, _fv = _fib_touch
+                _fib_dist = abs(entry - _fv) / atr
+
+                # 上昇トレンドの押し目買い: フィボサポート付近でBUY
+                if _fib_trend == "up" and rsi5 < 45 and stoch_k > stoch_d:
+                    _fib_signal = "BUY"
+                    _fib_score = 3.5
+                    _fib_reasons.append(f"✅ Fib {_fn}サポート({_fv:.3f}, dist={_fib_dist:.2f}ATR)")
+                    if _fn == "61.8%":
+                        _fib_score += 0.8  # 最高確率ゾーン
+                        _fib_reasons.append("✅ Fib61.8%: 最高確率リバーサルゾーン")
+                    elif _fn == "50.0%":
+                        _fib_score += 0.5
+                    if rsi5 < 35:
+                        _fib_score += 0.5
+                    if entry > float(row["Open"]):
+                        _fib_score += 0.3
+                        _fib_reasons.append("✅ 陽線確認")
+                    if macdh > float(df["macd_hist"].iloc[-2]) if len(df) >= 3 else False:
+                        _fib_score += 0.4
+                        _fib_reasons.append("✅ MACD-H反転上昇")
+
+                    _fib_tp = entry + atr7 * 1.8
+                    _fib_sl = min(entry - atr7 * 0.5, _fv - atr7 * 0.2)
+
+                # 下降トレンドの戻り売り: フィボレジスタンス付近でSELL
+                elif _fib_trend == "down" and rsi5 > 55 and stoch_k < stoch_d:
+                    _fib_signal = "SELL"
+                    _fib_score = 3.5
+                    _fib_reasons.append(f"✅ Fib {_fn}レジスタンス({_fv:.3f}, dist={_fib_dist:.2f}ATR)")
+                    if _fn == "61.8%":
+                        _fib_score += 0.8
+                        _fib_reasons.append("✅ Fib61.8%: 最高確率リバーサルゾーン")
+                    elif _fn == "50.0%":
+                        _fib_score += 0.5
+                    if rsi5 > 65:
+                        _fib_score += 0.5
+                    if entry < float(row["Open"]):
+                        _fib_score += 0.3
+                        _fib_reasons.append("✅ 陰線確認")
+                    if macdh < float(df["macd_hist"].iloc[-2]) if len(df) >= 3 else False:
+                        _fib_score += 0.4
+                        _fib_reasons.append("✅ MACD-H反転下降")
+
+                    _fib_tp = entry - atr7 * 1.8
+                    _fib_sl = max(entry + atr7 * 0.5, _fv + atr7 * 0.2)
+
+            if _fib_signal and _fib_score >= 3.5:
+                _fib_conf = int(min(85, 45 + _fib_score * 5))
+                candidates.append((_fib_signal, _fib_conf, _fib_sl, _fib_tp,
+                                   _fib_reasons, "fib_reversal", _fib_score))
+
+    # ════════════════════════════════════════════════════════
+    #  戦略13: MTF Reversal Confluence（複数時間軸RSI+MACDクロス一致）
+    #  根拠: 1m + 5m(1H/4Hキャッシュ) のRSI/MACDが同時に反転
+    #  条件: HTF RSI過売/過買 + 1m RSI反転 + MACD-Hクロス一致
+    # ════════════════════════════════════════════════════════
+    if not _is_friday:
+        _mtfr_signal = None
+        _mtfr_score = 0.0
+        _mtfr_reasons = []
+
+        # HTFからRSI/MACDを取得
+        _htf_h1 = htf.get("h1", {})
+        _htf_h4 = htf.get("h4", {})
+        _htf_h1_rsi = _htf_h1.get("rsi", 50)
+        _htf_h4_rsi = _htf_h4.get("rsi", 50)
+        _htf_h1_macd_cross = _htf_h1.get("macd_cross", 0)  # 1=bull cross, -1=bear cross
+        _htf_h1_score = _htf_h1.get("score", 0)
+
+        # BUY: 複数時間軸でoversold + MACD反転
+        _mtf_buy_rsi = (rsi5 < 40 and _htf_h1_rsi < 45) or (rsi5 < 35 and _htf_h4_rsi < 50)
+        _mtf_buy_macd = macdh > 0 or (len(df) >= 3 and macdh > float(df["macd_hist"].iloc[-2]))
+        _mtf_buy_stoch = stoch_k > stoch_d and stoch_k < 40
+
+        if _mtf_buy_rsi and _mtf_buy_macd and _mtf_buy_stoch:
+            _mtfr_signal = "BUY"
+            _mtfr_score = 3.2
+
+            # RSI一致ボーナス
+            if rsi5 < 35 and _htf_h1_rsi < 40:
+                _mtfr_score += 0.8
+                _mtfr_reasons.append(f"✅ MTF RSI一致 (1m={rsi5:.0f}, 1H={_htf_h1_rsi:.0f})")
+            else:
+                _mtfr_score += 0.4
+                _mtfr_reasons.append(f"✅ MTF RSI oversold (1m={rsi5:.0f}, 1H={_htf_h1_rsi:.0f})")
+
+            # 4H RSIも一致
+            if _htf_h4_rsi < 45:
+                _mtfr_score += 0.5
+                _mtfr_reasons.append(f"✅ 4H RSI一致({_htf_h4_rsi:.0f})")
+
+            # HTF MACDクロス一致
+            if _htf_h1_score > 0:
+                _mtfr_score += 0.5
+                _mtfr_reasons.append("✅ 1H MACDブルクロス一致")
+
+            _mtfr_reasons.append(f"✅ MACD-H反転({macdh:.5f})")
+            _mtfr_reasons.append(f"✅ Stoch反転({stoch_k:.0f}>{stoch_d:.0f})")
+
+            _mtfr_tp = entry + atr7 * 1.5
+            _mtfr_sl = entry - atr7 * 0.5
+
+        # SELL: 複数時間軸でoverbought + MACD反転
+        _mtf_sell_rsi = (rsi5 > 60 and _htf_h1_rsi > 55) or (rsi5 > 65 and _htf_h4_rsi > 50)
+        _mtf_sell_macd = macdh < 0 or (len(df) >= 3 and macdh < float(df["macd_hist"].iloc[-2]))
+        _mtf_sell_stoch = stoch_k < stoch_d and stoch_k > 60
+
+        if not _mtfr_signal and _mtf_sell_rsi and _mtf_sell_macd and _mtf_sell_stoch:
+            _mtfr_signal = "SELL"
+            _mtfr_score = 3.2
+
+            if rsi5 > 65 and _htf_h1_rsi > 60:
+                _mtfr_score += 0.8
+                _mtfr_reasons.append(f"✅ MTF RSI一致 (1m={rsi5:.0f}, 1H={_htf_h1_rsi:.0f})")
+            else:
+                _mtfr_score += 0.4
+                _mtfr_reasons.append(f"✅ MTF RSI overbought (1m={rsi5:.0f}, 1H={_htf_h1_rsi:.0f})")
+
+            if _htf_h4_rsi > 55:
+                _mtfr_score += 0.5
+                _mtfr_reasons.append(f"✅ 4H RSI一致({_htf_h4_rsi:.0f})")
+
+            if _htf_h1_score < 0:
+                _mtfr_score += 0.5
+                _mtfr_reasons.append("✅ 1H MACDベアクロス一致")
+
+            _mtfr_reasons.append(f"✅ MACD-H反転({macdh:.5f})")
+            _mtfr_reasons.append(f"✅ Stoch反転({stoch_k:.0f}<{stoch_d:.0f})")
+
+            _mtfr_tp = entry - atr7 * 1.5
+            _mtfr_sl = entry + atr7 * 0.5
+
+        if _mtfr_signal and _mtfr_score >= 3.2:
+            _mtfr_conf = int(min(80, 40 + _mtfr_score * 5))
+            candidates.append((_mtfr_signal, _mtfr_conf, _mtfr_sl, _mtfr_tp,
+                               _mtfr_reasons, "mtf_reversal_confluence", _mtfr_score))
 
     # ──────────────────────────────────────────────────────────
     #  最良候補の選択: スコア最大の戦略を採用
