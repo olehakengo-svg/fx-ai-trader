@@ -593,9 +593,17 @@ class DemoTrader:
 
                     # ── このモードのtickを実行 ──
                     try:
+                        _tick_start = time.time()
                         self._tick(mode)
+                        _tick_dur = time.time() - _tick_start
                         _consecutive_errors[mode] = 0
                         _last_tick[mode] = time.time()
+                        # 10回に1回 or 遅いtickのみヘルスビート出力
+                        _tick_count = getattr(self, '_tick_counts', {})
+                        _tick_count[mode] = _tick_count.get(mode, 0) + 1
+                        self._tick_counts = _tick_count
+                        if _tick_count[mode] % 10 == 0 or _tick_dur > 30:
+                            print(f"[MainLoop/{mode}] tick #{_tick_count[mode]} ok ({_tick_dur:.1f}s)")
                     except Exception as e:
                         errs = _consecutive_errors.get(mode, 0) + 1
                         _consecutive_errors[mode] = errs
@@ -704,6 +712,7 @@ class DemoTrader:
             else:
                 df = df.dropna()
             if len(df) < 50:
+                print(f"[DemoTrader/{mode}] Insufficient data: {len(df)} bars (need 50)")
                 return
 
             sr = find_sr_levels(df)
@@ -741,6 +750,7 @@ class DemoTrader:
                 sig = compute_fn(df, tf, sr, "USDJPY=X")
         except Exception as e:
             self._add_log(f"⚠️ [{cfg['label']}] シグナル取得失敗: {e}")
+            import traceback; traceback.print_exc()
             return
 
         self._last_signals[mode] = {
