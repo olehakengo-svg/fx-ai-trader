@@ -297,11 +297,16 @@ class DemoTrader:
         """メインループスレッドを起動（未起動の場合のみ）"""
         if self._health_thread and self._health_thread.is_alive():
             return
-        self._health_thread = threading.Thread(
-            target=self._main_loop, daemon=True,
-            name="DemoTrader-MainLoop"
-        )
-        self._health_thread.start()
+        try:
+            self._health_thread = threading.Thread(
+                target=self._main_loop, daemon=True,
+                name="DemoTrader-MainLoop"
+            )
+            self._health_thread.start()
+            print(f"[EnsureMainLoop] Thread started: {self._health_thread.is_alive()}", flush=True)
+        except Exception as e:
+            print(f"[EnsureMainLoop] FAILED to start thread: {e}", flush=True)
+            import traceback; traceback.print_exc()
 
     def _ensure_watchdog(self):
         """独立ウォッチドッグスレッドを起動（メインループとは別スレッド）"""
@@ -571,9 +576,11 @@ class DemoTrader:
     def _main_loop(self):
         """全モードを1つのスレッドで順次処理（メモリ安全）。
         scalp=10s, daytrade=30s, swing=300s の間隔で各モードをtick。"""
-        print("[DemoTrader] MainLoop started")
-        _last_tick = {}  # mode -> last tick time
-        _consecutive_errors = {}  # mode -> error count
+        import sys
+        print("[DemoTrader] MainLoop started", flush=True)
+        sys.stdout.flush()
+        _last_tick = {}
+        _consecutive_errors = {}
         import gc
 
         self._main_loop_status = "running"
