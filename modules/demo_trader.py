@@ -1065,11 +1065,22 @@ class DemoTrader:
                 if abs(last_ex["price"] - current_price) < 0.05:
                     return
 
-        # ── 時間帯フィルター（UTC 00,01,21時禁止）──
+        # ── 時間帯×モード別フィルター ──
+        # アジア(00-07): レンジ → DT禁止（スキャルプのみ）
+        # ロンドン(07-12): トレンド → 全モードOK
+        # NY重複(12-16): 高ボラ+反転 → DT bounce系注意（ADXで制御済み）
+        # NY後半(16-21): ボラ低下 → スキャルプ中心
+        # クローズ(21-00): スプレッド拡大 → 全モード非推奨
         try:
             hour_now = datetime.now(timezone.utc).hour
-            if hour_now in self._params["session_blacklist"]:
-                return
+            # モード別時間帯制限
+            if mode == "daytrade":
+                if hour_now < 7 or hour_now >= 21:
+                    return  # DT: アジア・クローズ帯禁止
+            elif mode == "daytrade_1h":
+                if hour_now < 3 or hour_now >= 22:
+                    return  # 1H: 深夜・クローズ帯禁止
+            # scalp/swingは時間帯制限なし（デモモード: データ蓄積優先）
         except Exception:
             pass
 

@@ -2131,8 +2131,12 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # SR構造ベースのシグナル判定（BT dual_sr_bounce/breakout と整合）
     _sr_signal_found = False
 
-    # A: 下のSRバウンス → BUY（EMA方向整合必須）
-    if _dt_below:
+    # ── ADXハードブロック: レンジ相場ではSR bounceを禁止 ──
+    # 本番で0/9全敗（-101.5pip）の根本原因: レンジでBUY/SELL交互発火
+    _dt_adx_ok = adx >= 15  # ADX15未満はレンジ → SR bounce禁止
+
+    # A: 下のSRバウンス → BUY（EMA方向整合必須 + ADX≥15）
+    if _dt_adx_ok and _dt_below:
         _sup = _dt_below[0]
         _sup_tol = atr * 0.6  # 旧0.4 → 0.6（SR近接判定を緩和）
         if abs(float(row["Low"]) - _sup["price"]) < _sup_tol and entry > _sup["price"]:
@@ -2142,8 +2146,8 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 _sr_signal_found = True
                 _dt_nearest_scenario = {"type": "bounce", "sr": _sup}
 
-    # B: 上のSRバウンス → SELL（EMA方向整合必須）
-    if not _sr_signal_found and _dt_above:
+    # B: 上のSRバウンス → SELL（EMA方向整合必須 + ADX≥15）
+    if not _sr_signal_found and _dt_adx_ok and _dt_above:
         _res = _dt_above[0]
         _res_tol = atr * 0.6  # 旧0.4 → 0.6
         if abs(float(row["High"]) - _res["price"]) < _res_tol and entry < _res["price"]:
@@ -2249,11 +2253,12 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                         reasons.append(f"✅ ネックライン{_neckline:.3f}({_nd:+.1f}pip), prominence={_hp:.1f}pip")
                         break
 
-    # SR+Fib / OB Retest フォールバック（強いスコア + EMAトレンド整合のみ）
-    if not _sr_signal_found:
+    # SR+Fib / OB Retest フォールバック（強いスコア + EMAトレンド整合 + ADX必須）
+    # 本番0/6全敗(-40.2pip): 0.20閾値が甘すぎ + レンジ相場でエントリー
+    if not _sr_signal_found and adx >= 15:
         _has_sr_fib = any("Fib" in r or "フィボ" in r for r in reasons)
         _has_ob     = any("OB" in r or "オーダーブロック" in r for r in reasons)
-        THRESHOLD = 0.20   # 旧0.25 → 0.20（トレード頻度増加: ADX12+EMA整合でフィルター済み）
+        THRESHOLD = 0.35   # 0.20→0.35: 弱シグナル排除（本番0%WR対策）
         if ema_score > THRESHOLD and ema9 > ema21:
             signal = "BUY"
             _dt_entry_type = "sr_fib_confluence" if _has_sr_fib else ("ob_retest" if _has_ob else "ema_cross")
