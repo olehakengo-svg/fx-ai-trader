@@ -2261,6 +2261,137 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             signal = "SELL"
             _dt_entry_type = "sr_fib_confluence" if _has_sr_fib else ("ob_retest" if _has_ob else "ema_cross")
 
+    # ════════════════════════════════════════════════════════
+    #  DT新戦略A: Fibonacci Reversal（15m足フィボリトレースメント反発）
+    #  根拠: フィボ38.2%/50%/61.8%はスイング反転の高確率ゾーン
+    # ════════════════════════════════════════════════════════
+    if not _sr_signal_found and signal == "WAIT" and len(df) >= 80:
+        _dt_fib = _calc_fibonacci_levels(df, lookback=80)
+        if _dt_fib and _dt_fib.get("trend"):
+            _dt_fib_levels = {
+                "38.2%": _dt_fib.get("r382", 0),
+                "50.0%": _dt_fib.get("r500", 0),
+                "61.8%": _dt_fib.get("r618", 0),
+            }
+            _dt_fib_touch = None
+            for _fn, _fv in _dt_fib_levels.items():
+                if _fv and abs(entry - _fv) < atr * 0.3:
+                    _dt_fib_touch = (_fn, _fv)
+                    break
+
+            if _dt_fib_touch:
+                _fn, _fv = _dt_fib_touch
+                # 上昇トレンド押し目買い
+                if _dt_fib["trend"] == "up" and rsi < 45 and macdh > macdh_prev:
+                    signal = "BUY"
+                    _dt_entry_type = "dt_fib_reversal"
+                    _sr_signal_found = True
+                    score += 1.5
+                    reasons.append(f"✅ DT Fib {_fn}サポート反発({_fv:.3f})")
+                    if _fn == "61.8%":
+                        score += 0.8
+                        reasons.append("✅ Fib61.8%: 最高確率ゾーン")
+                    if ema9 > ema21:
+                        score += 0.5
+                        reasons.append("✅ EMA順列確認")
+                # 下降トレンド戻り売り
+                elif _dt_fib["trend"] == "down" and rsi > 55 and macdh < macdh_prev:
+                    signal = "SELL"
+                    _dt_entry_type = "dt_fib_reversal"
+                    _sr_signal_found = True
+                    score -= 1.5
+                    reasons.append(f"✅ DT Fib {_fn}レジスタンス反発({_fv:.3f})")
+                    if _fn == "61.8%":
+                        score -= 0.8
+                        reasons.append("✅ Fib61.8%: 最高確率ゾーン")
+                    if ema9 < ema21:
+                        score -= 0.5
+                        reasons.append("✅ EMA逆順列確認")
+
+    # ════════════════════════════════════════════════════════
+    #  DT新戦略B: SR Channel Reversal（15m足SR/チャネルバウンス）
+    #  根拠: 水平線・並行チャネル境界での反発
+    # ════════════════════════════════════════════════════════
+    if not _sr_signal_found and signal == "WAIT" and sr_levels and len(df) >= 20:
+        _dt_ch = find_parallel_channel(df, window=5, lookback=min(100, len(df) - 1))
+        _dt_ch_upper = float(_dt_ch["upper"][-1]["value"]) if _dt_ch else None
+        _dt_ch_lower = float(_dt_ch["lower"][-1]["value"]) if _dt_ch else None
+
+        _dt_sr_buy = [l for l in sr_levels if 0 < entry - l < atr * 0.4]
+        _dt_sr_sell = [l for l in sr_levels if 0 < l - entry < atr * 0.4]
+        _dt_at_ch_lower = _dt_ch_lower and abs(entry - _dt_ch_lower) < atr * 0.4
+        _dt_at_ch_upper = _dt_ch_upper and abs(entry - _dt_ch_upper) < atr * 0.4
+
+        # BUY: SRサポート or チャネル下限 + RSI反転 + MACD反転
+        if (_dt_sr_buy or _dt_at_ch_lower) and rsi < 45 and macdh > macdh_prev:
+            signal = "BUY"
+            _dt_entry_type = "dt_sr_channel_reversal"
+            _sr_signal_found = True
+            score += 1.2
+            if _dt_sr_buy:
+                reasons.append(f"✅ DT SRサポート反発({max(_dt_sr_buy):.3f})")
+            if _dt_at_ch_lower:
+                score += 0.5
+                reasons.append(f"✅ DT チャネル下限反発({_dt_ch_lower:.3f})")
+            if ema9 > ema21:
+                score += 0.5
+                reasons.append("✅ EMA順列確認")
+
+        # SELL: SRレジスタンス or チャネル上限 + RSI反転 + MACD反転
+        elif (_dt_sr_sell or _dt_at_ch_upper) and rsi > 55 and macdh < macdh_prev:
+            signal = "SELL"
+            _dt_entry_type = "dt_sr_channel_reversal"
+            _sr_signal_found = True
+            score -= 1.2
+            if _dt_sr_sell:
+                reasons.append(f"✅ DT SRレジスタンス反発({min(_dt_sr_sell):.3f})")
+            if _dt_at_ch_upper:
+                score -= 0.5
+                reasons.append(f"✅ DT チャネル上限反発({_dt_ch_upper:.3f})")
+            if ema9 < ema21:
+                score -= 0.5
+                reasons.append("✅ EMA逆順列確認")
+
+    # ════════════════════════════════════════════════════════
+    #  DT新戦略C: EMA200 Trend Reversal（トレンド転換検出）
+    #  根拠: EMA200ブレイク後のリテスト・反発
+    # ════════════════════════════════════════════════════════
+    if not _sr_signal_found and signal == "WAIT" and len(df) >= 20:
+        _ema200_dist_dt = (entry - ema200) / atr if atr > 0 else 0
+        # 直近20バーでEMA200をクロスしたか
+        _ema200_crosses = 0
+        for _ci in range(max(1, len(df) - 20), len(df)):
+            _prev_c = float(df["Close"].iloc[_ci - 1])
+            _curr_c = float(df["Close"].iloc[_ci])
+            _prev_e200 = float(df["ema200"].iloc[_ci - 1]) if "ema200" in df.columns else ema200
+            _curr_e200 = float(df["ema200"].iloc[_ci]) if "ema200" in df.columns else ema200
+            if (_prev_c < _prev_e200 and _curr_c > _curr_e200) or \
+               (_prev_c > _prev_e200 and _curr_c < _curr_e200):
+                _ema200_crosses += 1
+
+        # EMA200をクロス後、リテストして反発
+        if _ema200_crosses >= 1 and abs(_ema200_dist_dt) < 0.5:
+            # 上抜け後のリテスト → BUY（EMA200がサポート化）
+            if bull200 and _ema200_dist_dt < 0.5 and _ema200_dist_dt > 0 and macdh > macdh_prev and rsi < 55:
+                signal = "BUY"
+                _dt_entry_type = "ema200_trend_reversal"
+                _sr_signal_found = True
+                score += 1.5
+                reasons.append(f"✅ EMA200上抜けリテスト({ema200:.3f}, dist={_ema200_dist_dt:.2f}ATR)")
+                if _dt_ema200_rising:
+                    score += 0.5
+                    reasons.append("✅ EMA200上昇中: トレンド転換確認")
+            # 下抜け後のリテスト → SELL（EMA200がレジスタンス化）
+            elif not bull200 and _ema200_dist_dt > -0.5 and _ema200_dist_dt < 0 and macdh < macdh_prev and rsi > 45:
+                signal = "SELL"
+                _dt_entry_type = "ema200_trend_reversal"
+                _sr_signal_found = True
+                score -= 1.5
+                reasons.append(f"✅ EMA200下抜けリテスト({ema200:.3f}, dist={_ema200_dist_dt:.2f}ATR)")
+                if not _dt_ema200_rising:
+                    score -= 0.5
+                    reasons.append("✅ EMA200下降中: トレンド転換確認")
+
     # ── EMAスコアによる確度補正 ──
     # SR構造が方向を決め、EMAスコアが確度を上下させる
     if signal != "WAIT":
@@ -3065,6 +3196,128 @@ def compute_1h_zone_signal(df: pd.DataFrame,
             _rv_sl = _R1 + atr * 0.4
             _rv_sl = max(_rv_sl, entry + atr * 0.6)
             candidates.append(("SELL", _rv_score, _rv_tp, _rv_sl, _rv_reasons, "pivot_reversion"))
+
+    # ════════════════════════════════════════════════════════════
+    #  戦略5: 1H Fibonacci Reversal（フィボリトレースメント反発）
+    #  根拠: 120バー(5日)のスイングからのフィボ38.2%/50%/61.8%反発
+    #  改善: SL拡大(ATR×0.8)、EMA整合必須、ADX≥15、Stoch確認
+    # ════════════════════════════════════════════════════════════
+    if len(df) >= 120 and adx >= 15:
+        _1h_fib = _calc_fibonacci_levels(df, lookback=120)
+        if _1h_fib and _1h_fib.get("trend"):
+            _1h_fib_levels = {
+                "38.2%": _1h_fib.get("r382", 0),
+                "50.0%": _1h_fib.get("r500", 0),
+                "61.8%": _1h_fib.get("r618", 0),
+            }
+            _1h_fib_touch = None
+            for _fn, _fv in _1h_fib_levels.items():
+                if _fv and abs(entry - _fv) < atr * 0.4:
+                    _1h_fib_touch = (_fn, _fv)
+                    break
+            if _1h_fib_touch:
+                _fn, _fv = _1h_fib_touch
+                _1hfr_score = 0.0
+                _1hfr_reasons = []
+                # 上昇トレンド押し目買い: RSI + MACD方向転換
+                if (_1h_fib["trend"] == "up" and rsi < 50 and macdh > prev_macdh):
+                    _1hfr_score = 2.0
+                    _1hfr_reasons.append(f"✅ 1H Fib {_fn}サポート反発({_fv:.3f})")
+                    if _fn == "61.8%":
+                        _1hfr_score += 0.8
+                        _1hfr_reasons.append("✅ Fib61.8%最高確率ゾーン")
+                    elif _fn == "50.0%":
+                        _1hfr_score += 0.4
+                    if ema9 > ema21:
+                        _1hfr_score += 0.3
+                        _1hfr_reasons.append("✅ EMA整合(9>21)")
+                    if stoch_k > stoch_d:
+                        _1hfr_score += 0.3
+                        _1hfr_reasons.append("✅ Stoch反転確認")
+                    if entry > _open:
+                        _1hfr_score += 0.3
+                        _1hfr_reasons.append("✅ 陽線確認")
+                    if _1hfr_score >= 2.0:
+                        _1hfr_tp = entry + atr * 2.5
+                        _1hfr_sl = entry - atr * 0.8  # SL拡大: 0.5→0.8 ATR
+                        candidates.append(("BUY", _1hfr_score, _1hfr_tp, _1hfr_sl, _1hfr_reasons, "h1_fib_reversal"))
+                # 下降トレンド戻り売り
+                elif (_1h_fib["trend"] == "down" and rsi > 50 and macdh < prev_macdh):
+                    _1hfr_score = 2.0
+                    _1hfr_reasons.append(f"✅ 1H Fib {_fn}レジスタンス反発({_fv:.3f})")
+                    if _fn == "61.8%":
+                        _1hfr_score += 0.8
+                        _1hfr_reasons.append("✅ Fib61.8%最高確率ゾーン")
+                    elif _fn == "50.0%":
+                        _1hfr_score += 0.4
+                    if ema9 < ema21:
+                        _1hfr_score += 0.3
+                        _1hfr_reasons.append("✅ EMA整合(9<21)")
+                    if stoch_k < stoch_d:
+                        _1hfr_score += 0.3
+                        _1hfr_reasons.append("✅ Stoch反転確認")
+                    if entry < _open:
+                        _1hfr_score += 0.3
+                        _1hfr_reasons.append("✅ 陰線確認")
+                    if _1hfr_score >= 2.0:
+                        _1hfr_tp = entry - atr * 2.5
+                        _1hfr_sl = entry + atr * 0.8
+                        candidates.append(("SELL", _1hfr_score, _1hfr_tp, _1hfr_sl, _1hfr_reasons, "h1_fib_reversal"))
+
+    # ════════════════════════════════════════════════════════════
+    #  戦略6: EMA200 Trend Reversal（1Hトレンド転換）
+    #  根拠: EMA200ブレイク後のリテスト・反発
+    #  改善: SL拡大(0.8ATR)、EMA整合+ADX+Stoch必須、スコア閾値2.5
+    # ════════════════════════════════════════════════════════════
+    if len(df) >= 20 and "ema200" in df.columns and adx >= 15:
+        _1h_e200_dist = (entry - ema200_1h) / atr if atr > 0 else 0
+        _1h_e200_bull = entry > ema200_1h
+        _1h_e200_slope = (ema200_1h - float(df["ema200"].iloc[-min(20, len(df)-1)])) if len(df) >= 2 else 0
+        # 直近20バーでEMA200クロス検出
+        _1h_crosses = 0
+        for _ci in range(max(1, len(df) - 20), len(df)):
+            _pc = float(df["Close"].iloc[_ci - 1])
+            _cc = float(df["Close"].iloc[_ci])
+            _pe = float(df["ema200"].iloc[_ci - 1])
+            _ce = float(df["ema200"].iloc[_ci])
+            if (_pc < _pe and _cc > _ce) or (_pc > _pe and _cc < _ce):
+                _1h_crosses += 1
+
+        if _1h_crosses >= 1 and abs(_1h_e200_dist) < 0.5:
+            _1htr_score = 0.0
+            _1htr_reasons = []
+            # 上抜けリテスト → BUY: EMA整合 + Stoch確認必須
+            if (_1h_e200_bull and _1h_e200_dist < 0.5 and macdh > prev_macdh
+                    and rsi < 55 and ema9 > ema21 and stoch_k > stoch_d):
+                _1htr_score = 2.0
+                _1htr_reasons.append(f"✅ 1H EMA200上抜けリテスト({ema200_1h:.3f})")
+                if _1h_e200_slope > 0:
+                    _1htr_score += 0.5
+                    _1htr_reasons.append("✅ EMA200上昇中: トレンド転換確認")
+                _1htr_reasons.append(f"✅ EMA整合(9>21) + Stoch反転")
+                if entry > _open:
+                    _1htr_score += 0.3
+                    _1htr_reasons.append("✅ 陽線確認")
+                if _1htr_score >= 2.0:
+                    _1htr_tp = entry + atr * 2.5
+                    _1htr_sl = entry - atr * 0.8  # SL拡大: 0.5→0.8 ATR
+                    candidates.append(("BUY", _1htr_score, _1htr_tp, _1htr_sl, _1htr_reasons, "h1_ema200_trend_reversal"))
+            # 下抜けリテスト → SELL
+            elif (not _1h_e200_bull and _1h_e200_dist > -0.5 and macdh < prev_macdh
+                    and rsi > 45 and ema9 < ema21 and stoch_k < stoch_d):
+                _1htr_score = 2.0
+                _1htr_reasons.append(f"✅ 1H EMA200下抜けリテスト({ema200_1h:.3f})")
+                if _1h_e200_slope < 0:
+                    _1htr_score += 0.5
+                    _1htr_reasons.append("✅ EMA200下降中: トレンド転換確認")
+                _1htr_reasons.append(f"✅ EMA整合(9<21) + Stoch反転")
+                if entry < _open:
+                    _1htr_score += 0.3
+                    _1htr_reasons.append("✅ 陰線確認")
+                if _1htr_score >= 2.0:
+                    _1htr_tp = entry - atr * 2.5
+                    _1htr_sl = entry + atr * 0.8
+                    candidates.append(("SELL", _1htr_score, _1htr_tp, _1htr_sl, _1htr_reasons, "h1_ema200_trend_reversal"))
 
     # ── 最高スコア候補を採用 ──
     if candidates:
@@ -4289,6 +4542,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "dual_sr_bounce", "dual_sr_breakout",
                 "sr_fib_confluence", "ob_retest",
                 "hs_neckbreak", "ihs_neckbreak",  # 三尊/逆三尊
+                "dt_fib_reversal",           # フィボリトレースメント反発
+                "dt_sr_channel_reversal",    # SR/チャネルバウンス
+                "ema200_trend_reversal",     # EMA200トレンド転換
             }
             DT_CONDITIONAL = {"ema_cross"}
             DT_BLOCKED = {"unknown", "wait"}
@@ -4596,6 +4852,7 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
 
         QUALIFIED_TYPES = {
             "mtf_momentum", "session_orb", "pivot_breakout", "pivot_reversion",
+            "h1_fib_reversal", "h1_ema200_trend_reversal",
         }
 
         trades   = []
