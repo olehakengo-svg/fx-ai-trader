@@ -578,6 +578,7 @@ class DemoTrader:
 
         self._main_loop_status = "running"
         self._main_loop_error = None
+        _loop_iter = 0
 
         try:
             while True:
@@ -587,6 +588,11 @@ class DemoTrader:
 
                 try:
                     now = time.time()
+                    _loop_iter += 1
+                    if _loop_iter <= 3 or _loop_iter % 30 == 0:
+                        _modes_list = list(self._started_modes)
+                        _running_modes = [m for m in _modes_list if self._runners.get(m, {}).get("running", False)]
+                        print(f"[MainLoop] iter={_loop_iter} started={_modes_list} running={_running_modes}", flush=True)
                     for mode in list(self._started_modes):
                         runner = self._runners.get(mode, {})
                         if not runner.get("running", False):
@@ -706,7 +712,7 @@ class DemoTrader:
 
         tf = cfg["tf"]
         period = cfg["period"]
-        print(f"[DemoTrader/{mode}] _tick start: tf={tf}, period={period}")
+        print(f"[DemoTrader/{mode}] _tick start: tf={tf}, period={period}", flush=True)
 
         # 1. データ取得 + シグナル計算
         try:
