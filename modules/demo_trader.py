@@ -85,13 +85,13 @@ class DemoTrader:
             "sl_adjust": 1.0,
             "tp_adjust": 1.0,
             "entry_type_blacklist": [],
-            # 時間帯フィルター: UTC 00,01,21時を禁止（本番で全損失の94%を占める）
-            "session_blacklist": [0, 1, 21],
+            # 時間帯フィルター: デモモードでは無効化（学習データ蓄積優先）
+            "session_blacklist": [],
             "learn_every_n": 10,
             # 同方向連敗制御: N連敗で同方向エントリーを一時停止
-            "max_consecutive_losses": 5,
-            "daily_loss_limit_pips": -30,  # 日次損失上限（pip）
-            "max_drawdown_pips": -100,     # 最大DD上限（pip）
+            "max_consecutive_losses": 9999,       # デモ: 制限なし（学習データ蓄積優先）
+            "daily_loss_limit_pips": -99999,      # デモ: 制限なし
+            "max_drawdown_pips": -99999,           # デモ: 制限なし
         }
         self._trade_count_since_learn = 0
         self._last_signals = {}   # mode -> last signal dict
@@ -1080,60 +1080,10 @@ class DemoTrader:
             return
 
         # ══════════════════════════════════════════════════════════════
-        # ── リバウンド対策①: 全方向連敗サーキットブレーカー ──
-        # 方向問わず直近30分以内にN回以上負けたらモード一時停止
-        # 問題: SELL→BUY→SELLと方向が変わると同方向カウンタがリセット
+        # ── リバウンド対策①②③: デモモードでは無効化 ──
+        # サーキットブレーカー、ベロシティフィルター、ADXレジームブロック
+        # → 学習データ蓄積を優先するため全て無効化
         # ══════════════════════════════════════════════════════════════
-        _now = datetime.now(timezone.utc)
-        _cb_window_sec = {"scalp": 1800, "daytrade": 3600, "daytrade_1h": 7200, "swing": 14400}.get(mode, 1800)
-        _cb_max_losses = {"scalp": 4, "daytrade": 3, "daytrade_1h": 3, "swing": 2}.get(mode, 4)
-        _recent_losses = [
-            t for t in self._total_losses_window
-            if (_now - t[0]).total_seconds() < _cb_window_sec and t[1] == mode
-        ]
-        if len(_recent_losses) >= _cb_max_losses:
-            return  # サーキットブレーカー発動
-
-        # ══════════════════════════════════════════════════════════════
-        # ── リバウンド対策②: 価格ベロシティフィルター（急激な逆行検出） ──
-        # 直近N分で価格が大幅に動いている場合、その方向に逆らうエントリーを抑制
-        # Cont (2001): 短期モメンタムの自己相関 → 急動時は順行が続きやすい
-        # ══════════════════════════════════════════════════════════════
-        _vel_window_min = {"scalp": 10, "daytrade": 30, "daytrade_1h": 60, "swing": 240}.get(mode, 10)
-        _vel_threshold_pip = {"scalp": 8.0, "daytrade": 15.0, "daytrade_1h": 20.0, "swing": 40.0}.get(mode, 8.0)
-        _vel_cutoff = _now - timedelta(minutes=_vel_window_min)
-        _recent_prices = [(t, p) for t, p in self._price_history if t > _vel_cutoff]
-        if len(_recent_prices) >= 2:
-            _oldest_price = _recent_prices[0][1]
-            _price_move = current_price - _oldest_price  # 正=上昇, 負=下降
-            _move_pips = abs(_price_move) * 100  # pip換算
-            if _move_pips >= _vel_threshold_pip:
-                # 急上昇中にSELL or 急下降中にBUY → ブロック
-                if _price_move > 0 and signal == "SELL":
-                    return  # 急上昇リバウンド中のSELLを抑制
-                if _price_move < 0 and signal == "BUY":
-                    return  # 急下降中のBUYを抑制
-
-        # ══════════════════════════════════════════════════════════════
-        # ── リバウンド対策③: ADXレジーム急変検出 ──
-        # ADXが急上昇中（新しいトレンド発生）にトレンド逆行エントリーをブロック
-        # ══════════════════════════════════════════════════════════════
-        _sig_adx = sig.get("indicators", {}).get("adx", 0)
-        _sig_regime = sig.get("regime", {})
-        _regime_type = ""
-        if isinstance(_sig_regime, dict):
-            _regime_type = _sig_regime.get("type", "")
-        elif isinstance(_sig_regime, str):
-            _regime_type = _sig_regime
-        if _sig_adx and _sig_adx >= 35:
-            # 強トレンド中: トレンド方向と逆行するエントリーをブロック
-            if "BULL" in _regime_type.upper() and signal == "SELL":
-                # 例外: trend_rebound戦略は逆張りが目的なのでスキップしない
-                if entry_type != "trend_rebound":
-                    return
-            if "BEAR" in _regime_type.upper() and signal == "BUY":
-                if entry_type != "trend_rebound":
-                    return
 
         layer_status = sig.get("layer_status", {})
         if not layer_status.get("trade_ok", True):
