@@ -591,10 +591,27 @@ class DemoTrader:
                     if now - last < interval:
                         continue  # まだ間隔に達していない
 
-                    # ── このモードのtickを実行 ──
+                    # ── このモードのtickを実行（タイムアウト付き）──
+                    TICK_TIMEOUT = 120  # 最大120秒（API遅延対策）
                     try:
                         _tick_start = time.time()
-                        self._tick(mode)
+                        # タイムアウト付きでtickを別スレッドで実行
+                        _tick_exc = [None]
+                        def _run_tick():
+                            try:
+                                self._tick(mode)
+                            except Exception as ex:
+                                _tick_exc[0] = ex
+                        _t = threading.Thread(target=_run_tick, daemon=True)
+                        _t.start()
+                        _t.join(timeout=TICK_TIMEOUT)
+                        if _t.is_alive():
+                            # タイムアウト: tickがハングしている
+                            print(f"[MainLoop/{mode}] TIMEOUT after {TICK_TIMEOUT}s — skipping")
+                            _last_tick[mode] = time.time()
+                            continue
+                        if _tick_exc[0]:
+                            raise _tick_exc[0]
                         _tick_dur = time.time() - _tick_start
                         _consecutive_errors[mode] = 0
                         _last_tick[mode] = time.time()

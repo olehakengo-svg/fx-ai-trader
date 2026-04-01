@@ -55,7 +55,7 @@ _TD_OUTPUTSIZE = {
 # ═══════════════════════════════════════════════════════
 def _fetch_raw(symbol: str, period: str, interval: str) -> pd.DataFrame:
     ticker = yf.Ticker(symbol)
-    df = ticker.history(period=period, interval=interval, auto_adjust=True)
+    df = ticker.history(period=period, interval=interval, auto_adjust=True, timeout=30)
     # DatetimeIndex であることを保証してからtz操作
     if not isinstance(df.index, pd.DatetimeIndex):
         df.index = pd.to_datetime(df.index, utc=True)
