@@ -176,42 +176,7 @@ class DemoTrader:
         return _loop_alive and any(r.get("running", False) for r in self._runners.values())
 
     def get_status(self) -> dict:
-        open_trades = self._db.get_open_trades()
-        stats = self._db.get_stats()
-        modes_status = {}
-        for m, cfg in MODE_CONFIG.items():
-            runner = self._runners.get(m, {})
-            _loop_alive = self._health_thread and self._health_thread.is_alive()
-            _actually_running = runner.get("running", False) and _loop_alive
-            modes_status[m] = {
-                "running": _actually_running,
-                "label": cfg["label"],
-                "icon": cfg["icon"],
-                "tf": cfg["tf"],
-                "interval": cfg["interval_sec"],
-                "last_signal": self._last_signals.get(m),
-            }
-        # ログ件数のみ返す（全件はログ専用APIから取得）
-        try:
-            log_count = self._db.get_log_count()
-        except Exception:
-            log_count = 0
-
-        # MTFバイアス情報
-        with self._lock:
-            _bias = dict(self._15m_tactical_bias)
-        _bias_info = None
-        if _bias["direction"] and _bias["updated_at"]:
-            _age = (datetime.now(timezone.utc) - _bias["updated_at"]).total_seconds()
-            _bias_info = {
-                "direction": _bias["direction"],
-                "entry_type": _bias["entry_type"],
-                "strength": _bias.get("strength", ""),
-                "age_sec": int(_age),
-                "active": _age < 3600,
-            }
-
-        # ── Self-healing: ステータス確認時に死んだスレッドを自動復旧 ──
+        # ── Self-healing FIRST: ステータス計算前に死んだスレッドを自動復旧 ──
         if self._started_modes:
             _healed = []
             if not (self._health_thread and self._health_thread.is_alive()):
@@ -239,6 +204,41 @@ class DemoTrader:
                 except Exception:
                     pass
 
+        # ── ステータス計算（self-healing後の最新状態を反映） ──
+        open_trades = self._db.get_open_trades()
+        stats = self._db.get_stats()
+        modes_status = {}
+        for m, cfg in MODE_CONFIG.items():
+            runner = self._runners.get(m, {})
+            _loop_alive = self._health_thread and self._health_thread.is_alive()
+            _actually_running = runner.get("running", False) and _loop_alive
+            modes_status[m] = {
+                "running": _actually_running,
+                "label": cfg["label"],
+                "icon": cfg["icon"],
+                "tf": cfg["tf"],
+                "interval": cfg["interval_sec"],
+                "last_signal": self._last_signals.get(m),
+            }
+        try:
+            log_count = self._db.get_log_count()
+        except Exception:
+            log_count = 0
+
+        # MTFバイアス情報
+        with self._lock:
+            _bias = dict(self._15m_tactical_bias)
+        _bias_info = None
+        if _bias["direction"] and _bias["updated_at"]:
+            _age = (datetime.now(timezone.utc) - _bias["updated_at"]).total_seconds()
+            _bias_info = {
+                "direction": _bias["direction"],
+                "entry_type": _bias["entry_type"],
+                "strength": _bias.get("strength", ""),
+                "age_sec": int(_age),
+                "active": _age < 3600,
+            }
+
         return {
             "running": self.is_running(),
             "modes": modes_status,
@@ -248,13 +248,14 @@ class DemoTrader:
             "log_count": log_count,
             "trades_since_learn": self._trade_count_since_learn,
             "daily_review_active": self._daily_review.is_running(),
-            "sltp_checker_active": self._sltp_running,
+            "sltp_checker_active": bool(self._sltp_thread and self._sltp_thread.is_alive()),
             "mtf_bias": _bias_info,
             "main_loop_alive": bool(self._health_thread and self._health_thread.is_alive()),
             "main_loop_status": getattr(self, '_main_loop_status', 'unknown'),
             "main_loop_error": getattr(self, '_main_loop_error', None),
             "watchdog_alive": bool(self._watchdog_thread and self._watchdog_thread.is_alive()),
             "tick_counts": getattr(self, '_tick_counts', None),
+            "main_loop_restarts": getattr(self, '_main_loop_restart_count', 0),
         }
 
     def get_all_logs(self) -> list:
@@ -703,6 +704,13 @@ class DemoTrader:
             import traceback; traceback.print_exc()
             try:
                 self._add_log(f"💀 メインループ致命的エラー: {type(fatal).__name__}: {fatal}")
+            except Exception:
+                pass
+            # 自動リスタート（30秒待ってから）
+            print("[MainLoop] Will auto-restart in 30s...", flush=True)
+            time.sleep(30)
+            try:
+                self._ensure_main_loop()
             except Exception:
                 pass
 
