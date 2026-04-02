@@ -255,7 +255,8 @@ def _get_oanda_client():
 def fetch_ohlcv_oanda(symbol: str, interval: str, days: int) -> pd.DataFrame:
     """
     OANDA v20 Candles APIからOHLCVデータを取得。
-    USD/JPYのみ対応。最大5000本/リクエスト。
+    USD/JPYのみ対応。5000本/リクエスト上限をページネーションで対応。
+    1m/30日なら約23000本 → 5リクエストで取得。
     """
     client = _get_oanda_client()
     if not client or not client.configured:
@@ -273,24 +274,57 @@ def fetch_ohlcv_oanda(symbol: str, interval: str, days: int) -> pd.DataFrame:
     _bars_per_day = {"1m": 1440, "5m": 288, "15m": 96, "30m": 48,
                      "1h": 24, "4h": 6, "1d": 1, "1wk": 1, "1mo": 1}
     needed = int(days * _bars_per_day.get(interval, 24) * 0.6)
-    count = min(max(needed, 200), 5000)
 
-    ok, data = client.get_candles(
-        instrument=instrument,
-        granularity=granularity,
-        count=count,
-        price="M",  # midpoint
-    )
-    if not ok:
-        raise ValueError(f"OANDA candles: {data.get('message', 'unknown')}")
+    all_candles = []
 
-    candles = data.get("candles", [])
-    if not candles:
+    if needed <= 5000:
+        # 1リクエストで足りる場合
+        count = min(max(needed, 200), 5000)
+        ok, data = client.get_candles(
+            instrument=instrument, granularity=granularity,
+            count=count, price="M",
+        )
+        if not ok:
+            raise ValueError(f"OANDA candles: {data.get('message', 'unknown')}")
+        all_candles = data.get("candles", [])
+    else:
+        # ページネーション: from_time/to_time で分割取得
+        from datetime import timedelta as _td
+        _now = datetime.now(timezone.utc)
+        _start = _now - _td(days=days)
+        _chunk_bars = 5000
+        _secs_per_bar = {"1m": 60, "5m": 300, "15m": 900, "30m": 1800,
+                         "1h": 3600, "4h": 14400, "1d": 86400}.get(interval, 60)
+        _chunk_secs = _chunk_bars * _secs_per_bar
+        _cursor = _start
+        _max_pages = 20  # 安全上限
+
+        for _page in range(_max_pages):
+            _from = _cursor.strftime("%Y-%m-%dT%H:%M:%SZ")
+            _to_dt = min(_cursor + _td(seconds=_chunk_secs), _now)
+            _to = _to_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+            ok, data = client.get_candles(
+                instrument=instrument, granularity=granularity,
+                price="M", from_time=_from, to_time=_to,
+            )
+            if ok:
+                chunk = data.get("candles", [])
+                all_candles.extend(chunk)
+                print(f"[OANDA/{interval}] page {_page+1}: {len(chunk)} bars ({_from[:10]}~{_to[:10]})")
+            else:
+                print(f"[OANDA/{interval}] page {_page+1} failed: {data.get('message','?')}")
+
+            _cursor = _to_dt
+            if _cursor >= _now:
+                break
+
+    if not all_candles:
         raise ValueError("OANDA candles: empty response")
 
     rows = []
     times = []
-    for c in candles:
+    for c in all_candles:
         mid = c.get("mid", {})
         if not mid:
             continue
@@ -307,7 +341,6 @@ def fetch_ohlcv_oanda(symbol: str, interval: str, days: int) -> pd.DataFrame:
         raise ValueError("OANDA candles: no valid candle data")
 
     idx = pd.DatetimeIndex(times)
-    # タイムゾーン統一
     if idx.tz is None:
         idx = idx.tz_localize("UTC")
     else:
@@ -316,6 +349,7 @@ def fetch_ohlcv_oanda(symbol: str, interval: str, days: int) -> pd.DataFrame:
     df = pd.DataFrame(rows, index=idx)
     df = df[~df.index.duplicated(keep="last")]
     df = df.sort_index()
+    print(f"[OANDA/{interval}] Total: {len(df)} bars for {days}d")
     return df.dropna()
 
 

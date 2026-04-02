@@ -4106,7 +4106,7 @@ _ML_RETRAIN_HOURS = 24  # retrain every 24 hours
 _ML_MIN_SAMPLES = 100   # minimum samples to train
 
 def run_scalp_backtest(symbol: str = "USDJPY=X",
-                       lookback_days: int = 7,
+                       lookback_days: int = 30,
                        interval: str = "1m") -> dict:
     """
     スキャルピングBT — compute_scalp_signal統合版
@@ -4121,8 +4121,9 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         return cached["result"]
 
     try:
-        # 1m足は yfinance で最大7日間
-        fetch_period = f"{min(lookback_days, 7)}d" if interval == "1m" else f"{lookback_days}d"
+        # OANDA優先: 1m足でも30日以上取得可能（ページネーション対応）
+        # yfinanceフォールバック時は7日制限あり
+        fetch_period = f"{lookback_days}d"
         df = fetch_ohlcv(symbol, period=fetch_period, interval=interval)
         df = add_indicators(df)
         df = df.dropna()
@@ -9534,13 +9535,13 @@ def api_backtest():
         if mode == "scalp":
             tf = request.args.get("tf", "1m")
             # 本番は1m足 → BTも1mがデフォルト（BT/本番統一原則）
-            # 1m=7日（yfinance上限）/ 5m=55日 / 15m=55日
+            # 1m=30日（OANDA paginated）/ 5m=55日 / 15m=55日
             if tf == "5m":
                 interval, lookback = "5m", 55
             elif tf == "15m":
                 interval, lookback = "15m", 55
             else:  # 1m がデフォルト（本番と統一）
-                interval, lookback = "1m", 7
+                interval, lookback = "1m", 30  # OANDA paginated: 30日対応
             result = run_scalp_backtest("USDJPY=X", lookback_days=lookback, interval=interval)
         elif mode == "daytrade":
             result = run_daytrade_backtest("USDJPY=X", lookback_days=55, interval="15m")
