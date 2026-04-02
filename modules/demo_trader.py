@@ -1132,7 +1132,7 @@ class DemoTrader:
         # ══════════════════════════════════════════════════════════════
         _now_vel = datetime.now(timezone.utc)
         _vel_window_min = {"scalp": 10, "daytrade": 30, "daytrade_1h": 60}.get(mode, 10)
-        _vel_threshold_pip = {"scalp": 8.0, "daytrade": 15.0, "daytrade_1h": 20.0}.get(mode, 8.0)
+        _vel_threshold_pip = {"scalp": 15.0, "daytrade": 15.0, "daytrade_1h": 20.0}.get(mode, 8.0)  # scalp: 8→15pip（調整局面のカウンタートレード許可）
         _vel_cutoff = _now_vel - timedelta(minutes=_vel_window_min)
         _recent_prices = [(t, p) for t, p in self._price_history if t > _vel_cutoff]
         if len(_recent_prices) >= 2:
@@ -1159,41 +1159,39 @@ class DemoTrader:
                 return
 
         # ══════════════════════════════════════════════════════════════
-        # ── MTF連携: 15m DT バイアスによるスキャルプ戦略変更 ──
-        # 15mで三尊/逆三尊/SR構造を検出 → 1mスキャルプの方向をバイアス
-        # strong: 逆方向ブロック + 順方向TP拡大
-        # trend:  逆方向confidence減衰
+        # ── MTF連携: 15m DT バイアス ──
+        # v6: スキャルプは方向不問（1m足=短期の波を両方向で取る）
+        #     15mバイアスでスキャルプを制御するのは時間軸が粗すぎる
+        #     → スキャルプのMTFバイアスを無効化
+        #     DT/1H: 引き続き有効（同じ時間軸レベルの制御）
         # ══════════════════════════════════════════════════════════════
-        _mtf_tp_bonus = 1.0  # TP倍率（順方向時に拡大）
-        with self._lock:
-            _bias_snapshot = dict(self._15m_tactical_bias)
-        if mode == "scalp" and _bias_snapshot["direction"]:
-            _bias = _bias_snapshot
-            _bias_age = (datetime.now(timezone.utc) - _bias["updated_at"]).total_seconds() if _bias["updated_at"] else 99999
-            _bias_valid = _bias_age < 3600  # 1時間以内のバイアスのみ有効
+        _mtf_tp_bonus = 1.0
+        # スキャルプはMTFバイアス不要（両方向で調整局面も取る）
+        # DT/1H/swingのみMTFバイアス適用
+        if mode != "scalp":
+            with self._lock:
+                _bias_snapshot = dict(self._15m_tactical_bias)
+            if _bias_snapshot.get("direction"):
+                _bias = _bias_snapshot
+                _bias_age = (datetime.now(timezone.utc) - _bias["updated_at"]).total_seconds() if _bias["updated_at"] else 99999
+                _bias_valid = _bias_age < 3600
 
-            if _bias_valid:
-                _bias_dir = _bias["direction"]
-                _bias_strength = _bias.get("strength", "trend")
-                _bias_etype = _bias.get("entry_type", "")
+                if _bias_valid:
+                    _bias_dir = _bias["direction"]
+                    _bias_strength = _bias.get("strength", "trend")
 
-                if _bias_strength == "strong":
-                    # 強い構造的パターン（三尊/逆三尊/SR等）
-                    if signal != _bias_dir:
-                        # 逆方向エントリーをブロック（trend_rebound除外）
-                        if entry_type != "trend_rebound":
-                            return  # 15m構造パターンと逆行 → ブロック
-                    else:
-                        # 順方向: TPを1.3倍に拡大（大きな動きが期待できる）
-                        _mtf_tp_bonus = 1.3
+                    if _bias_strength == "strong":
+                        if signal != _bias_dir:
+                            if entry_type != "trend_rebound":
+                                return
+                        else:
+                            _mtf_tp_bonus = 1.3
 
-                elif _bias_strength == "trend":
-                    # トレンドシグナル（ema_cross等）
-                    if signal != _bias_dir:
-                        # 逆方向: confidence を20%減衰
-                        confidence = int(confidence * 0.8)
-                        if confidence < self._params["confidence_threshold"]:
-                            return  # 閾値未満に落ちた → ブロック
+                    elif _bias_strength == "trend":
+                        if signal != _bias_dir:
+                            confidence = int(confidence * 0.8)
+                            if confidence < self._params["confidence_threshold"]:
+                                return
 
         # ══════════════════════════════════════════════════════════════
         # ── TP固定 / SLエントリーから逆算 ──
