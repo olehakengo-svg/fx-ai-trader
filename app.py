@@ -7546,19 +7546,31 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         reasons.append(f"⚠️ EMA200近接ゾーン(距離{_ema200_dist:.2f}ATR) — チョッピー回避")
 
     # ── EMA200 方向フィルター ──
-    # 200EMA上のSELL / 200EMA下のBUY → 逆行ペナルティ
+    # 200EMA上+スロープ上昇のSELL / 200EMA下+スロープ下降のBUY → ハードブロック
+    # 本番: EMA200逆行のmacdh_reversal|SELL全敗、fib_reversal|BUY WR=33%
     # trend_reboundは逆張り戦略なので除外
     if entry_type not in ("trend_rebound", "v_reversal"):
-        if _ema200_bull and signal == "SELL":
-            _penalty = 0.70 if _ema200_slope > 0 else 0.80  # 上昇中の逆行はより厳しく
-            score *= _penalty
+        if _ema200_bull and signal == "SELL" and _ema200_slope > 0:
+            # EMA200上 + 上昇中 → SELL完全ブロック
+            reasons.append(f"🚫 EMA200上昇中のSELL(dist={_ema200_dist:+.2f}ATR) → ブロック")
+            return {"signal": "WAIT", "confidence": 0, "reasons": reasons,
+                    "entry_type": entry_type, "sl": sl, "tp": tp, "atr": atr7,
+                    "indicators": {"rsi": rsi5, "bbpb": bbpb, "adx": adx}}
+        elif not _ema200_bull and signal == "BUY" and _ema200_slope < 0:
+            # EMA200下 + 下降中 → BUY完全ブロック
+            reasons.append(f"🚫 EMA200下降中のBUY(dist={_ema200_dist:+.2f}ATR) → ブロック")
+            return {"signal": "WAIT", "confidence": 0, "reasons": reasons,
+                    "entry_type": entry_type, "sl": sl, "tp": tp, "atr": atr7,
+                    "indicators": {"rsi": rsi5, "bbpb": bbpb, "adx": adx}}
+        elif _ema200_bull and signal == "SELL":
+            # EMA200上だがスロープ横ばい → ソフトペナルティ維持
+            score *= 0.80
             conf = int(conf * 0.85)
-            reasons.append(f"⚠️ EMA200上からSELL(dist={_ema200_dist:+.2f}ATR) — 方向逆行")
+            reasons.append(f"⚠️ EMA200上からSELL(dist={_ema200_dist:+.2f}ATR) — 軽度減衰")
         elif not _ema200_bull and signal == "BUY":
-            _penalty = 0.70 if _ema200_slope < 0 else 0.80  # 下降中の逆行はより厳しく
-            score *= _penalty
+            score *= 0.80
             conf = int(conf * 0.85)
-            reasons.append(f"⚠️ EMA200下からBUY(dist={_ema200_dist:+.2f}ATR) — 方向逆行")
+            reasons.append(f"⚠️ EMA200下からBUY(dist={_ema200_dist:+.2f}ATR) — 軽度減衰")
 
     # ── EMA200 バウンスボーナス ──
     # EMA200に近接してからの反転 → 高確信ボーナス
@@ -7572,16 +7584,21 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             score += 0.8
             reasons.append(f"✅ EMA200レジスタンスバウンス(dist={_ema200_dist:.2f}ATR)")
 
-    # ── HTF方向フィルター: 逆行シグナルを減衰 ──
+    # ── HTF方向フィルター: 逆行シグナルを完全ブロック（DT同様ハードフィルター）──
+    # 本番実績: macdh_reversal|SELL WR=0%(5t -15.4p) — ソフト減衰では阻止不能
     htf_dir = htf.get("agreement", "neutral")
     if htf_dir == "bull" and signal == "SELL":
-        score *= 0.6
-        conf = int(conf * 0.7)
-        reasons.append("⚠️ HTFブル逆行 — 確信度低下")
+        signal = "WAIT"
+        reasons.append("🚫 HTF上昇一致 → SELL完全ブロック")
+        return {"signal": "WAIT", "confidence": 0, "reasons": reasons,
+                "entry_type": entry_type, "sl": sl, "tp": tp, "atr": atr7,
+                "indicators": {"rsi": rsi5, "bbpb": bbpb, "adx": adx}}
     elif htf_dir == "bear" and signal == "BUY":
-        score *= 0.6
-        conf = int(conf * 0.7)
-        reasons.append("⚠️ HTFベア逆行 — 確信度低下")
+        signal = "WAIT"
+        reasons.append("🚫 HTF下降一致 → BUY完全ブロック")
+        return {"signal": "WAIT", "confidence": 0, "reasons": reasons,
+                "entry_type": entry_type, "sl": sl, "tp": tp, "atr": atr7,
+                "indicators": {"rsi": rsi5, "bbpb": bbpb, "adx": adx}}
 
     # ── SL/TP最終調整: 最低距離保証 + RR保証 ──
     sl_dist = abs(entry - sl)
