@@ -9539,7 +9539,7 @@ def api_ml_train():
 @app.route("/api/backtest")
 def api_backtest():
     """バックテスト結果（モード別キャッシュ）
-    ?mode=scalp&tf=5m / ?mode=daytrade / ?mode=swing / ?mode=standard
+    ?mode=scalp&tf=5m / ?mode=daytrade / ?mode=daytrade_1h / ?mode=swing / ?mode=standard
     ?force=1 でキャッシュを無視して即時再計算
     """
     try:
@@ -9548,10 +9548,11 @@ def api_backtest():
 
         # force=1: 対象モードのキャッシュをクリアして再計算
         if force:
-            if mode == "scalp":      _scalp_bt_cache.clear()
-            elif mode == "daytrade": _dt_bt_cache.clear()
-            elif mode == "swing":    _sw_bt_cache.clear()
-            else:                    _bt_cache.clear()
+            if mode == "scalp":         _scalp_bt_cache.clear()
+            elif mode == "daytrade":    _dt_bt_cache.clear()
+            elif mode == "daytrade_1h": _1h_bt_cache.clear()
+            elif mode == "swing":       _sw_bt_cache.clear()
+            else:                       _bt_cache.clear()
 
         if mode == "scalp":
             tf = request.args.get("tf", "1m")
@@ -9566,6 +9567,8 @@ def api_backtest():
             result = run_scalp_backtest("USDJPY=X", lookback_days=lookback, interval=interval)
         elif mode == "daytrade":
             result = run_daytrade_backtest("USDJPY=X", lookback_days=55, interval="15m")
+        elif mode == "daytrade_1h":
+            result = run_1h_backtest("USDJPY=X", lookback_days=30, interval="1h")
         elif mode == "swing":
             result   = run_swing_backtest("USDJPY=X", lookback_days=365)
         else:
