@@ -975,12 +975,13 @@ class DemoTrader:
             _block(f"conf<{self._params['confidence_threshold']}(was:{confidence})"); return
 
         # ── 重複エントリー防止 ──
-        # (A) 同価格帯ブロック（3pip以内）
+        # (A) 同価格帯ブロック（モード別: DT=1.5pip, other=3pip）
+        _same_price_dist = 0.015 if mode == "daytrade" else 0.03  # DT: 3→1.5pip
         for t in mode_trades:
-            if abs(t["entry_price"] - current_price) < 0.03:
-                _block("same_price_3pip"); return
+            if abs(t["entry_price"] - current_price) < _same_price_dist:
+                _block(f"same_price_{_same_price_dist*100:.0f}pip"); return
         # (B) 同方向ポジション上限（モード別）
-        _dir_limits = {"scalp": 2, "daytrade": 3, "daytrade_1h": 2, "swing": 2}
+        _dir_limits = {"scalp": 2, "daytrade": 5, "daytrade_1h": 2, "swing": 2}  # DT: 3→5
         _max_same_dir = _dir_limits.get(mode, 2)
         _same_dir_count = sum(1 for t in mode_trades if t.get("direction") == signal)
         if _same_dir_count >= _max_same_dir:
@@ -1068,7 +1069,7 @@ class DemoTrader:
         # ── SL後クールダウン ──
         last_ex = self._last_exit.get(mode)
         if last_ex:
-            _cooldown_sec = {"scalp": 120, "daytrade": 600, "daytrade_1h": 1800, "swing": 7200}.get(mode, 120)
+            _cooldown_sec = {"scalp": 120, "daytrade": 300, "daytrade_1h": 1800, "swing": 7200}.get(mode, 120)  # DT: 600→300s
             _ex_age = (datetime.now(timezone.utc) - last_ex["time"]).total_seconds()
             if _ex_age < _cooldown_sec:
                 if last_ex["direction"] == signal:
@@ -1086,7 +1087,7 @@ class DemoTrader:
             hour_now = datetime.now(timezone.utc).hour
             # モード別時間帯制限
             if mode == "daytrade":
-                if hour_now < 7 or hour_now >= 21:
+                if hour_now < 5 or hour_now >= 22:  # 旧7-21→5-22: +5h (Tokyo AM + NY Late)
                     _block(f"session_block(h={hour_now})"); return
             elif mode == "daytrade_1h":
                 if hour_now < 3 or hour_now >= 22:
