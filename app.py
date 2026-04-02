@@ -4209,18 +4209,19 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             # ── エントリー理由の品質ゲート（本番と統一）──
             QUALIFIED_TYPES = {
-                # v2 戦略タイプ
+                # v2 戦略タイプ（本番 demo_trader.py と統一）
                 "bb_rsi_reversion", "bb_squeeze_breakout",
                 "rsi_divergence_sr", "london_breakout",
                 "stoch_trend_pullback", "macdh_reversal",
-                "engulfing_bb", "three_bar_reversal",
+                # "engulfing_bb",    # DISABLED: EV=+0.042 @0.8pip spread → 薄利すぎ
+                "three_bar_reversal",
                 "trend_rebound",  # 強トレンド時リバウンド
                 "v_reversal",     # V字リバウンドキャプチャ
-                "hs_neckbreak",   # 三尊天井ネックライン割れ
+                # "hs_neckbreak",  # DISABLED: EV=-0.346 @0.8pip spread → マイナス
                 "ihs_neckbreak",  # 逆三尊ネックライン突破
                 "sr_touch_bounce", # 水平線タッチ反発
                 # v3 リバーサル戦略
-                "sr_channel_reversal",      # SR/チャネルバウンス
+                # "sr_channel_reversal",  # DISABLED: EV=-0.004 @0.8pip spread → マイナス
                 "fib_reversal",             # フィボナッチリトレースメント反発
                 "mtf_reversal_confluence",  # MTF RSI+MACDクロス一致
                 # v1 互換
@@ -4589,9 +4590,12 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
             # ── エントリー理由の品質ゲート（本番と統一）──
             DT_QUALIFIED = {
+                # 本番 demo_trader.py と統一
                 "dual_sr_bounce", "dual_sr_breakout",
-                "sr_fib_confluence", "ob_retest",
-                "hs_neckbreak", "ihs_neckbreak",  # 三尊/逆三尊
+                "sr_fib_confluence",
+                # "ob_retest",       # 本番ではDT用に未使用
+                # "hs_neckbreak",    # DISABLED: EV=-0.346
+                "ihs_neckbreak",
                 "dt_fib_reversal",           # フィボリトレースメント反発
                 "dt_sr_channel_reversal",    # SR/チャネルバウンス
                 "ema200_trend_reversal",     # EMA200トレンド転換
@@ -4901,7 +4905,10 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
                 max_levels=8, bars_per_day=24)
 
         QUALIFIED_TYPES = {
-            "mtf_momentum", "session_orb", "pivot_breakout", "pivot_reversion",
+            # 本番 demo_trader.py と統一
+            "mtf_momentum", "session_orb",
+            # "pivot_breakout",  # DISABLED: 本番WR=0%(3t -66.4pip) — SL幅27pip+逆行エントリー
+            "pivot_reversion",
             "h1_fib_reversal", "h1_ema200_trend_reversal",
         }
 
