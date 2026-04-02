@@ -9,10 +9,11 @@
 - **IMPORTANT**: Always reference production (Render) data for analysis, NOT the local development DB. Local DB is for dev/testing only.
 
 ## OANDA API Integration
-- **ブローカー**: OANDA Japan（本番口座）
-- **API**: OANDA v1 REST API (`https://api-fxtrade.oanda.com`)
-- **認証**: Bearer token (`OANDA_TOKEN`)
-- **環境変数**: `OANDA_TOKEN`, `OANDA_ACCOUNT_ID`, `OANDA_LIVE=true`, `OANDA_UNITS=1000`(0.01 lot)
+- **ブローカー**: OANDA Japan（本番口座 — サブアカウント `Claude_auto_trade_KG`）
+- **API**: OANDA v20 REST API (`https://api-fxtrade.oanda.com/v3/`)
+- **認証**: Bearer token (`OANDA_TOKEN`) — サブアカウントから発行
+- **アカウントID**: `001-009-21129155-002` (ヘッジング有効)
+- **環境変数**: `OANDA_TOKEN`, `OANDA_ACCOUNT_ID`, `OANDA_LIVE=true`, `OANDA_UNITS=10000`(0.1 lot)
 - **アーキテクチャ**: OandaClient(薄いAPIラッパー) → OandaBridge(ビジネスロジック, fire-and-forget) → demo_trader.py
 - **設計**: デモシステムは独立稼働、OANDA連携はオプショナル。OANDA障害時もデモトレードは継続
 - **連携ポイント**: エントリー(market_order) / SL/TP決済(close_trade) / シグナル反転(close_trade) / トレーリングSL(modify_trade) / 手動クローズ(close_trade)
@@ -21,6 +22,7 @@
 ## Design Principles
 - **本番環境を常に参照**: 分析・データ取得はRender本番サーバーから行うこと（ローカルDBは開発用のみ）
 - **BT/本番ロジック統一**: BT関数は本番のsignal関数を呼び出すこと。独自のエントリーロジックをBTに書かない
+- **本番変更は必ずBTにも反映**: 本番で戦略の有効化/無効化、フィルター追加、パラメータ変更を行った場合、BT側のQUALIFIED_TYPESやフィルターも必ず同期すること。BT結果が本番と乖離しないようにする
 
 ## Key Architecture
 - Backend: Flask (app.py ~7500+ lines)
@@ -142,3 +144,15 @@
 - **1H Zone v3**: h1_fib_reversal(フィボ120バー反発, EMA必須→ボーナス), h1_ema200_trend_reversal(EMA200リテスト, ADX≥15)
 - **スレッド自己回復強化**: get_status()でMainLoop/Watchdog/SLTP/全モードを自動復旧、BaseException catch、request_tick fallback
 - **Gunicorn gthread**: --worker-class gthread + timeout 300s（スレッド安定化）
+
+## Recent Fixes (2026-04-03 本番データ分析ベース最適化)
+- **DT HTFハードフィルター**: htf_agreement=bull時のSELL完全ブロック（スコア×0.50 → return WAIT）。本番12連敗-101pip防止
+- **サーキットブレーカー実装**: _total_losses_windowを使い30分内N回負けでモード一時停止(scalp:4, DT:3, 1H:2)
+- **DT同方向ポジ上限**: 5→2、同価格距離: 1.5→5pip、クールダウン: 300→600s（マシンガンエントリー防止）
+- **pivot_breakout無効化**: 本番WR=0%(3t -66.4pip)、BT/本番両方のQUALIFIED_TYPESから除外
+- **max_consecutive_losses**: 9999→3（同方向連敗制御を有効化）
+- **スキャルプ強化**: 同方向ポジ2→3、同価格距離1.5→1.0pip、クールダウン120→60s（好調WR=56.4%のエントリー機会増）
+- **BT QUALIFIED_TYPES統一**: scalp(engulfing_bb,hs_neckbreak,sr_channel_reversal無効化)、DT(hs_neckbreak,ob_retest無効化)、1H(pivot_breakout無効化)を本番と一致
+- **スキャルプEMA200ハードフィルター**: EMA200上+スロープ上昇中のSELL完全ブロック（本番macdh_reversal|SELL WR=0% -15.4pip対策）
+- **スキャルプHTFハードフィルター**: HTF bull時SELL完全ブロック、bear時BUY完全ブロック（ソフト減衰score×0.6→完全ブロック）
+- **OANDA v20サブアカウント接続**: Claude_auto_trade_KG (001-009-21129155-002)、hedgingEnabled=true、APIトークン再発行で403解消
