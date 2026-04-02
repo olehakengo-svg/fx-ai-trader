@@ -61,6 +61,7 @@ tr:hover{background:rgba(255,255,255,.02)}
 .oanda-badge{font-size:8px;padding:1px 4px;border-radius:3px;background:rgba(168,85,247,.15);color:#a78bfa;font-weight:700;letter-spacing:.3px}
 #equity-chart{width:100%;height:250px}
 #trade-chart{width:100%;height:400px}
+.mtf-chart{width:100%;height:320px}
 .chart-legend{display:flex;gap:12px;font-size:10px;color:var(--t3);margin-top:4px}
 .legend-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:3px}
 .chart-msg{display:flex;align-items:center;justify-content:center;height:100%;color:var(--t3);font-size:12px}
@@ -125,25 +126,22 @@ tr:hover{background:rgba(255,255,255,.02)}
     </div>
   </div>
 
-  <!-- Price Chart with IN/OUT markers -->
-  <div class="card full">
-    <div class="card-title">
-      📉 トレードチャート（IN/OUT描画）
-      <select id="chart-tf" onchange="reloadChart()" style="margin-left:auto;font-size:10px;padding:2px 6px;background:var(--bg);color:var(--t1);border:1px solid var(--bg2);border-radius:4px">
-        <option value="1m">1分足</option>
-        <option value="5m">5分足</option>
-        <option value="15m" selected>15分足</option>
-        <option value="1h">1時間足</option>
-      </select>
-    </div>
-    <div id="trade-chart"></div>
-    <div class="chart-legend" style="flex-wrap:wrap">
-      <span><span class="legend-dot" style="background:#22c55e"></span>📊 DT BUY</span>
-      <span><span class="legend-dot" style="background:#ef4444"></span>📊 DT SELL</span>
-      <span><span class="legend-dot" style="background:#fbbf24"></span>⚡ SC BUY</span>
-      <span><span class="legend-dot" style="background:#f97316"></span>⚡ SC SELL</span>
-      <span style="margin-left:8px">○ TP &nbsp; □ SL &nbsp; ◇ Reverse</span>
-    </div>
+  <!-- Multi-Timeframe Charts (2x2 Grid) -->
+  <div class="card">
+    <div class="card-title">⚡ 1分足（スキャルプ）<span id="mtf-src-1m" style="margin-left:auto;font-size:9px;color:var(--t3)"></span></div>
+    <div id="mtf-chart-1m" class="mtf-chart"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">📊 15分足（デイトレ）<span id="mtf-src-15m" style="margin-left:auto;font-size:9px;color:var(--t3)"></span></div>
+    <div id="mtf-chart-15m" class="mtf-chart"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">🕐 1時間足（DT1H）<span id="mtf-src-1h" style="margin-left:auto;font-size:9px;color:var(--t3)"></span></div>
+    <div id="mtf-chart-1h" class="mtf-chart"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">📈 4時間足（上位TF）<span id="mtf-src-4h" style="margin-left:auto;font-size:9px;color:var(--t3)"></span></div>
+    <div id="mtf-chart-4h" class="mtf-chart"></div>
   </div>
 
   <!-- Learning Insights -->
@@ -221,7 +219,10 @@ tr:hover{background:rgba(255,255,255,.02)}
 function _h(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
 
 let equityChart=null, equitySeries=null;
-let tradeChart=null, candleSeries=null;
+
+// Multi-TF charts
+const MTF_TFS=['1m','15m','1h','4h'];
+const mtfCharts={};  // tf -> {chart, candleSeries}
 
 // ── Init Charts ──
 function initCharts(){
@@ -239,19 +240,24 @@ function initCharts(){
     lineWidth:2,
   });
 
-  // Trade chart
-  const tcEl=document.getElementById('trade-chart');
-  tradeChart=LightweightCharts.createChart(tcEl,{
-    layout:{background:{color:'#0d1117'},textColor:'#8b949e',fontSize:11},
-    grid:{vertLines:{color:'#1c2128'},horzLines:{color:'#1c2128'}},
-    rightPriceScale:{borderColor:'#30363d'},
-    timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},
-    crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
-    height:400,
-  });
-  candleSeries=tradeChart.addCandlestickSeries({
-    upColor:'#22c55e',downColor:'#ef4444',borderUpColor:'#22c55e',borderDownColor:'#ef4444',
-    wickUpColor:'#22c55e',wickDownColor:'#ef4444',
+  // Multi-TF candle charts
+  MTF_TFS.forEach(tf=>{
+    const el=document.getElementById('mtf-chart-'+tf);
+    if(!el)return;
+    const showSec=tf==='1m';
+    const chart=LightweightCharts.createChart(el,{
+      layout:{background:{color:'#0d1117'},textColor:'#8b949e',fontSize:10},
+      grid:{vertLines:{color:'#1c2128'},horzLines:{color:'#1c2128'}},
+      rightPriceScale:{borderColor:'#30363d',scaleMargins:{top:0.1,bottom:0.1}},
+      timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:showSec},
+      crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+      height:320,
+    });
+    const cs=chart.addCandlestickSeries({
+      upColor:'#22c55e',downColor:'#ef4444',borderUpColor:'#22c55e',borderDownColor:'#ef4444',
+      wickUpColor:'#22c55e',wickDownColor:'#ef4444',
+    });
+    mtfCharts[tf]={chart,candleSeries:cs};
   });
 }
 
@@ -473,94 +479,79 @@ async function loadEquity(){
 
 // ── Load Trade Chart ──
 async function loadTradeChart(){
+  // Load trades once for markers
+  let allTrades=[];
   try{
-    const tf=document.getElementById('chart-tf').value;
-
-    // Load candle data
-    const chartR=await fetch('/api/chart-data?tf='+tf);
-    const chartD=await chartR.json();
-
-    if(chartD.error){
-      console.warn('[ChartData] Error:',chartD.error);
-    }
-
-    if(chartD.candles&&chartD.candles.length){
-      // Deduplicate and sort
-      const seen=new Set();
-      const candles=chartD.candles
-        .filter(c=>{if(seen.has(c.time))return false;seen.add(c.time);return true;})
-        .sort((a,b)=>a.time-b.time);
-      candleSeries.setData(candles);
-      console.log(`[Chart] Loaded ${candles.length} candles (${tf})`);
-    }else{
-      console.warn('[Chart] No candle data returned');
-      // Show empty message
-    }
-
-    // Load trades and draw IN/OUT markers with mode distinction
     const dr=await fetch('/api/demo/trades?status=all&limit=200');
     const dd=await dr.json();
+    allTrades=dd.trades||[];
+  }catch(e){}
 
-    if(dd.trades&&dd.trades.length){
+  // Load each TF chart in parallel
+  await Promise.all(MTF_TFS.map(async tf=>{
+    const mc=mtfCharts[tf];
+    if(!mc)return;
+    try{
+      const chartR=await fetch('/api/chart-data?tf='+tf);
+      const chartD=await chartR.json();
+
+      if(chartD.candles&&chartD.candles.length){
+        const seen=new Set();
+        const candles=chartD.candles
+          .filter(c=>{if(seen.has(c.time))return false;seen.add(c.time);return true;})
+          .sort((a,b)=>a.time-b.time);
+        mc.candleSeries.setData(candles);
+      }
+
+      // Data source label
+      const srcEl=document.getElementById('mtf-src-'+tf);
+      if(srcEl&&chartD.ohlcv_source) srcEl.textContent=chartD.ohlcv_source.toUpperCase();
+
+      // Trade markers for this TF
+      const tfMap={'1m':['1m','5m'],'15m':['15m'],'1h':['1h'],'4h':['4h']};
+      const matchTfs=tfMap[tf]||[tf];
       const markers=[];
-      dd.trades.forEach(t=>{
+      allTrades.forEach(t=>{
+        if(!matchTfs.includes(t.tf))return;
         const isBuy=t.direction==='BUY';
         const isScalp=t.tf==='1m'||t.tf==='5m';
         const modeIcon=isScalp?'⚡':'📊';
-        const modeLabel=isScalp?'SC':'DT';
-        // Mode-based colors: scalp=gold/orange, daytrade=blue/cyan
         const inColor=isScalp
-          ?(isBuy?'#fbbf24':'#f97316')   // scalp: gold(BUY)/orange(SELL)
-          :(isBuy?'#22c55e':'#ef4444');   // daytrade: green(BUY)/red(SELL)
+          ?(isBuy?'#fbbf24':'#f97316')
+          :(isBuy?'#22c55e':'#ef4444');
 
-        // Entry marker
         if(t.entry_time){
           try{
             const et=Math.floor(new Date(t.entry_time).getTime()/1000);
             if(et>0)markers.push({
-              time:et,
-              position:isBuy?'belowBar':'aboveBar',
-              color:inColor,
-              shape:isBuy?'arrowUp':'arrowDown',
-              text:modeIcon+' IN '+(t.entry_price?.toFixed(1)||''),
-              size:isScalp?1.0:1.5,
+              time:et, position:isBuy?'belowBar':'aboveBar',
+              color:inColor, shape:isBuy?'arrowUp':'arrowDown',
+              text:modeIcon+(t.entry_price?.toFixed(1)||''), size:1,
             });
           }catch(e){}
         }
-        // Exit marker
         if(t.exit_time&&t.exit_price!=null){
           try{
             const xt=Math.floor(new Date(t.exit_time).getTime()/1000);
             const isWin=t.outcome==='WIN';
             const shapeMap={TP_HIT:'circle',SL_HIT:'square',SIGNAL_REVERSE:'diamond'};
-            const outColor=isWin
-              ?(isScalp?'#fbbf24':'#22c55e')    // WIN: scalp=gold, dt=green
-              :(isScalp?'#f97316':'#ef4444');     // LOSS: scalp=orange, dt=red
+            const outColor=isWin?'#22c55e':'#ef4444';
             if(xt>0)markers.push({
-              time:xt,
-              position:isBuy?'aboveBar':'belowBar',
-              color:outColor,
-              shape:shapeMap[t.close_reason]||'circle',
-              text:modeIcon+' OUT '+(t.pnl_pips>=0?'+':'')+t.pnl_pips?.toFixed(1)+'p',
-              size:isScalp?1.0:1.5,
+              time:xt, position:isBuy?'aboveBar':'belowBar',
+              color:outColor, shape:shapeMap[t.close_reason]||'circle',
+              text:(t.pnl_pips>=0?'+':'')+t.pnl_pips?.toFixed(1)+'p', size:1,
             });
           }catch(e){}
         }
       });
       markers.sort((a,b)=>a.time-b.time);
-      // Deduplicate timestamps
       const seen2=new Set();
       markers.forEach(m=>{while(seen2.has(m.time))m.time++;seen2.add(m.time)});
-      if(markers.length) candleSeries.setMarkers(markers);
-    }
+      if(markers.length) mc.candleSeries.setMarkers(markers);
 
-    // Fit content
-    tradeChart.timeScale().fitContent();
-  }catch(e){console.error('[TradeChart]',e)}
-}
-
-function reloadChart(){
-  loadTradeChart();
+      mc.chart.timeScale().fitContent();
+    }catch(e){console.error('[MTF-'+tf+']',e)}
+  }));
 }
 
 // ── Load Learning Analysis ──
