@@ -9993,6 +9993,7 @@ def api_oanda_status():
     status = _demo_trader._oanda.status
     if status.get("active"):
         status["account"] = _demo_trader._oanda.get_account_info()
+    status["data_sources"] = dict(_last_data_source)
     return jsonify(status)
 
 
