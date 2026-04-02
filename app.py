@@ -9996,6 +9996,49 @@ def api_oanda_status():
     return jsonify(status)
 
 
+@app.route("/api/oanda/modes", methods=["GET", "POST"])
+def api_oanda_modes():
+    """OANDA連携モード取得・切替
+    GET:  現在の連携モード一覧を返す
+    POST: {"modes": ["scalp", "daytrade"]} で連携モードを切替
+          {"toggle": "scalp"} で単一モードをON/OFF切替
+    """
+    bridge = _demo_trader._oanda
+    if request.method == "GET":
+        return jsonify({
+            "allowed_modes": sorted(bridge._allowed_modes) if bridge._allowed_modes else [],
+            "active": bridge.active,
+        })
+
+    data = request.get_json(silent=True) or {}
+
+    # toggle: 単一モードのON/OFF
+    if "toggle" in data:
+        mode = data["toggle"]
+        if mode in bridge._allowed_modes:
+            bridge._allowed_modes.discard(mode)
+            action = "OFF"
+        else:
+            bridge._allowed_modes.add(mode)
+            action = "ON"
+        _demo_trader._add_log(f"🔗 OANDA連携 {mode} → {action}")
+        return jsonify({
+            "toggled": mode,
+            "action": action,
+            "allowed_modes": sorted(bridge._allowed_modes),
+        })
+
+    # modes: 一括設定
+    if "modes" in data:
+        bridge._allowed_modes = set(data["modes"])
+        _demo_trader._add_log(f"🔗 OANDA連携モード変更 → {sorted(bridge._allowed_modes)}")
+        return jsonify({
+            "allowed_modes": sorted(bridge._allowed_modes),
+        })
+
+    return jsonify({"error": "toggle or modes required"}), 400
+
+
 @app.route("/api/demo/trades")
 def api_demo_trades():
     """取引履歴API — 期間・モードで絞り込み可能

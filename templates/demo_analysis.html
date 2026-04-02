@@ -55,6 +55,10 @@ tr:hover{background:rgba(255,255,255,.02)}
 .status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:3px}
 .status-dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
 .status-dot.off{background:var(--red)}
+.oanda-btn{font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;font-weight:600;transition:all .15s;border:1px solid rgba(168,85,247,.3);background:rgba(168,85,247,.06);color:#a78bfa}
+.oanda-btn.active{background:rgba(168,85,247,.3);border-color:#a78bfa;box-shadow:0 0 6px rgba(168,85,247,.3)}
+.oanda-btn:hover{filter:brightness(1.2)}
+.oanda-badge{font-size:8px;padding:1px 4px;border-radius:3px;background:rgba(168,85,247,.15);color:#a78bfa;font-weight:700;letter-spacing:.3px}
 #equity-chart{width:100%;height:250px}
 #trade-chart{width:100%;height:400px}
 .chart-legend{display:flex;gap:12px;font-size:10px;color:var(--t3);margin-top:4px}
@@ -76,6 +80,14 @@ tr:hover{background:rgba(255,255,255,.02)}
       <button id="sc-btn" class="demo-btn demo-btn-sc" onclick="toggleDemo('scalp')">⚡ スキャルプ ▶</button>
       <button id="sw-btn" class="demo-btn demo-btn-sw" onclick="toggleDemo('swing')">🌊 スイング ▶</button>
       <span id="demo-status-text" style="font-size:9px;color:var(--t3);margin-left:4px">停止中</span>
+    </div>
+    <!-- OANDA Live Controls -->
+    <div id="oanda-panel" style="display:flex;gap:4px;align-items:center;border:1px solid rgba(168,85,247,.3);border-radius:6px;padding:3px 8px">
+      <span class="oanda-badge">OANDA</span>
+      <button id="oanda-scalp" class="oanda-btn" onclick="toggleOandaMode('scalp')">⚡ スキャルプ</button>
+      <button id="oanda-daytrade" class="oanda-btn" onclick="toggleOandaMode('daytrade')">📊 デイトレ</button>
+      <button id="oanda-daytrade_1h" class="oanda-btn" onclick="toggleOandaMode('daytrade_1h')">🕐 DT1H</button>
+      <span id="oanda-status" style="font-size:8px;color:var(--t3)"></span>
     </div>
     <button class="btn btn-primary" onclick="runLearning()">🧠 学習実行</button>
     <button class="btn" onclick="loadAll()">🔄 更新</button>
@@ -770,6 +782,35 @@ function clearFilter(){
   loadStats();
 }
 
+// ── OANDA Mode Toggle ──
+let _oandaModes=[];
+async function loadOandaModes(){
+  try{
+    const r=await fetch('/api/oanda/modes');
+    const d=await r.json();
+    _oandaModes=d.allowed_modes||[];
+    updateOandaButtons();
+  }catch(e){console.warn('[OANDA modes]',e)}
+}
+function updateOandaButtons(){
+  ['scalp','daytrade','daytrade_1h'].forEach(m=>{
+    const btn=document.getElementById('oanda-'+m);
+    if(!btn)return;
+    const on=_oandaModes.includes(m);
+    btn.className='oanda-btn'+(on?' active':'');
+  });
+  const st=document.getElementById('oanda-status');
+  if(st) st.textContent=_oandaModes.length?_oandaModes.length+'モード連携中':'未連携';
+}
+async function toggleOandaMode(mode){
+  try{
+    const r=await fetch('/api/oanda/modes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({toggle:mode})});
+    const d=await r.json();
+    _oandaModes=d.allowed_modes||[];
+    updateOandaButtons();
+  }catch(e){alert('エラー: '+e.message)}
+}
+
 // ── Run Learning ──
 async function runLearning(){
   try{
@@ -801,7 +842,7 @@ async function runLearning(){
 
 // ── Load All ──
 async function loadAll(){
-  await Promise.all([loadStats(),loadEquity(),loadTradeChart(),loadLearning(),loadTradeTable(),loadDemoStatus(),_fetchAndRenderLogs()]);
+  await Promise.all([loadStats(),loadEquity(),loadTradeChart(),loadLearning(),loadTradeTable(),loadDemoStatus(),_fetchAndRenderLogs(),loadOandaModes()]);
 }
 
 // ── Init ──
