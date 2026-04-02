@@ -4,6 +4,7 @@ Fire-and-forget: OANDA failures never block demo trading logic.
 Enabled by OANDA_LIVE=true environment variable.
 """
 import os
+import json
 import logging
 import threading
 from modules.oanda_client import OandaClient
@@ -22,6 +23,9 @@ class OandaBridge:
         # demo_trade_id -> oanda_trade_id mapping (in-memory, also persisted in DB)
         self._trade_map = {}  # {demo_trade_id: oanda_trade_id}
         self._lock = threading.Lock()
+        # エラーログ（直近20件保持、デバッグ用）
+        self._recent_errors = []
+        self._max_errors = 20
 
     @property
     def active(self) -> bool:
@@ -34,6 +38,13 @@ class OandaBridge:
             return True  # 未設定 → 全モード連携
         return mode in self._allowed_modes
 
+    def _log_error(self, msg: str):
+        from datetime import datetime, timezone
+        entry = {"time": datetime.now(timezone.utc).isoformat(), "msg": msg}
+        self._recent_errors.append(entry)
+        if len(self._recent_errors) > self._max_errors:
+            self._recent_errors = self._recent_errors[-self._max_errors:]
+
     @property
     def status(self) -> dict:
         return {
@@ -43,6 +54,7 @@ class OandaBridge:
             "units": self._units,
             "allowed_modes": sorted(self._allowed_modes) if self._allowed_modes else "all",
             "open_trades": len(self._trade_map),
+            "recent_errors": self._recent_errors[-5:],
         }
 
     def set_trade_mapping(self, demo_id: str, oanda_id: str):
@@ -97,9 +109,14 @@ class OandaBridge:
                     if callback:
                         callback(demo_trade_id, oanda_id)
                 else:
-                    logger.warning(f"[OandaBridge] Order placed but no tradeOpened.id: {data}")
+                    # 注文は成功したがtradeIDが取れない
+                    _msg = f"OPEN {side} ok but no tradeID: {json.dumps(data)[:300]}"
+                    logger.warning(f"[OandaBridge] {_msg}")
+                    self._log_error(_msg)
             else:
-                logger.error(f"[OandaBridge] OPEN failed: {data}")
+                _msg = f"OPEN {side} FAILED (demo={demo_trade_id}, mode={mode}, sl={sl}, tp={tp}): {json.dumps(data)[:300]}"
+                logger.error(f"[OandaBridge] {_msg}")
+                self._log_error(_msg)
 
         self._fire(_do)
 
@@ -123,7 +140,13 @@ class OandaBridge:
                 logger.info(f"[OandaBridge] CLOSE OANDA #{oanda_id} "
                             f"(demo={demo_trade_id}, reason={reason})")
             else:
-                logger.error(f"[OandaBridge] CLOSE failed #{oanda_id}: {data}")
+                _msg = f"CLOSE failed #{oanda_id} (demo={demo_trade_id}): {json.dumps(data)[:200]}"
+                logger.error(f"[OandaBridge] {_msg}")
+                self._log_error(_msg)
+                # OANDA側で既にクローズ済みならマッピング削除
+                if data.get("error") == 404:
+                    with self._lock:
+                        self._trade_map.pop(demo_trade_id, None)
 
         self._fire(_do)
 
