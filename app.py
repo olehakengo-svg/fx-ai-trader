@@ -4106,7 +4106,7 @@ _ML_RETRAIN_HOURS = 24  # retrain every 24 hours
 _ML_MIN_SAMPLES = 100   # minimum samples to train
 
 def run_scalp_backtest(symbol: str = "USDJPY=X",
-                       lookback_days: int = 30,
+                       lookback_days: int = 14,
                        interval: str = "1m") -> dict:
     """
     スキャルピングBT — compute_scalp_signal統合版
@@ -9541,7 +9541,7 @@ def api_backtest():
             elif tf == "15m":
                 interval, lookback = "15m", 55
             else:  # 1m がデフォルト（本番と統一）
-                interval, lookback = "1m", 30  # OANDA paginated: 30日対応
+                interval, lookback = "1m", 14  # OANDA paginated: 14日（処理時間バランス）
             result = run_scalp_backtest("USDJPY=X", lookback_days=lookback, interval=interval)
         elif mode == "daytrade":
             result = run_daytrade_backtest("USDJPY=X", lookback_days=55, interval="15m")
