@@ -28,6 +28,8 @@ class OandaClient:
         return {
             "Authorization": f"Bearer {self._token}",
             "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": "fx-ai-trader/1.0",
+            "Accept": "application/json",
         }
 
     def _request(self, method: str, path: str, data: dict = None,
