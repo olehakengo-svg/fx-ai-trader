@@ -7548,8 +7548,9 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     # ── EMA200 方向フィルター ──
     # 200EMA上+スロープ上昇のSELL / 200EMA下+スロープ下降のBUY → ハードブロック
     # 本番: EMA200逆行のmacdh_reversal|SELL全敗、fib_reversal|BUY WR=33%
-    # trend_reboundは逆張り戦略なので除外
-    if entry_type not in ("trend_rebound", "v_reversal"):
+    # 平均回帰・逆張り戦略は除外（BB極端→中央回帰はトレンド逆行でも機能する）
+    _mean_reversion_types = ("trend_rebound", "v_reversal", "bb_rsi_reversion")
+    if entry_type not in _mean_reversion_types:
         if _ema200_bull and signal == "SELL" and _ema200_slope > 0:
             # EMA200上 + 上昇中 → SELL完全ブロック
             reasons.append(f"🚫 EMA200上昇中のSELL(dist={_ema200_dist:+.2f}ATR) → ブロック")
@@ -7586,19 +7587,27 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
 
     # ── HTF方向フィルター: 逆行シグナルを完全ブロック（DT同様ハードフィルター）──
     # 本番実績: macdh_reversal|SELL WR=0%(5t -15.4p) — ソフト減衰では阻止不能
+    # bb_rsi_reversion は平均回帰戦略 → ハードブロック対象外（本番WR=57%維持）
     htf_dir = htf.get("agreement", "neutral")
-    if htf_dir == "bull" and signal == "SELL":
-        signal = "WAIT"
-        reasons.append("🚫 HTF上昇一致 → SELL完全ブロック")
-        return {"signal": "WAIT", "confidence": 0, "reasons": reasons,
-                "entry_type": entry_type, "sl": sl, "tp": tp, "atr": atr7,
-                "indicators": {"rsi": rsi5, "bbpb": bbpb, "adx": adx}}
-    elif htf_dir == "bear" and signal == "BUY":
-        signal = "WAIT"
-        reasons.append("🚫 HTF下降一致 → BUY完全ブロック")
-        return {"signal": "WAIT", "confidence": 0, "reasons": reasons,
-                "entry_type": entry_type, "sl": sl, "tp": tp, "atr": atr7,
-                "indicators": {"rsi": rsi5, "bbpb": bbpb, "adx": adx}}
+    if entry_type not in _mean_reversion_types:
+        if htf_dir == "bull" and signal == "SELL":
+            signal = "WAIT"
+            reasons.append("🚫 HTF上昇一致 → SELL完全ブロック")
+            return {"signal": "WAIT", "confidence": 0, "reasons": reasons,
+                    "entry_type": entry_type, "sl": sl, "tp": tp, "atr": atr7,
+                    "indicators": {"rsi": rsi5, "bbpb": bbpb, "adx": adx}}
+        elif htf_dir == "bear" and signal == "BUY":
+            signal = "WAIT"
+            reasons.append("🚫 HTF下降一致 → BUY完全ブロック")
+            return {"signal": "WAIT", "confidence": 0, "reasons": reasons,
+                    "entry_type": entry_type, "sl": sl, "tp": tp, "atr": atr7,
+                    "indicators": {"rsi": rsi5, "bbpb": bbpb, "adx": adx}}
+    else:
+        # 平均回帰戦略: ソフトペナルティのみ適用
+        if (htf_dir == "bull" and signal == "SELL") or (htf_dir == "bear" and signal == "BUY"):
+            score *= 0.85
+            conf = int(conf * 0.90)
+            reasons.append(f"⚠️ HTF逆行(平均回帰許容) — 軽度減衰")
 
     # ── SL/TP最終調整: 最低距離保証 + RR保証 ──
     sl_dist = abs(entry - sl)
