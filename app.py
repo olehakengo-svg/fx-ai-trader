@@ -2958,7 +2958,9 @@ def compute_1h_zone_signal(df: pd.DataFrame,
         if _mt_score >= 2.5:  # 閾値2.5維持（低スコア=低精度）
             _mt_tp = entry + atr * 3.0   # 旧2.5→3.0: 1Hトレンド利幅拡大
             _mt_sl = entry - atr * 1.0   # 旧0.8→1.0: 適度なノイズ耐性
-            candidates.append(("BUY", _mt_score, _mt_tp, _mt_sl, _mt_reasons, "mtf_momentum"))
+            # シナリオ崩壊: 価格がEMA200を下回ったら転換BUYの根拠消滅
+            _mt_inv = ema200_1h - atr * 0.1  # EMA200の少し下
+            candidates.append(("BUY", _mt_score, _mt_tp, _mt_sl, _mt_reasons, "mtf_momentum", _mt_inv))
 
     # ── 転換SELL: EMAはまだ強気整列だが、価格はEMA200下に崩落 ──
     if (ema9 > ema21 and entry < ema200_1h and adx >= 15):
@@ -2990,7 +2992,9 @@ def compute_1h_zone_signal(df: pd.DataFrame,
         if _mt_score >= 2.5:  # 閾値2.5維持
             _mt_tp = entry - atr * 3.0   # 旧2.5→3.0
             _mt_sl = entry + atr * 1.0   # 旧0.8→1.0
-            candidates.append(("SELL", _mt_score, _mt_tp, _mt_sl, _mt_reasons, "mtf_momentum"))
+            # シナリオ崩壊: 価格がEMA200を上回ったら転換SELLの根拠消滅
+            _mt_inv = ema200_1h + atr * 0.1
+            candidates.append(("SELL", _mt_score, _mt_tp, _mt_sl, _mt_reasons, "mtf_momentum", _mt_inv))
 
     # ════════════════════════════════════════════════════════════
     #  戦略2: Session ORB — London Open Breakout (Ito & Hashimoto 2006)
@@ -3088,7 +3092,9 @@ def compute_1h_zone_signal(df: pd.DataFrame,
             _pv_tp = _R1 + (_R2 - _R1) * 0.7  # 旧0.5→0.7: R2の70%地点
             _pv_tp = max(_pv_tp, entry + atr * 2.0)  # 旧1.5→2.0: 最低TP拡大
             _pv_sl = max(entry - atr * 0.8, _R1 - atr * 0.4)  # 旧0.5→0.8 ATR: ノイズ耐性
-            candidates.append(("BUY", _pv_score, _pv_tp, _pv_sl, _pv_reasons, "pivot_breakout"))
+            # シナリオ崩壊: R1を下回ったらブレイク失敗
+            _pv_inv = _R1 - atr * 0.15
+            candidates.append(("BUY", _pv_score, _pv_tp, _pv_sl, _pv_reasons, "pivot_breakout", _pv_inv))
 
     # S1割れ → SELL (EMA整合必須)
     if entry < _S1 and 7 <= _hour_utc <= 20 and ema9 < ema21:
@@ -3114,7 +3120,9 @@ def compute_1h_zone_signal(df: pd.DataFrame,
             _pv_tp = _S1 - (_S1 - _S2) * 0.7  # 旧0.5→0.7: S2の70%地点
             _pv_tp = min(_pv_tp, entry - atr * 2.0)  # 旧1.5→2.0: 最低TP拡大
             _pv_sl = min(entry + atr * 0.8, _S1 + atr * 0.4)  # 旧0.5→0.8 ATR: ノイズ耐性
-            candidates.append(("SELL", _pv_score, _pv_tp, _pv_sl, _pv_reasons, "pivot_breakout"))
+            # シナリオ崩壊: S1を上回ったらブレイク失敗
+            _pv_inv = _S1 + atr * 0.15
+            candidates.append(("SELL", _pv_score, _pv_tp, _pv_sl, _pv_reasons, "pivot_breakout", _pv_inv))
 
     # ════════════════════════════════════════════════════════════
     #  戦略4: Pivot Zone Mean Reversion (Osler 2000 + BB/RSI)
@@ -3222,7 +3230,9 @@ def compute_1h_zone_signal(df: pd.DataFrame,
                     if _1hfr_score >= 2.0:
                         _1hfr_tp = entry + atr * 3.0   # 旧2.5→3.0: 1Hトレンド利幅
                         _1hfr_sl = entry - atr * 1.2   # 旧0.8→1.2: ノイズ耐性
-                        candidates.append(("BUY", _1hfr_score, _1hfr_tp, _1hfr_sl, _1hfr_reasons, "h1_fib_reversal"))
+                        # シナリオ崩壊: Fibサポートを明確に下回ったら反発失敗
+                        _1hfr_inv = _fv - atr * 0.3
+                        candidates.append(("BUY", _1hfr_score, _1hfr_tp, _1hfr_sl, _1hfr_reasons, "h1_fib_reversal", _1hfr_inv))
                 # 下降トレンド戻り売り
                 elif (_1h_fib["trend"] == "down" and rsi > 50 and macdh < prev_macdh):
                     _1hfr_score = 2.0
@@ -3244,7 +3254,9 @@ def compute_1h_zone_signal(df: pd.DataFrame,
                     if _1hfr_score >= 2.0:
                         _1hfr_tp = entry - atr * 3.0   # 旧2.5→3.0
                         _1hfr_sl = entry + atr * 1.2   # 旧0.8→1.2
-                        candidates.append(("SELL", _1hfr_score, _1hfr_tp, _1hfr_sl, _1hfr_reasons, "h1_fib_reversal"))
+                        # シナリオ崩壊: Fibレジスタンスを明確に上抜けされたら失敗
+                        _1hfr_inv = _fv + atr * 0.3
+                        candidates.append(("SELL", _1hfr_score, _1hfr_tp, _1hfr_sl, _1hfr_reasons, "h1_fib_reversal", _1hfr_inv))
 
     # ════════════════════════════════════════════════════════════
     #  戦略6: EMA200 Trend Reversal（1Hトレンド転換）
@@ -3283,7 +3295,9 @@ def compute_1h_zone_signal(df: pd.DataFrame,
                 if _1htr_score >= 2.0:
                     _1htr_tp = entry + atr * 3.0   # 旧2.5→3.0
                     _1htr_sl = entry - atr * 1.2   # 旧0.8→1.2
-                    candidates.append(("BUY", _1htr_score, _1htr_tp, _1htr_sl, _1htr_reasons, "h1_ema200_trend_reversal"))
+                    # シナリオ崩壊: EMA200を明確に下回ったらリテスト失敗
+                    _1htr_inv = ema200_1h - atr * 0.2
+                    candidates.append(("BUY", _1htr_score, _1htr_tp, _1htr_sl, _1htr_reasons, "h1_ema200_trend_reversal", _1htr_inv))
             # 下抜けリテスト → SELL
             elif (not _1h_e200_bull and _1h_e200_dist > -0.5 and macdh < prev_macdh
                     and rsi > 45 and ema9 < ema21 and stoch_k < stoch_d):
@@ -3299,16 +3313,19 @@ def compute_1h_zone_signal(df: pd.DataFrame,
                 if _1htr_score >= 2.0:
                     _1htr_tp = entry - atr * 3.0   # 旧2.5→3.0
                     _1htr_sl = entry + atr * 1.2   # 旧0.8→1.2
-                    candidates.append(("SELL", _1htr_score, _1htr_tp, _1htr_sl, _1htr_reasons, "h1_ema200_trend_reversal"))
+                    # シナリオ崩壊: EMA200を明確に上回ったらリテスト失敗
+                    _1htr_inv = ema200_1h + atr * 0.2
+                    candidates.append(("SELL", _1htr_score, _1htr_tp, _1htr_sl, _1htr_reasons, "h1_ema200_trend_reversal", _1htr_inv))
 
     # ── 最高スコア候補を採用 ──
     if candidates:
         candidates.sort(key=lambda x: x[1], reverse=True)
         best = candidates[0]
-        sig, score, tp, sl, reasons, etype = best
+        sig, score, tp, sl, reasons, etype = best[:6]
+        # 7番目: シナリオ無効化価格（存在する場合）
+        _invalidation = best[6] if len(best) > 6 else None
 
         # ── EMA200 方向フィルター（1H Zone用）──
-        # 1h 200EMA ≈ 200時間 ≈ 8.3営業日 → 中期トレンド方向
         _h1_bull200 = entry > ema200_1h
         if sig == "BUY" and not _h1_bull200:
             score *= 0.75
@@ -3324,6 +3341,11 @@ def compute_1h_zone_signal(df: pd.DataFrame,
         base["confidence"] = int(min(score * 18, 95))
         base["entry_type"] = etype
         base["reasons"]    = reasons
+        # ── シナリオ崩壊撤退レベル ──
+        # BUY: この価格を下回ったらシナリオ崩壊→即撤退
+        # SELL: この価格を上回ったらシナリオ崩壊→即撤退
+        if _invalidation is not None:
+            base["invalidation"] = round(_invalidation, 3)
 
     return base
 
@@ -3640,7 +3662,7 @@ def run_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足", "trades": 0, "mode": "standard"}
 
-        SPREAD   = 0.002   # 0.2 pip（実際のスプレッド）
+        SPREAD   = 0.008   # 0.8 pip（OANDA実スプレッド）
         SL_MULT  = 1.5     # default ATR mult
         TP_MULT  = 2.5     # default ATR mult
         MAX_HOLD = 24      # bars (24 hours)
@@ -4061,7 +4083,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足（最低100本必要）", "trades": 0, "mode": "scalp"}
 
-        SPREAD       = 0.002   # 0.2 pip (実際のスプレッド)
+        SPREAD       = 0.008   # 0.8 pip (OANDA実スプレッド)
         profile      = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
         SL_MULT      = profile["scalp_sl"]   # scalp-specific SL
         TP_MULT      = profile["scalp_tp"]   # scalp-specific TP
@@ -4429,7 +4451,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足", "trades": 0, "mode": "daytrade"}
 
-        SPREAD    = 0.002   # 0.2 pip（実際のスプレッド）
+        SPREAD    = 0.008   # 0.8 pip（OANDA実スプレッド）
         profile   = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
         SL_MULT   = profile["daytrade_sl"]   # daytrade-specific SL
         TP_MULT   = profile["daytrade_tp"]   # daytrade-specific TP
@@ -4782,7 +4804,7 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
         if len(df) < 50:
             return {"error": "データ不足", "trades": 0, "mode": "1h_zone"}
 
-        SPREAD   = 0.002   # 0.2 pip
+        SPREAD   = 0.008   # 0.8 pip（OANDA実スプレッド）
         MAX_HOLD = 18      # 18 bars = 18 hours（TP到達時間確保）
         COOLDOWN = 1
         MIN_RR   = 1.2
@@ -4936,6 +4958,11 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
             # ── SL anti-fake-out: Close-based + genuine breakdown (ATR*0.3) ──
             _sl_genuine_threshold = atr * 0.3
 
+            # ── シナリオ崩壊撤退レベル ──
+            _inv_price = sig_result.get("invalidation")
+            if _inv_price is not None:
+                _inv_price = _inv_price + ep_shift  # エントリーシフト補正
+
             outcome = None
             bars_held = 0
             _be_activated = False
@@ -4946,6 +4973,18 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
                 fut = df.iloc[i + 1 + j]
                 hi, lo = float(fut["High"]), float(fut["Low"])
                 fut_close = float(fut["Close"])
+
+                # ── シナリオ崩壊チェック（SLより先に判定）──
+                # 終値ベース: ノイズのヒゲではなく確定足でシナリオ判定
+                if _inv_price is not None:
+                    if sig == "BUY" and fut_close < _inv_price:
+                        outcome = "LOSS"
+                        bars_held = j
+                        break
+                    elif sig == "SELL" and fut_close > _inv_price:
+                        outcome = "LOSS"
+                        bars_held = j
+                        break
 
                 # ── Breakeven at 50% TP + Trailing Stop ──
                 _tp_dist_total = abs(tp - ep)
@@ -5030,10 +5069,9 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
                     "entry_time": str(df.index[i]),
                 }
                 if outcome == "LOSS":
-                    if sig == "BUY" and fut_close < sl:
-                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr, 1e-6), sl_m * 1.2), 3)
-                    elif sig == "SELL" and fut_close > sl:
-                        trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr, 1e-6), sl_m * 1.2), 3)
+                    # シナリオ崩壊 or SL hitの実損記録
+                    _actual_loss = abs(fut_close - ep) / max(atr, 1e-6)
+                    trade_dict["actual_sl_m"] = round(min(_actual_loss, sl_m * 1.5), 3)
                 trades.append(trade_dict)
 
         # ── PnL helper ──
@@ -5152,7 +5190,7 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足", "trades": 0, "mode": "swing"}
 
-        SPREAD   = 0.002   # 0.2 pip（実際のスプレッド）
+        SPREAD   = 0.008   # 0.8 pip（OANDA実スプレッド）
         SL_MULT  = 1.5     # デフォルトSL
         TP_MULT  = 3.0     # デフォルトTP（RR 1:2）
         MAX_HOLD = 20      # 日
@@ -5866,7 +5904,7 @@ def train_ml_model() -> bool:
             return False
 
         # Simulate trades using BT logic to generate labeled samples
-        SPREAD  = 0.002   # 0.2 pip
+        SPREAD  = 0.008   # 0.8 pip（OANDA実スプレッド）
         SL_MULT = 0.8
         TP_MULT = 1.5
         MAX_HOLD = 12
@@ -8589,7 +8627,7 @@ def run_strategy_evaluation(symbol: str = "USDJPY=X",
         if len(df) < 200:
             return {"error": "データ不足"}
 
-        SPREAD  = 0.002   # 0.2 pip
+        SPREAD  = 0.008   # 0.8 pip（OANDA実スプレッド）
         SL_MULT = 0.5    # BT と同じ RR3:1 設定に統一
         TP_MULT = 1.5
         MAX_HOLD = 20
@@ -8970,7 +9008,7 @@ def run_historical_pattern_analysis(
             return {"error": "データ不足 (200本以上必要)", "bars": len(df)}
 
         # ── 2. BTシミュレーション（EMAクロスオーバー戦略、RR=3:1）──
-        SPREAD  = 0.002   # 0.2 pip
+        SPREAD  = 0.008   # 0.8 pip（OANDA実スプレッド）
         SL_MULT = 0.5
         TP_MULT = 1.5
         MAX_HOLD = 20

@@ -589,6 +589,29 @@ class DemoTrader:
 
             close_reason = None
 
+            # ── シナリオ崩壊撤退（1H Zone用）──
+            # エントリー時のシナリオ根拠が崩れたら即撤退（SL到達前に損切り）
+            _inv = None
+            _trade_reasons = trade.get("reasons", [])
+            if isinstance(_trade_reasons, str):
+                import json as _json
+                try:
+                    _trade_reasons = _json.loads(_trade_reasons)
+                except Exception:
+                    _trade_reasons = []
+            for _r in _trade_reasons:
+                if isinstance(_r, str) and _r.startswith("__INV__:"):
+                    try:
+                        _inv = float(_r.split(":")[1])
+                    except Exception:
+                        pass
+                    break
+            if _inv is not None and not close_reason:
+                if direction == "BUY" and price < _inv:
+                    close_reason = "SCENARIO_INVALID"
+                elif direction == "SELL" and price > _inv:
+                    close_reason = "SCENARIO_INVALID"
+
             if direction == "BUY":
                 if price <= sl:
                     close_reason = "SL_HIT"
@@ -1002,18 +1025,18 @@ class DemoTrader:
             "london_breakout",       # ロンドンブレイクアウト
             "stoch_trend_pullback",  # Stochトレンドプルバック（トレンド用）
             "macdh_reversal",        # MACD-H反転 at BB極端
-            "engulfing_bb",          # 包み足 at BB極端
+            # "engulfing_bb",        # DISABLED: EV=+0.042 @0.8pip spread → 薄利すぎ
             "three_bar_reversal",    # 3本足反転パターン
             "trend_rebound",         # 強トレンド時リバウンド
             "v_reversal",            # V字リバウンドキャプチャ（急落/急騰後の反転）
-            "hs_neckbreak",          # 三尊天井ネックライン割れ
+            # "hs_neckbreak",        # DISABLED: EV=-0.346 @0.8pip spread → マイナス
             "ihs_neckbreak",         # 逆三尊ネックライン突破
             "sr_touch_bounce",       # 水平線タッチ反発
             # スキャルプ v1互換
             "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
             "donchian", "reg_channel", "ema_pullback",
             # スキャルプ v2.3: リバーサル戦略
-            "sr_channel_reversal",       # SR/並行チャネル反発
+            # "sr_channel_reversal",   # DISABLED: EV=-0.004 @0.8pip spread → マイナス
             "fib_reversal",              # フィボナッチリトレースメント反発
             "mtf_reversal_confluence",   # MTF RSI+MACD一致
             # デイトレ: 構造的なセットアップ
@@ -1214,6 +1237,12 @@ class DemoTrader:
         regime = sig.get("regime", {})
         layer1_dir = layer_status.get("layer1", {}).get("direction", "neutral")
 
+        # シナリオ崩壊撤退レベル（1H Zoneシグナルに付随）
+        _invalidation = sig.get("invalidation")
+        _reasons_with_inv = sig.get("reasons", [])
+        if _invalidation is not None:
+            _reasons_with_inv = list(_reasons_with_inv) + [f"__INV__:{_invalidation:.3f}"]
+
         trade_id = self._db.open_trade(
             direction=signal,
             entry_price=current_price,
@@ -1221,7 +1250,7 @@ class DemoTrader:
             entry_type=entry_type,
             confidence=confidence,
             tf=tf,
-            reasons=sig.get("reasons", []),
+            reasons=_reasons_with_inv,
             regime=regime,
             layer1_dir=layer1_dir,
             score=sig.get("score", 0),
