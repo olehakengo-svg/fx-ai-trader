@@ -228,12 +228,24 @@ class DemoDB:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    def get_closed_trades(self, limit: int = 50, offset: int = 0) -> list:
+    def get_closed_trades(self, limit: int = 50, offset: int = 0,
+                          date_from: str = None, date_to: str = None,
+                          mode: str = None) -> list:
+        query = "SELECT * FROM demo_trades WHERE status='CLOSED'"
+        params = []
+        if date_from:
+            query += " AND entry_time >= ?"
+            params.append(date_from)
+        if date_to:
+            query += " AND entry_time <= ?"
+            params.append(date_to + "T23:59:59" if len(date_to) == 10 else date_to)
+        if mode:
+            query += " AND mode = ?"
+            params.append(mode)
+        query += " ORDER BY exit_time DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
         with self._safe_conn() as conn:
-            rows = conn.execute(
-                "SELECT * FROM demo_trades WHERE status='CLOSED' ORDER BY exit_time DESC LIMIT ? OFFSET ?",
-                (limit, offset)
-            ).fetchall()
+            rows = conn.execute(query, params).fetchall()
             return [dict(r) for r in rows]
 
     def get_all_closed(self) -> list:

@@ -9815,7 +9815,15 @@ def api_price():
 from modules.demo_db import DemoDB
 from modules.demo_trader import DemoTrader
 
-_demo_db = DemoDB(db_path=os.path.join(os.path.dirname(__file__), "demo_trades.db"))
+_db_path = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "demo_trades.db"))
+_demo_db = DemoDB(db_path=_db_path)
+
+# ── Render Disk migration: seed existing trades on first deploy ──
+try:
+    from migrate_seed import run_seed
+    run_seed(_db_path)
+except Exception as _seed_err:
+    print(f"[migrate_seed] skipped: {_seed_err}")
 _demo_trader = DemoTrader(db=_demo_db)
 
 # ── トレードルール定義 ──
@@ -9920,17 +9928,38 @@ def api_demo_restart():
 
 @app.route("/api/demo/trades")
 def api_demo_trades():
+    """取引履歴API — 期間・モードで絞り込み可能
+    Query params:
+        limit (int): 最大件数 (default 50)
+        offset (int): ページング用オフセット
+        status: "open" | "closed" | "all" (default "all")
+        date_from: 開始日 (YYYY-MM-DD)
+        date_to: 終了日 (YYYY-MM-DD)
+        mode: "scalp" | "daytrade" | "daytrade_1h" | "swing"
+    """
     limit = request.args.get("limit", 50, type=int)
     offset = request.args.get("offset", 0, type=int)
     status_filter = request.args.get("status", "all")
+    date_from = request.args.get("date_from")  # YYYY-MM-DD
+    date_to = request.args.get("date_to")      # YYYY-MM-DD
+    mode_filter = request.args.get("mode")      # scalp / daytrade / daytrade_1h / swing
 
     if status_filter == "open":
         trades = _demo_db.get_open_trades()
+        # open trades にもmode絞り込み適用
+        if mode_filter:
+            trades = [t for t in trades if t.get("mode") == mode_filter]
     elif status_filter == "closed":
-        trades = _demo_db.get_closed_trades(limit=limit, offset=offset)
+        trades = _demo_db.get_closed_trades(limit=limit, offset=offset,
+                                            date_from=date_from, date_to=date_to,
+                                            mode=mode_filter)
     else:
         open_t = _demo_db.get_open_trades()
-        closed_t = _demo_db.get_closed_trades(limit=limit, offset=offset)
+        if mode_filter:
+            open_t = [t for t in open_t if t.get("mode") == mode_filter]
+        closed_t = _demo_db.get_closed_trades(limit=limit, offset=offset,
+                                              date_from=date_from, date_to=date_to,
+                                              mode=mode_filter)
         trades = open_t + closed_t
 
     return jsonify({"trades": trades, "count": len(trades)})

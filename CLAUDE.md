@@ -4,7 +4,8 @@
 - **URL**: https://fx-ai-trader.onrender.com
 - **API**: https://fx-ai-trader.onrender.com/api/demo/status
 - **Logs**: https://fx-ai-trader.onrender.com/api/demo/logs
-- **Deploy**: Render (auto-deploy from GitHub main branch)
+- **Deploy**: Render **Proプラン** (auto-deploy from GitHub main branch)
+- **DB**: SQLite on Render Disk (`/var/data/demo_trades.db`) — 永続ストレージ（1GB）。環境変数 `DB_PATH` で制御。ローカル開発時は `DB_PATH` 未設定でプロジェクト直下の `demo_trades.db` を使用
 - **IMPORTANT**: Always reference production (Render) data for analysis, NOT the local development DB. Local DB is for dev/testing only.
 
 ## Design Principles
