@@ -2276,7 +2276,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     if not _sr_signal_found and adx >= 15:
         _has_sr_fib = any("Fib" in r or "フィボ" in r for r in reasons)
         _has_ob     = any("OB" in r or "オーダーブロック" in r for r in reasons)
-        THRESHOLD = 0.35   # 0.20→0.35: 弱シグナル排除（本番0%WR対策）
+        THRESHOLD = 0.28   # 0.35→0.28: HTFハードフィルター導入済みで閾値緩和（頻度増）
         if ema_score > THRESHOLD and ema9 > ema21:
             signal = "BUY"
             _dt_entry_type = "sr_fib_confluence" if _has_sr_fib else ("ob_retest" if _has_ob else "ema_cross")
@@ -4221,7 +4221,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "ihs_neckbreak",  # 逆三尊ネックライン突破
                 "sr_touch_bounce", # 水平線タッチ反発
                 # v3 リバーサル戦略
-                # "sr_channel_reversal",  # DISABLED: EV=-0.004 @0.8pip spread → マイナス
+                "sr_channel_reversal",      # RE-ENABLED: HTFハードフィルター導入済み(WR=63.5% EV=+0.281)
                 "fib_reversal",             # フィボナッチリトレースメント反発
                 "mtf_reversal_confluence",  # MTF RSI+MACDクロス一致
                 # v1 互換
@@ -6530,7 +6530,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         # Tier 2: 緩和条件（中確信）BB%B≤0.22 + RSI<42 + Stochクロス
 
         # BUY判定
-        if bbpb <= 0.25 and rsi5 < 45 and stoch_k < 45 and stoch_k > stoch_d:
+        if bbpb <= 0.25 and rsi5 < 45 and stoch_k < 40 and stoch_k > stoch_d:  # stoch 45→40(低品質排除)
             _mr_signal = "BUY"
             # Tier判定: 極端ほど高スコア
             _tier1 = bbpb <= 0.05 and rsi5 < 25 and stoch_k < 20
@@ -6551,12 +6551,12 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                     _mr_score += 0.6
                     _mr_reasons.append("✅ MACD-H反転上昇（モメンタム消耗→回復）")
             # TP = ATRベース（BB midband TPは小さすぎる→ATRで拡大）
-            _mr_tp = entry + atr7 * (2.0 if _tier1 else 1.5)
+            _mr_tp = entry + atr7 * (2.0 if _tier1 else 1.8)  # Tier2: 1.5→1.8(EV改善)
             _mr_sl_dist = max(abs(entry - bb_lower) + atr7 * 0.3, 0.030)
             _mr_sl = entry - _mr_sl_dist
 
         # SELL判定
-        if not _mr_signal and bbpb >= 0.75 and rsi5 > 55 and stoch_k > 55 and stoch_k < stoch_d:
+        if not _mr_signal and bbpb >= 0.75 and rsi5 > 55 and stoch_k > 60 and stoch_k < stoch_d:  # stoch 55→60(低品質排除)
             _mr_signal = "SELL"
             _tier1 = bbpb >= 0.95 and rsi5 > 75 and stoch_k > 80
             _mr_score = (4.5 if _tier1 else 3.0) + (rsi5 - 58) * 0.06
@@ -6574,7 +6574,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 if macdh < _macdh_p1 and _macdh_p1 >= _macdh_p2:
                     _mr_score += 0.6
                     _mr_reasons.append("✅ MACD-H反転下落（モメンタム消耗→回復）")
-            _mr_tp = entry - atr7 * (2.0 if _tier1 else 1.5)
+            _mr_tp = entry - atr7 * (2.0 if _tier1 else 1.8)  # Tier2: 1.5→1.8(EV改善)
             _mr_sl_dist = max(abs(bb_upper - entry) + atr7 * 0.3, 0.030)
             _mr_sl = entry + _mr_sl_dist
 
@@ -6770,7 +6770,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         # BUY: 上昇トレンド中のStoch売られすぎ回復
         if (ema9 > ema21 and entry > ema21
                 and stoch_k > stoch_d  # Stochゴールデンクロス
-                and _prev_stoch_k < 35  # 前バーで売られすぎ圏（30→35）
+                and _prev_stoch_k < 40  # 前バーで売られすぎ圏（35→40 頻度増）
                 and stoch_k < 60  # まだ上昇余地あり（55→60）
                 and rsi5 > 35 and rsi5 < 55
                 and bbpb > 0.20 and bbpb < 0.60
@@ -6786,7 +6786,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         # SELL: 下降トレンド中のStoch買われすぎ回復
         elif (ema9 < ema21 and entry < ema21
                 and stoch_k < stoch_d
-                and _prev_stoch_k > 65  # 70→65
+                and _prev_stoch_k > 60  # 65→60 (頻度増)
                 and stoch_k > 40  # 45→40
                 and rsi5 > 45 and rsi5 < 65
                 and bbpb > 0.40 and bbpb < 0.80

@@ -1035,7 +1035,7 @@ class DemoTrader:
                 _block(f"same_price_{_same_price_dist*100:.0f}pip"); return
         # (B) 同方向ポジション上限（モード別）
         # scalp: 2→3 (好調なので増), DT: 5→2 (マシンガン防止)
-        _dir_limits = {"scalp": 3, "daytrade": 2, "daytrade_1h": 2, "swing": 2}
+        _dir_limits = {"scalp": 3, "daytrade": 3, "daytrade_1h": 2, "swing": 2}  # DT: 2→3(HTFフィルター済み)
         _max_same_dir = _dir_limits.get(mode, 2)
         _same_dir_count = sum(1 for t in mode_trades if t.get("direction") == signal)
         if _same_dir_count >= _max_same_dir:
@@ -1067,7 +1067,7 @@ class DemoTrader:
             "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
             "donchian", "reg_channel", "ema_pullback",
             # スキャルプ v2.3: リバーサル戦略
-            # "sr_channel_reversal",   # DISABLED: EV=-0.004 @0.8pip spread → マイナス
+            "sr_channel_reversal",       # RE-ENABLED: HTFハードフィルター導入済み(WR=63.5% EV=+0.281)
             "fib_reversal",              # フィボナッチリトレースメント反発
             "mtf_reversal_confluence",   # MTF RSI+MACD一致
             # デイトレ: 構造的なセットアップ
@@ -1123,7 +1123,7 @@ class DemoTrader:
         # ── SL後クールダウン ──
         last_ex = self._last_exit.get(mode)
         if last_ex:
-            _cooldown_sec = {"scalp": 60, "daytrade": 600, "daytrade_1h": 1800, "swing": 7200}.get(mode, 120)  # scalp: 120→60s(エントリー増), DT: 300→600s(連打防止)
+            _cooldown_sec = {"scalp": 60, "daytrade": 300, "daytrade_1h": 1800, "swing": 7200}.get(mode, 120)  # DT: 600→300s(HTFフィルター済みで頻度増)
             _ex_age = (datetime.now(timezone.utc) - last_ex["time"]).total_seconds()
             if _ex_age < _cooldown_sec:
                 if last_ex["direction"] == signal:
