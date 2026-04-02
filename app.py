@@ -2917,84 +2917,103 @@ def compute_1h_zone_signal(df: pd.DataFrame,
 
     # ════════════════════════════════════════════════════════════
     #  戦略1: EMAラグ・コントラリアン (旧mtf_momentum改良)
-    #  核心: EMAはラグする → EMAがまだ弱気なのに価格がEMA200上 = 転換BUY
-    #  本番実績: 旧mtf_momentum 0/2全敗(-54.6pip) → 逆転発想
-    #  v4: SL拡大 0.8→1.2 ATR, TP拡大 2.5→3.0 ATR, 閾値2.5→2.0
-    #       1H足ノイズ耐性向上 (旧: 25% 1バー即死)
+    #  核心: EMAはラグする → EMAがまだ弱気なのに価格が中期EMA上 = 転換BUY
+    #  v6: デュアル基準（EMA200 + EMA50）で両方向シグナル発生
+    #       EMA200合致: base=1.5 (高信頼)
+    #       EMA50のみ: base=1.0 (低信頼→他の確認が全部必要)
+    #       → 上昇相場でもSELL発生、下降相場でもBUY発生
     # ════════════════════════════════════════════════════════════
-    # ── 転換BUY: EMAはまだ弱気整列だが、価格はEMA200上に反発 ──
-    # EMAラグ = 短期EMAがまだ追いついてない = 転換初期
-    if (ema9 < ema21 and entry > ema200_1h and adx >= 15):
-        _mt_score = 0.0
-        _mt_reasons = []
-        _mt_reasons.append(f"✅ EMAラグ転換BUY: EMA弱気(9<21)だが価格>EMA200({ema200_1h:.3f})")
-        _mt_score += 1.5
+    _ema50_1h = float(df["ema50"].iloc[-1]) if "ema50" in df.columns else ema21
+    # ── 転換BUY: EMAはまだ弱気整列だが、価格は中期EMA上に反発 ──
+    if (ema9 < ema21 and adx >= 15):
+        _mt_above_200 = entry > ema200_1h
+        _mt_above_50 = entry > _ema50_1h
+        if _mt_above_200 or _mt_above_50:
+            _mt_score = 0.0
+            _mt_reasons = []
+            # EMA200合致: 高信頼ベース
+            if _mt_above_200:
+                _mt_score += 1.5
+                _mt_reasons.append(f"✅ EMAラグ転換BUY: 価格>EMA200({ema200_1h:.3f})")
+            # EMA50のみ: 低信頼ベース（他の確認が全部ないと閾値に届かない）
+            elif _mt_above_50:
+                _mt_score += 1.0
+                _mt_reasons.append(f"✅ EMAラグ転換BUY: 価格>EMA50({_ema50_1h:.3f})")
+                if entry > ema200_1h:
+                    _mt_score += 0.3
+                    _mt_reasons.append("✅ EMA200上: 中期トレンド一致")
 
-        # 価格がEMA200の上にいて、EMA200から近い（リテスト中）
-        _e200_dist = (entry - ema200_1h) / atr if atr > 0 else 0
-        if 0 < _e200_dist < 1.5:
-            _mt_score += 0.5
-            _mt_reasons.append(f"✅ EMA200リテスト圏(距離={_e200_dist:.1f}ATR)")
+            # EMA50/200近辺リテスト
+            _ref_ema = ema200_1h if _mt_above_200 else _ema50_1h
+            _ref_dist = (entry - _ref_ema) / atr if atr > 0 else 0
+            if 0 < _ref_dist < 1.5:
+                _mt_score += 0.5
+                _mt_reasons.append(f"✅ EMAリテスト圏(距離={_ref_dist:.1f}ATR)")
 
-        # MACD-H改善（モメンタム転換確認）
-        if macdh > prev_macdh:
-            _mt_score += 0.5
-            _mt_reasons.append("✅ MACD-H改善: モメンタム転換確認")
+            if macdh > prev_macdh:
+                _mt_score += 0.5
+                _mt_reasons.append("✅ MACD-H改善: モメンタム転換確認")
 
-        # RSI中立〜やや強気（売られすぎからの回復）
-        if rsi > 40 and rsi < 65:
-            _mt_score += 0.3
-            _mt_reasons.append(f"✅ RSI回復圏({rsi:.0f})")
+            if rsi > 40 and rsi < 65:
+                _mt_score += 0.3
+                _mt_reasons.append(f"✅ RSI回復圏({rsi:.0f})")
 
-        # 陽線確認
-        if entry > _open:
-            _mt_score += 0.3
-            _mt_reasons.append("✅ 陽線: 反発確認")
+            if entry > _open:
+                _mt_score += 0.3
+                _mt_reasons.append("✅ 陽線: 反発確認")
 
-        # Stoch回復
-        if stoch_k > stoch_d:
-            _mt_score += 0.3
+            if stoch_k > stoch_d:
+                _mt_score += 0.3
 
-        if _mt_score >= 2.5:  # 閾値2.5維持（低スコア=低精度）
-            _mt_tp = entry + atr * 3.0   # 旧2.5→3.0: 1Hトレンド利幅拡大
-            _mt_sl = entry - atr * 1.0   # 旧0.8→1.0: 適度なノイズ耐性
-            # シナリオ崩壊: 価格がEMA200を下回ったら転換BUYの根拠消滅
-            _mt_inv = ema200_1h - atr * 0.1  # EMA200の少し下
-            candidates.append(("BUY", _mt_score, _mt_tp, _mt_sl, _mt_reasons, "mtf_momentum", _mt_inv))
+            if _mt_score >= 2.5:
+                _mt_tp = entry + atr * 3.0
+                _mt_sl = entry - atr * 1.0
+                _mt_inv = _ref_ema - atr * 0.1  # 基準EMAの少し下
+                candidates.append(("BUY", _mt_score, _mt_tp, _mt_sl, _mt_reasons, "mtf_momentum", _mt_inv))
 
-    # ── 転換SELL: EMAはまだ強気整列だが、価格はEMA200下に崩落 ──
-    if (ema9 > ema21 and entry < ema200_1h and adx >= 15):
-        _mt_score = 0.0
-        _mt_reasons = []
-        _mt_reasons.append(f"✅ EMAラグ転換SELL: EMA強気(9>21)だが価格<EMA200({ema200_1h:.3f})")
-        _mt_score += 1.5
+    # ── 転換SELL: EMAはまだ強気整列だが、価格は中期EMA下に崩落 ──
+    if (ema9 > ema21 and adx >= 15):
+        _mt_below_200 = entry < ema200_1h
+        _mt_below_50 = entry < _ema50_1h
+        if _mt_below_200 or _mt_below_50:
+            _mt_score = 0.0
+            _mt_reasons = []
+            if _mt_below_200:
+                _mt_score += 1.5
+                _mt_reasons.append(f"✅ EMAラグ転換SELL: 価格<EMA200({ema200_1h:.3f})")
+            elif _mt_below_50:
+                _mt_score += 1.0
+                _mt_reasons.append(f"✅ EMAラグ転換SELL: 価格<EMA50({_ema50_1h:.3f})")
+                if entry < ema200_1h:
+                    _mt_score += 0.3
+                    _mt_reasons.append("✅ EMA200下: 中期トレンド一致")
 
-        _e200_dist = (ema200_1h - entry) / atr if atr > 0 else 0
-        if 0 < _e200_dist < 1.5:
-            _mt_score += 0.5
-            _mt_reasons.append(f"✅ EMA200リテスト圏(距離={_e200_dist:.1f}ATR)")
+            _ref_ema = ema200_1h if _mt_below_200 else _ema50_1h
+            _ref_dist = (_ref_ema - entry) / atr if atr > 0 else 0
+            if 0 < _ref_dist < 1.5:
+                _mt_score += 0.5
+                _mt_reasons.append(f"✅ EMAリテスト圏(距離={_ref_dist:.1f}ATR)")
 
-        if macdh < prev_macdh:
-            _mt_score += 0.5
-            _mt_reasons.append("✅ MACD-H悪化: モメンタム崩壊確認")
+            if macdh < prev_macdh:
+                _mt_score += 0.5
+                _mt_reasons.append("✅ MACD-H悪化: モメンタム崩壊確認")
 
-        if rsi > 35 and rsi < 60:
-            _mt_score += 0.3
-            _mt_reasons.append(f"✅ RSI中立圏({rsi:.0f})")
+            if rsi > 35 and rsi < 60:
+                _mt_score += 0.3
+                _mt_reasons.append(f"✅ RSI中立圏({rsi:.0f})")
 
-        if entry < _open:
-            _mt_score += 0.3
-            _mt_reasons.append("✅ 陰線: 崩落確認")
+            if entry < _open:
+                _mt_score += 0.3
+                _mt_reasons.append("✅ 陰線: 崩落確認")
 
-        if stoch_k < stoch_d:
-            _mt_score += 0.3
+            if stoch_k < stoch_d:
+                _mt_score += 0.3
 
-        if _mt_score >= 2.5:  # 閾値2.5維持
-            _mt_tp = entry - atr * 3.0   # 旧2.5→3.0
-            _mt_sl = entry + atr * 1.0   # 旧0.8→1.0
-            # シナリオ崩壊: 価格がEMA200を上回ったら転換SELLの根拠消滅
-            _mt_inv = ema200_1h + atr * 0.1
-            candidates.append(("SELL", _mt_score, _mt_tp, _mt_sl, _mt_reasons, "mtf_momentum", _mt_inv))
+            if _mt_score >= 2.5:
+                _mt_tp = entry - atr * 3.0
+                _mt_sl = entry + atr * 1.0
+                _mt_inv = _ref_ema + atr * 0.1
+                candidates.append(("SELL", _mt_score, _mt_tp, _mt_sl, _mt_reasons, "mtf_momentum", _mt_inv))
 
     # ════════════════════════════════════════════════════════════
     #  戦略2: Session ORB — London Open Breakout (Ito & Hashimoto 2006)
