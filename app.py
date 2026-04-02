@@ -1930,10 +1930,12 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         adx_mult = 1.1; reasons.append(f"✅ ADX{adx:.0f}≥25: 強トレンド確認（Wilder 1978）")
     elif adx >= 18:
         adx_mult = 0.85; reasons.append(f"⚠️ ADX{adx:.0f}: 中程度トレンド")
+    elif adx >= 16:
+        adx_mult = 0.65; reasons.append(f"⚠️ ADX{adx:.0f}: 弱トレンド（許容）")
     elif adx >= 12:
-        adx_mult = 0.65; reasons.append(f"⚠️ ADX{adx:.0f}: 弱トレンド（頻度重視で許容）")
+        adx_mult = 0.35; reasons.append(f"⛔ ADX{adx:.0f}<16: チョッピー相場（大幅減衰）")
     else:
-        adx_mult = 0.45; reasons.append(f"⛔ ADX{adx:.0f}<12: レンジ相場（シグナル減衰）")
+        adx_mult = 0.20; reasons.append(f"⛔ ADX{adx:.0f}<12: レンジ相場（ほぼブロック）")
 
     # ② EMA200方向フィルター + スロープ分析（Neely & Weller 2011）
     bull200 = entry > ema200
@@ -4563,6 +4565,12 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             if bar_range < _min_bar_range:
                 continue
 
+            # Session filter (本番demo_traderと統一: UTC<7 or >=22 ブロック)
+            if interval != "1h":  # DT 15m only
+                _bt_hour = df.index[i].hour if hasattr(df.index[i], 'hour') else 12
+                if _bt_hour < 7 or _bt_hour >= 22:
+                    continue
+
             # ── 本番環境と統一: compute_daytrade_signalを呼び出し ──
             _dt_key = i // DT_SR_RECALC
             current_sr_weighted = _dt_sr_cache.get(_dt_key, [])
@@ -4597,8 +4605,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 # "hs_neckbreak",    # DISABLED: EV=-0.346
                 "ihs_neckbreak",
                 "dt_fib_reversal",           # フィボリトレースメント反発
-                "dt_sr_channel_reversal",    # SR/チャネルバウンス
-                "ema200_trend_reversal",     # EMA200トレンド転換
+                # "dt_sr_channel_reversal",  # DISABLED: WR=25% EV=-0.659
+                # "ema200_trend_reversal",   # DISABLED: WR=50% EV=-0.037
             }
             DT_CONDITIONAL = {"ema_cross"}
             DT_BLOCKED = {"unknown", "wait"}
@@ -4609,7 +4617,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             _dt_confirmed = sum(1 for r in _dt_reasons if "✅" in r)
             if entry_type in DT_CONDITIONAL:
                 _dt_adx = sig_result.get("indicators", {}).get("adx", 0)
-                if not _dt_adx or _dt_adx < 12 or _dt_confirmed < 1:  # 旧15→12（トレード頻度増）
+                if not _dt_adx or _dt_adx < 16 or _dt_confirmed < 1:  # 12→16: レンジ排除でWR改善
                     continue
             elif entry_type in DT_QUALIFIED:
                 if _dt_confirmed < 1:

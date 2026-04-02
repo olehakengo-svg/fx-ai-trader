@@ -1076,8 +1076,8 @@ class DemoTrader:
             "sr_fib_confluence", # SR + フィボナッチ合流
             "ema_cross",         # EMAクロス (BT 147t WR=72.8%)
             "dt_fib_reversal",           # DT フィボリバーサル
-            "dt_sr_channel_reversal",    # DT SR/チャネルバウンス
-            "ema200_trend_reversal",     # DT EMA200トレンド転換
+            # "dt_sr_channel_reversal",  # DISABLED: BT WR=25% EV=-0.659
+            # "ema200_trend_reversal",   # DISABLED: BT WR=50% EV=-0.037
             # 1H Zone: 学術論文ベース戦略
             "mtf_momentum",          # Multi-TF Momentum (Moskowitz 2012)
             "session_orb",           # Session ORB (Ito & Hashimoto 2006)
@@ -1146,7 +1146,7 @@ class DemoTrader:
             hour_now = datetime.now(timezone.utc).hour
             # モード別時間帯制限
             if mode == "daytrade":
-                if hour_now < 5 or hour_now >= 22:  # 旧7-21→5-22: +5h (Tokyo AM + NY Late)
+                if hour_now < 7 or hour_now >= 22:  # 5→7: UTC03-07 BT全不調日WR=0%
                     _block(f"session_block(h={hour_now})"); return
             elif mode == "daytrade_1h":
                 if hour_now < 3 or hour_now >= 22:
