@@ -1286,6 +1286,7 @@ class DemoTrader:
             demo_trade_id=trade_id,
             direction=signal,
             sl=sl, tp=tp,
+            mode=mode,
             callback=lambda did, oid: self._db.set_oanda_trade_id(did, oid),
         )
 

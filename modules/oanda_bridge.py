@@ -16,6 +16,9 @@ class OandaBridge:
         self._client = OandaClient()
         self._enabled = os.environ.get("OANDA_LIVE", "").lower() in ("true", "1", "yes")
         self._units = int(os.environ.get("OANDA_UNITS", "1000"))  # 1000 = 0.01 lot
+        # OANDA連携対象モード（env: カンマ区切り、例 "scalp,daytrade"）
+        _modes_env = os.environ.get("OANDA_MODES", "")
+        self._allowed_modes = set(m.strip() for m in _modes_env.split(",") if m.strip()) if _modes_env else set()
         # demo_trade_id -> oanda_trade_id mapping (in-memory, also persisted in DB)
         self._trade_map = {}  # {demo_trade_id: oanda_trade_id}
         self._lock = threading.Lock()
@@ -25,6 +28,12 @@ class OandaBridge:
         """True if OANDA integration is enabled and configured."""
         return self._enabled and self._client.configured
 
+    def is_mode_allowed(self, mode: str) -> bool:
+        """指定モードがOANDA連携対象か判定。空=全モード許可。"""
+        if not self._allowed_modes:
+            return True  # 未設定 → 全モード連携
+        return mode in self._allowed_modes
+
     @property
     def status(self) -> dict:
         return {
@@ -32,6 +41,7 @@ class OandaBridge:
             "configured": self._client.configured,
             "active": self.active,
             "units": self._units,
+            "allowed_modes": sorted(self._allowed_modes) if self._allowed_modes else "all",
             "open_trades": len(self._trade_map),
         }
 
@@ -56,11 +66,15 @@ class OandaBridge:
 
     def open_trade(self, demo_trade_id: str, direction: str,
                    sl: float, tp: float,
+                   mode: str = "",
                    callback=None):
         """Place OANDA market order mirroring a demo trade.
         callback(demo_trade_id, oanda_trade_id) called on success for DB persistence.
         """
         if not self.active:
+            return
+        if not self.is_mode_allowed(mode):
+            logger.debug(f"[OandaBridge] mode={mode} not in allowed_modes, skip")
             return
 
         def _do():
