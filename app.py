@@ -6581,7 +6581,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     #  根拠: Bollinger 2001 + Wilder RSI 1978
     #  条件: ADX < 22（レンジ） + BB極端 + RSI極端
     # ════════════════════════════════════════════════════════
-    if adx < 28:  # 35→28: レンジ判定厳格化（トレンド中の逆張り排除でWR向上）
+    if adx < 32:  # 35→32: レンジ判定適度に厳格化（28は件数半減→32で件数回復+WR維持）
         _mr_reasons = []
         _mr_signal = None
         _mr_score = 0.0
