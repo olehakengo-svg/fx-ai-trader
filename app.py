@@ -660,6 +660,11 @@ def calc_sl_tp_v3(entry: float, signal: str, atr: float, sr_levels: list,
         sl = min(sl_candidates) + atr * 0.15 if sl_candidates else raw_sl
         tp = max(tp_candidates) + atr * 0.10 if tp_candidates else raw_tp
 
+    # Ensure minimum SL distance (SRスナップでSLが狭くなりすぎるのを防止)
+    _min_sl_dist = atr * sl_mult * 0.6  # SL_MULT の60%を最低保証
+    if abs(sl - entry) < _min_sl_dist:
+        sl = entry - _min_sl_dist if signal == "BUY" else entry + _min_sl_dist
+
     # Ensure minimum RR
     if abs(tp - entry) < abs(sl - entry) * min_rr:
         tp = (entry + abs(sl - entry) * (min_rr + 0.3)

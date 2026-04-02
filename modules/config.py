@@ -123,7 +123,7 @@ MTF_HIGHER = {
 
 # Swing-mode ATR multipliers per timeframe
 TF_SL_MULT = {
-    "1m": 1.5, "5m": 1.5, "15m": 1.5, "30m": 1.8,
+    "1m": 1.5, "5m": 1.5, "15m": 2.0, "30m": 1.8,
     "1h": 2.2, "4h": 2.5, "1d": 3.0, "1w": 3.5, "1M": 4.0,
 }
 TF_TP_MULT = {

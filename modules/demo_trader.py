@@ -1092,13 +1092,18 @@ class DemoTrader:
         # ── SL後クールダウン ──
         last_ex = self._last_exit.get(mode)
         if last_ex:
-            _cooldown_sec = {"scalp": 120, "daytrade": 300, "daytrade_1h": 1800, "swing": 7200}.get(mode, 120)  # DT: 600→300s
+            _cooldown_sec = {"scalp": 120, "daytrade": 300, "daytrade_1h": 1800, "swing": 7200}.get(mode, 120)
             _ex_age = (datetime.now(timezone.utc) - last_ex["time"]).total_seconds()
             if _ex_age < _cooldown_sec:
                 if last_ex["direction"] == signal:
                     _block(f"cooldown_same_dir({int(_ex_age)}s)"); return
                 if abs(last_ex["price"] - current_price) < 0.05:
                     _block(f"cooldown_same_zone({int(_ex_age)}s)"); return
+            # LOSS後の同価格帯再エントリー防止（DT: 同価格帯で10pip以内 + 30分間）
+            if last_ex.get("outcome") == "LOSS" and mode == "daytrade":
+                _loss_cooldown = 1800  # 30分
+                if _ex_age < _loss_cooldown and abs(last_ex["price"] - current_price) < 0.10:
+                    _block(f"loss_zone_cooldown({int(_ex_age)}s)"); return
 
         # ── 時間帯×モード別フィルター ──
         # アジア(00-07): レンジ → DT禁止（スキャルプのみ）
