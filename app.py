@@ -4107,7 +4107,8 @@ _ML_MIN_SAMPLES = 100   # minimum samples to train
 
 def run_scalp_backtest(symbol: str = "USDJPY=X",
                        lookback_days: int = 7,
-                       interval: str = "1m") -> dict:
+                       interval: str = "1m",
+                       _df_override=None) -> dict:
     """
     スキャルピングBT — compute_scalp_signal統合版
     本番環境と同一のエントリーロジック（compute_scalp_signal）を使用。
@@ -4116,17 +4117,21 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
     global _scalp_bt_cache
     cache_key = f"{interval}_{lookback_days}"
     now = datetime.now()
-    cached = _scalp_bt_cache.get(cache_key)
-    if cached and (now - cached["ts"]).total_seconds() < SCALP_BT_TTL:
-        return cached["result"]
+    if _df_override is None:
+        cached = _scalp_bt_cache.get(cache_key)
+        if cached and (now - cached["ts"]).total_seconds() < SCALP_BT_TTL:
+            return cached["result"]
 
     try:
-        # OANDA優先: 1m足でも30日以上取得可能（ページネーション対応）
-        # yfinanceフォールバック時は7日制限あり
-        fetch_period = f"{lookback_days}d"
-        df = fetch_ohlcv(symbol, period=fetch_period, interval=interval)
-        df = add_indicators(df)
-        df = df.dropna()
+        if _df_override is not None:
+            df = _df_override
+        else:
+            # OANDA優先: 1m足でも30日以上取得可能（ページネーション対応）
+            # yfinanceフォールバック時は7日制限あり
+            fetch_period = f"{lookback_days}d"
+            df = fetch_ohlcv(symbol, period=fetch_period, interval=interval)
+            df = add_indicators(df)
+            df = df.dropna()
         if len(df) < 100:
             return {"error": "データ不足（最低100本必要）", "trades": 0, "mode": "scalp"}
 
@@ -9553,6 +9558,210 @@ def api_backtest():
     except Exception as e:
         import traceback
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+# ── 非同期ロングBT（チャンク処理でタイムアウト回避）──────────
+_async_bt_results: dict = {}  # task_id → {status, progress, result, started_at}
+
+def _run_chunked_scalp_bt(task_id: str, symbol: str, total_days: int,
+                           chunk_days: int, interval: str):
+    """バックグラウンドスレッドでチャンク処理のスキャルプBTを実行"""
+    import time as _time
+    try:
+        _async_bt_results[task_id]["status"] = "running"
+        all_trades = []
+        chunks_done = 0
+        total_chunks = (total_days + chunk_days - 1) // chunk_days
+        total_bars = 0
+
+        for chunk_start in range(0, total_days, chunk_days):
+            days_in_chunk = min(chunk_days, total_days - chunk_start)
+            # 各チャンクのデータ範囲を計算（新しい方から遡る）
+            end_offset = chunk_start
+            start_offset = chunk_start + days_in_chunk
+
+            try:
+                from datetime import timedelta
+                now_utc = datetime.now(timezone.utc)
+                _from = now_utc - timedelta(days=start_offset)
+                _to = now_utc - timedelta(days=end_offset)
+                _from_str = _from.strftime("%Y-%m-%dT%H:%M:%SZ")
+                _to_str = _to.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+                # OANDA APIで期間指定取得
+                from modules.data import fetch_ohlcv_range
+                df_chunk = fetch_ohlcv_range(symbol, _from_str, _to_str, interval=interval)
+                df_chunk = add_indicators(df_chunk)
+                df_chunk = df_chunk.dropna()
+                if len(df_chunk) < 100:
+                    chunks_done += 1
+                    continue
+
+                # このチャンクでBT実行（キャッシュ無効化）
+                result_chunk = run_scalp_backtest(
+                    symbol, lookback_days=days_in_chunk, interval=interval,
+                    _df_override=df_chunk
+                )
+                chunk_trades = result_chunk.get("trade_log", [])
+                all_trades.extend(chunk_trades)
+                total_bars += result_chunk.get("bars_fetched", 0)
+
+            except Exception as e:
+                print(f"[ASYNC_BT] Chunk {chunk_start}-{chunk_start+days_in_chunk}d error: {e}")
+
+            chunks_done += 1
+            _async_bt_results[task_id]["progress"] = f"{chunks_done}/{total_chunks}"
+
+        # 全チャンクの結果を集計
+        if len(all_trades) < 10:
+            _async_bt_results[task_id].update({
+                "status": "done",
+                "result": {"error": f"サンプル不足({len(all_trades)}t)", "trades": len(all_trades)}
+            })
+            return
+
+        profile = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
+        SL_MULT = profile["scalp_sl"]
+        TP_MULT = profile["scalp_tp"]
+
+        def _pnl_t(t):
+            if t["outcome"] == "WIN":
+                return t.get("tp_m", TP_MULT)
+            return -(t.get("actual_sl_m") or t.get("sl_m", SL_MULT))
+
+        wins = sum(1 for t in all_trades if t["outcome"] == "WIN")
+        total = len(all_trades)
+        wr = round(wins / total * 100, 1)
+        pnls = [_pnl_t(t) for t in all_trades]
+        ev = round(sum(pnls) / total, 3)
+        total_pnl = round(sum(pnls), 1)
+        daily_pnl = round(total_pnl / max(total_days, 1), 1)
+
+        # Max DD
+        eq, peak, dd = 0.0, 0.0, 0.0
+        for p in pnls:
+            eq += p
+            if eq > peak: peak = eq
+            if peak - eq > dd: dd = peak - eq
+
+        # Entry breakdown
+        entry_stats = {}
+        for t in all_trades:
+            et = t.get("type", "unknown")
+            if et not in entry_stats:
+                entry_stats[et] = {"wins": 0, "total": 0, "pnl": 0.0}
+            entry_stats[et]["total"] += 1
+            entry_stats[et]["pnl"] += _pnl_t(t)
+            if t["outcome"] == "WIN":
+                entry_stats[et]["wins"] += 1
+        for v in entry_stats.values():
+            v["win_rate"] = round(v["wins"] / v["total"] * 100, 1)
+            v["ev"] = round(v["pnl"] / v["total"], 3)
+            v["pnl"] = round(v["pnl"], 1)
+
+        # Walk-forward (5窓)
+        n_wf = min(5, total_days // 5)
+        wlen = max(1, len(all_trades) // max(n_wf, 1))
+        wf_windows = []
+        for w in range(n_wf):
+            wt = all_trades[w * wlen:(w + 1) * wlen]
+            if len(wt) < 5: continue
+            ww = sum(1 for t in wt if t["outcome"] == "WIN")
+            wev = round(sum(_pnl_t(t) for t in wt) / len(wt), 3)
+            wf_windows.append({"label": f"窓{w+1}", "trades": len(wt),
+                               "win_rate": round(ww/len(wt)*100, 1),
+                               "expected_value": wev})
+        profitable_wf = sum(1 for w in wf_windows if w["expected_value"] > 0)
+
+        # Daily breakdown
+        from collections import defaultdict
+        daily_stats = defaultdict(lambda: {"wins": 0, "losses": 0, "pnl": 0.0})
+        for t in all_trades:
+            day = t.get("entry_time", "")[:10]
+            daily_stats[day]["pnl"] += _pnl_t(t)
+            if t["outcome"] == "WIN":
+                daily_stats[day]["wins"] += 1
+            else:
+                daily_stats[day]["losses"] += 1
+        daily_list = [{"date": k, **v} for k, v in sorted(daily_stats.items())]
+        for d in daily_list:
+            total_d = d["wins"] + d["losses"]
+            d["wr"] = round(d["wins"] / total_d * 100, 1) if total_d else 0
+            d["pnl"] = round(d["pnl"], 1)
+
+        _async_bt_results[task_id].update({
+            "status": "done",
+            "result": {
+                "mode": "scalp",
+                "period": f"過去{total_days}日 ({interval}足, チャンク{chunk_days}日)",
+                "total_trades": total,
+                "wins": wins,
+                "losses": total - wins,
+                "win_rate": wr,
+                "expected_value": ev,
+                "total_pnl": total_pnl,
+                "daily_pnl": daily_pnl,
+                "max_drawdown": round(dd, 1),
+                "sharpe": round(float(np.mean(pnls)) / max(float(np.std(pnls)), 1e-6), 3),
+                "walk_forward": wf_windows,
+                "consistency": f"{profitable_wf}/{len(wf_windows)} 窓でプラス期待値",
+                "entry_breakdown": entry_stats,
+                "daily_breakdown": daily_list,
+                "bars_fetched": total_bars,
+                "chunks": total_chunks,
+            }
+        })
+    except Exception as e:
+        import traceback
+        _async_bt_results[task_id].update({
+            "status": "error",
+            "result": {"error": str(e), "traceback": traceback.format_exc()}
+        })
+
+
+@app.route("/api/backtest-long", methods=["POST", "GET"])
+def api_backtest_long():
+    """ロングBT（非同期チャンク処理）
+    POST: BTを開始 → task_id返却
+      ?mode=scalp&days=30&tf=1m&chunk=7
+    GET: 結果取得
+      ?task_id=xxx
+    """
+    if request.method == "GET":
+        task_id = request.args.get("task_id", "")
+        if task_id not in _async_bt_results:
+            return jsonify({"error": "task not found"}), 404
+        info = _async_bt_results[task_id]
+        return jsonify({
+            "task_id": task_id,
+            "status": info["status"],
+            "progress": info.get("progress", "0/0"),
+            "result": info.get("result"),
+        })
+
+    # POST: start BT
+    mode = request.args.get("mode", "scalp")
+    days = min(int(request.args.get("days", "30")), 60)  # 最大60日
+    tf = request.args.get("tf", "1m")
+    chunk = int(request.args.get("chunk", "7"))
+
+    import uuid
+    task_id = str(uuid.uuid4())[:8]
+    _async_bt_results[task_id] = {
+        "status": "queued",
+        "progress": "0/0",
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "params": {"mode": mode, "days": days, "tf": tf, "chunk": chunk},
+    }
+
+    t = threading.Thread(
+        target=_run_chunked_scalp_bt,
+        args=(task_id, "USDJPY=X", days, chunk, tf),
+        daemon=True,
+    )
+    t.start()
+    return jsonify({"task_id": task_id, "status": "started",
+                     "params": {"days": days, "tf": tf, "chunk": chunk}})
 
 
 @app.route("/api/strategy-mode", methods=["GET", "POST"])

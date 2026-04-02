@@ -353,6 +353,77 @@ def fetch_ohlcv_oanda(symbol: str, interval: str, days: int) -> pd.DataFrame:
     return df.dropna()
 
 
+def fetch_ohlcv_range(symbol: str, from_time: str, to_time: str,
+                      interval: str = "1m") -> pd.DataFrame:
+    """OANDA APIで期間指定のOHLCVデータを取得（チャンクBT用）"""
+    client = _get_oanda_client()
+    if not client or not client.configured:
+        raise ValueError("OANDA client not configured")
+
+    instrument = _OANDA_SYMBOLS.get(symbol)
+    if not instrument:
+        raise ValueError(f"Symbol {symbol} not in OANDA map")
+
+    granularity = _OANDA_GRANULARITY.get(interval)
+    if not granularity:
+        raise ValueError(f"Interval {interval} not supported by OANDA")
+
+    _secs_per_bar = {"1m": 60, "5m": 300, "15m": 900, "30m": 1800,
+                     "1h": 3600, "4h": 14400, "1d": 86400}.get(interval, 60)
+    _chunk_secs = 5000 * _secs_per_bar
+
+    _from_dt = datetime.fromisoformat(from_time.replace("Z", "+00:00"))
+    _to_dt = datetime.fromisoformat(to_time.replace("Z", "+00:00"))
+
+    all_candles = []
+    _cursor = _from_dt
+    for _page in range(20):
+        _f = _cursor.strftime("%Y-%m-%dT%H:%M:%SZ")
+        _t_dt = min(_cursor + timedelta(seconds=_chunk_secs), _to_dt)
+        _t = _t_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        ok, data = client.get_candles(
+            instrument=instrument, granularity=granularity,
+            price="M", from_time=_f, to_time=_t,
+        )
+        if ok:
+            chunk = data.get("candles", [])
+            all_candles.extend(chunk)
+
+        _cursor = _t_dt
+        if _cursor >= _to_dt:
+            break
+
+    if not all_candles:
+        raise ValueError("OANDA range: empty")
+
+    rows, times = [], []
+    for c in all_candles:
+        mid = c.get("mid", {})
+        if not mid: continue
+        rows.append({
+            "Open": float(mid["o"]), "High": float(mid["h"]),
+            "Low": float(mid["l"]), "Close": float(mid["c"]),
+            "Volume": float(c.get("volume", 0)),
+        })
+        times.append(pd.Timestamp(c["time"]))
+
+    if not rows:
+        raise ValueError("OANDA range: no valid data")
+
+    idx = pd.DatetimeIndex(times)
+    if idx.tz is None:
+        idx = idx.tz_localize("UTC")
+    else:
+        idx = idx.tz_convert("UTC")
+
+    df = pd.DataFrame(rows, index=idx)
+    df = df[~df.index.duplicated(keep="last")]
+    df = df.sort_index()
+    print(f"[OANDA/range/{interval}] {len(df)} bars ({from_time[:10]}~{to_time[:10]})")
+    return df.dropna()
+
+
 def fetch_oanda_price() -> float:
     """OANDAからリアルタイム価格(mid)を取得。失敗時は0を返す。"""
     client = _get_oanda_client()
