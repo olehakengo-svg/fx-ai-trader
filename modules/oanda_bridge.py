@@ -72,7 +72,9 @@ class OandaBridge:
                 take_profit=tp,
             )
             if ok:
-                oanda_id = str(data.get("tradeOpened", {}).get("id", ""))
+                # v20: orderFillTransaction.tradeOpened.tradeID
+                _fill = data.get("orderFillTransaction", {})
+                oanda_id = str(_fill.get("tradeOpened", {}).get("tradeID", ""))
                 if oanda_id:
                     with self._lock:
                         self._trade_map[demo_trade_id] = oanda_id

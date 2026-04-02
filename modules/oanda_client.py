@@ -1,5 +1,5 @@
 """
-OANDA v1 REST API Client — Thin wrapper for OANDA Japan live trading.
+OANDA v20 REST API Client — Thin wrapper for OANDA Japan live trading.
 Handles authentication, request formatting, and error handling.
 All methods return (success: bool, data: dict) tuples.
 """
@@ -11,7 +11,7 @@ from urllib.error import HTTPError, URLError
 
 logger = logging.getLogger(__name__)
 
-# OANDA v1 API base URL (本番環境)
+# OANDA v20 API base URL (本番環境)
 BASE_URL = "https://api-fxtrade.oanda.com"
 
 
@@ -27,9 +27,9 @@ class OandaClient:
     def _headers(self) -> dict:
         return {
             "Authorization": f"Bearer {self._token}",
-            "Content-Type": "application/x-www-form-urlencoded",
-            "User-Agent": "fx-ai-trader/1.0",
+            "Content-Type": "application/json",
             "Accept": "application/json",
+            "User-Agent": "fx-ai-trader/1.0",
         }
 
     def _request(self, method: str, path: str, data: dict = None,
@@ -38,8 +38,7 @@ class OandaClient:
         url = f"{BASE_URL}{path}"
         body = None
         if data:
-            from urllib.parse import urlencode
-            body = urlencode(data).encode("utf-8")
+            body = json.dumps(data).encode("utf-8")
 
         req = Request(url, data=body, headers=self._headers(), method=method)
 
@@ -62,84 +61,97 @@ class OandaClient:
             logger.error(f"OANDA API {method} {path} → {type(e).__name__}: {e}")
             return False, {"error": "unknown", "message": str(e)}
 
-    # ── Market Order ──────────────────────────────────
+    # ── Market Order (v20) ────────────────────────────
 
     def market_order(self, side: str, units: int,
                      instrument: str = "USD_JPY",
                      stop_loss: float = None,
                      take_profit: float = None) -> tuple:
-        """Place a market order.
-        side: "buy" or "sell"
-        Returns (success, trade_data) where trade_data contains tradeOpened.id
+        """Place a market order via v20 API.
+        side: "buy" or "sell" — v20 uses positive/negative units
+        Returns (success, data) where data contains orderFillTransaction.tradeOpened.tradeID
         """
-        path = f"/v1/accounts/{self._account_id}/orders"
-        params = {
+        path = f"/v3/accounts/{self._account_id}/orders"
+        # v20: positive units = buy, negative units = sell
+        signed_units = str(units) if side.lower() == "buy" else str(-units)
+
+        order = {
+            "type": "MARKET",
             "instrument": instrument,
-            "units": units,
-            "side": side.lower(),
-            "type": "market",
+            "units": signed_units,
+            "timeInForce": "FOK",
+            "positionFill": "DEFAULT",
         }
         if stop_loss is not None:
-            params["stopLoss"] = round(stop_loss, 3)
+            order["stopLossOnFill"] = {
+                "price": f"{stop_loss:.3f}",
+                "timeInForce": "GTC",
+            }
         if take_profit is not None:
-            params["takeProfit"] = round(take_profit, 3)
+            order["takeProfitOnFill"] = {
+                "price": f"{take_profit:.3f}",
+                "timeInForce": "GTC",
+            }
 
-        return self._request("POST", path, params)
+        return self._request("POST", path, {"order": order})
 
-    # ── Close Trade ───────────────────────────────────
+    # ── Close Trade (v20) ─────────────────────────────
 
     def close_trade(self, trade_id: str) -> tuple:
         """Close an open trade by OANDA trade ID.
-        DELETE /v1/accounts/:id/trades/:trade_id
+        PUT /v3/accounts/:id/trades/:trade_id/close
         """
-        path = f"/v1/accounts/{self._account_id}/trades/{trade_id}"
-        return self._request("DELETE", path)
+        path = f"/v3/accounts/{self._account_id}/trades/{trade_id}/close"
+        return self._request("PUT", path, {"units": "ALL"})
 
-    # ── Modify Trade (SL/TP) ──────────────────────────
+    # ── Modify Trade SL/TP (v20) ──────────────────────
 
     def modify_trade(self, trade_id: str,
                      stop_loss: float = None,
-                     take_profit: float = None,
-                     trailing_stop: int = None) -> tuple:
+                     take_profit: float = None) -> tuple:
         """Modify SL/TP on an existing trade.
-        PATCH /v1/accounts/:id/trades/:trade_id
+        PUT /v3/accounts/:id/trades/:trade_id/orders
         """
-        path = f"/v1/accounts/{self._account_id}/trades/{trade_id}"
+        path = f"/v3/accounts/{self._account_id}/trades/{trade_id}/orders"
         params = {}
         if stop_loss is not None:
-            params["stopLoss"] = round(stop_loss, 3)
+            params["stopLoss"] = {
+                "price": f"{stop_loss:.3f}",
+                "timeInForce": "GTC",
+            }
         if take_profit is not None:
-            params["takeProfit"] = round(take_profit, 3)
-        if trailing_stop is not None:
-            params["trailingStop"] = trailing_stop
+            params["takeProfit"] = {
+                "price": f"{take_profit:.3f}",
+                "timeInForce": "GTC",
+            }
         if not params:
             return False, {"error": "no_params", "message": "Nothing to modify"}
 
-        return self._request("PATCH", path, params)
+        return self._request("PUT", path, params)
 
-    # ── Get Open Trades ───────────────────────────────
+    # ── Get Open Trades (v20) ─────────────────────────
 
-    def get_open_trades(self, instrument: str = "USD_JPY") -> tuple:
-        """List open trades for the account.
-        GET /v1/accounts/:id/trades?instrument=USD_JPY
+    def get_open_trades(self) -> tuple:
+        """List all open trades for the account.
+        GET /v3/accounts/:id/openTrades
         """
-        path = f"/v1/accounts/{self._account_id}/trades?instrument={instrument}"
+        path = f"/v3/accounts/{self._account_id}/openTrades"
         return self._request("GET", path)
 
-    # ── Get Account Info ──────────────────────────────
+    # ── Get Account Info (v20) ────────────────────────
 
     def get_account(self) -> tuple:
-        """Get account balance, margin, etc.
-        GET /v1/accounts/:id
+        """Get account summary (balance, margin, etc).
+        GET /v3/accounts/:id/summary
         """
-        path = f"/v1/accounts/{self._account_id}"
+        path = f"/v3/accounts/{self._account_id}/summary"
         return self._request("GET", path)
 
-    # ── Get Current Price ─────────────────────────────
+    # ── Get Current Price (v20) ───────────────────────
 
     def get_price(self, instrument: str = "USD_JPY") -> tuple:
         """Get current bid/ask price.
-        GET /v1/prices?instruments=USD_JPY
+        GET /v3/accounts/:id/pricing?instruments=USD_JPY
         """
-        path = f"/v1/prices?instruments={instrument}"
+        path = f"/v3/accounts/{self._account_id}/pricing?instruments={instrument}"
         return self._request("GET", path)
