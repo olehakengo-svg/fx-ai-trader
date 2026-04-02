@@ -139,6 +139,11 @@ class DemoDB:
                 conn.execute("ALTER TABLE learning_adjustments ADD COLUMN mode TEXT DEFAULT ''")
             except Exception:
                 pass
+            # Add oanda_trade_id column for OANDA API integration
+            try:
+                conn.execute("ALTER TABLE demo_trades ADD COLUMN oanda_trade_id TEXT DEFAULT ''")
+            except Exception:
+                pass
             conn.commit()
 
     # ── Trade CRUD ──────────────────────────────────
@@ -306,6 +311,24 @@ class DemoDB:
             "avg_r": round(avg_r, 2),
             "by_type": by_type,
         }
+
+    def set_oanda_trade_id(self, trade_id: str, oanda_trade_id: str):
+        """Link a demo trade to its OANDA trade ID."""
+        with self._lock:
+            with self._safe_conn() as conn:
+                conn.execute(
+                    "UPDATE demo_trades SET oanda_trade_id=? WHERE trade_id=?",
+                    (oanda_trade_id, trade_id))
+                conn.commit()
+
+    def get_oanda_mappings(self) -> list:
+        """Return (trade_id, oanda_trade_id) for all OPEN trades with OANDA IDs."""
+        with self._safe_conn() as conn:
+            rows = conn.execute(
+                "SELECT trade_id, oanda_trade_id FROM demo_trades "
+                "WHERE status='OPEN' AND oanda_trade_id != '' AND oanda_trade_id IS NOT NULL"
+            ).fetchall()
+            return [(r["trade_id"], r["oanda_trade_id"]) for r in rows]
 
     # ── Learning adjustments ──────────────────────────
 

@@ -14,6 +14,7 @@ from datetime import datetime, timezone, timedelta
 from modules.demo_db import DemoDB
 from modules.learning_engine import LearningEngine
 from modules.daily_review import DailyReviewEngine
+from modules.oanda_bridge import OandaBridge
 
 # モード別設定
 MODE_CONFIG = {
@@ -68,6 +69,7 @@ class DemoTrader:
         self._db = db
         self._engine = LearningEngine(db)
         self._daily_review = DailyReviewEngine(db, self._engine)
+        self._oanda = OandaBridge()
         self._lock = threading.Lock()
 
         # モード別ランナー管理
@@ -79,6 +81,13 @@ class DemoTrader:
 
         # デイリーレビューエンジンを自動起動
         self._daily_review.start()
+
+        # OANDA trade mappings をDBから復元（デプロイ後のリスタート対策）
+        try:
+            mappings = self._db.get_oanda_mappings()
+            self._oanda.restore_mappings(mappings)
+        except Exception as e:
+            print(f"[OandaBridge] mapping restore skipped: {e}", flush=True)
 
         # チューナブルパラメータ（学習エンジンが調整、全モード共通）
         self._params = {
@@ -273,6 +282,7 @@ class DemoTrader:
             "_started_modes": list(self._started_modes),
             "_user_stopped_modes": list(self._user_stopped_modes),
             "block_counts": getattr(self, '_block_counts', {}),
+            "oanda": self._oanda.status,
         }
 
     def request_tick(self):
@@ -569,6 +579,7 @@ class DemoTrader:
             else:
                 favorable_move = entry_price - price
 
+            _original_sl = sl  # OANDA SL変更検出用
             if favorable_move > 0 and tp_dist > 0:
                 progress = favorable_move / tp_dist  # 0.0 ~ 1.0+
 
@@ -586,6 +597,10 @@ class DemoTrader:
                         new_sl = round(new_sl, 3)
                         if new_sl < sl:
                             sl = new_sl
+
+            # ── OANDA連携: トレーリングSL変更をミラー ──
+            if sl != _original_sl:
+                self._oanda.modify_sl(trade_id, sl)
 
             close_reason = None
 
@@ -650,6 +665,10 @@ class DemoTrader:
                 result = self._db.close_trade(trade_id, price, close_reason)
                 if "error" in result:
                     continue  # 別スレッドで既にクローズ済み → スキップ
+
+                # ── OANDA連携: ポジションクローズ ──
+                self._oanda.close_trade(trade_id, reason=close_reason)
+
                 pnl = result.get("pnl_pips", 0)
                 outcome = result.get("outcome", "?")
                 icon = "✅" if outcome == "WIN" else "❌"
@@ -1262,6 +1281,14 @@ class DemoTrader:
             mode=mode,
         )
 
+        # ── OANDA連携: デモトレードをミラーリング ──
+        self._oanda.open_trade(
+            demo_trade_id=trade_id,
+            direction=signal,
+            sl=sl, tp=tp,
+            callback=lambda did, oid: self._db.set_oanda_trade_id(did, oid),
+        )
+
         # エントリー理由の要約（✅マーク付きの理由を抽出）
         _confirmed_reasons = [r for r in reasons if "✅" in r]
         _reason_summary = " / ".join(_confirmed_reasons[:3]) if _confirmed_reasons else entry_type
@@ -1308,6 +1335,10 @@ class DemoTrader:
             result = self._db.close_trade(trade_id, current_price, close_reason)
             if "error" in result:
                 return  # 別スレッドで既にクローズ済み → スキップ
+
+            # ── OANDA連携: ポジションクローズ ──
+            self._oanda.close_trade(trade_id, reason=close_reason)
+
             pnl = result.get("pnl_pips", 0)
             outcome = result.get("outcome", "?")
             icon = "✅" if outcome == "WIN" else "❌"

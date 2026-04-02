@@ -9976,6 +9976,8 @@ def api_demo_close_trade():
     for t in targets:
         r = _demo_db.close_trade(t["trade_id"], price, close_reason="MANUAL_CLOSE")
         if "error" not in r:
+            # OANDA連携: 手動クローズもミラー
+            _demo_trader._oanda.close_trade(t["trade_id"], reason="MANUAL_CLOSE")
             _demo_trader._add_log(
                 f"🔴 手動クローズ [{t.get('mode','')}]: {t['direction']} @ {t['entry_price']:.3f} → "
                 f"{price:.3f} | PnL {r.get('pnl_pips',0):+.1f}pip | ID: {t['trade_id']}"
@@ -9983,6 +9985,15 @@ def api_demo_close_trade():
         results.append(r)
 
     return jsonify({"closed": len(results), "results": results})
+
+
+@app.route("/api/oanda/status")
+def api_oanda_status():
+    """OANDA連携ステータス + アカウント情報"""
+    status = _demo_trader._oanda.status
+    if status.get("active"):
+        status["account"] = _demo_trader._oanda.get_account_info()
+    return jsonify(status)
 
 
 @app.route("/api/demo/trades")
