@@ -9967,7 +9967,10 @@ def api_demo_trades():
 
 @app.route("/api/demo/stats")
 def api_demo_stats():
-    stats = _demo_db.get_stats()
+    date_from = request.args.get("date_from")
+    date_to = request.args.get("date_to")
+    mode_filter = request.args.get("mode")
+    stats = _demo_db.get_stats(date_from=date_from, date_to=date_to, mode=mode_filter)
     return jsonify(stats)
 
 

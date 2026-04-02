@@ -175,6 +175,24 @@ tr:hover{background:rgba(255,255,255,.02)}
   <!-- Full Trade History -->
   <div class="card full">
     <div class="card-title">📋 全取引履歴</div>
+    <!-- Period & Mode Filter -->
+    <div id="trade-filter" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:8px 12px;background:var(--bg2);border-radius:6px;font-size:12px">
+      <label style="color:var(--t2)">期間:</label>
+      <input type="date" id="filter-from" style="background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:4px;padding:4px 6px;font-size:11px">
+      <span style="color:var(--t3)">〜</span>
+      <input type="date" id="filter-to" style="background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:4px;padding:4px 6px;font-size:11px">
+      <label style="color:var(--t2);margin-left:8px">モード:</label>
+      <select id="filter-mode" style="background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:4px;padding:4px 6px;font-size:11px">
+        <option value="">全て</option>
+        <option value="scalp">スキャルプ</option>
+        <option value="daytrade">デイトレ15m</option>
+        <option value="daytrade_1h">デイトレ1H</option>
+        <option value="swing">スイング</option>
+      </select>
+      <button onclick="applyFilter()" style="background:var(--blue);color:#fff;border:none;border-radius:4px;padding:5px 14px;cursor:pointer;font-size:11px;font-weight:600">絞り込み</button>
+      <button onclick="clearFilter()" style="background:var(--bg3);color:var(--t2);border:none;border-radius:4px;padding:5px 10px;cursor:pointer;font-size:11px">リセット</button>
+      <span id="filter-summary" style="color:var(--t3);margin-left:auto;font-size:11px"></span>
+    </div>
     <div class="table-wrap">
       <table id="trade-table">
         <thead>
@@ -369,9 +387,18 @@ async function loadDemoStatus(){
 }
 
 // ── Load Stats ──
+// ── Current filter state (shared by stats + trades) ──
+let _filterFrom='', _filterTo='', _filterMode='';
+
 async function loadStats(){
   try{
-    const r=await fetch('/api/demo/stats');
+    let sUrl='/api/demo/stats';
+    const sp=[];
+    if(_filterFrom) sp.push(`date_from=${_filterFrom}`);
+    if(_filterTo) sp.push(`date_to=${_filterTo}`);
+    if(_filterMode) sp.push(`mode=${_filterMode}`);
+    if(sp.length) sUrl+='?'+sp.join('&');
+    const r=await fetch(sUrl);
     const d=await r.json();
     const set=(id,v,col)=>{const el=document.getElementById(id);if(el){el.textContent=v;if(col)el.style.color=col;}};
     set('s-total',d.total||0);
@@ -644,16 +671,29 @@ async function loadLearning(){
 }
 
 // ── Load Trade Table ──
-async function loadTradeTable(){
+async function loadTradeTable(dateFrom='',dateTo='',mode=''){
   try{
-    const r=await fetch('/api/demo/trades?status=all&limit=200');
+    let url='/api/demo/trades?status=all&limit=500';
+    if(dateFrom) url+=`&date_from=${dateFrom}`;
+    if(dateTo) url+=`&date_to=${dateTo}`;
+    if(mode) url+=`&mode=${mode}`;
+    const r=await fetch(url);
     const d=await r.json();
     const tbody=document.getElementById('trade-tbody');
+    const summary=document.getElementById('filter-summary');
     if(!d.trades||!d.trades.length){
-      tbody.innerHTML='<tr><td colspan="14" style="text-align:center;color:var(--t3)">まだトレードなし — デモトレーダーを起動してください</td></tr>';
+      tbody.innerHTML='<tr><td colspan="14" style="text-align:center;color:var(--t3)">該当するトレードがありません</td></tr>';
+      if(summary) summary.textContent='0件';
       return;
     }
-    const tfLabel={'1m':'スキャルプ','5m':'スキャルプ','15m':'デイトレ','30m':'デイトレ','1h':'スタンダード','4h':'スイング','1d':'スイング'};
+    // Filter summary with stats
+    const closed=d.trades.filter(t=>t.status==='CLOSED');
+    const wins=closed.filter(t=>t.outcome==='WIN').length;
+    const totalPnl=closed.reduce((s,t)=>s+(t.pnl_pips||0),0);
+    const wr=closed.length?Math.round(wins/closed.length*100):0;
+    if(summary) summary.textContent=`${d.trades.length}件 | ${closed.length}決済 | WR ${wr}% | PnL ${totalPnl>=0?'+':''}${totalPnl.toFixed(1)}pip`;
+
+    const tfLabel={'1m':'スキャルプ','5m':'スキャルプ','15m':'デイトレ','30m':'デイトレ','1h':'1H Zone','4h':'スイング','1d':'スイング'};
     tbody.innerHTML=d.trades.map((t,i)=>{
       const isWin=t.outcome==='WIN';
       const isBuy=t.direction==='BUY';
@@ -686,6 +726,22 @@ async function loadTradeTable(){
       </tr>`;
     }).join('');
   }catch(e){console.error(e)}
+}
+
+function applyFilter(){
+  _filterFrom=document.getElementById('filter-from').value;
+  _filterTo=document.getElementById('filter-to').value;
+  _filterMode=document.getElementById('filter-mode').value;
+  loadTradeTable(_filterFrom,_filterTo,_filterMode);
+  loadStats();
+}
+function clearFilter(){
+  document.getElementById('filter-from').value='';
+  document.getElementById('filter-to').value='';
+  document.getElementById('filter-mode').value='';
+  _filterFrom=''; _filterTo=''; _filterMode='';
+  loadTradeTable();
+  loadStats();
 }
 
 // ── Run Learning ──
@@ -728,7 +784,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   loadAll();
   // Auto refresh intervals
   setInterval(loadDemoStatus,1000);         // ステータス+ログ: 1秒
-  setInterval(()=>{loadStats();loadEquity();loadTradeTable()},5000);  // 統計+P/L+履歴: 5秒
+  setInterval(()=>{loadStats();loadEquity();loadTradeTable(_filterFrom,_filterTo,_filterMode)},5000);  // 統計+P/L+履歴: 5秒（フィルタ維持）
   setInterval(loadTradeChart,10000);        // チャート: 10秒（データ取得が重いため）
 });
 </script>

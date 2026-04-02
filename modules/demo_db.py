@@ -255,13 +255,23 @@ class DemoDB:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    def get_stats(self) -> dict:
+    def get_stats(self, date_from: str = None, date_to: str = None,
+                  mode: str = None) -> dict:
         """Compute aggregate stats from closed trades."""
+        query = ("SELECT pnl_pips, pnl_r, outcome, entry_type, confidence, close_reason "
+                 "FROM demo_trades WHERE status='CLOSED'")
+        params = []
+        if date_from:
+            query += " AND entry_time >= ?"
+            params.append(date_from)
+        if date_to:
+            query += " AND entry_time <= ?"
+            params.append(date_to + "T23:59:59" if len(date_to) == 10 else date_to)
+        if mode:
+            query += " AND mode = ?"
+            params.append(mode)
         with self._safe_conn() as conn:
-            rows = conn.execute(
-                "SELECT pnl_pips, pnl_r, outcome, entry_type, confidence, close_reason "
-                "FROM demo_trades WHERE status='CLOSED'"
-            ).fetchall()
+            rows = conn.execute(query, params).fetchall()
 
         if not rows:
             return {"total": 0, "win_rate": 0, "total_pnl": 0, "ev": 0,
