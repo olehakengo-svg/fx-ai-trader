@@ -541,8 +541,8 @@ class DemoTrader:
         if price <= 0:
             raise _NoPriceError("realtime price unavailable")
 
-        # 最大保持時間（秒）: scalp=30分, daytrade=8時間, swing=72時間
-        MAX_HOLD_SEC = {"scalp": 1800, "daytrade": 28800, "swing": 259200}
+        # 最大保持時間（秒）: scalp=30分, daytrade=8時間, daytrade_1h=18時間, swing=72時間
+        MAX_HOLD_SEC = {"scalp": 1800, "daytrade": 28800, "daytrade_1h": 64800, "swing": 259200}
 
         # 週末クローズ判定（金曜21:45 UTC以降 = 閉場15分前に全ポジクローズ）
         _now_utc = datetime.now(timezone.utc)
@@ -558,9 +558,10 @@ class DemoTrader:
             entry_price = trade["entry_price"]
 
             # ══════════════════════════════════════════════════════════════
-            # ── リバウンド対策④: ブレイクイーブン + トレーリングストップ ──
-            # 60% TP到達 → SLをエントリー価格+0.5pipに移動（利益確定）
-            # 80% TP到達 → SLをTP50%地点に移動（より積極的な利確保護）
+            # ── ブレイクイーブン + 連続トレーリングストップ ──
+            # 50% TP到達 → SLをエントリー価格に移動（BE）
+            # BE後 → SLをTP距離の30%幅でトレーリング（≒0.8-0.9 ATR）
+            # BT 1H Zone: +26→+45 pip/day の主因
             # ══════════════════════════════════════════════════════════════
             tp_dist = abs(tp - entry_price)
             if direction == "BUY":
@@ -571,25 +572,18 @@ class DemoTrader:
             if favorable_move > 0 and tp_dist > 0:
                 progress = favorable_move / tp_dist  # 0.0 ~ 1.0+
 
-                if progress >= 0.80:
-                    # 80%到達: SLをTP距離の50%地点に移動
-                    new_sl_dist = tp_dist * 0.50
+                if progress >= 0.50:
+                    # 50%到達: BE + トレーリング開始
+                    _trail_dist = tp_dist * 0.30  # TP距離の30% ≒ 0.8-0.9 ATR
                     if direction == "BUY":
-                        new_sl = round(entry_price + new_sl_dist, 3)
+                        # まずBE
+                        new_sl = max(entry_price, price - _trail_dist)
+                        new_sl = round(new_sl, 3)
                         if new_sl > sl:
                             sl = new_sl
                     else:
-                        new_sl = round(entry_price - new_sl_dist, 3)
-                        if new_sl < sl:
-                            sl = new_sl
-                elif progress >= 0.60:
-                    # 60%到達: SLをブレイクイーブン（+0.5pip）に移動
-                    if direction == "BUY":
-                        new_sl = round(entry_price + 0.005, 3)  # +0.5pip
-                        if new_sl > sl:
-                            sl = new_sl
-                    else:
-                        new_sl = round(entry_price - 0.005, 3)  # +0.5pip
+                        new_sl = min(entry_price, price + _trail_dist)
+                        new_sl = round(new_sl, 3)
                         if new_sl < sl:
                             sl = new_sl
 

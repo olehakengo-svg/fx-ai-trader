@@ -2919,7 +2919,8 @@ def compute_1h_zone_signal(df: pd.DataFrame,
     #  戦略1: EMAラグ・コントラリアン (旧mtf_momentum改良)
     #  核心: EMAはラグする → EMAがまだ弱気なのに価格がEMA200上 = 転換BUY
     #  本番実績: 旧mtf_momentum 0/2全敗(-54.6pip) → 逆転発想
-    #  TP: ATR×2.5, SL: ATR×0.8 (RR 1:3.1)
+    #  v4: SL拡大 0.8→1.2 ATR, TP拡大 2.5→3.0 ATR, 閾値2.5→2.0
+    #       1H足ノイズ耐性向上 (旧: 25% 1バー即死)
     # ════════════════════════════════════════════════════════════
     # ── 転換BUY: EMAはまだ弱気整列だが、価格はEMA200上に反発 ──
     # EMAラグ = 短期EMAがまだ追いついてない = 転換初期
@@ -2954,9 +2955,9 @@ def compute_1h_zone_signal(df: pd.DataFrame,
         if stoch_k > stoch_d:
             _mt_score += 0.3
 
-        if _mt_score >= 2.5:
-            _mt_tp = entry + atr * 2.5
-            _mt_sl = entry - atr * 0.8
+        if _mt_score >= 2.5:  # 閾値2.5維持（低スコア=低精度）
+            _mt_tp = entry + atr * 3.0   # 旧2.5→3.0: 1Hトレンド利幅拡大
+            _mt_sl = entry - atr * 1.0   # 旧0.8→1.0: 適度なノイズ耐性
             candidates.append(("BUY", _mt_score, _mt_tp, _mt_sl, _mt_reasons, "mtf_momentum"))
 
     # ── 転換SELL: EMAはまだ強気整列だが、価格はEMA200下に崩落 ──
@@ -2986,9 +2987,9 @@ def compute_1h_zone_signal(df: pd.DataFrame,
         if stoch_k < stoch_d:
             _mt_score += 0.3
 
-        if _mt_score >= 2.5:
-            _mt_tp = entry - atr * 2.5
-            _mt_sl = entry + atr * 0.8
+        if _mt_score >= 2.5:  # 閾値2.5維持
+            _mt_tp = entry - atr * 3.0   # 旧2.5→3.0
+            _mt_sl = entry + atr * 1.0   # 旧0.8→1.0
             candidates.append(("SELL", _mt_score, _mt_tp, _mt_sl, _mt_reasons, "mtf_momentum"))
 
     # ════════════════════════════════════════════════════════════
@@ -3084,9 +3085,9 @@ def compute_1h_zone_signal(df: pd.DataFrame,
             _pv_score += 0.3
 
         if _pv_score >= 2.5:  # 旧2.0→2.5（高確信のみ）
-            _pv_tp = _R1 + (_R2 - _R1) * 0.5  # R1-R2の50%地点（R2は遠すぎる）
-            _pv_tp = max(_pv_tp, entry + atr * 1.5)  # 最低ATR×1.5
-            _pv_sl = max(entry - atr * 0.5, _R1 - atr * 0.3)  # SL統一0.5 ATR
+            _pv_tp = _R1 + (_R2 - _R1) * 0.7  # 旧0.5→0.7: R2の70%地点
+            _pv_tp = max(_pv_tp, entry + atr * 2.0)  # 旧1.5→2.0: 最低TP拡大
+            _pv_sl = max(entry - atr * 0.8, _R1 - atr * 0.4)  # 旧0.5→0.8 ATR: ノイズ耐性
             candidates.append(("BUY", _pv_score, _pv_tp, _pv_sl, _pv_reasons, "pivot_breakout"))
 
     # S1割れ → SELL (EMA整合必須)
@@ -3110,9 +3111,9 @@ def compute_1h_zone_signal(df: pd.DataFrame,
             _pv_score += 0.3
 
         if _pv_score >= 2.5:  # 旧2.0→2.5
-            _pv_tp = _S1 - (_S1 - _S2) * 0.5  # S1-S2の50%地点
-            _pv_tp = min(_pv_tp, entry - atr * 1.5)  # 最低ATR×1.5
-            _pv_sl = min(entry + atr * 0.5, _S1 + atr * 0.3)  # SL統一0.5 ATR
+            _pv_tp = _S1 - (_S1 - _S2) * 0.7  # 旧0.5→0.7: S2の70%地点
+            _pv_tp = min(_pv_tp, entry - atr * 2.0)  # 旧1.5→2.0: 最低TP拡大
+            _pv_sl = min(entry + atr * 0.8, _S1 + atr * 0.4)  # 旧0.5→0.8 ATR: ノイズ耐性
             candidates.append(("SELL", _pv_score, _pv_tp, _pv_sl, _pv_reasons, "pivot_breakout"))
 
     # ════════════════════════════════════════════════════════════
@@ -3219,8 +3220,8 @@ def compute_1h_zone_signal(df: pd.DataFrame,
                         _1hfr_score += 0.3
                         _1hfr_reasons.append("✅ 陽線確認")
                     if _1hfr_score >= 2.0:
-                        _1hfr_tp = entry + atr * 2.5
-                        _1hfr_sl = entry - atr * 0.8  # SL拡大: 0.5→0.8 ATR
+                        _1hfr_tp = entry + atr * 3.0   # 旧2.5→3.0: 1Hトレンド利幅
+                        _1hfr_sl = entry - atr * 1.2   # 旧0.8→1.2: ノイズ耐性
                         candidates.append(("BUY", _1hfr_score, _1hfr_tp, _1hfr_sl, _1hfr_reasons, "h1_fib_reversal"))
                 # 下降トレンド戻り売り
                 elif (_1h_fib["trend"] == "down" and rsi > 50 and macdh < prev_macdh):
@@ -3241,8 +3242,8 @@ def compute_1h_zone_signal(df: pd.DataFrame,
                         _1hfr_score += 0.3
                         _1hfr_reasons.append("✅ 陰線確認")
                     if _1hfr_score >= 2.0:
-                        _1hfr_tp = entry - atr * 2.5
-                        _1hfr_sl = entry + atr * 0.8
+                        _1hfr_tp = entry - atr * 3.0   # 旧2.5→3.0
+                        _1hfr_sl = entry + atr * 1.2   # 旧0.8→1.2
                         candidates.append(("SELL", _1hfr_score, _1hfr_tp, _1hfr_sl, _1hfr_reasons, "h1_fib_reversal"))
 
     # ════════════════════════════════════════════════════════════
@@ -3280,8 +3281,8 @@ def compute_1h_zone_signal(df: pd.DataFrame,
                     _1htr_score += 0.3
                     _1htr_reasons.append("✅ 陽線確認")
                 if _1htr_score >= 2.0:
-                    _1htr_tp = entry + atr * 2.5
-                    _1htr_sl = entry - atr * 0.8  # SL拡大: 0.5→0.8 ATR
+                    _1htr_tp = entry + atr * 3.0   # 旧2.5→3.0
+                    _1htr_sl = entry - atr * 1.2   # 旧0.8→1.2
                     candidates.append(("BUY", _1htr_score, _1htr_tp, _1htr_sl, _1htr_reasons, "h1_ema200_trend_reversal"))
             # 下抜けリテスト → SELL
             elif (not _1h_e200_bull and _1h_e200_dist > -0.5 and macdh < prev_macdh
@@ -3296,8 +3297,8 @@ def compute_1h_zone_signal(df: pd.DataFrame,
                     _1htr_score += 0.3
                     _1htr_reasons.append("✅ 陰線確認")
                 if _1htr_score >= 2.0:
-                    _1htr_tp = entry - atr * 2.5
-                    _1htr_sl = entry + atr * 0.8
+                    _1htr_tp = entry - atr * 3.0   # 旧2.5→3.0
+                    _1htr_sl = entry + atr * 1.2   # 旧0.8→1.2
                     candidates.append(("SELL", _1htr_score, _1htr_tp, _1htr_sl, _1htr_reasons, "h1_ema200_trend_reversal"))
 
     # ── 最高スコア候補を採用 ──
@@ -4946,18 +4947,27 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
                 hi, lo = float(fut["High"]), float(fut["Low"])
                 fut_close = float(fut["Close"])
 
-                # ── Breakeven at 60% TP reached ──
+                # ── Breakeven at 50% TP + Trailing Stop ──
                 _tp_dist_total = abs(tp - ep)
+                _trail_atr = atr * 0.8  # トレーリング幅: 0.8 ATR
                 if sig == "BUY":
                     _progress = hi - ep
-                    if _progress >= _tp_dist_total * 0.6:
+                    # 50%到達でBE (旧60%)
+                    if _progress >= _tp_dist_total * 0.5:
                         _be_activated = True
                         _current_sl = max(_current_sl, ep)
+                    # トレーリングストップ: 最高値 - 0.8ATR
+                    if _be_activated:
+                        _trail_sl = hi - _trail_atr
+                        _current_sl = max(_current_sl, _trail_sl)
                 else:
                     _progress = ep - lo
-                    if _progress >= _tp_dist_total * 0.6:
+                    if _progress >= _tp_dist_total * 0.5:
                         _be_activated = True
                         _current_sl = min(_current_sl, ep)
+                    if _be_activated:
+                        _trail_sl = lo + _trail_atr
+                        _current_sl = min(_current_sl, _trail_sl)
 
                 # ── Time-decay SL tightening after 60% MAX_HOLD ──
                 if j >= int(MAX_HOLD * 0.6):
