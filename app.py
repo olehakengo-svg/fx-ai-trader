@@ -9976,7 +9976,14 @@ def api_demo_stats():
     date_to = request.args.get("date_to")
     mode_filter = request.args.get("mode")
     stats = _demo_db.get_stats(date_from=date_from, date_to=date_to, mode=mode_filter)
-    stats["_db_path"] = _db_path  # debug: どのDBを使っているか確認
+    stats["_db_path"] = _db_path
+    stats["_debug"] = {
+        "db_path_env": os.environ.get("DB_PATH", "(not set)"),
+        "var_data_exists": os.path.isdir("/var/data"),
+        "var_data_contents": os.listdir("/var/data") if os.path.isdir("/var/data") else "DIR_NOT_FOUND",
+        "cwd": os.getcwd(),
+        "src_db_exists": os.path.exists("/opt/render/project/src/demo_trades.db"),
+    }
     return jsonify(stats)
 
 
