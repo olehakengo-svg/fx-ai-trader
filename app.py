@@ -9971,6 +9971,7 @@ def api_demo_stats():
     date_to = request.args.get("date_to")
     mode_filter = request.args.get("mode")
     stats = _demo_db.get_stats(date_from=date_from, date_to=date_to, mode=mode_filter)
+    stats["_db_path"] = _db_path  # debug: どのDBを使っているか確認
     return jsonify(stats)
 
 
