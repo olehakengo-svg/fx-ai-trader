@@ -1930,12 +1930,10 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         adx_mult = 1.1; reasons.append(f"✅ ADX{adx:.0f}≥25: 強トレンド確認（Wilder 1978）")
     elif adx >= 18:
         adx_mult = 0.85; reasons.append(f"⚠️ ADX{adx:.0f}: 中程度トレンド")
-    elif adx >= 14:
-        adx_mult = 0.65; reasons.append(f"⚠️ ADX{adx:.0f}: 弱トレンド（許容）")
     elif adx >= 12:
-        adx_mult = 0.35; reasons.append(f"⛔ ADX{adx:.0f}<14: チョッピー相場（大幅減衰）")
+        adx_mult = 0.65; reasons.append(f"⚠️ ADX{adx:.0f}: 弱トレンド（頻度重視で許容）")
     else:
-        adx_mult = 0.20; reasons.append(f"⛔ ADX{adx:.0f}<12: レンジ相場（ほぼブロック）")
+        adx_mult = 0.45; reasons.append(f"⛔ ADX{adx:.0f}<12: レンジ相場（シグナル減衰）")
 
     # ② EMA200方向フィルター + スロープ分析（Neely & Weller 2011）
     bull200 = entry > ema200
@@ -4168,7 +4166,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         MIN_BARS = 200  # compute_scalp_signalに必要な最小バー数
 
         # ── 5m補完: sr_channel_reversal / macdh_reversal 用の5mデータ ──
-        _5M_ONLY_TYPES = {"sr_channel_reversal", "macdh_reversal", "fib_reversal"}
+        _5M_ONLY_TYPES = {"macdh_reversal", "fib_reversal"}  # sr_channel_reversal除外(7d BTで赤字)
         _df_5m = None
         _sr_5m_cache = {}
         if interval == "1m":
@@ -4268,8 +4266,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "ihs_neckbreak",  # 逆三尊ネックライン突破
                 "sr_touch_bounce", # 水平線タッチ反発
                 # v3 リバーサル戦略
-                "sr_channel_reversal",      # 5m補完経由（1m赤字→5m WR=63.6% EV=+0.318）
-                "fib_reversal",             # フィボナッチリトレースメント反発
+                # "sr_channel_reversal",    # DISABLED: 1m/7d BT WR=48.8% EV=-0.204 (5m/55dでは良好だが短期で不安定)
+                "fib_reversal",             # フィボナッチリトレースメント反発 (1m+5m補完)
                 "mtf_reversal_confluence",  # MTF RSI+MACDクロス一致
                 # v1 互換
                 "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
@@ -4612,10 +4610,10 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             if bar_range < _min_bar_range:
                 continue
 
-            # Session filter (本番demo_traderと統一: UTC<6 or >=22 ブロック)
+            # Session filter (本番demo_traderと統一: UTC<5 or >=22 ブロック)
             if interval != "1h":  # DT 15m only
                 _bt_hour = df.index[i].hour if hasattr(df.index[i], 'hour') else 12
-                if _bt_hour < 6 or _bt_hour >= 22:
+                if _bt_hour < 5 or _bt_hour >= 22:
                     continue
 
             # ── 本番環境と統一: compute_daytrade_signalを呼び出し ──
@@ -4665,7 +4663,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             _dt_confirmed = sum(1 for r in _dt_reasons if "✅" in r)
             if entry_type in DT_CONDITIONAL:
                 _dt_adx = sig_result.get("indicators", {}).get("adx", 0)
-                if not _dt_adx or _dt_adx < 14 or _dt_confirmed < 1:  # 12→14: レンジ排除+頻度バランス
+                if not _dt_adx or _dt_adx < 12 or _dt_confirmed < 1:  # ADX12維持（WR改善なしで頻度減のみ）
                     continue
             elif entry_type in DT_QUALIFIED:
                 if _dt_confirmed < 1:

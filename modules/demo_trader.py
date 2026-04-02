@@ -950,7 +950,7 @@ class DemoTrader:
             # ── 5m補完: sr_channel_reversal / macdh_reversal は5mの方が高EV ──
             # 1m: WR=48.5%/-0.162, WR=46.7%/-0.023
             # 5m: WR=63.6%/+0.318, WR=78.4%/+0.722
-            _5M_ONLY_STRATEGIES = {"sr_channel_reversal", "macdh_reversal", "fib_reversal"}
+            _5M_ONLY_STRATEGIES = {"macdh_reversal", "fib_reversal"}  # sr_channel_reversal除外(7d BTで赤字)
             if mode == "scalp" and sig.get("signal") == "WAIT":
                 try:
                     df_5m = fetch_ohlcv("USDJPY=X", period="5d", interval="5m")
@@ -1091,8 +1091,9 @@ class DemoTrader:
             "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
             "donchian", "reg_channel", "ema_pullback",
             # スキャルプ v2.3: リバーサル戦略
-            "sr_channel_reversal",       # 5m補完経由のみ（1m赤字→5m WR=63.6% EV=+0.318）
-            "fib_reversal",              # フィボナッチリトレースメント反発
+            # "sr_channel_reversal",     # DISABLED: 1m/7d BT WR=48.8% EV=-0.204
+            "fib_reversal",              # フィボナッチリトレースメント反発 (1m+5m補完)
+
             "mtf_reversal_confluence",   # MTF RSI+MACD一致
             # デイトレ: 構造的なセットアップ
             # "dual_sr_bounce",  # DISABLED: 不調日WR=12-43%, BT EV=-0.072
@@ -1170,7 +1171,7 @@ class DemoTrader:
             hour_now = datetime.now(timezone.utc).hour
             # モード別時間帯制限
             if mode == "daytrade":
-                if hour_now < 6 or hour_now >= 22:  # 5→6: UTC03-06 BT不調帯カット(7は取引維持)
+                if hour_now < 5 or hour_now >= 22:  # UTC5-22: 頻度維持（フィルターはHTF側で制御）
                     _block(f"session_block(h={hour_now})"); return
             elif mode == "daytrade_1h":
                 if hour_now < 3 or hour_now >= 22:
