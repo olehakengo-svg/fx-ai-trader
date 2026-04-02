@@ -6530,7 +6530,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         # Tier 2: 緩和条件（中確信）BB%B≤0.22 + RSI<42 + Stochクロス
 
         # BUY判定
-        if bbpb <= 0.25 and rsi5 < 45 and stoch_k < 40 and stoch_k > stoch_d:  # stoch 45→40(低品質排除)
+        if bbpb <= 0.25 and rsi5 < 45 and stoch_k < 45 and stoch_k > stoch_d:
             _mr_signal = "BUY"
             # Tier判定: 極端ほど高スコア
             _tier1 = bbpb <= 0.05 and rsi5 < 25 and stoch_k < 20
@@ -6551,12 +6551,12 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                     _mr_score += 0.6
                     _mr_reasons.append("✅ MACD-H反転上昇（モメンタム消耗→回復）")
             # TP = ATRベース（BB midband TPは小さすぎる→ATRで拡大）
-            _mr_tp = entry + atr7 * (2.0 if _tier1 else 1.8)  # Tier2: 1.5→1.8(EV改善)
+            _mr_tp = entry + atr7 * (2.0 if _tier1 else 1.5)  # Tier2: 1.5維持(平均回帰はBB中央が限界)
             _mr_sl_dist = max(abs(entry - bb_lower) + atr7 * 0.3, 0.030)
             _mr_sl = entry - _mr_sl_dist
 
         # SELL判定
-        if not _mr_signal and bbpb >= 0.75 and rsi5 > 55 and stoch_k > 60 and stoch_k < stoch_d:  # stoch 55→60(低品質排除)
+        if not _mr_signal and bbpb >= 0.75 and rsi5 > 55 and stoch_k > 55 and stoch_k < stoch_d:
             _mr_signal = "SELL"
             _tier1 = bbpb >= 0.95 and rsi5 > 75 and stoch_k > 80
             _mr_score = (4.5 if _tier1 else 3.0) + (rsi5 - 58) * 0.06
@@ -6574,7 +6574,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 if macdh < _macdh_p1 and _macdh_p1 >= _macdh_p2:
                     _mr_score += 0.6
                     _mr_reasons.append("✅ MACD-H反転下落（モメンタム消耗→回復）")
-            _mr_tp = entry - atr7 * (2.0 if _tier1 else 1.8)  # Tier2: 1.5→1.8(EV改善)
+            _mr_tp = entry - atr7 * (2.0 if _tier1 else 1.5)  # Tier2: 1.5維持(平均回帰はBB中央が限界)
             _mr_sl_dist = max(abs(bb_upper - entry) + atr7 * 0.3, 0.030)
             _mr_sl = entry + _mr_sl_dist
 
