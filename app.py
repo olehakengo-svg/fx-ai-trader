@@ -9754,7 +9754,8 @@ def api_backtest_long():
         "params": {"mode": mode, "days": days, "tf": tf, "chunk": chunk},
     }
 
-    t = threading.Thread(
+    import threading as _thr
+    t = _thr.Thread(
         target=_run_chunked_scalp_bt,
         args=(task_id, "USDJPY=X", days, chunk, tf),
         daemon=True,
