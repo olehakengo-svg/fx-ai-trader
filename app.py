@@ -9815,7 +9815,12 @@ def api_price():
 from modules.demo_db import DemoDB
 from modules.demo_trader import DemoTrader
 
-_db_path = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "demo_trades.db"))
+# Render Disk: /var/data が存在すれば永続ストレージを使用、なければローカル（開発用）
+_render_disk = "/var/data"
+if os.path.isdir(_render_disk):
+    _db_path = os.path.join(_render_disk, "demo_trades.db")
+else:
+    _db_path = os.environ.get("DB_PATH", os.path.join(os.path.dirname(__file__), "demo_trades.db"))
 _demo_db = DemoDB(db_path=_db_path)
 
 # ── Render Disk migration: seed existing trades on first deploy ──
