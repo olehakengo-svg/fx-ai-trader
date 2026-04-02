@@ -1108,10 +1108,24 @@ class DemoTrader:
             _block(f"consec_loss({mode_cl.get(signal,0)})"); return
 
         # ══════════════════════════════════════════════════════════════
-        # ── リバウンド対策①②③: デモモードでは無効化 ──
-        # サーキットブレーカー、ベロシティフィルター、ADXレジームブロック
-        # → 学習データ蓄積を優先するため全て無効化
+        # ── ベロシティフィルター再有効化 ──
+        # 本番で急騰中のSELL連敗(-36pip)の原因 → 急動時の逆行エントリーをブロック
+        # サーキットブレーカー・ADXブロックはデモ用に無効のまま
         # ══════════════════════════════════════════════════════════════
+        _now_vel = datetime.now(timezone.utc)
+        _vel_window_min = {"scalp": 10, "daytrade": 30, "daytrade_1h": 60}.get(mode, 10)
+        _vel_threshold_pip = {"scalp": 8.0, "daytrade": 15.0, "daytrade_1h": 20.0}.get(mode, 8.0)
+        _vel_cutoff = _now_vel - timedelta(minutes=_vel_window_min)
+        _recent_prices = [(t, p) for t, p in self._price_history if t > _vel_cutoff]
+        if len(_recent_prices) >= 2:
+            _oldest_price = _recent_prices[0][1]
+            _price_move = current_price - _oldest_price
+            _move_pips = abs(_price_move) * 100
+            if _move_pips >= _vel_threshold_pip:
+                if _price_move > 0 and signal == "SELL":
+                    _block(f"velocity_up({_move_pips:.0f}pip)_vs_SELL"); return
+                if _price_move < 0 and signal == "BUY":
+                    _block(f"velocity_down({_move_pips:.0f}pip)_vs_BUY"); return
 
         layer_status = sig.get("layer_status", {})
         if not layer_status.get("trade_ok", True):

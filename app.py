@@ -2916,103 +2916,79 @@ def compute_1h_zone_signal(df: pd.DataFrame,
     candidates = []
 
     # ════════════════════════════════════════════════════════════
-    #  戦略1: Multi-TF Momentum Pullback (Moskowitz et al. 2012 JFE)
-    #  Daily trend方向 → 1h pullback entry (bounce confirmed)
-    #  TP: ATR×3.0 (40-100pip), SL: swing low/high (15-30pip)
-    #  ゾーン制約なし（トレンドフォローはゾーン不問）
+    #  戦略1: EMAラグ・コントラリアン (旧mtf_momentum改良)
+    #  核心: EMAはラグする → EMAがまだ弱気なのに価格がEMA200上 = 転換BUY
+    #  本番実績: 旧mtf_momentum 0/2全敗(-54.6pip) → 逆転発想
+    #  TP: ATR×2.5, SL: ATR×0.8 (RR 1:3.1)
     # ════════════════════════════════════════════════════════════
-    # 上昇トレンド: EMA9>EMA21>EMA50 + ADX≥15
-    if ema9 > ema21 and ema21 > ema50 and adx >= 15:
+    # ── 転換BUY: EMAはまだ弱気整列だが、価格はEMA200上に反発 ──
+    # EMAラグ = 短期EMAがまだ追いついてない = 転換初期
+    if (ema9 < ema21 and entry > ema200_1h and adx >= 15):
         _mt_score = 0.0
         _mt_reasons = []
-        # 4層EMAアラインメント: 9>21>50>200 で最大ボーナス
-        if entry > ema200_1h and ema50 > ema200_1h:
+        _mt_reasons.append(f"✅ EMAラグ転換BUY: EMA弱気(9<21)だが価格>EMA200({ema200_1h:.3f})")
+        _mt_score += 1.5
+
+        # 価格がEMA200の上にいて、EMA200から近い（リテスト中）
+        _e200_dist = (entry - ema200_1h) / atr if atr > 0 else 0
+        if 0 < _e200_dist < 1.5:
             _mt_score += 0.5
-            _mt_reasons.append(f"✅ 4層EMA上昇(9>21>50>200={ema200_1h:.3f}) — 強トレンド")
-        _mt_reasons.append(f"✅ Multi-TF上昇トレンド(EMA9>21>50, ADX={adx:.0f}) [Moskowitz 2012]")
-        _mt_score += 1.0
+            _mt_reasons.append(f"✅ EMA200リテスト圏(距離={_e200_dist:.1f}ATR)")
 
-        # Pullback + Bounce条件: EMA21近辺 + 価格がEMA21上にいる（反発済み）
-        _ema21_dist = abs(entry - ema21)
-        if _ema21_dist < atr * 1.0 and entry >= ema21:
-            _mt_score += 1.0
-            _mt_reasons.append(f"✅ EMA21プルバック反発(距離={_ema21_dist:.3f}, 価格>EMA21)")
+        # MACD-H改善（モメンタム転換確認）
+        if macdh > prev_macdh:
+            _mt_score += 0.5
+            _mt_reasons.append("✅ MACD-H改善: モメンタム転換確認")
 
-            # RSI回復 (売られすぎから回復中)
-            if rsi > 40 and rsi < 65:
-                _mt_score += 0.5
-                _mt_reasons.append(f"✅ RSI回復圏({rsi:.0f})")
+        # RSI中立〜やや強気（売られすぎからの回復）
+        if rsi > 40 and rsi < 65:
+            _mt_score += 0.3
+            _mt_reasons.append(f"✅ RSI回復圏({rsi:.0f})")
 
-            # Stoch回復
-            if stoch_k > stoch_d:
-                _mt_score += 0.5
-                _mt_reasons.append(f"✅ Stochゴールデンクロス(K={stoch_k:.0f}>D)")
+        # 陽線確認
+        if entry > _open:
+            _mt_score += 0.3
+            _mt_reasons.append("✅ 陽線: 反発確認")
 
-            # 陽線確認
-            if entry > _open:
-                _mt_score += 0.3
-                _mt_reasons.append("✅ 陽線確認(bounce)")
+        # Stoch回復
+        if stoch_k > stoch_d:
+            _mt_score += 0.3
 
-            # MACD-H改善
-            if macdh > prev_macdh:
-                _mt_score += 0.3
-
-        if _mt_score >= 2.0:  # 2.5→2.0 (EMA整合+プルバック=コアシグナル、ボーナスは補強)
-            # TP: 次のレジスタンス or ATR×3.0
-            _mt_tp_sr = None
-            for _sr in sorted(sr_levels):
-                if isinstance(_sr, (int, float)) and _sr > entry + atr * 0.5:
-                    _mt_tp_sr = _sr
-                    break
-            _mt_tp = min(_mt_tp_sr - atr * 0.1, entry + atr * 4.0) if _mt_tp_sr else entry + atr * 3.0
-            _mt_tp = max(_mt_tp, entry + atr * 1.5)  # 最低 ATR×1.5 (≈40pip)
-
-            # SL: Swing Low - buffer (tight)
-            _mt_sl = _swing_low - atr * 0.15
-            _mt_sl = max(_mt_sl, entry - atr * 0.8)  # 最大SL = ATR×0.8 (≈22pip)
-            _mt_sl = min(_mt_sl, entry - atr * 0.5)  # 最小SL 0.3→0.5 ATR (ノイズ回避)
+        if _mt_score >= 2.5:
+            _mt_tp = entry + atr * 2.5
+            _mt_sl = entry - atr * 0.8
             candidates.append(("BUY", _mt_score, _mt_tp, _mt_sl, _mt_reasons, "mtf_momentum"))
 
-    # 下降トレンド: EMA9<EMA21<EMA50 + ADX≥15
-    if ema9 < ema21 and ema21 < ema50 and adx >= 15:
+    # ── 転換SELL: EMAはまだ強気整列だが、価格はEMA200下に崩落 ──
+    if (ema9 > ema21 and entry < ema200_1h and adx >= 15):
         _mt_score = 0.0
         _mt_reasons = []
-        # 4層EMAアラインメント: 9<21<50<200 で最大ボーナス
-        if entry < ema200_1h and ema50 < ema200_1h:
+        _mt_reasons.append(f"✅ EMAラグ転換SELL: EMA強気(9>21)だが価格<EMA200({ema200_1h:.3f})")
+        _mt_score += 1.5
+
+        _e200_dist = (ema200_1h - entry) / atr if atr > 0 else 0
+        if 0 < _e200_dist < 1.5:
             _mt_score += 0.5
-            _mt_reasons.append(f"✅ 4層EMA下降(9<21<50<200={ema200_1h:.3f}) — 強トレンド")
-        _mt_reasons.append(f"✅ Multi-TF下降トレンド(EMA9<21<50, ADX={adx:.0f}) [Moskowitz 2012]")
-        _mt_score += 1.0
+            _mt_reasons.append(f"✅ EMA200リテスト圏(距離={_e200_dist:.1f}ATR)")
 
-        _ema21_dist = abs(entry - ema21)
-        if _ema21_dist < atr * 1.0 and entry <= ema21:
-            _mt_score += 1.0
-            _mt_reasons.append(f"✅ EMA21プルバック反発(距離={_ema21_dist:.3f}, 価格<EMA21)")
+        if macdh < prev_macdh:
+            _mt_score += 0.5
+            _mt_reasons.append("✅ MACD-H悪化: モメンタム崩壊確認")
 
-            if rsi > 35 and rsi < 60:
-                _mt_score += 0.5
-                _mt_reasons.append(f"✅ RSI回復圏({rsi:.0f})")
-            if stoch_k < stoch_d:
-                _mt_score += 0.5
-                _mt_reasons.append(f"✅ Stochデッドクロス(K={stoch_k:.0f}<D)")
-            if entry < _open:
-                _mt_score += 0.3
-                _mt_reasons.append("✅ 陰線確認(rejection)")
-            if macdh < prev_macdh:
-                _mt_score += 0.3
+        if rsi > 35 and rsi < 60:
+            _mt_score += 0.3
+            _mt_reasons.append(f"✅ RSI中立圏({rsi:.0f})")
 
-        if _mt_score >= 2.0:  # 2.5→2.0
-            _mt_tp_sr = None
-            for _sr in sorted(sr_levels, reverse=True):
-                if isinstance(_sr, (int, float)) and _sr < entry - atr * 0.5:
-                    _mt_tp_sr = _sr
-                    break
-            _mt_tp = max(_mt_tp_sr + atr * 0.1, entry - atr * 4.0) if _mt_tp_sr else entry - atr * 3.0
-            _mt_tp = min(_mt_tp, entry - atr * 1.5)
+        if entry < _open:
+            _mt_score += 0.3
+            _mt_reasons.append("✅ 陰線: 崩落確認")
 
-            _mt_sl = _swing_high + atr * 0.15
-            _mt_sl = min(_mt_sl, entry + atr * 0.8)
-            _mt_sl = max(_mt_sl, entry + atr * 0.5)  # SL ceiling 0.3→0.5 ATR (ノイズ回避)
+        if stoch_k < stoch_d:
+            _mt_score += 0.3
+
+        if _mt_score >= 2.5:
+            _mt_tp = entry - atr * 2.5
+            _mt_sl = entry + atr * 0.8
             candidates.append(("SELL", _mt_score, _mt_tp, _mt_sl, _mt_reasons, "mtf_momentum"))
 
     # ════════════════════════════════════════════════════════════
@@ -6908,11 +6884,13 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                                _tb_reasons, "three_bar_reversal", _tb_score))
 
     # ════════════════════════════════════════════════════════
-    #  戦略6: Trend Rebound（強トレンド時の逆張りリバウンド）
-    #  根拠: Jegadeesh 1990 "Predictable Behavior" — 極端なオシレーター
-    #        からの平均回帰、ゴムバンド効果
-    #  条件: ADX ≥ 35 + 3指標（Stoch + RSI + BB）全て極端 + 足形確認
-    #  TP: ATR×1.0-1.5（反発だけ取る）, SL: ATR×0.5（タイトカット）
+    #  戦略6: Trend Rebound（強トレンド時の逆張りリバウンド）改良版
+    #  根拠: Jegadeesh 1990 — 極端オシレーターからの平均回帰
+    #  改良: 本番3/3全敗の原因対策
+    #    ① EMA方向チェック追加（上昇中のSELL禁止）
+    #    ② 閾値強化 Stoch>95/<5, RSI>78/<22
+    #    ③ SL拡大 0.5→1.0 ATR（ウィップソー対策）
+    #    ④ 10バーモメンタム逆行チェック
     # ════════════════════════════════════════════════════════
     if adx >= 35:
         _tr_signal = None
@@ -6924,63 +6902,64 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         _macdh_prev_tr = float(df.iloc[-2].get("macd_hist", 0)) if len(df) >= 2 else macdh
         _prev_stoch_k_tr = float(df.iloc[-2].get("stoch_k", 50)) if len(df) >= 2 else 50
 
+        # 10バーモメンタム（トレンド継続中は逆張り禁止）
+        _tr_momentum = 0
+        if len(df) >= 10:
+            _tr_momentum = (entry - float(df["Close"].iloc[-10])) * 100  # pip
+
         # ── 下降トレンド中のBUYリバウンド ──
-        # 条件: Stoch極端低 + RSI極端低 + BB下限突破 + 陽線確認
-        if (stoch_k < 12
-                and rsi5 < 28
-                and bbpb < 0.12
+        # 改良: ema9<ema21(下降確認) + モメンタム上昇してない + 閾値強化
+        if (stoch_k < 5
+                and rsi5 < 22
+                and bbpb < 0.08
                 and entry > float(row["Open"])  # 陽線確認
+                and ema9 < ema21              # EMA方向: 下降トレンド確認
+                and _tr_momentum < 5          # 急上昇中でない
                 ):
             _tr_signal = "BUY"
             _tr_score = 3.5
-            _tr_reasons.append(f"✅ Trend Rebound BUY: ADX={adx:.0f}≥35（強下降トレンド中）[Jegadeesh 1990]")
-            _tr_reasons.append(f"✅ Stoch極低({stoch_k:.0f}<12) + RSI極低({rsi5:.0f}<28) + BB%B={bbpb:.2f}<0.12")
-            _tr_reasons.append(f"✅ 陽線反転確認(Close>Open)")
+            _tr_reasons.append(f"✅ Trend Rebound BUY: ADX={adx:.0f}≥35 + EMA下降(9<21)")
+            _tr_reasons.append(f"✅ 極端値: Stoch={stoch_k:.0f}<5, RSI={rsi5:.0f}<22, BB%B={bbpb:.2f}<0.08")
+            _tr_reasons.append(f"✅ 陽線反転 + モメンタム中立({_tr_momentum:+.1f}pip)")
 
-            # MACD-H反転上昇でボーナス
             if macdh > _macdh_prev_tr:
                 _tr_score += 0.5
-                _tr_reasons.append(f"✅ MACD-H反転上昇(H={macdh:.4f})")
-
-            # Stochクロスでボーナス
+                _tr_reasons.append(f"✅ MACD-H反転上昇")
             if stoch_k > stoch_d:
                 _tr_score += 0.5
-                _tr_reasons.append(f"✅ Stoch GC(K={stoch_k:.0f}>D={stoch_d:.0f})")
-
-            # Stochが前バーより回復でボーナス
+                _tr_reasons.append(f"✅ Stoch GC")
             if stoch_k > _prev_stoch_k_tr:
                 _tr_score += 0.3
-                _tr_reasons.append(f"✅ Stoch回復(前={_prev_stoch_k_tr:.0f}→{stoch_k:.0f})")
 
-            # TP: 短い反発（ATR×1.0〜1.5）
             _tr_tp = entry + atr7 * (1.5 if _tr_score >= 4.0 else 1.0)
-            # SL: タイトカット（ATR×0.5）
-            _tr_sl = entry - atr7 * 0.5
+            _tr_sl = entry - atr7 * 1.0  # SL拡大: 0.5→1.0 ATR
 
         # ── 上昇トレンド中のSELLリバウンド ──
-        elif (stoch_k > 88
-                and rsi5 > 72
-                and bbpb > 0.88
+        # 改良: ema9>ema21(上昇確認) + モメンタム下降してない + 閾値強化
+        elif (stoch_k > 95
+                and rsi5 > 78
+                and bbpb > 0.92
                 and entry < float(row["Open"])  # 陰線確認
+                and ema9 > ema21              # EMA方向: 上昇トレンド確認
+                and _tr_momentum > -5         # 急下降中でない
                 ):
             _tr_signal = "SELL"
             _tr_score = 3.5
-            _tr_reasons.append(f"✅ Trend Rebound SELL: ADX={adx:.0f}≥35（強上昇トレンド中）[Jegadeesh 1990]")
-            _tr_reasons.append(f"✅ Stoch極高({stoch_k:.0f}>88) + RSI極高({rsi5:.0f}>72) + BB%B={bbpb:.2f}>0.88")
-            _tr_reasons.append(f"✅ 陰線反転確認(Close<Open)")
+            _tr_reasons.append(f"✅ Trend Rebound SELL: ADX={adx:.0f}≥35 + EMA上昇(9>21)")
+            _tr_reasons.append(f"✅ 極端値: Stoch={stoch_k:.0f}>95, RSI={rsi5:.0f}>78, BB%B={bbpb:.2f}>0.92")
+            _tr_reasons.append(f"✅ 陰線反転 + モメンタム中立({_tr_momentum:+.1f}pip)")
 
             if macdh < _macdh_prev_tr:
                 _tr_score += 0.5
-                _tr_reasons.append(f"✅ MACD-H反転下落(H={macdh:.4f})")
+                _tr_reasons.append(f"✅ MACD-H反転下落")
             if stoch_k < stoch_d:
                 _tr_score += 0.5
-                _tr_reasons.append(f"✅ Stoch DC(K={stoch_k:.0f}<D={stoch_d:.0f})")
+                _tr_reasons.append(f"✅ Stoch DC")
             if stoch_k < _prev_stoch_k_tr:
                 _tr_score += 0.3
-                _tr_reasons.append(f"✅ Stoch反落(前={_prev_stoch_k_tr:.0f}→{stoch_k:.0f})")
 
             _tr_tp = entry - atr7 * (1.5 if _tr_score >= 4.0 else 1.0)
-            _tr_sl = entry + atr7 * 0.5
+            _tr_sl = entry + atr7 * 1.0  # SL拡大: 0.5→1.0 ATR
 
         if _tr_signal:
             _tr_conf = int(min(80, 45 + _tr_score * 4))
