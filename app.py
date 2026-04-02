@@ -9987,6 +9987,15 @@ def api_demo_close_trade():
     return jsonify({"closed": len(results), "results": results})
 
 
+@app.route("/api/oanda/accounts")
+def api_oanda_accounts():
+    """OANDA APIトークンでアクセス可能な全アカウント一覧"""
+    ok, data = _demo_trader._oanda._client.list_accounts()
+    if ok:
+        return jsonify(data)
+    return jsonify({"error": data}), 500
+
+
 @app.route("/api/oanda/status")
 def api_oanda_status():
     """OANDA連携ステータス + アカウント情報"""

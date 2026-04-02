@@ -138,6 +138,14 @@ class OandaClient:
         path = f"/v3/accounts/{self._account_id}/openTrades"
         return self._request("GET", path)
 
+    # ── List All Accounts (v20) ─────────────────────────
+
+    def list_accounts(self) -> tuple:
+        """List all accounts accessible with this token.
+        GET /v3/accounts
+        """
+        return self._request("GET", "/v3/accounts")
+
     # ── Get Account Info (v20) ────────────────────────
 
     def get_account(self) -> tuple:
