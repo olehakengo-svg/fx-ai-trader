@@ -149,11 +149,17 @@ class OandaClient:
     # ── Get Account Info (v20) ────────────────────────
 
     def get_account(self) -> tuple:
-        """Get account summary (balance, margin, etc).
-        GET /v3/accounts/:id/summary
+        """Get full account details (balance, margin, hedging, etc).
+        GET /v3/accounts/:id
+        Falls back to /summary if full details forbidden.
         """
-        path = f"/v3/accounts/{self._account_id}/summary"
-        return self._request("GET", path)
+        path = f"/v3/accounts/{self._account_id}"
+        ok, data = self._request("GET", path)
+        if ok:
+            return ok, data
+        # Fallback to summary
+        path_summary = f"/v3/accounts/{self._account_id}/summary"
+        return self._request("GET", path_summary)
 
     # ── Get Current Price (v20) ───────────────────────
 
