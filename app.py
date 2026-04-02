@@ -6581,16 +6581,22 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     #  根拠: Bollinger 2001 + Wilder RSI 1978
     #  条件: ADX < 22（レンジ） + BB極端 + RSI極端
     # ════════════════════════════════════════════════════════
-    if adx < 35:
+    if adx < 28:  # 35→28: レンジ判定厳格化（トレンド中の逆張り排除でWR向上）
         _mr_reasons = []
         _mr_signal = None
         _mr_score = 0.0
 
         # Tier 1: 極端条件（高確信）BB%B≤0.05 + RSI<25 + Stochクロス
         # Tier 2: 緩和条件（中確信）BB%B≤0.22 + RSI<42 + Stochクロス
+        # 前バー方向確認用
+        _prev_close = float(df.iloc[-2]["Close"]) if len(df) >= 2 else entry
+        _prev_open = float(df.iloc[-2]["Open"]) if len(df) >= 2 else entry
 
         # BUY判定
-        if bbpb <= 0.25 and rsi5 < 45 and stoch_k < 45 and stoch_k > stoch_d:
+        if (bbpb <= 0.25 and rsi5 < 45 and stoch_k < 45
+                and stoch_k > stoch_d and (stoch_k - stoch_d) > 1.5  # 真のクロス確認
+                and _prev_close <= _prev_open  # 前バー陰線（プルバック確認）
+                ):
             _mr_signal = "BUY"
             # Tier判定: 極端ほど高スコア
             _tier1 = bbpb <= 0.05 and rsi5 < 25 and stoch_k < 20
@@ -6616,7 +6622,10 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             _mr_sl = entry - _mr_sl_dist
 
         # SELL判定
-        if not _mr_signal and bbpb >= 0.75 and rsi5 > 55 and stoch_k > 55 and stoch_k < stoch_d:
+        if (not _mr_signal and bbpb >= 0.75 and rsi5 > 55 and stoch_k > 55
+                and stoch_k < stoch_d and (stoch_d - stoch_k) > 1.5  # 真のクロス確認
+                and _prev_close >= _prev_open  # 前バー陽線（戻り確認）
+                ):
             _mr_signal = "SELL"
             _tier1 = bbpb >= 0.95 and rsi5 > 75 and stoch_k > 80
             _mr_score = (4.5 if _tier1 else 3.0) + (rsi5 - 58) * 0.06
@@ -6820,7 +6829,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     #  根拠: ADX≥25のトレンド相場（全時間の63%）でStochの一時的逆行から回復
     #  条件: 明確なトレンド + EMA整列 + Stochが極値から回復
     # ════════════════════════════════════════════════════════
-    if adx >= 20 and not _is_friday and len(df) >= 5:
+    if adx >= 18 and not _is_friday and len(df) >= 5:  # ADX 20→18 (頻度増)
         _st_reasons = []
         _st_signal = None
         _st_score = 0.0
@@ -6830,15 +6839,15 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         # BUY: 上昇トレンド中のStoch売られすぎ回復
         if (ema9 > ema21 and entry > ema21
                 and stoch_k > stoch_d  # Stochゴールデンクロス
-                and _prev_stoch_k < 40  # 前バーで売られすぎ圏（35→40 頻度増）
-                and stoch_k < 60  # まだ上昇余地あり（55→60）
-                and rsi5 > 35 and rsi5 < 55
-                and bbpb > 0.20 and bbpb < 0.60
+                and _prev_stoch_k < 42  # 前バーで売られすぎ圏（40→42 頻度増）
+                and stoch_k < 65  # まだ上昇余地あり（60→65）
+                and rsi5 > 32 and rsi5 < 58  # 範囲拡大 (35-55 → 32-58)
+                and bbpb > 0.15 and bbpb < 0.65  # 範囲拡大 (0.20-0.60 → 0.15-0.65)
                 ):
             _st_signal = "BUY"
-            _st_score = 3.2 + min((adx - 20) * 0.04, 0.8)
+            _st_score = 3.2 + min((adx - 18) * 0.04, 0.8)
             _st_reasons.append(f"✅ トレンドプルバック: Stoch売られすぎ回復(K={stoch_k:.0f}, 前={_prev_stoch_k:.0f})")
-            _st_reasons.append(f"✅ 上昇トレンド確認 (EMA9>21, ADX={adx:.1f}≥20)")
+            _st_reasons.append(f"✅ 上昇トレンド確認 (EMA9>21, ADX={adx:.1f}≥18)")
             _st_reasons.append(f"✅ Stochゴールデンクロス(K>D: {stoch_k:.0f}>{stoch_d:.0f})")
             _st_tp = entry + atr7 * 1.8
             _st_sl = entry - atr7 * 0.8
@@ -6846,15 +6855,15 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         # SELL: 下降トレンド中のStoch買われすぎ回復
         elif (ema9 < ema21 and entry < ema21
                 and stoch_k < stoch_d
-                and _prev_stoch_k > 60  # 65→60 (頻度増)
-                and stoch_k > 40  # 45→40
-                and rsi5 > 45 and rsi5 < 65
-                and bbpb > 0.40 and bbpb < 0.80
+                and _prev_stoch_k > 58  # 60→58 (頻度増)
+                and stoch_k > 35  # 40→35
+                and rsi5 > 42 and rsi5 < 68  # 範囲拡大 (45-65 → 42-68)
+                and bbpb > 0.35 and bbpb < 0.85  # 範囲拡大 (0.40-0.80 → 0.35-0.85)
                 ):
             _st_signal = "SELL"
-            _st_score = 3.2 + min((adx - 20) * 0.04, 0.8)
+            _st_score = 3.2 + min((adx - 18) * 0.04, 0.8)
             _st_reasons.append(f"✅ トレンドプルバック: Stoch買われすぎ回復(K={stoch_k:.0f}, 前={_prev_stoch_k:.0f})")
-            _st_reasons.append(f"✅ 下降トレンド確認 (EMA9<21, ADX={adx:.1f}≥20)")
+            _st_reasons.append(f"✅ 下降トレンド確認 (EMA9<21, ADX={adx:.1f}≥18)")
             _st_reasons.append(f"✅ Stochデッドクロス(K<D: {stoch_k:.0f}<{stoch_d:.0f})")
             _st_tp = entry - atr7 * 1.8
             _st_sl = entry + atr7 * 0.8
@@ -7427,8 +7436,15 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     #  根拠: Fibonacci 38.2%/50%/61.8%はリバーサルの高確率ゾーン
     #  条件: フィボレベル近接 + RSI/Stoch反転 + ローソク足確認
     # ════════════════════════════════════════════════════════
-    if len(df) >= 60 and not _is_friday:
-        _fib = _calc_fibonacci_levels(df, lookback=60)
+    if len(df) >= 45 and not _is_friday:  # 60→45 (より短い波動もキャッチ)
+        # 複数lookbackでフィボ検出（短期+中期の波動を両方カバー）
+        _fib_lookbacks = [45, 60] if len(df) >= 60 else [45]
+        _fib = None
+        for _fib_lb in _fib_lookbacks:
+            _fib_try = _calc_fibonacci_levels(df, lookback=_fib_lb)
+            if _fib_try and _fib_try.get("trend"):
+                _fib = _fib_try
+                break
         if _fib and _fib.get("trend"):
             _fib_signal = None
             _fib_score = 0.0
@@ -7440,10 +7456,10 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 "61.8%": _fib.get("r618", 0),
             }
 
-            # 各フィボレベルとの近接チェック
+            # 各フィボレベルとの近接チェック（距離拡大: 0.25→0.35 ATR）
             _fib_touch = None
             for _fib_name, _fib_val in _fib_levels.items():
-                if _fib_val and abs(entry - _fib_val) < atr * 0.25:
+                if _fib_val and abs(entry - _fib_val) < atr * 0.35:  # 0.25→0.35
                     _fib_touch = (_fib_name, _fib_val)
                     break
 
