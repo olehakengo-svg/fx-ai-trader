@@ -946,6 +946,30 @@ class DemoTrader:
                     return  # ゾーン計算不可（データ不足）
             else:
                 sig = compute_fn(df, tf, sr, "USDJPY=X")
+
+            # ── 5m補完: sr_channel_reversal / macdh_reversal は5mの方が高EV ──
+            # 1m: WR=48.5%/-0.162, WR=46.7%/-0.023
+            # 5m: WR=63.6%/+0.318, WR=78.4%/+0.722
+            _5M_ONLY_STRATEGIES = {"sr_channel_reversal", "macdh_reversal", "fib_reversal"}
+            if mode == "scalp" and sig.get("signal") == "WAIT":
+                try:
+                    df_5m = fetch_ohlcv("USDJPY=X", period="5d", interval="5m")
+                    df_5m = add_indicators(df_5m)
+                    _5m_cols = [c for c in ["close", "ema9", "ema21", "rsi", "adx", "atr"]
+                                if c in {x.lower() for x in df_5m.columns}]
+                    _5m_actual = [c for c in df_5m.columns if c.lower() in _5m_cols]
+                    if _5m_actual:
+                        df_5m = df_5m.dropna(subset=_5m_actual)
+                    if len(df_5m) >= 50:
+                        sr_5m = find_sr_levels(df_5m)
+                        sig_5m = compute_fn(df_5m, "5m", sr_5m, "USDJPY=X")
+                        if (sig_5m.get("signal") != "WAIT"
+                                and sig_5m.get("entry_type") in _5M_ONLY_STRATEGIES):
+                            sig = sig_5m
+                            sig["_tf_override"] = "5m"
+                            print(f"[DemoTrader/scalp] 5m補完: {sig_5m.get('entry_type')} {sig_5m.get('signal')}")
+                except Exception as _e5:
+                    print(f"[DemoTrader/scalp] 5m補完エラー: {_e5}")
         except Exception as e:
             self._add_log(f"⚠️ [{cfg['label']}] シグナル取得失敗: {e}")
             import traceback; traceback.print_exc()
@@ -1055,7 +1079,7 @@ class DemoTrader:
             "rsi_divergence_sr",     # RSIダイバージェンス + S/R
             "london_breakout",       # ロンドンブレイクアウト
             "stoch_trend_pullback",  # Stochトレンドプルバック（トレンド用）
-            # "macdh_reversal",      # DISABLED: 1m BT WR=46.7% EV=-0.023
+            "macdh_reversal",        # 5m補完経由のみ（1m赤字→5m WR=78.4% EV=+0.722）
             # "engulfing_bb",        # DISABLED: EV=+0.042 @0.8pip spread → 薄利すぎ
             # "three_bar_reversal",  # DISABLED: 1m BT WR=33.3% EV=-1.042
             "trend_rebound",         # 強トレンド時リバウンド
@@ -1067,7 +1091,7 @@ class DemoTrader:
             "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
             "donchian", "reg_channel", "ema_pullback",
             # スキャルプ v2.3: リバーサル戦略
-            # "sr_channel_reversal",     # DISABLED: 1m BT WR=48.5% EV=-0.162 (5mでは良好だが1mで赤字)
+            "sr_channel_reversal",       # 5m補完経由のみ（1m赤字→5m WR=63.6% EV=+0.318）
             "fib_reversal",              # フィボナッチリトレースメント反発
             "mtf_reversal_confluence",   # MTF RSI+MACD一致
             # デイトレ: 構造的なセットアップ

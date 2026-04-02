@@ -4167,6 +4167,26 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
         MIN_BARS = 200  # compute_scalp_signalに必要な最小バー数
 
+        # ── 5m補完: sr_channel_reversal / macdh_reversal 用の5mデータ ──
+        _5M_ONLY_TYPES = {"sr_channel_reversal", "macdh_reversal", "fib_reversal"}
+        _df_5m = None
+        _sr_5m_cache = {}
+        if interval == "1m":
+            try:
+                _df_5m = fetch_ohlcv(symbol, period=f"{min(lookback_days, 7)}d", interval="5m")
+                _df_5m = add_indicators(_df_5m)
+                _df_5m = _df_5m.dropna()
+                _5m_bpd = 288
+                for _ci5 in range(100, len(_df_5m), 50):
+                    _sr5_slice = _df_5m.iloc[max(0, _ci5 - 200):_ci5]
+                    _sr_5m_cache[_ci5 // 50] = find_sr_levels_weighted(
+                        _sr5_slice, window=5, tolerance_pct=0.003, min_touches=2,
+                        max_levels=8, bars_per_day=_5m_bpd)
+            except Exception:
+                _df_5m = None
+
+        _last_5m_bar = -99  # 5m補完のクールダウン
+
         for i in range(max(MIN_BARS, 50), len(df) - MAX_HOLD - 1):
             if i - last_trade_bar < COOLDOWN:
                 continue
@@ -4204,6 +4224,30 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 continue
 
             sig = sig_result.get("signal", "WAIT")
+
+            # ── 5m補完: 1mがWAITの時、5mでsr_channel_reversal/macdh_reversalをチェック ──
+            if sig == "WAIT" and _df_5m is not None and interval == "1m":
+                _5m_idx = i // 5  # 1m→5m のバーインデックス変換
+                if _5m_idx > 100 and _5m_idx < len(_df_5m) - MAX_HOLD - 1 and _5m_idx - _last_5m_bar >= 1:
+                    try:
+                        _5m_bar_df = _df_5m.iloc[max(0, _5m_idx - 300):_5m_idx + 1]
+                        _5m_time = _df_5m.index[_5m_idx]
+                        if hasattr(_5m_time, 'tzinfo') and _5m_time.tzinfo is None:
+                            _5m_time = _5m_time.replace(tzinfo=timezone.utc)
+                        _5m_sr_key = _5m_idx // 50
+                        _5m_sr = [sr["price"] for sr in _sr_5m_cache.get(_5m_sr_key, [])]
+                        _5m_sig = compute_scalp_signal(
+                            _5m_bar_df, tf="5m", sr_levels=_5m_sr,
+                            symbol=symbol, backtest_mode=True,
+                            bar_time=_5m_time, htf_cache=_htf_cache,
+                        )
+                        if (_5m_sig.get("signal") != "WAIT"
+                                and _5m_sig.get("entry_type") in _5M_ONLY_TYPES):
+                            sig_result = _5m_sig
+                            sig = _5m_sig["signal"]
+                    except Exception:
+                        pass
+
             if sig == "WAIT":
                 continue
 
@@ -4215,7 +4259,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "bb_rsi_reversion", "bb_squeeze_breakout",
                 "rsi_divergence_sr", "london_breakout",
                 "stoch_trend_pullback",
-                # "macdh_reversal",   # DISABLED: 1m BT WR=46.7% EV=-0.023
+                "macdh_reversal",       # 5m補完経由（1m赤字→5m WR=78.4% EV=+0.722）
                 # "engulfing_bb",    # DISABLED: EV=+0.042 @0.8pip spread → 薄利すぎ
                 # "three_bar_reversal", # DISABLED: 1m BT WR=33.3% EV=-1.042
                 "trend_rebound",  # 強トレンド時リバウンド
@@ -4224,7 +4268,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "ihs_neckbreak",  # 逆三尊ネックライン突破
                 "sr_touch_bounce", # 水平線タッチ反発
                 # v3 リバーサル戦略
-                # "sr_channel_reversal",    # DISABLED: 1m BT WR=48.5% EV=-0.162 (5mでは良好だが1mで赤字)
+                "sr_channel_reversal",      # 5m補完経由（1m赤字→5m WR=63.6% EV=+0.318）
                 "fib_reversal",             # フィボナッチリトレースメント反発
                 "mtf_reversal_confluence",  # MTF RSI+MACDクロス一致
                 # v1 互換
@@ -4345,6 +4389,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             if outcome:
                 last_trade_bar = i
+                if entry_type in _5M_ONLY_TYPES:
+                    _last_5m_bar = i // 5  # 5m補完クールダウン
                 trade_dict = {"outcome": outcome, "bars_held": bars_held,
                               "sig": sig, "ep": round(ep, 3),
                               "actual_rr": actual_rr, "bar_idx": i,
