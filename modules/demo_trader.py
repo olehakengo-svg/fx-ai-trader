@@ -1055,9 +1055,9 @@ class DemoTrader:
             "rsi_divergence_sr",     # RSIダイバージェンス + S/R
             "london_breakout",       # ロンドンブレイクアウト
             "stoch_trend_pullback",  # Stochトレンドプルバック（トレンド用）
-            "macdh_reversal",        # MACD-H反転 at BB極端
+            # "macdh_reversal",      # DISABLED: 1m BT WR=46.7% EV=-0.023
             # "engulfing_bb",        # DISABLED: EV=+0.042 @0.8pip spread → 薄利すぎ
-            "three_bar_reversal",    # 3本足反転パターン
+            # "three_bar_reversal",  # DISABLED: 1m BT WR=33.3% EV=-1.042
             "trend_rebound",         # 強トレンド時リバウンド
             "v_reversal",            # V字リバウンドキャプチャ（急落/急騰後の反転）
             # "hs_neckbreak",        # DISABLED: EV=-0.346 @0.8pip spread → マイナス
@@ -1067,11 +1067,11 @@ class DemoTrader:
             "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
             "donchian", "reg_channel", "ema_pullback",
             # スキャルプ v2.3: リバーサル戦略
-            "sr_channel_reversal",       # RE-ENABLED: HTFハードフィルター導入済み(WR=63.5% EV=+0.281)
+            # "sr_channel_reversal",     # DISABLED: 1m BT WR=48.5% EV=-0.162 (5mでは良好だが1mで赤字)
             "fib_reversal",              # フィボナッチリトレースメント反発
             "mtf_reversal_confluence",   # MTF RSI+MACD一致
             # デイトレ: 構造的なセットアップ
-            "dual_sr_bounce",    # 上下SR確認 + バウンス
+            # "dual_sr_bounce",  # DISABLED: 不調日WR=12-43%, BT EV=-0.072
             "dual_sr_breakout",  # 強いSRブレイクアウト
             "sr_fib_confluence", # SR + フィボナッチ合流
             "ema_cross",         # EMAクロス (BT 147t WR=72.8%)
@@ -1146,7 +1146,7 @@ class DemoTrader:
             hour_now = datetime.now(timezone.utc).hour
             # モード別時間帯制限
             if mode == "daytrade":
-                if hour_now < 7 or hour_now >= 22:  # 5→7: UTC03-07 BT全不調日WR=0%
+                if hour_now < 6 or hour_now >= 22:  # 5→6: UTC03-06 BT不調帯カット(7は取引維持)
                     _block(f"session_block(h={hour_now})"); return
             elif mode == "daytrade_1h":
                 if hour_now < 3 or hour_now >= 22:
