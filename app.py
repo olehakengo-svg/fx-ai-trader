@@ -9945,6 +9945,46 @@ def api_demo_restart():
     return jsonify({"status": "restarted", "modes": results})
 
 
+@app.route("/api/demo/close", methods=["POST"])
+def api_demo_close_trade():
+    """手動でポジションをクローズ
+    Body JSON:
+        trade_id (str): クローズ対象のtrade_id — 指定時は1件クローズ
+        mode (str): 指定時はそのモードの全OPENをクローズ
+        all (bool): true指定で全OPENをクローズ
+    """
+    data = request.get_json(silent=True) or {}
+    trade_id = data.get("trade_id")
+    mode = data.get("mode")
+    close_all = data.get("all", False)
+
+    price = _demo_trader._get_realtime_price()
+    if price <= 0:
+        return jsonify({"error": "現在価格を取得できません"}), 500
+
+    open_trades = _demo_db.get_open_trades()
+    if trade_id:
+        targets = [t for t in open_trades if t["trade_id"] == trade_id]
+    elif mode:
+        targets = [t for t in open_trades if t.get("mode") == mode]
+    elif close_all:
+        targets = open_trades
+    else:
+        return jsonify({"error": "trade_id, mode, or all を指定してください"}), 400
+
+    results = []
+    for t in targets:
+        r = _demo_db.close_trade(t["trade_id"], price, close_reason="MANUAL_CLOSE")
+        if "error" not in r:
+            _demo_trader._add_log(
+                f"🔴 手動クローズ [{t.get('mode','')}]: {t['direction']} @ {t['entry_price']:.3f} → "
+                f"{price:.3f} | PnL {r.get('pnl_pips',0):+.1f}pip | ID: {t['trade_id']}"
+            )
+        results.append(r)
+
+    return jsonify({"closed": len(results), "results": results})
+
+
 @app.route("/api/demo/trades")
 def api_demo_trades():
     """取引履歴API — 期間・モードで絞り込み可能

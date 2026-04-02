@@ -354,7 +354,11 @@ async function loadDemoStatus(){
     const posEl=document.getElementById('open-positions');
     if(d.open_trades&&d.open_trades.length){
       posEl.style.display='block';
-      posEl.innerHTML=d.open_trades.map(t=>{
+      let posHtml=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:11px;color:var(--t2)">${d.open_trades.length}件のOPENポジション</span>
+        <button onclick="closeAllTrades()" style="background:var(--red);color:#fff;border:none;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:10px;font-weight:600">全ポジション撤退</button>
+      </div>`;
+      posHtml+=d.open_trades.map(t=>{
         const isBuy=t.direction==='BUY';
         const col=isBuy?'var(--green)':'var(--red)';
         const mTag=t.mode==='swing'?'tag-sw':(t.tf==='1m'||t.tf==='5m')?'tag-sc':'tag-dt';
@@ -366,8 +370,10 @@ async function loadDemoStatus(){
           <span style="color:var(--t3)">SL ${t.sl?.toFixed(3)||'—'}</span>
           <span style="color:var(--t3)">TP ${t.tp?.toFixed(3)||'—'}</span>
           <span style="color:var(--t3);font-size:9px">${_h(t.entry_type)}</span>
+          <button onclick="closeTrade('${t.trade_id}')" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:3px;padding:2px 8px;cursor:pointer;font-size:9px;margin-left:auto">撤退</button>
         </div>`;
       }).join('');
+      posEl.innerHTML=posHtml;
     }else if(posEl.style.display==='block'){
       posEl.style.display='none';
     }
@@ -726,6 +732,26 @@ async function loadTradeTable(dateFrom='',dateTo='',mode=''){
       </tr>`;
     }).join('');
   }catch(e){console.error(e)}
+}
+
+// ── Manual Close ──
+async function closeTrade(tradeId){
+  if(!confirm('このポジションを撤退しますか？')) return;
+  try{
+    const r=await fetch('/api/demo/close',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({trade_id:tradeId})});
+    const d=await r.json();
+    if(d.error){alert(d.error);return;}
+    loadAll();
+  }catch(e){alert('エラー: '+e.message)}
+}
+async function closeAllTrades(){
+  if(!confirm('全ポジションを撤退しますか？')) return;
+  try{
+    const r=await fetch('/api/demo/close',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({all:true})});
+    const d=await r.json();
+    if(d.error){alert(d.error);return;}
+    loadAll();
+  }catch(e){alert('エラー: '+e.message)}
 }
 
 function applyFilter(){
