@@ -100,7 +100,7 @@ class DemoTrader:
             "session_blacklist": [],
             "learn_every_n": 10,
             # 同方向連敗制御: N連敗で同方向エントリーを一時停止
-            "max_consecutive_losses": 9999,       # デモ: 制限なし（学習データ蓄積優先）
+            "max_consecutive_losses": 3,           # 同方向3連敗で一時停止
             "daily_loss_limit_pips": -99999,      # デモ: 制限なし
             "max_drawdown_pips": -99999,           # デモ: 制限なし
         }
@@ -1027,13 +1027,15 @@ class DemoTrader:
             _block(f"conf<{self._params['confidence_threshold']}(was:{confidence})"); return
 
         # ── 重複エントリー防止 ──
-        # (A) 同価格帯ブロック（モード別: scalp=1.5pip, DT=1.5pip, other=3pip）
-        _same_price_dist = {"scalp": 0.015, "daytrade": 0.015}.get(mode, 0.03)
+        # (A) 同価格帯ブロック（モード別: scalp=1.0pip, DT=5pip, other=3pip）
+        # scalp: 1.5→1.0pip (エントリー機会増), DT: 1.5→5pip (マシンガン防止)
+        _same_price_dist = {"scalp": 0.010, "daytrade": 0.050}.get(mode, 0.03)
         for t in mode_trades:
             if abs(t["entry_price"] - current_price) < _same_price_dist:
                 _block(f"same_price_{_same_price_dist*100:.0f}pip"); return
         # (B) 同方向ポジション上限（モード別）
-        _dir_limits = {"scalp": 2, "daytrade": 5, "daytrade_1h": 2, "swing": 2}  # DT: 3→5
+        # scalp: 2→3 (好調なので増), DT: 5→2 (マシンガン防止)
+        _dir_limits = {"scalp": 3, "daytrade": 2, "daytrade_1h": 2, "swing": 2}
         _max_same_dir = _dir_limits.get(mode, 2)
         _same_dir_count = sum(1 for t in mode_trades if t.get("direction") == signal)
         if _same_dir_count >= _max_same_dir:
@@ -1079,7 +1081,7 @@ class DemoTrader:
             # 1H Zone: 学術論文ベース戦略
             "mtf_momentum",          # Multi-TF Momentum (Moskowitz 2012)
             "session_orb",           # Session ORB (Ito & Hashimoto 2006)
-            "pivot_breakout",        # Pivot Breakout (Osler 2000)
+            # "pivot_breakout",      # DISABLED: 本番WR=0%(3t -66.4pip) — SL幅27pip+逆行エントリー
             "pivot_reversion",       # Pivot Reversion (Osler 2000 + BB/RSI)
             "h1_fib_reversal",           # 1H フィボリバーサル
             "h1_ema200_trend_reversal",  # 1H EMA200トレンド転換
@@ -1121,7 +1123,7 @@ class DemoTrader:
         # ── SL後クールダウン ──
         last_ex = self._last_exit.get(mode)
         if last_ex:
-            _cooldown_sec = {"scalp": 120, "daytrade": 300, "daytrade_1h": 1800, "swing": 7200}.get(mode, 120)
+            _cooldown_sec = {"scalp": 60, "daytrade": 600, "daytrade_1h": 1800, "swing": 7200}.get(mode, 120)  # scalp: 120→60s(エントリー増), DT: 300→600s(連打防止)
             _ex_age = (datetime.now(timezone.utc) - last_ex["time"]).total_seconds()
             if _ex_age < _cooldown_sec:
                 if last_ex["direction"] == signal:
@@ -1159,10 +1161,22 @@ class DemoTrader:
         if mode_cl.get(signal, 0) >= max_cl:
             _block(f"consec_loss({mode_cl.get(signal,0)})"); return
 
+        # ── 全方向サーキットブレーカー: 30分以内にN回負けでモード一時停止 ──
+        # 本番実績: DT 12連敗(-101pip)を防止するための安全装置
+        _cb_limits = {"scalp": 4, "daytrade": 3, "daytrade_1h": 2, "swing": 2}
+        _cb_max = _cb_limits.get(mode, 3)
+        _cb_window = timedelta(minutes=30)
+        _cb_cutoff = datetime.now(timezone.utc) - _cb_window
+        _cb_recent = [t for t in self._total_losses_window
+                      if t[0] > _cb_cutoff and t[1] == mode]
+        if len(_cb_recent) >= _cb_max:
+            _cb_total_loss = sum(t[2] for t in _cb_recent)
+            _block(f"circuit_breaker({len(_cb_recent)}losses/{_cb_max}max_in_30min, total={_cb_total_loss:+.1f}pip)")
+            return
+
         # ══════════════════════════════════════════════════════════════
-        # ── ベロシティフィルター再有効化 ──
+        # ── ベロシティフィルター ──
         # 本番で急騰中のSELL連敗(-36pip)の原因 → 急動時の逆行エントリーをブロック
-        # サーキットブレーカー・ADXブロックはデモ用に無効のまま
         # ══════════════════════════════════════════════════════════════
         _now_vel = datetime.now(timezone.utc)
         _vel_window_min = {"scalp": 10, "daytrade": 30, "daytrade_1h": 60}.get(mode, 10)

@@ -1978,13 +1978,26 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             score *= 0.75
             reasons.append("⚠️ EMA200と逆方向 → 軽度減衰")
 
-    # 4H+1D マスタートレンドとの整合性チェック（緩和版: 取引頻度確保）
-    if htf_agreement == "bear" and act == "BUY":
-        score *= 0.50   # 4H+1D弱気時のBUY → 中程度減衰（逆張りだが許容）
-        reasons.append("⚠️ 4H+1D 下降トレンド中のBUY → 中程度減衰")
-    elif htf_agreement == "bull" and act == "SELL":
-        score *= 0.50   # 4H+1D強気時のSELL → 中程度減衰
-        reasons.append("⚠️ 4H+1D 上昇トレンド中のSELL → 中程度減衰")
+    # 4H+1D マスタートレンドとの整合性チェック（ハードフィルター: scalp同様に逆行ブロック）
+    # 本番実績: HTF bullish時のSELL 12連敗(-101pip) → スコアペナルティでは不十分、完全ブロック必須
+    if htf_agreement == "bull":
+        if act == "SELL":
+            ema_score = 0.0  # SELL完全ブロック
+            score = 0.0
+            reasons.append("🚫 4H+1D 上昇一致 → SELL ブロック")
+        else:
+            score *= 1.2  # BUY方向を強化
+    elif htf_agreement == "bear":
+        if act == "BUY":
+            ema_score = 0.0  # BUY完全ブロック
+            score = 0.0
+            reasons.append("🚫 4H+1D 下降一致 → BUY ブロック")
+        else:
+            score *= 1.2  # SELL方向を強化
+    else:
+        # mixed: 全体的に抑制
+        score *= 0.70
+        reasons.append("⚠️ 4H+1D 不一致 → シグナル抑制")
 
     # ④ フィボナッチプルバックゾーン（38.2-61.8%が最高確率）
     fib = _calc_fibonacci_levels(df, lookback=80)
