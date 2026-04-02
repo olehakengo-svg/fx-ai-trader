@@ -9486,14 +9486,15 @@ def api_backtest():
             else:                    _bt_cache.clear()
 
         if mode == "scalp":
-            tf = request.args.get("tf", "5m")
-            # 5m=180日（半年・統計的有意性確保）/ 1m=7日（実験的・高ノイズ）/ 15m=90日
-            if tf == "1m":
-                interval, lookback = "1m", 7
+            tf = request.args.get("tf", "1m")
+            # 本番は1m足 → BTも1mがデフォルト（BT/本番統一原則）
+            # 1m=7日（yfinance上限）/ 5m=55日 / 15m=55日
+            if tf == "5m":
+                interval, lookback = "5m", 55
             elif tf == "15m":
-                interval, lookback = "15m", 55  # Yahoo 15m上限60日
-            else:  # 5m がデフォルト
-                interval, lookback = "5m", 55   # Yahoo 5m上限60日
+                interval, lookback = "15m", 55
+            else:  # 1m がデフォルト（本番と統一）
+                interval, lookback = "1m", 7
             result = run_scalp_backtest("USDJPY=X", lookback_days=lookback, interval=interval)
         elif mode == "daytrade":
             result = run_daytrade_backtest("USDJPY=X", lookback_days=55, interval="15m")
