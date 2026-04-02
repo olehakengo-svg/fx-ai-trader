@@ -155,3 +155,26 @@ class OandaClient:
         """
         path = f"/v3/accounts/{self._account_id}/pricing?instruments={instrument}"
         return self._request("GET", path)
+
+    # ── Get Candles / OHLCV (v20) ─────────────────────
+
+    def get_candles(self, instrument: str = "USD_JPY",
+                    granularity: str = "M1", count: int = 500,
+                    price: str = "M",
+                    from_time: str = None, to_time: str = None) -> tuple:
+        """Fetch candle (OHLCV) data.
+        GET /v3/instruments/:instrument/candles
+        granularity: S5,S10,M1,M5,M15,M30,H1,H4,D,W,M
+        count: 1-5000 (default 500)
+        price: M(mid), B(bid), A(ask), BA(both)
+        from_time/to_time: RFC3339 (e.g. 2024-01-01T00:00:00Z)
+        """
+        path = f"/v3/instruments/{instrument}/candles"
+        params = [f"granularity={granularity}", f"price={price}"]
+        if from_time and to_time:
+            params.append(f"from={from_time}")
+            params.append(f"to={to_time}")
+        else:
+            params.append(f"count={min(count, 5000)}")
+        path += "?" + "&".join(params)
+        return self._request("GET", path, timeout=30)

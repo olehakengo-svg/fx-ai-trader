@@ -2,8 +2,9 @@
 FX AI Trader — Data fetching module
 =====================================
 OHLCV data retrieval from multiple sources:
-  - Massive Market Data API (primary)
-  - TwelveData API (secondary)
+  - OANDA v20 API (primary — lowest latency)
+  - Massive Market Data API (secondary)
+  - TwelveData API (tertiary)
   - yfinance (fallback)
 """
 
@@ -12,7 +13,7 @@ import threading
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from modules.config import CACHE_TTL
 
@@ -223,6 +224,121 @@ def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
 
 
 # ═══════════════════════════════════════════════════════
+#  OANDA v20 candle fetch
+# ═══════════════════════════════════════════════════════
+# yfinance interval → OANDA granularity
+_OANDA_GRANULARITY = {
+    "1m": "M1", "5m": "M5", "15m": "M15", "30m": "M30",
+    "1h": "H1", "4h": "H4", "1d": "D", "1wk": "W", "1mo": "M",
+}
+_OANDA_SYMBOLS = {"USDJPY=X": "USD_JPY", "JPY=X": "USD_JPY"}
+
+# OANDA共有クライアント (遅延初期化)
+_oanda_client = None
+_oanda_client_lock = threading.Lock()
+
+
+def _get_oanda_client():
+    """遅延初期化: OANDA_TOKEN設定時のみクライアント生成"""
+    global _oanda_client
+    if _oanda_client is not None:
+        return _oanda_client
+    with _oanda_client_lock:
+        if _oanda_client is not None:
+            return _oanda_client
+        if os.environ.get("OANDA_TOKEN"):
+            from modules.oanda_client import OandaClient
+            _oanda_client = OandaClient()
+        return _oanda_client
+
+
+def fetch_ohlcv_oanda(symbol: str, interval: str, days: int) -> pd.DataFrame:
+    """
+    OANDA v20 Candles APIからOHLCVデータを取得。
+    USD/JPYのみ対応。最大5000本/リクエスト。
+    """
+    client = _get_oanda_client()
+    if not client or not client.configured:
+        raise ValueError("OANDA client not configured")
+
+    instrument = _OANDA_SYMBOLS.get(symbol)
+    if not instrument:
+        raise ValueError(f"Symbol {symbol} not in OANDA map")
+
+    granularity = _OANDA_GRANULARITY.get(interval)
+    if not granularity:
+        raise ValueError(f"Interval {interval} not supported by OANDA")
+
+    # 必要なバー数を計算
+    _bars_per_day = {"1m": 1440, "5m": 288, "15m": 96, "30m": 48,
+                     "1h": 24, "4h": 6, "1d": 1, "1wk": 1, "1mo": 1}
+    needed = int(days * _bars_per_day.get(interval, 24) * 0.6)
+    count = min(max(needed, 200), 5000)
+
+    ok, data = client.get_candles(
+        instrument=instrument,
+        granularity=granularity,
+        count=count,
+        price="M",  # midpoint
+    )
+    if not ok:
+        raise ValueError(f"OANDA candles: {data.get('message', 'unknown')}")
+
+    candles = data.get("candles", [])
+    if not candles:
+        raise ValueError("OANDA candles: empty response")
+
+    rows = []
+    times = []
+    for c in candles:
+        mid = c.get("mid", {})
+        if not mid:
+            continue
+        rows.append({
+            "Open":   float(mid["o"]),
+            "High":   float(mid["h"]),
+            "Low":    float(mid["l"]),
+            "Close":  float(mid["c"]),
+            "Volume": float(c.get("volume", 0)),
+        })
+        times.append(pd.Timestamp(c["time"]))
+
+    if not rows:
+        raise ValueError("OANDA candles: no valid candle data")
+
+    idx = pd.DatetimeIndex(times)
+    # タイムゾーン統一
+    if idx.tz is None:
+        idx = idx.tz_localize("UTC")
+    else:
+        idx = idx.tz_convert("UTC")
+
+    df = pd.DataFrame(rows, index=idx)
+    df = df[~df.index.duplicated(keep="last")]
+    df = df.sort_index()
+    return df.dropna()
+
+
+def fetch_oanda_price() -> float:
+    """OANDAからリアルタイム価格(mid)を取得。失敗時は0を返す。"""
+    client = _get_oanda_client()
+    if not client or not client.configured:
+        return 0
+    try:
+        ok, data = client.get_price("USD_JPY")
+        if ok:
+            prices = data.get("prices", [])
+            if prices:
+                bid = float(prices[0].get("bids", [{}])[0].get("price", 0))
+                ask = float(prices[0].get("asks", [{}])[0].get("price", 0))
+                if bid > 0 and ask > 0:
+                    return round((bid + ask) / 2, 3)
+    except Exception:
+        pass
+    return 0
+
+
+# ═══════════════════════════════════════════════════════
 #  Realtime price patch
 # ═══════════════════════════════════════════════════════
 def _rt_patch(df: pd.DataFrame, symbol: str, interval: str) -> pd.DataFrame:
@@ -235,21 +351,32 @@ def _rt_patch(df: pd.DataFrame, symbol: str, interval: str) -> pd.DataFrame:
         return df
     if len(df) == 0:
         return df
+
+    price = None
+
+    # (1) 既存の _price_cache (TwelveData等) を確認
     with _cache_lock:
-        pc = dict(_price_cache)  # スナップショットをコピー
-    if not pc.get("ts"):
+        pc = dict(_price_cache)
+    if pc.get("ts"):
+        ts = pc["ts"]
+        now = datetime.now(timezone.utc) if ts.tzinfo else datetime.now()
+        age = (now - ts).total_seconds()
+        if age <= 10:
+            try:
+                price = float(pc["data"]["price"])
+            except (KeyError, TypeError, ValueError):
+                pass
+
+    # (2) _price_cache が古い場合、OANDAからリアルタイム価格取得
+    if price is None and symbol in _OANDA_SYMBOLS:
+        oanda_price = fetch_oanda_price()
+        if oanda_price > 0:
+            price = oanda_price
+
+    if price is None:
         return df
-    ts = pc["ts"]
-    # naive/aware統一: tsがawareならnowもaware、naiveならnaive
-    now = datetime.now(timezone.utc) if ts.tzinfo else datetime.now()
-    age = (now - ts).total_seconds()
-    if age > 10:
-        return df
-    try:
-        price = float(pc["data"]["price"])
-    except (KeyError, TypeError, ValueError):
-        return df
-    last  = df.index[-1]
+
+    last = df.index[-1]
     df.at[last, "Close"] = price
     df.at[last, "High"]  = max(float(df.at[last, "High"]), price)
     df.at[last, "Low"]   = min(float(df.at[last, "Low"]),  price)
@@ -290,10 +417,29 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
     expected = days * _bars_per_day.get(interval, 24) * 0.55  # FX=24h x 55%稼働
     min_bars = max(100, expected * 0.30)
 
-    # -- (1) Massive API優先: USDJPY の全TF --
+    # -- (0) OANDA v20 最優先: USD/JPY 全TF (最低レイテンシ) --
+    if (df is None and
+            os.environ.get("OANDA_TOKEN") and
+            symbol in _OANDA_SYMBOLS and
+            interval in _OANDA_GRANULARITY):
+        try:
+            df = fetch_ohlcv_oanda(symbol, interval, days)
+            if df is not None and len(df) >= min_bars:
+                _last_data_source[interval] = "oanda"
+                print(f"[OANDA/{interval}] {len(df)}本取得 (期待{int(expected)})")
+            else:
+                actual = len(df) if df is not None else 0
+                print(f"[OANDA/{interval}] {actual}本 < 最低{int(min_bars)}本 → フォールバック")
+                df = None
+        except Exception as e:
+            print(f"[OANDA/{interval}] {e} → フォールバック")
+            df = None
+
+    # -- (1) Massive API: USDJPY の全TF --
     _MASSIVE_SYMBOLS = {"USDJPY=X", "JPY=X"}
     _MASSIVE_INTERVALS = {"1m", "5m", "15m", "30m", "1h", "4h", "1d"}
-    if (os.environ.get("MASSIVE_API_KEY") and
+    if (df is None and
+            os.environ.get("MASSIVE_API_KEY") and
             symbol in _MASSIVE_SYMBOLS and
             interval in _MASSIVE_INTERVALS):
         try:

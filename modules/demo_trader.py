@@ -515,7 +515,8 @@ class DemoTrader:
         """
         リアルタイム価格を最速で取得:
         1. _price_cache（TwelveData/yfinance）が10秒以内なら使用
-        2. フォールバック: 1m足の最新Close
+        2. OANDA v20 pricing API
+        3. フォールバック: 1m足の最新Close
         """
         try:
             from modules.data import _price_cache, _cache_lock
@@ -527,6 +528,15 @@ class DemoTrader:
                 age = (now - ts).total_seconds()
                 if age < 15:  # 15秒以内のキャッシュなら使用
                     return float(pc["data"]["price"])
+        except Exception:
+            pass
+
+        # OANDA v20 リアルタイム価格
+        try:
+            from modules.data import fetch_oanda_price
+            p = fetch_oanda_price()
+            if p > 0:
+                return p
         except Exception:
             pass
 
