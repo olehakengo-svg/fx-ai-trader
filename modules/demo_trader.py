@@ -998,8 +998,8 @@ class DemoTrader:
             _block(f"conf<{self._params['confidence_threshold']}(was:{confidence})"); return
 
         # ── 重複エントリー防止 ──
-        # (A) 同価格帯ブロック（モード別: DT=1.5pip, other=3pip）
-        _same_price_dist = 0.015 if mode == "daytrade" else 0.03  # DT: 3→1.5pip
+        # (A) 同価格帯ブロック（モード別: scalp=1.5pip, DT=1.5pip, other=3pip）
+        _same_price_dist = {"scalp": 0.015, "daytrade": 0.015}.get(mode, 0.03)
         for t in mode_trades:
             if abs(t["entry_price"] - current_price) < _same_price_dist:
                 _block(f"same_price_{_same_price_dist*100:.0f}pip"); return

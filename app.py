@@ -3347,9 +3347,18 @@ def compute_1h_zone_signal(df: pd.DataFrame,
         # ── EMA200 方向フィルター（1H Zone用）──
         _h1_bull200 = entry > ema200_1h
         if sig == "BUY" and not _h1_bull200:
+            if etype in ("h1_fib_reversal", "h1_ema200_trend_reversal"):
+                base["signal"] = "WAIT"
+                reasons.append(f"🚫 EMA200下({ema200_1h:.3f})で逆張りBUY → ブロック")
+                return base
             score *= 0.75
             reasons.append(f"⚠️ EMA200下({ema200_1h:.3f})でBUY → 減衰")
         elif sig == "SELL" and _h1_bull200:
+            if etype in ("h1_fib_reversal", "h1_ema200_trend_reversal"):
+                # Fib/EMA200逆張りSELL + EMA200上 → 本番で全敗 → ハードブロック
+                base["signal"] = "WAIT"
+                reasons.append(f"🚫 EMA200上({ema200_1h:.3f})で逆張りSELL → ブロック")
+                return base
             score *= 0.75
             reasons.append(f"⚠️ EMA200上({ema200_1h:.3f})でSELL → 減衰")
 
