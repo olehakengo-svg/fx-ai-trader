@@ -7524,7 +7524,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     # 200EMA上+スロープ上昇のSELL / 200EMA下+スロープ下降のBUY → ハードブロック
     # 本番: EMA200逆行のmacdh_reversal|SELL全敗、fib_reversal|BUY WR=33%
     # 平均回帰・逆張り戦略は除外（BB極端→中央回帰はトレンド逆行でも機能する）
-    _mean_reversion_types = ("trend_rebound", "v_reversal", "bb_rsi_reversion")
+    _mean_reversion_types = ("trend_rebound", "v_reversal", "bb_rsi_reversion", "macdh_reversal")
     if entry_type not in _mean_reversion_types:
         if _ema200_bull and signal == "SELL" and _ema200_slope > 0:
             # EMA200上 + 上昇中 → SELL完全ブロック
