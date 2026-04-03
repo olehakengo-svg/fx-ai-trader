@@ -1200,7 +1200,7 @@ class DemoTrader:
                     _buy_zone = (_prev_day["L"] - _daily_atr * 0.2, _pivot)
                     _sell_zone = (_pivot, _prev_day["H"] + _daily_atr * 0.2)
                     sig = compute_fn(df, buy_zone=_buy_zone, sell_zone=_sell_zone,
-                                     sr_levels=sr, backtest_mode=False)
+                                     sr_levels=sr, backtest_mode=False, symbol=symbol)
                 else:
                     return  # ゾーン計算不可（データ不足）
             else:
