@@ -3130,16 +3130,17 @@ def compute_1h_zone_signal(df: pd.DataFrame,
                 _brt_score += 0.3
                 _brt_reasons.append("✅ ATR拡大（モメンタム）")
 
-            if _brt_score >= 2.5:
-                _brt_tp = entry + atr * 4.0  # 3.0→4.0: ブレイクアウト利幅拡大
+            # 必須: 陽線 + EMAトレンド整合（低品質排除）
+            if _brt_score >= 3.0 and entry > _open and ema9 > ema21:
+                _brt_tp = entry + atr * 4.0
                 _upper_srs = [s["price"] for s in _h1_sr_weighted
                               if s["price"] > entry + atr * 2.0 and s["strength"] >= 0.3]
                 if _upper_srs:
                     _brt_tp = min(_upper_srs) - atr * 0.1
-                    _brt_tp = max(_brt_tp, entry + atr * 3.0)  # 最低TP 3.0ATR
-                _brt_sl = _sr_price - atr * 0.5  # SLはタイトに維持（WR優先）
-                _brt_sl = max(_brt_sl, entry - atr * 1.0)
-                _brt_inv = _sr_price - atr * 0.6
+                    _brt_tp = max(_brt_tp, entry + atr * 3.0)
+                _brt_sl = _sr_price - atr * 0.7  # 0.5→0.7: ノイズ耐性改善
+                _brt_sl = max(_brt_sl, entry - atr * 1.2)
+                _brt_inv = _sr_price - atr * 0.8
                 candidates.append(("BUY", _brt_score, _brt_tp, _brt_sl,
                                    _brt_reasons, "h1_breakout_retest", _brt_inv))
 
@@ -3174,16 +3175,17 @@ def compute_1h_zone_signal(df: pd.DataFrame,
                 _brt_score += 0.3
                 _brt_reasons.append("✅ ATR拡大（モメンタム）")
 
-            if _brt_score >= 2.5:
-                _brt_tp = entry - atr * 4.0  # 3.0→4.0
+            # 必須: 陰線 + EMAトレンド整合（低品質排除）
+            if _brt_score >= 3.0 and entry < _open and ema9 < ema21:
+                _brt_tp = entry - atr * 4.0
                 _lower_srs = [s["price"] for s in _h1_sr_weighted
                               if s["price"] < entry - atr * 2.0 and s["strength"] >= 0.3]
                 if _lower_srs:
                     _brt_tp = max(_lower_srs) + atr * 0.1
                     _brt_tp = min(_brt_tp, entry - atr * 3.0)
-                _brt_sl = _sr_price + atr * 0.5  # 1.0→0.5 reverted（WR優先）
-                _brt_sl = min(_brt_sl, entry + atr * 1.0)
-                _brt_inv = _sr_price + atr * 0.6
+                _brt_sl = _sr_price + atr * 0.7  # 0.5→0.7: ノイズ耐性改善
+                _brt_sl = min(_brt_sl, entry + atr * 1.2)
+                _brt_inv = _sr_price + atr * 0.8
                 candidates.append(("SELL", _brt_score, _brt_tp, _brt_sl,
                                    _brt_reasons, "h1_breakout_retest", _brt_inv))
 
