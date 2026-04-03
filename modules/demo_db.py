@@ -733,17 +733,14 @@ class DemoDB:
                 else:
                     close_reason = "MARKET_CLOSE"
 
-        # PnL in pips (instrument-aware)
+        # PnL in pips — price diffから算出（通貨建てPLの換算誤差を回避）
         pnl_pips = 0.0
-        if initial_units > 0 and state == "CLOSED":
-            if "JPY" in instrument.upper():
-                # USD_JPY: realizedPL is in JPY. 1pip = 0.01 * units
-                # pips = realizedPL / (units * 0.01) = realizedPL / units * 100
-                pnl_pips = round(realized_pl / initial_units * 100, 1)
+        if state == "CLOSED" and open_price > 0 and close_price > 0:
+            _pm = pip_multiplier(instrument)  # JPY=100, others=10000
+            if direction and direction.upper() in ("LONG", "BUY"):
+                pnl_pips = round((close_price - open_price) * _pm, 1)
             else:
-                # EUR_USD etc: realizedPL is in USD. 1pip = 0.0001 * units
-                # pips = realizedPL / (units * 0.0001) = realizedPL / units * 10000
-                pnl_pips = round(realized_pl / initial_units * 10000, 1)
+                pnl_pips = round((open_price - close_price) * _pm, 1)
 
         raw_json = json.dumps(trade, ensure_ascii=False, default=str)
 
