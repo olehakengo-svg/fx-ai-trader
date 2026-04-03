@@ -1786,28 +1786,31 @@ class DemoTrader:
         self._evaluate_promotions()
 
     def _evaluate_promotions(self):
-        """デモ実績に基づいて戦略をOANDA昇格/降格判定"""
+        """デモ実績に基づいて戦略をOANDA昇格/降格判定
+        ファストトラック: N≥10 かつ WR≥55% かつ EV≥1.0 → 即昇格
+        通常トラック:    N≥30 かつ EV>0 → 昇格
+        降格:           N≥30 かつ EV<-0.5 → 降格
+        """
         try:
             data = self._db.get_trades_for_learning(min_trades=1)
             if not data.get("ready"):
                 return
             by_type = data.get("by_type", {})
-            _MIN_N = 30   # 最低サンプル数
-            _MIN_EV = 0.0  # 昇格EV閾値
-            _DEMOTE_EV = -0.5  # 降格EV閾値
             changes = []
             for et, stats in by_type.items():
                 n = stats.get("n", 0)
                 ev = stats.get("ev", 0)
                 wr = stats.get("wr", 0)
                 old = self._promoted_types.get(et, {}).get("status", "pending")
-                if n >= _MIN_N:
-                    if ev >= _MIN_EV:
-                        status = "promoted"
-                    elif ev < _DEMOTE_EV:
-                        status = "demoted"
-                    else:
-                        status = "pending"
+                # ファストトラック: 高WR+高EVなら少サンプルでも昇格
+                if n >= 10 and wr >= 55.0 and ev >= 1.0:
+                    status = "promoted"
+                # 通常トラック: 十分なサンプルでEVプラス
+                elif n >= 30 and ev >= 0.0:
+                    status = "promoted"
+                # 降格: 十分なサンプルでEV大幅マイナス
+                elif n >= 30 and ev < -0.5:
+                    status = "demoted"
                 else:
                     status = "pending"
                 self._promoted_types[et] = {"status": status, "n": n, "wr": wr, "ev": ev}
