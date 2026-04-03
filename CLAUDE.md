@@ -94,7 +94,7 @@
 - **用途**: スキャルプ/DT補完、異なるタイムフレームでの分散
 
 ## Key Parameters
-- **スプレッド**: 0.2 pip (全BT統一)
+- **スプレッド**: デモ本番=OANDAリアルbid/ask（エントリーBUY=ask/SELL=bid、決済BUY=bid/SELL=ask）、BT=0.2pip固定
 - **TP固定/SL可変**: TPはATRベース技術ターゲット、SLはRR比逆算(MIN_RR=1.2)
 - **エントリー品質ゲート**: QUALIFIED_TYPES のみ許可、理由✅1つ以上必須
 
@@ -181,3 +181,14 @@
   - 修正前: 56t WR=53.6% EV=+0.171 → 修正後: 172t WR=57.6% EV=+0.175（BUY WR 44%→62%回復）
 - **Async chunked BT**: /api/backtest-long エンドポイント追加、7日チャンクの非同期BT処理（30日+BTのRenderタイムアウト回避）
 - **BT mode=daytrade_1h追加**: /api/backtest?mode=daytrade_1h でrun_1h_backtest呼び出し可能に
+
+## Recent Fixes (2026-04-03 OANDA Spread + Position Sync)
+- **OANDAリアルスプレッド反映**: デモのエントリー/決済にOANDA bid/askを使用（固定mid→実スプレッド）
+  - エントリー: BUY=ask価格, SELL=bid価格（OANDAと同じ約定ロジック）
+  - SL/TP判定: BUYポジ=bid, SELLポジ=ask（決済もスプレッド反映）
+  - SIGNAL_REVERSE/手動クローズも同様にbid/ask決済
+  - `fetch_oanda_bid_ask()` 新設 → bid/ask/spread/midを返す
+- **Demo→OANDAポジション同期**: デモ側CLOSEだがOANDA側OPENの孤児ポジを5秒毎に検出・自動クローズ
+  - `_sync_demo_to_oanda()`: OANDA openTradesを取得、デモ側マッピングにないトレードをクローズ
+  - デモを正（source of truth）として、OANDA孤児を解消
+- **OANDA連携ポイント**: エントリー(ask/bid) / SL/TP(bid/ask) / シグナル反転(bid/ask) / 手動(bid/ask) / 孤児クローズ(5秒毎)

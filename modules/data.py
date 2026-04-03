@@ -447,6 +447,36 @@ def fetch_oanda_price(instrument: str = "USD_JPY") -> float:
     return 0
 
 
+def fetch_oanda_bid_ask(instrument: str = "USD_JPY") -> dict:
+    """OANDAからリアルタイムbid/askを取得。スプレッド計算用。
+    Returns: {"bid": float, "ask": float, "spread": float(pips), "mid": float}
+             失敗時は空dict。
+    """
+    client = _get_oanda_client()
+    if not client or not client.configured:
+        return {}
+    try:
+        ok, data = client.get_price(instrument)
+        if ok:
+            prices = data.get("prices", [])
+            if prices:
+                bid = float(prices[0].get("bids", [{}])[0].get("price", 0))
+                ask = float(prices[0].get("asks", [{}])[0].get("price", 0))
+                if bid > 0 and ask > 0:
+                    decimals = 3 if "JPY" in instrument else 5
+                    pip_mult = 100 if "JPY" in instrument else 10000
+                    spread_pips = round((ask - bid) * pip_mult, 2)
+                    return {
+                        "bid": round(bid, decimals),
+                        "ask": round(ask, decimals),
+                        "spread": spread_pips,
+                        "mid": round((bid + ask) / 2, decimals),
+                    }
+    except Exception:
+        pass
+    return {}
+
+
 # ═══════════════════════════════════════════════════════
 #  Realtime price patch
 # ═══════════════════════════════════════════════════════

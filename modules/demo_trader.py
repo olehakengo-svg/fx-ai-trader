@@ -586,6 +586,7 @@ class DemoTrader:
         print("[SLTP-Checker] Thread started", flush=True)
         _no_price_count = 0
         _oanda_sync_counter = 0
+        _demo2oanda_counter = 0
         try:
             while self._sltp_running:
                 try:
@@ -608,6 +609,16 @@ class DemoTrader:
                         self._sync_oanda_closures()
                     except Exception as e:
                         print(f"[SLTP-Checker] OANDA sync error: {e}", flush=True)
+
+                # ── Demo→OANDA同期: 5秒ごと（10回に1回）──
+                # デモCloseだがOANDA Openの孤児ポジションを検出・クローズ
+                _demo2oanda_counter += 1
+                if _demo2oanda_counter >= 10:
+                    _demo2oanda_counter = 0
+                    try:
+                        self._sync_demo_to_oanda()
+                    except Exception as e:
+                        print(f"[SLTP-Checker] Demo→OANDA sync error: {e}", flush=True)
 
                 time.sleep(SLTP_CHECK_INTERVAL)
             print("[SLTP-Checker] Thread terminated cleanly (sltp_running=False)", flush=True)
@@ -698,16 +709,75 @@ class DemoTrader:
             import logging
             logging.getLogger(__name__).debug(f"oanda sync check error: {e}")
 
+    def _sync_demo_to_oanda(self):
+        """デモ側でクローズ済みだがOANDA側でまだオープンのトレードを強制クローズ。
+        デモを正として、OANDA孤児ポジションを解消する。
+        """
+        if not self._oanda.active:
+            return
+        try:
+            # 1. OANDA側のオープントレードを取得
+            ok, data = self._oanda._client.get_open_trades()
+            if not ok:
+                return
+            oanda_open = data.get("trades", [])
+            if not oanda_open:
+                return
+
+            # 2. デモ側のオープントレードを取得
+            demo_open = self._db.get_open_trades()
+            demo_oanda_ids = set()
+            for t in demo_open:
+                oid = t.get("oanda_trade_id")
+                if oid:
+                    demo_oanda_ids.add(str(oid))
+
+            # 3. bridge内のマッピングも考慮（まだDB書き込み前の可能性）
+            with self._oanda._lock:
+                for oid in self._oanda._trade_map.values():
+                    demo_oanda_ids.add(str(oid))
+
+            # 4. OANDA側にあるがデモ側にないトレードをクローズ
+            for ot in oanda_open:
+                oid = str(ot.get("id", ""))
+                if oid and oid not in demo_oanda_ids:
+                    # デモ側にマッピングがない → 孤児ポジション → クローズ
+                    _inst = ot.get("instrument", "?")
+                    _units = ot.get("currentUnits", "?")
+                    self._add_log(
+                        f"🔄 OANDA孤児クローズ: #{oid} {_inst} {_units}units "
+                        f"(デモ側にマッピングなし)"
+                    )
+                    ok2, _ = self._oanda._client.close_trade(oid)
+                    if ok2:
+                        print(f"[DemoToOanda] Closed orphan OANDA #{oid} ({_inst})", flush=True)
+                    else:
+                        print(f"[DemoToOanda] Failed to close orphan #{oid}", flush=True)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).debug(f"demo-to-oanda sync error: {e}")
+
     def _check_sltp_realtime(self):
         """全オープントレードをリアルタイム価格でSL/TPチェック + 最大保持時間 + 週末クローズ"""
         open_trades = self._db.get_open_trades()
         if not open_trades:
             return
 
-        # 通貨ペア別にリアルタイム価格を取得（キャッシュ）
+        # 通貨ペア別にリアルタイム価格を取得（キャッシュ）— bid/ask対応
         _price_cache_rt = {}
+        _bidask_cache_rt = {}  # {instrument: {"bid":, "ask":, "mid":}}
         def _get_price_for_instrument(inst, sym):
             if inst not in _price_cache_rt:
+                # まずbid/askを取得（スプレッド反映の決済価格に使用）
+                try:
+                    from modules.data import fetch_oanda_bid_ask
+                    _ba = fetch_oanda_bid_ask(inst)
+                    if _ba:
+                        _bidask_cache_rt[inst] = _ba
+                        _price_cache_rt[inst] = _ba["mid"]
+                        return _price_cache_rt[inst]
+                except Exception:
+                    pass
                 _price_cache_rt[inst] = self._get_realtime_price(inst, sym)
             return _price_cache_rt[inst]
 
@@ -754,6 +824,15 @@ class DemoTrader:
                 continue  # この通貨の価格が取れない場合はスキップ
             # pip計算用桁数
             _pip_decimals = 3 if "JPY" in _inst else 5
+
+            # ── OANDAスプレッド反映: SL/TP判定もbid/askベース ──
+            # BUYポジの決済=売り(bid), SELLポジの決済=買い(ask)
+            _ba_rt = _bidask_cache_rt.get(_inst)
+            if _ba_rt:
+                if direction == "BUY":
+                    price = _ba_rt["bid"]   # BUY決済 → bid
+                else:
+                    price = _ba_rt["ask"]   # SELL決済 → ask
 
             # ══════════════════════════════════════════════════════════════
             # ── ブレイクイーブン + 連続トレーリングストップ ──
@@ -1168,6 +1247,20 @@ class DemoTrader:
         signal = sig.get("signal", "WAIT")
         _base_mode = mode.replace("_eur", "")  # scalp_eur -> scalp (共通パラメータ参照用)
 
+        # ── OANDAスプレッド反映: bid/askで実際のエントリー価格を使用 ──
+        # BUY → ask価格, SELL → bid価格（OANDAと同じ約定価格）
+        if signal in ("BUY", "SELL"):
+            try:
+                from modules.data import fetch_oanda_bid_ask
+                _ba = fetch_oanda_bid_ask(instrument)
+                if _ba:
+                    if signal == "BUY":
+                        current_price = _ba["ask"]
+                    else:
+                        current_price = _ba["bid"]
+            except Exception:
+                pass  # フォールバック: シグナルのmid価格をそのまま使用
+
         # ══════════════════════════════════════════════════════════════
         # ── MTF連携: 15m DT シグナル → 1m Scalp バイアス更新 ──
         # DT/DT1hの構造的パターン（三尊/逆三尊/SR等）を記録し、
@@ -1580,7 +1673,19 @@ class DemoTrader:
             close_reason = "SIGNAL_REVERSE"
 
         if close_reason:
-            result = self._db.close_trade(trade_id, current_price, close_reason)
+            # ── 決済価格もbid/ask反映 ──
+            # BUYポジ決済=売り(bid), SELLポジ決済=買い(ask)
+            _close_price = current_price
+            try:
+                from modules.data import fetch_oanda_bid_ask
+                _inst_sr = cfg.get("instrument", "USD_JPY")
+                _ba_sr = fetch_oanda_bid_ask(_inst_sr)
+                if _ba_sr:
+                    _close_price = _ba_sr["bid"] if direction == "BUY" else _ba_sr["ask"]
+            except Exception:
+                pass
+
+            result = self._db.close_trade(trade_id, _close_price, close_reason)
             if "error" in result:
                 return  # 別スレッドで既にクローズ済み → スキップ
 
@@ -1593,7 +1698,7 @@ class DemoTrader:
 
             self._add_log(
                 f"{cfg.get('icon','')} 📤 OUT [{cfg.get('label','?')}]: {icon} {outcome} | "
-                f"{direction} @ {trade['entry_price']:.3f} → {current_price:.3f} | "
+                f"{direction} @ {trade['entry_price']:.3f} → {_close_price:.3f} | "
                 f"PnL: {pnl:+.1f} pips | "
                 f"Reason: {close_reason} | ID: {trade_id}"
             )

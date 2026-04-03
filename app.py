@@ -10189,9 +10189,10 @@ def api_demo_close_trade():
     mode = data.get("mode")
     close_all = data.get("all", False)
 
-    price = _demo_trader._get_realtime_price()
-    if price <= 0:
-        return jsonify({"error": "現在価格を取得できません"}), 500
+    # 通貨ペア別bid/askキャッシュ（1リクエスト内で使い回し）
+    from modules.data import fetch_oanda_bid_ask
+    from modules.demo_trader import MODE_CONFIG
+    _ba_cache = {}
 
     open_trades = _demo_db.get_open_trades()
     if trade_id:
@@ -10203,15 +10204,31 @@ def api_demo_close_trade():
     else:
         return jsonify({"error": "trade_id, mode, or all を指定してください"}), 400
 
+    if not targets:
+        return jsonify({"closed": 0, "results": []})
+
     results = []
     for t in targets:
+        # bid/ask反映: BUY決済=bid, SELL決済=ask
+        _inst = MODE_CONFIG.get(t.get("mode", ""), {}).get("instrument", "USD_JPY")
+        if _inst not in _ba_cache:
+            _ba_cache[_inst] = fetch_oanda_bid_ask(_inst)
+        _ba = _ba_cache[_inst]
+        if _ba:
+            price = _ba["bid"] if t["direction"] == "BUY" else _ba["ask"]
+        else:
+            price = _demo_trader._get_realtime_price(_inst)
+        if price <= 0:
+            continue
+
         r = _demo_db.close_trade(t["trade_id"], price, close_reason="MANUAL_CLOSE")
         if "error" not in r:
             # OANDA連携: 手動クローズもミラー
             _demo_trader._oanda.close_trade(t["trade_id"], reason="MANUAL_CLOSE")
+            _price_dec = 3 if "JPY" in _inst else 5
             _demo_trader._add_log(
-                f"🔴 手動クローズ [{t.get('mode','')}]: {t['direction']} @ {t['entry_price']:.3f} → "
-                f"{price:.3f} | PnL {r.get('pnl_pips',0):+.1f}pip | ID: {t['trade_id']}"
+                f"🔴 手動クローズ [{t.get('mode','')}]: {t['direction']} @ {t['entry_price']:.{_price_dec}f} → "
+                f"{price:.{_price_dec}f} | PnL {r.get('pnl_pips',0):+.1f}pip | ID: {t['trade_id']}"
             )
         results.append(r)
 
