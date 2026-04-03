@@ -4801,11 +4801,9 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
 
         QUALIFIED_TYPES = {
             # v4 新戦略（SR強度ベース）
-            "h1_sr_reversal",       # SR/チャネル強壁反発
-            "h1_breakout_retest",   # 強壁ブレイク後リテスト → トレンドフォロー
-            # 旧戦略（互換維持、新戦略が十分なら段階的に除外）
-            "mtf_momentum", "session_orb",
-            "pivot_reversion",
+            # "h1_sr_reversal",     # DISABLED: WR=25% EV=-0.718 — 1H足でSR反発は困難
+            "h1_breakout_retest",   # 強壁ブレイク後リテスト → トレンドフォロー (WR=40% EV=+0.110)
+            # 旧戦略（互換維持）
             "h1_fib_reversal", "h1_ema200_trend_reversal",
         }
 

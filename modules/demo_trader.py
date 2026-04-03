@@ -1104,12 +1104,9 @@ class DemoTrader:
             # "dt_sr_channel_reversal",  # DISABLED: BT WR=25% EV=-0.659
             # "ema200_trend_reversal",   # DISABLED: BT WR=50% EV=-0.037
             # 1H Zone v4: SR強度ベース戦略
-            "h1_sr_reversal",        # SR/チャネル強壁反発
+            # "h1_sr_reversal",      # DISABLED: WR=25% EV=-0.718
             "h1_breakout_retest",    # 強壁ブレイク後リテスト → トレンドフォロー
             # 旧戦略（互換維持）
-            "mtf_momentum",          # Multi-TF Momentum (Moskowitz 2012)
-            "session_orb",           # Session ORB (Ito & Hashimoto 2006)
-            "pivot_reversion",       # Pivot Reversion (Osler 2000 + BB/RSI)
             "h1_fib_reversal",           # 1H フィボリバーサル
             "h1_ema200_trend_reversal",  # 1H EMA200トレンド転換
         }
