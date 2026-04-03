@@ -1069,10 +1069,24 @@ class DemoTrader:
                         if now - last < interval:
                             continue
 
-                        # ── このモードのtickを実行 ──
+                        # ── このモードのtickを実行（タイムアウト付き）──
                         try:
                             _tick_start = time.time()
-                            self._tick(mode)
+                            # タイムアウト付きtick: ハング防止（120秒）
+                            _tick_result = [None]  # [exception or None]
+                            _tick_thread = threading.Thread(
+                                target=self._tick_with_catch, args=(mode, _tick_result), daemon=True)
+                            _tick_thread.start()
+                            _tick_thread.join(timeout=120)
+                            if _tick_thread.is_alive():
+                                # タイムアウト — スレッドがハング中
+                                print(f"[MainLoop/{mode}] TIMEOUT after 120s — skipping", flush=True)
+                                _last_tick[mode] = time.time()
+                                errs = _consecutive_errors.get(mode, 0) + 1
+                                _consecutive_errors[mode] = errs
+                                continue
+                            if _tick_result[0] is not None:
+                                raise _tick_result[0]
                             _tick_dur = time.time() - _tick_start
                             _consecutive_errors[mode] = 0
                             _last_tick[mode] = time.time()
@@ -1147,6 +1161,13 @@ class DemoTrader:
         except Exception:
             return False
 
+    def _tick_with_catch(self, mode: str, result: list):
+        """_tickを実行して例外をresult[0]に格納。タイムアウト用ワーカー。"""
+        try:
+            self._tick(mode)
+        except Exception as e:
+            result[0] = e
+
     @staticmethod
     def _is_fx_market_closed() -> bool:
         """FX市場が閉場中か判定（金曜22:00 UTC 〜 日曜22:00 UTC）"""
@@ -1176,11 +1197,12 @@ class DemoTrader:
         # Import here to avoid circular imports
         from app import fetch_ohlcv, add_indicators, find_sr_levels
 
-        if mode == "daytrade":
+        _base_mode_fn = mode.replace("_eur", "")
+        if _base_mode_fn == "daytrade":
             from app import compute_daytrade_signal as compute_fn
-        elif mode == "swing":
+        elif _base_mode_fn == "swing":
             from app import compute_swing_signal as compute_fn
-        elif mode == "daytrade_1h":
+        elif _base_mode_fn == "daytrade_1h":
             from app import compute_1h_zone_signal as compute_fn
         else:
             from app import compute_scalp_signal as compute_fn
@@ -1286,6 +1308,16 @@ class DemoTrader:
             "time": datetime.now(timezone.utc).strftime("%H:%M:%S"),
         }
 
+        # ── 後半処理: エントリー判定（例外でスレッドハングを防止）──
+        try:
+            self._tick_entry(mode, cfg, sig, tf, instrument)
+        except Exception as _entry_err:
+            print(f"[DemoTrader/{mode}] _tick_entry error: {_entry_err}", flush=True)
+            import traceback; traceback.print_exc()
+
+    def _tick_entry(self, mode: str, cfg: dict, sig: dict,
+                    tf: str, instrument: str):
+        """_tickの後半: エントリー判定・実行。例外は呼び出し元でキャッチ。"""
         current_price = sig.get("entry", 0)
         signal = sig.get("signal", "WAIT")
         _base_mode = mode.replace("_eur", "")  # scalp_eur -> scalp (共通パラメータ参照用)
