@@ -1857,6 +1857,10 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                             backtest_mode: bool = False,
                             bar_time=None,
                             htf_cache: dict = None) -> dict:
+    # ── 通貨ペア判定 ──
+    _dt_is_jpy = "JPY" in symbol.upper()
+    _dt_pip_mult = 100 if _dt_is_jpy else 10000  # price_diff * _dt_pip_mult = pips
+
     # ── Layer 0: 取引禁止チェック ──────────────────────────────
     layer0 = is_trade_prohibited(df, bar_time=bar_time)
 
@@ -1901,7 +1905,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             _hv_fund_sc, _hv_fund_detail = fundamental_score()
             _hv_inst_sc, _hv_inst_detail = institutional_flow_score()
         return {
-            "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
+            "timestamp": ts_str, "symbol": (symbol.replace("=X","")[:3] + "/" + symbol.replace("=X","")[3:]) if symbol else "USD/JPY", "tf": tf,
             "entry": _rp(entry, symbol), "signal": "WAIT", "confidence": 0,
             "sl": _rp(entry - atr * 0.7, symbol), "tp": _rp(entry + atr * 1.5, symbol),
             "rr_ratio": 2.14, "atr": _rp(atr, symbol),
@@ -2080,7 +2084,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         session = get_session_info()
         ts_str  = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
         return {
-            "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
+            "timestamp": ts_str, "symbol": (symbol.replace("=X","")[:3] + "/" + symbol.replace("=X","")[3:]) if symbol else "USD/JPY", "tf": tf,
             "entry": _rp(entry, symbol), "signal": "WAIT", "confidence": 0,
             "sl": _rp(entry - atr * 0.8, symbol), "tp": _rp(entry + atr * 2.0, symbol),
             "rr_ratio": 2.5, "atr": _rp(atr, symbol),
@@ -2238,8 +2242,8 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 continue
             if _s3i - _s1i > 30 or _s3i - _s1i < 6:
                 continue
-            _hp = min(_s2p - _s1p, _s2p - _s3p) * 100
-            _sd = abs(_s1p - _s3p) * 100
+            _hp = min(_s2p - _s1p, _s2p - _s3p) * _dt_pip_mult
+            _sd = abs(_s1p - _s3p) * _dt_pip_mult
             if _hp < 5.0 or _sd > _hp * 0.6:  # 15m: 5pip以上の prominence
                 continue
             _neck_lows = [(_li, _lp) for _li, _lp in _dt_swing_lows if _s1i < _li < _s3i]
@@ -2247,7 +2251,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 continue
             _neckline = min(_neck_lows, key=lambda x: x[1])[1]
             if _s3i < len(_dt_hs_df) - 2:
-                _nd = (entry - _neckline) * 100
+                _nd = (entry - _neckline) * _dt_pip_mult
                 if -3.0 <= _nd <= 2.0 and entry < float(row["Open"]) and ema9 < ema21:
                     signal = "SELL"
                     _dt_entry_type = "hs_neckbreak"
@@ -2266,8 +2270,8 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                     continue
                 if _s3i - _s1i > 30 or _s3i - _s1i < 6:
                     continue
-                _hp = min(_s1p - _s2p, _s3p - _s2p) * 100
-                _sd = abs(_s1p - _s3p) * 100
+                _hp = min(_s1p - _s2p, _s3p - _s2p) * _dt_pip_mult
+                _sd = abs(_s1p - _s3p) * _dt_pip_mult
                 if _hp < 5.0 or _sd > _hp * 0.6:
                     continue
                 _neck_highs = [(_hi2, _hp2) for _hi2, _hp2 in _dt_swing_highs if _s1i < _hi2 < _s3i]
@@ -2275,7 +2279,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                     continue
                 _neckline = max(_neck_highs, key=lambda x: x[1])[1]
                 if _s3i < len(_dt_hs_df) - 2:
-                    _nd = (_neckline - entry) * 100
+                    _nd = (_neckline - entry) * _dt_pip_mult
                     if -3.0 <= _nd <= 2.0 and entry > float(row["Open"]) and ema9 > ema21:
                         signal = "BUY"
                         _dt_entry_type = "ihs_neckbreak"
@@ -2764,23 +2768,25 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                          key=lambda x: x["price"])
         if _sr_sup:
             s0 = _sr_sup[0]
-            dist_pips = round((entry - s0["price"]) * 100, 1)
+            dist_pips = round((entry - s0["price"]) * _dt_pip_mult, 1)
+            _sr_pdec = 3 if _dt_is_jpy else 5
             sr_entry_map["nearest_support"] = {
-                "price": round(s0["price"], 3), "strength": s0["strength"],
+                "price": round(s0["price"], _sr_pdec), "strength": s0["strength"],
                 "touches": s0["touches"], "is_strong": s0["is_strong"],
                 "type": s0.get("type", "support"),
                 "distance_pips": dist_pips,
-                "action": "BUY反発" if dist_pips < atr * 100 * 0.5 else "待機",
+                "action": "BUY反発" if dist_pips < atr * _dt_pip_mult * 0.5 else "待機",
             }
         if _sr_res:
             r0 = _sr_res[0]
-            dist_pips = round((r0["price"] - entry) * 100, 1)
+            dist_pips = round((r0["price"] - entry) * _dt_pip_mult, 1)
+            _sr_pdec = 3 if _dt_is_jpy else 5
             sr_entry_map["nearest_resistance"] = {
-                "price": round(r0["price"], 3), "strength": r0["strength"],
+                "price": round(r0["price"], _sr_pdec), "strength": r0["strength"],
                 "touches": r0["touches"], "is_strong": r0["is_strong"],
                 "type": r0.get("type", "resistance"),
                 "distance_pips": dist_pips,
-                "action": "SELL反発" if dist_pips < atr * 100 * 0.5 else "待機",
+                "action": "SELL反発" if dist_pips < atr * _dt_pip_mult * 0.5 else "待機",
             }
         # 現在価格のゾーン判定
         if _sr_sup and _sr_res:
@@ -2835,7 +2841,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             pass
 
     return {
-        "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
+        "timestamp": ts_str, "symbol": (symbol.replace("=X","")[:3] + "/" + symbol.replace("=X","")[3:]) if symbol else "USD/JPY", "tf": tf,
         "entry": _rp(entry, symbol), "signal": signal, "confidence": conf,
         "sl": sl, "tp": tp, "rr_ratio": rr, "atr": _rp(atr, symbol),
         "session": session, "htf_bias": htf, "swing_mode": tf in ("1h","4h","1d"),
@@ -3599,7 +3605,7 @@ def compute_swing_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         session = get_session_info()
     ts_str  = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
     return {
-        "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
+        "timestamp": ts_str, "symbol": (symbol.replace("=X","")[:3] + "/" + symbol.replace("=X","")[3:]) if symbol else "USD/JPY", "tf": tf,
         "entry": _rp(entry, symbol), "signal": signal, "confidence": conf,
         "sl": sl, "tp": tp, "rr_ratio": rr, "atr": _rp(atr, symbol),
         "session": session, "htf_bias": htf, "swing_mode": True,
@@ -4259,7 +4265,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
     BT固有: SL/TP simulation, trade tracking, entry cooldown
     """
     global _scalp_bt_cache
-    cache_key = f"{interval}_{lookback_days}"
+    cache_key = f"{symbol}_{interval}_{lookback_days}"
     now = datetime.now()
     if _df_override is None:
         cached = _scalp_bt_cache.get(cache_key)
@@ -4354,7 +4360,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             # Bar range filter
             bar_range = float(row["High"]) - float(row["Low"])
-            if bar_range < 0.008:
+            _min_bar_range_sc = 0.008 if "JPY" in symbol.upper() else 0.00008
+            if bar_range < _min_bar_range_sc:
                 continue
 
             # ── 本番環境と統一: compute_scalp_signalを呼び出し ──
@@ -4455,7 +4462,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             tp_dist = abs(tp - ep)
             MIN_RR_BT = 1.2
             sl_dist = tp_dist / MIN_RR_BT
-            MIN_SL_DIST_BT = 0.030  # 3 pip最低保証
+            _is_jpy_bt = "JPY" in symbol.upper()
+            MIN_SL_DIST_BT = 0.030 if _is_jpy_bt else 0.00030  # 3 pip最低保証
             sl_dist = max(sl_dist, MIN_SL_DIST_BT)
 
             # ── SL狩り対策②: セッション遷移時SLワイドニング ──
@@ -4695,7 +4703,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
     BT固有: SL/TP simulation, trade tracking, entry cooldown
     """
     global _dt_bt_cache
-    cache_key = f"{interval}_{lookback_days}"
+    cache_key = f"{symbol}_{interval}_{lookback_days}"
     now = datetime.now()
     cached = _dt_bt_cache.get(cache_key)
     if cached and (now - cached["ts"]).total_seconds() < DT_BT_TTL:
@@ -4772,9 +4780,13 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 if vol > 0 and vol < 100:
                     continue
 
-            # Bar range filter (timeframe別)
+            # Bar range filter (timeframe別・通貨ペア別)
             bar_range = float(row["High"]) - float(row["Low"])
-            _min_bar_range = 0.030 if interval == "1h" else 0.010
+            _is_jpy_br = "JPY" in symbol.upper()
+            if _is_jpy_br:
+                _min_bar_range = 0.030 if interval == "1h" else 0.010
+            else:
+                _min_bar_range = 0.00030 if interval == "1h" else 0.00010
             if bar_range < _min_bar_range:
                 continue
 
@@ -4859,7 +4871,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             tp_dist_dt = abs(tp - ep)
             MIN_RR_DT = 1.2
             sl_dist_dt = tp_dist_dt / MIN_RR_DT
-            MIN_SL_DIST_DT = 0.030  # 3 pip最低保証（0.2pipスプレッド対応）
+            _is_jpy_dt = "JPY" in symbol.upper()
+            MIN_SL_DIST_DT = 0.030 if _is_jpy_dt else 0.00030
             sl_dist_dt = max(sl_dist_dt, MIN_SL_DIST_DT)
 
             # ── SL狩り対策②: セッション遷移時SLワイドニング ──
@@ -4902,14 +4915,16 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 _dt_tp_dist_total = abs(tp - ep)
                 if sig == "BUY":
                     _dt_progress = hi - ep
+                    _be_offset = 0.002 if "JPY" in symbol.upper() else 0.00002
                     if _dt_progress >= _dt_tp_dist_total * 0.4:  # 60%→40% (早期BE化)
                         _dt_be_activated = True
-                        _dt_current_sl = max(_dt_current_sl, ep + 0.002)  # BE+0.2pip
+                        _dt_current_sl = max(_dt_current_sl, ep + _be_offset)  # BE+0.2pip
                 else:
+                    _be_offset = 0.002 if "JPY" in symbol.upper() else 0.00002
                     _dt_progress = ep - lo
                     if _dt_progress >= _dt_tp_dist_total * 0.4:  # 60%→40%
                         _dt_be_activated = True
-                        _dt_current_sl = min(_dt_current_sl, ep - 0.002)  # BE+0.2pip
+                        _dt_current_sl = min(_dt_current_sl, ep - _be_offset)  # BE+0.2pip
 
                 # ── Time-decay SL tightening: MAX_HOLD×50%経過後 ──
                 if j >= int(MAX_HOLD * 0.5):  # 60%→50% (早期利確保護)
@@ -5073,7 +5088,7 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
     ゾーン内リバーサルシグナルでエントリー。
     """
     global _1h_bt_cache
-    cache_key = f"{interval}_{lookback_days}"
+    cache_key = f"{symbol}_{interval}_{lookback_days}"
     now = datetime.now()
     cached = _1h_bt_cache.get(cache_key)
     if cached and (now - cached["ts"]).total_seconds() < _1H_BT_TTL:
@@ -5167,9 +5182,10 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
                 if vol > 0 and vol < 100:
                     continue
 
-            # Bar range filter
+            # Bar range filter（通貨ペア別）
             bar_range = float(row["High"]) - float(row["Low"])
-            if bar_range < 0.030:
+            _min_br_1h = 0.030 if "JPY" in symbol.upper() else 0.00030
+            if bar_range < _min_br_1h:
                 continue
 
             # ── Call compute_1h_zone_signal ──
@@ -5229,7 +5245,8 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
             sl = sig_result.get("sl", ep)
             sl = sl + ep_shift
             sl_dist = abs(ep - sl)
-            MIN_SL_DIST = 0.030
+            _is_jpy_1h = "JPY" in symbol.upper()
+            MIN_SL_DIST = 0.030 if _is_jpy_1h else 0.00030
             sl_dist = max(sl_dist, MIN_SL_DIST)
 
             # ── SL狩り対策②: セッション遷移時SLワイドニング ──
@@ -6621,6 +6638,10 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                               htf_cache: dict = None) -> dict:
     """v2 スキャルプ: 4戦略レジーム選択型"""
 
+    # ── 通貨ペア判定 ──
+    _sc_is_jpy = "JPY" in symbol.upper()
+    _sc_pip_mult = 100 if _sc_is_jpy else 10000
+
     # ── Layer 0/1/2/3: 共通前処理 ──
     layer0 = is_trade_prohibited(df, bar_time=bar_time)
     if backtest_mode and htf_cache and "layer1" in htf_cache:
@@ -6697,7 +6718,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         atr_s = atr7 if atr7 > 0 else atr
         ts_str = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
         return {
-            "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
+            "timestamp": ts_str, "symbol": (symbol.replace("=X","")[:3] + "/" + symbol.replace("=X","")[3:]) if symbol else "USD/JPY", "tf": tf,
             "entry": _rp(entry, symbol), "signal": sig, "confidence": conf,
             "ml_confidence": get_ml_confidence(df, len(df) - 1, sig),
             "sl": _rp(sl_v, symbol), "tp": _rp(tp_v, symbol), "rr_ratio": rr_v,
@@ -6803,7 +6824,8 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                     _mr_reasons.append("✅ MACD-H反転上昇（モメンタム消耗→回復）")
             # TP = ATRベース（BB midband TPは小さすぎる→ATRで拡大）
             _mr_tp = entry + atr7 * (2.0 if _tier1 else 1.5)  # Tier2: 1.5維持(平均回帰はBB中央が限界)
-            _mr_sl_dist = max(abs(entry - bb_lower) + atr7 * 0.3, 0.030)
+            _min_sl_bb = 0.030 if "JPY" in symbol.upper() else 0.00030
+            _mr_sl_dist = max(abs(entry - bb_lower) + atr7 * 0.3, _min_sl_bb)
             _mr_sl = entry - _mr_sl_dist
 
         # SELL判定
@@ -6829,7 +6851,8 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                     _mr_score += 0.6
                     _mr_reasons.append("✅ MACD-H反転下落（モメンタム消耗→回復）")
             _mr_tp = entry - atr7 * (2.0 if _tier1 else 1.5)  # Tier2: 1.5維持(平均回帰はBB中央が限界)
-            _mr_sl_dist = max(abs(bb_upper - entry) + atr7 * 0.3, 0.030)
+            _min_sl_bb = 0.030 if "JPY" in symbol.upper() else 0.00030
+            _mr_sl_dist = max(abs(bb_upper - entry) + atr7 * 0.3, _min_sl_bb)
             _mr_sl = entry + _mr_sl_dist
 
         if _mr_signal:
@@ -7264,7 +7287,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         # 10バーモメンタム（トレンド継続中は逆張り禁止）
         _tr_momentum = 0
         if len(df) >= 10:
-            _tr_momentum = (entry - float(df["Close"].iloc[-10])) * 100  # pip
+            _tr_momentum = (entry - float(df["Close"].iloc[-10])) * _sc_pip_mult  # pip
 
         # ── 下降トレンド中のBUYリバウンド ──
         # 改良: ema9<ema21(下降確認) + モメンタム上昇してない + 閾値強化
@@ -7351,14 +7374,14 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 _sr_strength = _sr.get("strength", 0.5) if isinstance(_sr, dict) else 0.5
                 _sr_type = _sr.get("type", "both") if isinstance(_sr, dict) else "both"
 
-                _sr_dist = abs(entry - _sr_price) * 100  # pip
-                if _sr_dist > atr7 * 100 * 0.4:  # ATRの40%以内
+                _sr_dist = abs(entry - _sr_price) * _sc_pip_mult  # pip
+                if _sr_dist > atr7 * _sc_pip_mult * 0.4:  # ATRの40%以内
                     continue
                 if _sr_touches < 2:
                     continue
 
                 # Support touch → BUY
-                if entry > _sr_price and _sr_dist < atr7 * 100 * 0.3:
+                if entry > _sr_price and _sr_dist < atr7 * _sc_pip_mult * 0.3:
                     if (_sr_type in ("support", "both")
                             and entry > float(row["Open"])  # 陽線確認
                             and rsi > 35 and rsi < 60       # 売られすぎではないがまだ余地
@@ -7385,7 +7408,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                         break
 
                 # Resistance touch → SELL
-                elif entry < _sr_price and _sr_dist < atr7 * 100 * 0.3:
+                elif entry < _sr_price and _sr_dist < atr7 * _sc_pip_mult * 0.3:
                     if (_sr_type in ("resistance", "both")
                             and entry < float(row["Open"])  # 陰線確認
                             and rsi > 40 and rsi < 65
@@ -7948,7 +7971,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     # ── SL/TP最終調整: 最低距離保証 + RR保証 ──
     sl_dist = abs(entry - sl)
     tp_dist = abs(tp - entry)
-    MIN_SL = 0.030  # 3 pip最低
+    MIN_SL = 0.030 if "JPY" in symbol.upper() else 0.00030  # 3 pip最低
     if sl_dist < MIN_SL:
         sl = entry - MIN_SL if signal == "BUY" else entry + MIN_SL
         sl_dist = MIN_SL
@@ -8026,7 +8049,7 @@ def _compute_scalp_signal_v1_legacy(df: pd.DataFrame, tf: str, sr_levels: list,
         session   = get_session_info()
         ts_str    = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
         return {
-            "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
+            "timestamp": ts_str, "symbol": (symbol.replace("=X","")[:3] + "/" + symbol.replace("=X","")[3:]) if symbol else "USD/JPY", "tf": tf,
             "entry": _rp(entry, symbol), "signal": "WAIT", "confidence": 0,
             "sl": _rp(entry - atr * 0.5, symbol), "tp": _rp(entry + atr * 0.9, symbol),
             "rr_ratio": 1.8, "atr": _rp(atr, symbol),
@@ -8053,7 +8076,7 @@ def _compute_scalp_signal_v1_legacy(df: pd.DataFrame, tf: str, sr_levels: list,
         atr_scalp = float(df["atr7"].iloc[-1]) if "atr7" in df.columns else atr
         ts_str = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
         return {
-            "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
+            "timestamp": ts_str, "symbol": (symbol.replace("=X","")[:3] + "/" + symbol.replace("=X","")[3:]) if symbol else "USD/JPY", "tf": tf,
             "entry": _rp(entry, symbol), "signal": "WAIT", "confidence": 0,
             "sl": _rp(entry - atr * 0.5, symbol), "tp": _rp(entry + atr * 0.9, symbol),
             "rr_ratio": 1.8, "atr": _rp(atr, symbol),
@@ -8111,14 +8134,16 @@ def _compute_scalp_signal_v1_legacy(df: pd.DataFrame, tf: str, sr_levels: list,
 
             if signal != "WAIT":
                 entry_tok = float(row["Close"])
-                spread = 0.002
+                _is_jpy_tok = "JPY" in symbol.upper()
+                spread = 0.002 if _is_jpy_tok else 0.00002
                 entry_tok = entry_tok + spread / 2 if signal == "BUY" else entry_tok - spread / 2
 
                 # 本番分析: tokyo_bbのSLスリッページが最悪(+8.4p超過)
                 # SL拡大: 0.6→1.2×ATR + 最低3pipsバッファ（低流動性対策）
                 sl_mult = 1.2
                 sl_raw = atr7_tok * sl_mult
-                sl_raw = max(sl_raw, 0.03)  # 最低3pips
+                _min_sl_tok = 0.03 if _is_jpy_tok else 0.00030
+                sl_raw = max(sl_raw, _min_sl_tok)  # 最低3pips
                 sl_tok = entry_tok - sl_raw if signal == "BUY" else entry_tok + sl_raw
 
                 # TP: BB middle band (mean reversion target)
@@ -8634,7 +8659,7 @@ def _compute_scalp_signal_v1_legacy(df: pd.DataFrame, tf: str, sr_levels: list,
 
     ts_str = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
     return {
-        "timestamp": ts_str, "symbol": "USD/JPY", "tf": tf,
+        "timestamp": ts_str, "symbol": (symbol.replace("=X","")[:3] + "/" + symbol.replace("=X","")[3:]) if symbol else "USD/JPY", "tf": tf,
         "entry": _rp(entry, symbol), "signal": signal, "confidence": conf,
         "ml_confidence": get_ml_confidence(df, len(df)-1, signal),
         "sl": sl, "tp": tp, "rr_ratio": rr, "atr": _rp(atr, symbol),

@@ -170,15 +170,8 @@ class DemoTrader:
         self._trade_high_water = {}     # trade_id -> max favorable price（BE/トレーリング用）
         # ── SL狩り対策: クロス戦略カスケード防御 + Fast-SL検出 ──
         self._sl_hit_history = []       # [(timestamp, instrument, entry_type, hold_sec)] SL_HIT履歴
-        # ── MTF連携: 15m DT → 1m Scalp 戦略バイアス ──
-        self._15m_tactical_bias = {
-            "direction": None,       # "BUY" | "SELL" | None
-            "entry_type": None,      # "hs_neckbreak", "ihs_neckbreak", etc.
-            "confidence": 0,
-            "updated_at": None,      # datetime
-            "signal_price": 0,       # シグナル発生時の価格
-            "strength": None,        # "strong" | "trend" | None
-        }
+        # ── MTF連携: 15m DT → 1m Scalp 戦略バイアス（通貨ペア別）──
+        self._15m_tactical_bias = {}  # {instrument: {direction, entry_type, ...}}
         # 起動済みモード追跡（ヘルスチェッカー用）
         self._started_modes = set()
         self._user_stopped_modes = set()  # 明示的にstop()されたモード（ウォッチドッグ対象外）
@@ -352,19 +345,20 @@ class DemoTrader:
         except Exception:
             log_count = 0
 
-        # MTFバイアス情報
+        # MTFバイアス情報（通貨ペア別）
         with self._lock:
-            _bias = dict(self._15m_tactical_bias)
-        _bias_info = None
-        if _bias["direction"] and _bias["updated_at"]:
-            _age = (datetime.now(timezone.utc) - _bias["updated_at"]).total_seconds()
-            _bias_info = {
-                "direction": _bias["direction"],
-                "entry_type": _bias["entry_type"],
-                "strength": _bias.get("strength", ""),
-                "age_sec": int(_age),
-                "active": _age < 3600,
-            }
+            _all_bias = dict(self._15m_tactical_bias)
+        _bias_info = {}
+        for _bi_inst, _bias in _all_bias.items():
+            if _bias.get("direction") and _bias.get("updated_at"):
+                _age = (datetime.now(timezone.utc) - _bias["updated_at"]).total_seconds()
+                _bias_info[_bi_inst] = {
+                    "direction": _bias["direction"],
+                    "entry_type": _bias["entry_type"],
+                    "strength": _bias.get("strength", ""),
+                    "age_sec": int(_age),
+                    "active": _age < 3600,
+                }
 
         return {
             "running": self.is_running(),
@@ -538,8 +532,9 @@ class DemoTrader:
                 _check_count += 1
                 restored = []
 
-                # 全4モードを強制チェック（_started_modesに依存しない）
-                _all_modes = ["scalp", "daytrade", "daytrade_1h", "swing"]
+                # 全モードを強制チェック（EUR含む）
+                _all_modes = ["scalp", "daytrade", "daytrade_1h", "swing",
+                              "scalp_eur", "daytrade_eur"]
                 for m in _all_modes:
                     if m in self._user_stopped_modes:
                         continue  # ユーザーが明示的に停止したモードはスキップ
@@ -1323,7 +1318,7 @@ class DemoTrader:
             if _dt_etype in _strong_patterns or _dt_etype in _trend_patterns:
                 _bias_strength = "strong" if _dt_etype in _strong_patterns else "trend"
                 with self._lock:
-                    self._15m_tactical_bias = {
+                    self._15m_tactical_bias[instrument] = {
                         "direction": signal,
                         "entry_type": _dt_etype,
                         "confidence": sig.get("confidence", 0),
@@ -1626,7 +1621,7 @@ class DemoTrader:
         # DT/1H/swingのみMTFバイアス適用
         if _base_mode != "scalp":
             with self._lock:
-                _bias_snapshot = dict(self._15m_tactical_bias)
+                _bias_snapshot = dict(self._15m_tactical_bias.get(instrument, {}))
             if _bias_snapshot.get("direction"):
                 _bias = _bias_snapshot
                 _bias_age = (datetime.now(timezone.utc) - _bias["updated_at"]).total_seconds() if _bias["updated_at"] else 99999
@@ -1897,6 +1892,8 @@ class DemoTrader:
         cfg = MODE_CONFIG.get(mode, {})
         direction = trade["direction"]
         trade_id = trade["trade_id"]
+        _instrument_sr = cfg.get("instrument", "USD_JPY")
+        _price_fmt = ".3f" if "JPY" in _instrument_sr else ".5f"
 
         # 最低保持時間チェック（scalp:3分, daytrade:10分, swing:1時間）
         _base_mode_sr = mode.replace("_eur", "")
@@ -1948,7 +1945,7 @@ class DemoTrader:
 
             self._add_log(
                 f"{cfg.get('icon','')} 📤 OUT [{cfg.get('label','?')}]: {icon} {outcome} | "
-                f"{direction} @ {trade['entry_price']:.3f} → {_close_price:.3f} | "
+                f"{direction} @ {trade['entry_price']:{_price_fmt}} → {_close_price:{_price_fmt}} | "
                 f"PnL: {pnl:+.1f} pips | "
                 f"Reason: {close_reason} | ID: {trade_id}"
             )
@@ -1957,7 +1954,7 @@ class DemoTrader:
             if outcome != "WIN":
                 self._last_exit[mode] = {
                     "price": trade["entry_price"],
-                    "exit_price": current_price,
+                    "exit_price": _close_price,
                     "time": datetime.now(timezone.utc),
                     "direction": direction,
                     "reason": close_reason,
