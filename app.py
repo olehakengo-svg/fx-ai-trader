@@ -10375,6 +10375,74 @@ def api_oanda_equity():
     })
 
 
+@app.route("/api/oanda/live")
+def api_oanda_live():
+    """OANDAからリアルタイムデータ取得（DB経由せず直接API）
+    口座情報 + オープンポジション + 現在価格を一括返却
+    """
+    bridge = _demo_trader._oanda
+    client = bridge._client
+    if not client.configured:
+        return jsonify({"error": "OANDA not configured"})
+
+    result = {"ts": datetime.now(timezone.utc).isoformat()}
+
+    # Account info (includes open trades)
+    ok, data = client.get_account()
+    if ok:
+        acct = data.get("account", data)
+        result["account"] = {
+            "balance": acct.get("balance", "0"),
+            "nav": acct.get("NAV", "0"),
+            "unrealized_pl": acct.get("unrealizedPL", "0"),
+            "margin_used": acct.get("marginUsed", "0"),
+            "margin_available": acct.get("marginAvailable", "0"),
+            "open_trade_count": acct.get("openTradeCount", 0),
+            "pl": acct.get("pl", "0"),
+        }
+        # Parse open trades from account data
+        open_trades = []
+        for t in acct.get("trades", []):
+            units = float(t.get("currentUnits", 0))
+            open_trades.append({
+                "id": t.get("id", ""),
+                "instrument": t.get("instrument", "USD_JPY"),
+                "direction": "BUY" if units > 0 else "SELL",
+                "units": abs(units),
+                "open_price": float(t.get("price", 0)),
+                "unrealized_pl": float(t.get("unrealizedPL", 0)),
+                "open_time": t.get("openTime", ""),
+                "sl_order_id": t.get("stopLossOrderID", ""),
+                "tp_order_id": t.get("takeProfitOrderID", ""),
+            })
+        # Attach SL/TP from orders
+        orders = {o["id"]: o for o in acct.get("orders", []) if "price" in o}
+        for ot in open_trades:
+            if ot["sl_order_id"] in orders:
+                ot["stop_loss"] = float(orders[ot["sl_order_id"]]["price"])
+            if ot["tp_order_id"] in orders:
+                ot["take_profit"] = float(orders[ot["tp_order_id"]]["price"])
+        result["open_trades"] = open_trades
+    else:
+        result["account"] = {}
+        result["open_trades"] = []
+        result["error"] = str(data)
+
+    # Current price
+    ok2, price_data = client.get_price("USD_JPY")
+    if ok2:
+        prices = price_data.get("prices", [])
+        if prices:
+            p = prices[0]
+            result["price"] = {
+                "bid": float(p.get("bids", [{}])[0].get("price", 0)),
+                "ask": float(p.get("asks", [{}])[0].get("price", 0)),
+                "time": p.get("time", ""),
+            }
+
+    return jsonify(result)
+
+
 @app.route("/oanda-analysis")
 def oanda_analysis_page():
     return render_template("oanda_analysis.html")

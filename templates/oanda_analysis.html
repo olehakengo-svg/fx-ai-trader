@@ -70,13 +70,15 @@ tr:hover{background:rgba(255,255,255,.02)}
 
   <!-- Account Info -->
   <div class="card">
-    <div class="card-title">🏦 アカウント情報</div>
+    <div class="card-title">🏦 アカウント情報 <span id="live-indicator" style="margin-left:auto;font-size:9px;color:var(--green)">● LIVE</span></div>
     <div class="acct-grid" id="acct-info">
       <div class="acct-item"><div class="acct-label">Balance</div><div class="acct-val" id="a-balance">—</div></div>
       <div class="acct-item"><div class="acct-label">NAV</div><div class="acct-val" id="a-nav">—</div></div>
       <div class="acct-item"><div class="acct-label">未実現P/L</div><div class="acct-val" id="a-upl">—</div></div>
+      <div class="acct-item"><div class="acct-label">確定P/L</div><div class="acct-val" id="a-rpl">—</div></div>
       <div class="acct-item"><div class="acct-label">証拠金使用率</div><div class="acct-val" id="a-margin">—</div></div>
       <div class="acct-item"><div class="acct-label">Open Trades</div><div class="acct-val" id="a-open">—</div></div>
+      <div class="acct-item"><div class="acct-label">Bid / Ask</div><div class="acct-val" id="a-price" style="font-size:14px">—</div></div>
     </div>
   </div>
 
@@ -183,30 +185,69 @@ async function syncTrades(all=false){
   }catch(e){el.textContent='同期エラー';console.error(e)}
 }
 
-// ── Account Info ──
-async function loadAccount(){
+// ── Live Data (Account + Open Positions + Price — direct from OANDA API) ──
+let _liveFetching=false;
+async function loadLive(){
+  if(_liveFetching)return;
+  _liveFetching=true;
   try{
-    const r=await fetch('/api/oanda/status');
+    const r=await fetch('/api/oanda/live');
     const d=await r.json();
-    if(!d.active){
+    if(d.error){
       document.getElementById('a-balance').textContent='未接続';
-      return;
+      _liveFetching=false;return;
     }
-    // account data may be nested: d.account.account (OANDA full response)
-    const raw=d.account||{};
-    const a=raw.account||raw;
+    // ── Account ──
+    const a=d.account||{};
     document.getElementById('a-balance').textContent=_fmt(a.balance,0)+'円';
-    document.getElementById('a-nav').textContent=_fmt(a.NAV||a.nav,0)+'円';
-    const upl=parseFloat(a.unrealizedPL||a.unrealized_pl||0);
+    document.getElementById('a-nav').textContent=_fmt(a.nav,0)+'円';
+    const upl=parseFloat(a.unrealized_pl||0);
     document.getElementById('a-upl').textContent=_fmt(upl,0)+'円';
     document.getElementById('a-upl').style.color=_plColor(upl);
-    // margin usage percentage
-    const marginUsed=parseFloat(a.marginUsed||0);
-    const nav=parseFloat(a.NAV||a.nav||1);
+    const rpl=parseFloat(a.pl||0);
+    document.getElementById('a-rpl').textContent=_fmt(rpl,0)+'円';
+    document.getElementById('a-rpl').style.color=_plColor(rpl);
+    const marginUsed=parseFloat(a.margin_used||0);
+    const nav=parseFloat(a.nav||1);
     const marginPct=nav>0?(marginUsed/nav*100):0;
     document.getElementById('a-margin').textContent=_fmt(marginPct,1)+'%';
-    document.getElementById('a-open').textContent=a.openTradeCount||a.open_trades||'0';
-  }catch(e){console.error('Account error:',e)}
+    document.getElementById('a-open').textContent=a.open_trade_count||'0';
+
+    // ── Price ──
+    if(d.price){
+      document.getElementById('a-price').textContent=
+        Number(d.price.bid).toFixed(3)+' / '+Number(d.price.ask).toFixed(3);
+    }
+
+    // ── Live indicator pulse ──
+    const li=document.getElementById('live-indicator');
+    li.style.opacity='1';
+    setTimeout(()=>{li.style.opacity='0.5'},500);
+
+    // ── Open Positions (real-time from OANDA API) ──
+    const tbody=document.getElementById('open-tbody');
+    const trades=d.open_trades||[];
+    if(!trades.length){
+      tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--t3)">オープンポジションなし</td></tr>';
+    } else {
+      tbody.innerHTML=trades.map(t=>{
+        const dirCls=t.direction==='BUY'?'tag-buy':'tag-sell';
+        const upl=parseFloat(t.unrealized_pl||0);
+        return `<tr>
+          <td>${_h(t.id)}</td>
+          <td>${_h(t.instrument)}</td>
+          <td class="${dirCls}">${t.direction}</td>
+          <td>${_fmt(t.units,0)}</td>
+          <td>${_fmt(t.open_price,3)}</td>
+          <td>${t.stop_loss?_fmt(t.stop_loss,3):'—'}</td>
+          <td>${t.take_profit?_fmt(t.take_profit,3):'—'}</td>
+          <td style="color:${_plColor(upl)};font-weight:700">${_fmt(upl,0)}円</td>
+          <td>${_fmtTime(t.open_time)}</td>
+        </tr>`;
+      }).join('');
+    }
+  }catch(e){console.error('Live error:',e)}
+  _liveFetching=false;
 }
 
 // ── Stats ──
@@ -270,32 +311,6 @@ async function loadEquity(){
     }).filter(p=>p.time>0);
     if(pts.length&&equitySeries)equitySeries.setData(pts);
   }catch(e){console.error('Equity error:',e)}
-}
-
-// ── Open Positions ──
-async function loadOpenPositions(){
-  try{
-    const r=await fetch('/api/oanda/trades?state=open');
-    const d=await r.json();
-    const tbody=document.getElementById('open-tbody');
-    const trades=d.trades||[];
-    if(!trades.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--t3)">オープンポジションなし</td></tr>';return}
-    tbody.innerHTML=trades.map(t=>{
-      const dirCls=t.direction==='BUY'?'tag-buy':'tag-sell';
-      const upl=parseFloat(t.unrealized_pl||0);
-      return `<tr>
-        <td>${_h(t.oanda_trade_id)}</td>
-        <td>${_h(t.instrument)}</td>
-        <td class="${dirCls}">${t.direction}</td>
-        <td>${_fmt(t.current_units,0)}</td>
-        <td>${_fmt(t.open_price,3)}</td>
-        <td>${t.stop_loss?_fmt(t.stop_loss,3):'—'}</td>
-        <td>${t.take_profit?_fmt(t.take_profit,3):'—'}</td>
-        <td style="color:${_plColor(upl)};font-weight:700">${_fmt(upl,0)}円</td>
-        <td>${_fmtTime(t.open_time)}</td>
-      </tr>`;
-    }).join('');
-  }catch(e){console.error('Open positions error:',e)}
 }
 
 // ── Trade History ──
@@ -367,10 +382,9 @@ function clearFilter(){
 }
 
 function loadAll(){
-  loadAccount();
+  loadLive();
   loadStats();
   loadEquity();
-  loadOpenPositions();
   loadTrades();
 }
 
@@ -379,12 +393,9 @@ document.addEventListener('DOMContentLoaded',()=>{
   initCharts();
   // Auto-sync on first load
   syncTrades(false).then(()=>loadAll());
-  // Auto-refresh every 30 seconds
-  setInterval(()=>{
-    loadAccount();
-    loadOpenPositions();
-  },30000);
-  // Stats refresh every 60 seconds
+  // Live data: every 5 seconds (account, positions, price — direct from OANDA API)
+  setInterval(loadLive, 5000);
+  // Stats + equity: every 60 seconds (DB-based, no need for frequent refresh)
   setInterval(()=>{
     loadStats();
     loadEquity();
