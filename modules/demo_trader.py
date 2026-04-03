@@ -137,7 +137,7 @@ class DemoTrader:
         # チューナブルパラメータ（学習エンジンが調整、全モード共通）
         self._params = {
             "confidence_threshold": 30,  # デモ: 30%（学習データ蓄積優先、本番は40推奨）
-            "max_open_trades": 20,
+            "max_open_trades": 6,  # 全モード合計上限（20→6: リスク集中防止）
             "sl_adjust": 1.0,
             "tp_adjust": 1.0,
             "entry_type_blacklist": [],
@@ -836,9 +836,9 @@ class DemoTrader:
 
             # ══════════════════════════════════════════════════════════════
             # ── ブレイクイーブン + 連続トレーリングストップ ──
-            # 50% TP到達 → SLをエントリー価格に移動（BE）
-            # BE後 → SLをTP距離の30%幅でトレーリング（≒0.8-0.9 ATR）
-            # BT 1H Zone: +26→+45 pip/day の主因
+            # 70% TP到達 → SLをエントリー価格に移動（BE）
+            # BE後 → SLをTP距離の40%幅でトレーリング
+            # 旧50%/30%ではTP到達前にBE+αで刈られていた（WIN avg+1.2pip）
             # ══════════════════════════════════════════════════════════════
             tp_dist = abs(tp - entry_price)
             if direction == "BUY":
@@ -850,9 +850,9 @@ class DemoTrader:
             if favorable_move > 0 and tp_dist > 0:
                 progress = favorable_move / tp_dist  # 0.0 ~ 1.0+
 
-                if progress >= 0.50:
-                    # 50%到達: BE + トレーリング開始
-                    _trail_dist = tp_dist * 0.30  # TP距離の30% ≒ 0.8-0.9 ATR
+                if progress >= 0.70:
+                    # 70%到達: BE + トレーリング開始（50%→70%: 利益をもっと伸ばす）
+                    _trail_dist = tp_dist * 0.40  # TP距離の40%（30%→40%: ノイズ耐性UP）
                     if direction == "BUY":
                         # まずBE
                         new_sl = max(entry_price, price - _trail_dist)
@@ -1336,9 +1336,9 @@ class DemoTrader:
             if abs(t["entry_price"] - current_price) < _same_price_dist:
                 _block(f"same_price_{_same_price_dist*100:.0f}pip"); return
         # (B) 同方向ポジション上限（モード別）
-        # scalp: 2→3 (好調なので増), DT: 5→2 (マシンガン防止)
-        _dir_limits = {"scalp": 3, "daytrade": 3, "daytrade_1h": 2, "swing": 2}  # DT: 2→3(HTFフィルター済み)
-        _max_same_dir = _dir_limits.get(_base_mode, 2)
+        # 同時6本→SL連打の根本原因。全モード1本に制限
+        _dir_limits = {"scalp": 1, "daytrade": 1, "daytrade_1h": 1, "swing": 1}
+        _max_same_dir = _dir_limits.get(_base_mode, 1)
         _same_dir_count = sum(1 for t in mode_trades if t.get("direction") == signal)
         if _same_dir_count >= _max_same_dir:
             _block("same_dir_limit"); return
@@ -1422,21 +1422,50 @@ class DemoTrader:
         if entry_type in self._params["entry_type_blacklist"]:
             _block(f"blacklisted:{entry_type}"); return
 
-        # ── SL後クールダウン ──
+        # ── SL後クールダウン（強化版）──
+        # OANDA実績: SL後の次トレードWR=35% → SL後は必ず間を空ける
         last_ex = self._last_exit.get(mode)
         if last_ex:
-            _cooldown_sec = {"scalp": 60, "daytrade": 300, "daytrade_1h": 1800, "swing": 7200}.get(_base_mode, 120)  # DT: 600→300s(HTFフィルター済みで頻度増)
             _ex_age = (datetime.now(timezone.utc) - last_ex["time"]).total_seconds()
+            _was_sl = last_ex.get("outcome") == "LOSS"
+
+            # (1) 基本クールダウン: 全決済後に最低間隔
+            _cooldown_sec = {"scalp": 300, "daytrade": 600, "daytrade_1h": 1800, "swing": 7200}.get(_base_mode, 300)
             if _ex_age < _cooldown_sec:
                 if last_ex["direction"] == signal:
                     _block(f"cooldown_same_dir({int(_ex_age)}s)"); return
-                if abs(last_ex["price"] - current_price) < 0.05:
+                _zone_dist = 0.05 if _is_jpy else 0.00050
+                if abs(last_ex["price"] - current_price) < _zone_dist:
                     _block(f"cooldown_same_zone({int(_ex_age)}s)"); return
-            # LOSS後の同価格帯再エントリー防止（DT: 同価格帯で10pip以内 + 30分間）
-            if last_ex.get("outcome") == "LOSS" and mode == "daytrade":
-                _loss_cooldown = 1800  # 30分
-                if _ex_age < _loss_cooldown and abs(last_ex["price"] - current_price) < 0.10:
+
+            # (2) SL後の強化クールダウン: 同方向は10分、逆方向でも5分
+            if _was_sl:
+                _sl_cooldown_same = {"scalp": 600, "daytrade": 900, "daytrade_1h": 3600, "swing": 7200}.get(_base_mode, 600)
+                _sl_cooldown_opp = {"scalp": 300, "daytrade": 300, "daytrade_1h": 600, "swing": 3600}.get(_base_mode, 300)
+                if last_ex["direction"] == signal and _ex_age < _sl_cooldown_same:
+                    _block(f"sl_cooldown_same({int(_ex_age)}s)"); return
+                if last_ex["direction"] != signal and _ex_age < _sl_cooldown_opp:
+                    _block(f"sl_cooldown_opp({int(_ex_age)}s)"); return
+
+            # (3) LOSS後の同価格帯再エントリー防止（全モード: 10pip以内 + 30分間）
+            if _was_sl:
+                _loss_zone_dist = 0.10 if _is_jpy else 0.00100
+                if _ex_age < 1800 and abs(last_ex["price"] - current_price) < _loss_zone_dist:
                     _block(f"loss_zone_cooldown({int(_ex_age)}s)"); return
+
+        # ── 最低エントリー間隔（同モード: 5分）──
+        # OANDA実績: 5.9t/h → オーバートレード。3分以内3-4本連打を防止
+        if mode_trades:
+            _newest_entry = max(
+                datetime.fromisoformat(t["entry_time"]).replace(tzinfo=timezone.utc)
+                if datetime.fromisoformat(t["entry_time"]).tzinfo is None
+                else datetime.fromisoformat(t["entry_time"])
+                for t in mode_trades
+            )
+            _entry_age = (datetime.now(timezone.utc) - _newest_entry).total_seconds()
+            _min_interval = {"scalp": 300, "daytrade": 300, "daytrade_1h": 600, "swing": 3600}.get(_base_mode, 300)
+            if _entry_age < _min_interval:
+                _block(f"min_interval({int(_entry_age)}s)"); return
 
         # ── 時間帯×モード別フィルター ──
         # アジア(00-07): レンジ → DT禁止（スキャルプのみ）
@@ -1454,6 +1483,10 @@ class DemoTrader:
                 if hour_now < 3 or hour_now >= 22:
                     _block(f"session_block(h={hour_now})"); return
             # scalp/swingは時間帯制限なし（デモモード: データ蓄積優先）
+            # ── UTC 20-21 全モード制限: OANDA実績で-20.3pip集中帯 ──
+            if 20 <= hour_now <= 21:
+                if _base_mode in ("scalp", "daytrade"):
+                    _block(f"utc2021_block(h={hour_now})"); return
         except Exception:
             pass
 
