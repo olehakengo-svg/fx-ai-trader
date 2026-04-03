@@ -10,6 +10,15 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 
 
+def pip_multiplier(instrument: str = "USD_JPY") -> float:
+    """Pip multiplier for PnL calculation.
+    JPY pairs: ×100 (1 pip = 0.01), Others: ×10000 (1 pip = 0.0001)
+    """
+    if "JPY" in instrument.upper():
+        return 100.0
+    return 10000.0
+
+
 class DemoDB:
     def __init__(self, db_path: str = "demo_trades.db"):
         self._path = db_path
@@ -144,6 +153,11 @@ class DemoDB:
                 conn.execute("ALTER TABLE demo_trades ADD COLUMN oanda_trade_id TEXT DEFAULT ''")
             except Exception:
                 pass
+            # Add instrument column for multi-instrument support
+            try:
+                conn.execute("ALTER TABLE demo_trades ADD COLUMN instrument TEXT DEFAULT 'USD_JPY'")
+            except Exception:
+                pass
 
             # ── OANDA実取引データ保存テーブル ──
             conn.executescript("""
@@ -186,7 +200,7 @@ class DemoDB:
                    reasons: list = None, regime: dict = None,
                    layer1_dir: str = "", score: float = 0.0,
                    ema_conf: int = 0, sr_basis: float = 0.0,
-                   mode: str = "") -> str:
+                   mode: str = "", instrument: str = "USD_JPY") -> str:
         """Record a new trade open. Returns trade_id."""
         trade_id = str(uuid.uuid4())[:12]
         now_str = datetime.now(timezone.utc).isoformat()
@@ -196,13 +210,13 @@ class DemoDB:
                     INSERT INTO demo_trades
                         (trade_id, status, direction, entry_price, entry_time,
                          sl, tp, entry_type, confidence, tf, reasons, regime,
-                         layer1_dir, score, ema_conf, sr_basis, mode)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                         layer1_dir, score, ema_conf, sr_basis, mode, instrument)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (trade_id, "OPEN", direction, entry_price, now_str,
                       sl, tp, entry_type, confidence, tf,
                       json.dumps(reasons or [], ensure_ascii=False),
                       json.dumps(regime or {}, ensure_ascii=False),
-                      layer1_dir, score, ema_conf, sr_basis, mode))
+                      layer1_dir, score, ema_conf, sr_basis, mode, instrument))
                 conn.commit()
         return trade_id
 
@@ -221,16 +235,18 @@ class DemoDB:
                 entry_p = row["entry_price"]
                 direction = row["direction"]
                 sl = row["sl"]
+                instrument = row["instrument"] if "instrument" in row.keys() else "USD_JPY"
                 now_str = datetime.now(timezone.utc).isoformat()
 
-                # PnL計算 (pips: ×100 for JPY pairs)
+                # PnL計算 (pips: ×100 for JPY, ×10000 for others)
+                _pip_mult = pip_multiplier(instrument)
                 if direction == "BUY":
-                    pnl_pips = round((exit_price - entry_p) * 100, 1)
+                    pnl_pips = round((exit_price - entry_p) * _pip_mult, 1)
                 else:
-                    pnl_pips = round((entry_p - exit_price) * 100, 1)
+                    pnl_pips = round((entry_p - exit_price) * _pip_mult, 1)
 
                 sl_dist = abs(entry_p - sl)
-                pnl_r = round(pnl_pips / (sl_dist * 100) if sl_dist > 0 else 0, 2)
+                pnl_r = round(pnl_pips / (sl_dist * _pip_mult) if sl_dist > 0 else 0, 2)
 
                 if pnl_pips > 0.5:
                     outcome = "WIN"
@@ -680,12 +696,17 @@ class DemoDB:
                 else:
                     close_reason = "MARKET_CLOSE"
 
-        # PnL in pips (for USD_JPY: realizedPL / units * 100)
+        # PnL in pips (instrument-aware)
         pnl_pips = 0.0
         if initial_units > 0 and state == "CLOSED":
-            # realizedPL is in JPY. For USD_JPY: 1pip = 0.01 * units
-            # pips = realizedPL / (units * 0.01) = realizedPL / units * 100
-            pnl_pips = round(realized_pl / initial_units * 100, 1)
+            if "JPY" in instrument.upper():
+                # USD_JPY: realizedPL is in JPY. 1pip = 0.01 * units
+                # pips = realizedPL / (units * 0.01) = realizedPL / units * 100
+                pnl_pips = round(realized_pl / initial_units * 100, 1)
+            else:
+                # EUR_USD etc: realizedPL is in USD. 1pip = 0.0001 * units
+                # pips = realizedPL / (units * 0.0001) = realizedPL / units * 10000
+                pnl_pips = round(realized_pl / initial_units * 10000, 1)
 
         raw_json = json.dumps(trade, ensure_ascii=False, default=str)
 

@@ -79,6 +79,7 @@ class OandaBridge:
     def open_trade(self, demo_trade_id: str, direction: str,
                    sl: float, tp: float,
                    mode: str = "",
+                   instrument: str = "USD_JPY",
                    callback=None):
         """Place OANDA market order mirroring a demo trade.
         callback(demo_trade_id, oanda_trade_id) called on success for DB persistence.
@@ -94,6 +95,7 @@ class OandaBridge:
             ok, data = self._client.market_order(
                 side=side,
                 units=self._units,
+                instrument=instrument,
                 stop_loss=sl,
                 take_profit=tp,
             )
@@ -152,7 +154,8 @@ class OandaBridge:
 
     # ── Modify SL ─────────────────────────────────────
 
-    def modify_sl(self, demo_trade_id: str, new_sl: float):
+    def modify_sl(self, demo_trade_id: str, new_sl: float,
+                  instrument: str = "USD_JPY"):
         """Update stop loss on OANDA trade (for trailing stop / BE moves)."""
         if not self.active:
             return
@@ -162,7 +165,8 @@ class OandaBridge:
             return
 
         def _do():
-            ok, data = self._client.modify_trade(oanda_id, stop_loss=new_sl)
+            ok, data = self._client.modify_trade(oanda_id, stop_loss=new_sl,
+                                                  instrument=instrument)
             if ok:
                 logger.info(f"[OandaBridge] MODIFY SL → {new_sl:.3f} "
                             f"OANDA #{oanda_id} (demo={demo_trade_id})")

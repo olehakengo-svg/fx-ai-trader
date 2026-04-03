@@ -42,6 +42,7 @@ _TD_INTERVAL_MAP = {
 _TD_SYMBOL_MAP = {
     "USDJPY=X": "USD/JPY",
     "JPY=X":    "USD/JPY",
+    "EURUSD=X": "EUR/USD",
 }
 # TwelveDataを優先使用するinterval (USD/JPYのみ)
 _TD_INTERVALS = {"1m", "5m", "15m", "30m", "1h"}
@@ -142,6 +143,7 @@ def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
     _SYMBOL_MAP = {
         "USDJPY=X": "C:USDJPY",
         "JPY=X":    "C:USDJPY",
+        "EURUSD=X": "C:EURUSD",
     }
     massive_ticker = _SYMBOL_MAP.get(symbol)
     if not massive_ticker:
@@ -231,7 +233,7 @@ _OANDA_GRANULARITY = {
     "1m": "M1", "5m": "M5", "15m": "M15", "30m": "M30",
     "1h": "H1", "4h": "H4", "1d": "D", "1wk": "W", "1mo": "M",
 }
-_OANDA_SYMBOLS = {"USDJPY=X": "USD_JPY", "JPY=X": "USD_JPY"}
+_OANDA_SYMBOLS = {"USDJPY=X": "USD_JPY", "JPY=X": "USD_JPY", "EURUSD=X": "EUR_USD"}
 
 # OANDA共有クライアント (遅延初期化)
 _oanda_client = None
@@ -424,20 +426,22 @@ def fetch_ohlcv_range(symbol: str, from_time: str, to_time: str,
     return df.dropna()
 
 
-def fetch_oanda_price() -> float:
+def fetch_oanda_price(instrument: str = "USD_JPY") -> float:
     """OANDAからリアルタイム価格(mid)を取得。失敗時は0を返す。"""
     client = _get_oanda_client()
     if not client or not client.configured:
         return 0
     try:
-        ok, data = client.get_price("USD_JPY")
+        ok, data = client.get_price(instrument)
         if ok:
             prices = data.get("prices", [])
             if prices:
                 bid = float(prices[0].get("bids", [{}])[0].get("price", 0))
                 ask = float(prices[0].get("asks", [{}])[0].get("price", 0))
                 if bid > 0 and ask > 0:
-                    return round((bid + ask) / 2, 3)
+                    # JPYペアは3桁、それ以外は5桁
+                    decimals = 3 if "JPY" in instrument else 5
+                    return round((bid + ask) / 2, decimals)
     except Exception:
         pass
     return 0
@@ -452,7 +456,7 @@ def _rt_patch(df: pd.DataFrame, symbol: str, interval: str) -> pd.DataFrame:
     OHLCVを再取得せずに現在足を常に最新化するため、足型ズレを大幅に削減する。
     USD/JPY の 1m/5m のみ対象。
     """
-    if interval not in ("1m", "5m") or symbol not in _TD_SYMBOL_MAP:
+    if interval not in ("1m", "5m") or symbol not in _OANDA_SYMBOLS:
         return df
     if len(df) == 0:
         return df
@@ -474,7 +478,8 @@ def _rt_patch(df: pd.DataFrame, symbol: str, interval: str) -> pd.DataFrame:
 
     # (2) _price_cache が古い場合、OANDAからリアルタイム価格取得
     if price is None and symbol in _OANDA_SYMBOLS:
-        oanda_price = fetch_oanda_price()
+        oanda_instrument = _OANDA_SYMBOLS[symbol]
+        oanda_price = fetch_oanda_price(oanda_instrument)
         if oanda_price > 0:
             price = oanda_price
 
@@ -522,7 +527,7 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
     expected = days * _bars_per_day.get(interval, 24) * 0.55  # FX=24h x 55%稼働
     min_bars = max(100, expected * 0.30)
 
-    # -- (0) OANDA v20 最優先: USD/JPY 全TF (最低レイテンシ) --
+    # -- (0) OANDA v20 最優先: USD/JPY, EUR/USD 全TF (最低レイテンシ) --
     if (df is None and
             os.environ.get("OANDA_TOKEN") and
             symbol in _OANDA_SYMBOLS and
@@ -540,8 +545,8 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
             print(f"[OANDA/{interval}] {e} → フォールバック")
             df = None
 
-    # -- (1) Massive API: USDJPY の全TF --
-    _MASSIVE_SYMBOLS = {"USDJPY=X", "JPY=X"}
+    # -- (1) Massive API: USDJPY/EURUSD の全TF --
+    _MASSIVE_SYMBOLS = {"USDJPY=X", "JPY=X", "EURUSD=X"}
     _MASSIVE_INTERVALS = {"1m", "5m", "15m", "30m", "1h", "4h", "1d"}
     if (df is None and
             os.environ.get("MASSIVE_API_KEY") and

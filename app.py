@@ -10428,17 +10428,23 @@ def api_oanda_live():
         result["open_trades"] = []
         result["error"] = str(data)
 
-    # Current price
-    ok2, price_data = client.get_price("USD_JPY")
-    if ok2:
-        prices = price_data.get("prices", [])
-        if prices:
-            p = prices[0]
-            result["price"] = {
-                "bid": float(p.get("bids", [{}])[0].get("price", 0)),
-                "ask": float(p.get("asks", [{}])[0].get("price", 0)),
-                "time": p.get("time", ""),
-            }
+    # Current prices (multi-instrument)
+    _instruments = ["USD_JPY", "EUR_USD"]
+    result["prices"] = {}
+    for _inst in _instruments:
+        ok2, price_data = client.get_price(_inst)
+        if ok2:
+            prices = price_data.get("prices", [])
+            if prices:
+                p = prices[0]
+                result["prices"][_inst] = {
+                    "bid": float(p.get("bids", [{}])[0].get("price", 0)),
+                    "ask": float(p.get("asks", [{}])[0].get("price", 0)),
+                    "time": p.get("time", ""),
+                }
+    # 後方互換: priceキーもUSD_JPYで維持
+    if "USD_JPY" in result["prices"]:
+        result["price"] = result["prices"]["USD_JPY"]
 
     return jsonify(result)
 
@@ -10617,7 +10623,8 @@ def _auto_start_trader():
     import time as _time
     print(f"[AutoStart] Waiting 10s for initialization... (PID={os.getpid()})", flush=True)
     _time.sleep(10)  # Gunicorn/Flask完全初期化を待つ
-    _all_modes = ["scalp", "daytrade", "daytrade_1h", "swing"]
+    from modules.demo_trader import MODE_CONFIG as _mc
+    _all_modes = [m for m, c in _mc.items() if c.get("auto_start", True)]
     for _mode in _all_modes:
         try:
             result = _demo_trader.start(mode=_mode)

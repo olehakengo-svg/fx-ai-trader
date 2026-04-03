@@ -25,6 +25,8 @@ MODE_CONFIG = {
         "signal_fn": "compute_daytrade_signal",
         "label": "デイトレード",
         "icon": "📊",
+        "symbol": "USDJPY=X",
+        "instrument": "USD_JPY",
     },
     "scalp": {
         "interval_sec": 10,       # 10秒ごとにシグナルチェック
@@ -33,6 +35,8 @@ MODE_CONFIG = {
         "signal_fn": "compute_scalp_signal",
         "label": "スキャルピング",
         "icon": "⚡",
+        "symbol": "USDJPY=X",
+        "instrument": "USD_JPY",
     },
     # "swing": DISABLED — BT WR=36.7% EV=+0.154 WF=2/3, 本番0トレード
     # 他3モード(scalp/DT/1H)の平均WR=59.4%に対し足を引っ張るため無効化
@@ -43,6 +47,8 @@ MODE_CONFIG = {
     #     "signal_fn": "compute_swing_signal",
     #     "label": "スイング",
     #     "icon": "🌊",
+    #     "symbol": "USDJPY=X",
+    #     "instrument": "USD_JPY",
     # },
     "daytrade_1h": {
         "interval_sec": 60,       # 1分ごとにチェック（1h足の補完DT）
@@ -51,6 +57,42 @@ MODE_CONFIG = {
         "signal_fn": "compute_1h_zone_signal",
         "label": "デイトレ1H(Zone)",
         "icon": "🕐",
+        "symbol": "USDJPY=X",
+        "instrument": "USD_JPY",
+    },
+    # ── EUR/USD modes (auto_start=Falseで手動起動) ──
+    "scalp_eur": {
+        "interval_sec": 10,
+        "tf": "1m",
+        "period": "1d",
+        "signal_fn": "compute_scalp_signal",
+        "label": "スキャルプEUR",
+        "icon": "⚡🇪🇺",
+        "symbol": "EURUSD=X",
+        "instrument": "EUR_USD",
+        "auto_start": False,
+    },
+    "daytrade_eur": {
+        "interval_sec": 30,
+        "tf": "15m",
+        "period": "5d",
+        "signal_fn": "compute_daytrade_signal",
+        "label": "デイトレEUR",
+        "icon": "📊🇪🇺",
+        "symbol": "EURUSD=X",
+        "instrument": "EUR_USD",
+        "auto_start": False,
+    },
+    "daytrade_1h_eur": {
+        "interval_sec": 60,
+        "tf": "1h",
+        "period": "30d",
+        "signal_fn": "compute_1h_zone_signal",
+        "label": "デイトレ1H EUR",
+        "icon": "🕐🇪🇺",
+        "symbol": "EURUSD=X",
+        "instrument": "EUR_USD",
+        "auto_start": False,
     },
 }
 
@@ -191,8 +233,9 @@ class DemoTrader:
         # ── Self-healing FIRST: ステータス計算前に死んだスレッドを自動復旧 ──
         _healed = []
 
-        # _started_modesが空でも全モード起動を試みる（デプロイ直後のauto_start未完了対策）
-        _target_modes = list(self._started_modes) if self._started_modes else list(MODE_CONFIG.keys())
+        # _started_modesが空でも自動起動対象モードを起動（デプロイ直後のauto_start未完了対策）
+        _auto_modes = [m for m, c in MODE_CONFIG.items() if c.get("auto_start", True)]
+        _target_modes = list(self._started_modes) if self._started_modes else _auto_modes
 
         # スレッド復旧
         if not (self._health_thread and self._health_thread.is_alive()):
@@ -241,6 +284,8 @@ class DemoTrader:
                 "icon": cfg["icon"],
                 "tf": cfg["tf"],
                 "interval": cfg["interval_sec"],
+                "instrument": cfg.get("instrument", "USD_JPY"),
+                "symbol": cfg.get("symbol", "USDJPY=X"),
                 "last_signal": self._last_signals.get(m),
             }
         try:
@@ -291,13 +336,13 @@ class DemoTrader:
         スレッドが生きている場合はスキップ（二重実行防止）。"""
         if self._health_thread and self._health_thread.is_alive():
             return  # メインループが生きていれば不要
-        # _started_modesが空なら全モードをターゲット
+        # _started_modesが空なら自動起動対象モードをターゲット
         if not self._started_modes:
-            for m in MODE_CONFIG.keys():
-                if m not in self._user_stopped_modes:
+            for m, c in MODE_CONFIG.items():
+                if m not in self._user_stopped_modes and c.get("auto_start", True):
                     self._started_modes.add(m)
                     self._runners[m] = {"running": True, "thread": None}
-            print(f"[RequestTick] Force-started all modes: {list(self._started_modes)}", flush=True)
+            print(f"[RequestTick] Force-started auto modes: {list(self._started_modes)}", flush=True)
         now = time.time()
         ticked = []
         for mode in list(self._started_modes):
@@ -522,39 +567,42 @@ class DemoTrader:
             print(f"[SLTP-Checker] BaseException: {type(e).__name__}: {e}", flush=True)
             import traceback; traceback.print_exc()
 
-    def _get_realtime_price(self) -> float:
+    def _get_realtime_price(self, instrument: str = "USD_JPY",
+                            symbol: str = "USDJPY=X") -> float:
         """
         リアルタイム価格を最速で取得:
-        1. _price_cache（TwelveData/yfinance）が10秒以内なら使用
+        1. _price_cache（TwelveData/yfinance）が10秒以内なら使用（USD_JPYのみ）
         2. OANDA v20 pricing API
         3. フォールバック: 1m足の最新Close
         """
-        try:
-            from modules.data import _price_cache, _cache_lock
-            with _cache_lock:
-                pc = dict(_price_cache)
-            if pc.get("ts"):
-                ts = pc["ts"]
-                now = datetime.now(ts.tzinfo) if ts.tzinfo else datetime.now()
-                age = (now - ts).total_seconds()
-                if age < 15:  # 15秒以内のキャッシュなら使用
-                    return float(pc["data"]["price"])
-        except Exception:
-            pass
+        # (1) USD_JPYのみ: 既存のprice_cacheを確認
+        if instrument == "USD_JPY":
+            try:
+                from modules.data import _price_cache, _cache_lock
+                with _cache_lock:
+                    pc = dict(_price_cache)
+                if pc.get("ts"):
+                    ts = pc["ts"]
+                    now = datetime.now(ts.tzinfo) if ts.tzinfo else datetime.now()
+                    age = (now - ts).total_seconds()
+                    if age < 15:
+                        return float(pc["data"]["price"])
+            except Exception:
+                pass
 
-        # OANDA v20 リアルタイム価格
+        # (2) OANDA v20 リアルタイム価格
         try:
             from modules.data import fetch_oanda_price
-            p = fetch_oanda_price()
+            p = fetch_oanda_price(instrument)
             if p > 0:
                 return p
         except Exception:
             pass
 
-        # フォールバック: 1m足のキャッシュ済み最新Close
+        # (3) フォールバック: 1m足の最新Close
         try:
             from app import fetch_ohlcv
-            df = fetch_ohlcv("USDJPY=X", period="1d", interval="1m")
+            df = fetch_ohlcv(symbol, period="1d", interval="1m")
             if df is not None and len(df) > 0:
                 return float(df.iloc[-1]["Close"])
         except Exception:
@@ -608,7 +656,23 @@ class DemoTrader:
         if not open_trades:
             return
 
-        price = self._get_realtime_price()
+        # 通貨ペア別にリアルタイム価格を取得（キャッシュ）
+        _price_cache_rt = {}
+        def _get_price_for_instrument(inst, sym):
+            if inst not in _price_cache_rt:
+                _price_cache_rt[inst] = self._get_realtime_price(inst, sym)
+            return _price_cache_rt[inst]
+
+        # 少なくとも1つの通貨の価格が取れないとエラー
+        _default_inst = "USD_JPY"
+        _default_sym = "USDJPY=X"
+        # 最初のトレードの通貨で価格チェック
+        _first_trade = open_trades[0]
+        _first_mode = _first_trade.get("mode", "")
+        _first_cfg = MODE_CONFIG.get(_first_mode, {})
+        _first_inst = _first_cfg.get("instrument", _default_inst)
+        _first_sym = _first_cfg.get("symbol", _default_sym)
+        price = _get_price_for_instrument(_first_inst, _first_sym)
         if price <= 0:
             raise _NoPriceError("realtime price unavailable")
 
@@ -619,6 +683,11 @@ class DemoTrader:
         _now_utc = datetime.now(timezone.utc)
         _is_pre_weekend = (_now_utc.weekday() == 4 and _now_utc.hour >= 21 and _now_utc.minute >= 45)
 
+        # EUR/USD用MAX_HOLD追加
+        MAX_HOLD_SEC["scalp_eur"] = 1800
+        MAX_HOLD_SEC["daytrade_eur"] = 28800
+        MAX_HOLD_SEC["daytrade_1h_eur"] = 64800
+
         for trade in open_trades:
             direction = trade["direction"]
             sl = trade["sl"]
@@ -627,6 +696,16 @@ class DemoTrader:
             tf = trade.get("tf", "")
             mode = trade.get("mode", "")
             entry_price = trade["entry_price"]
+
+            # 通貨ペア別価格取得
+            _mode_cfg = MODE_CONFIG.get(mode, {})
+            _inst = _mode_cfg.get("instrument", _default_inst)
+            _sym = _mode_cfg.get("symbol", _default_sym)
+            price = _get_price_for_instrument(_inst, _sym)
+            if price <= 0:
+                continue  # この通貨の価格が取れない場合はスキップ
+            # pip計算用桁数
+            _pip_decimals = 3 if "JPY" in _inst else 5
 
             # ══════════════════════════════════════════════════════════════
             # ── ブレイクイーブン + 連続トレーリングストップ ──
@@ -650,18 +729,18 @@ class DemoTrader:
                     if direction == "BUY":
                         # まずBE
                         new_sl = max(entry_price, price - _trail_dist)
-                        new_sl = round(new_sl, 3)
+                        new_sl = round(new_sl, _pip_decimals)
                         if new_sl > sl:
                             sl = new_sl
                     else:
                         new_sl = min(entry_price, price + _trail_dist)
-                        new_sl = round(new_sl, 3)
+                        new_sl = round(new_sl, _pip_decimals)
                         if new_sl < sl:
                             sl = new_sl
 
             # ── OANDA連携: トレーリングSL変更をミラー ──
             if sl != _original_sl:
-                self._oanda.modify_sl(trade_id, sl)
+                self._oanda.modify_sl(trade_id, sl, instrument=_inst)
 
             close_reason = None
 
@@ -938,13 +1017,15 @@ class DemoTrader:
 
         tf = cfg["tf"]
         period = cfg["period"]
-        print(f"[DemoTrader/{mode}] _tick start: tf={tf}, period={period}", flush=True)
+        symbol = cfg.get("symbol", "USDJPY=X")
+        instrument = cfg.get("instrument", "USD_JPY")
+        print(f"[DemoTrader/{mode}] _tick start: tf={tf}, period={period}, symbol={symbol}", flush=True)
 
         # 1. データ取得 + シグナル計算
         try:
             # scalp(1m)はperiod拡大でEMA200を確保
             fetch_period = "5d" if tf == "1m" else period
-            df = fetch_ohlcv("USDJPY=X", period=fetch_period, interval=tf)
+            df = fetch_ohlcv(symbol, period=fetch_period, interval=tf)
             print(f"[DemoTrader/{mode}] fetched {len(df)} bars")
             df = add_indicators(df)
             # EMA200がNaNの行のみ除去（全列dropnaだと必要な行まで消える）
@@ -996,15 +1077,15 @@ class DemoTrader:
                 else:
                     return  # ゾーン計算不可（データ不足）
             else:
-                sig = compute_fn(df, tf, sr, "USDJPY=X")
+                sig = compute_fn(df, tf, sr, symbol)
 
             # ── 5m補完: sr_channel_reversal / macdh_reversal は5mの方が高EV ──
             # 1m: WR=48.5%/-0.162, WR=46.7%/-0.023
             # 5m: WR=63.6%/+0.318, WR=78.4%/+0.722
             _5M_ONLY_STRATEGIES = {"macdh_reversal", "fib_reversal"}  # sr_channel_reversal除外(7d BTで赤字)
-            if mode == "scalp" and sig.get("signal") == "WAIT":
+            if mode in ("scalp", "scalp_eur") and sig.get("signal") == "WAIT":
                 try:
-                    df_5m = fetch_ohlcv("USDJPY=X", period="5d", interval="5m")
+                    df_5m = fetch_ohlcv(symbol, period="5d", interval="5m")
                     df_5m = add_indicators(df_5m)
                     _5m_cols = [c for c in ["close", "ema9", "ema21", "rsi", "adx", "atr"]
                                 if c in {x.lower() for x in df_5m.columns}]
@@ -1013,7 +1094,7 @@ class DemoTrader:
                         df_5m = df_5m.dropna(subset=_5m_actual)
                     if len(df_5m) >= 50:
                         sr_5m = find_sr_levels(df_5m)
-                        sig_5m = compute_fn(df_5m, "5m", sr_5m, "USDJPY=X")
+                        sig_5m = compute_fn(df_5m, "5m", sr_5m, symbol)
                         if (sig_5m.get("signal") != "WAIT"
                                 and sig_5m.get("entry_type") in _5M_ONLY_STRATEGIES):
                             sig = sig_5m
@@ -1037,13 +1118,14 @@ class DemoTrader:
 
         current_price = sig.get("entry", 0)
         signal = sig.get("signal", "WAIT")
+        _base_mode = mode.replace("_eur", "")  # scalp_eur -> scalp (共通パラメータ参照用)
 
         # ══════════════════════════════════════════════════════════════
         # ── MTF連携: 15m DT シグナル → 1m Scalp バイアス更新 ──
         # DT/DT1hの構造的パターン（三尊/逆三尊/SR等）を記録し、
         # スキャルプが順方向エントリーを強化 / 逆方向を抑制する
         # ══════════════════════════════════════════════════════════════
-        if mode in ("daytrade", "daytrade_1h") and signal != "WAIT":
+        if _base_mode in ("daytrade", "daytrade_1h") and signal != "WAIT":
             _dt_etype = sig.get("entry_type", "")
             # 構造的パターン（強いバイアス）とトレンドシグナル（軽いバイアス）
             _strong_patterns = {"hs_neckbreak", "ihs_neckbreak", "dual_sr_bounce",
@@ -1104,14 +1186,18 @@ class DemoTrader:
         # ── 重複エントリー防止 ──
         # (A) 同価格帯ブロック（モード別: scalp=1.0pip, DT=5pip, other=3pip）
         # scalp: 1.5→1.0pip (エントリー機会増), DT: 1.5→5pip (マシンガン防止)
-        _same_price_dist = {"scalp": 0.010, "daytrade": 0.050}.get(mode, 0.03)
+        _is_jpy = "JPY" in instrument
+        if _is_jpy:
+            _same_price_dist = {"scalp": 0.010, "daytrade": 0.050}.get(_base_mode, 0.03)
+        else:
+            _same_price_dist = {"scalp": 0.00010, "daytrade": 0.00050}.get(_base_mode, 0.00030)
         for t in mode_trades:
             if abs(t["entry_price"] - current_price) < _same_price_dist:
                 _block(f"same_price_{_same_price_dist*100:.0f}pip"); return
         # (B) 同方向ポジション上限（モード別）
         # scalp: 2→3 (好調なので増), DT: 5→2 (マシンガン防止)
         _dir_limits = {"scalp": 3, "daytrade": 3, "daytrade_1h": 2, "swing": 2}  # DT: 2→3(HTFフィルター済み)
-        _max_same_dir = _dir_limits.get(mode, 2)
+        _max_same_dir = _dir_limits.get(_base_mode, 2)
         _same_dir_count = sum(1 for t in mode_trades if t.get("direction") == signal)
         if _same_dir_count >= _max_same_dir:
             _block("same_dir_limit"); return
@@ -1198,7 +1284,7 @@ class DemoTrader:
         # ── SL後クールダウン ──
         last_ex = self._last_exit.get(mode)
         if last_ex:
-            _cooldown_sec = {"scalp": 60, "daytrade": 300, "daytrade_1h": 1800, "swing": 7200}.get(mode, 120)  # DT: 600→300s(HTFフィルター済みで頻度増)
+            _cooldown_sec = {"scalp": 60, "daytrade": 300, "daytrade_1h": 1800, "swing": 7200}.get(_base_mode, 120)  # DT: 600→300s(HTFフィルター済みで頻度増)
             _ex_age = (datetime.now(timezone.utc) - last_ex["time"]).total_seconds()
             if _ex_age < _cooldown_sec:
                 if last_ex["direction"] == signal:
@@ -1239,7 +1325,7 @@ class DemoTrader:
         # ── 全方向サーキットブレーカー: 30分以内にN回負けでモード一時停止 ──
         # 本番実績: DT 12連敗(-101pip)を防止するための安全装置
         _cb_limits = {"scalp": 4, "daytrade": 3, "daytrade_1h": 2, "swing": 2}
-        _cb_max = _cb_limits.get(mode, 3)
+        _cb_max = _cb_limits.get(_base_mode, 3)
         _cb_window = timedelta(minutes=30)
         _cb_cutoff = datetime.now(timezone.utc) - _cb_window
         _cb_recent = [t for t in self._total_losses_window
@@ -1254,14 +1340,16 @@ class DemoTrader:
         # 本番で急騰中のSELL連敗(-36pip)の原因 → 急動時の逆行エントリーをブロック
         # ══════════════════════════════════════════════════════════════
         _now_vel = datetime.now(timezone.utc)
-        _vel_window_min = {"scalp": 10, "daytrade": 30, "daytrade_1h": 60}.get(mode, 10)
-        _vel_threshold_pip = {"scalp": 15.0, "daytrade": 15.0, "daytrade_1h": 20.0}.get(mode, 8.0)  # scalp: 8→15pip（調整局面のカウンタートレード許可）
+        _vel_window_min = {"scalp": 10, "daytrade": 30, "daytrade_1h": 60}.get(_base_mode, 10)
+        _vel_threshold_pip = {"scalp": 15.0, "daytrade": 15.0, "daytrade_1h": 20.0}.get(_base_mode, 8.0)  # scalp: 8→15pip（調整局面のカウンタートレード許可）
         _vel_cutoff = _now_vel - timedelta(minutes=_vel_window_min)
         _recent_prices = [(t, p) for t, p in self._price_history if t > _vel_cutoff]
         if len(_recent_prices) >= 2:
             _oldest_price = _recent_prices[0][1]
             _price_move = current_price - _oldest_price
-            _move_pips = abs(_price_move) * 100
+            from modules.demo_db import pip_multiplier as _pip_mult_fn
+            _pip_m = _pip_mult_fn(cfg.get("instrument", "USD_JPY"))
+            _move_pips = abs(_price_move) * _pip_m
             if _move_pips >= _vel_threshold_pip:
                 if _price_move > 0 and signal == "SELL":
                     _block(f"velocity_up({_move_pips:.0f}pip)_vs_SELL"); return
@@ -1291,7 +1379,7 @@ class DemoTrader:
         _mtf_tp_bonus = 1.0
         # スキャルプはMTFバイアス不要（両方向で調整局面も取る）
         # DT/1H/swingのみMTFバイアス適用
-        if mode != "scalp":
+        if _base_mode != "scalp":
             with self._lock:
                 _bias_snapshot = dict(self._15m_tactical_bias)
             if _bias_snapshot.get("direction"):
@@ -1333,17 +1421,24 @@ class DemoTrader:
             else:
                 tp = current_price - tp_dist
         # 最小RR比: リスクに対してリワードが十分あることを保証
-        MIN_RR = {"scalp": 1.5, "daytrade": 1.8, "swing": 2.0}.get(mode, 1.5)
+        _base_mode = mode.replace("_eur", "")  # scalp_eur -> scalp
+        MIN_RR = {"scalp": 1.5, "daytrade": 1.8, "swing": 2.0}.get(_base_mode, 1.5)
         # SL = エントリーからTP距離 / RR比
         sl_dist = tp_dist / MIN_RR
         # 最低SL距離保証（スプレッド+ノイズ対策）
-        MIN_SL_DIST = {"scalp": 0.030, "daytrade": 0.050, "swing": 0.100}.get(mode, 0.030)
+        # JPY pairs: 0.030/0.050/0.100, Non-JPY: 0.00030/0.00050/0.00100
+        _is_jpy = "JPY" in instrument
+        if _is_jpy:
+            MIN_SL_DIST = {"scalp": 0.030, "daytrade": 0.050, "swing": 0.100}.get(_base_mode, 0.030)
+        else:
+            MIN_SL_DIST = {"scalp": 0.00030, "daytrade": 0.00050, "swing": 0.00100}.get(_base_mode, 0.00030)
         sl_dist = max(sl_dist, MIN_SL_DIST)
 
+        _price_dec = 3 if _is_jpy else 5
         if signal == "BUY":
-            sl = round(current_price - sl_dist, 3)
+            sl = round(current_price - sl_dist, _price_dec)
         else:
-            sl = round(current_price + sl_dist, 3)
+            sl = round(current_price + sl_dist, _price_dec)
 
         # TP距離がSL距離より小さい場合はRR不足 → エントリー見送り
         if tp_dist < sl_dist:
@@ -1378,6 +1473,7 @@ class DemoTrader:
             ema_conf=ema_conf,
             sr_basis=sr_basis,
             mode=mode,
+            instrument=instrument,
         )
 
         # ── OANDA連携: デモトレードをミラーリング ──
@@ -1386,6 +1482,7 @@ class DemoTrader:
             direction=signal,
             sl=sl, tp=tp,
             mode=mode,
+            instrument=instrument,
             callback=lambda did, oid: self._db.set_oanda_trade_id(did, oid),
         )
 
@@ -1393,10 +1490,12 @@ class DemoTrader:
         _confirmed_reasons = [r for r in reasons if "✅" in r]
         _reason_summary = " / ".join(_confirmed_reasons[:3]) if _confirmed_reasons else entry_type
 
+        from modules.demo_db import pip_multiplier as _pm
+        _pip_m = _pm(instrument)
         rr_actual = round(tp_dist / sl_dist, 1) if sl_dist > 0 else 0
         self._add_log(
-            f"{cfg['icon']} 📥 IN [{cfg['label']}]: {signal} @ {current_price:.3f} | "
-            f"SL {sl:.3f}({sl_dist*100:.1f}p) TP {tp:.3f}({tp_dist*100:.1f}p) RR1:{rr_actual} | "
+            f"{cfg['icon']} 📥 IN [{cfg['label']}]: {signal} @ {current_price:.{_price_dec}f} | "
+            f"SL {sl:.{_price_dec}f}({sl_dist*_pip_m:.1f}p) TP {tp:.{_price_dec}f}({tp_dist*_pip_m:.1f}p) RR1:{rr_actual} | "
             f"Type: {entry_type} | Conf: {confidence}% | "
             f"理由: {_reason_summary} | ID: {trade_id}"
         )
@@ -1409,7 +1508,8 @@ class DemoTrader:
         trade_id = trade["trade_id"]
 
         # 最低保持時間チェック（scalp:3分, daytrade:10分, swing:1時間）
-        min_hold_sec = {"scalp": 180, "daytrade": 600, "daytrade_1h": 1800, "swing": 3600}.get(mode, 180)
+        _base_mode_sr = mode.replace("_eur", "")
+        min_hold_sec = {"scalp": 180, "daytrade": 600, "daytrade_1h": 1800, "swing": 3600}.get(_base_mode_sr, 180)
         try:
             entry_time = datetime.fromisoformat(trade["entry_time"])
             if entry_time.tzinfo is None:
