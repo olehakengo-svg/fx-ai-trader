@@ -166,7 +166,7 @@ class DemoTrader:
         self._last_exit = {}      # mode -> last exit info
         # ── リバウンド対策: 全方向連敗トラッカー + 価格ベロシティ ──
         self._total_losses_window = []  # [(timestamp, mode, pips)] 直近の全損失記録
-        self._price_history = []        # [(timestamp, price)] 価格推移記録（ベロシティ計算用）
+        self._price_history = {}        # {instrument: [(timestamp, price)]} 通貨ペア別価格推移
         self._trade_high_water = {}     # trade_id -> max favorable price（BE/トレーリング用）
         # ── SL狩り対策: クロス戦略カスケード防御 + Fast-SL検出 ──
         self._sl_hit_history = []       # [(timestamp, instrument, entry_type, hold_sec)] SL_HIT履歴
@@ -1332,12 +1332,15 @@ class DemoTrader:
                         "strength": _bias_strength,
                     }
 
-        # ── 価格ヒストリー記録（ベロシティ計算用）──
+        # ── 価格ヒストリー記録（ベロシティ計算用・通貨ペア別）──
         _now_rec = datetime.now(timezone.utc)
-        self._price_history.append((_now_rec, current_price))
+        _inst = instrument
+        if _inst not in self._price_history:
+            self._price_history[_inst] = []
+        self._price_history[_inst].append((_now_rec, current_price))
         # 古いデータを削除（最大4時間保持）
         _cutoff = _now_rec - timedelta(hours=4)
-        self._price_history = [(t, p) for t, p in self._price_history if t > _cutoff]
+        self._price_history[_inst] = [(t, p) for t, p in self._price_history[_inst] if t > _cutoff]
         confidence = sig.get("confidence", 0)
         entry_type = sig.get("entry_type", "unknown")
 
@@ -1569,7 +1572,8 @@ class DemoTrader:
         # ══════════════════════════════════════════════════════════════
         _atr_spike = sig.get("atr", 0.07 if _is_jpy else 0.00070)
         _spike_cutoff = datetime.now(timezone.utc) - timedelta(seconds=60)
-        _spike_prices = [p for t, p in self._price_history if t > _spike_cutoff]
+        _inst_history = self._price_history.get(instrument, [])
+        _spike_prices = [p for t, p in _inst_history if t > _spike_cutoff]
         if len(_spike_prices) >= 3:
             _spike_range = max(_spike_prices) - min(_spike_prices)
             if _spike_range > _atr_spike * 0.5:
@@ -1584,7 +1588,7 @@ class DemoTrader:
         _vel_window_min = {"scalp": 10, "daytrade": 30, "daytrade_1h": 60}.get(_base_mode, 10)
         _vel_threshold_pip = {"scalp": 15.0, "daytrade": 15.0, "daytrade_1h": 20.0}.get(_base_mode, 8.0)  # scalp: 8→15pip（調整局面のカウンタートレード許可）
         _vel_cutoff = _now_vel - timedelta(minutes=_vel_window_min)
-        _recent_prices = [(t, p) for t, p in self._price_history if t > _vel_cutoff]
+        _recent_prices = [(t, p) for t, p in self._price_history.get(instrument, []) if t > _vel_cutoff]
         if len(_recent_prices) >= 2:
             _oldest_price = _recent_prices[0][1]
             _price_move = current_price - _oldest_price
