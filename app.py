@@ -2930,6 +2930,19 @@ def compute_1h_zone_signal(df: pd.DataFrame,
     _atr_sma = np.mean([float(df.iloc[-(j+1)].get("atr", atr)) for j in range(min(20, len(df)-1))])
     _atr_expanding = atr > _atr_sma * 1.1  # ATRが20期間平均の110%以上
 
+    # ── HTFトレンド判定（1Hデータから4H/1D方向を推定）──
+    # 4H相当: EMA9(1H) vs EMA21(1H) + 直近4本の方向
+    # 1D相当: EMA50(1H) vs EMA200(1H) + 直近24本の傾き
+    _htf_4h_bull = ema9 > ema21  # 短期トレンド（4H相当）
+    _htf_1d_bull = ema50 > ema200_1h  # 長期トレンド（1D相当）
+    # EMA50スロープ（24本=1日分）
+    _ema50_24ago = float(df.iloc[-min(24, len(df))].get("ema50", ema50))
+    _ema50_slope_up = ema50 > _ema50_24ago + atr * 0.1
+    _ema50_slope_dn = ema50 < _ema50_24ago - atr * 0.1
+    # HTFトレンド合意: 4H + 1D の両方が一致 → 強いトレンド
+    _htf_strong_bull = _htf_4h_bull and _htf_1d_bull and _ema50_slope_up
+    _htf_strong_bear = (not _htf_4h_bull) and (not _htf_1d_bull) and _ema50_slope_dn
+
     # ── 候補リスト: (signal, score, tp, sl, reasons, entry_type, invalidation) ──
     candidates = []
 
@@ -3099,72 +3112,143 @@ def compute_1h_zone_signal(df: pd.DataFrame,
                 break
 
         # ── 上方ブレイク後のリテスト → BUY（旧レジスタンスが新サポート）──
-        # 条件: 強SR必須(strength≥0.5, touches≥3) + ブレイク品質確認
+        # 条件: 強SR必須 + ブレイク品質 + HTFトレンド整合
         if _broke_up and _is_strong and abs(entry - _sr_price) < atr * 0.6:
-            _brt_score = 1.5
-            _brt_reasons = []
-            _brt_reasons.append(f"✅ SR上方ブレイク後リテスト({_sr_price:.3f}, 強度={_sr_strength:.2f}, {_sr_touches}タッチ)")
-
-            # ── ブレイク品質: ブレイク足の実体が大きいか確認 ──
-            _breakout_quality = False
-            for _bqi in range(2, _retest_lookback + 1):
-                _bq_row = df.iloc[-_bqi]
-                _bq_o, _bq_c = float(_bq_row["Open"]), float(_bq_row["Close"])
-                _bq_h = float(_bq_row["High"])
-                # ブレイク足: close > SR かつ open < SR（SR を貫通）かつ実体 > 0.5 ATR
-                if _bq_c > _sr_price and _bq_o < _sr_price + atr * 0.1:
-                    if abs(_bq_c - _bq_o) > atr * 0.5:
-                        _breakout_quality = True
-                        _brt_score += 0.5
-                        _brt_reasons.append("🎯 強力ブレイク足（実体>0.5ATR）")
-                        break
-                    elif abs(_bq_c - _bq_o) > atr * 0.3:
-                        _breakout_quality = True
-                        break
-
-            if not _breakout_quality:
-                pass  # ブレイク品質不足→スキップ
+            # HTFフィルター: 1D bearトレンド中のBUYブロック
+            if _htf_strong_bear:
+                pass  # 1D下落トレンド中 → BUYスキップ
             else:
-                # チャネルブレイク合流
-                if _ch_upper and entry > _ch_upper - atr * 0.3:
+                _brt_score = 1.5
+                _brt_reasons = []
+                _brt_reasons.append(f"✅ SR上方ブレイク後リテスト({_sr_price:.3f}, 強度={_sr_strength:.2f}, {_sr_touches}タッチ)")
+
+                # HTFトレンドボーナス
+                if _htf_strong_bull:
                     _brt_score += 0.5
-                    _brt_reasons.append("✅ チャネル上限ブレイク合流")
+                    _brt_reasons.append("🎯 HTF上昇トレンド合致(4H+1D)")
+                elif _htf_1d_bull:
+                    _brt_score += 0.3
+                    _brt_reasons.append("✅ 1D上昇トレンド合致")
 
-                if entry > _sr_price:
-                    _brt_score += 0.4
-                    _brt_reasons.append("✅ SR上維持（リテスト成功）")
-                if ema9 > ema21:
-                    _brt_score += 0.4
-                    _brt_reasons.append("✅ EMAトレンド整合(9>21)")
-                if adx >= 15:
-                    _brt_score += 0.3
-                if entry > _open:
-                    _brt_score += 0.3
-                    _brt_reasons.append("✅ 陽線反発")
-                if stoch_k > stoch_d:
-                    _brt_score += 0.3
-                if macdh > prev_macdh:
-                    _brt_score += 0.3
-                if _atr_expanding:
-                    _brt_score += 0.3
-                    _brt_reasons.append("✅ ATR拡大")
+                # ── ブレイク品質: ブレイク足の実体確認 ──
+                _breakout_quality = False
+                for _bqi in range(2, _retest_lookback + 1):
+                    _bq_row = df.iloc[-_bqi]
+                    _bq_o, _bq_c = float(_bq_row["Open"]), float(_bq_row["Close"])
+                    if _bq_c > _sr_price and _bq_o < _sr_price + atr * 0.1:
+                        if abs(_bq_c - _bq_o) > atr * 0.5:
+                            _breakout_quality = True
+                            _brt_score += 0.5
+                            _brt_reasons.append("🎯 強力ブレイク足（実体>0.5ATR）")
+                            break
+                        elif abs(_bq_c - _bq_o) > atr * 0.3:
+                            _breakout_quality = True
+                            break
 
-                # 必須: 陽線 + EMAトレンド整合
-                if _brt_score >= 2.5 and entry > _open and ema9 > ema21:
-                    _brt_tp = entry + atr * 4.0
-                    _upper_srs = [s["price"] for s in _h1_sr_weighted
-                                  if s["price"] > entry + atr * 2.0 and s["strength"] >= 0.3]
-                    if _upper_srs:
-                        _brt_tp = min(_upper_srs) - atr * 0.1
-                        _brt_tp = max(_brt_tp, entry + atr * 3.0)
-                    _brt_sl = _sr_price - atr * 0.8  # 0.7→0.8: 1H足ノイズ耐性
-                    _brt_sl = max(_brt_sl, entry - atr * 1.2)
-                    _brt_inv = _sr_price - atr * 0.9
-                    candidates.append(("BUY", _brt_score, _brt_tp, _brt_sl,
-                                       _brt_reasons, "h1_breakout_retest", _brt_inv))
+                if _breakout_quality:
+                    if _ch_upper and entry > _ch_upper - atr * 0.3:
+                        _brt_score += 0.5
+                        _brt_reasons.append("✅ チャネル上限ブレイク合流")
+                    if entry > _sr_price:
+                        _brt_score += 0.4
+                        _brt_reasons.append("✅ SR上維持（リテスト成功）")
+                    if ema9 > ema21:
+                        _brt_score += 0.4
+                        _brt_reasons.append("✅ EMAトレンド整合(9>21)")
+                    if adx >= 15:
+                        _brt_score += 0.3
+                    if entry > _open:
+                        _brt_score += 0.3
+                        _brt_reasons.append("✅ 陽線反発")
+                    if stoch_k > stoch_d:
+                        _brt_score += 0.3
+                    if macdh > prev_macdh:
+                        _brt_score += 0.3
+                    if _atr_expanding:
+                        _brt_score += 0.3
+                        _brt_reasons.append("✅ ATR拡大")
 
-        # ── SELL側は無効化（WR=10%、60日BT 1/10勝利のみ）──
-        # elif _broke_down ...
+                    if _brt_score >= 2.5 and entry > _open and ema9 > ema21:
+                        _brt_tp = entry + atr * 4.0
+                        _upper_srs = [s["price"] for s in _h1_sr_weighted
+                                      if s["price"] > entry + atr * 2.0 and s["strength"] >= 0.3]
+                        if _upper_srs:
+                            _brt_tp = min(_upper_srs) - atr * 0.1
+                            _brt_tp = max(_brt_tp, entry + atr * 3.0)
+                        _brt_sl = _sr_price - atr * 0.8
+                        _brt_sl = max(_brt_sl, entry - atr * 1.2)
+                        _brt_inv = _sr_price - atr * 0.9
+                        candidates.append(("BUY", _brt_score, _brt_tp, _brt_sl,
+                                           _brt_reasons, "h1_breakout_retest", _brt_inv))
+
+        # ── 下方ブレイク後のリテスト → SELL（旧サポートが新レジスタンス）──
+        # HTFフィルター: 1D bullトレンド中のSELLブロック
+        elif _broke_down and _is_strong and abs(entry - _sr_price) < atr * 0.6:
+            if _htf_strong_bull:
+                pass  # 1D上昇トレンド中 → SELLスキップ
+            else:
+                _brt_score = 1.5
+                _brt_reasons = []
+                _brt_reasons.append(f"✅ SR下方ブレイク後リテスト({_sr_price:.3f}, 強度={_sr_strength:.2f}, {_sr_touches}タッチ)")
+
+                # HTFトレンドボーナス
+                if _htf_strong_bear:
+                    _brt_score += 0.5
+                    _brt_reasons.append("🎯 HTF下落トレンド合致(4H+1D)")
+                elif not _htf_1d_bull:
+                    _brt_score += 0.3
+                    _brt_reasons.append("✅ 1D下落トレンド合致")
+
+                # ── ブレイク品質確認 ──
+                _breakout_quality = False
+                for _bqi in range(2, _retest_lookback + 1):
+                    _bq_row = df.iloc[-_bqi]
+                    _bq_o, _bq_c = float(_bq_row["Open"]), float(_bq_row["Close"])
+                    if _bq_c < _sr_price and _bq_o > _sr_price - atr * 0.1:
+                        if abs(_bq_c - _bq_o) > atr * 0.5:
+                            _breakout_quality = True
+                            _brt_score += 0.5
+                            _brt_reasons.append("🎯 強力ブレイク足（実体>0.5ATR）")
+                            break
+                        elif abs(_bq_c - _bq_o) > atr * 0.3:
+                            _breakout_quality = True
+                            break
+
+                if _breakout_quality:
+                    if _ch_lower and entry < _ch_lower + atr * 0.3:
+                        _brt_score += 0.5
+                        _brt_reasons.append("✅ チャネル下限ブレイク合流")
+                    if entry < _sr_price:
+                        _brt_score += 0.4
+                        _brt_reasons.append("✅ SR下維持（リテスト成功）")
+                    if ema9 < ema21:
+                        _brt_score += 0.4
+                        _brt_reasons.append("✅ EMAトレンド整合(9<21)")
+                    if adx >= 15:
+                        _brt_score += 0.3
+                    if entry < _open:
+                        _brt_score += 0.3
+                        _brt_reasons.append("✅ 陰線反落")
+                    if stoch_k < stoch_d:
+                        _brt_score += 0.3
+                    if macdh < prev_macdh:
+                        _brt_score += 0.3
+                    if _atr_expanding:
+                        _brt_score += 0.3
+                        _brt_reasons.append("✅ ATR拡大")
+
+                    if _brt_score >= 2.5 and entry < _open and ema9 < ema21:
+                        _brt_tp = entry - atr * 4.0
+                        _lower_srs = [s["price"] for s in _h1_sr_weighted
+                                      if s["price"] < entry - atr * 2.0 and s["strength"] >= 0.3]
+                        if _lower_srs:
+                            _brt_tp = max(_lower_srs) + atr * 0.1
+                            _brt_tp = min(_brt_tp, entry - atr * 3.0)
+                        _brt_sl = _sr_price + atr * 0.8
+                        _brt_sl = min(_brt_sl, entry + atr * 1.2)
+                        _brt_inv = _sr_price + atr * 0.9
+                        candidates.append(("SELL", _brt_score, _brt_tp, _brt_sl,
+                                           _brt_reasons, "h1_breakout_retest", _brt_inv))
 
     # ── 最高スコア候補を採用 ──
     if candidates:
