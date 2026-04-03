@@ -15,7 +15,7 @@ a{color:var(--blue);text-decoration:none}
 .top-bar h1{font-size:16px;font-weight:700;color:var(--purple)}
 .back-link{font-size:12px;color:var(--t2);padding:3px 10px;border:1px solid var(--bg2);border-radius:4px}
 .back-link:hover{background:var(--bg2)}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px;max-width:1600px;margin:0 auto}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;padding:12px;max-width:1600px;margin:0 auto}
 .full{grid-column:1/-1}
 .card{background:var(--bg1);border:1px solid var(--bg2);border-radius:8px;padding:14px}
 .card-title{font-size:12px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
@@ -48,21 +48,55 @@ tr:hover{background:rgba(255,255,255,.02)}
 .dir-breakdown{display:flex;gap:12px;margin-top:8px}
 .dir-box{background:var(--bg);border-radius:6px;padding:8px 14px;flex:1;text-align:center}
 .dir-label{font-size:10px;font-weight:700;margin-bottom:4px}
-@media(max-width:900px){.grid{grid-template-columns:1fr}}
+@media(max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+
+/* ── iPhone / Mobile Optimization ── */
+@media(max-width:480px){
+  html,body{font-size:12px;-webkit-text-size-adjust:100%;overflow-x:hidden;max-width:100vw;width:100%}
+  .top-bar{padding:8px 10px;gap:6px;flex-direction:column;align-items:stretch}
+  .top-bar h1{font-size:14px}
+  .top-bar .back-link{font-size:10px;padding:2px 6px}
+  .top-bar-actions{display:flex;gap:4px;align-items:center;flex-wrap:wrap;width:100%}
+  .grid{padding:6px;gap:8px;box-sizing:border-box;width:100vw!important;max-width:100vw!important;overflow-x:hidden!important}
+  .card{padding:10px;border-radius:6px;overflow-x:auto;box-sizing:border-box;min-width:0!important;max-width:calc(100vw - 12px)}
+  .card-title{font-size:11px;margin-bottom:6px}
+  .stat-row{gap:4px;flex-wrap:nowrap;overflow-x:auto;max-width:calc(100vw - 32px)}
+  .stat-box{padding:6px 4px;min-width:0;flex:1 0 auto}
+  .stat-label{font-size:7px}
+  .stat-val{font-size:13px}
+  .acct-grid{grid-template-columns:repeat(auto-fit,minmax(80px,1fr))!important;gap:4px}
+  .acct-item{padding:6px 8px}
+  .acct-label{font-size:8px}
+  .acct-val{font-size:13px}
+  #equity-chart{height:180px}
+  table{font-size:9px}
+  th{padding:4px 3px;font-size:8px}
+  td{padding:3px 3px}
+  .btn{font-size:10px;padding:5px 8px}
+  .btn-sync{font-size:9px;padding:4px 8px}
+  .sync-info{font-size:8px}
+  .oanda-badge{font-size:8px;padding:1px 4px}
+  .dir-breakdown{gap:6px;flex-wrap:wrap}
+  .dir-box{padding:6px 8px;font-size:11px}
+  .dir-label{font-size:9px}
+  #filter-from,#filter-to{width:100%;font-size:12px;padding:6px}
+}
 </style>
 </head>
 <body>
 
 <div class="top-bar">
-  <h1>💰 OANDA Live Trading Analysis</h1>
-  <span class="oanda-badge">LIVE</span>
-  <a href="/demo-analysis" class="back-link">← デモ分析</a>
-  <a href="/" class="back-link">🏠 メイン</a>
-  <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
-    <span id="sync-status" class="sync-info">未同期</span>
-    <button class="btn btn-sync" onclick="syncTrades(false)">🔄 同期</button>
-    <button class="btn btn-sync" onclick="syncTrades(true)">📥 全件同期</button>
-    <button class="btn" onclick="loadAll()">♻️ 更新</button>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%">
+    <h1>💰 OANDA Analysis</h1>
+    <span class="oanda-badge">LIVE</span>
+    <a href="/demo-analysis" class="back-link">← デモ</a>
+    <a href="/" class="back-link">🏠 メイン</a>
+    <div class="top-bar-actions" style="margin-left:auto;display:flex;gap:4px;align-items:center">
+      <span id="sync-status" class="sync-info">未同期</span>
+      <button class="btn btn-sync" onclick="syncTrades(false)">🔄 同期</button>
+      <button class="btn btn-sync" onclick="syncTrades(true)">📥 全件</button>
+      <button class="btn" onclick="loadAll()">♻️</button>
+    </div>
   </div>
 </div>
 
