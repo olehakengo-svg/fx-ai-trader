@@ -192,13 +192,19 @@ async function loadAccount(){
       document.getElementById('a-balance').textContent='未接続';
       return;
     }
-    const a=d.account||{};
+    // account data may be nested: d.account.account (OANDA full response)
+    const raw=d.account||{};
+    const a=raw.account||raw;
     document.getElementById('a-balance').textContent=_fmt(a.balance,0)+'円';
     document.getElementById('a-nav').textContent=_fmt(a.NAV||a.nav,0)+'円';
-    document.getElementById('a-upl').textContent=_fmt(a.unrealizedPL||a.unrealized_pl,0)+'円';
     const upl=parseFloat(a.unrealizedPL||a.unrealized_pl||0);
+    document.getElementById('a-upl').textContent=_fmt(upl,0)+'円';
     document.getElementById('a-upl').style.color=_plColor(upl);
-    document.getElementById('a-margin').textContent=(a.marginRate?(_fmt(parseFloat(a.marginRate)*100,1)+'%'):'—');
+    // margin usage percentage
+    const marginUsed=parseFloat(a.marginUsed||0);
+    const nav=parseFloat(a.NAV||a.nav||1);
+    const marginPct=nav>0?(marginUsed/nav*100):0;
+    document.getElementById('a-margin').textContent=_fmt(marginPct,1)+'%';
     document.getElementById('a-open').textContent=a.openTradeCount||a.open_trades||'0';
   }catch(e){console.error('Account error:',e)}
 }
