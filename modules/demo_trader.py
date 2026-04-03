@@ -492,6 +492,7 @@ class DemoTrader:
         """高頻度でリアルタイム価格を取得してSL/TPチェック"""
         print("[SLTP-Checker] Thread started", flush=True)
         _no_price_count = 0
+        _oanda_sync_counter = 0
         try:
             while self._sltp_running:
                 try:
@@ -505,6 +506,16 @@ class DemoTrader:
                         print(f"[SLTP-Checker] No price for {_no_price_count * SLTP_CHECK_INTERVAL:.0f}s", flush=True)
                 except Exception as e:
                     print(f"[SLTP-Checker] Error: {e}", flush=True)
+
+                # ── OANDA決済同期: 10秒ごと（SLTPループは0.5秒間隔 → 20回に1回）──
+                _oanda_sync_counter += 1
+                if _oanda_sync_counter >= 20:
+                    _oanda_sync_counter = 0
+                    try:
+                        self._sync_oanda_closures()
+                    except Exception as e:
+                        print(f"[SLTP-Checker] OANDA sync error: {e}", flush=True)
+
                 time.sleep(SLTP_CHECK_INTERVAL)
             print("[SLTP-Checker] Thread terminated cleanly (sltp_running=False)", flush=True)
         except BaseException as e:
@@ -550,6 +561,46 @@ class DemoTrader:
             pass
 
         return 0
+
+    def _sync_oanda_closures(self):
+        """OANDA側で決済済みだがデモ側OPENのトレードを同期クローズ"""
+        if not self._oanda.active:
+            return
+        open_trades = self._db.get_open_trades()
+        oanda_ids = {t.get("oanda_trade_id"): t for t in open_trades
+                     if t.get("oanda_trade_id")}
+        if not oanda_ids:
+            return
+        try:
+            ok, data = self._oanda._client.get_trades(state="CLOSED", count=50)
+            if not ok:
+                return
+            closed_oanda = {str(t["id"]): t for t in data.get("trades", [])}
+            for oid, demo_trade in oanda_ids.items():
+                if oid in closed_oanda:
+                    ot = closed_oanda[oid]
+                    close_price = float(ot.get("averageClosePrice", 0))
+                    if close_price <= 0:
+                        continue
+                    trade_id = demo_trade["trade_id"]
+                    mode = demo_trade.get("mode", "")
+                    cfg = MODE_CONFIG.get(mode, {})
+                    result = self._db.close_trade(trade_id, close_price, "OANDA_SL_TP")
+                    if "error" not in result:
+                        pnl = result.get("pnl_pips", 0)
+                        outcome = result.get("outcome", "?")
+                        icon = "✅" if outcome == "WIN" else "❌"
+                        self._add_log(
+                            f"{cfg.get('icon','')} 📤 OUT [{cfg.get('label','?')}]: {icon} {outcome} | "
+                            f"{demo_trade['direction']} @ {demo_trade['entry_price']:.3f} → {close_price:.3f} | "
+                            f"PnL: {pnl:+.1f} pips | "
+                            f"Reason: OANDA_BROKER_CLOSE | ID: {trade_id}"
+                        )
+                        # Remove from bridge mapping
+                        self._oanda._trade_map.pop(trade_id, None)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).debug(f"oanda sync check error: {e}")
 
     def _check_sltp_realtime(self):
         """全オープントレードをリアルタイム価格でSL/TPチェック + 最大保持時間 + 週末クローズ"""
