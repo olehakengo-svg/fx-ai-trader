@@ -2290,11 +2290,11 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     #  新設計: クロス発生 → プルバック確認 → 方向再確認 → エントリー
     #  騙し上げ/下げはプルバック後に戻らないので自然にフィルターされる
     # ════════════════════════════════════════════════════════
-    if not _sr_signal_found and signal == "WAIT" and adx >= 20 and len(df) >= 10:
-        # (1) 直近5本以内にEMAクロスが発生したか
+    if not _sr_signal_found and signal == "WAIT" and adx >= 15 and len(df) >= 10:  # ADX 20→15 (FXアナリスト推奨)
+        # (1) 直近8本以内にEMAクロスが発生したか (5→8: プルバック完了後のウィンドウ切れ防止)
         _cross_dir = None   # "BUY" or "SELL"
         _cross_bar = None   # クロスが起きたバーのインデックス
-        for _cb in range(2, min(6, len(df))):
+        for _cb in range(2, min(9, len(df))):  # 5→8本 (15m×8=2時間)
             _e9p = float(df["ema9"].iloc[-_cb - 1])
             _e21p = float(df["ema21"].iloc[-_cb - 1])
             _e9c = float(df["ema9"].iloc[-_cb])
@@ -2333,17 +2333,17 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 _rsi_ok = (rsi < 70) if _cross_dir == "BUY" else (rsi > 30)
 
                 if (_cross_dir == "BUY" and ema9 > ema21 and _candle_bull
-                        and _macd_h > 0 and _rsi_ok and ema_score > 0.40):
+                        and _macd_h > 0 and _rsi_ok and ema_score > 0.30):  # 0.40→0.30 (HTF二重ブロック回避)
                     signal = "BUY"
                     _dt_entry_type = "ema_cross"
                     reasons.append(f"✅ EMAクロスリテスト: 9/21 GC {_cross_bar}本前, PB={_pullback_depth:.1f}ATR")
-                    reasons.append(f"✅ 5条件一致: ADX≥20({adx:.0f}), MACD+, RSI({rsi:.0f}), 陽線, EMA維持")
+                    reasons.append(f"✅ 5条件一致: ADX≥15({adx:.0f}), MACD+, RSI({rsi:.0f}), 陽線, EMA維持")
                 elif (_cross_dir == "SELL" and ema9 < ema21 and _candle_bear
-                        and _macd_h < 0 and _rsi_ok and ema_score < -0.40):
+                        and _macd_h < 0 and _rsi_ok and ema_score < -0.30):  # -0.40→-0.30
                     signal = "SELL"
                     _dt_entry_type = "ema_cross"
                     reasons.append(f"✅ EMAクロスリテスト: 9/21 DC {_cross_bar}本前, PB={_pullback_depth:.1f}ATR")
-                    reasons.append(f"✅ 5条件一致: ADX≥20({adx:.0f}), MACD-, RSI({rsi:.0f}), 陰線, EMA維持")
+                    reasons.append(f"✅ 5条件一致: ADX≥15({adx:.0f}), MACD-, RSI({rsi:.0f}), 陰線, EMA維持")
 
     # SR+Fib / OB Retest フォールバック（ema_cross以外のフォールバック）
     if not _sr_signal_found and signal == "WAIT" and adx >= 15:
