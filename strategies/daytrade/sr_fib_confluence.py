@@ -20,29 +20,29 @@ class SrFibConfluence(StrategyBase):
         score = 0.0
         reasons = []
 
-        # SR/Fib情報はlayer3から取得
-        _l3_reasons = ctx.layer3.get("reasons", [])
-        _has_sr_fib = any("Fib" in r or "フィボ" in r for r in _l3_reasons)
-        _has_ob = any("OB" in r or "オーダーブロック" in r for r in _l3_reasons)
+        # SR/Fib情報: DT関数の蓄積reasonsまたはlayer3から取得
+        _all_reasons = ctx.layer3.get("dt_reasons", ctx.layer3.get("reasons", []))
+        _has_sr_fib = any("Fib" in r or "フィボ" in r for r in _all_reasons)
+        _has_ob = any("OB" in r or "オーダーブロック" in r for r in _all_reasons)
 
         if not _has_sr_fib and not _has_ob:
             return None
 
-        # EMAスコア計算
-        _ema_spread = (ctx.ema9 - ctx.ema21) / max(ctx.atr, 1e-8)
+        # EMAスコア: DT関数から渡される複合スコア
+        ema_score = ctx.ema_score if ctx.ema_score != 0.0 else (ctx.ema9 - ctx.ema21) / max(ctx.atr, 1e-8)
 
-        if _ema_spread > self.ema_score_threshold and ctx.ema9 > ctx.ema21:
+        if ema_score > self.ema_score_threshold and ctx.ema9 > ctx.ema21:
             signal = "BUY"
-            score = 3.0 + abs(_ema_spread) * 2
+            score = 3.0 + abs(ema_score) * 2
             reasons.append("✅ SR/Fibコンフルエンス + EMA順列確認")
-            reasons.extend([r for r in _l3_reasons if "✅" in r][:3])
+            reasons.extend([r for r in _all_reasons if "✅" in r][:3])
             tp = ctx.entry + ctx.atr7 * 2.0
             sl = ctx.entry - ctx.atr7 * 1.0
-        elif _ema_spread < -self.ema_score_threshold and ctx.ema9 < ctx.ema21:
+        elif ema_score < -self.ema_score_threshold and ctx.ema9 < ctx.ema21:
             signal = "SELL"
-            score = 3.0 + abs(_ema_spread) * 2
+            score = 3.0 + abs(ema_score) * 2
             reasons.append("✅ SR/Fibコンフルエンス + EMA逆順列確認")
-            reasons.extend([r for r in _l3_reasons if "✅" in r][:3])
+            reasons.extend([r for r in _all_reasons if "✅" in r][:3])
             tp = ctx.entry - ctx.atr7 * 2.0
             sl = ctx.entry + ctx.atr7 * 1.0
 

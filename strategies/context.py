@@ -76,6 +76,13 @@ class SignalContext:
     htf: dict = field(default_factory=dict)
     session: dict = field(default_factory=dict)
 
+    # ── ADX DI ──
+    adx_pos: float = 25.0           # +DI
+    adx_neg: float = 25.0           # -DI
+
+    # ── DT用EMAスコア ──
+    ema_score: float = 0.0          # EMAスプレッドベースの方向スコア
+
     # ── メタ情報 ──
     symbol: str = "USDJPY=X"
     tf: str = "1m"

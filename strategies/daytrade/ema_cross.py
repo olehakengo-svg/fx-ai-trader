@@ -26,9 +26,8 @@ class EmaCross(StrategyBase):
         score = 0.0
         reasons = []
 
-        # EMAスコア計算
-        _ema_spread = (ctx.ema9 - ctx.ema21) / max(ctx.atr, 1e-8)
-        ema_score = _ema_spread
+        # EMAスコア: DT関数から渡される複合スコア、なければローカル計算
+        ema_score = ctx.ema_score if ctx.ema_score != 0.0 else (ctx.ema9 - ctx.ema21) / max(ctx.atr, 1e-8)
 
         # (1) 直近N本以内にEMAクロスが発生したか
         _cross_dir = None

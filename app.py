@@ -2290,12 +2290,54 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                         break
 
     # ════════════════════════════════════════════════════════
-    #  EMA Cross Retest（リテスト確認型EMAクロス）
-    #  旧ema_cross: フォールバックで即エントリー → WR=33% EV=-1.58
-    #  新設計: クロス発生 → プルバック確認 → 方向再確認 → エントリー
-    #  騙し上げ/下げはプルバック後に戻らないので自然にフィルターされる
+    #  DaytradeEngine: フォールバック戦略群
+    #  ema_cross, sr_fib_confluence, dt_fib_reversal,
+    #  dt_sr_channel_reversal, ema200_trend_reversal
     # ════════════════════════════════════════════════════════
-    if not _sr_signal_found and signal == "WAIT" and adx >= 12 and len(df) >= 10:  # ADX 20→15→12 (低ADXでもクロスは有効)
+    if not _sr_signal_found and signal == "WAIT":
+        from strategies.context import SignalContext as _DtCtx
+        from strategies.daytrade import DaytradeEngine as _DtEngine
+
+        # DT用SignalContext構築（ema_score + 蓄積reasonsを渡す）
+        _dt_ctx = _DtCtx(
+            entry=entry, open_price=float(row["Open"]),
+            atr=atr, atr7=float(row["atr7"]) if "atr7" in row.index else atr,
+            ema9=ema9, ema21=ema21, ema50=ema50, ema200=ema200,
+            rsi=rsi, rsi5=float(row.get("rsi5", rsi)),
+            stoch_k=float(row.get("stoch_k", 50.0)),
+            stoch_d=float(row.get("stoch_d", 50.0)),
+            adx=adx, adx_pos=adx_p, adx_neg=adx_n,
+            macdh=macdh, macdh_prev=macdh_prev,
+            macdh_prev2=float(df["macd_hist"].iloc[-3]) if len(df) >= 3 else 0.0,
+            bbpb=bbpb,
+            bb_upper=float(row.get("bb_upper", entry + atr)),
+            bb_mid=float(row.get("bb_mid", entry)),
+            bb_lower=float(row.get("bb_lower", entry - atr)),
+            ema_score=ema_score,
+            symbol=symbol, tf=tf, is_jpy=_dt_is_jpy,
+            pip_mult=_dt_pip_mult,
+            df=df, sr_levels=sr_levels,
+            layer0=layer0, layer1=layer1, regime=regime,
+            layer2=layer2,
+            layer3={**layer3, "dt_reasons": reasons},  # 蓄積reasonsを渡す
+            htf=htf_dt,
+            backtest_mode=backtest_mode, bar_time=bar_time,
+        )
+        _dt_engine = _DtEngine()
+        _dt_candidates = _dt_engine.evaluate_all(_dt_ctx)
+        _dt_best = _dt_engine.select_best(_dt_candidates)
+        if _dt_best:
+            signal = _dt_best.signal
+            _dt_entry_type = _dt_best.entry_type
+            _sr_signal_found = True
+            reasons.extend(_dt_best.reasons)
+            # スコア調整: DT関数のscoreに戦略スコアを反映
+            if signal == "BUY":
+                score += _dt_best.score * 0.5
+            else:
+                score -= _dt_best.score * 0.5
+
+    if False and not _sr_signal_found and signal == "WAIT" and adx >= 12 and len(df) >= 10:  # LEGACY: replaced by DaytradeEngine
         # (1) 直近8本以内にEMAクロスが発生したか (5→8: プルバック完了後のウィンドウ切れ防止)
         _cross_dir = None   # "BUY" or "SELL"
         _cross_bar = None   # クロスが起きたバーのインデックス
@@ -2350,8 +2392,8 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                     reasons.append(f"✅ EMAクロスリテスト: 9/21 DC {_cross_bar}本前, PB={_pullback_depth:.1f}ATR")
                     reasons.append(f"✅ 5条件一致: ADX≥15({adx:.0f}), MACD-, RSI({rsi:.0f}), 陰線, EMA維持")
 
-    # SR+Fib / OB Retest フォールバック（ema_cross以外のフォールバック）
-    if not _sr_signal_found and signal == "WAIT" and adx >= 12:
+    # SR+Fib / OB Retest フォールバック — LEGACY: replaced by DaytradeEngine above
+    if False and not _sr_signal_found and signal == "WAIT" and adx >= 12:
         _has_sr_fib = any("Fib" in r or "フィボ" in r for r in reasons)
         _has_ob     = any("OB" in r or "オーダーブロック" in r for r in reasons)
         THRESHOLD = 0.28
@@ -2364,10 +2406,9 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 _dt_entry_type = "sr_fib_confluence" if _has_sr_fib else "ob_retest"
 
     # ════════════════════════════════════════════════════════
-    #  DT新戦略A: Fibonacci Reversal（15m足フィボリトレースメント反発）
-    #  根拠: フィボ38.2%/50%/61.8%はスイング反転の高確率ゾーン
+    #  DT新戦略A: Fibonacci Reversal — LEGACY: replaced by DaytradeEngine
     # ════════════════════════════════════════════════════════
-    if not _sr_signal_found and signal == "WAIT" and len(df) >= 80:
+    if False and not _sr_signal_found and signal == "WAIT" and len(df) >= 80:
         _dt_fib = _calc_fibonacci_levels(df, lookback=80)
         if _dt_fib and _dt_fib.get("trend"):
             _dt_fib_levels = {
@@ -2411,10 +2452,9 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                         reasons.append("✅ EMA逆順列確認")
 
     # ════════════════════════════════════════════════════════
-    #  DT新戦略B: SR Channel Reversal（15m足SR/チャネルバウンス）
-    #  根拠: 水平線・並行チャネル境界での反発
+    #  DT新戦略B: SR Channel Reversal — LEGACY: replaced by DaytradeEngine
     # ════════════════════════════════════════════════════════
-    if not _sr_signal_found and signal == "WAIT" and sr_levels and len(df) >= 20:
+    if False and not _sr_signal_found and signal == "WAIT" and sr_levels and len(df) >= 20:
         _dt_ch = find_parallel_channel(df, window=5, lookback=min(100, len(df) - 1))
         _dt_ch_upper = float(_dt_ch["upper"][-1]["value"]) if _dt_ch else None
         _dt_ch_lower = float(_dt_ch["lower"][-1]["value"]) if _dt_ch else None
@@ -2455,10 +2495,9 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 reasons.append("✅ EMA逆順列確認")
 
     # ════════════════════════════════════════════════════════
-    #  DT新戦略C: EMA200 Trend Reversal（トレンド転換検出）
-    #  根拠: EMA200ブレイク後のリテスト・反発
+    #  DT新戦略C: EMA200 Trend Reversal — LEGACY: replaced by DaytradeEngine
     # ════════════════════════════════════════════════════════
-    if not _sr_signal_found and signal == "WAIT" and len(df) >= 20:
+    if False and not _sr_signal_found and signal == "WAIT" and len(df) >= 20:
         _ema200_dist_dt = (entry - ema200) / atr if atr > 0 else 0
         # 直近20バーでEMA200をクロスしたか
         _ema200_crosses = 0
