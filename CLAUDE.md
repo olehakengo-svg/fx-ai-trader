@@ -48,44 +48,49 @@
 - スキャルプ + デイトレで達成
 - スプレッド: 0.2 pip
 
-## BT Performance (as of 2026-04-01, Scalp v2.3 + DT v2 + 1H Zone v3)
-- Scalp: 1667t WR=63.2% EV=+0.325 WF=3/3✅ (7d, 1m) — 8戦略アクティブ
-- Daytrade 15m: 169t WR=75.7% EV=+0.562 WF=3/3✅ (7d, 15m) — 6戦略
-- Daytrade 1h(Zone): 148t WR=41.9% EV=+0.191 WF=3/3✅ (30d, 1h)
+## BT Performance (as of 2026-04-03, Scalp v2.4 + DT v2 + 1H Zone v4)
+- Scalp: 676t WR=58.6% EV=+0.269 WF=3/3✅ (7d, 1m) — 7戦略アクティブ
+- Daytrade 15m: 1435t WR=65.2% EV=+0.283 WF=3/3✅ (7d, 15m) — 3戦略
+- Daytrade 1h(Zone): 22t WR=45.5% EV=+0.415 WF=3/3✅ (60d, 1h)
 - Swing: 346t WR=36.7% EV=+0.154 WF=2/3✅ (730d, 1d)
 
-## Scalp v2.3 Strategy Breakdown (7d BT)
-- **bb_rsi_reversion**: 855t WR=62.9% EV=+0.331 — BB%B≤0.25/≥0.75, RSI<45/>55, Stoch<45/>55
-- **fib_reversal**: 216t WR=65.7% EV=+0.422 — フィボ38.2%/50%/61.8%反発, RSI+MACD+Stoch確認
-- **sr_channel_reversal**: 197t WR=63.5% EV=+0.281 — SR/並行チャネルバウンス, RSI+Stoch+MACD
-- **macdh_reversal**: 193t WR=63.7% EV=+0.341 — BB<0.25/>0.75, MACD-H方向転換
-- **engulfing_bb**: 106t WR=59.4% EV=+0.169 — 包み足 at BB<0.30/>0.70
-- **stoch_trend_pullback**: 92t WR=62.0% EV=+0.296 — ADX≥20, Stoch押し目回復
-- **trend_rebound**: 7t WR=71.4% EV=+0.546 — ADX≥35, 極端逆転
+## Scalp v2.4 Strategy Breakdown (7d BT)
+- **bb_rsi_reversion**: 347t WR=58.5% EV=+0.247 — BB%B≤0.25/≥0.75, RSI<45/>55, Stoch<45/>55, ADX<32, Stochクロスギャップ>1.5
+- **macdh_reversal**: 172t WR=57.6% EV=+0.175 — BB<0.25/>0.75, MACD-H方向転換（平均回帰戦略→ソフトペナルティ）
+- **stoch_trend_pullback**: 85t WR=61.2% EV=+0.524 — ADX≥18, Stoch押し目回復
+- **fib_reversal**: 61t WR=57.4% EV=+0.293 — フィボ38.2%/50%/61.8%反発, マルチルックバック(45/60)
+- **bb_squeeze_breakout**: 5t WR=60.0% EV=+0.464 — BBスクイーズ後ブレイクアウト
+- **v_reversal**: 5t WR=80.0% EV=+0.520 — V字反転
+- **trend_rebound**: 1t — ADX≥35, 極端逆転（低頻度）
 - **mtf_reversal_confluence**: ライブ専用（HTFキャッシュBT非対応）— RSI+MACD多時間軸一致
-- **DISABLED**: rsi_divergence_sr (EV-0.607)
+- **DISABLED**: rsi_divergence_sr (EV-0.607), engulfing_bb, sr_channel_reversal, hs_neckbreak
 - **MAX_HOLD=40バー**, COOLDOWN=1, MIN_RR=1.2, ATR TP (Tier1:×2.0, Tier2:×1.5)
+- **平均回帰戦略除外**: bb_rsi_reversion, macdh_reversal, v_reversal, trend_rebound はEMA200/HTFハードフィルター対象外（ソフトペナルティのみ）
 
 ## DT v2 Strategy Breakdown (7d BT)
-- **ema_cross**: 126t WR=76.2% EV=+0.575 (ADX≥12)
-- **sr_fib_confluence**: 42t WR=76.2% EV=+0.566
-- **dual_sr_bounce**: 1t — 低頻度
+- **ema_cross**: 1184t WR=63.8% EV=+0.243 (ADX≥12)
+- **sr_fib_confluence**: 249t WR=71.9% EV=+0.474
+- **ihs_neckbreak**: 2t WR=50.0% EV=+0.285 — 低頻度
 - **dt_fib_reversal**: フォールバック — フィボ38.2%/50%/61.8%反発
 - **dt_sr_channel_reversal**: フォールバック — SR/チャネルバウンス
 - **ema200_trend_reversal**: フォールバック — EMA200ブレイクリテスト
 - ema_score THRESHOLD=0.20, ATR TP floor=×1.5, MAX_HOLD=24バー, ADX≥12
 
-## 1H Zone Strategy v3 (学術論文ベース + リバーサル拡張)
+## 1H Zone Strategy v4 (SR Breakout Retest + HTFフィルター)
 - **コンセプト**: 前日のPivot Point (H+L+C)/3 を境にBuy Zone / Sell Zoneを定義
 - **ゾーン更新**: 毎日UTC 00:00に前日OHLCから再計算
-- **4戦略アクティブ** (6戦略中):
-  - **mtf_momentum**: 95t WR=43.2% EV=+0.212 — EMA9>21>50 + プルバック反発 (Moskowitz 2012)
-  - **pivot_breakout**: 47t WR=38.3% EV=+0.132 — R1/S1突破 + EMA整合 (Osler 2000)
-  - **h1_fib_reversal**: 4t WR=50% EV=+0.309 — フィボ120バー反発, MACD+RSI, SL=0.8ATR
-  - **h1_ema200_trend_reversal**: 2t WR=50% EV=+0.350 — EMA200クロスリテスト, ADX≥15
-- **DISABLED**: session_orb (WR=36.6%), pivot_reversion (WR=30%)
-- **MAX_HOLD**: 18バー（18時間、TP到達時間確保）
-- **BT(30d)**: 148t WR=41.9% EV=+0.191 WF=3/3✅
+- **戦略構成**:
+  - **h1_breakout_retest**: 22t WR=45.5% EV=+0.415 — 強SR(strength≥0.5, touches≥3)ブレイク後リテスト
+    - BUY: 14t WR=57% / SELL: 8t WR=25%
+    - HTFトレンドフィルター: 4H(EMA9/21) + 1D(EMA50/200)方向整合
+    - ブレイク品質フィルター: ブレイク足の実体>0.3-0.5ATR必須
+    - SL=0.8ATR, TP=4.0ATR, inv=0.9ATR
+    - 必須条件: 陽線+EMA9>21(BUY) / 陰線+EMA9<21(SELL)
+  - **h1_fib_reversal**: フォールバック — フィボ120バー反発
+  - **h1_ema200_trend_reversal**: フォールバック — EMA200リテスト, ADX≥15
+- **DISABLED**: h1_sr_reversal (WR=25%), mtf_momentum, session_orb, pivot_breakout, pivot_reversion
+- **MAX_HOLD**: 30バー, BE at 70% TP, Trail 1.2 ATR
+- **BT(60d)**: 22t WR=45.5% EV=+0.415 WF=3/3✅ Sharpe=3.742 MaxDD=4.7pip
 - **用途**: スキャルプ/DT補完、異なるタイムフレームでの分散
 
 ## Key Parameters
@@ -156,3 +161,23 @@
 - **スキャルプEMA200ハードフィルター**: EMA200上+スロープ上昇中のSELL完全ブロック（本番macdh_reversal|SELL WR=0% -15.4pip対策）
 - **スキャルプHTFハードフィルター**: HTF bull時SELL完全ブロック、bear時BUY完全ブロック（ソフト減衰score×0.6→完全ブロック）
 - **OANDA v20サブアカウント接続**: Claude_auto_trade_KG (001-009-21129155-002)、hedgingEnabled=true、APIトークン再発行で403解消
+
+## Recent Fixes (2026-04-03 1H Zone v4 + Scalp最適化)
+- **1H Zone v4完全書き換え**: 旧6戦略(mtf_momentum,session_orb,pivot_breakout等)を廃止、h1_breakout_retest中心に再構築
+  - **h1_breakout_retest**: 強SR(strength≥0.5, touches≥3)ブレイク後のリテストエントリー(Bulkowski 2005)
+  - ブレイク品質フィルター: ブレイク足実体>0.3-0.5ATR必須（ノイズブレイク排除）
+  - HTFトレンドフィルター: 4H(EMA9/21) + 1D(EMA50/200 + EMA50スロープ24本)方向整合
+  - Strong bullトレンド中のSELLブロック / Strong bearトレンド中のBUYブロック
+  - HTFトレンドボーナス: 4H+1D合致で+0.5、1D合致で+0.3
+  - SL=0.8ATR（0.5は1Hノイズで1barストップ多発、1.0はWR崩壊）
+  - TP=4.0ATR、BE at 70%TP、Trail 1.2ATR、MAX_HOLD=30バー
+  - h1_sr_reversal無効化（WR=25%）
+- **bb_rsi_reversion ADX閾値**: 35→28→32（28では件数半減、32で頻度とWRのバランス最適化）
+- **bb_rsi_reversion Stochクロスギャップ**: (stoch_k - stoch_d) > 1.5 必須（ノイズクロス排除）
+- **bb_rsi_reversion 前バー方向確認**: BUY時は前バー陰線、SELL時は前バー陽線を必須化
+- **stoch_trend_pullback頻度増加**: ADX閾値20→18、RSI/Stoch/BBpbレンジ拡大
+- **fib_reversalマルチルックバック**: lookback 60→[45,60]、フィボ近接判定0.25→0.35ATR
+- **macdh_reversal平均回帰分類修正**: _mean_reversion_typesに追加（EMA200/HTFハードフィルター→ソフトペナルティ）
+  - 修正前: 56t WR=53.6% EV=+0.171 → 修正後: 172t WR=57.6% EV=+0.175（BUY WR 44%→62%回復）
+- **Async chunked BT**: /api/backtest-long エンドポイント追加、7日チャンクの非同期BT処理（30日+BTのRenderタイムアウト回避）
+- **BT mode=daytrade_1h追加**: /api/backtest?mode=daytrade_1h でrun_1h_backtest呼び出し可能に
