@@ -193,12 +193,14 @@
   - デモを正（source of truth）として、OANDA孤児を解消
 - **OANDA連携ポイント**: エントリー(ask/bid) / SL/TP(bid/ask) / シグナル反転(bid/ask) / 手動(bid/ask) / 孤児クローズ(5秒毎)
 
-## Recent Fixes (2026-04-03 BT完全統一)
-- **BT/本番パラメータ統一**: 同期間BT比較でBT WR=56.2% vs OANDA WR=48% → 差の原因は同時ポジション
-- **max_open_trades**: 20→1（BT統一: 逐次1本処理。同時ポジションによるSL連打を根絶）
-- **BE閾値**: 50%→60%（BT統一。トレーリングなし、BEのみ）
-- **クールダウン**: BT統一 = 1バー分（scalp:60s, DT:30s）。SL固有/間隔制限撤廃
-- **時間帯フィルター撤廃**: UTC 20-21ブロック含め全て撤廃（1本逐次ならBTと同じWR）
-- **同方向ポジ制限撤廃**: max_open_trades=1で暗黙制御
+## Recent Fixes (2026-04-03 FXアナリストレビュー対応)
+- **P0 BEスプレッド補正**: BE移動時にBUY=entry+spread, SELL=entry-spread（偽BE勝ち防止）
+- **P1 BT時間帯変動スプレッド**: `_bt_spread(bar_time, symbol)` — 東京早朝0.8pip, LDN/NY 0.2pip, NY終盤0.8pip。全8BT関数に適用
+- **P1 通貨ペア別ポジション管理**: max_open_trades=4(安全上限) + 通貨ペア別1本制限。USD/JPYとEUR/USDが独立稼働
+- **P2 SL技術的位置決め**: SR外側(nearest_support/resistance - ATR×0.3) > ATRベース(×0.8/1.0/1.5) の優先順。RR>=1.0保証
+- **P2 戦略自動昇格**: デモで全戦略トレード → N≥30かつEV>0でOANDA昇格 / EV<-0.5で降格。10トレードごとに再評価
+  - `/api/demo/status` の `strategy_promotion` で確認可能
+  - デモ=データ蓄積、OANDA=実績ベース選別
+- **BT/本番パラメータ統一**: BE=60%(トレーリングなし)、クールダウン=1バー、時間帯制限なし
 - **EUR/USD pips計算修正**: realized_pl/units→price-diff方式（demo_db.py）
 - **EUR/USD丸め修正**: round(x,3)→_rp(x,symbol)で5桁対応（app.py全signal関数）
