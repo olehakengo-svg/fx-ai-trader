@@ -134,10 +134,17 @@ class DemoTrader:
         # デプロイ中にOANDA未連携のOPENトレードを補完送信
         self._resend_pending_oanda_trades()
 
+        # ── 戦略自動昇格: デモで実績を積んだ戦略のみOANDA実行 ──
+        # 昇格条件: N >= 30 かつ EV > 0（デモ実績ベース）
+        # 降格条件: N >= 30 かつ EV < -0.5
+        # 未評価（N < 30）: デモのみ（OANDA連携しない）
+        self._promoted_types: dict = {}  # {entry_type: {"status": "promoted"|"demoted"|"pending", "n": N, "wr": WR, "ev": EV}}
+        self._evaluate_promotions()  # 起動時に評価
+
         # チューナブルパラメータ（学習エンジンが調整、全モード共通）
         self._params = {
             "confidence_threshold": 30,  # デモ: 30%（学習データ蓄積優先、本番は40推奨）
-            "max_open_trades": 1,  # BT統一: 1本ずつ逐次処理（BTは構造上同時1本）
+            "max_open_trades": 4,  # グローバル安全上限（実際の制御は通貨ペア別1本）
             "sl_adjust": 1.0,
             "tp_adjust": 1.0,
             "entry_type_blacklist": [],
@@ -376,6 +383,7 @@ class DemoTrader:
             "_user_stopped_modes": list(self._user_stopped_modes),
             "block_counts": getattr(self, '_block_counts', {}),
             "oanda": self._oanda.status,
+            "strategy_promotion": self._promoted_types,
         }
 
     def request_tick(self):
@@ -850,12 +858,17 @@ class DemoTrader:
 
                 if progress >= 0.60:
                     # 60%到達: BEのみ（トレーリングなし = BT統一）
+                    # スプレッド考慮: BUYはbidで決済されるのでentry+spread、SELLはaskで決済されるのでentry-spread
+                    if _ba_rt:
+                        _spread_amt = _ba_rt["ask"] - _ba_rt["bid"]
+                    else:
+                        _spread_amt = 0.008 if "JPY" in _inst else 0.00008
                     if direction == "BUY":
-                        new_sl = round(entry_price, _pip_decimals)
+                        new_sl = round(entry_price + _spread_amt, _pip_decimals)
                         if new_sl > sl:
                             sl = new_sl
                     else:
-                        new_sl = round(entry_price, _pip_decimals)
+                        new_sl = round(entry_price - _spread_amt, _pip_decimals)
                         if new_sl < sl:
                             sl = new_sl
 
@@ -1308,7 +1321,11 @@ class DemoTrader:
             self._block_counts[k] = self._block_counts.get(k, 0) + 1
             return
 
-        # 全モード合計ポジション上限
+        # BT統一: 通貨ペア別に1本ずつ逐次処理
+        _inst_trades = [t for t in open_trades if t.get("instrument", "USD_JPY") == instrument]
+        if len(_inst_trades) >= 1:
+            _block(f"max_open_per_pair({instrument})"); return
+        # グローバル安全上限（全通貨ペア合計）
         if len(open_trades) >= self._params["max_open_trades"]:
             _block("max_open"); return
         if signal == "WAIT":
@@ -1514,9 +1531,10 @@ class DemoTrader:
                                 return
 
         # ══════════════════════════════════════════════════════════════
-        # ── TP固定 / SLエントリーから逆算 ──
+        # ── TP固定 / SL技術的位置ベース ──
         # TPは技術的ターゲット（SR/Fib/BB等）で固定。
-        # SLはエントリー価格からRR比で逆算（TPが遠ければSLも余裕あり）。
+        # SLは①SR外側 ②ATRベース の優先順で決定。
+        # 技術的に意味のある位置にSLを置くことでノイズ耐性向上。
         # ══════════════════════════════════════════════════════════════
         tp = sig.get("tp", 0)  # シグナル関数が算出した技術的ターゲット（固定）
 
@@ -1524,32 +1542,63 @@ class DemoTrader:
         if tp_dist <= 0:
             return  # TPが無効（0または現在価格と同一）→ エントリー見送り
         if _mtf_tp_bonus > 1.0:
-            # TP価格を再計算
             if signal == "BUY":
                 tp = current_price + tp_dist
             else:
                 tp = current_price - tp_dist
-        # 最小RR比: リスクに対してリワードが十分あることを保証
+
         _base_mode = mode.replace("_eur", "")  # scalp_eur -> scalp
-        MIN_RR = {"scalp": 1.5, "daytrade": 1.8, "swing": 2.0}.get(_base_mode, 1.5)
-        # SL = エントリーからTP距離 / RR比
-        sl_dist = tp_dist / MIN_RR
-        # 最低SL距離保証（スプレッド+ノイズ対策）
-        # JPY pairs: 0.030/0.050/0.100, Non-JPY: 0.00030/0.00050/0.00100
         _is_jpy = "JPY" in instrument
+        _price_dec = 3 if _is_jpy else 5
+        _atr = sig.get("atr", 0.07 if _is_jpy else 0.00070)
+        _sl_margin = _atr * 0.3  # SR外側バッファ
+
+        # ── SL候補①: SR外側（技術的根拠のあるSL）──
+        sr_map = sig.get("sr_entry_map", {})
+        _sr_sl = None
+        if signal == "BUY":
+            _ns = sr_map.get("nearest_support")
+            if _ns and _ns.get("price", 0) > 0:
+                _sr_sl = _ns["price"] - _sl_margin
+        else:
+            _nr = sr_map.get("nearest_resistance")
+            if _nr and _nr.get("price", 0) > 0:
+                _sr_sl = _nr["price"] + _sl_margin
+
+        # ── SL候補②: ATRベース（SRがない場合のフォールバック）──
+        _atr_mult = {"scalp": 0.8, "daytrade": 1.0, "swing": 1.5}.get(_base_mode, 0.8)
+        if signal == "BUY":
+            _atr_sl = current_price - _atr * _atr_mult
+        else:
+            _atr_sl = current_price + _atr * _atr_mult
+
+        # ── SL選択: SR優先、RR >= 1.0 保証 ──
+        if _sr_sl is not None:
+            _sr_sl_dist = abs(current_price - _sr_sl)
+            _sr_rr = tp_dist / max(_sr_sl_dist, 1e-8)
+            if _sr_rr >= 1.0:
+                sl = round(_sr_sl, _price_dec)
+                sl_dist = _sr_sl_dist
+            else:
+                sl = round(_atr_sl, _price_dec)
+                sl_dist = abs(current_price - _atr_sl)
+        else:
+            sl = round(_atr_sl, _price_dec)
+            sl_dist = abs(current_price - _atr_sl)
+
+        # 最低SL距離保証
         if _is_jpy:
             MIN_SL_DIST = {"scalp": 0.030, "daytrade": 0.050, "swing": 0.100}.get(_base_mode, 0.030)
         else:
             MIN_SL_DIST = {"scalp": 0.00030, "daytrade": 0.00050, "swing": 0.00100}.get(_base_mode, 0.00030)
-        sl_dist = max(sl_dist, MIN_SL_DIST)
+        if sl_dist < MIN_SL_DIST:
+            sl_dist = MIN_SL_DIST
+            if signal == "BUY":
+                sl = round(current_price - sl_dist, _price_dec)
+            else:
+                sl = round(current_price + sl_dist, _price_dec)
 
-        _price_dec = 3 if _is_jpy else 5
-        if signal == "BUY":
-            sl = round(current_price - sl_dist, _price_dec)
-        else:
-            sl = round(current_price + sl_dist, _price_dec)
-
-        # TP距離がSL距離より小さい場合はRR不足 → エントリー見送り
+        # RR不足チェック
         if tp_dist < sl_dist:
             return
 
@@ -1585,15 +1634,23 @@ class DemoTrader:
             instrument=instrument,
         )
 
-        # ── OANDA連携: デモトレードをミラーリング ──
-        self._oanda.open_trade(
-            demo_trade_id=trade_id,
-            direction=signal,
-            sl=sl, tp=tp,
-            mode=mode,
-            instrument=instrument,
-            callback=lambda did, oid: self._db.set_oanda_trade_id(did, oid),
-        )
+        # ── OANDA連携: 昇格済み戦略のみミラーリング ──
+        if self._is_promoted(entry_type):
+            self._oanda.open_trade(
+                demo_trade_id=trade_id,
+                direction=signal,
+                sl=sl, tp=tp,
+                mode=mode,
+                instrument=instrument,
+                callback=lambda did, oid: self._db.set_oanda_trade_id(did, oid),
+            )
+        else:
+            _promo = self._promoted_types.get(entry_type, {})
+            _promo_n = _promo.get("n", 0)
+            self._add_log(
+                f"   ⏳ OANDA未連携（{entry_type}: N={_promo_n}/30, "
+                f"status={_promo.get('status', 'pending')}）"
+            )
 
         # エントリー理由の要約（✅マーク付きの理由を抽出）
         _confirmed_reasons = [r for r in reasons if "✅" in r]
@@ -1724,6 +1781,49 @@ class DemoTrader:
                     self._add_log(f"🧠 [{label}] 学習完了: 調整なし (WR {wr}%, {sample}件)")
             except Exception as e:
                 self._add_log(f"⚠️ [{mode}] 学習エラー: {e}")
+
+        # 学習完了後に戦略昇格を再評価
+        self._evaluate_promotions()
+
+    def _evaluate_promotions(self):
+        """デモ実績に基づいて戦略をOANDA昇格/降格判定"""
+        try:
+            data = self._db.get_trades_for_learning(min_trades=1)
+            if not data.get("ready"):
+                return
+            by_type = data.get("by_type", {})
+            _MIN_N = 30   # 最低サンプル数
+            _MIN_EV = 0.0  # 昇格EV閾値
+            _DEMOTE_EV = -0.5  # 降格EV閾値
+            changes = []
+            for et, stats in by_type.items():
+                n = stats.get("n", 0)
+                ev = stats.get("ev", 0)
+                wr = stats.get("wr", 0)
+                old = self._promoted_types.get(et, {}).get("status", "pending")
+                if n >= _MIN_N:
+                    if ev >= _MIN_EV:
+                        status = "promoted"
+                    elif ev < _DEMOTE_EV:
+                        status = "demoted"
+                    else:
+                        status = "pending"
+                else:
+                    status = "pending"
+                self._promoted_types[et] = {"status": status, "n": n, "wr": wr, "ev": ev}
+                if old != status:
+                    changes.append(f"{et}: {old}→{status} (N={n} WR={wr}% EV={ev:+.2f})")
+            if changes:
+                self._add_log(f"🎯 戦略昇格更新: {', '.join(changes[:5])}")
+        except Exception as e:
+            print(f"[Promotion] error: {e}", flush=True)
+
+    def _is_promoted(self, entry_type: str) -> bool:
+        """戦略がOANDA実行可能か判定"""
+        info = self._promoted_types.get(entry_type)
+        if not info:
+            return False  # 未評価 = デモのみ
+        return info["status"] == "promoted"
 
     def _apply_adjustments(self, adjustments: list):
         for adj in adjustments:

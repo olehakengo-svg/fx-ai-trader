@@ -3598,6 +3598,36 @@ def _get_dxy_trend_for_bt() -> str:
         return "neutral"
 
 
+def _bt_spread(bar_time, symbol: str = "USDJPY=X") -> float:
+    """BT用 時間帯変動スプレッドモデル
+    東京早朝/NY終盤はスプレッド拡大、LDN/NY重複は最狭
+    """
+    try:
+        h = bar_time.hour if hasattr(bar_time, 'hour') else 0
+    except Exception:
+        h = 0
+    _is_jpy = "JPY" in symbol.upper()
+    # pip単位: JPY=0.01, non-JPY=0.0001
+    if _is_jpy:
+        # 東京早朝(0-2 UTC = 9-11 JST開場直後): 0.8pip
+        # アジア(2-7): 0.4pip
+        # ロンドン(7-12): 0.2pip (最狭)
+        # NY重複(12-16): 0.2pip
+        # NY後半(16-20): 0.3pip
+        # NY終盤/クローズ(20-24): 0.8pip
+        if h < 2:     return 0.008   # 0.8pip
+        elif h < 7:   return 0.004   # 0.4pip
+        elif h < 16:  return 0.002   # 0.2pip (LDN/NY)
+        elif h < 20:  return 0.003   # 0.3pip
+        else:         return 0.008   # 0.8pip
+    else:
+        if h < 2:     return 0.00008  # 0.8pip
+        elif h < 7:   return 0.00004  # 0.4pip
+        elif h < 16:  return 0.00002  # 0.2pip
+        elif h < 20:  return 0.00003  # 0.3pip
+        else:         return 0.00008  # 0.8pip
+
+
 # ═══════════════════════════════════════════════════════
 #  バックテスト（1H / 90日・勝率・期待値算出）
 # ═══════════════════════════════════════════════════════
@@ -3624,7 +3654,6 @@ def run_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足", "trades": 0, "mode": "standard"}
 
-        SPREAD   = 0.008 if "JPY" in symbol.upper() else 0.00008   # 0.8 pip
         SL_MULT  = 1.5     # default ATR mult
         TP_MULT  = 2.5     # default ATR mult
         MAX_HOLD = 24      # bars (24 hours)
@@ -3760,7 +3789,8 @@ def run_backtest(symbol: str = "USDJPY=X",
             if i + 1 >= len(df):
                 continue
             ep = float(df.iloc[i + 1]["Open"])
-            ep = ep + SPREAD / 2 if sig == "BUY" else ep - SPREAD / 2
+            _spread = _bt_spread(df.index[i], symbol)
+            ep = ep + _spread / 2 if sig == "BUY" else ep - _spread / 2
 
             # エントリータイプ別 SL/TP
             if entry_type == "sr_bounce":
@@ -4051,7 +4081,6 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足（最低100本必要）", "trades": 0, "mode": "scalp"}
 
-        SPREAD       = 0.008 if "JPY" in symbol.upper() else 0.00008   # 0.8 pip
         profile      = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
         SL_MULT      = profile["scalp_sl"]   # scalp-specific SL
         TP_MULT      = profile["scalp_tp"]   # scalp-specific TP
@@ -4219,7 +4248,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             if i + 1 >= len(df):
                 continue
             ep = float(df.iloc[i + 1]["Open"])
-            ep = ep + SPREAD / 2 if sig == "BUY" else ep - SPREAD / 2
+            _spread = _bt_spread(bar_time, symbol)
+            ep = ep + _spread / 2 if sig == "BUY" else ep - _spread / 2
 
             # TP固定: シグナルのTPターゲットを維持（エントリー価格シフト分のみ調整）
             sig_entry = sig_result.get("entry", ep)
@@ -4467,7 +4497,6 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足", "trades": 0, "mode": "daytrade"}
 
-        SPREAD    = 0.008 if "JPY" in symbol.upper() else 0.00008   # 0.8 pip
         profile   = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
         SL_MULT   = profile["daytrade_sl"]   # daytrade-specific SL
         TP_MULT   = profile["daytrade_tp"]   # daytrade-specific TP
@@ -4599,7 +4628,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             if i + 1 >= len(df):
                 continue
             ep = float(df.iloc[i + 1]["Open"])
-            ep = ep + SPREAD / 2 if sig == "BUY" else ep - SPREAD / 2
+            _spread = _bt_spread(bar_time, symbol)
+            ep = ep + _spread / 2 if sig == "BUY" else ep - _spread / 2
 
             # TP固定: シグナルのTPターゲットを維持（エントリー価格シフト分のみ調整）
             # ATR×1.5をフロアとして保証（シグナルTPが小さすぎる場合に補正）
@@ -4830,7 +4860,6 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
         if len(df) < 50:
             return {"error": "データ不足", "trades": 0, "mode": "1h_zone"}
 
-        SPREAD   = 0.008 if "JPY" in symbol.upper() else 0.00008   # 0.8 pip
         MAX_HOLD = 30      # 30 bars = 30 hours（ブレイクアウト到達に十分な時間）
         COOLDOWN = 1
         MIN_RR   = 1.2
@@ -4955,7 +4984,8 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
             if i + 1 >= len(df):
                 continue
             ep = float(df.iloc[i + 1]["Open"])
-            ep = ep + SPREAD / 2 if sig == "BUY" else ep - SPREAD / 2
+            _spread = _bt_spread(df.index[i], symbol)
+            ep = ep + _spread / 2 if sig == "BUY" else ep - _spread / 2
 
             # TP from signal, adjusted for entry shift
             sig_entry = sig_result.get("entry", ep)
@@ -5220,7 +5250,6 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
         if len(df) < 100:
             return {"error": "データ不足", "trades": 0, "mode": "swing"}
 
-        SPREAD   = 0.008 if "JPY" in symbol.upper() else 0.00008   # 0.8 pip
         SL_MULT  = 1.5     # デフォルトSL
         TP_MULT  = 3.0     # デフォルトTP（RR 1:2）
         MAX_HOLD = 20      # 日
@@ -5303,7 +5332,8 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
             if i + 1 >= len(df):
                 continue
             ep = float(df.iloc[i + 1]["Open"])
-            ep = ep + SPREAD / 2 if sig == "BUY" else ep - SPREAD / 2
+            _spread = _bt_spread(bar_time, symbol)
+            ep = ep + _spread / 2 if sig == "BUY" else ep - _spread / 2
 
             # SL/TPをcompute_swing_signalの値ベースで再計算（epの差分を反映）
             sig_entry = sig_result.get("entry", ep)
@@ -5934,7 +5964,6 @@ def train_ml_model() -> bool:
             return False
 
         # Simulate trades using BT logic to generate labeled samples
-        SPREAD  = 0.008 if "JPY" in symbol.upper() else 0.00008   # 0.8 pip
         SL_MULT = 0.8
         TP_MULT = 1.5
         MAX_HOLD = 12
@@ -5971,7 +6000,8 @@ def train_ml_model() -> bool:
             # Simulate outcome
             sig = "BUY" if cross_up else "SELL"
             ep  = float(df.iloc[i+1]["Open"])
-            ep  = ep + SPREAD/2 if sig == "BUY" else ep - SPREAD/2
+            _spread = _bt_spread(df.index[i], symbol)
+            ep  = ep + _spread/2 if sig == "BUY" else ep - _spread/2
             sl  = ep - atr7 * SL_MULT if sig == "BUY" else ep + atr7 * SL_MULT
             tp  = ep + atr7 * TP_MULT if sig == "BUY" else ep - atr7 * TP_MULT
 
@@ -8701,7 +8731,6 @@ def run_strategy_evaluation(symbol: str = "USDJPY=X",
         if len(df) < 200:
             return {"error": "データ不足"}
 
-        SPREAD  = 0.008 if "JPY" in symbol.upper() else 0.00008   # 0.8 pip
         SL_MULT = 0.5    # BT と同じ RR3:1 設定に統一
         TP_MULT = 1.5
         MAX_HOLD = 20
@@ -8727,7 +8756,8 @@ def run_strategy_evaluation(symbol: str = "USDJPY=X",
                 continue
             sig = "BUY" if _random.random() > 0.5 else "SELL"
             ep  = float(df.iloc[bar_i + 1]["Open"])
-            ep  = ep + SPREAD/2 if sig == "BUY" else ep - SPREAD/2
+            _spread = _bt_spread(df.index[bar_i], symbol)
+            ep  = ep + _spread/2 if sig == "BUY" else ep - _spread/2
             sl  = ep - atr * SL_MULT if sig == "BUY" else ep + atr * SL_MULT
             tp  = ep + atr * TP_MULT if sig == "BUY" else ep - atr * TP_MULT
 
@@ -9082,7 +9112,6 @@ def run_historical_pattern_analysis(
             return {"error": "データ不足 (200本以上必要)", "bars": len(df)}
 
         # ── 2. BTシミュレーション（EMAクロスオーバー戦略、RR=3:1）──
-        SPREAD  = 0.008 if "JPY" in symbol.upper() else 0.00008   # 0.8 pip
         SL_MULT = 0.5
         TP_MULT = 1.5
         MAX_HOLD = 20
@@ -9182,7 +9211,8 @@ def run_historical_pattern_analysis(
             if i + 1 >= len(df):
                 continue
             ep = float(df.iloc[i + 1]["Open"])
-            ep = ep + SPREAD / 2 if sig == "BUY" else ep - SPREAD / 2
+            _spread = _bt_spread(df.index[i], symbol)
+            ep = ep + _spread / 2 if sig == "BUY" else ep - _spread / 2
             sl = ep - atr * SL_MULT if sig == "BUY" else ep + atr * SL_MULT
             tp = ep + atr * TP_MULT if sig == "BUY" else ep - atr * TP_MULT
 
