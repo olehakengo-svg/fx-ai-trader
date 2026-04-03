@@ -997,7 +997,7 @@ class DemoTrader:
             # 構造的パターン（強いバイアス）とトレンドシグナル（軽いバイアス）
             _strong_patterns = {"hs_neckbreak", "ihs_neckbreak", "dual_sr_bounce",
                                 "dual_sr_breakout", "sr_fib_confluence"}
-            _trend_patterns = {"ema_cross", "mtf_momentum", "pivot_breakout"}
+            _trend_patterns = {"ema_cross", "mtf_momentum", "pivot_breakout", "h1_breakout_retest"}
             if _dt_etype in _strong_patterns or _dt_etype in _trend_patterns:
                 _bias_strength = "strong" if _dt_etype in _strong_patterns else "trend"
                 with self._lock:
@@ -1103,10 +1103,12 @@ class DemoTrader:
             "dt_fib_reversal",           # DT フィボリバーサル
             # "dt_sr_channel_reversal",  # DISABLED: BT WR=25% EV=-0.659
             # "ema200_trend_reversal",   # DISABLED: BT WR=50% EV=-0.037
-            # 1H Zone: 学術論文ベース戦略
+            # 1H Zone v4: SR強度ベース戦略
+            "h1_sr_reversal",        # SR/チャネル強壁反発
+            "h1_breakout_retest",    # 強壁ブレイク後リテスト → トレンドフォロー
+            # 旧戦略（互換維持）
             "mtf_momentum",          # Multi-TF Momentum (Moskowitz 2012)
             "session_orb",           # Session ORB (Ito & Hashimoto 2006)
-            # "pivot_breakout",      # DISABLED: 本番WR=0%(3t -66.4pip) — SL幅27pip+逆行エントリー
             "pivot_reversion",       # Pivot Reversion (Osler 2000 + BB/RSI)
             "h1_fib_reversal",           # 1H フィボリバーサル
             "h1_ema200_trend_reversal",  # 1H EMA200トレンド転換

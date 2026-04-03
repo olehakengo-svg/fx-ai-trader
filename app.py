@@ -2930,429 +2930,261 @@ def compute_1h_zone_signal(df: pd.DataFrame,
     _atr_sma = np.mean([float(df.iloc[-(j+1)].get("atr", atr)) for j in range(min(20, len(df)-1))])
     _atr_expanding = atr > _atr_sma * 1.1  # ATRが20期間平均の110%以上
 
-    # ── 候補リスト: (signal, score, tp, sl, reasons, entry_type) ──
+    # ── 候補リスト: (signal, score, tp, sl, reasons, entry_type, invalidation) ──
     candidates = []
 
+    # ── SR強度計算（1H足用: weighted SR with strength scoring）──
+    _h1_sr_weighted = find_sr_levels_weighted(
+        df, window=5, tolerance_pct=0.004, min_touches=2,
+        max_levels=12, bars_per_day=24)  # 1H = 24bars/day
+
+    # ── 並行チャネル検出 ──
+    _h1_channel = find_parallel_channel(df, window=5, lookback=min(120, len(df) - 1))
+    _ch_upper = None
+    _ch_lower = None
+    _ch_trend = None
+    if _h1_channel:
+        _ch_trend = _h1_channel.get("trend")
+        _n = len(df) - 1
+        _ch_offset = len(df) - min(120, len(df) - 1)
+        _ci = _n - _ch_offset
+        _u_data = _h1_channel["upper"]
+        _l_data = _h1_channel["lower"]
+        if _ci >= 0 and _ci < len(_u_data):
+            _ch_upper = _u_data[_ci]["value"]
+            _ch_lower = _l_data[_ci]["value"]
+
     # ════════════════════════════════════════════════════════════
-    #  戦略1: EMAラグ・コントラリアン (旧mtf_momentum改良)
-    #  核心: EMAはラグする → EMAがまだ弱気なのに価格が中期EMA上 = 転換BUY
-    #  v6: デュアル基準（EMA200 + EMA50）で両方向シグナル発生
-    #       EMA200合致: base=1.5 (高信頼)
-    #       EMA50のみ: base=1.0 (低信頼→他の確認が全部必要)
-    #       → 上昇相場でもSELL発生、下降相場でもBUY発生
+    #  戦略1: SR/Channel Strength Reversal（強壁反発）
+    #  核心: SR水平線 or 並行チャネル端の「強度」を測定し、
+    #        強い壁（strength≥0.5, touches≥3）付近での反発をキャッチ
+    #  根拠: Osler 2000 — 制度的注文集中レベルでの反発確率は65-75%
     # ════════════════════════════════════════════════════════════
-    _ema50_1h = float(df["ema50"].iloc[-1]) if "ema50" in df.columns else ema21
-    # ── 転換BUY: EMAはまだ弱気整列だが、価格は中期EMA上に反発 ──
-    if (ema9 < ema21 and adx >= 15):
-        _mt_above_200 = entry > ema200_1h
-        _mt_above_50 = entry > _ema50_1h
-        if _mt_above_200 or _mt_above_50:
-            _mt_score = 0.0
-            _mt_reasons = []
-            # EMA200合致: 高信頼ベース
-            if _mt_above_200:
-                _mt_score += 1.5
-                _mt_reasons.append(f"✅ EMAラグ転換BUY: 価格>EMA200({ema200_1h:.3f})")
-            # EMA50のみ: 低信頼ベース（他の確認が全部ないと閾値に届かない）
-            elif _mt_above_50:
-                _mt_score += 1.0
-                _mt_reasons.append(f"✅ EMAラグ転換BUY: 価格>EMA50({_ema50_1h:.3f})")
-                if entry > ema200_1h:
-                    _mt_score += 0.3
-                    _mt_reasons.append("✅ EMA200上: 中期トレンド一致")
+    _sr_proximity = atr * 0.5  # SR近接判定距離
 
-            # EMA50/200近辺リテスト
-            _ref_ema = ema200_1h if _mt_above_200 else _ema50_1h
-            _ref_dist = (entry - _ref_ema) / atr if atr > 0 else 0
-            if 0 < _ref_dist < 1.5:
-                _mt_score += 0.5
-                _mt_reasons.append(f"✅ EMAリテスト圏(距離={_ref_dist:.1f}ATR)")
+    for _sr in _h1_sr_weighted:
+        _sr_price = _sr["price"]
+        _sr_strength = _sr["strength"]
+        _sr_touches = _sr["touches"]
+        _sr_type = _sr["type"]
+        _sr_dist = abs(entry - _sr_price)
 
-            if macdh > prev_macdh:
-                _mt_score += 0.5
-                _mt_reasons.append("✅ MACD-H改善: モメンタム転換確認")
+        if _sr_dist > _sr_proximity:
+            continue
+        if _sr_strength < 0.4 or _sr_touches < 2:
+            continue
 
-            if rsi > 40 and rsi < 65:
-                _mt_score += 0.3
-                _mt_reasons.append(f"✅ RSI回復圏({rsi:.0f})")
+        _rev_score = 0.0
+        _rev_reasons = []
+        _is_strong = _sr_strength >= 0.6 and _sr_touches >= 3
 
-            if entry > _open:
-                _mt_score += 0.3
-                _mt_reasons.append("✅ 陽線: 反発確認")
+        # ── サポート反発 → BUY ──
+        if entry >= _sr_price and (entry - _sr_price) < _sr_proximity and _sr_type in ("support", "both"):
+            _rev_score = 1.5 if _is_strong else 1.0
+            _rev_reasons.append(f"✅ SR サポート反発({_sr_price:.3f}, 強度={_sr_strength:.2f}, touch={_sr_touches})")
+            if _is_strong:
+                _rev_reasons.append("🎯 高強度壁（3+タッチ, strength≥0.6）")
 
+            # チャネル下限との合流
+            if _ch_lower and abs(entry - _ch_lower) < atr * 0.6:
+                _rev_score += 0.8
+                _rev_reasons.append(f"✅ チャネル下限合流({_ch_lower:.3f})")
+
+            # テクニカル確認
             if stoch_k > stoch_d:
-                _mt_score += 0.3
+                _rev_score += 0.4
+                _rev_reasons.append("✅ Stochゴールデンクロス")
+            if rsi5 < 45 and rsi5 > 20:
+                _rev_score += 0.3
+                _rev_reasons.append(f"✅ RSI売られすぎ回復({rsi5:.0f})")
+            if macdh > prev_macdh:
+                _rev_score += 0.4
+                _rev_reasons.append("✅ MACD-H反転上昇")
+            if entry > _open:
+                _rev_score += 0.3
+                _rev_reasons.append("✅ 陽線反発")
+            if bb_pctb < 0.35:
+                _rev_score += 0.3
 
-            if _mt_score >= 2.5:
-                _mt_tp = entry + atr * 3.0
-                _mt_sl = entry - atr * 1.0
-                _mt_inv = _ref_ema - atr * 0.1  # 基準EMAの少し下
-                candidates.append(("BUY", _mt_score, _mt_tp, _mt_sl, _mt_reasons, "mtf_momentum", _mt_inv))
+            if _rev_score >= 2.5:
+                _rev_tp = entry + atr * 2.5
+                # 次の上方SRをTPターゲットに
+                _upper_srs = [s["price"] for s in _h1_sr_weighted if s["price"] > entry + atr * 0.5]
+                if _upper_srs:
+                    _rev_tp = min(_upper_srs) - atr * 0.1
+                    _rev_tp = max(_rev_tp, entry + atr * 1.5)  # 最低TP
+                _rev_sl = _sr_price - atr * 0.4
+                _rev_sl = max(_rev_sl, entry - atr * 1.0)
+                _rev_inv = _sr_price - atr * 0.5  # SR割れ → シナリオ崩壊
+                candidates.append(("BUY", _rev_score, _rev_tp, _rev_sl,
+                                   _rev_reasons, "h1_sr_reversal", _rev_inv))
 
-    # ── 転換SELL: EMAはまだ強気整列だが、価格は中期EMA下に崩落 ──
-    if (ema9 > ema21 and adx >= 15):
-        _mt_below_200 = entry < ema200_1h
-        _mt_below_50 = entry < _ema50_1h
-        if _mt_below_200 or _mt_below_50:
-            _mt_score = 0.0
-            _mt_reasons = []
-            if _mt_below_200:
-                _mt_score += 1.5
-                _mt_reasons.append(f"✅ EMAラグ転換SELL: 価格<EMA200({ema200_1h:.3f})")
-            elif _mt_below_50:
-                _mt_score += 1.0
-                _mt_reasons.append(f"✅ EMAラグ転換SELL: 価格<EMA50({_ema50_1h:.3f})")
-                if entry < ema200_1h:
-                    _mt_score += 0.3
-                    _mt_reasons.append("✅ EMA200下: 中期トレンド一致")
+        # ── レジスタンス反落 → SELL ──
+        elif entry <= _sr_price and (_sr_price - entry) < _sr_proximity and _sr_type in ("resistance", "both"):
+            _rev_score = 1.5 if _is_strong else 1.0
+            _rev_reasons.append(f"✅ SR レジスタンス反落({_sr_price:.3f}, 強度={_sr_strength:.2f}, touch={_sr_touches})")
+            if _is_strong:
+                _rev_reasons.append("🎯 高強度壁（3+タッチ, strength≥0.6）")
 
-            _ref_ema = ema200_1h if _mt_below_200 else _ema50_1h
-            _ref_dist = (_ref_ema - entry) / atr if atr > 0 else 0
-            if 0 < _ref_dist < 1.5:
-                _mt_score += 0.5
-                _mt_reasons.append(f"✅ EMAリテスト圏(距離={_ref_dist:.1f}ATR)")
-
-            if macdh < prev_macdh:
-                _mt_score += 0.5
-                _mt_reasons.append("✅ MACD-H悪化: モメンタム崩壊確認")
-
-            if rsi > 35 and rsi < 60:
-                _mt_score += 0.3
-                _mt_reasons.append(f"✅ RSI中立圏({rsi:.0f})")
-
-            if entry < _open:
-                _mt_score += 0.3
-                _mt_reasons.append("✅ 陰線: 崩落確認")
+            # チャネル上限との合流
+            if _ch_upper and abs(entry - _ch_upper) < atr * 0.6:
+                _rev_score += 0.8
+                _rev_reasons.append(f"✅ チャネル上限合流({_ch_upper:.3f})")
 
             if stoch_k < stoch_d:
-                _mt_score += 0.3
-
-            if _mt_score >= 2.5:
-                _mt_tp = entry - atr * 3.0
-                _mt_sl = entry + atr * 1.0
-                _mt_inv = _ref_ema + atr * 0.1
-                candidates.append(("SELL", _mt_score, _mt_tp, _mt_sl, _mt_reasons, "mtf_momentum", _mt_inv))
-
-    # ════════════════════════════════════════════════════════════
-    #  戦略2: Session ORB — London Open Breakout (Ito & Hashimoto 2006)
-    #  アジアレンジ(00-07UTC)突破 at 07-10 UTC
-    #  TP: Asian range × 1.5 or ATR×2.5 (30-80pip)
-    #  SL: Asian range反対側 (15-25pip)
-    # ════════════════════════════════════════════════════════════
-    if False and 7 <= _hour_utc <= 14 and _asia_high and _asia_low and _asia_range > atr * 0.2:  # DISABLED: WR=36.6% → ATR EVドラッグ
-        # Bullish breakout: 1h終値がアジアHigh超え
-        if entry > _asia_high:
-            _orb_score = 1.5
-            _orb_reasons = []
-            _orb_reasons.append(f"✅ ロンドンORB: アジアHigh突破({_asia_high:.3f}) [Ito&Hashimoto 2006]")
-
-            if _atr_expanding:
-                _orb_score += 0.5
-                _orb_reasons.append(f"✅ ATR拡大確認(ATR={atr:.4f} > SMA×1.1)")
-            if entry > _open:
-                _orb_score += 0.5
-                _orb_reasons.append("✅ 陽線ブレイク")
-            if adx >= 15:
-                _orb_score += 0.3
-            if ema9 > ema21:
-                _orb_score += 0.3
-                _orb_reasons.append("✅ EMAトレンド整合")
-            # ブレイクの強さ: アジアHigh超え幅
-            _break_dist = entry - _asia_high
-            if _break_dist > atr * 0.2:
-                _orb_score += 0.3
-                _orb_reasons.append(f"✅ 強いブレイク(+{_break_dist:.3f})")
-
-            if _orb_score >= 2.0:
-                _orb_tp = entry + max(_asia_range * 1.5, atr * 2.0)
-                _orb_sl = _asia_low + atr * 0.1  # アジアLow近辺
-                _orb_sl = max(_orb_sl, entry - atr * 1.2)  # 最大SL制限
-                _orb_sl = min(_orb_sl, entry - atr * 0.3)  # 最小SL
-                candidates.append(("BUY", _orb_score, _orb_tp, _orb_sl, _orb_reasons, "session_orb"))
-
-        # Bearish breakout: 1h終値がアジアLow割れ
-        elif entry < _asia_low:
-            _orb_score = 1.5
-            _orb_reasons = []
-            _orb_reasons.append(f"✅ ロンドンORB: アジアLow割れ({_asia_low:.3f}) [Ito&Hashimoto 2006]")
-
-            if _atr_expanding:
-                _orb_score += 0.5
-                _orb_reasons.append(f"✅ ATR拡大確認(ATR={atr:.4f} > SMA×1.1)")
+                _rev_score += 0.4
+                _rev_reasons.append("✅ Stochデッドクロス")
+            if rsi5 > 55 and rsi5 < 80:
+                _rev_score += 0.3
+                _rev_reasons.append(f"✅ RSI買われすぎ回復({rsi5:.0f})")
+            if macdh < prev_macdh:
+                _rev_score += 0.4
+                _rev_reasons.append("✅ MACD-H反転下降")
             if entry < _open:
-                _orb_score += 0.5
-                _orb_reasons.append("✅ 陰線ブレイク")
+                _rev_score += 0.3
+                _rev_reasons.append("✅ 陰線反落")
+            if bb_pctb > 0.65:
+                _rev_score += 0.3
+
+            if _rev_score >= 2.5:
+                _rev_tp = entry - atr * 2.5
+                _lower_srs = [s["price"] for s in _h1_sr_weighted if s["price"] < entry - atr * 0.5]
+                if _lower_srs:
+                    _rev_tp = max(_lower_srs) + atr * 0.1
+                    _rev_tp = min(_rev_tp, entry - atr * 1.5)
+                _rev_sl = _sr_price + atr * 0.4
+                _rev_sl = min(_rev_sl, entry + atr * 1.0)
+                _rev_inv = _sr_price + atr * 0.5
+                candidates.append(("SELL", _rev_score, _rev_tp, _rev_sl,
+                                   _rev_reasons, "h1_sr_reversal", _rev_inv))
+        # 最良SRのみ採用（最初のマッチで break）
+        if candidates and candidates[-1][5] == "h1_sr_reversal":
+            break
+
+    # ════════════════════════════════════════════════════════════
+    #  戦略2: Breakout Retest Trend Follow（強壁ブレイク後リテスト）
+    #  核心: 強いSRをブレイクした後、そのSRに戻ってきた（リテスト）
+    #        時にブレイク方向へトレンドフォロー
+    #  根拠: Bulkowski 2005 — 突破後リテストのトレンド継続率 68%
+    #  条件: 直近10-20バーで強SR(strength≥0.5)をブレイク済み
+    #        → 現在そのSR付近に戻った（リテスト）
+    #        → ブレイク方向への反発確認（陽線/陰線 + Stoch）
+    # ════════════════════════════════════════════════════════════
+    _retest_lookback = min(20, len(df) - 2)  # リテスト検出範囲
+
+    for _sr in _h1_sr_weighted:
+        _sr_price = _sr["price"]
+        _sr_strength = _sr["strength"]
+        _sr_touches = _sr["touches"]
+        _sr_type = _sr["type"]
+
+        if _sr_strength < 0.4 or _sr_touches < 2:
+            continue
+
+        _is_strong = _sr_strength >= 0.5 and _sr_touches >= 3
+
+        # ── 上方ブレイク検出: 過去N本で下→上にSRを抜けたか ──
+        _broke_up = False
+        _broke_down = False
+        for _bi in range(2, _retest_lookback + 1):
+            _prev_c = float(df.iloc[-_bi]["Close"])
+            if _prev_c < _sr_price - atr * 0.1 and entry > _sr_price:
+                # 過去に下にいて、今は上 → 上方ブレイク
+                _broke_up = True
+                break
+            elif _prev_c > _sr_price + atr * 0.1 and entry < _sr_price:
+                # 過去に上にいて、今は下 → 下方ブレイク
+                _broke_down = True
+                break
+
+        # ── 上方ブレイク後のリテスト → BUY（旧レジスタンスが新サポート）──
+        if _broke_up and abs(entry - _sr_price) < atr * 0.6:
+            _brt_score = 1.5 if _is_strong else 1.0
+            _brt_reasons = []
+            _brt_reasons.append(f"✅ SR上方ブレイク後リテスト({_sr_price:.3f}, 強度={_sr_strength:.2f})")
+            if _is_strong:
+                _brt_reasons.append("🎯 高強度壁ブレイク → 新サポート転換")
+
+            # チャネルブレイク合流
+            if _ch_upper and entry > _ch_upper - atr * 0.3:
+                _brt_score += 0.5
+                _brt_reasons.append("✅ チャネル上限ブレイク合流")
+
+            if entry > _sr_price:
+                _brt_score += 0.4  # SR上にいる（リテスト成功）
+                _brt_reasons.append("✅ SR上維持（リテスト成功）")
+            if ema9 > ema21:
+                _brt_score += 0.4
+                _brt_reasons.append("✅ EMAトレンド整合(9>21)")
             if adx >= 15:
-                _orb_score += 0.3
+                _brt_score += 0.3
+            if entry > _open:
+                _brt_score += 0.3
+                _brt_reasons.append("✅ 陽線反発")
+            if stoch_k > stoch_d:
+                _brt_score += 0.3
+            if macdh > prev_macdh:
+                _brt_score += 0.3
+            if _atr_expanding:
+                _brt_score += 0.3
+                _brt_reasons.append("✅ ATR拡大（モメンタム）")
+
+            if _brt_score >= 2.5:
+                _brt_tp = entry + atr * 3.0
+                _upper_srs = [s["price"] for s in _h1_sr_weighted
+                              if s["price"] > entry + atr * 1.0 and s["strength"] >= 0.3]
+                if _upper_srs:
+                    _brt_tp = min(_upper_srs) - atr * 0.1
+                    _brt_tp = max(_brt_tp, entry + atr * 2.0)
+                _brt_sl = _sr_price - atr * 0.3
+                _brt_sl = max(_brt_sl, entry - atr * 1.0)
+                _brt_inv = _sr_price - atr * 0.4
+                candidates.append(("BUY", _brt_score, _brt_tp, _brt_sl,
+                                   _brt_reasons, "h1_breakout_retest", _brt_inv))
+
+        # ── 下方ブレイク後のリテスト → SELL（旧サポートが新レジスタンス）──
+        elif _broke_down and abs(entry - _sr_price) < atr * 0.6:
+            _brt_score = 1.5 if _is_strong else 1.0
+            _brt_reasons = []
+            _brt_reasons.append(f"✅ SR下方ブレイク後リテスト({_sr_price:.3f}, 強度={_sr_strength:.2f})")
+            if _is_strong:
+                _brt_reasons.append("🎯 高強度壁ブレイク → 新レジスタンス転換")
+
+            if _ch_lower and entry < _ch_lower + atr * 0.3:
+                _brt_score += 0.5
+                _brt_reasons.append("✅ チャネル下限ブレイク合流")
+
+            if entry < _sr_price:
+                _brt_score += 0.4
+                _brt_reasons.append("✅ SR下維持（リテスト成功）")
             if ema9 < ema21:
-                _orb_score += 0.3
-                _orb_reasons.append("✅ EMAトレンド整合")
-            _break_dist = _asia_low - entry
-            if _break_dist > atr * 0.2:
-                _orb_score += 0.3
-                _orb_reasons.append(f"✅ 強いブレイク(+{_break_dist:.3f})")
+                _brt_score += 0.4
+                _brt_reasons.append("✅ EMAトレンド整合(9<21)")
+            if adx >= 15:
+                _brt_score += 0.3
+            if entry < _open:
+                _brt_score += 0.3
+                _brt_reasons.append("✅ 陰線反落")
+            if stoch_k < stoch_d:
+                _brt_score += 0.3
+            if macdh < prev_macdh:
+                _brt_score += 0.3
+            if _atr_expanding:
+                _brt_score += 0.3
+                _brt_reasons.append("✅ ATR拡大（モメンタム）")
 
-            if _orb_score >= 2.0:
-                _orb_tp = entry - max(_asia_range * 1.5, atr * 2.0)
-                _orb_sl = _asia_high - atr * 0.1
-                _orb_sl = min(_orb_sl, entry + atr * 1.2)
-                _orb_sl = max(_orb_sl, entry + atr * 0.3)
-                candidates.append(("SELL", _orb_score, _orb_tp, _orb_sl, _orb_reasons, "session_orb"))
-
-    # ════════════════════════════════════════════════════════════
-    #  戦略3: Pivot Breakout (Osler 2000 NY Fed)
-    #  Daily Pivot R1/S1突破 + ATR拡大
-    #  TP: 次のPivotレベル(R2/S2) (30-60pip)
-    #  SL: 突破レベル裏 + buffer (15-25pip)
-    # ════════════════════════════════════════════════════════════
-    # R1突破 → BUY (EMA整合必須、ATR expanding はボーナス)
-    if entry > _R1 and 7 <= _hour_utc <= 20 and ema9 > ema21:
-        _pv_score = 0.0
-        _pv_reasons = []
-        _pv_reasons.append(f"✅ Pivot R1突破({_R1:.3f}) [Osler 2000 NY Fed]")
-        _pv_score += 1.5
-
-        if entry > _open:
-            _pv_score += 0.5
-            _pv_reasons.append("✅ 陽線ブレイク")
-        if adx >= 15:
-            _pv_score += 0.3
-        _pv_reasons.append("✅ EMAトレンド整合")
-        _pv_score += 0.3
-        if _atr_expanding:
-            _pv_score += 0.5
-            _pv_reasons.append("✅ ATR拡大(ボラ上昇)")
-        if rsi > 50 and rsi < 75:
-            _pv_score += 0.3
-
-        if _pv_score >= 2.5:  # 旧2.0→2.5（高確信のみ）
-            _pv_tp = _R1 + (_R2 - _R1) * 0.7  # 旧0.5→0.7: R2の70%地点
-            _pv_tp = max(_pv_tp, entry + atr * 2.0)  # 旧1.5→2.0: 最低TP拡大
-            _pv_sl = max(entry - atr * 0.8, _R1 - atr * 0.4)  # 旧0.5→0.8 ATR: ノイズ耐性
-            # シナリオ崩壊: R1を下回ったらブレイク失敗
-            _pv_inv = _R1 - atr * 0.15
-            candidates.append(("BUY", _pv_score, _pv_tp, _pv_sl, _pv_reasons, "pivot_breakout", _pv_inv))
-
-    # S1割れ → SELL (EMA整合必須)
-    if entry < _S1 and 7 <= _hour_utc <= 20 and ema9 < ema21:
-        _pv_score = 0.0
-        _pv_reasons = []
-        _pv_reasons.append(f"✅ Pivot S1割れ({_S1:.3f}) [Osler 2000 NY Fed]")
-        _pv_score += 1.5
-
-        if entry < _open:
-            _pv_score += 0.5
-            _pv_reasons.append("✅ 陰線ブレイク")
-        if adx >= 15:
-            _pv_score += 0.3
-        _pv_reasons.append("✅ EMAトレンド整合")
-        _pv_score += 0.3
-        if _atr_expanding:
-            _pv_score += 0.5
-            _pv_reasons.append("✅ ATR拡大(ボラ上昇)")
-        if rsi > 25 and rsi < 50:
-            _pv_score += 0.3
-
-        if _pv_score >= 2.5:  # 旧2.0→2.5
-            _pv_tp = _S1 - (_S1 - _S2) * 0.7  # 旧0.5→0.7: S2の70%地点
-            _pv_tp = min(_pv_tp, entry - atr * 2.0)  # 旧1.5→2.0: 最低TP拡大
-            _pv_sl = min(entry + atr * 0.8, _S1 + atr * 0.4)  # 旧0.5→0.8 ATR: ノイズ耐性
-            # シナリオ崩壊: S1を上回ったらブレイク失敗
-            _pv_inv = _S1 + atr * 0.15
-            candidates.append(("SELL", _pv_score, _pv_tp, _pv_sl, _pv_reasons, "pivot_breakout", _pv_inv))
-
-    # ════════════════════════════════════════════════════════════
-    #  戦略4: Pivot Zone Mean Reversion (Osler 2000 + BB/RSI)
-    #  DISABLED: 30d BT WR=30% EV=-1.3p — 要改善
-    #  Pivot S1/R1 反転 — ゾーン内での反発
-    #  TP: Pivot (中央回帰) ATR×1.5-2.0 (40-55pip)
-    #  SL: S1/R1 裏 + buffer (15-20pip)
-    # ════════════════════════════════════════════════════════════
-    # S1近辺で反発 → BUY (in buy zone, near S1)
-    if False and in_buy_zone and abs(entry - _S1) < atr * 0.8 and entry > _S1:
-        _rv_score = 0.0
-        _rv_reasons = []
-        _rv_reasons.append(f"✅ Pivot S1反発({_S1:.3f}) [Osler 2000]")
-        _rv_score += 1.0
-
-        if bb_pctb < 0.30:
-            _rv_score += 1.0
-            _rv_reasons.append(f"✅ BB%B={bb_pctb:.2f}<0.30(oversold)")
-        elif bb_pctb < 0.40:
-            _rv_score += 0.5
-        if stoch_k > stoch_d:
-            _rv_score += 0.5
-            _rv_reasons.append("✅ Stoch GC")
-        if entry > _open:
-            _rv_score += 0.5
-            _rv_reasons.append("✅ 陽線反転")
-        if macdh > prev_macdh:
-            _rv_score += 0.3
-
-        if _rv_score >= 2.0:
-            _rv_tp = _pivot  # Pivotまで回帰
-            _rv_tp = max(_rv_tp, entry + atr * 1.5)
-            _rv_sl = _S1 - atr * 0.4
-            _rv_sl = min(_rv_sl, entry - atr * 0.6)
-            candidates.append(("BUY", _rv_score, _rv_tp, _rv_sl, _rv_reasons, "pivot_reversion"))
-
-    # R1近辺で反落 → SELL (in sell zone, near R1)
-    if False and in_sell_zone and abs(entry - _R1) < atr * 0.8 and entry < _R1:
-        _rv_score = 0.0
-        _rv_reasons = []
-        _rv_reasons.append(f"✅ Pivot R1反落({_R1:.3f}) [Osler 2000]")
-        _rv_score += 1.0
-
-        if bb_pctb > 0.70:
-            _rv_score += 1.0
-            _rv_reasons.append(f"✅ BB%B={bb_pctb:.2f}>0.70(overbought)")
-        elif bb_pctb > 0.60:
-            _rv_score += 0.5
-        if stoch_k < stoch_d:
-            _rv_score += 0.5
-            _rv_reasons.append("✅ Stoch DC")
-        if entry < _open:
-            _rv_score += 0.5
-            _rv_reasons.append("✅ 陰線反転")
-        if macdh < prev_macdh:
-            _rv_score += 0.3
-
-        if _rv_score >= 2.0:
-            _rv_tp = _pivot
-            _rv_tp = min(_rv_tp, entry - atr * 1.5)
-            _rv_sl = _R1 + atr * 0.4
-            _rv_sl = max(_rv_sl, entry + atr * 0.6)
-            candidates.append(("SELL", _rv_score, _rv_tp, _rv_sl, _rv_reasons, "pivot_reversion"))
-
-    # ════════════════════════════════════════════════════════════
-    #  戦略5: 1H Fibonacci Reversal（フィボリトレースメント反発）
-    #  根拠: 120バー(5日)のスイングからのフィボ38.2%/50%/61.8%反発
-    #  改善: SL拡大(ATR×0.8)、EMA整合必須、ADX≥15、Stoch確認
-    # ════════════════════════════════════════════════════════════
-    if len(df) >= 120 and adx >= 15:
-        _1h_fib = _calc_fibonacci_levels(df, lookback=120)
-        if _1h_fib and _1h_fib.get("trend"):
-            _1h_fib_levels = {
-                "38.2%": _1h_fib.get("r382", 0),
-                "50.0%": _1h_fib.get("r500", 0),
-                "61.8%": _1h_fib.get("r618", 0),
-            }
-            _1h_fib_touch = None
-            for _fn, _fv in _1h_fib_levels.items():
-                if _fv and abs(entry - _fv) < atr * 0.4:
-                    _1h_fib_touch = (_fn, _fv)
-                    break
-            if _1h_fib_touch:
-                _fn, _fv = _1h_fib_touch
-                _1hfr_score = 0.0
-                _1hfr_reasons = []
-                # 上昇トレンド押し目買い: RSI + MACD方向転換
-                if (_1h_fib["trend"] == "up" and rsi < 50 and macdh > prev_macdh):
-                    _1hfr_score = 2.0
-                    _1hfr_reasons.append(f"✅ 1H Fib {_fn}サポート反発({_fv:.3f})")
-                    if _fn == "61.8%":
-                        _1hfr_score += 0.8
-                        _1hfr_reasons.append("✅ Fib61.8%最高確率ゾーン")
-                    elif _fn == "50.0%":
-                        _1hfr_score += 0.4
-                    if ema9 > ema21:
-                        _1hfr_score += 0.3
-                        _1hfr_reasons.append("✅ EMA整合(9>21)")
-                    if stoch_k > stoch_d:
-                        _1hfr_score += 0.3
-                        _1hfr_reasons.append("✅ Stoch反転確認")
-                    if entry > _open:
-                        _1hfr_score += 0.3
-                        _1hfr_reasons.append("✅ 陽線確認")
-                    if _1hfr_score >= 2.0:
-                        _1hfr_tp = entry + atr * 3.0   # 旧2.5→3.0: 1Hトレンド利幅
-                        _1hfr_sl = entry - atr * 1.2   # 旧0.8→1.2: ノイズ耐性
-                        # シナリオ崩壊: Fibサポートを明確に下回ったら反発失敗
-                        _1hfr_inv = _fv - atr * 0.3
-                        candidates.append(("BUY", _1hfr_score, _1hfr_tp, _1hfr_sl, _1hfr_reasons, "h1_fib_reversal", _1hfr_inv))
-                # 下降トレンド戻り売り
-                elif (_1h_fib["trend"] == "down" and rsi > 50 and macdh < prev_macdh):
-                    _1hfr_score = 2.0
-                    _1hfr_reasons.append(f"✅ 1H Fib {_fn}レジスタンス反発({_fv:.3f})")
-                    if _fn == "61.8%":
-                        _1hfr_score += 0.8
-                        _1hfr_reasons.append("✅ Fib61.8%最高確率ゾーン")
-                    elif _fn == "50.0%":
-                        _1hfr_score += 0.4
-                    if ema9 < ema21:
-                        _1hfr_score += 0.3
-                        _1hfr_reasons.append("✅ EMA整合(9<21)")
-                    if stoch_k < stoch_d:
-                        _1hfr_score += 0.3
-                        _1hfr_reasons.append("✅ Stoch反転確認")
-                    if entry < _open:
-                        _1hfr_score += 0.3
-                        _1hfr_reasons.append("✅ 陰線確認")
-                    if _1hfr_score >= 2.0:
-                        _1hfr_tp = entry - atr * 3.0   # 旧2.5→3.0
-                        _1hfr_sl = entry + atr * 1.2   # 旧0.8→1.2
-                        # シナリオ崩壊: Fibレジスタンスを明確に上抜けされたら失敗
-                        _1hfr_inv = _fv + atr * 0.3
-                        candidates.append(("SELL", _1hfr_score, _1hfr_tp, _1hfr_sl, _1hfr_reasons, "h1_fib_reversal", _1hfr_inv))
-
-    # ════════════════════════════════════════════════════════════
-    #  戦略6: EMA200 Trend Reversal（1Hトレンド転換）
-    #  根拠: EMA200ブレイク後のリテスト・反発
-    #  改善: SL拡大(0.8ATR)、EMA整合+ADX+Stoch必須、スコア閾値2.5
-    # ════════════════════════════════════════════════════════════
-    if len(df) >= 20 and "ema200" in df.columns and adx >= 15:
-        _1h_e200_dist = (entry - ema200_1h) / atr if atr > 0 else 0
-        _1h_e200_bull = entry > ema200_1h
-        _1h_e200_slope = (ema200_1h - float(df["ema200"].iloc[-min(20, len(df)-1)])) if len(df) >= 2 else 0
-        # 直近20バーでEMA200クロス検出
-        _1h_crosses = 0
-        for _ci in range(max(1, len(df) - 20), len(df)):
-            _pc = float(df["Close"].iloc[_ci - 1])
-            _cc = float(df["Close"].iloc[_ci])
-            _pe = float(df["ema200"].iloc[_ci - 1])
-            _ce = float(df["ema200"].iloc[_ci])
-            if (_pc < _pe and _cc > _ce) or (_pc > _pe and _cc < _ce):
-                _1h_crosses += 1
-
-        if _1h_crosses >= 1 and abs(_1h_e200_dist) < 0.5:
-            _1htr_score = 0.0
-            _1htr_reasons = []
-            # 上抜けリテスト → BUY: EMA整合 + Stoch確認必須
-            if (_1h_e200_bull and _1h_e200_dist < 0.5 and macdh > prev_macdh
-                    and rsi < 55 and ema9 > ema21 and stoch_k > stoch_d):
-                _1htr_score = 2.0
-                _1htr_reasons.append(f"✅ 1H EMA200上抜けリテスト({ema200_1h:.3f})")
-                if _1h_e200_slope > 0:
-                    _1htr_score += 0.5
-                    _1htr_reasons.append("✅ EMA200上昇中: トレンド転換確認")
-                _1htr_reasons.append(f"✅ EMA整合(9>21) + Stoch反転")
-                if entry > _open:
-                    _1htr_score += 0.3
-                    _1htr_reasons.append("✅ 陽線確認")
-                if _1htr_score >= 2.0:
-                    _1htr_tp = entry + atr * 3.0   # 旧2.5→3.0
-                    _1htr_sl = entry - atr * 1.2   # 旧0.8→1.2
-                    # シナリオ崩壊: EMA200を明確に下回ったらリテスト失敗
-                    _1htr_inv = ema200_1h - atr * 0.2
-                    candidates.append(("BUY", _1htr_score, _1htr_tp, _1htr_sl, _1htr_reasons, "h1_ema200_trend_reversal", _1htr_inv))
-            # 下抜けリテスト → SELL
-            elif (not _1h_e200_bull and _1h_e200_dist > -0.5 and macdh < prev_macdh
-                    and rsi > 45 and ema9 < ema21 and stoch_k < stoch_d):
-                _1htr_score = 2.0
-                _1htr_reasons.append(f"✅ 1H EMA200下抜けリテスト({ema200_1h:.3f})")
-                if _1h_e200_slope < 0:
-                    _1htr_score += 0.5
-                    _1htr_reasons.append("✅ EMA200下降中: トレンド転換確認")
-                _1htr_reasons.append(f"✅ EMA整合(9<21) + Stoch反転")
-                if entry < _open:
-                    _1htr_score += 0.3
-                    _1htr_reasons.append("✅ 陰線確認")
-                if _1htr_score >= 2.0:
-                    _1htr_tp = entry - atr * 3.0   # 旧2.5→3.0
-                    _1htr_sl = entry + atr * 1.2   # 旧0.8→1.2
-                    # シナリオ崩壊: EMA200を明確に上回ったらリテスト失敗
-                    _1htr_inv = ema200_1h + atr * 0.2
-                    candidates.append(("SELL", _1htr_score, _1htr_tp, _1htr_sl, _1htr_reasons, "h1_ema200_trend_reversal", _1htr_inv))
+            if _brt_score >= 2.5:
+                _brt_tp = entry - atr * 3.0
+                _lower_srs = [s["price"] for s in _h1_sr_weighted
+                              if s["price"] < entry - atr * 1.0 and s["strength"] >= 0.3]
+                if _lower_srs:
+                    _brt_tp = max(_lower_srs) + atr * 0.1
+                    _brt_tp = min(_brt_tp, entry - atr * 2.0)
+                _brt_sl = _sr_price + atr * 0.3
+                _brt_sl = min(_brt_sl, entry + atr * 1.0)
+                _brt_inv = _sr_price + atr * 0.4
+                candidates.append(("SELL", _brt_score, _brt_tp, _brt_sl,
+                                   _brt_reasons, "h1_breakout_retest", _brt_inv))
 
     # ── 最高スコア候補を採用 ──
     if candidates:
@@ -3364,16 +3196,18 @@ def compute_1h_zone_signal(df: pd.DataFrame,
 
         # ── EMA200 方向フィルター（1H Zone用）──
         _h1_bull200 = entry > ema200_1h
+        # h1_sr_reversal: EMA200逆行はハードブロック（SR反発でもトレンド逆行は危険）
+        # h1_breakout_retest: EMA200逆行は減衰のみ（ブレイク方向≠EMA200方向は許容）
+        _h1_hard_block_types = ("h1_fib_reversal", "h1_ema200_trend_reversal", "h1_sr_reversal")
         if sig == "BUY" and not _h1_bull200:
-            if etype in ("h1_fib_reversal", "h1_ema200_trend_reversal"):
+            if etype in _h1_hard_block_types:
                 base["signal"] = "WAIT"
                 reasons.append(f"🚫 EMA200下({ema200_1h:.3f})で逆張りBUY → ブロック")
                 return base
             score *= 0.75
             reasons.append(f"⚠️ EMA200下({ema200_1h:.3f})でBUY → 減衰")
         elif sig == "SELL" and _h1_bull200:
-            if etype in ("h1_fib_reversal", "h1_ema200_trend_reversal"):
-                # Fib/EMA200逆張りSELL + EMA200上 → 本番で全敗 → ハードブロック
+            if etype in _h1_hard_block_types:
                 base["signal"] = "WAIT"
                 reasons.append(f"🚫 EMA200上({ema200_1h:.3f})で逆張りSELL → ブロック")
                 return base
@@ -4965,9 +4799,11 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
                 max_levels=8, bars_per_day=24)
 
         QUALIFIED_TYPES = {
-            # 本番 demo_trader.py と統一
+            # v4 新戦略（SR強度ベース）
+            "h1_sr_reversal",       # SR/チャネル強壁反発
+            "h1_breakout_retest",   # 強壁ブレイク後リテスト → トレンドフォロー
+            # 旧戦略（互換維持、新戦略が十分なら段階的に除外）
             "mtf_momentum", "session_orb",
-            # "pivot_breakout",  # DISABLED: 本番WR=0%(3t -66.4pip) — SL幅27pip+逆行エントリー
             "pivot_reversion",
             "h1_fib_reversal", "h1_ema200_trend_reversal",
         }
