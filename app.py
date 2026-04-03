@@ -3137,9 +3137,9 @@ def compute_1h_zone_signal(df: pd.DataFrame,
                 if _upper_srs:
                     _brt_tp = min(_upper_srs) - atr * 0.1
                     _brt_tp = max(_brt_tp, entry + atr * 3.0)  # 最低TP 3.0ATR
-                _brt_sl = _sr_price - atr * 1.0  # 0.5→1.0: 1Hバー幅15-25pip対応
-                _brt_sl = max(_brt_sl, entry - atr * 1.5)
-                _brt_inv = _sr_price - atr * 1.2  # SLと同等の余裕
+                _brt_sl = _sr_price - atr * 0.5  # SLはタイトに維持（WR優先）
+                _brt_sl = max(_brt_sl, entry - atr * 1.0)
+                _brt_inv = _sr_price - atr * 0.6
                 candidates.append(("BUY", _brt_score, _brt_tp, _brt_sl,
                                    _brt_reasons, "h1_breakout_retest", _brt_inv))
 
@@ -3181,9 +3181,9 @@ def compute_1h_zone_signal(df: pd.DataFrame,
                 if _lower_srs:
                     _brt_tp = max(_lower_srs) + atr * 0.1
                     _brt_tp = min(_brt_tp, entry - atr * 3.0)
-                _brt_sl = _sr_price + atr * 1.0  # 0.5→1.0
-                _brt_sl = min(_brt_sl, entry + atr * 1.5)
-                _brt_inv = _sr_price + atr * 1.2
+                _brt_sl = _sr_price + atr * 0.5  # 1.0→0.5 reverted（WR優先）
+                _brt_sl = min(_brt_sl, entry + atr * 1.0)
+                _brt_inv = _sr_price + atr * 0.6
                 candidates.append(("SELL", _brt_score, _brt_tp, _brt_sl,
                                    _brt_reasons, "h1_breakout_retest", _brt_inv))
 
