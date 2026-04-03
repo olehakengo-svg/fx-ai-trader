@@ -2284,18 +2284,79 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                         reasons.append(f"✅ ネックライン{_neckline:.3f}({_nd:+.1f}pip), prominence={_hp:.1f}pip")
                         break
 
-    # SR+Fib / OB Retest フォールバック（強いスコア + EMAトレンド整合 + ADX必須）
-    # 本番0/6全敗(-40.2pip): 0.20閾値が甘すぎ + レンジ相場でエントリー
-    if not _sr_signal_found and adx >= 15:
+    # ════════════════════════════════════════════════════════
+    #  EMA Cross Retest（リテスト確認型EMAクロス）
+    #  旧ema_cross: フォールバックで即エントリー → WR=33% EV=-1.58
+    #  新設計: クロス発生 → プルバック確認 → 方向再確認 → エントリー
+    #  騙し上げ/下げはプルバック後に戻らないので自然にフィルターされる
+    # ════════════════════════════════════════════════════════
+    if not _sr_signal_found and signal == "WAIT" and adx >= 20 and len(df) >= 10:
+        # (1) 直近5本以内にEMAクロスが発生したか
+        _cross_dir = None   # "BUY" or "SELL"
+        _cross_bar = None   # クロスが起きたバーのインデックス
+        for _cb in range(2, min(6, len(df))):
+            _e9p = float(df["ema9"].iloc[-_cb - 1])
+            _e21p = float(df["ema21"].iloc[-_cb - 1])
+            _e9c = float(df["ema9"].iloc[-_cb])
+            _e21c = float(df["ema21"].iloc[-_cb])
+            if _e9p <= _e21p and _e9c > _e21c:
+                _cross_dir = "BUY"
+                _cross_bar = _cb
+                break
+            elif _e9p >= _e21p and _e9c < _e21c:
+                _cross_dir = "SELL"
+                _cross_bar = _cb
+                break
+
+        if _cross_dir and _cross_bar:
+            # (2) クロス後にプルバックが発生したか（EMA21方向に戻る動き）
+            _pullback_ok = False
+            if _cross_dir == "BUY":
+                # BUYクロス後: 一旦下がってEMA21付近まで引き付けた
+                _pb_low = min(float(df["Low"].iloc[-j]) for j in range(1, _cross_bar))
+                _pullback_depth = (float(df["High"].iloc[-_cross_bar]) - _pb_low) / max(atr, 1e-8)
+                # プルバック: 0.3ATR以上戻って、かつEMA21の上に留まっている
+                _pullback_ok = _pullback_depth >= 0.3 and entry > ema21
+            else:
+                # SELLクロス後: 一旦上がってEMA21付近まで引き付けた
+                _pb_high = max(float(df["High"].iloc[-j]) for j in range(1, _cross_bar))
+                _pullback_depth = (_pb_high - float(df["Low"].iloc[-_cross_bar])) / max(atr, 1e-8)
+                _pullback_ok = _pullback_depth >= 0.3 and entry < ema21
+
+            if _pullback_ok:
+                # (3) 現在足が方向を再確認（ローソク足方向一致 + EMA維持）
+                _candle_bull = entry > float(row["Open"])
+                _candle_bear = entry < float(row["Open"])
+                # (4) MACD方向一致
+                _macd_h = float(row.get("macd_hist", row.get("MACDh_12_26_9", 0)) or 0)
+                # (5) RSI非過熱
+                _rsi_ok = (rsi < 70) if _cross_dir == "BUY" else (rsi > 30)
+
+                if (_cross_dir == "BUY" and ema9 > ema21 and _candle_bull
+                        and _macd_h > 0 and _rsi_ok and ema_score > 0.40):
+                    signal = "BUY"
+                    _dt_entry_type = "ema_cross"
+                    reasons.append(f"✅ EMAクロスリテスト: 9/21 GC {_cross_bar}本前, PB={_pullback_depth:.1f}ATR")
+                    reasons.append(f"✅ 5条件一致: ADX≥20({adx:.0f}), MACD+, RSI({rsi:.0f}), 陽線, EMA維持")
+                elif (_cross_dir == "SELL" and ema9 < ema21 and _candle_bear
+                        and _macd_h < 0 and _rsi_ok and ema_score < -0.40):
+                    signal = "SELL"
+                    _dt_entry_type = "ema_cross"
+                    reasons.append(f"✅ EMAクロスリテスト: 9/21 DC {_cross_bar}本前, PB={_pullback_depth:.1f}ATR")
+                    reasons.append(f"✅ 5条件一致: ADX≥20({adx:.0f}), MACD-, RSI({rsi:.0f}), 陰線, EMA維持")
+
+    # SR+Fib / OB Retest フォールバック（ema_cross以外のフォールバック）
+    if not _sr_signal_found and signal == "WAIT" and adx >= 15:
         _has_sr_fib = any("Fib" in r or "フィボ" in r for r in reasons)
         _has_ob     = any("OB" in r or "オーダーブロック" in r for r in reasons)
-        THRESHOLD = 0.28   # 0.35→0.28: HTFハードフィルター導入済みで閾値緩和（頻度増）
-        if ema_score > THRESHOLD and ema9 > ema21:
-            signal = "BUY"
-            _dt_entry_type = "sr_fib_confluence" if _has_sr_fib else ("ob_retest" if _has_ob else "ema_cross")
-        elif ema_score < -THRESHOLD and ema9 < ema21:
-            signal = "SELL"
-            _dt_entry_type = "sr_fib_confluence" if _has_sr_fib else ("ob_retest" if _has_ob else "ema_cross")
+        THRESHOLD = 0.28
+        if _has_sr_fib or _has_ob:
+            if ema_score > THRESHOLD and ema9 > ema21:
+                signal = "BUY"
+                _dt_entry_type = "sr_fib_confluence" if _has_sr_fib else "ob_retest"
+            elif ema_score < -THRESHOLD and ema9 < ema21:
+                signal = "SELL"
+                _dt_entry_type = "sr_fib_confluence" if _has_sr_fib else "ob_retest"
 
     # ════════════════════════════════════════════════════════
     #  DT新戦略A: Fibonacci Reversal（15m足フィボリトレースメント反発）
@@ -2481,6 +2542,8 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             TP_MULT = min(_tp_dist * 0.95, 2.5)
     elif _dt_entry_type == "dual_sr_breakout":
         SL_MULT, TP_MULT = 0.4, 2.0
+    elif _dt_entry_type == "ema_cross":
+        SL_MULT, TP_MULT = 1.0, 2.5  # リテスト型: SL広め(ノイズ耐性) + TP広め(RR=2.5維持)
     else:
         SL_MULT, TP_MULT = 0.5, 1.5
 
@@ -4605,16 +4668,15 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 # "dt_sr_channel_reversal",  # DISABLED: WR=25% EV=-0.659
                 # "ema200_trend_reversal",   # DISABLED: WR=50% EV=-0.037
             }
-            DT_CONDITIONAL = {"ema_cross"}
             DT_BLOCKED = {"unknown", "wait"}
 
             if entry_type in DT_BLOCKED:
                 continue
             _dt_reasons = sig_result.get("reasons", [])
             _dt_confirmed = sum(1 for r in _dt_reasons if "✅" in r)
-            if entry_type in DT_CONDITIONAL:
-                _dt_adx = sig_result.get("indicators", {}).get("adx", 0)
-                if not _dt_adx or _dt_adx < 12 or _dt_confirmed < 1:  # ADX12維持（WR改善なしで頻度減のみ）
+            if entry_type == "ema_cross":
+                # リテスト型: シグナル関数内で5条件チェック済み → ✅2つ必須
+                if _dt_confirmed < 2:
                     continue
             elif entry_type in DT_QUALIFIED:
                 if _dt_confirmed < 1:
