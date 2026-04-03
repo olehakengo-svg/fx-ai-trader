@@ -1550,7 +1550,11 @@ class DemoTrader:
         # 異常スプレッド時はSL狩りの前兆 → エントリー見送り
         # USD/JPY通常0.2-0.4pip, 閾値1.2pip(3倍)
         # ══════════════════════════════════════════════════════════════
-        _ba_entry = _bidask_cache_rt.get(instrument)
+        try:
+            from modules.data import fetch_oanda_bid_ask
+            _ba_entry = fetch_oanda_bid_ask(instrument)
+        except Exception:
+            _ba_entry = None
         if _ba_entry:
             _spread_pips = (_ba_entry["ask"] - _ba_entry["bid"]) * (100 if _is_jpy else 10000)
             _spread_limit = 1.2 if _is_jpy else 1.5  # pips
