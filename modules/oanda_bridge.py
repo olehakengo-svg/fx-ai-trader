@@ -27,8 +27,11 @@ class OandaBridge:
         self._recent_errors = []
         self._max_errors = 20
 
+    # デフォルト全モード（OANDA_MODES未設定 かつ DB設定なし の場合）
+    _ALL_MODES = {"scalp", "daytrade", "daytrade_1h", "scalp_eur", "daytrade_eur", "daytrade_1h_eur"}
+
     def _load_allowed_modes(self) -> set:
-        """DB永続 > 環境変数 > 空(全許可) の優先順で読み込み."""
+        """DB永続 > 環境変数 > 全モード許可 の優先順で読み込み."""
         # 1. DBに保存済みの設定を優先
         if self._db:
             try:
@@ -43,8 +46,8 @@ class OandaBridge:
         _modes_env = os.environ.get("OANDA_MODES", "")
         if _modes_env:
             return set(m.strip() for m in _modes_env.split(",") if m.strip())
-        # 3. 空 = 全モード許可
-        return set()
+        # 3. デフォルト全モード許可
+        return set(self._ALL_MODES)
 
     def _save_allowed_modes(self):
         """現在のallowed_modesをDBに永続化."""

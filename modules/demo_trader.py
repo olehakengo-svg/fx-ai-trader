@@ -176,18 +176,33 @@ class DemoTrader:
         self._last_request_tick = {}  # mode -> timestamp (リクエスト駆動tick用)
 
     def _resend_pending_oanda_trades(self):
-        """デプロイ中にOANDA未連携だったOPENトレードを補完送信."""
+        """デプロイ中にOANDA未連携だったOPENトレードを補完送信.
+        5分以上前のトレードはスキップ（価格乖離が大きいため）."""
         if not self._oanda.active:
             return
         try:
+            from datetime import datetime, timezone, timedelta
             pending = self._db.get_open_trades_without_oanda()
             if not pending:
                 return
+            cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
             sent = 0
+            skipped = 0
             for t in pending:
                 mode = t.get("mode", "")
                 if not self._oanda.is_mode_allowed(mode):
+                    skipped += 1
                     continue
+                # 古いトレードはスキップ（エントリー価格と現在価格の乖離が大きい）
+                entry_time = t.get("entry_time", "")
+                if entry_time:
+                    try:
+                        et = datetime.fromisoformat(entry_time.replace("Z", "+00:00"))
+                        if et < cutoff:
+                            skipped += 1
+                            continue
+                    except Exception:
+                        pass
                 instrument = t.get("instrument", "USD_JPY")
                 self._oanda.open_trade(
                     demo_trade_id=t["trade_id"],
@@ -199,9 +214,9 @@ class DemoTrader:
                     callback=lambda tid, oid: self._db.set_oanda_trade_id(tid, oid),
                 )
                 sent += 1
-            if sent:
-                self._add_log(f"🔗 OANDA補完送信: {sent}件の未連携OPENトレード")
-                print(f"[OandaBridge] Resent {sent} pending trades to OANDA", flush=True)
+            if sent or skipped:
+                self._add_log(f"🔗 OANDA補完: {sent}件送信, {skipped}件スキップ（古い/モード外）")
+                print(f"[OandaBridge] Resend: {sent} sent, {skipped} skipped", flush=True)
         except Exception as e:
             print(f"[OandaBridge] Resend pending failed: {e}", flush=True)
 
