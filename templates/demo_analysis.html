@@ -80,19 +80,30 @@ tr:hover{background:rgba(255,255,255,.02)}
       <span style="font-size:10px;color:var(--t3);margin-right:4px">デモ稼働:</span>
       <button id="dt-btn" class="demo-btn demo-btn-dt" onclick="toggleDemo('daytrade')">📊 デイトレ ▶</button>
       <button id="sc-btn" class="demo-btn demo-btn-sc" onclick="toggleDemo('scalp')">⚡ スキャルプ ▶</button>
-      <button id="sw-btn" class="demo-btn demo-btn-sw" onclick="toggleDemo('swing')">🌊 スイング ▶</button>
-      <span id="demo-status-text" style="font-size:9px;color:var(--t3);margin-left:4px">停止中</span>
+      <button id="sw-btn" class="demo-btn demo-btn-sw" onclick="toggleDemo('daytrade_1h')">🕐 1H ▶</button>
     </div>
+    <!-- Demo: EUR/USD -->
+    <div style="display:flex;gap:4px;align-items:center;border:1px solid rgba(34,197,94,.3);border-radius:6px;padding:3px 8px">
+      <span style="font-size:10px;color:#22c55e;margin-right:2px">EUR:</span>
+      <button id="dt-eur-btn" class="demo-btn demo-btn-dt" onclick="toggleDemo('daytrade_eur')">📊 DT ▶</button>
+      <button id="sc-eur-btn" class="demo-btn demo-btn-sc" onclick="toggleDemo('scalp_eur')">⚡ SC ▶</button>
+      <button id="1h-eur-btn" class="demo-btn demo-btn-sw" onclick="toggleDemo('daytrade_1h_eur')">🕐 1H ▶</button>
+    </div>
+    <span id="demo-status-text" style="font-size:9px;color:var(--t3)">停止中</span>
     <!-- OANDA Live Controls -->
-    <div id="oanda-panel" style="display:flex;gap:4px;align-items:center;border:1px solid rgba(168,85,247,.3);border-radius:6px;padding:3px 8px">
+    <div id="oanda-panel" style="display:flex;gap:4px;align-items:center;border:1px solid rgba(168,85,247,.3);border-radius:6px;padding:3px 8px;flex-wrap:wrap">
       <span class="oanda-badge">OANDA</span>
-      <button id="oanda-scalp" class="oanda-btn" onclick="toggleOandaMode('scalp')">⚡ スキャルプ</button>
-      <button id="oanda-daytrade" class="oanda-btn" onclick="toggleOandaMode('daytrade')">📊 デイトレ</button>
-      <button id="oanda-daytrade_1h" class="oanda-btn" onclick="toggleOandaMode('daytrade_1h')">🕐 DT1H</button>
+      <button id="oanda-scalp" class="oanda-btn" onclick="toggleOandaMode('scalp')">⚡ SC</button>
+      <button id="oanda-daytrade" class="oanda-btn" onclick="toggleOandaMode('daytrade')">📊 DT</button>
+      <button id="oanda-daytrade_1h" class="oanda-btn" onclick="toggleOandaMode('daytrade_1h')">🕐 1H</button>
+      <span style="color:var(--t3);font-size:8px">|</span>
+      <button id="oanda-scalp_eur" class="oanda-btn" onclick="toggleOandaMode('scalp_eur')">⚡🇪🇺</button>
+      <button id="oanda-daytrade_eur" class="oanda-btn" onclick="toggleOandaMode('daytrade_eur')">📊🇪🇺</button>
+      <button id="oanda-daytrade_1h_eur" class="oanda-btn" onclick="toggleOandaMode('daytrade_1h_eur')">🕐🇪🇺</button>
       <span id="oanda-status" style="font-size:8px;color:var(--t3)"></span>
     </div>
-    <button class="btn btn-primary" onclick="runLearning()">🧠 学習実行</button>
-    <button class="btn" onclick="loadAll()">🔄 更新</button>
+    <button class="btn btn-primary" onclick="runLearning()">🧠 学習</button>
+    <button class="btn" onclick="loadAll()">🔄</button>
   </div>
 </div>
 
@@ -143,6 +154,27 @@ tr:hover{background:rgba(255,255,255,.02)}
   <div class="card">
     <div class="card-title">📈 4時間足（上位TF）<span id="mtf-src-4h" style="margin-left:auto;font-size:9px;color:var(--t3)"></span></div>
     <div id="mtf-chart-4h" class="mtf-chart"></div>
+  </div>
+
+  <!-- EUR/USD Charts (2x2 Grid) -->
+  <div class="card full" style="border-color:rgba(34,197,94,.2)">
+    <div class="card-title" style="color:#22c55e">🇪🇺 EUR/USD チャート</div>
+  </div>
+  <div class="card">
+    <div class="card-title">⚡🇪🇺 EUR 1分足<span id="mtf-src-eur-1m" style="margin-left:auto;font-size:9px;color:var(--t3)"></span></div>
+    <div id="mtf-chart-eur-1m" class="mtf-chart"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">📊🇪🇺 EUR 15分足<span id="mtf-src-eur-15m" style="margin-left:auto;font-size:9px;color:var(--t3)"></span></div>
+    <div id="mtf-chart-eur-15m" class="mtf-chart"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">🕐🇪🇺 EUR 1時間足<span id="mtf-src-eur-1h" style="margin-left:auto;font-size:9px;color:var(--t3)"></span></div>
+    <div id="mtf-chart-eur-1h" class="mtf-chart"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">📈🇪🇺 EUR 4時間足<span id="mtf-src-eur-4h" style="margin-left:auto;font-size:9px;color:var(--t3)"></span></div>
+    <div id="mtf-chart-eur-4h" class="mtf-chart"></div>
   </div>
 
   <!-- Learning Insights -->
@@ -198,7 +230,9 @@ tr:hover{background:rgba(255,255,255,.02)}
         <option value="scalp">スキャルプ</option>
         <option value="daytrade">デイトレ15m</option>
         <option value="daytrade_1h">デイトレ1H</option>
-        <option value="swing">スイング</option>
+        <option value="scalp_eur">スキャルプEUR</option>
+        <option value="daytrade_eur">デイトレEUR</option>
+        <option value="daytrade_1h_eur">デイトレ1H EUR</option>
       </select>
       <button onclick="applyFilter()" style="background:var(--blue);color:#fff;border:none;border-radius:4px;padding:5px 14px;cursor:pointer;font-size:11px;font-weight:600">絞り込み</button>
       <button onclick="clearFilter()" style="background:var(--bg3);color:var(--t2);border:none;border-radius:4px;padding:5px 10px;cursor:pointer;font-size:11px">リセット</button>
@@ -221,9 +255,11 @@ function _h(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 
 let equityChart=null, equitySeries=null;
 
-// Multi-TF charts
+// Multi-TF charts: USD/JPY + EUR/USD
 const MTF_TFS=['1m','15m','1h','4h'];
+const EUR_TFS=['1m','15m','1h','4h'];
 const mtfCharts={};  // tf -> {chart, candleSeries}
+const eurCharts={};  // tf -> {chart, candleSeries}
 
 // ── Init Charts ──
 function initCharts(){
@@ -259,6 +295,28 @@ function initCharts(){
       wickUpColor:'#22c55e',wickDownColor:'#ef4444',
     });
     mtfCharts[tf]={chart,candleSeries:cs};
+  });
+
+  // EUR/USD candle charts
+  EUR_TFS.forEach(tf=>{
+    const el=document.getElementById('mtf-chart-eur-'+tf);
+    if(!el)return;
+    const showSec=tf==='1m';
+    const chart=LightweightCharts.createChart(el,{
+      layout:{background:{color:'#0d1117'},textColor:'#8b949e',fontSize:10},
+      grid:{vertLines:{color:'#1c2128'},horzLines:{color:'#1c2128'}},
+      rightPriceScale:{borderColor:'#30363d',scaleMargins:{top:0.1,bottom:0.1}},
+      timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:showSec},
+      crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+      height:320,
+    });
+    chart.priceScale('right').applyOptions({minMove:0.00001});
+    const cs=chart.addCandlestickSeries({
+      upColor:'#22c55e',downColor:'#ef4444',borderUpColor:'#22c55e',borderDownColor:'#ef4444',
+      wickUpColor:'#22c55e',wickDownColor:'#ef4444',
+      priceFormat:{type:'price',precision:5,minMove:0.00001},
+    });
+    eurCharts[tf]={chart,candleSeries:cs};
   });
 }
 
@@ -344,29 +402,30 @@ async function loadDemoStatus(){
   try{
     if(d.error){console.warn('[DemoStatus] Server error:',d.error)}
 
-    const dtBtn=document.getElementById('dt-btn');
-    const scBtn=document.getElementById('sc-btn');
-    const swBtn=document.getElementById('sw-btn');
     const statusText=document.getElementById('demo-status-text');
     const modes=d.modes||{};
 
-    const dtOn=modes.daytrade&&modes.daytrade.running;
-    const scOn=modes.scalp&&modes.scalp.running;
-    const swOn=modes.swing&&modes.swing.running;
-
-    dtBtn.textContent=dtOn?'📊 デイトレ ■':'📊 デイトレ ▶';
-    dtBtn.className='demo-btn demo-btn-dt'+(dtOn?' active':'');
-    scBtn.textContent=scOn?'⚡ スキャルプ ■':'⚡ スキャルプ ▶';
-    scBtn.className='demo-btn demo-btn-sc'+(scOn?' active':'');
-    swBtn.textContent=swOn?'🌊 スイング ■':'🌊 スイング ▶';
-    swBtn.className='demo-btn demo-btn-sw'+(swOn?' active':'');
-
+    // USD/JPY buttons
+    const _modeBtn=[
+      {id:'dt-btn',mode:'daytrade',icon:'📊',label:'DT',cls:'demo-btn-dt'},
+      {id:'sc-btn',mode:'scalp',icon:'⚡',label:'SC',cls:'demo-btn-sc'},
+      {id:'sw-btn',mode:'daytrade_1h',icon:'🕐',label:'1H',cls:'demo-btn-sw'},
+      {id:'dt-eur-btn',mode:'daytrade_eur',icon:'📊',label:'DT',cls:'demo-btn-dt'},
+      {id:'sc-eur-btn',mode:'scalp_eur',icon:'⚡',label:'SC',cls:'demo-btn-sc'},
+      {id:'1h-eur-btn',mode:'daytrade_1h_eur',icon:'🕐',label:'1H',cls:'demo-btn-sw'},
+    ];
     const parts=[];
-    if(dtOn)parts.push('📊デイトレ稼働中');
-    if(scOn)parts.push('⚡スキャルプ稼働中');
-    if(swOn)parts.push('🌊スイング稼働中');
+    _modeBtn.forEach(b=>{
+      const el=document.getElementById(b.id);
+      if(!el)return;
+      const on=modes[b.mode]&&modes[b.mode].running;
+      el.textContent=on?b.icon+' '+b.label+' ■':b.icon+' '+b.label+' ▶';
+      el.className='demo-btn '+b.cls+(on?' active':'');
+      if(on)parts.push(b.icon+(b.mode.includes('eur')?'🇪🇺':''));
+    });
+
     statusText.innerHTML=parts.length?
-      '<span class="status-dot on"></span>'+parts.join(' / '):
+      '<span class="status-dot on"></span>'+parts.join('')+' 稼働中':
       '<span class="status-dot off"></span>停止中';
 
     // Open positions
@@ -380,14 +439,17 @@ async function loadDemoStatus(){
       posHtml+=d.open_trades.map(t=>{
         const isBuy=t.direction==='BUY';
         const col=isBuy?'var(--green)':'var(--red)';
-        const mTag=t.mode==='swing'?'tag-sw':(t.tf==='1m'||t.tf==='5m')?'tag-sc':'tag-dt';
-        const mLabel=t.mode==='swing'?'🌊スイング':(t.tf==='1m'||t.tf==='5m')?'⚡スキャルプ':'📊デイトレ';
-        return `<div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:5px;padding:5px 10px;margin-bottom:4px;display:flex;align-items:center;gap:10px;font-size:11px">
+        const isEur=t.mode&&t.mode.includes('eur');
+        const mTag=isEur?'tag-sw':(t.tf==='1m'||t.tf==='5m')?'tag-sc':'tag-dt';
+        const modeLabels={scalp:'⚡SC',daytrade:'📊DT',daytrade_1h:'🕐1H',scalp_eur:'⚡🇪🇺SC',daytrade_eur:'📊🇪🇺DT',daytrade_1h_eur:'🕐🇪🇺1H'};
+        const mLabel=modeLabels[t.mode]||(t.tf==='1m'?'⚡SC':'📊DT');
+        const pDec=isEur?5:3;
+        return `<div style="background:rgba(59,130,246,.06);border:1px solid ${isEur?'rgba(34,197,94,.2)':'rgba(59,130,246,.2)'};border-radius:5px;padding:5px 10px;margin-bottom:4px;display:flex;align-items:center;gap:10px;font-size:11px">
           <span class="tag ${mTag}">${mLabel}</span>
           <span style="color:${col};font-weight:700">${t.direction}</span>
-          <span>@ ${t.entry_price?.toFixed(3)||'—'}</span>
-          <span style="color:var(--t3)">SL ${t.sl?.toFixed(3)||'—'}</span>
-          <span style="color:var(--t3)">TP ${t.tp?.toFixed(3)||'—'}</span>
+          <span>@ ${t.entry_price?.toFixed(pDec)||'—'}</span>
+          <span style="color:var(--t3)">SL ${t.sl?.toFixed(pDec)||'—'}</span>
+          <span style="color:var(--t3)">TP ${t.tp?.toFixed(pDec)||'—'}</span>
           <span style="color:var(--t3);font-size:9px">${_h(t.entry_type)}</span>
           <button onclick="closeTrade('${t.trade_id}')" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:3px;padding:2px 8px;cursor:pointer;font-size:9px;margin-left:auto">撤退</button>
         </div>`;
@@ -488,8 +550,45 @@ async function loadTradeChart(){
     allTrades=dd.trades||[];
   }catch(e){}
 
-  // Load each TF chart in parallel
-  await Promise.all(MTF_TFS.map(async tf=>{
+  // Load each TF chart in parallel (USD/JPY + EUR/USD)
+  const allChartTasks = [];
+
+  // EUR/USD charts
+  EUR_TFS.forEach(tf=>{
+    allChartTasks.push((async()=>{
+      const ec=eurCharts[tf];
+      if(!ec)return;
+      try{
+        const r2=await fetch('/api/chart-data?tf='+tf+'&symbol=EURUSD=X');
+        const d2=await r2.json();
+        if(d2.candles&&d2.candles.length){
+          const seen=new Set();
+          const candles=d2.candles.filter(c=>{if(seen.has(c.time))return false;seen.add(c.time);return true}).sort((a,b)=>a.time-b.time);
+          ec.candleSeries.setData(candles);
+        }
+        const srcEl=document.getElementById('mtf-src-eur-'+tf);
+        if(srcEl&&d2.ohlcv_source) srcEl.textContent=d2.ohlcv_source.toUpperCase();
+        // EUR trade markers
+        const eurModes={'1m':['scalp_eur'],'15m':['daytrade_eur'],'1h':['daytrade_1h_eur'],'4h':[]};
+        const matchModes=eurModes[tf]||[];
+        const markers=[];
+        allTrades.forEach(t=>{
+          if(!matchModes.includes(t.mode))return;
+          const isBuy=t.direction==='BUY';
+          const inColor=isBuy?'#22c55e':'#ef4444';
+          if(t.entry_time){try{const et=Math.floor(new Date(t.entry_time).getTime()/1000);if(et>0)markers.push({time:et,position:isBuy?'belowBar':'aboveBar',color:inColor,shape:isBuy?'arrowUp':'arrowDown',text:(t.entry_price?.toFixed(4)||''),size:1})}catch(e){}}
+          if(t.exit_time&&t.exit_price!=null){try{const xt=Math.floor(new Date(t.exit_time).getTime()/1000);const isWin=t.outcome==='WIN';if(xt>0)markers.push({time:xt,position:isBuy?'aboveBar':'belowBar',color:isWin?'#22c55e':'#ef4444',shape:'circle',text:(t.pnl_pips>=0?'+':'')+t.pnl_pips?.toFixed(1)+'p',size:1})}catch(e){}}
+        });
+        markers.sort((a,b)=>a.time-b.time);
+        const seen2=new Set();markers.forEach(m=>{while(seen2.has(m.time))m.time++;seen2.add(m.time)});
+        if(markers.length) ec.candleSeries.setMarkers(markers);
+        ec.chart.timeScale().fitContent();
+      }catch(e){console.error('[EUR-'+tf+']',e)}
+    })());
+  });
+
+  // USD/JPY charts
+  MTF_TFS.forEach(tf=>{allChartTasks.push((async()=>{
     const mc=mtfCharts[tf];
     if(!mc)return;
     try{
@@ -508,12 +607,13 @@ async function loadTradeChart(){
       const srcEl=document.getElementById('mtf-src-'+tf);
       if(srcEl&&chartD.ohlcv_source) srcEl.textContent=chartD.ohlcv_source.toUpperCase();
 
-      // Trade markers for this TF
+      // Trade markers for this TF (USD/JPY only)
       const tfMap={'1m':['1m','5m'],'15m':['15m'],'1h':['1h'],'4h':['4h']};
       const matchTfs=tfMap[tf]||[tf];
       const markers=[];
       allTrades.forEach(t=>{
         if(!matchTfs.includes(t.tf))return;
+        if(t.mode&&t.mode.includes('eur'))return; // EUR trades go to EUR charts
         const isBuy=t.direction==='BUY';
         const isScalp=t.tf==='1m'||t.tf==='5m';
         const modeIcon=isScalp?'⚡':'📊';
@@ -552,7 +652,9 @@ async function loadTradeChart(){
 
       mc.chart.timeScale().fitContent();
     }catch(e){console.error('[MTF-'+tf+']',e)}
-  }));
+  })())});
+
+  await Promise.all(allChartTasks);
 }
 
 // ── Load Learning Analysis ──
@@ -703,13 +805,15 @@ async function loadTradeTable(dateFrom='',dateTo='',mode=''){
     const wr=closed.length?Math.round(wins/closed.length*100):0;
     if(summary) summary.textContent=`${d.trades.length}件 | ${closed.length}決済 | WR ${wr}% | PnL ${totalPnl>=0?'+':''}${totalPnl.toFixed(1)}pip`;
 
-    const tfLabel={'1m':'スキャルプ','5m':'スキャルプ','15m':'デイトレ','30m':'デイトレ','1h':'1H Zone','4h':'スイング','1d':'スイング'};
+    const modeLabel={scalp:'⚡SC',daytrade:'📊DT',daytrade_1h:'🕐1H',scalp_eur:'⚡🇪🇺SC',daytrade_eur:'📊🇪🇺DT',daytrade_1h_eur:'🕐🇪🇺1H',swing:'🌊SW'};
     tbody.innerHTML=d.trades.map((t,i)=>{
       const isWin=t.outcome==='WIN';
       const isBuy=t.direction==='BUY';
-      const mTag=t.mode==='swing'?'tag-sw':(t.tf==='1m'||t.tf==='5m')?'tag-sc':'tag-dt';
+      const isEur=t.mode&&t.mode.includes('eur');
+      const mTag=isEur?'tag-sw':t.mode==='swing'?'tag-sw':(t.tf==='1m'||t.tf==='5m')?'tag-sc':'tag-dt';
       const oTag=isWin?'tag-win':t.outcome==='LOSS'?'tag-loss':'tag-open';
-      const fmt=v=>v!=null?v.toFixed(3):'—';
+      const pDec=isEur?5:3;
+      const fmt=v=>v!=null?v.toFixed(pDec):'—';
       const pnlStr=t.pnl_pips!=null?(t.pnl_pips>=0?'+':'')+t.pnl_pips.toFixed(1):'—';
       const rStr=t.pnl_r!=null?(t.pnl_r>=0?'+':'')+t.pnl_r.toFixed(2)+'R':'—';
       let reasons='';
@@ -720,7 +824,7 @@ async function loadTradeTable(dateFrom='',dateTo='',mode=''){
       const pnlCol=t.pnl_pips>=0?'var(--green)':'var(--red)';
       return `<tr>
         <td>${d.trades.length-i}</td>
-        <td><span class="tag ${mTag}">${tfLabel[t.tf]||t.tf}</span></td>
+        <td><span class="tag ${mTag}">${modeLabel[t.mode]||t.tf}</span></td>
         <td style="color:${dirCol};font-weight:600">${t.direction}</td>
         <td style="font-family:monospace">${fmt(t.entry_price)}</td>
         <td style="font-family:monospace;color:var(--red)">${fmt(t.sl)}</td>
@@ -785,7 +889,7 @@ async function loadOandaModes(){
   }catch(e){console.warn('[OANDA modes]',e)}
 }
 function updateOandaButtons(){
-  ['scalp','daytrade','daytrade_1h'].forEach(m=>{
+  ['scalp','daytrade','daytrade_1h','scalp_eur','daytrade_eur','daytrade_1h_eur'].forEach(m=>{
     const btn=document.getElementById('oanda-'+m);
     if(!btn)return;
     const on=_oandaModes.includes(m);

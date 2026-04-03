@@ -60,7 +60,7 @@ MODE_CONFIG = {
         "symbol": "USDJPY=X",
         "instrument": "USD_JPY",
     },
-    # ── EUR/USD modes (auto_start=Falseで手動起動) ──
+    # ── EUR/USD modes ──
     "scalp_eur": {
         "interval_sec": 10,
         "tf": "1m",
@@ -70,7 +70,7 @@ MODE_CONFIG = {
         "icon": "⚡🇪🇺",
         "symbol": "EURUSD=X",
         "instrument": "EUR_USD",
-        "auto_start": False,
+        "auto_start": True,
     },
     "daytrade_eur": {
         "interval_sec": 30,
@@ -81,7 +81,7 @@ MODE_CONFIG = {
         "icon": "📊🇪🇺",
         "symbol": "EURUSD=X",
         "instrument": "EUR_USD",
-        "auto_start": False,
+        "auto_start": True,
     },
     "daytrade_1h_eur": {
         "interval_sec": 60,
@@ -92,7 +92,7 @@ MODE_CONFIG = {
         "icon": "🕐🇪🇺",
         "symbol": "EURUSD=X",
         "instrument": "EUR_USD",
-        "auto_start": False,
+        "auto_start": True,
     },
 }
 

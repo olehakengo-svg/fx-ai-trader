@@ -10528,10 +10528,13 @@ def api_demo_equity():
 def api_chart_data():
     """OHLCVキャンドルデータ（分析ページ用）"""
     tf = request.args.get("tf", "15m")
+    symbol = request.args.get("symbol", "USDJPY=X")
     period_map = {"1m": "1d", "5m": "5d", "15m": "5d", "1h": "30d", "4h": "60d", "1d": "120d"}
     period = period_map.get(tf, "5d")
+    # JPYペアは3桁、それ以外は5桁
+    _dec = 3 if "JPY" in symbol else 5
     try:
-        df = fetch_ohlcv("USDJPY=X", period=period, interval=tf)
+        df = fetch_ohlcv(symbol, period=period, interval=tf)
         if df is None or df.empty:
             return jsonify({"candles": [], "error": "No data"})
         candles = []
@@ -10539,12 +10542,12 @@ def api_chart_data():
             ts = int(idx.timestamp()) if hasattr(idx, 'timestamp') else 0
             candles.append({
                 "time": ts,
-                "open": round(float(row["Open"]), 3),
-                "high": round(float(row["High"]), 3),
-                "low": round(float(row["Low"]), 3),
-                "close": round(float(row["Close"]), 3),
+                "open": round(float(row["Open"]), _dec),
+                "high": round(float(row["High"]), _dec),
+                "low": round(float(row["Low"]), _dec),
+                "close": round(float(row["Close"]), _dec),
             })
-        return jsonify({"candles": candles, "tf": tf, "count": len(candles)})
+        return jsonify({"candles": candles, "tf": tf, "count": len(candles), "symbol": symbol})
     except Exception as e:
         return jsonify({"candles": [], "error": str(e)})
 
