@@ -9403,7 +9403,7 @@ def api_backtest():
         elif mode == "daytrade":
             result = run_daytrade_backtest("USDJPY=X", lookback_days=55, interval="15m")
         elif mode == "daytrade_1h":
-            result = run_1h_backtest("USDJPY=X", lookback_days=30, interval="1h")
+            result = run_1h_backtest("USDJPY=X", lookback_days=60, interval="1h")
         elif mode == "swing":
             result   = run_swing_backtest("USDJPY=X", lookback_days=365)
         else:
