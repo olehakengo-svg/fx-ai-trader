@@ -3661,6 +3661,141 @@ def _get_dxy_trend_for_bt() -> str:
         return "neutral"
 
 
+def _compute_bt_htf_bias(df: "pd.DataFrame", bar_idx: int,
+                         mode: str = "scalp") -> dict:
+    """BT用 HTFバイアス計算 — ルックアヘッドなしで上位足方向を推定。
+
+    ライブの get_htf_bias() / get_htf_bias_daytrade() と同等のロジックを
+    BTデータから再現する。bar_idx までのデータのみ使用（先読みなし）。
+
+    mode:
+      "scalp"    → 1H + 4H (get_htf_bias と同等)
+      "daytrade" → 4H + 1D (get_htf_bias_daytrade と同等)
+      "swing"    → 1D + 1W (1d足BTデータから上位足推定、get_htf_bias互換キー出力)
+
+    Returns: get_htf_bias() 互換の dict
+      {score, agreement, label, h1:{score,label,rsi,...}, h4:{...}}
+    """
+    try:
+        # bar_idx までのデータのみ使用（ルックアヘッド排除）
+        df_past = df.iloc[:bar_idx + 1]
+
+        if mode == "daytrade":
+            # 4H + 1D で判定 (get_htf_bias_daytrade 互換)
+            resample_configs = [
+                ("h4", "4h", 100),   # 4H足: 最低100本必要(≈400 bars of 1h or 6000 of 1m)
+                ("d1", "1D", 50),    # 1D足: 最低50本必要
+            ]
+        elif mode == "swing":
+            # swing BTは1d足データ → 1D(そのまま) + 1W(週足リサンプル)
+            resample_configs = [
+                ("1h", "none", 60),  # "1h"キーだが実際は1D足のEMAを使用
+                ("4h", "1W", 20),    # "4h"キーだが実際は1W足のEMAを使用
+            ]
+        else:
+            # 1H + 4H で判定 (get_htf_bias 互換)
+            resample_configs = [
+                ("1h", "1h", 30),    # 1H足: 最低30本必要(7日BT=168本→十分)
+                ("4h", "4h", 15),    # 4H足: 最低15本必要(7日BT=42本→EMA21で判定可)
+            ]
+
+        results = {}
+        for tf_key, resample_rule, min_bars in resample_configs:
+            try:
+                # リサンプリング
+                if resample_rule == "none":
+                    df_h = df_past.copy()  # リサンプルなし（swing 1d足そのまま）
+                elif resample_rule == "1h":
+                    df_h = resample_df(df_past, "1h")
+                elif resample_rule == "4h":
+                    df_h = resample_df(df_past, "4h")
+                elif resample_rule == "1D":
+                    df_h = resample_df(df_past, "1D")
+                elif resample_rule == "1W":
+                    df_h = resample_df(df_past, "1W")
+                else:
+                    df_h = df_past.copy()
+
+                if len(df_h) < min_bars:
+                    results[tf_key] = {"score": 0.0, "label": "BT: データ不足", "rsi": 50.0}
+                    continue
+
+                df_h = add_indicators(df_h)
+                # EMA50が不足する場合はEMA9/21のみで判定
+                df_h = df_h.dropna(subset=["ema9", "ema21"])
+                if len(df_h) < 5:
+                    results[tf_key] = {"score": 0.0, "label": "BT: インジケータ不足", "rsi": 50.0}
+                    continue
+
+                row = df_h.iloc[-1]
+                c   = float(row["Close"])
+                e9  = float(row["ema9"])
+                e21 = float(row["ema21"])
+                e50 = float(row["ema50"]) if pd.notna(row.get("ema50")) else e21
+                rsi = float(row.get("rsi", 50))
+                ema200 = float(row.get("ema200", e50))
+
+                # EMAアライメントスコア (get_htf_bias と同一ロジック)
+                if   c > e9 > e21 > e50:  sc = 1.0;  lbl = "↗↗ 強気（全EMA上昇列）"
+                elif c > e21 and e9 > e21: sc = 0.6;  lbl = "↗ 強気（EMA21超）"
+                elif c > e21:              sc = 0.3;  lbl = "↗ 弱強気（EMA21超）"
+                elif c < e9 < e21 < e50:  sc = -1.0; lbl = "↘↘ 弱気（全EMA下降列）"
+                elif c < e21 and e9 < e21: sc = -0.6; lbl = "↘ 弱気（EMA21下）"
+                elif c < e21:              sc = -0.3; lbl = "↘ 弱弱気（EMA21下）"
+                else:                      sc = 0.0;  lbl = "↔ 中立"
+
+                # daytrade モードは EMA200 ボーナス補正 (get_htf_bias_daytrade 互換)
+                if mode == "daytrade":
+                    if c > ema200: sc = min(1.0, sc + 0.1)
+                    else:          sc = max(-1.0, sc - 0.1)
+
+                results[tf_key] = {
+                    "score": sc, "label": lbl,
+                    "rsi": round(rsi, 1),
+                    "ema9": round(e9, 3), "ema21": round(e21, 3), "ema50": round(e50, 3),
+                    "close": round(c, 3),
+                }
+            except Exception:
+                results[tf_key] = {"score": 0.0, "label": "BT: 計算失敗", "rsi": 50.0}
+
+        if mode == "daytrade":
+            h4_sc = results.get("h4", {}).get("score", 0.0)
+            d1_sc = results.get("d1", {}).get("score", 0.0)
+            avg = round(h4_sc * 0.40 + d1_sc * 0.60, 3)
+            if   h4_sc > 0.2  and d1_sc > 0.2:  agreement = "bull"; label = "📈 4H+1D 上昇一致 → BUYのみ有効"
+            elif h4_sc < -0.2 and d1_sc < -0.2: agreement = "bear"; label = "📉 4H+1D 下降一致 → SELLのみ有効"
+            else:                                agreement = "mixed"; label = "⚖️ 4H+1D 不一致 → シグナル抑制中"
+            return {
+                "score": avg, "agreement": agreement, "label": label,
+                "h4": results.get("h4", {}), "d1": results.get("d1", {}),
+                # scalp互換キー (compute_scalp_signal が h1/h4 を参照する場合)
+                "h1": results.get("h4", {}),
+            }
+        else:
+            h1_sc = results.get("1h", {}).get("score", 0.0)
+            h4_sc = results.get("4h", {}).get("score", 0.0)
+            avg = round(h1_sc * 0.40 + h4_sc * 0.60, 3)
+            if   h1_sc > 0.2 and h4_sc > 0.2:  agreement = "bull"; label = "📈 1H+4H 上昇一致 → BUYのみ有効"
+            elif h1_sc < -0.2 and h4_sc < -0.2: agreement = "bear"; label = "📉 1H+4H 下降一致 → SELLのみ有効"
+            else:                                agreement = "mixed"; label = "⚖️ 1H+4H 不一致 → シグナル抑制中"
+            return {
+                "score": avg, "agreement": agreement, "label": label,
+                "h1": results.get("1h", {}), "h4": results.get("4h", {}),
+            }
+
+    except Exception:
+        # フォールバック: 計算不能時はneutral（従来動作）
+        return {"score": 0, "agreement": "neutral", "label": "BT: HTF計算失敗",
+                "h1": {"score": 0.0, "label": "—", "rsi": 50.0},
+                "h4": {"score": 0.0, "label": "—", "rsi": 50.0}}
+
+
+# HTF BT再計算間隔 (全バーで計算するとBTが遅くなるため定期的に更新)
+_BT_HTF_RECALC_SCALP = 60      # 60バー(1m) = 1時間ごとに再計算
+_BT_HTF_RECALC_DT    = 16      # 16バー(15m) = 4時間ごとに再計算
+_BT_HTF_RECALC_SW    = 5       # 5バー(1d)  = 5日ごとに再計算
+
+
 def _bt_spread(bar_time, symbol: str = "USDJPY=X") -> float:
     """BT用 時間帯変動スプレッドモデル
     東京早朝/NY終盤はスプレッド拡大、LDN/NY重複は最狭
@@ -4156,16 +4291,17 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         trades = []
         last_trade_bar = -99
 
-        # ── HTF bias: BT mode = neutral (ルックアヘッドバイアス排除) ──
-        # get_htf_bias() は現在のyfinanceデータを使うためBTでは無効化
+        # ── HTF bias: BT用動的計算（ルックアヘッドなし）──
+        # bar_idx までのデータをリサンプルして1H+4H方向を推定
         try:
             _layer1 = get_master_bias(symbol)
         except Exception:
             _layer1 = {"direction": "neutral", "label": "—", "score": 0}
         _htf_cache = {
-            "htf": {"score": 0, "agreement": "neutral", "label": "BT: HTFバイアス無効"},
+            "htf": _compute_bt_htf_bias(df, min(300, len(df) - 1), mode="scalp"),
             "layer1": _layer1,
         }
+        _last_htf_recalc_bar = 0  # HTF再計算トラッキング
 
         # ── SR/OBプリコンピュテーション (ルックアヘッドバイアス排除) ──
         SR_RECALC = 100
@@ -4202,6 +4338,11 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         for i in range(max(MIN_BARS, 50), len(df) - MAX_HOLD - 1):
             if i - last_trade_bar < COOLDOWN:
                 continue
+
+            # ── HTF bias 定期再計算（_BT_HTF_RECALC_SCALP バーごと）──
+            if i - _last_htf_recalc_bar >= _BT_HTF_RECALC_SCALP:
+                _htf_cache["htf"] = _compute_bt_htf_bias(df, i, mode="scalp")
+                _last_htf_recalc_bar = i
 
             row = df.iloc[i]
 
@@ -4591,16 +4732,17 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         trades = []
         last_bar = -99
 
-        # ── HTF bias: BT mode = neutral (ルックアヘッドバイアス排除) ──
-        # get_htf_bias_daytrade() は現在のyfinanceデータを使うためBTでは無効化
+        # ── HTF bias: BT用動的計算（ルックアヘッドなし）──
+        # bar_idx までのデータをリサンプルして4H+1D方向を推定
         try:
             _layer1 = get_master_bias(symbol)
         except Exception:
             _layer1 = {"direction": "neutral", "label": "—", "score": 0}
         _htf_cache = {
-            "htf": {"score": 0, "agreement": "neutral", "label": "BT: HTFバイアス無効"},
+            "htf": _compute_bt_htf_bias(df, min(300, len(df) - 1), mode="daytrade"),
             "layer1": _layer1,
         }
+        _last_htf_recalc_bar = 0  # HTF再計算トラッキング
 
         # ── SR/OBプリコンピュテーション (ルックアヘッドバイアス排除) ──
         DT_SR_RECALC = 80
@@ -4616,6 +4758,11 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         for i in range(max(MIN_BARS, 50), len(df) - MAX_HOLD - 1):
             if i - last_bar < COOLDOWN:
                 continue
+
+            # ── HTF bias 定期再計算（_BT_HTF_RECALC_DT バーごと）──
+            if i - _last_htf_recalc_bar >= _BT_HTF_RECALC_DT:
+                _htf_cache["htf"] = _compute_bt_htf_bias(df, i, mode="daytrade")
+                _last_htf_recalc_bar = i
 
             row = df.iloc[i]
 
@@ -5364,22 +5511,28 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
         trades = []
         last_bar = -99
 
-        # ── HTF bias: BT mode = neutral (ルックアヘッドバイアス排除) ──
-        # get_htf_bias() は現在のyfinanceデータを使うためBTでは無効化
+        # ── HTF bias: BT用動的計算（ルックアヘッドなし）──
+        # bar_idx までのデータをリサンプルして1H+4H方向を推定
         try:
             _layer1 = get_master_bias(symbol)
         except Exception:
             _layer1 = {"direction": "neutral", "label": "—", "score": 0}
         _htf_cache = {
-            "htf": {"score": 0, "agreement": "neutral", "label": "BT: HTFバイアス無効"},
+            "htf": _compute_bt_htf_bias(df, min(300, len(df) - 1), mode="swing"),
             "layer1": _layer1,
         }
+        _last_htf_recalc_bar = 0  # HTF再計算トラッキング
 
         MIN_BARS = 250  # compute_swing_signalに必要な最小バー数
 
         for i in range(max(cutoff_i, MIN_BARS), len(df) - MAX_HOLD - 1):
             if i - last_bar < COOLDOWN:
                 continue
+
+            # ── HTF bias 定期再計算（_BT_HTF_RECALC_SW バーごと）──
+            if i - _last_htf_recalc_bar >= _BT_HTF_RECALC_SW:
+                _htf_cache["htf"] = _compute_bt_htf_bias(df, i, mode="swing")
+                _last_htf_recalc_bar = i
 
             row = df.iloc[i]
             atr = float(row["atr"])
@@ -7729,25 +7882,22 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         reasons.append(f"⚠️ EMA200近接ゾーン(距離{_ema200_dist:.2f}ATR) — チョッピー回避")
 
     # ── EMA200 方向フィルター ──
-    # 200EMA上+スロープ上昇のSELL / 200EMA下+スロープ下降のBUY → ハードブロック
-    # 本番: EMA200逆行のmacdh_reversal|SELL全敗、fib_reversal|BUY WR=33%
-    # 平均回帰・逆張り戦略は除外（BB極端→中央回帰はトレンド逆行でも機能する）
+    # 記事参照: スキャルプは「数秒〜数分の短期売買」— フィルター過剰はエントリー枯渇を招く
+    # 平均回帰戦略は除外（BB極端→中央回帰はトレンド逆行でも機能する）
+    # 順張り系もソフトペナルティ化（EMA200+HTFの二重ハードブロックは過剰）
     _mean_reversion_types = ("trend_rebound", "v_reversal", "bb_rsi_reversion", "macdh_reversal")
     if entry_type not in _mean_reversion_types:
         if _ema200_bull and signal == "SELL" and _ema200_slope > 0:
-            # EMA200上 + 上昇中 → SELL完全ブロック
-            reasons.append(f"🚫 EMA200上昇中のSELL(dist={_ema200_dist:+.2f}ATR) → ブロック")
-            return {"signal": "WAIT", "confidence": 0, "reasons": reasons,
-                    "entry_type": entry_type, "sl": sl, "tp": tp, "atr": atr7,
-                    "indicators": {"rsi": rsi5, "bbpb": bbpb, "adx": adx}}
+            # EMA200上 + 上昇中 → ソフトペナルティ（二重ブロック防止）
+            score *= 0.65
+            conf = int(conf * 0.70)
+            reasons.append(f"⚠️ EMA200上昇中のSELL(dist={_ema200_dist:+.2f}ATR) — 強い減衰")
         elif not _ema200_bull and signal == "BUY" and _ema200_slope < 0:
-            # EMA200下 + 下降中 → BUY完全ブロック
-            reasons.append(f"🚫 EMA200下降中のBUY(dist={_ema200_dist:+.2f}ATR) → ブロック")
-            return {"signal": "WAIT", "confidence": 0, "reasons": reasons,
-                    "entry_type": entry_type, "sl": sl, "tp": tp, "atr": atr7,
-                    "indicators": {"rsi": rsi5, "bbpb": bbpb, "adx": adx}}
+            # EMA200下 + 下降中 → ソフトペナルティ
+            score *= 0.65
+            conf = int(conf * 0.70)
+            reasons.append(f"⚠️ EMA200下降中のBUY(dist={_ema200_dist:+.2f}ATR) — 強い減衰")
         elif _ema200_bull and signal == "SELL":
-            # EMA200上だがスロープ横ばい → ソフトペナルティ維持
             score *= 0.80
             conf = int(conf * 0.85)
             reasons.append(f"⚠️ EMA200上からSELL(dist={_ema200_dist:+.2f}ATR) — 軽度減衰")
@@ -7769,27 +7919,25 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             reasons.append(f"✅ EMA200レジスタンスバウンス(dist={_ema200_dist:.2f}ATR)")
 
     # ── HTF方向フィルター: 逆行シグナルの制御 ──
-    # 本番実績: macdh_reversal|SELL WR=0%(5t -15.4p) — ソフト減衰では阻止不能
-    # bb_rsi_reversion は平均回帰戦略 → ハードブロック対象外（本番WR=57%維持）
-    # FXアナリスト推奨: RANGE時はHTFの信頼性低下 → ソフトペナルティに切替
+    # 記事参照: 上位足でトレンド確認→下位足でエントリー（順張り主体）
+    # ただしスキャルプは短期売買のため、HTFハードブロックは過剰（EMA200で既に減衰済み）
+    # 全戦略ソフトペナルティ化 — 二重ハードブロック廃止でエントリー頻度確保
     htf_dir = htf.get("agreement", "neutral")
     _is_range_regime = regime.get("regime") == "RANGE"
     if entry_type not in _mean_reversion_types:
         _htf_contrary = (htf_dir == "bull" and signal == "SELL") or (htf_dir == "bear" and signal == "BUY")
         if _htf_contrary:
             if _is_range_regime:
-                # レンジ相場: HTF方向の信頼性低下 → ソフトペナルティ（ブロックしない）
-                score *= 0.80
-                conf = int(conf * 0.85)
-                reasons.append(f"⚠️ HTF逆行(レンジ相場→ソフト減衰, ADX={adx:.1f})")
+                # レンジ相場: HTF方向の信頼性低下 → 軽度ペナルティ
+                score *= 0.85
+                conf = int(conf * 0.90)
+                reasons.append(f"⚠️ HTF逆行(レンジ相場→軽度減衰, ADX={adx:.1f})")
             else:
-                # トレンド相場: 従来通りハードブロック
-                signal = "WAIT"
+                # トレンド相場: ソフトペナルティ（EMA200で既に減衰済み、二重ブロック不要）
+                score *= 0.70
+                conf = int(conf * 0.75)
                 _dir_label = "SELL" if htf_dir == "bull" else "BUY"
-                reasons.append(f"🚫 HTF{'上昇' if htf_dir == 'bull' else '下降'}一致 → {_dir_label}完全ブロック")
-                return {"signal": "WAIT", "confidence": 0, "reasons": reasons,
-                        "entry_type": entry_type, "sl": sl, "tp": tp, "atr": atr7,
-                        "indicators": {"rsi": rsi5, "bbpb": bbpb, "adx": adx}}
+                reasons.append(f"⚠️ HTF{'上昇' if htf_dir == 'bull' else '下降'}一致 → {_dir_label}強い減衰")
     else:
         # 平均回帰戦略: ソフトペナルティのみ適用（トレンド/レンジ問わず）
         if (htf_dir == "bull" and signal == "SELL") or (htf_dir == "bear" and signal == "BUY"):
@@ -8365,16 +8513,14 @@ def _compute_scalp_signal_v1_legacy(df: pd.DataFrame, tf: str, sr_levels: list,
         ema21_prev = float(df["ema21"].iloc[-2])
         ema9_cross_up   = (ema9_prev <= ema21_prev) and (ema9 > ema21)
         ema9_cross_down = (ema9_prev >= ema21_prev) and (ema9 < ema21)
-        # ADX>=15の場合のみフルボーナス（旧20→15に緩和:ロンドン/NY帯確保）
-        cross_bonus = 1.5 if adx >= 15 else 0.3
-        if ema9_cross_up:
+        # ADX>=22の場合のみボーナス（低ADXノイズクロス排除）
+        cross_bonus = 1.0 if adx >= 22 else 0.0
+        if ema9_cross_up and cross_bonus > 0:
             score += cross_bonus
-            if adx >= 20:
-                reasons.append(f"✅ EMA9/21ゴールデンクロス(ADX{adx:.0f}≥20)")
-        elif ema9_cross_down:
+            reasons.append(f"✅ EMA9/21ゴールデンクロス(ADX{adx:.0f}≥22)")
+        elif ema9_cross_down and cross_bonus > 0:
             score -= cross_bonus
-            if adx >= 20:
-                reasons.append(f"✅ EMA9/21デッドクロス(ADX{adx:.0f}≥20)")
+            reasons.append(f"✅ EMA9/21デッドクロス(ADX{adx:.0f}≥22)")
     score = max(-8.0, min(8.0, score))  # clamp before normalization
 
     # ── SL / TP ── 本番分析反映: SL拡大でノイズ耐性UP
