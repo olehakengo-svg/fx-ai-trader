@@ -193,13 +193,12 @@
   - デモを正（source of truth）として、OANDA孤児を解消
 - **OANDA連携ポイント**: エントリー(ask/bid) / SL/TP(bid/ask) / シグナル反転(bid/ask) / 手動(bid/ask) / 孤児クローズ(5秒毎)
 
-## Recent Fixes (2026-04-03 OANDA 65トレード分析ベース最適化)
-- **max_open_trades**: 20→6（全モード合計。同時6本→SL連打の根本原因）
-- **同方向ポジション上限**: 全モード→1（scalp:3,DT:3,1H:2,swing:2 → 全て1）
-- **BE閾値**: 50%→70%（利益をもっと伸ばす。旧50%ではBE+αで刈られWIN avg+1.2pip）
-- **トレーリング幅**: 30%→40%（TP距離の40%。ノイズ耐性UP）
-- **SLクールダウン強化**: 基本300/600s + SL後同方向600s/逆方向300s（SL後次トレードWR=35%対策）
-- **最低エントリー間隔**: 全モード5分（5.9t/h→オーバートレード防止）
-- **UTC 20-21ブロック**: scalp/DTエントリー禁止（-20.3pip集中帯）
+## Recent Fixes (2026-04-03 BT完全統一)
+- **BT/本番パラメータ統一**: 同期間BT比較でBT WR=56.2% vs OANDA WR=48% → 差の原因は同時ポジション
+- **max_open_trades**: 20→1（BT統一: 逐次1本処理。同時ポジションによるSL連打を根絶）
+- **BE閾値**: 50%→60%（BT統一。トレーリングなし、BEのみ）
+- **クールダウン**: BT統一 = 1バー分（scalp:60s, DT:30s）。SL固有/間隔制限撤廃
+- **時間帯フィルター撤廃**: UTC 20-21ブロック含め全て撤廃（1本逐次ならBTと同じWR）
+- **同方向ポジ制限撤廃**: max_open_trades=1で暗黙制御
 - **EUR/USD pips計算修正**: realized_pl/units→price-diff方式（demo_db.py）
 - **EUR/USD丸め修正**: round(x,3)→_rp(x,symbol)で5桁対応（app.py全signal関数）
