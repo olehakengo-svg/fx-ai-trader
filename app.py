@@ -2193,11 +2193,12 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 _dt_nearest_scenario = {"type": "bounce", "sr": _res}
 
     # C: 下のSR下抜けブレイク → SELL
+    # ADX 12→10: レンジブレイクはADX低くても有効（ブレイク自体がADX上昇の先行指標）
     if not _sr_signal_found and _dt_below:
         _sup = _dt_below[0]
         if (_sup["touches"] >= 2
                 and entry < _sup["price"] - atr * 0.1
-                and entry < float(row["Open"]) and adx >= 12):
+                and entry < float(row["Open"]) and adx >= 10):
             signal = "SELL"
             _dt_entry_type = "dual_sr_breakout"
             _sr_signal_found = True
@@ -2208,7 +2209,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         _res = _dt_above[0]
         if (_res["touches"] >= 2
                 and entry > _res["price"] + atr * 0.1
-                and entry > float(row["Open"]) and adx >= 12):
+                and entry > float(row["Open"]) and adx >= 10):
             signal = "BUY"
             _dt_entry_type = "dual_sr_breakout"
             _sr_signal_found = True
@@ -2294,7 +2295,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     #  新設計: クロス発生 → プルバック確認 → 方向再確認 → エントリー
     #  騙し上げ/下げはプルバック後に戻らないので自然にフィルターされる
     # ════════════════════════════════════════════════════════
-    if not _sr_signal_found and signal == "WAIT" and adx >= 15 and len(df) >= 10:  # ADX 20→15 (FXアナリスト推奨)
+    if not _sr_signal_found and signal == "WAIT" and adx >= 12 and len(df) >= 10:  # ADX 20→15→12 (低ADXでもクロスは有効)
         # (1) 直近8本以内にEMAクロスが発生したか (5→8: プルバック完了後のウィンドウ切れ防止)
         _cross_dir = None   # "BUY" or "SELL"
         _cross_bar = None   # クロスが起きたバーのインデックス
@@ -2350,7 +2351,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                     reasons.append(f"✅ 5条件一致: ADX≥15({adx:.0f}), MACD-, RSI({rsi:.0f}), 陰線, EMA維持")
 
     # SR+Fib / OB Retest フォールバック（ema_cross以外のフォールバック）
-    if not _sr_signal_found and signal == "WAIT" and adx >= 15:
+    if not _sr_signal_found and signal == "WAIT" and adx >= 12:
         _has_sr_fib = any("Fib" in r or "フィボ" in r for r in reasons)
         _has_ob     = any("OB" in r or "オーダーブロック" in r for r in reasons)
         THRESHOLD = 0.28
@@ -6799,9 +6800,10 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         _prev_open = float(df.iloc[-2]["Open"]) if len(df) >= 2 else entry
 
         # BUY判定
+        # コア条件: BB下限 + RSI売られすぎ + Stochクロス方向
+        # Stochクロスギャップ・前バー方向はボーナス（ハード条件→ソフト化 2026-04-03）
         if (bbpb <= 0.25 and rsi5 < 45 and stoch_k < 45
-                and stoch_k > stoch_d and (stoch_k - stoch_d) > 1.5  # 真のクロス確認
-                and _prev_close <= _prev_open  # 前バー陰線（プルバック確認）
+                and stoch_k > stoch_d  # Stochクロス方向のみ必須
                 ):
             _mr_signal = "BUY"
             # Tier判定: 極端ほど高スコア
@@ -6810,6 +6812,14 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             _mr_reasons.append(f"✅ BB下限(%B={bbpb:.2f}≤0.22) — 平均回帰 (Bollinger 2001)")
             _mr_reasons.append(f"✅ RSI5売られすぎ({rsi5:.1f}<42)")
             _mr_reasons.append(f"✅ Stochゴールデンクロス(K={stoch_k:.0f}>D={stoch_d:.0f})")
+            # Stochクロスギャップボーナス（明確なクロスほど信頼性高い）
+            if (stoch_k - stoch_d) > 1.5:
+                _mr_score += 0.6
+                _mr_reasons.append(f"✅ Stochクロスギャップ大({stoch_k - stoch_d:.1f}>1.5)")
+            # 前バー陰線ボーナス（プルバック確認）
+            if _prev_close <= _prev_open:
+                _mr_score += 0.3
+                _mr_reasons.append("✅ 前バー陰線（プルバック確認）")
             if _tier1:
                 _mr_reasons.append("🎯 Tier1: 極端条件（高確信）")
             if macdh > 0:
@@ -6829,9 +6839,9 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             _mr_sl = entry - _mr_sl_dist
 
         # SELL判定
+        # コア条件: BB上限 + RSI買われすぎ + Stochクロス方向
         if (not _mr_signal and bbpb >= 0.75 and rsi5 > 55 and stoch_k > 55
-                and stoch_k < stoch_d and (stoch_d - stoch_k) > 1.5  # 真のクロス確認
-                and _prev_close >= _prev_open  # 前バー陽線（戻り確認）
+                and stoch_k < stoch_d  # Stochクロス方向のみ必須
                 ):
             _mr_signal = "SELL"
             _tier1 = bbpb >= 0.95 and rsi5 > 75 and stoch_k > 80
@@ -6839,6 +6849,14 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             _mr_reasons.append(f"✅ BB上限(%B={bbpb:.2f}≥0.78) — 平均回帰 (Bollinger 2001)")
             _mr_reasons.append(f"✅ RSI5買われすぎ({rsi5:.1f}>58)")
             _mr_reasons.append(f"✅ Stochデッドクロス(K={stoch_k:.0f}<D={stoch_d:.0f})")
+            # Stochクロスギャップボーナス
+            if (stoch_d - stoch_k) > 1.5:
+                _mr_score += 0.6
+                _mr_reasons.append(f"✅ Stochクロスギャップ大({stoch_d - stoch_k:.1f}>1.5)")
+            # 前バー陽線ボーナス（戻り確認）
+            if _prev_close >= _prev_open:
+                _mr_score += 0.3
+                _mr_reasons.append("✅ 前バー陽線（戻り確認）")
             if _tier1:
                 _mr_reasons.append("🎯 Tier1: 極端条件（高確信）")
             if macdh < 0:
