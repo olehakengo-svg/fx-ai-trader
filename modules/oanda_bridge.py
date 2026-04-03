@@ -13,19 +13,48 @@ logger = logging.getLogger(__name__)
 
 
 class OandaBridge:
-    def __init__(self):
+    def __init__(self, db=None):
         self._client = OandaClient()
+        self._db = db  # DemoDB instance for settings persistence
         self._enabled = os.environ.get("OANDA_LIVE", "").lower() in ("true", "1", "yes")
         self._units = int(os.environ.get("OANDA_UNITS", "1000"))  # 1000 = 0.01 lot
-        # OANDA連携対象モード（env: カンマ区切り、例 "scalp,daytrade"）
-        _modes_env = os.environ.get("OANDA_MODES", "")
-        self._allowed_modes = set(m.strip() for m in _modes_env.split(",") if m.strip()) if _modes_env else set()
+        # OANDA連携対象モード — DB永続 > 環境変数 > 空(全許可)
+        self._allowed_modes = self._load_allowed_modes()
         # demo_trade_id -> oanda_trade_id mapping (in-memory, also persisted in DB)
         self._trade_map = {}  # {demo_trade_id: oanda_trade_id}
         self._lock = threading.Lock()
         # エラーログ（直近20件保持、デバッグ用）
         self._recent_errors = []
         self._max_errors = 20
+
+    def _load_allowed_modes(self) -> set:
+        """DB永続 > 環境変数 > 空(全許可) の優先順で読み込み."""
+        # 1. DBに保存済みの設定を優先
+        if self._db:
+            try:
+                saved = self._db.get_oanda_setting("allowed_modes", "")
+                if saved:
+                    modes = set(m.strip() for m in saved.split(",") if m.strip())
+                    logger.info(f"[OandaBridge] Loaded modes from DB: {sorted(modes)}")
+                    return modes
+            except Exception as e:
+                logger.warning(f"[OandaBridge] DB mode load failed: {e}")
+        # 2. 環境変数
+        _modes_env = os.environ.get("OANDA_MODES", "")
+        if _modes_env:
+            return set(m.strip() for m in _modes_env.split(",") if m.strip())
+        # 3. 空 = 全モード許可
+        return set()
+
+    def _save_allowed_modes(self):
+        """現在のallowed_modesをDBに永続化."""
+        if not self._db:
+            return
+        try:
+            val = ",".join(sorted(self._allowed_modes)) if self._allowed_modes else ""
+            self._db.set_oanda_setting("allowed_modes", val)
+        except Exception as e:
+            logger.warning(f"[OandaBridge] DB mode save failed: {e}")
 
     @property
     def active(self) -> bool:

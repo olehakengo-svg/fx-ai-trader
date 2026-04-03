@@ -111,7 +111,7 @@ class DemoTrader:
         self._db = db
         self._engine = LearningEngine(db)
         self._daily_review = DailyReviewEngine(db, self._engine)
-        self._oanda = OandaBridge()
+        self._oanda = OandaBridge(db=self._db)
         self._lock = threading.Lock()
 
         # モード別ランナー管理
@@ -130,6 +130,9 @@ class DemoTrader:
             self._oanda.restore_mappings(mappings)
         except Exception as e:
             print(f"[OandaBridge] mapping restore skipped: {e}", flush=True)
+
+        # デプロイ中にOANDA未連携のOPENトレードを補完送信
+        self._resend_pending_oanda_trades()
 
         # チューナブルパラメータ（学習エンジンが調整、全モード共通）
         self._params = {
@@ -171,6 +174,36 @@ class DemoTrader:
         self._health_thread = None
         self._watchdog_thread = None
         self._last_request_tick = {}  # mode -> timestamp (リクエスト駆動tick用)
+
+    def _resend_pending_oanda_trades(self):
+        """デプロイ中にOANDA未連携だったOPENトレードを補完送信."""
+        if not self._oanda.active:
+            return
+        try:
+            pending = self._db.get_open_trades_without_oanda()
+            if not pending:
+                return
+            sent = 0
+            for t in pending:
+                mode = t.get("mode", "")
+                if not self._oanda.is_mode_allowed(mode):
+                    continue
+                instrument = t.get("instrument", "USD_JPY")
+                self._oanda.open_trade(
+                    demo_trade_id=t["trade_id"],
+                    direction=t["direction"],
+                    sl=t["sl"],
+                    tp=t["tp"],
+                    mode=mode,
+                    instrument=instrument,
+                    callback=lambda tid, oid: self._db.set_oanda_trade_id(tid, oid),
+                )
+                sent += 1
+            if sent:
+                self._add_log(f"🔗 OANDA補完送信: {sent}件の未連携OPENトレード")
+                print(f"[OandaBridge] Resent {sent} pending trades to OANDA", flush=True)
+        except Exception as e:
+            print(f"[OandaBridge] Resend pending failed: {e}", flush=True)
 
     # ── Public API ────────────────────────────────────
 

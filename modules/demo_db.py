@@ -159,6 +159,14 @@ class DemoDB:
             except Exception:
                 pass
 
+            # ── OANDA設定永続化テーブル ──
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS oanda_settings (
+                    key   TEXT PRIMARY KEY,
+                    value TEXT DEFAULT ''
+                )
+            """)
+
             # ── OANDA実取引データ保存テーブル ──
             conn.executescript("""
                 CREATE TABLE IF NOT EXISTS oanda_trades (
@@ -378,6 +386,35 @@ class DemoDB:
                 "WHERE status='OPEN' AND oanda_trade_id != '' AND oanda_trade_id IS NOT NULL"
             ).fetchall()
             return [(r["trade_id"], r["oanda_trade_id"]) for r in rows]
+
+    def get_open_trades_without_oanda(self) -> list:
+        """OANDAに未連携のOPENトレードを返す（デプロイ補完用）."""
+        with self._safe_conn() as conn:
+            rows = conn.execute(
+                "SELECT trade_id, direction, sl, tp, mode, instrument "
+                "FROM demo_trades "
+                "WHERE status='OPEN' AND (oanda_trade_id IS NULL OR oanda_trade_id = '')"
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    # ── OANDA Settings Persistence ──────────────────
+
+    def get_oanda_setting(self, key: str, default: str = "") -> str:
+        """DB永続化されたOANDA設定を取得."""
+        with self._safe_conn() as conn:
+            row = conn.execute(
+                "SELECT value FROM oanda_settings WHERE key=?", (key,)
+            ).fetchone()
+            return row["value"] if row else default
+
+    def set_oanda_setting(self, key: str, value: str):
+        """OANDA設定をDBに永続化."""
+        with self._lock:
+            with self._safe_conn() as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO oanda_settings (key, value) VALUES (?, ?)",
+                    (key, value))
+                conn.commit()
 
     # ── Learning adjustments ──────────────────────────
 

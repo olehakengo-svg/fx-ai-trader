@@ -36,6 +36,7 @@ except ImportError:
     _ML_AVAILABLE = False
 
 app = Flask(__name__)
+app.config['TEMPLATES_AUTO_RELOAD'] = not os.environ.get("RENDER")  # Render本番ではFalse
 
 # ═══════════════════════════════════════════════════════
 #  Module imports (refactored)
@@ -10261,6 +10262,7 @@ def api_oanda_modes():
         else:
             bridge._allowed_modes.add(mode)
             action = "ON"
+        bridge._save_allowed_modes()  # DB永続化
         _demo_trader._add_log(f"🔗 OANDA連携 {mode} → {action}")
         return jsonify({
             "toggled": mode,
@@ -10271,6 +10273,7 @@ def api_oanda_modes():
     # modes: 一括設定
     if "modes" in data:
         bridge._allowed_modes = set(data["modes"])
+        bridge._save_allowed_modes()  # DB永続化
         _demo_trader._add_log(f"🔗 OANDA連携モード変更 → {sorted(bridge._allowed_modes)}")
         return jsonify({
             "allowed_modes": sorted(bridge._allowed_modes),
