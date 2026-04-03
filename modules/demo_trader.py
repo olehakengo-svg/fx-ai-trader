@@ -144,7 +144,7 @@ class DemoTrader:
         # チューナブルパラメータ（学習エンジンが調整、全モード共通）
         self._params = {
             "confidence_threshold": 30,  # デモ: 30%（学習データ蓄積優先、本番は40推奨）
-            "max_open_trades": 4,  # グローバル安全上限（実際の制御は通貨ペア別1本）
+            "max_open_trades": 8,  # グローバル安全上限（実際の制御は通貨ペア×モードクラス別）
             "sl_adjust": 1.0,
             "tp_adjust": 1.0,
             "entry_type_blacklist": [],
@@ -1321,11 +1321,19 @@ class DemoTrader:
             self._block_counts[k] = self._block_counts.get(k, 0) + 1
             return
 
-        # BT統一: 通貨ペア別に1本ずつ逐次処理
-        _inst_trades = [t for t in open_trades if t.get("instrument", "USD_JPY") == instrument]
-        if len(_inst_trades) >= 1:
-            _block(f"max_open_per_pair({instrument})"); return
-        # グローバル安全上限（全通貨ペア合計）
+        # ── 通貨ペア×モードクラス別ポジション制限 ──
+        # scalp/DT/1H/swingが独立してポジションを持てる
+        # scalp: 高頻度のため2本まで（シグナル方向転換に対応）
+        # DT/1H/swing: 1本ずつ
+        _base_mode = mode.replace("_eur", "")
+        _mode_limits = {"scalp": 2, "daytrade": 1, "daytrade_1h": 1, "swing": 1}
+        _mode_limit = _mode_limits.get(_base_mode, 1)
+        _mode_inst_trades = [t for t in open_trades
+                            if t.get("instrument", "USD_JPY") == instrument
+                            and t.get("mode", "").replace("_eur", "") == _base_mode]
+        if len(_mode_inst_trades) >= _mode_limit:
+            _block(f"max_per_mode_pair({_base_mode}/{instrument}:{len(_mode_inst_trades)}/{_mode_limit})"); return
+        # グローバル安全上限（全通貨ペア・全モード合計）
         if len(open_trades) >= self._params["max_open_trades"]:
             _block("max_open"); return
         if signal == "WAIT":
@@ -1346,8 +1354,8 @@ class DemoTrader:
         for t in mode_trades:
             if abs(t["entry_price"] - current_price) < _same_price_dist:
                 _block(f"same_price_{_same_price_dist*100:.0f}pip"); return
-        # (B) 同方向ポジション上限 — BT統一: max_open_trades=1で暗黙制御
-        # max_open_trades=1なので、同方向制限は不要（常に0or1本）
+        # (B) 同方向ポジション上限 — モードクラス×通貨ペア別制限で暗黙制御
+        # scalp:2本/DT:1本なので、同価格帯チェックで十分
 
         # ══════════════════════════════════════════════════════════════
         # ── エントリー理由の品質ゲート ──
@@ -1787,6 +1795,7 @@ class DemoTrader:
 
     def _evaluate_promotions(self):
         """デモ実績に基づいて戦略をOANDA昇格/降格判定
+        エリートトラック: N≥3 かつ WR≥70% かつ EV≥2.0 → 即昇格
         ファストトラック: N≥10 かつ WR≥55% かつ EV≥1.0 → 即昇格
         通常トラック:    N≥30 かつ EV>0 → 昇格
         降格:           N≥30 かつ EV<-0.5 → 降格
@@ -1802,8 +1811,11 @@ class DemoTrader:
                 ev = stats.get("ev", 0)
                 wr = stats.get("wr", 0)
                 old = self._promoted_types.get(et, {}).get("status", "pending")
+                # エリートトラック: 超高WR+超高EVなら極少サンプルでも昇格
+                if n >= 3 and wr >= 70.0 and ev >= 2.0:
+                    status = "promoted"
                 # ファストトラック: 高WR+高EVなら少サンプルでも昇格
-                if n >= 10 and wr >= 55.0 and ev >= 1.0:
+                elif n >= 10 and wr >= 55.0 and ev >= 1.0:
                     status = "promoted"
                 # 通常トラック: 十分なサンプルでEVプラス
                 elif n >= 30 and ev >= 0.0:
