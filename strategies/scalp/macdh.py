@@ -8,18 +8,15 @@ class MacdhReversal(StrategyBase):
     name = "macdh_reversal"
     mode = "scalp"
 
-    # チューナブルパラメータ
-    bbpb_buy = 0.25       # BB%B BUY閾値
-    bbpb_sell = 0.75      # BB%B SELL閾値
-    rsi5_buy = 42         # RSI5 BUY閾値
-    rsi5_sell = 58        # RSI5 SELL閾値
+    # チューナブルパラメータ（緩和済み）
+    bbpb_buy = 0.30       # BB%B BUY閾値（0.25→0.30緩和）
+    bbpb_sell = 0.70      # BB%B SELL閾値（0.75→0.70緩和）
+    rsi5_buy = 48         # RSI5 BUY閾値（42→48緩和）
+    rsi5_sell = 52        # RSI5 SELL閾値（58→52緩和）
     tp_mult = 1.5         # TP倍率
     sl_mult = 1.0         # SL倍率
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
-        if ctx.is_friday:
-            return None
-
         signal = None
         score = 0.0
         reasons = []

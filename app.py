@@ -6849,12 +6849,12 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     signal, conf, sl, tp, reasons, entry_type, score = best
 
     # ── EMA200 近接回避ゾーン ──
-    # 200EMA付近は攻防ラインでウィップソーが多い → エントリー抑制
+    # 200EMA付近は攻防ラインでウィップソーが多い → 軽度抑制（緩和済み）
     # ただしtrend_rebound/v_reversalは極端な状況なので除外
     if _ema200_proximity and entry_type not in ("trend_rebound", "v_reversal"):
-        score *= 0.5
-        conf = int(conf * 0.6)
-        reasons.append(f"⚠️ EMA200近接ゾーン(距離{_ema200_dist:.2f}ATR) — チョッピー回避")
+        score *= 0.75
+        conf = int(conf * 0.80)
+        reasons.append(f"⚠️ EMA200近接ゾーン(距離{_ema200_dist:.2f}ATR) — 軽度抑制")
 
     # ── EMA200 方向フィルター ──
     # 記事参照: スキャルプは「数秒〜数分の短期売買」— フィルター過剰はエントリー枯渇を招く
@@ -6863,23 +6863,22 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     _mean_reversion_types = ("trend_rebound", "v_reversal", "bb_rsi_reversion", "macdh_reversal")
     if entry_type not in _mean_reversion_types:
         if _ema200_bull and signal == "SELL" and _ema200_slope > 0:
-            # EMA200上 + 上昇中 → ソフトペナルティ（二重ブロック防止）
-            score *= 0.65
-            conf = int(conf * 0.70)
-            reasons.append(f"⚠️ EMA200上昇中のSELL(dist={_ema200_dist:+.2f}ATR) — 強い減衰")
+            # EMA200上 + 上昇中 → 軽度ペナルティ（緩和済み）
+            score *= 0.80
+            conf = int(conf * 0.85)
+            reasons.append(f"⚠️ EMA200上昇中のSELL(dist={_ema200_dist:+.2f}ATR) — 軽度減衰")
         elif not _ema200_bull and signal == "BUY" and _ema200_slope < 0:
-            # EMA200下 + 下降中 → ソフトペナルティ
-            score *= 0.65
-            conf = int(conf * 0.70)
-            reasons.append(f"⚠️ EMA200下降中のBUY(dist={_ema200_dist:+.2f}ATR) — 強い減衰")
+            score *= 0.80
+            conf = int(conf * 0.85)
+            reasons.append(f"⚠️ EMA200下降中のBUY(dist={_ema200_dist:+.2f}ATR) — 軽度減衰")
         elif _ema200_bull and signal == "SELL":
-            score *= 0.80
-            conf = int(conf * 0.85)
-            reasons.append(f"⚠️ EMA200上からSELL(dist={_ema200_dist:+.2f}ATR) — 軽度減衰")
+            score *= 0.90
+            conf = int(conf * 0.92)
+            reasons.append(f"⚠️ EMA200上からSELL(dist={_ema200_dist:+.2f}ATR) — 微減衰")
         elif not _ema200_bull and signal == "BUY":
-            score *= 0.80
-            conf = int(conf * 0.85)
-            reasons.append(f"⚠️ EMA200下からBUY(dist={_ema200_dist:+.2f}ATR) — 軽度減衰")
+            score *= 0.90
+            conf = int(conf * 0.92)
+            reasons.append(f"⚠️ EMA200下からBUY(dist={_ema200_dist:+.2f}ATR) — 微減衰")
 
     # ── EMA200 バウンスボーナス ──
     # EMA200に近接してからの反転 → 高確信ボーナス
@@ -6903,16 +6902,16 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         _htf_contrary = (htf_dir == "bull" and signal == "SELL") or (htf_dir == "bear" and signal == "BUY")
         if _htf_contrary:
             if _is_range_regime:
-                # レンジ相場: HTF方向の信頼性低下 → 軽度ペナルティ
-                score *= 0.85
-                conf = int(conf * 0.90)
-                reasons.append(f"⚠️ HTF逆行(レンジ相場→軽度減衰, ADX={adx:.1f})")
+                # レンジ相場: HTF方向の信頼性低下 → 微ペナルティ
+                score *= 0.90
+                conf = int(conf * 0.93)
+                reasons.append(f"⚠️ HTF逆行(レンジ相場→微減衰, ADX={adx:.1f})")
             else:
-                # トレンド相場: ソフトペナルティ（EMA200で既に減衰済み、二重ブロック不要）
-                score *= 0.70
-                conf = int(conf * 0.75)
+                # トレンド相場: 軽度ペナルティ（緩和済み）
+                score *= 0.80
+                conf = int(conf * 0.85)
                 _dir_label = "SELL" if htf_dir == "bull" else "BUY"
-                reasons.append(f"⚠️ HTF{'上昇' if htf_dir == 'bull' else '下降'}一致 → {_dir_label}強い減衰")
+                reasons.append(f"⚠️ HTF{'上昇' if htf_dir == 'bull' else '下降'}一致 → {_dir_label}軽度減衰")
     else:
         # 平均回帰戦略: ソフトペナルティのみ適用（トレンド/レンジ問わず）
         if (htf_dir == "bull" and signal == "SELL") or (htf_dir == "bear" and signal == "BUY"):

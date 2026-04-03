@@ -10,7 +10,7 @@ class LondonBreakout(StrategyBase):
 
     # チューナブルパラメータ
     hour_start = 7
-    hour_end = 9
+    hour_end = 10          # （9→10緩和、3時間ウィンドウ）
     asia_bars = 120        # アジアセッンレンジ（直近120バー=2時間分1m足）
     asia_range_min = 0.5   # ATR倍率
     asia_range_max = 4.0   # ATR倍率
@@ -21,8 +21,6 @@ class LondonBreakout(StrategyBase):
     vol_mult = 1.3         # ボリューム倍率閾値
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
-        if ctx.is_friday:
-            return None
         if not (self.hour_start <= ctx.hour_utc <= self.hour_end):
             return None
         if ctx.df is None or len(ctx.df) < self.asia_bars:
@@ -65,12 +63,12 @@ class LondonBreakout(StrategyBase):
         if ctx.adx > 18:
             score += 0.5
             reasons.append(f"✅ ADXモメンタム({ctx.adx:.1f}>18)")
-        # ボリューム確認
+        # ボリューム確認（ボーナスのみ）
         if ctx.df is not None and "Volume" in ctx.df.columns:
             _vol = float(ctx.df.iloc[-1]["Volume"])
             _vol_avg = float(ctx.df["Volume"].iloc[-60:].mean()) if len(ctx.df) >= 60 else _vol
             if _vol > _vol_avg * self.vol_mult:
-                score += 0.5
+                score += 0.8
                 reasons.append("✅ 出来高急増（ロンドン参入）")
 
         conf = int(min(85, 50 + score * 4))

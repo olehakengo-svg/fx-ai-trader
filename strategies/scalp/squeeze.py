@@ -8,9 +8,9 @@ class BBSqueezeBreakout(StrategyBase):
     name = "bb_squeeze_breakout"
     mode = "scalp"
 
-    # チューナブルパラメータ
-    bb_width_pct_max = 0.05  # BB幅パーセンタイル閾値（下位5%）
-    adx_min = 20             # ADXトレンド確認
+    # チューナブルパラメータ（緩和済み）
+    bb_width_pct_max = 0.10  # BB幅パーセンタイル閾値（5→10%緩和）
+    adx_min = 15             # ADXトレンド確認（20→15緩和）
     vol_mult = 1.2           # ボリューム倍率閾値
     tp_mult = 3.0
     sl_mult = 1.2
@@ -18,7 +18,7 @@ class BBSqueezeBreakout(StrategyBase):
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         if ctx.bb_width_pct >= self.bb_width_pct_max:
             return None
-        if ctx.adx < self.adx_min or ctx.is_friday:
+        if ctx.adx < self.adx_min:
             return None
         if ctx.df is None or len(ctx.df) < 2:
             return None
@@ -34,15 +34,12 @@ class BBSqueezeBreakout(StrategyBase):
         if not _bb_expanding:
             return None
 
-        # ボリューム確認
-        _vol_ok = True
+        # ボリューム確認（ボーナスに緩和、ブロックしない）
+        _vol_bonus = False
         if "Volume" in ctx.df.columns:
             _vol = float(ctx.df.iloc[-1]["Volume"])
             _vol_avg = float(ctx.df["Volume"].iloc[-20:].mean()) if len(ctx.df) >= 20 else _vol
-            _vol_ok = _vol > _vol_avg * self.vol_mult
-
-        if not _vol_ok:
-            return None
+            _vol_bonus = _vol > _vol_avg * self.vol_mult
 
         # ブレイクアウト方向判定
         if ctx.bbpb > 0.75 and ctx.entry > ctx.ema9 and ctx.ema9 > ctx.ema21:
@@ -65,6 +62,9 @@ class BBSqueezeBreakout(StrategyBase):
         if signal is None:
             return None
 
+        if _vol_bonus:
+            score += 0.5
+            reasons.append("✅ 出来高急増")
         if ctx.adx > 20:
             score += 1.0
             reasons.append(f"✅ ADXトレンド確認({ctx.adx:.1f}>20)")

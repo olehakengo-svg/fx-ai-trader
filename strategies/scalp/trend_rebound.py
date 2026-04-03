@@ -8,15 +8,15 @@ class TrendRebound(StrategyBase):
     name = "trend_rebound"
     mode = "scalp"
 
-    # チューナブルパラメータ
-    adx_min = 35
-    stoch_buy = 5
-    stoch_sell = 95
-    rsi5_buy = 22
-    rsi5_sell = 78
-    bbpb_buy = 0.08
-    bbpb_sell = 0.92
-    momentum_limit = 5     # pip
+    # チューナブルパラメータ（緩和済み）
+    adx_min = 25           # （35→25緩和）
+    stoch_buy = 12         # （5→12緩和）
+    stoch_sell = 88         # （95→88緩和）
+    rsi5_buy = 28          # （22→28緩和）
+    rsi5_sell = 72          # （78→72緩和）
+    bbpb_buy = 0.12        # （0.08→0.12緩和）
+    bbpb_sell = 0.88        # （0.92→0.88緩和）
+    momentum_limit = 8     # pip（5→8緩和）
     sl_mult = 1.0
     tp_mult_high = 1.5
     tp_mult_low = 1.0

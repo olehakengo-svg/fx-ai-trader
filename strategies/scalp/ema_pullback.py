@@ -8,22 +8,22 @@ class EmaPullback(StrategyBase):
     name = "ema_pullback"
     mode = "scalp"
 
-    # チューナブルパラメータ
-    adx_min = 15
-    adx_weak = 18
-    rsi5_buy_min = 38
-    rsi5_buy_max = 58
-    rsi5_sell_min = 42
-    rsi5_sell_max = 62
-    bbpb_buy_min = 0.20
-    bbpb_buy_max = 0.65
-    bbpb_sell_min = 0.35
-    bbpb_sell_max = 0.80
+    # チューナブルパラメータ（緩和済み）
+    adx_min = 12           # （15→12緩和）
+    adx_weak = 15          # （18→15緩和）
+    rsi5_buy_min = 30      # （38→30緩和）
+    rsi5_buy_max = 62      # （58→62緩和）
+    rsi5_sell_min = 38     # （42→38緩和）
+    rsi5_sell_max = 70     # （62→70緩和）
+    bbpb_buy_min = 0.12    # （0.20→0.12緩和）
+    bbpb_buy_max = 0.70    # （0.65→0.70緩和）
+    bbpb_sell_min = 0.30   # （0.35→0.30緩和）
+    bbpb_sell_max = 0.88   # （0.80→0.88緩和）
     tp_mult = 1.8
     sl_ema_offset = 0.3   # EMA21からのSLオフセット（ATR倍率）
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
-        if ctx.adx < self.adx_min or ctx.is_friday:
+        if ctx.adx < self.adx_min:
             return None
         if ctx.df is None or len(ctx.df) < 5:
             return None
@@ -35,7 +35,7 @@ class EmaPullback(StrategyBase):
         tp = 0.0
 
         # BUY: 上昇トレンド + EMA21付近へのプルバック + 反発
-        if (ctx.ema9 > ctx.ema21 and ctx.ema21 > ctx.ema50  # EMA完全整列
+        if (ctx.ema9 > ctx.ema21  # EMA順列（EMA50整列不要に緩和）
                 and ctx.entry >= ctx.ema21  # EMA21の上に戻った
                 and ctx.prev_low <= ctx.ema9  # 前バーがEMA9以下にタッチ
                 and ctx.prev_low >= ctx.ema21 - ctx.atr7 * self.sl_ema_offset
@@ -57,7 +57,7 @@ class EmaPullback(StrategyBase):
             sl = ctx.ema21 - ctx.atr7 * self.sl_ema_offset
 
         # SELL: 下降トレンド + EMA21付近への戻り + 反落
-        elif (ctx.ema9 < ctx.ema21 and ctx.ema21 < ctx.ema50  # EMA逆整列
+        elif (ctx.ema9 < ctx.ema21  # EMA逆順列（EMA50整列不要に緩和）
                 and ctx.entry <= ctx.ema21  # EMA21の下に戻った
                 and ctx.prev_high >= ctx.ema9  # 前バーがEMA9以上にタッチ
                 and ctx.prev_high <= ctx.ema21 + ctx.atr7 * self.sl_ema_offset

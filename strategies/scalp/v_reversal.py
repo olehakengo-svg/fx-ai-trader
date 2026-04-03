@@ -8,15 +8,15 @@ class VReversal(StrategyBase):
     name = "v_reversal"
     mode = "scalp"
 
-    # チューナブルパラメータ
-    min_drop_pip = 8.0     # 最低急落/急騰幅(pip)
-    rsi_buy = 25           # RSI14閾値
-    rsi_sell = 75
-    bbpb_buy = 0.10
-    bbpb_sell = 0.90
-    stoch_buy = 15
-    stoch_sell = 85
-    body_ratio_min = 0.25  # 実体比率最低値
+    # チューナブルパラメータ（緩和済み）
+    min_drop_pip = 5.0     # 最低急落/急騰幅(pip)（8→5緩和）
+    rsi_buy = 30           # RSI14閾値（25→30緩和）
+    rsi_sell = 70           # （75→70緩和）
+    bbpb_buy = 0.15        # （0.10→0.15緩和）
+    bbpb_sell = 0.85        # （0.90→0.85緩和）
+    stoch_buy = 20          # （15→20緩和）
+    stoch_sell = 80          # （85→80緩和）
+    body_ratio_min = 0.20  # 実体比率最低値（0.25→0.20緩和）
     tp_mult = 1.5
     sl_mult = 0.7
 

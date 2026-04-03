@@ -40,12 +40,15 @@ class BBRsiReversion(StrategyBase):
             reasons.append(f"✅ BB下限(%B={ctx.bbpb:.2f}≤{self.bbpb_buy}) — 平均回帰 (Bollinger 2001)")
             reasons.append(f"✅ RSI5売られすぎ({ctx.rsi5:.1f}<{self.rsi5_buy})")
             reasons.append(f"✅ Stochゴールデンクロス(K={ctx.stoch_k:.0f}>D={ctx.stoch_d:.0f})")
-            # Stochクロスギャップボーナス
+            # Stochクロスギャップボーナス（条件→ボーナスに緩和）
             gap = ctx.stoch_k - ctx.stoch_d
             if gap > 1.5:
                 score += 0.6
                 reasons.append(f"✅ Stochクロスギャップ大({gap:.1f}>1.5)")
-            # 前バー陰線ボーナス
+            elif gap > 0.5:
+                score += 0.3
+                reasons.append(f"✅ Stochクロスギャップ中({gap:.1f}>0.5)")
+            # 前バー陰線ボーナス（条件→ボーナスに緩和）
             if ctx.prev_close <= ctx.prev_open:
                 score += 0.3
                 reasons.append("✅ 前バー陰線（プルバック確認）")

@@ -45,16 +45,14 @@ class FibReversal(StrategyBase):
     # チューナブルパラメータ
     min_lookback = 45
     lookbacks = [45, 60]
-    fib_proximity = 0.35   # ATR倍率での近接判定
-    rsi5_buy = 45
-    rsi5_sell = 55
+    fib_proximity = 0.50   # ATR倍率での近接判定（0.35→0.50緩和）
+    rsi5_buy = 48          # （45→48緩和）
+    rsi5_sell = 52         # （55→52緩和）
     tp_mult = 1.8
     sl_mult = 0.5
     sl_fib_offset = 0.2    # フィボレベルからのSLオフセット（ATR倍率）
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
-        if ctx.is_friday:
-            return None
         if ctx.df is None or len(ctx.df) < self.min_lookback:
             return None
 
@@ -140,7 +138,7 @@ class FibReversal(StrategyBase):
             tp = ctx.entry - ctx.atr7 * self.tp_mult
             sl = max(ctx.entry + ctx.atr7 * self.sl_mult, _fv + ctx.atr7 * self.sl_fib_offset)
 
-        if signal is None or score < 3.5:
+        if signal is None or score < 3.0:
             return None
 
         conf = int(min(85, 45 + score * 5))

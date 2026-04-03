@@ -5,9 +5,12 @@ ScalperEngine — スキャルプ戦略群の統括エンジン。
 選択後に共通フィルター（EMA200, HTF）を適用して最終シグナルを返す。
 """
 from __future__ import annotations
+import logging
 from typing import Optional
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
+
+logger = logging.getLogger("scalper_engine")
 
 # 各戦略をインポート
 from strategies.scalp.bb_rsi import BBRsiReversion
@@ -57,6 +60,7 @@ class ScalperEngine:
     def evaluate_all(self, ctx: SignalContext) -> list[Candidate]:
         """全有効戦略を評価し、候補リストを返す。"""
         candidates = []
+        _rejected = []
         for strategy in self.strategies:
             if not strategy.enabled:
                 continue
@@ -64,8 +68,16 @@ class ScalperEngine:
                 result = strategy.evaluate(ctx)
                 if result is not None:
                     candidates.append(result)
+                    logger.debug(f"[{strategy.name}] ✅ {result.signal} score={result.score:.2f} conf={result.confidence}")
+                else:
+                    _rejected.append(strategy.name)
             except Exception as e:
-                print(f"[ScalperEngine/{strategy.name}] Error: {e}")
+                logger.error(f"[{strategy.name}] Error: {e}")
+                _rejected.append(f"{strategy.name}(ERR)")
+        if candidates:
+            logger.info(f"[ScalperEngine] {len(candidates)}候補: {', '.join(c.entry_type for c in candidates)} | rejected: {', '.join(_rejected)}")
+        else:
+            logger.info(f"[ScalperEngine] 全戦略None: {', '.join(_rejected)}")
         return candidates
 
     def select_best(self, candidates: list[Candidate]) -> Optional[Candidate]:

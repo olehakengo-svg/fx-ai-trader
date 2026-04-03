@@ -8,18 +8,18 @@ class StochTrendPullback(StrategyBase):
     name = "stoch_trend_pullback"
     mode = "scalp"
 
-    # チューナブルパラメータ
-    adx_min = 15          # ADXトレンド閾値
-    adx_weak = 18         # 弱トレンド帯（グラデーション減衰）
-    prev_stoch_buy = 42   # 前バーStoch売られすぎ閾値
-    prev_stoch_sell = 58  # 前バーStoch買われすぎ閾値
-    stoch_max_buy = 65    # Stoch上昇余地
-    stoch_min_sell = 35   # Stoch下落余地
+    # チューナブルパラメータ（緩和済み）
+    adx_min = 12          # ADXトレンド閾値（15→12緩和）
+    adx_weak = 15         # 弱トレンド帯（18→15緩和）
+    prev_stoch_buy = 48   # 前バーStoch売られすぎ閾値（42→48緩和）
+    prev_stoch_sell = 52  # 前バーStoch買われすぎ閾値（58→52緩和）
+    stoch_max_buy = 70    # Stoch上昇余地（65→70緩和）
+    stoch_min_sell = 30   # Stoch下落余地（35→30緩和）
     tp_mult = 1.8
     sl_mult = 0.8
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
-        if ctx.adx < self.adx_min or ctx.is_friday:
+        if ctx.adx < self.adx_min:
             return None
         if ctx.df is None or len(ctx.df) < 5:
             return None
@@ -37,8 +37,8 @@ class StochTrendPullback(StrategyBase):
                 and ctx.stoch_k > ctx.stoch_d
                 and _prev_stoch_k < self.prev_stoch_buy
                 and ctx.stoch_k < self.stoch_max_buy
-                and ctx.rsi5 > 32 and ctx.rsi5 < 58
-                and ctx.bbpb > 0.15 and ctx.bbpb < 0.65):
+                and ctx.rsi5 > 28 and ctx.rsi5 < 62
+                and ctx.bbpb > 0.10 and ctx.bbpb < 0.70):
             signal = "BUY"
             score = 3.2 + min((ctx.adx - self.adx_min) * 0.04, 0.8)
             reasons.append(f"✅ トレンドプルバック: Stoch売られすぎ回復(K={ctx.stoch_k:.0f}, 前={_prev_stoch_k:.0f})")
@@ -52,8 +52,8 @@ class StochTrendPullback(StrategyBase):
                 and ctx.stoch_k < ctx.stoch_d
                 and _prev_stoch_k > self.prev_stoch_sell
                 and ctx.stoch_k > self.stoch_min_sell
-                and ctx.rsi5 > 42 and ctx.rsi5 < 68
-                and ctx.bbpb > 0.35 and ctx.bbpb < 0.85):
+                and ctx.rsi5 > 38 and ctx.rsi5 < 72
+                and ctx.bbpb > 0.30 and ctx.bbpb < 0.90):
             signal = "SELL"
             score = 3.2 + min((ctx.adx - self.adx_min) * 0.04, 0.8)
             reasons.append(f"✅ トレンドプルバック: Stoch買われすぎ回復(K={ctx.stoch_k:.0f}, 前={_prev_stoch_k:.0f})")
