@@ -112,9 +112,11 @@ class OandaBridge:
                    sl: float, tp: float,
                    mode: str = "",
                    instrument: str = "USD_JPY",
-                   callback=None):
+                   callback=None,
+                   units: int = 0):
         """Place OANDA market order mirroring a demo trade.
         callback(demo_trade_id, oanda_trade_id) called on success for DB persistence.
+        units: override lot size (0 = use default self._units).
         """
         if not self.active:
             return
@@ -124,9 +126,10 @@ class OandaBridge:
 
         def _do():
             side = "buy" if direction == "BUY" else "sell"
+            _lot = units if units > 0 else self._units
             ok, data = self._client.market_order(
                 side=side,
-                units=self._units,
+                units=_lot,
                 instrument=instrument,
                 stop_loss=sl,
                 take_profit=tp,

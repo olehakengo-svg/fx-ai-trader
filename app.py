@@ -4267,25 +4267,15 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             # ── エントリー理由の品質ゲート（本番と統一）──
             QUALIFIED_TYPES = {
-                # v2 戦略タイプ（本番 demo_trader.py と統一）
+                # 2026-04-03 FXアナリストレビュー統廃合 (本番と統一)
                 "bb_rsi_reversion", "bb_squeeze_breakout",
-                "rsi_divergence_sr", "london_breakout",
-                "stoch_trend_pullback",
-                "macdh_reversal",       # 5m補完経由（1m赤字→5m WR=78.4% EV=+0.722）
-                # "engulfing_bb",    # DISABLED: EV=+0.042 @0.8pip spread → 薄利すぎ
-                # "three_bar_reversal", # DISABLED: 1m BT WR=33.3% EV=-1.042
-                "trend_rebound",  # 強トレンド時リバウンド
-                "v_reversal",     # V字リバウンドキャプチャ
-                # "hs_neckbreak",  # DISABLED: EV=-0.346 @0.8pip spread → マイナス
-                "ihs_neckbreak",  # 逆三尊ネックライン突破
-                "sr_touch_bounce", # 水平線タッチ反発
-                # v3 リバーサル戦略
-                # "sr_channel_reversal",    # DISABLED: 1m/7d BT WR=48.8% EV=-0.204 (5m/55dでは良好だが短期で不安定)
-                "fib_reversal",             # フィボナッチリトレースメント反発 (1m+5m補完)
-                "mtf_reversal_confluence",  # MTF RSI+MACDクロス一致
-                # v1 互換
-                "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
-                "donchian", "reg_channel", "ema_pullback",
+                "london_breakout", "stoch_trend_pullback",
+                "macdh_reversal",
+                "tokyo_bb",
+                "mtf_reversal_confluence",
+                # DISABLED: fib_reversal, v_reversal → bb_rsi統合予定
+                # DISABLED: trend_rebound, ihs_neckbreak, sr_touch_bounce
+                # DISABLED: rsi_divergence_sr, v1互換6種
             }
             BLOCKED_TYPES = {"unknown", "momentum", "wait"}
 
@@ -4325,9 +4315,25 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             sl_dist = tp_dist / MIN_RR_BT
             MIN_SL_DIST_BT = 0.030  # 3 pip最低保証
             sl_dist = max(sl_dist, MIN_SL_DIST_BT)
+
+            # ── SL狩り対策②: セッション遷移時SLワイドニング ──
+            _bt_hour = bar_time.hour if hasattr(bar_time, 'hour') else 12
+            if _bt_hour in {0, 1, 18, 19, 20, 21}:
+                sl_dist += atr7 * 0.2  # 低流動性時間帯: ATR×0.2追加
+
+            # ── SL狩り対策④: 平均回帰カウンタートレンドSLバッファ ──
+            _mean_rev = {"bb_rsi_reversion", "macdh_reversal", "v_reversal",
+                        "trend_rebound", "fib_reversal"}
+            _bt_l1 = sig_result.get("layer_status", {}).get("layer1", {})
+            _bt_l1_dir = _bt_l1.get("direction", "neutral") if isinstance(_bt_l1, dict) else "neutral"
+            if (entry_type in _mean_rev
+                and ((_bt_l1_dir == "bull" and sig == "SELL")
+                     or (_bt_l1_dir == "bear" and sig == "BUY"))):
+                sl_dist += atr7 * 0.25  # カウンタートレンド: ATR×0.25追加
+
             sl = ep - sl_dist if sig == "BUY" else ep + sl_dist
 
-            # RR不足チェック
+            # RR不足チェック（SL拡大後に再判定）
             if tp_dist < sl_dist:
                 continue
 
@@ -4657,16 +4663,10 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
             # ── エントリー理由の品質ゲート（本番と統一）──
             DT_QUALIFIED = {
-                # 本番 demo_trader.py と統一
-                # "dual_sr_bounce",  # DISABLED: 不調日WR=12-43%, BT EV=-0.072
-                "dual_sr_breakout",
-                "sr_fib_confluence",
-                # "ob_retest",       # 本番ではDT用に未使用
-                # "hs_neckbreak",    # DISABLED: EV=-0.346
-                "ihs_neckbreak",
-                "dt_fib_reversal",           # フィボリトレースメント反発
-                # "dt_sr_channel_reversal",  # DISABLED: WR=25% EV=-0.659
-                # "ema200_trend_reversal",   # DISABLED: WR=50% EV=-0.037
+                # 2026-04-03 FXアナリストレビュー統廃合 (本番と統一)
+                "sr_fib_confluence",     # DT主力 (229t WR73% EV+0.50)
+                # DISABLED: ihs_neckbreak (2t EV≒0), dual_sr_breakout,
+                # dt_fib_reversal, dt_sr_channel_reversal, ema200_trend_reversal
             }
             DT_BLOCKED = {"unknown", "wait"}
 
@@ -4713,9 +4713,25 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             sl_dist_dt = tp_dist_dt / MIN_RR_DT
             MIN_SL_DIST_DT = 0.030  # 3 pip最低保証（0.2pipスプレッド対応）
             sl_dist_dt = max(sl_dist_dt, MIN_SL_DIST_DT)
+
+            # ── SL狩り対策②: セッション遷移時SLワイドニング ──
+            _bt_hour = bar_time.hour if hasattr(bar_time, 'hour') else 12
+            if _bt_hour in {0, 1, 18, 19, 20, 21}:
+                sl_dist_dt += atr * 0.2
+
+            # ── SL狩り対策④: 平均回帰カウンタートレンドSLバッファ ──
+            _mean_rev = {"bb_rsi_reversion", "macdh_reversal", "v_reversal",
+                        "trend_rebound", "fib_reversal"}
+            _bt_l1 = sig_result.get("layer_status", {}).get("layer1", {})
+            _bt_l1_dir = _bt_l1.get("direction", "neutral") if isinstance(_bt_l1, dict) else "neutral"
+            if (entry_type in _mean_rev
+                and ((_bt_l1_dir == "bull" and sig == "SELL")
+                     or (_bt_l1_dir == "bear" and sig == "BUY"))):
+                sl_dist_dt += atr * 0.25
+
             sl = ep - sl_dist_dt if sig == "BUY" else ep + sl_dist_dt
 
-            # RR不足チェック
+            # RR不足チェック（SL拡大後に再判定）
             if tp_dist_dt < sl_dist_dt:
                 continue
 
@@ -5067,9 +5083,15 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
             sl_dist = abs(ep - sl)
             MIN_SL_DIST = 0.030
             sl_dist = max(sl_dist, MIN_SL_DIST)
+
+            # ── SL狩り対策②: セッション遷移時SLワイドニング ──
+            _bt_hour = df.index[i].hour if hasattr(df.index[i], 'hour') else 12
+            if _bt_hour in {0, 1, 18, 19, 20, 21}:
+                sl_dist += atr * 0.2
+
             sl = ep - sl_dist if sig == "BUY" else ep + sl_dist
 
-            # RR check
+            # RR check（SL拡大後に再判定）
             if tp_dist < sl_dist:
                 continue
 

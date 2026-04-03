@@ -50,16 +50,17 @@ MODE_CONFIG = {
     #     "symbol": "USDJPY=X",
     #     "instrument": "USD_JPY",
     # },
-    "daytrade_1h": {
-        "interval_sec": 60,       # 1分ごとにチェック（1h足の補完DT）
-        "tf": "1h",
-        "period": "30d",
-        "signal_fn": "compute_1h_zone_signal",
-        "label": "デイトレ1H(Zone)",
-        "icon": "🕐",
-        "symbol": "USDJPY=X",
-        "instrument": "USD_JPY",
-    },
+    # "daytrade_1h": DISABLED — 60日BT 0.15pip/日、リソースコストに見合わない (2026-04-03 FXアナリストレビュー)
+    # {
+    #     "interval_sec": 60,
+    #     "tf": "1h",
+    #     "period": "30d",
+    #     "signal_fn": "compute_1h_zone_signal",
+    #     "label": "デイトレ1H(Zone)",
+    #     "icon": "🕐",
+    #     "symbol": "USDJPY=X",
+    #     "instrument": "USD_JPY",
+    # },
     # ── EUR/USD modes ──
     "scalp_eur": {
         "interval_sec": 10,
@@ -83,17 +84,18 @@ MODE_CONFIG = {
         "instrument": "EUR_USD",
         "auto_start": True,
     },
-    "daytrade_1h_eur": {
-        "interval_sec": 60,
-        "tf": "1h",
-        "period": "30d",
-        "signal_fn": "compute_1h_zone_signal",
-        "label": "デイトレ1H EUR",
-        "icon": "🕐🇪🇺",
-        "symbol": "EURUSD=X",
-        "instrument": "EUR_USD",
-        "auto_start": True,
-    },
+    # "daytrade_1h_eur": DISABLED — 1H Zone全体を無効化 (2026-04-03 FXアナリストレビュー)
+    # {
+    #     "interval_sec": 60,
+    #     "tf": "1h",
+    #     "period": "30d",
+    #     "signal_fn": "compute_1h_zone_signal",
+    #     "label": "デイトレ1H EUR",
+    #     "icon": "🕐🇪🇺",
+    #     "symbol": "EURUSD=X",
+    #     "instrument": "EUR_USD",
+    #     "auto_start": True,
+    # },
 }
 
 # SL/TPチェック間隔（秒）— シグナル計算とは独立して高頻度実行
@@ -166,6 +168,8 @@ class DemoTrader:
         self._total_losses_window = []  # [(timestamp, mode, pips)] 直近の全損失記録
         self._price_history = []        # [(timestamp, price)] 価格推移記録（ベロシティ計算用）
         self._trade_high_water = {}     # trade_id -> max favorable price（BE/トレーリング用）
+        # ── SL狩り対策: クロス戦略カスケード防御 + Fast-SL検出 ──
+        self._sl_hit_history = []       # [(timestamp, instrument, entry_type, hold_sec)] SL_HIT履歴
         # ── MTF連携: 15m DT → 1m Scalp 戦略バイアス ──
         self._15m_tactical_bias = {
             "direction": None,       # "BUY" | "SELL" | None
@@ -930,6 +934,25 @@ class DemoTrader:
                 except Exception:
                     pass
 
+            # ── SL狩り対策C1: 時間ベース撤退 ──
+            # 保持時間50%経過で含み損 → SL到達前に早期損切り（損失額を削減）
+            if not close_reason:
+                try:
+                    entry_time_c1 = datetime.fromisoformat(trade.get("entry_time", ""))
+                    if entry_time_c1.tzinfo is None:
+                        entry_time_c1 = entry_time_c1.replace(tzinfo=timezone.utc)
+                    _hold_c1 = (datetime.now(timezone.utc) - entry_time_c1).total_seconds()
+                    _mode_c1 = mode or {"1m": "scalp", "15m": "daytrade", "4h": "swing"}.get(tf, "")
+                    _max_c1 = MAX_HOLD_SEC.get(_mode_c1, MAX_HOLD_SEC.get(_mode_c1.replace("_eur", ""), 1800))
+                    _half_hold = _max_c1 * 0.5
+                    if _hold_c1 > _half_hold:
+                        _in_loss = (direction == "BUY" and price < entry_price) or \
+                                   (direction == "SELL" and price > entry_price)
+                        if _in_loss:
+                            close_reason = "TIME_DECAY_EXIT"
+                except Exception:
+                    pass
+
             if close_reason:
                 # モード判定
                 if not mode:
@@ -971,6 +994,24 @@ class DemoTrader:
                     _cutoff = datetime.now(timezone.utc) - timedelta(hours=4)
                     self._total_losses_window = [
                         t for t in self._total_losses_window if t[0] > _cutoff]
+
+                # ── SL狩り対策: SL_HIT履歴記録（カスケード防御 + Fast-SL検出用）──
+                if close_reason == "SL_HIT":
+                    _hold_s = 9999
+                    try:
+                        _et = datetime.fromisoformat(trade.get("entry_time", ""))
+                        if _et.tzinfo is None:
+                            _et = _et.replace(tzinfo=timezone.utc)
+                        _hold_s = (datetime.now(timezone.utc) - _et).total_seconds()
+                    except Exception:
+                        pass
+                    self._sl_hit_history.append((
+                        datetime.now(timezone.utc), _inst,
+                        trade.get("entry_type", ""), _hold_s))
+                    # 古い記録を削除（最大2時間保持）
+                    _sl_cutoff = datetime.now(timezone.utc) - timedelta(hours=2)
+                    self._sl_hit_history = [
+                        h for h in self._sl_hit_history if h[0] > _sl_cutoff]
 
                 # ── 連敗カウンター更新 ──
                 if mode not in self._consec_losses:
@@ -1364,43 +1405,41 @@ class DemoTrader:
         reasons = sig.get("reasons", [])
 
         # 明確な技術的根拠を持つエントリータイプ
+        # 2026-04-03 FXアナリストレビューで33→9戦略に統廃合
         QUALIFIED_TYPES = {
-            # スキャルプ v2: レジーム選択型
-            "bb_rsi_reversion",      # BB+RSI平均回帰（レンジ用）
-            "bb_squeeze_breakout",   # BBスクイーズブレイクアウト
-            "rsi_divergence_sr",     # RSIダイバージェンス + S/R
-            "london_breakout",       # ロンドンブレイクアウト
-            "stoch_trend_pullback",  # Stochトレンドプルバック（トレンド用）
-            "macdh_reversal",        # 5m補完経由のみ（1m赤字→5m WR=78.4% EV=+0.722）
-            # "engulfing_bb",        # DISABLED: EV=+0.042 @0.8pip spread → 薄利すぎ
-            # "three_bar_reversal",  # DISABLED: 1m BT WR=33.3% EV=-1.042
-            "trend_rebound",         # 強トレンド時リバウンド
-            "v_reversal",            # V字リバウンドキャプチャ（急落/急騰後の反転）
-            # "hs_neckbreak",        # DISABLED: EV=-0.346 @0.8pip spread → マイナス
-            "ihs_neckbreak",         # 逆三尊ネックライン突破
-            "sr_touch_bounce",       # 水平線タッチ反発
-            # スキャルプ v1互換
-            "tokyo_bb", "sr_bounce", "ob_retest", "bb_bounce",
-            "donchian", "reg_channel", "ema_pullback",
-            # スキャルプ v2.3: リバーサル戦略
-            # "sr_channel_reversal",     # DISABLED: 1m/7d BT WR=48.8% EV=-0.204
-            "fib_reversal",              # フィボナッチリトレースメント反発 (1m+5m補完)
+            # ═══ スキャルプ (7戦略) ═══
+            "bb_rsi_reversion",      # BB+RSI平均回帰 — 主力 (318t WR59% EV+0.26)
+            "macdh_reversal",        # MACD-H方向転換 — ライブEV正 (171t WR59% EV+0.21)
+            "stoch_trend_pullback",  # Stochトレンドプルバック — 最高効率 (85t WR64% EV+0.59)
+            "bb_squeeze_breakout",   # BBスクイーズブレイクアウト (5t WR60% EV+1.08)
+            "london_breakout",       # ロンドン開場ブレイクアウト 07-09UTC
+            "tokyo_bb",              # 東京BB（金曜ブロック）
+            "mtf_reversal_confluence",  # MTF RSI+MACD一致（ライブ専用）
+            # DISABLED (FXアナリストレビュー 2026-04-03):
+            # "fib_reversal",        # → bb_rsi統合予定 (デモEV=-3.77)
+            # "v_reversal",          # → bb_rsi統合予定 (サンプル5t)
+            # "trend_rebound",       # 廃止: 1t EV=-1.22, 実質未発火
+            # "ihs_neckbreak",       # 廃止: 1m足でパターン認識不適
+            # "sr_touch_bounce",     # 廃止: BT結果なし, sr_fib(15m)と重複
+            # "rsi_divergence_sr",   # 廃止: EV=-0.607
+            # v1互換6種:            # 全廃止: BT結果なし, v2と機能重複
+            # "sr_bounce", "ob_retest", "bb_bounce",
+            # "donchian", "reg_channel", "ema_pullback",
 
-            "mtf_reversal_confluence",   # MTF RSI+MACD一致
-            # デイトレ: 構造的なセットアップ
-            # "dual_sr_bounce",  # DISABLED: 不調日WR=12-43%, BT EV=-0.072
-            "dual_sr_breakout",  # 強いSRブレイクアウト
-            "sr_fib_confluence", # SR + フィボナッチ合流
-            "ema_cross",         # EMAクロス (BT 147t WR=72.8%)
-            "dt_fib_reversal",           # DT フィボリバーサル
-            # "dt_sr_channel_reversal",  # DISABLED: BT WR=25% EV=-0.659
-            # "ema200_trend_reversal",   # DISABLED: BT WR=50% EV=-0.037
-            # 1H Zone v4: SR強度ベース戦略
-            # "h1_sr_reversal",      # DISABLED: WR=25% EV=-0.718
-            "h1_breakout_retest",    # 強壁ブレイク後リテスト → トレンドフォロー
-            # 旧戦略（互換維持）
-            "h1_fib_reversal",           # 1H フィボリバーサル
-            "h1_ema200_trend_reversal",  # 1H EMA200トレンド転換
+            # ═══ デイトレ (2戦略) ═══
+            "sr_fib_confluence",     # SR+フィボ合流 — DT主力 (229t WR73% EV+0.50)
+            "ema_cross",             # EMAクロスリテスト (39t WR77% EV+0.64)
+            # DISABLED (FXアナリストレビュー):
+            # "ihs_neckbreak",       # 廃止: 2t EV≒0, 低頻度
+            # "dual_sr_breakout",    # 廃止: 未評価
+            # "dt_fib_reversal",     # 廃止: フォールバック未発火
+            # "dt_sr_channel_reversal",  # 廃止: フォールバック未発火
+            # "ema200_trend_reversal",   # 廃止: フォールバック未発火
+
+            # ═══ 1H Zone — モード全体DISABLED (0.15pip/日) ═══
+            # "h1_breakout_retest",
+            # "h1_fib_reversal",
+            # "h1_ema200_trend_reversal",
         }
 
         # 弱い理由のエントリータイプ（追加条件が必要）
@@ -1429,6 +1468,27 @@ class DemoTrader:
             confirmed_count = sum(1 for r in reasons if "✅" in r)
             if confirmed_count < 1:
                 _block(f"no_confirm:{entry_type}"); return
+
+        # ── bb_rsi / macdh 排他制御 ──
+        # 相関0.65: 同一環境で同時発火→SLカスケードの原因
+        # 同方向で直近3分以内にどちらかがエントリー済みなら他方をブロック
+        _mutual_excl = {"bb_rsi_reversion", "macdh_reversal"}
+        if entry_type in _mutual_excl:
+            _other = _mutual_excl - {entry_type}
+            _me_cutoff = datetime.now(timezone.utc) - timedelta(seconds=180)
+            for _ot in open_trades:
+                if (_ot.get("entry_type") in _other
+                    and _ot.get("instrument", "USD_JPY") == instrument
+                    and _ot.get("direction") == signal):
+                    try:
+                        _ot_time = datetime.fromisoformat(_ot.get("entry_time", ""))
+                        if _ot_time.tzinfo is None:
+                            _ot_time = _ot_time.replace(tzinfo=timezone.utc)
+                        if _ot_time > _me_cutoff:
+                            _block(f"mutual_excl({entry_type}_vs_{_ot.get('entry_type')})")
+                            return
+                    except Exception:
+                        pass
 
         if entry_type not in QUALIFIED_TYPES and entry_type not in CONDITIONAL_TYPES:
             _block(f"unknown_type:{entry_type}"); return
@@ -1468,6 +1528,48 @@ class DemoTrader:
             _cb_total_loss = sum(t[2] for t in _cb_recent)
             _block(f"circuit_breaker({len(_cb_recent)}losses/{_cb_max}max_in_30min, total={_cb_total_loss:+.1f}pip)")
             return
+
+        # ══════════════════════════════════════════════════════════════
+        # ── SL狩り対策①: クロス戦略カスケードクールダウン ──
+        # 本番実績: 同価格帯で4戦略同時発火→全滅(-17.1pip/11分)
+        # 同一通貨ペアでSL_HITが発生した場合、全戦略に短期クールダウン適用
+        # scalp: 90s, DT: 180s（同価格帯の反復エントリーを防止）
+        # ══════════════════════════════════════════════════════════════
+        _cascade_cd = {"scalp": 90, "daytrade": 180, "daytrade_1h": 300, "swing": 600}.get(_base_mode, 90)
+        _cascade_cutoff = datetime.now(timezone.utc) - timedelta(seconds=_cascade_cd)
+        _recent_sl_same_inst = [h for h in self._sl_hit_history
+                                if h[0] > _cascade_cutoff and h[1] == instrument]
+        if _recent_sl_same_inst:
+            _last_sl = _recent_sl_same_inst[-1]
+            _sl_age = (datetime.now(timezone.utc) - _last_sl[0]).total_seconds()
+            _block(f"cascade_cd({instrument},{_last_sl[2]},SL {int(_sl_age)}s ago/{_cascade_cd}s)")
+            return
+
+        # ══════════════════════════════════════════════════════════════
+        # ── SL狩り対策E1: スプレッドフィルター ──
+        # 異常スプレッド時はSL狩りの前兆 → エントリー見送り
+        # USD/JPY通常0.2-0.4pip, 閾値1.2pip(3倍)
+        # ══════════════════════════════════════════════════════════════
+        _ba_entry = _bidask_cache_rt.get(instrument)
+        if _ba_entry:
+            _spread_pips = (_ba_entry["ask"] - _ba_entry["bid"]) * (100 if _is_jpy else 10000)
+            _spread_limit = 1.2 if _is_jpy else 1.5  # pips
+            if _spread_pips > _spread_limit:
+                _block(f"spread_wide({_spread_pips:.1f}pip>{_spread_limit})")
+                return
+
+        # ══════════════════════════════════════════════════════════════
+        # ── SL狩り対策A1: 価格スパイク検出 ──
+        # 直近60秒で価格が急変動(>ATR×0.5)→ SL狩りスパイク中のため見送り
+        # ══════════════════════════════════════════════════════════════
+        _atr_spike = sig.get("atr", 0.07 if _is_jpy else 0.00070)
+        _spike_cutoff = datetime.now(timezone.utc) - timedelta(seconds=60)
+        _spike_prices = [p for t, p in self._price_history if t > _spike_cutoff]
+        if len(_spike_prices) >= 3:
+            _spike_range = max(_spike_prices) - min(_spike_prices)
+            if _spike_range > _atr_spike * 0.5:
+                _block(f"spike({_spike_range*100 if _is_jpy else _spike_range*10000:.1f}pip/60s)")
+                return
 
         # ══════════════════════════════════════════════════════════════
         # ── ベロシティフィルター ──
@@ -1606,7 +1708,100 @@ class DemoTrader:
             else:
                 sl = round(current_price + sl_dist, _price_dec)
 
-        # RR不足チェック
+        # ══════════════════════════════════════════════════════════════
+        # ── SL狩り対策②: セッション遷移時SLワイドニング ──
+        # 本番実績: UTC 18-20h(NY Close), 0-1h(東京早朝)にSL集中(48%)
+        # 低流動性時間帯はスプレッド拡大+機関スパイクが多いためSLを拡大
+        # ══════════════════════════════════════════════════════════════
+        _utc_h = datetime.now(timezone.utc).hour
+        _low_liq_hours = {0, 1, 18, 19, 20, 21}  # NY Close + 東京早朝
+        if _utc_h in _low_liq_hours:
+            _liq_buffer = _atr * 0.2  # ATR×0.2追加バッファ
+            sl_dist += _liq_buffer
+            if signal == "BUY":
+                sl = round(current_price - sl_dist, _price_dec)
+            else:
+                sl = round(current_price + sl_dist, _price_dec)
+
+        # ══════════════════════════════════════════════════════════════
+        # ── SL狩り対策③: Fast-SL適応防御 ──
+        # 本番実績: 33%のSLが2分以内に到達（典型的SL狩りパターン）
+        # 直近5分以内に同通貨ペアでfast SL(<120s)が発生 → SLを拡大
+        # ══════════════════════════════════════════════════════════════
+        _fast_sl_cutoff = datetime.now(timezone.utc) - timedelta(minutes=5)
+        _recent_fast_sl = [h for h in self._sl_hit_history
+                          if h[0] > _fast_sl_cutoff
+                          and h[1] == instrument
+                          and h[3] < 120]  # hold_sec < 120s = fast SL
+        if _recent_fast_sl:
+            _hunt_buffer = _atr * 0.3  # ATR×0.3追加（SL狩りスパイク回避）
+            sl_dist += _hunt_buffer
+            if signal == "BUY":
+                sl = round(current_price - sl_dist, _price_dec)
+            else:
+                sl = round(current_price + sl_dist, _price_dec)
+
+        # ══════════════════════════════════════════════════════════════
+        # ── SL狩り対策④: 平均回帰戦略のカウンタートレンドSLバッファ ──
+        # 本番実績: bb_rsi SELL in bull l1 → 10/15 SL (67%)
+        # 平均回帰がトレンド逆行する場合、SLを拡大して一時的逆行を吸収
+        # ══════════════════════════════════════════════════════════════
+        _mean_rev_types = {"bb_rsi_reversion", "macdh_reversal", "v_reversal",
+                          "trend_rebound", "fib_reversal"}
+        layer1_dir_pre = sig.get("layer_status", {}).get("layer1", {})
+        _l1_dir = layer1_dir_pre.get("direction", "neutral") if isinstance(layer1_dir_pre, dict) else "neutral"
+        _is_counter_trend = (
+            entry_type in _mean_rev_types
+            and ((_l1_dir == "bull" and signal == "SELL")
+                 or (_l1_dir == "bear" and signal == "BUY"))
+        )
+        if _is_counter_trend:
+            _ct_buffer = _atr * 0.25  # ATR×0.25追加（カウンタートレンド吸収）
+            sl_dist += _ct_buffer
+            if signal == "BUY":
+                sl = round(current_price - sl_dist, _price_dec)
+            else:
+                sl = round(current_price + sl_dist, _price_dec)
+
+        # ══════════════════════════════════════════════════════════════
+        # ── SL狩り対策B1: ラウンドナンバー回避 ──
+        # 機関はXX.000, XX.500, XX.050等のSLクラスターを狙う
+        # SLがラウンドナンバー近傍(2pip以内)なら外側にずらす
+        # ══════════════════════════════════════════════════════════════
+        if _is_jpy:
+            _sl_frac = sl % 0.500  # 50銭刻みからの距離
+            if _sl_frac < 0.020 or _sl_frac > 0.480:  # 2pip以内
+                _nudge = 0.025  # 2.5pip外側
+                if signal == "BUY":
+                    sl = round(sl - _nudge, _price_dec)
+                else:
+                    sl = round(sl + _nudge, _price_dec)
+                sl_dist = abs(current_price - sl)
+        else:
+            _sl_frac_5 = round((sl * 10000) % 50, 1)  # 50pips刻みからの距離
+            if _sl_frac_5 < 2 or _sl_frac_5 > 48:  # 2pip以内
+                _nudge = 0.00025  # 2.5pip外側
+                if signal == "BUY":
+                    sl = round(sl - _nudge, _price_dec)
+                else:
+                    sl = round(sl + _nudge, _price_dec)
+                sl_dist = abs(current_price - sl)
+
+        # ══════════════════════════════════════════════════════════════
+        # ── SL狩り対策F1: SLクラスタ回避 ──
+        # 新規SLが既存オープンポジションのSLと2pip以内 → カスケードリスク
+        # ══════════════════════════════════════════════════════════════
+        _sl_cluster_thresh = 0.020 if _is_jpy else 0.00020  # 2pip
+        _open_for_cluster = self._db.get_open_trades()
+        _sl_clustered = False
+        for _ot in _open_for_cluster:
+            _ot_sl = _ot.get("sl", 0)
+            _ot_inst = _ot.get("instrument", "USD_JPY")
+            if _ot_inst == instrument and abs(sl - _ot_sl) < _sl_cluster_thresh:
+                _block(f"sl_cluster(new={sl:.3f},exist={_ot_sl:.3f})")
+                return
+
+        # RR不足チェック（SL調整後に再判定）
         if tp_dist < sl_dist:
             return
 
@@ -1642,6 +1837,18 @@ class DemoTrader:
             instrument=instrument,
         )
 
+        # ── SL狩り対策D1: SL距離連動ロットサイジング ──
+        # SL距離が基準より広い場合、ロットを比例縮小してリスク額を一定に保つ
+        import os as _os
+        _base_sl_pips = 3.5  # 基準SL距離(pips)
+        _pip_m_d1 = 100 if _is_jpy else 10000
+        _actual_sl_pips = sl_dist * _pip_m_d1
+        _lot_ratio = min(_base_sl_pips / max(_actual_sl_pips, 0.5), 1.5)
+        _lot_ratio = max(_lot_ratio, 0.5)
+        _base_units = int(_os.environ.get("OANDA_UNITS", "10000"))
+        _adjusted_units = int(_base_units * _lot_ratio)
+        _adjusted_units = max(1000, (_adjusted_units // 1000) * 1000)
+
         # ── OANDA連携: 昇格済み戦略のみミラーリング ──
         if self._is_promoted(entry_type):
             self._oanda.open_trade(
@@ -1651,6 +1858,7 @@ class DemoTrader:
                 mode=mode,
                 instrument=instrument,
                 callback=lambda did, oid: self._db.set_oanda_trade_id(did, oid),
+                units=_adjusted_units,
             )
         else:
             _promo = self._promoted_types.get(entry_type, {})

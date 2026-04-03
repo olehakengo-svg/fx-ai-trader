@@ -193,6 +193,26 @@
   - デモを正（source of truth）として、OANDA孤児を解消
 - **OANDA連携ポイント**: エントリー(ask/bid) / SL/TP(bid/ask) / シグナル反転(bid/ask) / 手動(bid/ask) / 孤児クローズ(5秒毎)
 
+## Recent Fixes (2026-04-03 SL狩り対策 + 戦略統廃合)
+- **SL狩り対策①**: クロス戦略カスケードCD — 同通貨ペアでSL_HIT後、全戦略にクールダウン(scalp:90s, DT:180s)
+- **SL狩り対策②**: セッション遷移SLワイドニング — UTC 0,1,18-21hでSL +ATR×0.2(BT/本番両方)
+- **SL狩り対策③**: Fast-SL適応防御 — 直近5分内にfast SL(<120s)発生→次SL +ATR×0.3(本番のみ)
+- **SL狩り対策④**: カウンタートレンドバッファ — 平均回帰5戦略がL1逆行時→SL +ATR×0.25(BT/本番)
+- **SL狩り対策E1**: スプレッドフィルター — spread>1.2pip(JPY)/1.5pip(EUR)でエントリー見送り
+- **SL狩り対策A1**: スパイク検出 — 60秒内に>0.5ATR変動→エントリー見送り
+- **SL狩り対策B1**: ラウンドナンバーSL回避 — .000/.500近傍SLを2.5pip外側にずらす
+- **SL狩り対策C1**: 時間ベース撤退 — 保持50%経過+含み損→SL前に早期損切り(TIME_DECAY_EXIT)
+- **SL狩り対策D1**: SL距離連動ロット — SL基準3.5pipに対する比率でOANDAロット0.5-1.5倍調整
+- **SL狩り対策F1**: SLクラスタ回避 — 新SLが既存ポジのSLと2pip以内→エントリーブロック
+- **戦略統廃合(33→9)**: FXアナリストレビューに基づく大幅集約
+  - Scalp 7戦略: bb_rsi, macdh, stoch_pullback, bb_squeeze, london_bo, tokyo_bb, mtf_reversal
+  - DT 2戦略: sr_fib_confluence, ema_cross
+  - 1H Zone: **モード全体DISABLED** (0.15pip/日、リソースコスト不適)
+  - 廃止: v1互換6種, trend_rebound, ihs_neckbreak(scalp), sr_touch_bounce, DT ihs_neckbreak, DT FB3種
+  - 統合予定: fib_reversal→bb_rsi, v_reversal→bb_rsi
+- **bb_rsi/macdh排他制御**: 相関0.65の2戦略が同方向で3分以内に同時発火→EV上位のみ執行
+- **BT SL狩り対策適用**: Scalp/DT BTに②④を適用 → Scalp WR58.6→60.1% EV+0.269→+0.314, DT WR65.2→73.5% EV+0.283→+0.524
+
 ## Recent Fixes (2026-04-03 FXアナリストレビュー対応)
 - **P0 BEスプレッド補正**: BE移動時にBUY=entry+spread, SELL=entry-spread（偽BE勝ち防止）
 - **P1 BT時間帯変動スプレッド**: `_bt_spread(bar_time, symbol)` — 東京早朝0.8pip, LDN/NY 0.2pip, NY終盤0.8pip。全8BT関数に適用
