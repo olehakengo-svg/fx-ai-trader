@@ -2960,7 +2960,7 @@ def compute_1h_zone_signal(df: pd.DataFrame,
     #        強い壁（strength≥0.5, touches≥3）付近での反発をキャッチ
     #  根拠: Osler 2000 — 制度的注文集中レベルでの反発確率は65-75%
     # ════════════════════════════════════════════════════════════
-    _sr_proximity = atr * 0.5  # SR近接判定距離
+    _sr_proximity = atr * 0.8  # SR近接判定距離（1H足は値幅大きい→0.5→0.8 ATR）
 
     for _sr in _h1_sr_weighted:
         _sr_price = _sr["price"]
@@ -2971,19 +2971,20 @@ def compute_1h_zone_signal(df: pd.DataFrame,
 
         if _sr_dist > _sr_proximity:
             continue
-        if _sr_strength < 0.4 or _sr_touches < 2:
+        if _sr_touches < 2:  # 最低2タッチ（strength閾値は削除→スコアに反映）
             continue
 
         _rev_score = 0.0
         _rev_reasons = []
-        _is_strong = _sr_strength >= 0.6 and _sr_touches >= 3
+        _is_strong = _sr_strength >= 0.5 and _sr_touches >= 3
 
-        # ── サポート反発 → BUY ──
-        if entry >= _sr_price and (entry - _sr_price) < _sr_proximity and _sr_type in ("support", "both"):
-            _rev_score = 1.5 if _is_strong else 1.0
+        # ── サポート反発 → BUY（type制約緩和: resistance以外全て）──
+        if entry >= _sr_price and (entry - _sr_price) < _sr_proximity and _sr_type != "resistance":
+            # ベーススコア: 強度に比例 (0.3~0.8 → 1.0~2.0)
+            _rev_score = 1.0 + _sr_strength * 1.5
             _rev_reasons.append(f"✅ SR サポート反発({_sr_price:.3f}, 強度={_sr_strength:.2f}, touch={_sr_touches})")
             if _is_strong:
-                _rev_reasons.append("🎯 高強度壁（3+タッチ, strength≥0.6）")
+                _rev_reasons.append("🎯 高強度壁（3+タッチ, strength≥0.5）")
 
             # チャネル下限との合流
             if _ch_lower and abs(entry - _ch_lower) < atr * 0.6:
@@ -3020,11 +3021,11 @@ def compute_1h_zone_signal(df: pd.DataFrame,
                                    _rev_reasons, "h1_sr_reversal", _rev_inv))
 
         # ── レジスタンス反落 → SELL ──
-        elif entry <= _sr_price and (_sr_price - entry) < _sr_proximity and _sr_type in ("resistance", "both"):
-            _rev_score = 1.5 if _is_strong else 1.0
+        elif entry <= _sr_price and (_sr_price - entry) < _sr_proximity and _sr_type != "support":
+            _rev_score = 1.0 + _sr_strength * 1.5
             _rev_reasons.append(f"✅ SR レジスタンス反落({_sr_price:.3f}, 強度={_sr_strength:.2f}, touch={_sr_touches})")
             if _is_strong:
-                _rev_reasons.append("🎯 高強度壁（3+タッチ, strength≥0.6）")
+                _rev_reasons.append("🎯 高強度壁（3+タッチ, strength≥0.5）")
 
             # チャネル上限との合流
             if _ch_upper and abs(entry - _ch_upper) < atr * 0.6:
@@ -3078,7 +3079,7 @@ def compute_1h_zone_signal(df: pd.DataFrame,
         _sr_touches = _sr["touches"]
         _sr_type = _sr["type"]
 
-        if _sr_strength < 0.4 or _sr_touches < 2:
+        if _sr_touches < 2:
             continue
 
         _is_strong = _sr_strength >= 0.5 and _sr_touches >= 3
@@ -3136,9 +3137,9 @@ def compute_1h_zone_signal(df: pd.DataFrame,
                 if _upper_srs:
                     _brt_tp = min(_upper_srs) - atr * 0.1
                     _brt_tp = max(_brt_tp, entry + atr * 2.0)
-                _brt_sl = _sr_price - atr * 0.3
-                _brt_sl = max(_brt_sl, entry - atr * 1.0)
-                _brt_inv = _sr_price - atr * 0.4
+                _brt_sl = _sr_price - atr * 0.5  # 0.3→0.5: SL拡大（1Hノイズ耐性）
+                _brt_sl = max(_brt_sl, entry - atr * 1.2)
+                _brt_inv = _sr_price - atr * 0.6
                 candidates.append(("BUY", _brt_score, _brt_tp, _brt_sl,
                                    _brt_reasons, "h1_breakout_retest", _brt_inv))
 
@@ -3180,9 +3181,9 @@ def compute_1h_zone_signal(df: pd.DataFrame,
                 if _lower_srs:
                     _brt_tp = max(_lower_srs) + atr * 0.1
                     _brt_tp = min(_brt_tp, entry - atr * 2.0)
-                _brt_sl = _sr_price + atr * 0.3
-                _brt_sl = min(_brt_sl, entry + atr * 1.0)
-                _brt_inv = _sr_price + atr * 0.4
+                _brt_sl = _sr_price + atr * 0.5  # 0.3→0.5
+                _brt_sl = min(_brt_sl, entry + atr * 1.2)
+                _brt_inv = _sr_price + atr * 0.6
                 candidates.append(("SELL", _brt_score, _brt_tp, _brt_sl,
                                    _brt_reasons, "h1_breakout_retest", _brt_inv))
 
