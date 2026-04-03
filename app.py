@@ -4750,7 +4750,7 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
             return {"error": "データ不足", "trades": 0, "mode": "1h_zone"}
 
         SPREAD   = 0.008   # 0.8 pip（OANDA実スプレッド）
-        MAX_HOLD = 18      # 18 bars = 18 hours（TP到達時間確保）
+        MAX_HOLD = 30      # 30 bars = 30 hours（ブレイクアウト到達に十分な時間）
         COOLDOWN = 1
         MIN_RR   = 1.2
 
@@ -4934,24 +4934,25 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
                         bars_held = j
                         break
 
-                # ── Breakeven at 50% TP + Trailing Stop ──
+                # ── Breakeven at 70% TP + Wide Trailing Stop ──
+                # 1H足ブレイクアウトは利益を伸ばすため、BE発動を遅らせトレール幅拡大
                 _tp_dist_total = abs(tp - ep)
-                _trail_atr = atr * 0.8  # トレーリング幅: 0.8 ATR
+                _trail_atr = atr * 1.2  # トレーリング幅: 1.2 ATR（0.8→拡大）
                 if sig == "BUY":
                     _progress = hi - ep
-                    # 50%到達でBE (旧60%)
-                    if _progress >= _tp_dist_total * 0.5:
+                    # 70%到達でBE (50%→70%: 利確を急がない)
+                    if _progress >= _tp_dist_total * 0.7:
                         _be_activated = True
-                        _current_sl = max(_current_sl, ep)
-                    # トレーリングストップ: 最高値 - 0.8ATR
+                        _current_sl = max(_current_sl, ep + _tp_dist_total * 0.3)  # BE+30%利益確保
+                    # トレーリングストップ: 最高値 - 1.2ATR
                     if _be_activated:
                         _trail_sl = hi - _trail_atr
                         _current_sl = max(_current_sl, _trail_sl)
                 else:
                     _progress = ep - lo
-                    if _progress >= _tp_dist_total * 0.5:
+                    if _progress >= _tp_dist_total * 0.7:
                         _be_activated = True
-                        _current_sl = min(_current_sl, ep)
+                        _current_sl = min(_current_sl, ep - _tp_dist_total * 0.3)
                     if _be_activated:
                         _trail_sl = lo + _trail_atr
                         _current_sl = min(_current_sl, _trail_sl)
