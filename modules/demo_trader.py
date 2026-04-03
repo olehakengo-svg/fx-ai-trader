@@ -2080,11 +2080,15 @@ class DemoTrader:
             print(f"[Promotion] error: {e}", flush=True)
 
     def _is_promoted(self, entry_type: str) -> bool:
-        """戦略がOANDA実行可能か判定"""
-        info = self._promoted_types.get(entry_type)
-        if not info:
-            return False  # 未評価 = デモのみ
-        return info["status"] == "promoted"
+        """戦略がOANDA実行可能か判定
+        NOTE: 一時的に全戦略をOANDA送信（フィルター解除中）
+        """
+        return True  # 一時的に全戦略をOANDA送信
+        # --- 元のロジック（復元時にコメント解除）---
+        # info = self._promoted_types.get(entry_type)
+        # if not info:
+        #     return False  # 未評価 = デモのみ
+        # return info["status"] == "promoted"
 
     def _apply_adjustments(self, adjustments: list):
         for adj in adjustments:
