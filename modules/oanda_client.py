@@ -170,6 +170,23 @@ class OandaClient:
         path = f"/v3/accounts/{self._account_id}/pricing?instruments={instrument}"
         return self._request("GET", path)
 
+    # ── Get Trades (v20) ────────────────────────────
+
+    def get_trades(self, state: str = "ALL", count: int = 500,
+                   instrument: str = None, before_id: str = None) -> tuple:
+        """List trades for the account.
+        GET /v3/accounts/:id/trades
+        state: OPEN, CLOSED, CLOSE_WHEN_TRADEABLE, ALL
+        count: 1-500
+        """
+        params = [f"state={state}", f"count={min(count, 500)}"]
+        if instrument:
+            params.append(f"instrument={instrument}")
+        if before_id:
+            params.append(f"beforeID={before_id}")
+        path = f"/v3/accounts/{self._account_id}/trades?" + "&".join(params)
+        return self._request("GET", path, timeout=30)
+
     # ── Get Candles / OHLCV (v20) ─────────────────────
 
     def get_candles(self, instrument: str = "USD_JPY",

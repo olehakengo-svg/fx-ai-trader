@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FX AI Trader — OANDA Live Analysis</title>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+:root{--bg:#0d1117;--bg1:#161b22;--bg2:#1c2128;--bg3:#21262d;--t1:#e6edf3;--t2:#8b949e;--t3:#6e7681;
+--green:#22c55e;--red:#ef4444;--blue:#3b82f6;--gold:#fbbf24;--purple:#a78bfa;--purple-dim:rgba(168,85,247,.15)}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px}
+a{color:var(--blue);text-decoration:none}
+.top-bar{background:var(--bg1);border-bottom:1px solid rgba(168,85,247,.25);padding:10px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.top-bar h1{font-size:16px;font-weight:700;color:var(--purple)}
+.back-link{font-size:12px;color:var(--t2);padding:3px 10px;border:1px solid var(--bg2);border-radius:4px}
+.back-link:hover{background:var(--bg2)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px;max-width:1600px;margin:0 auto}
+.full{grid-column:1/-1}
+.card{background:var(--bg1);border:1px solid var(--bg2);border-radius:8px;padding:14px}
+.card-title{font-size:12px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.stat-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.stat-box{background:var(--bg);border-radius:6px;padding:8px 14px;text-align:center;min-width:80px;flex:1}
+.stat-label{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.3px}
+.stat-val{font-size:18px;font-weight:700;margin-top:2px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--bg2);color:var(--t3);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.3px}
+td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.03)}
+tr:hover{background:rgba(255,255,255,.02)}
+.tag{display:inline-block;font-size:8px;padding:1px 5px;border-radius:3px;font-weight:600}
+.tag-win{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.25)}
+.tag-loss{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.25)}
+.tag-open{background:rgba(59,130,246,.12);color:var(--blue);border:1px solid rgba(59,130,246,.25)}
+.tag-be{background:rgba(251,191,36,.12);color:var(--gold);border:1px solid rgba(251,191,36,.25)}
+.tag-buy{color:var(--green);font-weight:700}.tag-sell{color:var(--red);font-weight:700}
+.oanda-badge{font-size:9px;padding:2px 6px;border-radius:3px;background:rgba(168,85,247,.2);color:#a78bfa;font-weight:700;letter-spacing:.3px}
+.btn{font-size:11px;padding:5px 14px;border-radius:5px;border:1px solid var(--bg2);background:var(--bg);color:var(--t1);cursor:pointer;transition:background .15s}
+.btn:hover{background:var(--bg2)}
+.btn-sync{background:rgba(168,85,247,.12);border-color:rgba(168,85,247,.4);color:var(--purple)}
+.btn-sync:hover{background:rgba(168,85,247,.25)}
+#equity-chart{width:100%;height:250px}
+.acct-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.acct-item{background:var(--bg);border-radius:6px;padding:8px 12px}
+.acct-label{font-size:9px;color:var(--t3);text-transform:uppercase}
+.acct-val{font-size:15px;font-weight:700;margin-top:2px}
+.sync-info{font-size:9px;color:var(--t3);margin-left:auto}
+.dir-breakdown{display:flex;gap:12px;margin-top:8px}
+.dir-box{background:var(--bg);border-radius:6px;padding:8px 14px;flex:1;text-align:center}
+.dir-label{font-size:10px;font-weight:700;margin-bottom:4px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <h1>💰 OANDA Live Trading Analysis</h1>
+  <span class="oanda-badge">LIVE</span>
+  <a href="/demo-analysis" class="back-link">← デモ分析</a>
+  <a href="/" class="back-link">🏠 メイン</a>
+  <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+    <span id="sync-status" class="sync-info">未同期</span>
+    <button class="btn btn-sync" onclick="syncTrades(false)">🔄 同期</button>
+    <button class="btn btn-sync" onclick="syncTrades(true)">📥 全件同期</button>
+    <button class="btn" onclick="loadAll()">♻️ 更新</button>
+  </div>
+</div>
+
+<div class="grid">
+
+  <!-- Account Info -->
+  <div class="card">
+    <div class="card-title">🏦 アカウント情報</div>
+    <div class="acct-grid" id="acct-info">
+      <div class="acct-item"><div class="acct-label">Balance</div><div class="acct-val" id="a-balance">—</div></div>
+      <div class="acct-item"><div class="acct-label">NAV</div><div class="acct-val" id="a-nav">—</div></div>
+      <div class="acct-item"><div class="acct-label">未実現P/L</div><div class="acct-val" id="a-upl">—</div></div>
+      <div class="acct-item"><div class="acct-label">証拠金使用率</div><div class="acct-val" id="a-margin">—</div></div>
+      <div class="acct-item"><div class="acct-label">Open Trades</div><div class="acct-val" id="a-open">—</div></div>
+    </div>
+  </div>
+
+  <!-- Performance Stats -->
+  <div class="card">
+    <div class="card-title">📊 パフォーマンス</div>
+    <div class="stat-row" id="stats-row">
+      <div class="stat-box"><div class="stat-label">Total Trades</div><div class="stat-val" id="s-total">—</div></div>
+      <div class="stat-box"><div class="stat-label">Win Rate</div><div class="stat-val" id="s-wr">—</div></div>
+      <div class="stat-box"><div class="stat-label">P/L (JPY)</div><div class="stat-val" id="s-pljpy">—</div></div>
+      <div class="stat-box"><div class="stat-label">P/L (pips)</div><div class="stat-val" id="s-plpips">—</div></div>
+      <div class="stat-box"><div class="stat-label">Avg P/L</div><div class="stat-val" id="s-avg">—</div></div>
+      <div class="stat-box"><div class="stat-label">Financing</div><div class="stat-val" id="s-fin">—</div></div>
+    </div>
+    <div class="dir-breakdown" id="dir-breakdown"></div>
+  </div>
+
+  <!-- Equity Curve -->
+  <div class="card full">
+    <div class="card-title">📈 累積P/Lカーブ</div>
+    <div id="equity-chart"></div>
+    <div style="display:flex;gap:12px;font-size:10px;color:var(--t3);margin-top:4px">
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--purple);margin-right:3px"></span>累積P/L (JPY)</span>
+    </div>
+  </div>
+
+  <!-- Open Positions -->
+  <div class="card full">
+    <div class="card-title">🔓 オープンポジション</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>ID</th><th>通貨</th><th>方向</th><th>Units</th><th>Open Price</th><th>SL</th><th>TP</th><th>未実現P/L</th><th>Open Time</th></tr>
+        </thead>
+        <tbody id="open-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Full Trade History -->
+  <div class="card full">
+    <div class="card-title">📋 取引履歴 (OANDA実績)</div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:8px 12px;background:var(--bg2);border-radius:6px;font-size:12px">
+      <label style="color:var(--t2)">期間:</label>
+      <input type="date" id="filter-from" style="background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:4px;padding:4px 6px;font-size:11px">
+      <span style="color:var(--t3)">〜</span>
+      <input type="date" id="filter-to" style="background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:4px;padding:4px 6px;font-size:11px">
+      <button onclick="applyFilter()" style="background:var(--purple);color:#fff;border:none;border-radius:4px;padding:5px 14px;cursor:pointer;font-size:11px;font-weight:600">絞り込み</button>
+      <button onclick="clearFilter()" style="background:var(--bg3);color:var(--t2);border:none;border-radius:4px;padding:5px 10px;cursor:pointer;font-size:11px">リセット</button>
+      <span id="filter-summary" style="color:var(--t3);margin-left:auto;font-size:11px"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="trade-table">
+        <thead>
+          <tr><th>#</th><th>ID</th><th>通貨</th><th>方向</th><th>Units</th><th>Open</th><th>Close</th><th>SL</th><th>TP</th><th>P/L(JPY)</th><th>P/L(pips)</th><th>決済理由</th><th>結果</th><th>Open Time</th><th>Close Time</th></tr>
+        </thead>
+        <tbody id="trade-tbody"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;justify-content:center">
+      <button class="btn" id="btn-prev" onclick="changePage(-1)" disabled>← 前へ</button>
+      <span id="page-info" style="font-size:11px;color:var(--t3);padding:5px 10px">1ページ目</span>
+      <button class="btn" id="btn-next" onclick="changePage(1)">次へ →</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function _h(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
+function _fmt(n,d=0){return n!=null?Number(n).toLocaleString('ja-JP',{minimumFractionDigits:d,maximumFractionDigits:d}):'—'}
+function _fmtTime(t){if(!t)return'—';try{const d=new Date(t);return d.toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Tokyo'})}catch{return t.slice(0,19)}}
+function _plColor(v){return v>0?'var(--green)':v<0?'var(--red)':'var(--t2)'}
+
+let equityChart=null, equitySeries=null;
+let _currentPage=0;
+const PAGE_SIZE=100;
+
+function initCharts(){
+  const el=document.getElementById('equity-chart');
+  equityChart=LightweightCharts.createChart(el,{
+    layout:{background:{color:'#0d1117'},textColor:'#8b949e',fontSize:11},
+    grid:{vertLines:{color:'#1c2128'},horzLines:{color:'#1c2128'}},
+    rightPriceScale:{borderColor:'#30363d'},
+    timeScale:{borderColor:'#30363d',timeVisible:true},
+    height:250,
+  });
+  equitySeries=equityChart.addAreaSeries({
+    lineColor:'#a78bfa',topColor:'rgba(168,85,247,.3)',bottomColor:'rgba(168,85,247,.02)',
+    lineWidth:2,
+  });
+}
+
+// ── Sync ──
+async function syncTrades(all=false){
+  const el=document.getElementById('sync-status');
+  el.textContent='同期中...';
+  try{
+    const r=await fetch('/api/oanda/sync'+(all?'?all=true':''),{method:'POST'});
+    const d=await r.json();
+    if(d.error){el.textContent='エラー: '+d.error;return}
+    el.textContent=`✅ ${d.synced}件同期 (DB: ${d.total_in_db}件)`;
+    loadAll();
+  }catch(e){el.textContent='同期エラー';console.error(e)}
+}
+
+// ── Account Info ──
+async function loadAccount(){
+  try{
+    const r=await fetch('/api/oanda/status');
+    const d=await r.json();
+    if(!d.active){
+      document.getElementById('a-balance').textContent='未接続';
+      return;
+    }
+    const a=d.account||{};
+    document.getElementById('a-balance').textContent=_fmt(a.balance,0)+'円';
+    document.getElementById('a-nav').textContent=_fmt(a.NAV||a.nav,0)+'円';
+    document.getElementById('a-upl').textContent=_fmt(a.unrealizedPL||a.unrealized_pl,0)+'円';
+    const upl=parseFloat(a.unrealizedPL||a.unrealized_pl||0);
+    document.getElementById('a-upl').style.color=_plColor(upl);
+    document.getElementById('a-margin').textContent=(a.marginRate?(_fmt(parseFloat(a.marginRate)*100,1)+'%'):'—');
+    document.getElementById('a-open').textContent=a.openTradeCount||a.open_trades||'0';
+  }catch(e){console.error('Account error:',e)}
+}
+
+// ── Stats ──
+async function loadStats(){
+  const from=document.getElementById('filter-from').value;
+  const to=document.getElementById('filter-to').value;
+  let url='/api/oanda/stats?';
+  if(from)url+='date_from='+from+'&';
+  if(to)url+='date_to='+to+'&';
+  try{
+    const r=await fetch(url);
+    const d=await r.json();
+    document.getElementById('s-total').textContent=d.total||0;
+    const wr=d.win_rate||0;
+    document.getElementById('s-wr').textContent=wr.toFixed(1)+'%';
+    document.getElementById('s-wr').style.color=wr>=50?'var(--green)':wr>=40?'var(--gold)':'var(--red)';
+    const plJpy=d.total_pl_jpy||0;
+    document.getElementById('s-pljpy').textContent=_fmt(plJpy,0)+'円';
+    document.getElementById('s-pljpy').style.color=_plColor(plJpy);
+    const plPips=d.total_pl_pips||0;
+    document.getElementById('s-plpips').textContent=_fmt(plPips,1)+'p';
+    document.getElementById('s-plpips').style.color=_plColor(plPips);
+    document.getElementById('s-avg').textContent=_fmt(d.avg_pl_pips,1)+'p';
+    document.getElementById('s-avg').style.color=_plColor(d.avg_pl_pips);
+    document.getElementById('s-fin').textContent=_fmt(d.total_financing,0)+'円';
+
+    // Direction breakdown
+    const dirEl=document.getElementById('dir-breakdown');
+    const bd=d.by_direction||{};
+    let dirHtml='';
+    for(const dir of ['BUY','SELL']){
+      const dd=bd[dir];
+      if(!dd)continue;
+      const c=dir==='BUY'?'var(--green)':'var(--red)';
+      dirHtml+=`<div class="dir-box">
+        <div class="dir-label" style="color:${c}">${dir}</div>
+        <div style="font-size:11px">${dd.trades}t WR=${dd.win_rate}%</div>
+        <div style="font-size:11px;color:${_plColor(dd.pnl_pips)}">${_fmt(dd.pnl_pips,1)}p / ${_fmt(dd.pnl_jpy,0)}円</div>
+      </div>`;
+    }
+    dirEl.innerHTML=dirHtml;
+  }catch(e){console.error('Stats error:',e)}
+}
+
+// ── Equity Curve ──
+async function loadEquity(){
+  const from=document.getElementById('filter-from').value;
+  const to=document.getElementById('filter-to').value;
+  let url='/api/oanda/equity?';
+  if(from)url+='date_from='+from+'&';
+  if(to)url+='date_to='+to+'&';
+  try{
+    const r=await fetch(url);
+    const d=await r.json();
+    const curve=d.curve||[];
+    if(!curve.length){equitySeries&&equitySeries.setData([]);return}
+    const pts=curve.map(c=>{
+      let ts=0;
+      try{ts=Math.floor(new Date(c.time).getTime()/1000)}catch{}
+      return{time:ts,value:c.cum_jpy};
+    }).filter(p=>p.time>0);
+    if(pts.length&&equitySeries)equitySeries.setData(pts);
+  }catch(e){console.error('Equity error:',e)}
+}
+
+// ── Open Positions ──
+async function loadOpenPositions(){
+  try{
+    const r=await fetch('/api/oanda/trades?state=open');
+    const d=await r.json();
+    const tbody=document.getElementById('open-tbody');
+    const trades=d.trades||[];
+    if(!trades.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--t3)">オープンポジションなし</td></tr>';return}
+    tbody.innerHTML=trades.map(t=>{
+      const dirCls=t.direction==='BUY'?'tag-buy':'tag-sell';
+      const upl=parseFloat(t.unrealized_pl||0);
+      return `<tr>
+        <td>${_h(t.oanda_trade_id)}</td>
+        <td>${_h(t.instrument)}</td>
+        <td class="${dirCls}">${t.direction}</td>
+        <td>${_fmt(t.current_units,0)}</td>
+        <td>${_fmt(t.open_price,3)}</td>
+        <td>${t.stop_loss?_fmt(t.stop_loss,3):'—'}</td>
+        <td>${t.take_profit?_fmt(t.take_profit,3):'—'}</td>
+        <td style="color:${_plColor(upl)};font-weight:700">${_fmt(upl,0)}円</td>
+        <td>${_fmtTime(t.open_time)}</td>
+      </tr>`;
+    }).join('');
+  }catch(e){console.error('Open positions error:',e)}
+}
+
+// ── Trade History ──
+async function loadTrades(){
+  const from=document.getElementById('filter-from').value;
+  const to=document.getElementById('filter-to').value;
+  let url=`/api/oanda/trades?state=closed&limit=${PAGE_SIZE}&offset=${_currentPage*PAGE_SIZE}`;
+  if(from)url+='&date_from='+from;
+  if(to)url+='&date_to='+to;
+  try{
+    const r=await fetch(url);
+    const d=await r.json();
+    const trades=d.trades||[];
+    const tbody=document.getElementById('trade-tbody');
+    if(!trades.length){
+      tbody.innerHTML='<tr><td colspan="15" style="text-align:center;color:var(--t3)">取引データなし — 「同期」ボタンでOANDAからデータを取得してください</td></tr>';
+      return;
+    }
+    tbody.innerHTML=trades.map((t,i)=>{
+      const pl=parseFloat(t.realized_pl||0);
+      const plPips=parseFloat(t.pnl_pips||0);
+      const dirCls=t.direction==='BUY'?'tag-buy':'tag-sell';
+      let tagCls='tag-be',tagText='BE';
+      if(pl>0){tagCls='tag-win';tagText='WIN'}
+      else if(pl<0){tagCls='tag-loss';tagText='LOSS'}
+      const reason=t.close_reason||'—';
+      return `<tr>
+        <td>${_currentPage*PAGE_SIZE+i+1}</td>
+        <td style="font-size:10px;color:var(--t3)">${_h(t.oanda_trade_id)}</td>
+        <td>${_h(t.instrument)}</td>
+        <td class="${dirCls}">${t.direction}</td>
+        <td>${_fmt(t.initial_units,0)}</td>
+        <td>${_fmt(t.open_price,3)}</td>
+        <td>${_fmt(t.close_price,3)}</td>
+        <td>${t.stop_loss?_fmt(t.stop_loss,3):'—'}</td>
+        <td>${t.take_profit?_fmt(t.take_profit,3):'—'}</td>
+        <td style="color:${_plColor(pl)};font-weight:700">${_fmt(pl,0)}円</td>
+        <td style="color:${_plColor(plPips)}">${_fmt(plPips,1)}p</td>
+        <td style="font-size:10px">${_h(reason)}</td>
+        <td><span class="tag ${tagCls}">${tagText}</span></td>
+        <td style="font-size:10px">${_fmtTime(t.open_time)}</td>
+        <td style="font-size:10px">${_fmtTime(t.close_time)}</td>
+      </tr>`;
+    }).join('');
+
+    // Pagination
+    document.getElementById('btn-prev').disabled=(_currentPage===0);
+    document.getElementById('btn-next').disabled=(trades.length<PAGE_SIZE);
+    document.getElementById('page-info').textContent=`${_currentPage+1}ページ目 (${trades.length}件)`;
+    document.getElementById('filter-summary').textContent=`${from||'全期間'}〜${to||'現在'}`;
+  }catch(e){console.error('Trades error:',e)}
+}
+
+function changePage(delta){
+  _currentPage=Math.max(0,_currentPage+delta);
+  loadTrades();
+}
+
+function applyFilter(){
+  _currentPage=0;
+  loadStats();
+  loadEquity();
+  loadTrades();
+}
+function clearFilter(){
+  document.getElementById('filter-from').value='';
+  document.getElementById('filter-to').value='';
+  applyFilter();
+}
+
+function loadAll(){
+  loadAccount();
+  loadStats();
+  loadEquity();
+  loadOpenPositions();
+  loadTrades();
+}
+
+// ── Init ──
+document.addEventListener('DOMContentLoaded',()=>{
+  initCharts();
+  // Auto-sync on first load
+  syncTrades(false).then(()=>loadAll());
+  // Auto-refresh every 30 seconds
+  setInterval(()=>{
+    loadAccount();
+    loadOpenPositions();
+  },30000);
+  // Stats refresh every 60 seconds
+  setInterval(()=>{
+    loadStats();
+    loadEquity();
+  },60000);
+});
+</script>
+</body>
+</html>

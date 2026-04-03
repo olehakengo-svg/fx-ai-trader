@@ -10279,6 +10279,107 @@ def api_oanda_modes():
     return jsonify({"error": "toggle or modes required"}), 400
 
 
+# ══════════════════════════════════════════════════════
+#  OANDA Real Trade Data Endpoints
+# ══════════════════════════════════════════════════════
+
+def _sync_oanda_trades(fetch_all: bool = False) -> dict:
+    """Fetch trades from OANDA API and store in DB."""
+    bridge = _demo_trader._oanda
+    if not bridge._client.configured:
+        return {"error": "OANDA not configured", "synced": 0}
+
+    synced = 0
+    # Fetch closed trades
+    ok, data = bridge._client.get_trades(state="CLOSED", count=500)
+    if ok:
+        for t in data.get("trades", []):
+            _demo_db.upsert_oanda_trade(t)
+            synced += 1
+
+        # Pagination: fetch older trades if requested
+        if fetch_all:
+            trades_list = data.get("trades", [])
+            while len(trades_list) >= 500:
+                oldest_id = trades_list[-1].get("id", "")
+                if not oldest_id:
+                    break
+                ok2, data2 = bridge._client.get_trades(
+                    state="CLOSED", count=500, before_id=oldest_id)
+                if not ok2 or not data2.get("trades"):
+                    break
+                trades_list = data2["trades"]
+                for t in trades_list:
+                    _demo_db.upsert_oanda_trade(t)
+                    synced += 1
+
+    # Fetch open trades
+    ok3, data3 = bridge._client.get_trades(state="OPEN")
+    if ok3:
+        for t in data3.get("trades", []):
+            _demo_db.upsert_oanda_trade(t)
+            synced += 1
+
+    return {"synced": synced, "total_in_db": _demo_db.get_oanda_trade_count()}
+
+
+@app.route("/api/oanda/sync", methods=["POST"])
+def api_oanda_sync():
+    """手動同期トリガー"""
+    fetch_all = request.args.get("all", "false").lower() == "true"
+    result = _sync_oanda_trades(fetch_all=fetch_all)
+    return jsonify(result)
+
+
+@app.route("/api/oanda/trades")
+def api_oanda_trades():
+    """OANDA取引履歴"""
+    limit = request.args.get("limit", 200, type=int)
+    offset = request.args.get("offset", 0, type=int)
+    state = request.args.get("state", "all")
+    date_from = request.args.get("date_from")
+    date_to = request.args.get("date_to")
+
+    if state.lower() == "open":
+        trades = _demo_db.get_oanda_open_trades()
+    else:
+        trades = _demo_db.get_oanda_trades(
+            state=state.upper() if state.lower() != "all" else "ALL",
+            limit=limit, offset=offset,
+            date_from=date_from, date_to=date_to)
+    return jsonify({"trades": trades, "count": len(trades)})
+
+
+@app.route("/api/oanda/stats")
+def api_oanda_stats():
+    """OANDA取引統計"""
+    date_from = request.args.get("date_from")
+    date_to = request.args.get("date_to")
+    stats = _demo_db.get_oanda_stats(date_from=date_from, date_to=date_to)
+    return jsonify(stats)
+
+
+@app.route("/api/oanda/equity")
+def api_oanda_equity():
+    """OANDA累積P/Lカーブ"""
+    date_from = request.args.get("date_from")
+    date_to = request.args.get("date_to")
+    curve = _demo_db.get_oanda_equity_curve(date_from=date_from, date_to=date_to)
+    total_jpy = curve[-1]["cum_jpy"] if curve else 0
+    total_pips = curve[-1]["cum_pips"] if curve else 0
+    return jsonify({
+        "curve": curve,
+        "total_pl_jpy": total_jpy,
+        "total_pl_pips": total_pips,
+        "count": len(curve),
+    })
+
+
+@app.route("/oanda-analysis")
+def oanda_analysis_page():
+    return render_template("oanda_analysis.html")
+
+
 @app.route("/api/demo/trades")
 def api_demo_trades():
     """取引履歴API — 期間・モードで絞り込み可能

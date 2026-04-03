@@ -144,6 +144,39 @@ class DemoDB:
                 conn.execute("ALTER TABLE demo_trades ADD COLUMN oanda_trade_id TEXT DEFAULT ''")
             except Exception:
                 pass
+
+            # ── OANDA実取引データ保存テーブル ──
+            conn.executescript("""
+                CREATE TABLE IF NOT EXISTS oanda_trades (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    oanda_trade_id  TEXT UNIQUE,
+                    instrument      TEXT DEFAULT 'USD_JPY',
+                    state           TEXT,
+                    direction       TEXT,
+                    initial_units   REAL,
+                    current_units   REAL,
+                    open_price      REAL,
+                    close_price     REAL,
+                    open_time       TEXT,
+                    close_time      TEXT,
+                    realized_pl     REAL,
+                    unrealized_pl   REAL,
+                    financing       REAL,
+                    commission      REAL,
+                    stop_loss       REAL,
+                    take_profit     REAL,
+                    trailing_sl     REAL,
+                    pnl_pips        REAL,
+                    close_reason    TEXT,
+                    margin_used     REAL,
+                    raw_json        TEXT,
+                    synced_at       TEXT DEFAULT (datetime('now')),
+                    created_at      TEXT DEFAULT (datetime('now'))
+                );
+                CREATE INDEX IF NOT EXISTS idx_oanda_state ON oanda_trades(state);
+                CREATE INDEX IF NOT EXISTS idx_oanda_open_time ON oanda_trades(open_time);
+                CREATE INDEX IF NOT EXISTS idx_oanda_close_time ON oanda_trades(close_time);
+            """)
             conn.commit()
 
     # ── Trade CRUD ──────────────────────────────────
@@ -596,3 +629,224 @@ class DemoDB:
             "overall_wr": _calc_wr(closed)[0],
             "overall_ev": _calc_wr(closed)[1],
         }
+
+    # ══════════════════════════════════════════════════════
+    #  OANDA Real Trade Storage
+    # ══════════════════════════════════════════════════════
+
+    def upsert_oanda_trade(self, trade: dict):
+        """Insert or update an OANDA trade from API response."""
+        tid = str(trade.get("id", ""))
+        if not tid:
+            return
+
+        instrument = trade.get("instrument", "USD_JPY")
+        state = trade.get("state", "")
+        # direction: positive units = BUY, negative = SELL
+        initial_units_raw = trade.get("initialUnits", trade.get("currentUnits", "0"))
+        initial_units = float(initial_units_raw)
+        direction = "BUY" if initial_units >= 0 else "SELL"
+        initial_units = abs(initial_units)
+        current_units = abs(float(trade.get("currentUnits", "0")))
+
+        open_price = float(trade.get("price", 0))
+        close_price = float(trade.get("averageClosePrice", 0) or 0)
+        open_time = trade.get("openTime", "")
+        close_time = trade.get("closeTime", "")
+        realized_pl = float(trade.get("realizedPL", 0) or 0)
+        unrealized_pl = float(trade.get("unrealizedPL", 0) or 0)
+        financing = float(trade.get("financing", 0) or 0)
+        commission = float(trade.get("commission", 0) or 0)
+        margin_used = float(trade.get("marginUsed", 0) or 0)
+
+        # SL / TP extraction
+        sl_order = trade.get("stopLossOrder") or {}
+        tp_order = trade.get("takeProfitOrder") or {}
+        tsl_order = trade.get("trailingStopLossOrder") or {}
+        stop_loss = float(sl_order.get("price", 0) or 0)
+        take_profit = float(tp_order.get("price", 0) or 0)
+        trailing_sl = float(tsl_order.get("distance", 0) or 0)
+
+        # Close reason from close transaction
+        close_reason = ""
+        if state == "CLOSED":
+            # Determine from closing transaction type
+            ct = trade.get("closingTransactionIDs", [])
+            if close_price > 0 and open_price > 0:
+                if stop_loss > 0 and abs(close_price - stop_loss) < 0.01:
+                    close_reason = "STOP_LOSS"
+                elif take_profit > 0 and abs(close_price - take_profit) < 0.01:
+                    close_reason = "TAKE_PROFIT"
+                else:
+                    close_reason = "MARKET_CLOSE"
+
+        # PnL in pips (for USD_JPY: realizedPL / units * 100)
+        pnl_pips = 0.0
+        if initial_units > 0 and state == "CLOSED":
+            # realizedPL is in JPY. For USD_JPY: 1pip = 0.01 * units
+            # pips = realizedPL / (units * 0.01) = realizedPL / units * 100
+            pnl_pips = round(realized_pl / initial_units * 100, 1)
+
+        raw_json = json.dumps(trade, ensure_ascii=False, default=str)
+
+        with self._lock:
+            with self._safe_conn() as conn:
+                conn.execute("""
+                    INSERT OR REPLACE INTO oanda_trades
+                        (oanda_trade_id, instrument, state, direction,
+                         initial_units, current_units, open_price, close_price,
+                         open_time, close_time, realized_pl, unrealized_pl,
+                         financing, commission, stop_loss, take_profit,
+                         trailing_sl, pnl_pips, close_reason, margin_used,
+                         raw_json, synced_at)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
+                """, (tid, instrument, state, direction,
+                      initial_units, current_units, open_price, close_price,
+                      open_time, close_time, realized_pl, unrealized_pl,
+                      financing, commission, stop_loss, take_profit,
+                      trailing_sl, pnl_pips, close_reason, margin_used,
+                      raw_json))
+                conn.commit()
+
+    def get_oanda_trades(self, state: str = "CLOSED", limit: int = 200,
+                         offset: int = 0, date_from: str = None,
+                         date_to: str = None) -> list:
+        """Query OANDA trades with filtering."""
+        query = "SELECT * FROM oanda_trades"
+        params = []
+        conditions = []
+        if state and state.upper() != "ALL":
+            conditions.append("state = ?")
+            params.append(state.upper())
+        if date_from:
+            conditions.append("open_time >= ?")
+            params.append(date_from)
+        if date_to:
+            conditions.append("open_time <= ?")
+            params.append(date_to + "T23:59:59" if len(date_to) == 10 else date_to)
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        query += " ORDER BY open_time DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
+        with self._safe_conn() as conn:
+            rows = conn.execute(query, params).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_oanda_open_trades(self) -> list:
+        """Return all OPEN OANDA trades."""
+        with self._safe_conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM oanda_trades WHERE state='OPEN' ORDER BY open_time DESC"
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def get_oanda_stats(self, date_from: str = None, date_to: str = None) -> dict:
+        """Compute aggregate stats from closed OANDA trades."""
+        query = ("SELECT direction, realized_pl, pnl_pips, financing, close_reason "
+                 "FROM oanda_trades WHERE state='CLOSED'")
+        params = []
+        if date_from:
+            query += " AND open_time >= ?"
+            params.append(date_from)
+        if date_to:
+            query += " AND open_time <= ?"
+            params.append(date_to + "T23:59:59" if len(date_to) == 10 else date_to)
+        with self._safe_conn() as conn:
+            rows = conn.execute(query, params).fetchall()
+
+        if not rows:
+            return {"total": 0, "wins": 0, "losses": 0, "win_rate": 0,
+                    "total_pl_jpy": 0, "total_pl_pips": 0, "avg_pl_jpy": 0,
+                    "avg_pl_pips": 0, "total_financing": 0,
+                    "by_direction": {}, "by_close_reason": {}}
+
+        total = len(rows)
+        wins = sum(1 for r in rows if r["realized_pl"] > 0)
+        losses = sum(1 for r in rows if r["realized_pl"] < 0)
+        be = total - wins - losses
+        total_pl_jpy = sum(r["realized_pl"] for r in rows)
+        total_pl_pips = sum(r["pnl_pips"] for r in rows)
+        total_financing = sum(r["financing"] or 0 for r in rows)
+
+        by_dir = {}
+        for r in rows:
+            d = r["direction"] or "UNKNOWN"
+            if d not in by_dir:
+                by_dir[d] = {"trades": 0, "wins": 0, "pnl_jpy": 0, "pnl_pips": 0}
+            by_dir[d]["trades"] += 1
+            if r["realized_pl"] > 0:
+                by_dir[d]["wins"] += 1
+            by_dir[d]["pnl_jpy"] += r["realized_pl"]
+            by_dir[d]["pnl_pips"] += r["pnl_pips"]
+        for d in by_dir:
+            t = by_dir[d]["trades"]
+            by_dir[d]["win_rate"] = round(by_dir[d]["wins"] / t * 100, 1) if t > 0 else 0
+            by_dir[d]["pnl_jpy"] = round(by_dir[d]["pnl_jpy"], 0)
+            by_dir[d]["pnl_pips"] = round(by_dir[d]["pnl_pips"], 1)
+
+        by_reason = {}
+        for r in rows:
+            cr = r["close_reason"] or "UNKNOWN"
+            if cr not in by_reason:
+                by_reason[cr] = {"trades": 0, "pnl_jpy": 0}
+            by_reason[cr]["trades"] += 1
+            by_reason[cr]["pnl_jpy"] += r["realized_pl"]
+        for cr in by_reason:
+            by_reason[cr]["pnl_jpy"] = round(by_reason[cr]["pnl_jpy"], 0)
+
+        return {
+            "total": total, "wins": wins, "losses": losses, "breakeven": be,
+            "win_rate": round(wins / total * 100, 1),
+            "total_pl_jpy": round(total_pl_jpy, 0),
+            "total_pl_pips": round(total_pl_pips, 1),
+            "avg_pl_jpy": round(total_pl_jpy / total, 0),
+            "avg_pl_pips": round(total_pl_pips / total, 1),
+            "total_financing": round(total_financing, 0),
+            "by_direction": by_dir,
+            "by_close_reason": by_reason,
+        }
+
+    def get_oanda_equity_curve(self, date_from: str = None,
+                               date_to: str = None) -> list:
+        """Return chronological closed trades with cumulative P/L."""
+        query = ("SELECT oanda_trade_id, close_time, realized_pl, pnl_pips, "
+                 "direction, instrument, open_price, close_price "
+                 "FROM oanda_trades WHERE state='CLOSED'")
+        params = []
+        if date_from:
+            query += " AND close_time >= ?"
+            params.append(date_from)
+        if date_to:
+            query += " AND close_time <= ?"
+            params.append(date_to + "T23:59:59" if len(date_to) == 10 else date_to)
+        query += " ORDER BY close_time ASC"
+        with self._safe_conn() as conn:
+            rows = conn.execute(query, params).fetchall()
+
+        curve = []
+        cum_jpy = 0.0
+        cum_pips = 0.0
+        for r in rows:
+            cum_jpy += r["realized_pl"]
+            cum_pips += r["pnl_pips"]
+            curve.append({
+                "time": r["close_time"],
+                "pl_jpy": round(r["realized_pl"], 0),
+                "pl_pips": round(r["pnl_pips"], 1),
+                "cum_jpy": round(cum_jpy, 0),
+                "cum_pips": round(cum_pips, 1),
+            })
+        return curve
+
+    def get_oanda_trade_count(self) -> int:
+        """Return total number of OANDA trades in DB."""
+        with self._safe_conn() as conn:
+            return conn.execute("SELECT COUNT(*) FROM oanda_trades").fetchone()[0]
+
+    def get_oldest_oanda_trade_id(self) -> str:
+        """Return the oldest OANDA trade ID for pagination."""
+        with self._safe_conn() as conn:
+            row = conn.execute(
+                "SELECT oanda_trade_id FROM oanda_trades ORDER BY open_time ASC LIMIT 1"
+            ).fetchone()
+            return row["oanda_trade_id"] if row else ""
