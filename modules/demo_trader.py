@@ -137,7 +137,7 @@ class DemoTrader:
         # チューナブルパラメータ（学習エンジンが調整、全モード共通）
         self._params = {
             "confidence_threshold": 30,  # デモ: 30%（学習データ蓄積優先、本番は40推奨）
-            "max_open_trades": 6,  # 全モード合計上限（20→6: リスク集中防止）
+            "max_open_trades": 1,  # BT統一: 1本ずつ逐次処理（BTは構造上同時1本）
             "sl_adjust": 1.0,
             "tp_adjust": 1.0,
             "entry_type_blacklist": [],
@@ -835,10 +835,8 @@ class DemoTrader:
                     price = _ba_rt["ask"]   # SELL決済 → ask
 
             # ══════════════════════════════════════════════════════════════
-            # ── ブレイクイーブン + 連続トレーリングストップ ──
-            # 70% TP到達 → SLをエントリー価格に移動（BE）
-            # BE後 → SLをTP距離の40%幅でトレーリング
-            # 旧50%/30%ではTP到達前にBE+αで刈られていた（WIN avg+1.2pip）
+            # ── ブレイクイーブン（BT統一: 60% TP到達でBE、トレーリングなし）──
+            # BTと同一ロジック: 60%到達でSL→エントリー価格に移動のみ
             # ══════════════════════════════════════════════════════════════
             tp_dist = abs(tp - entry_price)
             if direction == "BUY":
@@ -850,18 +848,14 @@ class DemoTrader:
             if favorable_move > 0 and tp_dist > 0:
                 progress = favorable_move / tp_dist  # 0.0 ~ 1.0+
 
-                if progress >= 0.70:
-                    # 70%到達: BE + トレーリング開始（50%→70%: 利益をもっと伸ばす）
-                    _trail_dist = tp_dist * 0.40  # TP距離の40%（30%→40%: ノイズ耐性UP）
+                if progress >= 0.60:
+                    # 60%到達: BEのみ（トレーリングなし = BT統一）
                     if direction == "BUY":
-                        # まずBE
-                        new_sl = max(entry_price, price - _trail_dist)
-                        new_sl = round(new_sl, _pip_decimals)
+                        new_sl = round(entry_price, _pip_decimals)
                         if new_sl > sl:
                             sl = new_sl
                     else:
-                        new_sl = min(entry_price, price + _trail_dist)
-                        new_sl = round(new_sl, _pip_decimals)
+                        new_sl = round(entry_price, _pip_decimals)
                         if new_sl < sl:
                             sl = new_sl
 
@@ -1335,13 +1329,8 @@ class DemoTrader:
         for t in mode_trades:
             if abs(t["entry_price"] - current_price) < _same_price_dist:
                 _block(f"same_price_{_same_price_dist*100:.0f}pip"); return
-        # (B) 同方向ポジション上限（モード別）
-        # 同時6本→SL連打の根本原因。全モード1本に制限
-        _dir_limits = {"scalp": 1, "daytrade": 1, "daytrade_1h": 1, "swing": 1}
-        _max_same_dir = _dir_limits.get(_base_mode, 1)
-        _same_dir_count = sum(1 for t in mode_trades if t.get("direction") == signal)
-        if _same_dir_count >= _max_same_dir:
-            _block("same_dir_limit"); return
+        # (B) 同方向ポジション上限 — BT統一: max_open_trades=1で暗黙制御
+        # max_open_trades=1なので、同方向制限は不要（常に0or1本）
 
         # ══════════════════════════════════════════════════════════════
         # ── エントリー理由の品質ゲート ──
@@ -1422,73 +1411,19 @@ class DemoTrader:
         if entry_type in self._params["entry_type_blacklist"]:
             _block(f"blacklisted:{entry_type}"); return
 
-        # ── SL後クールダウン（強化版）──
-        # OANDA実績: SL後の次トレードWR=35% → SL後は必ず間を空ける
+        # ── クールダウン（BT統一: 前ポジ決済後1バー分）──
+        # BT: COOLDOWN=1バー。本番では各TFのバー間隔に合わせる
+        # scalp=60s(1m), DT=30s(15m loop), 1H=60s, swing=300s
         last_ex = self._last_exit.get(mode)
         if last_ex:
             _ex_age = (datetime.now(timezone.utc) - last_ex["time"]).total_seconds()
-            _was_sl = last_ex.get("outcome") == "LOSS"
-
-            # (1) 基本クールダウン: 全決済後に最低間隔
-            _cooldown_sec = {"scalp": 300, "daytrade": 600, "daytrade_1h": 1800, "swing": 7200}.get(_base_mode, 300)
+            _cooldown_sec = {"scalp": 60, "daytrade": 30, "daytrade_1h": 60, "swing": 300}.get(_base_mode, 60)
             if _ex_age < _cooldown_sec:
-                if last_ex["direction"] == signal:
-                    _block(f"cooldown_same_dir({int(_ex_age)}s)"); return
-                _zone_dist = 0.05 if _is_jpy else 0.00050
-                if abs(last_ex["price"] - current_price) < _zone_dist:
-                    _block(f"cooldown_same_zone({int(_ex_age)}s)"); return
+                _block(f"cooldown({int(_ex_age)}s)"); return
 
-            # (2) SL後の強化クールダウン: 同方向は10分、逆方向でも5分
-            if _was_sl:
-                _sl_cooldown_same = {"scalp": 600, "daytrade": 900, "daytrade_1h": 3600, "swing": 7200}.get(_base_mode, 600)
-                _sl_cooldown_opp = {"scalp": 300, "daytrade": 300, "daytrade_1h": 600, "swing": 3600}.get(_base_mode, 300)
-                if last_ex["direction"] == signal and _ex_age < _sl_cooldown_same:
-                    _block(f"sl_cooldown_same({int(_ex_age)}s)"); return
-                if last_ex["direction"] != signal and _ex_age < _sl_cooldown_opp:
-                    _block(f"sl_cooldown_opp({int(_ex_age)}s)"); return
-
-            # (3) LOSS後の同価格帯再エントリー防止（全モード: 10pip以内 + 30分間）
-            if _was_sl:
-                _loss_zone_dist = 0.10 if _is_jpy else 0.00100
-                if _ex_age < 1800 and abs(last_ex["price"] - current_price) < _loss_zone_dist:
-                    _block(f"loss_zone_cooldown({int(_ex_age)}s)"); return
-
-        # ── 最低エントリー間隔（同モード: 5分）──
-        # OANDA実績: 5.9t/h → オーバートレード。3分以内3-4本連打を防止
-        if mode_trades:
-            _newest_entry = max(
-                datetime.fromisoformat(t["entry_time"]).replace(tzinfo=timezone.utc)
-                if datetime.fromisoformat(t["entry_time"]).tzinfo is None
-                else datetime.fromisoformat(t["entry_time"])
-                for t in mode_trades
-            )
-            _entry_age = (datetime.now(timezone.utc) - _newest_entry).total_seconds()
-            _min_interval = {"scalp": 300, "daytrade": 300, "daytrade_1h": 600, "swing": 3600}.get(_base_mode, 300)
-            if _entry_age < _min_interval:
-                _block(f"min_interval({int(_entry_age)}s)"); return
-
-        # ── 時間帯×モード別フィルター ──
-        # アジア(00-07): レンジ → DT禁止（スキャルプのみ）
-        # ロンドン(07-12): トレンド → 全モードOK
-        # NY重複(12-16): 高ボラ+反転 → DT bounce系注意（ADXで制御済み）
-        # NY後半(16-21): ボラ低下 → スキャルプ中心
-        # クローズ(21-00): スプレッド拡大 → 全モード非推奨
-        try:
-            hour_now = datetime.now(timezone.utc).hour
-            # モード別時間帯制限
-            if mode == "daytrade":
-                if hour_now < 5 or hour_now >= 22:  # UTC5-22: 頻度維持（フィルターはHTF側で制御）
-                    _block(f"session_block(h={hour_now})"); return
-            elif mode == "daytrade_1h":
-                if hour_now < 3 or hour_now >= 22:
-                    _block(f"session_block(h={hour_now})"); return
-            # scalp/swingは時間帯制限なし（デモモード: データ蓄積優先）
-            # ── UTC 20-21 全モード制限: OANDA実績で-20.3pip集中帯 ──
-            if 20 <= hour_now <= 21:
-                if _base_mode in ("scalp", "daytrade"):
-                    _block(f"utc2021_block(h={hour_now})"); return
-        except Exception:
-            pass
+        # ── 時間帯フィルター: BT統一 = 制限なし ──
+        # BTは時間帯制限なしで WR=56.2%。1本逐次処理なら時間帯問わず利益出る
+        # (シグナル関数側のセッションフィルターは維持)
 
         # ── 連敗制御: 同方向N連敗で一時停止 ──
         max_cl = self._params.get("max_consecutive_losses", 3)
