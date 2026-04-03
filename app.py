@@ -4180,7 +4180,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         MIN_BARS = 200  # compute_scalp_signalに必要な最小バー数
 
         # ── 5m補完: sr_channel_reversal / macdh_reversal 用の5mデータ ──
-        _5M_ONLY_TYPES = {"macdh_reversal", "fib_reversal"}  # sr_channel_reversal除外(7d BTで赤字)
+        _5M_ONLY_TYPES = {"macdh_reversal", "fib_reversal", "ema_pullback"}  # sr_channel_reversal除外(7d BTで赤字)
         _df_5m = None
         _sr_5m_cache = {}
         if interval == "1m":
@@ -4267,15 +4267,16 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             # ── エントリー理由の品質ゲート（本番と統一）──
             QUALIFIED_TYPES = {
-                # 2026-04-03 FXアナリストレビュー統廃合 (本番と統一)
+                # 2026-04-03 FXアナリストレビュー統廃合 + シグナル頻度改善
                 "bb_rsi_reversion", "bb_squeeze_breakout",
                 "london_breakout", "stoch_trend_pullback",
                 "macdh_reversal",
                 "tokyo_bb",
                 "mtf_reversal_confluence",
-                # DISABLED: fib_reversal, v_reversal → bb_rsi統合予定
-                # DISABLED: trend_rebound, ihs_neckbreak, sr_touch_bounce
-                # DISABLED: rsi_divergence_sr, v1互換6種
+                "fib_reversal",     # フィボ反発 — BB中央補完
+                "ema_pullback",     # EMAプルバック — BB中央帯発火
+                # DISABLED: v_reversal, trend_rebound, ihs_neckbreak
+                # DISABLED: sr_touch_bounce, rsi_divergence_sr, v1互換6種
             }
             BLOCKED_TYPES = {"unknown", "momentum", "wait"}
 
@@ -6860,7 +6861,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     #  根拠: ADX≥25のトレンド相場（全時間の63%）でStochの一時的逆行から回復
     #  条件: 明確なトレンド + EMA整列 + Stochが極値から回復
     # ════════════════════════════════════════════════════════
-    if adx >= 18 and not _is_friday and len(df) >= 5:  # ADX 20→18 (頻度増)
+    if adx >= 15 and not _is_friday and len(df) >= 5:  # ADX 18→15 (FXアナリスト推奨: 弱トレンド帯でも発火)
         _st_reasons = []
         _st_signal = None
         _st_score = 0.0
@@ -6876,9 +6877,9 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 and bbpb > 0.15 and bbpb < 0.65  # 範囲拡大 (0.20-0.60 → 0.15-0.65)
                 ):
             _st_signal = "BUY"
-            _st_score = 3.2 + min((adx - 18) * 0.04, 0.8)
+            _st_score = 3.2 + min((adx - 15) * 0.04, 0.8)
             _st_reasons.append(f"✅ トレンドプルバック: Stoch売られすぎ回復(K={stoch_k:.0f}, 前={_prev_stoch_k:.0f})")
-            _st_reasons.append(f"✅ 上昇トレンド確認 (EMA9>21, ADX={adx:.1f}≥18)")
+            _st_reasons.append(f"✅ 上昇トレンド確認 (EMA9>21, ADX={adx:.1f}≥15)")
             _st_reasons.append(f"✅ Stochゴールデンクロス(K>D: {stoch_k:.0f}>{stoch_d:.0f})")
             _st_tp = entry + atr7 * 1.8
             _st_sl = entry - atr7 * 0.8
@@ -6892,16 +6893,20 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 and bbpb > 0.35 and bbpb < 0.85  # 範囲拡大 (0.40-0.80 → 0.35-0.85)
                 ):
             _st_signal = "SELL"
-            _st_score = 3.2 + min((adx - 18) * 0.04, 0.8)
+            _st_score = 3.2 + min((adx - 15) * 0.04, 0.8)
             _st_reasons.append(f"✅ トレンドプルバック: Stoch買われすぎ回復(K={stoch_k:.0f}, 前={_prev_stoch_k:.0f})")
-            _st_reasons.append(f"✅ 下降トレンド確認 (EMA9<21, ADX={adx:.1f}≥18)")
+            _st_reasons.append(f"✅ 下降トレンド確認 (EMA9<21, ADX={adx:.1f}≥15)")
             _st_reasons.append(f"✅ Stochデッドクロス(K<D: {stoch_k:.0f}<{stoch_d:.0f})")
             _st_tp = entry - atr7 * 1.8
             _st_sl = entry + atr7 * 0.8
 
         if _st_signal:
             _st_conf = int(min(80, 45 + _st_score * 4))
-            _st_reasons.append(f"📊 レジーム: トレンド(ADX={adx:.1f}≥20)")
+            # ADX 15-18帯はグラデーション減衰（FXアナリスト推奨）
+            if adx < 18:
+                _st_conf = int(_st_conf * 0.9)
+                _st_reasons.append(f"⚠️ ADX弱トレンド帯({adx:.1f}<18) → conf×0.9")
+            _st_reasons.append(f"📊 レジーム: トレンド(ADX={adx:.1f}≥15)")
             candidates.append((_st_signal, _st_conf, _st_sl, _st_tp,
                                _st_reasons, "stoch_trend_pullback", _st_score))
 
@@ -7633,6 +7638,77 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             candidates.append((_mtfr_signal, _mtfr_conf, _mtfr_sl, _mtfr_tp,
                                _mtfr_reasons, "mtf_reversal_confluence", _mtfr_score))
 
+    # ════════════════════════════════════════════════════════
+    #  戦略14: EMA Pullback（トレンド方向のEMAプルバック反発）
+    #  根拠: 確立済みトレンドへの再参入（EMAクロスとは異なりバウンス確認後エントリー）
+    #  条件: EMA完全整列 + 価格がEMA9-21間にプルバック + 反発兆候
+    #  FXアナリスト推奨: BB中央滞在(50-60%の時間)でも発火可能な唯一の戦略
+    # ════════════════════════════════════════════════════════
+    if adx >= 15 and not _is_friday and len(df) >= 5:
+        _ep_reasons = []
+        _ep_signal = None
+        _ep_score = 0.0
+
+        _prev_close_ep = float(df.iloc[-2]["Close"]) if len(df) >= 2 else entry
+        _prev_open_ep = float(df.iloc[-2]["Open"]) if len(df) >= 2 else entry
+        _prev_low = float(df.iloc[-2]["Low"]) if len(df) >= 2 else entry
+        _prev_high = float(df.iloc[-2]["High"]) if len(df) >= 2 else entry
+
+        # BUY: 上昇トレンド + EMA21付近へのプルバック + 反発
+        if (ema9 > ema21 and ema21 > ema50  # EMA完全整列
+                and entry >= ema21  # EMA21の上に戻った（反発確認）
+                and _prev_low <= ema9  # 前バーがEMA9以下にタッチ（プルバック確認）
+                and _prev_low >= ema21 - atr7 * 0.3  # EMA21を大きく割っていない
+                and entry > _prev_close_ep  # 現バー陽線方向（反発兆候）
+                and rsi5 > 38 and rsi5 < 58  # 売られすぎ方向だがまだ健全
+                and bbpb > 0.20 and bbpb < 0.65  # BB中央帯
+                ):
+            _ep_signal = "BUY"
+            _ep_score = 3.0 + min((adx - 15) * 0.05, 1.0)
+            _ep_reasons.append(f"✅ EMAプルバック反発: EMA9({ema9:.3f})タッチ→反発")
+            _ep_reasons.append(f"✅ EMA完全整列 (9>21>50, ADX={adx:.1f})")
+            _ep_reasons.append(f"✅ 陽線反発確認 ({entry:.3f}>{_prev_close_ep:.3f})")
+            if _prev_low <= ema21 + atr7 * 0.1:
+                _ep_score += 0.5
+                _ep_reasons.append(f"✅ EMA21深押し(Low={_prev_low:.3f})")
+            if stoch_k > stoch_d:
+                _ep_score += 0.3
+                _ep_reasons.append(f"✅ Stochゴールデンクロス")
+            _ep_tp = entry + atr7 * 1.8
+            _ep_sl = ema21 - atr7 * 0.3
+
+        # SELL: 下降トレンド + EMA21付近への戻り + 反落
+        elif (ema9 < ema21 and ema21 < ema50  # EMA逆整列
+                and entry <= ema21  # EMA21の下に戻った（反落確認）
+                and _prev_high >= ema9  # 前バーがEMA9以上にタッチ（戻り確認）
+                and _prev_high <= ema21 + atr7 * 0.3  # EMA21を大きく超えていない
+                and entry < _prev_close_ep  # 現バー陰線方向（反落兆候）
+                and rsi5 > 42 and rsi5 < 62  # 買われすぎ方向だがまだ健全
+                and bbpb > 0.35 and bbpb < 0.80  # BB中央帯
+                ):
+            _ep_signal = "SELL"
+            _ep_score = 3.0 + min((adx - 15) * 0.05, 1.0)
+            _ep_reasons.append(f"✅ EMAプルバック反落: EMA9({ema9:.3f})タッチ→反落")
+            _ep_reasons.append(f"✅ EMA逆整列 (9<21<50, ADX={adx:.1f})")
+            _ep_reasons.append(f"✅ 陰線反落確認 ({entry:.3f}<{_prev_close_ep:.3f})")
+            if _prev_high >= ema21 - atr7 * 0.1:
+                _ep_score += 0.5
+                _ep_reasons.append(f"✅ EMA21深戻り(High={_prev_high:.3f})")
+            if stoch_k < stoch_d:
+                _ep_score += 0.3
+                _ep_reasons.append(f"✅ Stochデッドクロス")
+            _ep_tp = entry - atr7 * 1.8
+            _ep_sl = ema21 + atr7 * 0.3
+
+        if _ep_signal:
+            _ep_conf = int(min(75, 40 + _ep_score * 4))
+            # ADX 15-18帯はグラデーション減衰
+            if adx < 18:
+                _ep_conf = int(_ep_conf * 0.9)
+                _ep_reasons.append(f"⚠️ ADX弱トレンド帯({adx:.1f}<18) → conf×0.9")
+            candidates.append((_ep_signal, _ep_conf, _ep_sl, _ep_tp,
+                               _ep_reasons, "ema_pullback", _ep_score))
+
     # ──────────────────────────────────────────────────────────
     #  最良候補の選択: スコア最大の戦略を採用
     # ──────────────────────────────────────────────────────────
@@ -7692,25 +7768,30 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             score += 0.8
             reasons.append(f"✅ EMA200レジスタンスバウンス(dist={_ema200_dist:.2f}ATR)")
 
-    # ── HTF方向フィルター: 逆行シグナルを完全ブロック（DT同様ハードフィルター）──
+    # ── HTF方向フィルター: 逆行シグナルの制御 ──
     # 本番実績: macdh_reversal|SELL WR=0%(5t -15.4p) — ソフト減衰では阻止不能
     # bb_rsi_reversion は平均回帰戦略 → ハードブロック対象外（本番WR=57%維持）
+    # FXアナリスト推奨: RANGE時はHTFの信頼性低下 → ソフトペナルティに切替
     htf_dir = htf.get("agreement", "neutral")
+    _is_range_regime = regime.get("regime") == "RANGE"
     if entry_type not in _mean_reversion_types:
-        if htf_dir == "bull" and signal == "SELL":
-            signal = "WAIT"
-            reasons.append("🚫 HTF上昇一致 → SELL完全ブロック")
-            return {"signal": "WAIT", "confidence": 0, "reasons": reasons,
-                    "entry_type": entry_type, "sl": sl, "tp": tp, "atr": atr7,
-                    "indicators": {"rsi": rsi5, "bbpb": bbpb, "adx": adx}}
-        elif htf_dir == "bear" and signal == "BUY":
-            signal = "WAIT"
-            reasons.append("🚫 HTF下降一致 → BUY完全ブロック")
-            return {"signal": "WAIT", "confidence": 0, "reasons": reasons,
-                    "entry_type": entry_type, "sl": sl, "tp": tp, "atr": atr7,
-                    "indicators": {"rsi": rsi5, "bbpb": bbpb, "adx": adx}}
+        _htf_contrary = (htf_dir == "bull" and signal == "SELL") or (htf_dir == "bear" and signal == "BUY")
+        if _htf_contrary:
+            if _is_range_regime:
+                # レンジ相場: HTF方向の信頼性低下 → ソフトペナルティ（ブロックしない）
+                score *= 0.80
+                conf = int(conf * 0.85)
+                reasons.append(f"⚠️ HTF逆行(レンジ相場→ソフト減衰, ADX={adx:.1f})")
+            else:
+                # トレンド相場: 従来通りハードブロック
+                signal = "WAIT"
+                _dir_label = "SELL" if htf_dir == "bull" else "BUY"
+                reasons.append(f"🚫 HTF{'上昇' if htf_dir == 'bull' else '下降'}一致 → {_dir_label}完全ブロック")
+                return {"signal": "WAIT", "confidence": 0, "reasons": reasons,
+                        "entry_type": entry_type, "sl": sl, "tp": tp, "atr": atr7,
+                        "indicators": {"rsi": rsi5, "bbpb": bbpb, "adx": adx}}
     else:
-        # 平均回帰戦略: ソフトペナルティのみ適用
+        # 平均回帰戦略: ソフトペナルティのみ適用（トレンド/レンジ問わず）
         if (htf_dir == "bull" and signal == "SELL") or (htf_dir == "bear" and signal == "BUY"):
             score *= 0.85
             conf = int(conf * 0.90)

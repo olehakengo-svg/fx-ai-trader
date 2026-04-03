@@ -1257,7 +1257,7 @@ class DemoTrader:
             # ── 5m補完: sr_channel_reversal / macdh_reversal は5mの方が高EV ──
             # 1m: WR=48.5%/-0.162, WR=46.7%/-0.023
             # 5m: WR=63.6%/+0.318, WR=78.4%/+0.722
-            _5M_ONLY_STRATEGIES = {"macdh_reversal", "fib_reversal"}  # sr_channel_reversal除外(7d BTで赤字)
+            _5M_ONLY_STRATEGIES = {"macdh_reversal", "fib_reversal", "ema_pullback"}  # sr_channel_reversal除外(7d BTで赤字)
             if mode in ("scalp", "scalp_eur") and sig.get("signal") == "WAIT":
                 try:
                     df_5m = fetch_ohlcv(symbol, period="5d", interval="5m")
@@ -1407,7 +1407,7 @@ class DemoTrader:
         # 明確な技術的根拠を持つエントリータイプ
         # 2026-04-03 FXアナリストレビューで33→9戦略に統廃合
         QUALIFIED_TYPES = {
-            # ═══ スキャルプ (7戦略) ═══
+            # ═══ スキャルプ (9戦略) ═══
             "bb_rsi_reversion",      # BB+RSI平均回帰 — 主力 (318t WR59% EV+0.26)
             "macdh_reversal",        # MACD-H方向転換 — ライブEV正 (171t WR59% EV+0.21)
             "stoch_trend_pullback",  # Stochトレンドプルバック — 最高効率 (85t WR64% EV+0.59)
@@ -1415,8 +1415,9 @@ class DemoTrader:
             "london_breakout",       # ロンドン開場ブレイクアウト 07-09UTC
             "tokyo_bb",              # 東京BB（金曜ブロック）
             "mtf_reversal_confluence",  # MTF RSI+MACD一致（ライブ専用）
+            "fib_reversal",          # フィボ38.2-61.8%反発 — BB中央補完 (BT 61t WR57% EV+0.29)
+            "ema_pullback",          # EMAプルバック反発 — BB中央帯でも発火 (FXアナリスト推奨新戦略)
             # DISABLED (FXアナリストレビュー 2026-04-03):
-            # "fib_reversal",        # → bb_rsi統合予定 (デモEV=-3.77)
             # "v_reversal",          # → bb_rsi統合予定 (サンプル5t)
             # "trend_rebound",       # 廃止: 1t EV=-1.22, 実質未発火
             # "ihs_neckbreak",       # 廃止: 1m足でパターン認識不適
