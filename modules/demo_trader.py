@@ -27,6 +27,7 @@ MODE_CONFIG = {
         "icon": "📊",
         "symbol": "USDJPY=X",
         "instrument": "USD_JPY",
+        "base_sl_pips": 15,
     },
     "scalp": {
         "interval_sec": 10,       # 10秒ごとにシグナルチェック
@@ -37,6 +38,7 @@ MODE_CONFIG = {
         "icon": "⚡",
         "symbol": "USDJPY=X",
         "instrument": "USD_JPY",
+        "base_sl_pips": 3.5,
     },
     # "swing": DISABLED — BT WR=36.7% EV=+0.154 WF=2/3, 本番0トレード
     # 他3モード(scalp/DT/1H)の平均WR=59.4%に対し足を引っ張るため無効化
@@ -60,6 +62,7 @@ MODE_CONFIG = {
         "symbol": "USDJPY=X",
         "instrument": "USD_JPY",
         "auto_start": True,
+        "base_sl_pips": 30,
     },
     # ── EUR/USD modes ──
     "scalp_eur": {
@@ -72,6 +75,7 @@ MODE_CONFIG = {
         "symbol": "EURUSD=X",
         "instrument": "EUR_USD",
         "auto_start": True,
+        "base_sl_pips": 3.5,
     },
     "daytrade_eur": {
         "interval_sec": 30,
@@ -83,6 +87,7 @@ MODE_CONFIG = {
         "symbol": "EURUSD=X",
         "instrument": "EUR_USD",
         "auto_start": True,
+        "base_sl_pips": 15,
     },
     "daytrade_1h_eur": {
         "interval_sec": 60,
@@ -94,8 +99,30 @@ MODE_CONFIG = {
         "symbol": "EURUSD=X",
         "instrument": "EUR_USD",
         "auto_start": True,
+        "base_sl_pips": 30,
+    },
+    "scalp_eurjpy": {
+        "interval_sec": 10,
+        "tf": "1m",
+        "period": "1d",
+        "signal_fn": "compute_scalp_signal",
+        "label": "スキャルプEUR/JPY",
+        "icon": "⚡💶",
+        "symbol": "EURJPY=X",
+        "instrument": "EUR_JPY",
+        "auto_start": True,
+        "base_sl_pips": 3.5,
+        "active_hours_utc": (12, 15),  # UTC 12-15 only (London/NY overlap)
     },
 }
+
+# ── ベースモード抽出ヘルパー ──
+# scalp_eur -> scalp, scalp_eurjpy -> scalp, daytrade_1h_eur -> daytrade_1h
+def _get_base_mode(mode: str) -> str:
+    for suffix in ("_eurjpy", "_eur"):  # _eurjpy first (longer match priority)
+        if mode.endswith(suffix):
+            return mode[:-len(suffix)]
+    return mode
 
 # SL/TPチェック間隔（秒）— シグナル計算とは独立して高頻度実行
 # 旧2秒 → 0.5秒: スリッページ削減（本番で50%のSL_HITが0.5p超過していた）
@@ -533,7 +560,7 @@ class DemoTrader:
 
                 # 全モードを強制チェック（EUR含む）
                 _all_modes = ["scalp", "daytrade", "daytrade_1h", "swing",
-                              "scalp_eur", "daytrade_eur"]
+                              "scalp_eur", "daytrade_eur", "scalp_eurjpy"]
                 for m in _all_modes:
                     if m in self._user_stopped_modes:
                         continue  # ユーザーが明示的に停止したモードはスキップ
@@ -809,6 +836,7 @@ class DemoTrader:
 
         # EUR/USD用MAX_HOLD追加
         MAX_HOLD_SEC["scalp_eur"] = 1800
+        MAX_HOLD_SEC["scalp_eurjpy"] = 1800
         MAX_HOLD_SEC["daytrade_eur"] = 28800
         MAX_HOLD_SEC["daytrade_1h_eur"] = 64800
 
@@ -937,7 +965,7 @@ class DemoTrader:
                         entry_time_c1 = entry_time_c1.replace(tzinfo=timezone.utc)
                     _hold_c1 = (datetime.now(timezone.utc) - entry_time_c1).total_seconds()
                     _mode_c1 = mode or {"1m": "scalp", "15m": "daytrade", "4h": "swing"}.get(tf, "")
-                    _max_c1 = MAX_HOLD_SEC.get(_mode_c1, MAX_HOLD_SEC.get(_mode_c1.replace("_eur", ""), 1800))
+                    _max_c1 = MAX_HOLD_SEC.get(_mode_c1, MAX_HOLD_SEC.get(_get_base_mode(_mode_c1), 1800))
                     _half_hold = _max_c1 * 0.5
                     if _hold_c1 > _half_hold:
                         _in_loss = (direction == "BUY" and price < entry_price) or \
@@ -1201,10 +1229,18 @@ class DemoTrader:
         if self._is_fx_market_closed():
             return
 
+        # ── 時間帯フィルター (EUR/JPY等の限定稼働) ──
+        _active_hours = cfg.get("active_hours_utc")
+        if _active_hours is not None:
+            from datetime import datetime, timezone
+            _now_utc = datetime.now(timezone.utc)
+            if not (_active_hours[0] <= _now_utc.hour <= _active_hours[1]):
+                return  # 稼働時間外はスキップ
+
         # Import here to avoid circular imports
         from app import fetch_ohlcv, add_indicators, find_sr_levels
 
-        _base_mode_fn = mode.replace("_eur", "")
+        _base_mode_fn = _get_base_mode(mode)
         if _base_mode_fn == "daytrade":
             from app import compute_daytrade_signal as compute_fn
         elif _base_mode_fn == "swing":
@@ -1256,7 +1292,7 @@ class DemoTrader:
             # 1m: WR=48.5%/-0.162, WR=46.7%/-0.023
             # 5m: WR=63.6%/+0.318, WR=78.4%/+0.722
             _5M_ONLY_STRATEGIES = {"macdh_reversal", "fib_reversal", "ema_pullback"}  # sr_channel_reversal除外(7d BTで赤字)
-            if mode in ("scalp", "scalp_eur") and sig.get("signal") == "WAIT":
+            if mode in ("scalp", "scalp_eur", "scalp_eurjpy") and sig.get("signal") == "WAIT":
                 try:
                     df_5m = fetch_ohlcv(symbol, period="5d", interval="5m")
                     df_5m = add_indicators(df_5m)
@@ -1301,7 +1337,7 @@ class DemoTrader:
         """_tickの後半: エントリー判定・実行。例外は呼び出し元でキャッチ。"""
         current_price = sig.get("entry", 0)
         signal = sig.get("signal", "WAIT")
-        _base_mode = mode.replace("_eur", "")  # scalp_eur -> scalp (共通パラメータ参照用)
+        _base_mode = _get_base_mode(mode)  # scalp_eur/scalp_eurjpy -> scalp
 
         # ── OANDAスプレッド反映: bid/askで実際のエントリー価格を使用 ──
         # BUY → ask価格, SELL → bid価格（OANDAと同じ約定価格）
@@ -1379,12 +1415,12 @@ class DemoTrader:
         # scalp/DT/1H/swingが独立してポジションを持てる
         # scalp: 高頻度のため2本まで（シグナル方向転換に対応）
         # DT/1H/swing: 1本ずつ
-        _base_mode = mode.replace("_eur", "")
+        _base_mode = _get_base_mode(mode)
         _mode_limits = {"scalp": 2, "daytrade": 1, "daytrade_1h": 1, "swing": 1}
         _mode_limit = _mode_limits.get(_base_mode, 1)
         _mode_inst_trades = [t for t in open_trades
                             if t.get("instrument", "USD_JPY") == instrument
-                            and t.get("mode", "").replace("_eur", "") == _base_mode]
+                            and _get_base_mode(t.get("mode", "")) == _base_mode]
         if len(_mode_inst_trades) >= _mode_limit:
             _block(f"max_per_mode_pair({_base_mode}/{instrument}:{len(_mode_inst_trades)}/{_mode_limit})"); return
         # グローバル安全上限（全通貨ペア・全モード合計）
@@ -1684,7 +1720,7 @@ class DemoTrader:
             else:
                 tp = current_price - tp_dist
 
-        _base_mode = mode.replace("_eur", "")  # scalp_eur -> scalp
+        _base_mode = _get_base_mode(mode)  # scalp_eur/scalp_eurjpy -> scalp
         _is_jpy = "JPY" in instrument
         _price_dec = 3 if _is_jpy else 5
         _atr = sig.get("atr", 0.07 if _is_jpy else 0.00070)
@@ -1908,14 +1944,39 @@ class DemoTrader:
             cooldown_elapsed=_cd_elapsed,
         )
 
-        # ── SL狩り対策D1: SL距離連動ロットサイジング ──
-        # SL距離が基準より広い場合、ロットを比例縮小してリスク額を一定に保つ
+        # ── 動的ロットサイジング: 2軸制御 (SL距離 + ATR/Spread) ──
+        # Axis 1: SL距離連動 — リスク額正規化 (既存)
+        # Axis 2: ATR/Spread比 — エッジ品質に応じた加速/減速 (新規)
         import os as _os
-        _base_sl_pips = 3.5  # 基準SL距離(pips)
+        _cfg_lot = MODE_CONFIG.get(mode, {})
+        _base_sl_pips = _cfg_lot.get("base_sl_pips", 3.5)
         _pip_m_d1 = 100 if _is_jpy else 10000
         _actual_sl_pips = sl_dist * _pip_m_d1
-        _lot_ratio = min(_base_sl_pips / max(_actual_sl_pips, 0.5), 1.5)
-        _lot_ratio = max(_lot_ratio, 0.5)
+
+        # Axis 1: SL距離連動
+        _sl_ratio = min(_base_sl_pips / max(_actual_sl_pips, 0.5), 1.5)
+        _sl_ratio = max(_sl_ratio, 0.5)
+
+        # Axis 2: ATR/Spread比 (Edge Quality)
+        _atr_val = sig.get("atr", 0.07 if _is_jpy else 0.00070)
+        _atr_pips = _atr_val * _pip_m_d1
+        _spread_pips = _spread_entry if _spread_entry > 0 else (0.4 if _is_jpy else 0.4)  # already in pips
+        _edge_ratio = _atr_pips / max(_spread_pips, 0.1)
+
+        if _edge_ratio >= 15:
+            _vol_mult = 1.5    # 最強エッジ (USD/JPY scalp typical)
+        elif _edge_ratio >= 10:
+            _vol_mult = 1.3
+        elif _edge_ratio >= 6:
+            _vol_mult = 1.0    # 中立
+        elif _edge_ratio >= 3:
+            _vol_mult = 0.7
+        else:
+            _vol_mult = 0.5    # 最弱 (スプレッド負けリスク)
+
+        _lot_ratio = _sl_ratio * _vol_mult
+        _lot_ratio = max(0.3, min(_lot_ratio, 2.0))
+
         _base_units = int(_os.environ.get("OANDA_UNITS", "10000"))
         _adjusted_units = int(_base_units * _lot_ratio)
         _adjusted_units = max(1000, (_adjusted_units // 1000) * 1000)
@@ -1964,7 +2025,7 @@ class DemoTrader:
         _price_fmt = ".3f" if "JPY" in _instrument_sr else ".5f"
 
         # 最低保持時間チェック（scalp:3分, daytrade:10分, swing:1時間）
-        _base_mode_sr = mode.replace("_eur", "")
+        _base_mode_sr = _get_base_mode(mode)
         min_hold_sec = {"scalp": 180, "daytrade": 600, "daytrade_1h": 1800, "swing": 3600}.get(_base_mode_sr, 180)
         try:
             entry_time = datetime.fromisoformat(trade["entry_time"])

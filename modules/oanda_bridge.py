@@ -28,7 +28,7 @@ class OandaBridge:
         self._max_errors = 20
 
     # デフォルト全モード（OANDA_MODES未設定 かつ DB設定なし の場合）
-    _ALL_MODES = {"scalp", "daytrade", "daytrade_1h", "scalp_eur", "daytrade_eur", "daytrade_1h_eur"}
+    _ALL_MODES = {"scalp", "daytrade", "daytrade_1h", "scalp_eur", "daytrade_eur", "daytrade_1h_eur", "scalp_eurjpy"}
 
     def _load_allowed_modes(self) -> set:
         """DB永続 > 環境変数 > 全モード許可 の優先順で読み込み."""

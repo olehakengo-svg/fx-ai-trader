@@ -44,7 +44,8 @@
 | scalp | 1m | 10s | 60s (1 bar, EXIT-based) | Active |
 | daytrade | 15m | 30s | 900s (1 bar, EXIT-based) | Active |
 | daytrade_1h | 1h | 60s | 3600s (EXIT-based) | **Active** — HourlyEngine v5.0 (KSB+DMB) |
-| swing | 4h | 300s | 14400s (1 bar, EXIT-based) | Active |
+| scalp_eurjpy | 1m | 10s | 60s (EXIT-based) | **Active** — UTC 12-15限定, bb_rsi |
+| swing | 4h | 300s | 14400s (1 bar, EXIT-based) | Disabled |
 
 ## Daily Target
 - **目標: 100 pips/日（±20 許容 = 80〜120 pips/日）**
@@ -56,6 +57,7 @@
 - DT USD/JPY: **155t WR=67.1% Sharpe=3.42** (55d, 15m, +TNM)
 - **1H EUR/USD: 70t WR=50% +483pip** (120d, 1h, KSB+DMB)
 - **1H USD/JPY: 40t WR=35% +181pip** (120d, 1h, DMB only, SELL非対称フィルター)
+- **Scalp EUR/JPY: 250t WR=45.6% +300pip EV=+1.20** (60d, 5m, UTC 12-15限定)
 - Swing: 346t WR=36.7% EV=+0.154 WF=2/3 (730d, 1d)
 
 ## Scalp v3.2 Strategy Breakdown (7d BT, bb_rsi Option C適用後)
@@ -138,7 +140,7 @@
 - **Spike detection**: >0.5ATR move in 60s blocks entry
 - **Round number SL avoidance**: .000/.500 nearby SL shifted 2.5pip outward
 - **Time-based retreat**: 50% hold elapsed + unrealized loss -> early exit before SL (TIME_DECAY_EXIT)
-- **SL-distance lot sizing**: OANDA lot 0.5-1.5x based on SL vs 3.5pip reference
+- **動的ロットサイジング (2軸)**: Axis1=SL距離連動(base_sl_pips/actual_sl), Axis2=ATR/Spread比(edge_ratio→vol_mult 0.5-1.5x), combined 0.3-2.0x
 - **SL cluster avoidance**: New SL within 2pip of existing position SL -> entry blocked
 - **SL technical positioning**: SR-based (nearest SR - ATRx0.3) priority over ATR-based. RR>=1.0 guaranteed
 
@@ -189,6 +191,23 @@
 - **SL**: don_mid48 ± ATR×0.3, max ATR×1.5
 - **USD/JPY SELL非対称フィルター**: ADX≥25 + 1D EMA50 falling required (金利差逆行対策)
 - **Freshness check**: Previous bar must not have already broken Donchian
+
+## EUR/JPY Scalp Mode (Active since 2026-04-05)
+- **Architecture**: 既存compute_scalp_signal + UTC 12-15ハードフィルター (active_hours_utc in MODE_CONFIG)
+- **ペア**: EUR/JPY (EURJPY=X / EUR_JPY)
+- **稼働時間**: UTC 12-15のみ (London/NY overlap, spread最狭1.5pip)
+- **BT**: 250t WR=45.6% +300pip EV=+1.20/trade (60d, 5m検証)
+- **BT 1m**: 118t WR=61.9% +115pip EV=+0.97/trade (7d)
+- **根拠**: UTC 15 = London fixing反転効果 (全利益の60%, EV=+3.14/trade)
+- **ロット**: ATR/Spread比 ~3.3 → vol_mult=0.7 → 自動的に0.6x前後に縮小
+
+## Volatility Adaptive Lot Sizing (Active since 2026-04-05)
+- **2軸制御**: Axis1 SL距離(base_sl_pips/actual_sl, 0.5-1.5) × Axis2 ATR/Spread比(vol_mult 0.5-1.5)
+- **Final**: clamp(sl_ratio × vol_mult, 0.3, 2.0)
+- **base_sl_pips**: scalp=3.5, DT=15, 1H=30 (MODE_CONFIG per-mode)
+- **edge_ratio thresholds**: ≥15→1.5x, ≥10→1.3x, ≥6→1.0x, ≥3→0.7x, <3→0.5x
+- **効果**: USD/JPY scalp (edge_ratio~17) → 1.5x boost, EUR/JPY (ratio~3) → 0.7x reduce
+- **_get_base_mode()**: mode suffix removal helper (scalp_eur→scalp, scalp_eurjpy→scalp)
 
 ## Production Monitoring (P0 — Active since 2026-04-04)
 - **Slippage**: signal_price vs entry_price diff (pips) -> DB column `slippage_pips` + log
