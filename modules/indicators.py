@@ -56,6 +56,20 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     # ドンチアン位置 (0=下限付近, 1=上限付近)
     don_range = (df["don_high20"] - df["don_low20"]).replace(0, np.nan)
     df["don_pct"]    = (c - df["don_low20"]) / don_range
+    # ドンチアンチャネル48本 — 1H用: ≈2営業日レンジ (Dennis & Eckhardt 1983)
+    df["don_high48"] = df["High"].rolling(48).max()
+    df["don_low48"]  = df["Low"].rolling(48).min()
+    df["don_mid48"]  = (df["don_high48"] + df["don_low48"]) / 2
+    don_range48 = (df["don_high48"] - df["don_low48"]).replace(0, np.nan)
+    df["don_pct48"]  = (c - df["don_low48"]) / don_range48
+    # ケルトナーチャネル — EMA(20) ± ATR(14) × 1.5 (Keltner 1960 / Bollinger 2001)
+    _kelt_mid = EMAIndicator(c, window=20).ema_indicator()
+    df["kelt_upper"] = _kelt_mid + df["atr"] * 1.5
+    df["kelt_lower"] = _kelt_mid - df["atr"] * 1.5
+    df["kelt_mid"]   = _kelt_mid
+    # BBスクイーズ検出: BB(20,2)がKeltner内に収縮 = True
+    df["squeeze_on"] = (df["bb_upper"] < df["kelt_upper"]) & \
+                       (df["bb_lower"] > df["kelt_lower"])
     # EMA200のウォームアップ期間のみNaN除去（先頭200行）
     # 全行dropna()だとデータの40%が消失するため、
     # 必須列のみでsubsetを指定して最小限の削除にとどめる

@@ -3439,6 +3439,175 @@ def compute_1h_zone_signal(df: pd.DataFrame,
 
 
 # ═══════════════════════════════════════════════════════
+#  1Hブレイクアウトシグナル — HourlyEngine (KSB + DMB)
+#  v5.0: 2戦略統合、StrategyBase/Engineパターン
+#  学術根拠:
+#   - Bollinger (2001): BB squeeze → Keltnerブレイク
+#   - Dennis & Eckhardt (1983): ドンチアン48レンジブレイク
+#   - Brock, Lakonishok & LeBaron (1992): チャネルブレイクアウト統計的有意性
+#   KSB: EUR/USD専用 (10t WR=50% +92pip/120d)
+#   DMB: EUR/USD 60t WR=50% +391pip, USD/JPY 40t WR=35% +181pip
+# ═══════════════════════════════════════════════════════
+def compute_hourly_signal(df: pd.DataFrame, tf: str = "1h",
+                          sr_levels: list = None,
+                          symbol: str = "USDJPY=X",
+                          backtest_mode: bool = False,
+                          bar_time=None,
+                          htf_cache: dict = None) -> dict:
+    """
+    1H足ブレイクアウト戦略シグナル — HourlyEngine経由。
+    KSB (Keltner Squeeze Breakout) + DMB (Donchian Momentum Breakout) を統合評価。
+    """
+    _is_jpy = "JPY" in symbol.upper()
+    _pip_mult = 100 if _is_jpy else 10000
+
+    # ── 基本WAIT応答 ──
+    _wait = {
+        "signal": "WAIT", "entry": 0.0, "sl": 0.0, "tp": 0.0,
+        "confidence": 0, "entry_type": "wait", "reasons": [],
+        "indicators": {}, "atr": 0.1, "score": 0.0, "mode": "hourly",
+    }
+
+    if df is None or len(df) < 55:
+        return _wait
+
+    row = df.iloc[-1]
+    entry = float(row["Close"])
+    atr = float(row.get("atr", 0.10))
+    if atr <= 0:
+        return _wait
+
+    # ── HTFバイアス取得 ──
+    if backtest_mode and htf_cache and "htf" in htf_cache:
+        htf = htf_cache["htf"]
+    else:
+        htf = _compute_1h_htf_bias(df, symbol)
+
+    # ── SignalContext構築 ──
+    from strategies.context import SignalContext
+    from strategies.hourly import HourlyEngine
+
+    _prev = df.iloc[-2] if len(df) >= 2 else row
+    _hour_utc = bar_time.hour if bar_time and hasattr(bar_time, 'hour') else 12
+
+    ctx = SignalContext(
+        entry=entry, open_price=float(row["Open"]),
+        atr=atr,
+        atr7=float(row.get("atr7", atr)),
+        ema9=float(row.get("ema9", entry)),
+        ema21=float(row.get("ema21", entry)),
+        ema50=float(row.get("ema50", entry)),
+        ema200=float(row.get("ema200", entry)),
+        rsi=float(row.get("rsi", 50)),
+        rsi5=float(row.get("rsi5", 50)),
+        rsi9=float(row.get("rsi9", 50)),
+        stoch_k=float(row.get("stoch_k", 50)),
+        stoch_d=float(row.get("stoch_d", 50)),
+        adx=float(row.get("adx", 25)),
+        adx_pos=float(row.get("adx_pos", 25)),
+        adx_neg=float(row.get("adx_neg", 25)),
+        macdh=float(row.get("macd_hist", 0)),
+        macdh_prev=float(_prev.get("macd_hist", 0)),
+        macdh_prev2=float(df.iloc[-3].get("macd_hist", 0)) if len(df) >= 3 else 0.0,
+        bbpb=float(row.get("bb_pband", 0.5)),
+        bb_upper=float(row.get("bb_upper", entry + atr)),
+        bb_mid=float(row.get("bb_mid", entry)),
+        bb_lower=float(row.get("bb_lower", entry - atr)),
+        prev_close=float(_prev["Close"]),
+        prev_open=float(_prev["Open"]),
+        prev_high=float(_prev["High"]),
+        prev_low=float(_prev["Low"]),
+        symbol=symbol, tf="1h",
+        is_jpy=_is_jpy, pip_mult=_pip_mult,
+        df=df, sr_levels=sr_levels,
+        htf=htf,
+        backtest_mode=backtest_mode,
+        bar_time=bar_time,
+        hour_utc=_hour_utc,
+    )
+
+    # ── HourlyEngine評価 ──
+    engine = HourlyEngine()
+    candidates = engine.evaluate_all(ctx)
+    best = engine.select_best(candidates)
+
+    if best is None:
+        _wait["entry"] = entry
+        _wait["atr"] = atr
+        return _wait
+
+    # ── 結果フォーマット ──
+    return {
+        "signal": best.signal,
+        "entry": entry,
+        "sl": best.sl,
+        "tp": best.tp,
+        "confidence": best.confidence,
+        "entry_type": best.entry_type,
+        "reasons": best.reasons,
+        "score": round(best.score, 3),
+        "atr": atr,
+        "mode": "hourly",
+        "indicators": {
+            "ema9": round(float(row.get("ema9", entry)), 3),
+            "ema21": round(float(row.get("ema21", entry)), 3),
+            "ema200": round(float(row.get("ema200", entry)), 3),
+            "adx": round(float(row.get("adx", 25)), 1),
+            "rsi": round(float(row.get("rsi", 50)), 1),
+            "macd_hist": round(float(row.get("macd_hist", 0)), 5),
+            "atr": round(atr, 4),
+        },
+    }
+
+
+def _compute_1h_htf_bias(df_1h: pd.DataFrame, symbol: str = "USDJPY=X") -> dict:
+    """1Hデータから実4H+1D HTFバイアスをリサンプリング計算。"""
+    if df_1h is None or len(df_1h) < 50:
+        return {"agreement": "mixed", "d1_ema50_falling": False}
+
+    h4_bull = h4_bear = False
+    d1_bull = d1_bear = False
+    d1_ema50_falling = False
+
+    # 4Hリサンプリング
+    try:
+        h4 = df_1h.resample("4h").agg({
+            "Open": "first", "High": "max", "Low": "min", "Close": "last"
+        }).dropna()
+        if len(h4) >= 21:
+            h4_ema9 = h4["Close"].ewm(span=9).mean().iloc[-1]
+            h4_ema21 = h4["Close"].ewm(span=21).mean().iloc[-1]
+            h4_close = float(h4["Close"].iloc[-1])
+            h4_bull = h4_close > h4_ema9 > h4_ema21
+            h4_bear = h4_close < h4_ema9 < h4_ema21
+    except Exception:
+        pass
+
+    # 1Dリサンプリング
+    try:
+        d1 = df_1h.resample("1D").agg({
+            "Open": "first", "High": "max", "Low": "min", "Close": "last"
+        }).dropna()
+        if len(d1) >= 9:
+            d1_ema9 = d1["Close"].ewm(span=9).mean().iloc[-1]
+            d1_close = float(d1["Close"].iloc[-1])
+            d1_bull = d1_close > d1_ema9
+            d1_bear = d1_close < d1_ema9
+        # 1D EMA50方向 (JPY SELL非対称フィルター用)
+        if len(d1) >= 50:
+            _d1_ema50 = d1["Close"].ewm(span=50).mean()
+            d1_ema50_falling = float(_d1_ema50.iloc[-1]) < float(_d1_ema50.iloc[-5])
+    except Exception:
+        pass
+
+    if h4_bull and d1_bull:
+        return {"agreement": "bull", "d1_ema50_falling": d1_ema50_falling}
+    elif h4_bear and d1_bear:
+        return {"agreement": "bear", "d1_ema50_falling": d1_ema50_falling}
+    return {"agreement": "mixed", "d1_ema50_falling": d1_ema50_falling}
+
+
+# ═══════════════════════════════════════════════════════
 #  スイングトレードシグナル（4h/1d）
 #  学術根拠:
 #   - 12-1ヶ月モメンタム: 年率10%超過リターン (Menkhoff et al. 2012 JFE)

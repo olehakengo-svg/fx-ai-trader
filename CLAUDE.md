@@ -27,7 +27,7 @@
 
 ## Key Architecture
 - Backend: Flask (app.py ~7500+ lines)
-- Signal functions: compute_scalp_signal, compute_daytrade_signal, compute_swing_signal
+- Signal functions: compute_scalp_signal, compute_daytrade_signal, compute_hourly_signal, compute_swing_signal
 - **BT/本番ロジック統一完了**: 全BT関数がsignal関数(backtest_mode=True)を使用
   - run_scalp_backtest → compute_scalp_signal(backtest_mode=True)
   - run_daytrade_backtest → compute_daytrade_signal(backtest_mode=True)
@@ -43,7 +43,7 @@
 |---|---|---|---|---|
 | scalp | 1m | 10s | 60s (1 bar, EXIT-based) | Active |
 | daytrade | 15m | 30s | 900s (1 bar, EXIT-based) | Active |
-| daytrade_1h | 1h | 60s | 3600s | **DISABLED** (resource cost unjustified) |
+| daytrade_1h | 1h | 60s | 3600s (EXIT-based) | **Active** — HourlyEngine v5.0 (KSB+DMB) |
 | swing | 4h | 300s | 14400s (1 bar, EXIT-based) | Active |
 
 ## Daily Target
@@ -54,6 +54,8 @@
 - Scalp: 520t WR=59.4% Sharpe=0.064 (7d, 1m) — bb_rsi 181t(Option C拡大), macdh 144t, fib 172t
 - DT EUR/USD: **153t WR=66.0% Sharpe=3.50** (55d, 15m, +ADX TC)
 - DT USD/JPY: **155t WR=67.1% Sharpe=3.42** (55d, 15m, +TNM)
+- **1H EUR/USD: 70t WR=50% +483pip** (120d, 1h, KSB+DMB)
+- **1H USD/JPY: 40t WR=35% +181pip** (120d, 1h, DMB only, SELL非対称フィルター)
 - Swing: 346t WR=36.7% EV=+0.154 WF=2/3 (730d, 1d)
 
 ## Scalp v3.2 Strategy Breakdown (7d BT, bb_rsi Option C適用後)
@@ -165,6 +167,28 @@
 - **bb_rsi Option C**: USD/JPY専用環境最適化。ADX制限撤廃(ADX>=30で逆にWR=60%), Death Valley(UTC 00-01,09,12-16)完全ブロック, Gold Hours(UTC 05-08,19-23)スコアボーナス。EUR/USDは従来通りADX<25維持
 - **DaytradeEngine ctx fix**: compute_daytrade_signal内のDaytradeEngineフォールバックコンテキストに hour_utc, is_friday, prev_close/open/high/low を追加。時間帯フィルター戦略(TNM/LSB)が正しく動作可能に
 - **DT BT session filter例外**: USD/JPY UTC 00-01をセッションフィルター(UTC<5ブロック)から除外。仲値時間帯のBT評価を可能に
+
+## 1H Breakout Mode v5.0 (Active since 2026-04-05)
+- **Architecture**: HourlyEngine (StrategyBase/Engine pattern) → compute_hourly_signal → demo_trader
+- **HTF**: Real 4H+1D data via resample from 1H bars (_compute_1h_htf_bias)
+- **SL/TP**: Strategy-calculated, preserved in demo_trader (_1H_PRESERVE_SLTP)
+- **BE/Trailing**: BE at 50% TP → trailing stop (recent H/L - ATR×1.5)
+
+### KSB (Keltner Squeeze Breakout) — EUR/USD専用
+- **BT**: 10t WR=50% +92pip/120d, RR=2.0, Avg Hold=6.2h
+- **Concept**: BB squeeze (BB inside Keltner) → release → Keltner(80%) breakout
+- **Key params**: MIN_SQUEEZE=3, KELT_BREAK_MULT=0.80, ADX_MIN=15, BODY_RATIO≥0.35
+- **SL**: Squeeze期間のswing L/H ± ATR×0.3, max ATR×1.5
+- **USD/JPY**: DISABLED (WR=33.3%, スリッページで負EV転落リスク)
+
+### DMB (Donchian Momentum Breakout) — 両ペア
+- **BT EUR**: 60t WR=50% +391pip/120d, RR=2.0, Avg Hold=5.5h
+- **BT JPY**: 40t WR=35% +181pip/120d, RR=2.0, Avg Hold=6.9h
+- **Concept**: Donchian 48-bar (≈2営業日) range breakout + DI momentum
+- **Key params**: MIN_RANGE≥ATR×1.5, ADX_MIN=18, BODY_RATIO≥0.40
+- **SL**: don_mid48 ± ATR×0.3, max ATR×1.5
+- **USD/JPY SELL非対称フィルター**: ADX≥25 + 1D EMA50 falling required (金利差逆行対策)
+- **Freshness check**: Previous bar must not have already broken Donchian
 
 ## Production Monitoring (P0 — Active since 2026-04-04)
 - **Slippage**: signal_price vs entry_price diff (pips) -> DB column `slippage_pips` + log

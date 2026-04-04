@@ -50,17 +50,17 @@ MODE_CONFIG = {
     #     "symbol": "USDJPY=X",
     #     "instrument": "USD_JPY",
     # },
-    # "daytrade_1h": DISABLED — 60日BT 0.15pip/日、リソースコストに見合わない (2026-04-03 FXアナリストレビュー)
-    # {
-    #     "interval_sec": 60,
-    #     "tf": "1h",
-    #     "period": "30d",
-    #     "signal_fn": "compute_1h_zone_signal",
-    #     "label": "デイトレ1H(Zone)",
-    #     "icon": "🕐",
-    #     "symbol": "USDJPY=X",
-    #     "instrument": "USD_JPY",
-    # },
+    "daytrade_1h": {
+        "interval_sec": 60,
+        "tf": "1h",
+        "period": "60d",
+        "signal_fn": "compute_hourly_signal",
+        "label": "1Hブレイクアウト(KSB+DMB)",
+        "icon": "🕐",
+        "symbol": "USDJPY=X",
+        "instrument": "USD_JPY",
+        "auto_start": True,
+    },
     # ── EUR/USD modes ──
     "scalp_eur": {
         "interval_sec": 10,
@@ -84,18 +84,17 @@ MODE_CONFIG = {
         "instrument": "EUR_USD",
         "auto_start": True,
     },
-    # "daytrade_1h_eur": DISABLED — 1H Zone全体を無効化 (2026-04-03 FXアナリストレビュー)
-    # {
-    #     "interval_sec": 60,
-    #     "tf": "1h",
-    #     "period": "30d",
-    #     "signal_fn": "compute_1h_zone_signal",
-    #     "label": "デイトレ1H EUR",
-    #     "icon": "🕐🇪🇺",
-    #     "symbol": "EURUSD=X",
-    #     "instrument": "EUR_USD",
-    #     "auto_start": True,
-    # },
+    "daytrade_1h_eur": {
+        "interval_sec": 60,
+        "tf": "1h",
+        "period": "60d",
+        "signal_fn": "compute_hourly_signal",
+        "label": "1Hブレイクアウト EUR(KSB+DMB)",
+        "icon": "🕐🇪🇺",
+        "symbol": "EURUSD=X",
+        "instrument": "EUR_USD",
+        "auto_start": True,
+    },
 }
 
 # SL/TPチェック間隔（秒）— シグナル計算とは独立して高頻度実行
@@ -1211,7 +1210,7 @@ class DemoTrader:
         elif _base_mode_fn == "swing":
             from app import compute_swing_signal as compute_fn
         elif _base_mode_fn == "daytrade_1h":
-            from app import compute_1h_zone_signal as compute_fn
+            from app import compute_hourly_signal as compute_fn
         else:
             from app import compute_scalp_signal as compute_fn
 
@@ -1247,35 +1246,9 @@ class DemoTrader:
 
             sr = find_sr_levels(df)
 
-            # ── 1H Zone mode: ゾーン計算 + 専用シグナル呼び出し ──
-            if mode == "daytrade_1h":
-                import numpy as _np
-                # 前日のOHLCからゾーン計算
-                _1h_dates = {}
-                for idx in df.index:
-                    _d = str(idx.date()) if hasattr(idx, 'date') else str(idx)[:10]
-                    if _d not in _1h_dates:
-                        _1h_dates[_d] = {"H": float(df.loc[idx, "High"]),
-                                         "L": float(df.loc[idx, "Low"]),
-                                         "C": float(df.loc[idx, "Close"]),
-                                         "atr": float(df.loc[idx].get("atr", 0.10))}
-                    else:
-                        _1h_dates[_d]["H"] = max(_1h_dates[_d]["H"], float(df.loc[idx, "High"]))
-                        _1h_dates[_d]["L"] = min(_1h_dates[_d]["L"], float(df.loc[idx, "Low"]))
-                        _1h_dates[_d]["C"] = float(df.loc[idx, "Close"])
-                        _1h_dates[_d]["atr"] = float(df.loc[idx].get("atr", 0.10))
-
-                _sorted_dates = sorted(_1h_dates.keys())
-                if len(_sorted_dates) >= 2:
-                    _prev_day = _1h_dates[_sorted_dates[-2]]
-                    _pivot = (_prev_day["H"] + _prev_day["L"] + _prev_day["C"]) / 3.0
-                    _daily_atr = _prev_day["atr"] * _np.sqrt(24)
-                    _buy_zone = (_prev_day["L"] - _daily_atr * 0.2, _pivot)
-                    _sell_zone = (_pivot, _prev_day["H"] + _daily_atr * 0.2)
-                    sig = compute_fn(df, buy_zone=_buy_zone, sell_zone=_sell_zone,
-                                     sr_levels=sr, backtest_mode=False, symbol=symbol)
-                else:
-                    return  # ゾーン計算不可（データ不足）
+            # ── 1H Breakout mode: HourlyEngine (KSB+DMB) ──
+            if _base_mode_fn == "daytrade_1h":
+                sig = compute_fn(df, tf, sr, symbol)
             else:
                 sig = compute_fn(df, tf, sr, symbol)
 
@@ -1355,7 +1328,8 @@ class DemoTrader:
             # 構造的パターン（強いバイアス）とトレンドシグナル（軽いバイアス）
             _strong_patterns = {"hs_neckbreak", "ihs_neckbreak", "dual_sr_bounce",
                                 "dual_sr_breakout", "sr_fib_confluence"}
-            _trend_patterns = {"ema_cross", "mtf_momentum", "pivot_breakout", "h1_breakout_retest"}
+            _trend_patterns = {"ema_cross", "mtf_momentum", "pivot_breakout",
+                                "keltner_squeeze_breakout", "donchian_momentum_breakout"}
             if _dt_etype in _strong_patterns or _dt_etype in _trend_patterns:
                 _bias_strength = "strong" if _dt_etype in _strong_patterns else "trend"
                 with self._lock:
@@ -1481,10 +1455,9 @@ class DemoTrader:
             # "dt_sr_channel_reversal",  # 廃止: フォールバック未発火
             # "ema200_trend_reversal",   # 廃止: フォールバック未発火
 
-            # ═══ 1H Zone — モード全体DISABLED (0.15pip/日) ═══
-            # "h1_breakout_retest",
-            # "h1_fib_reversal",
-            # "h1_ema200_trend_reversal",
+            # ═══ 1H Breakout — HourlyEngine (v5.0) ═══
+            "keltner_squeeze_breakout",      # KSB: EUR専用, WR=50% RR=2.0
+            "donchian_momentum_breakout",    # DMB: 両ペア, EUR WR=50% / JPY WR=35%
         }
 
         # 弱い理由のエントリータイプ（追加条件が必要）
@@ -1696,7 +1669,10 @@ class DemoTrader:
         # TPは技術的ターゲット（SR/Fib/BB等）で固定。
         # SLは①SR外側 ②ATRベース の優先順で決定。
         # 技術的に意味のある位置にSLを置くことでノイズ耐性向上。
+        # ── 例外: 1H Breakout (KSB/DMB) は戦略SL/TPを完全保存 ──
         # ══════════════════════════════════════════════════════════════
+        _1H_PRESERVE_SLTP = {"keltner_squeeze_breakout", "donchian_momentum_breakout"}
+
         tp = sig.get("tp", 0)  # シグナル関数が算出した技術的ターゲット（固定）
 
         tp_dist = abs(tp - current_price) * _mtf_tp_bonus  # MTF順方向時にTP拡大
@@ -1714,50 +1690,69 @@ class DemoTrader:
         _atr = sig.get("atr", 0.07 if _is_jpy else 0.00070)
         _sl_margin = _atr * 0.3  # SR外側バッファ
 
-        # ── SL候補①: SR外側（技術的根拠のあるSL）──
-        sr_map = sig.get("sr_entry_map", {})
-        _sr_sl = None
-        if signal == "BUY":
-            _ns = sr_map.get("nearest_support")
-            if _ns and _ns.get("price", 0) > 0:
-                _sr_sl = _ns["price"] - _sl_margin
-        else:
-            _nr = sr_map.get("nearest_resistance")
-            if _nr and _nr.get("price", 0) > 0:
-                _sr_sl = _nr["price"] + _sl_margin
+        # ── 1H Breakout SL/TP完全保存 ──
+        # KSB/DMBはスクイーズ中swing HL / ドンチアン中央から精密にSLを算出済み
+        # SR/ATRベース再計算では戦略の意図が破壊されるため、直接使用
+        if entry_type in _1H_PRESERVE_SLTP:
+            _sig_sl = sig.get("sl", 0)
+            if _sig_sl > 0:
+                sl = round(_sig_sl, _price_dec)
+                sl_dist = abs(current_price - sl)
+                if sl_dist <= 0:
+                    return  # SL無効
+                # RR検証
+                if tp_dist / sl_dist < 1.2:
+                    return  # RR不足
+                # SL狩り対策は適用（セッション遷移ワイドニング等）
+                # → 下の SL狩り対策②セクションに進む
+            else:
+                return  # SLが算出されていない
 
-        # ── SL候補②: ATRベース（SRがない場合のフォールバック）──
-        _atr_mult = {"scalp": 0.8, "daytrade": 1.0, "swing": 1.5}.get(_base_mode, 0.8)
-        if signal == "BUY":
-            _atr_sl = current_price - _atr * _atr_mult
-        else:
-            _atr_sl = current_price + _atr * _atr_mult
+        # ── SL候補①②: SR/ATRベース（非1H Breakoutモード用）──
+        if entry_type not in _1H_PRESERVE_SLTP:
+            sr_map = sig.get("sr_entry_map", {})
+            _sr_sl = None
+            if signal == "BUY":
+                _ns = sr_map.get("nearest_support")
+                if _ns and _ns.get("price", 0) > 0:
+                    _sr_sl = _ns["price"] - _sl_margin
+            else:
+                _nr = sr_map.get("nearest_resistance")
+                if _nr and _nr.get("price", 0) > 0:
+                    _sr_sl = _nr["price"] + _sl_margin
 
-        # ── SL選択: SR優先、RR >= 1.0 保証 ──
-        if _sr_sl is not None:
-            _sr_sl_dist = abs(current_price - _sr_sl)
-            _sr_rr = tp_dist / max(_sr_sl_dist, 1e-8)
-            if _sr_rr >= 1.0:
-                sl = round(_sr_sl, _price_dec)
-                sl_dist = _sr_sl_dist
+            # ── SL候補②: ATRベース（SRがない場合のフォールバック）──
+            _atr_mult = {"scalp": 0.8, "daytrade": 1.0, "swing": 1.5}.get(_base_mode, 0.8)
+            if signal == "BUY":
+                _atr_sl = current_price - _atr * _atr_mult
+            else:
+                _atr_sl = current_price + _atr * _atr_mult
+
+            # ── SL選択: SR優先、RR >= 1.0 保証 ──
+            if _sr_sl is not None:
+                _sr_sl_dist = abs(current_price - _sr_sl)
+                _sr_rr = tp_dist / max(_sr_sl_dist, 1e-8)
+                if _sr_rr >= 1.0:
+                    sl = round(_sr_sl, _price_dec)
+                    sl_dist = _sr_sl_dist
+                else:
+                    sl = round(_atr_sl, _price_dec)
+                    sl_dist = abs(current_price - _atr_sl)
             else:
                 sl = round(_atr_sl, _price_dec)
                 sl_dist = abs(current_price - _atr_sl)
-        else:
-            sl = round(_atr_sl, _price_dec)
-            sl_dist = abs(current_price - _atr_sl)
 
-        # 最低SL距離保証
-        if _is_jpy:
-            MIN_SL_DIST = {"scalp": 0.030, "daytrade": 0.050, "swing": 0.100}.get(_base_mode, 0.030)
-        else:
-            MIN_SL_DIST = {"scalp": 0.00030, "daytrade": 0.00050, "swing": 0.00100}.get(_base_mode, 0.00030)
-        if sl_dist < MIN_SL_DIST:
-            sl_dist = MIN_SL_DIST
-            if signal == "BUY":
-                sl = round(current_price - sl_dist, _price_dec)
+            # 最低SL距離保証
+            if _is_jpy:
+                MIN_SL_DIST = {"scalp": 0.030, "daytrade": 0.050, "swing": 0.100}.get(_base_mode, 0.030)
             else:
-                sl = round(current_price + sl_dist, _price_dec)
+                MIN_SL_DIST = {"scalp": 0.00030, "daytrade": 0.00050, "swing": 0.00100}.get(_base_mode, 0.00030)
+            if sl_dist < MIN_SL_DIST:
+                sl_dist = MIN_SL_DIST
+                if signal == "BUY":
+                    sl = round(current_price - sl_dist, _price_dec)
+                else:
+                    sl = round(current_price + sl_dist, _price_dec)
 
         # ══════════════════════════════════════════════════════════════
         # ── SL狩り対策②: セッション遷移時SLワイドニング ──
