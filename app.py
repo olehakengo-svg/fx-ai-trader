@@ -4129,7 +4129,8 @@ def run_backtest(symbol: str = "USDJPY=X",
                         break
 
             if outcome:
-                last_bar = i
+                # EXIT基準クールダウン（本番統一: 保持期間中の重複エントリー防止）
+                last_bar = i + 1 + bars_held
                 trade_dict = {"outcome": outcome, "bars_held": bars_held,
                                 "sig": sig, "ep": _rp(ep, symbol),
                                 "sl": _rp(sl, symbol), "tp": _rp(tp, symbol),
@@ -4597,7 +4598,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                             outcome = "LOSS"; bars_held = j; break
 
             if outcome:
-                last_trade_bar = i
+                # EXIT基準クールダウン（本番統一: 保持期間中の重複エントリー防止）
+                last_trade_bar = i + 1 + bars_held
                 if entry_type in _5M_ONLY_TYPES:
                     _last_5m_bar = i // 5  # 5m補完クールダウン
                 trade_dict = {"outcome": outcome, "bars_held": bars_held,
@@ -5011,7 +5013,10 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                             outcome = "LOSS"; bars_held = j; break
 
             if outcome:
-                last_bar = i
+                # ── EXIT基準クールダウン（本番統一）──
+                # 旧: last_bar = i (エントリーバー) → 保持中に次トレード重複可能
+                # 新: last_bar = i + 1 + bars_held (EXITバー) → 本番_mode_limit=1と統一
+                last_bar = i + 1 + bars_held
                 trade_dict = {"outcome": outcome, "bars_held": bars_held,
                                 "sig": sig, "ep": _rp(ep, symbol),
                                 "sl": _rp(sl, symbol), "tp": _rp(tp, symbol),
@@ -5408,7 +5413,8 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
                         break
 
             if outcome:
-                last_bar = i
+                # EXIT基準クールダウン（本番統一: 保持期間中の重複エントリー防止）
+                last_bar = i + 1 + bars_held
                 trade_dict = {
                     "outcome": outcome, "bars_held": bars_held,
                     "sig": sig, "ep": _rp(ep, symbol),
@@ -5671,7 +5677,8 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
                         outcome = "LOSS"; bars_held = j; break
 
             if outcome:
-                last_bar = i
+                # EXIT基準クールダウン（本番統一: 保持期間中の重複エントリー防止）
+                last_bar = i + 1 + bars_held
                 trade_dict = {"outcome": outcome, "bars_held": bars_held,
                                 "sig": sig, "ep": _rp(ep, symbol),
                                 "sl": _rp(sl, symbol), "tp": _rp(tp, symbol),

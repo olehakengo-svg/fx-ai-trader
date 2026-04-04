@@ -1528,14 +1528,15 @@ class DemoTrader:
             _block(f"blacklisted:{entry_type}"); return
 
         # ── クールダウン（BT統一: 前ポジ決済後1バー分）──
-        # BT: COOLDOWN=1バー。本番では各TFのバー間隔に合わせる
-        # scalp=60s(1m), DT=30s(15m loop), 1H=60s, swing=300s
+        # BT: COOLDOWN=1バー。本番もBTと同一の1バー分に統一
+        # 根拠: BT COOLDOWN=1bar → DT 15m=900s, 1H=3600s
+        # 旧設定(DT=30s)ではBT比30倍速で再エントリー → WR 62.2%→40% の乖離原因
         last_ex = self._last_exit.get(mode)
         if last_ex:
             _ex_age = (datetime.now(timezone.utc) - last_ex["time"]).total_seconds()
-            _cooldown_sec = {"scalp": 60, "daytrade": 30, "daytrade_1h": 60, "swing": 300}.get(_base_mode, 60)
+            _cooldown_sec = {"scalp": 60, "daytrade": 900, "daytrade_1h": 3600, "swing": 14400}.get(_base_mode, 60)
             if _ex_age < _cooldown_sec:
-                _block(f"cooldown({int(_ex_age)}s)"); return
+                _block(f"cooldown({int(_ex_age)}s/{_cooldown_sec}s)"); return
 
         # ── 時間帯フィルター: BT統一 = 制限なし ──
         # BTは時間帯制限なしで WR=56.2%。1本逐次処理なら時間帯問わず利益出る
