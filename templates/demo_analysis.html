@@ -153,6 +153,10 @@ tr:hover{background:rgba(255,255,255,.02)}
     <button id="oanda-daytrade_1h_eur" class="oanda-btn" onclick="toggleOandaMode('daytrade_1h_eur')">🕐🇪🇺</button>
     <span style="color:var(--t3);font-size:7px">|</span>
     <button id="oanda-scalp_eurjpy" class="oanda-btn" onclick="toggleOandaMode('scalp_eurjpy')">⚡EURJPY</button>
+    <span style="color:var(--t3);font-size:7px">|</span>
+    <button id="oanda-lcr_gbpjpy" class="oanda-btn" onclick="toggleOandaMode('lcr_gbpjpy')">🇬🇧🔄GJ</button>
+    <button id="oanda-lcr_eurjpy" class="oanda-btn" onclick="toggleOandaMode('lcr_eurjpy')">🇪🇺🔄EJ</button>
+    <button id="oanda-lcr_gbpusd" class="oanda-btn" onclick="toggleOandaMode('lcr_gbpusd')">🇬🇧💵GU</button>
     <span id="oanda-status" style="font-size:8px;color:var(--t3);margin-left:auto"></span>
   </div>
 </div>
@@ -284,6 +288,9 @@ tr:hover{background:rgba(255,255,255,.02)}
         <option value="daytrade_eur">デイトレEUR</option>
         <option value="daytrade_1h_eur">デイトレ1H EUR</option>
         <option value="scalp_eurjpy">スキャルプEURJPY</option>
+        <option value="lcr_gbpjpy">LCR GBP/JPY</option>
+        <option value="lcr_eurjpy">LCR EUR/JPY</option>
+        <option value="lcr_gbpusd">LCR GBP/USD</option>
       </select>
       <button onclick="applyFilter()" style="background:var(--blue);color:#fff;border:none;border-radius:4px;padding:5px 14px;cursor:pointer;font-size:11px;font-weight:600">絞り込み</button>
       <button onclick="clearFilter()" style="background:var(--bg3);color:var(--t2);border:none;border-radius:4px;padding:5px 10px;cursor:pointer;font-size:11px">リセット</button>
@@ -493,7 +500,7 @@ async function loadDemoStatus(){
         const col=isBuy?'var(--green)':'var(--red)';
         const isEur=t.mode&&t.mode.includes('eur');
         const mTag=isEur?'tag-sw':(t.tf==='1m'||t.tf==='5m')?'tag-sc':'tag-dt';
-        const modeLabels={scalp:'⚡SC',daytrade:'📊DT',daytrade_1h:'🕐1H',scalp_eur:'⚡🇪🇺SC',daytrade_eur:'📊🇪🇺DT',daytrade_1h_eur:'🕐🇪🇺1H',scalp_eurjpy:'⚡EURJPY'};
+        const modeLabels={scalp:'⚡SC',daytrade:'📊DT',daytrade_1h:'🕐1H',scalp_eur:'⚡🇪🇺SC',daytrade_eur:'📊🇪🇺DT',daytrade_1h_eur:'🕐🇪🇺1H',scalp_eurjpy:'⚡EURJPY',lcr_gbpjpy:'🇬🇧🔄GJ',lcr_eurjpy:'🇪🇺🔄EJ',lcr_gbpusd:'🇬🇧💵GU'};
         const mLabel=modeLabels[t.mode]||(t.tf==='1m'?'⚡SC':'📊DT');
         const pDec=isEur?5:3;
         return `<div style="background:rgba(59,130,246,.06);border:1px solid ${isEur?'rgba(34,197,94,.2)':'rgba(59,130,246,.2)'};border-radius:5px;padding:5px 10px;margin-bottom:4px;display:flex;align-items:center;gap:10px;font-size:11px">
@@ -621,7 +628,7 @@ async function loadTradeChart(){
         const srcEl=document.getElementById('mtf-src-eur-'+tf);
         if(srcEl&&d2.ohlcv_source) srcEl.textContent=d2.ohlcv_source.toUpperCase();
         // EUR trade markers
-        const eurModes={'1m':['scalp_eur','scalp_eurjpy'],'15m':['daytrade_eur'],'1h':['daytrade_1h_eur'],'4h':[]};
+        const eurModes={'1m':['scalp_eur','scalp_eurjpy'],'15m':['daytrade_eur','lcr_gbpjpy','lcr_eurjpy','lcr_gbpusd'],'1h':['daytrade_1h_eur'],'4h':[]};
         const matchModes=eurModes[tf]||[];
         const markers=[];
         allTrades.forEach(t=>{
@@ -857,7 +864,7 @@ async function loadTradeTable(dateFrom='',dateTo='',mode=''){
     const wr=closed.length?Math.round(wins/closed.length*100):0;
     if(summary) summary.textContent=`${d.trades.length}件 | ${closed.length}決済 | WR ${wr}% | PnL ${totalPnl>=0?'+':''}${totalPnl.toFixed(1)}pip`;
 
-    const modeLabel={scalp:'⚡SC',daytrade:'📊DT',daytrade_1h:'🕐1H',scalp_eur:'⚡🇪🇺SC',daytrade_eur:'📊🇪🇺DT',daytrade_1h_eur:'🕐🇪🇺1H',scalp_eurjpy:'⚡EURJPY',swing:'🌊SW'};
+    const modeLabel={scalp:'⚡SC',daytrade:'📊DT',daytrade_1h:'🕐1H',scalp_eur:'⚡🇪🇺SC',daytrade_eur:'📊🇪🇺DT',daytrade_1h_eur:'🕐🇪🇺1H',scalp_eurjpy:'⚡EURJPY',swing:'🌊SW',lcr_gbpjpy:'🇬🇧🔄GJ',lcr_eurjpy:'🇪🇺🔄EJ',lcr_gbpusd:'🇬🇧💵GU'};
     tbody.innerHTML=d.trades.map((t,i)=>{
       const isWin=t.outcome==='WIN';
       const isBuy=t.direction==='BUY';
@@ -941,7 +948,7 @@ async function loadOandaModes(){
   }catch(e){console.warn('[OANDA modes]',e)}
 }
 function updateOandaButtons(){
-  ['scalp','daytrade','daytrade_1h','scalp_eur','daytrade_eur','daytrade_1h_eur','scalp_eurjpy'].forEach(m=>{
+  ['scalp','daytrade','daytrade_1h','scalp_eur','daytrade_eur','daytrade_1h_eur','scalp_eurjpy','lcr_gbpjpy','lcr_eurjpy','lcr_gbpusd'].forEach(m=>{
     const btn=document.getElementById('oanda-'+m);
     if(!btn)return;
     const on=_oandaModes.includes(m);

@@ -9990,7 +9990,7 @@ def api_oanda_live():
         result["error"] = str(data)
 
     # Current prices (multi-instrument)
-    _instruments = ["USD_JPY", "EUR_USD"]
+    _instruments = ["USD_JPY", "EUR_USD", "EUR_JPY", "GBP_JPY", "GBP_USD"]
     result["prices"] = {}
     for _inst in _instruments:
         ok2, price_data = client.get_price(_inst)

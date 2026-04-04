@@ -144,6 +144,9 @@ def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
         "USDJPY=X": "C:USDJPY",
         "JPY=X":    "C:USDJPY",
         "EURUSD=X": "C:EURUSD",
+        "EURJPY=X": "C:EURJPY",
+        "GBPJPY=X": "C:GBPJPY",
+        "GBPUSD=X": "C:GBPUSD",
     }
     massive_ticker = _SYMBOL_MAP.get(symbol)
     if not massive_ticker:
@@ -233,7 +236,11 @@ _OANDA_GRANULARITY = {
     "1m": "M1", "5m": "M5", "15m": "M15", "30m": "M30",
     "1h": "H1", "4h": "H4", "1d": "D", "1wk": "W", "1mo": "M",
 }
-_OANDA_SYMBOLS = {"USDJPY=X": "USD_JPY", "JPY=X": "USD_JPY", "EURUSD=X": "EUR_USD"}
+_OANDA_SYMBOLS = {
+    "USDJPY=X": "USD_JPY", "JPY=X": "USD_JPY",
+    "EURUSD=X": "EUR_USD", "EURJPY=X": "EUR_JPY",
+    "GBPJPY=X": "GBP_JPY", "GBPUSD=X": "GBP_USD",
+}
 
 # OANDA共有クライアント (遅延初期化)
 _oanda_client = None
