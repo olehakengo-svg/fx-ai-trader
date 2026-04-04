@@ -18,6 +18,8 @@ from strategies.daytrade.dt_sr_channel import DtSrChannelReversal
 from strategies.daytrade.ema200_reversal import Ema200TrendReversal
 from strategies.daytrade.htf_false_breakout import HtfFalseBreakout
 from strategies.daytrade.london_session_breakout import LondonSessionBreakout
+from strategies.daytrade.tokyo_nakane_momentum import TokyoNakaneMomentum
+from strategies.daytrade.adx_trend_continuation import AdxTrendContinuation
 
 
 class DaytradeEngine:
@@ -29,6 +31,8 @@ class DaytradeEngine:
             SrFibConfluence(),
             HtfFalseBreakout(),            # EUR/USD False Breakout Fade
             LondonSessionBreakout(),        # EUR/USD ロンドンセッションブレイクアウト
+            TokyoNakaneMomentum(),          # USD/JPY 仲値リバーサル BUY専用
+            AdxTrendContinuation(),         # ADX TC: トレンド押し目/戻り目 (Wilder 1978)
             DtFibReversal(),
             DtSrChannelReversal(),
             Ema200TrendReversal(),

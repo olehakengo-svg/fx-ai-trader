@@ -1,4 +1,19 @@
-"""BB + RSI Mean Reversion — レンジ相場用 (Bollinger 2001 + Wilder 1978)"""
+"""
+BB + RSI Mean Reversion — ペア別最適化 (Bollinger 2001 + Wilder 1978)
+
+Option C 統合改修 (2026-04-04 USD/JPY解剖レポート):
+  EUR/USD: ADX<25 レンジ環境限定（従来通り）
+  USD/JPY: ADX制限撤廃 + Death Valleyブロック + Gold Hoursボーナス
+
+データ裏付け (USD/JPY 15m, 59日間):
+  - ADX<20  WR=49.2% (エッジなし)
+  - ADX>=30 WR=60.0% avg=+3.45pip (トレンド中BB反発が最も有効)
+  - Death Valley (UTC 00-01,09,12-16): BB reversion EV 強ネガティブ
+  - Gold Hours (UTC 05-08,19-23): WR=60-85%, レンジ8-10pip→高速反転
+
+EUR/USD比較:
+  - ADX>=30 WR=49.3% (トレンド中エッジなし — 構造的差異)
+"""
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
@@ -9,7 +24,7 @@ class BBRsiReversion(StrategyBase):
     mode = "scalp"
 
     # チューナブルパラメータ
-    adx_max = 25          # レンジ判定上限（32→25: 学術水準、ADX≥25はトレンド領域）
+    adx_max = 25          # EUR/USD用: レンジ判定上限（学術水準 ADX≥25はトレンド領域）
     bbpb_buy = 0.25       # BB%B BUY閾値
     bbpb_sell = 0.75      # BB%B SELL閾値
     rsi5_buy = 45         # RSI5 BUY閾値
@@ -19,9 +34,22 @@ class BBRsiReversion(StrategyBase):
     tp_mult_tier1 = 2.0   # TP倍率 (Tier1)
     tp_mult_tier2 = 1.5   # TP倍率 (Tier2)
 
+    # ── USD/JPY専用: Death Valley / Gold Hours (Option C) ──
+    # 構造的理由: セッション流動性プロファイルに基づく環境最適化
+    _death_valley_hours = frozenset({0, 1, 9, 12, 13, 14, 15, 16})
+    _gold_hours = frozenset({5, 6, 7, 8, 19, 20, 21, 22, 23})
+
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
-        if ctx.adx >= self.adx_max:
-            return None
+        # ── ペア別ADX / 時間帯フィルター (Option C) ──
+        if ctx.is_jpy:
+            # USD/JPY: Death Valley完全ブロック
+            if ctx.hour_utc in self._death_valley_hours:
+                return None
+            # USD/JPY: ADX制限なし（トレンド中BB反発 WR=60% — 逆にエッジ増大）
+        else:
+            # EUR/USD: 従来通り ADX<25 レンジ環境のみ
+            if ctx.adx >= self.adx_max:
+                return None
 
         signal = None
         score = 0.0
@@ -101,7 +129,30 @@ class BBRsiReversion(StrategyBase):
         if signal is None:
             return None
 
+        # ── USD/JPY専用ボーナス (Option C) ──
+        if ctx.is_jpy:
+            # Gold Hours bonus: UTC 05-08, 19-23 (WR=60-85%, 低ボラ高速反転)
+            if ctx.hour_utc in self._gold_hours:
+                score += 0.5
+                reasons.append(f"✅ Gold Hour(UTC {ctx.hour_utc:02d}) — USD/JPY高WR時間帯")
+            # ADX>=30 trend BB reversion bonus (USD/JPY独自: トレンド中BB反発 WR=60%)
+            if ctx.adx >= 30:
+                score += 0.6
+                reasons.append(
+                    f"✅ トレンド中BB反発(ADX={ctx.adx:.1f}>=30) — "
+                    f"USD/JPY高WR条件"
+                )
+
         conf = int(min(85, 50 + score * 4))
-        reasons.append(f"📊 レジーム: レンジ(ADX={ctx.adx:.1f}<{self.adx_max})")
+        # ── レジーム情報 (ペア別表示) ──
+        if ctx.is_jpy:
+            reasons.append(
+                f"📊 レジーム: USD/JPY最適化(ADX={ctx.adx:.1f}, "
+                f"UTC={ctx.hour_utc:02d})"
+            )
+        else:
+            reasons.append(
+                f"📊 レジーム: レンジ(ADX={ctx.adx:.1f}<{self.adx_max})"
+            )
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
                          reasons=reasons, entry_type=self.name, score=score)

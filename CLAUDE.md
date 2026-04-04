@@ -50,36 +50,40 @@
 - **目標: 100 pips/日（±20 許容 = 80〜120 pips/日）**
 - スキャルプ + デイトレで達成
 
-## BT Performance (as of 2026-04-04, EUR/USD新戦略追加後)
-- Scalp: 354t WR=58.5% EV=+0.152 WF=3/3 (7d, 1m) — 8 strategies active (+SVE)
-- DT EUR/USD: **152t WR=68.4% EV=+0.456 Sharpe=4.944 WF=3/3** (55d, 15m)
-- DT USD/JPY: **135t WR=68.1% EV=+0.393** (55d, 15m)
+## BT Performance (as of 2026-04-04, +ADX TC EUR/USD採用)
+- Scalp: 520t WR=59.4% Sharpe=0.064 (7d, 1m) — bb_rsi 181t(Option C拡大), macdh 144t, fib 172t
+- DT EUR/USD: **153t WR=66.0% Sharpe=3.50** (55d, 15m, +ADX TC)
+- DT USD/JPY: **155t WR=67.1% Sharpe=3.42** (55d, 15m, +TNM)
 - Swing: 346t WR=36.7% EV=+0.154 WF=2/3 (730d, 1d)
 
-## Scalp v3.1 Strategy Breakdown (7d BT)
+## Scalp v3.2 Strategy Breakdown (7d BT, bb_rsi Option C適用後)
 | Strategy | Trades | WR | EV | Description |
 |---|---|---|---|---|
-| bb_rsi_reversion | 105 | 62.9% | +0.356 | BB%B<=0.25/>=0.75, RSI<45/>55, Stoch<45/>55, ADX<25 |
-| macdh_reversal | 92 | 62.0% | +0.163 | BB<0.25/>0.75, MACD-H方向転換 (mean-reversion, soft penalty) |
-| fib_reversal | 84 | 58.3% | +0.142 | Fib 38.2%/50%/61.8%反発, multi-lookback(45/60) |
-| bb_squeeze_breakout | 8 | 37.5% | — | BB squeeze breakout, ADX>=20 |
-| v_reversal | low freq | — | — | V-shape reversal |
-| london_breakout | low freq | — | — | London session breakout |
-| mtf_reversal_confluence | live only | — | — | RSI+MACD AND (HTF cache incompatible with BT) |
-| **session_vol_expansion** | **EUR only** | — | — | **SVE: London open compression breakout (UTC 07:00-08:30)** |
+| **bb_rsi_reversion** | **181** | **61.3%** | **+0.173** | **Option C: EUR ADX<25 / JPY ADX制限なし+Death Valley/Gold Hours** |
+| macdh_reversal | 144 | 63.2% | +0.231 | BB<0.25/>0.75, MACD-H方向転換 (mean-reversion, soft penalty) |
+| fib_reversal | 172 | 57.0% | +0.056 | Fib 38.2%/50%/61.8%反発, multi-lookback(45/60) |
+| bb_squeeze_breakout | 19 | 36.8% | -0.799 | BB squeeze breakout, ADX>=20 |
+| mtf_reversal_confluence | 4 | 50.0% | -0.187 | RSI+MACD AND (HTF cache incompatible with BT) |
+| session_vol_expansion | EUR only | — | — | SVE: London open compression breakout (UTC 07:00-08:30) |
 
-- **DISABLED**: stoch_pullback (ADX>=20 EV<0), ema_pullback (EV~0), trend_rebound (no academic edge), engulfing_bb, three_bar_reversal, sr_channel_reversal
+- **bb_rsi Option C (2026-04-04)**: USD/JPY ADX制限撤廃(トレンド中WR=60%), Death Valley(UTC 00-01,09,12-16)ブロック, Gold Hours(UTC 05-08,19-23)スコア+0.5, ADX>=30スコア+0.6
+- **DISABLED**: stoch_pullback, ema_pullback, trend_rebound, engulfing_bb, three_bar_reversal, sr_channel_reversal
 - **SL floor**: ATR(14)x1.0 minimum (ScalperEngine/DaytradeEngine unified)
 - **MAX_HOLD=40 bars**, MIN_RR=1.2
 
-## DT v4.0 Strategy Breakdown (55d BT, EUR/USD新戦略追加)
+## DT v4.2 Strategy Breakdown (55d BT, +ADX TC EUR/USD採用)
 | Strategy | EUR Trades | EUR WR | EUR EV | JPY Trades | JPY WR | JPY EV | Description |
 |---|---|---|---|---|---|---|---|
-| sr_fib_confluence | 85 | 61.2% | +0.159 | 68 | 61.8% | +0.196 | ADX>=20, layer3 SR/Fib detection |
-| **htf_false_breakout** | **42** | **71.4%** | **+0.555** | 37 | 78.4% | +0.712 | **FBF: 1H SR False Breakout Fade (Bulkowski 2005)** |
-| ema_cross | 25 | 88.0% | +1.297 | 30 | 70.0% | +0.447 | ADX>=20, cross_window=8, pullback=0.3ATR |
-| **london_session_breakout** | **—** | **—** | **—** | — | — | — | **LSB: Asia range -> London breakout (UTC 07-09)** |
+| sr_fib_confluence | 79 | 59.5% | +0.109 | 83 | 63.9% | +0.240 | ADX>=20, layer3 SR/Fib detection |
+| htf_false_breakout | 35 | 62.9% | +0.276 | 28 | 71.4% | +0.739 | FBF: 1H SR False Breakout Fade (Bulkowski 2005) |
+| ema_cross | 25 | 84.0% | +1.114 | 34 | 70.6% | +0.444 | ADX>=20, cross_window=8, pullback=0.3ATR |
+| **adx_trend_continuation** | **14** | **78.6%** | **+1.706** | **—** | **—** | **—** | **ADX TC: EUR専用トレンド押し目 (Wilder 1978 / Menkhoff 2012)** |
+| **tokyo_nakane_momentum** | **—** | **—** | **—** | **10** | **70.0%** | **+0.086** | **TNM: 仲値DOWN→BUY専用 (Andersen 2003)** |
+| ~~london_session_breakout~~ | ~~10~~ | ~~10%~~ | ~~-9.9~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~DISABLED: ctx fix後初BTでWR=10% — 要再設計~~ |
 
+- **ADX TC (2026-04-04)**: EUR/USD専用トレンドフォロー。ADX≥25+EMAパーフェクトオーダー(9>21>50)+前1-3本プルバック検出→現在足リバウンド確認。USD/JPYはDISABLED(WR=50%/EV=-0.719、15m足トレンドノイジー)
+- **ctx fix (2026-04-04)**: DaytradeEngine fallbackコンテキストに hour_utc, is_friday, prev_close/open/high/low を追加。LSB/TNM等の時間帯フィルター戦略が正しく動作可能に
+- **LSB DISABLED**: hour_utc未設定バグにより未テストだった。修正後初BT: EUR WR=10% ev=-9.9, JPY WR=0% ev=-10.7 → 要再設計
 - **Mean-reversion exclusion**: bb_rsi, macdh, v_reversal, trend_rebound exempt from EMA200/HTF hard filter (soft penalty only)
 
 ## Key Parameters
@@ -152,8 +156,15 @@
 ## EUR/USD New Strategies (2026-04-04)
 - **Root cause of EUR/USD losses**: ATR is half of USD/JPY -> spread burden 2x, BB mean-reversion WR~50% (no edge), Asia session EUR/USD effectively dead (4.5pip range)
 - **SVE (Session Volatility Expansion)**: 1m scalp, UTC 07:00-08:30 only, Asia compression -> London breakout, spread<=0.5pip hard filter
-- **FBF (HTF False Breakout Fade)**: 15m DT, 1H SR(20-bar) close-based break detection -> 15m reversion, MTF 4H/1D filter, WR=71-78%
-- **LSB (London Session Breakout)**: 15m/1H DT, Asia range(00-07 UTC) -> London break, range>=20-day median x1.0, body>=40%, MTF required
+- **FBF (HTF False Breakout Fade)**: 15m DT, 1H SR(20-bar) close-based break detection -> 15m reversion, MTF 4H/1D filter
+- **ADX TC (ADX Trend Continuation)**: 15m DT, EUR/USD専用。ADX≥25+EMAパーフェクトオーダー+プルバック→リバウンド確認。WR=78.6% EV=+1.706。USD/JPY DISABLED(15m足トレンドノイジー)
+- **LSB (London Session Breakout)**: **DISABLED** — ctx fix後初BTでWR=10%/0% → Asia compression→London breakout ロジック要再設計
+
+## USD/JPY New Strategies & Enhancements (2026-04-04)
+- **TNM (Tokyo Nakane Momentum)**: 15m DT, UTC 00:45-01:15, BUY方向のみ（非対称設計）。Pre-fix DOWN→Post-fix BUY reversal。月曜/金曜除外。USD/JPY専用
+- **bb_rsi Option C**: USD/JPY専用環境最適化。ADX制限撤廃(ADX>=30で逆にWR=60%), Death Valley(UTC 00-01,09,12-16)完全ブロック, Gold Hours(UTC 05-08,19-23)スコアボーナス。EUR/USDは従来通りADX<25維持
+- **DaytradeEngine ctx fix**: compute_daytrade_signal内のDaytradeEngineフォールバックコンテキストに hour_utc, is_friday, prev_close/open/high/low を追加。時間帯フィルター戦略(TNM/LSB)が正しく動作可能に
+- **DT BT session filter例外**: USD/JPY UTC 00-01をセッションフィルター(UTC<5ブロック)から除外。仲値時間帯のBT評価を可能に
 
 ## Production Monitoring (P0 — Active since 2026-04-04)
 - **Slippage**: signal_price vs entry_price diff (pips) -> DB column `slippage_pips` + log

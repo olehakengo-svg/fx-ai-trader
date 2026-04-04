@@ -2294,16 +2294,22 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     #  ema_cross, sr_fib_confluence, dt_fib_reversal,
     #  dt_sr_channel_reversal, ema200_trend_reversal
     # ════════════════════════════════════════════════════════
+    _dt_best = None  # DaytradeEngine最良候補（SL/TP流用に使用）
     if not _sr_signal_found and signal == "WAIT":
         from strategies.context import SignalContext as _DtCtx
         from strategies.daytrade import DaytradeEngine as _DtEngine
 
         # DT用SignalContext構築（ema_score + 蓄積reasonsを渡す）
+        # bar_time からセッション情報を導出（TNM/LSB等の時間帯フィルター用）
+        _dt_hour_utc = bar_time.hour if bar_time and hasattr(bar_time, 'hour') else 12
+        _dt_is_friday = bar_time.weekday() == 4 if bar_time and hasattr(bar_time, 'weekday') else False
+        _dt_prev_row = df.iloc[-2] if len(df) >= 2 else row
         _dt_ctx = _DtCtx(
             entry=entry, open_price=float(row["Open"]),
             atr=atr, atr7=float(row["atr7"]) if "atr7" in row.index else atr,
             ema9=ema9, ema21=ema21, ema50=ema50, ema200=ema200,
             rsi=rsi, rsi5=float(row.get("rsi5", rsi)),
+            rsi9=float(row.get("rsi9", rsi)),
             stoch_k=float(row.get("stoch_k", 50.0)),
             stoch_d=float(row.get("stoch_d", 50.0)),
             adx=adx, adx_pos=adx_p, adx_neg=adx_n,
@@ -2313,7 +2319,13 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             bb_upper=float(row.get("bb_upper", entry + atr)),
             bb_mid=float(row.get("bb_mid", entry)),
             bb_lower=float(row.get("bb_lower", entry - atr)),
+            prev_close=float(_dt_prev_row["Close"]),
+            prev_open=float(_dt_prev_row["Open"]),
+            prev_high=float(_dt_prev_row["High"]),
+            prev_low=float(_dt_prev_row["Low"]),
             ema_score=ema_score,
+            hour_utc=_dt_hour_utc,
+            is_friday=_dt_is_friday,
             symbol=symbol, tf=tf, is_jpy=_dt_is_jpy,
             pip_mult=_dt_pip_mult,
             df=df, sr_levels=sr_levels,
@@ -2592,8 +2604,15 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         SL_MULT, TP_MULT = 0.5, 1.5
 
     _pd = _price_dec(symbol)
-    sl   = round(entry - atr * SL_MULT * dir_s, _pd)
-    tp   = round(entry + atr * TP_MULT * dir_s, _pd)
+    # DaytradeEngine戦略は独自SL/TPを計算済み → _dt_bestから流用
+    if _dt_best is not None and _dt_entry_type in (
+            "tokyo_nakane_momentum", "htf_false_breakout", "london_session_breakout",
+            "adx_trend_continuation"):
+        sl = round(_dt_best.sl, _pd)
+        tp = round(_dt_best.tp, _pd)
+    else:
+        sl   = round(entry - atr * SL_MULT * dir_s, _pd)
+        tp   = round(entry + atr * TP_MULT * dir_s, _pd)
 
     # 最低SL距離保証: 5.0pips（DT用 — スプレッド+ノイズ余裕）
     DT_MIN_SL_PIPS = 0.050 if "JPY" in symbol.upper() else 0.00050
@@ -4838,7 +4857,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             if interval != "1h":  # DT 15m only
                 _bt_hour = df.index[i].hour if hasattr(df.index[i], 'hour') else 12
                 if _bt_hour < 5 or _bt_hour >= 22:
-                    continue
+                    # Exception: USD/JPY仲値時間帯 (TNM: UTC 00:45-01:15)
+                    if not (_is_jpy_br and 0 <= _bt_hour <= 1):
+                        continue
 
             # ── 本番環境と統一: compute_daytrade_signalを呼び出し ──
             _dt_key = i // DT_SR_RECALC
@@ -4872,6 +4893,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 # 2026-04-04 EUR/USD新戦略
                 "htf_false_breakout",    # FBF: 1H SR False Breakout Fade
                 "london_session_breakout",  # LSB: アジア→ロンドンブレイクアウト
+                # 2026-04-04 USD/JPY新戦略
+                "tokyo_nakane_momentum",  # TNM: 仲値リバーサル BUY専用
+                "adx_trend_continuation",  # ADX TC: トレンド押し目/戻り目 (Wilder 1978)
                 # DISABLED: ihs_neckbreak (2t EV≒0), dual_sr_breakout,
                 # dt_fib_reversal, dt_sr_channel_reversal, ema200_trend_reversal
             }

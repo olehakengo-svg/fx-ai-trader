@@ -54,6 +54,16 @@ class LondonSessionBreakout(StrategyBase):
     max_hold_bars = 8      # 8バー(8時間) — ロンドンセッション中に決着
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        # ── DISABLED: context fix (2026-04-04) で hour_utc が正しく渡されるようになり、
+        # 初めて実BT可能に → 結果: EUR WR=10% ev=-9.9, JPY WR=0% ev=-10.7
+        # Asia compression→London breakout ロジック要再設計 ──
+        return None
+
+        # ── EUR/USD専用: USD/JPYはTokyo session活発でAsia compression不成立 ──
+        # Data: USD/JPY Tokyo→London follow-through = 48.1% (エッジ不足)
+        if ctx.is_jpy:
+            return None
+
         # ── 時間帯フィルター ──
         if not (self.entry_window_start <= ctx.hour_utc <= self.entry_window_end):
             return None

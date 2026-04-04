@@ -1472,6 +1472,8 @@ class DemoTrader:
             "ema_cross",             # EMAクロスリテスト (39t WR77% EV+0.64)
             "htf_false_breakout",    # FBF: 1H SR False Breakout Fade (2026-04-04)
             "london_session_breakout",  # LSB: アジア→ロンドンブレイクアウト (2026-04-04)
+            "tokyo_nakane_momentum",  # TNM: 仲値リバーサル BUY専用 (2026-04-04)
+            "adx_trend_continuation",  # ADX TC: トレンド押し目/戻り目 (2026-04-04)
             # DISABLED (FXアナリストレビュー):
             # "ihs_neckbreak",       # 廃止: 2t EV≒0, 低頻度
             # "dual_sr_breakout",    # 廃止: 未評価
