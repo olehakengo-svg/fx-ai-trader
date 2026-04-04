@@ -10,7 +10,7 @@ class BBSqueezeBreakout(StrategyBase):
 
     # チューナブルパラメータ（緩和済み）
     bb_width_pct_max = 0.10  # BB幅パーセンタイル閾値（5→10%緩和）
-    adx_min = 15             # ADXトレンド確認（20→15緩和）
+    adx_min = 20             # ADXトレンド確認（15→20: 学術水準復元）
     vol_mult = 1.2           # ボリューム倍率閾値
     tp_mult = 3.0
     sl_mult = 1.2

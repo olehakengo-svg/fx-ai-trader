@@ -27,9 +27,10 @@ class MtfReversalConfluence(StrategyBase):
         _htf_h4_rsi = _htf_h4.get("rsi", 50)
         _htf_h1_score = _htf_h1.get("score", 0)
 
-        # BUY: 複数時間軸でoversold + MACD反転（閾値緩和済み）
+        # BUY: 複数時間軸でoversold + MACD反転
+        # OR→AND修正: ORでは条件が甘すぎ（macdh>0だけで発火）
         _mtf_buy_rsi = (ctx.rsi5 < 45 and _htf_h1_rsi < 48) or (ctx.rsi5 < 40 and _htf_h4_rsi < 52)
-        _mtf_buy_macd = ctx.macdh > 0 or ctx.macdh > ctx.macdh_prev
+        _mtf_buy_macd = ctx.macdh > 0 and ctx.macdh > ctx.macdh_prev  # OR→AND: 両方成立を要求
         _mtf_buy_stoch = ctx.stoch_k > ctx.stoch_d and ctx.stoch_k < 45
 
         if _mtf_buy_rsi and _mtf_buy_macd and _mtf_buy_stoch:
@@ -55,9 +56,9 @@ class MtfReversalConfluence(StrategyBase):
             tp = ctx.entry + ctx.atr7 * self.tp_mult
             sl = ctx.entry - ctx.atr7 * self.sl_mult
 
-        # SELL: 複数時間軸でoverbought + MACD反転（閾値緩和済み）
+        # SELL: 複数時間軸でoverbought + MACD反転
         _mtf_sell_rsi = (ctx.rsi5 > 55 and _htf_h1_rsi > 52) or (ctx.rsi5 > 60 and _htf_h4_rsi > 48)
-        _mtf_sell_macd = ctx.macdh < 0 or ctx.macdh < ctx.macdh_prev
+        _mtf_sell_macd = ctx.macdh < 0 and ctx.macdh < ctx.macdh_prev  # OR→AND: 両方成立を要求
         _mtf_sell_stoch = ctx.stoch_k < ctx.stoch_d and ctx.stoch_k > 55
 
         if signal is None and _mtf_sell_rsi and _mtf_sell_macd and _mtf_sell_stoch:

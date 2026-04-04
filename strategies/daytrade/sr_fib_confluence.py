@@ -9,7 +9,7 @@ class SrFibConfluence(StrategyBase):
     mode = "daytrade"
 
     # チューナブルパラメータ
-    adx_min = 12
+    adx_min = 20           # ADXトレンド閾値（12→20: 学術水準復元）
     ema_score_threshold = 0.28
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:

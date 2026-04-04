@@ -7,6 +7,7 @@ from typing import Optional
 class TrendRebound(StrategyBase):
     name = "trend_rebound"
     mode = "scalp"
+    enabled = False  # 無効化: 強トレンド中の逆張りは学術的にエッジなし（Moskowitz 2012）
 
     # チューナブルパラメータ（緩和済み）
     adx_min = 25           # （35→25緩和）

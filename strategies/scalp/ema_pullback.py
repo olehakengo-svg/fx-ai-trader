@@ -8,9 +8,9 @@ class EmaPullback(StrategyBase):
     name = "ema_pullback"
     mode = "scalp"
 
-    # チューナブルパラメータ（緩和済み）
-    adx_min = 12           # （15→12緩和）
-    adx_weak = 15          # （18→15緩和）
+    # チューナブルパラメータ（学術水準: ADX≥20でトレンド確認）
+    adx_min = 20           # ADXトレンド閾値（12→20: 学術的に有意なトレンド水準）
+    adx_weak = 25          # 弱トレンド帯（15→25）
     rsi5_buy_min = 30      # （38→30緩和）
     rsi5_buy_max = 62      # （58→62緩和）
     rsi5_sell_min = 38     # （42→38緩和）

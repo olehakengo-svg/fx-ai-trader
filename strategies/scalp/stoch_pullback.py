@@ -8,9 +8,9 @@ class StochTrendPullback(StrategyBase):
     name = "stoch_trend_pullback"
     mode = "scalp"
 
-    # チューナブルパラメータ（緩和済み）
-    adx_min = 12          # ADXトレンド閾値（15→12緩和）
-    adx_weak = 15         # 弱トレンド帯（18→15緩和）
+    # チューナブルパラメータ（学術水準: ADX≥20でトレンド確認）
+    adx_min = 20          # ADXトレンド閾値（12→20: 学術的に有意なトレンド水準）
+    adx_weak = 25         # 弱トレンド帯（15→25: ADX20-25は弱トレンド）
     prev_stoch_buy = 48   # 前バーStoch売られすぎ閾値（42→48緩和）
     prev_stoch_sell = 52  # 前バーStoch買われすぎ閾値（58→52緩和）
     stoch_max_buy = 70    # Stoch上昇余地（65→70緩和）

@@ -9,7 +9,7 @@ class BBRsiReversion(StrategyBase):
     mode = "scalp"
 
     # チューナブルパラメータ
-    adx_max = 32          # レンジ判定上限
+    adx_max = 25          # レンジ判定上限（32→25: 学術水準、ADX≥25はトレンド領域）
     bbpb_buy = 0.25       # BB%B BUY閾値
     bbpb_sell = 0.75      # BB%B SELL閾値
     rsi5_buy = 45         # RSI5 BUY閾値

@@ -41,12 +41,20 @@ class DaytradeEngine:
         """全有効戦略を評価し、候補リストを返す。"""
         candidates = []
         _rejected = []
+        # SL最低距離フロア: ATR(14)×1.0（ノイズレベル以下のSL防止）
+        _min_sl_dist = ctx.atr * 1.0 if ctx.atr > 0 else 0
         for strategy in self.strategies:
             if not strategy.enabled:
                 continue
             try:
                 result = strategy.evaluate(ctx)
                 if result is not None:
+                    # SLフロア適用
+                    if _min_sl_dist > 0:
+                        if result.signal == "BUY" and (ctx.entry - result.sl) < _min_sl_dist:
+                            result.sl = ctx.entry - _min_sl_dist
+                        elif result.signal == "SELL" and (result.sl - ctx.entry) < _min_sl_dist:
+                            result.sl = ctx.entry + _min_sl_dist
                     candidates.append(result)
                     logger.debug(f"[{strategy.name}] ✅ {result.signal} score={result.score:.2f} conf={result.confidence}")
                 else:

@@ -9,7 +9,7 @@ class EmaCross(StrategyBase):
     mode = "daytrade"
 
     # チューナブルパラメータ
-    adx_min = 12
+    adx_min = 20           # ADXトレンド閾値（12→20: 学術水準、本番WR33%→改善）
     cross_window = 8       # クロス検出ウィンドウ（本数）
     pullback_min = 0.3     # ATR倍率
     ema_score_threshold = 0.30  # EMAスコア閾値
