@@ -16,6 +16,8 @@ from strategies.daytrade.sr_fib_confluence import SrFibConfluence
 from strategies.daytrade.dt_fib_reversal import DtFibReversal
 from strategies.daytrade.dt_sr_channel import DtSrChannelReversal
 from strategies.daytrade.ema200_reversal import Ema200TrendReversal
+from strategies.daytrade.htf_false_breakout import HtfFalseBreakout
+from strategies.daytrade.london_session_breakout import LondonSessionBreakout
 
 
 class DaytradeEngine:
@@ -25,6 +27,8 @@ class DaytradeEngine:
         self.strategies: list[StrategyBase] = [
             EmaCross(),
             SrFibConfluence(),
+            HtfFalseBreakout(),            # EUR/USD False Breakout Fade
+            LondonSessionBreakout(),        # EUR/USD ロンドンセッションブレイクアウト
             DtFibReversal(),
             DtSrChannelReversal(),
             Ema200TrendReversal(),

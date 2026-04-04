@@ -4464,6 +4464,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "mtf_reversal_confluence",
                 "fib_reversal",     # フィボ反発 — BB中央補完
                 "ema_pullback",     # EMAプルバック — BB中央帯発火
+                # 2026-04-04 EUR/USD新戦略
+                "session_vol_expansion",  # SVE: ロンドンオープン圧縮ブレイク
                 # DISABLED: v_reversal, trend_rebound, ihs_neckbreak
                 # DISABLED: sr_touch_bounce, rsi_divergence_sr, v1互換6種
             }
@@ -4867,6 +4869,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             DT_QUALIFIED = {
                 # 2026-04-03 FXアナリストレビュー統廃合 (本番と統一)
                 "sr_fib_confluence",     # DT主力 (229t WR73% EV+0.50)
+                # 2026-04-04 EUR/USD新戦略
+                "htf_false_breakout",    # FBF: 1H SR False Breakout Fade
+                "london_session_breakout",  # LSB: アジア→ロンドンブレイクアウト
                 # DISABLED: ihs_neckbreak (2t EV≒0), dual_sr_breakout,
                 # dt_fib_reversal, dt_sr_channel_reversal, ema200_trend_reversal
             }

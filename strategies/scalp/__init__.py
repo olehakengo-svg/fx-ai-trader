@@ -26,6 +26,7 @@ from strategies.scalp.v_reversal import VReversal
 from strategies.scalp.engulfing_bb import EngulfingBB
 from strategies.scalp.three_bar_reversal import ThreeBarReversal
 from strategies.scalp.sr_channel_reversal import SrChannelReversal
+from strategies.scalp.session_vol_expansion import SessionVolExpansion
 
 
 class ScalperEngine:
@@ -45,6 +46,7 @@ class ScalperEngine:
             LondonBreakout(),
             TrendRebound(),
             VReversal(),
+            SessionVolExpansion(),  # EUR/USD ロンドンオープン圧縮ブレイク
             EngulfingBB(),          # enabled=False
             ThreeBarReversal(),     # enabled=False
             SrChannelReversal(),    # enabled=False

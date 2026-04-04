@@ -1456,6 +1456,7 @@ class DemoTrader:
             "mtf_reversal_confluence",  # MTF RSI+MACD一致（ライブ専用）
             "fib_reversal",          # フィボ38.2-61.8%反発 — BB中央補完 (BT 61t WR57% EV+0.29)
             "ema_pullback",          # EMAプルバック反発 — BB中央帯でも発火 (FXアナリスト推奨新戦略)
+            "session_vol_expansion",  # SVE: EUR/USD ロンドンオープン圧縮ブレイク (2026-04-04)
             # DISABLED (FXアナリストレビュー 2026-04-03):
             # "v_reversal",          # → bb_rsi統合予定 (サンプル5t)
             # "trend_rebound",       # 廃止: 1t EV=-1.22, 実質未発火
@@ -1469,6 +1470,8 @@ class DemoTrader:
             # ═══ デイトレ (2戦略) ═══
             "sr_fib_confluence",     # SR+フィボ合流 — DT主力 (229t WR73% EV+0.50)
             "ema_cross",             # EMAクロスリテスト (39t WR77% EV+0.64)
+            "htf_false_breakout",    # FBF: 1H SR False Breakout Fade (2026-04-04)
+            "london_session_breakout",  # LSB: アジア→ロンドンブレイクアウト (2026-04-04)
             # DISABLED (FXアナリストレビュー):
             # "ihs_neckbreak",       # 廃止: 2t EV≒0, 低頻度
             # "dual_sr_breakout",    # 廃止: 未評価
