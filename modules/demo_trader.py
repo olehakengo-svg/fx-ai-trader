@@ -954,7 +954,15 @@ class DemoTrader:
                     mode = {"1m": "scalp", "15m": "daytrade", "4h": "swing"}.get(tf, "")
                 cfg = MODE_CONFIG.get(mode, {})
 
-                result = self._db.close_trade(trade_id, price, close_reason)
+                # ── P0監視: 決済時スプレッド記録 ──
+                _spread_exit = 0.0
+                _is_jpy_exit = "JPY" in _inst
+                _pip_m_exit = 100 if _is_jpy_exit else 10000
+                if _ba_rt:
+                    _spread_exit = round((_ba_rt["ask"] - _ba_rt["bid"]) * _pip_m_exit, 2)
+
+                result = self._db.close_trade(trade_id, price, close_reason,
+                                              spread_at_exit=_spread_exit)
                 if "error" in result:
                     continue  # 別スレッドで既にクローズ済み → スキップ
 
@@ -969,7 +977,7 @@ class DemoTrader:
                     f"{cfg.get('icon','')} 📤 OUT [{cfg.get('label','?')}]: {icon} {outcome} | "
                     f"{direction} @ {trade['entry_price']:.3f} → {price:.3f} | "
                     f"PnL: {pnl:+.1f} pips | "
-                    f"Reason: {close_reason} | ID: {trade_id}"
+                    f"Reason: {close_reason} | spread={_spread_exit:.1f}p | ID: {trade_id}"
                 )
 
                 # ── クールダウン記録（SL後の即再エントリー防止、WINは除外）──
@@ -1324,6 +1332,7 @@ class DemoTrader:
 
         # ── OANDAスプレッド反映: bid/askで実際のエントリー価格を使用 ──
         # BUY → ask価格, SELL → bid価格（OANDAと同じ約定価格）
+        _ba = None  # P0監視用にスコープ拡張
         if signal in ("BUY", "SELL"):
             try:
                 from modules.data import fetch_oanda_bid_ask
@@ -1857,6 +1866,27 @@ class DemoTrader:
         if _invalidation is not None:
             _reasons_with_inv = list(_reasons_with_inv) + [f"__INV__:{_invalidation:.3f}"]
 
+        # ══════════════════════════════════════════════════════════════
+        # ── P0監視: スリッページ・スプレッド・COOLDOWN記録 ──
+        # ══════════════════════════════════════════════════════════════
+        _signal_price = sig.get("entry", 0)  # シグナル関数のmid価格
+        _pip_m_mon = 100 if _is_jpy else 10000
+        _slippage = round((current_price - _signal_price) * _pip_m_mon, 2) if _signal_price else 0
+        if signal == "SELL":
+            _slippage = -_slippage  # SELL: bid<mid → 負のスリッページが正常
+        # スプレッド（既にfetch済みの_ba変数を再利用）
+        _spread_entry = 0.0
+        try:
+            if _ba:
+                _spread_entry = round((_ba["ask"] - _ba["bid"]) * _pip_m_mon, 2)
+        except Exception:
+            pass
+        # COOLDOWN経過時間
+        _cd_elapsed = 0.0
+        _last_ex = self._last_exit.get(mode)
+        if _last_ex:
+            _cd_elapsed = round((datetime.now(timezone.utc) - _last_ex["time"]).total_seconds(), 1)
+
         trade_id = self._db.open_trade(
             direction=signal,
             entry_price=current_price,
@@ -1872,6 +1902,10 @@ class DemoTrader:
             sr_basis=sr_basis,
             mode=mode,
             instrument=instrument,
+            signal_price=_signal_price,
+            spread_at_entry=_spread_entry,
+            slippage_pips=_slippage,
+            cooldown_elapsed=_cd_elapsed,
         )
 
         # ── SL狩り対策D1: SL距離連動ロットサイジング ──
@@ -1916,7 +1950,8 @@ class DemoTrader:
             f"{cfg['icon']} 📥 IN [{cfg['label']}]: {signal} @ {current_price:.{_price_dec}f} | "
             f"SL {sl:.{_price_dec}f}({sl_dist*_pip_m:.1f}p) TP {tp:.{_price_dec}f}({tp_dist*_pip_m:.1f}p) RR1:{rr_actual} | "
             f"Type: {entry_type} | Conf: {confidence}% | "
-            f"理由: {_reason_summary} | ID: {trade_id}"
+            f"理由: {_reason_summary} | ID: {trade_id} | "
+            f"📊 slip={_slippage:+.2f}p spread={_spread_entry:.1f}p CD={_cd_elapsed:.0f}s"
         )
 
     def _check_signal_reverse(self, trade: dict, current_price: float,

@@ -7,6 +7,7 @@ from typing import Optional
 class EmaPullback(StrategyBase):
     name = "ema_pullback"
     mode = "scalp"
+    enabled = False  # 無効化: ADX≥20でWR=51.1% EV=+0.030≈0、stoch_pullbackと同系統でエッジ不十分
 
     # チューナブルパラメータ（学術水準: ADX≥20でトレンド確認）
     adx_min = 20           # ADXトレンド閾値（12→20: 学術的に有意なトレンド水準）

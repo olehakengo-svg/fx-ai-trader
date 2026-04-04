@@ -158,6 +158,18 @@ class DemoDB:
                 conn.execute("ALTER TABLE demo_trades ADD COLUMN instrument TEXT DEFAULT 'USD_JPY'")
             except Exception:
                 pass
+            # ── P0監視フィールド: スリッページ・スプレッド記録 ──
+            for _col, _default in [
+                ("signal_price", "0"),         # シグナル関数のmid価格（スリッページ計算用）
+                ("spread_at_entry", "0"),       # エントリー時OANDAスプレッド(pip)
+                ("spread_at_exit", "0"),        # 決済時OANDAスプレッド(pip)
+                ("slippage_pips", "0"),         # signal_price vs entry_price の差(pip)
+                ("cooldown_elapsed", "0"),      # 前回決済からの経過秒数
+            ]:
+                try:
+                    conn.execute(f"ALTER TABLE demo_trades ADD COLUMN {_col} REAL DEFAULT {_default}")
+                except Exception:
+                    pass
 
             # ── OANDA設定永続化テーブル ──
             conn.execute("""
@@ -208,7 +220,9 @@ class DemoDB:
                    reasons: list = None, regime: dict = None,
                    layer1_dir: str = "", score: float = 0.0,
                    ema_conf: int = 0, sr_basis: float = 0.0,
-                   mode: str = "", instrument: str = "USD_JPY") -> str:
+                   mode: str = "", instrument: str = "USD_JPY",
+                   signal_price: float = 0.0, spread_at_entry: float = 0.0,
+                   slippage_pips: float = 0.0, cooldown_elapsed: float = 0.0) -> str:
         """Record a new trade open. Returns trade_id."""
         trade_id = str(uuid.uuid4())[:12]
         now_str = datetime.now(timezone.utc).isoformat()
@@ -218,18 +232,21 @@ class DemoDB:
                     INSERT INTO demo_trades
                         (trade_id, status, direction, entry_price, entry_time,
                          sl, tp, entry_type, confidence, tf, reasons, regime,
-                         layer1_dir, score, ema_conf, sr_basis, mode, instrument)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                         layer1_dir, score, ema_conf, sr_basis, mode, instrument,
+                         signal_price, spread_at_entry, slippage_pips, cooldown_elapsed)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (trade_id, "OPEN", direction, entry_price, now_str,
                       sl, tp, entry_type, confidence, tf,
                       json.dumps(reasons or [], ensure_ascii=False),
                       json.dumps(regime or {}, ensure_ascii=False),
-                      layer1_dir, score, ema_conf, sr_basis, mode, instrument))
+                      layer1_dir, score, ema_conf, sr_basis, mode, instrument,
+                      signal_price, spread_at_entry, slippage_pips, cooldown_elapsed))
                 conn.commit()
         return trade_id
 
     def close_trade(self, trade_id: str, exit_price: float,
-                    close_reason: str = "TP_HIT") -> dict:
+                    close_reason: str = "TP_HIT",
+                    spread_at_exit: float = 0.0) -> dict:
         """Close an open trade, compute PnL."""
         with self._lock:
             with self._safe_conn() as conn:
@@ -267,10 +284,11 @@ class DemoDB:
                 cursor = conn.execute("""
                     UPDATE demo_trades SET
                         status='CLOSED', exit_price=?, exit_time=?,
-                        pnl_pips=?, pnl_r=?, outcome=?, close_reason=?
+                        pnl_pips=?, pnl_r=?, outcome=?, close_reason=?,
+                        spread_at_exit=?
                     WHERE trade_id=? AND status='OPEN'
                 """, (exit_price, now_str, pnl_pips, pnl_r, outcome,
-                      close_reason, trade_id))
+                      close_reason, spread_at_exit, trade_id))
                 conn.commit()
 
                 if cursor.rowcount == 0:
