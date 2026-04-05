@@ -147,6 +147,7 @@ def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
         "EURJPY=X": "C:EURJPY",
         "GBPJPY=X": "C:GBPJPY",
         "GBPUSD=X": "C:GBPUSD",
+        "EURGBP=X": "C:EURGBP",
     }
     massive_ticker = _SYMBOL_MAP.get(symbol)
     if not massive_ticker:
@@ -240,6 +241,7 @@ _OANDA_SYMBOLS = {
     "USDJPY=X": "USD_JPY", "JPY=X": "USD_JPY",
     "EURUSD=X": "EUR_USD", "EURJPY=X": "EUR_JPY",
     "GBPJPY=X": "GBP_JPY", "GBPUSD=X": "GBP_USD",
+    "EURGBP=X": "EUR_GBP",
 }
 
 # OANDA共有クライアント (遅延初期化)

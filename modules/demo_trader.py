@@ -114,6 +114,32 @@ MODE_CONFIG = {
         "base_sl_pips": 3.5,
         "active_hours_utc": (12, 15),  # UTC 12-15 only (London/NY overlap)
     },
+    # ── GBP/USD Daytrade (15m) — Phase3 水平展開 ──
+    "daytrade_gbpusd": {
+        "interval_sec": 30,
+        "tf": "15m",
+        "period": "60d",
+        "signal_fn": "compute_daytrade_signal",
+        "label": "DT GBP/USD",
+        "icon": "📊🇬🇧",
+        "symbol": "GBPUSD=X",
+        "instrument": "GBP_USD",
+        "auto_start": False,
+        "base_sl_pips": 15,
+    },
+    # ── EUR/GBP Daytrade (15m) — Phase3 水平展開 ──
+    "daytrade_eurgbp": {
+        "interval_sec": 30,
+        "tf": "15m",
+        "period": "60d",
+        "signal_fn": "compute_daytrade_signal",
+        "label": "DT EUR/GBP",
+        "icon": "📊🇪🇺🇬🇧",
+        "symbol": "EURGBP=X",
+        "instrument": "EUR_GBP",
+        "auto_start": False,
+        "base_sl_pips": 15,
+    },
     # ── LCR: FROZEN (Phase2 BT全ペア負EV) ──
     # ── EUR/JPY, GBP/JPY RNB: REMOVED (spread負け) ──
     # ── Round Number Barrier (RNB) — USD/JPY 15m BUY-only ──
@@ -136,7 +162,7 @@ MODE_CONFIG = {
 # ── ベースモード抽出ヘルパー ──
 # scalp_eur -> scalp, scalp_eurjpy -> scalp, lcr_gbpjpy -> lcr, daytrade_1h_eur -> daytrade_1h
 def _get_base_mode(mode: str) -> str:
-    for suffix in ("_usdjpy", "_gbpjpy", "_eurjpy", "_gbpusd", "_eur"):  # longest first
+    for suffix in ("_usdjpy", "_gbpjpy", "_eurjpy", "_gbpusd", "_eurgbp", "_eur"):  # longest first
         if mode.endswith(suffix):
             return mode[:-len(suffix)]
     return mode
@@ -578,7 +604,8 @@ class DemoTrader:
                 # 全モードを強制チェック（EUR含む）
                 _all_modes = ["scalp", "daytrade", "daytrade_1h", "swing",
                               "scalp_eur", "daytrade_eur", "daytrade_1h_eur",
-                              "scalp_eurjpy", "rnb_usdjpy"]
+                              "scalp_eurjpy", "rnb_usdjpy",
+                              "daytrade_gbpusd", "daytrade_eurgbp"]
                 for m in _all_modes:
                     if m in self._user_stopped_modes:
                         continue  # ユーザーが明示的に停止したモードはスキップ

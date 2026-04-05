@@ -77,10 +77,13 @@ class AdxTrendContinuation(StrategyBase):
     MAX_HOLD_BARS = 12          # 12バー = 3時間 (15m足)
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
-        # ── USD/JPY DISABLED: 15m足でのトレンドフォローはノイジー ──
-        # BT結果: JPY 14t WR=50% EV=-0.719 (max_hold timeout多発)
-        # EUR/USD: 14t WR=78.6% EV=+1.706 → EUR/USD専用で運用
-        if ctx.is_jpy:
+        # ── EUR/USD ONLY: 他ペアでは負EV ──
+        # EUR/USD: 15t WR=78.6% EV=+1.706 → EUR/USD専用
+        # USD/JPY: 14t WR=50% EV=-0.719 (ノイジー)
+        # GBP/USD: 11t WR=36.4% EV=-1.618 (ボラ過大)
+        # EUR/GBP: 12t WR=41.7% EV=-1.215 (押し目深すぎ)
+        _sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+        if _sym not in ("EURUSD",):
             return None
 
         # ── DataFrame十分性チェック ──
