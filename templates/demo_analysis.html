@@ -120,6 +120,10 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .tl-tip b{color:var(--blue)}
 .tl-tip .tl-analysis{color:var(--gold);margin-top:4px}
 
+/* ── Mobile OANDA Panel (desktop: hidden) ── */
+.mob-oa{display:none}
+.mob-oa-detail{display:none}
+
 /* ── Mobile ── */
 @media(max-width:768px){
   .cockpit{grid-template-columns:1fr;grid-template-rows:auto 1fr}
@@ -135,6 +139,54 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
   #main-chart{min-height:200px}
   .stats-bar{gap:12px;padding:4px 8px}
   .stat-val{font-size:11px}
+  /* ── Mobile OANDA Emergency Panel ── */
+  .mob-oa{
+    display:flex;position:fixed;bottom:0;left:0;right:0;
+    min-height:48px;background:var(--bg1);border-top:2px solid var(--border);
+    align-items:center;justify-content:space-between;
+    padding:6px 12px calc(6px + env(safe-area-inset-bottom, 0px)) 12px;
+    z-index:200;box-shadow:0 -2px 8px rgba(0,0,0,.5);
+  }
+  .mob-oa-left{display:flex;align-items:center;gap:6px;cursor:pointer;flex:1;-webkit-tap-highlight-color:transparent}
+  .mob-oa-label{font-size:12px;font-weight:600;color:var(--t2);transition:color .3s ease}
+  .mob-oa-label.live{color:var(--purple)}
+  .mob-oa-cnt{font-size:10px;color:var(--gold);font-weight:700}
+  .mob-oa-kill{
+    background:var(--red);color:white;border:none;border-radius:6px;
+    padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;
+    min-height:36px;min-width:70px;transition:opacity .2s ease,background .3s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .mob-oa-kill:active{opacity:.7}
+  .mob-oa-kill.safe{background:var(--t3);color:var(--t2)}
+  .mob-oa-detail{
+    position:fixed;bottom:0;left:0;right:0;
+    background:var(--bg1);border-top:2px solid var(--purple);
+    padding:10px 12px calc(10px + env(safe-area-inset-bottom, 0px)) 12px;
+    z-index:201;box-shadow:0 -4px 16px rgba(0,0,0,.6);
+    max-height:60vh;overflow-y:auto;
+  }
+  .mob-oa-detail.open{display:block}
+  .mob-oa-detail-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .mob-oa-detail-title{font-size:13px;font-weight:700;color:var(--t1)}
+  .mob-oa-close{background:none;border:1px solid var(--border);color:var(--t2);border-radius:4px;padding:4px 10px;cursor:pointer;font-size:11px;-webkit-tap-highlight-color:transparent}
+  .mob-oa-mode{display:flex;align-items:center;justify-content:space-between;padding:10px 4px;border-bottom:1px solid var(--border)}
+  .mob-oa-mode-name{font-size:12px;color:var(--t1);display:flex;align-items:center;gap:5px}
+  .mob-oa-toggle{
+    position:relative;width:44px;height:24px;border-radius:12px;
+    border:none;cursor:pointer;transition:background .3s ease;
+    background:var(--t3);-webkit-tap-highlight-color:transparent;
+  }
+  .mob-oa-toggle.on{background:var(--purple)}
+  .mob-oa-toggle::after{
+    content:'';position:absolute;top:2px;left:2px;
+    width:20px;height:20px;border-radius:50%;
+    background:white;transition:transform .3s ease;
+  }
+  .mob-oa-toggle.on::after{transform:translateX(20px)}
+  .mob-oa-toggle:disabled{opacity:.3;cursor:default}
+  .cockpit{height:calc(100vh - 42px - 52px)}
+  .bottom{padding-bottom:56px}
 }
 </style>
 </head>
@@ -280,6 +332,23 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
   </div><!-- /bottom -->
 </main>
 </div><!-- /cockpit -->
+
+<!-- ═══ Mobile OANDA Emergency Panel ═══ -->
+<div id="mob-oa" class="mob-oa">
+  <div class="mob-oa-left" onclick="toggleMobOaDetail()">
+    <span class="dot off" id="mob-oa-dot"></span>
+    <span class="mob-oa-label" id="mob-oa-label">OANDA: OFF</span>
+    <span class="mob-oa-cnt" id="mob-oa-cnt"></span>
+  </div>
+  <button class="mob-oa-kill safe" id="mob-oa-kill" onclick="killAllOanda()">停止中</button>
+</div>
+<div id="mob-oa-detail" class="mob-oa-detail">
+  <div class="mob-oa-detail-hdr">
+    <span class="mob-oa-detail-title">OANDA 実弾連携</span>
+    <button class="mob-oa-close" onclick="toggleMobOaDetail()">閉じる</button>
+  </div>
+  <div id="mob-oa-modes"></div>
+</div>
 
 <script>
 // ═══════════════════════════════════════════════════════════
@@ -662,6 +731,7 @@ function updateSidebar(){
     if(oaEl.textContent!==newText)oaEl.textContent=newText;
     oaEl.classList.toggle('oa-active',oaActive);
   }
+  updateMobileOanda();
 }
 
 function updateStatusText(){
@@ -761,6 +831,15 @@ async function toggleDemo(mode){
 }
 
 async function toggleOandaMode(mode){
+  // 実弾モード有効化時は確認ダイアログ
+  const _oa=_oandaStatus.allowed_modes||[];
+  const _isAll=_oa==='all';
+  const _cur=_isAll||(Array.isArray(_oa)&&_oa.includes(mode));
+  if(!_cur){
+    const _def=MODE_DEFS[mode]||{};
+    const _pair=PAIRS[modePairKey(mode)]||{};
+    if(!confirm(`⚠️ ${_pair.label||''} ${_def.label||mode} を実弾(OANDA)モードに切り替えますか？\n\n実際の資金でトレードが実行されます。`))return;
+  }
   try{
     const r=await fetch('/api/oanda/modes',{method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -792,6 +871,81 @@ async function closeAllTrades(){
 async function runLearning(){
   try{await fetch('/api/demo/learning?run=true');loadDemoStatus()}
   catch(e){console.error('[Learning]',e)}
+}
+
+
+// ═══ Mobile OANDA Emergency Panel ═════════════════════
+
+function updateMobileOanda(){
+  const dot=document.getElementById('mob-oa-dot');
+  const label=document.getElementById('mob-oa-label');
+  const cnt=document.getElementById('mob-oa-cnt');
+  const kill=document.getElementById('mob-oa-kill');
+  if(!dot)return;
+  const oaActive=!!_oandaStatus.active;
+  const oaAllowed=_oandaStatus.allowed_modes||[];
+  const isAll=oaAllowed==='all';
+  let liveCount=0;const liveNames=[];
+  for(const[mode,def]of Object.entries(MODE_DEFS)){
+    const run=!!(_modeStates[mode]?.running);
+    const live=oaActive&&(isAll||(Array.isArray(oaAllowed)&&oaAllowed.includes(mode)));
+    if(run&&live){liveCount++;liveNames.push(def.label||mode)}
+  }
+  const isLive=oaActive&&liveCount>0;
+  dot.classList.toggle('on',isLive);dot.classList.toggle('off',!isLive);
+  if(label){
+    const t=isLive?`OANDA LIVE: ${liveCount}モード`:'OANDA: OFF';
+    if(label.textContent!==t)label.textContent=t;
+    label.classList.toggle('live',isLive);
+  }
+  if(cnt){const c=isLive?liveNames.join(' '):'';if(cnt.textContent!==c)cnt.textContent=c}
+  if(kill){kill.classList.toggle('safe',!isLive);const kt=isLive?'🛑 全停止':'停止中';if(kill.textContent!==kt)kill.textContent=kt}
+  if(_mobOaOpen)updateMobOaModes();
+}
+
+function updateMobOaModes(){
+  const el=document.getElementById('mob-oa-modes');if(!el)return;
+  const oaActive=!!_oandaStatus.active;
+  const oaAllowed=_oandaStatus.allowed_modes||[];
+  const isAll=oaAllowed==='all';
+  let html='';
+  for(const[mode,def]of Object.entries(MODE_DEFS)){
+    const run=!!(_modeStates[mode]?.running);
+    const allowed=isAll||(Array.isArray(oaAllowed)&&oaAllowed.includes(mode));
+    const live=oaActive&&run&&allowed;
+    const pair=PAIRS[modePairKey(mode)]||{};
+    const st=!run?'停止中':live?'LIVE':'Demo';
+    const stCol=live?'var(--green)':run?'var(--gold)':'var(--t3)';
+    html+=`<div class="mob-oa-mode"><span class="mob-oa-mode-name">${def.icon} ${pair.label||''} ${def.label} <span style="font-size:10px;color:${stCol}">${st}</span></span><button class="mob-oa-toggle${allowed?' on':''}" onclick="toggleOandaMode('${mode}')" ${!run?'disabled':''}></button></div>`;
+  }
+  el.innerHTML=html;
+}
+
+let _mobOaOpen=false;
+function toggleMobOaDetail(){
+  const el=document.getElementById('mob-oa-detail');if(!el)return;
+  _mobOaOpen=!_mobOaOpen;
+  el.classList.toggle('open',_mobOaOpen);
+  if(_mobOaOpen)updateMobOaModes();
+}
+
+async function killAllOanda(){
+  const oaActive=!!_oandaStatus.active;
+  const oaAllowed=_oandaStatus.allowed_modes||[];
+  const isAll=oaAllowed==='all';
+  let hasLive=false;
+  for(const mode of Object.keys(MODE_DEFS)){
+    if(isAll||(Array.isArray(oaAllowed)&&oaAllowed.includes(mode))){hasLive=true;break}
+  }
+  if(!hasLive)return;
+  if(!confirm('⚠️ 全モードのOANDA実弾連携を停止しますか？\n\nデモモードは継続します。'))return;
+  try{
+    for(const mode of Object.keys(MODE_DEFS)){
+      const allowed=isAll||(Array.isArray(oaAllowed)&&oaAllowed.includes(mode));
+      if(allowed)await fetch('/api/oanda/modes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({toggle:mode})});
+    }
+    await loadOandaModes();loadDemoStatus();
+  }catch(e){console.error('[KillOanda]',e)}
 }
 
 
