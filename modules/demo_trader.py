@@ -577,8 +577,8 @@ class DemoTrader:
 
                 # 全モードを強制チェック（EUR含む）
                 _all_modes = ["scalp", "daytrade", "daytrade_1h", "swing",
-                              "scalp_eur", "daytrade_eur", "scalp_eurjpy",
-                              "rnb_usdjpy"]
+                              "scalp_eur", "daytrade_eur", "daytrade_1h_eur",
+                              "scalp_eurjpy", "rnb_usdjpy"]
                 for m in _all_modes:
                     if m in self._user_stopped_modes:
                         continue  # ユーザーが明示的に停止したモードはスキップ
