@@ -9867,9 +9867,6 @@ def healthz():
 def api_demo_status():
     try:
         status = _demo_trader.get_status()
-        # スレッドが死んでいる場合、リクエスト駆動でtick実行
-        _demo_trader.request_tick()
-        status["trade_rules"] = TRADE_RULES
         return jsonify(status)
     except Exception as e:
         print(f"[api_demo_status] Error: {e}", flush=True)

@@ -412,11 +412,10 @@ class DemoTrader:
 
         # ── ステータス計算（self-healing後の最新状態を反映） ──
         open_trades = self._db.get_open_trades()
-        stats = self._db.get_stats()
         modes_status = {}
+        _loop_alive = self._health_thread and self._health_thread.is_alive()
         for m, cfg in MODE_CONFIG.items():
             runner = self._runners.get(m, {})
-            _loop_alive = self._health_thread and self._health_thread.is_alive()
             _actually_running = runner.get("running", False) and _loop_alive
             modes_status[m] = {
                 "running": _actually_running,
@@ -428,49 +427,28 @@ class DemoTrader:
                 "symbol": cfg.get("symbol", "USDJPY=X"),
                 "last_signal": self._last_signals.get(m),
             }
-        try:
-            log_count = self._db.get_log_count()
-        except Exception:
-            log_count = 0
 
-        # MTFバイアス情報（通貨ペア別）
-        with self._lock:
-            _all_bias = dict(self._15m_tactical_bias)
-        _bias_info = {}
-        for _bi_inst, _bias in _all_bias.items():
-            if _bias.get("direction") and _bias.get("updated_at"):
-                _age = (datetime.now(timezone.utc) - _bias["updated_at"]).total_seconds()
-                _bias_info[_bi_inst] = {
-                    "direction": _bias["direction"],
-                    "entry_type": _bias["entry_type"],
-                    "strength": _bias.get("strength", ""),
-                    "age_sec": int(_age),
-                    "active": _age < 3600,
-                }
+        # log_count: 5秒キャッシュ（SELECT COUNT(*)を毎回回避）
+        if _now - getattr(self, '_log_count_cache_ts', 0) >= 5:
+            try:
+                self._log_count_cache = self._db.get_log_count()
+            except Exception:
+                self._log_count_cache = getattr(self, '_log_count_cache', 0)
+            self._log_count_cache_ts = _now
 
         return {
             "running": self.is_running(),
             "modes": modes_status,
-            "params": self._params.copy(),
             "open_trades": open_trades,
-            "stats": stats,
-            "log_count": log_count,
-            "trades_since_learn": self._trade_count_since_learn,
-            "daily_review_active": self._daily_review.is_running(),
-            "sltp_checker_active": bool(self._sltp_thread and self._sltp_thread.is_alive()),
-            "mtf_bias": _bias_info,
-            "main_loop_alive": bool(self._health_thread and self._health_thread.is_alive()),
-            "main_loop_status": getattr(self, '_main_loop_status', 'unknown'),
-            "main_loop_error": getattr(self, '_main_loop_error', None),
+            "log_count": getattr(self, '_log_count_cache', 0),
+            "oanda": self._oanda.status,
+            "strategy_status": self._get_strategy_status_cached(),
+            # healthz用（軽量フィールドのみ残す）
+            "main_loop_alive": bool(_loop_alive),
             "watchdog_alive": bool(self._watchdog_thread and self._watchdog_thread.is_alive()),
+            "sltp_checker_active": bool(self._sltp_thread and self._sltp_thread.is_alive()),
             "tick_counts": getattr(self, '_tick_counts', None),
             "main_loop_restarts": getattr(self, '_main_loop_restart_count', 0),
-            "_started_modes": list(self._started_modes),
-            "_user_stopped_modes": list(self._user_stopped_modes),
-            "block_counts": getattr(self, '_block_counts', {}),
-            "oanda": self._oanda.status,
-            "strategy_promotion": self._promoted_types,
-            "strategy_status": self._get_strategy_status_cached(),
         }
 
     def request_tick(self):
