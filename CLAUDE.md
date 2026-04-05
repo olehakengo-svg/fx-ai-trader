@@ -53,8 +53,8 @@
 
 ## BT Performance (as of 2026-04-04, +ADX TC EUR/USD採用)
 - Scalp: 520t WR=59.4% Sharpe=0.064 (7d, 1m) — bb_rsi 181t(Option C拡大), macdh 144t, fib 172t
-- DT EUR/USD: **153t WR=66.0% Sharpe=3.50** (55d, 15m, +ADX TC)
-- DT USD/JPY: **155t WR=67.1% Sharpe=3.42** (55d, 15m, +TNM)
+- DT EUR/USD: **142t WR=64.1% Sharpe=2.99** (55d, 15m, ema_cross hardened v2)
+- DT USD/JPY: **135t WR=65.2% Sharpe=2.81** (55d, 15m, ema_cross hardened v2)
 - **1H EUR/USD: 70t WR=50% +483pip** (120d, 1h, KSB+DMB)
 - **1H USD/JPY: 40t WR=35% +181pip** (120d, 1h, DMB only, SELL非対称フィルター)
 - **Scalp EUR/JPY: 250t WR=45.6% +300pip EV=+1.20** (60d, 5m, UTC 12-15限定)
@@ -80,7 +80,7 @@
 |---|---|---|---|---|---|---|---|
 | sr_fib_confluence | 79 | 59.5% | +0.109 | 83 | 63.9% | +0.240 | ADX>=20, layer3 SR/Fib detection |
 | htf_false_breakout | 35 | 62.9% | +0.276 | 28 | 71.4% | +0.739 | FBF: 1H SR False Breakout Fade (Bulkowski 2005) |
-| ema_cross | 25 | 84.0% | +1.114 | 34 | 70.6% | +0.444 | ADX>=20, cross_window=8, pullback=0.3ATR |
+| ema_cross | 9 | 77.8% | +0.963 | 4 | 50.0% | -0.448 | **Hardened v2**: ADX≥25↑ OR 1H ADX≥22, HTF 4H+1D PO整合必須 |
 | **adx_trend_continuation** | **14** | **78.6%** | **+1.706** | **—** | **—** | **—** | **ADX TC: EUR専用トレンド押し目 (Wilder 1978 / Menkhoff 2012)** |
 | **tokyo_nakane_momentum** | **—** | **—** | **—** | **10** | **70.0%** | **+0.086** | **TNM: 仲値DOWN→BUY専用 (Andersen 2003)** |
 | ~~london_session_breakout~~ | ~~10~~ | ~~10%~~ | ~~-9.9~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~DISABLED: ctx fix後初BTでWR=10% — 要再設計~~ |
@@ -88,6 +88,7 @@
 - **ADX TC (2026-04-04)**: EUR/USD専用トレンドフォロー。ADX≥25+EMAパーフェクトオーダー(9>21>50)+前1-3本プルバック検出→現在足リバウンド確認。USD/JPYはDISABLED(WR=50%/EV=-0.719、15m足トレンドノイジー)
 - **ctx fix (2026-04-04)**: DaytradeEngine fallbackコンテキストに hour_utc, is_friday, prev_close/open/high/low を追加。LSB/TNM等の時間帯フィルター戦略が正しく動作可能に
 - **LSB DISABLED**: hour_utc未設定バグにより未テストだった。修正後初BT: EUR WR=10% ev=-9.9, JPY WR=0% ev=-10.7 → 要再設計
+- **ema_cross Hardened v2 (2026-04-05)**: 本番WR=32%(19t/5日)→レンジ相場ホイップソー根絶。ADX閾値20→25+上昇(or 1H ADX≥22)、HTF 4H+1D agreement+パーフェクトオーダー整合必須。BT: EUR 25→9t, JPY 34→4t (60-88%削減)。両通貨ペア(daytrade/daytrade_eur)に自動適用
 - **Mean-reversion exclusion**: bb_rsi, macdh, v_reversal, trend_rebound exempt from EMA200/HTF hard filter (soft penalty only)
 
 ## Key Parameters
