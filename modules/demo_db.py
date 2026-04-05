@@ -377,10 +377,15 @@ class DemoDB:
             t = by_type[et]["trades"]
             by_type[et]["win_rate"] = round(by_type[et]["wins"] / t * 100, 1) if t > 0 else 0
 
+        # BREAKEVEN を LOSS と区別してカウント (2026-04-05 audit fix M5)
+        losses = sum(1 for r in rows if r["outcome"] == "LOSS")
+        breakevens = total - wins - losses
+
         return {
             "total": total,
             "wins": wins,
-            "losses": total - wins,
+            "losses": losses,
+            "breakevens": breakevens,
             "win_rate": round(wins / total * 100, 1),
             "total_pnl": round(total_pnl, 1),
             "ev": round(total_pnl / total, 2),
@@ -619,11 +624,20 @@ class DemoDB:
             result.append(d)
         return result
 
+    @staticmethod
+    def _build_tf_map() -> dict:
+        """demo_trader.MODE_CONFIGから動的にtf_mapを構築 (2026-04-05 audit fix M3)"""
+        try:
+            from modules.demo_trader import MODE_CONFIG
+            return {mode: cfg.get("tf", "") for mode, cfg in MODE_CONFIG.items()}
+        except ImportError:
+            return {"daytrade": "15m", "scalp": "1m", "swing": "4h"}
+
     def get_trades_by_date(self, date_str: str, mode: str = None) -> list:
         """指定日のクローズドトレードを取得"""
         with self._safe_conn() as conn:
             if mode:
-                tf_map = {"daytrade": "15m", "scalp": "1m", "swing": "4h"}
+                tf_map = self._build_tf_map()
                 target_tf = tf_map.get(mode, "")
                 rows = conn.execute(
                     """SELECT * FROM demo_trades
@@ -643,8 +657,8 @@ class DemoDB:
         """Return structured data for the learning engine. mode でフィルタ可能"""
         closed = self.get_all_closed()
         if mode:
-            # modeカラムがある場合はそれで、なければtfで推定
-            tf_map = {"daytrade": "15m", "scalp": "1m", "swing": "4h"}
+            # modeカラムがある場合はそれで、なければtfで推定 (2026-04-05 audit fix M3)
+            tf_map = self._build_tf_map()
             target_tf = tf_map.get(mode, "")
             closed = [t for t in closed if (t.get("mode") == mode) or
                       (not t.get("mode") and t.get("tf") == target_tf)]

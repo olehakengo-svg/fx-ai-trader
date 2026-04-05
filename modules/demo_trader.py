@@ -1219,13 +1219,10 @@ class DemoTrader:
                 self._add_log(f"💀 メインループ致命的エラー: {type(fatal).__name__}: {fatal}")
             except Exception:
                 pass
-            # 自動リスタート（30秒待ってから）
-            print("[MainLoop] Will auto-restart in 30s...", flush=True)
-            time.sleep(30)
-            try:
-                self._ensure_main_loop()
-            except Exception:
-                pass
+            # watchdogが30秒以内に検出して再起動する (2026-04-05 audit fix M4)
+            # NOTE: ここで _ensure_main_loop() を呼ぶと、自スレッドが
+            #       まだ alive なため is_alive() チェックを通過し再起動が失敗する
+            print("[MainLoop] Thread exiting — watchdog will restart", flush=True)
 
     def _check_drawdown(self) -> bool:
         """日次損失・最大DD制限チェック。制限到達ならTrue（トレード禁止）"""

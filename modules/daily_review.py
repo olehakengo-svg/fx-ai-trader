@@ -26,11 +26,23 @@ DAILY_THRESHOLDS = {
     "consecutive_loss_days": 3,      # 3日連続マイナスで緊急調整
 }
 
-MODE_CONFIG = {
-    "daytrade": {"label": "デイトレード", "icon": "📊"},
-    "scalp": {"label": "スキャルピング", "icon": "⚡"},
-    "swing": {"label": "スイング", "icon": "🌊"},
-}
+
+def _get_mode_config() -> dict:
+    """demo_trader.MODE_CONFIGから動的構築（循環インポート回避で遅延import）
+    (2026-04-05 audit fix M2)
+    """
+    try:
+        from modules.demo_trader import MODE_CONFIG as TRADER_MC
+        return {
+            mode: {"label": cfg.get("label", mode), "icon": cfg.get("icon", "")}
+            for mode, cfg in TRADER_MC.items()
+        }
+    except ImportError:
+        # フォールバック: 基本3モード
+        return {
+            "daytrade": {"label": "デイトレード", "icon": "📊"},
+            "scalp": {"label": "スキャルピング", "icon": "⚡"},
+        }
 
 
 class DailyReviewEngine:
@@ -108,7 +120,8 @@ class DailyReviewEngine:
         results = {}
         all_insights = []
 
-        for mode, cfg in MODE_CONFIG.items():
+        _mc = _get_mode_config()
+        for mode, cfg in _mc.items():
             result = self._review_mode(review_date, mode, cfg, params)
             results[mode] = result
             all_insights.extend(result.get("insights", []))
@@ -125,8 +138,8 @@ class DailyReviewEngine:
             for mode, r in results.items():
                 if mode.startswith("_"):
                     continue
-                icon = MODE_CONFIG.get(mode, {}).get("icon", "")
-                label = MODE_CONFIG.get(mode, {}).get("label", mode)
+                icon = _mc.get(mode, {}).get("icon", "")
+                label = _mc.get(mode, {}).get("label", mode)
                 n = r.get("trades_today", 0)
                 wr = r.get("wr_today", 0)
                 pnl = r.get("pnl_today", 0)
@@ -328,7 +341,7 @@ class DailyReviewEngine:
             )
             if best_mode:
                 m, r = best_mode
-                cfg = MODE_CONFIG.get(m, {})
+                cfg = _get_mode_config().get(m, {})
                 insights.append(
                     f"👑 最優秀: {cfg.get('label', m)} "
                     f"(+{r['pnl_today']:.1f} pips, WR {r['wr_today']}%)"
