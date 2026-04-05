@@ -5,8 +5,10 @@ Self-Learning Engine — Analyzes closed demo trades and adjusts DemoTrader para
   - confidence_threshold: エントリー最低確度
   - entry_type_blacklist: 低勝率エントリータイプの除外
   - session_blacklist: 低勝率時間帯の除外
-  - sl_adjust: SL幅の微調整 (0.8x - 1.3x)
-  - tp_adjust: TP幅の微調整 (0.8x - 1.3x)
+
+NOTE: sl_adjust / tp_adjust は廃止。SMC戦略(turtle_soup, trendline_sweep等)は
+      独自の精密SL/TPを計算しており、グローバル乗数で上書きすると
+      エッジが破壊される。(2026-04-05 audit fix)
 """
 from modules.demo_db import DemoDB
 
@@ -14,6 +16,15 @@ from modules.demo_db import DemoDB
 # Strategy Aの損益分岐WR（RR 1:2.4 → WR 29.4%が理論損益分岐）
 BREAKEVEN_WR = 30.0
 MIN_SAMPLE = 10
+
+# ── SMC保護: 学習エンジンが変更してはならない戦略 ──
+# これらの戦略は独自のSL/TP/ペアフィルター/方向フィルターを持ち、
+# BT検証済みのパラメータで稼働する。学習エンジンによるブラックリスト化・
+# パラメータ上書きを禁止。(2026-04-05 audit fix)
+SMC_PROTECTED = {
+    "turtle_soup",       # Liquidity Grab Reversal (Connors 1995)
+    "trendline_sweep",   # Trendline Sweep Trap (Edwards & Magee)
+}
 
 
 class LearningEngine:
@@ -44,8 +55,6 @@ class LearningEngine:
         adjustments = []
         insights = []
         cur_conf = current_params.get("confidence_threshold", 55)
-        cur_sl = current_params.get("sl_adjust", 1.0)
-        cur_tp = current_params.get("tp_adjust", 1.0)
 
         overall_wr = data["overall_wr"]
         overall_ev = data["overall_ev"]
@@ -69,6 +78,9 @@ class LearningEngine:
         # ── 2. エントリータイプフィルター ──
         cur_blacklist = current_params.get("entry_type_blacklist", [])
         for et, stats in data["by_type"].items():
+            # SMC保護: BT検証済み戦略はブラックリスト化禁止
+            if et in SMC_PROTECTED:
+                continue
             if stats["n"] >= 15 and stats["wr"] < BREAKEVEN_WR and stats["ev"] < -0.5:
                 if et not in cur_blacklist:
                     adjustments.append({
@@ -85,52 +97,36 @@ class LearningEngine:
                 })
                 insights.append(f"✅ {et} 復活推奨 (WR{stats['wr']}%に改善)")
 
-        # ── 3. 時間帯フィルター ──
-        cur_session_bl = current_params.get("session_blacklist", [])
+        # ── 3. 時間帯フィルター — Advisory only (2026-04-05 audit) ──
+        # session_blacklistはデッドコード（適用先なし）だったため廃止。
+        # 低WR時間帯はインサイトのみ出力。
         for hour, stats in data["by_hour"].items():
             if stats["n"] >= 8 and stats["wr"] < 20:
-                if hour not in cur_session_bl:
-                    adjustments.append({
-                        "param": "session_blacklist_add",
-                        "old": hour, "new": hour,
-                        "reason": f"{hour}時UTC: WR {stats['wr']}% → 取引除外"
-                    })
-                    insights.append(f"⏰ {hour}:00 UTC を除外推奨 (WR{stats['wr']}%)")
+                insights.append(f"⏰ {hour}:00 UTC: WR{stats['wr']}% (観測のみ)")
 
-        # ── 4. SL幅調整 ──
+        # ── 4. SL幅 — Advisory only (2026-04-05 audit fix) ──
+        # sl_adjust/tp_adjustはグローバル乗数であり、SMC戦略の精密SL/TPを
+        # 破壊するリスクがある。SL/TPは各戦略が独自に計算済みのため廃止。
+        # インサイトのみ出力（パラメータ変更なし）。
         if sample >= 20:
             closed = self._db.get_all_closed()
             sl_losses = [t for t in closed if t["close_reason"] == "SL_HIT"]
             if len(sl_losses) >= 10:
-                # SLヒット率が高すぎる → SL広げる
                 sl_hit_rate = len(sl_losses) / sample * 100
-                if sl_hit_rate > 60 and cur_sl < 1.3:
-                    new_sl = min(1.3, round(cur_sl + 0.1, 2))
-                    reason = f"SLヒット率{sl_hit_rate:.0f}% > 60% → SL拡大 {cur_sl}→{new_sl}x"
-                    adjustments.append({"param": "sl_adjust",
-                                        "old": cur_sl, "new": new_sl, "reason": reason})
-                    insights.append(f"🛑 {reason}")
-                elif sl_hit_rate < 30 and cur_sl > 0.8:
-                    new_sl = max(0.8, round(cur_sl - 0.05, 2))
-                    reason = f"SLヒット率{sl_hit_rate:.0f}% < 30% → SL適正化 {cur_sl}→{new_sl}x"
-                    adjustments.append({"param": "sl_adjust",
-                                        "old": cur_sl, "new": new_sl, "reason": reason})
-                    insights.append(f"✅ {reason}")
+                if sl_hit_rate > 60:
+                    insights.append(f"🛑 SLヒット率{sl_hit_rate:.0f}% (観測のみ・自動調整なし)")
+                elif sl_hit_rate < 30:
+                    insights.append(f"✅ SLヒット率{sl_hit_rate:.0f}% 良好")
 
-        # ── 5. TP幅調整 ──
+        # ── 5. TP幅調整 — 廃止 (2026-04-05 audit fix) ──
         if sample >= 20:
             closed = self._db.get_all_closed()
             tp_wins = [t for t in closed if t["close_reason"] == "TP_HIT"]
             sig_rev = [t for t in closed if t["close_reason"] == "SIGNAL_REVERSE" and t["outcome"] == "WIN"]
             if tp_wins and sig_rev:
-                # TP前にシグナル反転で利確するケースが多い → TP縮小
                 rev_ratio = len(sig_rev) / (len(tp_wins) + len(sig_rev))
-                if rev_ratio > 0.5 and cur_tp > 0.8:
-                    new_tp = max(0.8, round(cur_tp - 0.1, 2))
-                    reason = f"TP前反転{rev_ratio:.0%} > 50% → TP縮小 {cur_tp}→{new_tp}x"
-                    adjustments.append({"param": "tp_adjust",
-                                        "old": cur_tp, "new": new_tp, "reason": reason})
-                    insights.append(f"🎯 {reason}")
+                if rev_ratio > 0.5:
+                    insights.append(f"🎯 TP前反転率{rev_ratio:.0%} (観測のみ・自動調整なし)")
 
         # ── 6. レジーム別パフォーマンス insight ──
         for regime, stats in data["by_regime"].items():

@@ -213,14 +213,14 @@ class DemoTrader:
         self._evaluate_promotions()  # 起動時に評価
 
         # チューナブルパラメータ（学習エンジンが調整、全モード共通）
+        # NOTE: sl_adjust / tp_adjust / session_blacklist は廃止
+        #   SMC戦略(turtle_soup, trendline_sweep)の精密SL/TPを
+        #   グローバル乗数で破壊するリスクがあるため完全パージ
+        #   (2026-04-05 learning engine audit)
         self._params = {
             "confidence_threshold": 30,  # デモ: 30%（学習データ蓄積優先、本番は40推奨）
             "max_open_trades": 8,  # グローバル安全上限（実際の制御は通貨ペア×モードクラス別）
-            "sl_adjust": 1.0,
-            "tp_adjust": 1.0,
             "entry_type_blacklist": [],
-            # 時間帯フィルター: デモモードでは無効化（学習データ蓄積優先）
-            "session_blacklist": [],
             "learn_every_n": 10,
             # 同方向連敗制御: N連敗で同方向エントリーを一時停止
             "max_consecutive_losses": 3,           # 同方向3連敗で一時停止
@@ -511,8 +511,7 @@ class DemoTrader:
         return self._params.copy()
 
     def set_params(self, updates: dict) -> dict:
-        allowed = {"confidence_threshold", "sl_adjust", "tp_adjust",
-                    "max_open_trades", "learn_every_n"}
+        allowed = {"confidence_threshold", "max_open_trades", "learn_every_n"}
         applied = {}
         for k, v in updates.items():
             if k in allowed:
@@ -1614,7 +1613,8 @@ class DemoTrader:
         if entry_type not in QUALIFIED_TYPES and entry_type not in CONDITIONAL_TYPES:
             _block(f"unknown_type:{entry_type}"); return
 
-        if entry_type in self._params["entry_type_blacklist"]:
+        from modules.learning_engine import SMC_PROTECTED
+        if entry_type in self._params["entry_type_blacklist"] and entry_type not in SMC_PROTECTED:
             _block(f"blacklisted:{entry_type}"); return
 
         # ── クールダウン（BT統一: 前ポジ決済後1バー分）──
@@ -2205,11 +2205,13 @@ class DemoTrader:
 
     def _evaluate_promotions(self):
         """デモ実績に基づいて戦略をOANDA昇格/降格判定
-        エリートトラック: N≥3 かつ WR≥70% かつ EV≥2.0 → 即昇格
-        ファストトラック: N≥10 かつ WR≥55% かつ EV≥1.0 → 即昇格
+        ファストトラック: N≥20 かつ WR≥60% かつ EV≥1.0 → 昇格
         通常トラック:    N≥30 かつ EV>0 → 昇格
         降格:           N≥30 かつ EV<-0.5 → 降格
+        NOTE: 旧エリートトラック(N≥3)は統計的に不十分なため廃止
+              (2026-04-05 audit fix: N=3で本番昇格は危険)
         """
+        from modules.learning_engine import SMC_PROTECTED
         try:
             data = self._db.get_trades_for_learning(min_trades=1)
             if not data.get("ready"):
@@ -2221,17 +2223,14 @@ class DemoTrader:
                 ev = stats.get("ev", 0)
                 wr = stats.get("wr", 0)
                 old = self._promoted_types.get(et, {}).get("status", "pending")
-                # エリートトラック: 超高WR+超高EVなら極少サンプルでも昇格
-                if n >= 3 and wr >= 70.0 and ev >= 2.0:
-                    status = "promoted"
-                # ファストトラック: 高WR+高EVなら少サンプルでも昇格
-                elif n >= 10 and wr >= 55.0 and ev >= 1.0:
+                # ファストトラック: 十分なサンプル+高WR+高EV
+                if n >= 20 and wr >= 60.0 and ev >= 1.0:
                     status = "promoted"
                 # 通常トラック: 十分なサンプルでEVプラス
                 elif n >= 30 and ev >= 0.0:
                     status = "promoted"
-                # 降格: 十分なサンプルでEV大幅マイナス
-                elif n >= 30 and ev < -0.5:
+                # 降格: 十分なサンプルでEV大幅マイナス (SMC保護戦略は降格禁止)
+                elif n >= 30 and ev < -0.5 and et not in SMC_PROTECTED:
                     status = "demoted"
                 else:
                     status = "pending"
@@ -2255,14 +2254,14 @@ class DemoTrader:
         # return info["status"] == "promoted"
 
     def _apply_adjustments(self, adjustments: list):
+        """学習エンジンの調整を適用。
+        NOTE: sl_adjust/tp_adjust/session_blacklist は廃止済み (2026-04-05 audit)
+              SMC戦略はSMC_PROTECTEDで保護されブラックリスト化不可。
+        """
         for adj in adjustments:
             p = adj["param"]
             if p == "confidence_threshold":
                 self._params["confidence_threshold"] = int(adj["new"])
-            elif p == "sl_adjust":
-                self._params["sl_adjust"] = float(adj["new"])
-            elif p == "tp_adjust":
-                self._params["tp_adjust"] = float(adj["new"])
             elif p == "entry_type_blacklist_add":
                 et = adj["reason"].split(":")[0].strip()
                 if et not in self._params["entry_type_blacklist"]:
@@ -2271,10 +2270,6 @@ class DemoTrader:
                 et = adj["reason"].split(":")[0].strip()
                 if et in self._params["entry_type_blacklist"]:
                     self._params["entry_type_blacklist"].remove(et)
-            elif p == "session_blacklist_add":
-                h = int(adj["old"])
-                if h not in self._params["session_blacklist"]:
-                    self._params["session_blacklist"].append(h)
 
     def _add_log(self, msg: str):
         now = datetime.now(timezone.utc)
