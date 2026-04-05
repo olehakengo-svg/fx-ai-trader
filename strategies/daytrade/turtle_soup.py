@@ -98,7 +98,10 @@ class TurtleSoup(StrategyBase):
     SELL_ONLY_PAIRS = {"EURGBP"}
 
     def _normalize_symbol(self, symbol: str) -> str:
-        return symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+        s = symbol.upper().replace("=X", "").replace("=F", "").replace("/", "").replace("_", "")
+        if s in ("GC", "GCF"):
+            return "XAUUSD"
+        return s
 
     # ══════════════════════════════════════════════════
     # Fractal 検出（SBRから流用＋Major判定）

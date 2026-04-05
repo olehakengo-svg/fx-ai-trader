@@ -5250,6 +5250,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "london_close_reversal",         # LCR: London Close Wick Reversal (DISABLED)
                 "gbp_deep_pullback",             # GBP Deep PB: BB-2σ/EMA50 deep pullback
                 "turtle_soup",                   # Turtle Soup: Liquidity Grab Reversal (Phase 5)
+                "trendline_sweep",               # TL Sweep: Trendline Sweep Trap (Phase 5)
                 # DISABLED: ihs_neckbreak (2t EV≒0), dual_sr_breakout,
                 # dt_fib_reversal, dt_sr_channel_reversal, ema200_trend_reversal
             }

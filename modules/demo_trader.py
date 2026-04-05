@@ -1550,6 +1550,7 @@ class DemoTrader:
             "london_close_reversal",         # LCR: London Close Wick Reversal (DISABLED)
             "gbp_deep_pullback",             # GBP Deep PB: BB-2σ/EMA50 deep pullback (2026-04-05)
             "turtle_soup",                   # Turtle Soup: Liquidity Grab Reversal (Phase 5, 2026-04-05)
+            "trendline_sweep",               # TL Sweep: Trendline Sweep Trap (Phase 5, 2026-04-05)
             # DISABLED (FXアナリストレビュー):
             # "ihs_neckbreak",       # 廃止: 2t EV≒0, 低頻度
             # "dual_sr_breakout",    # 廃止: 未評価

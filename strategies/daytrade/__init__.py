@@ -26,6 +26,7 @@ from strategies.daytrade.orb_trap import OrbTrap
 from strategies.daytrade.london_close_reversal import LondonCloseReversal
 from strategies.daytrade.gbp_deep_pullback import GbpDeepPullback
 from strategies.daytrade.turtle_soup import TurtleSoup
+from strategies.daytrade.trendline_sweep import TrendlineSweep
 
 
 class DaytradeEngine:
@@ -45,6 +46,7 @@ class DaytradeEngine:
             LondonCloseReversal(),         # LCR: London Close Wick Reversal (DISABLED)
             GbpDeepPullback(),             # GBP Deep PB: BB-2σ/EMA50 deep pullback
             TurtleSoup(),                  # Turtle Soup: Liquidity Grab Reversal (Connors 1995)
+            TrendlineSweep(),              # TL Sweep: Trendline Sweep Trap (Edwards & Magee)
             DtFibReversal(),
             DtSrChannelReversal(),
             Ema200TrendReversal(),
