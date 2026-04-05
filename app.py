@@ -9887,6 +9887,16 @@ def api_demo_logs():
         return jsonify({"logs": [], "count": 0, "error": str(e)})
 
 
+@app.route("/api/demo/trade-log")
+def api_demo_trade_log():
+    """Lightweight trade log for cockpit: last 30 closed trades with analysis."""
+    try:
+        trades = _demo_db.get_trade_log(limit=30)
+        return jsonify({"trades": trades})
+    except Exception as e:
+        return jsonify({"trades": [], "error": str(e)})
+
+
 @app.route("/api/demo/start", methods=["POST"])
 def api_demo_start():
     data = request.get_json(silent=True) or {}

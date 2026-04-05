@@ -1045,6 +1045,15 @@ class DemoTrader:
                 if "error" in result:
                     continue  # 別スレッドで既にクローズ済み → スキップ
 
+                # ── 決済分析生成・保存 ──
+                try:
+                    _ca = self._generate_close_analysis(
+                        trade, close_reason,
+                        result.get("pnl_pips", 0), result.get("outcome", ""))
+                    self._db.update_close_analysis(trade_id, _ca)
+                except Exception:
+                    pass
+
                 # ── OANDA連携: ポジションクローズ ──
                 self._oanda.close_trade(trade_id, reason=close_reason)
 
@@ -2090,6 +2099,70 @@ class DemoTrader:
             f"📊 slip={_slippage:+.2f}p spread={_spread_entry:.1f}p CD={_cd_elapsed:.0f}s"
         )
 
+    def _generate_close_analysis(self, trade: dict, close_reason: str,
+                                  pnl_pips: float, outcome: str) -> str:
+        """Generate concise win/loss analysis text for trade close."""
+        parts = []
+        entry_type = trade.get("entry_type", "")
+        direction = trade.get("direction", "")
+        instrument = trade.get("instrument", "USD_JPY")
+        spread_entry = trade.get("spread_at_entry", 0) or 0
+        sl = trade.get("sl", 0) or 0
+        entry_price = trade.get("entry_price", 0) or 0
+
+        _reasons_raw = trade.get("reasons", [])
+        if isinstance(_reasons_raw, str):
+            try:
+                _reasons_raw = json.loads(_reasons_raw)
+            except Exception:
+                _reasons_raw = []
+        _clean = [r.replace("✅ ", "").replace("✅", "")
+                  for r in _reasons_raw
+                  if isinstance(r, str) and not r.startswith("__")]
+
+        _smc = entry_type in {"turtle_soup", "trendline_sweep",
+                               "inducement_ob", "post_news_vol"}
+
+        if outcome == "WIN":
+            if close_reason == "TP_HIT":
+                parts.append("TP到達")
+            elif close_reason == "SIGNAL_REVERSE":
+                parts.append("反転利確")
+            elif close_reason == "TIME_DECAY_EXIT":
+                parts.append("時間利確")
+            else:
+                parts.append(close_reason)
+            if _smc:
+                parts.append("SMC完全反発")
+            if _clean:
+                parts.append(",".join(_clean[:3]))
+        elif outcome == "LOSS":
+            if close_reason == "SL_HIT":
+                _pip_m = 100 if "JPY" in instrument else 10000
+                _sl_dist = abs(entry_price - sl) * _pip_m if sl and entry_price else 999
+                if spread_entry > 0 and _sl_dist > 0 and spread_entry / _sl_dist > 0.3:
+                    parts.append(f"spread負け({spread_entry:.1f}p)")
+                else:
+                    parts.append("逆行SL")
+            elif close_reason == "SIGNAL_REVERSE":
+                parts.append("反転損切")
+            elif close_reason == "TIME_DECAY_EXIT":
+                parts.append("時間減衰")
+            elif close_reason == "SCENARIO_INVALID":
+                parts.append("シナリオ崩壊")
+            elif close_reason == "WEEKEND_CLOSE":
+                parts.append("週末CL")
+            elif close_reason == "MAX_HOLD_TIME":
+                parts.append("MAX保持")
+            else:
+                parts.append(close_reason)
+            if _clean:
+                parts.append(",".join(_clean[:2]))
+        else:
+            parts.append(f"BE({close_reason})")
+
+        return " | ".join(parts)
+
     def _check_signal_reverse(self, trade: dict, current_price: float,
                                new_signal: str, new_conf: int, mode: str):
         """シグナル反転によるクローズ判定のみ（SL/TPは _sltp_loop が処理）"""
@@ -2139,6 +2212,15 @@ class DemoTrader:
             result = self._db.close_trade(trade_id, _close_price, close_reason)
             if "error" in result:
                 return  # 別スレッドで既にクローズ済み → スキップ
+
+            # ── 決済分析生成・保存 ──
+            try:
+                _ca = self._generate_close_analysis(
+                    trade, close_reason,
+                    result.get("pnl_pips", 0), result.get("outcome", ""))
+                self._db.update_close_analysis(trade_id, _ca)
+            except Exception:
+                pass
 
             # ── OANDA連携: ポジションクローズ ──
             self._oanda.close_trade(trade_id, reason=close_reason)

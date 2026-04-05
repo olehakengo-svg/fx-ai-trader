@@ -201,6 +201,12 @@ class DemoDB:
                 except Exception:
                     pass
 
+            # ── 決済分析テキスト ──
+            try:
+                conn.execute("ALTER TABLE demo_trades ADD COLUMN close_analysis TEXT DEFAULT ''")
+            except Exception:
+                pass
+
             # ── OANDA設定永続化テーブル ──
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS oanda_settings (
@@ -330,6 +336,28 @@ class DemoDB:
             "pnl_pips": pnl_pips, "pnl_r": pnl_r,
             "close_reason": close_reason,
         }
+
+    def update_close_analysis(self, trade_id: str, analysis: str):
+        """Update close_analysis for a recently closed trade."""
+        with self._lock:
+            with self._safe_conn() as conn:
+                conn.execute(
+                    "UPDATE demo_trades SET close_analysis=? WHERE trade_id=?",
+                    (analysis, trade_id))
+                conn.commit()
+
+    def get_trade_log(self, limit: int = 30) -> list:
+        """Return last N closed trades with compact fields for trade log UI."""
+        with self._safe_conn() as conn:
+            rows = conn.execute(
+                """SELECT trade_id, mode, instrument, direction, entry_type,
+                          pnl_pips, outcome, close_reason, close_analysis,
+                          reasons, exit_time, entry_price, exit_price, sl, tp
+                   FROM demo_trades WHERE status='CLOSED'
+                   ORDER BY exit_time DESC LIMIT ?""",
+                (limit,)
+            ).fetchall()
+        return [dict(r) for r in rows]
 
     def get_open_trades(self) -> list:
         with self._safe_conn() as conn:
