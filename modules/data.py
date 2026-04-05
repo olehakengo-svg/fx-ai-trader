@@ -544,13 +544,15 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
     key = (symbol, interval, period)
     now = datetime.now(timezone.utc)
     ttl = _TF_CACHE_TTL.get(interval, CACHE_TTL)
-    if key in _data_cache:
-        cached_df, ts = _data_cache[key]
-        # naive/aware統一
-        if ts.tzinfo is None:
-            ts = ts.replace(tzinfo=timezone.utc)
-        if (now - ts).total_seconds() < ttl:
-            return _rt_patch(cached_df.copy(), symbol, interval)
+    # スレッドセーフなキャッシュ読取り (2026-04-05 audit fix)
+    with _cache_lock:
+        if key in _data_cache:
+            cached_df, ts = _data_cache[key]
+            # naive/aware統一
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            if (now - ts).total_seconds() < ttl:
+                return _rt_patch(cached_df.copy(), symbol, interval)
 
     df = None
 
@@ -630,10 +632,32 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
 
     # -- (3) フォールバック: yfinance --
     if df is None:
-        df = _fetch_raw(symbol, period, interval)
-        _last_data_source[interval] = "yfinance"
+        try:
+            df = _fetch_raw(symbol, period, interval)
+            if df is not None and len(df) >= min_bars:
+                _last_data_source[interval] = "yfinance"
+            else:
+                _actual = len(df) if df is not None else 0
+                print(f"[yfinance/{interval}] {_actual}本 < {int(min_bars)}本 → 不十分")
+                df = None
+        except Exception as e:
+            print(f"[yfinance/{interval}] fetch error: {e}")
+            df = None
 
-    _data_cache[key] = (df, now)
+    # 全ソース失敗時: staleキャッシュがあれば返す (2026-04-05 audit fix)
+    if df is None:
+        with _cache_lock:
+            if key in _data_cache:
+                print(f"[fetch_ohlcv] ALL sources failed for {symbol}/{interval} → returning stale cache")
+                return _data_cache[key][0].copy()
+        raise ValueError(f"All data sources failed for {symbol}/{interval}")
+
+    with _cache_lock:
+        _data_cache[key] = (df, now)
+        # キャッシュサイズ制限: 50エントリ超で最古を削除 (2026-04-05 audit fix)
+        if len(_data_cache) > 50:
+            _oldest = min(_data_cache, key=lambda k: _data_cache[k][1])
+            del _data_cache[_oldest]
     return df.copy()
 
 

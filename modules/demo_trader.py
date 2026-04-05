@@ -660,13 +660,15 @@ class DemoTrader:
             time.sleep(30)  # 30秒間隔でチェック
 
     def _sltp_loop(self):
-        """高頻度でリアルタイム価格を取得してSL/TPチェック"""
+        """高頻度でリアルタイム価格を取得してSL/TPチェック
+        BaseException耐性: キャッチして継続（スレッド不死化） (2026-04-05 audit fix)
+        """
         print("[SLTP-Checker] Thread started", flush=True)
         _no_price_count = 0
         _oanda_sync_counter = 0
         _demo2oanda_counter = 0
-        try:
-            while self._sltp_running:
+        while self._sltp_running:
+            try:
                 try:
                     self._check_sltp_realtime()
                     _no_price_count = 0
@@ -699,10 +701,13 @@ class DemoTrader:
                         print(f"[SLTP-Checker] Demo→OANDA sync error: {e}", flush=True)
 
                 time.sleep(SLTP_CHECK_INTERVAL)
-            print("[SLTP-Checker] Thread terminated cleanly (sltp_running=False)", flush=True)
-        except BaseException as e:
-            print(f"[SLTP-Checker] BaseException: {type(e).__name__}: {e}", flush=True)
-            import traceback; traceback.print_exc()
+            except BaseException as e:
+                # SystemExit/KeyboardInterruptでもスレッドを殺さない
+                print(f"[SLTP-Checker] BaseException caught, continuing: {type(e).__name__}: {e}", flush=True)
+                import traceback; traceback.print_exc()
+                time.sleep(1)
+                continue
+        print("[SLTP-Checker] Thread terminated cleanly (sltp_running=False)", flush=True)
 
     def _get_realtime_price(self, instrument: str = "USD_JPY",
                             symbol: str = "USDJPY=X") -> float:
@@ -877,7 +882,11 @@ class DemoTrader:
 
         # 週末クローズ判定（金曜21:45 UTC以降 = 閉場15分前に全ポジクローズ）
         _now_utc = datetime.now(timezone.utc)
-        _is_pre_weekend = (_now_utc.weekday() == 4 and _now_utc.hour >= 21 and _now_utc.minute >= 45)
+        # 金曜21:45 UTC以降 = 閉場15分前に全ポジクローズ (2026-04-05 audit fix)
+        _is_pre_weekend = (
+            _now_utc.weekday() == 4
+            and (_now_utc.hour > 21 or (_now_utc.hour == 21 and _now_utc.minute >= 45))
+        )
 
         # EUR/USD用MAX_HOLD追加
         MAX_HOLD_SEC["scalp_eur"] = 1800
@@ -1455,9 +1464,15 @@ class DemoTrader:
         if not hasattr(self, '_block_counts'):
             self._block_counts = {}
         def _block(reason):
-            k = f"{mode}:{reason}"
+            # 動的値(秒数,pip数等)を除去してキー爆発を防止 (2026-04-05 audit fix)
+            k = f"{mode}:{reason.split('(')[0]}"
             self._block_counts[k] = self._block_counts.get(k, 0) + 1
             return
+
+        # ── 方向フィルター (RNB BUY-only等) ── (2026-04-05 audit fix)
+        _dir_filter = cfg.get("direction_filter")
+        if _dir_filter and signal != _dir_filter:
+            _block(f"direction_filter"); return
 
         # ── 通貨ペア×モードクラス別ポジション制限 ──
         # scalp/DT/1H/swingが独立してポジションを持てる

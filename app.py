@@ -2612,9 +2612,9 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
 
     _pd = _price_dec(symbol)
     # DaytradeEngine戦略は独自SL/TPを計算済み → _dt_bestから流用
-    if _dt_best is not None and _dt_entry_type in (
-            "tokyo_nakane_momentum", "htf_false_breakout", "london_session_breakout",
-            "adx_trend_continuation"):
+    # NOTE: 全DaytradeEngine戦略が精密SL/TPを自前計算するため、
+    #        _dt_bestが存在すれば常に流用する (2026-04-05 audit fix)
+    if _dt_best is not None:
         sl = round(_dt_best.sl, _pd)
         tp = round(_dt_best.tp, _pd)
     else:

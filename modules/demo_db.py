@@ -452,13 +452,20 @@ class DemoDB:
     # ── Demo Logs ──────────────────────────────────
 
     def add_log(self, timestamp: str, message: str):
-        """Persist a demo trader log entry."""
+        """Persist a demo trader log entry. Auto-prunes when exceeding 10000 rows."""
         with self._lock:
             with self._safe_conn() as conn:
                 conn.execute(
                     "INSERT INTO demo_logs (timestamp, message) VALUES (?, ?)",
                     (timestamp, message),
                 )
+                # 自動プルーニング: 10000行超過時に古いログを削除 (2026-04-05 audit fix)
+                count = conn.execute("SELECT COUNT(*) FROM demo_logs").fetchone()[0]
+                if count > 10000:
+                    conn.execute(
+                        "DELETE FROM demo_logs WHERE id NOT IN "
+                        "(SELECT id FROM demo_logs ORDER BY id DESC LIMIT 8000)"
+                    )
                 conn.commit()
 
     def get_logs(self, limit: int = 100) -> list:

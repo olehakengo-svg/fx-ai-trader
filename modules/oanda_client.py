@@ -6,6 +6,7 @@ All methods return (success: bool, data: dict) tuples.
 import os
 import json
 import logging
+import time as _time
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
@@ -19,6 +20,7 @@ class OandaClient:
     def __init__(self, token: str = None, account_id: str = None):
         self._token = token or os.environ.get("OANDA_TOKEN", "")
         self._account_id = account_id or os.environ.get("OANDA_ACCOUNT_ID", "")
+        self._rate_limit_until = 0  # 429レートリミット backoff timestamp
 
     @property
     def configured(self) -> bool:
@@ -34,7 +36,14 @@ class OandaClient:
 
     def _request(self, method: str, path: str, data: dict = None,
                  timeout: int = 10) -> tuple:
-        """Execute HTTP request. Returns (success, response_dict)."""
+        """Execute HTTP request. Returns (success, response_dict).
+        429レートリミット時は5秒backoff (2026-04-05 audit fix)
+        """
+        # レートリミット backoff 中はリクエストをスキップ
+        if _time.time() < self._rate_limit_until:
+            _wait = self._rate_limit_until - _time.time()
+            return False, {"error": 429, "message": f"Rate limited, retry in {_wait:.0f}s"}
+
         url = f"{BASE_URL}{path}"
         body = None
         if data:
@@ -52,6 +61,9 @@ class OandaClient:
                 err_body = e.read().decode("utf-8")
             except Exception:
                 pass
+            if e.code == 429:
+                self._rate_limit_until = _time.time() + 5
+                logger.warning(f"OANDA 429 rate limit on {method} {path}, backing off 5s")
             logger.error(f"OANDA API {method} {path} → {e.code}: {err_body}")
             return False, {"error": e.code, "message": err_body}
         except URLError as e:
