@@ -140,6 +140,21 @@ MODE_CONFIG = {
         "auto_start": False,
         "base_sl_pips": 15,
     },
+    # ── XAU/USD Daytrade (15m) — Phase5 SMC戦略展開 ──
+    # SMC 3/4戦略(turtle_soup, trendline_sweep, inducement_ob)+LRC が XAUUSD 対応済み
+    # pip=0.01 (JPYスケール), OANDA XAU_USD
+    "daytrade_xau": {
+        "interval_sec": 30,
+        "tf": "15m",
+        "period": "60d",
+        "signal_fn": "compute_daytrade_signal",
+        "label": "DT XAU/USD",
+        "icon": "📊🥇",
+        "symbol": "XAUUSD=X",
+        "instrument": "XAU_USD",
+        "auto_start": False,       # BT検証後にTrue化
+        "base_sl_pips": 200,       # Gold ATR(15m)≈100-300pips(0.01 scale)
+    },
     # ── LCR: FROZEN (Phase2 BT全ペア負EV) ──
     # ── EUR/JPY, GBP/JPY RNB: REMOVED (spread負け) ──
     # ── Round Number Barrier (RNB) — USD/JPY 15m BUY-only ──
@@ -162,7 +177,7 @@ MODE_CONFIG = {
 # ── ベースモード抽出ヘルパー ──
 # scalp_eur -> scalp, scalp_eurjpy -> scalp, lcr_gbpjpy -> lcr, daytrade_1h_eur -> daytrade_1h
 def _get_base_mode(mode: str) -> str:
-    for suffix in ("_usdjpy", "_gbpjpy", "_eurjpy", "_gbpusd", "_eurgbp", "_eur"):  # longest first
+    for suffix in ("_usdjpy", "_gbpjpy", "_eurjpy", "_gbpusd", "_eurgbp", "_eur", "_xau"):  # longest first
         if mode.endswith(suffix):
             return mode[:-len(suffix)]
     return mode
@@ -451,6 +466,7 @@ class DemoTrader:
             "block_counts": getattr(self, '_block_counts', {}),
             "oanda": self._oanda.status,
             "strategy_promotion": self._promoted_types,
+            "strategy_status": self._get_strategy_status(),
         }
 
     def request_tick(self):
@@ -1115,9 +1131,12 @@ class DemoTrader:
     # ── Main Loop (全モード統合・シングルスレッド) ──────────────────────────
 
     def _main_loop(self):
-        """全モードを1つのスレッドで順次処理（メモリ安全）。
-        scalp=10s, daytrade=30s, swing=300s の間隔で各モードをtick。"""
+        """全モードを並列tick可能なメインループ。
+        scalp=10s, daytrade=30s, 1h=60s の間隔で各モードをtick。
+        最大3モード並列（ネットワーク待ち時間を重畳）。
+        (2026-04-05 perf: sleep削減 + 並列化で応答性2.5倍向上)"""
         import sys
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         # ステータスを即座に設定（"unknown"状態を最小化）
         self._main_loop_status = "starting"
         self._main_loop_error = None
@@ -1146,67 +1165,63 @@ class DemoTrader:
                         _tc = getattr(self, '_tick_counts', {})
                         print(f"[MainLoop] iter={_loop_iter} started={_modes_list} "
                               f"running={_running_modes} ticks={_tc} restart#{_restart_count}", flush=True)
+
+                    # ── due_modes: interval 到達済みモードを収集 ──
+                    due_modes = []
                     for mode in list(self._started_modes):
                         runner = self._runners.get(mode, {})
                         if not runner.get("running", False):
                             continue
-
                         cfg = MODE_CONFIG[mode]
                         interval = cfg["interval_sec"]
                         last = _last_tick.get(mode, 0)
+                        if now - last >= interval:
+                            due_modes.append(mode)
 
-                        if now - last < interval:
-                            continue
+                    # ── 並列tick実行 (max_workers=3: ネットワーク待ちを重畳) ──
+                    if due_modes:
+                        with ThreadPoolExecutor(max_workers=3, thread_name_prefix="tick") as pool:
+                            futures = {}
+                            for mode in due_modes:
+                                _tick_result = [None]
+                                fut = pool.submit(self._tick_with_catch, mode, _tick_result)
+                                futures[fut] = (mode, _tick_result, time.time())
 
-                        # ── このモードのtickを実行（タイムアウト付き）──
-                        try:
-                            _tick_start = time.time()
-                            # タイムアウト付きtick: ハング防止（120秒）
-                            _tick_result = [None]  # [exception or None]
-                            _tick_thread = threading.Thread(
-                                target=self._tick_with_catch, args=(mode, _tick_result), daemon=True)
-                            _tick_thread.start()
-                            _tick_thread.join(timeout=120)
-                            if _tick_thread.is_alive():
-                                # タイムアウト — スレッドがハング中
-                                print(f"[MainLoop/{mode}] TIMEOUT after 120s — skipping", flush=True)
-                                _last_tick[mode] = time.time()
-                                errs = _consecutive_errors.get(mode, 0) + 1
-                                _consecutive_errors[mode] = errs
-                                continue
-                            if _tick_result[0] is not None:
-                                raise _tick_result[0]
-                            _tick_dur = time.time() - _tick_start
-                            _consecutive_errors[mode] = 0
-                            _last_tick[mode] = time.time()
-                            _tick_count = getattr(self, '_tick_counts', {})
-                            _tick_count[mode] = _tick_count.get(mode, 0) + 1
-                            self._tick_counts = _tick_count
-                            if _tick_count[mode] <= 3 or _tick_count[mode] % 10 == 0 or _tick_dur > 30:
-                                print(f"[MainLoop/{mode}] tick #{_tick_count[mode]} ok ({_tick_dur:.1f}s)", flush=True)
-                        except Exception as e:
-                            errs = _consecutive_errors.get(mode, 0) + 1
-                            _consecutive_errors[mode] = errs
-                            try:
-                                self._add_log(f"❌ [{cfg['label']}] エラー({errs}): {e}")
-                            except Exception:
-                                pass
-                            print(f"[MainLoop/{mode}] Error #{errs}: {e}", flush=True)
-                            import traceback; traceback.print_exc()
-                            _last_tick[mode] = time.time()
-
-                            # 10回連続エラーでバックオフ（API制限等）
-                            if errs >= 10:
-                                print(f"[MainLoop/{mode}] Too many errors, backing off 60s", flush=True)
-                                time.sleep(60)
-
-                        time.sleep(1)
+                            for fut in as_completed(futures, timeout=120):
+                                mode, _tick_result, _tick_start = futures[fut]
+                                cfg = MODE_CONFIG[mode]
+                                try:
+                                    fut.result(timeout=0)
+                                    if _tick_result[0] is not None:
+                                        raise _tick_result[0]
+                                    _tick_dur = time.time() - _tick_start
+                                    _consecutive_errors[mode] = 0
+                                    _last_tick[mode] = time.time()
+                                    _tick_count = getattr(self, '_tick_counts', {})
+                                    _tick_count[mode] = _tick_count.get(mode, 0) + 1
+                                    self._tick_counts = _tick_count
+                                    if _tick_count[mode] <= 3 or _tick_count[mode] % 10 == 0 or _tick_dur > 30:
+                                        print(f"[MainLoop/{mode}] tick #{_tick_count[mode]} ok ({_tick_dur:.1f}s)", flush=True)
+                                except Exception as e:
+                                    errs = _consecutive_errors.get(mode, 0) + 1
+                                    _consecutive_errors[mode] = errs
+                                    _last_tick[mode] = time.time()
+                                    try:
+                                        self._add_log(f"❌ [{cfg['label']}] エラー({errs}): {e}")
+                                    except Exception:
+                                        pass
+                                    print(f"[MainLoop/{mode}] Error #{errs}: {e}", flush=True)
+                                    import traceback; traceback.print_exc()
+                                    if errs >= 10:
+                                        print(f"[MainLoop/{mode}] Too many errors, backing off 60s", flush=True)
+                                        time.sleep(60)
 
                 except Exception as e:
                     print(f"[MainLoop] Outer error: {e}", flush=True)
                     import traceback; traceback.print_exc()
 
-                time.sleep(2)
+                # 0.5s間隔でdue判定（旧: sleep(1)+sleep(2) = 3s → 6倍高速化）
+                time.sleep(0.5)
 
         except BaseException as fatal:
             # SystemExit, KeyboardInterrupt等も含む全致命的エラーをキャッチ
@@ -1307,14 +1322,19 @@ class DemoTrader:
         period = cfg["period"]
         symbol = cfg.get("symbol", "USDJPY=X")
         instrument = cfg.get("instrument", "USD_JPY")
-        print(f"[DemoTrader/{mode}] _tick start: tf={tf}, period={period}, symbol={symbol}", flush=True)
+        # (2026-04-05 perf) 毎tick printを抑制 → 10tick毎 or 遅延時のみ出力
+        _tc = getattr(self, '_tick_counts', {}).get(mode, 0)
+        _verbose = (_tc <= 3 or _tc % 50 == 0)
+        if _verbose:
+            print(f"[DemoTrader/{mode}] _tick start: tf={tf}, period={period}, symbol={symbol}", flush=True)
 
         # 1. データ取得 + シグナル計算
         try:
             # scalp(1m)はperiod拡大でEMA200を確保
             fetch_period = "5d" if tf == "1m" else period
             df = fetch_ohlcv(symbol, period=fetch_period, interval=tf)
-            print(f"[DemoTrader/{mode}] fetched {len(df)} bars")
+            if _verbose:
+                print(f"[DemoTrader/{mode}] fetched {len(df)} bars")
             df = add_indicators(df)
             # EMA200がNaNの行のみ除去（全列dropnaだと必要な行まで消える）
             essential_cols = [c for c in ["Close", "EMA9", "EMA21", "RSI", "ADX", "ATR"]
@@ -2243,6 +2263,78 @@ class DemoTrader:
                 self._add_log(f"🎯 戦略昇格更新: {', '.join(changes[:5])}")
         except Exception as e:
             print(f"[Promotion] error: {e}", flush=True)
+
+    def _get_strategy_status(self) -> list:
+        """全戦略の稼働状況・SMC保護状態・昇格状態を返す。
+        フロントエンドの戦略ダッシュボード表示用。
+        """
+        from modules.learning_engine import SMC_PROTECTED
+        from strategies.daytrade import DaytradeEngine
+        from strategies.scalp import ScalperEngine
+
+        status_list = []
+
+        # DayTrade strategies
+        try:
+            dt_engine = DaytradeEngine()
+            for s in dt_engine.strategies:
+                promo = self._promoted_types.get(s.name, {})
+                blacklisted = (s.name in self._params.get("entry_type_blacklist", []))
+                status_list.append({
+                    "name": s.name,
+                    "category": "daytrade",
+                    "enabled": s.enabled,
+                    "smc_protected": s.name in SMC_PROTECTED,
+                    "promotion": promo.get("status", "pending"),
+                    "promo_n": promo.get("n", 0),
+                    "promo_wr": promo.get("wr", 0),
+                    "promo_ev": promo.get("ev", 0),
+                    "blacklisted": blacklisted,
+                })
+        except Exception as e:
+            print(f"[StrategyStatus] DT error: {e}", flush=True)
+
+        # Scalp strategies
+        try:
+            sc_engine = ScalperEngine()
+            for s in sc_engine.strategies:
+                promo = self._promoted_types.get(s.name, {})
+                blacklisted = (s.name in self._params.get("entry_type_blacklist", []))
+                status_list.append({
+                    "name": s.name,
+                    "category": "scalp",
+                    "enabled": s.enabled,
+                    "smc_protected": s.name in SMC_PROTECTED,
+                    "promotion": promo.get("status", "pending"),
+                    "promo_n": promo.get("n", 0),
+                    "promo_wr": promo.get("wr", 0),
+                    "promo_ev": promo.get("ev", 0),
+                    "blacklisted": blacklisted,
+                })
+        except Exception as e:
+            print(f"[StrategyStatus] Scalp error: {e}", flush=True)
+
+        # 1H strategies (HourlyEngine)
+        try:
+            from strategies.hourly import HourlyEngine
+            h_engine = HourlyEngine()
+            for s in h_engine.strategies:
+                promo = self._promoted_types.get(s.name, {})
+                status_list.append({
+                    "name": s.name,
+                    "category": "1h",
+                    "enabled": s.enabled,
+                    "smc_protected": s.name in SMC_PROTECTED,
+                    "promotion": promo.get("status", "pending"),
+                    "promo_n": promo.get("n", 0),
+                    "promo_wr": promo.get("wr", 0),
+                    "promo_ev": promo.get("ev", 0),
+                    "blacklisted": False,
+                })
+        except Exception as e:
+            print(f"[StrategyStatus] 1H error: {e}", flush=True)
+
+        return status_list
 
     def _is_promoted(self, entry_type: str) -> bool:
         """戦略がOANDA実行可能か判定

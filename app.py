@@ -84,6 +84,18 @@ from modules.indicators import (
 _bt_cache:    dict = {}  # backtest result cache
 _news_cache:  dict = {}  # news sentiment cache
 
+# ── (2026-04-05 perf) Bounded cache utility ──
+# 無制限dict → LRU上限付きで OOM 防止
+_BT_CACHE_MAX = 30  # BT結果キャッシュ上限（1エントリ≈100-500KB）
+_NEWS_CACHE_MAX = 50
+
+def _bounded_cache_set(cache: dict, key, value, max_size: int):
+    """LRU-like bounded cache: max_size超過時に最古エントリを削除"""
+    cache[key] = value
+    if len(cache) > max_size:
+        oldest = next(iter(cache))
+        del cache[oldest]
+
 
 # Layer 0/1 キャッシュ
 _calendar_cache:    dict = {}
@@ -5090,7 +5102,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "bars_fetched":   len(df),
             }
 
-        _scalp_bt_cache[cache_key] = {"result": result, "ts": now}
+        _bounded_cache_set(_scalp_bt_cache, cache_key, {"result": result, "ts": now}, _BT_CACHE_MAX)
         return result
     except Exception as e:
         import traceback
@@ -5494,7 +5506,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "bars_fetched": len(df),
             }
 
-        _dt_bt_cache[cache_key] = {"result": result, "ts": now}
+        _bounded_cache_set(_dt_bt_cache, cache_key, {"result": result, "ts": now}, _BT_CACHE_MAX)
         return result
     except Exception as e:
         import traceback
@@ -5898,7 +5910,7 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
                 "bars_fetched": len(df),
             }
 
-        _1h_bt_cache[cache_key] = {"result": result, "ts": now}
+        _bounded_cache_set(_1h_bt_cache, cache_key, {"result": result, "ts": now}, _BT_CACHE_MAX)
         return result
     except Exception as e:
         import traceback

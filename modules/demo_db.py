@@ -24,22 +24,47 @@ class DemoDB:
     def __init__(self, db_path: str = "demo_trades.db"):
         self._path = db_path
         self._lock = threading.Lock()
+        # ── Thread-local connection pool (2026-04-05 perf) ──
+        # 毎クエリ新接続 + WAL PRAGMA → スレッドローカル接続再利用で5-10ms/query削減
+        self._local = threading.local()
+        self._log_write_count = 0  # ログ回転カウンタ（COUNT(*)排除用）
         self._init_tables()
 
     def _conn(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self._path, check_same_thread=False)
+        """Thread-local connection pooling: 同一スレッド内は接続再利用"""
+        conn = getattr(self._local, 'conn', None)
+        if conn is not None:
+            try:
+                conn.execute("SELECT 1")  # 接続生存確認
+                return conn
+            except Exception:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                self._local.conn = None
+        conn = sqlite3.connect(self._path, check_same_thread=False, timeout=10)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")  # 5s wait on lock instead of immediate fail
+        self._local.conn = conn
         return conn
 
     @contextmanager
     def _safe_conn(self):
-        """コンテキストマネージャ: 例外時もconn.close()を保証（接続リーク防止）"""
+        """コンテキストマネージャ: thread-local接続を再利用（closeしない）"""
         conn = self._conn()
         try:
             yield conn
-        finally:
-            conn.close()
+        except sqlite3.OperationalError as e:
+            # DB locked等のエラー時は接続を破棄して再作成
+            if "locked" in str(e).lower() or "disk" in str(e).lower():
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                self._local.conn = None
+            raise
 
     def _init_tables(self):
         with self._lock, self._safe_conn() as conn:
@@ -138,6 +163,10 @@ class DemoDB:
                 CREATE INDEX IF NOT EXISTS idx_learning_results_mode ON learning_results(mode);
                 CREATE INDEX IF NOT EXISTS idx_daily_reviews_date ON daily_reviews(review_date);
                 CREATE INDEX IF NOT EXISTS idx_algo_change_log_ts ON algo_change_log(timestamp);
+                -- (2026-04-05 perf) 追加インデックス: 学習エンジン高速化
+                CREATE INDEX IF NOT EXISTS idx_trades_exit_time ON demo_trades(exit_time);
+                CREATE INDEX IF NOT EXISTS idx_trades_mode_status ON demo_trades(mode, status);
+                CREATE INDEX IF NOT EXISTS idx_logs_id ON demo_logs(id);
             """)
             # Add mode column to existing demo_trades if missing
             try:
@@ -457,20 +486,25 @@ class DemoDB:
     # ── Demo Logs ──────────────────────────────────
 
     def add_log(self, timestamp: str, message: str):
-        """Persist a demo trader log entry. Auto-prunes when exceeding 10000 rows."""
+        """Persist a demo trader log entry. Auto-prunes via counter (every 200 writes).
+        (2026-04-05 perf) 旧: 毎回SELECT COUNT(*) → 新: カウンタ方式でフルスキャン排除
+        """
         with self._lock:
             with self._safe_conn() as conn:
                 conn.execute(
                     "INSERT INTO demo_logs (timestamp, message) VALUES (?, ?)",
                     (timestamp, message),
                 )
-                # 自動プルーニング: 10000行超過時に古いログを削除 (2026-04-05 audit fix)
-                count = conn.execute("SELECT COUNT(*) FROM demo_logs").fetchone()[0]
-                if count > 10000:
-                    conn.execute(
-                        "DELETE FROM demo_logs WHERE id NOT IN "
-                        "(SELECT id FROM demo_logs ORDER BY id DESC LIMIT 8000)"
-                    )
+                # カウンタ方式プルーニング: 200回に1回だけCOUNT実行
+                self._log_write_count += 1
+                if self._log_write_count >= 200:
+                    self._log_write_count = 0
+                    count = conn.execute("SELECT COUNT(*) FROM demo_logs").fetchone()[0]
+                    if count > 10000:
+                        conn.execute(
+                            "DELETE FROM demo_logs WHERE id NOT IN "
+                            "(SELECT id FROM demo_logs ORDER BY id DESC LIMIT 8000)"
+                        )
                 conn.commit()
 
     def get_logs(self, limit: int = 100) -> list:

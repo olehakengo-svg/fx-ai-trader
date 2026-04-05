@@ -2,13 +2,23 @@
 OANDA v20 REST API Client — Thin wrapper for OANDA Japan live trading.
 Handles authentication, request formatting, and error handling.
 All methods return (success: bool, data: dict) tuples.
+
+(2026-04-05 perf) requests.Session による HTTP Keep-Alive 接続プーリング:
+  旧: urllib.request (毎回TCP+TLS handshake ~100-200ms)
+  新: requests.Session (Keep-Alive, 接続再利用 ~10-30ms)
 """
 import os
 import json
 import logging
 import time as _time
-from urllib.request import Request, urlopen
-from urllib.error import HTTPError, URLError
+
+try:
+    import requests as _requests
+    _HAS_REQUESTS = True
+except ImportError:
+    _HAS_REQUESTS = False
+    from urllib.request import Request, urlopen
+    from urllib.error import HTTPError, URLError
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +31,16 @@ class OandaClient:
         self._token = token or os.environ.get("OANDA_TOKEN", "")
         self._account_id = account_id or os.environ.get("OANDA_ACCOUNT_ID", "")
         self._rate_limit_until = 0  # 429レートリミット backoff timestamp
+        # ── HTTP Session pooling (2026-04-05 perf) ──
+        if _HAS_REQUESTS:
+            self._session = _requests.Session()
+            self._session.headers.update(self._headers())
+            # Connection pooling: max 10 connections, keep-alive
+            adapter = _requests.adapters.HTTPAdapter(
+                pool_connections=5, pool_maxsize=10, max_retries=1)
+            self._session.mount("https://", adapter)
+        else:
+            self._session = None
 
     @property
     def configured(self) -> bool:
@@ -38,6 +58,7 @@ class OandaClient:
                  timeout: int = 10) -> tuple:
         """Execute HTTP request. Returns (success, response_dict).
         429レートリミット時は5秒backoff (2026-04-05 audit fix)
+        requests.Session による Keep-Alive 接続プーリング (2026-04-05 perf)
         """
         # レートリミット backoff 中はリクエストをスキップ
         if _time.time() < self._rate_limit_until:
@@ -45,33 +66,48 @@ class OandaClient:
             return False, {"error": 429, "message": f"Rate limited, retry in {_wait:.0f}s"}
 
         url = f"{BASE_URL}{path}"
-        body = None
-        if data:
-            body = json.dumps(data).encode("utf-8")
 
+        # ── requests.Session 使用 (Keep-Alive) ──
+        if self._session is not None:
+            try:
+                resp = self._session.request(
+                    method, url, json=data, timeout=timeout)
+                if resp.status_code == 429:
+                    self._rate_limit_until = _time.time() + 5
+                    logger.warning(f"OANDA 429 rate limit on {method} {path}, backing off 5s")
+                    return False, {"error": 429, "message": resp.text}
+                if resp.status_code >= 400:
+                    logger.error(f"OANDA API {method} {path} → {resp.status_code}: {resp.text[:200]}")
+                    return False, {"error": resp.status_code, "message": resp.text[:500]}
+                return True, resp.json() if resp.text else {}
+            except _requests.exceptions.Timeout:
+                logger.error(f"OANDA API {method} {path} → Timeout ({timeout}s)")
+                return False, {"error": "timeout", "message": f"Timeout after {timeout}s"}
+            except _requests.exceptions.ConnectionError as e:
+                logger.error(f"OANDA API {method} {path} → ConnectionError: {e}")
+                return False, {"error": "network", "message": str(e)}
+            except Exception as e:
+                logger.error(f"OANDA API {method} {path} → {type(e).__name__}: {e}")
+                return False, {"error": "unknown", "message": str(e)}
+
+        # ── Fallback: urllib (requests未インストール時) ──
+        body = json.dumps(data).encode("utf-8") if data else None
         req = Request(url, data=body, headers=self._headers(), method=method)
-
         try:
             with urlopen(req, timeout=timeout) as resp:
                 raw = resp.read().decode("utf-8")
                 return True, json.loads(raw) if raw else {}
-        except HTTPError as e:
-            err_body = ""
-            try:
-                err_body = e.read().decode("utf-8")
-            except Exception:
-                pass
-            if e.code == 429:
+        except Exception as e:
+            if hasattr(e, 'code') and e.code == 429:
                 self._rate_limit_until = _time.time() + 5
                 logger.warning(f"OANDA 429 rate limit on {method} {path}, backing off 5s")
-            logger.error(f"OANDA API {method} {path} → {e.code}: {err_body}")
-            return False, {"error": e.code, "message": err_body}
-        except URLError as e:
-            logger.error(f"OANDA API {method} {path} → URLError: {e.reason}")
-            return False, {"error": "network", "message": str(e.reason)}
-        except Exception as e:
             logger.error(f"OANDA API {method} {path} → {type(e).__name__}: {e}")
-            return False, {"error": "unknown", "message": str(e)}
+            err_body = ""
+            try:
+                err_body = e.read().decode("utf-8") if hasattr(e, 'read') else str(e)
+            except Exception:
+                err_body = str(e)
+            return False, {"error": getattr(e, 'code', 'unknown'), "message": err_body}
 
     # ── Market Order (v20) ────────────────────────────
 

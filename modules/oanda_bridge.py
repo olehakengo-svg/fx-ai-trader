@@ -29,7 +29,7 @@ class OandaBridge:
 
     # デフォルト全モード（OANDA_MODES未設定 かつ DB設定なし の場合）
     _ALL_MODES = {"scalp", "daytrade", "daytrade_1h", "scalp_eur", "daytrade_eur", "daytrade_1h_eur", "scalp_eurjpy",
-                   "rnb_usdjpy", "daytrade_gbpusd", "daytrade_eurgbp"}
+                   "rnb_usdjpy", "daytrade_gbpusd", "daytrade_eurgbp", "daytrade_xau"}
 
     def _load_allowed_modes(self) -> set:
         """DB永続 > 環境変数 > 全モード許可 の優先順で読み込み."""

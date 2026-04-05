@@ -106,10 +106,11 @@ class LearningEngine:
             if stats["n"] >= 8 and stats["wr"] < 20:
                 insights.append(f"⏰ {hour}:00 UTC: WR{stats['wr']}% (観測のみ)")
 
-        # ── 4. SL幅 — Advisory only (2026-04-05 audit fix) ──
+        # ── 4. SL幅 / 5. TP幅 — Advisory only (2026-04-05 audit fix) ──
         # sl_adjust/tp_adjustはグローバル乗数であり、SMC戦略の精密SL/TPを
         # 破壊するリスクがある。SL/TPは各戦略が独自に計算済みのため廃止。
         # インサイトのみ出力（パラメータ変更なし）。
+        # (2026-04-05 perf) 旧: get_all_closed()×3回 → 新: 1回取得で共有
         if sample >= 20:
             closed = self._db.get_all_closed()
             sl_losses = [t for t in closed if t["close_reason"] == "SL_HIT"]
@@ -120,9 +121,7 @@ class LearningEngine:
                 elif sl_hit_rate < 30:
                     insights.append(f"✅ SLヒット率{sl_hit_rate:.0f}% 良好")
 
-        # ── 5. TP幅調整 — 廃止 (2026-04-05 audit fix) ──
-        if sample >= 20:
-            closed = self._db.get_all_closed()
+            # TP前反転率（同じ closed を再利用）
             tp_wins = [t for t in closed if t["close_reason"] == "TP_HIT"]
             sig_rev = [t for t in closed if t["close_reason"] == "SIGNAL_REVERSE" and t["outcome"] == "WIN"]
             if tp_wins and sig_rev:

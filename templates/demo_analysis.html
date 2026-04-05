@@ -59,6 +59,20 @@ tr:hover{background:rgba(255,255,255,.02)}
 .oanda-btn.active{background:rgba(168,85,247,.3);border-color:#a78bfa;box-shadow:0 0 6px rgba(168,85,247,.3)}
 .oanda-btn:hover{filter:brightness(1.2)}
 .oanda-badge{font-size:8px;padding:1px 4px;border-radius:3px;background:rgba(168,85,247,.15);color:#a78bfa;font-weight:700;letter-spacing:.3px}
+.smc-badge{display:inline-block;font-size:7px;padding:1px 5px;border-radius:3px;font-weight:700;letter-spacing:.3px;margin-left:4px}
+.smc-badge-protected{background:rgba(251,191,36,.12);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}
+.smc-badge-active{background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.25)}
+.smc-badge-disabled{background:rgba(107,114,128,.1);color:#6b7280;border:1px solid rgba(107,114,128,.25)}
+.smc-badge-promoted{background:rgba(59,130,246,.1);color:#3b82f6;border:1px solid rgba(59,130,246,.25)}
+.smc-badge-demoted{background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25)}
+.smc-badge-pending{background:rgba(107,114,128,.06);color:#9ca3af;border:1px solid rgba(107,114,128,.15)}
+.smc-badge-blacklisted{background:rgba(239,68,68,.08);color:#f87171;border:1px solid rgba(239,68,68,.2)}
+.strat-row{display:flex;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.03);font-size:11px;transition:background .1s}
+.strat-row:hover{background:rgba(255,255,255,.02)}
+.strat-name{font-weight:600;min-width:170px}
+.strat-cat{font-size:8px;padding:1px 5px;border-radius:3px;font-weight:600;min-width:45px;text-align:center}
+.strat-metrics{font-size:10px;color:var(--t2);margin-left:auto;display:flex;gap:12px;align-items:center}
+.strat-section{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:6px 8px;margin-top:8px;border-bottom:1px solid var(--bg2)}
 #equity-chart{width:100%;height:250px}
 #trade-chart{width:100%;height:400px}
 .mtf-chart{width:100%;height:320px}
@@ -240,6 +254,12 @@ tr:hover{background:rgba(255,255,255,.02)}
       <div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:4px">現在のパラメータ</div>
       <div id="current-params" style="font-size:10px;color:var(--t3)"></div>
     </div>
+  </div>
+
+  <!-- Strategy Status Dashboard -->
+  <div class="card full">
+    <div class="card-title">🏛️ 戦略稼働状況 <span style="font-size:8px;color:var(--t3);font-weight:400;margin-left:auto">リアルタイム監視</span></div>
+    <div id="strategy-status-panel"></div>
   </div>
 
   <!-- Adjustment History -->
@@ -519,6 +539,9 @@ async function loadDemoStatus(){
       posEl.style.display='none';
     }
 
+    // ── Strategy Status Panel ──
+    renderStrategyStatus(d.strategy_status||[]);
+
     // Log — ログ件数変化時のみログAPIを呼んでDOM更新（フリッカー完全防止）
     const serverLogCount=d.log_count||0;
     if(serverLogCount>0&&serverLogCount!==_lastLogCount){
@@ -531,6 +554,122 @@ async function loadDemoStatus(){
   }finally{
     _statusFetchInFlight=false;
   }
+}
+
+// ── Strategy Status Panel ──
+let _lastStrategyHash='';
+function renderStrategyStatus(strategies){
+  if(!strategies||!strategies.length)return;
+  const panel=document.getElementById('strategy-status-panel');
+  if(!panel)return;
+
+  // Simple hash to avoid DOM thrashing
+  const hash=JSON.stringify(strategies);
+  if(hash===_lastStrategyHash)return;
+  _lastStrategyHash=hash;
+
+  const catLabels={daytrade:'DT',scalp:'SC','1h':'1H'};
+  const catCls={daytrade:'tag-dt',scalp:'tag-sc','1h':'tag-sw'};
+  const nameMap={
+    sr_fib_confluence:'SR+Fib Confluence',
+    htf_false_breakout:'HTF False Breakout',
+    london_session_breakout:'London Breakout',
+    tokyo_nakane_momentum:'Tokyo Nakane',
+    adx_trend_continuation:'ADX Trend Cont.',
+    sr_break_retest:'SR Break Retest',
+    lin_reg_channel:'Lin Reg Channel',
+    orb_trap:'ORB Trap',
+    london_close_reversal:'London Close Rev.',
+    gbp_deep_pullback:'GBP Deep Pullback',
+    turtle_soup:'Turtle Soup',
+    trendline_sweep:'Trendline Sweep',
+    inducement_ob:'IOB Trap',
+    post_news_vol:'Post-News Vol',
+    ema_cross:'EMA Cross',
+    dt_fib_reversal:'DT Fib Reversal',
+    dt_sr_channel_reversal:'DT SR Channel',
+    ema200_trend_reversal:'EMA200 Reversal',
+    bb_rsi_reversion:'BB+RSI Reversion',
+    macdh_reversal:'MACD-H Reversal',
+    fib_reversal:'Fib Reversal',
+    bb_squeeze_breakout:'BB Squeeze BO',
+    stoch_trend_pullback:'Stoch Pullback',
+    mtf_reversal_confluence:'MTF Reversal',
+    ema_pullback:'EMA Pullback',
+    session_vol_expansion:'SVE London',
+    keltner_squeeze_breakout:'Keltner SQ BO',
+    donchian_momentum_breakout:'Donchian Mom BO',
+    h1_breakout_retest:'1H Breakout Retest',
+  };
+
+  // Group by category
+  const groups={daytrade:[],scalp:[],'1h':[]};
+  strategies.forEach(s=>{
+    const cat=s.category||'daytrade';
+    if(!groups[cat])groups[cat]=[];
+    groups[cat].push(s);
+  });
+
+  let html='';
+  const catOrder=['daytrade','scalp','1h'];
+  const catTitle={daytrade:'デイトレード戦略',scalp:'スキャルプ戦略','1h':'1Hブレイクアウト戦略'};
+
+  catOrder.forEach(cat=>{
+    const list=groups[cat];
+    if(!list||!list.length)return;
+    html+=`<div class="strat-section">${catTitle[cat]||cat} (${list.length})</div>`;
+    list.forEach(s=>{
+      const displayName=nameMap[s.name]||s.name;
+      const catBadge=`<span class="strat-cat ${catCls[cat]||''}">${catLabels[cat]||cat}</span>`;
+
+      // Status badges
+      let badges='';
+      if(s.smc_protected){
+        badges+=`<span class="smc-badge smc-badge-protected" title="SMC Protected: 学習エンジンの調整を拒否">🛡 SMC PROTECTED</span>`;
+      }
+      if(s.enabled){
+        badges+=`<span class="smc-badge smc-badge-active">ON</span>`;
+      }else{
+        badges+=`<span class="smc-badge smc-badge-disabled">OFF</span>`;
+      }
+      if(s.blacklisted){
+        badges+=`<span class="smc-badge smc-badge-blacklisted">BLOCKED</span>`;
+      }
+
+      // Promotion badge
+      if(s.promotion==='promoted'){
+        badges+=`<span class="smc-badge smc-badge-promoted">PROMOTED</span>`;
+      }else if(s.promotion==='demoted'){
+        badges+=`<span class="smc-badge smc-badge-demoted">DEMOTED</span>`;
+      }
+
+      // Metrics
+      let metrics='';
+      if(s.promo_n>0){
+        const wrCol=s.promo_wr>=60?'var(--green)':s.promo_wr>=50?'var(--gold)':'var(--red)';
+        const evCol=s.promo_ev>0?'var(--green)':'var(--red)';
+        metrics=`<span style="color:var(--t3)">N=${s.promo_n}</span>`+
+          `<span style="color:${wrCol}">WR ${s.promo_wr.toFixed(1)}%</span>`+
+          `<span style="color:${evCol}">EV ${s.promo_ev>=0?'+':''}${s.promo_ev.toFixed(2)}</span>`;
+      }
+
+      html+=`<div class="strat-row">
+        ${catBadge}
+        <span class="strat-name">${_h(displayName)}</span>
+        ${badges}
+        <div class="strat-metrics">${metrics}</div>
+      </div>`;
+    });
+  });
+
+  // SMC summary
+  const smcCount=strategies.filter(s=>s.smc_protected).length;
+  const smcActive=strategies.filter(s=>s.smc_protected&&s.enabled).length;
+  html+=`<div style="margin-top:8px;padding:6px 10px;background:rgba(251,191,36,.05);border:1px solid rgba(251,191,36,.15);border-radius:5px;font-size:10px;color:var(--gold)">
+    🛡 SMC Protected: ${smcActive}/${smcCount} 戦略が稼働中 — 学習エンジンによるブラックリスト化・SL/TP変更・降格を完全拒否
+  </div>`;
+
+  panel.innerHTML=html;
 }
 
 // ── Load Stats ──
