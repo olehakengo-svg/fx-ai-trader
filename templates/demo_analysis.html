@@ -2,1179 +2,726 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FX AI Trader — Demo Analysis</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>FX AI Cockpit</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
-:root{--bg:#0d1117;--bg1:#161b22;--bg2:#1c2128;--t1:#e6edf3;--t2:#8b949e;--t3:#6e7681;
---green:#22c55e;--red:#ef4444;--blue:#3b82f6;--gold:#fbbf24;--purple:#a78bfa}
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px}
-a{color:var(--blue);text-decoration:none}
-.top-bar{background:var(--bg1);border-bottom:1px solid var(--bg2);padding:10px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.top-bar h1{font-size:16px;font-weight:700}
-.back-link{font-size:12px;color:var(--t2);padding:3px 10px;border:1px solid var(--bg2);border-radius:4px}
-.back-link:hover{background:var(--bg2)}
-.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;padding:12px;max-width:1600px;margin:0 auto}
-.full{grid-column:1/-1}
-.card{background:var(--bg1);border:1px solid var(--bg2);border-radius:8px;padding:14px}
-.card-title{font-size:12px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;display:flex;align-items:center;gap:6px}
-.demo-log-in{color:#22c55e}.demo-log-out-w{color:#22c55e}.demo-log-out-l{color:#ef4444}.demo-log-start{color:var(--blue);font-weight:600}
-.stat-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-.stat-box{background:var(--bg);border-radius:6px;padding:8px 14px;text-align:center;min-width:80px;flex:1}
-.stat-label{font-size:9px;color:var(--t3);text-transform:uppercase;letter-spacing:.3px}
-.stat-val{font-size:18px;font-weight:700;margin-top:2px}
-.table-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:11px}
-th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--bg2);color:var(--t3);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.3px}
-td{padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.03)}
-tr:hover{background:rgba(255,255,255,.02)}
-.tag{display:inline-block;font-size:8px;padding:1px 5px;border-radius:3px;font-weight:600}
-.tag-win{background:rgba(34,197,94,.12);color:var(--green);border:1px solid rgba(34,197,94,.25)}
-.tag-loss{background:rgba(239,68,68,.12);color:var(--red);border:1px solid rgba(239,68,68,.25)}
-.tag-open{background:rgba(59,130,246,.12);color:var(--blue);border:1px solid rgba(59,130,246,.25)}
-.tag-dt{background:rgba(59,130,246,.12);color:var(--blue)}
-.tag-sc{background:rgba(245,158,11,.12);color:var(--gold)}
-.tag-sw{background:rgba(20,184,166,.12);color:#2dd4bf}
-.insight-card{background:var(--bg);border-radius:6px;padding:8px 12px;margin-bottom:6px;font-size:11px;border-left:3px solid var(--bg2)}
-.insight-good{border-left-color:var(--green)}
-.insight-bad{border-left-color:var(--red)}
-.insight-neutral{border-left-color:var(--blue)}
-.adj-item{font-size:10px;padding:4px 8px;background:var(--bg);border-radius:4px;margin-bottom:3px;display:flex;gap:8px;align-items:center}
-.btn{font-size:11px;padding:5px 14px;border-radius:5px;border:1px solid var(--bg2);background:var(--bg);color:var(--t1);cursor:pointer;transition:background .15s}
-.btn:hover{background:var(--bg2)}
-.btn-primary{background:rgba(99,102,241,.15);border-color:rgba(99,102,241,.4);color:var(--purple)}
-.demo-btn{font-size:10px;padding:4px 12px;border-radius:5px;cursor:pointer;font-weight:600;transition:all .15s;width:100px;text-align:center;box-sizing:border-box}
-.demo-btn:hover{filter:brightness(1.2)}
-.demo-btn-dt{border:1px solid rgba(59,130,246,.4);background:rgba(59,130,246,.08);color:#60a5fa}
-.demo-btn-dt.active{background:rgba(59,130,246,.25);border-color:#60a5fa}
-.demo-btn-sc{border:1px solid rgba(245,158,11,.4);background:rgba(245,158,11,.08);color:#fbbf24}
-.demo-btn-sc.active{background:rgba(245,158,11,.25);border-color:#fbbf24}
-.demo-btn-sw{border:1px solid rgba(20,184,166,.4);background:rgba(20,184,166,.08);color:#2dd4bf}
-.demo-btn-sw.active{background:rgba(20,184,166,.25);border-color:#2dd4bf}
-.status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:3px}
-.status-dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
-.status-dot.off{background:var(--red)}
-.oanda-btn{font-size:9px;padding:3px 8px;border-radius:4px;cursor:pointer;font-weight:600;transition:all .15s;border:1px solid rgba(168,85,247,.3);background:rgba(168,85,247,.06);color:#a78bfa}
-.oanda-btn.active{background:rgba(168,85,247,.3);border-color:#a78bfa;box-shadow:0 0 6px rgba(168,85,247,.3)}
-.oanda-btn:hover{filter:brightness(1.2)}
-.oanda-badge{font-size:8px;padding:1px 4px;border-radius:3px;background:rgba(168,85,247,.15);color:#a78bfa;font-weight:700;letter-spacing:.3px}
-.smc-badge{display:inline-block;font-size:7px;padding:1px 5px;border-radius:3px;font-weight:700;letter-spacing:.3px;margin-left:4px}
-.smc-badge-protected{background:rgba(251,191,36,.12);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}
-.smc-badge-active{background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.25)}
-.smc-badge-disabled{background:rgba(107,114,128,.1);color:#6b7280;border:1px solid rgba(107,114,128,.25)}
-.smc-badge-promoted{background:rgba(59,130,246,.1);color:#3b82f6;border:1px solid rgba(59,130,246,.25)}
-.smc-badge-demoted{background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.25)}
-.smc-badge-pending{background:rgba(107,114,128,.06);color:#9ca3af;border:1px solid rgba(107,114,128,.15)}
-.smc-badge-blacklisted{background:rgba(239,68,68,.08);color:#f87171;border:1px solid rgba(239,68,68,.2)}
-.strat-row{display:flex;align-items:center;gap:6px;padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.03);font-size:11px;transition:background .1s}
-.strat-row:hover{background:rgba(255,255,255,.02)}
-.strat-name{font-weight:600;min-width:170px}
-.strat-cat{font-size:8px;padding:1px 5px;border-radius:3px;font-weight:600;min-width:45px;text-align:center}
-.strat-metrics{font-size:10px;color:var(--t2);margin-left:auto;display:flex;gap:12px;align-items:center}
-.strat-section{font-size:10px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;padding:6px 8px;margin-top:8px;border-bottom:1px solid var(--bg2)}
-#equity-chart{width:100%;height:250px}
-#trade-chart{width:100%;height:400px}
-.mtf-chart{width:100%;height:320px}
-.chart-legend{display:flex;gap:12px;font-size:10px;color:var(--t3);margin-top:4px}
-.legend-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:3px}
-.chart-msg{display:flex;align-items:center;justify-content:center;height:100%;color:var(--t3);font-size:12px}
-@media(max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
+:root{--bg:#0d1117;--bg1:#161b22;--bg2:#21262d;--border:#30363d;--t1:#e6edf3;--t2:#8b949e;--t3:#484f58;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;--gold:#eab308;--purple:#a855f7}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;overflow:hidden}
 
-/* ── iPhone / Mobile Optimization ── */
-.ctrl-label{font-size:9px;color:var(--t3);white-space:nowrap;min-width:28px}
-@media(max-width:480px){
-  html,body{font-size:12px;-webkit-text-size-adjust:100%;overflow-x:hidden;max-width:100vw;width:100%}
-  .tv-lightweight-charts{max-width:100%!important}
-  .top-bar{padding:8px 10px;gap:4px;flex-direction:column;align-items:stretch}
-  .top-bar h1{font-size:14px}
-  .top-bar .back-link{font-size:10px;padding:2px 6px}
-  .top-bar > div{width:100%!important}
-  .ctrl-row{display:flex;gap:2px;align-items:center;flex-wrap:nowrap;width:100%;padding:3px 4px!important;min-width:0!important}
-  .ctrl-row .demo-btn{width:auto!important;flex:1;min-width:0;padding:5px 2px;font-size:8px}
-  .ctrl-row .oanda-btn{padding:4px 3px;font-size:7px;flex:1;min-width:0;text-align:center}
-  .ctrl-label{font-size:8px;min-width:22px}
-  .demo-btn{width:auto!important}
-  .grid{padding:6px;gap:8px;box-sizing:border-box;width:100vw!important;max-width:100vw!important;overflow-x:hidden!important}
-  .card{padding:10px;border-radius:6px;overflow-x:auto;box-sizing:border-box;min-width:0!important;max-width:calc(100vw - 12px)}
-  .card .mtf-chart,.card #equity-chart,.card #trade-chart{width:100%!important;max-width:100%!important}
-  .card-title{font-size:11px;margin-bottom:6px}
-  .stat-row{gap:4px;flex-wrap:nowrap;overflow-x:auto;width:100%;max-width:calc(100vw - 32px)}
-  .stat-box{padding:6px 4px;min-width:0!important;flex:1 0 auto!important}
-  .stat-label{font-size:7px;overflow:hidden;text-overflow:ellipsis}
-  .stat-val{font-size:13px}
-  .mtf-chart{height:220px}
-  #equity-chart{height:180px}
-  table{font-size:9px}
-  th{padding:4px 3px;font-size:8px}
-  td{padding:3px 3px}
-  .demo-log{font-size:9px}
-  .btn{font-size:10px;padding:5px 8px}
-  .oanda-badge{font-size:7px;padding:1px 3px}
-  #trade-filter{flex-direction:column;gap:6px;padding:6px 8px}
-  #trade-filter input,#trade-filter select{width:100%;font-size:12px;padding:6px}
-  #oanda-panel{flex-wrap:wrap!important}
-  .demo-ctrl-wrap{flex-direction:column!important;gap:3px!important}
-  .demo-ctrl-wrap .ctrl-row{flex:none!important}
-  .card{overflow-x:auto}
-  .demo-log{word-break:break-all}
-  #open-positions div{flex-wrap:wrap!important;gap:4px!important}
+/* ── Top Bar ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;height:42px;padding:0 14px;background:var(--bg1);border-bottom:1px solid var(--border)}
+.topbar h1{font-size:14px;font-weight:700;white-space:nowrap}
+.topbar-r{display:flex;align-items:center;gap:10px}
+.topbar a{color:var(--t2);text-decoration:none;font-size:11px}
+.topbar a:hover{color:var(--t1)}
+#status-text{font-size:11px;color:var(--t2)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:3px;vertical-align:middle}
+.dot.on{background:var(--green);box-shadow:0 0 4px var(--green)}
+.dot.off{background:var(--red)}
+.tb{background:none;border:1px solid var(--border);color:var(--t2);border-radius:4px;padding:2px 8px;cursor:pointer;font-size:12px}
+.tb:hover{color:var(--t1);border-color:var(--t2)}
+
+/* ── Layout ── */
+.cockpit{display:grid;grid-template-columns:170px 1fr;height:calc(100vh - 42px)}
+
+/* ── Sidebar ── */
+.sidebar{background:var(--bg1);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
+.sidebar::-webkit-scrollbar{width:4px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.pair-group{border-bottom:1px solid var(--border)}
+.pair-header{padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;border-left:3px solid transparent;display:flex;align-items:center;gap:5px;transition:all .12s;user-select:none}
+.pair-header:hover{background:rgba(255,255,255,.03)}
+.pair-header.active{border-left-color:var(--blue);background:rgba(59,130,246,.06);color:var(--blue)}
+.pair-flag{font-size:13px}
+.mode-list{padding:2px 0 4px}
+.mode-row{display:flex;align-items:center;gap:3px;padding:1px 6px 1px 14px}
+.mode-btn{background:none;border:1px solid transparent;color:var(--t3);border-radius:3px;padding:2px 6px;cursor:pointer;font-size:10px;flex:1;text-align:left;transition:all .12s;white-space:nowrap;line-height:1.5}
+.mode-btn:hover{border-color:var(--border);color:var(--t2)}
+.mode-btn.active{color:var(--green);border-color:rgba(34,197,94,.25);background:rgba(34,197,94,.04)}
+.oa-btn{background:none;border:1px solid transparent;color:var(--t3);border-radius:3px;padding:2px 5px;cursor:pointer;font-size:9px;min-width:22px;text-align:center;transition:all .12s}
+.oa-btn:hover{border-color:var(--border)}
+.oa-btn.active{color:var(--purple);border-color:rgba(168,85,247,.25);background:rgba(168,85,247,.04)}
+.oanda-section{padding:6px 10px;margin-top:auto;border-top:1px solid var(--border)}
+#oanda-status{font-size:10px;color:var(--t3)}
+
+/* ── Main Content ── */
+.main{overflow:hidden;display:flex;flex-direction:column}
+.tf-bar{display:flex;align-items:center;justify-content:space-between;padding:5px 10px;background:var(--bg1);border-bottom:1px solid var(--border);flex-shrink:0}
+.tf-tabs{display:flex;gap:3px}
+.tf-btn{background:none;border:1px solid var(--border);color:var(--t3);border-radius:3px;padding:2px 9px;cursor:pointer;font-size:10px;transition:all .12s}
+.tf-btn:hover{color:var(--t2)}
+.tf-btn.active{color:var(--blue);border-color:var(--blue);background:rgba(59,130,246,.08)}
+#chart-title{font-size:12px;font-weight:600;color:var(--t2)}
+#main-chart{flex:1;min-height:250px}
+.tv-lightweight-charts{max-width:100%!important}
+
+/* ── Stats Bar ── */
+.stats-bar{display:flex;align-items:center;gap:20px;padding:5px 14px;background:var(--bg1);border-top:1px solid var(--border);border-bottom:1px solid var(--border);flex-shrink:0}
+.stat-label{display:block;font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;line-height:1}
+.stat-val{font-size:13px;font-weight:700;line-height:1.4}
+
+/* ── Bottom Panels ── */
+.bottom{flex-shrink:0;max-height:40vh;overflow-y:auto}
+.bottom::-webkit-scrollbar{width:4px}
+.bottom::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.panel-hdr{display:flex;align-items:center;justify-content:space-between;padding:5px 10px;font-size:11px;font-weight:600;color:var(--t2);background:var(--bg2);border-bottom:1px solid var(--border)}
+
+/* Open Positions */
+#open-positions{border-bottom:1px solid var(--border)}
+.pos-row{display:flex;align-items:center;gap:8px;padding:4px 10px;font-size:11px;border-bottom:1px solid rgba(48,54,61,.4)}
+.pos-mode{font-weight:600;min-width:45px}.pos-sl{color:var(--red)}.pos-tp{color:var(--green)}
+.pos-type{color:var(--t3);font-size:9px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn-s{background:none;border:1px solid;border-radius:3px;padding:1px 7px;cursor:pointer;font-size:9px}
+.btn-s:hover{opacity:.7}
+
+/* Strategy Panel */
+#strategy-panel{border-bottom:1px solid var(--border);max-height:160px;overflow-y:auto}
+.strat-cat{padding:2px 10px;font-size:9px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:1px;background:rgba(0,0,0,.25)}
+.strat-row{padding:2px 10px;font-size:10px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.strat-row.smc{background:rgba(234,179,8,.025)}
+.badge{display:inline-block;padding:0 4px;border-radius:2px;font-size:8px;font-weight:700;line-height:1.6}
+.badge-smc{background:rgba(234,179,8,.12);color:var(--gold);border:1px solid rgba(234,179,8,.25)}
+.badge-on{background:rgba(34,197,94,.1);color:var(--green)}
+.badge-off{color:var(--t3)}
+.badge-blocked{background:rgba(239,68,68,.1);color:var(--red)}
+.badge-promo{background:rgba(59,130,246,.1);color:var(--blue)}
+.badge-demote{background:rgba(239,68,68,.1);color:var(--red)}
+.strat-metrics{font-size:9px;color:var(--t3);margin-left:auto}
+
+/* Log */
+#log-panel{border-bottom:1px solid var(--border)}
+#demo-log{max-height:110px;overflow-y:auto;padding:3px 10px;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:10px;line-height:1.55}
+#demo-log::-webkit-scrollbar{width:4px}
+#demo-log::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.log-line{color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log-entry{color:var(--blue)}.log-win{color:var(--green)}.log-loss{color:var(--red)}.log-start{color:var(--purple)}
+
+/* ── Mobile ── */
+@media(max-width:768px){
+  .cockpit{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .sidebar{flex-direction:row;overflow-x:auto;overflow-y:hidden;border-right:none;border-bottom:1px solid var(--border);max-height:70px}
+  .sidebar::-webkit-scrollbar{height:3px}
+  .pair-group{display:flex;align-items:center;border-bottom:none;border-right:1px solid var(--border);flex-shrink:0;padding:4px 0}
+  .pair-header{padding:4px 8px;border-left:none;border-bottom:2px solid transparent;font-size:10px}
+  .pair-header.active{border-left-color:transparent;border-bottom-color:var(--blue)}
+  .mode-list{display:flex;padding:0 4px;gap:2px}
+  .mode-row{padding:0}
+  .oa-btn{display:none}
+  .oanda-section{display:none}
+  #main-chart{min-height:200px}
+  .stats-bar{gap:12px;padding:4px 8px}
+  .stat-val{font-size:11px}
 }
 </style>
 </head>
 <body>
 
-<div class="top-bar">
-  <!-- Row 1: Title + Nav + Actions -->
-  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%">
-    <h1>🧠 Demo Analysis</h1>
-    <a href="/" class="back-link">← メイン</a>
-    <a href="/oanda-analysis" class="back-link" style="border-color:rgba(168,85,247,.4);color:#a78bfa">💰 OANDA</a>
-    <span id="demo-status-text" style="font-size:9px;color:var(--t3);margin-left:auto">停止中</span>
-    <button class="btn btn-primary" onclick="runLearning()">🧠 学習</button>
-    <button class="btn" onclick="loadAll()">🔄</button>
+<!-- ═══ Top Bar ═══ -->
+<header class="topbar">
+  <h1>🧠 FX AI Cockpit</h1>
+  <div class="topbar-r">
+    <a href="/">📈 Main</a>
+    <a href="/oanda-analysis">💹 OANDA</a>
+    <span id="status-text"><span class="dot off"></span>—</span>
+    <button class="tb" onclick="runLearning()" title="学習エンジン実行">🧠</button>
+    <button class="tb" onclick="loadAll()" title="全データ再読込">🔄</button>
   </div>
-  <!-- Row 2: Demo Controls -->
-  <div class="demo-ctrl-wrap" style="display:flex;gap:4px;flex-wrap:wrap;width:100%">
-    <!-- USD/JPY Demo -->
-    <div class="ctrl-row" style="display:flex;gap:3px;align-items:center;border:1px solid var(--bg2);border-radius:6px;padding:3px 6px;flex:1;min-width:0">
-      <span class="ctrl-label">JPY</span>
-      <button id="dt-btn" class="demo-btn demo-btn-dt" onclick="toggleDemo('daytrade')">📊DT ▶</button>
-      <button id="sc-btn" class="demo-btn demo-btn-sc" onclick="toggleDemo('scalp')">⚡SC ▶</button>
-      <button id="sw-btn" class="demo-btn demo-btn-sw" onclick="toggleDemo('daytrade_1h')">🕐1H ▶</button>
-    </div>
-    <!-- EUR/USD Demo -->
-    <div class="ctrl-row" style="display:flex;gap:3px;align-items:center;border:1px solid rgba(34,197,94,.3);border-radius:6px;padding:3px 6px;flex:1;min-width:0">
-      <span class="ctrl-label" style="color:#22c55e">EUR</span>
-      <button id="dt-eur-btn" class="demo-btn demo-btn-dt" onclick="toggleDemo('daytrade_eur')">📊DT ▶</button>
-      <button id="sc-eur-btn" class="demo-btn demo-btn-sc" onclick="toggleDemo('scalp_eur')">⚡SC ▶</button>
-      <button id="1h-eur-btn" class="demo-btn demo-btn-sw" onclick="toggleDemo('daytrade_1h_eur')">🕐1H ▶</button>
-    </div>
-    <div class="ctrl-row" style="margin-top:1px">
-      <span class="ctrl-label" style="color:#f59e0b">EURJPY</span>
-      <button id="sc-eurjpy-btn" class="demo-btn demo-btn-sc" onclick="toggleDemo('scalp_eurjpy')">⚡SC ▶</button>
-    </div>
-    <!-- GBP / EUR-GBP / XAU Demo -->
-    <div class="ctrl-row" style="display:flex;gap:3px;align-items:center;border:1px solid rgba(139,92,246,.3);border-radius:6px;padding:3px 6px;flex:1;min-width:0;margin-top:1px">
-      <span class="ctrl-label" style="color:#8b5cf6">GBP+</span>
-      <button id="dt-gbpusd-btn" class="demo-btn demo-btn-dt" onclick="toggleDemo('daytrade_gbpusd')">📊🇬🇧 ▶</button>
-      <button id="dt-eurgbp-btn" class="demo-btn demo-btn-dt" onclick="toggleDemo('daytrade_eurgbp')">📊🇪🇺🇬🇧 ▶</button>
-      <button id="rnb-usdjpy-btn" class="demo-btn demo-btn-sw" onclick="toggleDemo('rnb_usdjpy')">🎯RNB ▶</button>
-      <span style="color:var(--t3);font-size:7px">|</span>
-      <button id="dt-xau-btn" class="demo-btn" style="border-color:rgba(234,179,8,.4);color:#eab308" onclick="toggleDemo('daytrade_xau')">📊🥇XAU ▶</button>
-    </div>
-  </div>
-  <!-- Row 3: OANDA Controls -->
-  <div class="ctrl-row" id="oanda-panel" style="display:flex;gap:3px;align-items:center;border:1px solid rgba(168,85,247,.3);border-radius:6px;padding:3px 6px;flex-wrap:wrap;width:100%">
-    <span class="oanda-badge">OANDA</span>
-    <button id="oanda-scalp" class="oanda-btn" onclick="toggleOandaMode('scalp')">⚡SC</button>
-    <button id="oanda-daytrade" class="oanda-btn" onclick="toggleOandaMode('daytrade')">📊DT</button>
-    <button id="oanda-daytrade_1h" class="oanda-btn" onclick="toggleOandaMode('daytrade_1h')">🕐1H</button>
-    <span style="color:var(--t3);font-size:7px">|</span>
-    <button id="oanda-scalp_eur" class="oanda-btn" onclick="toggleOandaMode('scalp_eur')">⚡🇪🇺</button>
-    <button id="oanda-daytrade_eur" class="oanda-btn" onclick="toggleOandaMode('daytrade_eur')">📊🇪🇺</button>
-    <button id="oanda-daytrade_1h_eur" class="oanda-btn" onclick="toggleOandaMode('daytrade_1h_eur')">🕐🇪🇺</button>
-    <span style="color:var(--t3);font-size:7px">|</span>
-    <button id="oanda-scalp_eurjpy" class="oanda-btn" onclick="toggleOandaMode('scalp_eurjpy')">⚡EURJPY</button>
-    <span style="color:var(--t3);font-size:7px">|</span>
-    <button id="oanda-daytrade_gbpusd" class="oanda-btn" onclick="toggleOandaMode('daytrade_gbpusd')">📊🇬🇧</button>
-    <button id="oanda-daytrade_eurgbp" class="oanda-btn" onclick="toggleOandaMode('daytrade_eurgbp')">📊🇪🇺🇬🇧</button>
-    <span style="color:var(--t3);font-size:7px">|</span>
-    <button id="oanda-rnb_usdjpy" class="oanda-btn" onclick="toggleOandaMode('rnb_usdjpy')">🎯RNB</button>
-    <span style="color:var(--t3);font-size:7px">|</span>
-    <button id="oanda-daytrade_xau" class="oanda-btn" style="border-color:rgba(234,179,8,.3)" onclick="toggleOandaMode('daytrade_xau')">🥇XAU</button>
-    <span id="oanda-status" style="font-size:8px;color:var(--t3);margin-left:auto"></span>
-  </div>
-</div>
+</header>
 
-<div class="grid">
+<!-- ═══ Cockpit Grid ═══ -->
+<div class="cockpit">
 
-  <!-- Stats Overview -->
-  <div class="card full">
-    <div class="card-title">📊 パフォーマンスサマリー</div>
-    <div class="stat-row" id="stats-row">
-      <div class="stat-box"><div class="stat-label">Total Trades</div><div class="stat-val" id="s-total">—</div></div>
-      <div class="stat-box"><div class="stat-label">Win Rate</div><div class="stat-val" id="s-wr">—</div></div>
-      <div class="stat-box"><div class="stat-label">Total P/L</div><div class="stat-val" id="s-pnl">—</div></div>
-      <div class="stat-box"><div class="stat-label">EV / Trade</div><div class="stat-val" id="s-ev">—</div></div>
-      <div class="stat-box"><div class="stat-label">Avg R</div><div class="stat-val" id="s-avgr">—</div></div>
-      <div class="stat-box"><div class="stat-label">Wins</div><div class="stat-val" id="s-wins" style="color:var(--green)">—</div></div>
-      <div class="stat-box"><div class="stat-label">Losses</div><div class="stat-val" id="s-losses" style="color:var(--red)">—</div></div>
+<!-- ── Sidebar: Pair & Mode Control ── -->
+<aside class="sidebar" id="sidebar">
+
+  <!-- USD/JPY -->
+  <div class="pair-group">
+    <div class="pair-header active" data-pair="USD_JPY" onclick="selectPair('USD_JPY')">
+      <span class="pair-flag">🇺🇸🇯🇵</span> USD/JPY
     </div>
+    <div class="mode-list">
+      <div class="mode-row"><button id="m-scalp" class="mode-btn" onclick="toggleDemo('scalp')">⚡SC ▶</button><button id="o-scalp" class="oa-btn" onclick="toggleOandaMode('scalp')">OA</button></div>
+      <div class="mode-row"><button id="m-daytrade" class="mode-btn" onclick="toggleDemo('daytrade')">📊DT ▶</button><button id="o-daytrade" class="oa-btn" onclick="toggleOandaMode('daytrade')">OA</button></div>
+      <div class="mode-row"><button id="m-daytrade_1h" class="mode-btn" onclick="toggleDemo('daytrade_1h')">🕐1H ▶</button><button id="o-daytrade_1h" class="oa-btn" onclick="toggleOandaMode('daytrade_1h')">OA</button></div>
+      <div class="mode-row"><button id="m-rnb_usdjpy" class="mode-btn" onclick="toggleDemo('rnb_usdjpy')">🎯RNB ▶</button><button id="o-rnb_usdjpy" class="oa-btn" onclick="toggleOandaMode('rnb_usdjpy')">OA</button></div>
+    </div>
+  </div>
+
+  <!-- EUR/USD -->
+  <div class="pair-group">
+    <div class="pair-header" data-pair="EUR_USD" onclick="selectPair('EUR_USD')">
+      <span class="pair-flag">🇪🇺🇺🇸</span> EUR/USD
+    </div>
+    <div class="mode-list">
+      <div class="mode-row"><button id="m-scalp_eur" class="mode-btn" onclick="toggleDemo('scalp_eur')">⚡SC ▶</button><button id="o-scalp_eur" class="oa-btn" onclick="toggleOandaMode('scalp_eur')">OA</button></div>
+      <div class="mode-row"><button id="m-daytrade_eur" class="mode-btn" onclick="toggleDemo('daytrade_eur')">📊DT ▶</button><button id="o-daytrade_eur" class="oa-btn" onclick="toggleOandaMode('daytrade_eur')">OA</button></div>
+      <div class="mode-row"><button id="m-daytrade_1h_eur" class="mode-btn" onclick="toggleDemo('daytrade_1h_eur')">🕐1H ▶</button><button id="o-daytrade_1h_eur" class="oa-btn" onclick="toggleOandaMode('daytrade_1h_eur')">OA</button></div>
+    </div>
+  </div>
+
+  <!-- EUR/JPY -->
+  <div class="pair-group">
+    <div class="pair-header" data-pair="EUR_JPY" onclick="selectPair('EUR_JPY')">
+      <span class="pair-flag">🇪🇺🇯🇵</span> EUR/JPY
+    </div>
+    <div class="mode-list">
+      <div class="mode-row"><button id="m-scalp_eurjpy" class="mode-btn" onclick="toggleDemo('scalp_eurjpy')">⚡SC ▶</button><button id="o-scalp_eurjpy" class="oa-btn" onclick="toggleOandaMode('scalp_eurjpy')">OA</button></div>
+    </div>
+  </div>
+
+  <!-- GBP/USD -->
+  <div class="pair-group">
+    <div class="pair-header" data-pair="GBP_USD" onclick="selectPair('GBP_USD')">
+      <span class="pair-flag">🇬🇧🇺🇸</span> GBP/USD
+    </div>
+    <div class="mode-list">
+      <div class="mode-row"><button id="m-daytrade_gbpusd" class="mode-btn" onclick="toggleDemo('daytrade_gbpusd')">📊DT ▶</button><button id="o-daytrade_gbpusd" class="oa-btn" onclick="toggleOandaMode('daytrade_gbpusd')">OA</button></div>
+    </div>
+  </div>
+
+  <!-- EUR/GBP -->
+  <div class="pair-group">
+    <div class="pair-header" data-pair="EUR_GBP" onclick="selectPair('EUR_GBP')">
+      <span class="pair-flag">🇪🇺🇬🇧</span> EUR/GBP
+    </div>
+    <div class="mode-list">
+      <div class="mode-row"><button id="m-daytrade_eurgbp" class="mode-btn" onclick="toggleDemo('daytrade_eurgbp')">📊DT ▶</button><button id="o-daytrade_eurgbp" class="oa-btn" onclick="toggleOandaMode('daytrade_eurgbp')">OA</button></div>
+    </div>
+  </div>
+
+  <!-- XAU/USD -->
+  <div class="pair-group">
+    <div class="pair-header" data-pair="XAU_USD" onclick="selectPair('XAU_USD')">
+      <span class="pair-flag">🥇</span> XAU/USD
+    </div>
+    <div class="mode-list">
+      <div class="mode-row"><button id="m-daytrade_xau" class="mode-btn" onclick="toggleDemo('daytrade_xau')">📊DT ▶</button><button id="o-daytrade_xau" class="oa-btn" onclick="toggleOandaMode('daytrade_xau')">OA</button></div>
+    </div>
+  </div>
+
+  <!-- OANDA Status -->
+  <div class="oanda-section">
+    <div id="oanda-status">OANDA: —</div>
+  </div>
+</aside>
+
+<!-- ── Main: Chart + Panels ── -->
+<main class="main">
+
+  <!-- TF Selector -->
+  <div class="tf-bar">
+    <div class="tf-tabs">
+      <button class="tf-btn" data-tf="1m" onclick="selectTf('1m')">1m</button>
+      <button class="tf-btn" data-tf="5m" onclick="selectTf('5m')">5m</button>
+      <button class="tf-btn active" data-tf="15m" onclick="selectTf('15m')">15m</button>
+      <button class="tf-btn" data-tf="1h" onclick="selectTf('1h')">1h</button>
+      <button class="tf-btn" data-tf="4h" onclick="selectTf('4h')">4h</button>
+    </div>
+    <div id="chart-title">🇺🇸🇯🇵 USD/JPY</div>
+  </div>
+
+  <!-- Main Chart -->
+  <div id="main-chart"></div>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div><span class="stat-label">Trades</span><span class="stat-val" id="s-total">—</span></div>
+    <div><span class="stat-label">Win Rate</span><span class="stat-val" id="s-wr">—</span></div>
+    <div><span class="stat-label">P/L</span><span class="stat-val" id="s-pnl">—</span></div>
+    <div><span class="stat-label">EV</span><span class="stat-val" id="s-ev">—</span></div>
+    <div><span class="stat-label">W / L</span><span class="stat-val" id="s-wl">—</span></div>
+  </div>
+
+  <!-- Scrollable Bottom Panels -->
+  <div class="bottom">
+
     <!-- Open Positions -->
-    <div id="open-positions" style="display:none;margin-bottom:8px"></div>
-    <!-- Entry Type Breakdown -->
-    <div id="type-breakdown" style="display:flex;gap:8px;flex-wrap:wrap"></div>
-  </div>
+    <div id="open-positions" style="display:none"></div>
 
-  <!-- Equity Curve -->
-  <div class="card full">
-    <div class="card-title">📈 累積P/Lカーブ</div>
-    <div id="equity-chart"></div>
-    <div class="chart-legend">
-      <span><span class="legend-dot" style="background:var(--blue)"></span>累積P/L (pips)</span>
-      <span><span class="legend-dot" style="background:var(--green)"></span>WIN</span>
-      <span><span class="legend-dot" style="background:var(--red)"></span>LOSS</span>
+    <!-- Strategy Panel -->
+    <div id="strategy-panel"></div>
+
+    <!-- Log -->
+    <div id="log-panel">
+      <div class="panel-hdr"><span>📋 Log</span><span id="log-count" style="font-size:10px;color:var(--t3)">0</span></div>
+      <div id="demo-log"></div>
     </div>
-  </div>
 
-  <!-- Multi-Timeframe Charts (2x2 Grid) -->
-  <div class="card">
-    <div class="card-title">⚡ 1分足（スキャルプ）<span id="mtf-src-1m" style="margin-left:auto;font-size:9px;color:var(--t3)"></span></div>
-    <div id="mtf-chart-1m" class="mtf-chart"></div>
-  </div>
-  <div class="card">
-    <div class="card-title">📊 15分足（デイトレ）<span id="mtf-src-15m" style="margin-left:auto;font-size:9px;color:var(--t3)"></span></div>
-    <div id="mtf-chart-15m" class="mtf-chart"></div>
-  </div>
-  <div class="card">
-    <div class="card-title">🕐 1時間足（DT1H）<span id="mtf-src-1h" style="margin-left:auto;font-size:9px;color:var(--t3)"></span></div>
-    <div id="mtf-chart-1h" class="mtf-chart"></div>
-  </div>
-  <div class="card">
-    <div class="card-title">📈 4時間足（上位TF）<span id="mtf-src-4h" style="margin-left:auto;font-size:9px;color:var(--t3)"></span></div>
-    <div id="mtf-chart-4h" class="mtf-chart"></div>
-  </div>
-
-  <!-- EUR/USD Charts (2x2 Grid) -->
-  <div class="card full" style="border-color:rgba(34,197,94,.2)">
-    <div class="card-title" style="color:#22c55e">🇪🇺 EUR/USD チャート</div>
-  </div>
-  <div class="card">
-    <div class="card-title">⚡🇪🇺 EUR 1分足<span id="mtf-src-eur-1m" style="margin-left:auto;font-size:9px;color:var(--t3)"></span></div>
-    <div id="mtf-chart-eur-1m" class="mtf-chart"></div>
-  </div>
-  <div class="card">
-    <div class="card-title">📊🇪🇺 EUR 15分足<span id="mtf-src-eur-15m" style="margin-left:auto;font-size:9px;color:var(--t3)"></span></div>
-    <div id="mtf-chart-eur-15m" class="mtf-chart"></div>
-  </div>
-  <div class="card">
-    <div class="card-title">🕐🇪🇺 EUR 1時間足<span id="mtf-src-eur-1h" style="margin-left:auto;font-size:9px;color:var(--t3)"></span></div>
-    <div id="mtf-chart-eur-1h" class="mtf-chart"></div>
-  </div>
-  <div class="card">
-    <div class="card-title">📈🇪🇺 EUR 4時間足<span id="mtf-src-eur-4h" style="margin-left:auto;font-size:9px;color:var(--t3)"></span></div>
-    <div id="mtf-chart-eur-4h" class="mtf-chart"></div>
-  </div>
-
-  <!-- Learning Insights -->
-  <div class="card">
-    <div class="card-title">🧠 学習エンジン分析</div>
-    <div id="learning-insights"><div style="color:var(--t3)">学習実行ボタンを押してください</div></div>
-    <div style="margin-top:8px">
-      <div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:4px">現在のパラメータ</div>
-      <div id="current-params" style="font-size:10px;color:var(--t3)"></div>
-    </div>
-  </div>
-
-  <!-- Strategy Status Dashboard -->
-  <div class="card full">
-    <div class="card-title">🏛️ 戦略稼働状況 <span style="font-size:8px;color:var(--t3);font-weight:400;margin-left:auto">リアルタイム監視</span></div>
-    <div id="strategy-status-panel"></div>
-  </div>
-
-  <!-- Adjustment History -->
-  <div class="card">
-    <div class="card-title">📋 調整履歴</div>
-    <div id="adj-history" style="max-height:350px;overflow-y:auto">
-      <div style="color:var(--t3);font-size:11px">まだ調整なし</div>
-    </div>
-  </div>
-
-  <!-- Entry Type Analysis -->
-  <div class="card">
-    <div class="card-title">🎯 エントリータイプ別分析</div>
-    <div id="type-analysis"></div>
-  </div>
-
-  <!-- Time/Regime Analysis -->
-  <div class="card">
-    <div class="card-title">⏰ 時間帯・レジーム別分析</div>
-    <div id="time-analysis"></div>
-  </div>
-
-  <!-- Demo Trader Log -->
-  <div class="card full">
-    <div class="card-title">📝 デモトレーダーログ</div>
-    <div id="demo-log" style="max-height:150px;overflow-y:auto;font-size:10px;font-family:monospace;line-height:1.4;color:var(--t3);scrollbar-width:thin;scrollbar-color:var(--bg3) transparent">
-      <div>ログなし</div>
-    </div>
-  </div>
-
-  <!-- Full Trade History -->
-  <div class="card full">
-    <div class="card-title">📋 全取引履歴</div>
-    <!-- Period & Mode Filter -->
-    <div id="trade-filter" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:8px 12px;background:var(--bg2);border-radius:6px;font-size:12px">
-      <label style="color:var(--t2)">期間:</label>
-      <input type="date" id="filter-from" style="background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:4px;padding:4px 6px;font-size:11px">
-      <span style="color:var(--t3)">〜</span>
-      <input type="date" id="filter-to" style="background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:4px;padding:4px 6px;font-size:11px">
-      <label style="color:var(--t2);margin-left:8px">モード:</label>
-      <select id="filter-mode" style="background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:4px;padding:4px 6px;font-size:11px">
-        <option value="">全て</option>
-        <option value="scalp">スキャルプ</option>
-        <option value="daytrade">デイトレ15m</option>
-        <option value="daytrade_1h">デイトレ1H</option>
-        <option value="scalp_eur">スキャルプEUR</option>
-        <option value="daytrade_eur">デイトレEUR</option>
-        <option value="daytrade_1h_eur">デイトレ1H EUR</option>
-        <option value="scalp_eurjpy">スキャルプEURJPY</option>
-        <option value="daytrade_gbpusd">デイトレGBP/USD</option>
-        <option value="daytrade_eurgbp">デイトレEUR/GBP</option>
-        <option value="rnb_usdjpy">RNB USD/JPY</option>
-        <option value="daytrade_xau">DT XAU/USD</option>
-      </select>
-      <button onclick="applyFilter()" style="background:var(--blue);color:#fff;border:none;border-radius:4px;padding:5px 14px;cursor:pointer;font-size:11px;font-weight:600">絞り込み</button>
-      <button onclick="clearFilter()" style="background:var(--bg3);color:var(--t2);border:none;border-radius:4px;padding:5px 10px;cursor:pointer;font-size:11px">リセット</button>
-      <span id="filter-summary" style="color:var(--t3);margin-left:auto;font-size:11px"></span>
-    </div>
-    <div class="table-wrap">
-      <table id="trade-table">
-        <thead>
-          <tr><th>#</th><th>モード</th><th>方向</th><th>Entry</th><th>SL</th><th>TP</th><th>Exit</th><th>PnL</th><th>R倍</th><th>結果</th><th>理由</th><th>タイプ</th><th>Entry時間</th><th>Exit時間</th></tr>
-        </thead>
-        <tbody id="trade-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-
-</div>
+  </div><!-- /bottom -->
+</main>
+</div><!-- /cockpit -->
 
 <script>
-function _h(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
+// ═══════════════════════════════════════════════════════════
+//  FX AI Cockpit — Single-Focus Lightweight Dashboard
+// ═══════════════════════════════════════════════════════════
 
-let equityChart=null, equitySeries=null;
+// ── Pair & Mode Configuration ──
+const PAIRS={
+  USD_JPY:{symbol:'USDJPY=X',label:'USD/JPY',flag:'🇺🇸🇯🇵',precision:3,
+    modes:['scalp','daytrade','daytrade_1h','rnb_usdjpy']},
+  EUR_USD:{symbol:'EURUSD=X',label:'EUR/USD',flag:'🇪🇺🇺🇸',precision:5,
+    modes:['scalp_eur','daytrade_eur','daytrade_1h_eur']},
+  EUR_JPY:{symbol:'EURJPY=X',label:'EUR/JPY',flag:'🇪🇺🇯🇵',precision:3,
+    modes:['scalp_eurjpy']},
+  GBP_USD:{symbol:'GBPUSD=X',label:'GBP/USD',flag:'🇬🇧🇺🇸',precision:5,
+    modes:['daytrade_gbpusd']},
+  EUR_GBP:{symbol:'EURGBP=X',label:'EUR/GBP',flag:'🇪🇺🇬🇧',precision:5,
+    modes:['daytrade_eurgbp']},
+  XAU_USD:{symbol:'XAUUSD=X',label:'XAU/USD',flag:'🥇',precision:2,
+    modes:['daytrade_xau']},
+};
+const MODE_DEFS={
+  scalp:{icon:'⚡',label:'SC'},daytrade:{icon:'📊',label:'DT'},
+  daytrade_1h:{icon:'🕐',label:'1H'},rnb_usdjpy:{icon:'🎯',label:'RNB'},
+  scalp_eur:{icon:'⚡',label:'SC'},daytrade_eur:{icon:'📊',label:'DT'},
+  daytrade_1h_eur:{icon:'🕐',label:'1H'},scalp_eurjpy:{icon:'⚡',label:'SC'},
+  daytrade_gbpusd:{icon:'📊',label:'DT'},daytrade_eurgbp:{icon:'📊',label:'DT'},
+  daytrade_xau:{icon:'📊',label:'DT'},
+};
+const SMC_SET=new Set(['turtle_soup','trendline_sweep','inducement_ob','post_news_vol']);
+const SNAME={
+  sr_fib_confluence:'SR+Fib',htf_false_breakout:'HTF FBF',orb_trap:'ORB Trap',
+  sr_break_retest:'SBR',gbp_deep_pullback:'GBP Deep PB',lin_reg_channel:'LRC',
+  adx_trend_continuation:'ADX TC',tokyo_nakane_momentum:'Nakane',ema_cross:'EMA Cross',
+  turtle_soup:'Turtle Soup',trendline_sweep:'TL Sweep',inducement_ob:'IOB Trap',
+  post_news_vol:'Post-News Vol',bb_rsi_reversion:'BB RSI',macdh_reversal:'MACD-H',
+  fib_reversal:'Fib Rev',bb_squeeze_breakout:'BB Squeeze',mtf_reversal_confluence:'MTF Rev',
+  session_vol_expansion:'SVE',ksb:'KSB',dmb:'DMB',
+};
 
-// Multi-TF charts: USD/JPY + EUR/USD
-const MTF_TFS=['1m','15m','1h','4h'];
-const EUR_TFS=['1m','15m','1h','4h'];
-const mtfCharts={};  // tf -> {chart, candleSeries}
-const eurCharts={};  // tf -> {chart, candleSeries}
+// ── State ──
+let _chart=null,_series=null;
+let _currentPair='USD_JPY',_currentTf='15m';
+let _modeStates={},_oandaStatus={},_oandaModes=[];
+let _lastLogCount=0,_lastLogHtml='',_lastStratHash='';
+let _statusInFlight=false;
+let _obLines=[],_posLines=[];
+let _lastOpenTrades=[];
 
-// ── Init Charts ──
-function initCharts(){
-  // Equity curve
-  const eqEl=document.getElementById('equity-chart');
-  equityChart=LightweightCharts.createChart(eqEl,{
-    layout:{background:{color:'#0d1117'},textColor:'#8b949e',fontSize:11},
-    grid:{vertLines:{color:'#1c2128'},horzLines:{color:'#1c2128'}},
-    rightPriceScale:{borderColor:'#30363d'},
-    timeScale:{borderColor:'#30363d',timeVisible:true},
-    height:250,
-  });
-  equitySeries=equityChart.addAreaSeries({
-    lineColor:'#3b82f6',topColor:'rgba(59,130,246,.3)',bottomColor:'rgba(59,130,246,.02)',
-    lineWidth:2,
-  });
+// ── Helpers ──
+function _h(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function _iso2unix(s){return s?Math.floor(new Date(s).getTime()/1000):0}
 
-  // Multi-TF candle charts
-  MTF_TFS.forEach(tf=>{
-    const el=document.getElementById('mtf-chart-'+tf);
-    if(!el)return;
-    const showSec=tf==='1m';
-    const chart=LightweightCharts.createChart(el,{
-      layout:{background:{color:'#0d1117'},textColor:'#8b949e',fontSize:10},
-      grid:{vertLines:{color:'#1c2128'},horzLines:{color:'#1c2128'}},
-      rightPriceScale:{borderColor:'#30363d',scaleMargins:{top:0.1,bottom:0.1}},
-      timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:showSec},
-      crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
-      height:320,
-    });
-    const cs=chart.addCandlestickSeries({
-      upColor:'#22c55e',downColor:'#ef4444',borderUpColor:'#22c55e',borderDownColor:'#ef4444',
-      wickUpColor:'#22c55e',wickDownColor:'#ef4444',
-    });
-    mtfCharts[tf]={chart,candleSeries:cs};
-  });
-
-  // EUR/USD candle charts
-  EUR_TFS.forEach(tf=>{
-    const el=document.getElementById('mtf-chart-eur-'+tf);
-    if(!el)return;
-    const showSec=tf==='1m';
-    const chart=LightweightCharts.createChart(el,{
-      layout:{background:{color:'#0d1117'},textColor:'#8b949e',fontSize:10},
-      grid:{vertLines:{color:'#1c2128'},horzLines:{color:'#1c2128'}},
-      rightPriceScale:{borderColor:'#30363d',scaleMargins:{top:0.1,bottom:0.1}},
-      timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:showSec},
-      crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
-      height:320,
-    });
-    chart.priceScale('right').applyOptions({minMove:0.00001});
-    const cs=chart.addCandlestickSeries({
-      upColor:'#22c55e',downColor:'#ef4444',borderUpColor:'#22c55e',borderDownColor:'#ef4444',
-      wickUpColor:'#22c55e',wickDownColor:'#ef4444',
-      priceFormat:{type:'price',precision:5,minMove:0.00001},
-    });
-    eurCharts[tf]={chart,candleSeries:cs};
-  });
-}
-
-// ── Demo Trader Control ──
-async function toggleDemo(mode){
-  try{
-    const statusR=await fetch('/api/demo/status');
-    const statusD=await statusR.json();
-    const isRunning=statusD.modes&&statusD.modes[mode]&&statusD.modes[mode].running;
-    const action=isRunning?'stop':'start';
-    const r=await fetch(`/api/demo/${action}`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({mode:mode}),
-    });
-    const d=await r.json();
-    console.log(`Demo ${mode} ${action}:`,d);
-    setTimeout(loadDemoStatus,500);
-  }catch(e){console.error('Demo toggle error:',e)}
-}
-
-let _lastLogHtml='';
-let _lastLogCount=0;
-let _statusFetchInFlight=false;
-let _logFetchBusy=false;
-
-async function _fetchAndRenderLogs(){
-  if(_logFetchBusy)return;
-  _logFetchBusy=true;
-  try{
-    const r=await fetch('/api/demo/logs');
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const data=await r.json();
-    const logs=data.logs||[];
-    if(!logs.length){_logFetchBusy=false;return;}
-    const logEl=document.getElementById('demo-log');
-    let lastDate='';
-    const newHtml=logs.map(l=>{
-      let cls='';
-      if(l.includes('📥'))cls='demo-log-in';
-      else if(l.includes('✅'))cls='demo-log-out-w';
-      else if(l.includes('❌'))cls='demo-log-out-l';
-      if(l.includes('モード起動'))cls+=' demo-log-start';
-      const dm=l.match(/^\[(\d{4}-\d{2}-\d{2})/);
-      let sep='';
-      if(dm&&dm[1]!==lastDate){
-        lastDate=dm[1];
-        sep=`<div style="text-align:center;font-size:9px;color:var(--blue);padding:3px 0;margin:2px 0;border-top:1px solid rgba(88,166,255,.15);font-weight:600">── ${lastDate} ──</div>`;
-      }
-      return sep+`<div class="${cls}" style="padding:1px 0;border-bottom:1px solid rgba(255,255,255,.03)">${_h(l)}</div>`;
-    }).join('');
-    if(newHtml!==_lastLogHtml){
-      const wasAtBottom=logEl.scrollHeight-logEl.scrollTop-logEl.clientHeight<30;
-      logEl.innerHTML=newHtml;
-      if(wasAtBottom) logEl.scrollTop=logEl.scrollHeight;
-      _lastLogHtml=newHtml;
-    }
-  }catch(e){
-    console.warn('[LogFetch]',e.message||e);
-  }finally{
-    _logFetchBusy=false;
+function modePairKey(mode){
+  for(const[p,info]of Object.entries(PAIRS)){
+    if(info.modes.includes(mode))return p;
   }
+  return'USD_JPY';
 }
+
+// ═══ Chart ═══════════════════════════════════════════════
+
+function initChart(){
+  const el=document.getElementById('main-chart');
+  _chart=LightweightCharts.createChart(el,{
+    width:el.clientWidth,height:el.clientHeight,
+    layout:{background:{type:'solid',color:'#0d1117'},textColor:'#8b949e'},
+    grid:{vertLines:{color:'#1c2128'},horzLines:{color:'#1c2128'}},
+    crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+    rightPriceScale:{borderColor:'#30363d'},
+    timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},
+  });
+  _series=_chart.addCandlestickSeries({
+    upColor:'#22c55e',downColor:'#ef4444',
+    borderUpColor:'#22c55e',borderDownColor:'#ef4444',
+    wickUpColor:'#22c55e',wickDownColor:'#ef4444',
+  });
+  new ResizeObserver(entries=>{
+    for(const e of entries){
+      const{width,height}=e.contentRect;
+      if(_chart&&width>0&&height>0)_chart.resize(width,height);
+    }
+  }).observe(el);
+}
+
+function selectPair(pair){
+  _currentPair=pair;
+  document.querySelectorAll('.pair-header').forEach(h=>h.classList.remove('active'));
+  const hdr=document.querySelector(`[data-pair="${pair}"]`);
+  if(hdr)hdr.classList.add('active');
+  const pi=PAIRS[pair];
+  document.getElementById('chart-title').textContent=`${pi.flag} ${pi.label}`;
+  loadChart();
+}
+
+function selectTf(tf){
+  _currentTf=tf;
+  document.querySelectorAll('.tf-btn').forEach(b=>b.classList.remove('active'));
+  const btn=document.querySelector(`[data-tf="${tf}"]`);
+  if(btn)btn.classList.add('active');
+  loadChart();
+}
+
+async function loadChart(){
+  const pi=PAIRS[_currentPair];
+  if(!pi)return;
+  try{
+    // ── Fetch candles ──
+    const r=await fetch(`/api/chart-data?tf=${_currentTf}&symbol=${pi.symbol}`);
+    const d=await r.json();
+    if(!d.candles||!d.candles.length){_series.setData([]);return}
+
+    // Deduplicate + sort
+    const seen=new Set();const candles=[];
+    for(const c of d.candles){if(!seen.has(c.time)){seen.add(c.time);candles.push(c)}}
+    candles.sort((a,b)=>a.time-b.time);
+
+    // Price format
+    const mm=pi.precision===2?0.01:pi.precision===3?0.001:0.00001;
+    _series.applyOptions({priceFormat:{type:'price',precision:pi.precision,minMove:mm}});
+    _series.setData(candles);
+    _chart.timeScale().fitContent();
+
+    // ── OB Zones ──
+    clearLines(_obLines);
+    _obLines=drawOBs(detectOBs(candles));
+
+    // ── Trade Markers ──
+    const tr=await fetch(`/api/demo/trades?limit=50&status=closed`);
+    const td=await tr.json();
+    const trades=(td.trades||[]).filter(t=>pi.modes.includes(t.mode));
+    drawMarkers(trades,candles);
+
+    // ── Open Position Lines ──
+    clearLines(_posLines);
+    const openForPair=(_lastOpenTrades||[]).filter(t=>pi.modes.includes(t.mode));
+    _posLines=drawPosLines(openForPair);
+
+  }catch(e){console.warn('[Chart]',e)}
+}
+
+// ── OB Detection ──
+function detectOBs(candles){
+  if(candles.length<5)return[];
+  const obs=[];
+  let totalBody=0;
+  for(const c of candles)totalBody+=Math.abs(c.close-c.open);
+  const avg=totalBody/candles.length;
+  const thr=avg*0.4;
+  for(let i=1;i<candles.length-2;i++){
+    const c=candles[i],n=candles[i+1];
+    const body=Math.abs(c.close-c.open);
+    if(body<thr)continue;
+    // Bullish OB: bearish candle + next closes above its open
+    if(c.close<c.open&&n.close>c.open){
+      obs.push({type:'bull',top:c.open,bottom:c.close,time:c.time});
+    }
+    // Bearish OB: bullish candle + next closes below its open
+    if(c.close>c.open&&n.close<c.open){
+      obs.push({type:'bear',top:c.close,bottom:c.open,time:c.time});
+    }
+  }
+  return obs.slice(-4);
+}
+
+function drawOBs(obs){
+  const lines=[];
+  for(const ob of obs){
+    const col=ob.type==='bull'?'rgba(34,197,94,0.35)':'rgba(239,68,68,0.35)';
+    const lbl=ob.type==='bull'?'Bull OB':'Bear OB';
+    lines.push(_series.createPriceLine({price:ob.top,color:col,lineWidth:1,
+      lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:false,title:lbl}));
+    lines.push(_series.createPriceLine({price:ob.bottom,color:col,lineWidth:1,
+      lineStyle:LightweightCharts.LineStyle.Dotted,axisLabelVisible:false,title:''}));
+  }
+  return lines;
+}
+
+function drawPosLines(trades){
+  const lines=[];
+  for(const t of trades){
+    const isBuy=t.direction==='BUY';
+    if(t.entry_price)lines.push(_series.createPriceLine({
+      price:t.entry_price,color:isBuy?'#3b82f6':'#f59e0b',lineWidth:1,
+      lineStyle:LightweightCharts.LineStyle.Solid,axisLabelVisible:true,
+      title:`${t.direction} Entry`}));
+    if(t.sl)lines.push(_series.createPriceLine({
+      price:t.sl,color:'#ef4444',lineWidth:1,
+      lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:'SL'}));
+    if(t.tp)lines.push(_series.createPriceLine({
+      price:t.tp,color:'#22c55e',lineWidth:1,
+      lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:'TP'}));
+  }
+  return lines;
+}
+
+function drawMarkers(trades,candles){
+  if(!trades.length){_series.setMarkers([]);return}
+  const times=candles.map(c=>c.time);
+  const markers=[];
+  function nearest(t){let best=times[0],diff=Math.abs(times[0]-t);
+    for(const ct of times){const d=Math.abs(ct-t);if(d<diff){diff=d;best=ct}}return best}
+  for(const t of trades){
+    const et=_iso2unix(t.entry_time);
+    if(et){markers.push({time:nearest(et),
+      position:t.direction==='BUY'?'belowBar':'aboveBar',
+      color:t.direction==='BUY'?'#22c55e':'#ef4444',
+      shape:t.direction==='BUY'?'arrowUp':'arrowDown',
+      text:t.direction==='BUY'?'B':'S'})}
+    if(t.exit_time){const xt=_iso2unix(t.exit_time);
+      const isWin=t.outcome==='WIN';
+      markers.push({time:nearest(xt),
+        position:t.direction==='BUY'?'aboveBar':'belowBar',
+        color:isWin?'#22c55e':'#ef4444',shape:'circle',
+        text:`${(t.pnl_pips||0)>=0?'+':''}${(t.pnl_pips||0).toFixed(1)}`})}
+  }
+  markers.sort((a,b)=>a.time-b.time);
+  // Dedupe same time+position
+  const uniq=[];const seen=new Set();
+  for(const m of markers){const k=`${m.time}_${m.position}_${m.text}`;
+    if(!seen.has(k)){seen.add(k);uniq.push(m)}}
+  _series.setMarkers(uniq);
+}
+
+function clearLines(arr){for(const l of arr){try{_series.removePriceLine(l)}catch(e){}}arr.length=0}
+
+
+// ═══ Data Loading ═══════════════════════════════════════
 
 async function loadDemoStatus(){
-  if(_statusFetchInFlight)return;
-  _statusFetchInFlight=true;
-  let r,d;
+  if(_statusInFlight)return;
+  _statusInFlight=true;
   try{
-    const controller=new AbortController();
-    const timeout=setTimeout(()=>controller.abort(),4000);
-    r=await fetch('/api/demo/status',{signal:controller.signal});
-    clearTimeout(timeout);
+    const ctrl=new AbortController();
+    const to=setTimeout(()=>ctrl.abort(),4000);
+    const r=await fetch('/api/demo/status',{signal:ctrl.signal});
+    clearTimeout(to);
     if(!r.ok)throw new Error('HTTP '+r.status);
-    d=await r.json();
+    const d=await r.json();
+
+    _modeStates=d.modes||{};
+    _oandaStatus=d.oanda||{};
+    _lastOpenTrades=d.open_trades||[];
+
+    updateSidebar();
+    updateStatusText();
+    updatePositions(_lastOpenTrades);
+    renderStrategies(d.strategy_status||[]);
+
+    const slc=d.log_count||0;
+    if(slc>0&&slc!==_lastLogCount){_lastLogCount=slc;loadLogs()}
+    document.getElementById('log-count').textContent=slc;
   }catch(e){
-    if(e.name!=='AbortError') console.warn('[DemoStatus fetch]',e.message||e);
-    _statusFetchInFlight=false;
-    return; // フェッチ失敗 → DOM一切触らない
-  }
-
-  // ── フェッチ成功時のみDOM更新 ──
-  try{
-    if(d.error){console.warn('[DemoStatus] Server error:',d.error)}
-
-    const statusText=document.getElementById('demo-status-text');
-    const modes=d.modes||{};
-
-    // USD/JPY buttons
-    const _modeBtn=[
-      {id:'dt-btn',mode:'daytrade',icon:'📊',label:'DT',cls:'demo-btn-dt'},
-      {id:'sc-btn',mode:'scalp',icon:'⚡',label:'SC',cls:'demo-btn-sc'},
-      {id:'sw-btn',mode:'daytrade_1h',icon:'🕐',label:'1H',cls:'demo-btn-sw'},
-      {id:'dt-eur-btn',mode:'daytrade_eur',icon:'📊',label:'DT',cls:'demo-btn-dt'},
-      {id:'sc-eur-btn',mode:'scalp_eur',icon:'⚡',label:'SC',cls:'demo-btn-sc'},
-      {id:'1h-eur-btn',mode:'daytrade_1h_eur',icon:'🕐',label:'1H',cls:'demo-btn-sw'},
-      {id:'sc-eurjpy-btn',mode:'scalp_eurjpy',icon:'⚡',label:'SC',cls:'demo-btn-sc'},
-      {id:'dt-gbpusd-btn',mode:'daytrade_gbpusd',icon:'📊🇬🇧',label:'',cls:'demo-btn-dt'},
-      {id:'dt-eurgbp-btn',mode:'daytrade_eurgbp',icon:'📊🇪🇺🇬🇧',label:'',cls:'demo-btn-dt'},
-      {id:'rnb-usdjpy-btn',mode:'rnb_usdjpy',icon:'🎯',label:'RNB',cls:'demo-btn-sw'},
-      {id:'dt-xau-btn',mode:'daytrade_xau',icon:'📊🥇',label:'XAU',cls:''},
-    ];
-    // ── OANDA Live判定: mode が allowed_modes に含まれるか ──
-    const _oa=d.oanda||{};
-    const _oaActive=!!_oa.active;
-    const _oaAllowed=_oa.allowed_modes||[];
-    const _oaIsAll=(_oaAllowed==='all');  // 未設定=全モード許可
-
-    const parts=[];
-    _modeBtn.forEach(b=>{
-      const el=document.getElementById(b.id);
-      if(!el)return;
-      const on=modes[b.mode]&&modes[b.mode].running;
-      // ── ステータスランプ: 🟢OANDA Live / 🟡Demo Only / ●OFF ──
-      const isOandaLive=_oaActive&&(_oaIsAll||_oaAllowed.includes(b.mode));
-      const lamp=on?(isOandaLive?'🟢':'🟡'):'●';
-      el.textContent=on?b.icon+' '+b.label+' '+lamp:b.icon+' '+b.label+' ▶';
-      el.className='demo-btn '+b.cls+(on?' active':'');
-      el.title=on?(isOandaLive?'OANDA Live':'Demo Only'):'停止中';
-      if(on)parts.push(b.icon+(b.mode.includes('eur')?'🇪🇺':''));
-    });
-
-    statusText.innerHTML=parts.length?
-      '<span class="status-dot on"></span>'+parts.join('')+' 稼働中':
-      '<span class="status-dot off"></span>停止中';
-
-    // Open positions
-    const posEl=document.getElementById('open-positions');
-    if(d.open_trades&&d.open_trades.length){
-      posEl.style.display='block';
-      let posHtml=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <span style="font-size:11px;color:var(--t2)">${d.open_trades.length}件のOPENポジション</span>
-        <button onclick="closeAllTrades()" style="background:var(--red);color:#fff;border:none;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:10px;font-weight:600">全ポジション撤退</button>
-      </div>`;
-      posHtml+=d.open_trades.map(t=>{
-        const isBuy=t.direction==='BUY';
-        const col=isBuy?'var(--green)':'var(--red)';
-        const isEur=t.mode&&t.mode.includes('eur');
-        const mTag=isEur?'tag-sw':(t.tf==='1m'||t.tf==='5m')?'tag-sc':'tag-dt';
-        const modeLabels={scalp:'⚡SC',daytrade:'📊DT',daytrade_1h:'🕐1H',scalp_eur:'⚡🇪🇺SC',daytrade_eur:'📊🇪🇺DT',daytrade_1h_eur:'🕐🇪🇺1H',scalp_eurjpy:'⚡EURJPY',daytrade_gbpusd:'📊🇬🇧DT',daytrade_eurgbp:'📊🇪🇺🇬🇧DT',rnb_usdjpy:'🎯RNB',daytrade_xau:'🥇XAU'};
-        const mLabel=modeLabels[t.mode]||(t.tf==='1m'?'⚡SC':'📊DT');
-        const pDec=isEur?5:3;
-        return `<div style="background:rgba(59,130,246,.06);border:1px solid ${isEur?'rgba(34,197,94,.2)':'rgba(59,130,246,.2)'};border-radius:5px;padding:5px 10px;margin-bottom:4px;display:flex;align-items:center;gap:10px;font-size:11px">
-          <span class="tag ${mTag}">${mLabel}</span>
-          <span style="color:${col};font-weight:700">${t.direction}</span>
-          <span>@ ${t.entry_price?.toFixed(pDec)||'—'}</span>
-          <span style="color:var(--t3)">SL ${t.sl?.toFixed(pDec)||'—'}</span>
-          <span style="color:var(--t3)">TP ${t.tp?.toFixed(pDec)||'—'}</span>
-          <span style="color:var(--t3);font-size:9px">${_h(t.entry_type)}</span>
-          <button onclick="closeTrade('${t.trade_id}')" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:3px;padding:2px 8px;cursor:pointer;font-size:9px;margin-left:auto">撤退</button>
-        </div>`;
-      }).join('');
-      posEl.innerHTML=posHtml;
-    }else if(posEl.style.display==='block'){
-      posEl.style.display='none';
-    }
-
-    // ── Strategy Status Panel ──
-    renderStrategyStatus(d.strategy_status||[]);
-
-    // Log — ログ件数変化時のみログAPIを呼んでDOM更新（フリッカー完全防止）
-    const serverLogCount=d.log_count||0;
-    if(serverLogCount>0&&serverLogCount!==_lastLogCount){
-      _lastLogCount=serverLogCount;
-      _fetchAndRenderLogs();
-    }
-    // ログ件数同じ → DOMを一切触らない
-  }catch(domErr){
-    console.warn('[DemoStatus DOM]',domErr.message||domErr);
-  }finally{
-    _statusFetchInFlight=false;
-  }
+    if(e.name!=='AbortError')console.warn('[Status]',e);
+  }finally{_statusInFlight=false}
 }
-
-// ── Strategy Status Panel ──
-let _lastStrategyHash='';
-function renderStrategyStatus(strategies){
-  if(!strategies||!strategies.length)return;
-  const panel=document.getElementById('strategy-status-panel');
-  if(!panel)return;
-
-  // Simple hash to avoid DOM thrashing
-  const hash=JSON.stringify(strategies);
-  if(hash===_lastStrategyHash)return;
-  _lastStrategyHash=hash;
-
-  const catLabels={daytrade:'DT',scalp:'SC','1h':'1H'};
-  const catCls={daytrade:'tag-dt',scalp:'tag-sc','1h':'tag-sw'};
-  const nameMap={
-    sr_fib_confluence:'SR+Fib Confluence',
-    htf_false_breakout:'HTF False Breakout',
-    london_session_breakout:'London Breakout',
-    tokyo_nakane_momentum:'Tokyo Nakane',
-    adx_trend_continuation:'ADX Trend Cont.',
-    sr_break_retest:'SR Break Retest',
-    lin_reg_channel:'Lin Reg Channel',
-    orb_trap:'ORB Trap',
-    london_close_reversal:'London Close Rev.',
-    gbp_deep_pullback:'GBP Deep Pullback',
-    turtle_soup:'Turtle Soup',
-    trendline_sweep:'Trendline Sweep',
-    inducement_ob:'IOB Trap',
-    post_news_vol:'Post-News Vol',
-    ema_cross:'EMA Cross',
-    dt_fib_reversal:'DT Fib Reversal',
-    dt_sr_channel_reversal:'DT SR Channel',
-    ema200_trend_reversal:'EMA200 Reversal',
-    bb_rsi_reversion:'BB+RSI Reversion',
-    macdh_reversal:'MACD-H Reversal',
-    fib_reversal:'Fib Reversal',
-    bb_squeeze_breakout:'BB Squeeze BO',
-    stoch_trend_pullback:'Stoch Pullback',
-    mtf_reversal_confluence:'MTF Reversal',
-    ema_pullback:'EMA Pullback',
-    session_vol_expansion:'SVE London',
-    keltner_squeeze_breakout:'Keltner SQ BO',
-    donchian_momentum_breakout:'Donchian Mom BO',
-    h1_breakout_retest:'1H Breakout Retest',
-  };
-
-  // Group by category
-  const groups={daytrade:[],scalp:[],'1h':[]};
-  strategies.forEach(s=>{
-    const cat=s.category||'daytrade';
-    if(!groups[cat])groups[cat]=[];
-    groups[cat].push(s);
-  });
-
-  let html='';
-  const catOrder=['daytrade','scalp','1h'];
-  const catTitle={daytrade:'デイトレード戦略',scalp:'スキャルプ戦略','1h':'1Hブレイクアウト戦略'};
-
-  catOrder.forEach(cat=>{
-    const list=groups[cat];
-    if(!list||!list.length)return;
-    html+=`<div class="strat-section">${catTitle[cat]||cat} (${list.length})</div>`;
-    list.forEach(s=>{
-      const displayName=nameMap[s.name]||s.name;
-      const catBadge=`<span class="strat-cat ${catCls[cat]||''}">${catLabels[cat]||cat}</span>`;
-
-      // Status badges
-      let badges='';
-      if(s.smc_protected){
-        badges+=`<span class="smc-badge smc-badge-protected" title="SMC Protected: 学習エンジンの調整を拒否">🛡 SMC PROTECTED</span>`;
-      }
-      if(s.enabled){
-        badges+=`<span class="smc-badge smc-badge-active">ON</span>`;
-      }else{
-        badges+=`<span class="smc-badge smc-badge-disabled">OFF</span>`;
-      }
-      if(s.blacklisted){
-        badges+=`<span class="smc-badge smc-badge-blacklisted">BLOCKED</span>`;
-      }
-
-      // Promotion badge
-      if(s.promotion==='promoted'){
-        badges+=`<span class="smc-badge smc-badge-promoted">PROMOTED</span>`;
-      }else if(s.promotion==='demoted'){
-        badges+=`<span class="smc-badge smc-badge-demoted">DEMOTED</span>`;
-      }
-
-      // Metrics
-      let metrics='';
-      if(s.promo_n>0){
-        const wrCol=s.promo_wr>=60?'var(--green)':s.promo_wr>=50?'var(--gold)':'var(--red)';
-        const evCol=s.promo_ev>0?'var(--green)':'var(--red)';
-        metrics=`<span style="color:var(--t3)">N=${s.promo_n}</span>`+
-          `<span style="color:${wrCol}">WR ${s.promo_wr.toFixed(1)}%</span>`+
-          `<span style="color:${evCol}">EV ${s.promo_ev>=0?'+':''}${s.promo_ev.toFixed(2)}</span>`;
-      }
-
-      html+=`<div class="strat-row">
-        ${catBadge}
-        <span class="strat-name">${_h(displayName)}</span>
-        ${badges}
-        <div class="strat-metrics">${metrics}</div>
-      </div>`;
-    });
-  });
-
-  // SMC summary
-  const smcCount=strategies.filter(s=>s.smc_protected).length;
-  const smcActive=strategies.filter(s=>s.smc_protected&&s.enabled).length;
-  html+=`<div style="margin-top:8px;padding:6px 10px;background:rgba(251,191,36,.05);border:1px solid rgba(251,191,36,.15);border-radius:5px;font-size:10px;color:var(--gold)">
-    🛡 SMC Protected: ${smcActive}/${smcCount} 戦略が稼働中 — 学習エンジンによるブラックリスト化・SL/TP変更・降格を完全拒否
-  </div>`;
-
-  panel.innerHTML=html;
-}
-
-// ── Load Stats ──
-// ── Current filter state (shared by stats + trades) ──
-let _filterFrom='', _filterTo='', _filterMode='';
 
 async function loadStats(){
   try{
-    let sUrl='/api/demo/stats';
-    const sp=[];
-    if(_filterFrom) sp.push(`date_from=${_filterFrom}`);
-    if(_filterTo) sp.push(`date_to=${_filterTo}`);
-    if(_filterMode) sp.push(`mode=${_filterMode}`);
-    if(sp.length) sUrl+='?'+sp.join('&');
-    const r=await fetch(sUrl);
+    const r=await fetch('/api/demo/stats');
     const d=await r.json();
-    const set=(id,v,col)=>{const el=document.getElementById(id);if(el){el.textContent=v;if(col)el.style.color=col;}};
+    const set=(id,v,col)=>{const el=document.getElementById(id);if(el){el.textContent=v;if(col)el.style.color=col}};
     set('s-total',d.total||0);
-    set('s-wr',d.win_rate!=null?d.win_rate+'%':'—',d.win_rate>=40?'var(--green)':'var(--red)');
-    set('s-pnl',d.total_pnl!=null?(d.total_pnl>=0?'+':'')+d.total_pnl+'p':'—',d.total_pnl>=0?'var(--green)':'var(--red)');
+    set('s-wr',d.win_rate!=null?d.win_rate+'%':'—',d.win_rate>=50?'var(--green)':'var(--red)');
+    set('s-pnl',d.total_pnl!=null?(d.total_pnl>=0?'+':'')+d.total_pnl+'p':'—',
+        d.total_pnl>=0?'var(--green)':'var(--red)');
     set('s-ev',d.ev!=null?(d.ev>=0?'+':'')+d.ev:'—',d.ev>=0?'var(--green)':'var(--red)');
-    set('s-avgr',d.avg_r!=null?(d.avg_r>=0?'+':'')+d.avg_r+'R':'—');
-    set('s-wins',d.wins||0);
-    set('s-losses',d.losses||0);
-    // Type breakdown badges
-    const tb=document.getElementById('type-breakdown');
-    if(d.by_type&&tb){
-      tb.innerHTML=Object.entries(d.by_type).map(([k,v])=>{
-        const col=v.win_rate>=40?'var(--green)':v.win_rate>=30?'var(--gold)':'var(--red)';
-        return `<div style="background:var(--bg);border-radius:5px;padding:5px 10px;text-align:center">
-          <div style="font-size:9px;color:var(--t3)">${_h(k)}</div>
-          <div style="font-size:14px;font-weight:700;color:${col}">${v.win_rate}%</div>
-          <div style="font-size:9px;color:var(--t3)">${v.trades}件 / ${v.pnl>=0?'+':''}${v.pnl.toFixed(1)}p</div>
-        </div>`;
-      }).join('');
-    }
-  }catch(e){console.error(e)}
+    set('s-wl',`${d.wins||0}/${d.losses||0}`);
+  }catch(e){console.warn('[Stats]',e)}
 }
 
-// ── Load Equity Curve ──
-async function loadEquity(){
+async function loadLogs(){
   try{
-    const r=await fetch('/api/demo/equity');
+    const r=await fetch('/api/demo/logs');
     const d=await r.json();
-    if(!d.curve||!d.curve.length){
-      // Show zero baseline
-      const now=Math.floor(Date.now()/1000);
-      equitySeries.setData([{time:now-3600,value:0},{time:now,value:0}]);
-      return;
-    }
-
-    const data=d.curve.map((p,i)=>{
-      let t;
-      try{t=Math.floor(new Date(p.time).getTime()/1000)}catch(e){t=i*3600}
-      return {time:t,value:p.cumulative};
-    }).filter(p=>p.time>0).sort((a,b)=>a.time-b.time);
-
-    // Deduplicate timestamps
-    const seen=new Set();
-    const unique=data.filter(p=>{
-      if(seen.has(p.time)){p.time+=1}
-      if(seen.has(p.time))return false;
-      seen.add(p.time);return true;
-    });
-
-    if(unique.length>0) equitySeries.setData(unique);
-  }catch(e){console.error('[Equity]',e)}
-}
-
-// ── Load Trade Chart ──
-async function loadTradeChart(){
-  // Load trades once for markers
-  let allTrades=[];
-  try{
-    const dr=await fetch('/api/demo/trades?status=all&limit=200');
-    const dd=await dr.json();
-    allTrades=dd.trades||[];
-  }catch(e){}
-
-  // Load each TF chart in parallel (USD/JPY + EUR/USD)
-  const allChartTasks = [];
-
-  // EUR/USD charts
-  EUR_TFS.forEach(tf=>{
-    allChartTasks.push((async()=>{
-      const ec=eurCharts[tf];
-      if(!ec)return;
-      try{
-        const r2=await fetch('/api/chart-data?tf='+tf+'&symbol=EURUSD=X');
-        const d2=await r2.json();
-        if(d2.candles&&d2.candles.length){
-          const seen=new Set();
-          const candles=d2.candles.filter(c=>{if(seen.has(c.time))return false;seen.add(c.time);return true}).sort((a,b)=>a.time-b.time);
-          ec.candleSeries.setData(candles);
-        }
-        const srcEl=document.getElementById('mtf-src-eur-'+tf);
-        if(srcEl&&d2.ohlcv_source) srcEl.textContent=d2.ohlcv_source.toUpperCase();
-        // EUR trade markers
-        const eurModes={'1m':['scalp_eur','scalp_eurjpy'],'15m':['daytrade_eur','daytrade_gbpusd','daytrade_eurgbp','rnb_usdjpy'],'1h':['daytrade_1h_eur'],'4h':[]};
-        const matchModes=eurModes[tf]||[];
-        const markers=[];
-        allTrades.forEach(t=>{
-          if(!matchModes.includes(t.mode))return;
-          const isBuy=t.direction==='BUY';
-          const inColor=isBuy?'#22c55e':'#ef4444';
-          if(t.entry_time){try{const et=Math.floor(new Date(t.entry_time).getTime()/1000);if(et>0)markers.push({time:et,position:isBuy?'belowBar':'aboveBar',color:inColor,shape:isBuy?'arrowUp':'arrowDown',text:(t.entry_price?.toFixed(4)||''),size:1})}catch(e){}}
-          if(t.exit_time&&t.exit_price!=null){try{const xt=Math.floor(new Date(t.exit_time).getTime()/1000);const isWin=t.outcome==='WIN';if(xt>0)markers.push({time:xt,position:isBuy?'aboveBar':'belowBar',color:isWin?'#22c55e':'#ef4444',shape:'circle',text:(t.pnl_pips>=0?'+':'')+t.pnl_pips?.toFixed(1)+'p',size:1})}catch(e){}}
-        });
-        markers.sort((a,b)=>a.time-b.time);
-        const seen2=new Set();markers.forEach(m=>{while(seen2.has(m.time))m.time++;seen2.add(m.time)});
-        if(markers.length) ec.candleSeries.setMarkers(markers);
-        ec.chart.timeScale().fitContent();
-      }catch(e){console.error('[EUR-'+tf+']',e)}
-    })());
-  });
-
-  // USD/JPY charts
-  MTF_TFS.forEach(tf=>{allChartTasks.push((async()=>{
-    const mc=mtfCharts[tf];
-    if(!mc)return;
-    try{
-      const chartR=await fetch('/api/chart-data?tf='+tf);
-      const chartD=await chartR.json();
-
-      if(chartD.candles&&chartD.candles.length){
-        const seen=new Set();
-        const candles=chartD.candles
-          .filter(c=>{if(seen.has(c.time))return false;seen.add(c.time);return true;})
-          .sort((a,b)=>a.time-b.time);
-        mc.candleSeries.setData(candles);
-      }
-
-      // Data source label
-      const srcEl=document.getElementById('mtf-src-'+tf);
-      if(srcEl&&chartD.ohlcv_source) srcEl.textContent=chartD.ohlcv_source.toUpperCase();
-
-      // Trade markers for this TF (USD/JPY only)
-      const tfMap={'1m':['1m','5m'],'15m':['15m'],'1h':['1h'],'4h':['4h']};
-      const matchTfs=tfMap[tf]||[tf];
-      const markers=[];
-      allTrades.forEach(t=>{
-        if(!matchTfs.includes(t.tf))return;
-        if(t.mode&&t.mode.includes('eur'))return; // EUR trades go to EUR charts
-        const isBuy=t.direction==='BUY';
-        const isScalp=t.tf==='1m'||t.tf==='5m';
-        const modeIcon=isScalp?'⚡':'📊';
-        const inColor=isScalp
-          ?(isBuy?'#fbbf24':'#f97316')
-          :(isBuy?'#22c55e':'#ef4444');
-
-        if(t.entry_time){
-          try{
-            const et=Math.floor(new Date(t.entry_time).getTime()/1000);
-            if(et>0)markers.push({
-              time:et, position:isBuy?'belowBar':'aboveBar',
-              color:inColor, shape:isBuy?'arrowUp':'arrowDown',
-              text:modeIcon+(t.entry_price?.toFixed(1)||''), size:1,
-            });
-          }catch(e){}
-        }
-        if(t.exit_time&&t.exit_price!=null){
-          try{
-            const xt=Math.floor(new Date(t.exit_time).getTime()/1000);
-            const isWin=t.outcome==='WIN';
-            const shapeMap={TP_HIT:'circle',SL_HIT:'square',SIGNAL_REVERSE:'diamond'};
-            const outColor=isWin?'#22c55e':'#ef4444';
-            if(xt>0)markers.push({
-              time:xt, position:isBuy?'aboveBar':'belowBar',
-              color:outColor, shape:shapeMap[t.close_reason]||'circle',
-              text:(t.pnl_pips>=0?'+':'')+t.pnl_pips?.toFixed(1)+'p', size:1,
-            });
-          }catch(e){}
-        }
-      });
-      markers.sort((a,b)=>a.time-b.time);
-      const seen2=new Set();
-      markers.forEach(m=>{while(seen2.has(m.time))m.time++;seen2.add(m.time)});
-      if(markers.length) mc.candleSeries.setMarkers(markers);
-
-      mc.chart.timeScale().fitContent();
-    }catch(e){console.error('[MTF-'+tf+']',e)}
-  })())});
-
-  await Promise.all(allChartTasks);
-}
-
-// ── Load Learning Analysis ──
-async function loadLearning(){
-  try{
-    const r=await fetch('/api/demo/learning');
-    const d=await r.json();
-
-    // Insights from analysis data
-    const insEl=document.getElementById('learning-insights');
-    const analysis=d.analysis||{};
-    if(!analysis.ready){
-      insEl.innerHTML=`<div class="insight-card insight-neutral">データ不足: ${analysis.sample||0}/${analysis.min_required||10}件のトレードが必要</div>`;
-    }else{
-      let html='';
-      // Overall
-      const wr=analysis.overall_wr||0;
-      const ev=analysis.overall_ev||0;
-      const cls=wr>=40?'insight-good':wr>=30?'insight-neutral':'insight-bad';
-      html+=`<div class="insight-card ${cls}">
-        <div style="font-weight:700">全体: WR ${wr}% / EV ${ev>=0?'+':''}${ev}</div>
-        <div style="color:var(--t3);font-size:10px">${analysis.sample}件のトレードを分析</div>
-      </div>`;
-      // By type
-      if(analysis.by_type){
-        html+='<div style="font-size:10px;font-weight:600;color:var(--t2);margin:8px 0 4px">エントリータイプ別</div>';
-        Object.entries(analysis.by_type).forEach(([k,v])=>{
-          const c=v.wr>=40?'insight-good':v.wr>=30?'insight-neutral':'insight-bad';
-          const verdict=v.wr>=40?'👍 良好':v.wr>=30?'➡️ 普通':'👎 要改善';
-          html+=`<div class="insight-card ${c}">
-            <span style="font-weight:600">${_h(k)}</span>: WR ${v.wr}% / EV ${v.ev>=0?'+':''}${v.ev} (${v.n}件)
-            <span style="margin-left:auto;font-size:10px">${verdict}</span>
-          </div>`;
-        });
-      }
-      insEl.innerHTML=html;
-    }
-
-    // Type analysis card
-    const taEl=document.getElementById('type-analysis');
-    if(analysis.by_type&&taEl){
-      let html='';
-      Object.entries(analysis.by_type).forEach(([k,v])=>{
-        const barW=Math.max(5,v.wr);
-        const col=v.wr>=40?'var(--green)':v.wr>=30?'var(--gold)':'var(--red)';
-        html+=`<div style="margin-bottom:8px">
-          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px">
-            <span style="color:var(--t1);font-weight:600">${_h(k)}</span>
-            <span style="color:${col}">${v.wr}% (${v.n}件)</span>
-          </div>
-          <div style="height:6px;background:var(--bg);border-radius:3px;overflow:hidden">
-            <div style="width:${barW}%;height:100%;background:${col};border-radius:3px"></div>
-          </div>
-          <div style="font-size:9px;color:var(--t3);margin-top:1px">EV: ${v.ev>=0?'+':''}${v.ev} pips/trade</div>
-        </div>`;
-      });
-      taEl.innerHTML=html||'<div style="color:var(--t3)">データなし</div>';
-    }
-
-    // Time/regime analysis
-    const trEl=document.getElementById('time-analysis');
-    if(trEl){
-      let html='';
-      if(analysis.by_hour&&Object.keys(analysis.by_hour).length){
-        html+='<div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:4px">時間帯別</div>';
-        const hours=Object.entries(analysis.by_hour).sort((a,b)=>Number(a[0])-Number(b[0]));
-        html+='<div style="display:flex;gap:3px;flex-wrap:wrap;margin-bottom:8px">';
-        hours.forEach(([h,v])=>{
-          const col=v.wr>=40?'var(--green)':v.wr>=30?'var(--gold)':'var(--red)';
-          html+=`<div style="background:var(--bg);border-radius:3px;padding:3px 6px;text-align:center;min-width:40px">
-            <div style="font-size:8px;color:var(--t3)">${h}h</div>
-            <div style="font-size:11px;font-weight:700;color:${col}">${v.wr}%</div>
-            <div style="font-size:8px;color:var(--t3)">${v.n}</div>
-          </div>`;
-        });
-        html+='</div>';
-      }
-      if(analysis.by_regime&&Object.keys(analysis.by_regime).length){
-        html+='<div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:4px">レジーム別</div>';
-        Object.entries(analysis.by_regime).forEach(([k,v])=>{
-          const col=v.wr>=40?'var(--green)':v.wr>=30?'var(--gold)':'var(--red)';
-          html+=`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.03)">
-            <span style="font-size:11px">${_h(k)}</span>
-            <span style="color:${col};font-size:11px;font-weight:600">${v.wr}% (${v.n}件, EV${v.ev>=0?'+':''}${v.ev})</span>
-          </div>`;
-        });
-      }
-      if(analysis.by_layer1&&Object.keys(analysis.by_layer1).length){
-        html+='<div style="font-size:10px;font-weight:600;color:var(--t2);margin:8px 0 4px">Layer1方向別</div>';
-        Object.entries(analysis.by_layer1).forEach(([k,v])=>{
-          const col=v.wr>=40?'var(--green)':v.wr>=30?'var(--gold)':'var(--red)';
-          html+=`<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.03)">
-            <span style="font-size:11px">${_h(k)}</span>
-            <span style="color:${col};font-size:11px;font-weight:600">${v.wr}% (${v.n}件)</span>
-          </div>`;
-        });
-      }
-      trEl.innerHTML=html||'<div style="color:var(--t3)">データなし</div>';
-    }
-
-    // Params
-    const pEl=document.getElementById('current-params');
-    const params=d.current_params||{};
-    pEl.innerHTML=Object.entries(params).map(([k,v])=>{
-      const val=Array.isArray(v)?v.join(', ')||'なし':v;
-      return `<div style="display:flex;justify-content:space-between;padding:1px 0"><span>${_h(k)}</span><span style="color:var(--t1)">${_h(String(val))}</span></div>`;
+    const el=document.getElementById('demo-log');
+    if(!el)return;
+    // 30件に制限
+    const logs=(d.logs||[]).slice(0,30);
+    const html=logs.map(line=>{
+      let cls='';
+      if(line.includes('📥'))cls='log-entry';
+      else if(line.includes('✅'))cls='log-win';
+      else if(line.includes('❌'))cls='log-loss';
+      else if(line.includes('▶')||line.includes('起動'))cls='log-start';
+      return `<div class="log-line ${cls}">${_h(line)}</div>`;
     }).join('');
-
-    // Adjustment history
-    const ahEl=document.getElementById('adj-history');
-    if(d.adjustments&&d.adjustments.length){
-      ahEl.innerHTML=d.adjustments.map(a=>{
-        const icon=a.parameter.includes('blacklist')?'🚫':a.parameter.includes('confidence')?'📈':'⚙️';
-        return `<div class="adj-item">
-          <span>${icon}</span>
-          <span style="color:var(--t1);font-weight:600;min-width:120px">${_h(a.parameter)}</span>
-          <span style="color:var(--red)">${a.old_value}</span>
-          <span style="color:var(--t3)">→</span>
-          <span style="color:var(--green)">${a.new_value}</span>
-          <span style="color:var(--t3);flex:1;font-size:9px">${_h(a.reason)}</span>
-          <span style="color:var(--t3);font-size:9px">${_h(a.timestamp?.split('T')[0]||'')}</span>
-        </div>`;
-      }).join('');
+    if(html!==_lastLogHtml){
+      _lastLogHtml=html;
+      el.innerHTML=html;
+      el.scrollTop=el.scrollHeight;
     }
-  }catch(e){console.error(e)}
+  }catch(e){console.warn('[Logs]',e)}
 }
 
-// ── Load Trade Table ──
-async function loadTradeTable(dateFrom='',dateTo='',mode=''){
-  try{
-    let url='/api/demo/trades?status=all&limit=500';
-    if(dateFrom) url+=`&date_from=${dateFrom}`;
-    if(dateTo) url+=`&date_to=${dateTo}`;
-    if(mode) url+=`&mode=${mode}`;
-    const r=await fetch(url);
-    const d=await r.json();
-    const tbody=document.getElementById('trade-tbody');
-    const summary=document.getElementById('filter-summary');
-    if(!d.trades||!d.trades.length){
-      tbody.innerHTML='<tr><td colspan="14" style="text-align:center;color:var(--t3)">該当するトレードがありません</td></tr>';
-      if(summary) summary.textContent='0件';
-      return;
-    }
-    // Filter summary with stats
-    const closed=d.trades.filter(t=>t.status==='CLOSED');
-    const wins=closed.filter(t=>t.outcome==='WIN').length;
-    const totalPnl=closed.reduce((s,t)=>s+(t.pnl_pips||0),0);
-    const wr=closed.length?Math.round(wins/closed.length*100):0;
-    if(summary) summary.textContent=`${d.trades.length}件 | ${closed.length}決済 | WR ${wr}% | PnL ${totalPnl>=0?'+':''}${totalPnl.toFixed(1)}pip`;
-
-    const modeLabel={scalp:'⚡SC',daytrade:'📊DT',daytrade_1h:'🕐1H',scalp_eur:'⚡🇪🇺SC',daytrade_eur:'📊🇪🇺DT',daytrade_1h_eur:'🕐🇪🇺1H',scalp_eurjpy:'⚡EURJPY',swing:'🌊SW',rnb_usdjpy:'🎯RNB'};
-    tbody.innerHTML=d.trades.map((t,i)=>{
-      const isWin=t.outcome==='WIN';
-      const isBuy=t.direction==='BUY';
-      const isEur=t.mode&&t.mode.includes('eur');
-      const mTag=isEur?'tag-sw':t.mode==='swing'?'tag-sw':(t.tf==='1m'||t.tf==='5m')?'tag-sc':'tag-dt';
-      const oTag=isWin?'tag-win':t.outcome==='LOSS'?'tag-loss':'tag-open';
-      const pDec=isEur?5:3;
-      const fmt=v=>v!=null?v.toFixed(pDec):'—';
-      const pnlStr=t.pnl_pips!=null?(t.pnl_pips>=0?'+':'')+t.pnl_pips.toFixed(1):'—';
-      const rStr=t.pnl_r!=null?(t.pnl_r>=0?'+':'')+t.pnl_r.toFixed(2)+'R':'—';
-      let reasons='';
-      try{const rs=JSON.parse(t.reasons||'[]');reasons=rs.slice(0,2).join(', ')}catch(e){}
-      const entryT=t.entry_time?t.entry_time.replace('T',' ').substring(0,19):'—';
-      const exitT=t.exit_time?t.exit_time.replace('T',' ').substring(0,19):'—';
-      const dirCol=isBuy?'var(--green)':'var(--red)';
-      const pnlCol=t.pnl_pips>=0?'var(--green)':'var(--red)';
-      return `<tr>
-        <td>${d.trades.length-i}</td>
-        <td><span class="tag ${mTag}">${modeLabel[t.mode]||t.tf}</span></td>
-        <td style="color:${dirCol};font-weight:600">${t.direction}</td>
-        <td style="font-family:monospace">${fmt(t.entry_price)}</td>
-        <td style="font-family:monospace;color:var(--red)">${fmt(t.sl)}</td>
-        <td style="font-family:monospace;color:var(--green)">${fmt(t.tp)}</td>
-        <td style="font-family:monospace">${fmt(t.exit_price)}</td>
-        <td style="color:${pnlCol};font-weight:600">${pnlStr}p</td>
-        <td>${rStr}</td>
-        <td><span class="tag ${oTag}">${t.outcome||t.status||'OPEN'}</span></td>
-        <td style="font-size:9px;color:var(--t3);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_h(t.close_reason||reasons)}</td>
-        <td style="font-size:10px">${_h(t.entry_type)}</td>
-        <td style="font-size:9px;color:var(--t3)">${entryT}</td>
-        <td style="font-size:9px;color:var(--t3)">${exitT}</td>
-      </tr>`;
-    }).join('');
-  }catch(e){console.error(e)}
-}
-
-// ── Manual Close ──
-async function closeTrade(tradeId){
-  if(!confirm('このポジションを撤退しますか？')) return;
-  try{
-    const r=await fetch('/api/demo/close',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({trade_id:tradeId})});
-    const d=await r.json();
-    if(d.error){alert(d.error);return;}
-    loadAll();
-  }catch(e){alert('エラー: '+e.message)}
-}
-async function closeAllTrades(){
-  if(!confirm('全ポジションを撤退しますか？')) return;
-  try{
-    const r=await fetch('/api/demo/close',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({all:true})});
-    const d=await r.json();
-    if(d.error){alert(d.error);return;}
-    loadAll();
-  }catch(e){alert('エラー: '+e.message)}
-}
-
-function applyFilter(){
-  _filterFrom=document.getElementById('filter-from').value;
-  _filterTo=document.getElementById('filter-to').value;
-  _filterMode=document.getElementById('filter-mode').value;
-  loadTradeTable(_filterFrom,_filterTo,_filterMode);
-  loadStats();
-}
-function clearFilter(){
-  document.getElementById('filter-from').value='';
-  document.getElementById('filter-to').value='';
-  document.getElementById('filter-mode').value='';
-  _filterFrom=''; _filterTo=''; _filterMode='';
-  loadTradeTable();
-  loadStats();
-}
-
-// ── OANDA Mode Toggle ──
-let _oandaModes=[];
 async function loadOandaModes(){
   try{
     const r=await fetch('/api/oanda/modes');
     const d=await r.json();
     _oandaModes=d.allowed_modes||[];
-    updateOandaButtons();
-  }catch(e){console.warn('[OANDA modes]',e)}
+    updateSidebar();
+  }catch(e){console.warn('[OandaModes]',e)}
 }
-function updateOandaButtons(){
-  ['scalp','daytrade','daytrade_1h','scalp_eur','daytrade_eur','daytrade_1h_eur','scalp_eurjpy','daytrade_gbpusd','daytrade_eurgbp','rnb_usdjpy','daytrade_xau'].forEach(m=>{
-    const btn=document.getElementById('oanda-'+m);
-    if(!btn)return;
-    const on=_oandaModes.includes(m);
-    btn.className='oanda-btn'+(on?' active':'');
-  });
-  const st=document.getElementById('oanda-status');
-  if(st) st.textContent=_oandaModes.length?_oandaModes.length+'モード連携中':'未連携';
+
+
+// ═══ UI Updates ════════════════════════════════════════
+
+function updateSidebar(){
+  const oaActive=!!_oandaStatus.active;
+  const oaAllowed=_oandaStatus.allowed_modes||[];
+  const oaIsAll=(oaAllowed==='all');
+
+  for(const[mode,def]of Object.entries(MODE_DEFS)){
+    const btn=document.getElementById(`m-${mode}`);
+    if(!btn)continue;
+    const run=_modeStates[mode]?.running;
+    const live=oaActive&&(oaIsAll||(Array.isArray(oaAllowed)&&oaAllowed.includes(mode)));
+    const lamp=run?(live?'🟢':'🟡'):'●';
+    btn.textContent=`${def.icon}${def.label} ${lamp}`;
+    btn.className=`mode-btn${run?' active':''}`;
+    btn.title=run?(live?'OANDA Live':'Demo Only'):'停止中';
+
+    const oa=document.getElementById(`o-${mode}`);
+    if(!oa)continue;
+    const allowed=oaIsAll||(Array.isArray(oaAllowed)&&oaAllowed.includes(mode));
+    oa.className=`oa-btn${allowed?' active':''}`;
+  }
+
+  const oaEl=document.getElementById('oanda-status');
+  if(oaEl){
+    const cnt=Array.isArray(oaAllowed)?oaAllowed.length:'全';
+    oaEl.textContent=oaActive?`OANDA: ${cnt}モード連携`:'OANDA: OFF';
+    oaEl.style.color=oaActive?'var(--purple)':'var(--t3)';
+  }
 }
+
+function updateStatusText(){
+  const el=document.getElementById('status-text');
+  if(!el)return;
+  const running=Object.entries(_modeStates).filter(([_,m])=>m.running);
+  if(running.length){
+    const icons=running.map(([m])=>MODE_DEFS[m]?.icon||'').join('');
+    el.innerHTML=`<span class="dot on"></span>${icons} ${running.length}モード稼働中`;
+  }else{
+    el.innerHTML='<span class="dot off"></span>停止中';
+  }
+}
+
+function updatePositions(trades){
+  const el=document.getElementById('open-positions');
+  if(!el)return;
+  if(!trades||!trades.length){el.style.display='none';return}
+  el.style.display='block';
+  let html=`<div class="panel-hdr"><span>📌 Open Positions (${trades.length})</span>
+    <button class="btn-s" style="color:var(--red);border-color:var(--red)" onclick="closeAllTrades()">全撤退</button></div>`;
+  html+=trades.map(t=>{
+    const isBuy=t.direction==='BUY';
+    const col=isBuy?'var(--green)':'var(--red)';
+    const def=MODE_DEFS[t.mode]||{icon:'📊',label:t.mode};
+    const p=PAIRS[modePairKey(t.mode)]?.precision||3;
+    return `<div class="pos-row">
+      <span class="pos-mode">${def.icon}${def.label}</span>
+      <span style="color:${col};font-weight:700">${t.direction}</span>
+      <span>@ ${t.entry_price?.toFixed(p)||'—'}</span>
+      <span class="pos-sl">SL ${t.sl?.toFixed(p)||'—'}</span>
+      <span class="pos-tp">TP ${t.tp?.toFixed(p)||'—'}</span>
+      <span class="pos-type">${_h(t.entry_type||'')}</span>
+      <button class="btn-s" style="color:var(--red);border-color:rgba(239,68,68,.3)" onclick="closeTrade('${t.trade_id}')">撤退</button>
+    </div>`;
+  }).join('');
+  el.innerHTML=html;
+}
+
+function renderStrategies(strategies){
+  if(!strategies||!strategies.length)return;
+  const panel=document.getElementById('strategy-panel');
+  if(!panel)return;
+  const hash=JSON.stringify(strategies);
+  if(hash===_lastStratHash)return;
+  _lastStratHash=hash;
+
+  const groups={daytrade:[],scalp:[],'1h':[]};
+  for(const s of strategies)(groups[s.category]||groups.daytrade).push(s);
+  const catLabel={daytrade:'DT',scalp:'SC','1h':'1H'};
+
+  let html='<div class="panel-hdr"><span>🎯 Strategies</span></div>';
+  for(const[cat,strats]of Object.entries(groups)){
+    if(!strats.length)continue;
+    html+=`<div class="strat-cat">${catLabel[cat]||cat}</div>`;
+    html+=strats.map(s=>{
+      const name=SNAME[s.name]||s.name;
+      const isSMC=s.smc_protected;
+      let badges='';
+      if(isSMC)badges+='<span class="badge badge-smc">🛡SMC</span> ';
+      badges+=s.enabled?'<span class="badge badge-on">ON</span>':'<span class="badge badge-off">OFF</span>';
+      if(s.blacklisted)badges+=' <span class="badge badge-blocked">BLOCKED</span>';
+      if(s.promotion==='promoted')badges+=' <span class="badge badge-promo">PROMO</span>';
+      if(s.promotion==='demoted')badges+=' <span class="badge badge-demote">DEMOTE</span>';
+      const met=s.promo_n>0?
+        `<span class="strat-metrics">N=${s.promo_n} WR=${s.promo_wr}% EV=${s.promo_ev>=0?'+':''}${s.promo_ev.toFixed(2)}</span>`:'';
+      return `<div class="strat-row${isSMC?' smc':''}">${name} ${badges} ${met}</div>`;
+    }).join('');
+  }
+  // SMC summary
+  const smcCount=strategies.filter(s=>s.smc_protected).length;
+  const activeCount=strategies.filter(s=>s.enabled).length;
+  html+=`<div style="padding:3px 10px;font-size:9px;color:var(--t3)">🛡 SMC Protected: ${smcCount} | Active: ${activeCount}/${strategies.length}</div>`;
+  panel.innerHTML=html;
+}
+
+
+// ═══ Actions ═══════════════════════════════════════════
+
+async function toggleDemo(mode){
+  const run=_modeStates[mode]?.running;
+  const ep=run?'/api/demo/stop':'/api/demo/start';
+  try{
+    await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({mode})});
+    setTimeout(loadDemoStatus,500);
+  }catch(e){console.error('[Toggle]',e)}
+}
+
 async function toggleOandaMode(mode){
   try{
-    const r=await fetch('/api/oanda/modes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({toggle:mode})});
+    const r=await fetch('/api/oanda/modes',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({toggle:mode})});
     const d=await r.json();
     _oandaModes=d.allowed_modes||[];
-    updateOandaButtons();
-  }catch(e){alert('エラー: '+e.message)}
+    updateSidebar();
+  }catch(e){console.error('[OandaToggle]',e)}
 }
 
-// ── Run Learning ──
-async function runLearning(){
+async function closeTrade(id){
   try{
-    const r=await fetch('/api/demo/learning?run=true');
-    const d=await r.json();
-    // Show insights
-    const insEl=document.getElementById('learning-insights');
-    if(d.insights&&d.insights.length){
-      insEl.innerHTML=d.insights.map(ins=>{
-        const cls=ins.includes('好調')||ins.includes('良好')?'insight-good':
-                  ins.includes('低調')||ins.includes('除外')||ins.includes('引上げ')?'insight-bad':'insight-neutral';
-        return `<div class="insight-card ${cls}">${_h(ins)}</div>`;
-      }).join('');
-    }
-    if(d.adjustments&&d.adjustments.length){
-      insEl.innerHTML+=`<div class="insight-card insight-neutral" style="border-left-color:var(--purple)">
-        ⚙️ ${d.adjustments.length}件のパラメータ調整を適用しました
-      </div>`;
-      d.adjustments.forEach(a=>{
-        insEl.innerHTML+=`<div class="insight-card" style="font-size:10px;border-left-color:var(--gold)">
-          ${_h(a.param)}: ${a.old} → ${a.new} — ${_h(a.reason)}
-        </div>`;
-      });
-    }
-    // Reload everything
-    loadAll();
-  }catch(e){console.error(e)}
+    await fetch('/api/demo/close',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({trade_id:id})});
+    loadDemoStatus();
+  }catch(e){console.error('[Close]',e)}
 }
 
-// ── Load All ──
+async function closeAllTrades(){
+  try{
+    await fetch('/api/demo/close',{method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({all:true})});
+    loadDemoStatus();
+  }catch(e){console.error('[CloseAll]',e)}
+}
+
+async function runLearning(){
+  try{await fetch('/api/demo/learning?run=true');loadDemoStatus()}
+  catch(e){console.error('[Learning]',e)}
+}
+
+
+// ═══ Init ═════════════════════════════════════════════
+
 async function loadAll(){
-  await Promise.all([loadStats(),loadEquity(),loadTradeChart(),loadLearning(),loadTradeTable(),loadDemoStatus(),_fetchAndRenderLogs(),loadOandaModes()]);
+  await Promise.all([loadDemoStatus(),loadChart(),loadStats(),loadOandaModes()]);
 }
 
-// ── Init ──
 document.addEventListener('DOMContentLoaded',()=>{
-  initCharts();
+  initChart();
   loadAll();
-  // Auto refresh intervals
-  setInterval(loadDemoStatus,3000);         // ステータス+ログ: 3秒（帯域最適化）
-  setInterval(()=>{loadStats();loadTradeTable(_filterFrom,_filterTo,_filterMode)},10000);  // 統計+履歴: 10秒（フィルタ維持）
-  setInterval(loadEquity,30000);           // P/Lカーブ: 30秒（トレード頻度に対して十分）
-  setInterval(loadTradeChart,30000);       // チャート: 30秒（データ取得が重いため）
+  // Optimized intervals
+  setInterval(loadDemoStatus,3000);      // Status+Log: 3s
+  setInterval(()=>{loadChart();loadStats()},30000);  // Chart+Stats: 30s
 });
 </script>
 </body>

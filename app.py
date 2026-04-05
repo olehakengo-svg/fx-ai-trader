@@ -10291,8 +10291,8 @@ def api_chart_data():
     symbol = request.args.get("symbol", "USDJPY=X")
     period_map = {"1m": "1d", "5m": "5d", "15m": "5d", "1h": "30d", "4h": "60d", "1d": "120d"}
     period = period_map.get(tf, "5d")
-    # JPYペアは3桁、それ以外は5桁
-    _dec = 3 if "JPY" in symbol else 5
+    # XAU=2桁、JPY=3桁、それ以外=5桁
+    _dec = 2 if "XAU" in symbol or "GC=" in symbol else 3 if "JPY" in symbol else 5
     try:
         df = fetch_ohlcv(symbol, period=period, interval=tf)
         if df is None or df.empty:
