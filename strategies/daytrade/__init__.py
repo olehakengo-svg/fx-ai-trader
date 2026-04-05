@@ -25,6 +25,7 @@ from strategies.daytrade.lin_reg_channel import LinRegChannel
 from strategies.daytrade.orb_trap import OrbTrap
 from strategies.daytrade.london_close_reversal import LondonCloseReversal
 from strategies.daytrade.gbp_deep_pullback import GbpDeepPullback
+from strategies.daytrade.turtle_soup import TurtleSoup
 
 
 class DaytradeEngine:
@@ -43,6 +44,7 @@ class DaytradeEngine:
             OrbTrap(),                     # ORB Trap: Opening Range Fakeout Reversal
             LondonCloseReversal(),         # LCR: London Close Wick Reversal (DISABLED)
             GbpDeepPullback(),             # GBP Deep PB: BB-2σ/EMA50 deep pullback
+            TurtleSoup(),                  # Turtle Soup: Liquidity Grab Reversal (Connors 1995)
             DtFibReversal(),
             DtSrChannelReversal(),
             Ema200TrendReversal(),
