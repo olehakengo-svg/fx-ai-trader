@@ -9909,8 +9909,9 @@ def api_demo_stop():
 @app.route("/api/demo/restart", methods=["POST"])
 def api_demo_restart():
     """全モード強制再起動"""
+    from modules.demo_trader import MODE_CONFIG
     results = {}
-    for _mode in ["scalp", "daytrade", "daytrade_1h", "swing"]:
+    for _mode in MODE_CONFIG:
         # 一旦停止してから再起動
         _demo_trader.stop(mode=_mode)
         import time as _t; _t.sleep(0.5)
