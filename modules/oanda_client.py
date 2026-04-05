@@ -75,8 +75,8 @@ class OandaClient:
         # v20: positive units = buy, negative units = sell
         signed_units = str(units) if side.lower() == "buy" else str(-units)
 
-        # JPYペアは3桁、それ以外は5桁
-        _decimals = 3 if "JPY" in instrument else 5
+        # JPYペア/Gold(XAU)は3桁、それ以外は5桁
+        _decimals = 3 if ("JPY" in instrument or "XAU" in instrument) else 5
 
         order = {
             "type": "MARKET",
@@ -116,7 +116,7 @@ class OandaClient:
         """Modify SL/TP on an existing trade.
         PUT /v3/accounts/:id/trades/:trade_id/orders
         """
-        _decimals = 3 if "JPY" in instrument else 5
+        _decimals = 3 if ("JPY" in instrument or "XAU" in instrument) else 5
         path = f"/v3/accounts/{self._account_id}/trades/{trade_id}/orders"
         params = {}
         if stop_loss is not None:

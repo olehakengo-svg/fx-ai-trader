@@ -56,7 +56,11 @@ _TD_OUTPUTSIZE = {
 #  Raw fetch (yfinance)
 # ═══════════════════════════════════════════════════════
 def _fetch_raw(symbol: str, period: str, interval: str) -> pd.DataFrame:
-    ticker = yf.Ticker(symbol)
+    # yfinance用シンボル変換: XAU/USD → GC=F (COMEX金先物, スポットの良好な代替)
+    _yf_symbol = symbol
+    if "XAU" in symbol.upper():
+        _yf_symbol = "GC=F"
+    ticker = yf.Ticker(_yf_symbol)
     df = ticker.history(period=period, interval=interval, auto_adjust=True, timeout=30)
     # DatetimeIndex であることを保証してからtz操作
     if not isinstance(df.index, pd.DatetimeIndex):
@@ -242,6 +246,7 @@ _OANDA_SYMBOLS = {
     "EURUSD=X": "EUR_USD", "EURJPY=X": "EUR_JPY",
     "GBPJPY=X": "GBP_JPY", "GBPUSD=X": "GBP_USD",
     "EURGBP=X": "EUR_GBP",
+    "XAUUSD=X": "XAU_USD",  # Gold
 }
 
 # OANDA共有クライアント (遅延初期化)
@@ -448,8 +453,8 @@ def fetch_oanda_price(instrument: str = "USD_JPY") -> float:
                 bid = float(prices[0].get("bids", [{}])[0].get("price", 0))
                 ask = float(prices[0].get("asks", [{}])[0].get("price", 0))
                 if bid > 0 and ask > 0:
-                    # JPYペアは3桁、それ以外は5桁
-                    decimals = 3 if "JPY" in instrument else 5
+                    # JPYペア/Gold(XAU)は3桁、それ以外は5桁
+                    decimals = 3 if ("JPY" in instrument or "XAU" in instrument) else 5
                     return round((bid + ask) / 2, decimals)
     except Exception:
         pass
@@ -472,8 +477,8 @@ def fetch_oanda_bid_ask(instrument: str = "USD_JPY") -> dict:
                 bid = float(prices[0].get("bids", [{}])[0].get("price", 0))
                 ask = float(prices[0].get("asks", [{}])[0].get("price", 0))
                 if bid > 0 and ask > 0:
-                    decimals = 3 if "JPY" in instrument else 5
-                    pip_mult = 100 if "JPY" in instrument else 10000
+                    decimals = 3 if ("JPY" in instrument or "XAU" in instrument) else 5
+                    pip_mult = 100 if ("JPY" in instrument or "XAU" in instrument) else 10000
                     spread_pips = round((ask - bid) * pip_mult, 2)
                     return {
                         "bid": round(bid, decimals),

@@ -20,6 +20,11 @@ from strategies.daytrade.htf_false_breakout import HtfFalseBreakout
 from strategies.daytrade.london_session_breakout import LondonSessionBreakout
 from strategies.daytrade.tokyo_nakane_momentum import TokyoNakaneMomentum
 from strategies.daytrade.adx_trend_continuation import AdxTrendContinuation
+from strategies.daytrade.sr_break_retest import SrBreakRetest
+from strategies.daytrade.lin_reg_channel import LinRegChannel
+from strategies.daytrade.orb_trap import OrbTrap
+from strategies.daytrade.london_close_reversal import LondonCloseReversal
+from strategies.daytrade.gbp_deep_pullback import GbpDeepPullback
 
 
 class DaytradeEngine:
@@ -33,6 +38,11 @@ class DaytradeEngine:
             LondonSessionBreakout(),        # EUR/USD ロンドンセッションブレイクアウト
             TokyoNakaneMomentum(),          # USD/JPY 仲値リバーサル BUY専用
             AdxTrendContinuation(),         # ADX TC: トレンド押し目/戻り目 (Wilder 1978)
+            SrBreakRetest(),               # SBR: SR Break & Retest (Edwards & Magee 1948)
+            LinRegChannel(),               # LRC: Linear Regression Channel (Gauss-Markov)
+            OrbTrap(),                     # ORB Trap: Opening Range Fakeout Reversal
+            LondonCloseReversal(),         # LCR: London Close Wick Reversal (DISABLED)
+            GbpDeepPullback(),             # GBP Deep PB: BB-2σ/EMA50 deep pullback
             DtFibReversal(),
             DtSrChannelReversal(),
             Ema200TrendReversal(),

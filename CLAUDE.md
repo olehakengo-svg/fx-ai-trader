@@ -51,10 +51,11 @@
 - **目標: 100 pips/日（±20 許容 = 80〜120 pips/日）**
 - スキャルプ + デイトレで達成
 
-## BT Performance (as of 2026-04-04, +ADX TC EUR/USD採用)
+## BT Performance (as of 2026-04-05, +SBR採用)
 - Scalp: 520t WR=59.4% Sharpe=0.064 (7d, 1m) — bb_rsi 181t(Option C拡大), macdh 144t, fib 172t
-- DT EUR/USD: **142t WR=64.1% Sharpe=2.99** (55d, 15m, ema_cross hardened v2)
-- DT USD/JPY: **135t WR=65.2% Sharpe=2.81** (55d, 15m, ema_cross hardened v2)
+- DT EUR/USD: **201t WR=65.2%** (55d, 15m, +ORB Trap 42t, +LRC 22t)
+- DT USD/JPY: **213t WR=66.7%** (55d, 15m, +ORB Trap 29t)
+- DT GBP/USD: **234t WR=68.4%** (55d, 15m, +ORB Trap 29t, +GBP Deep PB 38t)
 - **1H EUR/USD: 70t WR=50% +483pip** (120d, 1h, KSB+DMB)
 - **1H USD/JPY: 40t WR=35% +181pip** (120d, 1h, DMB only, SELL非対称フィルター)
 - **Scalp EUR/JPY: 250t WR=45.6% +300pip EV=+1.20** (60d, 5m, UTC 12-15限定)
@@ -75,20 +76,26 @@
 - **SL floor**: ATR(14)x1.0 minimum (ScalperEngine/DaytradeEngine unified)
 - **MAX_HOLD=40 bars**, MIN_RR=1.2
 
-## DT v4.2 Strategy Breakdown (55d BT, +ADX TC EUR/USD採用)
-| Strategy | EUR Trades | EUR WR | EUR EV | JPY Trades | JPY WR | JPY EV | Description |
-|---|---|---|---|---|---|---|---|
-| sr_fib_confluence | 79 | 59.5% | +0.109 | 83 | 63.9% | +0.240 | ADX>=20, layer3 SR/Fib detection |
-| htf_false_breakout | 35 | 62.9% | +0.276 | 28 | 71.4% | +0.739 | FBF: 1H SR False Breakout Fade (Bulkowski 2005) |
-| ema_cross | 9 | 77.8% | +0.963 | 4 | 50.0% | -0.448 | **Hardened v2**: ADX≥25↑ OR 1H ADX≥22, HTF 4H+1D PO整合必須 |
-| **adx_trend_continuation** | **14** | **78.6%** | **+1.706** | **—** | **—** | **—** | **ADX TC: EUR専用トレンド押し目 (Wilder 1978 / Menkhoff 2012)** |
-| **tokyo_nakane_momentum** | **—** | **—** | **—** | **10** | **70.0%** | **+0.086** | **TNM: 仲値DOWN→BUY専用 (Andersen 2003)** |
-| ~~london_session_breakout~~ | ~~10~~ | ~~10%~~ | ~~-9.9~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~DISABLED: ctx fix後初BTでWR=10% — 要再設計~~ |
+## DT v4.4 Strategy Breakdown (55d BT, +ORB Trap/GBP Deep PB採用)
+| Strategy | EUR Trades | EUR WR | EUR EV | JPY Trades | JPY WR | JPY EV | GBP Trades | GBP WR | GBP EV | Description |
+|---|---|---|---|---|---|---|---|---|---|---|
+| sr_fib_confluence | 82 | 63.4% | +0.223 | 84 | 64.3% | +0.286 | 80 | 68.8% | +0.414 | ADX>=20, layer3 SR/Fib detection |
+| **orb_trap** | **42** | **71.4%** | **+0.482** | **29** | **79.3%** | **+0.617** | **28** | **64.3%** | **+0.245** | **ORB Trap: Opening Range Fakeout Reversal** |
+| **sr_break_retest** | **—** | **—** | **—** | **63** | **63.5%** | **+0.236** | **42** | **61.9%** | **+0.159** | **SBR: Fractal SR B&R (Edwards&Magee 1948)** |
+| htf_false_breakout | 32 | 65.6% | +0.507 | 24 | 70.8% | +0.545 | 40 | 72.5% | +1.011 | FBF: 1H SR False Breakout Fade (Bulkowski 2005) |
+| **gbp_deep_pullback** | **—** | **—** | **—** | **—** | **—** | **—** | **38** | **73.7%** | **+0.543** | **GBP Deep PB: BB-2σ/EMA50 deep pullback** |
+| lin_reg_channel | 22 | 63.6% | +0.277 | — | — | — | — | — | — | LRC: Linear Regression Channel MR (EUR専用) |
+| **adx_trend_continuation** | **14** | **85.7%** | **+2.045** | **—** | **—** | **—** | **—** | **—** | **—** | **ADX TC: EUR専用トレンド押し目 (Wilder 1978)** |
+| **tokyo_nakane_momentum** | **—** | **—** | **—** | **10** | **70.0%** | **+0.086** | **—** | **—** | **—** | **TNM: 仲値DOWN→BUY専用 (Andersen 2003)** |
+| ema_cross | 9 | 77.8% | +0.963 | 3 | 66.7% | +0.014 | 6 | 50.0% | +0.028 | **Hardened v2**: ADX≥25↑ OR 1H ADX≥22 |
+| ~~london_close_reversal~~ | ~~11~~ | ~~54.5%~~ | ~~+0.019~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~DISABLED: 44t avg EV≈0, N不足~~ |
+| ~~london_session_breakout~~ | ~~10~~ | ~~10%~~ | ~~-9.9~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~DISABLED: WR=10% — ORB Trapに置換~~ |
 
+- **ORB Trap (2026-04-05)**: Opening Range Breakout Trap。LDN(UTC 07:00-07:30)/NY(UTC 13:30-14:00)のORを計測→Close実体ブレイク→レンジ内回帰(フェイクアウト)→逆方向エントリー。LSB WR=10%の裏返し(90%のフェイクアウトを利用)。全3ペア対応、BUY WR=100%(JPY)が特徴的
+- **GBP Deep PB (2026-04-05)**: ADX TCのGBP/USD特化版。ADX≥20+EMA9>21+BB-2σ(bbpb≤0.10)orEMA50ゾーン到達→反転足+EMA21回復確認。標準ADX TCのEMA9-21浅い押し目ではGBPのボラに対応不可→深い押し目(BB/EMA50)要求で解決
+- **LCR DISABLED (2026-04-05)**: London Close Reversal。UTC 15:00-16:15のwick≥60%+range/ATR≥0.8で反転検出。15m BT: EUR 11t EV≈0, GBP 3t WR=0% → edge不十分、N不足。5m BT未実施
+- **SBR (2026-04-05)**: SR Break & Retest。Fractal(n=3)でSR検出→Close実体ブレイク→±0.7ATRリテスト→反転確認。USD/JPY+GBP/USD専用(EUR/USD EV≈0で除外)。HFBの鏡像戦略=負相関で最大分散
 - **ADX TC (2026-04-04)**: EUR/USD専用トレンドフォロー。ADX≥25+EMAパーフェクトオーダー(9>21>50)+前1-3本プルバック検出→現在足リバウンド確認。USD/JPYはDISABLED(WR=50%/EV=-0.719、15m足トレンドノイジー)
-- **ctx fix (2026-04-04)**: DaytradeEngine fallbackコンテキストに hour_utc, is_friday, prev_close/open/high/low を追加。LSB/TNM等の時間帯フィルター戦略が正しく動作可能に
-- **LSB DISABLED**: hour_utc未設定バグにより未テストだった。修正後初BT: EUR WR=10% ev=-9.9, JPY WR=0% ev=-10.7 → 要再設計
-- **ema_cross Hardened v2 (2026-04-05)**: 本番WR=32%(19t/5日)→レンジ相場ホイップソー根絶。ADX閾値20→25+上昇(or 1H ADX≥22)、HTF 4H+1D agreement+パーフェクトオーダー整合必須。BT: EUR 25→9t, JPY 34→4t (60-88%削減)。両通貨ペア(daytrade/daytrade_eur)に自動適用
 - **Mean-reversion exclusion**: bb_rsi, macdh, v_reversal, trend_rebound exempt from EMA200/HTF hard filter (soft penalty only)
 
 ## Key Parameters

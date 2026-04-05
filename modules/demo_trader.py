@@ -1532,6 +1532,11 @@ class DemoTrader:
             "london_session_breakout",  # LSB: アジア→ロンドンブレイクアウト (2026-04-04)
             "tokyo_nakane_momentum",  # TNM: 仲値リバーサル BUY専用 (2026-04-04)
             "adx_trend_continuation",  # ADX TC: トレンド押し目/戻り目 (2026-04-04)
+            "sr_break_retest",           # SBR: SR Break & Retest (2026-04-05)
+            "lin_reg_channel",           # LRC: Linear Regression Channel (2026-04-05)
+            "orb_trap",                      # ORB Trap: Opening Range Fakeout Reversal (2026-04-05)
+            "london_close_reversal",         # LCR: London Close Wick Reversal (DISABLED)
+            "gbp_deep_pullback",             # GBP Deep PB: BB-2σ/EMA50 deep pullback (2026-04-05)
             # DISABLED (FXアナリストレビュー):
             # "ihs_neckbreak",       # 廃止: 2t EV≒0, 低頻度
             # "dual_sr_breakout",    # 廃止: 未評価

@@ -22,9 +22,15 @@ import warnings
 warnings.filterwarnings("ignore")
 
 
+def _is_jpy_scale(symbol: str) -> bool:
+    """JPYスケール判定: JPYペアとXAU(Gold)はpip=0.01, pip_mult=100"""
+    s = symbol.upper()
+    return "JPY" in s or "XAU" in s
+
+
 def _price_dec(symbol: str = "USDJPY=X") -> int:
-    """価格の丸め桁数: JPYペア=3, それ以外=5"""
-    if "JPY" in symbol.upper():
+    """価格の丸め桁数: JPY/XAU=3, それ以外=5"""
+    if _is_jpy_scale(symbol):
         return 3
     return 5
 
@@ -1858,7 +1864,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                             bar_time=None,
                             htf_cache: dict = None) -> dict:
     # ── 通貨ペア判定 ──
-    _dt_is_jpy = "JPY" in symbol.upper()
+    _dt_is_jpy = _is_jpy_scale(symbol)
     _dt_pip_mult = 100 if _dt_is_jpy else 10000  # price_diff * _dt_pip_mult = pips
 
     # ── Layer 0: 取引禁止チェック ──────────────────────────────
@@ -2326,7 +2332,8 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             ema_score=ema_score,
             hour_utc=_dt_hour_utc,
             is_friday=_dt_is_friday,
-            symbol=symbol, tf=tf, is_jpy=_dt_is_jpy,
+            symbol=symbol, tf=tf,
+            is_jpy="JPY" in symbol.upper(),  # 実際のJPYペアのみ（XAU除外: TNM等のフィルター用）
             pip_mult=_dt_pip_mult,
             df=df, sr_levels=sr_levels,
             layer0=layer0, layer1=layer1, regime=regime,
@@ -2615,13 +2622,13 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         tp   = round(entry + atr * TP_MULT * dir_s, _pd)
 
     # 最低SL距離保証: 5.0pips（DT用 — スプレッド+ノイズ余裕）
-    DT_MIN_SL_PIPS = 0.050 if "JPY" in symbol.upper() else 0.00050
+    DT_MIN_SL_PIPS = 0.050 if _is_jpy_scale(symbol) else 0.00050
     _dt_sl_dist = abs(entry - sl)
     if _dt_sl_dist < DT_MIN_SL_PIPS:
         sl = round(entry - DT_MIN_SL_PIPS * dir_s, _pd)
 
     # SR-aware TP snap
-    _sr_offset = 0.005 if "JPY" in symbol.upper() else 0.00005
+    _sr_offset = 0.005 if _is_jpy_scale(symbol) else 0.00005
     if act_s == "BUY":
         tp_cands = [l for l in sr_levels if entry + atr*0.3 < l < entry + atr*TP_MULT*1.5]
         if tp_cands:
@@ -3479,7 +3486,7 @@ def compute_rnb_signal(df: pd.DataFrame, tf: str = "15m",
         "atr": 0, "confidence": 0,
     }
 
-    _is_jpy = "JPY" in symbol.upper()
+    _is_jpy = _is_jpy_scale(symbol)
     _pm = 100 if _is_jpy else 10000
     _step = 0.50  # .00 and .50
 
@@ -3623,7 +3630,7 @@ def compute_hourly_signal(df: pd.DataFrame, tf: str = "1h",
     1H足ブレイクアウト戦略シグナル — HourlyEngine経由。
     KSB (Keltner Squeeze Breakout) + DMB (Donchian Momentum Breakout) を統合評価。
     """
-    _is_jpy = "JPY" in symbol.upper()
+    _is_jpy = _is_jpy_scale(symbol)
     _pip_mult = 100 if _is_jpy else 10000
 
     # ── 基本WAIT応答 ──
@@ -4203,21 +4210,27 @@ def _bt_spread(bar_time, symbol: str = "USDJPY=X") -> float:
         h = bar_time.hour if hasattr(bar_time, 'hour') else 0
     except Exception:
         h = 0
-    _is_jpy = "JPY" in symbol.upper()
-    # pip単位: JPY=0.01, non-JPY=0.0001
-    if _is_jpy:
-        # 東京早朝(0-2 UTC = 9-11 JST開場直後): 0.8pip
-        # アジア(2-7): 0.4pip
-        # ロンドン(7-12): 0.2pip (最狭)
-        # NY重複(12-16): 0.2pip
-        # NY後半(16-20): 0.3pip
-        # NY終盤/クローズ(20-24): 0.8pip
+    _s = symbol.upper()
+    _is_gold = "XAU" in _s
+    _is_jpy = "JPY" in _s
+    if _is_gold:
+        # XAU/USD: OANDA Japan spread (pipLocation=-2, 1pip=0.01)
+        # 閑散時(0-2,20-24): 5.0pip, アジア(2-7): 4.0pip
+        # LDN/NY(7-16): 3.0pip(最狭), NY後半(16-20): 3.5pip
+        if h < 2:     return 0.050   # 5.0pip
+        elif h < 7:   return 0.040   # 4.0pip
+        elif h < 16:  return 0.030   # 3.0pip (LDN/NY)
+        elif h < 20:  return 0.035   # 3.5pip
+        else:         return 0.050   # 5.0pip
+    elif _is_jpy:
+        # pip単位: JPY=0.01
         if h < 2:     return 0.008   # 0.8pip
         elif h < 7:   return 0.004   # 0.4pip
         elif h < 16:  return 0.002   # 0.2pip (LDN/NY)
         elif h < 20:  return 0.003   # 0.3pip
         else:         return 0.008   # 0.8pip
     else:
+        # pip単位: non-JPY=0.0001
         if h < 2:     return 0.00008  # 0.8pip
         elif h < 7:   return 0.00004  # 0.4pip
         elif h < 16:  return 0.00002  # 0.2pip
@@ -5179,9 +5192,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
             # Bar range filter (timeframe別・通貨ペア別)
             bar_range = float(row["High"]) - float(row["Low"])
-            _is_jpy_br = "JPY" in symbol.upper()
+            _is_jpy_br = _is_jpy_scale(symbol)
             if _is_jpy_br:
-                _min_bar_range = 0.030 if interval == "1h" else 0.010
+                _min_bar_range = 0.30 if ("XAU" in symbol.upper()) else (0.030 if interval == "1h" else 0.010)
             else:
                 _min_bar_range = 0.00030 if interval == "1h" else 0.00010
             if bar_range < _min_bar_range:
@@ -5192,7 +5205,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 _bt_hour = df.index[i].hour if hasattr(df.index[i], 'hour') else 12
                 if _bt_hour < 5 or _bt_hour >= 22:
                     # Exception: USD/JPY仲値時間帯 (TNM: UTC 00:45-01:15)
-                    if not (_is_jpy_br and 0 <= _bt_hour <= 1):
+                    _is_jpy_pure = "JPY" in symbol.upper() and "XAU" not in symbol.upper()
+                    if not (_is_jpy_pure and 0 <= _bt_hour <= 1):
                         continue
 
             # ── 本番環境と統一: compute_daytrade_signalを呼び出し ──
@@ -5230,6 +5244,11 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 # 2026-04-04 USD/JPY新戦略
                 "tokyo_nakane_momentum",  # TNM: 仲値リバーサル BUY専用
                 "adx_trend_continuation",  # ADX TC: トレンド押し目/戻り目 (Wilder 1978)
+                "sr_break_retest",           # SBR: SR Break & Retest (Edwards & Magee 1948)
+                "lin_reg_channel",           # LRC: Linear Regression Channel
+                "orb_trap",                      # ORB Trap: Opening Range Fakeout Reversal
+                "london_close_reversal",         # LCR: London Close Wick Reversal (DISABLED)
+                "gbp_deep_pullback",             # GBP Deep PB: BB-2σ/EMA50 deep pullback
                 # DISABLED: ihs_neckbreak (2t EV≒0), dual_sr_breakout,
                 # dt_fib_reversal, dt_sr_channel_reversal, ema200_trend_reversal
             }
@@ -5276,7 +5295,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             tp_dist_dt = abs(tp - ep)
             MIN_RR_DT = 1.2
             sl_dist_dt = tp_dist_dt / MIN_RR_DT
-            _is_jpy_dt = "JPY" in symbol.upper()
+            _is_jpy_dt = _is_jpy_scale(symbol)
             MIN_SL_DIST_DT = 0.030 if _is_jpy_dt else 0.00030
             sl_dist_dt = max(sl_dist_dt, MIN_SL_DIST_DT)
 
@@ -5320,12 +5339,12 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 _dt_tp_dist_total = abs(tp - ep)
                 if sig == "BUY":
                     _dt_progress = hi - ep
-                    _be_offset = 0.002 if "JPY" in symbol.upper() else 0.00002
+                    _be_offset = 0.002 if _is_jpy_scale(symbol) else 0.00002
                     if _dt_progress >= _dt_tp_dist_total * 0.4:  # 60%→40% (早期BE化)
                         _dt_be_activated = True
                         _dt_current_sl = max(_dt_current_sl, ep + _be_offset)  # BE+0.2pip
                 else:
-                    _be_offset = 0.002 if "JPY" in symbol.upper() else 0.00002
+                    _be_offset = 0.002 if _is_jpy_scale(symbol) else 0.00002
                     _dt_progress = ep - lo
                     if _dt_progress >= _dt_tp_dist_total * 0.4:  # 60%→40%
                         _dt_be_activated = True
@@ -5592,7 +5611,7 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
 
             # Bar range filter（通貨ペア別）
             bar_range = float(row["High"]) - float(row["Low"])
-            _min_br_1h = 0.030 if "JPY" in symbol.upper() else 0.00030
+            _min_br_1h = 0.030 if _is_jpy_scale(symbol) else 0.00030
             if bar_range < _min_br_1h:
                 continue
 
@@ -5610,6 +5629,7 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
                     sell_zone=sell_zone,
                     sr_levels=current_sr,
                     backtest_mode=True,
+                    symbol=symbol,
                 )
             except Exception:
                 continue
@@ -5653,7 +5673,7 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
             sl = sig_result.get("sl", ep)
             sl = sl + ep_shift
             sl_dist = abs(ep - sl)
-            _is_jpy_1h = "JPY" in symbol.upper()
+            _is_jpy_1h = _is_jpy_scale(symbol)
             MIN_SL_DIST = 0.030 if _is_jpy_1h else 0.00030
             sl_dist = max(sl_dist, MIN_SL_DIST)
 

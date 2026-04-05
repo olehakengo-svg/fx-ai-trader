@@ -12,9 +12,10 @@ from datetime import datetime, timezone
 
 def pip_multiplier(instrument: str = "USD_JPY") -> float:
     """Pip multiplier for PnL calculation.
-    JPY pairs: ×100 (1 pip = 0.01), Others: ×10000 (1 pip = 0.0001)
+    JPY pairs / Gold: ×100 (1 pip = 0.01), Others: ×10000 (1 pip = 0.0001)
     """
-    if "JPY" in instrument.upper():
+    s = instrument.upper()
+    if "JPY" in s or "XAU" in s:
         return 100.0
     return 10000.0
 

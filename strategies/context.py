@@ -109,7 +109,9 @@ class SignalContext:
         """DataFrame の最終行 + 各レイヤー結果から SignalContext を構築。"""
         from datetime import datetime, timezone
 
-        _is_jpy = "JPY" in symbol.upper()
+        _s = symbol.upper()
+        _is_jpy = "JPY" in _s              # 実際のJPYペア（戦略フィルター用: TNM等）
+        _is_jpy_scale = _is_jpy or "XAU" in _s  # JPYスケール（pip=0.01: pip_mult用）
         entry = float(row["Close"])
         atr = float(row["atr"])
         atr7 = float(row["atr7"]) if "atr7" in row.index else atr
@@ -194,7 +196,7 @@ class SignalContext:
             tokyo_mode=layer0.get("tokyo_mode", False),
             hour_utc=_bt.hour,
             is_jpy=_is_jpy,
-            pip_mult=100 if _is_jpy else 10000,
+            pip_mult=100 if _is_jpy_scale else 10000,
             df=df,
             sr_levels=sr_levels,
             backtest_mode=backtest_mode,
