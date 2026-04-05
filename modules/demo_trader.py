@@ -1002,7 +1002,7 @@ class DemoTrader:
                         entry_time = entry_time.replace(tzinfo=timezone.utc)
                     hold_sec = (datetime.now(timezone.utc) - entry_time).total_seconds()
                     _mode = mode or {"1m": "scalp", "15m": "daytrade", "4h": "swing"}.get(tf, "")
-                    max_hold = MAX_HOLD_SEC.get(_mode, 259200)
+                    max_hold = MAX_HOLD_SEC.get(_mode, MAX_HOLD_SEC.get(_get_base_mode(_mode), 259200))
                     if hold_sec > max_hold:
                         close_reason = "MAX_HOLD_TIME"
                 except Exception:
