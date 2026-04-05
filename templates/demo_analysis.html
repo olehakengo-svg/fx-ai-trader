@@ -1171,7 +1171,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   initCharts();
   loadAll();
   // Auto refresh intervals
-  setInterval(loadDemoStatus,1000);         // ステータス+ログ: 1秒
+  setInterval(loadDemoStatus,3000);         // ステータス+ログ: 3秒（帯域最適化）
   setInterval(()=>{loadStats();loadEquity();loadTradeTable(_filterFrom,_filterTo,_filterMode)},5000);  // 統計+P/L+履歴: 5秒（フィルタ維持）
   setInterval(loadTradeChart,10000);        // チャート: 10秒（データ取得が重いため）
 });

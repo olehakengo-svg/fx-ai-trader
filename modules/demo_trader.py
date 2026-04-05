@@ -366,45 +366,49 @@ class DemoTrader:
         return _loop_alive and any(r.get("running", False) for r in self._runners.values())
 
     def get_status(self) -> dict:
-        # ── Self-healing FIRST: ステータス計算前に死んだスレッドを自動復旧 ──
+        # ── Self-healing: 30秒ごとに死んだスレッドを自動復旧（毎回実行は帯域浪費） ──
+        _now = time.time()
+        _last_heal = getattr(self, '_last_heal_time', 0)
         _healed = []
+        if _now - _last_heal >= 30:
+            self._last_heal_time = _now
 
-        # _started_modesが空でも自動起動対象モードを起動（デプロイ直後のauto_start未完了対策）
-        _auto_modes = [m for m, c in MODE_CONFIG.items() if c.get("auto_start", True)]
-        _target_modes = list(self._started_modes) if self._started_modes else _auto_modes
+            # _started_modesが空でも自動起動対象モードを起動（デプロイ直後のauto_start未完了対策）
+            _auto_modes = [m for m, c in MODE_CONFIG.items() if c.get("auto_start", True)]
+            _target_modes = list(self._started_modes) if self._started_modes else _auto_modes
 
-        # スレッド復旧
-        if not (self._health_thread and self._health_thread.is_alive()):
-            print("[StatusHeal] MainLoop dead — restarting", flush=True)
-            self._ensure_main_loop()
-            _healed.append("MainLoop")
-        if not (self._watchdog_thread and self._watchdog_thread.is_alive()):
-            print("[StatusHeal] Watchdog dead — restarting", flush=True)
-            self._ensure_watchdog()
-            _healed.append("Watchdog")
-        if not (self._sltp_thread and self._sltp_thread.is_alive()):
-            print("[StatusHeal] SLTP dead — restarting", flush=True)
-            self._ensure_sltp_checker()
-            _healed.append("SLTP")
+            # スレッド復旧
+            if not (self._health_thread and self._health_thread.is_alive()):
+                print("[StatusHeal] MainLoop dead — restarting", flush=True)
+                self._ensure_main_loop()
+                _healed.append("MainLoop")
+            if not (self._watchdog_thread and self._watchdog_thread.is_alive()):
+                print("[StatusHeal] Watchdog dead — restarting", flush=True)
+                self._ensure_watchdog()
+                _healed.append("Watchdog")
+            if not (self._sltp_thread and self._sltp_thread.is_alive()):
+                print("[StatusHeal] SLTP dead — restarting", flush=True)
+                self._ensure_sltp_checker()
+                _healed.append("SLTP")
 
-        # モード復旧（_started_modesが空でも全モード起動）
-        for m in _target_modes:
-            if m in self._user_stopped_modes:
-                continue
-            runner = self._runners.get(m)
-            if runner is None or not runner.get("running", False):
-                print(f"[StatusHeal] Mode {m} not running — restarting", flush=True)
-                self._runners[m] = {"running": True, "thread": None}
-                self._started_modes.add(m)
-                _healed.append(m)
+            # モード復旧（_started_modesが空でも全モード起動）
+            for m in _target_modes:
+                if m in self._user_stopped_modes:
+                    continue
+                runner = self._runners.get(m)
+                if runner is None or not runner.get("running", False):
+                    print(f"[StatusHeal] Mode {m} not running — restarting", flush=True)
+                    self._runners[m] = {"running": True, "thread": None}
+                    self._started_modes.add(m)
+                    _healed.append(m)
 
-        if _healed:
-            print(f"[StatusHeal] Healed: {_healed} | started={list(self._started_modes)} "
-                  f"user_stopped={list(self._user_stopped_modes)}", flush=True)
-            try:
-                self._add_log(f"🔄 StatusHeal自動復旧: {', '.join(_healed)}")
-            except Exception:
-                pass
+            if _healed:
+                print(f"[StatusHeal] Healed: {_healed} | started={list(self._started_modes)} "
+                      f"user_stopped={list(self._user_stopped_modes)}", flush=True)
+                try:
+                    self._add_log(f"🔄 StatusHeal自動復旧: {', '.join(_healed)}")
+                except Exception:
+                    pass
 
         # ── ステータス計算（self-healing後の最新状態を反映） ──
         open_trades = self._db.get_open_trades()
@@ -466,7 +470,7 @@ class DemoTrader:
             "block_counts": getattr(self, '_block_counts', {}),
             "oanda": self._oanda.status,
             "strategy_promotion": self._promoted_types,
-            "strategy_status": self._get_strategy_status(),
+            "strategy_status": self._get_strategy_status_cached(),
         }
 
     def request_tick(self):
@@ -2267,6 +2271,19 @@ class DemoTrader:
                 self._add_log(f"🎯 戦略昇格更新: {', '.join(changes[:5])}")
         except Exception as e:
             print(f"[Promotion] error: {e}", flush=True)
+
+    def _get_strategy_status_cached(self) -> list:
+        """キャッシュ付き戦略ステータス（60秒TTL）。
+        Engine instantiationが重いため毎秒呼び出しを回避。"""
+        _now = time.time()
+        _cache = getattr(self, '_strategy_status_cache', None)
+        _cache_ts = getattr(self, '_strategy_status_cache_ts', 0)
+        if _cache is not None and (_now - _cache_ts) < 60:
+            return _cache
+        result = self._get_strategy_status()
+        self._strategy_status_cache = result
+        self._strategy_status_cache_ts = _now
+        return result
 
     def _get_strategy_status(self) -> list:
         """全戦略の稼働状況・SMC保護状態・昇格状態を返す。
