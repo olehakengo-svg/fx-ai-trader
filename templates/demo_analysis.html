@@ -116,6 +116,8 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .tl-result{font-weight:700;min-width:52px;text-align:right}
 .tl-type{color:var(--t3);font-size:9px;overflow:hidden;text-overflow:ellipsis;flex:1}
 .tl-info{position:relative;cursor:help;color:var(--gold);font-size:11px;flex-shrink:0}
+.tl-time{color:var(--t3);font-size:9px;min-width:90px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tl-dur{color:var(--t2);font-size:9px;min-width:42px;white-space:nowrap}
 .tl-info .tl-tip{display:none;position:absolute;bottom:120%;right:0;min-width:220px;max-width:320px;padding:8px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;font-size:10px;color:var(--t1);line-height:1.5;white-space:normal;z-index:100;box-shadow:0 4px 12px rgba(0,0,0,.5)}
 .tl-info:hover .tl-tip{display:block}
 .tl-tip b{color:var(--blue)}
@@ -698,13 +700,26 @@ async function loadTradeLog(){
       const pnl=(t.pnl_pips||0);
       const col=t.outcome==='WIN'?'var(--green)':pnl<-0.5?'var(--red)':'var(--t2)';
       const ps=`${pnl>=0?'+':''}${pnl.toFixed(1)}p`;
+      // ── 時間軸: entry → exit (duration) ──
+      let timeStr='',durStr='';
+      if(t.entry_time&&t.exit_time){
+        const eIn=new Date(t.entry_time),eOut=new Date(t.exit_time);
+        const hIn=String(eIn.getUTCHours()).padStart(2,'0'),mIn=String(eIn.getUTCMinutes()).padStart(2,'0');
+        const hOut=String(eOut.getUTCHours()).padStart(2,'0'),mOut=String(eOut.getUTCMinutes()).padStart(2,'0');
+        timeStr=`${hIn}:${mIn}\u2192${hOut}:${mOut}`;
+        const diffSec=Math.max(0,Math.floor((eOut-eIn)/1000));
+        durStr=_fmtDur(diffSec);
+      }else if(t.exit_time){
+        const eOut=new Date(t.exit_time);
+        timeStr=`${String(eOut.getUTCHours()).padStart(2,'0')}:${String(eOut.getUTCMinutes()).padStart(2,'0')}`;
+      }
       let reasons=t.reasons||[];
       if(typeof reasons==='string'){try{reasons=JSON.parse(reasons)}catch(e){reasons=[]}}
       const rText=reasons.filter(r=>typeof r==='string'&&!r.startsWith('__')).map(r=>r.replace(/^✅\s*/,'')).slice(0,4).join(', ');
       const analysis=t.close_analysis||t.close_reason||'';
       const hasTip=rText||analysis;
       const tip=hasTip?`<span class="tl-tip"><b>Entry:</b> ${_h(rText||'—')}<div class="tl-analysis"><b>Exit:</b> ${_h(analysis)}</div></span>`:'';
-      return `<div class="tl-row"><span class="tl-mode">${def.icon}</span><span class="tl-result" style="color:${col}">${ps}</span><span class="tl-type">${_h(name)} ${t.direction||''}</span>${hasTip?`<span class="tl-info">💡${tip}</span>`:''}</div>`;
+      return `<div class="tl-row">${timeStr?`<span class="tl-time">${timeStr}</span>`:''}<span class="tl-mode">${def.icon}</span><span class="tl-result" style="color:${col}">${ps}</span>${durStr?`<span class="tl-dur">(${durStr})</span>`:''}<span class="tl-type">${_h(name)} ${t.direction||''}</span>${hasTip?`<span class="tl-info">💡${tip}</span>`:''}</div>`;
     }).join('');
   }catch(e){console.warn('[TLog]',e)}
 }

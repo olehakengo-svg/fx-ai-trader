@@ -352,7 +352,8 @@ class DemoDB:
             rows = conn.execute(
                 """SELECT trade_id, mode, instrument, direction, entry_type,
                           pnl_pips, outcome, close_reason, close_analysis,
-                          reasons, exit_time, entry_price, exit_price, sl, tp
+                          reasons, entry_time, exit_time,
+                          entry_price, exit_price, sl, tp
                    FROM demo_trades WHERE status='CLOSED'
                    ORDER BY exit_time DESC LIMIT ?""",
                 (limit,)
