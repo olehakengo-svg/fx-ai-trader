@@ -114,52 +114,29 @@ MODE_CONFIG = {
         "base_sl_pips": 3.5,
         "active_hours_utc": (12, 15),  # UTC 12-15 only (London/NY overlap)
     },
-    # ── London Close Reversal (LCR) modes ──
-    "lcr_gbpjpy": {
-        "interval_sec": 60,
+    # ── LCR: FROZEN (Phase2 BT全ペア負EV) ──
+    # ── EUR/JPY, GBP/JPY RNB: REMOVED (spread負け) ──
+    # ── Round Number Barrier (RNB) — USD/JPY 15m BUY-only ──
+    "rnb_usdjpy": {
+        "interval_sec": 30,
         "tf": "15m",
         "period": "60d",
-        "signal_fn": "compute_daytrade_signal",
-        "label": "LCR GBP/JPY",
-        "icon": "🇬🇧🔄",
-        "symbol": "GBPJPY=X",
-        "instrument": "GBP_JPY",
-        "auto_start": True,
-        "base_sl_pips": 25,
-        "active_hours_utc": (7, 20),  # London+NY full session
-    },
-    "lcr_eurjpy": {
-        "interval_sec": 60,
-        "tf": "15m",
-        "period": "60d",
-        "signal_fn": "compute_daytrade_signal",
-        "label": "LCR EUR/JPY",
-        "icon": "🇪🇺🔄",
-        "symbol": "EURJPY=X",
-        "instrument": "EUR_JPY",
-        "auto_start": True,
-        "base_sl_pips": 20,
+        "signal_fn": "compute_rnb_signal",
+        "label": "RNB USD/JPY",
+        "icon": "🎯",
+        "symbol": "USDJPY=X",
+        "instrument": "USD_JPY",
+        "auto_start": False,   # Phase2 BT後にTrue化
+        "base_sl_pips": 15,
         "active_hours_utc": (7, 20),
-    },
-    "lcr_gbpusd": {
-        "interval_sec": 60,
-        "tf": "15m",
-        "period": "60d",
-        "signal_fn": "compute_daytrade_signal",
-        "label": "LCR GBP/USD",
-        "icon": "🇬🇧💵🔄",
-        "symbol": "GBPUSD=X",
-        "instrument": "GBP_USD",
-        "auto_start": True,
-        "base_sl_pips": 20,
-        "active_hours_utc": (7, 20),
+        "direction_filter": "BUY",  # BUY-only (SELL EV=-0.7, BUY EV=+7.7)
     },
 }
 
 # ── ベースモード抽出ヘルパー ──
 # scalp_eur -> scalp, scalp_eurjpy -> scalp, lcr_gbpjpy -> lcr, daytrade_1h_eur -> daytrade_1h
 def _get_base_mode(mode: str) -> str:
-    for suffix in ("_gbpjpy", "_eurjpy", "_gbpusd", "_eur"):  # longest first
+    for suffix in ("_usdjpy", "_gbpjpy", "_eurjpy", "_gbpusd", "_eur"):  # longest first
         if mode.endswith(suffix):
             return mode[:-len(suffix)]
     return mode
@@ -601,7 +578,7 @@ class DemoTrader:
                 # 全モードを強制チェック（EUR含む）
                 _all_modes = ["scalp", "daytrade", "daytrade_1h", "swing",
                               "scalp_eur", "daytrade_eur", "scalp_eurjpy",
-                              "lcr_gbpjpy", "lcr_eurjpy", "lcr_gbpusd"]
+                              "rnb_usdjpy"]
                 for m in _all_modes:
                     if m in self._user_stopped_modes:
                         continue  # ユーザーが明示的に停止したモードはスキップ
@@ -880,9 +857,7 @@ class DemoTrader:
         MAX_HOLD_SEC["scalp_eurjpy"] = 1800
         MAX_HOLD_SEC["daytrade_eur"] = 28800
         MAX_HOLD_SEC["daytrade_1h_eur"] = 64800
-        MAX_HOLD_SEC["lcr_gbpjpy"] = 14400   # LCR: max 4h hold
-        MAX_HOLD_SEC["lcr_eurjpy"] = 14400
-        MAX_HOLD_SEC["lcr_gbpusd"] = 14400
+        MAX_HOLD_SEC["rnb_usdjpy"] = 7200   # RNB: max 2h hold
 
         for trade in open_trades:
             direction = trade["direction"]
@@ -1291,8 +1266,8 @@ class DemoTrader:
             from app import compute_swing_signal as compute_fn
         elif _base_mode_fn == "daytrade_1h":
             from app import compute_hourly_signal as compute_fn
-        elif _base_mode_fn == "lcr":
-            from app import compute_daytrade_signal as compute_fn
+        elif _base_mode_fn == "rnb":
+            from app import compute_rnb_signal as compute_fn
         else:
             from app import compute_scalp_signal as compute_fn
 
@@ -1753,7 +1728,7 @@ class DemoTrader:
         # 技術的に意味のある位置にSLを置くことでノイズ耐性向上。
         # ── 例外: 1H Breakout (KSB/DMB) は戦略SL/TPを完全保存 ──
         # ══════════════════════════════════════════════════════════════
-        _1H_PRESERVE_SLTP = {"keltner_squeeze_breakout", "donchian_momentum_breakout"}
+        _1H_PRESERVE_SLTP = {"keltner_squeeze_breakout", "donchian_momentum_breakout", "rnb_support_bounce"}
 
         tp = sig.get("tp", 0)  # シグナル関数が算出した技術的ターゲット（固定）
 

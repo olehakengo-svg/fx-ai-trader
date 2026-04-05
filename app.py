@@ -3448,6 +3448,171 @@ def compute_1h_zone_signal(df: pd.DataFrame,
 #   KSB: EUR/USD専用 (10t WR=50% +92pip/120d)
 #   DMB: EUR/USD 60t WR=50% +391pip, USD/JPY 40t WR=35% +181pip
 # ═══════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════
+#  Round Number Barrier (RNB) — USD/JPY BUY-only
+# ═══════════════════════════════════════════════════════
+# Phase 1 BT: 60t WR=55% EV=+3.3pip PF=1.58 (15m×60d)
+# エッジ源泉: 機関投資家オプションバリア防衛フロー (.00/.50)
+# テクニカル指標(EMA/RSI)と完全無相関
+def compute_rnb_signal(df: pd.DataFrame, tf: str = "15m",
+                       sr_levels: list = None,
+                       symbol: str = "USDJPY=X",
+                       backtest_mode: bool = False,
+                       bar_time=None,
+                       htf_cache: dict = None) -> dict:
+    """
+    Round Number Barrier — キリ番(.00/.50)支持線反発 BUY-only。
+
+    エントリー条件 (全AND):
+      1. Zone:     Close が .00/.50 の ±10pips 以内
+      2. Momentum: 直近5本(75min)で 0.5×ATR以上の下落
+      3. Overshoot: Low が round number を max 5pips 超えてOK
+      4. Rejection: 下ヒゲ比率≥50% or 次足包み足
+      5. Direction: BUY only (支持線反発)
+
+    TP=20pip, SL=15pip (RR=1.33)
+    Active: UTC 7-20
+    """
+    _WAIT = {
+        "signal": "WAIT", "entry": 0, "tp": 0, "sl": 0,
+        "entry_type": "", "reasons": [], "score": 0,
+        "atr": 0, "confidence": 0,
+    }
+
+    _is_jpy = "JPY" in symbol.upper()
+    _pm = 100 if _is_jpy else 10000
+    _step = 0.50  # .00 and .50
+
+    # ── パラメータ (Phase1 BT確定: Cons-20/15) ──
+    _LB = 5            # lookback bars (15m×5 = 75min)
+    _MOM_MULT = 0.5    # momentum threshold (ATR倍率)
+    _ZONE_PIPS = 10
+    _WICK_MIN = 0.50   # wick ratio minimum
+    _OS_PIPS = 5        # overshoot max
+    _TP_PIPS = 20
+    _SL_PIPS = 15
+
+    _zone = _ZONE_PIPS / _pm
+    _os_max = _OS_PIPS / _pm
+    _tp_dist = _TP_PIPS / _pm
+    _sl_dist = _SL_PIPS / _pm
+
+    if len(df) < _LB + 20:
+        return _WAIT
+
+    # ── UTC filter (7-20) ──
+    row = df.iloc[-1]
+    if hasattr(row.name, 'hour'):
+        _hr = row.name.hour
+        if _hr < 7 or _hr > 20:
+            return _WAIT
+    elif bar_time and hasattr(bar_time, 'hour'):
+        _hr = bar_time.hour
+        if _hr < 7 or _hr > 20:
+            return _WAIT
+    else:
+        from datetime import datetime as _dt, timezone as _tz
+        _hr = _dt.now(_tz.utc).hour
+        if _hr < 7 or _hr > 20:
+            return _WAIT
+
+    h = float(row["High"])
+    l = float(row["Low"])
+    o = float(row["Open"])
+    c = float(row["Close"])
+    atr = float(row.get("atr", 0.07 if _is_jpy else 0.00070))
+    br = h - l
+    if br <= 0 or atr <= 0:
+        return _WAIT
+
+    # ── 最寄りキリ番 ──
+    _mid = (h + l) / 2
+    _rn = round(_mid / _step) * _step
+
+    # ── Zone check ──
+    if min(abs(h - _rn), abs(l - _rn)) > _zone:
+        return _WAIT
+
+    # ── BUY only: 上から接近 (support bounce) ──
+    _prev_close = float(df.iloc[-2]["Close"])
+    if not (l <= _rn + _os_max and _prev_close > _rn):
+        return _WAIT
+
+    # ── Momentum: 直前5本で下落 > 0.5×ATR ──
+    _close_lb = float(df.iloc[-1 - _LB]["Close"])
+    _mom = abs(c - _close_lb)
+    if _mom < atr * _MOM_MULT:
+        return _WAIT
+    if (_close_lb - c) <= 0:
+        return _WAIT  # need downward momentum
+
+    # ── Overshoot check ──
+    _overshoot = _rn - l
+    if _overshoot > _os_max:
+        return _WAIT  # barrier broken through too far
+    if l > _rn + _zone * 0.5:
+        return _WAIT  # didn't reach zone
+
+    # ── Rejection check ──
+    _reasons = []
+    _lower_wick = min(o, c) - l
+    _wick_ratio = _lower_wick / br
+    _is_wick = _wick_ratio >= _WICK_MIN
+
+    _is_engulfing = False
+    if not _is_wick and len(df) >= 3:
+        # Check: previous bar touched zone, current bar is bullish engulfing
+        _prev = df.iloc[-2]
+        _po, _pc = float(_prev["Open"]), float(_prev["Close"])
+        if c > o and c > max(_po, _pc) and o < min(_po, _pc):
+            _is_engulfing = True
+
+    if not _is_wick and not _is_engulfing:
+        return _WAIT
+
+    # ── Signal confirmed ──
+    entry_price = c
+    tp_price = entry_price + _tp_dist
+    sl_price = entry_price - _sl_dist
+
+    # Reasons
+    _rn_label = f"{_rn:.2f}" if _is_jpy else f"{_rn:.4f}"
+    _reasons.append(f"RNB support {_rn_label}")
+    if _is_wick:
+        _reasons.append(f"wick {_wick_ratio:.0%}")
+    if _is_engulfing:
+        _reasons.append("engulfing")
+    _reasons.append(f"mom {_mom * _pm:.1f}pip/{_LB}bar")
+    if _overshoot > 0:
+        _reasons.append(f"overshoot {_overshoot * _pm:.1f}pip")
+
+    # Score: base + bonuses
+    _score = 1.0
+    if _wick_ratio >= 0.65:
+        _score += 0.5
+    if _is_engulfing:
+        _score += 0.3
+    if _overshoot > 0:
+        _score += 0.4  # stop hunt reversal bonus
+    if _mom > atr * 0.8:
+        _score += 0.3  # strong momentum
+    if abs(_rn % 1.0) < 0.01 or abs(_rn % 1.0 - 1.0) < 0.01:
+        _score += 0.2  # .00 level premium
+
+    return {
+        "signal": "BUY",
+        "entry": entry_price,
+        "tp": tp_price,
+        "sl": sl_price,
+        "entry_type": "rnb_support_bounce",
+        "reasons": _reasons,
+        "score": round(_score, 2),
+        "atr": atr,
+        "confidence": round(min(_score / 2.5, 1.0), 2),
+        "round_number": _rn,
+    }
+
+
 def compute_hourly_signal(df: pd.DataFrame, tf: str = "1h",
                           sr_levels: list = None,
                           symbol: str = "USDJPY=X",
