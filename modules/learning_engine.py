@@ -24,6 +24,8 @@ MIN_SAMPLE = 10
 SMC_PROTECTED = {
     "turtle_soup",       # Liquidity Grab Reversal (Connors 1995)
     "trendline_sweep",   # Trendline Sweep Trap (Edwards & Magee)
+    "inducement_ob",     # Inducement & Order Block Trap (Kyle 1985)
+    "post_news_vol",     # Post-News Volatility Run (Ederington 1993) — DISABLED
 }
 
 

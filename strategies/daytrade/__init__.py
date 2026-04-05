@@ -27,6 +27,8 @@ from strategies.daytrade.london_close_reversal import LondonCloseReversal
 from strategies.daytrade.gbp_deep_pullback import GbpDeepPullback
 from strategies.daytrade.turtle_soup import TurtleSoup
 from strategies.daytrade.trendline_sweep import TrendlineSweep
+from strategies.daytrade.inducement_ob import InducementOrderBlock
+from strategies.daytrade.post_news_vol import PostNewsVol
 
 
 class DaytradeEngine:
@@ -47,6 +49,8 @@ class DaytradeEngine:
             GbpDeepPullback(),             # GBP Deep PB: BB-2σ/EMA50 deep pullback
             TurtleSoup(),                  # Turtle Soup: Liquidity Grab Reversal (Connors 1995)
             TrendlineSweep(),              # TL Sweep: Trendline Sweep Trap (Edwards & Magee)
+            InducementOrderBlock(),        # IOB: Inducement & Order Block Trap (Kyle 1985)
+            PostNewsVol(),                 # PNV: Post-News Volatility Run (Ederington 1993)
             DtFibReversal(),
             DtSrChannelReversal(),
             Ema200TrendReversal(),
