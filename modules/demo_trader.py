@@ -124,7 +124,7 @@ MODE_CONFIG = {
         "icon": "📊🇬🇧",
         "symbol": "GBPUSD=X",
         "instrument": "GBP_USD",
-        "auto_start": False,
+        "auto_start": True,
         "base_sl_pips": 15,
     },
     # ── EUR/GBP Daytrade (15m) — Phase3 水平展開 ──
@@ -137,7 +137,7 @@ MODE_CONFIG = {
         "icon": "📊🇪🇺🇬🇧",
         "symbol": "EURGBP=X",
         "instrument": "EUR_GBP",
-        "auto_start": False,
+        "auto_start": True,
         "base_sl_pips": 15,
     },
     # ── XAU/USD Daytrade (15m) — Phase5 SMC戦略展開 ──
@@ -152,7 +152,7 @@ MODE_CONFIG = {
         "icon": "📊🥇",
         "symbol": "XAUUSD=X",
         "instrument": "XAU_USD",
-        "auto_start": False,       # BT検証後にTrue化
+        "auto_start": True,
         "base_sl_pips": 200,       # Gold ATR(15m)≈100-300pips(0.01 scale)
     },
     # ── LCR: FROZEN (Phase2 BT全ペア負EV) ──
@@ -167,7 +167,7 @@ MODE_CONFIG = {
         "icon": "🎯",
         "symbol": "USDJPY=X",
         "instrument": "USD_JPY",
-        "auto_start": False,   # Phase2 BT後にTrue化
+        "auto_start": True,
         "base_sl_pips": 15,
         "active_hours_utc": (7, 20),
         "direction_filter": "BUY",  # BUY-only (SELL EV=-0.7, BUY EV=+7.7)

@@ -73,6 +73,7 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .pos-row{display:flex;align-items:center;gap:8px;padding:4px 10px;font-size:11px;border-bottom:1px solid rgba(48,54,61,.4)}
 .pos-mode{font-weight:600;min-width:45px}.pos-sl{color:var(--red)}.pos-tp{color:var(--green)}
 .pos-type{color:var(--t3);font-size:9px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pos-hold{font-size:9px;min-width:62px;text-align:right;font-variant-numeric:tabular-nums;transition:color .3s ease;white-space:nowrap}
 .btn-s{background:none;border:1px solid;border-radius:3px;padding:1px 7px;cursor:pointer;font-size:9px}
 .btn-s:hover{opacity:.7}
 
@@ -378,6 +379,14 @@ const MODE_DEFS={
   daytrade_gbpusd:{icon:'📊',label:'DT'},daytrade_eurgbp:{icon:'📊',label:'DT'},
   daytrade_xau:{icon:'📊',label:'DT'},
 };
+// ── MAX_HOLD: mirrors Python MAX_HOLD_SEC (seconds) ──
+const MAX_HOLD_BASE={scalp:1800,daytrade:28800,daytrade_1h:64800,swing:259200,rnb_usdjpy:7200};
+function _getMaxHold(mode){
+  if(MAX_HOLD_BASE[mode])return MAX_HOLD_BASE[mode];
+  const sfx=['_usdjpy','_gbpjpy','_eurjpy','_gbpusd','_eurgbp','_eur','_xau'];
+  for(const s of sfx){if(mode.endsWith(s)){const b=mode.slice(0,-s.length);if(MAX_HOLD_BASE[b])return MAX_HOLD_BASE[b]}}
+  return 28800;
+}
 const SMC_SET=new Set(['turtle_soup','trendline_sweep','inducement_ob','post_news_vol']);
 const SNAME={
   sr_fib_confluence:'SR+Fib',htf_false_breakout:'HTF FBF',orb_trap:'ORB Trap',
@@ -774,6 +783,7 @@ function updatePositions(trades){
       <span class="pos-sl">SL ${t.sl?.toFixed(p)||'—'}</span>
       <span class="pos-tp">TP ${t.tp?.toFixed(p)||'—'}</span>
       <span class="pos-type">${_h(t.entry_type||'')}</span>
+      <span class="pos-hold" data-entry="${t.entry_time||''}" data-max="${_getMaxHold(t.mode)}"></span>
       <button class="btn-s" style="color:var(--red);border-color:rgba(239,68,68,.3)" onclick="closeTrade('${t.trade_id}')">撤退</button>
     </div>`;
   }).join('');
@@ -949,6 +959,36 @@ async function killAllOanda(){
 }
 
 
+// ═══ Hold Timer (1-second real-time countdown) ════════
+
+function _fmtDur(sec){
+  if(sec<0)sec=0;
+  const h=Math.floor(sec/3600),m=Math.floor((sec%3600)/60);
+  if(h>0)return `${h}h${String(m).padStart(2,'0')}m`;
+  const s=Math.floor(sec%60);
+  return m>0?`${m}m${String(s).padStart(2,'0')}s`:`${s}s`;
+}
+function _updateHoldTimers(){
+  const spans=document.querySelectorAll('.pos-hold');
+  if(!spans.length)return;
+  const now=Date.now()/1000;
+  spans.forEach(sp=>{
+    const entry=sp.dataset.entry;
+    const max=parseFloat(sp.dataset.max)||28800;
+    if(!entry){sp.textContent='--';return}
+    const entryTs=new Date(entry).getTime()/1000;
+    if(isNaN(entryTs)){sp.textContent='--';return}
+    const elapsed=now-entryTs;
+    const remain=max-elapsed;
+    const ratio=elapsed/max;
+    sp.textContent=`${_fmtDur(elapsed)}/${_fmtDur(max)}`;
+    // Color transitions: green <50%, gold 50-80%, red >80%
+    if(ratio>=0.8){sp.style.color='var(--red)'}
+    else if(ratio>=0.5){sp.style.color='var(--gold)'}
+    else{sp.style.color='var(--green)'}
+  });
+}
+
 // ═══ Init ═════════════════════════════════════════════
 
 async function loadAll(){
@@ -961,6 +1001,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   // Optimized intervals
   setInterval(loadDemoStatus,3000);      // Status+Log: 3s
   setInterval(()=>{loadChart();loadStats();loadTradeLog()},30000);  // Chart+Stats+TradeLog: 30s
+  setInterval(_updateHoldTimers,1000);   // Hold timer: 1s real-time countdown
 });
 </script>
 </body>
