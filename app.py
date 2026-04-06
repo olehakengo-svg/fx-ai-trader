@@ -56,6 +56,20 @@ except ImportError:
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = not os.environ.get("RENDER")  # Render本番ではFalse
 
+# ── API応答時間ログ (2026-04-06 perf: ボトルネック可視化) ──
+import time as _time_mod
+@app.before_request
+def _before():
+    request._start_time = _time_mod.time()
+
+@app.after_request
+def _after(response):
+    if hasattr(request, '_start_time'):
+        dur = _time_mod.time() - request._start_time
+        if dur > 2.0:  # 2秒超のみログ出力
+            print(f"[API-SLOW] {request.method} {request.path} → {dur:.1f}s (status={response.status_code})", flush=True)
+    return response
+
 # ═══════════════════════════════════════════════════════
 #  Module imports (refactored)
 # ═══════════════════════════════════════════════════════

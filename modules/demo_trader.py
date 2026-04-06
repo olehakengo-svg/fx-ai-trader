@@ -1122,14 +1122,14 @@ class DemoTrader:
     # ── Main Loop (全モード統合・シングルスレッド) ──────────────────────────
 
     def _main_loop(self):
-        """全モードを順次処理するメインループ（sleep最適化版）。
+        """全モードを並列処理するメインループ（並列tick版）。
         scalp=10s, daytrade=30s, 1h=60s の間隔で各モードをtick。
-        (2026-04-05 perf: sleep削減で応答性3倍向上、ThreadPool不使用で安全性確保)"""
+        (2026-04-06 perf: 直列join→並列launch+batch-joinで11モード同時処理)"""
         import sys
         # ステータスを即座に設定（"unknown"状態を最小化）
         self._main_loop_status = "starting"
         self._main_loop_error = None
-        print("[DemoTrader] MainLoop started", flush=True)
+        print("[DemoTrader] MainLoop started (parallel tick)", flush=True)
         sys.stdout.flush()
         _last_tick = {}
         _consecutive_errors = {}
@@ -1137,6 +1137,7 @@ class DemoTrader:
         self._main_loop_restart_count = _restart_count + 1
 
         self._main_loop_status = "running"
+        self._main_loop_start_ts = time.time()
         _loop_iter = 0
 
         try:
@@ -1154,6 +1155,8 @@ class DemoTrader:
                         _tc = getattr(self, '_tick_counts', {})
                         print(f"[MainLoop] iter={_loop_iter} started={_modes_list} "
                               f"running={_running_modes} ticks={_tc} restart#{_restart_count}", flush=True)
+                    # ── Phase 1: due判定 → 全dueモードを並列launch ──
+                    _due_threads = []  # [(mode, thread, result_holder, tick_start)]
                     for mode in list(self._started_modes):
                         runner = self._runners.get(mode, {})
                         if not runner.get("running", False):
@@ -1163,20 +1166,29 @@ class DemoTrader:
                         interval = cfg["interval_sec"]
                         last = _last_tick.get(mode, 0)
 
+                        # 初回tick分散: 起動直後は mode index × 2秒ずらし
+                        if last == 0 and _loop_iter <= 3:
+                            _idx = list(MODE_CONFIG.keys()).index(mode) if mode in MODE_CONFIG else 0
+                            _stagger = _idx * 2
+                            if now - self._main_loop_start_ts < _stagger:
+                                continue
+
                         if now - last < interval:
                             continue
 
-                        # ── このモードのtickを実行（タイムアウト付き）──
+                        _tick_result = [None]
+                        _tick_thread = threading.Thread(
+                            target=self._tick_with_catch, args=(mode, _tick_result), daemon=True)
+                        _tick_thread.start()
+                        _due_threads.append((mode, _tick_thread, _tick_result, time.time()))
+
+                    # ── Phase 2: batch-join — 全スレッドを並列待機 ──
+                    for mode, _tick_thread, _tick_result, _tick_start in _due_threads:
+                        cfg = MODE_CONFIG[mode]
+                        _remaining = max(1, 60 - (time.time() - _tick_start))
+                        _tick_thread.join(timeout=_remaining)
                         try:
-                            _tick_start = time.time()
-                            # タイムアウト付きtick: ハング防止（60秒に短縮、旧120秒）
-                            _tick_result = [None]  # [exception or None]
-                            _tick_thread = threading.Thread(
-                                target=self._tick_with_catch, args=(mode, _tick_result), daemon=True)
-                            _tick_thread.start()
-                            _tick_thread.join(timeout=60)
                             if _tick_thread.is_alive():
-                                # タイムアウト — スレッドがハング中（daemonなので放置）
                                 print(f"[MainLoop/{mode}] TIMEOUT after 60s — skipping", flush=True)
                                 _last_tick[mode] = time.time()
                                 errs = _consecutive_errors.get(mode, 0) + 1
@@ -1190,7 +1202,7 @@ class DemoTrader:
                             _tick_count = getattr(self, '_tick_counts', {})
                             _tick_count[mode] = _tick_count.get(mode, 0) + 1
                             self._tick_counts = _tick_count
-                            if _tick_count[mode] <= 3 or _tick_count[mode] % 10 == 0 or _tick_dur > 30:
+                            if _tick_count[mode] <= 3 or _tick_count[mode] % 10 == 0 or _tick_dur > 15:
                                 print(f"[MainLoop/{mode}] tick #{_tick_count[mode]} ok ({_tick_dur:.1f}s)", flush=True)
                         except Exception as e:
                             errs = _consecutive_errors.get(mode, 0) + 1
@@ -1203,13 +1215,9 @@ class DemoTrader:
                             import traceback; traceback.print_exc()
                             _last_tick[mode] = time.time()
 
-                            # 10回連続エラーでバックオフ（API制限等）
                             if errs >= 10:
                                 print(f"[MainLoop/{mode}] Too many errors, backing off 60s", flush=True)
                                 time.sleep(60)
-
-                        # (2026-04-05 perf) tick間sleepを排除（旧: sleep(1)）
-                        # interval_secで既にレート制御されているため不要
 
                 except Exception as e:
                     print(f"[MainLoop] Outer error: {e}", flush=True)
