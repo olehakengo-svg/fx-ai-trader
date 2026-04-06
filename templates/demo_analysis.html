@@ -89,6 +89,13 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .pos-dir.buy{background:rgba(34,197,94,.15);color:var(--green)}
 .pos-dir.sell{background:rgba(239,68,68,.15);color:var(--red)}
 .pos-mode-tag{font-size:9px;color:var(--t3);font-weight:600}
+.pos-strat{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:.3px;white-space:nowrap}
+.pos-strat.s-rev{background:rgba(168,85,247,.15);color:#c084fc;border:1px solid rgba(168,85,247,.3)}
+.pos-strat.s-trend{background:rgba(59,130,246,.15);color:#60a5fa;border:1px solid rgba(59,130,246,.3)}
+.pos-strat.s-brk{background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3)}
+.pos-strat.s-smc{background:rgba(20,184,166,.15);color:#2dd4bf;border:1px solid rgba(20,184,166,.3)}
+.pos-strat.s-gold{background:rgba(234,179,8,.15);color:#facc15;border:1px solid rgba(234,179,8,.3)}
+.pos-strat.s-dt{background:rgba(99,102,241,.15);color:#818cf8;border:1px solid rgba(99,102,241,.3)}
 .pos-pnl-area{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
 .pos-pnl-badge{font-size:14px;font-weight:800;padding:3px 10px;border-radius:6px;font-variant-numeric:tabular-nums;letter-spacing:.3px;min-width:72px;text-align:center}
 .pos-pnl-badge.win{background:rgba(34,197,94,.18);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
@@ -99,7 +106,7 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .pos-detail{display:flex;align-items:center;gap:8px;font-size:10px;color:var(--t3);white-space:nowrap}
 .pos-sl{color:var(--red)}.pos-tp{color:var(--green)}
 .pos-entry{color:var(--t2);font-variant-numeric:tabular-nums}
-.pos-type{color:var(--t3);font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}
+.pos-type{display:none}
 .pos-hold{font-size:9px;font-variant-numeric:tabular-nums;transition:color .3s ease;white-space:nowrap;text-align:right}
 .btn-s{background:none;border:1px solid;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:9px;transition:opacity .15s}
 .btn-s:hover{opacity:.7}
@@ -464,6 +471,30 @@ function _getMaxHold(mode){
   return 28800;
 }
 const SMC_SET=new Set(['turtle_soup','trendline_sweep','inducement_ob','post_news_vol']);
+// ── Strategy color classification for position badge ──
+const _STRAT_CLS={
+  // Trend-following (blue)
+  vol_momentum_scalp:'s-trend',ema_ribbon_ride:'s-trend',stoch_trend_pullback:'s-trend',
+  adx_trend_continuation:'s-trend',ema_cross:'s-trend',
+  // Mean-reversion (purple)
+  bb_rsi_reversion:'s-rev',macdh_reversal:'s-rev',fib_reversal:'s-rev',
+  mtf_reversal_confluence:'s-rev',v_reversal:'s-rev',trend_rebound:'s-rev',ema_pullback:'s-rev',
+  // Breakout (gold)
+  bb_squeeze_breakout:'s-brk',london_breakout:'s-brk',session_vol_expansion:'s-brk',
+  vol_surge_detector:'s-brk',london_shrapnel:'s-brk',
+  // SMC (teal)
+  turtle_soup:'s-smc',trendline_sweep:'s-smc',inducement_ob:'s-smc',post_news_vol:'s-smc',
+  orb_trap:'s-smc',sr_break_retest:'s-smc',
+  // Gold-specific (gold)
+  gold_pips_hunter:'s-gold',gold_vol_break:'s-gold',
+  // DT general (indigo)
+  sr_fib_confluence:'s-dt',htf_false_breakout:'s-dt',gbp_deep_pullback:'s-dt',
+  lin_reg_channel:'s-dt',tokyo_nakane_momentum:'s-dt',london_ny_swing:'s-dt',
+  jpy_basket_trend:'s-dt',dt_fib_reversal:'s-dt',dt_sr_channel:'s-dt',
+  ema200_trend_reversal:'s-dt',london_close_reversal:'s-dt',london_session_breakout:'s-dt',
+  ksb:'s-brk',dmb:'s-brk',
+};
+function _stratCls(et){return _STRAT_CLS[et]||'s-dt'}
 const SNAME={
   sr_fib_confluence:'SR+Fib',htf_false_breakout:'HTF FBF',orb_trap:'ORB Trap',
   sr_break_retest:'SBR',gbp_deep_pullback:'GBP Deep PB',lin_reg_channel:'LRC',
@@ -941,11 +972,13 @@ function updatePositions(trades){
     const amtText=`${amt>=0?'+':''}${ccy}${Math.abs(amt)>=1000?(Math.abs(amt)/1000).toFixed(1)+'k':Math.round(Math.abs(amt))}`;
     const amtFull=`${amt>=0?'+':''}${ccy}${Math.abs(Math.round(amt)).toLocaleString()}`;
     const strat=SNAME[t.entry_type]||t.entry_type||'';
+    const sCls=_stratCls(t.entry_type);
     return `<div class="pos-card">
       <div class="pos-top">
         <span class="pos-flag">${pi.f}</span>
         <span class="pos-pair-name">${pi.n}</span>
         <span class="pos-dir ${isBuy?'buy':'sell'}">${t.direction}</span>
+        <span class="pos-strat ${sCls}">${_h(strat)}</span>
         <span class="pos-mode-tag">${def.icon}${def.label}</span>
       </div>
       <div class="pos-pnl-area">
@@ -956,7 +989,6 @@ function updatePositions(trades){
         <span class="pos-entry">@ ${t.entry_price?.toFixed(prec)||'—'}</span>
         <span class="pos-sl">SL ${t.sl?.toFixed(prec)||'—'}</span>
         <span class="pos-tp">TP ${t.tp?.toFixed(prec)||'—'}</span>
-        <span class="pos-type">${_h(strat)}</span>
         <span class="pos-hold" data-entry="${t.entry_time||''}" data-max="${_getMaxHold(t.mode)}"></span>
       </div>
       <div style="display:flex;justify-content:flex-end">
