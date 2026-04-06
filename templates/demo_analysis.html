@@ -106,7 +106,7 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .pos-detail{display:flex;align-items:center;gap:8px;font-size:10px;color:var(--t3);white-space:nowrap}
 .pos-sl{color:var(--red)}.pos-tp{color:var(--green)}
 .pos-entry{color:var(--t2);font-variant-numeric:tabular-nums}
-.pos-type{display:none}
+.pos-type{color:var(--t3);font-size:9px;opacity:.7;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px}
 .pos-hold{font-size:9px;font-variant-numeric:tabular-nums;transition:color .3s ease;white-space:nowrap;text-align:right}
 .btn-s{background:none;border:1px solid;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:9px;transition:opacity .15s}
 .btn-s:hover{opacity:.7}
@@ -989,6 +989,7 @@ function updatePositions(trades){
         <span class="pos-entry">@ ${t.entry_price?.toFixed(prec)||'—'}</span>
         <span class="pos-sl">SL ${t.sl?.toFixed(prec)||'—'}</span>
         <span class="pos-tp">TP ${t.tp?.toFixed(prec)||'—'}</span>
+        <span class="pos-type">${_h(t.entry_type||'')}</span>
         <span class="pos-hold" data-entry="${t.entry_time||''}" data-max="${_getMaxHold(t.mode)}"></span>
       </div>
       <div style="display:flex;justify-content:flex-end">
