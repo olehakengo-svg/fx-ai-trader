@@ -32,13 +32,19 @@ class OandaBridge:
                    "scalp_xau", "rnb_usdjpy", "daytrade_gbpusd", "daytrade_eurgbp", "daytrade_xau"}
 
     def _load_allowed_modes(self) -> set:
-        """DB永続 > 環境変数 > 全モード許可 の優先順で読み込み."""
+        """DB永続 > 環境変数 > 全モード許可 の優先順で読み込み.
+        _ALL_MODES に新モードが追加された場合、DB保存済みリストに自動マージする。"""
         # 1. DBに保存済みの設定を優先
         if self._db:
             try:
                 saved = self._db.get_oanda_setting("allowed_modes", "")
                 if saved:
                     modes = set(m.strip() for m in saved.split(",") if m.strip())
+                    # 新モード自動マージ: _ALL_MODES にあるがDBに無いモードを追加
+                    new_modes = self._ALL_MODES - modes
+                    if new_modes:
+                        modes |= new_modes
+                        logger.info(f"[OandaBridge] Auto-merged new modes: {sorted(new_modes)}")
                     logger.info(f"[OandaBridge] Loaded modes from DB: {sorted(modes)}")
                     return modes
             except Exception as e:
