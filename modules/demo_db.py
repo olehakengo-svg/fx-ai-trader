@@ -346,18 +346,34 @@ class DemoDB:
                     (analysis, trade_id))
                 conn.commit()
 
-    def get_trade_log(self, limit: int = 30) -> list:
-        """Return last N closed trades with compact fields for trade log UI."""
-        with self._safe_conn() as conn:
-            rows = conn.execute(
-                """SELECT trade_id, mode, instrument, direction, entry_type,
+    def get_trade_log(self, limit: int = 30, date_from: str = None,
+                      date_to: str = None, mode: str = None) -> list:
+        """Return closed trades with compact fields for trade log UI.
+        Supports date range and multi-mode filtering (comma-separated)."""
+        query = """SELECT trade_id, mode, instrument, direction, entry_type,
                           pnl_pips, outcome, close_reason, close_analysis,
                           reasons, entry_time, exit_time,
                           entry_price, exit_price, sl, tp
-                   FROM demo_trades WHERE status='CLOSED'
-                   ORDER BY exit_time DESC LIMIT ?""",
-                (limit,)
-            ).fetchall()
+                   FROM demo_trades WHERE status='CLOSED'"""
+        params = []
+        if date_from:
+            query += " AND entry_time >= ?"
+            params.append(date_from)
+        if date_to:
+            query += " AND entry_time <= ?"
+            params.append(date_to + "T23:59:59" if len(date_to) == 10 else date_to)
+        if mode:
+            modes = [m.strip() for m in mode.split(",") if m.strip()]
+            if len(modes) == 1:
+                query += " AND mode = ?"
+                params.append(modes[0])
+            else:
+                query += f" AND mode IN ({','.join('?' * len(modes))})"
+                params.extend(modes)
+        query += " ORDER BY exit_time DESC LIMIT ?"
+        params.append(limit)
+        with self._safe_conn() as conn:
+            rows = conn.execute(query, params).fetchall()
         return [dict(r) for r in rows]
 
     def get_open_trades(self) -> list:
@@ -407,8 +423,13 @@ class DemoDB:
             query += " AND entry_time <= ?"
             params.append(date_to + "T23:59:59" if len(date_to) == 10 else date_to)
         if mode:
-            query += " AND mode = ?"
-            params.append(mode)
+            modes = [m.strip() for m in mode.split(",") if m.strip()]
+            if len(modes) == 1:
+                query += " AND mode = ?"
+                params.append(modes[0])
+            else:
+                query += f" AND mode IN ({','.join('?' * len(modes))})"
+                params.extend(modes)
         with self._safe_conn() as conn:
             rows = conn.execute(query, params).fetchall()
 

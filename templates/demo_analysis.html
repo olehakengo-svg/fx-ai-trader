@@ -57,8 +57,18 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 #main-chart{flex:1;min-height:250px}
 .tv-lightweight-charts{max-width:100%!important}
 
+/* ── Stats Filter ── */
+.stats-filter{display:flex;align-items:center;gap:6px;padding:4px 14px;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.stats-filter input[type="date"]{background:var(--bg1);color:var(--t1);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:10px;font-family:inherit;width:110px}
+.stats-filter input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(.7)}
+.sf-sep{color:var(--t3);font-size:10px}
+.sf-quick{display:flex;gap:2px}
+.sf-btn{background:var(--bg1);color:var(--t2);border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:9px;cursor:pointer;font-family:inherit;transition:all .15s}
+.sf-btn:hover{background:var(--border)}
+.sf-btn.sf-active{background:var(--blue);color:#fff;border-color:var(--blue)}
+#sf-mode{background:var(--bg1);color:var(--t1);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:10px;font-family:inherit;margin-left:auto}
 /* ── Stats Bar ── */
-.stats-bar{display:flex;align-items:center;gap:20px;padding:5px 14px;background:var(--bg1);border-top:1px solid var(--border);border-bottom:1px solid var(--border);flex-shrink:0}
+.stats-bar{display:flex;align-items:center;gap:20px;padding:5px 14px;background:var(--bg1);border-bottom:1px solid var(--border);flex-shrink:0}
 .stat-label{display:block;font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;line-height:1}
 .stat-val{font-size:13px;font-weight:700;line-height:1.4}
 
@@ -308,6 +318,35 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
   <!-- Main Chart -->
   <div id="main-chart"></div>
 
+  <!-- Stats Filter -->
+  <div class="stats-filter">
+    <input type="date" id="sf-from" title="From" />
+    <span class="sf-sep">-</span>
+    <input type="date" id="sf-to" title="To" />
+    <div class="sf-quick">
+      <button class="sf-btn" data-range="today">Today</button>
+      <button class="sf-btn" data-range="7d">7d</button>
+      <button class="sf-btn" data-range="30d">30d</button>
+      <button class="sf-btn sf-active" data-range="all">All</button>
+    </div>
+    <select id="sf-mode">
+      <option value="">All Modes</option>
+      <optgroup label="Category">
+        <option value="scalp,scalp_eur,scalp_eurjpy">⚡ Scalp</option>
+        <option value="daytrade,daytrade_eur,daytrade_eurgbp,daytrade_gbpusd,daytrade_xau">📊 DT</option>
+        <option value="daytrade_1h,daytrade_1h_eur">🕐 1H</option>
+        <option value="rnb_usdjpy">🏯 RNB</option>
+      </optgroup>
+      <optgroup label="Pair">
+        <option value="scalp,daytrade,daytrade_1h,rnb_usdjpy">💴 USD/JPY</option>
+        <option value="scalp_eur,daytrade_eur,daytrade_1h_eur">💶 EUR/USD</option>
+        <option value="daytrade_gbpusd">💷 GBP/USD</option>
+        <option value="daytrade_eurgbp">🇪🇺🇬🇧 EUR/GBP</option>
+        <option value="daytrade_xau">🥇 XAU/USD</option>
+        <option value="scalp_eurjpy">💶💴 EUR/JPY</option>
+      </optgroup>
+    </select>
+  </div>
   <!-- Stats Bar -->
   <div class="stats-bar">
     <div><span class="stat-label">Trades</span><span class="stat-val" id="s-total">—</span></div>
@@ -412,6 +451,7 @@ let _currentPair='USD_JPY',_currentTf='15m';
 let _modeStates={},_oandaStatus={},_oandaModes=[];
 let _lastLogCount=0,_lastStratHash='';
 let _lastPosHash='',_lastTlId=0,_lastTlLen=0,_lastOpenCount=-1;
+let _statsFilter={dateFrom:'',dateTo:'',mode:''}; // 日付+モードフィルタ
 let _statusInFlight=false;
 let _obLines=[],_posLines=[];
 let _lastOpenTrades=[];
@@ -643,7 +683,12 @@ async function loadDemoStatus(){
 
 async function loadStats(){
   try{
-    const r=await fetch('/api/demo/stats');
+    const p=[];
+    if(_statsFilter.dateFrom)p.push(`date_from=${_statsFilter.dateFrom}`);
+    if(_statsFilter.dateTo)p.push(`date_to=${_statsFilter.dateTo}`);
+    if(_statsFilter.mode)p.push(`mode=${encodeURIComponent(_statsFilter.mode)}`);
+    const url='/api/demo/stats'+(p.length?'?'+p.join('&'):'');
+    const r=await fetch(url);
     const d=await r.json();
     const set=(id,v,col)=>{const el=document.getElementById(id);if(el){el.textContent=v;if(col)el.style.color=col}};
     set('s-total',d.total||0);
@@ -685,7 +730,14 @@ async function loadOandaModes(){
 
 async function loadTradeLog(){
   try{
-    const r=await fetch('/api/demo/trade-log');
+    const p=[];
+    if(_statsFilter.dateFrom)p.push(`date_from=${_statsFilter.dateFrom}`);
+    if(_statsFilter.dateTo)p.push(`date_to=${_statsFilter.dateTo}`);
+    if(_statsFilter.mode)p.push(`mode=${encodeURIComponent(_statsFilter.mode)}`);
+    const hasFilter=_statsFilter.dateFrom||_statsFilter.dateTo||_statsFilter.mode;
+    if(hasFilter)p.push('limit=200');
+    const url='/api/demo/trade-log'+(p.length?'?'+p.join('&'):'');
+    const r=await fetch(url);
     const d=await r.json();
     const trades=d.trades||[];
     // IDベース検知: 最新trade_id or 件数が変わったら更新
@@ -1029,6 +1081,25 @@ async function loadAll(){
   await Promise.all([loadDemoStatus(),loadChart(),loadStats(),loadOandaModes(),loadTradeLog()]);
 }
 
+// ═══ Stats Filter ═══════════════════════════════════════
+function _applyStatsFilter(){
+  _lastTlId=0;_lastTlLen=0; // force trade log refresh
+  loadStats();loadTradeLog();
+}
+function _sfSetRange(range){
+  document.querySelectorAll('.sf-btn').forEach(b=>b.classList.remove('sf-active'));
+  document.querySelector(`.sf-btn[data-range="${range}"]`)?.classList.add('sf-active');
+  const now=new Date();
+  let from='',to='';
+  if(range==='today'){from=to=now.toISOString().slice(0,10)}
+  else if(range==='7d'){to=now.toISOString().slice(0,10);from=new Date(now-7*864e5).toISOString().slice(0,10)}
+  else if(range==='30d'){to=now.toISOString().slice(0,10);from=new Date(now-30*864e5).toISOString().slice(0,10)}
+  document.getElementById('sf-from').value=from;
+  document.getElementById('sf-to').value=to;
+  _statsFilter.dateFrom=from;_statsFilter.dateTo=to;
+  _applyStatsFilter();
+}
+
 document.addEventListener('DOMContentLoaded',()=>{
   initChart();
   loadAll();
@@ -1036,6 +1107,25 @@ document.addEventListener('DOMContentLoaded',()=>{
   setInterval(loadDemoStatus,3000);      // Status+Log: 3s
   setInterval(()=>{loadChart();loadStats();loadTradeLog()},30000);  // Chart+Stats+TradeLog: 30s
   setInterval(_updateHoldTimers,1000);   // Hold timer: 1s real-time countdown
+
+  // ── Stats Filter: Quick range buttons ──
+  document.querySelectorAll('.sf-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>_sfSetRange(btn.dataset.range));
+  });
+  // ── Stats Filter: Date input changes ──
+  ['sf-from','sf-to'].forEach(id=>{
+    document.getElementById(id)?.addEventListener('change',()=>{
+      document.querySelectorAll('.sf-btn').forEach(b=>b.classList.remove('sf-active'));
+      _statsFilter.dateFrom=document.getElementById('sf-from').value;
+      _statsFilter.dateTo=document.getElementById('sf-to').value;
+      _applyStatsFilter();
+    });
+  });
+  // ── Stats Filter: Mode dropdown ──
+  document.getElementById('sf-mode')?.addEventListener('change',e=>{
+    _statsFilter.mode=e.target.value;
+    _applyStatsFilter();
+  });
 });
 </script>
 </body>

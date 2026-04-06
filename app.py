@@ -9903,9 +9903,15 @@ def api_demo_logs():
 
 @app.route("/api/demo/trade-log")
 def api_demo_trade_log():
-    """Lightweight trade log for cockpit: last 30 closed trades with analysis."""
+    """Trade log for cockpit — supports date range & mode filtering."""
     try:
-        trades = _demo_db.get_trade_log(limit=30)
+        date_from = request.args.get("date_from")
+        date_to = request.args.get("date_to")
+        mode_filter = request.args.get("mode")
+        limit = request.args.get("limit", 30, type=int)
+        trades = _demo_db.get_trade_log(
+            limit=limit, date_from=date_from,
+            date_to=date_to, mode=mode_filter)
         return jsonify({"trades": trades})
     except Exception as e:
         return jsonify({"trades": [], "error": str(e)})
