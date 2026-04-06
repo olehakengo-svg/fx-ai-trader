@@ -7,6 +7,7 @@ from typing import Optional
 class Ema200TrendReversal(StrategyBase):
     name = "ema200_trend_reversal"
     mode = "daytrade"
+    enabled = False  # 廃止: QUALIFIED_TYPES除外済み、フォールバック未発火
 
     # チューナブルパラメータ
     ema200_dist_max = 0.5  # ATR倍率

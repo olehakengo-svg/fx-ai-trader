@@ -8,6 +8,7 @@ from typing import Optional
 class DtFibReversal(StrategyBase):
     name = "dt_fib_reversal"
     mode = "daytrade"
+    enabled = False  # 廃止: QUALIFIED_TYPES除外済み、フォールバック未発火
 
     # チューナブルパラメータ
     lookback = 80

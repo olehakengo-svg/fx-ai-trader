@@ -1686,6 +1686,8 @@ class DemoTrader:
             "vol_momentum_scalp",    # VolMomスキャルプ: ADX+OBV+VWAP順張り (2026-04-07)
             "ema_ribbon_ride",       # EMAリボンライド: EMA9/21/50リボン順張り (2026-04-07)
             "gold_pips_hunter",      # ゴールドPipsハンター: XAU専用スキャルプ (2026-04-07)
+            "london_shrapnel",       # LDN異常ヒゲ反転 EUR/GBP専用 (2026-04-07)
+            "vol_surge_detector",    # 出来高急増ブレイクアウト (2026-04-07)
             # DISABLED (FXアナリストレビュー 2026-04-03):
             # "v_reversal",          # → bb_rsi統合予定 (サンプル5t)
             # "trend_rebound",       # 廃止: 1t EV=-1.22, 実質未発火
@@ -1711,6 +1713,9 @@ class DemoTrader:
             "turtle_soup",                   # Turtle Soup: Liquidity Grab Reversal (Phase 5, 2026-04-05)
             "trendline_sweep",               # TL Sweep: Trendline Sweep Trap (Phase 5, 2026-04-05)
             "inducement_ob",                 # IOB: Inducement & Order Block Trap (Phase 5, 2026-04-05)
+            "london_ny_swing",               # LDN-NYスイング: クロスセッション順張り (2026-04-07)
+            "jpy_basket_trend",              # JPYバスケットトレンド: 円通貨連動 (2026-04-07)
+            "gold_vol_break",                # ゴールド出来高ブレイク: XAU DT専用 (2026-04-07)
             # "post_news_vol",               # PNV: DISABLED — WR=42% EV=-0.07, needs calendar API
             # DISABLED (FXアナリストレビュー):
             # "ihs_neckbreak",       # 廃止: 2t EV≒0, 低頻度

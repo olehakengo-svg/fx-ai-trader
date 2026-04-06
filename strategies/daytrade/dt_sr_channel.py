@@ -7,6 +7,7 @@ from typing import Optional
 class DtSrChannelReversal(StrategyBase):
     name = "dt_sr_channel_reversal"
     mode = "daytrade"
+    enabled = False  # 廃止: QUALIFIED_TYPES除外済み、フォールバック未発火
 
     # チューナブルパラメータ
     sr_proximity = 0.4  # ATR倍率
