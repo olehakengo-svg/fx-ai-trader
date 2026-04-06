@@ -78,13 +78,30 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .bottom::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 .panel-hdr{display:flex;align-items:center;justify-content:space-between;padding:5px 10px;font-size:11px;font-weight:600;color:var(--t2);background:var(--bg2);border-bottom:1px solid var(--border)}
 
-/* Open Positions */
+/* Open Positions — Card layout */
 #open-positions{border-bottom:1px solid var(--border)}
-.pos-row{display:flex;align-items:center;gap:8px;padding:4px 10px;font-size:11px;border-bottom:1px solid rgba(48,54,61,.4)}
-.pos-mode{font-weight:600;min-width:45px}.pos-sl{color:var(--red)}.pos-tp{color:var(--green)}
-.pos-type{color:var(--t3);font-size:9px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pos-hold{font-size:9px;min-width:62px;text-align:right;font-variant-numeric:tabular-nums;transition:color .3s ease;white-space:nowrap}
-.btn-s{background:none;border:1px solid;border-radius:3px;padding:1px 7px;cursor:pointer;font-size:9px}
+.pos-card{padding:8px 12px;border-bottom:1px solid rgba(48,54,61,.3);display:grid;grid-template-columns:1fr auto;gap:4px 10px;align-items:center}
+.pos-card:first-of-type{animation:tl-new .4s ease}
+.pos-top{display:flex;align-items:center;gap:6px}
+.pos-flag{font-size:18px;line-height:1}
+.pos-pair-name{font-size:14px;font-weight:800;letter-spacing:.3px;color:var(--t1)}
+.pos-dir{font-size:10px;font-weight:700;padding:2px 7px;border-radius:3px}
+.pos-dir.buy{background:rgba(34,197,94,.15);color:var(--green)}
+.pos-dir.sell{background:rgba(239,68,68,.15);color:var(--red)}
+.pos-mode-tag{font-size:9px;color:var(--t3);font-weight:600}
+.pos-pnl-area{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.pos-pnl-badge{font-size:14px;font-weight:800;padding:3px 10px;border-radius:6px;font-variant-numeric:tabular-nums;letter-spacing:.3px;min-width:72px;text-align:center}
+.pos-pnl-badge.win{background:rgba(34,197,94,.18);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
+.pos-pnl-badge.lose{background:rgba(239,68,68,.18);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+.pos-pnl-badge.flat{background:rgba(139,148,158,.1);color:var(--t2);border:1px solid rgba(139,148,158,.2)}
+.pos-amount{font-size:10px;font-weight:600;font-variant-numeric:tabular-nums}
+.pos-amount.win{color:#4ade80}.pos-amount.lose{color:#f87171}.pos-amount.flat{color:var(--t3)}
+.pos-detail{display:flex;align-items:center;gap:8px;font-size:10px;color:var(--t3);white-space:nowrap}
+.pos-sl{color:var(--red)}.pos-tp{color:var(--green)}
+.pos-entry{color:var(--t2);font-variant-numeric:tabular-nums}
+.pos-type{color:var(--t3);font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}
+.pos-hold{font-size:9px;font-variant-numeric:tabular-nums;transition:color .3s ease;white-space:nowrap;text-align:right}
+.btn-s{background:none;border:1px solid;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:9px;transition:opacity .15s}
 .btn-s:hover{opacity:.7}
 
 /* Strategy Panel */
@@ -116,12 +133,12 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .lamp.off{background:var(--t3);box-shadow:none}
 #oanda-status.oa-active{color:var(--purple)}
 
-/* ── Trade Log (3段構成: Line1=ペア+戦略, Line2=日時+損益, Line3=分析) ── */
+/* ── Trade Log (3段構成: Line1=ペア+戦略, Line2=理由ラベル+損益, Line3=分析) ── */
 #trade-log-panel{border-bottom:1px solid var(--border)}
 #trade-log{max-height:280px;overflow-y:auto;padding:3px 10px;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:10px;line-height:1.5}
 #trade-log::-webkit-scrollbar{width:4px}
 #trade-log::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-.tl-row{padding:5px 0;border-bottom:1px solid rgba(48,54,61,.2)}
+.tl-row{padding:6px 0;border-bottom:1px solid rgba(48,54,61,.2)}
 .tl-row:first-child{animation:tl-new .5s ease}
 @keyframes tl-new{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
 .tl-line1{display:flex;align-items:center;gap:5px;white-space:nowrap}
@@ -131,11 +148,19 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .tl-strat-scalp{background:rgba(88,166,255,.15);color:var(--blue)}
 .tl-strat-dt{background:rgba(139,148,158,.1);color:var(--t2)}
 .tl-strat-1h{background:rgba(163,113,247,.15);color:var(--purple)}
-.tl-line2{display:flex;align-items:center;gap:5px;margin-top:2px;font-size:9px;white-space:nowrap}
+.tl-line2{display:flex;align-items:center;gap:6px;margin-top:3px;font-size:9px;white-space:nowrap}
 .tl-time{color:var(--t3);font-variant-numeric:tabular-nums}
 .tl-dur{color:var(--t2)}
 .tl-result{font-weight:700;min-width:50px;text-align:right;margin-left:auto;flex-shrink:0}
-.tl-line3{margin-top:2px;font-size:9px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* ── Close Reason Labels (最も目に飛び込むデザイン) ── */
+.tl-reason{display:inline-block;font-size:9px;font-weight:800;padding:2px 8px;border-radius:4px;letter-spacing:.3px;text-transform:uppercase;flex-shrink:0}
+.tl-reason-sl{background:rgba(239,68,68,.2);color:#f87171;border:1px solid rgba(239,68,68,.35)}
+.tl-reason-tp{background:rgba(34,197,94,.2);color:#4ade80;border:1px solid rgba(34,197,94,.35)}
+.tl-reason-time{background:rgba(234,179,8,.15);color:var(--gold);border:1px solid rgba(234,179,8,.3)}
+.tl-reason-spread{background:rgba(139,148,158,.12);color:var(--t2);border:1px solid rgba(139,148,158,.25)}
+.tl-reason-reverse{background:rgba(59,130,246,.15);color:var(--blue);border:1px solid rgba(59,130,246,.3)}
+.tl-reason-other{background:rgba(139,148,158,.08);color:var(--t3);border:1px solid rgba(139,148,158,.15)}
+.tl-line3{margin-top:3px;font-size:9px;color:var(--t3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .tl-line3 b{color:var(--gold);font-weight:600}
 @media(max-width:600px){.tl-line1{flex-wrap:wrap}.tl-strat{margin-left:0}}
 
@@ -158,6 +183,10 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
   #main-chart{min-height:200px}
   .stats-bar{gap:12px;padding:4px 8px}
   .stat-val{font-size:11px}
+  .pos-card{padding:6px 10px}
+  .pos-pair-name{font-size:12px}
+  .pos-pnl-badge{font-size:12px;padding:2px 8px;min-width:60px}
+  .pos-detail{flex-wrap:wrap;gap:4px}
   /* ── Mobile OANDA Emergency Panel ── */
   .mob-oa{
     display:flex;position:fixed;bottom:0;left:0;right:0;
@@ -728,6 +757,20 @@ async function loadOandaModes(){
   }catch(e){console.warn('[OandaModes]',e)}
 }
 
+// ── Close Reason → Label mapping ──
+function _reasonLabel(reason){
+  if(!reason)return '';
+  const r=reason.toUpperCase();
+  if(r.includes('SL_HIT')||r.includes('逆行'))return `<span class="tl-reason tl-reason-sl">SL HIT</span>`;
+  if(r.includes('TP_HIT')||r.includes('TP到達'))return `<span class="tl-reason tl-reason-tp">TP HIT</span>`;
+  if(r.includes('MAX_HOLD')||r.includes('TIME_DECAY')||r.includes('最大保持'))return `<span class="tl-reason tl-reason-time">TIME EXIT</span>`;
+  if(r.includes('SPREAD')||r.includes('スプレッド'))return `<span class="tl-reason tl-reason-spread">SPREAD</span>`;
+  if(r.includes('SIGNAL_REVERSE')||r.includes('反転'))return `<span class="tl-reason tl-reason-reverse">REVERSE</span>`;
+  if(r.includes('SCENARIO_INVALID'))return `<span class="tl-reason tl-reason-sl">INVALID</span>`;
+  if(r.includes('WEEKEND'))return `<span class="tl-reason tl-reason-time">WEEKEND</span>`;
+  return `<span class="tl-reason tl-reason-other">${reason.slice(0,12)}</span>`;
+}
+
 async function loadTradeLog(){
   try{
     const p=[];
@@ -740,14 +783,15 @@ async function loadTradeLog(){
     const r=await fetch(url);
     const d=await r.json();
     const trades=d.trades||[];
-    // IDベース検知: 最新trade_id or 件数が変わったら更新
-    const latestId=trades.length?trades[0].trade_id:0;
-    if(latestId===_lastTlId&&trades.length===_lastTlLen)return;
-    _lastTlId=latestId;_lastTlLen=trades.length;
+    // ── 堅牢な変更検知: 最新ID + 件数のみ (シンプル&確実) ──
+    const latestId=trades.length?trades[0].trade_id:'';
+    const latestLen=trades.length;
+    if(latestId===_lastTlId&&latestLen===_lastTlLen)return;
+    _lastTlId=latestId;_lastTlLen=latestLen;
     const el=document.getElementById('trade-log');
     if(!el)return;
     const cnt=document.getElementById('tl-count');
-    if(cnt){const nv=String(trades.length);if(cnt.textContent!==nv)cnt.textContent=nv}
+    if(cnt){const nv=String(latestLen);if(cnt.textContent!==nv)cnt.textContent=nv}
     const PI={'USD_JPY':{i:'💴',n:'USD/JPY'},'EUR_USD':{i:'💶',n:'EUR/USD'},
               'GBP_USD':{i:'💷',n:'GBP/USD'},'EUR_GBP':{i:'🇪🇺🇬🇧',n:'EUR/GBP'},
               'XAU_USD':{i:'🥇',n:'XAU/USD'},'EUR_JPY':{i:'💶💴',n:'EUR/JPY'}};
@@ -764,6 +808,9 @@ async function loadTradeLog(){
       const pnl=(t.pnl_pips||0);
       const col=t.outcome==='WIN'?'var(--green)':pnl<-0.5?'var(--red)':'var(--t2)';
       const ps=`${pnl>=0?'+':''}${pnl.toFixed(1)}p`;
+      // ── 決済理由ラベル (最も目立つ要素) ──
+      const closeR=t.close_reason||'';
+      const reasonHtml=_reasonLabel(closeR);
       // ── 日時: MM/DD HH:MM - MM/DD HH:MM (duration) ──
       let timeStr='',durStr='';
       if(t.entry_time&&t.exit_time){
@@ -776,18 +823,19 @@ async function loadTradeLog(){
         const p2=n=>String(n).padStart(2,'0');
         timeStr=`${p2(eOut.getUTCMonth()+1)}/${p2(eOut.getUTCDate())} ${p2(eOut.getUTCHours())}:${p2(eOut.getUTCMinutes())}`;
       }
-      // ── 分析 (常時表示: entry理由 → exit理由) ──
+      // ── 分析 (常時表示: entry理由 → exit分析) ──
       let reasons=t.reasons||[];
       if(typeof reasons==='string'){try{reasons=JSON.parse(reasons)}catch(e){reasons=[]}}
       const rText=reasons.filter(r=>typeof r==='string'&&!r.startsWith('__')).map(r=>r.replace(/^✅\s*/,'')).slice(0,4).join(', ');
-      const exitText=t.close_analysis||t.close_reason||'';
+      const exitText=t.close_analysis||'';
       const parts=[rText,exitText].filter(Boolean);
       const analysisHtml=parts.length?`<div class="tl-line3"><b>${t.outcome==='WIN'?'&#9733;':'&#9679;'}</b> ${_h(parts.join(' → '))}</div>`:'';
-      // ── 3段レイアウト: Line1=ペア+戦略, Line2=日時+損益, Line3=分析 ──
+      // ── 3段レイアウト: Line1=ペア+戦略, Line2=理由ラベル+日時+損益, Line3=分析 ──
       return `<div class="tl-row">`
         +`<div class="tl-line1"><span class="tl-pair">${pi.i} ${pi.n}</span>`
         +`<span class="tl-strat ${sc}">${_h(name)} ${t.direction||''}</span></div>`
-        +`<div class="tl-line2">${timeStr?`<span class="tl-time">${timeStr}</span>`:''}`
+        +`<div class="tl-line2">${reasonHtml}`
+        +`${timeStr?`<span class="tl-time">${timeStr}</span>`:''}`
         +`${durStr?`<span class="tl-dur">(${durStr})</span>`:''}`
         +`<span class="tl-result" style="color:${col}">${ps}</span></div>`
         +analysisHtml+`</div>`;
@@ -842,6 +890,17 @@ function updateStatusText(){
   if(label.textContent!==newText)label.textContent=newText;
 }
 
+// ── Lot / Amount config ──
+const OANDA_UNITS=10000; // 0.1 lot = 10000 units
+const PIP_VALUE={
+  USD_JPY:100, EUR_JPY:100, GBP_JPY:100,          // 1pip = ¥100 per 10k units
+  EUR_USD:1.0, GBP_USD:1.0, EUR_GBP:1.0, XAU_USD:1.0 // 1pip = $1.0 per 10k units
+};
+const PIP_CCY={
+  USD_JPY:'¥', EUR_JPY:'¥', GBP_JPY:'¥',
+  EUR_USD:'$', GBP_USD:'$', EUR_GBP:'$', XAU_USD:'$'
+};
+
 function updatePositions(trades){
   const el=document.getElementById('open-positions');
   if(!el)return;
@@ -849,28 +908,55 @@ function updatePositions(trades){
     if(el.style.display!=='none'){el.style.display='none';_lastPosHash=''}
     return;
   }
-  // ── ハッシュ比較: ポジション内容が同一ならDOM操作スキップ ──
-  const hash=trades.map(t=>`${t.trade_id}:${t.sl}:${t.tp}`).join('|');
+  // ── ハッシュ比較: pips変動も含めて毎回更新判定 ──
+  const hash=trades.map(t=>`${t.trade_id}:${t.sl}:${t.tp}:${t.unrealized_pips||0}`).join('|');
   if(hash===_lastPosHash)return;
   _lastPosHash=hash;
 
   el.style.display='block';
+  const PI_POS={'USD_JPY':{f:'🇺🇸🇯🇵',n:'USD/JPY'},'EUR_USD':{f:'🇪🇺🇺🇸',n:'EUR/USD'},
+    'GBP_USD':{f:'🇬🇧🇺🇸',n:'GBP/USD'},'EUR_GBP':{f:'🇪🇺🇬🇧',n:'EUR/GBP'},
+    'XAU_USD':{f:'🥇',n:'XAU/USD'},'EUR_JPY':{f:'🇪🇺🇯🇵',n:'EUR/JPY'}};
+
   let html=`<div class="panel-hdr"><span>📌 Open Positions (${trades.length})</span>
     <button class="btn-s" style="color:var(--red);border-color:var(--red)" onclick="closeAllTrades()">全撤退</button></div>`;
   html+=trades.map(t=>{
     const isBuy=t.direction==='BUY';
-    const col=isBuy?'var(--green)':'var(--red)';
+    const pair=modePairKey(t.mode);
+    const pi=PI_POS[pair]||PI_POS[t.instrument]||{f:'📊',n:pair};
     const def=MODE_DEFS[t.mode]||{icon:'📊',label:t.mode};
-    const p=PAIRS[modePairKey(t.mode)]?.precision||3;
-    return `<div class="pos-row">
-      <span class="pos-mode">${def.icon}${def.label}</span>
-      <span style="color:${col};font-weight:700">${t.direction}</span>
-      <span>@ ${t.entry_price?.toFixed(p)||'—'}</span>
-      <span class="pos-sl">SL ${t.sl?.toFixed(p)||'—'}</span>
-      <span class="pos-tp">TP ${t.tp?.toFixed(p)||'—'}</span>
-      <span class="pos-type">${_h(t.entry_type||'')}</span>
-      <span class="pos-hold" data-entry="${t.entry_time||''}" data-max="${_getMaxHold(t.mode)}"></span>
-      <button class="btn-s" style="color:var(--red);border-color:rgba(239,68,68,.3)" onclick="closeTrade('${t.trade_id}')">撤退</button>
+    const prec=PAIRS[pair]?.precision||3;
+    const pips=t.unrealized_pips||0;
+    const pnlCls=pips>0.5?'win':pips<-0.5?'lose':'flat';
+    const pnlText=`${pips>=0?'+':''}${pips.toFixed(1)}p`;
+    // 概算金額
+    const pipVal=PIP_VALUE[pair]||PIP_VALUE[t.instrument]||100;
+    const ccy=PIP_CCY[pair]||PIP_CCY[t.instrument]||'¥';
+    const amt=pips*pipVal;
+    const amtText=`${amt>=0?'+':''}${ccy}${Math.abs(amt)>=1000?(Math.abs(amt)/1000).toFixed(1)+'k':Math.round(Math.abs(amt))}`;
+    const amtFull=`${amt>=0?'+':''}${ccy}${Math.abs(Math.round(amt)).toLocaleString()}`;
+    const strat=SNAME[t.entry_type]||t.entry_type||'';
+    return `<div class="pos-card">
+      <div class="pos-top">
+        <span class="pos-flag">${pi.f}</span>
+        <span class="pos-pair-name">${pi.n}</span>
+        <span class="pos-dir ${isBuy?'buy':'sell'}">${t.direction}</span>
+        <span class="pos-mode-tag">${def.icon}${def.label}</span>
+      </div>
+      <div class="pos-pnl-area">
+        <span class="pos-pnl-badge ${pnlCls}">${pnlText}</span>
+        <span class="pos-amount ${pnlCls}">${amtFull}</span>
+      </div>
+      <div class="pos-detail">
+        <span class="pos-entry">@ ${t.entry_price?.toFixed(prec)||'—'}</span>
+        <span class="pos-sl">SL ${t.sl?.toFixed(prec)||'—'}</span>
+        <span class="pos-tp">TP ${t.tp?.toFixed(prec)||'—'}</span>
+        <span class="pos-type">${_h(strat)}</span>
+        <span class="pos-hold" data-entry="${t.entry_time||''}" data-max="${_getMaxHold(t.mode)}"></span>
+      </div>
+      <div style="display:flex;justify-content:flex-end">
+        <button class="btn-s" style="color:var(--red);border-color:rgba(239,68,68,.3)" onclick="closeTrade('${t.trade_id}')">撤退</button>
+      </div>
     </div>`;
   }).join('');
   el.innerHTML=html;

@@ -430,6 +430,35 @@ class DemoTrader:
                 "last_signal": self._last_signals.get(m),
             }
 
+        # ── オープンポジションに現在価格・含み損益を付与 ──
+        _status_price_cache = {}
+        for t in open_trades:
+            try:
+                _inst = t.get("instrument") or "USD_JPY"
+                _mode = t.get("mode", "")
+                _sym = MODE_CONFIG.get(_mode, {}).get("symbol", "USDJPY=X")
+                if _inst not in _status_price_cache:
+                    # _price_history から最新価格を取得（API呼び出し不要）
+                    _ph = self._price_history.get(_inst, [])
+                    if _ph:
+                        _status_price_cache[_inst] = _ph[-1][1]
+                    else:
+                        _status_price_cache[_inst] = 0
+                _cp = _status_price_cache[_inst]
+                t["current_price"] = _cp
+                _ep = t.get("entry_price", 0) or 0
+                if _cp and _ep:
+                    _pip_mult = 100 if _inst in ("USD_JPY", "EUR_JPY", "GBP_JPY") else 10000
+                    if t.get("direction") == "BUY":
+                        t["unrealized_pips"] = round((_cp - _ep) * _pip_mult, 1)
+                    else:
+                        t["unrealized_pips"] = round((_ep - _cp) * _pip_mult, 1)
+                else:
+                    t["unrealized_pips"] = 0
+            except Exception:
+                t["current_price"] = 0
+                t["unrealized_pips"] = 0
+
         # log_count: 5秒キャッシュ（SELECT COUNT(*)を毎回回避）
         if _now - getattr(self, '_log_count_cache_ts', 0) >= 5:
             try:
