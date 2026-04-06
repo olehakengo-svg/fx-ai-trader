@@ -39,7 +39,16 @@ class BBRsiReversion(StrategyBase):
     _death_valley_hours = frozenset({0, 1, 9, 12, 13, 14, 15, 16})
     _gold_hours = frozenset({5, 6, 7, 8, 19, 20, 21, 22, 23})
 
+    # ── ペアフィルター (2026-04-06 Session Matrix BT) ──
+    # EUR/GBP: 全セッション壊滅 (Tokyo PF=0.29, NY Overlap PF=0.53) → 完全無効化
+    _disabled_symbols = frozenset({"EURGBP"})
+
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        # ── EUR/GBP無効化: 全セッションPF<0.7 ──
+        _sym = ctx.symbol.upper().replace("=X", "").replace("_", "")
+        if _sym in self._disabled_symbols:
+            return None
+
         # ── ペア別ADX / 時間帯フィルター (Option C) ──
         if ctx.is_jpy:
             # USD/JPY: Death Valley完全ブロック

@@ -53,10 +53,24 @@ class VolMomentumScalp(StrategyBase):
         "EURJPY", "GBPUSD", "XAUUSD",
     })
 
+    # ── セッションフィルター (2026-04-06 Session Matrix BT) ──
+    # XAU/USD: Tokyo PF=1.65 ✅, London PF=∞ ✅, NY_Overlap PF=0.67 ❌, NY_Late PF=0.54 ❌
+    # EUR/JPY: NY_Late PF=0.42 ❌
+    # → XAU/USD NY時間帯ブロック, EUR/JPY NY_Late ブロック
+    _blocked_hours_by_pair = {
+        "XAUUSD": frozenset(range(12, 24)),  # NY全体ブロック
+        "EURJPY": frozenset(range(16, 24)),  # NY_Lateブロック
+    }
+
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         # ── 通貨ペアフィルター: BT正EVペアのみ発火 ──
         _sym_clean = ctx.symbol.upper().replace("=X", "").replace("_", "")
         if _sym_clean not in self._enabled_symbols:
+            return None
+
+        # ── セッションフィルター: 特定ペア×時間帯のEV壊滅ゾーンをブロック ──
+        _blocked = self._blocked_hours_by_pair.get(_sym_clean)
+        if _blocked and ctx.hour_utc in _blocked:
             return None
 
         # ── 前提条件: ADX >= 22 (トレンド存在の確認) ──

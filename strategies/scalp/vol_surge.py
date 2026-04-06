@@ -46,8 +46,22 @@ class VolSurgeDetector(StrategyBase):
     momentum_tp_mult = 2.0    # トレンド追随TP
     momentum_sl_mult = 0.8    # トレンド追随SL
 
+    # ── セッションフィルター (2026-04-06 Session Matrix BT) ──
+    # USD/JPY: Tokyo PF=2.17 ✅, NY_Overlap PF=0.67 ❌, NY_Late PF=0.54 ❌
+    # EUR/GBP: Tokyo PF=0.52 ❌, NY_Overlap PF=2.10 ✅, NY_Late PF=1.39 ✅
+    # → USD/JPY = Tokyo+Londonのみ, EUR/GBP = NY以降のみ
+    _blocked_hours_by_pair = {
+        "USDJPY": frozenset(range(12, 24)),  # NY時間帯ブロック
+    }
+
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         if ctx.df is None or len(ctx.df) < self.vol_lookback + 5:
+            return None
+
+        # ── 通貨ペア×セッション フィルター ──
+        _sym_check = ctx.symbol.upper().replace("=X", "").replace("_", "")
+        _blocked = self._blocked_hours_by_pair.get(_sym_check)
+        if _blocked and ctx.hour_utc in _blocked:
             return None
 
         # ── 出来高急増判定 ──

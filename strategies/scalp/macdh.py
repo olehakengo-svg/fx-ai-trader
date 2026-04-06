@@ -16,7 +16,22 @@ class MacdhReversal(StrategyBase):
     tp_mult = 1.5         # TP倍率
     sl_mult = 1.0         # SL倍率
 
+    # ── ペア×セッションフィルター (2026-04-06 Session Matrix BT) ──
+    # EUR/GBP: 全セッション壊滅 PF=0.15-0.54 → 完全無効化
+    # XAU/USD: NY_Overlap PF=0.46(16t) ❌ → NYブロック
+    _disabled_symbols = frozenset({"EURGBP"})
+    _blocked_hours_by_pair = {
+        "XAUUSD": frozenset(range(12, 16)),  # NY_Overlapのみブロック
+    }
+
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        _sym = ctx.symbol.upper().replace("=X", "").replace("_", "")
+        if _sym in self._disabled_symbols:
+            return None
+        _blocked = self._blocked_hours_by_pair.get(_sym)
+        if _blocked and ctx.hour_utc in _blocked:
+            return None
+
         signal = None
         score = 0.0
         reasons = []

@@ -40,10 +40,19 @@ class GoldPipsHunter(StrategyBase):
     # XAU/USD のみ
     _enabled_symbols = frozenset({"XAUUSD"})
 
+    # ── セッションフィルター (2026-04-06 Session Matrix BT) ──
+    # Tokyo PF=1.57(28t) ✅, NY Overlap PF=0.53(17t) ❌, NY Late PF=0.61(12t) ❌
+    # → Tokyo+London限定 (UTC 0-12)
+    _active_hours = frozenset(range(0, 12))
+
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         # ── XAU/USDフィルター ──
         _sym = ctx.symbol.upper().replace("=X", "").replace("_", "")
         if _sym not in self._enabled_symbols:
+            return None
+
+        # ── セッションフィルター: NY時間帯は壊滅的 (PF<0.7) ──
+        if ctx.hour_utc not in self._active_hours:
             return None
 
         if ctx.df is None or len(ctx.df) < 10:
