@@ -206,6 +206,13 @@ class DemoDB:
             except Exception:
                 pass
 
+            # ── MAFE (Max Adverse / Favorable Excursion) ──
+            for _col in ["mafe_adverse_pips", "mafe_favorable_pips"]:
+                try:
+                    conn.execute(f"ALTER TABLE demo_trades ADD COLUMN {_col} REAL DEFAULT 0")
+                except Exception:
+                    pass
+
             # ── OANDA設定永続化テーブル ──
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS oanda_settings (
@@ -289,8 +296,10 @@ class DemoDB:
 
     def close_trade(self, trade_id: str, exit_price: float,
                     close_reason: str = "TP_HIT",
-                    spread_at_exit: float = 0.0) -> dict:
-        """Close an open trade, compute PnL."""
+                    spread_at_exit: float = 0.0,
+                    mafe_adverse_pips: float = 0.0,
+                    mafe_favorable_pips: float = 0.0) -> dict:
+        """Close an open trade, compute PnL. Stores MAFE excursion data."""
         with self._lock:
             with self._safe_conn() as conn:
                 row = conn.execute(
@@ -328,10 +337,12 @@ class DemoDB:
                     UPDATE demo_trades SET
                         status='CLOSED', exit_price=?, exit_time=?,
                         pnl_pips=?, pnl_r=?, outcome=?, close_reason=?,
-                        spread_at_exit=?
+                        spread_at_exit=?,
+                        mafe_adverse_pips=?, mafe_favorable_pips=?
                     WHERE trade_id=? AND status='OPEN'
                 """, (exit_price, now_str, pnl_pips, pnl_r, outcome,
-                      close_reason, spread_at_exit, trade_id))
+                      close_reason, spread_at_exit,
+                      mafe_adverse_pips, mafe_favorable_pips, trade_id))
                 conn.commit()
 
                 if cursor.rowcount == 0:

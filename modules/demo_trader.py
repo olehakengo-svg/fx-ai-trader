@@ -252,6 +252,8 @@ class DemoTrader:
         self._total_losses_window = []  # [(timestamp, mode, pips)] 直近の全損失記録
         self._price_history = {}        # {instrument: [(timestamp, price)]} 通貨ペア別価格推移
         self._trade_high_water = {}     # trade_id -> max favorable price（BE/トレーリング用）
+        # ── MAFE (Max Adverse / Favorable Excursion) ──
+        self._mafe_tracker = {}         # {trade_id: {"max_high": float, "min_low": float}}
         # ── SL狩り対策: クロス戦略カスケード防御 + Fast-SL検出 ──
         self._sl_hit_history = []       # [(timestamp, instrument, entry_type, hold_sec)] SL_HIT履歴
         # ── MTF連携: 15m DT → 1m Scalp 戦略バイアス（通貨ペア別）──
@@ -952,6 +954,19 @@ class DemoTrader:
                     price = _ba_rt["ask"]   # SELL決済 → ask
 
             # ══════════════════════════════════════════════════════════════
+            # ── MAFE追跡: Max Adverse / Favorable Excursion ──
+            # 各バーの価格でmax_high/min_lowを更新し、決済時にMAE/MFEをDB保存
+            # ══════════════════════════════════════════════════════════════
+            if trade_id not in self._mafe_tracker:
+                self._mafe_tracker[trade_id] = {"max_high": price, "min_low": price}
+            else:
+                _mt = self._mafe_tracker[trade_id]
+                if price > _mt["max_high"]:
+                    _mt["max_high"] = price
+                if price < _mt["min_low"]:
+                    _mt["min_low"] = price
+
+            # ══════════════════════════════════════════════════════════════
             # ── ブレイクイーブン（BT統一: 60% TP到達でBE、トレーリングなし）──
             # BTと同一ロジック: 60%到達でSL→エントリー価格に移動のみ
             # ══════════════════════════════════════════════════════════════
@@ -1071,8 +1086,25 @@ class DemoTrader:
                 if _ba_rt:
                     _spread_exit = round((_ba_rt["ask"] - _ba_rt["bid"]) * _pip_m_exit, 2)
 
+                # ── MAFE計算: 保持中のmax/min → MAE/MFE (pips) ──
+                _mafe_adverse = 0.0
+                _mafe_favorable = 0.0
+                _mt = self._mafe_tracker.pop(trade_id, None)
+                if _mt:
+                    if direction == "BUY":
+                        _mafe_adverse = round((entry_price - _mt["min_low"]) * _pip_m_exit, 1)
+                        _mafe_favorable = round((_mt["max_high"] - entry_price) * _pip_m_exit, 1)
+                    else:
+                        _mafe_adverse = round((_mt["max_high"] - entry_price) * _pip_m_exit, 1)
+                        _mafe_favorable = round((entry_price - _mt["min_low"]) * _pip_m_exit, 1)
+                    # MAE/MFE は常に正値
+                    _mafe_adverse = max(_mafe_adverse, 0.0)
+                    _mafe_favorable = max(_mafe_favorable, 0.0)
+
                 result = self._db.close_trade(trade_id, price, close_reason,
-                                              spread_at_exit=_spread_exit)
+                                              spread_at_exit=_spread_exit,
+                                              mafe_adverse_pips=_mafe_adverse,
+                                              mafe_favorable_pips=_mafe_favorable)
                 if "error" in result:
                     continue  # 別スレッドで既にクローズ済み → スキップ
 
@@ -1765,6 +1797,19 @@ class DemoTrader:
             if _spread_pips > _spread_limit:
                 _block(f"spread_wide({_spread_pips:.1f}pip>{_spread_limit})")
                 return
+
+            # ══════════════════════════════════════════════════════════════
+            # ── 動的スプレッドガード: spread_cost / expected_profit > 0.3 ──
+            # スプレッドコスト（往復）が期待利益の30%を超えるとedge不足で見送り
+            # ══════════════════════════════════════════════════════════════
+            _sig_tp = sig.get("tp", 0)
+            _sig_entry = sig.get("entry", current_price)
+            _expected_profit_pips = abs(_sig_tp - _sig_entry) * (100 if _is_jpy else 10000) if _sig_tp else 0
+            if _expected_profit_pips > 0:
+                _spread_cost_ratio = (_spread_pips * 2) / _expected_profit_pips  # 往復スプレッド
+                if _spread_cost_ratio > 0.30:
+                    _block(f"spread_guard(cost={_spread_pips*2:.1f}pip/profit={_expected_profit_pips:.1f}pip={_spread_cost_ratio:.0%})")
+                    return
 
         # ══════════════════════════════════════════════════════════════
         # ── SL狩り対策A1: 価格スパイク検出 ──

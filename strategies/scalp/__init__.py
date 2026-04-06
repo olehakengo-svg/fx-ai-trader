@@ -29,6 +29,9 @@ from strategies.scalp.sr_channel_reversal import SrChannelReversal
 from strategies.scalp.session_vol_expansion import SessionVolExpansion
 from strategies.scalp.vol_momentum import VolMomentumScalp
 from strategies.scalp.ema_ribbon import EmaRibbonRide
+from strategies.scalp.vol_surge import VolSurgeDetector
+from strategies.scalp.london_shrapnel import LondonShrapnel
+from strategies.scalp.gold_pips import GoldPipsHunter
 
 
 class ScalperEngine:
@@ -51,6 +54,9 @@ class ScalperEngine:
             SessionVolExpansion(),  # EUR/USD ロンドンオープン圧縮ブレイク
             VolMomentumScalp(),     # 順張りBBブレイク (ADX>=30, trend-following)
             EmaRibbonRide(),        # パーフェクトオーダー押し目 (12-17 UTC優先)
+            VolSurgeDetector(),     # 出来高急増クライマックス反転/モメンタム初動 (全ペア)
+            LondonShrapnel(),       # London/NY異常ヒゲ反転 (EUR/GBP専用)
+            GoldPipsHunter(),       # XAU/USD 5m方向同期包み足 (Gold専用)
             EngulfingBB(),          # enabled=False
             ThreeBarReversal(),     # enabled=False
             SrChannelReversal(),    # enabled=False

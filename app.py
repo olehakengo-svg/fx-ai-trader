@@ -4861,6 +4861,10 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 # 2026-04-06 順張りスキャルプ新戦略
                 "vol_momentum_scalp",     # ADX>=22 BB σ1.8ブレイクアウト (trend-following, 2026-04-06最適化)
                 "ema_ribbon_ride",        # パーフェクトオーダー押し目 (JPY/XAU限定, 12-17 UTC優先)
+                # 2026-04-06 Phase2: エッジ多角化
+                "vol_surge_detector",     # 出来高急増クライマックス反転/モメンタム (全ペア)
+                "london_shrapnel",        # London/NY異常ヒゲ反転 (EUR/GBP専用)
+                "gold_pips_hunter",       # XAU/USD 5m同期包み足 (Gold専用)
                 # DISABLED: v_reversal, trend_rebound, ihs_neckbreak
                 # DISABLED: sr_touch_bounce, rsi_divergence_sr, v1互換6種
             }
@@ -5282,6 +5286,10 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "trendline_sweep",               # TL Sweep: Trendline Sweep Trap (Phase 5)
                 "inducement_ob",                 # IOB: Inducement & Order Block Trap (Phase 5)
                 "post_news_vol",                 # PNV: Post-News Volatility Run (Phase 5)
+                # 2026-04-06 Phase2: DT エッジ強化
+                "london_ny_swing",               # London H/L Break (EUR/GBP)
+                "gold_vol_break",                # XAU BB(2.5σ) breakout (RR 1:3)
+                "jpy_basket_trend",              # JPYバスケットPO順張り (USD/EUR JPY)
                 # DISABLED: ihs_neckbreak (2t EV≒0), dual_sr_breakout,
                 # dt_fib_reversal, dt_sr_channel_reversal, ema200_trend_reversal
             }

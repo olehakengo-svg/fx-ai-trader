@@ -29,6 +29,9 @@ from strategies.daytrade.turtle_soup import TurtleSoup
 from strategies.daytrade.trendline_sweep import TrendlineSweep
 from strategies.daytrade.inducement_ob import InducementOrderBlock
 from strategies.daytrade.post_news_vol import PostNewsVol
+from strategies.daytrade.london_ny_swing import LondonNySwing
+from strategies.daytrade.gold_vol_break import GoldVolBreak
+from strategies.daytrade.jpy_basket_trend import JpyBasketTrend
 
 
 class DaytradeEngine:
@@ -51,6 +54,9 @@ class DaytradeEngine:
             TrendlineSweep(),              # TL Sweep: Trendline Sweep Trap (Edwards & Magee)
             InducementOrderBlock(),        # IOB: Inducement & Order Block Trap (Kyle 1985)
             PostNewsVol(),                 # PNV: Post-News Volatility Run (Ederington 1993)
+            LondonNySwing(),               # London H/L Break → 前日H/L (EUR/GBP専用)
+            GoldVolBreak(),                # XAU BB(2.5σ) ATR surge breakout (RR 1:3)
+            JpyBasketTrend(),              # JPYバスケットPO順張り (USD/EUR JPY専用)
             DtFibReversal(),
             DtSrChannelReversal(),
             Ema200TrendReversal(),
