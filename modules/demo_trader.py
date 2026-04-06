@@ -805,7 +805,26 @@ class DemoTrader:
                     trade_id = demo_trade["trade_id"]
                     mode = demo_trade.get("mode", "")
                     cfg = MODE_CONFIG.get(mode, {})
-                    result = self._db.close_trade(trade_id, close_price, "OANDA_SL_TP")
+                    # ── MAFE計算 (OANDA_SL_TP決済パス) ──
+                    _mafe_adv_oa = 0.0
+                    _mafe_fav_oa = 0.0
+                    _dir_oa = demo_trade.get("direction", "")
+                    _inst_oa = demo_trade.get("instrument", "USD_JPY")
+                    _pip_m_oa = 100 if "JPY" in _inst_oa else 10000
+                    _ep_oa = demo_trade.get("entry_price", 0)
+                    _mt_oa = self._mafe_tracker.pop(trade_id, None)
+                    if _mt_oa and _ep_oa:
+                        if _dir_oa == "BUY":
+                            _mafe_adv_oa = round((_ep_oa - _mt_oa["min_low"]) * _pip_m_oa, 1)
+                            _mafe_fav_oa = round((_mt_oa["max_high"] - _ep_oa) * _pip_m_oa, 1)
+                        else:
+                            _mafe_adv_oa = round((_mt_oa["max_high"] - _ep_oa) * _pip_m_oa, 1)
+                            _mafe_fav_oa = round((_ep_oa - _mt_oa["min_low"]) * _pip_m_oa, 1)
+                        _mafe_adv_oa = max(_mafe_adv_oa, 0.0)
+                        _mafe_fav_oa = max(_mafe_fav_oa, 0.0)
+                    result = self._db.close_trade(trade_id, close_price, "OANDA_SL_TP",
+                                                  mafe_adverse_pips=_mafe_adv_oa,
+                                                  mafe_favorable_pips=_mafe_fav_oa)
                     if "error" not in result:
                         pnl = result.get("pnl_pips", 0)
                         outcome = result.get("outcome", "?")
@@ -1594,6 +1613,11 @@ class DemoTrader:
                             and _get_base_mode(t.get("mode", "")) == _base_mode]
         if len(_mode_inst_trades) >= _mode_limit:
             _block(f"max_per_mode_pair({_base_mode}/{instrument}:{len(_mode_inst_trades)}/{_mode_limit})"); return
+        # ── 同一ペア逆方向ヘッジ防止 (2026-04-06 audit fix) ──
+        # scalp limit=2 でもBUY+SELL同時保有はスプレッド二重消費 → ブロック
+        for _ot in _mode_inst_trades:
+            if _ot.get("direction") and _ot["direction"] != signal:
+                _block(f"hedge_block({_base_mode}/{instrument}:{_ot['direction']}vs{signal})"); return
         # グローバル安全上限（全通貨ペア・全モード合計）
         if len(open_trades) >= self._params["max_open_trades"]:
             _block("max_open"); return
@@ -2319,7 +2343,26 @@ class DemoTrader:
             except Exception:
                 pass
 
-            result = self._db.close_trade(trade_id, _close_price, close_reason)
+            # ── MAFE計算 (SIGNAL_REVERSE決済パス) ──
+            _mafe_adverse_sr = 0.0
+            _mafe_favorable_sr = 0.0
+            _is_jpy_sr = "JPY" in _instrument_sr
+            _pip_m_sr = 100 if _is_jpy_sr else 10000
+            entry_price_sr = trade.get("entry_price", 0)
+            _mt_sr = self._mafe_tracker.pop(trade_id, None)
+            if _mt_sr and entry_price_sr:
+                if direction == "BUY":
+                    _mafe_adverse_sr = round((entry_price_sr - _mt_sr["min_low"]) * _pip_m_sr, 1)
+                    _mafe_favorable_sr = round((_mt_sr["max_high"] - entry_price_sr) * _pip_m_sr, 1)
+                else:
+                    _mafe_adverse_sr = round((_mt_sr["max_high"] - entry_price_sr) * _pip_m_sr, 1)
+                    _mafe_favorable_sr = round((entry_price_sr - _mt_sr["min_low"]) * _pip_m_sr, 1)
+                _mafe_adverse_sr = max(_mafe_adverse_sr, 0.0)
+                _mafe_favorable_sr = max(_mafe_favorable_sr, 0.0)
+
+            result = self._db.close_trade(trade_id, _close_price, close_reason,
+                                          mafe_adverse_pips=_mafe_adverse_sr,
+                                          mafe_favorable_pips=_mafe_favorable_sr)
             if "error" in result:
                 return  # 別スレッドで既にクローズ済み → スキップ
 

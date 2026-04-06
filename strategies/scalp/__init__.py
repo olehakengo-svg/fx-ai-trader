@@ -71,10 +71,14 @@ class ScalperEngine:
 
     def evaluate_all(self, ctx: SignalContext) -> list[Candidate]:
         """全有効戦略を評価し、候補リストを返す。"""
+        # ATR=0ガード: ATR未算出時は全戦略スキップ (2026-04-06 audit fix)
+        if ctx.atr <= 0:
+            logger.debug("[ScalperEngine] ATR<=0 → skip all strategies")
+            return []
         candidates = []
         _rejected = []
         # SL最低距離フロア: ATR(14)×1.0（ノイズレベル以下のSL防止）
-        _min_sl_dist = ctx.atr * 1.0 if ctx.atr > 0 else 0
+        _min_sl_dist = ctx.atr * 1.0
         for strategy in self.strategies:
             if not strategy.enabled:
                 continue
