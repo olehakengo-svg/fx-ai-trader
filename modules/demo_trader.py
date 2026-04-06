@@ -262,6 +262,9 @@ class DemoTrader:
         self._health_thread = None
         self._watchdog_thread = None
         self._last_request_tick = {}  # mode -> timestamp (リクエスト駆動tick用)
+        # ── OANDA専用サーキットブレーカー (デモは制限なし) ──
+        self._oanda_was_active = False  # 前回のOANDA active状態 (再開検出用)
+        self._oanda_resume_ts = None    # OANDA最終再開時刻 (リミットリセット基準)
 
     def _resend_pending_oanda_trades(self):
         """デプロイ中にOANDA未連携だったOPENトレードを補完送信.
@@ -1233,28 +1236,62 @@ class DemoTrader:
             print("[MainLoop] Thread exiting — watchdog will restart", flush=True)
 
     def _check_drawdown(self) -> bool:
-        """日次損失・最大DD制限チェック。制限到達ならTrue（トレード禁止）"""
+        """OANDA専用サーキットブレーカー: 日次 -30pip / DD -100pip。
+        制限到達 → OANDA全モード自動停止（デモは常に継続 = 常にFalse返却）。
+        OANDA非稼働時は何もしない（データ蓄積優先）。
+        ユーザーがOAモードを再ON → リミット自動リセット。"""
+        _DAILY_LIMIT = -30   # 日次損失リミット (pip)
+        _DD_LIMIT = -100     # 最大DD リミット (pip, OANDA再開以降の累計)
         try:
-            stats = self._db.get_stats()
-            total_pnl = stats.get("total_pnl", 0)
+            # ── OANDA再開検出 → リミットリセット ──
+            _oa_active = self._oanda.active and bool(self._oanda._allowed_modes)
+            if _oa_active and not self._oanda_was_active:
+                self._oanda_resume_ts = datetime.now(timezone.utc)
+                self._add_log(
+                    f"🟢 OANDA再開: 日次({_DAILY_LIMIT}pip)/DD({_DD_LIMIT}pip)リミット適用開始")
+                print(f"[CB] OANDA resumed — limits reset at "
+                      f"{self._oanda_resume_ts.isoformat()}", flush=True)
+            self._oanda_was_active = _oa_active
 
-            # 最大DD制限
-            if total_pnl <= self._params["max_drawdown_pips"]:
-                return True
+            if not _oa_active or not self._oanda_resume_ts:
+                return False  # OANDA非稼働 → 制限なし、デモ継続
 
-            # 日次損失制限
-            today_trades = self._db.get_closed_trades(limit=100)
+            # ── 再開以降のクローズ済みトレードの PnL を集計 ──
+            closed = self._db.get_closed_trades(limit=200)
+            resume_iso = self._oanda_resume_ts.isoformat()
+            recent = [t for t in closed
+                      if (t.get("exit_time") or "") >= resume_iso]
+
+            # DD制限: 再開以降の累計 PnL
+            pnl_since_resume = sum(t.get("pnl_pips", 0) for t in recent)
+            if pnl_since_resume <= _DD_LIMIT:
+                self._oanda_kill("DD制限到達", pnl_since_resume, _DD_LIMIT)
+                return False  # デモ継続
+
+            # 日次制限: 今日の再開以降 PnL
             today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
             daily_pnl = sum(
-                t.get("pnl_pips", 0) for t in today_trades
-                if t.get("exit_time", "").startswith(today)
-            )
-            if daily_pnl <= self._params["daily_loss_limit_pips"]:
-                return True
+                t.get("pnl_pips", 0) for t in recent
+                if (t.get("exit_time") or "").startswith(today))
+            if daily_pnl <= _DAILY_LIMIT:
+                self._oanda_kill("日次損失制限到達", daily_pnl, _DAILY_LIMIT)
+                return False  # デモ継続
 
-            return False
+            return False  # デモは常に継続
         except Exception:
             return False
+
+    def _oanda_kill(self, reason: str, pnl: float, limit: float):
+        """OANDA全モード自動停止（デモは継続）。
+        ユーザーがダッシュボードからOAモードを再ONすればリセット＆再適用。"""
+        modes_before = sorted(self._oanda._allowed_modes) if self._oanda._allowed_modes else []
+        self._oanda._allowed_modes = set()
+        self._oanda._save_allowed_modes()
+        self._add_log(
+            f"🔴 OANDA CB発動: {reason} ({pnl:+.1f}pip / limit {limit}pip) "
+            f"— OANDA全モード停止 [{','.join(modes_before)}]、デモ継続")
+        print(f"[CB] OANDA killed: {reason} ({pnl:+.1f}pip / {limit}pip) "
+              f"modes={modes_before}", flush=True)
 
     def _tick_with_catch(self, mode: str, result: list):
         """_tickを実行して例外をresult[0]に格納。タイムアウト用ワーカー。"""
