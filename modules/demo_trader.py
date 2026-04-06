@@ -1122,22 +1122,18 @@ class DemoTrader:
     # ── Main Loop (全モード統合・シングルスレッド) ──────────────────────────
 
     def _main_loop(self):
-        """全モードをバッチ並列処理するメインループ。
+        """全モードを順次処理するメインループ（タイムアウト最適化版）。
         scalp=10s, daytrade=30s, 1h=60s の間隔で各モードをtick。
-        (2026-04-06 perf: 直列join→3並列バッチで11モード処理,メモリ保護)"""
+        (2026-04-06 perf: tick timeout 60s→30s, sleep 0.5→1s, 初回stagger)"""
         import sys
-        from concurrent.futures import ThreadPoolExecutor, as_completed
-        # ステータスを即座に設定（"unknown"状態を最小化）
         self._main_loop_status = "starting"
         self._main_loop_error = None
-        print("[DemoTrader] MainLoop started (batch-parallel, max_workers=2)", flush=True)
+        print("[DemoTrader] MainLoop started (serial, timeout=30s)", flush=True)
         sys.stdout.flush()
         _last_tick = {}
         _consecutive_errors = {}
         _restart_count = getattr(self, '_main_loop_restart_count', 0)
         self._main_loop_restart_count = _restart_count + 1
-        # ThreadPoolExecutor: 最大2並列 (GIL争奪を最小化しAPI応答を確保)
-        _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="tick")
 
         self._main_loop_status = "running"
         self._main_loop_start_ts = time.time()
@@ -1158,56 +1154,62 @@ class DemoTrader:
                         _tc = getattr(self, '_tick_counts', {})
                         print(f"[MainLoop] iter={_loop_iter} started={_modes_list} "
                               f"running={_running_modes} ticks={_tc} restart#{_restart_count}", flush=True)
-                    # ── Phase 1: due判定 ──
-                    _due_modes = []
                     for mode in list(self._started_modes):
                         runner = self._runners.get(mode, {})
                         if not runner.get("running", False):
                             continue
+
                         cfg = MODE_CONFIG[mode]
                         interval = cfg["interval_sec"]
                         last = _last_tick.get(mode, 0)
+
                         # 初回tick分散: 起動直後は mode index × 3秒ずらし
                         if last == 0:
                             _idx = list(MODE_CONFIG.keys()).index(mode) if mode in MODE_CONFIG else 0
                             _stagger = _idx * 3
                             if now - self._main_loop_start_ts < _stagger:
                                 continue
+
                         if now - last < interval:
                             continue
-                        _due_modes.append(mode)
 
-                    # ── Phase 2: ThreadPoolExecutor で最大3並列実行 ──
-                    if _due_modes:
-                        _futures = {}
-                        for mode in _due_modes:
-                            _futures[_executor.submit(self._tick, mode)] = (mode, time.time())
-                        for fut in as_completed(_futures, timeout=65):
-                            mode, _tick_start = _futures[fut]
-                            cfg = MODE_CONFIG[mode]
-                            try:
-                                fut.result(timeout=1)
-                                _tick_dur = time.time() - _tick_start
-                                _consecutive_errors[mode] = 0
+                        # ── このモードのtickを実行（30秒タイムアウト）──
+                        try:
+                            _tick_start = time.time()
+                            _tick_result = [None]
+                            _tick_thread = threading.Thread(
+                                target=self._tick_with_catch, args=(mode, _tick_result), daemon=True)
+                            _tick_thread.start()
+                            _tick_thread.join(timeout=30)  # 60s→30sに短縮
+                            if _tick_thread.is_alive():
+                                print(f"[MainLoop/{mode}] TIMEOUT after 30s — skipping", flush=True)
                                 _last_tick[mode] = time.time()
-                                _tick_count = getattr(self, '_tick_counts', {})
-                                _tick_count[mode] = _tick_count.get(mode, 0) + 1
-                                self._tick_counts = _tick_count
-                                if _tick_count[mode] <= 3 or _tick_count[mode] % 10 == 0 or _tick_dur > 15:
-                                    print(f"[MainLoop/{mode}] tick #{_tick_count[mode]} ok ({_tick_dur:.1f}s)", flush=True)
-                            except Exception as e:
                                 errs = _consecutive_errors.get(mode, 0) + 1
                                 _consecutive_errors[mode] = errs
-                                try:
-                                    self._add_log(f"❌ [{cfg['label']}] エラー({errs}): {e}")
-                                except Exception:
-                                    pass
-                                print(f"[MainLoop/{mode}] Error #{errs}: {e}", flush=True)
-                                import traceback; traceback.print_exc()
-                                _last_tick[mode] = time.time()
-                                if errs >= 10:
-                                    print(f"[MainLoop/{mode}] Too many errors, backing off 60s", flush=True)
-                                    time.sleep(60)
+                                continue
+                            if _tick_result[0] is not None:
+                                raise _tick_result[0]
+                            _tick_dur = time.time() - _tick_start
+                            _consecutive_errors[mode] = 0
+                            _last_tick[mode] = time.time()
+                            _tick_count = getattr(self, '_tick_counts', {})
+                            _tick_count[mode] = _tick_count.get(mode, 0) + 1
+                            self._tick_counts = _tick_count
+                            if _tick_count[mode] <= 3 or _tick_count[mode] % 10 == 0 or _tick_dur > 15:
+                                print(f"[MainLoop/{mode}] tick #{_tick_count[mode]} ok ({_tick_dur:.1f}s)", flush=True)
+                        except Exception as e:
+                            errs = _consecutive_errors.get(mode, 0) + 1
+                            _consecutive_errors[mode] = errs
+                            try:
+                                self._add_log(f"❌ [{cfg['label']}] エラー({errs}): {e}")
+                            except Exception:
+                                pass
+                            print(f"[MainLoop/{mode}] Error #{errs}: {e}", flush=True)
+                            import traceback; traceback.print_exc()
+                            _last_tick[mode] = time.time()
+                            if errs >= 10:
+                                print(f"[MainLoop/{mode}] Too many errors, backing off 60s", flush=True)
+                                time.sleep(60)
 
                 except Exception as e:
                     print(f"[MainLoop] Outer error: {e}", flush=True)
@@ -1222,10 +1224,6 @@ class DemoTrader:
             self._main_loop_error = f"{type(fatal).__name__}: {fatal}"
             print(f"[MainLoop] FATAL: {type(fatal).__name__}: {fatal}", flush=True)
             import traceback; traceback.print_exc()
-            try:
-                _executor.shutdown(wait=False)
-            except Exception:
-                pass
             try:
                 self._add_log(f"💀 メインループ致命的エラー: {type(fatal).__name__}: {fatal}")
             except Exception:
