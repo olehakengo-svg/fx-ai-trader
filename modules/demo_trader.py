@@ -1007,8 +1007,9 @@ class DemoTrader:
                     _mt["min_low"] = price
 
             # ══════════════════════════════════════════════════════════════
-            # ── ブレイクイーブン（BT統一: 60% TP到達でBE、トレーリングなし）──
-            # BTと同一ロジック: 60%到達でSL→エントリー価格に移動のみ
+            # ── ブレイクイーブン ──
+            # 通常: 60%TP到達でBE
+            # SMC戦略(inducement_ob, turtle_soup): 3pips含み益でBE+0.1pip
             # ══════════════════════════════════════════════════════════════
             tp_dist = abs(tp - entry_price)
             if direction == "BUY":
@@ -1017,16 +1018,35 @@ class DemoTrader:
                 favorable_move = entry_price - price
 
             _original_sl = sl  # OANDA SL変更検出用
+            _entry_type_t = t.get("entry_type", "")
+            _SMC_TYPES = {"inducement_ob", "turtle_soup", "trendline_sweep"}
+            _is_smc = _entry_type_t in _SMC_TYPES
+
+            if _ba_rt:
+                _spread_amt = _ba_rt["ask"] - _ba_rt["bid"]
+            else:
+                _spread_amt = 0.008 if "JPY" in _inst else 0.00008
+
+            _is_jpy_or_xau_be = "JPY" in _inst or "XAU" in _inst
+            _pip_val_be = 0.01 if _is_jpy_or_xau_be else 0.0001
+
             if favorable_move > 0 and tp_dist > 0:
                 progress = favorable_move / tp_dist  # 0.0 ~ 1.0+
 
-                if progress >= 0.60:
-                    # 60%到達: BEのみ（トレーリングなし = BT統一）
-                    # スプレッド考慮: BUYはbidで決済されるのでentry+spread、SELLはaskで決済されるのでentry-spread
-                    if _ba_rt:
-                        _spread_amt = _ba_rt["ask"] - _ba_rt["bid"]
+                if _is_smc and favorable_move >= 3.0 * _pip_val_be:
+                    # SMC専用: 3pips含み益で即BE+0.1pip (負けを物理消去)
+                    _be_buffer = 0.1 * _pip_val_be
+                    if direction == "BUY":
+                        new_sl = round(entry_price + _spread_amt + _be_buffer, _pip_decimals)
+                        if new_sl > sl:
+                            sl = new_sl
                     else:
-                        _spread_amt = 0.008 if "JPY" in _inst else 0.00008
+                        new_sl = round(entry_price - _spread_amt - _be_buffer, _pip_decimals)
+                        if new_sl < sl:
+                            sl = new_sl
+
+                elif progress >= 0.60:
+                    # 通常戦略: 60%到達でBE
                     if direction == "BUY":
                         new_sl = round(entry_price + _spread_amt, _pip_decimals)
                         if new_sl > sl:
