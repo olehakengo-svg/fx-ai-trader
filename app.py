@@ -4858,6 +4858,9 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "ema_pullback",     # EMAプルバック — BB中央帯発火
                 # 2026-04-04 EUR/USD新戦略
                 "session_vol_expansion",  # SVE: ロンドンオープン圧縮ブレイク
+                # 2026-04-06 順張りスキャルプ新戦略
+                "vol_momentum_scalp",     # ADX>=30 BB突破ブレイクアウト (trend-following)
+                "ema_ribbon_ride",        # パーフェクトオーダー押し目 (12-17 UTC優先)
                 # DISABLED: v_reversal, trend_rebound, ihs_neckbreak
                 # DISABLED: sr_touch_bounce, rsi_divergence_sr, v1互換6種
             }

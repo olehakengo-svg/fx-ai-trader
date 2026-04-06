@@ -27,6 +27,8 @@ from strategies.scalp.engulfing_bb import EngulfingBB
 from strategies.scalp.three_bar_reversal import ThreeBarReversal
 from strategies.scalp.sr_channel_reversal import SrChannelReversal
 from strategies.scalp.session_vol_expansion import SessionVolExpansion
+from strategies.scalp.vol_momentum import VolMomentumScalp
+from strategies.scalp.ema_ribbon import EmaRibbonRide
 
 
 class ScalperEngine:
@@ -47,6 +49,8 @@ class ScalperEngine:
             TrendRebound(),
             VReversal(),
             SessionVolExpansion(),  # EUR/USD ロンドンオープン圧縮ブレイク
+            VolMomentumScalp(),     # 順張りBBブレイク (ADX>=30, trend-following)
+            EmaRibbonRide(),        # パーフェクトオーダー押し目 (12-17 UTC優先)
             EngulfingBB(),          # enabled=False
             ThreeBarReversal(),     # enabled=False
             SrChannelReversal(),    # enabled=False
