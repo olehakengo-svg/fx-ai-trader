@@ -269,7 +269,6 @@ class DemoTrader:
         if not self._oanda.active:
             return
         try:
-            from datetime import datetime, timezone, timedelta
             pending = self._db.get_open_trades_without_oanda()
             if not pending:
                 return
@@ -1291,9 +1290,9 @@ class DemoTrader:
             return
 
         # ── 時間帯フィルター (EUR/JPY等の限定稼働) ──
+        # NOTE: datetime/timezone はモジュールレベルで import 済み (L12)
         _active_hours = cfg.get("active_hours_utc")
         if _active_hours is not None:
-            from datetime import datetime, timezone
             _now_utc = datetime.now(timezone.utc)
             if not (_active_hours[0] <= _now_utc.hour <= _active_hours[1]):
                 return  # 稼働時間外はスキップ
