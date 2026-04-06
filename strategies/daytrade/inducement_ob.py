@@ -486,6 +486,11 @@ class InducementOrderBlock(StrategyBase):
         if ctx.adx < self.ADX_MIN or ctx.adx > self.ADX_MAX:
             return None
 
+        # ── ATR NaN guard (起動直後にインジケータ未計算の場合) ──
+        import numpy as np
+        if ctx.atr is None or np.isnan(ctx.atr) or ctx.atr <= 0:
+            return None
+
         cur_idx = len(ctx.df) - 1
 
         # ═══════════════════════════════════════════════════

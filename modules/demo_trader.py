@@ -468,7 +468,7 @@ class DemoTrader:
                 t["current_price"] = _cp
                 _ep = t.get("entry_price", 0) or 0
                 if _cp and _ep:
-                    _pip_mult = 100 if _inst in ("USD_JPY", "EUR_JPY", "GBP_JPY") else 10000
+                    _pip_mult = 100 if (_inst in ("USD_JPY", "EUR_JPY", "GBP_JPY") or "XAU" in _inst) else 10000
                     if t.get("direction") == "BUY":
                         t["unrealized_pips"] = round((_cp - _ep) * _pip_mult, 1)
                     else:
@@ -833,7 +833,7 @@ class DemoTrader:
                     _mafe_fav_oa = 0.0
                     _dir_oa = demo_trade.get("direction", "")
                     _inst_oa = demo_trade.get("instrument", "USD_JPY")
-                    _pip_m_oa = 100 if "JPY" in _inst_oa else 10000
+                    _pip_m_oa = 100 if ("JPY" in _inst_oa or "XAU" in _inst_oa) else 10000
                     _ep_oa = demo_trade.get("entry_price", 0)
                     _mt_oa = self._mafe_tracker.pop(trade_id, None)
                     self._entry_atr.pop(trade_id, None)
@@ -1010,8 +1010,8 @@ class DemoTrader:
                     _mt["min_low"] = price
 
             # ══════════════════════════════════════════════════════════════
-            # ── ブレイクイーブン ──
-            # 通常: 60%TP到達でBE
+            # ── ブレイクイーブン (共通建値ガード) ──
+            # 通常: ATR*0.8 到達でBE (建値+スプレッド)
             # SMC戦略(inducement_ob, turtle_soup): 3pips含み益でBE+0.1pip
             # ══════════════════════════════════════════════════════════════
             tp_dist = abs(tp - entry_price)
@@ -1149,8 +1149,8 @@ class DemoTrader:
 
                 # ── P0監視: 決済時スプレッド記録 ──
                 _spread_exit = 0.0
-                _is_jpy_exit = "JPY" in _inst
-                _pip_m_exit = 100 if _is_jpy_exit else 10000
+                _is_jpy_or_xau_exit = "JPY" in _inst or "XAU" in _inst
+                _pip_m_exit = 100 if _is_jpy_or_xau_exit else 10000
                 if _ba_rt:
                     _spread_exit = round((_ba_rt["ask"] - _ba_rt["bid"]) * _pip_m_exit, 2)
 
@@ -1898,7 +1898,8 @@ class DemoTrader:
             # ══════════════════════════════════════════════════════════════
             _sig_tp = sig.get("tp", 0)
             _sig_entry = sig.get("entry", current_price)
-            _expected_profit_pips = abs(_sig_tp - _sig_entry) * (100 if _is_jpy else 10000) if _sig_tp else 0
+            _is_jpy_or_xau_sg = _is_jpy or "XAU" in instrument
+            _expected_profit_pips = abs(_sig_tp - _sig_entry) * (100 if _is_jpy_or_xau_sg else 10000) if _sig_tp else 0
             if _expected_profit_pips > 0:
                 _spread_cost_ratio = (_spread_pips * 2) / _expected_profit_pips  # 往復スプレッド
                 if _spread_cost_ratio > 0.30:
@@ -1909,14 +1910,15 @@ class DemoTrader:
         # ── SL狩り対策A1: 価格スパイク検出 ──
         # 直近60秒で価格が急変動(>ATR×0.5)→ SL狩りスパイク中のため見送り
         # ══════════════════════════════════════════════════════════════
-        _atr_spike = sig.get("atr", 0.07 if _is_jpy else 0.00070)
+        _atr_spike = sig.get("atr", 0.07 if (_is_jpy or "XAU" in instrument) else 0.00070)
         _spike_cutoff = datetime.now(timezone.utc) - timedelta(seconds=60)
         _inst_history = self._price_history.get(instrument, [])
         _spike_prices = [p for t, p in _inst_history if t > _spike_cutoff]
         if len(_spike_prices) >= 3:
             _spike_range = max(_spike_prices) - min(_spike_prices)
             if _spike_range > _atr_spike * 0.5:
-                _block(f"spike({_spike_range*100 if _is_jpy else _spike_range*10000:.1f}pip/60s)")
+                _spike_m = 100 if (_is_jpy or "XAU" in instrument) else 10000
+                _block(f"spike({_spike_range*_spike_m:.1f}pip/60s)")
                 return
 
         # ══════════════════════════════════════════════════════════════
@@ -2010,8 +2012,9 @@ class DemoTrader:
 
         _base_mode = _get_base_mode(mode)  # scalp_eur/scalp_eurjpy -> scalp
         _is_jpy = "JPY" in instrument
+        _is_jpy_or_xau = _is_jpy or "XAU" in instrument
         _price_dec = 3 if _is_jpy else 5
-        _atr = sig.get("atr", 0.07 if _is_jpy else 0.00070)
+        _atr = sig.get("atr", 0.07 if _is_jpy_or_xau else 0.00070)
         _sl_margin = _atr * 0.3  # SR外側バッファ
 
         # ── 1H Breakout SL/TP完全保存 ──
@@ -2066,8 +2069,8 @@ class DemoTrader:
                 sl = round(_atr_sl, _price_dec)
                 sl_dist = abs(current_price - _atr_sl)
 
-            # 最低SL距離保証
-            if _is_jpy:
+            # 最低SL距離保証 (XAU uses same pip scale as JPY)
+            if _is_jpy_or_xau:
                 MIN_SL_DIST = {"scalp": 0.030, "daytrade": 0.050, "swing": 0.100}.get(_base_mode, 0.030)
             else:
                 MIN_SL_DIST = {"scalp": 0.00030, "daytrade": 0.00050, "swing": 0.00100}.get(_base_mode, 0.00030)
@@ -2138,8 +2141,9 @@ class DemoTrader:
         # 機関はXX.000, XX.500, XX.050等のSLクラスターを狙う
         # SLがラウンドナンバー近傍(2pip以内)なら外側にずらす
         # ══════════════════════════════════════════════════════════════
-        if _is_jpy:
-            _sl_frac = sl % 0.500  # 50銭刻みからの距離
+        if _is_jpy_or_xau:
+            # JPY: 50銭刻み, XAU: $0.50刻み — 同じpip scale
+            _sl_frac = sl % 0.500
             if _sl_frac < 0.020 or _sl_frac > 0.480:  # 2pip以内
                 _nudge = 0.025  # 2.5pip外側
                 if signal == "BUY":
@@ -2161,7 +2165,8 @@ class DemoTrader:
         # ── SL狩り対策F1: SLクラスタ回避 ──
         # 新規SLが既存オープンポジションのSLと2pip以内 → カスケードリスク
         # ══════════════════════════════════════════════════════════════
-        _sl_cluster_thresh = 0.020 if _is_jpy else 0.00020  # 2pip
+        _is_jpy_or_xau_cl = _is_jpy or "XAU" in instrument
+        _sl_cluster_thresh = 0.020 if _is_jpy_or_xau_cl else 0.00020  # 2pip
         _open_for_cluster = self._db.get_open_trades()
         _sl_clustered = False
         for _ot in _open_for_cluster:
@@ -2194,7 +2199,7 @@ class DemoTrader:
         # ── P0監視: スリッページ・スプレッド・COOLDOWN記録 ──
         # ══════════════════════════════════════════════════════════════
         _signal_price = sig.get("entry", 0)  # シグナル関数のmid価格
-        _pip_m_mon = 100 if _is_jpy else 10000
+        _pip_m_mon = 100 if (_is_jpy or "XAU" in instrument) else 10000
         _slippage = round((current_price - _signal_price) * _pip_m_mon, 2) if _signal_price else 0
         if signal == "SELL":
             _slippage = -_slippage  # SELL: bid<mid → 負のスリッページが正常
@@ -2233,7 +2238,9 @@ class DemoTrader:
         )
 
         # ── 建値ガード用: ATR保存 ──
-        self._entry_atr[trade_id] = sig.get("atr", 0.07 if _is_jpy else 0.00070)
+        # XAU uses same pip scale as JPY (100), fallback ATR must match
+        _is_jpy_or_xau_atr = _is_jpy or "XAU" in instrument
+        self._entry_atr[trade_id] = sig.get("atr", 0.07 if _is_jpy_or_xau_atr else 0.00070)
 
         # ── 動的ロットサイジング: 2軸制御 (SL距離 + ATR/Spread) ──
         # Axis 1: SL距離連動 — リスク額正規化 (既存)
@@ -2241,7 +2248,8 @@ class DemoTrader:
         import os as _os
         _cfg_lot = MODE_CONFIG.get(mode, {})
         _base_sl_pips = _cfg_lot.get("base_sl_pips", 3.5)
-        _pip_m_d1 = 100 if _is_jpy else 10000
+        _is_jpy_or_xau_lot = _is_jpy or "XAU" in instrument
+        _pip_m_d1 = 100 if _is_jpy_or_xau_lot else 10000
         _actual_sl_pips = sl_dist * _pip_m_d1
 
         # Axis 1: SL距離連動
@@ -2249,7 +2257,7 @@ class DemoTrader:
         _sl_ratio = max(_sl_ratio, 0.5)
 
         # Axis 2: ATR/Spread比 (Edge Quality)
-        _atr_val = sig.get("atr", 0.07 if _is_jpy else 0.00070)
+        _atr_val = sig.get("atr", 0.07 if _is_jpy_or_xau else 0.00070)
         _atr_pips = _atr_val * _pip_m_d1
         _spread_pips = _spread_entry if _spread_entry > 0 else (0.4 if _is_jpy else 0.4)  # already in pips
         _edge_ratio = _atr_pips / max(_spread_pips, 0.1)
@@ -2350,7 +2358,7 @@ class DemoTrader:
                 parts.append(",".join(_clean[:3]))
         elif outcome == "LOSS":
             if close_reason == "SL_HIT":
-                _pip_m = 100 if "JPY" in instrument else 10000
+                _pip_m = 100 if ("JPY" in instrument or "XAU" in instrument) else 10000
                 _sl_dist = abs(entry_price - sl) * _pip_m if sl and entry_price else 999
                 if spread_entry > 0 and _sl_dist > 0 and spread_entry / _sl_dist > 0.3:
                     parts.append(f"spread負け({spread_entry:.1f}p)")
@@ -2424,8 +2432,8 @@ class DemoTrader:
             # ── MAFE計算 (SIGNAL_REVERSE決済パス) ──
             _mafe_adverse_sr = 0.0
             _mafe_favorable_sr = 0.0
-            _is_jpy_sr = "JPY" in _instrument_sr
-            _pip_m_sr = 100 if _is_jpy_sr else 10000
+            _is_jpy_or_xau_sr = "JPY" in _instrument_sr or "XAU" in _instrument_sr
+            _pip_m_sr = 100 if _is_jpy_or_xau_sr else 10000
             entry_price_sr = trade.get("entry_price", 0)
             _mt_sr = self._mafe_tracker.pop(trade_id, None)
             self._entry_atr.pop(trade_id, None)
