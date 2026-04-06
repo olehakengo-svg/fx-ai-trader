@@ -1035,14 +1035,18 @@ class DemoTrader:
 
             if favorable_move > 0 and tp_dist > 0:
                 # ── 共通建値ガード: ATR*0.8 到達で SL→建値 ──
-                # SMC戦略(inducement_ob, turtle_soup): 3pip即BE (より攻撃的)
-                # 通常戦略: ATR*0.8 到達でBE (旧: 60%TP到達)
+                # SMC戦略: FX=3pip即BE / XAU=10pip(ノイズ回避)
+                # 通常戦略: ATR*0.8 到達でBE
                 _entry_atr_be = self._entry_atr.get(trade_id,
                     0.07 if _is_jpy_or_xau_be else 0.00070)
                 _be_threshold = _entry_atr_be * 0.8  # raw price units
 
-                if _is_smc and favorable_move >= 3.0 * _pip_val_be:
-                    # SMC専用: 3pips含み益で即BE+0.1pip (負けを物理消去)
+                # XAU 3pip BE → ノイズで建値撤退連発("BE貧乏")のため10pipに拡大
+                _is_xau_be = "XAU" in _inst
+                _smc_be_pips = 10.0 if _is_xau_be else 3.0
+
+                if _is_smc and favorable_move >= _smc_be_pips * _pip_val_be:
+                    # SMC専用: BE+0.1pip (負けを物理消去)
                     _be_buffer = 0.1 * _pip_val_be
                     if direction == "BUY":
                         new_sl = round(entry_price + _spread_amt + _be_buffer, _pip_decimals)
@@ -2311,12 +2315,15 @@ class DemoTrader:
         from modules.demo_db import pip_multiplier as _pm
         _pip_m = _pm(instrument)
         rr_actual = round(tp_dist / sl_dist, 1) if sl_dist > 0 else 0
+        _lot_info = f"lot={_adjusted_units}"
+        if _strat_boost > 1.0:
+            _lot_info += f"(🚀{_strat_boost}x)"
         self._add_log(
             f"{cfg['icon']} 📥 IN [{cfg['label']}]: {signal} @ {current_price:.{_price_dec}f} | "
             f"SL {sl:.{_price_dec}f}({sl_dist*_pip_m:.1f}p) TP {tp:.{_price_dec}f}({tp_dist*_pip_m:.1f}p) RR1:{rr_actual} | "
             f"Type: {entry_type} | Conf: {confidence}% | "
             f"理由: {_reason_summary} | ID: {trade_id} | "
-            f"📊 slip={_slippage:+.2f}p spread={_spread_entry:.1f}p CD={_cd_elapsed:.0f}s"
+            f"📊 slip={_slippage:+.2f}p spread={_spread_entry:.1f}p {_lot_info} CD={_cd_elapsed:.0f}s"
         )
 
     def _generate_close_analysis(self, trade: dict, close_reason: str,

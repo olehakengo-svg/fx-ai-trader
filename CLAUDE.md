@@ -155,7 +155,7 @@
 - **SL technical positioning**: SR-based (nearest SR - ATRx0.3) priority over ATR-based. RR>=1.0 guaranteed
 
 ### Breakeven & Trailing Stop
-- **BE trigger (共通建値ガード)**: ATR*0.8到達 → SL moves to BE (entry+spread). SMC戦略は3pip即BE. (旧: 60%TP到達)
+- **BE trigger (共通建値ガード)**: ATR*0.8到達 → SL moves to BE (entry+spread). SMC戦略: FX=3pip即BE / XAU=10pip(ノイズ回避). (旧: 60%TP到達)
 - **No trailing stop**: BE=ATR*0.8 only (trailing removed per BT/Production param unification)
 - **Price velocity filter**: >8pip move in 10min blocks counter-direction entry [Cont 2001]
 - **ADX regime block**: ADX>=35 strong trend blocks counter-trend entry
