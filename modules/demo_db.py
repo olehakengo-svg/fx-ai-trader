@@ -165,7 +165,6 @@ class DemoDB:
                 CREATE INDEX IF NOT EXISTS idx_algo_change_log_ts ON algo_change_log(timestamp);
                 -- (2026-04-05 perf) 追加インデックス: 学習エンジン高速化
                 CREATE INDEX IF NOT EXISTS idx_trades_exit_time ON demo_trades(exit_time);
-                CREATE INDEX IF NOT EXISTS idx_trades_mode_status ON demo_trades(mode, status);
                 CREATE INDEX IF NOT EXISTS idx_logs_id ON demo_logs(id);
             """)
             # Add mode column to existing demo_trades if missing
@@ -247,6 +246,14 @@ class DemoDB:
                 CREATE INDEX IF NOT EXISTS idx_oanda_open_time ON oanda_trades(open_time);
                 CREATE INDEX IF NOT EXISTS idx_oanda_close_time ON oanda_trades(close_time);
             """)
+
+            # ── 遅延インデックス作成: ALTER TABLE後のカラムに依存するインデックス ──
+            # mode カラムは ALTER TABLE で追加されるため、executescript 外で作成
+            try:
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_trades_mode_status ON demo_trades(mode, status)")
+            except Exception:
+                pass
+
             conn.commit()
 
     # ── Trade CRUD ──────────────────────────────────

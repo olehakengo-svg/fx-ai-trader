@@ -166,6 +166,8 @@ class SignalContext:
             stoch_k=float(row.get("stoch_k", 50.0)),
             stoch_d=float(row.get("stoch_d", 50.0)),
             adx=float(row.get("adx", 25.0)),
+            adx_pos=float(row.get("adx_pos", 25.0)),
+            adx_neg=float(row.get("adx_neg", 25.0)),
             macdh=macdh,
             macdh_prev=macdh_prev,
             macdh_prev2=macdh_prev2,

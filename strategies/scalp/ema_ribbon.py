@@ -47,8 +47,21 @@ class EmaRibbonRide(StrategyBase):
     ema_proximity_atr = 0.5    # EMA9近接判定 (ATR7 × この値以内)
     rsi_buy_max = 55           # BUY時のRSI上限
     rsi_sell_min = 45          # SELL時のRSI下限
-    tp_mult = 1.5              # TP = ATR7 × tp_mult
+    tp_mult = 1.5              # TP = ATR7 × tp_mult (デフォルト)
     adx_min = 18               # 最低ADX（トレンド存在の最低証拠）
+
+    # ── ペア別TP倍率 (BT最適化 2026-04-06) ──
+    # EUR/JPY: WR=59.3% → TP短縮で勝率安定化
+    _tp_mult_by_pair = {
+        "EURJPY": 1.3,
+    }
+
+    # ── 通貨ペアフィルター (BT検証 2026-04-06) ──
+    # USD/JPY EV=+0.353, EUR/JPY EV=+0.206, XAU/USD EV=+0.262 → 有効
+    # EUR/USD EV=-0.086, GBP/USD EV=-0.571, EUR/GBP EV=-0.290 → 無効
+    _enabled_symbols = frozenset({
+        "USDJPY", "EURJPY", "XAUUSD",        # yfinance形式 (=X除去後)
+    })
 
     # ── 時間帯スコア調整 ──
     _prime_hours = frozenset(range(12, 18))      # 12-17 UTC: +1.0
@@ -56,6 +69,11 @@ class EmaRibbonRide(StrategyBase):
     # それ以外: -0.5 penalty
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        # ── 通貨ペアフィルター: BT正EVペアのみ発火 ──
+        _sym_clean = ctx.symbol.upper().replace("=X", "").replace("_", "")
+        if _sym_clean not in self._enabled_symbols:
+            return None
+
         # ── 最低ADX要件: トレンドが存在しない環境を排除 ──
         if ctx.adx < self.adx_min:
             return None
@@ -117,6 +135,14 @@ class EmaRibbonRide(StrategyBase):
 
         if signal is None:
             return None
+
+        # ── ペア別TP倍率適用 ──
+        _effective_tp_mult = self._tp_mult_by_pair.get(_sym_clean, self.tp_mult)
+        if tp != 0.0:
+            if signal == "BUY":
+                tp = ctx.entry + ctx.atr7 * _effective_tp_mult
+            else:
+                tp = ctx.entry - ctx.atr7 * _effective_tp_mult
 
         # ── 時間帯スコア調整 (12-17 UTC 最優先) ──
         if ctx.hour_utc in self._prime_hours:

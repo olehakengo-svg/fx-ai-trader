@@ -11,8 +11,8 @@ Vol Momentum Scalp — 順張りブレイクアウト戦略 (Trend-Following Sca
   - 順張り × 高ADX は逆張りの苦手な相場環境で正のEVを持つ (Jegadeesh & Titman 1993)
 
 エントリー:
-  BUY:  ADX >= 30 AND +DI > -DI AND Close > bb_upper AND Close > Open (陽線)
-  SELL: ADX >= 30 AND -DI > +DI AND Close < bb_lower AND Close < Open (陰線)
+  BUY:  ADX >= 22 AND +DI > -DI AND %B >= 0.90 (≈σ1.8) AND Close > Open (陽線)
+  SELL: ADX >= 22 AND -DI > +DI AND %B <= 0.10 (≈σ1.8) AND Close < Open (陰線)
 
 決済:
   TP: ATR7 × 1.8 (モメンタム継続分を取る)
@@ -34,18 +34,32 @@ class VolMomentumScalp(StrategyBase):
     mode = "scalp"
     enabled = True
 
-    # ── チューナブルパラメータ ──
-    adx_min = 30            # トレンド強度の最低要件
-    bbpb_buy = 1.0          # %B >= 1.0 = Close > bb_upper
-    bbpb_sell = 0.0          # %B <= 0.0 = Close < bb_lower
+    # ── チューナブルパラメータ (2026-04-06 BT最適化) ──
+    # ADX: 30→22 (5m/1m足で発火率改善、トレンド初動も捕捉)
+    # BB %B: 1.0/0.0→0.90/0.10 (σ2.0→σ1.8相当、エントリー機会拡大)
+    adx_min = 22            # トレンド強度の最低要件 (30→22)
+    bbpb_buy = 0.90         # %B >= 0.90 ≈ σ1.8 上方ブレイク (1.0→0.90)
+    bbpb_sell = 0.10        # %B <= 0.10 ≈ σ1.8 下方ブレイク (0.0→0.10)
     rsi_overbought = 85     # 過熱ブロック上限
     rsi_oversold = 15       # 過熱ブロック下限
-    bb_width_pct_min = 0.40 # BBバンド幅パーセンタイル最低値
+    bb_width_pct_min = 0.35 # BBバンド幅パーセンタイル最低値 (0.40→0.35)
     tp_mult = 1.8           # TP = ATR7 × tp_mult
     sl_mult = 0.8           # SL = ATR7 × sl_mult
 
+    # ── 通貨ペアフィルター (BT検証 2026-04-06, 14d/5m) ──
+    # EUR/JPY EV=+0.362, GBP/USD EV=+0.160, XAU/USD EV=+0.179 → 有効
+    # USD/JPY EV=-0.028, EUR/USD EV=-0.110, EUR/GBP EV=-0.070 → 無効
+    _enabled_symbols = frozenset({
+        "EURJPY", "GBPUSD", "XAUUSD",
+    })
+
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
-        # ── 前提条件: ADX >= 30 (強トレンド必須) ──
+        # ── 通貨ペアフィルター: BT正EVペアのみ発火 ──
+        _sym_clean = ctx.symbol.upper().replace("=X", "").replace("_", "")
+        if _sym_clean not in self._enabled_symbols:
+            return None
+
+        # ── 前提条件: ADX >= 22 (トレンド存在の確認) ──
         if ctx.adx < self.adx_min:
             return None
 

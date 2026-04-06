@@ -52,7 +52,16 @@ class FibReversal(StrategyBase):
     sl_mult = 0.5
     sl_fib_offset = 0.2    # フィボレベルからのSLオフセット（ATR倍率）
 
+    # ── ペア別無効化 (BT検証 2026-04-06) ──
+    # EUR/GBP: 53t WR=43.4% EV=-0.719 → ペア全体PnLを毀損
+    _disabled_symbols = frozenset({"EURGBP"})
+
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        # ── ペアフィルター: BT負EVペアは発火停止 ──
+        _sym_clean = ctx.symbol.upper().replace("=X", "").replace("_", "")
+        if _sym_clean in self._disabled_symbols:
+            return None
+
         if ctx.df is None or len(ctx.df) < self.min_lookback:
             return None
 
