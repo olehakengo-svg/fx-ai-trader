@@ -1653,7 +1653,8 @@ class DemoTrader:
         # (A) 同価格帯ブロック（モード別: scalp=1.0pip, DT=5pip, other=3pip）
         # scalp: 1.5→1.0pip (エントリー機会増), DT: 1.5→5pip (マシンガン防止)
         _is_jpy = "JPY" in instrument
-        if _is_jpy:
+        _is_jpy_or_xau = _is_jpy or "XAU" in instrument
+        if _is_jpy_or_xau:
             _same_price_dist = {"scalp": 0.010, "daytrade": 0.050}.get(_base_mode, 0.03)
         else:
             _same_price_dist = {"scalp": 0.00010, "daytrade": 0.00050}.get(_base_mode, 0.00030)
@@ -1713,6 +1714,7 @@ class DemoTrader:
             "turtle_soup",                   # Turtle Soup: Liquidity Grab Reversal (Phase 5, 2026-04-05)
             "trendline_sweep",               # TL Sweep: Trendline Sweep Trap (Phase 5, 2026-04-05)
             "inducement_ob",                 # IOB: Inducement & Order Block Trap (Phase 5, 2026-04-05)
+            "dual_sr_bounce",                # SR Bounce: legacy compute_signal SR回帰 (2026-04-07)
             "london_ny_swing",               # LDN-NYスイング: クロスセッション順張り (2026-04-07)
             "jpy_basket_trend",              # JPYバスケットトレンド: 円通貨連動 (2026-04-07)
             "gold_vol_break",                # ゴールド出来高ブレイク: XAU DT専用 (2026-04-07)
@@ -1845,8 +1847,9 @@ class DemoTrader:
         except Exception:
             _ba_entry = None
         if _ba_entry:
-            _spread_pips = (_ba_entry["ask"] - _ba_entry["bid"]) * (100 if _is_jpy else 10000)
-            _spread_limit = 1.2 if _is_jpy else 1.5  # pips
+            _is_jpy_scale = _is_jpy or "XAU" in instrument
+            _spread_pips = (_ba_entry["ask"] - _ba_entry["bid"]) * (100 if _is_jpy_scale else 10000)
+            _spread_limit = 50.0 if "XAU" in instrument else (1.2 if _is_jpy else 1.5)  # pips
             if _spread_pips > _spread_limit:
                 _block(f"spread_wide({_spread_pips:.1f}pip>{_spread_limit})")
                 return
