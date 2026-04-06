@@ -9215,6 +9215,7 @@ def api_backtest():
 
         if mode == "scalp":
             tf = request.args.get("tf", "1m")
+            symbol = request.args.get("symbol", "USDJPY=X")
             # 本番は1m足 → BTも1mがデフォルト（BT/本番統一原則）
             # 1m=30日（OANDA paginated）/ 5m=55日 / 15m=55日
             if tf == "5m":
@@ -9223,7 +9224,10 @@ def api_backtest():
                 interval, lookback = "15m", 55
             else:  # 1m がデフォルト（本番と統一）
                 interval, lookback = "1m", 7   # 1m=7日（処理時間制約、5mで長期確認可）
-            result = run_scalp_backtest("USDJPY=X", lookback_days=lookback, interval=interval)
+            days_override = request.args.get("days", None, type=int)
+            if days_override:
+                lookback = min(days_override, 60)
+            result = run_scalp_backtest(symbol, lookback_days=lookback, interval=interval)
         elif mode == "daytrade":
             result = run_daytrade_backtest("USDJPY=X", lookback_days=55, interval="15m")
         elif mode == "daytrade_1h":
