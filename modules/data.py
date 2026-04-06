@@ -553,14 +553,17 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
     now = datetime.now(timezone.utc)
     ttl = _TF_CACHE_TTL.get(interval, CACHE_TTL)
     # スレッドセーフなキャッシュ読取り (2026-04-05 audit fix)
+    # NOTE: _rt_patch がHTTP callするためロック外で実行 (2026-04-06 perf fix)
+    _cached_hit = None
     with _cache_lock:
         if key in _data_cache:
             cached_df, ts = _data_cache[key]
-            # naive/aware統一
             if ts.tzinfo is None:
                 ts = ts.replace(tzinfo=timezone.utc)
             if (now - ts).total_seconds() < ttl:
-                return _rt_patch(cached_df.copy(), symbol, interval)
+                _cached_hit = cached_df.copy()
+    if _cached_hit is not None:
+        return _rt_patch(_cached_hit, symbol, interval)
 
     df = None
 
