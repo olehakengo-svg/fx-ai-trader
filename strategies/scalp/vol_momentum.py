@@ -37,7 +37,7 @@ class VolMomentumScalp(StrategyBase):
     # ── チューナブルパラメータ (2026-04-06 BT最適化) ──
     # ADX: 30→22 (5m/1m足で発火率改善、トレンド初動も捕捉)
     # BB %B: 1.0/0.0→0.90/0.10 (σ2.0→σ1.8相当、エントリー機会拡大)
-    adx_min = 22            # トレンド強度の最低要件 (30→22)
+    adx_min = 20            # トレンド強度の最低要件 (30→22→20: 初動捕捉)
     bbpb_buy = 0.90         # %B >= 0.90 ≈ σ1.8 上方ブレイク (1.0→0.90)
     bbpb_sell = 0.10        # %B <= 0.10 ≈ σ1.8 下方ブレイク (0.0→0.10)
     rsi_overbought = 85     # 過熱ブロック上限
@@ -48,9 +48,10 @@ class VolMomentumScalp(StrategyBase):
 
     # ── 通貨ペアフィルター (BT検証 2026-04-06, 14d/5m) ──
     # EUR/JPY EV=+0.362, GBP/USD EV=+0.160, XAU/USD EV=+0.179 → 有効
-    # USD/JPY EV=-0.028, EUR/USD EV=-0.110, EUR/GBP EV=-0.070 → 無効
+    # USD/JPY EV=-0.028 → 損益分岐点 (scalp主力ペアで発火機会確保、トレンド時のみ発火)
+    # EUR/USD EV=-0.110, EUR/GBP EV=-0.070 → 無効
     _enabled_symbols = frozenset({
-        "EURJPY", "GBPUSD", "XAUUSD",
+        "USDJPY", "EURJPY", "GBPUSD", "XAUUSD",
     })
 
     # ── セッションフィルター (2026-04-06 Session Matrix BT) ──
@@ -74,7 +75,7 @@ class VolMomentumScalp(StrategyBase):
             return None
 
         # ── 前提条件: ADX >= 22 (トレンド存在の確認) ──
-        if ctx.adx < self.adx_min:
+        if ctx.adx < self.adx_min:  # ADX 20 (2026-04-07: 22→20, トレンド初動捕捉)
             return None
 
         # ── BB幅チェック: レンジ内のノイズブレイクを排除 ──

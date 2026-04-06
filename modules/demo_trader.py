@@ -140,6 +140,22 @@ MODE_CONFIG = {
         "auto_start": True,
         "base_sl_pips": 15,
     },
+    # ── XAU/USD Scalp (1m) — gold_pips_hunter + vol_momentum + ema_ribbon ──
+    # pip=0.01 (JPYスケール), OANDA XAU_USD
+    # 稼働時間: UTC 0-12 (Tokyo+London, gold_pips_hunter のセッションフィルター準拠)
+    "scalp_xau": {
+        "interval_sec": 10,
+        "tf": "1m",
+        "period": "1d",
+        "signal_fn": "compute_scalp_signal",
+        "label": "スキャルプXAU",
+        "icon": "⚡🥇",
+        "symbol": "XAUUSD=X",
+        "instrument": "XAU_USD",
+        "auto_start": True,
+        "base_sl_pips": 50,        # Gold 1m ATR ≈ 30-80 pips (0.01 scale)
+        "active_hours_utc": (0, 16),  # UTC 0-15 (Tokyo+London+NY_Overlap)
+    },
     # ── XAU/USD Daytrade (15m) — Phase5 SMC戦略展開 ──
     # SMC 3/4戦略(turtle_soup, trendline_sweep, inducement_ob)+LRC が XAUUSD 対応済み
     # pip=0.01 (JPYスケール), OANDA XAU_USD
@@ -482,6 +498,11 @@ class DemoTrader:
             "sltp_checker_active": bool(self._sltp_thread and self._sltp_thread.is_alive()),
             "tick_counts": getattr(self, '_tick_counts', None),
             "main_loop_restarts": getattr(self, '_main_loop_restart_count', 0),
+            # ── ブロック理由カウント (2026-04-07: 発火拒否の可視化) ──
+            "block_counts": dict(sorted(
+                getattr(self, '_block_counts', {}).items(),
+                key=lambda x: x[1], reverse=True
+            )[:30]),  # 上位30件のみ (キー爆発防止)
         }
 
     def request_tick(self):

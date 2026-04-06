@@ -56,11 +56,12 @@ class EmaRibbonRide(StrategyBase):
         "EURJPY": 1.3,
     }
 
-    # ── 通貨ペアフィルター (BT検証 2026-04-06) ──
+    # ── 通貨ペアフィルター (BT検証 2026-04-06, 2026-04-07 EURUSD追加) ──
     # USD/JPY EV=+0.353, EUR/JPY EV=+0.206, XAU/USD EV=+0.262 → 有効
-    # EUR/USD EV=-0.086, GBP/USD EV=-0.571, EUR/GBP EV=-0.290 → 無効
+    # EUR/USD EV=-0.086 → 損益分岐点 (PO条件が厳しく過剰発火リスク低い)
+    # GBP/USD EV=-0.571, EUR/GBP EV=-0.290 → 無効
     _enabled_symbols = frozenset({
-        "USDJPY", "EURJPY", "XAUUSD",        # yfinance形式 (=X除去後)
+        "USDJPY", "EURUSD", "EURJPY", "XAUUSD",
     })
 
     # ── 時間帯スコア調整 ──
@@ -86,9 +87,14 @@ class EmaRibbonRide(StrategyBase):
 
         _min_sl = 0.030 if ctx.is_jpy else 0.00030
 
-        # ── パーフェクトオーダー判定 ──
-        bull_po = (ctx.ema9 > ctx.ema21 > ctx.ema50 > ctx.ema200)
-        bear_po = (ctx.ema9 < ctx.ema21 < ctx.ema50 < ctx.ema200)
+        # ── フレキシブル・パーフェクトオーダー判定 (2026-04-07) ──
+        # 完全PO (EMA9>21>50>200) は1分足では極端に稀 → 緩和:
+        # 「EMA9とEMA21がEMA50の同じ側にある」ことを条件とする
+        # ボーナス: 完全POの場合は追加スコア +0.5
+        _strict_bull = (ctx.ema9 > ctx.ema21 > ctx.ema50 > ctx.ema200)
+        _strict_bear = (ctx.ema9 < ctx.ema21 < ctx.ema50 < ctx.ema200)
+        bull_po = (ctx.ema9 > ctx.ema50 and ctx.ema21 > ctx.ema50)
+        bear_po = (ctx.ema9 < ctx.ema50 and ctx.ema21 < ctx.ema50)
 
         if not bull_po and not bear_po:
             return None
@@ -107,7 +113,7 @@ class EmaRibbonRide(StrategyBase):
                 signal = "BUY"
                 score = 3.0
 
-                reasons.append(f"✅ パーフェクトオーダー(EMA9>{ctx.ema9:.5g}>21>{ctx.ema21:.5g}>50>200)")
+                reasons.append(f"✅ EMAリボン上位(EMA9={ctx.ema9:.5g},21={ctx.ema21:.5g}>50={ctx.ema50:.5g})")
                 reasons.append(f"✅ EMA9押し目(距離={ema9_dist/ctx.atr7:.2f}ATR≤{self.ema_proximity_atr})")
                 reasons.append(f"✅ 陽線反転(C={ctx.entry:.5g}>O={ctx.open_price:.5g})")
                 reasons.append(f"✅ RSI5非過熱({ctx.rsi5:.1f}<{self.rsi_buy_max})")
@@ -124,7 +130,7 @@ class EmaRibbonRide(StrategyBase):
                 signal = "SELL"
                 score = 3.0
 
-                reasons.append(f"✅ パーフェクトオーダー(EMA9<{ctx.ema9:.5g}<21<{ctx.ema21:.5g}<50<200)")
+                reasons.append(f"✅ EMAリボン下位(EMA9={ctx.ema9:.5g},21={ctx.ema21:.5g}<50={ctx.ema50:.5g})")
                 reasons.append(f"✅ EMA9戻り(距離={ema9_dist/ctx.atr7:.2f}ATR≤{self.ema_proximity_atr})")
                 reasons.append(f"✅ 陰線反転(C={ctx.entry:.5g}<O={ctx.open_price:.5g})")
                 reasons.append(f"✅ RSI5非過冷({ctx.rsi5:.1f}>{self.rsi_sell_min})")
@@ -155,6 +161,11 @@ class EmaRibbonRide(StrategyBase):
             reasons.append(f"⚠️ 低ボラ時間帯(UTC {ctx.hour_utc}:00) — スコア -0.5")
 
         # ── スコアボーナス ──
+
+        # 完全パーフェクトオーダーボーナス (EMA9>21>50>200 or 逆)
+        if (signal == "BUY" and _strict_bull) or (signal == "SELL" and _strict_bear):
+            score += 0.5
+            reasons.append("✅ 完全パーフェクトオーダー +0.5")
 
         # ADX強度ボーナス
         if ctx.adx >= 30:

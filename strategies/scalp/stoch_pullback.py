@@ -7,7 +7,7 @@ from typing import Optional
 class StochTrendPullback(StrategyBase):
     name = "stoch_trend_pullback"
     mode = "scalp"
-    enabled = False  # 無効化: ADX≥20でEV=-0.130、1分足ADXの遅行性によりエッジ不十分
+    enabled = True   # 復帰 (2026-04-07): 本番13t WR=46.2% EV=+1.08 — 全scalp戦略中最良EV
 
     # チューナブルパラメータ（学術水準: ADX≥20でトレンド確認）
     adx_min = 20          # ADXトレンド閾値（12→20: 学術的に有意なトレンド水準）
