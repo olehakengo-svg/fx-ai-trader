@@ -1683,6 +1683,9 @@ class DemoTrader:
             "fib_reversal",          # フィボ38.2-61.8%反発 — BB中央補完 (BT 61t WR57% EV+0.29)
             "ema_pullback",          # EMAプルバック反発 — BB中央帯でも発火 (FXアナリスト推奨新戦略)
             "session_vol_expansion",  # SVE: EUR/USD ロンドンオープン圧縮ブレイク (2026-04-04)
+            "vol_momentum_scalp",    # VolMomスキャルプ: ADX+OBV+VWAP順張り (2026-04-07)
+            "ema_ribbon_ride",       # EMAリボンライド: EMA9/21/50リボン順張り (2026-04-07)
+            "gold_pips_hunter",      # ゴールドPipsハンター: XAU専用スキャルプ (2026-04-07)
             # DISABLED (FXアナリストレビュー 2026-04-03):
             # "v_reversal",          # → bb_rsi統合予定 (サンプル5t)
             # "trend_rebound",       # 廃止: 1t EV=-1.22, 実質未発火
