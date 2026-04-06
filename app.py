@@ -10408,21 +10408,22 @@ def _auto_start_trader():
     _auto_start_done = True
 
     import time as _time
-    print(f"[AutoStart] Waiting 10s for initialization... (PID={os.getpid()})", flush=True)
-    _time.sleep(10)  # Gunicorn/Flask完全初期化を待つ
+    print(f"[AutoStart] Waiting 5s for initialization... (PID={os.getpid()})", flush=True)
+    _time.sleep(5)  # Gunicorn/Flask完全初期化を待つ（10s→5sに短縮）
     from modules.demo_trader import MODE_CONFIG as _mc
     _all_modes = [m for m, c in _mc.items() if c.get("auto_start", True)]
+    print(f"[AutoStart] Starting {len(_all_modes)} modes: {_all_modes}", flush=True)
     for _mode in _all_modes:
         try:
             result = _demo_trader.start(mode=_mode)
             print(f"[AutoStart] {_mode} → {result.get('status', 'unknown')}", flush=True)
-            _time.sleep(3)  # モード間で間隔を空ける
+            _time.sleep(1)  # モード間で間隔を空ける（3s→1sに短縮）
         except Exception as _e:
             print(f"[AutoStart] {_mode} failed: {_e}", flush=True)
             import traceback; traceback.print_exc()
 
-    # 起動確認: 15秒後に全スレッドの状態を検証
-    _time.sleep(15)
+    # 起動確認: 10秒後に全スレッドの状態を検証
+    _time.sleep(10)
     _status = _demo_trader.get_status()
     print(f"[AutoStart/Verify] main_loop={_status.get('main_loop_alive')} "
           f"main_status={_status.get('main_loop_status')} "
