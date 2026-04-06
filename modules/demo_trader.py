@@ -497,10 +497,10 @@ class DemoTrader:
                 pass
 
     def get_all_logs(self) -> list:
-        """DBから全ログを古い順で取得"""
+        """DBから最新30件を古い順(時系列)で取得"""
         try:
-            db_logs = self._db.get_logs(9999)
-            return list(reversed(db_logs))
+            db_logs = self._db.get_logs(30)   # 最新30件 (newest first)
+            return list(reversed(db_logs))     # oldest first → 時系列表示用
         except Exception:
             return []
 

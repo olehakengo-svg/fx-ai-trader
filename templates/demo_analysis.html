@@ -661,7 +661,7 @@ async function loadLogs(){
     const d=await r.json();
     const el=document.getElementById('demo-log');
     if(!el)return;
-    const logs=(d.logs||[]).slice(0,30);
+    const logs=(d.logs||[]).slice(-30);
     el.innerHTML=logs.map(line=>{
       let cls='';
       if(line.includes('📥'))cls='log-entry';
