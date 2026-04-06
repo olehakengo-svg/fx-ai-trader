@@ -270,6 +270,8 @@ class DemoTrader:
         self._trade_high_water = {}     # trade_id -> max favorable price（BE/トレーリング用）
         # ── MAFE (Max Adverse / Favorable Excursion) ──
         self._mafe_tracker = {}         # {trade_id: {"max_high": float, "min_low": float}}
+        # ── 建値ガード用: エントリー時ATR保存 ──
+        self._entry_atr = {}            # {trade_id: atr_value (raw price units)}
         # ── SL狩り対策: クロス戦略カスケード防御 + Fast-SL検出 ──
         self._sl_hit_history = []       # [(timestamp, instrument, entry_type, hold_sec)] SL_HIT履歴
         # ── MTF連携: 15m DT → 1m Scalp 戦略バイアス（通貨ペア別）──
@@ -834,6 +836,7 @@ class DemoTrader:
                     _pip_m_oa = 100 if "JPY" in _inst_oa else 10000
                     _ep_oa = demo_trade.get("entry_price", 0)
                     _mt_oa = self._mafe_tracker.pop(trade_id, None)
+                    self._entry_atr.pop(trade_id, None)
                     if _mt_oa and _ep_oa:
                         if _dir_oa == "BUY":
                             _mafe_adv_oa = round((_ep_oa - _mt_oa["min_low"]) * _pip_m_oa, 1)
@@ -1031,7 +1034,12 @@ class DemoTrader:
             _pip_val_be = 0.01 if _is_jpy_or_xau_be else 0.0001
 
             if favorable_move > 0 and tp_dist > 0:
-                progress = favorable_move / tp_dist  # 0.0 ~ 1.0+
+                # ── 共通建値ガード: ATR*0.8 到達で SL→建値 ──
+                # SMC戦略(inducement_ob, turtle_soup): 3pip即BE (より攻撃的)
+                # 通常戦略: ATR*0.8 到達でBE (旧: 60%TP到達)
+                _entry_atr_be = self._entry_atr.get(trade_id,
+                    0.07 if _is_jpy_or_xau_be else 0.00070)
+                _be_threshold = _entry_atr_be * 0.8  # raw price units
 
                 if _is_smc and favorable_move >= 3.0 * _pip_val_be:
                     # SMC専用: 3pips含み益で即BE+0.1pip (負けを物理消去)
@@ -1045,8 +1053,8 @@ class DemoTrader:
                         if new_sl < sl:
                             sl = new_sl
 
-                elif progress >= 0.60:
-                    # 通常戦略: 60%到達でBE
+                elif favorable_move >= _be_threshold:
+                    # 共通建値ガード: ATR*0.8到達でBE (建値+スプレッド)
                     if direction == "BUY":
                         new_sl = round(entry_price + _spread_amt, _pip_decimals)
                         if new_sl > sl:
@@ -1150,6 +1158,7 @@ class DemoTrader:
                 _mafe_adverse = 0.0
                 _mafe_favorable = 0.0
                 _mt = self._mafe_tracker.pop(trade_id, None)
+                self._entry_atr.pop(trade_id, None)
                 if _mt:
                     if direction == "BUY":
                         _mafe_adverse = round((entry_price - _mt["min_low"]) * _pip_m_exit, 1)
@@ -1869,7 +1878,16 @@ class DemoTrader:
         if _ba_entry:
             _is_jpy_scale = _is_jpy or "XAU" in instrument
             _spread_pips = (_ba_entry["ask"] - _ba_entry["bid"]) * (100 if _is_jpy_scale else 10000)
-            _spread_limit = 50.0 if "XAU" in instrument else (1.2 if _is_jpy else 1.5)  # pips
+            # ── 通貨ペア別スプレッド閾値 (pips) — 本番乖離解消 ──
+            _SPREAD_LIMITS = {
+                "USD_JPY": 1.0,
+                "EUR_USD": 1.2,
+                "GBP_USD": 1.2,
+                "EUR_GBP": 1.2,
+                "EUR_JPY": 1.2,
+                "XAU_USD": 4.0,
+            }
+            _spread_limit = _SPREAD_LIMITS.get(instrument, 1.2 if _is_jpy else 1.5)
             if _spread_pips > _spread_limit:
                 _block(f"spread_wide({_spread_pips:.1f}pip>{_spread_limit})")
                 return
@@ -2214,6 +2232,9 @@ class DemoTrader:
             cooldown_elapsed=_cd_elapsed,
         )
 
+        # ── 建値ガード用: ATR保存 ──
+        self._entry_atr[trade_id] = sig.get("atr", 0.07 if _is_jpy else 0.00070)
+
         # ── 動的ロットサイジング: 2軸制御 (SL距離 + ATR/Spread) ──
         # Axis 1: SL距離連動 — リスク額正規化 (既存)
         # Axis 2: ATR/Spread比 — エッジ品質に応じた加速/減速 (新規)
@@ -2245,6 +2266,11 @@ class DemoTrader:
             _vol_mult = 0.5    # 最弱 (スプレッド負けリスク)
 
         _lot_ratio = _sl_ratio * _vol_mult
+
+        # ── 戦略別ロットブースト: 本番EV良好な戦略を優遇 ──
+        _strat_boost = self._STRATEGY_LOT_BOOST.get(entry_type, 1.0)
+        _lot_ratio *= _strat_boost
+
         _lot_ratio = max(0.3, min(_lot_ratio, 2.0))
 
         _base_units = int(_os.environ.get("OANDA_UNITS", "10000"))
@@ -2402,6 +2428,7 @@ class DemoTrader:
             _pip_m_sr = 100 if _is_jpy_sr else 10000
             entry_price_sr = trade.get("entry_price", 0)
             _mt_sr = self._mafe_tracker.pop(trade_id, None)
+            self._entry_atr.pop(trade_id, None)
             if _mt_sr and entry_price_sr:
                 if direction == "BUY":
                     _mafe_adverse_sr = round((entry_price_sr - _mt_sr["min_low"]) * _pip_m_sr, 1)
@@ -2498,10 +2525,14 @@ class DemoTrader:
         # 学習完了後に戦略昇格を再評価
         self._evaluate_promotions()
 
+    # BT/本番コスト補正: 1トレードあたり1.0pipのコストを考慮
+    # EV > _BT_COST_PER_TRADE であれば、コスト差引後もEV正
+    _BT_COST_PER_TRADE = 1.0  # pips (spread + slippage)
+
     def _evaluate_promotions(self):
         """デモ実績に基づいて戦略をOANDA昇格/降格判定
         ファストトラック: N≥20 かつ WR≥60% かつ EV≥1.0 → 昇格
-        通常トラック:    N≥30 かつ EV>0 → 昇格
+        通常トラック:    N≥30 かつ EV≥1.0 → 昇格 (コスト補正: 1pip差引後にEV正)
         降格:           N≥30 かつ EV<-0.5 → 降格
         NOTE: 旧エリートトラック(N≥3)は統計的に不十分なため廃止
               (2026-04-05 audit fix: N=3で本番昇格は危険)
@@ -2519,10 +2550,10 @@ class DemoTrader:
                 wr = stats.get("wr", 0)
                 old = self._promoted_types.get(et, {}).get("status", "pending")
                 # ファストトラック: 十分なサンプル+高WR+高EV
-                if n >= 20 and wr >= 60.0 and ev >= 1.0:
+                if n >= 20 and wr >= 60.0 and ev >= self._BT_COST_PER_TRADE:
                     status = "promoted"
-                # 通常トラック: 十分なサンプルでEVプラス
-                elif n >= 30 and ev >= 0.0:
+                # 通常トラック: コスト補正後にEV正 (EV≥1.0pip)
+                elif n >= 30 and ev >= self._BT_COST_PER_TRADE:
                     status = "promoted"
                 # 降格: 十分なサンプルでEV大幅マイナス (SMC保護戦略は降格禁止)
                 elif n >= 30 and ev < -0.5 and et not in SMC_PROTECTED:
@@ -2622,16 +2653,27 @@ class DemoTrader:
 
         return status_list
 
+    # 本番EV負 → OANDA停止（デモ継続）の強制降格リスト
+    _FORCE_DEMOTED = {"sr_fib_confluence", "ema_cross", "inducement_ob"}
+
+    # 本番EV良好 → ロット1.3倍ブースト対象
+    _STRATEGY_LOT_BOOST = {
+        "stoch_trend_pullback": 1.3,  # EV +1.24
+        "sr_break_retest": 1.3,       # EV +13.8
+    }
+
     def _is_promoted(self, entry_type: str) -> bool:
         """戦略がOANDA実行可能か判定
-        NOTE: 一時的に全戦略をOANDA送信（フィルター解除中）
+        Force-demoted: 本番EVマイナスの戦略はデモ専用に降格（OANDA停止）
+        それ以外: OANDA送信許可（降格済みstatus="demoted"のみブロック）
         """
-        return True  # 一時的に全戦略をOANDA送信
-        # --- 元のロジック（復元時にコメント解除）---
-        # info = self._promoted_types.get(entry_type)
-        # if not info:
-        #     return False  # 未評価 = デモのみ
-        # return info["status"] == "promoted"
+        if entry_type in self._FORCE_DEMOTED:
+            return False  # デモ継続・OANDA停止
+        # 自動降格判定で demoted になった戦略もブロック
+        info = self._promoted_types.get(entry_type)
+        if info and info.get("status") == "demoted":
+            return False
+        return True  # 未評価・promoted・pending → OANDA送信
 
     def _apply_adjustments(self, adjustments: list):
         """学習エンジンの調整を適用。

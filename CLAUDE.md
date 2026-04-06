@@ -104,7 +104,9 @@
 - **TP/SL**: TP=ATR-based technical target, SL=RR ratio inverse (MIN_RR=1.2)
 - **SL floor**: ATR(14)x1.0 minimum distance (engine-level enforcement)
 - **Entry quality gate**: QUALIFIED_TYPES only, at least 1 reason required
-- **Strategy auto-promotion**: Demo N>=30 & EV>0 -> OANDA promotion / EV<-0.5 -> demotion (every 10 trades)
+- **Strategy auto-promotion**: Demo N>=30 & EV≥1.0 -> OANDA promotion / EV<-0.5 -> demotion (every 10 trades, コスト補正1.0pip)
+- **Force-demoted (OANDA停止)**: sr_fib_confluence, ema_cross, inducement_ob — デモ継続・実弾停止
+- **Lot boost**: stoch_trend_pullback, sr_break_retest → 1.3x ロットブースト (高EV戦略優遇)
 
 ## Active Trading Rules & Constraints
 
@@ -144,17 +146,17 @@
 - **Session SL widening**: UTC 0,1,18-21h: SL +ATRx0.2 (BT+Production)
 - **Counter-trend buffer**: Mean-reversion strategies against L1: SL +ATRx0.25 (BT+Production)
 - **Fast-SL adaptive defense**: Fast SL (<120s) in last 5min -> next SL +ATRx0.3 (Production only)
-- **Spread filter**: spread >1.2pip(JPY) / >1.5pip(EUR) blocks entry
+- **Spread filter (per-pair)**: USD/JPY 1.0p, EUR/USD 1.2p, GBP/USD 1.2p, EUR/GBP 1.2p, EUR/JPY 1.2p, XAU/USD 4.0p
 - **Spike detection**: >0.5ATR move in 60s blocks entry
 - **Round number SL avoidance**: .000/.500 nearby SL shifted 2.5pip outward
 - **Time-based retreat**: 50% hold elapsed + unrealized loss -> early exit before SL (TIME_DECAY_EXIT)
-- **動的ロットサイジング (2軸)**: Axis1=SL距離連動(base_sl_pips/actual_sl), Axis2=ATR/Spread比(edge_ratio→vol_mult 0.5-1.5x), combined 0.3-2.0x
+- **動的ロットサイジング (2軸+戦略ブースト)**: Axis1=SL距離連動 × Axis2=ATR/Spread比 × 戦略ブースト(stoch_trend_pullback/sr_break_retest 1.3x), combined 0.3-2.0x
 - **SL cluster avoidance**: New SL within 2pip of existing position SL -> entry blocked
 - **SL technical positioning**: SR-based (nearest SR - ATRx0.3) priority over ATR-based. RR>=1.0 guaranteed
 
 ### Breakeven & Trailing Stop
-- **BE trigger**: 60%TP reached -> SL moves to BE+0.5pip (with spread correction: BUY=entry+spread, SELL=entry-spread)
-- **No trailing stop**: BE=60% only (trailing removed per BT/Production param unification)
+- **BE trigger (共通建値ガード)**: ATR*0.8到達 → SL moves to BE (entry+spread). SMC戦略は3pip即BE. (旧: 60%TP到達)
+- **No trailing stop**: BE=ATR*0.8 only (trailing removed per BT/Production param unification)
 - **Price velocity filter**: >8pip move in 10min blocks counter-direction entry [Cont 2001]
 - **ADX regime block**: ADX>=35 strong trend blocks counter-trend entry
 
@@ -211,7 +213,8 @@
 
 ## Volatility Adaptive Lot Sizing (Active since 2026-04-05)
 - **2軸制御**: Axis1 SL距離(base_sl_pips/actual_sl, 0.5-1.5) × Axis2 ATR/Spread比(vol_mult 0.5-1.5)
-- **Final**: clamp(sl_ratio × vol_mult, 0.3, 2.0)
+- **Final**: clamp(sl_ratio × vol_mult × strat_boost, 0.3, 2.0)
+- **Strategy boost**: stoch_trend_pullback=1.3x, sr_break_retest=1.3x (本番EV良好)
 - **base_sl_pips**: scalp=3.5, DT=15, 1H=30 (MODE_CONFIG per-mode)
 - **edge_ratio thresholds**: ≥15→1.5x, ≥10→1.3x, ≥6→1.0x, ≥3→0.7x, <3→0.5x
 - **効果**: USD/JPY scalp (edge_ratio~17) → 1.5x boost, EUR/JPY (ratio~3) → 0.7x reduce
