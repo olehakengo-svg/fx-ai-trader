@@ -1130,14 +1130,14 @@ class DemoTrader:
         # ステータスを即座に設定（"unknown"状態を最小化）
         self._main_loop_status = "starting"
         self._main_loop_error = None
-        print("[DemoTrader] MainLoop started (batch-parallel, max_workers=4)", flush=True)
+        print("[DemoTrader] MainLoop started (batch-parallel, max_workers=2)", flush=True)
         sys.stdout.flush()
         _last_tick = {}
         _consecutive_errors = {}
         _restart_count = getattr(self, '_main_loop_restart_count', 0)
         self._main_loop_restart_count = _restart_count + 1
-        # ThreadPoolExecutor: 最大4並列 (Render Pro 2CPU/4GB)
-        _executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="tick")
+        # ThreadPoolExecutor: 最大2並列 (GIL争奪を最小化しAPI応答を確保)
+        _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="tick")
 
         self._main_loop_status = "running"
         self._main_loop_start_ts = time.time()
@@ -1213,8 +1213,8 @@ class DemoTrader:
                     print(f"[MainLoop] Outer error: {e}", flush=True)
                     import traceback; traceback.print_exc()
 
-                # (2026-04-05 perf) 0.5s間隔でdue判定（旧: sleep(2) → 4倍高速化）
-                time.sleep(0.5)
+                # GIL yield + 1s間隔でdue判定（API応答性確保）
+                time.sleep(1.0)
 
         except BaseException as fatal:
             # SystemExit, KeyboardInterrupt等も含む全致命的エラーをキャッチ
