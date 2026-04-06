@@ -10144,6 +10144,7 @@ def api_oanda_trades():
     state = request.args.get("state", "all")
     date_from = request.args.get("date_from")
     date_to = request.args.get("date_to")
+    instrument = request.args.get("instrument")
 
     if state.lower() == "open":
         trades = _demo_db.get_oanda_open_trades()
@@ -10151,7 +10152,8 @@ def api_oanda_trades():
         trades = _demo_db.get_oanda_trades(
             state=state.upper() if state.lower() != "all" else "ALL",
             limit=limit, offset=offset,
-            date_from=date_from, date_to=date_to)
+            date_from=date_from, date_to=date_to,
+            instrument=instrument)
     return jsonify({"trades": trades, "count": len(trades)})
 
 
@@ -10160,7 +10162,9 @@ def api_oanda_stats():
     """OANDA取引統計"""
     date_from = request.args.get("date_from")
     date_to = request.args.get("date_to")
-    stats = _demo_db.get_oanda_stats(date_from=date_from, date_to=date_to)
+    instrument = request.args.get("instrument")
+    stats = _demo_db.get_oanda_stats(date_from=date_from, date_to=date_to,
+                                      instrument=instrument)
     return jsonify(stats)
 
 
@@ -10169,7 +10173,9 @@ def api_oanda_equity():
     """OANDA累積P/Lカーブ"""
     date_from = request.args.get("date_from")
     date_to = request.args.get("date_to")
-    curve = _demo_db.get_oanda_equity_curve(date_from=date_from, date_to=date_to)
+    instrument = request.args.get("instrument")
+    curve = _demo_db.get_oanda_equity_curve(date_from=date_from, date_to=date_to,
+                                             instrument=instrument)
     total_jpy = curve[-1]["cum_jpy"] if curve else 0
     total_pips = curve[-1]["cum_pips"] if curve else 0
     return jsonify({

@@ -907,7 +907,7 @@ class DemoDB:
 
     def get_oanda_trades(self, state: str = "CLOSED", limit: int = 200,
                          offset: int = 0, date_from: str = None,
-                         date_to: str = None) -> list:
+                         date_to: str = None, instrument: str = None) -> list:
         """Query OANDA trades with filtering."""
         query = "SELECT * FROM oanda_trades"
         params = []
@@ -921,6 +921,9 @@ class DemoDB:
         if date_to:
             conditions.append("open_time <= ?")
             params.append(date_to + "T23:59:59" if len(date_to) == 10 else date_to)
+        if instrument:
+            conditions.append("instrument = ?")
+            params.append(instrument)
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
         query += " ORDER BY open_time DESC LIMIT ? OFFSET ?"
@@ -937,7 +940,8 @@ class DemoDB:
             ).fetchall()
             return [dict(r) for r in rows]
 
-    def get_oanda_stats(self, date_from: str = None, date_to: str = None) -> dict:
+    def get_oanda_stats(self, date_from: str = None, date_to: str = None,
+                        instrument: str = None) -> dict:
         """Compute aggregate stats from closed OANDA trades."""
         query = ("SELECT direction, realized_pl, pnl_pips, financing, close_reason "
                  "FROM oanda_trades WHERE state='CLOSED'")
@@ -948,6 +952,9 @@ class DemoDB:
         if date_to:
             query += " AND open_time <= ?"
             params.append(date_to + "T23:59:59" if len(date_to) == 10 else date_to)
+        if instrument:
+            query += " AND instrument = ?"
+            params.append(instrument)
         with self._safe_conn() as conn:
             rows = conn.execute(query, params).fetchall()
 
@@ -1004,7 +1011,7 @@ class DemoDB:
         }
 
     def get_oanda_equity_curve(self, date_from: str = None,
-                               date_to: str = None) -> list:
+                               date_to: str = None, instrument: str = None) -> list:
         """Return chronological closed trades with cumulative P/L."""
         query = ("SELECT oanda_trade_id, close_time, realized_pl, pnl_pips, "
                  "direction, instrument, open_price, close_price "
@@ -1016,6 +1023,9 @@ class DemoDB:
         if date_to:
             query += " AND close_time <= ?"
             params.append(date_to + "T23:59:59" if len(date_to) == 10 else date_to)
+        if instrument:
+            query += " AND instrument = ?"
+            params.append(instrument)
         query += " ORDER BY close_time ASC"
         with self._safe_conn() as conn:
             rows = conn.execute(query, params).fetchall()

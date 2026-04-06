@@ -48,6 +48,16 @@ tr:hover{background:rgba(255,255,255,.02)}
 .dir-breakdown{display:flex;gap:12px;margin-top:8px}
 .dir-box{background:var(--bg);border-radius:6px;padding:8px 14px;flex:1;text-align:center}
 .dir-label{font-size:10px;font-weight:700;margin-bottom:4px}
+.sf-bar{display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--bg2);border-radius:6px;margin-bottom:12px;flex-wrap:wrap;font-size:12px}
+.sf-bar input[type="date"]{background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:4px;padding:4px 6px;font-size:11px;font-family:inherit;width:120px}
+.sf-bar input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(.7)}
+.sf-sep{color:var(--t3);font-size:10px}
+.sf-quick{display:flex;gap:2px}
+.sf-btn{background:var(--bg);color:var(--t2);border:1px solid var(--bg3);border-radius:4px;padding:3px 10px;font-size:10px;cursor:pointer;font-family:inherit;transition:all .15s}
+.sf-btn:hover{background:var(--bg3)}
+.sf-btn.sf-active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.sf-select{background:var(--bg);color:var(--t1);border:1px solid var(--bg3);border-radius:4px;padding:3px 6px;font-size:11px;font-family:inherit;margin-left:auto}
+.sf-summary{color:var(--t3);font-size:10px;margin-left:8px}
 @media(max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}}
 
 /* ── iPhone / Mobile Optimization ── */
@@ -80,6 +90,11 @@ tr:hover{background:rgba(255,255,255,.02)}
   .dir-box{padding:6px 8px;font-size:11px}
   .dir-label{font-size:9px}
   #filter-from,#filter-to{width:100%;font-size:12px;padding:6px}
+  .sf-bar{padding:6px 8px;gap:4px}
+  .sf-bar input[type="date"]{width:100%;font-size:12px;padding:6px}
+  .sf-btn{font-size:9px;padding:3px 7px}
+  .sf-select{font-size:10px;width:100%;margin-left:0;margin-top:4px}
+  .sf-quick{flex-wrap:wrap}
 }
 </style>
 </head>
@@ -155,14 +170,26 @@ tr:hover{background:rgba(255,255,255,.02)}
   <!-- Full Trade History -->
   <div class="card full">
     <div class="card-title">📋 取引履歴 (OANDA実績)</div>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:8px 12px;background:var(--bg2);border-radius:6px;font-size:12px">
-      <label style="color:var(--t2)">期間:</label>
-      <input type="date" id="filter-from" style="background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:4px;padding:4px 6px;font-size:11px">
-      <span style="color:var(--t3)">〜</span>
-      <input type="date" id="filter-to" style="background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:4px;padding:4px 6px;font-size:11px">
-      <button onclick="applyFilter()" style="background:var(--purple);color:#fff;border:none;border-radius:4px;padding:5px 14px;cursor:pointer;font-size:11px;font-weight:600">絞り込み</button>
-      <button onclick="clearFilter()" style="background:var(--bg3);color:var(--t2);border:none;border-radius:4px;padding:5px 10px;cursor:pointer;font-size:11px">リセット</button>
-      <span id="filter-summary" style="color:var(--t3);margin-left:auto;font-size:11px"></span>
+    <div class="sf-bar">
+      <input type="date" id="filter-from" title="From">
+      <span class="sf-sep">-</span>
+      <input type="date" id="filter-to" title="To">
+      <div class="sf-quick">
+        <button class="sf-btn" data-range="today">Today</button>
+        <button class="sf-btn" data-range="7d">7d</button>
+        <button class="sf-btn" data-range="30d">30d</button>
+        <button class="sf-btn sf-active" data-range="all">All</button>
+      </div>
+      <select id="sf-instrument" class="sf-select">
+        <option value="">All Pairs</option>
+        <option value="USD_JPY">💴 USD/JPY</option>
+        <option value="EUR_USD">💶 EUR/USD</option>
+        <option value="GBP_USD">💷 GBP/USD</option>
+        <option value="EUR_GBP">🇪🇺🇬🇧 EUR/GBP</option>
+        <option value="EUR_JPY">💶💴 EUR/JPY</option>
+        <option value="XAU_USD">🥇 XAU/USD</option>
+      </select>
+      <span id="filter-summary" class="sf-summary"></span>
     </div>
     <div class="table-wrap">
       <table id="trade-table">
@@ -190,6 +217,7 @@ function _plColor(v){return v>0?'var(--green)':v<0?'var(--red)':'var(--t2)'}
 let equityChart=null, equitySeries=null;
 let _currentPage=0;
 const PAGE_SIZE=100;
+let _statsFilter={dateFrom:'',dateTo:'',instrument:''};
 
 function initCharts(){
   const el=document.getElementById('equity-chart');
@@ -286,11 +314,13 @@ async function loadLive(){
 
 // ── Stats ──
 async function loadStats(){
-  const from=document.getElementById('filter-from').value;
-  const to=document.getElementById('filter-to').value;
+  const from=_statsFilter.dateFrom;
+  const to=_statsFilter.dateTo;
+  const inst=_statsFilter.instrument;
   let url='/api/oanda/stats?';
   if(from)url+='date_from='+from+'&';
   if(to)url+='date_to='+to+'&';
+  if(inst)url+='instrument='+encodeURIComponent(inst)+'&';
   try{
     const r=await fetch(url);
     const d=await r.json();
@@ -328,11 +358,13 @@ async function loadStats(){
 
 // ── Equity Curve ──
 async function loadEquity(){
-  const from=document.getElementById('filter-from').value;
-  const to=document.getElementById('filter-to').value;
+  const from=_statsFilter.dateFrom;
+  const to=_statsFilter.dateTo;
+  const inst=_statsFilter.instrument;
   let url='/api/oanda/equity?';
   if(from)url+='date_from='+from+'&';
   if(to)url+='date_to='+to+'&';
+  if(inst)url+='instrument='+encodeURIComponent(inst)+'&';
   try{
     const r=await fetch(url);
     const d=await r.json();
@@ -349,11 +381,13 @@ async function loadEquity(){
 
 // ── Trade History ──
 async function loadTrades(){
-  const from=document.getElementById('filter-from').value;
-  const to=document.getElementById('filter-to').value;
+  const from=_statsFilter.dateFrom;
+  const to=_statsFilter.dateTo;
+  const inst=_statsFilter.instrument;
   let url=`/api/oanda/trades?state=closed&limit=${PAGE_SIZE}&offset=${_currentPage*PAGE_SIZE}`;
   if(from)url+='&date_from='+from;
   if(to)url+='&date_to='+to;
+  if(inst)url+='&instrument='+encodeURIComponent(inst);
   try{
     const r=await fetch(url);
     const d=await r.json();
@@ -394,7 +428,6 @@ async function loadTrades(){
     document.getElementById('btn-prev').disabled=(_currentPage===0);
     document.getElementById('btn-next').disabled=(trades.length<PAGE_SIZE);
     document.getElementById('page-info').textContent=`${_currentPage+1}ページ目 (${trades.length}件)`;
-    document.getElementById('filter-summary').textContent=`${from||'全期間'}〜${to||'現在'}`;
   }catch(e){console.error('Trades error:',e)}
 }
 
@@ -403,16 +436,30 @@ function changePage(delta){
   loadTrades();
 }
 
-function applyFilter(){
+function _applyFilter(){
   _currentPage=0;
   loadStats();
   loadEquity();
   loadTrades();
+  // Update summary
+  const from=_statsFilter.dateFrom,to=_statsFilter.dateTo,inst=_statsFilter.instrument;
+  const parts=[];
+  if(from||to)parts.push(`${from||'全期間'}〜${to||'現在'}`);
+  if(inst)parts.push(inst.replace('_','/'));
+  document.getElementById('filter-summary').textContent=parts.join(' | ')||'';
 }
-function clearFilter(){
-  document.getElementById('filter-from').value='';
-  document.getElementById('filter-to').value='';
-  applyFilter();
+function _sfSetRange(range){
+  document.querySelectorAll('.sf-btn').forEach(b=>b.classList.remove('sf-active'));
+  document.querySelector(`.sf-btn[data-range="${range}"]`)?.classList.add('sf-active');
+  const now=new Date();
+  let from='',to='';
+  if(range==='today'){from=to=now.toISOString().slice(0,10)}
+  else if(range==='7d'){to=now.toISOString().slice(0,10);from=new Date(now-7*864e5).toISOString().slice(0,10)}
+  else if(range==='30d'){to=now.toISOString().slice(0,10);from=new Date(now-30*864e5).toISOString().slice(0,10)}
+  document.getElementById('filter-from').value=from;
+  document.getElementById('filter-to').value=to;
+  _statsFilter.dateFrom=from;_statsFilter.dateTo=to;
+  _applyFilter();
 }
 
 function loadAll(){
@@ -434,6 +481,25 @@ document.addEventListener('DOMContentLoaded',()=>{
     loadStats();
     loadEquity();
   },60000);
+
+  // ── Filter: Quick range buttons ──
+  document.querySelectorAll('.sf-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>_sfSetRange(btn.dataset.range));
+  });
+  // ── Filter: Date input changes ──
+  ['filter-from','filter-to'].forEach(id=>{
+    document.getElementById(id)?.addEventListener('change',()=>{
+      document.querySelectorAll('.sf-btn').forEach(b=>b.classList.remove('sf-active'));
+      _statsFilter.dateFrom=document.getElementById('filter-from').value;
+      _statsFilter.dateTo=document.getElementById('filter-to').value;
+      _applyFilter();
+    });
+  });
+  // ── Filter: Instrument dropdown ──
+  document.getElementById('sf-instrument')?.addEventListener('change',e=>{
+    _statsFilter.instrument=e.target.value;
+    _applyFilter();
+  });
 });
 </script>
 </body>
