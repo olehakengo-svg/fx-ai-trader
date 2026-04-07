@@ -1039,6 +1039,11 @@ class DemoTrader:
                 # 通常戦略: ATR*0.8 到達でBE
                 _entry_atr_be = self._entry_atr.get(trade_id,
                     0.07 if _is_jpy_or_xau_be else 0.00070)
+                # ATR=0/NaN防御: 最低ATRフロア (3pip相当) → TS即死を防止
+                _min_atr_floor = 0.03 if _is_jpy_or_xau_be else 0.00030
+                if not _entry_atr_be or _entry_atr_be != _entry_atr_be:  # 0, None, NaN
+                    _entry_atr_be = _min_atr_floor
+                _entry_atr_be = max(_entry_atr_be, _min_atr_floor)
                 _be_threshold = _entry_atr_be * 0.8  # raw price units
 
                 # XAU 3pip BE → ノイズで建値撤退連発("BE貧乏")のため10pipに拡大
@@ -2278,8 +2283,13 @@ class DemoTrader:
 
         # ── 建値ガード用: ATR保存 ──
         # XAU uses same pip scale as JPY (100), fallback ATR must match
+        # ATR=0/NaN防御: 最低3pipフロア (TS即死防止, v5.6監査)
         _is_jpy_or_xau_atr = _is_jpy or "XAU" in instrument
-        self._entry_atr[trade_id] = sig.get("atr", 0.07 if _is_jpy_or_xau_atr else 0.00070)
+        _atr_raw = sig.get("atr", 0.07 if _is_jpy_or_xau_atr else 0.00070)
+        _atr_floor = 0.03 if _is_jpy_or_xau_atr else 0.00030
+        if not _atr_raw or _atr_raw != _atr_raw:  # 0, None, NaN
+            _atr_raw = 0.07 if _is_jpy_or_xau_atr else 0.00070
+        self._entry_atr[trade_id] = max(_atr_raw, _atr_floor)
 
         # ── 動的ロットサイジング: 2軸制御 (SL距離 + ATR/Spread) ──
         # Axis 1: SL距離連動 — リスク額正規化 (既存)
