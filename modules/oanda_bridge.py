@@ -182,7 +182,7 @@ class OandaBridge:
                    is_live: bool, bridge_status: str, block_reason: str,
                    direction: str = "", instrument: str = "",
                    units: int = 0, oanda_trade_id: str = ""):
-        """トレード実行時のOANDA連携監査記録を追加."""
+        """トレード実行時のOANDA連携監査記録を追加 (インメモリ + DB永続化)."""
         from datetime import datetime, timezone
         entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -196,14 +196,35 @@ class OandaBridge:
             "block_reason": block_reason,
             "oanda_trade_id": oanda_trade_id,
         }
+        # インメモリキャッシュ (後方互換)
         self._execution_audit.append(entry)
         if len(self._execution_audit) > self._max_audit:
             self._execution_audit = self._execution_audit[-self._max_audit:]
+        # DB永続化 (fire-and-forget — DB障害でもトレードを止めない)
+        if self._db:
+            try:
+                self._db.save_oanda_audit(entry)
+            except Exception as e:
+                logger.warning(f"[OandaBridge] Audit DB write failed: {e}")
         return entry
 
     def get_execution_audit(self, limit: int = 20) -> list:
-        """直近の実行監査記録を返す."""
+        """直近の実行監査記録を返す (DB優先、フォールバック: インメモリ)."""
+        if self._db:
+            try:
+                return self._db.get_oanda_audit(limit=limit)
+            except Exception as e:
+                logger.warning(f"[OandaBridge] Audit DB read failed: {e}")
         return self._execution_audit[-limit:]
+
+    def get_execution_audit_count(self) -> int:
+        """監査記録の総件数を返す (DB優先)."""
+        if self._db:
+            try:
+                return self._db.get_oanda_audit_count()
+            except Exception:
+                pass
+        return len(self._execution_audit)
 
     # ── Heartbeat: OANDA API Health Check ─────────────
 
@@ -321,7 +342,7 @@ class OandaBridge:
             "recent_errors": self._recent_errors[-5:],
             "heartbeat": self.get_heartbeat(),
             "strategy_overrides": self.get_strategy_overrides(),
-            "execution_audit_count": len(self._execution_audit),
+            "execution_audit_count": self.get_execution_audit_count(),
         }
 
     def set_trade_mapping(self, demo_id: str, oanda_id: str):

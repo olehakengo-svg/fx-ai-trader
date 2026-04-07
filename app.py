@@ -10690,7 +10690,7 @@ def api_oanda_audit():
     bridge = _demo_trader._oanda
     return jsonify({
         "audit": bridge.get_execution_audit(limit=limit),
-        "total": len(bridge._execution_audit),
+        "total": bridge.get_execution_audit_count(),
     })
 
 

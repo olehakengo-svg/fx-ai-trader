@@ -254,6 +254,26 @@ class DemoDB:
                 CREATE INDEX IF NOT EXISTS idx_oanda_close_time ON oanda_trades(close_time);
             """)
 
+            # ── OANDA実行監査ログ永続化テーブル ──
+            conn.executescript("""
+                CREATE TABLE IF NOT EXISTS oanda_audit (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp       TEXT NOT NULL,
+                    demo_trade_id   TEXT,
+                    entry_type      TEXT,
+                    direction       TEXT,
+                    instrument      TEXT,
+                    units           INTEGER DEFAULT 0,
+                    is_live         INTEGER DEFAULT 0,
+                    bridge_status   TEXT,
+                    block_reason    TEXT DEFAULT '',
+                    oanda_trade_id  TEXT DEFAULT '',
+                    created_at      TEXT DEFAULT (datetime('now'))
+                );
+                CREATE INDEX IF NOT EXISTS idx_oanda_audit_ts ON oanda_audit(timestamp);
+                CREATE INDEX IF NOT EXISTS idx_oanda_audit_trade ON oanda_audit(demo_trade_id);
+            """)
+
             # ── 遅延インデックス作成: ALTER TABLE後のカラムに依存するインデックス ──
             # mode カラムは ALTER TABLE で追加されるため、executescript 外で作成
             try:
@@ -545,6 +565,51 @@ class DemoDB:
                     "INSERT OR REPLACE INTO oanda_settings (key, value) VALUES (?, ?)",
                     (key, value))
                 conn.commit()
+
+    # ── OANDA Audit Persistence ────────────────────────
+
+    def save_oanda_audit(self, entry: dict):
+        """OANDA実行監査記録をDBに永続化."""
+        with self._lock:
+            with self._safe_conn() as conn:
+                conn.execute("""
+                    INSERT INTO oanda_audit
+                    (timestamp, demo_trade_id, entry_type, direction, instrument,
+                     units, is_live, bridge_status, block_reason, oanda_trade_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    entry.get("timestamp", ""),
+                    entry.get("demo_trade_id", ""),
+                    entry.get("entry_type", ""),
+                    entry.get("direction", ""),
+                    entry.get("instrument", ""),
+                    entry.get("units", 0),
+                    1 if entry.get("is_live") else 0,
+                    entry.get("bridge_status", ""),
+                    entry.get("block_reason", ""),
+                    entry.get("oanda_trade_id", ""),
+                ))
+                conn.commit()
+
+    def get_oanda_audit(self, limit: int = 50) -> list:
+        """OANDA実行監査記録をDBから取得 (新しい順→古い順に反転して返す)."""
+        with self._safe_conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM oanda_audit ORDER BY id DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+            result = []
+            for r in reversed(rows):
+                d = dict(r)
+                d["is_live"] = bool(d.get("is_live", 0))
+                result.append(d)
+            return result
+
+    def get_oanda_audit_count(self) -> int:
+        """OANDA監査記録の総件数を返す."""
+        with self._safe_conn() as conn:
+            row = conn.execute("SELECT COUNT(*) as cnt FROM oanda_audit").fetchone()
+            return row["cnt"] if row else 0
 
     # ── Learning adjustments ──────────────────────────
 
