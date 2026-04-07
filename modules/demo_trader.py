@@ -269,11 +269,21 @@ class DemoTrader:
         self._price_history = {}        # {instrument: [(timestamp, price)]} 通貨ペア別価格推移
 
         # ── Equity Curve Protector: DD>5%→ディフェンシブモード ──
-        self._eq_peak = 0.0           # 累計PnL最高値 (pips)
-        self._eq_current = 0.0        # 累計PnL現在値 (pips)
-        self._defensive_mode = False  # True → 全ロット半減
+        # v6.2: DB永続化 — デプロイ後も DD状態を維持
         self._EQ_DD_THRESHOLD = 0.05  # 5%ドローダウンで発動
         self._EQ_BASE_CAPITAL_PIPS = 1000.0  # 基準資本 (pips換算、DDパーセント計算用)
+        try:
+            self._eq_peak = float(self._db.get_system_kv("eq_peak", "0.0"))
+            self._eq_current = float(self._db.get_system_kv("eq_current", "0.0"))
+            self._defensive_mode = self._db.get_system_kv("defensive_mode", "0") == "1"
+            if self._eq_peak != 0 or self._eq_current != 0:
+                print(f"[v6.2] EquityProtector restored: peak={self._eq_peak:.1f} "
+                      f"current={self._eq_current:.1f} defensive={self._defensive_mode}", flush=True)
+        except Exception as e:
+            self._eq_peak = 0.0
+            self._eq_current = 0.0
+            self._defensive_mode = False
+            print(f"[v6.2] EquityProtector DB restore failed, defaults: {e}", flush=True)
         self._trade_high_water = {}     # trade_id -> max favorable price（BE/トレーリング用）
         # ── MAFE (Max Adverse / Favorable Excursion) ──
         self._mafe_tracker = {}         # {trade_id: {"max_high": float, "min_low": float}}
@@ -287,8 +297,14 @@ class DemoTrader:
         self._mss_tracker = {}        # {trade_id: {"choch": dict|None, "msb": bool, "adx": float, "updated": datetime}}
         self._profit_extended = set() # Set of trade_ids that have been profit-extended (TP延伸済み)
         self._pending_limits = {}     # {key: {signal, sl, tp, entry_type, sig, limit_price, created, mode, cfg, ...}}
-        # v6.1: Confidence-based Lot Scaling — N蓄積によるブースト段階制御
-        self._strategy_n_cache = {}   # {entry_type: trade_count} — 自動評価時に更新
+        # v6.2: Confidence-based Lot Scaling — DB永続化 (deploy survive)
+        try:
+            _n_str = self._db.get_system_kv("strategy_n_cache", "{}")
+            self._strategy_n_cache = json.loads(_n_str)
+            if self._strategy_n_cache:
+                print(f"[v6.2] N-cache restored: {len(self._strategy_n_cache)} strategies", flush=True)
+        except Exception:
+            self._strategy_n_cache = {}  # {entry_type: trade_count}
         # v6.1: GBP_USD Strict Friction Guard — 指値失効後クールダウン
         self._limit_expired_cd = {}   # {f"{inst}_{direction}": expiry_datetime}
         # 起動済みモード追跡（ヘルスチェッカー用）
@@ -1382,6 +1398,14 @@ class DemoTrader:
                     self._add_log(
                         f"🟢 DEFENSIVE MODE OFF: DD回復 {_eq_dd:.1f}pip ({_eq_dd_pct:.1%})"
                     )
+
+                # ── v6.2: Equity state DB永続化 (deploy survive) ──
+                try:
+                    self._db.set_system_kv("eq_peak", str(round(self._eq_peak, 2)))
+                    self._db.set_system_kv("eq_current", str(round(self._eq_current, 2)))
+                    self._db.set_system_kv("defensive_mode", "1" if self._defensive_mode else "0")
+                except Exception:
+                    pass  # DB書き込み失敗は決済処理をブロックしない
 
                 self._add_log(
                     f"{cfg.get('icon','')} 📤 OUT [{cfg.get('label','?')}]: {icon} {outcome} | "
@@ -2629,9 +2653,12 @@ class DemoTrader:
             _atr_raw = 0.07 if _is_jpy_or_xau_atr else 0.00070
         self._entry_atr[trade_id] = max(_atr_raw, _atr_floor)
 
-        # ── 動的ロットサイジング: 2軸制御 (SL距離 + ATR/Spread) ──
-        # Axis 1: SL距離連動 — リスク額正規化 (既存)
-        # Axis 2: ATR/Spread比 — エッジ品質に応じた加速/減速 (新規)
+        # ══════════════════════════════════════════════════════
+        # ── 動的ロットサイジング v6.2: 3-Factor Model ──────
+        # Factor 1: Risk    = SL距離正規化 (0.5 - 1.5)
+        # Factor 2: Edge    = ATR/Spread品質 (0.5 - 1.5)
+        # Factor 3: Boost   = 戦略ブースト × N制限 × DD防御
+        # ══════════════════════════════════════════════════════
         import os as _os
         _cfg_lot = MODE_CONFIG.get(mode, {})
         _base_sl_pips = _cfg_lot.get("base_sl_pips", 3.5)
@@ -2639,38 +2666,32 @@ class DemoTrader:
         _pip_m_d1 = 100 if _is_jpy_or_xau_lot else 10000
         _actual_sl_pips = sl_dist * _pip_m_d1
 
-        # Axis 1: SL距離連動
-        _sl_ratio = min(_base_sl_pips / max(_actual_sl_pips, 0.5), 1.5)
-        _sl_ratio = max(_sl_ratio, 0.5)
+        # ── Factor 1: Risk (SL距離連動 — リスク額正規化) ──
+        _risk_factor = min(_base_sl_pips / max(_actual_sl_pips, 0.5), 1.5)
+        _risk_factor = max(_risk_factor, 0.5)
 
-        # Axis 2: ATR/Spread比 (Edge Quality)
+        # ── Factor 2: Edge (ATR/Spread比 — エッジ品質) ──
         _atr_val = sig.get("atr", 0.07 if _is_jpy_or_xau_lot else 0.00070)
         _atr_pips = _atr_val * _pip_m_d1
-        _spread_pips = _spread_entry if _spread_entry > 0 else (0.4 if _is_jpy else 0.4)  # already in pips
+        _spread_pips = _spread_entry if _spread_entry > 0 else 0.4
         _edge_ratio = _atr_pips / max(_spread_pips, 0.1)
 
         if _edge_ratio >= 15:
-            _vol_mult = 1.5    # 最強エッジ (USD/JPY scalp typical)
+            _edge_factor = 1.5
         elif _edge_ratio >= 10:
-            _vol_mult = 1.3
+            _edge_factor = 1.3
         elif _edge_ratio >= 6:
-            _vol_mult = 1.0    # 中立
+            _edge_factor = 1.0
         elif _edge_ratio >= 3:
-            _vol_mult = 0.7
+            _edge_factor = 0.7
         else:
-            _vol_mult = 0.5    # 最弱 (スプレッド負けリスク)
+            _edge_factor = 0.5
 
-        _lot_ratio = _sl_ratio * _vol_mult
-
-        # ── 戦略別ロットブースト: ペア別 → グローバル fallback ──
+        # ── Factor 3: Boost (戦略 × N制限 × DD防御) ──
         _strat_boost = self._PAIR_LOT_BOOST.get(
             (entry_type, instrument),
             self._STRATEGY_LOT_BOOST.get(entry_type, 1.0)
         )
-
-        # ── v6.1: Confidence-based Lot Scaling ──
-        # サンプル数Nに応じてブースト上限を制限
-        # N<10 → max 1.0x, 10≤N<30 → max 1.5x, N≥30 → full
         _n_trades = self._strategy_n_cache.get(entry_type, 0)
         _n_cap = 1.0
         for _n_threshold, _n_max in self._N_LOT_TIERS:
@@ -2678,30 +2699,51 @@ class DemoTrader:
                 _n_cap = _n_max
                 break
         _strat_boost = min(_strat_boost, _n_cap)
+        _eq_mult = 0.5 if self._defensive_mode else 1.0
+        _boost_factor = _strat_boost * _eq_mult
 
-        _lot_ratio *= _strat_boost
+        # ── Combined lot ratio ──
+        _lot_ratio = _risk_factor * _edge_factor * _boost_factor
 
-        # ── Scalp Sentinel + Universal Sentinel: 摩擦死戦略は最小ロット固定 ──
+        # ── Sentinel判定 v6.2: PAIR_PROMOTED/PAIR_LOT_BOOST はバイパス ──
         _is_sentinel = False
+        _sentinel_reason = ""
         _base_mode_lot = _get_base_mode(mode)
-        if _base_mode_lot == "scalp" and entry_type in self._SCALP_SENTINEL:
-            _is_sentinel = True
-            _lot_ratio = 0.1  # 最小ロット (1000 units)
-        elif entry_type in self._UNIVERSAL_SENTINEL:
-            _is_sentinel = True
-            _lot_ratio = 0.1  # 全モードSentinel
+        _pair_key = (entry_type, instrument)
+        _is_pair_boosted = (_pair_key in self._PAIR_LOT_BOOST or
+                            _pair_key in self._PAIR_PROMOTED)
 
-        # ── Equity Curve Protector: DD>5%→ディフェンシブ半減 ──
-        if self._defensive_mode:
-            _lot_ratio *= 0.5
+        # v6.2 Safety: N<10の未検証戦略は原則Sentinel (PAIR指定免除)
+        if _n_trades < 10 and not _is_pair_boosted:
+            _is_sentinel = True
+            _lot_ratio = 0.1
+            _sentinel_reason = f"N={_n_trades}<10"
+        elif _base_mode_lot == "scalp" and entry_type in self._SCALP_SENTINEL and not _is_pair_boosted:
+            _is_sentinel = True
+            _lot_ratio = 0.1
+            _sentinel_reason = "SCALP_SEN"
+        elif entry_type in self._UNIVERSAL_SENTINEL and not _is_pair_boosted:
+            _is_sentinel = True
+            _lot_ratio = 0.1
+            _sentinel_reason = "UNI_SEN"
 
-        _lot_ratio = max(0.3, min(_lot_ratio, 2.5))  # 上限2.0→2.5 (Elite 2.0xを許容)
+        _lot_ratio = max(0.3, min(_lot_ratio, 2.5))
 
         _base_units = int(_os.environ.get("OANDA_UNITS", "10000"))
         _adjusted_units = int(_base_units * _lot_ratio)
         if _is_sentinel:
             _adjusted_units = 1000  # Sentinel: 0.01lot固定
         _adjusted_units = max(1000, (_adjusted_units // 1000) * 1000)
+
+        # ── v6.2 LOT内訳ログ (透明化) ──
+        _lot_breakdown = (
+            f"📐 {_risk_factor:.2f}R×{_edge_factor:.1f}E×{_boost_factor:.2f}B"
+            f"={'SEN' if _is_sentinel else f'{_lot_ratio:.2f}'}"
+            f" → {_adjusted_units}u"
+            f" [N={_n_trades} edge={_edge_ratio:.0f}"
+            f"{' DEF' if self._defensive_mode else ''}"
+            f"{f' {_sentinel_reason}' if _sentinel_reason else ''}]"
+        )
 
         # ── OANDA連携: 昇格済み戦略のみミラーリング + 実行監査 + 🔗ラベルログ ──
         _is_promoted = self._is_promoted(entry_type, instrument)
@@ -2798,13 +2840,12 @@ class DemoTrader:
         from modules.demo_db import pip_multiplier as _pm
         _pip_m = _pm(instrument)
         rr_actual = round(tp_dist / sl_dist, 1) if sl_dist > 0 else 0
-        _lot_info = f"lot={_adjusted_units}{_lot_tag}"
         self._add_log(
             f"{cfg['icon']} 📥 IN [{cfg['label']}]: {signal} @ {current_price:.{_price_dec}f} | "
             f"SL {sl:.{_price_dec}f}({sl_dist*_pip_m:.1f}p) TP {tp:.{_price_dec}f}({tp_dist*_pip_m:.1f}p) RR1:{rr_actual} | "
             f"Type: {entry_type} | Conf: {confidence}% | "
             f"理由: {_reason_summary} | ID: {trade_id} | "
-            f"📊 slip={_slippage:+.2f}p spread={_spread_entry:.1f}p {_lot_info} CD={_cd_elapsed:.0f}s"
+            f"📊 slip={_slippage:+.2f}p spread={_spread_entry:.1f}p {_lot_breakdown} CD={_cd_elapsed:.0f}s"
         )
 
     def _generate_close_analysis(self, trade: dict, close_reason: str,
@@ -3117,6 +3158,11 @@ class DemoTrader:
                     changes.append(f"{et}: {old}→{status} (N={n} WR={wr}% EV={ev:+.2f})")
             if changes:
                 self._add_log(f"🎯 戦略昇格更新: {', '.join(changes[:5])}")
+            # ── v6.2: N cache DB永続化 (deploy survive) ──
+            try:
+                self._db.set_system_kv("strategy_n_cache", json.dumps(self._strategy_n_cache))
+            except Exception:
+                pass
         except Exception as e:
             print(f"[Promotion] error: {e}", flush=True)
 
@@ -3255,14 +3301,20 @@ class DemoTrader:
     }
 
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
+    # v6.2: sr_fib_confluence を EUR_USD / GBP_USD でも復帰 (BT EV+確認済み)
     _PAIR_PROMOTED = {
         ("sr_fib_confluence", "USD_JPY"),   # WR=76.9% EV=+0.470 (14d BT)
+        ("sr_fib_confluence", "EUR_USD"),   # WR=63.4% EV=+0.223 (55d BT)
+        ("sr_fib_confluence", "GBP_USD"),   # WR=68.8% EV=+0.414 (55d BT)
     }
 
     # ペア別ロットブースト: PAIR_LOT_BOOST > _STRATEGY_LOT_BOOST (優先)
+    # v6.2: 復帰ペアは1.0x (ブーストなし観察) — sentinel bypass のため登録
     _PAIR_LOT_BOOST = {
         ("fib_reversal", "USD_JPY"): 1.5,       # Scalp最強 WR=86.7% EV=+0.848
-        ("sr_fib_confluence", "USD_JPY"): 1.3,   # DT柱 WR=76.9% EV=+0.470 (復活ペア)
+        ("sr_fib_confluence", "USD_JPY"): 1.3,   # DT柱 WR=76.9% EV=+0.470
+        ("sr_fib_confluence", "EUR_USD"): 1.0,   # 復帰ペア — 観察 (1.0x=ブーストなし)
+        ("sr_fib_confluence", "GBP_USD"): 1.0,   # 復帰ペア — 観察 (1.0x=ブーストなし)
     }
 
     # 全モードSentinel: scalp以外にも適用される戦略Sentinel
@@ -3296,7 +3348,7 @@ class DemoTrader:
     _LIMIT_EXPIRE_CD_SEC = 180  # 3分間同方向再エントリー禁止
 
     def _is_promoted(self, entry_type: str, instrument: str = "") -> bool:
-        """戦略がOANDA実行可能か判定 (v4: ペア別ライフサイクル対応)
+        """戦略がOANDA実行可能か判定 (v6.2: ペア別ライフサイクル + N<10安全策)
 
         優先順位:
         1. Bridge戦略モード: "off"でブロック、"live"/"sentinel"で手動昇格
@@ -3304,7 +3356,7 @@ class DemoTrader:
         3. _PAIR_PROMOTED: 特定ペアで復活（グローバルFORCE_DEMOTED解除）
         4. _FORCE_DEMOTED: グローバル降格（手動モードで昇格可能）
         5. 自動降格判定: demoted ステータスでブロック
-        6. デフォルト: OANDA送信許可
+        6. デフォルト: OANDA送信許可（ただしN<10はSentinel lotで保護 → ロット計算側で実施）
         """
         _mode = self._oanda.get_strategy_mode(entry_type)
 
@@ -3333,7 +3385,9 @@ class DemoTrader:
         if info and info.get("status") == "demoted":
             return False
 
-        return True  # 未評価・promoted・pending → OANDA送信
+        # v6.2: OANDA送信は許可。N<10の未検証戦略はSentinel lotで保護
+        # (ロット計算側の _is_sentinel 判定で 0.01lot 化される)
+        return True
 
     def _apply_adjustments(self, adjustments: list):
         """学習エンジンの調整を適用。

@@ -221,6 +221,14 @@ class DemoDB:
                 )
             """)
 
+            # ── システム状態永続化テーブル (deploy survivable) ──
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS system_kv (
+                    key   TEXT PRIMARY KEY,
+                    value TEXT DEFAULT ''
+                )
+            """)
+
             # ── OANDA実取引データ保存テーブル ──
             conn.executescript("""
                 CREATE TABLE IF NOT EXISTS oanda_trades (
@@ -563,6 +571,25 @@ class DemoDB:
             with self._safe_conn() as conn:
                 conn.execute(
                     "INSERT OR REPLACE INTO oanda_settings (key, value) VALUES (?, ?)",
+                    (key, value))
+                conn.commit()
+
+    # ── System KV Persistence (deploy-safe state) ──────
+
+    def get_system_kv(self, key: str, default: str = "") -> str:
+        """デプロイ永続化されたシステム状態を取得."""
+        with self._safe_conn() as conn:
+            row = conn.execute(
+                "SELECT value FROM system_kv WHERE key=?", (key,)
+            ).fetchone()
+            return row["value"] if row else default
+
+    def set_system_kv(self, key: str, value: str):
+        """システム状態をDBに永続化."""
+        with self._lock:
+            with self._safe_conn() as conn:
+                conn.execute(
+                    "INSERT OR REPLACE INTO system_kv (key, value) VALUES (?, ?)",
                     (key, value))
                 conn.commit()
 
