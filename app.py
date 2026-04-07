@@ -10319,11 +10319,22 @@ def api_oanda_accounts():
 
 @app.route("/api/oanda/status")
 def api_oanda_status():
-    """OANDA連携ステータス + アカウント情報"""
-    status = _demo_trader._oanda.status
+    """OANDA連携ステータス + アカウント情報 + ヘルスチェック + 実行監査サマリー"""
+    bridge = _demo_trader._oanda
+    status = bridge.status
     if status.get("active"):
-        status["account"] = _demo_trader._oanda.get_account_info()
+        status["account"] = bridge.get_account_info()
     status["data_sources"] = dict(_last_data_source)
+    # 実行監査サマリー: 直近の実弾/デモ比率
+    _audit = bridge.get_execution_audit(limit=50)
+    _live_count = sum(1 for a in _audit if a.get("is_live"))
+    _demo_count = len(_audit) - _live_count
+    status["audit_summary"] = {
+        "recent_total": len(_audit),
+        "live": _live_count,
+        "demo_only": _demo_count,
+        "live_ratio": f"{_live_count / max(len(_audit), 1):.0%}",
+    }
     return jsonify(status)
 
 
@@ -10370,6 +10381,206 @@ def api_oanda_modes():
         })
 
     return jsonify({"error": "toggle or modes required"}), 400
+
+
+# ══════════════════════════════════════════════════════
+#  OANDA 転送司令部 (Command Center) + コントロールパネル
+# ══════════════════════════════════════════════════════
+
+
+def _build_strategy_status_map():
+    """全戦略のOANDA転送状態マップを構築。"""
+    from modules.demo_trader import DemoTrader
+    bridge = _demo_trader._oanda
+    _force_demoted = DemoTrader._FORCE_DEMOTED
+    _promoted = getattr(_demo_trader, '_promoted_types', {})
+    _overrides = bridge.get_strategy_overrides()
+
+    strategies = {}
+    _mode_labels = {
+        "live": "LIVE（実弾）",
+        "sentinel": "SENTINEL（0.01lot観測）",
+        "off": "OFF（停止）",
+        "auto": "AUTO（自動判定）",
+    }
+
+    # FORCE_DEMOTED戦略
+    for et in sorted(_force_demoted):
+        _mode = _overrides.get(et, "auto")
+        _eff = _mode in ("live", "sentinel")  # 手動モード設定の場合のみTrue
+        strategies[et] = {
+            "force_demoted": True,
+            "auto_status": "force_demoted",
+            "mode": _mode,
+            "effective": _eff,
+            "label": _mode_labels.get(_mode, _mode) if _mode != "auto" else "降格（実弾停止）",
+        }
+    # 自動昇降格戦略
+    for et, info in sorted(_promoted.items()):
+        if et in strategies:
+            continue
+        _mode = _overrides.get(et, "auto")
+        _auto = info.get("status", "pending")
+        _eff = True
+        if _mode == "off":
+            _eff = False
+        elif _auto == "demoted" and _mode == "auto":
+            _eff = False
+        strategies[et] = {
+            "force_demoted": False,
+            "auto_status": _auto,
+            "n": info.get("n", 0),
+            "wr": info.get("wr", 0),
+            "ev": info.get("ev", 0),
+            "mode": _mode,
+            "effective": _eff,
+            "label": _mode_labels.get(_mode, _mode) if _mode != "auto" else _auto,
+        }
+    # オーバーライドのみある戦略
+    for et, mode in sorted(_overrides.items()):
+        if et not in strategies:
+            strategies[et] = {
+                "force_demoted": et in _force_demoted,
+                "auto_status": "unknown",
+                "mode": mode,
+                "effective": mode != "off",
+                "label": _mode_labels.get(mode, mode),
+            }
+
+    return strategies
+
+
+@app.route("/api/config/oanda_control", methods=["GET", "POST"])
+def api_config_oanda_control():
+    """OANDA 転送司令部 — 戦略ごとに LIVE / SENTINEL / OFF を制御。
+
+    GET:  全戦略の転送状態（tri-state）を返す
+    POST:
+      {"strategy": "name", "mode": "live"}      — LIVE（実弾フルロット）
+      {"strategy": "name", "mode": "sentinel"}  — SENTINEL（0.01lot観測モード）
+      {"strategy": "name", "mode": "off"}       — OFF（OANDA転送停止）
+      {"strategy": "name", "mode": "auto"}      — AUTO（自動昇降格に委ねる）
+      {"reset": true}                           — 全モード設定クリア
+    """
+    bridge = _demo_trader._oanda
+
+    if request.method == "GET":
+        strategies = _build_strategy_status_map()
+        return jsonify({
+            "strategies": strategies,
+            "bridge_active": bridge.active,
+            "heartbeat": bridge.get_heartbeat(),
+            "allowed_modes": sorted(bridge._allowed_modes) if bridge._allowed_modes else [],
+        })
+
+    data = request.get_json(silent=True) or {}
+
+    # Reset
+    if data.get("reset"):
+        bridge._strategy_overrides = {}
+        bridge._save_strategy_overrides()
+        _demo_trader._add_log("🔄 OANDA Command Center: 全モードリセット")
+        return jsonify({"reset": True, "overrides": {}})
+
+    strategy = data.get("strategy", "")
+    if not strategy:
+        return jsonify({"error": "strategy required"}), 400
+
+    mode = data.get("mode", "").lower()
+    if mode not in ("live", "sentinel", "off", "auto"):
+        return jsonify({"error": "mode must be live/sentinel/off/auto"}), 400
+
+    bridge.set_strategy_mode(strategy, mode)
+    _mode_labels = {
+        "live": "LIVE（実弾投入）",
+        "sentinel": "SENTINEL（0.01lot観測）",
+        "off": "OFF（停止）",
+        "auto": "AUTO（自動判定）",
+    }
+    _demo_trader._add_log(
+        f"🔗 OANDA Command Center: {strategy} → {_mode_labels.get(mode, mode)}"
+    )
+
+    return jsonify({
+        "strategy": strategy,
+        "mode": mode,
+        "action": _mode_labels.get(mode, mode),
+        "overrides": bridge.get_strategy_overrides(),
+    })
+
+
+@app.route("/api/config/toggle_oanda", methods=["GET", "POST"])
+def api_config_toggle_oanda():
+    """戦略別OANDA転送トグル（後方互換）。
+    推奨: /api/config/oanda_control を使用。
+
+    GET:  全戦略の転送状態を返す
+    POST:
+      {"strategy": "name", "enabled": true}   — ON (=LIVE)
+      {"strategy": "name"}                    — トグル
+      {"reset": true}                         — 全リセット
+    """
+    bridge = _demo_trader._oanda
+
+    if request.method == "GET":
+        strategies = _build_strategy_status_map()
+        return jsonify({
+            "strategies": strategies,
+            "bridge_active": bridge.active,
+            "allowed_modes": sorted(bridge._allowed_modes) if bridge._allowed_modes else [],
+        })
+
+    data = request.get_json(silent=True) or {}
+
+    if data.get("reset"):
+        bridge._strategy_overrides = {}
+        bridge._save_strategy_overrides()
+        _demo_trader._add_log("🔄 OANDA戦略オーバーライド: 全リセット")
+        return jsonify({"reset": True, "overrides": {}})
+
+    strategy = data.get("strategy", "")
+    if not strategy:
+        return jsonify({"error": "strategy required"}), 400
+
+    if "enabled" in data:
+        enabled = bool(data["enabled"])
+    else:
+        current = bridge.get_strategy_mode(strategy)
+        enabled = current not in ("live", "sentinel")
+
+    bridge.set_strategy_mode(strategy, "live" if enabled else "off")
+    action = "ON（実弾投入）" if enabled else "OFF（デモ専用）"
+    _demo_trader._add_log(f"🔗 OANDA戦略トグル: {strategy} → {action}")
+
+    return jsonify({
+        "strategy": strategy,
+        "enabled": enabled,
+        "action": action,
+        "overrides": bridge.get_strategy_overrides(),
+    })
+
+
+@app.route("/api/oanda/heartbeat")
+def api_oanda_heartbeat():
+    """OANDA APIヘルスチェック — 最新のハートビート情報を返す。
+    60秒間隔で自動更新。手動更新は ?refresh=true で可能。"""
+    bridge = _demo_trader._oanda
+    if request.args.get("refresh", "false").lower() == "true":
+        hb = bridge.run_heartbeat()
+    else:
+        hb = bridge.get_heartbeat()
+    return jsonify(hb)
+
+
+@app.route("/api/oanda/audit")
+def api_oanda_audit():
+    """OANDA実行監査ログ — トレードごとの連携成否と理由を返す。"""
+    limit = request.args.get("limit", 20, type=int)
+    bridge = _demo_trader._oanda
+    return jsonify({
+        "audit": bridge.get_execution_audit(limit=limit),
+        "total": len(bridge._execution_audit),
+    })
 
 
 # ══════════════════════════════════════════════════════

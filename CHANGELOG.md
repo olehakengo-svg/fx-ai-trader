@@ -1,5 +1,44 @@
 # FX AI Trader - Changelog
 
+## 2026-04-07 OANDA Command Center — コントロールパネル & 連携ステータス完全可視化
+
+### 1. OANDA 転送司令部 (Tri-state Control)
+- **`/api/config/oanda_control`**: 戦略ごとに LIVE / SENTINEL / OFF / AUTO を即時切替
+- **LIVE**: フルロットでOANDA転送（_FORCE_DEMOTED の手動昇格パスを含む）
+- **SENTINEL**: 0.01lot固定でOANDA転送（データ収集モード）
+- **OFF**: OANDA転送停止 / **AUTO**: 自動昇降格判定に委ねる
+- **DB永続**: `oanda_settings.strategy_overrides` (JSON)
+- **後方互換**: `/api/config/toggle_oanda` (ON/OFF) は引き続き利用可
+
+### 2. 実行ログ 🔗 OANDA 連携ラベル
+- **[SENT]**: OANDA注文送信時に即座にログ出力（ロット・SL/TP含む）
+- **[FILLED]**: OANDA約定成功時にOrderID・約定価格・ロット倍率を1行出力
+- **[FAILED]**: 約定失敗時にエラー理由を明示
+- **[BLOCKED]**: Bridge非アクティブ or モード除外（Reason: bridge_inactive / mode_not_allowed）
+- **[SKIP]**: 未昇格戦略（Reason: force_demoted / auto_demoted / 手動停止 / pending）
+- **Execution Audit**: `/api/oanda/audit` でトレードごとの is_live / bridge_status / block_reason / oanda_trade_id を返却
+
+### 3. スキャルプ v2 指値ログ
+- **[LIMIT_PLACED]**: Confluence Scalp v2 の指値遅延エントリーで指値設置時にログ出力
+- **[LIMIT_FILL]**: 価格が指値に到達し OANDA 注文が発火した時点でログ出力
+- 両ログとも `🔗 OANDA:` プレフィックス付きで統一フォーマット
+
+### 4. リアルタイム・ヘルスチェック
+- **60秒間隔**: `_sltp_loop` から `run_heartbeat()` を120回(=60s)ごとに自動実行
+- **計測項目**: API latency(ms) / balance / NAV / unrealized P/L / margin / open trade count
+- **display文字列**: `OANDA: CONNECTED / LATENCY: 45ms / NAV: ¥467,608` フォーマット
+- **`/api/oanda/heartbeat`**: 最新のハートビートを返却（?refresh=true で手動更新可）
+- **`/api/oanda/status`**: audit_summary (live/demo比率) を含む統合ステータス
+
+### 5. インフラ変更
+- **oanda_bridge.py**: `get_strategy_mode()`, `set_strategy_mode()`, `is_strategy_sentinel()` 追加
+- **oanda_bridge.py**: `open_trade()` に `log_callback` + `lot_label` パラメータ追加
+- **oanda_bridge.py**: `_add_audit()` に `oanda_trade_id` フィールド追加
+- **oanda_bridge.py**: `get_heartbeat()` に `display` フォーマット済み文字列追加
+- **demo_trader.py**: `_is_promoted()` v3 — tri-state対応（sentinel で手動昇格可能）
+- **demo_trader.py**: OANDA実行セクション全面改修（🔗ラベル + SENTINEL lot override）
+- **app.py**: `/api/config/oanda_control` 新エンドポイント + `_build_strategy_status_map()` 共通関数
+
 ## 2026-04-07 Confluence Scalp v2 — Triple Confluence + MSS + Profit Extender
 
 ### 1. Triple Confluence Gate (攻撃層)

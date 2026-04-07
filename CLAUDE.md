@@ -18,6 +18,12 @@
 - **設計**: デモシステムは独立稼働、OANDA連携はオプショナル。OANDA障害時もデモトレードは継続
 - **連携ポイント**: エントリー(market_order) / SL/TP決済(close_trade) / シグナル反転(close_trade) / トレーリングSL(modify_trade) / 手動クローズ(close_trade)
 - **ステータス**: `/api/oanda/status` で確認可能
+- **転送司令部 (Command Center)**: `/api/config/oanda_control` で戦略ごとに LIVE/SENTINEL/OFF/AUTO を即時切替
+- **Tri-state制御**: LIVE(フルロット) / SENTINEL(0.01lot観測) / OFF(停止) / AUTO(自動昇降格判定)
+- **実行監査**: `/api/oanda/audit` でトレードごとのOANDA連携成否・理由・OrderIDを確認
+- **ヘルスチェック**: `/api/oanda/heartbeat` で60秒間隔のAPI接続状態・レイテンシ・口座残高を確認
+- **🔗ログラベル**: エントリー時に `🔗 OANDA: [SENT/FILLED/FAILED/BLOCKED/SKIP]` ログを出力
+- **指値ログ**: `🔗 OANDA: [LIMIT_PLACED]` (指値設置) / `🔗 OANDA: [LIMIT_FILL]` (指値到達→注文)
 
 ## Design Principles
 - **本番環境を常に参照**: 分析・データ取得はRender本番サーバーから行うこと（ローカルDBは開発用のみ）

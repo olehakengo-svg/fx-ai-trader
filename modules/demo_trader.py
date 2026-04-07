@@ -731,6 +731,7 @@ class DemoTrader:
         _no_price_count = 0
         _oanda_sync_counter = 0
         _demo2oanda_counter = 0
+        _heartbeat_counter = 0
         while self._sltp_running:
             try:
                 try:
@@ -763,6 +764,20 @@ class DemoTrader:
                         self._sync_demo_to_oanda()
                     except Exception as e:
                         print(f"[SLTP-Checker] Demo→OANDA sync error: {e}", flush=True)
+
+                # ── OANDA Heartbeat: 60秒ごと（120回に1回）──
+                # Account Details取得 + レイテンシ計測 → ヘルスチェック
+                _heartbeat_counter += 1
+                if _heartbeat_counter >= 120:
+                    _heartbeat_counter = 0
+                    try:
+                        hb = self._oanda.run_heartbeat()
+                        if hb.get("status") == "error":
+                            self._add_log(
+                                f"💓 OANDA Heartbeat ERROR: {hb.get('error', 'unknown')}"
+                            )
+                    except Exception as e:
+                        print(f"[SLTP-Checker] Heartbeat error: {e}", flush=True)
 
                 time.sleep(SLTP_CHECK_INTERVAL)
             except BaseException as e:
@@ -1762,6 +1777,12 @@ class DemoTrader:
                         f"📍 Limit Fill: {_lm_signal} @ {_lm_price:.5f} "
                         f"(limit={_lm_limit:.5f}, waited={_lm_age:.0f}s)"
                     )
+                    # ── 🔗 OANDA: 指値到達ログ ──
+                    self._add_log(
+                        f"🔗 OANDA: [LIMIT_FILL] {_lm_signal} {_lm.get('instrument', '')} "
+                        f"@ {_lm_price:.5f} (limit={_lm_limit:.5f}, "
+                        f"waited={_lm_age:.0f}s) → OANDA order dispatching"
+                    )
                     # sig を limit order の保存時シグナルで上書きしてエントリー
                     _lm_sig = _lm["sig"]
                     _lm_sig["entry"] = _lm_price  # 現在価格で約定
@@ -2473,6 +2494,12 @@ class DemoTrader:
                             f"limit={_limit_price_entry:.5f} "
                             f"(current={current_price:.5f}, waiting)"
                         )
+                        # ── 🔗 OANDA: 指値設置ログ ──
+                        self._add_log(
+                            f"🔗 OANDA: [LIMIT_PLACED] {signal} {instrument} "
+                            f"limit={_limit_price_entry:.5f} | "
+                            f"SL={sl:.5f} TP={tp:.5f} (5min expiry)"
+                        )
                     return  # 指値待ち → 即時エントリーしない
 
         # ══════════════════════════════════════════════════════════════
@@ -2583,23 +2610,81 @@ class DemoTrader:
             _adjusted_units = 1000  # Sentinel: 0.01lot固定
         _adjusted_units = max(1000, (_adjusted_units // 1000) * 1000)
 
-        # ── OANDA連携: 昇格済み戦略のみミラーリング ──
-        if self._is_promoted(entry_type):
-            self._oanda.open_trade(
-                demo_trade_id=trade_id,
-                direction=signal,
-                sl=sl, tp=tp,
-                mode=mode,
-                instrument=instrument,
-                callback=lambda did, oid: self._db.set_oanda_trade_id(did, oid),
-                units=_adjusted_units,
-            )
+        # ── OANDA連携: 昇格済み戦略のみミラーリング + 実行監査 + 🔗ラベルログ ──
+        _is_promoted = self._is_promoted(entry_type)
+        _bridge_active = self._oanda.active
+        _mode_allowed = self._oanda.is_mode_allowed(mode)
+        _strat_mode = self._oanda.get_strategy_mode(entry_type)
+
+        # ── SENTINEL判定: コントロールパネルの "sentinel" モードなら0.01lot固定 ──
+        if _strat_mode == "sentinel":
+            _adjusted_units = 1000  # SENTINEL: 0.01lot固定（データ収集）
+            _lot_tag = "(🔬SEN/CMD)"
+
+        if _is_promoted:
+            if _bridge_active and _mode_allowed:
+                # ── 実弾実行パス ──
+                self._add_log(
+                    f"🔗 OANDA: [SENT] {signal} {instrument} "
+                    f"{_adjusted_units}u({_adjusted_units/10000:.2f}lot) {_lot_tag} "
+                    f"SL={sl:.{_price_dec}f} TP={tp:.{_price_dec}f}"
+                )
+                self._oanda.open_trade(
+                    demo_trade_id=trade_id,
+                    direction=signal,
+                    sl=sl, tp=tp,
+                    mode=mode,
+                    instrument=instrument,
+                    callback=lambda did, oid: self._db.set_oanda_trade_id(did, oid),
+                    units=_adjusted_units,
+                    log_callback=self._add_log,
+                    lot_label=_lot_tag,
+                )
+                self._oanda._add_audit(
+                    demo_trade_id=trade_id, entry_type=entry_type,
+                    is_live=True, bridge_status="sent",
+                    block_reason="",
+                    direction=signal, instrument=instrument,
+                    units=_adjusted_units,
+                )
+            else:
+                # ── Bridge非アクティブまたはモード除外 ──
+                _br = "bridge_inactive" if not _bridge_active else f"mode_{mode}_not_allowed"
+                self._add_log(
+                    f"🔗 OANDA: [BLOCKED] {signal} {instrument} — "
+                    f"Reason: {_br}"
+                )
+                self._oanda._add_audit(
+                    demo_trade_id=trade_id, entry_type=entry_type,
+                    is_live=False, bridge_status="blocked",
+                    block_reason=_br,
+                    direction=signal, instrument=instrument,
+                    units=_adjusted_units,
+                )
         else:
+            # ── OANDA未連携: 理由を詳細記録 + 🔗ラベル ──
             _promo = self._promoted_types.get(entry_type, {})
             _promo_n = _promo.get("n", 0)
+            _promo_status = _promo.get("status", "pending")
+            _block_reason = ""
+            if _strat_mode == "off":
+                _block_reason = "手動停止"
+            elif entry_type in self._FORCE_DEMOTED:
+                _block_reason = "force_demoted"
+            elif _promo_status == "demoted":
+                _block_reason = f"auto_demoted(N={_promo_n},EV={_promo.get('ev', 0):+.2f})"
+            else:
+                _block_reason = f"pending(N={_promo_n}/30)"
+
+            self._oanda._add_audit(
+                demo_trade_id=trade_id, entry_type=entry_type,
+                is_live=False, bridge_status="skipped",
+                block_reason=_block_reason,
+                direction=signal, instrument=instrument,
+                units=_adjusted_units,
+            )
             self._add_log(
-                f"   ⏳ OANDA未連携（{entry_type}: N={_promo_n}/30, "
-                f"status={_promo.get('status', 'pending')}）"
+                f"🔗 OANDA: [SKIP] {entry_type} — Reason: {_block_reason}"
             )
 
         # エントリー理由の要約（✅マーク付きの理由を抽出）
@@ -3009,16 +3094,33 @@ class DemoTrader:
     }
 
     def _is_promoted(self, entry_type: str) -> bool:
-        """戦略がOANDA実行可能か判定
-        Force-demoted: 本番EVマイナスの戦略はデモ専用に降格（OANDA停止）
-        それ以外: OANDA送信許可（降格済みstatus="demoted"のみブロック）
+        """戦略がOANDA実行可能か判定 (v3: tri-state LIVE/SENTINEL/OFF対応)
+
+        優先順位:
+        1. Bridge戦略モード: "off"でブロック、"live"/"sentinel"で手動昇格
+        2. _FORCE_DEMOTED: デモ専用に降格（手動モード設定で昇格可能）
+        3. 自動降格判定: demoted ステータスでブロック
+        4. デフォルト: OANDA送信許可
         """
+        _mode = self._oanda.get_strategy_mode(entry_type)
+
+        # ── 明示的にOFFなら強制ブロック ──
+        if _mode == "off":
+            return False  # 手動停止
+
+        # ── LIVE/SENTINELの明示指定: 手動昇格パス ──
+        if _mode in ("live", "sentinel"):
+            return True  # _FORCE_DEMOTED/auto_demoted含め全て上書き
+
+        # ── _FORCE_DEMOTED: 明示的モード指定がない場合はブロック ──
         if entry_type in self._FORCE_DEMOTED:
             return False  # デモ継続・OANDA停止
-        # 自動降格判定で demoted になった戦略もブロック
+
+        # ── 自動降格判定で demoted になった戦略もブロック ──
         info = self._promoted_types.get(entry_type)
         if info and info.get("status") == "demoted":
             return False
+
         return True  # 未評価・promoted・pending → OANDA送信
 
     def _apply_adjustments(self, adjustments: list):

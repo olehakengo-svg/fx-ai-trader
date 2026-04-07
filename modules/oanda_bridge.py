@@ -2,11 +2,17 @@
 OANDA Bridge — Business logic layer between demo trader and OANDA API.
 Fire-and-forget: OANDA failures never block demo trading logic.
 Enabled by OANDA_LIVE=true environment variable.
+
+Strategy-level transfer control:
+  - _strategy_overrides: per-strategy oanda_transfer_enabled flag (DB persistent)
+  - Manual promotion: _FORCE_DEMOTED strategies can be re-enabled via override
+  - Heartbeat: periodic OANDA account details check for health monitoring
 """
 import os
 import json
 import logging
 import threading
+import time as _time
 from modules.oanda_client import OandaClient
 
 logger = logging.getLogger(__name__)
@@ -26,6 +32,26 @@ class OandaBridge:
         # エラーログ（直近20件保持、デバッグ用）
         self._recent_errors = []
         self._max_errors = 20
+        # ── 戦略別OANDA転送フラグ (DB永続) ──
+        # {"strategy_name": True/False} — Trueで _FORCE_DEMOTED を手動昇格
+        self._strategy_overrides = self._load_strategy_overrides()
+        # ── Heartbeat: OANDA APIヘルスチェック ──
+        self._heartbeat = {
+            "last_check": None,       # ISO timestamp
+            "latency_ms": None,       # API response latency
+            "balance": None,          # Account balance
+            "nav": None,              # Net asset value
+            "unrealized_pl": None,    # Unrealized P/L
+            "margin_used": None,
+            "margin_available": None,
+            "open_trade_count": 0,
+            "status": "unknown",      # "ok" / "error" / "unknown"
+            "error": None,
+        }
+        self._heartbeat_lock = threading.Lock()
+        # ── Execution Audit: トレードごとの実行記録 ──
+        self._execution_audit = []    # 直近50件
+        self._max_audit = 50
 
     # デフォルト全モード（OANDA_MODES未設定 かつ DB設定なし の場合）
     _ALL_MODES = {"scalp", "daytrade", "daytrade_1h", "scalp_eur", "daytrade_eur", "daytrade_1h_eur", "scalp_eurjpy",
@@ -66,6 +92,205 @@ class OandaBridge:
         except Exception as e:
             logger.warning(f"[OandaBridge] DB mode save failed: {e}")
 
+    # ── Strategy-level OANDA transfer overrides ─────
+
+    def _load_strategy_overrides(self) -> dict:
+        """DB永続された戦略別OANDA転送フラグを読み込み."""
+        if not self._db:
+            return {}
+        try:
+            saved = self._db.get_oanda_setting("strategy_overrides", "")
+            if saved:
+                return json.loads(saved)
+        except Exception as e:
+            logger.warning(f"[OandaBridge] Strategy overrides load failed: {e}")
+        return {}
+
+    def _save_strategy_overrides(self):
+        """戦略別OANDA転送フラグをDBに永続化."""
+        if not self._db:
+            return
+        try:
+            val = json.dumps(self._strategy_overrides)
+            self._db.set_oanda_setting("strategy_overrides", val)
+        except Exception as e:
+            logger.warning(f"[OandaBridge] Strategy overrides save failed: {e}")
+
+    # ── Tri-state: "live" / "sentinel" / "off" ──────────
+    # Legacy compat: True → "live", False → "off"
+
+    def _normalize_mode(self, val) -> str:
+        """内部値を正規化: True→"live", False→"off", str→そのまま."""
+        if val is True:
+            return "live"
+        if val is False:
+            return "off"
+        if isinstance(val, str) and val in ("live", "sentinel", "off"):
+            return val
+        return "auto"  # None / 不明 → 自動判定
+
+    def get_strategy_mode(self, entry_type: str) -> str:
+        """戦略のOANDA転送モードを返す。
+        "live"     — フルロット転送
+        "sentinel" — 0.01lot固定（データ収集モード）
+        "off"      — OANDA転送停止
+        "auto"     — 未設定（自動昇降格判定に委ねる）
+        """
+        raw = self._strategy_overrides.get(entry_type)
+        return self._normalize_mode(raw)
+
+    def is_strategy_enabled(self, entry_type: str) -> bool:
+        """戦略のOANDA転送が有効か判定（"live"/"sentinel"でTrue）。
+        明示的な"off"/Falseの場合のみブロック。
+        "live"/True は _FORCE_DEMOTED を上書きして手動昇格を許可。
+        """
+        mode = self.get_strategy_mode(entry_type)
+        if mode == "off":
+            return False
+        if mode in ("live", "sentinel"):
+            return True
+        return True  # "auto" → デフォルト許可（_is_promotedで最終判定）
+
+    def is_strategy_sentinel(self, entry_type: str) -> bool:
+        """戦略がSENTINELモード（0.01lot固定）か判定。"""
+        return self.get_strategy_mode(entry_type) == "sentinel"
+
+    def set_strategy_mode(self, entry_type: str, mode: str):
+        """戦略のOANDA転送モードを設定・永続化。
+        mode: "live" / "sentinel" / "off" / "auto"(=削除)
+        """
+        if mode == "auto":
+            self._strategy_overrides.pop(entry_type, None)
+        else:
+            self._strategy_overrides[entry_type] = mode
+        self._save_strategy_overrides()
+        _labels = {"live": "LIVE（実弾）", "sentinel": "SENTINEL（0.01lot観測）",
+                    "off": "OFF（停止）", "auto": "AUTO（自動判定）"}
+        logger.info(f"[OandaBridge] Strategy mode: {entry_type} → {_labels.get(mode, mode)}")
+
+    def set_strategy_enabled(self, entry_type: str, enabled: bool):
+        """後方互換: ON/OFFトグル → live/off."""
+        self.set_strategy_mode(entry_type, "live" if enabled else "off")
+
+    def get_strategy_overrides(self) -> dict:
+        """現在の戦略別転送フラグを返す（正規化済み）."""
+        return {k: self._normalize_mode(v) for k, v in self._strategy_overrides.items()}
+
+    # ── Execution Audit ───────────────────────────────
+
+    def _add_audit(self, demo_trade_id: str, entry_type: str,
+                   is_live: bool, bridge_status: str, block_reason: str,
+                   direction: str = "", instrument: str = "",
+                   units: int = 0, oanda_trade_id: str = ""):
+        """トレード実行時のOANDA連携監査記録を追加."""
+        from datetime import datetime, timezone
+        entry = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "demo_trade_id": demo_trade_id,
+            "entry_type": entry_type,
+            "direction": direction,
+            "instrument": instrument,
+            "units": units,
+            "is_live": is_live,
+            "bridge_status": bridge_status,
+            "block_reason": block_reason,
+            "oanda_trade_id": oanda_trade_id,
+        }
+        self._execution_audit.append(entry)
+        if len(self._execution_audit) > self._max_audit:
+            self._execution_audit = self._execution_audit[-self._max_audit:]
+        return entry
+
+    def get_execution_audit(self, limit: int = 20) -> list:
+        """直近の実行監査記録を返す."""
+        return self._execution_audit[-limit:]
+
+    # ── Heartbeat: OANDA API Health Check ─────────────
+
+    def run_heartbeat(self):
+        """OANDA APIへのヘルスチェック (Account Details取得 + レイテンシ計測)。
+        60秒間隔で外部から呼び出される想定。"""
+        from datetime import datetime, timezone
+        with self._heartbeat_lock:
+            if not self.active:
+                self._heartbeat.update({
+                    "last_check": datetime.now(timezone.utc).isoformat(),
+                    "status": "inactive",
+                    "error": "OANDA not active (enabled={}, configured={})".format(
+                        self._enabled, self._client.configured),
+                    "latency_ms": None,
+                })
+                return self._heartbeat
+
+            _start = _time.monotonic()
+            try:
+                ok, data = self._client.get_account()
+                _elapsed = (_time.monotonic() - _start) * 1000  # ms
+
+                if ok:
+                    acct = data.get("account", data)
+                    self._heartbeat.update({
+                        "last_check": datetime.now(timezone.utc).isoformat(),
+                        "latency_ms": round(_elapsed, 1),
+                        "balance": acct.get("balance"),
+                        "nav": acct.get("NAV"),
+                        "unrealized_pl": acct.get("unrealizedPL"),
+                        "margin_used": acct.get("marginUsed"),
+                        "margin_available": acct.get("marginAvailable"),
+                        "open_trade_count": acct.get("openTradeCount", 0),
+                        "status": "ok",
+                        "error": None,
+                    })
+                    logger.debug(
+                        f"[OandaBridge] Heartbeat OK: latency={_elapsed:.0f}ms "
+                        f"balance={acct.get('balance')} NAV={acct.get('NAV')}"
+                    )
+                else:
+                    _elapsed = (_time.monotonic() - _start) * 1000
+                    _err = str(data.get("message", data))[:200]
+                    self._heartbeat.update({
+                        "last_check": datetime.now(timezone.utc).isoformat(),
+                        "latency_ms": round(_elapsed, 1),
+                        "status": "error",
+                        "error": _err,
+                    })
+                    self._log_error(f"Heartbeat error: {_err}")
+            except Exception as e:
+                _elapsed = (_time.monotonic() - _start) * 1000
+                self._heartbeat.update({
+                    "last_check": datetime.now(timezone.utc).isoformat(),
+                    "latency_ms": round(_elapsed, 1),
+                    "status": "error",
+                    "error": str(e)[:200],
+                })
+                self._log_error(f"Heartbeat exception: {e}")
+
+        return self._heartbeat
+
+    def get_heartbeat(self) -> dict:
+        """最新のハートビート情報を返す（display付き）."""
+        with self._heartbeat_lock:
+            hb = dict(self._heartbeat)
+        # ── フォーマット済みディスプレイ文字列 ──
+        _status = hb.get("status", "unknown").upper()
+        _latency = hb.get("latency_ms")
+        _nav = hb.get("nav")
+        _balance = hb.get("balance")
+        if _status == "OK" and _latency is not None:
+            _nav_disp = f"¥{float(_nav):,.0f}" if _nav else "N/A"
+            hb["display"] = (
+                f"OANDA: CONNECTED / LATENCY: {_latency:.0f}ms / NAV: {_nav_disp}"
+            )
+        elif _status == "INACTIVE":
+            hb["display"] = "OANDA: INACTIVE (not configured)"
+        elif _status == "ERROR":
+            hb["display"] = f"OANDA: ERROR / {hb.get('error', 'unknown')[:60]}"
+        else:
+            hb["display"] = "OANDA: UNKNOWN (awaiting first heartbeat)"
+        return hb
+
+    # ── Core Properties ───────────────────────────────
+
     @property
     def active(self) -> bool:
         """True if OANDA integration is enabled and configured."""
@@ -94,6 +319,9 @@ class OandaBridge:
             "allowed_modes": sorted(self._allowed_modes) if self._allowed_modes else "all",
             "open_trades": len(self._trade_map),
             "recent_errors": self._recent_errors[-5:],
+            "heartbeat": self.get_heartbeat(),
+            "strategy_overrides": self.get_strategy_overrides(),
+            "execution_audit_count": len(self._execution_audit),
         }
 
     def set_trade_mapping(self, demo_id: str, oanda_id: str):
@@ -122,10 +350,14 @@ class OandaBridge:
                    mode: str = "",
                    instrument: str = "USD_JPY",
                    callback=None,
-                   units: int = 0):
+                   units: int = 0,
+                   log_callback=None,
+                   lot_label: str = ""):
         """Place OANDA market order mirroring a demo trade.
         callback(demo_trade_id, oanda_trade_id) called on success for DB persistence.
         units: override lot size (0 = use default self._units).
+        log_callback: fn(msg) for 🔗 OANDA log output (runs in background thread).
+        lot_label: display label for lot multiplier (e.g. "🚀1.3x").
         """
         if not self.active:
             return
@@ -136,6 +368,7 @@ class OandaBridge:
         def _do():
             side = "buy" if direction == "BUY" else "sell"
             _lot = units if units > 0 else self._units
+            _lot_disp = f"{_lot}u({_lot/10000:.2f}lot)"
             ok, data = self._client.market_order(
                 side=side,
                 units=_lot,
@@ -147,6 +380,7 @@ class OandaBridge:
                 # v20: orderFillTransaction.tradeOpened.tradeID
                 _fill = data.get("orderFillTransaction", {})
                 oanda_id = str(_fill.get("tradeOpened", {}).get("tradeID", ""))
+                _price = _fill.get("price", "")
                 if oanda_id:
                     with self._lock:
                         self._trade_map[demo_trade_id] = oanda_id
@@ -154,15 +388,38 @@ class OandaBridge:
                                 f"(demo={demo_trade_id})")
                     if callback:
                         callback(demo_trade_id, oanda_id)
+                    # ── 🔗 OANDA 連携ラベル: 約定成功 ──
+                    if log_callback:
+                        log_callback(
+                            f"🔗 OANDA: [FILLED] #{oanda_id} {side.upper()} {instrument} "
+                            f"@ {_price} | {_lot_disp} {lot_label}"
+                        )
+                    # Update audit with OrderID
+                    self._add_audit(
+                        demo_trade_id=demo_trade_id, entry_type=mode,
+                        is_live=True, bridge_status="filled",
+                        block_reason="",
+                        direction=direction, instrument=instrument,
+                        units=_lot, oanda_trade_id=oanda_id,
+                    )
                 else:
                     # 注文は成功したがtradeIDが取れない
                     _msg = f"OPEN {side} ok but no tradeID: {json.dumps(data)[:300]}"
                     logger.warning(f"[OandaBridge] {_msg}")
                     self._log_error(_msg)
+                    if log_callback:
+                        log_callback(f"🔗 OANDA: [WARN] Order ok but no tradeID — {instrument}")
             else:
+                _err = str(data.get("message", data))[:120]
                 _msg = f"OPEN {side} FAILED (demo={demo_trade_id}, mode={mode}, sl={sl}, tp={tp}): {json.dumps(data)[:300]}"
                 logger.error(f"[OandaBridge] {_msg}")
                 self._log_error(_msg)
+                # ── 🔗 OANDA 連携ラベル: 約定失敗 ──
+                if log_callback:
+                    log_callback(
+                        f"🔗 OANDA: [FAILED] {side.upper()} {instrument} "
+                        f"{_lot_disp} — {_err}"
+                    )
 
         self._fire(_do)
 
