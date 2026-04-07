@@ -287,6 +287,10 @@ class DemoTrader:
         self._mss_tracker = {}        # {trade_id: {"choch": dict|None, "msb": bool, "adx": float, "updated": datetime}}
         self._profit_extended = set() # Set of trade_ids that have been profit-extended (TP延伸済み)
         self._pending_limits = {}     # {key: {signal, sl, tp, entry_type, sig, limit_price, created, mode, cfg, ...}}
+        # v6.1: Confidence-based Lot Scaling — N蓄積によるブースト段階制御
+        self._strategy_n_cache = {}   # {entry_type: trade_count} — 自動評価時に更新
+        # v6.1: GBP_USD Strict Friction Guard — 指値失効後クールダウン
+        self._limit_expired_cd = {}   # {f"{inst}_{direction}": expiry_datetime}
         # 起動済みモード追跡（ヘルスチェッカー用）
         self._started_modes = set()
         self._user_stopped_modes = set()  # 明示的にstop()されたモード（ウォッチドッグ対象外）
@@ -1154,9 +1158,43 @@ class DemoTrader:
             _tp_hit_sell = (direction == "SELL" and price <= tp)
             _should_extend_tp = False
 
+            # v6.1: DT Profit Extender (orb_trap, london_ny_swing × EUR)
+            # EUR/USDの緩やかトレンドに合わせADX閾値緩和 + TP50%延伸
+            if _entry_type_pe in self._PE_DT_ELIGIBLE and (_tp_hit_buy or _tp_hit_sell):
+                if trade_id not in self._profit_extended:
+                    _pe_adx_dt = self._PE_ADX_THRESHOLD.get(_inst, 30)
+                    _pe_atr_dt = self._entry_atr.get(trade_id, 0.07 if "JPY" in _inst or "XAU" in _inst else 0.00070)
+                    # ADX確認 (DF不要: 最新sigのadxを使用)
+                    _pe_adx_val = sig.get("adx", 0) if sig else 0
+                    if _pe_adx_val > _pe_adx_dt:
+                        _ext_dist_dt = abs(tp - entry_price) * 0.5  # 50%延伸 (CSv2の2x より控えめ)
+                        if direction == "BUY":
+                            tp = round(tp + _ext_dist_dt, _pip_decimals)
+                        else:
+                            tp = round(tp - _ext_dist_dt, _pip_decimals)
+                        self._profit_extended.add(trade_id)
+                        _pe_trail_dt = _pe_atr_dt * 0.5  # 標準トレイリング幅
+                        if direction == "BUY":
+                            new_sl = round(price - _pe_trail_dt, _pip_decimals)
+                            if new_sl > sl:
+                                sl = new_sl
+                        else:
+                            new_sl = round(price + _pe_trail_dt, _pip_decimals)
+                            if new_sl < sl:
+                                sl = new_sl
+                        self._db.update_sl_tp(trade_id, sl, tp)
+                        self._oanda.modify_sl(trade_id, sl, instrument=_inst)
+                        self._add_log(
+                            f"🚀 DT Profit Extender: {trade_id} ({_entry_type_pe}) "
+                            f"TP+50% (ADX={_pe_adx_val:.1f}>{_pe_adx_dt}) → "
+                            f"新TP={tp:.{_pip_decimals}f}"
+                        )
+                        _should_extend_tp = True
+
             if _entry_type_pe == "confluence_scalp" and (_tp_hit_buy or _tp_hit_sell):
                 _mss = self._mss_tracker.get(trade_id)
-                if _mss and _mss.get("msb") and _mss.get("adx", 0) > 30:
+                _pe_adx_cs = self._PE_ADX_THRESHOLD.get(_inst, 30)
+                if _mss and _mss.get("msb") and _mss.get("adx", 0) > _pe_adx_cs:
                     if trade_id not in self._profit_extended:
                         # ── TP延伸: 現在TPの2倍距離に拡大 ──
                         _ext_dist = abs(tp - entry_price)
@@ -1181,7 +1219,7 @@ class DemoTrader:
                         self._oanda.modify_sl(trade_id, sl, instrument=_inst)
                         self._add_log(
                             f"🚀 Profit Extender: {trade_id} TP延伸 "
-                            f"(MSB+ADX={_mss.get('adx', 0):.1f}>30) → "
+                            f"(MSB+ADX={_mss.get('adx', 0):.1f}>{_pe_adx_cs}) → "
                             f"新TP={tp:.{_pip_decimals}f} Trail={_pe_trail*(_pip_m_exit if '_pip_m_exit' in dir() else 100):.1f}pip"
                         )
                         _should_extend_tp = True
@@ -1761,6 +1799,16 @@ class DemoTrader:
                 _lm_age = (_now_lm - _lm["created"]).total_seconds()
                 if _lm_age > 300:
                     _expired.append(_lm_key)
+                    # v6.1: Strict Friction Guard — GBP_USD指値失効時クールダウン
+                    _lm_inst = _lm.get("instrument", "")
+                    if _lm_inst in self._LIMIT_ONLY_SCALP:
+                        _cd_key = f"{_lm_inst}_{_lm.get('signal', '')}"
+                        self._limit_expired_cd[_cd_key] = _now_lm
+                        self._add_log(
+                            f"🛑 Friction Guard: {_lm_inst} 指値失効 → "
+                            f"{self._LIMIT_EXPIRE_CD_SEC}s 追っかけ禁止 "
+                            f"({_lm.get('signal', '')})"
+                        )
                     continue
                 # 価格チェック: 指値に到達したか
                 _lm_price = sig.get("entry", 0)
@@ -2460,6 +2508,20 @@ class DemoTrader:
         # ══════════════════════════════════════════════════════════════
         _base_mode_limit = _get_base_mode(mode)
         if _base_mode_limit == "scalp" and instrument in self._LIMIT_ONLY_SCALP:
+            # v6.1: Strict Friction Guard — 指値失効後クールダウン中はブロック
+            _fg_cd_key = f"{instrument}_{signal}"
+            _fg_cd_ts = self._limit_expired_cd.get(_fg_cd_key)
+            if _fg_cd_ts:
+                _fg_age = (datetime.now(timezone.utc) - _fg_cd_ts).total_seconds()
+                if _fg_age < self._LIMIT_EXPIRE_CD_SEC:
+                    self._add_log(
+                        f"🛑 Friction Guard: {instrument} {signal} → "
+                        f"指値失効CD中 ({_fg_age:.0f}s/{self._LIMIT_EXPIRE_CD_SEC}s)"
+                    )
+                    return
+                else:
+                    self._limit_expired_cd.pop(_fg_cd_key, None)
+
             _has_limit = any(isinstance(_r, str) and "__LIMIT_ENTRY__" in _r for _r in reasons)
             if not _has_limit:
                 self._add_log(
@@ -2605,6 +2667,18 @@ class DemoTrader:
             (entry_type, instrument),
             self._STRATEGY_LOT_BOOST.get(entry_type, 1.0)
         )
+
+        # ── v6.1: Confidence-based Lot Scaling ──
+        # サンプル数Nに応じてブースト上限を制限
+        # N<10 → max 1.0x, 10≤N<30 → max 1.5x, N≥30 → full
+        _n_trades = self._strategy_n_cache.get(entry_type, 0)
+        _n_cap = 1.0
+        for _n_threshold, _n_max in self._N_LOT_TIERS:
+            if _n_trades >= _n_threshold:
+                _n_cap = _n_max
+                break
+        _strat_boost = min(_strat_boost, _n_cap)
+
         _lot_ratio *= _strat_boost
 
         # ── Scalp Sentinel + Universal Sentinel: 摩擦死戦略は最小ロット固定 ──
@@ -3024,6 +3098,8 @@ class DemoTrader:
                 n = stats.get("n", 0)
                 ev = stats.get("ev", 0)
                 wr = stats.get("wr", 0)
+                # v6.1: N cache更新 (Confidence-based Lot Scaling 用)
+                self._strategy_n_cache[et] = n
                 old = self._promoted_types.get(et, {}).get("status", "pending")
                 # ファストトラック: 十分なサンプル+高WR+高EV
                 if n >= 20 and wr >= 60.0 and ev >= self._BT_COST_PER_TRADE:
@@ -3201,6 +3277,23 @@ class DemoTrader:
 
     # 高摩擦ペア指値強制: scalp成行エントリー禁止 (RT摩擦>3pip)
     _LIMIT_ONLY_SCALP = {"GBP_USD"}   # SAR=0.80 → 指値のみ許可
+
+    # v6.1: Confidence-based Lot Scaling — サンプル数N段階制御
+    # N不足の戦略への過剰集中を自動抑制 (過適合リスク管理)
+    _N_LOT_TIERS = [
+        (30, 2.5),   # N>=30: Proven Elite — フルブースト許可
+        (10, 1.5),   # N>=10: Elite Candidate — 1.5x上限
+        (0,  1.0),   # N<10:  Standard — ブースト無効 (1.0x上限)
+    ]
+
+    # v6.1: EUR/USD Profit Extender — ADX閾値ペア別
+    _PE_ADX_THRESHOLD = {
+        "EUR_USD": 25,  # EUR緩やかトレンド → 閾値緩和 (default 30)
+    }
+    _PE_DT_ELIGIBLE = {"orb_trap", "london_ny_swing"}  # DT利確延伸対象
+
+    # v6.1: Strict Friction Guard — 指値失効後の追っかけブロック秒数
+    _LIMIT_EXPIRE_CD_SEC = 180  # 3分間同方向再エントリー禁止
 
     def _is_promoted(self, entry_type: str, instrument: str = "") -> bool:
         """戦略がOANDA実行可能か判定 (v4: ペア別ライフサイクル対応)

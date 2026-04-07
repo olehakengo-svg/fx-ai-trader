@@ -70,6 +70,11 @@ class OrbTrap(StrategyBase):
     # ── 保持 ──
     MAX_HOLD_BARS    = 12       # 最大12バー (3時間 @ 15m)
 
+    # ── v6.1: 仲値フィルター (USD/JPY専用) ──
+    NAKANE_START     = 45       # UTC 00:45 (JST 09:45)
+    NAKANE_END       = 90       # UTC 01:30 (JST 10:30)
+    NAKANE_MOVE_ATR  = 1.2      # 仲値期間のレンジ > ATR×1.2 で汚染判定
+
     # ──────────────────────────────────────────────────
     # ヘルパー
     # ──────────────────────────────────────────────────
@@ -181,6 +186,30 @@ class OrbTrap(StrategyBase):
         # ── 金曜 UTC 15+ ブロック ──
         if ctx.is_friday and _cur_min >= 900:
             return None
+
+        # ══════════════════════════════════════════════════
+        # v6.1: 仲値フィルター (USD/JPY × LDN session)
+        #   東京仲値(09:55 JST = 00:55 UTC)前後の異常ボラが
+        #   LDN ORBレンジを汚染するケースを排除
+        #   NY sessionは影響外のためパススルー
+        # ══════════════════════════════════════════════════
+        if ctx.is_jpy and "JPY" in ctx.symbol and session == "LDN":
+            try:
+                _today_nak = self._bar_date(_bt)
+                _nak_bars = []
+                for _i in range(len(ctx.df)):
+                    _bi = ctx.df.index[_i]
+                    if hasattr(_bi, 'date') and self._bar_date(_bi) == _today_nak:
+                        _bm = self._bar_minutes(_bi)
+                        if self.NAKANE_START <= _bm <= self.NAKANE_END:
+                            _nak_bars.append(_i)
+                if len(_nak_bars) >= 2:
+                    _nak_sl = ctx.df.iloc[_nak_bars]
+                    _nak_range = float(_nak_sl["High"].max()) - float(_nak_sl["Low"].min())
+                    if _nak_range > ctx.atr * self.NAKANE_MOVE_ATR:
+                        return None  # 仲値汚染: ORBレンジの信頼性低下
+            except Exception:
+                pass
 
         # ═══════════════════════════════════════════════════
         # Opening Range 計算

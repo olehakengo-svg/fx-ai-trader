@@ -42,6 +42,10 @@ class HtfFalseBreakout(StrategyBase):
     # ── 最大保持 ──
     max_hold_bars = 8      # 8バー = 2時間 (False breakoutの回帰は迅速)
 
+    # ── v6.1: USD/JPY 追加フィルター ──
+    JPY_RSI_DIV_LOOKBACK = 30   # RSIダイバージェンス検出バー数
+    JPY_OB_ATR_PROXIMITY = 0.5  # OB接触判定: ATR×0.5以内
+
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         if ctx.df is None or len(ctx.df) < 20:
             return None
@@ -106,6 +110,58 @@ class HtfFalseBreakout(StrategyBase):
             return None  # まだSR外 — 本物のブレイク継続中
         if _break_dir == "DOWN" and _current_close <= _sr_low:
             return None  # まだSR外
+
+        # ══════════════════════════════════════════════════════════════
+        # v6.1: USD/JPY 精度強化フィルター
+        #   WR=33.3% → RSIダイバージェンス or OB接触 を必須化
+        #   根拠: USD/JPY の False Breakout は仲値・金利差による
+        #         本物ブレイクとの区別がつきにくい → 追加確認必須
+        # ══════════════════════════════════════════════════════════════
+        if ctx.is_jpy and "JPY" in ctx.symbol:
+            _jpy_pass = False
+            _jpy_reasons = []
+
+            # Gate A: RSIダイバージェンス確認
+            #   SELL → 弱気ダイバージェンス (価格HH, RSI LH)
+            #   BUY  → 強気ダイバージェンス (価格LL, RSI HL)
+            try:
+                if "rsi" in ctx.df.columns and len(ctx.df) >= self.JPY_RSI_DIV_LOOKBACK:
+                    _div_sub = ctx.df.tail(self.JPY_RSI_DIV_LOOKBACK)
+                    _H = _div_sub["High"].values
+                    _L = _div_sub["Low"].values
+                    _rsi_v = _div_sub["rsi"].values
+                    _mid = len(_div_sub) // 2
+                    _ph_r = int(np.argmax(_H[_mid:])) + _mid
+                    _ph_p = int(np.argmax(_H[:_mid]))
+                    _pl_r = int(np.argmin(_L[_mid:])) + _mid
+                    _pl_p = int(np.argmin(_L[:_mid]))
+
+                    if _break_dir == "UP":  # SELL candidate
+                        if _H[_ph_r] > _H[_ph_p] and _rsi_v[_ph_r] < _rsi_v[_ph_p]:
+                            _jpy_pass = True
+                            _jpy_reasons.append("✅ JPY: RSI弱気ダイバージェンス確認")
+                    else:  # BUY candidate
+                        if _L[_pl_r] < _L[_pl_p] and _rsi_v[_pl_r] > _rsi_v[_pl_p]:
+                            _jpy_pass = True
+                            _jpy_reasons.append("✅ JPY: RSI強気ダイバージェンス確認")
+            except Exception:
+                pass
+
+            # Gate B: H1 Order Block 接触 (SR境界のスイングH/Lへの近接)
+            #   False Breakout後にOB(価格反転帯)付近にいれば信頼度高い
+            if not _jpy_pass:
+                _ob_dist_high = abs(_current_close - _sr_high)
+                _ob_dist_low = abs(_current_close - _sr_low)
+                _ob_threshold = ctx.atr * self.JPY_OB_ATR_PROXIMITY
+                if _break_dir == "UP" and _ob_dist_high <= _ob_threshold:
+                    _jpy_pass = True
+                    _jpy_reasons.append(f"✅ JPY: OB接触(SR高値{_ob_dist_high/_ob_threshold:.0%})")
+                elif _break_dir == "DOWN" and _ob_dist_low <= _ob_threshold:
+                    _jpy_pass = True
+                    _jpy_reasons.append(f"✅ JPY: OB接触(SR安値{_ob_dist_low/_ob_threshold:.0%})")
+
+            if not _jpy_pass:
+                return None  # USD/JPY: RSI Div も OB接触もなし → スキップ
 
         # ── MTFフィルター（必須: 強トレンド逆行排除）──
         _htf = ctx.htf or {}
@@ -175,6 +231,14 @@ class HtfFalseBreakout(StrategyBase):
             reasons.append(f"✅ レンジ環境(ADX={ctx.adx:.1f}<25)")
 
         reasons.append(f"📊 SR=[{_sr_low:.5f}-{_sr_high:.5f}] range={_sr_range*ctx.pip_mult:.1f}pip")
+
+        # v6.1: JPY追加理由を付加
+        if ctx.is_jpy and "JPY" in ctx.symbol:
+            try:
+                reasons.extend(_jpy_reasons)
+            except NameError:
+                pass
+
         conf = int(min(85, 50 + score * 4))
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
                          reasons=reasons, entry_type=self.name, score=score)

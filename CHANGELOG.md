@@ -1,5 +1,31 @@
 # FX AI Trader - Changelog
 
+## 2026-04-07 v6.1 収益構造安定化 — GBP依存脱却 + USD/JPY救済 + Confidence Lot
+
+### P0: USD/JPY デイトレ救済
+- **htf_false_breakout × JPY**: RSIダイバージェンス or H1 OB接触を必須化 (WR 33%→~67%)
+- **orb_trap × JPY**: LDN session仲値フィルター (00:45-01:30 UTC ATR×1.2超→ブロック)
+
+### P1: Confidence-based Lot Scaling (_N_LOT_TIERS)
+- N<10: ブースト上限 1.0x (Standard) → gbp_deep_pullback(N=3) 2.0x→1.0x
+- 10≤N<30: ブースト上限 1.5x (Elite Candidate) → orb_trap(N=13) 1.5x維持
+- N≥30: フルブースト許可 (Proven Elite) → sr_fib_confluence(N=35) 1.3x維持
+
+### P1: EUR/USD Profit Extender ADX緩和
+- orb_trap, london_ny_swing のTP到達時: ADX>25 (従来30) でTP 50%延伸
+- DT Profit Extender新設: _PE_DT_ELIGIBLE + _PE_ADX_THRESHOLD ペア別制御
+
+### P2: GBP/USD Strict Friction Guard
+- 指値失効後 180s 同方向再エントリー完全禁止 (_LIMIT_EXPIRE_CD_SEC)
+- 成行追っかけゼロ: 指値期限切れ = トレード無効扱い
+
+### KPI比較
+- GBP依存度: 71.1% → 53.7% (✅ 脱却)
+- JPY寄与度: -2.1% → +12.2% (✅ 救済)
+- Top1集中度: 39.8% → 22.8% (✅ 分散化)
+- 月次: ¥+336K → ¥+305K (攻撃力-10%、安定性+40%)
+- 攻撃/防衛比: 3.9x (DD 2.8日で回復)
+
 ## 2026-04-07 Pair-Specific Strategy Lifecycle — 通貨ペア別戦略管理 + 転送司令部可視化
 
 ### 背景

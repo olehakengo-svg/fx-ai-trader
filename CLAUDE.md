@@ -128,6 +128,10 @@
   - **_UNIVERSAL_SENTINEL**: stoch_trend_pullback → 全モードでSentinel化 (Scalp限定→全モード拡張)
   - **_PAIR_SR_THRESHOLD**: USD_JPY=1.5 (デフォルト2.0→緩和、SR品質が高いため)
   - **_LIMIT_ONLY_SCALP**: GBP_USD → scalp成行注文禁止、指値のみ (RT friction=3.06pip対策)
+  - **_N_LOT_TIERS (v6.1)**: N<10→max1.0x / 10≤N<30→max1.5x / N≥30→full (Confidence-based Lot)
+  - **_PE_DT_ELIGIBLE (v6.1)**: orb_trap, london_ny_swing → DT Profit Extender対象
+  - **_PE_ADX_THRESHOLD (v6.1)**: EUR_USD=25 (デフォルト30) → 緩やかトレンドでTP延伸許可
+  - **_LIMIT_EXPIRE_CD_SEC (v6.1)**: 180s → GBP_USD指値失効後の追っかけ禁止
   - **_is_promoted() v4**: Bridge → PAIR_DEMOTED → PAIR_PROMOTED → FORCE_DEMOTED → auto_demotion → allow
 - **Elite Track (2026-04-07)**: gbp_deep_pullback=2.0x, turtle_soup/orb_trap/htf_false_breakout/trendline_sweep/london_ny_swing=1.5x
 - **Legacy boost**: sr_break_retest, mtf_reversal_confluence → 1.3x, fib_reversal=1.3x (global default)
