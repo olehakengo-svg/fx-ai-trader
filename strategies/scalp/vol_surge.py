@@ -31,27 +31,27 @@ class VolSurgeDetector(StrategyBase):
     mode = "scalp"
     enabled = True
 
-    # ── パラメータ ──
-    vol_surge_mult = 2.0      # 平均の200%以上で急増判定
+    # ── パラメータ (v6.3 発火率改善) ──
+    vol_surge_mult = 1.7      # v6.3: 2.0→1.7 発火率↑ (N蓄積優先)
     vol_lookback = 20         # 出来高平均算出期間
-    # Climax parameters
-    climax_bbpb_buy = 0.10    # BB下限近接
-    climax_bbpb_sell = 0.90   # BB上限近接
-    climax_rsi_buy = 30       # RSI過売
-    climax_rsi_sell = 70      # RSI過買
-    climax_tp_mult = 1.0      # 短命反転TP
-    climax_sl_mult = 0.6      # 短命反転SL
+    # Climax parameters (v6.3: 閾値緩和で発火率3-5倍)
+    climax_bbpb_buy = 0.15    # v6.3: 0.10→0.15 BB下限近接
+    climax_bbpb_sell = 0.85   # v6.3: 0.90→0.85 BB上限近接
+    climax_rsi_buy = 35       # v6.3: 30→35 RSI過売
+    climax_rsi_sell = 65      # v6.3: 70→65 RSI過買
+    climax_tp_mult = 1.3      # v6.3: 1.0→1.3 反転は平均1.3ATR到達
+    climax_sl_mult = 0.6      # 短命反転SL (維持)
     # Momentum parameters
-    momentum_adx_min = 22     # トレンド確認
-    momentum_tp_mult = 2.0    # トレンド追随TP
-    momentum_sl_mult = 0.8    # トレンド追随SL
+    momentum_adx_min = 20     # v6.3: 22→20 vol_momentumと統一
+    momentum_tp_mult = 2.0    # トレンド追随TP (維持)
+    momentum_sl_mult = 0.8    # トレンド追随SL (維持)
+    # v6.3: バーレンジ代替の補強閾値
+    bar_range_atr_min = 1.5   # バーレンジ/ATR最低比率
 
-    # ── セッションフィルター (2026-04-06 Session Matrix BT) ──
-    # USD/JPY: Tokyo PF=2.17 ✅, NY_Overlap PF=0.67 ❌, NY_Late PF=0.54 ❌
-    # EUR/GBP: Tokyo PF=0.52 ❌, NY_Overlap PF=2.10 ✅, NY_Late PF=1.39 ✅
-    # → USD/JPY = Tokyo+Londonのみ, EUR/GBP = NY以降のみ
+    # ── セッションフィルター (v6.3: USD/JPYセッション緩和) ──
+    # v6.3: UTC 12-23→17-23 (NY前半を開放、Tokyo+London+NY_Early許可)
     _blocked_hours_by_pair = {
-        "USDJPY": frozenset(range(12, 24)),  # NY時間帯ブロック
+        "USDJPY": frozenset(range(17, 24)),  # v6.3: NY_Late以降のみブロック
     }
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
@@ -86,6 +86,9 @@ class VolSurgeDetector(StrategyBase):
                 return None
             _surge = _range_cur >= _range_mean * self.vol_surge_mult
             _surge_ratio = round(_range_cur / max(_range_mean, 1e-8), 1)
+            # v6.3: バーレンジ/ATR比率チェック (ATR対比で有意な動きか)
+            if ctx.atr7 > 0 and _range_cur / ctx.atr7 < self.bar_range_atr_min:
+                _surge = False  # ATR対比で動き不足
 
         if not _surge:
             return None

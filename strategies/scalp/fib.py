@@ -42,24 +42,44 @@ class FibReversal(StrategyBase):
     name = "fib_reversal"
     mode = "scalp"
 
-    # チューナブルパラメータ
+    # チューナブルパラメータ (v6.3 対策強化)
     min_lookback = 45
     lookbacks = [45, 60]
-    fib_proximity = 0.50   # ATR倍率での近接判定（0.35→0.50緩和）
+    fib_proximity = 0.35   # v6.3: 0.50→0.35 精度↑ (Fibレベルにより近い位置でのみエントリー)
     rsi5_buy = 48          # （45→48緩和）
     rsi5_sell = 52         # （55→52緩和）
-    tp_mult = 1.8
-    sl_mult = 0.5
+    tp_mult = 1.8          # USD_JPYデフォルト (維持)
+    sl_mult = 0.7          # v6.3: 0.5→0.7 ノイズ生存率↑
     sl_fib_offset = 0.2    # フィボレベルからのSLオフセット（ATR倍率）
+    body_ratio_min = 0.50  # v6.3: 足の実体比率最低 (ヒゲ足排除)
+
+    # ── ペア別TP倍率 (v6.3: 非JPYは摩擦が大きいため早期利確) ──
+    _tp_mult_by_pair = {
+        "USDJPY": 1.8,    # 維持: USD_JPY最強ペア
+        "EURUSD": 1.3,    # v6.3: 摩擦大→早期利確
+        "GBPUSD": 1.3,    # v6.3: 摩擦大→早期利確
+        "EURJPY": 1.5,    # v6.3: 中間
+        "XAUUSD": 1.5,    # v6.3: 中間
+    }
+
+    # ── セッションフィルター (v6.3: 低ボラ時間帯ブロック) ──
+    _blocked_hours_by_pair = {
+        "EURUSD": frozenset(range(0, 6)),    # v6.3: アジア時間EUR ATR不足
+        "GBPUSD": frozenset(range(0, 6)),    # v6.3: アジア時間GBP ATR不足
+    }
 
     # ── ペア別無効化 (BT検証 2026-04-06) ──
-    # EUR/GBP: 53t WR=43.4% EV=-0.719 → ペア全体PnLを毀損
     _disabled_symbols = frozenset({"EURGBP"})
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         # ── ペアフィルター: BT負EVペアは発火停止 ──
         _sym_clean = ctx.symbol.upper().replace("=X", "").replace("_", "")
         if _sym_clean in self._disabled_symbols:
+            return None
+
+        # ── v6.3: セッションフィルター (低ボラ時間帯ブロック) ──
+        _blocked = self._blocked_hours_by_pair.get(_sym_clean)
+        if _blocked and ctx.hour_utc in _blocked:
             return None
 
         if ctx.df is None or len(ctx.df) < self.min_lookback:
@@ -105,6 +125,14 @@ class FibReversal(StrategyBase):
         _fn, _fv = _fib_touch
         _fib_dist = abs(ctx.entry - _fv) / ctx.atr if ctx.atr > 0 else 0
 
+        # ── v6.3: 足の実体比率チェック (ヒゲ足排除) ──
+        _bar_range = abs(ctx.high - ctx.low) if hasattr(ctx, 'high') and hasattr(ctx, 'low') else 0
+        _bar_body = abs(ctx.entry - ctx.open_price)
+        _body_ratio = _bar_body / _bar_range if _bar_range > 0 else 0
+
+        # ── v6.3: ペア別TP倍率 (非JPYは摩擦大→早期利確) ──
+        _effective_tp = self._tp_mult_by_pair.get(_sym_clean, self.tp_mult)
+
         # 上昇トレンドの押し目買い
         if _fib_trend == "up" and ctx.rsi5 < self.rsi5_buy and ctx.stoch_k > ctx.stoch_d:
             signal = "BUY"
@@ -117,13 +145,16 @@ class FibReversal(StrategyBase):
                 score += 0.5
             if ctx.rsi5 < 35:
                 score += 0.5
-            if ctx.entry > ctx.open_price:
+            # v6.3: 陽線 + 実体比率チェック
+            if ctx.entry > ctx.open_price and _body_ratio >= self.body_ratio_min:
                 score += 0.3
-                reasons.append("✅ 陽線確認")
+                reasons.append(f"✅ 陽線確認(body={_body_ratio:.0%})")
+            elif ctx.entry > ctx.open_price:
+                score += 0.1  # 弱い陽線(ヒゲ大)は減点
             if ctx.macdh > ctx.macdh_prev:
                 score += 0.4
                 reasons.append("✅ MACD-H反転上昇")
-            tp = ctx.entry + ctx.atr7 * self.tp_mult
+            tp = ctx.entry + ctx.atr7 * _effective_tp
             sl = min(ctx.entry - ctx.atr7 * self.sl_mult, _fv - ctx.atr7 * self.sl_fib_offset)
 
         # 下降トレンドの戻り売り
@@ -138,13 +169,16 @@ class FibReversal(StrategyBase):
                 score += 0.5
             if ctx.rsi5 > 65:
                 score += 0.5
-            if ctx.entry < ctx.open_price:
+            # v6.3: 陰線 + 実体比率チェック
+            if ctx.entry < ctx.open_price and _body_ratio >= self.body_ratio_min:
                 score += 0.3
-                reasons.append("✅ 陰線確認")
+                reasons.append(f"✅ 陰線確認(body={_body_ratio:.0%})")
+            elif ctx.entry < ctx.open_price:
+                score += 0.1
             if ctx.macdh < ctx.macdh_prev:
                 score += 0.4
                 reasons.append("✅ MACD-H反転下降")
-            tp = ctx.entry - ctx.atr7 * self.tp_mult
+            tp = ctx.entry - ctx.atr7 * _effective_tp
             sl = max(ctx.entry + ctx.atr7 * self.sl_mult, _fv + ctx.atr7 * self.sl_fib_offset)
 
         if signal is None or score < 3.0:

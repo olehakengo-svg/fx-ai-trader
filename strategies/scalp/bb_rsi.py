@@ -31,11 +31,10 @@ class BBRsiReversion(StrategyBase):
     rsi5_sell = 55        # RSI5 SELL閾値
     stoch_buy = 45        # Stoch BUY閾値
     stoch_sell = 55       # Stoch SELL閾値
-    tp_mult_tier1 = 2.0   # TP倍率 (Tier1)
+    tp_mult_tier1 = 2.2   # TP倍率 (Tier1) v6.3: 2.0→2.2 極端ゾーン反転幅大
     tp_mult_tier2 = 1.5   # TP倍率 (Tier2)
 
-    # ── USD/JPY専用: Death Valley / Gold Hours (Option C) ──
-    # 構造的理由: セッション流動性プロファイルに基づく環境最適化
+    # ── USD/JPY専用: Death Valley / Gold Hours (Option C + v6.3強化) ──
     _death_valley_hours = frozenset({0, 1, 9, 12, 13, 14, 15, 16})
     _gold_hours = frozenset({5, 6, 7, 8, 19, 20, 21, 22, 23})
 
@@ -138,12 +137,12 @@ class BBRsiReversion(StrategyBase):
         if signal is None:
             return None
 
-        # ── USD/JPY専用ボーナス (Option C) ──
+        # ── USD/JPY専用ボーナス (Option C + v6.3強化) ──
         if ctx.is_jpy:
-            # Gold Hours bonus: UTC 05-08, 19-23 (WR=60-85%, 低ボラ高速反転)
+            # Gold Hours bonus (v6.3: 0.5→0.8 集中度↑)
             if ctx.hour_utc in self._gold_hours:
-                score += 0.5
-                reasons.append(f"✅ Gold Hour(UTC {ctx.hour_utc:02d}) — USD/JPY高WR時間帯")
+                score += 0.8
+                reasons.append(f"✅ Gold Hour(UTC {ctx.hour_utc:02d}) — USD/JPY高WR時間帯 +0.8")
             # ADX>=30 trend BB reversion bonus (USD/JPY独自: トレンド中BB反発 WR=60%)
             if ctx.adx >= 30:
                 score += 0.6

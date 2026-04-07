@@ -83,8 +83,20 @@
 | mtf_reversal_confluence | 4 | 50.0% | -0.187 | RSI+MACD AND (HTF cache incompatible with BT) |
 | session_vol_expansion | EUR only | — | — | SVE: London open compression breakout (UTC 07:00-08:30) |
 
-- **bb_rsi Option C (2026-04-04)**: USD/JPY ADX制限撤廃(トレンド中WR=60%), Death Valley(UTC 00-01,09,12-16)ブロック, Gold Hours(UTC 05-08,19-23)スコア+0.5, ADX>=30スコア+0.6
+- **bb_rsi Option C (2026-04-04)**: USD/JPY ADX制限撤廃(トレンド中WR=60%), Death Valley(UTC 00-01,09,12-16)ブロック, Gold Hours(UTC 05-08,19-23)スコア+0.8(v6.3), ADX>=30スコア+0.6, Tier1 TP=2.2(v6.3)
 - **Confluence Scalp v2 (2026-04-07)**: Triple Confluence + MSS戦略。Session Gate(UTC 12-17) + MFE Guard(ATR/Spread>=10) + HTF Hard Block + 3理論族合意(EMA+RSI/BB+MACD-H) + CHoCH/MSB構造転換検出。Profit Extender(TP延伸+Climax Exit), Friction Minimizer(指値遅延エントリー)
+
+### v6.3 Sentinel対策 (2026-04-08) — 切除ではなく改善
+**設計思想**: 負EV戦略を切除(FORCE_DEMOTED)するのではなく、根本原因(摩擦、パラメータ、フィルター不足)を特定し具体的に改善する。
+- **ema_ribbon_ride**: Relaxed PO→**Strict PO(9>21>50)**, ADX 18→**25**, DI gap≥5必須, TP 1.5→**1.2**, UTC 0-6**完全ブロック**, BB幅≥0.35, 足実体≥40%
+- **fib_reversal**: Fib proximity 0.50→**0.35**, SL 0.5→**0.7**ATR, **ペア別TP**(JPY=1.8/EUR,GBP=1.3), 足実体≥50%, EUR/GBP UTC 0-5ブロック
+- **macdh_reversal**: **Tier化**(BB≤0.15=Tier1 TP1.8/通常TP1.5), MACD-H反転**強度フィルター**(delta≥平均50%), Death Valley(UTC 0,1,9 JPY)適用
+- **vol_surge_detector**: 発火率改善: vol倍率 2.0→**1.7**, Climax BB%B 0.10→**0.15**, RSI 30→**35**, TP 1.0→**1.3**, JPYセッション 12-23→**17-23**縮小, バーレンジATR比率チェック追加
+- **vol_momentum_scalp**: ADX 20→**25**, DI gap≥**8**必須, SL 0.8→**1.0**(pullback吸収), BB幅 0.35→**0.45**, RSI過熱 85/15→**80/20**
+- **bb_rsi_reversion**: USD_JPY **PAIR_PROMOTED**(Sentinel bypass), Gold Hours +0.5→**+0.8**, Tier1 TP 2.0→**2.2**
+- **Rolling EV Monitor**: `_check_rolling_ev()` — 戦略EV急落(drop≥0.2 & EV<-0.3)を自動検出・アラート
+- **spread_at_exit修正**: OANDA決済パス+SIGNAL_REVERSE決済パスにspread_at_exit追加
+
 - **DISABLED**: stoch_pullback, ema_pullback, trend_rebound, engulfing_bb, three_bar_reversal, sr_channel_reversal
 - **SL floor**: ATR(14)x1.0 minimum (ScalperEngine/DaytradeEngine unified)
 - **MAX_HOLD=40 bars**, MIN_RR=1.2
@@ -123,7 +135,7 @@
 - **Force-demoted (OANDA停止)**: sr_fib_confluence, ema_cross, inducement_ob, ema_ribbon_ride, h1_fib_reversal, pivot_breakout, ema_pullback — デモ継続・実弾停止 (Phase3: EMA系全滅確認)
 - **Pair-Specific Lifecycle (2026-04-07)**: `(strategy, instrument)` tuple-based granular control — v5.95 BT audit 結果に基づく通貨ペア別戦略管理
   - **_PAIR_DEMOTED**: bb_rsi×EUR_USD (WR=20% EV=-1.5), macdh×GBP_USD (WR=40% EV=-0.818) → エントリー完全停止
-  - **_PAIR_PROMOTED**: sr_fib_confluence×USD_JPY → FORCE_DEMOTED からの復帰 (WR=76.9% EV=+0.470)
+  - **_PAIR_PROMOTED**: sr_fib_confluence×USD_JPY/EUR_USD/GBP_USD, **bb_rsi_reversion×USD_JPY (v6.3)** → FORCE_DEMOTED/SENTINEL bypass
   - **_PAIR_LOT_BOOST**: fib_reversal×USD_JPY=1.5x, sr_fib_confluence×USD_JPY=1.3x (ペア特化ブースト、グローバルブーストより優先)
   - **_UNIVERSAL_SENTINEL**: stoch_trend_pullback → 全モードでSentinel化 (Scalp限定→全モード拡張)
   - **_PAIR_SR_THRESHOLD**: USD_JPY=1.5 (デフォルト2.0→緩和、SR品質が高いため)
@@ -135,7 +147,8 @@
   - **_is_promoted() v4**: Bridge → PAIR_DEMOTED → PAIR_PROMOTED → FORCE_DEMOTED → auto_demotion → allow
 - **Elite Track (2026-04-07)**: gbp_deep_pullback=2.0x, turtle_soup/orb_trap/htf_false_breakout/trendline_sweep/london_ny_swing=1.5x
 - **Legacy boost**: sr_break_retest, mtf_reversal_confluence → 1.3x, fib_reversal=1.3x (global default)
-- **Scalp Sentinel**: bb_rsi/fib/macdh/vol_momentum等8戦略 → 1000units固定(0.01lot)、データ収集専用
+- **Scalp Sentinel**: bb_rsi/fib/macdh/vol_momentum等7戦略 → 1000units固定(0.01lot)、データ収集専用 (v6.3: bb_rsi USD_JPYはPAIR_PROMOTED bypass)
+- **Rolling EV Monitor (v6.3)**: `_check_rolling_ev()` — EV急落検出(drop≥0.2 & EV<-0.3)→自動アラートログ
 - **Equity Curve Protector**: DD>5%(50pip)→全ロット50%縮小、DD回復(2.5%以下)→自動解除
 - **ATR Trailing Stop**: Tier1=ATR*0.8→BE, Tier2=ATR*1.5→Trail at price-ATR*0.5 (MFE逃し救済+64.7p推定)
 - **Session×Pair filter**: EUR_GBP全停止(WR=11%), EUR_USD Tokyo(UTC0-7)/Late_NY(UTC17+)停止

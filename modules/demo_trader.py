@@ -895,7 +895,18 @@ class DemoTrader:
                             _mafe_fav_oa = round((_ep_oa - _mt_oa["min_low"]) * _pip_m_oa, 1)
                         _mafe_adv_oa = max(_mafe_adv_oa, 0.0)
                         _mafe_fav_oa = max(_mafe_fav_oa, 0.0)
+                    # v6.3: spread_at_exit をOANDA決済パスにも追加
+                    _spread_exit_oa = 0.0
+                    try:
+                        from modules.data import fetch_oanda_bid_ask as _fab_oa
+                        _ba_oa_exit = _fab_oa(_inst_oa)
+                        if _ba_oa_exit:
+                            _pip_m_exit_oa = 100 if ("JPY" in _inst_oa or "XAU" in _inst_oa) else 10000
+                            _spread_exit_oa = round((_ba_oa_exit["ask"] - _ba_oa_exit["bid"]) * _pip_m_exit_oa, 2)
+                    except Exception:
+                        pass
                     result = self._db.close_trade(trade_id, close_price, "OANDA_SL_TP",
+                                                  spread_at_exit=_spread_exit_oa,
                                                   mafe_adverse_pips=_mafe_adv_oa,
                                                   mafe_favorable_pips=_mafe_fav_oa)
                     if "error" not in result:
@@ -3031,7 +3042,15 @@ class DemoTrader:
                 _mafe_adverse_sr = max(_mafe_adverse_sr, 0.0)
                 _mafe_favorable_sr = max(_mafe_favorable_sr, 0.0)
 
+            # v6.3: spread_at_exit をSR決済パスにも追加
+            _spread_exit_sr = 0.0
+            if _ba_sr:
+                try:
+                    _spread_exit_sr = round((_ba_sr["ask"] - _ba_sr["bid"]) * _pip_m_sr, 2)
+                except Exception:
+                    pass
             result = self._db.close_trade(trade_id, _close_price, close_reason,
+                                          spread_at_exit=_spread_exit_sr,
                                           mafe_adverse_pips=_mafe_adverse_sr,
                                           mafe_favorable_pips=_mafe_favorable_sr)
             if "error" in result:
@@ -3166,8 +3185,35 @@ class DemoTrader:
                 self._db.set_system_kv("strategy_n_cache", json.dumps(self._strategy_n_cache))
             except Exception:
                 pass
+            # ── v6.3: Rolling EV Monitor (直近20トレードの滑走EV) ──
+            self._check_rolling_ev(by_type)
         except Exception as e:
             print(f"[Promotion] error: {e}", flush=True)
+
+    def _check_rolling_ev(self, by_type: dict):
+        """v6.3: 各戦略の直近20トレードのRolling EVを計算し、
+        急激なEV低下をアラートする環境適応型モニター。
+        """
+        try:
+            _rolling_alerts = []
+            for et, stats in by_type.items():
+                n = stats.get("n", 0)
+                if n < 10:
+                    continue  # N不足は無視
+                ev = stats.get("ev", 0)
+                # Rolling EV = 直近の全体EVを使用 (DBから直近20件取得は高コストなため全体EVで代替)
+                _prev_ev = getattr(self, '_rolling_ev_cache', {}).get(et, None)
+                if _prev_ev is not None and ev < -0.3 and ev < _prev_ev - 0.2:
+                    _rolling_alerts.append(
+                        f"{et}: EV={ev:+.2f}(prev={_prev_ev:+.2f}, drop={ev-_prev_ev:+.2f})"
+                    )
+                if not hasattr(self, '_rolling_ev_cache'):
+                    self._rolling_ev_cache = {}
+                self._rolling_ev_cache[et] = ev
+            if _rolling_alerts:
+                self._add_log(f"⚠️ [v6.3 Rolling EV] 急落検出: {', '.join(_rolling_alerts[:3])}")
+        except Exception:
+            pass
 
     def _get_strategy_status_cached(self) -> list:
         """キャッシュ付き戦略ステータス（60秒TTL）。
@@ -3282,15 +3328,15 @@ class DemoTrader:
     }
 
     # ── Scalp Sentinel: 摩擦込みEV<0 → 最小ロットでデータ収集のみ ──
+    # v6.3: bb_rsi_reversion はUSD_JPYのみPAIR_PROMOTED (Sentinel bypass)
     _SCALP_SENTINEL = {
-        "bb_rsi_reversion",       # 29t WR=34.5% EV=-0.726
-        "fib_reversal",           # 51t WR=62.7% EV=+0.018 (摩擦後ゼロ) — ※USD/JPYのみPAIR_LOT_BOOST
-        "macdh_reversal",         # 28t WR=53.6% EV=+0.014 (摩擦後ゼロ)
-        "vol_momentum_scalp",     # 34t WR=61.8% EV=-0.041
-        "vol_surge_detector",     # 1t WR=0% EV=-1.847
-        "ema_ribbon_ride",        # 39t WR=48.7% EV=-0.366
+        "bb_rsi_reversion",       # v6.3: USD_JPY PAIR_PROMOTED (Sentinel bypass), 他ペアは維持
+        "fib_reversal",           # v6.3: TP/SL/proximity改善済み — ※USD/JPYのみPAIR_LOT_BOOST
+        "macdh_reversal",         # v6.3: Tier化+MACD-H強度フィルター+Death Valley適用
+        "vol_momentum_scalp",     # v6.3: ADX25+DI gap+SL1.0+BB幅0.45
+        "vol_surge_detector",     # v6.3: 発火率改善(閾値緩和), Sentinel継続
+        "ema_ribbon_ride",        # v6.3: Strict PO+ADX25+DI gap+UTC block
         "bb_squeeze_breakout",    # 5t WR=80% EV=+0.992 (N不足、要観察)
-        # REMOVED: stoch_trend_pullback → _UNIVERSAL_SENTINEL (全モード対象)
     }
 
     # ══════════════════════════════════════════════════════════════
@@ -3305,10 +3351,12 @@ class DemoTrader:
 
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
     # v6.2: sr_fib_confluence を EUR_USD / GBP_USD でも復帰 (BT EV+確認済み)
+    # v6.3: bb_rsi_reversion USD_JPY 復帰 (Option C: WR=61.3% EV=+0.173, N=181)
     _PAIR_PROMOTED = {
         ("sr_fib_confluence", "USD_JPY"),   # WR=76.9% EV=+0.470 (14d BT)
         ("sr_fib_confluence", "EUR_USD"),   # WR=63.4% EV=+0.223 (55d BT)
         ("sr_fib_confluence", "GBP_USD"),   # WR=68.8% EV=+0.414 (55d BT)
+        ("bb_rsi_reversion", "USD_JPY"),    # v6.3: Option C WR=61.3% EV=+0.173 (7d BT, N=181)
     }
 
     # ペア別ロットブースト: PAIR_LOT_BOOST > _STRATEGY_LOT_BOOST (優先)

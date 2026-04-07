@@ -43,31 +43,30 @@ class EmaRibbonRide(StrategyBase):
     mode = "scalp"
     enabled = True
 
-    # ── チューナブルパラメータ ──
+    # ── チューナブルパラメータ (v6.3 対策強化) ──
     ema_proximity_atr = 0.5    # EMA9近接判定 (ATR7 × この値以内)
     rsi_buy_max = 55           # BUY時のRSI上限
     rsi_sell_min = 45          # SELL時のRSI下限
-    tp_mult = 1.5              # TP = ATR7 × tp_mult (デフォルト)
-    adx_min = 18               # 最低ADX（トレンド存在の最低証拠）
+    tp_mult = 1.2              # TP = ATR7 × tp_mult (v6.3: 1.5→1.2 早期利確で勝率↑)
+    adx_min = 25               # 最低ADX (v6.3: 18→25 トレンド確度↑、ダマシ排除)
+    di_gap_min = 5             # v6.3: DI乖離最低要件 (方向性の確度を担保)
+    bb_width_pct_min = 0.35    # v6.3: BB幅パーセンタイル最低 (ノイズBK排除)
+    body_ratio_min = 0.40      # v6.3: 足の実体比率最低 (ヒゲだらけの足を排除)
 
-    # ── ペア別TP倍率 (BT最適化 2026-04-06) ──
-    # EUR/JPY: WR=59.3% → TP短縮で勝率安定化
+    # ── ペア別TP倍率 (BT最適化 2026-04-06, v6.3 更新) ──
     _tp_mult_by_pair = {
-        "EURJPY": 1.3,
+        "EURJPY": 1.1,    # v6.3: 1.3→1.1 摩擦考慮
     }
 
     # ── 通貨ペアフィルター (BT検証 2026-04-06, 2026-04-07 EURUSD追加) ──
-    # USD/JPY EV=+0.353, EUR/JPY EV=+0.206, XAU/USD EV=+0.262 → 有効
-    # EUR/USD EV=-0.086 → 損益分岐点 (PO条件が厳しく過剰発火リスク低い)
-    # GBP/USD EV=-0.571, EUR/GBP EV=-0.290 → 無効
     _enabled_symbols = frozenset({
         "USDJPY", "EURUSD", "EURJPY", "XAUUSD",
     })
 
-    # ── 時間帯スコア調整 ──
+    # ── 時間帯フィルター (v6.3: 低ボラ帯を完全ブロック) ──
     _prime_hours = frozenset(range(12, 18))      # 12-17 UTC: +1.0
     _ok_hours = frozenset(range(8, 12)) | frozenset(range(18, 22))  # 8-11, 18-21 UTC: 0
-    # それ以外: -0.5 penalty
+    _blocked_hours = frozenset(range(0, 7))       # v6.3: UTC 0-6 完全ブロック (ペナルティでは不十分)
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         # ── 通貨ペアフィルター: BT正EVペアのみ発火 ──
@@ -75,8 +74,21 @@ class EmaRibbonRide(StrategyBase):
         if _sym_clean not in self._enabled_symbols:
             return None
 
-        # ── 最低ADX要件: トレンドが存在しない環境を排除 ──
+        # ── v6.3: 低ボラ時間帯完全ブロック (UTC 0-6) ──
+        if ctx.hour_utc in self._blocked_hours:
+            return None
+
+        # ── 最低ADX要件 (v6.3: 25) ──
         if ctx.adx < self.adx_min:
+            return None
+
+        # ── v6.3: DI乖離最低要件 (方向性の確度を担保) ──
+        _di_gap = abs(ctx.adx_pos - ctx.adx_neg)
+        if _di_gap < self.di_gap_min:
+            return None
+
+        # ── v6.3: BB幅パーセンタイルチェック (ノイズBK排除) ──
+        if hasattr(ctx, 'bb_width_pct') and ctx.bb_width_pct < self.bb_width_pct_min:
             return None
 
         signal = None
@@ -87,14 +99,14 @@ class EmaRibbonRide(StrategyBase):
 
         _min_sl = 0.030 if ctx.is_jpy else 0.00030
 
-        # ── フレキシブル・パーフェクトオーダー判定 (2026-04-07) ──
-        # 完全PO (EMA9>21>50>200) は1分足では極端に稀 → 緩和:
-        # 「EMA9とEMA21がEMA50の同じ側にある」ことを条件とする
-        # ボーナス: 完全POの場合は追加スコア +0.5
+        # ── Strict パーフェクトオーダー判定 (v6.3: Relaxed→Strict) ──
+        # v6.3: EMA9>EMA21>EMA50 を必須とする (Relaxed POがダマシの主因)
+        # 完全PO (EMA9>21>50>200) は追加ボーナス
         _strict_bull = (ctx.ema9 > ctx.ema21 > ctx.ema50 > ctx.ema200)
         _strict_bear = (ctx.ema9 < ctx.ema21 < ctx.ema50 < ctx.ema200)
-        bull_po = (ctx.ema9 > ctx.ema50 and ctx.ema21 > ctx.ema50)
-        bear_po = (ctx.ema9 < ctx.ema50 and ctx.ema21 < ctx.ema50)
+        # v6.3: Strict PO = EMA9>21>50 (200は不要)
+        bull_po = (ctx.ema9 > ctx.ema21 > ctx.ema50)
+        bear_po = (ctx.ema9 < ctx.ema21 < ctx.ema50)
 
         if not bull_po and not bear_po:
             return None
@@ -106,16 +118,22 @@ class EmaRibbonRide(StrategyBase):
         if ema9_dist > proximity_threshold:
             return None  # EMA9から遠すぎる = 押し目ではなく乖離中
 
+        # ── v6.3: 足の実体比率チェック (ヒゲ足排除) ──
+        _bar_range = abs(ctx.high - ctx.low) if hasattr(ctx, 'high') and hasattr(ctx, 'low') else 0
+        _bar_body = abs(ctx.entry - ctx.open_price)
+        _body_ratio = _bar_body / _bar_range if _bar_range > 0 else 0
+
         # ── BUY: Bull Perfect Order + 押し目反転 ──
         if bull_po and ctx.rsi5 < self.rsi_buy_max:
             # 現在足が陽線 = 押し目からの反転確認
-            if ctx.entry > ctx.open_price:
+            # v6.3: 実体比率チェック
+            if ctx.entry > ctx.open_price and _body_ratio >= self.body_ratio_min:
                 signal = "BUY"
                 score = 3.0
 
-                reasons.append(f"✅ EMAリボン上位(EMA9={ctx.ema9:.5g},21={ctx.ema21:.5g}>50={ctx.ema50:.5g})")
+                reasons.append(f"✅ EMAリボンStrict PO(EMA9={ctx.ema9:.5g}>21={ctx.ema21:.5g}>50={ctx.ema50:.5g})")
                 reasons.append(f"✅ EMA9押し目(距離={ema9_dist/ctx.atr7:.2f}ATR≤{self.ema_proximity_atr})")
-                reasons.append(f"✅ 陽線反転(C={ctx.entry:.5g}>O={ctx.open_price:.5g})")
+                reasons.append(f"✅ 陽線反転(C={ctx.entry:.5g}>O={ctx.open_price:.5g}, body={_body_ratio:.0%})")
                 reasons.append(f"✅ RSI5非過熱({ctx.rsi5:.1f}<{self.rsi_buy_max})")
 
                 # TP: トレンド方向にATR分
@@ -126,13 +144,13 @@ class EmaRibbonRide(StrategyBase):
 
         # ── SELL: Bear Perfect Order + 戻り反転 ──
         elif bear_po and ctx.rsi5 > self.rsi_sell_min:
-            if ctx.entry < ctx.open_price:
+            if ctx.entry < ctx.open_price and _body_ratio >= self.body_ratio_min:
                 signal = "SELL"
                 score = 3.0
 
-                reasons.append(f"✅ EMAリボン下位(EMA9={ctx.ema9:.5g},21={ctx.ema21:.5g}<50={ctx.ema50:.5g})")
+                reasons.append(f"✅ EMAリボンStrict PO(EMA9={ctx.ema9:.5g}<21={ctx.ema21:.5g}<50={ctx.ema50:.5g})")
                 reasons.append(f"✅ EMA9戻り(距離={ema9_dist/ctx.atr7:.2f}ATR≤{self.ema_proximity_atr})")
-                reasons.append(f"✅ 陰線反転(C={ctx.entry:.5g}<O={ctx.open_price:.5g})")
+                reasons.append(f"✅ 陰線反転(C={ctx.entry:.5g}<O={ctx.open_price:.5g}, body={_body_ratio:.0%})")
                 reasons.append(f"✅ RSI5非過冷({ctx.rsi5:.1f}>{self.rsi_sell_min})")
 
                 tp = ctx.entry - ctx.atr7 * self.tp_mult
@@ -150,7 +168,7 @@ class EmaRibbonRide(StrategyBase):
             else:
                 tp = ctx.entry - ctx.atr7 * _effective_tp_mult
 
-        # ── 時間帯スコア調整 (12-17 UTC 最優先) ──
+        # ── 時間帯スコア調整 (12-17 UTC 最優先, v6.3: 0-6完全ブロック済み) ──
         if ctx.hour_utc in self._prime_hours:
             score += 1.0
             reasons.append(f"✅ プライムタイム(UTC {ctx.hour_utc}:00) — 逆張り弱体時間帯補完 +1.0")
@@ -159,6 +177,13 @@ class EmaRibbonRide(StrategyBase):
         else:
             score -= 0.5
             reasons.append(f"⚠️ 低ボラ時間帯(UTC {ctx.hour_utc}:00) — スコア -0.5")
+
+        # ── v6.3: DI乖離ボーナス ──
+        if _di_gap >= 15:
+            score += 0.4
+            reasons.append(f"✅ DI乖離大({_di_gap:.1f}≥15) +0.4")
+        elif _di_gap >= 10:
+            score += 0.2
 
         # ── スコアボーナス ──
 

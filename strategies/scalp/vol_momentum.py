@@ -34,17 +34,16 @@ class VolMomentumScalp(StrategyBase):
     mode = "scalp"
     enabled = True
 
-    # ── チューナブルパラメータ (2026-04-06 BT最適化) ──
-    # ADX: 30→22 (5m/1m足で発火率改善、トレンド初動も捕捉)
-    # BB %B: 1.0/0.0→0.90/0.10 (σ2.0→σ1.8相当、エントリー機会拡大)
-    adx_min = 20            # トレンド強度の最低要件 (30→22→20: 初動捕捉)
-    bbpb_buy = 0.90         # %B >= 0.90 ≈ σ1.8 上方ブレイク (1.0→0.90)
-    bbpb_sell = 0.10        # %B <= 0.10 ≈ σ1.8 下方ブレイク (0.0→0.10)
-    rsi_overbought = 85     # 過熱ブロック上限
-    rsi_oversold = 15       # 過熱ブロック下限
-    bb_width_pct_min = 0.35 # BBバンド幅パーセンタイル最低値 (0.40→0.35)
-    tp_mult = 1.8           # TP = ATR7 × tp_mult
-    sl_mult = 0.8           # SL = ATR7 × sl_mult
+    # ── チューナブルパラメータ (v6.3 対策強化) ──
+    adx_min = 25            # v6.3: 20→25 フェイクアウト排除 (ADX20-24はBK失敗率高)
+    bbpb_buy = 0.90         # %B >= 0.90 ≈ σ1.8 上方ブレイク
+    bbpb_sell = 0.10        # %B <= 0.10 ≈ σ1.8 下方ブレイク
+    rsi_overbought = 80     # v6.3: 85→80 過熱ゾーン拡大 (オーバーシュート防止)
+    rsi_oversold = 20       # v6.3: 15→20 過熱ゾーン拡大
+    bb_width_pct_min = 0.45 # v6.3: 0.35→0.45 より強い圧縮→BKの品質確保
+    tp_mult = 1.8           # TP = ATR7 × tp_mult (維持)
+    sl_mult = 1.0           # v6.3: 0.8→1.0 初動pullback吸収で生存率↑
+    di_gap_min = 8           # v6.3: DI乖離最低要件 (方向確度↑)
 
     # ── 通貨ペアフィルター (BT検証 2026-04-06, 14d/5m) ──
     # EUR/JPY EV=+0.362, GBP/USD EV=+0.160, XAU/USD EV=+0.179 → 有効
@@ -74,8 +73,13 @@ class VolMomentumScalp(StrategyBase):
         if _blocked and ctx.hour_utc in _blocked:
             return None
 
-        # ── 前提条件: ADX >= 22 (トレンド存在の確認) ──
-        if ctx.adx < self.adx_min:  # ADX 20 (2026-04-07: 22→20, トレンド初動捕捉)
+        # ── 前提条件: ADX >= 25 (v6.3: トレンド確度↑) ──
+        if ctx.adx < self.adx_min:
+            return None
+
+        # ── v6.3: DI乖離最低要件 (方向確度↑) ──
+        _di_gap = abs(ctx.adx_pos - ctx.adx_neg)
+        if _di_gap < self.di_gap_min:
             return None
 
         # ── BB幅チェック: レンジ内のノイズブレイクを排除 ──
