@@ -2943,9 +2943,7 @@ class DemoTrader:
         # 弱い逆転シグナルではSR発動しない（ノイズ防止）
         _sr_threshold = self._PAIR_SR_THRESHOLD.get(_instrument_sr, self._SR_SCORE_THRESHOLD)
         if _sig_score < _sr_threshold:
-            self._add_log(
-                f"   🚫 SR抑制（スコア不足）: {direction}→{new_signal} {_sr_detail}"
-            )
+            # スコア不足はtick毎に発生する正常状態 → ログ出力しない（ログ汚染防止）
             return
 
         # ── フィルター2: ADXレンジ制限 (ADX > 20) ──
