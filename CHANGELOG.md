@@ -1,5 +1,43 @@
 # FX AI Trader - Changelog
 
+## 2026-04-07 Confluence Scalp v2 — Triple Confluence + MSS + Profit Extender
+
+### 1. Triple Confluence Gate (攻撃層)
+- **新戦略 `confluence_scalp`** (`strategies/scalp/confluence_scalp.py`)
+- **3理論族合意**: EMA9/21整列(Trend) + RSI5/BB%B極端(Oscillator) + MACD-H反転(Momentum)
+- 単一指標のノイズエントリーを排除 — 既存Sentinel戦略の構造的欠陥(83.5% instant death)を解消
+
+### 2. 防御層 (3段階ゲート)
+- **Session Gate**: UTC 12-17のみ (London/NY overlap, instant death率最低)
+- **MFE Guard**: ATR/Spread >= 10 (SAR<1.0の摩擦死を構造的に回避)
+- **HTF Hard Block**: HTF逆行エントリーを完全ブロック (ソフトペナルティではなくハードブロック)
+- `app.py`: confluence_scalp をEMA200/HTFソフトペナルティ適用外に設定 (内部で制御済み)
+
+### 3. Market Structure Shift (MSS) — CHoCH/MSB検出
+- **CHoCH (Change of Character)**: Fractal(n=3)スイングポイント → 実体で割れ = 構造転換 (Wyckoff 1931)
+- **MSB (Market Structure Break)**: CHoCH後のHH/LL更新 = 新トレンド確認
+- **detect_choch() / detect_msb() / detect_mss_state()**: DataFrame分析関数
+- CHoCH検出でスコア+2.0, MSB確認で+1.0のボーナス
+
+### 4. Profit Extender (利益延伸 + 動的エグジット)
+- **TP延伸**: TP到達時にMSS継続(MSB=True) + ADX>30 → TP距離を2倍に拡大
+- **強化トレイリング**: ATR*0.4幅 (通常Tier2のATR*0.5より狭く利益ロック)
+- **Climax Exit**: RSI divergence + 大ウィック(70%以上) → 即利確
+- **_mss_tracker**: 毎tick(10s)でMSS状態を更新、_check_sltp_realtime(0.5s)で参照
+- **_profit_extended**: TP延伸済みtrade_idのSet追跡
+
+### 5. Friction Minimizer (指値遅延エントリー)
+- **compute_limit_entry_price()**: 直近3本のウィック中間点で有利な指値価格を計算
+- **指値待ち**: 現在価格が指値より不利 → _pending_limits に保存 (5分期限)
+- **指値約定**: 次tick以降で価格到達 → 自動エントリー実行
+- **__LIMIT_ENTRY__マーカー**: signal reasonsに指値価格を埋め込み、demo_trader が解析
+
+### 6. インフラ変更
+- **demo_db.py**: `update_sl_tp()` メソッド追加 (Profit ExtenderのTP動的変更用)
+- **demo_trader.py**: `_mss_tracker`, `_profit_extended`, `_pending_limits` 追加
+- **QUALIFIED_TYPES**: `confluence_scalp` を登録
+- **ScalperEngine**: `ConfluenceScalp` を戦略リストに追加 (14戦略目)
+
 ## 2026-04-07 Elite Selection & Portfolio Restructuring (摩擦v2 BT監査)
 
 ### 1. Elite Track ロットブースト (P0)

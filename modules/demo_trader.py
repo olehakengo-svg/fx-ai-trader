@@ -283,6 +283,10 @@ class DemoTrader:
         self._sl_hit_history = []       # [(timestamp, instrument, entry_type, hold_sec)] SL_HIT履歴
         # ── MTF連携: 15m DT → 1m Scalp 戦略バイアス（通貨ペア別）──
         self._15m_tactical_bias = {}  # {instrument: {direction, entry_type, ...}}
+        # ── Confluence Scalp v2: MSS追跡 + Profit Extender ──
+        self._mss_tracker = {}        # {trade_id: {"choch": dict|None, "msb": bool, "adx": float, "updated": datetime}}
+        self._profit_extended = set() # Set of trade_ids that have been profit-extended (TP延伸済み)
+        self._pending_limits = {}     # {key: {signal, sl, tp, entry_type, sig, limit_price, created, mode, cfg, ...}}
         # 起動済みモード追跡（ヘルスチェッカー用）
         self._started_modes = set()
         self._user_stopped_modes = set()  # 明示的にstop()されたモード（ウォッチドッグ対象外）
@@ -1124,16 +1128,86 @@ class DemoTrader:
                 elif direction == "SELL" and price > _inv:
                     close_reason = "SCENARIO_INVALID"
 
-            if direction == "BUY":
-                if price <= sl:
-                    close_reason = "SL_HIT"
-                elif price >= tp:
-                    close_reason = "TP_HIT"
-            else:
-                if price >= sl:
-                    close_reason = "SL_HIT"
-                elif price <= tp:
-                    close_reason = "TP_HIT"
+            # ══════════════════════════════════════════════════════════════
+            # ── Profit Extender (Confluence Scalp v2) ──
+            # confluence_scalp トレードがTP到達時にMSS継続+ADX>30なら:
+            #   → TPを延伸してトレイリングストップに切り替え
+            # クライマックス検出時は即利確 (RSI divergence + 大ウィック)
+            # ══════════════════════════════════════════════════════════════
+            _entry_type_pe = trade.get("entry_type", "")
+            _tp_hit_buy = (direction == "BUY" and price >= tp)
+            _tp_hit_sell = (direction == "SELL" and price <= tp)
+            _should_extend_tp = False
+
+            if _entry_type_pe == "confluence_scalp" and (_tp_hit_buy or _tp_hit_sell):
+                _mss = self._mss_tracker.get(trade_id)
+                if _mss and _mss.get("msb") and _mss.get("adx", 0) > 30:
+                    if trade_id not in self._profit_extended:
+                        # ── TP延伸: 現在TPの2倍距離に拡大 ──
+                        _ext_dist = abs(tp - entry_price)
+                        if direction == "BUY":
+                            tp = round(tp + _ext_dist, _pip_decimals)
+                        else:
+                            tp = round(tp - _ext_dist, _pip_decimals)
+                        self._profit_extended.add(trade_id)
+                        # ── 強化トレイリング: ATR*0.4幅 (通常0.5より狭く利益ロック) ──
+                        _pe_atr = self._entry_atr.get(trade_id, 0.07 if "JPY" in _inst or "XAU" in _inst else 0.00070)
+                        _pe_trail = _pe_atr * 0.4
+                        if direction == "BUY":
+                            new_sl = round(price - _pe_trail, _pip_decimals)
+                            if new_sl > sl:
+                                sl = new_sl
+                        else:
+                            new_sl = round(price + _pe_trail, _pip_decimals)
+                            if new_sl < sl:
+                                sl = new_sl
+                        # SL/TP変更をDBに反映
+                        self._db.update_sl_tp(trade_id, sl, tp)
+                        self._oanda.modify_sl(trade_id, sl, instrument=_inst)
+                        self._add_log(
+                            f"🚀 Profit Extender: {trade_id} TP延伸 "
+                            f"(MSB+ADX={_mss.get('adx', 0):.1f}>30) → "
+                            f"新TP={tp:.{_pip_decimals}f} Trail={_pe_trail*(_pip_m_exit if '_pip_m_exit' in dir() else 100):.1f}pip"
+                        )
+                        _should_extend_tp = True
+                elif trade_id in self._profit_extended:
+                    # 既にTP延伸済み → トレイリング継続 (Tier2と同じだが狭い)
+                    _pe_atr = self._entry_atr.get(trade_id, 0.07 if "JPY" in _inst or "XAU" in _inst else 0.00070)
+                    _pe_trail = _pe_atr * 0.4
+                    if direction == "BUY":
+                        new_sl = round(price - _pe_trail, _pip_decimals)
+                        if new_sl > sl:
+                            sl = new_sl
+                            self._oanda.modify_sl(trade_id, sl, instrument=_inst)
+                    else:
+                        new_sl = round(price + _pe_trail, _pip_decimals)
+                        if new_sl < sl:
+                            sl = new_sl
+                            self._oanda.modify_sl(trade_id, sl, instrument=_inst)
+
+            # ── Climax Exit (Confluence Scalp v2) ──
+            # TP延伸中にクライマックス検出 → 即利確
+            if _entry_type_pe == "confluence_scalp" and trade_id in self._profit_extended:
+                # 簡易クライマックス検出: 大ウィック判定 (price-based)
+                # _sltp_loopにはDFがないため、MFE/current priceの乖離で代替
+                _mss_c = self._mss_tracker.get(trade_id)
+                if _mss_c and _mss_c.get("climax"):
+                    close_reason = "CLIMAX_EXIT"
+                    self._add_log(
+                        f"🎯 Climax Exit: {trade_id} トレンド疲弊検出 → 利確"
+                    )
+
+            if not close_reason and not _should_extend_tp:
+                if direction == "BUY":
+                    if price <= sl:
+                        close_reason = "SL_HIT"
+                    elif price >= tp:
+                        close_reason = "TP_HIT"
+                else:
+                    if price >= sl:
+                        close_reason = "SL_HIT"
+                    elif price <= tp:
+                        close_reason = "TP_HIT"
 
             # ── 週末前クローズ（金曜21:45 UTC以降に全ポジ強制クローズ）──
             if not close_reason and _is_pre_weekend:
@@ -1622,6 +1696,83 @@ class DemoTrader:
             "time": datetime.now(timezone.utc).strftime("%H:%M:%S"),
         }
 
+        # ── Confluence Scalp v2: MSS状態追跡 (Profit Extender用) ──
+        # スキャルプモードで毎tick (10s間隔) に open confluence_scalp トレードの
+        # MSS状態を更新 → _check_sltp_realtime でTP延伸判定に使用
+        if _base_mode_fn == "scalp":
+            try:
+                _open_trades_mss = self._db.get_open_trades()
+                for _ot_mss in _open_trades_mss:
+                    if _ot_mss.get("entry_type") != "confluence_scalp":
+                        continue
+                    _tid_mss = _ot_mss["trade_id"]
+                    try:
+                        from strategies.scalp.confluence_scalp import (
+                            detect_mss_state, detect_climax
+                        )
+                        _mss_result = detect_mss_state(df, lookback=30)
+                        _adx_mss = float(df.iloc[-1].get("adx", 25.0)) if "adx" in df.columns else 25.0
+                        _dir_mss = _ot_mss.get("direction", "BUY")
+                        _climax = detect_climax(df, _dir_mss, lookback=10)
+                        self._mss_tracker[_tid_mss] = {
+                            "choch": _mss_result.get("choch"),
+                            "msb": _mss_result.get("msb", False),
+                            "direction": _mss_result.get("direction"),
+                            "adx": _adx_mss,
+                            "climax": _climax,
+                            "updated": datetime.now(timezone.utc),
+                        }
+                    except Exception as _mss_err:
+                        print(f"[MSS] tracker error for {_tid_mss}: {_mss_err}")
+                # Cleanup: 閉じたトレードのMSSデータを削除
+                _open_ids = {t["trade_id"] for t in _open_trades_mss}
+                for _stale_id in list(self._mss_tracker.keys()):
+                    if _stale_id not in _open_ids:
+                        self._mss_tracker.pop(_stale_id, None)
+                        self._profit_extended.discard(_stale_id)
+            except Exception as _mss_outer:
+                print(f"[MSS] outer error: {_mss_outer}")
+
+        # ── Friction Minimizer: pending limit order check ──
+        # 保留中の指値注文の価格到達チェック (10s間隔)
+        if self._pending_limits:
+            _now_lm = datetime.now(timezone.utc)
+            _expired = []
+            for _lm_key, _lm in list(self._pending_limits.items()):
+                _lm_mode = _lm.get("mode", "")
+                if _lm_mode != mode:
+                    continue
+                # 5分 (300秒) で期限切れ
+                _lm_age = (_now_lm - _lm["created"]).total_seconds()
+                if _lm_age > 300:
+                    _expired.append(_lm_key)
+                    continue
+                # 価格チェック: 指値に到達したか
+                _lm_price = sig.get("entry", 0)
+                _lm_limit = _lm["limit_price"]
+                _lm_signal = _lm["signal"]
+                _filled = False
+                if _lm_signal == "BUY" and _lm_price <= _lm_limit:
+                    _filled = True
+                elif _lm_signal == "SELL" and _lm_price >= _lm_limit:
+                    _filled = True
+                if _filled:
+                    # 指値約定 → エントリー実行
+                    self._add_log(
+                        f"📍 Limit Fill: {_lm_signal} @ {_lm_price:.5f} "
+                        f"(limit={_lm_limit:.5f}, waited={_lm_age:.0f}s)"
+                    )
+                    # sig を limit order の保存時シグナルで上書きしてエントリー
+                    _lm_sig = _lm["sig"]
+                    _lm_sig["entry"] = _lm_price  # 現在価格で約定
+                    try:
+                        self._tick_entry(mode, cfg, _lm_sig, tf, instrument)
+                    except Exception as _le:
+                        print(f"[LimitEntry] error: {_le}")
+                    _expired.append(_lm_key)
+            for _ek in _expired:
+                self._pending_limits.pop(_ek, None)
+
         # ── 後半処理: エントリー判定（例外でスレッドハングを防止）──
         try:
             self._tick_entry(mode, cfg, sig, tf, instrument)
@@ -1781,6 +1932,7 @@ class DemoTrader:
             "gold_pips_hunter",      # ゴールドPipsハンター: XAU専用スキャルプ (2026-04-07)
             "london_shrapnel",       # LDN異常ヒゲ反転 EUR/GBP専用 (2026-04-07)
             "vol_surge_detector",    # 出来高急増ブレイクアウト (2026-04-07)
+            "confluence_scalp",      # Triple Confluence + MSS (UTC 12-17, HTF Hard Block) (2026-04-07)
             # DISABLED (FXアナリストレビュー 2026-04-03):
             # "v_reversal",          # → bb_rsi統合予定 (サンプル5t)
             # "trend_rebound",       # 廃止: 1t EV=-1.22, 実質未発火
@@ -2281,6 +2433,47 @@ class DemoTrader:
         _reasons_with_inv = sig.get("reasons", [])
         if _invalidation is not None:
             _reasons_with_inv = list(_reasons_with_inv) + [f"__INV__:{_invalidation:.3f}"]
+
+        # ══════════════════════════════════════════════════════════════
+        # ── Friction Minimizer: 指値遅延エントリー (Confluence Scalp v2) ──
+        # confluence_scalp が __LIMIT_ENTRY__ マーカーを含む場合:
+        #   現在価格が指値より不利 → pending_limits に保存して即時エントリー見送り
+        #   現在価格が指値以下(BUY)/以上(SELL) → そのままエントリー (自然な良フィル)
+        # ══════════════════════════════════════════════════════════════
+        if entry_type == "confluence_scalp":
+            _limit_price_entry = None
+            for _r in reasons:
+                if isinstance(_r, str) and _r.startswith("__LIMIT_ENTRY__:"):
+                    try:
+                        _limit_price_entry = float(_r.split(":")[1])
+                    except Exception:
+                        pass
+                    break
+            if _limit_price_entry is not None:
+                _should_defer = False
+                if signal == "BUY" and current_price > _limit_price_entry:
+                    _should_defer = True
+                elif signal == "SELL" and current_price < _limit_price_entry:
+                    _should_defer = True
+                if _should_defer:
+                    _lm_key = f"{instrument}_{signal}_{entry_type}"
+                    if _lm_key not in self._pending_limits:
+                        self._pending_limits[_lm_key] = {
+                            "signal": signal,
+                            "limit_price": _limit_price_entry,
+                            "sig": dict(sig),  # copy
+                            "created": datetime.now(timezone.utc),
+                            "mode": mode,
+                            "sl": sl,
+                            "tp": tp,
+                            "instrument": instrument,
+                        }
+                        self._add_log(
+                            f"📍 Limit Deferred: {signal} {instrument} "
+                            f"limit={_limit_price_entry:.5f} "
+                            f"(current={current_price:.5f}, waiting)"
+                        )
+                    return  # 指値待ち → 即時エントリーしない
 
         # ══════════════════════════════════════════════════════════════
         # ── P0監視: スリッページ・スプレッド・COOLDOWN記録 ──

@@ -73,6 +73,7 @@
 | session_vol_expansion | EUR only | — | — | SVE: London open compression breakout (UTC 07:00-08:30) |
 
 - **bb_rsi Option C (2026-04-04)**: USD/JPY ADX制限撤廃(トレンド中WR=60%), Death Valley(UTC 00-01,09,12-16)ブロック, Gold Hours(UTC 05-08,19-23)スコア+0.5, ADX>=30スコア+0.6
+- **Confluence Scalp v2 (2026-04-07)**: Triple Confluence + MSS戦略。Session Gate(UTC 12-17) + MFE Guard(ATR/Spread>=10) + HTF Hard Block + 3理論族合意(EMA+RSI/BB+MACD-H) + CHoCH/MSB構造転換検出。Profit Extender(TP延伸+Climax Exit), Friction Minimizer(指値遅延エントリー)
 - **DISABLED**: stoch_pullback, ema_pullback, trend_rebound, engulfing_bb, three_bar_reversal, sr_channel_reversal
 - **SL floor**: ATR(14)x1.0 minimum (ScalperEngine/DaytradeEngine unified)
 - **MAX_HOLD=40 bars**, MIN_RR=1.2
@@ -116,6 +117,35 @@
 - **ATR Trailing Stop**: Tier1=ATR*0.8→BE, Tier2=ATR*1.5→Trail at price-ATR*0.5 (MFE逃し救済+64.7p推定)
 - **Session×Pair filter**: EUR_GBP全停止(WR=11%), EUR_USD Tokyo(UTC0-7)/Late_NY(UTC17+)停止
 - **SIGNAL_REVERSE min hold**: scalp 180→300s (ノイズ循環断切)
+
+## Confluence Scalp v2 Architecture (2026-04-07)
+- **File**: `strategies/scalp/confluence_scalp.py` (ConfluenceScalp + MSS検出関数群)
+- **設計思想**: 既存Sentinel戦略の構造的欠陥(83.5% instant death, SAR<1.0)を解消する新世代スキャルプ
+- **防御層 (3段階ゲート)**:
+  1. Session Gate: UTC 12-17のみ (London/NY overlap = instant death率最低の時間帯)
+  2. MFE Guard: ATR/Spread >= 10 (摩擦吸収余地の確保)
+  3. HTF Hard Block: HTF方向に逆行するエントリーを完全ブロック (Sentinel戦略のソフトペナルティとは異なる)
+- **攻撃層 (Triple Confluence Gate)**:
+  - Family A (Trend): EMA9/21クロスまたは整列
+  - Family B (Oscillator): RSI5極端 + BB%B極端
+  - Family C (Momentum): MACD-H方向転換
+  - 3理論族が全て同方向に合意した場合のみエントリー
+- **MSS (Market Structure Shift)**:
+  - CHoCH (Change of Character): スイングH/Lを実体で割れ → 構造転換検出 (Wyckoff 1931)
+  - MSB (Market Structure Break): CHoCH後のHH/LL更新 → 新トレンド確認
+  - detect_choch() / detect_msb() / detect_mss_state(): Fractal(n=3)ベースの構造分析
+- **Profit Extender** (`demo_trader.py _check_sltp_realtime`):
+  - TP到達時にMSS継続(MSB=True)+ADX>30: TP延伸(2x) + 強化トレイリング(ATR*0.4)
+  - _mss_tracker: 毎tick(10s)でMSS状態を更新 → _check_sltp_realtime(0.5s)で参照
+  - Climax Exit: RSI divergence + 大ウィック(70%以上) → 即利確
+  - _profit_extended: TP延伸済みtrade_idのSet
+- **Friction Minimizer** (指値遅延エントリー):
+  - compute_limit_entry_price(): 直近3本のウィック中間点で指値価格を計算
+  - 現在価格が指値より不利 → _pending_limits に保存、5分以内に到達で約定
+  - __LIMIT_ENTRY__マーカーでsignal reasonsに指値価格を埋め込み
+- **SL/TP**: SL=ATR7*1.2 (構造エントリー用に広め), TP=ATR7*2.5 (高RR)
+- **app.py連携**: EMA200/HTFソフトペナルティを適用外 (内部でHTF Hard Block済み)
+- **QUALIFIED_TYPES**: confluence_scalp を登録済み
 
 ## Active Trading Rules & Constraints
 

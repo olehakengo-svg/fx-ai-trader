@@ -7551,6 +7551,22 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     best = max(candidates, key=lambda c: c[6])
     signal, conf, sl, tp, reasons, entry_type, score = best
 
+    # ── Confluence Scalp: 内部でHTF Hard Block + Session Gate済み → 外部フィルター適用外 ──
+    if entry_type == "confluence_scalp":
+        # SL/TP最終調整のみ適用（EMA200/HTFソフトペナルティ不要）
+        sl_dist = abs(entry - sl)
+        tp_dist = abs(tp - entry)
+        MIN_SL = 0.030 if "JPY" in symbol.upper() else 0.00030
+        if sl_dist < MIN_SL:
+            sl = entry - MIN_SL if signal == "BUY" else entry + MIN_SL
+            sl_dist = MIN_SL
+        if tp_dist < sl_dist * 1.2:
+            tp = entry + sl_dist * 1.8 if signal == "BUY" else entry - sl_dist * 1.8
+            tp_dist = abs(tp - entry)
+            reasons.append("⚠️ RR不足 → TP最小RR1.8に拡張")
+        rr = round(tp_dist / max(sl_dist, 1e-6), 2)
+        return _make_result(signal, conf, sl, tp, rr, reasons, entry_type, score)
+
     # ── EMA200 近接回避ゾーン ──
     # 200EMA付近は攻防ラインでウィップソーが多い → 軽度抑制（緩和済み）
     # ただしtrend_rebound/v_reversalは極端な状況なので除外
