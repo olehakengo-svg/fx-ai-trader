@@ -1,5 +1,38 @@
 # FX AI Trader - Changelog
 
+## 2026-04-07 BT Friction Model v2 — Phase A-D Reality Sync (461t監査)
+
+### Phase A: ペア別スプレッドモデル + スリッページ係数
+- **_bt_spread() v2**: non-JPY一律モデル → EUR_GBP/GBP_USD/EUR_USD/EUR_JPY個別分離
+  - EUR_GBP: 旧0.2-0.8pip → 新1.0-2.0pip (実測1.367pip)
+  - GBP_USD: 旧0.2-0.8pip → 新0.8-1.8pip (実測1.300pip)
+  - EUR_USD: 旧0.2-0.8pip → 新0.3-1.0pip (実測0.658pip)
+  - USD_JPY: 旧0.2-0.8pip → 新0.3-1.0pip (実測0.677pip, 微調整)
+- **_BT_SLIPPAGE**: ペア別スリッページ定数 (実測平均0.489pip×80%)
+  - エントリー・決済の両側に加算 → 往復摩擦の完全再現
+- **exit_friction_m**: 全トレードに決済時摩擦(half spread+slippage)をATR倍率で記録
+
+### Phase B: SL判定厳格化
+- **_sl_genuine_threshold**: 0.3→0.1 (scalp/DT/1H全BT)
+  - 本番のtick-by-tick判定に近似。「ヒゲで助かった」BT楽観を排除
+
+### Phase C: SIGNAL_REVERSE BT実装
+- **Scalp BT**: min_hold=5bars(300s)経過後、3barごとにcompute_scalp_signalを再呼出
+  - 逆シグナル検出時: close±摩擦で決済 → outcome/PnLを正確に記録
+  - 検証結果: 201t中37t(18.4%)がSR決済 (本番40.1%の約半分、チェック間隔差)
+- **DT BT**: 毎bar compute_daytrade_signalを再呼出 → 0% SR (15m足は保持期間内に反転しない = 正常)
+
+### Phase D: 執行制限ロジック同期
+- **カスケードCD**: SL後の全戦略クールダウン (scalp: 90bars, DT: 12bars@15m)
+- **Post-SLブロック**: 同方向エントリー制限 (scalp: 120bars, DT: 40bars@15m)
+- SL LOSSのみカスケード発動 (SR決済はカスケート非対象)
+
+### Phase 5: EV計算リベース
+- **PnL関数**: WIN=tp_m-exit_friction_m, LOSS=-(sl_m+exit_friction_m)
+- **昇格基準**: 摩擦込みEV > 1.0 AND N≥10 → 「昇格候補」フラグ付与
+- **verdict更新**: 全BT関数のverdict判定を摩擦込みEVベースに統一
+- **結果例 (scalp USD/JPY 7d)**: 旧WR≈59% → 新WR=54.2%, EV=-0.171 (摩擦がエッジを完全消失)
+
 ## 2026-04-07 461t Quant Analysis — Win-Rate Reversal Engineering
 
 - **ATR Trailing Stop (Tier2)**: ATR*0.8→BE(Tier1)に加え、ATR*1.5→Trail(price-ATR*0.5)を導入

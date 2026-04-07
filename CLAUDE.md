@@ -24,6 +24,7 @@
 - **BT/本番ロジック統一**: BT関数は本番のsignal関数を呼び出すこと。独自のエントリーロジックをBTに書かない
 - **本番変更は必ずBTにも反映**: 本番で戦略の有効化/無効化、フィルター追加、パラメータ変更を行った場合、BT側のQUALIFIED_TYPESやフィルターも必ず同期すること
 - **カーブフィッティング禁止**: パラメータ調整フェーズ完了（2026-04-04）。今後は本番データ蓄積・摩擦監視フェーズ
+- **BT摩擦モデルv2**: Phase A(ペア別spread+slippage), B(wick 0.3→0.1), C(SIGNAL_REVERSE BT実装), D(cascade CD+post-SL block) 全BT統合済み(2026-04-07)
 
 ## Key Architecture
 - Backend: Flask (app.py ~7500+ lines)
@@ -99,12 +100,14 @@
 - **Mean-reversion exclusion**: bb_rsi, macdh, v_reversal, trend_rebound exempt from EMA200/HTF hard filter (soft penalty only)
 
 ## Key Parameters
-- **Spread**: Production=OANDA real bid/ask (entry BUY=ask/SELL=bid, exit BUY=bid/SELL=ask), BT=0.2pip fixed
-- **BT time-varying spread**: Tokyo early 0.8pip, LDN/NY 0.2pip, NY late 0.8pip
+- **Spread**: Production=OANDA real bid/ask (entry BUY=ask/SELL=bid, exit BUY=bid/SELL=ask)
+- **BT spread v2**: ペア別実測値ベース (461t監査), EUR_GBP 1.0-2.0pip, GBP_USD 0.8-1.8pip, EUR_USD 0.3-1.0pip, EUR_JPY 0.5-1.5pip, USD_JPY 0.3-1.0pip, XAU 3.0-5.0pip
+- **BT slippage**: ペア別定数 (_BT_SLIPPAGE), エントリー・決済の両側に加算
 - **TP/SL**: TP=ATR-based technical target, SL=RR ratio inverse (MIN_RR=1.2)
 - **SL floor**: ATR(14)x1.0 minimum distance (engine-level enforcement)
 - **Entry quality gate**: QUALIFIED_TYPES only, at least 1 reason required
 - **Strategy auto-promotion**: Demo N>=30 & EV≥1.0 -> OANDA promotion / EV<-0.5 -> demotion (every 10 trades, コスト補正1.0pip)
+- **BT昇格基準 (Phase 5)**: 摩擦込みEV > 1.0 AND N≥10 を「昇格候補」として出力
 - **Force-demoted (OANDA停止)**: sr_fib_confluence, ema_cross, inducement_ob, ema_ribbon_ride, h1_fib_reversal, pivot_breakout, ema_pullback — デモ継続・実弾停止 (Phase3: EMA系全滅確認)
 - **Lot boost**: stoch_trend_pullback, sr_break_retest, mtf_reversal_confluence → 1.3x ロットブースト (本番EV良好戦略優遇)
 - **ATR Trailing Stop**: Tier1=ATR*0.8→BE, Tier2=ATR*1.5→Trail at price-ATR*0.5 (MFE逃し救済+64.7p推定)

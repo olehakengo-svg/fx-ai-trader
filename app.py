@@ -4229,8 +4229,9 @@ _BT_HTF_RECALC_SW    = 5       # 5バー(1d)  = 5日ごとに再計算
 
 
 def _bt_spread(bar_time, symbol: str = "USDJPY=X") -> float:
-    """BT用 時間帯変動スプレッドモデル
-    東京早朝/NY終盤はスプレッド拡大、LDN/NY重複は最狭
+    """BT用 時間帯変動スプレッドモデル v2 (ペア別実測値ベース)
+    461t本番監査に基づく実測スプレッドを反映。
+    Phase A: EUR_GBP/GBP_USD/EUR_USD/EUR_JPY を個別モデルに分離。
     """
     try:
         h = bar_time.hour if hasattr(bar_time, 'hour') else 0
@@ -4238,30 +4239,86 @@ def _bt_spread(bar_time, symbol: str = "USDJPY=X") -> float:
         h = 0
     _s = symbol.upper()
     _is_gold = "XAU" in _s
+    # ── ペア別分離 (Phase A: 461t監査) ──
+    _is_eur_gbp = "EURGBP" in _s or "EUR_GBP" in _s
+    _is_gbp_usd = "GBPUSD" in _s or "GBP_USD" in _s
+    _is_eur_usd = "EURUSD" in _s or "EUR_USD" in _s
+    _is_eur_jpy = "EURJPY" in _s or "EUR_JPY" in _s
     _is_jpy = "JPY" in _s
     if _is_gold:
         # XAU/USD: OANDA Japan spread (pipLocation=-2, 1pip=0.01)
-        # 閑散時(0-2,20-24): 5.0pip, アジア(2-7): 4.0pip
-        # LDN/NY(7-16): 3.0pip(最狭), NY後半(16-20): 3.5pip
         if h < 2:     return 0.050   # 5.0pip
         elif h < 7:   return 0.040   # 4.0pip
         elif h < 16:  return 0.030   # 3.0pip (LDN/NY)
         elif h < 20:  return 0.035   # 3.5pip
         else:         return 0.050   # 5.0pip
+    elif _is_eur_gbp:
+        # EUR/GBP: 実測平均1.367pip → BT: 1.0-2.0pip (non-JPY pip=0.0001)
+        if h < 2:     return 0.00020  # 2.0pip
+        elif h < 7:   return 0.00015  # 1.5pip
+        elif h < 16:  return 0.00010  # 1.0pip (最狭)
+        elif h < 20:  return 0.00012  # 1.2pip
+        else:         return 0.00020  # 2.0pip
+    elif _is_gbp_usd:
+        # GBP/USD: 実測平均1.300pip → BT: 0.8-1.8pip
+        if h < 2:     return 0.00018  # 1.8pip
+        elif h < 7:   return 0.00012  # 1.2pip
+        elif h < 16:  return 0.00008  # 0.8pip (最狭)
+        elif h < 20:  return 0.00010  # 1.0pip
+        else:         return 0.00018  # 1.8pip
+    elif _is_eur_usd:
+        # EUR/USD: 実測平均0.658pip → BT: 0.3-1.0pip
+        if h < 2:     return 0.00010  # 1.0pip
+        elif h < 7:   return 0.00005  # 0.5pip
+        elif h < 16:  return 0.00003  # 0.3pip (最狭)
+        elif h < 20:  return 0.00004  # 0.4pip
+        else:         return 0.00010  # 1.0pip
+    elif _is_eur_jpy:
+        # EUR/JPY: JPYよりスプレッド広い (pip=0.01)
+        if h < 2:     return 0.015    # 1.5pip
+        elif h < 7:   return 0.008    # 0.8pip
+        elif h < 16:  return 0.005    # 0.5pip (最狭)
+        elif h < 20:  return 0.007    # 0.7pip
+        else:         return 0.015    # 1.5pip
     elif _is_jpy:
-        # pip単位: JPY=0.01
-        if h < 2:     return 0.008   # 0.8pip
-        elif h < 7:   return 0.004   # 0.4pip
-        elif h < 16:  return 0.002   # 0.2pip (LDN/NY)
-        elif h < 20:  return 0.003   # 0.3pip
-        else:         return 0.008   # 0.8pip
+        # USD/JPY: 実測平均0.677pip → BT: 0.3-1.0pip (微調整)
+        if h < 2:     return 0.010    # 1.0pip
+        elif h < 7:   return 0.005    # 0.5pip
+        elif h < 16:  return 0.003    # 0.3pip (LDN/NY)
+        elif h < 20:  return 0.004    # 0.4pip
+        else:         return 0.010    # 1.0pip
     else:
-        # pip単位: non-JPY=0.0001
-        if h < 2:     return 0.00008  # 0.8pip
-        elif h < 7:   return 0.00004  # 0.4pip
-        elif h < 16:  return 0.00002  # 0.2pip
-        elif h < 20:  return 0.00003  # 0.3pip
-        else:         return 0.00008  # 0.8pip
+        # フォールバック: 未知ペア
+        if h < 2:     return 0.00010  # 1.0pip
+        elif h < 7:   return 0.00006  # 0.6pip
+        elif h < 16:  return 0.00003  # 0.3pip
+        elif h < 20:  return 0.00004  # 0.4pip
+        else:         return 0.00010  # 1.0pip
+
+
+# ── BT スリッページ係数 (Phase A: 461t本番監査) ──
+# 実測平均0.489pip/片道 → ペア別保守的推定 (実測×80%)
+_BT_SLIPPAGE = {
+    "USDJPY": 0.004,    # 0.4pip (JPY: pip=0.01)
+    "EURJPY": 0.005,    # 0.5pip
+    "EURUSD": 0.00004,  # 0.4pip (non-JPY: pip=0.0001)
+    "GBPUSD": 0.00005,  # 0.5pip
+    "EURGBP": 0.00005,  # 0.5pip
+    "XAUUSD": 0.025,    # 2.5pip (XAU: pip=0.01)
+}
+
+
+def _bt_get_slippage(symbol: str) -> float:
+    """BT用スリッページ値を取得（ペア正規化込み）"""
+    _s = symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+    for k, v in _BT_SLIPPAGE.items():
+        if k in _s:
+            return v
+    if "JPY" in _s:
+        return 0.004
+    elif "XAU" in _s:
+        return 0.025
+    return 0.00004
 
 
 # ═══════════════════════════════════════════════════════
@@ -4730,6 +4787,16 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         trades = []
         last_trade_bar = -99
 
+        # ── Phase D: カスケードCD + Post-SLブロック (461t監査) ──
+        _last_sl_bar_sc = -9999
+        _last_sl_dir_sc = None
+        _CASCADE_CD_SC = 90    # 90bars=90s (scalp 1m) — 本番同期
+        _POST_SL_BLOCK_SC = 120  # 120bars=120s — 同方向再エントリー制限
+        _exit_reason = None    # Phase C: SR/TP/SL tracking
+
+        # ── Phase A: スリッページ係数 ──
+        _slip_sc = _bt_get_slippage(symbol)
+
         # ── HTF bias: BT用動的計算（ルックアヘッドなし）──
         # bar_idx までのデータをリサンプルして1H+4H方向を推定
         try:
@@ -4776,6 +4843,9 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
         for i in range(max(MIN_BARS, 50), len(df) - MAX_HOLD - 1):
             if i - last_trade_bar < COOLDOWN:
+                continue
+            # Phase D: カスケードCD (SL後の全戦略クールダウン)
+            if i - _last_sl_bar_sc < _CASCADE_CD_SC:
                 continue
 
             # ── HTF bias 定期再計算（_BT_HTF_RECALC_SCALP バーごと）──
@@ -4846,6 +4916,11 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             entry_type = sig_result.get("entry_type", "unknown")
 
+            # Phase D: Post-SL同方向ブロック (本番同期: 120s)
+            if (_last_sl_dir_sc and i - _last_sl_bar_sc < _POST_SL_BLOCK_SC
+                    and sig == _last_sl_dir_sc):
+                continue
+
             # ── セッション×ペア除外フィルター (本番同期: 461t監査) ──
             _bt_hour_sf = bar_time.hour if hasattr(bar_time, 'hour') else 12
             if "EURGBP" in symbol.upper():
@@ -4896,17 +4971,22 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             tp = sig_result.get("tp", ep)  # TP = 技術的ターゲット（固定）
             atr7 = sig_result.get("atr", float(row.get("atr7", row.get("atr", 0.07))))
 
-            # BT用: 次バーのOpenでエントリー（スリッページ反映）
+            # BT用: 次バーのOpenでエントリー（スプレッド+スリッページ反映）
             if i + 1 >= len(df):
                 continue
             ep = float(df.iloc[i + 1]["Open"])
             _spread = _bt_spread(bar_time, symbol)
-            ep = ep + _spread / 2 if sig == "BUY" else ep - _spread / 2
+            # Phase A: spread + slippage at entry
+            ep = ep + (_spread / 2 + _slip_sc) if sig == "BUY" else ep - (_spread / 2 + _slip_sc)
 
             # TP固定: シグナルのTPターゲットを維持（エントリー価格シフト分のみ調整）
             sig_entry = sig_result.get("entry", ep)
             ep_shift = ep - sig_entry
             tp = tp + ep_shift
+
+            # Phase A: 決済時摩擦 (exit friction = half spread + slippage)
+            _exit_friction = _spread / 2 + _slip_sc
+            _exit_friction_m = _exit_friction / max(atr7, 1e-6)  # ATR倍率換算
 
             # SL可変: エントリー価格からRR比で逆算
             tp_dist = abs(tp - ep)
@@ -4944,11 +5024,13 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             actual_rr = round(abs(tp - ep) / max(sl_dist, 1e-6), 2)
 
             # ── SL anti-fake-out: Close-based confirmation ──
-            _sl_genuine_threshold = atr7 * 0.3
+            # Phase B: 0.3→0.1 (本番tick-by-tick判定に近似、BT楽観排除)
+            _sl_genuine_threshold = atr7 * 0.1
 
             outcome = None; bars_held = 0
             _be_activated = False
             _current_sl = sl
+            _exit_reason = "tp_sl"  # default exit reason
             # ── 本番同期: ATR*0.8→BE(Tier1), ATR*1.5→Trail(Tier2) ──
             _bt_be_thr = atr7 * 0.8    # Tier1: BE threshold
             _bt_ts_thr = atr7 * 1.5    # Tier2: Trailing Stop threshold
@@ -4987,6 +5069,44 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                     elif sig == "SELL" and fut_close < ep:
                         _current_sl = min(_current_sl, ep)
 
+                # ── Phase C: SIGNAL_REVERSE シミュレーション ──
+                # 本番の40.1%を占めるSR決済をBTで再現
+                # min_hold=5bars(300s) 経過後、3barごとにシグナル再計算
+                _SR_MIN_HOLD_SC = 5   # 300s / 60s
+                _SR_RECHECK_SC = 3    # パフォーマンス: 3barごと
+                if j >= _SR_MIN_HOLD_SC and j % _SR_RECHECK_SC == 0:
+                    _sr_bar_end = i + 1 + j + 1
+                    if _sr_bar_end <= len(df):
+                        try:
+                            _sr_bar_df = df.iloc[max(0, _sr_bar_end - max(MIN_BARS, 200)):_sr_bar_end]
+                            _sr_bar_time = df.index[i + 1 + j]
+                            if hasattr(_sr_bar_time, 'tzinfo') and _sr_bar_time.tzinfo is None:
+                                _sr_bar_time = _sr_bar_time.replace(tzinfo=timezone.utc)
+                            _sr_result = compute_scalp_signal(
+                                _sr_bar_df, tf=interval,
+                                sr_levels=current_sr_weighted,
+                                symbol=symbol, backtest_mode=True,
+                                bar_time=_sr_bar_time, htf_cache=_htf_cache,
+                            )
+                            _sr_sig = _sr_result.get("signal", "WAIT")
+                            if ((_sr_sig == "BUY" and sig == "SELL")
+                                    or (_sr_sig == "SELL" and sig == "BUY")):
+                                # SR決済: close ± 摩擦
+                                if sig == "BUY":
+                                    _sr_exit = fut_close - (_spread / 2 + _slip_sc)
+                                else:
+                                    _sr_exit = fut_close + (_spread / 2 + _slip_sc)
+                                _sr_pnl_raw = (_sr_exit - ep) if sig == "BUY" else (ep - _sr_exit)
+                                outcome = "WIN" if _sr_pnl_raw > 0 else "LOSS"
+                                bars_held = j
+                                tp_m_actual = round(abs(_sr_pnl_raw) / max(atr7, 1e-6), 3)
+                                if outcome == "LOSS":
+                                    sl_m = tp_m_actual
+                                _exit_reason = "signal_reverse"
+                                break
+                        except Exception:
+                            pass  # SR計算失敗 → 通常SL/TP判定に継続
+
                 if sig == "BUY":
                     hit_tp = hi >= tp
                     _wick_depth = _current_sl - lo
@@ -5023,25 +5143,33 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 last_trade_bar = i + 1 + bars_held
                 if entry_type in _5M_ONLY_TYPES:
                     _last_5m_bar = i // 5  # 5m補完クールダウン
+                # Phase D: SL後のカスケードCD状態更新
+                if outcome == "LOSS" and _exit_reason != "signal_reverse":
+                    _last_sl_bar_sc = i + 1 + bars_held
+                    _last_sl_dir_sc = sig
                 trade_dict = {"outcome": outcome, "bars_held": bars_held,
                               "sig": sig, "ep": _rp(ep, symbol),
                               "actual_rr": actual_rr, "bar_idx": i,
                               "entry_type": entry_type,
                               "sl": _rp(sl, symbol), "tp": _rp(tp, symbol),
                               "sl_m": round(sl_m, 3), "tp_m": round(tp_m_actual, 3),
-                              "entry_time": str(bar_time)}
-                if outcome == "LOSS":
+                              "entry_time": str(bar_time),
+                              "exit_friction_m": round(_exit_friction_m, 4),
+                              "exit_reason": _exit_reason}
+                if outcome == "LOSS" and _exit_reason != "signal_reverse":
                     if sig == "BUY" and fut_close < sl:
                         trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr7, 1e-6), sl_m * 1.2), 3)
                     elif sig == "SELL" and fut_close > sl:
                         trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr7, 1e-6), sl_m * 1.2), 3)
                 trades.append(trade_dict)
 
+        # ── Phase 5: 摩擦込みPnL関数 (EV計算リベース) ──
         def _pnl(t):
+            _ef = t.get("exit_friction_m", 0)
             if t["outcome"] == "WIN":
-                return t.get("tp_m", TP_MULT)
+                return t.get("tp_m", TP_MULT) - _ef
             else:
-                return -t.get("actual_sl_m", t.get("sl_m", SL_MULT))
+                return -(t.get("actual_sl_m", t.get("sl_m", SL_MULT)) + _ef)
 
         def _max_dd_scalp(trade_list):
             eq, peak, dd = 0.0, 0.0, 0.0
@@ -5080,9 +5208,11 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             sharpe = round(float(np.mean(pnls)) / max(float(np.std(pnls)), 1e-6), 3)
             per_day = round(total / lookback_days, 1)
 
-            if   ev > 0.3: verdict = "✅ 期待値プラス（スキャル推奨）"
-            elif ev > 0:   verdict = "🟡 期待値わずかプラス（要注意）"
-            else:          verdict = "❌ 期待値マイナス（スキャル不推奨）"
+            # Phase 5: 摩擦込みEVで判定 (EV>1.0が昇格候補)
+            if   ev > 1.0: verdict = "✅ 摩擦込EV>1.0（昇格候補）"
+            elif ev > 0.3: verdict = "🟡 摩擦込EV+（要経過観察）"
+            elif ev > 0:   verdict = "🟡 摩擦込EV微プラス（エッジ脆弱）"
+            else:          verdict = "❌ 摩擦込EVマイナス（不推奨）"
 
             # Walk-forward: 3窓（実PnLベース）
             wlen = max(1, len(trades) // 3)
@@ -5098,7 +5228,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             profitable = sum(1 for w in wf_windows if w.get("expected_value", -1) > 0)
 
-            # エントリータイプ別統計
+            # エントリータイプ別統計 (Phase 5: 摩擦込みEV + 昇格判定)
             entry_stats = {}
             for t in trades:
                 et = t.get("entry_type", "ema_cross")
@@ -5111,13 +5241,21 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             for k, v in entry_stats.items():
                 v["win_rate"] = round(v["wins"] / v["total"] * 100, 1)
                 v["ev"] = round(v["pnl"] / v["total"], 3)
+                # Phase 5: 昇格候補フラグ (摩擦込みEV > 1.0)
+                v["promotion_candidate"] = v["ev"] > 1.0 and v["total"] >= 10
+
+            # Phase C: SR決済統計
+            _sr_trades = [t for t in trades if t.get("exit_reason") == "signal_reverse"]
+            _sr_count = len(_sr_trades)
+            _sr_ratio = round(_sr_count / total * 100, 1) if total > 0 else 0
 
             trade_log  = [{"sig": t["sig"], "outcome": t["outcome"],
                            "bars": t["bars_held"],
                            "type": t.get("entry_type", "ema_cross"),
                            "entry_time": t.get("entry_time", ""),
                            "sl_m": t.get("sl_m", 0), "tp_m": t.get("tp_m", 0),
-                           "actual_sl_m": t.get("actual_sl_m", None)} for t in trades]
+                           "actual_sl_m": t.get("actual_sl_m", None),
+                           "exit_reason": t.get("exit_reason", "tp_sl")} for t in trades]
             result = {
                 "win_rate":       wr,
                 "trades":         total,
@@ -5141,6 +5279,11 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "mode":           "scalp",
                 "data_source":    _last_data_source.get(interval, "yfinance"),
                 "bars_fetched":   len(df),
+                # Phase A-D 摩擦モデルメタデータ
+                "friction_model": "v2_461t_audit",
+                "signal_reverse_count": _sr_count,
+                "signal_reverse_ratio": _sr_ratio,
+                "avg_exit_friction_m": round(sum(t.get("exit_friction_m", 0) for t in trades) / max(total, 1), 4),
             }
 
         _bounded_cache_set(_scalp_bt_cache, cache_key, {"result": result, "ts": now}, _BT_CACHE_MAX)
@@ -5203,6 +5346,17 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         trades = []
         last_bar = -99
 
+        # ── Phase D: カスケードCD + Post-SLブロック (461t監査) ──
+        _last_sl_bar_dt = -9999
+        _last_sl_dir_dt = None
+        # 15m: 180s cascade = 12bars, 600s post-SL = 40bars
+        _CASCADE_CD_DT = max(1, 180 // (60 * (15 if interval == "15m" else 30 if interval == "30m" else 60)))
+        _POST_SL_BLOCK_DT = max(1, 600 // (60 * (15 if interval == "15m" else 30 if interval == "30m" else 60)))
+        _exit_reason_dt = None
+
+        # ── Phase A: スリッページ係数 ──
+        _slip_dt = _bt_get_slippage(symbol)
+
         # ── HTF bias: BT用動的計算（ルックアヘッドなし）──
         # bar_idx までのデータをリサンプルして4H+1D方向を推定
         try:
@@ -5228,6 +5382,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
         for i in range(max(MIN_BARS, 50), len(df) - MAX_HOLD - 1):
             if i - last_bar < COOLDOWN:
+                continue
+            # Phase D: カスケードCD (SL後の全戦略クールダウン)
+            if i - _last_sl_bar_dt < _CASCADE_CD_DT:
                 continue
 
             # ── HTF bias 定期再計算（_BT_HTF_RECALC_DT バーごと）──
@@ -5287,6 +5444,11 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
             entry_type = sig_result.get("entry_type", "unknown")
 
+            # Phase D: Post-SL同方向ブロック
+            if (_last_sl_dir_dt and i - _last_sl_bar_dt < _POST_SL_BLOCK_DT
+                    and sig == _last_sl_dir_dt):
+                continue
+
             # ── セッション×ペア除外フィルター (本番同期: 461t監査) ──
             _dt_bt_hour_sf = bar_time.hour if hasattr(bar_time, 'hour') else 12
             if "EURGBP" in symbol.upper():
@@ -5339,12 +5501,13 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
             atr = sig_result.get("atr", float(row.get("atr", 0.07)))
 
-            # BT用: 次バーのOpenでエントリー（スリッページ反映）
+            # BT用: 次バーのOpenでエントリー（スプレッド+スリッページ反映）
             if i + 1 >= len(df):
                 continue
             ep = float(df.iloc[i + 1]["Open"])
             _spread = _bt_spread(bar_time, symbol)
-            ep = ep + _spread / 2 if sig == "BUY" else ep - _spread / 2
+            # Phase A: spread + slippage at entry
+            ep = ep + (_spread / 2 + _slip_dt) if sig == "BUY" else ep - (_spread / 2 + _slip_dt)
 
             # TP固定: シグナルのTPターゲットを維持（エントリー価格シフト分のみ調整）
             # ATR×1.5をフロアとして保証（シグナルTPが小さすぎる場合に補正）
@@ -5352,6 +5515,10 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             tp = sig_result.get("tp", ep)
             ep_shift = ep - sig_entry
             tp = tp + ep_shift
+
+            # Phase A: 決済時摩擦
+            _exit_friction_dt = _spread / 2 + _slip_dt
+            _exit_friction_m_dt = _exit_friction_dt / max(atr, 1e-6)
 
             # ATR-based TP floor: 最低 ATR×1.5 を保証
             tp_dist_dt = abs(tp - ep)
@@ -5393,10 +5560,12 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             tp_m_actual = abs(tp - ep) / max(atr, 1e-6)
 
             # ── SL anti-fake-out: Close-based confirmation + genuine breakdown detection ──
-            _dt_sl_genuine_threshold = atr * 0.3  # ATR×0.3超のヒゲは本物のブレイクダウン
+            # Phase B: 0.3→0.1 (本番tick-by-tick判定に近似)
+            _dt_sl_genuine_threshold = atr * 0.1
 
             outcome = None; bars_held = 0
             _dt_be_activated = False
+            _exit_reason_dt = "tp_sl"
             _dt_current_sl = sl
             # ── 本番同期: ATR*0.8→BE(Tier1), ATR*1.5→Trail(Tier2) ──
             _dt_be_thr = atr * 0.8
@@ -5434,6 +5603,41 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                         _dt_current_sl = max(_dt_current_sl, ep)
                     elif sig == "SELL" and fut_close < ep:
                         _dt_current_sl = min(_dt_current_sl, ep)
+
+                # ── Phase C: SIGNAL_REVERSE シミュレーション (DT) ──
+                # 15m: min_hold=600s=不要(1bar=900s), 毎バーチェック
+                _SR_MIN_HOLD_DT = 1  # DT 15mでは1bar > 600s
+                if j >= _SR_MIN_HOLD_DT:
+                    _sr_bar_end_dt = i + 1 + j + 1
+                    if _sr_bar_end_dt <= len(df):
+                        try:
+                            _sr_bar_df_dt = df.iloc[max(0, _sr_bar_end_dt - max(MIN_BARS, 200)):_sr_bar_end_dt]
+                            _sr_bar_time_dt = df.index[i + 1 + j]
+                            if hasattr(_sr_bar_time_dt, 'tzinfo') and _sr_bar_time_dt.tzinfo is None:
+                                _sr_bar_time_dt = _sr_bar_time_dt.replace(tzinfo=timezone.utc)
+                            _sr_result_dt = compute_daytrade_signal(
+                                _sr_bar_df_dt, tf=interval,
+                                sr_levels=current_sr_weighted,
+                                symbol=symbol, backtest_mode=True,
+                                bar_time=_sr_bar_time_dt, htf_cache=_htf_cache,
+                            )
+                            _sr_sig_dt = _sr_result_dt.get("signal", "WAIT")
+                            if ((_sr_sig_dt == "BUY" and sig == "SELL")
+                                    or (_sr_sig_dt == "SELL" and sig == "BUY")):
+                                if sig == "BUY":
+                                    _sr_exit_dt = fut_close - (_spread / 2 + _slip_dt)
+                                else:
+                                    _sr_exit_dt = fut_close + (_spread / 2 + _slip_dt)
+                                _sr_pnl_dt = (_sr_exit_dt - ep) if sig == "BUY" else (ep - _sr_exit_dt)
+                                outcome = "WIN" if _sr_pnl_dt > 0 else "LOSS"
+                                bars_held = j
+                                tp_m_actual = round(abs(_sr_pnl_dt) / max(atr, 1e-6), 3)
+                                if outcome == "LOSS":
+                                    sl_m = tp_m_actual
+                                _exit_reason_dt = "signal_reverse"
+                                break
+                        except Exception:
+                            pass
 
                 if sig == "BUY":
                     hit_tp = hi >= tp
@@ -5474,28 +5678,33 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
             if outcome:
                 # ── EXIT基準クールダウン（本番統一）──
-                # 旧: last_bar = i (エントリーバー) → 保持中に次トレード重複可能
-                # 新: last_bar = i + 1 + bars_held (EXITバー) → 本番_mode_limit=1と統一
                 last_bar = i + 1 + bars_held
+                # Phase D: SL後のカスケードCD状態更新
+                if outcome == "LOSS" and _exit_reason_dt != "signal_reverse":
+                    _last_sl_bar_dt = i + 1 + bars_held
+                    _last_sl_dir_dt = sig
                 trade_dict = {"outcome": outcome, "bars_held": bars_held,
                                 "sig": sig, "ep": _rp(ep, symbol),
                                 "sl": _rp(sl, symbol), "tp": _rp(tp, symbol),
                                 "bar_idx": i, "entry_type": entry_type,
                                 "sl_m": sl_m, "tp_m": tp_m_actual,
-                                "entry_time": str(bar_time)}
-                # Close-based SL actual loss: when LOSS and close exceeded SL level
-                if outcome == "LOSS":
+                                "entry_time": str(bar_time),
+                                "exit_friction_m": round(_exit_friction_m_dt, 4),
+                                "exit_reason": _exit_reason_dt}
+                if outcome == "LOSS" and _exit_reason_dt != "signal_reverse":
                     if sig == "BUY" and fut_close < sl:
                         trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr, 1e-6), sl_m * 1.2), 3)
                     elif sig == "SELL" and fut_close > sl:
                         trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr, 1e-6), sl_m * 1.2), 3)
                 trades.append(trade_dict)
 
+        # ── Phase 5: 摩擦込みPnL関数 (EV計算リベース) ──
         def _dt_pnl(t):
+            _ef = t.get("exit_friction_m", 0)
             if t["outcome"] == "WIN":
-                return t.get("tp_m", TP_MULT)
+                return t.get("tp_m", TP_MULT) - _ef
             else:
-                return -t.get("actual_sl_m", t.get("sl_m", SL_MULT))
+                return -(t.get("actual_sl_m", t.get("sl_m", SL_MULT)) + _ef)
 
         if len(trades) < 20:
             result = {"error": f"サンプル数不足（20トレード未満）",
@@ -5532,7 +5741,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                                    "win_rate": wwr, "expected_value": wev})
             profitable = sum(1 for w in wf_windows if w.get("expected_value", -1) > 0)
 
-            # エントリータイプ別統計
+            # エントリータイプ別統計 (Phase 5: 摩擦込みEV + 昇格判定)
             dt_entry_stats = {}
             for t in trades:
                 et = t.get("entry_type", "ema_cross")
@@ -5545,10 +5754,17 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             for k, v in dt_entry_stats.items():
                 v["win_rate"] = round(v["wins"] / v["total"] * 100, 1)
                 v["ev"] = round(v["pnl"] / v["total"], 3)
+                v["promotion_candidate"] = v["ev"] > 1.0 and v["total"] >= 10
+
+            # Phase C: SR決済統計
+            _sr_trades_dt = [t for t in trades if t.get("exit_reason") == "signal_reverse"]
+            _sr_count_dt = len(_sr_trades_dt)
+            _sr_ratio_dt = round(_sr_count_dt / n * 100, 1) if n > 0 else 0
 
             trades_per_day = round(n / lookback_days, 2)
-            verdict = ("✅ 良好" if ev > 0.10 and profitable >= 2 else
-                       "🟡 要注意 — 期待値プラスだがWF不安定" if ev > 0 else "❌ 不採用")
+            # Phase 5: 摩擦込みEVで判定
+            verdict = ("✅ 摩擦込EV>1.0（昇格候補）" if ev > 1.0 and profitable >= 2 else
+                       "🟡 摩擦込EV+（要経過観察）" if ev > 0 else "❌ 摩擦込EVマイナス（不推奨）")
 
             result = {
                 "trades": n, "win_rate": wr, "expected_value": ev,
@@ -5566,6 +5782,10 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "mode": "daytrade",
                 "data_source": _last_data_source.get(interval, "yfinance"),
                 "bars_fetched": len(df),
+                "friction_model": "v2_461t_audit",
+                "signal_reverse_count": _sr_count_dt,
+                "signal_reverse_ratio": _sr_ratio_dt,
+                "avg_exit_friction_m": round(sum(t.get("exit_friction_m", 0) for t in trades) / max(n, 1), 4),
             }
 
         _bounded_cache_set(_dt_bt_cache, cache_key, {"result": result, "ts": now}, _BT_CACHE_MAX)
@@ -5728,12 +5948,16 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
 
             atr = sig_result.get("atr", float(row.get("atr", 0.10)))
 
-            # Entry at next bar's Open
+            # Entry at next bar's Open (Phase A: spread + slippage)
             if i + 1 >= len(df):
                 continue
             ep = float(df.iloc[i + 1]["Open"])
             _spread = _bt_spread(df.index[i], symbol)
-            ep = ep + _spread / 2 if sig == "BUY" else ep - _spread / 2
+            _slip_1h = _bt_get_slippage(symbol)
+            ep = ep + (_spread / 2 + _slip_1h) if sig == "BUY" else ep - (_spread / 2 + _slip_1h)
+
+            # Phase A: 決済時摩擦
+            _exit_friction_1h = _spread / 2 + _slip_1h
 
             # TP from signal, adjusted for entry shift
             sig_entry = sig_result.get("entry", ep)
@@ -5769,8 +5993,9 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
             sl_m = abs(ep - sl) / max(atr, 1e-6)
             tp_m_actual = abs(tp - ep) / max(atr, 1e-6)
 
-            # ── SL anti-fake-out: Close-based + genuine breakdown (ATR*0.3) ──
-            _sl_genuine_threshold = atr * 0.3
+            # ── SL anti-fake-out: Close-based + genuine breakdown ──
+            # Phase B: 0.3→0.1 (本番tick-by-tick判定に近似)
+            _sl_genuine_threshold = atr * 0.1
 
             # ── シナリオ崩壊撤退レベル ──
             _inv_price = sig_result.get("invalidation")
@@ -5876,6 +6101,7 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
             if outcome:
                 # EXIT基準クールダウン（本番統一: 保持期間中の重複エントリー防止）
                 last_bar = i + 1 + bars_held
+                _ef_m_1h = _exit_friction_1h / max(atr, 1e-6)
                 trade_dict = {
                     "outcome": outcome, "bars_held": bars_held,
                     "sig": sig, "ep": _rp(ep, symbol),
@@ -5883,19 +6109,20 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
                     "bar_idx": i, "entry_type": entry_type,
                     "sl_m": sl_m, "tp_m": tp_m_actual,
                     "entry_time": str(df.index[i]),
+                    "exit_friction_m": round(_ef_m_1h, 4),
                 }
                 if outcome == "LOSS":
-                    # シナリオ崩壊 or SL hitの実損記録
                     _actual_loss = abs(fut_close - ep) / max(atr, 1e-6)
                     trade_dict["actual_sl_m"] = round(min(_actual_loss, sl_m * 1.5), 3)
                 trades.append(trade_dict)
 
-        # ── PnL helper ──
+        # ── Phase 5: 摩擦込みPnL関数 ──
         def _1h_pnl(t):
+            _ef = t.get("exit_friction_m", 0)
             if t["outcome"] == "WIN":
-                return t.get("tp_m", 2.5)
+                return t.get("tp_m", 2.5) - _ef
             else:
-                return -t.get("actual_sl_m", t.get("sl_m", 1.0))
+                return -(t.get("actual_sl_m", t.get("sl_m", 1.0)) + _ef)
 
         if len(trades) < 5:
             result = {"error": f"サンプル数不足（5トレード未満: {len(trades)}件）",
@@ -5952,8 +6179,9 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
                 v["ev"] = round(v["pnl"] / v["total"], 3)
 
             trades_per_day = round(n / max(lookback_days, 1), 2)
-            verdict = ("✅ 良好" if ev > 0.10 and profitable >= 2 else
-                       "🟡 要注意 — 期待値プラスだがWF不安定" if ev > 0 else "❌ 不採用")
+            # Phase 5: 摩擦込みEVで判定
+            verdict = ("✅ 摩擦込EV>1.0（昇格候補）" if ev > 1.0 and profitable >= 2 else
+                       "🟡 摩擦込EV+（要経過観察）" if ev > 0 else "❌ 摩擦込EVマイナス（不推奨）")
 
             result = {
                 "trades": n, "win_rate": wr, "expected_value": ev,
@@ -5970,6 +6198,8 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
                 "mode": "1h_zone",
                 "data_source": _last_data_source.get(interval, "yfinance"),
                 "bars_fetched": len(df),
+                "friction_model": "v2_461t_audit",
+                "avg_exit_friction_m": round(sum(t.get("exit_friction_m", 0) for t in trades) / max(n, 1), 4),
             }
 
         _bounded_cache_set(_1h_bt_cache, cache_key, {"result": result, "ts": now}, _BT_CACHE_MAX)
@@ -6090,12 +6320,14 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
 
             entry_type = sig_result.get("entry_type", "unknown")
 
-            # BT用: 次バーのOpenでエントリー（スリッページ反映）
+            # BT用: 次バーのOpenでエントリー（Phase A: spread+slippage反映）
             if i + 1 >= len(df):
                 continue
             ep = float(df.iloc[i + 1]["Open"])
             _spread = _bt_spread(bar_time, symbol)
-            ep = ep + _spread / 2 if sig == "BUY" else ep - _spread / 2
+            _slip_sw = _bt_get_slippage(symbol)
+            ep = ep + (_spread / 2 + _slip_sw) if sig == "BUY" else ep - (_spread / 2 + _slip_sw)
+            _exit_friction_sw = _spread / 2 + _slip_sw
 
             # SL/TPをcompute_swing_signalの値ベースで再計算（epの差分を反映）
             sig_entry = sig_result.get("entry", ep)
@@ -6140,13 +6372,14 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
             if outcome:
                 # EXIT基準クールダウン（本番統一: 保持期間中の重複エントリー防止）
                 last_bar = i + 1 + bars_held
+                _ef_m_sw = _exit_friction_sw / max(atr, 1e-6)
                 trade_dict = {"outcome": outcome, "bars_held": bars_held,
                                 "sig": sig, "ep": _rp(ep, symbol),
                                 "sl": _rp(sl, symbol), "tp": _rp(tp, symbol),
                                 "sl_m": sl_m, "tp_m": tp_m,
                                 "entry_type": entry_type,
-                                "bar_idx": i}
-                # Close-based SL actual loss: when LOSS and close exceeded SL level
+                                "bar_idx": i,
+                                "exit_friction_m": round(_ef_m_sw, 4)}
                 if outcome == "LOSS":
                     if sig == "BUY" and fut_close < sl:
                         trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr, 1e-6), sl_m * 1.2), 3)
@@ -6158,11 +6391,13 @@ def run_swing_backtest(symbol: str = "USDJPY=X",
             result = {"error": f"サンプル数不足（{len(trades)}トレード）",
                       "trades": len(trades), "mode": "swing"}
         else:
+            # Phase 5: 摩擦込みPnL関数
             def _pnl_sw(t):
+                _ef = t.get("exit_friction_m", 0)
                 if t["outcome"] == "WIN":
-                    return t.get("tp_m", TP_MULT)
+                    return t.get("tp_m", TP_MULT) - _ef
                 else:
-                    return -t.get("actual_sl_m", t.get("sl_m", SL_MULT))
+                    return -(t.get("actual_sl_m", t.get("sl_m", SL_MULT)) + _ef)
 
             n    = len(trades)
             wins = sum(1 for t in trades if t["outcome"] == "WIN")
