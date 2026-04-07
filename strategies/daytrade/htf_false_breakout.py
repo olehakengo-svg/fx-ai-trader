@@ -117,9 +117,9 @@ class HtfFalseBreakout(StrategyBase):
         #   根拠: USD/JPY の False Breakout は仲値・金利差による
         #         本物ブレイクとの区別がつきにくい → 追加確認必須
         # ══════════════════════════════════════════════════════════════
+        _jpy_reasons = []
         if ctx.is_jpy and "JPY" in ctx.symbol:
             _jpy_pass = False
-            _jpy_reasons = []
 
             # Gate A: RSIダイバージェンス確認
             #   SELL → 弱気ダイバージェンス (価格HH, RSI LH)
@@ -233,11 +233,8 @@ class HtfFalseBreakout(StrategyBase):
         reasons.append(f"📊 SR=[{_sr_low:.5f}-{_sr_high:.5f}] range={_sr_range*ctx.pip_mult:.1f}pip")
 
         # v6.1: JPY追加理由を付加
-        if ctx.is_jpy and "JPY" in ctx.symbol:
-            try:
-                reasons.extend(_jpy_reasons)
-            except NameError:
-                pass
+        if _jpy_reasons:
+            reasons.extend(_jpy_reasons)
 
         conf = int(min(85, 50 + score * 4))
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,

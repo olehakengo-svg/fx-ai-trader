@@ -4948,6 +4948,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "vol_surge_detector",     # 出来高急増クライマックス反転/モメンタム (全ペア)
                 "london_shrapnel",        # London/NY異常ヒゲ反転 (EUR/GBP専用)
                 "gold_pips_hunter",       # XAU/USD 5m同期包み足 (Gold専用)
+                # 2026-04-07 Confluence Scalp
+                "confluence_scalp",       # Triple Confluence + MSS (UTC 12-17)
                 # DISABLED: v_reversal, trend_rebound, ihs_neckbreak
                 # DISABLED: sr_touch_bounce, rsi_divergence_sr, v1互換6種
             }
@@ -5481,7 +5483,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "turtle_soup",                   # Turtle Soup: Liquidity Grab Reversal (Phase 5)
                 "trendline_sweep",               # TL Sweep: Trendline Sweep Trap (Phase 5)
                 "inducement_ob",                 # IOB: Inducement & Order Block Trap (Phase 5)
-                "post_news_vol",                 # PNV: Post-News Volatility Run (Phase 5)
+                "dual_sr_bounce",                # SR Bounce: legacy compute_signal SR回帰 (2026-04-07)
+                # "post_news_vol",               # PNV: DISABLED — WR=42% EV=-0.07
                 # 2026-04-06 Phase2: DT エッジ強化
                 "london_ny_swing",               # London H/L Break (EUR/GBP)
                 "gold_vol_break",                # XAU BB(2.5σ) breakout (RR 1:3)
@@ -10537,7 +10540,6 @@ def _build_strategy_status_map():
         if et in strategies:
             continue  # 既にFORCE_DEMOTED / promoted / overrides で登録済み
         _mode = _overrides.get(et, "auto")
-        _lifecycle = _get_pair_lifecycle(et, _all_instruments[0]) if _all_instruments else "active"
         _eff = et not in _force_demoted and _mode != "off"
         _pair_map = {}
         for inst in _all_instruments:
@@ -10600,20 +10602,20 @@ def api_config_oanda_control():
         return jsonify({"error": "mode must be live/sentinel/off/auto"}), 400
 
     bridge.set_strategy_mode(strategy, mode)
-    _mode_labels = {
-        "live": "LIVE（実弾投入）",
+    _post_labels = {
+        "live": "LIVE（実弾）",
         "sentinel": "SENTINEL（0.01lot観測）",
         "off": "OFF（停止）",
         "auto": "AUTO（自動判定）",
     }
     _demo_trader._add_log(
-        f"🔗 OANDA Command Center: {strategy} → {_mode_labels.get(mode, mode)}"
+        f"🔗 OANDA Command Center: {strategy} → {_post_labels.get(mode, mode)}"
     )
 
     return jsonify({
         "strategy": strategy,
         "mode": mode,
-        "action": _mode_labels.get(mode, mode),
+        "action": _post_labels.get(mode, mode),
         "overrides": bridge.get_strategy_overrides(),
     })
 

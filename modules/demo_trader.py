@@ -2644,7 +2644,7 @@ class DemoTrader:
         _sl_ratio = max(_sl_ratio, 0.5)
 
         # Axis 2: ATR/Spread比 (Edge Quality)
-        _atr_val = sig.get("atr", 0.07 if _is_jpy_or_xau else 0.00070)
+        _atr_val = sig.get("atr", 0.07 if _is_jpy_or_xau_lot else 0.00070)
         _atr_pips = _atr_val * _pip_m_d1
         _spread_pips = _spread_entry if _spread_entry > 0 else (0.4 if _is_jpy else 0.4)  # already in pips
         _edge_ratio = _atr_pips / max(_spread_pips, 0.1)
@@ -2798,13 +2798,6 @@ class DemoTrader:
         from modules.demo_db import pip_multiplier as _pm
         _pip_m = _pm(instrument)
         rr_actual = round(tp_dist / sl_dist, 1) if sl_dist > 0 else 0
-        _lot_tag = ""
-        if _is_sentinel:
-            _lot_tag = "(🔬SEN)"
-        elif self._defensive_mode:
-            _lot_tag = f"(🛡️DEF {_strat_boost}x)"
-        elif _strat_boost > 1.0:
-            _lot_tag = f"(🚀{_strat_boost}x)"
         _lot_info = f"lot={_adjusted_units}{_lot_tag}"
         self._add_log(
             f"{cfg['icon']} 📥 IN [{cfg['label']}]: {signal} @ {current_price:.{_price_dec}f} | "

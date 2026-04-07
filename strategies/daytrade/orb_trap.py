@@ -321,15 +321,15 @@ class OrbTrap(StrategyBase):
             return None
 
         # RR不足時のTP補正
-        if _tp_d / _sl_d < self.MIN_RR:
+        _rr = _tp_d / _sl_d
+        if _rr < self.MIN_RR:
             _tp_d = _sl_d * self.MIN_RR
             tp = ctx.entry - _tp_d if signal == "SELL" else ctx.entry + _tp_d
+            _rr = _tp_d / _sl_d
 
         # RR再確認
-        if _sl_d <= 0 or _tp_d / _sl_d < self.MIN_RR:
+        if _rr < self.MIN_RR:
             return None
-
-        _rr = _tp_d / _sl_d
 
         # ═══════════════════════════════════════════════════
         # Reasons & ボーナス
