@@ -1,7 +1,42 @@
+# ── 認証・シークレット ──
 .env
-*.env
-.claude/
+.env.*
+!.env.example
+credentials.json
+*.pem
+*.key
+
+# ── Python ──
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+venv/
+.venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# ── データベース (ローカル) ──
+*.db
+*.db-wal
+*.db-shm
+
+# ── IDE / OS ──
 .DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+Thumbs.db
+
+# ── Claude Code ──
+.claude/
+
+# ── テスト・キャッシュ ──
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
