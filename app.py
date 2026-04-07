@@ -5089,21 +5089,27 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                                 bar_time=_sr_bar_time, htf_cache=_htf_cache,
                             )
                             _sr_sig = _sr_result.get("signal", "WAIT")
+                            _sr_score = abs(_sr_result.get("score", 0))
+                            _sr_adx = _sr_result.get("indicators", {}).get("adx", 0)
                             if ((_sr_sig == "BUY" and sig == "SELL")
                                     or (_sr_sig == "SELL" and sig == "BUY")):
-                                # SR決済: close ± 摩擦
-                                if sig == "BUY":
-                                    _sr_exit = fut_close - (_spread / 2 + _slip_sc)
+                                # ── SR ノイズフィルター (score>=2.0 + ADX>20) ──
+                                if _sr_score < 2.0 or _sr_adx <= 20:
+                                    pass  # スコア不足 or レンジ相場 → SR抑制
                                 else:
-                                    _sr_exit = fut_close + (_spread / 2 + _slip_sc)
-                                _sr_pnl_raw = (_sr_exit - ep) if sig == "BUY" else (ep - _sr_exit)
-                                outcome = "WIN" if _sr_pnl_raw > 0 else "LOSS"
-                                bars_held = j
-                                tp_m_actual = round(abs(_sr_pnl_raw) / max(atr7, 1e-6), 3)
-                                if outcome == "LOSS":
-                                    sl_m = tp_m_actual
-                                _exit_reason = "signal_reverse"
-                                break
+                                    # SR決済: close ± 摩擦
+                                    if sig == "BUY":
+                                        _sr_exit = fut_close - (_spread / 2 + _slip_sc)
+                                    else:
+                                        _sr_exit = fut_close + (_spread / 2 + _slip_sc)
+                                    _sr_pnl_raw = (_sr_exit - ep) if sig == "BUY" else (ep - _sr_exit)
+                                    outcome = "WIN" if _sr_pnl_raw > 0 else "LOSS"
+                                    bars_held = j
+                                    tp_m_actual = round(abs(_sr_pnl_raw) / max(atr7, 1e-6), 3)
+                                    if outcome == "LOSS":
+                                        sl_m = tp_m_actual
+                                    _exit_reason = "signal_reverse"
+                                    break
                         except Exception:
                             pass  # SR計算失敗 → 通常SL/TP判定に継続
 
@@ -5622,20 +5628,26 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                                 bar_time=_sr_bar_time_dt, htf_cache=_htf_cache,
                             )
                             _sr_sig_dt = _sr_result_dt.get("signal", "WAIT")
+                            _sr_score_dt = abs(_sr_result_dt.get("score", 0))
+                            _sr_adx_dt = _sr_result_dt.get("indicators", {}).get("adx", 0)
                             if ((_sr_sig_dt == "BUY" and sig == "SELL")
                                     or (_sr_sig_dt == "SELL" and sig == "BUY")):
-                                if sig == "BUY":
-                                    _sr_exit_dt = fut_close - (_spread / 2 + _slip_dt)
+                                # ── SR ノイズフィルター (score>=2.0 + ADX>20) ──
+                                if _sr_score_dt < 2.0 or _sr_adx_dt <= 20:
+                                    pass  # スコア不足 or レンジ相場 → SR抑制
                                 else:
-                                    _sr_exit_dt = fut_close + (_spread / 2 + _slip_dt)
-                                _sr_pnl_dt = (_sr_exit_dt - ep) if sig == "BUY" else (ep - _sr_exit_dt)
-                                outcome = "WIN" if _sr_pnl_dt > 0 else "LOSS"
-                                bars_held = j
-                                tp_m_actual = round(abs(_sr_pnl_dt) / max(atr, 1e-6), 3)
-                                if outcome == "LOSS":
-                                    sl_m = tp_m_actual
-                                _exit_reason_dt = "signal_reverse"
-                                break
+                                    if sig == "BUY":
+                                        _sr_exit_dt = fut_close - (_spread / 2 + _slip_dt)
+                                    else:
+                                        _sr_exit_dt = fut_close + (_spread / 2 + _slip_dt)
+                                    _sr_pnl_dt = (_sr_exit_dt - ep) if sig == "BUY" else (ep - _sr_exit_dt)
+                                    outcome = "WIN" if _sr_pnl_dt > 0 else "LOSS"
+                                    bars_held = j
+                                    tp_m_actual = round(abs(_sr_pnl_dt) / max(atr, 1e-6), 3)
+                                    if outcome == "LOSS":
+                                        sl_m = tp_m_actual
+                                    _exit_reason_dt = "signal_reverse"
+                                    break
                         except Exception:
                             pass
 

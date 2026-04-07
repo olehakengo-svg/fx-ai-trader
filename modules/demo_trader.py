@@ -1864,7 +1864,7 @@ class DemoTrader:
         mode_trades = [t for t in open_trades
                        if t.get("mode") == mode or (not t.get("mode") and t.get("tf") == tf)]
         for trade in mode_trades:
-            self._check_signal_reverse(trade, current_price, signal, confidence, mode)
+            self._check_signal_reverse(trade, current_price, signal, confidence, mode, sig)
 
         # 3. 新規エントリー判定
         # 再取得（SIGNAL_REVERSEでクローズされた可能性）
@@ -2774,9 +2774,18 @@ class DemoTrader:
 
         return " | ".join(parts)
 
+    # ── SR決済ノイズフィルター閾値 (2026-04-07) ──
+    _SR_SCORE_THRESHOLD = 2.0   # 逆転シグナルスコア最低閾値
+    _SR_ADX_MIN = 20            # ADX>20のトレンド相場のみSR許可
+
     def _check_signal_reverse(self, trade: dict, current_price: float,
-                               new_signal: str, new_conf: int, mode: str):
-        """シグナル反転によるクローズ判定のみ（SL/TPは _sltp_loop が処理）"""
+                               new_signal: str, new_conf: int, mode: str,
+                               sig: dict = None):
+        """シグナル反転によるクローズ判定（SL/TPは _sltp_loop が処理）
+        v2: Score閾値(>=2.0) + ADXフィルター(>20) + 詳細ログ
+        """
+        if sig is None:
+            sig = {}
         cfg = MODE_CONFIG.get(mode, {})
         direction = trade["direction"]
         trade_id = trade["trade_id"]
@@ -2799,14 +2808,57 @@ class DemoTrader:
 
         close_reason = None
 
-        # SIGNAL_REVERSE は confidence が閾値より高い場合のみ
+        # ── SR判定: 方向反転 + confidence閾値 ──
         reverse_threshold = max(self._params["confidence_threshold"] + 10, 50)
+        _is_reverse = False
         if (direction == "BUY" and new_signal == "SELL" and
                 new_conf >= reverse_threshold):
-            close_reason = "SIGNAL_REVERSE"
+            _is_reverse = True
         elif (direction == "SELL" and new_signal == "BUY" and
               new_conf >= reverse_threshold):
-            close_reason = "SIGNAL_REVERSE"
+            _is_reverse = True
+
+        if not _is_reverse:
+            return  # 方向反転なし or confidence不足 → スキップ
+
+        # ── SR ノイズフィルター (2026-04-07) ──
+        _sig_score = abs(sig.get("score", 0))
+        _sig_adx = sig.get("indicators", {}).get("adx", 0)
+        _layer1 = sig.get("layer_status", {}).get("layer1", {})
+        _l1_dir = _layer1.get("direction", "neutral")
+        # Trend Mismatch: 反転方向がLayer1トレンドと一致するか
+        _trend_mismatch = False
+        if _l1_dir == "bull" and new_signal == "SELL":
+            _trend_mismatch = True
+        elif _l1_dir == "bear" and new_signal == "BUY":
+            _trend_mismatch = True
+
+        _sr_detail = (
+            f"[SR] Score: {sig.get('score', 0):+.2f} | "
+            f"ADX: {_sig_adx:.1f} | "
+            f"Conf: {new_conf} | "
+            f"Trend_Mismatch: {_trend_mismatch} | "
+            f"L1: {_l1_dir} | "
+            f"Type: {sig.get('entry_type', '?')}"
+        )
+
+        # ── フィルター1: スコア閾値 (abs(score) >= 2.0) ──
+        # 弱い逆転シグナルではSR発動しない（ノイズ防止）
+        if _sig_score < self._SR_SCORE_THRESHOLD:
+            self._add_log(
+                f"   🚫 SR抑制（スコア不足）: {direction}→{new_signal} {_sr_detail}"
+            )
+            return
+
+        # ── フィルター2: ADXレンジ制限 (ADX > 20) ──
+        # レンジ相場(ADX<=20)ではSR禁止 → SL/TPに委ねる（往復ビンタ防止）
+        if _sig_adx <= self._SR_ADX_MIN:
+            self._add_log(
+                f"   🚫 SR抑制（レンジ相場）: {direction}→{new_signal} {_sr_detail}"
+            )
+            return
+
+        close_reason = "SIGNAL_REVERSE"
 
         if close_reason:
             # ── 決済価格もbid/ask反映 ──
@@ -2867,6 +2919,8 @@ class DemoTrader:
                 f"PnL: {pnl:+.1f} pips | "
                 f"Reason: {close_reason} | ID: {trade_id}"
             )
+            # ── SR詳細ログ: スコア・ADX・トレンド整合性 ──
+            self._add_log(f"   {_sr_detail}")
 
             # ── クールダウン記録（WINは除外）──
             if outcome != "WIN":

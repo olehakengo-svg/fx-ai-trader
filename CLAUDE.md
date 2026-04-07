@@ -209,6 +209,12 @@
 
 ### SIGNAL_REVERSE
 - **Minimum hold**: scalp 180s, DT 600s, swing 3600s (whipsaw prevention)
+- **Score threshold (2026-04-07)**: `abs(score) >= 2.0` — 弱い逆転シグナル(スコア<2.0)ではSR発動しない（ノイズ防止）
+- **ADX filter (2026-04-07)**: `ADX > 20` — レンジ相場(ADX≤20)ではSR禁止、SL/TPに委ねる（往復ビンタ防止）
+- **Trend Mismatch log**: Layer1方向 vs 反転シグナル方向の不一致を検出・ログ出力（情報用）
+- **SR詳細ログ**: `[SR] Score: +2.50 | ADX: 28.3 | Conf: 65 | Trend_Mismatch: True | L1: bull | Type: sr_fib`
+- **抑制ログ**: `🚫 SR抑制（スコア不足）` / `🚫 SR抑制（レンジ相場）` — フィルター発動理由を明示
+- **BT同期**: Scalp BT + DT BT にも同一フィルター(score>=2.0 + ADX>20)を適用済み
 
 ### OANDA Position Sync
 - **Demo -> OANDA sync**: Orphan positions (demo CLOSED, OANDA OPEN) detected every 5s and auto-closed

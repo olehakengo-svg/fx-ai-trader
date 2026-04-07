@@ -1,5 +1,28 @@
 # FX AI Trader - Changelog
 
+## 2026-04-07 SR決済ノイズフィルター — スコア閾値 + ADXレンジブロック + 詳細ログ
+
+### 1. 逆転強度の閾値導入 (Score Threshold)
+- **`_SR_SCORE_THRESHOLD = 2.0`**: 逆転シグナルのスコアが `abs(score) >= 2.0` を満たす場合のみSR決済を実行
+- 弱い逆転シグナル(ノイズ)でのSR発動を防止 — 既存のconfidence閾値に加え、スコア品質でもフィルタリング
+- 抑制時ログ: `🚫 SR抑制（スコア不足）: BUY→SELL [SR] Score: +1.20 | ADX: 25.1 | ...`
+
+### 2. ADXによるSR制限 (Range Market Block)
+- **`_SR_ADX_MIN = 20`**: ADX > 20 のトレンド相場でのみSR決済を許可
+- レンジ相場(ADX≤20)では逆方向シグナルが頻発→往復ビンタの原因 → SL/TPに委ねる
+- 抑制時ログ: `🚫 SR抑制（レンジ相場）: SELL→BUY [SR] Score: +2.80 | ADX: 15.2 | ...`
+
+### 3. SR理由のログ詳細化
+- **`[SR]` 詳細行**: SR決済実行後に根拠情報を1行出力
+  - `[SR] Score: +2.50 | ADX: 28.3 | Conf: 65 | Trend_Mismatch: True | L1: bull | Type: sr_fib`
+- **Trend Mismatch検出**: Layer1トレンド方向と反転シグナル方向の不一致を検出（bull + SELL = mismatch）
+- フィルター通過・抑制いずれの場合もSR詳細を出力 → 後続分析に活用可能
+
+### 4. BT同期
+- **Scalp BT**: `run_scalp_backtest()` 内のSR判定に `score >= 2.0 AND ADX > 20` フィルター追加
+- **DT BT**: `run_daytrade_backtest()` 内のSR判定に同一フィルター追加
+- BT/本番の一貫性を維持 — フィルター非適用時は `pass` で通常SL/TP判定に継続
+
 ## 2026-04-07 OANDA Command Center — コントロールパネル & 連携ステータス完全可視化
 
 ### 1. OANDA 転送司令部 (Tri-state Control)
