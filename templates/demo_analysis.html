@@ -326,6 +326,7 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
       <span class="pair-flag">🥇</span> XAU/USD
     </div>
     <div class="mode-list">
+      <div class="mode-row"><button id="m-scalp_xau" class="mode-btn" onclick="toggleDemo('scalp_xau')">⚡SC <span class="lamp off"></span></button><button id="o-scalp_xau" class="oa-btn" onclick="toggleOandaMode('scalp_xau')">OA</button></div>
       <div class="mode-row"><button id="m-daytrade_xau" class="mode-btn" onclick="toggleDemo('daytrade_xau')">📊DT <span class="lamp off"></span></button><button id="o-daytrade_xau" class="oa-btn" onclick="toggleOandaMode('daytrade_xau')">OA</button></div>
     </div>
   </div>
@@ -452,7 +453,7 @@ const PAIRS={
   EUR_GBP:{symbol:'EURGBP=X',label:'EUR/GBP',flag:'🇪🇺🇬🇧',precision:5,
     modes:['daytrade_eurgbp']},
   XAU_USD:{symbol:'XAUUSD=X',label:'XAU/USD',flag:'🥇',precision:2,
-    modes:['daytrade_xau']},
+    modes:['scalp_xau','daytrade_xau']},
 };
 const MODE_DEFS={
   scalp:{icon:'⚡',label:'SC'},daytrade:{icon:'📊',label:'DT'},
@@ -460,7 +461,7 @@ const MODE_DEFS={
   scalp_eur:{icon:'⚡',label:'SC'},daytrade_eur:{icon:'📊',label:'DT'},
   daytrade_1h_eur:{icon:'🕐',label:'1H'},scalp_eurjpy:{icon:'⚡',label:'SC'},
   daytrade_gbpusd:{icon:'📊',label:'DT'},daytrade_eurgbp:{icon:'📊',label:'DT'},
-  daytrade_xau:{icon:'📊',label:'DT'},
+  scalp_xau:{icon:'⚡',label:'SC'},daytrade_xau:{icon:'📊',label:'DT'},
 };
 // ── MAX_HOLD: mirrors Python MAX_HOLD_SEC (seconds) ──
 const MAX_HOLD_BASE={scalp:1800,daytrade:28800,daytrade_1h:64800,swing:259200,rnb_usdjpy:7200};
