@@ -1051,7 +1051,7 @@ class DemoTrader:
                 favorable_move = entry_price - price
 
             _original_sl = sl  # OANDA SL変更検出用
-            _entry_type_t = t.get("entry_type", "")
+            _entry_type_t = trade.get("entry_type", "")
             _SMC_TYPES = {"inducement_ob", "turtle_soup", "trendline_sweep"}
             _is_smc = _entry_type_t in _SMC_TYPES
 
