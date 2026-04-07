@@ -48,6 +48,37 @@ tr:hover{background:rgba(255,255,255,.02)}
 .dir-breakdown{display:flex;gap:12px;margin-top:8px}
 .dir-box{background:var(--bg);border-radius:6px;padding:8px 14px;flex:1;text-align:center}
 .dir-label{font-size:10px;font-weight:700;margin-bottom:4px}
+/* ── Heartbeat Banner ── */
+.hb-banner{background:var(--bg1);border-bottom:1px solid var(--bg2);padding:6px 20px;font-size:11px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.hb-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:4px}
+.hb-dot.ok{background:var(--green);box-shadow:0 0 6px var(--green)}
+.hb-dot.err{background:var(--red);box-shadow:0 0 6px var(--red)}
+.hb-dot.unk{background:var(--t3)}
+.hb-item{color:var(--t2)}
+.hb-val{color:var(--t1);font-weight:700}
+/* ── Command Center ── */
+.cc-table{width:100%;border-collapse:collapse;font-size:11px}
+.cc-table th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--bg2);color:var(--t3);font-weight:600;font-size:9px;text-transform:uppercase;letter-spacing:.3px}
+.cc-table td{padding:4px 8px;border-bottom:1px solid rgba(255,255,255,.03)}
+.cc-table tr:hover{background:rgba(255,255,255,.02)}
+.cc-mode-group{display:flex;gap:2px}
+.cc-btn{font-size:9px;padding:3px 10px;border-radius:4px;border:1px solid var(--bg3);background:var(--bg);color:var(--t3);cursor:pointer;transition:all .15s;font-family:inherit;font-weight:600}
+.cc-btn:hover{background:var(--bg3)}
+.cc-btn.cc-active-live{background:rgba(168,85,247,.25);color:var(--purple);border-color:rgba(168,85,247,.5)}
+.cc-btn.cc-active-sen{background:rgba(251,191,36,.15);color:var(--gold);border-color:rgba(251,191,36,.4)}
+.cc-btn.cc-active-off{background:rgba(239,68,68,.12);color:var(--red);border-color:rgba(239,68,68,.3)}
+.cc-eff{font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;display:inline-block}
+.cc-eff-on{background:rgba(34,197,94,.12);color:var(--green)}
+.cc-eff-off{background:rgba(239,68,68,.12);color:var(--red)}
+.cc-auto{font-size:9px;color:var(--t3)}
+.cc-fd{font-size:8px;color:var(--red);font-weight:700}
+.cc-ev-pos{color:var(--green)}.cc-ev-neg{color:var(--red)}
+/* ── Audit Log ── */
+.audit-tag{font-size:8px;padding:1px 5px;border-radius:3px;font-weight:600;display:inline-block}
+.audit-sent{background:rgba(168,85,247,.15);color:var(--purple)}
+.audit-filled{background:rgba(34,197,94,.12);color:var(--green)}
+.audit-blocked{background:rgba(251,191,36,.12);color:var(--gold)}
+.audit-skipped{background:rgba(239,68,68,.12);color:var(--red)}
 .sf-bar{display:flex;align-items:center;gap:6px;padding:8px 12px;background:var(--bg2);border-radius:6px;margin-bottom:12px;flex-wrap:wrap;font-size:12px}
 .sf-bar input[type="date"]{background:var(--bg3);color:var(--t1);border:1px solid var(--bg3);border-radius:4px;padding:4px 6px;font-size:11px;font-family:inherit;width:120px}
 .sf-bar input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(.7)}
@@ -95,6 +126,11 @@ tr:hover{background:rgba(255,255,255,.02)}
   .sf-btn{font-size:9px;padding:3px 7px}
   .sf-select{font-size:10px;width:100%;margin-left:0;margin-top:4px}
   .sf-quick{flex-wrap:wrap}
+  .hb-banner{padding:4px 10px;font-size:10px;gap:8px}
+  .hb-item{font-size:9px}
+  .cc-btn{font-size:8px;padding:2px 6px}
+  .cc-table td{padding:3px 4px;font-size:10px}
+  .cc-mode-group{gap:1px}
 }
 </style>
 </head>
@@ -113,6 +149,16 @@ tr:hover{background:rgba(255,255,255,.02)}
       <button class="btn" onclick="loadAll()">♻️</button>
     </div>
   </div>
+</div>
+
+<!-- ═══ Heartbeat Banner ═══ -->
+<div class="hb-banner" id="hb-banner">
+  <span><span class="hb-dot unk" id="hb-dot"></span><span class="hb-val" id="hb-status">OANDA: --</span></span>
+  <span class="hb-item">LATENCY: <span class="hb-val" id="hb-latency">--</span></span>
+  <span class="hb-item">NAV: <span class="hb-val" id="hb-nav">--</span></span>
+  <span class="hb-item">Balance: <span class="hb-val" id="hb-balance">--</span></span>
+  <span class="hb-item">Open: <span class="hb-val" id="hb-open">--</span></span>
+  <span class="hb-item" style="margin-left:auto;font-size:9px;color:var(--t3)" id="hb-time">--</span>
 </div>
 
 <div class="grid">
@@ -163,6 +209,51 @@ tr:hover{background:rgba(255,255,255,.02)}
           <tr><th>ID</th><th>通貨</th><th>方向</th><th>Units</th><th>Open Price</th><th>SL</th><th>TP</th><th>未実現P/L</th><th>Open Time</th></tr>
         </thead>
         <tbody id="open-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══ Command Center ═══ -->
+  <div class="card full">
+    <div class="card-title">
+      🎛️ OANDA 転送司令部 (Command Center)
+      <button class="btn" style="margin-left:auto;font-size:9px" onclick="loadCommandCenter()">♻️</button>
+      <button class="btn" style="font-size:9px;color:var(--red)" onclick="resetAllModes()">全リセット</button>
+    </div>
+    <div class="table-wrap">
+      <table class="cc-table">
+        <thead>
+          <tr>
+            <th>戦略</th>
+            <th>Status</th>
+            <th>N</th>
+            <th>WR</th>
+            <th>EV</th>
+            <th>転送</th>
+            <th>Mode</th>
+          </tr>
+        </thead>
+        <tbody id="cc-tbody">
+          <tr><td colspan="7" style="text-align:center;color:var(--t3)">読み込み中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══ Execution Audit Log ═══ -->
+  <div class="card full">
+    <div class="card-title">
+      📋 実行監査ログ (Execution Audit)
+      <button class="btn" style="margin-left:auto;font-size:9px" onclick="loadAudit()">♻️</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Time</th><th>戦略</th><th>方向</th><th>通貨</th><th>Units</th><th>Status</th><th>OANDA ID</th><th>Reason</th></tr>
+        </thead>
+        <tbody id="audit-tbody">
+          <tr><td colspan="8" style="text-align:center;color:var(--t3)">読み込み中...</td></tr>
+        </tbody>
       </table>
     </div>
   </div>
@@ -462,11 +553,140 @@ function _sfSetRange(range){
   _applyFilter();
 }
 
+// ── Heartbeat ──
+async function loadHeartbeat(){
+  try{
+    const r=await fetch('/api/oanda/heartbeat');
+    const d=await r.json();
+    const dot=document.getElementById('hb-dot');
+    const st=d.status||'unknown';
+    dot.className='hb-dot '+(st==='ok'?'ok':st==='error'?'err':'unk');
+    document.getElementById('hb-status').textContent=st==='ok'?'CONNECTED':st==='error'?'ERROR':st==='inactive'?'INACTIVE':'--';
+    document.getElementById('hb-latency').textContent=d.latency_ms!=null?Math.round(d.latency_ms)+'ms':'--';
+    document.getElementById('hb-nav').textContent=d.nav!=null?Number(d.nav).toLocaleString('ja-JP',{maximumFractionDigits:0})+'円':'--';
+    document.getElementById('hb-balance').textContent=d.balance!=null?Number(d.balance).toLocaleString('ja-JP',{maximumFractionDigits:0})+'円':'--';
+    document.getElementById('hb-open').textContent=d.open_trade_count!=null?d.open_trade_count:'--';
+    document.getElementById('hb-time').textContent=d.last_check?new Date(d.last_check).toLocaleTimeString('ja-JP',{timeZone:'Asia/Tokyo'}):'--';
+  }catch(e){console.warn('Heartbeat:',e)}
+}
+
+// ── Command Center ──
+async function loadCommandCenter(){
+  try{
+    const r=await fetch('/api/config/oanda_control');
+    const d=await r.json();
+    const tbody=document.getElementById('cc-tbody');
+    const strats=d.strategies||{};
+    const keys=Object.keys(strats).sort();
+    if(!keys.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--t3)">戦略データなし</td></tr>';return}
+    tbody.innerHTML=keys.map(et=>{
+      const s=strats[et];
+      const mode=s.mode||'auto';
+      const eff=s.effective;
+      const fd=s.force_demoted;
+      const auto=s.auto_status||'';
+      const n=s.n!=null?s.n:'';
+      const wr=s.wr!=null?Number(s.wr).toFixed(1)+'%':'';
+      const ev=s.ev!=null?Number(s.ev).toFixed(2):'';
+      const evCls=ev&&Number(ev)>0?'cc-ev-pos':ev&&Number(ev)<0?'cc-ev-neg':'';
+      // Auto status label
+      let autoHtml='';
+      if(fd)autoHtml='<span class="cc-fd">FORCE_DEMOTED</span>';
+      else if(auto==='demoted')autoHtml='<span style="color:var(--red);font-size:9px;font-weight:700">auto_demoted</span>';
+      else if(auto==='promoted')autoHtml='<span style="color:var(--green);font-size:9px;font-weight:700">promoted</span>';
+      else autoHtml=`<span class="cc-auto">${_h(auto)}</span>`;
+      // Effective badge
+      const effHtml=eff
+        ?'<span class="cc-eff cc-eff-on">転送ON</span>'
+        :'<span class="cc-eff cc-eff-off">停止</span>';
+      // Mode buttons
+      const btnL=mode==='live'?'cc-active-live':'';
+      const btnS=mode==='sentinel'?'cc-active-sen':'';
+      const btnO=mode==='off'?'cc-active-off':'';
+      const btnA=mode==='auto'?'':'';
+      return `<tr>
+        <td style="font-weight:600;font-size:11px">${_h(et)}</td>
+        <td>${autoHtml}</td>
+        <td>${n}</td>
+        <td>${wr}</td>
+        <td class="${evCls}" style="font-weight:600">${ev}</td>
+        <td>${effHtml}</td>
+        <td>
+          <div class="cc-mode-group">
+            <button class="cc-btn ${btnL}" onclick="setStratMode('${_h(et)}','live')" title="LIVE: フルロット転送">LIVE</button>
+            <button class="cc-btn ${btnS}" onclick="setStratMode('${_h(et)}','sentinel')" title="SENTINEL: 0.01lot観測">SEN</button>
+            <button class="cc-btn ${btnO}" onclick="setStratMode('${_h(et)}','off')" title="OFF: 転送停止">OFF</button>
+            <button class="cc-btn ${mode==='auto'?'':'cc-btn'}" onclick="setStratMode('${_h(et)}','auto')" title="AUTO: 自動判定" style="${mode==='auto'?'border-color:var(--blue);color:var(--blue)':''}">A</button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }catch(e){console.error('CommandCenter:',e)}
+}
+
+async function setStratMode(strategy,mode){
+  try{
+    const r=await fetch('/api/config/oanda_control',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({strategy,mode})
+    });
+    const d=await r.json();
+    if(d.error){alert('Error: '+d.error);return}
+    loadCommandCenter();
+  }catch(e){console.error('SetMode:',e)}
+}
+
+async function resetAllModes(){
+  if(!confirm('全戦略のモード設定をリセットしますか？\n(AUTO=自動判定に戻ります)'))return;
+  try{
+    await fetch('/api/config/oanda_control',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({reset:true})
+    });
+    loadCommandCenter();
+  }catch(e){console.error('Reset:',e)}
+}
+
+// ── Audit Log ──
+async function loadAudit(){
+  try{
+    const r=await fetch('/api/oanda/audit?limit=30');
+    const d=await r.json();
+    const tbody=document.getElementById('audit-tbody');
+    const audit=d.audit||[];
+    if(!audit.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--t3)">監査データなし</td></tr>';return}
+    tbody.innerHTML=audit.reverse().map(a=>{
+      const dirCls=a.direction==='BUY'?'tag-buy':'tag-sell';
+      let statusCls='audit-skipped',statusText=a.bridge_status||'?';
+      if(a.bridge_status==='sent')statusCls='audit-sent';
+      else if(a.bridge_status==='filled')statusCls='audit-filled';
+      else if(a.bridge_status==='blocked')statusCls='audit-blocked';
+      const ts=a.timestamp?new Date(a.timestamp).toLocaleTimeString('ja-JP',{timeZone:'Asia/Tokyo',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
+      const oid=a.oanda_trade_id||'';
+      return `<tr>
+        <td style="font-size:10px;color:var(--t3)">${ts}</td>
+        <td style="font-weight:600">${_h(a.entry_type)}</td>
+        <td class="${dirCls}">${a.direction||''}</td>
+        <td>${_h(a.instrument)}</td>
+        <td>${a.units||''}</td>
+        <td><span class="audit-tag ${statusCls}">${statusText.toUpperCase()}</span>${a.is_live?' <span style="font-size:8px;color:var(--green)">LIVE</span>':''}</td>
+        <td style="font-size:10px;color:var(--purple)">${oid?'#'+oid:''}</td>
+        <td style="font-size:10px;color:var(--t3)">${_h(a.block_reason)}</td>
+      </tr>`;
+    }).join('');
+  }catch(e){console.error('Audit:',e)}
+}
+
 function loadAll(){
   loadLive();
   loadStats();
   loadEquity();
   loadTrades();
+  loadHeartbeat();
+  loadCommandCenter();
+  loadAudit();
 }
 
 // ── Init ──
@@ -476,6 +696,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   syncTrades(false).then(()=>loadAll());
   // Live data: every 5 seconds (account, positions, price — direct from OANDA API)
   setInterval(loadLive, 5000);
+  // Heartbeat: every 30 seconds
+  setInterval(loadHeartbeat, 30000);
+  // Command Center + Audit: every 60 seconds
+  setInterval(()=>{loadCommandCenter();loadAudit()},60000);
   // Stats + equity: every 60 seconds (DB-based, no need for frequent refresh)
   setInterval(()=>{
     loadStats();
