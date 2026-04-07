@@ -10510,6 +10510,51 @@ def _build_strategy_status_map():
                 "pair_status": _pair_map,
             }
 
+    # ── v6.1 fix: 全QUALIFIED戦略をマップに含める ──
+    # FORCE_DEMOTED / _promoted / _overrides のいずれにも含まれない
+    # アクティブ戦略（orb_trap, gbp_deep_pullback等）が表示されない問題を修正
+    _ALL_KNOWN_TYPES = {
+        # ═══ スキャルプ ═══
+        "bb_rsi_reversion", "macdh_reversal", "stoch_trend_pullback",
+        "bb_squeeze_breakout", "london_breakout", "tokyo_bb",
+        "mtf_reversal_confluence", "fib_reversal", "ema_pullback",
+        "session_vol_expansion", "vol_momentum_scalp", "ema_ribbon_ride",
+        "gold_pips_hunter", "london_shrapnel", "vol_surge_detector",
+        "confluence_scalp",
+        # ═══ デイトレ ═══
+        "sr_fib_confluence", "ema_cross", "htf_false_breakout",
+        "london_session_breakout", "tokyo_nakane_momentum",
+        "adx_trend_continuation", "sr_break_retest", "lin_reg_channel",
+        "orb_trap", "london_close_reversal", "gbp_deep_pullback",
+        "turtle_soup", "trendline_sweep", "inducement_ob",
+        "dual_sr_bounce", "london_ny_swing", "jpy_basket_trend",
+        "gold_vol_break",
+        # ═══ 1H ═══
+        "keltner_squeeze_breakout", "donchian_momentum_breakout",
+        "h1_breakout_retest", "h1_fib_reversal", "h1_ema200_trend_reversal",
+    }
+    for et in sorted(_ALL_KNOWN_TYPES):
+        if et in strategies:
+            continue  # 既にFORCE_DEMOTED / promoted / overrides で登録済み
+        _mode = _overrides.get(et, "auto")
+        _lifecycle = _get_pair_lifecycle(et, _all_instruments[0]) if _all_instruments else "active"
+        _eff = et not in _force_demoted and _mode != "off"
+        _pair_map = {}
+        for inst in _all_instruments:
+            _pair_map[inst] = {
+                "lifecycle": _get_pair_lifecycle(et, inst),
+                "boost": _get_boost(et, inst),
+            }
+        _label = _mode_labels.get(_mode, _mode) if _mode != "auto" else "active"
+        strategies[et] = {
+            "force_demoted": False,
+            "auto_status": "active",
+            "mode": _mode,
+            "effective": _eff,
+            "label": _label,
+            "pair_status": _pair_map,
+        }
+
     return strategies, _all_instruments
 
 
