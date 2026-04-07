@@ -281,14 +281,22 @@
 - **根拠**: UTC 15 = London fixing反転効果 (全利益の60%, EV=+3.14/trade)
 - **ロット**: ATR/Spread比 ~3.3 → vol_mult=0.7 → 自動的に0.6x前後に縮小
 
-## Volatility Adaptive Lot Sizing (Active since 2026-04-05)
-- **2軸制御**: Axis1 SL距離(base_sl_pips/actual_sl, 0.5-1.5) × Axis2 ATR/Spread比(vol_mult 0.5-1.5)
-- **Final**: clamp(sl_ratio × vol_mult × strat_boost, 0.3, 2.0)
-- **Strategy boost**: stoch_trend_pullback=1.3x, sr_break_retest=1.3x, mtf_reversal_confluence=1.3x (本番EV良好)
-- **base_sl_pips**: scalp=3.5, DT=15, 1H=30 (MODE_CONFIG per-mode)
-- **edge_ratio thresholds**: ≥15→1.5x, ≥10→1.3x, ≥6→1.0x, ≥3→0.7x, <3→0.5x
-- **効果**: USD/JPY scalp (edge_ratio~17) → 1.5x boost, EUR/JPY (ratio~3) → 0.7x reduce
+## Lot Sizing v6.2: 3-Factor Model (Active since 2026-04-07)
+- **3-Factor Model**: Risk(SL距離) × Edge(ATR/Spread) × Boost(戦略×N制限×DD防御)
+- **Final**: clamp(risk_factor × edge_factor × boost_factor, 0.3, 2.5)
+- **Risk factor**: base_sl_pips / actual_sl (0.5-1.5), scalp=3.5, DT=15, 1H=30
+- **Edge factor**: ATR/Spread thresholds — ≥15→1.5x, ≥10→1.3x, ≥6→1.0x, ≥3→0.7x, <3→0.5x
+- **Boost factor**: strat_boost × N_cap × (0.5 if defensive else 1.0)
+- **ログ透明化**: エントリーログに `📐 0.70R×1.3E×1.50B=1.37 → 13000u [N=51 edge=17]` 形式で内訳表示
+- **Sentinel bypass (v6.2)**: _PAIR_LOT_BOOST / _PAIR_PROMOTED に登録されたペア×戦略は SCALP_SENTINEL をバイパス
+- **N<10 Safety (v6.2)**: 本番N<10の未検証戦略は自動Sentinel (0.01lot)。PAIR_PROMOTED免除
 - **_get_base_mode()**: mode suffix removal helper (scalp_eur→scalp, scalp_eurjpy→scalp)
+
+## Deploy-Safe State Persistence (v6.2)
+- **system_kv テーブル**: SQLite永続化でデプロイ後も状態維持
+- **Equity Protector**: _eq_peak / _eq_current / _defensive_mode → 決済ごとにDB保存、起動時に復元
+- **N Cache**: _strategy_n_cache → _evaluate_promotions() でDB保存、起動時にDB復元 → 直後にDB集計で上書き
+- **OANDA Audit**: oanda_audit テーブル (v6.1) — デプロイ後も監査ログ保持
 
 ## Production Monitoring (P0 — Active since 2026-04-04)
 - **Slippage**: signal_price vs entry_price diff (pips) -> DB column `slippage_pips` + log
