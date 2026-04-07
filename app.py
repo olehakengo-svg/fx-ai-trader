@@ -4846,6 +4846,14 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             entry_type = sig_result.get("entry_type", "unknown")
 
+            # ── セッション×ペア除外フィルター (本番同期: 461t監査) ──
+            _bt_hour_sf = bar_time.hour if hasattr(bar_time, 'hour') else 12
+            if "EURGBP" in symbol.upper():
+                continue  # EUR_GBP全停止(WR=11%)
+            if "EURUSD" in symbol.upper():
+                if _bt_hour_sf < 7 or _bt_hour_sf >= 17:
+                    continue  # EUR_USD Tokyo/Late_NY停止
+
             # ── エントリー理由の品質ゲート（本番と統一）──
             QUALIFIED_TYPES = {
                 # 2026-04-03 FXアナリストレビュー統廃合 + シグナル頻度改善
@@ -4941,24 +4949,36 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             outcome = None; bars_held = 0
             _be_activated = False
             _current_sl = sl
+            # ── 本番同期: ATR*0.8→BE(Tier1), ATR*1.5→Trail(Tier2) ──
+            _bt_be_thr = atr7 * 0.8    # Tier1: BE threshold
+            _bt_ts_thr = atr7 * 1.5    # Tier2: Trailing Stop threshold
+            _bt_ts_trail = atr7 * 0.5  # Tier2: trail width
+            tp_dist_total = abs(tp - ep)  # BE win時のTP距離参照用
             for j in range(1, MAX_HOLD + 1):
                 if i + 1 + j >= len(df): break
                 fut = df.iloc[i + 1 + j]
                 hi, lo = float(fut["High"]), float(fut["Low"])
                 fut_close = float(fut["Close"])
 
-                # Partial TP / Trailing: 60% TP到達でbreakeven
-                tp_dist_total = abs(tp - ep)
+                # ── ATR-based BE/TS (本番同期) ──
                 if sig == "BUY":
-                    _progress = hi - ep
-                    if _progress >= tp_dist_total * 0.6:
+                    _fav_move = hi - ep
+                    if _fav_move >= _bt_ts_thr:
+                        # Tier2: Trail at hi - ATR*0.5
+                        _current_sl = max(_current_sl, hi - _bt_ts_trail)
                         _be_activated = True
-                        _current_sl = max(_current_sl, ep)
+                    elif _fav_move >= _bt_be_thr:
+                        # Tier1: BE at entry + spread
+                        _current_sl = max(_current_sl, ep + _spread * 0.5)
+                        _be_activated = True
                 else:
-                    _progress = ep - lo
-                    if _progress >= tp_dist_total * 0.6:
+                    _fav_move = ep - lo
+                    if _fav_move >= _bt_ts_thr:
+                        _current_sl = min(_current_sl, lo + _bt_ts_trail)
                         _be_activated = True
-                        _current_sl = min(_current_sl, ep)
+                    elif _fav_move >= _bt_be_thr:
+                        _current_sl = min(_current_sl, ep - _spread * 0.5)
+                        _be_activated = True
 
                 # Time-decay SL tightening
                 if j >= int(MAX_HOLD * 0.6):
@@ -5267,6 +5287,14 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
             entry_type = sig_result.get("entry_type", "unknown")
 
+            # ── セッション×ペア除外フィルター (本番同期: 461t監査) ──
+            _dt_bt_hour_sf = bar_time.hour if hasattr(bar_time, 'hour') else 12
+            if "EURGBP" in symbol.upper():
+                continue  # EUR_GBP全停止(WR=11%)
+            if "EURUSD" in symbol.upper():
+                if _dt_bt_hour_sf < 7 or _dt_bt_hour_sf >= 17:
+                    continue  # EUR_USD Tokyo/Late_NY停止
+
             # ── エントリー理由の品質ゲート（本番と統一）──
             DT_QUALIFIED = {
                 # 2026-04-03 FXアナリストレビュー統廃合 (本番と統一)
@@ -5368,28 +5396,37 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             _dt_sl_genuine_threshold = atr * 0.3  # ATR×0.3超のヒゲは本物のブレイクダウン
 
             outcome = None; bars_held = 0
-            _dt_be_activated = False  # Breakeven activated flag (60% TP reached)
-            _dt_current_sl = sl       # 動的SL（breakeven/time-decay用）
+            _dt_be_activated = False
+            _dt_current_sl = sl
+            # ── 本番同期: ATR*0.8→BE(Tier1), ATR*1.5→Trail(Tier2) ──
+            _dt_be_thr = atr * 0.8
+            _dt_ts_thr = atr * 1.5
+            _dt_ts_trail = atr * 0.5
+            _be_offset = 0.002 if _is_jpy_scale(symbol) else 0.00002
             for j in range(1, MAX_HOLD + 1):
                 if i+1+j >= len(df): break
                 fut = df.iloc[i+1+j]
                 hi, lo = float(fut["High"]), float(fut["Low"])
                 fut_close = float(fut["Close"])
 
-                # ── Partial TP / Trailing: 40% TP到達でSLをbreakevenに移動 ──
+                # ── ATR-based BE/TS (本番同期) ──
                 _dt_tp_dist_total = abs(tp - ep)
                 if sig == "BUY":
-                    _dt_progress = hi - ep
-                    _be_offset = 0.002 if _is_jpy_scale(symbol) else 0.00002
-                    if _dt_progress >= _dt_tp_dist_total * 0.4:  # 60%→40% (早期BE化)
+                    _dt_fav = hi - ep
+                    if _dt_fav >= _dt_ts_thr:
+                        _dt_current_sl = max(_dt_current_sl, hi - _dt_ts_trail)
                         _dt_be_activated = True
-                        _dt_current_sl = max(_dt_current_sl, ep + _be_offset)  # BE+0.2pip
+                    elif _dt_fav >= _dt_be_thr:
+                        _dt_current_sl = max(_dt_current_sl, ep + _be_offset)
+                        _dt_be_activated = True
                 else:
-                    _be_offset = 0.002 if _is_jpy_scale(symbol) else 0.00002
-                    _dt_progress = ep - lo
-                    if _dt_progress >= _dt_tp_dist_total * 0.4:  # 60%→40%
+                    _dt_fav = ep - lo
+                    if _dt_fav >= _dt_ts_thr:
+                        _dt_current_sl = min(_dt_current_sl, lo + _dt_ts_trail)
                         _dt_be_activated = True
-                        _dt_current_sl = min(_dt_current_sl, ep - _be_offset)  # BE+0.2pip
+                    elif _dt_fav >= _dt_be_thr:
+                        _dt_current_sl = min(_dt_current_sl, ep - _be_offset)
+                        _dt_be_activated = True
 
                 # ── Time-decay SL tightening: MAX_HOLD×50%経過後 ──
                 if j >= int(MAX_HOLD * 0.5):  # 60%→50% (早期利確保護)
