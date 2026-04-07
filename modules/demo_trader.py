@@ -1220,7 +1220,7 @@ class DemoTrader:
                         self._add_log(
                             f"🚀 Profit Extender: {trade_id} TP延伸 "
                             f"(MSB+ADX={_mss.get('adx', 0):.1f}>{_pe_adx_cs}) → "
-                            f"新TP={tp:.{_pip_decimals}f} Trail={_pe_trail*(_pip_m_exit if '_pip_m_exit' in dir() else 100):.1f}pip"
+                            f"新TP={tp:.{_pip_decimals}f} Trail={_pe_trail*(100 if 'JPY' in _inst or 'XAU' in _inst else 10000):.1f}pip"
                         )
                         _should_extend_tp = True
                 elif trade_id in self._profit_extended:
