@@ -2456,6 +2456,19 @@ class DemoTrader:
             _reasons_with_inv = list(_reasons_with_inv) + [f"__INV__:{_invalidation:.3f}"]
 
         # ══════════════════════════════════════════════════════════════
+        # ── 高摩擦ペア指値強制: 成行エントリー禁止 (RT摩擦>3pip) ──
+        # ══════════════════════════════════════════════════════════════
+        _base_mode_limit = _get_base_mode(mode)
+        if _base_mode_limit == "scalp" and instrument in self._LIMIT_ONLY_SCALP:
+            _has_limit = any(isinstance(_r, str) and "__LIMIT_ENTRY__" in _r for _r in reasons)
+            if not _has_limit:
+                self._add_log(
+                    f"⛔ LIMIT_ONLY: {instrument} scalp → 成行エントリー禁止"
+                    f"(高摩擦RT>3pip) | Type: {entry_type}"
+                )
+                return
+
+        # ══════════════════════════════════════════════════════════════
         # ── Friction Minimizer: 指値遅延エントリー (Confluence Scalp v2) ──
         # confluence_scalp が __LIMIT_ENTRY__ マーカーを含む場合:
         #   現在価格が指値より不利 → pending_limits に保存して即時エントリー見送り
@@ -2587,16 +2600,22 @@ class DemoTrader:
 
         _lot_ratio = _sl_ratio * _vol_mult
 
-        # ── 戦略別ロットブースト: Elite Track + Legacy ──
-        _strat_boost = self._STRATEGY_LOT_BOOST.get(entry_type, 1.0)
+        # ── 戦略別ロットブースト: ペア別 → グローバル fallback ──
+        _strat_boost = self._PAIR_LOT_BOOST.get(
+            (entry_type, instrument),
+            self._STRATEGY_LOT_BOOST.get(entry_type, 1.0)
+        )
         _lot_ratio *= _strat_boost
 
-        # ── Scalp Sentinel: 摩擦死戦略は最小ロット固定 ──
+        # ── Scalp Sentinel + Universal Sentinel: 摩擦死戦略は最小ロット固定 ──
         _is_sentinel = False
         _base_mode_lot = _get_base_mode(mode)
         if _base_mode_lot == "scalp" and entry_type in self._SCALP_SENTINEL:
             _is_sentinel = True
             _lot_ratio = 0.1  # 最小ロット (1000 units)
+        elif entry_type in self._UNIVERSAL_SENTINEL:
+            _is_sentinel = True
+            _lot_ratio = 0.1  # 全モードSentinel
 
         # ── Equity Curve Protector: DD>5%→ディフェンシブ半減 ──
         if self._defensive_mode:
@@ -2611,7 +2630,7 @@ class DemoTrader:
         _adjusted_units = max(1000, (_adjusted_units // 1000) * 1000)
 
         # ── OANDA連携: 昇格済み戦略のみミラーリング + 実行監査 + 🔗ラベルログ ──
-        _is_promoted = self._is_promoted(entry_type)
+        _is_promoted = self._is_promoted(entry_type, instrument)
         _bridge_active = self._oanda.active
         _mode_allowed = self._oanda.is_mode_allowed(mode)
         _strat_mode = self._oanda.get_strategy_mode(entry_type)
@@ -2669,6 +2688,8 @@ class DemoTrader:
             _block_reason = ""
             if _strat_mode == "off":
                 _block_reason = "手動停止"
+            elif (entry_type, instrument) in self._PAIR_DEMOTED:
+                _block_reason = f"pair_demoted({instrument})"
             elif entry_type in self._FORCE_DEMOTED:
                 _block_reason = "force_demoted"
             elif _promo_status == "demoted":
@@ -2842,9 +2863,10 @@ class DemoTrader:
             f"Type: {sig.get('entry_type', '?')}"
         )
 
-        # ── フィルター1: スコア閾値 (abs(score) >= 2.0) ──
+        # ── フィルター1: スコア閾値 (ペア別感度: USD_JPY=1.5, 他=2.0) ──
         # 弱い逆転シグナルではSR発動しない（ノイズ防止）
-        if _sig_score < self._SR_SCORE_THRESHOLD:
+        _sr_threshold = self._PAIR_SR_THRESHOLD.get(_instrument_sr, self._SR_SCORE_THRESHOLD)
+        if _sig_score < _sr_threshold:
             self._add_log(
                 f"   🚫 SR抑制（スコア不足）: {direction}→{new_signal} {_sr_detail}"
             )
@@ -3117,44 +3139,79 @@ class DemoTrader:
         "ema_pullback",
     }
 
-    # ── Elite Track: 摩擦モデルv2 BT (2026-04-07) で昇格候補に選定 ──
+    # ── Elite Track: 摩擦モデルv2 BT + v5.95統合BT監査 ──
     # 摩擦込みEV > 0.25 AND N >= 20 → ロットブースト
     _STRATEGY_LOT_BOOST = {
-        # === Elite Track (Phase A-D BT verified) ===
-        "gbp_deep_pullback": 2.0,          # EV=2.903, WR=90.3%, N=31 — 最高エッジ (GBP専用)
-        "turtle_soup": 1.5,                # EV=1.039, WR=79.3%, N=29 (GBP)
-        "orb_trap": 1.5,                   # EV=0.44-1.01, WR=67-77% (全3ペア)
-        "htf_false_breakout": 1.5,         # EV=0.80-1.06, WR=77-84% (全3ペア)
-        "trendline_sweep": 1.5,            # EV=1.247, WR=78.6%, N=14 (EUR)
-        "london_ny_swing": 1.5,            # EV=1.414, WR=90.0%, N=10 (EUR)
-        # === Legacy (pre-friction BT, 要再検証) ===
-        "stoch_trend_pullback": 1.3,       # EV +1.24 (旧BT)
-        "sr_break_retest": 1.3,            # EV +0.06-0.24 (摩擦v2でGBP EV<0, USD/JPYのみ有効)
+        # === Elite Track (Phase A-D BT verified + v5.95 統合監査) ===
+        "gbp_deep_pullback": 2.0,          # GBP: EV=4.747, WR=100%, N=3 (14d) — 最高エッジ
+        "turtle_soup": 1.5,                # GBP: EV=1.039, WR=79.3%, N=29
+        "orb_trap": 1.5,                   # 全ペア: EUR WR=83% EV=+1.035 / GBP WR=83% EV=+1.117
+        "htf_false_breakout": 1.5,         # EUR: EV=0.614 / GBP: EV=0.034 (14d)
+        "trendline_sweep": 1.5,            # GBP: EV=3.081, WR=100%, N=2
+        "london_ny_swing": 1.5,            # EUR: EV=2.251, WR=100%, N=2
+        "fib_reversal": 1.3,               # NEW: Scalp WR=70.2% EV=+0.426 (全ペア14d)
+        # === Legacy ===
+        "sr_break_retest": 1.3,            # GBP WR=80% EV=+0.705 (14d)
         "mtf_reversal_confluence": 1.3,    # EV +1.49 (448t監査)
+        # REMOVED: stoch_trend_pullback → _UNIVERSAL_SENTINEL降格 (全ペアEVマイナス)
     }
 
     # ── Scalp Sentinel: 摩擦込みEV<0 → 最小ロットでデータ収集のみ ──
-    # 処置B: OANDA継続 / lot=1000固定 / デモ継続
-    # 根拠: scalp全体 EV=-0.17(JPY), -0.40(EURJPY) — 摩擦がエッジを完全消失
     _SCALP_SENTINEL = {
         "bb_rsi_reversion",       # 29t WR=34.5% EV=-0.726
-        "fib_reversal",           # 51t WR=62.7% EV=+0.018 (摩擦後ゼロ)
+        "fib_reversal",           # 51t WR=62.7% EV=+0.018 (摩擦後ゼロ) — ※USD/JPYのみPAIR_LOT_BOOST
         "macdh_reversal",         # 28t WR=53.6% EV=+0.014 (摩擦後ゼロ)
         "vol_momentum_scalp",     # 34t WR=61.8% EV=-0.041
-        "stoch_trend_pullback",   # 13t WR=53.8% EV=-0.204 (scalp限定、DT EV+)
         "vol_surge_detector",     # 1t WR=0% EV=-1.847
         "ema_ribbon_ride",        # 39t WR=48.7% EV=-0.366
         "bb_squeeze_breakout",    # 5t WR=80% EV=+0.992 (N不足、要観察)
+        # REMOVED: stoch_trend_pullback → _UNIVERSAL_SENTINEL (全モード対象)
     }
 
-    def _is_promoted(self, entry_type: str) -> bool:
-        """戦略がOANDA実行可能か判定 (v3: tri-state LIVE/SENTINEL/OFF対応)
+    # ══════════════════════════════════════════════════════════════
+    # ── ペア別戦略ライフサイクル管理 (v5.95 統合BT監査 2026-04-07) ──
+    # ══════════════════════════════════════════════════════════════
+
+    # ペア別降格: 特定ペアでのみEVマイナスの組み合わせを狙い撃ちで実弾除外
+    _PAIR_DEMOTED = {
+        ("bb_rsi_reversion", "EUR_USD"),    # WR=20% EV=-1.500 (14d BT)
+        ("macdh_reversal", "GBP_USD"),      # WR=40% EV=-0.818 (14d BT)
+    }
+
+    # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
+    _PAIR_PROMOTED = {
+        ("sr_fib_confluence", "USD_JPY"),   # WR=76.9% EV=+0.470 (14d BT)
+    }
+
+    # ペア別ロットブースト: PAIR_LOT_BOOST > _STRATEGY_LOT_BOOST (優先)
+    _PAIR_LOT_BOOST = {
+        ("fib_reversal", "USD_JPY"): 1.5,       # Scalp最強 WR=86.7% EV=+0.848
+        ("sr_fib_confluence", "USD_JPY"): 1.3,   # DT柱 WR=76.9% EV=+0.470 (復活ペア)
+    }
+
+    # 全モードSentinel: scalp以外にも適用される戦略Sentinel
+    _UNIVERSAL_SENTINEL = {
+        "stoch_trend_pullback",   # 全ペアEVマイナス → 全モードSentinel (14d BT)
+    }
+
+    # ペア別SR感度: SAR高ペアに早逃げ余地
+    _PAIR_SR_THRESHOLD = {
+        "USD_JPY": 1.5,   # SAR=3.58 → 閾値緩和 (他ペア: デフォルト2.0)
+    }
+
+    # 高摩擦ペア指値強制: scalp成行エントリー禁止 (RT摩擦>3pip)
+    _LIMIT_ONLY_SCALP = {"GBP_USD"}   # SAR=0.80 → 指値のみ許可
+
+    def _is_promoted(self, entry_type: str, instrument: str = "") -> bool:
+        """戦略がOANDA実行可能か判定 (v4: ペア別ライフサイクル対応)
 
         優先順位:
         1. Bridge戦略モード: "off"でブロック、"live"/"sentinel"で手動昇格
-        2. _FORCE_DEMOTED: デモ専用に降格（手動モード設定で昇格可能）
-        3. 自動降格判定: demoted ステータスでブロック
-        4. デフォルト: OANDA送信許可
+        2. _PAIR_DEMOTED: 特定ペアでのみ降格（ピンポイント敗兵淘汰）
+        3. _PAIR_PROMOTED: 特定ペアで復活（グローバルFORCE_DEMOTED解除）
+        4. _FORCE_DEMOTED: グローバル降格（手動モードで昇格可能）
+        5. 自動降格判定: demoted ステータスでブロック
+        6. デフォルト: OANDA送信許可
         """
         _mode = self._oanda.get_strategy_mode(entry_type)
 
@@ -3164,7 +3221,15 @@ class DemoTrader:
 
         # ── LIVE/SENTINELの明示指定: 手動昇格パス ──
         if _mode in ("live", "sentinel"):
-            return True  # _FORCE_DEMOTED/auto_demoted含め全て上書き
+            return True  # 全降格を上書き
+
+        # ── ペア別降格: 特定ペアでのみEVマイナスの組み合わせ ──
+        if instrument and (entry_type, instrument) in self._PAIR_DEMOTED:
+            return False  # ペア限定降格
+
+        # ── ペア別復活: FORCE_DEMOTEDでもペア限定で復活 ──
+        if instrument and (entry_type, instrument) in self._PAIR_PROMOTED:
+            return True  # ペア限定昇格
 
         # ── _FORCE_DEMOTED: 明示的モード指定がない場合はブロック ──
         if entry_type in self._FORCE_DEMOTED:

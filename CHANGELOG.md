@@ -1,5 +1,48 @@
 # FX AI Trader - Changelog
 
+## 2026-04-07 Pair-Specific Strategy Lifecycle — 通貨ペア別戦略管理 + 転送司令部可視化
+
+### 背景
+v5.95 統合BT監査（14日間, 340t, 摩擦モデルv2）で通貨ペア別の戦略パフォーマンス格差が判明:
+- bb_rsi×EUR_USD: WR=20% EV=-1.500 (全ペア中最悪)
+- macdh×GBP_USD: WR=40% EV=-0.818 (GBP高摩擦 RT=3.06pip)
+- fib_reversal×USD_JPY: WR=86.7% EV=+0.848 (全ペア中最良)
+- gbp_deep_pullback×GBP_USD: WR=100% EV=+4.747 (DT最強)
+
+### 1. ペア特化デモーション (_PAIR_DEMOTED)
+- `(bb_rsi_reversion, EUR_USD)` → エントリー完全停止 (月間 +68pip 節約)
+- `(macdh_reversal, GBP_USD)` → エントリー完全停止 (月間 +68pip 節約)
+
+### 2. ペア特化プロモーション (_PAIR_PROMOTED)
+- `(sr_fib_confluence, USD_JPY)` → FORCE_DEMOTED から復帰 (WR=76.9% EV=+0.470)
+
+### 3. ペア特化ロットブースト (_PAIR_LOT_BOOST)
+- `(fib_reversal, USD_JPY)`: 1.5x, `(sr_fib_confluence, USD_JPY)`: 1.3x
+- グローバル _STRATEGY_LOT_BOOST より優先
+
+### 4. ユニバーサル Sentinel (_UNIVERSAL_SENTINEL)
+- `stoch_trend_pullback` → _SCALP_SENTINEL (scalp限定) から全モードSentinel化
+
+### 5. USD/JPY SR閾値緩和 (_PAIR_SR_THRESHOLD)
+- USD_JPY: 2.0 → 1.5 (SR品質が高くフィルター過剰回避)
+
+### 6. GBP/USD スキャルプ指値限定 (_LIMIT_ONLY_SCALP)
+- GBP_USD scalp成行注文禁止 → 指値エントリーのみ (RT friction=3.06pip対策)
+
+### 7. _is_promoted() v4 判定優先順位
+Bridge mode → PAIR_DEMOTED → PAIR_PROMOTED → FORCE_DEMOTED → auto_demotion → default allow
+
+### 8. 転送司令部 通貨ペア別可視化 (Frontend)
+- ペアフィルタボタン (ALL / USD_JPY / EUR_USD / GBP_USD / EUR_JPY)
+- 戦略ごとのライフサイクルバッジ (Elite / Active / Sentinel / Demoted / Promoted / Force_Demoted)
+- `_build_strategy_status_map()` → (strategies, instruments) 返却形式に変更
+
+### 月間PnL証明
+- v5.95 Raw: +857 pip/月 (lifecycle なし)
+- v5.95+LC: +1,831 pip/月 (lifecycle uplift +107%)
+- DT GBP_USD: +1,180 pip/月 (gbp_deep_pullback 2.0x = +470pip 寄与)
+- DT EUR_USD: +510 pip/月 (orb_trap/htf_fbk/london_ny 1.5x)
+
 ## 2026-04-07 SR決済ノイズフィルター — スコア閾値 + ADXレンジブロック + 詳細ログ
 
 ### 1. 逆転強度の閾値導入 (Score Threshold)

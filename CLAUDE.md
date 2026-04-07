@@ -58,11 +58,16 @@
 - **目標: 100 pips/日（±20 許容 = 80〜120 pips/日）**
 - スキャルプ + デイトレで達成
 
-## BT Performance (as of 2026-04-05, +SBR採用)
-- Scalp: 520t WR=59.4% Sharpe=0.064 (7d, 1m) — bb_rsi 181t(Option C拡大), macdh 144t, fib 172t
-- DT EUR/USD: **201t WR=65.2%** (55d, 15m, +ORB Trap 42t, +LRC 22t)
-- DT USD/JPY: **213t WR=66.7%** (55d, 15m, +ORB Trap 29t)
-- DT GBP/USD: **234t WR=68.4%** (55d, 15m, +ORB Trap 29t, +GBP Deep PB 38t)
+## BT Performance (as of 2026-04-07, v5.95 統合監査 + Pair Lifecycle)
+- **v5.95 統合BT**: 340t/14d (5m scalp + 15m DT), 摩擦モデルv2, SAR=1.57 (v5.5: 0.42, 3.7x改善)
+- **月間PnL**: Raw +857pip → **LC適用 +1,831pip/月** (lifecycle uplift +107%)
+- Scalp USD/JPY: 76t WR=65.8% EV=+0.211ATR (fib_reversal WR=86.7% → 1.5x boost)
+- Scalp EUR/USD: 40t WR=57.5% (bb_rsi DEMOTED: WR=20% EV=-1.5)
+- Scalp GBP/USD: 59t WR=50.8% (macdh DEMOTED: WR=40% EV=-0.818, limit-only enforcement)
+- Scalp EUR/JPY: 59t WR=54.2% (vol_surge/bb_squeeze positive, bb_rsi negative)
+- DT USD/JPY: 34t WR=61.8% (sr_fib_confluence WR=76.9% → 1.3x boost)
+- DT EUR/USD: **27t WR=74.1% EV=+0.647ATR** (orb_trap/htf_fbk/london_ny 1.5x boost)
+- DT GBP/USD: **45t WR=66.7% EV=+0.634ATR** (gbp_deep_pullback 2.0x, trendline_sweep 1.5x)
 - **1H EUR/USD: 70t WR=50% +483pip** (120d, 1h, KSB+DMB)
 - **1H USD/JPY: 40t WR=35% +181pip** (120d, 1h, DMB only, SELL非対称フィルター)
 - **Scalp EUR/JPY: 250t WR=45.6% +300pip EV=+1.20** (60d, 5m, UTC 12-15限定)
@@ -116,8 +121,16 @@
 - **Strategy auto-promotion**: Demo N>=30 & EV≥1.0 -> OANDA promotion / EV<-0.5 -> demotion (every 10 trades, コスト補正1.0pip)
 - **BT昇格基準 (Phase 5)**: 摩擦込みEV > 1.0 AND N≥10 を「昇格候補」として出力
 - **Force-demoted (OANDA停止)**: sr_fib_confluence, ema_cross, inducement_ob, ema_ribbon_ride, h1_fib_reversal, pivot_breakout, ema_pullback — デモ継続・実弾停止 (Phase3: EMA系全滅確認)
+- **Pair-Specific Lifecycle (2026-04-07)**: `(strategy, instrument)` tuple-based granular control — v5.95 BT audit 結果に基づく通貨ペア別戦略管理
+  - **_PAIR_DEMOTED**: bb_rsi×EUR_USD (WR=20% EV=-1.5), macdh×GBP_USD (WR=40% EV=-0.818) → エントリー完全停止
+  - **_PAIR_PROMOTED**: sr_fib_confluence×USD_JPY → FORCE_DEMOTED からの復帰 (WR=76.9% EV=+0.470)
+  - **_PAIR_LOT_BOOST**: fib_reversal×USD_JPY=1.5x, sr_fib_confluence×USD_JPY=1.3x (ペア特化ブースト、グローバルブーストより優先)
+  - **_UNIVERSAL_SENTINEL**: stoch_trend_pullback → 全モードでSentinel化 (Scalp限定→全モード拡張)
+  - **_PAIR_SR_THRESHOLD**: USD_JPY=1.5 (デフォルト2.0→緩和、SR品質が高いため)
+  - **_LIMIT_ONLY_SCALP**: GBP_USD → scalp成行注文禁止、指値のみ (RT friction=3.06pip対策)
+  - **_is_promoted() v4**: Bridge → PAIR_DEMOTED → PAIR_PROMOTED → FORCE_DEMOTED → auto_demotion → allow
 - **Elite Track (2026-04-07)**: gbp_deep_pullback=2.0x, turtle_soup/orb_trap/htf_false_breakout/trendline_sweep/london_ny_swing=1.5x
-- **Legacy boost**: stoch_trend_pullback, sr_break_retest, mtf_reversal_confluence → 1.3x
+- **Legacy boost**: sr_break_retest, mtf_reversal_confluence → 1.3x, fib_reversal=1.3x (global default)
 - **Scalp Sentinel**: bb_rsi/fib/macdh/vol_momentum等8戦略 → 1000units固定(0.01lot)、データ収集専用
 - **Equity Curve Protector**: DD>5%(50pip)→全ロット50%縮小、DD回復(2.5%以下)→自動解除
 - **ATR Trailing Stop**: Tier1=ATR*0.8→BE, Tier2=ATR*1.5→Trail at price-ATR*0.5 (MFE逃し救済+64.7p推定)

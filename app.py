@@ -10401,12 +10401,24 @@ def api_oanda_modes():
 
 
 def _build_strategy_status_map():
-    """全戦略のOANDA転送状態マップを構築。"""
-    from modules.demo_trader import DemoTrader
+    """全戦略のOANDA転送状態マップを構築 (v2: ペア別ライフサイクル対応)。"""
+    from modules.demo_trader import DemoTrader, MODE_CONFIG
     bridge = _demo_trader._oanda
     _force_demoted = DemoTrader._FORCE_DEMOTED
     _promoted = getattr(_demo_trader, '_promoted_types', {})
     _overrides = bridge.get_strategy_overrides()
+    _pair_demoted = DemoTrader._PAIR_DEMOTED
+    _pair_promoted = DemoTrader._PAIR_PROMOTED
+    _pair_lot_boost = DemoTrader._PAIR_LOT_BOOST
+    _strat_lot_boost = DemoTrader._STRATEGY_LOT_BOOST
+    _scalp_sentinel = DemoTrader._SCALP_SENTINEL
+    _universal_sentinel = DemoTrader._UNIVERSAL_SENTINEL
+
+    # 全アクティブ通貨ペアを収集
+    _all_instruments = sorted(set(
+        cfg.get("instrument", "USD_JPY")
+        for cfg in MODE_CONFIG.values()
+    ))
 
     strategies = {}
     _mode_labels = {
@@ -10416,16 +10428,41 @@ def _build_strategy_status_map():
         "auto": "AUTO（自動判定）",
     }
 
+    def _get_pair_lifecycle(et, inst):
+        """ペア別ライフサイクルステータスを判定"""
+        if (et, inst) in _pair_demoted:
+            return "demoted"
+        if (et, inst) in _pair_promoted:
+            return "promoted"
+        if et in _force_demoted and (et, inst) not in _pair_promoted:
+            return "force_demoted"
+        if et in _scalp_sentinel or et in _universal_sentinel:
+            return "sentinel"
+        _boost = _pair_lot_boost.get((et, inst), _strat_lot_boost.get(et, 1.0))
+        if _boost >= 1.5:
+            return "elite"
+        return "active"
+
+    def _get_boost(et, inst):
+        return _pair_lot_boost.get((et, inst), _strat_lot_boost.get(et, 1.0))
+
     # FORCE_DEMOTED戦略
     for et in sorted(_force_demoted):
         _mode = _overrides.get(et, "auto")
-        _eff = _mode in ("live", "sentinel")  # 手動モード設定の場合のみTrue
+        _eff = _mode in ("live", "sentinel")
+        _pair_map = {}
+        for inst in _all_instruments:
+            _pair_map[inst] = {
+                "lifecycle": _get_pair_lifecycle(et, inst),
+                "boost": _get_boost(et, inst),
+            }
         strategies[et] = {
             "force_demoted": True,
             "auto_status": "force_demoted",
             "mode": _mode,
             "effective": _eff,
             "label": _mode_labels.get(_mode, _mode) if _mode != "auto" else "降格（実弾停止）",
+            "pair_status": _pair_map,
         }
     # 自動昇降格戦略
     for et, info in sorted(_promoted.items()):
@@ -10438,6 +10475,12 @@ def _build_strategy_status_map():
             _eff = False
         elif _auto == "demoted" and _mode == "auto":
             _eff = False
+        _pair_map = {}
+        for inst in _all_instruments:
+            _pair_map[inst] = {
+                "lifecycle": _get_pair_lifecycle(et, inst),
+                "boost": _get_boost(et, inst),
+            }
         strategies[et] = {
             "force_demoted": False,
             "auto_status": _auto,
@@ -10447,19 +10490,27 @@ def _build_strategy_status_map():
             "mode": _mode,
             "effective": _eff,
             "label": _mode_labels.get(_mode, _mode) if _mode != "auto" else _auto,
+            "pair_status": _pair_map,
         }
     # オーバーライドのみある戦略
     for et, mode in sorted(_overrides.items()):
         if et not in strategies:
+            _pair_map = {}
+            for inst in _all_instruments:
+                _pair_map[inst] = {
+                    "lifecycle": _get_pair_lifecycle(et, inst),
+                    "boost": _get_boost(et, inst),
+                }
             strategies[et] = {
                 "force_demoted": et in _force_demoted,
                 "auto_status": "unknown",
                 "mode": mode,
                 "effective": mode != "off",
                 "label": _mode_labels.get(mode, mode),
+                "pair_status": _pair_map,
             }
 
-    return strategies
+    return strategies, _all_instruments
 
 
 @app.route("/api/config/oanda_control", methods=["GET", "POST"])
@@ -10477,9 +10528,10 @@ def api_config_oanda_control():
     bridge = _demo_trader._oanda
 
     if request.method == "GET":
-        strategies = _build_strategy_status_map()
+        strategies, instruments = _build_strategy_status_map()
         return jsonify({
             "strategies": strategies,
+            "instruments": instruments,
             "bridge_active": bridge.active,
             "heartbeat": bridge.get_heartbeat(),
             "allowed_modes": sorted(bridge._allowed_modes) if bridge._allowed_modes else [],
@@ -10535,7 +10587,7 @@ def api_config_toggle_oanda():
     bridge = _demo_trader._oanda
 
     if request.method == "GET":
-        strategies = _build_strategy_status_map()
+        strategies, _ = _build_strategy_status_map()
         return jsonify({
             "strategies": strategies,
             "bridge_active": bridge.active,

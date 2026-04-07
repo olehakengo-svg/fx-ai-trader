@@ -73,6 +73,20 @@ tr:hover{background:rgba(255,255,255,.02)}
 .cc-auto{font-size:9px;color:var(--t3)}
 .cc-fd{font-size:8px;color:var(--red);font-weight:700}
 .cc-ev-pos{color:var(--green)}.cc-ev-neg{color:var(--red)}
+/* ── Pair Filter Bar ── */
+.pf-bar{display:flex;gap:3px;margin-bottom:8px;flex-wrap:wrap;align-items:center}
+.pf-btn{font-size:9px;padding:3px 8px;border-radius:4px;border:1px solid var(--bg3);background:var(--bg);color:var(--t3);cursor:pointer;font-weight:600;transition:all .15s}
+.pf-btn:hover{background:var(--bg3)}
+.pf-btn.pf-active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.pf-label{font-size:9px;color:var(--t3);margin-right:4px}
+/* ── Lifecycle badges ── */
+.lc-tag{font-size:7px;padding:1px 4px;border-radius:3px;font-weight:700;display:inline-block;margin:0 1px;letter-spacing:.2px}
+.lc-elite{background:rgba(168,85,247,.2);color:var(--purple)}
+.lc-active{background:rgba(59,130,246,.12);color:var(--blue)}
+.lc-sentinel{background:rgba(251,191,36,.12);color:var(--gold)}
+.lc-demoted{background:rgba(239,68,68,.12);color:var(--red)}
+.lc-promoted{background:rgba(34,197,94,.15);color:var(--green)}
+.lc-force_demoted{background:rgba(239,68,68,.08);color:var(--red)}
 /* ── Audit Log ── */
 .audit-tag{font-size:8px;padding:1px 5px;border-radius:3px;font-weight:600;display:inline-block}
 .audit-sent{background:rgba(168,85,247,.15);color:var(--purple)}
@@ -220,12 +234,18 @@ tr:hover{background:rgba(255,255,255,.02)}
       <button class="btn" style="margin-left:auto;font-size:9px" onclick="loadCommandCenter()">♻️</button>
       <button class="btn" style="font-size:9px;color:var(--red)" onclick="resetAllModes()">全リセット</button>
     </div>
+    <!-- Pair Filter Bar -->
+    <div class="pf-bar" id="pf-bar">
+      <span class="pf-label">通貨:</span>
+      <button class="pf-btn pf-active" data-pair="ALL" onclick="setPairFilter('ALL')">ALL</button>
+    </div>
     <div class="table-wrap">
       <table class="cc-table">
         <thead>
           <tr>
             <th>戦略</th>
             <th>Status</th>
+            <th>ペア別</th>
             <th>N</th>
             <th>WR</th>
             <th>EV</th>
@@ -234,7 +254,7 @@ tr:hover{background:rgba(255,255,255,.02)}
           </tr>
         </thead>
         <tbody id="cc-tbody">
-          <tr><td colspan="7" style="text-align:center;color:var(--t3)">読み込み中...</td></tr>
+          <tr><td colspan="8" style="text-align:center;color:var(--t3)">読み込み中...</td></tr>
         </tbody>
       </table>
     </div>
@@ -571,15 +591,51 @@ async function loadHeartbeat(){
 }
 
 // ── Command Center ──
+let _ccPairFilter='ALL';
+const _pairFlags={USD_JPY:'🇯🇵',EUR_USD:'🇪🇺',GBP_USD:'🇬🇧',EUR_JPY:'💶',EUR_GBP:'🇪🇺🇬🇧',XAU_USD:'🥇'};
+const _lcIcons={elite:'🚀',active:'✅',sentinel:'🔬',demoted:'⛔',promoted:'🔄',force_demoted:'🚫'};
+const _lcLabels={elite:'Elite',active:'Active',sentinel:'Sentinel',demoted:'Demoted',promoted:'Promoted',force_demoted:'F.Demoted'};
+
+function setPairFilter(p){
+  _ccPairFilter=p;
+  document.querySelectorAll('.pf-btn').forEach(b=>{
+    b.classList.toggle('pf-active',b.dataset.pair===p);
+  });
+  loadCommandCenter();
+}
+
 async function loadCommandCenter(){
   try{
     const r=await fetch('/api/config/oanda_control');
     const d=await r.json();
     const tbody=document.getElementById('cc-tbody');
     const strats=d.strategies||{};
+    const instruments=d.instruments||[];
     const keys=Object.keys(strats).sort();
-    if(!keys.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--t3)">戦略データなし</td></tr>';return}
-    tbody.innerHTML=keys.map(et=>{
+
+    // Build pair filter buttons dynamically
+    const pfBar=document.getElementById('pf-bar');
+    if(pfBar && instruments.length>0){
+      let btns='<span class="pf-label">通貨:</span>';
+      btns+=`<button class="pf-btn ${_ccPairFilter==='ALL'?'pf-active':''}" data-pair="ALL" onclick="setPairFilter('ALL')">ALL</button>`;
+      instruments.forEach(inst=>{
+        const flag=_pairFlags[inst]||'';
+        const label=inst.replace('_','/');
+        btns+=`<button class="pf-btn ${_ccPairFilter===inst?'pf-active':''}" data-pair="${inst}" onclick="setPairFilter('${inst}')">${flag} ${label}</button>`;
+      });
+      pfBar.innerHTML=btns;
+    }
+
+    if(!keys.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--t3)">戦略データなし</td></tr>';return}
+
+    // Filter strategies by selected pair
+    const filteredKeys=_ccPairFilter==='ALL'?keys:keys.filter(et=>{
+      const ps=strats[et].pair_status||{};
+      const lc=ps[_ccPairFilter];
+      return lc && lc.lifecycle!=='force_demoted' && lc.lifecycle!=='demoted';
+    });
+
+    tbody.innerHTML=filteredKeys.map(et=>{
       const s=strats[et];
       const mode=s.mode||'auto';
       const eff=s.effective;
@@ -589,24 +645,48 @@ async function loadCommandCenter(){
       const wr=s.wr!=null?Number(s.wr).toFixed(1)+'%':'';
       const ev=s.ev!=null?Number(s.ev).toFixed(2):'';
       const evCls=ev&&Number(ev)>0?'cc-ev-pos':ev&&Number(ev)<0?'cc-ev-neg':'';
+
       // Auto status label
       let autoHtml='';
       if(fd)autoHtml='<span class="cc-fd">FORCE_DEMOTED</span>';
       else if(auto==='demoted')autoHtml='<span style="color:var(--red);font-size:9px;font-weight:700">auto_demoted</span>';
       else if(auto==='promoted')autoHtml='<span style="color:var(--green);font-size:9px;font-weight:700">promoted</span>';
       else autoHtml=`<span class="cc-auto">${_h(auto)}</span>`;
+
+      // ── Pair lifecycle badges ──
+      const ps=s.pair_status||{};
+      let pairHtml='';
+      if(_ccPairFilter==='ALL'){
+        // Show compact pair badges
+        const pairEntries=Object.entries(ps);
+        pairHtml=pairEntries.map(([inst,info])=>{
+          const lc=info.lifecycle||'active';
+          const boost=info.boost||1.0;
+          const flag=_pairFlags[inst]||'';
+          const boostStr=boost>1.0?` ${boost}x`:'';
+          return `<span class="lc-tag lc-${lc}" title="${inst}: ${_lcLabels[lc]||lc}${boostStr}">${flag}${_lcIcons[lc]||''}</span>`;
+        }).join('');
+      } else {
+        const info=ps[_ccPairFilter]||{lifecycle:'active',boost:1.0};
+        const lc=info.lifecycle;
+        const boost=info.boost||1.0;
+        const boostStr=boost>1.0?` <b>${boost}x</b>`:'';
+        pairHtml=`<span class="lc-tag lc-${lc}">${_lcLabels[lc]||lc}${boostStr}</span>`;
+      }
+
       // Effective badge
       const effHtml=eff
         ?'<span class="cc-eff cc-eff-on">転送ON</span>'
         :'<span class="cc-eff cc-eff-off">停止</span>';
+
       // Mode buttons
       const btnL=mode==='live'?'cc-active-live':'';
       const btnS=mode==='sentinel'?'cc-active-sen':'';
       const btnO=mode==='off'?'cc-active-off':'';
-      const btnA=mode==='auto'?'':'';
       return `<tr>
         <td style="font-weight:600;font-size:11px">${_h(et)}</td>
         <td>${autoHtml}</td>
+        <td style="white-space:nowrap">${pairHtml}</td>
         <td>${n}</td>
         <td>${wr}</td>
         <td class="${evCls}" style="font-weight:600">${ev}</td>
