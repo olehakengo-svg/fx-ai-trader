@@ -241,6 +241,9 @@ class DemoTrader:
         # 降格条件: N >= 30 かつ EV < -0.5
         # 未評価（N < 30）: デモのみ（OANDA連携しない）
         self._promoted_types: dict = {}  # {entry_type: {"status": "promoted"|"demoted"|"pending", "n": N, "wr": WR, "ev": EV}}
+        # v6.1: Confidence-based Lot Scaling — N蓄積によるブースト段階制御
+        # NOTE: _evaluate_promotions()が参照するため、呼び出し前に初期化が必要
+        self._strategy_n_cache = {}   # {entry_type: trade_count} — 自動評価時に更新
         self._evaluate_promotions()  # 起動時に評価
 
         # チューナブルパラメータ（学習エンジンが調整、全モード共通）
@@ -287,8 +290,7 @@ class DemoTrader:
         self._mss_tracker = {}        # {trade_id: {"choch": dict|None, "msb": bool, "adx": float, "updated": datetime}}
         self._profit_extended = set() # Set of trade_ids that have been profit-extended (TP延伸済み)
         self._pending_limits = {}     # {key: {signal, sl, tp, entry_type, sig, limit_price, created, mode, cfg, ...}}
-        # v6.1: Confidence-based Lot Scaling — N蓄積によるブースト段階制御
-        self._strategy_n_cache = {}   # {entry_type: trade_count} — 自動評価時に更新
+        # NOTE: _strategy_n_cache は _evaluate_promotions() 前に初期化済み (line 246)
         # v6.1: GBP_USD Strict Friction Guard — 指値失効後クールダウン
         self._limit_expired_cd = {}   # {f"{inst}_{direction}": expiry_datetime}
         # 起動済みモード追跡（ヘルスチェッカー用）
@@ -1735,6 +1737,11 @@ class DemoTrader:
                             print(f"[DemoTrader/scalp] 5m補完: {sig_5m.get('entry_type')} {sig_5m.get('signal')}")
                 except Exception as _e5:
                     print(f"[DemoTrader/scalp] 5m補完エラー: {_e5}")
+        except ValueError as e:
+            # 全データソース失敗(ネットワーク制限等) — スタックトレース不要
+            if _verbose:
+                self._add_log(f"⚠️ [{cfg['label']}] シグナル取得失敗: {e}")
+            return
         except Exception as e:
             self._add_log(f"⚠️ [{cfg['label']}] シグナル取得失敗: {e}")
             import traceback; traceback.print_exc()
