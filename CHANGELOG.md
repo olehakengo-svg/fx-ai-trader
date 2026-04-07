@@ -1,5 +1,18 @@
 # FX AI Trader - Changelog
 
+## 2026-04-07 461t Quant Analysis — Win-Rate Reversal Engineering
+
+- **ATR Trailing Stop (Tier2)**: ATR*0.8→BE(Tier1)に加え、ATR*1.5→Trail(price-ATR*0.5)を導入
+  - MFE>0→LOSS 18件の64.7p損失を救済。利益ロックイン機構
+  - Tier1とTier2はシームレスに切替: BE→TS→TS(ラチェットアップ)
+- **Session×Pair exclusion**: EUR_GBP全停止(WR=11%), EUR_USD Tokyo/Late_NY停止
+  - コントラリアン(逆張り)検証済み: spread二重控除後 -1.1p → 逆張りもエッジなし → 除外が正解
+  - EUR_USD 75t (54+21) の -88.7p + EUR_GBP 9t の -29.9p = -118.6p 遮断
+- **SIGNAL_REVERSE min hold**: scalp 180→300s
+  - <5m SIGNAL_REVERSE 72件: PnL≈0のノイズ循環。5-10m(WR=53.7%, +51.9p)は有効ゾーン
+- **Phase3 Force-demote**: ema_pullback(WR=19%, EV=-0.77) → EMA系3戦略(cross/ribbon/pullback)全滅確認
+- **461t構造分析**: MAFE有効率4/7で97.3%に改善、即死率67.3%(93%→補正)、BE救済3.6%
+
 ## 2026-04-07 448t Production Audit — Surgical Strategy Triage
 
 - **Phase2 Force-demote**: ema_ribbon_ride(EV=-2.75), h1_fib_reversal(EV=-4.18), pivot_breakout(EV=-8.56) -> OANDA停止

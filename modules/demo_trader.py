@@ -1058,15 +1058,30 @@ class DemoTrader:
                             sl = new_sl
 
                 elif favorable_move >= _be_threshold:
-                    # 共通建値ガード: ATR*0.8到達でBE (建値+スプレッド)
-                    if direction == "BUY":
-                        new_sl = round(entry_price + _spread_amt, _pip_decimals)
-                        if new_sl > sl:
-                            sl = new_sl
+                    # ── Tier2: ATRトレイリングストップ ──
+                    # ATR*1.5到達で動的TS: SL = price - ATR*0.5 (利益ロックイン)
+                    # MFE>0→LOSSの25.5%を救済 (推定+64.7p)
+                    _ts_threshold = _entry_atr_be * 1.5
+                    if favorable_move >= _ts_threshold:
+                        _ts_trail = _entry_atr_be * 0.5  # ATR*0.5幅でトレイル
+                        if direction == "BUY":
+                            new_sl = round(price - _ts_trail, _pip_decimals)
+                            if new_sl > sl:
+                                sl = new_sl
+                        else:
+                            new_sl = round(price + _ts_trail, _pip_decimals)
+                            if new_sl < sl:
+                                sl = new_sl
                     else:
-                        new_sl = round(entry_price - _spread_amt, _pip_decimals)
-                        if new_sl < sl:
-                            sl = new_sl
+                        # Tier1: 共通建値ガード: ATR*0.8到達でBE (建値+スプレッド)
+                        if direction == "BUY":
+                            new_sl = round(entry_price + _spread_amt, _pip_decimals)
+                            if new_sl > sl:
+                                sl = new_sl
+                        else:
+                            new_sl = round(entry_price - _spread_amt, _pip_decimals)
+                            if new_sl < sl:
+                                sl = new_sl
 
             # ── OANDA連携: トレーリングSL変更をミラー ──
             if sl != _original_sl:
@@ -1870,6 +1885,26 @@ class DemoTrader:
             return
 
         # ══════════════════════════════════════════════════════════════
+        # ── セッション×ペア除外フィルター (461t監査) ──
+        # 統計的にエッジ消滅を確認したセグメントをOANDA連携・デモ共にブロック
+        # EUR_GBP全セッション: WR=11.1%(N=9), 全損-29.9p
+        # EUR_USD_Tokyo(UTC0-7): WR=20.4%(N=54), -62.9p
+        # EUR_USD_Late_NY(UTC17+): WR=9.5%(N=21), -25.8p
+        # コントラリアン検証済み: spread二重控除後 -1.1p → 逆張りもエッジなし
+        # ══════════════════════════════════════════════════════════════
+        _utc_hour = datetime.now(timezone.utc).hour
+        if instrument == "EUR_GBP":
+            _block(f"session_pair(EUR_GBP全停止,WR=11%)")
+            return
+        if instrument == "EUR_USD":
+            if _utc_hour < 7:  # Tokyo
+                _block(f"session_pair(EUR_USD_Tokyo,WR=20%)")
+                return
+            if _utc_hour >= 17:  # Late NY
+                _block(f"session_pair(EUR_USD_Late_NY,WR=10%)")
+                return
+
+        # ══════════════════════════════════════════════════════════════
         # ── SL狩り対策E1: スプレッドフィルター ──
         # 異常スプレッド時はSL狩りの前兆 → エントリー見送り
         # USD/JPY通常0.2-0.4pip, 閾値1.2pip(3倍)
@@ -2401,7 +2436,8 @@ class DemoTrader:
 
         # 最低保持時間チェック（scalp:3分, daytrade:10分, swing:1時間）
         _base_mode_sr = _get_base_mode(mode)
-        min_hold_sec = {"scalp": 180, "daytrade": 600, "daytrade_1h": 1800, "swing": 3600}.get(_base_mode_sr, 180)
+        # scalp: 180→300s (461t監査: <5m SIGNAL_REVERSE 72件PnL≈0のノイズ循環を断切)
+        min_hold_sec = {"scalp": 300, "daytrade": 600, "daytrade_1h": 1800, "swing": 3600}.get(_base_mode_sr, 300)
         try:
             entry_time = datetime.fromisoformat(trade["entry_time"])
             if entry_time.tzinfo is None:
@@ -2671,9 +2707,11 @@ class DemoTrader:
     # 本番EV負 → OANDA停止（デモ継続）の強制降格リスト
     # Phase1: sr_fib_confluence, ema_cross, inducement_ob (2026-04-05)
     # Phase2: ema_ribbon_ride(EV=-2.75), h1_fib_reversal(EV=-4.18), pivot_breakout(EV=-8.56) (2026-04-07, 448t監査)
+    # Phase3: ema_pullback(WR=19%, EV=-0.77, EMA系3戦略全滅) (2026-04-07, 461t構造分析)
     _FORCE_DEMOTED = {
         "sr_fib_confluence", "ema_cross", "inducement_ob",
         "ema_ribbon_ride", "h1_fib_reversal", "pivot_breakout",
+        "ema_pullback",
     }
 
     # 本番EV良好 → ロット1.3倍ブースト対象
