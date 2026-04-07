@@ -109,7 +109,9 @@ class OandaBridge:
             try:
                 fn(*args, **kwargs)
             except Exception as e:
-                logger.error(f"[OandaBridge] fire-and-forget error: {e}")
+                _msg = f"fire-and-forget error: {e}"
+                logger.error(f"[OandaBridge] {_msg}")
+                self._log_error(_msg)  # APIからも見えるように
         t = threading.Thread(target=_run, daemon=True)
         t.start()
 
