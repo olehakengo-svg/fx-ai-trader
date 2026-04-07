@@ -241,7 +241,16 @@ class DemoTrader:
         # 降格条件: N >= 30 かつ EV < -0.5
         # 未評価（N < 30）: デモのみ（OANDA連携しない）
         self._promoted_types: dict = {}  # {entry_type: {"status": "promoted"|"demoted"|"pending", "n": N, "wr": WR, "ev": EV}}
-        self._evaluate_promotions()  # 起動時に評価
+        # v6.2 fix: N-cache を _evaluate_promotions() の前に復元
+        # → _evaluate_promotions() が DB集計で権威あるデータに上書き
+        try:
+            _n_str = self._db.get_system_kv("strategy_n_cache", "{}")
+            self._strategy_n_cache = json.loads(_n_str)
+            if self._strategy_n_cache:
+                print(f"[v6.2] N-cache warm-start: {len(self._strategy_n_cache)} strategies", flush=True)
+        except Exception:
+            self._strategy_n_cache = {}
+        self._evaluate_promotions()  # 起動時に評価 → _strategy_n_cache を DB集計で上書き
 
         # チューナブルパラメータ（学習エンジンが調整、全モード共通）
         # NOTE: sl_adjust / tp_adjust / session_blacklist は廃止
@@ -297,14 +306,8 @@ class DemoTrader:
         self._mss_tracker = {}        # {trade_id: {"choch": dict|None, "msb": bool, "adx": float, "updated": datetime}}
         self._profit_extended = set() # Set of trade_ids that have been profit-extended (TP延伸済み)
         self._pending_limits = {}     # {key: {signal, sl, tp, entry_type, sig, limit_price, created, mode, cfg, ...}}
-        # v6.2: Confidence-based Lot Scaling — DB永続化 (deploy survive)
-        try:
-            _n_str = self._db.get_system_kv("strategy_n_cache", "{}")
-            self._strategy_n_cache = json.loads(_n_str)
-            if self._strategy_n_cache:
-                print(f"[v6.2] N-cache restored: {len(self._strategy_n_cache)} strategies", flush=True)
-        except Exception:
-            self._strategy_n_cache = {}  # {entry_type: trade_count}
+        # v6.2: N-cache は L244 の _evaluate_promotions() で DB集計から構築済み
+        # (warm-start復元は L244 の前で実行、_evaluate_promotions() が上書き)
         # v6.1: GBP_USD Strict Friction Guard — 指値失効後クールダウン
         self._limit_expired_cd = {}   # {f"{inst}_{direction}": expiry_datetime}
         # 起動済みモード追跡（ヘルスチェッカー用）
