@@ -2669,12 +2669,18 @@ class DemoTrader:
         return status_list
 
     # 本番EV負 → OANDA停止（デモ継続）の強制降格リスト
-    _FORCE_DEMOTED = {"sr_fib_confluence", "ema_cross", "inducement_ob"}
+    # Phase1: sr_fib_confluence, ema_cross, inducement_ob (2026-04-05)
+    # Phase2: ema_ribbon_ride(EV=-2.75), h1_fib_reversal(EV=-4.18), pivot_breakout(EV=-8.56) (2026-04-07, 448t監査)
+    _FORCE_DEMOTED = {
+        "sr_fib_confluence", "ema_cross", "inducement_ob",
+        "ema_ribbon_ride", "h1_fib_reversal", "pivot_breakout",
+    }
 
     # 本番EV良好 → ロット1.3倍ブースト対象
     _STRATEGY_LOT_BOOST = {
-        "stoch_trend_pullback": 1.3,  # EV +1.24
-        "sr_break_retest": 1.3,       # EV +13.8
+        "stoch_trend_pullback": 1.3,       # EV +1.24
+        "sr_break_retest": 1.3,            # EV +13.8
+        "mtf_reversal_confluence": 1.3,    # EV +1.49, WR 57%, instant-death 29% (448t監査)
     }
 
     def _is_promoted(self, entry_type: str) -> bool:

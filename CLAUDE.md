@@ -105,8 +105,8 @@
 - **SL floor**: ATR(14)x1.0 minimum distance (engine-level enforcement)
 - **Entry quality gate**: QUALIFIED_TYPES only, at least 1 reason required
 - **Strategy auto-promotion**: Demo N>=30 & EV≥1.0 -> OANDA promotion / EV<-0.5 -> demotion (every 10 trades, コスト補正1.0pip)
-- **Force-demoted (OANDA停止)**: sr_fib_confluence, ema_cross, inducement_ob — デモ継続・実弾停止
-- **Lot boost**: stoch_trend_pullback, sr_break_retest → 1.3x ロットブースト (高EV戦略優遇)
+- **Force-demoted (OANDA停止)**: sr_fib_confluence, ema_cross, inducement_ob, ema_ribbon_ride, h1_fib_reversal, pivot_breakout — デモ継続・実弾停止 (Phase2: 448t監査で追加)
+- **Lot boost**: stoch_trend_pullback, sr_break_retest, mtf_reversal_confluence → 1.3x ロットブースト (本番EV良好戦略優遇)
 
 ## Active Trading Rules & Constraints
 
@@ -214,7 +214,7 @@
 ## Volatility Adaptive Lot Sizing (Active since 2026-04-05)
 - **2軸制御**: Axis1 SL距離(base_sl_pips/actual_sl, 0.5-1.5) × Axis2 ATR/Spread比(vol_mult 0.5-1.5)
 - **Final**: clamp(sl_ratio × vol_mult × strat_boost, 0.3, 2.0)
-- **Strategy boost**: stoch_trend_pullback=1.3x, sr_break_retest=1.3x (本番EV良好)
+- **Strategy boost**: stoch_trend_pullback=1.3x, sr_break_retest=1.3x, mtf_reversal_confluence=1.3x (本番EV良好)
 - **base_sl_pips**: scalp=3.5, DT=15, 1H=30 (MODE_CONFIG per-mode)
 - **edge_ratio thresholds**: ≥15→1.5x, ≥10→1.3x, ≥6→1.0x, ≥3→0.7x, <3→0.5x
 - **効果**: USD/JPY scalp (edge_ratio~17) → 1.5x boost, EUR/JPY (ratio~3) → 0.7x reduce

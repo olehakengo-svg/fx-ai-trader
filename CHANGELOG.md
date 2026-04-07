@@ -1,5 +1,15 @@
 # FX AI Trader - Changelog
 
+## 2026-04-07 448t Production Audit — Surgical Strategy Triage
+
+- **Phase2 Force-demote**: ema_ribbon_ride(EV=-2.75), h1_fib_reversal(EV=-4.18), pivot_breakout(EV=-8.56) -> OANDA停止
+  - 3戦略合計92t、全損失の54%(-198.5p)を生産。即時遮断で最大インパクト
+- **Lot boost追加**: mtf_reversal_confluence -> 1.3x (EV=+1.49, WR=57%, instant-death率29%=最低)
+- **監視継続**: fib_reversal(EV=-0.54, N=76), ema_pullback(EV=-0.77, N=21) — EV<1.0で自動昇格ブロック済み
+- **448t統計**: WR=35%, PnL=-364.6p, PF=0.66, 93%の損失がMFE=0(instant death)
+  - BE guard効果は限定的(6%, 23.3p) — 根本原因はエントリー品質
+  - London session WR=27-30%(最悪), GBP/USD NY slippage=1.11p(最大)
+
 ## 2026-04-04 P0 BT<>Production Gap Fix + Monitoring Phase
 
 - **Root Cause: COOLDOWN mismatch**: BT=1 bar (15min) vs Production=30s -> 30x faster re-entry -> WR 62%->40% gap
