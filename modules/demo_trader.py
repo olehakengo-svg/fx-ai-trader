@@ -2709,6 +2709,15 @@ class DemoTrader:
         _mode_allowed = self._oanda.is_mode_allowed(mode)
         _strat_mode = self._oanda.get_strategy_mode(entry_type)
 
+        # ── ロットタグ生成（OANDA送信ログ用）──
+        _lot_tag = ""
+        if _is_sentinel:
+            _lot_tag = "(🔬SEN)"
+        elif self._defensive_mode:
+            _lot_tag = f"(🛡️DEF {_strat_boost}x)"
+        elif _strat_boost > 1.0:
+            _lot_tag = f"(🚀{_strat_boost}x)"
+
         # ── SENTINEL判定: コントロールパネルの "sentinel" モードなら0.01lot固定 ──
         if _strat_mode == "sentinel":
             _adjusted_units = 1000  # SENTINEL: 0.01lot固定（データ収集）
