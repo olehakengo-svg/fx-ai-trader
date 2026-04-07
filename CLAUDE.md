@@ -109,7 +109,10 @@
 - **Strategy auto-promotion**: Demo N>=30 & EV≥1.0 -> OANDA promotion / EV<-0.5 -> demotion (every 10 trades, コスト補正1.0pip)
 - **BT昇格基準 (Phase 5)**: 摩擦込みEV > 1.0 AND N≥10 を「昇格候補」として出力
 - **Force-demoted (OANDA停止)**: sr_fib_confluence, ema_cross, inducement_ob, ema_ribbon_ride, h1_fib_reversal, pivot_breakout, ema_pullback — デモ継続・実弾停止 (Phase3: EMA系全滅確認)
-- **Lot boost**: stoch_trend_pullback, sr_break_retest, mtf_reversal_confluence → 1.3x ロットブースト (本番EV良好戦略優遇)
+- **Elite Track (2026-04-07)**: gbp_deep_pullback=2.0x, turtle_soup/orb_trap/htf_false_breakout/trendline_sweep/london_ny_swing=1.5x
+- **Legacy boost**: stoch_trend_pullback, sr_break_retest, mtf_reversal_confluence → 1.3x
+- **Scalp Sentinel**: bb_rsi/fib/macdh/vol_momentum等8戦略 → 1000units固定(0.01lot)、データ収集専用
+- **Equity Curve Protector**: DD>5%(50pip)→全ロット50%縮小、DD回復(2.5%以下)→自動解除
 - **ATR Trailing Stop**: Tier1=ATR*0.8→BE, Tier2=ATR*1.5→Trail at price-ATR*0.5 (MFE逃し救済+64.7p推定)
 - **Session×Pair filter**: EUR_GBP全停止(WR=11%), EUR_USD Tokyo(UTC0-7)/Late_NY(UTC17+)停止
 - **SIGNAL_REVERSE min hold**: scalp 180→300s (ノイズ循環断切)
@@ -156,7 +159,9 @@
 - **Spike detection**: >0.5ATR move in 60s blocks entry
 - **Round number SL avoidance**: .000/.500 nearby SL shifted 2.5pip outward
 - **Time-based retreat**: 50% hold elapsed + unrealized loss -> early exit before SL (TIME_DECAY_EXIT)
-- **動的ロットサイジング (2軸+戦略ブースト)**: Axis1=SL距離連動 × Axis2=ATR/Spread比 × 戦略ブースト(stoch_trend_pullback/sr_break_retest 1.3x), combined 0.3-2.0x
+- **動的ロットサイジング (2軸+戦略ブースト)**: Axis1=SL距離連動 × Axis2=ATR/Spread比 × 戦略ブースト(Elite 1.5-2.0x / Legacy 1.3x), combined 0.3-2.5x
+- **DT spread guard**: 20%閾値 (往復spread/期待利益, scalp=30%)
+- **Friction Ratio**: 決済ログに FR=(spread+slip)/|PnL| を付与、FR>100%で⚠️警告
 - **SL cluster avoidance**: New SL within 2pip of existing position SL -> entry blocked
 - **SL technical positioning**: SR-based (nearest SR - ATRx0.3) priority over ATR-based. RR>=1.0 guaranteed
 

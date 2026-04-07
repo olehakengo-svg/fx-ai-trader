@@ -267,6 +267,13 @@ class DemoTrader:
         # ── リバウンド対策: 全方向連敗トラッカー + 価格ベロシティ ──
         self._total_losses_window = []  # [(timestamp, mode, pips)] 直近の全損失記録
         self._price_history = {}        # {instrument: [(timestamp, price)]} 通貨ペア別価格推移
+
+        # ── Equity Curve Protector: DD>5%→ディフェンシブモード ──
+        self._eq_peak = 0.0           # 累計PnL最高値 (pips)
+        self._eq_current = 0.0        # 累計PnL現在値 (pips)
+        self._defensive_mode = False  # True → 全ロット半減
+        self._EQ_DD_THRESHOLD = 0.05  # 5%ドローダウンで発動
+        self._EQ_BASE_CAPITAL_PIPS = 1000.0  # 基準資本 (pips換算、DDパーセント計算用)
         self._trade_high_water = {}     # trade_id -> max favorable price（BE/トレーリング用）
         # ── MAFE (Max Adverse / Favorable Excursion) ──
         self._mafe_tracker = {}         # {trade_id: {"max_high": float, "min_low": float}}
@@ -1217,11 +1224,43 @@ class DemoTrader:
                 outcome = result.get("outcome", "?")
                 icon = "✅" if outcome == "WIN" else "❌"
 
+                # ── Friction Ratio: 摩擦純度 (P2監視タグ) ──
+                _spread_at_entry = trade.get("spread_at_entry", 0)
+                _slippage_entry = abs(trade.get("slippage_pips", 0))
+                _total_friction = _spread_at_entry + _spread_exit + _slippage_entry
+                _fr_str = ""
+                if abs(pnl) > 0.01:
+                    _friction_ratio = _total_friction / abs(pnl)
+                    _fr_str = f" FR={_friction_ratio:.0%}"
+                    if _friction_ratio > 1.0:
+                        _fr_str += "⚠️"  # 摩擦がPnL超過
+
+                # ── Equity Curve Protector: 累計PnL更新 ──
+                self._eq_current += pnl
+                if self._eq_current > self._eq_peak:
+                    self._eq_peak = self._eq_current
+                _eq_dd = self._eq_peak - self._eq_current
+                _eq_dd_pct = _eq_dd / max(self._EQ_BASE_CAPITAL_PIPS, 1.0)
+                _prev_defensive = self._defensive_mode
+                if _eq_dd_pct >= self._EQ_DD_THRESHOLD:
+                    if not self._defensive_mode:
+                        self._defensive_mode = True
+                        self._add_log(
+                            f"🛡️ DEFENSIVE MODE ON: DD={_eq_dd:.1f}pip "
+                            f"({_eq_dd_pct:.1%}) > {self._EQ_DD_THRESHOLD:.0%} — 全ロット50%縮小"
+                        )
+                elif self._defensive_mode and _eq_dd_pct < self._EQ_DD_THRESHOLD * 0.5:
+                    # DD回復 (閾値の50%以下) → ディフェンシブ解除
+                    self._defensive_mode = False
+                    self._add_log(
+                        f"🟢 DEFENSIVE MODE OFF: DD回復 {_eq_dd:.1f}pip ({_eq_dd_pct:.1%})"
+                    )
+
                 self._add_log(
                     f"{cfg.get('icon','')} 📤 OUT [{cfg.get('label','?')}]: {icon} {outcome} | "
                     f"{direction} @ {trade['entry_price']:.3f} → {price:.3f} | "
                     f"PnL: {pnl:+.1f} pips | "
-                    f"Reason: {close_reason} | spread={_spread_exit:.1f}p | ID: {trade_id}"
+                    f"Reason: {close_reason} | spread={_spread_exit:.1f}p{_fr_str} | ID: {trade_id}"
                 )
 
                 # ── クールダウン記録（SL後の即再エントリー防止、WINは除外）──
@@ -1937,8 +1976,9 @@ class DemoTrader:
                 return
 
             # ══════════════════════════════════════════════════════════════
-            # ── 動的スプレッドガード: spread_cost / expected_profit > 0.3 ──
-            # スプレッドコスト（往復）が期待利益の30%を超えるとedge不足で見送り
+            # ── 動的スプレッドガード: spread_cost / expected_profit ──
+            # スプレッドコスト（往復）が期待利益の閾値を超えるとedge不足で見送り
+            # DT最適化: 20% (v2摩擦監査), scalp: 30%
             # ══════════════════════════════════════════════════════════════
             _sig_tp = sig.get("tp", 0)
             _sig_entry = sig.get("entry", current_price)
@@ -1946,8 +1986,11 @@ class DemoTrader:
             _expected_profit_pips = abs(_sig_tp - _sig_entry) * (100 if _is_jpy_or_xau_sg else 10000) if _sig_tp else 0
             if _expected_profit_pips > 0:
                 _spread_cost_ratio = (_spread_pips * 2) / _expected_profit_pips  # 往復スプレッド
-                if _spread_cost_ratio > 0.30:
-                    _block(f"spread_guard(cost={_spread_pips*2:.1f}pip/profit={_expected_profit_pips:.1f}pip={_spread_cost_ratio:.0%})")
+                # DT/1H: 20%閾値 (エリート戦略のエッジ防御), scalp: 30%
+                _base_mode_sg = _get_base_mode(mode)
+                _sg_threshold = 0.20 if _base_mode_sg in ("daytrade", "daytrade_1h") else 0.30
+                if _spread_cost_ratio > _sg_threshold:
+                    _block(f"spread_guard(cost={_spread_pips*2:.1f}pip/profit={_expected_profit_pips:.1f}pip={_spread_cost_ratio:.0%}>{_sg_threshold:.0%})")
                     return
 
         # ══════════════════════════════════════════════════════════════
@@ -2324,14 +2367,27 @@ class DemoTrader:
 
         _lot_ratio = _sl_ratio * _vol_mult
 
-        # ── 戦略別ロットブースト: 本番EV良好な戦略を優遇 ──
+        # ── 戦略別ロットブースト: Elite Track + Legacy ──
         _strat_boost = self._STRATEGY_LOT_BOOST.get(entry_type, 1.0)
         _lot_ratio *= _strat_boost
 
-        _lot_ratio = max(0.3, min(_lot_ratio, 2.0))
+        # ── Scalp Sentinel: 摩擦死戦略は最小ロット固定 ──
+        _is_sentinel = False
+        _base_mode_lot = _get_base_mode(mode)
+        if _base_mode_lot == "scalp" and entry_type in self._SCALP_SENTINEL:
+            _is_sentinel = True
+            _lot_ratio = 0.1  # 最小ロット (1000 units)
+
+        # ── Equity Curve Protector: DD>5%→ディフェンシブ半減 ──
+        if self._defensive_mode:
+            _lot_ratio *= 0.5
+
+        _lot_ratio = max(0.3, min(_lot_ratio, 2.5))  # 上限2.0→2.5 (Elite 2.0xを許容)
 
         _base_units = int(_os.environ.get("OANDA_UNITS", "10000"))
         _adjusted_units = int(_base_units * _lot_ratio)
+        if _is_sentinel:
+            _adjusted_units = 1000  # Sentinel: 0.01lot固定
         _adjusted_units = max(1000, (_adjusted_units // 1000) * 1000)
 
         # ── OANDA連携: 昇格済み戦略のみミラーリング ──
@@ -2360,9 +2416,14 @@ class DemoTrader:
         from modules.demo_db import pip_multiplier as _pm
         _pip_m = _pm(instrument)
         rr_actual = round(tp_dist / sl_dist, 1) if sl_dist > 0 else 0
-        _lot_info = f"lot={_adjusted_units}"
-        if _strat_boost > 1.0:
-            _lot_info += f"(🚀{_strat_boost}x)"
+        _lot_tag = ""
+        if _is_sentinel:
+            _lot_tag = "(🔬SEN)"
+        elif self._defensive_mode:
+            _lot_tag = f"(🛡️DEF {_strat_boost}x)"
+        elif _strat_boost > 1.0:
+            _lot_tag = f"(🚀{_strat_boost}x)"
+        _lot_info = f"lot={_adjusted_units}{_lot_tag}"
         self._add_log(
             f"{cfg['icon']} 📥 IN [{cfg['label']}]: {signal} @ {current_price:.{_price_dec}f} | "
             f"SL {sl:.{_price_dec}f}({sl_dist*_pip_m:.1f}p) TP {tp:.{_price_dec}f}({tp_dist*_pip_m:.1f}p) RR1:{rr_actual} | "
@@ -2724,11 +2785,34 @@ class DemoTrader:
         "ema_pullback",
     }
 
-    # 本番EV良好 → ロット1.3倍ブースト対象
+    # ── Elite Track: 摩擦モデルv2 BT (2026-04-07) で昇格候補に選定 ──
+    # 摩擦込みEV > 0.25 AND N >= 20 → ロットブースト
     _STRATEGY_LOT_BOOST = {
-        "stoch_trend_pullback": 1.3,       # EV +1.24
-        "sr_break_retest": 1.3,            # EV +13.8
-        "mtf_reversal_confluence": 1.3,    # EV +1.49, WR 57%, instant-death 29% (448t監査)
+        # === Elite Track (Phase A-D BT verified) ===
+        "gbp_deep_pullback": 2.0,          # EV=2.903, WR=90.3%, N=31 — 最高エッジ (GBP専用)
+        "turtle_soup": 1.5,                # EV=1.039, WR=79.3%, N=29 (GBP)
+        "orb_trap": 1.5,                   # EV=0.44-1.01, WR=67-77% (全3ペア)
+        "htf_false_breakout": 1.5,         # EV=0.80-1.06, WR=77-84% (全3ペア)
+        "trendline_sweep": 1.5,            # EV=1.247, WR=78.6%, N=14 (EUR)
+        "london_ny_swing": 1.5,            # EV=1.414, WR=90.0%, N=10 (EUR)
+        # === Legacy (pre-friction BT, 要再検証) ===
+        "stoch_trend_pullback": 1.3,       # EV +1.24 (旧BT)
+        "sr_break_retest": 1.3,            # EV +0.06-0.24 (摩擦v2でGBP EV<0, USD/JPYのみ有効)
+        "mtf_reversal_confluence": 1.3,    # EV +1.49 (448t監査)
+    }
+
+    # ── Scalp Sentinel: 摩擦込みEV<0 → 最小ロットでデータ収集のみ ──
+    # 処置B: OANDA継続 / lot=1000固定 / デモ継続
+    # 根拠: scalp全体 EV=-0.17(JPY), -0.40(EURJPY) — 摩擦がエッジを完全消失
+    _SCALP_SENTINEL = {
+        "bb_rsi_reversion",       # 29t WR=34.5% EV=-0.726
+        "fib_reversal",           # 51t WR=62.7% EV=+0.018 (摩擦後ゼロ)
+        "macdh_reversal",         # 28t WR=53.6% EV=+0.014 (摩擦後ゼロ)
+        "vol_momentum_scalp",     # 34t WR=61.8% EV=-0.041
+        "stoch_trend_pullback",   # 13t WR=53.8% EV=-0.204 (scalp限定、DT EV+)
+        "vol_surge_detector",     # 1t WR=0% EV=-1.847
+        "ema_ribbon_ride",        # 39t WR=48.7% EV=-0.366
+        "bb_squeeze_breakout",    # 5t WR=80% EV=+0.992 (N不足、要観察)
     }
 
     def _is_promoted(self, entry_type: str) -> bool:

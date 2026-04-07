@@ -1,5 +1,31 @@
 # FX AI Trader - Changelog
 
+## 2026-04-07 Elite Selection & Portfolio Restructuring (摩擦v2 BT監査)
+
+### 1. Elite Track ロットブースト (P0)
+- **gbp_deep_pullback**: 2.0x (EV=2.903, WR=90.3%, N=31 — 最高エッジ)
+- **turtle_soup/orb_trap/htf_false_breakout/trendline_sweep/london_ny_swing**: 1.5x
+- **ロットclamp上限**: 2.0→2.5 (Elite 2.0x + vol_mult 1.5 = 3.0 → 2.5でcap)
+
+### 2. Scalp Sentinel Mode (P0 — 摩擦死撤退)
+- **8戦略を Sentinel 降格**: bb_rsi, fib, macdh, vol_momentum, stoch_trend, vol_surge, ema_ribbon, bb_squeeze
+- **処置B**: OANDA継続 / lot=1000units(0.01lot)固定 / デモ継続
+- **根拠**: scalp EV=-0.17(JPY), -0.40(EURJPY) — 摩擦がエッジを完全消失
+
+### 3. DT Spread Guard 強化 (P1)
+- **DT/1H**: spread_cost閾値 30%→20% (エリート戦略のエッジ防御)
+- **Scalp**: 30%据え置き
+
+### 4. Friction Ratio 監視タグ (P2)
+- **FR = (spread_entry + spread_exit + slippage) / |PnL|**
+- **FR > 100%**: ⚠️警告表示 (ブローカー貢献度超過)
+- 決済ログに自動付与、戦略別の摩擦耐性を可視化
+
+### 5. Equity Curve Protector (ディフェンシブモード)
+- **DD > 5%** (50pip / 1000pip基準) → 全ロット50%強制縮小
+- **DD回復** (2.5%以下) → 自動解除
+- **累計PnL peak/current をリアルタイム追跡**、OANDA再開でリセット
+
 ## 2026-04-07 BT Friction Model v2 — Phase A-D Reality Sync (461t監査)
 
 ### Phase A: ペア別スプレッドモデル + スリッページ係数
