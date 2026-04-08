@@ -6894,7 +6894,7 @@ def detect_market_regime(df: pd.DataFrame) -> dict:
         return {"regime": "UNKNOWN", "label": "データ不足", "adx": 0.0,
                 "bb_width_pct": 50.0, "atr_ratio": 1.0,
                 "ema_stack_bull": False, "ema_stack_bear": False,
-                "range_sub": None}
+                "range_sub": None, "squeeze_bars": 0}
 
     row = df.iloc[-1]
     adx    = float(row.get("adx", 20.0))
@@ -6958,6 +6958,19 @@ def detect_market_regime(df: pd.DataFrame) -> dict:
         else:
             range_sub = "TRANSITION"
 
+    # ── v6.5 Phase 0 (SRM準備): squeeze_bars — SQUEEZE持続本数 ──
+    # BB幅が直近50本のP30未満に収まっている連続本数をカウント。
+    # SRM戦略がエネルギー充填度(圧縮持続時間)を判定するために使用。
+    # P30閾値 = SQUEEZE(P10)より緩い基準で「圧縮ゾーン」の持続を測定。
+    squeeze_bars = 0
+    if range_sub == "SQUEEZE" and len(bb_w_series) >= 10:
+        _sq_ceil = float(bb_w_series.quantile(0.30))
+        for _i in range(len(bb_w_series)):
+            if float(bb_w_series.iloc[-(_i + 1)]) <= _sq_ceil:
+                squeeze_bars += 1
+            else:
+                break
+
     return {
         "regime":          regime,
         "label":           label,
@@ -6968,6 +6981,7 @@ def detect_market_regime(df: pd.DataFrame) -> dict:
         "ema_stack_bear":  ema_bear,
         "close_vs_ema200": round(close - ema200, 3),
         "range_sub":       range_sub,
+        "squeeze_bars":    squeeze_bars,
     }
 
 

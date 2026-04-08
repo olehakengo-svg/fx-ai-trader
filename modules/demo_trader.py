@@ -2161,6 +2161,20 @@ class DemoTrader:
         _range_sub = _sig_regime_r.get("range_sub") if isinstance(_sig_regime_r, dict) else None
         _is_mr_entry = entry_type in _RANGE_MR_STRATEGIES
 
+        # ── v6.5 Phase 0: vol_surge_detector momentum/climax 二面性解決 ──
+        # vol_surge_detector は climax(MR) と momentum(TF) の2モードを持つ。
+        # momentum モードはトレンド初動であり MR ではない →
+        # SQUEEZE ブロック・BB_mid TP・SL widening 等の MR 専用調整から免除。
+        # climax モードは MR → 従来通り全 MR ロジック適用。
+        _is_vol_surge_momentum = False
+        if _is_mr_entry and entry_type == "vol_surge_detector":
+            _vs_reasons = sig.get("reasons", [])
+            _is_vol_surge_momentum = any(
+                "モメンタム初動" in str(r) for r in _vs_reasons
+            )
+            if _is_vol_surge_momentum:
+                _is_mr_entry = False  # MR分類から除外 → 全MR専用調整をバイパス
+
         if _regime_type_r == "RANGE" and _is_mr_entry and _range_sub:
             if _range_sub == "SQUEEZE":
                 self._add_log(
@@ -2181,6 +2195,15 @@ class DemoTrader:
                     f"Score: {_orig_score_wr:+.1f}→{sig['score']:+.1f}"
                 )
             # TRANSITION: no adjustment — standard evaluation continues
+
+        # v6.5 Phase 0: vol_surge momentum が SQUEEZE を通過した場合のテレメトリ
+        if _is_vol_surge_momentum and _range_sub == "SQUEEZE":
+            self._add_log(
+                f"[REGIME] SQUEEZE — vol_surge MOMENTUM bypassed MR block | "
+                f"{signal} {instrument} | "
+                f"bb_width_pct={_sig_regime_r.get('bb_width_pct', '?')} "
+                f"squeeze_bars={_sig_regime_r.get('squeeze_bars', '?')}"
+            )
 
         if confidence < self._params["confidence_threshold"]:
             _block(f"conf<{self._params['confidence_threshold']}(was:{confidence})"); return

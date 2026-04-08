@@ -242,6 +242,22 @@
 - `[REGIME] SQUEEZE detected — MR Blocked` — SQUEEZE時のブロックログ (bb_width_pct付き)
 - `[REGIME] WIDE_RANGE detected — MR Score Boosted` — WIDE_RANGE時のブーストログ (Conf/Score変動値付き)
 
+### Phase 0: SRM準備 — SQUEEZE計器拡張 & vol_surge矛盾修正 (2026-04-08)
+
+#### squeeze_bars (SQUEEZE持続本数トラッキング)
+- **場所**: `detect_market_regime()` return dict に `squeeze_bars` フィールド追加
+- **計測方法**: BB幅が直近50本のP30(30パーセンタイル)以下に収まっている連続本数
+- **用途**: 次期SRM戦略がエネルギー充填度(圧縮持続時間)を判定するために使用
+- **値**: SQUEEZE以外のレジームでは常に 0。SQUEEZEの場合 1〜最大15程度
+- **P30閾値の根拠**: SQUEEZE判定(P10)より緩い基準で「圧縮ゾーン」の持続幅を広く計測
+
+#### vol_surge_detector momentum/climax 二面性解決 (P0バグ修正)
+- **問題**: vol_surge_detectorが`_RANGE_MR_STRATEGIES`に含まれており、momentum(TF)モードのシグナルがSQUEEZEで不正にブロックされていた
+- **修正**: `sig["reasons"]`内の「モメンタム初動」キーワードでmomentum/climaxモードを判別し、momentumの場合`_is_mr_entry = False`に設定
+- **効果**: momentum → SQUEEZE通過、climax → 従来通りMRブロック
+- **下流影響**: `_is_mr_entry=False` により BB_mid TP不適用、SL widening不適用、RR floor 1.0維持、Quick-Harvest通常適用 — 全てmomentumに正しい動作
+- **テレメトリ**: `[REGIME] SQUEEZE — vol_surge MOMENTUM bypassed MR block` — momentum通過時のログ (squeeze_bars付き)
+
 ## Active Trading Rules & Constraints
 
 ### COOLDOWN (Re-entry Throttle)
