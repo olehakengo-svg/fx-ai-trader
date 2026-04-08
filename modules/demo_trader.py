@@ -1046,6 +1046,7 @@ class DemoTrader:
         MAX_HOLD_SEC["rnb_usdjpy"] = 7200   # RNB: max 2h hold
 
         for trade in open_trades:
+          try:
             direction = trade["direction"]
             sl = trade["sl"]
             tp = trade["tp"]
@@ -1251,7 +1252,7 @@ class DemoTrader:
             # ══════════════════════════════════════════════════════════════
             # v6.5 fix: OANDA trade IDがないトレードはPYRAMID対象外
             # (OANDA停止中に開設されたデモ専用トレードのmodify_sl_sync無限失敗を防止)
-            _has_oanda_id = bool(t.get("oanda_trade_id"))
+            _has_oanda_id = bool(trade.get("oanda_trade_id"))
             if (trade_id not in self._pyramided_trades
                     and _has_oanda_id
                     and _entry_type_pe in self._PE_50PCT_ELIGIBLE):
@@ -1605,6 +1606,12 @@ class DemoTrader:
                 self._trade_count_since_learn += 1
                 if self._trade_count_since_learn >= self._params["learn_every_n"]:
                     self._trigger_learning(current_mode=mode)
+
+          except Exception as _per_trade_err:
+            # 1トレードの例外で他トレードのSL/TP/MAX_HOLDチェックを止めない
+            _tid = trade.get("trade_id", "?") if isinstance(trade, dict) else "?"
+            print(f"[SLTP-Checker] Trade {_tid} error: {_per_trade_err}", flush=True)
+            continue
 
     # ── Main Loop (全モード統合・シングルスレッド) ──────────────────────────
 
