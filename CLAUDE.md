@@ -87,6 +87,28 @@
 - **bb_rsi Option C (2026-04-04)**: USD/JPY ADX制限撤廃(トレンド中WR=60%), Death Valley(UTC 00-01,09,12-16)ブロック, Gold Hours(UTC 05-08,19-23)スコア+0.8(v6.3), ADX>=30スコア+0.6, Tier1 TP=2.2(v6.3)
 - **Confluence Scalp v2 (2026-04-07)**: Triple Confluence + MSS戦略。Session Gate(UTC 12-17) + MFE Guard(ATR/Spread>=10) + HTF Hard Block + 3理論族合意(EMA+RSI/BB+MACD-H) + CHoCH/MSB構造転換検出。Profit Extender(TP延伸+Climax Exit), Friction Minimizer(指値遅延エントリー)
 
+### v7.0 リスク管理基盤 (2026-04-08) — クオンツギャップ分析に基づく20項目改善
+**背景**: コードベース全体のクオンツギャップ分析で、リスク管理・実行品質・ポートフォリオ構築の20項目の欠落を特定
+
+#### P0: 即対応（口座破綻リスク）
+- **Emergency Kill Switch**: `POST /api/emergency/kill` → 全モード停止 + OANDA全ポジション決済 + 永続フラグ(system_kv)。`POST /api/emergency/resume` (confirm=true必須)で復帰。ウォッチドッグ・自動再起動も完全停止
+- **SQLite自動バックアップ**: `demo_db.backup_database(keep_last=3)` — sqlite3.backup() API使用(WAL安全)。daily_review UTC 00:00で自動実行。`POST /api/db/backup` で手動トリガー可
+- **Discord Webhook**: `DISCORD_WEBHOOK_URL` 環境変数が未設定 → Renderで設定必要
+
+#### P0+P1: リスク分析基盤
+- **新モジュール `modules/risk_analytics.py`** (553行):
+  - `calculate_var_cvar()`: Historical VaR(95%/99%) + CVaR(Expected Shortfall)
+  - `monte_carlo_ruin()`: Bootstrap MC(N=10,000) → Ruin確率, 最悪DD(99th pctile)
+  - `kelly_fraction()`: Full/Half/Quarter Kelly計算
+  - `strategy_correlation()`: Pearson相関行列 + |r|>0.5フラグ
+  - `pnl_attribution()`: Alpha/Friction/Sizing分解
+  - `get_dd_lot_multiplier()`: 段階的DD乗数
+- **API**: `GET /api/risk/dashboard` (VaR/CVaR/Kelly/MC/相関/DD) + `GET /api/risk/slippage` (セッション/レジーム/戦略別)
+
+#### P1: ロットサイジング改善
+- **段階的DDロット縮小**: binary 50%切替 → DD 2%=0.80x / 4%=0.60x / 6%=0.40x / 8%=0.20x。回復も同じ閾値で段階的復帰。`_dd_lot_mult` system_kv永続化
+- **Kelly Lot Cap**: 3-Factor Model算出後に half-Kelly でキャップ。`_get_strategy_kelly()` がDB集計→Kelly算出。N≥10で適用開始。ログに `(K)` マーカー
+
 ### v6.8 Quant Audit三段ロケット (2026-04-08) — 本番556t統計駆動リストラ
 **背景**: 本番556トレード分析で構造的問題を特定: (1) 25戦略中PF>1はbb_rsi_reversionのみ, (2) DT WR=29%(損益分岐WR=44%), (3) SIGNAL_REVERSE+Quick-Harvestで76.6pip利益漏出
 **手法**: BTではなく本番データのクオンツ分析に基づく三段階改革

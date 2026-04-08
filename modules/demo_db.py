@@ -6,6 +6,8 @@ import sqlite3
 import threading
 import json
 import uuid
+import os
+import glob as _glob_mod
 from contextlib import contextmanager
 from datetime import datetime, timezone
 
@@ -1164,3 +1166,67 @@ class DemoDB:
                 "SELECT oanda_trade_id FROM oanda_trades ORDER BY open_time ASC LIMIT 1"
             ).fetchone()
             return row["oanda_trade_id"] if row else ""
+
+    # ── SQLite Daily Backup (WAL-safe) ────────────────
+
+    def backup_database(self, keep_last: int = 3) -> dict:
+        """Create a timestamped backup of the SQLite DB using sqlite3.backup() API.
+
+        This is safe for WAL mode — it acquires a consistent snapshot without
+        blocking concurrent readers/writers.
+
+        Args:
+            keep_last: Number of recent backups to keep (older ones are rotated out).
+
+        Returns:
+            dict with status, backup_path, size_bytes, rotated count.
+        """
+        try:
+            db_dir = os.path.dirname(os.path.abspath(self._path))
+            db_basename = os.path.splitext(os.path.basename(self._path))[0]
+            today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+            backup_name = f"{db_basename}_backup_{today_str}.db"
+            backup_path = os.path.join(db_dir, backup_name)
+
+            # Perform backup using sqlite3.backup() (WAL-safe, consistent snapshot)
+            source_conn = sqlite3.connect(self._path, timeout=10)
+            try:
+                dest_conn = sqlite3.connect(backup_path)
+                try:
+                    source_conn.backup(dest_conn)
+                finally:
+                    dest_conn.close()
+            finally:
+                source_conn.close()
+
+            backup_size = os.path.getsize(backup_path)
+
+            # Rotate old backups: keep only the most recent `keep_last`
+            pattern = os.path.join(db_dir, f"{db_basename}_backup_*.db")
+            existing_backups = sorted(_glob_mod.glob(pattern))
+            rotated = 0
+            if len(existing_backups) > keep_last:
+                for old_backup in existing_backups[:-keep_last]:
+                    try:
+                        os.remove(old_backup)
+                        rotated += 1
+                    except OSError:
+                        pass
+
+            print(f"[Backup] Created: {backup_path} ({backup_size} bytes), "
+                  f"rotated {rotated} old backups", flush=True)
+
+            return {
+                "status": "ok",
+                "backup_path": backup_path,
+                "size_bytes": backup_size,
+                "rotated": rotated,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception as e:
+            print(f"[Backup] FAILED: {e}", flush=True)
+            return {
+                "status": "error",
+                "error": str(e),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }

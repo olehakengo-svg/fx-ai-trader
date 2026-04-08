@@ -18,6 +18,7 @@ from modules.daily_review import DailyReviewEngine
 from modules.oanda_bridge import OandaBridge
 from modules.exposure_manager import ExposureManager
 from modules.alert_manager import AlertManager
+from modules.risk_analytics import get_dd_lot_multiplier, DD_LOT_TIERS
 
 # モード別設定
 MODE_CONFIG = {
@@ -299,22 +300,31 @@ class DemoTrader:
         self._total_losses_window = []  # [(timestamp, mode, pips)] 直近の全損失記録
         self._price_history = {}        # {instrument: [(timestamp, price)]} 通貨ペア別価格推移
 
-        # ── Equity Curve Protector: DD>5%→ディフェンシブモード ──
-        # v6.2: DB永続化 — デプロイ後も DD状態を維持
-        self._EQ_DD_THRESHOLD = 0.05  # 5%ドローダウンで発動
+        # ── Equity Curve Protector: 段階的DDロット縮小 v7.0 ──
+        # v7.0: binary ON/OFF -> graduated reduction (risk_analytics.DD_LOT_TIERS)
+        #   DD >= 2%: lot * 0.80 | DD >= 4%: lot * 0.60
+        #   DD >= 6%: lot * 0.40 | DD >= 8%: lot * 0.20
+        #   Recovery uses same thresholds (no instant full-open)
         self._EQ_BASE_CAPITAL_PIPS = 1000.0  # 基準資本 (pips換算、DDパーセント計算用)
         try:
             self._eq_peak = float(self._db.get_system_kv("eq_peak", "0.0"))
             self._eq_current = float(self._db.get_system_kv("eq_current", "0.0"))
+            # v7.0: _defensive_mode kept for backward compat (True if DD >= 2%)
             self._defensive_mode = self._db.get_system_kv("defensive_mode", "0") == "1"
+            # v7.0: restore graduated DD multiplier
+            self._dd_lot_mult = float(self._db.get_system_kv("dd_lot_mult", "1.0"))
             if self._eq_peak != 0 or self._eq_current != 0:
-                print(f"[v6.2] EquityProtector restored: peak={self._eq_peak:.1f} "
-                      f"current={self._eq_current:.1f} defensive={self._defensive_mode}", flush=True)
+                _dd = self._eq_peak - self._eq_current
+                _dd_pct = _dd / max(self._EQ_BASE_CAPITAL_PIPS, 1.0)
+                print(f"[v7.0] EquityProtector restored: peak={self._eq_peak:.1f} "
+                      f"current={self._eq_current:.1f} DD={_dd_pct:.1%} "
+                      f"lot_mult={self._dd_lot_mult}", flush=True)
         except Exception as e:
             self._eq_peak = 0.0
             self._eq_current = 0.0
             self._defensive_mode = False
-            print(f"[v6.2] EquityProtector DB restore failed, defaults: {e}", flush=True)
+            self._dd_lot_mult = 1.0
+            print(f"[v7.0] EquityProtector DB restore failed, defaults: {e}", flush=True)
         self._trade_high_water = {}     # trade_id -> max favorable price（BE/トレーリング用）
         # ── MAFE (Max Adverse / Favorable Excursion) ──
         self._mafe_tracker = {}         # {trade_id: {"max_high": float, "min_low": float}}
@@ -351,6 +361,11 @@ class DemoTrader:
         # ── OANDA専用サーキットブレーカー (デモは制限なし) ──
         self._oanda_was_active = False  # 前回のOANDA active状態 (再開検出用)
         self._oanda_resume_ts = None    # OANDA最終再開時刻 (リミットリセット基準)
+        # ── Emergency Kill Switch (persistent, survives watchdog/deploy) ──
+        self._emergency_killed = self._db.get_system_kv("emergency_killed", "0") == "1"
+        if self._emergency_killed:
+            print("[EMERGENCY_KILL] System is in KILLED state — all trading suspended. "
+                  "Use emergency_resume() to restart.", flush=True)
 
     def _resend_pending_oanda_trades(self):
         """デプロイ中にOANDA未連携だったOPENトレードを補完送信.
@@ -400,6 +415,8 @@ class DemoTrader:
 
     def start(self, mode: str = "daytrade"):
         """指定モードのデモトレーダーを起動"""
+        if self._emergency_killed:
+            return {"status": "blocked", "message": "Emergency kill is active. Use emergency_resume() first."}
         if mode not in MODE_CONFIG:
             return {"status": "error", "message": f"Unknown mode: {mode}"}
 
@@ -446,6 +463,139 @@ class DemoTrader:
 
             return {"status": "stopped", "modes": stopped}
 
+    # ── Emergency Kill Switch ─────────────────────────
+
+    def emergency_kill(self, reason: str = "Manual kill switch") -> dict:
+        """Emergency full stop: stops ALL modes + closes ALL OANDA positions.
+
+        Sets a persistent flag that prevents auto-restart by watchdog, self-healing,
+        and auto-start. Requires explicit emergency_resume() to restart.
+        """
+        ts = datetime.now(timezone.utc).isoformat()
+        print(f"[EMERGENCY_KILL] ACTIVATED at {ts}: {reason}", flush=True)
+
+        # 1. Set persistent kill flag (survives deploy/restart)
+        self._emergency_killed = True
+        self._db.set_system_kv("emergency_killed", "1")
+        self._db.set_system_kv("emergency_kill_time", ts)
+        self._db.set_system_kv("emergency_kill_reason", reason[:500])
+
+        # 2. Stop ALL demo modes
+        modes_stopped = []
+        with self._lock:
+            for m in list(self._runners.keys()):
+                runner = self._runners.get(m, {})
+                if runner.get("running"):
+                    runner["running"] = False
+                    self._user_stopped_modes.add(m)
+                    modes_stopped.append(m)
+            self._sltp_running = False
+
+        # 3. Close ALL open OANDA positions
+        oanda_closed = 0
+        oanda_errors = 0
+        if self._oanda.active:
+            # Close via trade_map (known OANDA positions)
+            trade_ids = list(self._oanda._trade_map.keys())
+            for demo_id in trade_ids:
+                try:
+                    oanda_id = self._oanda._trade_map.get(demo_id)
+                    if oanda_id:
+                        ok, _ = self._oanda._client.close_trade(oanda_id)
+                        if ok:
+                            oanda_closed += 1
+                            with self._oanda._lock:
+                                self._oanda._trade_map.pop(demo_id, None)
+                        else:
+                            oanda_errors += 1
+                except Exception as e:
+                    oanda_errors += 1
+                    print(f"[EMERGENCY_KILL] OANDA close error for {demo_id}: {e}", flush=True)
+
+            # Also kill OANDA allowed modes
+            self._oanda._allowed_modes = set()
+            self._oanda._save_allowed_modes()
+
+        # 4. Log the event
+        self._add_log(
+            f"🚨 [EMERGENCY_KILL] 全停止発動: {reason} | "
+            f"モード停止: {len(modes_stopped)}件 | "
+            f"OANDA決済: {oanda_closed}件 (エラー: {oanda_errors}件)")
+
+        # 5. Discord alert
+        self._alert_mgr.alert_custom(
+            "EMERGENCY KILL ACTIVATED",
+            f"Reason: {reason}\n"
+            f"Modes stopped: {len(modes_stopped)}\n"
+            f"OANDA closed: {oanda_closed} (errors: {oanda_errors})")
+
+        return {
+            "status": "killed",
+            "timestamp": ts,
+            "reason": reason,
+            "modes_stopped": modes_stopped,
+            "oanda_closed": oanda_closed,
+            "oanda_errors": oanda_errors,
+        }
+
+    def emergency_resume(self, confirm: bool = False) -> dict:
+        """Resume from emergency kill state. Requires confirm=True as safety check."""
+        if not self._emergency_killed:
+            return {"status": "not_killed", "message": "System is not in emergency kill state"}
+
+        if not confirm:
+            return {
+                "status": "confirmation_required",
+                "message": "Pass confirm=true to resume trading. "
+                           "Kill reason: " + self._db.get_system_kv("emergency_kill_reason", "unknown"),
+                "killed_at": self._db.get_system_kv("emergency_kill_time", "unknown"),
+            }
+
+        ts = datetime.now(timezone.utc).isoformat()
+        print(f"[EMERGENCY_KILL] RESUMED at {ts}", flush=True)
+
+        # Clear persistent kill flag
+        self._emergency_killed = False
+        self._db.set_system_kv("emergency_killed", "0")
+        self._db.set_system_kv("emergency_resume_time", ts)
+
+        # Clear user_stopped_modes so watchdog can restart
+        self._user_stopped_modes.clear()
+
+        # Restart all auto-start modes
+        restarted = []
+        for m, cfg in MODE_CONFIG.items():
+            if cfg.get("auto_start", True):
+                try:
+                    result = self.start(mode=m)
+                    if result.get("status") in ("started", "already_running"):
+                        restarted.append(m)
+                except Exception as e:
+                    print(f"[EMERGENCY_KILL] Resume start {m} failed: {e}", flush=True)
+
+        self._add_log(
+            f"🟢 [EMERGENCY_KILL] 復旧完了: {len(restarted)}モード再起動 | "
+            f"resume_time={ts}")
+
+        self._alert_mgr.alert_custom(
+            "EMERGENCY KILL RESUMED",
+            f"Modes restarted: {len(restarted)} ({', '.join(restarted)})")
+
+        return {
+            "status": "resumed",
+            "timestamp": ts,
+            "modes_restarted": restarted,
+        }
+
+    def emergency_status(self) -> dict:
+        """Return current emergency kill state."""
+        return {
+            "killed": self._emergency_killed,
+            "kill_time": self._db.get_system_kv("emergency_kill_time", ""),
+            "kill_reason": self._db.get_system_kv("emergency_kill_reason", ""),
+            "resume_time": self._db.get_system_kv("emergency_resume_time", ""),
+        }
+
     def is_running(self, mode: str = None) -> bool:
         # メインループが生きていて、かつモードがrunning=Trueならば動作中
         _loop_alive = self._health_thread and self._health_thread.is_alive()
@@ -461,34 +611,38 @@ class DemoTrader:
         if _now - _last_heal >= 30:
             self._last_heal_time = _now
 
-            # _started_modesが空でも自動起動対象モードを起動（デプロイ直後のauto_start未完了対策）
-            _auto_modes = [m for m, c in MODE_CONFIG.items() if c.get("auto_start", True)]
-            _target_modes = list(self._started_modes) if self._started_modes else _auto_modes
+            # ── Emergency Kill: skip ALL self-healing when killed ──
+            if self._emergency_killed:
+                pass  # No healing — system intentionally stopped
+            else:
+                # _started_modesが空でも自動起動対象モードを起動（デプロイ直後のauto_start未完了対策）
+                _auto_modes = [m for m, c in MODE_CONFIG.items() if c.get("auto_start", True)]
+                _target_modes = list(self._started_modes) if self._started_modes else _auto_modes
 
-            # スレッド復旧
-            if not (self._health_thread and self._health_thread.is_alive()):
-                print("[StatusHeal] MainLoop dead — restarting", flush=True)
-                self._ensure_main_loop()
-                _healed.append("MainLoop")
-            if not (self._watchdog_thread and self._watchdog_thread.is_alive()):
-                print("[StatusHeal] Watchdog dead — restarting", flush=True)
-                self._ensure_watchdog()
-                _healed.append("Watchdog")
-            if not (self._sltp_thread and self._sltp_thread.is_alive()):
-                print("[StatusHeal] SLTP dead — restarting", flush=True)
-                self._ensure_sltp_checker()
-                _healed.append("SLTP")
+                # スレッド復旧
+                if not (self._health_thread and self._health_thread.is_alive()):
+                    print("[StatusHeal] MainLoop dead — restarting", flush=True)
+                    self._ensure_main_loop()
+                    _healed.append("MainLoop")
+                if not (self._watchdog_thread and self._watchdog_thread.is_alive()):
+                    print("[StatusHeal] Watchdog dead — restarting", flush=True)
+                    self._ensure_watchdog()
+                    _healed.append("Watchdog")
+                if not (self._sltp_thread and self._sltp_thread.is_alive()):
+                    print("[StatusHeal] SLTP dead — restarting", flush=True)
+                    self._ensure_sltp_checker()
+                    _healed.append("SLTP")
 
-            # モード復旧（_started_modesが空でも全モード起動）
-            for m in _target_modes:
-                if m in self._user_stopped_modes:
-                    continue
-                runner = self._runners.get(m)
-                if runner is None or not runner.get("running", False):
-                    print(f"[StatusHeal] Mode {m} not running — restarting", flush=True)
-                    self._runners[m] = {"running": True, "thread": None}
-                    self._started_modes.add(m)
-                    _healed.append(m)
+                # モード復旧（_started_modesが空でも全モード起動）
+                for m in _target_modes:
+                    if m in self._user_stopped_modes:
+                        continue
+                    runner = self._runners.get(m)
+                    if runner is None or not runner.get("running", False):
+                        print(f"[StatusHeal] Mode {m} not running — restarting", flush=True)
+                        self._runners[m] = {"running": True, "thread": None}
+                        self._started_modes.add(m)
+                        _healed.append(m)
 
             if _healed:
                 print(f"[StatusHeal] Healed: {_healed} | started={list(self._started_modes)} "
@@ -571,6 +725,8 @@ class DemoTrader:
                 getattr(self, '_block_counts', {}).items(),
                 key=lambda x: x[1], reverse=True
             )[:30]),  # 上位30件のみ (キー爆発防止)
+            # ── Emergency Kill Switch status ──
+            "emergency_killed": self._emergency_killed,
         }
 
     def request_tick(self):
@@ -719,6 +875,11 @@ class DemoTrader:
             try:
                 _check_count += 1
                 restored = []
+
+                # Emergency kill: skip all auto-restart
+                if self._emergency_killed:
+                    time.sleep(60)
+                    continue
 
                 # 全モードを強制チェック（EUR含む）
                 _all_modes = ["scalp", "scalp_5m", "daytrade", "daytrade_1h", "swing",
@@ -1540,32 +1701,37 @@ class DemoTrader:
                     if _friction_ratio > 1.0:
                         _fr_str += "⚠️"  # 摩擦がPnL超過
 
-                # ── Equity Curve Protector: 累計PnL更新 ──
+                # ── Equity Curve Protector: 段階的DDロット縮小 v7.0 ──
                 self._eq_current += pnl
                 if self._eq_current > self._eq_peak:
                     self._eq_peak = self._eq_current
                 _eq_dd = self._eq_peak - self._eq_current
                 _eq_dd_pct = _eq_dd / max(self._EQ_BASE_CAPITAL_PIPS, 1.0)
-                _prev_defensive = self._defensive_mode
-                if _eq_dd_pct >= self._EQ_DD_THRESHOLD:
-                    if not self._defensive_mode:
-                        self._defensive_mode = True
-                        self._add_log(
-                            f"🛡️ DEFENSIVE MODE ON: DD={_eq_dd:.1f}pip "
-                            f"({_eq_dd_pct:.1%}) > {self._EQ_DD_THRESHOLD:.0%} — 全ロット50%縮小"
-                        )
-                elif self._defensive_mode and _eq_dd_pct < self._EQ_DD_THRESHOLD * 0.5:
-                    # DD回復 (閾値の50%以下) → ディフェンシブ解除
-                    self._defensive_mode = False
+                _prev_dd_mult = self._dd_lot_mult
+                _new_dd_mult = get_dd_lot_multiplier(_eq_dd_pct)
+                self._dd_lot_mult = _new_dd_mult
+                # v7.0: backward compat flag (True if any DD reduction active)
+                self._defensive_mode = _new_dd_mult < 1.0
+
+                if _new_dd_mult < _prev_dd_mult:
+                    # DD deepened -> tighter lot reduction
                     self._add_log(
-                        f"🟢 DEFENSIVE MODE OFF: DD回復 {_eq_dd:.1f}pip ({_eq_dd_pct:.1%})"
+                        f"🛡️ DD REDUCTION: DD={_eq_dd:.1f}pip ({_eq_dd_pct:.1%}) "
+                        f"lot_mult={_prev_dd_mult:.2f}->{_new_dd_mult:.2f}"
+                    )
+                elif _new_dd_mult > _prev_dd_mult:
+                    # DD recovering -> gradual lot restoration
+                    self._add_log(
+                        f"🟢 DD RECOVERY: DD={_eq_dd:.1f}pip ({_eq_dd_pct:.1%}) "
+                        f"lot_mult={_prev_dd_mult:.2f}->{_new_dd_mult:.2f}"
                     )
 
-                # ── v6.2: Equity state DB永続化 (deploy survive) ──
+                # ── v7.0: Equity state DB永続化 (deploy survive) ──
                 try:
                     self._db.set_system_kv("eq_peak", str(round(self._eq_peak, 2)))
                     self._db.set_system_kv("eq_current", str(round(self._eq_current, 2)))
                     self._db.set_system_kv("defensive_mode", "1" if self._defensive_mode else "0")
+                    self._db.set_system_kv("dd_lot_mult", str(round(self._dd_lot_mult, 2)))
                 except Exception:
                     pass  # DB書き込み失敗は決済処理をブロックしない
 
@@ -3066,11 +3232,23 @@ class DemoTrader:
                 _n_cap = _n_max
                 break
         _strat_boost = min(_strat_boost, _n_cap)
-        _eq_mult = 0.5 if self._defensive_mode else 1.0
+        # v7.0: graduated DD lot multiplier (replaces binary 0.5)
+        _eq_mult = self._dd_lot_mult
         _boost_factor = _strat_boost * _eq_mult
 
         # ── Combined lot ratio ──
         _lot_ratio = _risk_factor * _edge_factor * _boost_factor
+
+        # ── v7.0: Kelly cap -- half-Kelly from learning engine stats ──
+        _kelly_cap_applied = False
+        _kelly = self._get_strategy_kelly(entry_type, instrument)
+        if _kelly is not None and _kelly > 0:
+            # Normalize Kelly fraction to lot_ratio scale:
+            # half-Kelly fraction (e.g. 0.05) / base_lot_ratio (0.1) = max lot_ratio
+            _kelly_lot_cap = _kelly * 0.5 / 0.1
+            if _lot_ratio > _kelly_lot_cap:
+                _lot_ratio = _kelly_lot_cap
+                _kelly_cap_applied = True
 
         # ── Sentinel判定 v6.2: PAIR_PROMOTED/PAIR_LOT_BOOST はバイパス ──
         _is_sentinel = False
@@ -3102,13 +3280,14 @@ class DemoTrader:
             _adjusted_units = 1000  # Sentinel: 0.01lot固定
         _adjusted_units = max(1000, (_adjusted_units // 1000) * 1000)
 
-        # ── v6.2 LOT内訳ログ (透明化) ──
+        # ── v7.0 LOT内訳ログ (透明化 + Kelly cap) ──
         _lot_breakdown = (
             f"📐 {_risk_factor:.2f}R×{_edge_factor:.1f}E×{_boost_factor:.2f}B"
+            f"{'(K)' if _kelly_cap_applied else ''}"
             f"={'SEN' if _is_sentinel else f'{_lot_ratio:.2f}'}"
             f" → {_adjusted_units}u"
             f" [N={_n_trades} edge={_edge_ratio:.0f}"
-            f"{' DEF' if self._defensive_mode else ''}"
+            f"{f' DD{self._dd_lot_mult:.0%}' if self._defensive_mode else ''}"
             f"{f' {_sentinel_reason}' if _sentinel_reason else ''}]"
         )
 
@@ -3127,7 +3306,7 @@ class DemoTrader:
         if _is_sentinel:
             _lot_tag = "(🔬SEN)"
         elif self._defensive_mode:
-            _lot_tag = f"(🛡️DEF {_strat_boost}x)"
+            _lot_tag = f"(🛡️DD{self._dd_lot_mult:.0%} {_strat_boost}x)"
         elif _strat_boost > 1.0:
             _lot_tag = f"(🚀{_strat_boost}x)"
 
@@ -3916,6 +4095,34 @@ class DemoTrader:
                 et = adj["reason"].split(":")[0].strip()
                 if et in self._params["entry_type_blacklist"]:
                     self._params["entry_type_blacklist"].remove(et)
+
+    def _get_strategy_kelly(self, entry_type: str, instrument: str) -> float:
+        """
+        Query learning engine stats for the strategy's Kelly fraction.
+        Returns full_kelly value or None if insufficient data.
+        v7.0: Used for Kelly-based lot cap in 3-Factor Model.
+        """
+        try:
+            from modules.stats_utils import kelly_criterion
+            # Fetch closed trades for this strategy
+            closed = self._db.get_all_closed()
+            strat_trades = [t for t in closed
+                            if t.get("entry_type") == entry_type
+                            and t.get("status") == "CLOSED"]
+            if len(strat_trades) < 10:
+                return None
+            pnls = [float(t.get("pnl_pips", 0) or 0) for t in strat_trades]
+            wins = [p for p in pnls if p > 0]
+            losses = [p for p in pnls if p < 0]
+            if not wins or not losses:
+                return None
+            wr = len(wins) / len(pnls)
+            avg_win = sum(wins) / len(wins)
+            avg_loss = abs(sum(losses) / len(losses))
+            result = kelly_criterion(wr, avg_win, avg_loss)
+            return result.get("full_kelly", 0.0)
+        except Exception:
+            return None
 
     def _add_log(self, msg: str):
         now = datetime.now(timezone.utc)

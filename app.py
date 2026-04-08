@@ -11168,6 +11168,115 @@ def api_demo_algo_changes():
     return jsonify({"changes": changes, "count": len(changes)})
 
 
+# ── Emergency Kill Switch API ─────────────────────────
+
+@app.route("/api/emergency/kill", methods=["POST"])
+def api_emergency_kill():
+    """Emergency kill switch: stop ALL modes + close ALL OANDA positions.
+    Persistent — survives watchdog, self-healing, and deploy restart.
+    POST body (optional): {"reason": "string"}
+    """
+    data = request.get_json(silent=True) or {}
+    reason = data.get("reason", "Manual kill via API")
+    result = _demo_trader.emergency_kill(reason=reason)
+    return jsonify(result)
+
+
+@app.route("/api/emergency/resume", methods=["POST"])
+def api_emergency_resume():
+    """Resume from emergency kill state.
+    POST body: {"confirm": true} required as safety check.
+    """
+    data = request.get_json(silent=True) or {}
+    confirm = data.get("confirm", False)
+    result = _demo_trader.emergency_resume(confirm=confirm)
+    return jsonify(result)
+
+
+@app.route("/api/emergency/status")
+def api_emergency_status():
+    """Check current emergency kill state."""
+    result = _demo_trader.emergency_status()
+    return jsonify(result)
+
+
+# ── DB Backup API ─────────────────────────────────────
+
+@app.route("/api/db/backup", methods=["POST"])
+def api_db_backup():
+    """Trigger manual SQLite backup (same as daily auto-backup)."""
+    result = _demo_db.backup_database(keep_last=3)
+    return jsonify(result)
+
+
+# ── Risk Analytics Dashboard API v7.0 ─────────────────
+
+@app.route("/api/risk/dashboard")
+def api_risk_dashboard():
+    """
+    Risk dashboard: VaR/CVaR, Kelly fractions, ruin probability,
+    DD status, correlation matrix for active strategies.
+    Computes on-the-fly from closed trades in DB.
+    """
+    from modules.risk_analytics import (
+        compute_risk_dashboard, get_dd_lot_multiplier
+    )
+    try:
+        closed = _demo_db.get_all_closed()
+        if not closed:
+            return jsonify({"error": "No closed trades found", "n_trades": 0})
+
+        dashboard = compute_risk_dashboard(closed)
+
+        # Add current DD status
+        try:
+            eq_peak = float(_demo_db.get_system_kv("eq_peak", "0.0"))
+            eq_current = float(_demo_db.get_system_kv("eq_current", "0.0"))
+            dd_lot_mult = float(_demo_db.get_system_kv("dd_lot_mult", "1.0"))
+            dd = eq_peak - eq_current
+            dd_pct = dd / max(1000.0, 1.0)
+            dashboard["dd_status"] = {
+                "eq_peak": round(eq_peak, 2),
+                "eq_current": round(eq_current, 2),
+                "dd_pips": round(dd, 2),
+                "dd_pct": round(dd_pct, 4),
+                "lot_multiplier": dd_lot_mult,
+                "defensive_mode": dd_lot_mult < 1.0,
+            }
+        except Exception:
+            dashboard["dd_status"] = {"error": "unavailable"}
+
+        return jsonify(dashboard)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/risk/slippage")
+def api_risk_slippage():
+    """
+    Slippage statistics segmented by session, regime, strategy.
+    Query from demo_trades DB.
+    """
+    from modules.risk_analytics import compute_slippage_stats
+    try:
+        date_from = request.args.get("date_from")
+        date_to = request.args.get("date_to")
+        mode_filter = request.args.get("mode")
+
+        closed = _demo_db.get_closed_trades(
+            limit=10000, offset=0,
+            date_from=date_from, date_to=date_to,
+            mode=mode_filter,
+        )
+        if not closed:
+            return jsonify({"error": "No closed trades found", "n_trades": 0})
+
+        stats = compute_slippage_stats(closed)
+        return jsonify(stats)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 _auto_start_done = False  # 二重起動防止フラグ
 
 def _auto_start_trader():
@@ -11181,6 +11290,12 @@ def _auto_start_trader():
     import time as _time
     print(f"[AutoStart] Waiting 5s for initialization... (PID={os.getpid()})", flush=True)
     _time.sleep(5)  # Gunicorn/Flask完全初期化を待つ（10s→5sに短縮）
+
+    # Emergency Kill: skip auto-start if killed
+    if _demo_trader._emergency_killed:
+        print("[AutoStart] SKIPPED — Emergency kill is active. Use /api/emergency/resume to restart.", flush=True)
+        return
+
     from modules.demo_trader import MODE_CONFIG as _mc
     _all_modes = [m for m, c in _mc.items() if c.get("auto_start", True)]
     print(f"[AutoStart] Starting {len(_all_modes)} modes: {_all_modes}", flush=True)

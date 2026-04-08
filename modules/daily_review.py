@@ -110,6 +110,14 @@ class DailyReviewEngine:
                 except Exception as e:
                     print(f"[DailyReview] Error: {e}")
 
+                # ── Daily SQLite Backup (after review) ──
+                try:
+                    backup_result = self._db.backup_database(keep_last=3)
+                    print(f"[DailyReview] DB backup: {backup_result.get('status')} "
+                          f"({backup_result.get('size_bytes', 0)} bytes)")
+                except Exception as e:
+                    print(f"[DailyReview] DB backup error: {e}")
+
             # 60秒ごとにチェック
             time.sleep(60)
 
