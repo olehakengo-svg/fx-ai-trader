@@ -373,7 +373,8 @@ class OandaBridge:
                    callback=None,
                    units: int = 0,
                    log_callback=None,
-                   lot_label: str = ""):
+                   lot_label: str = "",
+                   signal_price: float = 0.0):
         """Place OANDA market order mirroring a demo trade.
         callback(demo_trade_id, oanda_trade_id) called on success for DB persistence.
         units: override lot size (0 = use default self._units).
@@ -387,9 +388,11 @@ class OandaBridge:
             return
 
         def _do():
+            import time as _time
             side = "buy" if direction == "BUY" else "sell"
             _lot = units if units > 0 else self._units
             _lot_disp = f"{_lot}u({_lot/10000:.2f}lot)"
+            _t0 = _time.monotonic()
             ok, data = self._client.market_order(
                 side=side,
                 units=_lot,
@@ -397,6 +400,7 @@ class OandaBridge:
                 stop_loss=sl,
                 take_profit=tp,
             )
+            _latency_ms = round((_time.monotonic() - _t0) * 1000)
             if ok:
                 # v20: orderFillTransaction.tradeOpened.tradeID
                 _fill = data.get("orderFillTransaction", {})
@@ -415,6 +419,24 @@ class OandaBridge:
                             f"🔗 OANDA: [FILLED] #{oanda_id} {side.upper()} {instrument} "
                             f"@ {_price} | {_lot_disp} {lot_label}"
                         )
+                    # ── v6.4 TELEMETRY: 期待価格 vs 約定価格 + レイテンシ ──
+                    if log_callback and signal_price and _price:
+                        try:
+                            _fill_px = float(_price)
+                            _slip_raw = abs(_fill_px - signal_price)
+                            _is_jpy_xau = "JPY" in instrument or "XAU" in instrument
+                            _pip_m = 100 if _is_jpy_xau else 10000
+                            _slip_pips = _slip_raw * _pip_m
+                            log_callback(
+                                f"[TELEMETRY] signal={signal_price:.5g} "
+                                f"fill={_fill_px:.5g} "
+                                f"slip={_slip_pips:.1f}pip "
+                                f"latency={_latency_ms}ms"
+                            )
+                        except (ValueError, TypeError):
+                            pass
+                    elif log_callback:
+                        log_callback(f"[TELEMETRY] latency={_latency_ms}ms")
                     # Update audit with OrderID
                     self._add_audit(
                         demo_trade_id=demo_trade_id, entry_type=mode,
@@ -496,6 +518,30 @@ class OandaBridge:
                 logger.error(f"[OandaBridge] MODIFY SL failed #{oanda_id}: {data}")
 
         self._fire(_do)
+
+    def modify_sl_sync(self, demo_trade_id: str, new_sl: float,
+                       instrument: str = "USD_JPY") -> bool:
+        """Synchronous SL modification — returns True on success.
+        v6.4: Pyramiding用。SL変更成功を確認してから追加ポジションを開設するため同期版。
+        """
+        if not self.active:
+            return False
+        oanda_id = self._trade_map.get(demo_trade_id)
+        if not oanda_id:
+            return False
+        try:
+            ok, data = self._client.modify_trade(oanda_id, stop_loss=new_sl,
+                                                  instrument=instrument)
+            if ok:
+                logger.info(f"[OandaBridge] MODIFY SL (sync) → {new_sl:.3f} "
+                            f"OANDA #{oanda_id} (demo={demo_trade_id})")
+                return True
+            else:
+                logger.error(f"[OandaBridge] MODIFY SL (sync) failed #{oanda_id}: {data}")
+                return False
+        except Exception as e:
+            logger.error(f"[OandaBridge] MODIFY SL (sync) error: {e}")
+            return False
 
     # ── Get Account Info ──────────────────────────────
 

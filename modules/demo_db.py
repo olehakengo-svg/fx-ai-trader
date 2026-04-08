@@ -856,8 +856,11 @@ class DemoDB:
                 ).fetchall()
             return [dict(r) for r in rows]
 
-    def get_trades_for_learning(self, min_trades: int = 10, mode: str = None) -> dict:
-        """Return structured data for the learning engine. mode でフィルタ可能"""
+    def get_trades_for_learning(self, min_trades: int = 10, mode: str = None,
+                                after_date: str = None) -> dict:
+        """Return structured data for the learning engine. mode でフィルタ可能
+        after_date: ISO形式の日時文字列。指定時はそれ以降のトレードのみ対象 (v6.4 Fidelity Cutoff)
+        """
         closed = self.get_all_closed()
         if mode:
             # modeカラムがある場合はそれで、なければtfで推定 (2026-04-05 audit fix M3)
@@ -865,6 +868,9 @@ class DemoDB:
             target_tf = tf_map.get(mode, "")
             closed = [t for t in closed if (t.get("mode") == mode) or
                       (not t.get("mode") and t.get("tf") == target_tf)]
+        # v6.4: Fidelity Cutoff — パラメータ変更後のトレードのみ評価
+        if after_date:
+            closed = [t for t in closed if t.get("entry_time", "") >= after_date]
         if len(closed) < min_trades:
             return {"ready": False, "sample": len(closed), "min_required": min_trades}
 

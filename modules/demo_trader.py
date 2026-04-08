@@ -305,6 +305,8 @@ class DemoTrader:
         # ── Confluence Scalp v2: MSS追跡 + Profit Extender ──
         self._mss_tracker = {}        # {trade_id: {"choch": dict|None, "msb": bool, "adx": float, "updated": datetime}}
         self._profit_extended = set() # Set of trade_ids that have been profit-extended (TP延伸済み)
+        self._pyramided_trades = set()  # v6.4: 追加ポジション済みtrade_ids
+        self._entry_adx = {}            # v6.4: {trade_id: adx at entry}
         self._pending_limits = {}     # {key: {signal, sl, tp, entry_type, sig, limit_price, created, mode, cfg, ...}}
         # v6.2: N-cache は L244 の _evaluate_promotions() で DB集計から構築済み
         # (warm-start復元は L244 の前で実行、_evaluate_promotions() が上書き)
@@ -886,6 +888,8 @@ class DemoTrader:
                     _ep_oa = demo_trade.get("entry_price", 0)
                     _mt_oa = self._mafe_tracker.pop(trade_id, None)
                     self._entry_atr.pop(trade_id, None)
+                    self._entry_adx.pop(trade_id, None)
+                    self._pyramided_trades.discard(trade_id)
                     if _mt_oa and _ep_oa:
                         if _dir_oa == "BUY":
                             _mafe_adv_oa = round((_ep_oa - _mt_oa["min_low"]) * _pip_m_oa, 1)
@@ -1178,15 +1182,115 @@ class DemoTrader:
                     close_reason = "SCENARIO_INVALID"
 
             # ══════════════════════════════════════════════════════════════
-            # ── Profit Extender (Confluence Scalp v2) ──
-            # confluence_scalp トレードがTP到達時にMSS継続+ADX>30なら:
-            #   → TPを延伸してトレイリングストップに切り替え
-            # クライマックス検出時は即利確 (RSI divergence + 大ウィック)
+            # ── v6.4: Generalized 50% TP Profit Extender ──
+            # トレンドフォロー戦略がTP距離の50%到達 + ADX>30 → TP200%延伸
             # ══════════════════════════════════════════════════════════════
             _entry_type_pe = trade.get("entry_type", "")
             _tp_hit_buy = (direction == "BUY" and price >= tp)
             _tp_hit_sell = (direction == "SELL" and price <= tp)
             _should_extend_tp = False
+
+            if (_entry_type_pe in self._PE_50PCT_ELIGIBLE
+                    and trade_id not in self._profit_extended):
+                _tp_dist_pe = abs(tp - entry_price)
+                _50pct_dist = _tp_dist_pe * 0.5
+                _reached_50 = (
+                    (direction == "BUY" and price >= entry_price + _50pct_dist) or
+                    (direction == "SELL" and price <= entry_price - _50pct_dist)
+                )
+                _pe_adx_entry = self._entry_adx.get(trade_id, 0)
+                if _reached_50 and _pe_adx_entry > 30:
+                    # TP → 200% of original distance
+                    if direction == "BUY":
+                        tp = round(entry_price + _tp_dist_pe * 2.0, _pip_decimals)
+                    else:
+                        tp = round(entry_price - _tp_dist_pe * 2.0, _pip_decimals)
+                    self._profit_extended.add(trade_id)
+                    # Trailing stop: ATR×0.5
+                    _pe_atr_50 = self._entry_atr.get(
+                        trade_id, 0.07 if "JPY" in _inst or "XAU" in _inst else 0.00070
+                    )
+                    _pe_trail_50 = _pe_atr_50 * 0.5
+                    if direction == "BUY":
+                        new_sl = round(price - _pe_trail_50, _pip_decimals)
+                        if new_sl > sl:
+                            sl = new_sl
+                    else:
+                        new_sl = round(price + _pe_trail_50, _pip_decimals)
+                        if new_sl < sl:
+                            sl = new_sl
+                    self._db.update_sl_tp(trade_id, sl, tp)
+                    self._oanda.modify_sl(trade_id, sl, instrument=_inst)
+                    self._add_log(
+                        f"🚀 [v6.4] 50% TP Extender: {trade_id} ({_entry_type_pe}) "
+                        f"ADX={_pe_adx_entry:.1f}>30 → TP200%={tp:.{_pip_decimals}f} "
+                        f"Trail={_pe_trail_50*(100 if 'JPY' in _inst or 'XAU' in _inst else 10000):.1f}pip"
+                    )
+                    _should_extend_tp = True
+
+            # ══════════════════════════════════════════════════════════════
+            # ── v6.4: Risk-Free Pyramiding ──
+            # 1.0 ATR有利方向移動 + OANDA昇格済み → 追加ポジション + SL→BE
+            # ══════════════════════════════════════════════════════════════
+            if (trade_id not in self._pyramided_trades
+                    and _entry_type_pe in self._PE_50PCT_ELIGIBLE):
+                _pyr_atr = self._entry_atr.get(
+                    trade_id, 0.07 if "JPY" in _inst or "XAU" in _inst else 0.00070
+                )
+                _pyr_favorable = (
+                    (direction == "BUY" and price >= entry_price + _pyr_atr) or
+                    (direction == "SELL" and price <= entry_price - _pyr_atr)
+                )
+                if _pyr_favorable and self._is_promoted(_entry_type_pe, _inst):
+                    # SL → BE for original trade (同期版: 成功確認後のみpyramid)
+                    _pyr_spread = _ba_rt["ask"] - _ba_rt["bid"] if _ba_rt else (
+                        0.008 if "JPY" in _inst else 0.00008
+                    )
+                    if direction == "BUY":
+                        _be_sl = round(entry_price + _pyr_spread, _pip_decimals)
+                        if _be_sl > sl:
+                            sl = _be_sl
+                    else:
+                        _be_sl = round(entry_price - _pyr_spread, _pip_decimals)
+                        if _be_sl < sl:
+                            sl = _be_sl
+                    # 同期SL変更: 失敗時はpyramid中止 (2.0lotフルリスク防止)
+                    _sl_ok = self._oanda.modify_sl_sync(
+                        trade_id, sl, instrument=_inst
+                    )
+                    if not _sl_ok:
+                        self._add_log(
+                            f"⚠️ [PYRAMID] SL→BE変更失敗、ピラミッド中止 "
+                            f"({trade_id})"
+                        )
+                        self._pyramided_trades.add(trade_id)  # 再試行防止
+                    else:
+                        self._db.update_sl_tp(trade_id, sl, tp)
+                        # Open pyramid OANDA position
+                        _pyr_id = f"PYR_{trade_id}"
+                        _pyr_units = min(10000, self._OANDA_LOT_CAP)
+                        _pyr_tp = tp
+                        _pyr_sl_price = entry_price  # risk-free: SL at original entry
+                        self._oanda.open_trade(
+                            demo_trade_id=_pyr_id,
+                            direction=direction,
+                            sl=_pyr_sl_price, tp=_pyr_tp,
+                            mode=mode,
+                            instrument=_inst,
+                            units=_pyr_units,
+                            log_callback=self._add_log,
+                            lot_label="(🔺PYR)",
+                        )
+                        self._pyramided_trades.add(trade_id)
+                        self._add_log(
+                            f"🔺 [PYRAMID] {trade_id}: +{_pyr_units}u {direction} "
+                            f"SL=BE({_be_sl:.{_pip_decimals}f}) "
+                            f"TP={_pyr_tp:.{_pip_decimals}f}"
+                        )
+
+            # ── Profit Extender (Confluence Scalp v2 + DT) ──
+            # TP到達時にMSS継続+ADX>30なら → TP延伸+トレイリング
+            # クライマックス検出時は即利確
 
             # v6.1: DT Profit Extender (orb_trap, london_ny_swing × EUR)
             # EUR/USDの緩やかトレンドに合わせADX閾値緩和 + TP50%延伸
@@ -1347,6 +1451,8 @@ class DemoTrader:
                 _mafe_favorable = 0.0
                 _mt = self._mafe_tracker.pop(trade_id, None)
                 self._entry_atr.pop(trade_id, None)
+                self._entry_adx.pop(trade_id, None)
+                self._pyramided_trades.discard(trade_id)
                 if _mt:
                     if direction == "BUY":
                         _mafe_adverse = round((entry_price - _mt["min_low"]) * _pip_m_exit, 1)
@@ -1821,6 +1927,8 @@ class DemoTrader:
                     if _stale_id not in _open_ids:
                         self._mss_tracker.pop(_stale_id, None)
                         self._profit_extended.discard(_stale_id)
+                        self._pyramided_trades.discard(_stale_id)
+                        self._entry_adx.pop(_stale_id, None)
             except Exception as _mss_outer:
                 print(f"[MSS] outer error: {_mss_outer}")
 
@@ -2666,6 +2774,8 @@ class DemoTrader:
         if not _atr_raw or _atr_raw != _atr_raw:  # 0, None, NaN
             _atr_raw = 0.07 if _is_jpy_or_xau_atr else 0.00070
         self._entry_atr[trade_id] = max(_atr_raw, _atr_floor)
+        # v6.4: ADX保存 (Profit Extender 50%TP判定用)
+        self._entry_adx[trade_id] = sig.get("adx", 0)
 
         # ══════════════════════════════════════════════════════
         # ── 動的ロットサイジング v6.2: 3-Factor Model ──────
@@ -2761,6 +2871,10 @@ class DemoTrader:
 
         # ── OANDA連携: 昇格済み戦略のみミラーリング + 実行監査 + 🔗ラベルログ ──
         _is_promoted = self._is_promoted(entry_type, instrument)
+        # ── v6.4 SHIELD: EUR_USD DT/1H OANDA遮断 (scalp継続) ──
+        if _is_promoted and mode in self._OANDA_MODE_BLOCKED:
+            self._add_log(f"[SHIELD] OANDA blocked: mode={mode}")
+            _is_promoted = False
         _bridge_active = self._oanda.active
         _mode_allowed = self._oanda.is_mode_allowed(mode)
         _strat_mode = self._oanda.get_strategy_mode(entry_type)
@@ -2779,24 +2893,40 @@ class DemoTrader:
             _adjusted_units = 1000  # SENTINEL: 0.01lot固定（データ収集）
             _lot_tag = "(🔬SEN/CMD)"
 
+        # ── v6.4 SHIELD: OANDA lot hard cap ──
+        if _adjusted_units > self._OANDA_LOT_CAP:
+            self._add_log(
+                f"[SHIELD] Lot capped {_adjusted_units}u → {self._OANDA_LOT_CAP}u"
+            )
+            _adjusted_units = self._OANDA_LOT_CAP
+
         if _is_promoted:
             if _bridge_active and _mode_allowed:
+                # ── v6.4 SHIELD: Quick-Harvest TP (OANDA専用) ──
+                _tp_oanda = tp
+                if (entry_type, instrument) not in self._QUICK_HARVEST_EXEMPT:
+                    _tp_oanda = _signal_price + (tp - _signal_price) * self._QUICK_HARVEST_MULT
+                    self._add_log(
+                        f"[SHIELD] Quick-Harvest TP: {tp:.{_price_dec}f} → "
+                        f"{_tp_oanda:.{_price_dec}f} (×{self._QUICK_HARVEST_MULT})"
+                    )
                 # ── 実弾実行パス ──
                 self._add_log(
                     f"🔗 OANDA: [SENT] {signal} {instrument} "
                     f"{_adjusted_units}u({_adjusted_units/10000:.2f}lot) {_lot_tag} "
-                    f"SL={sl:.{_price_dec}f} TP={tp:.{_price_dec}f}"
+                    f"SL={sl:.{_price_dec}f} TP={_tp_oanda:.{_price_dec}f}"
                 )
                 self._oanda.open_trade(
                     demo_trade_id=trade_id,
                     direction=signal,
-                    sl=sl, tp=tp,
+                    sl=sl, tp=_tp_oanda,
                     mode=mode,
                     instrument=instrument,
                     callback=lambda did, oid: self._db.set_oanda_trade_id(did, oid),
                     units=_adjusted_units,
                     log_callback=self._add_log,
                     lot_label=_lot_tag,
+                    signal_price=_signal_price,
                 )
                 self._oanda._add_audit(
                     demo_trade_id=trade_id, entry_type=entry_type,
@@ -3032,6 +3162,8 @@ class DemoTrader:
             entry_price_sr = trade.get("entry_price", 0)
             _mt_sr = self._mafe_tracker.pop(trade_id, None)
             self._entry_atr.pop(trade_id, None)
+            self._entry_adx.pop(trade_id, None)
+            self._pyramided_trades.discard(trade_id)
             if _mt_sr and entry_price_sr:
                 if direction == "BUY":
                     _mafe_adverse_sr = round((entry_price_sr - _mt_sr["min_low"]) * _pip_m_sr, 1)
@@ -3152,8 +3284,25 @@ class DemoTrader:
         """
         from modules.learning_engine import SMC_PROTECTED
         try:
-            data = self._db.get_trades_for_learning(min_trades=1)
+            # v6.4: Fidelity Cutoff — v6.3パラメータ変更後のトレードのみ評価
+            data = self._db.get_trades_for_learning(
+                min_trades=1, after_date=self._FIDELITY_CUTOFF
+            )
             if not data.get("ready"):
+                # v6.4: カットオフ後のトレードが0件 → 旧データをリセット
+                # (旧EV/WR/NがCommandCenterに残留するのを防止)
+                if self._FIDELITY_CUTOFF and self._promoted_types:
+                    _reset_count = len(self._promoted_types)
+                    self._promoted_types.clear()
+                    self._strategy_n_cache.clear()
+                    try:
+                        self._db.set_system_kv("strategy_n_cache", "{}")
+                    except Exception:
+                        pass
+                    self._add_log(
+                        f"🔄 [FIDELITY] EV/N リセット完了: "
+                        f"{_reset_count}戦略 → pending (cutoff={self._FIDELITY_CUTOFF})"
+                    )
                 return
             by_type = data.get("by_type", {})
             changes = []
@@ -3397,6 +3546,29 @@ class DemoTrader:
 
     # v6.1: Strict Friction Guard — 指値失効後の追っかけブロック秒数
     _LIMIT_EXPIRE_CD_SEC = 180  # 3分間同方向再エントリー禁止
+
+    # ══════════════════════════════════════════════════════════════
+    # ── v6.4 SHIELD + 非対称攻撃 ──────────────────────────────
+    # ══════════════════════════════════════════════════════════════
+    _OANDA_LOT_CAP = 10000          # 絶対上限 (19000u災害防止)
+    _OANDA_MODE_BLOCKED = frozenset({
+        "daytrade_eur",              # EUR_USD DT 15m: OANDA WR=29.2%
+        "daytrade_1h_eur",           # EUR_USD 1H: 未検証
+    })
+    _QUICK_HARVEST_MULT = 0.70      # OANDA TP = demo TP × 0.70
+    _QUICK_HARVEST_EXEMPT = frozenset({
+        ("gbp_deep_pullback", "GBP_USD"),   # 高WR戦略は全TP許可
+    })
+    _FIDELITY_CUTOFF = "2026-04-08T00:00:00+00:00"  # v6.3後のみ評価 (UTC明示)
+    # v6.4: 50% TP到達時のTP延伸対象 (トレンドフォロー戦略のみ)
+    _PE_50PCT_ELIGIBLE = frozenset({
+        "vol_momentum_scalp", "confluence_scalp",
+        "orb_trap", "london_ny_swing",
+        "sr_fib_confluence", "htf_false_breakout",
+        "gbp_deep_pullback", "turtle_soup",
+        "trendline_sweep", "sr_break_retest",
+        "adx_trend_continuation", "ema_cross",
+    })
 
     def _is_promoted(self, entry_type: str, instrument: str = "") -> bool:
         """戦略がOANDA実行可能か判定 (v6.2: ペア別ライフサイクル + N<10安全策)

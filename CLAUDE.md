@@ -318,5 +318,29 @@
 - **DB columns**: signal_price, spread_at_entry, spread_at_exit, slippage_pips, cooldown_elapsed
 - **Pending task**: Periodic production report (slippage/spread/COOLDOWN analysis) after 50-100 trades accumulate
 
+## v6.4 SHIELD + 非対称攻撃 (2026-04-08)
+
+### Phase 1: 絶対防御 (P0)
+- **OANDA Lot Hard Cap**: `_OANDA_LOT_CAP = 10000` — 3-Factor Model計算後にmax 10,000u強制。19000u災害防止。`[SHIELD]`ログ
+- **EUR_USD DT/1H OANDA遮断**: `_OANDA_MODE_BLOCKED = {daytrade_eur, daytrade_1h_eur}` — EUR_USD scalp継続、DT/1HのOANDA送信をブロック (WR=29.2%対策)
+- **Quick-Harvest TP**: `_QUICK_HARVEST_MULT = 0.70` — OANDA TP = demo TP × 0.70 (TP hit率 3.75%→早期利確)。`_QUICK_HARVEST_EXEMPT`で gbp_deep_pullback×GBP_USD は全TP許可。`[SHIELD]`ログ
+
+### Phase 2: 計測 (P0-P1)
+- **Fidelity Cutoff**: `_FIDELITY_CUTOFF = "2026-04-08T00:00:00"` — `_evaluate_promotions()`がv6.3パラメータ変更後のトレードのみ評価。旧320t汚染データ排除。`get_trades_for_learning(after_date=)`で実装
+- **Execution Telemetry**: `[TELEMETRY] signal=X fill=Y slip=Zpip` — OandaBridge `open_trade`に`signal_price`引数追加。約定時にsignal price vs fill priceのスリッページをpip単位で記録
+
+### Phase 3: 非対称攻撃 (P1-P2)
+- **50% TP Profit Extender**: `_PE_50PCT_ELIGIBLE` — トレンドフォロー戦略でTP距離の50%到達 + entry ADX>30 → TP200%延伸 + ATR×0.5トレイリング。`_entry_adx`でエントリー時ADXを保存
+- **Risk-Free Pyramiding**: 1.0 ATR有利方向移動 + OANDA昇格済み → 追加10000uポジション開設 + 元トレードSL→BE(建値+スプレッド)。`_pyramided_trades`で重複防止。`[PYRAMID]`ログ
+- **Quick-Harvest Exemption**: gbp_deep_pullback × GBP_USD は `_QUICK_HARVEST_EXEMPT`により全TP適用
+
+### v6.4 Key Constants (demo_trader.py)
+- `_OANDA_LOT_CAP = 10000`
+- `_OANDA_MODE_BLOCKED = {"daytrade_eur", "daytrade_1h_eur"}`
+- `_QUICK_HARVEST_MULT = 0.70`
+- `_QUICK_HARVEST_EXEMPT = {("gbp_deep_pullback", "GBP_USD")}`
+- `_FIDELITY_CUTOFF = "2026-04-08T00:00:00"`
+- `_PE_50PCT_ELIGIBLE`: vol_momentum_scalp, confluence_scalp, orb_trap, london_ny_swing, sr_fib_confluence, htf_false_breakout, gbp_deep_pullback, turtle_soup, trendline_sweep, sr_break_retest, adx_trend_continuation, ema_cross
+
 ## Changelog
 Full change history: [CHANGELOG.md](CHANGELOG.md)
