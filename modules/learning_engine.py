@@ -30,6 +30,9 @@ SMC_PROTECTED = {
 
 
 class LearningEngine:
+    # v6.4: Fidelity Cutoff — v6.3パラメータ変更後のトレードのみ学習対象
+    FIDELITY_CUTOFF = "2026-04-08T00:00:00+00:00"
+
     def __init__(self, db: DemoDB):
         self._db = db
 
@@ -46,7 +49,10 @@ class LearningEngine:
                 "mode": str
             }
         """
-        data = self._db.get_trades_for_learning(min_trades=MIN_SAMPLE, mode=mode)
+        data = self._db.get_trades_for_learning(
+            min_trades=MIN_SAMPLE, mode=mode,
+            after_date=self.FIDELITY_CUTOFF,
+        )
         if not data["ready"]:
             return {
                 "adjustments": [],

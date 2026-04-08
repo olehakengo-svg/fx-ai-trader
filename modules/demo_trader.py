@@ -1193,12 +1193,16 @@ class DemoTrader:
             if (_entry_type_pe in self._PE_50PCT_ELIGIBLE
                     and trade_id not in self._profit_extended):
                 _tp_dist_pe = abs(tp - entry_price)
-                _50pct_dist = _tp_dist_pe * 0.5
-                _reached_50 = (
-                    (direction == "BUY" and price >= entry_price + _50pct_dist) or
-                    (direction == "SELL" and price <= entry_price - _50pct_dist)
-                )
-                _pe_adx_entry = self._entry_adx.get(trade_id, 0)
+                if _tp_dist_pe > 0:  # guard: TP距離0はスキップ
+                    _50pct_dist = _tp_dist_pe * 0.5
+                    _reached_50 = (
+                        (direction == "BUY" and price >= entry_price + _50pct_dist) or
+                        (direction == "SELL" and price <= entry_price - _50pct_dist)
+                    )
+                    _pe_adx_entry = self._entry_adx.get(trade_id, 0)
+                else:
+                    _reached_50 = False
+                    _pe_adx_entry = 0
                 if _reached_50 and _pe_adx_entry > 30:
                     # TP → 200% of original distance
                     if direction == "BUY":
@@ -2904,7 +2908,9 @@ class DemoTrader:
             if _bridge_active and _mode_allowed:
                 # ── v6.4 SHIELD: Quick-Harvest TP (OANDA専用) ──
                 _tp_oanda = tp
-                if (entry_type, instrument) not in self._QUICK_HARVEST_EXEMPT:
+                if ((entry_type, instrument) not in self._QUICK_HARVEST_EXEMPT
+                        and _signal_price and _signal_price > 0
+                        and abs(tp - _signal_price) > 0):
                     _tp_oanda = _signal_price + (tp - _signal_price) * self._QUICK_HARVEST_MULT
                     self._add_log(
                         f"[SHIELD] Quick-Harvest TP: {tp:.{_price_dec}f} → "
@@ -3294,13 +3300,12 @@ class DemoTrader:
                 if self._FIDELITY_CUTOFF and self._promoted_types:
                     _reset_count = len(self._promoted_types)
                     self._promoted_types.clear()
-                    self._strategy_n_cache.clear()
-                    try:
-                        self._db.set_system_kv("strategy_n_cache", "{}")
-                    except Exception:
-                        pass
+                    # NOTE: _strategy_n_cache はリセットしない
+                    # N cache はロットサイジング(N_LOT_TIERS)に使用されるため
+                    # リセットすると全戦略がSentinel(0.01lot)化してしまう
+                    # N cache は次回の全データ集計で自然に更新される
                     self._add_log(
-                        f"🔄 [FIDELITY] EV/N リセット完了: "
+                        f"🔄 [FIDELITY] 昇格ステータスリセット: "
                         f"{_reset_count}戦略 → pending (cutoff={self._FIDELITY_CUTOFF})"
                     )
                 return

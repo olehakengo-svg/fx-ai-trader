@@ -392,6 +392,7 @@ class OandaBridge:
             side = "buy" if direction == "BUY" else "sell"
             _lot = units if units > 0 else self._units
             _lot_disp = f"{_lot}u({_lot/10000:.2f}lot)"
+            _latency_ms = 0
             _t0 = _time.monotonic()
             ok, data = self._client.market_order(
                 side=side,
@@ -526,7 +527,8 @@ class OandaBridge:
         """
         if not self.active:
             return False
-        oanda_id = self._trade_map.get(demo_trade_id)
+        with self._lock:
+            oanda_id = self._trade_map.get(demo_trade_id)
         if not oanda_id:
             return False
         try:
