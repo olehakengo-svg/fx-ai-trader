@@ -6893,7 +6893,8 @@ def detect_market_regime(df: pd.DataFrame) -> dict:
     if len(df) < 50:
         return {"regime": "UNKNOWN", "label": "データ不足", "adx": 0.0,
                 "bb_width_pct": 50.0, "atr_ratio": 1.0,
-                "ema_stack_bull": False, "ema_stack_bear": False}
+                "ema_stack_bull": False, "ema_stack_bear": False,
+                "range_sub": None}
 
     row = df.iloc[-1]
     adx    = float(row.get("adx", 20.0))
@@ -6944,6 +6945,19 @@ def detect_market_regime(df: pd.DataFrame) -> dict:
         regime = "RANGE"
         label  = "↔️ 方向感なし — 様子見"
 
+    # ── v6.5 Phase 2: Range Sub-classification ──
+    # SQUEEZE    : bb_pct < 10  → ブレイクアウト前夜 (MR逆張り危険)
+    # WIDE_RANGE : bb_pct >= 10 & ADX < 20 → オシレーション (MR最適環境)
+    # TRANSITION : ADX >= 20 & RANGE判定残留 → トレンド移行期
+    range_sub = None
+    if regime == "RANGE":
+        if bb_pct < 10:
+            range_sub = "SQUEEZE"
+        elif adx < 20:
+            range_sub = "WIDE_RANGE"
+        else:
+            range_sub = "TRANSITION"
+
     return {
         "regime":          regime,
         "label":           label,
@@ -6953,6 +6967,7 @@ def detect_market_regime(df: pd.DataFrame) -> dict:
         "ema_stack_bull":  ema_bull,
         "ema_stack_bear":  ema_bear,
         "close_vs_ema200": round(close - ema200, 3),
+        "range_sub":       range_sub,
     }
 
 

@@ -2142,6 +2142,41 @@ class DemoTrader:
         if not _exp_ok:
             self._alert_mgr.alert_exposure_blocked(instrument, signal, _exp_reason)
             _block(f"exposure:{_exp_reason}"); return
+
+        # ══════════════════════════════════════════════════════════════
+        # ── v6.5 Phase 2: Range Sub-classification & MR Score Control ──
+        # RANGE → SQUEEZE / WIDE_RANGE / TRANSITION サブ分類
+        # MR戦略: SQUEEZE=ブロック, WIDE_RANGE=ブースト, TRANSITION=通過
+        # ══════════════════════════════════════════════════════════════
+        _RANGE_MR_STRATEGIES = {
+            "bb_rsi_reversion", "macdh_reversal", "fib_reversal", "vol_surge_detector"
+        }
+        _sig_regime_r = sig.get("regime", {})
+        _regime_type_r = _sig_regime_r.get("regime", "") if isinstance(_sig_regime_r, dict) else ""
+        _range_sub = _sig_regime_r.get("range_sub") if isinstance(_sig_regime_r, dict) else None
+        _is_mr_entry = entry_type in _RANGE_MR_STRATEGIES
+
+        if _regime_type_r == "RANGE" and _is_mr_entry and _range_sub:
+            if _range_sub == "SQUEEZE":
+                self._add_log(
+                    f"[REGIME] SQUEEZE detected — MR Blocked | "
+                    f"{entry_type} {signal} {instrument} | "
+                    f"bb_width_pct={_sig_regime_r.get('bb_width_pct', '?')}"
+                )
+                _block("regime_squeeze_mr"); return
+            elif _range_sub == "WIDE_RANGE":
+                _orig_conf_wr = confidence
+                confidence = min(confidence + 5, 100)
+                _orig_score_wr = sig.get("score", 0)
+                sig["score"] = _orig_score_wr + 1.0
+                self._add_log(
+                    f"[REGIME] WIDE_RANGE detected — MR Score Boosted | "
+                    f"{entry_type} {signal} {instrument} | "
+                    f"Conf: {_orig_conf_wr}→{confidence} "
+                    f"Score: {_orig_score_wr:+.1f}→{sig['score']:+.1f}"
+                )
+            # TRANSITION: no adjustment — standard evaluation continues
+
         if confidence < self._params["confidence_threshold"]:
             _block(f"conf<{self._params['confidence_threshold']}(was:{confidence})"); return
 
@@ -2509,6 +2544,43 @@ class DemoTrader:
         _atr = sig.get("atr", 0.07 if _is_jpy_or_xau else 0.00070)
         _sl_margin = _atr * 0.3  # SR外側バッファ
 
+        # ══════════════════════════════════════════════════════════════
+        # ── v6.5 Phase 1: Range Exit Optimization — BB_mid TP Targeting ──
+        # RANGE regime × MR strategy → TP = BB_mid (自然な吸引点)
+        # BB_midが遠すぎる場合はATR×1.2でキャップ
+        # トレンドフォロー戦略(orb_trap等)には一切影響なし (safeguarded)
+        # _RANGE_MR_STRATEGIES / _regime_type_r / _is_mr_entry は Phase 2 ブロックで定義済み
+        # ══════════════════════════════════════════════════════════════
+        _is_range_mr = (_regime_type_r == "RANGE" and _is_mr_entry)
+
+        if _is_range_mr:
+            _bb_mid_val = sig.get("indicators", {}).get("bb_mid", 0)
+            _range_tp_cap = 1.2  # ATR×1.2 TP upper cap
+            if _bb_mid_val > 0:
+                _original_tp = tp
+                _tp_overridden = False
+                if signal == "BUY" and _bb_mid_val > current_price:
+                    _cap_tp = current_price + _atr * _range_tp_cap
+                    tp = round(min(_bb_mid_val, _cap_tp), _price_dec)
+                    tp_dist = abs(tp - current_price)
+                    _tp_overridden = True
+                elif signal == "SELL" and _bb_mid_val < current_price:
+                    _cap_tp = current_price - _atr * _range_tp_cap
+                    tp = round(max(_bb_mid_val, _cap_tp), _price_dec)
+                    tp_dist = abs(tp - current_price)
+                    _tp_overridden = True
+
+                if _tp_overridden:
+                    self._add_log(
+                        f"[RANGE_EXIT] {signal} {instrument} | "
+                        f"TP: {_original_tp:.{_price_dec}f}→{tp:.{_price_dec}f} "
+                        f"(BB_mid={_bb_mid_val:.{_price_dec}f}, "
+                        f"cap={round(_atr * _range_tp_cap, _price_dec)}) | "
+                        f"Regime={_regime_type_r} | Type={entry_type}"
+                    )
+                if tp_dist <= 0:
+                    return  # BB_mid at or wrong side of entry → skip
+
         # ── 1H Breakout SL/TP完全保存 ──
         # KSB/DMBはスクイーズ中swing HL / ドンチアン中央から精密にSLを算出済み
         # SR/ATRベース再計算では戦略の意図が破壊されるため、直接使用
@@ -2542,16 +2614,26 @@ class DemoTrader:
 
             # ── SL候補②: ATRベース（SRがない場合のフォールバック）──
             _atr_mult = {"scalp": 0.8, "daytrade": 1.0, "swing": 1.5}.get(_base_mode, 0.8)
+            # v6.5: RANGE MR SL widening — ノイズ許容バッファ (BB反対バンド方向)
+            if _is_range_mr:
+                _orig_atr_mult = _atr_mult
+                _atr_mult = max(_atr_mult, 1.0)  # scalp: 0.8→1.0
+                if _atr_mult != _orig_atr_mult:
+                    self._add_log(
+                        f"[RANGE_EXIT] SL widened: ATR mult {_orig_atr_mult}→{_atr_mult} "
+                        f"({entry_type} in RANGE)"
+                    )
             if signal == "BUY":
                 _atr_sl = current_price - _atr * _atr_mult
             else:
                 _atr_sl = current_price + _atr * _atr_mult
 
-            # ── SL選択: SR優先、RR >= 1.0 保証 ──
+            # ── SL選択: SR優先、RR >= 1.0 保証 (v6.5: RANGE MR → 0.8) ──
+            _sr_rr_floor = 0.8 if _is_range_mr else 1.0
             if _sr_sl is not None:
                 _sr_sl_dist = abs(current_price - _sr_sl)
                 _sr_rr = tp_dist / max(_sr_sl_dist, 1e-8)
-                if _sr_rr >= 1.0:
+                if _sr_rr >= _sr_rr_floor:
                     sl = round(_sr_sl, _price_dec)
                     sl_dist = _sr_sl_dist
                 else:
@@ -2669,7 +2751,9 @@ class DemoTrader:
                 return
 
         # RR不足チェック（SL調整後に再判定）
-        if tp_dist < sl_dist:
+        # v6.5: RANGE MR allows lower RR (0.8) — BB_mid TP短縮を高WRで補償
+        _final_rr_floor = 0.8 if _is_range_mr else 1.0
+        if tp_dist < sl_dist * _final_rr_floor:
             return
 
         # SR推奨情報
@@ -2946,14 +3030,22 @@ class DemoTrader:
         if _is_promoted:
             if _bridge_active and _mode_allowed:
                 # ── v6.4 SHIELD: Quick-Harvest TP (OANDA専用) ──
+                # v6.5: RANGE MR は BB_mid TP で既に短縮済み → 二重Harvest禁止
+                #        ×0.70 重ね掛け → 実効RR≈0.56 → 損益分岐WR=64% (無理ゲー)
                 _tp_oanda = tp
                 if ((entry_type, instrument) not in self._QUICK_HARVEST_EXEMPT
+                        and not _is_range_mr
                         and _signal_price and _signal_price > 0
                         and abs(tp - _signal_price) > 0):
                     _tp_oanda = _signal_price + (tp - _signal_price) * self._QUICK_HARVEST_MULT
                     self._add_log(
                         f"[SHIELD] Quick-Harvest TP: {tp:.{_price_dec}f} → "
                         f"{_tp_oanda:.{_price_dec}f} (×{self._QUICK_HARVEST_MULT})"
+                    )
+                elif _is_range_mr:
+                    self._add_log(
+                        f"[RANGE_EXIT] Quick-Harvest bypassed — "
+                        f"BB_mid TP preserved ×1.0 | TP={tp:.{_price_dec}f}"
                     )
                 # ── 実弾実行パス ──
                 self._add_log(

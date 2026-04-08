@@ -183,6 +183,65 @@
 - **app.py連携**: EMA200/HTFソフトペナルティを適用外 (内部でHTF Hard Block済み)
 - **QUALIFIED_TYPES**: confluence_scalp を登録済み
 
+## v6.5 Range Exit Optimization (2026-04-08)
+- **Problem**: RANGE regime = 47.5% of trades, WR = 31.2% (worst regime). MR strategies use ATR*2.2 TP in RANGE, overshooting the natural mean-reversion target
+- **Solution**: BB_mid TP Targeting + Range SL/TP Multipliers
+- **Scope**: demo_trader.py entry path only (BT unchanged until validated)
+
+### BB_mid TP Targeting
+- **Trigger**: `regime == "RANGE"` AND `entry_type in {bb_rsi_reversion, macdh_reversal, fib_reversal, vol_surge_detector}`
+- **BUY**: `TP = min(BB_mid, entry + ATR * 1.2)` — BB_midが近ければBB_mid、遠ければATR×1.2でキャップ
+- **SELL**: `TP = max(BB_mid, entry - ATR * 1.2)` — 同上（対称）
+- **Safeguard**: BB_mid must be on correct side of entry (BUY: above, SELL: below)
+- **Telemetry**: `[RANGE_EXIT]` log with original TP, new TP, BB_mid, cap value
+- **Non-impact**: Trend-following strategies (orb_trap, sr_fib_confluence, etc.) completely unaffected
+
+### Range SL/TP Multipliers
+- **SL widening**: Scalp ATR mult 0.8→1.0 in RANGE for MR strategies (noise tolerance toward opposite BB)
+- **RR floor**: 0.8 (from 1.0) for RANGE MR — BB_mid TP shortening compensated by expected higher WR
+- **SR SL RR**: SR-based SL selection RR threshold lowered to 0.8 for consistency
+- **Telemetry**: `[RANGE_EXIT] SL widened:` log when mult changes
+
+### Quick-Harvest Bypass (OANDA二重短縮防止)
+- **問題**: BB_mid TP(既に短縮済み) × Quick-Harvest(×0.70) → 実効RR≈0.56 → 損益分岐WR=64% (非現実的)
+- **対策**: `_is_range_mr == True` の場合、Quick-Harvest をバイパスし BB_mid TP をそのまま(×1.0)OANDA送信
+- **結果**: OANDA実効RR = 0.8 → 損益分岐WR = 55.6% (戦える水準)
+- **Telemetry**: `[RANGE_EXIT] Quick-Harvest bypassed — BB_mid TP preserved ×1.0`
+- **既存免除**: `_QUICK_HARVEST_EXEMPT` (gbp_deep_pullback×GBP_USD) はそのまま維持
+
+### Phase 1 Design Notes
+- `_is_range_mr` flag: computed once (from Phase 2 variables), shared across TP override, SL widening, RR floor
+- BB_mid sourced from `sig["indicators"]["bb_mid"]` (always available from compute_*_signal)
+- Regime sourced from `sig["regime"]["regime"]` (detect_market_regime output)
+- 1H Breakout (KSB/DMB) unaffected — `_1H_PRESERVE_SLTP` check is downstream
+
+### Phase 2: Range Sub-classification & MR Score Control (2026-04-08)
+- **Problem**: RANGE判定が粗く、SQUEEZE直前のMR逆張り(自殺行為)とWIDE_RANGE最適環境を区別できない
+- **Solution**: `detect_market_regime` に `range_sub` フィールド追加 + demo_trader.py で動的スコア制御
+
+#### Range Sub-types (`detect_market_regime` return → `range_sub`)
+| Sub-type | Condition | 意味 | MR制御 |
+|---|---|---|---|
+| `SQUEEZE` | `bb_width_pct < 10` | BB極端圧縮→ブレイクアウト前夜 | **ブロック** (エントリー禁止) |
+| `WIDE_RANGE` | `bb_width_pct >= 10 & ADX < 20` | オシレーション状態 | **ブースト** (Score+1.0, Conf+5) |
+| `TRANSITION` | `ADX >= 20` (RANGE残留) | トレンド移行期 | パススルー (標準評価) |
+| `None` | 非RANGEレジーム | N/A | N/A |
+
+#### Entry Path Integration (demo_trader.py)
+- **位置**: exposure check 直後、confidence threshold 直前 (Phase 2 block)
+- **SQUEEZE**: `_block("regime_squeeze_mr"); return` — MR戦略の全シグナルを即座にブロック
+- **WIDE_RANGE**: `confidence += 5` (最大100), `sig["score"] += 1.0` — 閾値通過率・OANDA転送確率を引き上げ
+- **TRANSITION**: 調整なし — 標準評価ロジックがそのまま適用
+
+#### Variable Sharing (Phase 2 → Phase 1)
+- `_RANGE_MR_STRATEGIES`: Phase 2で定義、Phase 1 BB_mid TPで再利用 (重複排除)
+- `_regime_type_r`, `_is_mr_entry`: Phase 2で計算、Phase 1で `_is_range_mr` 導出に使用
+- `_range_sub`: Phase 2のみで使用 (SQUEEZE/WIDE_RANGE判定)
+
+#### Telemetry
+- `[REGIME] SQUEEZE detected — MR Blocked` — SQUEEZE時のブロックログ (bb_width_pct付き)
+- `[REGIME] WIDE_RANGE detected — MR Score Boosted` — WIDE_RANGE時のブーストログ (Conf/Score変動値付き)
+
 ## Active Trading Rules & Constraints
 
 ### COOLDOWN (Re-entry Throttle)
