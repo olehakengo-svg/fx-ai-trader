@@ -342,5 +342,65 @@
 - `_FIDELITY_CUTOFF = "2026-04-08T00:00:00+00:00"`
 - `_PE_50PCT_ELIGIBLE`: vol_momentum_scalp, confluence_scalp, orb_trap, london_ny_swing, sr_fib_confluence, htf_false_breakout, gbp_deep_pullback, turtle_soup, trendline_sweep, sr_break_retest, adx_trend_continuation, ema_cross
 
+## v6.5 Quant Infrastructure (2026-04-08)
+
+### New Modules
+- **`modules/exposure_manager.py`**: Cross-pair currency exposure tracking. Net exposure per currency (USD/EUR/GBP/JPY/XAU), 20,000u single-currency limit, max 3 same-direction positions. Prevents USD concentration risk across correlated pairs.
+- **`modules/alert_manager.py`**: Discord Webhook external alerting. Rate-limited (5min cooldown per type). Triggers: DD threshold, OANDA disconnect/kill, consecutive losses, EV drop, exposure block. Env var `DISCORD_WEBHOOK_URL`.
+- **`modules/stats_utils.py`**: Statistical utilities (scipy-free). Binomial test, Bayesian WR posterior (Beta-Binomial), Bootstrap EV CI, Sortino/Calmar/Profit Factor, Kelly Criterion, Risk of Ruin, MAFE distribution analysis, exponential decay weights.
+
+### Tier 0: Cross-pair Exposure Management
+- **ExposureManager** integrated into demo_trader entry path (before lot calculation)
+- Currency decomposition: BUY USD_JPY = +USD -JPY, SELL EUR_USD = -EUR +USD
+- Blocked trades logged with `exposure:` prefix + Discord alert
+- Exposure tracking: add on open, remove on all 3 close paths (OANDA SL/TP, demo SLTP, SIGNAL_REVERSE)
+
+### Tier 0: External Alerting (Discord Webhook)
+- `AlertManager` initialized in DemoTrader.__init__
+- Hooks: `_oanda_kill()` → `alert_oanda_kill()`, `_check_rolling_ev()` → `alert_ev_drop()`, exposure block → `alert_exposure_blocked()`
+- Fire-and-forget async (non-blocking to trade threads)
+- Set `DISCORD_WEBHOOK_URL` env var on Render to activate
+
+### Tier 1: Statistical Significance in Learning Engine
+- **Binomial test**: H0: WR<=45%, α=0.10. Normal approx for N>=20, exact for smaller N
+- **Bayesian posterior**: Beta(1,1) prior → P(WR>45%) and 90% credible interval
+- **Bootstrap EV CI**: 3000 resamples, 90% percentile CI, flags `ev_significantly_positive`
+- **Per-strategy**: Kelly criterion, Risk of Ruin, Bayesian WR for each strategy with N>=10
+- All results in `quant_analysis` dict returned from `evaluate()`
+
+### Tier 1: MAFE-driven SL/TP Analysis
+- `analyze_mafe()` called on closed trades in learning engine
+- Returns: MAE/MFE percentiles (P25/P50/P75/P90), SL recommendation (MAE P75 + 10%), TP recommendation (MFE P50), TP efficiency (captured/available)
+- Insight output: `[MAFE] SL推奨=X TP推奨=Y`
+
+### Tier 2: Risk-Adjusted Performance Metrics
+- **KPI** (`app.py calculate_kpi`): Added Sortino ratio, Calmar ratio, Profit Factor
+- **Learning Engine**: Added Sortino/Calmar/PF to `quant_analysis.risk_metrics`
+- Sharpe annualization note: sqrt(252) for daily-frequency assumption
+
+### Tier 2: Regime-Conditioned Evaluation
+- Bayesian posterior computed per regime (TREND_BULL/BEAR, RANGE, HIGH_VOL)
+- P(WR>45%) reported in regime insights
+- `quant_analysis.by_regime` contains per-regime Bayesian analysis
+
+### Tier 2: Exponential Decay Weighting
+- `exponential_decay_weights(n, half_life=30)` — latest trade weight=1.0, decays exponentially
+- Decay-weighted EV vs equal-weighted EV reported in insights
+- Detects recent performance divergence from all-time average
+
+### Tier 2: Kelly Criterion & Risk of Ruin
+- Per-strategy Kelly (full + half) computed when N>=10
+- Risk of Ruin: RoR = ((1-edge)/(1+edge))^(ruin_level/risk_per_trade)
+- Results in `quant_analysis.by_strategy[name].kelly` and `.risk_of_ruin`
+
+### Tier 2: DD Phase Tagging (Demo DD Breaker Alternative)
+- `_dd_phase_at_entry[trade_id]` records defensive_mode at entry time
+- Cleaned up at all 3 close paths
+- Design: データを切らずにデータを豊かにする (enrich, don't censor)
+
+### Tier 2: MARKET_CLOSE Entry Prevention
+- New entries blocked 30 minutes before session end (`active_hours_utc[1]`)
+- Prevents MARKET_CLOSE forced-close losses (-2,506 JPY cumulative in pre-v6.5)
+
 ## Changelog
 Full change history: [CHANGELOG.md](CHANGELOG.md)

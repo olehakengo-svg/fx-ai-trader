@@ -214,6 +214,18 @@ def compute_kpi(records: list) -> dict:
     else:
         sharpe = 0.0
 
+    # v6.5: Sortino Ratio (下方偏差のみ考慮 — テールリスク評価)
+    sortino = 0.0
+    if n >= 2:
+        _downside_sq = [min(0, r) ** 2 for r in r_list]
+        _dd_std = float(np.sqrt(sum(_downside_sq) / len(_downside_sq)))
+        sortino = round((ev / _dd_std * np.sqrt(252)) if _dd_std > 0 else 0.0, 2)
+
+    # v6.5: Profit Factor (総利益 / 総損失)
+    _gross_profit = sum(r for r in r_list if r > 0)
+    _gross_loss = abs(sum(r for r in r_list if r < 0))
+    profit_factor = round(_gross_profit / _gross_loss, 2) if _gross_loss > 0 else 0.0
+
     # Max drawdown in R
     equity = 0.0
     peak   = 0.0
@@ -225,6 +237,11 @@ def compute_kpi(records: list) -> dict:
         if dd > max_dd: max_dd = dd
     # Express as % of peak (or as R if peak=0)
     max_dd_pct = (max_dd / max(abs(peak), 1.0)) * 100 if peak > 0 else max_dd * 10
+
+    # v6.5: Calmar Ratio (年率リターン / 最大DD)
+    calmar = 0.0
+    if max_dd > 0 and n >= 2:
+        calmar = round(ev * 252 / max_dd, 2)
 
     # Daily trade rate
     if n >= 2:
@@ -252,6 +269,9 @@ def compute_kpi(records: list) -> dict:
         "win_rate":       round(win_rate, 1),
         "ev_per_trade":   round(ev, 4),
         "sharpe":         round(sharpe, 2),
+        "sortino":        sortino,          # v6.5
+        "calmar":         calmar,           # v6.5
+        "profit_factor":  profit_factor,    # v6.5
         "max_dd_pct":     round(max_dd_pct, 1),
         "avg_rr":         round(sum(r["rr_ratio"] for r in records) / n, 2),
         "daily_trade_rate": round(daily_rate, 1),

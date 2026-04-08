@@ -15,6 +15,8 @@ from modules.demo_db import DemoDB
 from modules.learning_engine import LearningEngine
 from modules.daily_review import DailyReviewEngine
 from modules.oanda_bridge import OandaBridge
+from modules.exposure_manager import ExposureManager
+from modules.alert_manager import AlertManager
 
 # モード別設定
 MODE_CONFIG = {
@@ -307,6 +309,14 @@ class DemoTrader:
         self._profit_extended = set() # Set of trade_ids that have been profit-extended (TP延伸済み)
         self._pyramided_trades = set()  # v6.4: 追加ポジション済みtrade_ids
         self._entry_adx = {}            # v6.4: {trade_id: adx at entry}
+        # ── v6.5: Cross-pair Exposure Manager ──
+        self._exposure_mgr = ExposureManager()
+        # ── v6.5: External Alerting (Discord Webhook) ──
+        self._alert_mgr = AlertManager()
+        if self._alert_mgr.is_enabled:
+            print("[v6.5] AlertManager: Discord Webhook enabled", flush=True)
+        # ── v6.5: DD Phase Tagging (デモDDブレーカー代替) ──
+        self._dd_phase_at_entry = {}  # {trade_id: bool} DD期間中のエントリーか
         self._pending_limits = {}     # {key: {signal, sl, tp, entry_type, sig, limit_price, created, mode, cfg, ...}}
         # v6.2: N-cache は L244 の _evaluate_promotions() で DB集計から構築済み
         # (warm-start復元は L244 の前で実行、_evaluate_promotions() が上書き)
@@ -890,6 +900,8 @@ class DemoTrader:
                     self._entry_atr.pop(trade_id, None)
                     self._entry_adx.pop(trade_id, None)
                     self._pyramided_trades.discard(trade_id)
+                    self._dd_phase_at_entry.pop(trade_id, None)
+                    self._exposure_mgr.remove_position(trade_id)
                     if _mt_oa and _ep_oa:
                         if _dir_oa == "BUY":
                             _mafe_adv_oa = round((_ep_oa - _mt_oa["min_low"]) * _pip_m_oa, 1)
@@ -1760,6 +1772,9 @@ class DemoTrader:
             f"— OANDA全モード停止 [{','.join(modes_before)}]、デモ継続")
         print(f"[CB] OANDA killed: {reason} ({pnl:+.1f}pip / {limit}pip) "
               f"modes={modes_before}", flush=True)
+        # v6.5: 外部アラート (CB発動は最重要イベント)
+        self._alert_mgr.alert_oanda_kill(
+            f"{reason} ({pnl:+.1f}pip / limit {limit}pip) modes={modes_before}")
 
     def _tick_with_catch(self, mode: str, result: list):
         """_tickを実行して例外をresult[0]に格納。タイムアウト用ワーカー。"""
@@ -2108,6 +2123,25 @@ class DemoTrader:
             return  # WAITはカウントしない（大半がWAIT）
         if self._check_drawdown():
             _block("drawdown"); return
+
+        # ── v6.5: MARKET_CLOSE Entry Prevention (セッション終了30分前の新規エントリー禁止) ──
+        # MARKET_CLOSE損失の構造対策: 保有中にセッション終了 → 含み損確定を防止
+        _now_mc = datetime.now(timezone.utc)
+        _active_hrs = cfg.get("active_hours_utc")
+        if _active_hrs is not None:
+            _session_end_hour = _active_hrs[1]
+            _minutes_to_end = (_session_end_hour - _now_mc.hour) * 60 - _now_mc.minute
+            if 0 < _minutes_to_end <= 30:
+                _block(f"market_close_30min(end={_session_end_hour}:00UTC)"); return
+
+        # ── v6.5: Cross-pair Exposure Check (通貨集中リスク防止) ──
+        import os as _os_exp
+        _exp_units_est = int(_os_exp.environ.get("OANDA_UNITS", "10000"))
+        _exp_ok, _exp_reason = self._exposure_mgr.check_new_trade(
+            instrument, signal, _exp_units_est)
+        if not _exp_ok:
+            self._alert_mgr.alert_exposure_blocked(instrument, signal, _exp_reason)
+            _block(f"exposure:{_exp_reason}"); return
         if confidence < self._params["confidence_threshold"]:
             _block(f"conf<{self._params['confidence_threshold']}(was:{confidence})"); return
 
@@ -2780,6 +2814,11 @@ class DemoTrader:
         self._entry_atr[trade_id] = max(_atr_raw, _atr_floor)
         # v6.4: ADX保存 (Profit Extender 50%TP判定用)
         self._entry_adx[trade_id] = sig.get("adx", 0)
+        # v6.5: DD Phase Tagging — エントリー時のDD状態を記録 (データ打ち切り回避)
+        self._dd_phase_at_entry[trade_id] = self._defensive_mode
+        # v6.5: Exposure tracking — ポジション追加
+        self._exposure_mgr.add_position(trade_id, instrument, signal,
+                                        int(_os.environ.get("OANDA_UNITS", "10000")))
 
         # ══════════════════════════════════════════════════════
         # ── 動的ロットサイジング v6.2: 3-Factor Model ──────
@@ -3366,6 +3405,13 @@ class DemoTrader:
                 self._rolling_ev_cache[et] = ev
             if _rolling_alerts:
                 self._add_log(f"⚠️ [v6.3 Rolling EV] 急落検出: {', '.join(_rolling_alerts[:3])}")
+                # v6.5: EV急落を外部アラート
+                for _ra in _rolling_alerts[:2]:
+                    _ra_parts = _ra.split(":")
+                    _ra_name = _ra_parts[0].strip() if _ra_parts else "unknown"
+                    _prev = self._rolling_ev_cache.get(_ra_name, 0)
+                    _cur = by_type.get(_ra_name, {}).get("ev", 0)
+                    self._alert_mgr.alert_ev_drop(_ra_name, _prev, _cur)
         except Exception:
             pass
 
