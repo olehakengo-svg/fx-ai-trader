@@ -5284,6 +5284,20 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                            "sl_m": t.get("sl_m", 0), "tp_m": t.get("tp_m", 0),
                            "actual_sl_m": t.get("actual_sl_m", None),
                            "exit_reason": t.get("exit_reason", "tp_sl")} for t in trades]
+            # ── v6.5: BacktestEngine 統合 (Anchored WFO + Monte Carlo) ──
+            try:
+                from modules.backtest_engine import BacktestEngine
+                _bt_engine_result = BacktestEngine.compute_results(
+                    trades, pnl_fn=_pnl, wf_windows=3)
+                _bt_wfo = BacktestEngine.walk_forward_anchored(
+                    trades, pnl_fn=_pnl, n_splits=5)
+                _bt_mc = BacktestEngine.monte_carlo_confidence(
+                    trades, pnl_fn=_pnl, n_sims=2000)
+            except Exception:
+                _bt_engine_result = {}
+                _bt_wfo = {}
+                _bt_mc = {}
+
             result = {
                 "win_rate":       wr,
                 "trades":         total,
@@ -5312,6 +5326,13 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "signal_reverse_count": _sr_count,
                 "signal_reverse_ratio": _sr_ratio,
                 "avg_exit_friction_m": round(sum(t.get("exit_friction_m", 0) for t in trades) / max(total, 1), 4),
+                # v6.5: Quant infrastructure
+                "sortino": _bt_engine_result.get("stats", {}).get("sortino", 0),
+                "calmar": _bt_engine_result.get("stats", {}).get("calmar", 0),
+                "profit_factor": _bt_engine_result.get("stats", {}).get("profit_factor", 0),
+                "quant": _bt_engine_result.get("quant", {}),
+                "walk_forward_anchored": _bt_wfo,
+                "monte_carlo": _bt_mc,
             }
 
         _bounded_cache_set(_scalp_bt_cache, cache_key, {"result": result, "ts": now}, _BT_CACHE_MAX)
@@ -5801,6 +5822,20 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             verdict = ("✅ 摩擦込EV>1.0（昇格候補）" if ev > 1.0 and profitable >= 2 else
                        "🟡 摩擦込EV+（要経過観察）" if ev > 0 else "❌ 摩擦込EVマイナス（不推奨）")
 
+            # ── v6.5: BacktestEngine 統合 (WFO + Monte Carlo) ──
+            try:
+                from modules.backtest_engine import BacktestEngine
+                _dt_bt_eng = BacktestEngine.compute_results(
+                    trades, pnl_fn=_dt_pnl, wf_windows=3)
+                _dt_wfo = BacktestEngine.walk_forward_anchored(
+                    trades, pnl_fn=_dt_pnl, n_splits=5)
+                _dt_mc = BacktestEngine.monte_carlo_confidence(
+                    trades, pnl_fn=_dt_pnl, n_sims=2000)
+            except Exception:
+                _dt_bt_eng = {}
+                _dt_wfo = {}
+                _dt_mc = {}
+
             result = {
                 "trades": n, "win_rate": wr, "expected_value": ev,
                 "avg_hold_hours": avg_hold_h,
@@ -5821,6 +5856,13 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "signal_reverse_count": _sr_count_dt,
                 "signal_reverse_ratio": _sr_ratio_dt,
                 "avg_exit_friction_m": round(sum(t.get("exit_friction_m", 0) for t in trades) / max(n, 1), 4),
+                # v6.5: Quant infrastructure
+                "sortino": _dt_bt_eng.get("stats", {}).get("sortino", 0),
+                "calmar": _dt_bt_eng.get("stats", {}).get("calmar", 0),
+                "profit_factor": _dt_bt_eng.get("stats", {}).get("profit_factor", 0),
+                "quant": _dt_bt_eng.get("quant", {}),
+                "walk_forward_anchored": _dt_wfo,
+                "monte_carlo": _dt_mc,
             }
 
         _bounded_cache_set(_dt_bt_cache, cache_key, {"result": result, "ts": now}, _BT_CACHE_MAX)
