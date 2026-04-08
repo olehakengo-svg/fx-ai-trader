@@ -5579,9 +5579,21 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 tp_dist_dt = _atr_tp_floor
 
             # SL可変: エントリー価格からRR比で逆算
+            # ── 例外: SRM等は戦略SLを完全保存 (1H BT _1H_PRESERVE_SLTP 準拠) ──
+            _DT_PRESERVE_SLTP = {"squeeze_release_momentum"}
             tp_dist_dt = abs(tp - ep)
-            MIN_RR_DT = 1.2
-            sl_dist_dt = tp_dist_dt / MIN_RR_DT
+            if entry_type in _DT_PRESERVE_SLTP:
+                # 戦略SL保存: swing H/L ± ATR buffer で精密計算済み
+                _sig_sl = sig_result.get("sl")
+                if _sig_sl is not None:
+                    _sig_sl = _sig_sl + ep_shift  # エントリー価格シフト補正
+                    sl_dist_dt = abs(ep - _sig_sl)
+                else:
+                    MIN_RR_DT = 1.2
+                    sl_dist_dt = tp_dist_dt / MIN_RR_DT
+            else:
+                MIN_RR_DT = 1.2
+                sl_dist_dt = tp_dist_dt / MIN_RR_DT
             _is_jpy_dt = _is_jpy_scale(symbol)
             MIN_SL_DIST_DT = 0.030 if _is_jpy_dt else 0.00030
             sl_dist_dt = max(sl_dist_dt, MIN_SL_DIST_DT)

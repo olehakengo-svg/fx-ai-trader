@@ -122,7 +122,8 @@
 - **SBR (2026-04-05)**: SR Break & Retest。Fractal(n=3)でSR検出→Close実体ブレイク→±0.7ATRリテスト→反転確認。USD/JPY+GBP/USD専用(EUR/USD EV≈0で除外)。HFBの鏡像戦略=負相関で最大分散
 - **ADX TC (2026-04-04)**: EUR/USD専用トレンドフォロー。ADX≥25+EMAパーフェクトオーダー(9>21>50)+前1-3本プルバック検出→現在足リバウンド確認。USD/JPYはDISABLED(WR=50%/EV=-0.719、15m足トレンドノイジー)
 - **Mean-reversion exclusion**: bb_rsi, macdh, v_reversal, trend_rebound exempt from EMA200/HTF hard filter (soft penalty only)
-- **SRM-DT (2026-04-08)**: Squeeze Release Momentum。BB圧縮(SQUEEZE)→解放(Release)のトレンド初動を5段フィルターで捕捉。KSB(1H WR=50%)の成功原理を15m足に降格適用。bb_squeeze_breakout(1m WR=36.8%)の失敗回避。EUR/USD,GBP/USD,USD/JPY対応、UTC 07-17、金曜13以降ブロック。squeeze_bars≥3+BB拡大+bbpb>0.80/<0.20+body_ratio≥0.35+MACD-H拡大+ADX≥18orΔ+2.0+HTF非逆行+Freshness。SL=SwingHL±ATR×0.3(max1.5/min0.8)、TP=ATR×2.5、MIN_RR=1.5。PE/Pyramid完全対応。MR戦略ではない→BB_mid TP/SL widening/RR floor 0.8の対象外
+- **SRM-DT (2026-04-08)**: Squeeze Release Momentum。BB圧縮(SQUEEZE)→解放(Release)のトレンド初動を5段フィルターで捕捉。KSB(1H WR=50%)の成功原理を15m足に降格適用。bb_squeeze_breakout(1m WR=36.8%)の失敗回避。EUR/USD,GBP/USD,USD/JPY対応、UTC 07-17、金曜13以降ブロック。squeeze_bars≥3+BB拡大+bbpb>0.75/<0.25+body_ratio≥0.30+MACD-H拡大+ADX≥15orΔ+2.0+HTF非逆行+Freshness。SL=SwingHL±ATR×0.3(max1.5/min0.8)、TP=ATR×2.5、MIN_RR=1.5。PE/Pyramid完全対応。MR戦略ではない→BB_mid TP/SL widening/RR floor 0.8の対象外
+- **SRM BT SL保存 (2026-04-08)**: `_DT_PRESERVE_SLTP = {"squeeze_release_momentum"}` — DT BTの`sl_dist=tp_dist/MIN_RR_DT(1.2)`逆算を迂回し、戦略計算済みSL(swing H/L±ATR×0.3)を保存。1H BT `sig_result.get("sl") + ep_shift` パターン準拠。修正前RR=0.62→修正後RR=0.84。BT結果: 5t WR=40% EV=-0.47 (N不足、WFO/MC算出不可→Sentinel蓄積フェーズ)
 
 ## Key Parameters
 - **Spread**: Production=OANDA real bid/ask (entry BUY=ask/SELL=bid, exit BUY=bid/SELL=ask)
