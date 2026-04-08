@@ -485,6 +485,7 @@
 ### Phase 1: 絶対防御 (P0)
 - **OANDA Lot Hard Cap**: `_OANDA_LOT_CAP = 10000` — 3-Factor Model計算後にmax 10,000u強制。19000u災害防止。`[SHIELD]`ログ
 - **EUR_USD DT/1H OANDA遮断**: `_OANDA_MODE_BLOCKED = {daytrade_eur, daytrade_1h_eur}` — EUR_USD scalp継続、DT/1HのOANDA送信をブロック (WR=29.2%対策)
+- **SHIELD EUR DT ホワイトリスト** (v7.0): `_SHIELD_EUR_DT_WHITELIST = {orb_trap, htf_false_breakout}` — MR系高EV戦略はモード遮断免除。orb_trap EUR BT WR=71.4% EV=+0.482, htf_fbk EUR BT WR=65.6% EV=+0.507。N<10 Safety で自動Sentinel、auto_demotion + Kelly Cap 健在
 - **Quick-Harvest TP**: `_QUICK_HARVEST_MULT = 0.70` — OANDA TP = demo TP × 0.70 (TP hit率 3.75%→早期利確)。`_QUICK_HARVEST_EXEMPT`で gbp_deep_pullback×GBP_USD は全TP許可。`[SHIELD]`ログ
 
 ### Phase 2: 計測 (P0-P1)

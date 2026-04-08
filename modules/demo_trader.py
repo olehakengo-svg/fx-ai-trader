@@ -3344,9 +3344,16 @@ class DemoTrader:
         if _is_shadow:
             _is_promoted = False
         # ── v6.4 SHIELD: EUR_USD DT/1H OANDA遮断 (scalp継続) ──
+        # v7.0: ホワイトリスト戦略はSHIELD免除 (MR系高EV, N<10 Safety で自動Sentinel)
         if _is_promoted and mode in self._OANDA_MODE_BLOCKED:
-            self._add_log(f"[SHIELD] OANDA blocked: mode={mode}")
-            _is_promoted = False
+            if entry_type in self._SHIELD_EUR_DT_WHITELIST:
+                self._add_log(
+                    f"[SHIELD] EUR DT whitelist bypass: {entry_type} mode={mode} "
+                    f"(N<10→Sentinel自動適用)"
+                )
+            else:
+                self._add_log(f"[SHIELD] OANDA blocked: mode={mode}")
+                _is_promoted = False
         _bridge_active = self._oanda.active
         _mode_allowed = self._oanda.is_mode_allowed(mode)
         _strat_mode = self._oanda.get_strategy_mode(entry_type)
@@ -3437,8 +3444,12 @@ class DemoTrader:
             _promo_n = _promo.get("n", 0)
             _promo_status = _promo.get("status", "pending")
             _block_reason = ""
-            if _strat_mode == "off":
+            if _is_shadow:
+                _block_reason = "shadow_tracking"
+            elif _strat_mode == "off":
                 _block_reason = "手動停止"
+            elif mode in self._OANDA_MODE_BLOCKED:
+                _block_reason = f"shield_mode_blocked({mode})"
             elif (entry_type, instrument) in self._PAIR_DEMOTED:
                 _block_reason = f"pair_demoted({instrument})"
             elif entry_type in self._FORCE_DEMOTED:
@@ -4070,6 +4081,13 @@ class DemoTrader:
         "daytrade_1h_eur",           # EUR_USD 1H: 未検証
         "daytrade_eurgbp",           # EUR_GBP DT: OANDA遮断
         "scalp_5m",                  # v6.8: Sentinel A/Bテスト (N≥50後に判断)
+    })
+    # v7.0: EUR DT SHIELD ホワイトリスト — MR系高EV戦略はモード遮断を免除
+    # 根拠: orb_trap EUR BT 42t WR=71.4% EV=+0.482, htf_fbk EUR BT 32t WR=65.6% EV=+0.507
+    # 安全: N<10 Safety で自動 Sentinel (0.01lot), auto_demotion + Kelly Cap 健在
+    _SHIELD_EUR_DT_WHITELIST = frozenset({
+        "orb_trap",                  # ORB Fakeout Reversal (MR, 独自タイミング窓)
+        "htf_false_breakout",        # 1H SR False Breakout Fade (MR, MTFフィルター)
     })
     _QUICK_HARVEST_MULT = 0.85      # v6.8: 0.70→0.85 (DT WIN 7件の19.2pip利益漏出修復)
     _QUICK_HARVEST_EXEMPT = frozenset({
