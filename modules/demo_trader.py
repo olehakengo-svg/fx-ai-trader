@@ -1248,7 +1248,11 @@ class DemoTrader:
             # ── v6.4: Risk-Free Pyramiding ──
             # 1.0 ATR有利方向移動 + OANDA昇格済み → 追加ポジション + SL→BE
             # ══════════════════════════════════════════════════════════════
+            # v6.5 fix: OANDA trade IDがないトレードはPYRAMID対象外
+            # (OANDA停止中に開設されたデモ専用トレードのmodify_sl_sync無限失敗を防止)
+            _has_oanda_id = bool(t.get("oanda_trade_id"))
             if (trade_id not in self._pyramided_trades
+                    and _has_oanda_id
                     and _entry_type_pe in self._PE_50PCT_ELIGIBLE):
                 _pyr_atr = self._entry_atr.get(
                     trade_id, 0.07 if "JPY" in _inst or "XAU" in _inst else 0.00070
