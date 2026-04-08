@@ -97,7 +97,7 @@ class EmaRibbonRide(StrategyBase):
         sl = 0.0
         tp = 0.0
 
-        _min_sl = 0.030 if ctx.is_jpy else 0.00030
+        _min_sl = 0.030 if ctx.pip_mult == 100 else 0.00030  # JPY+XAU: pip=0.01
 
         # ── Strict パーフェクトオーダー判定 (v6.3: Relaxed→Strict) ──
         # v6.3: EMA9>EMA21>EMA50 を必須とする (Relaxed POがダマシの主因)

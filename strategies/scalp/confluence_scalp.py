@@ -468,7 +468,7 @@ class ConfluenceScalp(StrategyBase):
         # ══════════════════════════════════════════════════
         # SL / TP
         # ══════════════════════════════════════════════════
-        _min_sl = 0.030 if ctx.is_jpy else 0.00030
+        _min_sl = 0.030 if ctx.pip_mult == 100 else 0.00030  # JPY+XAU: pip=0.01
         sl_dist = max(ctx.atr7 * self._SL_ATR_MULT, _min_sl)
         tp_dist = ctx.atr7 * self._TP_ATR_MULT
         if signal == "BUY":

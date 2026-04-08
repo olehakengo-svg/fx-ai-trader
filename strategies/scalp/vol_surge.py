@@ -98,7 +98,7 @@ class VolSurgeDetector(StrategyBase):
         reasons = []
         sl = 0.0
         tp = 0.0
-        _min_sl = 0.030 if ctx.is_jpy else 0.00030
+        _min_sl = 0.030 if ctx.pip_mult == 100 else 0.00030  # JPY+XAU: pip=0.01
         _mode = None  # "climax" or "momentum"
 
         # ── A: クライマックス反転 (BB極端 + RSI過熱 + 反転足) ──

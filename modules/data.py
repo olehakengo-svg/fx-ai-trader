@@ -596,10 +596,10 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
                 print(f"[OANDA/{interval}] {len(df)}本取得 (期待{int(expected)})")
             else:
                 actual = len(df) if df is not None else 0
-                print(f"[OANDA/{interval}] {actual}本 < 最低{int(min_bars)}本 → フォールバック")
+                print(f"[OANDA/{interval}] {symbol} {actual}本 < 最低{int(min_bars)}本 → フォールバック")
                 df = None
         except Exception as e:
-            print(f"[OANDA/{interval}] {e} → フォールバック")
+            print(f"[OANDA/{interval}] {symbol} error: {e} → フォールバック", flush=True)
             df = None
 
     # -- (1) Massive API: USDJPY/EURUSD の全TF --
@@ -642,7 +642,11 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
             df = None
 
     # -- (3) フォールバック: yfinance --
-    if df is None:
+    # v6.4: XAU_USD は yfinance(GC=F先物)フォールバック禁止
+    # GC=Fは先物価格でスポット($3000)と大幅乖離($4800)→指標全壊
+    if df is None and "XAU" in symbol.upper():
+        print(f"[fetch_ohlcv] XAU: OANDA candles失敗、yfinance(GC=F)禁止 → データなし")
+    elif df is None:
         try:
             df = _fetch_raw(symbol, period, interval)
             if df is not None and len(df) >= min_bars:

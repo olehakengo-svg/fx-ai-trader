@@ -2339,7 +2339,7 @@ class DemoTrader:
                 "GBP_USD": 1.2,
                 "EUR_GBP": 1.2,
                 "EUR_JPY": 1.2,
-                "XAU_USD": 4.0,
+                "XAU_USD": 6.0,   # v6.4: 4.0→6.0 (OANDA実測4-5pip、Asia 5pip常態)
             }
             _spread_limit = _SPREAD_LIMITS.get(instrument, 1.2 if _is_jpy else 1.5)
             if _spread_pips > _spread_limit:

@@ -7398,7 +7398,8 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
 
     # ── 通貨ペア判定 ──
     _sc_is_jpy = "JPY" in symbol.upper()
-    _sc_pip_mult = 100 if _sc_is_jpy else 10000
+    _sc_is_jpy_scale = _sc_is_jpy or "XAU" in symbol.upper()
+    _sc_pip_mult = 100 if _sc_is_jpy_scale else 10000
 
     # ── Layer 0/1/2/3: 共通前処理 ──
     layer0 = is_trade_prohibited(df, bar_time=bar_time)
@@ -7571,7 +7572,8 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         # SL/TP最終調整のみ適用（EMA200/HTFソフトペナルティ不要）
         sl_dist = abs(entry - sl)
         tp_dist = abs(tp - entry)
-        MIN_SL = 0.030 if "JPY" in symbol.upper() else 0.00030
+        _is_jpy_xau = "JPY" in symbol.upper() or "XAU" in symbol.upper()
+        MIN_SL = 0.030 if _is_jpy_xau else 0.00030
         if sl_dist < MIN_SL:
             sl = entry - MIN_SL if signal == "BUY" else entry + MIN_SL
             sl_dist = MIN_SL
@@ -7656,7 +7658,8 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     # ── SL/TP最終調整: 最低距離保証 + RR保証 ──
     sl_dist = abs(entry - sl)
     tp_dist = abs(tp - entry)
-    MIN_SL = 0.030 if "JPY" in symbol.upper() else 0.00030  # 3 pip最低
+    _is_jpy_xau_sl = "JPY" in symbol.upper() or "XAU" in symbol.upper()
+    MIN_SL = 0.030 if _is_jpy_xau_sl else 0.00030  # 3 pip最低 (JPY+XAU: 0.01scale)
     if sl_dist < MIN_SL:
         sl = entry - MIN_SL if signal == "BUY" else entry + MIN_SL
         sl_dist = MIN_SL
