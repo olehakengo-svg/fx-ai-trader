@@ -3738,6 +3738,7 @@ class DemoTrader:
         "gbp_deep_pullback", "turtle_soup",
         "trendline_sweep", "sr_break_retest",
         "adx_trend_continuation", "ema_cross",
+        "squeeze_release_momentum",
     })
 
     def _is_promoted(self, entry_type: str, instrument: str = "") -> bool:
