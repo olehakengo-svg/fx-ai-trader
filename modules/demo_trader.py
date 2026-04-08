@@ -2349,6 +2349,7 @@ class DemoTrader:
         _RANGE_MR_STRATEGIES = {
             "bb_rsi_reversion", "macdh_reversal", "fib_reversal", "vol_surge_detector",
             "eurgbp_daily_mr",  # EUR/GBP 日足MR: レンジ極値フェード
+            "dt_bb_rsi_mr",     # DT BB RSI MR: 15m BB%B+RSI14+Stoch 平均回帰 (Bollinger 1992)
         }
         _sig_regime_r = sig.get("regime", {})
         _regime_type_r = _sig_regime_r.get("regime", "") if isinstance(_sig_regime_r, dict) else ""
@@ -2641,14 +2642,21 @@ class DemoTrader:
             return
 
         # ══════════════════════════════════════════════════════════════
-        # ── v6.8: DT Power Session — UTC 7-8, 13-14 のみ許可 ──
-        # 本番112t分析: UTC 13-14 WR=65.2% +122.7pip (z=4.02, p<0.01)
-        #              UTC 7-8   WR=38%  +18.0pip  (London Open)
-        #              他時間帯  WR=19%  -415.7pip (全出血源)
+        # ── v7.0: DT Power Session — USD/JPY のみ UTC 7-8, 13-14 限定 ──
+        # 本番112t分析(USD/JPY): UTC 13-14 WR=65.2% +122.7pip (z=4.02)
+        #                        UTC 7-8   WR=38%  +18.0pip  (London Open)
+        #                        他時間帯  WR=19%  -415.7pip (全出血源)
         # Bonferroni多重比較補正後も有意 (z>2.63)
+        # v7.0: USD/JPYのみ適用。他ペア(EUR,GBP,XAU,EUR/GBP)は
+        #       compute_daytrade_signal 内の独自セッションフィルターで制御
+        # v7.0: tokyo_nakane_momentum (UTC 00:45-01:15) は仲値リバーサル
+        #       戦略のため Power Session から除外 (Andersen 2003)
         # ══════════════════════════════════════════════════════════════
         _DT_POWER_HOURS = {7, 8, 13, 14}
-        if _base_mode == "daytrade" and _utc_hour not in _DT_POWER_HOURS:
+        _DT_POWER_SESSION_EXEMPT = {"tokyo_nakane_momentum"}
+        if (_base_mode == "daytrade" and instrument == "USD_JPY"
+                and _utc_hour not in _DT_POWER_HOURS
+                and entry_type not in _DT_POWER_SESSION_EXEMPT):
             _block(f"dt_session(UTC{_utc_hour},outside_power_hours)")
             return
 
@@ -3983,6 +3991,7 @@ class DemoTrader:
         "stoch_trend_pullback",        # 全ペアEVマイナス → 全モードSentinel (14d BT)
         "squeeze_release_momentum",    # SRM v3: BT N=24 WR=66.7% OOS未確定 → Sentinel蓄積 (2026-04-08)
         "eurgbp_daily_mr",             # EUR/GBP Daily MR: 日足レンジ極値フェード — BT未実施, Sentinel蓄積
+        "dt_bb_rsi_mr",                # DT BB RSI MR: 15m BB+RSI14 平均回帰 — 新規, Sentinel蓄積
     }
 
     # ペア別SR感度: SAR高ペアに早逃げ余地

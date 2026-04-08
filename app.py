@@ -5557,6 +5557,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "jpy_basket_trend",              # JPYバスケットPO順張り (USD/EUR JPY)
                 "squeeze_release_momentum",      # SRM v3: 2段フィルター, EUR/GBP限定 (v6.5)
                 "eurgbp_daily_mr",               # EUR/GBP Daily MR: 20日レンジ極値フェード (日足MR)
+                "dt_bb_rsi_mr",                  # DT BB RSI MR: 15m BB%B+RSI14+Stoch 平均回帰 (Bollinger 1992)
                 # DISABLED: ihs_neckbreak (2t EV≒0), dual_sr_breakout,
                 # dt_fib_reversal, dt_sr_channel_reversal, ema200_trend_reversal
             }

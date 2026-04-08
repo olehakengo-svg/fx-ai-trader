@@ -138,11 +138,23 @@
 
 #### Stage 3: DT Power Session — 統計的有意な時間帯のみ許可
 - **`_DT_POWER_HOURS = {7, 8, 13, 14}`**: DT(15m)エントリーをUTC 7-8, 13-14に限定
-- **根拠**: 本番112t分析
+- **v7.0 スコープ修正**: **USD/JPYのみ適用** (他ペアはcompute_daytrade_signal内のセッションフィルターで制御)
+- **v7.0 TNM除外**: tokyo_nakane_momentum (UTC 00:45-01:15) は `_DT_POWER_SESSION_EXEMPT` で除外
+- **根拠**: 本番112t分析 (USD/JPYのみ)
   - UTC 13-14: WR=65.2% +122.7pip (z=4.02, p<0.01, Bonferroni補正後も有意)
   - UTC 7-8: WR=38% +18.0pip (London Open)
   - 他時間帯: WR=19% -415.7pip (全出血源)
 - **位置**: USD_JPY DeadZone block の直後、spread filter の前
+
+#### Stage 4: DT RANGE MR戦略 — 構造的空白の解消
+- **問題**: RANGE=47.5%の時間帯にDT MR戦略がゼロ → TF戦略全ブロックで何もできない
+- **dt_bb_rsi_mr** (`strategies/daytrade/dt_bb_rsi_mr.py`, 311行): Scalp bb_rsi_reversionの15m足移植
+  - BB%B < 0.20 / > 0.80 + RSI14 < 35 / > 65 + Stoch確認 + 反転足
+  - ADX < 25 限定 (RANGE/WIDE_RANGE専用)
+  - SL=ATR×1.2, TP=ATR×1.5, MIN_RR=1.2, MAX_HOLD=8バー(2h)
+  - 対象: USD/JPY, EUR/USD, GBP/USD
+  - **Sentinel** (`_UNIVERSAL_SENTINEL`): 0.01lot観測、N≥30後に再評価
+  - `_RANGE_MR_STRATEGIES`登録: BB_mid TP + SL widening + SQUEEZE block + WIDE_RANGE boost 自動適用
 
 ### v6.3 Sentinel対策 (2026-04-08) — 切除ではなく改善
 **設計思想**: 負EV戦略を切除(FORCE_DEMOTED)するのではなく、根本原因(摩擦、パラメータ、フィルター不足)を特定し具体的に改善する。
