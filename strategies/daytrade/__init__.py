@@ -33,6 +33,7 @@ from strategies.daytrade.london_ny_swing import LondonNySwing
 from strategies.daytrade.gold_vol_break import GoldVolBreak
 from strategies.daytrade.jpy_basket_trend import JpyBasketTrend
 from strategies.daytrade.squeeze_release_momentum import SqueezeReleaseMomentum
+from strategies.daytrade.eurgbp_daily_mr import EurgbpDailyMR
 
 
 class DaytradeEngine:
@@ -59,6 +60,7 @@ class DaytradeEngine:
             GoldVolBreak(),                # XAU BB(2.5σ) ATR surge breakout (RR 1:3)
             JpyBasketTrend(),              # JPYバスケットPO順張り (USD/EUR JPY専用)
             SqueezeReleaseMomentum(),      # SRM: Squeeze Release Momentum v3 (2段フィルター, EUR/GBP限定)
+            EurgbpDailyMR(),               # EUR/GBP Daily MR: 20日レンジ極値フェード (日足MR)
             DtFibReversal(),
             DtSrChannelReversal(),
             Ema200TrendReversal(),

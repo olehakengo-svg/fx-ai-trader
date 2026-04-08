@@ -131,8 +131,9 @@ MODE_CONFIG = {
         "auto_start": True,
         "base_sl_pips": 15,
     },
-    # ── EUR/GBP Daytrade (15m) — Phase3 水平展開 ──
-    # DISABLED: WR=12.5%, Spread/ATR=98.7%(1m)/43%(15m) — 構造的にエッジなし
+    # ── EUR/GBP Daytrade (15m) — eurgbp_daily_mr 専用 ──
+    # v6.6 全停止 → v6.7 日足MR戦略のみ再有効化 (Sentinel, 0.01lot)
+    # 15m足で20日レンジ極値フェード (発火頻度: 2-4回/月)
     "daytrade_eurgbp": {
         "interval_sec": 30,
         "tf": "15m",
@@ -142,7 +143,7 @@ MODE_CONFIG = {
         "icon": "📊🇪🇺🇬🇧",
         "symbol": "EURGBP=X",
         "instrument": "EUR_GBP",
-        "auto_start": False,
+        "auto_start": True,
         "base_sl_pips": 15,
     },
     # ── XAU/USD Scalp (1m) — gold_pips_hunter + vol_momentum + ema_ribbon ──
@@ -2163,7 +2164,8 @@ class DemoTrader:
         # MR戦略: SQUEEZE=ブロック, WIDE_RANGE=ブースト, TRANSITION=通過
         # ══════════════════════════════════════════════════════════════
         _RANGE_MR_STRATEGIES = {
-            "bb_rsi_reversion", "macdh_reversal", "fib_reversal", "vol_surge_detector"
+            "bb_rsi_reversion", "macdh_reversal", "fib_reversal", "vol_surge_detector",
+            "eurgbp_daily_mr",  # EUR/GBP 日足MR: レンジ極値フェード
         }
         _sig_regime_r = sig.get("regime", {})
         _regime_type_r = _sig_regime_r.get("regime", "") if isinstance(_sig_regime_r, dict) else ""
@@ -2213,6 +2215,30 @@ class DemoTrader:
                 f"bb_width_pct={_sig_regime_r.get('bb_width_pct', '?')} "
                 f"squeeze_bars={_sig_regime_r.get('squeeze_bars', '?')}"
             )
+
+        # ══════════════════════════════════════════════════════════════
+        # ── v6.7: DT Trend-Following RANGE Regime Block ──
+        # 本番実績: DT RANGE 74%発火 WR=25.7% (構造的負EV)
+        # TREND_BULL WR=35.7% が唯一の収益レジーム
+        # TF戦略はRANGEで構造的に失敗 → DT(15m)のみブロック
+        # MR戦略 (orb_trap, htf_false_breakout, gbp_deep_pullback,
+        #         squeeze_release_momentum) はブロック対象外
+        # ══════════════════════════════════════════════════════════════
+        _DT_TREND_STRATEGIES = {
+            "sr_fib_confluence", "ema_cross", "sr_break_retest",
+            "adx_trend_continuation", "lin_reg_channel", "trendline_sweep",
+            "london_ny_swing", "turtle_soup", "jpy_basket_trend",
+        }
+        if (_base_mode == "daytrade"
+                and _regime_type_r == "RANGE"
+                and entry_type in _DT_TREND_STRATEGIES):
+            self._add_log(
+                f"[REGIME] DT RANGE blocked: {entry_type} (TF strategy in RANGE) | "
+                f"{signal} {instrument} | "
+                f"range_sub={_range_sub}"
+            )
+            _block(f"regime_range_dt_tf({entry_type})")
+            return
 
         if confidence < self._params["confidence_threshold"]:
             _block(f"conf<{self._params['confidence_threshold']}(was:{confidence})"); return
@@ -2395,7 +2421,7 @@ class DemoTrader:
         # 同一通貨ペアでSL_HITが発生した場合、全戦略に短期クールダウン適用
         # scalp: 90s, DT: 180s（同価格帯の反復エントリーを防止）
         # ══════════════════════════════════════════════════════════════
-        _cascade_cd = {"scalp": 90, "daytrade": 180, "daytrade_1h": 300, "swing": 600}.get(_base_mode, 90)
+        _cascade_cd = {"scalp": 90, "daytrade": 90, "daytrade_1h": 300, "swing": 600}.get(_base_mode, 90)  # v6.6: 180→90s (GBP DT 15m bar間隔に合わせた短縮)
         _cascade_cutoff = datetime.now(timezone.utc) - timedelta(seconds=_cascade_cd)
         _recent_sl_same_inst = [h for h in self._sl_hit_history
                                 if h[0] > _cascade_cutoff and h[1] == instrument]
@@ -2414,7 +2440,9 @@ class DemoTrader:
         # コントラリアン検証済み: spread二重控除後 -1.1p → 逆張りもエッジなし
         # ══════════════════════════════════════════════════════════════
         _utc_hour = datetime.now(timezone.utc).hour
-        if instrument == "EUR_GBP":
+        # v6.7: eurgbp_daily_mr は日足MR戦略 → EUR_GBP全停止をバイパス (Sentinel)
+        _EURGBP_DAILY_MR_WHITELIST = {"eurgbp_daily_mr"}
+        if instrument == "EUR_GBP" and entry_type not in _EURGBP_DAILY_MR_WHITELIST:
             _block(f"session_pair(EUR_GBP全停止,WR=11%)")
             return
         if instrument == "EUR_USD":
@@ -2695,6 +2723,25 @@ class DemoTrader:
                     sl = round(current_price - sl_dist, _price_dec)
                 else:
                     sl = round(current_price + sl_dist, _price_dec)
+
+            # v6.7: DT SL最大距離キャップ (外れ値防止)
+            # 本番データ: 4外れ値(299.8pip等)がLOSS SL平均を1.8倍に膨張
+            # SRベースSLに上限がないため、15m DTで日足SR距離のSLが発生
+            if _is_jpy_or_xau:
+                MAX_SL_DIST = {"scalp": 0.080, "daytrade": 0.200, "daytrade_1h": 0.500}.get(_base_mode, 0.200)
+            else:
+                MAX_SL_DIST = {"scalp": 0.00080, "daytrade": 0.00200, "daytrade_1h": 0.00500}.get(_base_mode, 0.00200)
+            if sl_dist > MAX_SL_DIST:
+                _old_sl_dist = sl_dist
+                sl_dist = MAX_SL_DIST
+                if signal == "BUY":
+                    sl = round(current_price - sl_dist, _price_dec)
+                else:
+                    sl = round(current_price + sl_dist, _price_dec)
+                self._add_log(
+                    f"⚠️ [SL_CAP] {entry_type}: SL距離 {_old_sl_dist:.{_price_dec}f}"
+                    f"→{sl_dist:.{_price_dec}f} (MAX_SL_DIST適用)"
+                )
 
         # ══════════════════════════════════════════════════════════════
         # ── SL狩り対策②: セッション遷移時SLワイドニング ──
@@ -3706,6 +3753,7 @@ class DemoTrader:
     _UNIVERSAL_SENTINEL = {
         "stoch_trend_pullback",        # 全ペアEVマイナス → 全モードSentinel (14d BT)
         "squeeze_release_momentum",    # SRM v3: BT N=24 WR=66.7% OOS未確定 → Sentinel蓄積 (2026-04-08)
+        "eurgbp_daily_mr",             # EUR/GBP Daily MR: 日足レンジ極値フェード — BT未実施, Sentinel蓄積
     }
 
     # ペア別SR感度: SAR高ペアに早逃げ余地

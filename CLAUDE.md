@@ -514,5 +514,53 @@
 - **sr_fib_confluence**: 本番WR=28.9% vs BT WR=64.3% — SLTP-Checkerバグ汚染の可能性大。Fidelity Cutoff後のクリーンデータで再評価
 - **GBP/USD DT戦略群**: BTで gbp_deep_pullback WR=73.7%, htf_fbk WR=72.5% — ボラ拡大中(+20.3%/w)、N蓄積待ち
 
+## v6.7 DT構造改革 + EUR/GBP Daily MR (2026-04-08)
+
+### D1: DT RANGE レジーム TF戦略ブロック
+- **問題**: 本番DT 74%がRANGEレジームで発火、WR=25.7% (構造的負EV)。TREND_BULLのみ正EV
+- **対策**: `_DT_TREND_STRATEGIES` Set定義 → `_base_mode=="daytrade"` かつ `regime=="RANGE"` で TF戦略をブロック
+- **対象**: sr_fib_confluence, ema_cross, sr_break_retest, adx_trend_continuation, lin_reg_channel, trendline_sweep, london_ny_swing, turtle_soup, jpy_basket_trend
+- **非対象**: MR戦略 (orb_trap, htf_false_breakout, gbp_deep_pullback, squeeze_release_momentum, eurgbp_daily_mr)
+- **テレメトリ**: `[REGIME] DT RANGE blocked: {entry_type} (TF strategy in RANGE)`
+
+### G1: DaytradeEngine 競合モード化
+- **問題**: gbp_deep_pullback (BT WR=73.7%) が本番 N=0。sr_fib_confluenceが先に非WAITを返すとDTE未評価
+- **旧**: `if not _sr_signal_found and signal == "WAIT":` → DTE はfallback-only
+- **新**: DTE を常に評価。Path A (signal==WAIT) = 従来互換。Path B (signal≠WAIT) = スコア比較、DTE勝利時に上書き
+- **上書きロジック**: `abs(dte_score) > abs(main_score)` → signal/entry_type/reasons全置換 + テレメトリ出力
+- **敗北時**: `_dt_best = None` (SL/TP汚染防止)
+- **テレメトリ**: `[DTE] Override: {entry_type} score={dte_abs} > combined={main_abs} (pair={symbol})`
+
+### G2+G3: gbp_deep_pullback パラメータ調整
+- **G2**: BB閾値緩和 — `BB_PB_THRES_BUY: 0.10→0.20`, `BB_PB_THRES_SELL: 0.90→0.80` (深い押し目要求→浅いPBも許容で発火率向上)
+- **G3**: `PB_LOOKBACK: 4→6` (プルバック検出ウィンドウ拡大 → 6本=90min, 完了後エントリー逃し防止)
+
+### G4: Cascade CD 短縮
+- **変更**: DT cascade_cd `180→90s` (15m足1バー=900sに対しCD180sは過剰 → 90sでGBP DT発火機会拡大)
+
+### EUR/GBP Daily Mean-Reversion (新規戦略)
+- **ファイル**: `strategies/daytrade/eurgbp_daily_mr.py` (EurgbpDailyMR class)
+- **学術的根拠**: EUR/GBP構造的レンジバウンド (ECB/BoE金利差1.75%), 20日レンジ上下10%到達時の10日リターン 30-41pip (WR=52-61%)
+- **ミクロ構造**: Spread/Daily ATR=7.5% → 日足以上のみviable (1m-15m Spread/ATR=43-99%で構造的不可能)
+- **シグナル**: BUY: 20日レンジ下位20% + 反転足, SELL: 上位80% + 反転足
+- **ボラフィルター**: 15m ATR ≥ 3.5pip (日足ATR 35pip相当)
+- **SL/TP**: SL=ATR×1.0 (~40pip), TP=ATR×1.5 (~60pip), MIN_RR=1.5
+- **ボーナス**: SMA20/50回帰 +0.5, キャリーバイアスSELL +0.5, 極値深度 +0.3, ADX<25 +0.3
+- **登録**: DaytradeEngine strategies list, DT_QUALIFIED, _RANGE_MR_STRATEGIES, _UNIVERSAL_SENTINEL, _EURGBP_DAILY_MR_WHITELIST
+- **稼働**: daytrade_eurgbp auto_start=True (v6.6 False→復帰), Sentinel 0.01lot
+- **EUR_GBP全停止バイパス**: `_EURGBP_DAILY_MR_WHITELIST = {"eurgbp_daily_mr"}` — 日足MRのみ通過
+
+### D3: MAX_SL_DIST (SL距離キャップ)
+- **問題**: 本番データで4外れ値(299.8pip bb_rsi等)がLOSS SL平均を1.8倍に膨張。SRベースSLに上限なし
+- **調査結果**: LOSS 90.6%のMFE=0 (一度も順行せず) → SL幅ではなくエントリー方向が根本原因
+- **対策**: MAX_SL_DIST — JPY/XAU: scalp=0.080/DT=0.200/1H=0.500, 非JPY: scalp=0.00080/DT=0.00200/1H=0.00500
+- **テレメトリ**: `⚠️ [SL_CAP] {entry_type}: SL距離 {old}→{new} (MAX_SL_DIST適用)`
+
+### LOSS SL調査結果 (D3根拠)
+- **表層**: LOSS SL mean=12.2pip vs WIN SL mean=6.7pip → 1.8倍差
+- **実態**: 4外れ値除去後 → median同一 (6.2pip)。SL幅は問題ではない
+- **核心**: MFE (Maximum Favorable Excursion) 90.6%=0 → エントリー即座に逆行、広いSLでも救えない
+- **結論**: SL最適化ではなくエントリー品質改善が本質 (D1 RANGEブロック + G1競合モードで対応)
+
 ## Changelog
 Full change history: [CHANGELOG.md](CHANGELOG.md)

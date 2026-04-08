@@ -46,13 +46,13 @@ class GbpDeepPullback(StrategyBase):
 
     # ── 深い押し目条件 (OR条件: いずれかを満たす) ──
     # Condition A: BB-2σタッチ
-    BB_PB_THRES_BUY  = 0.10     # BUY: BB %B ≤ 0.10 (下限10%以内)
-    BB_PB_THRES_SELL = 0.90     # SELL: BB %B ≥ 0.90 (上限10%以内)
+    BB_PB_THRES_BUY  = 0.20     # BUY: BB %B ≤ 0.20 (下限20%以内)  # v6.6: 0.10→0.20 (発火率2倍化, BT WR=73.7%にマージンあり)
+    BB_PB_THRES_SELL = 0.80     # SELL: BB %B ≥ 0.80 (上限20%以内)  # v6.6: 0.10→0.20 (発火率2倍化, BT WR=73.7%にマージンあり)
     # Condition B: EMA50付近
     EMA50_DIST_ATR   = 0.5      # EMA50からATR×0.5以内 = 「EMA50ゾーン」
 
     # ── プルバック検出ルックバック ──
-    PB_LOOKBACK      = 4        # 直近N本以内に深い押し目
+    PB_LOOKBACK      = 6        # 直近N本以内に深い押し目  # v6.6: 4→6 (パターン形成の時間的余裕を確保)
 
     # ── リバウンド確認 ──
     RSI_RECOVER_MIN  = 40       # BUY: RSI ≥ 40 (暴落中ではない)

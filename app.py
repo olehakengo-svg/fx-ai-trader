@@ -2347,60 +2347,85 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     #  dt_sr_channel_reversal, ema200_trend_reversal
     # ════════════════════════════════════════════════════════
     _dt_best = None  # DaytradeEngine最良候補（SL/TP流用に使用）
-    if not _sr_signal_found and signal == "WAIT":
-        from strategies.context import SignalContext as _DtCtx
-        from strategies.daytrade import DaytradeEngine as _DtEngine
+    # ── Competitive Mode: DaytradeEngine を常に評価し、高スコア候補で上書き ──
+    # 旧: fallback-only (signal=="WAIT" のときだけ評価)
+    # 新: 常に評価し、DTE候補のスコアが既存シグナルを上回れば上書き
+    from strategies.context import SignalContext as _DtCtx
+    from strategies.daytrade import DaytradeEngine as _DtEngine
 
-        # DT用SignalContext構築（ema_score + 蓄積reasonsを渡す）
-        # bar_time からセッション情報を導出（TNM/LSB等の時間帯フィルター用）
-        _dt_hour_utc = bar_time.hour if bar_time and hasattr(bar_time, 'hour') else 12
-        _dt_is_friday = bar_time.weekday() == 4 if bar_time and hasattr(bar_time, 'weekday') else False
-        _dt_prev_row = df.iloc[-2] if len(df) >= 2 else row
-        _dt_ctx = _DtCtx(
-            entry=entry, open_price=float(row["Open"]),
-            atr=atr, atr7=float(row["atr7"]) if "atr7" in row.index else atr,
-            ema9=ema9, ema21=ema21, ema50=ema50, ema200=ema200,
-            rsi=rsi, rsi5=float(row.get("rsi5", rsi)),
-            rsi9=float(row.get("rsi9", rsi)),
-            stoch_k=float(row.get("stoch_k", 50.0)),
-            stoch_d=float(row.get("stoch_d", 50.0)),
-            adx=adx, adx_pos=adx_p, adx_neg=adx_n,
-            macdh=macdh, macdh_prev=macdh_prev,
-            macdh_prev2=float(df["macd_hist"].iloc[-3]) if len(df) >= 3 else 0.0,
-            bbpb=bbpb,
-            bb_upper=float(row.get("bb_upper", entry + atr)),
-            bb_mid=float(row.get("bb_mid", entry)),
-            bb_lower=float(row.get("bb_lower", entry - atr)),
-            prev_close=float(_dt_prev_row["Close"]),
-            prev_open=float(_dt_prev_row["Open"]),
-            prev_high=float(_dt_prev_row["High"]),
-            prev_low=float(_dt_prev_row["Low"]),
-            ema_score=ema_score,
-            hour_utc=_dt_hour_utc,
-            is_friday=_dt_is_friday,
-            symbol=symbol, tf=tf,
-            is_jpy="JPY" in symbol.upper(),  # 実際のJPYペアのみ（XAU除外: TNM等のフィルター用）
-            pip_mult=_dt_pip_mult,
-            df=df, sr_levels=sr_levels,
-            layer0=layer0, layer1=layer1, regime=regime,
-            layer2=layer2,
-            layer3={**layer3, "dt_reasons": reasons},  # 蓄積reasonsを渡す
-            htf=htf_dt,
-            backtest_mode=backtest_mode, bar_time=bar_time,
-        )
-        _dt_engine = _DtEngine()
-        _dt_candidates = _dt_engine.evaluate_all(_dt_ctx)
-        _dt_best = _dt_engine.select_best(_dt_candidates)
-        if _dt_best:
+    # DT用SignalContext構築（ema_score + 蓄積reasonsを渡す）
+    # bar_time からセッション情報を導出（TNM/LSB等の時間帯フィルター用）
+    _dt_hour_utc = bar_time.hour if bar_time and hasattr(bar_time, 'hour') else 12
+    _dt_is_friday = bar_time.weekday() == 4 if bar_time and hasattr(bar_time, 'weekday') else False
+    _dt_prev_row = df.iloc[-2] if len(df) >= 2 else row
+    _dt_ctx = _DtCtx(
+        entry=entry, open_price=float(row["Open"]),
+        atr=atr, atr7=float(row["atr7"]) if "atr7" in row.index else atr,
+        ema9=ema9, ema21=ema21, ema50=ema50, ema200=ema200,
+        rsi=rsi, rsi5=float(row.get("rsi5", rsi)),
+        rsi9=float(row.get("rsi9", rsi)),
+        stoch_k=float(row.get("stoch_k", 50.0)),
+        stoch_d=float(row.get("stoch_d", 50.0)),
+        adx=adx, adx_pos=adx_p, adx_neg=adx_n,
+        macdh=macdh, macdh_prev=macdh_prev,
+        macdh_prev2=float(df["macd_hist"].iloc[-3]) if len(df) >= 3 else 0.0,
+        bbpb=bbpb,
+        bb_upper=float(row.get("bb_upper", entry + atr)),
+        bb_mid=float(row.get("bb_mid", entry)),
+        bb_lower=float(row.get("bb_lower", entry - atr)),
+        prev_close=float(_dt_prev_row["Close"]),
+        prev_open=float(_dt_prev_row["Open"]),
+        prev_high=float(_dt_prev_row["High"]),
+        prev_low=float(_dt_prev_row["Low"]),
+        ema_score=ema_score,
+        hour_utc=_dt_hour_utc,
+        is_friday=_dt_is_friday,
+        symbol=symbol, tf=tf,
+        is_jpy="JPY" in symbol.upper(),  # 実際のJPYペアのみ（XAU除外: TNM等のフィルター用）
+        pip_mult=_dt_pip_mult,
+        df=df, sr_levels=sr_levels,
+        layer0=layer0, layer1=layer1, regime=regime,
+        layer2=layer2,
+        layer3={**layer3, "dt_reasons": reasons},  # 蓄積reasonsを渡す
+        htf=htf_dt,
+        backtest_mode=backtest_mode, bar_time=bar_time,
+    )
+    _dt_engine = _DtEngine()
+    _dt_candidates = _dt_engine.evaluate_all(_dt_ctx)
+    _dt_best = _dt_engine.select_best(_dt_candidates)
+    if _dt_best:
+        # DTE候補のスコア（符号付き: BUY=+, SELL=-）
+        _dte_score = _dt_best.score * 0.5 if _dt_best.signal == "BUY" else -(_dt_best.score * 0.5)
+        if signal == "WAIT":
+            # ── 従来どおり: main が WAIT → DTE 候補をそのまま採用 ──
             signal = _dt_best.signal
             _dt_entry_type = _dt_best.entry_type
             _sr_signal_found = True
             reasons.extend(_dt_best.reasons)
-            # スコア調整: DT関数のscoreに戦略スコアを反映
-            if signal == "BUY":
+            if _dt_best.signal == "BUY":
                 score += _dt_best.score * 0.5
             else:
                 score -= _dt_best.score * 0.5
+        else:
+            # ── Competitive: main が非WAIT → スコア比較で勝てば上書き ──
+            _dte_abs = abs(_dte_score)
+            _main_abs = abs(score)
+            if _dte_abs > _main_abs:
+                import logging as _dte_logging
+                _dte_logging.getLogger(__name__).info(
+                    "[DTE] Override: %s score=%.2f > combined=%.2f (pair=%s)",
+                    _dt_best.entry_type, _dte_abs, _main_abs, symbol,
+                )
+                # 既存reasonsを保持しつつDTE理由を追加
+                reasons.append(f"[DTE] Override: {_dt_best.entry_type} score={_dte_abs:.2f} > combined={_main_abs:.2f} (pair={symbol})")
+                reasons.extend(_dt_best.reasons)
+                signal = _dt_best.signal
+                _dt_entry_type = _dt_best.entry_type
+                _sr_signal_found = True
+                score = _dte_score  # DTE候補のスコアで完全置換
+            else:
+                # DTE候補が負けた → SL/TP流用を防ぐため _dt_best をクリア
+                _dt_best = None
 
     if False and not _sr_signal_found and signal == "WAIT" and adx >= 12 and len(df) >= 10:  # LEGACY: replaced by DaytradeEngine
         # (1) 直近8本以内にEMAクロスが発生したか (5→8: プルバック完了後のウィンドウ切れ防止)
@@ -5531,6 +5556,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "gold_vol_break",                # XAU BB(2.5σ) breakout (RR 1:3)
                 "jpy_basket_trend",              # JPYバスケットPO順張り (USD/EUR JPY)
                 "squeeze_release_momentum",      # SRM v3: 2段フィルター, EUR/GBP限定 (v6.5)
+                "eurgbp_daily_mr",               # EUR/GBP Daily MR: 20日レンジ極値フェード (日足MR)
                 # DISABLED: ihs_neckbreak (2t EV≒0), dual_sr_breakout,
                 # dt_fib_reversal, dt_sr_channel_reversal, ema200_trend_reversal
             }
