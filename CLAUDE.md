@@ -86,6 +86,33 @@
 - **bb_rsi Option C (2026-04-04)**: USD/JPY ADX制限撤廃(トレンド中WR=60%), Death Valley(UTC 00-01,09,12-16)ブロック, Gold Hours(UTC 05-08,19-23)スコア+0.8(v6.3), ADX>=30スコア+0.6, Tier1 TP=2.2(v6.3)
 - **Confluence Scalp v2 (2026-04-07)**: Triple Confluence + MSS戦略。Session Gate(UTC 12-17) + MFE Guard(ATR/Spread>=10) + HTF Hard Block + 3理論族合意(EMA+RSI/BB+MACD-H) + CHoCH/MSB構造転換検出。Profit Extender(TP延伸+Climax Exit), Friction Minimizer(指値遅延エントリー)
 
+### v6.8 Quant Audit三段ロケット (2026-04-08) — 本番556t統計駆動リストラ
+**背景**: 本番556トレード分析で構造的問題を特定: (1) 25戦略中PF>1はbb_rsi_reversionのみ, (2) DT WR=29%(損益分岐WR=44%), (3) SIGNAL_REVERSE+Quick-Harvestで76.6pip利益漏出
+**手法**: BTではなく本番データのクオンツ分析に基づく三段階改革
+
+#### Stage 1: 戦略集中 — 出血戦略の停止
+- **fib_reversal → FORCE_DEMOTED**: 本番N=117 WR=39.6% PnL=-18.0pip PF<1 (BT WR=70%との乖離)
+- **macdh_reversal → FORCE_DEMOTED**: 本番N=86 WR=34.7% PnL=-40.6pip PF<1
+- **sr_fib_confluence × 3ペア → PAIR_PROMOTED全削除**: 本番N=40 WR=28.9% -92.8pip (BT WR=65%との乖離確定)
+- **_STRATEGY_LOT_BOOST**: fib_reversal 1.3x → 削除
+- **_PAIR_LOT_BOOST**: fib_reversal×USD_JPY, sr_fib_confluence×3ペア → 全削除
+- **残存アルファ**: bb_rsi_reversion×USD_JPY (N=123 WR=54.7% +54.8pip PF=1.13) のみPAIR_PROMOTED維持
+
+#### Stage 2: 利益漏出修復 — WIN trade の利益保護
+- **DT含み益保護 (`_check_signal_reverse`)**: 含み益 > ATR×0.3 のDTトレードをSIGNAL_REVERSE切断から保護
+  - 本番データ: DT SR WIN N=4 avg +2.5pip → TP_HIT想定 +15.3pip = 51.4pip逃し
+  - MFEトラッカー参照で含み益推定、閾値超えなら`return`でSR無効化
+  - テレメトリ: `[HOLD] DT含み益保護: profit > threshold → SIGNAL_REVERSE無効化`
+- **Quick-Harvest 0.70→0.85**: OANDA TP短縮率を緩和 → DT WIN 7件の19.2pip利益漏出を修復
+
+#### Stage 3: DT Power Session — 統計的有意な時間帯のみ許可
+- **`_DT_POWER_HOURS = {7, 8, 13, 14}`**: DT(15m)エントリーをUTC 7-8, 13-14に限定
+- **根拠**: 本番112t分析
+  - UTC 13-14: WR=65.2% +122.7pip (z=4.02, p<0.01, Bonferroni補正後も有意)
+  - UTC 7-8: WR=38% +18.0pip (London Open)
+  - 他時間帯: WR=19% -415.7pip (全出血源)
+- **位置**: USD_JPY DeadZone block の直後、spread filter の前
+
 ### v6.3 Sentinel対策 (2026-04-08) — 切除ではなく改善
 **設計思想**: 負EV戦略を切除(FORCE_DEMOTED)するのではなく、根本原因(摩擦、パラメータ、フィルター不足)を特定し具体的に改善する。
 - **ema_ribbon_ride**: Relaxed PO→**Strict PO(9>21>50)**, ADX 18→**25**, DI gap≥5必須, TP 1.5→**1.2**, UTC 0-6**完全ブロック**, BB幅≥0.35, 足実体≥40%
@@ -136,11 +163,11 @@
 - **Entry quality gate**: QUALIFIED_TYPES only, at least 1 reason required
 - **Strategy auto-promotion**: Demo N>=30 & EV≥1.0 -> OANDA promotion / EV<-0.5 -> demotion (every 10 trades, コスト補正1.0pip)
 - **BT昇格基準 (Phase 5)**: 摩擦込みEV > 1.0 AND N≥10 を「昇格候補」として出力
-- **Force-demoted (OANDA停止)**: sr_fib_confluence, ema_cross, inducement_ob, ema_ribbon_ride, h1_fib_reversal, pivot_breakout, ema_pullback — デモ継続・実弾停止 (Phase3: EMA系全滅確認)
+- **Force-demoted (OANDA停止)**: sr_fib_confluence, ema_cross, inducement_ob, ema_ribbon_ride, h1_fib_reversal, pivot_breakout, ema_pullback, fib_reversal, macdh_reversal — デモ継続・実弾停止 (v6.8: 556t本番Quant Audit確定)
 - **Pair-Specific Lifecycle (2026-04-07)**: `(strategy, instrument)` tuple-based granular control — v5.95 BT audit 結果に基づく通貨ペア別戦略管理
   - **_PAIR_DEMOTED**: bb_rsi×EUR_USD (WR=20% EV=-1.5), macdh×GBP_USD (WR=40% EV=-0.818) → エントリー完全停止
-  - **_PAIR_PROMOTED**: sr_fib_confluence×USD_JPY/EUR_USD/GBP_USD, **bb_rsi_reversion×USD_JPY (v6.3)** → FORCE_DEMOTED/SENTINEL bypass
-  - **_PAIR_LOT_BOOST**: fib_reversal×USD_JPY=1.5x, sr_fib_confluence×USD_JPY=1.3x (ペア特化ブースト、グローバルブーストより優先)
+  - **_PAIR_PROMOTED**: **bb_rsi_reversion×USD_JPY のみ** (v6.8: sr_fib_confluence×3ペア全削除, 本番WR=28.9%)
+  - **_PAIR_LOT_BOOST**: 空 (v6.8: fib_reversal×USD_JPY, sr_fib_confluence×3ペア全削除)
   - **_UNIVERSAL_SENTINEL**: stoch_trend_pullback → 全モードでSentinel化 (Scalp限定→全モード拡張)
   - **_PAIR_SR_THRESHOLD**: USD_JPY=1.5 (デフォルト2.0→緩和、SR品質が高いため)
   - **_LIMIT_ONLY_SCALP**: GBP_USD → scalp成行注文禁止、指値のみ (RT friction=3.06pip対策)
@@ -150,12 +177,13 @@
   - **_LIMIT_EXPIRE_CD_SEC (v6.1)**: 180s → GBP_USD指値失効後の追っかけ禁止
   - **_is_promoted() v4**: Bridge → PAIR_DEMOTED → PAIR_PROMOTED → FORCE_DEMOTED → auto_demotion → allow
 - **Elite Track (2026-04-07)**: gbp_deep_pullback=2.0x, turtle_soup/orb_trap/htf_false_breakout/trendline_sweep/london_ny_swing=1.5x
-- **Legacy boost**: sr_break_retest, mtf_reversal_confluence → 1.3x, fib_reversal=1.3x (global default)
+- **Legacy boost**: sr_break_retest, mtf_reversal_confluence → 1.3x
 - **Scalp Sentinel**: bb_rsi/fib/macdh/vol_momentum等7戦略 → 1000units固定(0.01lot)、データ収集専用 (v6.3: bb_rsi USD_JPYはPAIR_PROMOTED bypass)
 - **Rolling EV Monitor (v6.3)**: `_check_rolling_ev()` — EV急落検出(drop≥0.2 & EV<-0.3)→自動アラートログ
 - **Equity Curve Protector**: DD>5%(50pip)→全ロット50%縮小、DD回復(2.5%以下)→自動解除
 - **ATR Trailing Stop**: Tier1=ATR*0.8→BE, Tier2=ATR*1.5→Trail at price-ATR*0.5 (MFE逃し救済+64.7p推定)
 - **Session×Pair filter**: EUR_GBP全停止(WR=11%), EUR_USD Tokyo(UTC0-7)/Late_NY(UTC17+)停止
+- **v6.8 DT Power Session**: UTC 7-8, 13-14 のみ許可 (他時間帯 WR=19% -415.7pip → 全ブロック)
 - **SIGNAL_REVERSE min hold**: scalp 180→300s (ノイズ循環断切)
 
 ## Confluence Scalp v2 Architecture (2026-04-07)
@@ -212,6 +240,7 @@
 - **結果**: OANDA実効RR = 0.8 → 損益分岐WR = 55.6% (戦える水準)
 - **Telemetry**: `[RANGE_EXIT] Quick-Harvest bypassed — BB_mid TP preserved ×1.0`
 - **既存免除**: `_QUICK_HARVEST_EXEMPT` (gbp_deep_pullback×GBP_USD) はそのまま維持
+- **v6.8 Quick-Harvest緩和**: `_QUICK_HARVEST_MULT` 0.70→**0.85** (DT WIN 7件の19.2pip利益漏出修復)
 
 ### Phase 1 Design Notes
 - `_is_range_mr` flag: computed once (from Phase 2 variables), shared across TP override, SL widening, RR floor
@@ -324,6 +353,7 @@
 - **SR詳細ログ**: `[SR] Score: +2.50 | ADX: 28.3 | Conf: 65 | Trend_Mismatch: True | L1: bull | Type: sr_fib`
 - **抑制ログ**: `🚫 SR抑制（スコア不足）` / `🚫 SR抑制（レンジ相場）` — フィルター発動理由を明示
 - **BT同期**: Scalp BT + DT BT にも同一フィルター(score>=2.0 + ADX>20)を適用済み
+- **v6.8 DT含み益保護**: daytrade/daytrade_1h で含み益 > ATR×0.3 の場合 SIGNAL_REVERSE を無効化 → TP/SLに委ねる
 
 ### OANDA Position Sync
 - **Demo -> OANDA sync**: Orphan positions (demo CLOSED, OANDA OPEN) detected every 5s and auto-closed

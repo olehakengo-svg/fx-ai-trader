@@ -2458,6 +2458,18 @@ class DemoTrader:
             return
 
         # ══════════════════════════════════════════════════════════════
+        # ── v6.8: DT Power Session — UTC 7-8, 13-14 のみ許可 ──
+        # 本番112t分析: UTC 13-14 WR=65.2% +122.7pip (z=4.02, p<0.01)
+        #              UTC 7-8   WR=38%  +18.0pip  (London Open)
+        #              他時間帯  WR=19%  -415.7pip (全出血源)
+        # Bonferroni多重比較補正後も有意 (z>2.63)
+        # ══════════════════════════════════════════════════════════════
+        _DT_POWER_HOURS = {7, 8, 13, 14}
+        if _base_mode == "daytrade" and _utc_hour not in _DT_POWER_HOURS:
+            _block(f"dt_session(UTC{_utc_hour},outside_power_hours)")
+            return
+
+        # ══════════════════════════════════════════════════════════════
         # ── SL狩り対策E1: スプレッドフィルター ──
         # 異常スプレッド時はSL狩りの前兆 → エントリー見送り
         # USD/JPY通常0.2-0.4pip, 閾値1.2pip(3倍)
@@ -3312,6 +3324,29 @@ class DemoTrader:
         except Exception:
             pass
 
+        # ── v6.8: DT含み益保護 — 含み益 > ATR×0.3 のWINトレードをSR切断から保護 ──
+        # 本番データ: DT SIGNAL_REVERSE WIN N=4 avg +2.5pip → TP_HIT想定 +15.3pip = 51.4pip逃し
+        # MFEトラッカーを参照して含み益を推定
+        _base_mode_sr2 = _get_base_mode(mode)
+        if _base_mode_sr2 in ("daytrade", "daytrade_1h"):
+            _entry_price_sr = trade.get("entry_price", 0) or 0
+            _mt_sr = self._mafe_tracker.get(trade_id)
+            if _mt_sr and _entry_price_sr > 0:
+                if direction == "BUY":
+                    _current_favorable = current_price - _entry_price_sr
+                else:
+                    _current_favorable = _entry_price_sr - current_price
+                # ATR推定: entry_atrがあれば使用、なければMAFEから推定
+                _sr_atr = self._entry_atr.get(trade_id, 0)
+                _profit_threshold = _sr_atr * 0.3 if _sr_atr > 0 else 0.0003  # fallback: 3pip
+                if _current_favorable > _profit_threshold:
+                    self._add_log(
+                        f"[HOLD] DT含み益保護: {direction} {trade_id[:8]} "
+                        f"profit={_current_favorable:.5f} > threshold={_profit_threshold:.5f} "
+                        f"→ SIGNAL_REVERSE無効化"
+                    )
+                    return  # 含み益トレードを保護 — TP/SLに委ねる
+
         close_reason = None
 
         # ── SR判定: 方向反転 + confidence閾値 ──
@@ -3683,11 +3718,15 @@ class DemoTrader:
     # Phase1: sr_fib_confluence, ema_cross, inducement_ob (2026-04-05)
     # Phase2: ema_ribbon_ride(EV=-2.75), h1_fib_reversal(EV=-4.18), pivot_breakout(EV=-8.56) (2026-04-07, 448t監査)
     # Phase3: ema_pullback(WR=19%, EV=-0.77, EMA系3戦略全滅) (2026-04-07, 461t構造分析)
+    # Phase4 (v6.8 Quant Audit — 556t本番データ): N≥30で負PF確定の4戦略を停止
+    # bb_rsi_reversion のみ正PF(1.13) → 他全てOANDA停止、Demo Sentinel継続
     _FORCE_DEMOTED = {
         "sr_fib_confluence", "ema_cross", "inducement_ob",
         "ema_ribbon_ride", "h1_fib_reversal", "pivot_breakout",
         "ema_pullback",
-        "lin_reg_channel", "trendline_sweep", "dual_sr_bounce",  # 本番WR=0% N≥2 → dead
+        "lin_reg_channel", "trendline_sweep", "dual_sr_bounce",
+        "fib_reversal",      # v6.8: N=117 WR=39.6% PnL=-18.0 PF<1 → OANDA停止
+        "macdh_reversal",    # v6.8: N=86 WR=34.7% PnL=-40.6 PF<1 → OANDA停止
     }
 
     # ── Elite Track: 摩擦モデルv2 BT + v5.95統合BT監査 ──
@@ -3700,7 +3739,7 @@ class DemoTrader:
         "htf_false_breakout": 1.5,         # EUR: EV=0.614 / GBP: EV=0.034 (14d)
         # REMOVED: trendline_sweep → FORCE_DEMOTED (本番WR=0% N=2 -29.8pip)
         "london_ny_swing": 1.5,            # EUR: EV=2.251, WR=100%, N=2
-        "fib_reversal": 1.3,               # NEW: Scalp WR=70.2% EV=+0.426 (全ペア14d)
+        # REMOVED: fib_reversal → FORCE_DEMOTED (本番N=117 WR=39.6% PnL=-18.0, BT乖離)
         # === Legacy ===
         "sr_break_retest": 1.3,            # GBP WR=80% EV=+0.705 (14d)
         "mtf_reversal_confluence": 1.3,    # EV +1.49 (448t監査)
@@ -3731,22 +3770,16 @@ class DemoTrader:
     }
 
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
-    # v6.2: sr_fib_confluence を EUR_USD / GBP_USD でも復帰 (BT EV+確認済み)
-    # v6.3: bb_rsi_reversion USD_JPY 復帰 (Option C: WR=61.3% EV=+0.173, N=181)
+    # v6.8: sr_fib_confluence PAIR_PROMOTED全削除 (本番N=40 WR=28.9% -92.8pip, BT乖離確定)
     _PAIR_PROMOTED = {
-        ("sr_fib_confluence", "USD_JPY"),   # WR=76.9% EV=+0.470 (14d BT)
-        ("sr_fib_confluence", "EUR_USD"),   # WR=63.4% EV=+0.223 (55d BT)
-        ("sr_fib_confluence", "GBP_USD"),   # WR=68.8% EV=+0.414 (55d BT)
-        ("bb_rsi_reversion", "USD_JPY"),    # v6.3: Option C WR=61.3% EV=+0.173 (7d BT, N=181)
+        ("bb_rsi_reversion", "USD_JPY"),    # v6.3: 本番N=123 WR=54.7% +54.8pip 唯一の正PFアルファ
     }
 
     # ペア別ロットブースト: PAIR_LOT_BOOST > _STRATEGY_LOT_BOOST (優先)
-    # v6.2: 復帰ペアは1.0x (ブーストなし観察) — sentinel bypass のため登録
+    # v6.8: fib_reversal/sr_fib_confluence 全削除 (本番データで負PF確定)
     _PAIR_LOT_BOOST = {
-        ("fib_reversal", "USD_JPY"): 1.5,       # Scalp最強 WR=86.7% EV=+0.848
-        ("sr_fib_confluence", "USD_JPY"): 1.3,   # DT柱 WR=76.9% EV=+0.470
-        ("sr_fib_confluence", "EUR_USD"): 1.0,   # 復帰ペア — 観察 (1.0x=ブーストなし)
-        ("sr_fib_confluence", "GBP_USD"): 1.0,   # 復帰ペア — 観察 (1.0x=ブーストなし)
+        # REMOVED: fib_reversal×USD_JPY → FORCE_DEMOTED (本番 WR=39.6%)
+        # REMOVED: sr_fib_confluence×3ペア → PAIR_PROMOTED削除 (本番 WR=28.9%)
     }
 
     # 全モードSentinel: scalp以外にも適用される戦略Sentinel
@@ -3790,7 +3823,7 @@ class DemoTrader:
         "daytrade_1h_eur",           # EUR_USD 1H: 未検証
         "daytrade_eurgbp",           # EUR_GBP DT: OANDA遮断
     })
-    _QUICK_HARVEST_MULT = 0.70      # OANDA TP = demo TP × 0.70
+    _QUICK_HARVEST_MULT = 0.85      # v6.8: 0.70→0.85 (DT WIN 7件の19.2pip利益漏出修復)
     _QUICK_HARVEST_EXEMPT = frozenset({
         ("gbp_deep_pullback", "GBP_USD"),   # 高WR戦略は全TP許可
     })
