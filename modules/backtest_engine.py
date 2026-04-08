@@ -463,12 +463,33 @@ class BacktestEngine:
             if dd > actual_mdd:
                 actual_mdd = dd
 
+        # ── EV CI 信頼性評価 ──
+        _ev_ci = _ci(sim_evs)
+        _wr_ci = _ci(sim_wrs)
+        _ev_ci_width = _ev_ci["ci_high"] - _ev_ci["ci_low"]
+        _ev_crosses_zero = (_ev_ci["ci_low"] <= 0 <= _ev_ci["ci_high"])
+        _n = len(trades)
+
+        # 統計的有意性判定:
+        #   SIGNIFICANT: CI下限 > 0 (正のエッジが統計的に確認)
+        #   INSUFFICIENT: N < 30 かつ CI が0を跨ぐ (データ不足、判定保留)
+        #   NEGATIVE: CI上限 < 0 (負のエッジが統計的に確認)
+        #   INCONCLUSIVE: N >= 30 かつ CI が0を跨ぐ (エッジが弱い or 存在しない)
+        if _ev_ci["ci_low"] > 0:
+            _ev_verdict = "SIGNIFICANT"
+        elif _ev_ci["ci_high"] < 0:
+            _ev_verdict = "NEGATIVE"
+        elif _n < 30:
+            _ev_verdict = "INSUFFICIENT"
+        else:
+            _ev_verdict = "INCONCLUSIVE"
+
         return {
             "n_sims": n_sims,
-            "n_trades": len(trades),
+            "n_trades": _n,
             "ci_level": ci_level,
-            "ev": _ci(sim_evs),
-            "win_rate": _ci(sim_wrs),
+            "ev": _ev_ci,
+            "win_rate": _wr_ci,
             "max_dd": _ci(sim_mdds),
             "profit_factor": _ci(sim_pfs),
             "actual": {
@@ -479,12 +500,15 @@ class BacktestEngine:
                     / len(outcomes) * 100, 1),
             },
             # 実績MaxDD vs シミュレーション中央値の比較
-            # 実績がP95より悪い = "運が悪かった" (本来はもっと良い)
-            # 実績がP5より良い = "運が良かった" (本来はもっと悪い)
             "mdd_luck_assessment": (
                 "UNLUCKY" if actual_mdd > sorted(sim_mdds)[int(0.95 * n_sims)]
                 else "LUCKY" if actual_mdd < sorted(sim_mdds)[int(0.05 * n_sims)]
                 else "NORMAL"),
+            # EV信頼性メタデータ (Sentinel昇格判定に使用)
+            "ev_verdict": _ev_verdict,
+            "ev_ci_width": round(_ev_ci_width, 4),
+            "ev_crosses_zero": _ev_crosses_zero,
+            "n_required_for_significance": max(0, 30 - _n),
         }
 
     # ══════════════════════════════════════════════════════
