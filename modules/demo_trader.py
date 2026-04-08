@@ -3984,6 +3984,7 @@ class DemoTrader:
         "lin_reg_channel", "trendline_sweep", "dual_sr_bounce",
         "fib_reversal",      # v6.8: N=117 WR=39.6% PnL=-18.0 PF<1 → OANDA停止
         "macdh_reversal",    # v6.8: N=86 WR=34.7% PnL=-40.6 PF<1 → OANDA停止
+        "sr_break_retest",   # v7.0: N=2 EV=-21.4 PnL=-42.8 → 1件で全利益消失クラス
     }
 
     # ── Elite Track: 摩擦モデルv2 BT + v5.95統合BT監査 ──
