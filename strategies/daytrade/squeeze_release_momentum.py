@@ -50,12 +50,12 @@ class SqueezeReleaseMomentum(StrategyBase):
     MAX_SQUEEZE_BARS = 40         # 40本超 = デッドマーケット排除
 
     # ── Trigger: Release + Breakout ──
-    BBPB_BUY_THRES = 0.80        # BB上方離脱
-    BBPB_SELL_THRES = 0.20       # BB下方離脱
-    BODY_RATIO_MIN = 0.35        # 実体/レンジ比率 (ヒゲ抜け排除)
+    BBPB_BUY_THRES = 0.75        # BB上方離脱 (v2: 0.80→0.75, 発火率+48%)
+    BBPB_SELL_THRES = 0.25       # BB下方離脱 (v2: 0.20→0.25)
+    BODY_RATIO_MIN = 0.30        # 実体/レンジ比率 (v2: 0.35→0.30, ヒゲ許容拡大)
 
     # ── Momentum: ADX + MACD-H ──
-    ADX_MIN = 18                  # トレンド開始
+    ADX_MIN = 15                  # トレンド開始 (v2: 18→15, SQUEEZE脱出直後ADXは低い)
     ADX_RISE_THRES = 2.0          # ADX急上昇 (KSB準拠)
 
     # ── Freshness: 前足BB外排除 ──
@@ -71,7 +71,7 @@ class SqueezeReleaseMomentum(StrategyBase):
     MIN_RR = 1.5                  # 最低RR
 
     # ── Bar Range (偽BK排除) ──
-    BAR_RANGE_ATR_MIN = 1.3       # バーレンジ >= ATR×1.3
+    BAR_RANGE_ATR_MIN = 0.8       # バーレンジ >= ATR×0.8 (v2: 1.3→0.8, 15m足は1バーATR超え稀)
 
     # ── Spread Guard ──
     ATR_SPREAD_MIN = 8            # ATR/Spread >= 8
@@ -137,8 +137,10 @@ class SqueezeReleaseMomentum(StrategyBase):
         if _prev_row is None:
             return None
         _prev_bb_width = float(_prev_row.get("bb_width", 0))
-        if _prev_bb_width <= 0 or ctx.bb_width <= _prev_bb_width:
-            return None  # BB拡大していない → Release未発生
+        # Release判定: BB幅が前足以上(>=) — 厳密な拡大(>)だとSQUEEZE末期の
+        # 微小変動でフィルタリングされすぎる。bbpb方向性で偽BKは別途排除。
+        if _prev_bb_width <= 0 or ctx.bb_width < _prev_bb_width:
+            return None  # BB縮小中 → Release未発生
 
         # ── 方向判定 (bbpb) ──
         _is_buy = ctx.bbpb > self.BBPB_BUY_THRES
