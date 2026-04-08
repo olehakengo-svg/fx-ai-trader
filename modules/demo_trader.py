@@ -79,6 +79,7 @@ MODE_CONFIG = {
         "instrument": "EUR_USD",
         "auto_start": True,
         "base_sl_pips": 3.5,
+        "active_hours_utc": (7, 10),  # v6.6: London Open限定 (07-09 WR=60%+, 他時間帯WR=13-17%)
     },
     "daytrade_eur": {
         "interval_sec": 30,
@@ -131,6 +132,7 @@ MODE_CONFIG = {
         "base_sl_pips": 15,
     },
     # ── EUR/GBP Daytrade (15m) — Phase3 水平展開 ──
+    # DISABLED: WR=12.5%, Spread/ATR=98.7%(1m)/43%(15m) — 構造的にエッジなし
     "daytrade_eurgbp": {
         "interval_sec": 30,
         "tf": "15m",
@@ -140,7 +142,7 @@ MODE_CONFIG = {
         "icon": "📊🇪🇺🇬🇧",
         "symbol": "EURGBP=X",
         "instrument": "EUR_GBP",
-        "auto_start": True,
+        "auto_start": False,
         "base_sl_pips": 15,
     },
     # ── XAU/USD Scalp (1m) — gold_pips_hunter + vol_momentum + ema_ribbon ──
@@ -2422,6 +2424,10 @@ class DemoTrader:
             if _utc_hour >= 17:  # Late NY
                 _block(f"session_pair(EUR_USD_Late_NY,WR=10%)")
                 return
+        # v6.6: USD/JPY scalp UTC 11-12 デスゾーン (本番N=30 WR=26.9%, 流動性枯渇)
+        if instrument == "USD_JPY" and _utc_hour in (11, 12) and "scalp" in mode:
+            _block(f"session_pair(USD_JPY_DeadZone,UTC{_utc_hour},WR=27%)")
+            return
 
         # ══════════════════════════════════════════════════════════════
         # ── SL狩り対策E1: スプレッドフィルター ──
@@ -3634,17 +3640,18 @@ class DemoTrader:
         "sr_fib_confluence", "ema_cross", "inducement_ob",
         "ema_ribbon_ride", "h1_fib_reversal", "pivot_breakout",
         "ema_pullback",
+        "lin_reg_channel", "trendline_sweep", "dual_sr_bounce",  # 本番WR=0% N≥2 → dead
     }
 
     # ── Elite Track: 摩擦モデルv2 BT + v5.95統合BT監査 ──
     # 摩擦込みEV > 0.25 AND N >= 20 → ロットブースト
     _STRATEGY_LOT_BOOST = {
         # === Elite Track (Phase A-D BT verified + v5.95 統合監査) ===
-        "gbp_deep_pullback": 2.0,          # GBP: EV=4.747, WR=100%, N=3 (14d) — 最高エッジ
+        "gbp_deep_pullback": 1.3,          # 本番N<10 → 1.3x暫定 (N≥15で2.0x復帰)
         "turtle_soup": 1.5,                # GBP: EV=1.039, WR=79.3%, N=29
         "orb_trap": 1.5,                   # 全ペア: EUR WR=83% EV=+1.035 / GBP WR=83% EV=+1.117
         "htf_false_breakout": 1.5,         # EUR: EV=0.614 / GBP: EV=0.034 (14d)
-        "trendline_sweep": 1.5,            # GBP: EV=3.081, WR=100%, N=2
+        # REMOVED: trendline_sweep → FORCE_DEMOTED (本番WR=0% N=2 -29.8pip)
         "london_ny_swing": 1.5,            # EUR: EV=2.251, WR=100%, N=2
         "fib_reversal": 1.3,               # NEW: Scalp WR=70.2% EV=+0.426 (全ペア14d)
         # === Legacy ===
@@ -3673,6 +3680,7 @@ class DemoTrader:
     _PAIR_DEMOTED = {
         ("bb_rsi_reversion", "EUR_USD"),    # WR=20% EV=-1.500 (14d BT)
         ("macdh_reversal", "GBP_USD"),      # WR=40% EV=-0.818 (14d BT)
+        ("ema_cross", "USD_JPY"),           # 本番N=41 WR=34.1% -67.4pip
     }
 
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
@@ -3732,6 +3740,7 @@ class DemoTrader:
     _OANDA_MODE_BLOCKED = frozenset({
         "daytrade_eur",              # EUR_USD DT 15m: OANDA WR=29.2%
         "daytrade_1h_eur",           # EUR_USD 1H: 未検証
+        "daytrade_eurgbp",           # EUR_GBP DT: OANDA遮断
     })
     _QUICK_HARVEST_MULT = 0.70      # OANDA TP = demo TP × 0.70
     _QUICK_HARVEST_EXEMPT = frozenset({

@@ -481,5 +481,38 @@
 - New entries blocked 30 minutes before session end (`active_hours_utc[1]`)
 - Prevents MARKET_CLOSE forced-close losses (-2,506 JPY cumulative in pre-v6.5)
 
+## v6.6 攻めの戦略再構築 (2026-04-08)
+
+### 本番実績分析に基づく通貨ペア×戦略最適化
+- **分析基盤**: 556t本番データ + リアルタイムミクロ構造分析 (Spread/ATR比, Noise Ratio, Body/Range)
+- **直近50t**: WR=54.0% +76.4pip (初期50t: WR=44.0% -48.1pip → 改善中)
+
+### EUR/GBP 全停止 (構造的不可能)
+- Spread/1m ATR = **98.7%**, 15m ATR = **43.0%** → いかなるエッジも摩擦で消滅
+- Body/Range = 21.5% (純ノイズ), 本番WR=12.5% (N=8)
+- `daytrade_eurgbp` auto_start=False, _OANDA_MODE_BLOCKED追加, session_pair全停止
+
+### scalp_eur London Open限定 (v6.6)
+- **問題**: 全時間帯WR=37.9% (N=145) → -87.2pip出血
+- **発見**: UTC 07-09のみ **WR=60%+** (London Open, N=38), 他時間帯WR=13-17%
+- **対策**: `active_hours_utc = (7, 10)` — London Open 4時間に限定
+- EUR/USDのNoise Ratio=30.6 → MR戦略はLondon流動性が「壁」を提供する時間帯のみ有効
+
+### USD/JPY scalp デスゾーンブロック (v6.6)
+- **問題**: UTC 11-12 WR=26.9% (N=30) — 流動性枯渇時間帯
+- **対策**: `session_pair(USD_JPY_DeadZone)` ブロック追加 (scalpモードのみ)
+- 最強時間帯: UTC 00-01 WR=62.5%(仲値), UTC 13-14 WR=52.4%(NY)
+
+### 戦略停止 (本番WR=0%確認)
+- `_FORCE_DEMOTED` 追加: lin_reg_channel (N=3 WR=0% -37pip), trendline_sweep (N=2 WR=0% -30pip), dual_sr_bounce (N=3 WR=0% -13pip)
+- `_PAIR_DEMOTED` 追加: ema_cross × USD_JPY (N=41 WR=34.1% -67.4pip)
+- `_STRATEGY_LOT_BOOST` 変更: gbp_deep_pullback 2.0x→1.3x (本番N<10 → N≥15で復帰)
+
+### 確認済みアルファ (攻めの維持)
+- **bb_rsi × USD_JPY**: N=117 WR=54.7% +54.5pip — **統計的に有意な正のエッジ**
+- **stoch_trend_pullback × JPY**: N=15 WR=53.3% +18.0pip — Sentinel蓄積中
+- **sr_fib_confluence**: 本番WR=28.9% vs BT WR=64.3% — SLTP-Checkerバグ汚染の可能性大。Fidelity Cutoff後のクリーンデータで再評価
+- **GBP/USD DT戦略群**: BTで gbp_deep_pullback WR=73.7%, htf_fbk WR=72.5% — ボラ拡大中(+20.3%/w)、N蓄積待ち
+
 ## Changelog
 Full change history: [CHANGELOG.md](CHANGELOG.md)
