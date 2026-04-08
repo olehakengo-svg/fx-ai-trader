@@ -4025,6 +4025,9 @@ class DemoTrader:
         ("bb_rsi_reversion", "EUR_USD"),    # WR=20% EV=-1.500 (14d BT)
         ("macdh_reversal", "GBP_USD"),      # WR=40% EV=-0.818 (14d BT)
         ("ema_cross", "USD_JPY"),           # 本番N=41 WR=34.1% -67.4pip
+        ("bb_rsi_reversion", "GBP_USD"),    # v7.0: BT 7d WR=33.3% -32.1pip (PF=0.48)
+        ("bb_rsi_reversion", "EUR_JPY"),    # v7.0: BT 7d WR=50.0% -21.9pip (PF=0.41)
+        ("vol_surge_detector", "EUR_JPY"),  # v7.0: BT 7d WR=25.0% -36.5pip
     }
 
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
