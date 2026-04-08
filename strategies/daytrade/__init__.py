@@ -58,7 +58,7 @@ class DaytradeEngine:
             LondonNySwing(),               # London H/L Break → 前日H/L (EUR/GBP専用)
             GoldVolBreak(),                # XAU BB(2.5σ) ATR surge breakout (RR 1:3)
             JpyBasketTrend(),              # JPYバスケットPO順張り (USD/EUR JPY専用)
-            SqueezeReleaseMomentum(),      # SRM: Squeeze Release Momentum (Bollinger 2001)
+            SqueezeReleaseMomentum(),      # SRM: Squeeze Release Momentum v3 (2段フィルター, EUR/GBP限定)
             DtFibReversal(),
             DtSrChannelReversal(),
             Ema200TrendReversal(),

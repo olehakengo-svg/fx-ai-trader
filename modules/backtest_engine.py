@@ -367,13 +367,17 @@ class BacktestEngine:
         ci_level: float = 0.95,
     ) -> dict:
         """
-        Monte Carlo によるパフォーマンス信頼区間。
+        Monte Carlo + Bootstrap によるパフォーマンス信頼区間。
 
-        トレード順序をシャッフルして N 回シミュレーション →
-        WR/EV/MaxDD/PF の分布を構築 → CI を算出。
+        手法の使い分け (v6.5 bugfix):
+          EV / WR / PF: Bootstrap（復元抽出）→ サンプリング不確実性を測定
+            旧実装はシャッフル(順序入替)のみで、EV=sum/N が不変 → CI幅=0 バグ
+          MaxDD: シャッフル（順序入替）→ 順序リスクを測定
+            MaxDDは到着順序に依存するため、シャッフルが正しい
 
-        Purpose: 「たまたまこの順番だったから良い結果だった」リスクの定量化。
-        特に MaxDD は順序依存性が高い。
+        Purpose:
+          Bootstrap: 「このサンプルから推定される母集団のEV/WR/PFの不確実性」
+          Shuffle:   「たまたまこの順番だったから良いDD/悪いDDだった」リスク
         """
         if pnl_fn is None:
             def pnl_fn(t):
@@ -390,6 +394,7 @@ class BacktestEngine:
 
         rets = [pnl_fn(t) for t in trades]
         outcomes = [t.get("outcome", "LOSS") for t in trades]
+        n = len(rets)
 
         sim_evs = []
         sim_mdds = []
@@ -397,23 +402,32 @@ class BacktestEngine:
         sim_wrs = []
 
         for _ in range(n_sims):
-            # トレード順序をシャッフル
-            indices = list(range(len(rets)))
-            random.shuffle(indices)
-            shuffled_rets = [rets[i] for i in indices]
-            shuffled_outcomes = [outcomes[i] for i in indices]
+            # ── Bootstrap (復元抽出) → EV, WR, PF ──
+            # random.choices: 重複を許してN個をサンプリング
+            boot_idx = random.choices(range(n), k=n)
+            boot_rets = [rets[i] for i in boot_idx]
+            boot_outcomes = [outcomes[i] for i in boot_idx]
 
-            # EV
-            sim_evs.append(sum(shuffled_rets) / len(shuffled_rets))
+            # EV (Bootstrap)
+            sim_evs.append(sum(boot_rets) / len(boot_rets))
 
-            # WR
+            # WR (Bootstrap)
             sim_wrs.append(
-                sum(1 for o in shuffled_outcomes if o == "WIN")
-                / len(shuffled_outcomes) * 100)
+                sum(1 for o in boot_outcomes if o == "WIN")
+                / len(boot_outcomes) * 100)
 
-            # MaxDD (順序依存)
+            # PF (Bootstrap)
+            gp = sum(r for r in boot_rets if r > 0)
+            gl = abs(sum(r for r in boot_rets if r < 0))
+            sim_pfs.append(gp / gl if gl > 0 else 0)
+
+            # ── Shuffle (順序入替) → MaxDD ──
+            # MaxDDは到着順序に依存 → シャッフルで順序リスクを測定
+            shuf_idx = list(range(n))
+            random.shuffle(shuf_idx)
+            shuf_rets = [rets[i] for i in shuf_idx]
             eq, peak, mdd = 0.0, 0.0, 0.0
-            for r in shuffled_rets:
+            for r in shuf_rets:
                 eq += r
                 if eq > peak:
                     peak = eq
@@ -421,11 +435,6 @@ class BacktestEngine:
                 if dd > mdd:
                     mdd = dd
             sim_mdds.append(mdd)
-
-            # PF
-            gp = sum(r for r in shuffled_rets if r > 0)
-            gl = abs(sum(r for r in shuffled_rets if r < 0))
-            sim_pfs.append(gp / gl if gl > 0 else 0)
 
         # ── 信頼区間 ──
         alpha = (1 - ci_level) / 2

@@ -5530,7 +5530,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "london_ny_swing",               # London H/L Break (EUR/GBP)
                 "gold_vol_break",                # XAU BB(2.5σ) breakout (RR 1:3)
                 "jpy_basket_trend",              # JPYバスケットPO順張り (USD/EUR JPY)
-                "squeeze_release_momentum",      # SRM: Squeeze Release Momentum (v6.5)
+                "squeeze_release_momentum",      # SRM v3: 2段フィルター, EUR/GBP限定 (v6.5)
                 # DISABLED: ihs_neckbreak (2t EV≒0), dual_sr_breakout,
                 # dt_fib_reversal, dt_sr_channel_reversal, ema200_trend_reversal
             }

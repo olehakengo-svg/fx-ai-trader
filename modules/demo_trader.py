@@ -3689,7 +3689,8 @@ class DemoTrader:
 
     # 全モードSentinel: scalp以外にも適用される戦略Sentinel
     _UNIVERSAL_SENTINEL = {
-        "stoch_trend_pullback",   # 全ペアEVマイナス → 全モードSentinel (14d BT)
+        "stoch_trend_pullback",        # 全ペアEVマイナス → 全モードSentinel (14d BT)
+        "squeeze_release_momentum",    # SRM v3: BT N=24 WR=66.7% OOS未確定 → Sentinel蓄積 (2026-04-08)
     }
 
     # ペア別SR感度: SAR高ペアに早逃げ余地
