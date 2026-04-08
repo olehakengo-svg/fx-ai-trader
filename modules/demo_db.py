@@ -98,6 +98,10 @@ class DemoDB:
                     created_at      TEXT DEFAULT (datetime('now'))
                 );
 
+                -- v7.0: Shadow Tracking カラム (ALTER TABLE で後方互換追加)
+                -- is_shadow=1: フィルターバイパスで生成された観測専用トレード
+                -- 学習エンジン・自動昇格の評価対象外
+
                 CREATE TABLE IF NOT EXISTS learning_adjustments (
                     id              INTEGER PRIMARY KEY AUTOINCREMENT,
                     timestamp       TEXT DEFAULT (datetime('now')),
@@ -215,6 +219,12 @@ class DemoDB:
                 except Exception:
                     pass
 
+            # ── v7.0: Shadow Tracking カラム ──
+            try:
+                conn.execute("ALTER TABLE demo_trades ADD COLUMN is_shadow INTEGER DEFAULT 0")
+            except Exception:
+                pass
+
             # ── OANDA設定永続化テーブル ──
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS oanda_settings (
@@ -302,8 +312,11 @@ class DemoDB:
                    ema_conf: int = 0, sr_basis: float = 0.0,
                    mode: str = "", instrument: str = "USD_JPY",
                    signal_price: float = 0.0, spread_at_entry: float = 0.0,
-                   slippage_pips: float = 0.0, cooldown_elapsed: float = 0.0) -> str:
-        """Record a new trade open. Returns trade_id."""
+                   slippage_pips: float = 0.0, cooldown_elapsed: float = 0.0,
+                   is_shadow: bool = False) -> str:
+        """Record a new trade open. Returns trade_id.
+        is_shadow=True: フィルターバイパスで生成された観測専用トレード (v7.0 Shadow Tracking)
+        """
         trade_id = str(uuid.uuid4())[:12]
         now_str = datetime.now(timezone.utc).isoformat()
         with self._lock:
@@ -313,14 +326,16 @@ class DemoDB:
                         (trade_id, status, direction, entry_price, entry_time,
                          sl, tp, entry_type, confidence, tf, reasons, regime,
                          layer1_dir, score, ema_conf, sr_basis, mode, instrument,
-                         signal_price, spread_at_entry, slippage_pips, cooldown_elapsed)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                         signal_price, spread_at_entry, slippage_pips, cooldown_elapsed,
+                         is_shadow)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (trade_id, "OPEN", direction, entry_price, now_str,
                       sl, tp, entry_type, confidence, tf,
                       json.dumps(reasons or [], ensure_ascii=False),
                       json.dumps(regime or {}, ensure_ascii=False),
                       layer1_dir, score, ema_conf, sr_basis, mode, instrument,
-                      signal_price, spread_at_entry, slippage_pips, cooldown_elapsed))
+                      signal_price, spread_at_entry, slippage_pips, cooldown_elapsed,
+                      1 if is_shadow else 0))
                 conn.commit()
         return trade_id
 
@@ -870,6 +885,8 @@ class DemoDB:
             target_tf = tf_map.get(mode, "")
             closed = [t for t in closed if (t.get("mode") == mode) or
                       (not t.get("mode") and t.get("tf") == target_tf)]
+        # v7.0: Shadow Tracking — 観測専用トレードを学習対象から除外
+        closed = [t for t in closed if not t.get("is_shadow", 0)]
         # v6.4: Fidelity Cutoff — パラメータ変更後のトレードのみ評価
         if after_date:
             closed = [t for t in closed if t.get("entry_time", "") >= after_date]

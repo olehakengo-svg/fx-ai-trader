@@ -90,6 +90,16 @@
 ### v7.0 リスク管理基盤 (2026-04-08) — クオンツギャップ分析に基づく20項目改善
 **背景**: コードベース全体のクオンツギャップ分析で、リスク管理・実行品質・ポートフォリオ構築の20項目の欠落を特定
 
+#### Shadow Tracking — 観測データ最大化 (N蓄積加速)
+- **問題**: FORCE_DEMOTED/Sentinel戦略はOANDA未送信なのにPower Session/RANGE/セッションでデモ記録もブロック → データ収集の機会損失
+- **設計**: 3フィルター (Power Session, RANGE TF, active_hours_utc) で `_is_shadow_eligible` 戦略はバイパス → `is_shadow=True` でDB記録
+- **`_is_shadow_eligible`**: `_FORCE_DEMOTED` or `_SCALP_SENTINEL` or `_UNIVERSAL_SENTINEL` に含まれる戦略
+- **OANDA安全保証**: `_is_shadow=True` → `_is_promoted = False` で強制遮断。`_is_promoted()` ロジックは一切変更なし
+- **学習エンジン汚染防止**: `get_trades_for_learning()` で `is_shadow=1` を除外 → WR/EV/自動昇格に影響しない
+- **DB**: `demo_trades.is_shadow` カラム追加 (INTEGER DEFAULT 0)
+- **テレメトリ**: `[SHADOW] DT Power Session bypass`, `[SHADOW] DT RANGE bypass`, `[SHADOW] Session bypass`
+- **効果**: 観測トレード ~50/日 → ~90/日、DT N=50到達 10-15日 → 3-5日
+
 #### P0: 即対応（口座破綻リスク）
 - **Emergency Kill Switch**: `POST /api/emergency/kill` → 全モード停止 + OANDA全ポジション決済 + 永続フラグ(system_kv)。`POST /api/emergency/resume` (confirm=true必須)で復帰。ウォッチドッグ・自動再起動も完全停止
 - **SQLite自動バックアップ**: `demo_db.backup_database(keep_last=3)` — sqlite3.backup() API使用(WAL安全)。daily_review UTC 00:00で自動実行。`POST /api/db/backup` で手動トリガー可

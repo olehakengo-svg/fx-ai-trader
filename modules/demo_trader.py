@@ -2009,11 +2009,13 @@ class DemoTrader:
 
         # ── 時間帯フィルター (EUR/JPY等の限定稼働) ──
         # NOTE: datetime/timezone はモジュールレベルで import 済み (L12)
+        # v7.0: Shadow Tracking — 時間帯外でもシグナル計算を実行しデータ収集
         _active_hours = cfg.get("active_hours_utc")
+        _outside_active_hours = False
         if _active_hours is not None:
             _now_utc = datetime.now(timezone.utc)
             if not (_active_hours[0] <= _now_utc.hour <= _active_hours[1]):
-                return  # 稼働時間外はスキップ
+                _outside_active_hours = True  # 下流でshadow判定に使用
 
         # Import here to avoid circular imports
         from app import fetch_ohlcv, add_indicators, find_sr_levels
@@ -2297,6 +2299,19 @@ class DemoTrader:
         if _dir_filter and signal != _dir_filter:
             _block(f"direction_filter"); return
 
+        # ══════════════════════════════════════════════════════════════
+        # ── v7.0: Shadow Tracking — 観測データ最大化 ──
+        # FORCE_DEMOTED/Sentinel戦略は OANDA送信されない → フィルター緩和して
+        # デモデータを収集。is_shadow=True でマークし学習エンジンから除外。
+        # OANDA送信ロジック (_is_promoted) は一切変更しない。
+        # ══════════════════════════════════════════════════════════════
+        _is_shadow_eligible = (
+            entry_type in self._FORCE_DEMOTED
+            or entry_type in self._SCALP_SENTINEL
+            or entry_type in self._UNIVERSAL_SENTINEL
+        )
+        _is_shadow = False  # 実際にフィルターをバイパスした場合にTrueになる
+
         # ── 通貨ペア×モードクラス別ポジション制限 ──
         # scalp/DT/1H/swingが独立してポジションを持てる
         # scalp: 高頻度のため2本まで（シグナル方向転換に対応）
@@ -2321,6 +2336,16 @@ class DemoTrader:
             return  # WAITはカウントしない（大半がWAIT）
         if self._check_drawdown():
             _block("drawdown"); return
+
+        # ── v7.0: Shadow Tracking — active_hours_utc バイパス ──
+        if _outside_active_hours:
+            if _is_shadow_eligible:
+                _is_shadow = True
+                self._add_log(
+                    f"[SHADOW] Session bypass: {entry_type} {mode} (outside active_hours → shadow)"
+                )
+            else:
+                _block(f"session_hours(outside_active)"); return
 
         # ── v6.5: MARKET_CLOSE Entry Prevention (セッション終了30分前の新規エントリー禁止) ──
         # MARKET_CLOSE損失の構造対策: 保有中にセッション終了 → 含み損確定を防止
@@ -2416,13 +2441,20 @@ class DemoTrader:
         if (_base_mode == "daytrade"
                 and _regime_type_r == "RANGE"
                 and entry_type in _DT_TREND_STRATEGIES):
-            self._add_log(
-                f"[REGIME] DT RANGE blocked: {entry_type} (TF strategy in RANGE) | "
-                f"{signal} {instrument} | "
-                f"range_sub={_range_sub}"
-            )
-            _block(f"regime_range_dt_tf({entry_type})")
-            return
+            if _is_shadow_eligible:
+                _is_shadow = True
+                self._add_log(
+                    f"[SHADOW] DT RANGE bypass: {entry_type} (TF in RANGE → shadow) | "
+                    f"{signal} {instrument}"
+                )
+            else:
+                self._add_log(
+                    f"[REGIME] DT RANGE blocked: {entry_type} (TF strategy in RANGE) | "
+                    f"{signal} {instrument} | "
+                    f"range_sub={_range_sub}"
+                )
+                _block(f"regime_range_dt_tf({entry_type})")
+                return
 
         if confidence < self._params["confidence_threshold"]:
             _block(f"conf<{self._params['confidence_threshold']}(was:{confidence})"); return
@@ -2657,8 +2689,14 @@ class DemoTrader:
         if (_base_mode == "daytrade" and instrument == "USD_JPY"
                 and _utc_hour not in _DT_POWER_HOURS
                 and entry_type not in _DT_POWER_SESSION_EXEMPT):
-            _block(f"dt_session(UTC{_utc_hour},outside_power_hours)")
-            return
+            if _is_shadow_eligible:
+                _is_shadow = True
+                self._add_log(
+                    f"[SHADOW] DT Power Session bypass: {entry_type} UTC{_utc_hour} → shadow"
+                )
+            else:
+                _block(f"dt_session(UTC{_utc_hour},outside_power_hours)")
+                return
 
         # ══════════════════════════════════════════════════════════════
         # ── SL狩り対策E1: スプレッドフィルター ──
@@ -3176,6 +3214,7 @@ class DemoTrader:
             spread_at_entry=_spread_entry,
             slippage_pips=_slippage,
             cooldown_elapsed=_cd_elapsed,
+            is_shadow=_is_shadow,
         )
 
         # ── 建値ガード用: ATR保存 ──
@@ -3301,6 +3340,9 @@ class DemoTrader:
 
         # ── OANDA連携: 昇格済み戦略のみミラーリング + 実行監査 + 🔗ラベルログ ──
         _is_promoted = self._is_promoted(entry_type, instrument)
+        # ── v7.0: Shadow Tracking — OANDAには絶対に送信しない ──
+        if _is_shadow:
+            _is_promoted = False
         # ── v6.4 SHIELD: EUR_USD DT/1H OANDA遮断 (scalp継続) ──
         if _is_promoted and mode in self._OANDA_MODE_BLOCKED:
             self._add_log(f"[SHIELD] OANDA blocked: mode={mode}")
