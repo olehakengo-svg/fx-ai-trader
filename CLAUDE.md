@@ -49,6 +49,7 @@
 | Mode | TF | Interval | COOLDOWN | Status |
 |---|---|---|---|---|
 | scalp | 1m | 10s | 60s (1 bar, EXIT-based) | Active |
+| scalp_5m | 5m | 30s | 300s (1 bar, EXIT-based) | **Active** — Sentinel A/Bテスト (OANDA遮断) |
 | daytrade | 15m | 30s | 900s (1 bar, EXIT-based) | Active |
 | daytrade_1h | 1h | 60s | 3600s (EXIT-based) | **Active** — HourlyEngine v5.0 (KSB+DMB) |
 | scalp_eurjpy | 1m | 10s | 60s (EXIT-based) | **Active** — UTC 12-15限定, bb_rsi |
@@ -104,6 +105,14 @@
   - MFEトラッカー参照で含み益推定、閾値超えなら`return`でSR無効化
   - テレメトリ: `[HOLD] DT含み益保護: profit > threshold → SIGNAL_REVERSE無効化`
 - **Quick-Harvest 0.70→0.85**: OANDA TP短縮率を緩和 → DT WIN 7件の19.2pip利益漏出を修復
+
+#### Stage 3.5: Scalp 5m Sentinel ブランチ (A/Bテスト)
+- **`scalp_5m` モード追加**: tf=5m, period=5d, interval_sec=30, USD/JPY
+- **OANDA遮断**: `_OANDA_MODE_BLOCKED` に追加 → デモ記録のみ、実弾なし
+- **独立モードクラス**: `_get_base_mode("scalp_5m")` = `"scalp_5m"` → 1mとポジション/CD/SR全て分離
+- **BT根拠**: 5m 30d BT — 164t WR=65.9% EV=+0.195 (1m比 +0.347改善), MaxDD 3.2x低下, Sharpe符号反転
+- **構造的優位**: ノイズバー49.8%→3.4%, Spread/ATR 13.8%→5.2%
+- **判断基準**: N≥50到達後、1m vs 5m本番データ比較で移行判断
 
 #### Stage 3: DT Power Session — 統計的有意な時間帯のみ許可
 - **`_DT_POWER_HOURS = {7, 8, 13, 14}`**: DT(15m)エントリーをUTC 7-8, 13-14に限定

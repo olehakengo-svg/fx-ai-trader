@@ -118,6 +118,22 @@ MODE_CONFIG = {
         "base_sl_pips": 3.5,
         "active_hours_utc": (12, 15),  # UTC 12-15 only (London/NY overlap)
     },
+    # ── USD/JPY Scalp 5m — v6.8 Sentinel A/Bテスト ──
+    # 1mスキャルプと並行稼働。5m足のノイズ削減(49.8%→3.4%)とSpread/ATR改善(13.8%→5.2%)を本番検証
+    # BT: 164t WR=65.9% EV=+0.195 Sharpe=+0.138 (30d, 1m比 EV +0.347 改善)
+    # OANDA遮断 (Sentinel) → N≥50後に1m vs 5m本番データ比較で移行判断
+    "scalp_5m": {
+        "interval_sec": 30,       # 5m足に合わせた間隔 (1mの10sから緩和)
+        "tf": "5m",
+        "period": "5d",           # EMA200確保 (200本×5m=16.7h → 5d十分)
+        "signal_fn": "compute_scalp_signal",
+        "label": "スキャルプ5m",
+        "icon": "⚡5️⃣",
+        "symbol": "USDJPY=X",
+        "instrument": "USD_JPY",
+        "auto_start": True,
+        "base_sl_pips": 5.0,      # 5m ATR≈5.8pip → SL余裕確保
+    },
     # ── GBP/USD Daytrade (15m) — Phase3 水平展開 ──
     "daytrade_gbpusd": {
         "interval_sec": 30,
@@ -705,7 +721,7 @@ class DemoTrader:
                 restored = []
 
                 # 全モードを強制チェック（EUR含む）
-                _all_modes = ["scalp", "daytrade", "daytrade_1h", "swing",
+                _all_modes = ["scalp", "scalp_5m", "daytrade", "daytrade_1h", "swing",
                               "scalp_eur", "daytrade_eur", "daytrade_1h_eur",
                               "scalp_eurjpy", "rnb_usdjpy",
                               "daytrade_gbpusd", "daytrade_eurgbp"]
@@ -1042,6 +1058,7 @@ class DemoTrader:
         )
 
         # EUR/USD用MAX_HOLD追加
+        MAX_HOLD_SEC["scalp_5m"] = 3600     # 5m足: max 1h hold (12バー)
         MAX_HOLD_SEC["scalp_eur"] = 1800
         MAX_HOLD_SEC["scalp_eurjpy"] = 1800
         MAX_HOLD_SEC["daytrade_eur"] = 28800
@@ -1894,7 +1911,7 @@ class DemoTrader:
             # 1m: WR=48.5%/-0.162, WR=46.7%/-0.023
             # 5m: WR=63.6%/+0.318, WR=78.4%/+0.722
             _5M_ONLY_STRATEGIES = {"macdh_reversal", "fib_reversal", "ema_pullback"}  # sr_channel_reversal除外(7d BTで赤字)
-            if mode in ("scalp", "scalp_eur", "scalp_eurjpy") and sig.get("signal") == "WAIT":
+            if mode in ("scalp", "scalp_eur", "scalp_eurjpy") and mode != "scalp_5m" and sig.get("signal") == "WAIT":
                 try:
                     df_5m = fetch_ohlcv(symbol, period="5d", interval="5m")
                     df_5m = add_indicators(df_5m)
@@ -2388,7 +2405,7 @@ class DemoTrader:
         last_ex = self._last_exit.get(mode)
         if last_ex:
             _ex_age = (datetime.now(timezone.utc) - last_ex["time"]).total_seconds()
-            _cooldown_sec = {"scalp": 60, "daytrade": 900, "daytrade_1h": 3600, "swing": 14400}.get(_base_mode, 60)
+            _cooldown_sec = {"scalp": 60, "scalp_5m": 300, "daytrade": 900, "daytrade_1h": 3600, "swing": 14400}.get(_base_mode, 60)
             if _ex_age < _cooldown_sec:
                 _block(f"cooldown({int(_ex_age)}s/{_cooldown_sec}s)"); return
 
@@ -2421,7 +2438,7 @@ class DemoTrader:
         # 同一通貨ペアでSL_HITが発生した場合、全戦略に短期クールダウン適用
         # scalp: 90s, DT: 180s（同価格帯の反復エントリーを防止）
         # ══════════════════════════════════════════════════════════════
-        _cascade_cd = {"scalp": 90, "daytrade": 90, "daytrade_1h": 300, "swing": 600}.get(_base_mode, 90)  # v6.6: 180→90s (GBP DT 15m bar間隔に合わせた短縮)
+        _cascade_cd = {"scalp": 90, "scalp_5m": 300, "daytrade": 90, "daytrade_1h": 300, "swing": 600}.get(_base_mode, 90)  # v6.6: 180→90s (GBP DT 15m bar間隔に合わせた短縮)
         _cascade_cutoff = datetime.now(timezone.utc) - timedelta(seconds=_cascade_cd)
         _recent_sl_same_inst = [h for h in self._sl_hit_history
                                 if h[0] > _cascade_cutoff and h[1] == instrument]
@@ -3822,6 +3839,7 @@ class DemoTrader:
         "daytrade_eur",              # EUR_USD DT 15m: OANDA WR=29.2%
         "daytrade_1h_eur",           # EUR_USD 1H: 未検証
         "daytrade_eurgbp",           # EUR_GBP DT: OANDA遮断
+        "scalp_5m",                  # v6.8: Sentinel A/Bテスト (N≥50後に判断)
     })
     _QUICK_HARVEST_MULT = 0.85      # v6.8: 0.70→0.85 (DT WIN 7件の19.2pip利益漏出修復)
     _QUICK_HARVEST_EXEMPT = frozenset({
