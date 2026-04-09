@@ -1,0 +1,41 @@
+name: Bug Check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'strategies/**/*.py'
+      - 'modules/**/*.py'
+      - 'app.py'
+  schedule:
+    - cron: '0 20 * * 0'   # 毎週日曜 JST 05:00（週次全量チェック）
+  workflow_dispatch:
+    inputs:
+      full:
+        description: '全戦略ファイルを審査する（push時は差分のみ）'
+        type: boolean
+        default: false
+
+jobs:
+  bug-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 5   # 直近5コミットのdiff取得に必要
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install flake8
+        run: pip install flake8
+      - name: Run bug check
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ "${{ github.event.inputs.full }}" = "true" ] || [ "${{ github.event_name }}" = "schedule" ]; then
+            python3 scripts/bug_check.py --full
+          else
+            python3 scripts/bug_check.py
+          fi

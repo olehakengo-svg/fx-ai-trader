@@ -5542,6 +5542,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             DT_QUALIFIED = {
                 # 2026-04-03 FXアナリストレビュー統廃合 (本番と統一)
                 "sr_fib_confluence",     # DT主力 (229t WR73% EV+0.50)
+                "ema_cross",             # EMAクロスリテスト (BT BT内で2確認必須の特別扱い)
                 # 2026-04-04 EUR/USD新戦略
                 "htf_false_breakout",    # FBF: 1H SR False Breakout Fade
                 "london_session_breakout",  # LSB: アジア→ロンドンブレイクアウト
