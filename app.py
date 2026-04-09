@@ -7943,13 +7943,15 @@ def _compute_scalp_signal_v1_legacy(df: pd.DataFrame, tf: str, sr_levels: list,
                 # 金曜東京セッションはWAITを返す
                 pass
             # BB Lower bounce + RSI oversold → BUY
-            elif bb_pband <= 0.08 and rsi_tok < 38:
+            # v7.0: 閾値緩和 0.08/0.92→0.15/0.85, RSI 38/62→40/60
+            # 東京レンジ相場で発火率を改善（旧条件はバンドタッチ必須で過度に厳格）
+            elif bb_pband <= 0.15 and rsi_tok < 40:
                 signal = "BUY"
-                score_tok = 2.5 + (38 - rsi_tok) * 0.05  # stronger RSI extreme = higher score
+                score_tok = 2.5 + (40 - rsi_tok) * 0.05  # stronger RSI extreme = higher score
             # BB Upper bounce + RSI overbought → SELL
-            elif bb_pband >= 0.92 and rsi_tok > 62:
+            elif bb_pband >= 0.85 and rsi_tok > 60:
                 signal = "SELL"
-                score_tok = 2.5 + (rsi_tok - 62) * 0.05
+                score_tok = 2.5 + (rsi_tok - 60) * 0.05
 
             if signal != "WAIT":
                 entry_tok = float(row["Close"])

@@ -117,7 +117,7 @@ MODE_CONFIG = {
         "instrument": "EUR_JPY",
         "auto_start": True,
         "base_sl_pips": 3.5,
-        "active_hours_utc": (12, 15),  # UTC 12-15 only (London/NY overlap)
+        "active_hours_utc": (0, 15),  # v7.0: UTC 0-15 (Tokyo+London+NY Overlap) — 東京カバレッジ拡大
     },
     # ── USD/JPY Scalp 5m — v6.8 Sentinel A/Bテスト ──
     # 1mスキャルプと並行稼働。5m足のノイズ削減(49.8%→3.4%)とSpread/ATR改善(13.8%→5.2%)を本番検証
@@ -2684,7 +2684,7 @@ class DemoTrader:
         # v7.0: tokyo_nakane_momentum (UTC 00:45-01:15) は仲値リバーサル
         #       戦略のため Power Session から除外 (Andersen 2003)
         # ══════════════════════════════════════════════════════════════
-        _DT_POWER_HOURS = {7, 8, 13, 14}
+        _DT_POWER_HOURS = {1, 2, 7, 8, 13, 14}  # v7.0: UTC 1-2追加 (東京DT カバレッジ拡大)
         _DT_POWER_SESSION_EXEMPT = {"tokyo_nakane_momentum"}
         if (_base_mode == "daytrade" and instrument == "USD_JPY"
                 and _utc_hour not in _DT_POWER_HOURS
