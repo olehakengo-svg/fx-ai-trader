@@ -2338,6 +2338,14 @@ class DemoTrader:
             _block("drawdown"); return
 
         # ── v7.0: Shadow Tracking — active_hours_utc バイパス ──
+        # NOTE: _outside_active_hours は _tick() のローカル変数のため
+        #       _tick_entry() 内で再計算が必要 (スコープ分離)
+        _active_hours_cfg = cfg.get("active_hours_utc")
+        _outside_active_hours = False
+        if _active_hours_cfg is not None:
+            _now_ah = datetime.now(timezone.utc)
+            if not (_active_hours_cfg[0] <= _now_ah.hour <= _active_hours_cfg[1]):
+                _outside_active_hours = True
         if _outside_active_hours:
             if _is_shadow_eligible:
                 _is_shadow = True
