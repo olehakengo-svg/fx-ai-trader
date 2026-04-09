@@ -167,9 +167,14 @@
 
 #### Stage 4: DT RANGE MR戦略 — 構造的空白の解消
 - **問題**: RANGE=47.5%の時間帯にDT MR戦略がゼロ → TF戦略全ブロックで何もできない
-- **dt_bb_rsi_mr** (`strategies/daytrade/dt_bb_rsi_mr.py`, 311行): Scalp bb_rsi_reversionの15m足移植
-  - BB%B < 0.20 / > 0.80 + RSI14 < 35 / > 65 + Stoch確認 + 反転足
-  - ADX < 25 限定 (RANGE/WIDE_RANGE専用)
+- **dt_bb_rsi_mr** (`strategies/daytrade/dt_bb_rsi_mr.py`): Scalp bb_rsi_reversionの15m足移植
+  - **v7.0 閾値緩和 (N=0発火率改善)**:
+    - BB%B: 0.20/0.80 → **0.30/0.70** (バンド下位/上位30%で十分な偏り)
+    - RSI14: 40/60 → **45/55** (15m RSI14は安定、45で方向確認十分)
+    - Stoch: K>D strict → **K>D OR K>prev_K** (クロス瞬間→反転方向で許容)
+    - Extreme Tier1: BB%B 0.05/0.95→**0.10/0.90**, RSI 25/75→**30/70**
+  - ADX < 25 限定 (RANGE/WIDE_RANGE専用) — 維持
+  - 反転足確認 (Close vs Open) — 維持
   - SL=ATR×1.2, TP=ATR×1.5, MIN_RR=1.2, MAX_HOLD=8バー(2h)
   - 対象: USD/JPY, EUR/USD, GBP/USD
   - **Sentinel** (`_UNIVERSAL_SENTINEL`): 0.01lot観測、N≥30後に再評価

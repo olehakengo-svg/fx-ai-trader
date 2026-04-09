@@ -7,8 +7,9 @@ DT BB RSI Mean-Reversion — 15分足ボリンジャーバンド + RSI 平均回
     平均(BB中心線)への回帰が統計的に期待される。
   - RSI (Wilder 1978): Relative Strength Index 14期間。
     RSI < 35 = 売られすぎ → 反発期待、RSI > 65 = 買われすぎ → 反落期待。
-  - Stochastic Oscillator (Lane 1984): ゴールデン/デッドクロスによる
-    短期モメンタム転換の確認。過売り/過買い圏でのクロスは反転の信頼性を高める。
+  - Stochastic Oscillator (Lane 1984): ゴールデン/デッドクロスまたは
+    反転方向への推移による短期モメンタム転換の確認。v7.0で厳密なクロス要件を
+    緩和し、K上昇中/下落中でも許容 (15m足でクロス瞬間は1日0-2回と希少)。
 
 設計思想:
   - Scalp bb_rsi_reversion (1m, PF=1.13) のコアロジックを15m足に移植。
@@ -51,19 +52,23 @@ class DtBbRsiMR(StrategyBase):
     # ── BB%B閾値 (Bollinger 1992) ──
     # BB%B < BUY閾値: 下限バンド接近 → BUY (平均回帰)
     # BB%B > SELL閾値: 上限バンド接近 → SELL (平均回帰)
-    BBPB_BUY_THRES  = 0.20      # BB%B BUY閾値 (下位20%)
-    BBPB_SELL_THRES = 0.80      # BB%B SELL閾値 (上位80%)
-    BBPB_EXTREME_BUY  = 0.05    # 極端ゾーン (Tier1): 高確信
-    BBPB_EXTREME_SELL = 0.95    # 極端ゾーン (Tier1): 高確信
+    # v7.0: 0.20/0.80→0.30/0.70 (N=0発火率改善, バンド下位30%で十分な偏り)
+    BBPB_BUY_THRES  = 0.30      # BB%B BUY閾値 (下位30%)
+    BBPB_SELL_THRES = 0.70      # BB%B SELL閾値 (上位70%)
+    BBPB_EXTREME_BUY  = 0.10    # v7.0: 0.05→0.10 極端ゾーン (Tier1)
+    BBPB_EXTREME_SELL = 0.90    # v7.0: 0.95→0.90 極端ゾーン (Tier1)
 
     # ── RSI閾値 (Wilder 1978) ──
     # 15m足ではRSI14を使用 (Scalp版のRSI5より長周期で安定)
-    RSI_BUY_THRES  = 40         # RSI14 BUY閾値 (売られすぎ側)
-    RSI_SELL_THRES = 60         # RSI14 SELL閾値 (買われすぎ側)
-    RSI_EXTREME_BUY  = 25       # 極端RSI (Tier1)
-    RSI_EXTREME_SELL = 75       # 極端RSI (Tier1)
+    # v7.0: 40/60→45/55 (15m RSI14は安定しており45でも方向バイアス確認として十分)
+    RSI_BUY_THRES  = 45         # RSI14 BUY閾値 (売られすぎ側)
+    RSI_SELL_THRES = 55         # RSI14 SELL閾値 (買われすぎ側)
+    RSI_EXTREME_BUY  = 30       # v7.0: 25→30 極端RSI (Tier1)
+    RSI_EXTREME_SELL = 70       # v7.0: 75→70 極端RSI (Tier1)
 
     # ── Stochastic閾値 (Lane 1984) ──
+    # v7.0: クロスオーバー要件を緩和 (K>D strict → K>D OR K上昇中)
+    # 厳密なクロスは15m足で1日0-2回のみ → 反転方向に動いていれば十分
     STOCH_BUY_THRES  = 40       # StochK BUY閾値 (過売り圏)
     STOCH_SELL_THRES = 60       # StochK SELL閾値 (過買い圏)
     STOCH_EXTREME_BUY  = 20     # 極端Stoch (Tier1)
@@ -92,9 +97,9 @@ class DtBbRsiMR(StrategyBase):
         条件:
           1. ペアフィルター: USD/JPY, EUR/USD, GBP/USD のみ
           2. レジームフィルター: ADX < 25 (RANGE/WIDE_RANGE)
-          3. BB%B 極端値: BUY < 0.20 / SELL > 0.80
-          4. RSI14 過売り/過買い: BUY < 40 / SELL > 60
-          5. Stochastic整合: BUY: K < 40 & K > D / SELL: K > 60 & K < D
+          3. BB%B 偏位: BUY ≤ 0.30 / SELL ≥ 0.70 (v7.0: 0.20/0.80→緩和)
+          4. RSI14 方向確認: BUY < 45 / SELL > 55 (v7.0: 40/60→緩和)
+          5. Stoch反転: BUY: K<40 & (K>D OR K↑) / SELL: K>60 & (K<D OR K↓)
           6. 反転足確認: BUY: Close > Open / SELL: Close < Open
           7. RR >= 1.2
 
@@ -129,12 +134,22 @@ class DtBbRsiMR(StrategyBase):
         # SL最低距離フロア (JPY/XAU vs 非JPY)
         _min_sl = 0.030 if ctx.pip_mult == 100 else 0.00030
 
+        # v7.0: prev_stoch_k — Stochクロスオーバー緩和用
+        # 厳密なK>D(クロス瞬間)ではなく、K上昇中(反転方向)でも許容
+        _prev_stoch_k = (
+            float(ctx.df.iloc[-2].get("stoch_k", 50))
+            if ctx.df is not None and len(ctx.df) >= 2
+            else 50.0
+        )
+
         # ── BUY判定 ──
-        # BB%B < 0.20 (BB下限接近) + RSI14 < 40 + StochK < 40 & K > D (ゴールデンクロス)
+        # BB%B ≤ 0.30 (BB下限接近) + RSI14 < 45 + StochK < 40
+        # + Stoch反転確認: K > D (ゴールデンクロス) OR K上昇中 (K > prev_K)
         if (ctx.bbpb <= self.BBPB_BUY_THRES
                 and ctx.rsi < self.RSI_BUY_THRES
                 and ctx.stoch_k < self.STOCH_BUY_THRES
-                and ctx.stoch_k > ctx.stoch_d):
+                and (ctx.stoch_k > ctx.stoch_d
+                     or ctx.stoch_k > _prev_stoch_k)):
 
             # ── 反転足確認: 現在バー陽線 (Close > Open) ──
             # 15m足の実体で反転方向を確認 (ノイズ低減)
@@ -157,9 +172,13 @@ class DtBbRsiMR(StrategyBase):
                 f"— 平均回帰 (Bollinger 1992)"
             )
             reasons.append(f"✅ RSI14売られすぎ({ctx.rsi:.1f}<{self.RSI_BUY_THRES}) (Wilder 1978)")
+            _stoch_cross = ctx.stoch_k > ctx.stoch_d
+            _stoch_rising = ctx.stoch_k > _prev_stoch_k
             reasons.append(
-                f"✅ Stochゴールデンクロス(K={ctx.stoch_k:.0f}>D={ctx.stoch_d:.0f}) "
-                f"— 過売り圏反転 (Lane 1984)"
+                f"✅ Stoch反転確認(K={ctx.stoch_k:.0f}"
+                f"{'>D=' + str(int(ctx.stoch_d)) if _stoch_cross else ''}"
+                f"{'↑prev=' + str(int(_prev_stoch_k)) if _stoch_rising else ''}"
+                f") — 過売り圏反転 (Lane 1984)"
             )
             reasons.append(
                 f"✅ 反転足確認: Close={ctx.entry:.5f} > Open={ctx.open_price:.5f}"
@@ -172,7 +191,7 @@ class DtBbRsiMR(StrategyBase):
                 reasons.append(f"✅ Stochクロスギャップ大({_gap:.1f}>2.0)")
 
             if _tier1:
-                reasons.append("🎯 Tier1: 極端条件（高確信 — BB%B<0.05, RSI<25, Stoch<20）")
+                reasons.append("🎯 Tier1: 極端条件（高確信 — BB%B<0.10, RSI<30, Stoch<20）")
 
             # MACD方向ボーナス (モメンタム転換確認)
             if ctx.macdh > 0:
@@ -189,11 +208,13 @@ class DtBbRsiMR(StrategyBase):
             tp = ctx.entry + _tp_dist
 
         # ── SELL判定 ──
-        # BB%B > 0.80 (BB上限接近) + RSI14 > 60 + StochK > 60 & K < D (デッドクロス)
+        # BB%B ≥ 0.70 (BB上限接近) + RSI14 > 55 + StochK > 60
+        # + Stoch反転確認: K < D (デッドクロス) OR K下落中 (K < prev_K)
         elif (ctx.bbpb >= self.BBPB_SELL_THRES
                 and ctx.rsi > self.RSI_SELL_THRES
                 and ctx.stoch_k > self.STOCH_SELL_THRES
-                and ctx.stoch_k < ctx.stoch_d):
+                and (ctx.stoch_k < ctx.stoch_d
+                     or ctx.stoch_k < _prev_stoch_k)):
 
             # ── 反転足確認: 現在バー陰線 (Close < Open) ──
             if ctx.entry >= ctx.open_price:
@@ -215,9 +236,13 @@ class DtBbRsiMR(StrategyBase):
                 f"— 平均回帰 (Bollinger 1992)"
             )
             reasons.append(f"✅ RSI14買われすぎ({ctx.rsi:.1f}>{self.RSI_SELL_THRES}) (Wilder 1978)")
+            _stoch_cross = ctx.stoch_k < ctx.stoch_d
+            _stoch_falling = ctx.stoch_k < _prev_stoch_k
             reasons.append(
-                f"✅ Stochデッドクロス(K={ctx.stoch_k:.0f}<D={ctx.stoch_d:.0f}) "
-                f"— 過買い圏反転 (Lane 1984)"
+                f"✅ Stoch反転確認(K={ctx.stoch_k:.0f}"
+                f"{'<D=' + str(int(ctx.stoch_d)) if _stoch_cross else ''}"
+                f"{'↓prev=' + str(int(_prev_stoch_k)) if _stoch_falling else ''}"
+                f") — 過買い圏反転 (Lane 1984)"
             )
             reasons.append(
                 f"✅ 反転足確認: Close={ctx.entry:.5f} < Open={ctx.open_price:.5f}"
@@ -230,7 +255,7 @@ class DtBbRsiMR(StrategyBase):
                 reasons.append(f"✅ Stochクロスギャップ大({_gap:.1f}>2.0)")
 
             if _tier1:
-                reasons.append("🎯 Tier1: 極端条件（高確信 — BB%B>0.95, RSI>75, Stoch>80）")
+                reasons.append("🎯 Tier1: 極端条件（高確信 — BB%B>0.90, RSI>70, Stoch>80）")
 
             # MACD方向ボーナス
             if ctx.macdh < 0:
