@@ -105,6 +105,10 @@
 - **P1: tokyo_bb 閾値緩和**: BB %B `0.08/0.92 → 0.15/0.85`, RSI `38/62 → 40/60` — バンドタッチ必須の過度に厳格な条件を緩和し東京レンジ相場での発火率改善
 - **P2: DT Power Session 東京拡大**: `{7,8,13,14} → {1,2,7,8,13,14}` — UTC 1-2追加で東京DTカバレッジ確保。Shadow Trackingで未検証戦略も観測データ蓄積
 
+#### 毒セグメント除去 + Fast Exit対策 (v7.0)
+- **UTC 05 デスゾーン**: 全scalp モードでUTC 05をブロック (本番N=5 WR=0% -14.9pip, 流動性枯渇)
+- **Spread/SL Gate**: エントリー直前にspread/SL距離比を検査。35%超でブロック。Fast Exit(<2min SL_HIT)の主因であるスプレッド過大時の即死を防止 (本番N=11 -30.7pip)
+
 #### P0: 即対応（口座破綻リスク）
 - **Emergency Kill Switch**: `POST /api/emergency/kill` → 全モード停止 + OANDA全ポジション決済 + 永続フラグ(system_kv)。`POST /api/emergency/resume` (confirm=true必須)で復帰。ウォッチドッグ・自動再起動も完全停止
 - **SQLite自動バックアップ**: `demo_db.backup_database(keep_last=3)` — sqlite3.backup() API使用(WAL安全)。daily_review UTC 00:00で自動実行。`POST /api/db/backup` で手動トリガー可

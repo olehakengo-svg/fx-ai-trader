@@ -2672,6 +2672,10 @@ class DemoTrader:
         if instrument == "USD_JPY" and _utc_hour in (11, 12) and "scalp" in mode:
             _block(f"session_pair(USD_JPY_DeadZone,UTC{_utc_hour},WR=27%)")
             return
+        # v7.0: UTC 05 デスゾーン (本番N=5 WR=0% -14.9pip, 流動性枯渇)
+        if _utc_hour == 5 and "scalp" in mode:
+            _block(f"session_dead_zone(UTC05,WR=0%)")
+            return
 
         # ══════════════════════════════════════════════════════════════
         # ── v7.0: DT Power Session — USD/JPY のみ UTC 7-8, 13-14 限定 ──
@@ -3194,6 +3198,18 @@ class DemoTrader:
         _last_ex = self._last_exit.get(mode)
         if _last_ex:
             _cd_elapsed = round((datetime.now(timezone.utc) - _last_ex["time"]).total_seconds(), 1)
+
+        # ══════════════════════════════════════════════════════════════
+        # ── v7.0: Spread/SL Gate — Fast Exit 根本対策 ──
+        # スプレッドがSL距離の35%超 → エッジ不足で即死リスク
+        # 本番データ: Fast Exit(<2min) N=11 PnL=-30.7pip の主因
+        # ══════════════════════════════════════════════════════════════
+        _sl_dist_pips = abs(current_price - sl) * _pip_m_mon
+        if _sl_dist_pips > 0 and _spread_entry > 0:
+            _spread_sl_ratio = _spread_entry / _sl_dist_pips
+            if _spread_sl_ratio > 0.35:
+                _block(f"spread_sl_gate({_spread_entry:.1f}/{_sl_dist_pips:.1f}pip={_spread_sl_ratio:.0%}>35%)")
+                return
 
         trade_id = self._db.open_trade(
             direction=signal,
