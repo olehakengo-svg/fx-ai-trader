@@ -33,6 +33,7 @@ from strategies.scalp.vol_surge import VolSurgeDetector
 from strategies.scalp.london_shrapnel import LondonShrapnel
 from strategies.scalp.gold_pips import GoldPipsHunter
 from strategies.scalp.confluence_scalp import ConfluenceScalp
+from strategies.scalp.ema_trend_scalp import EmaTrendScalp
 
 
 class ScalperEngine:
@@ -59,6 +60,7 @@ class ScalperEngine:
             LondonShrapnel(),       # London/NY異常ヒゲ反転 (EUR/GBP専用)
             GoldPipsHunter(),       # XAU/USD 5m方向同期包み足 (Gold専用)
             ConfluenceScalp(),     # Triple Confluence + MSS (UTC 12-17, HTF Hard Block)
+            EmaTrendScalp(),       # EMA21プルバック順張り (ADX>=20, BB中間帯, bb_rsiのGAP補完)
             EngulfingBB(),          # enabled=False
             ThreeBarReversal(),     # enabled=False
             SrChannelReversal(),    # enabled=False

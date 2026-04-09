@@ -1,5 +1,11 @@
 # FX AI Trader - Claude Development Notes
 
+## 4原則（絶対遵守）
+1. **マーケット開いてる間は攻める** — トレード機会を逃すのが最大の敵
+2. **デスゾーン = スプレッド異常（動的検出）のみ** — Spread/SL Gateで動的防御
+3. **静的時間ブロックは使わない** — UTC固定のブロックは禁止。市場条件で判断
+4. **攻撃は最大の防御** — 防御フィルターの積み上げよりデータ蓄積を優先
+
 ## Production Environment
 - **URL**: https://fx-ai-trader.onrender.com
 - **API**: https://fx-ai-trader.onrender.com/api/demo/status

@@ -4995,6 +4995,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "gold_pips_hunter",       # XAU/USD 5m同期包み足 (Gold専用)
                 # 2026-04-07 Confluence Scalp
                 "confluence_scalp",       # Triple Confluence + MSS (UTC 12-17)
+                # 2026-04-09 EMA Trend Scalp
+                "ema_trend_scalp",        # EMA21プルバック順張り (ADX>=20, bb_rsiのGAP補完)
                 # DISABLED: v_reversal, trend_rebound, ihs_neckbreak
                 # DISABLED: sr_touch_bounce, rsi_divergence_sr, v1互換6種
             }

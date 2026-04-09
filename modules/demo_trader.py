@@ -4064,6 +4064,7 @@ class DemoTrader:
         "squeeze_release_momentum",    # SRM v3: BT N=24 WR=66.7% OOS未確定 → Sentinel蓄積 (2026-04-08)
         "eurgbp_daily_mr",             # EUR/GBP Daily MR: 日足レンジ極値フェード — BT未実施, Sentinel蓄積
         "dt_bb_rsi_mr",                # DT BB RSI MR: 15m BB+RSI14 平均回帰 — 新規, Sentinel蓄積
+        "ema_trend_scalp",             # EMA Trend Scalp: EMA21プルバック順張り — 新規, Sentinel蓄積
     }
 
     # ペア別SR感度: SAR高ペアに早逃げ余地
