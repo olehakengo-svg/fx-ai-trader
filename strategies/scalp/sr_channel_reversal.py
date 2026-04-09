@@ -7,7 +7,7 @@ from typing import Optional
 class SrChannelReversal(StrategyBase):
     name = "sr_channel_reversal"
     mode = "scalp"
-    enabled = False  # DISABLED: BT結果未検証
+    enabled = True   # v7.0: Sentinel再有効化 — デモデータ蓄積で検証
 
     # チューナブルパラメータ
     sr_proximity = 0.3    # ATR倍率

@@ -28,7 +28,7 @@ from typing import Optional
 class LondonCloseReversal(StrategyBase):
     name = "london_close_reversal"
     mode = "daytrade"
-    enabled = False  # DISABLED: 15m BT 44t avg EV≈0 (N不足, edge不十分)
+    enabled = True   # v7.0: Sentinel再有効化 — デモデータ蓄積で再検証
 
     # ══════════════════════════════════════════════════
     # パラメータ定数

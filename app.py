@@ -4996,9 +4996,14 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 # 2026-04-07 Confluence Scalp
                 "confluence_scalp",       # Triple Confluence + MSS (UTC 12-17)
                 # 2026-04-09 EMA Trend Scalp
-                "ema_trend_scalp",        # EMA21プルバック順張り (ADX>=20, bb_rsiのGAP補完)
-                # DISABLED: v_reversal, trend_rebound, ihs_neckbreak
-                # DISABLED: sr_touch_bounce, rsi_divergence_sr, v1互換6種
+                "ema_trend_scalp",        # EMA21プルバック順張り (ADX>=15, bb_rsiのGAP補完)
+                # 2026-04-09 v7.0: 全戦略Sentinel再有効化 — デモデータ蓄積優先
+                "v_reversal",             # 急落/急騰反転 (Cont 2001)
+                "trend_rebound",          # 強トレンド逆張りリバウンド
+                "ema_pullback",           # EMAプルバック反発
+                "sr_channel_reversal",    # SR/チャネルバウンス反発
+                "engulfing_bb",           # 包み足+BB極端
+                "three_bar_reversal",     # 3本足反転パターン
             }
             BLOCKED_TYPES = {"unknown", "momentum", "wait"}
 
@@ -5560,8 +5565,12 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "squeeze_release_momentum",      # SRM v3: 2段フィルター, EUR/GBP限定 (v6.5)
                 "eurgbp_daily_mr",               # EUR/GBP Daily MR: 20日レンジ極値フェード (日足MR)
                 "dt_bb_rsi_mr",                  # DT BB RSI MR: 15m BB%B+RSI14+Stoch 平均回帰 (Bollinger 1992)
-                # DISABLED: ihs_neckbreak (2t EV≒0), dual_sr_breakout,
-                # dt_fib_reversal, dt_sr_channel_reversal, ema200_trend_reversal
+                # 2026-04-09 v7.0: 全戦略Sentinel再有効化 — デモデータ蓄積優先
+                "dt_fib_reversal",               # DT Fib反発 — Sentinel蓄積
+                "dt_sr_channel_reversal",         # DT SR/チャネル反発 — Sentinel蓄積
+                "ema200_trend_reversal",          # EMA200ブレイクリテスト — Sentinel蓄積
+                "post_news_vol",                  # ニュース後ボラ — Sentinel再検証
+                # DISABLED: ihs_neckbreak (2t EV≒0), dual_sr_breakout
             }
             DT_BLOCKED = {"unknown", "wait"}
 

@@ -7,7 +7,7 @@ from typing import Optional
 class EngulfingBB(StrategyBase):
     name = "engulfing_bb"
     mode = "scalp"
-    enabled = False  # DISABLED: BT EV negative
+    enabled = True   # v7.0: Sentinel再有効化 — デモデータ蓄積で再検証
 
     # チューナブルパラメータ
     bbpb_buy = 0.30

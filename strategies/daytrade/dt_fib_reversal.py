@@ -8,7 +8,7 @@ from typing import Optional
 class DtFibReversal(StrategyBase):
     name = "dt_fib_reversal"
     mode = "daytrade"
-    enabled = False  # 廃止: QUALIFIED_TYPES除外済み、フォールバック未発火
+    enabled = True   # v7.0: Sentinel再有効化 — デモデータ蓄積で再検証
 
     # チューナブルパラメータ
     lookback = 80

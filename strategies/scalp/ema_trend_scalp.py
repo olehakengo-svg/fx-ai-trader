@@ -46,12 +46,13 @@ class EmaTrendScalp(StrategyBase):
     # ══════════════════════════════════════════════════
 
     # ── トレンド確認 ──
-    ADX_MIN = 20            # ADX ≥ 20: トレンド存在の最低条件
+    ADX_MIN = 15            # ADX ≥ 15: トレンド存在の最低条件 (v7.0: 20→15, EUR ADX<20が64.2%)
 
     # ── EMA プルバックゾーン (ATR7倍率) ──
     # 価格がEMA21から±この範囲内 = プルバック中と判定
-    PB_ABOVE_MULT = 0.5     # EMA21 + ATR7×0.5 まで (上)
-    PB_BELOW_MULT = 0.3     # EMA21 - ATR7×0.3 まで (下)
+    # v7.0: ゾーン2倍拡大 (カバレッジ 41%→69% JPY)
+    PB_ABOVE_MULT = 1.0     # EMA21 + ATR7×1.0 まで (上) (v7.0: 0.5→1.0)
+    PB_BELOW_MULT = 0.7     # EMA21 - ATR7×0.7 まで (下) (v7.0: 0.3→0.7)
 
     # ── RSI5フィルター ──
     RSI_BUY_MIN = 30        # BUY: RSI下限 (深い過売りはbb_rsi領域)

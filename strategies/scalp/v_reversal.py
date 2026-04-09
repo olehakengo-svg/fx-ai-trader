@@ -7,7 +7,7 @@ from typing import Optional
 class VReversal(StrategyBase):
     name = "v_reversal"
     mode = "scalp"
-    enabled = False  # 廃止: bb_rsi統合予定、サンプル5t、QUALIFIED_TYPES除外済み
+    enabled = True   # v7.0: Sentinel再有効化 — デモデータ蓄積優先
 
     # チューナブルパラメータ（緩和済み）
     min_drop_pip = 5.0     # 最低急落/急騰幅(pip)（8→5緩和）

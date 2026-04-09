@@ -2687,19 +2687,11 @@ class DemoTrader:
         # v7.0: tokyo_nakane_momentum (UTC 00:45-01:15) は仲値リバーサル
         #       戦略のため Power Session から除外 (Andersen 2003)
         # ══════════════════════════════════════════════════════════════
-        _DT_POWER_HOURS = {1, 2, 7, 8, 13, 14}  # v7.0: UTC 1-2追加 (東京DT カバレッジ拡大)
-        _DT_POWER_SESSION_EXEMPT = {"tokyo_nakane_momentum"}
-        if (_base_mode == "daytrade" and instrument == "USD_JPY"
-                and _utc_hour not in _DT_POWER_HOURS
-                and entry_type not in _DT_POWER_SESSION_EXEMPT):
-            if _is_shadow_eligible:
-                _is_shadow = True
-                self._add_log(
-                    f"[SHADOW] DT Power Session bypass: {entry_type} UTC{_utc_hour} → shadow"
-                )
-            else:
-                _block(f"dt_session(UTC{_utc_hour},outside_power_hours)")
-                return
+        # v7.0: DT Power Session 撤去 — 原則#3「静的時間ブロック禁止」準拠
+        # BT 30d検証: Power Session(WR=56.6% -5.53ATR) vs Non-Power(WR=66.1% +24.02ATR)
+        # → 利益を出している時間帯をブロックし赤字時間帯のみ許可していた。Spread/SL Gateに委ねる
+        # _DT_POWER_HOURS = {1, 2, 7, 8, 13, 14}  # REMOVED
+        pass
 
         # ══════════════════════════════════════════════════════════════
         # ── SL狩り対策E1: スプレッドフィルター ──
@@ -4065,6 +4057,18 @@ class DemoTrader:
         "eurgbp_daily_mr",             # EUR/GBP Daily MR: 日足レンジ極値フェード — BT未実施, Sentinel蓄積
         "dt_bb_rsi_mr",                # DT BB RSI MR: 15m BB+RSI14 平均回帰 — 新規, Sentinel蓄積
         "ema_trend_scalp",             # EMA Trend Scalp: EMA21プルバック順張り — 新規, Sentinel蓄積
+        # v7.0: 全disabled戦略をSentinel再有効化 — デモデータ蓄積優先 (4原則#4)
+        "v_reversal",                  # 急落/急騰反転 — BT未検証, Sentinel蓄積
+        "ema_pullback",                # EMAプルバック — WR=51.1%, Sentinel蓄積
+        "trend_rebound",               # 強トレンド逆張り — 学術的エッジ疑義, Sentinel検証
+        "sr_channel_reversal",         # SR/チャネル反発 — BT未検証, Sentinel蓄積
+        "engulfing_bb",                # 包み足+BB — BT EV neg, Sentinel再検証
+        "three_bar_reversal",          # 3本足反転 — BT未検証, Sentinel蓄積
+        "london_close_reversal",       # ロンドンクローズ反転 — EV≈0, Sentinel再検証
+        "dt_fib_reversal",             # DT Fib反発 — 未検証, Sentinel蓄積
+        "dt_sr_channel_reversal",      # DT SR/チャネル反発 — 未検証, Sentinel蓄積
+        "ema200_trend_reversal",       # EMA200ブレイクリテスト — 未検証, Sentinel蓄積
+        "post_news_vol",               # ニュース後ボラ — WR=42.4%, Sentinel再検証
     }
 
     # ペア別SR感度: SAR高ペアに早逃げ余地

@@ -41,7 +41,7 @@ class PostNewsVol(StrategyBase):
     # DISABLED: 15m足のみではニューススパイクとランダムボラの区別不可
     # N=92 WR=42.4% EV=-0.069 — エッジ不在
     # 経済カレンダーAPI統合後に再評価 (2026-04-05)
-    enabled = False
+    enabled = True   # v7.0: Sentinel再有効化 — デモデータ蓄積で再検証
 
     # ══════════════════════════════════════════════════
     # パラメータ

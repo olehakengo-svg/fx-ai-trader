@@ -30,8 +30,8 @@ class BBRsiReversion(StrategyBase):
 
     # チューナブルパラメータ
     adx_max = 25          # EUR/USD用: レンジ判定上限（学術水準 ADX≥25はトレンド領域）
-    bbpb_buy = 0.25       # BB%B BUY閾値
-    bbpb_sell = 0.75      # BB%B SELL閾値
+    bbpb_buy = 0.30       # BB%B BUY閾値 (v7.0: 0.25→0.30 カバレッジ+7.8%)
+    bbpb_sell = 0.70      # BB%B SELL閾値 (v7.0: 0.75→0.70 カバレッジ+5.2%)
     rsi5_buy = 45         # RSI5 BUY閾値
     rsi5_sell = 55        # RSI5 SELL閾値
     stoch_buy = 45        # Stoch BUY閾値
