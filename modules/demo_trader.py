@@ -2995,7 +2995,12 @@ class DemoTrader:
             # v6.7: DT SL最大距離キャップ (外れ値防止)
             # 本番データ: 4外れ値(299.8pip等)がLOSS SL平均を1.8倍に膨張
             # SRベースSLに上限がないため、15m DTで日足SR距離のSLが発生
-            if _is_jpy_or_xau:
+            # v7.5: XAU専用キャップ追加 (JPY共有の0.200=$0.20はXAU価格帯($4800)に不適)
+            # XAU DT ATR≈$12, SL=ATR*1.2≈$14 → 100で外れ値のみキャップ
+            _is_xau_inst = "XAU" in instrument.upper() if instrument else False
+            if _is_xau_inst:
+                MAX_SL_DIST = {"scalp": 50.0, "daytrade": 100.0, "daytrade_1h": 200.0}.get(_base_mode, 100.0)
+            elif _is_jpy_or_xau:
                 MAX_SL_DIST = {"scalp": 0.080, "daytrade": 0.200, "daytrade_1h": 0.500}.get(_base_mode, 0.200)
             else:
                 MAX_SL_DIST = {"scalp": 0.00080, "daytrade": 0.00200, "daytrade_1h": 0.00500}.get(_base_mode, 0.00200)
