@@ -157,7 +157,12 @@ class GoldTrendMomentum(StrategyBase):
         reasons = []
         _min_sl = ctx.atr * self.SL_ATR_MULT
 
-        if _ema_bull and ctx.entry > ctx.open_price and ctx.entry > ctx.ema9:
+        # extreme_momentum時はentry>ema9を免除: EMA9が価格に追随してギリギリ上に来ることで
+        # 機会を逃すケースが多発。ADX/DI確認済みならEMA9条件は重複フィルター。
+        _bull_ema9_ok = ctx.entry > ctx.ema9 or _extreme_momentum
+        _bear_ema9_ok = ctx.entry < ctx.ema9 or _extreme_momentum
+
+        if _ema_bull and ctx.entry > ctx.open_price and _bull_ema9_ok:
             signal = "BUY"
             _mode_label = "強トレンド継続" if (_extreme_momentum and not _pb_found) else "EMA21プルバック"
             reasons.append(f"✅ XAU上昇トレンド(ADX={ctx.adx:.1f}≥{self.ADX_MIN}, +DI={ctx.adx_pos:.1f}>-DI={ctx.adx_neg:.1f}) [{_mode_label}]")
@@ -174,7 +179,7 @@ class GoldTrendMomentum(StrategyBase):
             sl = ctx.entry - _sl_dist
             tp = ctx.entry + ctx.atr * self.TP_ATR_MULT
 
-        elif _ema_bear and ctx.entry < ctx.open_price and ctx.entry < ctx.ema9:
+        elif _ema_bear and ctx.entry < ctx.open_price and _bear_ema9_ok:
             signal = "SELL"
             _mode_label = "強トレンド継続" if (_extreme_momentum and not _pb_found) else "EMA21プルバック"
             reasons.append(f"✅ XAU下降トレンド(ADX={ctx.adx:.1f}≥{self.ADX_MIN}, -DI={ctx.adx_neg:.1f}>+DI={ctx.adx_pos:.1f}) [{_mode_label}]")
