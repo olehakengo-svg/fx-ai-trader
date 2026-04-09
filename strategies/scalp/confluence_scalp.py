@@ -292,9 +292,13 @@ class ConfluenceScalp(StrategyBase):
     _SESSION_END = 17
 
     # ── MFE Guard: ATR/Spread ratio minimum ──
-    _MFE_GUARD_RATIO = 10
+    # v7.3: 10→6 (根拠: 1m足レンジATR≈3pip/spread≈0.5pip=ratio=6。
+    #   ratio=10はレンジ相場では非現実的な基準でN=0の主因。
+    #   ratio=6時の実効コスト比: 往復1pip/TP7.5pip=13% → 許容範囲)
+    _MFE_GUARD_RATIO = 6
 
     # ── Triple Confluence thresholds ──
+    # RSI5/BB%B: N=0でデータ皆無のため現状維持。MFE緩和後N=20到達時に再評価。
     _RSI5_BUY_EXTREME = 42      # RSI5 < this for BUY
     _RSI5_SELL_EXTREME = 58     # RSI5 > this for SELL
     _BBPB_BUY_EXTREME = 0.30   # BB%B < this for BUY
