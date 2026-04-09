@@ -87,9 +87,20 @@ class DaytradeEngine:
         _rejected = []
         # SL最低距離フロア: ATR(14)×1.0（ノイズレベル以下のSL防止）
         _min_sl_dist = ctx.atr * 1.0
+        # v7.2: XAU instrument → XAU専用戦略のみ評価
+        # 根拠: FX戦略(sr_break_retest等)がXAUで誤発火→タイトSL→spread_sl_gate多発
+        # _enabled_symbols に "XAUUSD" を含む戦略のみ通過 (GoldVolBreak / GoldTrendMomentum)
+        _sym_clean = ctx.symbol.upper().replace("=X", "").replace("_", "").replace("/", "") if ctx.symbol else ""
+        _is_xau = "XAU" in _sym_clean
         for strategy in self.strategies:
             if not strategy.enabled:
                 continue
+            # XAU: _enabled_symbols に XAUUSD が含まれない戦略はスキップ
+            if _is_xau:
+                _strat_syms = getattr(strategy, '_enabled_symbols', None)
+                if _strat_syms is None or "XAUUSD" not in _strat_syms:
+                    _rejected.append(f"{strategy.name}(xau_skip)")
+                    continue
             try:
                 result = strategy.evaluate(ctx)
                 if result is not None:

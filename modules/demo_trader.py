@@ -3221,12 +3221,14 @@ class DemoTrader:
         # ── v7.0: Spread/SL Gate — Fast Exit 根本対策 ──
         # スプレッドがSL距離の35%超 → エッジ不足で即死リスク
         # 本番データ: Fast Exit(<2min) N=11 PnL=-30.7pip の主因
+        # v7.2: XAU専用閾値 45% — ATRベースSLが広く設計上4.2%程度だが安全網として緩和
         # ══════════════════════════════════════════════════════════════
         _sl_dist_pips = abs(current_price - sl) * _pip_m_mon
         if _sl_dist_pips > 0 and _spread_entry > 0:
             _spread_sl_ratio = _spread_entry / _sl_dist_pips
-            if _spread_sl_ratio > 0.35:
-                _block(f"spread_sl_gate({_spread_entry:.1f}/{_sl_dist_pips:.1f}pip={_spread_sl_ratio:.0%}>35%)")
+            _ssl_threshold = 0.45 if "XAU" in instrument else 0.35
+            if _spread_sl_ratio > _ssl_threshold:
+                _block(f"spread_sl_gate({_spread_entry:.1f}/{_sl_dist_pips:.1f}pip={_spread_sl_ratio:.0%}>{_ssl_threshold:.0%})")
                 return
 
         trade_id = self._db.open_trade(
