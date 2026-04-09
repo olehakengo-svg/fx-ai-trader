@@ -3365,8 +3365,16 @@ class DemoTrader:
         _base_units = int(_os.environ.get("OANDA_UNITS", "10000"))
         _adjusted_units = int(_base_units * _lot_ratio)
         if _is_sentinel:
-            _adjusted_units = 1000  # Sentinel: 0.01lot固定
-        _adjusted_units = max(1000, (_adjusted_units // 1000) * 1000)
+            # v7.6: XAU専用Sentinel単位数 — 1unit=1troy oz≈$4800
+            # FX 0.01lot=1000u相当をXAUに適用すると 1000oz×$4800=$4.8M → margin拒絶
+            # XAU Sentinel=1unit(1oz), FX Sentinel=1000u(0.01lot)
+            _adjusted_units = 1 if _is_xau_inst else 1000
+        # XAU: 1unit単位で注文可能、1000u丸め不要
+        # FX: 最小1000u, 1000u単位丸め
+        if _is_xau_inst:
+            _adjusted_units = max(1, _adjusted_units)
+        else:
+            _adjusted_units = max(1000, (_adjusted_units // 1000) * 1000)
 
         # ── v7.0 LOT内訳ログ (透明化 + Kelly cap) ──
         _lot_breakdown = (
@@ -3410,7 +3418,8 @@ class DemoTrader:
 
         # ── SENTINEL判定: コントロールパネルの "sentinel" モードなら0.01lot固定 ──
         if _strat_mode == "sentinel":
-            _adjusted_units = 1000  # SENTINEL: 0.01lot固定（データ収集）
+            # v7.6: XAU=1unit(1oz), FX=1000u(0.01lot) — 同上
+            _adjusted_units = 1 if _is_xau_inst else 1000
             _lot_tag = "(🔬SEN/CMD)"
 
         # ── v6.4 SHIELD: OANDA lot hard cap ──
@@ -3441,9 +3450,11 @@ class DemoTrader:
                         f"BB_mid TP preserved ×1.0 | TP={tp:.{_price_dec}f}"
                     )
                 # ── 実弾実行パス ──
+                _lot_disp_sent = (f"{_adjusted_units}oz" if _is_xau_inst
+                                  else f"{_adjusted_units}u({_adjusted_units/10000:.2f}lot)")
                 self._add_log(
                     f"🔗 OANDA: [SENT] {signal} {instrument} "
-                    f"{_adjusted_units}u({_adjusted_units/10000:.2f}lot) {_lot_tag} "
+                    f"{_lot_disp_sent} {_lot_tag} "
                     f"SL={sl:.{_price_dec}f} TP={_tp_oanda:.{_price_dec}f}"
                 )
                 self._oanda.open_trade(
