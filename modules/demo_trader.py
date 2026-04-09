@@ -2500,15 +2500,20 @@ class DemoTrader:
             "london_shrapnel",       # LDN異常ヒゲ反転 EUR/GBP専用 (2026-04-07)
             "vol_surge_detector",    # 出来高急増ブレイクアウト (2026-04-07)
             "confluence_scalp",      # Triple Confluence + MSS (UTC 12-17, HTF Hard Block) (2026-04-07)
+            # v7.0 Sentinel再有効化 — デモデータ蓄積で再検証 (2026-04-09)
+            "v_reversal",            # V字反転 — Sentinel蓄積中
+            "trend_rebound",         # トレンドリバウンド — Sentinel蓄積中
+            "sr_channel_reversal",   # SRチャネル反転 — Sentinel蓄積中
+            "engulfing_bb",          # 包み足+BB — Sentinel蓄積中
+            "three_bar_reversal",    # 三本足反転 — Sentinel蓄積中
+            "ema_trend_scalp",       # EMAトレンドスキャルプ — Sentinel蓄積中
             # DISABLED (FXアナリストレビュー 2026-04-03):
-            # "v_reversal",          # → bb_rsi統合予定 (サンプル5t)
-            # "trend_rebound",       # 廃止: 1t EV=-1.22, 実質未発火
             # "ihs_neckbreak",       # 廃止: 1m足でパターン認識不適
             # "sr_touch_bounce",     # 廃止: BT結果なし, sr_fib(15m)と重複
             # "rsi_divergence_sr",   # 廃止: EV=-0.607
             # v1互換6種:            # 全廃止: BT結果なし, v2と機能重複
             # "sr_bounce", "ob_retest", "bb_bounce",
-            # "donchian", "reg_channel", "ema_pullback",
+            # "donchian", "reg_channel",
 
             # ═══ デイトレ (2戦略) ═══
             "sr_fib_confluence",     # SR+フィボ合流 — DT主力 (229t WR73% EV+0.50)
@@ -2529,13 +2534,17 @@ class DemoTrader:
             "london_ny_swing",               # LDN-NYスイング: クロスセッション順張り (2026-04-07)
             "jpy_basket_trend",              # JPYバスケットトレンド: 円通貨連動 (2026-04-07)
             "gold_vol_break",                # ゴールド出来高ブレイク: XAU DT専用 (2026-04-07)
-            # "post_news_vol",               # PNV: DISABLED — WR=42% EV=-0.07, needs calendar API
+            # v7.0 Sentinel再有効化 — デモデータ蓄積で再検証 (2026-04-09)
+            "post_news_vol",                 # PNV: 指標後ボラ — Sentinel蓄積中
+            "dt_fib_reversal",               # DTフィボ反転 — Sentinel蓄積中
+            "dt_sr_channel_reversal",        # DT SR/チャネル反転 — Sentinel蓄積中
+            "ema200_trend_reversal",         # EMA200トレンド反転 — Sentinel蓄積中
+            "squeeze_release_momentum",      # SRM v3: BBスクイーズ解放 — Sentinel蓄積中
+            "eurgbp_daily_mr",               # EUR/GBP 日足MR — Sentinel蓄積中
+            "dt_bb_rsi_mr",                  # DT BB RSI MR: 15m平均回帰 — Sentinel蓄積中
             # DISABLED (FXアナリストレビュー):
             # "ihs_neckbreak",       # 廃止: 2t EV≒0, 低頻度
             # "dual_sr_breakout",    # 廃止: 未評価
-            # "dt_fib_reversal",     # 廃止: フォールバック未発火
-            # "dt_sr_channel_reversal",  # 廃止: フォールバック未発火
-            # "ema200_trend_reversal",   # 廃止: フォールバック未発火
 
             # ═══ 1H Breakout — HourlyEngine (v5.0) ═══
             "keltner_squeeze_breakout",      # KSB: EUR専用, WR=50% RR=2.0
@@ -2776,16 +2785,16 @@ class DemoTrader:
 
         layer_status = sig.get("layer_status", {})
         if not layer_status.get("trade_ok", True):
-            return
+            _block(f"layer_trade_not_ok({entry_type})"); return
 
         # ── Layer1（COT/機関バイアス）方向チェック — スイングのみ ──
         if mode == "swing":
             _l1 = layer_status.get("layer1", {})
             _l1_dir = _l1.get("direction", "neutral") if isinstance(_l1, dict) else "neutral"
             if _l1_dir == "bull" and signal == "SELL":
-                return
+                _block(f"l1_bull_vs_sell({entry_type})"); return
             if _l1_dir == "bear" and signal == "BUY":
-                return
+                _block(f"l1_bear_vs_buy({entry_type})"); return
 
         # ══════════════════════════════════════════════════════════════
         # ── MTF連携: 15m DT バイアス ──
@@ -2812,7 +2821,7 @@ class DemoTrader:
                     if _bias_strength == "strong":
                         if signal != _bias_dir:
                             if entry_type != "trend_rebound":
-                                return
+                                _block(f"mtf_strong_bias({_bias_dir}_vs_{signal},{entry_type})"); return
                         else:
                             _mtf_tp_bonus = 1.3
 
@@ -2820,7 +2829,7 @@ class DemoTrader:
                         if signal != _bias_dir:
                             confidence = int(confidence * 0.8)
                             if confidence < self._params["confidence_threshold"]:
-                                return
+                                _block(f"mtf_trend_conf_decay({confidence}<{self._params['confidence_threshold']},{entry_type})"); return
 
         # ══════════════════════════════════════════════════════════════
         # ── TP固定 / SL技術的位置ベース ──
@@ -2835,7 +2844,7 @@ class DemoTrader:
 
         tp_dist = abs(tp - current_price) * _mtf_tp_bonus  # MTF順方向時にTP拡大
         if tp_dist <= 0:
-            return  # TPが無効（0または現在価格と同一）→ エントリー見送り
+            _block(f"tp_invalid(tp={tp},price={current_price},{entry_type})"); return
         if _mtf_tp_bonus > 1.0:
             if signal == "BUY":
                 tp = current_price + tp_dist
@@ -2884,7 +2893,7 @@ class DemoTrader:
                         f"Regime={_regime_type_r} | Type={entry_type}"
                     )
                 if tp_dist <= 0:
-                    return  # BB_mid at or wrong side of entry → skip
+                    _block(f"range_exit_tp_invalid(bb_mid,{entry_type})"); return
 
         # ── 1H Breakout SL/TP完全保存 ──
         # KSB/DMBはスクイーズ中swing HL / ドンチアン中央から精密にSLを算出済み
@@ -2895,14 +2904,14 @@ class DemoTrader:
                 sl = round(_sig_sl, _price_dec)
                 sl_dist = abs(current_price - sl)
                 if sl_dist <= 0:
-                    return  # SL無効
+                    _block(f"1h_sl_invalid(sl={sl},price={current_price},{entry_type})"); return
                 # RR検証
                 if tp_dist / sl_dist < 1.2:
-                    return  # RR不足
+                    _block(f"1h_rr_low({tp_dist/sl_dist:.2f}<1.2,{entry_type})"); return
                 # SL狩り対策は適用（セッション遷移ワイドニング等）
                 # → 下の SL狩り対策②セクションに進む
             else:
-                return  # SLが算出されていない
+                _block(f"1h_no_sl({entry_type})"); return
 
         # ── SL候補①②: SR/ATRベース（非1H Breakoutモード用）──
         if entry_type not in _1H_PRESERVE_SLTP:
@@ -3078,7 +3087,7 @@ class DemoTrader:
         # v6.5: RANGE MR allows lower RR (0.8) — BB_mid TP短縮を高WRで補償
         _final_rr_floor = 0.8 if _is_range_mr else 1.0
         if tp_dist < sl_dist * _final_rr_floor:
-            return
+            _block(f"rr_floor({tp_dist/sl_dist:.2f}<{_final_rr_floor},{entry_type})"); return
 
         # SR推奨情報
         sr_map = sig.get("sr_entry_map", {})
@@ -3106,20 +3115,14 @@ class DemoTrader:
             if _fg_cd_ts:
                 _fg_age = (datetime.now(timezone.utc) - _fg_cd_ts).total_seconds()
                 if _fg_age < self._LIMIT_EXPIRE_CD_SEC:
-                    self._add_log(
-                        f"🛑 Friction Guard: {instrument} {signal} → "
-                        f"指値失効CD中 ({_fg_age:.0f}s/{self._LIMIT_EXPIRE_CD_SEC}s)"
-                    )
+                    _block(f"friction_guard_cd({instrument},{_fg_age:.0f}s/{self._LIMIT_EXPIRE_CD_SEC}s)")
                     return
                 else:
                     self._limit_expired_cd.pop(_fg_cd_key, None)
 
             _has_limit = any(isinstance(_r, str) and "__LIMIT_ENTRY__" in _r for _r in reasons)
             if not _has_limit:
-                self._add_log(
-                    f"⛔ LIMIT_ONLY: {instrument} scalp → 成行エントリー禁止"
-                    f"(高摩擦RT>3pip) | Type: {entry_type}"
-                )
+                _block(f"limit_only({instrument},{entry_type})")
                 return
 
         # ══════════════════════════════════════════════════════════════
