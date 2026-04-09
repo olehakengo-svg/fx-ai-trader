@@ -2734,11 +2734,11 @@ class DemoTrader:
             }
             _spread_limit = _SPREAD_LIMITS.get(instrument, 1.2 if _is_jpy else 1.5)
             # v7.0: Sentinel戦略はspread_wideバイパス — 0.01lotのリスク<データ価値
+            # NOTE: _is_shadowは立てない。PAIR_PROMOTED戦略がshadow化されOANDA遮断されるのを防止
+            # spread過大エントリーはSpread/SL Gate(line 3212)で最終防御される
             if _spread_pips > _spread_limit and not _is_shadow_eligible:
                 _block(f"spread_wide({_spread_pips:.1f}pip>{_spread_limit})")
                 return
-            elif _spread_pips > _spread_limit and _is_shadow_eligible:
-                _is_shadow = True  # spread超過だがSentinelとして通過
 
             # ══════════════════════════════════════════════════════════════
             # ── 動的スプレッドガード: spread_cost / expected_profit ──
