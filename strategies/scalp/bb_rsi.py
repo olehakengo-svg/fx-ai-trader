@@ -5,6 +5,11 @@ Option C 統合改修 (2026-04-04 USD/JPY解剖レポート):
   EUR/USD: ADX<25 レンジ環境限定（従来通り）
   USD/JPY: ADX制限撤廃 + Death Valleyブロック + Gold Hoursボーナス
 
+v7.0 Stochクロスオーバー緩和:
+  K>D/K<D strict → K>D OR K上昇中 / K<D OR K下落中
+  理由: 1m足でもK=90時にD<Kが数分持続し、最良エントリーを逃す。
+  反転方向に動いていれば十分な確認（dt_bb_rsi_mrと同一修正）。
+
 データ裏付け (USD/JPY 15m, 59日間):
   - ADX<20  WR=49.2% (エッジなし)
   - ADX>=30 WR=60.0% avg=+3.45pip (トレンド中BB反発が最も有効)
@@ -34,8 +39,10 @@ class BBRsiReversion(StrategyBase):
     tp_mult_tier1 = 2.2   # TP倍率 (Tier1) v6.3: 2.0→2.2 極端ゾーン反転幅大
     tp_mult_tier2 = 1.5   # TP倍率 (Tier2)
 
-    # ── USD/JPY専用: Death Valley / Gold Hours (Option C + v6.3強化) ──
-    _death_valley_hours = frozenset({0, 1, 9, 12, 13, 14, 15, 16})
+    # ── USD/JPY専用: Gold Hours (Option C + v6.3強化) ──
+    # v7.0: Death Valley撤廃 — マーケット開いてる間は攻める。
+    # 静的時間ブロックではなくSpread/SL Gate(動的)が防御を担う。
+    # 旧Death Valley {0,1,9,12,13,14,15,16} は8h/日ブロック → 攻撃機会の致命的損失
     _gold_hours = frozenset({5, 6, 7, 8, 19, 20, 21, 22, 23})
 
     # ── ペアフィルター (2026-04-06 Session Matrix BT) ──
@@ -48,12 +55,11 @@ class BBRsiReversion(StrategyBase):
         if _sym in self._disabled_symbols:
             return None
 
-        # ── ペア別ADX / 時間帯フィルター (Option C) ──
+        # ── ペア別ADXフィルター (Option C) ──
         if ctx.is_jpy:
-            # USD/JPY: Death Valley完全ブロック
-            if ctx.hour_utc in self._death_valley_hours:
-                return None
             # USD/JPY: ADX制限なし（トレンド中BB反発 WR=60% — 逆にエッジ増大）
+            # v7.0: Death Valley撤廃 — Spread/SL Gateが動的防御を担う
+            pass
         else:
             # EUR/USD: 従来通り ADX<25 レンジ環境のみ
             if ctx.adx >= self.adx_max:
@@ -67,15 +73,33 @@ class BBRsiReversion(StrategyBase):
 
         _min_sl = 0.030 if ctx.pip_mult == 100 else 0.00030  # JPY+XAU: pip=0.01
 
+        # v7.0: prev_stoch_k — Stochクロスオーバー緩和用
+        # 厳密なK>D/K<D(クロス瞬間)ではなく、K反転方向でも許容
+        # 1m足でもK=90時にD<Kが数分持続→最良エントリーを逃す問題を解消
+        _prev_stoch_k = (
+            float(ctx.df.iloc[-2].get("stoch_k", 50))
+            if ctx.df is not None and len(ctx.df) >= 2
+            else 50.0
+        )
+
         # ── BUY判定 ──
+        # v7.0: Stoch K>D strict → K>D OR K上昇中（反転方向で許容）
         if (ctx.bbpb <= self.bbpb_buy and ctx.rsi5 < self.rsi5_buy
-                and ctx.stoch_k < self.stoch_buy and ctx.stoch_k > ctx.stoch_d):
+                and ctx.stoch_k < self.stoch_buy
+                and (ctx.stoch_k > ctx.stoch_d or ctx.stoch_k > _prev_stoch_k)):
             signal = "BUY"
             tier1 = ctx.bbpb <= 0.05 and ctx.rsi5 < 25 and ctx.stoch_k < 20
             score = (4.5 if tier1 else 3.0) + (38 - ctx.rsi5) * 0.06
             reasons.append(f"✅ BB下限(%B={ctx.bbpb:.2f}≤{self.bbpb_buy}) — 平均回帰 (Bollinger 2001)")
             reasons.append(f"✅ RSI5売られすぎ({ctx.rsi5:.1f}<{self.rsi5_buy})")
-            reasons.append(f"✅ Stochゴールデンクロス(K={ctx.stoch_k:.0f}>D={ctx.stoch_d:.0f})")
+            _buy_cross = ctx.stoch_k > ctx.stoch_d
+            _buy_rising = ctx.stoch_k > _prev_stoch_k
+            reasons.append(
+                f"✅ Stoch反転確認(K={ctx.stoch_k:.0f}"
+                f"{'>D=' + str(int(ctx.stoch_d)) if _buy_cross else ''}"
+                f"{'↑prev=' + str(int(_prev_stoch_k)) if _buy_rising else ''}"
+                f")"
+            )
             # Stochクロスギャップボーナス（条件→ボーナスに緩和）
             gap = ctx.stoch_k - ctx.stoch_d
             if gap > 1.5:
@@ -105,15 +129,23 @@ class BBRsiReversion(StrategyBase):
             sl = ctx.entry - sl_dist
 
         # ── SELL判定 ──
+        # v7.0: Stoch K<D strict → K<D OR K下落中（反転方向で許容）
         if (signal is None and ctx.bbpb >= self.bbpb_sell
                 and ctx.rsi5 > self.rsi5_sell and ctx.stoch_k > self.stoch_sell
-                and ctx.stoch_k < ctx.stoch_d):
+                and (ctx.stoch_k < ctx.stoch_d or ctx.stoch_k < _prev_stoch_k)):
             signal = "SELL"
             tier1 = ctx.bbpb >= 0.95 and ctx.rsi5 > 75 and ctx.stoch_k > 80
             score = (4.5 if tier1 else 3.0) + (ctx.rsi5 - 58) * 0.06
             reasons.append(f"✅ BB上限(%B={ctx.bbpb:.2f}≥{self.bbpb_sell}) — 平均回帰 (Bollinger 2001)")
             reasons.append(f"✅ RSI5買われすぎ({ctx.rsi5:.1f}>{self.rsi5_sell})")
-            reasons.append(f"✅ Stochデッドクロス(K={ctx.stoch_k:.0f}<D={ctx.stoch_d:.0f})")
+            _sell_cross = ctx.stoch_k < ctx.stoch_d
+            _sell_falling = ctx.stoch_k < _prev_stoch_k
+            reasons.append(
+                f"✅ Stoch反転確認(K={ctx.stoch_k:.0f}"
+                f"{'<D=' + str(int(ctx.stoch_d)) if _sell_cross else ''}"
+                f"{'↓prev=' + str(int(_prev_stoch_k)) if _sell_falling else ''}"
+                f")"
+            )
             gap = ctx.stoch_d - ctx.stoch_k
             if gap > 1.5:
                 score += 0.6

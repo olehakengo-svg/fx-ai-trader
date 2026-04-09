@@ -2668,14 +2668,13 @@ class DemoTrader:
             if _utc_hour >= 17:  # Late NY
                 _block(f"session_pair(EUR_USD_Late_NY,WR=10%)")
                 return
-        # v6.6: USD/JPY scalp UTC 11-12 デスゾーン (本番N=30 WR=26.9%, 流動性枯渇)
-        if instrument == "USD_JPY" and _utc_hour in (11, 12) and "scalp" in mode:
-            _block(f"session_pair(USD_JPY_DeadZone,UTC{_utc_hour},WR=27%)")
-            return
-        # v7.0: UTC 05 デスゾーン (本番N=5 WR=0% -14.9pip, 流動性枯渇)
-        if _utc_hour == 5 and "scalp" in mode:
-            _block(f"session_dead_zone(UTC05,WR=0%)")
-            return
+        # v7.0 撤去: USD/JPY scalp UTC 11-12 デスゾーン
+        # 静的時間ブロック → Spread/SL Gate(動的)に委譲。
+        # マーケット開いてる間は攻める。スプレッド異常時のみ動的に防御。
+        # v7.0 撤去: UTC 05 デスゾーン — N=5は統計的に無意味、
+        # offending戦略(fib/macdh)は全てFORCE_DEMOTED済み。
+        # bb_rsi Gold Hours(UTC 05) +0.8ボーナスと矛盾していた。
+        # Spread/SL Gate(v7.0)がFast Exit防止として残存。
 
         # ══════════════════════════════════════════════════════════════
         # ── v7.0: DT Power Session — USD/JPY のみ UTC 7-8, 13-14 限定 ──

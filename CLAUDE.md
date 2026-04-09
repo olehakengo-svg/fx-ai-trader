@@ -106,8 +106,11 @@
 - **P2: DT Power Session 東京拡大**: `{7,8,13,14} → {1,2,7,8,13,14}` — UTC 1-2追加で東京DTカバレッジ確保。Shadow Trackingで未検証戦略も観測データ蓄積
 
 #### 毒セグメント除去 + Fast Exit対策 (v7.0)
-- **UTC 05 デスゾーン**: 全scalp モードでUTC 05をブロック (本番N=5 WR=0% -14.9pip, 流動性枯渇)
+- **~~UTC 05 デスゾーン~~**: ~~全scalp モードでUTC 05をブロック~~ → **v7.0撤去**: N=5統計無意味、offending戦略FORCE_DEMOTED済み、bb_rsi Gold Hoursと矛盾
+- **~~USD/JPY UTC 11-12 デスゾーン~~**: → **v7.0撤去**: 静的時間ブロック → Spread/SL Gate(動的)に委譲
+- **~~bb_rsi Death Valley~~**: ~~{0,1,9,12,13,14,15,16}~~ → **v7.0撤去**: 8h/日ブロックで攻撃機会致命的損失。UTC 12-16はNYセッション。Spread/SL Gateが動的防御を担う
 - **Spread/SL Gate**: エントリー直前にspread/SL距離比を検査。35%超でブロック。Fast Exit(<2min SL_HIT)の主因であるスプレッド過大時の即死を防止 (本番N=11 -30.7pip)
+- **設計原則**: 静的時間ブロックではなく動的スプレッドゲートで防御。マーケット開いてる間は攻める
 
 #### P0: 即対応（口座破綻リスク）
 - **Emergency Kill Switch**: `POST /api/emergency/kill` → 全モード停止 + OANDA全ポジション決済 + 永続フラグ(system_kv)。`POST /api/emergency/resume` (confirm=true必須)で復帰。ウォッチドッグ・自動再起動も完全停止
