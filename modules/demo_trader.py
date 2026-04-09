@@ -2654,7 +2654,7 @@ class DemoTrader:
         # 同一通貨ペアでSL_HITが発生した場合、全戦略に短期クールダウン適用
         # scalp: 90s, DT: 180s（同価格帯の反復エントリーを防止）
         # ══════════════════════════════════════════════════════════════
-        _cascade_cd = {"scalp": 90, "scalp_5m": 300, "daytrade": 90, "daytrade_1h": 300, "swing": 600}.get(_base_mode, 90)  # v6.6: 180→90s (GBP DT 15m bar間隔に合わせた短縮)
+        _cascade_cd = {"scalp": 45, "scalp_5m": 300, "daytrade": 90, "daytrade_1h": 300, "swing": 600}.get(_base_mode, 60)  # v7.0: scalp 90→45s (1min足1本分未満、SL_HIT後の再攻撃を加速)
         _cascade_cutoff = datetime.now(timezone.utc) - timedelta(seconds=_cascade_cd)
         _recent_sl_same_inst = [h for h in self._sl_hit_history
                                 if h[0] > _cascade_cutoff and h[1] == instrument]
@@ -2727,15 +2727,18 @@ class DemoTrader:
             _SPREAD_LIMITS = {
                 "USD_JPY": 1.0,
                 "EUR_USD": 1.2,
-                "GBP_USD": 1.2,
-                "EUR_GBP": 1.2,
-                "EUR_JPY": 1.2,
-                "XAU_USD": 6.0,   # v6.4: 4.0→6.0 (OANDA実測4-5pip、Asia 5pip常態)
+                "GBP_USD": 1.5,     # v7.0: 1.2→1.5 (OANDA実測0.8-1.8pip)
+                "EUR_GBP": 1.5,     # v7.0: 1.2→1.5
+                "EUR_JPY": 2.5,     # v7.0: 1.2→2.5 (OANDA実測1.5-2.5pip常態)
+                "XAU_USD": 6.0,     # v6.4: 4.0→6.0 (OANDA実測4-5pip、Asia 5pip常態)
             }
             _spread_limit = _SPREAD_LIMITS.get(instrument, 1.2 if _is_jpy else 1.5)
-            if _spread_pips > _spread_limit:
+            # v7.0: Sentinel戦略はspread_wideバイパス — 0.01lotのリスク<データ価値
+            if _spread_pips > _spread_limit and not _is_shadow_eligible:
                 _block(f"spread_wide({_spread_pips:.1f}pip>{_spread_limit})")
                 return
+            elif _spread_pips > _spread_limit and _is_shadow_eligible:
+                _is_shadow = True  # spread超過だがSentinelとして通過
 
             # ══════════════════════════════════════════════════════════════
             # ── 動的スプレッドガード: spread_cost / expected_profit ──
@@ -2757,7 +2760,9 @@ class DemoTrader:
 
         # ══════════════════════════════════════════════════════════════
         # ── SL狩り対策A1: 価格スパイク検出 ──
-        # 直近60秒で価格が急変動(>ATR×0.5)→ SL狩りスパイク中のため見送り
+        # 直近60秒で価格が急変動(>ATR×1.0)→ SL狩りスパイク中のため見送り
+        # v7.0: 0.5→1.0 (1m ATR=0.8pipで0.4pip動がスパイク判定は過敏)
+        # v7.0: Sentinel戦略はバイパス — データ蓄積優先
         # ══════════════════════════════════════════════════════════════
         _atr_spike = sig.get("atr", 0.07 if (_is_jpy or "XAU" in instrument) else 0.00070)
         _spike_cutoff = datetime.now(timezone.utc) - timedelta(seconds=60)
@@ -2765,7 +2770,7 @@ class DemoTrader:
         _spike_prices = [p for t, p in _inst_history if t > _spike_cutoff]
         if len(_spike_prices) >= 3:
             _spike_range = max(_spike_prices) - min(_spike_prices)
-            if _spike_range > _atr_spike * 0.5:
+            if _spike_range > _atr_spike * 1.0 and not _is_shadow_eligible:
                 _spike_m = 100 if (_is_jpy or "XAU" in instrument) else 10000
                 _block(f"spike({_spike_range*_spike_m:.1f}pip/60s)")
                 return
@@ -3092,8 +3097,9 @@ class DemoTrader:
                 return
 
         # RR不足チェック（SL調整後に再判定）
-        # v6.5: RANGE MR allows lower RR (0.8) — BB_mid TP短縮を高WRで補償
-        _final_rr_floor = 0.8 if _is_range_mr else 1.0
+        # v7.0: 全戦略0.8統一 — bb_rsi SELL等がSL調整後RR不足で死亡していた
+        # Sentinel(0.01lot)のリスク << データ価値。RR 0.8でも収集価値あり
+        _final_rr_floor = 0.8
         if tp_dist < sl_dist * _final_rr_floor:
             _block(f"rr_floor({tp_dist/sl_dist:.2f}<{_final_rr_floor},{entry_type})"); return
 
