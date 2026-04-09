@@ -134,14 +134,20 @@ class GoldTrendMomentum(StrategyBase):
             return None
 
         # ── MACD-H方向確認 ──
+        # 強トレンドバイパス中はMACD-Hを必須条件から除外。
+        # 根拠: パラボリック上昇後のトップ付近でMACD-Hが負に転じることは頻発するが、
+        #       ADX>=25+DI_gap>=10の強トレンド環境ではMACD-H陰転はトレンド終了ではなく
+        #       モメンタム減速の一時的状態。ADX/DIが強トレンドを示す限り、
+        #       MACD-Hが回復する前に機会を逃すコストが高い。
+        # 通常プルバックエントリーではMACD-Hを維持（フィルター品質保持）。
         _macdh_ok = False
         if _ema_bull:
             _macdh_ok = ctx.macdh > 0 or (ctx.macdh > ctx.macdh_prev)
         else:
             _macdh_ok = ctx.macdh < 0 or (ctx.macdh < ctx.macdh_prev)
 
-        if not _macdh_ok:
-            return None
+        if not _macdh_ok and not _extreme_momentum:
+            return None  # 通常モード: MACD-H必須。強トレンドバイパス中はスキップ
 
         # ── シグナル生成 ──
         signal = None
