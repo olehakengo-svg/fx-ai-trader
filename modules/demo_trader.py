@@ -4129,6 +4129,7 @@ class DemoTrader:
     _SHIELD_EUR_DT_WHITELIST = frozenset({
         "orb_trap",                  # ORB Fakeout Reversal (MR, 独自タイミング窓)
         "htf_false_breakout",        # 1H SR False Breakout Fade (MR, MTFフィルター)
+        "dt_bb_rsi_mr",              # BB+RSI MR (RANGE専用, EUR 74%がRANGE → 最適環境)
     })
     _QUICK_HARVEST_MULT = 0.85      # v6.8: 0.70→0.85 (DT WIN 7件の19.2pip利益漏出修復)
     _QUICK_HARVEST_EXEMPT = frozenset({

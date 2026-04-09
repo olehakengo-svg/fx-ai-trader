@@ -670,5 +670,36 @@
 - **核心**: MFE (Maximum Favorable Excursion) 90.6%=0 → エントリー即座に逆行、広いSLでも救えない
 - **結論**: SL最適化ではなくエントリー品質改善が本質 (D1 RANGEブロック + G1競合モードで対応)
 
+### v7.1 OANDA転送改善 + Sentinel再審査 (2026-04-09)
+**背景**: OANDA audit 50%がSKIP。PAIR_PROMOTEDがbb_rsi×USD_JPYの1パスのみ。4原則「攻撃は最大の防御」に対し防御過剰
+**手法**: Fidelity Cutoff(4/8)後の本番データで全Sentinel/FORCE_DEMOTED戦略を再審査
+
+#### dt_bb_rsi_mr SHIELD EUR DT WHITELIST追加
+- **問題**: dt_bb_rsi_mrがdaytrade_eurのMODE_BLOCKEDで遮断 → OANDAデータ収集不可
+- **根拠**: EUR/USDの74%がRANGEレジーム → RANGE専用MR戦略の最適環境。N<10 SafetyでSentinel自動適用
+- **変更**: `_SHIELD_EUR_DT_WHITELIST` に `dt_bb_rsi_mr` 追加
+- **安全**: Sentinel(0.01lot) + auto_demotion + Kelly Cap 健在
+
+#### Sentinel N蓄積状況 (2026-04-09, Cutoff後)
+| 戦略 | N(post) | WR | PnL | N=30残 | 注記 |
+|---|---|---|---|---|---|
+| bb_rsi_reversion | 23 | 52.2% | +36.6p | 7 | 主力。あと2-3日で到達 |
+| fib_reversal | 20 | 55.0% | +35.6p | 10 | **★ 劇的改善** (pre: WR=25.6%) |
+| stoch_trend_pullback | 4 | 25.0% | -9.3p | 26 | 低調 |
+| dt_bb_rsi_mr | 3 | 0.0% | -10.2p | 27 | EUR WR=0%要監視 |
+| macdh_reversal | 3 | 33.3% | +0.3p | 27 | 改善兆候 |
+| その他 | 0-1 | — | — | 29-30 | データ蓄積待ち |
+
+#### FORCE_DEMOTED再審査結果
+- **fib_reversal**: Pre WR=25.6% → Post **WR=55.0% +35.6p (N=20)** — v6.3パラメータ改善(proximity/SL/TP)が効いている。N=30到達で昇格判定
+- **macdh_reversal**: Post N=3 WR=33.3% — データ不足、継続監視
+- **ema_pullback**: Post N=5 WR=20% -7.4p — 依然低調、DEMOTED維持
+- **その他9戦略**: Post N=0 — データなし、維持
+
+#### scalp_5m A/Bテスト状況
+- **scalp_5m**: N=7, WR=28.6% — N不足で判断不可
+- **scalp 1m**: N=37 post-cutoff, WR=54.1% +68.7p — 好調維持
+- **判断**: N=50到達(推定1-2週間)まで継続
+
 ## Changelog
 Full change history: [CHANGELOG.md](CHANGELOG.md)
