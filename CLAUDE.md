@@ -590,11 +590,12 @@
 - Body/Range = 21.5% (純ノイズ), 本番WR=12.5% (N=8)
 - `daytrade_eurgbp` auto_start=False, _OANDA_MODE_BLOCKED追加, session_pair全停止
 
-### scalp_eur London Open限定 (v6.6)
-- **問題**: 全時間帯WR=37.9% (N=145) → -87.2pip出血
-- **発見**: UTC 07-09のみ **WR=60%+** (London Open, N=38), 他時間帯WR=13-17%
-- **対策**: `active_hours_utc = (7, 10)` — London Open 4時間に限定
-- EUR/USDのNoise Ratio=30.6 → MR戦略はLondon流動性が「壁」を提供する時間帯のみ有効
+### scalp_eur London+NY拡大 (v7.0)
+- **問題**: v6.6 UTC 07-10限定でscalp_eur 46→10回/日に崩壊。データ蓄積不可能
+- **発見**: UTC 07-09 WR=60%+(London) に加え UTC 13-15もピークボリューム(18回/h)
+- **v7.0対策**: `active_hours_utc = (7, 17)` — London+NYの10時間。Asia(UTC 00-06)除外維持
+- **安全措置**: Spread/SL Gate(v7.0)でFast Exit防止、UTC 05デスゾーンで最悪時間帯カバー
+- **期待効果**: scalp_eur +25-30回/日回復
 
 ### USD/JPY scalp デスゾーンブロック (v6.6)
 - **問題**: UTC 11-12 WR=26.9% (N=30) — 流動性枯渇時間帯

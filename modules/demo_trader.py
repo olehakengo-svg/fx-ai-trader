@@ -80,7 +80,7 @@ MODE_CONFIG = {
         "instrument": "EUR_USD",
         "auto_start": True,
         "base_sl_pips": 3.5,
-        "active_hours_utc": (7, 10),  # v6.6: London Open限定 (07-09 WR=60%+, 他時間帯WR=13-17%)
+        "active_hours_utc": (7, 17),  # v7.0: London+NY (07-09 London WR=60%+, 13-15 NY peak volume). Asia除外(WR<20%). Spread/SL Gate(v7.0)でFast Exit防止
     },
     "daytrade_eur": {
         "interval_sec": 30,
