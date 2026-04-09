@@ -32,7 +32,7 @@ class GoldVolBreak(StrategyBase):
 
     # ── パラメータ ──
     bb_sigma = 2.5           # BB σ倍率
-    atr_surge_ratio = 1.3    # ATR7/ATR14 のサージ判定
+    atr_surge_ratio = 1.15   # v7.2: 1.3→1.15 (Gold vol clusteringで持続的高vol → 低サージで十分)
     adx_min = 20
     body_min_atr = 0.4       # 最小ボディ長(ATR7倍率)
     tp_mult = 3.0            # TP = ATR7 × 3.0 (高RR)
@@ -121,7 +121,7 @@ class GoldVolBreak(StrategyBase):
         _tp_dist = abs(tp - ctx.entry)
         _sl_dist = abs(ctx.entry - sl)
         _rr = _tp_dist / max(_sl_dist, 1e-8)
-        if _rr < 2.5:
+        if _rr < 2.0:  # v7.2: 2.5→2.0 (SL floorでRR圧縮時の不必要なブロック回避)
             return None
 
         # ── スコアボーナス ──

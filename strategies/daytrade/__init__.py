@@ -31,6 +31,7 @@ from strategies.daytrade.inducement_ob import InducementOrderBlock
 from strategies.daytrade.post_news_vol import PostNewsVol
 from strategies.daytrade.london_ny_swing import LondonNySwing
 from strategies.daytrade.gold_vol_break import GoldVolBreak
+from strategies.daytrade.gold_trend_momentum import GoldTrendMomentum
 from strategies.daytrade.jpy_basket_trend import JpyBasketTrend
 from strategies.daytrade.squeeze_release_momentum import SqueezeReleaseMomentum
 from strategies.daytrade.eurgbp_daily_mr import EurgbpDailyMR
@@ -59,6 +60,7 @@ class DaytradeEngine:
             PostNewsVol(),                 # PNV: Post-News Volatility Run (Ederington 1993)
             LondonNySwing(),               # London H/L Break → 前日H/L (EUR/GBP専用)
             GoldVolBreak(),                # XAU BB(2.5σ) ATR surge breakout (RR 1:3)
+            GoldTrendMomentum(),           # XAU Trend Momentum: EMA21 PB 順張り (Baur 2010)
             JpyBasketTrend(),              # JPYバスケットPO順張り (USD/EUR JPY専用)
             SqueezeReleaseMomentum(),      # SRM: Squeeze Release Momentum v3 (2段フィルター, EUR/GBP限定)
             EurgbpDailyMR(),               # EUR/GBP Daily MR: 20日レンジ極値フェード (日足MR)

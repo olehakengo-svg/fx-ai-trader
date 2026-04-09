@@ -2542,6 +2542,7 @@ class DemoTrader:
             "london_ny_swing",               # LDN-NYスイング: クロスセッション順張り (2026-04-07)
             "jpy_basket_trend",              # JPYバスケットトレンド: 円通貨連動 (2026-04-07)
             "gold_vol_break",                # ゴールド出来高ブレイク: XAU DT専用 (2026-04-07)
+            "gold_trend_momentum",           # ゴールドトレンドモメンタム: XAU EMA21 PB 順張り (Baur 2010) — Sentinel蓄積中
             # v7.0 Sentinel再有効化 — デモデータ蓄積で再検証 (2026-04-09)
             "post_news_vol",                 # PNV: 指標後ボラ — Sentinel蓄積中
             "dt_fib_reversal",               # DTフィボ反転 — Sentinel蓄積中
@@ -2754,6 +2755,9 @@ class DemoTrader:
                 # DT/1H: 20%閾値 (エリート戦略のエッジ防御), scalp: 30%
                 _base_mode_sg = _get_base_mode(mode)
                 _sg_threshold = 0.20 if _base_mode_sg in ("daytrade", "daytrade_1h") else 0.30
+                # v7.2: XAU専用閾値 — スプレッド構造がFXと異なる(4-5pip常態)がATRも10x
+                if "XAU" in instrument:
+                    _sg_threshold = 0.40 if _base_mode_sg in ("daytrade", "daytrade_1h") else 0.45
                 if _spread_cost_ratio > _sg_threshold:
                     _block(f"spread_guard(cost={_spread_pips*2:.1f}pip/profit={_expected_profit_pips:.1f}pip={_spread_cost_ratio:.0%}>{_sg_threshold:.0%})")
                     return
@@ -2770,7 +2774,9 @@ class DemoTrader:
         _spike_prices = [p for t, p in _inst_history if t > _spike_cutoff]
         if len(_spike_prices) >= 3:
             _spike_range = max(_spike_prices) - min(_spike_prices)
-            if _spike_range > _atr_spike * 1.0 and not _is_shadow_eligible:
+            # v7.2: XAU 1.0→2.0 (gold moves 1ATR/min routinely, 2ATR is genuine spike)
+            _spike_mult = 2.0 if "XAU" in instrument else 1.0
+            if _spike_range > _atr_spike * _spike_mult and not _is_shadow_eligible:
                 _spike_m = 100 if (_is_jpy or "XAU" in instrument) else 10000
                 _block(f"spike({_spike_range*_spike_m:.1f}pip/60s)")
                 return
@@ -2781,7 +2787,11 @@ class DemoTrader:
         # ══════════════════════════════════════════════════════════════
         _now_vel = datetime.now(timezone.utc)
         _vel_window_min = {"scalp": 10, "daytrade": 30, "daytrade_1h": 60}.get(_base_mode, 10)
-        _vel_threshold_pip = {"scalp": 15.0, "daytrade": 15.0, "daytrade_1h": 20.0}.get(_base_mode, 8.0)  # scalp: 8→15pip（調整局面のカウンタートレード許可）
+        # v7.2: XAU ATR is ~10x FX → velocity thresholds scaled accordingly
+        if "XAU" in instrument:
+            _vel_threshold_pip = {"scalp": 80.0, "daytrade": 120.0, "daytrade_1h": 200.0}.get(_base_mode, 80.0)
+        else:
+            _vel_threshold_pip = {"scalp": 15.0, "daytrade": 15.0, "daytrade_1h": 20.0}.get(_base_mode, 8.0)  # scalp: 8→15pip（調整局面のカウンタートレード許可）
         _vel_cutoff = _now_vel - timedelta(minutes=_vel_window_min)
         _recent_prices = [(t, p) for t, p in self._price_history.get(instrument, []) if t > _vel_cutoff]
         if len(_recent_prices) >= 2:
@@ -4074,6 +4084,7 @@ class DemoTrader:
         "eurgbp_daily_mr",             # EUR/GBP Daily MR: 日足レンジ極値フェード — BT未実施, Sentinel蓄積
         "dt_bb_rsi_mr",                # DT BB RSI MR: 15m BB+RSI14 平均回帰 — 新規, Sentinel蓄積
         "ema_trend_scalp",             # EMA Trend Scalp: EMA21プルバック順張り — 新規, Sentinel蓄積
+        "gold_trend_momentum",         # XAU Trend Momentum: 15m EMA21 PB trend-follow — 新規, Sentinel蓄積
         # v7.0: 全disabled戦略をSentinel再有効化 — デモデータ蓄積優先 (4原則#4)
         "v_reversal",                  # 急落/急騰反転 — BT未検証, Sentinel蓄積
         "ema_pullback",                # EMAプルバック — WR=51.1%, Sentinel蓄積

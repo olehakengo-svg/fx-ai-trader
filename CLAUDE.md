@@ -701,5 +701,27 @@
 - **scalp 1m**: N=37 post-cutoff, WR=54.1% +68.7p — 好調維持
 - **判断**: N=50到達(推定1-2週間)まで継続
 
+### v7.2 XAU/USD ゴールド戦略開発 (2026-04-09)
+**背景**: XAU本番トレード0件。block_countsでspread_guard=80, exposure=36。FX向けフィルター閾値がゴールドの構造的高スプレッド(4-5pip)に対応できず全遮断
+
+#### Part A: XAU専用フィルター閾値
+- **A1 spread_guard**: DT 20%→**40%**, Scalp 30%→**45%** (XAU限定)。ATRが10xなのでTP距離も10x→実効コスト比率はFXと同等
+- **A2 ExposureManager**: `_CURRENCY_LIMITS = {"XAU": 10_000}` 通貨別上限。XAU=コモディティ独立枠、FX USD蓄積と分離
+- **A3 spike検出**: XAU 1.0ATR→**2.0ATR** (gold moves 1ATR/min routinely)
+- **A4 velocity filter**: XAU scalp 15→**80pip**, DT 15→**120pip**, 1H 20→**200pip** (ATR比例)
+
+#### Part B: gold_trend_momentum (新規DT戦略)
+- **ファイル**: `strategies/daytrade/gold_trend_momentum.py`
+- **コンセプト**: XAU/USD 15m足トレンドフォロー。EMA21プルバックエントリー
+- **学術的根拠**: Baur & McDermott (2010) gold momentum, Covel (2004) pullback entry, Wilder (1978) ADX
+- **エントリー**: ADX≥20 + EMA9>EMA21 + 直近4本EMA21到達(PB) + 陽線回復(Close>EMA9) + MACD-H確認
+- **SL/TP**: SL=Swing L/H ± ATR×0.3 (min ATR×1.2 ~120pip), TP=ATR×2.5 (~250pip), MIN_RR=1.5
+- **spread耐性**: spread_cost=10/250=4%, spread_sl=5/120=4.2% — 全フィルター通過
+- **登録**: QUALIFIED_TYPES, _UNIVERSAL_SENTINEL (Sentinel 0.01lot), DT_QUALIFIED (app.py BT同期)
+
+#### Part C: gold_vol_break チューニング
+- **ATRサージ**: 1.3→**1.15** (Gold vol clusteringで持続的高vol → 低サージで十分)
+- **RR floor**: 2.5→**2.0** (SL floorでRR圧縮時の不必要なブロック回避)
+
 ## Changelog
 Full change history: [CHANGELOG.md](CHANGELOG.md)

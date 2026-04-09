@@ -39,6 +39,10 @@ class ExposureManager:
     # ── 制限パラメータ ──
     MAX_CURRENCY_EXPOSURE = 20_000   # 単一通貨ネット上限 (units)
     MAX_SAME_DIRECTION = 3           # 同方向ポジション上限 (ペア横断)
+    # v7.2: 通貨別上限オーバーライド — XAUはコモディティ、FXとは独立リスク枠
+    _CURRENCY_LIMITS = {
+        "XAU": 10_000,   # XAU専用枠 (FX USDカウントと分離)
+    }
 
     def __init__(self):
         self._positions: Dict[str, dict] = {}   # trade_id → {instrument, direction, units}
@@ -112,12 +116,15 @@ class ExposureManager:
             new_base = current.get(base, 0) + sign * units
             new_quote = current.get(quote, 0) - sign * units
 
-            if abs(new_base) > self.MAX_CURRENCY_EXPOSURE:
+            # v7.2: 通貨別上限 — XAUはコモディティ専用枠
+            _limit_base = self._CURRENCY_LIMITS.get(base, self.MAX_CURRENCY_EXPOSURE)
+            _limit_quote = self._CURRENCY_LIMITS.get(quote, self.MAX_CURRENCY_EXPOSURE)
+            if abs(new_base) > _limit_base:
                 return False, (f"{base} net exposure {abs(new_base):,}u "
-                               f"> {self.MAX_CURRENCY_EXPOSURE:,}u limit")
-            if abs(new_quote) > self.MAX_CURRENCY_EXPOSURE:
+                               f"> {_limit_base:,}u limit")
+            if abs(new_quote) > _limit_quote:
                 return False, (f"{quote} net exposure {abs(new_quote):,}u "
-                               f"> {self.MAX_CURRENCY_EXPOSURE:,}u limit")
+                               f"> {_limit_quote:,}u limit")
 
             # 2. 同方向ポジション数チェック (通貨横断)
             same_dir_count = sum(
