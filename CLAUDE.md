@@ -6,6 +6,22 @@
 3. **静的時間ブロックは使わない** — UTC固定のブロックは禁止。市場条件で判断
 4. **攻撃は最大の防御** — 防御フィルターの積み上げよりデータ蓄積を優先
 
+## 独立クオンツ監査結果 (2026-04-10)
+**2件の独立監査（リスク委員会 + 戦略アーキテクト）を実施。以下は拘束力のある勧告。**
+
+### 覆された提案（実行禁止）
+- **P1: macdh→bb_rsi吸収**: 反対。唯一のPF>1戦略(edge=0.45pip)を汚染するリスク。学習エンジンの誤降格可能性
+- **P2: lin_reg_channel 1Hリデザイン**: 反対。破産確率85%でリソース投下は不合理。N=3 CI=[0%, 70.8%]で判断不能
+
+### 最重要勧告
+- **bb_rsi × USD_JPYの保護が最優先**: スコアボーナス追加、フィルター実験は行わない
+- **摩擦コスト削減が戦略改善に優先**: XAU停止、指値移行、低スプレッド時間帯制限
+- **v8.3確認足のOOS検証**: フォワードテストで効果確認後に評価
+
+### Shadow継続判断
+- 継続: engulfing_bb(比較対照群), sr_fib_confluence(過適合研究), lin_reg_channel(ベースライン)
+- 停止可: inducement_ob, trendline_sweep（ただしFORCE_DEMOTEDのShadowは実害なし→現状維持）
+
 ## Production Environment
 - **URL**: https://fx-ai-trader.onrender.com
 - **API**: https://fx-ai-trader.onrender.com/api/demo/status
