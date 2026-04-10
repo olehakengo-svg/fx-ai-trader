@@ -2383,7 +2383,8 @@ class DemoTrader:
         _RANGE_MR_STRATEGIES = {
             "bb_rsi_reversion", "macdh_reversal", "fib_reversal", "vol_surge_detector",
             "eurgbp_daily_mr",  # EUR/GBP 日足MR: レンジ極値フェード
-            "dt_bb_rsi_mr",     # DT BB RSI MR: 15m BB%B+RSI14+Stoch 平均回帰 (Bollinger 1992)
+            "dt_bb_rsi_mr",              # DT BB RSI MR: 15m BB%B+RSI14+Stoch 平均回帰 (Bollinger 1992)
+            "dt_sr_channel_reversal",    # v8.1: DT SR Channel Reversal — TREND_BULL MR免除対象
         }
         _sig_regime_r = sig.get("regime", {})
         _regime_type_r = _sig_regime_r.get("regime", "") if isinstance(_sig_regime_r, dict) else ""
@@ -2465,18 +2466,20 @@ class DemoTrader:
                 _block(f"regime_range_dt_tf({entry_type})")
                 return
 
-        # ── v8.0: DT TREND_BULL レジーム遮断 ──
-        # 本番N=20 WR=15% EV=-5.92 — DT全戦略がTREND_BULLで構造的に失敗
-        # トレンド末期エントリー(追っかけ買い)が主因。Shadow継続でデータ蓄積
-        if _base_mode == "daytrade" and _regime_type_r == "TREND_BULL":
+        # ── v8.0→v8.1: DT TREND_BULL TF戦略遮断（MR免除）──
+        # TF戦略: N=17 WR=0% (ema_cross/sr_fib/sr_break — トレンド末期追っかけ)
+        # MR戦略: N=3 WR=100% (dt_bb_rsi_mr/dt_sr_channel_reversal — 逆張り成功)
+        # v8.0は全遮断→v8.1でMR免除。_is_mr_entryは上流Phase2で定義済み
+        if (_base_mode == "daytrade" and _regime_type_r == "TREND_BULL"
+                and not _is_mr_entry):
             if _is_shadow_eligible:
                 _is_shadow = True
                 self._add_log(
-                    f"[SHADOW] DT TREND_BULL bypass: {entry_type} "
-                    f"(TREND_BULL WR=15% → shadow) | {signal} {instrument}"
+                    f"[SHADOW] DT TREND_BULL TF bypass: {entry_type} "
+                    f"(TF in TREND_BULL WR=0% → shadow) | {signal} {instrument}"
                 )
             else:
-                _block(f"regime_trend_bull_dt({entry_type})")
+                _block(f"regime_trend_bull_dt_tf({entry_type})")
                 return
 
         if confidence < self._params["confidence_threshold"]:
