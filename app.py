@@ -8398,8 +8398,11 @@ def _compute_scalp_signal_v1_legacy(df: pd.DataFrame, tf: str, sr_levels: list,
     # スコア閾値: 0.6（旧0.8→ロンドン/NY帯の取引頻度確保）
     SCALP_SCORE_THRESHOLD = 0.6
     # 金曜日は閾値引き上げ: 高確信シグナルのみ通す（ema_pullback等の低品質除外）
+    # v7.1: 3.5→2.0 — Gold Hours外(UTC 09-18)では3.5に届かずNYC全停止になっていた
+    # 試算: UTC 13-17のbb_rsi最大スコア≈2.99 → 3.5では構造的に不通過
+    # 2.0(3.3x)は「意味のある選別」として機能し、NYC time でも ADX高ければ通る
     if _is_friday_scalp:
-        SCALP_SCORE_THRESHOLD = 3.5  # 通常0.6 → 金曜3.5（超高確信のみ）
+        SCALP_SCORE_THRESHOLD = 2.0  # 通常0.6 → 金曜2.0(3.3x, 旧3.5=5.8xは事実上全停止)
     # 条件が全くない場合のみWAIT（1つでもあればスコアで判定）
     if not has_any_entry and abs(score) < SCALP_SCORE_THRESHOLD * 2:
         reasons.append("⛔ エントリー条件未達 → WAIT")
@@ -11264,6 +11267,54 @@ def api_risk_dashboard():
             dashboard["dd_status"] = {"error": "unavailable"}
 
         return jsonify(dashboard)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/analysis/consolidation")
+def api_consolidation_analysis():
+    """
+    戦略統廃合によるパフォーマンス改善の検証。
+
+    Post-Fidelity Cutoff のクリーンデータを使い、Tier-1 戦略のみに絞った場合と
+    全戦略の場合のWR/EV/Kelly edge を比較する。
+
+    クエリパラメータ:
+      strategies: カンマ区切り戦略名 (省略時: デフォルトTier-1セット)
+      post_cutoff: true/false (デフォルト: true)
+    """
+    from modules.risk_analytics import consolidation_simulation
+
+    _DEFAULT_TIER1 = [
+        "bb_rsi_reversion",       # USD_JPY post-cut WR=52.2%
+        "vol_momentum_scalp",     # Kelly=47% (N=11, Sentinel)
+        "fib_reversal",           # post-cut WR=55.0% (N=20)
+        "stoch_trend_pullback",   # Kelly=0.97% (marginal positive)
+        "orb_trap",               # BT WR=79.3% (Whitelist)
+        "htf_false_breakout",     # BT WR=72.5%
+    ]
+
+    try:
+        strategies_param = request.args.get("strategies", "")
+        tier1 = (
+            [s.strip() for s in strategies_param.split(",") if s.strip()]
+            if strategies_param
+            else _DEFAULT_TIER1
+        )
+        post_cutoff = request.args.get("post_cutoff", "true").lower() != "false"
+
+        closed = _demo_db.get_all_closed()
+        # Exclude shadow trades from analysis
+        live_closed = [t for t in closed if not t.get("is_shadow")]
+        if not live_closed:
+            return jsonify({"error": "No live closed trades found", "n_trades": 0})
+
+        result = consolidation_simulation(
+            all_trades=live_closed,
+            tier1_strategies=tier1,
+            post_cutoff_only=post_cutoff,
+        )
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
