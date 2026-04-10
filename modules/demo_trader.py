@@ -2464,6 +2464,20 @@ class DemoTrader:
                 _block(f"regime_range_dt_tf({entry_type})")
                 return
 
+        # ── v8.0: DT TREND_BULL レジーム遮断 ──
+        # 本番N=20 WR=15% EV=-5.92 — DT全戦略がTREND_BULLで構造的に失敗
+        # トレンド末期エントリー(追っかけ買い)が主因。Shadow継続でデータ蓄積
+        if _base_mode == "daytrade" and _regime_type_r == "TREND_BULL":
+            if _is_shadow_eligible:
+                _is_shadow = True
+                self._add_log(
+                    f"[SHADOW] DT TREND_BULL bypass: {entry_type} "
+                    f"(TREND_BULL WR=15% → shadow) | {signal} {instrument}"
+                )
+            else:
+                _block(f"regime_trend_bull_dt({entry_type})")
+                return
+
         if confidence < self._params["confidence_threshold"]:
             _block(f"conf<{self._params['confidence_threshold']}(was:{confidence})"); return
 
@@ -4037,6 +4051,7 @@ class DemoTrader:
         "fib_reversal",      # v6.8: N=117 WR=39.6% PnL=-18.0 PF<1 → OANDA停止
         "macdh_reversal",    # v6.8: N=86 WR=34.7% PnL=-40.6 PF<1 → OANDA停止
         "sr_break_retest",   # v7.0: N=2 EV=-21.4 PnL=-42.8 → 1件で全利益消失クラス
+        "engulfing_bb",      # v8.0: 本番N=7 WR=14.3% PnL=-$353.5 — 壊滅的、即時停止
     }
 
     # ── Elite Track: 摩擦モデルv2 BT + v5.95統合BT監査 ──
@@ -4053,6 +4068,8 @@ class DemoTrader:
         # === Legacy ===
         "sr_break_retest": 1.3,            # GBP WR=80% EV=+0.705 (14d)
         "mtf_reversal_confluence": 1.3,    # EV +1.49 (448t監査)
+        "vol_momentum_scalp": 2.0,        # v8.0: Kelly H=23.5% WR=72.7% Edge=+0.50 — Sentinel→攻撃昇格
+        "ema_trend_scalp": 1.5,            # v8.0: 当日最高PnL +$179.6, XAU +427pip — Sentinel→攻撃昇格
         # REMOVED: stoch_trend_pullback → _UNIVERSAL_SENTINEL降格 (全ペアEVマイナス)
     }
 
@@ -4062,7 +4079,7 @@ class DemoTrader:
         "bb_rsi_reversion",       # v6.3: USD_JPY PAIR_PROMOTED (Sentinel bypass), 他ペアは維持
         "fib_reversal",           # v6.3: TP/SL/proximity改善済み — ※USD/JPYのみPAIR_LOT_BOOST
         "macdh_reversal",         # v6.3: Tier化+MACD-H強度フィルター+Death Valley適用
-        "vol_momentum_scalp",     # v6.3: ADX25+DI gap+SL1.0+BB幅0.45
+        # v8.0: vol_momentum_scalp → _STRATEGY_LOT_BOOST 2.0x昇格 (Kelly H=23.5%, WR=72.7%, Edge=+0.50)
         "vol_surge_detector",     # v6.3: 発火率改善(閾値緩和), Sentinel継続
         "ema_ribbon_ride",        # v6.3: Strict PO+ADX25+DI gap+UTC block
         "bb_squeeze_breakout",    # 5t WR=80% EV=+0.992 (N不足、要観察)
@@ -4101,14 +4118,14 @@ class DemoTrader:
         "squeeze_release_momentum",    # SRM v3: BT N=24 WR=66.7% OOS未確定 → Sentinel蓄積 (2026-04-08)
         "eurgbp_daily_mr",             # EUR/GBP Daily MR: 日足レンジ極値フェード — BT未実施, Sentinel蓄積
         "dt_bb_rsi_mr",                # DT BB RSI MR: 15m BB+RSI14 平均回帰 — 新規, Sentinel蓄積
-        "ema_trend_scalp",             # EMA Trend Scalp: EMA21プルバック順張り — 新規, Sentinel蓄積
+        # v8.0: ema_trend_scalp → _STRATEGY_LOT_BOOST 1.5x昇格 (当日最高PnL +$179.6, WR=44.4%)
         "gold_trend_momentum",         # XAU Trend Momentum: 15m EMA21 PB trend-follow — 新規, Sentinel蓄積
         # v7.0: 全disabled戦略をSentinel再有効化 — デモデータ蓄積優先 (4原則#4)
         "v_reversal",                  # 急落/急騰反転 — BT未検証, Sentinel蓄積
         "ema_pullback",                # EMAプルバック — WR=51.1%, Sentinel蓄積
         "trend_rebound",               # 強トレンド逆張り — 学術的エッジ疑義, Sentinel検証
         "sr_channel_reversal",         # SR/チャネル反発 — BT未検証, Sentinel蓄積
-        "engulfing_bb",                # 包み足+BB — BT EV neg, Sentinel再検証
+        # v8.0: engulfing_bb → FORCE_DEMOTED昇格 (WR=14.3% -$353.5)
         "three_bar_reversal",          # 3本足反転 — BT未検証, Sentinel蓄積
         "london_close_reversal",       # ロンドンクローズ反転 — EV≈0, Sentinel再検証
         "dt_fib_reversal",             # DT Fib反発 — 未検証, Sentinel蓄積
