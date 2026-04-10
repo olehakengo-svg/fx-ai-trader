@@ -3675,6 +3675,28 @@ class DemoTrader:
                     )
                     return  # 含み益トレードを保護 — TP/SLに委ねる
 
+        # ── v8.2: Scalp MFE-SRガード — 含み益>ATR×0.5 でSR無効化 ──
+        # 監査レポート: SR+Quick-Harvest=76.6pip/期間の利益漏出
+        # scalp TP=ATR×2.2 に対し MFE>ATR×0.5 = 23%進捗 → この水準で切るとRR≈0.5
+        # DT(ATR×0.3)より高い閾値: scalpは素早く利確するためTP/SLに委ねる余地が大きい
+        if _base_mode_sr2 == "scalp":
+            _entry_price_sr_s = trade.get("entry_price", 0) or 0
+            if _entry_price_sr_s > 0:
+                if direction == "BUY":
+                    _current_fav_s = current_price - _entry_price_sr_s
+                else:
+                    _current_fav_s = _entry_price_sr_s - current_price
+                _sr_atr_s = self._entry_atr.get(trade_id, 0)
+                _is_jpy_or_xau_s = "JPY" in _instrument_sr or "XAU" in _instrument_sr
+                _profit_thr_s = _sr_atr_s * 0.5 if _sr_atr_s > 0 else (0.025 if _is_jpy_or_xau_s else 0.00025)
+                if _current_fav_s > _profit_thr_s:
+                    self._add_log(
+                        f"[HOLD] Scalp MFEガード: {direction} {trade_id[:8]} "
+                        f"profit={_current_fav_s:.5f} > ATR×0.5={_profit_thr_s:.5f} "
+                        f"→ SIGNAL_REVERSE無効化"
+                    )
+                    return  # 含み益トレードを保護 — TP/SLに委ねる
+
         close_reason = None
 
         # ── SR判定: 方向反転 + confidence閾値 ──
