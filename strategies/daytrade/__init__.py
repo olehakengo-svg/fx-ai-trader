@@ -36,6 +36,7 @@ from strategies.daytrade.jpy_basket_trend import JpyBasketTrend
 from strategies.daytrade.squeeze_release_momentum import SqueezeReleaseMomentum
 from strategies.daytrade.eurgbp_daily_mr import EurgbpDailyMR
 from strategies.daytrade.dt_bb_rsi_mr import DtBbRsiMR
+from strategies.daytrade.liquidity_sweep import LiquiditySweep
 
 
 class DaytradeEngine:
@@ -65,6 +66,7 @@ class DaytradeEngine:
             SqueezeReleaseMomentum(),      # SRM: Squeeze Release Momentum v3 (2段フィルター, EUR/GBP限定)
             EurgbpDailyMR(),               # EUR/GBP Daily MR: 20日レンジ極値フェード (日足MR)
             DtBbRsiMR(),                   # DT BB RSI MR: 15m BB%B+RSI14+Stoch 平均回帰 (Bollinger 1992)
+            LiquiditySweep(),              # Liquidity Sweep: Wick構造ストップ狩りリバーサル (Osler 2003, Kyle 1985)
             DtFibReversal(),
             DtSrChannelReversal(),
             Ema200TrendReversal(),

@@ -2561,6 +2561,7 @@ class DemoTrader:
             "jpy_basket_trend",              # JPYバスケットトレンド: 円通貨連動 (2026-04-07)
             "gold_vol_break",                # ゴールド出来高ブレイク: XAU DT専用 (2026-04-07)
             "gold_trend_momentum",           # ゴールドトレンドモメンタム: XAU EMA21 PB 順張り (Baur 2010) — Sentinel蓄積中
+            "liquidity_sweep",               # v8.2: 流動性スイープ: ウィック構造ストップ狩りリバーサル (Osler 2003) — Sentinel蓄積中
             # v7.0 Sentinel再有効化 — デモデータ蓄積で再検証 (2026-04-09)
             "post_news_vol",                 # PNV: 指標後ボラ — Sentinel蓄積中
             "dt_fib_reversal",               # DTフィボ反転 — Sentinel蓄積中
@@ -4146,6 +4147,7 @@ class DemoTrader:
         "dt_bb_rsi_mr",                # DT BB RSI MR: 15m BB+RSI14 平均回帰 — 新規, Sentinel蓄積
         # v8.0: ema_trend_scalp → _STRATEGY_LOT_BOOST 1.5x昇格 (当日最高PnL +$179.6, WR=44.4%)
         "gold_trend_momentum",         # XAU Trend Momentum: 15m EMA21 PB trend-follow — 新規, Sentinel蓄積
+        "liquidity_sweep",             # v8.2: Liquidity Sweep: ウィック構造ストップ狩りリバーサル (Osler 2003) — Sentinel蓄積
         # v7.0: 全disabled戦略をSentinel再有効化 — デモデータ蓄積優先 (4原則#4)
         "v_reversal",                  # 急落/急騰反転 — BT未検証, Sentinel蓄積
         "ema_pullback",                # EMAプルバック — WR=51.1%, Sentinel蓄積

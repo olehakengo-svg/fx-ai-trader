@@ -5567,6 +5567,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "eurgbp_daily_mr",               # EUR/GBP Daily MR: 20日レンジ極値フェード (日足MR)
                 "dt_bb_rsi_mr",                  # DT BB RSI MR: 15m BB%B+RSI14+Stoch 平均回帰 (Bollinger 1992)
                 "gold_trend_momentum",           # XAU Trend Momentum: EMA21 PB 順張り (Baur 2010) — Sentinel蓄積中
+                "liquidity_sweep",               # v8.2: Liquidity Sweep: ウィック構造ストップ狩りリバーサル (Osler 2003)
                 # 2026-04-09 v7.0: 全戦略Sentinel再有効化 — デモデータ蓄積優先
                 "dt_fib_reversal",               # DT Fib反発 — Sentinel蓄積
                 "dt_sr_channel_reversal",         # DT SR/チャネル反発 — Sentinel蓄積
