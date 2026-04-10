@@ -8397,8 +8397,11 @@ def _compute_scalp_signal_v1_legacy(df: pd.DataFrame, tf: str, sr_levels: list,
     # スコア閾値: 0.6（旧0.8→ロンドン/NY帯の取引頻度確保）
     SCALP_SCORE_THRESHOLD = 0.6
     # 金曜日は閾値引き上げ: 高確信シグナルのみ通す（ema_pullback等の低品質除外）
+    # v7.1: 3.5→2.0 — Gold Hours外(UTC 09-18)では3.5に届かずNYC全停止になっていた
+    # 試算: UTC 13-17のbb_rsi最大スコア≈2.99 → 3.5では構造的に不通過
+    # 2.0(3.3x)は「意味のある選別」として機能し、NYC time でも ADX高ければ通る
     if _is_friday_scalp:
-        SCALP_SCORE_THRESHOLD = 3.5  # 通常0.6 → 金曜3.5（超高確信のみ）
+        SCALP_SCORE_THRESHOLD = 2.0  # 通常0.6 → 金曜2.0(3.3x, 旧3.5=5.8xは事実上全停止)
     # 条件が全くない場合のみWAIT（1つでもあればスコアで判定）
     if not has_any_entry and abs(score) < SCALP_SCORE_THRESHOLD * 2:
         reasons.append("⛔ エントリー条件未達 → WAIT")
