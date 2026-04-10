@@ -10,6 +10,13 @@ v7.0 Stochクロスオーバー緩和:
   理由: 1m足でもK=90時にD<Kが数分持続し、最良エントリーを逃す。
   反転方向に動いていれば十分な確認（dt_bb_rsi_mrと同一修正）。
 
+v8.3 即死率改善 (77.6%→目標20-25%):
+  Fix1: 確認足フィルター — BUY: Close>Open(陽線), SELL: Close<Open(陰線)
+        極端値に「居る」だけでなく「反転し始めた」確認。最大インパクト
+  Fix2: TREND逆張りブロック — TREND_BULLでSELL、TREND_BEARでBUYをブロック
+        即死の40%がトレンド逆張り。RANGEとトレンド順方向のみ許可
+  Fix3: JPY ADXフロア — ADX<15でブロック (極端チョッピー=純ノイズ)
+
 データ裏付け (USD/JPY 15m, 59日間):
   - ADX<20  WR=49.2% (エッジなし)
   - ADX>=30 WR=60.0% avg=+3.45pip (トレンド中BB反発が最も有効)
@@ -59,11 +66,17 @@ class BBRsiReversion(StrategyBase):
         if ctx.is_jpy:
             # USD/JPY: ADX制限なし（トレンド中BB反発 WR=60% — 逆にエッジ増大）
             # v7.0: Death Valley撤廃 — Spread/SL Gateが動的防御を担う
-            pass
+            # v8.3 Fix3: ADXフロア — 極端チョッピー(ADX<15)は純ノイズ、エッジゼロ
+            if ctx.adx < 15:
+                return None
         else:
             # EUR/USD: 従来通り ADX<25 レンジ環境のみ
             if ctx.adx >= self.adx_max:
                 return None
+
+        # v8.3 Fix2: TREND逆張りブロック — 即死の40%がトレンド逆張り
+        # TREND_BULLでSELL、TREND_BEARでBUYをブロック。RANGEとトレンド順方向のみ許可
+        _regime = (ctx.regime or {}).get("regime", "") if isinstance(ctx.regime, dict) else ""
 
         signal = None
         score = 0.0
@@ -84,14 +97,19 @@ class BBRsiReversion(StrategyBase):
 
         # ── BUY判定 ──
         # v7.0: Stoch K>D strict → K>D OR K上昇中（反転方向で許容）
+        # v8.3 Fix1: 確認足フィルター — Close>Open(陽線)で反転開始を確認
+        # v8.3 Fix2: TREND_BEARでBUYブロック（トレンド逆張り排除）
         if (ctx.bbpb <= self.bbpb_buy and ctx.rsi5 < self.rsi5_buy
                 and ctx.stoch_k < self.stoch_buy
-                and (ctx.stoch_k > ctx.stoch_d or ctx.stoch_k > _prev_stoch_k)):
+                and (ctx.stoch_k > ctx.stoch_d or ctx.stoch_k > _prev_stoch_k)
+                and ctx.entry > ctx.open_price
+                and _regime != "TREND_BEAR"):
             signal = "BUY"
             tier1 = ctx.bbpb <= 0.05 and ctx.rsi5 < 25 and ctx.stoch_k < 20
             score = (4.5 if tier1 else 3.0) + (38 - ctx.rsi5) * 0.06
             reasons.append(f"✅ BB下限(%B={ctx.bbpb:.2f}≤{self.bbpb_buy}) — 平均回帰 (Bollinger 2001)")
             reasons.append(f"✅ RSI5売られすぎ({ctx.rsi5:.1f}<{self.rsi5_buy})")
+            reasons.append(f"✅ 確認足陽線(C={ctx.entry:.5g}>O={ctx.open_price:.5g}) — v8.3反転確認")
             _buy_cross = ctx.stoch_k > ctx.stoch_d
             _buy_rising = ctx.stoch_k > _prev_stoch_k
             reasons.append(
@@ -130,14 +148,19 @@ class BBRsiReversion(StrategyBase):
 
         # ── SELL判定 ──
         # v7.0: Stoch K<D strict → K<D OR K下落中（反転方向で許容）
+        # v8.3 Fix1: 確認足フィルター — Close<Open(陰線)で反転開始を確認
+        # v8.3 Fix2: TREND_BULLでSELLブロック（トレンド逆張り排除）
         if (signal is None and ctx.bbpb >= self.bbpb_sell
                 and ctx.rsi5 > self.rsi5_sell and ctx.stoch_k > self.stoch_sell
-                and (ctx.stoch_k < ctx.stoch_d or ctx.stoch_k < _prev_stoch_k)):
+                and (ctx.stoch_k < ctx.stoch_d or ctx.stoch_k < _prev_stoch_k)
+                and ctx.entry < ctx.open_price
+                and _regime != "TREND_BULL"):
             signal = "SELL"
             tier1 = ctx.bbpb >= 0.95 and ctx.rsi5 > 75 and ctx.stoch_k > 80
             score = (4.5 if tier1 else 3.0) + (ctx.rsi5 - 58) * 0.06
             reasons.append(f"✅ BB上限(%B={ctx.bbpb:.2f}≥{self.bbpb_sell}) — 平均回帰 (Bollinger 2001)")
             reasons.append(f"✅ RSI5買われすぎ({ctx.rsi5:.1f}>{self.rsi5_sell})")
+            reasons.append(f"✅ 確認足陰線(C={ctx.entry:.5g}<O={ctx.open_price:.5g}) — v8.3反転確認")
             _sell_cross = ctx.stoch_k < ctx.stoch_d
             _sell_falling = ctx.stoch_k < _prev_stoch_k
             reasons.append(

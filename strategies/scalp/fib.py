@@ -51,7 +51,7 @@ class FibReversal(StrategyBase):
     tp_mult = 1.8          # USD_JPYデフォルト (維持)
     sl_mult = 0.7          # v6.3: 0.5→0.7 ノイズ生存率↑
     sl_fib_offset = 0.2    # フィボレベルからのSLオフセット（ATR倍率）
-    body_ratio_min = 0.50  # v6.3: 足の実体比率最低 (ヒゲ足排除)
+    body_ratio_min = 0.60  # v8.3: 0.50→0.60 確認足強化 (即死率75.9%対策)
 
     # ── ペア別TP倍率 (v6.3: 非JPYは摩擦が大きいため早期利確) ──
     _tp_mult_by_pair = {
@@ -154,6 +154,10 @@ class FibReversal(StrategyBase):
             if ctx.macdh > ctx.macdh_prev:
                 score += 0.4
                 reasons.append("✅ MACD-H反転上昇")
+            else:
+                # v8.3: 非Tier1極端ではMACD-H反転必須 (即死率-30%)
+                if ctx.bbpb > 0.05:  # Tier1(≤0.05)はMACD-Hオプション維持
+                    return None  # MACD-H不反転 → スキップ
             tp = ctx.entry + ctx.atr7 * _effective_tp
             sl = min(ctx.entry - ctx.atr7 * self.sl_mult, _fv - ctx.atr7 * self.sl_fib_offset)
 
@@ -178,10 +182,20 @@ class FibReversal(StrategyBase):
             if ctx.macdh < ctx.macdh_prev:
                 score += 0.4
                 reasons.append("✅ MACD-H反転下降")
+            else:
+                # v8.3: 非Tier1極端ではMACD-H反転必須
+                if ctx.bbpb < 0.95:  # Tier1(≥0.95)はMACD-Hオプション維持
+                    return None
             tp = ctx.entry - ctx.atr7 * _effective_tp
             sl = max(ctx.entry + ctx.atr7 * self.sl_mult, _fv + ctx.atr7 * self.sl_fib_offset)
 
-        if signal is None or score < 3.0:
+        # v8.3: Fibレベル階層化 — 38.2%はスコア閾値引上げ (弱いレベル=高い確信要求)
+        _score_gate = 3.0  # デフォルト (61.8%)
+        if _fn and "38.2" in _fn:
+            _score_gate = 4.5  # 最弱レベル → 高スコア必須
+        elif _fn and "50" in _fn:
+            _score_gate = 3.5
+        if signal is None or score < _score_gate:
             return None
 
         conf = int(min(85, 45 + score * 5))

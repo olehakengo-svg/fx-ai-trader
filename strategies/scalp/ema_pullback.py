@@ -43,17 +43,27 @@ class EmaPullback(StrategyBase):
                 and ctx.entry > ctx.prev_close  # 現バー陽線方向
                 and ctx.rsi5 > self.rsi5_buy_min and ctx.rsi5 < self.rsi5_buy_max
                 and ctx.bbpb > self.bbpb_buy_min and ctx.bbpb < self.bbpb_buy_max):
+            # ── v8.3: バウンス確認強化 — 即死率72.2%対策 ──
+            _min_bounce = ctx.atr7 * 0.2
+            if (ctx.entry - ctx.ema21) < _min_bounce:
+                return None  # 弱いバウンス(2-3pip) → PB継続中の可能性大
+            if ctx.macdh <= 0:
+                return None  # v8.3: MACD-H正必須 → モメンタム上向き確認
+            if ctx.stoch_k <= ctx.stoch_d:
+                return None  # v8.3: Stochゴールデンクロス必須
+            _body_ep = abs(ctx.entry - ctx.open_price)
+            _range_ep = ctx.df["High"].iloc[-1] - ctx.df["Low"].iloc[-1] if ctx.df is not None and len(ctx.df) > 0 else 0
+            if _range_ep > 0 and _body_ep / _range_ep < 0.35:
+                return None  # v8.3: doji/spinning top除外
             signal = "BUY"
             score = 3.0 + min((ctx.adx - self.adx_min) * 0.05, 1.0)
             reasons.append(f"✅ EMAプルバック反発: EMA9({ctx.ema9:.3f})タッチ→反発")
             reasons.append(f"✅ EMA完全整列 (9>21>50, ADX={ctx.adx:.1f})")
             reasons.append(f"✅ 陽線反発確認 ({ctx.entry:.3f}>{ctx.prev_close:.3f})")
+            reasons.append("✅ v8.3: MACD-H+Stoch+Body三重確認")
             if ctx.prev_low <= ctx.ema21 + ctx.atr7 * 0.1:
                 score += 0.5
                 reasons.append(f"✅ EMA21深押し(Low={ctx.prev_low:.3f})")
-            if ctx.stoch_k > ctx.stoch_d:
-                score += 0.3
-                reasons.append("✅ Stochゴールデンクロス")
             tp = ctx.entry + ctx.atr7 * self.tp_mult
             sl = ctx.ema21 - ctx.atr7 * self.sl_ema_offset
 
@@ -65,17 +75,27 @@ class EmaPullback(StrategyBase):
                 and ctx.entry < ctx.prev_close  # 現バー陰線方向
                 and ctx.rsi5 > self.rsi5_sell_min and ctx.rsi5 < self.rsi5_sell_max
                 and ctx.bbpb > self.bbpb_sell_min and ctx.bbpb < self.bbpb_sell_max):
+            # ── v8.3: バウンス確認強化 — 即死率72.2%対策 (SELL対称) ──
+            _min_bounce_s = ctx.atr7 * 0.2
+            if (ctx.ema21 - ctx.entry) < _min_bounce_s:
+                return None  # 弱い戻り → PB継続中
+            if ctx.macdh >= 0:
+                return None  # v8.3: MACD-H負必須
+            if ctx.stoch_k >= ctx.stoch_d:
+                return None  # v8.3: Stochデッドクロス必須
+            _body_ep_s = abs(ctx.entry - ctx.open_price)
+            _range_ep_s = ctx.df["High"].iloc[-1] - ctx.df["Low"].iloc[-1] if ctx.df is not None and len(ctx.df) > 0 else 0
+            if _range_ep_s > 0 and _body_ep_s / _range_ep_s < 0.35:
+                return None  # v8.3: doji/spinning top除外
             signal = "SELL"
             score = 3.0 + min((ctx.adx - self.adx_min) * 0.05, 1.0)
             reasons.append(f"✅ EMAプルバック反落: EMA9({ctx.ema9:.3f})タッチ→反落")
             reasons.append(f"✅ EMA逆整列 (9<21<50, ADX={ctx.adx:.1f})")
             reasons.append(f"✅ 陰線反落確認 ({ctx.entry:.3f}<{ctx.prev_close:.3f})")
+            reasons.append("✅ v8.3: MACD-H+Stoch+Body三重確認")
             if ctx.prev_high >= ctx.ema21 - ctx.atr7 * 0.1:
                 score += 0.5
                 reasons.append(f"✅ EMA21深戻り(High={ctx.prev_high:.3f})")
-            if ctx.stoch_k < ctx.stoch_d:
-                score += 0.3
-                reasons.append("✅ Stochデッドクロス")
             tp = ctx.entry - ctx.atr7 * self.tp_mult
             sl = ctx.ema21 + ctx.atr7 * self.sl_ema_offset
 
