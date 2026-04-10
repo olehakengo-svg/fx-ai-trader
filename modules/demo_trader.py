@@ -4064,9 +4064,13 @@ class DemoTrader:
         "ema_pullback",
         "lin_reg_channel", "trendline_sweep", "dual_sr_bounce",
         "fib_reversal",      # v6.8: N=117 WR=39.6% PnL=-18.0 PF<1 → OANDA停止
+        #   ↑ v8.2 復活パス: Post-cut N=20 WR=55.0% +35.6pip (v6.3改善効果確認)
+        #   N≥30 & WR≥50% 到達時 → FORCE_DEMOTED削除 → SCALP_SENTINEL (自動Sentinel)
+        #   N≥50 & WR≥52% & PF>1.1 → PAIR_PROMOTED候補として再審査
         "macdh_reversal",    # v6.8: N=86 WR=34.7% PnL=-40.6 PF<1 → OANDA停止
         "sr_break_retest",   # v7.0: N=2 EV=-21.4 PnL=-42.8 → 1件で全利益消失クラス
         "engulfing_bb",      # v8.0: 本番N=7 WR=14.3% PnL=-$353.5 — 壊滅的、即時停止
+        "bb_squeeze_breakout",  # v8.2: BT EV=-0.799 ATR, ブレイクアウト直後の最大スプレッドと重なり構造的赤字
     }
 
     # ── Elite Track: 摩擦モデルv2 BT + v5.95統合BT監査 ──
@@ -4083,7 +4087,7 @@ class DemoTrader:
         # === Legacy ===
         "sr_break_retest": 1.3,            # GBP WR=80% EV=+0.705 (14d)
         "mtf_reversal_confluence": 1.3,    # EV +1.49 (448t監査)
-        "vol_momentum_scalp": 2.0,        # v8.0: Kelly H=23.5% WR=72.7% Edge=+0.50 — Sentinel→攻撃昇格
+        "vol_momentum_scalp": 1.0,        # v8.2: 2.0x→1.0x 摩擦後EV境界的(+1.61-2.14=≈0), N=11でデータ蓄積優先
         "ema_trend_scalp": 1.5,            # v8.0: 当日最高PnL +$179.6, XAU +427pip — Sentinel→攻撃昇格
         # REMOVED: stoch_trend_pullback → _UNIVERSAL_SENTINEL降格 (全ペアEVマイナス)
     }
@@ -4097,7 +4101,7 @@ class DemoTrader:
         # v8.0: vol_momentum_scalp → _STRATEGY_LOT_BOOST 2.0x昇格 (Kelly H=23.5%, WR=72.7%, Edge=+0.50)
         "vol_surge_detector",     # v6.3: 発火率改善(閾値緩和), Sentinel継続
         "ema_ribbon_ride",        # v6.3: Strict PO+ADX25+DI gap+UTC block
-        "bb_squeeze_breakout",    # 5t WR=80% EV=+0.992 (N不足、要観察)
+        # v8.2: bb_squeeze_breakout → FORCE_DEMOTED (BT EV=-0.799, 構造的赤字)
     }
 
     # ══════════════════════════════════════════════════════════════
@@ -4118,6 +4122,13 @@ class DemoTrader:
     # v6.8: sr_fib_confluence PAIR_PROMOTED全削除 (本番N=40 WR=28.9% -92.8pip, BT乖離確定)
     _PAIR_PROMOTED = {
         ("bb_rsi_reversion", "USD_JPY"),    # v6.3: 本番N=123 WR=54.7% +54.8pip 唯一の正PFアルファ
+        # v8.2: orb_trap 全3ペア PAIR_PROMOTED — BT最強根拠 (N<10 Sentinel免除)
+        # BT: JPY WR=79.3% EV=+0.617 / EUR WR=71.4% EV=+0.482 / GBP WR=64.3% EV=+0.245
+        # margin +40-50pp over BEV_WR — 全戦略中最大の摩擦マージン
+        # N_LOT_TIERS: N<10→max 1.0x, N≥10→1.5x で段階的増資
+        ("orb_trap", "USD_JPY"),
+        ("orb_trap", "EUR_USD"),
+        ("orb_trap", "GBP_USD"),
     }
 
     # ペア別ロットブースト: PAIR_LOT_BOOST > _STRATEGY_LOT_BOOST (優先)
