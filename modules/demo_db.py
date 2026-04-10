@@ -486,7 +486,7 @@ class DemoDB:
                   mode: str = None) -> dict:
         """Compute aggregate stats from closed trades."""
         query = ("SELECT pnl_pips, pnl_r, outcome, entry_type, confidence, close_reason "
-                 "FROM demo_trades WHERE status='CLOSED'")
+                 "FROM demo_trades WHERE status='CLOSED' AND is_shadow = 0")
         params = []
         if date_from:
             query += " AND entry_time >= ?"

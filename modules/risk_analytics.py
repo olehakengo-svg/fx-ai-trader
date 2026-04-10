@@ -467,6 +467,165 @@ def compute_risk_dashboard(trades: List[dict],
     }
 
 
+def consolidation_simulation(
+    all_trades: List[dict],
+    tier1_strategies: List[str],
+    fidelity_cutoff: str = "2026-04-08T00:00:00+00:00",
+    post_cutoff_only: bool = True,
+) -> dict:
+    """
+    Verify whether strategy consolidation improves performance by replaying
+    the production trade history filtered to only Tier-1 strategies.
+
+    Args:
+        all_trades: List of closed trade dicts from DB (is_shadow=0 already filtered).
+        tier1_strategies: Strategy names to keep in the consolidated portfolio.
+        fidelity_cutoff: ISO datetime string; only trades after this are "clean".
+        post_cutoff_only: If True, restrict baseline to post-cutoff trades only.
+
+    Returns:
+        dict with full_system, consolidated, removed_strategies, improvement, recommendation.
+    """
+
+    def _parse_time(t: dict) -> str:
+        return t.get("exit_time") or t.get("entry_time") or ""
+
+    # Filter to live trades only (is_shadow already excluded by get_stats caller)
+    # Optionally restrict to post-fidelity-cutoff for clean data
+    if post_cutoff_only:
+        trades = [t for t in all_trades if _parse_time(t) >= fidelity_cutoff]
+    else:
+        trades = list(all_trades)
+
+    if not trades:
+        return {"error": "No trades after fidelity cutoff", "insufficient": True}
+
+    def _metrics(trade_list: List[dict]) -> dict:
+        if not trade_list:
+            return {"n": 0, "wr": 0.0, "total_pnl": 0.0, "ev_per_trade": 0.0,
+                    "kelly_edge": 0.0, "avg_win": 0.0, "avg_loss": 0.0}
+        n = len(trade_list)
+        pnls = [float(t.get("pnl_pips", 0) or 0) for t in trade_list]
+        wins = [p for p in pnls if p > 0]
+        losses = [abs(p) for p in pnls if p < 0]
+        wr = len(wins) / n
+        avg_win = float(np.mean(wins)) if wins else 0.0
+        avg_loss = float(np.mean(losses)) if losses else 0.0
+        total_pnl = sum(pnls)
+        ev = total_pnl / n
+
+        # Kelly edge
+        if avg_loss > 0 and wr > 0:
+            odds = avg_win / avg_loss
+            edge = wr * odds - (1 - wr)
+        else:
+            edge = 0.0
+
+        # Friction estimate (spread_at_entry + spread_at_exit + slippage)
+        frictions = []
+        for t in trade_list:
+            se = float(t.get("spread_at_entry") or 0)
+            sx = float(t.get("spread_at_exit") or 0)
+            sl = float(t.get("slippage_pips") or 0)
+            frictions.append(se + sx + abs(sl))
+        avg_friction = float(np.mean(frictions)) if frictions else 0.0
+
+        return {
+            "n": n,
+            "wr": round(wr * 100, 2),
+            "total_pnl": round(total_pnl, 2),
+            "ev_per_trade": round(ev, 3),
+            "kelly_edge": round(edge, 4),
+            "avg_win": round(avg_win, 2),
+            "avg_loss": round(avg_loss, 2),
+            "avg_friction": round(avg_friction, 2),
+        }
+
+    # Full system metrics
+    full_metrics = _metrics(trades)
+
+    # Consolidated (Tier-1 only) metrics
+    tier1_set = set(tier1_strategies)
+    consolidated_trades = [t for t in trades if (t.get("entry_type") or "") in tier1_set]
+    consolidated_metrics = _metrics(consolidated_trades)
+
+    # Removed strategies breakdown
+    removed_trades = [t for t in trades if (t.get("entry_type") or "") not in tier1_set]
+    removed_by_strategy: Dict[str, dict] = {}
+    for t in removed_trades:
+        et = t.get("entry_type") or "unknown"
+        if et not in removed_by_strategy:
+            removed_by_strategy[et] = {"n": 0, "pnl": 0.0, "wins": 0}
+        removed_by_strategy[et]["n"] += 1
+        removed_by_strategy[et]["pnl"] += float(t.get("pnl_pips", 0) or 0)
+        if t.get("outcome") == "WIN":
+            removed_by_strategy[et]["wins"] += 1
+    for et in removed_by_strategy:
+        d = removed_by_strategy[et]
+        d["pnl"] = round(d["pnl"], 2)
+        d["avg_pnl"] = round(d["pnl"] / d["n"], 3) if d["n"] > 0 else 0.0
+        d["wr"] = round(d["wins"] / d["n"] * 100, 1) if d["n"] > 0 else 0.0
+
+    # Sort removed strategies by total PnL (worst first)
+    removed_sorted = dict(sorted(removed_by_strategy.items(),
+                                 key=lambda x: x[1]["pnl"]))
+
+    # Improvement metrics
+    delta_wr = consolidated_metrics["wr"] - full_metrics["wr"]
+    delta_ev = consolidated_metrics["ev_per_trade"] - full_metrics["ev_per_trade"]
+    delta_pnl = consolidated_metrics["total_pnl"] - full_metrics["total_pnl"]
+    delta_kelly = consolidated_metrics["kelly_edge"] - full_metrics["kelly_edge"]
+
+    # Statistical significance of WR improvement (Wilson approx)
+    n_full = full_metrics["n"]
+    n_tier1 = consolidated_metrics["n"]
+    wins_tier1 = round(n_tier1 * consolidated_metrics["wr"] / 100)
+    sig_wr = "N/A"
+    if n_tier1 >= 10:
+        # Binomial test: H0 WR <= full system WR
+        null = full_metrics["wr"] / 100
+        obs = consolidated_metrics["wr"] / 100
+        if null > 0 and null < 1 and n_tier1 > 0:
+            se = float(np.sqrt(null * (1 - null) / n_tier1))
+            z = (obs - null) / se if se > 0 else 0.0
+            sig_wr = f"z={round(z, 2)}"
+
+    # Recommendation
+    if consolidated_metrics["kelly_edge"] > 0.05 and delta_ev > 0.5:
+        rec = "CONSOLIDATE: Tier-1 portfolio shows materially positive Kelly edge. Recommend stopping shadow recording of negative-Kelly strategies to concentrate data collection."
+    elif consolidated_metrics["kelly_edge"] > 0:
+        rec = "PARTIAL_CONSOLIDATE: Tier-1 shows positive edge but EV improvement is small. Friction reduction (Quick-Harvest緩和, 指値エントリー) must accompany consolidation to reach breakeven."
+    elif delta_ev > 0:
+        rec = "MARGINAL: Consolidation improves EV but Tier-1 portfolio still negative Kelly. Requires both consolidation AND friction reduction simultaneously."
+    else:
+        rec = "INSUFFICIENT_DATA: Post-cutoff Tier-1 trades too few for reliable conclusion. Continue data accumulation."
+
+    # Friction wasted on removed strategies
+    removed_friction_wasted = sum(
+        removed_by_strategy[et]["n"] * full_metrics["avg_friction"]
+        for et in removed_by_strategy
+    ) if full_metrics["avg_friction"] > 0 else 0.0
+
+    return {
+        "full_system": full_metrics,
+        "consolidated": consolidated_metrics,
+        "removed_strategies": removed_sorted,
+        "improvement": {
+            "delta_wr_pp": round(delta_wr, 2),
+            "delta_ev_per_trade": round(delta_ev, 3),
+            "delta_pnl_total": round(delta_pnl, 2),
+            "delta_kelly_edge": round(delta_kelly, 4),
+            "wr_significance": sig_wr,
+            "friction_wasted_on_removed": round(removed_friction_wasted, 2),
+        },
+        "tier1_strategies": sorted(tier1_set),
+        "n_removed_strategies": len(removed_by_strategy),
+        "recommendation": rec,
+        "post_cutoff_only": post_cutoff_only,
+        "fidelity_cutoff": fidelity_cutoff,
+    }
+
+
 def compute_slippage_stats(trades: List[dict]) -> dict:
     """
     Compute slippage statistics segmented by session, regime, strategy.
