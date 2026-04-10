@@ -657,11 +657,33 @@ class DemoDB:
 
     # ── Learning adjustments ──────────────────────────
 
+    # Dedup window: skip identical adjustments within this many seconds
+    _ADJUSTMENT_DEDUP_SEC = 60
+
     def save_adjustment(self, parameter: str, old_val: float, new_val: float,
                         reason: str, win_rate: float, ev: float, sample: int,
                         mode: str = ""):
         with self._lock:
             with self._safe_conn() as conn:
+                # ── Idempotency guard: skip if identical adjustment exists
+                #    within the dedup window (same parameter + mode + direction)
+                #    This prevents the duplicate-adjustment bug where evaluate()
+                #    is called multiple times rapidly from concurrent threads.
+                _direction = "up" if new_val > old_val else "down" if new_val < old_val else "same"
+                dup = conn.execute("""
+                    SELECT id FROM learning_adjustments
+                    WHERE parameter = ?
+                      AND mode = ?
+                      AND CASE WHEN new_value > old_value THEN 'up'
+                              WHEN new_value < old_value THEN 'down'
+                              ELSE 'same' END = ?
+                      AND timestamp > datetime('now', ?)
+                    LIMIT 1
+                """, (parameter, mode, _direction,
+                      f"-{self._ADJUSTMENT_DEDUP_SEC} seconds")).fetchone()
+                if dup:
+                    return  # duplicate — skip silently
+
                 conn.execute("""
                     INSERT INTO learning_adjustments
                         (parameter, old_value, new_value, reason, win_rate_at, ev_at, sample_size, mode)

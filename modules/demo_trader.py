@@ -291,6 +291,7 @@ class DemoTrader:
             "max_drawdown_pips": -99999,           # デモ: 制限なし
         }
         self._trade_count_since_learn = 0
+        self._last_learning_ts = 0.0  # epoch — dedup guard for _trigger_learning
         self._last_signals = {}   # mode -> last signal dict
         # 連敗トラッカー: mode -> {"direction": str, "count": int}
         self._consec_losses = {}  # mode -> {dir -> consecutive_loss_count}
@@ -3825,8 +3826,19 @@ class DemoTrader:
             if self._trade_count_since_learn >= self._params["learn_every_n"]:
                 self._trigger_learning(current_mode=mode)
 
+    # Minimum seconds between learning evaluations (prevents duplicate
+    # adjustments when multiple trades close in the same SLTP-checker tick)
+    _LEARNING_DEDUP_SEC = 60
+
     def _trigger_learning(self, current_mode: str = None):
         self._trade_count_since_learn = 0
+
+        # ── Idempotency guard: skip if learning ran within dedup window ──
+        _now = time.time()
+        if _now - self._last_learning_ts < self._LEARNING_DEDUP_SEC:
+            return
+        self._last_learning_ts = _now
+
         # モード別に学習分析を実行
         modes_to_learn = [current_mode] if current_mode else list(MODE_CONFIG.keys())
         for mode in modes_to_learn:

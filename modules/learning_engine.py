@@ -177,8 +177,14 @@ class LearningEngine:
         if sample >= 20:
             closed = self._db.get_all_closed()
             sl_losses = [t for t in closed if t["close_reason"] == "SL_HIT"]
-            if len(sl_losses) >= 10:
-                sl_hit_rate = len(sl_losses) / sample * 100
+            total_closed = len(closed)
+            if len(sl_losses) >= 10 and total_closed > 0:
+                # BUG FIX: denominator must be total_closed (same population as
+                # sl_losses), NOT sample (which is filtered by mode/cutoff/shadow).
+                # Using sample caused rates >100% (e.g. 234%, 327%) when
+                # len(sl_losses from all trades) > sample (filtered subset).
+                sl_hit_rate = len(sl_losses) / total_closed * 100
+                assert 0 <= sl_hit_rate <= 100, f"SL hit rate out of range: {sl_hit_rate}"
                 if sl_hit_rate > 60:
                     insights.append(f"🛑 SLヒット率{sl_hit_rate:.0f}% (観測のみ・自動調整なし)")
                 elif sl_hit_rate < 30:
