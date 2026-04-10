@@ -475,18 +475,26 @@ class DemoDB:
             rows = conn.execute(query, params).fetchall()
             return [dict(r) for r in rows]
 
-    def get_all_closed(self) -> list:
+    def get_all_closed(self, exclude_shadow: bool = True) -> list:
+        """v8.4: exclude_shadow=True でShadowトレード除外（risk_analytics/Kelly汚染防止）"""
+        q = "SELECT * FROM demo_trades WHERE status='CLOSED'"
+        if exclude_shadow:
+            q += " AND (is_shadow IS NULL OR is_shadow = 0)"
+        q += " ORDER BY exit_time"
         with self._safe_conn() as conn:
-            rows = conn.execute(
-                "SELECT * FROM demo_trades WHERE status='CLOSED' ORDER BY exit_time"
-            ).fetchall()
+            rows = conn.execute(q).fetchall()
             return [dict(r) for r in rows]
 
     def get_stats(self, date_from: str = None, date_to: str = None,
-                  mode: str = None) -> dict:
-        """Compute aggregate stats from closed trades."""
+                  mode: str = None, exclude_shadow: bool = True) -> dict:
+        """Compute aggregate stats from closed trades.
+        v8.4: exclude_shadow=True でis_shadow=1を除外（デフォルト）。
+        Shadow混入によるWR/EV/Kelly汚染を防止。
+        """
         query = ("SELECT pnl_pips, pnl_r, outcome, entry_type, confidence, close_reason "
                  "FROM demo_trades WHERE status='CLOSED'")
+        if exclude_shadow:
+            query += " AND (is_shadow IS NULL OR is_shadow = 0)"
         params = []
         if date_from:
             query += " AND entry_time >= ?"

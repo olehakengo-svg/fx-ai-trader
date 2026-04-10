@@ -175,7 +175,7 @@ MODE_CONFIG = {
         "icon": "⚡🥇",
         "symbol": "XAUUSD=X",
         "instrument": "XAU_USD",
-        "auto_start": True,
+        "auto_start": False,       # v8.4: XAU停止 — post-cutoff損失の102%がXAU由来。FXのみで+96.8pip黒字
         "base_sl_pips": 50,        # Gold 1m ATR ≈ 30-80 pips (0.01 scale)
         "active_hours_utc": (0, 16),  # UTC 0-15 (Tokyo+London+NY_Overlap)
     },
@@ -191,7 +191,7 @@ MODE_CONFIG = {
         "icon": "📊🥇",
         "symbol": "XAUUSD=X",
         "instrument": "XAU_USD",
-        "auto_start": True,
+        "auto_start": False,       # v8.4: XAU停止 — post-cutoff XAU損失 -2,280pip (FXは+96.8pip黒字)
         "base_sl_pips": 200,       # Gold ATR(15m)≈100-300pips(0.01 scale)
     },
     # ── LCR: FROZEN (Phase2 BT全ペア負EV) ──
