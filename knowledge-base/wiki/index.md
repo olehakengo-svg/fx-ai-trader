@@ -31,6 +31,10 @@ See [[force-demoted-strategies]]
 - [[xau-stop-rationale]] -- FX profitable without XAU
 - [[mfe-zero-analysis]] -- 90.6% of losses never go favorable
 
+## Lessons Learned (間違いと教訓)
+- [[lessons/index]] — **過去の間違い・修正・教訓の蓄積** (Shadow汚染, XAU歪み, BT hardcode等)
+- 次のセッション開始時に必ず参照すること
+
 ## Research & Edge Discovery
 - [[research/index]] -- 学術文献インデックス、研究テーマ一覧
 - [[edge-pipeline]] -- エッジ仮説の評価パイプライン (6 stages)
