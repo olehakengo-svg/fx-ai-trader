@@ -1,0 +1,38 @@
+# vol_momentum_scalp
+
+## Status: Tier 2 (Sentinel, BOOST 1.0x)
+**0% instant death rate — system benchmark for entry quality.**
+
+## Performance
+| Period | N | WR | PnL | Kelly |
+|--------|---|-----|-----|-------|
+| Post-cutoff (shadow-excl) | 10 | 80.0% | +21.6 | 47.0% (CI: [-9.9%, +81.1%]) |
+| BT (Scalp v3.2) | 11 | 63.6% | - | EV=+1.61 |
+
+## Why 0% Instant Death (Benchmark)
+Entry requires ALL of:
+1. ADX >= 25 (strong trend confirmed)
+2. +DI > -DI, gap >= 8 (directional force)
+3. Close > Open (bullish candle — **confirmation**)
+4. BB%B >= 0.90 (already extended — momentum entry)
+5. BB width pct > 45% (volatility present)
+
+Key difference from bb_rsi (77.6% instant death):
+- vol_momentum enters on **confirmed momentum**, not anticipated reversal
+- Requires **existing trend** (ADX>=25), not any environment
+- **Candle body confirmation** before entry
+
+## Independent Audit Warning
+- N=11: Kelly CI = [-9.9%, +81.1%] — "Kelly discussion meaningless at N=11"
+- BOOST was 2.0x → reduced to 1.0x (v8.2)
+- Need N>=50 for reliable Kelly estimate
+
+## Friction
+- Entry precision ratio: high (MFE=4.39 on wins, MAE=1.7 on losses)
+- Friction 2.14pip vs edge ~1.61pip → marginal (needs monitoring)
+
+## Related
+- [[mfe-zero-analysis]] — Benchmark: 0% instant death
+- [[bb-rsi-reversion]] — Comparison: 77.6% instant death
+- [[friction-analysis]] — Friction/edge ratio concern
+- [[independent-audit-2026-04-10]] — Kelly CI warning
