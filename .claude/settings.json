@@ -1,0 +1,50 @@
+{
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); FILE=$(echo \"$INPUT\" | jq -r '.tool_input.file_path // empty' 2>/dev/null); [[ -z \"$FILE\" ]] && exit 0; if [[ \"$FILE\" == *.py ]]; then python3 -m py_compile \"$FILE\" 2>&1 && echo \"✅ syntax OK: $(basename $FILE)\"; fi; if [[ \"$FILE\" == *strategies/* || \"$FILE\" == *demo_trader.py || \"$FILE\" == *app.py ]]; then cd /Users/jg-n-012/test/fx-ai-trader && python3 scripts/check.py --quiet; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "INPUT=$(cat); FILE=$(echo \"$INPUT\" | jq -r '.tool_input.file_path // empty' 2>/dev/null); [[ -z \"$FILE\" ]] && exit 0; if [[ \"$FILE\" == *knowledge-base/wiki/* ]]; then cd /Users/jg-n-012/test/fx-ai-trader && echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"Wiki updated: '\"$(basename $FILE)\"'. Run /wiki-lint to check for broken links and contradictions.\"}}'; fi",
+            "statusMessage": "Wiki update detected..."
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/jg-n-012/test/fx-ai-trader && if [ -f knowledge-base/wiki/index.md ]; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"'\"$(sed 's/\"/\\\\\"/g; s/$/\\\\n/' knowledge-base/wiki/index.md | tr -d '\\n' | head -c 2000)\"'\"}}'; fi",
+            "statusMessage": "Loading knowledge base..."
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Before compacting, preserve these critical items from the knowledge-base: 1) Current Tier classifications from knowledge-base/wiki/index.md 2) Independent audit binding recommendations from knowledge-base/wiki/decisions/ 3) Any edge hypotheses being actively evaluated from knowledge-base/wiki/edges/edge-pipeline.md. Summarize these into the compaction context so they survive.",
+            "statusMessage": "Preserving knowledge base context..."
+          }
+        ]
+      }
+    ]
+  }
+}
