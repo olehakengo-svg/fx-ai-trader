@@ -19,5 +19,6 @@
 3. 知見が戦略に影響する場合 → wiki/concepts/ にサマリ作成
 
 ## Related
-- `raw/trade-logs/` — トレードログ（個別トレードデータ）
-- `wiki/concepts/friction-analysis.md` — 摩擦分析のサマリ
+- [[friction-analysis]] — 摩擦分析のサマリ
+- [[index]] — システム状態・戦略Tier
+- [[edge-pipeline]] — エッジ評価パイプライン

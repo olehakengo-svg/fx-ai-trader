@@ -2,7 +2,7 @@
 
 ## 2026-04-12: Academic Research Sweep (25 papers → 6 new edges)
 - 3 parallel research agents: Microstructure / Anomalies / Advanced
-- 25 papers reviewed, stored in `raw/papers/research-sweep-2026-04-12.md`
+- 25 papers reviewed, stored in [[research-sweep-2026-04-12]]
 - 6 new edge hypotheses added to wiki/edges/:
   - [[session-time-bias]] ★★★★★ (complexity 1/5, highest priority)
   - [[gotobi-fix]] ★★★★★ (complexity 1/5, integrate with tokyo_nakane)
@@ -15,7 +15,7 @@
 
 ## 2026-04-12: Changelog + Production Snapshot
 - Created [[changelog]]: バージョン別タイムライン + 評価基準日マトリクス
-- First production snapshot: `raw/trade-logs/snapshot-2026-04-12.md` (250t post-cutoff)
+- First production snapshot: [[snapshot-2026-04-12]] (250t post-cutoff)
 - Updated /wiki-quant-eval: Phase 0で[[changelog]]参照 → 最適なdate_from自動判定
 - PnL分解: XAU=-1,657pip, FX=+59.8pip（FXは黒字方向）
 - index.mdにData & Evaluationセクション追加

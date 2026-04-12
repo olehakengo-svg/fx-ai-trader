@@ -89,6 +89,7 @@ def get_strategy_attrs(strategy_dir: Path) -> list[dict]:
 
 
 KB_WIKI = ROOT / "knowledge-base" / "wiki"
+KB_ROOT = ROOT / "knowledge-base"
 
 
 def check_kb_consistency() -> tuple[list[str], list[str]]:
@@ -114,23 +115,31 @@ def check_kb_consistency() -> tuple[list[str], list[str]]:
                     " — index.mdの更新漏れの可能性"
                 )
 
-    # 6b. 破損wikilinkチェック（wiki/内の[[...]]がファイルとして存在するか）
+    # 6b. 破損wikilinkチェック（KB全体の[[...]]がファイルとして存在するか）
     broken_links: list[str] = []
-    if KB_WIKI.exists():
-        all_md_stems = set()
-        for md_file in KB_WIKI.rglob("*.md"):
-            # ファイル名(拡張子なし)と、サブディレクトリ/ファイル名の両方を登録
+    if KB_ROOT.exists():
+        # Obsidianはvault全体(knowledge-base/)でリンク解決するため、全.mdをスキャン
+        all_md_stems = set()  # ファイル名のみ（例: "index"）
+        all_md_paths = set()  # 相対パス（例: "wiki/research/index"）
+        for md_file in KB_ROOT.rglob("*.md"):
             all_md_stems.add(md_file.stem)
-            rel = md_file.relative_to(KB_WIKI).with_suffix("")
-            all_md_stems.add(str(rel).replace("\\", "/"))
+            rel = str(md_file.relative_to(KB_ROOT).with_suffix("")).replace("\\", "/")
+            all_md_paths.add(rel)
 
-        for md_file in KB_WIKI.rglob("*.md"):
+        def link_resolves(link: str) -> bool:
+            """Obsidian互換: ファイル名一致 or パス末尾一致で解決。"""
+            if link in all_md_stems:
+                return True
+            # パスを含むリンク（例: "research/index"）→ 末尾一致で解決
+            return any(p == link or p.endswith("/" + link) for p in all_md_paths)
+
+        for md_file in KB_ROOT.rglob("*.md"):
             text = md_file.read_text(encoding="utf-8")
             links = re.findall(r'\[\[([^\]|#]+)', text)
             for link in links:
                 link_clean = link.strip()
-                if link_clean not in all_md_stems:
-                    broken_links.append(f"{md_file.relative_to(KB_WIKI)}→[[{link_clean}]]")
+                if not link_resolves(link_clean):
+                    broken_links.append(f"{md_file.relative_to(KB_ROOT)}→[[{link_clean}]]")
 
     if broken_links:
         # エラーではなく警告(pushを止めるほどではない)

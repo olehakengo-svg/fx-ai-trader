@@ -2,7 +2,7 @@
 
 ## 用途
 Edge Pipelineの **Stage 1 (DISCOVERED)** にある仮説をここに書く。
-`templates/edge-hypothesis.md` をコピーして使用。
+[[edge-hypothesis]] をコピーして使用。
 
 ## いつ使うか
 - 新しいエッジのアイデアが浮かんだとき
@@ -17,4 +17,4 @@ Edge Pipelineの **Stage 1 (DISCOVERED)** にある仮説をここに書く。
 
 ## Related
 - [[edge-pipeline]] — 6段階評価プロセス
-- `templates/edge-hypothesis.md` — テンプレート
+- [[edge-hypothesis]] — テンプレート

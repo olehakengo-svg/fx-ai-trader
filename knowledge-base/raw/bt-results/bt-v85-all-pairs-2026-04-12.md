@@ -38,3 +38,8 @@
 
 ### EUR_JPY (171t, WR=58.5%, PF=0.917)
 - 新戦略は発火なし（EUR_JPYは既存戦略のみ）
+
+## Related
+- [[edge-pipeline]] — 評価パイプライン
+- [[session-time-bias]] / [[london-fix-reversal]] — 主要テスト対象
+- [[friction-analysis]] — 摩擦モデル

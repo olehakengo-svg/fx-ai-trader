@@ -38,3 +38,8 @@
 | A-5 | Jia et al | 2024 | Info Spillover via ML | NOT implementable (NLP) | Reject |
 | A-6 | **Eriksen** | **2019** | **XS Return Dispersion and Currency Momentum** | **YES: Dispersion filter** | **#2 Priority** |
 | A-7 | HMM studies (Charles U 2024, Nystrup 2024) | 2024 | Regime Detection via HMM | YES: Risk overlay | **#4 (defensive)** |
+
+## Related
+- [[research/index]] — 論文インデックス
+- [[session-time-bias]] / [[london-fix-reversal]] — 発見されたエッジ
+- [[edge-pipeline]] — 評価パイプライン

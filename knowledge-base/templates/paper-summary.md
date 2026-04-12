@@ -32,6 +32,6 @@
 - [ ] Applicable to retail FX (OANDA spread structure)
 
 ## Links
-- Related papers: 
-- Related edges: 
+- Related papers: [[research/index]]
+- Related edges: [[edge-pipeline]]
 - Related strategies: 

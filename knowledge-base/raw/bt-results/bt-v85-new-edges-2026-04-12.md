@@ -48,3 +48,9 @@
 - 55日間（約2.5ヶ月）のデータ
 - gotobi_fix: 55日間に五十日は約10回のみ、さらに月金除外
 - vix_carry_unwind: 低頻度イベントは55日では統計的に不十分
+
+## Related
+- [[edge-pipeline]] — 評価パイプライン
+- [[session-time-bias]] / [[london-fix-reversal]] / [[gotobi-fix]] — テスト対象エッジ
+- [[vix-carry-unwind]] / [[xs-momentum-dispersion]] / [[hmm-regime-overlay]]
+- [[friction-analysis]] — 摩擦モデル

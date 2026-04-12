@@ -52,3 +52,8 @@
 - EUR_USD: bb_rsi **+0.943** (EUR scalp only positive pair)
 - GBP_USD: **All strategies negative** (PF=0.45)
 - EUR_JPY: vol_momentum +0.109, most negative
+
+## Related
+- [[edge-pipeline]] — 評価パイプライン
+- [[friction-analysis]] — Scalp摩擦支配の根拠
+- [[academic-audit-2026-04-12]] — DSR統計的有意性検証

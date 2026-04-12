@@ -40,6 +40,6 @@
 - **Regime dependency**: 
 
 ## Links
-- Research theme: 
-- Related edges: 
+- Research theme: [[research/index]]
+- Related edges: [[edge-pipeline]]
 - Implementation: 

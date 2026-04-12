@@ -23,3 +23,8 @@
 
 ## 120d BT: Render timeout (30s limit for 120d data fetch)
 - Workaround needed: local BT or async endpoint
+
+## Related
+- [[friction-analysis]] — 摩擦モデルv2→v3の理論的根拠
+- [[session-time-bias]] — v3適用で最大改善
+- [[edge-pipeline]] — 評価パイプライン

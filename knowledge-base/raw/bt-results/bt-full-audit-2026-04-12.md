@@ -70,3 +70,8 @@
 | liquidity_sweep | 14h (58%) | 0.5t/日 | **60日** |
 | xs_momentum | 24h (100%) | 1.7t/日 | **18日** |
 | bb_rsi×JPY | 24h (100%) | 2.5t/日 | **12日** |
+
+## Related
+- [[edge-pipeline]] — 評価パイプライン
+- [[orb-trap]] / [[bb-rsi-reversion]] / [[liquidity-sweep]] — テスト対象戦略
+- [[independent-audit-2026-04-10]] — 監査結果との整合

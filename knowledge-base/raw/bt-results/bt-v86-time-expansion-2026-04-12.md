@@ -33,3 +33,7 @@
 | USD_JPY | 274t PF=1.02 | **285t PF=1.038** | +11t, PF改善 |
 | EUR_USD | 185t PF=1.546 | **197t PF=1.598** | +12t, PF改善 |
 | GBP_USD | 260t PF=1.486 | **269t PF=1.546** | +9t, PF改善 |
+
+## Related
+- [[edge-pipeline]] — 評価パイプライン
+- [[session-time-bias]] — 時間窓拡張の主対象

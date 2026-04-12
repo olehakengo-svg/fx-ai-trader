@@ -185,4 +185,9 @@
 ### 統計的有意パターン (p < 0.05)
   - ❌低WR [hour=22]: WR=0.0% (edge=-31.0pp, n=10, p=0.034)
 
+## Related
+- [[index]] — 戦略Tier分類
+- [[bb-rsi-reversion]] — 主要分析対象
+- [[research/index]] — 学術的裏付け
+
 
