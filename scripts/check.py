@@ -33,6 +33,7 @@ SCALP_INIT = ROOT / "strategies" / "scalp" / "__init__.py"
 SCALP_DIR = ROOT / "strategies" / "scalp"
 
 QUIET = "--quiet" in sys.argv or "-q" in sys.argv
+FIX_MODE = "--fix" in sys.argv
 
 
 def extract_set(filepath: Path, var_name: str) -> tuple[set, str | None]:
@@ -265,6 +266,63 @@ def check_kb_consistency() -> tuple[list[str], list[str]]:
     return errors, warns
 
 
+def fix_kb_drift() -> list[str]:
+    """機械的に修正可能なKBドリフトを自動修正。修正内容のリストを返す。"""
+    fixed: list[str] = []
+
+    changelog = KB_WIKI / "changelog.md"
+    index = KB_WIKI / "index.md"
+
+    if not (changelog.exists() and index.exists()):
+        return fixed
+
+    cl_text = changelog.read_text(encoding="utf-8")
+    idx_text = index.read_text(encoding="utf-8")
+
+    # ── バージョン番号の自動修正 ──
+    cl_versions = re.findall(r'v(\d+\.\d+)', cl_text)
+    latest_cl = max(cl_versions, key=lambda v: float(v)) if cl_versions else None
+    if latest_cl:
+        new_text = idx_text
+        # Portfolio 見出し
+        portfolio_m = re.search(r'(## Current Portfolio \(v)([\d.]+)', new_text)
+        if portfolio_m and float(portfolio_m.group(2)) < float(latest_cl):
+            old_heading = portfolio_m.group(0)
+            new_heading = f"{portfolio_m.group(1)}{latest_cl}"
+            new_text = new_text.replace(old_heading, new_heading, 1)
+            fixed.append(f"index.md Portfolio v{portfolio_m.group(2)}→v{latest_cl}")
+
+        # System State 見出し
+        state_m = re.search(r'(## System State \(v)([\d.]+)', new_text)
+        if state_m and float(state_m.group(2)) < float(latest_cl):
+            old_heading = state_m.group(0)
+            new_heading = f"{state_m.group(1)}{latest_cl}"
+            new_text = new_text.replace(old_heading, new_heading, 1)
+            fixed.append(f"index.md System State v{state_m.group(2)}→v{latest_cl}")
+
+        if new_text != idx_text:
+            index.write_text(new_text, encoding="utf-8")
+            idx_text = new_text
+
+    # ── Session History 欠落リンクの自動追加 ──
+    sessions_dir = KB_WIKI / "sessions"
+    if sessions_dir.exists():
+        session_files = sorted(sessions_dir.glob("*.md"), reverse=True)
+        if session_files:
+            newest = session_files[0].stem
+            history_m = re.search(
+                r'(## Session History\s*\n)', idx_text
+            )
+            if history_m and newest not in idx_text:
+                insert_pos = history_m.end()
+                link_line = f"- [[sessions/{newest}]]\n"
+                idx_text = idx_text[:insert_pos] + link_line + idx_text[insert_pos:]
+                index.write_text(idx_text, encoding="utf-8")
+                fixed.append(f"index.md Session History に [[{newest}]] 追加")
+
+    return fixed
+
+
 def section(title: str):
     if not QUIET:
         print(f"\n[{'●'}] {title}")
@@ -370,6 +428,10 @@ def main() -> int:
 
     # ── 6. KB整合性チェック ──
     section("KB整合性チェック")
+    if FIX_MODE:
+        fixed = fix_kb_drift()
+        for f in fixed:
+            print(f"  🔧 自動修正: {f}")
     kb_errors, kb_warns = check_kb_consistency()
     errors.extend(kb_errors)
     warnings.extend(kb_warns)
@@ -392,9 +454,9 @@ def main() -> int:
             print(w)
         return 1
 
-    if warnings and not QUIET:
-        for w in warnings:
-            print(w)
+    # 警告は --quiet でも常に出力（ドリフト検知の閉ループに必須）
+    for w in warnings:
+        print(w)
 
     msg = f"✅ 全{ok_count}チェック通過 — 整合性OK"
     print(msg)
