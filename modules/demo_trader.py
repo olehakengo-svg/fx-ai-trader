@@ -4134,6 +4134,9 @@ class DemoTrader:
         "mtf_reversal_confluence": 1.3,    # EV +1.49 (448t監査)
         "vol_momentum_scalp": 1.0,        # v8.2: 2.0x→1.0x 摩擦後EV境界的(+1.61-2.14=≈0), N=11でデータ蓄積優先
         "ema_trend_scalp": 1.5,            # v8.0: 当日最高PnL +$179.6, XAU +427pip — Sentinel→攻撃昇格
+        # v8.6: 学術リサーチ新エッジ — BT正EV確認済み
+        "session_time_bias": 1.3,          # v8.6: 全3ペアBT正EV (JPY+0.427, EUR+0.650, GBP+0.266) — Breedon 2013
+        "london_fix_reversal": 1.3,        # v8.6: GBP BT WR=75% EV=+0.318 — Krohn 2024
         # REMOVED: stoch_trend_pullback → _UNIVERSAL_SENTINEL降格 (全ペアEVマイナス)
     }
 
@@ -4161,6 +4164,9 @@ class DemoTrader:
         ("bb_rsi_reversion", "GBP_USD"),    # v7.0: BT 7d WR=33.3% -32.1pip (PF=0.48)
         ("bb_rsi_reversion", "EUR_JPY"),    # v7.0: BT 7d WR=50.0% -21.9pip (PF=0.41)
         ("vol_surge_detector", "EUR_JPY"),  # v7.0: BT 7d WR=25.0% -36.5pip
+        # v8.6: BT負EVペアの明示的降格
+        ("london_fix_reversal", "USD_JPY"),  # v8.6: BT WR=28.6% EV=-0.752 — Fix効果がJPYで弱い
+        ("xs_momentum", "USD_JPY"),          # v8.6: BT EV=-0.129 — 単一ペアモメンタムはJPYで機能せず
     }
 
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
@@ -4174,6 +4180,13 @@ class DemoTrader:
         ("orb_trap", "USD_JPY"),
         ("orb_trap", "EUR_USD"),
         ("orb_trap", "GBP_USD"),
+        # v8.6: session_time_bias — BT全3ペア正EV確認 (学術根拠: Breedon & Ranaldo 2013 JF)
+        # JPY: WR=73.1% EV=+0.427 / EUR: WR=76.9% EV=+0.650 / GBP: WR=69.4% EV=+0.266
+        ("session_time_bias", "USD_JPY"),
+        ("session_time_bias", "EUR_USD"),
+        ("session_time_bias", "GBP_USD"),
+        # v8.6: london_fix_reversal GBP_USD — BT WR=75% EV=+0.318 (Krohn 2024 JF)
+        ("london_fix_reversal", "GBP_USD"),
     }
 
     # ペア別ロットブースト: PAIR_LOT_BOOST > _STRATEGY_LOT_BOOST (優先)
