@@ -29,8 +29,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd /Users/jg-n-012/test/fx-ai-trader && if [ -f knowledge-base/wiki/index.md ]; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"'\"$(sed 's/\"/\\\\\"/g; s/$/\\\\n/' knowledge-base/wiki/index.md | tr -d '\\n' | head -c 2000)\"'\"}}'; fi",
-            "statusMessage": "Loading knowledge base..."
+            "command": "cd /Users/jg-n-012/test/fx-ai-trader && KB=knowledge-base/wiki && LATEST_SESSION=$(ls -t $KB/sessions/*.md 2>/dev/null | head -1) && echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"=== KB AUTO-LOAD ===\\n\\n--- INDEX (Tier + System State) ---\\n'\"$(head -60 $KB/index.md | sed 's/\"/\\\\\"/g; s/$/\\\\n/' | tr -d '\\n')\"'\\n\\n--- UNRESOLVED ITEMS ('\"$(basename $LATEST_SESSION .md)\"') ---\\n'\"$(grep -A 50 '## 未解決事項' $LATEST_SESSION 2>/dev/null | head -20 | sed 's/\"/\\\\\"/g; s/$/\\\\n/' | tr -d '\\n')\"'\\n\\n--- LESSONS (Top Mistakes) ---\\n'\"$(head -25 $KB/lessons/index.md | sed 's/\"/\\\\\"/g; s/$/\\\\n/' | tr -d '\\n')\"'\\n\\n--- LATEST DAILY REPORT ---\\n'\"$(ls -t knowledge-base/raw/trade-logs/*-daily.md 2>/dev/null | head -1 | xargs head -15 2>/dev/null | sed 's/\"/\\\\\"/g; s/$/\\\\n/' | tr -d '\\n')\"'\\n=== END KB AUTO-LOAD ===\"}}'",
+            "statusMessage": "Loading knowledge base (index + unresolved + lessons + daily)..."
           }
         ]
       }
@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "Before compacting, preserve these critical items from the knowledge-base: 1) Current Tier classifications from knowledge-base/wiki/index.md 2) Independent audit binding recommendations from knowledge-base/wiki/decisions/ 3) Any edge hypotheses being actively evaluated from knowledge-base/wiki/edges/edge-pipeline.md. Summarize these into the compaction context so they survive.",
+            "prompt": "Before compacting, preserve these critical items from the knowledge-base: 1) Current Tier classifications from knowledge-base/wiki/index.md 2) Independent audit binding recommendations from knowledge-base/wiki/decisions/ 3) Any edge hypotheses being actively evaluated from knowledge-base/wiki/edges/edge-pipeline.md 4) Unresolved items from latest session log. Summarize these into the compaction context so they survive.",
             "statusMessage": "Preserving knowledge base context..."
           }
         ]

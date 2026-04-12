@@ -191,19 +191,36 @@ def send_discord_block(webhook_url: str, title: str, body: str) -> None:
 
 # ── main ────────────────────────────────────────────────
 
+def save_to_kb(date_str: str, analyst_report: str, strategy_report: str) -> None:
+    """レポートをKBに自動保存（日次知見の蓄積）。"""
+    kb_dir = ROOT / "knowledge-base" / "raw" / "trade-logs"
+    kb_dir.mkdir(parents=True, exist_ok=True)
+    path = kb_dir / f"{date_str}-daily.md"
+    content = (
+        f"# Daily Report: {date_str}\n\n"
+        f"## Analyst Report\n{analyst_report}\n\n"
+        f"## Strategy Planning\n{strategy_report}\n"
+    )
+    try:
+        path.write_text(content, encoding="utf-8")
+        print(f"📝 KB保存: {path.relative_to(ROOT)}")
+    except Exception as e:
+        print(f"  ⚠️  KB保存失敗: {e}", file=sys.stderr)
+
+
 def main() -> int:
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     webhook = os.environ.get("DISCORD_WEBHOOK_URL")
 
     # Step 1: データ取得
-    print("🔍 [1/3] 本番APIからデータ取得中...")
+    print("🔍 [1/4] 本番APIからデータ取得中...")
     data = {k: fetch_json(url) for k, url in PRODUCTION_APIS.items()}
     failed = [k for k, v in data.items() if not v]
     if failed:
         print(f"  ⚠️  取得失敗: {', '.join(failed)}")
 
     # Step 2: アナリストレポート
-    print("📊 [2/3] Analyst — 運用レポート生成中...")
+    print("📊 [2/4] Analyst — 運用レポート生成中...")
     try:
         analyst_report = run_analyst(data)
     except Exception as e:
@@ -211,12 +228,15 @@ def main() -> int:
         return 1
 
     # Step 3: 作戦立案
-    print("🧠 [3/3] Strategy — 作戦立案中...")
+    print("🧠 [3/4] Strategy — 作戦立案中...")
     try:
         strategy_report = run_strategy_planner(analyst_report)
     except Exception as e:
         print(f"  ⚠️  Strategy エラー（スキップ）: {e}", file=sys.stderr)
         strategy_report = "⚠️ 作戦立案の生成に失敗しました。"
+
+    # Step 3.5: KB自動保存
+    save_to_kb(date_str, analyst_report, strategy_report)
 
     # Step 4: 送信 or 標準出力
     analyst_header  = f"📊 **【運用レポート {date_str}】**"
@@ -233,7 +253,7 @@ def main() -> int:
         print("\n⚠️  DISCORD_WEBHOOK_URL 未設定 — 標準出力に出力しました")
         return 0
 
-    print(f"📨 Discord に送信中... (URL length={len(webhook)}, prefix={webhook[:45]}...)")
+    print(f"📨 [4/4] Discord に送信中... (URL length={len(webhook)}, prefix={webhook[:45]}...)")
     send_discord_block(webhook, analyst_header, analyst_report)
     send_discord_block(webhook, strategy_header, strategy_report)
     print("✅ 完了")

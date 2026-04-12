@@ -8,7 +8,7 @@
 ## Academic Backing
 | Paper | Finding | Confidence |
 |-------|---------|-----------|
-| [[menkhoff-2012b]] | 通貨モメンタム年率最大10%。TC後も有意 | ★★★★★ |
+| [[menkhoff-2012]] | 通貨モメンタム年率最大10%。TC後も有意 | ★★★★★ |
 | [[eriksen-2019]] | 分散コンディショナルモメンタム: TC後5.7-5.8% (GitHub公開) | ★★★★ |
 | [[iwanaga-sakemoto-2024]] | 株式先物→通貨クロス予測力あり | ★★★ |
 

@@ -88,6 +88,74 @@ def get_strategy_attrs(strategy_dir: Path) -> list[dict]:
     return results
 
 
+KB_WIKI = ROOT / "knowledge-base" / "wiki"
+
+
+def check_kb_consistency() -> tuple[list[str], list[str]]:
+    """KBの整合性を軽量チェック。"""
+    errors: list[str] = []
+    warns: list[str] = []
+
+    # 6a. changelog最新バージョンとindex.mdの整合
+    changelog = KB_WIKI / "changelog.md"
+    index = KB_WIKI / "index.md"
+    if changelog.exists() and index.exists():
+        cl_text = changelog.read_text(encoding="utf-8")
+        idx_text = index.read_text(encoding="utf-8")
+        # changelogから最新バージョン(v8.X)を取得
+        cl_versions = re.findall(r'v(\d+\.\d+)', cl_text)
+        idx_versions = re.findall(r'v(\d+\.\d+)', idx_text[:500])
+        if cl_versions and idx_versions:
+            latest_cl = max(cl_versions, key=lambda v: float(v))
+            latest_idx = max(idx_versions, key=lambda v: float(v))
+            if float(latest_cl) > float(latest_idx):
+                warns.append(
+                    f"  ⚠️  KB: changelog最新=v{latest_cl} > index.md=v{latest_idx}"
+                    " — index.mdの更新漏れの可能性"
+                )
+
+    # 6b. 破損wikilinkチェック（wiki/内の[[...]]がファイルとして存在するか）
+    broken_links: list[str] = []
+    if KB_WIKI.exists():
+        all_md_stems = set()
+        for md_file in KB_WIKI.rglob("*.md"):
+            # ファイル名(拡張子なし)と、サブディレクトリ/ファイル名の両方を登録
+            all_md_stems.add(md_file.stem)
+            rel = md_file.relative_to(KB_WIKI).with_suffix("")
+            all_md_stems.add(str(rel).replace("\\", "/"))
+
+        for md_file in KB_WIKI.rglob("*.md"):
+            text = md_file.read_text(encoding="utf-8")
+            links = re.findall(r'\[\[([^\]|#]+)', text)
+            for link in links:
+                link_clean = link.strip()
+                if link_clean not in all_md_stems:
+                    broken_links.append(f"{md_file.relative_to(KB_WIKI)}→[[{link_clean}]]")
+
+    if broken_links:
+        # エラーではなく警告(pushを止めるほどではない)
+        sample = broken_links[:5]
+        warns.append(
+            f"  ⚠️  KB: 破損wikilink {len(broken_links)}件"
+            f" (例: {', '.join(sample)})"
+        )
+
+    # 6c. セッションログの未解決事項数
+    sessions_dir = KB_WIKI / "sessions"
+    if sessions_dir.exists():
+        session_files = sorted(sessions_dir.glob("*.md"), reverse=True)
+        if session_files:
+            latest = session_files[0]
+            text = latest.read_text(encoding="utf-8")
+            open_items = len(re.findall(r'^- \[ \]', text, re.MULTILINE))
+            if open_items > 0 and not QUIET:
+                warns.append(
+                    f"  ℹ️  KB: {latest.name} に未解決事項 {open_items}件"
+                )
+
+    return errors, warns
+
+
 def section(title: str):
     if not QUIET:
         print(f"\n[{'●'}] {title}")
@@ -190,6 +258,15 @@ def main() -> int:
         else:
             ok(f"{len(scalp_attrs)} Scalp戦略 全て登録済み")
             ok_count += 1
+
+    # ── 6. KB整合性チェック ──
+    section("KB整合性チェック")
+    kb_errors, kb_warns = check_kb_consistency()
+    errors.extend(kb_errors)
+    warnings.extend(kb_warns)
+    if not kb_errors:
+        ok("KB整合性OK")
+        ok_count += 1
 
     # ── Summary ──
     if not QUIET:
