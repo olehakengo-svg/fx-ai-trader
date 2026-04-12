@@ -6,6 +6,15 @@
 3. **静的時間ブロックは使わない** — UTC固定のブロックは禁止。市場条件で判断
 4. **攻撃は最大の防御** — 防御フィルターの積み上げよりデータ蓄積を優先
 
+## Knowledge Base (Obsidian Vault)
+**詳細な知見・分析・意思決定の根拠は `knowledge-base/` に構造化して保存。**
+- **Index**: `knowledge-base/wiki/index.md` — 全戦略Tier分類、システム状態
+- **Strategies**: `knowledge-base/wiki/strategies/` — 戦略ごとの詳細（WR推移、MAFE、BT、変更履歴）
+- **Concepts**: `knowledge-base/wiki/concepts/` — 摩擦分析、即死パターン、Kelly基準
+- **Decisions**: `knowledge-base/wiki/decisions/` — 独立監査結果、覆された判断
+- **Raw Data**: `knowledge-base/raw/` — BT結果、市場分析、トレードログ
+- **運用**: 新しい知見はwiki/に追加。CLAUDE.mdは80行以内のスキーマとして維持。
+
 ## 独立クオンツ監査結果 (2026-04-10)
 **2件の独立監査（リスク委員会 + 戦略アーキテクト）を実施。以下は拘束力のある勧告。**
 
