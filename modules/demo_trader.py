@@ -115,9 +115,9 @@ MODE_CONFIG = {
         "icon": "⚡💶",
         "symbol": "EURJPY=X",
         "instrument": "EUR_JPY",
-        "auto_start": True,
+        "auto_start": False,  # v8.6: 停止 — BT friction/ATR=43.6%, PF=0.649 構造的に不可能
         "base_sl_pips": 3.5,
-        "active_hours_utc": (0, 15),  # v7.0: UTC 0-15 (Tokyo+London+NY Overlap) — 東京カバレッジ拡大
+        "active_hours_utc": (0, 15),
     },
     # ── USD/JPY Scalp 5m — v6.8 Sentinel A/Bテスト ──
     # 1mスキャルプと並行稼働。5m足のノイズ削減(49.8%→3.4%)とSpread/ATR改善(13.8%→5.2%)を本番検証
@@ -134,6 +134,34 @@ MODE_CONFIG = {
         "instrument": "USD_JPY",
         "auto_start": True,
         "base_sl_pips": 5.0,      # 5m ATR≈5.8pip → SL余裕確保
+    },
+    # ── v8.6: EUR_USD Scalp 5m — 1m→5m移行（摩擦/ATR 30.6%→10-12%に改善）──
+    # BT根拠: 5m USD_JPY 164t WR=65.9% EV=+0.195 (1m比 +0.347改善)
+    # EUR_USDは1m bb_rsi EV=+0.943の唯一の正EVペア → 5m移行で摩擦改善しつつエッジ維持
+    "scalp_5m_eur": {
+        "interval_sec": 30,
+        "tf": "5m",
+        "period": "5d",
+        "signal_fn": "compute_scalp_signal",
+        "label": "スキャルプ5m EUR",
+        "icon": "⚡5️⃣🇪🇺",
+        "symbol": "EURUSD=X",
+        "instrument": "EUR_USD",
+        "auto_start": True,
+        "base_sl_pips": 3.5,
+    },
+    # ── v8.6: GBP_USD Scalp 5m — 1mのPF=0.447を5mで改善（摩擦/ATR 48.7%→15-18%）──
+    "scalp_5m_gbp": {
+        "interval_sec": 30,
+        "tf": "5m",
+        "period": "5d",
+        "signal_fn": "compute_scalp_signal",
+        "label": "スキャルプ5m GBP",
+        "icon": "⚡5️⃣🇬🇧",
+        "symbol": "GBPUSD=X",
+        "instrument": "GBP_USD",
+        "auto_start": True,
+        "base_sl_pips": 5.0,
     },
     # ── GBP/USD Daytrade (15m) — Phase3 水平展開 ──
     "daytrade_gbpusd": {
