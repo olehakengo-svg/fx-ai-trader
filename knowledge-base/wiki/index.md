@@ -31,6 +31,11 @@ See [[force-demoted-strategies]]
 - [[xau-stop-rationale]] -- FX profitable without XAU
 - [[mfe-zero-analysis]] -- 90.6% of losses never go favorable
 
+## Research & Edge Discovery
+- [[research/index]] -- 学術文献インデックス、研究テーマ一覧
+- [[edge-pipeline]] -- エッジ仮説の評価パイプライン (6 stages)
+- Active themes: [[microstructure-stop-hunting]], [[session-effects]], [[mean-reversion-regimes]]
+
 ## Links
 - [[friction-analysis]] -- Per-pair friction, BEV_WR
 - [[bt-live-divergence]] -- BT vs production gaps
