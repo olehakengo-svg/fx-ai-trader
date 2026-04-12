@@ -1,11 +1,12 @@
 # FX AI Trader - Claude Development Notes
 
-## セッション開始プロトコル（毎回実行）
-1. `knowledge-base/wiki/index.md` を読む（戦略Tier・システム状態）
-2. 最新の `knowledge-base/wiki/sessions/` の「未解決事項」を確認
-3. `knowledge-base/wiki/lessons/index.md` をスキャン（過去の間違いを繰り返さない）
-4. `git log --oneline -10` でコード変更を確認
-5. changelog最新バージョンと wiki/index.md の整合を確認
+## セッション開始プロトコル
+> SessionStart hookが自動で以下をコンテキストに注入済み:
+> index.md(Tier+State) / 未解決事項 / lessons / 最新daily report / analyst-memory
+
+追加で確認すべきこと:
+1. `git log --oneline -10` でコード変更を確認
+2. changelog最新バージョンと wiki/index.md の整合を確認
 
 ## 4原則（絶対遵守）
 1. **マーケット開いてる間は攻める** — トレード機会を逃すのが最大の敵

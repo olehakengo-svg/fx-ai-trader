@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SessionStart Hook — KB自動読み込み
-# index(Tier+State) + 未解決事項 + lessons + daily report を注入
+# index(Tier+State) + 未解決事項 + lessons + daily report + analyst-memory を注入
 set -uo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
@@ -20,6 +20,13 @@ if [[ -n "$DAILY_FILE" ]]; then
     DAILY=$(head -15 "$DAILY_FILE" 2>/dev/null | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
 fi
 
+# Analyst Memory（末尾20行 = 最新の学習結果）
+MEMORY_FILE="$ROOT/knowledge-base/raw/trade-logs/analyst-memory.md"
+ANALYST=""
+if [[ -f "$MEMORY_FILE" ]]; then
+    ANALYST=$(tail -20 "$MEMORY_FILE" 2>/dev/null | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
+fi
+
 cat <<ENDJSON
-{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"=== KB AUTO-LOAD ===\\n\\n--- INDEX (Tier + System State) ---\\n${INDEX}\\n\\n--- UNRESOLVED ITEMS (${UNRESOLVED_LABEL}) ---\\n${UNRESOLVED}\\n\\n--- LESSONS (Top Mistakes) ---\\n${LESSONS}\\n\\n--- LATEST DAILY REPORT ---\\n${DAILY}\\n=== END KB AUTO-LOAD ==="}}
+{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"=== KB AUTO-LOAD ===\\n\\n--- INDEX (Tier + System State) ---\\n${INDEX}\\n\\n--- UNRESOLVED ITEMS (${UNRESOLVED_LABEL}) ---\\n${UNRESOLVED}\\n\\n--- LESSONS (Top Mistakes) ---\\n${LESSONS}\\n\\n--- LATEST DAILY REPORT ---\\n${DAILY}\\n\\n--- ANALYST MEMORY (Latest Findings) ---\\n${ANALYST}\\n=== END KB AUTO-LOAD ==="}}
 ENDJSON

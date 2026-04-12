@@ -9164,7 +9164,10 @@ def api_evaluation():
 # FX ANALYST AGENT — 常駐学習型アナリスト（Claude API + MD記憶）
 # ─────────────────────────────────────────────────────────────────
 _ANALYST_MEMORY_FILE = os.path.join("knowledge-base", "raw", "trade-logs", "analyst-memory.md")
+_ANALYST_ARCHIVE_FILE = os.path.join("knowledge-base", "raw", "trade-logs", "analyst-memory-archive.md")
 _ANALYST_LOG_MAX     = 50   # MDに記録するアナリストノートの最大行数
+_ANALYST_MEMORY_MAX_LINES = 200  # メモリファイルの最大行数
+_ANALYST_ARCHIVE_LINES    = 50   # ローテーション時にアーカイブに退避する行数
 
 def _read_analyst_memory() -> str:
     """MDファイルから記憶を読み込む。なければ空文字。"""
@@ -9177,8 +9180,38 @@ def _read_analyst_memory() -> str:
         pass
     return ""
 
+def _rotate_analyst_memory(path: str) -> None:
+    """メモリが上限超過時に古いエントリをアーカイブに退避。"""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        if len(lines) <= _ANALYST_MEMORY_MAX_LINES:
+            return
+        # 先頭のヘッダー（## で始まる最初のセクションまで）を保持
+        header_end = 0
+        for i, line in enumerate(lines):
+            if i > 0 and line.startswith("### "):
+                header_end = i
+                break
+        # ヘッダー直後の古い行をアーカイブに退避
+        archive_start = header_end
+        archive_end = min(header_end + _ANALYST_ARCHIVE_LINES, len(lines))
+        archived = lines[archive_start:archive_end]
+        remaining = lines[:header_end] + lines[archive_end:]
+        # アーカイブに追記
+        archive_path = os.path.join(os.path.dirname(path), os.path.basename(_ANALYST_ARCHIVE_FILE))
+        with open(archive_path, "a", encoding="utf-8") as f:
+            f.write(f"\n# Archived: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n")
+            f.writelines(archived)
+        # メモリファイルを縮小
+        with open(path, "w", encoding="utf-8") as f:
+            f.writelines(remaining)
+        print(f"[Analyst] memory rotated: {len(archived)} lines → archive")
+    except Exception as e:
+        print(f"[Analyst] rotation failed: {e}")
+
 def _append_analyst_note(note: str) -> None:
-    """アナリストノートをMDに追記する。"""
+    """アナリストノートをMDに追記する。上限超過時はローテーション。"""
     try:
         path = os.path.join(os.path.dirname(__file__), _ANALYST_MEMORY_FILE)
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -9186,6 +9219,7 @@ def _append_analyst_note(note: str) -> None:
         entry = f"\n### {ts}\n{note}\n"
         with open(path, "a", encoding="utf-8") as f:
             f.write(entry)
+        _rotate_analyst_memory(path)
     except Exception as e:
         print(f"[Analyst] append failed: {e}")
 
@@ -9289,7 +9323,7 @@ def get_analyst_opinion(question: str, market_context: dict = None) -> dict:
 - 200-400字程度で簡潔に
 
 ## システム蓄積Knowledge (Memory)
-{memory[:3000] if memory else "（まだ記録なし）"}
+{memory[-3000:] if memory else "（まだ記録なし）"}
 
 {academic_context}
 {ctx_str}"""

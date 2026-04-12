@@ -89,10 +89,40 @@ def load_agent_prompt(name: str) -> str:
     return (parts[2] if len(parts) >= 3 else parts[-1]).strip()
 
 
+# ── Step 1.5: KBコンテキスト読み込み ──────────────────────
+
+def load_kb_context() -> str:
+    """KBからTier分類・教訓・未解決事項を読み込み、レポート品質を向上させる。"""
+    sections = []
+    # Tier分類（index.md 先頭60行）
+    index_path = ROOT / "knowledge-base" / "wiki" / "index.md"
+    if index_path.exists():
+        lines = index_path.read_text(encoding="utf-8").splitlines()[:60]
+        sections.append("### KB: Tier分類\n" + "\n".join(lines))
+    # 教訓（lessons/index.md 先頭20行）
+    lessons_path = ROOT / "knowledge-base" / "wiki" / "lessons" / "index.md"
+    if lessons_path.exists():
+        lines = lessons_path.read_text(encoding="utf-8").splitlines()[:20]
+        sections.append("### KB: 過去の教訓\n" + "\n".join(lines))
+    # 未解決事項（最新セッションログ）
+    sessions_dir = ROOT / "knowledge-base" / "wiki" / "sessions"
+    if sessions_dir.exists():
+        session_files = sorted(sessions_dir.glob("*.md"), reverse=True)
+        if session_files:
+            text = session_files[0].read_text(encoding="utf-8")
+            import re
+            m = re.search(r'## 未解決事項.*', text, re.DOTALL)
+            if m:
+                sections.append("### KB: 未解決事項\n" + m.group()[:500])
+    return "\n\n".join(sections)[:2000] if sections else ""
+
+
 # ── Step 2: Analyst レポート ────────────────────────────
 
 def run_analyst(data: dict) -> str:
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    kb_ctx = load_kb_context()
+    kb_section = f"\n\n### KB蓄積知見（Tier分類・教訓・未解決事項）\n{kb_ctx}" if kb_ctx else ""
     user_msg = f"""以下は本日（{now}）の本番システムデータです。
 Fidelity Cutoff（{FIDELITY_CUTOFF}）以降のみ有効として分析してください。
 
@@ -106,11 +136,12 @@ Fidelity Cutoff（{FIDELITY_CUTOFF}）以降のみ有効として分析してく
 {json.dumps(data.get("oanda", {}), ensure_ascii=False, indent=2)[:1000]}
 
 ### RISK DASHBOARD
-{json.dumps(data.get("risk", {}), ensure_ascii=False, indent=2)[:2000]}
+{json.dumps(data.get("risk", {}), ensure_ascii=False, indent=2)[:2000]}{kb_section}
 
 ---
 定型レポート（戦略別N/WR/EV、block_counts主因、OANDA転送率、Sentinel進捗）と
-クオンツ見解（最重要シグナル・構造的観察・推奨アクション）を生成してください。"""
+クオンツ見解（最重要シグナル・構造的観察・推奨アクション）を生成してください。
+KB蓄積知見がある場合、過去の教訓や未解決事項を踏まえた分析を含めてください。"""
 
     return call_claude(load_agent_prompt("analyst"), [{"role": "user", "content": user_msg}])
 
