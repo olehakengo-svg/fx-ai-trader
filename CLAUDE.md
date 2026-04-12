@@ -1,5 +1,12 @@
 # FX AI Trader - Claude Development Notes
 
+## セッション開始プロトコル（毎回実行）
+1. `knowledge-base/wiki/index.md` を読む（戦略Tier・システム状態）
+2. 最新の `knowledge-base/wiki/sessions/` の「未解決事項」を確認
+3. `knowledge-base/wiki/lessons/index.md` をスキャン（過去の間違いを繰り返さない）
+4. `git log --oneline -10` でコード変更を確認
+5. changelog最新バージョンと wiki/index.md の整合を確認
+
 ## 4原則（絶対遵守）
 1. **マーケット開いてる間は攻める** — トレード機会を逃すのが最大の敵
 2. **デスゾーン = スプレッド異常（動的検出）のみ** — Spread/SL Gateで動的防御
@@ -8,753 +15,84 @@
 
 ## 最重要目標（全施策の判断基準）
 **月利100%（¥454,816/月）→ 年利1,200%**
-- 現在地: DD防御0.2x → 月利47%（BT推定）
-- 月利100%到達条件: DD防御0.5xに緩和（FX PnL>+100pip, 破産確率<50%）
+- 現在地: DD防御1.0x (v8.9 Equity Reset済) → 月利235%（BT推定）
+- Phase 3 (Kelly Half): 月利594%
 - ロードマップ: `knowledge-base/wiki/syntheses/roadmap-to-100pct.md`
 - **全ての施策提案はこの目標への寄与度で優先順位を判断すること**
-- **クリーンデータ蓄積が最優先** — DD防御解除の前提条件
+- **クリーンデータ蓄積が最優先** — Kelly Half到達の前提条件
 
 ## Knowledge Base (Obsidian Vault)
 **詳細な知見・分析・意思決定の根拠は `knowledge-base/` に構造化して保存。**
-- **Index**: `knowledge-base/wiki/index.md` — 全戦略Tier分類、システム状態
-- **Strategies**: `knowledge-base/wiki/strategies/` — 戦略ごとの詳細（WR推移、MAFE、BT、変更履歴）
-- **Concepts**: `knowledge-base/wiki/concepts/` — 摩擦分析、即死パターン、Kelly基準
-- **Decisions**: `knowledge-base/wiki/decisions/` — 独立監査結果、覆された判断
-- **Raw Data**: `knowledge-base/raw/` — BT結果、市場分析、トレードログ
-- **運用**: 新しい知見はwiki/に追加。CLAUDE.mdは80行以内のスキーマとして維持。
+| ディレクトリ | 内容 |
+|---|---|
+| `wiki/index.md` | 全戦略Tier分類、システム状態、ポートフォリオ |
+| `wiki/strategies/` | 戦略ごとの詳細（WR推移、MAFE、変更履歴） |
+| `wiki/concepts/` | 摩擦分析、取引ルール、**system-reference.md（全パラメータ）** |
+| `wiki/decisions/` | 独立監査結果、覆された判断 |
+| `wiki/edges/` | エッジ仮説、パイプライン |
+| `wiki/lessons/` | 過去の間違い・修正・教訓 |
+| `wiki/research/` | 学術文献インデックス（25論文） |
+| `wiki/sessions/` | セッションログ（時系列作業記録） |
+| `raw/` | BT結果、トレードログ、論文サマリ |
 
-## 独立クオンツ監査結果 (2026-04-10)
-**2件の独立監査（リスク委員会 + 戦略アーキテクト）を実施。以下は拘束力のある勧告。**
+### KB運用ルール
+- **CLAUDE.mdは150行以内のスキーマとして維持** — 詳細はKBに書く
+- feat()コミット時に関連するchangelog/wiki更新も同じコミットに含める
+- セッション終了が近い場合はコード変更よりKB更新を優先する
 
-### 覆された提案（実行禁止）
-- **P1: macdh→bb_rsi吸収**: 反対。唯一のPF>1戦略(edge=0.45pip)を汚染するリスク。学習エンジンの誤降格可能性
-- **P2: lin_reg_channel 1Hリデザイン**: 反対。破産確率85%でリソース投下は不合理。N=3 CI=[0%, 70.8%]で判断不能
-
-### 最重要勧告
-- **bb_rsi × USD_JPYの保護が最優先**: スコアボーナス追加、フィルター実験は行わない
-- **摩擦コスト削減が戦略改善に優先**: XAU停止、指値移行、低スプレッド時間帯制限
-- **v8.3確認足のOOS検証**: フォワードテストで効果確認後に評価
-
-### Shadow継続判断
-- 継続: engulfing_bb(比較対照群), sr_fib_confluence(過適合研究), lin_reg_channel(ベースライン)
-- 停止可: inducement_ob, trendline_sweep（ただしFORCE_DEMOTEDのShadowは実害なし→現状維持）
+## 独立クオンツ監査（拘束力のある勧告）
+詳細: `knowledge-base/wiki/decisions/independent-audit-2026-04-10.md`
+- **bb_rsi × USD_JPYの保護が最優先** — フィルター実験は行わない
+- **macdh→bb_rsi吸収は禁止** — 唯一のPF>1戦略を汚染するリスク
+- **摩擦コスト削減が戦略改善に優先**
 
 ## Production Environment
 - **URL**: https://fx-ai-trader.onrender.com
-- **API**: https://fx-ai-trader.onrender.com/api/demo/status
-- **Logs**: https://fx-ai-trader.onrender.com/api/demo/logs
-- **Deploy**: Render **Proプラン** (auto-deploy from GitHub main branch)
-- **DB**: SQLite on Render Disk (`/var/data/demo_trades.db`) — 永続ストレージ（1GB）。環境変数 `DB_PATH` で制御。ローカル開発時は `DB_PATH` 未設定でプロジェクト直下の `demo_trades.db` を使用
-- **IMPORTANT**: Always reference production (Render) data for analysis, NOT the local development DB. Local DB is for dev/testing only.
+- **API**: `/api/demo/status`, `/api/demo/trades`, `/api/demo/logs`
+- **Risk**: `/api/risk/dashboard` (VaR/CVaR/Kelly/MC/DD)
+- **Deploy**: Render Proプラン (auto-deploy from GitHub main)
+- **DB**: SQLite on Render Disk (`/var/data/demo_trades.db`)
+- **IMPORTANT**: 分析は本番(Render)データを使用。ローカルDBは開発用のみ
 
 ## OANDA API Integration
-- **ブローカー**: OANDA Japan（本番口座 — サブアカウント `Claude_auto_trade_KG`）
+- **ブローカー**: OANDA Japan（本番口座 `Claude_auto_trade_KG`）
 - **API**: OANDA v20 REST API (`https://api-fxtrade.oanda.com/v3/`)
-- **認証**: Bearer token (`OANDA_TOKEN`) — サブアカウントから発行
-- **アカウントID**: `001-009-21129155-002` (ヘッジング有効)
-- **環境変数**: `OANDA_TOKEN`, `OANDA_ACCOUNT_ID`, `OANDA_LIVE=true`, `OANDA_UNITS=10000`(0.1 lot)
-- **アーキテクチャ**: OandaClient(薄いAPIラッパー) → OandaBridge(ビジネスロジック, fire-and-forget) → demo_trader.py
-- **設計**: デモシステムは独立稼働、OANDA連携はオプショナル。OANDA障害時もデモトレードは継続
-- **連携ポイント**: エントリー(market_order) / SL/TP決済(close_trade) / シグナル反転(close_trade) / トレーリングSL(modify_trade) / 手動クローズ(close_trade)
-- **ステータス**: `/api/oanda/status` で確認可能
-- **転送司令部 (Command Center)**: `/api/config/oanda_control` で戦略ごとに LIVE/SENTINEL/OFF/AUTO を即時切替
-- **Tri-state制御**: LIVE(フルロット) / SENTINEL(0.01lot観測) / OFF(停止) / AUTO(自動昇降格判定)
-- **実行監査**: `/api/oanda/audit` でトレードごとのOANDA連携成否・理由・OrderIDを確認
-- **ヘルスチェック**: `/api/oanda/heartbeat` で60秒間隔のAPI接続状態・レイテンシ・口座残高を確認
-- **🔗ログラベル**: エントリー時に `🔗 OANDA: [SENT/FILLED/FAILED/BLOCKED/SKIP]` ログを出力
-- **指値ログ**: `🔗 OANDA: [LIMIT_PLACED]` (指値設置) / `🔗 OANDA: [LIMIT_FILL]` (指値到達→注文)
+- **環境変数**: `OANDA_TOKEN`, `OANDA_ACCOUNT_ID`, `OANDA_LIVE=true`, `OANDA_UNITS=10000`
+- **アーキテクチャ**: OandaClient → OandaBridge(fire-and-forget) → demo_trader.py
+- **Tri-state制御**: LIVE / SENTINEL(0.01lot) / OFF / AUTO
+- **ステータス**: `/api/oanda/status`, `/api/oanda/audit`, `/api/oanda/heartbeat`
+- 詳細: `knowledge-base/wiki/concepts/system-reference.md`
 
 ## Design Principles
-- **本番環境を常に参照**: 分析・データ取得はRender本番サーバーから行うこと（ローカルDBは開発用のみ）
-- **BT/本番ロジック統一**: BT関数は本番のsignal関数を呼び出すこと。独自のエントリーロジックをBTに書かない
-- **本番変更は必ずBTにも反映**: 本番で戦略の有効化/無効化、フィルター追加、パラメータ変更を行った場合、BT側のQUALIFIED_TYPESやフィルターも必ず同期すること
-- **カーブフィッティング禁止**: パラメータ調整フェーズ完了（2026-04-04）。今後は本番データ蓄積・摩擦監視フェーズ
-- **BT摩擦モデルv2**: Phase A(ペア別spread+slippage), B(wick 0.3→0.1), C(SIGNAL_REVERSE BT実装), D(cascade CD+post-SL block) 全BT統合済み(2026-04-07)
+- **本番環境を常に参照**: 分析・データ取得はRender本番サーバーから
+- **BT/本番ロジック統一**: BT関数は本番signal関数(backtest_mode=True)を使用
+- **本番変更は必ずBTにも反映**: QUALIFIED_TYPES/フィルターの同期必須
+- **カーブフィッティング禁止**: パラメータ調整完了(2026-04-04)。データ蓄積フェーズ
 
 ## Key Architecture
 - Backend: Flask (app.py ~7500+ lines)
-- Signal functions: compute_scalp_signal, compute_daytrade_signal, compute_hourly_signal, compute_swing_signal
-- **BT/本番ロジック統一完了**: 全BT関数がsignal関数(backtest_mode=True)を使用
-  - run_scalp_backtest → compute_scalp_signal(backtest_mode=True)
-  - run_daytrade_backtest → compute_daytrade_signal(backtest_mode=True)
-  - run_1h_backtest → compute_1h_zone_signal(backtest_mode=True)
-  - run_swing_backtest → compute_swing_signal(backtest_mode=True)
+- Signal: compute_scalp_signal, compute_daytrade_signal, compute_hourly_signal, compute_swing_signal
 - Demo trader: modules/demo_trader.py (background threads per mode)
 - DB: SQLite WAL mode (modules/demo_db.py)
 - Learning engine: modules/learning_engine.py (10トレード毎に自動調整)
-- Daily review: modules/daily_review.py (UTC 00:00に自動実行)
+- Risk: modules/risk_analytics.py (VaR/CVaR/Kelly/MC)
+- Daily review: modules/daily_review.py (UTC 00:00自動実行)
 
 ## Trading Modes
-| Mode | TF | Interval | COOLDOWN | Status |
-|---|---|---|---|---|
-| scalp | 1m | 10s | 60s (1 bar, EXIT-based) | Active |
-| scalp_5m | 5m | 30s | 300s (1 bar, EXIT-based) | **Active** — Sentinel A/Bテスト (OANDA遮断) |
-| daytrade | 15m | 30s | 900s (1 bar, EXIT-based) | Active |
-| daytrade_1h | 1h | 60s | 3600s (EXIT-based) | **Active** — HourlyEngine v5.0 (KSB+DMB) |
-| scalp_eurjpy | 1m | 10s | 60s (EXIT-based) | **Active** — UTC 12-15限定, bb_rsi |
-| swing | 4h | 300s | 14400s (1 bar, EXIT-based) | Disabled |
-
-## Daily Target
-- **目標: 100 pips/日（±20 許容 = 80〜120 pips/日）**
-- スキャルプ + デイトレで達成
-
-## BT Performance (as of 2026-04-07, v5.95 統合監査 + Pair Lifecycle)
-- **v5.95 統合BT**: 340t/14d (5m scalp + 15m DT), 摩擦モデルv2, SAR=1.57 (v5.5: 0.42, 3.7x改善)
-- **月間PnL**: Raw +857pip → **LC適用 +1,831pip/月** (lifecycle uplift +107%)
-- Scalp USD/JPY: 76t WR=65.8% EV=+0.211ATR (fib_reversal WR=86.7% → 1.5x boost)
-- Scalp EUR/USD: 40t WR=57.5% (bb_rsi DEMOTED: WR=20% EV=-1.5)
-- Scalp GBP/USD: 59t WR=50.8% (macdh DEMOTED: WR=40% EV=-0.818, limit-only enforcement)
-- Scalp EUR/JPY: 59t WR=54.2% (vol_surge/bb_squeeze positive, bb_rsi negative)
-- DT USD/JPY: 34t WR=61.8% (sr_fib_confluence WR=76.9% → 1.3x boost)
-- DT EUR/USD: **27t WR=74.1% EV=+0.647ATR** (orb_trap/htf_fbk/london_ny 1.5x boost)
-- DT GBP/USD: **45t WR=66.7% EV=+0.634ATR** (gbp_deep_pullback 2.0x, trendline_sweep 1.5x)
-- **1H EUR/USD: 70t WR=50% +483pip** (120d, 1h, KSB+DMB)
-- **1H USD/JPY: 40t WR=35% +181pip** (120d, 1h, DMB only, SELL非対称フィルター)
-- **Scalp EUR/JPY: 250t WR=45.6% +300pip EV=+1.20** (60d, 5m, UTC 12-15限定)
-- Swing: 346t WR=36.7% EV=+0.154 WF=2/3 (730d, 1d)
-
-## Scalp v3.2 Strategy Breakdown (7d BT, bb_rsi Option C適用後)
-| Strategy | Trades | WR | EV | Description |
-|---|---|---|---|---|
-| **bb_rsi_reversion** | **181** | **61.3%** | **+0.173** | **Option C: EUR ADX<25 / JPY ADX制限なし+Death Valley/Gold Hours** |
-| macdh_reversal | 144 | 63.2% | +0.231 | BB<0.25/>0.75, MACD-H方向転換 (mean-reversion, soft penalty) |
-| fib_reversal | 172 | 57.0% | +0.056 | Fib 38.2%/50%/61.8%反発, multi-lookback(45/60) |
-| bb_squeeze_breakout | 19 | 36.8% | -0.799 | BB squeeze breakout, ADX>=20 |
-| mtf_reversal_confluence | 4 | 50.0% | -0.187 | RSI+MACD AND (HTF cache incompatible with BT) |
-| session_vol_expansion | EUR only | — | — | SVE: London open compression breakout (UTC 07:00-08:30) |
-
-- **bb_rsi Option C (2026-04-04)**: USD/JPY ADX制限撤廃(トレンド中WR=60%), Death Valley(UTC 00-01,09,12-16)ブロック, Gold Hours(UTC 05-08,19-23)スコア+0.8(v6.3), ADX>=30スコア+0.6, Tier1 TP=2.2(v6.3)
-- **Confluence Scalp v2 (2026-04-07)**: Triple Confluence + MSS戦略。Session Gate(UTC 12-17) + MFE Guard(ATR/Spread>=10) + HTF Hard Block + 3理論族合意(EMA+RSI/BB+MACD-H) + CHoCH/MSB構造転換検出。Profit Extender(TP延伸+Climax Exit), Friction Minimizer(指値遅延エントリー)
-
-### v7.0 リスク管理基盤 (2026-04-08) — クオンツギャップ分析に基づく20項目改善
-**背景**: コードベース全体のクオンツギャップ分析で、リスク管理・実行品質・ポートフォリオ構築の20項目の欠落を特定
-
-#### Shadow Tracking — 観測データ最大化 (N蓄積加速)
-- **問題**: FORCE_DEMOTED/Sentinel戦略はOANDA未送信なのにPower Session/RANGE/セッションでデモ記録もブロック → データ収集の機会損失
-- **設計**: 3フィルター (Power Session, RANGE TF, active_hours_utc) で `_is_shadow_eligible` 戦略はバイパス → `is_shadow=True` でDB記録
-- **`_is_shadow_eligible`**: `_FORCE_DEMOTED` or `_SCALP_SENTINEL` or `_UNIVERSAL_SENTINEL` に含まれる戦略
-- **OANDA安全保証**: `_is_shadow=True` → `_is_promoted = False` で強制遮断。`_is_promoted()` ロジックは一切変更なし
-- **学習エンジン汚染防止**: `get_trades_for_learning()` で `is_shadow=1` を除外 → WR/EV/自動昇格に影響しない
-- **DB**: `demo_trades.is_shadow` カラム追加 (INTEGER DEFAULT 0)
-- **テレメトリ**: `[SHADOW] DT Power Session bypass`, `[SHADOW] DT RANGE bypass`, `[SHADOW] Session bypass`
-- **効果**: 観測トレード ~50/日 → ~90/日、DT N=50到達 10-15日 → 3-5日
-
-#### 東京セッション カバレッジ拡大 (v7.0)
-- **P0: EUR/JPY scalp 東京有効化**: `active_hours_utc: (12,15) → (0,15)` — Tokyo+London+NY Overlap。bb_rsi×EUR_JPY/vol_surge×EUR_JPYはPAIR_DEMOTEDで安全確保
-- **P1: tokyo_bb 閾値緩和**: BB %B `0.08/0.92 → 0.15/0.85`, RSI `38/62 → 40/60` — バンドタッチ必須の過度に厳格な条件を緩和し東京レンジ相場での発火率改善
-- **P2: DT Power Session 東京拡大**: `{7,8,13,14} → {1,2,7,8,13,14}` — UTC 1-2追加で東京DTカバレッジ確保。Shadow Trackingで未検証戦略も観測データ蓄積
-
-#### 毒セグメント除去 + Fast Exit対策 (v7.0)
-- **~~UTC 05 デスゾーン~~**: ~~全scalp モードでUTC 05をブロック~~ → **v7.0撤去**: N=5統計無意味、offending戦略FORCE_DEMOTED済み、bb_rsi Gold Hoursと矛盾
-- **~~USD/JPY UTC 11-12 デスゾーン~~**: → **v7.0撤去**: 静的時間ブロック → Spread/SL Gate(動的)に委譲
-- **~~bb_rsi Death Valley~~**: ~~{0,1,9,12,13,14,15,16}~~ → **v7.0撤去**: 8h/日ブロックで攻撃機会致命的損失。UTC 12-16はNYセッション。Spread/SL Gateが動的防御を担う
-- **Spread/SL Gate**: エントリー直前にspread/SL距離比を検査。35%超でブロック。Fast Exit(<2min SL_HIT)の主因であるスプレッド過大時の即死を防止 (本番N=11 -30.7pip)
-- **設計原則**: 静的時間ブロックではなく動的スプレッドゲートで防御。マーケット開いてる間は攻める
-
-#### P0: 即対応（口座破綻リスク）
-- **Emergency Kill Switch**: `POST /api/emergency/kill` → 全モード停止 + OANDA全ポジション決済 + 永続フラグ(system_kv)。`POST /api/emergency/resume` (confirm=true必須)で復帰。ウォッチドッグ・自動再起動も完全停止
-- **SQLite自動バックアップ**: `demo_db.backup_database(keep_last=3)` — sqlite3.backup() API使用(WAL安全)。daily_review UTC 00:00で自動実行。`POST /api/db/backup` で手動トリガー可
-- **Discord Webhook**: `DISCORD_WEBHOOK_URL` 環境変数が未設定 → Renderで設定必要
-
-#### P0+P1: リスク分析基盤
-- **新モジュール `modules/risk_analytics.py`** (553行):
-  - `calculate_var_cvar()`: Historical VaR(95%/99%) + CVaR(Expected Shortfall)
-  - `monte_carlo_ruin()`: Bootstrap MC(N=10,000) → Ruin確率, 最悪DD(99th pctile)
-  - `kelly_fraction()`: Full/Half/Quarter Kelly計算
-  - `strategy_correlation()`: Pearson相関行列 + |r|>0.5フラグ
-  - `pnl_attribution()`: Alpha/Friction/Sizing分解
-  - `get_dd_lot_multiplier()`: 段階的DD乗数
-- **API**: `GET /api/risk/dashboard` (VaR/CVaR/Kelly/MC/相関/DD) + `GET /api/risk/slippage` (セッション/レジーム/戦略別)
-
-#### P1: ロットサイジング改善
-- **段階的DDロット縮小**: binary 50%切替 → DD 2%=0.80x / 4%=0.60x / 6%=0.40x / 8%=0.20x。回復も同じ閾値で段階的復帰。`_dd_lot_mult` system_kv永続化
-- **Kelly Lot Cap**: 3-Factor Model算出後に half-Kelly でキャップ。`_get_strategy_kelly()` がDB集計→Kelly算出。N≥10で適用開始。ログに `(K)` マーカー
-
-### v6.8 Quant Audit三段ロケット (2026-04-08) — 本番556t統計駆動リストラ
-**背景**: 本番556トレード分析で構造的問題を特定: (1) 25戦略中PF>1はbb_rsi_reversionのみ, (2) DT WR=29%(損益分岐WR=44%), (3) SIGNAL_REVERSE+Quick-Harvestで76.6pip利益漏出
-**手法**: BTではなく本番データのクオンツ分析に基づく三段階改革
-
-#### Stage 1: 戦略集中 — 出血戦略の停止
-- **fib_reversal → FORCE_DEMOTED**: 本番N=117 WR=39.6% PnL=-18.0pip PF<1 (BT WR=70%との乖離)
-- **macdh_reversal → FORCE_DEMOTED**: 本番N=86 WR=34.7% PnL=-40.6pip PF<1
-- **sr_fib_confluence × 3ペア → PAIR_PROMOTED全削除**: 本番N=40 WR=28.9% -92.8pip (BT WR=65%との乖離確定)
-- **_STRATEGY_LOT_BOOST**: fib_reversal 1.3x → 削除
-- **_PAIR_LOT_BOOST**: fib_reversal×USD_JPY, sr_fib_confluence×3ペア → 全削除
-- **残存アルファ**: bb_rsi_reversion×USD_JPY (N=123 WR=54.7% +54.8pip PF=1.13) のみPAIR_PROMOTED維持
-
-#### Stage 2: 利益漏出修復 — WIN trade の利益保護
-- **DT含み益保護 (`_check_signal_reverse`)**: 含み益 > ATR×0.3 のDTトレードをSIGNAL_REVERSE切断から保護
-  - 本番データ: DT SR WIN N=4 avg +2.5pip → TP_HIT想定 +15.3pip = 51.4pip逃し
-  - MFEトラッカー参照で含み益推定、閾値超えなら`return`でSR無効化
-  - テレメトリ: `[HOLD] DT含み益保護: profit > threshold → SIGNAL_REVERSE無効化`
-- **Quick-Harvest 0.70→0.85**: OANDA TP短縮率を緩和 → DT WIN 7件の19.2pip利益漏出を修復
-
-#### Stage 3.5: Scalp 5m Sentinel ブランチ (A/Bテスト)
-- **`scalp_5m` モード追加**: tf=5m, period=5d, interval_sec=30, USD/JPY
-- **OANDA遮断**: `_OANDA_MODE_BLOCKED` に追加 → デモ記録のみ、実弾なし
-- **独立モードクラス**: `_get_base_mode("scalp_5m")` = `"scalp_5m"` → 1mとポジション/CD/SR全て分離
-- **BT根拠**: 5m 30d BT — 164t WR=65.9% EV=+0.195 (1m比 +0.347改善), MaxDD 3.2x低下, Sharpe符号反転
-- **構造的優位**: ノイズバー49.8%→3.4%, Spread/ATR 13.8%→5.2%
-- **判断基準**: N≥50到達後、1m vs 5m本番データ比較で移行判断
-
-#### Stage 3: DT Power Session — 統計的有意な時間帯のみ許可
-- **`_DT_POWER_HOURS = {7, 8, 13, 14}`**: DT(15m)エントリーをUTC 7-8, 13-14に限定
-- **v7.0 スコープ修正**: **USD/JPYのみ適用** (他ペアはcompute_daytrade_signal内のセッションフィルターで制御)
-- **v7.0 TNM除外**: tokyo_nakane_momentum (UTC 00:45-01:15) は `_DT_POWER_SESSION_EXEMPT` で除外
-- **根拠**: 本番112t分析 (USD/JPYのみ)
-  - UTC 13-14: WR=65.2% +122.7pip (z=4.02, p<0.01, Bonferroni補正後も有意)
-  - UTC 7-8: WR=38% +18.0pip (London Open)
-  - 他時間帯: WR=19% -415.7pip (全出血源)
-- **位置**: USD_JPY DeadZone block の直後、spread filter の前
-
-#### Stage 4: DT RANGE MR戦略 — 構造的空白の解消
-- **問題**: RANGE=47.5%の時間帯にDT MR戦略がゼロ → TF戦略全ブロックで何もできない
-- **dt_bb_rsi_mr** (`strategies/daytrade/dt_bb_rsi_mr.py`): Scalp bb_rsi_reversionの15m足移植
-  - **v7.0 閾値緩和 (N=0発火率改善)**:
-    - BB%B: 0.20/0.80 → **0.30/0.70** (バンド下位/上位30%で十分な偏り)
-    - RSI14: 40/60 → **45/55** (15m RSI14は安定、45で方向確認十分)
-    - Stoch: K>D strict → **K>D OR K>prev_K** (クロス瞬間→反転方向で許容)
-    - Extreme Tier1: BB%B 0.05/0.95→**0.10/0.90**, RSI 25/75→**30/70**
-  - ADX < 25 限定 (RANGE/WIDE_RANGE専用) — 維持
-  - 反転足確認 (Close vs Open) — 維持
-  - SL=ATR×1.2, TP=ATR×1.5, MIN_RR=1.2, MAX_HOLD=8バー(2h)
-  - 対象: USD/JPY, EUR/USD, GBP/USD
-  - **Sentinel** (`_UNIVERSAL_SENTINEL`): 0.01lot観測、N≥30後に再評価
-  - `_RANGE_MR_STRATEGIES`登録: BB_mid TP + SL widening + SQUEEZE block + WIDE_RANGE boost 自動適用
-
-### v6.3 Sentinel対策 (2026-04-08) — 切除ではなく改善
-**設計思想**: 負EV戦略を切除(FORCE_DEMOTED)するのではなく、根本原因(摩擦、パラメータ、フィルター不足)を特定し具体的に改善する。
-- **ema_ribbon_ride**: Relaxed PO→**Strict PO(9>21>50)**, ADX 18→**25**, DI gap≥5必須, TP 1.5→**1.2**, UTC 0-6**完全ブロック**, BB幅≥0.35, 足実体≥40%
-- **fib_reversal**: Fib proximity 0.50→**0.35**, SL 0.5→**0.7**ATR, **ペア別TP**(JPY=1.8/EUR,GBP=1.3), 足実体≥50%, EUR/GBP UTC 0-5ブロック
-- **macdh_reversal**: **Tier化**(BB≤0.15=Tier1 TP1.8/通常TP1.5), MACD-H反転**強度フィルター**(delta≥平均50%), Death Valley(UTC 0,1,9 JPY)適用
-- **vol_surge_detector**: 発火率改善: vol倍率 2.0→**1.7**, Climax BB%B 0.10→**0.15**, RSI 30→**35**, TP 1.0→**1.3**, JPYセッション 12-23→**17-23**縮小, バーレンジATR比率チェック追加
-- **vol_momentum_scalp**: ADX 20→**25**, DI gap≥**8**必須, SL 0.8→**1.0**(pullback吸収), BB幅 0.35→**0.45**, RSI過熱 85/15→**80/20**
-- **bb_rsi_reversion**: USD_JPY **PAIR_PROMOTED**(Sentinel bypass), Gold Hours +0.5→**+0.8**, Tier1 TP 2.0→**2.2**
-- **Rolling EV Monitor**: `_check_rolling_ev()` — 戦略EV急落(drop≥0.2 & EV<-0.3)を自動検出・アラート
-- **spread_at_exit修正**: OANDA決済パス+SIGNAL_REVERSE決済パスにspread_at_exit追加
-
-- **DISABLED**: stoch_pullback, ema_pullback, trend_rebound, engulfing_bb, three_bar_reversal, sr_channel_reversal
-- **SL floor**: ATR(14)x1.0 minimum (ScalperEngine/DaytradeEngine unified)
-- **MAX_HOLD=40 bars**, MIN_RR=1.2
-
-## DT v4.4 Strategy Breakdown (55d BT, +ORB Trap/GBP Deep PB採用)
-| Strategy | EUR Trades | EUR WR | EUR EV | JPY Trades | JPY WR | JPY EV | GBP Trades | GBP WR | GBP EV | Description |
-|---|---|---|---|---|---|---|---|---|---|---|
-| sr_fib_confluence | 82 | 63.4% | +0.223 | 84 | 64.3% | +0.286 | 80 | 68.8% | +0.414 | ADX>=20, layer3 SR/Fib detection |
-| **orb_trap** | **42** | **71.4%** | **+0.482** | **29** | **79.3%** | **+0.617** | **28** | **64.3%** | **+0.245** | **ORB Trap: Opening Range Fakeout Reversal** |
-| **sr_break_retest** | **—** | **—** | **—** | **63** | **63.5%** | **+0.236** | **42** | **61.9%** | **+0.159** | **SBR: Fractal SR B&R (Edwards&Magee 1948)** |
-| htf_false_breakout | 32 | 65.6% | +0.507 | 24 | 70.8% | +0.545 | 40 | 72.5% | +1.011 | FBF: 1H SR False Breakout Fade (Bulkowski 2005) |
-| **gbp_deep_pullback** | **—** | **—** | **—** | **—** | **—** | **—** | **38** | **73.7%** | **+0.543** | **GBP Deep PB: BB-2σ/EMA50 deep pullback** |
-| lin_reg_channel | 22 | 63.6% | +0.277 | — | — | — | — | — | — | LRC: Linear Regression Channel MR (EUR専用) |
-| **adx_trend_continuation** | **14** | **85.7%** | **+2.045** | **—** | **—** | **—** | **—** | **—** | **—** | **ADX TC: EUR専用トレンド押し目 (Wilder 1978)** |
-| **tokyo_nakane_momentum** | **—** | **—** | **—** | **10** | **70.0%** | **+0.086** | **—** | **—** | **—** | **TNM: 仲値DOWN→BUY専用 (Andersen 2003)** |
-| ema_cross | 9 | 77.8% | +0.963 | 3 | 66.7% | +0.014 | 6 | 50.0% | +0.028 | **Hardened v2**: ADX≥25↑ OR 1H ADX≥22 |
-| ~~london_close_reversal~~ | ~~11~~ | ~~54.5%~~ | ~~+0.019~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~DISABLED: 44t avg EV≈0, N不足~~ |
-| ~~london_session_breakout~~ | ~~10~~ | ~~10%~~ | ~~-9.9~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~—~~ | ~~DISABLED: WR=10% — ORB Trapに置換~~ |
-
-- **ORB Trap (2026-04-05)**: Opening Range Breakout Trap。LDN(UTC 07:00-07:30)/NY(UTC 13:30-14:00)のORを計測→Close実体ブレイク→レンジ内回帰(フェイクアウト)→逆方向エントリー。LSB WR=10%の裏返し(90%のフェイクアウトを利用)。全3ペア対応、BUY WR=100%(JPY)が特徴的
-- **GBP Deep PB (2026-04-05)**: ADX TCのGBP/USD特化版。ADX≥20+EMA9>21+BB-2σ(bbpb≤0.10)orEMA50ゾーン到達→反転足+EMA21回復確認。標準ADX TCのEMA9-21浅い押し目ではGBPのボラに対応不可→深い押し目(BB/EMA50)要求で解決
-- **LCR DISABLED (2026-04-05)**: London Close Reversal。UTC 15:00-16:15のwick≥60%+range/ATR≥0.8で反転検出。15m BT: EUR 11t EV≈0, GBP 3t WR=0% → edge不十分、N不足。5m BT未実施
-- **SBR (2026-04-05)**: SR Break & Retest。Fractal(n=3)でSR検出→Close実体ブレイク→±0.7ATRリテスト→反転確認。USD/JPY+GBP/USD専用(EUR/USD EV≈0で除外)。HFBの鏡像戦略=負相関で最大分散
-- **ADX TC (2026-04-04)**: EUR/USD専用トレンドフォロー。ADX≥25+EMAパーフェクトオーダー(9>21>50)+前1-3本プルバック検出→現在足リバウンド確認。USD/JPYはDISABLED(WR=50%/EV=-0.719、15m足トレンドノイジー)
-- **Mean-reversion exclusion**: bb_rsi, macdh, v_reversal, trend_rebound exempt from EMA200/HTF hard filter (soft penalty only)
-- **SRM-DT v3 (2026-04-08)**: Squeeze Release Momentum。BB圧縮(SQUEEZE)→解放(Release)のトレンド初動を2段フィルターで捕捉。v1(5段フィルター)N=4→v2(緩和)N=5→v3(2段)N=24で統計検証可能化。**EUR/USD,GBP/USD限定**(USD/JPY WR=50%摩擦負け→除外)。UTC 07-17、金曜13以降ブロック。squeeze_bars≥3+BB拡大+bbpb>0.75/<0.25+陽陰線確認。SL=SwingHL±ATR×0.3(max1.5/min0.8)、TP=ATR×2.5、MIN_RR=1.5。PE/Pyramid完全対応。MR戦略ではない→BB_mid TP/SL widening/RR floor 0.8の対象外。**Sentinel(0.01lot)蓄積中**、N=30到達後にWFO/MC再評価
-- **SRM BT SL保存 (2026-04-08)**: `_DT_PRESERVE_SLTP = {"squeeze_release_momentum"}` — DT BTのSL逆算を迂回し戦略SLを保存。1H BT準拠
-- **SRM Option B/C/D検証 (2026-04-08)**: Option D(2段フィルター) 24t WR=66.7% EV=+0.45 PF=1.86 → Sentinel採用。Option C(SRM-1H) WR=10% 即却下・削除。Option B(KSB多通貨) JPY WR=0%確認→EUR専用維持
-- **MC Bootstrap修正 (2026-04-08)**: BacktestEngine.monte_carlo_confidence() のEV/WR/PF計算をシャッフル→Bootstrap(復元抽出)に修正。旧実装はシャッフルでEV不変→CI幅=0バグ。MaxDDは順序依存のためシャッフル維持
-
-## Key Parameters
-- **Spread**: Production=OANDA real bid/ask (entry BUY=ask/SELL=bid, exit BUY=bid/SELL=ask)
-- **BT spread v2**: ペア別実測値ベース (461t監査), EUR_GBP 1.0-2.0pip, GBP_USD 0.8-1.8pip, EUR_USD 0.3-1.0pip, EUR_JPY 0.5-1.5pip, USD_JPY 0.3-1.0pip, XAU 3.0-5.0pip
-- **BT slippage**: ペア別定数 (_BT_SLIPPAGE), エントリー・決済の両側に加算
-- **TP/SL**: TP=ATR-based technical target, SL=RR ratio inverse (MIN_RR=1.2)
-- **SL floor**: ATR(14)x1.0 minimum distance (engine-level enforcement)
-- **Entry quality gate**: QUALIFIED_TYPES only, at least 1 reason required
-- **Strategy auto-promotion**: Demo N>=30 & EV≥1.0 -> OANDA promotion / EV<-0.5 -> demotion (every 10 trades, コスト補正1.0pip)
-- **BT昇格基準 (Phase 5)**: 摩擦込みEV > 1.0 AND N≥10 を「昇格候補」として出力
-- **Force-demoted (OANDA停止)**: sr_fib_confluence, ema_cross, inducement_ob, ema_ribbon_ride, h1_fib_reversal, pivot_breakout, ema_pullback, fib_reversal, macdh_reversal — デモ継続・実弾停止 (v6.8: 556t本番Quant Audit確定)
-- **Pair-Specific Lifecycle (2026-04-07)**: `(strategy, instrument)` tuple-based granular control — v5.95 BT audit 結果に基づく通貨ペア別戦略管理
-  - **_PAIR_DEMOTED**: bb_rsi×EUR_USD (WR=20% EV=-1.5), macdh×GBP_USD (WR=40% EV=-0.818) → エントリー完全停止
-  - **_PAIR_PROMOTED**: **bb_rsi_reversion×USD_JPY のみ** (v6.8: sr_fib_confluence×3ペア全削除, 本番WR=28.9%)
-  - **_PAIR_LOT_BOOST**: 空 (v6.8: fib_reversal×USD_JPY, sr_fib_confluence×3ペア全削除)
-  - **_UNIVERSAL_SENTINEL**: stoch_trend_pullback → 全モードでSentinel化 (Scalp限定→全モード拡張)
-  - **_PAIR_SR_THRESHOLD**: USD_JPY=1.5 (デフォルト2.0→緩和、SR品質が高いため)
-  - **_LIMIT_ONLY_SCALP**: GBP_USD → scalp成行注文禁止、指値のみ (RT friction=3.06pip対策)
-  - **_N_LOT_TIERS (v6.1)**: N<10→max1.0x / 10≤N<30→max1.5x / N≥30→full (Confidence-based Lot)
-  - **_PE_DT_ELIGIBLE (v6.1)**: orb_trap, london_ny_swing → DT Profit Extender対象
-  - **_PE_ADX_THRESHOLD (v6.1)**: EUR_USD=25 (デフォルト30) → 緩やかトレンドでTP延伸許可
-  - **_LIMIT_EXPIRE_CD_SEC (v6.1)**: 180s → GBP_USD指値失効後の追っかけ禁止
-  - **_is_promoted() v4**: Bridge → PAIR_DEMOTED → PAIR_PROMOTED → FORCE_DEMOTED → auto_demotion → allow
-- **Elite Track (2026-04-07)**: gbp_deep_pullback=2.0x, turtle_soup/orb_trap/htf_false_breakout/trendline_sweep/london_ny_swing=1.5x
-- **Legacy boost**: sr_break_retest, mtf_reversal_confluence → 1.3x
-- **Scalp Sentinel**: bb_rsi/fib/macdh/vol_momentum等7戦略 → 1000units固定(0.01lot)、データ収集専用 (v6.3: bb_rsi USD_JPYはPAIR_PROMOTED bypass)
-- **Rolling EV Monitor (v6.3)**: `_check_rolling_ev()` — EV急落検出(drop≥0.2 & EV<-0.3)→自動アラートログ
-- **Equity Curve Protector**: DD>5%(50pip)→全ロット50%縮小、DD回復(2.5%以下)→自動解除
-- **ATR Trailing Stop**: Tier1=ATR*0.8→BE, Tier2=ATR*1.5→Trail at price-ATR*0.5 (MFE逃し救済+64.7p推定)
-- **Session×Pair filter**: EUR_GBP全停止(WR=11%), EUR_USD Tokyo(UTC0-7)/Late_NY(UTC17+)停止
-- **v6.8 DT Power Session**: UTC 7-8, 13-14 のみ許可 (他時間帯 WR=19% -415.7pip → 全ブロック)
-- **SIGNAL_REVERSE min hold**: scalp 180→300s (ノイズ循環断切)
-
-## Confluence Scalp v2 Architecture (2026-04-07)
-- **File**: `strategies/scalp/confluence_scalp.py` (ConfluenceScalp + MSS検出関数群)
-- **設計思想**: 既存Sentinel戦略の構造的欠陥(83.5% instant death, SAR<1.0)を解消する新世代スキャルプ
-- **防御層 (3段階ゲート)**:
-  1. Session Gate: UTC 12-17のみ (London/NY overlap = instant death率最低の時間帯)
-  2. MFE Guard: ATR/Spread >= 10 (摩擦吸収余地の確保)
-  3. HTF Hard Block: HTF方向に逆行するエントリーを完全ブロック (Sentinel戦略のソフトペナルティとは異なる)
-- **攻撃層 (Triple Confluence Gate)**:
-  - Family A (Trend): EMA9/21クロスまたは整列
-  - Family B (Oscillator): RSI5極端 + BB%B極端
-  - Family C (Momentum): MACD-H方向転換
-  - 3理論族が全て同方向に合意した場合のみエントリー
-- **MSS (Market Structure Shift)**:
-  - CHoCH (Change of Character): スイングH/Lを実体で割れ → 構造転換検出 (Wyckoff 1931)
-  - MSB (Market Structure Break): CHoCH後のHH/LL更新 → 新トレンド確認
-  - detect_choch() / detect_msb() / detect_mss_state(): Fractal(n=3)ベースの構造分析
-- **Profit Extender** (`demo_trader.py _check_sltp_realtime`):
-  - TP到達時にMSS継続(MSB=True)+ADX>30: TP延伸(2x) + 強化トレイリング(ATR*0.4)
-  - _mss_tracker: 毎tick(10s)でMSS状態を更新 → _check_sltp_realtime(0.5s)で参照
-  - Climax Exit: RSI divergence + 大ウィック(70%以上) → 即利確
-  - _profit_extended: TP延伸済みtrade_idのSet
-- **Friction Minimizer** (指値遅延エントリー):
-  - compute_limit_entry_price(): 直近3本のウィック中間点で指値価格を計算
-  - 現在価格が指値より不利 → _pending_limits に保存、5分以内に到達で約定
-  - __LIMIT_ENTRY__マーカーでsignal reasonsに指値価格を埋め込み
-- **SL/TP**: SL=ATR7*1.2 (構造エントリー用に広め), TP=ATR7*2.5 (高RR)
-- **app.py連携**: EMA200/HTFソフトペナルティを適用外 (内部でHTF Hard Block済み)
-- **QUALIFIED_TYPES**: confluence_scalp を登録済み
-
-## v6.5 Range Exit Optimization (2026-04-08)
-- **Problem**: RANGE regime = 47.5% of trades, WR = 31.2% (worst regime). MR strategies use ATR*2.2 TP in RANGE, overshooting the natural mean-reversion target
-- **Solution**: BB_mid TP Targeting + Range SL/TP Multipliers
-- **Scope**: demo_trader.py entry path only (BT unchanged until validated)
-
-### BB_mid TP Targeting
-- **Trigger**: `regime == "RANGE"` AND `entry_type in {bb_rsi_reversion, macdh_reversal, fib_reversal, vol_surge_detector}`
-- **BUY**: `TP = min(BB_mid, entry + ATR * 1.2)` — BB_midが近ければBB_mid、遠ければATR×1.2でキャップ
-- **SELL**: `TP = max(BB_mid, entry - ATR * 1.2)` — 同上（対称）
-- **Safeguard**: BB_mid must be on correct side of entry (BUY: above, SELL: below)
-- **Telemetry**: `[RANGE_EXIT]` log with original TP, new TP, BB_mid, cap value
-- **Non-impact**: Trend-following strategies (orb_trap, sr_fib_confluence, etc.) completely unaffected
-
-### Range SL/TP Multipliers
-- **SL widening**: Scalp ATR mult 0.8→1.0 in RANGE for MR strategies (noise tolerance toward opposite BB)
-- **RR floor**: 0.8 (from 1.0) for RANGE MR — BB_mid TP shortening compensated by expected higher WR
-- **SR SL RR**: SR-based SL selection RR threshold lowered to 0.8 for consistency
-- **Telemetry**: `[RANGE_EXIT] SL widened:` log when mult changes
-
-### Quick-Harvest Bypass (OANDA二重短縮防止)
-- **問題**: BB_mid TP(既に短縮済み) × Quick-Harvest(×0.70) → 実効RR≈0.56 → 損益分岐WR=64% (非現実的)
-- **対策**: `_is_range_mr == True` の場合、Quick-Harvest をバイパスし BB_mid TP をそのまま(×1.0)OANDA送信
-- **結果**: OANDA実効RR = 0.8 → 損益分岐WR = 55.6% (戦える水準)
-- **Telemetry**: `[RANGE_EXIT] Quick-Harvest bypassed — BB_mid TP preserved ×1.0`
-- **既存免除**: `_QUICK_HARVEST_EXEMPT` (gbp_deep_pullback×GBP_USD) はそのまま維持
-- **v6.8 Quick-Harvest緩和**: `_QUICK_HARVEST_MULT` 0.70→**0.85** (DT WIN 7件の19.2pip利益漏出修復)
-
-### Phase 1 Design Notes
-- `_is_range_mr` flag: computed once (from Phase 2 variables), shared across TP override, SL widening, RR floor
-- BB_mid sourced from `sig["indicators"]["bb_mid"]` (always available from compute_*_signal)
-- Regime sourced from `sig["regime"]["regime"]` (detect_market_regime output)
-- 1H Breakout (KSB/DMB) unaffected — `_1H_PRESERVE_SLTP` check is downstream
-
-### Phase 2: Range Sub-classification & MR Score Control (2026-04-08)
-- **Problem**: RANGE判定が粗く、SQUEEZE直前のMR逆張り(自殺行為)とWIDE_RANGE最適環境を区別できない
-- **Solution**: `detect_market_regime` に `range_sub` フィールド追加 + demo_trader.py で動的スコア制御
-
-#### Range Sub-types (`detect_market_regime` return → `range_sub`)
-| Sub-type | Condition | 意味 | MR制御 |
-|---|---|---|---|
-| `SQUEEZE` | `bb_width_pct < 10` | BB極端圧縮→ブレイクアウト前夜 | **ブロック** (エントリー禁止) |
-| `WIDE_RANGE` | `bb_width_pct >= 10 & ADX < 20` | オシレーション状態 | **ブースト** (Score+1.0, Conf+5) |
-| `TRANSITION` | `ADX >= 20` (RANGE残留) | トレンド移行期 | パススルー (標準評価) |
-| `None` | 非RANGEレジーム | N/A | N/A |
-
-#### Entry Path Integration (demo_trader.py)
-- **位置**: exposure check 直後、confidence threshold 直前 (Phase 2 block)
-- **SQUEEZE**: `_block("regime_squeeze_mr"); return` — MR戦略の全シグナルを即座にブロック
-- **WIDE_RANGE**: `confidence += 5` (最大100), `sig["score"] += 1.0` — 閾値通過率・OANDA転送確率を引き上げ
-- **TRANSITION**: 調整なし — 標準評価ロジックがそのまま適用
-
-#### Variable Sharing (Phase 2 → Phase 1)
-- `_RANGE_MR_STRATEGIES`: Phase 2で定義、Phase 1 BB_mid TPで再利用 (重複排除)
-- `_regime_type_r`, `_is_mr_entry`: Phase 2で計算、Phase 1で `_is_range_mr` 導出に使用
-- `_range_sub`: Phase 2のみで使用 (SQUEEZE/WIDE_RANGE判定)
-
-#### Telemetry
-- `[REGIME] SQUEEZE detected — MR Blocked` — SQUEEZE時のブロックログ (bb_width_pct付き)
-- `[REGIME] WIDE_RANGE detected — MR Score Boosted` — WIDE_RANGE時のブーストログ (Conf/Score変動値付き)
-
-### Phase 0: SRM準備 — SQUEEZE計器拡張 & vol_surge矛盾修正 (2026-04-08)
-
-#### squeeze_bars (SQUEEZE持続本数トラッキング)
-- **場所**: `detect_market_regime()` return dict に `squeeze_bars` フィールド追加
-- **計測方法**: BB幅が直近50本のP30(30パーセンタイル)以下に収まっている連続本数
-- **用途**: 次期SRM戦略がエネルギー充填度(圧縮持続時間)を判定するために使用
-- **値**: SQUEEZE以外のレジームでは常に 0。SQUEEZEの場合 1〜最大15程度
-- **P30閾値の根拠**: SQUEEZE判定(P10)より緩い基準で「圧縮ゾーン」の持続幅を広く計測
-
-#### vol_surge_detector momentum/climax 二面性解決 (P0バグ修正)
-- **問題**: vol_surge_detectorが`_RANGE_MR_STRATEGIES`に含まれており、momentum(TF)モードのシグナルがSQUEEZEで不正にブロックされていた
-- **修正**: `sig["reasons"]`内の「モメンタム初動」キーワードでmomentum/climaxモードを判別し、momentumの場合`_is_mr_entry = False`に設定
-- **効果**: momentum → SQUEEZE通過、climax → 従来通りMRブロック
-- **下流影響**: `_is_mr_entry=False` により BB_mid TP不適用、SL widening不適用、RR floor 1.0維持、Quick-Harvest通常適用 — 全てmomentumに正しい動作
-- **テレメトリ**: `[REGIME] SQUEEZE — vol_surge MOMENTUM bypassed MR block` — momentum通過時のログ (squeeze_bars付き)
-
-## Active Trading Rules & Constraints
-
-### COOLDOWN (Re-entry Throttle)
-- **Architecture**: EXIT-based (cooldown starts after trade close, not entry)
-- **Scalp**: 60s (1 bar)
-- **Daytrade 15m**: 900s (1 bar) — BT/Production unified
-- **Swing**: 14400s (1 bar)
-- **Cross-strategy cascade CD**: SL_HIT on same pair triggers cooldown for ALL strategies (scalp:90s, DT:180s)
-- **Post-SL same-direction block**: Block same-direction/same-price re-entry after exit (scalp:120s, DT:600s, swing:7200s)
-
-### Position Limits
-- **Max open trades**: 4 (safety cap) + per-pair 1 position limit
-- **DT same-direction**: max 2 positions, same price distance >=5pip
-- **Scalp same-direction**: max 3 positions, same price distance >=1.0pip
-- **bb_rsi/macdh mutual exclusion**: correlation 0.65 pair same direction within 3min -> only higher EV executes
-
-### Circuit Breaker (Consecutive Loss Control)
-- **All-direction breaker**: N losses in 30min pauses mode (scalp:4, DT:3)
-- **Same-direction max**: 3 consecutive same-direction losses -> pause
-- **Drawdown control**: Daily -30pip / Max DD -100pip -> auto-stop
-
-### Friday Filters
-- **Scalp**: Score threshold 0.6->3.5 (high conviction only), tokyo_bb fully blocked
-- **DT (compute_daytrade_signal)**: Friday UTC 0-6 SR-based (sr_fib_confluence etc.) blocked, UTC 18+ fully blocked
-- **DT (compute_signal)**: combined score decay (x0.15), Tokyo/NY afternoon blocked
-- **Note**: compute_daytrade_signal and compute_signal are separate functions. DT BT uses compute_daytrade_signal
-
-### HTF / EMA Hard Filters
-- **DT HTF hard filter**: htf_agreement=bull blocks SELL completely (return WAIT)
-- **Scalp EMA200 hard filter**: EMA200 above + slope rising blocks SELL completely
-- **Scalp HTF hard filter**: HTF bull blocks SELL, bear blocks BUY completely
-- **Mean-reversion exemption**: bb_rsi, macdh, v_reversal, trend_rebound use soft penalty only (not hard blocked)
-- **Layer1 direction check**: demo_trader blocks L1 (bull/bear) counter-trend trades
-
-### SL Hunting Countermeasures
-- **Session SL widening**: UTC 0,1,18-21h: SL +ATRx0.2 (BT+Production)
-- **Counter-trend buffer**: Mean-reversion strategies against L1: SL +ATRx0.25 (BT+Production)
-- **Fast-SL adaptive defense**: Fast SL (<120s) in last 5min -> next SL +ATRx0.3 (Production only)
-- **Spread filter (per-pair)**: USD/JPY 1.0p, EUR/USD 1.2p, GBP/USD 1.2p, EUR/GBP 1.2p, EUR/JPY 1.2p, XAU/USD 4.0p
-- **Spike detection**: >0.5ATR move in 60s blocks entry
-- **Round number SL avoidance**: .000/.500 nearby SL shifted 2.5pip outward
-- **Time-based retreat**: 50% hold elapsed + unrealized loss -> early exit before SL (TIME_DECAY_EXIT)
-- **動的ロットサイジング (2軸+戦略ブースト)**: Axis1=SL距離連動 × Axis2=ATR/Spread比 × 戦略ブースト(Elite 1.5-2.0x / Legacy 1.3x), combined 0.3-2.5x
-- **DT spread guard**: 20%閾値 (往復spread/期待利益, scalp=30%)
-- **Friction Ratio**: 決済ログに FR=(spread+slip)/|PnL| を付与、FR>100%で⚠️警告
-- **SL cluster avoidance**: New SL within 2pip of existing position SL -> entry blocked
-- **SL technical positioning**: SR-based (nearest SR - ATRx0.3) priority over ATR-based. RR>=1.0 guaranteed
-
-### Breakeven & Trailing Stop
-- **BE trigger (共通建値ガード)**: Tier1: ATR*0.8到達 → SL→BE(entry+spread). Tier2: ATR*1.5到達 → Trail(price-ATR*0.5). SMC: FX=3pip即BE / XAU=10pip.
-- **No trailing stop**: BE=ATR*0.8 only (trailing removed per BT/Production param unification)
-- **Price velocity filter**: >8pip move in 10min blocks counter-direction entry [Cont 2001]
-- **ADX regime block**: ADX>=35 strong trend blocks counter-trend entry
-
-### SIGNAL_REVERSE
-- **Minimum hold**: scalp 180s, DT 600s, swing 3600s (whipsaw prevention)
-- **Score threshold (2026-04-07)**: `abs(score) >= 2.0` — 弱い逆転シグナル(スコア<2.0)ではSR発動しない（ノイズ防止）
-- **ADX filter (2026-04-07)**: `ADX > 20` — レンジ相場(ADX≤20)ではSR禁止、SL/TPに委ねる（往復ビンタ防止）
-- **Trend Mismatch log**: Layer1方向 vs 反転シグナル方向の不一致を検出・ログ出力（情報用）
-- **SR詳細ログ**: `[SR] Score: +2.50 | ADX: 28.3 | Conf: 65 | Trend_Mismatch: True | L1: bull | Type: sr_fib`
-- **抑制ログ**: `🚫 SR抑制（スコア不足）` / `🚫 SR抑制（レンジ相場）` — フィルター発動理由を明示
-- **BT同期**: Scalp BT + DT BT にも同一フィルター(score>=2.0 + ADX>20)を適用済み
-- **v6.8 DT含み益保護**: daytrade/daytrade_1h で含み益 > ATR×0.3 の場合 SIGNAL_REVERSE を無効化 → TP/SLに委ねる
-
-### OANDA Position Sync
-- **Demo -> OANDA sync**: Orphan positions (demo CLOSED, OANDA OPEN) detected every 5s and auto-closed
-- **Demo as source of truth**: OANDA orphans resolved by demo state
-
-## EUR/USD New Strategies (2026-04-04)
-- **Root cause of EUR/USD losses**: ATR is half of USD/JPY -> spread burden 2x, BB mean-reversion WR~50% (no edge), Asia session EUR/USD effectively dead (4.5pip range)
-- **SVE (Session Volatility Expansion)**: 1m scalp, UTC 07:00-08:30 only, Asia compression -> London breakout, spread<=0.5pip hard filter
-- **FBF (HTF False Breakout Fade)**: 15m DT, 1H SR(20-bar) close-based break detection -> 15m reversion, MTF 4H/1D filter
-- **ADX TC (ADX Trend Continuation)**: 15m DT, EUR/USD専用。ADX≥25+EMAパーフェクトオーダー+プルバック→リバウンド確認。WR=78.6% EV=+1.706。USD/JPY DISABLED(15m足トレンドノイジー)
-- **LSB (London Session Breakout)**: **DISABLED** — ctx fix後初BTでWR=10%/0% → Asia compression→London breakout ロジック要再設計
-
-## USD/JPY New Strategies & Enhancements (2026-04-04)
-- **TNM (Tokyo Nakane Momentum)**: 15m DT, UTC 00:45-01:15, BUY方向のみ（非対称設計）。Pre-fix DOWN→Post-fix BUY reversal。月曜/金曜除外。USD/JPY専用
-- **bb_rsi Option C**: USD/JPY専用環境最適化。ADX制限撤廃(ADX>=30で逆にWR=60%), Death Valley(UTC 00-01,09,12-16)完全ブロック, Gold Hours(UTC 05-08,19-23)スコアボーナス。EUR/USDは従来通りADX<25維持
-- **DaytradeEngine ctx fix**: compute_daytrade_signal内のDaytradeEngineフォールバックコンテキストに hour_utc, is_friday, prev_close/open/high/low を追加。時間帯フィルター戦略(TNM/LSB)が正しく動作可能に
-- **DT BT session filter例外**: USD/JPY UTC 00-01をセッションフィルター(UTC<5ブロック)から除外。仲値時間帯のBT評価を可能に
-
-## 1H Breakout Mode v5.0 (Active since 2026-04-05)
-- **Architecture**: HourlyEngine (StrategyBase/Engine pattern) → compute_hourly_signal → demo_trader
-- **HTF**: Real 4H+1D data via resample from 1H bars (_compute_1h_htf_bias)
-- **SL/TP**: Strategy-calculated, preserved in demo_trader (_1H_PRESERVE_SLTP)
-- **BE/Trailing**: BE at 50% TP → trailing stop (recent H/L - ATR×1.5)
-
-### KSB (Keltner Squeeze Breakout) — EUR/USD専用
-- **BT**: 10t WR=50% +92pip/120d, RR=2.0, Avg Hold=6.2h
-- **Concept**: BB squeeze (BB inside Keltner) → release → Keltner(80%) breakout
-- **Key params**: MIN_SQUEEZE=3, KELT_BREAK_MULT=0.80, ADX_MIN=15, BODY_RATIO≥0.35
-- **SL**: Squeeze期間のswing L/H ± ATR×0.3, max ATR×1.5
-- **USD/JPY**: DISABLED (WR=33.3%, スリッページで負EV転落リスク)
-
-### DMB (Donchian Momentum Breakout) — 両ペア
-- **BT EUR**: 60t WR=50% +391pip/120d, RR=2.0, Avg Hold=5.5h
-- **BT JPY**: 40t WR=35% +181pip/120d, RR=2.0, Avg Hold=6.9h
-- **Concept**: Donchian 48-bar (≈2営業日) range breakout + DI momentum
-- **Key params**: MIN_RANGE≥ATR×1.5, ADX_MIN=18, BODY_RATIO≥0.40
-- **SL**: don_mid48 ± ATR×0.3, max ATR×1.5
-- **USD/JPY SELL非対称フィルター**: ADX≥25 + 1D EMA50 falling required (金利差逆行対策)
-- **Freshness check**: Previous bar must not have already broken Donchian
-
-## EUR/JPY Scalp Mode (Active since 2026-04-05)
-- **Architecture**: 既存compute_scalp_signal + UTC 12-15ハードフィルター (active_hours_utc in MODE_CONFIG)
-- **ペア**: EUR/JPY (EURJPY=X / EUR_JPY)
-- **稼働時間**: UTC 12-15のみ (London/NY overlap, spread最狭1.5pip)
-- **BT**: 250t WR=45.6% +300pip EV=+1.20/trade (60d, 5m検証)
-- **BT 1m**: 118t WR=61.9% +115pip EV=+0.97/trade (7d)
-- **根拠**: UTC 15 = London fixing反転効果 (全利益の60%, EV=+3.14/trade)
-- **ロット**: ATR/Spread比 ~3.3 → vol_mult=0.7 → 自動的に0.6x前後に縮小
-
-## Lot Sizing v6.2: 3-Factor Model (Active since 2026-04-07)
-- **3-Factor Model**: Risk(SL距離) × Edge(ATR/Spread) × Boost(戦略×N制限×DD防御)
-- **Final**: clamp(risk_factor × edge_factor × boost_factor, 0.3, 2.5)
-- **Risk factor**: base_sl_pips / actual_sl (0.5-1.5), scalp=3.5, DT=15, 1H=30
-- **Edge factor**: ATR/Spread thresholds — ≥15→1.5x, ≥10→1.3x, ≥6→1.0x, ≥3→0.7x, <3→0.5x
-- **Boost factor**: strat_boost × N_cap × (0.5 if defensive else 1.0)
-- **ログ透明化**: エントリーログに `📐 0.70R×1.3E×1.50B=1.37 → 13000u [N=51 edge=17]` 形式で内訳表示
-- **Sentinel bypass (v6.2)**: _PAIR_LOT_BOOST / _PAIR_PROMOTED に登録されたペア×戦略は SCALP_SENTINEL をバイパス
-- **N<10 Safety (v6.2)**: 本番N<10の未検証戦略は自動Sentinel (0.01lot)。PAIR_PROMOTED免除
-- **_get_base_mode()**: mode suffix removal helper (scalp_eur→scalp, scalp_eurjpy→scalp)
-
-## Deploy-Safe State Persistence (v6.2)
-- **system_kv テーブル**: SQLite永続化でデプロイ後も状態維持
-- **Equity Protector**: _eq_peak / _eq_current / _defensive_mode → 決済ごとにDB保存、起動時に復元
-- **N Cache**: _strategy_n_cache → _evaluate_promotions() でDB保存、起動時にDB復元 → 直後にDB集計で上書き
-- **OANDA Audit**: oanda_audit テーブル (v6.1) — デプロイ後も監査ログ保持
-
-## Production Monitoring (P0 — Active since 2026-04-04)
-- **Slippage**: signal_price vs entry_price diff (pips) -> DB column `slippage_pips` + log
-- **COOLDOWN compliance**: Seconds since last exit -> DB column `cooldown_elapsed` + log (900s compliance for DT)
-- **Spread**: OANDA real spread at entry/exit -> DB columns `spread_at_entry`, `spread_at_exit` + log
-- **DB columns**: signal_price, spread_at_entry, spread_at_exit, slippage_pips, cooldown_elapsed
-- **Pending task**: Periodic production report (slippage/spread/COOLDOWN analysis) after 50-100 trades accumulate
-
-## v6.4 SHIELD + 非対称攻撃 (2026-04-08)
-
-### Phase 1: 絶対防御 (P0)
-- **OANDA Lot Hard Cap**: `_OANDA_LOT_CAP = 10000` — 3-Factor Model計算後にmax 10,000u強制。19000u災害防止。`[SHIELD]`ログ
-- **EUR_USD DT/1H OANDA遮断**: `_OANDA_MODE_BLOCKED = {daytrade_eur, daytrade_1h_eur}` — EUR_USD scalp継続、DT/1HのOANDA送信をブロック (WR=29.2%対策)
-- **SHIELD EUR DT ホワイトリスト** (v7.0): `_SHIELD_EUR_DT_WHITELIST = {orb_trap, htf_false_breakout}` — MR系高EV戦略はモード遮断免除。orb_trap EUR BT WR=71.4% EV=+0.482, htf_fbk EUR BT WR=65.6% EV=+0.507。N<10 Safety で自動Sentinel、auto_demotion + Kelly Cap 健在
-- **Quick-Harvest TP**: `_QUICK_HARVEST_MULT = 0.70` — OANDA TP = demo TP × 0.70 (TP hit率 3.75%→早期利確)。`_QUICK_HARVEST_EXEMPT`で gbp_deep_pullback×GBP_USD は全TP許可。`[SHIELD]`ログ
-
-### Phase 2: 計測 (P0-P1)
-- **Fidelity Cutoff**: `_FIDELITY_CUTOFF = "2026-04-08T00:00:00+00:00"` — `_evaluate_promotions()` + `LearningEngine` がv6.3パラメータ変更後のトレードのみ評価。旧320t汚染データ排除。`get_trades_for_learning(after_date=)`で実装
-- **Execution Telemetry**: `[TELEMETRY] signal=X fill=Y slip=Zpip` — OandaBridge `open_trade`に`signal_price`引数追加。約定時にsignal price vs fill priceのスリッページをpip単位で記録
-
-### Phase 3: 非対称攻撃 (P1-P2)
-- **50% TP Profit Extender**: `_PE_50PCT_ELIGIBLE` — トレンドフォロー戦略でTP距離の50%到達 + entry ADX>30 → TP200%延伸 + ATR×0.5トレイリング。`_entry_adx`でエントリー時ADXを保存。**NOTE: Demo TPは延伸されるがOANDA TPは70%のまま（設計通り: OANDAは早期利確、Demoは研究用延伸）**
-- **Risk-Free Pyramiding**: 1.0 ATR有利方向移動 + OANDA昇格済み → 追加10000uポジション開設 + 元トレードSL→BE(建値+スプレッド)。`_pyramided_trades`で重複防止。`[PYRAMID]`ログ
-- **Quick-Harvest Exemption**: gbp_deep_pullback × GBP_USD は `_QUICK_HARVEST_EXEMPT`により全TP適用
-
-### v6.4 Key Constants (demo_trader.py)
-- `_OANDA_LOT_CAP = 10000`
-- `_OANDA_MODE_BLOCKED = {"daytrade_eur", "daytrade_1h_eur"}`
-- `_QUICK_HARVEST_MULT = 0.70`
-- `_QUICK_HARVEST_EXEMPT = {("gbp_deep_pullback", "GBP_USD")}`
-- `_FIDELITY_CUTOFF = "2026-04-08T00:00:00+00:00"`
-- `_PE_50PCT_ELIGIBLE`: vol_momentum_scalp, confluence_scalp, orb_trap, london_ny_swing, sr_fib_confluence, htf_false_breakout, gbp_deep_pullback, turtle_soup, trendline_sweep, sr_break_retest, adx_trend_continuation, ema_cross
-
-## v6.5 Quant Infrastructure (2026-04-08)
-
-### New Modules
-- **`modules/exposure_manager.py`**: Cross-pair currency exposure tracking. Net exposure per currency (USD/EUR/GBP/JPY/XAU), 20,000u single-currency limit, max 3 same-direction positions. Prevents USD concentration risk across correlated pairs.
-- **`modules/alert_manager.py`**: Discord Webhook external alerting. Rate-limited (5min cooldown per type). Triggers: DD threshold, OANDA disconnect/kill, consecutive losses, EV drop, exposure block. Env var `DISCORD_WEBHOOK_URL`.
-- **`modules/stats_utils.py`**: Statistical utilities (scipy-free). Binomial test, Bayesian WR posterior (Beta-Binomial), Bootstrap EV CI, Sortino/Calmar/Profit Factor, Kelly Criterion, Risk of Ruin, MAFE distribution analysis, exponential decay weights.
-
-### Tier 0: Cross-pair Exposure Management
-- **ExposureManager** integrated into demo_trader entry path (before lot calculation)
-- Currency decomposition: BUY USD_JPY = +USD -JPY, SELL EUR_USD = -EUR +USD
-- Blocked trades logged with `exposure:` prefix + Discord alert
-- Exposure tracking: add on open, remove on all 3 close paths (OANDA SL/TP, demo SLTP, SIGNAL_REVERSE)
-
-### Tier 0: External Alerting (Discord Webhook)
-- `AlertManager` initialized in DemoTrader.__init__
-- Hooks: `_oanda_kill()` → `alert_oanda_kill()`, `_check_rolling_ev()` → `alert_ev_drop()`, exposure block → `alert_exposure_blocked()`
-- Fire-and-forget async (non-blocking to trade threads)
-- Set `DISCORD_WEBHOOK_URL` env var on Render to activate
-
-### Tier 1: Statistical Significance in Learning Engine
-- **Binomial test**: H0: WR<=45%, α=0.10. Normal approx for N>=20, exact for smaller N
-- **Bayesian posterior**: Beta(1,1) prior → P(WR>45%) and 90% credible interval
-- **Bootstrap EV CI**: 3000 resamples, 90% percentile CI, flags `ev_significantly_positive`
-- **Per-strategy**: Kelly criterion, Risk of Ruin, Bayesian WR for each strategy with N>=10
-- All results in `quant_analysis` dict returned from `evaluate()`
-
-### Tier 1: MAFE-driven SL/TP Analysis
-- `analyze_mafe()` called on closed trades in learning engine
-- Returns: MAE/MFE percentiles (P25/P50/P75/P90), SL recommendation (MAE P75 + 10%), TP recommendation (MFE P50), TP efficiency (captured/available)
-- Insight output: `[MAFE] SL推奨=X TP推奨=Y`
-
-### Tier 2: Risk-Adjusted Performance Metrics
-- **KPI** (`app.py calculate_kpi`): Added Sortino ratio, Calmar ratio, Profit Factor
-- **Learning Engine**: Added Sortino/Calmar/PF to `quant_analysis.risk_metrics`
-- Sharpe annualization note: sqrt(252) for daily-frequency assumption
-
-### Tier 2: Regime-Conditioned Evaluation
-- Bayesian posterior computed per regime (TREND_BULL/BEAR, RANGE, HIGH_VOL)
-- P(WR>45%) reported in regime insights
-- `quant_analysis.by_regime` contains per-regime Bayesian analysis
-
-### Tier 2: Exponential Decay Weighting
-- `exponential_decay_weights(n, half_life=30)` — latest trade weight=1.0, decays exponentially
-- Decay-weighted EV vs equal-weighted EV reported in insights
-- Detects recent performance divergence from all-time average
-
-### Tier 2: Kelly Criterion & Risk of Ruin
-- Per-strategy Kelly (full + half) computed when N>=10
-- Risk of Ruin: RoR = ((1-edge)/(1+edge))^(ruin_level/risk_per_trade)
-- Results in `quant_analysis.by_strategy[name].kelly` and `.risk_of_ruin`
-
-### Tier 2: DD Phase Tagging (Demo DD Breaker Alternative)
-- `_dd_phase_at_entry[trade_id]` records defensive_mode at entry time
-- Cleaned up at all 3 close paths
-- Design: データを切らずにデータを豊かにする (enrich, don't censor)
-
-### Tier 2: MARKET_CLOSE Entry Prevention
-- New entries blocked 30 minutes before session end (`active_hours_utc[1]`)
-- Prevents MARKET_CLOSE forced-close losses (-2,506 JPY cumulative in pre-v6.5)
-
-## v6.6 攻めの戦略再構築 (2026-04-08)
-
-### 本番実績分析に基づく通貨ペア×戦略最適化
-- **分析基盤**: 556t本番データ + リアルタイムミクロ構造分析 (Spread/ATR比, Noise Ratio, Body/Range)
-- **直近50t**: WR=54.0% +76.4pip (初期50t: WR=44.0% -48.1pip → 改善中)
-
-### EUR/GBP 全停止 (構造的不可能)
-- Spread/1m ATR = **98.7%**, 15m ATR = **43.0%** → いかなるエッジも摩擦で消滅
-- Body/Range = 21.5% (純ノイズ), 本番WR=12.5% (N=8)
-- `daytrade_eurgbp` auto_start=False, _OANDA_MODE_BLOCKED追加, session_pair全停止
-
-### scalp_eur London+NY拡大 (v7.0)
-- **問題**: v6.6 UTC 07-10限定でscalp_eur 46→10回/日に崩壊。データ蓄積不可能
-- **発見**: UTC 07-09 WR=60%+(London) に加え UTC 13-15もピークボリューム(18回/h)
-- **v7.0対策**: `active_hours_utc = (7, 17)` — London+NYの10時間。Asia(UTC 00-06)除外維持
-- **安全措置**: Spread/SL Gate(v7.0)でFast Exit防止、UTC 05デスゾーンで最悪時間帯カバー
-- **期待効果**: scalp_eur +25-30回/日回復
-
-### USD/JPY scalp デスゾーンブロック (v6.6)
-- **問題**: UTC 11-12 WR=26.9% (N=30) — 流動性枯渇時間帯
-- **対策**: `session_pair(USD_JPY_DeadZone)` ブロック追加 (scalpモードのみ)
-- 最強時間帯: UTC 00-01 WR=62.5%(仲値), UTC 13-14 WR=52.4%(NY)
-
-### 戦略停止 (本番WR=0%確認)
-- `_FORCE_DEMOTED` 追加: lin_reg_channel (N=3 WR=0% -37pip), trendline_sweep (N=2 WR=0% -30pip), dual_sr_bounce (N=3 WR=0% -13pip)
-- `_PAIR_DEMOTED` 追加: ema_cross × USD_JPY (N=41 WR=34.1% -67.4pip)
-- `_STRATEGY_LOT_BOOST` 変更: gbp_deep_pullback 2.0x→1.3x (本番N<10 → N≥15で復帰)
-
-### 確認済みアルファ (攻めの維持)
-- **bb_rsi × USD_JPY**: N=117 WR=54.7% +54.5pip — **統計的に有意な正のエッジ**
-- **stoch_trend_pullback × JPY**: N=15 WR=53.3% +18.0pip — Sentinel蓄積中
-- **sr_fib_confluence**: 本番WR=28.9% vs BT WR=64.3% — SLTP-Checkerバグ汚染の可能性大。Fidelity Cutoff後のクリーンデータで再評価
-- **GBP/USD DT戦略群**: BTで gbp_deep_pullback WR=73.7%, htf_fbk WR=72.5% — ボラ拡大中(+20.3%/w)、N蓄積待ち
-
-## v6.7 DT構造改革 + EUR/GBP Daily MR (2026-04-08)
-
-### D1: DT RANGE レジーム TF戦略ブロック
-- **問題**: 本番DT 74%がRANGEレジームで発火、WR=25.7% (構造的負EV)。TREND_BULLのみ正EV
-- **対策**: `_DT_TREND_STRATEGIES` Set定義 → `_base_mode=="daytrade"` かつ `regime=="RANGE"` で TF戦略をブロック
-- **対象**: sr_fib_confluence, ema_cross, sr_break_retest, adx_trend_continuation, lin_reg_channel, trendline_sweep, london_ny_swing, turtle_soup, jpy_basket_trend
-- **非対象**: MR戦略 (orb_trap, htf_false_breakout, gbp_deep_pullback, squeeze_release_momentum, eurgbp_daily_mr)
-- **テレメトリ**: `[REGIME] DT RANGE blocked: {entry_type} (TF strategy in RANGE)`
-
-### G1: DaytradeEngine 競合モード化
-- **問題**: gbp_deep_pullback (BT WR=73.7%) が本番 N=0。sr_fib_confluenceが先に非WAITを返すとDTE未評価
-- **旧**: `if not _sr_signal_found and signal == "WAIT":` → DTE はfallback-only
-- **新**: DTE を常に評価。Path A (signal==WAIT) = 従来互換。Path B (signal≠WAIT) = スコア比較、DTE勝利時に上書き
-- **上書きロジック**: `abs(dte_score) > abs(main_score)` → signal/entry_type/reasons全置換 + テレメトリ出力
-- **敗北時**: `_dt_best = None` (SL/TP汚染防止)
-- **テレメトリ**: `[DTE] Override: {entry_type} score={dte_abs} > combined={main_abs} (pair={symbol})`
-
-### G2+G3: gbp_deep_pullback パラメータ調整
-- **G2**: BB閾値緩和 — `BB_PB_THRES_BUY: 0.10→0.20`, `BB_PB_THRES_SELL: 0.90→0.80` (深い押し目要求→浅いPBも許容で発火率向上)
-- **G3**: `PB_LOOKBACK: 4→6` (プルバック検出ウィンドウ拡大 → 6本=90min, 完了後エントリー逃し防止)
-
-### G4: Cascade CD 短縮
-- **変更**: DT cascade_cd `180→90s` (15m足1バー=900sに対しCD180sは過剰 → 90sでGBP DT発火機会拡大)
-
-### EUR/GBP Daily Mean-Reversion (新規戦略)
-- **ファイル**: `strategies/daytrade/eurgbp_daily_mr.py` (EurgbpDailyMR class)
-- **学術的根拠**: EUR/GBP構造的レンジバウンド (ECB/BoE金利差1.75%), 20日レンジ上下10%到達時の10日リターン 30-41pip (WR=52-61%)
-- **ミクロ構造**: Spread/Daily ATR=7.5% → 日足以上のみviable (1m-15m Spread/ATR=43-99%で構造的不可能)
-- **シグナル**: BUY: 20日レンジ下位20% + 反転足, SELL: 上位80% + 反転足
-- **ボラフィルター**: 15m ATR ≥ 3.5pip (日足ATR 35pip相当)
-- **SL/TP**: SL=ATR×1.0 (~40pip), TP=ATR×1.5 (~60pip), MIN_RR=1.5
-- **ボーナス**: SMA20/50回帰 +0.5, キャリーバイアスSELL +0.5, 極値深度 +0.3, ADX<25 +0.3
-- **登録**: DaytradeEngine strategies list, DT_QUALIFIED, _RANGE_MR_STRATEGIES, _UNIVERSAL_SENTINEL, _EURGBP_DAILY_MR_WHITELIST
-- **稼働**: daytrade_eurgbp auto_start=True (v6.6 False→復帰), Sentinel 0.01lot
-- **EUR_GBP全停止バイパス**: `_EURGBP_DAILY_MR_WHITELIST = {"eurgbp_daily_mr"}` — 日足MRのみ通過
-
-### D3: MAX_SL_DIST (SL距離キャップ)
-- **問題**: 本番データで4外れ値(299.8pip bb_rsi等)がLOSS SL平均を1.8倍に膨張。SRベースSLに上限なし
-- **調査結果**: LOSS 90.6%のMFE=0 (一度も順行せず) → SL幅ではなくエントリー方向が根本原因
-- **対策**: MAX_SL_DIST — JPY/XAU: scalp=0.080/DT=0.200/1H=0.500, 非JPY: scalp=0.00080/DT=0.00200/1H=0.00500
-- **テレメトリ**: `⚠️ [SL_CAP] {entry_type}: SL距離 {old}→{new} (MAX_SL_DIST適用)`
-
-### LOSS SL調査結果 (D3根拠)
-- **表層**: LOSS SL mean=12.2pip vs WIN SL mean=6.7pip → 1.8倍差
-- **実態**: 4外れ値除去後 → median同一 (6.2pip)。SL幅は問題ではない
-- **核心**: MFE (Maximum Favorable Excursion) 90.6%=0 → エントリー即座に逆行、広いSLでも救えない
-- **結論**: SL最適化ではなくエントリー品質改善が本質 (D1 RANGEブロック + G1競合モードで対応)
-
-### v7.1 OANDA転送改善 + Sentinel再審査 (2026-04-09)
-**背景**: OANDA audit 50%がSKIP。PAIR_PROMOTEDがbb_rsi×USD_JPYの1パスのみ。4原則「攻撃は最大の防御」に対し防御過剰
-**手法**: Fidelity Cutoff(4/8)後の本番データで全Sentinel/FORCE_DEMOTED戦略を再審査
-
-#### dt_bb_rsi_mr SHIELD EUR DT WHITELIST追加
-- **問題**: dt_bb_rsi_mrがdaytrade_eurのMODE_BLOCKEDで遮断 → OANDAデータ収集不可
-- **根拠**: EUR/USDの74%がRANGEレジーム → RANGE専用MR戦略の最適環境。N<10 SafetyでSentinel自動適用
-- **変更**: `_SHIELD_EUR_DT_WHITELIST` に `dt_bb_rsi_mr` 追加
-- **安全**: Sentinel(0.01lot) + auto_demotion + Kelly Cap 健在
-
-#### Sentinel N蓄積状況 (2026-04-09, Cutoff後)
-| 戦略 | N(post) | WR | PnL | N=30残 | 注記 |
-|---|---|---|---|---|---|
-| bb_rsi_reversion | 23 | 52.2% | +36.6p | 7 | 主力。あと2-3日で到達 |
-| fib_reversal | 20 | 55.0% | +35.6p | 10 | **★ 劇的改善** (pre: WR=25.6%) |
-| stoch_trend_pullback | 4 | 25.0% | -9.3p | 26 | 低調 |
-| dt_bb_rsi_mr | 3 | 0.0% | -10.2p | 27 | EUR WR=0%要監視 |
-| macdh_reversal | 3 | 33.3% | +0.3p | 27 | 改善兆候 |
-| その他 | 0-1 | — | — | 29-30 | データ蓄積待ち |
-
-#### FORCE_DEMOTED再審査結果
-- **fib_reversal**: Pre WR=25.6% → Post **WR=55.0% +35.6p (N=20)** — v6.3パラメータ改善(proximity/SL/TP)が効いている。N=30到達で昇格判定
-- **macdh_reversal**: Post N=3 WR=33.3% — データ不足、継続監視
-- **ema_pullback**: Post N=5 WR=20% -7.4p — 依然低調、DEMOTED維持
-- **その他9戦略**: Post N=0 — データなし、維持
-
-#### scalp_5m A/Bテスト状況
-- **scalp_5m**: N=7, WR=28.6% — N不足で判断不可
-- **scalp 1m**: N=37 post-cutoff, WR=54.1% +68.7p — 好調維持
-- **判断**: N=50到達(推定1-2週間)まで継続
-
-### v7.2 XAU/USD ゴールド戦略開発 (2026-04-09)
-**背景**: XAU本番トレード0件。block_countsでspread_guard=80, exposure=36。FX向けフィルター閾値がゴールドの構造的高スプレッド(4-5pip)に対応できず全遮断
-
-#### Part A: XAU専用フィルター閾値
-- **A1 spread_guard**: DT 20%→**40%**, Scalp 30%→**45%** (XAU限定)。ATRが10xなのでTP距離も10x→実効コスト比率はFXと同等
-- **A2 ExposureManager**: `_CURRENCY_LIMITS = {"XAU": 10_000}` 通貨別上限。XAU=コモディティ独立枠、FX USD蓄積と分離
-- **A3 spike検出**: XAU 1.0ATR→**2.0ATR** (gold moves 1ATR/min routinely)
-- **A4 velocity filter**: XAU scalp 15→**80pip**, DT 15→**120pip**, 1H 20→**200pip** (ATR比例)
-
-#### Part B: gold_trend_momentum (新規DT戦略)
-- **ファイル**: `strategies/daytrade/gold_trend_momentum.py`
-- **コンセプト**: XAU/USD 15m足トレンドフォロー。EMA21プルバックエントリー
-- **学術的根拠**: Baur & McDermott (2010) gold momentum, Covel (2004) pullback entry, Wilder (1978) ADX
-- **エントリー**: ADX≥20 + EMA9>EMA21 + 直近4本EMA21到達(PB) + 陽線回復(Close>EMA9) + MACD-H確認
-- **SL/TP**: SL=Swing L/H ± ATR×0.3 (min ATR×1.2 ~120pip), TP=ATR×2.5 (~250pip), MIN_RR=1.5
-- **spread耐性**: spread_cost=10/250=4%, spread_sl=5/120=4.2% — 全フィルター通過
-- **登録**: QUALIFIED_TYPES, _UNIVERSAL_SENTINEL (Sentinel 0.01lot), DT_QUALIFIED (app.py BT同期)
-
-#### Part C: gold_vol_break チューニング
-- **ATRサージ**: 1.3→**1.15** (Gold vol clusteringで持続的高vol → 低サージで十分)
-- **RR floor**: 2.5→**2.0** (SL floorでRR圧縮時の不必要なブロック回避)
+| Mode | TF | Status |
+|---|---|---|
+| scalp | 1m | Active |
+| scalp_5m | 5m | Active (Sentinel A/Bテスト) |
+| scalp_eurjpy | 1m | Active (UTC 12-15限定) |
+| daytrade | 15m | Active |
+| daytrade_1h | 1h | Active (KSB+DMB) |
+| swing | 4h | Disabled |
+
+## 詳細リファレンス（KB移行済み）
+- **全パラメータ・取引ルール・バージョン履歴**: `knowledge-base/wiki/concepts/system-reference.md`
+- **バージョン別変更タイムライン**: `knowledge-base/wiki/changelog.md`
+- **BT結果・戦略パフォーマンス**: `knowledge-base/raw/bt-results/`
+- **戦略詳細**: `knowledge-base/wiki/strategies/`
 
 ## Changelog
 Full change history: [CHANGELOG.md](CHANGELOG.md)

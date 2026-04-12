@@ -8,7 +8,7 @@
 ## Academic Backing
 | Paper | Finding | Confidence |
 |-------|---------|-----------|
-| [[paper-ref]] | | |
+| Author (Year) | Key finding | Confidence |
 
 ## Quantitative Definition
 ```python

@@ -29,7 +29,7 @@
 | [[doji-breakout]] | 0 | - | - | v8.8: 3連続doji breakout follow |
 | [[gotobi-fix]] | 0 | - | - | v8.5: 五十日仲値BUY (発火窓=月6日) |
 | [[vix-carry-unwind]] | 0 | - | - | v8.5: VIX急騰→JPY long (低頻度高インパクト) |
-| [[xs-momentum]] | 0 | - | - | v8.5: 通貨モメンタム+分散フィルター |
+| [[xs-momentum-dispersion]] | 0 | - | - | v8.5: 通貨モメンタム+分散フィルター |
 | [[hmm-regime-overlay]] | 0 | - | - | v8.5: 2状態HMMレジーム (防御オーバーレイ) |
 
 ### Tier 3 -- PAIR_DEMOTED (特定ペアで停止)
