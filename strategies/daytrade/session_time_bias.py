@@ -35,19 +35,18 @@ class SessionTimeBias(StrategyBase):
     # セッション定義 (UTC分)
     # ══════════════════════════════════════════════════
 
-    # Tokyo session: UTC 0:00 - 6:00
-    # Entry: UTC 0:30 (session open + 30min)
-    # Exit: UTC 3:00 (midpoint) or 6:00 (session end)
-    TOKYO_ENTRY_START = 30     # UTC 00:30
-    TOKYO_ENTRY_END = 180      # UTC 03:00 (entry windowをmidpointまで)
+    # v8.6: 時間窓拡張 — N蓄積加速のため、学術根拠の範囲内で拡張
+    # Breedon & Ranaldo (2013): 効果は「セッション全体」に存在。midpoint制限は不要
+    # Tokyo session: UTC 0:00 - 6:00 (全6時間をエントリー窓に)
+    TOKYO_ENTRY_START = 30     # UTC 00:30 (session open + 30min、初期スパイク回避)
+    TOKYO_ENTRY_END = 330      # UTC 05:30 (v8.6: 3:00→5:30 セッション終了30分前まで)
     TOKYO_EXIT = 360           # UTC 06:00
 
-    # London session: UTC 7:00 - 12:00
-    # Entry: UTC 7:30 (session open + 30min)
-    # Exit: UTC 9:30 (midpoint) or 12:00 (session end)
+    # London session: UTC 7:00 - 15:00 (v8.6: 12:00→15:00 NY overlapまで拡張)
+    # Ranaldo (2009): EUR/GBP減価効果はNYオープンまで持続
     LONDON_ENTRY_START = 450   # UTC 07:30
-    LONDON_ENTRY_END = 570     # UTC 09:30 (entry windowをmidpointまで)
-    LONDON_EXIT = 720          # UTC 12:00
+    LONDON_ENTRY_END = 840     # UTC 14:00 (v8.6: 9:30→14:00 NY open前まで)
+    LONDON_EXIT = 900          # UTC 15:00 (v8.6: 12:00→15:00)
 
     # ══════════════════════════════════════════════════
     # SL/TP パラメータ

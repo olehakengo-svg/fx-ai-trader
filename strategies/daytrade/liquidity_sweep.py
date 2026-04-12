@@ -167,12 +167,12 @@ class LiquiditySweep(StrategyBase):
     BB_WIDTH_PCT_MAX = 0.50
 
     # セッション開始ブロック (UTC分単位)
-    # London open UTC 07:00-07:30, NY open UTC 13:30-14:00
-    # → 開始30分はニュース/フロー主導で真のBKが多い (Andersen & Bollerslev 1998)
+    # v8.6: 30min→15minに短縮 — Barardehi & Bernhardt (2025): 真のボラスパイクは開始15分に集中
+    # N蓄積加速のため、ブロック時間を最小化しつつ最も危険な15分は維持
     LDN_OPEN_START = 420   # UTC 07:00
-    LDN_OPEN_END = 450     # UTC 07:30
+    LDN_OPEN_END = 435     # UTC 07:15 (v8.6: 07:30→07:15)
     NY_OPEN_START = 810    # UTC 13:30
-    NY_OPEN_END = 840      # UTC 14:00
+    NY_OPEN_END = 825      # UTC 13:45 (v8.6: 14:00→13:45)
 
     # ══════════════════════════════════════════════════
     # 時間帯・ペアフィルター

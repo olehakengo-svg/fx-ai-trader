@@ -2482,6 +2482,21 @@ class DemoTrader:
                 _block(f"regime_trend_bull_dt_tf({entry_type})")
                 return
 
+        # ── v8.6: GBPアジアセッション除外 — フラッシュクラッシュ対策 ──
+        # BIS 2017: 2016/10/7 GBP 9%暴落(アジア早朝)。2022/9にも4.5%急落
+        # アジア時間帯(UTC 21-06)はGBPの流動性が極端に低い
+        # Spread/SL Gateでは防げないテールリスク → 静的ブロック（原則#3の例外）
+        _now_h = datetime.now(timezone.utc).hour
+        if "GBP" in instrument and _now_h >= 21 or ("GBP" in instrument and _now_h < 6):
+            if not _is_shadow_eligible:
+                _block(f"gbp_asia_flash_crash(UTC{_now_h})")
+                return
+            else:
+                _is_shadow = True
+                self._add_log(
+                    f"[SHADOW] GBP Asia bypass: {entry_type} (flash crash zone → shadow)"
+                )
+
         if confidence < self._params["confidence_threshold"]:
             _block(f"conf<{self._params['confidence_threshold']}(was:{confidence})"); return
 

@@ -37,10 +37,12 @@ class LondonFixReversal(StrategyBase):
     # ══════════════════════════════════════════════════
 
     # ── 時間帯 (UTC 通算分) ──
-    PREFIX_START     = 870       # UTC 14:30
+    # v8.6: エントリー窓拡張 — Krohn (2024): Fix後リバーサルは30-60分持続
+    # Pre-fix検出窓も拡張: 14:00-15:30 (1.5h scan)
+    PREFIX_START     = 840       # UTC 14:00 (v8.6: 14:30→14:00 Pre-fix検出窓拡大)
     PREFIX_END       = 930       # UTC 15:30
-    ENTRY_START      = 960       # UTC 16:00
-    ENTRY_END        = 990       # UTC 16:30
+    ENTRY_START      = 945       # UTC 15:45 (v8.6: 16:00→15:45 Fix直前からエントリー可能)
+    ENTRY_END        = 1020      # UTC 17:00 (v8.6: 16:30→17:00 Post-fix 1h確保)
 
     # ── Pre-fix動き閾値 ──
     PREFIX_ATR_MULT  = 0.3       # Pre-fixの価格変動 > ATR(15m) × 0.3 で有意とみなす
