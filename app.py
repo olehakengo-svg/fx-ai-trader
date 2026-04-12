@@ -10014,7 +10014,14 @@ def api_backtest_long():
             wr = round(wins / total * 100, 1) if total else 0
 
             def _pnl_t2(t):
-                return t.get("pnl_atr", t.get("pnl_pips", 0)) or 0
+                # v8.7: trade_logのPnL計算 — tp_m/sl_mから算出
+                # WIN: +tp_m(ATR倍率), LOSS: -sl_m, その他: exit_friction_mベース
+                if t.get("outcome") == "WIN":
+                    return float(t.get("tp_m", 0) or 0) - float(t.get("exit_friction_m", 0) or 0)
+                elif t.get("outcome") == "LOSS":
+                    return -(float(t.get("sl_m", 0) or 0) + float(t.get("exit_friction_m", 0) or 0))
+                else:  # BREAKEVEN / timeout
+                    return -float(t.get("exit_friction_m", 0) or 0)
             pnls = [_pnl_t2(t) for t in all_trades]
             total_pnl = round(sum(pnls), 1)
             ev = round(total_pnl / total, 3) if total else 0
