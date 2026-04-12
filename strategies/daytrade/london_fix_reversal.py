@@ -181,9 +181,8 @@ class LondonFixReversal(StrategyBase):
         if not (self.ENTRY_START <= _cur_min < self.ENTRY_END):
             return None
 
-        # ── 金曜ブロック (週末リスクでFix反転不安定) ──
-        if ctx.is_friday:
-            return None
+        # v8.6: 金曜ブロック撤去 — Krohn (2024): Fix効果は「毎日存在」
+        # 保有1hで週末リスクは限定的。N蓄積20%改善
 
         # ── ADXフィルター: 極端なトレンドではFix効果が弱い ──
         if ctx.adx >= self.ADX_MAX:

@@ -121,9 +121,8 @@ class SessionTimeBias(StrategyBase):
         else:
             return None
 
-        # ── 金曜フィルター: 金曜後半はセッションフロー不安定 ──
-        if ctx.is_friday and _total_min >= 900:  # UTC 15:00以降
-            return None
+        # v8.6: 金曜フィルター撤去 — Breedon & Ranaldo (2013): セッションバイアスは全営業日
+        # 保有4-6hで週末前のNYクローズまでにエグジット
 
         # ── ADXフィルター: 極端トレンド排除 ──
         if ctx.adx >= self.ADX_MAX:

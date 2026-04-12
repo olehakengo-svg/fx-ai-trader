@@ -1604,29 +1604,22 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     THRESHOLD = 0.28
 
     # 金曜フィルター: 週末前の薄商い＋ポジション解消で方向性低下
+    # v8.6: 金曜DT制限を全撤去 — 原則#1「マーケット開いてる間は攻める」
+    # 短期保有DT戦略(1-6h)は金曜でもNYクローズ前にエグジット
+    # MARKET_CLOSE prevention(セッション終了30分前ブロック)が安全網として機能
     _is_friday_dt = False
     try:
         _dt_bar = bar_time if bar_time else datetime.now(timezone.utc)
         _dt_dow = _dt_bar.weekday() if hasattr(_dt_bar, 'weekday') else df.index[-1].weekday()
-        if _dt_dow == 4:  # 金曜日
+        if _dt_dow == 4:
             _is_friday_dt = True
-            _fri_hour = _dt_bar.hour if hasattr(_dt_bar, 'hour') else 12
-            if _fri_hour >= 10:
-                # 金曜UTC10時以降: 完全ブロック（NY前～クローズは損失集中）
-                combined = 0.0
-                reasons.append("🚫 金曜UTC10時以降: DT完全ブロック")
-            elif _fri_hour < 7:
-                # 金曜東京セッション(UTC0-6): 完全ブロック（低流動性+週末=高損失率）
-                combined = 0.0
-                reasons.append("🚫 金曜東京セッション: DT完全ブロック")
-            else:
-                # 金曜London(UTC7-9): 85%減衰で超高確信のみ通す
-                combined *= 0.15
-                reasons.append("⚠️ 金曜London: 週末リスク → スコア85%減衰")
+            # v8.6: スコア減衰・ブロックなし。金曜も通常稼働
     except Exception:
         pass
 
-    _dt_threshold = 0.45 if _is_friday_dt else THRESHOLD  # 金曜は閾値も大幅引き上げ
+    # v8.6: 金曜閾値厳格化を撤去 — 短期保有戦略は週末リスク限定的
+    # 原則#1「マーケット開いてる間は攻める」に準拠
+    _dt_threshold = THRESHOLD  # 金曜も通常閾値
     if   combined >  _dt_threshold: signal, conf = "BUY",  int(min(95, 50 + combined * 55))
     elif combined < -_dt_threshold: signal, conf = "SELL", int(min(95, 50 + abs(combined) * 55))
     else:                           signal, conf = "WAIT", int(max(25, 50 - abs(combined) * 40))
@@ -8404,12 +8397,11 @@ def _compute_scalp_signal_v1_legacy(df: pd.DataFrame, tf: str, sr_levels: list,
     has_any_entry = has_pb or has_rsi_reset or has_ema_cross or has_don or has_bb_zone or has_stoch
     # スコア閾値: 0.6（旧0.8→ロンドン/NY帯の取引頻度確保）
     SCALP_SCORE_THRESHOLD = 0.6
-    # 金曜日は閾値引き上げ: 高確信シグナルのみ通す（ema_pullback等の低品質除外）
-    # v7.1: 3.5→2.0 — Gold Hours外(UTC 09-18)では3.5に届かずNYC全停止になっていた
-    # 試算: UTC 13-17のbb_rsi最大スコア≈2.99 → 3.5では構造的に不通過
-    # 2.0(3.3x)は「意味のある選別」として機能し、NYC time でも ADX高ければ通る
-    if _is_friday_scalp:
-        SCALP_SCORE_THRESHOLD = 2.0  # 通常0.6 → 金曜2.0(3.3x, 旧3.5=5.8xは事実上全停止)
+    # v8.6: 金曜閾値引き上げを撤去 — 原則#1「マーケット開いてる間は攻める」
+    # 短期保有(scalp 1-15min)で週末リスクは実質ゼロ
+    # 金曜も通常閾値で稼働し、データ蓄積を加速
+    # if _is_friday_scalp:
+    #     SCALP_SCORE_THRESHOLD = 2.0  # REMOVED v8.6
     # 条件が全くない場合のみWAIT（1つでもあればスコアで判定）
     if not has_any_entry and abs(score) < SCALP_SCORE_THRESHOLD * 2:
         reasons.append("⛔ エントリー条件未達 → WAIT")

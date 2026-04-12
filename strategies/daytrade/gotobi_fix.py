@@ -144,13 +144,9 @@ class GotobiFix(StrategyBase):
         if ctx.df is None or len(ctx.df) < 5:
             return None
 
-        # ── 月曜(0)・金曜(4)除外: 仲値フロー不安定 ──
-        if ctx.bar_time is not None and hasattr(ctx.bar_time, 'weekday'):
-            _dow = ctx.bar_time.weekday()
-            if _dow in (0, 4):
-                return None
-        elif ctx.is_friday:
-            return None
+        # v8.6: 月曜/金曜ブロック撤去 — Ito & Yamada (2017): 仲値効果は全営業日で確認
+        # 月6回の五十日から月金除外で33%喪失は機会損失が大きすぎる
+        # Shadow→Sentinelでデータ蓄積を優先し、曜日別WRを事後検証
 
         # ── 五十日チェック ──
         if ctx.bar_time is None or not self._is_gotobi_day(ctx.bar_time):

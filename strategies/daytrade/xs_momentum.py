@@ -112,9 +112,7 @@ class XsMomentum(StrategyBase):
         if ctx.adx < self.ADX_MIN:
             return None
 
-        # ── 金曜 UTC 15+ ブロック ──
-        if ctx.is_friday and ctx.hour_utc >= 15:
-            return None
+        # v8.6: 金曜ブロック撤去 — Menkhoff (2012): モメンタムは曜日非依存
 
         # ═══════════════════════════════════════════════════
         # モメンタム計算

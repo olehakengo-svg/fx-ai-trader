@@ -183,9 +183,8 @@ class OrbTrap(StrategyBase):
         if session is None:
             return None
 
-        # ── 金曜 UTC 15+ ブロック ──
-        if ctx.is_friday and _cur_min >= 900:
-            return None
+        # v8.6: 金曜ブロック撤去 — ORBフェイクアウトは曜日非依存
+        # NYセッションORB(14:00-16:00)は金曜も同様のパターン
 
         # ══════════════════════════════════════════════════
         # v6.1: 仲値フィルター (USD/JPY × LDN session)

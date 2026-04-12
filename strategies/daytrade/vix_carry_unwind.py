@@ -184,9 +184,8 @@ class VixCarryUnwind(StrategyBase):
         if self.REQUIRE_BEARISH_BAR and ctx.entry >= ctx.open_price:
             return None
 
-        # ── 金曜ブロック (週末リスクでキャリー巻き戻し不安定) ──
-        if ctx.is_friday:
-            return None
+        # v8.6: 金曜ブロック撤去 — VIXイベントは曜日を選ばない
+        # 年2-5回の低頻度。金曜除外で貴重なイベントを逃すリスクの方が大きい
 
         # ═══════════════════════════════════════════════════
         # SELL USD/JPY (JPY強化 = USD/JPY下落)

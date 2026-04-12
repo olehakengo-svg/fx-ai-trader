@@ -493,9 +493,8 @@ class LiquiditySweep(StrategyBase):
         if ctx.hour_utc < self.ACTIVE_HOURS_START or ctx.hour_utc >= self.ACTIVE_HOURS_END:
             return None
 
-        # ── 金曜フィルター ──
-        if ctx.is_friday and ctx.hour_utc >= self.FRIDAY_BLOCK_HOUR:
-            return None
+        # v8.6: 金曜フィルター撤去 — Osler (2003): SLクラスターは曜日非依存
+        # 保有30min-数時間で週末リスクは限定的
 
         # ── セッション開始30分ブロック ──
         _bt = ctx.bar_time
