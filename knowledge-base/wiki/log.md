@@ -14,7 +14,7 @@
 ## 2026-04-12: Academic Research Sweep (25 papers → 6 new edges)
 - 3 parallel research agents: Microstructure / Anomalies / Advanced
 - 25 papers reviewed, stored in [[research-sweep-2026-04-12]]
-- 6 new edge hypotheses added to wiki/edges/:
+- 6 new edge hypotheses added to wiki/strategies/:
   - [[session-time-bias]] ★★★★★ (complexity 1/5, highest priority)
   - [[gotobi-fix]] ★★★★★ (complexity 1/5, integrate with tokyo_nakane)
   - [[london-fix-reversal]] ★★★★★ (complexity 2/5)
@@ -32,7 +32,7 @@
 - index.mdにData & Evaluationセクション追加
 
 ## 2026-04-12: Research Layer + Harness
-- Added research pipeline: wiki/research/ (2 themes), wiki/edges/ (pipeline), templates/
+- Added research pipeline: wiki/research/ (2 themes), wiki/strategies/ (pipeline), templates/
 - Added /wiki-research, /wiki-edge-eval commands
 - Added /wiki-quant-eval command (本番ログ→定量評価→KB更新の完全フロー)
 - Added harness hooks: SessionStart (index.md注入), PreCompact (KB保持), PostToolUse (Lint remind)

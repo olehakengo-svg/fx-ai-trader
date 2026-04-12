@@ -27,10 +27,9 @@
 | ディレクトリ | 内容 |
 |---|---|
 | `wiki/index.md` | 全戦略Tier分類、システム状態、ポートフォリオ |
-| `wiki/strategies/` | 戦略ごとの詳細（WR推移、MAFE、変更履歴） |
+| `wiki/strategies/` | 全戦略詳細 + エッジ仮説 + パイプライン（統合済み） |
 | `wiki/concepts/` | 摩擦分析、取引ルール、**system-reference.md（全パラメータ）** |
 | `wiki/decisions/` | 独立監査結果、覆された判断 |
-| `wiki/edges/` | エッジ仮説、パイプライン |
 | `wiki/lessons/` | 過去の間違い・修正・教訓 |
 | `wiki/research/` | 学術文献インデックス（25論文） |
 | `wiki/sessions/` | セッションログ（時系列作業記録） |

@@ -7,8 +7,7 @@
 ```
 raw/papers/         → 論文の要約・メモ（原典保管）
 wiki/research/      → テーマ別の研究サーベイ（統合知識）
-wiki/edges/         → 実装可能なエッジ仮説（評価付き）
-wiki/hypotheses/    → 実装待ちのアイデアキュー
+wiki/strategies/    → 戦略詳細 + エッジ仮説 + パイプライン
 strategies/         → コード化されたもの
 ```
 

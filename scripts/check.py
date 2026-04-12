@@ -169,9 +169,9 @@ def check_kb_consistency() -> tuple[list[str], list[str]]:
                     f"  ℹ️  KB: {latest.name} に未解決事項 {open_items}件"
                 )
 
-    # ── 6d. Edge Stage不整合: edge-pipeline.md vs 各edge/*.md ──
-    pipeline_file = KB_WIKI / "edges" / "edge-pipeline.md"
-    edges_dir = KB_WIKI / "edges"
+    # ── 6d. Edge Stage不整合: edge-pipeline.md vs 各strategy/*.md ──
+    pipeline_file = KB_WIKI / "strategies" / "edge-pipeline.md"
+    edges_dir = KB_WIKI / "strategies"
     if pipeline_file.exists() and edges_dir.exists():
         pl_text = pipeline_file.read_text(encoding="utf-8")
         # edge-pipeline.mdのテーブルからエッジ名→Stageを抽出
@@ -195,8 +195,10 @@ def check_kb_consistency() -> tuple[list[str], list[str]]:
 
         # 各edge/*.mdのStage行と突合
         stage_mismatches: list[str] = []
+        # edge-pipeline.mdに記載されたエッジのみチェック（戦略ファイルはスキップ）
+        edge_stems = set(pipeline_stages.keys())
         for edge_file in sorted(edges_dir.glob("*.md")):
-            if edge_file.name in ("edge-pipeline.md", "raw-alpha-mining-2026-04-12.md"):
+            if edge_file.stem not in edge_stems:
                 continue
             stem = edge_file.stem
             edge_text = edge_file.read_text(encoding="utf-8")

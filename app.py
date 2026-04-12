@@ -9810,10 +9810,68 @@ def api_backtest():
             result   = run_swing_backtest("USDJPY=X", lookback_days=365)
         else:
             result = run_backtest("USDJPY=X", lookback_days=90)
+        # BT結果をKBに自動保存
+        _save_bt_to_kb(mode, request.args.get("symbol", "USDJPY=X"),
+                       request.args.get("days", ""), result)
         return jsonify(result)
     except Exception as e:
         import traceback
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+def _save_bt_to_kb(mode: str, symbol: str, days: str, result: dict) -> None:
+    """BT結果をKBに自動保存（知見の蓄積）。"""
+    try:
+        if "error" in result or not result.get("trades"):
+            return
+        from datetime import datetime as _dt
+        date_str = _dt.now().strftime("%Y-%m-%d")
+        kb_dir = os.path.join(os.path.dirname(__file__),
+                              "knowledge-base", "raw", "bt-results")
+        os.makedirs(kb_dir, exist_ok=True)
+        path = os.path.join(kb_dir, f"bt-{date_str}-{mode}.md")
+        # 主要メトリクスを抽出
+        wr = result.get("win_rate", 0)
+        trades = result.get("trades", 0)
+        ev = result.get("expected_value", 0)
+        pf = result.get("profit_factor", "N/A")
+        sharpe = result.get("sharpe", "N/A")
+        period = result.get("period", f"{days}d")
+        ds = result.get("data_source", "unknown")
+        fm = result.get("friction_model", "unknown")
+        # エントリー別ブレイクダウン
+        breakdown_lines = []
+        for entry in (result.get("entry_breakdown") or []):
+            name = entry.get("type", "?")
+            n = entry.get("count", 0)
+            w = entry.get("win_rate", 0)
+            e = entry.get("expected_value", 0)
+            breakdown_lines.append(f"| {name} | {n} | {w:.1f}% | {e:+.3f} |")
+        breakdown = "\n".join(breakdown_lines) if breakdown_lines else "| (データなし) | | | |"
+        content = (
+            f"# BT Result: {mode} {symbol} {period}\n"
+            f"**Date**: {date_str} | **Source**: {ds} | **Friction**: {fm}\n\n"
+            f"## Summary\n"
+            f"| Metric | Value |\n|--------|-------|\n"
+            f"| Trades | {trades} |\n"
+            f"| WR | {wr:.1f}% |\n"
+            f"| EV | {ev:+.3f} |\n"
+            f"| PF | {pf} |\n"
+            f"| Sharpe | {sharpe} |\n\n"
+            f"## Entry Breakdown\n"
+            f"| Strategy | N | WR | EV |\n|----------|---|-----|----|\n"
+            f"{breakdown}\n\n"
+            f"## Related\n- [[edge-pipeline]]\n- [[changelog]]\n"
+        )
+        # 同日同モードは追記（複数回BT実行に対応）
+        write_mode = "a" if os.path.exists(path) else "w"
+        with open(path, write_mode, encoding="utf-8") as f:
+            if write_mode == "a":
+                f.write(f"\n---\n\n")
+            f.write(content)
+        print(f"📝 BT KB保存: bt-{date_str}-{mode}.md")
+    except Exception as e:
+        print(f"[BT KB] save failed: {e}")
 
 
 # ── 非同期ロングBT（チャンク処理でタイムアウト回避）──────────
