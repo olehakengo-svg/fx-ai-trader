@@ -239,6 +239,52 @@ def save_to_kb(date_str: str, analyst_report: str, strategy_report: str) -> None
         print(f"  ⚠️  KB保存失敗: {e}", file=sys.stderr)
 
 
+def update_analyst_memory(date_str: str, analyst_report: str) -> None:
+    """Analystレポートの要約をanalyst-memoryに追記（永続的フィードバックループ）。
+
+    Renderのエフェメラルディスクでは _append_analyst_note() の結果が消失するため、
+    GitHub Actions上で動くこの関数がanalyst-memoryの唯一の永続的更新経路となる。
+    """
+    memory_path = ROOT / "knowledge-base" / "raw" / "trade-logs" / "analyst-memory.md"
+    if not memory_path.exists():
+        return
+
+    # レポートから要約を抽出（先頭500文字 → 主要知見）
+    summary_lines = []
+    for line in analyst_report.splitlines():
+        line_s = line.strip()
+        # 重要な知見行を抽出（箇条書き、数値を含む行）
+        if line_s and (line_s.startswith("- ") or line_s.startswith("* ")
+                       or "WR" in line_s or "EV" in line_s or "PnL" in line_s
+                       or "推奨" in line_s or "警告" in line_s or "注意" in line_s):
+            summary_lines.append(line_s)
+        if len(summary_lines) >= 8:
+            break
+
+    if not summary_lines:
+        summary_lines = [analyst_report[:300].replace("\n", " ")]
+
+    entry = f"\n### {date_str} (auto-daily)\n" + "\n".join(summary_lines) + "\n"
+
+    try:
+        with open(memory_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # "## アナリストノート" セクションの末尾（## Related の直前）に挿入
+        related_marker = "\n## Related"
+        if related_marker in content:
+            idx = content.index(related_marker)
+            content = content[:idx] + entry + content[idx:]
+        else:
+            content += entry
+
+        with open(memory_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        print(f"📝 Analyst Memory更新: {date_str}")
+    except Exception as e:
+        print(f"  ⚠️  Analyst Memory更新失敗: {e}", file=sys.stderr)
+
+
 def main() -> int:
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     webhook = os.environ.get("DISCORD_WEBHOOK_URL")
@@ -268,6 +314,9 @@ def main() -> int:
 
     # Step 3.5: KB自動保存
     save_to_kb(date_str, analyst_report, strategy_report)
+
+    # Step 3.6: Analyst Memory更新（永続フィードバックループ）
+    update_analyst_memory(date_str, analyst_report)
 
     # Step 4: 送信 or 標準出力
     analyst_header  = f"📊 **【運用レポート {date_str}】**"
