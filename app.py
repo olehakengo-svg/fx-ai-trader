@@ -5060,6 +5060,39 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
             sl = ep - sl_dist if sig == "BUY" else ep + sl_dist
 
+            # ── v8.7 Phase A: Spread/SL Gate — Live demo_trader.py と同一 ──
+            _spread_sl_ratio = _spread / max(sl_dist, 1e-8)
+            _sg_threshold_bt = 0.45 if "XAU" in symbol.upper() else 0.35
+            if _spread_sl_ratio > _sg_threshold_bt:
+                continue  # Live: blockされるトレード
+
+            # ── v8.7 Phase B: RANGE TP Override — Live v6.5 BB_mid capping ──
+            _sig_regime_bt = sig_result.get("regime", {})
+            _regime_type_bt = _sig_regime_bt.get("regime", "") if isinstance(_sig_regime_bt, dict) else ""
+            _MR_STRATS_BT = {"bb_rsi_reversion", "macdh_reversal", "fib_reversal",
+                             "vol_surge_detector", "dt_bb_rsi_mr", "eurgbp_daily_mr",
+                             "dt_sr_channel_reversal"}
+            _bb_mid_bt = sig_result.get("indicators", {}).get("bb_mid", 0) if isinstance(sig_result.get("indicators"), dict) else 0
+            _is_range_mr_bt = (_regime_type_bt == "RANGE" and entry_type in _MR_STRATS_BT)
+            if _is_range_mr_bt and _bb_mid_bt > 0:
+                if sig == "BUY" and _bb_mid_bt > ep:
+                    tp = min(tp, min(_bb_mid_bt, ep + atr7 * 1.2))
+                elif sig == "SELL" and _bb_mid_bt < ep:
+                    tp = max(tp, max(_bb_mid_bt, ep - atr7 * 1.2))
+                tp_dist = abs(tp - ep)
+                sl_dist = tp_dist / MIN_RR_BT
+                sl_dist = max(sl_dist, MIN_SL_DIST_BT)
+                sl = ep - sl_dist if sig == "BUY" else ep + sl_dist
+
+            # ── v8.7 Phase C: Quick-Harvest TP simulation — Live 0.85x ──
+            if not _is_range_mr_bt:  # RANGE MR は bypass (Live v6.5同一)
+                _qh_mult = 0.85
+                if sig == "BUY":
+                    tp = ep + (tp - ep) * _qh_mult
+                else:
+                    tp = ep - (ep - tp) * _qh_mult
+                tp_dist = abs(tp - ep)
+
             # RR不足チェック（SL拡大後に再判定）
             if tp_dist < sl_dist:
                 continue
@@ -5655,6 +5688,39 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 sl_dist_dt += atr * 0.25
 
             sl = ep - sl_dist_dt if sig == "BUY" else ep + sl_dist_dt
+
+            # ── v8.7 Phase A: Spread/SL Gate (DT) — Live demo_trader.py と同一 ──
+            _spread_sl_ratio_dt = _spread / max(sl_dist_dt, 1e-8)
+            _sg_threshold_dt = 0.45 if "XAU" in symbol.upper() else 0.20  # DT: 20%閾値
+            if _spread_sl_ratio_dt > _sg_threshold_dt:
+                continue
+
+            # ── v8.7 Phase B: RANGE TP Override (DT) ──
+            _sig_regime_dt = sig_result.get("regime", {})
+            _regime_type_dt = _sig_regime_dt.get("regime", "") if isinstance(_sig_regime_dt, dict) else ""
+            _MR_STRATS_DT = {"bb_rsi_reversion", "macdh_reversal", "fib_reversal",
+                             "vol_surge_detector", "dt_bb_rsi_mr", "eurgbp_daily_mr",
+                             "dt_sr_channel_reversal"}
+            _bb_mid_dt = sig_result.get("indicators", {}).get("bb_mid", 0) if isinstance(sig_result.get("indicators"), dict) else 0
+            _is_range_mr_dt = (_regime_type_dt == "RANGE" and entry_type in _MR_STRATS_DT)
+            if _is_range_mr_dt and _bb_mid_dt > 0:
+                if sig == "BUY" and _bb_mid_dt > ep:
+                    tp = min(tp, min(_bb_mid_dt, ep + atr * 1.2))
+                elif sig == "SELL" and _bb_mid_dt < ep:
+                    tp = max(tp, max(_bb_mid_dt, ep - atr * 1.2))
+                tp_dist_dt = abs(tp - ep)
+                sl_dist_dt = tp_dist_dt / MIN_RR_DT if entry_type not in _DT_PRESERVE_SLTP else sl_dist_dt
+                sl_dist_dt = max(sl_dist_dt, MIN_SL_DIST_DT)
+                sl = ep - sl_dist_dt if sig == "BUY" else ep + sl_dist_dt
+
+            # ── v8.7 Phase C: Quick-Harvest (DT) ──
+            if not _is_range_mr_dt:
+                _qh_mult_dt = 0.85
+                if sig == "BUY":
+                    tp = ep + (tp - ep) * _qh_mult_dt
+                else:
+                    tp = ep - (ep - tp) * _qh_mult_dt
+                tp_dist_dt = abs(tp - ep)
 
             # RR不足チェック（SL拡大後に再判定）
             if tp_dist_dt < sl_dist_dt:
@@ -9694,13 +9760,13 @@ def api_backtest():
         elif mode == "daytrade":
             # v8.5: symbolパラメータ対応（全ペアBT可能に）
             dt_symbol = request.args.get("symbol", "USDJPY=X")
-            dt_days = request.args.get("days", 55, type=int)
-            dt_days = min(dt_days, 120)  # 最大120日
+            dt_days = request.args.get("days", 120, type=int)  # v8.7: 55→120 デフォルト
+            dt_days = min(dt_days, 365)  # v8.7: 120→365 上限拡張 (OANDA pagination対応)
             result = run_daytrade_backtest(dt_symbol, lookback_days=dt_days, interval="15m")
         elif mode == "daytrade_1h":
             h1_symbol = request.args.get("symbol", "USDJPY=X")
-            h1_days = request.args.get("days", 60, type=int)
-            h1_days = min(h1_days, 180)
+            h1_days = request.args.get("days", 120, type=int)  # v8.7: 60→120 デフォルト
+            h1_days = min(h1_days, 365)  # v8.7: 180→365 上限拡張
             result = run_1h_backtest(h1_symbol, lookback_days=h1_days, interval="1h")
         elif mode == "swing":
             result   = run_swing_backtest("USDJPY=X", lookback_days=365)
