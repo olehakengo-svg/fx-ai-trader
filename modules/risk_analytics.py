@@ -451,6 +451,28 @@ def compute_risk_dashboard(trades: List[dict],
                 "n": len(spnl),
             }
 
+    # v8.6: Deflated Sharpe Ratio — 多重検定補正
+    from modules.stats_utils import deflated_sharpe_ratio
+    _n_strategies = len(strategy_pnls)  # テストした戦略数
+    _mean_pnl = float(np.mean(pnl_list)) if pnl_list else 0.0
+    _std_pnl = float(np.std(pnl_list)) if len(pnl_list) > 1 else 1.0
+    _sharpe_raw = _mean_pnl / _std_pnl if _std_pnl > 0 else 0.0
+
+    # Per-strategy DSR
+    strategy_dsr = {}
+    for strat, spnl in strategy_pnls.items():
+        if len(spnl) >= 5:
+            _s_mean = float(np.mean(spnl))
+            _s_std = float(np.std(spnl)) if len(spnl) > 1 else 1.0
+            _s_sharpe = _s_mean / _s_std if _s_std > 0 else 0.0
+            strategy_dsr[strat] = deflated_sharpe_ratio(
+                sharpe_observed=_s_sharpe,
+                n_trades=len(spnl),
+                n_trials=max(_n_strategies, 1),
+            )
+        else:
+            strategy_dsr[strat] = {"insufficient": True, "n": len(spnl)}
+
     return {
         "var_cvar": calculate_var_cvar(pnl_list),
         "monte_carlo": monte_carlo_ruin(
@@ -461,6 +483,12 @@ def compute_risk_dashboard(trades: List[dict],
         ),
         "kelly": kelly_fraction(win_rate, float(avg_win), float(avg_loss)),
         "strategy_kelly": strategy_kelly,
+        "strategy_dsr": strategy_dsr,  # v8.6: Deflated Sharpe Ratio per strategy
+        "dsr_overall": deflated_sharpe_ratio(
+            sharpe_observed=_sharpe_raw,
+            n_trades=len(pnl_list),
+            n_trials=max(_n_strategies, 1),
+        ),
         "correlation": strategy_correlation(strategy_pnls),
         "attribution": pnl_attribution(trades),
         "n_total_trades": len(trades),

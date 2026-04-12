@@ -395,3 +395,118 @@ def _beta_quantile(p: float, a: float, b: float, tol: float = 1e-4) -> float:
         if high - low < tol:
             break
     return (low + high) / 2
+
+
+# ═══════════════════════════════════════════════
+#  9. Deflated Sharpe Ratio (DSR)
+# ═══════════════════════════════════════════════
+
+def deflated_sharpe_ratio(
+    sharpe_observed: float,
+    n_trades: int,
+    n_trials: int,
+    skewness: float = 0.0,
+    kurtosis: float = 3.0,
+) -> dict:
+    """
+    Deflated Sharpe Ratio — Bailey & Lopez de Prado (2014)
+
+    多重検定補正済みSharpe Ratio。N_trials個の戦略をテストした場合、
+    最良の観測Sharpeが偶然である確率を補正する。
+
+    Args:
+        sharpe_observed: 観測されたSharpe Ratio (annualized)
+        n_trades: バックテストのトレード数
+        n_trials: テストした戦略の総数（多重検定のN）
+        skewness: リターン分布の歪度（0=正規分布）
+        kurtosis: リターン分布の尖度（3=正規分布）
+
+    Returns:
+        dsr: Deflated Sharpe Ratio（0-1、1に近いほど信頼性が高い）
+        sharpe_threshold: n_trialsに対する最低必要Sharpe
+        is_significant: DSR > 0.95（5%有意水準）
+        haircut: 観測Sharpeからの削減率 (%)
+
+    学術根拠:
+        Bailey, Borwein, Lopez de Prado & Zhu (2014)
+        "Pseudo-Mathematics and Financial Charlatanism"
+        AMS Notices, 61(5), 458-471.
+
+        Bailey & Lopez de Prado (2014)
+        "The Deflated Sharpe Ratio: Correcting for Selection Bias,
+         Backtest Overfitting, and Non-Normality"
+        Journal of Portfolio Management, 40(5), 94-107.
+    """
+    if n_trades < 2 or n_trials < 1 or sharpe_observed <= 0:
+        return {
+            "dsr": 0.0,
+            "sharpe_threshold": 0.0,
+            "sharpe_observed": sharpe_observed,
+            "is_significant": False,
+            "haircut": 100.0,
+            "n_trials": n_trials,
+            "n_trades": n_trades,
+        }
+
+    # ── Expected maximum Sharpe under null (all strategies have zero edge) ──
+    # E[max(SR)] ≈ sqrt(2 * ln(N_trials)) for N_trials independent strategies
+    # With skewness/kurtosis correction:
+    #   SR* = sqrt(V) * ((1 - gamma) * z_alpha + gamma * z_alpha^2 - 1) / sqrt(T-1))
+    # Simplified: SR_threshold = sqrt(2 * ln(N_trials)) * (1 / sqrt(n_trades))
+    # This is the Sharpe you'd expect the best strategy to achieve BY CHANCE
+
+    import math
+
+    _ln_trials = math.log(max(n_trials, 2))
+
+    # Euler-Mascheroni constant approximation for expected max of N standard normals
+    _euler_gamma = 0.5772156649
+    _z_expected_max = math.sqrt(2 * _ln_trials) - (_euler_gamma + math.log(math.pi)) / (2 * math.sqrt(2 * _ln_trials))
+
+    # Sharpe threshold: expected max Sharpe under null hypothesis
+    # Annualized Sharpe with T trades: SR ~ N(0, 1/sqrt(T)) under null
+    sharpe_threshold = _z_expected_max / math.sqrt(max(n_trades - 1, 1))
+
+    # ── Skewness/Kurtosis correction ──
+    # SE(SR) = sqrt((1 - skew*SR + (kurtosis-1)/4 * SR^2) / (T-1))
+    _sr = sharpe_observed
+    _se_sr = math.sqrt(
+        max(1 - skewness * _sr + (kurtosis - 1) / 4 * _sr ** 2, 0.01)
+        / max(n_trades - 1, 1)
+    )
+
+    # ── DSR = Prob(SR_observed > SR_threshold | H0) ──
+    # Using standard normal CDF approximation
+    _z_score = (_sr - sharpe_threshold) / max(_se_sr, 0.0001)
+
+    # Normal CDF approximation (Abramowitz & Stegun)
+    def _norm_cdf(x):
+        if x < -6:
+            return 0.0
+        if x > 6:
+            return 1.0
+        t = 1 / (1 + 0.2316419 * abs(x))
+        d = 0.3989422804014327  # 1/sqrt(2*pi)
+        p = d * math.exp(-x * x / 2) * (
+            t * (0.319381530 + t * (-0.356563782 + t * (1.781477937 +
+            t * (-1.821255978 + t * 1.330274429))))
+        )
+        return 1 - p if x > 0 else p
+
+    dsr = _norm_cdf(_z_score)
+
+    # Haircut: how much of observed Sharpe is explained by luck
+    haircut = max(0, (1 - sharpe_threshold / max(_sr, 0.0001))) * 100
+    if sharpe_threshold >= _sr:
+        haircut = 0.0  # threshold exceeds observed → 100% luck
+
+    return {
+        "dsr": round(dsr, 4),
+        "sharpe_threshold": round(sharpe_threshold, 4),
+        "sharpe_observed": round(sharpe_observed, 4),
+        "is_significant": dsr > 0.95,
+        "haircut": round(haircut, 1),
+        "n_trials": n_trials,
+        "n_trades": n_trades,
+        "z_score": round(_z_score, 3),
+    }
