@@ -9700,9 +9700,16 @@ def api_backtest():
                 lookback = min(days_override, 60)
             result = run_scalp_backtest(symbol, lookback_days=lookback, interval=interval)
         elif mode == "daytrade":
-            result = run_daytrade_backtest("USDJPY=X", lookback_days=55, interval="15m")
+            # v8.5: symbolパラメータ対応（全ペアBT可能に）
+            dt_symbol = request.args.get("symbol", "USDJPY=X")
+            dt_days = request.args.get("days", 55, type=int)
+            dt_days = min(dt_days, 120)  # 最大120日
+            result = run_daytrade_backtest(dt_symbol, lookback_days=dt_days, interval="15m")
         elif mode == "daytrade_1h":
-            result = run_1h_backtest("USDJPY=X", lookback_days=60, interval="1h")
+            h1_symbol = request.args.get("symbol", "USDJPY=X")
+            h1_days = request.args.get("days", 60, type=int)
+            h1_days = min(h1_days, 180)
+            result = run_1h_backtest(h1_symbol, lookback_days=h1_days, interval="1h")
         elif mode == "swing":
             result   = run_swing_backtest("USDJPY=X", lookback_days=365)
         else:
