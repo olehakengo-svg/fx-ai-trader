@@ -1,6 +1,6 @@
 # VIX Carry Unwind — VIX急騰キャリー巻き戻し
 
-## Stage: DISCOVERED
+## Stage: SENTINEL (v8.5, 低頻度 年2-5回)
 
 ## Hypothesis
 VIX急騰（90pctile超）時にキャリートレード巻き戻しが加速し、JPY急騰が発生。初動1週間が最も急速（Brunnermeier 2009, IMF 2019）。

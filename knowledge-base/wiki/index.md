@@ -7,7 +7,7 @@
 - 詳細: [[roadmap-to-100pct]]
 - **最優先: クリーンデータ蓄積 → Kelly Half到達**
 
-## Current Portfolio (v8.8, 2026-04-12)
+## Current Portfolio (v8.9, 2026-04-13)
 
 ### Tier 1 -- Core Alpha
 | Strategy | Pair | WR(post-cut) | PnL | Kelly | Status |
@@ -43,7 +43,7 @@
 ### Tier 4 -- Stopped
 See [[force-demoted-strategies]]
 
-## System State (v8.8)
+## System State (v8.9)
 - Defensive mode: **1.0x** (v8.9 Equity Reset — v8.4以降クリーンデータ起点, DD=0.8%)
 - XAU: **Stopped** (v8.4) -- post-cutoff XAU loss = -2,280pip (102% of total loss)
 - FX-only post-cutoff: **+96.8pip (profitable)**
@@ -61,7 +61,8 @@ See [[force-demoted-strategies]]
 - [[mfe-zero-analysis]] -- 90.6% of losses never go favorable
 
 ## Session History
-- [[sessions/2026-04-12-session]] — 最新: 6新エッジ実装+学術監査+KB構築
+- [[sessions/2026-04-13-session]] — KB読み書きフロー強化+analyst-memory刷新+ドリフト検知自動化
+- [[sessions/2026-04-12-session]] — 6新エッジ実装+学術監査+KB構築
 
 ## Lessons Learned (間違いと教訓)
 - [[lessons/index]] — **過去の間違い・修正・教訓の蓄積** (Shadow汚染, XAU歪み, BT hardcode等)

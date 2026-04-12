@@ -1,6 +1,6 @@
 # Cross-Sectional Momentum + Dispersion Filter
 
-## Stage: DISCOVERED
+## Stage: SENTINEL (v8.5, USD_JPY PAIR_DEMOTED v8.6)
 
 ## Hypothesis
 過去1-3ヶ月のウィナー通貨ロング/ルーザー通貨ショートで年率5-10%の超過リターン。リターン分散が高い時にモメンタムが強く効く（Menkhoff 2012, Eriksen 2019）。

@@ -1,5 +1,16 @@
 # Knowledge Base Change Log
 
+## 2026-04-13: KB信頼性強化 (読み書きフロー + ドリフト検知)
+- **CLAUDE.md Diet**: 760行→98行、詳細を[[system-reference]]に移行
+- **フック分離**: .claude/settings.json埋め込み → scripts/hooks/ に4本抽出
+- **KB書き込みパイプライン**: daily-report.yml/trade-monitor.yml に git auto-commit 追加
+- **analyst-memory移行**: ルート直下 → knowledge-base/raw/trade-logs/ + `update_analyst_memory()` (F2)
+- **KB読み込みフロー修正**: memory[:3000]→[-3000:]バグ修正、ローテーション、SessionStartフック5セクション化
+- **analyst-memory v8.9刷新**: 旧v8.3データをarchive退避、v8.9現状で全面書き換え
+- **graph view断絶修正**: 17孤立ファイルに双方向wikilink追加
+- **ドリフト検知自動化**: check.py に4件追加 (バージョン/Edge Stage/session log/Session History)
+- **全ファイル監査**: 80ファイル精査、10件の問題を検出・一括修正
+
 ## 2026-04-12: Academic Research Sweep (25 papers → 6 new edges)
 - 3 parallel research agents: Microstructure / Anomalies / Advanced
 - 25 papers reviewed, stored in [[research-sweep-2026-04-12]]
@@ -36,6 +47,6 @@
 - Created decision page: [[independent-audit-2026-04-10]]
 
 ## Remaining
-- [ ] raw/ にBT結果JSONを保存
-- [ ] Version history (v7.0 - v8.4) as separate pages
+- [x] raw/ にBT結果JSONを保存 → raw/bt-results/ に9ファイル格納済み (md形式)
+- [ ] Version history (v7.0 - v8.4) as separate pages — 優先度低
 - [ ] /wiki-quant-eval の初回実行でベースライン確立

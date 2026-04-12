@@ -19,7 +19,9 @@ FX AI Trader 開発ハーネス — 整合性チェッカー v1.0
 """
 from __future__ import annotations
 import re
+import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -93,34 +95,40 @@ KB_ROOT = ROOT / "knowledge-base"
 
 
 def check_kb_consistency() -> tuple[list[str], list[str]]:
-    """KBの整合性を軽量チェック。"""
+    """KBの整合性を軽量チェック（バージョン/Edge Stage/セッション同期）。"""
     errors: list[str] = []
     warns: list[str] = []
 
-    # 6a. changelog最新バージョンとindex.mdの整合
     changelog = KB_WIKI / "changelog.md"
     index = KB_WIKI / "index.md"
+
+    # ── 6a. changelog最新バージョン vs index.md 見出しバージョン ──
     if changelog.exists() and index.exists():
         cl_text = changelog.read_text(encoding="utf-8")
         idx_text = index.read_text(encoding="utf-8")
-        # changelogから最新バージョン(v8.X)を取得
+        # changelogの最新バージョンをパース
         cl_versions = re.findall(r'v(\d+\.\d+)', cl_text)
-        idx_versions = re.findall(r'v(\d+\.\d+)', idx_text[:500])
-        if cl_versions and idx_versions:
-            latest_cl = max(cl_versions, key=lambda v: float(v))
-            latest_idx = max(idx_versions, key=lambda v: float(v))
-            if float(latest_cl) > float(latest_idx):
+        latest_cl = max(cl_versions, key=lambda v: float(v)) if cl_versions else None
+        if latest_cl:
+            # index.mdの見出し行からバージョンを個別チェック
+            portfolio_m = re.search(r'## Current Portfolio \(v([\d.]+)', idx_text)
+            state_m = re.search(r'## System State \(v([\d.]+)', idx_text)
+            if portfolio_m and float(portfolio_m.group(1)) < float(latest_cl):
                 warns.append(
-                    f"  ⚠️  KB: changelog最新=v{latest_cl} > index.md=v{latest_idx}"
-                    " — index.mdの更新漏れの可能性"
+                    f"  ⚠️  KB: index.md Portfolio=v{portfolio_m.group(1)}"
+                    f" < changelog=v{latest_cl} — 見出し更新漏れ"
+                )
+            if state_m and float(state_m.group(1)) < float(latest_cl):
+                warns.append(
+                    f"  ⚠️  KB: index.md System State=v{state_m.group(1)}"
+                    f" < changelog=v{latest_cl} — 見出し更新漏れ"
                 )
 
-    # 6b. 破損wikilinkチェック（KB全体の[[...]]がファイルとして存在するか）
+    # ── 6b. 破損wikilinkチェック ──
     broken_links: list[str] = []
     if KB_ROOT.exists():
-        # Obsidianはvault全体(knowledge-base/)でリンク解決するため、全.mdをスキャン
-        all_md_stems = set()  # ファイル名のみ（例: "index"）
-        all_md_paths = set()  # 相対パス（例: "wiki/research/index"）
+        all_md_stems = set()
+        all_md_paths = set()
         for md_file in KB_ROOT.rglob("*.md"):
             all_md_stems.add(md_file.stem)
             rel = str(md_file.relative_to(KB_ROOT).with_suffix("")).replace("\\", "/")
@@ -130,7 +138,6 @@ def check_kb_consistency() -> tuple[list[str], list[str]]:
             """Obsidian互換: ファイル名一致 or パス末尾一致で解決。"""
             if link in all_md_stems:
                 return True
-            # パスを含むリンク（例: "research/index"）→ 末尾一致で解決
             return any(p == link or p.endswith("/" + link) for p in all_md_paths)
 
         for md_file in KB_ROOT.rglob("*.md"):
@@ -142,14 +149,13 @@ def check_kb_consistency() -> tuple[list[str], list[str]]:
                     broken_links.append(f"{md_file.relative_to(KB_ROOT)}→[[{link_clean}]]")
 
     if broken_links:
-        # エラーではなく警告(pushを止めるほどではない)
         sample = broken_links[:5]
         warns.append(
             f"  ⚠️  KB: 破損wikilink {len(broken_links)}件"
             f" (例: {', '.join(sample)})"
         )
 
-    # 6c. セッションログの未解決事項数
+    # ── 6c. セッションログの未解決事項数 ──
     sessions_dir = KB_WIKI / "sessions"
     if sessions_dir.exists():
         session_files = sorted(sessions_dir.glob("*.md"), reverse=True)
@@ -161,6 +167,100 @@ def check_kb_consistency() -> tuple[list[str], list[str]]:
                 warns.append(
                     f"  ℹ️  KB: {latest.name} に未解決事項 {open_items}件"
                 )
+
+    # ── 6d. Edge Stage不整合: edge-pipeline.md vs 各edge/*.md ──
+    pipeline_file = KB_WIKI / "edges" / "edge-pipeline.md"
+    edges_dir = KB_WIKI / "edges"
+    if pipeline_file.exists() and edges_dir.exists():
+        pl_text = pipeline_file.read_text(encoding="utf-8")
+        # edge-pipeline.mdのテーブルからエッジ名→Stageを抽出
+        # Stage 6: PROMOTED テーブル、Stage 4: SENTINEL テーブルを解析
+        pipeline_stages: dict[str, str] = {}
+        # "Stage 6: PROMOTED" セクション
+        s6_block = re.search(
+            r'### Stage 6: PROMOTED\s*\n\|.*\n\|[-|]+\n((?:\|.*\n)*)', pl_text
+        )
+        if s6_block:
+            for row in re.findall(r'\[\[([^\]]+)\]\]', s6_block.group(1)):
+                pipeline_stages[row] = "PROMOTED"
+        # "Stage 4: SENTINEL" セクション
+        s4_block = re.search(
+            r'### Stage 4: SENTINEL\s*\n\|.*\n\|[-|]+\n((?:\|.*\n)*)', pl_text
+        )
+        if s4_block:
+            for row in re.findall(r'\[\[([^\]]+)\]\]', s4_block.group(1)):
+                if row not in pipeline_stages:
+                    pipeline_stages[row] = "SENTINEL"
+
+        # 各edge/*.mdのStage行と突合
+        stage_mismatches: list[str] = []
+        for edge_file in sorted(edges_dir.glob("*.md")):
+            if edge_file.name in ("edge-pipeline.md", "raw-alpha-mining-2026-04-12.md"):
+                continue
+            stem = edge_file.stem
+            edge_text = edge_file.read_text(encoding="utf-8")
+            # "## Stage: XXX" 行を探す
+            stage_m = re.search(r'^## Stage:\s*(.+)', edge_text, re.MULTILINE)
+            if not stage_m:
+                # "**Stage**: N (XXX)" 形式も試行
+                stage_m = re.search(r'\*\*Stage\*\*:\s*\d+\s*\((\w+)\)', edge_text)
+            if not stage_m:
+                continue
+            file_stage = stage_m.group(1).strip().upper()
+            # edge-pipeline.mdでの期待Stage
+            expected = pipeline_stages.get(stem)
+            if expected and expected not in file_stage:
+                stage_mismatches.append(f"{stem}: file={file_stage} vs pipeline={expected}")
+
+        if stage_mismatches:
+            sample = stage_mismatches[:5]
+            warns.append(
+                f"  ⚠️  KB: Edge Stage不整合 {len(stage_mismatches)}件"
+                f" ({', '.join(sample)})"
+            )
+
+    # ── 6e. Session log完成度: git commit数 vs session logコミット一覧 ──
+    today_str = date.today().isoformat()
+    session_today = sessions_dir / f"{today_str}-session.md" if sessions_dir.exists() else None
+    if session_today and session_today.exists():
+        try:
+            result = subprocess.run(
+                ["git", "log", "--oneline", f"--since={today_str}"],
+                capture_output=True, text=True, timeout=10, cwd=ROOT,
+            )
+            git_count = len(result.stdout.strip().splitlines()) if result.stdout.strip() else 0
+            # session logから最後の「コミット一覧」セクションを探す
+            s_text = session_today.read_text(encoding="utf-8")
+            commit_sections = list(re.finditer(r'##\s*コミット一覧', s_text))
+            if commit_sections and git_count > 0:
+                last_section = s_text[commit_sections[-1].end():]
+                # 次の ## までのテキストを取得
+                next_h2 = re.search(r'\n## ', last_section)
+                if next_h2:
+                    last_section = last_section[:next_h2.start()]
+                log_count = len(re.findall(r'^\d+\.', last_section, re.MULTILINE))
+                if git_count > log_count:
+                    warns.append(
+                        f"  ⚠️  KB: session log コミット漏れ"
+                        f" (git={git_count} vs log={log_count})"
+                    )
+        except Exception:
+            pass  # git実行失敗時はスキップ
+
+    # ── 6f. index.md Session History に最新セッションのリンクがあるか ──
+    if index.exists() and sessions_dir and sessions_dir.exists():
+        session_files = sorted(sessions_dir.glob("*.md"), reverse=True)
+        if session_files:
+            newest_session = session_files[0].stem  # e.g. "2026-04-13-session"
+            idx_text = index.read_text(encoding="utf-8")
+            history_m = re.search(r'## Session History\s*\n(.*?)(?:\n## |\Z)',
+                                  idx_text, re.DOTALL)
+            if history_m:
+                if newest_session not in history_m.group(1):
+                    warns.append(
+                        f"  ⚠️  KB: index.md Session History に"
+                        f" [[{newest_session}]] が未リンク"
+                    )
 
     return errors, warns
 

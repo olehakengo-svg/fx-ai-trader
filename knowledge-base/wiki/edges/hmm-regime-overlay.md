@@ -1,6 +1,6 @@
 # HMM Regime Overlay — レジーム検出オーバーレイ
 
-## Stage: DISCOVERED
+## Stage: SENTINEL (v8.5, 防御オーバーレイ)
 
 ## Hypothesis
 HMM（隠れマルコフモデル）2状態（calm/turbulent）でFXボラティリティレジームを検出。turbulentレジームではポジションサイズ縮小しMaxDDを半減（Charles U 2024, Nystrup 2024）。

@@ -24,11 +24,14 @@ Post-cutoff 237 trades:
 XAU stop alone flips the system from deep loss to marginal profit.
 
 ## Friction by Session
-| Session | Avg Slippage | Avg Spread | Total |
-|---------|-------------|-----------|-------|
-| London | 0.31pip | 0.55pip | **0.86pip** (best) |
-| Tokyo | 1.04pip | 2.10pip | **3.14pip** |
-| New York | 2.48pip | 4.82pip | **7.30pip** (XAU-inflated) |
+| Session | Avg Slippage | Avg Spread | Total (全体) | FX-only推定 |
+|---------|-------------|-----------|-------------|------------|
+| London | 0.31pip | 0.55pip | **0.86pip** (best) | ~0.86pip |
+| Tokyo | 1.04pip | 2.10pip | **3.14pip** | ~2.5pip |
+| New York | 2.48pip | 4.82pip | **7.30pip** | ~2.0pip |
+
+> **注**: Total列はXAU込み（v8.4以前データ）。FX-only推定はXAUトレード除外後の概算値。
+> NY sessionのTotal=7.30pipはXAU(spread~86pip)に大きく歪められている。
 
 ## Related
 - [[bb-rsi-reversion]] (edge=0.45pip vs friction 2.14pip)

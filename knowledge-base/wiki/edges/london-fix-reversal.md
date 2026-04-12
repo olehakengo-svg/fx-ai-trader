@@ -1,6 +1,6 @@
 # London Fix Reversal — ロンドンFixリバーサル
 
-## Stage: DISCOVERED
+## Stage: PROMOTED (v8.6, GBP_USD PAIR_PROMOTED / USD_JPY DEMOTED)
 
 ## Hypothesis
 ロンドン4pm Fix前にUSDが上昇ドリフトし、Fix直後に反転する（Krohn et al 2024）。W字型の24時間リターンパターン。Fix後のリバーサルは5-15pip規模。

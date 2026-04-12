@@ -1,6 +1,6 @@
 # Gotobi Fix — 五十日仲値USD/JPY
 
-## Stage: DISCOVERED
+## Stage: SENTINEL (v8.5, 発火窓=月6日 N蓄積中)
 
 ## Hypothesis
 毎月5,10,15,20,25,30日の9:55 JST（仲値）に向けてUSD/JPYが上昇。日本企業の輸入決済のドル買い需要集中が原因（Bessho et al 2023, Ito & Yamada 2017）。

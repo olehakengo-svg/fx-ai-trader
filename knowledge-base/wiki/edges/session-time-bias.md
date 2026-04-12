@@ -1,6 +1,6 @@
 # Session Time Bias — セッション時刻バイアス
 
-## Stage: DISCOVERED
+## Stage: PROMOTED (v8.6, 3ペア PAIR_PROMOTED)
 
 ## Hypothesis
 通貨は自国のトレーディング時間帯に減価する傾向がある（Breedon & Ranaldo 2013）。東京時間にJPY売り、ロンドン時間にGBP売りの方向性ドリフトが存在。
@@ -33,8 +33,10 @@
 
 ## Implementation Path
 - [x] Stage 1: DISCOVERED (2026-04-12)
-- [ ] Stage 2: FORMULATED — 時刻別リターンのBT
-- [ ] Stage 3: BACKTESTED — 55d+ period, N>=30
+- [x] Stage 2: FORMULATED (2026-04-12)
+- [x] Stage 3: BACKTESTED — BT WR=69-77% (2026-04-12)
+- [x] Stage 4: SENTINEL (v8.5, 2026-04-12)
+- [x] Stage 6: PROMOTED (v8.6, 2026-04-12) — 3ペア PAIR_PROMOTED
 
 ## Key Advantage
 **実装複雑度 1/5** — 時刻ルールのみ。最もシンプルな新エッジ。

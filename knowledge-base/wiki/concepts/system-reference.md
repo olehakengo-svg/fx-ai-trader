@@ -3,7 +3,12 @@
 > **このファイルは CLAUDE.md Diet (2026-04-13) で移行された運用リファレンス。**
 > CLAUDE.md はスキーマ（150行以内）、本ファイルが詳細を担う。
 
-## BT Performance (v5.95 統合監査, 2026-04-07)
+## BT Performance — Historical Reference (pre-cutoff)
+> **注意**: 以下のBTデータはFidelity Cutoff (2026-04-08) 以前の結果です。
+> Shadow汚染・XAU歪み・旧SLTPバグを含む可能性があり、現在のシステム性能を示しません。
+> v8.4以降のクリーンデータに基づく最新評価は [[changelog]] および [[index]] を参照してください。
+
+### v5.95 統合監査 (2026-04-07)
 - **v5.95 統合BT**: 340t/14d (5m scalp + 15m DT), 摩擦モデルv2, SAR=1.57 (v5.5: 0.42, 3.7x改善)
 - **月間PnL**: Raw +857pip → **LC適用 +1,831pip/月** (lifecycle uplift +107%)
 - Scalp USD/JPY: 76t WR=65.8% EV=+0.211ATR (fib_reversal WR=86.7% → 1.5x boost)
@@ -18,7 +23,7 @@
 - **Scalp EUR/JPY: 250t WR=45.6% +300pip EV=+1.20** (60d, 5m, UTC 12-15限定)
 - Swing: 346t WR=36.7% EV=+0.154 WF=2/3 (730d, 1d)
 
-## Scalp v3.2 Strategy Breakdown (7d BT, bb_rsi Option C適用後)
+### Scalp v3.2 Strategy Breakdown (7d BT, bb_rsi Option C適用後)
 | Strategy | Trades | WR | EV | Description |
 |---|---|---|---|---|
 | **bb_rsi_reversion** | **181** | **61.3%** | **+0.173** | **Option C: EUR ADX<25 / JPY ADX制限なし+Death Valley/Gold Hours** |
@@ -28,7 +33,7 @@
 | mtf_reversal_confluence | 4 | 50.0% | -0.187 | RSI+MACD AND |
 | session_vol_expansion | EUR only | — | — | SVE: London open compression breakout |
 
-## DT v4.4 Strategy Breakdown (55d BT)
+### DT v4.4 Strategy Breakdown (55d BT)
 | Strategy | EUR Trades | EUR WR | EUR EV | JPY Trades | JPY WR | JPY EV | GBP Trades | GBP WR | GBP EV |
 |---|---|---|---|---|---|---|---|---|---|
 | sr_fib_confluence | 82 | 63.4% | +0.223 | 84 | 64.3% | +0.286 | 80 | 68.8% | +0.414 |

@@ -27,11 +27,16 @@ This is NOT an SL width problem. It is an **entry direction/timing problem**.
 | Environment | Any ADX | ADX>=25 mandatory |
 | Momentum | Stoch K>D (weak) | DI gap>=8 (strong) |
 
-## v8.3 Fixes Applied
+## v8.3 Fixes Applied (2026-04-10)
 - bb_rsi: confirmation candle + counter-trend block + ADX<15 floor
 - fib_reversal: MACD-H required + Fib hierarchy + body 0.60
 - ema_pullback: bounce ATR*0.2 + triple confirmation + body 0.35
-- **Expected**: 77% -> 20-25% (bb_rsi), OOS verification pending
+- **Expected**: 77% -> 20-25% (bb_rsi)
+- **Status (v8.9)**: OOS検証 pending — v8.3以降のクリーンデータ30t蓄積待ち
+
+> **注**: 上記503tの分析データはpre-cutoff含む全期間データです。
+> v8.4以降のShadow汚染除去済みクリーンデータでの再分析が望ましいが、
+> instant death rate の構造的傾向は同じと推定（根本原因がエントリータイミングのため）。
 
 ## Related
 - [[bb-rsi-reversion]]
