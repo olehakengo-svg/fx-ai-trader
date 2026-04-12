@@ -204,7 +204,10 @@ def send_discord(webhook_url: str, message: str) -> None:
         req = urllib.request.Request(
             webhook_url,
             data=payload,
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "FX-AI-Trader/1.0",
+            },
         )
         try:
             urllib.request.urlopen(req, timeout=10)

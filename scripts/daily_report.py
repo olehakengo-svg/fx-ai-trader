@@ -178,7 +178,10 @@ def send_discord_block(webhook_url: str, title: str, body: str) -> None:
         req = urllib.request.Request(
             webhook_url,
             data=payload,
-            headers={"Content-Type": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "FX-AI-Trader/1.0",
+            },
         )
         try:
             urllib.request.urlopen(req, timeout=10)
@@ -230,7 +233,7 @@ def main() -> int:
         print("\n⚠️  DISCORD_WEBHOOK_URL 未設定 — 標準出力に出力しました")
         return 0
 
-    print("📨 Discord に送信中...")
+    print(f"📨 Discord に送信中... (URL length={len(webhook)}, prefix={webhook[:45]}...)")
     send_discord_block(webhook, analyst_header, analyst_report)
     send_discord_block(webhook, strategy_header, strategy_report)
     print("✅ 完了")
