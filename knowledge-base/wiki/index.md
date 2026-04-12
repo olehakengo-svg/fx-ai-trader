@@ -36,7 +36,10 @@ See [[force-demoted-strategies]]
 - [[edge-pipeline]] -- エッジ仮説の評価パイプライン (6 stages)
 - Active themes: [[microstructure-stop-hunting]], [[session-effects]], [[mean-reversion-regimes]]
 
+## Data & Evaluation
+- [[changelog]] -- **バージョン別変更+評価基準日タイムライン** (どの期間で評価すべきか)
+- Latest snapshot: `raw/trade-logs/snapshot-2026-04-12.md`
+
 ## Links
 - [[friction-analysis]] -- Per-pair friction, BEV_WR
-- [[bt-live-divergence]] -- BT vs production gaps
-- [[version-history]] -- v7.0 to v8.4 changelog
+- [[changelog]] -- Fidelity Cutoff timeline + version impact matrix

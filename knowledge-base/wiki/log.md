@@ -1,5 +1,12 @@
 # Knowledge Base Change Log
 
+## 2026-04-12: Changelog + Production Snapshot
+- Created [[changelog]]: バージョン別タイムライン + 評価基準日マトリクス
+- First production snapshot: `raw/trade-logs/snapshot-2026-04-12.md` (250t post-cutoff)
+- Updated /wiki-quant-eval: Phase 0で[[changelog]]参照 → 最適なdate_from自動判定
+- PnL分解: XAU=-1,657pip, FX=+59.8pip（FXは黒字方向）
+- index.mdにData & Evaluationセクション追加
+
 ## 2026-04-12: Research Layer + Harness
 - Added research pipeline: wiki/research/ (2 themes), wiki/edges/ (pipeline), templates/
 - Added /wiki-research, /wiki-edge-eval commands

@@ -5,6 +5,20 @@
 ## 引数
 $ARGUMENTS — 評価対象期間 (例: "2026-04-08 to 2026-04-12") またはデフォルト (post-cutoff全期間)
 
+## Phase 0: 評価基準日の決定 ← 最重要ステップ
+
+**まず `knowledge-base/wiki/changelog.md` を読む。**
+changelogのタイムラインから「今回の評価に最適なdate_from」を判断する:
+
+| 目的 | date_from | 理由 |
+|------|----------|------|
+| 全体傾向 | 2026-04-08 | Fidelity Cutoff後 |
+| v8.3確認足効果 | 2026-04-10 | v8.3デプロイ後 |
+| XAU停止後FX評価 | 2026-04-10夕方〜 | v8.4デプロイ後 |
+
+前回のスナップショット (`knowledge-base/raw/trade-logs/snapshot-*.md`) と比較し、
+**差分トレード**（新しく追加されたトレード）を特定する。
+
 ## Phase 1: データ収集 → raw/に保存
 
 ### API取得
