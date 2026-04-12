@@ -335,25 +335,73 @@ class DemoTrader:
         #   DD >= 6%: lot * 0.40 | DD >= 8%: lot * 0.20
         #   Recovery uses same thresholds (no instant full-open)
         self._EQ_BASE_CAPITAL_PIPS = 1000.0  # 基準資本 (pips換算、DDパーセント計算用)
-        try:
-            self._eq_peak = float(self._db.get_system_kv("eq_peak", "0.0"))
-            self._eq_current = float(self._db.get_system_kv("eq_current", "0.0"))
-            # v7.0: _defensive_mode kept for backward compat (True if DD >= 2%)
-            self._defensive_mode = self._db.get_system_kv("defensive_mode", "0") == "1"
-            # v7.0: restore graduated DD multiplier
-            self._dd_lot_mult = float(self._db.get_system_kv("dd_lot_mult", "1.0"))
-            if self._eq_peak != 0 or self._eq_current != 0:
-                _dd = self._eq_peak - self._eq_current
-                _dd_pct = _dd / max(self._EQ_BASE_CAPITAL_PIPS, 1.0)
-                print(f"[v7.0] EquityProtector restored: peak={self._eq_peak:.1f} "
-                      f"current={self._eq_current:.1f} DD={_dd_pct:.1%} "
+
+        # ── v8.9: Equity Reset — クリーンデータ起点 ──
+        # v8.4以前のXAU損失(-2,280pip)+pre-cutoffバグデータが永久にDDを汚染していた。
+        # v8.4(XAU停止+Shadow除去)以降のFX-onlyデータからequityを再計算する。
+        _EQ_RESET_CUTOFF = "2026-04-10T12:00:00"
+        _eq_reset_done = self._db.get_system_kv("eq_reset_v89", "0")
+        if _eq_reset_done != "1":
+            try:
+                _all_trades = self._db.get_all_closed()
+                _eq_r = 0.0
+                _eq_r_peak = 0.0
+                for _t in _all_trades:
+                    _et = _t.get("entry_time", "") or _t.get("created_at", "") or ""
+                    if _et < _EQ_RESET_CUTOFF:
+                        continue
+                    if _t.get("is_shadow", 0) == 1:
+                        continue
+                    _inst = _t.get("instrument", "")
+                    if "XAU" in _inst:
+                        continue
+                    _pnl = float(_t.get("pnl_pips", 0) or 0)
+                    _eq_r += _pnl
+                    if _eq_r > _eq_r_peak:
+                        _eq_r_peak = _eq_r
+                _dd_r = _eq_r_peak - _eq_r
+                _dd_r_pct = _dd_r / max(self._EQ_BASE_CAPITAL_PIPS, 1.0)
+                _new_mult = get_dd_lot_multiplier(_dd_r_pct)
+                self._eq_peak = _eq_r_peak
+                self._eq_current = _eq_r
+                self._dd_lot_mult = _new_mult
+                self._defensive_mode = _new_mult < 1.0
+                self._db.set_system_kv("eq_peak", str(round(self._eq_peak, 2)))
+                self._db.set_system_kv("eq_current", str(round(self._eq_current, 2)))
+                self._db.set_system_kv("dd_lot_mult", str(round(self._dd_lot_mult, 2)))
+                self._db.set_system_kv("defensive_mode", "1" if self._defensive_mode else "0")
+                self._db.set_system_kv("eq_reset_v89", "1")
+                print(f"[v8.9] EquityReset: Recalculated from {_EQ_RESET_CUTOFF} "
+                      f"(FX-only, non-shadow). peak={self._eq_peak:.1f} "
+                      f"current={self._eq_current:.1f} DD={_dd_r_pct:.1%} "
                       f"lot_mult={self._dd_lot_mult}", flush=True)
-        except Exception as e:
-            self._eq_peak = 0.0
-            self._eq_current = 0.0
-            self._defensive_mode = False
-            self._dd_lot_mult = 1.0
-            print(f"[v7.0] EquityProtector DB restore failed, defaults: {e}", flush=True)
+            except Exception as e:
+                print(f"[v8.9] EquityReset failed, falling back to DB restore: {e}",
+                      flush=True)
+                self._eq_peak = 0.0
+                self._eq_current = 0.0
+                self._defensive_mode = False
+                self._dd_lot_mult = 1.0
+        else:
+            # Normal restore path (post-reset)
+            try:
+                self._eq_peak = float(self._db.get_system_kv("eq_peak", "0.0"))
+                self._eq_current = float(self._db.get_system_kv("eq_current", "0.0"))
+                self._defensive_mode = self._db.get_system_kv("defensive_mode", "0") == "1"
+                self._dd_lot_mult = float(self._db.get_system_kv("dd_lot_mult", "1.0"))
+                if self._eq_peak != 0 or self._eq_current != 0:
+                    _dd = self._eq_peak - self._eq_current
+                    _dd_pct = _dd / max(self._EQ_BASE_CAPITAL_PIPS, 1.0)
+                    print(f"[v7.0] EquityProtector restored: peak={self._eq_peak:.1f} "
+                          f"current={self._eq_current:.1f} DD={_dd_pct:.1%} "
+                          f"lot_mult={self._dd_lot_mult}", flush=True)
+            except Exception as e:
+                self._eq_peak = 0.0
+                self._eq_current = 0.0
+                self._defensive_mode = False
+                self._dd_lot_mult = 1.0
+                print(f"[v7.0] EquityProtector DB restore failed, defaults: {e}",
+                      flush=True)
         self._trade_high_water = {}     # trade_id -> max favorable price（BE/トレーリング用）
         # ── MAFE (Max Adverse / Favorable Excursion) ──
         self._mafe_tracker = {}         # {trade_id: {"max_high": float, "min_low": float}}

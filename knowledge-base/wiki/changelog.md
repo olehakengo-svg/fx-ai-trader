@@ -29,7 +29,41 @@
      |       └── v8.4以降 = "FX-only クリーンデータ"
      |
 2026-04-12  Knowledge Base構築
-             └── 評価基盤の確立
+     |       └── 評価基盤の確立
+     |
+2026-04-12  ★ v8.5: 学術文献6新エッジ戦略 (全Sentinel)
+     |       ├── session_time_bias, gotobi_fix, london_fix_reversal
+     |       ├── vix_carry_unwind, xs_momentum, hmm_regime_filter
+     |       └── 25論文ベース、DaytradeEngine 32戦略化
+     |
+2026-04-12  ★★ v8.6: 本番昇格 + モード再編
+     |       ├── session_time_bias × 3ペア PAIR_PROMOTED (BT WR=69-77%)
+     |       ├── london_fix_reversal × GBP_USD PAIR_PROMOTED (BT WR=75%)
+     |       ├── london_fix_reversal × USD_JPY PAIR_DEMOTED (BT WR=28.6%)
+     |       ├── xs_momentum × USD_JPY PAIR_DEMOTED (BT EV=-0.129)
+     |       ├── scalp_eurjpy auto_start=False (friction/ATR=43.6%, 構造的不可能)
+     |       ├── scalp_5m_eur + scalp_5m_gbp 新規モード追加 (5m摩擦改善)
+     |       ├── 金曜/月曜ブロック全撤去 — 原則#1「攻める」準拠
+     |       ├── GBPアジアセッション除外フィルター実装
+     |       ├── DSR (Deflated Sharpe Ratio) 実装 — Bailey & Lopez de Prado (2014)
+     |       └── BT/Live乖離分析: bb_rsi 25pp乖離の原因分解完了
+     |
+2026-04-12  v8.7: BT基盤強化
+     |       ├── BT Friction Model v3 (Spread/SL Gate + RANGE TP + Quick-Harvest反映)
+     |       ├── backtest-long DT/1H対応 (120-365日チャンクBT)
+     |       └── BT/Live乖離: Scalp 14-27pp→5-10pp, DT 5.5-10pp→2-4pp (期待)
+     |
+2026-04-12  v8.8: 生データアルファマイニング
+     |       ├── vol_spike_mr: 3x range spike fade (BT JPY PF=1.92, 全戦略最高)
+     |       ├── doji_breakout: 3連続doji breakout follow
+     |       ├── post_news_vol × USD_JPY PAIR_DEMOTED (120d WR=0%)
+     |       └── ema200_trend_reversal × USD_JPY PAIR_DEMOTED (120d WR=0%)
+     |
+2026-04-13  ★★★ v8.9: Equity Reset — クリーンデータ起点
+             ├── 旧DD: 2,899pip (289.9%) ← XAU(-2,280pip) + pre-cutoffバグ汚染
+             ├── リセット: v8.4(2026-04-10T12:00)以降FX-only非Shadowで再計算
+             ├── 新DD: 8.4pip (0.8%) → lot_mult=1.0x (フルロット)
+             └── ワンショットマイグレーション (eq_reset_v89フラグで1回のみ実行)
 ```
 
 ## バージョン別データ切り口
@@ -60,6 +94,10 @@
 | v8.2 | orb_trap PAIR_PROMOTED, vol_momentum 1.0x, bb_squeeze停止 | orb_trap OANDA送信開始 |
 | **v8.3** | **確認足(bb_rsi/fib/ema_pullback)** | **★ 即死率の変化を測定する基準点** |
 | **v8.4** | **XAU停止 + Shadow除去** | **★ FX-onlyの真のPnLを測定する基準点** |
+| v8.5 | 学術文献6新エッジ戦略 (全Sentinel) | 新戦略のライブデータ蓄積開始 |
+| **v8.6** | **session_time_bias/london_fix PROMOTED + 5mモード拡張 + DSR実装** | **★ 学術エッジの本番検証開始** |
+| v8.7 | BT Friction Model v3 + backtest-long | BT信頼性向上 (乖離幅縮小) |
+| v8.8 | vol_spike_mr + doji_breakout + PAIR_DEMOTED追加 | 新アルファ源 + 出血戦略停止 |
 
 ## Related
 - [[edge-pipeline]] — エッジ仮説の評価はどのデータ期間を使うべきか

@@ -47,6 +47,15 @@
 - 実態: USD_JPY限定ではWR=54.7% PF=1.13 → 正しくはTier 1
 - 教訓: **ペア×戦略の粒度で評価しないと、「勝てるペア」と「勝てないペア」が相殺される**
 
+### [[lesson-kb-drift-on-context-limit]]
+**発見日**: 2026-04-13 | **修正**: 手動整合
+- 問題: v8.6-v8.8のコード変更がgitにコミットされたが、changelog/wiki/session logに未反映
+- 原因: KB構築(Phase 4)後にv8.6-v8.8の実装が進行→使用量制限でセッションが途切れ、KB更新が実行されなかった
+- 症状: changelog=v8.4止まり、index.md=v8.4、未解決事項に「DSR未実装」「GBPアジア除外未実装」（実際は実装済み）
+- 修正: git log全件精査→changelog/index/session log/edge-pipeline を実態に合わせて更新
+- 教訓: **コード変更とKB更新は同一コミットで行う。コードだけ先にコミットしてKBを後回しにすると、セッション断で不整合が固定化する**
+- 対策: feat()コミット時に関連するchangelog/wiki更新も同じコミットに含める。セッション終了が近い場合はコード変更よりKB更新を優先する
+
 ## 開発プロセスの教訓
 
 ### [[lesson-bt-before-deploy]]
