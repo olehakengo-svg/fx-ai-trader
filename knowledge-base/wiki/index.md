@@ -1,5 +1,14 @@
 # FX AI Trader Knowledge Base
 
+## 🎯 最重要目標: 月利100% → 年利1,200%
+**全施策の判断基準。これに寄与しない施策は後回し。**
+- 現在: DD防御0.2x → 月利47%
+- Phase 1 (0.5x): **月利117% ← 目標達成ライン**
+- Phase 2 (1.0x): 月利235%
+- Phase 3 (Kelly Half): 月利594%
+- 詳細: [[roadmap-to-100pct]]
+- **最優先: クリーンデータ蓄積 → DD防御解除**
+
 ## Current Portfolio (v8.4, 2026-04-12)
 
 ### Tier 1 -- Core Alpha
