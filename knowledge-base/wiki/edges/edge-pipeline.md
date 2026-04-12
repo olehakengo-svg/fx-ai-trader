@@ -40,15 +40,30 @@ Stage 6: PROMOTED     — フルロット稼働、PAIR_PROMOTED
 | Liquidity sweep reversal | [[liquidity-sweep]] | Osler 2003 | N=0, just deployed |
 | Fib pullback (improved) | [[fib-reversal]] | - | N=32, WR=40.6%, recovery path |
 
-### Stage 1: DISCOVERED (not yet formulated)
-| Edge Hypothesis | Source | Potential |
-|----------------|--------|-----------|
-| [[dealer-inventory-rebalance]] | Lyons 1995 | Dealers offset risk at session boundaries → predictable flows |
-| [[carry-unwind-detection]] | Brunnermeier 2008 | JPY carry trade unwinding creates sharp reversals |
-| [[fix-flow-exploitation]] | Evans & Lyons 2002 | London/NY fix creates temporary price distortions |
-| [[weekend-gap-mean-reversion]] | Bollen & Inder 2002 | Monday opening gaps mean-revert within first session |
-| [[volatility-regime-switch]] | Hamilton 1989 | Markov regime switching for vol prediction |
-| [[regression-channel-mr]] | O-U process | Price mean-reverts within trend channels (lin_reg_channel 1H redesign) |
+### Stage 1: DISCOVERED (2026-04-12 research sweep)
+
+**Priority A — BT即実施 (実装複雑度 1-2/5, OHLCV only)**
+| Edge | Source | Complexity | Expected Value |
+|------|--------|-----------|---------------|
+| [[session-time-bias]] | Breedon & Ranaldo 2013 | **1/5** | 高: 時刻ルールのみ |
+| [[gotobi-fix]] | Bessho 2023, Ito & Yamada 2017 | **1/5** | 高: カレンダールール, 月6回 |
+| [[london-fix-reversal]] | Krohn 2024, Melvin & Prins 2015 | **2/5** | 中-高: Fix前後30分 |
+| [[vix-carry-unwind]] | Brunnermeier 2009, IMF 2019 | **2/5** | 高(低頻度): 年2-5回 |
+
+**Priority B — 中期実装 (実装複雑度 2-3/5)**
+| Edge | Source | Complexity | Expected Value |
+|------|--------|-----------|---------------|
+| [[xs-momentum-dispersion]] | Menkhoff 2012, Eriksen 2019 | **2/5** | 中: 月次リバランス, Sharpe 0.3-0.5 |
+| [[hmm-regime-overlay]] | Charles U 2024, Nystrup 2024 | **3/5** | 防御: MaxDD半減 |
+
+**Priority C — 保留/棄却**
+| Edge | Status | Reason |
+|------|--------|--------|
+| Vol smile forecasting | REJECTED | 機関データ必要 |
+| NLP news spillover | REJECTED | NLPインフラ過大 |
+| Dealer inventory | THEORETICAL | リテールでフロー情報なし |
+| Weekend gap MR | WEAK | 1990年代以降効果消失 |
+| regression-channel-mr | REJECTED (audit) | 独立監査で棄却 |
 
 ## Related
 - [[research/index]] — Full paper index

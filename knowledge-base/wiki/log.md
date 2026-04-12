@@ -1,5 +1,18 @@
 # Knowledge Base Change Log
 
+## 2026-04-12: Academic Research Sweep (25 papers → 6 new edges)
+- 3 parallel research agents: Microstructure / Anomalies / Advanced
+- 25 papers reviewed, stored in `raw/papers/research-sweep-2026-04-12.md`
+- 6 new edge hypotheses added to wiki/edges/:
+  - [[session-time-bias]] ★★★★★ (complexity 1/5, highest priority)
+  - [[gotobi-fix]] ★★★★★ (complexity 1/5, integrate with tokyo_nakane)
+  - [[london-fix-reversal]] ★★★★★ (complexity 2/5)
+  - [[vix-carry-unwind]] ★★★★ (low frequency, vol_momentum boost)
+  - [[xs-momentum-dispersion]] ★★★★ (monthly rebalance, GitHub code available)
+  - [[hmm-regime-overlay]] ★★★ (defensive overlay, not alpha)
+- 2 edges REJECTED: vol smile forecasting, NLP news spillover
+- research/index.md fully updated: 32 papers total, 3 unexplored territories remaining
+
 ## 2026-04-12: Changelog + Production Snapshot
 - Created [[changelog]]: バージョン別タイムライン + 評価基準日マトリクス
 - First production snapshot: `raw/trade-logs/snapshot-2026-04-12.md` (250t post-cutoff)
