@@ -37,6 +37,12 @@ from strategies.daytrade.squeeze_release_momentum import SqueezeReleaseMomentum
 from strategies.daytrade.eurgbp_daily_mr import EurgbpDailyMR
 from strategies.daytrade.dt_bb_rsi_mr import DtBbRsiMR
 from strategies.daytrade.liquidity_sweep import LiquiditySweep
+from strategies.daytrade.session_time_bias import SessionTimeBias
+from strategies.daytrade.gotobi_fix import GotobiFix
+from strategies.daytrade.xs_momentum import XsMomentum
+from strategies.daytrade.hmm_regime_filter import HmmRegimeFilter
+from strategies.daytrade.london_fix_reversal import LondonFixReversal
+from strategies.daytrade.vix_carry_unwind import VixCarryUnwind
 
 
 class DaytradeEngine:
@@ -67,6 +73,12 @@ class DaytradeEngine:
             EurgbpDailyMR(),               # EUR/GBP Daily MR: 20日レンジ極値フェード (日足MR)
             DtBbRsiMR(),                   # DT BB RSI MR: 15m BB%B+RSI14+Stoch 平均回帰 (Bollinger 1992)
             LiquiditySweep(),              # Liquidity Sweep: Wick構造ストップ狩りリバーサル (Osler 2003, Kyle 1985)
+            SessionTimeBias(),             # STB: セッション時間帯通貨減価バイアス (Breedon & Ranaldo 2013)
+            GotobiFix(),                   # 五十日仲値: USD/JPY BUY専用 (Bessho 2023, Ito & Yamada 2017)
+            XsMomentum(),                  # XS Momentum: 通貨ペア内正規化モメンタム順張り (Menkhoff 2012)
+            HmmRegimeFilter(),             # HMM Regime: 防御オーバーレイ (Nystrup 2024, シグナル生成なし)
+            LondonFixReversal(),           # LFR: London 4pm Fix後のUSD反転 (Krohn et al. 2024, Melvin & Prins 2015)
+            VixCarryUnwind(),              # VCU: VIXスパイク時キャリートレード巻き戻し (Brunnermeier et al. 2009)
             DtFibReversal(),
             DtSrChannelReversal(),
             Ema200TrendReversal(),

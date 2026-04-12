@@ -5568,6 +5568,13 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "dt_bb_rsi_mr",                  # DT BB RSI MR: 15m BB%B+RSI14+Stoch 平均回帰 (Bollinger 1992)
                 "gold_trend_momentum",           # XAU Trend Momentum: EMA21 PB 順張り (Baur 2010) — Sentinel蓄積中
                 "liquidity_sweep",               # v8.2: Liquidity Sweep: ウィック構造ストップ狩りリバーサル (Osler 2003)
+                # v8.5: 学術文献リサーチ6新エッジ (2026-04-12)
+                "session_time_bias",             # セッション時刻バイアス (Breedon & Ranaldo 2013)
+                "gotobi_fix",                    # 五十日仲値Fix (Bessho 2023)
+                "london_fix_reversal",           # ロンドンFixリバーサル (Krohn 2024)
+                "vix_carry_unwind",              # VIXキャリー巻戻し (Brunnermeier 2009)
+                "xs_momentum",                   # クロスセクション通貨モメンタム (Eriksen 2019)
+                "hmm_regime_filter",             # HMMレジームフィルター (Nystrup 2024)
                 # 2026-04-09 v7.0: 全戦略Sentinel再有効化 — デモデータ蓄積優先
                 "dt_fib_reversal",               # DT Fib反発 — Sentinel蓄積
                 "dt_sr_channel_reversal",         # DT SR/チャネル反発 — Sentinel蓄積

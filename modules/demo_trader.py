@@ -2562,6 +2562,13 @@ class DemoTrader:
             "gold_vol_break",                # ゴールド出来高ブレイク: XAU DT専用 (2026-04-07)
             "gold_trend_momentum",           # ゴールドトレンドモメンタム: XAU EMA21 PB 順張り (Baur 2010) — Sentinel蓄積中
             "liquidity_sweep",               # v8.2: 流動性スイープ: ウィック構造ストップ狩りリバーサル (Osler 2003) — Sentinel蓄積中
+            # v8.5: 学術文献リサーチ6新エッジ (2026-04-12)
+            "session_time_bias",             # セッション時刻バイアス: 自国時間帯通貨減価 (Breedon & Ranaldo 2013)
+            "gotobi_fix",                    # 五十日仲値Fix: USD/JPY BUY (Bessho 2023, Ito & Yamada 2017)
+            "london_fix_reversal",           # ロンドンFixリバーサル: Fix前→Fix後反転 (Krohn 2024)
+            "vix_carry_unwind",              # VIXキャリー巻戻し: VIX急騰→JPY long (Brunnermeier 2009)
+            "xs_momentum",                   # クロスセクション通貨モメンタム (Menkhoff 2012, Eriksen 2019)
+            "hmm_regime_filter",             # HMMレジームフィルター: 防御オーバーレイ (Nystrup 2024)
             # v7.0 Sentinel再有効化 — デモデータ蓄積で再検証 (2026-04-09)
             "post_news_vol",                 # PNV: 指標後ボラ — Sentinel蓄積中
             "dt_fib_reversal",               # DTフィボ反転 — Sentinel蓄積中
@@ -4170,6 +4177,13 @@ class DemoTrader:
         # v8.0: ema_trend_scalp → _STRATEGY_LOT_BOOST 1.5x昇格 (当日最高PnL +$179.6, WR=44.4%)
         "gold_trend_momentum",         # XAU Trend Momentum: 15m EMA21 PB trend-follow — 新規, Sentinel蓄積
         "liquidity_sweep",             # v8.2: Liquidity Sweep: ウィック構造ストップ狩りリバーサル (Osler 2003) — Sentinel蓄積
+        # v8.5: 学術文献リサーチ6新エッジ — 全てSentinel蓄積
+        "session_time_bias",           # セッション時刻バイアス (Breedon & Ranaldo 2013)
+        "gotobi_fix",                  # 五十日仲値Fix (Bessho 2023)
+        "london_fix_reversal",         # ロンドンFixリバーサル (Krohn 2024)
+        "vix_carry_unwind",            # VIXキャリー巻戻し (Brunnermeier 2009)
+        "xs_momentum",                 # クロスセクション通貨モメンタム (Eriksen 2019)
+        "hmm_regime_filter",           # HMMレジームフィルター (Nystrup 2024)
         # v7.0: 全disabled戦略をSentinel再有効化 — デモデータ蓄積優先 (4原則#4)
         "v_reversal",                  # 急落/急騰反転 — BT未検証, Sentinel蓄積
         "ema_pullback",                # EMAプルバック — WR=51.1%, Sentinel蓄積
