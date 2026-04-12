@@ -28,7 +28,7 @@
 |---|---|
 | `wiki/index.md` | 全戦略Tier分類、システム状態、ポートフォリオ |
 | `wiki/strategies/` | 全戦略詳細 + エッジ仮説 + パイプライン（統合済み） |
-| `wiki/concepts/` | 摩擦分析、取引ルール、**system-reference.md（全パラメータ）** |
+| `wiki/analyses/` | 摩擦分析、取引ルール、**system-reference.md（全パラメータ）** |
 | `wiki/decisions/` | 独立監査結果、覆された判断 |
 | `wiki/lessons/` | 過去の間違い・修正・教訓 |
 | `wiki/research/` | 学術文献インデックス（25論文） |
@@ -61,7 +61,7 @@
 - **アーキテクチャ**: OandaClient → OandaBridge(fire-and-forget) → demo_trader.py
 - **Tri-state制御**: LIVE / SENTINEL(0.01lot) / OFF / AUTO
 - **ステータス**: `/api/oanda/status`, `/api/oanda/audit`, `/api/oanda/heartbeat`
-- 詳細: `knowledge-base/wiki/concepts/system-reference.md`
+- 詳細: `knowledge-base/wiki/analyses/system-reference.md`
 
 ## Design Principles
 - **本番環境を常に参照**: 分析・データ取得はRender本番サーバーから
@@ -89,7 +89,7 @@
 | swing | 4h | Disabled |
 
 ## 詳細リファレンス（KB移行済み）
-- **全パラメータ・取引ルール・バージョン履歴**: `knowledge-base/wiki/concepts/system-reference.md`
+- **全パラメータ・取引ルール・バージョン履歴**: `knowledge-base/wiki/analyses/system-reference.md`
 - **バージョン別変更タイムライン**: `knowledge-base/wiki/changelog.md`
 - **BT結果・戦略パフォーマンス**: `knowledge-base/raw/bt-results/`
 - **戦略詳細**: `knowledge-base/wiki/strategies/`

@@ -143,7 +143,9 @@ def check_kb_consistency() -> tuple[list[str], list[str]]:
 
         for md_file in KB_ROOT.rglob("*.md"):
             text = md_file.read_text(encoding="utf-8")
-            links = re.findall(r'\[\[([^\]|#]+)', text)
+            # コードブロック内のwikilinkを除外
+            text_no_code = re.sub(r'```[\s\S]*?```', '', text)
+            links = re.findall(r'\[\[([^\]|#]+)', text_no_code)
             for link in links:
                 link_clean = link.strip()
                 if not link_resolves(link_clean):

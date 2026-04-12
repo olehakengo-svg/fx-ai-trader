@@ -1,5 +1,13 @@
 # Knowledge Base Change Log
 
+## 2026-04-13: KB構造最終整備 (I1-I7)
+- **I1: strategies/edges統合**: edges/全10ファイルをstrategies/に移動、Stage更新
+- **I6: BT自動KB保存**: _save_bt_to_kb()をapp.py /api/backtestに追加
+- **I4/I5: YAGNI空フォルダ削除**: hypotheses/audits/market-analysis/session-transcripts
+- **I2: concepts→analyses改名**: wiki/concepts/→wiki/analyses/、CLAUDE.md参照3箇所更新
+- **I3: decisions充実**: index.md新設、[DECISION:]タグ形式定義、PreCompact候補検出
+- **I7: lessons基準構造化**: 追加基準5項目+テンプレート定義、PreCompact候補検出
+
 ## 2026-04-13: KB信頼性強化 (読み書きフロー + ドリフト検知)
 - **CLAUDE.md Diet**: 760行→98行、詳細を[[system-reference]]に移行
 - **フック分離**: .claude/settings.json埋め込み → scripts/hooks/ に4本抽出
