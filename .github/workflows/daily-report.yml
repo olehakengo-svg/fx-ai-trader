@@ -31,3 +31,14 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: python3 scripts/daily_report.py
+
+      - name: Commit KB report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add knowledge-base/raw/trade-logs/
+          git diff --cached --quiet || {
+            git pull --rebase origin main
+            git commit -m "docs(KB): daily report $(date -u +%Y-%m-%d)"
+            git push
+          }

@@ -215,6 +215,33 @@ def send_discord(webhook_url: str, message: str) -> None:
             print(f"  ⚠️  Discord送信失敗: {e}", file=sys.stderr)
 
 
+def save_to_kb(issues: list[str], diagnosis: str) -> None:
+    """アラート結果をKBに保存（障害履歴の蓄積）。"""
+    kb_dir = ROOT / "knowledge-base" / "raw" / "trade-logs"
+    kb_dir.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc)
+    date_str = now.strftime("%Y-%m-%d")
+    time_str = now.strftime("%H:%M UTC")
+    path = kb_dir / f"{date_str}-monitor.md"
+
+    issue_block = "\n".join(f"- {i}" for i in issues)
+    entry = (
+        f"\n## Alert: {time_str}\n\n"
+        f"### 検出された問題\n{issue_block}\n"
+    )
+    if diagnosis:
+        entry += f"\n### 診断\n{diagnosis}\n"
+
+    try:
+        with open(path, "a", encoding="utf-8") as f:
+            if f.tell() == 0:
+                f.write(f"# Trade Monitor Alerts: {date_str}\n")
+            f.write(entry)
+        print(f"📝 KB保存: {path.relative_to(ROOT)}")
+    except Exception as e:
+        print(f"  ⚠️  KB保存失敗: {e}", file=sys.stderr)
+
+
 def main() -> int:
     status = fetch_json(STATUS_URL)
     logs   = fetch_json(LOGS_URL)
@@ -230,9 +257,12 @@ def main() -> int:
         print("✅ 異常なし")
         return 0
 
-    # 問題あり → 診断 + Discord送信
+    # 問題あり → 診断 + KB保存 + Discord送信
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     diagnosis = diagnose_with_llm(issues, status, logs)
+
+    # KB保存
+    save_to_kb(issues, diagnosis)
 
     issue_block = "\n".join(f"{i}" for i in issues)
     message = (

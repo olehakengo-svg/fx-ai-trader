@@ -9163,7 +9163,7 @@ def api_evaluation():
 # ─────────────────────────────────────────────────────────────────
 # FX ANALYST AGENT — 常駐学習型アナリスト（Claude API + MD記憶）
 # ─────────────────────────────────────────────────────────────────
-_ANALYST_MEMORY_FILE = "fxanalyst_memory.md"
+_ANALYST_MEMORY_FILE = os.path.join("knowledge-base", "raw", "trade-logs", "analyst-memory.md")
 _ANALYST_LOG_MAX     = 50   # MDに記録するアナリストノートの最大行数
 
 def _read_analyst_memory() -> str:
@@ -9181,6 +9181,7 @@ def _append_analyst_note(note: str) -> None:
     """アナリストノートをMDに追記する。"""
     try:
         path = os.path.join(os.path.dirname(__file__), _ANALYST_MEMORY_FILE)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         ts = datetime.now().strftime("%Y-%m-%d %H:%M")
         entry = f"\n### {ts}\n{note}\n"
         with open(path, "a", encoding="utf-8") as f:
