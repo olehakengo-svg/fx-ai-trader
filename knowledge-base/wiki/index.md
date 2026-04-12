@@ -38,7 +38,14 @@ See [[force-demoted-strategies]]
 
 ## Data & Evaluation
 - [[changelog]] -- **バージョン別変更+評価基準日タイムライン** (どの期間で評価すべきか)
-- Latest snapshot: `raw/trade-logs/snapshot-2026-04-12.md`
+- Latest snapshot: `raw/trade-logs/snapshot-2026-04-12.md` (250t post-cutoff)
+- Friday analysis: `raw/trade-logs/2026-04-10-friday.md` (74t, FX黒字+143pip)
+
+### Friday 4/10 Key Finding
+- FX-only: **+143.4 pip (黒字)** / XAU込み: -386.6 pip
+- bb_rsi instant death: **60%** (pre-v8.3: 77.6% → v8.3効果の兆候)
+- stoch_trend_pullback instant death: **50%** (pre: 83% → 改善)
+- fib_reversal instant death: 71% (pre: 75.9% → ほぼ変化なし)
 
 ## Links
 - [[friction-analysis]] -- Per-pair friction, BEV_WR
