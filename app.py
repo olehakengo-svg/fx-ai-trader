@@ -9957,11 +9957,20 @@ def api_backtest_long():
             "result": info.get("result"),
         })
 
-    # POST: start BT
+    # POST: start BT — v8.7: DT/1Hモード対応 + symbol + 期間拡張
     mode = request.args.get("mode", "scalp")
-    days = min(int(request.args.get("days", "30")), 60)  # 最大60日
-    tf = request.args.get("tf", "1m")
-    chunk = int(request.args.get("chunk", "7"))
+    symbol = request.args.get("symbol", "USDJPY=X")
+    tf = request.args.get("tf", "1m" if mode == "scalp" else "15m")
+
+    # モード別デフォルト・上限
+    _mode_defaults = {
+        "scalp": {"days": 30, "max": 60, "chunk": 7},
+        "daytrade": {"days": 120, "max": 365, "chunk": 30},
+        "daytrade_1h": {"days": 120, "max": 365, "chunk": 30},
+    }
+    _cfg = _mode_defaults.get(mode, _mode_defaults["scalp"])
+    days = min(int(request.args.get("days", str(_cfg["days"]))), _cfg["max"])
+    chunk = int(request.args.get("chunk", str(_cfg["chunk"])))
 
     import uuid
     task_id = str(uuid.uuid4())[:8]
@@ -9969,18 +9978,119 @@ def api_backtest_long():
         "status": "queued",
         "progress": "0/0",
         "started_at": datetime.now(timezone.utc).isoformat(),
-        "params": {"mode": mode, "days": days, "tf": tf, "chunk": chunk},
+        "params": {"mode": mode, "symbol": symbol, "days": days, "tf": tf, "chunk": chunk},
     }
 
     import threading as _thr
-    t = _thr.Thread(
-        target=_run_chunked_scalp_bt,
-        args=(task_id, "USDJPY=X", days, chunk, tf),
-        daemon=True,
-    )
+
+    # v8.7: DT/1H用チャンクBT — Scalp既存関数を再利用（内部でrun_daytrade_backtest呼出）
+    def _run_chunked_generic_bt(_task_id, _symbol, _total_days, _chunk_days, _interval, _bt_func):
+        """汎用チャンクBT: scalp/DT/1H共通"""
+        try:
+            import math as _m
+            n_chunks = _m.ceil(_total_days / _chunk_days)
+            all_trades = []
+            total_bars = 0
+            _async_bt_results[_task_id]["status"] = "running"
+            _async_bt_results[_task_id]["progress"] = f"0/{n_chunks}"
+
+            for ci in range(n_chunks):
+                _cdays = min(_chunk_days, _total_days - ci * _chunk_days)
+                if _cdays <= 0:
+                    break
+                try:
+                    _chunk_result = _bt_func(_symbol, lookback_days=_cdays, interval=_interval)
+                    _chunk_trades = _chunk_result.get("trade_log", [])
+                    all_trades.extend(_chunk_trades)
+                    total_bars += _chunk_result.get("bars_fetched", 0)
+                except Exception as _ce:
+                    print(f"[BT-LONG] Chunk {ci+1}/{n_chunks} error: {_ce}", flush=True)
+
+                _async_bt_results[_task_id]["progress"] = f"{ci+1}/{n_chunks}"
+
+            # Aggregate results
+            total = len(all_trades)
+            wins = sum(1 for t in all_trades if t.get("outcome") == "WIN")
+            wr = round(wins / total * 100, 1) if total else 0
+
+            def _pnl_t2(t):
+                return t.get("pnl_atr", t.get("pnl_pips", 0)) or 0
+            pnls = [_pnl_t2(t) for t in all_trades]
+            total_pnl = round(sum(pnls), 1)
+            ev = round(total_pnl / total, 3) if total else 0
+            _dd = 0; _peak = 0; _eq = 0
+            for p in pnls:
+                _eq += p
+                _peak = max(_peak, _eq)
+                _dd = max(_dd, _peak - _eq)
+
+            # Entry breakdown
+            entry_stats = {}
+            for t in all_trades:
+                et = t.get("type", t.get("entry_type", "unknown"))
+                if et not in entry_stats:
+                    entry_stats[et] = {"wins": 0, "total": 0, "pnl": 0.0}
+                entry_stats[et]["total"] += 1
+                entry_stats[et]["pnl"] += _pnl_t2(t)
+                if t.get("outcome") == "WIN":
+                    entry_stats[et]["wins"] += 1
+            for v in entry_stats.values():
+                v["win_rate"] = round(v["wins"] / v["total"] * 100, 1) if v["total"] else 0
+                v["ev"] = round(v["pnl"] / v["total"], 3) if v["total"] else 0
+
+            import numpy as np
+            _sharpe = round(float(np.mean(pnls)) / max(float(np.std(pnls)), 1e-6), 3) if pnls else 0
+
+            _async_bt_results[_task_id].update({
+                "status": "done",
+                "result": {
+                    "mode": mode,
+                    "symbol": _symbol,
+                    "period": f"過去{_total_days}日 ({_interval}足, チャンク{_chunk_days}日)",
+                    "trades": total,
+                    "wins": wins,
+                    "losses": total - wins,
+                    "win_rate": wr,
+                    "expected_value": ev,
+                    "total_pnl": total_pnl,
+                    "max_drawdown": round(_dd, 1),
+                    "sharpe": _sharpe,
+                    "entry_breakdown": entry_stats,
+                    "bars_fetched": total_bars,
+                    "chunks": n_chunks,
+                }
+            })
+        except Exception as e:
+            import traceback
+            _async_bt_results[_task_id].update({
+                "status": "error",
+                "result": {"error": str(e), "traceback": traceback.format_exc()}
+            })
+
+    if mode == "scalp":
+        t = _thr.Thread(
+            target=_run_chunked_scalp_bt,
+            args=(task_id, symbol, days, chunk, tf),
+            daemon=True,
+        )
+    elif mode == "daytrade":
+        t = _thr.Thread(
+            target=_run_chunked_generic_bt,
+            args=(task_id, symbol, days, chunk, "15m", run_daytrade_backtest),
+            daemon=True,
+        )
+    elif mode == "daytrade_1h":
+        t = _thr.Thread(
+            target=_run_chunked_generic_bt,
+            args=(task_id, symbol, days, chunk, "1h", run_1h_backtest),
+            daemon=True,
+        )
+    else:
+        return jsonify({"error": f"Unsupported mode: {mode}"}), 400
+
     t.start()
     return jsonify({"task_id": task_id, "status": "started",
-                     "params": {"days": days, "tf": tf, "chunk": chunk}})
+                     "params": {"mode": mode, "symbol": symbol, "days": days, "tf": tf, "chunk": chunk}})
 
 
 @app.route("/api/strategy-mode", methods=["GET", "POST"])
