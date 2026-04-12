@@ -31,6 +31,9 @@ See [[force-demoted-strategies]]
 - [[xau-stop-rationale]] -- FX profitable without XAU
 - [[mfe-zero-analysis]] -- 90.6% of losses never go favorable
 
+## Session History
+- [[sessions/2026-04-12-session]] — 最新: 6新エッジ実装+学術監査+KB構築
+
 ## Lessons Learned (間違いと教訓)
 - [[lessons/index]] — **過去の間違い・修正・教訓の蓄積** (Shadow汚染, XAU歪み, BT hardcode等)
 - 次のセッション開始時に必ず参照すること
