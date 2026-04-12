@@ -79,9 +79,12 @@ def call_claude(system: str, messages: list[dict], max_tokens: int = 2500) -> st
 
 def load_agent_prompt(name: str) -> str:
     """agents/{name}.md のフロントマター除去後の本文を返す。"""
-    path = ROOT / ".claude" / "agents" / f"{name}.md"
+    # scripts/agents/ (git tracked) を優先、.claude/agents/ にフォールバック
+    path = ROOT / "scripts" / "agents" / f"{name}.md"
     if not path.exists():
-        raise FileNotFoundError(f"{path} が見つかりません")
+        path = ROOT / ".claude" / "agents" / f"{name}.md"
+    if not path.exists():
+        raise FileNotFoundError(f"agents/{name}.md が見つかりません (scripts/agents/ と .claude/agents/ を探索)")
     parts = path.read_text(encoding="utf-8").split("---")
     return (parts[2] if len(parts) >= 3 else parts[-1]).strip()
 
