@@ -5601,6 +5601,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "vix_carry_unwind",              # VIXキャリー巻戻し (Brunnermeier 2009)
                 "xs_momentum",                   # クロスセクション通貨モメンタム (Eriksen 2019)
                 "hmm_regime_filter",             # HMMレジームフィルター (Nystrup 2024)
+                # v8.8: 生データアルファマイニング
+                "vol_spike_mr",                  # Vol Spike MR (BT JPY PF=1.92)
+                "doji_breakout",                 # Doji Breakout (3連続doji→follow)
                 # 2026-04-09 v7.0: 全戦略Sentinel再有効化 — デモデータ蓄積優先
                 "dt_fib_reversal",               # DT Fib反発 — Sentinel蓄積
                 "dt_sr_channel_reversal",         # DT SR/チャネル反発 — Sentinel蓄積

@@ -2612,6 +2612,9 @@ class DemoTrader:
             "vix_carry_unwind",              # VIXキャリー巻戻し: VIX急騰→JPY long (Brunnermeier 2009)
             "xs_momentum",                   # クロスセクション通貨モメンタム (Menkhoff 2012, Eriksen 2019)
             "hmm_regime_filter",             # HMMレジームフィルター: 防御オーバーレイ (Nystrup 2024)
+            # v8.8: 生データアルファマイニング (2026-04-12)
+            "vol_spike_mr",                  # Vol Spike MR: 3x range spike → fade (BT JPY PF=1.92)
+            "doji_breakout",                 # Doji Breakout: 3連続doji → breakout follow
             # v7.0 Sentinel再有効化 — デモデータ蓄積で再検証 (2026-04-09)
             "post_news_vol",                 # PNV: 指標後ボラ — Sentinel蓄積中
             "dt_fib_reversal",               # DTフィボ反転 — Sentinel蓄積中
@@ -4195,6 +4198,8 @@ class DemoTrader:
         # v8.6: BT負EVペアの明示的降格
         ("london_fix_reversal", "USD_JPY"),  # v8.6: BT WR=28.6% EV=-0.752 — Fix効果がJPYで弱い
         ("xs_momentum", "USD_JPY"),          # v8.6: BT EV=-0.129 — 単一ペアモメンタムはJPYで機能せず
+        ("post_news_vol", "USD_JPY"),        # v8.8: 120d BT WR=0% EV=-3.706 — JPYで壊滅的
+        ("ema200_trend_reversal", "USD_JPY"),# v8.8: 120d BT WR=0% EV=-1.887 — JPYで全敗
     }
 
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
@@ -4240,6 +4245,9 @@ class DemoTrader:
         "vix_carry_unwind",            # VIXキャリー巻戻し (Brunnermeier 2009)
         "xs_momentum",                 # クロスセクション通貨モメンタム (Eriksen 2019)
         "hmm_regime_filter",           # HMMレジームフィルター (Nystrup 2024)
+        # v8.8: 生データアルファマイニング
+        "vol_spike_mr",                # Vol Spike MR: JPY PF=1.92 (BT最高PF)
+        "doji_breakout",               # Doji Breakout: 3連続doji→breakout follow
         # v7.0: 全disabled戦略をSentinel再有効化 — デモデータ蓄積優先 (4原則#4)
         "v_reversal",                  # 急落/急騰反転 — BT未検証, Sentinel蓄積
         "ema_pullback",                # EMAプルバック — WR=51.1%, Sentinel蓄積

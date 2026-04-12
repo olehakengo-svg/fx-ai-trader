@@ -43,6 +43,8 @@ from strategies.daytrade.xs_momentum import XsMomentum
 from strategies.daytrade.hmm_regime_filter import HmmRegimeFilter
 from strategies.daytrade.london_fix_reversal import LondonFixReversal
 from strategies.daytrade.vix_carry_unwind import VixCarryUnwind
+from strategies.daytrade.vol_spike_mr import VolSpikeMR
+from strategies.daytrade.doji_breakout import DojiBreakout
 
 
 class DaytradeEngine:
@@ -79,6 +81,8 @@ class DaytradeEngine:
             HmmRegimeFilter(),             # HMM Regime: 防御オーバーレイ (Nystrup 2024, シグナル生成なし)
             LondonFixReversal(),           # LFR: London 4pm Fix後のUSD反転 (Krohn et al. 2024, Melvin & Prins 2015)
             VixCarryUnwind(),              # VCU: VIXスパイク時キャリートレード巻き戻し (Brunnermeier et al. 2009)
+            VolSpikeMR(),                  # Vol Spike MR: ボラスパイク平均回帰 (Osler 2003, USD/JPY専用)
+            DojiBreakout(),                # Doji Breakout: 連続Doji圧縮→ブレイクアウト (Mandelbrot 1963)
             DtFibReversal(),
             DtSrChannelReversal(),
             Ema200TrendReversal(),
