@@ -1,5 +1,12 @@
 # Knowledge Base Change Log
 
+## 2026-04-13: 監査 + レジーム自動化パイプライン (Plan A + Plan B)
+- **Plan A: weekly_audit.py**: 週次/月次ストラテジー監査 → raw/audits/ 自動保存 + Discord
+- **Plan B: /api/market/regime**: OANDA日足→ATR percentile+SMA slope→レジーム分類
+- **daily_report.py拡張**: regime取得→analyst promptに注入→regime KB保存
+- **check.py**: audit staleness検知（>14日で警告）
+- **GitHub Actions**: weekly-audit.yml（日曜JST 11:00、月初は月次）
+
 ## 2026-04-13: KB構造最終整備 (I1-I7)
 - **I1: strategies/edges統合**: edges/全10ファイルをstrategies/に移動、Stage更新
 - **I6: BT自動KB保存**: _save_bt_to_kb()をapp.py /api/backtestに追加

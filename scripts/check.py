@@ -252,7 +252,26 @@ def check_kb_consistency() -> tuple[list[str], list[str]]:
         except Exception:
             pass  # git実行失敗時はスキップ
 
-    # ── 6f. index.md Session History に最新セッションのリンクがあるか ──
+    # ── 6f. Audit staleness: 最終audit > 14日前 ──
+    audits_dir = KB_ROOT / "raw" / "audits"
+    if audits_dir.exists():
+        audit_files = sorted(audits_dir.glob("*.md"), reverse=True)
+        if audit_files:
+            # ファイル名から日付を抽出 (e.g. 2026-04-20-weekly.md)
+            newest_audit_m = re.match(r'(\d{4}-\d{2}-\d{2})', audit_files[0].stem)
+            if newest_audit_m:
+                from datetime import timedelta
+                audit_date = date.fromisoformat(newest_audit_m.group(1))
+                days_since = (date.today() - audit_date).days
+                if days_since > 14:
+                    warns.append(
+                        f"  ⚠️  KB: 最終audit {audit_files[0].name}"
+                        f" ({days_since}日前) — 週次監査が遅延"
+                    )
+        else:
+            warns.append("  ℹ️  KB: raw/audits/ にauditファイルなし（初回監査待ち）")
+
+    # ── 6g. index.md Session History に最新セッションのリンクがあるか ──
     if index.exists() and sessions_dir and sessions_dir.exists():
         session_files = sorted(sessions_dir.glob("*.md"), reverse=True)
         if session_files:

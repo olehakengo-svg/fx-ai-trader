@@ -33,7 +33,10 @@
 | `wiki/lessons/` | 過去の間違い・修正・教訓 |
 | `wiki/research/` | 学術文献インデックス（25論文） |
 | `wiki/sessions/` | セッションログ（時系列作業記録） |
-| `raw/` | BT結果、トレードログ、論文サマリ |
+| `raw/bt-results/` | BT結果（自動保存） |
+| `raw/trade-logs/` | daily report、analyst-memory |
+| `raw/audits/` | 週次/月次ストラテジー監査（自動） |
+| `raw/market-analysis/` | 日次レジームスナップショット（自動） |
 
 ### KB運用ルール
 - **CLAUDE.mdは150行以内のスキーマとして維持** — 詳細はKBに書く

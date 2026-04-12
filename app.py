@@ -11308,6 +11308,90 @@ def api_oanda_live():
     return jsonify(result)
 
 
+@app.route("/api/market/regime")
+def api_market_regime():
+    """市場レジーム分類API — 各ペアのATR percentile + トレンド判定を返す。
+    weekly_audit.py / daily_report.py から呼び出される。
+    """
+    from modules.data import _get_oanda_client, _OANDA_SYMBOLS
+    client = _get_oanda_client()
+    if not client or not client.configured:
+        return jsonify({"error": "OANDA not configured", "pairs": {}})
+
+    REGIME_PAIRS = ["USD_JPY", "EUR_USD", "GBP_USD", "EUR_JPY", "GBP_JPY"]
+    results = {}
+
+    for instrument in REGIME_PAIRS:
+        try:
+            ok, data = client.get_candles(
+                instrument=instrument, granularity="D", count=60, price="M"
+            )
+            if not ok or not data.get("candles"):
+                results[instrument] = {"error": "candle fetch failed"}
+                continue
+
+            candles = [c for c in data["candles"] if c.get("complete", True)]
+            if len(candles) < 20:
+                results[instrument] = {"error": f"insufficient candles: {len(candles)}"}
+                continue
+
+            closes = [float(c["mid"]["c"]) for c in candles]
+            highs = [float(c["mid"]["h"]) for c in candles]
+            lows = [float(c["mid"]["l"]) for c in candles]
+
+            # ATR計算 (True Range の平均)
+            trs = []
+            for i in range(1, len(candles)):
+                tr = max(
+                    highs[i] - lows[i],
+                    abs(highs[i] - closes[i - 1]),
+                    abs(lows[i] - closes[i - 1]),
+                )
+                trs.append(tr)
+
+            atr_14 = sum(trs[-14:]) / 14 if len(trs) >= 14 else sum(trs) / len(trs)
+            atr_5 = sum(trs[-5:]) / 5 if len(trs) >= 5 else atr_14
+
+            # ATR percentile (直近値 vs 過去60日分)
+            atr_pctile_5d = sum(1 for t in trs if t <= atr_5) / len(trs) * 100
+            atr_pctile_20d = sum(1 for t in trs if t <= atr_14) / len(trs) * 100
+
+            # SMA20 slope (正規化)
+            sma_20 = sum(closes[-20:]) / 20
+            sma_20_prev = sum(closes[-25:-5]) / 20 if len(closes) >= 25 else sma_20
+            slope = (sma_20 - sma_20_prev) / sma_20 if sma_20 > 0 else 0
+
+            # レジーム分類
+            if atr_pctile_5d > 75:
+                regime = "VOLATILE"
+            elif abs(slope) > 0.005:
+                regime = "TRENDING_UP" if slope > 0 else "TRENDING_DOWN"
+            else:
+                regime = "RANGING"
+
+            # 直近5日のレンジ
+            range_5d = max(highs[-5:]) - min(lows[-5:])
+
+            results[instrument] = {
+                "regime": regime,
+                "atr_14": round(atr_14, 5),
+                "atr_5": round(atr_5, 5),
+                "atr_pctile_5d": round(atr_pctile_5d, 1),
+                "atr_pctile_20d": round(atr_pctile_20d, 1),
+                "sma20_slope": round(slope, 5),
+                "range_5d": round(range_5d, 5),
+                "last_close": closes[-1],
+                "candle_count": len(candles),
+            }
+        except Exception as e:
+            results[instrument] = {"error": str(e)}
+
+    return jsonify({
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "pairs": results,
+    })
+
+
 @app.route("/oanda-analysis")
 def oanda_analysis_page():
     return render_template("oanda_analysis.html")

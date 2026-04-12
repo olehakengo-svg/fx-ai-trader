@@ -31,6 +31,7 @@ PRODUCTION_APIS = {
     "trades": "https://fx-ai-trader.onrender.com/api/demo/trades?limit=300",
     "oanda":  "https://fx-ai-trader.onrender.com/api/oanda/status",
     "risk":   "https://fx-ai-trader.onrender.com/api/risk/dashboard",
+    "regime": "https://fx-ai-trader.onrender.com/api/market/regime",
 }
 
 FIDELITY_CUTOFF = "2026-04-08T00:00:00+00:00"
@@ -123,6 +124,13 @@ def run_analyst(data: dict) -> str:
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     kb_ctx = load_kb_context()
     kb_section = f"\n\n### KB蓄積知見（Tier分類・教訓・未解決事項）\n{kb_ctx}" if kb_ctx else ""
+
+    # レジームコンテキスト
+    regime_data = data.get("regime", {})
+    regime_section = ""
+    if regime_data and regime_data.get("pairs"):
+        regime_section = f"\n\n### MARKET REGIME（レジーム分類）\n{json.dumps(regime_data, ensure_ascii=False, indent=2)[:2000]}"
+
     user_msg = f"""以下は本日（{now}）の本番システムデータです。
 Fidelity Cutoff（{FIDELITY_CUTOFF}）以降のみ有効として分析してください。
 
@@ -136,12 +144,14 @@ Fidelity Cutoff（{FIDELITY_CUTOFF}）以降のみ有効として分析してく
 {json.dumps(data.get("oanda", {}), ensure_ascii=False, indent=2)[:1000]}
 
 ### RISK DASHBOARD
-{json.dumps(data.get("risk", {}), ensure_ascii=False, indent=2)[:2000]}{kb_section}
+{json.dumps(data.get("risk", {}), ensure_ascii=False, indent=2)[:2000]}{regime_section}{kb_section}
 
 ---
 定型レポート（戦略別N/WR/EV、block_counts主因、OANDA転送率、Sentinel進捗）と
 クオンツ見解（最重要シグナル・構造的観察・推奨アクション）を生成してください。
-KB蓄積知見がある場合、過去の教訓や未解決事項を踏まえた分析を含めてください。"""
+KB蓄積知見がある場合、過去の教訓や未解決事項を踏まえた分析を含めてください。
+レジームデータがある場合、現在のレジームが各戦略に与える影響を言語化してください
+（例: 「bb_rsiが負けたのはRANGING→TRENDING移行のため」）。"""
 
     return call_claude(load_agent_prompt("analyst"), [{"role": "user", "content": user_msg}])
 
@@ -285,6 +295,46 @@ def update_analyst_memory(date_str: str, analyst_report: str) -> None:
         print(f"  ⚠️  Analyst Memory更新失敗: {e}", file=sys.stderr)
 
 
+def save_regime_to_kb(date_str: str, regime_data: dict) -> None:
+    """市場レジームスナップショットをKBに自動保存。"""
+    if not regime_data or not regime_data.get("pairs"):
+        return
+    kb_dir = ROOT / "knowledge-base" / "raw" / "market-analysis"
+    kb_dir.mkdir(parents=True, exist_ok=True)
+    path = kb_dir / f"{date_str}-regime.md"
+
+    lines = [f"# Market Regime: {date_str}\n"]
+    lines.append(f"**Timestamp**: {regime_data.get('ts', 'N/A')}\n")
+    lines.append("## Pair Regime Classification")
+    lines.append("| Pair | Regime | ATR%ile(5d) | ATR%ile(20d) | SMA20 Slope | Range(5d) | Last Close |")
+    lines.append("|------|--------|-------------|-------------|-------------|-----------|------------|")
+
+    for pair, info in sorted(regime_data.get("pairs", {}).items()):
+        if "error" in info:
+            lines.append(f"| {pair} | ERROR | - | - | - | - | {info['error']} |")
+            continue
+        lines.append(
+            f"| {pair} | **{info['regime']}** "
+            f"| {info['atr_pctile_5d']:.0f}% "
+            f"| {info['atr_pctile_20d']:.0f}% "
+            f"| {info['sma20_slope']:+.4f} "
+            f"| {info['range_5d']:.4f} "
+            f"| {info['last_close']} |"
+        )
+
+    lines.append("")
+    lines.append("## Related")
+    lines.append("- [[edge-pipeline]]")
+    lines.append("- [[changelog]]")
+    lines.append("")
+
+    try:
+        path.write_text("\n".join(lines), encoding="utf-8")
+        print(f"📝 Regime KB保存: {path.relative_to(ROOT)}")
+    except Exception as e:
+        print(f"  ⚠️  Regime KB保存失敗: {e}", file=sys.stderr)
+
+
 def main() -> int:
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     webhook = os.environ.get("DISCORD_WEBHOOK_URL")
@@ -314,6 +364,9 @@ def main() -> int:
 
     # Step 3.5: KB自動保存
     save_to_kb(date_str, analyst_report, strategy_report)
+
+    # Step 3.5b: レジームスナップショットKB保存
+    save_regime_to_kb(date_str, data.get("regime", {}))
 
     # Step 3.6: Analyst Memory更新（永続フィードバックループ）
     update_analyst_memory(date_str, analyst_report)

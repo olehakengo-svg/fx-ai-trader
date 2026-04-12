@@ -1,0 +1,57 @@
+name: Weekly Strategy Audit
+
+on:
+  schedule:
+    # 毎週日曜 JST 11:00 = UTC 02:00
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      audit_type:
+        description: 'Audit type (weekly or monthly)'
+        required: false
+        default: 'weekly'
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Determine audit type
+        id: audit-type
+        run: |
+          # 月初(1-7日)の日曜なら monthly、それ以外は weekly
+          DAY=$(date -u +%d)
+          INPUT_TYPE="${{ github.event.inputs.audit_type }}"
+          if [ -n "$INPUT_TYPE" ]; then
+            echo "type=$INPUT_TYPE" >> $GITHUB_OUTPUT
+          elif [ "$DAY" -le 7 ]; then
+            echo "type=monthly" >> $GITHUB_OUTPUT
+          else
+            echo "type=weekly" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run audit
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: python3 scripts/weekly_audit.py ${{ steps.audit-type.outputs.type }}
+
+      - name: Commit KB audit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add knowledge-base/raw/audits/
+          git diff --cached --quiet || {
+            git pull --rebase origin main
+            git commit -m "docs(KB): ${{ steps.audit-type.outputs.type }} audit $(date -u +%Y-%m-%d)"
+            git push
+          }
