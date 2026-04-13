@@ -115,59 +115,110 @@ def check_trade_activity(status: dict, trades: dict) -> list[str]:
 
 
 def check_strategy_performance() -> list[str]:
-    """v8.9: 戦略別リアルタイムEV追跡 — 好調/不調を即時検知してDiscord通知。
-    ユーザーが毎回確認しなくても、有望戦略の浮上と毒性戦略の悪化を自動検知。"""
+    """v8.9: 自動改善パイプライン — 5パターンの問題を人間の指摘なしで検知。
+    auto-improvement-pipeline.md の設計に基づく実装。
+
+    Pattern 1: TPが遠すぎて利確できない (MFE到達率)
+    Pattern 2: 特定時間帯で全敗
+    Pattern 3: Quick Harvest適用済みなのにWR<30%
+    Pattern 4: MFE=0即死 (エントリー方向の問題)
+    Pattern 5: Shadowデータから正EV浮上 (復帰候補)
+    + 好調/毒性の基本検知
+    """
     notifications = []
     try:
-        # 戦略×ペア別
+        # ── 基本: 戦略×ペア別EV追跡 ──
         d = fetch_json(f"{FACTORS_URL}?factors=strategy,instrument&min_n=5")
         cells = d.get("cells", [])
-        if not cells:
-            return []
-
         for c in cells:
-            strat = c.get("strategy", "?")
-            inst = c.get("instrument", "?")
-            n = c.get("n", 0)
-            wr = c.get("wr", 0)
-            ev = c.get("ev", 0)
-            kelly = c.get("kelly", 0)
-            pnl = c.get("pnl", 0)
-
-            # 🟢 好調戦略の通知 (N≥10, EV>+1.0, Kelly>+20%)
+            strat, inst = c.get("strategy", "?"), c.get("instrument", "?")
+            n, wr, ev, kelly, pnl = (c.get("n", 0), c.get("wr", 0),
+                                      c.get("ev", 0), c.get("kelly", 0), c.get("pnl", 0))
             if n >= 10 and ev > 1.0 and kelly > 20:
                 notifications.append(
                     f"🟢 **{strat}×{inst} 好調** — N={n} WR={wr:.1f}% "
                     f"EV={ev:+.2f} Kelly={kelly:+.1f}% PnL={pnl:+.1f}pip"
                 )
-
-            # 🔴 急速悪化の通知 (N≥15, EV<-1.5)
             if n >= 15 and ev < -1.5:
                 notifications.append(
                     f"🔴 **{strat}×{inst} 毒性** — N={n} WR={wr:.1f}% "
                     f"EV={ev:+.2f} PnL={pnl:+.1f}pip → ブロック検討"
                 )
+            # Pattern 3: QH適用済み(非exempt)なのにWR<30% → 方向が根本的に間違い
+            if n >= 10 and wr < 30:
+                notifications.append(
+                    f"⚠️ **{strat}×{inst} WR壊滅** — N={n} WR={wr:.1f}% "
+                    f"→ SL/TP/方向の根本見直し or FORCE_DEMOTED検討"
+                )
 
-        # 時間帯×ペア別 (NY時間の好調を検知)
+        # ── Pattern 2: 時間帯×戦略で全敗検知 ──
         d2 = fetch_json(f"{FACTORS_URL}?factors=strategy,hour&min_n=5")
-        cells2 = d2.get("cells", [])
-        for c in cells2:
-            strat = c.get("strategy", "?")
-            hour = c.get("hour", "?")
-            n = c.get("n", 0)
-            ev = c.get("ev", 0)
-            pnl = c.get("pnl", 0)
-
-            # 特定時間帯で好調 (N≥5, EV>+1.5)
+        for c in d2.get("cells", []):
+            strat, hour = c.get("strategy", "?"), c.get("hour", "?")
+            n, ev, pnl = c.get("n", 0), c.get("ev", 0), c.get("pnl", 0)
             if n >= 5 and ev > 1.5:
                 notifications.append(
                     f"⏰ **{strat} H{hour} 好調** — N={n} EV={ev:+.2f} PnL={pnl:+.1f}pip"
                 )
+            if n >= 5 and ev < -2.0:
+                notifications.append(
+                    f"🕐 **{strat} H{hour} 時間帯毒性** — N={n} EV={ev:+.2f} "
+                    f"PnL={pnl:+.1f}pip → 時間帯ブロック検討"
+                )
 
-    except Exception as e:
-        # factors APIが落ちていても他の監視は止めない
+        # ── Pattern 1 & 4: MFE分析 (トレード個別データから) ──
+        trades_d = fetch_json(TRADES_URL)
+        trade_list = trades_d.get("trades", [])
+        from collections import defaultdict
+        strat_mfe = defaultdict(lambda: {"total_loss": 0, "mfe_zero": 0,
+                                          "tp_miss": 0, "has_mfe": 0})
+        for t in trade_list:
+            if t.get("is_shadow", 0) or t.get("outcome") != "LOSS":
+                continue
+            et = t.get("entry_type", "?")
+            mfe = t.get("mafe_favorable_pips", 0) or 0
+            strat_mfe[et]["total_loss"] += 1
+            if mfe == 0 or mfe < 0.5:
+                strat_mfe[et]["mfe_zero"] += 1
+            if mfe > 2.0:
+                # Pattern 1: 利益方向に動いたのに負けた = TP遠すぎ or SL狭すぎ
+                strat_mfe[et]["tp_miss"] += 1
+            if mfe > 0:
+                strat_mfe[et]["has_mfe"] += 1
+
+        for et, m in strat_mfe.items():
+            total = m["total_loss"]
+            if total < 5:
+                continue
+            # Pattern 4: MFE=0即死率
+            mfe0_rate = m["mfe_zero"] / total * 100
+            if mfe0_rate >= 80:
+                notifications.append(
+                    f"💀 **{et} 即死率{mfe0_rate:.0f}%** — {m['mfe_zero']}/{total}件が"
+                    f"MFE=0 → エントリー方向/タイミングの根本問題"
+                )
+            # Pattern 1: TP未達反転率
+            if m["has_mfe"] >= 3:
+                tp_miss_rate = m["tp_miss"] / total * 100
+                if tp_miss_rate >= 50:
+                    notifications.append(
+                        f"📏 **{et} TP未達反転{tp_miss_rate:.0f}%** — {m['tp_miss']}/{total}件が"
+                        f"MFE>2pipなのにLOSS → TP縮小 or QH強化を検討"
+                    )
+
+        # ── Pattern 5: Shadow正EV浮上 (復帰候補) ──
+        d5 = fetch_json(f"{FACTORS_URL}?factors=strategy,instrument&min_n=10&include_shadow=1")
+        for c in d5.get("cells", []):
+            strat, inst = c.get("strategy", "?"), c.get("instrument", "?")
+            n, ev, kelly = c.get("n", 0), c.get("ev", 0), c.get("kelly", 0)
+            if n >= 20 and ev > 0.5 and kelly > 10:
+                notifications.append(
+                    f"🔄 **{strat}×{inst} Shadow復帰候補** — N={n} EV={ev:+.2f} "
+                    f"Kelly={kelly:+.1f}% → PROMOTE検討"
+                )
+
+    except Exception:
         pass
-
     return notifications
 
 

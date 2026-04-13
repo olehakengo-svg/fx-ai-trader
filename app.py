@@ -11469,11 +11469,12 @@ def api_demo_factors():
     min_n = int(request.args.get("min_n", 5))
     factors_str = request.args.get("factors", "strategy,instrument")
     factor_names = [f.strip() for f in factors_str.split(",") if f.strip()]
+    include_shadow = request.args.get("include_shadow", "0") == "1"
 
     closed = _demo_db.get_all_closed()
-    # FX-only, non-shadow, post-cutoff
+    # FX-only, post-cutoff, shadow optional (Pattern 5: Shadow復帰検知用)
     trades = [t for t in closed
-              if not t.get("is_shadow", 0)
+              if (include_shadow or not t.get("is_shadow", 0))
               and "XAU" not in (t.get("instrument", "") or "")
               and (t.get("entry_time", "") or "") >= date_from]
 
