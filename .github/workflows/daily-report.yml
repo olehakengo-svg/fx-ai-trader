@@ -2,12 +2,15 @@ name: Daily Trading Report
 
 on:
   schedule:
-    # JST 09:00 = UTC 00:00 (毎朝マーケット前)
-    # JST 17:00 = UTC 08:00 (ロンドン前夜・1日の振り返り)
-    - cron: '0 0 * * 1-5'   # 平日朝 JST 09:00
-    - cron: '0 8 * * 1-5'   # 平日夕 JST 17:00
-  workflow_dispatch:          # 手動トリガー（いつでも実行可）
+    # セッションベース3回/日（平日のみ）
+    - cron: '0 0 * * 1-5'    # Pre-Tokyo:   UTC 00:00 = JST 09:00
+    - cron: '0 6 * * 1-5'    # Post-Tokyo:  UTC 06:00 = JST 15:00
+    - cron: '0 16 * * 1-5'   # Post-London: UTC 16:00 = JST 01:00(翌日)
+  workflow_dispatch:
     inputs:
+      session:
+        description: 'Session (pre_tokyo, post_tokyo, post_london) — empty for auto-detect'
+        required: false
       note:
         description: '追加コンテキスト（任意）'
         required: false
@@ -35,9 +38,11 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: python3 scripts/daily_report.py
+          DISCORD_ERROR_WEBHOOK_URL: ${{ secrets.DISCORD_ERROR_WEBHOOK_URL }}
+        run: python3 scripts/daily_report.py ${{ github.event.inputs.session }}
 
       - name: Commit KB report
+        id: kb-commit
         continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
@@ -49,3 +54,19 @@ jobs:
             git commit -m "docs(KB): daily report $(date -u +%Y-%m-%d)"
             git push
           }
+
+      - name: Notify KB commit result
+        if: always()
+        env:
+          DISCORD_ERROR_WEBHOOK_URL: ${{ secrets.DISCORD_ERROR_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DISCORD_ERROR_WEBHOOK_URL" ]; then exit 0; fi
+          if [ "${{ steps.kb-commit.outcome }}" = "success" ]; then
+            MSG="✅ **KB Commit** daily-report $(date -u +%Y-%m-%d) — git push 成功"
+          else
+            MSG="❌ **KB Commit FAILED** daily-report $(date -u +%Y-%m-%d) — git push 失敗。手動確認が必要"
+          fi
+          curl -s -X POST "$DISCORD_ERROR_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -H "User-Agent: FX-KB-Monitor/1.0" \
+            -d "{\"content\": \"$MSG\"}" || true

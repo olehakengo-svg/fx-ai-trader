@@ -76,6 +76,23 @@ def call_claude(system: str, messages: list[dict], max_tokens: int = 4000) -> st
     return resp["content"][0]["text"]
 
 
+def send_error_notification(message: str) -> None:
+    """#error-report チャンネルにパイプライン状態を通知。"""
+    webhook = os.environ.get("DISCORD_ERROR_WEBHOOK_URL")
+    if not webhook:
+        return
+    payload = json.dumps({"content": message[:1900]}).encode()
+    req = urllib.request.Request(
+        webhook,
+        data=payload,
+        headers={"Content-Type": "application/json", "User-Agent": "FX-KB-Monitor/1.0"},
+    )
+    try:
+        urllib.request.urlopen(req, timeout=10)
+    except Exception as e:
+        print(f"  \u26a0\ufe0f  Error\u901a\u77e5\u9001\u4fe1\u5931\u6557: {e}", file=sys.stderr)
+
+
 def send_discord_block(webhook_url: str, title: str, body: str) -> None:
     """タイトル付きブロックを Discord に分割送信する。"""
     full = f"{title}\n\n{body}"
@@ -258,6 +275,10 @@ def main() -> int:
 
     # Step 2.5: KB自動保存
     save_to_kb(date_str, audit_report, audit_type)
+    send_error_notification(
+        f"\u2705 **KB Save** ({audit_type} audit {date_str})\n"
+        f"- audits/{date_str}-{audit_type}.md"
+    )
 
     # Step 3: Discord送信 or 標準出力
     header = f"🔍 **【{audit_type.title()} Audit {date_str}】** — 戦略×ペア監査"

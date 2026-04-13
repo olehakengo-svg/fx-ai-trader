@@ -25,9 +25,11 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DISCORD_ERROR_WEBHOOK_URL: ${{ secrets.DISCORD_ERROR_WEBHOOK_URL }}
         run: python3 scripts/trade_monitor.py || true
 
       - name: Commit KB alerts
+        id: kb-commit
         continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
@@ -38,3 +40,19 @@ jobs:
             git commit -m "docs(KB): monitor alert $(date -u +%Y-%m-%d)"
             git push
           }
+
+      - name: Notify KB commit result
+        if: always()
+        env:
+          DISCORD_ERROR_WEBHOOK_URL: ${{ secrets.DISCORD_ERROR_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DISCORD_ERROR_WEBHOOK_URL" ]; then exit 0; fi
+          if [ "${{ steps.kb-commit.outcome }}" = "success" ]; then
+            MSG="✅ **KB Commit** trade-monitor $(date -u +%Y-%m-%d) — git push 成功"
+          else
+            MSG="❌ **KB Commit FAILED** trade-monitor $(date -u +%Y-%m-%d) — git push 失敗"
+          fi
+          curl -s -X POST "$DISCORD_ERROR_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -H "User-Agent: FX-KB-Monitor/1.0" \
+            -d "{\"content\": \"$MSG\"}" || true
