@@ -25,10 +25,11 @@ if [[ -n "$LATEST_SESSION" ]]; then
     UNRESOLVED=$(grep -A 15 '## 未解決事項' "$LATEST_SESSION" 2>/dev/null | head -15 | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
 fi
 
-# Lessons要約（先頭10行）
+# Lessons — 実際の教訓を抽出（ヘッダーではなく教訓本文）
 LESSONS=""
 if [[ -f "$KB/lessons/index.md" ]]; then
-    LESSONS=$(head -10 "$KB/lessons/index.md" 2>/dev/null | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
+    # 「教訓:」行を抽出 → 実際の学びのみ注入（ヘッダー/テンプレートを除外）
+    LESSONS=$(grep -E '^- 教訓:' "$KB/lessons/index.md" 2>/dev/null | grep -v '一文で一般化' | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
 fi
 
 # Session log更新リマインド

@@ -22,6 +22,16 @@
             "statusMessage": "Wiki update detected..."
           }
         ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/hooks/post-strategy-edit-check.sh\"",
+            "statusMessage": "Strategy change check..."
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [

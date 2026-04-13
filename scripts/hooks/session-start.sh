@@ -12,7 +12,8 @@ LATEST_SESSION=$(ls -t "$KB/sessions/"*.md 2>/dev/null | head -1 || true)
 INDEX=$(head -60 "$KB/index.md" 2>/dev/null | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
 UNRESOLVED_LABEL=$(basename "${LATEST_SESSION:-unknown}" .md 2>/dev/null || echo "unknown")
 UNRESOLVED=$(grep -A 50 '## 未解決事項' "$LATEST_SESSION" 2>/dev/null | head -20 | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
-LESSONS=$(head -25 "$KB/lessons/index.md" 2>/dev/null | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
+# 教訓の実文を抽出（head -25はヘッダーのみで実際の教訓が0件だった）
+LESSONS=$(grep -E '^- 教訓:|^### \[\[lesson-' "$KB/lessons/index.md" 2>/dev/null | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
 
 DAILY_FILE=$(ls -t "$ROOT/knowledge-base/raw/trade-logs/"*-daily.md 2>/dev/null | head -1 || true)
 DAILY=""
