@@ -3554,6 +3554,11 @@ class DemoTrader:
         # ── v7.0: Shadow Tracking — OANDAには絶対に送信しない ──
         if _is_shadow:
             _is_promoted = False
+        # ── v8.9: FORCE_DEMOTED/PAIR_DEMOTED がフィルターを全通過した場合も
+        #    is_shadow=True にする。OANDAに送信されないトレードはshadowとしてマーク
+        #    → エクイティ曲線から除外、統計から除外される
+        if not _is_promoted and not _is_shadow:
+            _is_shadow = True
         # ── v6.4 SHIELD: EUR_USD DT/1H OANDA遮断 (scalp継続) ──
         # v7.0: ホワイトリスト戦略はSHIELD免除 (MR系高EV, N<10 Safety で自動Sentinel)
         if _is_promoted and mode in self._OANDA_MODE_BLOCKED:
