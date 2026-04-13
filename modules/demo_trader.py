@@ -4494,6 +4494,10 @@ class DemoTrader:
         ("ema_trend_scalp", "EUR_USD"),     # N=8 WR=25.0% EV=-0.94 Kelly=-16.3%
         ("engulfing_bb", "EUR_USD"),        # N=9 WR=11.1% EV=-1.42 Kelly=-28.4%
         ("trend_rebound", "EUR_USD"),       # N=6 WR=16.7% EV=-1.85 Kelly=-43.0%
+        # v8.9: alpha scan #2 2026-04-14 — 追加毒性セル
+        ("dt_bb_rsi_mr", "EUR_USD"),         # N=8 WR=25.0% EV=-2.83 Kelly=-50.0%
+        ("bb_rsi_reversion", "EUR_USD"),     # N=21 WR=33.3% EV=-0.76 Kelly=-20.2%
+        ("stoch_trend_pullback", "USD_JPY"), # N=23 WR=30.4% EV=-0.69 Kelly=-15.1%
     }
 
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
