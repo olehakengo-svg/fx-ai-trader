@@ -1505,7 +1505,8 @@ class DemoTrader:
 
             # ── OANDA連携: トレーリングSL変更をミラー ──
             if sl != _original_sl:
-                self._oanda.modify_sl(trade_id, sl, instrument=_inst)
+                if not self._oanda.modify_sl_sync(trade_id, sl, instrument=_inst):
+                    sl = _original_sl  # OANDA失敗時はSLを元に戻す
 
             # ── v8.9: 含み益リアルタイム検知 (0.5秒ループ内) ──
             # 大幅含み益のDiscord通知 + Shadow含み益警告
@@ -1591,14 +1592,14 @@ class DemoTrader:
                         new_sl = round(price + _pe_trail_50, _pip_decimals)
                         if new_sl < sl:
                             sl = new_sl
-                    self._db.update_sl_tp(trade_id, sl, tp)
-                    self._oanda.modify_sl(trade_id, sl, instrument=_inst)
-                    self._add_log(
-                        f"🚀 [v6.4] 50% TP Extender: {trade_id} ({_entry_type_pe}) "
-                        f"ADX={_pe_adx_entry:.1f}>30 → TP200%={tp:.{_pip_decimals}f} "
-                        f"Trail={_pe_trail_50*(100 if 'JPY' in _inst or 'XAU' in _inst else 10000):.1f}pip"
-                    )
-                    _should_extend_tp = True
+                    if self._oanda.modify_sl_sync(trade_id, sl, instrument=_inst):
+                        self._db.update_sl_tp(trade_id, sl, tp)
+                        self._add_log(
+                            f"🚀 [v6.4] 50% TP Extender: {trade_id} ({_entry_type_pe}) "
+                            f"ADX={_pe_adx_entry:.1f}>30 → TP200%={tp:.{_pip_decimals}f} "
+                            f"Trail={_pe_trail_50*(100 if 'JPY' in _inst or 'XAU' in _inst else 10000):.1f}pip"
+                        )
+                        _should_extend_tp = True
 
             # ══════════════════════════════════════════════════════════════
             # ── v6.4: Risk-Free Pyramiding ──
@@ -1692,14 +1693,14 @@ class DemoTrader:
                             new_sl = round(price + _pe_trail_dt, _pip_decimals)
                             if new_sl < sl:
                                 sl = new_sl
-                        self._db.update_sl_tp(trade_id, sl, tp)
-                        self._oanda.modify_sl(trade_id, sl, instrument=_inst)
-                        self._add_log(
-                            f"🚀 DT Profit Extender: {trade_id} ({_entry_type_pe}) "
-                            f"TP+50% (ADX={_pe_adx_val:.1f}>{_pe_adx_dt}) → "
-                            f"新TP={tp:.{_pip_decimals}f}"
-                        )
-                        _should_extend_tp = True
+                        if self._oanda.modify_sl_sync(trade_id, sl, instrument=_inst):
+                            self._db.update_sl_tp(trade_id, sl, tp)
+                            self._add_log(
+                                f"🚀 DT Profit Extender: {trade_id} ({_entry_type_pe}) "
+                                f"TP+50% (ADX={_pe_adx_val:.1f}>{_pe_adx_dt}) → "
+                                f"新TP={tp:.{_pip_decimals}f}"
+                            )
+                            _should_extend_tp = True
 
             if _entry_type_pe == "confluence_scalp" and (_tp_hit_buy or _tp_hit_sell):
                 _mss = self._mss_tracker.get(trade_id)
@@ -1724,15 +1725,15 @@ class DemoTrader:
                             new_sl = round(price + _pe_trail, _pip_decimals)
                             if new_sl < sl:
                                 sl = new_sl
-                        # SL/TP変更をDBに反映
-                        self._db.update_sl_tp(trade_id, sl, tp)
-                        self._oanda.modify_sl(trade_id, sl, instrument=_inst)
-                        self._add_log(
-                            f"🚀 Profit Extender: {trade_id} TP延伸 "
-                            f"(MSB+ADX={_mss.get('adx', 0):.1f}>{_pe_adx_cs}) → "
-                            f"新TP={tp:.{_pip_decimals}f} Trail={_pe_trail*(100 if 'JPY' in _inst or 'XAU' in _inst else 10000):.1f}pip"
-                        )
-                        _should_extend_tp = True
+                        # SL/TP変更をDBに反映 (OANDA成功時のみ)
+                        if self._oanda.modify_sl_sync(trade_id, sl, instrument=_inst):
+                            self._db.update_sl_tp(trade_id, sl, tp)
+                            self._add_log(
+                                f"🚀 Profit Extender: {trade_id} TP延伸 "
+                                f"(MSB+ADX={_mss.get('adx', 0):.1f}>{_pe_adx_cs}) → "
+                                f"新TP={tp:.{_pip_decimals}f} Trail={_pe_trail*(100 if 'JPY' in _inst or 'XAU' in _inst else 10000):.1f}pip"
+                            )
+                            _should_extend_tp = True
                 elif trade_id in self._profit_extended:
                     # 既にTP延伸済み → トレイリング継続 (Tier2と同じだが狭い)
                     _pe_atr = self._entry_atr.get(trade_id, 0.07 if "JPY" in _inst or "XAU" in _inst else 0.00070)
@@ -1740,13 +1741,13 @@ class DemoTrader:
                     if direction == "BUY":
                         new_sl = round(price - _pe_trail, _pip_decimals)
                         if new_sl > sl:
-                            sl = new_sl
-                            self._oanda.modify_sl(trade_id, sl, instrument=_inst)
+                            if self._oanda.modify_sl_sync(trade_id, new_sl, instrument=_inst):
+                                sl = new_sl
                     else:
                         new_sl = round(price + _pe_trail, _pip_decimals)
                         if new_sl < sl:
-                            sl = new_sl
-                            self._oanda.modify_sl(trade_id, sl, instrument=_inst)
+                            if self._oanda.modify_sl_sync(trade_id, new_sl, instrument=_inst):
+                                sl = new_sl
 
             # ── Climax Exit (Confluence Scalp v2) ──
             # TP延伸中にクライマックス検出 → 即利確
@@ -2412,7 +2413,12 @@ class DemoTrader:
                     else:
                         current_price = _ba["bid"]
             except Exception:
-                pass  # フォールバック: シグナルのmid価格をそのまま使用
+                pass
+            # フォールバック: bid/ask取得失敗時はrealtime価格を使用
+            if current_price <= 0:
+                _fb = self._get_realtime_price(instrument, cfg.get("symbol", "USDJPY=X"))
+                if _fb and _fb > 0:
+                    current_price = _fb
 
         # ══════════════════════════════════════════════════════════════
         # ── MTF連携: 15m DT シグナル → 1m Scalp バイアス更新 ──
