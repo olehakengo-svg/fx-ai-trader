@@ -41,8 +41,16 @@ PRODUCTION_APIS = {
     "status": "https://fx-ai-trader.onrender.com/api/demo/status",
     "trades": f"https://fx-ai-trader.onrender.com/api/demo/trades?limit=500&date_from={FIDELITY_CUTOFF[:10]}&status=closed",
     "oanda":  "https://fx-ai-trader.onrender.com/api/oanda/status",
+    "oanda_audit": "https://fx-ai-trader.onrender.com/api/oanda/audit",
     "risk":   "https://fx-ai-trader.onrender.com/api/risk/dashboard",
     "regime": "https://fx-ai-trader.onrender.com/api/market/regime",
+}
+
+# セッション時間帯（UTC）
+SESSION_TIME_RANGES = {
+    "pre_tokyo":   (None, None),           # 全期間（前日総括）
+    "post_tokyo":  ("00:00", "06:00"),     # UTC 00:00-06:00 = JST 09:00-15:00
+    "post_london": ("07:00", "16:00"),     # UTC 07:00-16:00 = JST 16:00-01:00
 }
 
 
@@ -183,6 +191,268 @@ def call_claude(system: str, messages: list[dict], max_tokens: int = 2500) -> st
     with urllib.request.urlopen(req, timeout=90) as r:
         resp = json.loads(r.read().decode())
     return resp["content"][0]["text"]
+
+
+# ── データ前処理（lesson-raw-json-to-llm: 生JSONをLLMに渡さない） ──
+
+def preprocess_trades(data: dict, session: str) -> str:
+    """トレードデータをPython側で集計し、LLMに渡す判断材料テーブルを生成。"""
+    trades_raw = data.get("trades", {})
+    trades = trades_raw.get("trades", [])
+    if not trades:
+        return "### TRADES\nトレードデータなし（API取得失敗またはトレード0件）\n"
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    # Shadow/XAU除外
+    fx_trades = [t for t in trades if t.get("is_shadow", 0) == 0
+                 and "XAU" not in t.get("instrument", "")]
+    xau_trades = [t for t in trades if t.get("is_shadow", 0) == 0
+                  and "XAU" in t.get("instrument", "")]
+
+    # セッション時間帯フィルタ
+    time_range = SESSION_TIME_RANGES.get(session, (None, None))
+    session_trades = []
+    if time_range[0] is not None:
+        for t in fx_trades:
+            exit_time = t.get("exit_time", "") or t.get("entry_time", "")
+            if not exit_time:
+                continue
+            # HH:MM部分を抽出してフィルタ
+            try:
+                hour_str = exit_time[11:16]  # "HH:MM"
+                if time_range[0] <= hour_str < time_range[1]:
+                    session_trades.append(t)
+            except (IndexError, TypeError):
+                continue
+    else:
+        session_trades = fx_trades  # pre_tokyo: 全期間
+
+    sections = []
+
+    # 1. 全体サマリー
+    total_n = len(fx_trades)
+    total_pnl = sum(t.get("pnl_pips", 0) for t in fx_trades)
+    wins = sum(1 for t in fx_trades if t.get("outcome") == "WIN")
+    total_wr = (wins / total_n * 100) if total_n > 0 else 0
+    sections.append(
+        f"### 全体サマリー（Cutoff後, Shadow除外, XAU別枠）\n"
+        f"| N | WR% | PnL(pips) |\n|---|---|---|\n"
+        f"| {total_n} | {total_wr:.1f}% | {total_pnl:+.1f} |\n"
+    )
+
+    # 2. 戦略×ペア集計テーブル
+    from collections import defaultdict
+    strat_pair = defaultdict(lambda: {"n": 0, "wins": 0, "pnl": 0.0})
+    for t in fx_trades:
+        key = (t.get("entry_type", "unknown"), t.get("instrument", "unknown"))
+        strat_pair[key]["n"] += 1
+        if t.get("outcome") == "WIN":
+            strat_pair[key]["wins"] += 1
+        strat_pair[key]["pnl"] += t.get("pnl_pips", 0)
+
+    rows = []
+    for (strat, pair), s in sorted(strat_pair.items(), key=lambda x: -x[1]["n"]):
+        wr = (s["wins"] / s["n"] * 100) if s["n"] > 0 else 0
+        ev = s["pnl"] / s["n"] if s["n"] > 0 else 0
+        rows.append(f"| {strat} | {pair} | {s['n']} | {wr:.1f}% | {ev:+.2f} | {s['pnl']:+.1f} |")
+    sections.append(
+        "### 戦略×ペア マトリクス（Cutoff後全期間）\n"
+        "| Strategy | Pair | N | WR% | EV | PnL |\n"
+        "|---|---|---|---|---|---|\n" + "\n".join(rows) + "\n"
+    )
+
+    # 3. セッション別トレード（post_tokyo/post_london）
+    if time_range[0] is not None:
+        sess_n = len(session_trades)
+        sess_pnl = sum(t.get("pnl_pips", 0) for t in session_trades)
+        sess_wins = sum(1 for t in session_trades if t.get("outcome") == "WIN")
+        sess_wr = (sess_wins / sess_n * 100) if sess_n > 0 else 0
+        sections.append(
+            f"### セッション内トレード（UTC {time_range[0]}-{time_range[1]}）\n"
+            f"| N | WR% | PnL(pips) |\n|---|---|---|\n"
+            f"| {sess_n} | {sess_wr:.1f}% | {sess_pnl:+.1f} |\n"
+        )
+        if session_trades:
+            detail_rows = []
+            for t in session_trades[-20:]:  # 最新20件
+                detail_rows.append(
+                    f"| {t.get('entry_type','')} | {t.get('instrument','')} "
+                    f"| {t.get('direction','')} | {t.get('outcome','')} "
+                    f"| {t.get('pnl_pips', 0):+.1f} | {t.get('close_reason','')} |"
+                )
+            sections.append(
+                "### セッション内トレード詳細（最新20件）\n"
+                "| Strategy | Pair | Dir | Outcome | PnL | Reason |\n"
+                "|---|---|---|---|---|---|\n" + "\n".join(detail_rows) + "\n"
+            )
+        else:
+            sections.append("セッション内トレード: なし\n")
+
+    # 4. 本日トレード詳細（pre_tokyoの場合は前日分）
+    if session == "pre_tokyo":
+        # 前日のトレードを抽出
+        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+        yesterday_trades = [t for t in fx_trades
+                           if (t.get("exit_time", "") or "")[:10] == yesterday]
+        if yesterday_trades:
+            yd_n = len(yesterday_trades)
+            yd_pnl = sum(t.get("pnl_pips", 0) for t in yesterday_trades)
+            yd_wins = sum(1 for t in yesterday_trades if t.get("outcome") == "WIN")
+            yd_wr = (yd_wins / yd_n * 100) if yd_n > 0 else 0
+            sections.append(
+                f"### 前日トレード（{yesterday}）\n"
+                f"| N | WR% | PnL(pips) |\n|---|---|---|\n"
+                f"| {yd_n} | {yd_wr:.1f}% | {yd_pnl:+.1f} |\n"
+            )
+            detail_rows = []
+            for t in yesterday_trades[-20:]:
+                detail_rows.append(
+                    f"| {t.get('entry_type','')} | {t.get('instrument','')} "
+                    f"| {t.get('direction','')} | {t.get('outcome','')} "
+                    f"| {t.get('pnl_pips', 0):+.1f} | {t.get('close_reason','')} "
+                    f"| {t.get('spread_at_entry', 0):.1f} |"
+                )
+            sections.append(
+                "### 前日トレード詳細\n"
+                "| Strategy | Pair | Dir | Outcome | PnL | Reason | Spread |\n"
+                "|---|---|---|---|---|---|---|\n" + "\n".join(detail_rows) + "\n"
+            )
+
+    # 5. XAU別枠
+    if xau_trades:
+        xau_n = len(xau_trades)
+        xau_pnl = sum(t.get("pnl_pips", 0) for t in xau_trades)
+        sections.append(f"### XAU別枠\n| N | PnL(pips) |\n|---|---|\n| {xau_n} | {xau_pnl:+.1f} |\n")
+
+    return "\n".join(sections)
+
+
+def preprocess_oanda(data: dict) -> str:
+    """OANDAステータス+約定監査を集計テーブルに変換。"""
+    sections = []
+
+    # OANDAステータス
+    oanda = data.get("oanda", {})
+    if oanda:
+        hb = oanda.get("heartbeat", {})
+        audit_sum = oanda.get("audit_summary", {})
+        sections.append(
+            f"### OANDA接続状況\n"
+            f"| Active | NAV | Balance | Latency | Open Trades |\n"
+            f"|---|---|---|---|---|\n"
+            f"| {oanda.get('active', 'N/A')} "
+            f"| {hb.get('nav', 'N/A')} "
+            f"| {hb.get('balance', 'N/A')} "
+            f"| {hb.get('latency_ms', 'N/A')}ms "
+            f"| {hb.get('open_trade_count', 'N/A')} |\n"
+        )
+        if audit_sum:
+            sections.append(
+                f"### OANDA転送率\n"
+                f"| Total | Live(SENT) | Demo Only(SKIP) | Live Rate |\n"
+                f"|---|---|---|---|\n"
+                f"| {audit_sum.get('recent_total', 0)} "
+                f"| {audit_sum.get('live', 0)} "
+                f"| {audit_sum.get('demo_only', 0)} "
+                f"| {audit_sum.get('live_ratio', 'N/A')} |\n"
+            )
+
+    # OANDA約定監査 — block_reason集計
+    audit_data = data.get("oanda_audit", {})
+    audit_entries = audit_data.get("audit", [])
+    if audit_entries:
+        from collections import Counter
+        block_reasons = Counter()
+        bridge_statuses = Counter()
+        for e in audit_entries:
+            bridge_statuses[e.get("bridge_status", "unknown")] += 1
+            reason = e.get("block_reason", "")
+            if reason:
+                block_reasons[reason] += 1
+
+        # bridge_status集計
+        bs_rows = [f"| {status} | {count} |" for status, count in bridge_statuses.most_common()]
+        sections.append(
+            "### OANDA Bridge Status\n"
+            "| Status | Count |\n|---|---|\n" + "\n".join(bs_rows) + "\n"
+        )
+
+        # block_reason TOP 10
+        if block_reasons:
+            br_rows = [f"| {reason} | {count} |" for reason, count in block_reasons.most_common(10)]
+            sections.append(
+                "### OANDA Block Reasons (TOP 10)\n"
+                "| Reason | Count |\n|---|---|\n" + "\n".join(br_rows) + "\n"
+            )
+
+    return "\n".join(sections) if sections else "### OANDA\nOANDAデータ取得不可\n"
+
+
+def preprocess_regime(data: dict) -> str:
+    """レジームデータを簡潔なテーブルに変換。"""
+    regime_data = data.get("regime", {})
+    if not regime_data or not regime_data.get("pairs"):
+        return ""
+    rows = []
+    for pair, info in sorted(regime_data.get("pairs", {}).items()):
+        if "error" in info:
+            rows.append(f"| {pair} | ERROR | - | - | - |")
+            continue
+        rows.append(
+            f"| {pair} | {info['regime']} "
+            f"| {info.get('atr_pctile_20d', 0):.0f}% "
+            f"| {info.get('sma20_slope', 0):+.5f} "
+            f"| {info.get('last_close', 'N/A')} |"
+        )
+    return (
+        "### レジーム分類\n"
+        "| Pair | Regime | ATR%ile(20d) | SMA20 Slope | Last Close |\n"
+        "|---|---|---|---|---|\n" + "\n".join(rows) + "\n"
+    )
+
+
+def preprocess_status(data: dict) -> str:
+    """ステータスデータからblock_countsなど重要指標を抽出。"""
+    status = data.get("status", {})
+    if not status:
+        return "### STATUS\nステータスデータ取得不可\n"
+    sections = []
+
+    # モード別ステータス
+    modes = status.get("modes", {})
+    if modes:
+        mode_rows = []
+        for mode_name, mode_info in sorted(modes.items()):
+            running = mode_info.get("running", False)
+            trades = mode_info.get("trades_count", 0)
+            mode_rows.append(f"| {mode_name} | {'ON' if running else 'OFF'} | {trades} |")
+        sections.append(
+            "### モード別ステータス\n"
+            "| Mode | Running | Trades |\n|---|---|---|\n" + "\n".join(mode_rows) + "\n"
+        )
+
+    # block_counts
+    block_counts = status.get("block_counts", {})
+    if block_counts:
+        bc_rows = [f"| {k} | {v} |" for k, v in
+                   sorted(block_counts.items(), key=lambda x: -x[1])[:15]]
+        sections.append(
+            "### Block Counts (TOP 15)\n"
+            "| Reason | Count |\n|---|---|\n" + "\n".join(bc_rows) + "\n"
+        )
+
+    # DD防御
+    dd = status.get("dd", status.get("drawdown", {}))
+    if dd:
+        sections.append(
+            f"### DD防御\n"
+            f"| DD% | Lot Mult | EQ Peak | EQ Current |\n|---|---|---|---|\n"
+            f"| {dd.get('dd_pct', 'N/A')}% | {dd.get('lot_mult', 'N/A')}x "
+            f"| {dd.get('eq_peak', 'N/A')} | {dd.get('eq_current', 'N/A')} |\n"
+        )
+
+    return "\n".join(sections) if sections else f"### STATUS\n{json.dumps(status, ensure_ascii=False, indent=2)[:1500]}\n"
 
 
 # ── エージェントプロンプト読み込み ──────────────────────
@@ -331,12 +601,6 @@ def run_analyst(data: dict, session: str = "pre_tokyo",
     kb_ctx = load_kb_context()
     kb_section = f"\n\n### KB蓄積知見（Tier分類・教訓・未解決事項）\n{kb_ctx}" if kb_ctx else ""
 
-    # レジームコンテキスト
-    regime_data = data.get("regime", {})
-    regime_section = ""
-    if regime_data and regime_data.get("pairs"):
-        regime_section = f"\n\n### MARKET REGIME（レジーム分類）\n{json.dumps(regime_data, ensure_ascii=False, indent=2)[:2000]}"
-
     session_prompt = SESSION_ANALYST_ADDITIONS.get(session, SESSION_ANALYST_ADDITIONS["pre_tokyo"])
 
     # パイプライン健全性警告（Claudeに自己診断結果を認識させる）
@@ -348,28 +612,27 @@ def run_analyst(data: dict, session: str = "pre_tokyo",
             + "\n".join(f"- {w}" for w in health_warnings)
         )
 
-    user_msg = f"""以下は本番システムデータです（{now}）。
-Fidelity Cutoff（{FIDELITY_CUTOFF}）以降のみ有効として分析してください。
+    # データ前処理（lesson-raw-json-to-llm: LLMには集計済みテーブルを渡す）
+    trades_table = preprocess_trades(data, session)
+    oanda_table = preprocess_oanda(data)
+    regime_table = preprocess_regime(data)
+    status_table = preprocess_status(data)
 
-### STATUS
-{json.dumps(data.get("status", {}), ensure_ascii=False, indent=2)[:3000]}
+    user_msg = f"""以下は本番システムの**事前集計済みデータ**です（{now}）。
+Fidelity Cutoff: {FIDELITY_CUTOFF}
+※テーブルはPython側でis_shadow=0 & XAU別枠で集計済み。数値はそのまま使用可能。
 
-### TRADES（直近500件・Cutoff後closedのみ）
-{json.dumps(data.get("trades", {}), ensure_ascii=False, indent=2)[:5000]}
-
-### OANDA
-{json.dumps(data.get("oanda", {}), ensure_ascii=False, indent=2)[:1000]}
-
-### RISK DASHBOARD
-{json.dumps(data.get("risk", {}), ensure_ascii=False, indent=2)[:2000]}{regime_section}{kb_section}{health_section}
+{status_table}
+{trades_table}
+{oanda_table}
+{regime_table}{kb_section}{health_section}
 
 ---
-## 分析ルール（厳守）
-1. **is_shadow=1のトレードは全て除外**して集計（Shadow=デモ専用、OANDAに送信されない）
-2. **XAU/Gold関連トレードは別枠で集計**（FX統計に混ぜない — lesson-xau-friction-distortion参照）
-3. **Risk Dashboardの集計値は参考値のみ**（pre-cutoff+XAU含む。必ずTRADESデータから自分で再計算する）
-4. tradesデータは既にFidelity Cutoff以降のclosedのみに絞り込み済み
-5. 戦略別N/WR/EVは必ず自分で計算してテーブル化する（「集計不能」は許容しない）
+## 分析ルール
+1. 上記テーブルの数値は集計済み — 再計算不要。テーブルをそのまま引用してよい
+2. テーブルにない洞察（課題分析・レジーム影響・推奨アクション）に注力すること
+3. OANDAのBlock ReasonsとBridge Statusからデモ/本番の乖離を分析すること
+4. 学術文献の引用は不要 — 実データに基づく判断のみ
 {session_prompt}"""
 
     return call_claude(load_agent_prompt("analyst"), [{"role": "user", "content": user_msg}])
