@@ -24,8 +24,9 @@ echo "[pre-commit] Checking declaration tracker..."
 TODAY=$(date +%Y-%m-%d)
 SESSION_FILE="$REPO_ROOT/knowledge-base/wiki/sessions/${TODAY}-session.md"
 if [[ -f "$SESSION_FILE" ]]; then
-    PENDING=$(grep -c '^\- \[ \].*🔊' "$SESSION_FILE" 2>/dev/null || echo 0)
-    if [[ "$PENDING" -gt 0 ]]; then
+    PENDING=$(grep -c '^\- \[ \].*🔊' "$SESSION_FILE" 2>/dev/null || true)
+    PENDING=${PENDING:-0}
+    if [[ "$PENDING" =~ ^[0-9]+$ ]] && [[ "$PENDING" -gt 0 ]]; then
         echo ""
         echo "⚠️  未完了の宣言が${PENDING}件あります:"
         grep '^\- \[ \].*🔊' "$SESSION_FILE" 2>/dev/null | head -5
