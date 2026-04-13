@@ -2377,16 +2377,24 @@ class DemoTrader:
             _block(f"direction_filter"); return
 
         # ══════════════════════════════════════════════════════════════
-        # ── v7.0: Shadow Tracking — 観測データ最大化 ──
+        # ── v7.0/v8.9: Shadow Tracking — 観測データ最大化 ──
         # FORCE_DEMOTED/Sentinel戦略は OANDA送信されない → フィルター緩和して
         # デモデータを収集。is_shadow=True でマークし学習エンジンから除外。
         # OANDA送信ロジック (_is_promoted) は一切変更しない。
+        #
+        # v8.9: _is_shadow_eligible を2段階に分離
+        #   _is_shadow_eligible_full: 全フィルター(active_hours,regime等)のバイパス対象
+        #   _is_slot_shadow_eligible: スロット制約(max_per_mode_pair,hedge,max_open)のみバイパス
+        #     → 全戦略がスロット制約をバイパスしてshadow入り可能
+        #     → スロットが空いていればnormal(OANDA送信可)、埋まっていればshadowで入る
         # ══════════════════════════════════════════════════════════════
-        _is_shadow_eligible = (
+        _is_shadow_eligible_full = (
             entry_type in self._FORCE_DEMOTED
             or entry_type in self._SCALP_SENTINEL
             or entry_type in self._UNIVERSAL_SENTINEL
         )
+        _is_shadow_eligible = _is_shadow_eligible_full  # 後方互換 (他のbypassはこれを参照)
+        _is_slot_shadow_eligible = True  # v8.9: 全戦略がスロットbypass可能
         _is_shadow = False  # 実際にフィルターをバイパスした場合にTrueになる
 
         # ── 通貨ペア×モードクラス別ポジション制限 ──
@@ -2396,19 +2404,45 @@ class DemoTrader:
         _base_mode = _get_base_mode(mode)
         _mode_limits = {"scalp": 2, "daytrade": 1, "daytrade_1h": 1, "swing": 1}
         _mode_limit = _mode_limits.get(_base_mode, 1)
+        # v8.9: Shadow trades は non-shadow のみカウント（スロット占有しない）
         _mode_inst_trades = [t for t in open_trades
                             if t.get("instrument", "USD_JPY") == instrument
-                            and _get_base_mode(t.get("mode", "")) == _base_mode]
+                            and _get_base_mode(t.get("mode", "")) == _base_mode
+                            and not t.get("is_shadow", False)]
         if len(_mode_inst_trades) >= _mode_limit:
-            _block(f"max_per_mode_pair({_base_mode}/{instrument}:{len(_mode_inst_trades)}/{_mode_limit})"); return
+            if _is_slot_shadow_eligible:
+                _is_shadow = True
+                self._add_log(
+                    f"[SHADOW] Slot bypass: {entry_type} {mode}/{instrument} "
+                    f"({len(_mode_inst_trades)}/{_mode_limit} → shadow)"
+                )
+            else:
+                _block(f"max_per_mode_pair({_base_mode}/{instrument}:{len(_mode_inst_trades)}/{_mode_limit})"); return
         # ── 同一ペア逆方向ヘッジ防止 (2026-04-06 audit fix) ──
         # scalp limit=2 でもBUY+SELL同時保有はスプレッド二重消費 → ブロック
+        # v8.9: Shadow trades はヘッジブロックも免除（デモデータ収集目的）
+        _hedge_blocked = False
         for _ot in _mode_inst_trades:
             if _ot.get("direction") and _ot["direction"] != signal:
-                _block(f"hedge_block({_base_mode}/{instrument}:{_ot['direction']}vs{signal})"); return
+                _hedge_blocked = True; break
+        if _hedge_blocked:
+            if _is_slot_shadow_eligible:
+                _is_shadow = True
+                self._add_log(
+                    f"[SHADOW] Hedge bypass: {entry_type} {mode}/{instrument} → shadow"
+                )
+            else:
+                _block(f"hedge_block({_base_mode}/{instrument}:{signal})"); return
         # グローバル安全上限（全通貨ペア・全モード合計）
-        if len(open_trades) >= self._params["max_open_trades"]:
-            _block("max_open"); return
+        # v8.9: Shadow trades は別上限 (max_open + 8) — N蓄積を優先しつつメモリ保護
+        _max_open = self._params["max_open_trades"]
+        _shadow_max = _max_open + 8
+        _n_open = len(open_trades)
+        if _n_open >= _max_open:
+            if _is_slot_shadow_eligible and _n_open < _shadow_max:
+                _is_shadow = True
+            else:
+                _block(f"max_open({_n_open}/{_max_open})"); return
         if signal == "WAIT":
             return  # WAITはカウントしない（大半がWAIT）
         if self._check_drawdown():
@@ -4196,6 +4230,9 @@ class DemoTrader:
         "engulfing_bb",      # v8.0: 本番N=7 WR=14.3% PnL=-$353.5 — 壊滅的、即時停止
         "bb_squeeze_breakout",  # v8.2: BT EV=-0.799 ATR, ブレイクアウト直後の最大スプレッドと重なり構造的赤字
         "sr_channel_reversal",  # v8.9: Post-cut N=17 WR=11.8% 即死率87.5% — BEV下回り確定(p=0.009)
+        # v8.9: EV分解で確定的負EV — UNIVERSAL_SENTINEL→FORCE_DEMOTED格上げ
+        "stoch_trend_pullback",  # Post-cut N=19 WR=31.6% EV=-0.97 PnL=-18.5 全ペアで負
+        "dt_bb_rsi_mr",          # Post-cut N=7(EUR) WR=14.3% EV=-4.09 PnL=-28.6
     }
 
     # ── Elite Track: 摩擦モデルv2 BT + v5.95統合BT監査 ──
@@ -4250,12 +4287,14 @@ class DemoTrader:
         ("xs_momentum", "USD_JPY"),          # v8.6: BT EV=-0.129 — 単一ペアモメンタムはJPYで機能せず
         ("post_news_vol", "USD_JPY"),        # v8.8: 120d BT WR=0% EV=-3.706 — JPYで壊滅的
         ("ema200_trend_reversal", "USD_JPY"),# v8.8: 120d BT WR=0% EV=-1.887 — JPYで全敗
+        # v8.9: EV分解で確定的負EV
+        ("bb_rsi_reversion", "USD_JPY"),    # Post-cut N=76 WR=38.2% EV=-0.28 Kelly=-5.5% — Tier1→降格
     }
 
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
     # v6.8: sr_fib_confluence PAIR_PROMOTED全削除 (本番N=40 WR=28.9% -92.8pip, BT乖離確定)
     _PAIR_PROMOTED = {
-        ("bb_rsi_reversion", "USD_JPY"),    # v6.3: 本番N=123 WR=54.7% +54.8pip 唯一の正PFアルファ
+        # REMOVED: bb_rsi_reversion×USD_JPY → PAIR_DEMOTED (v8.9: Post-cut N=76 WR=38.2% EV=-0.28 Kelly=-5.5%)
         # v8.2: orb_trap 全3ペア PAIR_PROMOTED — BT最強根拠 (N<10 Sentinel免除)
         # BT: JPY WR=79.3% EV=+0.617 / EUR WR=71.4% EV=+0.482 / GBP WR=64.3% EV=+0.245
         # margin +40-50pp over BEV_WR — 全戦略中最大の摩擦マージン
@@ -4281,10 +4320,10 @@ class DemoTrader:
 
     # 全モードSentinel: scalp以外にも適用される戦略Sentinel
     _UNIVERSAL_SENTINEL = {
-        "stoch_trend_pullback",        # 全ペアEVマイナス → 全モードSentinel (14d BT)
+        # REMOVED: stoch_trend_pullback → FORCE_DEMOTED (v8.9: Post-cut N=19 WR=31.6% EV=-0.97)
         "squeeze_release_momentum",    # SRM v3: BT N=24 WR=66.7% OOS未確定 → Sentinel蓄積 (2026-04-08)
         "eurgbp_daily_mr",             # EUR/GBP Daily MR: 日足レンジ極値フェード — BT未実施, Sentinel蓄積
-        "dt_bb_rsi_mr",                # DT BB RSI MR: 15m BB+RSI14 平均回帰 — 新規, Sentinel蓄積
+        # REMOVED: dt_bb_rsi_mr → FORCE_DEMOTED (v8.9: Post-cut N=7 WR=14.3% EV=-4.09)
         # v8.0: ema_trend_scalp → _STRATEGY_LOT_BOOST 1.5x昇格 (当日最高PnL +$179.6, WR=44.4%)
         "gold_trend_momentum",         # XAU Trend Momentum: 15m EMA21 PB trend-follow — 新規, Sentinel蓄積
         "liquidity_sweep",             # v8.2: Liquidity Sweep: ウィック構造ストップ狩りリバーサル (Osler 2003) — Sentinel蓄積
