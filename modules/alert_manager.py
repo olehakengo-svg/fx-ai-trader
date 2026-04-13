@@ -30,6 +30,10 @@ class AlertManager:
     """Discord Webhook ベースの外部アラートシステム"""
 
     _COOLDOWN_SEC = 300   # 同一タイプの再送クールダウン (5分)
+    # アラートタイプ別クールダウン上書き — 高頻度ブロックは長めに抑制
+    _COOLDOWN_OVERRIDES = {
+        "exposure": 14400,   # 4時間 — 評価サイクル毎に発火するため
+    }
 
     def __init__(self):
         self._webhook_url: str = os.environ.get("DISCORD_WEBHOOK_URL", "")
@@ -61,7 +65,13 @@ class AlertManager:
         with self._lock:
             last = self._rate_limit.get(alert_type, 0)
             now = time.time()
-            if now - last < self._COOLDOWN_SEC:
+            # アラートタイプのプレフィックスで上書きクールダウンを検索
+            cooldown = self._COOLDOWN_SEC
+            for prefix, override in self._COOLDOWN_OVERRIDES.items():
+                if alert_type.startswith(prefix):
+                    cooldown = override
+                    break
+            if now - last < cooldown:
                 return False
             self._rate_limit[alert_type] = now
             return True
