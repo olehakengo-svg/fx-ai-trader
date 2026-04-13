@@ -4195,6 +4195,7 @@ class DemoTrader:
         "sr_break_retest",   # v7.0: N=2 EV=-21.4 PnL=-42.8 → 1件で全利益消失クラス
         "engulfing_bb",      # v8.0: 本番N=7 WR=14.3% PnL=-$353.5 — 壊滅的、即時停止
         "bb_squeeze_breakout",  # v8.2: BT EV=-0.799 ATR, ブレイクアウト直後の最大スプレッドと重なり構造的赤字
+        "sr_channel_reversal",  # v8.9: Post-cut N=17 WR=11.8% 即死率87.5% — BEV下回り確定(p=0.009)
     }
 
     # ── Elite Track: 摩擦モデルv2 BT + v5.95統合BT監査 ──
