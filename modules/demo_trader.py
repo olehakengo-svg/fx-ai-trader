@@ -4358,6 +4358,12 @@ class DemoTrader:
     _QUICK_HARVEST_MULT = 0.85      # v6.8: 0.70→0.85 (DT WIN 7件の19.2pip利益漏出修復)
     _QUICK_HARVEST_EXEMPT = frozenset({
         ("gbp_deep_pullback", "GBP_USD"),   # 高WR戦略は全TP許可
+        # v8.9: 方向性DT戦略はTP短縮不要（4-6h保有、BT WR=65-77%でTP到達率が高い）
+        ("session_time_bias", "USD_JPY"),
+        ("session_time_bias", "EUR_USD"),
+        ("session_time_bias", "GBP_USD"),
+        ("london_fix_reversal", "GBP_USD"),
+        ("vix_carry_unwind", "USD_JPY"),    # イベント戦略、TP到達が前提
     })
     _FIDELITY_CUTOFF = "2026-04-08T00:00:00+00:00"  # v6.3後のみ評価 (UTC明示)
     # v6.4: 50% TP到達時のTP延伸対象 (トレンドフォロー戦略のみ)
@@ -4369,6 +4375,12 @@ class DemoTrader:
         "trendline_sweep", "sr_break_retest",
         "adx_trend_continuation", "ema_cross",
         "squeeze_release_momentum",
+        # v8.9: 新戦略追加
+        "session_time_bias",         # セッションドリフト — トレンド継続時のTP延伸が有効
+        "vol_spike_mr",              # スパイク回帰 — 回帰幅が大きい場合のTP延伸
+        "london_fix_reversal",       # Fix後リバーサル — Fix効果の持続時に延伸
+        "vix_carry_unwind",          # キャリー巻戻し — イベント駆動で大幅延伸が有効
+        "xs_momentum",               # モメンタム — トレンド継続時の利益最大化
     })
 
     def _is_promoted(self, entry_type: str, instrument: str = "") -> bool:
