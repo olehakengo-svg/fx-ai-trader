@@ -293,6 +293,92 @@ def _build_trade_detail(trades: list, title: str, limit: int = 20) -> str:
     )
 
 
+def preprocess_bt_divergence(data: dict) -> str:
+    """v8.9: BT/本番乖離テーブル — 最新BTファイルとライブデータを比較。
+    戦略×ペア粒度でWR/EV乖離を計算し、>20ppを⚠️フラグ。
+    """
+    import os, re
+    from collections import defaultdict
+    bt_dir = os.path.join(os.path.dirname(__file__), "..", "knowledge-base", "raw", "bt-results")
+    if not os.path.isdir(bt_dir):
+        return ""
+    # 最新BTファイルを検索
+    bt_files = sorted([f for f in os.listdir(bt_dir) if f.endswith(".md")], reverse=True)
+    if not bt_files:
+        return ""
+    bt_path = os.path.join(bt_dir, bt_files[0])
+    try:
+        with open(bt_path) as f:
+            bt_content = f.read()
+    except Exception:
+        return ""
+    # BTテーブルからWR/EVを抽出 (format: | strategy | WR | EV | ...)
+    bt_metrics = {}  # (strategy, pair) -> {"wr": float, "ev": float, "n": int}
+    # パース: "### PAIR (Nt, WR=X%, ...)" セクション内のテーブル行
+    current_pair = None
+    for line in bt_content.split("\n"):
+        pair_match = re.match(r"###?\s+(USD_JPY|EUR_USD|GBP_USD|EUR_JPY)", line)
+        if pair_match:
+            current_pair = pair_match.group(1)
+            continue
+        if current_pair and line.startswith("|") and not line.startswith("|-") and not line.startswith("| Strategy"):
+            cols = [c.strip() for c in line.split("|")]
+            if len(cols) >= 5:
+                strat = cols[1].strip() if len(cols) > 1 else ""
+                if not strat or strat == "Strategy" or strat.startswith("--"):
+                    continue
+                try:
+                    wr_str = cols[2].replace("%", "").strip() if len(cols) > 2 else "0"
+                    ev_str = cols[3].replace("★", "").strip() if len(cols) > 3 else "0"
+                    wr = float(wr_str) if wr_str and wr_str != "—" else 0
+                    ev = float(ev_str) if ev_str and ev_str != "—" else 0
+                    n_str = re.search(r"(\d+)", cols[4]) if len(cols) > 4 else None
+                    n = int(n_str.group(1)) if n_str else 0
+                    bt_metrics[(strat, current_pair)] = {"wr": wr, "ev": ev, "n": n}
+                except (ValueError, IndexError):
+                    continue
+    if not bt_metrics:
+        return ""
+    # ライブデータ集計
+    trades_raw = data.get("trades", {})
+    trades = trades_raw.get("trades", [])
+    fx_trades = [t for t in trades if t.get("is_shadow", 0) == 0
+                 and "XAU" not in t.get("instrument", "")
+                 and t.get("status", "").upper() == "CLOSED"]
+    live_metrics = defaultdict(lambda: {"n": 0, "wins": 0, "pnl": 0.0})
+    for t in fx_trades:
+        key = (t.get("entry_type", "unknown"), t.get("instrument", "unknown"))
+        live_metrics[key]["n"] += 1
+        if t.get("outcome") == "WIN":
+            live_metrics[key]["wins"] += 1
+        live_metrics[key]["pnl"] += t.get("pnl_pips", 0)
+    # 乖離テーブル生成
+    rows = []
+    for (strat, pair), bt in sorted(bt_metrics.items()):
+        live = live_metrics.get((strat, pair))
+        if not live or live["n"] < 3:
+            continue  # ライブN<3は比較不能
+        live_wr = (live["wins"] / live["n"] * 100) if live["n"] > 0 else 0
+        live_ev = live["pnl"] / live["n"] if live["n"] > 0 else 0
+        d_wr = bt["wr"] - live_wr
+        alert = ""
+        if abs(d_wr) > 30:
+            alert = "🔴"
+        elif abs(d_wr) > 20:
+            alert = "⚠️"
+        rows.append(
+            f"| {strat} | {pair} | {bt['n']} | {bt['wr']:.1f}% "
+            f"| {live['n']} | {live_wr:.1f}% | {d_wr:+.1f}pp | {alert} |"
+        )
+    if not rows:
+        return ""
+    return (
+        f"### BT vs Live 乖離（BT file: {bt_files[0]}）\n"
+        "| Strategy | Pair | N_BT | WR_BT | N_Live | WR_Live | ΔWR | Alert |\n"
+        "|---|---|---|---|---|---|---|---|\n" + "\n".join(rows[:15]) + "\n"
+    )
+
+
 def preprocess_trades(data: dict, session: str) -> str:
     """セッション別にデータ構成を変えてLLMに渡す。
 
@@ -671,6 +757,7 @@ def run_analyst(data: dict, session: str = "pre_tokyo",
     oanda_table = preprocess_oanda(data)
     regime_table = preprocess_regime(data)
     status_table = preprocess_status(data)
+    bt_div_table = preprocess_bt_divergence(data)  # v8.9: BT/本番乖離
 
     user_msg = f"""以下は本番システムの**事前集計済みデータ**です（{now}）。
 Fidelity Cutoff: {FIDELITY_CUTOFF}
@@ -678,6 +765,7 @@ Fidelity Cutoff: {FIDELITY_CUTOFF}
 
 {status_table}
 {trades_table}
+{bt_div_table}
 {oanda_table}
 {regime_table}{kb_section}{health_section}
 

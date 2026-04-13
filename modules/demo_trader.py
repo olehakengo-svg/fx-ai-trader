@@ -340,7 +340,11 @@ class DemoTrader:
         # v8.4以前のXAU損失(-2,280pip)+pre-cutoffバグデータが永久にDDを汚染していた。
         # v8.4(XAU停止+Shadow除去)以降のFX-onlyデータからequityを再計算する。
         _EQ_RESET_CUTOFF = "2026-04-10T12:00:00"
-        _eq_reset_done = self._db.get_system_kv("eq_reset_v89", "0")
+        # v8.9b: Shadow PnL汚染バグ修正後の再Reset
+        # v89は完了済みだが、ランタイムでShadow PnLがeq_currentに漏れていた
+        # v89b: 再計算してクリーンな状態に戻す
+        _eq_reset_flag = "eq_reset_v89b"
+        _eq_reset_done = self._db.get_system_kv(_eq_reset_flag, "0")
         if _eq_reset_done != "1":
             try:
                 _all_trades = self._db.get_all_closed()
@@ -370,8 +374,8 @@ class DemoTrader:
                 self._db.set_system_kv("eq_current", str(round(self._eq_current, 2)))
                 self._db.set_system_kv("dd_lot_mult", str(round(self._dd_lot_mult, 2)))
                 self._db.set_system_kv("defensive_mode", "1" if self._defensive_mode else "0")
-                self._db.set_system_kv("eq_reset_v89", "1")
-                print(f"[v8.9] EquityReset: Recalculated from {_EQ_RESET_CUTOFF} "
+                self._db.set_system_kv(_eq_reset_flag, "1")
+                print(f"[v8.9b] EquityReset: Recalculated from {_EQ_RESET_CUTOFF} "
                       f"(FX-only, non-shadow). peak={self._eq_peak:.1f} "
                       f"current={self._eq_current:.1f} DD={_dd_r_pct:.1%} "
                       f"lot_mult={self._dd_lot_mult}", flush=True)
