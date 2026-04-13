@@ -4532,7 +4532,7 @@ class DemoTrader:
         # REMOVED: london_fix_reversal → PAIR_PROMOTED済み、同上 (v8.9)
         "gotobi_fix",                  # 五十日仲値Fix (Bessho 2023)
         "vix_carry_unwind",            # VIXキャリー巻戻し (Brunnermeier 2009)
-        "xs_momentum",                 # クロスセクション通貨モメンタム (Eriksen 2019)
+        # REMOVED: xs_momentum → PAIR_PROMOTED済み(GBP/EUR)、SENTINEL矛盾のためshadow化が発生していた (v8.9)
         "hmm_regime_filter",           # HMMレジームフィルター (Nystrup 2024)
         # v8.8: 生データアルファマイニング
         "vol_spike_mr",                # Vol Spike MR: JPY PF=1.92 (BT最高PF)
