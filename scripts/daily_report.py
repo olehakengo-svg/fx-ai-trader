@@ -7,15 +7,17 @@ FX AI Trader — セッションベース日次レポートパイプライン
   python3 scripts/daily_report.py pre_tokyo    # Pre-Tokyo (JST 09:00)
   python3 scripts/daily_report.py post_tokyo   # Post-Tokyo (JST 15:00)
   python3 scripts/daily_report.py post_london  # Post-London (JST 01:00)
+  python3 scripts/daily_report.py post_ny      # Post-NY (JST 07:00)
 
 環境変数:
   ANTHROPIC_API_KEY     — Claude API キー（必須）
   DISCORD_WEBHOOK_URL   — Discord送信先（必須）
 
 セッション:
-  pre_tokyo   — JST 09:00 / UTC 00:00: 前日総括＋本日作戦＋戦略立案
+  pre_tokyo   — JST 09:00 / UTC 00:00: 前日全体総括＋本日作戦＋戦略立案
   post_tokyo  — JST 15:00 / UTC 06:00: 東京セッション総括＋ロンドン準備
   post_london — JST 01:00 / UTC 16:00: ロンドンセッション総括＋NY準備
+  post_ny     — JST 07:00 / UTC 22:00: NYセッション総括＋1日の総括＋翌朝引き継ぎ
 
 処理フロー:
   Step 1. 本番APIからデータ取得
@@ -51,6 +53,7 @@ SESSION_TIME_RANGES = {
     "pre_tokyo":   (None, None),           # 全期間（前日総括）
     "post_tokyo":  ("00:00", "06:00"),     # UTC 00:00-06:00 = JST 09:00-15:00
     "post_london": ("07:00", "16:00"),     # UTC 07:00-16:00 = JST 16:00-01:00
+    "post_ny":     ("16:00", "22:00"),     # UTC 16:00-22:00 = JST 01:00-07:00
 }
 
 
@@ -75,6 +78,12 @@ SESSION_CONFIGS = {
         "discord_tag": "Post-London",
         "run_strategy_planner": False,
     },
+    "post_ny": {
+        "label": "Post-NY Report",
+        "emoji": "\U0001f5fd",
+        "discord_tag": "Post-NY",
+        "run_strategy_planner": False,
+    },
 }
 
 VALID_SESSIONS = set(SESSION_CONFIGS.keys())
@@ -86,7 +95,7 @@ def detect_session(override: str | None = None) -> str:
         return override
     hour = datetime.now(timezone.utc).hour
     # UTC 00:00 cron → pre_tokyo
-    if 22 <= hour or hour < 3:
+    if 23 <= hour or hour < 3:
         return "pre_tokyo"
     # UTC 06:00 cron → post_tokyo
     elif 4 <= hour < 9:
@@ -94,6 +103,9 @@ def detect_session(override: str | None = None) -> str:
     # UTC 16:00 cron → post_london
     elif 14 <= hour < 19:
         return "post_london"
+    # UTC 22:00 cron → post_ny
+    elif 20 <= hour < 23:
+        return "post_ny"
     return "pre_tokyo"
 
 
@@ -134,23 +146,40 @@ tradesデータのopen_time/close_timeがUTC 00:00-06:00の範囲のトレード
 """,
     "post_london": """
 ## セッション: Post-London Report (JST 01:00)
-ロンドンセッション（JST 16:00-01:00 / UTC 07:00-16:00）を総括してください。
-tradesデータのopen_time/close_timeがUTC 07:00-16:00の範囲のトレードをロンドンセッションとして抽出・分析。
-該当トレードがない場合は「ロンドンセッション: トレードなし」と明記し、全体概況を簡潔に報告。
-※セッション内N<5の場合、単独統計は参考値として扱い、直近3-5日の同セッション傾向も参照すること。
+ロンドンセッション（UTC 07:00-16:00）を総括してください。
+「セッション内トレード」データがロンドン時間帯のトレードです。全期間マトリクスではなくセッション内データに集中。
 
 ### 出力フォーマット（厳守）
 1. **ロンドンセッション結果**: PnL、トレード数、WR（この時間帯のみ）
 2. **What Worked**: 成功トレード — 戦略名・ペア・pips・成功要因（1文）
 3. **What Didn't Work**: 失敗トレード — 戦略名・ペア・pips・失敗要因（1文）
-4. **戦略調整判断**: パラメータ変更の要否 → YES/NOを明確に
+4. **東京との比較**: 東京セッションと比べてレジーム・WR・PnLがどう変化したか
 5. **NYセッション準備**:
    - ロンドン→NY移行でのATR/レジーム変化予測
-   - 推奨戦略配分
+   - 推奨戦略配分（どの戦略をどのペアで）
    - **「何もしない」が最適な場合は「NO ACTION推奨」と明記**
-   - 推奨根拠
-6. **本日暫定結果**: 今日全体（東京+ロンドン）の累計PnL・トレード数
+6. **本日暫定結果**: 東京+ロンドン累計PnL・トレード数
 7. **クオンツ見解**: 最重要シグナル1点（簡潔に2-3行）
+""",
+    "post_ny": """
+## セッション: Post-NY Report (JST 07:00)
+NYセッション（UTC 16:00-22:00）を総括し、1日の最終総括を行ってください。
+「セッション内トレード」データがNY時間帯のトレードです。全期間マトリクスではなくセッション内データに集中。
+
+### 出力フォーマット（厳守）
+1. **NYセッション結果**: PnL、トレード数、WR（この時間帯のみ）
+2. **What Worked**: 成功トレード — 戦略名・ペア・pips・成功要因（1文）
+3. **What Didn't Work**: 失敗トレード — 戦略名・ペア・pips・失敗要因（1文）
+4. **1日の総括**:
+   - 東京 / ロンドン / NY の各セッションPnL比較テーブル
+   - 本日合計PnL・トレード数・WR
+   - 最も成績が良かった/悪かったセッション＋戦略
+5. **OANDA転送状況**: 本日のSENT/SKIP率、block_counts主因
+6. **翌朝への引き継ぎ**:
+   - 未解決の課題（パラメータ要調整、降格候補、レジーム注視など）
+   - 翌日のpre_tokyoで確認すべき事項
+   - **「何もしない」が最適な場合は「NO ACTION推奨」と明記**
+7. **クオンツ見解**: 本日の最重要学び1点 + 明日への示唆
 """,
 }
 
@@ -195,14 +224,88 @@ def call_claude(system: str, messages: list[dict], max_tokens: int = 2500) -> st
 
 # ── データ前処理（lesson-raw-json-to-llm: 生JSONをLLMに渡さない） ──
 
+def _filter_by_time(trades: list, time_from: str, time_to: str) -> list:
+    """exit_timeのHH:MM部分でフィルタ。"""
+    result = []
+    for t in trades:
+        exit_time = t.get("exit_time", "") or t.get("entry_time", "")
+        if not exit_time:
+            continue
+        try:
+            hhmm = exit_time[11:16]
+            if time_from <= hhmm < time_to:
+                result.append(t)
+        except (IndexError, TypeError):
+            continue
+    return result
+
+
+def _filter_today(trades: list) -> list:
+    """本日のトレードのみ抽出。"""
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    return [t for t in trades if (t.get("exit_time", "") or "")[:10] == today]
+
+
+def _build_strat_pair_table(trades: list, title: str) -> str:
+    """戦略×ペア集計テーブルを生成。"""
+    from collections import defaultdict
+    if not trades:
+        return f"### {title}\nトレードなし\n"
+    strat_pair = defaultdict(lambda: {"n": 0, "wins": 0, "pnl": 0.0})
+    for t in trades:
+        key = (t.get("entry_type", "unknown"), t.get("instrument", "unknown"))
+        strat_pair[key]["n"] += 1
+        if t.get("outcome") == "WIN":
+            strat_pair[key]["wins"] += 1
+        strat_pair[key]["pnl"] += t.get("pnl_pips", 0)
+    rows = []
+    for (strat, pair), s in sorted(strat_pair.items(), key=lambda x: -x[1]["n"]):
+        wr = (s["wins"] / s["n"] * 100) if s["n"] > 0 else 0
+        ev = s["pnl"] / s["n"] if s["n"] > 0 else 0
+        rows.append(f"| {strat} | {pair} | {s['n']} | {wr:.1f}% | {ev:+.2f} | {s['pnl']:+.1f} |")
+    total_n = len(trades)
+    total_pnl = sum(t.get("pnl_pips", 0) for t in trades)
+    total_wins = sum(1 for t in trades if t.get("outcome") == "WIN")
+    total_wr = (total_wins / total_n * 100) if total_n > 0 else 0
+    return (
+        f"### {title}（N={total_n}, WR={total_wr:.1f}%, PnL={total_pnl:+.1f}）\n"
+        "| Strategy | Pair | N | WR% | EV | PnL |\n"
+        "|---|---|---|---|---|---|\n" + "\n".join(rows) + "\n"
+    )
+
+
+def _build_trade_detail(trades: list, title: str, limit: int = 20) -> str:
+    """トレード詳細テーブルを生成。"""
+    if not trades:
+        return f"### {title}\nトレードなし\n"
+    rows = []
+    for t in trades[-limit:]:
+        rows.append(
+            f"| {t.get('entry_type','')} | {t.get('instrument','')} "
+            f"| {t.get('direction','')} | {t.get('outcome','')} "
+            f"| {t.get('pnl_pips', 0):+.1f} | {t.get('close_reason','')} "
+            f"| {t.get('spread_at_entry', 0):.1f} |"
+        )
+    return (
+        f"### {title}（{len(trades)}件）\n"
+        "| Strategy | Pair | Dir | Outcome | PnL | Reason | Spread |\n"
+        "|---|---|---|---|---|---|---|\n" + "\n".join(rows) + "\n"
+    )
+
+
 def preprocess_trades(data: dict, session: str) -> str:
-    """トレードデータをPython側で集計し、LLMに渡す判断材料テーブルを生成。"""
+    """セッション別にデータ構成を変えてLLMに渡す。
+
+    - pre_tokyo: 全期間マトリクス + 前日詳細（1日の方針立案用）
+    - post_tokyo/post_london/post_ny: セッション内データのみ + 当日累計（セッション振り返り用）
+    """
     trades_raw = data.get("trades", {})
     trades = trades_raw.get("trades", [])
     if not trades:
         return "### TRADES\nトレードデータなし（API取得失敗またはトレード0件）\n"
 
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
 
     # Shadow/XAU除外
     fx_trades = [t for t in trades if t.get("is_shadow", 0) == 0
@@ -210,116 +313,67 @@ def preprocess_trades(data: dict, session: str) -> str:
     xau_trades = [t for t in trades if t.get("is_shadow", 0) == 0
                   and "XAU" in t.get("instrument", "")]
 
-    # セッション時間帯フィルタ
-    time_range = SESSION_TIME_RANGES.get(session, (None, None))
-    session_trades = []
-    if time_range[0] is not None:
-        for t in fx_trades:
-            exit_time = t.get("exit_time", "") or t.get("entry_time", "")
-            if not exit_time:
-                continue
-            # HH:MM部分を抽出してフィルタ
-            try:
-                hour_str = exit_time[11:16]  # "HH:MM"
-                if time_range[0] <= hour_str < time_range[1]:
-                    session_trades.append(t)
-            except (IndexError, TypeError):
-                continue
-    else:
-        session_trades = fx_trades  # pre_tokyo: 全期間
-
     sections = []
 
-    # 1. 全体サマリー
-    total_n = len(fx_trades)
-    total_pnl = sum(t.get("pnl_pips", 0) for t in fx_trades)
-    wins = sum(1 for t in fx_trades if t.get("outcome") == "WIN")
-    total_wr = (wins / total_n * 100) if total_n > 0 else 0
-    sections.append(
-        f"### 全体サマリー（Cutoff後, Shadow除外, XAU別枠）\n"
-        f"| N | WR% | PnL(pips) |\n|---|---|---|\n"
-        f"| {total_n} | {total_wr:.1f}% | {total_pnl:+.1f} |\n"
-    )
-
-    # 2. 戦略×ペア集計テーブル
-    from collections import defaultdict
-    strat_pair = defaultdict(lambda: {"n": 0, "wins": 0, "pnl": 0.0})
-    for t in fx_trades:
-        key = (t.get("entry_type", "unknown"), t.get("instrument", "unknown"))
-        strat_pair[key]["n"] += 1
-        if t.get("outcome") == "WIN":
-            strat_pair[key]["wins"] += 1
-        strat_pair[key]["pnl"] += t.get("pnl_pips", 0)
-
-    rows = []
-    for (strat, pair), s in sorted(strat_pair.items(), key=lambda x: -x[1]["n"]):
-        wr = (s["wins"] / s["n"] * 100) if s["n"] > 0 else 0
-        ev = s["pnl"] / s["n"] if s["n"] > 0 else 0
-        rows.append(f"| {strat} | {pair} | {s['n']} | {wr:.1f}% | {ev:+.2f} | {s['pnl']:+.1f} |")
-    sections.append(
-        "### 戦略×ペア マトリクス（Cutoff後全期間）\n"
-        "| Strategy | Pair | N | WR% | EV | PnL |\n"
-        "|---|---|---|---|---|---|\n" + "\n".join(rows) + "\n"
-    )
-
-    # 3. セッション別トレード（post_tokyo/post_london）
-    if time_range[0] is not None:
-        sess_n = len(session_trades)
-        sess_pnl = sum(t.get("pnl_pips", 0) for t in session_trades)
-        sess_wins = sum(1 for t in session_trades if t.get("outcome") == "WIN")
-        sess_wr = (sess_wins / sess_n * 100) if sess_n > 0 else 0
-        sections.append(
-            f"### セッション内トレード（UTC {time_range[0]}-{time_range[1]}）\n"
-            f"| N | WR% | PnL(pips) |\n|---|---|---|\n"
-            f"| {sess_n} | {sess_wr:.1f}% | {sess_pnl:+.1f} |\n"
-        )
-        if session_trades:
-            detail_rows = []
-            for t in session_trades[-20:]:  # 最新20件
-                detail_rows.append(
-                    f"| {t.get('entry_type','')} | {t.get('instrument','')} "
-                    f"| {t.get('direction','')} | {t.get('outcome','')} "
-                    f"| {t.get('pnl_pips', 0):+.1f} | {t.get('close_reason','')} |"
-                )
-            sections.append(
-                "### セッション内トレード詳細（最新20件）\n"
-                "| Strategy | Pair | Dir | Outcome | PnL | Reason |\n"
-                "|---|---|---|---|---|---|\n" + "\n".join(detail_rows) + "\n"
-            )
-        else:
-            sections.append("セッション内トレード: なし\n")
-
-    # 4. 本日トレード詳細（pre_tokyoの場合は前日分）
     if session == "pre_tokyo":
-        # 前日のトレードを抽出
-        yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%d")
+        # ── pre_tokyo: 全期間マトリクス + 前日詳細 ──
+        sections.append(_build_strat_pair_table(fx_trades, "戦略×ペア マトリクス（Cutoff後全期間）"))
+
         yesterday_trades = [t for t in fx_trades
                            if (t.get("exit_time", "") or "")[:10] == yesterday]
         if yesterday_trades:
-            yd_n = len(yesterday_trades)
-            yd_pnl = sum(t.get("pnl_pips", 0) for t in yesterday_trades)
-            yd_wins = sum(1 for t in yesterday_trades if t.get("outcome") == "WIN")
-            yd_wr = (yd_wins / yd_n * 100) if yd_n > 0 else 0
+            sections.append(_build_strat_pair_table(yesterday_trades, f"前日（{yesterday}）戦略別"))
+            sections.append(_build_trade_detail(yesterday_trades, f"前日トレード詳細"))
+        else:
+            sections.append(f"### 前日（{yesterday}）\nトレードなし\n")
+
+    else:
+        # ── post_tokyo / post_london / post_ny: セッション内 + 当日累計 ──
+        time_range = SESSION_TIME_RANGES.get(session, (None, None))
+        today_trades = _filter_today(fx_trades)
+
+        # セッション内トレード（メインデータ）
+        if time_range[0] is not None:
+            session_trades = _filter_by_time(today_trades, time_range[0], time_range[1])
+            sess_label = f"セッション内（本日 UTC {time_range[0]}-{time_range[1]}）"
+            sections.append(_build_strat_pair_table(session_trades, sess_label))
+            sections.append(_build_trade_detail(session_trades, "セッション内トレード詳細"))
+
+        # 当日累計（参考）
+        if today_trades:
+            today_n = len(today_trades)
+            today_pnl = sum(t.get("pnl_pips", 0) for t in today_trades)
+            today_wins = sum(1 for t in today_trades if t.get("outcome") == "WIN")
+            today_wr = (today_wins / today_n * 100) if today_n > 0 else 0
             sections.append(
-                f"### 前日トレード（{yesterday}）\n"
+                f"### 本日累計（参考）\n"
                 f"| N | WR% | PnL(pips) |\n|---|---|---|\n"
-                f"| {yd_n} | {yd_wr:.1f}% | {yd_pnl:+.1f} |\n"
-            )
-            detail_rows = []
-            for t in yesterday_trades[-20:]:
-                detail_rows.append(
-                    f"| {t.get('entry_type','')} | {t.get('instrument','')} "
-                    f"| {t.get('direction','')} | {t.get('outcome','')} "
-                    f"| {t.get('pnl_pips', 0):+.1f} | {t.get('close_reason','')} "
-                    f"| {t.get('spread_at_entry', 0):.1f} |"
-                )
-            sections.append(
-                "### 前日トレード詳細\n"
-                "| Strategy | Pair | Dir | Outcome | PnL | Reason | Spread |\n"
-                "|---|---|---|---|---|---|---|\n" + "\n".join(detail_rows) + "\n"
+                f"| {today_n} | {today_wr:.1f}% | {today_pnl:+.1f} |\n"
             )
 
-    # 5. XAU別枠
+        # post_ny: 東京/ロンドン/NYのセッション比較テーブル
+        if session == "post_ny":
+            tokyo = _filter_by_time(today_trades, "00:00", "06:00")
+            london = _filter_by_time(today_trades, "07:00", "16:00")
+            ny = _filter_by_time(today_trades, "16:00", "22:00")
+            def _sess_stats(tl):
+                n = len(tl)
+                pnl = sum(t.get("pnl_pips", 0) for t in tl)
+                wr = (sum(1 for t in tl if t.get("outcome") == "WIN") / n * 100) if n > 0 else 0
+                return n, wr, pnl
+            tn, twr, tpnl = _sess_stats(tokyo)
+            ln, lwr, lpnl = _sess_stats(london)
+            nn, nwr, npnl = _sess_stats(ny)
+            sections.append(
+                "### セッション比較（本日）\n"
+                "| Session | N | WR% | PnL |\n|---|---|---|---|\n"
+                f"| Tokyo (00-06) | {tn} | {twr:.1f}% | {tpnl:+.1f} |\n"
+                f"| London (07-16) | {ln} | {lwr:.1f}% | {lpnl:+.1f} |\n"
+                f"| NY (16-22) | {nn} | {nwr:.1f}% | {npnl:+.1f} |\n"
+                f"| **Total** | **{tn+ln+nn}** | **—** | **{tpnl+lpnl+npnl:+.1f}** |\n"
+            )
+
+    # XAU別枠（全セッション共通）
     if xau_trades:
         xau_n = len(xau_trades)
         xau_pnl = sum(t.get("pnl_pips", 0) for t in xau_trades)

@@ -2,14 +2,15 @@ name: Daily Trading Report
 
 on:
   schedule:
-    # セッションベース3回/日（平日のみ）
+    # セッションベース4回/日（平日のみ）
     - cron: '0 0 * * 1-5'    # Pre-Tokyo:   UTC 00:00 = JST 09:00
     - cron: '0 6 * * 1-5'    # Post-Tokyo:  UTC 06:00 = JST 15:00
     - cron: '0 16 * * 1-5'   # Post-London: UTC 16:00 = JST 01:00(翌日)
+    - cron: '0 22 * * 1-5'   # Post-NY:     UTC 22:00 = JST 07:00(翌日)
   workflow_dispatch:
     inputs:
       session:
-        description: 'Session (pre_tokyo, post_tokyo, post_london) — empty for auto-detect'
+        description: 'Session (pre_tokyo, post_tokyo, post_london, post_ny) — empty for auto-detect'
         required: false
       note:
         description: '追加コンテキスト（任意）'
