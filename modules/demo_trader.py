@@ -4484,7 +4484,7 @@ class DemoTrader:
         # v8.9: EV分解で確定的負EV
         ("bb_rsi_reversion", "USD_JPY"),    # Post-cut N=76 WR=38.2% EV=-0.28 Kelly=-5.5% — Tier1→降格
         # v8.9: alpha scan 2026-04-14 — Kelly<0確定セルのペア降格
-        ("ema_trend_scalp", "USD_JPY"),     # N=12 WR=16.7% EV=-1.93 Kelly=-32.5%
+        # ("ema_trend_scalp", "USD_JPY"),     # v8.9解除: SELL PB境界バグ修正済み → 再蓄積
         ("ema_trend_scalp", "EUR_USD"),     # N=8 WR=25.0% EV=-0.94 Kelly=-16.3%
         ("engulfing_bb", "EUR_USD"),        # N=9 WR=11.1% EV=-1.42 Kelly=-28.4%
         ("trend_rebound", "EUR_USD"),       # N=6 WR=16.7% EV=-1.85 Kelly=-43.0%
