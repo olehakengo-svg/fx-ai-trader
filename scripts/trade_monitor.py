@@ -222,6 +222,49 @@ def check_strategy_performance() -> list[str]:
     return notifications
 
 
+def check_open_positions(status: dict) -> list[str]:
+    """v8.9: オープンポジションの含み益/含み損を監視。
+    大幅な含み益が放置されている場合に通知。24時間監視の価値はここ。"""
+    notifications = []
+    open_trades = status.get("open_trades", [])
+    if not open_trades:
+        return []
+
+    total_unreal = sum(t.get("unrealized_pips", 0) or 0 for t in open_trades)
+
+    # 大幅含み益通知 (合計+20pip以上)
+    if total_unreal > 20:
+        top = sorted(open_trades, key=lambda x: -(x.get("unrealized_pips", 0) or 0))[:3]
+        detail = " | ".join(
+            f"{t.get('entry_type','?')}×{t.get('instrument','?')} {t.get('unrealized_pips',0):+.1f}pip"
+            for t in top
+        )
+        shadow_count = sum(1 for t in open_trades if t.get("is_shadow", 0))
+        live_count = len(open_trades) - shadow_count
+        notifications.append(
+            f"💰 **含み益+{total_unreal:.1f}pip** ({len(open_trades)}ポジション, "
+            f"LIVE={live_count} Shadow={shadow_count}) | Top: {detail}"
+        )
+        # shadowで含み益が大きい場合は特別警告
+        shadow_profit = sum(
+            (t.get("unrealized_pips", 0) or 0)
+            for t in open_trades if t.get("is_shadow", 0) and (t.get("unrealized_pips", 0) or 0) > 0
+        )
+        if shadow_profit > 10:
+            notifications.append(
+                f"⚠️ **Shadow含み益+{shadow_profit:.1f}pip — OANDAに送信されていない**"
+                f" → PAIR_PROMOTED追加を検討"
+            )
+
+    # 大幅含み損通知 (合計-30pip以下)
+    if total_unreal < -30:
+        notifications.append(
+            f"🔴 **含み損{total_unreal:.1f}pip** ({len(open_trades)}ポジション) → ポジション確認推奨"
+        )
+
+    return notifications
+
+
 def check_block_counts(status: dict) -> list[str]:
     issues = []
     block_counts = status.get("block_counts", {})
@@ -359,6 +402,7 @@ def main() -> int:
     issues: list[str] = []
     issues += check_system_health(status)
     issues += check_trade_activity(status, trades)
+    issues += check_open_positions(status)  # v8.9: 含み益/損監視
     issues += check_block_counts(status)
     issues += check_logs(logs)
 

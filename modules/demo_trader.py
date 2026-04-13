@@ -4412,6 +4412,11 @@ class DemoTrader:
         # v8.9: ema_pullback×JPY — Post-cut N=14 WR=42.9% EV=+1.09 (FORCE_DEMOTEDからペア復活)
         # Sentinel lotで実弾データ蓄積、N≥30でフル昇格判断
         ("ema_pullback", "USD_JPY"),
+        # v8.9: xs_momentum×GBP/EUR — リアルタイム含み益+48.9pip (London-NY GBP BUY)
+        # JPYはPAIR_DEMOTED。GBP/EURはBT正EV (GBP +0.134, EUR +0.192)
+        # shadow全敗→TP縮小(3.0→2.0)+London-NY限定で改善済み。実弾でQH適用開始
+        ("xs_momentum", "GBP_USD"),
+        ("xs_momentum", "EUR_USD"),
     }
 
     # ペア別ロットブースト: PAIR_LOT_BOOST > _STRATEGY_LOT_BOOST (優先)
