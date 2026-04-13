@@ -13,10 +13,14 @@ HASH=$(git log -1 --format='%h')
 MSG=$(git log -1 --format='%s')
 FILES_CHANGED=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null | wc -l | tr -d ' ')
 
+# 重複チェック（同じハッシュが既にあればスキップ）
+if [[ -f "$SESSION_FILE" ]] && grep -q "$HASH" "$SESSION_FILE" 2>/dev/null; then
+    exit 0
+fi
+
 # セッションログが無ければテンプレート作成
 if [[ ! -f "$SESSION_FILE" ]]; then
     mkdir -p "$KB"
-    # 前回セッションの未解決事項を引き継ぎ
     PREV_SESSION=$(ls -t "$KB/"*.md 2>/dev/null | head -1 || true)
     PREV_UNRESOLVED=""
     if [[ -n "$PREV_SESSION" ]]; then
@@ -30,10 +34,7 @@ if [[ ! -f "$SESSION_FILE" ]]; then
 ### Phase 1: （Claudeが記入）
 
 ## コミット一覧（自動記録）
-
-| # | Hash | Message | Files |
-|---|---|---|---|
-| 1 | ${HASH} | ${MSG} | ${FILES_CHANGED} |
+1. ${MSG} (${HASH}, ${FILES_CHANGED} files)
 
 ## 未解決事項
 ${PREV_UNRESOLVED:-"- [ ] （前回セッションから引き継ぎなし）"}
@@ -41,39 +42,51 @@ TEMPLATE
     exit 0
 fi
 
-# 既存セッションログにコミット追記
-# コミット一覧テーブルの最後の行番号を見つけて追記
-if grep -q "## コミット一覧" "$SESSION_FILE"; then
-    # テーブル形式の場合: 最後の | 行の後に追記
-    if grep -q '^| [0-9]' "$SESSION_FILE"; then
-        LAST_NUM=$(grep -c '^| [0-9]' "$SESSION_FILE")
-        NEXT_NUM=$((LAST_NUM + 1))
-        # 重複チェック（同じハッシュが既にあればスキップ）
-        if grep -q "$HASH" "$SESSION_FILE"; then
-            exit 0
-        fi
-        # 最後のテーブル行の後に挿入
-        LAST_LINE=$(grep -n '^| [0-9]' "$SESSION_FILE" | tail -1 | cut -d: -f1)
-        sed -i '' "${LAST_LINE}a\\
-| ${NEXT_NUM} | ${HASH} | ${MSG} | ${FILES_CHANGED} |" "$SESSION_FILE"
-    else
-        # 番号リスト形式（既存Phase 1-13形式）の場合
-        LAST_NUM=$(grep -c '^[0-9]\+\.' "$SESSION_FILE" | head -1)
-        if [[ "$LAST_NUM" -eq 0 ]]; then
-            LAST_NUM=0
-        fi
-        NEXT_NUM=$((LAST_NUM + 1))
-        if grep -q "$HASH" "$SESSION_FILE"; then
-            exit 0
-        fi
-        # コミット一覧セクションの末尾に追記
-        SECTION_END=$(awk '/^## コミット一覧/{found=1; next} found && /^## /{print NR; exit}' "$SESSION_FILE")
-        if [[ -n "$SECTION_END" ]]; then
-            INSERT_LINE=$((SECTION_END - 1))
-        else
-            INSERT_LINE=$(wc -l < "$SESSION_FILE")
-        fi
-        sed -i '' "${INSERT_LINE}a\\
-${NEXT_NUM}. ${MSG} (${HASH}, ${FILES_CHANGED} files)" "$SESSION_FILE"
-    fi
-fi
+# 既存セッションログにコミット追記（Python で確実に処理）
+python3 -c "
+import re, sys
+
+path = '$SESSION_FILE'
+hash_val = '$HASH'
+msg = '''$MSG'''
+files = '$FILES_CHANGED'
+
+with open(path, 'r', encoding='utf-8') as f:
+    lines = f.readlines()
+
+# コミット一覧セクションを探す
+commit_section_start = None
+commit_section_end = None
+for i, line in enumerate(lines):
+    if re.match(r'^## コミット一覧', line):
+        commit_section_start = i
+    elif commit_section_start is not None and re.match(r'^## ', line) and i > commit_section_start:
+        commit_section_end = i
+        break
+
+if commit_section_start is None:
+    # コミット一覧セクションがなければ未解決事項の前に追加
+    for i, line in enumerate(lines):
+        if re.match(r'^## 未解決事項', line):
+            insert_pos = i
+            break
+    else:
+        insert_pos = len(lines)
+    lines.insert(insert_pos, f'\n## コミット一覧（自動記録）\n1. {msg} ({hash_val}, {files} files)\n\n')
+else:
+    # 既存セクション内の最後の番号付きエントリを見つける
+    last_num = 0
+    last_entry_line = commit_section_start
+    end = commit_section_end if commit_section_end else len(lines)
+    for i in range(commit_section_start + 1, end):
+        m = re.match(r'^(\d+)\.', lines[i])
+        if m:
+            last_num = int(m.group(1))
+            last_entry_line = i
+    next_num = last_num + 1
+    new_entry = f'{next_num}. {msg} ({hash_val}, {files} files)\n'
+    lines.insert(last_entry_line + 1, new_entry)
+
+with open(path, 'w', encoding='utf-8') as f:
+    f.writelines(lines)
+" 2>/dev/null || true
