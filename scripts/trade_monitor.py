@@ -27,6 +27,7 @@ ROOT = Path(__file__).resolve().parent.parent
 STATUS_URL = "https://fx-ai-trader.onrender.com/api/demo/status"
 LOGS_URL   = "https://fx-ai-trader.onrender.com/api/demo/logs?limit=200"
 TRADES_URL = "https://fx-ai-trader.onrender.com/api/demo/trades?limit=100"
+FACTORS_URL = "https://fx-ai-trader.onrender.com/api/demo/factors"
 
 # 直近Ntime間トレード0件で警告
 NO_TRADE_WARN_HOURS = 4
@@ -111,6 +112,63 @@ def check_trade_activity(status: dict, trades: dict) -> list[str]:
             )
 
     return issues
+
+
+def check_strategy_performance() -> list[str]:
+    """v8.9: 戦略別リアルタイムEV追跡 — 好調/不調を即時検知してDiscord通知。
+    ユーザーが毎回確認しなくても、有望戦略の浮上と毒性戦略の悪化を自動検知。"""
+    notifications = []
+    try:
+        # 戦略×ペア別
+        d = fetch_json(f"{FACTORS_URL}?factors=strategy,instrument&min_n=5")
+        cells = d.get("cells", [])
+        if not cells:
+            return []
+
+        for c in cells:
+            strat = c.get("strategy", "?")
+            inst = c.get("instrument", "?")
+            n = c.get("n", 0)
+            wr = c.get("wr", 0)
+            ev = c.get("ev", 0)
+            kelly = c.get("kelly", 0)
+            pnl = c.get("pnl", 0)
+
+            # 🟢 好調戦略の通知 (N≥10, EV>+1.0, Kelly>+20%)
+            if n >= 10 and ev > 1.0 and kelly > 20:
+                notifications.append(
+                    f"🟢 **{strat}×{inst} 好調** — N={n} WR={wr:.1f}% "
+                    f"EV={ev:+.2f} Kelly={kelly:+.1f}% PnL={pnl:+.1f}pip"
+                )
+
+            # 🔴 急速悪化の通知 (N≥15, EV<-1.5)
+            if n >= 15 and ev < -1.5:
+                notifications.append(
+                    f"🔴 **{strat}×{inst} 毒性** — N={n} WR={wr:.1f}% "
+                    f"EV={ev:+.2f} PnL={pnl:+.1f}pip → ブロック検討"
+                )
+
+        # 時間帯×ペア別 (NY時間の好調を検知)
+        d2 = fetch_json(f"{FACTORS_URL}?factors=strategy,hour&min_n=5")
+        cells2 = d2.get("cells", [])
+        for c in cells2:
+            strat = c.get("strategy", "?")
+            hour = c.get("hour", "?")
+            n = c.get("n", 0)
+            ev = c.get("ev", 0)
+            pnl = c.get("pnl", 0)
+
+            # 特定時間帯で好調 (N≥5, EV>+1.5)
+            if n >= 5 and ev > 1.5:
+                notifications.append(
+                    f"⏰ **{strat} H{hour} 好調** — N={n} EV={ev:+.2f} PnL={pnl:+.1f}pip"
+                )
+
+    except Exception as e:
+        # factors APIが落ちていても他の監視は止めない
+        pass
+
+    return notifications
 
 
 def check_block_counts(status: dict) -> list[str]:
@@ -252,6 +310,23 @@ def main() -> int:
     issues += check_trade_activity(status, trades)
     issues += check_block_counts(status)
     issues += check_logs(logs)
+
+    # v8.9: 戦略パフォーマンス通知（問題がなくても好調戦略は通知）
+    perf_notes = check_strategy_performance()
+    if perf_notes and not issues:
+        # 異常なしだが戦略通知あり → Discord送信（軽量）
+        webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+        if webhook:
+            now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+            perf_msg = (
+                f"📊 **戦略パフォーマンス [{now}]**\n\n"
+                + "\n".join(perf_notes[:10])
+            )
+            send_discord(webhook, perf_msg)
+            print(f"📊 {len(perf_notes)}件の戦略通知 → Discord送信済み")
+        else:
+            for p in perf_notes:
+                print(p)
 
     if not issues:
         print("✅ 異常なし")
