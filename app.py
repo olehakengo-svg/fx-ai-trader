@@ -4974,7 +4974,6 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "bb_rsi_reversion", "bb_squeeze_breakout",
                 "london_breakout", "stoch_trend_pullback",
                 "macdh_reversal",
-                "tokyo_bb",
                 "mtf_reversal_confluence",
                 "fib_reversal",     # フィボ反発 — BB中央補完
                 "ema_pullback",     # EMAプルバック — BB中央帯発火

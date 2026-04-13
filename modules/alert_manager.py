@@ -35,8 +35,12 @@ class AlertManager:
         "exposure": 14400,   # 4時間 — 評価サイクル毎に発火するため
     }
 
+    # OPSチャンネルに送るアラートタイプのプレフィックス
+    _OPS_ALERT_TYPES = {"exposure", "oanda_kill", "oanda_disconnect", "dd_", "health"}
+
     def __init__(self):
         self._webhook_url: str = os.environ.get("DISCORD_WEBHOOK_URL", "")
+        self._ops_webhook_url: str = os.environ.get("DISCORD_OPS_WEBHOOK_URL", "")
         self._enabled: bool = bool(self._webhook_url)
         self._rate_limit: dict = {}   # alert_type → last_sent_epoch
         self._lock = threading.Lock()
@@ -76,13 +80,15 @@ class AlertManager:
             self._rate_limit[alert_type] = now
             return True
 
-    def _send_webhook(self, content: str, username: str = "FX-AI-Trader") -> bool:
+    def _send_webhook(self, content: str, username: str = "FX-AI-Trader",
+                      webhook_url: Optional[str] = None) -> bool:
         """Discord Webhook 送信 (同期、タイムアウト5秒)"""
-        if not self._enabled or _requests is None:
+        url = webhook_url or self._webhook_url
+        if not url or _requests is None:
             return False
         try:
             payload = {"username": username, "content": content[:2000]}
-            resp = _requests.post(self._webhook_url, json=payload, timeout=5)
+            resp = _requests.post(url, json=payload, timeout=5)
             if resp.status_code in (200, 204):
                 self._send_count += 1
                 return True
@@ -93,9 +99,14 @@ class AlertManager:
             self._fail_count += 1
             return False
 
-    def _send_async(self, content: str):
-        """非同期送信 (トレードスレッドをブロックしない)"""
-        t = threading.Thread(target=self._send_webhook, args=(content,), daemon=True)
+    def _send_async(self, content: str, ops: bool = False):
+        """非同期送信 (トレードスレッドをブロックしない)
+        ops=True: OPSチャンネルへ送信 (未設定時はメインへフォールバック)
+        """
+        url = (self._ops_webhook_url or self._webhook_url) if ops else self._webhook_url
+        t = threading.Thread(
+            target=self._send_webhook, args=(content,),
+            kwargs={"webhook_url": url}, daemon=True)
         t.start()
 
     # ── アラートタイプ別メソッド ──
@@ -110,7 +121,7 @@ class AlertManager:
                f"(threshold: {threshold_pips} pips)\n"
                f"{extra}\n"
                f":clock1: {self._now_str()}")
-        self._send_async(msg)
+        self._send_async(msg, ops=True)
 
     def alert_consecutive_losses(self, count: int, mode: str = "",
                                  pair: str = ""):
@@ -128,7 +139,7 @@ class AlertManager:
         msg = (f":rotating_light: **OANDA DISCONNECTED**\n"
                f"Error: {error[:300]}\n"
                f":clock1: {self._now_str()}")
-        self._send_async(msg)
+        self._send_async(msg, ops=True)
 
     def alert_ev_drop(self, strategy: str, ev_before: float, ev_after: float):
         """戦略EV急落"""
@@ -147,7 +158,7 @@ class AlertManager:
         msg = (f":shield: **EXPOSURE BLOCK** [{instrument} {direction}]\n"
                f"Reason: {reason}\n"
                f":clock1: {self._now_str()}")
-        self._send_async(msg)
+        self._send_async(msg, ops=True)
 
     def alert_oanda_kill(self, reason: str = ""):
         """OANDA全停止 (サーキットブレーカー発動)"""
@@ -156,7 +167,7 @@ class AlertManager:
         msg = (f":octagonal_sign: **OANDA KILLED** (Circuit Breaker)\n"
                f"Reason: {reason}\n"
                f":clock1: {self._now_str()}")
-        self._send_async(msg)
+        self._send_async(msg, ops=True)
 
     def alert_promotion(self, strategy: str, instrument: str, action: str):
         """戦略昇格/降格"""
@@ -174,7 +185,7 @@ class AlertManager:
         msg = (f":hospital: **SYSTEM HEALTH**\n"
                f"{message[:500]}\n"
                f":clock1: {self._now_str()}")
-        self._send_async(msg)
+        self._send_async(msg, ops=True)
 
     def alert_custom(self, title: str, body: str):
         """カスタムアラート"""
