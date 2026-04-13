@@ -4447,9 +4447,9 @@ class DemoTrader:
         "doji_breakout",               # Doji Breakout: 3連続doji→breakout follow
         # v7.0: 全disabled戦略をSentinel再有効化 — デモデータ蓄積優先 (4原則#4)
         "v_reversal",                  # 急落/急騰反転 — BT未検証, Sentinel蓄積
-        "ema_pullback",                # EMAプルバック — WR=51.1%, Sentinel蓄積
+        # REMOVED: ema_pullback → FORCE_DEMOTED (重複削除、PAIR_PROMOTED×JPYで復活済み)
         "trend_rebound",               # 強トレンド逆張り — 学術的エッジ疑義, Sentinel検証
-        "sr_channel_reversal",         # SR/チャネル反発 — BT未検証, Sentinel蓄積
+        # REMOVED: sr_channel_reversal → FORCE_DEMOTED (重複削除)
         # v8.0: engulfing_bb → FORCE_DEMOTED昇格 (WR=14.3% -$353.5)
         "three_bar_reversal",          # 3本足反転 — BT未検証, Sentinel蓄積
         "london_close_reversal",       # ロンドンクローズ反転 — EV≈0, Sentinel再検証
