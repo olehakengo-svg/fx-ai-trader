@@ -112,7 +112,20 @@ class XsMomentum(StrategyBase):
         if ctx.adx < self.ADX_MIN:
             return None
 
-        # v8.6: 金曜ブロック撤去 — Menkhoff (2012): モメンタムは曜日非依存
+        # v8.9: London-NYセッション限定 — 本番データ根拠
+        # Tokyo/Asia(H00-H06): 8件全敗、MFE=0パターン（mfe-zero-analysis.md参照）
+        # London-NY(H12-H17): GBP_USD BUYが唯一生存
+        # エントリーを高流動性時間帯に集中させることで方向精度を向上
+        _bar_time = ctx.bar_time
+        if _bar_time is None and ctx.df is not None and len(ctx.df) > 0:
+            _bar_time = ctx.df.index[-1]
+        if _bar_time is not None:
+            try:
+                _h = _bar_time.hour if hasattr(_bar_time, 'hour') else int(str(_bar_time)[11:13])
+                if _h < 12 or _h >= 18:
+                    return None  # London-NY以外はエントリーしない
+            except (ValueError, IndexError):
+                pass
 
         # ═══════════════════════════════════════════════════
         # モメンタム計算
