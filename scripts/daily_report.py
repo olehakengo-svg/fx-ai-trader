@@ -317,24 +317,25 @@ def preprocess_bt_divergence(data: dict) -> str:
     # パース: "### PAIR (Nt, WR=X%, ...)" セクション内のテーブル行
     current_pair = None
     for line in bt_content.split("\n"):
-        pair_match = re.match(r"###?\s+(USD_JPY|EUR_USD|GBP_USD|EUR_JPY)", line)
+        pair_match = re.match(r"###?\s+(USD_JPY|EUR_USD|GBP_USD|EUR_JPY)\b", line)
         if pair_match:
             current_pair = pair_match.group(1)
             continue
-        if current_pair and line.startswith("|") and not line.startswith("|-") and not line.startswith("| Strategy"):
+        if current_pair and line.startswith("|") and not line.startswith("|-"):
             cols = [c.strip() for c in line.split("|")]
-            if len(cols) >= 5:
-                strat = cols[1].strip() if len(cols) > 1 else ""
-                if not strat or strat == "Strategy" or strat.startswith("--"):
+            if len(cols) >= 4:
+                # 戦略名: **bold** マーカーを除去
+                strat = cols[1].replace("**", "").strip() if len(cols) > 1 else ""
+                if not strat or strat in ("Strategy", "") or strat.startswith("--"):
                     continue
                 try:
-                    wr_str = cols[2].replace("%", "").strip() if len(cols) > 2 else "0"
-                    ev_str = cols[3].replace("★", "").strip() if len(cols) > 3 else "0"
-                    wr = float(wr_str) if wr_str and wr_str != "—" else 0
-                    ev = float(ev_str) if ev_str and ev_str != "—" else 0
-                    n_str = re.search(r"(\d+)", cols[4]) if len(cols) > 4 else None
-                    n = int(n_str.group(1)) if n_str else 0
-                    bt_metrics[(strat, current_pair)] = {"wr": wr, "ev": ev, "n": n}
+                    # WR: "87.5%" or "100%" — %を除去
+                    wr_str = cols[2].replace("%", "").replace("**", "").strip() if len(cols) > 2 else "0"
+                    # EV: "+0.993" or "-0.047" — ★を除去
+                    ev_str = re.sub(r"[★✓✗△\*]", "", cols[3]).strip() if len(cols) > 3 else "0"
+                    wr = float(wr_str) if wr_str and wr_str not in ("—", "N/A") else 0
+                    ev = float(ev_str) if ev_str and ev_str not in ("—", "N/A") else 0
+                    bt_metrics[(strat, current_pair)] = {"wr": wr, "ev": ev, "n": 0}
                 except (ValueError, IndexError):
                     continue
     if not bt_metrics:
