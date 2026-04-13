@@ -12,7 +12,7 @@
 ### Tier 1 -- Core Alpha
 | Strategy | Pair | WR(post-cut) | PnL | Kelly | Status |
 |----------|------|-------------|-----|-------|--------|
-| [[bb-rsi-reversion]] | USD_JPY | 36.4% (N=77) | -42.2 | 0% | PAIR_PROMOTED (v8.3 confirmation candle deployed, monitoring) |
+| ~~[[bb-rsi-reversion]]~~ | ~~USD_JPY~~ | 38.2% (N=76) | -21.0 | -5.5% | **PAIR_DEMOTED** (v8.9: EV=-0.28確定, Kelly=-5.5%) → Tier 3 |
 | [[orb-trap]] | USD_JPY, EUR_USD, GBP_USD | 50% (N=2) | +7.6 | insuff | PAIR_PROMOTED (BT WR=79%, N accumulating) |
 | [[session-time-bias]] | USD_JPY, EUR_USD, GBP_USD | — | — | — | PAIR_PROMOTED (v8.6, BT WR=69-77%, 学術★★★★★) |
 | [[london-fix-reversal]] | GBP_USD | — | — | — | PAIR_PROMOTED (v8.6, BT WR=75%, 学術★★★★★) |
@@ -23,7 +23,7 @@
 | [[vol-momentum-scalp]] | 10 | 80.0% | +21.6 | Highest WR, 1.0x boost |
 | [[vol-surge-detector]] | 11 | 63.6% | +19.6 | |
 | [[fib-reversal]] | 32 | 40.6% | +21.9 | Recovery path: N>=30 WR>=50% -> SENTINEL |
-| [[stoch-trend-pullback]] | 13 | 30.8% | +163.2 | One big win skews PnL |
+| ~~[[stoch-trend-pullback]]~~ | 19 | 31.6% | -18.5 | **FORCE_DEMOTED** (v8.9: EV=-0.97全ペア負) → Tier 3 |
 | [[liquidity-sweep]] | 0 | - | - | Osler 2003 stop-hunt reversal |
 | [[vol-spike-mr]] | 0 | - | - | v8.8: 3x range spike fade (BT JPY PF=1.92★) |
 | [[doji-breakout]] | 0 | - | - | v8.8: 3連続doji breakout follow |
