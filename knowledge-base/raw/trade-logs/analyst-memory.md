@@ -89,6 +89,16 @@ ID 816・815ともに`⚠️ EMA200下からBUY`の警告付き。ADX 11.7〜13.
 | 戦略 | Pair | PnL | 失敗要因 |
 | **sr_channel_reversal** | USD_JPY | -12.5 pips (N=8, WR=25%) | 8件中6件が損失/BEで、SL_HITが複数発生——RANGING環境でもレンジブレイクに巻き込まれておりSR水準の信頼度が低い |
 
+### 2026-04-13 (Post-Tokyo Report)
+| セッション内PnL | **-13.4 pips** |
+| 勝率（WR） | **33.3%** |
+本日累計（36件）: PnL **-35.2 pips** / WR **30.6%**
+XAU別枠（11件）: PnL **-1,496 pips**（XAUスケール：要注意）
+| 戦略 | ペア | PnL | 成功要因 |
+| **bb_rsi_reversion** | USD_JPY | **+5.4 / +0.6 pips** | TP_HIT×1＋OANDA_SL_TP×1、平均回帰シグナルが東京RANGING環境に適合（セッション内EV+0.83は最良水準） |
+| 戦略 | ペア | PnL | 失敗要因 |
+| **sr_channel_reversal** | USD_JPY | **-12.5 pips（8件）** | WR25%・EV -1.56。SL_HIT×4、TIME_DECAY_EXIT×3が示す通り、レンジ内での逆張りエントリーがS/R水準を繰り返し割られ機能不全 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
