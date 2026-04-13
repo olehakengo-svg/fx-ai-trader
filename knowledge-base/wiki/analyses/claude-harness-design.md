@@ -1,72 +1,138 @@
-# Claude Code Harness Design — クオンツアナリスト100%+
+# Claude Code Harness Design — v2 (2026-04-13 全面改訂)
 
-## 問題定義
-82件のユーザー指示/決定のうち29件(35%)が毎回手動遵守に依存。
-ユーザーの全発言の20%がゴム印承認。6回以上「クオンツ見解は？」と聞かれた。
-根本原因: Claudeがエンジニアモードでデフォルト動作し、分析が後回しになる。
+## なぜv1が失敗したか
 
-## 5層ハーネス
+v1ハーネスは「存在するが機能しない」状態だった。以下が今日のセッションで証明された:
 
-### Layer 1: CLAUDE.md — デフォルト動作モード宣言
-- **クオンツファーストプロトコル**: 分析→判断→実装の順序を強制
-- **自動実行 vs 承認必要**: BT/分析/KB操作は確認不要、デプロイ/PROMOTE/ロット変更は要承認
-- **クオンツ判断ルール**: XAU除外、ペア×戦略粒度、Post-cutoff起点等を明文化
-- 実装: CLAUDE.md冒頭に追加 (v8.9)
+| v1の主張 | 実態 |
+|---------|------|
+| Lessons注入で同じ間違いを防ぐ | 0件注入されていた |
+| Session要約で文脈を引き継ぐ | 未解決事項20行のみ、Phase記録なし |
+| BT乖離ツールでデータに基づく判断 | パーサーバグで0件出力、使わずに判断 |
+| 戦略変更時のBT検証必須 | EUR_USD SELLブロックを「即時」と判断して数時間放置 |
+| KBに記録して記憶する | 意思決定ページ0件、session logは一括書き |
+| 独立監査で品質保証 | 監査を走らせても結果をアクションに繋げない |
 
-### Layer 2: UserPromptSubmit Hook — 毎回のコンテキスト注入
-- KB状態(index/未解決/lessons)の注入（既存）
-- **市場セッション判定**: UTC時刻からTokyo/London/NY/Overlapを自動判定して注入
-- **4原則リマインダ**: 毎メッセージで表示
-- **クオンツルールリマインダ**: XAU除外等のフィルタルールを表示
-- 実装: user-prompt-kb-sync.sh 拡張 (v8.9)
+**根本原因**: ハーネスが「ルールの宣言」で終わり、「ルールの強制」になっていなかった。
 
-### Layer 3: コードレベル強制 — 人間の判断に依存しない
-- **XAU除外**: risk_analytics.py compute_risk_dashboard()入口でXAUフィルター
-- **Shadow除外**: get_stats() exclude_shadow=True（既存v8.4）
-- **DD equity**: Equity Resetで XAU除外（既存v8.9）
-- **Spread/SL Gate**: コード内で強制（既存）
+## v2ハーネス: 3つの原則
 
-### Layer 4: セッション開始プロトコル強化
-- git log確認 + changelog整合 + **市場セッション認識** + **直近12hトレード活動チェック**
-- 0件なら即座に原因調査（4原則「攻める」への違反検知）
+### 原則1: 作る→検証する→使う→記録する (Build→Verify→Use→Record)
 
-### Layer 5: Scheduled Tasks / GitHub Actions
-- **Daily Report**: 4回/日（pre_tokyo/post_tokyo/post_london/post_ny）
-- **Weekly Audit**: 日曜UTC 02:00（戦略×ペアEV分解 + Tier再評価）
-- **Trade Monitor**: 15分毎（異常検知→Discord通知）
-- **KB自動コミット**: 全ワークフローにPAT_TOKEN + git commit/push
+```
+あらゆる成果物に対して:
+  1. Build: コード/ツール/分析を作る
+  2. Verify: 実データで正しい出力が返ることを検証する
+  3. Use: その出力を判断の根拠として引用する
+  4. Record: 判断と根拠をKBに記録する
+  ※ どのステップも飛ばさない。飛ばしたらlessonに記録
+```
 
-## ユーザー介入パターンと自動化状態
+**強制メカニズム**:
+- PostToolUse hook (post-strategy-edit-check.sh): 戦略変更時にBT検証を強制リマインド
+- pre-commit hook (git-pre-commit.sh): 97テスト + 6整合性チェック
+- CI (ci.yml): push時に自動テスト
 
-| パターン | 頻度 | 自動化 |
-|---------|------|--------|
-| "クオンツの見解は？" | 6回+ | Layer 1: デフォルトモードで解消 |
-| "お願いします" (ゴム印) | 15回 | Layer 1: 自動実行ティアで解消 |
-| XAU除外忘れ | 3回 | Layer 3: コードレベル強制で解消 |
-| 市場タイミング無視 | 5回 | Layer 2: 毎回セッション注入で解消 |
-| BT前にデプロイ | 2回 | Layer 1: 判断ルール明文化 |
-| KB更新忘れ | 5回 | Layer 2,4: フック自動化で解消 |
-| Post-cutoff忘れ | 2回 | Layer 1,2: ルール注入で解消 |
+### 原則2: 存在≠機能 (Existence≠Function)
 
-## RC6対策: ツール検証ルール (2026-04-13追加)
+```
+インフラの評価基準:
+  ❌ 「KBがある」「hookがある」「テストが通る」
+  ✅ 「KBの内容が読まれて判断に使われた」
+  ✅ 「hookが有用な情報を注入し、その情報で行動が変わった」  
+  ✅ 「テストが正しいことを検証している（空=OKはテストではない）」
+```
 
-**背景**: BT乖離パーサーを実装→パーサーバグで0件出力→気付かずに戦略変更を実施。
-「自分で作った分析ツールを使わずに判断した」という原則違反。
+**強制メカニズム**:
+- 全分析ツールに正例テスト必須 (TestBtDivergenceParser等)
+- hook出力のlessons件数を検証 (0件=バグ)
+- session logのPhase記録を作業中にインクリメンタルに書く
 
-**ルール**:
-1. **分析ツールは実データで正例テスト必須** — 空データでのスモークテスト(クラッシュしない)は不十分。実BTファイル/実APIデータで非空出力が返ることを検証する
-2. **ツールを作ったら即座に使う** — 作成→(次のタスク)→忘却 を防止。作成→実データ検証→使用→判断の順
-3. **戦略変更時のBT乖離チェック必須** — preprocess_bt_divergence()の出力を引用してからPROMOTE/DEMOTE/スコア変更を行う
-4. **空結果はバグ** — 分析関数が空を返した場合、「データがない」ではなく「パーサーが壊れている可能性」を先に疑う
-5. **正例テストをtest suiteに含める** — TestBtDivergenceParser (test_p2_system.py) がCI/pushで毎回実行される
+### 原則3: 発見→実装を同一サイクルで完結 (Discovery→Action in same cycle)
 
-## 未自動化（人間判断が必要な領域）
-- 戦略のPROMOTE/DEMOTE判断（統計的根拠は自動、最終決定は人間）
-- ロットサイズ変更（DD防御ポリシー変更）
-- 新戦略の採用可否（BT結果は自動、ビジネス判断は人間）
-- ロードマップの時間軸変更
+```
+Alpha Scanで毒性を発見 → 同じセッション内にブロック実装
+BT乖離を検出 → 同じセッション内に対策実装
+決定を行った → 同じコミットでdecisions/に記録
+```
+
+**v1の失敗**: Alpha ScanでEUR_USD SELL (EV=-2.714) を発見→「即時アクション」と判定→実装せずにインフラ作業に戻った。
+
+**強制メカニズム**:
+- Alpha Scan自動化 (alpha-scan.yml): 毎週月曜にCI実行、結果をDiscord通知
+- 自動降格/復帰パイプライン (_evaluate_promotions): N≥20 EV<-0.5で自動FORCE_DEMOTED
+- ランタイムペア別降格 (_runtime_pair_demoted): N≥15 EV<-0.5で動的ブロック
+
+## 情報フロー設計
+
+### 毎メッセージ注入 (UserPromptSubmit hook)
+```
+KB SYNC:
+  INDEX: Tier分類 + System State (30行)
+  UNRESOLVED: 最新の未解決事項 (20行, awkで最後のセクション)
+  LESSONS: 12件の教訓本文 (grep '教訓:')
+  MARKET: 市場セッション + 4原則 + クオンツルール
+  LAST COMMIT: ドリフト検知
+```
+
+### セッション開始時注入 (SessionStart hook)
+```
+KB AUTO-LOAD:
+  INDEX: Tier + System State (60行)
+  SESSION CONTEXT: 最新Phase + コミット一覧 (30行)
+  UNRESOLVED: 最新の未解決事項 (25行)
+  LESSONS: 教訓タイトル + 本文
+  DAILY REPORT: 最新レポート (15行)
+  ANALYST MEMORY: 最新知見 (20行)
+  KB DRIFT: check.pyの警告
+```
+
+### セッション終了時保存 (Stop hook)
+```
+1. pre-compact.sh: session logテンプレ生成
+2. KB変更のauto-commit + push
+3. JSON出力 (stdout汚染なし)
+```
+
+### 戦略変更時ゲート (PostToolUse on Edit)
+```
+post-strategy-edit-check.sh:
+  strategies/ or demo_trader.py の変更を検知
+  score/PROMOTE/DEMOTE/QUALIFIED キーワード検出
+  → BT検証必須リマインドを注入
+```
+
+## 自動パイプライン
+
+| パイプライン | 頻度 | 目的 | ファイル |
+|---|---|---|---|
+| Daily Report | 4回/日 | セッション別分析 + BT乖離テーブル | daily-report.yml |
+| Weekly Audit | 日曜 | 戦略×ペアEV分解 + Tier再評価 | weekly-audit.yml |
+| **Alpha Scan** | **月曜** | **ファクター分解 → 正EV/毒性自動検出** | **alpha-scan.yml** |
+| Trade Monitor | 2h毎 | 異常検知 | trade-monitor.yml |
+| CI | push時 | 97テスト + 6整合性チェック | ci.yml |
+| Auto-demotion | 10trade毎 | N≥20 EV<-0.5 → 自動降格 | demo_trader.py |
+
+## 今日のセッションで発覚した失敗と対策
+
+| 失敗 | 根本原因 | 対策 | 状態 |
+|------|---------|------|------|
+| Lessons 0件注入 | head -10がヘッダーのみ | grep '教訓:' に変更 | ✅修正済 |
+| Session要約未注入 | 未解決事項のみ | awk + Phase抽出追加 | ✅修正済 |
+| BT乖離パーサー0件 | regex不一致 | パーサー修正 + 正例テスト | ✅修正済 |
+| ツールを作って使わない | Build→Verifyで止まる | 原則1: Build→Verify→Use→Record | ✅原則定義 |
+| EUR_USD SELL未実装 | 発見→実装が分離 | 原則3 + Alpha Scan自動化 | ✅実装済 |
+| 意思決定ページ0件 | 記録が後回し | decisions/に即座に記録 | ✅8件作成 |
+| is_shadow=0バグ | 非promotedの扱い | _is_promoted=False → shadow強制 | ✅修正済 |
+| KB 14件不整合 | 更新が後回し | feat()と同一コミットでKB更新 | ✅修正済 |
+| DD状態矛盾 | 複数ファイルに同じ値 | SSOTをindex.mdに一元化 | ✅修正済 |
+| 2つ目の未解決ブロック不可視 | grep -A 15が最初のみ | awk化で最後のセクション | ✅修正済 |
+| CI/pre-commitなし | テスト自動実行なし | ci.yml + pre-commit構築 | ✅修正済 |
+| Alpha Scan手動のみ | 人間依存 | GitHub Action化 | ✅修正済 |
 
 ## リンク
 - [[roadmap-to-100pct]] — 月利100%ロードマップ
-- [[independent-audit-2026-04-10]] — 独立監査
+- [[session-decisions-2026-04-13]] — 本日の8件の意思決定
+- [[alpha-scan-2026-04-13]] — Alpha Scan結果
+- [[lesson-tool-verification-gap]] — ツール検証の教訓
 - [[system-reference]] — 全パラメータ
