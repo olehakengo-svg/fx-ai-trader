@@ -26,6 +26,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
+FIDELITY_CUTOFF = "2026-04-08T00:00:00+00:00"
+CLAUDE_MODEL = "claude-sonnet-4-6"
+
 PRODUCTION_APIS = {
     "status": "https://fx-ai-trader.onrender.com/api/demo/status",
     "trades": f"https://fx-ai-trader.onrender.com/api/demo/trades?limit=500&date_from={FIDELITY_CUTOFF[:10]}&status=closed",
@@ -33,9 +36,6 @@ PRODUCTION_APIS = {
     "risk":   "https://fx-ai-trader.onrender.com/api/risk/dashboard",
     "regime": "https://fx-ai-trader.onrender.com/api/market/regime",
 }
-
-FIDELITY_CUTOFF = "2026-04-08T00:00:00+00:00"
-CLAUDE_MODEL = "claude-sonnet-4-6"
 
 
 # ── API ────────────────────────────────────────────────
