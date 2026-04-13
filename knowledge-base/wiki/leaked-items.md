@@ -20,8 +20,8 @@ session-start.sh が毎回このファイルを注入し、新セッション開
 | 3 | Scalp BT結果確認（async task efc75632） | 結果を確認せず次タスクに移行 | MED | resolved (2026-04-14) |
 | 4 | current_price=0 bug（GBP/EUR pairs） | 報告のみで調査未着手 | MED | resolved (2026-04-14) |
 | 5 | XAU -1,496pip調査 → DB cleanup (0dc7af9) で削除済み。XAU mode=off、API上XAU trades=0 | post_tokyoレポートで最高優先度だが未着手 | HIGH | resolved (2026-04-14) |
-| 6 | post_ny dispatchテスト | cron設定済みだが手動テスト未実施 | LOW | pending |
-| 7 | OANDA画面フィルター位置確認 | デモ画面のみ修正、OANDA画面は未確認 | LOW | pending |
+| 6 | post_ny dispatchテスト | cron設定済みだが手動テスト未実施 | LOW | resolved (2026-04-14) |
+| 7 | OANDA画面フィルター位置確認 | デモ画面のみ修正、OANDA画面は未確認 | LOW | resolved (2026-04-14) |
 | 8 | alpha分析の自動実行 | 「原則に従い自動実行する」と宣言後に未実行 | MED | resolved (2026-04-14) |
 | 9 | QH/BE実装検証 → sltp_checker_active=true確認済み。QH(0.85x)+BE(ATR×0.8)+TS(ATR×1.5)全稼働中 | 0.5sec監視の稼働確認が中途半端 | HIGH | resolved (2026-04-14) |
 | 10 | デモ画面修正の検証 | 修正コミット後にブラウザ確認を忘れた | LOW | resolved (2026-04-14) |
