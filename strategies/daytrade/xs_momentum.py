@@ -60,8 +60,11 @@ class XsMomentum(StrategyBase):
 
     # ── SL/TP ──
     SL_ATR_MULT      = 1.5      # SL = ATR x 1.5
-    TP_ATR_MULT      = 3.0      # TP = ATR x 3.0 (高RR)
-    MIN_RR           = 1.5      # 最低リスクリワード比
+    # v8.9: TP 3.0→2.0 ATR — 本番全敗の根因はTPが遠すぎてTP未達で反転
+    # リアルタイムで含み益が出ているがTP到達前に全戻し → TPを近づけて利確率を上げる
+    # Quick Harvest (×0.85) と合わせて実効TP = 2.0 × 0.85 = 1.7 ATR
+    TP_ATR_MULT      = 2.0      # TP = ATR x 2.0 (v8.9: 3.0→2.0)
+    MIN_RR           = 1.2      # v8.9: 1.5→1.2 (TP縮小に合わせて緩和)
 
     # ── 保持 ──
     MAX_HOLD_BARS    = 16       # 最大16バー (4時間 @ 15m)
