@@ -24,6 +24,29 @@
         ]
       }
     ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/hooks/session-start.sh\"",
+            "statusMessage": "Loading KB...",
+            "once": true
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/hooks/pre-compact.sh\"",
+            "statusMessage": "Saving session log..."
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [
