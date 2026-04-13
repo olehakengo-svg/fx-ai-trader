@@ -79,6 +79,16 @@ ID 816・815ともに`⚠️ EMA200下からBUY`の警告付き。ADX 11.7〜13.
 *KB記載値と今回テーブルの差異に注意（下記解説参照）
 | Strategy | Pair | N | WR% | EV | PnL | 所感 |
 
+### 2026-04-13 (Post-Tokyo Report)
+| **セッション PnL** | **-13.4 pips** |
+| **WR** | **33.3% (6勝/18)** |
+| **平均PnL/トレード** | **-0.74 pips** |
+**総評**: 本日累計31件・PnL -21.8 pips。XAU別枠での-1,496 pipsが最大懸念（後述）。
+| 戦略 | Pair | Dir | PnL | 成功要因 |
+| **bb_rsi_reversion** | USD_JPY | BUY×2 | +6.0 pips合計 | TP_HIT含む2勝でEV+0.83達成、RANGINGレジームで平均回帰が機能した |
+| 戦略 | Pair | PnL | 失敗要因 |
+| **sr_channel_reversal** | USD_JPY | -12.5 pips (N=8, WR=25%) | 8件中6件が損失/BEで、SL_HITが複数発生——RANGING環境でもレンジブレイクに巻き込まれておりSR水準の信頼度が低い |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
