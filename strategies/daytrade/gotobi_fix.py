@@ -174,8 +174,10 @@ class GotobiFix(StrategyBase):
             return None
 
         # ── BUY ONLY: 陽線確認 (Close > Open) ──
-        if ctx.entry <= ctx.open_price:
-            return None  # 陰線 → 仲値買い圧力なし
+        # v8.9: SENTINEL蓄積フェーズのため陽線フィルター緩和。陰線でもBUYシグナル生成
+        # データN>=30到達後に陽線フィルターの効果を検証し、復活/維持を判断
+        # if ctx.entry <= ctx.open_price:
+        #     return None  # 陰線 → 仲値買い圧力なし
 
         # ═══════════════════════════════════════════════════
         # BUYシグナル生成

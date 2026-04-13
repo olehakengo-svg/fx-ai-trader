@@ -164,7 +164,7 @@ class LiquiditySweep(StrategyBase):
 
     # BB width percentile 上限: squeeze直前を除外
     # 0.50 = 50パーセンタイル以下のみ (圧縮が解放される瞬間を回避)
-    BB_WIDTH_PCT_MAX = 0.50
+    BB_WIDTH_PCT_MAX = 0.70   # was 0.50: N=0発火のため緩和。極端なsqueeze-breakoutのみ除外
 
     # セッション開始ブロック (UTC分単位)
     # v8.6: 30min→15minに短縮 — Barardehi & Bernhardt (2025): 真のボラスパイクは開始15分に集中

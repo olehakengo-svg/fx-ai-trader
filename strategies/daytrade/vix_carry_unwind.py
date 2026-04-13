@@ -41,14 +41,14 @@ class VixCarryUnwind(StrategyBase):
     # ── VIXプロキシ ──
     ATR_SHORT_PERIOD = 5         # 短期ATR期間
     ATR_LONG_PERIOD  = 20        # 長期ATR期間
-    VIX_PROXY_THRESH = 1.8       # 短期ATR / 長期ATR > 1.8 でVIXスパイクとみなす
+    VIX_PROXY_THRESH = 1.5       # 短期ATR / 長期ATR > 1.5 でVIXスパイクとみなす (was 1.8: N=0発火のため緩和)
 
     # ── 代替判定: 極端な日足レンジ ──
     EXTREME_RANGE_MULT = 3.0     # 日足レンジ > 平均 × 3.0 で極端な日とみなす
     RANGE_LOOKBACK     = 20      # 平均日足レンジ計算期間
 
     # ── エントリー条件 ──
-    REQUIRE_BEARISH_BAR = True   # 陰線必須 (Close < Open)
+    REQUIRE_BEARISH_BAR = False  # 陰線不要 (was True: カスケードフィルターでN=0のため緩和)
     REQUIRE_BELOW_EMA21 = True   # Price < EMA21 必須
 
     # ── EMAフィルター ──
@@ -85,7 +85,7 @@ class VixCarryUnwind(StrategyBase):
 
         # 短期ATR: 直近5本の True Range 平均
         _short_trs = []
-        for i in range(min(self.ATR_SHORT_PERIOD, len(df) - 1)):
+        for i in range(min(self.ATR_SHORT_PERIOD, len(df))):
             idx = len(df) - 1 - i
             _h = float(df.iloc[idx]["High"])
             _l = float(df.iloc[idx]["Low"])
@@ -95,7 +95,7 @@ class VixCarryUnwind(StrategyBase):
 
         # 長期ATR: 直近20本の True Range 平均
         _long_trs = []
-        for i in range(min(self.ATR_LONG_PERIOD, len(df) - 1)):
+        for i in range(min(self.ATR_LONG_PERIOD, len(df))):
             idx = len(df) - 1 - i
             _h = float(df.iloc[idx]["High"])
             _l = float(df.iloc[idx]["Low"])

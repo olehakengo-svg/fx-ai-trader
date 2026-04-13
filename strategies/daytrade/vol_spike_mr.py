@@ -43,7 +43,7 @@ class VolSpikeMR(StrategyBase):
     # ══════════════════════════════════════════════════
     # パラメータ定数 (BT検証済み)
     # ══════════════════════════════════════════════════
-    SPIKE_RATIO = 3.0          # current range > 3x 直近5本平均
+    SPIKE_RATIO = 2.3          # current range > 2.3x 直近5本平均 (was 3.0: N=0発火、上位1-2%→5-10%に緩和)
     LOOKBACK_BARS = 5          # 平均レンジ算出ウィンドウ
     SL_ATR_MULT = 1.5          # SL = ATR × 1.5
     TP_ATR_MULT = 1.5          # TP = ATR × 1.5 (RR=1.0, 高WRで補償)
