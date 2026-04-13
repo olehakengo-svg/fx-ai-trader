@@ -277,7 +277,7 @@ class LondonFixReversal(StrategyBase):
         # ═══════════════════════════════════════════════════
         # スコアリング & Reasons
         # ═══════════════════════════════════════════════════
-        score = 4.0
+        score = 5.5  # v8.9: 4.0→5.5 (学術根拠★★★★★ + BT WR=75%, スコア競争で埋没していた)
         reasons = []
         _prefix_pip = abs(_prefix_move) * ctx.pip_mult
         _direction = "UP" if _prefix_up else "DOWN"

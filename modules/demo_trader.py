@@ -4343,6 +4343,9 @@ class DemoTrader:
         ("session_time_bias", "GBP_USD"),
         # v8.6: london_fix_reversal GBP_USD — BT WR=75% EV=+0.318 (Krohn 2024 JF)
         ("london_fix_reversal", "GBP_USD"),
+        # v8.9: ema_pullback×JPY — Post-cut N=14 WR=42.9% EV=+1.09 (FORCE_DEMOTEDからペア復活)
+        # Sentinel lotで実弾データ蓄積、N≥30でフル昇格判断
+        ("ema_pullback", "USD_JPY"),
     }
 
     # ペア別ロットブースト: PAIR_LOT_BOOST > _STRATEGY_LOT_BOOST (優先)
@@ -4361,10 +4364,10 @@ class DemoTrader:
         # v8.0: ema_trend_scalp → _STRATEGY_LOT_BOOST 1.5x昇格 (当日最高PnL +$179.6, WR=44.4%)
         "gold_trend_momentum",         # XAU Trend Momentum: 15m EMA21 PB trend-follow — 新規, Sentinel蓄積
         "liquidity_sweep",             # v8.2: Liquidity Sweep: ウィック構造ストップ狩りリバーサル (Osler 2003) — Sentinel蓄積
-        # v8.5: 学術文献リサーチ6新エッジ — 全てSentinel蓄積
-        "session_time_bias",           # セッション時刻バイアス (Breedon & Ranaldo 2013)
+        # v8.5: 学術文献リサーチ6新エッジ
+        # REMOVED: session_time_bias → PAIR_PROMOTED済み、SENTINEL矛盾のためshadow化が発生していた (v8.9)
+        # REMOVED: london_fix_reversal → PAIR_PROMOTED済み、同上 (v8.9)
         "gotobi_fix",                  # 五十日仲値Fix (Bessho 2023)
-        "london_fix_reversal",         # ロンドンFixリバーサル (Krohn 2024)
         "vix_carry_unwind",            # VIXキャリー巻戻し (Brunnermeier 2009)
         "xs_momentum",                 # クロスセクション通貨モメンタム (Eriksen 2019)
         "hmm_regime_filter",           # HMMレジームフィルター (Nystrup 2024)

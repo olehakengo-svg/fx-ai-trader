@@ -145,7 +145,7 @@ class SessionTimeBias(StrategyBase):
         # シグナル生成
         # ═══════════════════════════════════════════════════
         signal = _bias_signal
-        score = 4.0
+        score = 5.5  # v8.9: 4.0→5.5 (学術根拠★★★★★ + BT WR=69-77%, スコア競争で埋没していた)
         reasons = []
         _dec = 3 if ctx.is_jpy or ctx.pip_mult == 100 else 5
 
