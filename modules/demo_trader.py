@@ -921,12 +921,8 @@ class DemoTrader:
         self._sltp_thread.start()
         print(f"[EnsureSLTP] Thread started: {self._sltp_thread.is_alive()}", flush=True)
 
-        # v8.9: 含み益リアルタイム監視スレッド (5分間隔)
-        self._profit_monitor_thread = threading.Thread(
-            target=self._profit_monitor_loop, daemon=True,
-            name="DemoTrader-ProfitMonitor"
-        )
-        self._profit_monitor_thread.start()
+        # v8.9: 含み益検知は SLTPチェッカー(0.5秒)内に統合済み
+        # 別スレッドの5分監視は不要 — 削除
 
     _PROFIT_MONITOR_INTERVAL = 300  # 5分
     _PROFIT_ALERT_THRESHOLD = 15.0  # pip
@@ -1510,6 +1506,23 @@ class DemoTrader:
             # ── OANDA連携: トレーリングSL変更をミラー ──
             if sl != _original_sl:
                 self._oanda.modify_sl(trade_id, sl, instrument=_inst)
+
+            # ── v8.9: 含み益リアルタイム検知 (0.5秒ループ内) ──
+            # 大幅含み益のDiscord通知 + Shadow含み益警告
+            if favorable_move > 0 and hasattr(self, '_rt_profit_cache'):
+                _key = f"{trade_id}"
+                _prev = self._rt_profit_cache.get(_key, 0)
+                _fav_pips = favorable_move * (100 if "JPY" in _inst else 10000)
+                # 含み益が+10pip超えかつ前回通知から5pip以上増加した場合
+                if _fav_pips > 10 and _fav_pips - _prev > 5:
+                    self._rt_profit_cache[_key] = _fav_pips
+                    _is_sh = trade.get("is_shadow", 0)
+                    self._add_log(
+                        f"💰 [{_entry_type_t}×{_inst}] 含み益+{_fav_pips:.1f}pip"
+                        f"{' (SHADOW⚠️)' if _is_sh else ''}"
+                    )
+            if not hasattr(self, '_rt_profit_cache'):
+                self._rt_profit_cache = {}
 
             close_reason = None
 
