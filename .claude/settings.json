@@ -29,9 +29,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/hooks/session-start.sh\"",
-            "statusMessage": "Loading KB...",
-            "once": true
+            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/hooks/user-prompt-kb-sync.sh\"",
+            "statusMessage": "KB sync..."
           }
         ]
       }
@@ -41,8 +40,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/hooks/pre-compact.sh\"",
-            "statusMessage": "Saving session log..."
+            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/hooks/session-end-save.sh\"",
+            "statusMessage": "Saving session to KB..."
           }
         ]
       }
