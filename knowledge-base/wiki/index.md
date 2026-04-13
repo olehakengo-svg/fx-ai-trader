@@ -62,7 +62,8 @@ See [[force-demoted-strategies]]
 - [[mfe-zero-analysis]] -- 90.6% of losses never go favorable
 
 ## Session History
-- [[sessions/2026-04-13-session]] — v8.9 Equity Reset + KB全面改修(18 Phase) + 4セッションレポート + パイプライン修復
+- [[sessions/2026-04-14-session]] — H15検証+SENTINEL矛盾修正+QHシミュレーション+漏れ分析
+- [[sessions/2026-04-13-session]] — v8.9 Equity Reset + KB全面改修(25 Phase) + 4セッションレポート + パイプライン修復
 - [[sessions/2026-04-12-session]] — 6新エッジ実装+学術監査+KB構築
 
 ## Lessons Learned (間違いと教訓)

@@ -8,6 +8,16 @@ KB="$ROOT/knowledge-base/wiki"
 
 LATEST_SESSION=$(ls -t "$KB/sessions/"*.md 2>/dev/null | head -1 || true)
 
+# 漏れ防止ログ（最優先で注入 — 新規タスクより先に処理すべき項目）
+LEAKED=""
+LEAKED_FILE="$KB/leaked-items.md"
+if [[ -f "$LEAKED_FILE" ]]; then
+    LEAKED_PENDING=$(grep -c '| pending' "$LEAKED_FILE" 2>/dev/null || echo "0")
+    if [[ "$LEAKED_PENDING" -gt 0 ]]; then
+        LEAKED=$(awk '/^## Active Items/,/^## Resolved Items/' "$LEAKED_FILE" 2>/dev/null | head -30 | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
+    fi
+fi
+
 # 各セクションを取得（ファイル未存在でも続行）
 INDEX=$(head -60 "$KB/index.md" 2>/dev/null | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
 UNRESOLVED_LABEL=$(basename "${LATEST_SESSION:-unknown}" .md 2>/dev/null || echo "unknown")
@@ -43,6 +53,12 @@ if [[ -f "$ROOT/scripts/check.py" ]]; then
     fi
 fi
 
+# 漏れ防止セクションを最上位に配置（pending>0の場合のみ）
+LEAKED_SECTION=""
+if [[ -n "$LEAKED" ]]; then
+    LEAKED_SECTION="--- ⚠️ LEAKED ITEMS (前セッションの漏れ — 新規タスクより先に処理せよ) ---\\n${LEAKED}\\n\\n"
+fi
+
 cat <<ENDJSON
-{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"=== KB AUTO-LOAD ===\\n\\n--- INDEX (Tier + System State) ---\\n${INDEX}\\n\\n--- SESSION CONTEXT (${UNRESOLVED_LABEL}) ---\\n${SESSION_SUMMARY}\\n\\n--- UNRESOLVED ITEMS ---\\n${UNRESOLVED}\\n\\n--- LESSONS (過去の間違い — 繰り返すな) ---\\n${LESSONS}\\n\\n--- LATEST DAILY REPORT ---\\n${DAILY}\\n\\n--- ANALYST MEMORY ---\\n${ANALYST}\\n\\n--- KB DRIFT WARNINGS ---\\n${DRIFT}\\n=== END KB AUTO-LOAD ==="}}
+{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"=== KB AUTO-LOAD ===\\n\\n${LEAKED_SECTION}--- INDEX (Tier + System State) ---\\n${INDEX}\\n\\n--- SESSION CONTEXT (${UNRESOLVED_LABEL}) ---\\n${SESSION_SUMMARY}\\n\\n--- UNRESOLVED ITEMS ---\\n${UNRESOLVED}\\n\\n--- LESSONS (過去の間違い — 繰り返すな) ---\\n${LESSONS}\\n\\n--- LATEST DAILY REPORT ---\\n${DAILY}\\n\\n--- ANALYST MEMORY ---\\n${ANALYST}\\n\\n--- KB DRIFT WARNINGS ---\\n${DRIFT}\\n=== END KB AUTO-LOAD ==="}}
 ENDJSON
