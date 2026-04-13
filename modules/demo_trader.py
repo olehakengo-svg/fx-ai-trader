@@ -921,6 +921,85 @@ class DemoTrader:
         self._sltp_thread.start()
         print(f"[EnsureSLTP] Thread started: {self._sltp_thread.is_alive()}", flush=True)
 
+        # v8.9: 含み益リアルタイム監視スレッド (5分間隔)
+        self._profit_monitor_thread = threading.Thread(
+            target=self._profit_monitor_loop, daemon=True,
+            name="DemoTrader-ProfitMonitor"
+        )
+        self._profit_monitor_thread.start()
+
+    _PROFIT_MONITOR_INTERVAL = 300  # 5分
+    _PROFIT_ALERT_THRESHOLD = 15.0  # pip
+    _SHADOW_PROFIT_THRESHOLD = 8.0  # pip
+    _last_profit_alert_ts = 0.0
+
+    def _profit_monitor_loop(self):
+        """v8.9: オープンポジションの含み益を5分毎に監視。
+        大幅含み益やShadow含み益を検知してログ+Discord通知。"""
+        import time
+        time.sleep(60)  # 起動直後はスキップ
+        while True:
+            try:
+                open_trades = self._db.get_open_trades()
+                if not open_trades:
+                    time.sleep(self._PROFIT_MONITOR_INTERVAL)
+                    continue
+
+                total_unreal = 0.0
+                shadow_unreal = 0.0
+                best_trade = None
+                best_pnl = 0.0
+
+                for t in open_trades:
+                    pnl = float(t.get("unrealized_pips", 0) or 0)
+                    total_unreal += pnl
+                    if t.get("is_shadow", 0):
+                        shadow_unreal += max(pnl, 0)
+                    if pnl > best_pnl:
+                        best_pnl = pnl
+                        best_trade = t
+
+                now = time.time()
+                # 30分に1回以上は通知しない（スパム防止）
+                if now - self._last_profit_alert_ts < 1800:
+                    time.sleep(self._PROFIT_MONITOR_INTERVAL)
+                    continue
+
+                alerts = []
+                if total_unreal > self._PROFIT_ALERT_THRESHOLD:
+                    bt = best_trade or {}
+                    alerts.append(
+                        f"💰 含み益+{total_unreal:.1f}pip "
+                        f"(Top: {bt.get('entry_type','?')}×{bt.get('instrument','?')} "
+                        f"+{best_pnl:.1f}pip)"
+                    )
+                if shadow_unreal > self._SHADOW_PROFIT_THRESHOLD:
+                    alerts.append(
+                        f"⚠️ Shadow含み益+{shadow_unreal:.1f}pip — OANDA未送信"
+                    )
+
+                if alerts:
+                    self._last_profit_alert_ts = now
+                    for a in alerts:
+                        self._add_log(f"[PROFIT-MONITOR] {a}")
+                    # Discord送信（webhook設定がある場合）
+                    try:
+                        import os, urllib.request, json as _json
+                        webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+                        if webhook:
+                            msg = "📊 **ポジション監視**\n" + "\n".join(alerts)
+                            data = _json.dumps({"content": msg}).encode()
+                            req = urllib.request.Request(
+                                webhook, data=data,
+                                headers={"Content-Type": "application/json",
+                                         "User-Agent": "FX-AI-Trader/1.0"})
+                            urllib.request.urlopen(req, timeout=10)
+                    except Exception:
+                        pass
+            except Exception as e:
+                print(f"[ProfitMonitor] error: {e}", flush=True)
+            time.sleep(self._PROFIT_MONITOR_INTERVAL)
+
     def _ensure_main_loop(self):
         """メインループスレッドを起動（未起動の場合のみ）"""
         if self._health_thread and self._health_thread.is_alive():
