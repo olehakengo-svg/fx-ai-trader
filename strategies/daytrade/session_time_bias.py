@@ -86,7 +86,10 @@ class SessionTimeBias(StrategyBase):
         _minute = 0
         if ctx.bar_time is not None and hasattr(ctx.bar_time, 'minute'):
             _minute = ctx.bar_time.minute
-        elif ctx.bar_time is None:
+        elif ctx.df is not None and len(ctx.df) > 0 and hasattr(ctx.df.index[-1], 'minute'):
+            # v8.9: ライブモードでbar_time=None → DFインデックスから取得
+            _minute = ctx.df.index[-1].minute
+        else:
             return -1
         return ctx.hour_utc * 60 + _minute
 

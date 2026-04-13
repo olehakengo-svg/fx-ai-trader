@@ -168,7 +168,7 @@ class LondonFixReversal(StrategyBase):
 
         # ── バータイム取得 ──
         _bt = ctx.bar_time
-        if _bt is None and hasattr(ctx.df.index[-1], 'minute'):
+        if _bt is None and ctx.df is not None and len(ctx.df) > 0 and hasattr(ctx.df.index[-1], 'minute'):
             _bt = ctx.df.index[-1]
         if _bt is None:
             return None

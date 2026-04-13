@@ -126,7 +126,9 @@ class GotobiFix(StrategyBase):
         _minute = 0
         if ctx.bar_time is not None and hasattr(ctx.bar_time, 'minute'):
             _minute = ctx.bar_time.minute
-        elif ctx.bar_time is None:
+        elif ctx.df is not None and len(ctx.df) > 0 and hasattr(ctx.df.index[-1], 'minute'):
+            _minute = ctx.df.index[-1].minute
+        else:
             return -1
         return ctx.hour_utc * 60 + _minute
 
@@ -149,7 +151,11 @@ class GotobiFix(StrategyBase):
         # Shadow→Sentinelでデータ蓄積を優先し、曜日別WRを事後検証
 
         # ── 五十日チェック ──
-        if ctx.bar_time is None or not self._is_gotobi_day(ctx.bar_time):
+        # v8.9: bar_time=None(ライブモード) → DFインデックスから日付取得
+        _check_time = ctx.bar_time
+        if _check_time is None and ctx.df is not None and len(ctx.df) > 0:
+            _check_time = ctx.df.index[-1]
+        if _check_time is None or not self._is_gotobi_day(_check_time):
             return None
 
         # ── 時間帯チェック: UTC 23:45 - 01:00 ──
