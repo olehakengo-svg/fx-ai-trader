@@ -924,6 +924,7 @@ class DemoDB:
             return {"ready": False, "sample": len(closed), "min_required": min_trades}
 
         by_type = {}
+        by_type_pair = {}  # v8.9: ペア×戦略別 (自動降格用)
         by_conf_band = {"low": [], "mid": [], "high": []}
         by_hour = {}
         by_regime = {}
@@ -933,6 +934,9 @@ class DemoDB:
             # By entry type
             et = t["entry_type"] or "unknown"
             by_type.setdefault(et, []).append(t)
+            # v8.9: By entry_type × instrument
+            inst = t.get("instrument", "USD_JPY") or "USD_JPY"
+            by_type_pair.setdefault((et, inst), []).append(t)
 
             # By confidence band
             c = t["confidence"] or 50
@@ -973,6 +977,9 @@ class DemoDB:
             "ready": True,
             "sample": len(closed),
             "by_type":   {k: {"wr": _calc_wr(v)[0], "ev": _calc_wr(v)[1], "n": len(v)} for k, v in by_type.items()},
+            # v8.9: ペア×戦略別 — キーは "entry_type|instrument" 形式
+            "by_type_pair": {f"{k[0]}|{k[1]}": {"wr": _calc_wr(v)[0], "ev": _calc_wr(v)[1], "n": len(v),
+                             "entry_type": k[0], "instrument": k[1]} for k, v in by_type_pair.items()},
             "by_conf":   {k: {"wr": _calc_wr(v)[0], "ev": _calc_wr(v)[1], "n": len(v)} for k, v in by_conf_band.items()},
             "by_hour":   {k: {"wr": _calc_wr(v)[0], "ev": _calc_wr(v)[1], "n": len(v)} for k, v in by_hour.items()},
             "by_regime": {k: {"wr": _calc_wr(v)[0], "ev": _calc_wr(v)[1], "n": len(v)} for k, v in by_regime.items()},

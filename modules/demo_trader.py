@@ -4037,24 +4037,20 @@ class DemoTrader:
         """デモ実績に基づいて戦略をOANDA昇格/降格判定
         ファストトラック: N≥20 かつ WR≥60% かつ EV≥1.0 → 昇格
         通常トラック:    N≥30 かつ EV≥1.0 → 昇格 (コスト補正: 1pip差引後にEV正)
-        降格:           N≥30 かつ EV<-0.5 → 降格
-        NOTE: 旧エリートトラック(N≥3)は統計的に不十分なため廃止
-              (2026-04-05 audit fix: N=3で本番昇格は危険)
+        降格(グローバル):  N≥20 かつ EV<-0.5 → 降格 (v8.9: N≥30→N≥20に緩和)
+        降格(ペア別):    N≥15 かつ EV<-0.5 → ペア別降格 (v8.9: 新規追加)
+        復帰:           N≥30 かつ EV>0 → pending復帰 (v8.9: 新規追加)
+        NOTE: トレード回数は減らさない — 降格はOANDA停止のみ、Shadowは継続
         """
         from modules.learning_engine import SMC_PROTECTED
         try:
-            # v6.4: Fidelity Cutoff — v6.3パラメータ変更後のトレードのみ評価
             data = self._db.get_trades_for_learning(
                 min_trades=1, after_date=self._FIDELITY_CUTOFF
             )
             if not data.get("ready"):
-                # v6.4: カットオフ後のトレードが0件 → 旧データをリセット
-                # (旧EV/WR/NがCommandCenterに残留するのを防止)
                 if self._FIDELITY_CUTOFF and self._promoted_types:
                     _reset_count = len(self._promoted_types)
                     self._promoted_types.clear()
-                    # NOTE: _strategy_n_cache はリセットしない
-                    # N cache はロットサイジング(N_LOT_TIERS)に使用されるため
                     # リセットすると全戦略がSentinel(0.01lot)化してしまう
                     # N cache は次回の全データ集計で自然に更新される
                     self._add_log(
@@ -4077,14 +4073,39 @@ class DemoTrader:
                 # 通常トラック: コスト補正後にEV正 (EV≥1.0pip)
                 elif n >= 30 and ev >= self._BT_COST_PER_TRADE:
                     status = "promoted"
-                # 降格: 十分なサンプルでEV大幅マイナス (SMC保護戦略は降格禁止)
-                elif n >= 30 and ev < -0.5 and et not in SMC_PROTECTED:
+                # v8.9: 降格閾値緩和 N≥30→N≥20 (今日のEV分解で十分な根拠)
+                elif n >= 20 and ev < -0.5 and et not in SMC_PROTECTED:
                     status = "demoted"
-                else:
+                # v8.9: 自動復帰パス — demotedでもShadowデータが改善すればpending復帰
+                elif old == "demoted" and n >= 30 and ev > 0:
                     status = "pending"
+                else:
+                    status = old if old in ("promoted", "demoted") else "pending"
                 self._promoted_types[et] = {"status": status, "n": n, "wr": wr, "ev": ev}
                 if old != status:
                     changes.append(f"{et}: {old}→{status} (N={n} WR={wr}% EV={ev:+.2f})")
+
+            # ── v8.9: ペア別降格 — グローバルEVが正でもペア別で負の組み合わせを検出 ──
+            by_type_pair = data.get("by_type_pair", {})
+            for key, stats in by_type_pair.items():
+                _et = stats.get("entry_type", "")
+                _inst = stats.get("instrument", "")
+                _n = stats.get("n", 0)
+                _ev = stats.get("ev", 0)
+                _wr = stats.get("wr", 0)
+                if _n >= 15 and _ev < -0.5 and _et not in SMC_PROTECTED:
+                    _pair_key = (_et, _inst)
+                    if _pair_key not in self._PAIR_DEMOTED and _pair_key not in self._PAIR_PROMOTED:
+                        # 動的ペア降格: _runtime_pair_demoted に追加
+                        if not hasattr(self, '_runtime_pair_demoted'):
+                            self._runtime_pair_demoted = set()
+                        if _pair_key not in self._runtime_pair_demoted:
+                            self._runtime_pair_demoted.add(_pair_key)
+                            changes.append(
+                                f"🔻 {_et}×{_inst}: auto-PAIR_DEMOTED "
+                                f"(N={_n} WR={_wr}% EV={_ev:+.2f})"
+                            )
+
             if changes:
                 self._add_log(f"🎯 戦略昇格更新: {', '.join(changes[:5])}")
             # ── v6.2: N cache DB永続化 (deploy survive) ──
@@ -4449,7 +4470,11 @@ class DemoTrader:
 
         # ── ペア別降格: 特定ペアでのみEVマイナスの組み合わせ ──
         if instrument and (entry_type, instrument) in self._PAIR_DEMOTED:
-            return False  # ペア限定降格
+            return False  # ペア限定降格 (静的)
+        # v8.9: ランタイム自動ペア降格 (_evaluate_promotions で動的追加)
+        _rt_pd = getattr(self, '_runtime_pair_demoted', set())
+        if instrument and (entry_type, instrument) in _rt_pd:
+            return False  # ペア限定降格 (動的)
 
         # ── ペア別復活: FORCE_DEMOTEDでもペア限定で復活 ──
         if instrument and (entry_type, instrument) in self._PAIR_PROMOTED:
