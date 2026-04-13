@@ -49,8 +49,14 @@ from modules.demo_trader import DemoTrader
 dt = DemoTrader.__new__(DemoTrader)
 # FORCE_DEMOTEDとUNIVERSAL_SENTINELの重複チェック
 overlap = dt._FORCE_DEMOTED & dt._UNIVERSAL_SENTINEL
-if overlap:
-    print(f'FAIL:overlap={overlap}')
+# PAIR_PROMOTEDとUNIVERSAL_SENTINELの重複チェック（shadow化バグの原因）
+pp_strats = {s for s, _ in dt._PAIR_PROMOTED}
+pp_sentinel = pp_strats & dt._UNIVERSAL_SENTINEL
+if overlap or pp_sentinel:
+    msg = []
+    if overlap: msg.append(f'FORCE_DEMOTED&SENTINEL={overlap}')
+    if pp_sentinel: msg.append(f'PAIR_PROMOTED&SENTINEL={pp_sentinel}')
+    print(f'FAIL:{"; ".join(msg)}')
 else:
     print('OK')
 " 2>/dev/null || echo "SKIP")
