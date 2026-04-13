@@ -49,11 +49,16 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add knowledge-base/raw/trade-logs/
           test -d knowledge-base/raw/market-analysis && git add knowledge-base/raw/market-analysis/ || true
-          git diff --cached --quiet || {
+          echo "=== Staged files ==="
+          git diff --cached --name-only
+          if git diff --cached --name-only | grep -q "knowledge-base/"; then
             git pull --rebase origin main
             git commit -m "docs(KB): daily report $(date -u +%Y-%m-%d)"
             git push
-          }
+            echo "✅ KB committed"
+          else
+            echo "ℹ️ No KB changes to commit"
+          fi
 
       - name: Notify KB commit result
         if: always()

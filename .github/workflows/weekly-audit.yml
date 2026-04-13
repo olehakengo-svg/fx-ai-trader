@@ -58,11 +58,16 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add knowledge-base/raw/audits/
-          git diff --cached --quiet || {
+          echo "=== Staged files ==="
+          git diff --cached --name-only
+          if git diff --cached --name-only | grep -q "knowledge-base/"; then
             git pull --rebase origin main
             git commit -m "docs(KB): ${{ steps.audit-type.outputs.type }} audit $(date -u +%Y-%m-%d)"
             git push
-          }
+            echo "✅ KB committed"
+          else
+            echo "ℹ️ No KB changes to commit"
+          fi
 
       - name: Notify KB commit result
         if: always()
