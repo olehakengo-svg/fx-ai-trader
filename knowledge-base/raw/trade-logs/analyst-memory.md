@@ -109,6 +109,16 @@ XAU別枠（11件）: PnL **-1,496 pips**（XAUスケール：要注意）
 | bb_rsi_reversion | EUR_USD | 13 | 30.8% | -0.79 | -10.3 | 🔴 負EV継続 |
 | vol_momentum_scalp | USD_JPY | 11 | **72.7%** | **+1.69** | +18.6 | 🟢 最高WR・N蓄積中 |
 
+### 2026-04-13 (Post-NY Report)
+| 勝率 (WR) | 23.1% |
+| PnL | **-53.7 pips** |
+| 戦略 | ペア | PnL | 成功要因 |
+| 戦略 | ペア | PnL | 失敗要因 |
+| `dt_bb_rsi_mr` | USD_JPY | -8.2, -1.8 (合計-10.0) | BUY方向に逆行（SL_HIT + SIGNAL_REVERSE）、方向バイアスの誤認 |
+### セッションPnL比較
+| Session | N | WR% | PnL (pips) | 評価 |
+| NY (16–22 UTC) | 26 | 23.1% | -53.7 | ❌ 最低WR |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
