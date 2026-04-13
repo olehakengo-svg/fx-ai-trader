@@ -11447,6 +11447,121 @@ def api_demo_stats():
     return jsonify(stats)
 
 
+@app.route("/api/demo/factors")
+def api_demo_factors():
+    """v8.9: 多次元ファクター分解エンジン — アルファ探索用
+    全トレードを任意の因子の組合せで分解し、各セルのWR/EV/N/Kelly/PFを返す。
+
+    Query params:
+      factors: カンマ区切りの因子名 (例: "hour,instrument,direction")
+        有効因子: strategy, instrument, direction, hour, regime, confidence,
+                  close_reason, mode, layer1, holding_time, spread_tier
+      date_from: ISO日付 (default: Fidelity Cutoff)
+      min_n: 最小サンプル数 (default: 5)
+
+    Returns: {"cells": [{factor1: val, factor2: val, n, wr, ev, pf, kelly, pnl}], "total_n": N}
+    """
+    from datetime import datetime, timezone
+    import math
+
+    FIDELITY_CUTOFF = "2026-04-08T00:00:00"
+    date_from = request.args.get("date_from", FIDELITY_CUTOFF)
+    min_n = int(request.args.get("min_n", 5))
+    factors_str = request.args.get("factors", "strategy,instrument")
+    factor_names = [f.strip() for f in factors_str.split(",") if f.strip()]
+
+    closed = _demo_db.get_all_closed()
+    # FX-only, non-shadow, post-cutoff
+    trades = [t for t in closed
+              if not t.get("is_shadow", 0)
+              and "XAU" not in (t.get("instrument", "") or "")
+              and (t.get("entry_time", "") or "") >= date_from]
+
+    def _get_factor(t, factor):
+        if factor == "strategy":
+            return t.get("entry_type", "unknown") or "unknown"
+        elif factor == "instrument":
+            return t.get("instrument", "unknown") or "unknown"
+        elif factor == "direction":
+            return t.get("direction", "unknown") or "unknown"
+        elif factor == "hour":
+            try:
+                return str(datetime.fromisoformat(t["entry_time"]).hour)
+            except Exception:
+                return "?"
+        elif factor == "regime":
+            try:
+                import json as _json
+                return _json.loads(t.get("regime", "{}") or "{}").get("regime", "unknown")
+            except Exception:
+                return "unknown"
+        elif factor == "confidence":
+            c = t.get("confidence", 50) or 50
+            if c < 55: return "low"
+            elif c < 70: return "mid"
+            else: return "high"
+        elif factor == "close_reason":
+            return t.get("close_reason", "unknown") or "unknown"
+        elif factor == "mode":
+            return t.get("mode", "unknown") or "unknown"
+        elif factor == "layer1":
+            return t.get("layer1_dir", "neutral") or "neutral"
+        elif factor == "holding_time":
+            try:
+                et = datetime.fromisoformat(t["entry_time"])
+                xt = datetime.fromisoformat(t["exit_time"])
+                mins = (xt - et).total_seconds() / 60
+                if mins < 2: return "<2min"
+                elif mins < 10: return "2-10min"
+                elif mins < 60: return "10-60min"
+                else: return "60min+"
+            except Exception:
+                return "?"
+        elif factor == "spread_tier":
+            s = t.get("spread_at_entry", 0) or 0
+            if s < 1.5: return "tight"
+            elif s < 3.0: return "normal"
+            else: return "wide"
+        return "?"
+
+    # 多次元集計
+    from collections import defaultdict
+    cells = defaultdict(lambda: {"wins": 0, "losses": 0, "pnl": 0.0,
+                                  "win_pnl": 0.0, "loss_pnl": 0.0})
+    for t in trades:
+        key = tuple(_get_factor(t, f) for f in factor_names)
+        pnl = float(t.get("pnl_pips", 0) or 0)
+        cells[key]["pnl"] += pnl
+        if t.get("outcome") == "WIN":
+            cells[key]["wins"] += 1
+            cells[key]["win_pnl"] += pnl
+        else:
+            cells[key]["losses"] += 1
+            cells[key]["loss_pnl"] += abs(pnl)
+
+    result = []
+    for key, c in cells.items():
+        n = c["wins"] + c["losses"]
+        if n < min_n:
+            continue
+        wr = c["wins"] / n if n > 0 else 0
+        ev = c["pnl"] / n if n > 0 else 0
+        pf = (c["win_pnl"] / c["loss_pnl"]) if c["loss_pnl"] > 0 else 999
+        avg_w = (c["win_pnl"] / c["wins"]) if c["wins"] > 0 else 0
+        avg_l = (c["loss_pnl"] / c["losses"]) if c["losses"] > 0 else 1
+        kelly = (wr * avg_w - (1 - wr) * avg_l) / avg_w if avg_w > 0 else 0
+
+        row = {factor_names[i]: key[i] for i in range(len(factor_names))}
+        row.update({"n": n, "wr": round(wr * 100, 1), "ev": round(ev, 3),
+                    "pf": round(pf, 2), "kelly": round(kelly * 100, 1),
+                    "pnl": round(c["pnl"], 1)})
+        result.append(row)
+
+    result.sort(key=lambda x: x["ev"], reverse=True)
+    return jsonify({"cells": result, "total_n": len(trades),
+                     "factors": factor_names, "min_n": min_n})
+
+
 @app.route("/api/demo/equity")
 def api_demo_equity():
     """累積P/Lカーブ用データ"""
