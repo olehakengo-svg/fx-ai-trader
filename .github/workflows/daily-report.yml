@@ -36,9 +36,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add knowledge-base/raw/trade-logs/ knowledge-base/raw/market-analysis/
+          git add knowledge-base/raw/trade-logs/
+          test -d knowledge-base/raw/market-analysis && git add knowledge-base/raw/market-analysis/ || true
           git diff --cached --quiet || {
             git pull --rebase origin main
-            git commit -m "docs(KB): daily report + regime $(date -u +%Y-%m-%d)"
+            git commit -m "docs(KB): daily report $(date -u +%Y-%m-%d)"
             git push
           }
