@@ -397,14 +397,14 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
   <!-- Scrollable Bottom Panels -->
   <div class="bottom">
 
-    <!-- Trade Log (primary real-time panel) -->
+    <!-- Open Positions (最重要 — チャート直下) -->
+    <div id="open-positions" style="display:none"></div>
+
+    <!-- Trade Log -->
     <div id="trade-log-panel">
       <div class="panel-hdr"><span>💡 Trade Log</span><span id="tl-count" style="font-size:10px;color:var(--t3)">0</span></div>
       <div id="trade-log"></div>
     </div>
-
-    <!-- Open Positions -->
-    <div id="open-positions" style="display:none"></div>
 
     <!-- Strategy Panel -->
     <div id="strategy-panel"></div>
