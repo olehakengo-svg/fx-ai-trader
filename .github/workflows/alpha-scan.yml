@@ -1,0 +1,66 @@
+name: Weekly Alpha Scan
+
+on:
+  schedule:
+    # 毎週月曜 UTC 01:00 = JST 10:00（東京セッション前）
+    - cron: '0 1 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  alpha-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run alpha scan
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_ERROR_WEBHOOK_URL: ${{ secrets.DISCORD_ERROR_WEBHOOK_URL }}
+        run: python3 scripts/alpha_scan.py
+
+      - name: Commit KB scan
+        id: kb-commit
+        continue-on-error: true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add knowledge-base/raw/audits/
+          echo "=== Staged files ==="
+          git diff --cached --name-only
+          if git diff --cached --name-only | grep -q "knowledge-base/"; then
+            git commit -m "docs(KB): alpha scan $(date -u +%Y-%m-%d)"
+            git pull --rebase origin main
+            git push
+            echo "✅ KB committed"
+          else
+            echo "ℹ️ No KB changes to commit"
+          fi
+
+      - name: Notify KB commit result
+        if: always()
+        env:
+          DISCORD_ERROR_WEBHOOK_URL: ${{ secrets.DISCORD_ERROR_WEBHOOK_URL }}
+        run: |
+          if [ -z "$DISCORD_ERROR_WEBHOOK_URL" ]; then exit 0; fi
+          if [ "${{ steps.kb-commit.outcome }}" = "success" ]; then
+            MSG="✅ **KB Commit** alpha-scan $(date -u +%Y-%m-%d) — git push 成功"
+          else
+            MSG="❌ **KB Commit FAILED** alpha-scan $(date -u +%Y-%m-%d) — git push 失敗"
+          fi
+          curl -s -X POST "$DISCORD_ERROR_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -H "User-Agent: FX-KB-Monitor/1.0" \
+            -d "{\"content\": \"$MSG\"}" || true

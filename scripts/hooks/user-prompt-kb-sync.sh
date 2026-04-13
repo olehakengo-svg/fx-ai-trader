@@ -18,11 +18,11 @@ if [[ -f "$KB/index.md" ]]; then
     INDEX=$(head -30 "$KB/index.md" 2>/dev/null | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
 fi
 
-# 未解決事項（最新session logから）
+# 未解決事項（最新session logから — 最後の「## 未解決事項」セクションを取得）
 UNRESOLVED=""
 LATEST_SESSION=$(ls -t "$KB/sessions/"*.md 2>/dev/null | head -1 || true)
 if [[ -n "$LATEST_SESSION" ]]; then
-    UNRESOLVED=$(grep -A 15 '## 未解決事項' "$LATEST_SESSION" 2>/dev/null | head -15 | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
+    UNRESOLVED=$(awk '/^## 未解決事項/{buf=""; capture=1; next} capture && /^## /{capture=0} capture{buf=buf $0 "\n"} END{print buf}' "$LATEST_SESSION" 2>/dev/null | head -20 | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
 fi
 
 # Lessons — 実際の教訓を抽出（ヘッダーではなく教訓本文）

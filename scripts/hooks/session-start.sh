@@ -11,7 +11,7 @@ LATEST_SESSION=$(ls -t "$KB/sessions/"*.md 2>/dev/null | head -1 || true)
 # 各セクションを取得（ファイル未存在でも続行）
 INDEX=$(head -60 "$KB/index.md" 2>/dev/null | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
 UNRESOLVED_LABEL=$(basename "${LATEST_SESSION:-unknown}" .md 2>/dev/null || echo "unknown")
-UNRESOLVED=$(grep -A 50 '## 未解決事項' "$LATEST_SESSION" 2>/dev/null | head -20 | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
+UNRESOLVED=$(awk '/^## 未解決事項/{buf=""; capture=1; next} capture && /^## /{capture=0} capture{buf=buf $0 "\n"} END{print buf}' "$LATEST_SESSION" 2>/dev/null | head -25 | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
 # v8.9: セッション要約 — 直近のPhaseとコミット一覧（文脈理解のため）
 SESSION_SUMMARY=""
 if [[ -n "$LATEST_SESSION" ]]; then
