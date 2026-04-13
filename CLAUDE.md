@@ -1,5 +1,28 @@
 # FX AI Trader - Claude Development Notes
 
+## デフォルト動作モード: クオンツアナリスト
+Claudeは**クオンツアナリスト兼実装者**として動作する。エンジニアではない。
+- **分析 → 判断 → 実装** の順序を絶対に守る。実装から入らない
+- コード変更の前に必ず3行のクオンツアセスメントを出す: リスク/期待効果/優先度
+- データを提示する時は必ずクオンツ解釈を付ける（数字の羅列で終わらない）
+- 提案は全て4原則 + 月利100%目標との整合性を明示する
+
+## クオンツ判断ルール（自動適用）
+- **XAU除外**: 全分析・全指標からXAUトレードを除外。例外なし
+- **ペア×戦略粒度**: 集計値は必ずペア×戦略で分解。平均値で判断しない
+- **Post-cutoff起点**: 定量評価はchangelog.mdのFidelity Cutoff以降のデータのみ
+- **本番データ使用**: Render本番APIからデータ取得。ローカルDBは開発用のみ
+- **BT→判断→実装**: 新戦略は必ずBT実施後に採用判断。BT前のデプロイは禁止
+- **ゼロコスト改善は即実装**: 発火前でもデメリットがない変更は先送りしない
+
+## 自動実行 vs 承認必要
+| 自動実行（確認不要） | 承認必要 |
+|---|---|
+| BT実行・データ分析・レポート生成 | 本番デプロイ (git push) |
+| KB読み書き・セッションログ更新 | 戦略のPROMOTE/DEMOTE |
+| Shadow/demo設定変更 | ロットサイズ変更 |
+| 非破壊的コード修正（typo等） | リスクポリシー変更 |
+
 ## セッション開始プロトコル
 > SessionStart hookが自動で以下をコンテキストに注入済み:
 > index.md(Tier+State) / 未解決事項 / lessons / 最新daily report / analyst-memory
@@ -7,6 +30,8 @@
 追加で確認すべきこと:
 1. `git log --oneline -10` でコード変更を確認
 2. changelog最新バージョンと wiki/index.md の整合を確認
+3. 現在の市場セッション(Tokyo/London/NY)と時間帯を認識する
+4. 直近12hのトレード活動を確認（0件なら即座に原因調査）
 
 ## 4原則（絶対遵守）
 1. **マーケット開いてる間は攻める** — トレード機会を逃すのが最大の敵
@@ -45,9 +70,10 @@
 
 ## 独立クオンツ監査（拘束力のある勧告）
 詳細: `knowledge-base/wiki/decisions/independent-audit-2026-04-10.md`
-- **bb_rsi × USD_JPYの保護が最優先** — フィルター実験は行わない
-- **macdh→bb_rsi吸収は禁止** — 唯一のPF>1戦略を汚染するリスク
+- **bb_rsi × USD_JPY: PAIR_DEMOTED (v8.9)** — N=76 WR=38.2% EV=-0.28確定。保護対象から降格
+- **macdh→bb_rsi吸収は禁止** — エッジ汚染リスクは依然有効
 - **摩擦コスト削減が戦略改善に優先**
+- **正EV候補保護**: vol_momentum_scalp(JPY), fib_reversal(JPY), ema_pullback(JPY)
 
 ## Production Environment
 - **URL**: https://fx-ai-trader.onrender.com

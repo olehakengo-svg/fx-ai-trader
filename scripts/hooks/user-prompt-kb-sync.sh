@@ -49,6 +49,31 @@ fi
 LAST_COMMIT=$(git log -1 --format='%h %s' 2>/dev/null || echo "unknown")
 KB_LAST_COMMIT=$(git log -1 --format='%h' -- knowledge-base/ 2>/dev/null || echo "none")
 
+# --- v8.9: 市場コンテキスト注入 ---
+# 現在のUTC時刻から市場セッションを判定
+UTC_HOUR=$(date -u +%H | sed 's/^0//')
+UTC_MIN=$(date -u +%M)
+DOW=$(date -u +%u)  # 1=Mon, 7=Sun
+
+MARKET_CTX=""
+if (( DOW == 6 || DOW == 7 )); then
+    MARKET_CTX="🔴 WEEKEND (市場閉鎖)"
+elif (( UTC_HOUR >= 0 && UTC_HOUR < 6 )); then
+    MARKET_CTX="🇯🇵 Tokyo Session (UTC ${UTC_HOUR}:${UTC_MIN}) — JPY減価バイアス時間帯"
+elif (( UTC_HOUR >= 7 && UTC_HOUR < 12 )); then
+    MARKET_CTX="🇬🇧 London Session (UTC ${UTC_HOUR}:${UTC_MIN}) — EUR/GBP減価バイアス時間帯"
+elif (( UTC_HOUR >= 12 && UTC_HOUR < 16 )); then
+    MARKET_CTX="🇬🇧🇺🇸 London-NY Overlap (UTC ${UTC_HOUR}:${UTC_MIN}) — 最高流動性/London Fix(15:45-17:00)"
+elif (( UTC_HOUR >= 16 && UTC_HOUR < 21 )); then
+    MARKET_CTX="🇺🇸 NY Session (UTC ${UTC_HOUR}:${UTC_MIN})"
+else
+    MARKET_CTX="🌙 Late NY/Pre-Tokyo (UTC ${UTC_HOUR}:${UTC_MIN}) — 五十日チェック窓(23:00-01:15)"
+fi
+
+# 4原則リマインダ（常時）
+PRINCIPLES="⚠️ 4原則: 攻める/デスゾーン=動的のみ/静的時間ブロック禁止/攻撃は最大の防御"
+QUANT_RULE="🔬 クオンツルール: XAU除外/ペア×戦略粒度/Post-cutoff起点/分析→判断→実装"
+
 cat <<ENDJSON
-{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":"=== KB SYNC ===\\n${INDEX}\\n--- UNRESOLVED ---\\n${UNRESOLVED}\\n--- LESSONS ---\\n${LESSONS}\\n--- SESSION ---\\n${SESSION_REMIND}\\n--- LAST COMMIT: ${LAST_COMMIT} | KB LAST: ${KB_LAST_COMMIT} ---\\n=== END KB SYNC ==="}}
+{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":"=== KB SYNC ===\\n${INDEX}\\n--- UNRESOLVED ---\\n${UNRESOLVED}\\n--- LESSONS ---\\n${LESSONS}\\n--- SESSION ---\\n${SESSION_REMIND}\\n--- MARKET ---\\n${MARKET_CTX}\\n${PRINCIPLES}\\n${QUANT_RULE}\\n--- LAST COMMIT: ${LAST_COMMIT} | KB LAST: ${KB_LAST_COMMIT} ---\\n=== END KB SYNC ==="}}
 ENDJSON

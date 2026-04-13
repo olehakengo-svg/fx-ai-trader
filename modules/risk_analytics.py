@@ -418,6 +418,8 @@ def compute_risk_dashboard(trades: List[dict],
     Returns:
         Combined dict of all risk analytics results.
     """
+    # v8.9: XAU trades excluded from all risk metrics (FX-only evaluation)
+    trades = [t for t in trades if "XAU" not in (t.get("instrument", "") or "")]
     pnl_list = [float(t.get("pnl_pips", 0) or 0) for t in trades]
 
     # Group PnL by strategy
