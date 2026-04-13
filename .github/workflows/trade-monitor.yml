@@ -38,8 +38,8 @@ jobs:
           echo "=== Staged files ==="
           git diff --cached --name-only
           if git diff --cached --name-only | grep -q "knowledge-base/"; then
-            git pull --rebase origin main
             git commit -m "docs(KB): monitor alert $(date -u +%Y-%m-%d)"
+            git pull --rebase origin main
             git push
             echo "✅ KB committed"
           else
