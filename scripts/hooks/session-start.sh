@@ -3,7 +3,7 @@
 # index(Tier+State) + 未解決事項 + lessons + daily report + analyst-memory を注入
 set -uo pipefail
 
-ROOT="$(git rev-parse --show-toplevel)"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo ".")"
 KB="$ROOT/knowledge-base/wiki"
 
 LATEST_SESSION=$(ls -t "$KB/sessions/"*.md 2>/dev/null | head -1 || true)

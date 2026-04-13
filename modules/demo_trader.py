@@ -1779,38 +1779,42 @@ class DemoTrader:
                         _fr_str += "⚠️"  # 摩擦がPnL超過
 
                 # ── Equity Curve Protector: 段階的DDロット縮小 v7.0 ──
-                self._eq_current += pnl
-                if self._eq_current > self._eq_peak:
-                    self._eq_peak = self._eq_current
-                _eq_dd = self._eq_peak - self._eq_current
-                _eq_dd_pct = _eq_dd / max(self._EQ_BASE_CAPITAL_PIPS, 1.0)
-                _prev_dd_mult = self._dd_lot_mult
-                _new_dd_mult = get_dd_lot_multiplier(_eq_dd_pct)
-                self._dd_lot_mult = _new_dd_mult
-                # v7.0: backward compat flag (True if any DD reduction active)
-                self._defensive_mode = _new_dd_mult < 1.0
+                # v8.9: Shadow trades と XAU trades はエクイティ曲線に含めない
+                _is_eq_eligible = (
+                    not trade.get("is_shadow", 0)
+                    and "XAU" not in (trade.get("instrument", "") or "")
+                )
+                if _is_eq_eligible:
+                    self._eq_current += pnl
+                    if self._eq_current > self._eq_peak:
+                        self._eq_peak = self._eq_current
+                    _eq_dd = self._eq_peak - self._eq_current
+                    _eq_dd_pct = _eq_dd / max(self._EQ_BASE_CAPITAL_PIPS, 1.0)
+                    _prev_dd_mult = self._dd_lot_mult
+                    _new_dd_mult = get_dd_lot_multiplier(_eq_dd_pct)
+                    self._dd_lot_mult = _new_dd_mult
+                    # v7.0: backward compat flag (True if any DD reduction active)
+                    self._defensive_mode = _new_dd_mult < 1.0
 
-                if _new_dd_mult < _prev_dd_mult:
-                    # DD deepened -> tighter lot reduction
-                    self._add_log(
-                        f"🛡️ DD REDUCTION: DD={_eq_dd:.1f}pip ({_eq_dd_pct:.1%}) "
-                        f"lot_mult={_prev_dd_mult:.2f}->{_new_dd_mult:.2f}"
-                    )
-                elif _new_dd_mult > _prev_dd_mult:
-                    # DD recovering -> gradual lot restoration
-                    self._add_log(
-                        f"🟢 DD RECOVERY: DD={_eq_dd:.1f}pip ({_eq_dd_pct:.1%}) "
-                        f"lot_mult={_prev_dd_mult:.2f}->{_new_dd_mult:.2f}"
-                    )
+                    if _new_dd_mult < _prev_dd_mult:
+                        self._add_log(
+                            f"🛡️ DD REDUCTION: DD={_eq_dd:.1f}pip ({_eq_dd_pct:.1%}) "
+                            f"lot_mult={_prev_dd_mult:.2f}->{_new_dd_mult:.2f}"
+                        )
+                    elif _new_dd_mult > _prev_dd_mult:
+                        self._add_log(
+                            f"🟢 DD RECOVERY: DD={_eq_dd:.1f}pip ({_eq_dd_pct:.1%}) "
+                            f"lot_mult={_prev_dd_mult:.2f}->{_new_dd_mult:.2f}"
+                        )
 
-                # ── v7.0: Equity state DB永続化 (deploy survive) ──
-                try:
-                    self._db.set_system_kv("eq_peak", str(round(self._eq_peak, 2)))
-                    self._db.set_system_kv("eq_current", str(round(self._eq_current, 2)))
-                    self._db.set_system_kv("defensive_mode", "1" if self._defensive_mode else "0")
-                    self._db.set_system_kv("dd_lot_mult", str(round(self._dd_lot_mult, 2)))
-                except Exception:
-                    pass  # DB書き込み失敗は決済処理をブロックしない
+                    # ── v7.0: Equity state DB永続化 (deploy survive) ──
+                    try:
+                        self._db.set_system_kv("eq_peak", str(round(self._eq_peak, 2)))
+                        self._db.set_system_kv("eq_current", str(round(self._eq_current, 2)))
+                        self._db.set_system_kv("defensive_mode", "1" if self._defensive_mode else "0")
+                        self._db.set_system_kv("dd_lot_mult", str(round(self._dd_lot_mult, 2)))
+                    except Exception:
+                        pass  # DB書き込み失敗は決済処理をブロックしない
 
                 self._add_log(
                     f"{cfg.get('icon','')} 📤 OUT [{cfg.get('label','?')}]: {icon} {outcome} | "

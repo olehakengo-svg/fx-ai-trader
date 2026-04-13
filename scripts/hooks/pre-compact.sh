@@ -4,7 +4,7 @@
 # Claude が prompt hook で主観的な内容（判断・未解決事項）を追記する。
 set -uo pipefail
 
-ROOT="$(git rev-parse --show-toplevel)"
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || echo ".")"
 KB="$ROOT/knowledge-base/wiki/sessions"
 TODAY=$(date +%Y-%m-%d)
 SESSION_FILE="$KB/${TODAY}-session.md"

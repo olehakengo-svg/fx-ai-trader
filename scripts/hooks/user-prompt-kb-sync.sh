@@ -58,7 +58,7 @@ DOW=$(date -u +%u)  # 1=Mon, 7=Sun
 MARKET_CTX=""
 if (( DOW == 6 || DOW == 7 )); then
     MARKET_CTX="🔴 WEEKEND (市場閉鎖)"
-elif (( UTC_HOUR >= 0 && UTC_HOUR < 6 )); then
+elif (( UTC_HOUR >= 0 && UTC_HOUR < 7 )); then
     MARKET_CTX="🇯🇵 Tokyo Session (UTC ${UTC_HOUR}:${UTC_MIN}) — JPY減価バイアス時間帯"
 elif (( UTC_HOUR >= 7 && UTC_HOUR < 12 )); then
     MARKET_CTX="🇬🇧 London Session (UTC ${UTC_HOUR}:${UTC_MIN}) — EUR/GBP減価バイアス時間帯"
