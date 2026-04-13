@@ -4529,10 +4529,14 @@ class DemoTrader:
     }
 
     # ペア別ロットブースト: PAIR_LOT_BOOST > _STRATEGY_LOT_BOOST (優先)
-    # v6.8: fib_reversal/sr_fib_confluence 全削除 (本番データで負PF確定)
+    # v8.9: Kelly Half適用 — alpha scan正EVセルにロットブースト
     _PAIR_LOT_BOOST = {
-        # REMOVED: fib_reversal×USD_JPY → FORCE_DEMOTED (本番 WR=39.6%)
-        # REMOVED: sr_fib_confluence×3ペア → PAIR_PROMOTED削除 (本番 WR=28.9%)
+        # Kelly Half: ライブalpha scan N≥10 & Kelly>10% のセル
+        ("fib_reversal", "USD_JPY"): 2.0,         # N=26 EV=+0.79 Kelly=11.1% → Half=5.6%
+        ("ema_pullback", "USD_JPY"): 2.0,         # N=14 EV=+1.09 Kelly=14.9% → Half=7.5%
+        ("vol_momentum_scalp", "USD_JPY"): 2.0,   # N=13 EV=+0.92 Kelly=23.7% → Half=11.9%
+        ("vol_surge_detector", "EUR_USD"): 1.8,   # N=7 EV=+1.20 Kelly=32.7% → Half=16.4% (N小→控えめ)
+        ("ema_pullback", "EUR_USD"): 1.5,         # N=5 EV=+0.94 Kelly=16.6% → Half=8.3% (N最小→最控えめ)
     }
 
     # 全モードSentinel: scalp以外にも適用される戦略Sentinel
