@@ -10022,6 +10022,7 @@ def _run_chunked_scalp_bt(task_id: str, symbol: str, total_days: int,
                 "consistency": f"{profitable_wf}/{len(wf_windows)} 窓でプラス期待値",
                 "entry_breakdown": entry_stats,
                 "daily_breakdown": daily_list,
+                "trade_log": all_trades,
                 "bars_fetched": total_bars,
                 "chunks": total_chunks,
             }
@@ -10160,6 +10161,7 @@ def api_backtest_long():
                     "max_drawdown": round(_dd, 1),
                     "sharpe": _sharpe,
                     "entry_breakdown": entry_stats,
+                    "trade_log": all_trades,
                     "bars_fetched": total_bars,
                     "chunks": n_chunks,
                 }
