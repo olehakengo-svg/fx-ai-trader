@@ -39,14 +39,25 @@ MIN_N = 5
 
 # ── Utilities ────────────────────────────────────────────
 
-def fetch_json(url: str, timeout: int = 30) -> dict:
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "FX-AlphaScan/1.0"})
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return json.loads(r.read().decode())
-    except Exception as e:
-        print(f"  ⚠️  fetch failed: {url} — {e}", file=sys.stderr)
-        return {}
+def fetch_json(url: str, timeout: int = 30, retries: int = 3) -> dict:
+    """JSON取得 + 502/503リトライ (指数バックオフ)"""
+    import time as _time
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "FX-AlphaScan/1.0"})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return json.loads(r.read().decode())
+        except urllib.error.HTTPError as e:
+            if e.code in (502, 503) and attempt < retries - 1:
+                wait = 2 ** (attempt + 1)  # 2, 4, 8秒
+                print(f"  ⏳ {e.code} retry {attempt+1}/{retries} ({wait}s)...", file=sys.stderr)
+                _time.sleep(wait)
+                continue
+            print(f"  ⚠️  fetch failed: {url} — {e}", file=sys.stderr)
+            return {}
+        except Exception as e:
+            print(f"  ⚠️  fetch failed: {url} — {e}", file=sys.stderr)
+            return {}
 
 
 def send_discord(webhook_url: str, content: str) -> None:

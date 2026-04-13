@@ -4454,11 +4454,11 @@ class DemoTrader:
     # v6.3: bb_rsi_reversion はUSD_JPYのみPAIR_PROMOTED (Sentinel bypass)
     _SCALP_SENTINEL = {
         "bb_rsi_reversion",       # v6.3: USD_JPY PAIR_PROMOTED (Sentinel bypass), 他ペアは維持
-        "fib_reversal",           # v6.3: TP/SL/proximity改善済み — ※USD/JPYのみPAIR_LOT_BOOST
-        "macdh_reversal",         # v6.3: Tier化+MACD-H強度フィルター+Death Valley適用
+        # REMOVED: fib_reversal → FORCE_DEMOTED (重複削除、PAIR_PROMOTED×JPYで復活パスあり)
+        # REMOVED: macdh_reversal → FORCE_DEMOTED (重複削除)
         # v8.0: vol_momentum_scalp → _STRATEGY_LOT_BOOST 2.0x昇格 (Kelly H=23.5%, WR=72.7%, Edge=+0.50)
         "vol_surge_detector",     # v6.3: 発火率改善(閾値緩和), Sentinel継続
-        "ema_ribbon_ride",        # v6.3: Strict PO+ADX25+DI gap+UTC block
+        # REMOVED: ema_ribbon_ride → FORCE_DEMOTED (重複削除)
         # v8.2: bb_squeeze_breakout → FORCE_DEMOTED (BT EV=-0.799, 構造的赤字)
     }
 
