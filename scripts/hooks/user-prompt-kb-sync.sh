@@ -75,6 +75,16 @@ fi
 PRINCIPLES="⚠️ 4原則: 攻める/デスゾーン=動的のみ/静的時間ブロック禁止/攻撃は最大の防御"
 QUANT_RULE="🔬 クオンツルール: XAU除外/ペア×戦略粒度/Post-cutoff起点/分析→判断→実装"
 
+# v8.9: 宣言トラッカー — 未完了の宣言を毎メッセージ表示
+DECL_PENDING=""
+if [[ -f "$SESSION_FILE" ]]; then
+    DECL_COUNT=$(grep -c '^\- \[ \].*🔊' "$SESSION_FILE" 2>/dev/null || echo 0)
+    if [[ "$DECL_COUNT" -gt 0 ]]; then
+        DECL_PENDING="🔊 原則0: 未完了の宣言が${DECL_COUNT}件。実行してから次に進め。"
+    fi
+fi
+SAY_DO="🔊 原則0(Say→Do): 「Xする」と言ったら即Xを実行。次に移る前に完了確認。${DECL_PENDING:+\\n${DECL_PENDING}}"
+
 cat <<ENDJSON
-{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":"=== KB SYNC ===\\n${INDEX}\\n--- UNRESOLVED ---\\n${UNRESOLVED}\\n--- LESSONS ---\\n${LESSONS}\\n--- SESSION ---\\n${SESSION_REMIND}\\n--- MARKET ---\\n${MARKET_CTX}\\n${PRINCIPLES}\\n${QUANT_RULE}\\n--- LAST COMMIT: ${LAST_COMMIT} | KB LAST: ${KB_LAST_COMMIT} ---\\n=== END KB SYNC ==="}}
+{"hookSpecificOutput":{"hookEventName":"UserPromptSubmit","additionalContext":"=== KB SYNC ===\\n${INDEX}\\n--- UNRESOLVED ---\\n${UNRESOLVED}\\n--- LESSONS ---\\n${LESSONS}\\n--- SESSION ---\\n${SESSION_REMIND}\\n--- MARKET ---\\n${MARKET_CTX}\\n${PRINCIPLES}\\n${QUANT_RULE}\\n${SAY_DO}\\n--- LAST COMMIT: ${LAST_COMMIT} | KB LAST: ${KB_LAST_COMMIT} ---\\n=== END KB SYNC ==="}}
 ENDJSON
