@@ -303,10 +303,19 @@ def preprocess_bt_divergence(data: dict) -> str:
     if not os.path.isdir(bt_dir):
         return ""
     # 最新BTファイルを検索
+    # ペア別テーブル(### USD_JPY 等)を含むBTファイルを優先選択
+    # "all-pairs" ファイルが最も構造化されている
     bt_files = sorted([f for f in os.listdir(bt_dir) if f.endswith(".md")], reverse=True)
     if not bt_files:
         return ""
-    bt_path = os.path.join(bt_dir, bt_files[0])
+    # all-pairs ファイルを優先、なければ最新
+    bt_path = None
+    for f in bt_files:
+        if "all-pairs" in f or "full-audit" in f:
+            bt_path = os.path.join(bt_dir, f)
+            break
+    if not bt_path:
+        bt_path = os.path.join(bt_dir, bt_files[0])
     try:
         with open(bt_path) as f:
             bt_content = f.read()

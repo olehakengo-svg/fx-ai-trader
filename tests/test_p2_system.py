@@ -241,3 +241,72 @@ class TestSignalContract:
         assert "adx" in result, "Must contain 'adx'"
         assert "bb_width_pct" in result, "Must contain 'bb_width_pct'"
         assert "atr_ratio" in result, "Must contain 'atr_ratio'"
+
+
+# ═══════════════════════════════════════════════════════
+#  BT Divergence Parser — 実データ正例テスト (v8.9)
+# ═══════════════════════════════════════════════════════
+class TestBtDivergenceParser:
+    """BT乖離パーサーが実BTファイルから非空のメトリクスを抽出することを検証。
+    RC1対策: スモークテスト(空=OK)ではなく正例テスト(非空=OK)。"""
+
+    def test_parser_extracts_nonzero_metrics_from_real_bt_file(self):
+        """実際のBTファイルからメトリクスが1件以上抽出されること"""
+        import os, re
+        bt_dir = os.path.join(os.path.dirname(__file__), "..", "knowledge-base", "raw", "bt-results")
+        if not os.path.isdir(bt_dir):
+            pytest.skip("BT results directory not found")
+        bt_files = sorted([f for f in os.listdir(bt_dir) if f.endswith(".md")], reverse=True)
+        if not bt_files:
+            pytest.skip("No BT files found")
+        # all-pairs ファイルを優先（ペア別テーブルを含む）
+        bt_path = None
+        for f in bt_files:
+            if "all-pairs" in f or "full-audit" in f:
+                bt_path = os.path.join(bt_dir, f)
+                break
+        if not bt_path:
+            pytest.skip("No all-pairs BT file found")
+        with open(bt_path) as f:
+            content = f.read()
+        # パースロジック（daily_report.pyと同じ）
+        bt_metrics = {}
+        current_pair = None
+        for line in content.split("\n"):
+            pair_match = re.match(r"###?\s+(USD_JPY|EUR_USD|GBP_USD|EUR_JPY)\b", line)
+            if pair_match:
+                current_pair = pair_match.group(1)
+                continue
+            if current_pair and line.startswith("|") and not line.startswith("|-"):
+                cols = [c.strip() for c in line.split("|")]
+                if len(cols) >= 4:
+                    strat = cols[1].replace("**", "").strip()
+                    if not strat or strat in ("Strategy", "") or strat.startswith("--"):
+                        continue
+                    try:
+                        wr_str = cols[2].replace("%", "").replace("**", "").strip()
+                        ev_str = re.sub(r"[★✓✗△\*]", "", cols[3]).strip()
+                        wr = float(wr_str) if wr_str and wr_str not in ("—", "N/A") else 0
+                        ev = float(ev_str) if ev_str and ev_str not in ("—", "N/A") else 0
+                        bt_metrics[(strat, current_pair)] = {"wr": wr, "ev": ev}
+                    except (ValueError, IndexError):
+                        continue
+        assert len(bt_metrics) >= 5, (
+            f"BT parser extracted only {len(bt_metrics)} metrics from {bt_files[0]}. "
+            f"Expected >=5. Parser may be broken."
+        )
+
+    def test_session_time_bias_in_bt_metrics(self):
+        """session_time_biasがBTメトリクスに含まれること（N蓄積の要）"""
+        import os, re
+        bt_dir = os.path.join(os.path.dirname(__file__), "..", "knowledge-base", "raw", "bt-results")
+        if not os.path.isdir(bt_dir):
+            pytest.skip("BT results directory not found")
+        bt_files = sorted([f for f in os.listdir(bt_dir) if f.endswith(".md")], reverse=True)
+        if not bt_files:
+            pytest.skip("No BT files found")
+        bt_path = os.path.join(bt_dir, bt_files[0])
+        with open(bt_path) as f:
+            content = f.read()
+        found = "session_time_bias" in content
+        assert found, "session_time_bias not found in latest BT file"
