@@ -119,6 +119,16 @@ XAU別枠（11件）: PnL **-1,496 pips**（XAUスケール：要注意）
 | Session | N | WR% | PnL (pips) | 評価 |
 | NY (16–22 UTC) | 26 | 23.1% | -53.7 | ❌ 最低WR |
 
+### 2026-04-13 (Pre-Tokyo Briefing)
+- **前日（2026-04-12）トレード数: 0件**（全セッション無発火）
+- Cutoff後累積: N=399、全体WR=34.3%、累積PnL=**-259.8 pips**（XAU除く）
+- XAU別枠: N=11、PnL=**-1,496.0 pips**（JPYスケール換算）。XAU戦略は現在OFF。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| bb_rsi_reversion | USD_JPY | 83 | 37.3% | -0.31 | -25.5 | ⚠️ Tier3降格済（EV負継続）|
+| vol_surge_detector | USD_JPY | 24 | 50.0% | +0.05 | +1.2 | 🟡 EV微正・経過観察 |
+| engulfing_bb | USD_JPY | 14 | 28.6% | -0.63 | -8.8 | 🔴 N傾向・EV負 |
+| vol_momentum_scalp | USD_JPY | 13 | 61.5% | +0.92 | +12.0 | 🟢 KB Tier2・最高WR |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
