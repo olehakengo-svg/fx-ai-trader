@@ -218,6 +218,31 @@ tr:hover{background:rgba(255,255,255,.02)}
     </div>
   </div>
 
+  <!-- ═══ Master Filter Bar (Open Positions直下) ═══ -->
+  <div class="card full" style="padding:8px 12px;background:var(--bg2)">
+    <div class="sf-bar" id="master-filter-bar" style="margin:0">
+      <span style="font-size:10px;font-weight:700;color:var(--t2);letter-spacing:.3px">FILTER</span>
+      <input type="date" id="mf-date-from" title="From">
+      <span class="sf-sep">-</span>
+      <input type="date" id="mf-date-to" title="To">
+      <div class="sf-quick">
+        <button class="sf-btn mf-range-btn" data-range="today">Today</button>
+        <button class="sf-btn mf-range-btn" data-range="7d">7d</button>
+        <button class="sf-btn mf-range-btn" data-range="30d">30d</button>
+        <button class="sf-btn mf-range-btn sf-active" data-range="all">All</button>
+      </div>
+      <select id="mf-instrument" class="sf-select">
+        <option value="">All Pairs</option>
+        <option value="USD_JPY">💴 USD/JPY</option>
+        <option value="EUR_USD">💶 EUR/USD</option>
+        <option value="GBP_USD">💷 GBP/USD</option>
+        <option value="EUR_GBP">🇪🇺🇬🇧 EUR/GBP</option>
+        <option value="EUR_JPY">💶💴 EUR/JPY</option>
+      </select>
+      <span id="mf-summary" class="sf-summary"></span>
+    </div>
+  </div>
+
   <!-- ═══ 4. Trade History ═══ -->
   <div class="card full">
     <div class="card-title">📋 取引履歴 (OANDA実績)</div>
@@ -262,31 +287,6 @@ tr:hover{background:rgba(255,255,255,.02)}
     <div id="equity-chart"></div>
     <div style="display:flex;gap:12px;font-size:10px;color:var(--t3);margin-top:4px">
       <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--purple);margin-right:3px"></span>累積P/L (JPY)</span>
-    </div>
-  </div>
-
-  <!-- ═══ Master Filter Bar ═══ -->
-  <div class="card full" style="padding:8px 12px;background:var(--bg2)">
-    <div class="sf-bar" id="master-filter-bar" style="margin:0">
-      <span style="font-size:10px;font-weight:700;color:var(--t2);letter-spacing:.3px">FILTER</span>
-      <input type="date" id="mf-date-from" title="From">
-      <span class="sf-sep">-</span>
-      <input type="date" id="mf-date-to" title="To">
-      <div class="sf-quick">
-        <button class="sf-btn mf-range-btn" data-range="today">Today</button>
-        <button class="sf-btn mf-range-btn" data-range="7d">7d</button>
-        <button class="sf-btn mf-range-btn" data-range="30d">30d</button>
-        <button class="sf-btn mf-range-btn sf-active" data-range="all">All</button>
-      </div>
-      <select id="mf-instrument" class="sf-select">
-        <option value="">All Pairs</option>
-        <option value="USD_JPY">💴 USD/JPY</option>
-        <option value="EUR_USD">💶 EUR/USD</option>
-        <option value="GBP_USD">💷 GBP/USD</option>
-        <option value="EUR_GBP">🇪🇺🇬🇧 EUR/GBP</option>
-        <option value="EUR_JPY">💶💴 EUR/JPY</option>
-      </select>
-      <span id="mf-summary" class="sf-summary"></span>
     </div>
   </div>
 
