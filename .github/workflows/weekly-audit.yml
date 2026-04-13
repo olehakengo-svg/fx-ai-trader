@@ -11,6 +11,9 @@ on:
         required: false
         default: 'weekly'
 
+permissions:
+  contents: write
+
 jobs:
   audit:
     runs-on: ubuntu-latest
@@ -19,6 +22,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -46,6 +51,7 @@ jobs:
         run: python3 scripts/weekly_audit.py ${{ steps.audit-type.outputs.type }}
 
       - name: Commit KB audit
+        continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
