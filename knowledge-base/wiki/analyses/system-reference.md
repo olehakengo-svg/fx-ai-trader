@@ -54,7 +54,7 @@
 - **Force-demoted (OANDA停止)**: sr_fib_confluence, ema_cross, inducement_ob, ema_ribbon_ride, h1_fib_reversal, pivot_breakout, ema_pullback, fib_reversal, macdh_reversal
 - **Pair-Specific Lifecycle**: `(strategy, instrument)` tuple-based granular control
 - **Equity Curve Protector**: DD_LOT_TIERS (DD 2%=0.80x / 4%=0.60x / 6%=0.40x / 8%=0.20x)
-- **v8.9 Equity Reset**: v8.4以降FX-only非Shadowデータで再計算済み → DD=0.8%, lot_mult=1.0x
+- **v8.9 Equity Reset**: v8.4以降FX-only非Shadowデータで再計算済み → DD=12.39%, lot_mult=0.2x (defensive mode)
 
 ## Active Trading Rules & Constraints
 
@@ -144,7 +144,7 @@
 
 ### v6.3 Sentinel対策 (2026-04-08)
 - 負EV戦略の根本原因を特定し改善（切除ではなく修正）
-- bb_rsi_reversion: PAIR_PROMOTED, Gold Hours +0.8, Tier1 TP=2.2
+- bb_rsi_reversion: PAIR_DEMOTED (v8.9: EV=-0.28, Kelly=-5.5%), Gold Hours +0.8, Tier1 TP=2.2
 - Rolling EV Monitor: EV急落(drop≥0.2 & EV<-0.3) → 自動アラート
 
 ### v6.6-v6.7 攻めの戦略再構築 (2026-04-08)

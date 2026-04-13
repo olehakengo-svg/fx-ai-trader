@@ -12,9 +12,9 @@ This is NOT an SL width problem. It is an **entry direction/timing problem**.
 | inducement_ob | 8 | 8 | **100%** | 0.00 | FORCE_DEMOTED |
 | sr_fib_confluence | 20 | 17 | **85%** | 1.02 | FORCE_DEMOTED |
 | macdh_reversal | 38 | 32 | **84%** | 1.93 | FORCE_DEMOTED |
-| stoch_trend_pullback | 6 | 5 | **83%** | 3.80 | Sentinel |
-| dt_bb_rsi_mr | 5 | 4 | **80%** | 13.53 | Sentinel |
-| bb_rsi_reversion | 58 | 45 | **77.6%** | 4.17 | PAIR_PROMOTED |
+| stoch_trend_pullback | 6 | 5 | **83%** | 3.80 | FORCE_DEMOTED |
+| dt_bb_rsi_mr | 5 | 4 | **80%** | 13.53 | FORCE_DEMOTED |
+| bb_rsi_reversion | 58 | 45 | **77.6%** | 4.17 | PAIR_DEMOTED |
 | fib_reversal | 58 | 44 | **75.9%** | 3.57 | Recovery path |
 | ema_pullback | 18 | 13 | **72.2%** | 7.33 | FORCE_DEMOTED |
 | **vol_momentum_scalp** | **2** | **0** | **0%** | **4.39** | **Benchmark** |

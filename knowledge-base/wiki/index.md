@@ -2,7 +2,7 @@
 
 ## 🎯 最重要目標: 月利100% → 年利1,200%
 **全施策の判断基準。これに寄与しない施策は後回し。**
-- 現在: **DD防御1.0x** (v8.9 Equity Reset済) → 月利235%（BT推定）
+- 現在: **DD防御0.2x** (DD=12.39%, defensive mode) → 月利47%（BT推定）
 - Phase 3 (Kelly Half): 月利594%
 - 詳細: [[roadmap-to-100pct]]
 - **最優先: クリーンデータ蓄積 → Kelly Half到達**
@@ -14,14 +14,14 @@
 |----------|------|-------------|-----|-------|--------|
 | ~~[[bb-rsi-reversion]]~~ | ~~USD_JPY~~ | 38.2% (N=76) | -21.0 | -5.5% | **PAIR_DEMOTED** (v8.9: EV=-0.28確定, Kelly=-5.5%) → Tier 3 |
 | [[orb-trap]] | USD_JPY, EUR_USD, GBP_USD | 50% (N=2) | +7.6 | insuff | PAIR_PROMOTED (BT WR=79%, N accumulating) |
-| [[session-time-bias]] | USD_JPY, EUR_USD, GBP_USD | — | — | — | PAIR_PROMOTED (v8.6, BT WR=69-77%, 学術★★★★★) |
+| [[session-time-bias]] | USD_JPY, EUR_USD, GBP_USD | — | — | — | PAIR_PROMOTED (v8.6, BT WR=69-77%, 学術★★★★★, score 5.5 fix deployed, awaiting first live fire) |
 | [[london-fix-reversal]] | GBP_USD | — | — | — | PAIR_PROMOTED (v8.6, BT WR=75%, 学術★★★★★) |
 
 ### Tier 2 -- Promising (Sentinel)
 | Strategy | N(post-cut) | WR | PnL | Notes |
 |----------|------------|-----|-----|-------|
 | [[vol-momentum-scalp]] | 10 | 80.0% | +21.6 | Highest WR, 1.0x boost |
-| [[vol-surge-detector]] | 11 | 63.6% | +19.6 | |
+| [[vol-surge-detector]] | 15 | 46.7% | +1.9 | WR低下中 (was 63.6% at N=11) |
 | [[fib-reversal]] | 32 | 40.6% | +21.9 | Recovery path: N>=30 WR>=50% -> SENTINEL |
 | ~~[[stoch-trend-pullback]]~~ | 19 | 31.6% | -18.5 | **FORCE_DEMOTED** (v8.9: EV=-0.97全ペア負) → Tier 3 |
 | [[liquidity-sweep]] | 0 | - | - | Osler 2003 stop-hunt reversal |
@@ -39,15 +39,16 @@
 | xs_momentum | USD_JPY | v8.6: BT EV=-0.129 |
 | post_news_vol | USD_JPY | v8.8: 120d BT WR=0% EV=-3.706 |
 | ema200_trend_reversal | USD_JPY | v8.8: 120d BT WR=0% EV=-1.887 |
+| dt_bb_rsi_mr | EUR_USD | v8.9: N=7 WR=14.3% EV=-4.09 FORCE_DEMOTED |
 
 ### Tier 4 -- Stopped
 See [[force-demoted-strategies]]
 
 ## System State (v8.9)
-- Defensive mode: **1.0x** (v8.9 Equity Reset — v8.4以降クリーンデータ起点, DD=0.8%)
+- Defensive mode: **0.2x** (DD=12.39%, defensive mode — v8.4以降クリーンデータ起点)
 - XAU: **Stopped** (v8.4) -- post-cutoff XAU loss = -2,280pip (102% of total loss)
-- FX-only post-cutoff: **+96.8pip (profitable)**
-- Ruin probability: 85.58% (pre-XAU-stop, expected to improve)
+- FX-only post-cutoff: **-646pip (赤字)**
+- Ruin probability: ~100% (Kelly=-0.18, aggregate edge negative — recalc needed with clean data)
 - scalp_eurjpy: **Stopped** (v8.6) -- friction/ATR=43.6%, 構造的不可能
 - scalp_5m_eur / scalp_5m_gbp: **Active** (v8.6) -- 5m摩擦改善モード
 - DSR: **実装済み** (v8.6) -- Bailey & Lopez de Prado (2014)

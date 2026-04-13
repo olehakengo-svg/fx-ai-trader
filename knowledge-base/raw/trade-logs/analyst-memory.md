@@ -19,9 +19,9 @@
 ## 現在のシステム状態 (v8.9, 2026-04-13)
 
 - **目標**: 月利100% (Kelly Half到達で594%)
-- **防御モード**: 1.0x (Equity Reset済, v8.4以降クリーンデータ起点, DD=0.8%)
+- **防御モード**: 0.2x (DD=12.39%, defensive mode — v8.4以降クリーンデータ起点)
 - **XAU**: 停止 (v8.4) — post-cutoff XAU loss = -2,280pip (損失の102%)
-- **FX-only**: +96.8pip (黒字)
+- **FX-only**: -646pip (赤字)
 - **BT摩擦モデル**: v3 (Spread/SL Gate + RANGE TP + Quick-Harvest)
 - **DSR**: 実装済み (Bailey & Lopez de Prado 2014, 多重検定補正)
 
