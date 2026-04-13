@@ -4211,6 +4211,7 @@ class DemoTrader:
         # === Legacy ===
         "sr_break_retest": 1.3,            # GBP WR=80% EV=+0.705 (14d)
         "mtf_reversal_confluence": 1.3,    # EV +1.49 (448t監査)
+        "bb_rsi_reversion": 2.0,           # v8.9: 唯一のPF>1実績(N=123), 4000u→8000u目標
         "vol_momentum_scalp": 1.0,        # v8.2: 2.0x→1.0x 摩擦後EV境界的(+1.61-2.14=≈0), N=11でデータ蓄積優先
         "ema_trend_scalp": 1.5,            # v8.0: 当日最高PnL +$179.6, XAU +427pip — Sentinel→攻撃昇格
         # v8.6: 学術リサーチ新エッジ — BT正EV確認済み
