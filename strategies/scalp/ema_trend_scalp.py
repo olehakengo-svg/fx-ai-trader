@@ -149,8 +149,8 @@ class EmaTrendScalp(StrategyBase):
 
         # ── SELL: EMA9 < EMA21 + 価格がEMA21付近に戻り ──
         if signal is None and ctx.ema9 < ctx.ema21:
-            _upper = ctx.ema21 + _atr * self.PB_BELOW_MULT
-            _lower = ctx.ema21 - _atr * self.PB_ABOVE_MULT
+            _upper = ctx.ema21 + _atr * self.PB_ABOVE_MULT
+            _lower = ctx.ema21 - _atr * self.PB_BELOW_MULT
             if _lower <= ctx.entry <= _upper:
                 # 反転足: 陰線 (Close < Open)
                 if ctx.entry >= ctx.open_price:

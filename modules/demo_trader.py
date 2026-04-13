@@ -1930,12 +1930,13 @@ class DemoTrader:
                         "outcome": outcome,
                     }
                     # ── 全方向連敗ウィンドウに記録 ──
-                    self._total_losses_window.append(
-                        (datetime.now(timezone.utc), mode, pnl))
-                    # 古い記録を削除（最大4時間保持）
-                    _cutoff = datetime.now(timezone.utc) - timedelta(hours=4)
-                    self._total_losses_window = [
-                        t for t in self._total_losses_window if t[0] > _cutoff]
+                    with self._lock:
+                        self._total_losses_window.append(
+                            (datetime.now(timezone.utc), mode, pnl))
+                        # 古い記録を削除（最大4時間保持）
+                        _cutoff = datetime.now(timezone.utc) - timedelta(hours=4)
+                        self._total_losses_window = [
+                            t for t in self._total_losses_window if t[0] > _cutoff]
 
                 # ── SL狩り対策: SL_HIT履歴記録（カスケード防御 + Fast-SL検出用）──
                 if close_reason == "SL_HIT":
@@ -2440,12 +2441,13 @@ class DemoTrader:
         # ── 価格ヒストリー記録（ベロシティ計算用・通貨ペア別）──
         _now_rec = datetime.now(timezone.utc)
         _inst = instrument
-        if _inst not in self._price_history:
-            self._price_history[_inst] = []
-        self._price_history[_inst].append((_now_rec, current_price))
-        # 古いデータを削除（最大4時間保持）
-        _cutoff = _now_rec - timedelta(hours=4)
-        self._price_history[_inst] = [(t, p) for t, p in self._price_history[_inst] if t > _cutoff]
+        with self._lock:
+            if _inst not in self._price_history:
+                self._price_history[_inst] = []
+            self._price_history[_inst].append((_now_rec, current_price))
+            # 古いデータを削除（最大4時間保持）
+            _cutoff = _now_rec - timedelta(hours=4)
+            self._price_history[_inst] = [(t, p) for t, p in self._price_history[_inst] if t > _cutoff]
         confidence = sig.get("confidence", 0)
         entry_type = sig.get("entry_type", "unknown")
 
@@ -2697,7 +2699,7 @@ class DemoTrader:
         # アジア時間帯(UTC 21-06)はGBPの流動性が極端に低い
         # Spread/SL Gateでは防げないテールリスク → 静的ブロック（原則#3の例外）
         _now_h = datetime.now(timezone.utc).hour
-        if "GBP" in instrument and _now_h >= 21 or ("GBP" in instrument and _now_h < 6):
+        if "GBP" in instrument and (_now_h >= 21 or _now_h < 6):
             if not _is_shadow_eligible:
                 _block(f"gbp_asia_flash_crash(UTC{_now_h})")
                 return
