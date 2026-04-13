@@ -12,6 +12,12 @@ LATEST_SESSION=$(ls -t "$KB/sessions/"*.md 2>/dev/null | head -1 || true)
 INDEX=$(head -60 "$KB/index.md" 2>/dev/null | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
 UNRESOLVED_LABEL=$(basename "${LATEST_SESSION:-unknown}" .md 2>/dev/null || echo "unknown")
 UNRESOLVED=$(grep -A 50 '## 未解決事項' "$LATEST_SESSION" 2>/dev/null | head -20 | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
+# v8.9: セッション要約 — 直近のPhaseとコミット一覧（文脈理解のため）
+SESSION_SUMMARY=""
+if [[ -n "$LATEST_SESSION" ]]; then
+    # 最新Phase（### Phase で始まる最後のセクション）+ コミット一覧
+    SESSION_SUMMARY=$(awk '/^### Phase/{buf=""; capture=1} capture{buf=buf $0 "\\n"} /^## コミット一覧/{c=1} c{buf2=buf2 $0 "\\n"} END{print buf; print buf2}' "$LATEST_SESSION" 2>/dev/null | tail -30 | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
+fi
 # 教訓の実文を抽出（head -25はヘッダーのみで実際の教訓が0件だった）
 LESSONS=$(grep -E '^- 教訓:|^### \[\[lesson-' "$KB/lessons/index.md" 2>/dev/null | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
 
@@ -38,5 +44,5 @@ if [[ -f "$ROOT/scripts/check.py" ]]; then
 fi
 
 cat <<ENDJSON
-{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"=== KB AUTO-LOAD ===\\n\\n--- INDEX (Tier + System State) ---\\n${INDEX}\\n\\n--- UNRESOLVED ITEMS (${UNRESOLVED_LABEL}) ---\\n${UNRESOLVED}\\n\\n--- LESSONS (Top Mistakes) ---\\n${LESSONS}\\n\\n--- LATEST DAILY REPORT ---\\n${DAILY}\\n\\n--- ANALYST MEMORY (Latest Findings) ---\\n${ANALYST}\\n\\n--- KB DRIFT WARNINGS ---\\n${DRIFT}\\n=== END KB AUTO-LOAD ==="}}
+{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"=== KB AUTO-LOAD ===\\n\\n--- INDEX (Tier + System State) ---\\n${INDEX}\\n\\n--- SESSION CONTEXT (${UNRESOLVED_LABEL}) ---\\n${SESSION_SUMMARY}\\n\\n--- UNRESOLVED ITEMS ---\\n${UNRESOLVED}\\n\\n--- LESSONS (過去の間違い — 繰り返すな) ---\\n${LESSONS}\\n\\n--- LATEST DAILY REPORT ---\\n${DAILY}\\n\\n--- ANALYST MEMORY ---\\n${ANALYST}\\n\\n--- KB DRIFT WARNINGS ---\\n${DRIFT}\\n=== END KB AUTO-LOAD ==="}}
 ENDJSON
