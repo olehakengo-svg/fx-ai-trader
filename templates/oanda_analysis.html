@@ -175,7 +175,103 @@ tr:hover{background:rgba(255,255,255,.02)}
   <span class="hb-item" style="margin-left:auto;font-size:9px;color:var(--t3)" id="hb-time">--</span>
 </div>
 
+<!-- ═══ Master Filter Bar ═══ -->
+<div class="sf-bar" id="master-filter-bar" style="margin:8px 12px 0;max-width:1600px;margin-left:auto;margin-right:auto">
+  <span style="font-size:10px;font-weight:700;color:var(--t2);letter-spacing:.3px">FILTER</span>
+  <input type="date" id="mf-date-from" title="From">
+  <span class="sf-sep">-</span>
+  <input type="date" id="mf-date-to" title="To">
+  <div class="sf-quick">
+    <button class="sf-btn mf-range-btn" data-range="today">Today</button>
+    <button class="sf-btn mf-range-btn" data-range="7d">7d</button>
+    <button class="sf-btn mf-range-btn" data-range="30d">30d</button>
+    <button class="sf-btn mf-range-btn sf-active" data-range="all">All</button>
+  </div>
+  <select id="mf-instrument" class="sf-select">
+    <option value="">All Pairs</option>
+    <option value="USD_JPY">💴 USD/JPY</option>
+    <option value="EUR_USD">💶 EUR/USD</option>
+    <option value="GBP_USD">💷 GBP/USD</option>
+    <option value="EUR_GBP">🇪🇺🇬🇧 EUR/GBP</option>
+    <option value="EUR_JPY">💶💴 EUR/JPY</option>
+  </select>
+  <span id="mf-summary" class="sf-summary"></span>
+</div>
+
 <div class="grid">
+
+  <!-- ═══ Command Center (1st card) ═══ -->
+  <div class="card full">
+    <div class="card-title">
+      🎛️ OANDA 転送司令部 (Command Center)
+      <button class="btn" style="margin-left:auto;font-size:9px" onclick="loadCommandCenter()">♻️</button>
+      <button class="btn" style="font-size:9px;color:var(--red)" onclick="resetAllModes()">全リセット</button>
+    </div>
+    <!-- Pair Filter Bar -->
+    <div class="pf-bar" id="pf-bar">
+      <span class="pf-label">通貨:</span>
+      <button class="pf-btn pf-active" data-pair="ALL" onclick="setPairFilter('ALL')">ALL</button>
+    </div>
+    <div class="table-wrap">
+      <table class="cc-table">
+        <thead>
+          <tr>
+            <th>戦略</th>
+            <th>Status</th>
+            <th>ペア別</th>
+            <th>N</th>
+            <th>WR</th>
+            <th>EV</th>
+            <th>DD%</th>
+            <th>Lot</th>
+            <th>転送</th>
+            <th>Mode</th>
+          </tr>
+        </thead>
+        <tbody id="cc-tbody">
+          <tr><td colspan="10" style="text-align:center;color:var(--t3)">読み込み中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Full Trade History (2nd — right after Command Center) -->
+  <div class="card full">
+    <div class="card-title">📋 取引履歴 (OANDA実績)</div>
+    <div class="sf-bar">
+      <input type="date" id="filter-from" title="From">
+      <span class="sf-sep">-</span>
+      <input type="date" id="filter-to" title="To">
+      <div class="sf-quick">
+        <button class="sf-btn" data-range="today">Today</button>
+        <button class="sf-btn" data-range="7d">7d</button>
+        <button class="sf-btn" data-range="30d">30d</button>
+        <button class="sf-btn sf-active" data-range="all">All</button>
+      </div>
+      <select id="sf-instrument" class="sf-select">
+        <option value="">All Pairs</option>
+        <option value="USD_JPY">💴 USD/JPY</option>
+        <option value="EUR_USD">💶 EUR/USD</option>
+        <option value="GBP_USD">💷 GBP/USD</option>
+        <option value="EUR_GBP">🇪🇺🇬🇧 EUR/GBP</option>
+        <option value="EUR_JPY">💶💴 EUR/JPY</option>
+      </select>
+      <span id="filter-summary" class="sf-summary"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="trade-table">
+        <thead>
+          <tr><th>#</th><th>ID</th><th>通貨</th><th>方向</th><th>Units</th><th>Open</th><th>Close</th><th>SL</th><th>TP</th><th>P/L(JPY)</th><th>P/L(pips)</th><th>決済理由</th><th>結果</th><th>Open Time</th><th>Close Time</th></tr>
+        </thead>
+        <tbody id="trade-tbody"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;justify-content:center">
+      <button class="btn" id="btn-prev" onclick="changePage(-1)" disabled>← 前へ</button>
+      <span id="page-info" style="font-size:11px;color:var(--t3);padding:5px 10px">1ページ目</span>
+      <button class="btn" id="btn-next" onclick="changePage(1)">次へ →</button>
+    </div>
+  </div>
 
   <!-- Account Info -->
   <div class="card">
@@ -205,15 +301,6 @@ tr:hover{background:rgba(255,255,255,.02)}
     <div class="dir-breakdown" id="dir-breakdown"></div>
   </div>
 
-  <!-- Equity Curve -->
-  <div class="card full">
-    <div class="card-title">📈 累積P/Lカーブ</div>
-    <div id="equity-chart"></div>
-    <div style="display:flex;gap:12px;font-size:10px;color:var(--t3);margin-top:4px">
-      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--purple);margin-right:3px"></span>累積P/L (JPY)</span>
-    </div>
-  </div>
-
   <!-- Open Positions -->
   <div class="card full">
     <div class="card-title">🔓 オープンポジション</div>
@@ -227,36 +314,12 @@ tr:hover{background:rgba(255,255,255,.02)}
     </div>
   </div>
 
-  <!-- ═══ Command Center ═══ -->
+  <!-- Equity Curve -->
   <div class="card full">
-    <div class="card-title">
-      🎛️ OANDA 転送司令部 (Command Center)
-      <button class="btn" style="margin-left:auto;font-size:9px" onclick="loadCommandCenter()">♻️</button>
-      <button class="btn" style="font-size:9px;color:var(--red)" onclick="resetAllModes()">全リセット</button>
-    </div>
-    <!-- Pair Filter Bar -->
-    <div class="pf-bar" id="pf-bar">
-      <span class="pf-label">通貨:</span>
-      <button class="pf-btn pf-active" data-pair="ALL" onclick="setPairFilter('ALL')">ALL</button>
-    </div>
-    <div class="table-wrap">
-      <table class="cc-table">
-        <thead>
-          <tr>
-            <th>戦略</th>
-            <th>Status</th>
-            <th>ペア別</th>
-            <th>N</th>
-            <th>WR</th>
-            <th>EV</th>
-            <th>転送</th>
-            <th>Mode</th>
-          </tr>
-        </thead>
-        <tbody id="cc-tbody">
-          <tr><td colspan="8" style="text-align:center;color:var(--t3)">読み込み中...</td></tr>
-        </tbody>
-      </table>
+    <div class="card-title">📈 累積P/Lカーブ</div>
+    <div id="equity-chart"></div>
+    <div style="display:flex;gap:12px;font-size:10px;color:var(--t3);margin-top:4px">
+      <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--purple);margin-right:3px"></span>累積P/L (JPY)</span>
     </div>
   </div>
 
@@ -275,45 +338,6 @@ tr:hover{background:rgba(255,255,255,.02)}
           <tr><td colspan="8" style="text-align:center;color:var(--t3)">読み込み中...</td></tr>
         </tbody>
       </table>
-    </div>
-  </div>
-
-  <!-- Full Trade History -->
-  <div class="card full">
-    <div class="card-title">📋 取引履歴 (OANDA実績)</div>
-    <div class="sf-bar">
-      <input type="date" id="filter-from" title="From">
-      <span class="sf-sep">-</span>
-      <input type="date" id="filter-to" title="To">
-      <div class="sf-quick">
-        <button class="sf-btn" data-range="today">Today</button>
-        <button class="sf-btn" data-range="7d">7d</button>
-        <button class="sf-btn" data-range="30d">30d</button>
-        <button class="sf-btn sf-active" data-range="all">All</button>
-      </div>
-      <select id="sf-instrument" class="sf-select">
-        <option value="">All Pairs</option>
-        <option value="USD_JPY">💴 USD/JPY</option>
-        <option value="EUR_USD">💶 EUR/USD</option>
-        <option value="GBP_USD">💷 GBP/USD</option>
-        <option value="EUR_GBP">🇪🇺🇬🇧 EUR/GBP</option>
-        <option value="EUR_JPY">💶💴 EUR/JPY</option>
-        <option value="XAU_USD">🥇 XAU/USD</option>
-      </select>
-      <span id="filter-summary" class="sf-summary"></span>
-    </div>
-    <div class="table-wrap">
-      <table id="trade-table">
-        <thead>
-          <tr><th>#</th><th>ID</th><th>通貨</th><th>方向</th><th>Units</th><th>Open</th><th>Close</th><th>SL</th><th>TP</th><th>P/L(JPY)</th><th>P/L(pips)</th><th>決済理由</th><th>結果</th><th>Open Time</th><th>Close Time</th></tr>
-        </thead>
-        <tbody id="trade-tbody"></tbody>
-      </table>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:8px;justify-content:center">
-      <button class="btn" id="btn-prev" onclick="changePage(-1)" disabled>← 前へ</button>
-      <span id="page-info" style="font-size:11px;color:var(--t3);padding:5px 10px">1ページ目</span>
-      <button class="btn" id="btn-next" onclick="changePage(1)">次へ →</button>
     </div>
   </div>
 
@@ -557,7 +581,10 @@ function _applyFilter(){
   const parts=[];
   if(from||to)parts.push(`${from||'全期間'}〜${to||'現在'}`);
   if(inst)parts.push(inst.replace('_','/'));
-  document.getElementById('filter-summary').textContent=parts.join(' | ')||'';
+  const summaryText=parts.join(' | ')||'';
+  document.getElementById('filter-summary').textContent=summaryText;
+  const mfSummary=document.getElementById('mf-summary');
+  if(mfSummary)mfSummary.textContent=summaryText;
 }
 function _sfSetRange(range){
   document.querySelectorAll('.sf-btn').forEach(b=>b.classList.remove('sf-active'));
@@ -592,9 +619,29 @@ async function loadHeartbeat(){
 
 // ── Command Center ──
 let _ccPairFilter='ALL';
-const _pairFlags={USD_JPY:'🇯🇵',EUR_USD:'🇪🇺',GBP_USD:'🇬🇧',EUR_JPY:'💶',EUR_GBP:'🇪🇺🇬🇧',XAU_USD:'🥇'};
+const _pairFlags={USD_JPY:'🇯🇵',EUR_USD:'🇪🇺',GBP_USD:'🇬🇧',EUR_JPY:'💶',EUR_GBP:'🇪🇺🇬🇧'};
 const _lcIcons={elite:'🚀',active:'✅',sentinel:'🔬',demoted:'⛔',promoted:'🔄',force_demoted:'🚫'};
 const _lcLabels={elite:'Elite',active:'Active',sentinel:'Sentinel',demoted:'Demoted',promoted:'Promoted',force_demoted:'F.Demoted'};
+
+// ── Strategy Name Normalization ──
+const _stratAbbrev={
+  bb_rsi_reversion:'BB RSI',
+  session_time_bias:'Session TB',
+  sr_breakout:'SR Break',
+  volume_spike:'Vol Spike',
+  ma_crossover:'MA Cross',
+  rsi_divergence:'RSI Div',
+  macd_crossover:'MACD Cross',
+  engulfing_swing:'Engulf Swing',
+  ema_pullback:'EMA PB',
+  keltner_breakout:'Kelt Break',
+  atr_channel:'ATR Ch',
+  donchian_breakout:'Donch Break',
+  stochastic_reversal:'Stoch Rev',
+  ichimoku_cloud:'Ichi Cloud',
+  pivot_bounce:'Pivot Bounce'
+};
+function normalizeStratName(raw){return _stratAbbrev[raw]||raw.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}
 
 function setPairFilter(p){
   _ccPairFilter=p;
@@ -626,7 +673,7 @@ async function loadCommandCenter(){
       pfBar.innerHTML=btns;
     }
 
-    if(!keys.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--t3)">戦略データなし</td></tr>';return}
+    if(!keys.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--t3)">戦略データなし</td></tr>';return}
 
     // Filter strategies by selected pair
     const filteredKeys=_ccPairFilter==='ALL'?keys:keys.filter(et=>{
@@ -645,6 +692,10 @@ async function loadCommandCenter(){
       const wr=s.wr!=null?Number(s.wr).toFixed(1)+'%':'';
       const ev=s.ev!=null?Number(s.ev).toFixed(2):'';
       const evCls=ev&&Number(ev)>0?'cc-ev-pos':ev&&Number(ev)<0?'cc-ev-neg':'';
+      const ddPct=s.dd_pct!=null?Number(s.dd_pct).toFixed(1)+'%':'--';
+      const ddColor=s.dd_pct!=null&&Number(s.dd_pct)>20?'var(--red)':s.dd_pct!=null&&Number(s.dd_pct)>10?'var(--gold)':'var(--t2)';
+      const lotMult=s.lot_mult!=null?Number(s.lot_mult).toFixed(2):'--';
+      const stratLabel=normalizeStratName(et);
 
       // Auto status label
       let autoHtml='';
@@ -684,12 +735,14 @@ async function loadCommandCenter(){
       const btnS=mode==='sentinel'?'cc-active-sen':'';
       const btnO=mode==='off'?'cc-active-off':'';
       return `<tr>
-        <td style="font-weight:600;font-size:11px">${_h(et)}</td>
+        <td style="font-weight:600;font-size:11px" title="${_h(et)}">${_h(stratLabel)}</td>
         <td>${autoHtml}</td>
         <td style="white-space:nowrap">${pairHtml}</td>
         <td>${n}</td>
         <td>${wr}</td>
         <td class="${evCls}" style="font-weight:600">${ev}</td>
+        <td style="color:${ddColor};font-size:10px">${ddPct}</td>
+        <td style="font-size:10px">${lotMult}</td>
         <td>${effHtml}</td>
         <td>
           <div class="cc-mode-group">
@@ -786,22 +839,63 @@ document.addEventListener('DOMContentLoaded',()=>{
     loadEquity();
   },60000);
 
-  // ── Filter: Quick range buttons ──
-  document.querySelectorAll('.sf-btn').forEach(btn=>{
+  // ── Master Filter Bar ──
+  function _mfSetRange(range){
+    document.querySelectorAll('.mf-range-btn').forEach(b=>b.classList.remove('sf-active'));
+    document.querySelector(`.mf-range-btn[data-range="${range}"]`)?.classList.add('sf-active');
+    const now=new Date();
+    let from='',to='';
+    if(range==='today'){from=to=now.toISOString().slice(0,10)}
+    else if(range==='7d'){to=now.toISOString().slice(0,10);from=new Date(now-7*864e5).toISOString().slice(0,10)}
+    else if(range==='30d'){to=now.toISOString().slice(0,10);from=new Date(now-30*864e5).toISOString().slice(0,10)}
+    document.getElementById('mf-date-from').value=from;
+    document.getElementById('mf-date-to').value=to;
+    // Sync to trade history local filter inputs
+    document.getElementById('filter-from').value=from;
+    document.getElementById('filter-to').value=to;
+    _statsFilter.dateFrom=from;_statsFilter.dateTo=to;
+    _applyFilter();
+  }
+  function _mfSyncFromMaster(){
+    _statsFilter.dateFrom=document.getElementById('mf-date-from').value;
+    _statsFilter.dateTo=document.getElementById('mf-date-to').value;
+    _statsFilter.instrument=document.getElementById('mf-instrument').value;
+    // Sync to trade history local filter inputs
+    document.getElementById('filter-from').value=_statsFilter.dateFrom;
+    document.getElementById('filter-to').value=_statsFilter.dateTo;
+    document.getElementById('sf-instrument').value=_statsFilter.instrument;
+    document.querySelectorAll('.mf-range-btn').forEach(b=>b.classList.remove('sf-active'));
+    _applyFilter();
+  }
+  document.querySelectorAll('.mf-range-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>_mfSetRange(btn.dataset.range));
+  });
+  ['mf-date-from','mf-date-to'].forEach(id=>{
+    document.getElementById(id)?.addEventListener('change',_mfSyncFromMaster);
+  });
+  document.getElementById('mf-instrument')?.addEventListener('change',_mfSyncFromMaster);
+
+  // ── Trade History local filter: Quick range buttons ──
+  document.querySelectorAll('.sf-btn:not(.mf-range-btn)').forEach(btn=>{
     btn.addEventListener('click',()=>_sfSetRange(btn.dataset.range));
   });
-  // ── Filter: Date input changes ──
+  // ── Trade History local filter: Date input changes ──
   ['filter-from','filter-to'].forEach(id=>{
     document.getElementById(id)?.addEventListener('change',()=>{
       document.querySelectorAll('.sf-btn').forEach(b=>b.classList.remove('sf-active'));
       _statsFilter.dateFrom=document.getElementById('filter-from').value;
       _statsFilter.dateTo=document.getElementById('filter-to').value;
+      // Sync back to master filter
+      document.getElementById('mf-date-from').value=_statsFilter.dateFrom;
+      document.getElementById('mf-date-to').value=_statsFilter.dateTo;
       _applyFilter();
     });
   });
-  // ── Filter: Instrument dropdown ──
+  // ── Trade History local filter: Instrument dropdown ──
   document.getElementById('sf-instrument')?.addEventListener('change',e=>{
     _statsFilter.instrument=e.target.value;
+    // Sync back to master filter
+    document.getElementById('mf-instrument').value=_statsFilter.instrument;
     _applyFilter();
   });
 });

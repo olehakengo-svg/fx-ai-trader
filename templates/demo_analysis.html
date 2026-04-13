@@ -58,7 +58,7 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .tv-lightweight-charts{max-width:100%!important}
 
 /* ── Stats Filter ── */
-.stats-filter{display:flex;align-items:center;gap:6px;padding:4px 14px;background:var(--bg2);border-top:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.stats-filter{display:flex;align-items:center;gap:6px;padding:4px 14px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
 .stats-filter input[type="date"]{background:var(--bg1);color:var(--t1);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:10px;font-family:inherit;width:110px}
 .stats-filter input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(.7)}
 .sf-sep{color:var(--t3);font-size:10px}
@@ -340,22 +340,7 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 <!-- ── Main: Chart + Panels ── -->
 <main class="main">
 
-  <!-- TF Selector -->
-  <div class="tf-bar">
-    <div class="tf-tabs">
-      <button class="tf-btn" data-tf="1m" onclick="selectTf('1m')">1m</button>
-      <button class="tf-btn" data-tf="5m" onclick="selectTf('5m')">5m</button>
-      <button class="tf-btn active" data-tf="15m" onclick="selectTf('15m')">15m</button>
-      <button class="tf-btn" data-tf="1h" onclick="selectTf('1h')">1h</button>
-      <button class="tf-btn" data-tf="4h" onclick="selectTf('4h')">4h</button>
-    </div>
-    <div id="chart-title">🇺🇸🇯🇵 USD/JPY</div>
-  </div>
-
-  <!-- Main Chart -->
-  <div id="main-chart"></div>
-
-  <!-- Stats Filter -->
+  <!-- Stats Filter (top for immediate access) -->
   <div class="stats-filter">
     <input type="date" id="sf-from" title="From" />
     <span class="sf-sep">-</span>
@@ -384,6 +369,22 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
       </optgroup>
     </select>
   </div>
+
+  <!-- TF Selector -->
+  <div class="tf-bar">
+    <div class="tf-tabs">
+      <button class="tf-btn" data-tf="1m" onclick="selectTf('1m')">1m</button>
+      <button class="tf-btn" data-tf="5m" onclick="selectTf('5m')">5m</button>
+      <button class="tf-btn active" data-tf="15m" onclick="selectTf('15m')">15m</button>
+      <button class="tf-btn" data-tf="1h" onclick="selectTf('1h')">1h</button>
+      <button class="tf-btn" data-tf="4h" onclick="selectTf('4h')">4h</button>
+    </div>
+    <div id="chart-title">🇺🇸🇯🇵 USD/JPY</div>
+  </div>
+
+  <!-- Main Chart -->
+  <div id="main-chart"></div>
+
   <!-- Stats Bar -->
   <div class="stats-bar">
     <div><span class="stat-label">Trades</span><span class="stat-val" id="s-total">—</span></div>
@@ -396,17 +397,17 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
   <!-- Scrollable Bottom Panels -->
   <div class="bottom">
 
+    <!-- Trade Log (primary real-time panel) -->
+    <div id="trade-log-panel">
+      <div class="panel-hdr"><span>💡 Trade Log</span><span id="tl-count" style="font-size:10px;color:var(--t3)">0</span></div>
+      <div id="trade-log"></div>
+    </div>
+
     <!-- Open Positions -->
     <div id="open-positions" style="display:none"></div>
 
     <!-- Strategy Panel -->
     <div id="strategy-panel"></div>
-
-    <!-- Trade Log -->
-    <div id="trade-log-panel">
-      <div class="panel-hdr"><span>💡 Trade Log</span><span id="tl-count" style="font-size:10px;color:var(--t3)">0</span></div>
-      <div id="trade-log"></div>
-    </div>
 
     <!-- Log -->
     <div id="log-panel">

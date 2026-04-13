@@ -1498,7 +1498,8 @@ def detect_liquidity_zones(df: pd.DataFrame, window: int = 5,
 # ═══════════════════════════════════════════════════════
 #  Master signal aggregator
 # ═══════════════════════════════════════════════════════
-def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"):
+def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X",
+                   backtest_mode: bool = False, htf_cache: dict = None):
     row   = df.iloc[-1]
     entry = float(row["Close"])
     atr   = float(row["atr"])
