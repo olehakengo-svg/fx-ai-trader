@@ -29,7 +29,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 PRODUCTION_APIS = {
     "status": "https://fx-ai-trader.onrender.com/api/demo/status",
-    "trades": "https://fx-ai-trader.onrender.com/api/demo/trades?limit=500",
+    "trades": f"https://fx-ai-trader.onrender.com/api/demo/trades?limit=500&date_from={FIDELITY_CUTOFF[:10]}&status=closed",
     "risk":   "https://fx-ai-trader.onrender.com/api/risk/dashboard",
     "regime": "https://fx-ai-trader.onrender.com/api/market/regime",
 }

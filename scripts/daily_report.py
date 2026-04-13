@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 PRODUCTION_APIS = {
     "status": "https://fx-ai-trader.onrender.com/api/demo/status",
-    "trades": "https://fx-ai-trader.onrender.com/api/demo/trades?limit=300",
+    "trades": f"https://fx-ai-trader.onrender.com/api/demo/trades?limit=500&date_from={FIDELITY_CUTOFF[:10]}&status=closed",
     "oanda":  "https://fx-ai-trader.onrender.com/api/oanda/status",
     "risk":   "https://fx-ai-trader.onrender.com/api/risk/dashboard",
     "regime": "https://fx-ai-trader.onrender.com/api/market/regime",
@@ -147,6 +147,13 @@ Fidelity Cutoff（{FIDELITY_CUTOFF}）以降のみ有効として分析してく
 {json.dumps(data.get("risk", {}), ensure_ascii=False, indent=2)[:2000]}{regime_section}{kb_section}
 
 ---
+## 分析ルール（厳守）
+1. **is_shadow=1のトレードは全て除外**して集計（Shadow=デモ専用、OANDAに送信されない）
+2. **XAU/Gold関連トレードは別枠で集計**（FX統計に混ぜない — lesson-xau-friction-distortion参照）
+3. **Risk Dashboardの集計値は参考値のみ**（pre-cutoff+XAU含む。必ずTRADESデータから自分で再計算する）
+4. tradesデータは既にFidelity Cutoff以降のclosedのみに絞り込み済み
+5. 戦略別N/WR/EVは必ず自分で計算してテーブル化する（「集計不能」は許容しない）
+
 定型レポート（戦略別N/WR/EV、block_counts主因、OANDA転送率、Sentinel進捗）と
 クオンツ見解（最重要シグナル・構造的観察・推奨アクション）を生成してください。
 KB蓄積知見がある場合、過去の教訓や未解決事項を踏まえた分析を含めてください。
