@@ -2880,6 +2880,49 @@ class DemoTrader:
                 return
 
         # ══════════════════════════════════════════════════════════════
+        # ── v8.9: BUY × TREND_BULL ブロック — Alpha Scan N=70 WR=31.4% EV=-0.776 PnL=-54.3pip ──
+        # トレンド追従BUYは高値掴み。MR戦略(押し目買い)は免除。
+        # conf>=65 の高確信シグナルは通過許可。
+        # ══════════════════════════════════════════════════════════════
+        _TREND_BULL_MR_EXEMPT = {
+            "bb_rsi_reversion", "fib_reversal", "orb_trap",
+            "gbp_deep_pullback", "vol_spike_mr",
+        }
+        if (_regime_type_r == "TREND_BULL" and signal == "BUY"
+                and entry_type not in _TREND_BULL_MR_EXEMPT
+                and conf < 65):
+            if _is_slot_shadow_eligible:
+                _is_shadow = True
+                self._add_log(f"[SHADOW] TREND_BULL BUY block: {entry_type} conf={conf}<65 → shadow (EV=-0.776)")
+            else:
+                _block(f"alpha_scan(TREND_BULL_BUY,{entry_type},conf={conf}<65,EV=-0.776)")
+                return
+
+        # ══════════════════════════════════════════════════════════════
+        # ── v8.9: H11 × EUR_USD ブロック — Alpha Scan N=9 WR=22.2% EV=-4.489 PnL=-40.4pip ──
+        # London mid-session: EUR_USDが叩かれるデスゾーン
+        # ══════════════════════════════════════════════════════════════
+        if _utc_hour == 11 and instrument == "EUR_USD":
+            if _is_slot_shadow_eligible:
+                _is_shadow = True
+                self._add_log(f"[SHADOW] H11 EUR_USD block: {entry_type} → shadow (EV=-4.489)")
+            else:
+                _block(f"alpha_scan(H11_EUR_USD,N=9,EV=-4.489)")
+                return
+
+        # ══════════════════════════════════════════════════════════════
+        # ── v8.9: H13 × USD_JPY ブロック — Alpha Scan N=14 WR=28.6% EV=-2.486 PnL=-34.8pip ──
+        # Pre-NY dead zone: JPYの流動性枯渇帯
+        # ══════════════════════════════════════════════════════════════
+        if _utc_hour == 13 and instrument == "USD_JPY":
+            if _is_slot_shadow_eligible:
+                _is_shadow = True
+                self._add_log(f"[SHADOW] H13 USD_JPY block: {entry_type} → shadow (EV=-2.486)")
+            else:
+                _block(f"alpha_scan(H13_USD_JPY,N=14,EV=-2.486)")
+                return
+
+        # ══════════════════════════════════════════════════════════════
         # ── v7.0: DT Power Session — USD/JPY のみ UTC 7-8, 13-14 限定 ──
         # 本番112t分析(USD/JPY): UTC 13-14 WR=65.2% +122.7pip (z=4.02)
         #                        UTC 7-8   WR=38%  +18.0pip  (London Open)

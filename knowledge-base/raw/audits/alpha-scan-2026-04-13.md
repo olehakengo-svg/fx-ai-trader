@@ -1,82 +1,97 @@
-# Alpha Scan: 2026-04-13 (London Session)
-**Source**: /api/demo/factors (本番データ, FX-only, non-shadow, post-cutoff)
-**Total N**: 355
+# Alpha Scan: 2026-04-13
 
-## 正EV候補 (sorted by EV, N≥5)
+Source: `https://fx-ai-trader.onrender.com/api/demo/factors` | min_n=5
 
-### 戦略×ペア
-| Strategy | Pair | N | WR | EV | PF | Kelly | PnL | 判断 |
-|----------|------|---|-----|-----|-----|-------|------|------|
-| dt_bb_rsi_mr | USD_JPY | 5 | 80.0% | +3.080 | 3.48 | +57.0% | +15.4 | N不足、FORCE_DEMOTED |
-| vol_momentum_scalp | USD_JPY | 12 | 66.7% | +1.275 | 1.96 | +32.7% | +15.3 | **★最有力候補** |
-| ema_pullback | USD_JPY | 14 | 42.9% | +1.093 | 1.53 | +14.9% | +15.3 | FORCE_DEMOTED、PAIR_PROMOTED済 |
-| ema_pullback | EUR_USD | 5 | 40.0% | +0.940 | 1.71 | +16.6% | +4.7 | N不足 |
-| fib_reversal | USD_JPY | 26 | 34.6% | +0.785 | 1.47 | +11.1% | +20.4 | FORCE_DEMOTED、外れ値依存 |
-| vol_surge_detector | USD_JPY | 21 | 47.6% | +0.157 | 1.10 | +4.2% | +3.3 | エッジ微弱 |
+### strategy x instrument
+| strategy | instrument | N | WR% | EV(pip) | PnL(pip) | PF |
+|---|---|---|---|---|---|---|
+| dt_bb_rsi_mr | USD_JPY | 6 | 66.7% | +2.27 | +13.6 | 2.70 |
+| vol_momentum_scalp | USD_JPY | 12 | 66.7% | +1.27 | +15.3 | 1.96 |
+| ema_pullback | USD_JPY | 14 | 42.9% | +1.09 | +15.3 | 1.53 |
+| ema_pullback | EUR_USD | 5 | 40.0% | +0.94 | +4.7 | 1.71 |
+| fib_reversal | USD_JPY | 26 | 34.6% | +0.79 | +20.4 | 1.47 |
+| vol_surge_detector | USD_JPY | 22 | 50.0% | +0.19 | +4.1 | 1.12 |
+| trend_rebound | USD_JPY | 6 | 50.0% | -0.03 | -0.2 | 0.98 |
+| vol_surge_detector | EUR_USD | 6 | 50.0% | -0.08 | -0.5 | 0.92 |
+| fib_reversal | EUR_USD | 10 | 50.0% | -0.13 | -1.3 | 0.95 |
+| stoch_trend_pullback | EUR_USD | 12 | 33.3% | -0.24 | -2.9 | 0.87 |
+| bb_rsi_reversion | USD_JPY | 81 | 37.0% | -0.34 | -27.9 | 0.84 |
+| engulfing_bb | USD_JPY | 11 | 27.3% | -0.74 | -8.2 | 0.56 |
+| stoch_trend_pullback | USD_JPY | 21 | 28.6% | -0.91 | -19.1 | 0.57 |
+| ema_trend_scalp | EUR_USD | 8 | 25.0% | -0.94 | -7.5 | 0.61 |
+| bb_rsi_reversion | EUR_USD | 16 | 25.0% | -1.27 | -20.3 | 0.44 |
+| engulfing_bb | EUR_USD | 9 | 11.1% | -1.42 | -12.8 | 0.28 |
+| ema_trend_scalp | USD_JPY | 10 | 20.0% | -1.45 | -14.5 | 0.45 |
+| sr_channel_reversal | USD_JPY | 23 | 17.4% | -1.53 | -35.3 | 0.26 |
+| trend_rebound | EUR_USD | 6 | 16.7% | -1.85 | -11.1 | 0.28 |
+| sr_channel_reversal | EUR_USD | 6 | 0.0% | -2.10 | -12.6 | 0.00 |
+| dt_bb_rsi_mr | EUR_USD | 8 | 25.0% | -2.83 | -22.6 | 0.33 |
 
-### 時間帯×ペア
-| Hour | Pair | N | WR | EV | PnL | 判断 |
-|------|------|---|-----|-----|------|------|
-| H2 | USD_JPY | 13 | 38.5% | +2.154 | +28.0 | **★★ 東京序盤** |
-| H15 | USD_JPY | 22 | 59.1% | +1.568 | +34.5 | **★★★ NY前半、最大PnL** |
-| H1 | USD_JPY | 9 | 66.7% | +1.389 | +12.5 | ★ 東京オープン |
-| H0 | USD_JPY | 5 | 60.0% | +0.780 | +3.9 | N不足 |
-| H12 | USD_JPY | 8 | 37.5% | +0.812 | +6.5 | N不足 |
+### hour x instrument
+| hour | instrument | N | WR% | EV(pip) | PnL(pip) | PF |
+|---|---|---|---|---|---|---|
+| 2 | USD_JPY | 13 | 38.5% | +2.15 | +28.0 | 2.51 |
+| 15 | USD_JPY | 22 | 59.1% | +1.57 | +34.5 | 1.67 |
+| 1 | USD_JPY | 9 | 66.7% | +1.39 | +12.5 | 1.91 |
+| 12 | USD_JPY | 8 | 37.5% | +0.81 | +6.5 | 1.60 |
+| 0 | USD_JPY | 5 | 60.0% | +0.78 | +3.9 | 1.43 |
+| 7 | USD_JPY | 10 | 50.0% | +0.20 | +2.0 | 1.13 |
+| 10 | EUR_USD | 11 | 27.3% | +0.06 | +0.6 | 1.03 |
+| 11 | USD_JPY | 23 | 39.1% | -0.11 | -2.6 | 0.94 |
+| 3 | USD_JPY | 10 | 30.0% | -0.27 | -2.7 | 0.81 |
+| 8 | USD_JPY | 19 | 42.1% | -0.43 | -8.1 | 0.79 |
+| 6 | USD_JPY | 29 | 37.9% | -0.51 | -14.9 | 0.83 |
+| 17 | USD_JPY | 9 | 33.3% | -0.62 | -5.6 | 0.71 |
+| 9 | USD_JPY | 16 | 25.0% | -0.72 | -11.5 | 0.61 |
+| 10 | USD_JPY | 9 | 22.2% | -0.79 | -7.1 | 0.60 |
+| 4 | USD_JPY | 8 | 25.0% | -0.80 | -6.4 | 0.55 |
+| 9 | EUR_USD | 19 | 31.6% | -0.84 | -16.0 | 0.62 |
+| 8 | EUR_USD | 15 | 26.7% | -1.01 | -15.1 | 0.49 |
+| 5 | USD_JPY | 14 | 14.3% | -1.39 | -19.4 | 0.30 |
+| 16 | USD_JPY | 13 | 30.8% | -1.39 | -18.1 | 0.36 |
+| 7 | EUR_USD | 14 | 21.4% | -1.47 | -20.6 | 0.49 |
+| 15 | EUR_USD | 12 | 41.7% | -1.61 | -19.3 | 0.55 |
+| 12 | EUR_USD | 8 | 12.5% | -2.08 | -16.6 | 0.27 |
+| 19 | USD_JPY | 5 | 20.0% | -2.20 | -11.0 | 0.41 |
+| 13 | USD_JPY | 15 | 33.3% | -2.27 | -34.0 | 0.36 |
+| 18 | USD_JPY | 10 | 20.0% | -2.81 | -28.1 | 0.25 |
+| 11 | EUR_USD | 9 | 22.2% | -4.49 | -40.4 | 0.11 |
 
-### 方向×レジーム
-| Direction | Regime | N | WR | EV | PnL | 判断 |
-|-----------|--------|---|-----|-----|------|------|
-| SELL | TREND_BULL | 44 | 34.1% | +0.595 | +26.2 | **★ 逆張りショート** |
-| BUY | RANGE | 71 | 43.7% | +0.308 | +21.9 | ★ レンジ内ロング |
+### direction x instrument
+| direction | instrument | N | WR% | EV(pip) | PnL(pip) | PF |
+|---|---|---|---|---|---|---|
+| BUY | GBP_USD | 5 | 60.0% | +3.08 | +15.4 | 2.54 |
+| BUY | EUR_USD | 51 | 43.1% | -0.07 | -3.4 | 0.97 |
+| SELL | USD_JPY | 133 | 39.1% | -0.12 | -15.8 | 0.94 |
+| BUY | USD_JPY | 118 | 33.9% | -0.65 | -76.5 | 0.72 |
+| SELL | GBP_USD | 8 | 37.5% | -0.89 | -7.1 | 0.79 |
+| SELL | EUR_USD | 44 | 11.4% | -2.66 | -117.1 | 0.14 |
 
-## 毒性候補 (sorted by PnL damage)
+### direction x regime
+| direction | regime | N | WR% | EV(pip) | PnL(pip) | PF |
+|---|---|---|---|---|---|---|
+| SELL | TREND_BULL | 46 | 34.8% | +0.72 | +33.0 | 1.39 |
+| BUY | RANGE | 72 | 43.1% | +0.28 | +20.1 | 1.14 |
+| BUY | TREND_BEAR | 32 | 37.5% | -0.14 | -4.4 | 0.93 |
+| SELL | TREND_BEAR | 49 | 38.8% | -0.58 | -28.2 | 0.78 |
+| BUY | TREND_BULL | 70 | 31.4% | -0.78 | -54.3 | 0.67 |
+| SELL | RANGE | 90 | 27.8% | -1.61 | -144.8 | 0.40 |
 
-| Factor | N | WR | EV | PnL | 即時アクション |
-|--------|---|-----|-----|------|--------|
-| SELL × RANGE | 89 | 27.0% | -1.636 | -145.6 | **最大毒性源。RANGE中のSELLを制限** |
-| SELL × EUR_USD | 43 | 11.6% | -2.714 | -116.7 | **EUR_USD SELLをブロック** |
-| BUY × USD_JPY | 117 | 34.2% | -0.638 | -74.7 | JPY BUYは全体で負 |
-| BUY × TREND_BULL | 70 | 31.4% | -0.776 | -54.3 | トレンドフォローBUYが負 |
-| H11 × EUR_USD | 9 | 22.2% | -4.489 | -40.4 | London中盤EUR壊滅 |
-| H13 × USD_JPY | 14 | 28.6% | -2.486 | -34.8 | NY前USD_JPY壊滅 |
+## Top Positive EV Cells
+- **BUY x GBP_USD** — EV=+3.08 pip, N=5, WR=60.0%
+- **dt_bb_rsi_mr x USD_JPY** — EV=+2.27 pip, N=6, WR=66.7%
+- **2 x USD_JPY** — EV=+2.15 pip, N=13, WR=38.5%
+- **15 x USD_JPY** — EV=+1.57 pip, N=22, WR=59.1%
+- **1 x USD_JPY** — EV=+1.39 pip, N=9, WR=66.7%
 
-## クオンツ判断
+## Top Toxic Cells (negative EV)
+- **11 x EUR_USD** — EV=-4.49 pip, N=9, WR=22.2%
+- **dt_bb_rsi_mr x EUR_USD** — EV=-2.83 pip, N=8, WR=25.0%
+- **18 x USD_JPY** — EV=-2.81 pip, N=10, WR=20.0%
+- **SELL x EUR_USD** — EV=-2.66 pip, N=44, WR=11.4%
+- **13 x USD_JPY** — EV=-2.27 pip, N=15, WR=33.3%
 
-### 即時アクション（BT不要）
-1. **EUR_USD SELL ブロック**: N=43 EV=-2.714 → 止めるだけで+116.7pip回復
-2. **RANGE中のSELL制限**: N=89 EV=-1.636 → 最大毒性源
-
-### BT検証に載せるべき仮説
-1. **H15×JPY (NY前半) に集中**: N=22 EV=+1.568 — 最大PnL、N十分
-2. **H2×JPY (東京序盤) に集中**: N=13 EV=+2.154 — 最高EV
-3. **SELL×TREND_BULL (逆張り)**: N=44 EV=+0.595 — 大サンプル
-4. **vol_momentum_scalp×JPY のスケール**: N=12 EV=+1.275 Kelly=+32.7%
-
-### 3因子深掘り結果 (2026-04-13 14:15 UTC追加)
-
-**H15×JPY (EV=+1.568) の内訳:**
-| Strategy | N | WR | EV | PnL |
-|----------|---|-----|-----|------|
-| vol_surge_detector | 3 | 100% | +2.667 | +8.0 |
-| vol_momentum_scalp | 3 | 66.7% | +0.533 | +1.6 |
-| bb_rsi_reversion | 9 | 33.3% | -0.911 | -8.2 |
-
-→ **正EVはvol_surge_detectorの3連勝に依存。N不足で信頼不可。**
-
-**H2×JPY (EV=+2.154) の内訳:**
-| Strategy | N | WR | EV | PnL |
-|----------|---|-----|-----|------|
-| fib_reversal | 6 | 33.3% | +1.967 | +11.8 |
-| bb_rsi_reversion | 4 | 50.0% | -0.150 | -0.6 |
-
-→ **WR=33%なのにEV正 = 外れ値1-2回に依存。信頼不可。**
-
-### 統計検定 (独立監査結果の引用)
-- H15×JPY: t=1.23, p=0.23 → 有意でない
-- H2×JPY: t=1.29, p=0.22 → 有意でない
-- 多重検定補正後: いずれも生存しない
-
-### 修正判断
-- H15/H2の「正EVアルファ」は**偽陽性の可能性が高い**
-- BT検証の優先度を**下げる** (N蓄積を待つ方が合理的)
-- vol_momentum_scalp (N=12, EV=+1.275, 全時間帯) が依然として**唯一の信頼できる候補**
+## Related
+- [[edge-pipeline]]
+- [[changelog]]
+- [[lessons/index]]

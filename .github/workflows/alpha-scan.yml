@@ -1,9 +1,9 @@
-name: Weekly Alpha Scan
+name: Daily Alpha Scan
 
 on:
   schedule:
-    # 毎週月曜 UTC 01:00 = JST 10:00（東京セッション前）
-    - cron: '0 1 * * 1'
+    # 平日毎日 UTC 22:03 = JST 07:03（pre_tokyo レポート前に実行）
+    - cron: '3 22 * * 1-5'
   workflow_dispatch:
 
 permissions:

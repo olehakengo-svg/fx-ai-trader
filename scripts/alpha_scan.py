@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-FX AI Trader — 週次アルファスキャン
+FX AI Trader — 日次アルファスキャン（平日）
 
 使用方法:
   python3 scripts/alpha_scan.py
@@ -135,10 +135,10 @@ def format_cross_table(key: str, cells: list[dict], factors: tuple[str, str]) ->
     rows = []
     for c in sorted_cells:
         n = c.get("n", 0)
-        wr = c.get("win_rate", 0) * 100
+        wr = c.get("wr", 0)
         ev = c.get("ev", 0)
-        pnl = c.get("total_pnl", ev * n)
-        pf = c.get("profit_factor", 0)
+        pnl = c.get("pnl", ev * n)
+        pf = c.get("pf", 0)
         rows.append(
             f"| {c.get(f1, '?')} | {c.get(f2, '?')} "
             f"| {n} | {wr:.1f}% | {ev:+.2f} | {pnl:+.1f} | {pf:.2f} |"
@@ -168,7 +168,7 @@ def build_markdown(all_data: dict[str, list[dict]], date_str: str) -> str:
         for c, factors in by_ev[:5]:
             ev = c.get("ev", 0)
             n = c.get("n", 0)
-            wr = c.get("win_rate", 0) * 100
+            wr = c.get("wr", 0)
             label = cell_label(c, factors)
             sections.append(f"- **{label}** — EV={ev:+.2f} pip, N={n}, WR={wr:.1f}%")
 
@@ -178,7 +178,7 @@ def build_markdown(all_data: dict[str, list[dict]], date_str: str) -> str:
         for c, factors in toxic[:5]:
             ev = c.get("ev", 0)
             n = c.get("n", 0)
-            wr = c.get("win_rate", 0) * 100
+            wr = c.get("wr", 0)
             label = cell_label(c, factors)
             sections.append(f"- **{label}** — EV={ev:+.2f} pip, N={n}, WR={wr:.1f}%")
 
@@ -234,7 +234,7 @@ def build_discord_message(
     for c, factors in by_ev[:3]:
         ev = c.get("ev", 0)
         n = c.get("n", 0)
-        wr = c.get("win_rate", 0) * 100
+        wr = c.get("wr", 0)
         label = cell_label(c, factors)
         lines.append(f"  {label} | EV={ev:+.2f} | N={n} | WR={wr:.1f}%")
 
@@ -244,7 +244,7 @@ def build_discord_message(
     for c, factors in toxic[:3]:
         ev = c.get("ev", 0)
         n = c.get("n", 0)
-        wr = c.get("win_rate", 0) * 100
+        wr = c.get("wr", 0)
         label = cell_label(c, factors)
         lines.append(f"  {label} | EV={ev:+.2f} | N={n} | WR={wr:.1f}%")
 
