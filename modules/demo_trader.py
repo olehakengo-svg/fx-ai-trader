@@ -2848,6 +2848,15 @@ class DemoTrader:
             if _utc_hour >= 17:  # Late NY
                 _block(f"session_pair(EUR_USD_Late_NY,WR=10%)")
                 return
+            # v8.9: EUR_USD SELL全面ブロック — Alpha Scan N=43 WR=11.6% EV=-2.714 PnL=-116.7pip
+            # 最大のアルファ破壊源。BUYのみ許可。
+            if signal == "SELL":
+                if _is_slot_shadow_eligible:
+                    _is_shadow = True
+                    self._add_log(f"[SHADOW] EUR_USD SELL block: {entry_type} → shadow (EV=-2.714)")
+                else:
+                    _block(f"alpha_scan(EUR_USD_SELL,N=43,EV=-2.714)")
+                    return
         # v7.0 撤去: USD/JPY scalp UTC 11-12 デスゾーン
         # 静的時間ブロック → Spread/SL Gate(動的)に委譲。
         # マーケット開いてる間は攻める。スプレッド異常時のみ動的に防御。
@@ -2855,6 +2864,20 @@ class DemoTrader:
         # offending戦略(fib/macdh)は全てFORCE_DEMOTED済み。
         # bb_rsi Gold Hours(UTC 05) +0.8ボーナスと矛盾していた。
         # Spread/SL Gate(v7.0)がFast Exit防止として残存。
+
+        # ══════════════════════════════════════════════════════════════
+        # ── v8.9: RANGE SELL 制限 — Alpha Scan N=89 WR=27.0% EV=-1.636 PnL=-145.6pip ──
+        # 最大毒性源。RANGE中のSELLをconfidence要件引上げで制限
+        # 完全ブロックではなくconf>=65で通過（高確信SELLは許可）
+        # ══════════════════════════════════════════════════════════════
+        if (_regime_type_r == "RANGE" and signal == "SELL"
+                and conf < 65):
+            if _is_slot_shadow_eligible:
+                _is_shadow = True
+                self._add_log(f"[SHADOW] RANGE SELL gate: {entry_type} conf={conf}<65 → shadow")
+            else:
+                _block(f"alpha_scan(RANGE_SELL,conf={conf}<65,EV=-1.636)")
+                return
 
         # ══════════════════════════════════════════════════════════════
         # ── v7.0: DT Power Session — USD/JPY のみ UTC 7-8, 13-14 限定 ──
