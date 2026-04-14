@@ -334,7 +334,12 @@ class DemoTrader:
         #   DD >= 2%: lot * 0.80 | DD >= 4%: lot * 0.60
         #   DD >= 6%: lot * 0.40 | DD >= 8%: lot * 0.20
         #   Recovery uses same thresholds (no instant full-open)
-        self._EQ_BASE_CAPITAL_PIPS = 1000.0  # 基準資本 (pips換算、DDパーセント計算用)
+        # v9.0: DD計算基準を環境変数で設定可能。OANDA口座残高の成長に追従。
+        # デフォルト1000pip。OANDA_EQ_BASE_PIPS で実口座残高のpip換算値を設定。
+        # 例: 残高454,816円 / pip_value≈100円 = ~4,548pip → OANDA_EQ_BASE_PIPS=4548
+        self._EQ_BASE_CAPITAL_PIPS = float(
+            _os.environ.get("OANDA_EQ_BASE_PIPS", "1000.0")
+        )
 
         # ── v8.9: Equity Reset — クリーンデータ起点 ──
         # v8.4以前のXAU損失(-2,280pip)+pre-cutoffバグデータが永久にDDを汚染していた。
@@ -428,6 +433,9 @@ class DemoTrader:
             print("[v6.5] AlertManager: Discord Webhook enabled", flush=True)
         # ── v6.5: DD Phase Tagging (デモDDブレーカー代替) ──
         self._dd_phase_at_entry = {}  # {trade_id: bool} DD期間中のエントリーか
+        # NOTE: _pending_limits はインメモリのみ。プロセス再起動(Render deploy等)で消失する。
+        # 未約定の指値注文はリスタート後に失われるため、起動時ログで警告する。
+        # 将来: OANDA APIのpending orders確認で復元する（要実装）
         self._pending_limits = {}     # {key: {signal, sl, tp, entry_type, sig, limit_price, created, mode, cfg, ...}}
         # v6.2: N-cache は L244 の _evaluate_promotions() で DB集計から構築済み
         # (warm-start復元は L244 の前で実行、_evaluate_promotions() が上書き)
@@ -1400,7 +1408,7 @@ class DemoTrader:
             if price <= 0:
                 continue  # この通貨の価格が取れない場合はスキップ
             # pip計算用桁数
-            _pip_decimals = 3 if "JPY" in _inst else 5
+            _pip_decimals = 3 if ("JPY" in _inst or "XAU" in _inst) else 5
 
             # ── OANDAスプレッド反映: SL/TP判定もbid/askベース ──
             # BUYポジの決済=売り(bid), SELLポジの決済=買い(ask)
@@ -2971,12 +2979,12 @@ class DemoTrader:
         # 完全ブロックではなくconf>=65で通過（高確信SELLは許可）
         # ══════════════════════════════════════════════════════════════
         if (_regime_type_r == "RANGE" and signal == "SELL"
-                and conf < 65):
+                and confidence < 65):
             if _is_slot_shadow_eligible:
                 _is_shadow = True
-                self._add_log(f"[SHADOW] RANGE SELL gate: {entry_type} conf={conf}<65 → shadow")
+                self._add_log(f"[SHADOW] RANGE SELL gate: {entry_type} conf={confidence}<65 → shadow")
             else:
-                _block(f"alpha_scan(RANGE_SELL,conf={conf}<65,EV=-1.636)")
+                _block(f"alpha_scan(RANGE_SELL,conf={confidence}<65,EV=-1.636)")
                 return
 
         # ══════════════════════════════════════════════════════════════
@@ -2990,12 +2998,12 @@ class DemoTrader:
         }
         if (_regime_type_r == "TREND_BULL" and signal == "BUY"
                 and entry_type not in _TREND_BULL_MR_EXEMPT
-                and conf < 65):
+                and confidence < 65):
             if _is_slot_shadow_eligible:
                 _is_shadow = True
-                self._add_log(f"[SHADOW] TREND_BULL BUY block: {entry_type} conf={conf}<65 → shadow (EV=-0.776)")
+                self._add_log(f"[SHADOW] TREND_BULL BUY block: {entry_type} conf={confidence}<65 → shadow (EV=-0.776)")
             else:
-                _block(f"alpha_scan(TREND_BULL_BUY,{entry_type},conf={conf}<65,EV=-0.776)")
+                _block(f"alpha_scan(TREND_BULL_BUY,{entry_type},conf={confidence}<65,EV=-0.776)")
                 return
 
         # ══════════════════════════════════════════════════════════════
@@ -3032,12 +3040,12 @@ class DemoTrader:
                 _block(f"alpha_scan(H16-20_USD_JPY,EV=-2.4)")
                 return
         # BUY × TREND_BEAR: N=19 EV=-1.67 PnL=-31.8pip。下降トレンドでBUYは逆張り自殺
-        if signal == "BUY" and _regime_type_r == "TREND_BEAR" and conf < 70:
+        if signal == "BUY" and _regime_type_r == "TREND_BEAR" and confidence < 70:
             if _is_slot_shadow_eligible:
                 _is_shadow = True
-                self._add_log(f"[SHADOW] BUY TREND_BEAR block: {entry_type} conf={conf} → shadow")
+                self._add_log(f"[SHADOW] BUY TREND_BEAR block: {entry_type} conf={confidence} → shadow")
             else:
-                _block(f"alpha_scan(BUY_TREND_BEAR,conf={conf}<70,EV=-1.67)")
+                _block(f"alpha_scan(BUY_TREND_BEAR,conf={confidence}<70,EV=-1.67)")
                 return
         # H7-H8 × EUR_USD: N=14 EV=-2.38 PnL=-33.8pip。ロンドンオープン初動のEUR壊滅
         if instrument == "EUR_USD" and _utc_hour in (7, 8):
@@ -3714,7 +3722,10 @@ class DemoTrader:
             _lot_ratio = 0.1
             _sentinel_reason = "UNI_SEN"
 
-        _lot_ratio = max(0.3, min(_lot_ratio, 2.5))
+        # v9.0: lot上限をenv OANDA_LOT_RATIO_CAP で設定可能 (デフォルト3.0)
+        # ロードマップPhase 3 Kelly Half (3.0lot) に対応
+        _lot_cap = float(_os.environ.get("OANDA_LOT_RATIO_CAP", "3.0"))
+        _lot_ratio = max(0.3, min(_lot_ratio, _lot_cap))
 
         _base_units = int(_os.environ.get("OANDA_UNITS", "10000"))
         _adjusted_units = int(_base_units * _lot_ratio)
@@ -3787,6 +3798,25 @@ class DemoTrader:
                 f"[SHIELD] Lot capped {_adjusted_units}u → {self._OANDA_LOT_CAP}u"
             )
             _adjusted_units = self._OANDA_LOT_CAP
+
+        if _is_promoted:
+            # ── v9.0 SHIELD: Aggregate Kelly Gate ──
+            # aggregate Kelly < 0 のとき SENTINEL以外のOANDA転送をブロック
+            if _strat_mode != "sentinel" and not _is_sentinel:
+                _agg_kelly = self._get_aggregate_kelly()
+                if _agg_kelly is not None and _agg_kelly < 0:
+                    self._add_log(
+                        f"[SHIELD] Aggregate Kelly gate: {_agg_kelly:.3f} < 0 → "
+                        f"OANDA blocked for {entry_type} {instrument} (SENTINEL still allowed)"
+                    )
+                    self._oanda._add_audit(
+                        demo_trade_id=trade_id, entry_type=entry_type,
+                        is_live=False, bridge_status="blocked",
+                        block_reason=f"agg_kelly={_agg_kelly:.3f}<0",
+                        direction=signal, instrument=instrument,
+                        units=_adjusted_units,
+                    )
+                    _is_promoted = False  # fall through to non-OANDA path
 
         if _is_promoted:
             if _bridge_active and _mode_allowed:
@@ -4737,6 +4767,45 @@ class DemoTrader:
                 et = adj["reason"].split(":")[0].strip()
                 if et in self._params["entry_type_blacklist"]:
                     self._params["entry_type_blacklist"].remove(et)
+
+    def _get_aggregate_kelly(self) -> float:
+        """Compute aggregate Kelly criterion across all clean post-cutoff trades.
+        Returns full_kelly float or None if insufficient data.
+        Used as a safety gate to block OANDA forwarding when aggregate edge is negative.
+        Cached for 60 seconds to avoid repeated DB queries.
+        """
+        now = _time_mod.time() if '_time_mod' in dir() else __import__('time').time()
+        if hasattr(self, '_agg_kelly_cache') and (now - self._agg_kelly_cache_ts) < 60:
+            return self._agg_kelly_cache
+        try:
+            from modules.stats_utils import kelly_criterion
+            closed = self._db.get_all_closed()
+            cutoff = self._FIDELITY_CUTOFF
+            trades = [t for t in closed
+                      if t.get("status") == "CLOSED"
+                      and not t.get("is_shadow")
+                      and (t.get("exit_time") or "") >= cutoff]
+            if len(trades) < 20:
+                self._agg_kelly_cache = None
+                self._agg_kelly_cache_ts = now
+                return None
+            pnls = [float(t.get("pnl_pips", 0) or 0) for t in trades]
+            wins = [p for p in pnls if p > 0]
+            losses = [p for p in pnls if p < 0]
+            if not wins or not losses:
+                self._agg_kelly_cache = None
+                self._agg_kelly_cache_ts = now
+                return None
+            wr = len(wins) / len(pnls)
+            avg_win = sum(wins) / len(wins)
+            avg_loss = abs(sum(losses) / len(losses))
+            result = kelly_criterion(wr, avg_win, avg_loss)
+            k = result.get("full_kelly", 0.0)
+            self._agg_kelly_cache = k
+            self._agg_kelly_cache_ts = now
+            return k
+        except Exception:
+            return None
 
     def _get_strategy_kelly(self, entry_type: str, instrument: str) -> float:
         """

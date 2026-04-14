@@ -56,6 +56,36 @@ except ImportError:
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = not os.environ.get("RENDER")  # Render本番ではFalse
 
+# ── API認証 (Bearer Token) ──────────────────────────────
+# 環境変数 API_AUTH_TOKEN が設定されている場合、POST/PUT/DELETE の
+# 破壊的APIエンドポイントに Bearer token 認証を要求する。
+# GET (読み取り) は認証不要。未設定時は従来通り認証なし。
+from functools import wraps as _wraps
+
+_API_AUTH_TOKEN = os.environ.get("API_AUTH_TOKEN", "")
+
+_PROTECTED_PREFIXES = (
+    "/api/emergency/", "/api/demo/start", "/api/demo/stop",
+    "/api/demo/restart", "/api/demo/close", "/api/oanda/modes",
+    "/api/oanda/sync", "/api/config/oanda_control",
+    "/api/config/toggle_oanda",
+)
+
+def _require_auth():
+    """Before-request hook: protect destructive endpoints with Bearer token."""
+    if not _API_AUTH_TOKEN:
+        return  # 未設定時はスキップ（後方互換）
+    if request.method == "GET":
+        return  # 読み取りは認証不要
+    if not any(request.path.startswith(p) for p in _PROTECTED_PREFIXES):
+        return  # 対象外のエンドポイント
+    auth = request.headers.get("Authorization", "")
+    if auth == f"Bearer {_API_AUTH_TOKEN}":
+        return  # 認証成功
+    return jsonify({"error": "Unauthorized", "message": "Valid Bearer token required"}), 401
+
+app.before_request(_require_auth)
+
 # ── API応答時間ログ (2026-04-06 perf: ボトルネック可視化) ──
 import time as _time_mod
 @app.before_request

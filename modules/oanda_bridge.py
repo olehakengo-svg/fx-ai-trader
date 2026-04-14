@@ -481,20 +481,32 @@ class OandaBridge:
             return
 
         def _do():
-            ok, data = self._client.close_trade(oanda_id)
-            if ok:
-                with self._lock:
-                    self._trade_map.pop(demo_trade_id, None)
-                logger.info(f"[OandaBridge] CLOSE OANDA #{oanda_id} "
-                            f"(demo={demo_trade_id}, reason={reason})")
-            else:
+            for attempt in range(3):
+                ok, data = self._client.close_trade(oanda_id)
+                if ok:
+                    with self._lock:
+                        self._trade_map.pop(demo_trade_id, None)
+                    logger.info(f"[OandaBridge] CLOSE OANDA #{oanda_id} "
+                                f"(demo={demo_trade_id}, reason={reason})")
+                    return
+                # OANDA側で既にクローズ済みならマッピング削除
+                err_code = data.get("error")
+                if err_code == 404:
+                    with self._lock:
+                        self._trade_map.pop(demo_trade_id, None)
+                    logger.info(f"[OandaBridge] CLOSE #{oanda_id} already closed (404), mapping removed")
+                    return
+                # Transient errors: retry after backoff
+                if err_code in (429, 503, "timeout", "network") and attempt < 2:
+                    import time
+                    time.sleep(2 * (attempt + 1))
+                    logger.warning(f"[OandaBridge] CLOSE retry {attempt+1}/2 #{oanda_id} ({err_code})")
+                    continue
+                # Non-retryable error
                 _msg = f"CLOSE failed #{oanda_id} (demo={demo_trade_id}): {json.dumps(data)[:200]}"
                 logger.error(f"[OandaBridge] {_msg}")
                 self._log_error(_msg)
-                # OANDA側で既にクローズ済みならマッピング削除
-                if data.get("error") == 404:
-                    with self._lock:
-                        self._trade_map.pop(demo_trade_id, None)
+                return
 
         self._fire(_do)
 

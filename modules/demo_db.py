@@ -441,12 +441,13 @@ class DemoDB:
 
     def update_sl_tp(self, trade_id: str, sl: float, tp: float):
         """SL/TPを更新（Profit Extender等で動的に変更する場合用）。"""
-        with self._safe_conn() as conn:
-            conn.execute(
-                "UPDATE demo_trades SET sl=?, tp=? WHERE trade_id=? AND status='OPEN'",
-                (sl, tp, trade_id),
-            )
-            conn.commit()
+        with self._lock:
+            with self._safe_conn() as conn:
+                conn.execute(
+                    "UPDATE demo_trades SET sl=?, tp=? WHERE trade_id=? AND status='OPEN'",
+                    (sl, tp, trade_id),
+                )
+                conn.commit()
 
     def get_open_trades(self) -> list:
         with self._safe_conn() as conn:
