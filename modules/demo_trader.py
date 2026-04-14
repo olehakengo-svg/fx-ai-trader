@@ -4676,6 +4676,21 @@ class DemoTrader:
         # shadow全敗→TP縮小(3.0→2.0)+London-NY限定で改善済み。実弾でQH適用開始
         ("xs_momentum", "GBP_USD"),
         ("xs_momentum", "EUR_USD"),
+        # v2.1: DT幹 — trendline_sweep (FORCE_DEMOTEDだがBT 365日で正EV確認)
+        # EUR EV=+0.927 N=73 WR=80.8% PF=2.52 / GBP EV=+0.599 N=134 WR=73.1% PF=1.68
+        ("trendline_sweep", "EUR_USD"),
+        ("trendline_sweep", "GBP_USD"),
+        # v2.1: Scalp枝 — ペア×TF最適組合せ (包括BTスキャンで正EV確認)
+        # bb_squeeze_breakout×JPY 5m: EV=+1.030 N=11 WR=90.9% (全Scalp最強)
+        ("bb_squeeze_breakout", "USD_JPY"),
+        # engulfing_bb×JPY 5m: EV=+0.677 N=17 WR=88.2%
+        ("engulfing_bb", "USD_JPY"),
+        # fib_reversal×EUR 1m: EV=+0.426 N=40 WR=72.5%
+        ("fib_reversal", "EUR_USD"),
+        # bb_squeeze_breakout×EUR 1m: EV=+0.473 N=19 WR=73.7%
+        ("bb_squeeze_breakout", "EUR_USD"),
+        # sr_channel_reversal×EUR 5m: EV=+0.231 N=17 WR=70.6%
+        ("sr_channel_reversal", "EUR_USD"),
     }
 
     # ペア別ロットブースト: PAIR_LOT_BOOST > _STRATEGY_LOT_BOOST (優先)
@@ -4684,7 +4699,7 @@ class DemoTrader:
         # Kelly Half: ライブalpha scan N≥10 & Kelly>10% のセル
         ("fib_reversal", "USD_JPY"): 2.0,         # N=26 EV=+0.79 Kelly=11.1% → Half=5.6%
         ("ema_pullback", "USD_JPY"): 2.0,         # N=14 EV=+1.09 Kelly=14.9% → Half=7.5%
-        ("vol_momentum_scalp", "USD_JPY"): 2.0,   # N=13 EV=+0.92 Kelly=23.7% → Half=11.9%
+        # REMOVED v2.1: vol_momentum_scalp — BT N=87 EV=-0.014 (1m), N=10 EV=-0.443 (5m) 負EV確定
         ("vol_surge_detector", "EUR_USD"): 1.8,   # N=7 EV=+1.20 Kelly=32.7% → Half=16.4% (N小→控えめ)
         ("ema_pullback", "EUR_USD"): 1.5,         # N=5 EV=+0.94 Kelly=16.6% → Half=8.3% (N最小→最控えめ)
     }
@@ -4729,8 +4744,14 @@ class DemoTrader:
     # SHADOW: everything else — demo trades recorded but OANDA forwarding blocked, is_shadow=1
     # ══════════════════════════════════════════════════════════════
 
-    # Elite strategies that should NEVER be shadowed by _SHADOW_MODE
-    _ELITE_LIVE = {"vol_momentum_scalp"}
+    # v2.1: Elite strategies — NEVER shadowed by _SHADOW_MODE
+    # DT幹: BT 365日 STRONG確認済み
+    # Scalp枝: _PAIR_PROMOTEDでSENTINEL通過（SHADOWされない）
+    _ELITE_LIVE = {
+        "session_time_bias",     # DT核: JPY EV=+0.58, EUR EV=+0.22, GBP EV=+0.11
+        "trendline_sweep",       # DT: GBP EV=+0.60, EUR EV=+0.93
+        "gbp_deep_pullback",     # DT: GBP EV=+1.06
+    }
 
     # Master switch: when True, non-ELITE non-SENTINEL strategies get is_shadow=True
     # Override via environment variable SHADOW_MODE (default: "true")
