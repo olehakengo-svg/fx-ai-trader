@@ -21,6 +21,13 @@ import os
 import warnings
 warnings.filterwarnings("ignore")
 
+# ── .env ファイル読込（ローカル開発用）──
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv未インストール時はスキップ（Render本番ではenv varが直接設定済み）
+
 
 def _is_jpy_scale(symbol: str) -> bool:
     """JPYスケール判定: JPYペアとXAU(Gold)はpip=0.01, pip_mult=100"""
