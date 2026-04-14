@@ -3022,6 +3022,32 @@ class DemoTrader:
                 _block(f"alpha_scan(H13_USD_JPY,N=14,EV=-2.486)")
                 return
 
+        # ── v8.9: 昨日分析ベース追加ブロック (4/14) ──
+        # H16-H20 × USD_JPY: 合計-68.2pip (N=27, WR=18.5%)。NY後半のJPY壊滅
+        if instrument == "USD_JPY" and 16 <= _utc_hour <= 20:
+            if _is_slot_shadow_eligible:
+                _is_shadow = True
+                self._add_log(f"[SHADOW] H{_utc_hour} USD_JPY block: {entry_type} → shadow")
+            else:
+                _block(f"alpha_scan(H16-20_USD_JPY,EV=-2.4)")
+                return
+        # BUY × TREND_BEAR: N=19 EV=-1.67 PnL=-31.8pip。下降トレンドでBUYは逆張り自殺
+        if signal == "BUY" and _regime_type_r == "TREND_BEAR" and conf < 70:
+            if _is_slot_shadow_eligible:
+                _is_shadow = True
+                self._add_log(f"[SHADOW] BUY TREND_BEAR block: {entry_type} conf={conf} → shadow")
+            else:
+                _block(f"alpha_scan(BUY_TREND_BEAR,conf={conf}<70,EV=-1.67)")
+                return
+        # H7-H8 × EUR_USD: N=14 EV=-2.38 PnL=-33.8pip。ロンドンオープン初動のEUR壊滅
+        if instrument == "EUR_USD" and _utc_hour in (7, 8):
+            if _is_slot_shadow_eligible:
+                _is_shadow = True
+                self._add_log(f"[SHADOW] H{_utc_hour} EUR_USD block: {entry_type} → shadow")
+            else:
+                _block(f"alpha_scan(H7-8_EUR_USD,EV=-2.38)")
+                return
+
         # ══════════════════════════════════════════════════════════════
         # ── v7.0: DT Power Session — USD/JPY のみ UTC 7-8, 13-14 限定 ──
         # 本番112t分析(USD/JPY): UTC 13-14 WR=65.2% +122.7pip (z=4.02)
