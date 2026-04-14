@@ -584,26 +584,12 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
     expected = days * _bars_per_day.get(interval, 24) * 0.55  # FX=24h x 55%稼働
     min_bars = max(100, expected * 0.30)
 
-    # -- (0) OANDA v20 最優先: USD/JPY, EUR/USD 全TF (最低レイテンシ) --
-    if (df is None and
-            os.environ.get("OANDA_TOKEN") and
-            symbol in _OANDA_SYMBOLS and
-            interval in _OANDA_GRANULARITY):
-        try:
-            df = fetch_ohlcv_oanda(symbol, interval, days)
-            if df is not None and len(df) >= min_bars:
-                _last_data_source[interval] = "oanda"
-                print(f"[OANDA/{interval}] {len(df)}本取得 (期待{int(expected)})")
-            else:
-                actual = len(df) if df is not None else 0
-                print(f"[OANDA/{interval}] {symbol} {actual}本 < 最低{int(min_bars)}本 → フォールバック")
-                df = None
-        except Exception as e:
-            print(f"[OANDA/{interval}] {symbol} error: {e} → フォールバック", flush=True)
-            df = None
-
-    # -- (1) Massive API: USDJPY/EURUSD の全TF --
-    _MASSIVE_SYMBOLS = {"USDJPY=X", "JPY=X", "EURUSD=X"}
+    # -- (0) Massive API 最優先: 全FXペア × 全TF (有料契約、高品質データ) --
+    # v9.0: Massive(Polygon)を最優先に昇格。全6ペア+全TF対応。
+    _MASSIVE_SYMBOLS = {
+        "USDJPY=X", "JPY=X", "EURUSD=X", "EURJPY=X",
+        "GBPUSD=X", "GBPJPY=X", "EURGBP=X",
+    }
     _MASSIVE_INTERVALS = {"1m", "5m", "15m", "30m", "1h", "4h", "1d"}
     if (df is None and
             os.environ.get("MASSIVE_API_KEY") and
@@ -613,13 +599,31 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
             df = fetch_ohlcv_massive(symbol, interval, days)
             if df is not None and len(df) >= min_bars:
                 _last_data_source[interval] = "massive"
-                print(f"[Massive/{interval}] {len(df)}本取得 (期待{int(expected)})")
+                print(f"[Massive/{interval}] {symbol} {len(df)}本取得 (期待{int(expected)})")
             else:
                 actual = len(df) if df is not None else 0
-                print(f"[Massive/{interval}] {actual}本 < 最低{int(min_bars)}本 → フォールバック")
+                print(f"[Massive/{interval}] {symbol} {actual}本 < 最低{int(min_bars)}本 → OANDAフォールバック")
                 df = None
         except Exception as e:
-            print(f"[Massive/{interval}] {e} → フォールバック")
+            print(f"[Massive/{interval}] {symbol} {e} → OANDAフォールバック")
+            df = None
+
+    # -- (1) OANDA v20: Massive失敗時のフォールバック --
+    if (df is None and
+            os.environ.get("OANDA_TOKEN") and
+            symbol in _OANDA_SYMBOLS and
+            interval in _OANDA_GRANULARITY):
+        try:
+            df = fetch_ohlcv_oanda(symbol, interval, days)
+            if df is not None and len(df) >= min_bars:
+                _last_data_source[interval] = "oanda"
+                print(f"[OANDA/{interval}] {symbol} {len(df)}本取得 (期待{int(expected)})")
+            else:
+                actual = len(df) if df is not None else 0
+                print(f"[OANDA/{interval}] {symbol} {actual}本 < 最低{int(min_bars)}本 → フォールバック")
+                df = None
+        except Exception as e:
+            print(f"[OANDA/{interval}] {symbol} error: {e} → フォールバック", flush=True)
             df = None
 
     # -- (2) TwelveData: USD/JPY の短期TFのみ --
