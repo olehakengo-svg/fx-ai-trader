@@ -11504,6 +11504,21 @@ def api_demo_factors():
             else: return "high"
         elif factor == "close_reason":
             return t.get("close_reason", "unknown") or "unknown"
+        elif factor == "strategy_type":
+            # v8.9: TF(トレンドフォロー) vs MR(逆張り/平均回帰) vs VOL(ボラティリティ)
+            _TF = {"ema_trend_scalp", "adx_trend_continuation", "ema_cross",
+                   "xs_momentum", "turtle_soup", "trendline_sweep",
+                   "london_ny_swing", "jpy_basket_trend", "ema200_trend_reversal",
+                   "donchian_momentum_breakout", "session_time_bias",
+                   "gbp_deep_pullback", "three_bar_reversal", "doji_breakout"}
+            _MR = {"bb_rsi_reversion", "fib_reversal", "vol_spike_mr", "v_reversal",
+                   "trend_rebound", "macdh_reversal", "orb_trap",
+                   "dt_bb_rsi_mr", "sr_channel_reversal", "dt_sr_channel_reversal",
+                   "london_fix_reversal", "sr_fib_confluence", "htf_false_breakout"}
+            et = t.get("entry_type", "")
+            if et in _TF: return "TF"
+            elif et in _MR: return "MR"
+            else: return "VOL"
         elif factor == "mode":
             return t.get("mode", "unknown") or "unknown"
         elif factor == "layer1":
