@@ -466,6 +466,11 @@ class DemoTrader:
             print("[v6.5] AlertManager: Discord Webhook enabled", flush=True)
         # ── v6.5: DD Phase Tagging (デモDDブレーカー代替) ──
         self._dd_phase_at_entry = {}  # {trade_id: bool} DD期間中のエントリーか
+        # ── v9.0: Risk gate cache initialization (thread safety) ──
+        self._agg_kelly_cache = None
+        self._agg_kelly_cache_ts = 0.0
+        self._ruin_prob_cache = None
+        self._ruin_prob_cache_ts = 0.0
         # NOTE: _pending_limits はインメモリのみ。プロセス再起動(Render deploy等)で消失する。
         # 未約定の指値注文はリスタート後に失われるため、起動時ログで警告する。
         # 将来: OANDA APIのpending orders確認で復元する（要実装）
@@ -1078,12 +1083,8 @@ class DemoTrader:
                     time.sleep(60)
                     continue
 
-                # 全モードを強制チェック（EUR含む）
-                _all_modes = ["scalp", "scalp_5m", "daytrade", "daytrade_1h", "swing",
-                              "scalp_eur", "daytrade_eur", "daytrade_1h_eur",
-                              "scalp_eurjpy", "rnb_usdjpy",
-                              "daytrade_gbpusd", "daytrade_eurgbp",
-                              "daytrade_eurjpy", "daytrade_gbpjpy"]
+                # 全モードを動的取得（MODE_CONFIG定義と自動同期）
+                _all_modes = list(self._mode_config.keys())
                 for m in _all_modes:
                     if m in self._user_stopped_modes:
                         continue  # ユーザーが明示的に停止したモードはスキップ
@@ -4651,7 +4652,7 @@ class DemoTrader:
         "london_ny_swing": 1.5,            # EUR: EV=2.251, WR=100%, N=2
         # REMOVED: fib_reversal → FORCE_DEMOTED (本番N=117 WR=39.6% PnL=-18.0, BT乖離)
         # === Legacy ===
-        "sr_break_retest": 1.3,            # GBP WR=80% EV=+0.705 (14d)
+        # REMOVED: sr_break_retest → FORCE_DEMOTED (N=2 EV=-21.4), lot boost死コード
         "mtf_reversal_confluence": 1.3,    # EV +1.49 (448t監査)
         "bb_rsi_reversion": 1.5,           # v8.9: 2.0→1.5(保守的) post-cut WR=37.2%でv8.3 OOS未完了。確認後2.0x
         "vol_momentum_scalp": 1.0,        # v8.2: 2.0x→1.0x 摩擦後EV境界的(+1.61-2.14=≈0), N=11でデータ蓄積優先
@@ -4744,8 +4745,8 @@ class DemoTrader:
         # v2.1: Scalp枝 — ペア×TF最適組合せ (包括BTスキャンで正EV確認)
         # bb_squeeze_breakout×JPY 5m: EV=+1.030 N=11 WR=90.9% (全Scalp最強)
         ("bb_squeeze_breakout", "USD_JPY"),
-        # engulfing_bb×JPY 5m: EV=+0.677 N=17 WR=88.2%
-        ("engulfing_bb", "USD_JPY"),
+        # REMOVED v2.1: engulfing_bb×JPY — PAIR_DEMOTED (N=14 WR=28.6% Kelly=-14.7%)が優先
+        # BT 5m EV=+0.677だがLive実績が否定。PAIR_DEMOTEDが勝つため死コード削除
         # fib_reversal×EUR 1m: EV=+0.426 N=40 WR=72.5%
         ("fib_reversal", "EUR_USD"),
         # bb_squeeze_breakout×EUR 1m: EV=+0.473 N=19 WR=73.7%
@@ -4977,6 +4978,7 @@ class DemoTrader:
             trades = [t for t in closed
                       if t.get("status") == "CLOSED"
                       and not t.get("is_shadow")
+                      and "XAU" not in (t.get("instrument", "") or "")
                       and (t.get("exit_time") or "") >= cutoff]
             if len(trades) < 20:
                 self._agg_kelly_cache = None
