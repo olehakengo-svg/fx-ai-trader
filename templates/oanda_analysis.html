@@ -367,6 +367,19 @@ tr.new-row{animation:row-enter .3s ease}
 </div>
 
 <script>
+// ── API認証: POSTリクエストにBearer tokenを自動付与 ──
+const _API_TOKEN = "{{ api_token|default('', true) }}";
+const _origFetch = window.fetch;
+window.fetch = function(url, opts = {}) {
+  if (_API_TOKEN && opts.method && opts.method.toUpperCase() !== "GET") {
+    opts.headers = opts.headers || {};
+    if (typeof opts.headers === 'object' && !(opts.headers instanceof Headers)) {
+      opts.headers["Authorization"] = "Bearer " + _API_TOKEN;
+    }
+  }
+  return _origFetch.call(this, url, opts);
+};
+
 function _h(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
 function _fmt(n,d=0){return n!=null?Number(n).toLocaleString('ja-JP',{minimumFractionDigits:d,maximumFractionDigits:d}):'—'}
 function _fmtTime(t){if(!t)return'—';try{const d=new Date(t);return d.toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Tokyo'})}catch{return t.slice(0,19)}}

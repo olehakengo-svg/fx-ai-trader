@@ -8724,7 +8724,7 @@ def index():
 
 @app.route("/demo-analysis")
 def demo_analysis_page():
-    return render_template("demo_analysis.html")
+    return render_template("demo_analysis.html", api_token=_API_AUTH_TOKEN)
 
 
 @app.route("/api/performance")
@@ -11426,7 +11426,7 @@ def api_market_regime():
 
 @app.route("/oanda-analysis")
 def oanda_analysis_page():
-    return render_template("oanda_analysis.html")
+    return render_template("oanda_analysis.html", api_token=_API_AUTH_TOKEN)
 
 
 @app.route("/api/demo/trades")

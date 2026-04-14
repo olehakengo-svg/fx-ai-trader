@@ -484,6 +484,19 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 //  FX AI Cockpit — Single-Focus Lightweight Dashboard
 // ═══════════════════════════════════════════════════════════
 
+// ── API認証: POSTリクエストにBearer tokenを自動付与 ──
+const _API_TOKEN = "{{ api_token|default('', true) }}";
+const _origFetch = window.fetch;
+window.fetch = function(url, opts = {}) {
+  if (_API_TOKEN && opts.method && opts.method.toUpperCase() !== "GET") {
+    opts.headers = opts.headers || {};
+    if (typeof opts.headers === 'object' && !(opts.headers instanceof Headers)) {
+      opts.headers["Authorization"] = "Bearer " + _API_TOKEN;
+    }
+  }
+  return _origFetch.call(this, url, opts);
+};
+
 // ── Pair & Mode Configuration ──
 const PAIRS={
   USD_JPY:{symbol:'USDJPY=X',label:'USD/JPY',flag:'🇺🇸🇯🇵',precision:3,
