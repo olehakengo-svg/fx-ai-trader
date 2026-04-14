@@ -6,22 +6,36 @@
 <title>FX AI Cockpit</title>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <style>
-:root{--bg:#0d1117;--bg1:#161b22;--bg2:#21262d;--border:#30363d;--t1:#e6edf3;--t2:#8b949e;--t3:#484f58;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;--gold:#eab308;--purple:#a855f7}
+:root{--bg:#0d1117;--bg1:#161b22;--bg2:#21262d;--bg3:#21262d;--border:#30363d;--t1:#e6edf3;--t2:#8b949e;--t3:#484f58;--green:#22c55e;--red:#ef4444;--blue:#3b82f6;--gold:#eab308;--purple:#a855f7;
+--radius:8px;--radius-sm:5px;--shadow:0 2px 8px rgba(0,0,0,.3);--transition:all .2s ease}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:13px;overflow:hidden}
+body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;overflow:hidden;line-height:1.5}
+
+/* ── Shared: Skeleton Loading ── */
+@keyframes skeleton-pulse{0%{opacity:.06}50%{opacity:.12}100%{opacity:.06}}
+.skeleton{background:var(--t2);animation:skeleton-pulse 1.5s ease-in-out infinite;border-radius:var(--radius-sm);min-height:20px}
+
+/* ── Shared: Tooltips ── */
+[data-tip]{position:relative;cursor:help}
+[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--bg3);color:var(--t1);padding:4px 10px;border-radius:var(--radius-sm);font-size:11px;white-space:nowrap;z-index:100;pointer-events:none;box-shadow:var(--shadow)}
+
+/* ── Shared: Value Animation ── */
+@keyframes val-pop{0%{transform:scale(1)}50%{transform:scale(1.08)}100%{transform:scale(1)}}
+.val-changed{animation:val-pop .3s ease}
 
 /* ── Top Bar ── */
-.topbar{display:flex;align-items:center;justify-content:space-between;height:42px;padding:0 14px;background:var(--bg1);border-bottom:1px solid var(--border)}
-.topbar h1{font-size:14px;font-weight:700;white-space:nowrap}
-.topbar-r{display:flex;align-items:center;gap:10px}
-.topbar a{color:var(--t2);text-decoration:none;font-size:11px}
-.topbar a:hover{color:var(--t1)}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.5}}
+.topbar{display:flex;align-items:center;justify-content:space-between;height:46px;padding:0 16px;background:var(--bg1);border-bottom:1px solid var(--border)}
+.topbar h1{font-size:15px;font-weight:700;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.topbar-r{display:flex;align-items:center;gap:12px}
+.topbar a{color:var(--t2);text-decoration:none;font-size:12px;padding:3px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);transition:var(--transition)}
+.topbar a:hover{color:var(--t1);background:var(--bg2)}
 #status-text{font-size:11px;color:var(--t2)}
-.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:3px;vertical-align:middle;transition:background .3s ease,box-shadow .3s ease}
-.dot.on{background:var(--green);box-shadow:0 0 4px var(--green)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:middle;transition:background .3s ease,box-shadow .3s ease}
+.dot.on{background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse-dot 2s ease-in-out infinite}
 .dot.off{background:var(--red);box-shadow:none}
-.tb{background:none;border:1px solid var(--border);color:var(--t2);border-radius:4px;padding:2px 8px;cursor:pointer;font-size:12px}
-.tb:hover{color:var(--t1);border-color:var(--t2)}
+.tb{background:none;border:1px solid var(--border);color:var(--t2);border-radius:var(--radius-sm);padding:4px 10px;cursor:pointer;font-size:12px;transition:var(--transition)}
+.tb:hover{color:var(--t1);border-color:var(--t2);background:var(--bg2)}
 
 /* ── Layout ── */
 .cockpit{display:grid;grid-template-columns:170px 1fr;height:calc(100vh - 42px)}
@@ -37,9 +51,9 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .pair-flag{font-size:13px}
 .mode-list{padding:2px 0 4px}
 .mode-row{display:flex;align-items:center;gap:3px;padding:1px 6px 1px 14px}
-.mode-btn{background:none;border:1px solid transparent;color:var(--t3);border-radius:3px;padding:2px 6px;cursor:pointer;font-size:10px;flex:1;text-align:left;transition:color .3s ease,background .3s ease,border-color .3s ease;white-space:nowrap;line-height:1.5}
-.mode-btn:hover{border-color:var(--border);color:var(--t2)}
-.mode-btn.active{color:var(--green);border-color:rgba(34,197,94,.25);background:rgba(34,197,94,.04)}
+.mode-btn{background:none;border:1px solid transparent;color:var(--t3);border-radius:var(--radius-sm);padding:3px 7px;cursor:pointer;font-size:10px;flex:1;text-align:left;transition:var(--transition);white-space:nowrap;line-height:1.5;font-weight:500}
+.mode-btn:hover{border-color:var(--border);color:var(--t2);background:rgba(255,255,255,.02)}
+.mode-btn.active{color:var(--green);border-color:rgba(34,197,94,.25);background:rgba(34,197,94,.06)}
 .oa-btn{background:none;border:1px solid transparent;color:var(--t3);border-radius:3px;padding:2px 5px;cursor:pointer;font-size:9px;min-width:22px;text-align:center;transition:color .3s ease,background .3s ease,border-color .3s ease}
 .oa-btn:hover{border-color:var(--border)}
 .oa-btn.active{color:var(--purple);border-color:rgba(168,85,247,.25);background:rgba(168,85,247,.04)}
@@ -50,27 +64,30 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .main{overflow:hidden;display:flex;flex-direction:column}
 .tf-bar{display:flex;align-items:center;justify-content:space-between;padding:5px 10px;background:var(--bg1);border-bottom:1px solid var(--border);flex-shrink:0}
 .tf-tabs{display:flex;gap:3px}
-.tf-btn{background:none;border:1px solid var(--border);color:var(--t3);border-radius:3px;padding:2px 9px;cursor:pointer;font-size:10px;transition:all .12s}
-.tf-btn:hover{color:var(--t2)}
-.tf-btn.active{color:var(--blue);border-color:var(--blue);background:rgba(59,130,246,.08)}
+.tf-btn{background:none;border:1px solid var(--border);color:var(--t3);border-radius:var(--radius-sm);padding:3px 11px;cursor:pointer;font-size:11px;transition:var(--transition);font-weight:500}
+.tf-btn:hover{color:var(--t2);background:rgba(255,255,255,.03)}
+.tf-btn.active{color:var(--blue);border-color:var(--blue);background:rgba(59,130,246,.1)}
 #chart-title{font-size:12px;font-weight:600;color:var(--t2)}
 #main-chart{flex:1;min-height:250px}
 .tv-lightweight-charts{max-width:100%!important}
 
 /* ── Stats Filter ── */
-.stats-filter{display:flex;align-items:center;gap:6px;padding:4px 14px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
-.stats-filter input[type="date"]{background:var(--bg1);color:var(--t1);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:10px;font-family:inherit;width:110px}
+.stats-filter{display:flex;align-items:center;gap:8px;padding:6px 14px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.stats-filter input[type="date"]{background:var(--bg1);color:var(--t1);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px 8px;font-size:11px;font-family:inherit;width:115px}
 .stats-filter input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(.7)}
 .sf-sep{color:var(--t3);font-size:10px}
 .sf-quick{display:flex;gap:2px}
-.sf-btn{background:var(--bg1);color:var(--t2);border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:9px;cursor:pointer;font-family:inherit;transition:all .15s}
+.sf-btn{background:var(--bg1);color:var(--t2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px 10px;font-size:10px;cursor:pointer;font-family:inherit;transition:var(--transition)}
 .sf-btn:hover{background:var(--border)}
 .sf-btn.sf-active{background:var(--blue);color:#fff;border-color:var(--blue)}
 #sf-mode{background:var(--bg1);color:var(--t1);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:10px;font-family:inherit;margin-left:auto}
 /* ── Stats Bar ── */
-.stats-bar{display:flex;align-items:center;gap:20px;padding:5px 14px;background:var(--bg1);border-bottom:1px solid var(--border);flex-shrink:0}
-.stat-label{display:block;font-size:8px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;line-height:1}
-.stat-val{font-size:13px;font-weight:700;line-height:1.4}
+.stats-bar{display:flex;align-items:center;gap:24px;padding:7px 14px;background:var(--bg1);border-bottom:1px solid var(--border);flex-shrink:0}
+.stat-label{display:block;font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;line-height:1}
+.stat-val{font-size:15px;font-weight:700;line-height:1.4;font-variant-numeric:tabular-nums}
+/* Hero stat (WR, P/L) */
+.stat-item-hero .stat-val{font-size:20px}
+.stat-item-hero{padding:3px 12px;border-radius:var(--radius-sm);background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15)}
 
 /* ── Bottom Panels ── */
 .bottom{flex-shrink:0;max-height:40vh;overflow-y:auto}
@@ -97,7 +114,7 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .pos-strat.s-gold{background:rgba(234,179,8,.15);color:#facc15;border:1px solid rgba(234,179,8,.3)}
 .pos-strat.s-dt{background:rgba(99,102,241,.15);color:#818cf8;border:1px solid rgba(99,102,241,.3)}
 .pos-pnl-area{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
-.pos-pnl-badge{font-size:14px;font-weight:800;padding:3px 10px;border-radius:6px;font-variant-numeric:tabular-nums;letter-spacing:.3px;min-width:72px;text-align:center}
+.pos-pnl-badge{font-size:16px;font-weight:800;padding:4px 12px;border-radius:var(--radius-sm);font-variant-numeric:tabular-nums;letter-spacing:.3px;min-width:80px;text-align:center;transition:var(--transition)}
 .pos-pnl-badge.win{background:rgba(34,197,94,.18);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
 .pos-pnl-badge.lose{background:rgba(239,68,68,.18);color:#f87171;border:1px solid rgba(239,68,68,.3)}
 .pos-pnl-badge.flat{background:rgba(139,148,158,.1);color:var(--t2);border:1px solid rgba(139,148,158,.2)}
@@ -175,25 +192,32 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .mob-oa{display:none}
 .mob-oa-detail{display:none}
 
+/* ── Tablet (1024px) ── */
+@media(max-width:1024px){
+  .stats-bar{gap:16px}
+  .stat-item-hero .stat-val{font-size:17px}
+}
+
 /* ── Mobile ── */
 @media(max-width:768px){
   .cockpit{grid-template-columns:1fr;grid-template-rows:auto 1fr}
   .sidebar{flex-direction:row;overflow-x:auto;overflow-y:hidden;border-right:none;border-bottom:1px solid var(--border);max-height:70px}
   .sidebar::-webkit-scrollbar{height:3px}
   .pair-group{display:flex;align-items:center;border-bottom:none;border-right:1px solid var(--border);flex-shrink:0;padding:4px 0}
-  .pair-header{padding:4px 8px;border-left:none;border-bottom:2px solid transparent;font-size:10px}
+  .pair-header{padding:4px 8px;border-left:none;border-bottom:2px solid transparent;font-size:11px}
   .pair-header.active{border-left-color:transparent;border-bottom-color:var(--blue)}
   .mode-list{display:flex;padding:0 4px;gap:2px}
   .mode-row{padding:0}
   .oa-btn{display:none}
   .oanda-section{display:none}
   #main-chart{min-height:200px}
-  .stats-bar{gap:12px;padding:4px 8px}
-  .stat-val{font-size:11px}
-  .pos-card{padding:6px 10px}
-  .pos-pair-name{font-size:12px}
-  .pos-pnl-badge{font-size:12px;padding:2px 8px;min-width:60px}
-  .pos-detail{flex-wrap:wrap;gap:4px}
+  .stats-bar{gap:14px;padding:5px 10px}
+  .stat-val{font-size:12px}
+  .stat-item-hero .stat-val{font-size:15px}
+  .pos-card{padding:8px 10px}
+  .pos-pair-name{font-size:13px}
+  .pos-pnl-badge{font-size:14px;padding:3px 10px;min-width:66px}
+  .pos-detail{flex-wrap:wrap;gap:5px}
   /* ── Mobile OANDA Emergency Panel ── */
   .mob-oa{
     display:flex;position:fixed;bottom:0;left:0;right:0;
@@ -240,8 +264,27 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
   }
   .mob-oa-toggle.on::after{transform:translateX(20px)}
   .mob-oa-toggle:disabled{opacity:.3;cursor:default}
-  .cockpit{height:calc(100vh - 42px - 52px)}
+  .cockpit{height:calc(100vh - 46px - 52px)}
   .bottom{padding-bottom:56px}
+}
+
+/* ── iPhone (480px) ── */
+@media(max-width:480px){
+  .topbar{height:40px;padding:0 10px}
+  .topbar h1{font-size:13px}
+  .topbar a{font-size:10px;padding:2px 6px}
+  .stats-filter{padding:4px 8px;gap:4px}
+  .stats-filter input[type="date"]{width:96px;font-size:10px}
+  .sf-btn{font-size:9px;padding:3px 7px}
+  .stats-bar{gap:8px;padding:4px 8px;flex-wrap:wrap}
+  .stat-label{font-size:9px}
+  .stat-val{font-size:11px}
+  .stat-item-hero .stat-val{font-size:14px}
+  .stat-item-hero{padding:2px 8px}
+  .tf-btn{padding:3px 8px;font-size:10px;min-height:28px}
+  .tl-line1{flex-wrap:wrap}.tl-strat{margin-left:0}
+  .pos-pnl-badge{font-size:12px;min-width:56px;padding:2px 8px}
+  button,.tb,.sf-btn,.tf-btn,.mode-btn{min-height:28px}
 }
 </style>
 </head>
@@ -254,8 +297,8 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
     <a href="/">📈 Main</a>
     <a href="/oanda-analysis">💹 OANDA</a>
     <span id="status-text"><span class="dot off" id="status-dot"></span><span id="status-label">—</span></span>
-    <button class="tb" onclick="runLearning()" title="学習エンジン実行">🧠</button>
-    <button class="tb" onclick="loadAll()" title="全データ再読込">🔄</button>
+    <button class="tb" onclick="runLearning()" data-tip="学習エンジン実行">🧠</button>
+    <button class="tb" onclick="loadAll()" data-tip="全データ再読込">🔄</button>
   </div>
 </header>
 
@@ -387,11 +430,11 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 
   <!-- Stats Bar -->
   <div class="stats-bar">
-    <div><span class="stat-label">Trades</span><span class="stat-val" id="s-total">—</span></div>
-    <div><span class="stat-label">Win Rate</span><span class="stat-val" id="s-wr">—</span></div>
-    <div><span class="stat-label">P/L</span><span class="stat-val" id="s-pnl">—</span></div>
-    <div><span class="stat-label">EV</span><span class="stat-val" id="s-ev">—</span></div>
-    <div><span class="stat-label">W / L</span><span class="stat-val" id="s-wl">—</span></div>
+    <div data-tip="総取引数"><span class="stat-label">Trades</span><span class="stat-val" id="s-total">—</span></div>
+    <div class="stat-item-hero" data-tip="勝率 = Win / Total"><span class="stat-label">Win Rate</span><span class="stat-val" id="s-wr">—</span></div>
+    <div class="stat-item-hero" data-tip="確定損益（pips）"><span class="stat-label">P/L</span><span class="stat-val" id="s-pnl">—</span></div>
+    <div data-tip="期待値 = 平均損益/trade"><span class="stat-label">EV</span><span class="stat-val" id="s-ev">—</span></div>
+    <div data-tip="勝ち数 / 負け数"><span class="stat-label">W / L</span><span class="stat-val" id="s-wl">—</span></div>
   </div>
 
   <!-- Scrollable Bottom Panels -->
@@ -761,11 +804,21 @@ async function loadStats(){
     const url='/api/demo/stats'+(p.length?'?'+p.join('&'):'');
     const r=await fetch(url);
     const d=await r.json();
-    const set=(id,v,col)=>{const el=document.getElementById(id);if(el){el.textContent=v;if(col)el.style.color=col}};
+    const set=(id,v,col)=>{const el=document.getElementById(id);if(el){
+      const prev=el.textContent;el.textContent=v;if(col)el.style.color=col;
+      if(prev!==v&&prev!=='—'){el.classList.remove('val-changed');void el.offsetWidth;el.classList.add('val-changed')}
+    }};
     set('s-total',d.total||0);
-    set('s-wr',d.win_rate!=null?d.win_rate+'%':'—',d.win_rate>=50?'var(--green)':'var(--red)');
-    set('s-pnl',d.total_pnl!=null?(d.total_pnl>=0?'+':'')+d.total_pnl+'p':'—',
-        d.total_pnl>=0?'var(--green)':'var(--red)');
+    const wr=d.win_rate;
+    set('s-wr',wr!=null?wr+'%':'—',wr>=50?'var(--green)':'var(--red)');
+    // Dynamic hero color for WR
+    const wrHero=document.getElementById('s-wr')?.closest('.stat-item-hero');
+    if(wrHero){wrHero.style.background=wr>=50?'rgba(34,197,94,.08)':'rgba(239,68,68,.06)';wrHero.style.borderColor=wr>=50?'rgba(34,197,94,.2)':'rgba(239,68,68,.2)'}
+    const pnl=d.total_pnl;
+    set('s-pnl',pnl!=null?(pnl>=0?'+':'')+pnl+'p':'—',pnl>=0?'var(--green)':'var(--red)');
+    // Dynamic hero color for P/L
+    const pnlHero=document.getElementById('s-pnl')?.closest('.stat-item-hero');
+    if(pnlHero){pnlHero.style.background=pnl>=0?'rgba(34,197,94,.08)':'rgba(239,68,68,.06)';pnlHero.style.borderColor=pnl>=0?'rgba(34,197,94,.2)':'rgba(239,68,68,.2)'}
     set('s-ev',d.ev!=null?(d.ev>=0?'+':'')+d.ev:'—',d.ev>=0?'var(--green)':'var(--red)');
     set('s-wl',`${d.wins||0}/${d.losses||0}`);
   }catch(e){console.warn('[Stats]',e)}
