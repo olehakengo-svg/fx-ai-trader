@@ -3057,7 +3057,16 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                         signal = _nyc_dir
                         conf = _nyc_conf
                         _dt_entry_type = "ny_close_reversal"
-                        reasons.append(f"✅ [NYClose] H{_nyc_hour} {_nyc_dir} WR={_nyc_wr}% (Bonferroni p<0.001)")
+                        # SL/TP: 時間帯バイアス戦略のため ATR×1.0 SL, ATR×1.5 TP (1h hold想定)
+                        _nyc_atr = float(row.get("atr7", row.get("atr", 0.07)))
+                        _nyc_close = float(row["Close"])
+                        if _nyc_dir == "BUY":
+                            sl = _nyc_close - _nyc_atr * 1.0
+                            tp = _nyc_close + _nyc_atr * 1.5
+                        else:
+                            sl = _nyc_close + _nyc_atr * 1.0
+                            tp = _nyc_close - _nyc_atr * 1.5
+                        reasons.append(f"✅ [NYClose] H{_nyc_hour} {_nyc_dir} WR={_nyc_wr}% SL/TP=ATR×1.0/1.5 (Bonferroni p<0.001)")
                         break
         except Exception as _nyc_err:
             print(f"[ny_close_reversal] {_nyc_err}")

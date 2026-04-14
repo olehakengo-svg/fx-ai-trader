@@ -4758,6 +4758,14 @@ class DemoTrader:
         ("vwap_mean_reversion", "EUR_JPY"),
         # GBP_JPY 15m 16bar: WR=56.2% EV=+5.17pip annual +3,827pip (strongest α)
         ("vwap_mean_reversion", "GBP_JPY"),
+        # v2.1: 4/14分析対策 — SHADOW勝者をSENTINEL復活
+        # 対策1: vix_carry_unwind×JPY — 4/14で+58.7pip(SHADOW), BT EV=+0.212 N=49 WR=67.3%
+        ("vix_carry_unwind", "USD_JPY"),
+        # 対策2: post_news_vol×GBP/EUR — 4/14で+46pip(SHADOW), BT GBP EV=+1.762 N=26
+        ("post_news_vol", "GBP_USD"),
+        ("post_news_vol", "EUR_USD"),
+        # 対策3: engulfing_bb×EUR — 4/14でEUR WR=67% +33pip, BT 1m EV=+0.163 N=47
+        ("engulfing_bb", "EUR_USD"),
     }
 
     # ペア別ロットブースト: PAIR_LOT_BOOST > _STRATEGY_LOT_BOOST (優先)
