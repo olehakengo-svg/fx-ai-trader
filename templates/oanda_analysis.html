@@ -288,30 +288,10 @@ tr.new-row{animation:row-enter .3s ease}
   <!-- ═══ 4. Trade History ═══ -->
   <div class="card full">
     <div class="card-title">📋 取引履歴 (OANDA実績)</div>
-    <div class="sf-bar">
-      <input type="date" id="filter-from" title="From">
-      <span class="sf-sep">-</span>
-      <input type="date" id="filter-to" title="To">
-      <div class="sf-quick">
-        <button class="sf-btn" data-range="today">Today</button>
-        <button class="sf-btn" data-range="7d">7d</button>
-        <button class="sf-btn" data-range="30d">30d</button>
-        <button class="sf-btn sf-active" data-range="all">All</button>
-      </div>
-      <select id="sf-instrument" class="sf-select">
-        <option value="">All Pairs</option>
-        <option value="USD_JPY">💴 USD/JPY</option>
-        <option value="EUR_USD">💶 EUR/USD</option>
-        <option value="GBP_USD">💷 GBP/USD</option>
-        <option value="EUR_GBP">🇪🇺🇬🇧 EUR/GBP</option>
-        <option value="EUR_JPY">💶💴 EUR/JPY</option>
-      </select>
-      <span id="filter-summary" class="sf-summary"></span>
-    </div>
     <div class="table-wrap">
       <table id="trade-table">
         <thead>
-          <tr><th>#</th><th>ID</th><th>通貨</th><th>方向</th><th>Units</th><th>Open</th><th>Close</th><th>SL</th><th>TP</th><th>P/L(JPY)</th><th>P/L(pips)</th><th>決済理由</th><th>結果</th><th>Open Time</th><th>Close Time</th></tr>
+          <tr><th>#</th><th>ID</th><th>戦略</th><th>通貨</th><th>方向</th><th>Units</th><th>Open</th><th>Close</th><th>SL</th><th>TP</th><th>P/L(JPY)</th><th>P/L(pips)</th><th>決済理由</th><th>結果</th><th>Open Time</th><th>Close Time</th></tr>
         </thead>
         <tbody id="trade-tbody"></tbody>
       </table>
@@ -595,11 +575,13 @@ async function loadTrades(){
       if(pl>0){tagCls='tag-win';tagText='WIN'}
       else if(pl<0){tagCls='tag-loss';tagText='LOSS'}
       const reason=t.close_reason||'—';
+      const strat=t.strategy?normalizeStratName(t.strategy):'—';
       return `<tr>
         <td>${_currentPage*PAGE_SIZE+i+1}</td>
         <td style="font-size:10px;color:var(--t3)">${_h(t.oanda_trade_id)}</td>
+        <td style="font-weight:600;font-size:11px" title="${_h(t.strategy||'')}">${_h(strat)}</td>
         <td>${_h(t.instrument)}</td>
-        <td class="${dirCls}">${t.direction}</td>
+        <td class="${dirCls}">${_h(t.direction)}</td>
         <td>${_fmt(t.initial_units,0)}</td>
         <td>${_fmt(t.open_price,3)}</td>
         <td>${_fmt(t.close_price,3)}</td>
@@ -637,22 +619,8 @@ function _applyFilter(){
   if(from||to)parts.push(`${from||'全期間'}〜${to||'現在'}`);
   if(inst)parts.push(inst.replace('_','/'));
   const summaryText=parts.join(' | ')||'';
-  document.getElementById('filter-summary').textContent=summaryText;
   const mfSummary=document.getElementById('mf-summary');
   if(mfSummary)mfSummary.textContent=summaryText;
-}
-function _sfSetRange(range){
-  document.querySelectorAll('.sf-btn').forEach(b=>b.classList.remove('sf-active'));
-  document.querySelector(`.sf-btn[data-range="${range}"]`)?.classList.add('sf-active');
-  const now=new Date();
-  let from='',to='';
-  if(range==='today'){from=to=now.toISOString().slice(0,10)}
-  else if(range==='7d'){to=now.toISOString().slice(0,10);from=new Date(now-7*864e5).toISOString().slice(0,10)}
-  else if(range==='30d'){to=now.toISOString().slice(0,10);from=new Date(now-30*864e5).toISOString().slice(0,10)}
-  document.getElementById('filter-from').value=from;
-  document.getElementById('filter-to').value=to;
-  _statsFilter.dateFrom=from;_statsFilter.dateTo=to;
-  _applyFilter();
 }
 
 // ── Heartbeat ──
@@ -895,6 +863,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   },60000);
 
   // ── Master Filter Bar ──
+  // ── Master Filter Bar (single source of truth) ──
   function _mfSetRange(range){
     document.querySelectorAll('.mf-range-btn').forEach(b=>b.classList.remove('sf-active'));
     document.querySelector(`.mf-range-btn[data-range="${range}"]`)?.classList.add('sf-active');
@@ -905,9 +874,6 @@ document.addEventListener('DOMContentLoaded',()=>{
     else if(range==='30d'){to=now.toISOString().slice(0,10);from=new Date(now-30*864e5).toISOString().slice(0,10)}
     document.getElementById('mf-date-from').value=from;
     document.getElementById('mf-date-to').value=to;
-    // Sync to trade history local filter inputs
-    document.getElementById('filter-from').value=from;
-    document.getElementById('filter-to').value=to;
     _statsFilter.dateFrom=from;_statsFilter.dateTo=to;
     _applyFilter();
   }
@@ -915,10 +881,6 @@ document.addEventListener('DOMContentLoaded',()=>{
     _statsFilter.dateFrom=document.getElementById('mf-date-from').value;
     _statsFilter.dateTo=document.getElementById('mf-date-to').value;
     _statsFilter.instrument=document.getElementById('mf-instrument').value;
-    // Sync to trade history local filter inputs
-    document.getElementById('filter-from').value=_statsFilter.dateFrom;
-    document.getElementById('filter-to').value=_statsFilter.dateTo;
-    document.getElementById('sf-instrument').value=_statsFilter.instrument;
     document.querySelectorAll('.mf-range-btn').forEach(b=>b.classList.remove('sf-active'));
     _applyFilter();
   }
@@ -929,30 +891,6 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.getElementById(id)?.addEventListener('change',_mfSyncFromMaster);
   });
   document.getElementById('mf-instrument')?.addEventListener('change',_mfSyncFromMaster);
-
-  // ── Trade History local filter: Quick range buttons ──
-  document.querySelectorAll('.sf-btn:not(.mf-range-btn)').forEach(btn=>{
-    btn.addEventListener('click',()=>_sfSetRange(btn.dataset.range));
-  });
-  // ── Trade History local filter: Date input changes ──
-  ['filter-from','filter-to'].forEach(id=>{
-    document.getElementById(id)?.addEventListener('change',()=>{
-      document.querySelectorAll('.sf-btn').forEach(b=>b.classList.remove('sf-active'));
-      _statsFilter.dateFrom=document.getElementById('filter-from').value;
-      _statsFilter.dateTo=document.getElementById('filter-to').value;
-      // Sync back to master filter
-      document.getElementById('mf-date-from').value=_statsFilter.dateFrom;
-      document.getElementById('mf-date-to').value=_statsFilter.dateTo;
-      _applyFilter();
-    });
-  });
-  // ── Trade History local filter: Instrument dropdown ──
-  document.getElementById('sf-instrument')?.addEventListener('change',e=>{
-    _statsFilter.instrument=e.target.value;
-    // Sync back to master filter
-    document.getElementById('mf-instrument').value=_statsFilter.instrument;
-    _applyFilter();
-  });
 });
 </script>
 </body>

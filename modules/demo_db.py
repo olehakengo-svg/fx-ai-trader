@@ -1071,25 +1071,28 @@ class DemoDB:
     def get_oanda_trades(self, state: str = "CLOSED", limit: int = 200,
                          offset: int = 0, date_from: str = None,
                          date_to: str = None, instrument: str = None) -> list:
-        """Query OANDA trades with filtering."""
-        query = "SELECT * FROM oanda_trades"
+        """Query OANDA trades with filtering. Joins audit for entry_type."""
+        query = ("SELECT t.*, a.entry_type AS strategy "
+                 "FROM oanda_trades t "
+                 "LEFT JOIN oanda_audit a "
+                 "ON t.oanda_trade_id = a.oanda_trade_id AND a.oanda_trade_id != ''")
         params = []
         conditions = []
         if state and state.upper() != "ALL":
-            conditions.append("state = ?")
+            conditions.append("t.state = ?")
             params.append(state.upper())
         if date_from:
-            conditions.append("open_time >= ?")
+            conditions.append("t.open_time >= ?")
             params.append(date_from)
         if date_to:
-            conditions.append("open_time <= ?")
+            conditions.append("t.open_time <= ?")
             params.append(date_to + "T23:59:59" if len(date_to) == 10 else date_to)
         if instrument:
-            conditions.append("instrument = ?")
+            conditions.append("t.instrument = ?")
             params.append(instrument)
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
-        query += " ORDER BY open_time DESC LIMIT ? OFFSET ?"
+        query += " ORDER BY t.open_time DESC LIMIT ? OFFSET ?"
         params.extend([limit, offset])
         with self._safe_conn() as conn:
             rows = conn.execute(query, params).fetchall()
