@@ -4774,7 +4774,7 @@ class DemoTrader:
         Used as a safety gate to block OANDA forwarding when aggregate edge is negative.
         Cached for 60 seconds to avoid repeated DB queries.
         """
-        now = _time_mod.time() if '_time_mod' in dir() else __import__('time').time()
+        now = time.time()
         if hasattr(self, '_agg_kelly_cache') and (now - self._agg_kelly_cache_ts) < 60:
             return self._agg_kelly_cache
         try:
