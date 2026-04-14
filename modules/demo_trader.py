@@ -339,11 +339,11 @@ class DemoTrader:
         # ── v8.9: Equity Reset — クリーンデータ起点 ──
         # v8.4以前のXAU損失(-2,280pip)+pre-cutoffバグデータが永久にDDを汚染していた。
         # v8.4(XAU停止+Shadow除去)以降のFX-onlyデータからequityを再計算する。
-        _EQ_RESET_CUTOFF = "2026-04-10T12:00:00"
-        # v8.9b: Shadow PnL汚染バグ修正後の再Reset
-        # v89は完了済みだが、ランタイムでShadow PnLがeq_currentに漏れていた
-        # v89b: 再計算してクリーンな状態に戻す
-        _eq_reset_flag = "eq_reset_v89b"
+        # v8.9c: 毒性ブロック+is_shadow修正デプロイ後のクリーンデータ起点
+        # 4/10-4/13 15:00: FORCE_DEMOTED戦略がshadow=0で走りDD計算を汚染
+        # 4/13 15:00以降: 毒性ブロック5件+is_shadow修正+EUR_USD SELLブロック適用済み
+        _EQ_RESET_CUTOFF = "2026-04-13T15:00:00"
+        _eq_reset_flag = "eq_reset_v89c"
         _eq_reset_done = self._db.get_system_kv(_eq_reset_flag, "0")
         if _eq_reset_done != "1":
             try:
@@ -4498,6 +4498,8 @@ class DemoTrader:
         ("dt_bb_rsi_mr", "EUR_USD"),         # N=8 WR=25.0% EV=-2.83 Kelly=-50.0%
         ("bb_rsi_reversion", "EUR_USD"),     # N=21 WR=33.3% EV=-0.76 Kelly=-20.2%
         ("stoch_trend_pullback", "USD_JPY"), # N=23 WR=30.4% EV=-0.69 Kelly=-15.1%
+        # v8.9: レジーム別分析 2026-04-14 — 全条件負けの確定毒性セル
+        ("engulfing_bb", "USD_JPY"),         # N=14 WR=28.6% Kelly=-14.7% — RANGE SELL 0/5全敗, 全レジームEV<0
     }
 
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
