@@ -3818,6 +3818,21 @@ class DemoTrader:
         #    → エクイティ曲線から除外、統計から除外される
         if not _is_promoted and not _is_shadow:
             _is_shadow = True
+        # ── v9.0 Phase 0: Three-tier SHADOW gate ──
+        # Non-ELITE, non-SENTINEL strategies are forced to shadow when _SHADOW_MODE is active.
+        # This runs ON TOP of existing logic: even if _is_promoted=True, shadow overrides it
+        # unless the strategy is elite or has a PAIR_PROMOTED entry for this instrument.
+        if (self._SHADOW_MODE
+                and _is_promoted
+                and not _is_shadow
+                and entry_type not in self._ELITE_LIVE
+                and (entry_type, instrument) not in self._PAIR_PROMOTED):
+            _is_shadow = True
+            _is_promoted = False
+            self._add_log(
+                f"[SHADOW] Phase0 tier gate: {entry_type} {instrument} "
+                f"→ shadow (not in ELITE_LIVE/PAIR_PROMOTED)"
+            )
         # ── v6.4 SHIELD: EUR_USD DT/1H OANDA遮断 (scalp継続) ──
         # v7.0: ホワイトリスト戦略はSHIELD免除 (MR系高EV, N<10 Safety で自動Sentinel)
         if _is_promoted and mode in self._OANDA_MODE_BLOCKED:
@@ -4706,6 +4721,20 @@ class DemoTrader:
         "ema200_trend_reversal",       # EMA200ブレイクリテスト — 未検証, Sentinel蓄積
         "post_news_vol",               # ニュース後ボラ — WR=42.4%, Sentinel再検証
     }
+
+    # ══════════════════════════════════════════════════════════════
+    # ── v9.0 Phase 0: Three-tier strategy management ──
+    # LIVE: vol_momentum_scalp (via _STRATEGY_LOT_BOOST, not in any sentinel/demoted set)
+    # SENTINEL: orb_trap, session_time_bias, london_fix_reversal, ema_pullback×JPY (via _PAIR_PROMOTED)
+    # SHADOW: everything else — demo trades recorded but OANDA forwarding blocked, is_shadow=1
+    # ══════════════════════════════════════════════════════════════
+
+    # Elite strategies that should NEVER be shadowed by _SHADOW_MODE
+    _ELITE_LIVE = {"vol_momentum_scalp"}
+
+    # Master switch: when True, non-ELITE non-SENTINEL strategies get is_shadow=True
+    # Override via environment variable SHADOW_MODE (default: "true")
+    _SHADOW_MODE = _os.environ.get("SHADOW_MODE", "true").lower() in ("true", "1", "yes")
 
     # ペア別SR感度: SAR高ペアに早逃げ余地
     _PAIR_SR_THRESHOLD = {

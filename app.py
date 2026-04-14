@@ -10040,6 +10040,292 @@ def _save_bt_to_kb(mode: str, symbol: str, days: str, result: dict) -> None:
         print(f"[BT KB] save failed: {e}")
 
 
+# ═══════════════════════════════════════════════════════
+#  BT Auto-Pipeline — 統合バックテスト + 昇格評価
+#  POST /api/bt-pipeline      : 単一戦略BT + 評価
+#  POST /api/bt-pipeline/batch: 複数戦略 or 全Sentinel自動BT
+# ═══════════════════════════════════════════════════════
+
+# OANDA instrument → yfinance symbol mapping (reuse existing)
+_PIPELINE_INSTRUMENT_MAP = {
+    "USD_JPY": "USDJPY=X",
+    "EUR_USD": "EURUSD=X",
+    "EUR_JPY": "EURJPY=X",
+    "GBP_JPY": "GBPJPY=X",
+    "GBP_USD": "GBPUSD=X",
+    "EUR_GBP": "EURGBP=X",
+}
+
+# Default friction-based breakeven WR per pair/mode (conservative estimates)
+# BEV_WR = friction_RT / SL → percentage needed to break even
+_DEFAULT_BEV_WR = {
+    ("USD_JPY", "scalp"): 50.0,
+    ("USD_JPY", "daytrade"): 40.0,
+    ("USD_JPY", "1h"): 35.0,
+    ("EUR_USD", "scalp"): 45.0,
+    ("EUR_USD", "daytrade"): 38.0,
+    ("EUR_USD", "1h"): 33.0,
+    ("GBP_USD", "scalp"): 52.0,
+    ("GBP_USD", "daytrade"): 42.0,
+    ("GBP_USD", "1h"): 36.0,
+}
+_BEV_WR_FALLBACK = 50.0  # conservative default
+
+
+def _evaluate_bt_for_promotion(bt_result: dict, symbol: str, mode: str) -> dict:
+    """Evaluate BT result against promotion criteria.
+
+    Criteria:
+      - WR >= BEV_WR + 5pp
+      - EV > 0
+      - N >= 30
+      - PF > 1.0
+    """
+    n = bt_result.get("trades", 0)
+    wr = bt_result.get("win_rate", 0.0)
+    ev = bt_result.get("expected_value", 0.0)
+    pf = bt_result.get("profit_factor", 0.0)
+
+    bev_wr = _DEFAULT_BEV_WR.get((symbol, mode), _BEV_WR_FALLBACK)
+    wr_threshold = bev_wr + 5.0
+
+    criteria = {
+        "wr_above_bev": {
+            "pass": wr >= wr_threshold,
+            "actual": wr,
+            "threshold": wr_threshold,
+            "bev_wr": bev_wr,
+        },
+        "ev_positive": {
+            "pass": ev > 0,
+            "actual": ev,
+        },
+        "n_sufficient": {
+            "pass": n >= 30,
+            "actual": n,
+            "threshold": 30,
+        },
+        "pf_above_1": {
+            "pass": pf > 1.0,
+            "actual": pf,
+        },
+    }
+
+    all_pass = all(c["pass"] for c in criteria.values())
+    if all_pass:
+        recommendation = "PROMOTE to LIVE"
+    elif criteria["ev_positive"]["pass"] and criteria["n_sufficient"]["pass"]:
+        recommendation = "KEEP SENTINEL — marginal, needs more data"
+    elif n < 30:
+        recommendation = "KEEP SENTINEL — insufficient samples"
+    else:
+        recommendation = "DEMOTE — negative edge"
+
+    return {
+        "promotion_eligible": all_pass,
+        "criteria": criteria,
+        "recommendation": recommendation,
+    }
+
+
+def _run_bt_by_mode(yf_symbol: str, days: int, mode: str) -> dict:
+    """Dispatch to the appropriate BT function based on mode."""
+    if mode == "scalp":
+        return run_scalp_backtest(yf_symbol, lookback_days=min(days, 60),
+                                  interval="1m")
+    elif mode == "daytrade":
+        return run_daytrade_backtest(yf_symbol, lookback_days=min(days, 365),
+                                     interval="15m")
+    elif mode == "1h":
+        return run_1h_backtest(yf_symbol, lookback_days=min(days, 365),
+                               interval="1h")
+    elif mode == "swing":
+        return run_swing_backtest(yf_symbol, lookback_days=min(days, 730))
+    else:
+        return {"error": f"Unknown mode: {mode}"}
+
+
+@app.route("/api/bt-pipeline", methods=["POST"])
+def api_bt_pipeline():
+    """Single-strategy BT + promotion evaluation.
+
+    POST JSON: {"strategy": "orb_trap", "symbol": "USD_JPY",
+                "days": 120, "mode": "daytrade"}
+    All fields optional — defaults: symbol=USD_JPY, days=120, mode=daytrade.
+    """
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        strategy = data.get("strategy", "")
+        symbol = data.get("symbol", "USD_JPY")
+        days = int(data.get("days", 120))
+        mode = data.get("mode", "daytrade")
+
+        yf_symbol = _PIPELINE_INSTRUMENT_MAP.get(symbol, "USDJPY=X")
+
+        # Run BT
+        bt_result = _run_bt_by_mode(yf_symbol, days, mode)
+
+        if "error" in bt_result:
+            return jsonify({
+                "strategy": strategy,
+                "symbol": symbol,
+                "mode": mode,
+                "error": bt_result["error"],
+            }), 400
+
+        # Extract summary metrics
+        n = bt_result.get("trades", 0)
+        wins = bt_result.get("wins", 0)
+        wr = bt_result.get("win_rate", 0.0)
+        ev = bt_result.get("expected_value", 0.0)
+        pf = bt_result.get("profit_factor", 0.0)
+        # Compute PnL from entry_breakdown if available
+        pnl = 0.0
+        for _eb in (bt_result.get("entry_breakdown") or {}).values() if isinstance(
+                bt_result.get("entry_breakdown"), dict) else []:
+            pnl += _eb.get("pnl", 0.0)
+
+        bt_summary = {
+            "total": n,
+            "wins": wins,
+            "wr": wr,
+            "pnl": round(pnl, 2),
+            "ev": ev,
+            "pf": pf,
+        }
+
+        evaluation = _evaluate_bt_for_promotion(bt_result, symbol, mode)
+
+        return jsonify({
+            "strategy": strategy,
+            "symbol": symbol,
+            "mode": mode,
+            "days": days,
+            "bt_result": bt_summary,
+            "evaluation": evaluation,
+            "recommendation": evaluation["recommendation"],
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e),
+                        "traceback": traceback.format_exc()}), 500
+
+
+@app.route("/api/bt-pipeline/batch", methods=["POST"])
+def api_bt_pipeline_batch():
+    """Batch BT pipeline — run multiple strategies or auto-discover Sentinels.
+
+    POST JSON: {"strategies": [
+        {"strategy": "orb_trap", "symbol": "USD_JPY", "mode": "daytrade", "days": 120}
+    ]}
+    Or empty body: auto-discovers all SENTINEL strategies and runs BT for each.
+    """
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        strategies_input = data.get("strategies")
+
+        if not strategies_input:
+            # Auto-discover from Sentinel sets
+            from modules.demo_trader import DemoTrader
+            strategies_input = []
+
+            # Scalp sentinels — run across all active instruments
+            _instruments = ["USD_JPY", "EUR_USD", "GBP_USD"]
+            for strat in sorted(DemoTrader._SCALP_SENTINEL):
+                for inst in _instruments:
+                    strategies_input.append({
+                        "strategy": strat,
+                        "symbol": inst,
+                        "mode": "scalp",
+                        "days": 30,
+                    })
+
+            # Universal sentinels — run daytrade mode
+            for strat in sorted(DemoTrader._UNIVERSAL_SENTINEL):
+                for inst in _instruments:
+                    strategies_input.append({
+                        "strategy": strat,
+                        "symbol": inst,
+                        "mode": "daytrade",
+                        "days": 120,
+                    })
+
+            # Pair-promoted — run in their configured mode (daytrade default)
+            for strat, inst in sorted(DemoTrader._PAIR_PROMOTED):
+                strategies_input.append({
+                    "strategy": strat,
+                    "symbol": inst,
+                    "mode": "daytrade",
+                    "days": 120,
+                })
+
+        results = []
+        promote_count = 0
+        demote_count = 0
+
+        for spec in strategies_input:
+            strategy = spec.get("strategy", "")
+            symbol = spec.get("symbol", "USD_JPY")
+            mode = spec.get("mode", "daytrade")
+            days = int(spec.get("days", 120))
+
+            yf_symbol = _PIPELINE_INSTRUMENT_MAP.get(symbol, "USDJPY=X")
+
+            try:
+                bt_result = _run_bt_by_mode(yf_symbol, days, mode)
+
+                if "error" in bt_result:
+                    results.append({
+                        "strategy": strategy,
+                        "symbol": symbol,
+                        "mode": mode,
+                        "error": bt_result["error"],
+                    })
+                    continue
+
+                n = bt_result.get("trades", 0)
+                wr = bt_result.get("win_rate", 0.0)
+                ev = bt_result.get("expected_value", 0.0)
+                pf = bt_result.get("profit_factor", 0.0)
+
+                evaluation = _evaluate_bt_for_promotion(bt_result, symbol, mode)
+
+                if evaluation["promotion_eligible"]:
+                    promote_count += 1
+                elif evaluation["recommendation"].startswith("DEMOTE"):
+                    demote_count += 1
+
+                results.append({
+                    "strategy": strategy,
+                    "symbol": symbol,
+                    "mode": mode,
+                    "n": n,
+                    "wr": wr,
+                    "ev": ev,
+                    "pf": pf,
+                    "eligible": evaluation["promotion_eligible"],
+                    "recommendation": evaluation["recommendation"],
+                })
+            except Exception as _e:
+                results.append({
+                    "strategy": strategy,
+                    "symbol": symbol,
+                    "mode": mode,
+                    "error": str(_e),
+                })
+
+        return jsonify({
+            "total_tested": len(results),
+            "promote_eligible": promote_count,
+            "demote_recommended": demote_count,
+            "results": results,
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e),
+                        "traceback": traceback.format_exc()}), 500
+
+
 # ── 非同期ロングBT（チャンク処理でタイムアウト回避）──────────
 _async_bt_results: dict = {}  # task_id → {status, progress, result, started_at}
 
