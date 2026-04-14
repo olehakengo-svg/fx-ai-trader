@@ -2290,6 +2290,16 @@ class DemoTrader:
                             print(f"[DemoTrader/scalp] 5m補完: {sig_5m.get('entry_type')} {sig_5m.get('signal')}")
                 except Exception as _e5:
                     print(f"[DemoTrader/scalp] 5m補完エラー: {_e5}")
+
+            # ── Massive Signal Enhancement (VWAP zone / Volume Profile / Inst Flow) ──
+            try:
+                if "vwap" in df.columns:
+                    from modules.massive_signals import MassiveSignalEnhancer
+                    _enhancer = MassiveSignalEnhancer()
+                    sig = _enhancer.enhance(df, sig, symbol)
+            except Exception as _me:
+                print(f"[DemoTrader/{mode}] Massive enhancement error: {_me}")
+
         except Exception as e:
             self._add_log(f"⚠️ [{cfg['label']}] シグナル取得失敗: {e}")
             import traceback; traceback.print_exc()

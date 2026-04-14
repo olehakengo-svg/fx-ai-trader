@@ -4849,7 +4849,8 @@ _ML_MIN_SAMPLES = 100   # minimum samples to train
 def run_scalp_backtest(symbol: str = "USDJPY=X",
                        lookback_days: int = 7,
                        interval: str = "1m",
-                       _df_override=None) -> dict:
+                       _df_override=None,
+                       sl_mult=None) -> dict:
     """
     スキャルピングBT — compute_scalp_signal統合版
     本番環境と同一のエントリーロジック（compute_scalp_signal）を使用。
@@ -4877,7 +4878,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             return {"error": "データ不足（最低100本必要）", "trades": 0, "mode": "scalp"}
 
         profile      = STRATEGY_PROFILES.get(STRATEGY_MODE, STRATEGY_PROFILES["A"])
-        SL_MULT      = profile["scalp_sl"]   # scalp-specific SL
+        SL_MULT      = sl_mult if sl_mult is not None else profile["scalp_sl"]   # scalp-specific SL (overridable)
         TP_MULT      = profile["scalp_tp"]   # scalp-specific TP
         MAX_HOLD     = 40     # 40 bars = 40 min (ATR TP到達率向上)
         COOLDOWN     = 1      # 1 bar (頻度最大化、スプレッド0.2pip活用)
@@ -5215,7 +5216,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 # 本番の40.1%を占めるSR決済をBTで再現
                 # min_hold=5bars(300s) 経過後、3barごとにシグナル再計算
                 _SR_MIN_HOLD_SC = 5   # 300s / 60s
-                _SR_RECHECK_SC = 3    # パフォーマンス: 3barごと
+                _SR_RECHECK_SC = 1    # 毎bar再計算: BT/Live乖離 ~5pp削減 (Live=30s, BT=60s@1m)
                 if j >= _SR_MIN_HOLD_SC and j % _SR_RECHECK_SC == 0:
                     _sr_bar_end = i + 1 + j + 1
                     if _sr_bar_end <= len(df):
@@ -9046,6 +9047,15 @@ def api_signal():
             result["mode"]     = "dayflow"
         else:
             result = compute_signal(df, tf, sr)
+        # ── Massive Signal Enhancement (VWAP zone / Volume Profile / Inst Flow) ──
+        try:
+            if "vwap" in df.columns:
+                from modules.massive_signals import MassiveSignalEnhancer
+                _enhancer = MassiveSignalEnhancer()
+                result = _enhancer.enhance(df, result, "USDJPY=X")
+        except Exception as _me:
+            print(f"[API/signal] Massive enhancement error: {_me}")
+
         # データソース情報を付加
         result["ohlcv_source"] = _last_data_source.get(cfg["interval"], "yfinance")
         result["bar_count"]    = len(df)
@@ -11933,6 +11943,43 @@ def api_market_regime():
     })
 
 
+@app.route("/api/massive/signal-quality")
+def api_massive_signal_quality():
+    """Massive API固有データに基づくシグナル品質メトリクスを返す。
+    各アクティブペアのVWAPゾーン、ボリュームプロファイル、機関フロー方向を含む。
+    """
+    from modules.massive_signals import MassiveSignalEnhancer
+    enhancer = MassiveSignalEnhancer()
+
+    # 対象ペア
+    PAIRS = {
+        "USDJPY=X": "15m",
+        "EURUSD=X": "15m",
+        "EURJPY=X": "15m",
+        "GBPUSD=X": "15m",
+        "GBPJPY=X": "15m",
+        "EURGBP=X": "15m",
+    }
+
+    results = {}
+    for symbol, tf in PAIRS.items():
+        try:
+            df = fetch_ohlcv(symbol, period="5d", interval=tf)
+            df = add_indicators(df)
+            if "vwap" not in df.columns or len(df) < 20:
+                results[symbol] = {"available": False, "reason": "No VWAP data"}
+                continue
+            quality = enhancer.get_signal_quality(df, symbol)
+            results[symbol] = quality
+        except Exception as e:
+            results[symbol] = {"available": False, "reason": str(e)}
+
+    return jsonify({
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "pairs": results,
+    })
+
+
 @app.route("/oanda-analysis")
 def oanda_analysis_page():
     return render_template("oanda_analysis.html", api_token=_API_AUTH_TOKEN)
@@ -12326,10 +12373,13 @@ def api_phase_gate():
     from modules.risk_analytics import compute_risk_dashboard
     from modules.stats_utils import profit_factor as calc_pf
     try:
-        closed = _demo_db.get_all_closed()
-        # XAU excluded per project rule
-        closed = [t for t in closed if "XAU" not in (t.get("instrument", "") or "")]
-        stats = _demo_db.get_stats()
+        _PHASE_GATE_CUTOFF = "2026-04-08"  # Fidelity cutoff: only clean post-v6.3 data
+        closed = _demo_db.get_all_closed(exclude_shadow=True)
+        # Post-cutoff + XAU excluded per project rule
+        closed = [t for t in closed
+                  if "XAU" not in (t.get("instrument", "") or "")
+                  and (t.get("exit_time") or "") >= _PHASE_GATE_CUTOFF]
+        stats = _demo_db.get_stats(date_from=_PHASE_GATE_CUTOFF, exclude_shadow=True)
         n_trades = stats.get("total", 0)
         total_pnl = stats.get("total_pnl", 0)
 
@@ -12395,6 +12445,33 @@ def api_phase_gate():
                 "total_pnl_pips": round(total_pnl, 2),
             },
         })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/scalp-bt-lab", methods=["GET", "POST"])
+def api_scalp_bt_lab():
+    """
+    Scalp BT lab: run scalp backtest with custom SL multiplier.
+    POST JSON: {"symbol": "USDJPY=X", "days": 60, "interval": "1m", "sl_mult": 1.0}
+    GET params: ?symbol=USDJPY=X&days=60&interval=1m&sl_mult=1.0
+    Returns BT result with entry_breakdown.
+    """
+    try:
+        if request.method == "POST":
+            data = request.get_json(force=True) or {}
+        else:
+            data = {}
+        symbol   = data.get("symbol") or request.args.get("symbol", "USDJPY=X")
+        days     = data.get("days") or request.args.get("days", 7, type=int)
+        days     = min(int(days), 60)
+        interval = data.get("interval") or request.args.get("interval", "1m")
+        sl_raw   = data.get("sl_mult") or request.args.get("sl_mult", None, type=float)
+        sl_val   = float(sl_raw) if sl_raw is not None else None
+
+        result = run_scalp_backtest(symbol, lookback_days=days,
+                                    interval=interval, sl_mult=sl_val)
+        return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
