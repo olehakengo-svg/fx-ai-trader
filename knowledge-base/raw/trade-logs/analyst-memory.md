@@ -159,6 +159,16 @@ XAU別枠（11件）: PnL **-1,496 pips**（XAUスケール：要注意）
 | N | PnL(pips) | 単位換算 |
 XAUはN=11、PnL=-1,496pips（JPYスケール）。停止中（OFF）のため新規発火なし。リスク遮断は適切に機能している。
 
+### 2026-04-14 (Pre-Tokyo Briefing)
+| PnL合計（前日） | **-180.4 pips** |
+| 全体WR | **28.3%** |
+前日は166件のトレードで28.3%のWR、-180.4pipsという大幅な損失セッションとなった。XAUの+181.0は別枠集計であり本体P&Lには非加算。Cutoff後累計は N=289、WR=29.8%、PnL=-273.6pips で損失基調が継続。
+| Strategy | Pair | N | WR% | EV | 判定 |
+| **bb_rsi_reversion** | USD_JPY | 34 | 32.4% | **-0.47** | ⚠️ Tier3相当（EVマイナス継続） |
+| **sr_channel_reversal** | USD_JPY | 29 | 17.2% | **-1.87** | 🔴 降格基準抵触（EV<-0.5、N=29で実質確定圏） |
+| Strategy | Pair | N | WR% | EV | 状態 |
+| vol_surge_detector | USD_JPY | 27 | 44.4% | -0.17 | EVほぼゼロ、WR拮抗 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
