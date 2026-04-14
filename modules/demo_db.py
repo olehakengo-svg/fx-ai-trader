@@ -1072,11 +1072,20 @@ class DemoDB:
     def get_oanda_trades(self, state: str = "CLOSED", limit: int = 200,
                          offset: int = 0, date_from: str = None,
                          date_to: str = None, instrument: str = None) -> list:
-        """Query OANDA trades with filtering. Joins audit for entry_type."""
-        query = ("SELECT t.*, a.entry_type AS strategy "
+        """Query OANDA trades with filtering. Joins audit for entry_type via demo_trade_id.
+
+        oanda_audit stores entry_type (strategy name) + demo_trade_id.
+        demo_trades stores oanda_trade_id + entry_type.
+        Join path: oanda_trades.oanda_trade_id → demo_trades.oanda_trade_id → demo_trades.entry_type
+        Fallback: oanda_audit via demo_trade_id (for sent status records).
+        """
+        query = ("SELECT t.*, "
+                 "COALESCE(d.entry_type, a.entry_type) AS strategy "
                  "FROM oanda_trades t "
+                 "LEFT JOIN demo_trades d "
+                 "ON t.oanda_trade_id = d.oanda_trade_id AND d.oanda_trade_id IS NOT NULL AND d.oanda_trade_id != '' "
                  "LEFT JOIN oanda_audit a "
-                 "ON t.oanda_trade_id = a.oanda_trade_id AND a.oanda_trade_id != ''")
+                 "ON d.trade_id = a.demo_trade_id AND a.bridge_status = 'sent'")
         params = []
         conditions = []
         if state and state.upper() != "ALL":
