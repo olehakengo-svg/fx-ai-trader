@@ -3127,6 +3127,17 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                         conf = _vmr_conf
                         _dt_entry_type = "vwap_mean_reversion"
                         reasons.append(f"✅ [VWAP-MR] Price > VWAP+2σ ({_vmr_dev:+.2f}%, σ={_vmr_std:.2f}) → SELL (Bonferroni p<0.001)")
+                    # v2.1: pair-specific confidence boost (friction-adjusted BT scan)
+                    _vmr_pair_boost = {"EURJPY": 5, "GBPJPY": 5, "USDJPY": 3,
+                                       "EURUSD": 0, "GBPUSD": 0, "EURGBP": -5}
+                    _vmr_sym_key = symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+                    _vmr_boost = _vmr_pair_boost.get(_vmr_sym_key, 0)
+                    if _vmr_boost != 0:
+                        conf = max(30, min(90, conf + _vmr_boost))
+                        if _vmr_boost > 0:
+                            reasons.append(f"✅ [VWAP-MR] JPY cross α boost +{_vmr_boost}")
+                        else:
+                            reasons.append(f"⚠️ [VWAP-MR] High-friction pair penalty {_vmr_boost}")
         except Exception as _vmr_err:
             print(f"[vwap_mean_reversion] {_vmr_err}")
 
@@ -8168,6 +8179,17 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                         sl = entry + atr * 0.5
                         tp = entry - atr * 1.2
                         reasons.append(f"✅ [VWAP-MR] Price > VWAP+2σ ({_vmr_dev_sc:+.2f}%, σ={_vmr_std_sc:.2f}) → SELL (Bonferroni p<0.001)")
+                    # v2.1: pair-specific confidence boost (friction-adjusted BT scan)
+                    _vmr_pb_sc = {"EURJPY": 5, "GBPJPY": 5, "USDJPY": 3,
+                                  "EURUSD": 0, "GBPUSD": 0, "EURGBP": -5}
+                    _vmr_sk_sc = symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+                    _vmr_b_sc = _vmr_pb_sc.get(_vmr_sk_sc, 0)
+                    if _vmr_b_sc != 0:
+                        conf = max(30, min(90, conf + _vmr_b_sc))
+                        if _vmr_b_sc > 0:
+                            reasons.append(f"✅ [VWAP-MR] JPY cross α boost +{_vmr_b_sc}")
+                        else:
+                            reasons.append(f"⚠️ [VWAP-MR] High-friction pair penalty {_vmr_b_sc}")
         except Exception as _vmr_err_sc:
             print(f"[vwap_mean_reversion/scalp] {_vmr_err_sc}")
 

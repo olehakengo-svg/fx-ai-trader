@@ -178,6 +178,34 @@ MODE_CONFIG = {
         "auto_start": True,
         "base_sl_pips": 15,
     },
+    # ── EUR/JPY Daytrade (15m) — v2.1 VWAP MR JPY crosses (Bonferroni p<10^-7) ──
+    # BT: EUR_JPY 15m 16bar WR=55.8% EV=+3.85pip annual +2,837pip
+    "daytrade_eurjpy": {
+        "interval_sec": 30,
+        "tf": "15m",
+        "period": "5d",
+        "signal_fn": "compute_daytrade_signal",
+        "label": "DT EUR/JPY",
+        "icon": "📊💶",
+        "symbol": "EURJPY=X",
+        "instrument": "EUR_JPY",
+        "auto_start": True,
+        "base_sl_pips": 15,
+    },
+    # ── GBP/JPY Daytrade (15m) — v2.1 VWAP MR JPY crosses (Bonferroni p<10^-7) ──
+    # BT: GBP_JPY 15m 16bar WR=56.2% EV=+5.17pip annual +3,827pip (strongest α)
+    "daytrade_gbpjpy": {
+        "interval_sec": 30,
+        "tf": "15m",
+        "period": "5d",
+        "signal_fn": "compute_daytrade_signal",
+        "label": "DT GBP/JPY",
+        "icon": "📊🇬🇧",
+        "symbol": "GBPJPY=X",
+        "instrument": "GBP_JPY",
+        "auto_start": True,
+        "base_sl_pips": 20,
+    },
     # ── EUR/GBP Daytrade (15m) — eurgbp_daily_mr 専用 ──
     # v6.6 全停止 → v6.7 日足MR戦略のみ再有効化 (Sentinel, 0.01lot)
     # 15m足で20日レンジ極値フェード (発火頻度: 2-4回/月)
@@ -1054,7 +1082,8 @@ class DemoTrader:
                 _all_modes = ["scalp", "scalp_5m", "daytrade", "daytrade_1h", "swing",
                               "scalp_eur", "daytrade_eur", "daytrade_1h_eur",
                               "scalp_eurjpy", "rnb_usdjpy",
-                              "daytrade_gbpusd", "daytrade_eurgbp"]
+                              "daytrade_gbpusd", "daytrade_eurgbp",
+                              "daytrade_eurjpy", "daytrade_gbpjpy"]
                 for m in _all_modes:
                     if m in self._user_stopped_modes:
                         continue  # ユーザーが明示的に停止したモードはスキップ
@@ -1394,6 +1423,13 @@ class DemoTrader:
         MAX_HOLD_SEC["daytrade_eur"] = 28800
         MAX_HOLD_SEC["daytrade_1h_eur"] = 64800
         MAX_HOLD_SEC["rnb_usdjpy"] = 7200   # RNB: max 2h hold
+        MAX_HOLD_SEC["daytrade_eurjpy"] = 28800
+        MAX_HOLD_SEC["daytrade_gbpjpy"] = 28800
+
+        # v2.1: per-entry_type MAX_HOLD override (BT validated optimal hold periods)
+        _ENTRY_TYPE_MAX_HOLD = {
+            "vwap_mean_reversion": 14400,  # 4h = 16bars@15m (BT: 8-16bar optimal, EV peaks at 16bar)
+        }
 
         for trade in open_trades:
           try:
@@ -1799,6 +1835,10 @@ class DemoTrader:
                     hold_sec = (datetime.now(timezone.utc) - entry_time).total_seconds()
                     _mode = mode or {"1m": "scalp", "15m": "daytrade", "4h": "swing"}.get(tf, "")
                     max_hold = MAX_HOLD_SEC.get(_mode, MAX_HOLD_SEC.get(_get_base_mode(_mode), 259200))
+                    # v2.1: per-entry_type override (VWAP MR: 4h hold BT validated)
+                    _et_hold = trade.get("entry_type", "")
+                    if _et_hold in _ENTRY_TYPE_MAX_HOLD:
+                        max_hold = max(max_hold, _ENTRY_TYPE_MAX_HOLD[_et_hold])
                     if hold_sec > max_hold:
                         close_reason = "MAX_HOLD_TIME"
                 except Exception:
@@ -1814,6 +1854,10 @@ class DemoTrader:
                     _hold_c1 = (datetime.now(timezone.utc) - entry_time_c1).total_seconds()
                     _mode_c1 = mode or {"1m": "scalp", "15m": "daytrade", "4h": "swing"}.get(tf, "")
                     _max_c1 = MAX_HOLD_SEC.get(_mode_c1, MAX_HOLD_SEC.get(_get_base_mode(_mode_c1), 1800))
+                    # v2.1: per-entry_type override for C1 consistency
+                    _et_c1 = trade.get("entry_type", "")
+                    if _et_c1 in _ENTRY_TYPE_MAX_HOLD:
+                        _max_c1 = max(_max_c1, _ENTRY_TYPE_MAX_HOLD[_et_c1])
                     _half_hold = _max_c1 * 0.5
                     if _hold_c1 > _half_hold:
                         _in_loss = (direction == "BUY" and price < entry_price) or \
@@ -3147,6 +3191,7 @@ class DemoTrader:
                 "GBP_USD": 1.5,     # v7.0: 1.2→1.5 (OANDA実測0.8-1.8pip)
                 "EUR_GBP": 1.5,     # v7.0: 1.2→1.5
                 "EUR_JPY": 2.5,     # v7.0: 1.2→2.5 (OANDA実測1.5-2.5pip常態)
+                "GBP_JPY": 3.0,     # v2.1: OANDA GBP/JPY spread 2.0-3.5pip
                 "XAU_USD": 6.0,     # v6.4: 4.0→6.0 (OANDA実測4-5pip、Asia 5pip常態)
             }
             _spread_limit = _SPREAD_LIMITS.get(instrument, 1.2 if _is_jpy else 1.5)
@@ -4615,6 +4660,8 @@ class DemoTrader:
         "session_time_bias": 1.3,          # v8.6: 全3ペアBT正EV (JPY+0.427, EUR+0.650, GBP+0.266) — Breedon 2013
         "london_fix_reversal": 1.3,        # v8.6: GBP BT WR=75% EV=+0.318 — Krohn 2024
         # REMOVED: stoch_trend_pullback → _UNIVERSAL_SENTINEL降格 (全ペアEVマイナス)
+        # v2.1: VWAP MR — Massive API exclusive α, Bonferroni p<10^-7 friction-adjusted
+        "vwap_mean_reversion": 1.5,
     }
 
     # ── Scalp Sentinel: 摩擦込みEV<0 → 最小ロットでデータ収集のみ ──
@@ -4705,6 +4752,11 @@ class DemoTrader:
         ("bb_squeeze_breakout", "EUR_USD"),
         # sr_channel_reversal×EUR 5m: EV=+0.231 N=17 WR=70.6%
         ("sr_channel_reversal", "EUR_USD"),
+        # v2.1: VWAP MR JPY crosses — Bonferroni p<10^-7, friction-adjusted BT scan
+        # EUR_JPY 15m 16bar: WR=55.8% EV=+3.85pip annual +2,837pip
+        ("vwap_mean_reversion", "EUR_JPY"),
+        # GBP_JPY 15m 16bar: WR=56.2% EV=+5.17pip annual +3,827pip (strongest α)
+        ("vwap_mean_reversion", "GBP_JPY"),
     }
 
     # ペア別ロットブースト: PAIR_LOT_BOOST > _STRATEGY_LOT_BOOST (優先)
@@ -4716,6 +4768,9 @@ class DemoTrader:
         # REMOVED v2.1: vol_momentum_scalp — BT N=87 EV=-0.014 (1m), N=10 EV=-0.443 (5m) 負EV確定
         ("vol_surge_detector", "EUR_USD"): 1.8,   # N=7 EV=+1.20 Kelly=32.7% → Half=16.4% (N小→控えめ)
         ("ema_pullback", "EUR_USD"): 1.5,         # N=5 EV=+0.94 Kelly=16.6% → Half=8.3% (N最小→最控えめ)
+        # v2.1: VWAP MR JPY crosses — friction-adjusted BT annual pip estimates
+        ("vwap_mean_reversion", "EUR_JPY"): 1.8,  # annual +2,837pip (16bar@15m)
+        ("vwap_mean_reversion", "GBP_JPY"): 1.8,  # annual +3,827pip (16bar@15m, strongest α)
     }
 
     # 全モードSentinel: scalp以外にも適用される戦略Sentinel
