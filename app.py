@@ -10180,28 +10180,76 @@ def api_bt_pipeline():
                 "error": bt_result["error"],
             }), 400
 
-        # Extract summary metrics
-        n = bt_result.get("trades", 0)
-        wins = bt_result.get("wins", 0)
-        wr = bt_result.get("win_rate", 0.0)
-        ev = bt_result.get("expected_value", 0.0)
-        pf = bt_result.get("profit_factor", 0.0)
-        # Compute PnL from entry_breakdown if available
-        pnl = 0.0
-        for _eb in (bt_result.get("entry_breakdown") or {}).values() if isinstance(
-                bt_result.get("entry_breakdown"), dict) else []:
-            pnl += _eb.get("pnl", 0.0)
+        # ── 個別戦略フィルター ──
+        # strategy指定時: trade_logからentry_type一致のトレードだけ抽出して再計算
+        # entry_breakdownにも個別統計があるが、PF等の再計算にはtrade_logが必要
+        entry_breakdown = bt_result.get("entry_breakdown") or {}
+        trade_log = bt_result.get("trade_log") or []
+
+        if strategy and trade_log:
+            # 該当戦略のトレードのみ抽出
+            filtered = [t for t in trade_log if t.get("entry_type") == strategy]
+            if filtered:
+                _f_n = len(filtered)
+                _f_wins = sum(1 for t in filtered if t.get("outcome") == "WIN")
+                _f_wr = round(_f_wins / _f_n * 100, 1) if _f_n > 0 else 0.0
+                # PnL計算（BT関数と同じロジック）
+                def _pnl_calc(t):
+                    _ef = t.get("exit_friction_m", 0)
+                    if t.get("outcome") == "WIN":
+                        return t.get("tp_m", 0) - _ef
+                    else:
+                        return -(t.get("actual_sl_m", t.get("sl_m", 0)) + _ef)
+                _f_pnls = [_pnl_calc(t) for t in filtered]
+                _f_ev = round(sum(_f_pnls) / _f_n, 3) if _f_n > 0 else 0.0
+                _f_total_pnl = round(sum(_f_pnls), 2)
+                _f_win_pnl = sum(p for p in _f_pnls if p > 0)
+                _f_loss_pnl = abs(sum(p for p in _f_pnls if p < 0))
+                _f_pf = round(_f_win_pnl / max(_f_loss_pnl, 1e-6), 2)
+                n, wr, ev, pf, pnl = _f_n, _f_wr, _f_ev, _f_pf, _f_total_pnl
+            else:
+                # 該当戦略がBT内で発火しなかった
+                n, wr, ev, pf, pnl = 0, 0.0, 0.0, 0.0, 0.0
+        elif strategy and strategy in entry_breakdown:
+            # trade_logがない場合はentry_breakdownから取得
+            eb = entry_breakdown[strategy]
+            n = eb.get("total", 0)
+            wr = eb.get("win_rate", 0.0)
+            ev = eb.get("ev", 0.0)
+            pnl = round(eb.get("pnl", 0.0), 2)
+            pf = bt_result.get("profit_factor", 0.0)
+        else:
+            # strategy未指定: 全体集計
+            n = bt_result.get("trades", 0)
+            wr = bt_result.get("win_rate", 0.0)
+            ev = bt_result.get("expected_value", 0.0)
+            pf = bt_result.get("profit_factor", 0.0)
+            pnl = 0.0
+            for _eb in entry_breakdown.values():
+                pnl += _eb.get("pnl", 0.0)
+            pnl = round(pnl, 2)
 
         bt_summary = {
             "total": n,
-            "wins": wins,
             "wr": wr,
-            "pnl": round(pnl, 2),
+            "pnl": pnl,
             "ev": ev,
             "pf": pf,
         }
 
-        evaluation = _evaluate_bt_for_promotion(bt_result, symbol, mode)
+        # 個別戦略メトリクスでの昇格評価
+        _filtered_bt = {"trades": n, "win_rate": wr, "expected_value": ev, "profit_factor": pf}
+        evaluation = _evaluate_bt_for_promotion(_filtered_bt, symbol, mode)
+
+        # entry_breakdown全体も返す（他戦略との比較用）
+        breakdown_summary = {}
+        for et, eb in entry_breakdown.items():
+            breakdown_summary[et] = {
+                "n": eb.get("total", 0),
+                "wr": eb.get("win_rate", 0.0),
+                "ev": eb.get("ev", 0.0),
+                "pnl": round(eb.get("pnl", 0.0), 2),
+            }
 
         return jsonify({
             "strategy": strategy,
@@ -10211,6 +10259,7 @@ def api_bt_pipeline():
             "bt_result": bt_summary,
             "evaluation": evaluation,
             "recommendation": evaluation["recommendation"],
+            "all_strategies": breakdown_summary,
         })
     except Exception as e:
         import traceback
@@ -10290,12 +10339,43 @@ def api_bt_pipeline_batch():
                     })
                     continue
 
-                n = bt_result.get("trades", 0)
-                wr = bt_result.get("win_rate", 0.0)
-                ev = bt_result.get("expected_value", 0.0)
-                pf = bt_result.get("profit_factor", 0.0)
+                # ── 個別戦略フィルター（trade_logからentry_type一致のみ抽出）──
+                trade_log = bt_result.get("trade_log") or []
+                entry_breakdown = bt_result.get("entry_breakdown") or {}
 
-                evaluation = _evaluate_bt_for_promotion(bt_result, symbol, mode)
+                if strategy and trade_log:
+                    filtered = [t for t in trade_log if t.get("entry_type") == strategy]
+                    if filtered:
+                        _f_n = len(filtered)
+                        _f_wins = sum(1 for t in filtered if t.get("outcome") == "WIN")
+                        _f_wr = round(_f_wins / _f_n * 100, 1)
+                        def _pnl_b(t):
+                            _ef = t.get("exit_friction_m", 0)
+                            if t.get("outcome") == "WIN":
+                                return t.get("tp_m", 0) - _ef
+                            return -(t.get("actual_sl_m", t.get("sl_m", 0)) + _ef)
+                        _f_pnls = [_pnl_b(t) for t in filtered]
+                        _f_ev = round(sum(_f_pnls) / _f_n, 3)
+                        _f_wpnl = sum(p for p in _f_pnls if p > 0)
+                        _f_lpnl = abs(sum(p for p in _f_pnls if p < 0))
+                        _f_pf = round(_f_wpnl / max(_f_lpnl, 1e-6), 2)
+                        n, wr, ev, pf = _f_n, _f_wr, _f_ev, _f_pf
+                    else:
+                        n, wr, ev, pf = 0, 0.0, 0.0, 0.0
+                elif strategy and strategy in entry_breakdown:
+                    eb = entry_breakdown[strategy]
+                    n = eb.get("total", 0)
+                    wr = eb.get("win_rate", 0.0)
+                    ev = eb.get("ev", 0.0)
+                    pf = bt_result.get("profit_factor", 0.0)
+                else:
+                    n = bt_result.get("trades", 0)
+                    wr = bt_result.get("win_rate", 0.0)
+                    ev = bt_result.get("expected_value", 0.0)
+                    pf = bt_result.get("profit_factor", 0.0)
+
+                _filtered_bt = {"trades": n, "win_rate": wr, "expected_value": ev, "profit_factor": pf}
+                evaluation = _evaluate_bt_for_promotion(_filtered_bt, symbol, mode)
 
                 if evaluation["promotion_eligible"]:
                     promote_count += 1
