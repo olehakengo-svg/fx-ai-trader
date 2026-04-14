@@ -19,6 +19,8 @@ from modules.oanda_bridge import OandaBridge
 from modules.exposure_manager import ExposureManager
 from modules.alert_manager import AlertManager
 from modules.risk_analytics import get_dd_lot_multiplier, DD_LOT_TIERS
+from modules.hmm_regime import HMMRegime
+import numpy as np
 
 # モード別設定
 MODE_CONFIG = {
@@ -273,6 +275,9 @@ class DemoTrader:
         # SL/TPチェッカー（全モード共通、高頻度）
         self._sltp_running = False
         self._sltp_thread = None
+
+        # HMM Regime overlay (logging-only comparison with rule-based)
+        self._hmm = HMMRegime()
 
         # デイリーレビューエンジンを自動起動
         self._daily_review.start()
@@ -2299,6 +2304,41 @@ class DemoTrader:
             "time": datetime.now(timezone.utc).strftime("%H:%M:%S"),
         }
 
+        # ── HMM Regime overlay: logging-only comparison ──
+        # Compute returns from df Close, run HMM prediction, log comparison
+        try:
+            if len(df) >= 60:
+                _close = df["Close"].values if "Close" in df.columns else df["close"].values
+                _rets = np.diff(np.log(_close))
+                _hmm_regime = self._hmm.predict(_rets, symbol=instrument)
+                _hmm_proba = self._hmm.predict_proba(_rets, symbol=instrument)
+                _rule_regime = sig.get("regime", {})
+                _rule_regime_str = (_rule_regime.get("regime", "")
+                                    if isinstance(_rule_regime, dict) else "")
+                _agree = (
+                    (_rule_regime_str == "RANGE" and _hmm_regime == "ranging") or
+                    (_rule_regime_str in ("TREND_BULL", "TREND_BEAR") and _hmm_regime == "trending")
+                )
+                self._hmm.record_agreement(instrument, _rule_regime_str, _hmm_regime)
+                _agree_rate = self._hmm.get_agreement_rate(instrument)
+                # Log every 50 ticks to avoid spam
+                _tc_hmm = getattr(self, '_tick_counts', {}).get(mode, 0)
+                if _tc_hmm <= 3 or _tc_hmm % 50 == 0 or not _agree:
+                    print(
+                        f"[HMM] {instrument} rule={_rule_regime_str} hmm={_hmm_regime} "
+                        f"agree={_agree} rate={_agree_rate:.1%} "
+                        f"proba={{t={_hmm_proba['trending']:.2f},r={_hmm_proba['ranging']:.2f}}}",
+                        flush=True
+                    )
+                # Attach HMM info to sig for downstream reference (read-only)
+                sig["_hmm_regime"] = _hmm_regime
+                sig["_hmm_proba"] = _hmm_proba
+                sig["_hmm_agree"] = _agree
+        except Exception as _hmm_err:
+            # Never let HMM overlay break the main trading loop
+            if getattr(self, '_tick_counts', {}).get(mode, 0) <= 3:
+                print(f"[HMM] overlay error: {_hmm_err}", flush=True)
+
         # ── Confluence Scalp v2: MSS状態追跡 (Profit Extender用) ──
         # スキャルプモードで毎tick (10s間隔) に open confluence_scalp トレードの
         # MSS状態を更新 → _check_sltp_realtime でTP延伸判定に使用
@@ -3682,6 +3722,22 @@ class DemoTrader:
                 _n_cap = _n_max
                 break
         _strat_boost = min(_strat_boost, _n_cap)
+        # v9.1: Kelly dynamic adjustment — data-driven lot sizing
+        _kelly_dynamic_applied = False
+        _static_boost = _strat_boost  # preserve original for logging
+        if _n_trades >= 20:
+            _strat_kelly = self._get_strategy_kelly(entry_type, instrument)
+            if _strat_kelly is not None and _strat_kelly > 0:
+                _kelly_half = _strat_kelly / 2.0
+                _kelly_lot = min(_kelly_half, _strat_boost)
+                if abs(_kelly_lot - _strat_boost) > 0.01:
+                    self._add_log(
+                        f"[KELLY] {entry_type} dynamic adj: "
+                        f"static={_strat_boost:.2f}x → kelly_half={_kelly_half:.3f} "
+                        f"→ {_kelly_lot:.3f}x (N={_n_trades})"
+                    )
+                    _kelly_dynamic_applied = True
+                _strat_boost = _kelly_lot
         # v7.0: graduated DD lot multiplier (replaces binary 0.5)
         _eq_mult = self._dd_lot_mult
         _boost_factor = _strat_boost * _eq_mult
@@ -3813,6 +3869,24 @@ class DemoTrader:
                         demo_trade_id=trade_id, entry_type=entry_type,
                         is_live=False, bridge_status="blocked",
                         block_reason=f"agg_kelly={_agg_kelly:.3f}<0",
+                        direction=signal, instrument=instrument,
+                        units=_adjusted_units,
+                    )
+                    _is_promoted = False  # fall through to non-OANDA path
+
+            # ── v9.1 SHIELD: Monte Carlo Ruin Gate ──
+            # ruin_probability > 70% のとき SENTINEL以外のOANDA転送をブロック
+            if _is_promoted and _strat_mode != "sentinel" and not _is_sentinel:
+                _ruin_prob = self._get_ruin_probability()
+                if _ruin_prob is not None and _ruin_prob > 0.7:
+                    self._add_log(
+                        f"[SHIELD] MC ruin gate: {_ruin_prob:.1%} > 70% → "
+                        f"OANDA blocked for {entry_type} {instrument}"
+                    )
+                    self._oanda._add_audit(
+                        demo_trade_id=trade_id, entry_type=entry_type,
+                        is_live=False, bridge_status="blocked",
+                        block_reason=f"mc_ruin={_ruin_prob:.3f}>0.7",
                         direction=signal, instrument=instrument,
                         units=_adjusted_units,
                     )
@@ -4832,6 +4906,41 @@ class DemoTrader:
             avg_loss = abs(sum(losses) / len(losses))
             result = kelly_criterion(wr, avg_win, avg_loss)
             return result.get("full_kelly", 0.0)
+        except Exception:
+            return None
+
+    def _get_ruin_probability(self) -> float:
+        """Compute Monte Carlo ruin probability from post-cutoff clean trades.
+        Returns ruin probability (0.0-1.0) or None if insufficient data.
+        Cached for 300 seconds (MC simulation is expensive).
+        """
+        now = time.time()
+        if hasattr(self, '_ruin_prob_cache') and (now - self._ruin_prob_cache_ts) < 300:
+            return self._ruin_prob_cache
+        try:
+            from modules.risk_analytics import monte_carlo_ruin
+            closed = self._db.get_all_closed()
+            cutoff = self._FIDELITY_CUTOFF
+            trades = [t for t in closed
+                      if t.get("status") == "CLOSED"
+                      and not t.get("is_shadow")
+                      and "XAU" not in (t.get("instrument", "") or "")
+                      and (t.get("exit_time") or "") >= cutoff]
+            pnl_list = [float(t.get("pnl_pips", 0) or 0) for t in trades]
+            if len(pnl_list) < 10:
+                self._ruin_prob_cache = None
+                self._ruin_prob_cache_ts = now
+                return None
+            result = monte_carlo_ruin(
+                pnl_list,
+                initial_capital=1000.0,
+                n_simulations=5000,
+                n_trades_forward=300,
+            )
+            rp = result.get("ruin_probability", 0.0)
+            self._ruin_prob_cache = rp
+            self._ruin_prob_cache_ts = now
+            return rp
         except Exception:
             return None
 

@@ -31,7 +31,7 @@ _last_data_source: dict = {}  # interval -> source name
 # (2026-04-05 perf) TTL延長: ネットワーク負荷40%削減
 # 旧: 1m=10s(40%hit) 5m=15s 15m=45s(33%hit) → 新: 80%+ヒット率達成
 _TF_CACHE_TTL = {
-    "1m": 20, "5m": 30, "15m": 60, "30m": 90,
+    "1m": 30, "5m": 120, "15m": 60, "30m": 90,
     "1h": 180, "4h": 300, "1d": 600, "1wk": 1800, "1mo": 3600,
 }
 
@@ -138,8 +138,8 @@ def fetch_ohlcv_twelvedata(symbol: str, interval: str) -> pd.DataFrame:
 # ═══════════════════════════════════════════════════════
 def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
     """
-    Massive Market Data APIからOHLCVデータを取得。
-    USDJPYのみ対応 (C:USDJPY形式)。
+    Massive Market Data API (Polygon互換) からOHLCVデータを取得。
+    全6FXペア対応 (C:USDJPY, C:EURUSD, C:EURJPY, C:GBPUSD, C:GBPJPY, C:EURGBP)。
     ページネーション対応で指定日数分を確実に取得。
 
     interval: "1m","5m","15m","30m","1h","4h","1d"

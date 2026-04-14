@@ -4,7 +4,8 @@
 **全施策の判断基準。これに寄与しない施策は後回し。**
 - 現在: **DD防御0.2x** (DD=12.39%, defensive mode) → 月利47%（BT推定）
 - Phase 3 (Kelly Half): 月利594%
-- 詳細: [[roadmap-to-100pct]]
+- 詳細: [[roadmap-v2]] (A+B+C三位一体、v2.0)
+- 旧: [[roadmap-to-100pct]] (v1、WARNING付き)
 - **最優先: クリーンデータ蓄積 → Kelly Half到達**
 
 ## Current Portfolio (v8.9, 2026-04-13)

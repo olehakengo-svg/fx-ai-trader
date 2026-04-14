@@ -1655,6 +1655,19 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     elif combined < -_dt_threshold: signal, conf = "SELL", int(min(95, 50 + abs(combined) * 55))
     else:                           signal, conf = "WAIT", int(max(25, 50 - abs(combined) * 40))
 
+    # ⑬ VWAP deviation bonus (Massive API only)
+    _vwap_rsns = []
+    if "vwap" in df.columns and signal != "WAIT":
+        _vwap = float(row["vwap"])
+        if _vwap > 0:
+            _vwap_dev = (entry - _vwap) / _vwap * 100
+            if signal == "BUY" and _vwap_dev > 0:
+                conf = min(95, conf + 3)
+                _vwap_rsns.append(f"✅ VWAP上位(+{_vwap_dev:.2f}%): BUY確度UP")
+            elif signal == "SELL" and _vwap_dev < 0:
+                conf = min(95, conf + 3)
+                _vwap_rsns.append(f"✅ VWAP下位({_vwap_dev:.2f}%): SELL確度UP")
+
     # ⑥ S/R-snapped SL/TP（TF対応スイングモード）
     # WAIT時はcombinedの符号で方向を決定（0の場合はBUY）
     if signal == "WAIT":
@@ -1707,6 +1720,7 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
         dw_rsns +
         cot_rsns +
         fb_rsns +
+        _vwap_rsns +
         ([session["label"]] if session["mult"] < 0.85 or session["mult"] >= 1.2 else [])
     )
 
@@ -2680,6 +2694,17 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             ema_boost += 3
         elif signal == "SELL" and macdh < 0 and macdh < macdh_prev:
             ema_boost += 3
+        # VWAP deviation bonus (Massive API only)
+        if "vwap" in df.columns:
+            _vwap_dt = float(row["vwap"])
+            if _vwap_dt > 0:
+                _vwap_dev_dt = (entry - _vwap_dt) / _vwap_dt * 100
+                if signal == "BUY" and _vwap_dev_dt > 0:
+                    ema_boost += 3
+                    reasons.append(f"✅ VWAP上位(+{_vwap_dev_dt:.2f}%): BUY確度UP")
+                elif signal == "SELL" and _vwap_dev_dt < 0:
+                    ema_boost += 3
+                    reasons.append(f"✅ VWAP下位({_vwap_dev_dt:.2f}%): SELL確度UP")
 
         conf = int(np.clip(base_conf + ema_boost, 25, 92))
     else:
@@ -8872,6 +8897,117 @@ def api_regime_status():
         return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
 
 
+# ═══════════════════════════════════════════════════════
+#  HMM Regime Detection API
+# ═══════════════════════════════════════════════════════
+
+# Instrument -> yfinance symbol mapping for HMM training
+_HMM_INSTRUMENT_TO_YF = {
+    "USD_JPY": "USDJPY=X",
+    "EUR_USD": "EURUSD=X",
+    "EUR_JPY": "EURJPY=X",
+    "GBP_JPY": "GBPJPY=X",
+    "GBP_USD": "GBPUSD=X",
+    "EUR_GBP": "EURGBP=X",
+}
+
+
+@app.route("/api/hmm/train", methods=["POST"])
+def api_hmm_train():
+    """Train HMM on 120 days of 1h data for a given symbol.
+
+    POST body: {"symbol": "USD_JPY"} (optional, default USD_JPY)
+    Uses Massive Market Data API for data fetch.
+    """
+    try:
+        data = request.get_json(silent=True) or {}
+        instrument = data.get("symbol", "USD_JPY")
+        yf_symbol = _HMM_INSTRUMENT_TO_YF.get(instrument)
+        if not yf_symbol:
+            return jsonify({"error": f"Unknown instrument: {instrument}",
+                            "supported": list(_HMM_INSTRUMENT_TO_YF.keys())}), 400
+
+        # Fetch 120 days of 1h data via Massive API
+        try:
+            df = fetch_ohlcv_massive(yf_symbol, interval="1h", days=120)
+        except Exception as _massive_err:
+            # Fallback to yfinance
+            df = fetch_ohlcv(yf_symbol, period="120d", interval="1h")
+
+        if df is None or len(df) < 200:
+            return jsonify({"error": f"Insufficient data: {len(df) if df is not None else 0} bars"}), 400
+
+        # Compute log returns
+        close_col = "Close" if "Close" in df.columns else "close"
+        closes = df[close_col].values.astype(float)
+        returns = np.diff(np.log(closes))
+        returns = returns[np.isfinite(returns)]
+
+        # Access HMM from demo_trader
+        hmm = _demo_trader._hmm
+        params = hmm.fit(returns, symbol=instrument)
+
+        return jsonify({
+            "status": "ok",
+            "symbol": instrument,
+            "params": {
+                "mu": params["mu"],
+                "sigma": params["sigma"],
+                "A": params["A"],
+                "pi": params["pi"],
+            },
+            "diagnostics": {
+                "n_obs": params["n_obs"],
+                "n_iter": params["n_iter"],
+                "log_likelihood": params["log_likelihood"],
+            },
+            "state_labels": {
+                "0": "ranging (low vol)",
+                "1": "trending (high vol)",
+            },
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@app.route("/api/hmm/status")
+def api_hmm_status():
+    """Return HMM regime detection status for all symbols.
+
+    Includes: fitted state, current prediction, agreement rate with rule-based.
+    """
+    try:
+        hmm = _demo_trader._hmm
+        status = hmm.get_status()
+
+        # For fitted symbols, add current prediction using recent data
+        for instrument, s in status.items():
+            if s["fitted"]:
+                try:
+                    yf_symbol = _HMM_INSTRUMENT_TO_YF.get(instrument)
+                    if yf_symbol:
+                        df = fetch_ohlcv(yf_symbol, period="5d", interval="1h")
+                        if df is not None and len(df) >= 60:
+                            close_col = "Close" if "Close" in df.columns else "close"
+                            closes = df[close_col].values.astype(float)
+                            rets = np.diff(np.log(closes))
+                            rets = rets[np.isfinite(rets)]
+                            s["current_regime"] = hmm.predict(rets, symbol=instrument)
+                            s["current_proba"] = hmm.predict_proba(rets, symbol=instrument)
+                except Exception:
+                    pass
+
+        return jsonify({
+            "status": "ok",
+            "symbols": status,
+            "checked_at": datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({"error": str(e), "traceback": traceback.format_exc()}), 500
+
+
 @app.route("/api/signal")
 def api_signal():
     tf   = request.args.get("tf", "1m")
@@ -11799,6 +11935,93 @@ def api_risk_dashboard():
             dashboard["dd_status"] = {"error": "unavailable"}
 
         return jsonify(dashboard)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ── Phase Gate API v9.1 ─────────────────────────────
+
+@app.route("/api/phase-gate")
+def api_phase_gate():
+    """
+    Phase gate status: multi-level readiness check for OANDA promotion.
+    Gate 1: Aggregate Kelly > 0
+    Gate 2: Kelly > 0.05 AND FX PnL > +50pip AND ruin_prob < 0.7
+    Gate 3: PF > 1.0 AND N >= 100 AND ruin_prob < 0.3 AND DSR > 0.80
+    Gate 4: DSR > 0.95 AND ruin_prob < 0.1 AND N >= 200
+    """
+    from modules.risk_analytics import compute_risk_dashboard
+    from modules.stats_utils import profit_factor as calc_pf
+    try:
+        closed = _demo_db.get_all_closed()
+        # XAU excluded per project rule
+        closed = [t for t in closed if "XAU" not in (t.get("instrument", "") or "")]
+        stats = _demo_db.get_stats()
+        n_trades = stats.get("total", 0)
+        total_pnl = stats.get("total_pnl", 0)
+
+        # Compute risk dashboard for Kelly/MC/DSR
+        dashboard = compute_risk_dashboard(closed) if closed else {}
+
+        # Extract metrics
+        kelly_data = dashboard.get("kelly", {})
+        agg_kelly = kelly_data.get("full_kelly", 0.0) if kelly_data else 0.0
+
+        mc_data = dashboard.get("monte_carlo", {})
+        ruin_prob = mc_data.get("ruin_probability", 1.0) if mc_data else 1.0
+
+        dsr_data = dashboard.get("dsr_overall", {})
+        dsr_value = dsr_data.get("dsr", 0.0) if dsr_data else 0.0
+
+        pnl_list = [float(t.get("pnl_pips", 0) or 0) for t in closed]
+        pf = calc_pf(pnl_list) if pnl_list else 0.0
+
+        # Evaluate gates
+        gate1 = agg_kelly > 0
+        gate2 = agg_kelly > 0.05 and total_pnl > 50 and ruin_prob < 0.7
+        gate3 = pf > 1.0 and n_trades >= 100 and ruin_prob < 0.3 and dsr_value > 0.80
+        gate4 = dsr_value > 0.95 and ruin_prob < 0.1 and n_trades >= 200
+
+        # Determine current phase
+        if gate4:
+            current_phase = 4
+        elif gate3:
+            current_phase = 3
+        elif gate2:
+            current_phase = 2
+        elif gate1:
+            current_phase = 1
+        else:
+            current_phase = 0
+
+        return jsonify({
+            "current_phase": current_phase,
+            "gates": {
+                "gate1": {"passed": gate1, "condition": "agg_kelly > 0",
+                          "agg_kelly": round(agg_kelly, 4)},
+                "gate2": {"passed": gate2, "condition": "kelly > 0.05 AND pnl > +50pip AND ruin < 0.7",
+                          "agg_kelly": round(agg_kelly, 4),
+                          "total_pnl_pips": round(total_pnl, 2),
+                          "ruin_prob": round(ruin_prob, 4)},
+                "gate3": {"passed": gate3, "condition": "PF > 1.0 AND N >= 100 AND ruin < 0.3 AND DSR > 0.80",
+                          "profit_factor": round(pf, 3),
+                          "n_trades": n_trades,
+                          "ruin_prob": round(ruin_prob, 4),
+                          "dsr": round(dsr_value, 4)},
+                "gate4": {"passed": gate4, "condition": "DSR > 0.95 AND ruin < 0.1 AND N >= 200",
+                          "dsr": round(dsr_value, 4),
+                          "ruin_prob": round(ruin_prob, 4),
+                          "n_trades": n_trades},
+            },
+            "metrics": {
+                "agg_kelly": round(agg_kelly, 4),
+                "ruin_probability": round(ruin_prob, 4),
+                "profit_factor": round(pf, 3),
+                "dsr": round(dsr_value, 4),
+                "n_trades": n_trades,
+                "total_pnl_pips": round(total_pnl, 2),
+            },
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
