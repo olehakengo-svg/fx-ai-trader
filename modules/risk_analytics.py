@@ -656,6 +656,322 @@ def consolidation_simulation(
     }
 
 
+# =====================================================================
+#  8. Portfolio-Level Optimization (v2.1)
+# =====================================================================
+
+def compute_strategy_correlation(trades: List[dict],
+                                 strategies: List[str]) -> dict:
+    """Compute pairwise correlation of daily PnL series between strategies.
+
+    Trades are grouped by calendar day; for each strategy we sum the daily
+    PnL.  Days where a strategy had no trades are filled with 0 PnL.
+    Pearson correlation is computed between all pairs via np.corrcoef.
+
+    Args:
+        trades: list of trade dicts with 'entry_type', 'pnl_pips', 'exit_time'
+        strategies: list of strategy names to include
+
+    Returns:
+        {"matrix": {strat1: {strat2: corr, ...}}, "pairs": [...],
+         "strategy_names": [...], "n_days": int}
+    """
+    if not trades or len(strategies) < 2:
+        return {
+            "matrix": {},
+            "pairs": [],
+            "strategy_names": list(strategies) if strategies else [],
+            "n_days": 0,
+            "insufficient": True,
+        }
+
+    strat_set = set(strategies)
+
+    # Group daily PnL per strategy
+    daily_pnl: Dict[str, Dict[str, float]] = {s: {} for s in strategies}
+    all_days: set = set()
+
+    for t in trades:
+        et = t.get("entry_type", "") or ""
+        if et not in strat_set:
+            continue
+        pnl = float(t.get("pnl_pips", 0) or 0)
+        exit_time = t.get("exit_time") or t.get("entry_time") or ""
+        day = exit_time[:10]  # YYYY-MM-DD
+        if not day:
+            continue
+        all_days.add(day)
+        daily_pnl[et][day] = daily_pnl[et].get(day, 0.0) + pnl
+
+    if len(all_days) < 3:
+        return {
+            "matrix": {},
+            "pairs": [],
+            "strategy_names": list(strategies),
+            "n_days": len(all_days),
+            "insufficient": True,
+        }
+
+    sorted_days = sorted(all_days)
+    n_days = len(sorted_days)
+
+    # Build matrix: rows = strategies, cols = days (fill missing with 0)
+    data = np.zeros((len(strategies), n_days), dtype=np.float64)
+    for i, strat in enumerate(strategies):
+        for j, day in enumerate(sorted_days):
+            data[i, j] = daily_pnl[strat].get(day, 0.0)
+
+    # Pearson correlation (np.corrcoef returns NxN)
+    if len(strategies) == 1:
+        corr_mat = np.array([[1.0]])
+    else:
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", RuntimeWarning)
+            corr_mat = np.corrcoef(data)
+        # Replace NaN (from zero-variance rows) with 0.0
+        corr_mat = np.nan_to_num(corr_mat, nan=0.0)
+
+    # Build nested dict
+    matrix: Dict[str, Dict[str, Optional[float]]] = {}
+    pairs = []
+    for i, s1 in enumerate(strategies):
+        matrix[s1] = {}
+        for j, s2 in enumerate(strategies):
+            val = float(corr_mat[i, j])
+            matrix[s1][s2] = round(val, 4) if not np.isnan(val) else None
+            if i < j:
+                pairs.append({
+                    "pair": [s1, s2],
+                    "correlation": round(val, 4) if not np.isnan(val) else None,
+                })
+
+    return {
+        "matrix": matrix,
+        "pairs": pairs,
+        "strategy_names": list(strategies),
+        "n_days": n_days,
+        "insufficient": False,
+    }
+
+
+def portfolio_kelly(strategy_stats: List[dict],
+                    correlation_matrix: Optional[Dict[str, Dict[str, float]]] = None) -> dict:
+    """Compute optimal portfolio allocation using Thorp's method.
+
+    Simple Thorp: f_i = kelly_i / n_strategies  (equal risk budget)
+    Advanced (correlation-aware): f_i = kelly_i * (1 - avg_abs_corr_i)
+      where avg_abs_corr_i = mean of |corr(i, j)| for j != i.
+
+    Args:
+        strategy_stats: list of {"name": str, "ev": float, "variance": float, "kelly": float}
+        correlation_matrix: optional {"strat1": {"strat2": corr, ...}} for adjusted calc
+
+    Returns:
+        {"allocations_simple": {name: fraction},
+         "allocations_adjusted": {name: fraction},
+         "expected_return": float,
+         "portfolio_kelly": float}
+    """
+    if not strategy_stats:
+        return {
+            "allocations_simple": {},
+            "allocations_adjusted": {},
+            "expected_return": 0.0,
+            "portfolio_kelly": 0.0,
+            "insufficient": True,
+        }
+
+    n = len(strategy_stats)
+    names = [s["name"] for s in strategy_stats]
+    kellys = [max(0.0, float(s.get("kelly", 0))) for s in strategy_stats]
+    evs = [float(s.get("ev", 0)) for s in strategy_stats]
+
+    # Simple Thorp: equal risk budget split
+    simple = {}
+    for i, name in enumerate(names):
+        simple[name] = round(kellys[i] / n, 6) if n > 0 else 0.0
+
+    # Correlation-adjusted allocations
+    adjusted = {}
+    if correlation_matrix and len(correlation_matrix) >= 2:
+        for i, name in enumerate(names):
+            # Average absolute correlation with other strategies
+            abs_corrs = []
+            for j, other in enumerate(names):
+                if i == j:
+                    continue
+                corr_val = (correlation_matrix.get(name, {}).get(other))
+                if corr_val is not None:
+                    abs_corrs.append(abs(corr_val))
+            avg_abs_corr = float(np.mean(abs_corrs)) if abs_corrs else 0.0
+            # Discount Kelly by correlation penalty
+            adjusted[name] = round(kellys[i] * (1.0 - avg_abs_corr), 6)
+    else:
+        # No correlation data: fall back to simple
+        adjusted = dict(simple)
+
+    # Portfolio-level expected return (weighted sum of EVs)
+    total_alloc = sum(simple.values())
+    if total_alloc > 0:
+        expected_return = sum(
+            simple[name] * evs[i] for i, name in enumerate(names)
+        )
+    else:
+        expected_return = 0.0
+
+    # Portfolio Kelly = sum of individual allocations (simple Thorp)
+    portfolio_kelly_val = sum(simple.values())
+
+    return {
+        "allocations_simple": simple,
+        "allocations_adjusted": adjusted,
+        "expected_return": round(expected_return, 4),
+        "portfolio_kelly": round(portfolio_kelly_val, 6),
+        "n_strategies": n,
+        "insufficient": False,
+    }
+
+
+def gate_scenario_analysis(current_stats: dict,
+                           strategies: List[dict]) -> dict:
+    """Estimate trades / days needed to reach each Phase Gate.
+
+    Gate definitions:
+        Gate 1: Kelly > 0
+        Gate 2: PnL > +50 pip
+        Gate 3: PF > 1.0 AND N >= 100
+
+    Args:
+        current_stats: {"n": int, "pnl": float, "kelly": float, "pf": float}
+        strategies: list of {"name": str, "ev": float, "wr": float, "trades_per_day": float}
+
+    Returns:
+        {"gate1": {"trades_needed": int, "days_estimated": float, "probability": float},
+         "gate2": {...}, "gate3": {...},
+         "daily_ev": float, "daily_trades": float}
+    """
+    n = current_stats.get("n", 0)
+    pnl = float(current_stats.get("pnl", 0))
+    kelly = float(current_stats.get("kelly", 0))
+    pf = float(current_stats.get("pf", 0))
+
+    # Aggregate daily stats from active strategies
+    total_trades_per_day = sum(
+        float(s.get("trades_per_day", 0)) for s in strategies
+    ) if strategies else 0.0
+
+    # Weighted EV across strategies (by trades_per_day contribution)
+    if total_trades_per_day > 0 and strategies:
+        daily_ev = sum(
+            float(s.get("ev", 0)) * float(s.get("trades_per_day", 0))
+            for s in strategies
+        )
+    else:
+        daily_ev = 0.0
+
+    # Weighted win rate
+    if total_trades_per_day > 0 and strategies:
+        weighted_wr = sum(
+            float(s.get("wr", 0)) * float(s.get("trades_per_day", 0))
+            for s in strategies
+        ) / total_trades_per_day
+    else:
+        weighted_wr = 0.0
+
+    result = {
+        "daily_ev": round(daily_ev, 3),
+        "daily_trades": round(total_trades_per_day, 1),
+        "weighted_wr": round(weighted_wr, 4),
+    }
+
+    # Gate 1: Kelly > 0
+    # If Kelly is already > 0, passed. Otherwise estimate trades needed to
+    # shift PnL positive enough for Kelly to cross zero.
+    if kelly > 0:
+        result["gate1"] = {
+            "status": "PASSED",
+            "trades_needed": 0,
+            "days_estimated": 0.0,
+            "probability": 1.0,
+        }
+    else:
+        # Need EV > 0 over enough trades to flip aggregate Kelly positive.
+        # Rough estimate: if daily_ev > 0, trades needed ~ |pnl_deficit| / ev_per_trade
+        ev_per_trade = daily_ev / total_trades_per_day if total_trades_per_day > 0 else 0
+        if ev_per_trade > 0:
+            # Approximate deficit to overcome: make aggregate PnL positive
+            deficit = abs(pnl) if pnl < 0 else 0
+            trades_needed = int(np.ceil(deficit / ev_per_trade)) if deficit > 0 else 1
+            days = trades_needed / total_trades_per_day if total_trades_per_day > 0 else float('inf')
+            # Probability: P(sum of N trades > deficit) using CLT approximation
+            prob = min(0.95, max(0.1, weighted_wr)) if ev_per_trade > 0 else 0.1
+        else:
+            trades_needed = None
+            days = None
+            prob = 0.05  # Unlikely without positive EV
+        result["gate1"] = {
+            "status": "PENDING",
+            "trades_needed": trades_needed,
+            "days_estimated": round(days, 1) if days is not None and days != float('inf') else None,
+            "probability": round(prob, 2),
+        }
+
+    # Gate 2: PnL > +50 pip
+    target_pnl = 50.0
+    if pnl >= target_pnl:
+        result["gate2"] = {
+            "status": "PASSED",
+            "trades_needed": 0,
+            "days_estimated": 0.0,
+            "probability": 1.0,
+        }
+    else:
+        gap = target_pnl - pnl
+        if daily_ev > 0:
+            days_needed = gap / daily_ev
+            trades_needed = int(np.ceil(days_needed * total_trades_per_day))
+            prob = min(0.90, max(0.1, 0.5 + 0.4 * (daily_ev / max(gap, 1))))
+        else:
+            days_needed = None
+            trades_needed = None
+            prob = 0.05
+        result["gate2"] = {
+            "status": "PENDING",
+            "pnl_gap": round(gap, 2),
+            "trades_needed": trades_needed,
+            "days_estimated": round(days_needed, 1) if days_needed is not None else None,
+            "probability": round(prob, 2),
+        }
+
+    # Gate 3: PF > 1.0, N >= 100
+    trades_to_100 = max(0, 100 - n)
+    if pf > 1.0 and n >= 100:
+        result["gate3"] = {
+            "status": "PASSED",
+            "trades_needed": 0,
+            "days_estimated": 0.0,
+            "probability": 1.0,
+        }
+    else:
+        if total_trades_per_day > 0:
+            days_to_100 = trades_to_100 / total_trades_per_day if trades_to_100 > 0 else 0
+        else:
+            days_to_100 = None
+        # PF improvement: if current PF < 1.0, we need positive trades to push it up
+        # Rough probability based on current win rate
+        pf_prob = min(0.80, max(0.05, weighted_wr - 0.5 + 0.3)) if weighted_wr > 0.5 else 0.1
+        result["gate3"] = {
+            "status": "PENDING",
+            "trades_to_n100": trades_to_100,
+            "days_estimated": round(days_to_100, 1) if days_to_100 is not None else None,
+            "current_pf": round(pf, 3),
+            "probability": round(pf_prob, 2),
+        }
+
+    return result
+
+
 def compute_slippage_stats(trades: List[dict]) -> dict:
     """
     Compute slippage statistics segmented by session, regime, strategy.

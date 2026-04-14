@@ -4899,6 +4899,19 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         # ── Phase A: スリッページ係数 ──
         _slip_sc = _bt_get_slippage(symbol)
 
+        # ── v8.8 Phase D: Quick-Harvest toggle & exempt set (Live同期) ──
+        _BT_QUICK_HARVEST = True  # Toggle: False で QH 無効化
+        _sym_core = symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+        _bt_oanda_pair = _sym_core[:3] + "_" + _sym_core[3:]  # USDJPY=X → USD_JPY
+        _BT_QH_EXEMPT = frozenset({
+            ("gbp_deep_pullback", "GBP_USD"),
+            ("session_time_bias", "USD_JPY"),
+            ("session_time_bias", "EUR_USD"),
+            ("session_time_bias", "GBP_USD"),
+            ("london_fix_reversal", "GBP_USD"),
+            ("vix_carry_unwind", "USD_JPY"),
+        })
+
         # ── HTF bias: BT用動的計算（ルックアヘッドなし）──
         # bar_idx までのデータをリサンプルして1H+4H方向を推定
         try:
@@ -5137,18 +5150,25 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                              "dt_sr_channel_reversal"}
             _bb_mid_bt = sig_result.get("indicators", {}).get("bb_mid", 0) if isinstance(sig_result.get("indicators"), dict) else 0
             _is_range_mr_bt = (_regime_type_bt == "RANGE" and entry_type in _MR_STRATS_BT)
+            _is_range_tp_override = False
             if _is_range_mr_bt and _bb_mid_bt > 0:
                 if sig == "BUY" and _bb_mid_bt > ep:
                     tp = min(tp, min(_bb_mid_bt, ep + atr7 * 1.2))
+                    _is_range_tp_override = True
                 elif sig == "SELL" and _bb_mid_bt < ep:
                     tp = max(tp, max(_bb_mid_bt, ep - atr7 * 1.2))
+                    _is_range_tp_override = True
                 tp_dist = abs(tp - ep)
                 sl_dist = tp_dist / MIN_RR_BT
                 sl_dist = max(sl_dist, MIN_SL_DIST_BT)
                 sl = ep - sl_dist if sig == "BUY" else ep + sl_dist
 
             # ── v8.7 Phase C: Quick-Harvest TP simulation — Live 0.85x ──
-            if not _is_range_mr_bt:  # RANGE MR は bypass (Live v6.5同一)
+            # v8.8: EXEMPT set + toggle 追加 (Live _QUICK_HARVEST_EXEMPT 同期)
+            _is_qh_exempt = (entry_type, _bt_oanda_pair) in _BT_QH_EXEMPT
+            if (_BT_QUICK_HARVEST
+                    and not _is_range_mr_bt
+                    and not _is_qh_exempt):
                 _qh_mult = 0.85
                 if sig == "BUY":
                     tp = ep + (tp - ep) * _qh_mult
@@ -5304,7 +5324,8 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                               "sl_m": round(sl_m, 3), "tp_m": round(tp_m_actual, 3),
                               "entry_time": str(bar_time),
                               "exit_friction_m": round(_exit_friction_m, 4),
-                              "exit_reason": _exit_reason}
+                              "exit_reason": _exit_reason,
+                              "_is_range_tp_override": _is_range_tp_override}
                 if outcome == "LOSS" and _exit_reason != "signal_reverse":
                     if sig == "BUY" and fut_close < sl:
                         trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr7, 1e-6), sl_m * 1.2), 3)
@@ -5526,6 +5547,19 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
         # ── Phase A: スリッページ係数 ──
         _slip_dt = _bt_get_slippage(symbol)
+
+        # ── v8.8 Phase D: Quick-Harvest toggle & exempt set (Live同期) ──
+        _BT_QUICK_HARVEST = True  # Toggle: False で QH 無効化
+        _sym_core_dt = symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+        _bt_oanda_pair_dt = _sym_core_dt[:3] + "_" + _sym_core_dt[3:]
+        _BT_QH_EXEMPT_DT = frozenset({
+            ("gbp_deep_pullback", "GBP_USD"),
+            ("session_time_bias", "USD_JPY"),
+            ("session_time_bias", "EUR_USD"),
+            ("session_time_bias", "GBP_USD"),
+            ("london_fix_reversal", "GBP_USD"),
+            ("vix_carry_unwind", "USD_JPY"),
+        })
 
         # ── HTF bias: BT用動的計算（ルックアヘッドなし）──
         # bar_idx までのデータをリサンプルして4H+1D方向を推定
@@ -5769,18 +5803,25 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                              "dt_sr_channel_reversal"}
             _bb_mid_dt = sig_result.get("indicators", {}).get("bb_mid", 0) if isinstance(sig_result.get("indicators"), dict) else 0
             _is_range_mr_dt = (_regime_type_dt == "RANGE" and entry_type in _MR_STRATS_DT)
+            _is_range_tp_override = False
             if _is_range_mr_dt and _bb_mid_dt > 0:
                 if sig == "BUY" and _bb_mid_dt > ep:
                     tp = min(tp, min(_bb_mid_dt, ep + atr * 1.2))
+                    _is_range_tp_override = True
                 elif sig == "SELL" and _bb_mid_dt < ep:
                     tp = max(tp, max(_bb_mid_dt, ep - atr * 1.2))
+                    _is_range_tp_override = True
                 tp_dist_dt = abs(tp - ep)
                 sl_dist_dt = tp_dist_dt / MIN_RR_DT if entry_type not in _DT_PRESERVE_SLTP else sl_dist_dt
                 sl_dist_dt = max(sl_dist_dt, MIN_SL_DIST_DT)
                 sl = ep - sl_dist_dt if sig == "BUY" else ep + sl_dist_dt
 
             # ── v8.7 Phase C: Quick-Harvest (DT) ──
-            if not _is_range_mr_dt:
+            # v8.8: EXEMPT set + toggle 追加 (Live _QUICK_HARVEST_EXEMPT 同期)
+            _is_qh_exempt_dt = (entry_type, _bt_oanda_pair_dt) in _BT_QH_EXEMPT_DT
+            if (_BT_QUICK_HARVEST
+                    and not _is_range_mr_dt
+                    and not _is_qh_exempt_dt):
                 _qh_mult_dt = 0.85
                 if sig == "BUY":
                     tp = ep + (tp - ep) * _qh_mult_dt
@@ -5932,7 +5973,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                                 "sl_m": sl_m, "tp_m": tp_m_actual,
                                 "entry_time": str(bar_time),
                                 "exit_friction_m": round(_exit_friction_m_dt, 4),
-                                "exit_reason": _exit_reason_dt}
+                                "exit_reason": _exit_reason_dt,
+                                "_is_range_tp_override": _is_range_tp_override}
                 if outcome == "LOSS" and _exit_reason_dt != "signal_reverse":
                     if sig == "BUY" and fut_close < sl:
                         trade_dict["actual_sl_m"] = round(min(abs(fut_close - ep) / max(atr, 1e-6), sl_m * 1.2), 3)
@@ -12520,6 +12562,150 @@ def api_consolidation_analysis():
             post_cutoff_only=post_cutoff,
         )
         return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ── Portfolio Optimization API v2.1 ──────────────────
+
+@app.route("/api/portfolio/optimize")
+def api_portfolio_optimize():
+    """
+    Portfolio-level optimization: correlation matrix, portfolio Kelly (Thorp),
+    and gate scenario analysis for active strategies.
+
+    Query params:
+      date_from: ISO date (default: Fidelity Cutoff 2026-04-08)
+    """
+    from modules.risk_analytics import (
+        compute_strategy_correlation, portfolio_kelly, gate_scenario_analysis,
+        kelly_fraction,
+    )
+    from modules.stats_utils import profit_factor as calc_pf
+    try:
+        _FIDELITY_CUTOFF = "2026-04-08T00:00:00"
+        date_from = request.args.get("date_from", _FIDELITY_CUTOFF)
+
+        closed = _demo_db.get_all_closed(exclude_shadow=True)
+        # Post-cutoff, XAU excluded
+        trades = [t for t in closed
+                  if "XAU" not in (t.get("instrument", "") or "")
+                  and (t.get("exit_time") or "") >= date_from]
+        if not trades:
+            return jsonify({"error": "No trades after cutoff", "n_trades": 0})
+
+        # Identify active strategies (with >= 3 trades post-cutoff)
+        from collections import Counter
+        strat_counts = Counter(t.get("entry_type", "unknown") for t in trades)
+        active_strategies = sorted([s for s, c in strat_counts.items() if c >= 3])
+
+        # 1. Correlation matrix
+        corr = compute_strategy_correlation(trades, active_strategies)
+
+        # 2. Build per-strategy stats for portfolio Kelly
+        strategy_stats = []
+        for strat in active_strategies:
+            strat_trades = [t for t in trades if t.get("entry_type") == strat]
+            pnls = [float(t.get("pnl_pips", 0) or 0) for t in strat_trades]
+            if not pnls:
+                continue
+            wins = [p for p in pnls if p > 0]
+            losses = [abs(p) for p in pnls if p < 0]
+            n_t = len(pnls)
+            wr = len(wins) / n_t if n_t > 0 else 0
+            avg_w = float(np.mean(wins)) if wins else 0.0
+            avg_l = float(np.mean(losses)) if losses else 0.0
+            ev = float(np.mean(pnls))
+            var = float(np.var(pnls)) if n_t > 1 else 0.0
+
+            k = kelly_fraction(wr, avg_w, avg_l)
+            # Count trading days for trades_per_day
+            days = set((t.get("exit_time") or "")[:10] for t in strat_trades)
+            days.discard("")
+            trades_per_day = n_t / max(len(days), 1)
+
+            strategy_stats.append({
+                "name": strat,
+                "ev": ev,
+                "variance": var,
+                "kelly": k["full_kelly"],
+                "wr": wr,
+                "n": n_t,
+                "trades_per_day": trades_per_day,
+            })
+
+        # Portfolio Kelly
+        pk = portfolio_kelly(strategy_stats, corr.get("matrix"))
+
+        # 3. Gate scenario analysis
+        all_pnls = [float(t.get("pnl_pips", 0) or 0) for t in trades]
+        total_pnl = sum(all_pnls)
+        n_total = len(trades)
+        wins_all = [p for p in all_pnls if p > 0]
+        losses_all = [abs(p) for p in all_pnls if p < 0]
+        wr_all = len(wins_all) / n_total if n_total > 0 else 0
+        avg_w_all = float(np.mean(wins_all)) if wins_all else 0.0
+        avg_l_all = float(np.mean(losses_all)) if losses_all else 0.0
+        k_all = kelly_fraction(wr_all, avg_w_all, avg_l_all)
+        pf_val = calc_pf(all_pnls) if all_pnls else 0.0
+
+        current_stats = {
+            "n": n_total,
+            "pnl": total_pnl,
+            "kelly": k_all["full_kelly"],
+            "pf": pf_val,
+        }
+        scenario = gate_scenario_analysis(current_stats, strategy_stats)
+
+        return jsonify({
+            "correlation": corr,
+            "portfolio_kelly": pk,
+            "gate_scenario": scenario,
+            "current_stats": {
+                "n_trades": n_total,
+                "total_pnl": round(total_pnl, 2),
+                "kelly": k_all["full_kelly"],
+                "pf": round(pf_val, 3),
+                "wr": round(wr_all * 100, 1),
+            },
+            "active_strategies": active_strategies,
+            "strategy_stats": strategy_stats,
+            "date_from": date_from,
+        })
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/portfolio/correlation")
+def api_portfolio_correlation():
+    """
+    Strategy correlation matrix as JSON (for dashboard display).
+
+    Query params:
+      date_from: ISO date (default: Fidelity Cutoff 2026-04-08)
+      min_trades: minimum trades per strategy to include (default: 3)
+    """
+    from modules.risk_analytics import compute_strategy_correlation
+    try:
+        _FIDELITY_CUTOFF = "2026-04-08T00:00:00"
+        date_from = request.args.get("date_from", _FIDELITY_CUTOFF)
+        min_trades = int(request.args.get("min_trades", 3))
+
+        closed = _demo_db.get_all_closed(exclude_shadow=True)
+        trades = [t for t in closed
+                  if "XAU" not in (t.get("instrument", "") or "")
+                  and (t.get("exit_time") or "") >= date_from]
+        if not trades:
+            return jsonify({"error": "No trades after cutoff", "n_trades": 0})
+
+        from collections import Counter
+        strat_counts = Counter(t.get("entry_type", "unknown") for t in trades)
+        strategies = sorted([s for s, c in strat_counts.items() if c >= min_trades])
+
+        corr = compute_strategy_correlation(trades, strategies)
+        corr["n_trades"] = len(trades)
+        return jsonify(corr)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
