@@ -4526,6 +4526,9 @@ class DemoTrader:
         ("stoch_trend_pullback", "USD_JPY"), # N=23 WR=30.4% EV=-0.69 Kelly=-15.1%
         # v8.9: レジーム別分析 2026-04-14 — 全条件負けの確定毒性セル
         ("engulfing_bb", "USD_JPY"),         # N=14 WR=28.6% Kelly=-14.7% — RANGE SELL 0/5全敗, 全レジームEV<0
+        # v8.9: 昨日分析 — vol_surge×JPY 全期間N=28 EV=-0.34 Kelly=-10.4%
+        # EUR_USDはN=7 WR=57% EV=+1.20 Kelly=+32.7%で正EV → EUR維持
+        ("vol_surge_detector", "USD_JPY"),
     }
 
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
