@@ -149,6 +149,16 @@ XAU別枠（11件）: PnL **-1,496 pips**（XAUスケール：要注意）
 | **vol_surge_detector** | USD_JPY | −16.2（N=5, WR=20%） | 最大ドローダウン源。ボラリティスパイク後の方向性を誤読し4連続SL_HIT。本セッションのネガティブ主因。 |
 | **bb_rsi_reversion** | USD_JPY | −3.9（N=3） | v8.9でPAIR_DEMOTED確定（EV=−0.28）済みにもかかわらず3件発火。KB判断との整合性を要確認。 |
 
+### 2026-04-14 (Pre-Tokyo Briefing)
+前日（2026-04-13）はN=166トレード、WR=28.3%、PnL=**-180.4** という深刻な結果。全セッション（東京・ロンドン・NY）を通じてほぼ全戦略が赤字で、単日損失としてはCutoff後最大規模。Cutoff後累計はN=343、WR=32.9%、PnL=**-209.1**（XAU除く）に達しており、前日だけで累計損失の約86%が発生した異常事態。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| vol_surge_detector | USD_JPY | 30 | 50.0% | **+0.11** | +3.4 | ✅ N=30到達・EV微正 |
+| sr_channel_reversal | USD_JPY | 29 | 17.2% | **-1.80** | -52.3 | 🔴 N=30目前・EV崩壊 |
+| fib_reversal | USD_JPY | 17 | 11.8% | **-1.93** | -32.8 | 🔴 WR壊滅 |
+| ema_pullback | USD_JPY | 10 | **60.0%** | **+3.55** | +35.5 | ✅ 最高EV（N=10、要追跡） |
+| N | PnL(pips) | 単位換算 |
+XAUはN=11、PnL=-1,496pips（JPYスケール）。停止中（OFF）のため新規発火なし。リスク遮断は適切に機能している。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
