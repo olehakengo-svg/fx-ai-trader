@@ -63,6 +63,27 @@ except ImportError:
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = not os.environ.get("RENDER")  # Render本番ではFalse
 
+# ── 統計的エッジ戦略トグル (Bonferroni-corrected, p<0.000287, 174 hypotheses) ──
+_ENABLE_NY_CLOSE_REVERSAL = True    # NYクローズ時間帯バイアス (UTC 20-22)
+_ENABLE_STREAK_REVERSAL = True      # 連続足反転 (3-5 streak → reversal)
+_ENABLE_VWAP_MEAN_REVERSION = True  # VWAP-2σ回帰 (Massive API only)
+
+# NYクローズ時間帯バイアス定義 (WR%, pair, direction)
+_NY_CLOSE_BIAS = {
+    20: [
+        ("SELL", "GBP_USD", 57.8), ("SELL", "GBPUSD=X", 57.8),
+        ("SELL", "USD_JPY", 57.3), ("SELL", "USDJPY=X", 57.3),
+        ("SELL", "EUR_USD", 55.6), ("SELL", "EURUSD=X", 55.6),
+    ],
+    21: [
+        ("BUY", "EUR_USD", 58.9), ("BUY", "EURUSD=X", 58.9),
+    ],
+    22: [
+        ("BUY", "EUR_USD", 56.5), ("BUY", "EURUSD=X", 56.5),
+        ("BUY", "GBP_USD", 56.1), ("BUY", "GBPUSD=X", 56.1),
+    ],
+}
+
 # ── API認証 (Bearer Token) ──────────────────────────────
 # 環境変数 API_AUTH_TOKEN が設定されている場合、POST/PUT/DELETE の
 # 破壊的APIエンドポイントに Bearer token 認証を要求する。
@@ -3013,6 +3034,102 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     except Exception as e:
         print(f"[SREntryMap] {e}")
 
+    # ════════════════════════════════════════════════════════
+    #  統計的エッジ戦略 (Bonferroni-corrected, p<0.000287)
+    #  既存シグナルが WAIT or 低確度のときのみ発火
+    # ════════════════════════════════════════════════════════
+
+    # ── Strategy: ny_close_reversal — NYクローズ時間帯バイアス (UTC 20-22) ──
+    if _ENABLE_NY_CLOSE_REVERSAL and (signal == "WAIT" or conf < 50):
+        try:
+            _nyc_bar = bar_time if bar_time else datetime.now(timezone.utc)
+            _nyc_hour = _nyc_bar.hour if hasattr(_nyc_bar, 'hour') else df.index[-1].hour
+            if _nyc_hour in _NY_CLOSE_BIAS:
+                _nyc_sym = symbol.upper().replace("=X", "").replace("/", "_")
+                if len(_nyc_sym) == 6:
+                    _nyc_sym = _nyc_sym[:3] + "_" + _nyc_sym[3:]
+                for _nyc_dir, _nyc_pair, _nyc_wr in _NY_CLOSE_BIAS[_nyc_hour]:
+                    _nyc_pair_norm = _nyc_pair.upper().replace("=X", "").replace("/", "_")
+                    if len(_nyc_pair_norm) == 6:
+                        _nyc_pair_norm = _nyc_pair_norm[:3] + "_" + _nyc_pair_norm[3:]
+                    if _nyc_sym == _nyc_pair_norm:
+                        _nyc_conf = int(55 + (_nyc_wr - 50) * 2)
+                        signal = _nyc_dir
+                        conf = _nyc_conf
+                        _dt_entry_type = "ny_close_reversal"
+                        reasons.append(f"✅ [NYClose] H{_nyc_hour} {_nyc_dir} WR={_nyc_wr}% (Bonferroni p<0.001)")
+                        break
+        except Exception as _nyc_err:
+            print(f"[ny_close_reversal] {_nyc_err}")
+
+    # ── Strategy: streak_reversal — 連続足反転 (USD_JPY only) ──
+    if _ENABLE_STREAK_REVERSAL and len(df) >= 6:
+        try:
+            _stk_sym = symbol.upper().replace("=X", "")
+            if "JPY" in _stk_sym and "USD" in _stk_sym:
+                # Count consecutive bearish candles (Close < Open)
+                _stk_bearish = 0
+                for _si in range(1, min(8, len(df))):
+                    _sr = df.iloc[-_si]
+                    if float(_sr["Close"]) < float(_sr["Open"]):
+                        _stk_bearish += 1
+                    else:
+                        break
+                # Count consecutive bullish candles (Close > Open)
+                _stk_bullish = 0
+                for _si in range(1, min(8, len(df))):
+                    _sr = df.iloc[-_si]
+                    if float(_sr["Close"]) > float(_sr["Open"]):
+                        _stk_bullish += 1
+                    else:
+                        break
+
+                _stk_streak = max(_stk_bearish, _stk_bullish)
+                if _stk_streak >= 3:
+                    _stk_bonus = _stk_streak * 3  # 3→+9, 4→+12, 5→+15
+                    _stk_dir = "BUY" if _stk_bearish >= 3 else "SELL"
+                    if signal == "WAIT" or signal == _stk_dir:
+                        # No signal or same direction: apply as primary or boost
+                        if signal == "WAIT":
+                            signal = _stk_dir
+                            _dt_entry_type = "streak_reversal"
+                            conf = 50 + _stk_bonus
+                        else:
+                            conf = min(92, conf + _stk_bonus)
+                        reasons.append(f"✅ [Streak] {_stk_streak}連続{'陰線→BUY' if _stk_dir == 'BUY' else '陽線→SELL'} (Bonferroni p<0.001)")
+                    elif signal != "WAIT":
+                        # Counter-signal: reduce confidence
+                        conf = max(25, conf - _stk_bonus)
+                        reasons.append(f"⚠️ [Streak] {_stk_streak}連続足が{signal}と逆行 → 確度DOWN")
+        except Exception as _stk_err:
+            print(f"[streak_reversal] {_stk_err}")
+
+    # ── Strategy: vwap_mean_reversion — VWAP-2σ回帰 (Massive API only) ──
+    if _ENABLE_VWAP_MEAN_REVERSION and "vwap" in df.columns and (signal == "WAIT" or conf < 50):
+        try:
+            _vmr_vwap = float(row["vwap"])
+            if _vmr_vwap > 0 and len(df) >= 50:
+                _vmr_dev = (entry - _vmr_vwap) / _vmr_vwap * 100
+                _vmr_dev_series = ((df["Close"] - df["vwap"]) / df["vwap"] * 100).tail(50)
+                _vmr_std = float(_vmr_dev_series.std())
+                if _vmr_std > 0:
+                    if _vmr_dev < -2 * _vmr_std:
+                        # Price below VWAP-2σ → BUY
+                        _vmr_conf = int(55 + min(10, abs(_vmr_dev) * 5))
+                        signal = "BUY"
+                        conf = _vmr_conf
+                        _dt_entry_type = "vwap_mean_reversion"
+                        reasons.append(f"✅ [VWAP-MR] Price < VWAP-2σ ({_vmr_dev:.2f}%, σ={_vmr_std:.2f}) → BUY (Bonferroni p<0.001)")
+                    elif _vmr_dev > 2 * _vmr_std:
+                        # Price above VWAP+2σ → SELL (weaker edge)
+                        _vmr_conf = int(50 + min(5, abs(_vmr_dev) * 3))
+                        signal = "SELL"
+                        conf = _vmr_conf
+                        _dt_entry_type = "vwap_mean_reversion"
+                        reasons.append(f"✅ [VWAP-MR] Price > VWAP+2σ ({_vmr_dev:+.2f}%, σ={_vmr_std:.2f}) → SELL (Bonferroni p<0.001)")
+        except Exception as _vmr_err:
+            print(f"[vwap_mean_reversion] {_vmr_err}")
+
     # ── 金曜フィルター: 週末前はDTを時間帯別にブロック ──
     if signal != "WAIT":
         try:
@@ -5073,6 +5190,9 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "sr_channel_reversal",    # SR/チャネルバウンス反発
                 "engulfing_bb",           # 包み足+BB極端
                 "three_bar_reversal",     # 3本足反転パターン
+                # v8.9: 統計的エッジ戦略 (Bonferroni p<0.000287)
+                "streak_reversal",        # 連続足反転 (USD_JPY)
+                "vwap_mean_reversion",    # VWAP-2σ回帰 (Massive API only)
             }
             BLOCKED_TYPES = {"unknown", "momentum", "wait"}
 
@@ -5706,6 +5826,10 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "dt_sr_channel_reversal",         # DT SR/チャネル反発 — Sentinel蓄積
                 "ema200_trend_reversal",          # EMA200ブレイクリテスト — Sentinel蓄積
                 "post_news_vol",                  # ニュース後ボラ — Sentinel再検証
+                # v8.9: 統計的エッジ戦略 (Bonferroni p<0.000287)
+                "ny_close_reversal",             # NYクローズ時間帯バイアス (UTC 20-22)
+                "streak_reversal",               # 連続足反転 (USD_JPY)
+                "vwap_mean_reversion",           # VWAP-2σ回帰 (Massive API only)
                 # DISABLED: ihs_neckbreak (2t EV≒0), dual_sr_breakout
             }
             DT_BLOCKED = {"unknown", "wait"}
@@ -7973,6 +8097,79 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             score *= 0.85
             conf = int(conf * 0.90)
             reasons.append(f"⚠️ HTF逆行(平均回帰許容) — 軽度減衰")
+
+    # ════════════════════════════════════════════════════════
+    #  統計的エッジ戦略 (Bonferroni-corrected, p<0.000287)
+    #  既存シグナルが WAIT or 低確度のときのみ発火 (scalp版)
+    # ════════════════════════════════════════════════════════
+
+    # ── streak_reversal — 連続足反転 (USD_JPY only, scalp) ──
+    if _ENABLE_STREAK_REVERSAL and len(df) >= 6:
+        try:
+            _stk_sym_sc = symbol.upper().replace("=X", "")
+            if "JPY" in _stk_sym_sc and "USD" in _stk_sym_sc:
+                _stk_bearish_sc = 0
+                for _si_sc in range(1, min(8, len(df))):
+                    _sr_sc = df.iloc[-_si_sc]
+                    if float(_sr_sc["Close"]) < float(_sr_sc["Open"]):
+                        _stk_bearish_sc += 1
+                    else:
+                        break
+                _stk_bullish_sc = 0
+                for _si_sc in range(1, min(8, len(df))):
+                    _sr_sc = df.iloc[-_si_sc]
+                    if float(_sr_sc["Close"]) > float(_sr_sc["Open"]):
+                        _stk_bullish_sc += 1
+                    else:
+                        break
+
+                _stk_streak_sc = max(_stk_bearish_sc, _stk_bullish_sc)
+                if _stk_streak_sc >= 3:
+                    _stk_bonus_sc = _stk_streak_sc * 3
+                    _stk_dir_sc = "BUY" if _stk_bearish_sc >= 3 else "SELL"
+                    if signal == "WAIT" or signal == _stk_dir_sc:
+                        if signal == "WAIT":
+                            signal = _stk_dir_sc
+                            entry_type = "streak_reversal"
+                            conf = 50 + _stk_bonus_sc
+                            sl = entry - atr * 0.5 if _stk_dir_sc == "BUY" else entry + atr * 0.5
+                            tp = entry + atr * 1.2 if _stk_dir_sc == "BUY" else entry - atr * 1.2
+                        else:
+                            conf = min(92, conf + _stk_bonus_sc)
+                        reasons.append(f"✅ [Streak] {_stk_streak_sc}連続{'陰線→BUY' if _stk_dir_sc == 'BUY' else '陽線→SELL'} (Bonferroni p<0.001)")
+                    elif signal != "WAIT":
+                        conf = max(25, conf - _stk_bonus_sc)
+                        reasons.append(f"⚠️ [Streak] {_stk_streak_sc}連続足が{signal}と逆行 → 確度DOWN")
+        except Exception as _stk_err_sc:
+            print(f"[streak_reversal/scalp] {_stk_err_sc}")
+
+    # ── vwap_mean_reversion — VWAP-2σ回帰 (Massive API only, scalp) ──
+    if _ENABLE_VWAP_MEAN_REVERSION and "vwap" in df.columns and (signal == "WAIT" or conf < 50):
+        try:
+            _vmr_vwap_sc = float(row["vwap"])
+            if _vmr_vwap_sc > 0 and len(df) >= 50:
+                _vmr_dev_sc = (entry - _vmr_vwap_sc) / _vmr_vwap_sc * 100
+                _vmr_dev_series_sc = ((df["Close"] - df["vwap"]) / df["vwap"] * 100).tail(50)
+                _vmr_std_sc = float(_vmr_dev_series_sc.std())
+                if _vmr_std_sc > 0:
+                    if _vmr_dev_sc < -2 * _vmr_std_sc:
+                        _vmr_conf_sc = int(55 + min(10, abs(_vmr_dev_sc) * 5))
+                        signal = "BUY"
+                        conf = _vmr_conf_sc
+                        entry_type = "vwap_mean_reversion"
+                        sl = entry - atr * 0.5
+                        tp = entry + atr * 1.2
+                        reasons.append(f"✅ [VWAP-MR] Price < VWAP-2σ ({_vmr_dev_sc:.2f}%, σ={_vmr_std_sc:.2f}) → BUY (Bonferroni p<0.001)")
+                    elif _vmr_dev_sc > 2 * _vmr_std_sc:
+                        _vmr_conf_sc = int(50 + min(5, abs(_vmr_dev_sc) * 3))
+                        signal = "SELL"
+                        conf = _vmr_conf_sc
+                        entry_type = "vwap_mean_reversion"
+                        sl = entry + atr * 0.5
+                        tp = entry - atr * 1.2
+                        reasons.append(f"✅ [VWAP-MR] Price > VWAP+2σ ({_vmr_dev_sc:+.2f}%, σ={_vmr_std_sc:.2f}) → SELL (Bonferroni p<0.001)")
+        except Exception as _vmr_err_sc:
+            print(f"[vwap_mean_reversion/scalp] {_vmr_err_sc}")
 
     # ── SL/TP最終調整: 最低距離保証 + RR保証 ──
     sl_dist = abs(entry - sl)

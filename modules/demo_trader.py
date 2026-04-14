@@ -2863,6 +2863,10 @@ class DemoTrader:
             # v8.8: 生データアルファマイニング (2026-04-12)
             "vol_spike_mr",                  # Vol Spike MR: 3x range spike → fade (BT JPY PF=1.92)
             "doji_breakout",                 # Doji Breakout: 3連続doji → breakout follow
+            # v8.9: 統計的エッジ戦略 (Bonferroni p<0.000287, 174 hypotheses)
+            "ny_close_reversal",             # NYクローズ時間帯バイアス: UTC 20-22 directional bias
+            "streak_reversal",               # 連続足反転: 3-5 streak → reversal (USD_JPY)
+            "vwap_mean_reversion",           # VWAP-2σ回帰: Price below/above VWAP-2σ → bounce
             # v7.0 Sentinel再有効化 — デモデータ蓄積で再検証 (2026-04-09)
             "post_news_vol",                 # PNV: 指標後ボラ — Sentinel蓄積中
             "dt_fib_reversal",               # DTフィボ反転 — Sentinel蓄積中
