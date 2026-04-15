@@ -136,6 +136,12 @@ def parse_bt_scan():
 # ══════════════════════════════════════════════════════════════
 
 
+# Manual notes for strategies (override auto-generated notes in SHADOW section)
+_SHADOW_NOTES_OVERRIDE = {
+    "vol_momentum_scalp": "BT negative EV confirmed (1m/5m), Live WR=80% was N=10 luck",
+}
+
+
 def classify_strategies(sets: dict, bt: dict) -> str:
     """Build the markdown portfolio table from parsed sets and BT data."""
     elite = sets["elite_live"]
@@ -206,6 +212,11 @@ def classify_strategies(sets: dict, bt: dict) -> str:
     sentinel_only = (scalp_sentinel | universal_sentinel) - elite - force_demoted - pair_promoted_strats
     shadow_strats |= sentinel_only
 
+    # Also include strategies with manual shadow notes
+    for strat in _SHADOW_NOTES_OVERRIDE:
+        if strat not in elite and strat not in pair_promoted_strats:
+            shadow_strats.add(strat)
+
     if shadow_strats:
         lines.append("### SHADOW (Data Collection)")
         lines.append("| Strategy | BT Data | Notes |")
@@ -213,8 +224,10 @@ def classify_strategies(sets: dict, bt: dict) -> str:
         for strat in sorted(shadow_strats):
             dash_name = strat.replace("_", "-")
             bt_info = _bt_summary(strat, bt)
-            sentinel_tag = ""
-            if strat in scalp_sentinel:
+            # Use manual override note if available
+            if strat in _SHADOW_NOTES_OVERRIDE:
+                sentinel_tag = _SHADOW_NOTES_OVERRIDE[strat]
+            elif strat in scalp_sentinel:
                 sentinel_tag = "SCALP_SENTINEL"
             elif strat in universal_sentinel:
                 sentinel_tag = "UNIVERSAL_SENTINEL"
@@ -226,18 +239,22 @@ def classify_strategies(sets: dict, bt: dict) -> str:
         lines.append("")
 
     # ── FORCE_DEMOTED ──
+    # Skip strategies that are already in ELITE_LIVE or have active PAIR_PROMOTED entries
+    force_demoted_display = set()
+    for strat in force_demoted:
+        if strat in elite:
+            continue  # Already shown in ELITE_LIVE
+        if strat in pair_promoted_strats:
+            continue  # Already shown in PAIR_PROMOTED (SENTINEL)
+        force_demoted_display.add(strat)
+
     lines.append("### FORCE_DEMOTED (stopped)")
     lines.append("| Strategy | BT Data | Status |")
     lines.append("|----------|---------|--------|")
-    for strat in sorted(force_demoted):
+    for strat in sorted(force_demoted_display):
         dash_name = strat.replace("_", "-")
         bt_info = _bt_summary(strat, bt)
-        # Check if any pair_promoted overrides exist
-        overrides = [p for s, p in pair_promoted if s == strat]
-        override_note = ""
-        if overrides:
-            override_note = f" (PAIR_PROMOTED: {', '.join(sorted(overrides))})"
-        lines.append(f"| [[{dash_name}]] | {bt_info} | FORCE_DEMOTED{override_note} |")
+        lines.append(f"| [[{dash_name}]] | {bt_info} | FORCE_DEMOTED |")
     lines.append("")
 
     return "\n".join(lines)

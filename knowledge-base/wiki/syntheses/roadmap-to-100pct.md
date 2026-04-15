@@ -1,3 +1,5 @@
+> **SUPERSEDED**: This document has been superseded by [[roadmap-v2.1]]. Kept for historical reference only.
+
 # ロードマップ: 月利100%達成への具体的タイムスケジュール
 
 **作成日**: 2026-04-12

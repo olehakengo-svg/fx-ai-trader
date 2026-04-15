@@ -1,3 +1,5 @@
+> **注意**: このファイルのN値は個別戦略ではなくDTモード全体の集計値。comprehensive-bt-scan-2026-04-14.md の個別戦略BTが正確な値。
+
 # SHADOW BT再評価 — Massive品質データ (2026-04-14)
 
 **目的**: Phase 0 SHADOW化された戦略のBT再評価（復活候補発掘）

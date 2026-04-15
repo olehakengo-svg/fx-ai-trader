@@ -1,6 +1,13 @@
 # Session Time Bias — セッション時刻バイアス
 
-## Stage: PROMOTED (v8.6, 3ペア PAIR_PROMOTED)
+## Stage: ELITE_LIVE (v2.1)
+
+### 365-day BT Scan Results
+| Pair | EV | WR | N |
+|------|----|----|---|
+| USD_JPY | +0.580 | 79.0% | 157 |
+| EUR_USD | +0.215 | 69.6% | 566 |
+| GBP_USD | +0.113 | 67.1% | 516 |
 
 ## Hypothesis
 通貨は自国のトレーディング時間帯に減価する傾向がある（Breedon & Ranaldo 2013）。東京時間にJPY売り、ロンドン時間にGBP売りの方向性ドリフトが存在。

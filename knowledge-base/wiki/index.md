@@ -50,39 +50,42 @@
 | [[three-bar-reversal]] | no BT data | UNIVERSAL_SENTINEL |
 | [[trend-rebound]] | no BT data | UNIVERSAL_SENTINEL |
 | [[v-reversal]] | no BT data | UNIVERSAL_SENTINEL |
+| [[vol-momentum-scalp]] | no BT data | BT negative EV confirmed (1m/5m), Live WR=80% was N=10 luck |
 | [[vol-spike-mr]] | USD_JPY: EV=+0.148 WR=64.6% | UNIVERSAL_SENTINEL |
 | [[vol-surge-detector]] | no BT data | SCALP_SENTINEL |
 
 ### FORCE_DEMOTED (stopped)
 | Strategy | BT Data | Status |
 |----------|---------|--------|
-| [[bb-squeeze-breakout]] | no BT data | FORCE_DEMOTED (PAIR_PROMOTED: EUR_USD, USD_JPY) |
 | [[dt-bb-rsi-mr]] | EUR_USD: EV=-0.077 WR=52.0%; GBP_USD: EV=-0.135 WR=51.3%; USD_JPY: EV=-0.023 WR=54.2% | FORCE_DEMOTED |
 | [[dual-sr-bounce]] | USD_JPY: EV=+0.280 WR=70.3% | FORCE_DEMOTED |
 | [[ema-cross]] | no BT data | FORCE_DEMOTED |
-| [[ema-pullback]] | no BT data | FORCE_DEMOTED (PAIR_PROMOTED: USD_JPY) |
 | [[ema-ribbon-ride]] | no BT data | FORCE_DEMOTED |
-| [[engulfing-bb]] | no BT data | FORCE_DEMOTED (PAIR_PROMOTED: EUR_USD) |
-| [[fib-reversal]] | no BT data | FORCE_DEMOTED (PAIR_PROMOTED: EUR_USD) |
 | [[inducement-ob]] | no BT data | FORCE_DEMOTED |
 | [[lin-reg-channel]] | no BT data | FORCE_DEMOTED |
 | [[macdh-reversal]] | no BT data | FORCE_DEMOTED |
 | [[pivot-breakout]] | no BT data | FORCE_DEMOTED |
 | [[sr-break-retest]] | no BT data | FORCE_DEMOTED |
-| [[sr-channel-reversal]] | no BT data | FORCE_DEMOTED (PAIR_PROMOTED: EUR_USD) |
 | [[sr-fib-confluence]] | EUR_USD: EV=+0.103 WR=64.9%; USD_JPY: EV=+0.252 WR=67.7% | FORCE_DEMOTED |
 | [[stoch-trend-pullback]] | no BT data | FORCE_DEMOTED |
-| [[trendline-sweep]] | EUR_USD: EV=+0.927 WR=80.8%; GBP_USD: EV=+0.599 WR=73.1% | FORCE_DEMOTED (PAIR_PROMOTED: EUR_USD, GBP_USD) |
 
 <!-- KB_PORTFOLIO_END -->
 
-## System State (v8.9)
+## System State (v9.0+ / v2.1)
 - Defensive mode: **0.2x** (DD=12.39%, defensive mode — v8.4以降クリーンデータ起点)
 - XAU: **Stopped** (v8.4) -- post-cutoff XAU loss = -2,280pip (102% of total loss)
 - FX-only post-cutoff: **-646pip (赤字)**
 - Ruin probability: ~100% (Kelly=-0.18, aggregate edge negative — recalc needed with clean data)
 - scalp_eurjpy: **Stopped** (v8.6) -- friction/ATR=43.6%, 構造的不可能
 - scalp_5m_eur / scalp_5m_gbp: **Active** (v8.6) -- 5m摩擦改善モード
+- New modes (v9.0): **daytrade_eurjpy**, **daytrade_gbpjpy**, **rnb_usdjpy** (all auto_start)
+- ELITE_LIVE tier (v2.1): session_time_bias, trendline_sweep, gbp_deep_pullback
+- SHADOW_MODE: **active** (env SHADOW_MODE=true)
+- Massive API: **primary data source** (全6ペア×全TF)
+- New strategies (v2.1): ny_close_reversal, streak_reversal, vwap_mean_reversion
+- Aggregate Kelly gate: **実装済み** (v9.0) -- Kelly<0で自動ブロック
+- MC ruin gate: **実装済み** (v9.0) -- 取引前に破産確率チェック
+- Phase Gate API: `/api/phase-gate` (Gate 1-4条件をエンドポイントで公開)
 - DSR: **実装済み** (v8.6) -- Bailey & Lopez de Prado (2014)
 - BT Friction Model: **v3** (v8.7) -- Spread/SL Gate + RANGE TP + Quick-Harvest反映
 - 金曜/月曜ブロック: **撤去済み** (v8.6) -- 原則#1「攻める」準拠

@@ -1,3 +1,5 @@
+> **SUPERSEDED**: This document has been superseded by [[roadmap-v2.1]]. Kept for historical reference only.
+
 # ロードマップ v2.0: A+B+C三位一体 — 月利100%→年利1,200%
 
 **作成日**: 2026-04-14

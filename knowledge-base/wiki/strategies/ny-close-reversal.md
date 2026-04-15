@@ -23,6 +23,12 @@ NY session close (UTC 20:00-22:00) directional bias reversal. Enters counter-tre
 - PAIR_DEMOTED: none
 - PAIR_PROMOTED: none
 
+## v2.1 Fix: TP/SL問題
+- **問題**: TP_HITでPnL負の問題
+- **原因**: TPがスプレッド以下に設定されていた（旧設定）
+- **修正**: SL/TP をATR×1.0/1.5に設定（旧: TPがスプレッド以下）
+- ATR×1.0 SL + ATR×1.5 TP でRR=1.5を確保
+
 ## Related
 - [[index]] — Tier classification
 - [[roadmap-v2.1]] — Portfolio strategy

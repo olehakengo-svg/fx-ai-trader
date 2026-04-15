@@ -1,6 +1,6 @@
 # vol_momentum_scalp
 
-## Status: Tier 2 (Sentinel, BOOST 1.0x)
+## Status: SHADOW (v2.1: BT N=87 EV=-0.014 negative, Live WR=80% was N=10 luck)
 **0% instant death rate — system benchmark for entry quality.**
 
 ## Performance

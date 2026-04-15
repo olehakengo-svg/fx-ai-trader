@@ -171,6 +171,14 @@
 - XAU/USD: 専用フィルター閾値 + gold_trend_momentum新規戦略
 - Sentinel N蓄積状況: bb_rsi N=23, fib N=20 (WR劇的改善)
 
+### v9.0+ Active Modes (17+ active)
+
+| Mode | Pair | TF | Strategy | auto_start |
+|------|------|----|----------|------------|
+| daytrade_eurjpy | EUR_JPY | 15m | VWAP MR α | True |
+| daytrade_gbpjpy | GBP_JPY | 15m | VWAP MR α | True |
+| rnb_usdjpy | USD_JPY | — | Round Number Barrier | True |
+
 ### v8.0-v8.9 (2026-04-10〜13)
 - 詳細は [[changelog]] を参照
 - v8.3: 確認足フィルター
