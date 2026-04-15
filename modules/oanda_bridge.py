@@ -53,10 +53,12 @@ class OandaBridge:
         self._execution_audit = []    # 直近50件
         self._max_audit = 50
 
-    # デフォルト全モード（OANDA_MODES未設定 かつ DB設定なし の場合）
+    # デフォルト全モード — MODE_CONFIGと同期（UI表示用）
+    # v9.0: is_mode_allowed()は常にTrue。_ALL_MODESはUI状態表示のみに使用
     _ALL_MODES = {"scalp", "daytrade", "daytrade_1h", "scalp_eur", "daytrade_eur", "daytrade_1h_eur", "scalp_eurjpy",
                    "scalp_xau", "rnb_usdjpy", "daytrade_gbpusd", "daytrade_eurgbp", "daytrade_xau",
-                   "scalp_5m", "scalp_5m_eur", "scalp_5m_gbp"}  # v8.9: 5mモード追加
+                   "scalp_5m", "scalp_5m_eur", "scalp_5m_gbp",
+                   "daytrade_eurjpy", "daytrade_gbpjpy"}  # v9.0: 全モード追加
 
     def _load_allowed_modes(self) -> set:
         """DB永続 > 環境変数 > 全モード許可 の優先順で読み込み.
@@ -319,10 +321,10 @@ class OandaBridge:
         return self._enabled and self._client.configured
 
     def is_mode_allowed(self, mode: str) -> bool:
-        """指定モードがOANDA連携対象か判定。空=全モード許可。"""
-        if not self._allowed_modes:
-            return True  # 未設定 → 全モード連携
-        return mode in self._allowed_modes
+        """v9.0: 常にTrue — OANDA転送可否はKelly Gate/MC Ruin/3層Tierで制御。
+        モード単位の手動ON/OFFはN蓄積を阻害するため廃止。
+        UIボタンは監視用に残すが、転送判定には影響しない。"""
+        return True
 
     def _log_error(self, msg: str):
         from datetime import datetime, timezone
