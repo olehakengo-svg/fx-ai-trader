@@ -108,6 +108,33 @@ if [[ -f "$INDEX_FILE" ]]; then
     fi
 fi
 
+# ── Quick Reference: ロードマップ + 摩擦 + BT TOP戦略 + 判断プロトコル ──
+QUICK_REF=""
+
+# ロードマップv2.1サマリー
+ROADMAP_FILE="$ROOT/knowledge-base/wiki/syntheses/roadmap-v2.1.md"
+if [[ -f "$ROADMAP_FILE" ]]; then
+    ROADMAP=$(awk '/^## コンセプト/,/^## 二軸構造/' "$ROADMAP_FILE" 2>/dev/null | head -10 | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
+    QUICK_REF="${QUICK_REF}ROADMAP: ${ROADMAP}\\n"
+fi
+
+# 摩擦テーブル（コンパクト版）
+FRICTION_FILE="$ROOT/knowledge-base/wiki/analyses/friction-analysis.md"
+if [[ -f "$FRICTION_FILE" ]]; then
+    FRICTION=$(awk '/^## Per-Pair Friction/,/^## Aggregate/' "$FRICTION_FILE" 2>/dev/null | head -12 | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
+    QUICK_REF="${QUICK_REF}FRICTION: ${FRICTION}\\n"
+fi
+
+# BT TOP 5 正EV戦略
+BT_FILE="$ROOT/knowledge-base/raw/bt-results/comprehensive-bt-scan-2026-04-14.md"
+if [[ -f "$BT_FILE" ]]; then
+    BT_TOP=$(awk '/^## クオンツ判断/,/^## 注意/' "$BT_FILE" 2>/dev/null | head -15 | sed 's/"/\\"/g; s/$/\\n/' | tr -d '\n' || true)
+    QUICK_REF="${QUICK_REF}BT_TOP5: ${BT_TOP}\\n"
+fi
+
+# 判断プロトコルリマインダー
+QUICK_REF="${QUICK_REF}DECISION_PROTOCOL: 判断前に必ず確認: (1)根拠=365日BT or Live N>=30か？ (2)どのKBページを読んだか？ (3)バグ修正かパラメータ変更か？ (4)感情的動機でないか？ → 1日データで対策実装は禁止（lesson-reactive-changes参照）\\n"
+
 # 漏れ防止セクションを最上位に配置（pending>0の場合のみ）
 LEAKED_SECTION=""
 if [[ -n "$LEAKED" ]]; then
@@ -115,5 +142,5 @@ if [[ -n "$LEAKED" ]]; then
 fi
 
 cat <<ENDJSON
-{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"=== KB AUTO-LOAD ===\\n\\n${LEAKED_SECTION}--- INDEX (Tier + System State) ---\\n${INDEX}\\n\\n--- SESSION CONTEXT (${UNRESOLVED_LABEL}) ---\\n${SESSION_SUMMARY}\\n\\n--- UNRESOLVED ITEMS ---\\n${UNRESOLVED}\\n\\n--- LESSONS (過去の間違い — 繰り返すな) ---\\n${LESSONS}\\n\\n--- LATEST DAILY REPORT ---\\n${DAILY}\\n\\n--- ANALYST MEMORY ---\\n${ANALYST}\\n\\n--- KB DRIFT WARNINGS ---\\n${DRIFT}\\n\\n--- KB INTEGRITY AUDIT ---\\n${KB_AUDIT}\\n=== END KB AUTO-LOAD ==="}}
+{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"=== KB AUTO-LOAD ===\\n\\n${LEAKED_SECTION}--- QUICK REFERENCE (判断前に必ず確認) ---\\n${QUICK_REF}\\n\\n--- INDEX (Tier + System State) ---\\n${INDEX}\\n\\n--- SESSION CONTEXT (${UNRESOLVED_LABEL}) ---\\n${SESSION_SUMMARY}\\n\\n--- UNRESOLVED ITEMS ---\\n${UNRESOLVED}\\n\\n--- LESSONS (過去の間違い — 繰り返すな) ---\\n${LESSONS}\\n\\n--- LATEST DAILY REPORT ---\\n${DAILY}\\n\\n--- ANALYST MEMORY ---\\n${ANALYST}\\n\\n--- KB DRIFT WARNINGS ---\\n${DRIFT}\\n\\n--- KB INTEGRITY AUDIT ---\\n${KB_AUDIT}\\n=== END KB AUTO-LOAD ==="}}
 ENDJSON
