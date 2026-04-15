@@ -200,24 +200,90 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 
 /* ── Mobile ── */
 @media(max-width:768px){
-  .cockpit{grid-template-columns:1fr;grid-template-rows:auto 1fr}
-  .sidebar{flex-direction:row;overflow-x:auto;overflow-y:hidden;border-right:none;border-bottom:1px solid var(--border);max-height:70px}
-  .sidebar::-webkit-scrollbar{height:3px}
-  .pair-group{display:flex;align-items:center;border-bottom:none;border-right:1px solid var(--border);flex-shrink:0;padding:4px 0}
-  .pair-header{padding:4px 8px;border-left:none;border-bottom:2px solid transparent;font-size:11px}
+  /* スクロール全体を有効化 */
+  body{overflow:auto}
+
+  /* ── トップバー ── */
+  .topbar{height:auto;min-height:42px;flex-wrap:wrap;padding:6px 10px;gap:6px}
+  .topbar h1{font-size:13px;flex-shrink:0}
+  .topbar-r{gap:6px;flex-wrap:wrap}
+  .topbar a{font-size:12px;padding:4px 6px;min-height:36px;display:flex;align-items:center}
+  .tb{min-height:36px;min-width:36px;padding:4px 8px;font-size:13px}
+  #status-text{font-size:11px}
+
+  /* ── コックピットレイアウト ── */
+  .cockpit{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:auto;min-height:100vh}
+
+  /* ── サイドバー: 横スクロールタブ ── */
+  .sidebar{flex-direction:row;overflow-x:auto;overflow-y:hidden;
+    border-right:none;border-bottom:1px solid var(--border);
+    max-height:80px;flex-shrink:0;scrollbar-width:none}
+  .sidebar::-webkit-scrollbar{height:0}
+  .pair-group{display:flex;align-items:center;border-bottom:none;
+    border-right:1px solid var(--border);flex-shrink:0;padding:4px 0}
+  .pair-header{padding:5px 10px;border-left:none;border-bottom:3px solid transparent;
+    font-size:11px;white-space:nowrap}
   .pair-header.active{border-left-color:transparent;border-bottom-color:var(--blue)}
-  .mode-list{display:flex;padding:0 4px;gap:2px}
+  .mode-list{display:flex;padding:0 4px;gap:3px;align-items:center}
   .mode-row{padding:0}
+  .mode-btn{font-size:11px;padding:4px 8px;min-height:32px;white-space:nowrap}
   .oa-btn{display:none}
   .oanda-section{display:none}
-  #main-chart{min-height:200px}
-  .stats-bar{gap:14px;padding:5px 10px}
+
+  /* ── メインコンテンツ ── */
+  .main{overflow:visible}
+  #main-chart{min-height:220px}
+
+  /* ── タイムフレームバー ── */
+  .tf-bar{padding:4px 8px;flex-wrap:wrap;gap:4px}
+  .tf-tabs{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}
+  .tf-tabs::-webkit-scrollbar{display:none}
+  .tf-btn{padding:4px 12px;font-size:11px;min-height:32px;flex-shrink:0}
+  #chart-title{font-size:11px}
+
+  /* ── 統計バー ── */
+  .stats-bar{gap:14px;padding:5px 10px;flex-wrap:wrap;overflow-x:auto}
+  .stat-label{font-size:9px}
   .stat-val{font-size:12px}
   .stat-item-hero .stat-val{font-size:15px}
+
+  /* ── 統計フィルター ── */
+  .stats-filter{gap:4px;padding:4px 8px}
+  .stats-filter input[type="date"]{width:100px;font-size:11px}
+  .sf-btn{padding:3px 8px;font-size:10px;min-height:28px}
+  #sf-mode{font-size:11px}
+
+  /* ── オープンポジション ── */
   .pos-card{padding:8px 10px}
   .pos-pair-name{font-size:13px}
+  .pos-flag{font-size:16px}
+  .pos-dir{font-size:11px;padding:3px 8px;min-height:24px}
   .pos-pnl-badge{font-size:14px;padding:3px 10px;min-width:66px}
-  .pos-detail{flex-wrap:wrap;gap:5px}
+  .pos-amount{font-size:11px}
+  .pos-detail{flex-wrap:wrap;gap:5px;font-size:11px}
+  .pos-strat{font-size:10px;padding:3px 8px;min-height:24px}
+  .pos-type{max-width:100%;font-size:10px}
+  .pos-hold{font-size:10px}
+  .btn-s{padding:4px 10px;font-size:10px;min-height:28px}
+
+  /* ── 戦略パネル ── */
+  .strat-cat{font-size:10px;padding:4px 10px}
+  .strat-row{font-size:11px;padding:4px 10px}
+  .strat-metrics{font-size:10px}
+
+  /* ── ログ ── */
+  #demo-log{font-size:11px;max-height:130px}
+  .log-line{font-size:11px}
+
+  /* ── トレードログ ── */
+  #trade-log{font-size:10px;max-height:240px;line-height:1.6}
+  .tl-pair{font-size:12px}
+  .tl-strat{font-size:10px}
+  .tl-line2{font-size:10px}
+  .tl-line3{font-size:10px}
+  .tl-reason{font-size:10px;padding:2px 7px}
+  .tl-result{font-size:11px}
+  .panel-hdr{font-size:12px;padding:7px 10px}
   /* ── Mobile OANDA Emergency Panel ── */
   .mob-oa{
     display:flex;position:fixed;bottom:0;left:0;right:0;

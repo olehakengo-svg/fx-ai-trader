@@ -345,25 +345,119 @@ body{background:var(--bg0);color:var(--t1);
 
 /* ── Mobile responsiveness ─────────────────── */
 @media(max-width:768px){
+  /* ── Base ── */
   html,body{height:auto!important;overflow:auto!important;overflow-x:hidden!important}
   body{display:block!important}
-  .hdr{height:auto;min-height:52px;flex-wrap:wrap;padding:8px 10px;gap:6px}
-  .logo{font-size:13px;flex-basis:100%}
-  .hdr-price{font-size:18px}
-  .tf-bar{overflow-x:auto;flex-shrink:1;-webkit-overflow-scrolling:touch}
-  .tf-btn{min-width:44px;min-height:44px;padding:8px 10px;font-size:12px}
-  .strat-btn{min-width:44px;min-height:44px;padding:8px 10px;font-size:12px}
-  .hdr-right{flex-basis:100%;justify-content:flex-end}
-  .btn-refresh,.btn-notif{min-height:44px;min-width:44px;padding:8px 12px;font-size:12px}
-  .charts-col{display:flex!important;flex:none!important;height:300px;order:-1;flex-direction:column}
-  #wrap-price{flex:1!important;min-height:280px}
-  #wrap-rsi,#wrap-macd{display:none;flex:none!important}
-  .chart-label{font-size:8px;top:4px;left:6px;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
-  .panel{width:100%;border-left:none;overflow-y:visible}
+
+  /* ── Header: 4行レイアウト ── */
+  .hdr{height:auto;min-height:auto;flex-wrap:wrap;padding:8px 10px 4px;gap:0;align-items:center;
+    background:linear-gradient(180deg,#1a2233 0%,var(--bg1) 100%)}
+
+  /* 行1: ロゴ（全幅） */
+  .logo{font-size:13px;flex-basis:100%;margin-bottom:4px}
+
+  /* 行2: 価格 + バッジ類（1行、自然に並ぶ） */
+  .hdr-price{font-size:20px;flex-shrink:0;margin-bottom:4px}
+  .hdr-chg{font-size:11px;flex-shrink:0;margin-left:5px;align-self:flex-end;margin-bottom:6px}
+  #price-source{display:none!important}
+  #ohlcv-source{display:none!important}
+  #hdr-badge{margin-left:6px}
+  #session-badge{margin-left:4px;font-size:9px;padding:2px 6px}
+
+  /* 行3: タイムフレームバー（全幅・横スクロール） */
+  .tf-bar{flex-basis:100%;overflow-x:auto;flex-shrink:0;
+    -webkit-overflow-scrolling:touch;scroll-snap-type:x mandatory;
+    padding:2px 0;margin-bottom:4px;
+    /* スクロールバー非表示 */
+    scrollbar-width:none}
+  .tf-bar::-webkit-scrollbar{display:none}
+  .tf-btn{min-width:44px;min-height:40px;padding:6px 10px;font-size:12px;
+    scroll-snap-align:start;flex-shrink:0}
+
+  /* 戦略バー: モバイルでは非表示（上級機能） */
+  .strat-bar{display:none!important}
+
+  /* 行4: 右側コントロール（全幅・右寄せ） */
+  .hdr-right{flex-basis:100%;order:7;justify-content:flex-end;padding:2px 0;gap:8px}
+  .btn-refresh,.btn-notif{min-height:40px;min-width:40px;padding:6px 12px;font-size:12px}
+  .countdown{font-size:11px}
+
+  /* ── レイアウト ── */
   .main{flex-direction:column!important;overflow:visible!important;height:auto!important;flex:none!important}
-  .mode-btn{min-height:44px;font-size:11px}
-  .card{padding:14px}
-  .footer-bar{height:auto;min-height:26px;flex-wrap:wrap;padding:4px 10px;gap:8px;position:relative}
+  .charts-col{display:flex!important;flex:none!important;height:300px;order:-1;flex-direction:column}
+  #wrap-price{flex:1!important;min-height:260px}
+  #wrap-rsi,#wrap-macd{display:none!important;flex:none!important}
+  #mobile-sub-toggle{display:block!important}
+  .chart-label{font-size:9px;top:4px;left:6px;
+    /* 凡例は長いので主要部分だけ表示 */
+    max-width:55vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+  /* ── パネル ── */
+  .panel{width:100%;border-left:none;overflow-y:visible;padding:8px}
+
+  /* ── カード ── */
+  .card{padding:12px}
+  /* タッチで transform しない */
+  .card:hover{transform:none!important;box-shadow:none!important}
+
+  /* ── モードボタン ── */
+  .mode-btn{min-height:44px;font-size:11px;padding:6px 4px}
+
+  /* ── シグナルバッジ ── */
+  .sig-badge{font-size:22px;padding:10px 0}
+
+  /* ── Entry/SL/TP 値 ── */
+  .lv-val{font-size:16px}
+  .lv-label{font-size:12px}
+
+  /* ── 信頼度バー ── */
+  .conf-row{font-size:12px}
+
+  /* ── 根拠リスト ── */
+  .reason-item{font-size:12px;line-height:1.6}
+
+  /* ── S/Rリスト ── */
+  .sr-item{font-size:12px}
+
+  /* ── MTFグリッド ── */
+  .mtf-tf{font-size:12px}
+  .mtf-trend{font-size:12px}
+  .mtf-rsi{font-size:11px}
+
+  /* ── インジケーターグリッド ── */
+  .ind-val{font-size:13px}
+  .ind-lbl{font-size:11px}
+
+  /* ── DPロー値 ── */
+  .dp-val{font-size:13px}
+  .dp-lbl{font-size:11px}
+
+  /* ── デモトレーダー ── */
+  #demo-dt-btn,#demo-sc-btn,#demo-sw-btn{
+    font-size:11px!important;
+    padding:7px 4px!important;
+    min-height:36px!important;
+    flex:1!important;
+    width:auto!important;
+    letter-spacing:0!important;
+  }
+  #demo-status{font-size:11px!important}
+  #demo-log{font-size:10px!important;max-height:160px!important}
+  .demo-stat-val{font-size:13px}
+  .demo-stat-lbl{font-size:9px}
+  .demo-trade-row{font-size:10px}
+
+  /* ── カードタイトル ── */
+  .card-title{font-size:11px;letter-spacing:.5px}
+
+  /* ── フッター ── */
+  .footer-bar{height:auto;min-height:26px;flex-wrap:wrap;padding:4px 10px;gap:8px;
+    /* iOSセーフエリア考慮 */
+    padding-bottom:calc(4px + env(safe-area-inset-bottom, 0px))}
+
+  /* ── KPIカード ── */
+  .kpi-cell{padding:7px}
+  #card-kpi .ind-val{font-size:12px}
 }
 </style>
 </head>
