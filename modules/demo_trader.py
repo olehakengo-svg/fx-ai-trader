@@ -4781,6 +4781,20 @@ class DemoTrader:
         ("vol_momentum_scalp", "EUR_JPY"),
         # bb_squeeze×EUR_JPY 5m: EV=+0.422 N=19 GOOD
         ("bb_squeeze_breakout", "EUR_JPY"),
+        # v2.2: macdh_reversal JPY crosses — 5m Tier1 BT正EV
+        # EUR_JPY 5m: N=5 EV=+0.452 (Sentinel → PAIR_PROMOTED for data collection)
+        ("macdh_reversal", "EUR_JPY"),
+        # GBP_JPY 5m: N=9 EV=+0.219 (Sentinel → PAIR_PROMOTED for data collection)
+        ("macdh_reversal", "GBP_JPY"),
+        # v2.1 SHADOW→PROMOTE: 365日BT正EV確認済み
+        # doji_breakout×GBP_USD: N=23 WR=78.3% EV=+0.724 PF=2.47 STRONG
+        ("doji_breakout", "GBP_USD"),
+        # doji_breakout×USD_JPY: N=21 WR=61.9% EV=+0.338 PF=1.40 STRONG
+        ("doji_breakout", "USD_JPY"),
+        # squeeze_release_momentum×EUR_USD: N=15 WR=66.7% EV=+0.460 PF=1.91
+        ("squeeze_release_momentum", "EUR_USD"),
+        # dt_fib_reversal×GBP_USD: N=22 WR=72.7% EV=+0.310 PF=1.63
+        ("dt_fib_reversal", "GBP_USD"),
     }
 
     # ペア別ロットブースト: PAIR_LOT_BOOST > _STRATEGY_LOT_BOOST (優先)
@@ -4804,7 +4818,7 @@ class DemoTrader:
         "eurgbp_daily_mr",             # EUR/GBP Daily MR: 日足レンジ極値フェード — BT未実施, Sentinel蓄積
         # REMOVED: dt_bb_rsi_mr → FORCE_DEMOTED (v8.9: Post-cut N=7 WR=14.3% EV=-4.09)
         # v8.0: ema_trend_scalp → _STRATEGY_LOT_BOOST 1.5x昇格 (当日最高PnL +$179.6, WR=44.4%)
-        "gold_trend_momentum",         # XAU Trend Momentum: 15m EMA21 PB trend-follow — 新規, Sentinel蓄積
+        # REMOVED v2.1: gold_trend_momentum — XAU全停止中、BT不能。復活時に再評価
         "liquidity_sweep",             # v8.2: Liquidity Sweep: ウィック構造ストップ狩りリバーサル (Osler 2003) — Sentinel蓄積
         # v8.5: 学術文献リサーチ6新エッジ
         # REMOVED: session_time_bias → PAIR_PROMOTED済み、SENTINEL矛盾のためshadow化が発生していた (v8.9)
@@ -4812,7 +4826,7 @@ class DemoTrader:
         "gotobi_fix",                  # 五十日仲値Fix (Bessho 2023)
         "vix_carry_unwind",            # VIXキャリー巻戻し (Brunnermeier 2009)
         # REMOVED: xs_momentum → PAIR_PROMOTED済み(GBP/EUR)、SENTINEL矛盾のためshadow化が発生していた (v8.9)
-        "hmm_regime_filter",           # HMMレジームフィルター (Nystrup 2024)
+        # REMOVED v2.1: hmm_regime_filter — 戦略ではなくユーティリティモジュール（evaluate()常にNone）
         # v8.8: 生データアルファマイニング
         "vol_spike_mr",                # Vol Spike MR: JPY PF=1.92 (BT最高PF)
         "doji_breakout",               # Doji Breakout: 3連続doji→breakout follow
@@ -4822,7 +4836,7 @@ class DemoTrader:
         "trend_rebound",               # 強トレンド逆張り — 学術的エッジ疑義, Sentinel検証
         # REMOVED: sr_channel_reversal → FORCE_DEMOTED (重複削除)
         # v8.0: engulfing_bb → FORCE_DEMOTED昇格 (WR=14.3% -$353.5)
-        "three_bar_reversal",          # 3本足反転 — BT未検証, Sentinel蓄積
+        # REMOVED v2.1: three_bar_reversal — 180日N=6、構造的にN蓄積不能（4条件同時必須）
         "london_close_reversal",       # ロンドンクローズ反転 — EV≈0, Sentinel再検証
         "dt_fib_reversal",             # DT Fib反発 — 未検証, Sentinel蓄積
         "dt_sr_channel_reversal",      # DT SR/チャネル反発 — 未検証, Sentinel蓄積
