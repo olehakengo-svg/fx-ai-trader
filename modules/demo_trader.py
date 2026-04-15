@@ -1098,7 +1098,7 @@ class DemoTrader:
                     continue
 
                 # 全モードを動的取得（MODE_CONFIG定義と自動同期）
-                _all_modes = list(self._mode_config.keys())
+                _all_modes = list(MODE_CONFIG.keys())
                 for m in _all_modes:
                     if m in self._user_stopped_modes:
                         continue  # ユーザーが明示的に停止したモードはスキップ
