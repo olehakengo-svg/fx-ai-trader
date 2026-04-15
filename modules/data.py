@@ -193,7 +193,7 @@ def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
     url = base_url
     params = "?adjusted=true&sort=asc&limit=50000"
     _headers = {"User-Agent": "Mozilla/5.0", "Authorization": f"Bearer {api_key}"}
-    max_pages = 10  # 最大ページ数（無限ループ防止）
+    max_pages = 30  # 最大ページ数（1m/5m: 180日+取得可能）
 
     for page in range(max_pages):
         req = _ur.Request(url + params, headers=_headers)

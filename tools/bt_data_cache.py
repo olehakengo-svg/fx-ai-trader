@@ -50,8 +50,8 @@ PAIRS = {
 
 # TF別の最大取得日数とキャッシュ更新間隔
 TF_CONFIG = {
-    "1m":  {"max_days": 60,  "refresh_hours": 1},
-    "5m":  {"max_days": 60,  "refresh_hours": 4},
+    "1m":  {"max_days": 180, "refresh_hours": 1},
+    "5m":  {"max_days": 180, "refresh_hours": 4},
     "15m": {"max_days": 365, "refresh_hours": 6},
     "30m": {"max_days": 365, "refresh_hours": 12},
     "1h":  {"max_days": 500, "refresh_hours": 12},
