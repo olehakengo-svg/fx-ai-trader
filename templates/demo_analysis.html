@@ -204,13 +204,13 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
   html{overflow-x:hidden}
   body{overflow-y:auto;overflow-x:hidden}
 
-  /* ── トップバー ── */
-  .topbar{height:auto;min-height:42px;flex-wrap:wrap;padding:6px 10px;gap:6px}
-  .topbar h1{font-size:13px;flex-shrink:0}
-  .topbar-r{gap:6px;flex-wrap:wrap}
-  .topbar a{font-size:12px;padding:4px 6px;min-height:36px;display:flex;align-items:center}
-  .tb{min-height:36px;min-width:36px;padding:4px 8px;font-size:13px}
-  #status-text{font-size:11px}
+  /* ── トップバー: 2行レイアウト(タイトル行 / リンク+ボタン行) ── */
+  .topbar{height:auto;min-height:42px;flex-wrap:wrap;padding:6px 10px;gap:3px}
+  .topbar h1{font-size:13px;flex:1 0 100%;margin-bottom:1px}
+  .topbar-r{flex:0 0 100%;gap:5px;flex-wrap:wrap;justify-content:flex-start}
+  .topbar a{font-size:11px;padding:3px 6px;min-height:30px;display:flex;align-items:center}
+  .tb{min-height:30px;min-width:30px;padding:3px 7px;font-size:12px}
+  #status-text{font-size:10px}
 
   /* ── コックピット: グリッド廃止 → ブロックレイアウト ──
      grid-template-rows:auto 1fr + height:calc(...) の組み合わせが
@@ -263,18 +263,21 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
   .bottom{max-height:none;overflow-y:visible;overflow-x:hidden;
     padding-bottom:calc(56px + env(safe-area-inset-bottom, 0px))}
 
-  /* ── オープンポジション ── */
-  .pos-card{padding:8px 10px}
-  .pos-pair-name{font-size:13px}
-  .pos-flag{font-size:16px}
-  .pos-dir{font-size:11px;padding:3px 8px;min-height:24px}
-  .pos-pnl-badge{font-size:14px;padding:3px 10px;min-width:66px}
-  .pos-amount{font-size:11px}
-  .pos-detail{flex-wrap:wrap;gap:5px;font-size:11px}
-  .pos-strat{font-size:10px;padding:3px 8px;min-height:24px}
-  .pos-type{max-width:100%;font-size:10px;white-space:normal}
-  .pos-hold{font-size:10px}
-  .btn-s{padding:4px 10px;font-size:10px;min-height:28px}
+  /* ── オープンポジション: grid 1fr列の min-width:0 でoverflow解消 ── */
+  .pos-card{padding:6px 8px;overflow:hidden;max-width:100%}
+  .pos-top{flex-wrap:wrap;gap:3px;min-width:0;overflow:hidden}
+  .pos-pair-name{font-size:12px}
+  .pos-flag{font-size:13px}
+  .pos-dir{font-size:10px;padding:2px 6px;min-height:20px}
+  .pos-strat{white-space:normal;word-break:break-word;font-size:9px;padding:2px 5px;min-height:0}
+  .pos-mode-tag{font-size:9px;white-space:normal}
+  .pos-pnl-area{min-width:0}
+  .pos-pnl-badge{font-size:12px;padding:2px 6px;min-width:52px}
+  .pos-amount{font-size:9px}
+  .pos-detail{flex-wrap:wrap;gap:3px;font-size:9px}
+  .pos-type{max-width:100%;font-size:8px;white-space:normal}
+  .pos-hold{font-size:9px}
+  .btn-s{padding:3px 8px;font-size:9px;min-height:26px}
 
   /* ── 戦略パネル ── */
   .strat-cat{font-size:10px;padding:4px 10px}
@@ -346,9 +349,9 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 
 /* ── iPhone (480px) ── */
 @media(max-width:480px){
-  .topbar{height:40px;padding:0 10px}
-  .topbar h1{font-size:13px}
-  .topbar a{font-size:10px;padding:2px 6px}
+  .topbar{height:auto;padding:4px 10px}
+  .topbar h1{font-size:12px}
+  .topbar a{font-size:10px;padding:2px 5px}
   .stats-filter{padding:4px 8px;gap:4px}
   .stats-filter input[type="date"]{width:96px;font-size:10px}
   .sf-btn{font-size:9px;padding:3px 7px}
