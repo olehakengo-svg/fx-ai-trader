@@ -53,6 +53,61 @@ if [[ -f "$ROOT/scripts/check.py" ]]; then
     fi
 fi
 
+# ── KB Integrity Audit ──
+KB_AUDIT=""
+DEMO_TRADER="$ROOT/modules/demo_trader.py"
+STRATEGIES_DIR="$ROOT/knowledge-base/wiki/strategies"
+INDEX_FILE="$ROOT/knowledge-base/wiki/index.md"
+
+if [[ -f "$DEMO_TRADER" && -d "$STRATEGIES_DIR" ]]; then
+    # Count strategy wiki pages vs QUALIFIED_TYPES strategies
+    WIKI_COUNT=$(ls "$STRATEGIES_DIR"/*.md 2>/dev/null | wc -l | tr -d ' ')
+    QUALIFIED_COUNT=$(python3 -c "
+import re
+with open('$DEMO_TRADER', 'r') as f:
+    src = f.read()
+names = set()
+for sn in ['_FORCE_DEMOTED', '_SCALP_SENTINEL', '_UNIVERSAL_SENTINEL', '_ELITE_LIVE']:
+    m = re.search(rf'{sn}\s*=\s*\{{([^}}]+)\}}', src, re.DOTALL)
+    if m:
+        names |= set(re.findall(r'\"([a-z_]+)\"', m.group(1)))
+m = re.search(r'_STRATEGY_LOT_BOOST\s*=\s*\{(.+?)\n\s*\}', src, re.DOTALL)
+if m:
+    names |= set(re.findall(r'\"([a-z_]+)\"\s*:', m.group(1)))
+m = re.search(r'_PAIR_PROMOTED\s*=\s*\{(.+?)\n\s*\}', src, re.DOTALL)
+if m:
+    names |= set(re.findall(r'\(\"([a-z_]+)\"', m.group(1)))
+missing = []
+for n in sorted(names):
+    import os
+    wiki = os.path.join('$STRATEGIES_DIR', n.replace('_', '-') + '.md')
+    if not os.path.exists(wiki):
+        missing.append(n)
+print(f'{len(names)}|{len(missing)}')
+if missing:
+    for m in missing[:5]:
+        print(m)
+" 2>/dev/null || echo "0|0")
+
+    Q_TOTAL=$(echo "$QUALIFIED_COUNT" | head -1 | cut -d'|' -f1)
+    Q_MISSING=$(echo "$QUALIFIED_COUNT" | head -1 | cut -d'|' -f2)
+    MISSING_NAMES=$(echo "$QUALIFIED_COUNT" | tail -n +2 | head -5 | sed 's/$/\\n/' | tr -d '\n')
+
+    if [[ "$Q_MISSING" -gt 0 ]]; then
+        KB_AUDIT="KB INTEGRITY: ${Q_MISSING}/${Q_TOTAL} strategies missing wiki pages.\\n${MISSING_NAMES}"
+    fi
+fi
+
+# Check if index.md is stale (>7 days old)
+if [[ -f "$INDEX_FILE" ]]; then
+    INDEX_MTIME=$(stat -f %m "$INDEX_FILE" 2>/dev/null || stat -c %Y "$INDEX_FILE" 2>/dev/null || echo 0)
+    NOW=$(date +%s)
+    AGE_DAYS=$(( (NOW - INDEX_MTIME) / 86400 ))
+    if [[ "$AGE_DAYS" -gt 7 ]]; then
+        KB_AUDIT="${KB_AUDIT}index.md is ${AGE_DAYS} days stale — consider running: python3 tools/sync_kb_index.py --write\\n"
+    fi
+fi
+
 # 漏れ防止セクションを最上位に配置（pending>0の場合のみ）
 LEAKED_SECTION=""
 if [[ -n "$LEAKED" ]]; then
@@ -60,5 +115,5 @@ if [[ -n "$LEAKED" ]]; then
 fi
 
 cat <<ENDJSON
-{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"=== KB AUTO-LOAD ===\\n\\n${LEAKED_SECTION}--- INDEX (Tier + System State) ---\\n${INDEX}\\n\\n--- SESSION CONTEXT (${UNRESOLVED_LABEL}) ---\\n${SESSION_SUMMARY}\\n\\n--- UNRESOLVED ITEMS ---\\n${UNRESOLVED}\\n\\n--- LESSONS (過去の間違い — 繰り返すな) ---\\n${LESSONS}\\n\\n--- LATEST DAILY REPORT ---\\n${DAILY}\\n\\n--- ANALYST MEMORY ---\\n${ANALYST}\\n\\n--- KB DRIFT WARNINGS ---\\n${DRIFT}\\n=== END KB AUTO-LOAD ==="}}
+{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"=== KB AUTO-LOAD ===\\n\\n${LEAKED_SECTION}--- INDEX (Tier + System State) ---\\n${INDEX}\\n\\n--- SESSION CONTEXT (${UNRESOLVED_LABEL}) ---\\n${SESSION_SUMMARY}\\n\\n--- UNRESOLVED ITEMS ---\\n${UNRESOLVED}\\n\\n--- LESSONS (過去の間違い — 繰り返すな) ---\\n${LESSONS}\\n\\n--- LATEST DAILY REPORT ---\\n${DAILY}\\n\\n--- ANALYST MEMORY ---\\n${ANALYST}\\n\\n--- KB DRIFT WARNINGS ---\\n${DRIFT}\\n\\n--- KB INTEGRITY AUDIT ---\\n${KB_AUDIT}\\n=== END KB AUTO-LOAD ==="}}
 ENDJSON

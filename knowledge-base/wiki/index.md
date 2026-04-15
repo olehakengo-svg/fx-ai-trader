@@ -8,42 +8,73 @@
 - 旧: [[roadmap-v2]] (v2.0) / [[roadmap-to-100pct]] (v1)
 - **最優先: クリーンデータ蓄積 → Kelly Half到達**
 
-## Current Portfolio (v8.9, 2026-04-13)
+<!-- KB_PORTFOLIO_START -->
+## Current Portfolio (auto-synced, 2026-04-15)
 
-### Tier 1 -- Core Alpha
-| Strategy | Pair | WR(post-cut) | PnL | Kelly | Status |
-|----------|------|-------------|-----|-------|--------|
-| ~~[[bb-rsi-reversion]]~~ | ~~USD_JPY~~ | 38.2% (N=76) | -21.0 | -5.5% | **PAIR_DEMOTED** (v8.9: EV=-0.28確定, Kelly=-5.5%) → Tier 3 |
-| [[orb-trap]] | USD_JPY, EUR_USD, GBP_USD | 50% (N=2) | +7.6 | insuff | PAIR_PROMOTED (BT WR=79%, N accumulating) |
-| [[session-time-bias]] | USD_JPY, EUR_USD, GBP_USD | — | — | — | PAIR_PROMOTED (v8.6, BT WR=69-77%, 学術★★★★★, score 5.5 fix deployed, awaiting first live fire) |
-| [[london-fix-reversal]] | GBP_USD | — | — | — | PAIR_PROMOTED (v8.6, BT WR=75%, 学術★★★★★) |
+### ELITE_LIVE (never shadowed)
+| Strategy | BT Data | Status |
+|----------|---------|--------|
+| [[gbp-deep-pullback]] | GBP_USD: EV=+1.064 WR=75.3% | ELITE_LIVE |
+| [[session-time-bias]] | EUR_USD: EV=+0.215 WR=69.6%; GBP_USD: EV=+0.113 WR=67.1%; USD_JPY: EV=+0.580 WR=79.0% | ELITE_LIVE |
+| [[trendline-sweep]] | EUR_USD: EV=+0.927 WR=80.8%; GBP_USD: EV=+0.599 WR=73.1% | ELITE_LIVE |
 
-### Tier 2 -- Promising (Sentinel)
-| Strategy | N(post-cut) | WR | PnL | Notes |
-|----------|------------|-----|-----|-------|
-| [[vol-momentum-scalp]] | 10 | 80.0% | +21.6 | Highest WR, 1.0x boost |
-| [[vol-surge-detector]] | 15 | 46.7% | +1.9 | WR低下中 (was 63.6% at N=11) |
-| [[fib-reversal]] | 32 | 40.6% | +21.9 | Recovery path: N>=30 WR>=50% -> SENTINEL |
-| ~~[[stoch-trend-pullback]]~~ | 19 | 31.6% | -18.5 | **FORCE_DEMOTED** (v8.9: EV=-0.97全ペア負) → Tier 3 |
-| [[liquidity-sweep]] | 0 | - | - | Osler 2003 stop-hunt reversal |
-| [[vol-spike-mr]] | 0 | - | - | v8.8: 3x range spike fade (BT JPY PF=1.92★) |
-| [[doji-breakout]] | 0 | - | - | v8.8: 3連続doji breakout follow |
-| [[gotobi-fix]] | 0 | - | - | v8.5: 五十日仲値BUY (発火窓=月6日) |
-| [[vix-carry-unwind]] | 0 | - | - | v8.5: VIX急騰→JPY long (低頻度高インパクト) |
-| [[xs-momentum-dispersion]] | 0 | - | - | v8.5: 通貨モメンタム+分散フィルター |
-| [[hmm-regime-overlay]] | 0 | - | - | v8.5: 2状態HMMレジーム (防御オーバーレイ) |
+### PAIR_PROMOTED (SENTINEL)
+| Strategy | Pairs | BT Data | Status |
+|----------|-------|---------|--------|
+| [[bb-squeeze-breakout]] | EUR_USD, USD_JPY | no BT data | PAIR_PROMOTED |
+| [[ema-pullback]] | USD_JPY | no BT data | PAIR_PROMOTED |
+| [[engulfing-bb]] | EUR_USD | no BT data | PAIR_PROMOTED |
+| [[fib-reversal]] | EUR_USD | no BT data | PAIR_PROMOTED |
+| [[london-fix-reversal]] | GBP_USD | EUR_USD: EV=+0.161 WR=66.7%; GBP_USD: EV=-0.150 WR=56.8%; USD_JPY: EV=+0.079 WR=60.9% | PAIR_PROMOTED |
+| [[orb-trap]] | EUR_USD, GBP_USD, USD_JPY | USD_JPY: EV=+0.866 WR=84.2% | PAIR_PROMOTED |
+| [[post-news-vol]] | EUR_USD, GBP_USD | EUR_USD: EV=+0.817 WR=71.4%; GBP_USD: EV=+1.762 WR=88.5% | PAIR_PROMOTED |
+| [[sr-channel-reversal]] | EUR_USD | no BT data | PAIR_PROMOTED |
+| [[vix-carry-unwind]] | USD_JPY | USD_JPY: EV=+0.212 WR=67.3% | PAIR_PROMOTED |
+| [[vwap-mean-reversion]] | EUR_JPY, GBP_JPY | no BT data | PAIR_PROMOTED |
+| [[xs-momentum]] | EUR_USD, GBP_USD | EUR_USD: EV=+0.225 WR=68.0%; USD_JPY: EV=+0.270 WR=68.7% | PAIR_PROMOTED |
 
-### Tier 3 -- PAIR_DEMOTED (特定ペアで停止)
-| Strategy | Pair | Reason |
-|----------|------|--------|
-| london_fix_reversal | USD_JPY | v8.6: BT WR=28.6% EV=-0.752 |
-| xs_momentum | USD_JPY | v8.6: BT EV=-0.129 |
-| post_news_vol | USD_JPY | v8.8: 120d BT WR=0% EV=-3.706 |
-| ema200_trend_reversal | USD_JPY | v8.8: 120d BT WR=0% EV=-1.887 |
-| dt_bb_rsi_mr | EUR_USD | v8.9: N=7 WR=14.3% EV=-4.09 FORCE_DEMOTED |
+### SHADOW (Data Collection)
+| Strategy | BT Data | Notes |
+|----------|---------|-------|
+| [[bb-rsi-reversion]] | no BT data | SCALP_SENTINEL |
+| [[doji-breakout]] | GBP_USD: EV=+0.724 WR=78.3%; USD_JPY: EV=+0.338 WR=61.9% | UNIVERSAL_SENTINEL |
+| [[dt-fib-reversal]] | EUR_JPY: EV=-0.199 WR=54.3%; EUR_USD: EV=+0.407 WR=80.0%; GBP_USD: EV=+0.374 WR=76.2% | UNIVERSAL_SENTINEL |
+| [[dt-sr-channel-reversal]] | EUR_JPY: EV=+0.178 WR=63.8% | UNIVERSAL_SENTINEL |
+| [[eurgbp-daily-mr]] | no BT data | UNIVERSAL_SENTINEL |
+| [[gold-trend-momentum]] | no BT data | UNIVERSAL_SENTINEL |
+| [[gotobi-fix]] | no BT data | UNIVERSAL_SENTINEL |
+| [[hmm-regime-filter]] | no BT data | UNIVERSAL_SENTINEL |
+| [[liquidity-sweep]] | no BT data | UNIVERSAL_SENTINEL |
+| [[london-close-reversal]] | no BT data | UNIVERSAL_SENTINEL |
+| [[squeeze-release-momentum]] | EUR_USD: EV=+0.656 WR=73.3% | UNIVERSAL_SENTINEL |
+| [[three-bar-reversal]] | no BT data | UNIVERSAL_SENTINEL |
+| [[trend-rebound]] | no BT data | UNIVERSAL_SENTINEL |
+| [[v-reversal]] | no BT data | UNIVERSAL_SENTINEL |
+| [[vol-spike-mr]] | USD_JPY: EV=+0.148 WR=64.6% | UNIVERSAL_SENTINEL |
+| [[vol-surge-detector]] | no BT data | SCALP_SENTINEL |
 
-### Tier 4 -- Stopped
-See [[force-demoted-strategies]]
+### FORCE_DEMOTED (stopped)
+| Strategy | BT Data | Status |
+|----------|---------|--------|
+| [[bb-squeeze-breakout]] | no BT data | FORCE_DEMOTED (PAIR_PROMOTED: EUR_USD, USD_JPY) |
+| [[dt-bb-rsi-mr]] | EUR_USD: EV=-0.077 WR=52.0%; GBP_USD: EV=-0.135 WR=51.3%; USD_JPY: EV=-0.023 WR=54.2% | FORCE_DEMOTED |
+| [[dual-sr-bounce]] | USD_JPY: EV=+0.280 WR=70.3% | FORCE_DEMOTED |
+| [[ema-cross]] | no BT data | FORCE_DEMOTED |
+| [[ema-pullback]] | no BT data | FORCE_DEMOTED (PAIR_PROMOTED: USD_JPY) |
+| [[ema-ribbon-ride]] | no BT data | FORCE_DEMOTED |
+| [[engulfing-bb]] | no BT data | FORCE_DEMOTED (PAIR_PROMOTED: EUR_USD) |
+| [[fib-reversal]] | no BT data | FORCE_DEMOTED (PAIR_PROMOTED: EUR_USD) |
+| [[inducement-ob]] | no BT data | FORCE_DEMOTED |
+| [[lin-reg-channel]] | no BT data | FORCE_DEMOTED |
+| [[macdh-reversal]] | no BT data | FORCE_DEMOTED |
+| [[pivot-breakout]] | no BT data | FORCE_DEMOTED |
+| [[sr-break-retest]] | no BT data | FORCE_DEMOTED |
+| [[sr-channel-reversal]] | no BT data | FORCE_DEMOTED (PAIR_PROMOTED: EUR_USD) |
+| [[sr-fib-confluence]] | EUR_USD: EV=+0.103 WR=64.9%; USD_JPY: EV=+0.252 WR=67.7% | FORCE_DEMOTED |
+| [[stoch-trend-pullback]] | no BT data | FORCE_DEMOTED |
+| [[trendline-sweep]] | EUR_USD: EV=+0.927 WR=80.8%; GBP_USD: EV=+0.599 WR=73.1% | FORCE_DEMOTED (PAIR_PROMOTED: EUR_USD, GBP_USD) |
+
+<!-- KB_PORTFOLIO_END -->
 
 ## System State (v8.9)
 - Defensive mode: **0.2x** (DD=12.39%, defensive mode — v8.4以降クリーンデータ起点)
