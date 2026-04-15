@@ -200,8 +200,9 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 
 /* ── Mobile ── */
 @media(max-width:768px){
-  /* スクロール全体を有効化 */
-  body{overflow:auto}
+  /* ── 基本: 横幅固定・縦スクロール ── */
+  html{overflow-x:hidden}
+  body{overflow-y:auto;overflow-x:hidden}
 
   /* ── トップバー ── */
   .topbar{height:auto;min-height:42px;flex-wrap:wrap;padding:6px 10px;gap:6px}
@@ -211,14 +212,16 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
   .tb{min-height:36px;min-width:36px;padding:4px 8px;font-size:13px}
   #status-text{font-size:11px}
 
-  /* ── コックピットレイアウト ── */
-  .cockpit{grid-template-columns:1fr;grid-template-rows:auto 1fr;height:auto;min-height:100vh}
+  /* ── コックピット: グリッド廃止 → ブロックレイアウト ──
+     grid-template-rows:auto 1fr + height:calc(...) の組み合わせが
+     .main に固定高さを与え overflow:hidden が bottom を丸ごと切るため廃止 */
+  .cockpit{display:block;height:auto;max-width:100vw;overflow-x:hidden}
 
   /* ── サイドバー: 横スクロールタブ ── */
-  .sidebar{flex-direction:row;overflow-x:auto;overflow-y:hidden;
+  .sidebar{display:flex;flex-direction:row;overflow-x:auto;overflow-y:hidden;
     border-right:none;border-bottom:1px solid var(--border);
-    max-height:80px;flex-shrink:0;scrollbar-width:none}
-  .sidebar::-webkit-scrollbar{height:0}
+    max-height:72px;width:100%;scrollbar-width:none}
+  .sidebar::-webkit-scrollbar{display:none}
   .pair-group{display:flex;align-items:center;border-bottom:none;
     border-right:1px solid var(--border);flex-shrink:0;padding:4px 0}
   .pair-header{padding:5px 10px;border-left:none;border-bottom:3px solid transparent;
@@ -230,28 +233,35 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
   .oa-btn{display:none}
   .oanda-section{display:none}
 
-  /* ── メインコンテンツ ── */
-  .main{overflow:visible}
-  #main-chart{min-height:220px}
+  /* ── メインコンテンツ: ブロックに変更 ──
+     flex:1 + overflow:hidden による高さ拘束を解除、ページ全体でスクロール */
+  .main{overflow:visible;overflow-x:hidden;display:block;max-width:100%;width:100%}
+
+  /* ── チャート: flex:1 を解除し固定高さ ── */
+  #main-chart{height:220px;min-height:220px;max-height:220px;width:100%;flex:none}
 
   /* ── タイムフレームバー ── */
-  .tf-bar{padding:4px 8px;flex-wrap:wrap;gap:4px}
+  .tf-bar{padding:4px 8px;flex-wrap:wrap;gap:4px;overflow-x:hidden}
   .tf-tabs{overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}
   .tf-tabs::-webkit-scrollbar{display:none}
   .tf-btn{padding:4px 12px;font-size:11px;min-height:32px;flex-shrink:0}
-  #chart-title{font-size:11px}
+  #chart-title{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40vw}
 
   /* ── 統計バー ── */
-  .stats-bar{gap:14px;padding:5px 10px;flex-wrap:wrap;overflow-x:auto}
+  .stats-bar{gap:14px;padding:5px 10px;flex-wrap:wrap;overflow-x:hidden}
   .stat-label{font-size:9px}
   .stat-val{font-size:12px}
   .stat-item-hero .stat-val{font-size:15px}
 
   /* ── 統計フィルター ── */
-  .stats-filter{gap:4px;padding:4px 8px}
+  .stats-filter{gap:4px;padding:4px 8px;overflow-x:hidden}
   .stats-filter input[type="date"]{width:100px;font-size:11px}
   .sf-btn{padding:3px 8px;font-size:10px;min-height:28px}
-  #sf-mode{font-size:11px}
+  #sf-mode{font-size:11px;max-width:120px}
+
+  /* ── ボトムパネル: 高さ制限撤廃、ページスクロールで見せる ── */
+  .bottom{max-height:none;overflow-y:visible;overflow-x:hidden;
+    padding-bottom:calc(56px + env(safe-area-inset-bottom, 0px))}
 
   /* ── オープンポジション ── */
   .pos-card{padding:8px 10px}
@@ -262,25 +272,27 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
   .pos-amount{font-size:11px}
   .pos-detail{flex-wrap:wrap;gap:5px;font-size:11px}
   .pos-strat{font-size:10px;padding:3px 8px;min-height:24px}
-  .pos-type{max-width:100%;font-size:10px}
+  .pos-type{max-width:100%;font-size:10px;white-space:normal}
   .pos-hold{font-size:10px}
   .btn-s{padding:4px 10px;font-size:10px;min-height:28px}
 
   /* ── 戦略パネル ── */
   .strat-cat{font-size:10px;padding:4px 10px}
-  .strat-row{font-size:11px;padding:4px 10px}
+  .strat-row{font-size:11px;padding:4px 10px;flex-wrap:wrap}
   .strat-metrics{font-size:10px}
 
-  /* ── ログ ── */
-  #demo-log{font-size:11px;max-height:130px}
-  .log-line{font-size:11px}
+  /* ── ログ: nowrap → 折り返し ── */
+  #demo-log{font-size:11px;max-height:130px;overflow-x:hidden}
+  .log-line{font-size:11px;white-space:normal;word-break:break-all}
 
-  /* ── トレードログ ── */
-  #trade-log{font-size:10px;max-height:240px;line-height:1.6}
+  /* ── トレードログ: nowrap行を折り返しに ── */
+  #trade-log{font-size:10px;max-height:none;overflow-x:hidden;line-height:1.6}
+  .tl-row{overflow:hidden}
+  .tl-line1{white-space:normal;flex-wrap:wrap}
+  .tl-line2{white-space:normal;flex-wrap:wrap}
+  .tl-line3{white-space:normal;overflow-wrap:break-word}
   .tl-pair{font-size:12px}
-  .tl-strat{font-size:10px}
-  .tl-line2{font-size:10px}
-  .tl-line3{font-size:10px}
+  .tl-strat{font-size:10px;margin-left:0}
   .tl-reason{font-size:10px;padding:2px 7px}
   .tl-result{font-size:11px}
   .panel-hdr{font-size:12px;padding:7px 10px}
@@ -330,8 +342,6 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
   }
   .mob-oa-toggle.on::after{transform:translateX(20px)}
   .mob-oa-toggle:disabled{opacity:.3;cursor:default}
-  .cockpit{height:calc(100vh - 46px - 52px)}
-  .bottom{padding-bottom:56px}
 }
 
 /* ── iPhone (480px) ── */
