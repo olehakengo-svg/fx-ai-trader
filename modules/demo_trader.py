@@ -2705,13 +2705,17 @@ class DemoTrader:
                 _block(f"market_close_30min(end={_session_end_hour}:00UTC)"); return
 
         # ── v6.5: Cross-pair Exposure Check (通貨集中リスク防止) ──
-        import os as _os_exp
-        _exp_units_est = int(_os_exp.environ.get("OANDA_UNITS", "10000"))
-        _exp_ok, _exp_reason = self._exposure_mgr.check_new_trade(
-            instrument, signal, _exp_units_est)
-        if not _exp_ok:
-            self._alert_mgr.alert_exposure_blocked(instrument, signal, _exp_reason)
-            _block(f"exposure:{_exp_reason}"); return
+        # v9.0: Shadow/Demo bypass — ExposureManagerはOANDA実弾専用リスク管理
+        # デモトレードにExposure制限を適用するとN蓄積を阻害する (2,357+ blocks observed)
+        # OANDA転送時に別途OandaBridgeが独自のリスク管理を実施
+        if not _is_shadow_eligible:
+            import os as _os_exp
+            _exp_units_est = int(_os_exp.environ.get("OANDA_UNITS", "10000"))
+            _exp_ok, _exp_reason = self._exposure_mgr.check_new_trade(
+                instrument, signal, _exp_units_est)
+            if not _exp_ok:
+                self._alert_mgr.alert_exposure_blocked(instrument, signal, _exp_reason)
+                _block(f"exposure:{_exp_reason}"); return
 
         # ══════════════════════════════════════════════════════════════
         # ── v6.5 Phase 2: Range Sub-classification & MR Score Control ──
