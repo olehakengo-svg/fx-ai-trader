@@ -78,7 +78,7 @@
 - Ruin probability: ~100% (Kelly=-0.18, aggregate edge negative — recalc needed with clean data)
 - scalp_eurjpy: **Stopped** (v8.6) -- friction/ATR=43.6%, 構造的不可能
 - scalp_5m_eur / scalp_5m_gbp: **Active** (v8.6) -- 5m摩擦改善モード
-- New modes (v9.0): **daytrade_eurjpy**, **daytrade_gbpjpy**, **rnb_usdjpy** (all auto_start)
+- New modes (v9.0): **daytrade_eurjpy**, **daytrade_gbpjpy**, **[[rnb-usdjpy]]** (all auto_start)
 - ELITE_LIVE tier (v2.1): session_time_bias, trendline_sweep, gbp_deep_pullback
 - SHADOW_MODE: **active** (env SHADOW_MODE=true)
 - Massive API: **primary data source** (全6ペア×全TF)
