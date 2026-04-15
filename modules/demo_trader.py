@@ -460,6 +460,20 @@ class DemoTrader:
         self._entry_adx = {}            # v6.4: {trade_id: adx at entry}
         # ── v6.5: Cross-pair Exposure Manager ──
         self._exposure_mgr = ExposureManager()
+        # ── ExposureManager: DB同期 (再起動時ゴースト防止) ──
+        try:
+            _open_for_exp = self._db.get_open_trades()
+            for _ot_exp in _open_for_exp:
+                _tid_exp = _ot_exp.get("trade_id", "")
+                _inst_exp = _ot_exp.get("instrument", "USD_JPY")
+                _dir_exp = _ot_exp.get("direction", "BUY")
+                _units_exp = _ot_exp.get("units", 10000)
+                if _tid_exp:
+                    self._exposure_mgr.add_position(_tid_exp, _inst_exp, _dir_exp, _units_exp)
+            if _open_for_exp:
+                print(f"[ExposureManager] DB sync: {len(_open_for_exp)} open positions restored", flush=True)
+        except Exception as _exp_err:
+            print(f"[ExposureManager] DB sync failed: {_exp_err}", flush=True)
         # ── v6.5: External Alerting (Discord Webhook) ──
         self._alert_mgr = AlertManager()
         if self._alert_mgr.is_enabled:
@@ -1905,6 +1919,9 @@ class DemoTrader:
                                               mafe_favorable_pips=_mafe_favorable)
                 if "error" in result:
                     continue  # 別スレッドで既にクローズ済み → スキップ
+
+                # ── ExposureManager: ポジション除去 (ゴースト防止) ──
+                self._exposure_mgr.remove_position(trade_id)
 
                 # ── 決済分析生成・保存 ──
                 try:
@@ -4315,6 +4332,9 @@ class DemoTrader:
                                           mafe_favorable_pips=_mafe_favorable_sr)
             if "error" in result:
                 return  # 別スレッドで既にクローズ済み → スキップ
+
+            # ── ExposureManager: ポジション除去 (ゴースト防止) ──
+            self._exposure_mgr.remove_position(trade_id)
 
             # ── 決済分析生成・保存 ──
             try:
