@@ -5387,7 +5387,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                                 _sr_bar_time = _sr_bar_time.replace(tzinfo=timezone.utc)
                             _sr_result = compute_scalp_signal(
                                 _sr_bar_df, tf=interval,
-                                sr_levels=current_sr_weighted,
+                                sr_levels=[s["price"] for s in current_sr_weighted],
                                 symbol=symbol, backtest_mode=True,
                                 bar_time=_sr_bar_time, htf_cache=_htf_cache,
                             )
@@ -6038,7 +6038,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                                 _sr_bar_time_dt = _sr_bar_time_dt.replace(tzinfo=timezone.utc)
                             _sr_result_dt = compute_daytrade_signal(
                                 _sr_bar_df_dt, tf=interval,
-                                sr_levels=current_sr_weighted,
+                                sr_levels=[s["price"] for s in current_sr_weighted],
                                 symbol=symbol, backtest_mode=True,
                                 bar_time=_sr_bar_time_dt, htf_cache=_htf_cache,
                             )
@@ -13013,9 +13013,13 @@ def _auto_start_trader():
 
 # Render/Gunicorn環境では __name__ != "__main__" なので、
 # モジュール読み込み時に自動起動スレッドを開始
+# BT_MODE=1の場合はスキップ（BT実行時にDemoTraderを起動しない）
 import threading as _threading_mod
-_auto_start_thread = _threading_mod.Thread(target=_auto_start_trader, daemon=True)
-_auto_start_thread.start()
+if not os.environ.get("BT_MODE"):
+    _auto_start_thread = _threading_mod.Thread(target=_auto_start_trader, daemon=True)
+    _auto_start_thread.start()
+else:
+    print("[BT_MODE] Auto-start skipped for backtest mode", flush=True)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

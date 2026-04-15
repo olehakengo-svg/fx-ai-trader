@@ -29,8 +29,9 @@ class DtSrChannelReversal(StrategyBase):
         _ch_upper = float(_ch["upper"][-1]["value"]) if _ch else None
         _ch_lower = float(_ch["lower"][-1]["value"]) if _ch else None
 
-        _sr_buy = [l for l in ctx.sr_levels if 0 < ctx.entry - l < ctx.atr * self.sr_proximity]
-        _sr_sell = [l for l in ctx.sr_levels if 0 < l - ctx.entry < ctx.atr * self.sr_proximity]
+        _sr_prices = [s["price"] if isinstance(s, dict) else s for s in ctx.sr_levels]
+        _sr_buy = [l for l in _sr_prices if 0 < ctx.entry - l < ctx.atr * self.sr_proximity]
+        _sr_sell = [l for l in _sr_prices if 0 < l - ctx.entry < ctx.atr * self.sr_proximity]
         _at_ch_lower = _ch_lower and abs(ctx.entry - _ch_lower) < ctx.atr * self.sr_proximity
         _at_ch_upper = _ch_upper and abs(ctx.entry - _ch_upper) < ctx.atr * self.sr_proximity
 
