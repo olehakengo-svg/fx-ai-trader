@@ -94,6 +94,7 @@
 - [[mfe-zero-analysis]] -- 90.6% of losses never go favorable
 
 ## Session History
+- [[sessions/2026-04-15-session]] — KB broken-link修正+orphanファイル統合
 - [[sessions/2026-04-14-session]] — H15検証+SENTINEL矛盾修正+QHシミュレーション+漏れ分析
 - [[sessions/2026-04-13-session]] — v8.9 Equity Reset + KB全面改修(25 Phase) + 4セッションレポート + パイプライン修復
 - [[sessions/2026-04-12-session]] — 6新エッジ実装+学術監査+KB構築
@@ -121,3 +122,42 @@
 ## Links
 - [[friction-analysis]] -- Per-pair friction, BEV_WR
 - [[changelog]] -- Fidelity Cutoff timeline + version impact matrix
+- [[leaked-items]] -- KB漏れ項目トラッキング
+- [[log]] -- 作業ログ
+
+## Other Strategies (not in portfolio)
+- [[adx-trend-continuation]] / [[donchian-momentum-breakout]] / [[ema-trend-scalp]] / [[ema200-trend-reversal]]
+- [[htf-false-breakout]] / [[jpy-basket-trend]] / [[london-breakout]] / [[london-ny-swing]]
+- [[london-session-breakout]] / [[london-shrapnel]] / [[mtf-reversal-confluence]] / [[ny-close-reversal]]
+- [[streak-reversal]] / [[tokyo-bb]] / [[tokyo-nakane-momentum]] / [[turtle-soup]]
+- [[force-demoted-strategies]] -- 降格戦略の一覧と理由
+
+## Data & Archives
+
+### BT Results
+- [[bt-120d-v3-all-pairs-2026-04-12]] / [[bt-full-audit-2026-04-12]] / [[bt-grand-audit-2026-04-12]]
+- [[bt-scalp-5m-55d-2026-04-12]] / [[bt-v3-friction-model-2026-04-12]]
+- [[bt-v85-all-pairs-2026-04-12]] / [[bt-v85-new-edges-2026-04-12]] / [[bt-v86-time-expansion-2026-04-12]]
+- [[comprehensive-bt-scan-2026-04-14]] / [[massive-alpha-scan-2026-04-14]] / [[shadow-bt-reeval-2026-04-14]]
+
+### Trade Logs
+- [[2026-04-15-pre_tokyo]]
+- [[2026-04-14-monitor]] / [[2026-04-14-pre_tokyo]] / [[2026-04-14-post_tokyo]]
+- [[2026-04-14-quant-analysis]] / [[2026-04-14-detailed-quant-analysis]]
+- [[2026-04-13-monitor]] / [[2026-04-13-pre_tokyo]] / [[2026-04-13-post_tokyo]] / [[2026-04-13-post_ny]]
+- [[2026-04-10-friday]]
+- [[analyst-memory]] / [[analyst-memory-archive]]
+
+### Market Analysis
+- [[2026-04-14-regime]] / [[2026-04-13-regime]]
+
+### Audits
+- [[2026-04-13-weekly]] / [[2026-04-13-ev-decomposition]]
+- [[alpha-scan-2026-04-13]] / [[alpha-scan-2026-04-14]] / [[alpha-scan-2026-04-15]]
+
+### Analyses
+- [[auto-improvement-pipeline]] / [[bt-live-divergence]] / [[claude-harness-design]]
+- [[friction-analysis]] / [[mfe-zero-analysis]] / [[system-reference]]
+
+### Syntheses
+- [[profit-projection-2026-04-12]] / [[roadmap-to-100pct]] / [[roadmap-v2]] / [[roadmap-v2.1]]

@@ -84,3 +84,7 @@ See [[edge-pipeline]]
 - [ ] High-frequency lead-lag between FX pairs (Hasbrouck 2003 framework)
 - [ ] FX term structure predictability (forward rate bias decomposition)
 - [ ] Machine learning ensemble for FX (Gu, Kelly & Xiu 2020 framework applied to FX)
+
+## Templates
+- [[edge-hypothesis]] -- エッジ仮説テンプレート
+- [[paper-summary]] -- 論文サマリーテンプレート
