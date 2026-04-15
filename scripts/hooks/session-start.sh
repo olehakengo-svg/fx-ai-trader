@@ -108,6 +108,24 @@ if [[ -f "$INDEX_FILE" ]]; then
     fi
 fi
 
+# ── BT Data Cache: 差分更新（session開始時にデータ最新化）──
+CACHE_STATUS=""
+CACHE_SCRIPT="$ROOT/tools/bt_data_cache.py"
+if [[ -f "$CACHE_SCRIPT" ]]; then
+    # バックグラウンドで差分更新（セッションをブロックしない）
+    # 1m/5mはrefresh_hours=1/4なので、前回から時間が経っていれば自動更新
+    CACHE_RAW=$(python3 "$CACHE_SCRIPT" status 2>/dev/null | head -5 || true)
+    if [[ -n "$CACHE_RAW" ]]; then
+        # 古いキャッシュがあれば警告
+        STALE_COUNT=$(echo "$CACHE_RAW" | awk '{if ($NF ~ /[0-9]+h/ && int($NF) > 24) count++} END{print count+0}')
+        if [[ "$STALE_COUNT" -gt 0 ]]; then
+            CACHE_STATUS="⚠️ BT Cache: ${STALE_COUNT}件が24h以上未更新。 python3 tools/bt_data_cache.py refresh で更新\\n"
+            # 自動差分更新（バックグラウンド、最大120秒）
+            timeout 120 python3 "$CACHE_SCRIPT" refresh 1m,5m,15m,1h 2>/dev/null &
+        fi
+    fi
+fi
+
 # ── Quick Reference: ロードマップ + 摩擦 + BT TOP戦略 + 判断プロトコル ──
 QUICK_REF=""
 
@@ -142,5 +160,5 @@ if [[ -n "$LEAKED" ]]; then
 fi
 
 cat <<ENDJSON
-{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"=== KB AUTO-LOAD ===\\n\\n${LEAKED_SECTION}--- QUICK REFERENCE (判断前に必ず確認) ---\\n${QUICK_REF}\\n\\n--- INDEX (Tier + System State) ---\\n${INDEX}\\n\\n--- SESSION CONTEXT (${UNRESOLVED_LABEL}) ---\\n${SESSION_SUMMARY}\\n\\n--- UNRESOLVED ITEMS ---\\n${UNRESOLVED}\\n\\n--- LESSONS (過去の間違い — 繰り返すな) ---\\n${LESSONS}\\n\\n--- LATEST DAILY REPORT ---\\n${DAILY}\\n\\n--- ANALYST MEMORY ---\\n${ANALYST}\\n\\n--- KB DRIFT WARNINGS ---\\n${DRIFT}\\n\\n--- KB INTEGRITY AUDIT ---\\n${KB_AUDIT}\\n=== END KB AUTO-LOAD ==="}}
+{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"=== KB AUTO-LOAD ===\\n\\n${LEAKED_SECTION}--- QUICK REFERENCE (判断前に必ず確認) ---\\n${QUICK_REF}\\n\\n--- INDEX (Tier + System State) ---\\n${INDEX}\\n\\n--- SESSION CONTEXT (${UNRESOLVED_LABEL}) ---\\n${SESSION_SUMMARY}\\n\\n--- UNRESOLVED ITEMS ---\\n${UNRESOLVED}\\n\\n--- LESSONS (過去の間違い — 繰り返すな) ---\\n${LESSONS}\\n\\n--- LATEST DAILY REPORT ---\\n${DAILY}\\n\\n--- ANALYST MEMORY ---\\n${ANALYST}\\n\\n--- KB DRIFT WARNINGS ---\\n${DRIFT}\\n\\n--- KB INTEGRITY AUDIT ---\\n${KB_AUDIT}\\n\\n--- BT CACHE STATUS ---\\n${CACHE_STATUS}\\n=== END KB AUTO-LOAD ==="}}
 ENDJSON
