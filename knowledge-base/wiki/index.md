@@ -21,7 +21,7 @@
 ### PAIR_PROMOTED (SENTINEL)
 | Strategy | Pairs | BT Data | Status |
 |----------|-------|---------|--------|
-| [[bb-squeeze-breakout]] | EUR_USD, USD_JPY | no BT data | PAIR_PROMOTED |
+| [[bb-squeeze-breakout]] | EUR_JPY, EUR_USD, GBP_JPY, USD_JPY | no BT data | PAIR_PROMOTED |
 | [[ema-pullback]] | USD_JPY | no BT data | PAIR_PROMOTED |
 | [[engulfing-bb]] | EUR_USD | no BT data | PAIR_PROMOTED |
 | [[fib-reversal]] | EUR_USD | no BT data | PAIR_PROMOTED |
@@ -29,8 +29,10 @@
 | [[orb-trap]] | EUR_USD, GBP_USD, USD_JPY | USD_JPY: EV=+0.866 WR=84.2% | PAIR_PROMOTED |
 | [[post-news-vol]] | EUR_USD, GBP_USD | EUR_USD: EV=+0.817 WR=71.4%; GBP_USD: EV=+1.762 WR=88.5% | PAIR_PROMOTED |
 | [[sr-channel-reversal]] | EUR_USD | no BT data | PAIR_PROMOTED |
+| [[stoch-trend-pullback]] | GBP_JPY | no BT data | PAIR_PROMOTED |
 | [[vix-carry-unwind]] | USD_JPY | USD_JPY: EV=+0.212 WR=67.3% | PAIR_PROMOTED |
-| [[vwap-mean-reversion]] | EUR_JPY, GBP_JPY | no BT data | PAIR_PROMOTED |
+| [[vol-momentum-scalp]] | EUR_JPY | no BT data | PAIR_PROMOTED |
+| [[vwap-mean-reversion]] | EUR_JPY, EUR_USD, GBP_JPY, GBP_USD | no BT data | PAIR_PROMOTED |
 | [[xs-momentum]] | EUR_USD, GBP_USD | EUR_USD: EV=+0.225 WR=68.0%; USD_JPY: EV=+0.270 WR=68.7% | PAIR_PROMOTED |
 
 ### SHADOW (Data Collection)
@@ -50,7 +52,6 @@
 | [[three-bar-reversal]] | no BT data | UNIVERSAL_SENTINEL |
 | [[trend-rebound]] | no BT data | UNIVERSAL_SENTINEL |
 | [[v-reversal]] | no BT data | UNIVERSAL_SENTINEL |
-| [[vol-momentum-scalp]] | no BT data | BT negative EV confirmed (1m/5m), Live WR=80% was N=10 luck |
 | [[vol-spike-mr]] | USD_JPY: EV=+0.148 WR=64.6% | UNIVERSAL_SENTINEL |
 | [[vol-surge-detector]] | no BT data | SCALP_SENTINEL |
 
@@ -67,7 +68,6 @@
 | [[pivot-breakout]] | no BT data | FORCE_DEMOTED |
 | [[sr-break-retest]] | no BT data | FORCE_DEMOTED |
 | [[sr-fib-confluence]] | EUR_USD: EV=+0.103 WR=64.9%; USD_JPY: EV=+0.252 WR=67.7% | FORCE_DEMOTED |
-| [[stoch-trend-pullback]] | no BT data | FORCE_DEMOTED |
 
 <!-- KB_PORTFOLIO_END -->
 

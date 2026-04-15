@@ -67,7 +67,7 @@ MODE_CONFIG = {
         "icon": "🕐",
         "symbol": "USDJPY=X",
         "instrument": "USD_JPY",
-        "auto_start": True,
+        "auto_start": False,   # v2.1: 500日BT全戦略AVOID → α不在確定、停止
         "base_sl_pips": 30,
     },
     # ── EUR/USD modes ──
@@ -105,7 +105,7 @@ MODE_CONFIG = {
         "icon": "🕐🇪🇺",
         "symbol": "EURUSD=X",
         "instrument": "EUR_USD",
-        "auto_start": True,
+        "auto_start": False,   # v2.1: 500日BT全戦略AVOID → α不在確定、停止
         "base_sl_pips": 30,
     },
     "scalp_eurjpy": {
@@ -4656,6 +4656,7 @@ class DemoTrader:
         "mtf_reversal_confluence": 1.3,    # EV +1.49 (448t監査)
         "bb_rsi_reversion": 1.5,           # v8.9: 2.0→1.5(保守的) post-cut WR=37.2%でv8.3 OOS未完了。確認後2.0x
         "vol_momentum_scalp": 1.0,        # v8.2: 2.0x→1.0x 摩擦後EV境界的(+1.61-2.14=≈0), N=11でデータ蓄積優先
+        "vix_carry_unwind": 1.5,          # v2.1: 180日BT N=103 EV=+0.521 (N倍増、EV2.5倍改善)
         "ema_trend_scalp": 1.0,            # v8.9: 1.5x→1.0x (Post-cut N=11 WR=27.3% EV=-0.70, BEV以下)
         # v8.6: 学術リサーチ新エッジ — BT正EV確認済み
         "session_time_bias": 1.3,          # v8.6: 全3ペアBT正EV (JPY+0.427, EUR+0.650, GBP+0.266) — Breedon 2013
@@ -4766,6 +4767,20 @@ class DemoTrader:
         ("post_news_vol", "EUR_USD"),
         # 対策3: engulfing_bb×EUR — 4/14でEUR WR=67% +33pip, BT 1m EV=+0.163 N=47
         ("engulfing_bb", "EUR_USD"),
+        # v2.1 提案4: vwap_mr DT GBP/EUR — 365日BT Bias④⑤修正後にSTRONG出現
+        # GBP_USD: N=254 EV=+0.758 PF=2.69 PnL=+193p
+        ("vwap_mean_reversion", "GBP_USD"),
+        # EUR_USD: N=210 EV=+0.615 PF=2.53 PnL=+129p
+        ("vwap_mean_reversion", "EUR_USD"),
+        # v2.1 提案3: JPYクロスScalp — 180日BT N≥30正EV
+        # bb_squeeze×GBP_JPY 1m: EV=+0.340 N=67 STRONG
+        ("bb_squeeze_breakout", "GBP_JPY"),
+        # stoch_trend×GBP_JPY 1m: EV=+0.240 N=90 GOOD
+        ("stoch_trend_pullback", "GBP_JPY"),
+        # vol_momentum×EUR_JPY 5m: EV=+0.608 N=34 STRONG
+        ("vol_momentum_scalp", "EUR_JPY"),
+        # bb_squeeze×EUR_JPY 5m: EV=+0.422 N=19 GOOD
+        ("bb_squeeze_breakout", "EUR_JPY"),
     }
 
     # ペア別ロットブースト: PAIR_LOT_BOOST > _STRATEGY_LOT_BOOST (優先)
