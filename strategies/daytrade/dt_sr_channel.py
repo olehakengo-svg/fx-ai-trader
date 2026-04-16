@@ -16,6 +16,11 @@ class DtSrChannelReversal(StrategyBase):
         if not ctx.sr_levels or ctx.df is None or len(ctx.df) < 20:
             return None
 
+        # ── v9.1: HTF Hard Block (戦略内self-contained) ──
+        # GBP_USD Live: HTF=bull時にSELL 4/4全敗の根本原因対策
+        _htf = ctx.htf or {}
+        _htf_agreement = _htf.get("agreement", "mixed")
+
         signal = None
         score = 0.0
         reasons = []
@@ -35,8 +40,10 @@ class DtSrChannelReversal(StrategyBase):
         _at_ch_lower = _ch_lower and abs(ctx.entry - _ch_lower) < ctx.atr * self.sr_proximity
         _at_ch_upper = _ch_upper and abs(ctx.entry - _ch_upper) < ctx.atr * self.sr_proximity
 
-        # BUY
-        if (_sr_buy or _at_ch_lower) and ctx.rsi < 45 and ctx.macdh > ctx.macdh_prev:
+        # BUY (HTF bear → block)
+        if (_htf_agreement != "bear"
+                and (_sr_buy or _at_ch_lower)
+                and ctx.rsi < 45 and ctx.macdh > ctx.macdh_prev):
             signal = "BUY"
             score = 3.2
             if _sr_buy:
@@ -50,8 +57,10 @@ class DtSrChannelReversal(StrategyBase):
             tp = ctx.entry + ctx.atr7 * 2.0
             sl = ctx.entry - ctx.atr7 * 1.0
 
-        # SELL
-        elif (_sr_sell or _at_ch_upper) and ctx.rsi > 55 and ctx.macdh < ctx.macdh_prev:
+        # SELL (HTF bull → block)
+        elif (_htf_agreement != "bull"
+                and (_sr_sell or _at_ch_upper)
+                and ctx.rsi > 55 and ctx.macdh < ctx.macdh_prev):
             signal = "SELL"
             score = 3.2
             if _sr_sell:

@@ -141,6 +141,16 @@ class SessionTimeBias(StrategyBase):
         if ctx.atr <= 0:
             return None
 
+        # ── v9.1: HTF Hard Block (戦略内self-contained) ──
+        # DTE HTF Block (app.py L2464) に加え、戦略内でも独立ガード
+        # GBP_USD Live: HTF=bull時にSELL 4/4全敗の根本原因対策
+        _htf = ctx.htf or {}
+        _htf_agreement = _htf.get("agreement", "mixed")
+        if _htf_agreement == "bull" and _bias_signal == "SELL":
+            return None  # HTF bullish → SELL ブロック
+        if _htf_agreement == "bear" and _bias_signal == "BUY":
+            return None  # HTF bearish → BUY ブロック
+
         # ═══════════════════════════════════════════════════
         # シグナル生成
         # ═══════════════════════════════════════════════════

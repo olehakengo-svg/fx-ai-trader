@@ -2460,23 +2460,23 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     )
     _dt_engine = _DtEngine()
     _dt_candidates = _dt_engine.evaluate_all(_dt_ctx)
-    _dt_best = _dt_engine.select_best(_dt_candidates)
-    # ── HTF Hard Block guard: DTE候補がHTFと逆方向なら採用しない ──
-    if _dt_best:
-        _dte_dir = _dt_best.signal if hasattr(_dt_best, 'signal') else None
-        _dte_blocked_by_htf = False
-        if htf_agreement == "bull" and _dte_dir == "SELL":
-            _dte_blocked_by_htf = True
-        elif htf_agreement == "bear" and _dte_dir == "BUY":
-            _dte_blocked_by_htf = True
-        if _dte_blocked_by_htf:
+    # ── v9.1: HTF Hard Block — 候補リスト全体からHTF違反を除外 ──
+    # 旧: select_best後の最善候補にのみ適用 → 戦略内バイパスの余地あり
+    # 新: 候補リスト段階で除外 → 次善候補にフォールバック可能
+    if htf_agreement in ("bull", "bear"):
+        _blocked_dir = "SELL" if htf_agreement == "bull" else "BUY"
+        _htf_filtered = [c for c in _dt_candidates
+                         if not (hasattr(c, 'signal') and c.signal == _blocked_dir)]
+        _htf_blocked_count = len(_dt_candidates) - len(_htf_filtered)
+        if _htf_blocked_count > 0:
             import logging as _dte_htf_log
             _dte_htf_log.getLogger(__name__).info(
-                "[DTE] HTF Hard Block: %s blocked (htf=%s, pair=%s)",
-                _dte_dir, htf_agreement, symbol,
+                "[DTE] HTF Hard Block: %d candidates blocked (htf=%s, pair=%s)",
+                _htf_blocked_count, htf_agreement, symbol,
             )
-            reasons.append(f"🚫 [DTE] HTF Hard Block: {_dte_dir} blocked (htf={htf_agreement})")
-            _dt_best = None
+            reasons.append(f"🚫 [DTE] HTF Hard Block: {_htf_blocked_count}候補ブロック (htf={htf_agreement})")
+        _dt_candidates = _htf_filtered
+    _dt_best = _dt_engine.select_best(_dt_candidates)
     if _dt_best:
         # DTE候補のスコア（符号付き: BUY=+, SELL=-）
         _dte_score = _dt_best.score * 0.5 if _dt_best.signal == "BUY" else -(_dt_best.score * 0.5)

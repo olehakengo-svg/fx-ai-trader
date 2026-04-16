@@ -313,6 +313,7 @@ class DemoDB:
                 "fib_reversal", "macdh_reversal", "sr_break_retest",
                 "engulfing_bb", "bb_squeeze_breakout", "sr_channel_reversal",
                 "stoch_trend_pullback", "dt_bb_rsi_mr",
+                "orb_trap",  # v9.1: 365d BT全ペア負EV
             }
             # PAIR_PROMOTED overrides: these (entry_type, instrument) combos
             # are promoted despite being in FORCE_DEMOTED

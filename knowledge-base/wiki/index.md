@@ -29,7 +29,6 @@
 | [[fib-reversal]] | EUR_USD | no BT data | PAIR_PROMOTED |
 | [[london-fix-reversal]] | GBP_USD | EUR_USD: EV=+0.161 WR=66.7%; GBP_USD: EV=-0.150 WR=56.8%; USD_JPY: EV=+0.079 WR=60.9% | PAIR_PROMOTED |
 | [[macdh-reversal]] | EUR_JPY, GBP_JPY | no BT data | PAIR_PROMOTED |
-| [[orb-trap]] | EUR_USD, GBP_USD, USD_JPY | USD_JPY: EV=+0.866 WR=84.2% | PAIR_PROMOTED |
 | [[post-news-vol]] | EUR_USD, GBP_USD | EUR_USD: EV=+0.817 WR=71.4%; GBP_USD: EV=+1.762 WR=88.5% | PAIR_PROMOTED |
 | [[squeeze-release-momentum]] | EUR_USD | EUR_USD: EV=+0.656 WR=73.3% | PAIR_PROMOTED |
 | [[sr-channel-reversal]] | EUR_USD | no BT data | PAIR_PROMOTED |
@@ -44,11 +43,17 @@
 |----------|---------|-------|
 | [[bb-rsi-reversion]] | no BT data | SCALP_SENTINEL |
 | [[dt-sr-channel-reversal]] | EUR_JPY: EV=+0.178 WR=63.8% | UNIVERSAL_SENTINEL |
+| [[ema200-trend-reversal]] | EUR_USD: EV=+0.410 WR=75.0%; USD_JPY: EV=-0.183 WR=56.2% | UNIVERSAL_SENTINEL |
+| [[ema-trend-scalp]] | no BT data | shadow only |
 | [[eurgbp-daily-mr]] | no BT data | UNIVERSAL_SENTINEL |
 | [[gotobi-fix]] | no BT data | UNIVERSAL_SENTINEL |
+| [[htf-false-breakout]] | EUR_USD: EV=+0.352 WR=80.0%; GBP_USD: EV=+0.552 WR=75.0%; USD_JPY: EV=+0.660 WR=80.0% | LOT_BOOST (not sentinel/elite) |
 | [[liquidity-sweep]] | no BT data | UNIVERSAL_SENTINEL |
 | [[london-close-reversal]] | no BT data | UNIVERSAL_SENTINEL |
+| [[london-ny-swing]] | GBP_USD: EV=+0.362 WR=72.7% | LOT_BOOST (not sentinel/elite) |
+| [[mtf-reversal-confluence]] | no BT data | LOT_BOOST (not sentinel/elite) |
 | [[trend-rebound]] | no BT data | UNIVERSAL_SENTINEL |
+| [[turtle-soup]] | GBP_USD: EV=+0.386 WR=69.7% | LOT_BOOST (not sentinel/elite) |
 | [[v-reversal]] | no BT data | UNIVERSAL_SENTINEL |
 | [[vol-spike-mr]] | USD_JPY: EV=+0.148 WR=64.6% | UNIVERSAL_SENTINEL |
 | [[vol-surge-detector]] | no BT data | SCALP_SENTINEL |
@@ -60,8 +65,10 @@
 | [[dual-sr-bounce]] | USD_JPY: EV=+0.280 WR=70.3% | FORCE_DEMOTED |
 | [[ema-cross]] | no BT data | FORCE_DEMOTED |
 | [[ema-ribbon-ride]] | no BT data | FORCE_DEMOTED |
+| [[h1-fib-reversal]] | no BT data | FORCE_DEMOTED |
 | [[inducement-ob]] | no BT data | FORCE_DEMOTED |
 | [[lin-reg-channel]] | no BT data | FORCE_DEMOTED |
+| [[orb-trap]] | USD_JPY: EV=+0.866 WR=84.2% | FORCE_DEMOTED |
 | [[pivot-breakout]] | no BT data | FORCE_DEMOTED |
 | [[sr-break-retest]] | no BT data | FORCE_DEMOTED |
 | [[sr-fib-confluence]] | EUR_USD: EV=+0.103 WR=64.9%; USD_JPY: EV=+0.252 WR=67.7% | FORCE_DEMOTED |

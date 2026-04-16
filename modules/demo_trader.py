@@ -4825,6 +4825,7 @@ class DemoTrader:
         # v8.9: EV分解で確定的負EV — UNIVERSAL_SENTINEL→FORCE_DEMOTED格上げ
         "stoch_trend_pullback",  # Post-cut N=19 WR=31.6% EV=-0.97 PnL=-18.5 全ペアで負
         "dt_bb_rsi_mr",          # Post-cut N=7(EUR) WR=14.3% EV=-4.09 PnL=-28.6
+        "orb_trap",              # v9.1: 365d BT全ペア負EV (JPY=-0.854, EUR=-0.488, GBP=-0.258)
     }
 
     # ── Elite Track: 摩擦モデルv2 BT + v5.95統合BT監査 ──
@@ -4833,7 +4834,8 @@ class DemoTrader:
         # === Elite Track (Phase A-D BT verified + v5.95 統合監査) ===
         "gbp_deep_pullback": 1.3,          # 本番N<10 → 1.3x暫定 (N≥15で2.0x復帰)
         "turtle_soup": 1.5,                # GBP: EV=1.039, WR=79.3%, N=29
-        "orb_trap": 1.5,                   # 全ペア: EUR WR=83% EV=+1.035 / GBP WR=83% EV=+1.117
+        # REMOVED v9.1: orb_trap — 365d BT全ペア負EV (JPY=-0.854, EUR=-0.488, GBP=-0.258)
+        # "orb_trap": 1.5,
         "htf_false_breakout": 1.5,         # EUR: EV=0.614 / GBP: EV=0.034 (14d)
         # REMOVED: trendline_sweep → FORCE_DEMOTED (本番WR=0% N=2 -29.8pip)
         "london_ny_swing": 1.5,            # EUR: EV=2.251, WR=100%, N=2
@@ -4847,10 +4849,12 @@ class DemoTrader:
         # REMOVED v9.0: ema_trend_scalp — Live N=39 WR=23.1% edge=-35.3%, demoted済み
         # v8.6: 学術リサーチ新エッジ — BT正EV確認済み
         "session_time_bias": 1.3,          # v8.6: 全3ペアBT正EV (JPY+0.427, EUR+0.650, GBP+0.266) — Breedon 2013
-        "london_fix_reversal": 1.3,        # v8.6: GBP BT WR=75% EV=+0.318 — Krohn 2024
+        # v9.1: london_fix_reversal 1.3→1.0 — 365d BT GBP EV=-0.239, EUR EV=-0.103
+        "london_fix_reversal": 1.0,
         # REMOVED: stoch_trend_pullback → _UNIVERSAL_SENTINEL降格 (全ペアEVマイナス)
         # v2.1: VWAP MR — Massive API exclusive α, Bonferroni p<10^-7 friction-adjusted
-        "vwap_mean_reversion": 1.5,
+        # v9.1: vwap_mean_reversion 1.5→2.0 — 365d BT 3ペア平均EV>+1.0, N=575, PF>2.0
+        "vwap_mean_reversion": 2.0,
     }
 
     # ── Scalp Sentinel: 摩擦込みEV<0 → 最小ロットでデータ収集のみ ──
@@ -4904,20 +4908,15 @@ class DemoTrader:
     # v6.8: sr_fib_confluence PAIR_PROMOTED全削除 (本番N=40 WR=28.9% -92.8pip, BT乖離確定)
     _PAIR_PROMOTED = {
         # REMOVED: bb_rsi_reversion×USD_JPY → PAIR_DEMOTED (v8.9: Post-cut N=76 WR=38.2% EV=-0.28 Kelly=-5.5%)
-        # v8.2: orb_trap 全3ペア PAIR_PROMOTED — BT最強根拠 (N<10 Sentinel免除)
-        # BT: JPY WR=79.3% EV=+0.617 / EUR WR=71.4% EV=+0.482 / GBP WR=64.3% EV=+0.245
-        # margin +40-50pp over BEV_WR — 全戦略中最大の摩擦マージン
-        # N_LOT_TIERS: N<10→max 1.0x, N≥10→1.5x で段階的増資
-        ("orb_trap", "USD_JPY"),
-        ("orb_trap", "EUR_USD"),
-        ("orb_trap", "GBP_USD"),
+        # REMOVED v9.1: orb_trap PAIR_PROMOTED削除 — 365d BT全ペア負EV (JPY=-0.854, EUR=-0.488, GBP=-0.258)
+        # 旧BT(60d): WR=79%/71%/64% → 365d: WR=42%/37%/56% — 劇的悪化、FORCE_DEMOTED
         # v8.6: session_time_bias — BT全3ペア正EV確認 (学術根拠: Breedon & Ranaldo 2013 JF)
         # JPY: WR=73.1% EV=+0.427 / EUR: WR=76.9% EV=+0.650 / GBP: WR=69.4% EV=+0.266
         ("session_time_bias", "USD_JPY"),
         ("session_time_bias", "EUR_USD"),
         ("session_time_bias", "GBP_USD"),
-        # v8.6: london_fix_reversal GBP_USD — BT WR=75% EV=+0.318 (Krohn 2024 JF)
-        ("london_fix_reversal", "GBP_USD"),
+        # REMOVED v9.1: london_fix_reversal×GBP — 365d BT EV=-0.239 WR=47.4% (旧60d BT WR=75% → 崩壊)
+        # ("london_fix_reversal", "GBP_USD"),
         # v8.9: ema_pullback×JPY — Post-cut N=14 WR=42.9% EV=+1.09 (FORCE_DEMOTEDからペア復活)
         # Sentinel lotで実弾データ蓄積、N≥30でフル昇格判断
         ("ema_pullback", "USD_JPY"),
