@@ -280,6 +280,8 @@ tr.new-row{animation:row-enter .3s ease}
         <option value="GBP_USD">💷 GBP/USD</option>
         <option value="EUR_GBP">🇪🇺🇬🇧 EUR/GBP</option>
         <option value="EUR_JPY">💶💴 EUR/JPY</option>
+        <option value="GBP_JPY">🇬🇧🇯🇵 GBP/JPY</option>
+        <option value="XAU_USD">🥇 XAU/USD</option>
       </select>
       <span id="mf-summary" class="sf-summary"></span>
     </div>
@@ -655,7 +657,7 @@ async function loadHeartbeat(){
 
 // ── Command Center ──
 let _ccPairFilter='ALL';
-const _pairFlags={USD_JPY:'🇯🇵',EUR_USD:'🇪🇺',GBP_USD:'🇬🇧',EUR_JPY:'💶',EUR_GBP:'🇪🇺🇬🇧'};
+const _pairFlags={USD_JPY:'🇯🇵',EUR_USD:'🇪🇺',GBP_USD:'🇬🇧',EUR_JPY:'💶',EUR_GBP:'🇪🇺🇬🇧',GBP_JPY:'🇬🇧🇯🇵',XAU_USD:'🥇'};
 const _lcIcons={elite:'🚀',active:'✅',sentinel:'🔬',demoted:'⛔',promoted:'🔄',force_demoted:'🚫'};
 const _lcLabels={elite:'Elite',active:'Active',sentinel:'Sentinel',demoted:'Demoted',promoted:'Promoted',force_demoted:'F.Demoted'};
 

@@ -755,6 +755,9 @@ class DemoTrader:
             self._oanda._allowed_modes = set()
             self._oanda._save_allowed_modes()
 
+        # 3b. Clear ExposureManager (all positions closed)
+        self._exposure_mgr.clear()
+
         # 4. Log the event
         self._add_log(
             f"🚨 [EMERGENCY_KILL] 全停止発動: {reason} | "
@@ -2000,6 +2003,7 @@ class DemoTrader:
                 self._entry_atr.pop(trade_id, None)
                 self._entry_adx.pop(trade_id, None)
                 self._pyramided_trades.discard(trade_id)
+                self._dd_phase_at_entry.pop(trade_id, None)
                 if _mt:
                     if direction == "BUY":
                         _mafe_adverse = round((entry_price - _mt["min_low"]) * _pip_m_exit, 1)
@@ -4435,6 +4439,7 @@ class DemoTrader:
             self._entry_atr.pop(trade_id, None)
             self._entry_adx.pop(trade_id, None)
             self._pyramided_trades.discard(trade_id)
+            self._dd_phase_at_entry.pop(trade_id, None)
             if _mt_sr and entry_price_sr:
                 if direction == "BUY":
                     _mafe_adverse_sr = round((entry_price_sr - _mt_sr["min_low"]) * _pip_m_sr, 1)
