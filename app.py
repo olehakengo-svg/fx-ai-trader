@@ -3115,12 +3115,21 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 if _stk_streak >= 3:
                     _stk_bonus = _stk_streak * 3  # 3→+9, 4→+12, 5→+15
                     _stk_dir = "BUY" if _stk_bearish >= 3 else "SELL"
-                    if signal == "WAIT" or signal == _stk_dir:
+                    # v9.x fix: HTF Hard Block check for streak_reversal
+                    _stk_htf_blocked = False
+                    if htf_agreement == "bull" and _stk_dir == "SELL":
+                        _stk_htf_blocked = True
+                    elif htf_agreement == "bear" and _stk_dir == "BUY":
+                        _stk_htf_blocked = True
+
+                    if not _stk_htf_blocked and (signal == "WAIT" or signal == _stk_dir):
                         # No signal or same direction: apply as primary or boost
                         if signal == "WAIT":
                             signal = _stk_dir
                             _dt_entry_type = "streak_reversal"
                             conf = 50 + _stk_bonus
+                            # v9.x fix: recalculate SL/TP for the new direction
+                            sl, tp = calc_sl_tp_v3(entry, signal, atr, sr_levels, tf=tf, symbol=symbol)
                         else:
                             conf = min(92, conf + _stk_bonus)
                         reasons.append(f"✅ [Streak] {_stk_streak}連続{'陰線→BUY' if _stk_dir == 'BUY' else '陽線→SELL'} (Bonferroni p<0.001)")
@@ -3140,31 +3149,52 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 _vmr_dev_series = ((df["Close"] - df["vwap"]) / df["vwap"] * 100).tail(50)
                 _vmr_std = float(_vmr_dev_series.std())
                 if _vmr_std > 0:
+                    _vmr_signal = None
                     if _vmr_dev < -2 * _vmr_std:
-                        # Price below VWAP-2σ → BUY
+                        _vmr_signal = "BUY"
                         _vmr_conf = int(55 + min(10, abs(_vmr_dev) * 5))
-                        signal = "BUY"
-                        conf = _vmr_conf
-                        _dt_entry_type = "vwap_mean_reversion"
-                        reasons.append(f"✅ [VWAP-MR] Price < VWAP-2σ ({_vmr_dev:.2f}%, σ={_vmr_std:.2f}) → BUY (Bonferroni p<0.001)")
                     elif _vmr_dev > 2 * _vmr_std:
-                        # Price above VWAP+2σ → SELL (weaker edge)
+                        _vmr_signal = "SELL"
                         _vmr_conf = int(50 + min(5, abs(_vmr_dev) * 3))
-                        signal = "SELL"
-                        conf = _vmr_conf
-                        _dt_entry_type = "vwap_mean_reversion"
-                        reasons.append(f"✅ [VWAP-MR] Price > VWAP+2σ ({_vmr_dev:+.2f}%, σ={_vmr_std:.2f}) → SELL (Bonferroni p<0.001)")
+
+                    # v9.x fix: HTF Hard Block check — VWAP-MR runs after DTE HTF block,
+                    # so must independently respect HTF agreement direction
+                    if _vmr_signal:
+                        _vmr_htf_blocked = False
+                        if htf_agreement == "bull" and _vmr_signal == "SELL":
+                            _vmr_htf_blocked = True
+                            reasons.append(f"🚫 [VWAP-MR] HTF Hard Block: SELL blocked (htf=bull)")
+                        elif htf_agreement == "bear" and _vmr_signal == "BUY":
+                            _vmr_htf_blocked = True
+                            reasons.append(f"🚫 [VWAP-MR] HTF Hard Block: BUY blocked (htf=bear)")
+
+                        if not _vmr_htf_blocked:
+                            signal = _vmr_signal
+                            conf = _vmr_conf
+                            _dt_entry_type = "vwap_mean_reversion"
+                            # v9.x: Reset score — old score was computed for the previous direction
+                            # VWAP-MR score = sigma deviation strength (higher = stronger mean reversion)
+                            _vmr_sigma_dev = abs(_vmr_dev) / _vmr_std if _vmr_std > 0 else 2.0
+                            score = min(5.0, _vmr_sigma_dev)  # 2σ→2.0, 3σ→3.0, cap at 5
+                            if _vmr_signal == "BUY":
+                                reasons.append(f"✅ [VWAP-MR] Price < VWAP-2σ ({_vmr_dev:.2f}%, σ={_vmr_std:.2f}) → BUY (Bonferroni p<0.001)")
+                            else:
+                                reasons.append(f"✅ [VWAP-MR] Price > VWAP+2σ ({_vmr_dev:+.2f}%, σ={_vmr_std:.2f}) → SELL (Bonferroni p<0.001)")
+
                     # v2.1: pair-specific confidence boost (friction-adjusted BT scan)
-                    _vmr_pair_boost = {"EURJPY": 5, "GBPJPY": 5, "USDJPY": 3,
-                                       "EURUSD": 0, "GBPUSD": 0, "EURGBP": -5}
-                    _vmr_sym_key = symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
-                    _vmr_boost = _vmr_pair_boost.get(_vmr_sym_key, 0)
-                    if _vmr_boost != 0:
-                        conf = max(30, min(90, conf + _vmr_boost))
-                        if _vmr_boost > 0:
-                            reasons.append(f"✅ [VWAP-MR] JPY cross α boost +{_vmr_boost}")
-                        else:
-                            reasons.append(f"⚠️ [VWAP-MR] High-friction pair penalty {_vmr_boost}")
+                    if _dt_entry_type == "vwap_mean_reversion":
+                        _vmr_pair_boost = {"EURJPY": 5, "GBPJPY": 5, "USDJPY": 3,
+                                           "EURUSD": 0, "GBPUSD": 0, "EURGBP": -5}
+                        _vmr_sym_key = symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+                        _vmr_boost = _vmr_pair_boost.get(_vmr_sym_key, 0)
+                        if _vmr_boost != 0:
+                            conf = max(30, min(90, conf + _vmr_boost))
+                            if _vmr_boost > 0:
+                                reasons.append(f"✅ [VWAP-MR] JPY cross α boost +{_vmr_boost}")
+                            else:
+                                reasons.append(f"⚠️ [VWAP-MR] High-friction pair penalty {_vmr_boost}")
+                        # v9.x fix: recalculate SL/TP for the new signal direction
+                        sl, tp = calc_sl_tp_v3(entry, signal, atr, sr_levels, tf=tf, symbol=symbol)
         except Exception as _vmr_err:
             print(f"[vwap_mean_reversion] {_vmr_err}")
 
@@ -8190,33 +8220,47 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 _vmr_dev_series_sc = ((df["Close"] - df["vwap"]) / df["vwap"] * 100).tail(50)
                 _vmr_std_sc = float(_vmr_dev_series_sc.std())
                 if _vmr_std_sc > 0:
+                    _vmr_sig_sc = None
                     if _vmr_dev_sc < -2 * _vmr_std_sc:
+                        _vmr_sig_sc = "BUY"
                         _vmr_conf_sc = int(55 + min(10, abs(_vmr_dev_sc) * 5))
-                        signal = "BUY"
-                        conf = _vmr_conf_sc
-                        entry_type = "vwap_mean_reversion"
-                        sl = entry - atr * 0.5
-                        tp = entry + atr * 1.2
-                        reasons.append(f"✅ [VWAP-MR] Price < VWAP-2σ ({_vmr_dev_sc:.2f}%, σ={_vmr_std_sc:.2f}) → BUY (Bonferroni p<0.001)")
                     elif _vmr_dev_sc > 2 * _vmr_std_sc:
+                        _vmr_sig_sc = "SELL"
                         _vmr_conf_sc = int(50 + min(5, abs(_vmr_dev_sc) * 3))
-                        signal = "SELL"
-                        conf = _vmr_conf_sc
-                        entry_type = "vwap_mean_reversion"
-                        sl = entry + atr * 0.5
-                        tp = entry - atr * 1.2
-                        reasons.append(f"✅ [VWAP-MR] Price > VWAP+2σ ({_vmr_dev_sc:+.2f}%, σ={_vmr_std_sc:.2f}) → SELL (Bonferroni p<0.001)")
-                    # v2.1: pair-specific confidence boost (friction-adjusted BT scan)
-                    _vmr_pb_sc = {"EURJPY": 5, "GBPJPY": 5, "USDJPY": 3,
-                                  "EURUSD": 0, "GBPUSD": 0, "EURGBP": -5}
-                    _vmr_sk_sc = symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
-                    _vmr_b_sc = _vmr_pb_sc.get(_vmr_sk_sc, 0)
-                    if _vmr_b_sc != 0:
-                        conf = max(30, min(90, conf + _vmr_b_sc))
-                        if _vmr_b_sc > 0:
-                            reasons.append(f"✅ [VWAP-MR] JPY cross α boost +{_vmr_b_sc}")
+
+                    # v9.x fix: HTF Hard Block check
+                    if _vmr_sig_sc:
+                        _vmr_htf_blocked_sc = False
+                        if htf_agreement == "bull" and _vmr_sig_sc == "SELL":
+                            _vmr_htf_blocked_sc = True
+                        elif htf_agreement == "bear" and _vmr_sig_sc == "BUY":
+                            _vmr_htf_blocked_sc = True
+
+                        if not _vmr_htf_blocked_sc:
+                            signal = _vmr_sig_sc
+                            conf = _vmr_conf_sc
+                            entry_type = "vwap_mean_reversion"
+                            if _vmr_sig_sc == "BUY":
+                                sl = entry - atr * 0.5
+                                tp = entry + atr * 1.2
+                                reasons.append(f"✅ [VWAP-MR] Price < VWAP-2σ ({_vmr_dev_sc:.2f}%, σ={_vmr_std_sc:.2f}) → BUY (Bonferroni p<0.001)")
+                            else:
+                                sl = entry + atr * 0.5
+                                tp = entry - atr * 1.2
+                                reasons.append(f"✅ [VWAP-MR] Price > VWAP+2σ ({_vmr_dev_sc:+.2f}%, σ={_vmr_std_sc:.2f}) → SELL (Bonferroni p<0.001)")
+                            # v2.1: pair-specific confidence boost
+                            _vmr_pb_sc = {"EURJPY": 5, "GBPJPY": 5, "USDJPY": 3,
+                                          "EURUSD": 0, "GBPUSD": 0, "EURGBP": -5}
+                            _vmr_sk_sc = symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+                            _vmr_b_sc = _vmr_pb_sc.get(_vmr_sk_sc, 0)
+                            if _vmr_b_sc != 0:
+                                conf = max(30, min(90, conf + _vmr_b_sc))
+                                if _vmr_b_sc > 0:
+                                    reasons.append(f"✅ [VWAP-MR] JPY cross α boost +{_vmr_b_sc}")
+                                else:
+                                    reasons.append(f"⚠️ [VWAP-MR] High-friction pair penalty {_vmr_b_sc}")
                         else:
-                            reasons.append(f"⚠️ [VWAP-MR] High-friction pair penalty {_vmr_b_sc}")
+                            reasons.append(f"🚫 [VWAP-MR] HTF Hard Block: {_vmr_sig_sc} blocked (htf={htf_agreement})")
         except Exception as _vmr_err_sc:
             print(f"[vwap_mean_reversion/scalp] {_vmr_err_sc}")
 
