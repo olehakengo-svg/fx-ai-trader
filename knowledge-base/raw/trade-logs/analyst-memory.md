@@ -229,6 +229,16 @@ WR=0%、全てSL_HIT。GBP_USDは現在RANGING（ATR%ile=53%、SMA slope=+0.0038
 | 戦略 | ペア | N | WR | PnL | 失敗要因 |
 | **stoch_trend_pullback の一時停止を検討** | N=3, WR=0%, EV=−4.33。USD_JPYがRANGINGである限り、トレンドフォロー系の期待値は構造的にマイナス |
 
+### 2026-04-16 (Pre-Tokyo Briefing)
+前日（2026-04-15）は **N=21、WR=47.6%、PnL=+35.1** と直近では最良の結果。
+`bb_rsi_reversion / USD_JPY` が5戦5勝（EV=+3.90）、`dt_sr_channel_reversal / GBP_JPY・EUR_JPY` が大型TP取得（+12.7、+12.4）と、高EV戦略が機能した日。一方、`ema_trend_scalp / EUR_USD` は3戦1勝（EV=-0.53）、`bb_squeeze_breakout / USD_JPY` は2戦全敗（EV=-3.30）と明暗が分かれた。
+> Shadow除外済み / XAU別枠（現在XAU OFF） / N=87 全体 WR=29.9%、PnL=−105.7
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| vol_surge_detector | USD_JPY | 11 | 27.3% | −0.87 | −9.6 | ⚠️ 要監視（EV負） |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| ema_trend_scalp | USD_JPY | 6 | 33.3% | +0.12 | +0.7 | △ EV微正だが不安定 |
+`vix_carry_unwind`（N=2, EV=−15.45）、`session_time_bias / GBP_USD`（N=2, EV=−7.70）、`xs_momentum`（N=1, EV=−10.50）等は統計的有意性なし。ただし単発での損失幅が大きいものは引き続き記録要。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
