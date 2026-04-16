@@ -4649,7 +4649,8 @@ class DemoTrader:
         "sr_fib_confluence", "ema_cross", "inducement_ob",
         "ema_ribbon_ride", "h1_fib_reversal", "pivot_breakout",
         "ema_pullback",
-        "lin_reg_channel", "trendline_sweep", "dual_sr_bounce",
+        "lin_reg_channel", "dual_sr_bounce",
+        # REMOVED v9.0: trendline_sweep — ELITE_LIVEとの矛盾解消。BT 365d GBP EV=+0.60, EUR EV=+0.93
         "fib_reversal",      # v6.8: N=117 WR=39.6% PnL=-18.0 PF<1 → OANDA停止
         #   ↑ v8.2 復活パス: Post-cut N=20 WR=55.0% +35.6pip (v6.3改善効果確認)
         #   N≥30 & WR≥50% 到達時 → FORCE_DEMOTED削除 → SCALP_SENTINEL (自動Sentinel)
@@ -4678,10 +4679,10 @@ class DemoTrader:
         # === Legacy ===
         # REMOVED: sr_break_retest → FORCE_DEMOTED (N=2 EV=-21.4), lot boost死コード
         "mtf_reversal_confluence": 1.3,    # EV +1.49 (448t監査)
-        "bb_rsi_reversion": 1.5,           # v8.9: 2.0→1.5(保守的) post-cut WR=37.2%でv8.3 OOS未完了。確認後2.0x
+        # REMOVED v9.0: bb_rsi_reversion — Live N=267 edge=-3.3%, 負EV確定。ブーストは損失拡大
         "vol_momentum_scalp": 1.0,        # v8.2: 2.0x→1.0x 摩擦後EV境界的(+1.61-2.14=≈0), N=11でデータ蓄積優先
         "vix_carry_unwind": 1.5,          # v2.1: 180日BT N=103 EV=+0.521 (N倍増、EV2.5倍改善)
-        "ema_trend_scalp": 1.0,            # v8.9: 1.5x→1.0x (Post-cut N=11 WR=27.3% EV=-0.70, BEV以下)
+        # REMOVED v9.0: ema_trend_scalp — Live N=39 WR=23.1% edge=-35.3%, demoted済み
         # v8.6: 学術リサーチ新エッジ — BT正EV確認済み
         "session_time_bias": 1.3,          # v8.6: 全3ペアBT正EV (JPY+0.427, EUR+0.650, GBP+0.266) — Breedon 2013
         "london_fix_reversal": 1.3,        # v8.6: GBP BT WR=75% EV=+0.318 — Krohn 2024
@@ -4941,7 +4942,9 @@ class DemoTrader:
         ("london_fix_reversal", "GBP_USD"),
         ("vix_carry_unwind", "USD_JPY"),    # イベント戦略、TP到達が前提
     })
-    _FIDELITY_CUTOFF = "2026-04-08T00:00:00+00:00"  # v6.3後のみ評価 (UTC明示)
+    # v9.0 Clean Slate: ExposureManager ghost fix + shadow bypass + watchdog fix + OANDA always-on
+    # 過去データはバグ汚染(ExposureManager block 2,357+件, SR dict型エラー等)のため全リセット
+    _FIDELITY_CUTOFF = "2026-04-16T00:00:00+00:00"
     # v6.4: 50% TP到達時のTP延伸対象 (トレンドフォロー戦略のみ)
     _PE_50PCT_ELIGIBLE = frozenset({
         "vol_momentum_scalp", "confluence_scalp",
