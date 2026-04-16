@@ -218,11 +218,9 @@ def _install_monkey_patch():
         key = (symbol, interval)
         if key in _patch_cache:
             return _patch_cache[key].copy()
-        # Fallback: check without exact interval match (for 5m supplement etc.)
-        for (s, i), cached_df in _patch_cache.items():
-            if s == symbol:
-                return cached_df.copy()
-        # Last resort: original fetch (will hit API)
+        # No fallback to different interval — return None to signal unavailability
+        # (previously fell back to ANY cached interval for the same symbol,
+        #  which silently fed e.g. 15m data into 1h requests)
         print(f"  [WARN] No cache for {symbol}/{interval}, falling back to API")
         return _orig_fetch(symbol, period=period, interval=interval)
 

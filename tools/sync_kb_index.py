@@ -50,7 +50,7 @@ def _parse_simple_set(src: str, name: str) -> set:
     m = re.search(rf"{name}\s*=\s*\{{([^}}]+)\}}", src, re.DOTALL)
     if not m:
         return set()
-    return set(re.findall(r'"([a-z_]+)"', m.group(1)))
+    return set(re.findall(r'"([a-z0-9_]+)"', m.group(1)))
 
 
 def _parse_dict_keys(src: str, name: str) -> set:
@@ -58,7 +58,7 @@ def _parse_dict_keys(src: str, name: str) -> set:
     m = re.search(rf"{name}\s*=\s*\{{(.+?)\n\s*\}}", src, re.DOTALL)
     if not m:
         return set()
-    return set(re.findall(r'"([a-z_]+)"\s*:', m.group(1)))
+    return set(re.findall(r'"([a-z0-9_]+)"\s*:', m.group(1)))
 
 
 def _parse_tuple_set(src: str, name: str) -> set:
@@ -69,14 +69,16 @@ def _parse_tuple_set(src: str, name: str) -> set:
     if not m:
         return set()
     tuples = set()
-    for match in re.findall(r'\(\s*"([a-z_]+)"\s*,\s*"([A-Z_]+)"\s*\)', m.group(1)):
+    for match in re.findall(r'\(\s*"([a-z0-9_]+)"\s*,\s*"([A-Z0-9_]+)"\s*\)', m.group(1)):
         tuples.add(match)
     return tuples
 
 
 def _parse_shadow_mode(src: str) -> bool:
     """Check if _SHADOW_MODE is True by default."""
-    m = re.search(r'_SHADOW_MODE\s*=.*?"(\w+)"', src)
+    # Match the default value (second quoted string) in:
+    #   _SHADOW_MODE = _os.environ.get("SHADOW_MODE", "true")...
+    m = re.search(r'_SHADOW_MODE\s*=.*?\.get\(\s*"[^"]*"\s*,\s*"(\w+)"', src)
     return m.group(1).lower() in ("true", "1", "yes") if m else True
 
 

@@ -5,6 +5,9 @@ import pytest
 import pandas as pd
 import numpy as np
 
+# Prevent auto-start of live trader when app is imported during tests
+os.environ["TESTING"] = "1"
+
 # Ensure the project root is on sys.path so we can import app
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

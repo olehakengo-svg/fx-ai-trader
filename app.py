@@ -97,6 +97,8 @@ _PROTECTED_PREFIXES = (
     "/api/demo/restart", "/api/demo/close", "/api/oanda/modes",
     "/api/oanda/sync", "/api/config/oanda_control",
     "/api/config/toggle_oanda",
+    "/api/demo/params", "/api/db/backup", "/api/performance/record",
+    "/api/hmm/train", "/api/bt-pipeline", "/api/backtest-long",
 )
 
 def _require_auth():
@@ -13015,11 +13017,11 @@ def _auto_start_trader():
 # モジュール読み込み時に自動起動スレッドを開始
 # BT_MODE=1の場合はスキップ（BT実行時にDemoTraderを起動しない）
 import threading as _threading_mod
-if not os.environ.get("BT_MODE"):
+if not os.environ.get("BT_MODE") and not os.environ.get("TESTING") and os.environ.get("NO_AUTOSTART", "") != "1":
     _auto_start_thread = _threading_mod.Thread(target=_auto_start_trader, daemon=True)
     _auto_start_thread.start()
 else:
-    print("[BT_MODE] Auto-start skipped for backtest mode", flush=True)
+    print("[BT_MODE/TESTING/NO_AUTOSTART] Auto-start skipped", flush=True)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
