@@ -1541,6 +1541,12 @@ class DemoTrader:
         MAX_HOLD_SEC["rnb_usdjpy"] = 7200   # RNB: max 2h hold
         MAX_HOLD_SEC["daytrade_eurjpy"] = 28800
         MAX_HOLD_SEC["daytrade_gbpjpy"] = 28800
+        MAX_HOLD_SEC["daytrade_gbpusd"] = 28800   # 8h (same as daytrade)
+        MAX_HOLD_SEC["daytrade_eurgbp"] = 28800    # 8h (same as daytrade)
+        MAX_HOLD_SEC["daytrade_xau"] = 28800       # 8h (same as daytrade)
+        MAX_HOLD_SEC["scalp_5m_eur"] = 3600        # 1h (same as scalp_5m)
+        MAX_HOLD_SEC["scalp_5m_gbp"] = 3600        # 1h (same as scalp_5m)
+        MAX_HOLD_SEC["scalp_xau"] = 1800           # 30m (same as scalp)
 
         # v2.1: per-entry_type MAX_HOLD override (BT validated optimal hold periods)
         _ENTRY_TYPE_MAX_HOLD = {
@@ -4891,10 +4897,8 @@ class DemoTrader:
         # shadow全敗→TP縮小(3.0→2.0)+London-NY限定で改善済み。実弾でQH適用開始
         ("xs_momentum", "GBP_USD"),
         ("xs_momentum", "EUR_USD"),
-        # v2.1: DT幹 — trendline_sweep (FORCE_DEMOTEDだがBT 365日で正EV確認)
-        # EUR EV=+0.927 N=73 WR=80.8% PF=2.52 / GBP EV=+0.599 N=134 WR=73.1% PF=1.68
-        ("trendline_sweep", "EUR_USD"),
-        ("trendline_sweep", "GBP_USD"),
+        # REMOVED v9.0: trendline_sweep → ELITE_LIVE (PAIR_PROMOTED redundant)
+        # (was: EUR EV=+0.927 N=73 WR=80.8% PF=2.52 / GBP EV=+0.599 N=134 WR=73.1% PF=1.68)
         # v2.1: Scalp枝 — ペア×TF最適組合せ (包括BTスキャンで正EV確認)
         # bb_squeeze_breakout×JPY 5m: EV=+1.030 N=11 WR=90.9% (全Scalp最強)
         ("bb_squeeze_breakout", "USD_JPY"),

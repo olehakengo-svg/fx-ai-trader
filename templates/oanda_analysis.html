@@ -579,7 +579,7 @@ async function loadTrades(){
     const trades=d.trades||[];
     const tbody=document.getElementById('trade-tbody');
     if(!trades.length){
-      tbody.innerHTML='<tr><td colspan="15" style="text-align:center;color:var(--t3)">取引データなし — 「同期」ボタンでOANDAからデータを取得してください</td></tr>';
+      tbody.innerHTML='<tr><td colspan="16" style="text-align:center;color:var(--t3)">取引データなし — 「同期」ボタンでOANDAからデータを取得してください</td></tr>';
       return;
     }
     tbody.innerHTML=trades.map((t,i)=>{

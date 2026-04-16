@@ -5186,7 +5186,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 # 2026-04-03 FXアナリストレビュー統廃合 + シグナル頻度改善
                 "bb_rsi_reversion", "bb_squeeze_breakout",
                 "london_breakout", "stoch_trend_pullback",
-                "macdh_reversal",
+                "macdh_reversal", "tokyo_bb",
                 "mtf_reversal_confluence",
                 "fib_reversal",     # フィボ反発 — BB中央補完
                 "ema_pullback",     # EMAプルバック — BB中央帯発火
@@ -5837,7 +5837,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "london_fix_reversal",           # ロンドンFixリバーサル (Krohn 2024)
                 "vix_carry_unwind",              # VIXキャリー巻戻し (Brunnermeier 2009)
                 "xs_momentum",                   # クロスセクション通貨モメンタム (Eriksen 2019)
-                "hmm_regime_filter",             # HMMレジームフィルター (Nystrup 2024)
+                "hmm_regime_filter",             # HMMレジームフィルター (evaluate()→None, pre-commit整合性のため残留)
                 # v8.8: 生データアルファマイニング
                 "vol_spike_mr",                  # Vol Spike MR (BT JPY PF=1.92)
                 "doji_breakout",                 # Doji Breakout (3連続doji→follow)
