@@ -396,15 +396,27 @@ class OandaBridge:
             _lot = units if units > 0 else self._units
             _lot_disp = f"{_lot}u({_lot/10000:.2f}lot)"
             _latency_ms = 0
-            _t0 = _time.monotonic()
-            ok, data = self._client.market_order(
-                side=side,
-                units=_lot,
-                instrument=instrument,
-                stop_loss=sl,
-                take_profit=tp,
-            )
-            _latency_ms = round((_time.monotonic() - _t0) * 1000)
+            ok, data = None, {}
+            for _attempt in range(3):
+                _t0 = _time.monotonic()
+                ok, data = self._client.market_order(
+                    side=side,
+                    units=_lot,
+                    instrument=instrument,
+                    stop_loss=sl,
+                    take_profit=tp,
+                )
+                _latency_ms = round((_time.monotonic() - _t0) * 1000)
+                if ok:
+                    break
+                # Transient errors: retry with backoff (max 2 retries)
+                _err_code = data.get("error")
+                if _err_code in (429, 503, "timeout", "network") and _attempt < 2:
+                    _time.sleep(1 * (_attempt + 1))
+                    logger.warning(f"[OandaBridge] OPEN retry {_attempt+1}/2 "
+                                   f"{side} {instrument} ({_err_code})")
+                    continue
+                break  # Non-retryable error, stop immediately
             if ok:
                 # v20: orderFillTransaction.tradeOpened.tradeID
                 _fill = data.get("orderFillTransaction", {})

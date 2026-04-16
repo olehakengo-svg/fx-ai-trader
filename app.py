@@ -9051,8 +9051,8 @@ def api_performance():
         kpi = compute_kpi(records)
 
         # モード別内訳
-        scalp_recs = [r for r in _perf_records if r.get("mode") == "scalp"]
-        dt_recs    = [r for r in _perf_records if r.get("mode") == "daytrade"]
+        scalp_recs = [r for r in _perf_records if r.get("mode", "").startswith("scalp")]
+        dt_recs    = [r for r in _perf_records if r.get("mode", "").startswith("daytrade")]
 
         return jsonify({
             "kpi":            kpi,

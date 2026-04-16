@@ -457,7 +457,7 @@ def compute_risk_dashboard(trades: List[dict],
     from modules.stats_utils import deflated_sharpe_ratio
     _n_strategies = len(strategy_pnls)  # テストした戦略数
     _mean_pnl = float(np.mean(pnl_list)) if pnl_list else 0.0
-    _std_pnl = float(np.std(pnl_list)) if len(pnl_list) > 1 else 1.0
+    _std_pnl = float(np.std(pnl_list, ddof=1)) if len(pnl_list) > 1 else 1.0
     _sharpe_raw = _mean_pnl / _std_pnl if _std_pnl > 0 else 0.0
 
     # Per-strategy DSR
@@ -465,7 +465,7 @@ def compute_risk_dashboard(trades: List[dict],
     for strat, spnl in strategy_pnls.items():
         if len(spnl) >= 5:
             _s_mean = float(np.mean(spnl))
-            _s_std = float(np.std(spnl)) if len(spnl) > 1 else 1.0
+            _s_std = float(np.std(spnl, ddof=1)) if len(spnl) > 1 else 1.0
             _s_sharpe = _s_mean / _s_std if _s_std > 0 else 0.0
             strategy_dsr[strat] = deflated_sharpe_ratio(
                 sharpe_observed=_s_sharpe,
