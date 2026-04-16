@@ -42,3 +42,16 @@ htmlcov/
 *.log
 knowledge-base/.obsidian/
 data/cache/
+
+# ── 一時BT/分析スクリプト (repo root) ──
+_bt_*.py
+_bt_*.json
+_run_*.py
+_lcr_*.py
+_rnb_*.py
+_loss_*.json
+run_*.py
+sl_hunt_*.py
+bt_*.json
+session_matrix_*.json
+HANDOVER_PROMPT.md
