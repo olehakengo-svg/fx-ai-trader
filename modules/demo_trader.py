@@ -2728,6 +2728,23 @@ class DemoTrader:
             _block(f"direction_filter"); return
 
         # ══════════════════════════════════════════════════════════════
+        # ── v9.x: Score Gate — 負スコア戦略のエントリー遮断 ──
+        # IC=0.089: scoreは勝敗予測で唯一の有効特徴量
+        # score<=0: WR=22% EV=-1.79pip / score>0: WR=34% EV=-0.98pip
+        # score=0 は未実装戦略(60%)のデフォルト → ブロックしない
+        # score<0 のみブロック（戦略自身が「入るな」と言っている）
+        # Shadow含め全トレードに適用（悪データの蓄積は無価値）
+        # ══════════════════════════════════════════════════════════════
+        _entry_score = sig.get("score", 0)
+        if _entry_score < 0:
+            self._add_log(
+                f"[SCORE_GATE] Blocked: {entry_type} score={_entry_score:.2f} < 0 | "
+                f"{signal} {instrument} {mode}"
+            )
+            _block(f"score_gate({_entry_score:.2f}<0)")
+            return
+
+        # ══════════════════════════════════════════════════════════════
         # ── v7.0/v8.9: Shadow Tracking — 観測データ最大化 ──
         # FORCE_DEMOTED/Sentinel戦略は OANDA送信されない → フィルター緩和して
         # デモデータを収集。is_shadow=True でマークし学習エンジンから除外。

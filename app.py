@@ -2286,9 +2286,15 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # SR構造ベースのシグナル判定（BT dual_sr_bounce/breakout と整合）
     _sr_signal_found = False
 
-    # ── ADXハードブロック: レンジ相場ではSR bounceを禁止 ──
+    # ── ADXハードブロック: レンジ相場・強トレンドではSR bounceを禁止 ──
     # 本番で0/9全敗（-101.5pip）の根本原因: レンジでBUY/SELL交互発火
-    _dt_adx_ok = adx >= 15  # ADX15未満はレンジ → SR bounce禁止
+    # ADX>35: 強トレンド中の逆張りは危険 → bounce禁止
+    _dt_adx_ok = 15 <= adx <= 35
+    if adx > 35:
+        import logging
+        logging.getLogger(__name__).debug(
+            f"[dual_sr_bounce] ADX gate blocked (strong trend): ADX={adx:.1f} > 35"
+        )
 
     # A: 下のSRバウンス → BUY（EMA方向整合必須 + ADX≥15）
     if _dt_adx_ok and _dt_below:
@@ -2461,6 +2467,22 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     _dt_engine = _DtEngine()
     _dt_candidates = _dt_engine.evaluate_all(_dt_ctx)
     _dt_best = _dt_engine.select_best(_dt_candidates)
+    # ── HTF Hard Block guard: DTE候補がHTFと逆方向なら採用しない ──
+    if _dt_best:
+        _dte_dir = _dt_best.signal if hasattr(_dt_best, 'signal') else None
+        _dte_blocked_by_htf = False
+        if htf_agreement == "bull" and _dte_dir == "SELL":
+            _dte_blocked_by_htf = True
+        elif htf_agreement == "bear" and _dte_dir == "BUY":
+            _dte_blocked_by_htf = True
+        if _dte_blocked_by_htf:
+            import logging as _dte_htf_log
+            _dte_htf_log.getLogger(__name__).info(
+                "[DTE] HTF Hard Block: %s blocked (htf=%s, pair=%s)",
+                _dte_dir, htf_agreement, symbol,
+            )
+            reasons.append(f"🚫 [DTE] HTF Hard Block: {_dte_dir} blocked (htf={htf_agreement})")
+            _dt_best = None
     if _dt_best:
         # DTE候補のスコア（符号付き: BUY=+, SELL=-）
         _dte_score = _dt_best.score * 0.5 if _dt_best.signal == "BUY" else -(_dt_best.score * 0.5)

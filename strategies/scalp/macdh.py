@@ -38,6 +38,14 @@ class MacdhReversal(StrategyBase):
         if _blocked and ctx.hour_utc in _blocked:
             return None
 
+        # ADX regime filter: skip counter-trend reversal in strong trends
+        if ctx.adx > 30:
+            import logging
+            logging.getLogger(__name__).debug(
+                f"[macdh_reversal] ADX gate blocked: ADX={ctx.adx:.1f} > 30 ({_sym})"
+            )
+            return None
+
         signal = None
         score = 0.0
         reasons = []
