@@ -306,6 +306,21 @@ class DemoTrader:
 
         # HMM Regime overlay (logging-only comparison with rule-based)
         self._hmm = HMMRegime()
+        # v9.0: Warm-start HMM agreement data from DB (deploy survivable)
+        try:
+            _ag_str = self._db.get_system_kv("hmm_agreement", "{}")
+            _ag_data = json.loads(_ag_str)
+            if _ag_data:
+                self._hmm._agreement = _ag_data
+                _ag_summary = ', '.join(f'{k}:{v.get("total",0)}obs' for k,v in _ag_data.items())
+                print(f"[HMM] Agreement warm-start: {_ag_summary}", flush=True)
+        except Exception:
+            pass
+        # v9.0: Auto-fit HMM on startup (background thread)
+        self._hmm_fit_thread = threading.Thread(
+            target=self._auto_fit_hmm, daemon=True, name="hmm-autofit"
+        )
+        self._hmm_fit_thread.start()
 
         # デイリーレビューエンジンを自動起動
         self._daily_review.start()
@@ -551,6 +566,89 @@ class DemoTrader:
                 print(f"[OandaBridge] Resend: {sent} sent, {skipped} skipped", flush=True)
         except Exception as e:
             print(f"[OandaBridge] Resend pending failed: {e}", flush=True)
+
+    # ── HMM Auto-Fit (background, startup) ──────────
+
+    _HMM_PAIRS = {
+        "USD_JPY": "USDJPY=X",
+        "EUR_USD": "EURUSD=X",
+        "EUR_JPY": "EURJPY=X",
+        "GBP_JPY": "GBPJPY=X",
+        "GBP_USD": "GBPUSD=X",
+        "EUR_GBP": "EURGBP=X",
+    }
+
+    def _auto_fit_hmm(self):
+        """Startup background task: fit HMM on 120d 1h data for all pairs.
+
+        Baum-Welch推定により遷移行列・平均・分散をペア毎にフィッティング。
+        これにより predict() が heuristic fallback ではなく
+        真のHMM forward algorithm で状態推定を行うようになる。
+
+        失敗しても取引ループには影響しない（predict は fallback に自動退行）。
+        """
+        time.sleep(15)  # サーバー起動安定化を待つ
+        print("[HMM] Auto-fit starting for all pairs...", flush=True)
+
+        from modules.data import fetch_ohlcv_massive, fetch_ohlcv
+
+        fitted = []
+        failed = []
+        for instrument, yf_symbol in self._HMM_PAIRS.items():
+            try:
+                # 120日 1hデータ取得（Massive API優先、fallback yfinance）
+                df = None
+                try:
+                    df = fetch_ohlcv_massive(yf_symbol, interval="1h", days=120)
+                except Exception:
+                    pass
+                if df is None or len(df) < 200:
+                    try:
+                        df = fetch_ohlcv(yf_symbol, period="120d", interval="1h")
+                    except Exception:
+                        pass
+                if df is None or len(df) < 200:
+                    failed.append(f"{instrument}(data)")
+                    continue
+
+                close_col = "Close" if "Close" in df.columns else "close"
+                closes = df[close_col].values.astype(float)
+                returns = np.diff(np.log(closes))
+                returns = returns[np.isfinite(returns)]
+
+                if len(returns) < 100:
+                    failed.append(f"{instrument}(N={len(returns)})")
+                    continue
+
+                params = self._hmm.fit(returns, symbol=instrument)
+                fitted.append(
+                    f"{instrument}(N={params['n_obs']},iter={params['n_iter']},"
+                    f"σ=[{params['sigma'][0]:.5f},{params['sigma'][1]:.5f}])"
+                )
+            except Exception as e:
+                failed.append(f"{instrument}({e})")
+
+        summary = f"[HMM] Auto-fit complete: {len(fitted)}/{len(self._HMM_PAIRS)} pairs"
+        if fitted:
+            summary += f" | fitted={', '.join(fitted)}"
+        if failed:
+            summary += f" | failed={', '.join(failed)}"
+        print(summary, flush=True)
+        self._add_log(summary)
+
+        # DB永続化: fit結果をsystem_kvに保存（再起動時のウォームスタート用）
+        try:
+            import json as _json_hmm
+            _fit_data = {}
+            for sym, p in self._hmm._params.items():
+                _fit_data[sym] = {
+                    "mu": p["mu"], "sigma": p["sigma"],
+                    "A": p["A"], "pi": p["pi"],
+                    "n_obs": p["n_obs"],
+                }
+            self._db.set_system_kv("hmm_fit_params", _json_hmm.dumps(_fit_data))
+        except Exception as e:
+            print(f"[HMM] fit params save failed: {e}", flush=True)
 
     # ── Public API ────────────────────────────────────
 
@@ -2376,14 +2474,16 @@ class DemoTrader:
             "time": datetime.now(timezone.utc).strftime("%H:%M:%S"),
         }
 
-        # ── HMM Regime overlay: logging-only comparison ──
-        # Compute returns from df Close, run HMM prediction, log comparison
+        # ── HMM Regime overlay: comparison + data accumulation (v9.0) ──
+        # HMM予測とルールベースregimeを比較し、一致率をDB永続化。
+        # Phase 2でHMM vs Rule の勝率差分を分析するためのデータ蓄積。
         try:
             if len(df) >= 60:
                 _close = df["Close"].values if "Close" in df.columns else df["close"].values
                 _rets = np.diff(np.log(_close))
                 _hmm_regime = self._hmm.predict(_rets, symbol=instrument)
                 _hmm_proba = self._hmm.predict_proba(_rets, symbol=instrument)
+                _hmm_fitted = instrument in self._hmm._params
                 _rule_regime = sig.get("regime", {})
                 _rule_regime_str = (_rule_regime.get("regime", "")
                                     if isinstance(_rule_regime, dict) else "")
@@ -2393,11 +2493,24 @@ class DemoTrader:
                 )
                 self._hmm.record_agreement(instrument, _rule_regime_str, _hmm_regime)
                 _agree_rate = self._hmm.get_agreement_rate(instrument)
-                # Log every 50 ticks to avoid spam
+
+                # v9.0: DB永続化 — agreement data を system_kv に定期保存
                 _tc_hmm = getattr(self, '_tick_counts', {}).get(mode, 0)
+                if _tc_hmm % 100 == 0:  # 100tick毎にDB保存（パフォーマンス配慮）
+                    try:
+                        import json as _json_ag
+                        _ag_data = {}
+                        for _sym, _stats in self._hmm._agreement.items():
+                            _ag_data[_sym] = _stats
+                        self._db.set_system_kv("hmm_agreement", _json_ag.dumps(_ag_data))
+                    except Exception:
+                        pass
+
+                # Log: fitted状態を明示 + 不一致時は常にログ
                 if _tc_hmm <= 3 or _tc_hmm % 50 == 0 or not _agree:
+                    _fit_tag = "HMM" if _hmm_fitted else "HMM-heuristic"
                     print(
-                        f"[HMM] {instrument} rule={_rule_regime_str} hmm={_hmm_regime} "
+                        f"[{_fit_tag}] {instrument} rule={_rule_regime_str} hmm={_hmm_regime} "
                         f"agree={_agree} rate={_agree_rate:.1%} "
                         f"proba={{t={_hmm_proba['trending']:.2f},r={_hmm_proba['ranging']:.2f}}}",
                         flush=True
@@ -3608,6 +3721,15 @@ class DemoTrader:
         sr_basis = rec.get("sr_basis", 0) if rec else 0
 
         regime = sig.get("regime", {})
+        # v9.0: HMM regime data をトレード記録に付与（Phase 2分析用）
+        if isinstance(regime, dict):
+            _hmm_r = sig.get("_hmm_regime")
+            _hmm_p = sig.get("_hmm_proba")
+            if _hmm_r:
+                regime = dict(regime)  # コピーして元sigを汚さない
+                regime["hmm_regime"] = _hmm_r
+                regime["hmm_proba"] = _hmm_p
+                regime["hmm_agree"] = sig.get("_hmm_agree", None)
         layer1_dir = layer_status.get("layer1", {}).get("direction", "neutral")
 
         # シナリオ崩壊撤退レベル（1H Zoneシグナルに付随）
