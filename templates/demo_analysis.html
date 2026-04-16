@@ -419,6 +419,17 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
     </div>
     <div class="mode-list">
       <div class="mode-row"><button id="m-scalp_eurjpy" class="mode-btn" onclick="toggleDemo('scalp_eurjpy')">⚡SC <span class="lamp off"></span></button><button id="o-scalp_eurjpy" class="oa-btn" onclick="toggleOandaMode('scalp_eurjpy')">OA</button></div>
+      <div class="mode-row"><button id="m-daytrade_eurjpy" class="mode-btn" onclick="toggleDemo('daytrade_eurjpy')">📊DT <span class="lamp off"></span></button><button id="o-daytrade_eurjpy" class="oa-btn" onclick="toggleOandaMode('daytrade_eurjpy')">OA</button></div>
+    </div>
+  </div>
+
+  <!-- GBP/JPY -->
+  <div class="pair-group">
+    <div class="pair-header" data-pair="GBP_JPY" onclick="selectPair('GBP_JPY')">
+      <span class="pair-flag">🇬🇧🇯🇵</span> GBP/JPY
+    </div>
+    <div class="mode-list">
+      <div class="mode-row"><button id="m-daytrade_gbpjpy" class="mode-btn" onclick="toggleDemo('daytrade_gbpjpy')">📊DT <span class="lamp off"></span></button><button id="o-daytrade_gbpjpy" class="oa-btn" onclick="toggleOandaMode('daytrade_gbpjpy')">OA</button></div>
     </div>
   </div>
 
@@ -583,9 +594,11 @@ const PAIRS={
   EUR_USD:{symbol:'EURUSD=X',label:'EUR/USD',flag:'🇪🇺🇺🇸',precision:5,
     modes:['scalp_eur','daytrade_eur','daytrade_1h_eur']},
   EUR_JPY:{symbol:'EURJPY=X',label:'EUR/JPY',flag:'🇪🇺🇯🇵',precision:3,
-    modes:['scalp_eurjpy']},
+    modes:['scalp_eurjpy','daytrade_eurjpy']},
+  GBP_JPY:{symbol:'GBPJPY=X',label:'GBP/JPY',flag:'🇬🇧🇯🇵',precision:3,
+    modes:['daytrade_gbpjpy']},
   GBP_USD:{symbol:'GBPUSD=X',label:'GBP/USD',flag:'🇬🇧🇺🇸',precision:5,
-    modes:['daytrade_gbpusd']},
+    modes:['daytrade_gbpusd','scalp_gbpusd']},
   EUR_GBP:{symbol:'EURGBP=X',label:'EUR/GBP',flag:'🇪🇺🇬🇧',precision:5,
     modes:['daytrade_eurgbp']},
   XAU_USD:{symbol:'XAUUSD=X',label:'XAU/USD',flag:'🥇',precision:2,
@@ -596,7 +609,9 @@ const MODE_DEFS={
   daytrade_1h:{icon:'🕐',label:'1H'},rnb_usdjpy:{icon:'🎯',label:'RNB'},
   scalp_eur:{icon:'⚡',label:'SC'},daytrade_eur:{icon:'📊',label:'DT'},
   daytrade_1h_eur:{icon:'🕐',label:'1H'},scalp_eurjpy:{icon:'⚡',label:'SC'},
+  daytrade_eurjpy:{icon:'📊',label:'DT'},daytrade_gbpjpy:{icon:'📊',label:'DT'},
   daytrade_gbpusd:{icon:'📊',label:'DT'},daytrade_eurgbp:{icon:'📊',label:'DT'},
+  scalp_gbpusd:{icon:'⚡',label:'SC'},
   scalp_xau:{icon:'⚡',label:'SC'},daytrade_xau:{icon:'📊',label:'DT'},
 };
 // ── MAX_HOLD: mirrors Python MAX_HOLD_SEC (seconds) ──
@@ -981,7 +996,8 @@ async function loadTradeLog(){
     if(cnt){const nv=String(latestLen);if(cnt.textContent!==nv)cnt.textContent=nv}
     const PI={'USD_JPY':{i:'💴',n:'USD/JPY'},'EUR_USD':{i:'💶',n:'EUR/USD'},
               'GBP_USD':{i:'💷',n:'GBP/USD'},'EUR_GBP':{i:'🇪🇺🇬🇧',n:'EUR/GBP'},
-              'XAU_USD':{i:'🥇',n:'XAU/USD'},'EUR_JPY':{i:'💶💴',n:'EUR/JPY'}};
+              'XAU_USD':{i:'🥇',n:'XAU/USD'},'EUR_JPY':{i:'💶💴',n:'EUR/JPY'},
+              'GBP_JPY':{i:'💷💴',n:'GBP/JPY'}};
     el.innerHTML=trades.map(t=>{
       const pi=PI[t.instrument]||{i:'📊',n:t.instrument||'?'};
       // ── 戦略名 + カテゴリ色分け ──
@@ -1103,13 +1119,15 @@ function updatePositions(trades){
   el.style.display='block';
   const PI_POS={'USD_JPY':{f:'🇺🇸🇯🇵',n:'USD/JPY'},'EUR_USD':{f:'🇪🇺🇺🇸',n:'EUR/USD'},
     'GBP_USD':{f:'🇬🇧🇺🇸',n:'GBP/USD'},'EUR_GBP':{f:'🇪🇺🇬🇧',n:'EUR/GBP'},
-    'XAU_USD':{f:'🥇',n:'XAU/USD'},'EUR_JPY':{f:'🇪🇺🇯🇵',n:'EUR/JPY'}};
+    'XAU_USD':{f:'🥇',n:'XAU/USD'},'EUR_JPY':{f:'🇪🇺🇯🇵',n:'EUR/JPY'},
+    'GBP_JPY':{f:'🇬🇧🇯🇵',n:'GBP/JPY'}};
 
   let html=`<div class="panel-hdr"><span>📌 Open Positions (${trades.length})</span>
     <button class="btn-s" style="color:var(--red);border-color:var(--red)" onclick="closeAllTrades()">全撤退</button></div>`;
   html+=trades.map(t=>{
     const isBuy=t.direction==='BUY';
-    const pair=modePairKey(t.mode);
+    // v9.0: instrument を優先（modePairKeyは未登録モードでUSD_JPYにフォールバックするバグがあった）
+    const pair=t.instrument||modePairKey(t.mode);
     const pi=PI_POS[pair]||PI_POS[t.instrument]||{f:'📊',n:pair};
     const def=MODE_DEFS[t.mode]||{icon:'📊',label:t.mode};
     const prec=PAIRS[pair]?.precision||3;
