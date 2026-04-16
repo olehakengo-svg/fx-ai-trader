@@ -239,6 +239,16 @@ WR=0%、全てSL_HIT。GBP_USDは現在RANGING（ATR%ile=53%、SMA slope=+0.0038
 | ema_trend_scalp | USD_JPY | 6 | 33.3% | +0.12 | +0.7 | △ EV微正だが不安定 |
 `vix_carry_unwind`（N=2, EV=−15.45）、`session_time_bias / GBP_USD`（N=2, EV=−7.70）、`xs_momentum`（N=1, EV=−10.50）等は統計的有意性なし。ただし単発での損失幅が大きいものは引き続き記録要。
 
+### 2026-04-16 (Pre-Tokyo Briefing)
+前日（2026-04-15）: **PnL = +35.1 | N = 21 | WR = 47.6%**
+bb_rsi_reversionのUSD_JPY 5連勝（100% WR, EV +3.90）が牽引し、dt_sr_channel_reversalのGBP_JPY/EUR_JPYが各+12点超の大型獲得。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| session_time_bias | GBP_USD | 2 | 0.0% | -7.70 | -15.4 | データ不足（EV懸念大） |
+**全体（Cutoff後）: N=56 / WR=30.4% / PnL=-64.3**
+※PnLマイナスは初期の大型損失（vix_carry_unwind -22.7、session_time_bias GBP_USD -15.4等）が重荷。
+前日4件のSL_HIT（EUR_USD ×3、USD_JPY ×1）。EUR_USDはTRENDING_UPレジームにも関わらずエントリー方向が機能せず、EUR_USD全体EV=-1.50（N=8）は「傾向」として有意に負。
+**→ 今日の対処**: ema_trend_scalp（特にEUR_USD）はエントリーシグナルが出ても、システムが自動実行する以上、人的介入は不可。ただし**N=8→N=30到達後に降格判定**が必要であることを認識しておく。本日も同パターンが続く可能性を前提に全体PnL管理。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
