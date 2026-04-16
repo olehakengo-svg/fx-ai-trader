@@ -301,6 +301,58 @@ class DemoDB:
             except Exception:
                 pass
 
+            # ── v9.x: Shadow persistence migration ──
+            # Bug: FORCE_DEMOTED/non-promoted trades were written with is_shadow=0
+            # because the safety net (is_shadow=True) ran AFTER DB write.
+            # Fix: Mark FORCE_DEMOTED trades as shadow, EXCEPT those with
+            # (entry_type, instrument) in PAIR_PROMOTED (which override FORCE_DEMOTED).
+            _force_demoted = {
+                "sr_fib_confluence", "ema_cross", "inducement_ob",
+                "ema_ribbon_ride", "h1_fib_reversal", "pivot_breakout",
+                "ema_pullback", "lin_reg_channel", "dual_sr_bounce",
+                "fib_reversal", "macdh_reversal", "sr_break_retest",
+                "engulfing_bb", "bb_squeeze_breakout", "sr_channel_reversal",
+                "stoch_trend_pullback", "dt_bb_rsi_mr",
+            }
+            # PAIR_PROMOTED overrides: these (entry_type, instrument) combos
+            # are promoted despite being in FORCE_DEMOTED
+            _pair_promoted_overrides = {
+                ("ema_pullback", "USD_JPY"),
+                ("fib_reversal", "EUR_USD"),
+                ("bb_squeeze_breakout", "USD_JPY"),
+                ("bb_squeeze_breakout", "EUR_USD"),
+                ("sr_channel_reversal", "EUR_USD"),
+            }
+            try:
+                _total_fixed = 0
+                for _et in _force_demoted:
+                    # Find instruments that are PAIR_PROMOTED for this entry_type
+                    _exempt_instruments = [
+                        inst for (et, inst) in _pair_promoted_overrides if et == _et
+                    ]
+                    if _exempt_instruments:
+                        _inst_ph = ",".join(["?"] * len(_exempt_instruments))
+                        _cur = conn.execute(
+                            f"UPDATE demo_trades SET is_shadow=1 "
+                            f"WHERE entry_type=? AND is_shadow=0 "
+                            f"AND instrument NOT IN ({_inst_ph})",
+                            [_et] + _exempt_instruments
+                        )
+                    else:
+                        _cur = conn.execute(
+                            "UPDATE demo_trades SET is_shadow=1 "
+                            "WHERE entry_type=? AND is_shadow=0",
+                            (_et,)
+                        )
+                    _total_fixed += _cur.rowcount
+                if _total_fixed > 0:
+                    import logging
+                    logging.getLogger(__name__).warning(
+                        f"[SHADOW_MIGRATION] Fixed {_total_fixed} FORCE_DEMOTED trades: is_shadow=0→1"
+                    )
+            except Exception:
+                pass
+
             conn.commit()
 
     # ── Trade CRUD ──────────────────────────────────
@@ -552,6 +604,15 @@ class DemoDB:
             "avg_r": round(avg_r, 2),
             "by_type": by_type,
         }
+
+    def update_shadow_status(self, trade_id: str, is_shadow: bool):
+        """Persist corrected is_shadow after post-open safety net evaluation."""
+        with self._lock:
+            with self._safe_conn() as conn:
+                conn.execute(
+                    "UPDATE demo_trades SET is_shadow=? WHERE trade_id=?",
+                    (1 if is_shadow else 0, trade_id))
+                conn.commit()
 
     def set_oanda_trade_id(self, trade_id: str, oanda_trade_id: str):
         """Link a demo trade to its OANDA trade ID."""

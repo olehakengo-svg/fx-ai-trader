@@ -4039,6 +4039,7 @@ class DemoTrader:
         )
 
         # ── OANDA連携: 昇格済み戦略のみミラーリング + 実行監査 + 🔗ラベルログ ──
+        _shadow_at_open = _is_shadow  # v9.x: DB書込み時点の値を保存 (persistence fix)
         _is_promoted = self._is_promoted(entry_type, instrument)
         # ── v7.0: Shadow Tracking — OANDAには絶対に送信しない ──
         if _is_shadow:
@@ -4063,6 +4064,17 @@ class DemoTrader:
                 f"[SHADOW] Phase0 tier gate: {entry_type} {instrument} "
                 f"→ shadow (not in ELITE_LIVE/PAIR_PROMOTED)"
             )
+        # ── v9.x: Shadow persistence fix ──
+        # Bug: open_trade()はL3890の_is_shadowで書込み。その後の安全ネット
+        # (L4049: not promoted→shadow, L4055: Phase0 gate)でis_shadowが変更されても
+        # DBに反映されず統計が汚染される。変更があった場合のみUPDATEを発行。
+        if _is_shadow != _shadow_at_open:
+            self._db.update_shadow_status(trade_id, _is_shadow)
+            self._add_log(
+                f"[SHADOW_FIX] Persisted is_shadow={_is_shadow} for {trade_id} "
+                f"(was {_shadow_at_open} at open_trade)"
+            )
+
         # ── v6.4 SHIELD: EUR_USD DT/1H OANDA遮断 (scalp継続) ──
         # v7.0: ホワイトリスト戦略はSHIELD免除 (MR系高EV, N<10 Safety で自動Sentinel)
         if _is_promoted and mode in self._OANDA_MODE_BLOCKED:
