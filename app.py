@@ -5816,7 +5816,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             current_sr_weighted = _dt_sr_cache.get(_dt_key, [])
             current_sr = [sr["price"] for sr in current_sr_weighted]
 
-            bar_df = df.iloc[max(0, i - 500):i + 1]
+            # v9.1: 3500 bars (was 500) — intraday_seasonality needs 8+ weeks of same-dow×hour samples
+            bar_df = df.iloc[max(0, i - 3500):i + 1]
             bar_time = df.index[i]
             if hasattr(bar_time, 'tzinfo') and bar_time.tzinfo is None:
                 bar_time = bar_time.replace(tzinfo=timezone.utc)
@@ -5899,6 +5900,10 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "streak_reversal",               # 連続足反転 (USD_JPY)
                 "vwap_mean_reversion",           # VWAP-2σ回帰 (Massive API only)
                 # DISABLED: ihs_neckbreak (2t EV≒0), dual_sr_breakout
+                # v9.1: Alpha探索戦略 (2026-04-16)
+                "intraday_seasonality",          # Alpha#1: 日中リターン季節性 (Breedon & Ranaldo 2013)
+                "wick_imbalance_reversion",      # Alpha#2: ヒゲ不均衡平均回帰 (Osler 2003)
+                "atr_regime_break",              # Alpha#3: ATRレジーム転換ブレイクアウト (Engle 1982)
             }
             DT_BLOCKED = {"unknown", "wait"}
 

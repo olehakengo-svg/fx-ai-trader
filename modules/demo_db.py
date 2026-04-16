@@ -308,8 +308,8 @@ class DemoDB:
             # (entry_type, instrument) in PAIR_PROMOTED (which override FORCE_DEMOTED).
             _force_demoted = {
                 "sr_fib_confluence", "ema_cross", "inducement_ob",
-                "ema_ribbon_ride", "h1_fib_reversal", "pivot_breakout",
-                "ema_pullback", "lin_reg_channel", "dual_sr_bounce",
+                "ema_ribbon_ride",
+                "ema_pullback", "lin_reg_channel",
                 "fib_reversal", "macdh_reversal", "sr_break_retest",
                 "engulfing_bb", "bb_squeeze_breakout", "sr_channel_reversal",
                 "stoch_trend_pullback", "dt_bb_rsi_mr",

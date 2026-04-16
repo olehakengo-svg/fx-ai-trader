@@ -3081,6 +3081,10 @@ class DemoTrader:
             "squeeze_release_momentum",      # SRM v3: BBスクイーズ解放 — Sentinel蓄積中
             "eurgbp_daily_mr",               # EUR/GBP 日足MR — Sentinel蓄積中
             "dt_bb_rsi_mr",                  # DT BB RSI MR: 15m平均回帰 — Sentinel蓄積中
+            # v9.1: Alpha探索戦略 (2026-04-16)
+            "intraday_seasonality",          # Alpha#1: 日中リターン季節性 (Breedon & Ranaldo 2013)
+            "wick_imbalance_reversion",      # Alpha#2: ヒゲ不均衡平均回帰 (Osler 2003)
+            "atr_regime_break",              # Alpha#3: ATRレジーム転換ブレイクアウト (Engle 1982)
             # DISABLED (FXアナリストレビュー):
             # "ihs_neckbreak",       # 廃止: 2t EV≒0, 低頻度
             # "dual_sr_breakout",    # 廃止: 未評価
@@ -4809,9 +4813,10 @@ class DemoTrader:
     # bb_rsi_reversion のみ正PF(1.13) → 他全てOANDA停止、Demo Sentinel継続
     _FORCE_DEMOTED = {
         "sr_fib_confluence", "ema_cross", "inducement_ob",
-        "ema_ribbon_ride", "h1_fib_reversal", "pivot_breakout",
+        "ema_ribbon_ride",
         "ema_pullback",
-        "lin_reg_channel", "dual_sr_bounce",
+        "lin_reg_channel",
+        # v9.1: h1_fib_reversal, pivot_breakout, dual_sr_bounce削除 — 戦略ファイル自体が存在しない死コード
         # REMOVED v9.0: trendline_sweep — ELITE_LIVEとの矛盾解消。BT 365d GBP EV=+0.60, EUR EV=+0.93
         "fib_reversal",      # v6.8: N=117 WR=39.6% PnL=-18.0 PF<1 → OANDA停止
         #   ↑ v8.2 復活パス: Post-cut N=20 WR=55.0% +35.6pip (v6.3改善効果確認)
@@ -4826,6 +4831,9 @@ class DemoTrader:
         "stoch_trend_pullback",  # Post-cut N=19 WR=31.6% EV=-0.97 PnL=-18.5 全ペアで負
         "dt_bb_rsi_mr",          # Post-cut N=7(EUR) WR=14.3% EV=-4.09 PnL=-28.6
         "orb_trap",              # v9.1: 365d BT全ペア負EV (JPY=-0.854, EUR=-0.488, GBP=-0.258)
+        # v9.1: Alpha探索戦略BT結果 (2026-04-17)
+        "intraday_seasonality",  # BT 365d: JPY EV=-0.109 / EUR EV=-0.144 / GBP EV=+0.037 (微弱) — 計算コスト大で費用対効果なし
+        "atr_regime_break",      # BT 365d: 全3ペアN≈0 — surge_mult×quiet_pctl条件が過剰制限、実戦不適
     }
 
     # ── Elite Track: 摩擦モデルv2 BT + v5.95統合BT監査 ──
@@ -4917,9 +4925,8 @@ class DemoTrader:
         ("session_time_bias", "GBP_USD"),
         # REMOVED v9.1: london_fix_reversal×GBP — 365d BT EV=-0.239 WR=47.4% (旧60d BT WR=75% → 崩壊)
         # ("london_fix_reversal", "GBP_USD"),
-        # v8.9: ema_pullback×JPY — Post-cut N=14 WR=42.9% EV=+1.09 (FORCE_DEMOTEDからペア復活)
-        # Sentinel lotで実弾データ蓄積、N≥30でフル昇格判断
-        ("ema_pullback", "USD_JPY"),
+        # REMOVED v9.1: ema_pullback×JPY — ema_pullbackはFORCE_DEMOTED、PAIR_PROMOTED無効(死コード)
+        # (was: Post-cut N=14 WR=42.9% EV=+1.09)
         # v8.9: xs_momentum×GBP/EUR — リアルタイム含み益+48.9pip (London-NY GBP BUY)
         # JPYはPAIR_DEMOTED。GBP/EURはBT正EV (GBP +0.134, EUR +0.192)
         # shadow全敗→TP縮小(3.0→2.0)+London-NY限定で改善済み。実弾でQH適用開始
@@ -4927,17 +4934,9 @@ class DemoTrader:
         ("xs_momentum", "EUR_USD"),
         # REMOVED v9.0: trendline_sweep → ELITE_LIVE (PAIR_PROMOTED redundant)
         # (was: EUR EV=+0.927 N=73 WR=80.8% PF=2.52 / GBP EV=+0.599 N=134 WR=73.1% PF=1.68)
-        # v2.1: Scalp枝 — ペア×TF最適組合せ (包括BTスキャンで正EV確認)
-        # bb_squeeze_breakout×JPY 5m: EV=+1.030 N=11 WR=90.9% (全Scalp最強)
-        ("bb_squeeze_breakout", "USD_JPY"),
-        # REMOVED v2.1: engulfing_bb×JPY — PAIR_DEMOTED (N=14 WR=28.6% Kelly=-14.7%)が優先
-        # BT 5m EV=+0.677だがLive実績が否定。PAIR_DEMOTEDが勝つため死コード削除
-        # fib_reversal×EUR 1m: EV=+0.426 N=40 WR=72.5%
-        ("fib_reversal", "EUR_USD"),
-        # bb_squeeze_breakout×EUR 1m: EV=+0.473 N=19 WR=73.7%
-        ("bb_squeeze_breakout", "EUR_USD"),
-        # sr_channel_reversal×EUR 5m: EV=+0.231 N=17 WR=70.6%
-        ("sr_channel_reversal", "EUR_USD"),
+        # REMOVED v9.1: bb_squeeze_breakout — FORCE_DEMOTED、全PAIR_PROMOTED無効(死コード)
+        # REMOVED v9.1: fib_reversal×EUR — FORCE_DEMOTED (死コード)
+        # REMOVED v9.1: sr_channel_reversal×EUR — FORCE_DEMOTED (死コード)
         # v2.1: VWAP MR JPY crosses — Bonferroni p<10^-7, friction-adjusted BT scan
         # EUR_JPY 15m 16bar: WR=55.8% EV=+3.85pip annual +2,837pip
         ("vwap_mean_reversion", "EUR_JPY"),
@@ -4949,27 +4948,18 @@ class DemoTrader:
         # 対策2: post_news_vol×GBP/EUR — 4/14で+46pip(SHADOW), BT GBP EV=+1.762 N=26
         ("post_news_vol", "GBP_USD"),
         ("post_news_vol", "EUR_USD"),
-        # 対策3: engulfing_bb×EUR — 4/14でEUR WR=67% +33pip, BT 1m EV=+0.163 N=47
-        ("engulfing_bb", "EUR_USD"),
+        # REMOVED v9.1: engulfing_bb×EUR — FORCE_DEMOTED (死コード)
         # v2.1 提案4: vwap_mr DT GBP/EUR — 365日BT Bias④⑤修正後にSTRONG出現
         # GBP_USD: N=254 EV=+0.758 PF=2.69 PnL=+193p
         ("vwap_mean_reversion", "GBP_USD"),
         # EUR_USD: N=210 EV=+0.615 PF=2.53 PnL=+129p
         ("vwap_mean_reversion", "EUR_USD"),
-        # v2.1 提案3: JPYクロスScalp — 180日BT N≥30正EV
-        # bb_squeeze×GBP_JPY 1m: EV=+0.340 N=67 STRONG
-        ("bb_squeeze_breakout", "GBP_JPY"),
-        # stoch_trend×GBP_JPY 1m: EV=+0.240 N=90 GOOD
-        ("stoch_trend_pullback", "GBP_JPY"),
+        # REMOVED v9.1: bb_squeeze_breakout×GBP_JPY — FORCE_DEMOTED (死コード)
+        # REMOVED v9.1: stoch_trend_pullback×GBP_JPY — FORCE_DEMOTED (死コード)
         # vol_momentum×EUR_JPY 5m: EV=+0.608 N=34 STRONG
         ("vol_momentum_scalp", "EUR_JPY"),
-        # bb_squeeze×EUR_JPY 5m: EV=+0.422 N=19 GOOD
-        ("bb_squeeze_breakout", "EUR_JPY"),
-        # v2.2: macdh_reversal JPY crosses — 5m Tier1 BT正EV
-        # EUR_JPY 5m: N=5 EV=+0.452 (Sentinel → PAIR_PROMOTED for data collection)
-        ("macdh_reversal", "EUR_JPY"),
-        # GBP_JPY 5m: N=9 EV=+0.219 (Sentinel → PAIR_PROMOTED for data collection)
-        ("macdh_reversal", "GBP_JPY"),
+        # REMOVED v9.1: bb_squeeze_breakout×EUR_JPY — FORCE_DEMOTED (死コード)
+        # REMOVED v9.1: macdh_reversal×EUR_JPY/GBP_JPY — FORCE_DEMOTED (死コード)
         # v2.1 SHADOW→PROMOTE: 365日BT正EV確認済み
         # doji_breakout×GBP_USD: N=23 WR=78.3% EV=+0.724 PF=2.47 STRONG
         ("doji_breakout", "GBP_USD"),
@@ -4979,17 +4969,16 @@ class DemoTrader:
         ("squeeze_release_momentum", "EUR_USD"),
         # dt_fib_reversal×GBP_USD: N=22 WR=72.7% EV=+0.310 PF=1.63
         ("dt_fib_reversal", "GBP_USD"),
+        # v9.1: Alpha#2 wick_imbalance_reversion×GBP_USD — 365d BT N=40 WR=70.0% EV=+0.123 PF=1.44
+        # WR=70%でBinomial p<0.02 (z=2.53)。JPY/EURは負EV → GBP_USDのみSentinel蓄積
+        ("wick_imbalance_reversion", "GBP_USD"),
     }
 
     # ペア別ロットブースト: PAIR_LOT_BOOST > _STRATEGY_LOT_BOOST (優先)
     # v8.9: Kelly Half適用 — alpha scan正EVセルにロットブースト
     _PAIR_LOT_BOOST = {
-        # Kelly Half: ライブalpha scan N≥10 & Kelly>10% のセル
-        ("fib_reversal", "USD_JPY"): 2.0,         # N=26 EV=+0.79 Kelly=11.1% → Half=5.6%
-        ("ema_pullback", "USD_JPY"): 2.0,         # N=14 EV=+1.09 Kelly=14.9% → Half=7.5%
-        # REMOVED v2.1: vol_momentum_scalp — BT N=87 EV=-0.014 (1m), N=10 EV=-0.443 (5m) 負EV確定
+        # REMOVED v9.1: fib_reversal×JPY, ema_pullback×JPY/EUR — FORCE_DEMOTED (死コード)
         ("vol_surge_detector", "EUR_USD"): 1.8,   # N=7 EV=+1.20 Kelly=32.7% → Half=16.4% (N小→控えめ)
-        ("ema_pullback", "EUR_USD"): 1.5,         # N=5 EV=+0.94 Kelly=16.6% → Half=8.3% (N最小→最控えめ)
         # v2.1: VWAP MR JPY crosses — friction-adjusted BT annual pip estimates
         ("vwap_mean_reversion", "EUR_JPY"): 1.8,  # annual +2,837pip (16bar@15m)
         ("vwap_mean_reversion", "GBP_JPY"): 1.8,  # annual +3,827pip (16bar@15m, strongest α)
@@ -5068,7 +5057,7 @@ class DemoTrader:
     _PE_ADX_THRESHOLD = {
         "EUR_USD": 25,  # EUR緩やかトレンド → 閾値緩和 (default 30)
     }
-    _PE_DT_ELIGIBLE = {"orb_trap", "london_ny_swing"}  # DT利確延伸対象
+    _PE_DT_ELIGIBLE = {"london_ny_swing"}  # DT利確延伸対象 (v9.1: orb_trap削除 — FORCE_DEMOTED)
 
     # v6.1: Strict Friction Guard — 指値失効後の追っかけブロック秒数
     _LIMIT_EXPIRE_CD_SEC = 180  # 3分間同方向再エントリー禁止
@@ -5086,10 +5075,9 @@ class DemoTrader:
     # v7.0: EUR DT SHIELD ホワイトリスト — MR系高EV戦略はモード遮断を免除
     # 根拠: orb_trap EUR BT 42t WR=71.4% EV=+0.482, htf_fbk EUR BT 32t WR=65.6% EV=+0.507
     # 安全: N<10 Safety で自動 Sentinel (0.01lot), auto_demotion + Kelly Cap 健在
+    # v9.1: orb_trap/dt_bb_rsi_mr削除 — FORCE_DEMOTED (365d BT全ペア負EV)
     _SHIELD_EUR_DT_WHITELIST = frozenset({
-        "orb_trap",                  # ORB Fakeout Reversal (MR, 独自タイミング窓)
         "htf_false_breakout",        # 1H SR False Breakout Fade (MR, MTFフィルター)
-        "dt_bb_rsi_mr",              # BB+RSI MR (RANGE専用, EUR 74%がRANGE → 最適環境)
     })
     _QUICK_HARVEST_MULT = 0.85      # v6.8: 0.70→0.85 (DT WIN 7件の19.2pip利益漏出修復)
     _QUICK_HARVEST_EXEMPT = frozenset({
@@ -5098,20 +5086,21 @@ class DemoTrader:
         ("session_time_bias", "USD_JPY"),
         ("session_time_bias", "EUR_USD"),
         ("session_time_bias", "GBP_USD"),
-        ("london_fix_reversal", "GBP_USD"),
+        # v9.1: london_fix_reversal×GBP_USD削除 — PAIR_PROMOTED解除済み (365d BT EV=-0.239)
         ("vix_carry_unwind", "USD_JPY"),    # イベント戦略、TP到達が前提
     })
-    # v9.0 Clean Slate: ExposureManager ghost fix + shadow bypass + watchdog fix + OANDA always-on
-    # 過去データはバグ汚染(ExposureManager block 2,357+件, SR dict型エラー等)のため全リセット
-    _FIDELITY_CUTOFF = "2026-04-16T00:00:00+00:00"
+    # v9.1 Clean Slate: v9.1デプロイ(08:00 UTC)以前のデータはshadow永続化バグ+FORCE_DEMOTED OANDA漏出で汚染
+    # 07:59以前の8件がshadow+OANDA IDの遷移期間トレード → Kelly計算を汚染(-0.148)
+    _FIDELITY_CUTOFF = "2026-04-16T08:00:00+00:00"
     # v6.4: 50% TP到達時のTP延伸対象 (トレンドフォロー戦略のみ)
+    # v9.1: FORCE_DEMOTED戦略を除去 (orb_trap, sr_fib_confluence, sr_break_retest, ema_cross)
     _PE_50PCT_ELIGIBLE = frozenset({
         "vol_momentum_scalp", "confluence_scalp",
-        "orb_trap", "london_ny_swing",
-        "sr_fib_confluence", "htf_false_breakout",
+        "london_ny_swing",
+        "htf_false_breakout",
         "gbp_deep_pullback", "turtle_soup",
-        "trendline_sweep", "sr_break_retest",
-        "adx_trend_continuation", "ema_cross",
+        "trendline_sweep",
+        "adx_trend_continuation",
         "squeeze_release_momentum",
         # v8.9: 新戦略追加
         "session_time_bias",         # セッションドリフト — トレンド継続時のTP延伸が有効

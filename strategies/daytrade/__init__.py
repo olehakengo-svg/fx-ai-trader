@@ -45,6 +45,10 @@ from strategies.daytrade.london_fix_reversal import LondonFixReversal
 from strategies.daytrade.vix_carry_unwind import VixCarryUnwind
 from strategies.daytrade.vol_spike_mr import VolSpikeMR
 from strategies.daytrade.doji_breakout import DojiBreakout
+# v9.1: Alpha探索戦略
+from strategies.daytrade.alpha_intraday_seasonality import IntradaySeasonality
+from strategies.daytrade.alpha_wick_imbalance import WickImbalanceReversion
+from strategies.daytrade.alpha_atr_regime_break import AtrRegimeBreak
 
 
 class DaytradeEngine:
@@ -83,6 +87,9 @@ class DaytradeEngine:
             VixCarryUnwind(),              # VCU: VIXスパイク時キャリートレード巻き戻し (Brunnermeier et al. 2009)
             VolSpikeMR(),                  # Vol Spike MR: ボラスパイク平均回帰 (Osler 2003, USD/JPY専用)
             DojiBreakout(),                # Doji Breakout: 連続Doji圧縮→ブレイクアウト (Mandelbrot 1963)
+            IntradaySeasonality(),         # Alpha#1: 日中リターン季節性 (Breedon & Ranaldo 2013)
+            WickImbalanceReversion(),      # Alpha#2: ヒゲ不均衡平均回帰 (Osler 2003)
+            AtrRegimeBreak(),              # Alpha#3: ATRレジーム転換ブレイクアウト (Engle 1982)
             DtFibReversal(),
             DtSrChannelReversal(),
             Ema200TrendReversal(),
