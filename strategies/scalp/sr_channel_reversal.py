@@ -24,14 +24,6 @@ class SrChannelReversal(StrategyBase):
         if not ctx.sr_levels or ctx.df is None or len(ctx.df) < 10:
             return None
 
-        # ADX regime filter: skip counter-trend reversal in strong trends
-        if ctx.adx > 30:
-            import logging
-            logging.getLogger(__name__).debug(
-                f"[sr_channel_reversal] ADX gate blocked: ADX={ctx.adx:.1f} > 30 ({ctx.symbol})"
-            )
-            return None
-
         signal = None
         score = 0.0
         reasons = []

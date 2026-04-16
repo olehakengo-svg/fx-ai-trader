@@ -2286,15 +2286,9 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # SR構造ベースのシグナル判定（BT dual_sr_bounce/breakout と整合）
     _sr_signal_found = False
 
-    # ── ADXハードブロック: レンジ相場・強トレンドではSR bounceを禁止 ──
+    # ── ADXハードブロック: レンジ相場ではSR bounceを禁止 ──
     # 本番で0/9全敗（-101.5pip）の根本原因: レンジでBUY/SELL交互発火
-    # ADX>35: 強トレンド中の逆張りは危険 → bounce禁止
-    _dt_adx_ok = 15 <= adx <= 35
-    if adx > 35:
-        import logging
-        logging.getLogger(__name__).debug(
-            f"[dual_sr_bounce] ADX gate blocked (strong trend): ADX={adx:.1f} > 35"
-        )
+    _dt_adx_ok = adx >= 15  # ADX15未満はレンジ → SR bounce禁止
 
     # A: 下のSRバウンス → BUY（EMA方向整合必須 + ADX≥15）
     if _dt_adx_ok and _dt_below:
