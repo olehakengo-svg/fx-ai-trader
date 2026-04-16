@@ -219,6 +219,16 @@ SL_HIT、スプレッド0.8pip（正常）。損失規模がシステム全体Pn
 ### 課題②：`dual_sr_bounce/GBP_USD` — 4連敗、EV=-7.05
 WR=0%、全てSL_HIT。GBP_USDは現在RANGING（ATR%ile=53%、SMA slope=+0.00385）。レンジ相場でのバウンス戦略は方向性定まらず逆張りが機能しないレジーム。**戦略・レジームのミスマッチ**が主因。
 
+### 2026-04-16 (Post-Tokyo Report)
+| 勝率 (WR) | 20.0% (4W / 16L+BE) |
+| PnL | **−62.0 pips** |
+| 平均EV/トレード | −3.10 |
+| 戦略 | ペア | N | WR | PnL | 成功要因 |
+| **bb_rsi_reversion** | USD_JPY | 4 | 75.0% | +6.1 pips | RANGING相場(ATR%ile 34%)でのBBタッチ逆張りが機能、TP_HIT×3でEV+1.52 |
+**唯一の構造的ポジティブシグナル: bb_rsi_reversionのEV+1.52（N=4, 参考値水準）**
+| 戦略 | ペア | N | WR | PnL | 失敗要因 |
+| **stoch_trend_pullback の一時停止を検討** | N=3, WR=0%, EV=−4.33。USD_JPYがRANGINGである限り、トレンドフォロー系の期待値は構造的にマイナス |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
