@@ -165,6 +165,30 @@ class TestDemoDB:
         # decided = 2/(2+1) = 66.7%
         assert s["decided_win_rate"] == 66.7
 
+    def test_stats_accepts_iso_datetime_range(self, db):
+        """v9.1 tz: date_from/date_to accept full ISO datetime (not just YYYY-MM-DD)
+        so frontend can pass a local-day range converted to UTC."""
+        tid = db.open_trade("BUY", 150.0, 149.5, 150.5, "ema_cross", 60,
+                            instrument="USD_JPY")
+        # Force entry_time to UTC 17:00 prev day (= JST 02:00 morning of "today")
+        jst_morning = "2026-04-16T17:00:00+00:00"
+        with db._safe_conn() as conn:
+            conn.execute("UPDATE demo_trades SET entry_time=? WHERE trade_id=?",
+                         (jst_morning, tid))
+            conn.commit()
+        db.close_trade(tid, 150.5, "TP_HIT")
+
+        # OLD behavior (UTC date "2026-04-17") would miss this trade
+        s_old = db.get_stats(date_from="2026-04-17", date_to="2026-04-17")
+        assert s_old["total"] == 0
+
+        # NEW behavior (local JST day → UTC ISO range) captures it
+        s_new = db.get_stats(date_from="2026-04-16T15:00:00",
+                             date_to="2026-04-17T14:59:59")
+        assert s_new["total"] == 1, (
+            "JST early-morning trade should be captured when frontend sends "
+            "a JST-day boundary as UTC ISO datetime")
+
     def test_stats_by_type_pnl_rounded(self, db):
         """v9.1: by_type[strategy]['pnl'] must not leak float precision artifacts."""
         # Two small wins that famously trigger -17.9999... style sums

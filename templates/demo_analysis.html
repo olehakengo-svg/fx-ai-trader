@@ -682,6 +682,26 @@ let _modeGrace={};  // Grace period: {mode: consecutiveMissCount}
 
 // ── Helpers ──
 function _h(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+// v9.1 timezone fix: entry_time は UTC ISO 保存。Date picker / quick range は
+// ブラウザ local (JST 等) のカレンダー日付で動くべきだが、以前は UTC 日を使っていた
+// ため JST 00:00-09:00 の午前トレードが消えていた。
+// ymd=YYYY-MM-DD (local) → UTC ISO "YYYY-MM-DDTHH:MM:SS" を返す
+function _localYMDToUTCISO(ymd, endOfDay){
+  if(!ymd||!/^\d{4}-\d{2}-\d{2}$/.test(ymd))return '';
+  const [y,m,d]=ymd.split('-').map(Number);
+  const t=endOfDay?[23,59,59]:[0,0,0];
+  const localMs=new Date(y,m-1,d,t[0],t[1],t[2]).getTime();
+  return new Date(localMs).toISOString().slice(0,19); // "YYYY-MM-DDTHH:MM:SS" (UTC)
+}
+function _todayLocalYMD(){
+  const n=new Date();const p=x=>String(x).padStart(2,'0');
+  return `${n.getFullYear()}-${p(n.getMonth()+1)}-${p(n.getDate())}`;
+}
+function _daysAgoLocalYMD(days){
+  const n=new Date();n.setDate(n.getDate()-days);
+  const p=x=>String(x).padStart(2,'0');
+  return `${n.getFullYear()}-${p(n.getMonth()+1)}-${p(n.getDate())}`;
+}
 function _iso2unix(s){return s?Math.floor(new Date(s).getTime()/1000):0}
 
 function modePairKey(mode){
@@ -911,8 +931,11 @@ async function loadStats(){
     const p=[];
     // v9.1: Stats を現在選択中ペアにスコープ（全ペア合算ではなく選択ペアのみ）
     if(_currentPair)p.push(`instrument=${encodeURIComponent(_currentPair)}`);
-    if(_statsFilter.dateFrom)p.push(`date_from=${_statsFilter.dateFrom}`);
-    if(_statsFilter.dateTo)p.push(`date_to=${_statsFilter.dateTo}`);
+    // v9.1 tz: local YMD を UTC ISO datetime に変換して送る（JST↔UTC ズレ対応）
+    const dfISO=_localYMDToUTCISO(_statsFilter.dateFrom,false);
+    const dtISO=_localYMDToUTCISO(_statsFilter.dateTo,true);
+    if(dfISO)p.push(`date_from=${dfISO}`);
+    if(dtISO)p.push(`date_to=${dtISO}`);
     if(_statsFilter.mode)p.push(`mode=${encodeURIComponent(_statsFilter.mode)}`);
     const url='/api/demo/stats'+(p.length?'?'+p.join('&'):'');
     const r=await fetch(url);
@@ -987,8 +1010,11 @@ function _reasonLabel(reason){
 async function loadTradeLog(){
   try{
     const p=[];
-    if(_statsFilter.dateFrom)p.push(`date_from=${_statsFilter.dateFrom}`);
-    if(_statsFilter.dateTo)p.push(`date_to=${_statsFilter.dateTo}`);
+    // v9.1 tz: local YMD → UTC ISO に変換（loadStats と同じ扱い）
+    const dfISO=_localYMDToUTCISO(_statsFilter.dateFrom,false);
+    const dtISO=_localYMDToUTCISO(_statsFilter.dateTo,true);
+    if(dfISO)p.push(`date_from=${dfISO}`);
+    if(dtISO)p.push(`date_to=${dtISO}`);
     if(_statsFilter.mode)p.push(`mode=${encodeURIComponent(_statsFilter.mode)}`);
     const hasFilter=_statsFilter.dateFrom||_statsFilter.dateTo||_statsFilter.mode;
     if(hasFilter)p.push('limit=200');
@@ -1393,11 +1419,12 @@ function _applyStatsFilter(){
 function _sfSetRange(range){
   document.querySelectorAll('.sf-btn').forEach(b=>b.classList.remove('sf-active'));
   document.querySelector(`.sf-btn[data-range="${range}"]`)?.classList.add('sf-active');
-  const now=new Date();
+  // v9.1 timezone fix: local (JST) の日付を使う。以前は UTC 日付で Today が
+  // UTC 00-23:59 = JST 09:00-翌08:59 を指してしまい、JST 早朝の成果が消えていた。
   let from='',to='';
-  if(range==='today'){from=to=now.toISOString().slice(0,10)}
-  else if(range==='7d'){to=now.toISOString().slice(0,10);from=new Date(now-7*864e5).toISOString().slice(0,10)}
-  else if(range==='30d'){to=now.toISOString().slice(0,10);from=new Date(now-30*864e5).toISOString().slice(0,10)}
+  if(range==='today'){from=to=_todayLocalYMD()}
+  else if(range==='7d'){to=_todayLocalYMD();from=_daysAgoLocalYMD(7)}
+  else if(range==='30d'){to=_todayLocalYMD();from=_daysAgoLocalYMD(30)}
   document.getElementById('sf-from').value=from;
   document.getElementById('sf-to').value=to;
   _statsFilter.dateFrom=from;_statsFilter.dateTo=to;
