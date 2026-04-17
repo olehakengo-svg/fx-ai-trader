@@ -94,12 +94,19 @@ class TestRegimeGuardrailHelper:
 
 
 class TestGuardrailEnvFlag:
-    """REGIME_GUARDRAIL_ENABLED=0 should fully disable the check."""
+    """v9.2.1 (2026-04-17): default DISABLED (curve-fit 判定).
 
-    def test_env_var_default_enabled(self, monkeypatch):
+    6.5 年 × 3pair の MTF engine 検証で v9.2 の 2 cell は方向が逆と判明.
+    再有効化は REGIME_GUARDRAIL_ENABLED=1 で opt-in.
+    """
+
+    def test_env_var_default_disabled(self, monkeypatch):
+        """v9.2.1: デフォルト disabled (curve-fit のため)."""
         monkeypatch.delenv("REGIME_GUARDRAIL_ENABLED", raising=False)
-        assert os.environ.get("REGIME_GUARDRAIL_ENABLED", "1") != "0"
+        # In production code: `if os.environ.get("REGIME_GUARDRAIL_ENABLED", "0") == "1"`
+        assert os.environ.get("REGIME_GUARDRAIL_ENABLED", "0") != "1"
 
-    def test_env_var_disabled_when_zero(self, monkeypatch):
-        monkeypatch.setenv("REGIME_GUARDRAIL_ENABLED", "0")
-        assert os.environ.get("REGIME_GUARDRAIL_ENABLED", "1") == "0"
+    def test_env_var_enabled_when_one(self, monkeypatch):
+        """明示 opt-in の場合は動く (diagnostic 用途)."""
+        monkeypatch.setenv("REGIME_GUARDRAIL_ENABLED", "1")
+        assert os.environ.get("REGIME_GUARDRAIL_ENABLED", "0") == "1"

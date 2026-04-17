@@ -3332,15 +3332,19 @@ class DemoTrader:
 
         # ══════════════════════════════════════════════════════════════
         # ── v9.2: Regime-Conditional Guardrail (SELL bias 法医学) ──
-        # 独立 regime labeler (slope_t + ADX / M30) で以下 2 cell を抑止:
-        #   uncertain × SELL — Live N=72 -121.8p WR 27.8% (t=-3.29, p=0.0016)
-        #   up_trend  × BUY  — Live N=60  -89.1p WR 31.7%
-        # 9日 Live サンプル (in-sample) で検出、2週間 Live 観察で再評価。
-        # 既存 _regime_type_r (production regime) とは別系統 — 独立 labeler が優先。
-        # Rollback: REGIME_GUARDRAIL_ENABLED=0 で即 off。
-        # 詳細: knowledge-base/wiki/analyses/sell-bias-forensics-2026-04-17.md
+        # v9.2.1 (2026-04-17): DEFAULT DISABLED — curve-fit 判定
+        #   6.5年 × 3pair H1 検証で baseline labeler の η²(fwd-24h) < 0.003 (trivial)
+        #   さらに MTF engine 決定的検証で v9.2 guardrail の方向が逆と判明:
+        #     - uncertain × SELL: EUR_USD uncertain fwd-3d = -10.65p (t=-11.12)
+        #                        → SELL が profitable、block は逆効果
+        #     - up_trend × BUY:  USD_JPY up_trend fwd-1d = +4.52p (t=+4.83)
+        #                        → BUY が profitable、block は逆効果
+        #   9日 Live サンプル (N=60-72) で偶然サインが反転した curve-fit.
+        #   詳細: knowledge-base/wiki/analyses/mtf-regime-validation-2026-04-17.md
+        # 再有効化は MTF engine v9.3 guardrail と同時移行後とする.
+        # 緊急再有効化: REGIME_GUARDRAIL_ENABLED=1
         # ══════════════════════════════════════════════════════════════
-        if _os.environ.get("REGIME_GUARDRAIL_ENABLED", "1") != "0":
+        if _os.environ.get("REGIME_GUARDRAIL_ENABLED", "0") == "1":
             _ind_regime = self._get_independent_regime(instrument)
             _guardrail_hit = None
             if _ind_regime == "uncertain" and signal == "SELL":
