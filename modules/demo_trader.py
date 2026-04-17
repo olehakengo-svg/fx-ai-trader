@@ -4918,11 +4918,9 @@ class DemoTrader:
         # REMOVED: bb_rsi_reversion×USD_JPY → PAIR_DEMOTED (v8.9: Post-cut N=76 WR=38.2% EV=-0.28 Kelly=-5.5%)
         # REMOVED v9.1: orb_trap PAIR_PROMOTED削除 — 365d BT全ペア負EV (JPY=-0.854, EUR=-0.488, GBP=-0.258)
         # 旧BT(60d): WR=79%/71%/64% → 365d: WR=42%/37%/56% — 劇的悪化、FORCE_DEMOTED
-        # v8.6: session_time_bias — BT全3ペア正EV確認 (学術根拠: Breedon & Ranaldo 2013 JF)
-        # JPY: WR=73.1% EV=+0.427 / EUR: WR=76.9% EV=+0.650 / GBP: WR=69.4% EV=+0.266
-        ("session_time_bias", "USD_JPY"),
-        ("session_time_bias", "EUR_USD"),
-        ("session_time_bias", "GBP_USD"),
+        # REMOVED 2026-04-17: session_time_bias は _ELITE_LIVE 所属のため PAIR_PROMOTED の3行は冗長。
+        # 365d BT 全3ペア正EV (JPY=+0.58/EUR=+0.22/GBP=+0.11, Breedon & Ranaldo 2013) で
+        # ELITE_LIVE 昇格済み — 全ペア自動通過するため PAIR_PROMOTED 指定は不要。
         # REMOVED v9.1: london_fix_reversal×GBP — 365d BT EV=-0.239 WR=47.4% (旧60d BT WR=75% → 崩壊)
         # ("london_fix_reversal", "GBP_USD"),
         # REMOVED v9.1: ema_pullback×JPY — ema_pullbackはFORCE_DEMOTED、PAIR_PROMOTED無効(死コード)

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-16T16:17:47.365193+00:00",
+  "generated_at": "2026-04-17T05:02:15.831492+00:00",
   "elite_live": [
     "gbp_deep_pullback",
     "session_time_bias",
@@ -64,18 +64,6 @@
     [
       "post_news_vol",
       "GBP_USD"
-    ],
-    [
-      "session_time_bias",
-      "EUR_USD"
-    ],
-    [
-      "session_time_bias",
-      "GBP_USD"
-    ],
-    [
-      "session_time_bias",
-      "USD_JPY"
     ],
     [
       "squeeze_release_momentum",

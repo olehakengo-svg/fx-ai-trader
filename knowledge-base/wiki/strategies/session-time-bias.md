@@ -44,6 +44,7 @@
 - [x] Stage 3: BACKTESTED — BT WR=69-77% (2026-04-12)
 - [x] Stage 4: SENTINEL (v8.5, 2026-04-12)
 - [x] Stage 6: PROMOTED (v8.6, 2026-04-12) — 3ペア PAIR_PROMOTED
+- [x] Stage 7: ELITE_LIVE (2026-04-17) — 全ペア自動通過、PAIR_PROMOTED重複は整理
 
 ## Key Advantage
 **実装複雑度 1/5** — 時刻ルールのみ。最もシンプルな新エッジ。

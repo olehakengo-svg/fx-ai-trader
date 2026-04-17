@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-04-16 16:17 UTC
+**最終更新**: 2026-04-17 05:02 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -137,7 +137,3 @@
 ## C. 整合性チェック結果
 
 ✅ **全チェックパス** — FORCE_DEMOTED残存なし、矛盾なし
-### ℹ️ INFO（3件）
-- ELITE 'session_time_bias' also in PAIR_PROMOTED (EUR_USD) — redundant but harmless
-- ELITE 'session_time_bias' also in PAIR_PROMOTED (USD_JPY) — redundant but harmless
-- ELITE 'session_time_bias' also in PAIR_PROMOTED (GBP_USD) — redundant but harmless
