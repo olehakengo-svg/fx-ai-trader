@@ -38,7 +38,6 @@
 | [[bb-rsi-reversion]] | no BT data | SCALP_SENTINEL |
 | [[dt-sr-channel-reversal]] | EUR_JPY: EV=+0.178 WR=63.8% | UNIVERSAL_SENTINEL |
 | [[ema200-trend-reversal]] | EUR_USD: EV=+0.410 WR=75.0%; USD_JPY: EV=-0.183 WR=56.2% | UNIVERSAL_SENTINEL |
-| [[ema-trend-scalp]] | no BT data | shadow only |
 | [[eurgbp-daily-mr]] | no BT data | UNIVERSAL_SENTINEL |
 | [[gotobi-fix]] | no BT data | UNIVERSAL_SENTINEL |
 | [[htf-false-breakout]] | EUR_USD: EV=+0.352 WR=80.0%; GBP_USD: EV=+0.552 WR=75.0%; USD_JPY: EV=+0.660 WR=80.0% | LOT_BOOST (not sentinel/elite) |
@@ -61,6 +60,7 @@
 | [[ema-cross]] | no BT data | FORCE_DEMOTED |
 | [[ema-pullback]] | no BT data | FORCE_DEMOTED |
 | [[ema-ribbon-ride]] | no BT data | FORCE_DEMOTED |
+| [[ema-trend-scalp]] | no BT data | FORCE_DEMOTED |
 | [[engulfing-bb]] | no BT data | FORCE_DEMOTED |
 | [[fib-reversal]] | no BT data | FORCE_DEMOTED |
 | [[inducement-ob]] | no BT data | FORCE_DEMOTED |

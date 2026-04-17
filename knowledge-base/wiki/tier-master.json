@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-17T05:02:15.831492+00:00",
+  "generated_at": "2026-04-17T06:07:15.995855+00:00",
   "elite_live": [
     "gbp_deep_pullback",
     "session_time_bias",
@@ -12,6 +12,7 @@
     "ema_cross",
     "ema_pullback",
     "ema_ribbon_ride",
+    "ema_trend_scalp",
     "engulfing_bb",
     "fib_reversal",
     "inducement_ob",

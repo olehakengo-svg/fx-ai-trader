@@ -332,6 +332,16 @@ class DemoTrader:
         except Exception as e:
             print(f"[OandaBridge] mapping restore skipped: {e}", flush=True)
 
+        # ── v9.2: Regime Guardrail cache ──
+        # SELL bias 法医学 (2026-04-17) で特定された 2 悪性 regime×direction cell を block
+        #   * uncertain × SELL — Live N=72 -121.8p WR 27.8% (t=-3.29, p=0.0016)
+        #   * up_trend  × BUY  — Live N=60  -89.1p WR 31.7%
+        # 独立 regime labeler (slope_t + ADX) で M30 足から判定、5分 TTL でキャッシュ。
+        # Rollback: 環境変数 REGIME_GUARDRAIL_ENABLED=0 で即 off。
+        # 詳細: knowledge-base/wiki/analyses/sell-bias-forensics-2026-04-17.md
+        self._regime_cache = {}  # instrument -> (fetched_at: datetime, regime: str)
+        self._regime_cache_ttl_sec = 300  # 5分 — M30 足の粒度に対して十分頻繁
+
         # デプロイ中にOANDA未連携のOPENトレードを補完送信
         self._resend_pending_oanda_trades()
 
@@ -3321,6 +3331,35 @@ class DemoTrader:
                 return
 
         # ══════════════════════════════════════════════════════════════
+        # ── v9.2: Regime-Conditional Guardrail (SELL bias 法医学) ──
+        # 独立 regime labeler (slope_t + ADX / M30) で以下 2 cell を抑止:
+        #   uncertain × SELL — Live N=72 -121.8p WR 27.8% (t=-3.29, p=0.0016)
+        #   up_trend  × BUY  — Live N=60  -89.1p WR 31.7%
+        # 9日 Live サンプル (in-sample) で検出、2週間 Live 観察で再評価。
+        # 既存 _regime_type_r (production regime) とは別系統 — 独立 labeler が優先。
+        # Rollback: REGIME_GUARDRAIL_ENABLED=0 で即 off。
+        # 詳細: knowledge-base/wiki/analyses/sell-bias-forensics-2026-04-17.md
+        # ══════════════════════════════════════════════════════════════
+        if _os.environ.get("REGIME_GUARDRAIL_ENABLED", "1") != "0":
+            _ind_regime = self._get_independent_regime(instrument)
+            _guardrail_hit = None
+            if _ind_regime == "uncertain" and signal == "SELL":
+                _guardrail_hit = ("uncertain_SELL", -121.8, 72, 27.8)
+            elif _ind_regime == "up_trend" and signal == "BUY":
+                _guardrail_hit = ("up_trend_BUY", -89.1, 60, 31.7)
+            if _guardrail_hit is not None:
+                _tag, _pnl, _n, _wr = _guardrail_hit
+                if _is_slot_shadow_eligible:
+                    _is_shadow = True
+                    self._add_log(
+                        f"[SHADOW] Regime guardrail: {entry_type} {signal} "
+                        f"regime={_ind_regime} → shadow ({_tag} N={_n} {_pnl:+.1f}p WR={_wr:.1f}%)"
+                    )
+                else:
+                    _block(f"regime_guardrail({_tag},N={_n},{_pnl:+.1f}p,WR={_wr:.1f}%)")
+                    return
+
+        # ══════════════════════════════════════════════════════════════
         # ── v7.0: DT Power Session — USD/JPY のみ UTC 7-8, 13-14 限定 ──
         # 本番112t分析(USD/JPY): UTC 13-14 WR=65.2% +122.7pip (z=4.02)
         #                        UTC 7-8   WR=38%  +18.0pip  (London Open)
@@ -4834,6 +4873,10 @@ class DemoTrader:
         # v9.1: Alpha探索戦略BT結果 (2026-04-17)
         "intraday_seasonality",  # BT 365d: JPY EV=-0.109 / EUR EV=-0.144 / GBP EV=+0.037 (微弱) — 計算コスト大で費用対効果なし
         "atr_regime_break",      # BT 365d: 全3ペアN≈0 — surge_mult×quiet_pctl条件が過剰制限、実戦不適
+        # v9.2: SELL bias 法医学 (2026-04-17) — regime cross-tab で全regimeでWR 11-15%、仕様(トレンドフォロー)と挙動が矛盾
+        #   Live 9日: up_trend×BUY N=20 WR=15% / uncertain×BUY N=9 WR=11% → 全regimeで敗北
+        #   詳細: wiki/analyses/sell-bias-forensics-2026-04-17.md
+        "ema_trend_scalp",
     }
 
     # ── Elite Track: 摩擦モデルv2 BT + v5.95統合BT監査 ──
@@ -5283,3 +5326,45 @@ class DemoTrader:
         except Exception:
             pass
         print(f"[DemoTrader] {msg}")
+
+    # ══════════════════════════════════════════════════════════════
+    # v9.2: Regime Guardrail (独立 labeler)
+    # ══════════════════════════════════════════════════════════════
+    def _get_independent_regime(self, instrument: str) -> str:
+        """Fetch OANDA M30 candles and classify latest bar regime.
+
+        Returns one of: 'up_trend', 'down_trend', 'range', 'uncertain'.
+        Errors (API fail / no candles) → 'uncertain' で fail-safe。
+        5 分 TTL でキャッシュし、entry 毎の API 連打を防止。
+
+        Labeler は research/edge_discovery/regime_labeler.py と同一。
+        本番 sig['regime'] とは独立で、SELL bias 法医学で使った規定と一致。
+        """
+        now = datetime.now(timezone.utc)
+        cached = self._regime_cache.get(instrument)
+        if cached is not None:
+            fetched_at, regime = cached
+            age_sec = (now - fetched_at).total_seconds()
+            if age_sec < self._regime_cache_ttl_sec:
+                return regime
+        # Cache miss / expired — fetch + label
+        try:
+            from research.edge_discovery.regime_labeler import fetch_and_label
+            labeled = fetch_and_label(
+                instrument=instrument,
+                granularity="M30",
+                count=200,
+                client=self._oanda._client,
+            )
+            if labeled is None or labeled.empty:
+                regime = "uncertain"
+            else:
+                regime = str(labeled.iloc[-1]["regime"])
+            self._regime_cache[instrument] = (now, regime)
+            return regime
+        except Exception as e:
+            # Silent fail-safe: 分類不能時は最も無害な 'uncertain'
+            # ただし uncertain は SELL guardrail 対象なので、敢えて通す方向に
+            # 寄せる: 'range' を返して guardrail を事実上スキップ。
+            self._add_log(f"[REGIME_GUARDRAIL] labeler failed for {instrument}: {e} (fail-open)")
+            return "range"  # fail-open: guardrail スキップして既存経路へ
