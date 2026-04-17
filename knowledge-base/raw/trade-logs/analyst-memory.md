@@ -259,6 +259,16 @@ bb_rsi_reversionのUSD_JPY 5連勝（100% WR, EV +3.90）が牽引し、dt_sr_ch
 - **今日の対処**：`vix_carry_unwind` は N=1、EV=-22.70。市場が急変（円急騰局面）していたと推察されるが、1件のSL_HITで判断する段階ではない。ただし**異常損失として記録し、シグナルが再発する場合は優先的に観測**する。
 - ボラ急増を検知してエントリーしているが、USD_JPYがRANGINGレジーム下では方向性が出ず、TIME_DECAYで損切りされる構造的弱点が示唆される。
 
+### 2026-04-17 (Post-Tokyo Report)
+| PnL | ±0 |
+| WR | N/A |
+- トレードゼロはシステム異常ではなく、スプレッドガードと時間帯フィルタが機能した結果
+- spread_guard閾値（Scalp30%）は東京セッションの流動性低下に対し適切に機能している
+- N=0では統計的判断の根拠なし。Fidelity Cutoff（2026-04-08）以降の累積データで判断すべき
+### 推奨戦略配分
+| `trendline-sweep` (ELITE) | EUR_USD | TRENDING_UP + ATR57%。BT EV=+0.927/WR=80.8%。ロンドン開始のブレイクアウトに適合 |
+| `session-time-bias` (ELITE) | EUR_USD, GBP_USD | ロンドンセッションはこの戦略のコアタイム。USD_JPY EV=+0.580も有効 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
