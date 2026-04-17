@@ -128,7 +128,7 @@ $$
 - OANDA `/v3/instruments/:pair/candles`
 - 期間: 過去 5 年
 - 時間枠: M30 (M1 だとノイズ過多、H1 だとサンプル少)
-- XAU_USD は [[feedback_exclude_xau]] により除外
+- XAU_USD は feedback_exclude_xau (user memory) により除外
 
 ### ラベラー仕様
 `research/edge_discovery/regime_labeler.py` (別途実装):
@@ -239,7 +239,7 @@ regime-unadjusted である旨を KB レポートに明示。[[rigorous-edge-ana
 - **Regime ラベルが ternary (+ uncertain)** — 情報損失あり。連続値 (trend strength × range width) による soft weighting の方が望ましい。MVP 後に検討。
 - **$\pi^{\text{long\_run}}$ 自体の time-varying 性** — 10年スケールで regime 分布は構造変化する (例: 2020-2022 超緩和期 → 2023-2025 引き締め期)。5年 rolling で再推定する運用が必要。
 - **Regime と戦略の非独立性** — 戦略発火条件に ADX や slope 等を含む場合、regime ラベルと発火は相関。条件付き期待値の解釈に注意 ("この戦略は up regime で勝つ" が tautological にならないか)。
-- **Purged CV との統合** — Walk-forward stability を regime-stratified に変更する際、[[López de Prado]] の Purged K-Fold を採用すべき。fold 境界で regime transition が跨ぐと leakage の危険あり。
+- **Purged CV との統合** — Walk-forward stability を regime-stratified に変更する際、López de Prado (2018) "Advances in Financial Machine Learning" の Purged K-Fold を採用すべき。fold 境界で regime transition が跨ぐと leakage の危険あり。
 - **π_prod との乖離リスク** — 本番が long-run prior と異なる regime に入った場合 (構造変化局面)、reweighted estimator も誤る。これは原理的に回避不能。対策は live PnL の rolling monitoring と早期ストップ。
 - **個別ペア × regime の cell が小さい問題** — N=1090 の現サンプルでは多くの cell で $n_{s,r} < 30$ となる。当面は `regime_support = PARTIAL` が主で、FULL は稀。**累計 5000 トレード超までは大半の cell で SE が広い** ことを許容する必要あり。
 

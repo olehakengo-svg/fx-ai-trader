@@ -65,7 +65,7 @@
 | [[dual-sr-bounce]] | USD_JPY: EV=+0.280 WR=70.3% | FORCE_DEMOTED |
 | [[ema-cross]] | no BT data | FORCE_DEMOTED |
 | [[ema-ribbon-ride]] | no BT data | FORCE_DEMOTED |
-| [[h1-fib-reversal]] | no BT data | FORCE_DEMOTED |
+| h1-fib-reversal | no BT data | FORCE_DEMOTED |
 | [[inducement-ob]] | no BT data | FORCE_DEMOTED |
 | [[lin-reg-channel]] | no BT data | FORCE_DEMOTED |
 | [[orb-trap]] | USD_JPY: EV=+0.866 WR=84.2% | FORCE_DEMOTED |
@@ -101,6 +101,7 @@
 - [[mfe-zero-analysis]] -- 90.6% of losses never go favorable
 
 ## Session History
+- [[sessions/2026-04-17-session]] — conditional edge estimand framework + KB整合修正
 - [[sessions/2026-04-15-session]] — KB broken-link修正+orphanファイル統合
 - [[sessions/2026-04-14-session]] — H15検証+SENTINEL矛盾修正+QHシミュレーション+漏れ分析
 - [[sessions/2026-04-13-session]] — v8.9 Equity Reset + KB全面改修(25 Phase) + 4セッションレポート + パイプライン修復
