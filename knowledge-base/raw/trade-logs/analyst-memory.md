@@ -279,6 +279,16 @@ bb_rsi_reversionのUSD_JPY 5連勝（100% WR, EV +3.90）が牽引し、dt_sr_ch
 - 降格基準（N≥30 & EV<−0.5）到達: 未達（N不足のため判定保留）
 ### 課題①：vix_carry_unwind USD_JPY — 単発EV=−22.70（SL_HIT）
 
+### 2026-04-17 (Post-London Report)
+| PnL | **0 pips / 0円** |
+| WR | **N/A** |
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+| その他 | — | RANGINGペアでのDT系はNO ACTION推奨 |
+> **USD_JPY/GBP_JPY/EUR_JPY についてはNO ACTION推奨。**
+| 東京 + ロンドン累計PnL | **0 pips / 0円** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
