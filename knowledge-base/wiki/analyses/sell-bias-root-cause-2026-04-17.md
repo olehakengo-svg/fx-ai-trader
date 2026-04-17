@@ -7,6 +7,27 @@
 
 ---
 
+> ## 📘 FOLLOW-UP: estimand framework として一般化 (追記 2026-04-17)
+>
+> 本文書の「SELL bias = regime drag」という発見は、数学的には **Simpson's paradox による marginal estimate のバイアス** の具体例であることが判明。formal な扱いは [[conditional-edge-estimand-2026-04-17]] に移管した。
+>
+> **要点**:
+> - 現行 `RigorousAnalyzer` の出力は $\pi^{\text{sample}}(\text{regime})$ で暗黙に重み付けされた期待値
+> - 真の estimand は $\pi^{\text{long\_run}}(\text{regime})$ で重み付けしたもの
+> - 両者の差が本文書で検出された「SELL bias」の正体
+>
+> **今後の実装**:
+> - `research/edge_discovery/regime_labeler.py` (OANDA OHLC 独立ラベラー)
+> - `RigorousAnalyzer` に regime 次元 + reweighting + regime_support フラグを追加
+> - 本文書の結論 (SELL bias は regime drag) は **定性的に変わらない** が、各戦略の「構造的敗者」判定は regime 分解まで保留
+>
+> **portfolio_balance.py 実行結果 (2026-04-17)**:
+> - Overall 51:49 (軽微) / GBP_USD 58:42 (有意) / `trend_rebound` 17:83 (極端)
+> - Regime × Direction: **RANGE × BUY のみ正 edge (+0.86p)**, 他 5セル全て負
+> - production 自己申告 regime と OANDA 独立 regime の突合は別途実施予定
+
+---
+
 ## エグゼクティブ・サマリー
 
 **結論**: SELL方向の敗北は **signal-side のバイアスではなく、レジーム・ドラッグである**。

@@ -96,7 +96,15 @@ def benjamini_hochberg(
 # ──────────────────────────────────────────────────────
 @dataclass
 class PocketStats:
-    """1 cell の統計パッケージ."""
+    """1 cell の統計パッケージ.
+
+    Regime conditioning (conditional-edge-estimand-2026-04-17.md):
+    - regime_breakdown: regime → {n, avg, std} — 条件付き期待値
+    - theta_reweighted: Σ_r π_long_run(r) * Ê[pnl | s, r]  — 真の推定量
+    - se_reweighted: stratified 標準誤差
+    - regime_support: FULL/PARTIAL/INSUFFICIENT
+    これらは analyzer が regime 列を持つ場合のみ populate される.
+    """
     key: tuple                   # (dim_name, dim_value, ...) など
     n: int
     wins: int
@@ -111,16 +119,31 @@ class PocketStats:
     fdr_significant: bool = False
     wf_stable: Optional[bool] = None   # None = 未計測
     recommendation: str = "WEAK"  # STRONG / MODERATE / WEAK
+    # Regime conditioning fields (optional; populated if regime data available)
+    regime_breakdown: dict = None          # regime → {"n": int, "avg": float, "std": float}
+    theta_reweighted: Optional[float] = None
+    se_reweighted: Optional[float] = None
+    regime_support: Optional[str] = None   # "FULL" / "PARTIAL" / "INSUFFICIENT"
+
+    def __post_init__(self):
+        if self.regime_breakdown is None:
+            self.regime_breakdown = {}
 
     def __str__(self) -> str:
         wf = "Y" if self.wf_stable else ("N" if self.wf_stable is False else "-")
         b = "*" if self.bonf_significant else (" " if not self.fdr_significant else "+")
-        return (
+        base = (
             f"{b} {self.recommendation:8s} [{self.key}] "
             f"N={self.n:3d} WR={self.wr:.0%} (BE={self.breakeven_wr:.0%}) "
             f"Avg={self.avg_pips:+6.2f}p Tot={self.total_pips:+7.1f}p "
             f"PF={self.pf:.2f} p={self.p_value:.4f} WF={wf}"
         )
+        if self.theta_reweighted is not None:
+            rs = (self.regime_support or "?")[:4]
+            se_str = (f"±{self.se_reweighted:.2f}"
+                      if self.se_reweighted is not None else "")
+            base += f" θ*={self.theta_reweighted:+.2f}p{se_str} RS={rs}"
+        return base
 
 
 def build_pocket(key: tuple, pnl_series, breakeven_wr: float = 0.50) -> PocketStats:

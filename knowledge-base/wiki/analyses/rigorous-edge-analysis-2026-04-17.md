@@ -7,6 +7,21 @@
 
 ---
 
+> ## ⚠ CAVEAT: regime-unadjusted, provisional (追記 2026-04-17)
+>
+> 本文書の全 STRONG/MODERATE 判定は **regime-unadjusted の marginal estimate** に基づいており、本番で得られる期待 PnL を推定していない。
+>
+> 理論的背景: [[conditional-edge-estimand-2026-04-17]]
+>
+> - 現行推定量は暗黙に $\pi^{\text{sample}}(\text{regime})$ で重み付けされた期待値
+> - サンプル期間 (9日, N=1054) は長期 regime 分布を代表していない可能性が極めて高い
+> - 前セッションの SELL bias 発見 ([[sell-bias-root-cause-2026-04-17]]) がこの bias の実例
+> - `tools/portfolio_balance.py` 実行結果より: RANGE × BUY のみ +0.86p / 他 5セルは全て負 — 強い regime 依存性を確認
+>
+> **本文書の判定を production 判断に直接使わないこと**。`regime_labeler` 実装後、conditional + reweighted な推定量で再評価予定。
+
+---
+
 ## エグゼクティブ・サマリー
 
 **本番データで厳密に分析した結果**:
@@ -18,6 +33,60 @@
 **結論**:
 **現在の本番ポートフォリオに統計的に検証可能な positive edge は存在しない。**
 先の `demo_trades.db` ローカル分析 (N=115) で見つけた "fib_reversal ELITE, Tokyo session 勝ち"は **本番データで再現しなかった** → 誤認として撤回。
+
+---
+
+## REVISION: Regime-Aware Re-evaluation (2026-04-17 後刻追記)
+
+`conditional-edge-estimand-2026-04-17` フレームワークに従い、**independent OANDA regime labeling + π_long_run reweighting** で再分析した結果:
+
+### LIVE (N=326, regime-aware)
+
+```
+Total pockets: 31 | STRONG: 0 | MODERATE: 0 | Bonf-neg: 17
+```
+
+- **STRONG=0, MODERATE=0** — すべて WEAK に降格
+- 主要因: 9日サンプルでは各セルで regime_support=FULL (全 regime で n≥30) を満たすのが極めて困難
+- reweighted θ* が負のセルも複数 — marginal が正でも長期期待値は負
+
+### `mode=scalp` 再評価 (主要 at-risk claim)
+
+| 項目 | 値 |
+|---|---|
+| N | 152 |
+| Marginal Avg | +0.24p |
+| Marginal WR | 44% (BE-WR 61%) |
+| **θ_reweighted** | **+0.47p ± 0.58** |
+| regime_support | **INSUFFICIENT** (range n=2) |
+| **新判定** | **WEAK** (forced) |
+
+**Regime breakdown**:
+| Regime (indep.) | n | avg |
+|---|---|---|
+| up_trend | 57 | +0.16p |
+| down_trend | 36 | **+1.18p** |
+| range | **2** | −1.80p |
+| uncertain | 57 | −0.21p |
+
+**解釈**:
+- marginal +0.24p は主に **down_trend 36トレードの +1.18p** で引っ張られた結果
+- up_trend (最もサンプル大) では +0.16p とほぼ flat
+- range で n=2 のみ → regime_support INSUFFICIENT → **STRONG/MODERATE は原理的に不可**
+- reweighted SE (0.58) > estimate (0.47) → **統計的に 0 と区別できない**
+- **production 判断に mode=scalp を使わない**という方針が定量的に裏付けられた
+
+### 構造的敗者 (17件) の regime 分解は別途実施予定
+
+- 負の marginal が regime-specific な可能性 — reweighting で positive になる cell があれば demote 判断を見直す必要
+- 現状は `regime-unadjusted` のまま; 戦略demote プロセスは regime 分解完了まで保留推奨
+
+### Framework 検証状況
+
+- ✅ `regime_labeler.py` 実装済み + 20 unit tests passing
+- ✅ `RigorousAnalyzer` に regime conditioning 追加 + 10 unit tests passing
+- ✅ π_long_run 実測 (H1, 3.2年, 4ペア) — §実測値 表
+- ✅ `mode=scalp` STRONG claim を framework で反証
 
 ---
 
