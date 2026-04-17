@@ -16,9 +16,49 @@ import json
 from typing import Optional
 from urllib.request import urlopen
 from urllib.parse import urlencode
+from urllib.error import HTTPError, URLError
 
+# NOTE: These endpoints (/api/demo/trades, /api/demo/factors) are currently
+# public read-only by design — analysis tooling relies on unauthenticated access.
+# If auth is added in future, update the fetcher to pass API_AUTH_TOKEN.
 BASE_URL = "https://fx-ai-trader.onrender.com"
 FIDELITY_CUTOFF = "2026-04-08"  # BT/Live fidelity 担保日 (CLAUDE.md)
+
+
+class ProductionFetchError(RuntimeError):
+    """Raised when Render API fetch fails or returns non-JSON."""
+
+
+def _safe_get_json(url: str, timeout_sec: int) -> dict:
+    """GET JSON with clear error messages on HTTP/network/decode failure.
+
+    Render cold-start や stale instance が HTML を返すケースを検知し、
+    解析ミスを防ぐ. 致命傷は caller に explicit な例外で伝える.
+    """
+    try:
+        with urlopen(url, timeout=timeout_sec) as r:
+            status = getattr(r, "status", 200)
+            if status >= 400:
+                raise ProductionFetchError(
+                    f"HTTP {status} from {url}"
+                )
+            body = r.read()
+    except HTTPError as e:
+        raise ProductionFetchError(
+            f"HTTP {e.code} {e.reason} from {url}"
+        ) from e
+    except URLError as e:
+        raise ProductionFetchError(
+            f"Network error fetching {url}: {e.reason}"
+        ) from e
+    try:
+        return json.loads(body)
+    except json.JSONDecodeError as e:
+        snippet = body[:200].decode("utf-8", errors="replace") if body else "(empty)"
+        raise ProductionFetchError(
+            f"Non-JSON response from {url} (likely Render cold-start HTML). "
+            f"First 200 bytes: {snippet!r}"
+        ) from e
 
 
 def fetch_closed_trades(
@@ -44,8 +84,7 @@ def fetch_closed_trades(
         params["mode"] = mode
 
     url = f"{BASE_URL}/api/demo/trades?" + urlencode(params)
-    with urlopen(url, timeout=timeout_sec) as r:
-        data = json.loads(r.read())
+    data = _safe_get_json(url, timeout_sec)
 
     trades = data.get("trades", [])
     if not trades:
@@ -112,8 +151,7 @@ def fetch_factors(
         "include_shadow": "1" if include_shadow else "0",
     }
     url = f"{BASE_URL}/api/demo/factors?" + urlencode(params)
-    with urlopen(url, timeout=timeout_sec) as r:
-        return json.loads(r.read())
+    return _safe_get_json(url, timeout_sec)
 
 
 if __name__ == "__main__":

@@ -195,11 +195,20 @@ def wf_stable_for_cell(
     pnl_series_with_time,
     n_folds: int = 3,
     min_n_per_fold: int = 10,
+    require_last_fold_positive: bool = True,
 ) -> Optional[bool]:
     """時系列順に n_folds 等分し、各 fold で avg_pnl > 0 か確認.
 
     Input: iterable of (entry_time, pnl_pips) tuples (chronological).
-    Returns: True if stable (>=ceil(2/3) folds have avg>0), False otherwise.
+    Returns:
+        True  if stable (>=ceil(2/3) folds have avg>0 AND
+              require_last_fold_positive ? last fold positive : 常に)
+        False otherwise
+        None  if insufficient data (per-fold N が min_n_per_fold 未満)
+
+    require_last_fold_positive=True (デフォルト) は重要:
+    これがないと +/-/+ パターンの "劣化中" 戦略を STRONG と誤判定する.
+    live promote 判断には recency 重みが必須.
     """
     items = list(pnl_series_with_time)
     if not items:
@@ -211,6 +220,7 @@ def wf_stable_for_cell(
         return None  # データ不足で判定不能
     positive_folds = 0
     valid_folds = 0
+    last_fold_avg: Optional[float] = None
     for i in range(n_folds):
         start = i * fold_size
         end = (i + 1) * fold_size if i < n_folds - 1 else n
@@ -221,7 +231,14 @@ def wf_stable_for_cell(
         avg = sum(p for _, p in fold) / len(fold)
         if avg > 0:
             positive_folds += 1
+        if i == n_folds - 1:
+            last_fold_avg = avg
     if valid_folds < 2:
         return None
     threshold = max(2, math.ceil(valid_folds * 2 / 3))
-    return positive_folds >= threshold
+    count_ok = positive_folds >= threshold
+    # recency 制約: 最終 fold が negative なら stable とみなさない
+    # (劣化中の戦略を誤って STRONG 判定するのを防ぐ)
+    if require_last_fold_positive and last_fold_avg is not None and last_fold_avg <= 0:
+        return False
+    return count_ok

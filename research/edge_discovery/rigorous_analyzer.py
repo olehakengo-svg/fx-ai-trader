@@ -53,11 +53,18 @@ class RigorousAnalyzer:
         return df
 
     def _compute_breakeven_wr(self, pnl_series):
-        """R:R 実測から loss-taking の break-even WR を動的計算.
+        """R:R 実測から cost-adjusted break-even WR を算出.
 
-        BE-WR = avg_loss / (avg_win + avg_loss)  (コスト込みのnet)
-        これを使う方が 50% 固定より当該戦略のR:R特性を反映できる.
-        cost は平均 loss 側に加算する方針.
+        導出:
+          net_win  = avg_win  - cost     (コストが勝ちを削る)
+          net_loss = avg_loss + cost     (コストが負けを膨らます, 絶対値)
+          EV = 0 の WR:
+              WR * (avg_win - cost) = (1-WR) * (avg_loss + cost)
+          展開して整理:
+              WR = (avg_loss + cost) / (avg_win + avg_loss)
+
+        分母に cost が入らない点が重要。従来の
+        `(loss+cost)/(win+loss+cost)` は BE-WR を過小推定していた.
         """
         s = pnl_series
         wins = s[s > 0]
@@ -66,15 +73,20 @@ class RigorousAnalyzer:
             return self.breakeven_wr
         avg_win = float(wins.mean())
         avg_loss = -float(losses.mean())  # 正値化
-        # コスト込み調整 (片道でentry/exit両方にかかる)
-        avg_loss_adj = avg_loss + self.cost_pips_roundtrip
-        be = avg_loss_adj / (avg_win + avg_loss_adj)
+        cost = self.cost_pips_roundtrip
+        denom = avg_win + avg_loss
+        if denom <= 0:
+            return self.breakeven_wr
+        be = (avg_loss + cost) / denom
         return max(0.10, min(0.90, be))   # sanity clamp
 
     def analyze_dimensions(self, dims: list[str]) -> "RigorousAnalyzer":
-        """1次元ずつ cell を構築し pocket stats を集める."""
+        """1次元ずつ cell を構築し pocket stats を集める.
+
+        Note: multiple testing correction は finalize() まで遅延される
+        (analyze_cross と family を共有するため).
+        """
         df = self._apply_filters()
-        pockets = []
         for dim in dims:
             if dim not in df.columns:
                 continue
@@ -86,24 +98,23 @@ class RigorousAnalyzer:
                     continue
                 be_wr = self._compute_breakeven_wr(pnl)
                 p = build_pocket(key=(dim, val), pnl_series=pnl, breakeven_wr=be_wr)
-                # walk-forward: use entry_time if available
                 if "entry_time" in grp.columns:
                     items = list(zip(grp["entry_time"], grp["pnl_pips"]))
                     p.wf_stable = wf_stable_for_cell(items, n_folds=3, min_n_per_fold=8)
-                pockets.append(p)
-
-        # Multiple testing corrections across ALL cells at once (正しい n_tests)
-        apply_corrections(pockets, alpha=self.alpha, fdr_q=self.fdr_q)
-        assign_recommendation(pockets, min_n_strong=self.min_n_strong)
-        self.all_pockets = pockets
+                self.all_pockets.append(p)
+        # 即時 finalize (従来の API を保つため)
+        self.finalize()
         return self
 
     def analyze_cross(self, dim1: str, dim2: str, min_n: int = 15) -> "RigorousAnalyzer":
-        """2次元 cross の cell 分析 (dim1, dim2 の組合せ)."""
+        """2次元 cross の cell 分析 (dim1, dim2 の組合せ).
+
+        Bonferroni/FDR は全 pockets (1D + cross) にまとめて適用するため、
+        家族ごとのエラーレート制御が正しく保たれる.
+        """
         df = self._apply_filters()
         if dim1 not in df.columns or dim2 not in df.columns:
             return self
-        pockets = []
         for (v1, v2), grp in df.groupby([dim1, dim2], observed=True):
             if len(grp) < min_n:
                 continue
@@ -118,11 +129,23 @@ class RigorousAnalyzer:
             if "entry_time" in grp.columns:
                 items = list(zip(grp["entry_time"], grp["pnl_pips"]))
                 p.wf_stable = wf_stable_for_cell(items, n_folds=3, min_n_per_fold=8)
-            pockets.append(p)
-        apply_corrections(pockets, alpha=self.alpha, fdr_q=self.fdr_q)
-        assign_recommendation(pockets, min_n_strong=self.min_n_strong)
-        # 既存 + 新規を統合
-        self.all_pockets.extend(pockets)
+            self.all_pockets.append(p)
+        # Re-finalize across entire family (全 pockets で補正)
+        self.finalize()
+        return self
+
+    def finalize(self) -> "RigorousAnalyzer":
+        """Apply Bonferroni + BH-FDR over the entire all_pockets family.
+
+        Safe to call multiple times — each call re-computes flags based on
+        the current full family size. This is essential when
+        analyze_dimensions and analyze_cross are both used, to avoid
+        per-batch correction that would inflate false-positive rate.
+        """
+        if not self.all_pockets:
+            return self
+        apply_corrections(self.all_pockets, alpha=self.alpha, fdr_q=self.fdr_q)
+        assign_recommendation(self.all_pockets, min_n_strong=self.min_n_strong)
         return self
 
     def report(
