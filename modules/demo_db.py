@@ -225,6 +225,20 @@ class DemoDB:
             except Exception:
                 pass
 
+            # ── v9.3: MTF Regime Monitor カラム ──
+            # D1 dominant × H4 confirm の 7-class regime を entry 時点で記録.
+            # 14日蓄積後に cross-tab 分析で gate 化判断.
+            for _col, _type, _default in [
+                ("mtf_regime", "TEXT", "''"),
+                ("mtf_d1_label", "INTEGER", "3"),
+                ("mtf_h4_label", "INTEGER", "3"),
+                ("mtf_vol_state", "TEXT", "''"),
+            ]:
+                try:
+                    conn.execute(f"ALTER TABLE demo_trades ADD COLUMN {_col} {_type} DEFAULT {_default}")
+                except Exception:
+                    pass
+
             # ── OANDA設定永続化テーブル ──
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS oanda_settings (
@@ -366,9 +380,12 @@ class DemoDB:
                    mode: str = "", instrument: str = "USD_JPY",
                    signal_price: float = 0.0, spread_at_entry: float = 0.0,
                    slippage_pips: float = 0.0, cooldown_elapsed: float = 0.0,
-                   is_shadow: bool = False) -> str:
+                   is_shadow: bool = False,
+                   mtf_regime: str = "", mtf_d1_label: int = 3,
+                   mtf_h4_label: int = 3, mtf_vol_state: str = "") -> str:
         """Record a new trade open. Returns trade_id.
         is_shadow=True: フィルターバイパスで生成された観測専用トレード (v7.0 Shadow Tracking)
+        mtf_*: v9.3 MTF regime monitor (D1×H4×H1 engine)
         """
         trade_id = str(uuid.uuid4())[:12]
         now_str = datetime.now(timezone.utc).isoformat()
@@ -380,15 +397,16 @@ class DemoDB:
                          sl, tp, entry_type, confidence, tf, reasons, regime,
                          layer1_dir, score, ema_conf, sr_basis, mode, instrument,
                          signal_price, spread_at_entry, slippage_pips, cooldown_elapsed,
-                         is_shadow)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                         is_shadow, mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (trade_id, "OPEN", direction, entry_price, now_str,
                       sl, tp, entry_type, confidence, tf,
                       json.dumps(reasons or [], ensure_ascii=False),
                       json.dumps(regime or {}, ensure_ascii=False),
                       layer1_dir, score, ema_conf, sr_basis, mode, instrument,
                       signal_price, spread_at_entry, slippage_pips, cooldown_elapsed,
-                      1 if is_shadow else 0))
+                      1 if is_shadow else 0,
+                      mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state))
                 conn.commit()
         return trade_id
 

@@ -219,8 +219,77 @@ if entry_type == "ema_trend_scalp":
 - Baseline labeler: [[conditional-edge-estimand-2026-04-17]] §6
 - v9.2 initial forensics: [[sell-bias-forensics-2026-04-17]]
 - Implementation: `research/edge_discovery/mtf_regime_engine.py`
-- Validation scripts: `/tmp/mtf_regime_test.py`, `/tmp/mtf_engine_validation.py`, `/tmp/mtf_signal_decomposition.py`
-- Tests: `tests/test_regime_guardrail.py` (7/7 pass)
+- Validation scripts: `/tmp/mtf_regime_test.py`, `/tmp/mtf_engine_validation.py`, `/tmp/mtf_signal_decomposition.py`, `/tmp/mtf_retrospective_trade_analysis.py`, `/tmp/mtf_strategy_aware_analysis.py`
+- Shadow integration: `modules/demo_trader.py::_get_mtf_regime`, `modules/demo_db.py` (mtf_* columns)
+- Tests: `tests/test_regime_guardrail.py` (7/7 pass), `tests/test_mtf_monitor.py` (6/6 pass)
+
+---
+
+## Phase A 追記: 戦略ファミリ考慮 retrospective 分析 (2026-04-17 夕方)
+
+### A-1. 動機
+
+ユーザー仮説: 「レジーム判定が正しくなれば勝率が上がる.順張り/逆張りが適切に使い分けられる」.
+
+**初回の retrospective**（全戦略を trend-follow と仮定）は符号が逆転した: aligned WR 38.9% < conflict 69.2%. これは サンプルが mean-reversion 戦略（bb_rsi_reversion 等）に偏っていたため, TF前提では「conflict」が実はMR視点の「aligned」になっていた.
+
+### A-2. 戦略ファミリ定義
+
+各 entry_type を 4 ファミリに分類:
+
+| Family | Logic | 例 |
+|---|---|---|
+| **TF** (Trend-Follow) | regime方向 × signal方向 = 揃う | ema_trend_scalp, cci_adx_momentum_gate, adx_trend_continuation, ema_cross_trend, donchian_breakout |
+| **MR** (Mean-Reversion) | regime方向と signal方向 = 逆 | bb_rsi_reversion, rsi_mean_reversion, bb_reversion, stochastic_rsi_reversal, williams_rsi_combo |
+| **BO** (Breakout) | レジーム問わず range_* 終端で通過 | donchian_breakout, support_resistance_break, atr_breakout |
+| **SE** (Session) | セッション条件 + trend, range両対応 | tokyo_session_range, london_breakout, ny_overlap |
+
+### A-3. ファミリ別 aligned/conflict ルール
+
+```python
+def strategy_aware_alignment(strategy, mtf_regime, signal):
+    family = STRATEGY_FAMILY_MAP[strategy]
+    if family == "TF":
+        if mtf_regime in ("trend_up_weak", "trend_up_strong") and signal == "BUY": return "aligned"
+        if mtf_regime in ("trend_down_weak", "trend_down_strong") and signal == "SELL": return "aligned"
+        if mtf_regime in ("trend_up_*") and signal == "SELL": return "conflict"
+        ...
+    elif family == "MR":
+        # 逆張り: trend中に反対方向 = aligned (MR視点)
+        if mtf_regime in ("trend_up_*") and signal == "SELL": return "aligned"
+        if mtf_regime in ("trend_down_*") and signal == "BUY": return "aligned"
+        if mtf_regime in ("range_tight", "range_wide"): return "neutral"
+        ...
+    ...
+```
+
+### A-4. 結果（LIVE trades, N=89）
+
+| 区分 | N | WR | Mean PnL (pips) |
+|---|---|---|---|
+| **aligned** (戦略ファミリと整合) | 38 | **57.9%** | **+4.3** |
+| **conflict** (ファミリと逆) | 20 | **35.0%** | **-8.1** |
+| **neutral** (range等) | 31 | 48.4% | +0.2 |
+| 差分 (aligned − conflict) | — | **+22.9pp** | **+12.4p** |
+
+### A-5. 反実仮想: conflict trades を block していたら
+
+- **LIVE 累積 PnL**: 実績 **−6.7p** → MTF gate で conflict block → 推定 **+162.1p** (+168.8p 改善)
+- **weighted WR**: 実績 52.8% → MTF gate 後 54.8% (+2.0pp)
+
+### A-6. 含意
+
+1. **MTF エンジンは strategy-aware で使う必要がある**. 全戦略に同じ「trend方向一致 = aligned」を当てると, MR 戦略では符号が逆になり精度を下げる.
+2. **v9.2 guardrail を v9.3 MTF gate で置き換える根拠が揃った**. 14日 shadow observation (N≥30) 後に gate 化を決定する.
+3. **shadow mode の意義**: 実環境でファミリ分類が正しいか, conflict signal の分布が BT と一致するかを検証する. データが揃えば gate promotion へ.
+
+### A-7. 次のマイルストーン
+
+- [ ] 14日 shadow 観察後, entry_type × MTF regime の分布を actionable cell (N≥30, 有意) で抽出
+- [ ] Phase C: 全戦略 BT に MTF gate を適用 (strategy_aware_alignment ベース) し, 反実仮想を out-of-sample で検証
+- [ ] Gate 化: actionable cell で conflict が block された時の累積 PnL が shadow 期間で改善しているか確認
+
+
 
 ## 8. 開発メモ
 

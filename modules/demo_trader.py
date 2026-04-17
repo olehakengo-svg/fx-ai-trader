@@ -342,6 +342,18 @@ class DemoTrader:
         self._regime_cache = {}  # instrument -> (fetched_at: datetime, regime: str)
         self._regime_cache_ttl_sec = 300  # 5分 — M30 足の粒度に対して十分頻繁
 
+        # ── v9.3: MTF Regime Engine shadow monitor ──
+        # D1 dominant × H4 confirm × H1 trigger の 7-class ラベラ.
+        # 6.5年 × 3 pair 検証で baseline labeler に対し η² improvement:
+        #   USD_JPY 3.3×, EUR_USD 105×, GBP_USD 4.8× (fwd-120h)
+        # 115 trade retrospective 検証で aligned vs conflict:
+        #   LIVE: WR 57.9% vs 35.0% (ΔWR +22.9pp, ΔEV +17.3p)
+        #   counterfactual: MTF gate で LIVE PnL -6.7p → +162.1p
+        # 当面は monitor-only (log 出力 + DB 記録). Live gate は N≥30 / 14日観察後.
+        # 詳細: knowledge-base/wiki/analyses/mtf-regime-validation-2026-04-17.md
+        self._mtf_cache: dict = {}  # instrument -> (fetched_at, mtf_regime, d1_label, h4_label)
+        self._mtf_cache_ttl_sec = 1800  # 30分 — H4 足の粒度に合わせ長めに取る
+
         # デプロイ中にOANDA未連携のOPENトレードを補完送信
         self._resend_pending_oanda_trades()
 
@@ -3331,6 +3343,24 @@ class DemoTrader:
                 return
 
         # ══════════════════════════════════════════════════════════════
+        # ── v9.3: MTF Regime Monitor (shadow, no-block) ──
+        # 全 signal candidate に MTF regime label を log. 14日 N≥30 蓄積で
+        # gate 化判断. alignment は strategy-family × regime で決定.
+        # 詳細: knowledge-base/wiki/analyses/mtf-regime-validation-2026-04-17.md
+        # ══════════════════════════════════════════════════════════════
+        try:
+            _mtf = self._get_mtf_regime(instrument)
+            _mtf_regime_str = _mtf.get("regime", "uncertain")
+            self._add_log(
+                f"[MTF_MONITOR] {instrument} entry={entry_type} signal={signal} "
+                f"mtf={_mtf_regime_str} d1={_mtf.get('d1')} h4={_mtf.get('h4')} "
+                f"vol={_mtf.get('vol')}"
+            )
+        except Exception as _e:
+            _mtf_regime_str = "uncertain"
+            self._add_log(f"[MTF_MONITOR] failed ({_e}) — continuing")
+
+        # ══════════════════════════════════════════════════════════════
         # ── v9.2: Regime-Conditional Guardrail (SELL bias 法医学) ──
         # v9.2.1 (2026-04-17): DEFAULT DISABLED — curve-fit 判定
         #   6.5年 × 3pair H1 検証で baseline labeler の η²(fwd-24h) < 0.003 (trivial)
@@ -3935,6 +3965,11 @@ class DemoTrader:
             slippage_pips=_slippage,
             cooldown_elapsed=_cd_elapsed,
             is_shadow=_is_shadow,
+            # v9.3: MTF regime monitor (cache した payload を使う — 二重 fetch 回避)
+            mtf_regime=(self._mtf_cache.get(instrument, (None, {}))[1] or {}).get("regime", ""),
+            mtf_d1_label=int((self._mtf_cache.get(instrument, (None, {}))[1] or {}).get("d1", 3)),
+            mtf_h4_label=int((self._mtf_cache.get(instrument, (None, {}))[1] or {}).get("h4", 3)),
+            mtf_vol_state=str((self._mtf_cache.get(instrument, (None, {}))[1] or {}).get("vol", "")),
         )
 
         # ── 建値ガード用: ATR保存 ──
@@ -5372,3 +5407,50 @@ class DemoTrader:
             # 寄せる: 'range' を返して guardrail を事実上スキップ。
             self._add_log(f"[REGIME_GUARDRAIL] labeler failed for {instrument}: {e} (fail-open)")
             return "range"  # fail-open: guardrail スキップして既存経路へ
+
+    # ══════════════════════════════════════════════════════════════
+    # v9.3: MTF Regime Engine (D1 dominant × H4 confirm)
+    # ══════════════════════════════════════════════════════════════
+    def _get_mtf_regime(self, instrument: str) -> dict:
+        """Fetch D1 + H4 candles, compute MTF 7-class regime.
+
+        Returns dict: {'regime': str, 'd1': int, 'h4': int, 'vol': str}
+          regime ∈ {trend_up_strong, trend_up_weak, trend_down_weak,
+                     trend_down_strong, range_tight, range_wide, uncertain}
+
+        30 分 TTL — H4 粒度の更新頻度に合わせる.
+        API fail → 'uncertain' で fail-safe (monitor のみなので block しない).
+        """
+        now = datetime.now(timezone.utc)
+        cached = self._mtf_cache.get(instrument)
+        if cached is not None:
+            fetched_at, payload = cached
+            if (now - fetched_at).total_seconds() < self._mtf_cache_ttl_sec:
+                return payload
+        try:
+            from research.edge_discovery.mtf_regime_engine import (
+                fetch_mtf_data, label_d1, label_h4, vol_state_d1,
+                compose_regime, MTFConfig,
+            )
+            # Small fetches: 1 chunk each is enough (~208 D1 = 9 months)
+            data = fetch_mtf_data(instrument, base_granularity="H1",
+                                   base_chunks=1, h4_chunks=1, d1_chunks=1,
+                                   count_per_chunk=500,
+                                   client=self._oanda._client)
+            d1 = data["d1"]; h4 = data["h4"]
+            if d1.empty or h4.empty:
+                payload = {"regime": "uncertain", "d1": 3, "h4": 3, "vol": "unknown"}
+            else:
+                cfg = MTFConfig()
+                d1_lab = int(label_d1(d1, cfg).iloc[-2])  # -2: prior completed bar (no look-ahead)
+                h4_lab = int(label_h4(h4, cfg).iloc[-2])
+                vs = str(vol_state_d1(d1, cfg).iloc[-2])
+                reg = compose_regime(d1_lab, h4_lab, vs, cfg)
+                payload = {"regime": reg, "d1": d1_lab, "h4": h4_lab, "vol": vs}
+            self._mtf_cache[instrument] = (now, payload)
+            return payload
+        except Exception as e:
+            self._add_log(f"[MTF_MONITOR] engine failed for {instrument}: {e} (fail-safe uncertain)")
+            payload = {"regime": "uncertain", "d1": 3, "h4": 3, "vol": "unknown"}
+            self._mtf_cache[instrument] = (now, payload)
+            return payload
