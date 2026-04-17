@@ -540,16 +540,33 @@ class DemoDB:
             return [dict(r) for r in rows]
 
     def get_stats(self, date_from: str = None, date_to: str = None,
-                  mode: str = None, exclude_shadow: bool = True) -> dict:
+                  mode: str = None, exclude_shadow: bool = True,
+                  exclude_xau: bool = True, instrument: str = None) -> dict:
         """Compute aggregate stats from closed trades.
+
         v8.4: exclude_shadow=True でis_shadow=1を除外（デフォルト）。
         Shadow混入によるWR/EV/Kelly汚染を防止。
+        v9.1 (2026-04-17): exclude_xau=True がデフォルト。XAU は FX と pip 単位が異なり、
+        少数の XAU トレードが P/L を支配するため（例: 3 trades で -1136p）。
+        CLAUDE.md user memory「XAU除外」ルールに準拠。
+        v9.1: instrument フィルタ追加。選択中ペアの WR/P/L のみ集計可能。
         """
         query = ("SELECT pnl_pips, pnl_r, outcome, entry_type, confidence, close_reason "
                  "FROM demo_trades WHERE status='CLOSED'")
         if exclude_shadow:
             query += " AND (is_shadow IS NULL OR is_shadow = 0)"
+        if exclude_xau:
+            query += " AND (instrument IS NULL OR instrument NOT LIKE '%XAU%')"
         params = []
+        if instrument:
+            # Comma-separated list supported: "USD_JPY" or "USD_JPY,EUR_USD"
+            insts = [i.strip() for i in instrument.split(",") if i.strip()]
+            if len(insts) == 1:
+                query += " AND instrument = ?"
+                params.append(insts[0])
+            else:
+                query += f" AND instrument IN ({','.join('?' * len(insts))})"
+                params.extend(insts)
         if date_from:
             query += " AND entry_time >= ?"
             params.append(date_from)
@@ -568,7 +585,8 @@ class DemoDB:
             rows = conn.execute(query, params).fetchall()
 
         if not rows:
-            return {"total": 0, "win_rate": 0, "total_pnl": 0, "ev": 0,
+            return {"total": 0, "wins": 0, "losses": 0, "breakevens": 0,
+                    "win_rate": 0, "decided_win_rate": 0, "total_pnl": 0, "ev": 0,
                     "avg_r": 0, "by_type": {}, "by_outcome": {}}
 
         total = len(rows)
@@ -589,10 +607,16 @@ class DemoDB:
         for et in by_type:
             t = by_type[et]["trades"]
             by_type[et]["win_rate"] = round(by_type[et]["wins"] / t * 100, 1) if t > 0 else 0
+            # v9.1: float precision artifacts fix (-17.999999... → -18.0)
+            by_type[et]["pnl"] = round(by_type[et]["pnl"], 1)
 
         # BREAKEVEN を LOSS と区別してカウント (2026-04-05 audit fix M5)
         losses = sum(1 for r in rows if r["outcome"] == "LOSS")
         breakevens = total - wins - losses
+
+        # v9.1: decided_wr = BE を分母から除外した「決着勝率」(UI 表示用)
+        decided = wins + losses
+        decided_wr = round(wins / decided * 100, 1) if decided > 0 else 0.0
 
         return {
             "total": total,
@@ -600,6 +624,7 @@ class DemoDB:
             "losses": losses,
             "breakevens": breakevens,
             "win_rate": round(wins / total * 100, 1),
+            "decided_win_rate": decided_wr,
             "total_pnl": round(total_pnl, 1),
             "ev": round(total_pnl / total, 2),
             "avg_r": round(avg_r, 2),

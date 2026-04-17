@@ -12366,8 +12366,19 @@ def api_demo_stats():
     date_from = request.args.get("date_from")
     date_to = request.args.get("date_to")
     mode_filter = request.args.get("mode")
-    stats = _demo_db.get_stats(date_from=date_from, date_to=date_to, mode=mode_filter)
+    instrument = request.args.get("instrument")
+    # v9.1: exclude_xau default True per CLAUDE.md user memory. Set to "0" to include.
+    exclude_xau = request.args.get("exclude_xau", "1") != "0"
+    stats = _demo_db.get_stats(
+        date_from=date_from, date_to=date_to, mode=mode_filter,
+        instrument=instrument, exclude_xau=exclude_xau,
+    )
     stats["_db_path"] = _db_path
+    stats["_filters"] = {
+        "instrument": instrument, "mode": mode_filter,
+        "date_from": date_from, "date_to": date_to,
+        "exclude_xau": exclude_xau,
+    }
     return jsonify(stats)
 
 

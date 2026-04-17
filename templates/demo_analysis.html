@@ -522,11 +522,11 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 
   <!-- Stats Bar -->
   <div class="stats-bar">
-    <div data-tip="総取引数"><span class="stat-label">Trades</span><span class="stat-val" id="s-total">—</span></div>
-    <div class="stat-item-hero" data-tip="勝率 = Win / Total"><span class="stat-label">Win Rate</span><span class="stat-val" id="s-wr">—</span></div>
-    <div class="stat-item-hero" data-tip="確定損益（pips）"><span class="stat-label">P/L</span><span class="stat-val" id="s-pnl">—</span></div>
-    <div data-tip="期待値 = 平均損益/trade"><span class="stat-label">EV</span><span class="stat-val" id="s-ev">—</span></div>
-    <div data-tip="勝ち数 / 負け数"><span class="stat-label">W / L</span><span class="stat-val" id="s-wl">—</span></div>
+    <div data-tip="総取引数（選択中ペア・XAU除外）"><span class="stat-label">Trades</span><span class="stat-val" id="s-total">—</span></div>
+    <div class="stat-item-hero" data-tip="決着勝率 = Win / (Win + Loss)  ※BE は分母から除外"><span class="stat-label">Win Rate</span><span class="stat-val" id="s-wr">—</span></div>
+    <div class="stat-item-hero" data-tip="確定損益（pips, 選択中ペア・XAU除外）"><span class="stat-label">P/L</span><span class="stat-val" id="s-pnl">—</span></div>
+    <div data-tip="期待値 = Total P/L ÷ Trades"><span class="stat-label">EV</span><span class="stat-val" id="s-ev">—</span></div>
+    <div data-tip="Win / Loss / Breakeven"><span class="stat-label">W / L / BE</span><span class="stat-val" id="s-wl">—</span></div>
   </div>
 
   <!-- Scrollable Bottom Panels -->
@@ -724,6 +724,8 @@ function selectPair(pair){
   const pi=PAIRS[pair];
   document.getElementById('chart-title').textContent=`${pi.flag} ${pi.label}`;
   loadChart();
+  // v9.1: Stats は選択中ペアにスコープされるため、ペア切替で再取得する
+  loadStats();
 }
 
 function selectTf(tf){
@@ -907,6 +909,8 @@ async function loadDemoStatus(){
 async function loadStats(){
   try{
     const p=[];
+    // v9.1: Stats を現在選択中ペアにスコープ（全ペア合算ではなく選択ペアのみ）
+    if(_currentPair)p.push(`instrument=${encodeURIComponent(_currentPair)}`);
     if(_statsFilter.dateFrom)p.push(`date_from=${_statsFilter.dateFrom}`);
     if(_statsFilter.dateTo)p.push(`date_to=${_statsFilter.dateTo}`);
     if(_statsFilter.mode)p.push(`mode=${encodeURIComponent(_statsFilter.mode)}`);
@@ -917,19 +921,24 @@ async function loadStats(){
       const prev=el.textContent;el.textContent=v;if(col)el.style.color=col;
       if(prev!==v&&prev!=='—'){el.classList.remove('val-changed');void el.offsetWidth;el.classList.add('val-changed')}
     }};
+    const fmtPnl=v=>v==null?'—':(v>=0?'+':'')+(+v).toFixed(1)+'p';
+    const fmtEv =v=>v==null?'—':(v>=0?'+':'')+(+v).toFixed(2);
     set('s-total',d.total||0);
-    const wr=d.win_rate;
-    set('s-wr',wr!=null?wr+'%':'—',wr>=50?'var(--green)':'var(--red)');
+    // v9.1: decided_win_rate (BE を分母から除外) を優先表示、fallback で win_rate
+    const wr=d.decided_win_rate!=null?d.decided_win_rate:d.win_rate;
+    set('s-wr',wr!=null?(+wr).toFixed(1)+'%':'—',wr>=50?'var(--green)':'var(--red)');
     // Dynamic hero color for WR
     const wrHero=document.getElementById('s-wr')?.closest('.stat-item-hero');
     if(wrHero){wrHero.style.background=wr>=50?'rgba(34,197,94,.08)':'rgba(239,68,68,.06)';wrHero.style.borderColor=wr>=50?'rgba(34,197,94,.2)':'rgba(239,68,68,.2)'}
     const pnl=d.total_pnl;
-    set('s-pnl',pnl!=null?(pnl>=0?'+':'')+pnl+'p':'—',pnl>=0?'var(--green)':'var(--red)');
+    set('s-pnl',fmtPnl(pnl),pnl>=0?'var(--green)':'var(--red)');
     // Dynamic hero color for P/L
     const pnlHero=document.getElementById('s-pnl')?.closest('.stat-item-hero');
     if(pnlHero){pnlHero.style.background=pnl>=0?'rgba(34,197,94,.08)':'rgba(239,68,68,.06)';pnlHero.style.borderColor=pnl>=0?'rgba(34,197,94,.2)':'rgba(239,68,68,.2)'}
-    set('s-ev',d.ev!=null?(d.ev>=0?'+':'')+d.ev:'—',d.ev>=0?'var(--green)':'var(--red)');
-    set('s-wl',`${d.wins||0}/${d.losses||0}`);
+    set('s-ev',fmtEv(d.ev),d.ev>=0?'var(--green)':'var(--red)');
+    // v9.1: W/L/BE 表示（W+L+BE=Total が一致するように BE を明示）
+    const wins=d.wins||0,losses=d.losses||0,bes=d.breakevens||0;
+    set('s-wl', bes>0?`${wins}/${losses}/${bes}`:`${wins}/${losses}`);
   }catch(e){console.warn('[Stats]',e)}
 }
 

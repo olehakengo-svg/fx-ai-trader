@@ -89,6 +89,94 @@ class TestDemoDB:
         assert "by_type" in data
         assert "by_conf" in data
 
+    def test_stats_excludes_xau_by_default(self, db):
+        """v9.1: CLAUDE.md memory 'XAU除外' — default exclude_xau=True."""
+        # 2 FX wins
+        for _ in range(2):
+            tid = db.open_trade("BUY", 150.0, 149.5, 150.5, "ema_cross", 60,
+                                instrument="USD_JPY")
+            db.close_trade(tid, 150.5, "TP_HIT")
+        # 1 XAU trade (huge loss in XAU "pips" — the whole reason we exclude)
+        tid = db.open_trade("BUY", 2500.0, 2400.0, 2600.0, "gold_trend_momentum",
+                            60, instrument="XAU_USD")
+        db.close_trade(tid, 2400.0, "SL_HIT")
+
+        # Default: XAU excluded
+        s = db.get_stats()
+        assert s["total"] == 2, "XAU should be excluded by default"
+        assert s["wins"] == 2
+        assert s["win_rate"] == 100.0
+        assert "gold_trend_momentum" not in s["by_type"]
+
+        # Explicit include
+        s2 = db.get_stats(exclude_xau=False)
+        assert s2["total"] == 3
+        assert "gold_trend_momentum" in s2["by_type"]
+
+    def test_stats_instrument_filter(self, db):
+        """v9.1: instrument param scopes stats to a specific pair."""
+        # 3 USD_JPY (2 wins 1 loss), 2 EUR_USD (both wins)
+        for _ in range(2):
+            tid = db.open_trade("BUY", 150.0, 149.5, 150.5, "ema_cross", 60,
+                                instrument="USD_JPY")
+            db.close_trade(tid, 150.5, "TP_HIT")
+        tid = db.open_trade("BUY", 150.0, 149.5, 150.5, "ema_cross", 60,
+                            instrument="USD_JPY")
+        db.close_trade(tid, 149.5, "SL_HIT")
+        for _ in range(2):
+            tid = db.open_trade("BUY", 1.10, 1.09, 1.11, "fib_reversal", 60,
+                                instrument="EUR_USD")
+            db.close_trade(tid, 1.11, "TP_HIT")
+
+        sj = db.get_stats(instrument="USD_JPY")
+        assert sj["total"] == 3
+        assert sj["wins"] == 2
+
+        se = db.get_stats(instrument="EUR_USD")
+        assert se["total"] == 2
+        assert se["wins"] == 2
+
+        # Comma-separated
+        sboth = db.get_stats(instrument="USD_JPY,EUR_USD")
+        assert sboth["total"] == 5
+
+        # Unknown pair → zeros without crash
+        sx = db.get_stats(instrument="XXX_YYY")
+        assert sx["total"] == 0
+        assert sx["decided_win_rate"] == 0
+
+    def test_stats_decided_win_rate_excludes_be(self, db):
+        """v9.1: decided_win_rate = wins / (wins+losses), BE が分母から除外される。"""
+        # 2 wins, 1 loss, 1 BE
+        for _ in range(2):
+            tid = db.open_trade("BUY", 150.0, 149.5, 150.5, "sr_bounce", 60)
+            db.close_trade(tid, 150.5, "TP_HIT")
+        tid = db.open_trade("BUY", 150.0, 149.5, 150.5, "sr_bounce", 60)
+        db.close_trade(tid, 149.5, "SL_HIT")
+        tid = db.open_trade("BUY", 150.0, 149.5, 150.5, "sr_bounce", 60)
+        db.close_trade(tid, 150.0, "MAX_HOLD")  # BE
+
+        s = db.get_stats()
+        assert s["total"] == 4
+        assert s["wins"] == 2
+        assert s["losses"] == 1
+        assert s["breakevens"] == 1
+        assert s["win_rate"] == 50.0  # 2/4
+        # decided = 2/(2+1) = 66.7%
+        assert s["decided_win_rate"] == 66.7
+
+    def test_stats_by_type_pnl_rounded(self, db):
+        """v9.1: by_type[strategy]['pnl'] must not leak float precision artifacts."""
+        # Two small wins that famously trigger -17.9999... style sums
+        for px in [1.00018, 1.00018, 1.00018]:
+            tid = db.open_trade("BUY", 1.0, 0.999, 1.001, "fib_reversal", 60,
+                                instrument="EUR_USD")
+            db.close_trade(tid, px, "TP_HIT")
+        s = db.get_stats()
+        pnl = s["by_type"]["fib_reversal"]["pnl"]
+        # Must be rounded to <=1 decimal place (not 18.00000000003 etc.)
+        assert abs(pnl - round(pnl, 1)) < 1e-9
+
     def test_save_adjustment(self, db):
         db.save_adjustment("confidence_threshold", 55, 60,
                            "WR too low", 30.0, -0.5, 20)
