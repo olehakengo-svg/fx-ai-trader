@@ -1,0 +1,103 @@
+{
+  "date": "2026-04-16T18:51:02.983023",
+  "targets": {
+    "eurgbp_daily_mr\u00d7EUR_GBP": {
+      "strategy": "eurgbp_daily_mr",
+      "pair": "EUR_GBP",
+      "mode": "daytrade",
+      "interval": "15m",
+      "lookback_days": 365,
+      "N": 0,
+      "WR": 0,
+      "EV": 0,
+      "PnL": 0,
+      "PF": 999.0,
+      "total_trades_all": 0,
+      "elapsed_s": 225.1
+    },
+    "dt_sr_channel_reversal\u00d7USD_JPY": {
+      "strategy": "dt_sr_channel_reversal",
+      "pair": "USD_JPY",
+      "mode": "daytrade",
+      "interval": "15m",
+      "lookback_days": 365,
+      "N": 83,
+      "WR": 48.2,
+      "EV": -0.151,
+      "PnL": -12.5,
+      "PF": 0.84,
+      "total_trades_all": 2121,
+      "elapsed_s": 326.9
+    },
+    "dt_sr_channel_reversal\u00d7EUR_USD": {
+      "strategy": "dt_sr_channel_reversal",
+      "pair": "EUR_USD",
+      "mode": "daytrade",
+      "interval": "15m",
+      "lookback_days": 365,
+      "N": 39,
+      "WR": 61.5,
+      "EV": 0.196,
+      "PnL": 7.7,
+      "PF": 1.75,
+      "total_trades_all": 1566,
+      "elapsed_s": 207.8
+    },
+    "dt_sr_channel_reversal\u00d7GBP_USD": {
+      "strategy": "dt_sr_channel_reversal",
+      "pair": "GBP_USD",
+      "mode": "daytrade",
+      "interval": "15m",
+      "lookback_days": 365,
+      "N": 57,
+      "WR": 63.2,
+      "EV": 0.094,
+      "PnL": 5.4,
+      "PF": 1.56,
+      "total_trades_all": 1978,
+      "elapsed_s": 237.5
+    },
+    "v_reversal\u00d7USD_JPY": {
+      "strategy": "v_reversal",
+      "pair": "USD_JPY",
+      "mode": "scalp",
+      "interval": "5m",
+      "lookback_days": 180,
+      "N": 4,
+      "WR": 25.0,
+      "EV": -0.916,
+      "PnL": -3.7,
+      "PF": 999.0,
+      "total_trades_all": 608,
+      "elapsed_s": 57.9
+    },
+    "v_reversal\u00d7EUR_USD": {
+      "strategy": "v_reversal",
+      "pair": "EUR_USD",
+      "mode": "scalp",
+      "interval": "5m",
+      "lookback_days": 180,
+      "N": 0,
+      "WR": 0,
+      "EV": 0,
+      "PnL": 0,
+      "PF": 999.0,
+      "total_trades_all": 381,
+      "elapsed_s": 97.8
+    },
+    "v_reversal\u00d7GBP_USD": {
+      "strategy": "v_reversal",
+      "pair": "GBP_USD",
+      "mode": "scalp",
+      "interval": "5m",
+      "lookback_days": 180,
+      "N": 0,
+      "WR": 0,
+      "EV": 0,
+      "PnL": 0,
+      "PF": 999.0,
+      "total_trades_all": 607,
+      "elapsed_s": 56.5
+    }
+  }
+}
