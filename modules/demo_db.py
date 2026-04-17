@@ -228,11 +228,18 @@ class DemoDB:
             # ── v9.3: MTF Regime Monitor カラム ──
             # D1 dominant × H4 confirm の 7-class regime を entry 時点で記録.
             # 14日蓄積後に cross-tab 分析で gate 化判断.
+            # ── v9.3 Phase D: A/B test gate_group + alignment カラム ──
+            #   gate_group: 'mtf_gated' = Group A (MTF gate 適用)
+            #               'label_only' = Group B (現状維持, label 記録のみ)
+            #   alignment:  'aligned' / 'conflict' / 'neutral' / 'unknown' / ''
             for _col, _type, _default in [
                 ("mtf_regime", "TEXT", "''"),
                 ("mtf_d1_label", "INTEGER", "3"),
                 ("mtf_h4_label", "INTEGER", "3"),
                 ("mtf_vol_state", "TEXT", "''"),
+                ("gate_group", "TEXT", "''"),
+                ("mtf_alignment", "TEXT", "''"),
+                ("mtf_gate_action", "TEXT", "''"),  # 'kept'/'downgraded'/'none'
             ]:
                 try:
                     conn.execute(f"ALTER TABLE demo_trades ADD COLUMN {_col} {_type} DEFAULT {_default}")
@@ -382,10 +389,15 @@ class DemoDB:
                    slippage_pips: float = 0.0, cooldown_elapsed: float = 0.0,
                    is_shadow: bool = False,
                    mtf_regime: str = "", mtf_d1_label: int = 3,
-                   mtf_h4_label: int = 3, mtf_vol_state: str = "") -> str:
+                   mtf_h4_label: int = 3, mtf_vol_state: str = "",
+                   gate_group: str = "", mtf_alignment: str = "",
+                   mtf_gate_action: str = "") -> str:
         """Record a new trade open. Returns trade_id.
         is_shadow=True: フィルターバイパスで生成された観測専用トレード (v7.0 Shadow Tracking)
         mtf_*: v9.3 MTF regime monitor (D1×H4×H1 engine)
+        gate_group: v9.3 Phase D A/B — 'mtf_gated' or 'label_only'
+        mtf_alignment: strategy_aware_alignment 結果 ('aligned'/'conflict'/'neutral')
+        mtf_gate_action: 'kept' (そのまま) / 'downgraded' (conflict→shadow) / 'none'
         """
         trade_id = str(uuid.uuid4())[:12]
         now_str = datetime.now(timezone.utc).isoformat()
@@ -397,8 +409,9 @@ class DemoDB:
                          sl, tp, entry_type, confidence, tf, reasons, regime,
                          layer1_dir, score, ema_conf, sr_basis, mode, instrument,
                          signal_price, spread_at_entry, slippage_pips, cooldown_elapsed,
-                         is_shadow, mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                         is_shadow, mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state,
+                         gate_group, mtf_alignment, mtf_gate_action)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (trade_id, "OPEN", direction, entry_price, now_str,
                       sl, tp, entry_type, confidence, tf,
                       json.dumps(reasons or [], ensure_ascii=False),
@@ -406,7 +419,8 @@ class DemoDB:
                       layer1_dir, score, ema_conf, sr_basis, mode, instrument,
                       signal_price, spread_at_entry, slippage_pips, cooldown_elapsed,
                       1 if is_shadow else 0,
-                      mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state))
+                      mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state,
+                      gate_group, mtf_alignment, mtf_gate_action))
                 conn.commit()
         return trade_id
 

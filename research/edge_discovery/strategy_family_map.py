@@ -9,10 +9,16 @@ Family 定義:
   BO (Breakout):       range_wide 後のブレイク方向 または trend 継続 direction
   SE (Session):        neutral (regime 非依存)
 
-2026-04-17: P0 forensics (本番 N=1511) で 3 戦略の mislabeling 確定 →
+2026-04-17 P0 forensics (本番 N=1511) で 3 戦略の mislabeling 確定 →
   macdh_reversal: MR → TF (trend_up × BUY WR 36% > SELL 27%)
   engulfing_bb:   MR → TF (trend_up × BUY WR 43% > SELL 0%)
   ema_cross:      TF → MR (trend_up × BUY WR 17% < SELL 46%)
+
+2026-04-17 P2: regime-adaptive 分類追加 — 2 戦略で uptrend/downtrend で
+behavior が分岐:
+  bb_rsi_reversion: uptrend TF-like, downtrend MR-like
+  fib_reversal:     uptrend MR-like, downtrend TF-like
+
 詳細: knowledge-base/wiki/analyses/mtf-regime-validation-2026-04-17.md §C
 """
 from __future__ import annotations
@@ -56,6 +62,40 @@ STRATEGY_FAMILY: dict[str, str] = {
 }
 
 
+# P2: regime-adaptive family overrides.
+# When a strategy's behavior splits by regime, declare per-regime family here.
+# Values override STRATEGY_FAMILY for the given (strategy, regime) pair.
+# Evidence source: P0 forensics (/tmp/p0_mr_forensics_report.csv), 2026-04-17.
+REGIME_ADAPTIVE_FAMILY: dict[str, dict[str, str]] = {
+    "bb_rsi_reversion": {
+        # tu_BUY 55% (N=74) > tu_SELL 50% (N=64)  → TF in uptrend
+        "trend_up_weak": "TF",
+        "trend_up_strong": "TF",
+        # td_BUY 44% (N=16) > td_SELL 23% (N=22)  → MR in downtrend (fade)
+        "trend_down_weak": "MR",
+        "trend_down_strong": "MR",
+        # range は default の MR に委ねる
+    },
+    "fib_reversal": {
+        # tu_SELL 48% (N=31) > tu_BUY 25% (N=24)  → MR in uptrend (fade)
+        "trend_up_weak": "MR",
+        "trend_up_strong": "MR",
+        # td_SELL 45% (N=22) > td_BUY 33% (N=33)  → TF in downtrend
+        "trend_down_weak": "TF",
+        "trend_down_strong": "TF",
+    },
+}
+
+
+def effective_family(entry_type: str, mtf_regime: str) -> str:
+    """Return the effective family, applying REGIME_ADAPTIVE overrides."""
+    if entry_type in REGIME_ADAPTIVE_FAMILY:
+        adaptive = REGIME_ADAPTIVE_FAMILY[entry_type]
+        if mtf_regime in adaptive:
+            return adaptive[mtf_regime]
+    return STRATEGY_FAMILY.get(entry_type, "UNKNOWN")
+
+
 def strategy_aware_alignment(
     entry_type: str,
     mtf_regime: str,
@@ -71,7 +111,7 @@ def strategy_aware_alignment(
         direction: 'BUY' or 'SELL'
         instrument: e.g. 'USD_JPY' (used for JPY-pair exception)
     """
-    fam = STRATEGY_FAMILY.get(entry_type, "UNKNOWN")
+    fam = effective_family(entry_type, mtf_regime)
     d = (direction or "").upper()
     is_jpy = "JPY" in (instrument or "")
 

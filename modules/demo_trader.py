@@ -3343,11 +3343,17 @@ class DemoTrader:
                 return
 
         # ══════════════════════════════════════════════════════════════
-        # ── v9.3: MTF Regime Monitor (shadow, no-block) ──
-        # 全 signal candidate に MTF regime label を log. 14日 N≥30 蓄積で
-        # gate 化判断. alignment は strategy-family × regime で決定.
+        # ── v9.3: MTF Regime Monitor + Phase D A/B Gate ──
+        # 全 signal candidate に MTF regime label を log.
+        # Phase D: hash(signal) % 2 で A/B 振り分け →
+        #   Group A (mtf_gated):  alignment=conflict なら LIVE→SHADOW 降格
+        #   Group B (label_only): 現状維持 (ラベルのみ)
+        # 両群とも LIVE+SHADOW 稼働. gate_group カラムで区別し post-hoc 比較.
         # 詳細: knowledge-base/wiki/analyses/mtf-regime-validation-2026-04-17.md
         # ══════════════════════════════════════════════════════════════
+        _mtf_alignment = "unknown"
+        _mtf_gate_action = "none"
+        _gate_group = "label_only"
         try:
             _mtf = self._get_mtf_regime(instrument)
             _mtf_regime_str = _mtf.get("regime", "uncertain")
@@ -3356,6 +3362,43 @@ class DemoTrader:
                 f"mtf={_mtf_regime_str} d1={_mtf.get('d1')} h4={_mtf.get('h4')} "
                 f"vol={_mtf.get('vol')}"
             )
+
+            # Phase D: strategy_aware_alignment 計算 + hash-based A/B 振り分け
+            try:
+                from research.edge_discovery.strategy_family_map import (
+                    strategy_aware_alignment as _sa_align,
+                )
+                _mtf_alignment = _sa_align(
+                    entry_type, _mtf_regime_str, signal, instrument
+                )
+            except Exception as _ae:
+                _mtf_alignment = "unknown"
+                self._add_log(f"[MTF_GATE] alignment compute failed: {_ae}")
+
+            # Hash routing: instrument+entry_type+signal+price+timestamp で決定的分岐
+            import hashlib as _hl
+            _ab_key = (f"{instrument}|{entry_type}|{signal}|"
+                        f"{current_price:.5f}|"
+                        f"{int(datetime.now(timezone.utc).timestamp() * 1000)}")
+            _ab_hash = int(_hl.md5(_ab_key.encode()).hexdigest()[:8], 16)
+            _gate_group = "mtf_gated" if (_ab_hash % 2 == 0) else "label_only"
+
+            # Group A (mtf_gated): conflict なら LIVE→SHADOW 降格
+            if _gate_group == "mtf_gated":
+                if _mtf_alignment == "conflict":
+                    if not _is_shadow:
+                        _is_shadow = True
+                        _mtf_gate_action = "downgraded"
+                        self._add_log(
+                            f"[MTF_GATE] {instrument} {entry_type} "
+                            f"regime={_mtf_regime_str} × {signal} = conflict "
+                            f"→ LIVE→SHADOW downgrade (group=A)"
+                        )
+                    else:
+                        _mtf_gate_action = "kept"  # 既に shadow なので変化なし
+                else:
+                    _mtf_gate_action = "kept"
+            # Group B (label_only): アクションなし
         except Exception as _e:
             _mtf_regime_str = "uncertain"
             self._add_log(f"[MTF_MONITOR] failed ({_e}) — continuing")
@@ -3970,6 +4013,10 @@ class DemoTrader:
             mtf_d1_label=int((self._mtf_cache.get(instrument, (None, {}))[1] or {}).get("d1", 3)),
             mtf_h4_label=int((self._mtf_cache.get(instrument, (None, {}))[1] or {}).get("h4", 3)),
             mtf_vol_state=str((self._mtf_cache.get(instrument, (None, {}))[1] or {}).get("vol", "")),
+            # v9.3 Phase D: A/B gate routing
+            gate_group=_gate_group,
+            mtf_alignment=_mtf_alignment,
+            mtf_gate_action=_mtf_gate_action,
         )
 
         # ── 建値ガード用: ATR保存 ──
