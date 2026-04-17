@@ -269,6 +269,16 @@ bb_rsi_reversionのUSD_JPY 5連勝（100% WR, EV +3.90）が牽引し、dt_sr_ch
 | `trendline-sweep` (ELITE) | EUR_USD | TRENDING_UP + ATR57%。BT EV=+0.927/WR=80.8%。ロンドン開始のブレイクアウトに適合 |
 | `session-time-bias` (ELITE) | EUR_USD, GBP_USD | ロンドンセッションはこの戦略のコアタイム。USD_JPY EV=+0.580も有効 |
 
+### 2026-04-17 (Pre-Tokyo Briefing)
+前日（2026-04-16）の全セッション合計：**N=12、PnL=−33.6、WR=25.0%**。
+> **N=38、全体WR=36.8%、累積PnL=−16.6**
+| Strategy | Pair | N | WR% | EV | 評価 |
+| bb_rsi_reversion | USD_JPY | **9** | 88.9% | **+2.84** | ⚠️ N不足だが最高EV戦略 |
+- N≥30到達戦略: **ゼロ**（全戦略が「データなし〜傾向」段階）
+- 昇格基準（N≥30 & EV≥1.0）到達: 未達
+- 降格基準（N≥30 & EV<−0.5）到達: 未達（N不足のため判定保留）
+### 課題①：vix_carry_unwind USD_JPY — 単発EV=−22.70（SL_HIT）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
