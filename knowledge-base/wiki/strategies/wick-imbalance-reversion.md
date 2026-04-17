@@ -43,6 +43,15 @@
 
 GBP_USD のみ明確に正エッジ → tier-master で PAIR_PROMOTED。他ペアは負EVで Shadow。
 
+## Significance (2026-04-17, 6-cell multi-correction)
+| Pair | p (WR>50, 1-sided) | Bonferroni α'=0.0083 | BH q=0.10 |
+|------|--------------------|----------------------|-----------|
+| GBP_USD | 0.0089 | ·（ギリギリ落ち） | **✓ 生存** |
+| USD_JPY | 0.649 | · | · |
+| EUR_USD | 0.500 | · | · |
+
+GBP_USD は BH-FDR を通過 — 本BTスキャン9セル中で唯一の生存セル。ただし Bonferroni は p=0.0089 vs 0.0083 でほぼ境界、Live N≥30 での再確認が必須。
+
 ## Filters / Guards
 - `len(df) >= window + 2`、`ctx.atr > 0`
 - 圧縮相場除外: `bb_width_pct >= 0.15`

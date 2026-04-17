@@ -44,6 +44,15 @@ FX各1時間バーのリターンは曜日×時刻に固有の偏りを持ち（
 
 USD_JPY/EUR_USD は負EV、GBP_USD のみ正だがマージナル。Shadow継続でサンプル蓄積が必要。
 
+## Significance (2026-04-17, 6-cell multi-correction)
+| Pair | p (WR>50, 1-sided) | Bonferroni α'=0.0083 | BH q=0.10 |
+|------|--------------------|----------------------|-----------|
+| GBP_USD | 0.037 | · | · |
+| USD_JPY | 0.109 | · | · |
+| EUR_USD | 0.385 | · | · |
+
+全ペアが Bonferroni/BH を通過しない。GBP_USD の単純 p=0.037 は 5% 閾値を通るが、3ペア多重補正で消失。FORCE_DEMOTED妥当。Live観測でサンプル積み増し後に再評価。
+
 ## Filters / Guards
 - `len(df) >= 200`、`hist >= 100`
 - `ctx.atr > 0`、週末 (`dow > 4`) 除外

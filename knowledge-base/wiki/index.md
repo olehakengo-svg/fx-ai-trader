@@ -166,6 +166,7 @@
 ### Analyses
 - [[auto-improvement-pipeline]] / [[bt-live-divergence]] / [[claude-harness-design]]
 - [[friction-analysis]] / [[mfe-zero-analysis]] / [[system-reference]]
+- [[conditional-edge-estimand-2026-04-17]] / [[portfolio-balance-audit-2026-04-17]]
 
 ### Syntheses
 - [[profit-projection-2026-04-12]] / [[roadmap-to-100pct]] / [[roadmap-v2]] / [[roadmap-v2.1]]
