@@ -12369,15 +12369,20 @@ def api_demo_stats():
     instrument = request.args.get("instrument")
     # v9.1: exclude_xau default True per CLAUDE.md user memory. Set to "0" to include.
     exclude_xau = request.args.get("exclude_xau", "1") != "0"
+    # v9.1 (2026-04-17): include_shadow=1 で Shadow トレードも集計に含める。
+    # デフォルトは除外（Kelly/WR 汚染防止、CLAUDE.md "クリーンデータ蓄積" 原則）。
+    include_shadow = request.args.get("include_shadow", "0") == "1"
     stats = _demo_db.get_stats(
         date_from=date_from, date_to=date_to, mode=mode_filter,
         instrument=instrument, exclude_xau=exclude_xau,
+        exclude_shadow=not include_shadow,
     )
     stats["_db_path"] = _db_path
     stats["_filters"] = {
         "instrument": instrument, "mode": mode_filter,
         "date_from": date_from, "date_to": date_to,
         "exclude_xau": exclude_xau,
+        "include_shadow": include_shadow,
     }
     return jsonify(stats)
 

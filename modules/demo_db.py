@@ -551,10 +551,10 @@ class DemoDB:
         CLAUDE.md user memory「XAU除外」ルールに準拠。
         v9.1: instrument フィルタ追加。選択中ペアの WR/P/L のみ集計可能。
         """
-        query = ("SELECT pnl_pips, pnl_r, outcome, entry_type, confidence, close_reason "
+        # v9.1 (2026-04-17): is_shadow を常に SELECT し、shadow/live 内訳を返す。
+        # exclude_shadow はメイン統計の算出対象行をフィルタするのみ。
+        query = ("SELECT pnl_pips, pnl_r, outcome, entry_type, confidence, close_reason, is_shadow "
                  "FROM demo_trades WHERE status='CLOSED'")
-        if exclude_shadow:
-            query += " AND (is_shadow IS NULL OR is_shadow = 0)"
         if exclude_xau:
             query += " AND (instrument IS NULL OR instrument NOT LIKE '%XAU%')"
         params = []
@@ -582,12 +582,20 @@ class DemoDB:
                 query += f" AND mode IN ({','.join('?' * len(modes))})"
                 params.extend(modes)
         with self._safe_conn() as conn:
-            rows = conn.execute(query, params).fetchall()
+            all_rows = conn.execute(query, params).fetchall()
+
+        # v9.1: shadow/live 内訳を常に計算（exclude_shadow の値に依らず返す）
+        shadow_count = sum(1 for r in all_rows if r["is_shadow"])
+        live_count = sum(1 for r in all_rows if not r["is_shadow"])
+
+        # メイン統計は exclude_shadow の指定に従って行を絞る
+        rows = [r for r in all_rows if not r["is_shadow"]] if exclude_shadow else all_rows
 
         if not rows:
             return {"total": 0, "wins": 0, "losses": 0, "breakevens": 0,
                     "win_rate": 0, "decided_win_rate": 0, "total_pnl": 0, "ev": 0,
-                    "avg_r": 0, "by_type": {}, "by_outcome": {}}
+                    "avg_r": 0, "by_type": {}, "by_outcome": {},
+                    "shadow_count": shadow_count, "live_count": live_count}
 
         total = len(rows)
         wins = sum(1 for r in rows if r["outcome"] == "WIN")
@@ -629,6 +637,8 @@ class DemoDB:
             "ev": round(total_pnl / total, 2),
             "avg_r": round(avg_r, 2),
             "by_type": by_type,
+            "shadow_count": shadow_count,
+            "live_count": live_count,
         }
 
     def update_shadow_status(self, trade_id: str, is_shadow: bool):

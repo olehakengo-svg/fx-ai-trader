@@ -80,6 +80,10 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
 .sf-btn{background:var(--bg1);color:var(--t2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px 10px;font-size:10px;cursor:pointer;font-family:inherit;transition:var(--transition)}
 .sf-btn:hover{background:var(--border)}
 .sf-btn.sf-active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.sf-shadow{display:inline-flex;align-items:center;gap:4px;font-size:10px;color:var(--t2);cursor:pointer;user-select:none;padding:3px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--bg1);transition:var(--transition)}
+.sf-shadow:hover{background:var(--border)}
+.sf-shadow input{margin:0;cursor:pointer}
+.sf-shadow.sf-on{background:var(--blue);color:#fff;border-color:var(--blue)}
 #sf-mode{background:var(--bg1);color:var(--t1);border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-size:10px;font-family:inherit;margin-left:auto}
 /* ── Stats Bar ── */
 .stats-bar{display:flex;align-items:center;gap:24px;padding:7px 14px;background:var(--bg1);border-bottom:1px solid var(--border);flex-shrink:0}
@@ -485,6 +489,10 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
       <button class="sf-btn" data-range="30d">30d</button>
       <button class="sf-btn sf-active" data-range="all">All</button>
     </div>
+    <label class="sf-shadow" title="Shadow（OANDA非通過）トレードも集計に含める">
+      <input type="checkbox" id="sf-include-shadow" />
+      <span>Shadow含む</span>
+    </label>
     <select id="sf-mode">
       <option value="">All Modes</option>
       <optgroup label="Category">
@@ -527,6 +535,7 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
     <div class="stat-item-hero" data-tip="確定損益（pips, 選択中ペア・XAU除外）"><span class="stat-label">P/L</span><span class="stat-val" id="s-pnl">—</span></div>
     <div data-tip="期待値 = Total P/L ÷ Trades"><span class="stat-label">EV</span><span class="stat-val" id="s-ev">—</span></div>
     <div data-tip="Win / Loss / Breakeven"><span class="stat-label">W / L / BE</span><span class="stat-val" id="s-wl">—</span></div>
+    <div data-tip="Shadow（OANDA非通過）/ Live（OANDA通過）内訳"><span class="stat-label">Shadow / Live</span><span class="stat-val" id="s-sl">—</span></div>
   </div>
 
   <!-- Scrollable Bottom Panels -->
@@ -674,7 +683,7 @@ let _currentPair='USD_JPY',_currentTf='15m';
 let _modeStates={},_oandaStatus={},_oandaModes=[];
 let _lastLogCount=0,_lastStratHash='';
 let _lastPosHash='',_lastTlId=0,_lastTlLen=0,_lastOpenCount=-1;
-let _statsFilter={dateFrom:'',dateTo:'',mode:''}; // 日付+モードフィルタ
+let _statsFilter={dateFrom:'',dateTo:'',mode:'',includeShadow:false}; // 日付+モードフィルタ+Shadow
 let _statusInFlight=false;
 let _obLines=[],_posLines=[];
 let _lastOpenTrades=[];
@@ -937,6 +946,7 @@ async function loadStats(){
     if(dfISO)p.push(`date_from=${dfISO}`);
     if(dtISO)p.push(`date_to=${dtISO}`);
     if(_statsFilter.mode)p.push(`mode=${encodeURIComponent(_statsFilter.mode)}`);
+    if(_statsFilter.includeShadow)p.push('include_shadow=1');
     const url='/api/demo/stats'+(p.length?'?'+p.join('&'):'');
     const r=await fetch(url);
     const d=await r.json();
@@ -962,6 +972,10 @@ async function loadStats(){
     // v9.1: W/L/BE 表示（W+L+BE=Total が一致するように BE を明示）
     const wins=d.wins||0,losses=d.losses||0,bes=d.breakevens||0;
     set('s-wl', bes>0?`${wins}/${losses}/${bes}`:`${wins}/${losses}`);
+    // v9.1 (2026-04-17): Shadow / Live 内訳（include_shadow の ON/OFF に関わらず常に集計元の件数）
+    const sc=d.shadow_count!=null?d.shadow_count:0;
+    const lc=d.live_count!=null?d.live_count:0;
+    set('s-sl', `${sc} / ${lc}`);
   }catch(e){console.warn('[Stats]',e)}
 }
 
@@ -1455,6 +1469,12 @@ document.addEventListener('DOMContentLoaded',()=>{
   // ── Stats Filter: Mode dropdown ──
   document.getElementById('sf-mode')?.addEventListener('change',e=>{
     _statsFilter.mode=e.target.value;
+    _applyStatsFilter();
+  });
+  // ── Stats Filter: Include Shadow toggle ──
+  document.getElementById('sf-include-shadow')?.addEventListener('change',e=>{
+    _statsFilter.includeShadow=e.target.checked;
+    e.target.closest('.sf-shadow')?.classList.toggle('sf-on',e.target.checked);
     _applyStatsFilter();
   });
 });
