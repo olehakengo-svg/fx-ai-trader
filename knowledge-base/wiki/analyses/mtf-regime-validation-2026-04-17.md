@@ -286,8 +286,88 @@ def strategy_aware_alignment(strategy, mtf_regime, signal):
 ### A-7. 次のマイルストーン
 
 - [ ] 14日 shadow 観察後, entry_type × MTF regime の分布を actionable cell (N≥30, 有意) で抽出
-- [ ] Phase C: 全戦略 BT に MTF gate を適用 (strategy_aware_alignment ベース) し, 反実仮想を out-of-sample で検証
+- [x] Phase C: 全戦略 BT に MTF gate を適用 (strategy_aware_alignment ベース) し, 反実仮想を out-of-sample で検証 → §B 参照
 - [ ] Gate 化: actionable cell で conflict が block された時の累積 PnL が shadow 期間で改善しているか確認
+
+---
+
+## Phase B 追記: 本番データで OOS 反実仮想 (2026-04-17 夜)
+
+### B-1. 実験設計
+
+- **データ**: Render 本番 `/api/demo/trades` — 1667 closed trades (LIVE 564 / SHADOW 1103), 2026-04-02 → 04-17
+- **対象**: STRATEGY_FAMILY に登録された entry_type (N=1511), UNKNOWN 156 除外
+- **Split**: entry_time median で IS (train, N=755) / OOS (test, N=756) に二分
+- **Gate**: strategy_aware_alignment で "conflict" 判定された trade を block
+- **評価**: Baseline vs Gate 後の WR, 累積 PnL, IS/OOS 符号一致
+
+### B-2. OOS 反実仮想結果
+
+| 区分 | N | Baseline WR | Baseline PnL | Gate 後 WR | Gate 後 PnL | Δ PnL |
+|---|---|---|---|---|---|---|
+| **OOS 全体** | 756 | 24.3% | −1182.1p | 26.7% | −674.2p | **+507.9p** |
+| **OOS LIVE** | 133 | 33.8% | −108.6p | 38.6% | −56.9p | **+51.7p** |
+| OOS SHADOW | 623 | 22.3% | −1073.5p | 24.1% | −617.3p | +456.2p |
+
+OOS で一貫して gate 後の PnL が改善. LIVE OOS で WR +4.8pp, PnL 赤字半減.
+
+### B-3. IS/OOS 符号一致テスト (curve-fit 耐性)
+
+| Family | IS Δ | OOS Δ | 判定 |
+|---|---|---|---|
+| TF | −273.9p | +332.8p | ❌ **SIGN FLIP** |
+| MR | +68.5p | +72.3p | ✅ consistent |
+| BO | +0.5p | +102.8p | ✅ consistent |
+
+**TF の sign flip は重大**: IS で block すると損, OOS で block すると得 — 時期依存. これは TF family map が curve-fit か、sample が少ない (OOS TF conflict N=197 だが aligned N=7) ことが原因.
+
+### B-4. 統計的有意性 (Welch t-test aligned vs conflict)
+
+| バケット | N (al/co) | ΔWR | p-value |
+|---|---|---|---|
+| ALL | 782/596 | +0.3pp | 0.22 |
+| OOS | 448/302 | +6.1pp | 0.53 |
+| LIVE OOS | 66/63 | +12.3pp | 0.67 |
+| MR family ALL | 698/245 | **−7.1pp** | 0.08 |
+| MR family OOS | 409/38 | +6.6pp | 0.58 |
+
+**全バケットで p > 0.05**. 特に MR family の ALL 集計で「aligned WR < conflict WR」になっている (p=0.08) — family map の一部ルール誤りの可能性.
+
+### B-5. Regime 分布 (1511 trades)
+
+| Regime | 割合 | aligned | conflict | neutral |
+|---|---|---|---|---|
+| trend_up_weak | 29% | 206 | 233 | 0 |
+| range_wide | 28% | 271 | 139 | 6 |
+| range_tight | 22% | 210 | 127 | 0 |
+| trend_down_strong | 12% | 95 | 87 | 5 |
+| uncertain | 9% | 0 | 10 | 122 |
+
+**trend_up_strong / trend_down_weak が 0** — 15日サンプル期間が一方向 (weak bull + bearish flashes) だったため. Regime transitions が sample に含まれず, 全体評価として bias 残存.
+
+### B-6. 結論
+
+| 判断 | 根拠 |
+|---|---|
+| ✅ **OOS 方向性は正しい** | ユーザー仮説 (レジーム判定で WR 改善) は定性的に支持 (+507p, LIVE +52p) |
+| ⚠️ **統計的有意性 未達** | 全バケットで p > 0.05, 7日前後のサンプル期間不足 |
+| ⚠️ **TF family は curve-fit の疑い** | IS/OOS sign flip, aligned/conflict の N 不均衡 (7 vs 197) |
+| ✅ **MR/BO family は robust** | IS/OOS 符号一致, 但し効果サイズ小 |
+| 🚫 **Gate promotion は保留** | shadow 継続 + family map 再検証 + 14日以上の OOS 蓄積が必要 |
+
+### B-7. 次アクション
+
+1. **Shadow 継続** — v9.3 shadow monitor を 14日運用, mtf_regime × entry_type のセル N≥30 蓄積
+2. **Family map 再検証** — MR aligned WR < conflict WR の逆転 (全サンプル) を精査. 特に `fib_reversal` (N=177), `macdh_reversal` (N=109), `sr_channel_reversal` (N=105) の regime 別分布を見る
+3. **UNKNOWN entry_type 追加** — ema_pullback, ema_ribbon_ride, vwap_mean_reversion 等を map に登録して N を増やす
+4. **Regime coverage 拡大** — trend_up_strong / trend_down_weak を含む期間までサンプル延長 (14日以上)
+5. **Soft gate option** — hard block ではなく `conflict` trade の size を半減するオプションも検討. 赤字を半分に抑えつつ learning 機会を残す
+
+### B-8. 実装
+
+- Script: `/tmp/phase_c_mtf_gate_bt.py`
+- Output: `/tmp/phase_c_labeled.csv`, `/tmp/phase_c_summary.json`
+- Commit: Phase B (`55ad019`) で shadow plumbing 実装済み
 
 
 
