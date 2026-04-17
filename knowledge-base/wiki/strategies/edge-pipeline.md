@@ -9,6 +9,7 @@ Stage 3: BACKTESTED   — 摩擦モデルv2でBT、N>=30、WFO/MC検定
 Stage 4: SENTINEL     — 本番0.01lotで稼働、N蓄積中
 Stage 5: VALIDATED    — 本番N>=50、Kelly>0、PF>1確認
 Stage 6: PROMOTED     — フルロット稼働、PAIR_PROMOTED
+Stage 7: ELITE_LIVE   — 全ペア自動通過、ELITE_LIVE核戦略
 ```
 
 ## Evaluation Criteria (Stage 2 → 3 Gate)
@@ -27,12 +28,16 @@ Stage 6: PROMOTED     — フルロット稼働、PAIR_PROMOTED
 
 ## Current Edge Inventory
 
+### Stage 7: ELITE_LIVE
+| Edge | Strategy | Paper | Kelly |
+|------|----------|-------|-------|
+| Session time bias × 3ペア | [[session-time-bias]] | Breedon & Ranaldo 2013 | 365d BT: JPY EV=+0.58/EUR=+0.22/GBP=+0.11 |
+
 ### Stage 6: PROMOTED
 | Edge | Strategy | Paper | Kelly |
 |------|----------|-------|-------|
 | BB extreme MR × USD_JPY | [[bb-rsi-reversion]] | Lo & MacKinlay 1988 | ~0% (thin edge) |
 | ORB fakeout reversal | [[orb-trap]] | Bulkowski 2005 | insuff (N=2) |
-| Session time bias × 3ペア | [[session-time-bias]] | Breedon & Ranaldo 2013 | insuff (N蓄積中) |
 | London fix reversal × GBP | [[london-fix-reversal]] | Krohn 2024 | insuff (N蓄積中) |
 
 ### Stage 4: SENTINEL
