@@ -289,6 +289,16 @@ bb_rsi_reversionのUSD_JPY 5連勝（100% WR, EV +3.90）が牽引し、dt_sr_ch
 > **USD_JPY/GBP_JPY/EUR_JPY についてはNO ACTION推奨。**
 | 東京 + ロンドン累計PnL | **0 pips / 0円** |
 
+### 2026-04-17 (Pre-Tokyo Briefing)
+前日（2026-04-16）トレード数は **2件**、合計PnL = **-0.8pips**、全体WR = **0.0%**。
+両トレードとも `TIME_DECAY_EXIT` によるBREAKEVEN決済であり、実質的に「エントリー→時間切れ撤退」のパターン。
+| Strategy | Pair | N | WR% | EV | PnL | 評価 |
+| ③ | **スプレッド負担** | USD_JPY spread=0.8pip。EV=-0.40はほぼスプレッドコストそのものに相当し、エッジゼロを示唆 |
+- **TIME_DECAY_EXIT多発** → USD_JPYが現在RANGINGかつATR%ile=42%（中程度）。DT系戦略はトレンドフォロー前提のものが多く、レンジ相場での不発は構造的。本日もUSD_JPY DTモードでの大量発火は期待しないこと。
+- **シグナル枯渇** → EUR/GBP系（TRENDING_UP）の稼働モードに注目。`daytrade_eur`・`daytrade_eurjpy`・`daytrade_gbpusd` がONであることは正しい方向性。引き続き稼働継続を維持。
+- **USD_JPY**: SMAスロープ≈0。米国指標次第でTRENDING_UPまたはTRENDING_DOWNへ急転換リスク。ATR%ile上昇（現42%）に注目。
+- **GBP_USD**: RANGING継続中だが、SMAスロープ+0.00364は弱いながら上向き。ロンドン時間に抜ければTRENDING_UP転換の可能性。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
