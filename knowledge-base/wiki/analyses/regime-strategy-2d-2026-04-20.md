@@ -331,3 +331,74 @@ Cutoff 後期間が trend_up + range に偏っているため, `trend_down_*` re
 
 これは Phase E の正当性を追認する **null result (good null)**: 既存 2戦略の mapping が
 現時点で意味のある差分を残しておらず, v9.3 Phase E マッピングが "まだ有効" であることを示唆.
+
+---
+
+## 12. Backfill 事前宣言 → Pivot 記録 (2026-04-21)
+
+> **Status**: この §12 は 2026-04-21 に事前宣言として追記されたが, 同セッション内で前提が複数箇所破壊され, **当初タスク (REGIME_ADAPTIVE_FAMILY 拡張) は凍結** された. 下記は事前宣言の原文 + pivot 記録として保存 (透明性のため削除しない).
+>
+> **詳細**: [[lesson-backfill-task-pivot-2026-04-21]] / [[sessions/2026-04-21-session]] Phase 2
+
+### Pivot summary (後追記, 2026-04-21)
+
+1. **Instrument × Regime 完全交絡**: 全候補戦略で (regime, strategy) cell が単一 instrument にロック. 例: macdh × trend_down_strong = 48件全て EUR_USD.
+2. **BT-Live 乖離の真因 = 市場 regime 遷移**: 4/16 境界で range_tight 14% → 58% (4x). 全 MR/TF 戦略 -12〜-20pp WR 崩壊.
+3. **既存 REGIME_ADAPTIVE mapping は正しい** (P0 validation で全符号一致確認). 損失源は range_tight × MR (mapping override 対象外).
+4. **真の優先**: range_tight 止血 + Gate leak 調査. 拡張は複数 regime 遷移観測後に再評価.
+
+---
+
+### 事前宣言原文 (参考 / 下記)
+
+**目的**: `mtf_regime` 未充当の 1969件 (entry_time < 2026-04-20) を
+`mtf_regime_engine.label_mtf()` で retrospective 充当し, 2D 行列の N と regime 多様性を拡張する. 事後的な p-hacking を防ぐため, 基準を **実行前に** 固定.
+
+### 12.1 事前検証 (Step 1-2) 結果
+- **Live labeler 自己照合**: N=193 (2026-04-20) で offline vs live 100% 一致. As-of alignment (shift+backward merge) が look-ahead なく再現することを確認.
+- **Base rate 推定** (全 2127 trades / 6 instruments, `/tmp/step2_regime_coverage.json`):
+  - trend_down_strong: 213件 (**新規** — 現状 0)
+  - trend_down_weak: **0件** — 18日間の相場で出現せず
+  - range_tight/range_wide/trend_up_*: 既存の 5〜10x 拡張
+  - uncertain: 147件
+
+### 12.2 Gate 基準 (Phase E §3.3 を継承し, Backfill 実行前に固定)
+
+| # | 基準 | 値 |
+|---|------|-----|
+| 1 | Cell 最小 N | **N ≥ 50** per (strategy, regime, direction) |
+| 2 | 効果サイズ | **ΔWR ≥ 10pp** between regimes (同方向) |
+| 3 | 多重検定補正 | **Bonferroni α = 0.05 / K** (K = 評価戦略数) |
+| 4 | IS/OOS 符号一致 | 両期間で `(WR_regime_A − WR_regime_B)` 同符号 **かつ** 各側 p < 0.1 |
+| 5 | 既存 REGIME_ADAPTIVE_FAMILY 非該当 | `bb_rsi_reversion`, `fib_reversal` は差分評価対象から除外 |
+
+**IS/OOS 分割点** (backfill 完了後適用):
+- **IS**: 2026-04-02 〜 2026-04-15 (pre-Fidelity Cutoff, N ≈ 1600, 低 fidelity 疑い)
+- **OOS**: 2026-04-16 〜 2026-04-20 (post-Fidelity Cutoff, N ≈ 527, 高 fidelity)
+
+### 12.3 事前除外項目
+
+- **`trend_down_weak`**: N=0 のため評価不可. 本 backfill サイクルでは評価対象外 (明示的に pre-declared — 後から理由をこじつけることの禁止).
+- **`uncertain`**: 既存方針どおり regime-adaptive 判定の外側. 差分評価しない.
+
+### 12.4 事前優先候補 (2D 再スキャン後の検証対象)
+
+base rate 推定に基づく, **cell N ≥ 30 を複数 regime で満たす既存 REGIME_ADAPTIVE_FAMILY 非該当戦略**:
+
+| 優先度 | 戦略 | 観察済 cell N (推定) |
+|--------|------|---------------------|
+| **1** | `macdh_reversal` | trend_down_strong 48, trend_up_weak 40, range_tight 19 |
+| 2 | `sr_fib_confluence` | trend_up_weak 37, trend_down_strong 25 (境界), range_wide 25 |
+| 3 | `ema_trend_scalp` | range_wide 88, range_tight 108, trend_up_strong 55 (down 不在) |
+
+**第一候補 macdh_reversal** が Gate 基準を通過しない場合, 本 backfill サイクルで新規 REGIME_ADAPTIVE_FAMILY 追加は行わない. これも事前宣言 — 候補を後から差し替えない.
+
+### 12.5 実装フロー
+
+1. `scripts/backfill_mtf_regime.py` を実装 (SQL UPDATE 出力モード — 本番 DB の write 経路は別途合意).
+2. 本番 DB にバックフィル適用 (承認後).
+3. 2D 再スキャン実行 → Gate 判定.
+4. 通過すれば `research/edge_discovery/strategy_family_map.py` に候補追加 PR (同時に `tests/test_strategy_family_map.py`, `tools/tier_integrity_check.py`, `tools/strategies_drift_check.py` で検証).
+5. 通過しなければ **何も変更しない** (good null の維持).
+
+**宣言者**: Claude (quant mode), 2026-04-21, pre-backfill.
