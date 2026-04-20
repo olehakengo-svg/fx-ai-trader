@@ -75,7 +75,7 @@
 
 <!-- KB_PORTFOLIO_END -->
 
-## System State (v9.0+ / v2.1)
+## System State (v9.3 / v2.1)
 - Defensive mode: **0.2x** (DD=12.39%, defensive mode — v8.4以降クリーンデータ起点)
 - XAU: **Stopped** (v8.4) -- post-cutoff XAU loss = -2,280pip (102% of total loss)
 - FX-only post-cutoff: **-646pip (赤字)**
