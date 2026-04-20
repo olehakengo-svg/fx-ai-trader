@@ -98,6 +98,36 @@
              ├── RANGINGレジーム下: vwap_mean_reversion/wick_imbalance_reversion → aligned（正常）
              ├── pending (BT forensics必要): doji_breakout, post_news_vol, squeeze_release_momentum
              └── Tests: 234 passed (既存テスト全pass、新分類はwiki根拠で実装)
+
+2026-04-20  ★ v9.4: wiki/strategies KB ドリフト一掃 + 検出ツール導入
+             ├── 13 ページの Status 行を tier-master.json と整合
+             │   ├── bb-rsi-reversion.md: "Tier 1 PP×USD_JPY" → SCALP_SENTINEL + PAIR_DEMOTED(全4ペア)
+             │   ├── orb-trap.md: "Tier 1 PP×3ペア" → FORCE_DEMOTED (v9.1 負EV確定)
+             │   ├── trendline-sweep.md: "ELITE+FD+PP" → ELITE_LIVE のみ (v9.0 整理)
+             │   ├── bb-squeeze-breakout / engulfing-bb / sr-channel-reversal / ema-pullback:
+             │   │   FD下のPP死コード記述を削除 (v9.1 cleanup 反映)
+             │   ├── london-fix-reversal: "PP×GBP" → Phase0 Shadow (v9.1 GBP PP削除)
+             │   ├── vol-momentum-scalp: "SHADOW" → PAIR_PROMOTED×EUR_JPY
+             │   ├── three-bar-reversal: "UNI_SENTINEL" → Phase0 Shadow
+             │   ├── stoch-trend-pullback: "Sentinel" → FORCE_DEMOTED (v8.9 剥奪)
+             │   ├── vol-surge-detector: "Sentinel" → SCALP_SENTINEL + PAIR_DEMOTED
+             │   ├── doji-breakout: Status追加 (UNI_SENTINEL + PP×GBP/USDJPY)
+             │   ├── fib-reversal: "Tier 2" → FORCE_DEMOTED (Recovery Path active)
+             │   ├── liquidity-sweep: "Tier 2 Sentinel" → UNIVERSAL_SENTINEL 明示
+             │   ├── post-news-vol: Status 行の USD_JPY をPP→PAIR_DEMOTED に訂正
+             │   └── dual-sr-bounce: "FORCE_DEMOTED" → REMOVED (v9.1 死コード削除)
+             ├── 旧 Status は「履歴」/「Previously ...」で保持 (削除禁止ルール遵守)
+             ├── **新ツール**: tools/strategies_drift_check.py
+             │   ├── tier-master.json を truth source として読み込み、md の Status 行を検証
+             │   ├── 否定コンテキスト / 履歴マーカーはスキップ
+             │   ├── PAIR_PROMOTED scope 内のペアのみ truth と突合
+             │   └── exit 1 で pre-commit / CI 組み込み可能
+             ├── **テスト**: tests/test_strategies_drift_check.py (11 cases, all pass)
+             │   └── 実 KB 回帰テスト込み (test_live_kb_passes_drift_check)
+             ├── **lesson**: wiki/lessons/lesson-strategies-page-drift.md
+             │   └── lesson-kb-drift-on-context-limit の strategies/ 特化版
+             └── 独立ツール設計: tier_integrity_check.py (code 整合) と分離
+                 pre-commit 実行順: tier_integrity_check --write → strategies_drift_check
 ```
 
 ## バージョン別データ切り口

@@ -4,8 +4,8 @@
 - **Entry Type**: `bb_squeeze_breakout`
 - **Category**: Breakout / VOL
 - **Timeframe**: Scalp 1m/5m, DT 15m
-- **Status**: FORCE_DEMOTED (v8.2: BT EV=-0.799, structural deficit from max spread at breakout) / PAIR_PROMOTED on USD_JPY, EUR_USD
-- **Active Pairs**: USD_JPY (PAIR_PROMOTED, 5m), EUR_USD (PAIR_PROMOTED, 1m)
+- **Status**: FORCE_DEMOTED (v8.2: BT EV=-0.799, structural deficit from max spread at breakout)
+- **Active Pairs**: None (FORCE_DEMOTED — PAIR_PROMOTED 全削除 v9.1 死コードクリーンアップ)
 
 ## BT Performance (365d, 15m)
 BT data not available for this entry_type in DT comprehensive scan.
@@ -21,7 +21,7 @@ Detects Bollinger Band squeeze (bandwidth contraction below threshold), then ent
 ## Current Configuration
 - Lot Boost: default (1.0x) — FORCE_DEMOTED globally
 - PAIR_DEMOTED: none explicit (globally demoted)
-- PAIR_PROMOTED: USD_JPY (5m EV=+1.030 WR=90.9%), EUR_USD (1m EV=+0.473 WR=73.7%)
+- PAIR_PROMOTED: none (v9.1 removed — FORCE_DEMOTED 下で PP 指定は死コード。Historical: USD_JPY 5m EV=+1.030 WR=90.9% / EUR_USD 1m EV=+0.473 WR=73.7%)
 
 ## Related
 - [[index]] — Tier classification

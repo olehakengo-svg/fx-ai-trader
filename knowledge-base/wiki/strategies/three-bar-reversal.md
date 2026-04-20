@@ -4,8 +4,9 @@
 - **Entry Type**: `three_bar_reversal`
 - **Category**: MR (Mean Reversion)
 - **Timeframe**: DT 15m
-- **Status**: UNIVERSAL_SENTINEL (BT未検証, Sentinel蓄積)
-- **Active Pairs**: Sentinel on all pairs
+- **Status**: Phase0 Shadow Gate (PP/EL 未指定 → 自動 Shadow, BT未検証)
+- **Active Pairs**: None (全ペア自動 Shadow)
+- **履歴**: Previously labeled UNIVERSAL_SENTINEL in strategy page; tier-master 実態は Phase0 Shadow Gate (scalp mode, PP/EL 指定なし)
 
 ## BT Performance (365d, 15m)
 BT data not available for this entry_type

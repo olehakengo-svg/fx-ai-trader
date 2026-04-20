@@ -4,8 +4,8 @@
 - **Entry Type**: `post_news_vol`
 - **Category**: VOL (Volatility)
 - **Timeframe**: DT 15m
-- **Status**: UNIVERSAL_SENTINEL; USD_JPY PAIR_DEMOTED; GBP_USD, EUR_USD PAIR_PROMOTED
-- **Active Pairs**: GBP_USD (PAIR_PROMOTED), EUR_USD (PAIR_PROMOTED)
+- **Status**: UNIVERSAL_SENTINEL (全モード Sentinel) + PAIR_PROMOTED (GBP_USD, EUR_USD) + PAIR_DEMOTED (USD_JPY)
+- **Active Pairs**: GBP_USD, EUR_USD (PAIR_PROMOTED で実弾通過); USD_JPY は PAIR_DEMOTED 明示 Shadow
 
 ## BT Performance (365d, 15m)
 | Pair | N | WR | EV | PF | PnL |

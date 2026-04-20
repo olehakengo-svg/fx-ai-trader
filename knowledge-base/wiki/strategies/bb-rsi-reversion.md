@@ -1,7 +1,9 @@
 # bb_rsi_reversion
 
-## Status: Tier 1 (PAIR_PROMOTED x USD_JPY)
-**The only strategy with PF > 1 in 556t production audit.**
+## Status: SCALP_SENTINEL + PAIR_DEMOTED (全ペア)
+**現行**: SCALP_SENTINEL (最小ロット shadow)。EUR_JPY / EUR_USD / GBP_USD / USD_JPY の 4 ペアすべて PAIR_DEMOTED — 実弾通過なし。
+
+**履歴**: Previously PAIR_PROMOTED x USD_JPY (v6.3-v8.8, "The only strategy with PF > 1 in 556t production audit")。v8.9 で Post-cut N=76 WR=38.2% EV=-0.28 Kelly=-5.5% → Tier1 剥奪、USD_JPY も PAIR_DEMOTED に降格。
 
 ## Performance History
 | Period | N | WR | PnL | PF | Notes |

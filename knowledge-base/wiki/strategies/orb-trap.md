@@ -1,7 +1,9 @@
 # orb_trap
 
-## Status: Tier 1 (PAIR_PROMOTED x USD_JPY, EUR_USD, GBP_USD)
-**Highest BT margin over BEV_WR (+50pp). Zero live data divergence confirmed yet.**
+## Status: FORCE_DEMOTED (全ペア強制 Shadow)
+**現行**: v9.1 で FORCE_DEMOTED — 365d BT 全ペア負EV (JPY=-0.854 / EUR=-0.488 / GBP=-0.258)。旧 60d BT (WR 79%/71%/64%) は 365d で崩壊 (WR 42%/37%/56%)。
+
+**履歴**: Previously PAIR_PROMOTED x USD_JPY, EUR_USD, GBP_USD (v8.2-v9.0, "Highest BT margin over BEV_WR (+50pp)")。60d → 365d の WR 崩壊で楽観バイアス確定、v9.1 で FORCE_DEMOTED + LOT_BOOST / PAIR_PROMOTED 全削除。
 
 ## Performance
 | Source | Pair | N | WR | EV |

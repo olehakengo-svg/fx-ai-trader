@@ -1,6 +1,6 @@
 # fib_reversal
 
-## Status: Tier 2 (FORCE_DEMOTED → Recovery Path Active)
+## Status: FORCE_DEMOTED (Recovery Path Active — 全ペア強制 Shadow)
 **Dramatic improvement post-cutoff: WR 25.6% → 55.0% (v6.3 parameter effect confirmed)**
 
 ## Performance

@@ -4,8 +4,9 @@
 - **Entry Type**: `dual_sr_bounce`
 - **Category**: MR (Mean Reversion)
 - **Timeframe**: DT 15m
-- **Status**: FORCE_DEMOTED (v6.8+)
-- **Active Pairs**: None (FORCE_DEMOTED)
+- **Status**: REMOVED (v9.1 dead-code cleanup — 戦略ファイル自体が存在しない)
+- **Active Pairs**: None (戦略自体が removed)
+- **履歴**: Previously FORCE_DEMOTED (v6.8+)。v9.1 で dual_sr_bounce / h1_fib_reversal / pivot_breakout を死コード一斉削除
 
 ## BT Performance (365d, 15m)
 | Pair | N | WR | EV | PF | PnL |

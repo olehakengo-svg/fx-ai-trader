@@ -1,6 +1,6 @@
 # liquidity_sweep
 
-## Status: Tier 2 (Sentinel, N=0, just deployed v8.2)
+## Status: UNIVERSAL_SENTINEL (全モード最小ロット Shadow, v8.2 deployed)
 **New uncorrelated alpha source — institutional stop-hunt reversal.**
 
 ## Design (v8.2, 740 lines)

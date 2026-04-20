@@ -4,8 +4,8 @@
 - **Entry Type**: `sr_channel_reversal`
 - **Category**: MR (Mean Reversion)
 - **Timeframe**: Scalp/DT
-- **Status**: FORCE_DEMOTED (v8.9: Post-cut N=17 WR=11.8% instant death 87.5%); EUR_USD PAIR_PROMOTED
-- **Active Pairs**: EUR_USD (PAIR_PROMOTED, 5m EV=+0.231 WR=70.6%)
+- **Status**: FORCE_DEMOTED (v8.9: Post-cut N=17 WR=11.8% instant death 87.5%)
+- **Active Pairs**: None (FORCE_DEMOTED — PAIR_PROMOTED 全削除 v9.1)
 
 ## BT Performance (365d, 15m)
 BT data not available for this entry_type in comprehensive scan.
@@ -21,7 +21,7 @@ Support/resistance channel reversal. Identifies price channels bounded by SR lev
 ## Current Configuration
 - Lot Boost: default (1.0x) — FORCE_DEMOTED globally
 - PAIR_DEMOTED: none explicit (globally demoted)
-- PAIR_PROMOTED: EUR_USD (5m: EV=+0.231 N=17 WR=70.6%)
+- PAIR_PROMOTED: none (v9.1 removed — FORCE_DEMOTED 下で PP 指定は死コード。Historical: EUR_USD 5m EV=+0.231 N=17 WR=70.6%)
 
 ## Related
 - [[index]] — Tier classification

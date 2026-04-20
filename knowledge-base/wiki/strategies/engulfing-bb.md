@@ -4,8 +4,8 @@
 - **Entry Type**: `engulfing_bb`
 - **Category**: **TF** (Trend-Follow) — v9.3 P0 で MR → TF に再分類
 - **Timeframe**: Scalp 1m/5m, DT 15m
-- **Status**: FORCE_DEMOTED (v8.0: WR=14.3% PnL=-$353.5); EUR_USD PAIR_PROMOTED
-- **Active Pairs**: EUR_USD (PAIR_PROMOTED)
+- **Status**: FORCE_DEMOTED (v8.0: WR=14.3% PnL=-$353.5); EUR_USD / USD_JPY も PAIR_DEMOTED
+- **Active Pairs**: None (FORCE_DEMOTED — PAIR_PROMOTED 全削除 v9.1)
 
 ## BT Performance (365d, 15m)
 BT data not available for this entry_type in comprehensive scan.
@@ -20,8 +20,8 @@ Engulfing candle pattern at Bollinger Band extremes. Enters reversal when a bull
 
 ## Current Configuration
 - Lot Boost: default (1.0x) — FORCE_DEMOTED globally
-- PAIR_DEMOTED: USD_JPY (v8.9: N=14 WR=28.6% Kelly=-14.7%), EUR_USD (v8.9: N=9 WR=11.1% EV=-1.42 — but also PAIR_PROMOTED for different timeframe)
-- PAIR_PROMOTED: EUR_USD (4/14 analysis: WR=67% +33pip, BT 1m EV=+0.163 N=47)
+- PAIR_DEMOTED: USD_JPY (v8.9: N=14 WR=28.6% Kelly=-14.7%), EUR_USD (v8.9: N=9 WR=11.1% EV=-1.42)
+- PAIR_PROMOTED: none (v9.1 removed — FORCE_DEMOTED 下で PP 指定は死コード。Historical: EUR_USD 4/14 analysis WR=67% +33pip / BT 1m EV=+0.163 N=47 — 別 timeframe でも v9.1 clean-slate で整理)
 
 ## v9.3 P0: Family Reclassification (2026-04-17)
 
