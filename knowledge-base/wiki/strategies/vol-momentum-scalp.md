@@ -9,7 +9,8 @@
 ## Performance
 | Period | N | WR | PnL | Kelly |
 |--------|---|-----|-----|-------|
-| Post-cutoff (shadow-excl) | 10 | 80.0% | +21.6 | 47.0% (CI: [-9.9%, +81.1%]) |
+| Post-cutoff (shadow-excl) | 16 | 50.0% | +4.2 | — |
+| Post-cutoff early (N=10) | 10 | 80.0% | +21.6 | 47.0% (CI: [-9.9%, +81.1%]) |
 | BT (Scalp v3.2) | 11 | 63.6% | - | EV=+1.61 |
 
 ## Why 0% Instant Death (Benchmark)

@@ -23,8 +23,13 @@ Scalp (Bonferroni significant):
 | VW2s BUY | EUR_JPY | 1m | 16min | 2,574 | 56.5% | +0.81 | +2,087p |
 | VW2s BUY | GBP_JPY | 1m | 16min | 2,028 | 53.6% | +0.48 | +975p |
 
-## Live Performance (post-cutoff)
-Live data accumulating (newly implemented)
+## Live Performance (post-cutoff, 2026-04-08〜)
+| Strategy | Pairs | N | WR | PnL |
+|---|---|---|---|---|
+| vwap_mean_reversion | all | 2 | 50.0% | +36.9 pip |
+
+Top performer in post-cutoff period. Small N — continue monitoring.
+Data source: /api/demo/stats?date_from=2026-04-08 (2026-04-20)
 
 ## Signal Logic
 VWAP 2-sigma mean reversion. Enters BUY when price drops below VWAP minus 2 standard deviations, expecting reversion to VWAP. Massive API exclusive alpha — requires intraday VWAP calculation from tick/volume data. Bonferroni-corrected p<10^-7 across JPY crosses.

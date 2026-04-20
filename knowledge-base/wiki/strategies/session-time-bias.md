@@ -46,6 +46,14 @@
 - [x] Stage 6: PROMOTED (v8.6, 2026-04-12) — 3ペア PAIR_PROMOTED
 - [x] Stage 7: ELITE_LIVE (2026-04-17) — 全ペア自動通過、PAIR_PROMOTED重複は整理
 
+## Live Performance (post-cutoff, 2026-04-08〜)
+| Strategy | Pairs | N | WR | PnL |
+|---|---|---|---|---|
+| session_time_bias | all | 4 | 0.0% | -25.8 pip |
+
+⚠️ WR=0% (N=4) vs BT WR=67-79%. N below judgment threshold (min N=10). Monitor closely.
+Data source: /api/demo/stats?date_from=2026-04-08 (2026-04-20)
+
 ## Key Advantage
 **実装複雑度 1/5** — 時刻ルールのみ。最もシンプルな新エッジ。
 

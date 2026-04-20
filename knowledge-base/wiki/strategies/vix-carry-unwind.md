@@ -32,6 +32,14 @@ VIX急騰（90pctile超）時にキャリートレード巻き戻しが加速し
 ## Integration
 vol_momentumの「VIXブーストモード」として統合が最適。独立戦略の価値は頻度から見て低い。
 
+## Live Performance (post-cutoff, 2026-04-08〜)
+| Strategy | Pairs | N | WR | PnL |
+|---|---|---|---|---|
+| vix_carry_unwind | all | 2 | 0.0% | -30.9 pip |
+
+N=2 is below judgment threshold (min N=10). Low-frequency strategy — observe over full VIX cycle.
+Data source: /api/demo/stats?date_from=2026-04-08 (2026-04-20)
+
 ## Related
 - [[research/index]]
 - [[vol-momentum-scalp]]

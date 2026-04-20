@@ -2,7 +2,7 @@
 
 ## 🎯 最重要目標: 月利100% → 年利1,200%
 **全施策の判断基準。これに寄与しない施策は後回し。**
-- 現在: **DD防御0.2x** (DD=12.39%, defensive mode) → 月利47%（BT推定）
+- 現在: **DD防御0.2x** (DD=**25.9%**, defensive mode) → 月利47%（BT推定、クリーンデータ蓄積中）
 - Phase 3 (Kelly Half): 月利594%
 - 詳細: **[[roadmap-v2.1]]** (DT幹+Scalp枝統合、v2.1)
 - 旧: [[roadmap-v2]] (v2.0) / [[roadmap-to-100pct]] (v1)
@@ -75,11 +75,13 @@
 
 <!-- KB_PORTFOLIO_END -->
 
-## System State (v9.3 / v2.1)
-- Defensive mode: **0.2x** (DD=12.39%, defensive mode — v8.4以降クリーンデータ起点)
+## System State (v9.4 / v2.1)
+- Defensive mode: **0.2x** (DD=**25.9%** / 259pip, defensive mode — v8.4以降クリーンデータ起点)
 - XAU: **Stopped** (v8.4) -- post-cutoff XAU loss = -2,280pip (102% of total loss)
-- FX-only post-cutoff: **-646pip (赤字)**
-- Ruin probability: ~100% (Kelly=-0.18, aggregate edge negative — recalc needed with clean data)
+- FX-only post-cutoff (2026-04-08〜): **-174.4pip** (live N=282, WR=36.5%, EV=-0.62)
+- Ruin probability: **0.04%** (MC 5,000 sims, N=300 forward — prior "~100%" was Kelly-only estimate)
+- Aggregate Kelly: **0.0** (edge=-13.48%, WR=41.07%, N=448 live) — Kelly=-0.18は旧推定値
+- Last updated: 2026-04-20 (wiki-daily-update)
 - scalp_eurjpy: **Stopped** (v8.6) -- friction/ATR=43.6%, 構造的不可能
 - scalp_5m_eur / scalp_5m_gbp: **Active** (v8.6) -- 5m摩擦改善モード
 - New modes (v9.0): **daytrade_eurjpy**, **daytrade_gbpjpy**, **[[rnb-usdjpy]]** (all auto_start)
@@ -107,6 +109,7 @@
 - [[mfe-zero-analysis]] -- 90.6% of losses never go favorable
 
 ## Session History
+- [[sessions/2026-04-20-session]] — Sentinel score_gate bypass (P1) + N measurement fix (P3) + KB drift fix (P4) + shadow baseline analysis + resend-shadow-leak fix
 - [[sessions/2026-04-17-session]] — conditional edge estimand framework + KB整合修正
 - [[sessions/2026-04-15-session]] — KB broken-link修正+orphanファイル統合
 - [[sessions/2026-04-14-session]] — H15検証+SENTINEL矛盾修正+QHシミュレーション+漏れ分析
@@ -155,6 +158,8 @@
 - [[comprehensive-bt-scan-2026-04-14]] / [[massive-alpha-scan-2026-04-14]] / [[shadow-bt-reeval-2026-04-14]]
 
 ### Trade Logs
+- [[2026-04-20]] — daily summary (auto-generated 2026-04-20)
+- [[2026-04-20-monitor]] / [[2026-04-20-post_tokyo]]
 - [[2026-04-15-pre_tokyo]]
 - [[2026-04-14-monitor]] / [[2026-04-14-pre_tokyo]] / [[2026-04-14-post_tokyo]]
 - [[2026-04-14-quant-analysis]] / [[2026-04-14-detailed-quant-analysis]]

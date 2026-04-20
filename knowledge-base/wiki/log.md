@@ -1,5 +1,18 @@
 # Knowledge Base Change Log
 
+## 2026-04-20: wiki-daily-update (自動スケジュールタスク)
+- **Daily trade log**: `raw/trade-logs/2026-04-20.md` 作成 — post-cutoff N=282, WR=36.5%, PnL=-174.4pip
+- **wiki/index.md**: System State更新 — DD 12.39%→**25.9%**, Ruin prob ~100%→**0.04%**, aggregate Kelly=-0.18→edge=-0.1348, v9.3→v9.4, session history追加
+- **Strategy pages** (6ページ更新):
+  - `vwap-mean-reversion.md` — Live追加: N=2, WR=50%, +36.9pip (top performer)
+  - `vol-momentum-scalp.md` — Live更新: N=10→N=16, WR=80%→50%
+  - `vix-carry-unwind.md` — Live追加: N=2, WR=0%, -30.9pip
+  - `session-time-bias.md` — Live追加: N=4, WR=0%, -25.8pip ⚠️ BT乖離要注意
+  - `donchian-momentum-breakout.md` — Live更新: aggregate N=3, WR=33.3%, -32.1pip
+- **Lint結果**: 破損リンク1件(lesson-bt-live-divergence in shadow-baseline-2026-04-20.md、既存バグ), 陳腐化ページなし, WR整合性問題なし
+- **Risk state**: DD=25.9%, lot=0.2x, Kelly=0.0, Sharpe=-0.087, MC ruin=0.04%
+- **Learning**: scalp WR=48.2% EV=+0.27 (Ready), daytrade EV=-2.7 (underperforming), 49 auto-adjustments
+
 ## 2026-04-13: 監査 + レジーム自動化パイプライン (Plan A + Plan B)
 - **Plan A: weekly_audit.py**: 週次/月次ストラテジー監査 → raw/audits/ 自動保存 + Discord
 - **Plan B: /api/market/regime**: OANDA日足→ATR percentile+SMA slope→レジーム分類
