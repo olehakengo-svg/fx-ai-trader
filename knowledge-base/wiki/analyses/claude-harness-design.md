@@ -146,9 +146,33 @@ post-strategy-edit-check.sh:
 | CI/pre-commitなし | テスト自動実行なし | ci.yml + pre-commit構築 | ✅修正済 |
 | Alpha Scan手動のみ | 人間依存 | GitHub Action化 | ✅修正済 |
 
+## Challenge-Response Protocol (2026-04-20 追加)
+
+ユーザーからの反復 challenge は**自分の分析の診断信号**。以下の発話を受けたら**即座に停止して再評価**する:
+
+### Trigger 発話 → 自動応答
+| Challenge パターン | 意味 | 強制応答 |
+|---|---|---|
+| 「クオンツとしての見解?」(2回目以降) | 表層的/admin 的分析に陥っている | EV × cost × 確率の3軸で再ランキング |
+| 「KB 見た上で?」「根拠は?」 | KB 確認を skip している | Grep/Read で直接関連 KB を全確認後に再回答 |
+| 「今できることで未着手は?」 | 先送り癖 or 時間依存性誤認 | 時間待ち vs 即実行可能を明示分別 |
+| 「それは KB に保存された?」 | 宣言のみで codify していない | 今すぐ Write、`lesson-say-do-gap` 厳格適用 |
+| 「本当に?」「それクオンツ的?」 | assertion の根拠不足 | 数値/データで根拠を提示するか、不確か明示 |
+
+### 強制プロトコル (Challenge 検知時)
+1. **即座に次の提案を止める** — 現在の分析を先に再評価
+2. **同一セッション内の既出か確認** — 既出なら**構造欠陥** (個別修正では治らない)
+3. **KB/code 再確認** — Grep + Read で 3件以上の関連ドキュメント確認
+4. **誤り発覚時は明示撤回** — 保留/曖昧化せず「撤回します」と明言
+5. **meta-learning の即 codify** — 「次から気をつけます」禁止、**今すぐ KB 書き込み**
+
+詳細は [[lesson-user-challenge-as-signal]] 参照。
+
 ## リンク
 - [[roadmap-to-100pct]] — 月利100%ロードマップ
 - [[session-decisions-2026-04-13]] — 本日の8件の意思決定
 - [[alpha-scan-2026-04-13]] — Alpha Scan結果
 - [[lesson-tool-verification-gap]] — ツール検証の教訓
+- [[lesson-user-challenge-as-signal]] — Challenge-Response Protocol の根拠 lesson
+- [[lesson-all-time-vs-post-cutoff-confusion]] — 2026-04-20 の技術的誤り事例
 - [[system-reference]] — 全パラメータ
