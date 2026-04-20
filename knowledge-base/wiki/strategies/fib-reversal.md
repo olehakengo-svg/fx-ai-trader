@@ -1,7 +1,8 @@
 # fib_reversal
 
-## Status: Tier 2 (FORCE_DEMOTED → Recovery Path Active)
-**Dramatic improvement post-cutoff: WR 25.6% → 55.0% (v6.3 parameter effect confirmed)**
+## Status: FORCE_DEMOTED (v9.1 PAIR_PROMOTED 死コード削除; v9.x 2026-04-20 demo_db legacy override 削除)
+**2026-04-20 Priority 2 監査: 180d Scalp BT で 60d EV=+0.271 → 180d EV=-0.147 符号反転**
+(lesson-orb-trap-bt-divergence 再現例)
 
 ## Performance
 | Period | N | WR | PnL | Notes |
@@ -72,8 +73,21 @@ REGIME_ADAPTIVE_FAMILY["fib_reversal"] = {
 }
 ```
 
+## 2026-04-20 判断履歴 (Priority 2 PAIR_PROMOTED 監査)
+
+**EUR_USD BT 系列 — 符号反転事例:**
+- Scalp 1m 60d EV=+0.271 (v8.3 時点で PAIR_PROMOTED 根拠)
+- Scalp 1m 180d EV=**-0.147** (2026-04-15 更新で反転確認)
+- 365d DT 15m: 発火 0
+
+**EUR_USD Live (post 2026-04-07):** N=51 (shadow=22, live=29) WR=39.2% EV=-0.298 PnL=-15.2p
+
+Gate1 (EV≥+0.2) 不通過 + Gate4 (60d/365d sign) 失敗 → demo_db legacy override 削除。
+参照: [[pair-promoted-candidates-2026-04-20]], [[lesson-orb-trap-bt-divergence]]
+
 ## Related
 - [[mfe-zero-analysis]] — 75.9% instant death analysis
 - [[bb-rsi-reversion]] — Similar MR strategy (77.6% instant death)
 - [[independent-audit-2026-04-10]] — Statistical validation
 - [[mtf-regime-validation-2026-04-17]] §C (P0 forensics) / §E (REGIME_ADAPTIVE)
+- [[pair-promoted-candidates-2026-04-20]] — Priority 2 監査

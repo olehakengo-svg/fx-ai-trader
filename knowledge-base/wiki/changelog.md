@@ -79,15 +79,30 @@
      |       └── research/edge_discovery/strategy_family_map.py (production module)
      |
 2026-04-17  ★★★ v9.3 Phase D+E: A/B Gate Routing + REGIME_ADAPTIVE
-             ├── **Phase D**: Hash-based A/B routing (MD5 mod 2 → mtf_gated / label_only)
-             │   ├── DB: gate_group / mtf_alignment / mtf_gate_action 追加
-             │   ├── Group A conflict → LIVE→SHADOW downgrade (soft gate)
-             │   └── 50/50 分布確認 (N=1000 ±50)
-             ├── **Phase E**: REGIME_ADAPTIVE_FAMILY (regime別 family override)
-             │   ├── bb_rsi_reversion: trend_up=TF / trend_down=MR
-             │   ├── fib_reversal: trend_up=MR / trend_down=TF
-             │   └── LIVE ΔWR +2.4pp→+9.3pp (4×), IS aligned gap +12.0pp
-             └── Tests: 234 passed (new: test_ab_gate.py 7 + TestRegimeAdaptive 7)
+     |       ├── **Phase D**: Hash-based A/B routing (MD5 mod 2 → mtf_gated / label_only)
+     |       │   ├── DB: gate_group / mtf_alignment / mtf_gate_action 追加
+     |       │   ├── Group A conflict → LIVE→SHADOW downgrade (soft gate)
+     |       │   └── 50/50 分布確認 (N=1000 ±50)
+     |       ├── **Phase E**: REGIME_ADAPTIVE_FAMILY (regime別 family override)
+     |       │   ├── bb_rsi_reversion: trend_up=TF / trend_down=MR
+     |       │   ├── fib_reversal: trend_up=MR / trend_down=TF
+     |       │   └── LIVE ΔWR +2.4pp→+9.3pp (4×), IS aligned gap +12.0pp
+     |       └── Tests: 234 passed (new: test_ab_gate.py 7 + TestRegimeAdaptive 7)
+     |
+2026-04-20  ★ v9.x Priority 2: PAIR_PROMOTED 白紙状態の監査
+             ├── demo_db.py `_pair_promoted_overrides` 5 組合せを削除
+             │   ├── (ema_pullback, USD_JPY), (fib_reversal, EUR_USD)
+             │   ├── (bb_squeeze_breakout, USD_JPY/EUR_USD), (sr_channel_reversal, EUR_USD)
+             │   └── 全て v9.1 で demo_trader._PAIR_PROMOTED から既に削除済み → SSOT 二重化解消
+             ├── Live 監査 (Render DB, 2046 trades):
+             │   ├── fib_reversal×EUR_USD: Live N=51 WR=39% EV=-0.298 PnL=-15p (post 4/7)
+             │   ├── bb_squeeze×EUR_USD: Live N=26 WR=11.5% EV=-2.32 (**壊滅**)
+             │   ├── sr_channel×EUR_USD: Live N=26 WR=19% EV=-1.20 (**壊滅**)
+             │   └── 他 2 組は Live N<20 & Shadow 主体 → 昇格根拠不足
+             ├── 365d BT 再検証 Gate: 全 5 組合せが EV≥+0.2 ATR & N≥100 を満たさず
+             ├── 60d→180d 符号反転: fib_reversal×EUR_USD (+0.271 → -0.147) — lesson-orb-trap 再現
+             ├── 新規 PAIR_PROMOTED 追加: **なし** (Gate 通過候補ゼロ)
+             └── 詳細: wiki/analyses/pair-promoted-candidates-2026-04-20.md
 ```
 
 ## バージョン別データ切り口
