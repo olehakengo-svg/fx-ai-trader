@@ -88,6 +88,17 @@
              │   ├── fib_reversal: trend_up=MR / trend_down=TF
              │   └── LIVE ΔWR +2.4pp→+9.3pp (4×), IS aligned gap +12.0pp
              └── Tests: 234 passed (new: test_ab_gate.py 7 + TestRegimeAdaptive 7)
+
+2026-04-20  ★ v9.x Priority 1: Sentinel score_gate バイパス (Clean Slate 窒息対策)
+             ├── **背景**: Clean Slate(2026-04-16)以降 Live N=0 / Sentinel N=1(bb_squeeze_breakout only, 62戦略中)
+             │   └── score_gate(score<0) が 1日396件ブロック → Sentinel shadow も蓄積不能
+             ├── **修正**: demo_trader.py L2761 score_gate に `_sentinel_score_bypass` 追加
+             │   ├── SCALP_SENTINEL ∪ UNIVERSAL_SENTINEL のみバイパス (Live 挙動不変)
+             │   ├── FORCE_DEMOTED / _ELITE_LIVE / _PAIR_PROMOTED は従来通り score_gate 適用
+             │   └── L4179 safety net で is_shadow=True 強制 → 学習汚染リスクゼロ
+             ├── **観測性**: Sentinel バイパス時 `[SCORE_GATE] Sentinel bypass:` ログ発行
+             ├── **対称性**: spread_wide(L3483) / spike(L3522) と同形パターン
+             └── Tests: 234 passed (no new tests — 既存挙動 guard のみ)
 ```
 
 ## バージョン別データ切り口
