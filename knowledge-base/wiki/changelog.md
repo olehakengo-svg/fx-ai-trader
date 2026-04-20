@@ -140,6 +140,18 @@
              │   └── `get_trades_for_learning` は**変更なし** (lesson-shadow-contamination 維持)
              └── Tests: 244 passed (new: test_shadow_stats.py 10 = 正例4+負例3+空3)
              参照: [[lesson-sentinel-n-measurement-bug]]
+
+2026-04-20  ★ v9.x Priority 1: Sentinel score_gate バイパス (Clean Slate 窒息対策)
+             ├── **背景**: Clean Slate(2026-04-16)以降 Live N=0 / Sentinel N=1(bb_squeeze_breakout only, 62戦略中)
+             │   └── score_gate(score<0) が 1日396件ブロック → Sentinel shadow も蓄積不能
+             ├── **修正**: demo_trader.py L2761 score_gate に `_sentinel_score_bypass` 追加
+             │   ├── SCALP_SENTINEL ∪ UNIVERSAL_SENTINEL のみバイパス (Live 挙動不変)
+             │   ├── FORCE_DEMOTED / _ELITE_LIVE / _PAIR_PROMOTED は従来通り score_gate 適用
+             │   └── L4179 safety net で is_shadow=True 強制 → 学習汚染リスクゼロ
+             ├── **観測性**: Sentinel バイパス時 `[SCORE_GATE] Sentinel bypass:` ログ発行
+             ├── **対称性**: spread_wide(L3483) / spike(L3522) と同形パターン
+             └── Tests: 234 passed (no new tests — 既存挙動 guard のみ)
+             注記: P3 実測で Sentinel N=1,466 判明 → 「N=1」は測定バグ由来。本 bypass は純粋な上振れ策として残存有効。
 ```
 
 ## バージョン別データ切り口

@@ -2755,16 +2755,32 @@ class DemoTrader:
         # score<=0: WR=22% EV=-1.79pip / score>0: WR=34% EV=-0.98pip
         # score=0 は未実装戦略(60%)のデフォルト → ブロックしない
         # score<0 のみブロック（戦略自身が「入るな」と言っている）
-        # Shadow含め全トレードに適用（悪データの蓄積は無価値）
+        #
+        # v9.x: Sentinel 経路は score_gate をバイパス
+        #   Clean Slate(2026-04-16)以降 N=0〜1 停滞 → データ蓄積が最優先
+        #   Sentinel は is_shadow=True 強制 (L4179 safety net) で学習汚染なし
+        #   Live 昇格戦略(_ELITE_LIVE / _PAIR_PROMOTED)には適用しない
+        #     → この判定時点ではまだ _is_shadow_eligible_full 未定義のため
+        #       (L2781) 同じ条件をインラインで評価する (L3483/3522 と同形)
         # ══════════════════════════════════════════════════════════════
         _entry_score = sig.get("score", 0)
-        if _entry_score < 0:
+        _sentinel_score_bypass = (
+            entry_type in self._SCALP_SENTINEL
+            or entry_type in self._UNIVERSAL_SENTINEL
+        )
+        if _entry_score < 0 and not _sentinel_score_bypass:
             self._add_log(
                 f"[SCORE_GATE] Blocked: {entry_type} score={_entry_score:.2f} < 0 | "
                 f"{signal} {instrument} {mode}"
             )
             _block(f"score_gate({_entry_score:.2f}<0)")
             return
+        elif _entry_score < 0 and _sentinel_score_bypass:
+            # shadow 側に通すための観測ログ (ボリュームに注意: Sentinelのみ)
+            self._add_log(
+                f"[SCORE_GATE] Sentinel bypass: {entry_type} score={_entry_score:.2f} < 0 | "
+                f"{signal} {instrument} {mode} (is_shadow will be enforced)"
+            )
 
         # ══════════════════════════════════════════════════════════════
         # ── v7.0/v8.9: Shadow Tracking — 観測データ最大化 ──
