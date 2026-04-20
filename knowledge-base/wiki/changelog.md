@@ -128,6 +128,18 @@
              │   └── lesson-kb-drift-on-context-limit の strategies/ 特化版
              └── 独立ツール設計: tier_integrity_check.py (code 整合) と分離
                  pre-commit 実行順: tier_integrity_check --write → strategies_drift_check
+
+2026-04-20  ★ v9.x Priority 3: Sentinel N 測定バグ修正
+             ├── **症状**: UI で 62 戦略中 bb_squeeze_breakout のみ N=1、他 61 戦略 N=0
+             │   └── 実測: 本番 DB に closed Shadow trades が 1,466 件存在
+             ├── **原因**: `get_trades_for_learning` は is_shadow=0 固定フィルタ
+             │   └── `_strategy_n_cache` → `_build_strategy_status_map` の n が Live のみに
+             ├── **修正**: `get_shadow_trades_for_evaluation()` 新関数 (is_shadow=1 固定)
+             │   ├── `_build_strategy_status_map` に shadow_n/wr/ev 付与
+             │   ├── `/api/sentinel/stats` 新設 (entry_type/instrument/after_date フィルタ)
+             │   └── `get_trades_for_learning` は**変更なし** (lesson-shadow-contamination 維持)
+             └── Tests: 244 passed (new: test_shadow_stats.py 10 = 正例4+負例3+空3)
+             参照: [[lesson-sentinel-n-measurement-bug]]
 ```
 
 ## バージョン別データ切り口
