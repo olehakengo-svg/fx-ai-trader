@@ -42,7 +42,38 @@ Current: FORCE_DEMOTED (N=32, WR=40.6%)
 - LOSS 75.9% instant death (MFE=0)
 - v8.3 targets 25-35% instant death
 
+## v9.3 P2: REGIME_ADAPTIVE Family (2026-04-17)
+
+本戦略も regime 方向で family 挙動が反転する非対称性を示す (Phase C N=177).
+`REGIME_ADAPTIVE_FAMILY` で regime 別に family をオーバーライドする。
+
+### 観測された非対称性
+
+| Regime | BUY WR | SELL WR | 差 | 実挙動 |
+|---|---|---|---|---|
+| `trend_up_weak`/`_strong` | 25% | **48%** | +23pp | **MR** (逆張り SELL が aligned) |
+| `trend_down_weak`/`_strong` | 33% | **45%** | +12pp | **TF** (順張り SELL が aligned) |
+
+bb_rsi_reversion とは **方向が逆** の非対称性:
+- bb_rsi: up=TF / down=MR
+- fib: up=MR / down=TF
+
+これは fib_reversal が本来 MR 戦略だが、下落トレンドでは「Fib 戻り売り」が
+セキュラー下落トレンドに沿った TF 挙動になるため。
+
+### 現行マッピング
+
+```python
+REGIME_ADAPTIVE_FAMILY["fib_reversal"] = {
+    "trend_up_weak": "MR",
+    "trend_up_strong": "MR",
+    "trend_down_weak": "TF",
+    "trend_down_strong": "TF",
+}
+```
+
 ## Related
 - [[mfe-zero-analysis]] — 75.9% instant death analysis
 - [[bb-rsi-reversion]] — Similar MR strategy (77.6% instant death)
 - [[independent-audit-2026-04-10]] — Statistical validation
+- [[mtf-regime-validation-2026-04-17]] §C (P0 forensics) / §E (REGIME_ADAPTIVE)

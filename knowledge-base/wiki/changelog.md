@@ -60,10 +60,34 @@
      |       └── ema200_trend_reversal × USD_JPY PAIR_DEMOTED (120d WR=0%)
      |
 2026-04-13  ★★★ v8.9: Equity Reset — クリーンデータ起点
-             ├── 旧DD: 2,899pip (289.9%) ← XAU(-2,280pip) + pre-cutoffバグ汚染
-             ├── リセット: v8.4(2026-04-10T12:00)以降FX-only非Shadowで再計算
-             ├── 新DD: 8.4pip (0.8%) → lot_mult=1.0x (フルロット)
-             └── ワンショットマイグレーション (eq_reset_v89フラグで1回のみ実行)
+     |       ├── 旧DD: 2,899pip (289.9%) ← XAU(-2,280pip) + pre-cutoffバグ汚染
+     |       ├── リセット: v8.4(2026-04-10T12:00)以降FX-only非Shadowで再計算
+     |       ├── 新DD: 8.4pip (0.8%) → lot_mult=1.0x (フルロット)
+     |       └── ワンショットマイグレーション (eq_reset_v89フラグで1回のみ実行)
+     |
+2026-04-17  ★ v9.2.1: MTF Regime Engine + v9.2 guardrail 無効化
+     |       ├── D1×H4×H1 階層 regime labeler (7-class)
+     |       ├── EUR_USD η² 105× improvement, flip rate 6.1%→0.6%
+     |       ├── v9.2 guardrail デフォルト無効化 (6.5年検証で符号逆)
+     |       └── shadow_monitor + DB mtf_* カラム追加
+     |
+2026-04-17  ★★ v9.3 Phase A-C: Strategy-aware MTF + P0 Family Map Forensics
+     |       ├── Phase A: 戦略ファミリ考慮 retrospective (LIVE aligned WR +22.9pp)
+     |       ├── Phase B: 本番OOS反実仮想 (+508p 改善) — TF sign flip 検出
+     |       ├── Phase C P0: 3戦略 mislabel 修正 (macdh_reversal/engulfing_bb → TF, ema_cross → MR)
+     |       ├── CORRECTED map で ALL Δ PnL +306p→+1129p (3.7×), 全family符号一致
+     |       └── research/edge_discovery/strategy_family_map.py (production module)
+     |
+2026-04-17  ★★★ v9.3 Phase D+E: A/B Gate Routing + REGIME_ADAPTIVE
+             ├── **Phase D**: Hash-based A/B routing (MD5 mod 2 → mtf_gated / label_only)
+             │   ├── DB: gate_group / mtf_alignment / mtf_gate_action 追加
+             │   ├── Group A conflict → LIVE→SHADOW downgrade (soft gate)
+             │   └── 50/50 分布確認 (N=1000 ±50)
+             ├── **Phase E**: REGIME_ADAPTIVE_FAMILY (regime別 family override)
+             │   ├── bb_rsi_reversion: trend_up=TF / trend_down=MR
+             │   ├── fib_reversal: trend_up=MR / trend_down=TF
+             │   └── LIVE ΔWR +2.4pp→+9.3pp (4×), IS aligned gap +12.0pp
+             └── Tests: 234 passed (new: test_ab_gate.py 7 + TestRegimeAdaptive 7)
 ```
 
 ## バージョン別データ切り口

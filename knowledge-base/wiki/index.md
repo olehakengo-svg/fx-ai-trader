@@ -94,6 +94,12 @@
 - BT Friction Model: **v3** (v8.7) -- Spread/SL Gate + RANGE TP + Quick-Harvest反映
 - 金曜/月曜ブロック: **撤去済み** (v8.6) -- 原則#1「攻める」準拠
 - GBPアジア除外: **実装済み** (v8.6)
+- **MTF Regime Engine**: **active** (v9.2.1) — D1×H4×H1 階層 labeler, shadow monitor
+- **Strategy-aware MTF alignment**: **active** (v9.3 P0) — 4 family (TF/MR/BO/SE) × regime
+- **REGIME_ADAPTIVE_FAMILY**: **active** (v9.3 P2) — bb_rsi/fib の regime 別 family override
+- **A/B Gate Routing**: **active** (v9.3 Phase D) — hash-based 50/50 (mtf_gated / label_only)
+  - Group A conflict → LIVE→SHADOW downgrade (soft gate)
+  - 5-7日で N≥500/group, 30日で p<0.05 検出想定
 
 ## Key Decisions
 - [[independent-audit-2026-04-10]] -- 2 audits, binding recommendations
@@ -167,6 +173,7 @@
 - [[auto-improvement-pipeline]] / [[bt-live-divergence]] / [[claude-harness-design]]
 - [[friction-analysis]] / [[mfe-zero-analysis]] / [[system-reference]]
 - [[conditional-edge-estimand-2026-04-17]] / [[portfolio-balance-audit-2026-04-17]] / [[regime-tag-validation-2026-04-17]]
+- [[mtf-regime-validation-2026-04-17]] — MTF engine + Phase A-E (strategy-aware alignment, P0 forensics, A/B gate, REGIME_ADAPTIVE)
 
 ### Syntheses
 - [[profit-projection-2026-04-12]] / [[roadmap-to-100pct]] / [[roadmap-v2]] / [[roadmap-v2.1]]
