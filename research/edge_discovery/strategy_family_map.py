@@ -19,6 +19,15 @@ behavior が分岐:
   bb_rsi_reversion: uptrend TF-like, downtrend MR-like
   fib_reversal:     uptrend MR-like, downtrend TF-like
 
+2026-04-20 ELITE_LIVE/PAIR_PROMOTED 追加分類 (wiki Category + signal logic 根拠):
+  gbp_deep_pullback:        TF (wiki: "TF (Trend Following)", pullback continuation)
+  trendline_sweep:          TF (wiki: "SMC/TF", stop-hunt → trend continuation)
+  vwap_mean_reversion:      MR (wiki: "MR (Mean Reversion)", VWAP 2σ reversion)
+  wick_imbalance_reversion: MR (wiki: "mean reversion strategy", wick imbalance fade)
+  london_fix_reversal:      SE (Fix event-driven, regime-agnostic like session_time_bias)
+  vix_carry_unwind:         SE (VIX macro event-driven, regime-agnostic)
+  # pending P0 BT forensics: doji_breakout, post_news_vol, squeeze_release_momentum
+
 詳細: knowledge-base/wiki/analyses/mtf-regime-validation-2026-04-17.md §C
 """
 from __future__ import annotations
@@ -33,8 +42,10 @@ STRATEGY_FAMILY: dict[str, str] = {
     "stoch_trend_pullback": "TF",
     "donchian_momentum_breakout": "TF",
     "sr_break_retest": "TF",
-    "macdh_reversal": "TF",   # P0 re-classified 2026-04-17 (was MR)
-    "engulfing_bb": "TF",     # P0 re-classified 2026-04-17 (was MR)
+    "macdh_reversal": "TF",           # P0 re-classified 2026-04-17 (was MR)
+    "engulfing_bb": "TF",             # P0 re-classified 2026-04-17 (was MR)
+    "gbp_deep_pullback": "TF",        # wiki: "TF (Trend Following)", pullback continuation
+    "trendline_sweep": "TF",          # wiki: "SMC/TF", stop-hunt → trend continuation
 
     # ── MR (Mean-Reversion) ──
     "bb_rsi_reversion": "MR",
@@ -51,14 +62,19 @@ STRATEGY_FAMILY: dict[str, str] = {
     "sr_fib_confluence": "MR",
     "trend_rebound": "MR",
     "orb_trap": "MR",
-    "ema_cross": "MR",        # P0 re-classified 2026-04-17 (was TF)
+    "ema_cross": "MR",                # P0 re-classified 2026-04-17 (was TF)
+    "vwap_mean_reversion": "MR",      # wiki: "MR (Mean Reversion)", VWAP 2σ reversion
+    "wick_imbalance_reversion": "MR", # wiki: "mean reversion strategy", wick imbalance fade
 
     # ── BO (Breakout) ──
     "bb_squeeze_breakout": "BO",
     "vol_surge_detector": "BO",
+    # pending: doji_breakout, post_news_vol, squeeze_release_momentum (BT forensics needed)
 
-    # ── SE (Session) ──
+    # ── SE (Session/Event — regime 非依存) ──
     "session_time_bias": "SE",
+    "london_fix_reversal": "SE",      # Fix event-driven, regime-agnostic (Krohn 2024)
+    "vix_carry_unwind": "SE",         # VIX macro event-driven, regime-agnostic
 }
 
 

@@ -88,6 +88,16 @@
              │   ├── fib_reversal: trend_up=MR / trend_down=TF
              │   └── LIVE ΔWR +2.4pp→+9.3pp (4×), IS aligned gap +12.0pp
              └── Tests: 234 passed (new: test_ab_gate.py 7 + TestRegimeAdaptive 7)
+
+2026-04-20  v9.3 Phase F: FAMILY MAP 拡張 — ELITE_LIVE/PAIR_PROMOTED 6戦略追加分類
+             ├── **TF追加**: gbp_deep_pullback, trendline_sweep (wiki Category根拠)
+             ├── **MR追加**: vwap_mean_reversion, wick_imbalance_reversion (wiki MR根拠)
+             ├── **SE追加**: london_fix_reversal (Krohn 2024), vix_carry_unwind (Brunnermeier 2009)
+             ├── 未分類→"unknown"から"conflict/neutral"へ: A/B gate が ELITE_LIVEにも機能するように
+             ├── RANGINGレジーム下: gbp_deep_pullback/trendline_sweep → conflict → shadow降格（正常）
+             ├── RANGINGレジーム下: vwap_mean_reversion/wick_imbalance_reversion → aligned（正常）
+             ├── pending (BT forensics必要): doji_breakout, post_news_vol, squeeze_release_momentum
+             └── Tests: 234 passed (既存テスト全pass、新分類はwiki根拠で実装)
 ```
 
 ## バージョン別データ切り口
