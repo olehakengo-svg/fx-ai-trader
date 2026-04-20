@@ -299,6 +299,16 @@ bb_rsi_reversionのUSD_JPY 5連勝（100% WR, EV +3.90）が牽引し、dt_sr_ch
 - **USD_JPY**: SMAスロープ≈0。米国指標次第でTRENDING_UPまたはTRENDING_DOWNへ急転換リスク。ATR%ile上昇（現42%）に注目。
 - **GBP_USD**: RANGING継続中だが、SMAスロープ+0.00364は弱いながら上向き。ロンドン時間に抜ければTRENDING_UP転換の可能性。
 
+### 2026-04-20 (Post-Tokyo Report)
+| セッション内PnL | 0 pips |
+| WR | N/A |
+| 本日累計 | N=1 / WR 0.0% / -7.3 pips |
+UTC 00:00–06:00（JST 09:00–15:00）該当トレードはゼロ。本日の唯一のトレードはセッション外で発生した-7.3pips（WR 0%）の1件のみ。
+- 東京セッションのN=0はデータ不足であり、判断基準（N≥10）を満たさない
+- Block Countsを見ると、シグナルそのものは発生している（下記参照）が、フィルタが機能してエントリーを抑制している状態
+- 本日稼働中モード（16モード中11モードON）の構成は正常範囲内
+| GBP_USD | RANGING (ATR 55%ile) | ロンドン主戦場。オープンでのブレイクアウト試行に注意。RANGING脱却可能性中程度 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
