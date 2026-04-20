@@ -114,4 +114,34 @@ if [[ -f "$SYNC_SCRIPT" ]]; then
     fi
 fi
 
+# ── KB Integrity: tier_integrity_check ──
+# Added 2026-04-20: Verify code ↔ tier-master.md integrity
+echo "[pre-commit] Checking tier integrity..."
+TIER_CHECK="$REPO_ROOT/tools/tier_integrity_check.py"
+if [[ -f "$TIER_CHECK" ]]; then
+    if ! python3 "$TIER_CHECK" --check >/dev/null 2>&1; then
+        echo ""
+        echo "❌ tier_integrity_check.py --check FAILED"
+        echo "   demo_trader.py の Tier 定義と wiki/tier-master.md が不整合。"
+        echo "   Run 'python3 tools/tier_integrity_check.py --write' to regenerate."
+        echo ""
+        exit 1
+    fi
+fi
+
+# ── KB Integrity: strategies_drift_check ──
+# Added 2026-04-20 (P4): Verify wiki/strategies/*.md Status lines vs tier-master.json
+echo "[pre-commit] Checking wiki/strategies drift..."
+DRIFT_CHECK="$REPO_ROOT/tools/strategies_drift_check.py"
+if [[ -f "$DRIFT_CHECK" ]]; then
+    if ! python3 "$DRIFT_CHECK" >/dev/null 2>&1; then
+        echo ""
+        echo "❌ strategies_drift_check.py FAILED"
+        echo "   wiki/strategies/*.md の Status 行が tier-master.json と不整合。"
+        echo "   Run 'python3 tools/strategies_drift_check.py' for details."
+        echo ""
+        exit 1
+    fi
+fi
+
 echo "[pre-commit] All checks passed."
