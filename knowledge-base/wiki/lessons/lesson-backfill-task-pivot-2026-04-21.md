@@ -75,3 +75,26 @@
 
 **教訓**: タスクを「別」と呼ぶ前に「それが解決すると何が unblock されるか」を明示する.
 別として分離するのは, unblock 対象がない (独立) か, unblock しても優先度が変わらない時のみ.
+
+## Phase 3 追記: Shadow contamination で同じ間違いを繰り返した
+
+セッション末, ユーザーが「本日の OANDA はプラス」と指摘してくれたことで私の分析の重大な欠陥が判明:
+
+**問題**: `/tmp/trades_all.json` を解析する際に `is_shadow` フィルタをかけずに LIVE と SHADOW を合算.
+結果として SHADOW の損失を LIVE の損失と誤認し, 「全戦略崩壊」「gate leak 疑い」「range_tight 止血必要」という誤った緊急対応を提案した.
+
+**実際**:
+- LIVE post-Cutoff: **+5 pips 黒字** (bb_rsi_reversion WR 75%)
+- SHADOW post-Cutoff: -1388 pips (gate 通過前の観測値)
+- 「gate leak 疑いの 15件」は **全て is_shadow=1** (仕様どおりの shadow 観測)
+
+**[[lesson-shadow-contamination]] (2026-04-10, v8.4) の再発**. `get_stats()` のバグは修正済だが, ad-hoc 分析で同じ汚染を起こした.
+
+**影響**: challenge なしに次セッションへ引き継がれていたら「機能している gate を壊す P0 変更」に着手するところだった. production harm 寸前.
+
+**予防策**:
+1. Live trades を解析する際は **冒頭で is_shadow 分布を必ず print**. 混在ありなら LIVE/SHADOW 別々に集計.
+2. 「全戦略が losing」のような極端な結論が出た時点で shadow contamination を疑う
+3. ad-hoc 分析用の helper 関数化を検討 (P1 tooling 候補)
+
+**教訓 (統合)**: ユーザー challenge は **診断の深化** だけでなく **事実訂正** の機会でもある. 自分の分析結果が production 観察と矛盾する時, まず分析の前提 (フィルタ条件, サンプル定義) を疑う.

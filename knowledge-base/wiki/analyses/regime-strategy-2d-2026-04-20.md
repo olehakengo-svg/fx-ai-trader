@@ -343,9 +343,10 @@ Cutoff 後期間が trend_up + range に偏っているため, `trend_down_*` re
 ### Pivot summary (後追記, 2026-04-21)
 
 1. **Instrument × Regime 完全交絡**: 全候補戦略で (regime, strategy) cell が単一 instrument にロック. 例: macdh × trend_down_strong = 48件全て EUR_USD.
-2. **BT-Live 乖離の真因 = 市場 regime 遷移**: 4/16 境界で range_tight 14% → 58% (4x). 全 MR/TF 戦略 -12〜-20pp WR 崩壊.
-3. **既存 REGIME_ADAPTIVE mapping は正しい** (P0 validation で全符号一致確認). 損失源は range_tight × MR (mapping override 対象外).
-4. **真の優先**: range_tight 止血 + Gate leak 調査. 拡張は複数 regime 遷移観測後に再評価.
+2. **BT-Live 乖離の真因 = 市場 regime 遷移**: 4/16 境界で range_tight 14% → 58% (4x).
+3. **既存 REGIME_ADAPTIVE mapping は正しい** (P0 validation で全符号一致確認).
+4. **(Phase 3 訂正)** 当初 "全戦略崩壊"/"Gate leak 疑い"/"range_tight 止血必要" と結論したが, これは **SHADOW を LIVE と混同した shadow contamination による誤診**. LIVE post-Cutoff は実際 **+5.0 pips 黒字** で gate は正常動作. 詳細は [[sessions/2026-04-21-session]] Phase 3 および [[lesson-backfill-task-pivot-2026-04-21]] Phase 3 追記.
+5. **真の優先**: BT 摩擦 Tier 1 (mode×pair 係数化, レジーム判定の unfreeze 経路). range_tight 止血 + Gate leak 調査は**削除** (誤認).
 
 ### 解凍経路: BT 摩擦モデル改善
 
