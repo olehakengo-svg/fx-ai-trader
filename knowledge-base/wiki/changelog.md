@@ -99,6 +99,23 @@
              ├── pending (BT forensics必要): doji_breakout, post_news_vol, squeeze_release_momentum
              └── Tests: 234 passed (既存テスト全pass、新分類はwiki根拠で実装)
 
+2026-04-20  ☆ v9.x Diagnostic: Regime × Strategy 2D Kelly Asymmetry Scan (NO-OP)
+             ├── **目的**: 43戦略 × 7 regime × 2 direction の非対称性マトリクスを全探索
+             │   └── Phase E (bb_rsi_reversion / fib_reversal) 同等候補があれば REGIME_ADAPTIVE 追加
+             ├── **データ**: 本番 API N=786 (Cutoff 2026-04-16以降 / XAU除外 / closed)
+             │   └── mtf_regime 本番 DB populate 率 24.5% → research/edge_discovery/mtf_regime_engine で
+             │       retrospective labeling (Phase B 済み pipeline 再利用) で 100% カバー
+             ├── **結果**: Gate 通過候補 = **0件**
+             │   ├── 観測期間 4.6日 → lesson-reactive-changes "1日データ禁止" に抵触
+             │   ├── Regime coverage 欠損 (trend_down_* / uncertain が 0 件)
+             │   ├── 43戦略中 N≥50/cell を 1つ以上持つのは ema_trend_scalp のみ
+             │   ├── Bonferroni α=0.0125 で有意 cell ゼロ (最小 p=0.277)
+             │   └── 観測された方向非対称性は全て既存 strategy_aware_alignment で処理済
+             ├── **実装**: なし (判断プロトコル #1 違反回避)
+             ├── **別 task 提案**: scripts/backfill_mtf_regime.py 作成 → 過去トレードに mtf_regime 注入 → N ≈ 1500+ 規模で再評価
+             └── Artifacts: knowledge-base/wiki/analyses/regime-strategy-2d-2026-04-20.md
+                 + /tmp/fx-regime-2d-analysis/{matrix_all,asymmetry,asymmetry_strict}.csv
+
 2026-04-20  ★ v9.4: wiki/strategies KB ドリフト一掃 + 検出ツール導入
              ├── 13 ページの Status 行を tier-master.json と整合
              │   ├── bb-rsi-reversion.md: "Tier 1 PP×USD_JPY" → SCALP_SENTINEL + PAIR_DEMOTED(全4ペア)
