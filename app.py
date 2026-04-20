@@ -11747,7 +11747,13 @@ def api_oanda_modes():
 
 
 def _build_strategy_status_map():
-    """全戦略のOANDA転送状態マップを構築 (v2: ペア別ライフサイクル対応)。"""
+    """全戦略のOANDA転送状態マップを構築 (v2: ペア別ライフサイクル対応)。
+
+    v9.x (2026-04-20): lesson-sentinel-n-measurement-bug 修正。
+    Sentinel N (is_shadow=1 の closed trade 数) を `get_shadow_trades_for_evaluation`
+    から別途集計し、shadow_n / shadow_wr / shadow_ev フィールドとして付与する。
+    既存の n (live, get_trades_for_learning ベース) はそのまま維持。
+    """
     from modules.demo_trader import DemoTrader, MODE_CONFIG
     bridge = _demo_trader._oanda
     _force_demoted = DemoTrader._FORCE_DEMOTED
@@ -11759,6 +11765,23 @@ def _build_strategy_status_map():
     _strat_lot_boost = DemoTrader._STRATEGY_LOT_BOOST
     _scalp_sentinel = DemoTrader._SCALP_SENTINEL
     _universal_sentinel = DemoTrader._UNIVERSAL_SENTINEL
+
+    # v9.x: Sentinel (is_shadow=1) 集計 — 別関数で取得し get_trades_for_learning を汚さない.
+    try:
+        _shadow_stats = _demo_trader._db.get_shadow_trades_for_evaluation()
+        _shadow_by_type = _shadow_stats.get("by_type", {}) or {}
+        _shadow_by_pair = _shadow_stats.get("by_type_pair", {}) or {}
+    except Exception as _e:
+        _shadow_by_type = {}
+        _shadow_by_pair = {}
+
+    def _shadow_fields(et: str) -> dict:
+        st = _shadow_by_type.get(et, {})
+        return {
+            "shadow_n": st.get("n", 0),
+            "shadow_wr": st.get("wr", 0.0),
+            "shadow_ev": st.get("ev", 0.0),
+        }
 
     # 全アクティブ通貨ペアを収集
     _all_instruments = sorted(set(
@@ -11809,6 +11832,7 @@ def _build_strategy_status_map():
             "effective": _eff,
             "label": _mode_labels.get(_mode, _mode) if _mode != "auto" else "降格（実弾停止）",
             "pair_status": _pair_map,
+            **_shadow_fields(et),
         }
     # 自動昇降格戦略
     for et, info in sorted(_promoted.items()):
@@ -11837,6 +11861,7 @@ def _build_strategy_status_map():
             "effective": _eff,
             "label": _mode_labels.get(_mode, _mode) if _mode != "auto" else _auto,
             "pair_status": _pair_map,
+            **_shadow_fields(et),
         }
     # オーバーライドのみある戦略
     for et, mode in sorted(_overrides.items()):
@@ -11854,6 +11879,7 @@ def _build_strategy_status_map():
                 "effective": mode != "off",
                 "label": _mode_labels.get(mode, mode),
                 "pair_status": _pair_map,
+                **_shadow_fields(et),
             }
 
     # ── v6.1 fix: 全QUALIFIED戦略をマップに含める ──
@@ -11898,6 +11924,7 @@ def _build_strategy_status_map():
             "effective": _eff,
             "label": _label,
             "pair_status": _pair_map,
+            **_shadow_fields(et),
         }
 
     return strategies, _all_instruments
@@ -12400,6 +12427,57 @@ def api_demo_stats():
         "date_from": date_from, "date_to": date_to,
         "exclude_xau": exclude_xau,
         "include_shadow": include_shadow,
+    }
+    return jsonify(stats)
+
+
+@app.route("/api/sentinel/stats")
+def api_sentinel_stats():
+    """v9.x Sentinel N 測定エンドポイント — is_shadow=1 トレードのみ集計.
+
+    lesson-sentinel-n-measurement-bug 修正の一環。
+    aggregate Kelly を汚す get_trades_for_learning とは独立に Sentinel の
+    真の N / WR / EV を返す。エンジニアモード UI・プロモーション可視化で使用。
+
+    Query params:
+      entry_type: 戦略名フィルタ (任意)
+      instrument: ペア or カンマ区切り複数ペア (任意)
+      after_date: ISO 日付 — 以降のエントリーのみ (任意)
+      min_trades: 最低 N (default 0)
+      exclude_xau: '0' で XAU 含む (default '1' で除外)
+
+    Returns:
+      {
+        "ready": bool, "sample": int, "min_required": int,
+        "by_type": {et: {n, wr, ev}},
+        "by_type_pair": {"et|inst": {n, wr, ev, entry_type, instrument}},
+        "by_instrument": {inst: {n, wr, ev}},
+        "overall_wr": float, "overall_ev": float,
+        "_filters": {...},
+      }
+    """
+    entry_type = request.args.get("entry_type")
+    instrument = request.args.get("instrument")
+    after_date = request.args.get("after_date")
+    try:
+        min_trades = int(request.args.get("min_trades", "0") or 0)
+    except ValueError:
+        min_trades = 0
+    exclude_xau = request.args.get("exclude_xau", "1") != "0"
+
+    stats = _demo_db.get_shadow_trades_for_evaluation(
+        entry_type=entry_type,
+        instrument=instrument,
+        after_date=after_date,
+        min_trades=min_trades,
+        exclude_xau=exclude_xau,
+    )
+    stats["_filters"] = {
+        "entry_type": entry_type,
+        "instrument": instrument,
+        "after_date": after_date,
+        "min_trades": min_trades,
+        "exclude_xau": exclude_xau,
     }
     return jsonify(stats)
 

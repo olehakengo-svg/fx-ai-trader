@@ -1118,6 +1118,112 @@ class DemoDB:
             "overall_ev": _calc_wr(closed)[1],
         }
 
+    def get_shadow_trades_for_evaluation(self, entry_type: str = None,
+                                         instrument: str = None,
+                                         after_date: str = None,
+                                         min_trades: int = 0,
+                                         exclude_xau: bool = True) -> dict:
+        """Aggregate Sentinel / Shadow (is_shadow=1) closed trades for promotion evaluation.
+
+        v9.x (2026-04-20): lesson-sentinel-n-measurement-bug 修正の一環。
+        `get_trades_for_learning` は is_shadow=0 固定で aggregate Kelly を汚さないため、
+        Sentinel 戦略の N は常にゼロ扱いになっていた（構造的測定バグ）。
+        この関数は **Sentinel 専用** のカウンタで、昇格評価・UI 表示に使う。
+
+        NOTE: **`get_trades_for_learning` と混ぜない**。
+        lesson-shadow-contamination に従い aggregate Kelly / 学習エンジンは
+        引き続き shadow 除外のみを使う。
+
+        Args:
+            entry_type: 指定時はその entry_type のみに限定（単一戦略評価）。
+            instrument: 指定時は該当ペアのみ（ペア別 Sentinel N 評価）。
+            after_date: ISO 形式の日時文字列。指定時は entry_time >= after_date のみ対象
+                        （Fidelity Cutoff 用）。
+            min_trades: 集計結果の N が min_trades 未満なら ready=False を返す。
+            exclude_xau: True (default) で XAU を除外（CLAUDE.md user memory 準拠）。
+
+        Returns:
+            {
+                "ready": bool,
+                "sample": int,                   # Sentinel closed trade 総数
+                "by_type": {et: {"n","wr","ev"}},
+                "by_type_pair": {"et|inst": {"n","wr","ev","entry_type","instrument"}},
+                "by_instrument": {inst: {"n","wr","ev"}},
+                "overall_wr": float,
+                "overall_ev": float,
+                "min_required": int,
+            }
+        """
+        query = ("SELECT pnl_pips, outcome, entry_type, instrument, entry_time "
+                 "FROM demo_trades "
+                 "WHERE status='CLOSED' AND is_shadow = 1")
+        params: list = []
+        if exclude_xau:
+            query += " AND (instrument IS NULL OR instrument NOT LIKE '%XAU%')"
+        if entry_type:
+            query += " AND entry_type = ?"
+            params.append(entry_type)
+        if instrument:
+            insts = [i.strip() for i in instrument.split(",") if i.strip()]
+            if len(insts) == 1:
+                query += " AND instrument = ?"
+                params.append(insts[0])
+            else:
+                query += f" AND instrument IN ({','.join('?' * len(insts))})"
+                params.extend(insts)
+        if after_date:
+            query += " AND entry_time >= ?"
+            params.append(after_date)
+
+        with self._safe_conn() as conn:
+            rows = [dict(r) for r in conn.execute(query, params).fetchall()]
+
+        sample = len(rows)
+        # ready=False は「評価に足る Shadow データが無い」ことを示す:
+        #   - sample=0 (空DB / フィルタ不一致 / Sentinel 未発火)
+        #   - sample < min_trades (呼び出し側の最低要件未達)
+        if sample == 0 or sample < min_trades:
+            return {"ready": False, "sample": sample, "min_required": min_trades,
+                    "by_type": {}, "by_type_pair": {}, "by_instrument": {},
+                    "overall_wr": 0.0, "overall_ev": 0.0}
+
+        def _agg(trades: list) -> dict:
+            if not trades:
+                return {"n": 0, "wr": 0.0, "ev": 0.0}
+            n = len(trades)
+            wins = sum(1 for t in trades if t.get("outcome") == "WIN")
+            pnl = sum((t.get("pnl_pips") or 0.0) for t in trades)
+            return {
+                "n": n,
+                "wr": round(wins / n * 100, 1),
+                "ev": round(pnl / n, 2),
+            }
+
+        by_type: dict = {}
+        by_type_pair: dict = {}
+        by_instrument: dict = {}
+        for r in rows:
+            et = r.get("entry_type") or "unknown"
+            inst = r.get("instrument") or "UNKNOWN"
+            by_type.setdefault(et, []).append(r)
+            by_type_pair.setdefault((et, inst), []).append(r)
+            by_instrument.setdefault(inst, []).append(r)
+
+        overall = _agg(rows)
+        return {
+            "ready": True,
+            "sample": sample,
+            "min_required": min_trades,
+            "by_type": {k: _agg(v) for k, v in by_type.items()},
+            "by_type_pair": {
+                f"{k[0]}|{k[1]}": {**_agg(v), "entry_type": k[0], "instrument": k[1]}
+                for k, v in by_type_pair.items()
+            },
+            "by_instrument": {k: _agg(v) for k, v in by_instrument.items()},
+            "overall_wr": overall["wr"],
+            "overall_ev": overall["ev"],
+        }
+
     # ══════════════════════════════════════════════════════
     #  OANDA Real Trade Storage
     # ══════════════════════════════════════════════════════
