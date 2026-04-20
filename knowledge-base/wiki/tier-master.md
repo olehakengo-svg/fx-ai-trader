@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-04-20 08:38 UTC
+**最終更新**: 2026-04-20 10:25 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -87,7 +87,7 @@
 | 13 | vix_carry_unwind | USD_JPY |
 | 14 | vol_spike_mr | なし |
 
-### B-4. PAIR_DEMOTED（18エントリ — 特定ペアのみ強制Shadow）
+### B-4. PAIR_DEMOTED（19エントリ — 特定ペアのみ強制Shadow）
 
 | # | 戦略名 | ペア |
 |---|---|---|
@@ -99,16 +99,17 @@
 | 6 | ema200_trend_reversal | USD_JPY |
 | 7 | ema_cross | USD_JPY |
 | 8 | ema_trend_scalp | EUR_USD |
-| 9 | engulfing_bb | EUR_USD |
-| 10 | engulfing_bb | USD_JPY |
-| 11 | london_fix_reversal | USD_JPY |
-| 12 | macdh_reversal | GBP_USD |
-| 13 | post_news_vol | USD_JPY |
-| 14 | stoch_trend_pullback | USD_JPY |
-| 15 | trend_rebound | EUR_USD |
-| 16 | vol_surge_detector | EUR_JPY |
-| 17 | vol_surge_detector | USD_JPY |
-| 18 | xs_momentum | USD_JPY |
+| 9 | ema_trend_scalp | USD_JPY |
+| 10 | engulfing_bb | EUR_USD |
+| 11 | engulfing_bb | USD_JPY |
+| 12 | london_fix_reversal | USD_JPY |
+| 13 | macdh_reversal | GBP_USD |
+| 14 | post_news_vol | USD_JPY |
+| 15 | stoch_trend_pullback | USD_JPY |
+| 16 | trend_rebound | EUR_USD |
+| 17 | vol_surge_detector | EUR_JPY |
+| 18 | vol_surge_detector | USD_JPY |
+| 19 | xs_momentum | USD_JPY |
 
 ### B-5. Phase0 Shadow Gate（19戦略 — 自動Shadow）
 

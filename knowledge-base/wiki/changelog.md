@@ -183,6 +183,34 @@
              ├── **修正**: `demo_db.py` `get_open_trades_without_oanda()` のSQL に
              │   `AND is_shadow=0` 追加 (1行) → shadow trades は resend 対象外
              └── **lesson**: [[lesson-resend-shadow-leak]]
+
+2026-04-20  ★ v9.5: ema_trend_scalp / trend_rebound Live pair-level breakdown + PAIR_DEMOTED 拡充
+             ├── **背景**: Post-P2 Kelly 分析で ema_trend_scalp edge=-0.353 / trend_rebound edge=-0.455
+             │   が aggregate edge=-0.1348 の主因と判明 ([[shadow-baseline-2026-04-20]] Phase 2)
+             ├── **Live pair-level 実測** (Render prod, is_shadow=0, closed):
+             │   ├── ema_trend_scalp: USD_JPY N=19 EV=-0.92 / EUR_USD N=16 EV=-1.22 / GBP_USD N=4 EV=-1.65
+             │   ├── trend_rebound:   USD_JPY N=10 EV=-0.78 / EUR_USD N=7 EV=-1.43 / GBP_USD N=1
+             │   └── 99% は Fidelity Cutoff (2026-04-16) 以前、v9.2 FORCE_DEMOTE 以降は新規発生なし
+             ├── **Shadow↔Live 対照で符号逆転検出** — lesson-orb-trap-bt-divergence 再現:
+             │   ├── trend_rebound×USD_JPY: Shadow EV=+1.43 (N=12) → Live EV=-0.78 (N=10)
+             │   └── trend_rebound×EUR_USD: Shadow EV=+1.16 (N=7) → Live EV=-1.43 (N=7)
+             ├── **Gate (N≥10 ∧ EV≤-0.5 ∧ (WR≤20 ∨ PnL≤-10)) 通過**: 2 combos
+             │   ├── ema_trend_scalp×USD_JPY (PnL=-17.5 で PnL criterion 通過)
+             │   └── ema_trend_scalp×EUR_USD (既に PAIR_DEMOTED)
+             ├── **修正 1**: demo_trader._PAIR_DEMOTED に `(ema_trend_scalp, USD_JPY)` 追加
+             │   ├── v8.9 で "SELL PB境界バグ修正済み → 再蓄積" として解除されていたが
+             │   │   v9.2 FORCE_DEMOTE で "再蓄積" 方針は無効化。documentation marker として記録
+             │   └── 挙動変化なし (strategy が既に FORCE_DEMOTED で OANDA 遮断済)
+             ├── **修正 2**: demo_db._force_demoted (shadow migration set) の SSOT drift 修正
+             │   ├── demo_trader._FORCE_DEMOTED (18) と demo_db._force_demoted (15) が drift
+             │   ├── 欠落: ema_trend_scalp, intraday_seasonality, atr_regime_break
+             │   ├── → 起動時 migration で is_shadow=0 残留 trades (ema_trend_scalp Live N=39 等)
+             │   │   が shadow pool 化されず Kelly を汚していた bug
+             │   └── 修正後、次回起動時 migration で stale Live trades が shadow 化
+             ├── **保留**: trend_rebound×USD_JPY (WR=30% PnL=-7.8 で Gate 微不通過、監視継続)
+             │   └── 次 Live N≥20 到達時に再判定。lesson-reactive-changes 遵守で反射降格なし
+             ├── Validations: tier_integrity_check ERROR=0, strategies_drift_check pass
+             └── 詳細: wiki/analyses/ema-tr-live-breakdown-2026-04-20.md
 ```
 
 ## バージョン別データ切り口

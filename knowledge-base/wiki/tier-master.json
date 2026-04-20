@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-20T08:38:20.991142+00:00",
+  "generated_at": "2026-04-20T10:25:43.671619+00:00",
   "elite_live": [
     "gbp_deep_pullback",
     "session_time_bias",
@@ -139,6 +139,10 @@
     [
       "ema_trend_scalp",
       "EUR_USD"
+    ],
+    [
+      "ema_trend_scalp",
+      "USD_JPY"
     ],
     [
       "engulfing_bb",
