@@ -337,14 +337,20 @@ class DemoDB:
                 "orb_trap",  # v9.1: 365d BT全ペア負EV
             }
             # PAIR_PROMOTED overrides: these (entry_type, instrument) combos
-            # are promoted despite being in FORCE_DEMOTED
-            _pair_promoted_overrides = {
-                ("ema_pullback", "USD_JPY"),
-                ("fib_reversal", "EUR_USD"),
-                ("bb_squeeze_breakout", "USD_JPY"),
-                ("bb_squeeze_breakout", "EUR_USD"),
-                ("sr_channel_reversal", "EUR_USD"),
-            }
+            # are promoted despite being in FORCE_DEMOTED.
+            #
+            # v9.x (2026-04-20): Priority 2 audit — all 5 legacy overrides
+            # (ema_pullback×USD_JPY, fib_reversal×EUR_USD,
+            # bb_squeeze_breakout×{USD_JPY,EUR_USD}, sr_channel_reversal×EUR_USD)
+            # were removed from demo_trader._PAIR_PROMOTED in v9.1.
+            # 365d BT + Live gate re-evaluation (Live N<10 non-shadow for all
+            # combos; fib×EUR 180d EV=-0.147 符号反転; bb_squeeze 180d N<100)
+            # shows none of the 5 combos pass the revival gates
+            # (EV>=+0.2 ATR & N>=100 & 60d/365d sign consistency).
+            # Keeping the set empty aligns shadow-migration accounting with
+            # demo_trader's Source of Truth. See
+            # wiki/analyses/pair-promoted-candidates-2026-04-20.md
+            _pair_promoted_overrides = set()  # type: ignore[var-annotated]
             try:
                 _total_fixed = 0
                 for _et in _force_demoted:

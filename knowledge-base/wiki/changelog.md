@@ -152,6 +152,24 @@
              ├── **対称性**: spread_wide(L3483) / spike(L3522) と同形パターン
              └── Tests: 234 passed (no new tests — 既存挙動 guard のみ)
              注記: P3 実測で Sentinel N=1,466 判明 → 「N=1」は測定バグ由来。本 bypass は純粋な上振れ策として残存有効。
+
+2026-04-20  ★ v9.x Priority 2: PAIR_PROMOTED SSOT drift 修正 (accounting cleanup)
+             ├── demo_db.py `_pair_promoted_overrides` 5 組合せを削除
+             │   ├── (ema_pullback, USD_JPY), (fib_reversal, EUR_USD)
+             │   ├── (bb_squeeze_breakout, USD_JPY/EUR_USD), (sr_channel_reversal, EUR_USD)
+             │   └── 全て v9.1 で demo_trader._PAIR_PROMOTED から既に削除済み → SSOT 二重化解消
+             ├── Live 監査 (Render DB, 2046 trades):
+             │   ├── fib_reversal×EUR_USD: Live N=51 WR=39% EV=-0.298 PnL=-15p (post 4/7)
+             │   ├── bb_squeeze×EUR_USD: Live N=26 WR=11.5% EV=-2.32 (**壊滅**)
+             │   ├── sr_channel×EUR_USD: Live N=26 WR=19% EV=-1.20 (**壊滅**)
+             │   └── 他 2 組は Live N<20 & Shadow 主体 → 昇格根拠不足
+             ├── 365d BT 再検証 Gate: 全 5 組合せが EV≥+0.2 ATR & N≥100 を満たさず
+             ├── 60d→180d 符号反転: fib_reversal×EUR_USD (+0.271 → -0.147) — lesson-orb-trap 再現
+             ├── 新規 PAIR_PROMOTED 追加: **なし** (Gate 通過候補ゼロ)
+             ├── **Retroactive effect**: 起動時 SHADOW_MIGRATION で 66件が is_shadow=0→1 化
+             │   └── Kelly プールから stale 負EV trades 除去 → aggregate EV 改善見込み
+             ├── **Behavioral change**: なし (5 組合せは既に Live 未送信、shadow 扱い)
+             └── 詳細: wiki/analyses/pair-promoted-candidates-2026-04-20.md
 ```
 
 ## バージョン別データ切り口
