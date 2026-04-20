@@ -99,6 +99,39 @@
              ├── pending (BT forensics必要): doji_breakout, post_news_vol, squeeze_release_momentum
              └── Tests: 234 passed (既存テスト全pass、新分類はwiki根拠で実装)
 
+2026-04-20  ★ v9.x Quant Readiness: 2D v2 Pre-Registration + Dashboard (parallel A+B)
+             ├── **Task A — Regime 2D v2 Pre-Registration (data snooping 防止)**:
+             │   ├── knowledge-base/wiki/analyses/regime-2d-v2-preregister-2026-04-20.md
+             │   ├── 43戦略の family/regime×direction 仮説を backfill 前に pre-commit
+             │   ├── Gate 閾値確定: N≥50/cell, |ΔWR|≥10pp, Bonferroni α=0.05/K, IS/OOS 符号一致
+             │   ├── Pass/Fail 判定を機械化可能な形で記述 (§3.7)
+             │   ├── 禁止事項 (§5): 閾値/仮説の事後調整, cell 除外の事後正当化, 1日データ実装
+             │   ├── Bailey & Lopez de Prado (2014) *Backtest Overfitting* 流儀の pre-register
+             │   └── Post-execution 記録枠を空のまま commit → data snooping 抑止
+             ├── **Task A — Rescan script**: scripts/regime_2d_v2_rescan.py (~470行)
+             │   ├── --trades-json input / --output-dir / --dry-run
+             │   ├── Fisher's exact (two-sided, SciPy 非依存) + Bonferroni strict
+             │   ├── matrix_all / asymmetry_strict / hypothesis_check / gate_candidates / sanity_check
+             │   ├── 既存 REGIME_ADAPTIVE_FAMILY (bb_rsi/fib) の sanity check も同時実行
+             │   └── Dry-run smoke test pass (synthetic 600 trades, k_eff=1)
+             ├── **Task B — Quant Readiness Dashboard**: tools/quant_readiness.py (~340行)
+             │   ├── --api / --json / default https://fx-ai-trader.onrender.com
+             │   ├── Data accumulation (Live/Shadow N, Kelly progress)
+             │   ├── Gate thresholds (Kelly N≥20, DSR N≥50, PP review N≥30+EV>0, FD-risk EV<-0.5)
+             │   ├── mtf_regime coverage (labeled/total, regime diversity, missing list)
+             │   ├── Alerts (Kelly/coverage/trend_down zero/FD-risk triggers)
+             │   ├── セキュリティ: URL scheme allowlist + custom opener (HTTP/HTTPS のみ) →
+             │   │   file:// / ftp:// 攻撃面遮断 (CWE-939), verified SSL context (CWE-295)
+             │   └── 本番 smoke test: Live=14/20 (70% Kelly), Shadow=849, coverage=30.1% (target 80%)
+             │       → trend_down_* 0件警告, backfill 前提の blocker 検出
+             ├── **Tests**: tests/test_quant_readiness.py 13 cases
+             │   └── URL validation (file/ftp reject), build_accumulation/gate/coverage, alerts, render
+             ├── tier_integrity_check --check: PASS (ERROR=0)
+             ├── strategies_drift_check: PASS (65 pages clean, exit 0)
+             └── 判定プロトコル: **実装提案なし**. 本 commit は "infrastructure 整備" であり
+                 backfill 後の 2D v2 rescan / daily readiness snapshot のための pre-commit.
+                 実際の strategy 昇格・降格は backfill + N 蓄積後の human review を要求.
+
 2026-04-20  ☆ v9.x Diagnostic: Regime × Strategy 2D Kelly Asymmetry Scan (NO-OP)
              ├── **目的**: 43戦略 × 7 regime × 2 direction の非対称性マトリクスを全探索
              │   └── Phase E (bb_rsi_reversion / fib_reversal) 同等候補があれば REGIME_ADAPTIVE 追加
