@@ -712,7 +712,7 @@ class DemoDB:
             rows = conn.execute(
                 "SELECT trade_id, direction, sl, tp, mode, instrument, entry_time "
                 "FROM demo_trades "
-                "WHERE status='OPEN' AND (oanda_trade_id IS NULL OR oanda_trade_id = '')"
+                "WHERE status='OPEN' AND is_shadow=0 AND (oanda_trade_id IS NULL OR oanda_trade_id = '')"
             ).fetchall()
             return [dict(r) for r in rows]
 

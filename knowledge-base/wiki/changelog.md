@@ -170,6 +170,19 @@
              │   └── Kelly プールから stale 負EV trades 除去 → aggregate EV 改善見込み
              ├── **Behavioral change**: なし (5 組合せは既に Live 未送信、shadow 扱い)
              └── 詳細: wiki/analyses/pair-promoted-candidates-2026-04-20.md
+
+2026-04-20  🚨 v9.x Hotfix: resend-shadow-leak — FORCE_DEMOTED が OANDA 実弾送信されるバグ修正
+             ├── **症状**: is_shadow=1 の open trade に oanda_trade_id が設定されている
+             │   ├── sr_channel_reversal USD_JPY (FORCE_DEMOTED) → oanda_trade_id=320787
+             │   ├── orb_trap GBP_USD (FORCE_DEMOTED) → oanda_trade_id=318111
+             │   ├── bb_rsi_reversion EUR_USD (PAIR_DEMOTED) → oanda_trade_id=325370
+             │   └── vwap_mean_reversion GBP_USD (MTF gate shadow降格) → oanda_trade_id=325362
+             ├── **原因**: `_resend_pending_oanda_trades()` (起動時実行) が
+             │   `get_open_trades_without_oanda()` を呼ぶ際に `is_shadow` を未フィルタ
+             │   → 起動/OANDA再接続時に is_shadow=1 trades も OANDA に送信されていた
+             ├── **修正**: `demo_db.py` `get_open_trades_without_oanda()` のSQL に
+             │   `AND is_shadow=0` 追加 (1行) → shadow trades は resend 対象外
+             └── **lesson**: [[lesson-resend-shadow-leak]]
 ```
 
 ## バージョン別データ切り口
