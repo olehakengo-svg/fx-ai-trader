@@ -5042,7 +5042,10 @@ class DemoTrader:
         # v8.9: EV分解で確定的負EV
         ("bb_rsi_reversion", "USD_JPY"),    # Post-cut N=76 WR=38.2% EV=-0.28 Kelly=-5.5% — Tier1→降格
         # v8.9: alpha scan 2026-04-14 — Kelly<0確定セルのペア降格
-        # ("ema_trend_scalp", "USD_JPY"),     # v8.9解除: SELL PB境界バグ修正済み → 再蓄積
+        # v9.5 (2026-04-20): USD_JPY 再追加 — Live N=19 WR=26.3% EV=-0.92 PnL=-17.5pip
+        #   v8.9解除 "再蓄積" は v9.2 FORCE_DEMOTE で無効化。documentation marker。
+        #   詳細: wiki/analyses/ema-tr-live-breakdown-2026-04-20.md
+        ("ema_trend_scalp", "USD_JPY"),
         ("ema_trend_scalp", "EUR_USD"),     # N=8 WR=25.0% EV=-0.94 Kelly=-16.3%
         ("engulfing_bb", "EUR_USD"),        # N=9 WR=11.1% EV=-1.42 Kelly=-28.4%
         ("trend_rebound", "EUR_USD"),       # N=6 WR=16.7% EV=-1.85 Kelly=-43.0%

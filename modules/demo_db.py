@@ -335,6 +335,14 @@ class DemoDB:
                 "engulfing_bb", "bb_squeeze_breakout", "sr_channel_reversal",
                 "stoch_trend_pullback", "dt_bb_rsi_mr",
                 "orb_trap",  # v9.1: 365d BT全ペア負EV
+                # v9.5 (2026-04-20): SSOT drift fix — demo_trader._FORCE_DEMOTED
+                # には登録済だが migration set から欠落していた 3 戦略を追加。
+                # Live is_shadow=0 残留 trades (ema_trend_scalp Live N=39 等) が
+                # shadow pool に migration されず Kelly を汚していた bug を解消。
+                # 詳細: wiki/analyses/ema-tr-live-breakdown-2026-04-20.md
+                "ema_trend_scalp",       # v9.2 FORCE_DEMOTE (sell-bias-forensics)
+                "intraday_seasonality",  # v9.1 BT 365d 微弱負EV
+                "atr_regime_break",      # v9.1 BT 365d N≈0
             }
             # PAIR_PROMOTED overrides: these (entry_type, instrument) combos
             # are promoted despite being in FORCE_DEMOTED.
