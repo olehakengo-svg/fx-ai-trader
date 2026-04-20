@@ -347,6 +347,14 @@ Cutoff 後期間が trend_up + range に偏っているため, `trend_down_*` re
 3. **既存 REGIME_ADAPTIVE mapping は正しい** (P0 validation で全符号一致確認). 損失源は range_tight × MR (mapping override 対象外).
 4. **真の優先**: range_tight 止血 + Gate leak 調査. 拡張は複数 regime 遷移観測後に再評価.
 
+### 解凍経路: BT 摩擦モデル改善
+
+現状データ (Live 18日) だけでは R1 期間短・R2 instrument 交絡・R3 市場遷移により拡張不可. 3-6ヶ月待ちを回避する唯一の fast path は **BT を信頼できる alternative source にする** こと = BT 摩擦モデル改善.
+
+**最小修正 (Tier 1, 半日)**: mode×pair (DT/Scalp × 6pair = 12 cell) の摩擦係数テーブル化. 既存 BT runner の uniform 定数を pair/mode lookup に置換. 成功基準は bb_rsi/fib_reversal の BT-Live 乖離が -36pp → -15pp 以下.
+
+Tier 1 成功時点で BT 2D scan が regime-confound-free な分析基盤になり, 本件 (REGIME_ADAPTIVE_FAMILY 拡張) を再評価できる. 詳細は [[sessions/2026-04-21-session]] §P0'.
+
 ---
 
 ### 事前宣言原文 (参考 / 下記)

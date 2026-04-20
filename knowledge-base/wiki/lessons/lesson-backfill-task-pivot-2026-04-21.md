@@ -64,5 +64,14 @@
 
 1. **P0**: range_tight × MR 戦略の止血判断 (1時間)
 2. **P0**: Gate leak 調査 — bb_rsi × trend_up_strong × non-JPY × SELL 15件発火の原因 (30分)
-3. **P1**: Backfill 本番適用可否 (Render Shell 経由, 15分)
-4. **P2**: REGIME_ADAPTIVE 拡張は **凍結**. BT 2D 実装も P1 完了後.
+3. **P0'**: BT 摩擦 Tier 1 (mode×pair 摩擦係数テーブル化) — レジーム判定の根本原因 R1-R3 を一発緩和する唯一の fast path (半日)
+4. **P1**: Backfill 本番適用可否 (Render Shell 経由, 15分)
+5. **P2**: REGIME_ADAPTIVE 拡張は **BT 摩擦改善後に解凍**. BT 2D 実装もその後.
+
+## 追加教訓 (2026-04-21 session 末尾)
+
+「別プロジェクト」のラベルは危険信号. BT 摩擦モデル改善を当初「別プロジェクト」と分類したが,
+実際には本件 (レジーム判定不可能の根本原因) を一発緩和する唯一の fast path だった.
+
+**教訓**: タスクを「別」と呼ぶ前に「それが解決すると何が unblock されるか」を明示する.
+別として分離するのは, unblock 対象がない (独立) か, unblock しても優先度が変わらない時のみ.
