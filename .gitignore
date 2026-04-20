@@ -55,3 +55,4 @@ sl_hunt_*.py
 bt_*.json
 session_matrix_*.json
 HANDOVER_PROMPT.md
+node_modules/

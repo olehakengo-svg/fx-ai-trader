@@ -14,3 +14,18 @@ services:
         value: "3.11.0"
       - key: DB_PATH
         value: /var/data/demo_trades.db
+
+  - type: worker
+    name: fx-ai-discord-bot
+    runtime: node
+    rootDir: services/discord_bot
+    buildCommand: bun install --frozen-lockfile
+    startCommand: bun run bot.ts
+    plan: starter
+    envVars:
+      - key: DISCORD_BOT_TOKEN
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DISCORD_ALLOWED_USERS
+        sync: false
