@@ -1,0 +1,161 @@
+{
+  "date": "2026-04-20T19:43:10.428409",
+  "lookback": 365,
+  "interval": "5m",
+  "target_strategies": [
+    "ema_trend_scalp",
+    "trend_rebound"
+  ],
+  "results": {
+    "USDJPY=X": {
+      "trades": 1325,
+      "win_rate": 59.8,
+      "expected_value": 0.017,
+      "sharpe": 0.013,
+      "max_drawdown": 75.19,
+      "profit_factor": 1.029,
+      "elapsed_s": 141.8,
+      "targets": {
+        "trend_rebound": {
+          "N": 1,
+          "WR": 100.0,
+          "EV": 1.446,
+          "PF": 0.0,
+          "PnL_atr_m": 0
+        },
+        "ema_trend_scalp": {
+          "N": 400,
+          "WR": 64.2,
+          "EV": 0.085,
+          "PF": 0.0,
+          "PnL_atr_m": 0
+        }
+      }
+    },
+    "EURUSD=X": {
+      "trades": 730,
+      "win_rate": 55.1,
+      "expected_value": -0.126,
+      "sharpe": -0.098,
+      "max_drawdown": 91.991,
+      "profit_factor": 0.814,
+      "elapsed_s": 257.6,
+      "targets": {
+        "trend_rebound": {
+          "N": 4,
+          "WR": 25.0,
+          "EV": -0.746,
+          "PF": 0.0,
+          "PnL_atr_m": 0
+        },
+        "ema_trend_scalp": {
+          "N": 321,
+          "WR": 56.7,
+          "EV": -0.132,
+          "PF": 0.0,
+          "PnL_atr_m": 0
+        }
+      }
+    },
+    "GBPUSD=X": {
+      "trades": 1201,
+      "win_rate": 55.5,
+      "expected_value": -0.206,
+      "sharpe": -0.162,
+      "max_drawdown": 248.29,
+      "profit_factor": 0.706,
+      "elapsed_s": 142.4,
+      "targets": {
+        "trend_rebound": {
+          "N": 9,
+          "WR": 55.6,
+          "EV": -0.213,
+          "PF": 0.0,
+          "PnL_atr_m": 0
+        },
+        "ema_trend_scalp": {
+          "N": 406,
+          "WR": 62.1,
+          "EV": -0.088,
+          "PF": 0.0,
+          "PnL_atr_m": 0
+        }
+      }
+    },
+    "EURJPY=X": {
+      "trades": 1197,
+      "win_rate": 56.5,
+      "expected_value": -0.078,
+      "sharpe": -0.065,
+      "max_drawdown": 110.431,
+      "profit_factor": 0.869,
+      "elapsed_s": 147.1,
+      "targets": {
+        "trend_rebound": {
+          "N": 4,
+          "WR": 50.0,
+          "EV": -0.342,
+          "PF": 0.0,
+          "PnL_atr_m": 0
+        },
+        "ema_trend_scalp": {
+          "N": 413,
+          "WR": 59.8,
+          "EV": -0.055,
+          "PF": 0.0,
+          "PnL_atr_m": 0
+        }
+      }
+    },
+    "GBPJPY=X": {
+      "trades": 1283,
+      "win_rate": 59.5,
+      "expected_value": 0.018,
+      "sharpe": 0.015,
+      "max_drawdown": 34.466,
+      "profit_factor": 1.032,
+      "elapsed_s": 145.4,
+      "targets": {
+        "trend_rebound": {
+          "N": 6,
+          "WR": 66.7,
+          "EV": 0.053,
+          "PF": 0.0,
+          "PnL_atr_m": 0
+        },
+        "ema_trend_scalp": {
+          "N": 459,
+          "WR": 64.9,
+          "EV": 0.098,
+          "PF": 0.0,
+          "PnL_atr_m": 0
+        }
+      }
+    },
+    "EURGBP=X": {
+      "trades": 0,
+      "win_rate": null,
+      "expected_value": null,
+      "sharpe": null,
+      "max_drawdown": null,
+      "profit_factor": null,
+      "elapsed_s": 397.8,
+      "targets": {
+        "trend_rebound": {
+          "N": 0,
+          "WR": null,
+          "EV": null,
+          "PF": null,
+          "PnL_atr_m": null
+        },
+        "ema_trend_scalp": {
+          "N": 0,
+          "WR": null,
+          "EV": null,
+          "PF": null,
+          "PnL_atr_m": null
+        }
+      }
+    }
+  }
+}
