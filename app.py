@@ -60,6 +60,23 @@ try:
 except ImportError:
     _ML_AVAILABLE = False
 
+_SENTRY_DSN = os.environ.get("SENTRY_DSN", "").strip()
+if _SENTRY_DSN:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.flask import FlaskIntegration
+        sentry_sdk.init(
+            dsn=_SENTRY_DSN,
+            integrations=[FlaskIntegration()],
+            environment=os.environ.get("SENTRY_ENV", "production" if os.environ.get("RENDER") else "local"),
+            release=os.environ.get("RENDER_GIT_COMMIT", "unknown")[:12],
+            traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.1")),
+            profiles_sample_rate=float(os.environ.get("SENTRY_PROFILES_SAMPLE_RATE", "0.0")),
+            send_default_pii=False,
+        )
+    except ImportError:
+        pass
+
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = not os.environ.get("RENDER")  # Render本番ではFalse
 
