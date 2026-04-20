@@ -1,0 +1,36 @@
+{
+  "date": "2026-04-20T19:28:56.748248",
+  "lookback": 365,
+  "interval": "15m",
+  "target_strategies": [
+    "ema_trend_scalp",
+    "trend_rebound"
+  ],
+  "results": {
+    "USDJPY=X": {
+      "trades": 2145,
+      "win_rate": 63.2,
+      "expected_value": 0.407,
+      "sharpe": 2.949,
+      "max_drawdown": 19.437,
+      "profit_factor": 1.585,
+      "elapsed_s": 612.7,
+      "targets": {
+        "trend_rebound": {
+          "N": 0,
+          "WR": null,
+          "EV": null,
+          "PF": null,
+          "PnL_atr_m": null
+        },
+        "ema_trend_scalp": {
+          "N": 0,
+          "WR": null,
+          "EV": null,
+          "PF": null,
+          "PnL_atr_m": null
+        }
+      }
+    }
+  }
+}
