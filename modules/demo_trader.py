@@ -1165,14 +1165,14 @@ class DemoTrader:
                     try:
                         import os, urllib.request, json as _json
                         webhook = os.environ.get("DISCORD_WEBHOOK_URL")
-                        if webhook:
+                        if webhook and webhook.startswith("https://discord.com/api/webhooks/"):
                             msg = "📊 **ポジション監視**\n" + "\n".join(alerts)
                             data = _json.dumps({"content": msg}).encode()
                             req = urllib.request.Request(
                                 webhook, data=data,
                                 headers={"Content-Type": "application/json",
                                          "User-Agent": "FX-AI-Trader/1.0"})
-                            urllib.request.urlopen(req, timeout=10)
+                            urllib.request.urlopen(req, timeout=10)  # nosemgrep: dynamic-urllib-use-detected
                     except Exception:
                         pass
             except Exception as e:
@@ -5056,9 +5056,11 @@ class DemoTrader:
         ("stoch_trend_pullback", "USD_JPY"), # N=23 WR=30.4% EV=-0.69 Kelly=-15.1%
         # v8.9: レジーム別分析 2026-04-14 — 全条件負けの確定毒性セル
         ("engulfing_bb", "USD_JPY"),         # N=14 WR=28.6% Kelly=-14.7% — RANGE SELL 0/5全敗, 全レジームEV<0
-        # v8.9: 昨日分析 — vol_surge×JPY 全期間N=28 EV=-0.34 Kelly=-10.4%
-        # EUR_USDはN=7 WR=57% EV=+1.20 Kelly=+32.7%で正EV → EUR維持
-        ("vol_surge_detector", "USD_JPY"),
+        # v8.9: vol_surge×JPY 全期間N=28 EV=-0.34 Kelly=-10.4% — 初回降格
+        # 2026-04-21 撤回: 365d BT N=50 WR=68% PF=1.811 Wilson下限54.2% EV=+0.242
+        # WF 3バケット全正 (+0.28/+0.86/+0.14), shadow post-cut N=19 EV=+1.70
+        # SCALP_SENTINEL へ復帰 (最小ロット LIVE で N 蓄積) → Live N≥30 で PAIR_PROMOTED 審査
+        # REMOVED: ("vol_surge_detector", "USD_JPY"),
         # 2026-04-21: bb_squeeze_breakout FORCE_DEMOTED解除 → USD_JPY PAIR_PROMOTED
         # 他ペアは shadow EV マイナスのため PAIR_DEMOTED で保護
         ("bb_squeeze_breakout", "EUR_USD"),   # shadow post-cut EV=-3.05 (N=14)

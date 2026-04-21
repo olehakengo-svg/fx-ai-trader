@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-21T05:44:16.832554+00:00",
+  "generated_at": "2026-04-21T06:42:49.825076+00:00",
   "elite_live": [
     "gbp_deep_pullback",
     "session_time_bias",
@@ -198,10 +198,6 @@
     [
       "vol_surge_detector",
       "EUR_JPY"
-    ],
-    [
-      "vol_surge_detector",
-      "USD_JPY"
     ],
     [
       "xs_momentum",

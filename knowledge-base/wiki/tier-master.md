@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-04-21 05:44 UTC
+**最終更新**: 2026-04-21 06:42 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -87,7 +87,7 @@
 | 13 | vix_carry_unwind | USD_JPY |
 | 14 | vol_spike_mr | なし |
 
-### B-4. PAIR_DEMOTED（24エントリ — 特定ペアのみ強制Shadow）
+### B-4. PAIR_DEMOTED（23エントリ — 特定ペアのみ強制Shadow）
 
 | # | 戦略名 | ペア |
 |---|---|---|
@@ -113,8 +113,7 @@
 | 20 | stoch_trend_pullback | USD_JPY |
 | 21 | trend_rebound | EUR_USD |
 | 22 | vol_surge_detector | EUR_JPY |
-| 23 | vol_surge_detector | USD_JPY |
-| 24 | xs_momentum | USD_JPY |
+| 23 | xs_momentum | USD_JPY |
 
 ### B-5. Phase0 Shadow Gate（19戦略 — 自動Shadow）
 
