@@ -11,9 +11,22 @@
 
 | Pair | N | WR | EV | PnL | 判定 |
 |---|---|---|---|---|---|
-| USD_JPY | 42 | 76.2% | +0.426 | +17.9p | ✅ PAIR_PROMOTED |
-| EUR_USD | shadow EV=-3.05 (5d) | — | — | — | ❌ FORCE_DEMOTED 継続 |
-| GBP_USD | shadow N=4 (5d) | — | — | — | ❌ FORCE_DEMOTED 継続 |
+| USD_JPY | 43 | 74.4% | +0.354 | +22.5p | ✅ PAIR_PROMOTED |
+| EUR_USD | shadow EV=-3.05 (5d) | — | — | — | ❌ PAIR_DEMOTED 継続 |
+| GBP_USD | shadow N=4 (5d) | — | — | — | ❌ PAIR_DEMOTED 継続 |
+
+### 深部クオンツ分析 (USD_JPY, 2026-04-21 追加検証)
+
+| Metric | Value | 基準 | 判定 |
+|---|---:|---|---|
+| Profit Factor | **1.818** | > 1.1 | ✅ 65% margin |
+| Wilson 95% CI for WR | [59.8%, 85.1%] | 下限 > BEV_WR 34.4% | ✅ 25pp margin |
+| Sharpe (per-trade) | +0.294 | positive | ✅ σ=1.78 |
+| Walk-Forward 3バケット EV | +0.09 / +1.03 / +0.45 | 全 bucket > 0 | ✅ regime 遷移耐性 |
+| Monthly positive ratio | 8/11 (73%) | > 60% | ✅ consistency |
+
+**W3 (2026-01〜04) の意義**: range_tight dominant 期間 N=15 WR=73.3% EV=+0.453
+→ 「BO が range_tight 依存」仮説は否定. trending 期間 (W2) の方が強い (+1.03) が range 期間も黒字.
 
 ## Shadow Performance (2026-04-21 現在)
 
