@@ -3,6 +3,17 @@
 ## Status: SCALP_SENTINEL + PAIR_DEMOTED (全ペア)
 **現行**: SCALP_SENTINEL (最小ロット shadow)。EUR_JPY / EUR_USD / GBP_USD / USD_JPY の 4 ペアすべて PAIR_DEMOTED — 実弾通過なし。
 
+## 2026-04-21 post-Cutoff 観測
+
+| Bucket | N | EV | 備考 |
+|---|---|---|---|
+| Shadow post-cutoff (全ペア) | 117 | **-1.76** | 全ペアで強負 |
+| LIVE post-cutoff (USD_JPY) | 4 | +1.52 | PAIR_DEMOTED 展開前の timing lag |
+
+**止血条件**: 詳細は [[negative-strategy-stop-conditions-2026-04-21]]
+- Shadow N≥150 かつ 7日間 EV < -0.5 → **FORCE_DEMOTED**
+- LIVE 新規ペア N≥15 かつ 7日間 mean_pnl < -0.5 → **PAIR_DEMOTED 追加**
+
 **履歴**: Previously PAIR_PROMOTED x USD_JPY (v6.3-v8.8, "The only strategy with PF > 1 in 556t production audit")。v8.9 で Post-cut N=76 WR=38.2% EV=-0.28 Kelly=-5.5% → Tier1 剥奪、USD_JPY も PAIR_DEMOTED に降格。
 
 ## Performance History
