@@ -53,7 +53,7 @@ Source: `https://fx-ai-trader.onrender.com/api/demo/factors` | min_n=5
 ### direction x regime
 | direction | regime | N | WR% | EV(pip) | PnL(pip) | PF |
 |---|---|---|---|---|---|---|
-| BUY | RANGE | 49 | 55.1% | +1.89 | +92.4 | 1.96 |
+| BUY | RANGE | 51 | 56.9% | +1.88 | +96.0 | 2.00 |
 | BUY | TREND_BULL | 23 | 43.5% | +0.49 | +11.3 | 1.38 |
 | BUY | TREND_BEAR | 30 | 36.7% | -0.57 | -17.0 | 0.75 |
 | SELL | TREND_BULL | 38 | 28.9% | -0.89 | -33.9 | 0.67 |
@@ -62,7 +62,7 @@ Source: `https://fx-ai-trader.onrender.com/api/demo/factors` | min_n=5
 
 ## Top Positive EV Cells
 - **9 x USD_JPY** — EV=+2.18 pip, N=5, WR=60.0%
-- **BUY x RANGE** — EV=+1.89 pip, N=49, WR=55.1%
+- **BUY x RANGE** — EV=+1.88 pip, N=51, WR=56.9%
 - **1 x USD_JPY** — EV=+1.56 pip, N=8, WR=75.0%
 - **2 x USD_JPY** — EV=+1.52 pip, N=8, WR=50.0%
 - **15 x USD_JPY** — EV=+1.52 pip, N=18, WR=61.1%
