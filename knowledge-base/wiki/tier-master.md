@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-04-21 06:42 UTC
+**最終更新**: 2026-04-21 08:08 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -16,26 +16,25 @@
 | 2 | session_time_bias | +0.195 | +0.251 | +0.149 |
 | 3 | trendline_sweep | — | +0.574 | +0.838 |
 
-### A-2. PAIR_PROMOTED（16エントリ — 指定ペアのみ通過）
+### A-2. PAIR_PROMOTED（15エントリ — 指定ペアのみ通過）
 
 | # | 戦略名 | ペア | 365d BT EV |
 |---|---|---|---|
 | 1 | bb_squeeze_breakout | USD_JPY | — |
 | 2 | doji_breakout | GBP_USD | +0.694 |
 | 3 | doji_breakout | USD_JPY | +0.339 |
-| 4 | dt_fib_reversal | GBP_USD | — |
-| 5 | post_news_vol | EUR_USD | +0.844 |
-| 6 | post_news_vol | GBP_USD | +1.302 |
-| 7 | squeeze_release_momentum | EUR_USD | — |
-| 8 | vix_carry_unwind | USD_JPY | +0.506 |
-| 9 | vol_momentum_scalp | EUR_JPY | — |
-| 10 | vwap_mean_reversion | EUR_JPY | +1.155 |
-| 11 | vwap_mean_reversion | EUR_USD | +0.827 |
-| 12 | vwap_mean_reversion | GBP_JPY | +1.155 |
-| 13 | vwap_mean_reversion | GBP_USD | +1.087 |
-| 14 | wick_imbalance_reversion | GBP_USD | — |
-| 15 | xs_momentum | EUR_USD | +0.126 |
-| 16 | xs_momentum | GBP_USD | -0.013 |
+| 4 | post_news_vol | EUR_USD | +0.844 |
+| 5 | post_news_vol | GBP_USD | +1.302 |
+| 6 | squeeze_release_momentum | EUR_USD | — |
+| 7 | vix_carry_unwind | USD_JPY | +0.506 |
+| 8 | vol_momentum_scalp | EUR_JPY | — |
+| 9 | vwap_mean_reversion | EUR_JPY | +1.155 |
+| 10 | vwap_mean_reversion | EUR_USD | +0.827 |
+| 11 | vwap_mean_reversion | GBP_JPY | +1.155 |
+| 12 | vwap_mean_reversion | GBP_USD | +1.087 |
+| 13 | wick_imbalance_reversion | GBP_USD | — |
+| 14 | xs_momentum | EUR_USD | +0.126 |
+| 15 | xs_momentum | GBP_USD | -0.013 |
 
 ## B. Shadow戦略（OANDA非通過 — デモのみ記録）
 
@@ -73,7 +72,7 @@
 | # | 戦略名 | PP経由OANDA通過ペア |
 |---|---|---|
 | 1 | doji_breakout | GBP_USD, USD_JPY |
-| 2 | dt_fib_reversal | GBP_USD |
+| 2 | dt_fib_reversal | なし |
 | 3 | dt_sr_channel_reversal | なし |
 | 4 | ema200_trend_reversal | なし |
 | 5 | eurgbp_daily_mr | なし |

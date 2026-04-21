@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-21T06:42:49.825076+00:00",
+  "generated_at": "2026-04-21T08:08:06.769830+00:00",
   "elite_live": [
     "gbp_deep_pullback",
     "session_time_bias",
@@ -56,10 +56,6 @@
     [
       "doji_breakout",
       "USD_JPY"
-    ],
-    [
-      "dt_fib_reversal",
-      "GBP_USD"
     ],
     [
       "post_news_vol",

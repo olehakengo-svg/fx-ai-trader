@@ -5126,8 +5126,13 @@ class DemoTrader:
         ("doji_breakout", "USD_JPY"),
         # squeeze_release_momentum×EUR_USD: N=15 WR=66.7% EV=+0.460 PF=1.91
         ("squeeze_release_momentum", "EUR_USD"),
-        # dt_fib_reversal×GBP_USD: N=22 WR=72.7% EV=+0.310 PF=1.63
-        ("dt_fib_reversal", "GBP_USD"),
+        # REMOVED 2026-04-21: dt_fib_reversal×GBP_USD — Audit B で 365d BT 再走したら劣化
+        # 旧 BT (promotion時): N=22 WR=72.7% EV=+0.310 PF=1.63
+        # 新 BT (2026-04-21, 365d 15m): N=30 WR=53.3% EV=-0.224 PnL=-6.7
+        # Wilson 95% CI [35.5%, 70.4%] 下限 < BEV 37.9% → 統計的有意性なし + EV 負
+        # LIVE 側は N=0 (promotion 後未発火) のため安全弁として撤回
+        # UNIVERSAL_SENTINEL (shadow) へ戻す
+        # ("dt_fib_reversal", "GBP_USD"),
         # v9.1: Alpha#2 wick_imbalance_reversion×GBP_USD — 365d BT N=40 WR=70.0% EV=+0.123 PF=1.44
         # WR=70%でBinomial p<0.02 (z=2.53)。JPY/EURは負EV → GBP_USDのみSentinel蓄積
         ("wick_imbalance_reversion", "GBP_USD"),
