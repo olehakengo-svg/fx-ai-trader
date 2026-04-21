@@ -1,0 +1,91 @@
+{
+  "as_of": "2026-04-21T09:59:20.202281+00:00",
+  "promotion_candidates": [],
+  "new_strategy_candidates": [],
+  "unsalvageable": [
+    {
+      "strat": "ema_trend_scalp",
+      "baseline_n": 295,
+      "baseline_wr": 0.23389830508474577,
+      "wr_post": 0.2807017543859649,
+      "n_post": 228
+    },
+    {
+      "strat": "fib_reversal",
+      "baseline_n": 187,
+      "baseline_wr": 0.35294117647058826,
+      "wr_post": 0.36363636363636365,
+      "n_post": 176
+    },
+    {
+      "strat": "stoch_trend_pullback",
+      "baseline_n": 142,
+      "baseline_wr": 0.2887323943661972,
+      "wr_post": 0.3247863247863248,
+      "n_post": 117
+    },
+    {
+      "strat": "bb_rsi_reversion",
+      "baseline_n": 128,
+      "baseline_wr": 0.2890625,
+      "wr_post": 0.34285714285714286,
+      "n_post": 105
+    },
+    {
+      "strat": "sr_channel_reversal",
+      "baseline_n": 126,
+      "baseline_wr": 0.23809523809523808,
+      "wr_post": 0.25225225225225223,
+      "n_post": 111
+    },
+    {
+      "strat": "macdh_reversal",
+      "baseline_n": 109,
+      "baseline_wr": 0.27522935779816515,
+      "wr_post": 0.3010752688172043,
+      "n_post": 93
+    },
+    {
+      "strat": "sr_fib_confluence",
+      "baseline_n": 102,
+      "baseline_wr": 0.24509803921568626,
+      "wr_post": 0.2976190476190476,
+      "n_post": 84
+    },
+    {
+      "strat": "engulfing_bb",
+      "baseline_n": 101,
+      "baseline_wr": 0.31683168316831684,
+      "wr_post": 0.3333333333333333,
+      "n_post": 93
+    },
+    {
+      "strat": "bb_squeeze_breakout",
+      "baseline_n": 83,
+      "baseline_wr": 0.25301204819277107,
+      "wr_post": 0.31746031746031744,
+      "n_post": 63
+    },
+    {
+      "strat": "vol_surge_detector",
+      "baseline_n": 41,
+      "baseline_wr": 0.24390243902439024,
+      "wr_post": 0.2903225806451613,
+      "n_post": 31
+    },
+    {
+      "strat": "dt_sr_channel_reversal",
+      "baseline_n": 38,
+      "baseline_wr": 0.3157894736842105,
+      "wr_post": 0.3157894736842105,
+      "n_post": 38
+    },
+    {
+      "strat": "ema_pullback",
+      "baseline_n": 36,
+      "baseline_wr": 0.3611111111111111,
+      "wr_post": 0.3611111111111111,
+      "n_post": 36
+    }
+  ]
+}
