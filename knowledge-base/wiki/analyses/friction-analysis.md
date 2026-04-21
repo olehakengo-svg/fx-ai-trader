@@ -33,6 +33,20 @@ XAU stop alone flips the system from deep loss to marginal profit.
 > **注**: Total列はXAU込み（v8.4以前データ）。FX-only推定はXAUトレード除外後の概算値。
 > NY sessionのTotal=7.30pipはXAU(spread~86pip)に大きく歪められている。
 
+## Tier 1 BT Validation (2026-04-21)
+
+摩擦係数更新 (commit a22fa14) 後の BT 検証:
+
+| Pair | 期間 | TF | N | WR | EV | 備考 |
+|---|---|---|---|---|---|---|
+| USD_JPY | 7d | 1m | 136→114 | 57.4%→55.3% | -0.240→-0.318 | **Scalp: Live 方向 ✓** |
+| USD_JPY | 365d | 15m | — | 63.1%→63.0% | +0.407→+0.391 | DT: 変化微小 (予想通り) |
+| GBP_USD | 7d | 1m | 93 | 40.9% | -0.882 | after only (before 未計測) |
+| EUR_USD | 7d | 1m | 67 | 55.2% | -0.308 | after only (before 未計測) |
+
+**Tier 1 評価**: USD_JPY で Scalp BT が Live 方向に移動 ✅。GBP_USD/EUR_USD は "after" のみで before/after 比較未実施。
+Tier 2 (session-of-day spread テーブル) は P1 として継続。
+
 ## Related
 - [[bb-rsi-reversion]] (edge=0.45pip vs friction 2.14pip)
 - [[xau-stop-rationale]]
