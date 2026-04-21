@@ -90,7 +90,19 @@
 
 ---
 
-## 📋 Task 2: LIVE 化候補の数学的基準 (binding pre-register)
+## 📋 Task 2: 勝ち戦略の閾値調整と LIVE 化 (Branch 1 相当)
+
+### 2.0 「閾値調整」の 3 つの意味
+
+ユーザー要求「勝てるものは閾値調整を行い勝率を上げる」の **具体的な操作**:
+
+| 調整軸 | 具体内容 | 例 |
+|---|---|---|
+| **a. Condition gate** | WIN 集中 cell のみ発火許可 | `bb_squeeze × USD_JPY × NY ∧ BUY` のみ LIVE |
+| **b. Lot multiplier** | WIN 確度に応じ lot 増 | Kelly Half = 1.3-1.5x for PAIR_PROMOTED |
+| **c. Confidence 閾値変更** | scoring threshold の上下 | 逆向き signal 戦略は閾値引き下げ |
+
+Task 2 は主に **(a) condition gate** による閾値調整. (b) は Branch 1 の lot boost, (c) は別 audit (confidence 逆向き signal 調査) に分岐.
 
 ### 2.1 Promotion gate (本 task で LIVE 昇格判断する条件)
 
@@ -167,46 +179,200 @@ _PAIR_SESSION_PROMOTED = {
 
 ---
 
-## 📋 Task 4: 戦略分割判定 (loss 条件排除 → 勝ち戦略化?)
+## 📋 Task 4: 負け条件排除 → 勝ち戦略化 (3-branch decision)
 
-### 4.1 核心の数学的問い
+### 4.0 **CORE の数学的問い** (本 task の本質)
 
-> 「LOSS 条件を完全排除した残りの trade の WR は 50% 以上か?」
+> **「LOSS 条件を排除したとき、残りの trade の WR は 50% 以上になるか?」**
+>
+> YES → 新戦略 / 既存戦略強化 の 2 パス
+> NO → 統計的に救えない戦略. 継続 shadow or FORCE_DEMOTE
 
-これが成立すれば: **既存戦略 → "LOSS 条件を避けた部分戦略" に split**
+ここが本 session の**最大の価値創出ポイント**. LOSS 条件排除による戦略救済が成立するかを戦略ごとに判定する.
 
-### 4.2 Decision tree
+### 4.1 3-Branch Decision Tree
+
+全 65 戦略 × すべての条件 cell を以下で分岐:
 
 ```
-既存戦略 (baseline WR 25-35%)
-├─ LOSS 条件を排除 (pair × session × direction フィルター)
-│  ├─ 残り N ≥ 30 かつ WR ≥ 50% ？
-│  │  ├─ YES → 新戦略 "{strat}_filtered" として separation
-│  │  └─ NO → filter 効果が不十分, continuation
-│  └─ 残り N < 30 → N 不足, shadow 蓄積待ち
-└─ (何もしなければ) 現状維持
+戦略 S の baseline WR = W_0
+│
+├── Branch 1: 勝ち戦略の閾値調整 (strengthening winners)
+│   条件: W_0 ≥ 40% or 既に PAIR_PROMOTED/ELITE_LIVE
+│   Action: WIN 集中 cell で lot boost / confidence 閾値緩和
+│   例: bb_squeeze × USD_JPY × NY で lot 1.3x 昇格 (本日 pre-reg 済)
+│
+├── Branch 2: 負け条件排除 → 新戦略 split (conversion)  ← ここが本 task の核心
+│   条件: W_0 < 40% で LOSS 条件を特定可能
+│   手順:
+│     (1) LOSS が集中する cells を Fisher/LR で抽出 (LOSS_LR ≥ 2.0)
+│     (2) それらの cells を exclude filter として定義
+│     (3) filter 後の残り trades で WR を再計算 = W_post
+│     (4) W_post ≥ 50% かつ N ≥ 30 ならば ★新戦略 {S}_PRIME として split★
+│     (5) W_post < 50% or N < 30 → Branch 3 へ
+│
+├── Branch 3: 継続 shadow / 廃止
+│   条件: Branch 1/2 いずれも成立せず
+│   Action: shadow 継続 (N 蓄積) or FORCE_DEMOTE (救えない)
+│
+└── Branch 0: 既に LIVE で勝っている戦略
+    Action: 現状維持, 観察のみ
 ```
 
-### 4.3 Split の実装 (概念)
+### 4.2 Branch 2 の具体手順 (LOSS → WIN conversion algorithm)
+
+**入力**: 戦略 S の全 shadow trades
+**出力**: 新戦略 split 提案 or "救済不可" 判定
 
 ```python
-# 例: bb_rsi_reversion を split
-# オリジナル: 広範囲に発火 (baseline WR 29%)
-# Split:
-#   bb_rsi_reversion_PRIME: USD_JPY × NY_hours × BUY (WR 55%想定) → LIVE
-#   bb_rsi_reversion_SHADOW: 他の全条件 (WR 20%想定) → 継続 shadow
+def loss_to_win_conversion(strategy_trades):
+    baseline_WR = count_wins(trades) / count_all(trades)
+    
+    # Step 1: LOSS 条件抽出
+    loss_cells = []
+    for condition in all_conditions:  # pair × session × direction × feature Q4 etc.
+        cell_trades = filter(trades, condition)
+        if len(cell_trades) < 5: continue
+        cell_WR = count_wins(cell_trades) / len(cell_trades)
+        loss_LR = P(condition | LOSS) / P(condition | WIN)
+        if cell_WR <= 0.15 and loss_LR >= 2.0 and cell_has_significance:
+            loss_cells.append(condition)
+    
+    # Step 2: 排除 filter 定義
+    exclude_filter = OR(loss_cells)  # いずれか該当で除外
+    
+    # Step 3: filter 後 WR 再計算
+    surviving = [t for t in trades if not exclude_filter.matches(t)]
+    n_post = len(surviving)
+    wr_post = count_wins(surviving) / n_post if n_post > 0 else 0
+    
+    # Step 4: 判定
+    if wr_post >= 0.50 and n_post >= 30:
+        return "NEW_STRATEGY", {
+            "name": f"{strategy_name}_PRIME",
+            "fire_condition": f"NOT ({exclude_filter})",
+            "expected_WR": wr_post,
+            "expected_N_per_period": n_post * (current_period / total_period),
+            "lift_vs_baseline": wr_post / baseline_WR,
+        }
+    else:
+        return "UNSALVAGEABLE", {"reason": f"W_post={wr_post}, N_post={n_post}"}
 ```
 
-コード上は 2 signal function を分岐 or 既存 function 内で conditional return.
+### 4.3 新戦略の naming convention
 
-### 4.4 統計的妥当性
+| Pattern | 名前例 | 意味 |
+|---|---|---|
+| 勝ち条件に絞る | `{S}_PRIME` | WIN 集中 cell のみ発火 |
+| 負け条件排除 | `{S}_FILTERED` | LOSS cell を exclude |
+| Pair 限定 | `{S}_USDJPY`, `{S}_GBPUSD` | pair-specific |
+| Session 限定 | `{S}_NY`, `{S}_TOKYO` | session-specific |
+| 複合 | `{S}_USDJPY_NY_BUY` | pair × session × direction |
+
+### 4.4 Split 実装の技術パス
+
+#### Path A: Pair/Session/Direction filter (軽量)
+
+既存コードの `_should_send_to_oanda` に condition check を追加:
+
+```python
+_CONDITION_GATES = {
+    ("bb_rsi_reversion_PRIME", "USD_JPY"): {
+        "sessions": {"ny"}, "directions": {"BUY"}, "hour_range": (13, 20),
+    },
+}
+```
+
+既存 `bb_rsi_reversion` signal は変更せず、OANDA 送信段階で条件 filter. コード変更最小.
+
+#### Path B: Signal function 内 conditional return (構造変更)
+
+```python
+def bb_rsi_reversion_signal(ctx):
+    # ... 既存ロジック ...
+    if signal_fires:
+        if is_prime_condition(ctx):  # USD_JPY NY BUY
+            return {"entry_type": "bb_rsi_reversion_PRIME", ...}
+        else:
+            return {"entry_type": "bb_rsi_reversion_SHADOW", ...}  # 元戦略継続
+```
+
+**推奨**: Path A (既存ロジック不触、gate 層で filter). コード review しやすく roll back 容易.
+
+### 4.5 期待される output deliverable (具体例)
+
+次 session が出力すべき表:
+
+```
+## 戦略救済候補リスト (LOSS→WIN conversion results)
+
+| 既存戦略 | baseline WR | LOSS 条件 | filter 後 WR | N_post | 判定 | 新戦略名 |
+|---|---:|---|---:|---:|---|---|
+| sr_channel_reversal | 23.8% | USD_JPY×Tokyo×SELL除外 | 38.5% | 78 | NEEDS_MORE_N (N<30)|  保留 |
+| bb_rsi_reversion | 29.2% | EUR_JPY全排除 + SELL 13-18h 除外 | 52.1% | 41 | ★NEW_STRATEGY | bb_rsi_reversion_PRIME |
+| ema_trend_scalp | 24.3% | confidence Q4 除外 | 31.2% | 185 | UNSALVAGEABLE (WR<50%) | — |
+| fib_reversal | 35.5% | EUR_JPY×BUY除外 | 42.0% | 150 | UNSALVAGEABLE (WR<50%) | — |
+| ...
+```
+
+### 4.6 統計的妥当性
 
 分割操作は **post-hoc 探索なので multiple testing 補正必須**:
 
 - 60 戦略 × 6 pair × 4 session × 2 direction = 2880 cells 探索空間
 - Bonferroni α/2880 = 1.74e-5 が必要
-- ほぼすべての "golden cell" が Bonferroni で非有意 → **確実性を要求しない hypothesis として扱う**
+- ほぼすべての "golden cell" が strict Bonferroni で非有意 → **確実性を要求しない hypothesis として扱う**
 - 分割後は必ず **shadow 追加蓄積で out-of-sample 検証**
+- **新戦略は必ず pre-registration** ([[shadow-validation-preregistration-2026-04-21]] 形式で) してから shadow で validate → Live 昇格
+
+### 4.7 Danger zone: 避けるべき pattern
+
+1. **Overfit split**: 1-2 trades の極端な分岐に基づく split → N 不足で再現しない
+2. **Circular logic**: "WIN を集めた cell" を "WIN profile" と呼んで split → 結果論
+3. **Signal integrity 破壊**: 既存戦略のロジックを根底から変更 (Path B の危険)
+4. **Multiple testing ignored**: 2880 cells 探索なのに Bonferroni せず報告
+
+### 4.8 数値例 (本日の data で模擬)
+
+仮に次セッションで **bb_rsi_reversion** を対象とした場合 (shadow WR 29.2%, N=130):
+
+```
+LOSS 条件抽出 (LOSS_LR ≥ 2.0 の cells):
+  - EUR_JPY × any: LR=3.5, cell WR=8%
+  - confidence Q4 × any: LR=2.3, cell WR=12%
+  - SELL × Tokyo: LR=2.8, cell WR=10%
+
+Exclude filter = (EUR_JPY) OR (confidence Q4) OR (SELL × Tokyo)
+
+Filter 後 trades:
+  N_post = 130 - (30 + 20 + 15, deduplicated) ≈ 80
+  WIN in surviving = 30 (仮定)
+  W_post = 30/80 = 37.5%  ← 50% 未達
+
+判定: UNSALVAGEABLE at current filter
+Next step: 更に条件追加 or Branch 3 (FORCE_DEMOTE 候補)
+```
+
+逆に **stoch_trend_pullback** (shadow WR 29.2%, N=144) で:
+
+```
+LOSS 条件:
+  - confidence Q4: LR=2.5, cell WR=10%
+  - ADX Q4 (極高ADX): LR=2.2, cell WR=13%
+  - GBP_USD × Tokyo: LR=3.0, cell WR=8%
+
+Filter 後:
+  N_post ≈ 65
+  WIN = 34
+  W_post = 52.3%  ← 50% 達成
+  判定: ★NEW_STRATEGY = stoch_trend_pullback_FILTERED
+
+実装案:
+  既存の stoch_trend_pullback (shadow 継続)
+  + 新 stoch_trend_pullback_FILTERED (Branch 1 LIVE 候補)
+```
+
+**このようにして、各戦略を "救済成功" か "UNSALVAGEABLE" に分類**するのが Task 4 の核心成果物.
 
 ---
 
@@ -289,12 +455,37 @@ strategy_split_OK(S) iff
 
 ## 🎯 次セッション deliverables
 
-### 必須
-1. **戦略別 TP-hit condition table** (全 65 戦略 × pair × session × direction)
-2. **LIVE 化候補リスト** (G1-G5 全 pass)
-3. **戦略別 SL-hit condition fingerprint**
-4. **戦略分割候補リスト** (split criterion 満たすもの)
-5. **Shadow validation pre-registration 更新** ([[shadow-validation-preregistration-2026-04-21]] の追加 hypothesis 登録)
+### 必須 output (5 tables)
+
+#### Deliverable 1: 全 65 戦略 TP-hit condition table (Task 1)
+```
+| Strategy | Top WIN cell | N | WR | Lift | Wilson 下限 |
+```
+
+#### Deliverable 2: Branch 1 Threshold Adjustment リスト (勝ち戦略強化)
+```
+| Strategy | 既存 tier | 調整内容 | 変更後 tier | 期待 WR 改善 |
+|---|---|---|---|---|
+| bb_squeeze_breakout | PAIR_PROMOTED USD_JPY | NY-only filter 追加 | Session-gated | +8pp |
+| ...
+```
+
+#### Deliverable 3: Branch 2 戦略救済結果 (loss 条件排除 → 新戦略化)
+```
+| 既存戦略 | LOSS 条件 | filter 後 WR | N_post | 判定 | 新戦略名 |
+|---|---|---|---|---|---|
+| stoch_trend_pullback | confQ4 + ADXQ4 + GBP_USD×Tokyo | 52.3% | 65 | ★NEW | stoch_trend_pullback_FILTERED |
+| bb_rsi_reversion | EUR_JPY + conf Q4 + SELL Tokyo | 37.5% | 80 | UNSALVAGEABLE | — |
+| ...
+```
+
+#### Deliverable 4: 戦略別 SL-hit fingerprint (Task 3 詳細)
+各戦略について LOSS 集中 top 3 condition + 解釈
+
+#### Deliverable 5: Binding pre-registration 更新
+- Branch 1 昇格候補を [[pre-registration-2026-04-21]] 形式で binding
+- Branch 2 新戦略候補を [[shadow-validation-preregistration-2026-04-21]] 形式で binding
+- 2026-05-05 再評価条件を事前宣言
 
 ### optional (time permits)
 6. 5 ghost 戦略の tier-master 反映
