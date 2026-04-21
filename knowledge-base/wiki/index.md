@@ -109,6 +109,7 @@
 - [[mfe-zero-analysis]] -- 90.6% of losses never go favorable
 
 ## Session History
+- [[sessions/2026-04-21-session]] — Attack A (bb_squeeze×USD_JPY PAIR_PROMOTED) + Attack B (negative戦略止血条件) + Tier1 BT validation + Quant深部検証
 - [[sessions/2026-04-20-session]] — Sentinel score_gate bypass (P1) + N measurement fix (P3) + KB drift fix (P4) + shadow baseline analysis + resend-shadow-leak fix
 - [[sessions/2026-04-17-session]] — conditional edge estimand framework + KB整合修正
 - [[sessions/2026-04-15-session]] — KB broken-link修正+orphanファイル統合
