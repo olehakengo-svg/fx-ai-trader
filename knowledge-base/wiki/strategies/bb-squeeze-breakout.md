@@ -47,9 +47,9 @@
 **実装:** `_PAIR_PROMOTED` に `("bb_squeeze_breakout", "USD_JPY")` 追加 (FORCE_DEMOTED 残存)
 **Lot**: 1.0x trial (N≥50 & WR継続 → 1.3x昇格候補)
 
-**次回審査条件:**
-- Live N≥20 到達時に WR/EV 確認
-- WR < 55% or EV < 0 が 15件連続 → PAIR_DEMOTED 候補
+**次回審査条件**: 詳細基準は **[[pre-registration-2026-04-21]]** §3.1 (binding pre-reg)
+- N=10 Wilson 下限<20% → 即 PAIR_DEMOTE / N=15 WR<40% + sum<-5 → PAIR_DEMOTE
+- N=20 PF<0.9 → PAIR_DEMOTE / N=30 PF≥1.5 + Sharpe>0.25 → lot 1.3x 昇格
 
 ## Signal Logic
 Detects Bollinger Band squeeze (bandwidth contraction below threshold), then enters on the breakout direction when bands expand. Momentum confirmation via volume or candle body size filters breakout validity.

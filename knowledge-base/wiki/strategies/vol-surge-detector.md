@@ -24,7 +24,9 @@
 **安全弁**:
 - SCALP_SENTINEL 継続 (PAIR_PROMOTED ではない) → sentinel 最小ロット
 - EUR_JPY は PAIR_DEMOTED 維持 (v7.0 BT 7d WR=25.0% -36.5pip)
-- Live N≥30 で PAIR_PROMOTED (通常ロット) 審査
+- 昇格/降格基準: **[[pre-registration-2026-04-21]]** §3.2 (binding pre-reg)
+  - N=30 PF≥1.3 + Wilson 下限>BEV → PAIR_PROMOTED 昇格
+  - N=15 WR<40% + sum<-5 → PAIR_DEMOTE 再設定
 
 ## 概要
 急激なボリューム変化（vol倍率1.7x超）を検出してエントリー。
