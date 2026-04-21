@@ -4599,15 +4599,18 @@ def _bt_spread(bar_time, symbol: str = "USDJPY=X") -> float:
         else:         return 0.00010  # 1.0pip
 
 
-# ── BT スリッページ係数 (Phase A: 461t本番監査) ──
-# 実測平均0.489pip/片道 → ペア別保守的推定 (実測×80%)
+# ── BT スリッページ係数 (v9.4 Tier 1: wiki friction-analysis 準拠) ──
+# 2026-04-21 更新: 保守的 (実測×80%) → wiki friction-analysis.md L1 公称実測値を採用
+# 理由: 既存係数は Live 実測平均の 80% で楽観バイアス. GBP_USD は 50% 楽観で最大乖離.
+# 更新影響: BT EV が pair 別に 0-0.05 ATR 低下 (GBP_USD 最大), BT-Live 乖離縮小見込み.
+# 詳細: wiki/analyses/bt-live-divergence.md, sessions/2026-04-21-session.md §P0'.
 _BT_SLIPPAGE = {
-    "USDJPY": 0.004,    # 0.4pip (JPY: pip=0.01)
-    "EURJPY": 0.005,    # 0.5pip
-    "EURUSD": 0.00004,  # 0.4pip (non-JPY: pip=0.0001)
-    "GBPUSD": 0.00005,  # 0.5pip
-    "EURGBP": 0.00005,  # 0.5pip
-    "XAUUSD": 0.025,    # 2.5pip (XAU: pip=0.01)
+    "USDJPY": 0.005,    # 0.5pip (was 0.4) — friction-analysis.md 公称
+    "EURJPY": 0.005,    # 0.5pip (unchanged)
+    "EURUSD": 0.00005,  # 0.5pip (was 0.4) — friction-analysis.md 公称
+    "GBPUSD": 0.0001,   # 1.0pip (was 0.5) — friction-analysis.md 公称. 最大修正.
+    "EURGBP": 0.00005,  # 0.5pip (unchanged, 戦略停止済)
+    "XAUUSD": 0.025,    # 2.5pip (unchanged, 戦略停止済)
 }
 
 

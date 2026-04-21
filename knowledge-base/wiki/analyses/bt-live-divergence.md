@@ -1,5 +1,10 @@
 # BT vs Live Divergence — 包括的クオンツ分析
 
+> **2026-04-21 update (Tier 1 部分)**: `_BT_SLIPPAGE` (app.py L4604) を friction-analysis.md 公称実測値に更新.
+> USDJPY 0.4→0.5pip, EURUSD 0.4→0.5pip, GBPUSD 0.5→**1.0pip** (最大修正).
+> **USDJPY partial validation**: Scalp aggregate WR 57.4%→55.3% (-2.1pp, Live 側に近づく方向). DT は変化微小 (-0.1pp).
+> **残: GBPUSD/EURUSD BT 再走 (次セッション P0' 継続)**. 詳細: sessions/2026-04-21-session.md §Phase 4.
+
 ## 1. モード別の構造的乖離
 
 ### DT(15m) vs Scalp(1m) — 摩擦構造が全く異なる
