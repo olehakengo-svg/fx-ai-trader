@@ -219,8 +219,12 @@ def summarize_bucket(et: str, pair: str, trades: list[dict],
                 and n >= 30
                 and mean_pnl > 0)
     # Stop-loss flag: high confidence of failure
+    # AND mean_pnl <= 0 — guards against false-positive demotion of low-WR / high-R:R
+    # strategies (BO / reversion) that stay +EV despite WR < BEV. Without this,
+    # bb_squeeze_breakout × USD_JPY (WR=31% but mean_pnl=+1.55 pip) falsely flagged.
     force_demote_flag = (post["p_wr_above_bev"] < 0.10
-                         and n >= 20)
+                         and n >= 20
+                         and mean_pnl <= 0)
 
     return {
         "entry_type": et,
