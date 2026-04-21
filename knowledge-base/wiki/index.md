@@ -107,6 +107,8 @@
 - [[independent-audit-2026-04-10]] -- 2 audits, binding recommendations
 - [[xau-stop-rationale]] -- FX profitable without XAU
 - [[mfe-zero-analysis]] -- 90.6% of losses never go favorable
+- [[defensive-mode-unwind-rule]] -- DD防御 0.2x 解除条件（段階A自動/B品質ゲート/C手動）
+- [[negative-strategy-stopping-rule]] -- Shadow 止血ルール Level A/B/C（Bayesian 基準）
 
 ## Session History
 - [[sessions/2026-04-21-session]] — Attack A (bb_squeeze×USD_JPY PAIR_PROMOTED) + Attack B (negative戦略止血条件) + Tier1 BT validation + Quant深部検証
