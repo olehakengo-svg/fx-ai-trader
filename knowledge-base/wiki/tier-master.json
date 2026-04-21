@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-21T05:36:23.409696+00:00",
+  "generated_at": "2026-04-21T05:44:16.832554+00:00",
   "elite_live": [
     "gbp_deep_pullback",
     "session_time_bias",
@@ -7,7 +7,6 @@
   ],
   "force_demoted": [
     "atr_regime_break",
-    "bb_squeeze_breakout",
     "dt_bb_rsi_mr",
     "ema_cross",
     "ema_pullback",
@@ -127,6 +126,26 @@
     [
       "bb_rsi_reversion",
       "USD_JPY"
+    ],
+    [
+      "bb_squeeze_breakout",
+      "EUR_GBP"
+    ],
+    [
+      "bb_squeeze_breakout",
+      "EUR_JPY"
+    ],
+    [
+      "bb_squeeze_breakout",
+      "EUR_USD"
+    ],
+    [
+      "bb_squeeze_breakout",
+      "GBP_JPY"
+    ],
+    [
+      "bb_squeeze_breakout",
+      "GBP_USD"
     ],
     [
       "dt_bb_rsi_mr",

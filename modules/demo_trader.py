@@ -4966,7 +4966,8 @@ class DemoTrader:
         "macdh_reversal",    # v6.8: N=86 WR=34.7% PnL=-40.6 PF<1 → OANDA停止
         "sr_break_retest",   # v7.0: N=2 EV=-21.4 PnL=-42.8 → 1件で全利益消失クラス
         "engulfing_bb",      # v8.0: 本番N=7 WR=14.3% PnL=-$353.5 — 壊滅的、即時停止
-        "bb_squeeze_breakout",  # v8.2: BT EV=-0.799 ATR, ブレイクアウト直後の最大スプレッドと重なり構造的赤字
+        # REMOVED 2026-04-21: bb_squeeze_breakout → PAIR_PROMOTED×USD_JPY昇格
+        # 365d BT USD_JPY 5m: N=42 WR=76.2% EV=+0.426。他ペアは PAIR_DEMOTED で保護
         "sr_channel_reversal",  # v8.9: Post-cut N=17 WR=11.8% 即死率87.5% — BEV下回り確定(p=0.009)
         # v8.9: EV分解で確定的負EV — UNIVERSAL_SENTINEL→FORCE_DEMOTED格上げ
         "stoch_trend_pullback",  # Post-cut N=19 WR=31.6% EV=-0.97 PnL=-18.5 全ペアで負
@@ -5058,6 +5059,13 @@ class DemoTrader:
         # v8.9: 昨日分析 — vol_surge×JPY 全期間N=28 EV=-0.34 Kelly=-10.4%
         # EUR_USDはN=7 WR=57% EV=+1.20 Kelly=+32.7%で正EV → EUR維持
         ("vol_surge_detector", "USD_JPY"),
+        # 2026-04-21: bb_squeeze_breakout FORCE_DEMOTED解除 → USD_JPY PAIR_PROMOTED
+        # 他ペアは shadow EV マイナスのため PAIR_DEMOTED で保護
+        ("bb_squeeze_breakout", "EUR_USD"),   # shadow post-cut EV=-3.05 (N=14)
+        ("bb_squeeze_breakout", "GBP_USD"),   # shadow post-cut N=4 (不十分)
+        ("bb_squeeze_breakout", "EUR_JPY"),   # 未評価 → 保護
+        ("bb_squeeze_breakout", "GBP_JPY"),   # 未評価 → 保護
+        ("bb_squeeze_breakout", "EUR_GBP"),   # 未評価 → 保護
     }
 
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
@@ -5080,7 +5088,10 @@ class DemoTrader:
         ("xs_momentum", "EUR_USD"),
         # REMOVED v9.0: trendline_sweep → ELITE_LIVE (PAIR_PROMOTED redundant)
         # (was: EUR EV=+0.927 N=73 WR=80.8% PF=2.52 / GBP EV=+0.599 N=134 WR=73.1% PF=1.68)
-        # REMOVED v9.1: bb_squeeze_breakout — FORCE_DEMOTED、全PAIR_PROMOTED無効(死コード)
+        # v9.x 2026-04-21: bb_squeeze_breakout×USD_JPY PAIR_PROMOTED復活
+        # 365d BT 5m: N=42 WR=76.2% EV=+0.426 PnL=+17.9 (shadow post-cut N=41 EV=+1.55)
+        # EUR_USD shadow EV=-3.05 のためペア限定。FORCE_DEMOTED残存でEUR/GBP保護。lot=1.0x(trial)
+        ("bb_squeeze_breakout", "USD_JPY"),
         # REMOVED v9.1: fib_reversal×EUR — FORCE_DEMOTED (死コード)
         # REMOVED v9.1: sr_channel_reversal×EUR — FORCE_DEMOTED (死コード)
         # v2.1: VWAP MR JPY crosses — Bonferroni p<10^-7, friction-adjusted BT scan

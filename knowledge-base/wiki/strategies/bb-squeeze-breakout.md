@@ -4,7 +4,7 @@
 - **Entry Type**: `bb_squeeze_breakout`
 - **Category**: Breakout / VOL
 - **Timeframe**: Scalp 1m/5m, DT 15m
-- **Status**: PAIR_PROMOTED (USD_JPY のみ) + FORCE_DEMOTED (EUR/GBP 保護)
+- **Status**: PAIR_PROMOTED (USD_JPY) — EUR/GBP/JPYcross は PAIR_DEMOTED で保護
 - **Active Pairs**: USD_JPY (trial, 1.0x lot)
 
 ## BT Performance (365d, 5m Scalp)
