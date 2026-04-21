@@ -9,7 +9,7 @@
 - **最優先: クリーンデータ蓄積 → Kelly Half到達**
 
 <!-- KB_PORTFOLIO_START -->
-## Current Portfolio (auto-synced, 2026-04-20)
+## Current Portfolio (auto-synced, 2026-04-21)
 
 ### ELITE_LIVE (never shadowed)
 | Strategy | BT Data | Status |
@@ -21,6 +21,7 @@
 ### PAIR_PROMOTED (SENTINEL)
 | Strategy | Pairs | BT Data | Status |
 |----------|-------|---------|--------|
+| [[bb-squeeze-breakout]] | USD_JPY | no BT data | PAIR_PROMOTED |
 | [[doji-breakout]] | GBP_USD, USD_JPY | GBP_USD: EV=+0.724 WR=78.3%; USD_JPY: EV=+0.338 WR=61.9% | PAIR_PROMOTED |
 | [[dt-fib-reversal]] | GBP_USD | EUR_JPY: EV=-0.199 WR=54.3%; EUR_USD: EV=+0.407 WR=80.0%; GBP_USD: EV=+0.374 WR=76.2% | PAIR_PROMOTED |
 | [[london-fix-reversal]] | GBP_USD | EUR_USD: EV=+0.161 WR=66.7%; GBP_USD: EV=-0.150 WR=56.8%; USD_JPY: EV=+0.079 WR=60.9% | PAIR_PROMOTED |
@@ -55,7 +56,6 @@
 | Strategy | BT Data | Status |
 |----------|---------|--------|
 | [[atr-regime-break]] | no BT data | FORCE_DEMOTED |
-| [[bb-squeeze-breakout]] | no BT data | FORCE_DEMOTED |
 | [[dt-bb-rsi-mr]] | EUR_USD: EV=-0.077 WR=52.0%; GBP_USD: EV=-0.135 WR=51.3%; USD_JPY: EV=-0.023 WR=54.2% | FORCE_DEMOTED |
 | [[ema-cross]] | no BT data | FORCE_DEMOTED |
 | [[ema-pullback]] | no BT data | FORCE_DEMOTED |
