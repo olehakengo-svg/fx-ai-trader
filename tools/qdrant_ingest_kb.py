@@ -31,6 +31,8 @@ QDRANT_PATH = PROJECT_ROOT / "knowledge-base" / ".qdrant"
 COLLECTION = "fx-research"
 EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 EMBED_DIM = 384
+# mcp-server-qdrant expects named vector: "fast-{model_name.lower()}" (fastembed.py:42)
+VECTOR_NAME = "fast-all-minilm-l6-v2"
 
 DEFAULT_DIRS = [
     "knowledge-base/wiki/research",
@@ -124,12 +126,14 @@ def ingest(dirs: list[str], rebuild: bool) -> None:
         existing.discard(COLLECTION)
 
     if COLLECTION not in existing:
-        print(f"[create] {COLLECTION} dim={EMBED_DIM}")
+        print(f"[create] {COLLECTION} named-vector={VECTOR_NAME} dim={EMBED_DIM}")
         client.create_collection(
             collection_name=COLLECTION,
-            vectors_config=models.VectorParams(
-                size=EMBED_DIM, distance=models.Distance.COSINE
-            ),
+            vectors_config={
+                VECTOR_NAME: models.VectorParams(
+                    size=EMBED_DIM, distance=models.Distance.COSINE
+                )
+            },
         )
 
     embedder = TextEmbedding(model_name=EMBED_MODEL)
@@ -160,7 +164,7 @@ def ingest(dirs: list[str], rebuild: bool) -> None:
             points.append(
                 models.PointStruct(
                     id=_point_id(rel, idx),
-                    vector=vec,
+                    vector={VECTOR_NAME: vec},
                     payload={
                         "document": chunk,
                         "path": rel,
