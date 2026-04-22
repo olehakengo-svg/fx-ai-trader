@@ -40,6 +40,7 @@ class EmaTrendScalp(StrategyBase):
     name = "ema_trend_scalp"
     mode = "scalp"
     enabled = True
+    strategy_type = "pullback"   # v10: ADX>31 → sharp penalty (no pullback develops in strong trend)
 
     # ══════════════════════════════════════════════════
     # パラメータ
@@ -239,7 +240,16 @@ class EmaTrendScalp(StrategyBase):
             f"ADX={ctx.adx:.1f} BB%B={ctx.bbpb:.2f}"
         )
 
-        conf = int(min(85, 50 + score * 4))
+        # v10: Confidence v2 — pullback anti-trend penalty (ADX>31 = no pullback)
+        # Root-cause: when ADX is in Q4 (>31.7), trends are too strong for
+        # pullbacks to develop. Full-quant Q4 WR=16.7%, Kelly=-32.3%.
+        from modules.confidence_v2 import apply_penalty
+        _legacy_conf = int(min(85, 50 + score * 4))
+        conf = apply_penalty(_legacy_conf, self.strategy_type, ctx.adx, conf_max=85)
+        if conf != _legacy_conf:
+            reasons.append(
+                f"🔧 [v2] pullback anti-trend: ADX={ctx.adx:.1f}>31 → conf {_legacy_conf}→{conf}"
+            )
 
         return Candidate(
             signal=signal,

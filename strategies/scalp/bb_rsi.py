@@ -34,6 +34,7 @@ from typing import Optional
 class BBRsiReversion(StrategyBase):
     name = "bb_rsi_reversion"
     mode = "scalp"
+    strategy_type = "MR"   # v10: Q4 paradox fix — ADX>25 → conf penalty
 
     # チューナブルパラメータ
     adx_max = 25          # EUR/USD用: レンジ判定上限（学術水準 ADX≥25はトレンド領域）
@@ -206,7 +207,16 @@ class BBRsiReversion(StrategyBase):
                     f"USD/JPY高WR条件"
                 )
 
-        conf = int(min(85, 50 + score * 4))
+        # v10: Confidence v2 — MR anti-trend penalty (ADX>25 reduces conf)
+        # Root-cause: strong trend features are inverse-edge for MR. Legacy formula
+        # pushed MR entries to Q4 when they should be deprioritized.
+        from modules.confidence_v2 import apply_penalty
+        _legacy_conf = int(min(85, 50 + score * 4))
+        conf = apply_penalty(_legacy_conf, self.strategy_type, ctx.adx, conf_max=85)
+        if conf != _legacy_conf:
+            reasons.append(
+                f"🔧 [v2] MR anti-trend: ADX={ctx.adx:.1f}>25 → conf {_legacy_conf}→{conf}"
+            )
         # ── レジーム情報 (ペア別表示) ──
         if ctx.is_jpy:
             reasons.append(

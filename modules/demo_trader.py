@@ -21,6 +21,7 @@ from modules.alert_manager import AlertManager
 from modules.risk_analytics import get_dd_lot_multiplier, DD_LOT_TIERS
 from modules.hmm_regime import HMMRegime
 from modules.prime_gate import classify_prime, prime_fingerprint
+from modules.confidence_q4_gate import should_shadow as _q4_should_shadow, gate_reason as _q4_gate_reason
 import numpy as np
 
 # モード別設定
@@ -4219,6 +4220,24 @@ class DemoTrader:
         _is_promoted = self._is_promoted(entry_type, instrument)
         # ── v7.0: Shadow Tracking — OANDAには絶対に送信しない ──
         if _is_shadow:
+            _is_promoted = False
+
+        # ══════════════════════════════════════════════════════
+        # v10 Q4 GATE (transition safety net during confidence_v2 rollout)
+        # ══════════════════════════════════════════════════════
+        # Binding pre-registration: confidence-q4-full-quant-2026-04-22.md §7
+        # Rule: Kelly<0 AND Wilson_hi<BEV AND N>=15 for 4 strategies at conf>69.
+        # Force Shadow regardless of PRIME/ELITE/tier status. This is the last-
+        # chance defense in case confidence_v2 adjustment does not fully
+        # eliminate the Q4 paradox in the first few weeks of live rollout.
+        # Effect estimate: +572.7 pip/month recovery.
+        # Planned removal: ~2026-06-03 after confidence_v2 validation.
+        _q4_conf_val = float(sig.get("confidence", 0) or 0)
+        if _q4_should_shadow(entry_type, _q4_conf_val):
+            if not _is_shadow:
+                _q4_reason = _q4_gate_reason(entry_type, _q4_conf_val) or "Q4_GATE"
+                self._add_log(f"🛡️ {_q4_reason}")
+            _is_shadow = True
             _is_promoted = False
         # ── v8.9: FORCE_DEMOTED/PAIR_DEMOTED がフィルターを全通過した場合も
         #    is_shadow=True にする。OANDAに送信されないトレードはshadowとしてマーク

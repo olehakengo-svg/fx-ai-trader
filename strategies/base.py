@@ -33,6 +33,13 @@ class StrategyBase:
     mode: str = "scalp"            # "scalp" or "daytrade"
     enabled: bool = True           # False で無効化（A/Bテスト用）
 
+    # Strategy type — drives confidence_v2 anti-trend penalty.
+    # "trend" (default): legacy conf preserved (formula is trend-follow consistent).
+    # "MR" / "reversal": ADX>25 → conf penalty (mean-reversion inverse-edge).
+    # "pullback": ADX>31 → sharp conf penalty (strong trend = no pullback develops).
+    # See: modules/confidence_v2.py and KB confidence-formula-root-cause-2026-04-22.md
+    strategy_type: str = "trend"
+
     # 戦略固有のパラメータ（サブクラスでオーバーライド）
     # 学習エンジンから動的に調整可能
     params: dict = {}

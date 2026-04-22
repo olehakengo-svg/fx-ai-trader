@@ -41,6 +41,7 @@ def _calc_fibonacci_levels(df, lookback=60):
 class FibReversal(StrategyBase):
     name = "fib_reversal"
     mode = "scalp"
+    strategy_type = "MR"   # v10: Q4 paradox fix — Fib reversal is MR by construction
 
     # チューナブルパラメータ (v6.3 対策強化)
     min_lookback = 45
@@ -198,6 +199,15 @@ class FibReversal(StrategyBase):
         if signal is None or score < _score_gate:
             return None
 
-        conf = int(min(85, 45 + score * 5))
+        # v10: Confidence v2 — MR anti-trend penalty (ADX>25 reduces conf)
+        # Fib reversal is a mean-reversion at Fibonacci levels — strong trend
+        # (ADX Q4) means Fib levels get broken rather than rejected.
+        from modules.confidence_v2 import apply_penalty
+        _legacy_conf = int(min(85, 45 + score * 5))
+        conf = apply_penalty(_legacy_conf, self.strategy_type, ctx.adx, conf_max=85)
+        if conf != _legacy_conf:
+            reasons.append(
+                f"🔧 [v2] MR anti-trend: ADX={ctx.adx:.1f}>25 → conf {_legacy_conf}→{conf}"
+            )
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
                          reasons=reasons, entry_type=self.name, score=score)

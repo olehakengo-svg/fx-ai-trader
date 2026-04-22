@@ -2769,7 +2769,20 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                     ema_boost += 3
                     reasons.append(f"✅ VWAP下位({_vwap_dev_dt:.2f}%): SELL確度UP")
 
-        conf = int(np.clip(base_conf + ema_boost, 25, 92))
+        # v10: Respect DTE strategy's self-calibrated confidence.
+        # Root-cause: legacy `base_conf + ema_boost` is trend-follow biased and
+        # overwrote DTE strategies' Candidate.confidence, creating the ema_cross
+        # BUY-asymmetric Q4 concentration (Q4 100% BUY, Fisher p<0.0001).
+        # Fix: when DTE fired (_dt_best set), use its confidence directly.
+        # See: modules/confidence_v2.py and KB confidence-formula-root-cause-2026-04-22.md
+        if _dt_best is not None and getattr(_dt_best, "confidence", 0) > 0:
+            conf = int(_dt_best.confidence)
+            reasons.append(
+                f"🔧 [v2] DTE conf respected: {_dt_best.entry_type} conf={conf} "
+                f"(legacy formula bypassed)"
+            )
+        else:
+            conf = int(np.clip(base_conf + ema_boost, 25, 92))
     else:
         conf = int(max(20, 50 - abs(ema_score) * 15))
 
@@ -8132,7 +8145,11 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     # 記事参照: スキャルプは「数秒〜数分の短期売買」— フィルター過剰はエントリー枯渇を招く
     # 平均回帰戦略は除外（BB極端→中央回帰はトレンド逆行でも機能する）
     # 順張り系もソフトペナルティ化（EMA200+HTFの二重ハードブロックは過剰）
-    _mean_reversion_types = ("trend_rebound", "v_reversal", "bb_rsi_reversion", "macdh_reversal")
+    # v10: Added fib_reversal (MR by construction — Fib level rejection)
+    # ema_trend_scalp is "pullback" type; HTF penalty is partially correct
+    # (pullback does prefer HTF alignment) so not added here.
+    _mean_reversion_types = ("trend_rebound", "v_reversal", "bb_rsi_reversion",
+                             "macdh_reversal", "fib_reversal")
     if entry_type not in _mean_reversion_types:
         if _ema200_bull and signal == "SELL" and _ema200_slope > 0:
             # EMA200上 + 上昇中 → 軽度ペナルティ（緩和済み）

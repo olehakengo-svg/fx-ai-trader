@@ -20,6 +20,8 @@ logger = logging.getLogger("ema_cross")
 class EmaCross(StrategyBase):
     name = "ema_cross"
     mode = "daytrade"
+    strategy_type = "trend"   # v10: trend-follow formula is structurally correct
+                              # (the bug was daytrade-layer override, now fixed in app.py L2772)
 
     # ── チューナブルパラメータ ──
     adx_floor = 15         # 15m ADX 絶対最低ライン (完全レンジ排除)
