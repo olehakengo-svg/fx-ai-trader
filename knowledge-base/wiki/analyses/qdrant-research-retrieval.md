@@ -59,6 +59,16 @@ python3 tools/qdrant_ingest_kb.py
 - Fastembed モデルは初回 download ~100MB（以降 cache）
 - `tools/.venv-qdrant-ingest/` は ~500MB（fastembed + torch/onnxruntime）→ `.gitignore` 済み
 
+## 動作検証結果（2026-04-23 初回 ingest）
+- **Corpus**: 184 markdown / 377 chunks / 3.1MB
+- **Collection**: `fx-research` (384dim, Cosine)
+- **Smoke test クエリ** (top-3 hit):
+  - `"toxic order flow and market microstructure"` → osler-2003 / kyle-1985 / order-flow-toxicity（学術核心を完璧抽出、score 0.42-0.45）
+  - `"Bonferroni correction for multiple strategy testing"` → win-conditions-unfiltered / regime-2d-v2-preregister / tp-hit-quant-analysis（該当 analyses 3 本、score 0.44-0.45）
+  - `"stop loss hunting by liquidity providers"` → liquidity-sweep strategy / osler-2003 / brunnermeier-2009（戦略×論文マッチ、score 0.36-0.38）
+  - `"止血判断 EV と WR の使い分け"` → micro-scalp-diagnostic / auto-improvement-pipeline / macro-data-analysis-protocol（日本語 query は MiniLM-L6 精度やや低い、score 0.48-0.50）
+- **所見**: 英語学術 query で特に強い（top-3 に該当論文が確実に入る）。日本語は category 精度は出るが lesson 短文への hit は弱い
+
 ## 将来拡張（Kelly Half 以降）
 - arxiv/SSRN からの外部論文自動 ingest pipeline
 - `wiki-research` skill との統合（未使用 skill、現状は log 参照のみ）

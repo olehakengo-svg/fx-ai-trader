@@ -17,6 +17,8 @@ env/
 *.egg-info/
 dist/
 build/
+tools/.venv-qdrant-ingest/
+knowledge-base/.qdrant/
 
 # ── データベース (ローカル) ──
 *.db
