@@ -86,15 +86,51 @@ dt_sr_channel_reversal/vol_spike_mr/sr_fib_confluence/dt_bb_rsi_mr/dual_sr_bounc
 
 ---
 
-## P4. Scalp 365d Walk-Forward 拡張【実行中】
+## P4. Scalp 5m × 180d Walk-Forward【完了 — 2026-04-22 21:30】
 
-**制約**: 5m TF 上限は 180d (`TF_CONFIG["5m"]={"max_days":180}`)。365d は 1m/5m では取得不可。
-**実行内容**: 180d × 30日窓 (6窓) を `USD_JPY, EUR_USD` で実施中。
+**制約**: 5m TF 上限 180d。roadmap v2.1 の Scalp 60d BT 根拠を **3倍データ量で再検証**。
+**窓**: 30日×7窓 (USD_JPY + EUR_USD)
+**出力**: [walkforward-scalp-5m-180d-2026-04-22.md](../bt-results/walkforward-scalp-5m-180d-2026-04-22.md)
 
-補足: roadmap v2.1 は Scalp 60d BT を根拠としていた → 180d で **3倍データ量の再検証**。
-出力先: `knowledge-base/raw/bt-results/walkforward-scalp-5m-180d-2026-04-22.md`
+### ✅ Stable 戦略（5m, 180d, 7窓）
 
-**本セッション内に完了次第、本ドキュメントに追記。** 完了前は Scalp 拡大 (roadmap Track E) の判断は保留。
+| 戦略 × ペア | N | EV | pos_ratio | CV(EV) | Tier-master 現状 |
+|---|---|---|---|---|---|
+| **streak_reversal × USD_JPY** | 693 | +0.948 | 1.00 | 0.62 | UNIVERSAL_SENTINEL |
+| **vwap_mean_reversion × USD_JPY** | 155 | +0.925 | 1.00 | **0.51** | PAIR_PROMOTED (USD_JPY 無) |
+| **vix_carry_unwind × USD_JPY** | 90 | +0.972 | 1.00 | 0.68 | PAIR_PROMOTED ✅ |
+| **trendline_sweep × EUR_USD** | 43 | +0.749 | 1.00 | 0.64 | ELITE_LIVE ✅ |
+| **squeeze_release_momentum × EUR_USD** | 23 | +0.332 | 1.00 | 0.83 | PAIR_PROMOTED ✅ |
+| **london_fix_reversal × USD_JPY** | 22 | +0.691 | 1.00 | 0.84 | **PAIR_DEMOTED** ⚠️ |
+
+### 🎯 決定的クロス検証
+
+**`streak_reversal × USD_JPY` と `vwap_mean_reversion × USD_JPY` が 15m / 5m 両方で stable**:
+- streak: 15m pos=1.00 CV=0.65 / 5m pos=1.00 CV=0.62
+- vwap:   15m pos=0.83 CV=1.00 / **5m pos=1.00 CV=0.51**（5m の方が遥かに頑健）
+
+→ **TF 直交性による二重検証クリア**。1h 500d WF の追加確認は **streak_reversal については不要級に強い**。vwap_mean_reversion × USD_JPY は 5m で CV=0.51 まで改善 → PAIR_PROMOTED 追加が推奨範囲。
+
+### 🆕 Tier 再配置の新候補（P4 発見）
+
+**`vix_carry_unwind × USD_JPY`**: 15m で borderline (CV=1.12) だったが 5m で ✅ stable (CV=0.68)。既に PAIR_PROMOTED 登録済みなので **追加アクション不要、lot boost 検討のみ**。
+
+**`london_fix_reversal × USD_JPY`**: 5m 180d で stable (EV+0.69, pos=1.00) だが tier-master では PAIR_DEMOTED (line 5134: "v8.6: BT WR=28.6% EV=-0.752")。**時間経過で EV が反転した可能性**。PAIR_DEMOTED 解除候補だが、過去の降格根拠 (BT 120d) と 180d/5m WF の比較が必要。
+
+### 🔴 Scalp Unstable (21 cells)
+
+roadmap v2.1 想定の Scalp strategies（xs_momentum/sr_break_retest/dt_bb_rsi_mr 等）が **大部分 unstable**。Scalp 枝 +200pip/年の推定は保守的に見直す必要あり。
+
+### Roadmap v2.1 Track E への影響
+
+- **Scalp 5m × USD_JPY 幹候補**: `streak_reversal`, `vwap_mean_reversion`, `vix_carry_unwind` の 3 本柱（全て WF stable）
+- `bb_squeeze_breakout`, `engulfing_bb` 等の roadmap 既存期待戦略は本 WF に出現せず → BT 発火 N<10 で除外された可能性
+
+### 判断停止点
+
+- `streak_reversal × USD_JPY` UNIVERSAL_SENTINEL → PAIR_PROMOTED 昇格は **15m+5m の二重WF確認済み**、別セッションで実装判断可
+- `vwap_mean_reversion × USD_JPY` PAIR_PROMOTED 追加は **5m WF CV=0.51** が強力な根拠、同じく実装判断可
+- `london_fix_reversal × USD_JPY` PAIR_DEMOTED 解除は **旧降格根拠との時間差整合を確認後**
 
 ---
 
@@ -179,3 +215,60 @@ Day 10-14: Shadow N≥30 到達、α factor lift 一次評価
 - [tools/alpha_factor_snapshot.py](../../../tools/alpha_factor_snapshot.py)
 - [[roadmap-v2.1]]
 - [[tier-master]]
+
+---
+
+## A1 更新: Tier 実態監査結果【2026-04-22 21:30 追記】
+
+### 結論: **Tier 設定は正しく機能している**（config バグなし）
+
+`modules/demo_trader.py` を精査し、`bb_rsi_reversion × USD_JPY` の挙動を時系列で分析した結果:
+
+- Line 5139: `("bb_rsi_reversion", "USD_JPY")` が `_PAIR_DEMOTED` に登録済み（v8.9）
+- Line 4248: `if not _is_promoted and not _is_shadow: _is_shadow = True` で自動 shadow 化
+- **非shadow trades の entry_time 範囲: 2026-04-02 〜 2026-04-16**
+- 2026-04-16 以降は `bb_rsi_reversion × USD_JPY` の non-shadow 発生ゼロ
+
+→ P1 で観測した 207 non-shadow trades は **demotion 以前の歴史的蓄積**。Tier 設定と live routing は整合している。
+
+### 直近フローの再計測（過去7日 / 過去3日）
+
+| 期間 | N (非shadow) | WR | totP (pips) |
+|---|---|---|---|
+| 全期間 | 410 | 45.0% | -31.6 |
+| **過去7日** | **19** | **47.4%** | **+24.4** ✅ |
+| **過去3日** | **5** | **80.0%** | **+41.8** ✅ |
+
+**直近は既に正 PnL**。Kelly edge=-0.114 は歴史的データで汚染された集計で、**現時点の信号品質を反映していない**。
+
+### 診断更新
+
+本当のボトルネックは「Tier 設定バグ」でも「負けっぱなし」でもなく、**data 蓄積不足（demotion 後の live N が 7日で 19 件）**。
+Roadmap v2.1 の「Kelly Half 到達の前提 = クリーンデータ蓄積」はまさにこの状況を指している。
+
+### 優先順位の再設定
+
+**A2 は不要化**: EUR_USD ペア停止は既に PAIR_DEMOTED で実施済み。追加停止は不要。
+
+**新 Priority 1: 安定戦略の live routing 拡大**
+- `streak_reversal × USD_JPY` (P2 で WF 18/18 窓正、EV+1.36) を UNIVERSAL_SENTINEL → PAIR_PROMOTED
+  - 判断停止点: **1h TF 500d WF の二重確認必須**（本セッション内で未実行）
+  - 昇格すれば live N 蓄積が劇的に加速する
+- `vwap_mean_reversion × USD_JPY` も PAIR_PROMOTED 追加検討（WF CV=1.00 で閾値ギリギリ、慎重に）
+
+**新 Priority 2: Kelly dashboard の時間減衰**
+- `modules/risk_analytics.py` の Kelly 計算を **直近 N=50 または 30日窓** に切替える提案
+- 現状の全期間集計は demotion された旧データを引きずって Kelly<0 になっている
+- この修正自体は別セッション実装（本セッションはコード変更保留）
+
+### α予算消費（最終）
+- 本セッション: **0**（既存データの再分析＋設計のみ）
+- 次セッションで 1h WF 実行時に weekly 0.005 消費
+
+### 本セッション納品物
+1. `knowledge-base/raw/analysis/live-edge-decomp/2026-04-22.json` (P1)
+2. `knowledge-base/raw/analysis/live-edge-decomp/2026-04-22-summary.md` (P1)
+3. `knowledge-base/raw/bt-results/walkforward-365d-w20-usdjpy-2026-04-22.md` (P2)
+4. `tools/alpha_factor_snapshot.py` (P3)
+5. `knowledge-base/raw/bt-results/walkforward-scalp-5m-180d-2026-04-22.md` (P4, 実行中)
+6. `knowledge-base/raw/analysis/roadmap-acceleration-synthesis-2026-04-22.md` (P5 本ファイル)

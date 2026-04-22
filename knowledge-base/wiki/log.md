@@ -1,5 +1,15 @@
 # Knowledge Base Change Log
 
+## 2026-04-22 (wiki-daily-update): 自動スケジュールタスク
+- **Daily trade log**: `raw/trade-logs/2026-04-22.md` 作成 — post-cutoff FX-only N=248, WR=39.1%, PnL=-171.0pip
+- **wiki/index.md**: System State更新 — DD 25.9%→**28.15%** (281.5pip), PnL -129.5→**-171.0pip**, N 244→248, EV -0.53→-0.69, Kelly edge -11.65%→-13.56%, Ruin 0.0%→0.04%, last_updated 2026-04-21→2026-04-22; Trade Logs セクションに2026-04-22追加
+- **Strategy pages** (1ページ更新):
+  - `vwap-mean-reversion.md` — Live更新: N=2→6, PnL=+36.9→-4.6pip (⚠️ 4新規トレードで-41.5pip反転, GBP_USD+EUR_JPY live fill確認)
+- **OANDA今日**: live fill=2 (vwap_mr GBP_USD OANDA#350905 + EUR_JPY OANDA#350909, 09:59 UTC), shadow=26 (London 10:05–12:21 UTC), total system=2,508
+- **Risk state**: DD=28.15%, lot=0.2x, Kelly=0.0 (edge=-13.56%), MC ruin=0.04%, median equity=845.7
+- **Learning API**: 応答サイズ超過でスキップ。前回値: scalp WR=48.2% EV=+0.27 (Ready), daytrade EV=-2.7 (Underperforming)
+- **主要観察**: ⚠️ vwap_mean_reversion がトップパフォーマーから反転 (+36.9→-4.6pip)。DD 28.15%で30%閾値に接近中。全戦略とも live N小さく統計判断保留継続
+
 ## 2026-04-22: JPY cross + Scalp fresh BT + divergence v3 full-stack + htf_agreement bug fix
 - **BT 完了**: EUR_JPY/GBP_JPY/EUR_GBP 365d × 15m DT (5862s) / 6 pairs × 180d × {1m,5m} Scalp (7744s)
 - **BT 結果 JSON**: `raw/bt-results/bt-365d-jpy-2026-04-22.json` / `raw/bt-results/bt-scalp-180d-2026-04-22.json` 作成
