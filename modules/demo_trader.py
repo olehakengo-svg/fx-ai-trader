@@ -5107,7 +5107,10 @@ class DemoTrader:
         # v9.6 (2026-04-22): H-2026-04-22-004 BT 全ペア緩和版でPF<1/EV_fric<0確定
         # EUR_USD 1h N=262 PF=0.64 / GBP_USD 1h N=208 PF=0.57 → UNIVERSAL_SENTINEL→FORCE_DEMOTED
         # 根拠: wiki/analyses/pre-registration-2026-04-22.md
-        "ema200_trend_reversal",
+        # REMOVED 2026-04-23: ema200_trend_reversal → PAIR_PROMOTED×USD_JPY
+        # Shadow post-cutoff 条件分析: USD_JPY N=13 WR=61.5% EV=+5.39p PF=4.76
+        # Bootstrap 95% CI [+1.12, +11.78] 完全正値域, Overlap session N=7 WR=100% コアエッジ
+        # 詳細: wiki/analyses/shadow-subcell-analysis-2026-04-23.md
     }
 
     # ── Elite Track: 摩擦モデルv2 BT + v5.95統合BT監査 ──
@@ -5167,7 +5170,9 @@ class DemoTrader:
         ("london_fix_reversal", "USD_JPY"),  # v8.6: BT WR=28.6% EV=-0.752 — Fix効果がJPYで弱い
         ("xs_momentum", "USD_JPY"),          # v8.6: BT EV=-0.129 — 単一ペアモメンタムはJPYで機能せず
         ("post_news_vol", "USD_JPY"),        # v8.8: 120d BT WR=0% EV=-3.706 — JPYで壊滅的
-        ("ema200_trend_reversal", "USD_JPY"),# v8.8: 120d BT WR=0% EV=-1.887 — JPYで全敗
+        # REMOVED 2026-04-23: ema200_trend_reversal×USD_JPY → PAIR_PROMOTED
+        # Shadow post-cutoff N=13 WR=61.5% EV=+5.39p (v8.8時点BTと反転)
+        # ("ema200_trend_reversal", "USD_JPY"),
         # v8.9: EV分解で確定的負EV
         ("bb_rsi_reversion", "USD_JPY"),    # Post-cut N=76 WR=38.2% EV=-0.28 Kelly=-5.5% — Tier1→降格
         # v8.9: alpha scan 2026-04-14 — Kelly<0確定セルのペア降格
@@ -5277,6 +5282,15 @@ class DemoTrader:
         #   既存PP (EUR_JPY/GBP_JPY/EUR_USD/GBP_USD) に USD_JPY を追加
         #   BT 15m 16bar: N=705 WR=55.0% EV=+2.98pip annual +2,099pip
         ("vwap_mean_reversion", "USD_JPY"),
+        # 2026-04-23: ema200_trend_reversal×USD_JPY PAIR_PROMOTED (FORCE_DEMOTED解除)
+        # Shadow 条件分析 post-cutoff 2026-04-08:
+        #   USD_JPY pair-level N=13 WR=61.5% EV=+5.39p PF=4.76 pos_ratio=0.89
+        #   Bootstrap 95% EV CI [+1.12, +11.78] — 完全正値域
+        #   Overlap session (12-16 UTC) N=7 WR=100% EV=+11.63p — コアエッジ特定
+        #   他ペアは N<5 でデータ不足 → USD_JPY 限定で実弾昇格、Kelly Half運用
+        #   ガードレール: Live N=15 で EV_cost<-0.5p → 自動 FORCE_DEMOTED 戻し
+        #   詳細: wiki/analyses/shadow-subcell-analysis-2026-04-23.md
+        ("ema200_trend_reversal", "USD_JPY"),
     }
 
     # ペア別ロットブースト: PAIR_LOT_BOOST > _STRATEGY_LOT_BOOST (優先)
