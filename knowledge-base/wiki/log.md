@@ -1,5 +1,16 @@
 # Knowledge Base Change Log
 
+## 2026-04-22: JPY cross + Scalp fresh BT + divergence v3 full-stack
+- **BT 完了**: EUR_JPY/GBP_JPY/EUR_GBP 365d × 15m DT (5862s) / 6 pairs × 180d × {1m,5m} Scalp (7744s)
+- **BT 結果 JSON**: `raw/bt-results/bt-365d-jpy-2026-04-22.json` / `raw/bt-results/bt-scalp-180d-2026-04-22.json` 作成
+- **強エッジ発見**: `vwap_mean_reversion × GBP_JPY` N=267 EV=+1.025 PnL=+273.7pip ★最強/ `× EUR_JPY` N=223 EV=+0.672 PnL=+149.9pip — いずれも現在 PAIR_PROMOTED 未登録
+- **Scalp scope 構造**: DT_15m EV=+0.217 vs Scalp_1m EV=-0.288 / Scalp_5m EV=-0.115 (GBPJPY 5m のみ正 EV +0.034)
+- **構造バグ発見**: `app.py:8276` `htf_agreement` 未定義 → `_compute_scalp_signal_v2` で NameError → Scalp vwap_mr trades=0 (即修正 GO 候補、lesson-reactive-changes 下で次セッションに委譲)
+- **divergence v3**: is_shadow=0 Kelly-clean baseline (Live N=412) で Bonferroni 有意なし — v2 (mixed Live N=2505) で有意だった sr_fib_confluence/sr_break_retest × USD_JPY は power loss で再現せず
+- **wiki 更新**: `sessions/bt-live-divergence-scan-2026-04-22.md` §8 appendix 追加 / `sessions/bt-live-divergence-v3-full-stack-2026-04-22.md` 新規 / `index.md` BT Results link 追加
+- **Lint**: `[[bt-live-divergence]]` → `analyses/bt-live-divergence.md` 既存 OK、新規 2 session page を index.md BT Results に追加して孤立解消、破損リンクなし
+- **Next**: (1) htf_agreement バグ修正 → Scalp BT 再実行、(2) `vwap_mean_reversion × EUR_JPY/GBP_JPY` audit-c 発議、(3) Live N≥20 到達後に v3 Bonferroni 再計算
+
 ## 2026-04-21: wiki-daily-update (自動スケジュールタスク)
 - **Daily trade log**: `raw/trade-logs/2026-04-21.md` 作成 — post-cutoff FX-only N=244, WR=38.9%, PnL=-129.5pip
 - **wiki/index.md**: System State更新 — PnL -174.4→**-129.5pip**, N 282→244, WR 36.5%→38.9%, EV -0.62→-0.53, Ruin 0.04%→**0.0%**, Kelly edge -13.48%→-11.65%, N 448→410, last_updated 2026-04-20→2026-04-21; Trade Logs セクションに2026-04-21追加

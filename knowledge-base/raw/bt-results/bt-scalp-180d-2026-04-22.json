@@ -1,0 +1,958 @@
+{
+  "date": "2026-04-22",
+  "lookback": 180,
+  "intervals": [
+    "1m",
+    "5m"
+  ],
+  "results": {
+    "USDJPY=X": {
+      "1m": {
+        "trades": 2573,
+        "win_rate": 55.0,
+        "expected_value": -0.309,
+        "max_drawdown": 806.201,
+        "entry_breakdown": {
+          "bb_rsi_reversion": {
+            "N": 466,
+            "WR": 47.2,
+            "EV": -0.381,
+            "PnL": -177.62999999999994
+          },
+          "vol_momentum_scalp": {
+            "N": 257,
+            "WR": 61.9,
+            "EV": -0.147,
+            "PnL": -37.80690000000002
+          },
+          "sr_channel_reversal": {
+            "N": 228,
+            "WR": 59.6,
+            "EV": -0.196,
+            "PnL": -44.80179999999999
+          },
+          "stoch_trend_pullback": {
+            "N": 115,
+            "WR": 55.7,
+            "EV": -0.236,
+            "PnL": -27.09590000000001
+          },
+          "ema_trend_scalp": {
+            "N": 993,
+            "WR": 56.9,
+            "EV": -0.308,
+            "PnL": -306.1707000000004
+          },
+          "macdh_reversal": {
+            "N": 35,
+            "WR": 42.9,
+            "EV": -0.65,
+            "PnL": -22.734899999999996
+          },
+          "fib_reversal": {
+            "N": 154,
+            "WR": 48.7,
+            "EV": -0.43,
+            "PnL": -66.25220000000003
+          },
+          "vol_surge_detector": {
+            "N": 55,
+            "WR": 49.1,
+            "EV": -0.644,
+            "PnL": -35.4438
+          },
+          "v_reversal": {
+            "N": 13,
+            "WR": 61.5,
+            "EV": -0.051,
+            "PnL": -0.6612999999999996
+          },
+          "engulfing_bb": {
+            "N": 133,
+            "WR": 52.6,
+            "EV": -0.351,
+            "PnL": -46.68790000000002
+          },
+          "three_bar_reversal": {
+            "N": 6,
+            "WR": 50.0,
+            "EV": -0.406,
+            "PnL": -2.4339000000000004
+          },
+          "bb_squeeze_breakout": {
+            "N": 75,
+            "WR": 61.3,
+            "EV": -0.307,
+            "PnL": -22.9917
+          },
+          "confluence_scalp": {
+            "N": 1,
+            "WR": 0.0,
+            "EV": -2.276,
+            "PnL": -2.2761
+          },
+          "mtf_reversal_confluence": {
+            "N": 21,
+            "WR": 57.1,
+            "EV": -0.23,
+            "PnL": -4.836399999999999
+          },
+          "trend_rebound": {
+            "N": 21,
+            "WR": 76.2,
+            "EV": 0.192,
+            "PnL": 4.023499999999999
+          }
+        },
+        "elapsed_s": 784.1
+      },
+      "5m": {
+        "trades": 602,
+        "win_rate": 55.3,
+        "expected_value": -0.113,
+        "max_drawdown": 81.083,
+        "entry_breakdown": {
+          "ema_trend_scalp": {
+            "N": 189,
+            "WR": 59.3,
+            "EV": -0.069,
+            "PnL": -13.084400000000004
+          },
+          "mtf_reversal_confluence": {
+            "N": 8,
+            "WR": 62.5,
+            "EV": 0.132,
+            "PnL": 1.0520999999999998
+          },
+          "bb_rsi_reversion": {
+            "N": 161,
+            "WR": 46.6,
+            "EV": -0.215,
+            "PnL": -34.586899999999986
+          },
+          "fib_reversal": {
+            "N": 44,
+            "WR": 54.5,
+            "EV": -0.106,
+            "PnL": -4.664100000000002
+          },
+          "engulfing_bb": {
+            "N": 31,
+            "WR": 54.8,
+            "EV": -0.125,
+            "PnL": -3.885
+          },
+          "vol_surge_detector": {
+            "N": 19,
+            "WR": 57.9,
+            "EV": -0.096,
+            "PnL": -1.8156
+          },
+          "sr_channel_reversal": {
+            "N": 61,
+            "WR": 57.4,
+            "EV": -0.11,
+            "PnL": -6.736399999999999
+          },
+          "stoch_trend_pullback": {
+            "N": 17,
+            "WR": 58.8,
+            "EV": -0.15,
+            "PnL": -2.5531999999999995
+          },
+          "macdh_reversal": {
+            "N": 6,
+            "WR": 50.0,
+            "EV": -0.155,
+            "PnL": -0.9309000000000003
+          },
+          "bb_squeeze_breakout": {
+            "N": 22,
+            "WR": 72.7,
+            "EV": 0.252,
+            "PnL": 5.533999999999999
+          },
+          "vol_momentum_scalp": {
+            "N": 37,
+            "WR": 54.1,
+            "EV": -0.237,
+            "PnL": -8.766900000000001
+          },
+          "v_reversal": {
+            "N": 2,
+            "WR": 0.0,
+            "EV": -1.534,
+            "PnL": -3.0678
+          },
+          "three_bar_reversal": {
+            "N": 2,
+            "WR": 100.0,
+            "EV": 1.315,
+            "PnL": 2.631
+          },
+          "trend_rebound": {
+            "N": 2,
+            "WR": 100.0,
+            "EV": 0.949,
+            "PnL": 1.8988999999999998
+          },
+          "ema_pullback": {
+            "N": 1,
+            "WR": 100.0,
+            "EV": 0.82,
+            "PnL": 0.8198000000000001
+          }
+        },
+        "elapsed_s": 105.9
+      }
+    },
+    "EURUSD=X": {
+      "1m": {
+        "trades": 1475,
+        "win_rate": 56.5,
+        "expected_value": -0.269,
+        "max_drawdown": 403.622,
+        "entry_breakdown": {
+          "ema_trend_scalp": {
+            "N": 661,
+            "WR": 57.5,
+            "EV": -0.288,
+            "PnL": -190.6536
+          },
+          "engulfing_bb": {
+            "N": 105,
+            "WR": 60.0,
+            "EV": -0.192,
+            "PnL": -20.209300000000006
+          },
+          "macdh_reversal": {
+            "N": 23,
+            "WR": 34.8,
+            "EV": -0.707,
+            "PnL": -16.253500000000003
+          },
+          "bb_rsi_reversion": {
+            "N": 245,
+            "WR": 51.4,
+            "EV": -0.292,
+            "PnL": -71.57650000000002
+          },
+          "sr_channel_reversal": {
+            "N": 156,
+            "WR": 57.1,
+            "EV": -0.274,
+            "PnL": -42.670500000000025
+          },
+          "stoch_trend_pullback": {
+            "N": 61,
+            "WR": 55.7,
+            "EV": -0.289,
+            "PnL": -17.644
+          },
+          "fib_reversal": {
+            "N": 106,
+            "WR": 57.5,
+            "EV": -0.188,
+            "PnL": -19.942399999999985
+          },
+          "bb_squeeze_breakout": {
+            "N": 44,
+            "WR": 70.5,
+            "EV": 0.096,
+            "PnL": 4.2171999999999965
+          },
+          "vol_surge_detector": {
+            "N": 55,
+            "WR": 54.5,
+            "EV": -0.326,
+            "PnL": -17.908
+          },
+          "mtf_reversal_confluence": {
+            "N": 7,
+            "WR": 71.4,
+            "EV": -0.007,
+            "PnL": -0.048499999999999766
+          },
+          "ema_pullback": {
+            "N": 2,
+            "WR": 50.0,
+            "EV": -0.464,
+            "PnL": -0.9284999999999999
+          },
+          "trend_rebound": {
+            "N": 8,
+            "WR": 75.0,
+            "EV": 0.205,
+            "PnL": 1.6411999999999995
+          },
+          "confluence_scalp": {
+            "N": 2,
+            "WR": 0.0,
+            "EV": -2.441,
+            "PnL": -4.8823
+          }
+        },
+        "elapsed_s": 618.3
+      },
+      "5m": {
+        "trades": 370,
+        "win_rate": 56.2,
+        "expected_value": -0.149,
+        "max_drawdown": 56.943,
+        "entry_breakdown": {
+          "ema_trend_scalp": {
+            "N": 166,
+            "WR": 56.0,
+            "EV": -0.208,
+            "PnL": -34.489999999999995
+          },
+          "sr_channel_reversal": {
+            "N": 51,
+            "WR": 56.9,
+            "EV": -0.126,
+            "PnL": -6.423400000000006
+          },
+          "fib_reversal": {
+            "N": 26,
+            "WR": 50.0,
+            "EV": -0.179,
+            "PnL": -4.663799999999998
+          },
+          "bb_squeeze_breakout": {
+            "N": 5,
+            "WR": 60.0,
+            "EV": -0.208,
+            "PnL": -1.04
+          },
+          "engulfing_bb": {
+            "N": 33,
+            "WR": 57.6,
+            "EV": -0.066,
+            "PnL": -2.1785000000000005
+          },
+          "vol_surge_detector": {
+            "N": 29,
+            "WR": 58.6,
+            "EV": -0.149,
+            "PnL": -4.3176000000000005
+          },
+          "stoch_trend_pullback": {
+            "N": 11,
+            "WR": 81.8,
+            "EV": 0.568,
+            "PnL": 6.248899999999998
+          },
+          "bb_rsi_reversion": {
+            "N": 45,
+            "WR": 53.3,
+            "EV": -0.111,
+            "PnL": -4.999400000000001
+          },
+          "mtf_reversal_confluence": {
+            "N": 2,
+            "WR": 50.0,
+            "EV": -0.186,
+            "PnL": -0.3718999999999999
+          },
+          "macdh_reversal": {
+            "N": 2,
+            "WR": 0.0,
+            "EV": -1.498,
+            "PnL": -2.9960000000000004
+          }
+        },
+        "elapsed_s": 117.6
+      }
+    },
+    "GBPUSD=X": {
+      "1m": {
+        "trades": 2088,
+        "win_rate": 46.0,
+        "expected_value": -0.76,
+        "max_drawdown": 1587.375,
+        "entry_breakdown": {
+          "vol_momentum_scalp": {
+            "N": 200,
+            "WR": 51.0,
+            "EV": -0.659,
+            "PnL": -131.84739999999996
+          },
+          "ema_trend_scalp": {
+            "N": 846,
+            "WR": 46.3,
+            "EV": -0.795,
+            "PnL": -672.7132000000006
+          },
+          "bb_squeeze_breakout": {
+            "N": 56,
+            "WR": 57.1,
+            "EV": -0.698,
+            "PnL": -39.06379999999999
+          },
+          "engulfing_bb": {
+            "N": 127,
+            "WR": 49.6,
+            "EV": -0.689,
+            "PnL": -87.55599999999998
+          },
+          "bb_rsi_reversion": {
+            "N": 327,
+            "WR": 37.3,
+            "EV": -0.837,
+            "PnL": -273.74599999999987
+          },
+          "macdh_reversal": {
+            "N": 33,
+            "WR": 33.3,
+            "EV": -1.027,
+            "PnL": -33.898700000000005
+          },
+          "fib_reversal": {
+            "N": 132,
+            "WR": 40.9,
+            "EV": -0.74,
+            "PnL": -97.69069999999994
+          },
+          "sr_channel_reversal": {
+            "N": 180,
+            "WR": 50.6,
+            "EV": -0.619,
+            "PnL": -111.44809999999995
+          },
+          "stoch_trend_pullback": {
+            "N": 74,
+            "WR": 56.8,
+            "EV": -0.505,
+            "PnL": -37.405199999999994
+          },
+          "vol_surge_detector": {
+            "N": 79,
+            "WR": 44.3,
+            "EV": -1.018,
+            "PnL": -80.45899999999999
+          },
+          "mtf_reversal_confluence": {
+            "N": 11,
+            "WR": 27.3,
+            "EV": -1.187,
+            "PnL": -13.0521
+          },
+          "three_bar_reversal": {
+            "N": 5,
+            "WR": 60.0,
+            "EV": -0.631,
+            "PnL": -3.1554999999999995
+          },
+          "trend_rebound": {
+            "N": 18,
+            "WR": 61.1,
+            "EV": -0.296,
+            "PnL": -5.3302
+          }
+        },
+        "elapsed_s": 336.4
+      },
+      "5m": {
+        "trades": 564,
+        "win_rate": 52.5,
+        "expected_value": -0.35,
+        "max_drawdown": 199.678,
+        "entry_breakdown": {
+          "ema_trend_scalp": {
+            "N": 190,
+            "WR": 55.8,
+            "EV": -0.332,
+            "PnL": -63.04329999999999
+          },
+          "engulfing_bb": {
+            "N": 31,
+            "WR": 48.4,
+            "EV": -0.472,
+            "PnL": -14.619100000000001
+          },
+          "macdh_reversal": {
+            "N": 12,
+            "WR": 58.3,
+            "EV": -0.18,
+            "PnL": -2.1601999999999997
+          },
+          "bb_rsi_reversion": {
+            "N": 131,
+            "WR": 39.7,
+            "EV": -0.567,
+            "PnL": -74.24719999999998
+          },
+          "vol_surge_detector": {
+            "N": 34,
+            "WR": 55.9,
+            "EV": -0.377,
+            "PnL": -12.807699999999999
+          },
+          "sr_channel_reversal": {
+            "N": 50,
+            "WR": 64.0,
+            "EV": -0.099,
+            "PnL": -4.9254000000000016
+          },
+          "vol_momentum_scalp": {
+            "N": 47,
+            "WR": 57.4,
+            "EV": -0.254,
+            "PnL": -11.950199999999999
+          },
+          "stoch_trend_pullback": {
+            "N": 21,
+            "WR": 61.9,
+            "EV": -0.141,
+            "PnL": -2.9624000000000006
+          },
+          "bb_squeeze_breakout": {
+            "N": 13,
+            "WR": 69.2,
+            "EV": 0.105,
+            "PnL": 1.3657
+          },
+          "fib_reversal": {
+            "N": 24,
+            "WR": 33.3,
+            "EV": -0.572,
+            "PnL": -13.722799999999998
+          },
+          "mtf_reversal_confluence": {
+            "N": 4,
+            "WR": 75.0,
+            "EV": 0.14,
+            "PnL": 0.5617000000000001
+          },
+          "trend_rebound": {
+            "N": 5,
+            "WR": 80.0,
+            "EV": 0.316,
+            "PnL": 1.5797000000000003
+          },
+          "three_bar_reversal": {
+            "N": 1,
+            "WR": 0.0,
+            "EV": -1.609,
+            "PnL": -1.6092
+          },
+          "confluence_scalp": {
+            "N": 1,
+            "WR": 100.0,
+            "EV": 1.125,
+            "PnL": 1.1246
+          }
+        },
+        "elapsed_s": 67.0
+      }
+    },
+    "EURJPY=X": {
+      "1m": {
+        "trades": 2662,
+        "win_rate": 57.7,
+        "expected_value": -0.164,
+        "max_drawdown": 447.199,
+        "entry_breakdown": {
+          "bb_rsi_reversion": {
+            "N": 395,
+            "WR": 44.6,
+            "EV": -0.305,
+            "PnL": -120.34849999999996
+          },
+          "ema_trend_scalp": {
+            "N": 1091,
+            "WR": 61.3,
+            "EV": -0.128,
+            "PnL": -139.8890999999998
+          },
+          "engulfing_bb": {
+            "N": 117,
+            "WR": 60.7,
+            "EV": -0.115,
+            "PnL": -13.496800000000004
+          },
+          "vol_momentum_scalp": {
+            "N": 201,
+            "WR": 62.7,
+            "EV": -0.072,
+            "PnL": -14.37739999999999
+          },
+          "fib_reversal": {
+            "N": 227,
+            "WR": 44.1,
+            "EV": -0.407,
+            "PnL": -92.48830000000007
+          },
+          "mtf_reversal_confluence": {
+            "N": 17,
+            "WR": 58.8,
+            "EV": -0.173,
+            "PnL": -2.9479000000000006
+          },
+          "sr_channel_reversal": {
+            "N": 373,
+            "WR": 62.2,
+            "EV": -0.093,
+            "PnL": -34.81359999999999
+          },
+          "bb_squeeze_breakout": {
+            "N": 62,
+            "WR": 67.7,
+            "EV": 0.067,
+            "PnL": 4.1686000000000005
+          },
+          "stoch_trend_pullback": {
+            "N": 79,
+            "WR": 64.6,
+            "EV": -0.034,
+            "PnL": -2.6673999999999998
+          },
+          "vol_surge_detector": {
+            "N": 42,
+            "WR": 54.8,
+            "EV": -0.357,
+            "PnL": -15.002999999999998
+          },
+          "macdh_reversal": {
+            "N": 41,
+            "WR": 63.4,
+            "EV": -0.063,
+            "PnL": -2.5834
+          },
+          "v_reversal": {
+            "N": 5,
+            "WR": 80.0,
+            "EV": 0.416,
+            "PnL": 2.0816000000000003
+          },
+          "trend_rebound": {
+            "N": 8,
+            "WR": 37.5,
+            "EV": -0.689,
+            "PnL": -5.513999999999999
+          },
+          "three_bar_reversal": {
+            "N": 3,
+            "WR": 66.7,
+            "EV": 0.192,
+            "PnL": 0.5767
+          },
+          "ema_pullback": {
+            "N": 1,
+            "WR": 100.0,
+            "EV": 0.709,
+            "PnL": 0.7087000000000001
+          }
+        },
+        "elapsed_s": 3725.0
+      },
+      "5m": {
+        "trades": 612,
+        "win_rate": 58.0,
+        "expected_value": -0.036,
+        "max_drawdown": 39.407,
+        "entry_breakdown": {
+          "ema_trend_scalp": {
+            "N": 215,
+            "WR": 60.5,
+            "EV": -0.039,
+            "PnL": -8.318800000000003
+          },
+          "engulfing_bb": {
+            "N": 38,
+            "WR": 57.9,
+            "EV": -0.123,
+            "PnL": -4.6697999999999995
+          },
+          "bb_rsi_reversion": {
+            "N": 131,
+            "WR": 51.1,
+            "EV": -0.118,
+            "PnL": -15.451699999999995
+          },
+          "stoch_trend_pullback": {
+            "N": 26,
+            "WR": 57.7,
+            "EV": -0.169,
+            "PnL": -4.3905
+          },
+          "bb_squeeze_breakout": {
+            "N": 16,
+            "WR": 68.8,
+            "EV": 0.233,
+            "PnL": 3.735499999999999
+          },
+          "sr_channel_reversal": {
+            "N": 68,
+            "WR": 52.9,
+            "EV": -0.25,
+            "PnL": -17.0173
+          },
+          "fib_reversal": {
+            "N": 41,
+            "WR": 34.1,
+            "EV": -0.311,
+            "PnL": -12.767600000000002
+          },
+          "vol_momentum_scalp": {
+            "N": 41,
+            "WR": 80.5,
+            "EV": 0.55,
+            "PnL": 22.558
+          },
+          "trend_rebound": {
+            "N": 2,
+            "WR": 50.0,
+            "EV": -0.455,
+            "PnL": -0.9102
+          },
+          "vol_surge_detector": {
+            "N": 19,
+            "WR": 78.9,
+            "EV": 0.554,
+            "PnL": 10.527199999999999
+          },
+          "macdh_reversal": {
+            "N": 8,
+            "WR": 75.0,
+            "EV": 0.381,
+            "PnL": 3.0469
+          },
+          "mtf_reversal_confluence": {
+            "N": 7,
+            "WR": 71.4,
+            "EV": 0.251,
+            "PnL": 1.7579
+          }
+        },
+        "elapsed_s": 82.0
+      }
+    },
+    "GBPJPY=X": {
+      "1m": {
+        "trades": 2764,
+        "win_rate": 59.0,
+        "expected_value": -0.042,
+        "max_drawdown": 142.325,
+        "entry_breakdown": {
+          "bb_rsi_reversion": {
+            "N": 563,
+            "WR": 47.8,
+            "EV": -0.161,
+            "PnL": -90.71270000000011
+          },
+          "ema_trend_scalp": {
+            "N": 1164,
+            "WR": 64.8,
+            "EV": 0.027,
+            "PnL": 30.95640000000002
+          },
+          "sr_channel_reversal": {
+            "N": 370,
+            "WR": 58.9,
+            "EV": -0.092,
+            "PnL": -34.00449999999999
+          },
+          "engulfing_bb": {
+            "N": 155,
+            "WR": 59.4,
+            "EV": -0.068,
+            "PnL": -10.466300000000004
+          },
+          "fib_reversal": {
+            "N": 243,
+            "WR": 51.9,
+            "EV": -0.103,
+            "PnL": -24.992399999999993
+          },
+          "vol_surge_detector": {
+            "N": 42,
+            "WR": 50.0,
+            "EV": -0.397,
+            "PnL": -16.666899999999995
+          },
+          "stoch_trend_pullback": {
+            "N": 85,
+            "WR": 69.4,
+            "EV": 0.196,
+            "PnL": 16.64860000000001
+          },
+          "confluence_scalp": {
+            "N": 1,
+            "WR": 100.0,
+            "EV": 1.178,
+            "PnL": 1.1783
+          },
+          "bb_squeeze_breakout": {
+            "N": 58,
+            "WR": 72.4,
+            "EV": 0.312,
+            "PnL": 18.119899999999998
+          },
+          "macdh_reversal": {
+            "N": 44,
+            "WR": 54.5,
+            "EV": -0.15,
+            "PnL": -6.588400000000001
+          },
+          "mtf_reversal_confluence": {
+            "N": 15,
+            "WR": 60.0,
+            "EV": 0.089,
+            "PnL": 1.3279999999999994
+          },
+          "v_reversal": {
+            "N": 7,
+            "WR": 85.7,
+            "EV": 0.603,
+            "PnL": 4.219
+          },
+          "trend_rebound": {
+            "N": 12,
+            "WR": 58.3,
+            "EV": -0.138,
+            "PnL": -1.6524000000000003
+          },
+          "three_bar_reversal": {
+            "N": 4,
+            "WR": 50.0,
+            "EV": -0.221,
+            "PnL": -0.8838000000000001
+          },
+          "ema_pullback": {
+            "N": 1,
+            "WR": 0.0,
+            "EV": -1.573,
+            "PnL": -1.5733
+          }
+        },
+        "elapsed_s": 452.9
+      },
+      "5m": {
+        "trades": 642,
+        "win_rate": 60.3,
+        "expected_value": 0.034,
+        "max_drawdown": 26.475,
+        "entry_breakdown": {
+          "ema_trend_scalp": {
+            "N": 228,
+            "WR": 68.0,
+            "EV": 0.178,
+            "PnL": 40.696
+          },
+          "sr_channel_reversal": {
+            "N": 62,
+            "WR": 51.6,
+            "EV": -0.209,
+            "PnL": -12.986500000000001
+          },
+          "mtf_reversal_confluence": {
+            "N": 13,
+            "WR": 92.3,
+            "EV": 0.902,
+            "PnL": 11.7316
+          },
+          "bb_rsi_reversion": {
+            "N": 160,
+            "WR": 53.1,
+            "EV": -0.057,
+            "PnL": -9.195400000000003
+          },
+          "engulfing_bb": {
+            "N": 37,
+            "WR": 56.8,
+            "EV": -0.133,
+            "PnL": -4.9361000000000015
+          },
+          "bb_squeeze_breakout": {
+            "N": 27,
+            "WR": 63.0,
+            "EV": -0.054,
+            "PnL": -1.4539000000000002
+          },
+          "fib_reversal": {
+            "N": 56,
+            "WR": 55.4,
+            "EV": 0.005,
+            "PnL": 0.3017999999999985
+          },
+          "v_reversal": {
+            "N": 5,
+            "WR": 40.0,
+            "EV": -0.501,
+            "PnL": -2.504199999999999
+          },
+          "stoch_trend_pullback": {
+            "N": 20,
+            "WR": 50.0,
+            "EV": -0.178,
+            "PnL": -3.5576
+          },
+          "vol_surge_detector": {
+            "N": 20,
+            "WR": 70.0,
+            "EV": 0.262,
+            "PnL": 5.2388
+          },
+          "macdh_reversal": {
+            "N": 8,
+            "WR": 62.5,
+            "EV": -0.049,
+            "PnL": -0.3911999999999999
+          },
+          "confluence_scalp": {
+            "N": 1,
+            "WR": 100.0,
+            "EV": 1.241,
+            "PnL": 1.2414999999999998
+          },
+          "trend_rebound": {
+            "N": 4,
+            "WR": 50.0,
+            "EV": -0.322,
+            "PnL": -1.2884999999999998
+          },
+          "three_bar_reversal": {
+            "N": 1,
+            "WR": 0.0,
+            "EV": -1.31,
+            "PnL": -1.3101
+          }
+        },
+        "elapsed_s": 60.0
+      }
+    },
+    "EURGBP=X": {
+      "1m": {
+        "error": "\u30b5\u30f3\u30d7\u30eb\u6570\u4e0d\u8db3\uff080\u30c8\u30ec\u30fc\u30c9\uff09",
+        "trades": 0,
+        "mode": "scalp",
+        "debug": {
+          "bars_total": 185176,
+          "date_range": "2025-10-21 03:19:00+00:00 \u2192 2026-04-22 03:39:00+00:00",
+          "adx_sample": 18.862407612949767,
+          "interval": "1m",
+          "lookback_days": 180,
+          "data_source": "massive",
+          "massive_key_set": true,
+          "td_key_set": false
+        }
+      },
+      "5m": {
+        "error": "\u30b5\u30f3\u30d7\u30eb\u6570\u4e0d\u8db3\uff080\u30c8\u30ec\u30fc\u30c9\uff09",
+        "trades": 0,
+        "mode": "scalp",
+        "debug": {
+          "bars_total": 36905,
+          "date_range": "2025-10-21 16:35:00+00:00 \u2192 2026-04-22 03:55:00+00:00",
+          "adx_sample": 13.315619930226731,
+          "interval": "5m",
+          "lookback_days": 180,
+          "data_source": "massive",
+          "massive_key_set": true,
+          "td_key_set": false
+        }
+      }
+    }
+  }
+}

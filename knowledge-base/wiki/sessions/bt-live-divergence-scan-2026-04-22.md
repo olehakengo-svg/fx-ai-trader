@@ -261,7 +261,103 @@ Portfolio baseline は **60.5%** (from tp-sl-deep-mechanics-2026-04-22 §B). **8
 - [[bt-live-divergence]] — 6 structural biases (既存)
 - [[friction-analysis]] — ペア別 BEV_WR
 - [[audit-b-promoted-strategies-2026-04-21]] — 前回監査 (dt_fib_reversal 同構造)
+- [[bt-live-divergence-v3-full-stack-2026-04-22]] — v3 Full-stack (DT + JPY cross + Scalp fresh BT)
 
 ---
 
 **Status**: P1 recommendation まで提示. P0 への昇格は fresh BT 完了 + macdh_reversal N≥20 時点で再判定.
+
+---
+
+## §8. Full-Stack Fresh BT Extension (JPY cross + Scalp 180d) — 2026-04-22 追補
+
+**Trigger**: 「ペアが足りてないのと scalp は行って欲しい」(user, 2026-04-22)
+
+### 8.1 Fresh BT 範囲拡張
+- **365d DT 15m**: EUR_JPY, GBP_JPY 追加 → `bt-365d-jpy-2026-04-22.json` (EUR_GBP は trades=0 で除外)
+- **180d Scalp 1m/5m**: 6 pairs × 2 intervals = 12 セル → `bt-scalp-180d-2026-04-22.json`
+- Full merged report: `bt-live-divergence-v3-full-stack-2026-04-22.md`
+
+### 8.2 JPY Cross 365d DT 15m — Top findings
+
+| Pair | Aggregate N/WR/EV | 最強セル |
+|------|-------------------|----------|
+| EUR_JPY | 1276 / 62.5% / **+0.143** | vwap_mean_reversion N=223 WR=68.2% **EV=+0.672** |
+| GBP_JPY | 1347 / 65.7% / **+0.285** | vwap_mean_reversion N=267 WR=78.3% **EV=+1.025** |
+| EUR_GBP | 0 / — / — | ⚠️ 全セル filter 全リジェクト (BT_TOP5 既知: 構造的 impossible と一致) |
+
+**重要**: `vwap_mean_reversion × JPY cross` は fresh 365d BT で **全ペアで最強エッジ**。既存 PAIR_PROMOTED 未登録。要検討。
+
+### 8.3 Scalp 180d — Scope 集計（衝撃）
+
+| Scope | Cells | ΣN | 加重mean WR | 加重mean EV |
+|-------|------:|-----:|----:|----:|
+| DT_15m (ref) | 91 | 8308 | 62.0% | **+0.217** |
+| Scalp_1m | 63 | 11547 | 55.2% | **−0.288** |
+| Scalp_5m | 52 | 2765 | 56.6% | **−0.115** |
+
+- **Scalp 全体で構造的負EV**. ロードマップv2.1「Scalp枝 +200pip/年」前提を根本から問い直す必要
+- **1m は全ペアで 5m より悪い** (摩擦 × 取引頻度). GBPUSD 1m は WR=46.0% / EV=**-0.76** の壊滅的結果
+- 正EVセルは `GBP_JPY × Scalp_5m (+0.034)` の1ペアのみ（10セル中）
+
+### 8.4 Scalp 個別の正EV セル (Bonferroni 前, raw)
+
+| Strategy×Pair [Scope] | N | WR | EV | PnL_est |
+|---|---:|---:|---:|---:|
+| bb_squeeze_breakout × GBP_JPY [Scalp_1m] | 58 | 72.4% | **+0.312** | +18.1 |
+| bb_squeeze_breakout × USD_JPY [Scalp_5m] | 22 | 72.7% | **+0.252** | +5.5 |
+| trend_rebound × USD_JPY [Scalp_1m] | 21 | 76.2% | **+0.192** | +4.0 |
+| vol_momentum_scalp × EUR_JPY [Scalp_5m] | 41 | 80.5% | **+0.550** | +22.6 |
+
+→ **Scalp のエッジは "戦略 × ペア × TF" の極めて限定的交点のみ**. ゲート化が必須。
+
+### 8.5 v3 Bonferroni (is_shadow=0 Live N=412 baseline)
+
+- **ALL period**: M=14, α/M=0.00357 → **Bonferroni 有意セルなし** (最小 p=0.019)
+- **POST-cutoff**: live_N≥3 を満たすセル 0 → Bonferroni 測定不能 (Live N 不足の構造的 blocker)
+- v2 で出た `sr_fib_confluence×USD_JPY (p=0.0014)`, `sr_break_retest×USD_JPY (p=0.0017)` は v2 が is_shadow 混在 (Live N=2505) だった power 由来。v3 のクリーン baseline (is_shadow=0, N=412) では power 不足
+
+### 8.6 Live < BT 気になるセル (raw, v3, ALL period)
+
+| # | Strategy×Pair [scope] | BT N/WR/EV | Live N/WR/EV | ΔEV | z | p |
+|---|---|---|---|---:|---:|---:|
+| 1 | bb_rsi_reversion×EUR_USD [Scalp_5m] | 45/53.3%/-0.111 | 53/37.7%/-0.742 | -0.631 | -1.54 | 0.123 |
+| 2 | bb_rsi_reversion×EUR_USD [Scalp_1m] | 245/51.4%/-0.292 | 53/37.7%/-0.742 | -0.450 | -1.80 | 0.071 |
+| 3 | trend_rebound×USD_JPY [Scalp_1m] | 21/76.2%/+0.192 | 8/37.5%/-0.900 | -1.092 | -1.96 | 0.050 |
+
+→ **bb_rsi_reversion×EUR_USD は BT も Live も負EV、悪化の度合いが限定的** (TP-hit 分析での「最 robust 候補」評価と一貫)
+→ **trend_rebound×USD_JPY は 小N で過小評価 / regime mismatch の可能性高い**
+
+### 8.7 実装判断 (lesson-reactive-changes 遵守)
+
+#### 🟢 P1 候補（**BT 検証充分、次ステップ要議論**）
+- `vwap_mean_reversion × EUR_JPY / GBP_JPY` を PAIR_PROMOTED 候補として **独立監査**（audit-c 発議）
+  - BT: N=223/267, WR=68/78%, EV=+0.67/+1.03 (365d)
+  - Live N=? (要測定)
+
+#### 🟡 P2 候補（**shadow 運用で監視**）
+- Scalp `bb_squeeze_breakout × GBP_JPY [1m]` (N=58 EV=+0.31 BT)
+- Scalp `trend_rebound × USD_JPY [1m]` (BT N=21 小、overfitting リスク高 → shadow 要)
+
+#### 🔴 即時調査対象（**BT 計算側のバグ**）
+- **`htf_agreement` 未定義バグ** (`app.py:8276`): `_compute_scalp_signal_v2` 内で `htf.get("agreement", "mixed")` の漏れ。Scalp の `vwap_mean_reversion` が **全く発火しない**（実BT結果で vwap_mean_reversion / Scalp_* が entry_breakdown 全ペアで N=0 または欠落）
+  - 修正: L7992 付近に `htf_agreement = htf.get("agreement", "mixed")` を追加
+  - 影響: Scalp BT の vwap_mean_reversion 再BT が必要
+  - 判断プロトコル: **バグ修正 = 即GO**（1日データ根拠ではなく、構造的欠陥）
+
+#### ⛔ 実装保留
+- Scalp 全体の停止 → 1セッション分析で決定しない。90日シャドウ継続で再評価
+- ROADMAP v2.1「Scalp +200pip/年」修正 → fresh BT 根拠だが構造的見直しのため別セッション
+
+### 8.8 制約と注意
+
+1. **Live N=412 は is_shadow=0 post-cutoff クリーン**, Scalp-related cells の live_N は大多数 3 未満 → v3 では大半の セル（特に Scalp）が統計的比較不能
+2. **Scalp BT の `htf_agreement` バグ影響未定量化**. vwap_mean_reversion / Scalp_* が欠落している場合, §8.3 の Scalp 負EV 判定は buy-side / sell-side バランスが崩れた状態での評価
+3. **EUR_GBP**: DT も Scalp も trades=0. BT_TOP5 既存評価と一貫だが filter の詳細要追調査
+
+### 8.9 Next Actions
+
+1. `htf_agreement` バグ修正 → 修正後 Scalp BT 再実行
+2. `vwap_mean_reversion × EUR_JPY / GBP_JPY` audit-c 発議（独立監査）
+3. Scalp 全体の負EV は shadow 蓄積継続で monthly re-evaluate
+4. Live N ≥ 20 到達後（2日後）に Kelly aggregate と v3 Bonferroni 再計算
