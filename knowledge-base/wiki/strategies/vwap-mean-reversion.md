@@ -29,7 +29,7 @@ Scalp (Bonferroni significant):
 | vwap_mean_reversion | all | 2 | 50.0% | +36.9 pip |
 
 Top performer in post-cutoff period. Small N — continue monitoring.
-Data source: /api/demo/stats?date_from=2026-04-08 (2026-04-20)
+Data source: /api/demo/stats?date_from=2026-04-08 (2026-04-21, no new trades)
 
 ## Signal Logic
 VWAP 2-sigma mean reversion. Enters BUY when price drops below VWAP minus 2 standard deviations, expecting reversion to VWAP. Massive API exclusive alpha — requires intraday VWAP calculation from tick/volume data. Bonferroni-corrected p<10^-7 across JPY crosses.

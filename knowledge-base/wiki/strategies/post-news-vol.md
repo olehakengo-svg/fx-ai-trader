@@ -13,7 +13,12 @@
 | GBP_USD | 26 | 88.5% | +1.762 | 4.38 | +45.8p |
 | EUR_USD | 28 | 71.4% | +0.817 | 1.68 | +22.9p |
 
-## Live Performance (post-cutoff)
+## Live Performance (post-cutoff, 2026-04-08〜)
+| Strategy | N (all pairs) | WR | PnL | Updated |
+|---|---|---|---|---|
+| post_news_vol | 4 | 50.0% | +10.8 pip | 2026-04-21 |
+
+### Pair breakdown (2026-04-20)
 | Strategy | Pair | N | W | L | WR | PnL |
 |---|---|---|---|---|---|---|
 | post_news_vol | GBP_USD | 1 | 1 | 0 | 100% | +29.3p |
