@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-04-22 15:45 UTC
+**最終更新**: 2026-04-22 15:52 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -16,52 +16,52 @@
 | 2 | session_time_bias | +0.195 | +0.251 | +0.149 |
 | 3 | trendline_sweep | — | +0.574 | +0.838 |
 
-### A-2. PAIR_PROMOTED（17エントリ — 指定ペアのみ通過）
+### A-2. PAIR_PROMOTED（18エントリ — 指定ペアのみ通過）
 
 | # | 戦略名 | ペア | 365d BT EV |
 |---|---|---|---|
 | 1 | bb_squeeze_breakout | USD_JPY | — |
 | 2 | doji_breakout | GBP_USD | +0.694 |
 | 3 | doji_breakout | USD_JPY | +0.339 |
-| 4 | post_news_vol | EUR_USD | +0.844 |
-| 5 | post_news_vol | GBP_USD | +1.302 |
-| 6 | squeeze_release_momentum | EUR_USD | — |
-| 7 | streak_reversal | USD_JPY | +1.169 |
-| 8 | vix_carry_unwind | USD_JPY | +0.506 |
-| 9 | vol_momentum_scalp | EUR_JPY | — |
-| 10 | vwap_mean_reversion | EUR_JPY | +1.155 |
-| 11 | vwap_mean_reversion | EUR_USD | +0.827 |
-| 12 | vwap_mean_reversion | GBP_JPY | +1.155 |
-| 13 | vwap_mean_reversion | GBP_USD | +1.087 |
-| 14 | vwap_mean_reversion | USD_JPY | +1.155 |
-| 15 | wick_imbalance_reversion | GBP_USD | — |
-| 16 | xs_momentum | EUR_USD | +0.126 |
-| 17 | xs_momentum | GBP_USD | -0.013 |
+| 4 | ema200_trend_reversal | USD_JPY | — |
+| 5 | post_news_vol | EUR_USD | +0.844 |
+| 6 | post_news_vol | GBP_USD | +1.302 |
+| 7 | squeeze_release_momentum | EUR_USD | — |
+| 8 | streak_reversal | USD_JPY | +1.169 |
+| 9 | vix_carry_unwind | USD_JPY | +0.506 |
+| 10 | vol_momentum_scalp | EUR_JPY | — |
+| 11 | vwap_mean_reversion | EUR_JPY | +1.155 |
+| 12 | vwap_mean_reversion | EUR_USD | +0.827 |
+| 13 | vwap_mean_reversion | GBP_JPY | +1.155 |
+| 14 | vwap_mean_reversion | GBP_USD | +1.087 |
+| 15 | vwap_mean_reversion | USD_JPY | +1.155 |
+| 16 | wick_imbalance_reversion | GBP_USD | — |
+| 17 | xs_momentum | EUR_USD | +0.126 |
+| 18 | xs_momentum | GBP_USD | -0.013 |
 
 ## B. Shadow戦略（OANDA非通過 — デモのみ記録）
 
-### B-1. FORCE_DEMOTED（18戦略 — 全ペア強制Shadow）
+### B-1. FORCE_DEMOTED（17戦略 — 全ペア強制Shadow）
 
 | # | 戦略名 | 365d BT JPY EV | EUR EV | GBP EV |
 |---|---|---|---|---|
 | 1 | atr_regime_break | — | — | — |
 | 2 | dt_bb_rsi_mr | — | — | — |
-| 3 | ema200_trend_reversal | — | — | — |
-| 4 | ema_cross | — | — | — |
-| 5 | ema_pullback | — | — | — |
-| 6 | ema_ribbon_ride | — | — | — |
-| 7 | ema_trend_scalp | — | — | — |
-| 8 | engulfing_bb | — | — | — |
-| 9 | fib_reversal | — | — | — |
-| 10 | inducement_ob | — | — | — |
-| 11 | intraday_seasonality | — | — | — |
-| 12 | lin_reg_channel | — | — | — |
-| 13 | macdh_reversal | — | — | — |
-| 14 | orb_trap | — | — | — |
-| 15 | sr_break_retest | — | — | — |
-| 16 | sr_channel_reversal | — | — | — |
-| 17 | sr_fib_confluence | — | — | — |
-| 18 | stoch_trend_pullback | — | — | — |
+| 3 | ema_cross | — | — | — |
+| 4 | ema_pullback | — | — | — |
+| 5 | ema_ribbon_ride | — | — | — |
+| 6 | ema_trend_scalp | — | — | — |
+| 7 | engulfing_bb | — | — | — |
+| 8 | fib_reversal | — | — | — |
+| 9 | inducement_ob | — | — | — |
+| 10 | intraday_seasonality | — | — | — |
+| 11 | lin_reg_channel | — | — | — |
+| 12 | macdh_reversal | — | — | — |
+| 13 | orb_trap | — | — | — |
+| 14 | sr_break_retest | — | — | — |
+| 15 | sr_channel_reversal | — | — | — |
+| 16 | sr_fib_confluence | — | — | — |
+| 17 | stoch_trend_pullback | — | — | — |
 
 ### B-2. SCALP_SENTINEL（2戦略 — Scalp最小ロットShadow）
 
@@ -89,7 +89,7 @@
 | 13 | vix_carry_unwind | USD_JPY |
 | 14 | vol_spike_mr | なし |
 
-### B-4. PAIR_DEMOTED（23エントリ — 特定ペアのみ強制Shadow）
+### B-4. PAIR_DEMOTED（22エントリ — 特定ペアのみ強制Shadow）
 
 | # | 戦略名 | ペア |
 |---|---|---|
@@ -103,19 +103,18 @@
 | 8 | bb_squeeze_breakout | GBP_JPY |
 | 9 | bb_squeeze_breakout | GBP_USD |
 | 10 | dt_bb_rsi_mr | EUR_USD |
-| 11 | ema200_trend_reversal | USD_JPY |
-| 12 | ema_cross | USD_JPY |
-| 13 | ema_trend_scalp | EUR_USD |
-| 14 | ema_trend_scalp | USD_JPY |
-| 15 | engulfing_bb | EUR_USD |
-| 16 | engulfing_bb | USD_JPY |
-| 17 | london_fix_reversal | USD_JPY |
-| 18 | macdh_reversal | GBP_USD |
-| 19 | post_news_vol | USD_JPY |
-| 20 | stoch_trend_pullback | USD_JPY |
-| 21 | trend_rebound | EUR_USD |
-| 22 | vol_surge_detector | EUR_JPY |
-| 23 | xs_momentum | USD_JPY |
+| 11 | ema_cross | USD_JPY |
+| 12 | ema_trend_scalp | EUR_USD |
+| 13 | ema_trend_scalp | USD_JPY |
+| 14 | engulfing_bb | EUR_USD |
+| 15 | engulfing_bb | USD_JPY |
+| 16 | london_fix_reversal | USD_JPY |
+| 17 | macdh_reversal | GBP_USD |
+| 18 | post_news_vol | USD_JPY |
+| 19 | stoch_trend_pullback | USD_JPY |
+| 20 | trend_rebound | EUR_USD |
+| 21 | vol_surge_detector | EUR_JPY |
+| 22 | xs_momentum | USD_JPY |
 
 ### B-5. Phase0 Shadow Gate（18戦略 — 自動Shadow）
 

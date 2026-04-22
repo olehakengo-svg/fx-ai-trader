@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-22T15:45:18.736405+00:00",
+  "generated_at": "2026-04-22T15:52:59.029068+00:00",
   "elite_live": [
     "gbp_deep_pullback",
     "session_time_bias",
@@ -8,7 +8,6 @@
   "force_demoted": [
     "atr_regime_break",
     "dt_bb_rsi_mr",
-    "ema200_trend_reversal",
     "ema_cross",
     "ema_pullback",
     "ema_ribbon_ride",
@@ -56,6 +55,10 @@
     ],
     [
       "doji_breakout",
+      "USD_JPY"
+    ],
+    [
+      "ema200_trend_reversal",
       "USD_JPY"
     ],
     [
@@ -155,10 +158,6 @@
     [
       "dt_bb_rsi_mr",
       "EUR_USD"
-    ],
-    [
-      "ema200_trend_reversal",
-      "USD_JPY"
     ],
     [
       "ema_cross",
