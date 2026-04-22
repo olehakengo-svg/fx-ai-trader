@@ -78,10 +78,10 @@
 ## System State (v9.4 / v2.1)
 - Defensive mode: **0.2x** (DD=**25.9%** / 259pip, defensive mode — v8.4以降クリーンデータ起点)
 - XAU: **Stopped** (v8.4) -- post-cutoff XAU loss = -2,280pip (102% of total loss)
-- FX-only post-cutoff (2026-04-08〜): **-174.4pip** (live N=282, WR=36.5%, EV=-0.62)
-- Ruin probability: **0.04%** (MC 5,000 sims, N=300 forward — prior "~100%" was Kelly-only estimate)
-- Aggregate Kelly: **0.0** (edge=-13.48%, WR=41.07%, N=448 live) — Kelly=-0.18は旧推定値
-- Last updated: 2026-04-20 (wiki-daily-update)
+- FX-only post-cutoff (2026-04-08〜): **-129.5pip** (live N=244, WR=38.9%, EV=-0.53) ※ ema_trend_scalp FORCE_DEMOTED後
+- Ruin probability: **0.0%** (MC 5,000 sims, N=300 forward — prior "~100%" was Kelly-only estimate)
+- Aggregate Kelly: **0.0** (edge=-11.65%, WR=42.93%, N=410) — Kelly=-0.18は旧推定値
+- Last updated: 2026-04-21 (wiki-daily-update)
 - scalp_eurjpy: **Stopped** (v8.6) -- friction/ATR=43.6%, 構造的不可能
 - scalp_5m_eur / scalp_5m_gbp: **Active** (v8.6) -- 5m摩擦改善モード
 - New modes (v9.0): **daytrade_eurjpy**, **daytrade_gbpjpy**, **[[rnb-usdjpy]]** (all auto_start)
@@ -162,6 +162,8 @@
 - [[comprehensive-bt-scan-2026-04-14]] / [[massive-alpha-scan-2026-04-14]] / [[shadow-bt-reeval-2026-04-14]]
 
 ### Trade Logs
+- [[2026-04-21]] — daily summary (auto-generated 2026-04-21)
+- [[2026-04-21-monitor]] / [[2026-04-21-pre_tokyo]] / [[2026-04-21-post_tokyo]]
 - [[2026-04-20]] — daily summary (auto-generated 2026-04-20)
 - [[2026-04-20-monitor]] / [[2026-04-20-post_tokyo]]
 - [[2026-04-15-pre_tokyo]]
