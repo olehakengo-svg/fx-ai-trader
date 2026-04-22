@@ -20,6 +20,7 @@ from modules.exposure_manager import ExposureManager
 from modules.alert_manager import AlertManager
 from modules.risk_analytics import get_dd_lot_multiplier, DD_LOT_TIERS
 from modules.hmm_regime import HMMRegime
+from modules.prime_gate import classify_prime, prime_fingerprint
 import numpy as np
 
 # モード別設定
@@ -4053,6 +4054,22 @@ class DemoTrader:
                                         int(_os.environ.get("OANDA_UNITS", "10000")))
 
         # ══════════════════════════════════════════════════════
+        # ── v9.4 PRIME gate (binding: prereg-6-prime-strategies-2026-04-21)
+        # Path A filter: signal 関数は不変。entry context が 6 PRIME 条件の
+        # いずれかに該当したら Tier A/B は LIVE 昇格 (_SHADOW_MODE bypass)
+        # + small-lot 適用。Tier C (engulfing_bb_TOKYO_EARLY) は Shadow 継続
+        # のみ。2026-05-15 再評価まで thresholds/lot 変更禁止。
+        # ══════════════════════════════════════════════════════
+        _prime_match = classify_prime(entry_type, instrument, sig,
+                                      datetime.now(timezone.utc))
+        _prime_lot_mult = 0.0
+        _prime_tier = None
+        if _prime_match:
+            _prime_tier = _prime_match["tier"]
+            _prime_lot_mult = _prime_match["lot_multiplier"]
+            self._add_log(f"🎯 {prime_fingerprint(_prime_match)}")
+
+        # ══════════════════════════════════════════════════════
         # ── 動的ロットサイジング v6.2: 3-Factor Model ──────
         # Factor 1: Risk    = SL距離正規化 (0.5 - 1.5)
         # Factor 2: Edge    = ATR/Spread品質 (0.5 - 1.5)
@@ -4158,6 +4175,20 @@ class DemoTrader:
         _lot_cap = float(_os.environ.get("OANDA_LOT_RATIO_CAP", "3.0"))
         _lot_ratio = max(0.3, min(_lot_ratio, _lot_cap))
 
+        # ── v9.4 PRIME lot cap ──
+        # Pre-registered trial lot: Tier A = 0.3x, Tier B = 0.1x。
+        # min() で上書き — PRIME は small-lot 検証フェーズであり scaling ではない。
+        # 既存 Kelly cap / N<10 Safety / DD defensive は PRIME cap 前後とも有効。
+        if _prime_tier in ("A", "B"):
+            _prime_capped = min(_lot_ratio, _prime_lot_mult)
+            if _prime_capped < _lot_ratio:
+                self._add_log(
+                    f"[PRIME] lot cap: {_lot_ratio:.3f} → {_prime_capped:.3f}x "
+                    f"(tier {_prime_tier} {_prime_match['name']})"
+                )
+            _lot_ratio = _prime_capped
+            _sentinel_reason = f"PRIME-{_prime_tier}"
+
         _base_units = int(_os.environ.get("OANDA_UNITS", "10000"))
         _adjusted_units = int(_base_units * _lot_ratio)
         if _is_sentinel:
@@ -4192,22 +4223,33 @@ class DemoTrader:
         # ── v8.9: FORCE_DEMOTED/PAIR_DEMOTED がフィルターを全通過した場合も
         #    is_shadow=True にする。OANDAに送信されないトレードはshadowとしてマーク
         #    → エクイティ曲線から除外、統計から除外される
-        if not _is_promoted and not _is_shadow:
+        # v9.4: PRIME A/B は pre-registered override — shadow 強制から除外
+        if not _is_promoted and not _is_shadow and _prime_tier not in ("A", "B"):
             _is_shadow = True
+        # PRIME A/B で _is_promoted=False の場合 (base が _FORCE_DEMOTED 等) は
+        # pre-reg override で昇格再有効化。
+        if _prime_tier in ("A", "B") and not _is_promoted and not _is_shadow:
+            _is_promoted = True
+            self._add_log(
+                f"[PRIME] Pre-reg override: {entry_type} {instrument} "
+                f"→ LIVE (tier {_prime_tier}, lot {_prime_lot_mult:.2f}x)"
+            )
         # ── v9.0 Phase 0: Three-tier SHADOW gate ──
         # Non-ELITE, non-SENTINEL strategies are forced to shadow when _SHADOW_MODE is active.
         # This runs ON TOP of existing logic: even if _is_promoted=True, shadow overrides it
         # unless the strategy is elite or has a PAIR_PROMOTED entry for this instrument.
+        # v9.4: PRIME A/B も Phase0 gate から免除 (binding pre-reg)
         if (self._SHADOW_MODE
                 and _is_promoted
                 and not _is_shadow
                 and entry_type not in self._ELITE_LIVE
-                and (entry_type, instrument) not in self._PAIR_PROMOTED):
+                and (entry_type, instrument) not in self._PAIR_PROMOTED
+                and _prime_tier not in ("A", "B")):
             _is_shadow = True
             _is_promoted = False
             self._add_log(
                 f"[SHADOW] Phase0 tier gate: {entry_type} {instrument} "
-                f"→ shadow (not in ELITE_LIVE/PAIR_PROMOTED)"
+                f"→ shadow (not in ELITE_LIVE/PAIR_PROMOTED/PRIME)"
             )
         # ── v9.x: Shadow persistence fix ──
         # Bug: open_trade()はL3890の_is_shadowで書込み。その後の安全ネット
@@ -4341,6 +4383,12 @@ class DemoTrader:
                     direction=signal, instrument=instrument,
                     units=_adjusted_units,
                 )
+                # v9.4: PRIME trade tag for 2026-05-15 re-evaluation
+                if _prime_match:
+                    self._add_log(
+                        f"🏷️ PRIME_TAG: {_prime_match['name']} "
+                        f"tier={_prime_tier} trade={trade_id}"
+                    )
             else:
                 # ── Bridge非アクティブまたはモード除外 ──
                 _br = "bridge_inactive" if not _bridge_active else f"mode_{mode}_not_allowed"
