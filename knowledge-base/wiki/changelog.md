@@ -263,6 +263,31 @@
              └── 詳細: wiki/analyses/ema-tr-live-breakdown-2026-04-20.md
 ```
 
+2026-04-22  v9.x: TP-hit Quant Analysis (research only, no code change)
+             ├── **スコープ**: 全 strategy × pair で TP-hit したトレードの再現性を定量化
+             ├── **データ**: `/api/demo/trades?limit=5000` → 非XAU closed 2,267 / WIN 698
+             ├── **Phase 1**: Strategy×pair, regime, TF, session, MTF alignment で WR セグメント化
+             │   └── 最多 TP-hit = bb_rsi_reversion×USD_JPY (N=127、全 WIN の 18.2%)
+             ├── **Phase 2**: TP-hit vs LOSS の feature 分布差 (Mann-Whitney U, Bonferroni)
+             │   ├── spread_at_entry: WIN=0.763 < LOSS=0.842 (p=1.94e-5, 有意)
+             │   ├── confidence: WIN=59.55 < LOSS=61.16 (負相関, p=1e-3)
+             │   └── score: p=0.42 (score_gate は TP-hit 予測力ゼロ)
+             ├── **Phase 3-4**: 事前予測可能特徴のみ (post-hoc MAFE 除外) で条件マイニング
+             │   ├── 候補 m=107、Bonferroni α=4.7e-4 通過 5 件
+             │   └── 高 WR だが 4/5 は Kelly<0 (BEV 押し上げ vs friction キャンセル)
+             ├── **Phase 5 安定性** (pre/post cutoff × live/shadow 符号一致):
+             │   ├── **最 robust**: bb_rsi_reversion×EUR_USD×BUY (WR 64.5%, EV +1.84 pip,
+             │   │   Kelly +0.41, 4/4 window 符号一致) — ただし N=31 境界
+             │   └── **最 fragile**: bb_rsi_reversion×USD_JPY×RANGE
+             │       pre EV +0.16 → post EV -1.56 (1.7 pip 悪化、[[lesson-orb-trap-bt-divergence]] 再現)
+             ├── **DSR 警告**: Bonferroni 通過 5 件は帰無仮説下 FP 期待値 5.4 とほぼ同 → 
+             │   family-wise シグナルは弱い、個別採択は stability で決定すべき
+             ├── **制限**: Post-cutoff Live N=0、shadow は truncated sample bias 残存、
+             │   close_reason 6種(TP_HIT/OANDA_SL_TP/SIGNAL_REVERSE/...)を包括
+             ├── **実装提案なし** ([[lesson-reactive-changes]] 遵守) — KB 記録のみ
+             └── 詳細: wiki/analyses/tp-hit-quant-analysis-2026-04-20.md,
+                 raw/analysis/tp-hit-raw-2026-04-20.csv, scripts/analyze_tp_hits.py
+
 ## バージョン別データ切り口
 
 | 目的 | date_from | 除外条件 | 理由 |
