@@ -1,0 +1,17 @@
+{
+  "month": "2026-04",
+  "created_at": "2026-04-22T02:13:12.805022+00:00",
+  "budget": {
+    "daily": 0.02,
+    "weekly": 0.02,
+    "anomaly": 0.005,
+    "reserve": 0.005
+  },
+  "consumed": {
+    "daily": 0.0,
+    "weekly": 0.0,
+    "anomaly": 0.0,
+    "reserve": 0.0
+  },
+  "events": []
+}
