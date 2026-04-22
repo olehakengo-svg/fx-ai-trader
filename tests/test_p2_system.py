@@ -93,6 +93,25 @@ class TestExposureManager:
             f"LIVE trade should be allowed (Shadow should not count); got: {reason}"
         )
 
+    def test_exposure_set_shadow_status_post_entry(self):
+        """Position registered as LIVE can be flipped to Shadow after gate escalation.
+
+        Regression: post-entry gates (SHIELD / Kelly / MC ruin) set _is_promoted=False
+        but did not update ExposureManager. Must be able to flip status after add.
+        """
+        em = ExposureManager()
+        # Register as LIVE, then post-entry gate escalates to Shadow
+        em.add_position("t1", "USD_JPY", "BUY", 15000, is_shadow=False)
+        assert em.get_currency_exposure().get("USD") == 15000
+
+        ok = em.set_shadow_status("t1", True)
+        assert ok is True
+        # USD exposure now excludes the Shadow-escalated position
+        assert em.get_currency_exposure().get("USD", 0) == 0
+
+        # Unknown trade_id returns False, no crash
+        assert em.set_shadow_status("nonexistent", True) is False
+
     def test_exposure_shadow_same_direction_excluded(self):
         """Shadow positions must not count toward MAX_SAME_DIRECTION (3)."""
         em = ExposureManager()

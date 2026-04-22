@@ -71,6 +71,18 @@ class ExposureManager:
         with self._lock:
             self._positions.pop(trade_id, None)
 
+    def set_shadow_status(self, trade_id: str, is_shadow: bool) -> bool:
+        """既存ポジションの is_shadow を更新 (post-entry gate escalation 用).
+
+        Returns True if the position existed and was updated.
+        """
+        with self._lock:
+            pos = self._positions.get(trade_id)
+            if pos is None:
+                return False
+            pos["is_shadow"] = bool(is_shadow)
+            return True
+
     def clear(self):
         """全ポジションクリア"""
         with self._lock:

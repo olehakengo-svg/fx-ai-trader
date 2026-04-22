@@ -4365,6 +4365,20 @@ class DemoTrader:
                     )
                     _is_promoted = False  # fall through to non-OANDA path
 
+        # v9.x: SHIELD / Kelly / MC ruin gate で _is_promoted=False に落ちた trade を
+        # Shadow として確定させる。未送信 (oanda_trade_id=NULL) かつ is_shadow=0 のまま
+        # DB に残ると、5 分以内の Render 再起動で _resend_pending_oanda_trades() が
+        # gate を迂回して resend してしまうため。
+        if not _is_promoted and not _is_shadow and _prime_tier not in ("A", "B"):
+            _is_shadow = True
+            self._db.update_shadow_status(trade_id, True)
+            # ExposureManager の状態も同期 (既に登録済みのレコードを Shadow に更新)
+            self._exposure_mgr.set_shadow_status(trade_id, True)
+            self._add_log(
+                f"[SHADOW_FIX] Post-gate escalation: {entry_type} {instrument} "
+                f"→ shadow (OANDA gate blocked, excluded from resend)"
+            )
+
         if _is_promoted:
             if _bridge_active and _mode_allowed:
                 # ── v6.4 SHIELD: Quick-Harvest TP (OANDA専用) ──
