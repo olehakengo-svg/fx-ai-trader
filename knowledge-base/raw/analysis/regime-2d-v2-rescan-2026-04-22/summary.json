@@ -1,0 +1,18 @@
+{
+  "run_at": "2026-04-22T08:18:51.335098Z",
+  "n_trades_in": 1236,
+  "n_cells": 133,
+  "n_strategies": 35,
+  "n_regimes_observed": 4,
+  "k_effective_tests": 2,
+  "alpha_raw": 0.05,
+  "alpha_strict_bonferroni": 0.025,
+  "min_cell_n": 50,
+  "min_delta_wr_pp": 10.0,
+  "n_gate_candidates": 0,
+  "sanity_check": {
+    "bb_rsi_reversion": "PASS",
+    "fib_reversal": "FAIL"
+  },
+  "preregister_ref": "knowledge-base/wiki/analyses/regime-2d-v2-preregister-2026-04-20.md"
+}

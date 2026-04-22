@@ -1,0 +1,3 @@
+strategy,direction,regime_a,regime_b,n_a,n_b,wr_a,wr_b,delta_wr_pp,p_fisher_two_sided,family_a,family_b
+ema_trend_scalp,BUY,trend_up_strong,range_tight,56,86,0.17857142857142858,0.20930232558139536,-3.0730897009966784,0.8294733285549155,TF,TF
+ema_trend_scalp,SELL,trend_up_strong,range_tight,58,91,0.1724137931034483,0.2087912087912088,-3.6377415687760513,0.6738387351516281,TF,TF

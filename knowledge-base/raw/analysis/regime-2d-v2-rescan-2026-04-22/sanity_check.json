@@ -1,0 +1,40 @@
+{
+  "bb_rsi_reversion": {
+    "total_regimes_evaluated": 1,
+    "failures": 0,
+    "verdict": "PASS",
+    "details": {
+      "trend_up_weak": "insufficient",
+      "trend_up_strong": {
+        "n_buy": 8,
+        "n_sell": 26,
+        "wr_buy": 0.625,
+        "wr_sell": 0.15384615384615385,
+        "observed_sign": 1,
+        "expected_sign": 1,
+        "pass": true
+      },
+      "trend_down_weak": "insufficient",
+      "trend_down_strong": "insufficient"
+    }
+  },
+  "fib_reversal": {
+    "total_regimes_evaluated": 1,
+    "failures": 1,
+    "verdict": "FAIL",
+    "details": {
+      "trend_up_weak": "insufficient",
+      "trend_up_strong": {
+        "n_buy": 10,
+        "n_sell": 9,
+        "wr_buy": 0.2,
+        "wr_sell": 0.1111111111111111,
+        "observed_sign": 1,
+        "expected_sign": -1,
+        "pass": false
+      },
+      "trend_down_weak": "insufficient",
+      "trend_down_strong": "insufficient"
+    }
+  }
+}
