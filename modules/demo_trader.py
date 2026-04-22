@@ -356,6 +356,20 @@ class DemoTrader:
         self._mtf_cache: dict = {}  # instrument -> (fetched_at, mtf_regime, d1_label, h4_label)
         self._mtf_cache_ttl_sec = 1800  # 30分 — H4 足の粒度に合わせ長めに取る
 
+        # ── v9.x (2026-04-22): Alpha158 Bonferroni 有意 factor snapshot ──
+        # tools/alpha_factor_snapshot.py の 5 factor (KSFT2/KSFT/RSV10/ROC10/QTLD5)
+        # を signal fire 時点で demo_trades.alpha_snapshot (JSON) に記録.
+        # Shadow N≥30 到達後に post-hoc IC 再測定 → 既存戦略 filter 合成判断.
+        # demo_db.py schema 編集を避けるため trader 側で idempotent ALTER 実行.
+        # literal SQL (CWE-89 safe).
+        try:
+            with self._db._safe_conn() as _conn:
+                _conn.execute(
+                    "ALTER TABLE demo_trades ADD COLUMN alpha_snapshot TEXT DEFAULT ''"
+                )
+        except Exception:
+            pass  # column already exists
+
         # デプロイ中にOANDA未連携のOPENトレードを補完送信
         self._resend_pending_oanda_trades()
 
@@ -4039,6 +4053,25 @@ class DemoTrader:
             mtf_alignment=_mtf_alignment,
             mtf_gate_action=_mtf_gate_action,
         )
+
+        # ── v9.x (2026-04-22): Alpha158 factor snapshot (post-insert UPDATE) ──
+        # 15m 検証済み factor のみ。他 TF は early return で error dict を返すため skip.
+        # 失敗時は silently skip — trading path blocker にしない.
+        # Parameterized query (CWE-89 safe).
+        if trade_id and tf == "15m":
+            try:
+                from tools.alpha_factor_snapshot import snapshot_at
+                _snap = snapshot_at(instrument, tf="15m")
+                if _snap and "error" not in _snap:
+                    _snap_json = json.dumps(_snap, default=str)
+                    with self._db._safe_conn() as _conn:
+                        _conn.execute(
+                            "UPDATE demo_trades SET alpha_snapshot = ? WHERE id = ?",
+                            (_snap_json, trade_id),
+                        )
+                        _conn.commit()
+            except Exception as _snap_err:
+                print(f"[alpha_snapshot] skip tid={trade_id}: {_snap_err}", flush=True)
 
         # ── 建値ガード用: ATR保存 ──
         # XAU uses same pip scale as JPY (100), fallback ATR must match
