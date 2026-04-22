@@ -38,6 +38,7 @@ class VolSpikeMR(StrategyBase):
     name = "vol_spike_mr"
     mode = "daytrade"
     enabled = True
+    strategy_type = "MR"   # v11: Q4 paradox fix — ADX>25 → conf penalty
     _enabled_symbols = {"USDJPY"}
 
     # ══════════════════════════════════════════════════
@@ -199,7 +200,14 @@ class VolSpikeMR(StrategyBase):
             f"📊 RR={rr:.1f} SL={sl:.{_dec}f} TP={tp:.{_dec}f}"
         )
 
-        conf = int(min(85, 50 + score * 4))
+        # v11: Confidence v2 — MR anti-trend penalty (ADX>25 reduces conf)
+        from modules.confidence_v2 import apply_penalty
+        _legacy_conf = int(min(85, 50 + score * 4))
+        conf = apply_penalty(_legacy_conf, self.strategy_type, ctx.adx, conf_max=85)
+        if conf != _legacy_conf:
+            reasons.append(
+                f"🔧 [v2] MR anti-trend: ADX={ctx.adx:.1f}>25 → conf {_legacy_conf}→{conf}"
+            )
         return Candidate(
             signal=signal, confidence=conf, sl=sl, tp=tp,
             reasons=reasons, entry_type=self.name, score=score

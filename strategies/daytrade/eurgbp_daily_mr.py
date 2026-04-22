@@ -31,6 +31,7 @@ class EurgbpDailyMR(StrategyBase):
     name = "eurgbp_daily_mr"
     mode = "daytrade"
     enabled = True
+    strategy_type = "MR"   # v11: Q4 paradox fix — ADX>25 → conf penalty
 
     # ══════════════════════════════════════════════════
     # パラメータ定数
@@ -231,7 +232,14 @@ class EurgbpDailyMR(StrategyBase):
             score -= 0.5
             reasons.append(f"⚠️ HTF逆行: {_agr} (ソフトペナルティ)")
 
-        conf = int(min(85, 50 + score * 4))
+        # v11: Confidence v2 — MR anti-trend penalty (ADX>25 reduces conf)
+        from modules.confidence_v2 import apply_penalty
+        _legacy_conf = int(min(85, 50 + score * 4))
+        conf = apply_penalty(_legacy_conf, self.strategy_type, ctx.adx, conf_max=85)
+        if conf != _legacy_conf:
+            reasons.append(
+                f"🔧 [v2] MR anti-trend: ADX={ctx.adx:.1f}>25 → conf {_legacy_conf}→{conf}"
+            )
         return Candidate(
             signal=signal, confidence=conf, sl=sl, tp=tp,
             reasons=reasons, entry_type=self.name, score=score
