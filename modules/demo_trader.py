@@ -4053,11 +4053,8 @@ class DemoTrader:
         self._entry_adx[trade_id] = sig.get("adx", 0)
         # v6.5: DD Phase Tagging — エントリー時のDD状態を記録 (データ打ち切り回避)
         self._dd_phase_at_entry[trade_id] = self._defensive_mode
-        # v6.5: Exposure tracking — ポジション追加
-        # v9.x: Shadow は登録のみ、集計から除外 (OANDA未送信のため実弾リスクなし)
-        self._exposure_mgr.add_position(trade_id, instrument, signal,
-                                        int(_os.environ.get("OANDA_UNITS", "10000")),
-                                        is_shadow=bool(_is_shadow))
+        # NOTE: ExposureManager への登録は shadow safety-net (L4252/4272/Q4 gate) を
+        # 通過した後の最終 _is_shadow 値で行う必要があるため、後続ブロックで実施する。
 
         # ══════════════════════════════════════════════════════
         # ── v9.4 PRIME gate (binding: prereg-6-prime-strategies-2026-04-21)
@@ -4285,6 +4282,14 @@ class DemoTrader:
                 f"[SHADOW_FIX] Persisted is_shadow={_is_shadow} for {trade_id} "
                 f"(was {_shadow_at_open} at open_trade)"
             )
+
+        # v6.5/v9.x: Exposure tracking — safety-net escalation 後の最終 _is_shadow で登録。
+        # Shadow は登録のみ、集計から除外 (OANDA未送信のため実弾リスクなし)。
+        # 早期登録すると Q4 gate / Phase0 gate / FORCE_DEMOTED 経由で Shadow 化された
+        # トレードが LIVE として計上されてしまい、後続の LIVE を exposure cap で block する。
+        self._exposure_mgr.add_position(trade_id, instrument, signal,
+                                        int(_os.environ.get("OANDA_UNITS", "10000")),
+                                        is_shadow=bool(_is_shadow))
 
         # ── v6.4 SHIELD: EUR_USD DT/1H OANDA遮断 (scalp継続) ──
         # v7.0: ホワイトリスト戦略はSHIELD免除 (MR系高EV, N<10 Safety で自動Sentinel)
