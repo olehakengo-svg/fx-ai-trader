@@ -12441,8 +12441,27 @@ def api_demo_trades():
 
 @app.route("/api/demo/stats")
 def api_demo_stats():
-    date_from = request.args.get("date_from")
+    # v9.x (2026-04-22): lesson-all-time-vs-post-cutoff-confusion 再発防止
+    # default window = max(FIDELITY_CUTOFF=2026-04-08, now - 30d)
+    # 明示的 all-time は ?all_time=1、window 調整は ?rolling_days=N
+    _FIDELITY_CUTOFF = "2026-04-08T00:00:00"
+    all_time = request.args.get("all_time", "0") == "1"
+    rolling_days_arg = request.args.get("rolling_days", type=int)
+    date_from_arg = request.args.get("date_from")
     date_to = request.args.get("date_to")
+
+    if all_time:
+        effective_date_from = None
+    elif date_from_arg:
+        effective_date_from = date_from_arg
+    else:
+        rolling_days = rolling_days_arg if rolling_days_arg is not None else 30
+        from datetime import timedelta as _td
+        rolling_cutoff = (datetime.now(timezone.utc)
+                          - _td(days=rolling_days)
+                          ).strftime("%Y-%m-%dT%H:%M:%S")
+        effective_date_from = max(_FIDELITY_CUTOFF, rolling_cutoff)
+
     mode_filter = request.args.get("mode")
     instrument = request.args.get("instrument")
     # v9.1: exclude_xau default True per CLAUDE.md user memory. Set to "0" to include.
@@ -12451,14 +12470,17 @@ def api_demo_stats():
     # デフォルトは除外（Kelly/WR 汚染防止、CLAUDE.md "クリーンデータ蓄積" 原則）。
     include_shadow = request.args.get("include_shadow", "0") == "1"
     stats = _demo_db.get_stats(
-        date_from=date_from, date_to=date_to, mode=mode_filter,
+        date_from=effective_date_from, date_to=date_to, mode=mode_filter,
         instrument=instrument, exclude_xau=exclude_xau,
         exclude_shadow=not include_shadow,
     )
     stats["_db_path"] = _db_path
     stats["_filters"] = {
         "instrument": instrument, "mode": mode_filter,
-        "date_from": date_from, "date_to": date_to,
+        "date_from": date_from_arg, "date_to": date_to,
+        "effective_date_from": effective_date_from,
+        "all_time": all_time,
+        "rolling_days": rolling_days_arg if rolling_days_arg is not None else (None if all_time or date_from_arg else 30),
         "exclude_xau": exclude_xau,
         "include_shadow": include_shadow,
     }
@@ -12812,11 +12834,38 @@ def api_risk_dashboard():
         compute_risk_dashboard, get_dd_lot_multiplier
     )
     try:
-        closed = _demo_db.get_all_closed()
+        # v9.x (2026-04-22): post-cutoff + rolling 30d default で pre-v6.3 汚染除去
+        # lesson-all-time-vs-post-cutoff-confusion: all-time Kelly は歴史汚染で歪む
+        _FIDELITY_CUTOFF = "2026-04-08T00:00:00"
+        all_time = request.args.get("all_time", "0") == "1"
+        rolling_days_arg = request.args.get("rolling_days", type=int)
+        if all_time:
+            effective_date_from = None
+        else:
+            from datetime import timedelta as _td
+            rolling_days = rolling_days_arg if rolling_days_arg is not None else 30
+            rolling_cutoff = (datetime.now(timezone.utc)
+                              - _td(days=rolling_days)
+                              ).strftime("%Y-%m-%dT%H:%M:%S")
+            effective_date_from = max(_FIDELITY_CUTOFF, rolling_cutoff)
+
+        closed = _demo_db.get_all_closed(exclude_shadow=True)
+        if effective_date_from:
+            closed = [t for t in closed
+                      if "XAU" not in (t.get("instrument", "") or "")
+                      and (t.get("exit_time") or "") >= effective_date_from]
         if not closed:
-            return jsonify({"error": "No closed trades found", "n_trades": 0})
+            return jsonify({"error": "No closed trades found", "n_trades": 0,
+                            "_filters": {"effective_date_from": effective_date_from,
+                                         "all_time": all_time}})
 
         dashboard = compute_risk_dashboard(closed)
+        dashboard["_filters"] = {
+            "effective_date_from": effective_date_from,
+            "all_time": all_time,
+            "rolling_days": rolling_days_arg if rolling_days_arg is not None else (None if all_time else 30),
+            "n_trades_post_filter": len(closed),
+        }
 
         # Add current DD status
         try:
