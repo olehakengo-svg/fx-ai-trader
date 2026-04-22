@@ -168,6 +168,58 @@ knowledge-base/wiki/analyses/candidates/  # 承認候補要約
 # Tier C  — UTC */15 (anomaly_watcher.py)
 ```
 
+## 9.1. Phase展開計画 (pre-committed)
+
+リスクを段階的に開放するため、以下のPhase順序で有効化する。
+
+### Phase 1 (2026-04-22〜): LLM不要・α予算ゼロ
+
+**有効**:
+- Tier C (anomaly watcher, 15min): spread/latency/session drift 通知
+- Tier A (quant_gate_status, daily UTC 00:20): gate + α予算 要約をDiscordに通知
+- Alpha budget monthly reset
+
+**無効** (render.yaml でコメントアウト):
+- Tier B-daily
+- Tier B-weekly
+
+**成功基準**:
+- 7日間 Tier C が false alert <3件/日
+- Tier A レポートが daily_report.py と整合
+- α予算 state file が月初reset される
+
+### Phase 2 (Phase 1 成功後、目安 2026-05-01〜): LLM仮説生成 dry-run
+
+**追加有効** (手動実行のみ、cron OFF):
+- `python3 scripts/daily_hypothesis_scan.py --dry-run` を人間がトリガ
+- 7日間で仮説JSONを累積 → 人間review
+
+**成功基準** (Phase 3開放条件):
+- 幻覚率 <30% (仮説内容がKB知見と整合)
+- 既存PAIR_PROMOTED 戦略との重複 <30%
+- academic_basis の品質 (著者+年の実在性) 90%以上
+- α予算尚未消費 (dry-runは消費しない)
+
+### Phase 3 (Phase 2 成功後): BT bridge 完全実装
+
+**前提実装**:
+- `run_bt_for_hypothesis()` で仮説 → 一時strategy file 生成 (strategy-dev agent 委譲)
+- 365d BT + WF 3-bucket auto-split
+- PF, Wilson CI, Bonferroni p値 計算
+
+**有効化**:
+- Tier B-daily cron (UTC 00:30)
+- Tier B-weekly cron (日曜 UTC 12:00)
+
+### Phase 4 (Phase 3 成功後、目安 2026-06-01〜): 本格運用
+
+30日運用レビュー (§10 指標) 合格後、以下検討:
+- candidate queue のBT再走頻度UP (現 1回/日 → 2回/日)
+- α予算再配分 (実消費率に応じて)
+- 新カテゴリ追加 (e.g. macro-event-driven hypotheses)
+
+---
+
 ## 10. 評価指標 (プロトコル自体の成功/失敗判定)
 
 **30日後レビュー** (2026-05-22) で以下を確認:

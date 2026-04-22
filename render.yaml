@@ -29,3 +29,83 @@ services:
         sync: false
       - key: DISCORD_ALLOWED_USERS
         sync: false
+
+  # ===== Phase 1 (ACTIVE): LLM不要・α予算ゼロのバックグラウンド =====
+
+  # Tier C: 異常検知・通知 (15分毎)
+  # Protocol: knowledge-base/wiki/analyses/daily-tierB-protocol.md §6
+  # 検知項目: spread spike / OANDA latency / session drift / Live N stagnation
+  - type: cron
+    name: fx-ai-tier-c-anomaly
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    schedule: "*/15 * * * *"
+    startCommand: python3 scripts/anomaly_watcher.py
+    plan: starter
+    envVars:
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
+      - key: API_BASE
+        value: https://fx-ai-trader.onrender.com
+
+  # Tier A: quant gate status + α予算 要約 (1日1回 UTC 00:20)
+  # daily_report.py の直前に実行 → gate状態を analyst に認識させる
+  - type: cron
+    name: fx-ai-tier-a-gate-status
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    schedule: "20 0 * * *"
+    startCommand: python3 tools/quant_gate_status.py --to-discord
+    plan: starter
+    envVars:
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
+
+  # Alpha Budget: 月初 reset (毎月1日 UTC 00:05)
+  - type: cron
+    name: fx-ai-alpha-budget-reset
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    schedule: "5 0 1 * *"
+    startCommand: python3 tools/alpha_budget_tracker.py --reset
+    plan: starter
+
+  # ===== Phase 2 (DISABLED until BT bridge 完成): LLM仮説生成 =====
+  # 以下は daily-tierB-protocol.md §4/§5 本実装で有効化する。
+  # 現状: scripts/daily_hypothesis_scan.py の run_bt_for_hypothesis() が
+  #      skeleton のため、仮説生成しても即 shadow_only で queue が肥大化する。
+  #
+  # 有効化条件:
+  #   1. run_bt_for_hypothesis() が 365d BT + WF 3-bucket を実行可能
+  #   2. dry-run 7日間の仮説レビューで幻覚率 <30%
+  #   3. 仮説 → strategy file 自動生成 (strategy-dev agent委譲) 実装完了
+  #
+  # --- Tier B-daily (仮説生成 + BT + candidate queue) ---
+  # - type: cron
+  #   name: fx-ai-tier-b-daily
+  #   runtime: python
+  #   buildCommand: pip install -r requirements.txt
+  #   schedule: "30 0 * * *"
+  #   startCommand: python3 scripts/daily_hypothesis_scan.py
+  #   plan: starter
+  #   envVars:
+  #     - key: ANTHROPIC_API_KEY
+  #       sync: false
+  #     - key: DISCORD_WEBHOOK_URL
+  #       sync: false
+  #     - key: API_BASE
+  #       value: https://fx-ai-trader.onrender.com
+  #
+  # --- Tier B-weekly (candidate → pre-register PR) ---
+  # - type: cron
+  #   name: fx-ai-tier-b-weekly
+  #   runtime: python
+  #   buildCommand: pip install -r requirements.txt
+  #   schedule: "0 12 * * 0"
+  #   startCommand: python3 scripts/weekly_promotion_gate.py
+  #   plan: starter
+  #   envVars:
+  #     - key: DISCORD_WEBHOOK_URL
+  #       sync: false
+  #     - key: GITHUB_TOKEN
+  #       sync: false
