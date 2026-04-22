@@ -393,11 +393,13 @@ def main() -> int:
     summary_path = write_daily_summary(date_str, result)
     print(f"  Summary written: {summary_path}")
 
+    alpha_state = result["alpha_state"]
     notify_msg = (
         f"📊 [{date_str}] Tier B-daily: {num_h} hypotheses → "
-        f"pass={result['num_pass']} / shadow={result['num_shadow']}\n"
-        f"α consumed (daily): {updated_state['consumed']['daily']:.4f} / "
-        f"{updated_state['budget']['daily']:.4f}\n"
+        f"pass={result['num_pass']} / shadow={result['num_shadow']}"
+        f"{' (dry-run)' if args.dry_run else ''}\n"
+        f"α consumed (daily): {alpha_state['consumed']['daily']:.4f} / "
+        f"{alpha_state['budget']['daily']:.4f}\n"
         f"Summary: `knowledge-base/wiki/analyses/candidates/{date_str}.md`"
     )
     notify_discord(notify_msg)
