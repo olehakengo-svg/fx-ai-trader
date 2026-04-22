@@ -1,5 +1,15 @@
 # Knowledge Base Change Log
 
+## 2026-04-23: 5-Proposal 並列分析 (A/C/D/E 完了、B running)
+- **新規 session doc**: `wiki/sessions/five-proposal-parallel-2026-04-22.md` 作成
+- **A (KSFT × vwap_mr)**: 4 pair で quartile 分析 — pair 毎に逆方向の quartile 優位、統一 filter は不可。GBP_JPY × KSFT≤-0.818 (N=68 WR=83.8% PF=4.63) のみ standout
+- **C (horizon deepening h=1..32)**: 975 tests, 180 Bonferroni sig — **すべて h=1**。15m TF intraday edge は 1-bar pattern のみ
+- **D (BY-FDR)**: 780 tests, Bonferroni 178 = BY-FDR 178 (完全一致)。`tools/alpha_factor_zoo.py` に `by_fdr_threshold()` 追加
+- **E (window sensitivity)**: w7/w60/w90 全完了 — **Window-Invariant Stable subset**: USD_JPY × streak_reversal, GBP_JPY × vwap_mr, GBP_USD × vwap_mr, GBP_USD × wick_imbalance_reversion, GBP_JPY × htf_false_breakout
+- **B (730d health audit)**: 🕐 running (2時間経過、4-way並列→solo移行で加速中、残り30-60分見込み)
+- **lint 結果**: 参照 9 file 全て存在 / wikilink なし (Markdown相対パス) / stats source 一致 (180/178/975/780)
+- **判断**: すべて観測のみ、lesson-reactive-changes 遵守。実装判断保留。
+
 ## 2026-04-22 (wiki-daily-update): 自動スケジュールタスク
 - **Daily trade log**: `raw/trade-logs/2026-04-22.md` 作成 — post-cutoff FX-only N=248, WR=39.1%, PnL=-171.0pip
 - **wiki/index.md**: System State更新 — DD 25.9%→**28.15%** (281.5pip), PnL -129.5→**-171.0pip**, N 244→248, EV -0.53→-0.69, Kelly edge -11.65%→-13.56%, Ruin 0.0%→0.04%, last_updated 2026-04-21→2026-04-22; Trade Logs セクションに2026-04-22追加
