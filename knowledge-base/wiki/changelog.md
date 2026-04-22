@@ -288,6 +288,29 @@
              └── 詳細: wiki/analyses/tp-hit-quant-analysis-2026-04-20.md,
                  raw/analysis/tp-hit-raw-2026-04-20.csv, scripts/analyze_tp_hits.py
 
+2026-04-22  ★ v9.x: Roadmap-acceleration 二重WF確証による PAIR_PROMOTED 昇格 2件
+             ├── **スコープ**: クロスTF walk-forward stability で pos_ratio=1.00 を示した
+             │   2セルを Phase0 auto-Shadow / 既存PP未指定 → PAIR_PROMOTED 昇格
+             ├── **`streak_reversal × USD_JPY` PAIR_PROMOTED 新規**
+             │   ├── P2 15m 365d × 20d window WF (18窓): N=466 EV=+1.362 pos=1.00 CV=0.65 ✅
+             │   ├── P4 5m  180d × 30d window WF (7窓):  N=693 EV=+0.948 pos=1.00 CV=0.62 ✅
+             │   ├── Bonferroni BT: 5streak BUY N=586 WR=58.7% p=1.3×10⁻⁵
+             │   └── 単一TF根拠を超えたクロスTF確証 → 従来 Phase0 inline auto-Shadow を解除
+             ├── **`vwap_mean_reversion × USD_JPY` PAIR_PROMOTED 追加**
+             │   ├── P4 5m 180d × 30d WF: N=155 EV=+0.925 pos=1.00 CV=0.51 ✅ (最低CV)
+             │   ├── 既存PP (EUR_JPY/GBP_JPY/EUR_USD/GBP_USD) に USD_JPY を追加、5ペア化
+             │   └── BT 15m 16bar: N=705 WR=55.0% EV=+2.98pip annual +2,099pip
+             ├── **根拠プロトコル**: 両セルとも P2(15m)+P4(5m) 二重 WF クロスTF + Bonferroni BT。
+             │   lesson-orb-trap-bt-divergence (短期60d BT のカーブフィッティング) を回避するため
+             │   365d WF を一次根拠、5m 180d WF を二次確証、単一TF根拠を超える水準を要求した
+             ├── **Validations**: tier_integrity_check.py --check ERROR=0 (PP 15→17 entries)、
+             │   sync_kb_index.py --write で index.md portfolio セクション更新
+             ├── **KB同梱**: wiki/strategies/streak-reversal.md / vwap-mean-reversion.md Status 更新
+             │   (lesson-strategies-page-drift / lesson-kb-drift-on-context-limit 遵守)
+             └── 詳細: raw/analysis/roadmap-acceleration-synthesis-2026-04-22.md,
+                 raw/bt-results/walkforward-365d-w20-usdjpy-2026-04-22.md,
+                 raw/bt-results/walkforward-scalp-5m-180d-2026-04-22.md
+
 ## バージョン別データ切り口
 
 | 目的 | date_from | 除外条件 | 理由 |

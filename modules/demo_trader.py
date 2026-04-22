@@ -5231,6 +5231,19 @@ class DemoTrader:
         # v9.1: Alpha#2 wick_imbalance_reversion×GBP_USD — 365d BT N=40 WR=70.0% EV=+0.123 PF=1.44
         # WR=70%でBinomial p<0.02 (z=2.53)。JPY/EURは負EV → GBP_USDのみSentinel蓄積
         ("wick_imbalance_reversion", "GBP_USD"),
+        # 2026-04-22 Roadmap-acceleration synthesis: 二重 WF で pos_ratio=1.00 の確定stable
+        # streak_reversal×USD_JPY:
+        #   P2 15m 365d × 20d WF: N=466 EV=+1.362 pos=1.00 CV=0.65 ✅stable
+        #   P4 5m  180d × 30d WF: N=693 EV=+0.948 pos=1.00 CV=0.62 ✅stable
+        #   Bonferroni有意 BT 5streak BUY: N=586 WR=58.7% p=1.3e-5
+        #   単一TF根拠を超えたクロスTF確証。Phase0 auto-Shadow → PP昇格
+        #   詳細: raw/analysis/roadmap-acceleration-synthesis-2026-04-22.md
+        ("streak_reversal", "USD_JPY"),
+        # vwap_mean_reversion×USD_JPY:
+        #   P4 5m 180d × 30d WF: N=155 EV=+0.925 pos=1.00 CV=0.51 ✅stable
+        #   既存PP (EUR_JPY/GBP_JPY/EUR_USD/GBP_USD) に USD_JPY を追加
+        #   BT 15m 16bar: N=705 WR=55.0% EV=+2.98pip annual +2,099pip
+        ("vwap_mean_reversion", "USD_JPY"),
     }
 
     # ペア別ロットブースト: PAIR_LOT_BOOST > _STRATEGY_LOT_BOOST (優先)

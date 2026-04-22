@@ -4,8 +4,8 @@
 - **Entry Type**: `vwap_mean_reversion`
 - **Category**: MR (Mean Reversion)
 - **Timeframe**: Scalp 1m, DT 15m/1h
-- **Status**: PAIR_PROMOTED (EUR_JPY, GBP_JPY); LOT_BOOST 1.5x
-- **Active Pairs**: EUR_JPY (PAIR_PROMOTED), GBP_JPY (PAIR_PROMOTED)
+- **Status**: PAIR_PROMOTED (EUR_JPY, GBP_JPY, EUR_USD, GBP_USD, USD_JPY); LOT_BOOST 1.5x
+- **Active Pairs**: EUR_JPY / GBP_JPY / EUR_USD / GBP_USD / USD_JPY (PAIR_PROMOTED)
 
 ## BT Performance (365d, 15m)
 From massive alpha scan (Bonferroni significant, friction-adjusted):
@@ -84,7 +84,7 @@ VWAP 2-sigma mean reversion. Enters BUY when price drops below VWAP minus 2 stan
 ## Current Configuration
 - Lot Boost: 1.5x (strategy-level)
 - PAIR_DEMOTED: none
-- PAIR_PROMOTED: EUR_JPY (15m 16bar: annual +2,837pip), GBP_JPY (15m 16bar: annual +3,827pip, strongest alpha)
+- PAIR_PROMOTED: EUR_JPY (15m 16bar: annual +2,837pip), GBP_JPY (15m 16bar: annual +3,827pip, strongest alpha), EUR_USD, GBP_USD, **USD_JPY** (v9.x 2026-04-22: 5m 180d WF pos=1.00 CV=0.51 N=155 EV=+0.925)
 - PAIR_LOT_BOOST: EUR_JPY 1.8x, GBP_JPY 1.8x
 
 ## Related

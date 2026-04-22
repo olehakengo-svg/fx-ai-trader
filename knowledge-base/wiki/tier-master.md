@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-04-22 09:08 UTC
+**最終更新**: 2026-04-22 12:39 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -16,7 +16,7 @@
 | 2 | session_time_bias | +0.195 | +0.251 | +0.149 |
 | 3 | trendline_sweep | — | +0.574 | +0.838 |
 
-### A-2. PAIR_PROMOTED（15エントリ — 指定ペアのみ通過）
+### A-2. PAIR_PROMOTED（17エントリ — 指定ペアのみ通過）
 
 | # | 戦略名 | ペア | 365d BT EV |
 |---|---|---|---|
@@ -26,15 +26,17 @@
 | 4 | post_news_vol | EUR_USD | +0.844 |
 | 5 | post_news_vol | GBP_USD | +1.302 |
 | 6 | squeeze_release_momentum | EUR_USD | — |
-| 7 | vix_carry_unwind | USD_JPY | +0.506 |
-| 8 | vol_momentum_scalp | EUR_JPY | — |
-| 9 | vwap_mean_reversion | EUR_JPY | +1.155 |
-| 10 | vwap_mean_reversion | EUR_USD | +0.827 |
-| 11 | vwap_mean_reversion | GBP_JPY | +1.155 |
-| 12 | vwap_mean_reversion | GBP_USD | +1.087 |
-| 13 | wick_imbalance_reversion | GBP_USD | — |
-| 14 | xs_momentum | EUR_USD | +0.126 |
-| 15 | xs_momentum | GBP_USD | -0.013 |
+| 7 | streak_reversal | USD_JPY | +1.169 |
+| 8 | vix_carry_unwind | USD_JPY | +0.506 |
+| 9 | vol_momentum_scalp | EUR_JPY | — |
+| 10 | vwap_mean_reversion | EUR_JPY | +1.155 |
+| 11 | vwap_mean_reversion | EUR_USD | +0.827 |
+| 12 | vwap_mean_reversion | GBP_JPY | +1.155 |
+| 13 | vwap_mean_reversion | GBP_USD | +1.087 |
+| 14 | vwap_mean_reversion | USD_JPY | +1.155 |
+| 15 | wick_imbalance_reversion | GBP_USD | — |
+| 16 | xs_momentum | EUR_USD | +0.126 |
+| 17 | xs_momentum | GBP_USD | -0.013 |
 
 ## B. Shadow戦略（OANDA非通過 — デモのみ記録）
 
@@ -115,7 +117,7 @@
 | 22 | vol_surge_detector | EUR_JPY |
 | 23 | xs_momentum | USD_JPY |
 
-### B-5. Phase0 Shadow Gate（19戦略 — 自動Shadow）
+### B-5. Phase0 Shadow Gate（18戦略 — 自動Shadow）
 
 | # | 戦略名 | mode | 理由 |
 |---|---|---|---|
@@ -134,10 +136,9 @@
 | 13 | london_shrapnel | scalp | PP/EL未指定 → 自動Shadow |
 | 14 | mtf_reversal_confluence | scalp | PP/EL未指定 → 自動Shadow |
 | 15 | session_vol_expansion | scalp | PP/EL未指定 → 自動Shadow |
-| 16 | streak_reversal | inline | PP/EL未指定 → 自動Shadow |
-| 17 | three_bar_reversal | scalp | PP/EL未指定 → 自動Shadow |
-| 18 | tokyo_nakane_momentum | daytrade | PP/EL未指定 → 自動Shadow |
-| 19 | turtle_soup | daytrade | PP/EL未指定 → 自動Shadow |
+| 16 | three_bar_reversal | scalp | PP/EL未指定 → 自動Shadow |
+| 17 | tokyo_nakane_momentum | daytrade | PP/EL未指定 → 自動Shadow |
+| 18 | turtle_soup | daytrade | PP/EL未指定 → 自動Shadow |
 
 ## C. 整合性チェック結果
 
