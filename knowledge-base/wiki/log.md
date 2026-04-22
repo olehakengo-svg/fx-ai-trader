@@ -1,15 +1,16 @@
 # Knowledge Base Change Log
 
-## 2026-04-22: JPY cross + Scalp fresh BT + divergence v3 full-stack
+## 2026-04-22: JPY cross + Scalp fresh BT + divergence v3 full-stack + htf_agreement bug fix
 - **BT 完了**: EUR_JPY/GBP_JPY/EUR_GBP 365d × 15m DT (5862s) / 6 pairs × 180d × {1m,5m} Scalp (7744s)
 - **BT 結果 JSON**: `raw/bt-results/bt-365d-jpy-2026-04-22.json` / `raw/bt-results/bt-scalp-180d-2026-04-22.json` 作成
-- **強エッジ発見**: `vwap_mean_reversion × GBP_JPY` N=267 EV=+1.025 PnL=+273.7pip ★最強/ `× EUR_JPY` N=223 EV=+0.672 PnL=+149.9pip — いずれも現在 PAIR_PROMOTED 未登録
+- **既存 PAIR_PROMOTED 再確証**: `vwap_mean_reversion × GBP_JPY` N=267 EV=+1.025 PnL=+273.7pip / `× EUR_JPY` N=223 EV=+0.672 PnL=+149.9pip — walk-forward 全窓正 EV、demo_trader.py:5168-5170 の PAIR_PROMOTED を fresh BT で再確証（前回書いた "未登録" は誤認、訂正済み）
 - **Scalp scope 構造**: DT_15m EV=+0.217 vs Scalp_1m EV=-0.288 / Scalp_5m EV=-0.115 (GBPJPY 5m のみ正 EV +0.034)
-- **構造バグ発見**: `app.py:8276` `htf_agreement` 未定義 → `_compute_scalp_signal_v2` で NameError → Scalp vwap_mr trades=0 (即修正 GO 候補、lesson-reactive-changes 下で次セッションに委譲)
+- **構造バグ修正**: `app.py:L7992` に `htf_agreement = htf.get("agreement", "mixed")` 追加。L7965 で取得した htf の agreement が未抽出で L8276 NameError → `_compute_scalp_signal_v2` 内 vwap_mean_reversion が silent except で発火せず（Scalp BT 10 cell 全ゼロで確認）。バグ修正は即 GO (CLAUDE.md 判断プロトコル #4)。
+- **Scalp BT 再実行**: JPY cross 4 cells (`bt-scalp-180d-jpy-postfix-2026-04-22.json`) 実行中 — fix 検証用
 - **divergence v3**: is_shadow=0 Kelly-clean baseline (Live N=412) で Bonferroni 有意なし — v2 (mixed Live N=2505) で有意だった sr_fib_confluence/sr_break_retest × USD_JPY は power loss で再現せず
-- **wiki 更新**: `sessions/bt-live-divergence-scan-2026-04-22.md` §8 appendix 追加 / `sessions/bt-live-divergence-v3-full-stack-2026-04-22.md` 新規 / `index.md` BT Results link 追加
-- **Lint**: `[[bt-live-divergence]]` → `analyses/bt-live-divergence.md` 既存 OK、新規 2 session page を index.md BT Results に追加して孤立解消、破損リンクなし
-- **Next**: (1) htf_agreement バグ修正 → Scalp BT 再実行、(2) `vwap_mean_reversion × EUR_JPY/GBP_JPY` audit-c 発議、(3) Live N≥20 到達後に v3 Bonferroni 再計算
+- **wiki 更新**: `sessions/bt-live-divergence-scan-2026-04-22.md` §8 appendix / `sessions/bt-live-divergence-v3-full-stack-2026-04-22.md` 新規 / `index.md` BT Results link / `strategies/vwap-mean-reversion.md` fresh BT + bug note / `sessions/2026-04-22-session.md` Addendum + 訂正
+- **KB 整合**: `sync_kb_index.py --write` で auto-synced portfolio block 再生成、vwap-mean-reversion が PAIR_PROMOTED に正しく表示されるよう整合
+- **Next**: (1) Scalp BT 完了待ち → vwap_mr 発火確認、(2) Scalp 全体負 EV は monthly re-evaluate、(3) Live N≥20 到達後に v3 Bonferroni 再計算
 
 ## 2026-04-21: wiki-daily-update (自動スケジュールタスク)
 - **Daily trade log**: `raw/trade-logs/2026-04-21.md` 作成 — post-cutoff FX-only N=244, WR=38.9%, PnL=-129.5pip

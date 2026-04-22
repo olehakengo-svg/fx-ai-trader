@@ -7989,6 +7989,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     session = get_session_info()
     h1_sc = htf.get("h1", {}).get("score", 0.0)
     h4_sc = htf.get("h4", {}).get("score", 0.0)
+    htf_agreement = htf.get("agreement", "mixed")
 
     # BB width percentile (50-bar window)
     if "bb_width" in df.columns and len(df) >= 50:

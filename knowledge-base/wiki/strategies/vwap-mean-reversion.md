@@ -17,11 +17,22 @@ From massive alpha scan (Bonferroni significant, friction-adjusted):
 | VW2s BUY | GBP_JPY | 1h | 16b | 245 | 56.3% | +13.4 | +3,290p |
 | VW2s BUY | EUR_JPY | 1h | 16b | 226 | 58.0% | +6.32 | +1,428p |
 
+### Fresh 365d × 15m BT (2026-04-22, `raw/bt-results/bt-365d-jpy-2026-04-22.json`)
+| Pair | N | WR | EV | PnL | Walk-forward EV (w1/w2/w3) |
+|---|---|---|---|---|---|
+| EUR_JPY | 223 | 68.2% | +0.672 | +149.9 pip | +0.103 / +0.219 / +0.101 |
+| GBP_JPY | 267 | 78.3% | +1.025 | +273.7 pip | +0.338 / +0.205 / +0.313 |
+
+PAIR_PROMOTED の既存根拠を 2026-04-22 スキャンで再確証（walk-forward 全窓で正 EV、GBP_JPY は最強セル）。
+
 Scalp (Bonferroni significant):
 | Edge | Pair | TF | Hold | N | fWR | fEV(pip) | Annual PnL |
 |---|---|---|---|---|---|---|---|
 | VW2s BUY | EUR_JPY | 1m | 16min | 2,574 | 56.5% | +0.81 | +2,087p |
 | VW2s BUY | GBP_JPY | 1m | 16min | 2,028 | 53.6% | +0.48 | +975p |
+
+### Scalp BT 2026-04-22 バグ発覚
+180d Scalp BT では `vwap_mean_reversion` の発火が 10 cell すべてでゼロ。原因は `app.py:_compute_scalp_signal_v2` 内で `htf_agreement` 変数が未定義、silent except で NameError が飲み込まれていた。2026-04-22 に `app.py:L7992` で `htf_agreement = htf.get("agreement", "mixed")` を追加して修正。post-fix BT 再実行中（`raw/bt-results/bt-scalp-180d-jpy-postfix-2026-04-22.json` 予定）。
 
 ## Live Performance (post-cutoff, 2026-04-08〜)
 | Strategy | Pairs | N | WR | PnL |
