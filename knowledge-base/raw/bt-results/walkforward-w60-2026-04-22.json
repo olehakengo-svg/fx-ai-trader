@@ -1,0 +1,5623 @@
+[
+  {
+    "pair": "USD_JPY",
+    "symbol": "USDJPY=X",
+    "lookback_days": 365,
+    "interval": "15m",
+    "window_days": 60,
+    "total_trades": 2162,
+    "overall_wr": 63.0,
+    "overall_ev": 0.367,
+    "strategies": {
+      "xs_momentum": {
+        "aggregate": {
+          "n": 309,
+          "wr": 63.4,
+          "ev": 0.081,
+          "pnl": 24.94,
+          "pf": 1.11
+        },
+        "per_window": [
+          {
+            "n": 70,
+            "wr": 70.0,
+            "ev": 0.27,
+            "pnl": 18.93,
+            "pf": 1.47,
+            "window": 0
+          },
+          {
+            "n": 47,
+            "wr": 63.8,
+            "ev": 0.086,
+            "pnl": 4.06,
+            "pf": 1.13,
+            "window": 1
+          },
+          {
+            "n": 48,
+            "wr": 56.2,
+            "ev": -0.035,
+            "pnl": -1.69,
+            "pf": 0.96,
+            "window": 2
+          },
+          {
+            "n": 59,
+            "wr": 54.2,
+            "ev": -0.24,
+            "pnl": -14.16,
+            "pf": 0.73,
+            "window": 3
+          },
+          {
+            "n": 42,
+            "wr": 71.4,
+            "ev": 0.353,
+            "pnl": 14.84,
+            "pf": 1.58,
+            "window": 4
+          },
+          {
+            "n": 43,
+            "wr": 65.1,
+            "ev": 0.069,
+            "pnl": 2.96,
+            "pf": 1.09,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.667,
+          "cv_ev": 2.317,
+          "min_ev": -0.24,
+          "max_ev": 0.353,
+          "verdict": "borderline"
+        }
+      },
+      "vix_carry_unwind": {
+        "aggregate": {
+          "n": 138,
+          "wr": 63.8,
+          "ev": 0.292,
+          "pnl": 40.36,
+          "pf": 1.25
+        },
+        "per_window": [
+          {
+            "n": 40,
+            "wr": 65.0,
+            "ev": 0.526,
+            "pnl": 21.04,
+            "pf": 1.55,
+            "window": 0
+          },
+          {
+            "n": 22,
+            "wr": 59.1,
+            "ev": -0.206,
+            "pnl": -4.54,
+            "pf": 0.86,
+            "window": 1
+          },
+          {
+            "n": 22,
+            "wr": 68.2,
+            "ev": 0.489,
+            "pnl": 10.77,
+            "pf": 1.43,
+            "window": 2
+          },
+          {
+            "n": 27,
+            "wr": 55.6,
+            "ev": -0.061,
+            "pnl": -1.65,
+            "pf": 0.95,
+            "window": 3
+          },
+          {
+            "n": 16,
+            "wr": 81.2,
+            "ev": 1.149,
+            "pnl": 18.39,
+            "pf": 2.82,
+            "window": 4
+          },
+          {
+            "n": 11,
+            "wr": 54.5,
+            "ev": -0.332,
+            "pnl": -3.65,
+            "pf": 0.79,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.5,
+          "cv_ev": 1.97,
+          "min_ev": -0.332,
+          "max_ev": 1.149,
+          "verdict": "borderline"
+        }
+      },
+      "dt_bb_rsi_mr": {
+        "aggregate": {
+          "n": 103,
+          "wr": 43.7,
+          "ev": -0.251,
+          "pnl": -25.8,
+          "pf": 0.59
+        },
+        "per_window": [
+          {
+            "n": 23,
+            "wr": 52.2,
+            "ev": -0.12,
+            "pnl": -2.77,
+            "pf": 0.75,
+            "window": 0
+          },
+          {
+            "n": 18,
+            "wr": 44.4,
+            "ev": -0.282,
+            "pnl": -5.08,
+            "pf": 0.56,
+            "window": 1
+          },
+          {
+            "n": 12,
+            "wr": 25.0,
+            "ev": -0.61,
+            "pnl": -7.32,
+            "pf": 0.2,
+            "window": 2
+          },
+          {
+            "n": 14,
+            "wr": 50.0,
+            "ev": -0.16,
+            "pnl": -2.23,
+            "pf": 0.75,
+            "window": 3
+          },
+          {
+            "n": 20,
+            "wr": 45.0,
+            "ev": -0.285,
+            "pnl": -5.71,
+            "pf": 0.59,
+            "window": 4
+          },
+          {
+            "n": 16,
+            "wr": 37.5,
+            "ev": -0.168,
+            "pnl": -2.69,
+            "pf": 0.7,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.0,
+          "cv_ev": 0.605,
+          "min_ev": -0.61,
+          "max_ev": -0.12,
+          "verdict": "unstable"
+        }
+      },
+      "vol_spike_mr": {
+        "aggregate": {
+          "n": 85,
+          "wr": 60.0,
+          "ev": 0.129,
+          "pnl": 10.94,
+          "pf": 1.22
+        },
+        "per_window": [
+          {
+            "n": 22,
+            "wr": 54.5,
+            "ev": -0.077,
+            "pnl": -1.69,
+            "pf": 0.88,
+            "window": 0
+          },
+          {
+            "n": 14,
+            "wr": 42.9,
+            "ev": -0.145,
+            "pnl": -2.03,
+            "pf": 0.83,
+            "window": 1
+          },
+          {
+            "n": 13,
+            "wr": 84.6,
+            "ev": 0.78,
+            "pnl": 10.14,
+            "pf": 11.82,
+            "window": 2
+          },
+          {
+            "n": 10,
+            "wr": 70.0,
+            "ev": 0.551,
+            "pnl": 5.51,
+            "pf": 2.09,
+            "window": 3
+          },
+          {
+            "n": 14,
+            "wr": 50.0,
+            "ev": -0.168,
+            "pnl": -2.35,
+            "pf": 0.78,
+            "window": 4
+          },
+          {
+            "n": 12,
+            "wr": 66.7,
+            "ev": 0.113,
+            "pnl": 1.35,
+            "pf": 1.19,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.5,
+          "cv_ev": 2.072,
+          "min_ev": -0.168,
+          "max_ev": 0.78,
+          "verdict": "borderline"
+        }
+      },
+      "streak_reversal": {
+        "aggregate": {
+          "n": 498,
+          "wr": 72.7,
+          "ev": 1.427,
+          "pnl": 710.59,
+          "pf": 2.84
+        },
+        "per_window": [
+          {
+            "n": 94,
+            "wr": 63.8,
+            "ev": 0.687,
+            "pnl": 64.61,
+            "pf": 1.93,
+            "window": 0
+          },
+          {
+            "n": 82,
+            "wr": 78.0,
+            "ev": 1.389,
+            "pnl": 113.92,
+            "pf": 2.9,
+            "window": 1
+          },
+          {
+            "n": 74,
+            "wr": 73.0,
+            "ev": 1.775,
+            "pnl": 131.39,
+            "pf": 2.58,
+            "window": 2
+          },
+          {
+            "n": 79,
+            "wr": 79.7,
+            "ev": 2.088,
+            "pnl": 164.93,
+            "pf": 4.87,
+            "window": 3
+          },
+          {
+            "n": 88,
+            "wr": 67.0,
+            "ev": 1.374,
+            "pnl": 120.92,
+            "pf": 2.6,
+            "window": 4
+          },
+          {
+            "n": 81,
+            "wr": 76.5,
+            "ev": 1.418,
+            "pnl": 114.82,
+            "pf": 3.08,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 1.0,
+          "cv_ev": 0.295,
+          "min_ev": 0.687,
+          "max_ev": 2.088,
+          "verdict": "stable"
+        }
+      },
+      "wick_imbalance_reversion": {
+        "aggregate": {
+          "n": 50,
+          "wr": 56.0,
+          "ev": -0.228,
+          "pnl": -11.4,
+          "pf": 0.75
+        },
+        "per_window": [
+          {
+            "n": 12,
+            "wr": 83.3,
+            "ev": 0.973,
+            "pnl": 11.68,
+            "pf": 18.66,
+            "window": 0
+          },
+          {
+            "n": 8,
+            "wr": 50.0,
+            "ev": -0.364,
+            "pnl": -2.91,
+            "pf": 0.61,
+            "window": 1
+          },
+          {
+            "n": 1,
+            "wr": 0.0,
+            "ev": -2.031,
+            "pnl": -2.03,
+            "pf": 0.0,
+            "window": 2
+          },
+          {
+            "n": 14,
+            "wr": 50.0,
+            "ev": -0.659,
+            "pnl": -9.23,
+            "pf": 0.46,
+            "window": 3
+          },
+          {
+            "n": 6,
+            "wr": 66.7,
+            "ev": 0.024,
+            "pnl": 0.14,
+            "pf": 1.04,
+            "window": 4
+          },
+          {
+            "n": 9,
+            "wr": 33.3,
+            "ev": -1.006,
+            "pnl": -9.05,
+            "pf": 0.37,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 5,
+          "positive_ratio": 0.4,
+          "cv_ev": 3.295,
+          "min_ev": -1.006,
+          "max_ev": 0.973,
+          "verdict": "unstable"
+        }
+      },
+      "session_time_bias": {
+        "aggregate": {
+          "n": 334,
+          "wr": 63.5,
+          "ev": 0.076,
+          "pnl": 25.51,
+          "pf": 1.1
+        },
+        "per_window": [
+          {
+            "n": 63,
+            "wr": 60.3,
+            "ev": 0.1,
+            "pnl": 6.3,
+            "pf": 1.14,
+            "window": 0
+          },
+          {
+            "n": 46,
+            "wr": 65.2,
+            "ev": 0.069,
+            "pnl": 3.16,
+            "pf": 1.09,
+            "window": 1
+          },
+          {
+            "n": 42,
+            "wr": 61.9,
+            "ev": 0.081,
+            "pnl": 3.42,
+            "pf": 1.1,
+            "window": 2
+          },
+          {
+            "n": 63,
+            "wr": 63.5,
+            "ev": 0.079,
+            "pnl": 4.97,
+            "pf": 1.1,
+            "window": 3
+          },
+          {
+            "n": 56,
+            "wr": 60.7,
+            "ev": -0.051,
+            "pnl": -2.84,
+            "pf": 0.94,
+            "window": 4
+          },
+          {
+            "n": 64,
+            "wr": 68.8,
+            "ev": 0.164,
+            "pnl": 10.5,
+            "pf": 1.23,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.833,
+          "cv_ev": 0.867,
+          "min_ev": -0.051,
+          "max_ev": 0.164,
+          "verdict": "stable"
+        }
+      },
+      "sr_fib_confluence": {
+        "aggregate": {
+          "n": 158,
+          "wr": 57.0,
+          "ev": 0.0,
+          "pnl": 0.03,
+          "pf": 1.0
+        },
+        "per_window": [
+          {
+            "n": 33,
+            "wr": 66.7,
+            "ev": 0.295,
+            "pnl": 9.73,
+            "pf": 1.63,
+            "window": 0
+          },
+          {
+            "n": 23,
+            "wr": 56.5,
+            "ev": 0.033,
+            "pnl": 0.76,
+            "pf": 1.05,
+            "window": 1
+          },
+          {
+            "n": 24,
+            "wr": 54.2,
+            "ev": -0.113,
+            "pnl": -2.71,
+            "pf": 0.84,
+            "window": 2
+          },
+          {
+            "n": 22,
+            "wr": 54.5,
+            "ev": -0.11,
+            "pnl": -2.42,
+            "pf": 0.85,
+            "window": 3
+          },
+          {
+            "n": 23,
+            "wr": 52.2,
+            "ev": -0.046,
+            "pnl": -1.05,
+            "pf": 0.93,
+            "window": 4
+          },
+          {
+            "n": 33,
+            "wr": 54.5,
+            "ev": -0.13,
+            "pnl": -4.29,
+            "pf": 0.82,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.333,
+          "cv_ev": 12.494,
+          "min_ev": -0.13,
+          "max_ev": 0.295,
+          "verdict": "unstable"
+        }
+      },
+      "sr_break_retest": {
+        "aggregate": {
+          "n": 78,
+          "wr": 70.5,
+          "ev": 0.238,
+          "pnl": 18.53,
+          "pf": 1.45
+        },
+        "per_window": [
+          {
+            "n": 16,
+            "wr": 75.0,
+            "ev": 0.238,
+            "pnl": 3.81,
+            "pf": 1.49,
+            "window": 0
+          },
+          {
+            "n": 15,
+            "wr": 66.7,
+            "ev": 0.208,
+            "pnl": 3.12,
+            "pf": 1.36,
+            "window": 1
+          },
+          {
+            "n": 10,
+            "wr": 60.0,
+            "ev": -0.114,
+            "pnl": -1.14,
+            "pf": 0.85,
+            "window": 2
+          },
+          {
+            "n": 15,
+            "wr": 66.7,
+            "ev": 0.15,
+            "pnl": 2.25,
+            "pf": 1.26,
+            "window": 3
+          },
+          {
+            "n": 10,
+            "wr": 80.0,
+            "ev": 0.592,
+            "pnl": 5.92,
+            "pf": 2.68,
+            "window": 4
+          },
+          {
+            "n": 12,
+            "wr": 75.0,
+            "ev": 0.381,
+            "pnl": 4.57,
+            "pf": 1.92,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.833,
+          "cv_ev": 0.888,
+          "min_ev": -0.114,
+          "max_ev": 0.592,
+          "verdict": "stable"
+        }
+      },
+      "dt_fib_reversal": {
+        "aggregate": {
+          "n": 29,
+          "wr": 55.2,
+          "ev": -0.028,
+          "pnl": -0.82,
+          "pf": 0.96
+        },
+        "per_window": [
+          {
+            "n": 5,
+            "wr": 40.0,
+            "ev": -0.168,
+            "pnl": -0.84,
+            "pf": 0.76,
+            "window": 0
+          },
+          {
+            "n": 3,
+            "wr": 33.3,
+            "ev": -0.717,
+            "pnl": -2.15,
+            "pf": 0.3,
+            "window": 1
+          },
+          {
+            "n": 4,
+            "wr": 50.0,
+            "ev": 0.044,
+            "pnl": 0.18,
+            "pf": 1.06,
+            "window": 2
+          },
+          {
+            "n": 4,
+            "wr": 50.0,
+            "ev": -0.083,
+            "pnl": -0.33,
+            "pf": 0.84,
+            "window": 3
+          },
+          {
+            "n": 7,
+            "wr": 71.4,
+            "ev": 0.232,
+            "pnl": 1.62,
+            "pf": 1.47,
+            "window": 4
+          },
+          {
+            "n": 6,
+            "wr": 66.7,
+            "ev": 0.117,
+            "pnl": 0.7,
+            "pf": 1.18,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 3,
+          "positive_ratio": 0.667,
+          "cv_ev": 2.787,
+          "min_ev": -0.168,
+          "max_ev": 0.232,
+          "verdict": "borderline"
+        }
+      },
+      "dual_sr_bounce": {
+        "aggregate": {
+          "n": 71,
+          "wr": 57.7,
+          "ev": -0.083,
+          "pnl": -5.92,
+          "pf": 0.89
+        },
+        "per_window": [
+          {
+            "n": 23,
+            "wr": 60.9,
+            "ev": 0.096,
+            "pnl": 2.2,
+            "pf": 1.14,
+            "window": 0
+          },
+          {
+            "n": 6,
+            "wr": 83.3,
+            "ev": 1.057,
+            "pnl": 6.34,
+            "pf": 5.78,
+            "window": 1
+          },
+          {
+            "n": 11,
+            "wr": 72.7,
+            "ev": 0.283,
+            "pnl": 3.12,
+            "pf": 1.62,
+            "window": 2
+          },
+          {
+            "n": 7,
+            "wr": 42.9,
+            "ev": -0.478,
+            "pnl": -3.35,
+            "pf": 0.49,
+            "window": 3
+          },
+          {
+            "n": 8,
+            "wr": 25.0,
+            "ev": -1.18,
+            "pnl": -9.44,
+            "pf": 0.18,
+            "window": 4
+          },
+          {
+            "n": 16,
+            "wr": 56.2,
+            "ev": -0.3,
+            "pnl": -4.8,
+            "pf": 0.66,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.5,
+          "cv_ev": 7.952,
+          "min_ev": -1.18,
+          "max_ev": 1.057,
+          "verdict": "borderline"
+        }
+      },
+      "dt_sr_channel_reversal": {
+        "aggregate": {
+          "n": 67,
+          "wr": 41.8,
+          "ev": -0.328,
+          "pnl": -21.96,
+          "pf": 0.53
+        },
+        "per_window": [
+          {
+            "n": 22,
+            "wr": 59.1,
+            "ev": 0.049,
+            "pnl": 1.08,
+            "pf": 1.11,
+            "window": 0
+          },
+          {
+            "n": 7,
+            "wr": 42.9,
+            "ev": -0.185,
+            "pnl": -1.29,
+            "pf": 0.64,
+            "window": 1
+          },
+          {
+            "n": 7,
+            "wr": 0.0,
+            "ev": -1.113,
+            "pnl": -7.79,
+            "pf": 0.0,
+            "window": 2
+          },
+          {
+            "n": 14,
+            "wr": 14.3,
+            "ev": -1.059,
+            "pnl": -14.83,
+            "pf": 0.1,
+            "window": 3
+          },
+          {
+            "n": 10,
+            "wr": 60.0,
+            "ev": 0.206,
+            "pnl": 2.06,
+            "pf": 1.48,
+            "window": 4
+          },
+          {
+            "n": 7,
+            "wr": 57.1,
+            "ev": -0.17,
+            "pnl": -1.19,
+            "pf": 0.74,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.333,
+          "cv_ev": 1.367,
+          "min_ev": -1.113,
+          "max_ev": 0.206,
+          "verdict": "unstable"
+        }
+      },
+      "orb_trap": {
+        "aggregate": {
+          "n": 11,
+          "wr": 45.5,
+          "ev": -0.717,
+          "pnl": -7.88,
+          "pf": 0.42
+        },
+        "per_window": [
+          {
+            "n": 3,
+            "wr": 33.3,
+            "ev": -0.917,
+            "pnl": -2.75,
+            "pf": 0.18,
+            "window": 0
+          },
+          {
+            "n": 1,
+            "wr": 100.0,
+            "ev": 0.953,
+            "pnl": 0.95,
+            "pf": null,
+            "window": 1
+          },
+          {
+            "n": 3,
+            "wr": 33.3,
+            "ev": -1.491,
+            "pnl": -4.47,
+            "pf": 0.22,
+            "window": 2
+          },
+          {
+            "n": 1,
+            "wr": 100.0,
+            "ev": 1.505,
+            "pnl": 1.51,
+            "pf": null,
+            "window": 3
+          },
+          {
+            "n": 3,
+            "wr": 33.3,
+            "ev": -1.039,
+            "pnl": -3.12,
+            "pf": 0.29,
+            "window": 4
+          }
+        ],
+        "stability": {
+          "active_windows": 0,
+          "positive_ratio": null,
+          "cv_ev": null,
+          "min_ev": null,
+          "max_ev": null,
+          "verdict": "N_windows<2"
+        }
+      },
+      "intraday_seasonality": {
+        "aggregate": {
+          "n": 74,
+          "wr": 63.5,
+          "ev": 0.056,
+          "pnl": 4.16,
+          "pf": 1.07
+        },
+        "per_window": [
+          {
+            "n": 15,
+            "wr": 60.0,
+            "ev": -0.223,
+            "pnl": -3.35,
+            "pf": 0.75,
+            "window": 0
+          },
+          {
+            "n": 16,
+            "wr": 50.0,
+            "ev": -0.353,
+            "pnl": -5.64,
+            "pf": 0.69,
+            "window": 1
+          },
+          {
+            "n": 15,
+            "wr": 73.3,
+            "ev": 0.457,
+            "pnl": 6.86,
+            "pf": 1.79,
+            "window": 2
+          },
+          {
+            "n": 10,
+            "wr": 80.0,
+            "ev": 0.905,
+            "pnl": 9.05,
+            "pf": 6.39,
+            "window": 3
+          },
+          {
+            "n": 7,
+            "wr": 42.9,
+            "ev": -0.666,
+            "pnl": -4.66,
+            "pf": 0.41,
+            "window": 4
+          },
+          {
+            "n": 11,
+            "wr": 72.7,
+            "ev": 0.173,
+            "pnl": 1.91,
+            "pf": 1.28,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.5,
+          "cv_ev": 10.776,
+          "min_ev": -0.666,
+          "max_ev": 0.905,
+          "verdict": "borderline"
+        }
+      },
+      "post_news_vol": {
+        "aggregate": {
+          "n": 28,
+          "wr": 57.1,
+          "ev": 0.267,
+          "pnl": 7.47,
+          "pf": 1.19
+        },
+        "per_window": [
+          {
+            "n": 4,
+            "wr": 75.0,
+            "ev": 2.038,
+            "pnl": 8.15,
+            "pf": 2.93,
+            "window": 0
+          },
+          {
+            "n": 3,
+            "wr": 33.3,
+            "ev": -0.488,
+            "pnl": -1.46,
+            "pf": 0.69,
+            "window": 1
+          },
+          {
+            "n": 6,
+            "wr": 83.3,
+            "ev": 1.481,
+            "pnl": 8.89,
+            "pf": 4.35,
+            "window": 2
+          },
+          {
+            "n": 4,
+            "wr": 25.0,
+            "ev": -1.648,
+            "pnl": -6.59,
+            "pf": 0.33,
+            "window": 3
+          },
+          {
+            "n": 6,
+            "wr": 66.7,
+            "ev": 0.887,
+            "pnl": 5.32,
+            "pf": 1.61,
+            "window": 4
+          },
+          {
+            "n": 5,
+            "wr": 40.0,
+            "ev": -1.367,
+            "pnl": -6.84,
+            "pf": 0.27,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 3,
+          "positive_ratio": 0.667,
+          "cv_ev": 3.677,
+          "min_ev": -1.367,
+          "max_ev": 1.481,
+          "verdict": "borderline"
+        }
+      },
+      "london_fix_reversal": {
+        "aggregate": {
+          "n": 54,
+          "wr": 53.7,
+          "ev": -0.138,
+          "pnl": -7.43,
+          "pf": 0.78
+        },
+        "per_window": [
+          {
+            "n": 10,
+            "wr": 60.0,
+            "ev": 0.091,
+            "pnl": 0.91,
+            "pf": 1.19,
+            "window": 0
+          },
+          {
+            "n": 4,
+            "wr": 25.0,
+            "ev": -0.851,
+            "pnl": -3.4,
+            "pf": 0.24,
+            "window": 1
+          },
+          {
+            "n": 5,
+            "wr": 20.0,
+            "ev": -1.031,
+            "pnl": -5.16,
+            "pf": 0.12,
+            "window": 2
+          },
+          {
+            "n": 12,
+            "wr": 66.7,
+            "ev": 0.2,
+            "pnl": 2.4,
+            "pf": 1.4,
+            "window": 3
+          },
+          {
+            "n": 15,
+            "wr": 53.3,
+            "ev": -0.109,
+            "pnl": -1.64,
+            "pf": 0.81,
+            "window": 4
+          },
+          {
+            "n": 8,
+            "wr": 62.5,
+            "ev": -0.068,
+            "pnl": -0.54,
+            "pf": 0.88,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 5,
+          "positive_ratio": 0.4,
+          "cv_ev": 2.389,
+          "min_ev": -1.031,
+          "max_ev": 0.2,
+          "verdict": "unstable"
+        }
+      },
+      "ema200_trend_reversal": {
+        "aggregate": {
+          "n": 25,
+          "wr": 68.0,
+          "ev": 0.151,
+          "pnl": 3.78,
+          "pf": 1.27
+        },
+        "per_window": [
+          {
+            "n": 4,
+            "wr": 100.0,
+            "ev": 0.952,
+            "pnl": 3.81,
+            "pf": null,
+            "window": 0
+          },
+          {
+            "n": 7,
+            "wr": 42.9,
+            "ev": -0.484,
+            "pnl": -3.39,
+            "pf": 0.54,
+            "window": 1
+          },
+          {
+            "n": 4,
+            "wr": 75.0,
+            "ev": 0.624,
+            "pnl": 2.5,
+            "pf": 4.09,
+            "window": 2
+          },
+          {
+            "n": 6,
+            "wr": 83.3,
+            "ev": 0.487,
+            "pnl": 2.92,
+            "pf": 2.62,
+            "window": 3
+          },
+          {
+            "n": 3,
+            "wr": 33.3,
+            "ev": -0.976,
+            "pnl": -2.93,
+            "pf": 0.22,
+            "window": 4
+          },
+          {
+            "n": 1,
+            "wr": 100.0,
+            "ev": 0.868,
+            "pnl": 0.87,
+            "pf": null,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 2,
+          "positive_ratio": 0.5,
+          "cv_ev": 323.667,
+          "min_ev": -0.484,
+          "max_ev": 0.487,
+          "verdict": "borderline"
+        }
+      },
+      "ema_cross": {
+        "aggregate": {
+          "n": 27,
+          "wr": 66.7,
+          "ev": 0.174,
+          "pnl": 4.7,
+          "pf": 1.26
+        },
+        "per_window": [
+          {
+            "n": 6,
+            "wr": 33.3,
+            "ev": -1.055,
+            "pnl": -6.33,
+            "pf": 0.23,
+            "window": 0
+          },
+          {
+            "n": 10,
+            "wr": 70.0,
+            "ev": 0.238,
+            "pnl": 2.38,
+            "pf": 1.42,
+            "window": 1
+          },
+          {
+            "n": 6,
+            "wr": 83.3,
+            "ev": 1.065,
+            "pnl": 6.39,
+            "pf": 4.4,
+            "window": 2
+          },
+          {
+            "n": 3,
+            "wr": 100.0,
+            "ev": 0.944,
+            "pnl": 2.83,
+            "pf": null,
+            "window": 3
+          },
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": -0.282,
+            "pnl": -0.56,
+            "pf": 0.72,
+            "window": 4
+          }
+        ],
+        "stability": {
+          "active_windows": 3,
+          "positive_ratio": 0.667,
+          "cv_ev": 10.554,
+          "min_ev": -1.055,
+          "max_ev": 1.065,
+          "verdict": "borderline"
+        }
+      }
+    }
+  },
+  {
+    "pair": "EUR_USD",
+    "symbol": "EURUSD=X",
+    "lookback_days": 365,
+    "interval": "15m",
+    "window_days": 60,
+    "total_trades": 1566,
+    "overall_wr": 60.7,
+    "overall_ev": 0.163,
+    "strategies": {
+      "sr_fib_confluence": {
+        "aggregate": {
+          "n": 238,
+          "wr": 57.1,
+          "ev": -0.027,
+          "pnl": -6.37,
+          "pf": 0.96
+        },
+        "per_window": [
+          {
+            "n": 47,
+            "wr": 55.3,
+            "ev": 0.095,
+            "pnl": 4.45,
+            "pf": 1.17,
+            "window": 0
+          },
+          {
+            "n": 32,
+            "wr": 68.8,
+            "ev": 0.195,
+            "pnl": 6.24,
+            "pf": 1.34,
+            "window": 1
+          },
+          {
+            "n": 29,
+            "wr": 62.1,
+            "ev": 0.136,
+            "pnl": 3.95,
+            "pf": 1.22,
+            "window": 2
+          },
+          {
+            "n": 44,
+            "wr": 61.4,
+            "ev": -0.025,
+            "pnl": -1.1,
+            "pf": 0.96,
+            "window": 3
+          },
+          {
+            "n": 45,
+            "wr": 44.4,
+            "ev": -0.308,
+            "pnl": -13.88,
+            "pf": 0.64,
+            "window": 4
+          },
+          {
+            "n": 40,
+            "wr": 57.5,
+            "ev": -0.1,
+            "pnl": -3.99,
+            "pf": 0.86,
+            "window": 5
+          },
+          {
+            "n": 1,
+            "wr": 0.0,
+            "ev": -2.034,
+            "pnl": -2.03,
+            "pf": 0.0,
+            "window": 6
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.5,
+          "cv_ev": 144.714,
+          "min_ev": -0.308,
+          "max_ev": 0.195,
+          "verdict": "borderline"
+        }
+      },
+      "trendline_sweep": {
+        "aggregate": {
+          "n": 56,
+          "wr": 75.0,
+          "ev": 0.576,
+          "pnl": 32.23,
+          "pf": 1.83
+        },
+        "per_window": [
+          {
+            "n": 11,
+            "wr": 54.5,
+            "ev": 0.09,
+            "pnl": 0.99,
+            "pf": 1.07,
+            "window": 0
+          },
+          {
+            "n": 7,
+            "wr": 100.0,
+            "ev": 1.686,
+            "pnl": 11.8,
+            "pf": null,
+            "window": 1
+          },
+          {
+            "n": 8,
+            "wr": 75.0,
+            "ev": 0.019,
+            "pnl": 0.15,
+            "pf": 1.02,
+            "window": 2
+          },
+          {
+            "n": 7,
+            "wr": 57.1,
+            "ev": 0.016,
+            "pnl": 0.11,
+            "pf": 1.02,
+            "window": 3
+          },
+          {
+            "n": 14,
+            "wr": 78.6,
+            "ev": 0.741,
+            "pnl": 10.37,
+            "pf": 2.3,
+            "window": 4
+          },
+          {
+            "n": 9,
+            "wr": 88.9,
+            "ev": 0.978,
+            "pnl": 8.8,
+            "pf": 4.3,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 1.0,
+          "cv_ev": 1.048,
+          "min_ev": 0.016,
+          "max_ev": 1.686,
+          "verdict": "borderline"
+        }
+      },
+      "session_time_bias": {
+        "aggregate": {
+          "n": 403,
+          "wr": 62.5,
+          "ev": 0.151,
+          "pnl": 60.87,
+          "pf": 1.22
+        },
+        "per_window": [
+          {
+            "n": 82,
+            "wr": 59.8,
+            "ev": 0.077,
+            "pnl": 6.35,
+            "pf": 1.11,
+            "window": 0
+          },
+          {
+            "n": 59,
+            "wr": 67.8,
+            "ev": 0.304,
+            "pnl": 17.92,
+            "pf": 1.51,
+            "window": 1
+          },
+          {
+            "n": 51,
+            "wr": 64.7,
+            "ev": 0.191,
+            "pnl": 9.74,
+            "pf": 1.27,
+            "window": 2
+          },
+          {
+            "n": 77,
+            "wr": 63.6,
+            "ev": 0.195,
+            "pnl": 15.04,
+            "pf": 1.31,
+            "window": 3
+          },
+          {
+            "n": 54,
+            "wr": 50.0,
+            "ev": -0.175,
+            "pnl": -9.47,
+            "pf": 0.8,
+            "window": 4
+          },
+          {
+            "n": 76,
+            "wr": 68.4,
+            "ev": 0.307,
+            "pnl": 23.32,
+            "pf": 1.49,
+            "window": 5
+          },
+          {
+            "n": 4,
+            "wr": 50.0,
+            "ev": -0.507,
+            "pnl": -2.03,
+            "pf": 0.57,
+            "window": 6
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.833,
+          "cv_ev": 1.1,
+          "min_ev": -0.175,
+          "max_ev": 0.307,
+          "verdict": "borderline"
+        }
+      },
+      "dual_sr_bounce": {
+        "aggregate": {
+          "n": 35,
+          "wr": 48.6,
+          "ev": -0.284,
+          "pnl": -9.93,
+          "pf": 0.67
+        },
+        "per_window": [
+          {
+            "n": 7,
+            "wr": 71.4,
+            "ev": 0.578,
+            "pnl": 4.04,
+            "pf": 2.4,
+            "window": 0
+          },
+          {
+            "n": 4,
+            "wr": 25.0,
+            "ev": -0.764,
+            "pnl": -3.06,
+            "pf": 0.33,
+            "window": 1
+          },
+          {
+            "n": 7,
+            "wr": 28.6,
+            "ev": -0.93,
+            "pnl": -6.51,
+            "pf": 0.27,
+            "window": 2
+          },
+          {
+            "n": 3,
+            "wr": 66.7,
+            "ev": 0.041,
+            "pnl": 0.12,
+            "pf": 1.05,
+            "window": 3
+          },
+          {
+            "n": 2,
+            "wr": 0.0,
+            "ev": -1.465,
+            "pnl": -2.93,
+            "pf": 0.0,
+            "window": 4
+          },
+          {
+            "n": 12,
+            "wr": 58.3,
+            "ev": -0.133,
+            "pnl": -1.6,
+            "pf": 0.81,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 3,
+          "positive_ratio": 0.333,
+          "cv_ev": 3.81,
+          "min_ev": -0.93,
+          "max_ev": 0.578,
+          "verdict": "unstable"
+        }
+      },
+      "dt_bb_rsi_mr": {
+        "aggregate": {
+          "n": 69,
+          "wr": 46.4,
+          "ev": -0.194,
+          "pnl": -13.39,
+          "pf": 0.68
+        },
+        "per_window": [
+          {
+            "n": 20,
+            "wr": 30.0,
+            "ev": -0.497,
+            "pnl": -9.93,
+            "pf": 0.38,
+            "window": 0
+          },
+          {
+            "n": 8,
+            "wr": 62.5,
+            "ev": -0.201,
+            "pnl": -1.61,
+            "pf": 0.69,
+            "window": 1
+          },
+          {
+            "n": 5,
+            "wr": 80.0,
+            "ev": 0.395,
+            "pnl": 1.97,
+            "pf": 2.07,
+            "window": 2
+          },
+          {
+            "n": 11,
+            "wr": 45.5,
+            "ev": -0.09,
+            "pnl": -0.99,
+            "pf": 0.85,
+            "window": 3
+          },
+          {
+            "n": 17,
+            "wr": 47.1,
+            "ev": -0.08,
+            "pnl": -1.36,
+            "pf": 0.83,
+            "window": 4
+          },
+          {
+            "n": 8,
+            "wr": 50.0,
+            "ev": -0.184,
+            "pnl": -1.47,
+            "pf": 0.66,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.167,
+          "cv_ev": 2.416,
+          "min_ev": -0.497,
+          "max_ev": 0.395,
+          "verdict": "unstable"
+        }
+      },
+      "xs_momentum": {
+        "aggregate": {
+          "n": 237,
+          "wr": 62.0,
+          "ev": 0.092,
+          "pnl": 21.8,
+          "pf": 1.14
+        },
+        "per_window": [
+          {
+            "n": 37,
+            "wr": 62.2,
+            "ev": 0.078,
+            "pnl": 2.9,
+            "pf": 1.12,
+            "window": 0
+          },
+          {
+            "n": 43,
+            "wr": 67.4,
+            "ev": 0.394,
+            "pnl": 16.94,
+            "pf": 1.79,
+            "window": 1
+          },
+          {
+            "n": 36,
+            "wr": 58.3,
+            "ev": 0.014,
+            "pnl": 0.5,
+            "pf": 1.02,
+            "window": 2
+          },
+          {
+            "n": 43,
+            "wr": 55.8,
+            "ev": -0.121,
+            "pnl": -5.2,
+            "pf": 0.85,
+            "window": 3
+          },
+          {
+            "n": 38,
+            "wr": 65.8,
+            "ev": 0.148,
+            "pnl": 5.61,
+            "pf": 1.23,
+            "window": 4
+          },
+          {
+            "n": 40,
+            "wr": 62.5,
+            "ev": 0.026,
+            "pnl": 1.05,
+            "pf": 1.04,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.833,
+          "cv_ev": 1.762,
+          "min_ev": -0.121,
+          "max_ev": 0.394,
+          "verdict": "borderline"
+        }
+      },
+      "lin_reg_channel": {
+        "aggregate": {
+          "n": 29,
+          "wr": 62.1,
+          "ev": 0.006,
+          "pnl": 0.19,
+          "pf": 1.01
+        },
+        "per_window": [
+          {
+            "n": 7,
+            "wr": 42.9,
+            "ev": -0.492,
+            "pnl": -3.44,
+            "pf": 0.44,
+            "window": 0
+          },
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": -0.277,
+            "pnl": -0.55,
+            "pf": 0.6,
+            "window": 1
+          },
+          {
+            "n": 11,
+            "wr": 63.6,
+            "ev": 0.035,
+            "pnl": 0.39,
+            "pf": 1.06,
+            "window": 2
+          },
+          {
+            "n": 4,
+            "wr": 75.0,
+            "ev": 0.33,
+            "pnl": 1.32,
+            "pf": 1.83,
+            "window": 3
+          },
+          {
+            "n": 3,
+            "wr": 66.7,
+            "ev": 0.134,
+            "pnl": 0.4,
+            "pf": 1.25,
+            "window": 4
+          },
+          {
+            "n": 2,
+            "wr": 100.0,
+            "ev": 1.038,
+            "pnl": 2.08,
+            "pf": null,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 2,
+          "positive_ratio": 0.5,
+          "cv_ev": 1.153,
+          "min_ev": -0.492,
+          "max_ev": 0.035,
+          "verdict": "borderline"
+        }
+      },
+      "vwap_mean_reversion": {
+        "aggregate": {
+          "n": 165,
+          "wr": 70.9,
+          "ev": 0.98,
+          "pnl": 161.67,
+          "pf": 2.2
+        },
+        "per_window": [
+          {
+            "n": 32,
+            "wr": 62.5,
+            "ev": 0.186,
+            "pnl": 5.95,
+            "pf": 1.25,
+            "window": 0
+          },
+          {
+            "n": 23,
+            "wr": 56.5,
+            "ev": -0.049,
+            "pnl": -1.12,
+            "pf": 0.96,
+            "window": 1
+          },
+          {
+            "n": 32,
+            "wr": 75.0,
+            "ev": 1.384,
+            "pnl": 44.29,
+            "pf": 3.05,
+            "window": 2
+          },
+          {
+            "n": 31,
+            "wr": 74.2,
+            "ev": 1.188,
+            "pnl": 36.82,
+            "pf": 2.4,
+            "window": 3
+          },
+          {
+            "n": 28,
+            "wr": 89.3,
+            "ev": 2.711,
+            "pnl": 75.91,
+            "pf": 7.8,
+            "window": 4
+          },
+          {
+            "n": 19,
+            "wr": 63.2,
+            "ev": -0.01,
+            "pnl": -0.19,
+            "pf": 0.99,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.667,
+          "cv_ev": 1.094,
+          "min_ev": -0.049,
+          "max_ev": 2.711,
+          "verdict": "borderline"
+        }
+      },
+      "london_fix_reversal": {
+        "aggregate": {
+          "n": 52,
+          "wr": 55.8,
+          "ev": -0.052,
+          "pnl": -2.68,
+          "pf": 0.91
+        },
+        "per_window": [
+          {
+            "n": 11,
+            "wr": 36.4,
+            "ev": -0.497,
+            "pnl": -5.47,
+            "pf": 0.33,
+            "window": 0
+          },
+          {
+            "n": 7,
+            "wr": 42.9,
+            "ev": -0.452,
+            "pnl": -3.17,
+            "pf": 0.5,
+            "window": 1
+          },
+          {
+            "n": 5,
+            "wr": 60.0,
+            "ev": 0.131,
+            "pnl": 0.66,
+            "pf": 1.28,
+            "window": 2
+          },
+          {
+            "n": 11,
+            "wr": 54.5,
+            "ev": -0.023,
+            "pnl": -0.25,
+            "pf": 0.96,
+            "window": 3
+          },
+          {
+            "n": 12,
+            "wr": 75.0,
+            "ev": 0.489,
+            "pnl": 5.87,
+            "pf": 2.66,
+            "window": 4
+          },
+          {
+            "n": 6,
+            "wr": 66.7,
+            "ev": -0.052,
+            "pnl": -0.31,
+            "pf": 0.89,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.333,
+          "cv_ev": 5.013,
+          "min_ev": -0.497,
+          "max_ev": 0.489,
+          "verdict": "unstable"
+        }
+      },
+      "adx_trend_continuation": {
+        "aggregate": {
+          "n": 16,
+          "wr": 50.0,
+          "ev": -0.182,
+          "pnl": -2.92,
+          "pf": 0.84
+        },
+        "per_window": [
+          {
+            "n": 4,
+            "wr": 50.0,
+            "ev": -0.244,
+            "pnl": -0.97,
+            "pf": 0.81,
+            "window": 0
+          },
+          {
+            "n": 1,
+            "wr": 100.0,
+            "ev": 2.102,
+            "pnl": 2.1,
+            "pf": null,
+            "window": 1
+          },
+          {
+            "n": 5,
+            "wr": 40.0,
+            "ev": -0.31,
+            "pnl": -1.55,
+            "pf": 0.78,
+            "window": 2
+          },
+          {
+            "n": 1,
+            "wr": 100.0,
+            "ev": 1.458,
+            "pnl": 1.46,
+            "pf": null,
+            "window": 3
+          },
+          {
+            "n": 4,
+            "wr": 50.0,
+            "ev": -0.454,
+            "pnl": -1.81,
+            "pf": 0.56,
+            "window": 4
+          },
+          {
+            "n": 1,
+            "wr": 0.0,
+            "ev": -2.143,
+            "pnl": -2.14,
+            "pf": 0.0,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 1,
+          "positive_ratio": null,
+          "cv_ev": null,
+          "min_ev": null,
+          "max_ev": null,
+          "verdict": "N_windows<2"
+        }
+      },
+      "dt_sr_channel_reversal": {
+        "aggregate": {
+          "n": 33,
+          "wr": 57.6,
+          "ev": 0.007,
+          "pnl": 0.24,
+          "pf": 1.01
+        },
+        "per_window": [
+          {
+            "n": 7,
+            "wr": 42.9,
+            "ev": -0.287,
+            "pnl": -2.01,
+            "pf": 0.51,
+            "window": 0
+          },
+          {
+            "n": 7,
+            "wr": 57.1,
+            "ev": -0.254,
+            "pnl": -1.78,
+            "pf": 0.57,
+            "window": 1
+          },
+          {
+            "n": 6,
+            "wr": 50.0,
+            "ev": -0.222,
+            "pnl": -1.33,
+            "pf": 0.69,
+            "window": 2
+          },
+          {
+            "n": 5,
+            "wr": 80.0,
+            "ev": 0.462,
+            "pnl": 2.31,
+            "pf": 2.57,
+            "window": 3
+          },
+          {
+            "n": 3,
+            "wr": 100.0,
+            "ev": 0.448,
+            "pnl": 1.35,
+            "pf": 42.39,
+            "window": 4
+          },
+          {
+            "n": 5,
+            "wr": 40.0,
+            "ev": 0.341,
+            "pnl": 1.71,
+            "pf": 1.87,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 5,
+          "positive_ratio": 0.4,
+          "cv_ev": 40.527,
+          "min_ev": -0.287,
+          "max_ev": 0.462,
+          "verdict": "unstable"
+        }
+      },
+      "wick_imbalance_reversion": {
+        "aggregate": {
+          "n": 33,
+          "wr": 54.5,
+          "ev": -0.064,
+          "pnl": -2.12,
+          "pf": 0.91
+        },
+        "per_window": [
+          {
+            "n": 11,
+            "wr": 36.4,
+            "ev": -0.382,
+            "pnl": -4.21,
+            "pf": 0.5,
+            "window": 0
+          },
+          {
+            "n": 3,
+            "wr": 66.7,
+            "ev": -0.242,
+            "pnl": -0.73,
+            "pf": 0.64,
+            "window": 1
+          },
+          {
+            "n": 5,
+            "wr": 80.0,
+            "ev": 0.5,
+            "pnl": 2.5,
+            "pf": 2.2,
+            "window": 2
+          },
+          {
+            "n": 7,
+            "wr": 42.9,
+            "ev": -0.386,
+            "pnl": -2.7,
+            "pf": 0.6,
+            "window": 3
+          },
+          {
+            "n": 3,
+            "wr": 66.7,
+            "ev": 0.499,
+            "pnl": 1.5,
+            "pf": 2.85,
+            "window": 4
+          },
+          {
+            "n": 4,
+            "wr": 75.0,
+            "ev": 0.38,
+            "pnl": 1.52,
+            "pf": 1.65,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 3,
+          "positive_ratio": 0.333,
+          "cv_ev": 4.665,
+          "min_ev": -0.386,
+          "max_ev": 0.5,
+          "verdict": "unstable"
+        }
+      },
+      "squeeze_release_momentum": {
+        "aggregate": {
+          "n": 12,
+          "wr": 66.7,
+          "ev": 0.331,
+          "pnl": 3.97,
+          "pf": 1.6
+        },
+        "per_window": [
+          {
+            "n": 1,
+            "wr": 100.0,
+            "ev": 1.325,
+            "pnl": 1.33,
+            "pf": null,
+            "window": 0
+          },
+          {
+            "n": 1,
+            "wr": 100.0,
+            "ev": 1.211,
+            "pnl": 1.21,
+            "pf": null,
+            "window": 1
+          },
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": -0.074,
+            "pnl": -0.15,
+            "pf": 0.89,
+            "window": 2
+          },
+          {
+            "n": 4,
+            "wr": 75.0,
+            "ev": 0.637,
+            "pnl": 2.55,
+            "pf": 2.34,
+            "window": 3
+          },
+          {
+            "n": 3,
+            "wr": 33.3,
+            "ev": -0.718,
+            "pnl": -2.15,
+            "pf": 0.36,
+            "window": 4
+          },
+          {
+            "n": 1,
+            "wr": 100.0,
+            "ev": 1.187,
+            "pnl": 1.19,
+            "pf": null,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 0,
+          "positive_ratio": null,
+          "cv_ev": null,
+          "min_ev": null,
+          "max_ev": null,
+          "verdict": "N_windows<2"
+        }
+      },
+      "htf_false_breakout": {
+        "aggregate": {
+          "n": 18,
+          "wr": 66.7,
+          "ev": 0.523,
+          "pnl": 9.42,
+          "pf": 2.87
+        },
+        "per_window": [
+          {
+            "n": 7,
+            "wr": 57.1,
+            "ev": 0.019,
+            "pnl": 0.13,
+            "pf": 1.04,
+            "window": 0
+          },
+          {
+            "n": 4,
+            "wr": 100.0,
+            "ev": 1.621,
+            "pnl": 6.49,
+            "pf": null,
+            "window": 1
+          },
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": 0.127,
+            "pnl": 0.25,
+            "pf": 1.49,
+            "window": 2
+          },
+          {
+            "n": 3,
+            "wr": 33.3,
+            "ev": -0.056,
+            "pnl": -0.17,
+            "pf": 0.89,
+            "window": 3
+          },
+          {
+            "n": 2,
+            "wr": 100.0,
+            "ev": 1.357,
+            "pnl": 2.71,
+            "pf": null,
+            "window": 4
+          }
+        ],
+        "stability": {
+          "active_windows": 1,
+          "positive_ratio": null,
+          "cv_ev": null,
+          "min_ev": null,
+          "max_ev": null,
+          "verdict": "N_windows<2"
+        }
+      },
+      "ema200_trend_reversal": {
+        "aggregate": {
+          "n": 11,
+          "wr": 45.5,
+          "ev": -0.495,
+          "pnl": -5.45,
+          "pf": 0.49
+        },
+        "per_window": [
+          {
+            "n": 1,
+            "wr": 100.0,
+            "ev": 0.773,
+            "pnl": 0.77,
+            "pf": null,
+            "window": 0
+          },
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": -0.255,
+            "pnl": -0.51,
+            "pf": 0.67,
+            "window": 1
+          },
+          {
+            "n": 2,
+            "wr": 0.0,
+            "ev": -1.731,
+            "pnl": -3.46,
+            "pf": 0.0,
+            "window": 2
+          },
+          {
+            "n": 4,
+            "wr": 50.0,
+            "ev": -0.39,
+            "pnl": -1.56,
+            "pf": 0.6,
+            "window": 3
+          },
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": -0.343,
+            "pnl": -0.69,
+            "pf": 0.58,
+            "window": 4
+          }
+        ],
+        "stability": {
+          "active_windows": 0,
+          "positive_ratio": null,
+          "cv_ev": null,
+          "min_ev": null,
+          "max_ev": null,
+          "verdict": "N_windows<2"
+        }
+      },
+      "intraday_seasonality": {
+        "aggregate": {
+          "n": 45,
+          "wr": 51.1,
+          "ev": -0.216,
+          "pnl": -9.74,
+          "pf": 0.75
+        },
+        "per_window": [
+          {
+            "n": 12,
+            "wr": 50.0,
+            "ev": 0.008,
+            "pnl": 0.1,
+            "pf": 1.01,
+            "window": 0
+          },
+          {
+            "n": 7,
+            "wr": 71.4,
+            "ev": 0.476,
+            "pnl": 3.33,
+            "pf": 1.83,
+            "window": 1
+          },
+          {
+            "n": 11,
+            "wr": 36.4,
+            "ev": -0.769,
+            "pnl": -8.45,
+            "pf": 0.4,
+            "window": 2
+          },
+          {
+            "n": 3,
+            "wr": 66.7,
+            "ev": 0.049,
+            "pnl": 0.15,
+            "pf": 1.07,
+            "window": 3
+          },
+          {
+            "n": 5,
+            "wr": 40.0,
+            "ev": -0.801,
+            "pnl": -4.0,
+            "pf": 0.39,
+            "window": 4
+          },
+          {
+            "n": 7,
+            "wr": 57.1,
+            "ev": -0.123,
+            "pnl": -0.86,
+            "pf": 0.85,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 5,
+          "positive_ratio": 0.4,
+          "cv_ev": 2.011,
+          "min_ev": -0.801,
+          "max_ev": 0.476,
+          "verdict": "unstable"
+        }
+      },
+      "orb_trap": {
+        "aggregate": {
+          "n": 32,
+          "wr": 37.5,
+          "ev": -0.379,
+          "pnl": -12.14,
+          "pf": 0.57
+        },
+        "per_window": [
+          {
+            "n": 8,
+            "wr": 37.5,
+            "ev": -0.067,
+            "pnl": -0.54,
+            "pf": 0.9,
+            "window": 0
+          },
+          {
+            "n": 4,
+            "wr": 0.0,
+            "ev": -1.469,
+            "pnl": -5.88,
+            "pf": 0.0,
+            "window": 1
+          },
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": -0.228,
+            "pnl": -0.46,
+            "pf": 0.09,
+            "window": 2
+          },
+          {
+            "n": 4,
+            "wr": 25.0,
+            "ev": -0.82,
+            "pnl": -3.28,
+            "pf": 0.21,
+            "window": 3
+          },
+          {
+            "n": 9,
+            "wr": 44.4,
+            "ev": -0.425,
+            "pnl": -3.83,
+            "pf": 0.58,
+            "window": 4
+          },
+          {
+            "n": 5,
+            "wr": 60.0,
+            "ev": 0.366,
+            "pnl": 1.83,
+            "pf": 1.59,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 3,
+          "positive_ratio": 0.333,
+          "cv_ev": 7.7,
+          "min_ev": -0.425,
+          "max_ev": 0.366,
+          "verdict": "unstable"
+        }
+      },
+      "dt_fib_reversal": {
+        "aggregate": {
+          "n": 21,
+          "wr": 57.1,
+          "ev": -0.034,
+          "pnl": -0.72,
+          "pf": 0.95
+        },
+        "per_window": [
+          {
+            "n": 4,
+            "wr": 75.0,
+            "ev": 0.221,
+            "pnl": 0.89,
+            "pf": 1.71,
+            "window": 0
+          },
+          {
+            "n": 5,
+            "wr": 80.0,
+            "ev": 0.621,
+            "pnl": 3.1,
+            "pf": 2.76,
+            "window": 1
+          },
+          {
+            "n": 2,
+            "wr": 100.0,
+            "ev": 1.262,
+            "pnl": 2.52,
+            "pf": null,
+            "window": 2
+          },
+          {
+            "n": 3,
+            "wr": 0.0,
+            "ev": -1.205,
+            "pnl": -3.61,
+            "pf": 0.0,
+            "window": 3
+          },
+          {
+            "n": 3,
+            "wr": 66.7,
+            "ev": 0.338,
+            "pnl": 1.01,
+            "pf": 1.64,
+            "window": 4
+          },
+          {
+            "n": 4,
+            "wr": 25.0,
+            "ev": -1.157,
+            "pnl": -4.63,
+            "pf": 0.23,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 1,
+          "positive_ratio": null,
+          "cv_ev": null,
+          "min_ev": null,
+          "max_ev": null,
+          "verdict": "N_windows<2"
+        }
+      },
+      "post_news_vol": {
+        "aggregate": {
+          "n": 24,
+          "wr": 70.8,
+          "ev": 0.814,
+          "pnl": 19.54,
+          "pf": 1.79
+        },
+        "per_window": [
+          {
+            "n": 7,
+            "wr": 71.4,
+            "ev": 0.661,
+            "pnl": 4.62,
+            "pf": 1.59,
+            "window": 0
+          },
+          {
+            "n": 5,
+            "wr": 80.0,
+            "ev": 1.832,
+            "pnl": 9.16,
+            "pf": 5.57,
+            "window": 1
+          },
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": -0.399,
+            "pnl": -0.8,
+            "pf": 0.81,
+            "window": 2
+          },
+          {
+            "n": 4,
+            "wr": 50.0,
+            "ev": -0.513,
+            "pnl": -2.05,
+            "pf": 0.7,
+            "window": 3
+          },
+          {
+            "n": 3,
+            "wr": 66.7,
+            "ev": 0.644,
+            "pnl": 1.93,
+            "pf": 1.52,
+            "window": 4
+          },
+          {
+            "n": 3,
+            "wr": 100.0,
+            "ev": 2.223,
+            "pnl": 6.67,
+            "pf": null,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 2,
+          "positive_ratio": 1.0,
+          "cv_ev": 0.47,
+          "min_ev": 0.661,
+          "max_ev": 1.832,
+          "verdict": "stable"
+        }
+      },
+      "doji_breakout": {
+        "aggregate": {
+          "n": 11,
+          "wr": 90.9,
+          "ev": 1.1,
+          "pnl": 12.1,
+          "pf": 4.34
+        },
+        "per_window": [
+          {
+            "n": 8,
+            "wr": 87.5,
+            "ev": 1.184,
+            "pnl": 9.47,
+            "pf": 3.62,
+            "window": 0
+          },
+          {
+            "n": 1,
+            "wr": 100.0,
+            "ev": 1.0,
+            "pnl": 1.0,
+            "pf": null,
+            "window": 2
+          },
+          {
+            "n": 2,
+            "wr": 100.0,
+            "ev": 0.815,
+            "pnl": 1.63,
+            "pf": null,
+            "window": 4
+          }
+        ],
+        "stability": {
+          "active_windows": 1,
+          "positive_ratio": null,
+          "cv_ev": null,
+          "min_ev": null,
+          "max_ev": null,
+          "verdict": "N_windows<2"
+        }
+      },
+      "ema_cross": {
+        "aggregate": {
+          "n": 13,
+          "wr": 61.5,
+          "ev": 0.021,
+          "pnl": 0.27,
+          "pf": 1.03
+        },
+        "per_window": [
+          {
+            "n": 4,
+            "wr": 50.0,
+            "ev": -0.304,
+            "pnl": -1.22,
+            "pf": 0.66,
+            "window": 0
+          },
+          {
+            "n": 1,
+            "wr": 0.0,
+            "ev": -2.031,
+            "pnl": -2.03,
+            "pf": 0.0,
+            "window": 1
+          },
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": -0.531,
+            "pnl": -1.06,
+            "pf": 0.47,
+            "window": 2
+          },
+          {
+            "n": 3,
+            "wr": 66.7,
+            "ev": -0.09,
+            "pnl": -0.27,
+            "pf": 0.88,
+            "window": 3
+          },
+          {
+            "n": 3,
+            "wr": 100.0,
+            "ev": 1.617,
+            "pnl": 4.85,
+            "pf": null,
+            "window": 4
+          }
+        ],
+        "stability": {
+          "active_windows": 0,
+          "positive_ratio": null,
+          "cv_ev": null,
+          "min_ev": null,
+          "max_ev": null,
+          "verdict": "N_windows<2"
+        }
+      }
+    }
+  },
+  {
+    "pair": "GBP_USD",
+    "symbol": "GBPUSD=X",
+    "lookback_days": 365,
+    "interval": "15m",
+    "window_days": 60,
+    "total_trades": 2006,
+    "overall_wr": 58.1,
+    "overall_ev": 0.035,
+    "strategies": {
+      "sr_break_retest": {
+        "aggregate": {
+          "n": 48,
+          "wr": 50.0,
+          "ev": -0.461,
+          "pnl": -22.12,
+          "pf": 0.5
+        },
+        "per_window": [
+          {
+            "n": 10,
+            "wr": 50.0,
+            "ev": -0.365,
+            "pnl": -3.65,
+            "pf": 0.58,
+            "window": 0
+          },
+          {
+            "n": 6,
+            "wr": 50.0,
+            "ev": -0.442,
+            "pnl": -2.65,
+            "pf": 0.48,
+            "window": 1
+          },
+          {
+            "n": 11,
+            "wr": 63.6,
+            "ev": -0.168,
+            "pnl": -1.85,
+            "pf": 0.78,
+            "window": 2
+          },
+          {
+            "n": 7,
+            "wr": 14.3,
+            "ev": -1.483,
+            "pnl": -10.38,
+            "pf": 0.07,
+            "window": 3
+          },
+          {
+            "n": 8,
+            "wr": 62.5,
+            "ev": -0.072,
+            "pnl": -0.57,
+            "pf": 0.89,
+            "window": 4
+          },
+          {
+            "n": 6,
+            "wr": 50.0,
+            "ev": -0.503,
+            "pnl": -3.02,
+            "pf": 0.47,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.0,
+          "cv_ev": 0.914,
+          "min_ev": -1.483,
+          "max_ev": -0.072,
+          "verdict": "unstable"
+        }
+      },
+      "htf_false_breakout": {
+        "aggregate": {
+          "n": 23,
+          "wr": 56.5,
+          "ev": -0.231,
+          "pnl": -5.32,
+          "pf": 0.72
+        },
+        "per_window": [
+          {
+            "n": 6,
+            "wr": 66.7,
+            "ev": 0.505,
+            "pnl": 3.03,
+            "pf": 2.29,
+            "window": 0
+          },
+          {
+            "n": 4,
+            "wr": 0.0,
+            "ev": -1.461,
+            "pnl": -5.84,
+            "pf": 0.0,
+            "window": 1
+          },
+          {
+            "n": 5,
+            "wr": 60.0,
+            "ev": -0.016,
+            "pnl": -0.08,
+            "pf": 0.98,
+            "window": 2
+          },
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": -1.574,
+            "pnl": -3.15,
+            "pf": 0.21,
+            "window": 3
+          },
+          {
+            "n": 4,
+            "wr": 100.0,
+            "ev": 0.581,
+            "pnl": 2.32,
+            "pf": 51.6,
+            "window": 4
+          },
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": -0.799,
+            "pnl": -1.6,
+            "pf": 0.49,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 2,
+          "positive_ratio": 0.5,
+          "cv_ev": 1.065,
+          "min_ev": -0.016,
+          "max_ev": 0.505,
+          "verdict": "borderline"
+        }
+      },
+      "sr_fib_confluence": {
+        "aggregate": {
+          "n": 257,
+          "wr": 58.0,
+          "ev": -0.054,
+          "pnl": -14.0,
+          "pf": 0.92
+        },
+        "per_window": [
+          {
+            "n": 64,
+            "wr": 53.1,
+            "ev": -0.079,
+            "pnl": -5.06,
+            "pf": 0.89,
+            "window": 0
+          },
+          {
+            "n": 35,
+            "wr": 71.4,
+            "ev": 0.283,
+            "pnl": 9.9,
+            "pf": 1.57,
+            "window": 1
+          },
+          {
+            "n": 40,
+            "wr": 52.5,
+            "ev": -0.161,
+            "pnl": -6.46,
+            "pf": 0.79,
+            "window": 2
+          },
+          {
+            "n": 42,
+            "wr": 52.4,
+            "ev": -0.238,
+            "pnl": -10.0,
+            "pf": 0.69,
+            "window": 3
+          },
+          {
+            "n": 34,
+            "wr": 55.9,
+            "ev": -0.297,
+            "pnl": -10.1,
+            "pf": 0.64,
+            "window": 4
+          },
+          {
+            "n": 39,
+            "wr": 64.1,
+            "ev": 0.115,
+            "pnl": 4.47,
+            "pf": 1.18,
+            "window": 5
+          },
+          {
+            "n": 3,
+            "wr": 100.0,
+            "ev": 1.081,
+            "pnl": 3.24,
+            "pf": null,
+            "window": 6
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.333,
+          "cv_ev": 3.227,
+          "min_ev": -0.297,
+          "max_ev": 0.283,
+          "verdict": "unstable"
+        }
+      },
+      "session_time_bias": {
+        "aggregate": {
+          "n": 393,
+          "wr": 57.5,
+          "ev": -0.054,
+          "pnl": -21.14,
+          "pf": 0.93
+        },
+        "per_window": [
+          {
+            "n": 78,
+            "wr": 52.6,
+            "ev": 0.011,
+            "pnl": 0.88,
+            "pf": 1.02,
+            "window": 0
+          },
+          {
+            "n": 70,
+            "wr": 60.0,
+            "ev": 0.02,
+            "pnl": 1.41,
+            "pf": 1.03,
+            "window": 1
+          },
+          {
+            "n": 51,
+            "wr": 47.1,
+            "ev": -0.439,
+            "pnl": -22.4,
+            "pf": 0.58,
+            "window": 2
+          },
+          {
+            "n": 65,
+            "wr": 72.3,
+            "ev": 0.38,
+            "pnl": 24.73,
+            "pf": 1.62,
+            "window": 3
+          },
+          {
+            "n": 40,
+            "wr": 50.0,
+            "ev": -0.376,
+            "pnl": -15.03,
+            "pf": 0.63,
+            "window": 4
+          },
+          {
+            "n": 85,
+            "wr": 60.0,
+            "ev": -0.099,
+            "pnl": -8.44,
+            "pf": 0.88,
+            "window": 5
+          },
+          {
+            "n": 4,
+            "wr": 25.0,
+            "ev": -0.574,
+            "pnl": -2.29,
+            "pf": 0.52,
+            "window": 6
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.5,
+          "cv_ev": 3.255,
+          "min_ev": -0.439,
+          "max_ev": 0.38,
+          "verdict": "borderline"
+        }
+      },
+      "dual_sr_bounce": {
+        "aggregate": {
+          "n": 68,
+          "wr": 55.9,
+          "ev": -0.204,
+          "pnl": -13.89,
+          "pf": 0.74
+        },
+        "per_window": [
+          {
+            "n": 12,
+            "wr": 50.0,
+            "ev": -0.213,
+            "pnl": -2.55,
+            "pf": 0.72,
+            "window": 0
+          },
+          {
+            "n": 7,
+            "wr": 57.1,
+            "ev": -0.255,
+            "pnl": -1.78,
+            "pf": 0.68,
+            "window": 1
+          },
+          {
+            "n": 6,
+            "wr": 66.7,
+            "ev": 0.269,
+            "pnl": 1.61,
+            "pf": 1.51,
+            "window": 2
+          },
+          {
+            "n": 16,
+            "wr": 62.5,
+            "ev": -0.09,
+            "pnl": -1.45,
+            "pf": 0.88,
+            "window": 3
+          },
+          {
+            "n": 11,
+            "wr": 45.5,
+            "ev": -0.651,
+            "pnl": -7.16,
+            "pf": 0.4,
+            "window": 4
+          },
+          {
+            "n": 15,
+            "wr": 60.0,
+            "ev": -0.033,
+            "pnl": -0.5,
+            "pf": 0.95,
+            "window": 5
+          },
+          {
+            "n": 1,
+            "wr": 0.0,
+            "ev": -2.062,
+            "pnl": -2.06,
+            "pf": 0.0,
+            "window": 6
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.167,
+          "cv_ev": 1.704,
+          "min_ev": -0.651,
+          "max_ev": 0.269,
+          "verdict": "unstable"
+        }
+      },
+      "wick_imbalance_reversion": {
+        "aggregate": {
+          "n": 38,
+          "wr": 78.9,
+          "ev": 0.378,
+          "pnl": 14.35,
+          "pf": 1.76
+        },
+        "per_window": [
+          {
+            "n": 8,
+            "wr": 75.0,
+            "ev": 0.243,
+            "pnl": 1.95,
+            "pf": 1.41,
+            "window": 0
+          },
+          {
+            "n": 8,
+            "wr": 75.0,
+            "ev": 0.335,
+            "pnl": 2.68,
+            "pf": 1.67,
+            "window": 1
+          },
+          {
+            "n": 4,
+            "wr": 75.0,
+            "ev": 0.315,
+            "pnl": 1.26,
+            "pf": 1.56,
+            "window": 2
+          },
+          {
+            "n": 6,
+            "wr": 83.3,
+            "ev": 0.43,
+            "pnl": 2.58,
+            "pf": 2.09,
+            "window": 3
+          },
+          {
+            "n": 9,
+            "wr": 88.9,
+            "ev": 0.65,
+            "pnl": 5.85,
+            "pf": 2.96,
+            "window": 4
+          },
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": -0.6,
+            "pnl": -1.2,
+            "pf": 0.5,
+            "window": 5
+          },
+          {
+            "n": 1,
+            "wr": 100.0,
+            "ev": 1.234,
+            "pnl": 1.23,
+            "pf": null,
+            "window": 6
+          }
+        ],
+        "stability": {
+          "active_windows": 4,
+          "positive_ratio": 1.0,
+          "cv_ev": 0.365,
+          "min_ev": 0.243,
+          "max_ev": 0.65,
+          "verdict": "stable"
+        }
+      },
+      "dt_bb_rsi_mr": {
+        "aggregate": {
+          "n": 117,
+          "wr": 47.0,
+          "ev": -0.22,
+          "pnl": -25.73,
+          "pf": 0.63
+        },
+        "per_window": [
+          {
+            "n": 23,
+            "wr": 34.8,
+            "ev": -0.43,
+            "pnl": -9.89,
+            "pf": 0.36,
+            "window": 0
+          },
+          {
+            "n": 17,
+            "wr": 58.8,
+            "ev": 0.052,
+            "pnl": 0.89,
+            "pf": 1.11,
+            "window": 1
+          },
+          {
+            "n": 10,
+            "wr": 70.0,
+            "ev": 0.252,
+            "pnl": 2.52,
+            "pf": 2.02,
+            "window": 2
+          },
+          {
+            "n": 19,
+            "wr": 52.6,
+            "ev": -0.025,
+            "pnl": -0.48,
+            "pf": 0.95,
+            "window": 3
+          },
+          {
+            "n": 25,
+            "wr": 36.0,
+            "ev": -0.497,
+            "pnl": -12.44,
+            "pf": 0.34,
+            "window": 4
+          },
+          {
+            "n": 21,
+            "wr": 42.9,
+            "ev": -0.375,
+            "pnl": -7.87,
+            "pf": 0.49,
+            "window": 5
+          },
+          {
+            "n": 2,
+            "wr": 100.0,
+            "ev": 0.768,
+            "pnl": 1.54,
+            "pf": null,
+            "window": 6
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.333,
+          "cv_ev": 1.633,
+          "min_ev": -0.497,
+          "max_ev": 0.252,
+          "verdict": "unstable"
+        }
+      },
+      "gbp_deep_pullback": {
+        "aggregate": {
+          "n": 100,
+          "wr": 60.0,
+          "ev": 0.438,
+          "pnl": 43.75,
+          "pf": 1.3
+        },
+        "per_window": [
+          {
+            "n": 25,
+            "wr": 56.0,
+            "ev": 0.444,
+            "pnl": 11.09,
+            "pf": 1.4,
+            "window": 0
+          },
+          {
+            "n": 19,
+            "wr": 52.6,
+            "ev": -0.267,
+            "pnl": -5.08,
+            "pf": 0.87,
+            "window": 1
+          },
+          {
+            "n": 19,
+            "wr": 68.4,
+            "ev": 1.188,
+            "pnl": 22.57,
+            "pf": 2.07,
+            "window": 2
+          },
+          {
+            "n": 17,
+            "wr": 76.5,
+            "ev": 1.624,
+            "pnl": 27.61,
+            "pf": 2.78,
+            "window": 3
+          },
+          {
+            "n": 10,
+            "wr": 40.0,
+            "ev": -1.546,
+            "pnl": -15.46,
+            "pf": 0.33,
+            "window": 4
+          },
+          {
+            "n": 10,
+            "wr": 60.0,
+            "ev": 0.302,
+            "pnl": 3.02,
+            "pf": 1.16,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.667,
+          "cv_ev": 3.521,
+          "min_ev": -1.546,
+          "max_ev": 1.624,
+          "verdict": "borderline"
+        }
+      },
+      "xs_momentum": {
+        "aggregate": {
+          "n": 274,
+          "wr": 56.2,
+          "ev": -0.191,
+          "pnl": -52.37,
+          "pf": 0.77
+        },
+        "per_window": [
+          {
+            "n": 48,
+            "wr": 52.1,
+            "ev": -0.275,
+            "pnl": -13.2,
+            "pf": 0.69,
+            "window": 0
+          },
+          {
+            "n": 46,
+            "wr": 63.0,
+            "ev": -0.084,
+            "pnl": -3.85,
+            "pf": 0.89,
+            "window": 1
+          },
+          {
+            "n": 40,
+            "wr": 55.0,
+            "ev": -0.28,
+            "pnl": -11.19,
+            "pf": 0.68,
+            "window": 2
+          },
+          {
+            "n": 47,
+            "wr": 61.7,
+            "ev": 0.002,
+            "pnl": 0.08,
+            "pf": 1.0,
+            "window": 3
+          },
+          {
+            "n": 45,
+            "wr": 64.4,
+            "ev": 0.122,
+            "pnl": 5.49,
+            "pf": 1.19,
+            "window": 4
+          },
+          {
+            "n": 48,
+            "wr": 41.7,
+            "ev": -0.618,
+            "pnl": -29.69,
+            "pf": 0.46,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.333,
+          "cv_ev": 1.268,
+          "min_ev": -0.618,
+          "max_ev": 0.122,
+          "verdict": "unstable"
+        }
+      },
+      "trendline_sweep": {
+        "aggregate": {
+          "n": 108,
+          "wr": 68.5,
+          "ev": 0.338,
+          "pnl": 36.47,
+          "pf": 1.35
+        },
+        "per_window": [
+          {
+            "n": 25,
+            "wr": 64.0,
+            "ev": 0.076,
+            "pnl": 1.89,
+            "pf": 1.08,
+            "window": 0
+          },
+          {
+            "n": 12,
+            "wr": 75.0,
+            "ev": 0.916,
+            "pnl": 10.99,
+            "pf": 2.42,
+            "window": 1
+          },
+          {
+            "n": 16,
+            "wr": 81.2,
+            "ev": 0.748,
+            "pnl": 11.96,
+            "pf": 1.8,
+            "window": 2
+          },
+          {
+            "n": 18,
+            "wr": 77.8,
+            "ev": 0.776,
+            "pnl": 13.97,
+            "pf": 2.14,
+            "window": 3
+          },
+          {
+            "n": 24,
+            "wr": 54.2,
+            "ev": -0.343,
+            "pnl": -8.23,
+            "pf": 0.76,
+            "window": 4
+          },
+          {
+            "n": 13,
+            "wr": 69.2,
+            "ev": 0.453,
+            "pnl": 5.89,
+            "pf": 1.6,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.833,
+          "cv_ev": 1.013,
+          "min_ev": -0.343,
+          "max_ev": 0.916,
+          "verdict": "borderline"
+        }
+      },
+      "orb_trap": {
+        "aggregate": {
+          "n": 28,
+          "wr": 64.3,
+          "ev": 0.112,
+          "pnl": 3.12,
+          "pf": 1.16
+        },
+        "per_window": [
+          {
+            "n": 5,
+            "wr": 80.0,
+            "ev": 0.375,
+            "pnl": 1.87,
+            "pf": 1.91,
+            "window": 0
+          },
+          {
+            "n": 7,
+            "wr": 57.1,
+            "ev": -0.059,
+            "pnl": -0.41,
+            "pf": 0.92,
+            "window": 1
+          },
+          {
+            "n": 2,
+            "wr": 100.0,
+            "ev": 1.351,
+            "pnl": 2.7,
+            "pf": null,
+            "window": 2
+          },
+          {
+            "n": 8,
+            "wr": 37.5,
+            "ev": -0.643,
+            "pnl": -5.15,
+            "pf": 0.46,
+            "window": 3
+          },
+          {
+            "n": 4,
+            "wr": 75.0,
+            "ev": 0.218,
+            "pnl": 0.87,
+            "pf": 1.35,
+            "window": 4
+          },
+          {
+            "n": 2,
+            "wr": 100.0,
+            "ev": 1.617,
+            "pnl": 3.23,
+            "pf": null,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 3,
+          "positive_ratio": 0.333,
+          "cv_ev": 3.827,
+          "min_ev": -0.643,
+          "max_ev": 0.375,
+          "verdict": "unstable"
+        }
+      },
+      "ema200_trend_reversal": {
+        "aggregate": {
+          "n": 39,
+          "wr": 56.4,
+          "ev": -0.225,
+          "pnl": -8.77,
+          "pf": 0.73
+        },
+        "per_window": [
+          {
+            "n": 6,
+            "wr": 83.3,
+            "ev": 0.599,
+            "pnl": 3.59,
+            "pf": 2.96,
+            "window": 0
+          },
+          {
+            "n": 5,
+            "wr": 40.0,
+            "ev": -0.742,
+            "pnl": -3.71,
+            "pf": 0.39,
+            "window": 1
+          },
+          {
+            "n": 10,
+            "wr": 30.0,
+            "ev": -0.948,
+            "pnl": -9.48,
+            "pf": 0.28,
+            "window": 2
+          },
+          {
+            "n": 7,
+            "wr": 57.1,
+            "ev": -0.076,
+            "pnl": -0.54,
+            "pf": 0.9,
+            "window": 3
+          },
+          {
+            "n": 8,
+            "wr": 62.5,
+            "ev": -0.134,
+            "pnl": -1.07,
+            "pf": 0.81,
+            "window": 4
+          },
+          {
+            "n": 3,
+            "wr": 100.0,
+            "ev": 0.811,
+            "pnl": 2.43,
+            "pf": null,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 5,
+          "positive_ratio": 0.2,
+          "cv_ev": 2.1,
+          "min_ev": -0.948,
+          "max_ev": 0.599,
+          "verdict": "unstable"
+        }
+      },
+      "dt_sr_channel_reversal": {
+        "aggregate": {
+          "n": 66,
+          "wr": 53.0,
+          "ev": -0.07,
+          "pnl": -4.64,
+          "pf": 0.87
+        },
+        "per_window": [
+          {
+            "n": 12,
+            "wr": 58.3,
+            "ev": 0.34,
+            "pnl": 4.08,
+            "pf": 2.4,
+            "window": 0
+          },
+          {
+            "n": 13,
+            "wr": 76.9,
+            "ev": 0.444,
+            "pnl": 5.78,
+            "pf": 3.06,
+            "window": 1
+          },
+          {
+            "n": 12,
+            "wr": 33.3,
+            "ev": -0.696,
+            "pnl": -8.35,
+            "pf": 0.28,
+            "window": 2
+          },
+          {
+            "n": 8,
+            "wr": 25.0,
+            "ev": -0.662,
+            "pnl": -5.29,
+            "pf": 0.24,
+            "window": 3
+          },
+          {
+            "n": 13,
+            "wr": 53.8,
+            "ev": -0.011,
+            "pnl": -0.14,
+            "pf": 0.98,
+            "window": 4
+          },
+          {
+            "n": 8,
+            "wr": 62.5,
+            "ev": -0.089,
+            "pnl": -0.71,
+            "pf": 0.85,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.333,
+          "cv_ev": 3.927,
+          "min_ev": -0.696,
+          "max_ev": 0.444,
+          "verdict": "unstable"
+        }
+      },
+      "london_fix_reversal": {
+        "aggregate": {
+          "n": 53,
+          "wr": 41.5,
+          "ev": -0.345,
+          "pnl": -18.26,
+          "pf": 0.52
+        },
+        "per_window": [
+          {
+            "n": 10,
+            "wr": 50.0,
+            "ev": 0.0,
+            "pnl": 0.0,
+            "pf": 1.0,
+            "window": 0
+          },
+          {
+            "n": 8,
+            "wr": 37.5,
+            "ev": -0.621,
+            "pnl": -4.96,
+            "pf": 0.37,
+            "window": 1
+          },
+          {
+            "n": 7,
+            "wr": 42.9,
+            "ev": -0.272,
+            "pnl": -1.91,
+            "pf": 0.56,
+            "window": 2
+          },
+          {
+            "n": 9,
+            "wr": 44.4,
+            "ev": -0.517,
+            "pnl": -4.66,
+            "pf": 0.4,
+            "window": 3
+          },
+          {
+            "n": 10,
+            "wr": 30.0,
+            "ev": -0.388,
+            "pnl": -3.88,
+            "pf": 0.42,
+            "window": 4
+          },
+          {
+            "n": 9,
+            "wr": 44.4,
+            "ev": -0.317,
+            "pnl": -2.86,
+            "pf": 0.59,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.0,
+          "cv_ev": 0.558,
+          "min_ev": -0.621,
+          "max_ev": 0.0,
+          "verdict": "unstable"
+        }
+      },
+      "dt_fib_reversal": {
+        "aggregate": {
+          "n": 30,
+          "wr": 56.7,
+          "ev": -0.137,
+          "pnl": -4.1,
+          "pf": 0.81
+        },
+        "per_window": [
+          {
+            "n": 6,
+            "wr": 50.0,
+            "ev": -0.285,
+            "pnl": -1.71,
+            "pf": 0.55,
+            "window": 0
+          },
+          {
+            "n": 1,
+            "wr": 0.0,
+            "ev": -1.802,
+            "pnl": -1.8,
+            "pf": 0.0,
+            "window": 1
+          },
+          {
+            "n": 5,
+            "wr": 40.0,
+            "ev": -0.695,
+            "pnl": -3.47,
+            "pf": 0.38,
+            "window": 2
+          },
+          {
+            "n": 5,
+            "wr": 80.0,
+            "ev": 0.61,
+            "pnl": 3.05,
+            "pf": 2.42,
+            "window": 3
+          },
+          {
+            "n": 6,
+            "wr": 83.3,
+            "ev": 0.4,
+            "pnl": 2.4,
+            "pf": 2.14,
+            "window": 4
+          },
+          {
+            "n": 7,
+            "wr": 42.9,
+            "ev": -0.366,
+            "pnl": -2.56,
+            "pf": 0.57,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 5,
+          "positive_ratio": 0.4,
+          "cv_ev": 7.314,
+          "min_ev": -0.695,
+          "max_ev": 0.61,
+          "verdict": "unstable"
+        }
+      },
+      "turtle_soup": {
+        "aggregate": {
+          "n": 50,
+          "wr": 64.0,
+          "ev": 0.53,
+          "pnl": 26.52,
+          "pf": 1.87
+        },
+        "per_window": [
+          {
+            "n": 10,
+            "wr": 90.0,
+            "ev": 1.609,
+            "pnl": 16.09,
+            "pf": 11.89,
+            "window": 0
+          },
+          {
+            "n": 7,
+            "wr": 71.4,
+            "ev": 0.386,
+            "pnl": 2.7,
+            "pf": 1.43,
+            "window": 1
+          },
+          {
+            "n": 6,
+            "wr": 50.0,
+            "ev": 0.65,
+            "pnl": 3.9,
+            "pf": 3.4,
+            "window": 2
+          },
+          {
+            "n": 11,
+            "wr": 54.5,
+            "ev": -0.036,
+            "pnl": -0.4,
+            "pf": 0.96,
+            "window": 3
+          },
+          {
+            "n": 12,
+            "wr": 50.0,
+            "ev": -0.046,
+            "pnl": -0.55,
+            "pf": 0.95,
+            "window": 4
+          },
+          {
+            "n": 4,
+            "wr": 75.0,
+            "ev": 1.196,
+            "pnl": 4.78,
+            "pf": 27.1,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 5,
+          "positive_ratio": 0.6,
+          "cv_ev": 1.187,
+          "min_ev": -0.046,
+          "max_ev": 1.609,
+          "verdict": "borderline"
+        }
+      },
+      "doji_breakout": {
+        "aggregate": {
+          "n": 18,
+          "wr": 66.7,
+          "ev": 0.172,
+          "pnl": 3.09,
+          "pf": 1.24
+        },
+        "per_window": [
+          {
+            "n": 1,
+            "wr": 0.0,
+            "ev": -0.263,
+            "pnl": -0.26,
+            "pf": 0.0,
+            "window": 0
+          },
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": -0.528,
+            "pnl": -1.06,
+            "pf": 0.53,
+            "window": 1
+          },
+          {
+            "n": 6,
+            "wr": 50.0,
+            "ev": -0.533,
+            "pnl": -3.2,
+            "pf": 0.57,
+            "window": 2
+          },
+          {
+            "n": 4,
+            "wr": 75.0,
+            "ev": 0.095,
+            "pnl": 0.38,
+            "pf": 1.13,
+            "window": 3
+          },
+          {
+            "n": 5,
+            "wr": 100.0,
+            "ev": 1.446,
+            "pnl": 7.23,
+            "pf": null,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 2,
+          "positive_ratio": 0.5,
+          "cv_ev": 2.168,
+          "min_ev": -0.533,
+          "max_ev": 1.446,
+          "verdict": "borderline"
+        }
+      },
+      "vwap_mean_reversion": {
+        "aggregate": {
+          "n": 178,
+          "wr": 64.6,
+          "ev": 0.804,
+          "pnl": 143.17,
+          "pf": 1.87
+        },
+        "per_window": [
+          {
+            "n": 38,
+            "wr": 47.4,
+            "ev": -0.149,
+            "pnl": -5.64,
+            "pf": 0.86,
+            "window": 0
+          },
+          {
+            "n": 35,
+            "wr": 51.4,
+            "ev": 0.186,
+            "pnl": 6.52,
+            "pf": 1.13,
+            "window": 1
+          },
+          {
+            "n": 33,
+            "wr": 69.7,
+            "ev": 1.216,
+            "pnl": 40.11,
+            "pf": 2.68,
+            "window": 2
+          },
+          {
+            "n": 27,
+            "wr": 77.8,
+            "ev": 1.314,
+            "pnl": 35.48,
+            "pf": 2.81,
+            "window": 3
+          },
+          {
+            "n": 20,
+            "wr": 75.0,
+            "ev": 1.412,
+            "pnl": 28.23,
+            "pf": 2.53,
+            "window": 4
+          },
+          {
+            "n": 25,
+            "wr": 80.0,
+            "ev": 1.539,
+            "pnl": 38.48,
+            "pf": 4.47,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.833,
+          "cv_ev": 0.709,
+          "min_ev": -0.149,
+          "max_ev": 1.539,
+          "verdict": "stable"
+        }
+      },
+      "intraday_seasonality": {
+        "aggregate": {
+          "n": 63,
+          "wr": 60.3,
+          "ev": -0.236,
+          "pnl": -14.85,
+          "pf": 0.74
+        },
+        "per_window": [
+          {
+            "n": 16,
+            "wr": 43.8,
+            "ev": -0.715,
+            "pnl": -11.44,
+            "pf": 0.42,
+            "window": 0
+          },
+          {
+            "n": 5,
+            "wr": 60.0,
+            "ev": -0.153,
+            "pnl": -0.76,
+            "pf": 0.82,
+            "window": 1
+          },
+          {
+            "n": 9,
+            "wr": 66.7,
+            "ev": -0.09,
+            "pnl": -0.81,
+            "pf": 0.89,
+            "window": 2
+          },
+          {
+            "n": 17,
+            "wr": 64.7,
+            "ev": -0.167,
+            "pnl": -2.83,
+            "pf": 0.8,
+            "window": 3
+          },
+          {
+            "n": 12,
+            "wr": 66.7,
+            "ev": -0.002,
+            "pnl": -0.03,
+            "pf": 1.0,
+            "window": 4
+          },
+          {
+            "n": 4,
+            "wr": 75.0,
+            "ev": 0.256,
+            "pnl": 1.02,
+            "pf": 1.43,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 5,
+          "positive_ratio": 0.0,
+          "cv_ev": 1.116,
+          "min_ev": -0.715,
+          "max_ev": -0.002,
+          "verdict": "unstable"
+        }
+      },
+      "ema_cross": {
+        "aggregate": {
+          "n": 12,
+          "wr": 50.0,
+          "ev": -0.319,
+          "pnl": -3.83,
+          "pf": 0.66
+        },
+        "per_window": [
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": -0.485,
+            "pnl": -0.97,
+            "pf": 0.47,
+            "window": 0
+          },
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": -0.29,
+            "pnl": -0.58,
+            "pf": 0.71,
+            "window": 1
+          },
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": -0.451,
+            "pnl": -0.9,
+            "pf": 0.52,
+            "window": 3
+          },
+          {
+            "n": 4,
+            "wr": 25.0,
+            "ev": -1.02,
+            "pnl": -4.08,
+            "pf": 0.25,
+            "window": 4
+          },
+          {
+            "n": 2,
+            "wr": 100.0,
+            "ev": 1.35,
+            "pnl": 2.7,
+            "pf": null,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 0,
+          "positive_ratio": null,
+          "cv_ev": null,
+          "min_ev": null,
+          "max_ev": null,
+          "verdict": "N_windows<2"
+        }
+      },
+      "post_news_vol": {
+        "aggregate": {
+          "n": 20,
+          "wr": 75.0,
+          "ev": 1.164,
+          "pnl": 23.28,
+          "pf": 2.88
+        },
+        "per_window": [
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": 0.931,
+            "pnl": 1.86,
+            "pf": 4.72,
+            "window": 0
+          },
+          {
+            "n": 3,
+            "wr": 100.0,
+            "ev": 2.395,
+            "pnl": 7.19,
+            "pf": null,
+            "window": 1
+          },
+          {
+            "n": 3,
+            "wr": 100.0,
+            "ev": 2.975,
+            "pnl": 8.92,
+            "pf": null,
+            "window": 2
+          },
+          {
+            "n": 5,
+            "wr": 60.0,
+            "ev": -0.455,
+            "pnl": -2.27,
+            "pf": 0.74,
+            "window": 3
+          },
+          {
+            "n": 4,
+            "wr": 75.0,
+            "ev": 1.061,
+            "pnl": 4.25,
+            "pf": 2.36,
+            "window": 4
+          },
+          {
+            "n": 3,
+            "wr": 66.7,
+            "ev": 1.112,
+            "pnl": 3.34,
+            "pf": 22.87,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 1,
+          "positive_ratio": null,
+          "cv_ev": null,
+          "min_ev": null,
+          "max_ev": null,
+          "verdict": "N_windows<2"
+        }
+      }
+    }
+  },
+  {
+    "pair": "EUR_JPY",
+    "symbol": "EURJPY=X",
+    "lookback_days": 365,
+    "interval": "15m",
+    "window_days": 60,
+    "total_trades": 1278,
+    "overall_wr": 62.5,
+    "overall_ev": 0.148,
+    "strategies": {
+      "htf_false_breakout": {
+        "aggregate": {
+          "n": 34,
+          "wr": 61.8,
+          "ev": 0.087,
+          "pnl": 2.96,
+          "pf": 1.15
+        },
+        "per_window": [
+          {
+            "n": 12,
+            "wr": 50.0,
+            "ev": -0.001,
+            "pnl": -0.01,
+            "pf": 1.0,
+            "window": 0
+          },
+          {
+            "n": 7,
+            "wr": 42.9,
+            "ev": -0.452,
+            "pnl": -3.16,
+            "pf": 0.53,
+            "window": 1
+          },
+          {
+            "n": 3,
+            "wr": 66.7,
+            "ev": 0.374,
+            "pnl": 1.12,
+            "pf": 2.8,
+            "window": 2
+          },
+          {
+            "n": 3,
+            "wr": 66.7,
+            "ev": -0.313,
+            "pnl": -0.94,
+            "pf": 0.71,
+            "window": 3
+          },
+          {
+            "n": 4,
+            "wr": 100.0,
+            "ev": 0.839,
+            "pnl": 3.36,
+            "pf": null,
+            "window": 4
+          },
+          {
+            "n": 5,
+            "wr": 80.0,
+            "ev": 0.517,
+            "pnl": 2.58,
+            "pf": 2.94,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 3,
+          "positive_ratio": 0.333,
+          "cv_ev": 18.558,
+          "min_ev": -0.452,
+          "max_ev": 0.517,
+          "verdict": "unstable"
+        }
+      },
+      "vwap_mean_reversion": {
+        "aggregate": {
+          "n": 225,
+          "wr": 68.4,
+          "ev": 0.688,
+          "pnl": 154.81,
+          "pf": 1.9
+        },
+        "per_window": [
+          {
+            "n": 46,
+            "wr": 65.2,
+            "ev": 0.55,
+            "pnl": 25.32,
+            "pf": 1.98,
+            "window": 0
+          },
+          {
+            "n": 36,
+            "wr": 58.3,
+            "ev": -0.248,
+            "pnl": -8.94,
+            "pf": 0.83,
+            "window": 1
+          },
+          {
+            "n": 41,
+            "wr": 80.5,
+            "ev": 1.129,
+            "pnl": 46.27,
+            "pf": 2.73,
+            "window": 2
+          },
+          {
+            "n": 38,
+            "wr": 73.7,
+            "ev": 1.191,
+            "pnl": 45.27,
+            "pf": 2.97,
+            "window": 3
+          },
+          {
+            "n": 21,
+            "wr": 66.7,
+            "ev": 0.982,
+            "pnl": 20.62,
+            "pf": 2.49,
+            "window": 4
+          },
+          {
+            "n": 40,
+            "wr": 62.5,
+            "ev": 0.429,
+            "pnl": 17.18,
+            "pf": 1.56,
+            "window": 5
+          },
+          {
+            "n": 3,
+            "wr": 100.0,
+            "ev": 3.026,
+            "pnl": 9.08,
+            "pf": null,
+            "window": 6
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.833,
+          "cv_ev": 0.743,
+          "min_ev": -0.248,
+          "max_ev": 1.191,
+          "verdict": "stable"
+        }
+      },
+      "sr_fib_confluence": {
+        "aggregate": {
+          "n": 194,
+          "wr": 63.4,
+          "ev": 0.16,
+          "pnl": 30.98,
+          "pf": 1.3
+        },
+        "per_window": [
+          {
+            "n": 33,
+            "wr": 72.7,
+            "ev": 0.464,
+            "pnl": 15.3,
+            "pf": 2.08,
+            "window": 0
+          },
+          {
+            "n": 27,
+            "wr": 74.1,
+            "ev": 0.423,
+            "pnl": 11.43,
+            "pf": 2.11,
+            "window": 1
+          },
+          {
+            "n": 30,
+            "wr": 73.3,
+            "ev": 0.438,
+            "pnl": 13.15,
+            "pf": 2.34,
+            "window": 2
+          },
+          {
+            "n": 28,
+            "wr": 60.7,
+            "ev": 0.061,
+            "pnl": 1.7,
+            "pf": 1.11,
+            "window": 3
+          },
+          {
+            "n": 37,
+            "wr": 56.8,
+            "ev": 0.035,
+            "pnl": 1.31,
+            "pf": 1.06,
+            "window": 4
+          },
+          {
+            "n": 39,
+            "wr": 48.7,
+            "ev": -0.306,
+            "pnl": -11.92,
+            "pf": 0.63,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.833,
+          "cv_ev": 1.518,
+          "min_ev": -0.306,
+          "max_ev": 0.464,
+          "verdict": "borderline"
+        }
+      },
+      "dual_sr_bounce": {
+        "aggregate": {
+          "n": 118,
+          "wr": 66.1,
+          "ev": 0.188,
+          "pnl": 22.17,
+          "pf": 1.35
+        },
+        "per_window": [
+          {
+            "n": 17,
+            "wr": 58.8,
+            "ev": 0.048,
+            "pnl": 0.82,
+            "pf": 1.08,
+            "window": 0
+          },
+          {
+            "n": 18,
+            "wr": 77.8,
+            "ev": 0.44,
+            "pnl": 7.92,
+            "pf": 2.24,
+            "window": 1
+          },
+          {
+            "n": 29,
+            "wr": 72.4,
+            "ev": 0.355,
+            "pnl": 10.3,
+            "pf": 1.83,
+            "window": 2
+          },
+          {
+            "n": 19,
+            "wr": 63.2,
+            "ev": 0.177,
+            "pnl": 3.36,
+            "pf": 1.31,
+            "window": 3
+          },
+          {
+            "n": 16,
+            "wr": 56.2,
+            "ev": -0.115,
+            "pnl": -1.84,
+            "pf": 0.85,
+            "window": 4
+          },
+          {
+            "n": 19,
+            "wr": 63.2,
+            "ev": 0.085,
+            "pnl": 1.61,
+            "pf": 1.16,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.833,
+          "cv_ev": 1.135,
+          "min_ev": -0.115,
+          "max_ev": 0.44,
+          "verdict": "borderline"
+        }
+      },
+      "dt_sr_channel_reversal": {
+        "aggregate": {
+          "n": 185,
+          "wr": 59.5,
+          "ev": 0.021,
+          "pnl": 3.88,
+          "pf": 1.04
+        },
+        "per_window": [
+          {
+            "n": 49,
+            "wr": 55.1,
+            "ev": -0.186,
+            "pnl": -9.1,
+            "pf": 0.71,
+            "window": 0
+          },
+          {
+            "n": 22,
+            "wr": 59.1,
+            "ev": 0.08,
+            "pnl": 1.76,
+            "pf": 1.15,
+            "window": 1
+          },
+          {
+            "n": 28,
+            "wr": 64.3,
+            "ev": 0.12,
+            "pnl": 3.37,
+            "pf": 1.32,
+            "window": 2
+          },
+          {
+            "n": 29,
+            "wr": 58.6,
+            "ev": 0.117,
+            "pnl": 3.4,
+            "pf": 1.31,
+            "window": 3
+          },
+          {
+            "n": 34,
+            "wr": 64.7,
+            "ev": 0.133,
+            "pnl": 4.51,
+            "pf": 1.34,
+            "window": 4
+          },
+          {
+            "n": 23,
+            "wr": 56.5,
+            "ev": -0.002,
+            "pnl": -0.05,
+            "pf": 1.0,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.667,
+          "cv_ev": 2.566,
+          "min_ev": -0.186,
+          "max_ev": 0.133,
+          "verdict": "borderline"
+        }
+      },
+      "sr_break_retest": {
+        "aggregate": {
+          "n": 171,
+          "wr": 60.8,
+          "ev": -0.009,
+          "pnl": -1.58,
+          "pf": 0.99
+        },
+        "per_window": [
+          {
+            "n": 37,
+            "wr": 59.5,
+            "ev": -0.045,
+            "pnl": -1.67,
+            "pf": 0.93,
+            "window": 0
+          },
+          {
+            "n": 31,
+            "wr": 61.3,
+            "ev": -0.031,
+            "pnl": -0.96,
+            "pf": 0.96,
+            "window": 1
+          },
+          {
+            "n": 14,
+            "wr": 35.7,
+            "ev": -0.703,
+            "pnl": -9.84,
+            "pf": 0.4,
+            "window": 2
+          },
+          {
+            "n": 31,
+            "wr": 58.1,
+            "ev": -0.126,
+            "pnl": -3.91,
+            "pf": 0.83,
+            "window": 3
+          },
+          {
+            "n": 37,
+            "wr": 67.6,
+            "ev": 0.195,
+            "pnl": 7.2,
+            "pf": 1.36,
+            "window": 4
+          },
+          {
+            "n": 21,
+            "wr": 71.4,
+            "ev": 0.362,
+            "pnl": 7.6,
+            "pf": 1.7,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.333,
+          "cv_ev": 5.727,
+          "min_ev": -0.703,
+          "max_ev": 0.362,
+          "verdict": "unstable"
+        }
+      },
+      "dt_fib_reversal": {
+        "aggregate": {
+          "n": 77,
+          "wr": 48.1,
+          "ev": -0.362,
+          "pnl": -27.86,
+          "pf": 0.55
+        },
+        "per_window": [
+          {
+            "n": 15,
+            "wr": 40.0,
+            "ev": -0.519,
+            "pnl": -7.78,
+            "pf": 0.36,
+            "window": 0
+          },
+          {
+            "n": 16,
+            "wr": 56.2,
+            "ev": -0.055,
+            "pnl": -0.87,
+            "pf": 0.92,
+            "window": 1
+          },
+          {
+            "n": 19,
+            "wr": 68.4,
+            "ev": 0.081,
+            "pnl": 1.54,
+            "pf": 1.15,
+            "window": 2
+          },
+          {
+            "n": 9,
+            "wr": 33.3,
+            "ev": -0.851,
+            "pnl": -7.66,
+            "pf": 0.29,
+            "window": 3
+          },
+          {
+            "n": 12,
+            "wr": 33.3,
+            "ev": -0.683,
+            "pnl": -8.2,
+            "pf": 0.28,
+            "window": 4
+          },
+          {
+            "n": 6,
+            "wr": 33.3,
+            "ev": -0.815,
+            "pnl": -4.89,
+            "pf": 0.17,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.167,
+          "cv_ev": 0.765,
+          "min_ev": -0.851,
+          "max_ev": 0.081,
+          "verdict": "unstable"
+        }
+      },
+      "wick_imbalance_reversion": {
+        "aggregate": {
+          "n": 94,
+          "wr": 63.8,
+          "ev": 0.033,
+          "pnl": 3.13,
+          "pf": 1.05
+        },
+        "per_window": [
+          {
+            "n": 28,
+            "wr": 60.7,
+            "ev": 0.023,
+            "pnl": 0.65,
+            "pf": 1.03,
+            "window": 0
+          },
+          {
+            "n": 18,
+            "wr": 88.9,
+            "ev": 0.853,
+            "pnl": 15.36,
+            "pf": 5.15,
+            "window": 1
+          },
+          {
+            "n": 7,
+            "wr": 57.1,
+            "ev": -0.375,
+            "pnl": -2.63,
+            "pf": 0.59,
+            "window": 2
+          },
+          {
+            "n": 23,
+            "wr": 60.9,
+            "ev": -0.169,
+            "pnl": -3.89,
+            "pf": 0.79,
+            "window": 3
+          },
+          {
+            "n": 10,
+            "wr": 70.0,
+            "ev": 0.325,
+            "pnl": 3.25,
+            "pf": 1.71,
+            "window": 4
+          },
+          {
+            "n": 8,
+            "wr": 25.0,
+            "ev": -1.201,
+            "pnl": -9.61,
+            "pf": 0.18,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.5,
+          "cv_ev": 6.97,
+          "min_ev": -1.201,
+          "max_ev": 0.853,
+          "verdict": "borderline"
+        }
+      },
+      "intraday_seasonality": {
+        "aggregate": {
+          "n": 88,
+          "wr": 62.5,
+          "ev": -0.03,
+          "pnl": -2.6,
+          "pf": 0.96
+        },
+        "per_window": [
+          {
+            "n": 23,
+            "wr": 69.6,
+            "ev": 0.196,
+            "pnl": 4.5,
+            "pf": 1.29,
+            "window": 0
+          },
+          {
+            "n": 19,
+            "wr": 57.9,
+            "ev": -0.211,
+            "pnl": -4.02,
+            "pf": 0.78,
+            "window": 1
+          },
+          {
+            "n": 9,
+            "wr": 77.8,
+            "ev": 0.592,
+            "pnl": 5.33,
+            "pf": 2.31,
+            "window": 2
+          },
+          {
+            "n": 12,
+            "wr": 66.7,
+            "ev": 0.07,
+            "pnl": 0.84,
+            "pf": 1.09,
+            "window": 3
+          },
+          {
+            "n": 9,
+            "wr": 44.4,
+            "ev": -0.526,
+            "pnl": -4.73,
+            "pf": 0.51,
+            "window": 4
+          },
+          {
+            "n": 16,
+            "wr": 56.2,
+            "ev": -0.282,
+            "pnl": -4.52,
+            "pf": 0.71,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.5,
+          "cv_ev": 13.524,
+          "min_ev": -0.526,
+          "max_ev": 0.592,
+          "verdict": "borderline"
+        }
+      },
+      "ema_cross": {
+        "aggregate": {
+          "n": 34,
+          "wr": 58.8,
+          "ev": -0.061,
+          "pnl": -2.08,
+          "pf": 0.92
+        },
+        "per_window": [
+          {
+            "n": 9,
+            "wr": 66.7,
+            "ev": 0.127,
+            "pnl": 1.14,
+            "pf": 1.22,
+            "window": 0
+          },
+          {
+            "n": 5,
+            "wr": 20.0,
+            "ev": -1.087,
+            "pnl": -5.44,
+            "pf": 0.21,
+            "window": 1
+          },
+          {
+            "n": 5,
+            "wr": 80.0,
+            "ev": 0.568,
+            "pnl": 2.84,
+            "pf": 2.67,
+            "window": 2
+          },
+          {
+            "n": 7,
+            "wr": 57.1,
+            "ev": -0.177,
+            "pnl": -1.24,
+            "pf": 0.77,
+            "window": 3
+          },
+          {
+            "n": 4,
+            "wr": 75.0,
+            "ev": 0.558,
+            "pnl": 2.23,
+            "pf": 2.2,
+            "window": 4
+          },
+          {
+            "n": 4,
+            "wr": 50.0,
+            "ev": -0.406,
+            "pnl": -1.62,
+            "pf": 0.53,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 4,
+          "positive_ratio": 0.5,
+          "cv_ev": 4.263,
+          "min_ev": -1.087,
+          "max_ev": 0.568,
+          "verdict": "borderline"
+        }
+      },
+      "ema200_trend_reversal": {
+        "aggregate": {
+          "n": 38,
+          "wr": 60.5,
+          "ev": -0.019,
+          "pnl": -0.71,
+          "pf": 0.97
+        },
+        "per_window": [
+          {
+            "n": 8,
+            "wr": 50.0,
+            "ev": -0.294,
+            "pnl": -2.35,
+            "pf": 0.63,
+            "window": 0
+          },
+          {
+            "n": 11,
+            "wr": 63.6,
+            "ev": 0.09,
+            "pnl": 0.99,
+            "pf": 1.14,
+            "window": 1
+          },
+          {
+            "n": 3,
+            "wr": 33.3,
+            "ev": -0.871,
+            "pnl": -2.61,
+            "pf": 0.21,
+            "window": 2
+          },
+          {
+            "n": 7,
+            "wr": 85.7,
+            "ev": 0.515,
+            "pnl": 3.6,
+            "pf": 3.02,
+            "window": 3
+          },
+          {
+            "n": 5,
+            "wr": 60.0,
+            "ev": 0.044,
+            "pnl": 0.22,
+            "pf": 1.06,
+            "window": 4
+          },
+          {
+            "n": 4,
+            "wr": 50.0,
+            "ev": -0.14,
+            "pnl": -0.56,
+            "pf": 0.78,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 4,
+          "positive_ratio": 0.75,
+          "cv_ev": 3.237,
+          "min_ev": -0.294,
+          "max_ev": 0.515,
+          "verdict": "borderline"
+        }
+      },
+      "jpy_basket_trend": {
+        "aggregate": {
+          "n": 18,
+          "wr": 66.7,
+          "ev": 0.176,
+          "pnl": 3.18,
+          "pf": 1.2
+        },
+        "per_window": [
+          {
+            "n": 5,
+            "wr": 60.0,
+            "ev": -0.307,
+            "pnl": -1.53,
+            "pf": 0.73,
+            "window": 0
+          },
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": -0.094,
+            "pnl": -0.19,
+            "pf": 0.9,
+            "window": 1
+          },
+          {
+            "n": 5,
+            "wr": 60.0,
+            "ev": 0.019,
+            "pnl": 0.1,
+            "pf": 1.02,
+            "window": 2
+          },
+          {
+            "n": 2,
+            "wr": 100.0,
+            "ev": 1.5,
+            "pnl": 3.0,
+            "pf": null,
+            "window": 3
+          },
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": -0.717,
+            "pnl": -1.43,
+            "pf": 0.55,
+            "window": 4
+          },
+          {
+            "n": 2,
+            "wr": 100.0,
+            "ev": 1.618,
+            "pnl": 3.24,
+            "pf": null,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 2,
+          "positive_ratio": 0.5,
+          "cv_ev": 1.132,
+          "min_ev": -0.307,
+          "max_ev": 0.019,
+          "verdict": "borderline"
+        }
+      }
+    }
+  },
+  {
+    "pair": "GBP_JPY",
+    "symbol": "GBPJPY=X",
+    "lookback_days": 365,
+    "interval": "15m",
+    "window_days": 60,
+    "total_trades": 1348,
+    "overall_wr": 65.7,
+    "overall_ev": 0.286,
+    "strategies": {
+      "dt_sr_channel_reversal": {
+        "aggregate": {
+          "n": 161,
+          "wr": 53.4,
+          "ev": -0.084,
+          "pnl": -13.45,
+          "pf": 0.85
+        },
+        "per_window": [
+          {
+            "n": 34,
+            "wr": 44.1,
+            "ev": -0.324,
+            "pnl": -11.0,
+            "pf": 0.5,
+            "window": 0
+          },
+          {
+            "n": 32,
+            "wr": 53.1,
+            "ev": 0.029,
+            "pnl": 0.93,
+            "pf": 1.06,
+            "window": 1
+          },
+          {
+            "n": 17,
+            "wr": 52.9,
+            "ev": -0.209,
+            "pnl": -3.55,
+            "pf": 0.64,
+            "window": 2
+          },
+          {
+            "n": 23,
+            "wr": 56.5,
+            "ev": -0.025,
+            "pnl": -0.56,
+            "pf": 0.95,
+            "window": 3
+          },
+          {
+            "n": 29,
+            "wr": 55.2,
+            "ev": -0.035,
+            "pnl": -1.01,
+            "pf": 0.93,
+            "window": 4
+          },
+          {
+            "n": 25,
+            "wr": 60.0,
+            "ev": 0.043,
+            "pnl": 1.07,
+            "pf": 1.08,
+            "window": 5
+          },
+          {
+            "n": 1,
+            "wr": 100.0,
+            "ev": 0.68,
+            "pnl": 0.68,
+            "pf": null,
+            "window": 6
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.333,
+          "cv_ev": 1.545,
+          "min_ev": -0.324,
+          "max_ev": 0.043,
+          "verdict": "unstable"
+        }
+      },
+      "vwap_mean_reversion": {
+        "aggregate": {
+          "n": 270,
+          "wr": 78.1,
+          "ev": 1.018,
+          "pnl": 274.9,
+          "pf": 2.66
+        },
+        "per_window": [
+          {
+            "n": 63,
+            "wr": 76.2,
+            "ev": 1.182,
+            "pnl": 74.46,
+            "pf": 3.68,
+            "window": 0
+          },
+          {
+            "n": 39,
+            "wr": 79.5,
+            "ev": 0.97,
+            "pnl": 37.84,
+            "pf": 2.64,
+            "window": 1
+          },
+          {
+            "n": 44,
+            "wr": 72.7,
+            "ev": 0.677,
+            "pnl": 29.77,
+            "pf": 1.72,
+            "window": 2
+          },
+          {
+            "n": 43,
+            "wr": 86.0,
+            "ev": 1.534,
+            "pnl": 65.96,
+            "pf": 4.85,
+            "window": 3
+          },
+          {
+            "n": 31,
+            "wr": 77.4,
+            "ev": 1.099,
+            "pnl": 34.06,
+            "pf": 3.09,
+            "window": 4
+          },
+          {
+            "n": 48,
+            "wr": 77.1,
+            "ev": 0.615,
+            "pnl": 29.54,
+            "pf": 1.74,
+            "window": 5
+          },
+          {
+            "n": 2,
+            "wr": 100.0,
+            "ev": 1.635,
+            "pnl": 3.27,
+            "pf": null,
+            "window": 6
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 1.0,
+          "cv_ev": 0.307,
+          "min_ev": 0.615,
+          "max_ev": 1.534,
+          "verdict": "stable"
+        }
+      },
+      "dual_sr_bounce": {
+        "aggregate": {
+          "n": 136,
+          "wr": 64.7,
+          "ev": 0.149,
+          "pnl": 20.32,
+          "pf": 1.25
+        },
+        "per_window": [
+          {
+            "n": 26,
+            "wr": 69.2,
+            "ev": 0.253,
+            "pnl": 6.58,
+            "pf": 1.41,
+            "window": 0
+          },
+          {
+            "n": 27,
+            "wr": 63.0,
+            "ev": 0.237,
+            "pnl": 6.4,
+            "pf": 1.36,
+            "window": 1
+          },
+          {
+            "n": 20,
+            "wr": 50.0,
+            "ev": -0.216,
+            "pnl": -4.31,
+            "pf": 0.72,
+            "window": 2
+          },
+          {
+            "n": 18,
+            "wr": 50.0,
+            "ev": -0.26,
+            "pnl": -4.69,
+            "pf": 0.67,
+            "window": 3
+          },
+          {
+            "n": 15,
+            "wr": 73.3,
+            "ev": 0.255,
+            "pnl": 3.82,
+            "pf": 1.53,
+            "window": 4
+          },
+          {
+            "n": 30,
+            "wr": 76.7,
+            "ev": 0.417,
+            "pnl": 12.52,
+            "pf": 2.05,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.667,
+          "cv_ev": 2.244,
+          "min_ev": -0.26,
+          "max_ev": 0.417,
+          "verdict": "borderline"
+        }
+      },
+      "dt_fib_reversal": {
+        "aggregate": {
+          "n": 68,
+          "wr": 70.6,
+          "ev": 0.301,
+          "pnl": 20.49,
+          "pf": 1.65
+        },
+        "per_window": [
+          {
+            "n": 10,
+            "wr": 50.0,
+            "ev": -0.134,
+            "pnl": -1.34,
+            "pf": 0.79,
+            "window": 0
+          },
+          {
+            "n": 16,
+            "wr": 87.5,
+            "ev": 0.738,
+            "pnl": 11.8,
+            "pf": 7.12,
+            "window": 1
+          },
+          {
+            "n": 9,
+            "wr": 66.7,
+            "ev": 0.148,
+            "pnl": 1.34,
+            "pf": 1.27,
+            "window": 2
+          },
+          {
+            "n": 9,
+            "wr": 55.6,
+            "ev": -0.155,
+            "pnl": -1.39,
+            "pf": 0.82,
+            "window": 3
+          },
+          {
+            "n": 13,
+            "wr": 61.5,
+            "ev": -0.042,
+            "pnl": -0.54,
+            "pf": 0.93,
+            "window": 4
+          },
+          {
+            "n": 11,
+            "wr": 90.9,
+            "ev": 0.966,
+            "pnl": 10.62,
+            "pf": 6.86,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.5,
+          "cv_ev": 1.733,
+          "min_ev": -0.155,
+          "max_ev": 0.966,
+          "verdict": "borderline"
+        }
+      },
+      "wick_imbalance_reversion": {
+        "aggregate": {
+          "n": 94,
+          "wr": 63.8,
+          "ev": 0.085,
+          "pnl": 7.96,
+          "pf": 1.12
+        },
+        "per_window": [
+          {
+            "n": 24,
+            "wr": 66.7,
+            "ev": 0.142,
+            "pnl": 3.41,
+            "pf": 1.21,
+            "window": 0
+          },
+          {
+            "n": 14,
+            "wr": 57.1,
+            "ev": -0.252,
+            "pnl": -3.52,
+            "pf": 0.71,
+            "window": 1
+          },
+          {
+            "n": 11,
+            "wr": 72.7,
+            "ev": 0.358,
+            "pnl": 3.94,
+            "pf": 1.78,
+            "window": 2
+          },
+          {
+            "n": 24,
+            "wr": 66.7,
+            "ev": 0.195,
+            "pnl": 4.69,
+            "pf": 1.28,
+            "window": 3
+          },
+          {
+            "n": 14,
+            "wr": 57.1,
+            "ev": 0.076,
+            "pnl": 1.07,
+            "pf": 1.12,
+            "window": 4
+          },
+          {
+            "n": 7,
+            "wr": 57.1,
+            "ev": -0.233,
+            "pnl": -1.63,
+            "pf": 0.75,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.667,
+          "cv_ev": 4.662,
+          "min_ev": -0.252,
+          "max_ev": 0.358,
+          "verdict": "borderline"
+        }
+      },
+      "sr_break_retest": {
+        "aggregate": {
+          "n": 164,
+          "wr": 59.8,
+          "ev": 0.04,
+          "pnl": 6.55,
+          "pf": 1.06
+        },
+        "per_window": [
+          {
+            "n": 31,
+            "wr": 58.1,
+            "ev": -0.096,
+            "pnl": -2.99,
+            "pf": 0.87,
+            "window": 0
+          },
+          {
+            "n": 17,
+            "wr": 52.9,
+            "ev": -0.144,
+            "pnl": -2.45,
+            "pf": 0.81,
+            "window": 1
+          },
+          {
+            "n": 29,
+            "wr": 44.8,
+            "ev": -0.381,
+            "pnl": -11.06,
+            "pf": 0.57,
+            "window": 2
+          },
+          {
+            "n": 20,
+            "wr": 65.0,
+            "ev": 0.109,
+            "pnl": 2.17,
+            "pf": 1.18,
+            "window": 3
+          },
+          {
+            "n": 36,
+            "wr": 61.1,
+            "ev": 0.181,
+            "pnl": 6.5,
+            "pf": 1.27,
+            "window": 4
+          },
+          {
+            "n": 31,
+            "wr": 74.2,
+            "ev": 0.464,
+            "pnl": 14.38,
+            "pf": 2.06,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.5,
+          "cv_ev": 12.106,
+          "min_ev": -0.381,
+          "max_ev": 0.464,
+          "verdict": "borderline"
+        }
+      },
+      "sr_fib_confluence": {
+        "aggregate": {
+          "n": 210,
+          "wr": 61.9,
+          "ev": 0.052,
+          "pnl": 10.96,
+          "pf": 1.09
+        },
+        "per_window": [
+          {
+            "n": 34,
+            "wr": 70.6,
+            "ev": 0.232,
+            "pnl": 7.89,
+            "pf": 1.46,
+            "window": 0
+          },
+          {
+            "n": 43,
+            "wr": 65.1,
+            "ev": 0.179,
+            "pnl": 7.7,
+            "pf": 1.32,
+            "window": 1
+          },
+          {
+            "n": 30,
+            "wr": 50.0,
+            "ev": -0.362,
+            "pnl": -10.87,
+            "pf": 0.58,
+            "window": 2
+          },
+          {
+            "n": 37,
+            "wr": 67.6,
+            "ev": 0.121,
+            "pnl": 4.46,
+            "pf": 1.21,
+            "window": 3
+          },
+          {
+            "n": 39,
+            "wr": 56.4,
+            "ev": 0.037,
+            "pnl": 1.44,
+            "pf": 1.06,
+            "window": 4
+          },
+          {
+            "n": 27,
+            "wr": 59.3,
+            "ev": 0.013,
+            "pnl": 0.34,
+            "pf": 1.02,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.833,
+          "cv_ev": 5.282,
+          "min_ev": -0.362,
+          "max_ev": 0.232,
+          "verdict": "borderline"
+        }
+      },
+      "htf_false_breakout": {
+        "aggregate": {
+          "n": 35,
+          "wr": 77.1,
+          "ev": 0.701,
+          "pnl": 24.55,
+          "pf": 3.88
+        },
+        "per_window": [
+          {
+            "n": 10,
+            "wr": 100.0,
+            "ev": 1.031,
+            "pnl": 10.31,
+            "pf": null,
+            "window": 0
+          },
+          {
+            "n": 4,
+            "wr": 100.0,
+            "ev": 1.561,
+            "pnl": 6.25,
+            "pf": null,
+            "window": 1
+          },
+          {
+            "n": 7,
+            "wr": 57.1,
+            "ev": 0.009,
+            "pnl": 0.07,
+            "pf": 1.01,
+            "window": 2
+          },
+          {
+            "n": 6,
+            "wr": 83.3,
+            "ev": 1.019,
+            "pnl": 6.11,
+            "pf": 71.33,
+            "window": 3
+          },
+          {
+            "n": 6,
+            "wr": 50.0,
+            "ev": 0.218,
+            "pnl": 1.31,
+            "pf": 1.47,
+            "window": 4
+          },
+          {
+            "n": 2,
+            "wr": 50.0,
+            "ev": 0.252,
+            "pnl": 0.5,
+            "pf": 1.51,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 4,
+          "positive_ratio": 1.0,
+          "cv_ev": 0.811,
+          "min_ev": 0.009,
+          "max_ev": 1.031,
+          "verdict": "stable"
+        }
+      },
+      "intraday_seasonality": {
+        "aggregate": {
+          "n": 119,
+          "wr": 61.3,
+          "ev": 0.069,
+          "pnl": 8.2,
+          "pf": 1.09
+        },
+        "per_window": [
+          {
+            "n": 21,
+            "wr": 71.4,
+            "ev": 0.248,
+            "pnl": 5.2,
+            "pf": 1.4,
+            "window": 0
+          },
+          {
+            "n": 27,
+            "wr": 59.3,
+            "ev": 0.075,
+            "pnl": 2.03,
+            "pf": 1.1,
+            "window": 1
+          },
+          {
+            "n": 16,
+            "wr": 56.2,
+            "ev": 0.08,
+            "pnl": 1.28,
+            "pf": 1.12,
+            "window": 2
+          },
+          {
+            "n": 31,
+            "wr": 64.5,
+            "ev": 0.161,
+            "pnl": 4.98,
+            "pf": 1.23,
+            "window": 3
+          },
+          {
+            "n": 6,
+            "wr": 33.3,
+            "ev": -0.916,
+            "pnl": -5.49,
+            "pf": 0.33,
+            "window": 4
+          },
+          {
+            "n": 18,
+            "wr": 61.1,
+            "ev": 0.012,
+            "pnl": 0.21,
+            "pf": 1.02,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 6,
+          "positive_ratio": 0.833,
+          "cv_ev": 6.908,
+          "min_ev": -0.916,
+          "max_ev": 0.248,
+          "verdict": "borderline"
+        }
+      },
+      "ema_cross": {
+        "aggregate": {
+          "n": 46,
+          "wr": 69.6,
+          "ev": 0.273,
+          "pnl": 12.58,
+          "pf": 1.52
+        },
+        "per_window": [
+          {
+            "n": 10,
+            "wr": 50.0,
+            "ev": -0.432,
+            "pnl": -4.32,
+            "pf": 0.57,
+            "window": 0
+          },
+          {
+            "n": 7,
+            "wr": 71.4,
+            "ev": 0.263,
+            "pnl": 1.84,
+            "pf": 1.54,
+            "window": 1
+          },
+          {
+            "n": 10,
+            "wr": 70.0,
+            "ev": 0.472,
+            "pnl": 4.72,
+            "pf": 2.04,
+            "window": 2
+          },
+          {
+            "n": 6,
+            "wr": 83.3,
+            "ev": 0.938,
+            "pnl": 5.63,
+            "pf": 5.4,
+            "window": 3
+          },
+          {
+            "n": 9,
+            "wr": 66.7,
+            "ev": 0.15,
+            "pnl": 1.35,
+            "pf": 1.26,
+            "window": 4
+          },
+          {
+            "n": 4,
+            "wr": 100.0,
+            "ev": 0.84,
+            "pnl": 3.36,
+            "pf": null,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 5,
+          "positive_ratio": 0.8,
+          "cv_ev": 1.603,
+          "min_ev": -0.432,
+          "max_ev": 0.938,
+          "verdict": "borderline"
+        }
+      },
+      "ema200_trend_reversal": {
+        "aggregate": {
+          "n": 45,
+          "wr": 73.3,
+          "ev": 0.292,
+          "pnl": 13.12,
+          "pf": 1.71
+        },
+        "per_window": [
+          {
+            "n": 11,
+            "wr": 72.7,
+            "ev": 0.195,
+            "pnl": 2.14,
+            "pf": 1.45,
+            "window": 0
+          },
+          {
+            "n": 8,
+            "wr": 62.5,
+            "ev": -0.001,
+            "pnl": -0.01,
+            "pf": 1.0,
+            "window": 1
+          },
+          {
+            "n": 9,
+            "wr": 77.8,
+            "ev": 0.638,
+            "pnl": 5.74,
+            "pf": 3.5,
+            "window": 2
+          },
+          {
+            "n": 11,
+            "wr": 81.8,
+            "ev": 0.395,
+            "pnl": 4.34,
+            "pf": 2.32,
+            "window": 3
+          },
+          {
+            "n": 5,
+            "wr": 80.0,
+            "ev": 0.518,
+            "pnl": 2.59,
+            "pf": 3.0,
+            "window": 4
+          },
+          {
+            "n": 1,
+            "wr": 0.0,
+            "ev": -1.687,
+            "pnl": -1.69,
+            "pf": 0.0,
+            "window": 5
+          }
+        ],
+        "stability": {
+          "active_windows": 5,
+          "positive_ratio": 0.8,
+          "cv_ev": 0.654,
+          "min_ev": -0.001,
+          "max_ev": 0.638,
+          "verdict": "stable"
+        }
+      }
+    }
+  }
+]
