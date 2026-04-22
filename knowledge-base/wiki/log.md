@@ -12,6 +12,15 @@
 - **KB 整合**: `sync_kb_index.py --write` で auto-synced portfolio block 再生成、vwap-mean-reversion が PAIR_PROMOTED に正しく表示されるよう整合
 - **Next**: (1) Scalp BT 完了待ち → vwap_mr 発火確認、(2) Scalp 全体負 EV は monthly re-evaluate、(3) Live N≥20 到達後に v3 Bonferroni 再計算
 
+## 2026-04-22 (追記2): OSS 横断調査 + qlib/pybroker 転用ツール実装
+- **横断調査** (`wiki/analyses/oss-transfer-2026-04-22.md`): 英語圏・中国圏・日本圏の FX/量化 OSS を star / commit / 収益実績 / 成熟度の 4 軸で評価
+- **最重要所見**: 3 圏いずれでも「FX 特化で verified record を公開している成熟 OSS はゼロ」。FX AI Trader は OSS FX bot の空白地帯に位置
+- **qlib Alpha158 サブセット 転用** (`tools/alpha_factor_zoo.py` 新規): kbar 9 + rolling [5,10,20,30,60] × [MA,STD,ROC,QTLU,QTLD,RSV] = 39 features × horizons [1,5,10,16] で IC scan (bootstrap + Bonferroni)。初回 USD_JPY 15m 90d: **5 cells が Bonferroni 有意** (KSFT/KSFT2/RSV10/ROC10 h=1)
+- **pybroker walk-forward 転用** (`tools/bt_walkforward.py` 新規): 既存 `run_daytrade_backtest` を流用 (BT ロジック無変更)、trade_log を 30d rolling window で bin、戦略×ペア別 CV(EV) で stability 判定 (stable / borderline / unstable)
+- **非侵襲設計**: 両ツールとも live/BT logic 無変更、新規ファイルのみ、結果は `raw/bt-results/alpha-factor-zoo-{date}.md` / `walkforward-{date}.md` に出力
+- **不採用**: freqtrade Hyperopt (カーブフィッティング禁止違反) / vectorbt BT 置換 (BT/本番統一原則違反) / vnpy EventEngine 即導入 (live 影響で高リスク) / OandaClient 拡張 (別セッションで独立判断)
+- **次ステップ**: Bonferroni 有意 factor は 365d walk-forward で再検証、unstable 判定戦略は Live N≥30 到達後に demote 判断
+
 ## 2026-04-22 (追記): Scalp EV breakdown + silent-except lesson + vwap_mr 5m 365d 延長 BT
 - **Scalp 180d BT 戦略別分解** (`raw/bt-results/scalp-180d-strategy-breakdown-2026-04-22.md`): ema_trend_scalp が単独で損失 37.6% (N=5726 EV=-0.242)、上位 3 戦略で 70.4%。N≥100 の全 10 戦略が負 EV
 - **反直感的発見**: FORCE_DEMOTED 除外後の Live-proxy で 1m Scalp EV=-0.289→**-0.338 悪化** (WR 55.1%→51.0%)。FORCE_DEMOTED は "損は出すが高 WR" 群、除外すると残存戦略の WR 50% ノイズが支配的 → Live filter は流出を止めるが Scalp +EV にはならない
