@@ -37,10 +37,10 @@ python3 scripts/backfill_mtf_regime.py --trades-json trades_all.json \
 ### Step 3: Render Shell で適用
 ```bash
 # Render Shell アクセス (Pro プラン必要)
-sqlite3 /render-disk/demo_trades.db < backfill_mtf_regime.sql
+sqlite3 /var/data/demo_trades.db < backfill_mtf_regime.sql
 
 # 検証
-sqlite3 /render-disk/demo_trades.db \
+sqlite3 /var/data/demo_trades.db \
     "SELECT mtf_regime, COUNT(*) FROM demo_trades WHERE mtf_regime IS NOT NULL AND mtf_regime != '' GROUP BY mtf_regime"
 ```
 
