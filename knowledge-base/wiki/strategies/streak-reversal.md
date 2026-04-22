@@ -32,7 +32,7 @@ Consecutive candle streak reversal (3-5 candle streak). Enters counter-direction
 
 - Bonferroni 有意 BT (5streak BUY USD_JPY 15m): N=586 WR=58.7% p=1.3×10⁻⁵
 - 単一TF根拠を超えたクロスTF確証 → PAIR_PROMOTED 昇格
-- 詳細: [[../raw/analysis/roadmap-acceleration-synthesis-2026-04-22]]
+- 詳細: `raw/analysis/roadmap-acceleration-synthesis-2026-04-22.md`
 
 ## Current Configuration
 - Lot Boost: default (1.0x)
