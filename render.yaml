@@ -70,33 +70,32 @@ services:
     startCommand: python3 tools/alpha_budget_tracker.py --reset
     plan: starter
 
-  # ===== Phase 2 (DISABLED until BT bridge 完成): LLM仮説生成 =====
-  # 以下は daily-tierB-protocol.md §4/§5 本実装で有効化する。
-  # 現状: scripts/daily_hypothesis_scan.py の run_bt_for_hypothesis() が
-  #      skeleton のため、仮説生成しても即 shadow_only で queue が肥大化する。
+  # ===== Phase 2 (DRY-RUN only): LLM仮説生成 品質レビュー =====
+  # scripts/daily_hypothesis_scan.py の run_bt_for_hypothesis() は skeleton。
+  # --dry-run で α予算消費ゼロ・BTスキップ・仮説JSON出力のみ。
+  # 本格運用 (BT+gate) は Phase 3 で startCommand から --dry-run を外す。
   #
-  # 有効化条件:
-  #   1. run_bt_for_hypothesis() が 365d BT + WF 3-bucket を実行可能
-  #   2. dry-run 7日間の仮説レビューで幻覚率 <30%
-  #   3. 仮説 → strategy file 自動生成 (strategy-dev agent委譲) 実装完了
+  # 手動トリガ: Render Dashboard → fx-ai-tier-b-daily → "Trigger run now"
+
+  - type: cron
+    name: fx-ai-tier-b-daily
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    schedule: "30 0 * * *"  # UTC 00:30 daily (JST 09:30)
+    startCommand: python3 scripts/daily_hypothesis_scan.py --dry-run
+    plan: starter
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
+      - key: API_BASE
+        value: https://fx-ai-trader.onrender.com
+
+  # ===== Phase 3 (DISABLED): Tier B-weekly =====
+  # Tier B-daily に正常な pass 候補が蓄積されてから有効化する。
+  # 現状 pass は生まれない (dry-run かつ BT skeleton) のでコメントアウト維持。
   #
-  # --- Tier B-daily (仮説生成 + BT + candidate queue) ---
-  # - type: cron
-  #   name: fx-ai-tier-b-daily
-  #   runtime: python
-  #   buildCommand: pip install -r requirements.txt
-  #   schedule: "30 0 * * *"
-  #   startCommand: python3 scripts/daily_hypothesis_scan.py
-  #   plan: starter
-  #   envVars:
-  #     - key: ANTHROPIC_API_KEY
-  #       sync: false
-  #     - key: DISCORD_WEBHOOK_URL
-  #       sync: false
-  #     - key: API_BASE
-  #       value: https://fx-ai-trader.onrender.com
-  #
-  # --- Tier B-weekly (candidate → pre-register PR) ---
   # - type: cron
   #   name: fx-ai-tier-b-weekly
   #   runtime: python
