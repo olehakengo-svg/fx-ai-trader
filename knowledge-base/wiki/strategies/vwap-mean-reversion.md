@@ -31,8 +31,20 @@ Scalp (Bonferroni significant):
 | VW2s BUY | EUR_JPY | 1m | 16min | 2,574 | 56.5% | +0.81 | +2,087p |
 | VW2s BUY | GBP_JPY | 1m | 16min | 2,028 | 53.6% | +0.48 | +975p |
 
-### Scalp BT 2026-04-22 バグ発覚
-180d Scalp BT では `vwap_mean_reversion` の発火が 10 cell すべてでゼロ。原因は `app.py:_compute_scalp_signal_v2` 内で `htf_agreement` 変数が未定義、silent except で NameError が飲み込まれていた。2026-04-22 に `app.py:L7992` で `htf_agreement = htf.get("agreement", "mixed")` を追加して修正。post-fix BT 再実行中（`raw/bt-results/bt-scalp-180d-jpy-postfix-2026-04-22.json` 予定）。
+### Scalp BT 2026-04-22 バグ発覚 + 修正完了
+180d Scalp BT では `vwap_mean_reversion` の発火が 10 cell すべてでゼロ。原因は `app.py:_compute_scalp_signal_v2` 内で `htf_agreement` 変数が未定義、silent except で NameError が飲み込まれていた。2026-04-22 に `app.py:L7992` で `htf_agreement = htf.get("agreement", "mixed")` を追加して修正（commit `0981945`）。
+
+Post-fix 180d × {1m, 5m} × JPY crosses (`raw/bt-results/bt-scalp-180d-jpy-postfix-2026-04-22.json`):
+| Pair | TF | N | WR | EV | PnL |
+|---|---|---|---|---|---|
+| EUR_JPY | 1m | 17 | — | -0.272 | 負 |
+| EUR_JPY | 5m | 2 | 100% | +0.874 | 小 N |
+| GBP_JPY | 1m | 14 | 50.0% | -0.114 | 負 |
+| GBP_JPY | 5m | 3 | 66.7% | +0.132 | 小 N |
+
+- ✅ 発火復活、signal は機能
+- ⚠️ 1m 版は両ペア負 EV、5m 版は正 EV だが N=2-3 で結論不可
+- 🚫 Scalp 全体 EV は改善せず、Scalp vwap_mr は Live 配置候補として保留（365d 延長 BT or 1 年 N 蓄積まで）
 
 ## Live Performance (post-cutoff, 2026-04-08〜)
 | Strategy | Pairs | N | WR | PnL |

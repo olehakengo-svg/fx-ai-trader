@@ -6,7 +6,7 @@
 - **既存 PAIR_PROMOTED 再確証**: `vwap_mean_reversion × GBP_JPY` N=267 EV=+1.025 PnL=+273.7pip / `× EUR_JPY` N=223 EV=+0.672 PnL=+149.9pip — walk-forward 全窓正 EV、demo_trader.py:5168-5170 の PAIR_PROMOTED を fresh BT で再確証（前回書いた "未登録" は誤認、訂正済み）
 - **Scalp scope 構造**: DT_15m EV=+0.217 vs Scalp_1m EV=-0.288 / Scalp_5m EV=-0.115 (GBPJPY 5m のみ正 EV +0.034)
 - **構造バグ修正**: `app.py:L7992` に `htf_agreement = htf.get("agreement", "mixed")` 追加。L7965 で取得した htf の agreement が未抽出で L8276 NameError → `_compute_scalp_signal_v2` 内 vwap_mean_reversion が silent except で発火せず（Scalp BT 10 cell 全ゼロで確認）。バグ修正は即 GO (CLAUDE.md 判断プロトコル #4)。
-- **Scalp BT 再実行**: JPY cross 4 cells (`bt-scalp-180d-jpy-postfix-2026-04-22.json`) 実行中 — fix 検証用
+- **Scalp BT 再実行完了** (`bt-scalp-180d-jpy-postfix-2026-04-22.json`, 2665s): vwap_mr 4 cells で発火確認 — EURJPY 1m N=17 EV=-0.272, EURJPY 5m N=2 EV=+0.874, GBPJPY 1m N=14 EV=-0.114, GBPJPY 5m N=3 EV=+0.132。Overall Scalp EV は不変 (1m GBP -0.042→-0.043, 5m GBP +0.034→+0.019) — vwap_mr の発火追加では Scalp 構造的負 EV は救えない。5m 版が小 N で正 EV の兆候あり、365d 延長 BT 候補（1日データで実装禁止）
 - **divergence v3**: is_shadow=0 Kelly-clean baseline (Live N=412) で Bonferroni 有意なし — v2 (mixed Live N=2505) で有意だった sr_fib_confluence/sr_break_retest × USD_JPY は power loss で再現せず
 - **wiki 更新**: `sessions/bt-live-divergence-scan-2026-04-22.md` §8 appendix / `sessions/bt-live-divergence-v3-full-stack-2026-04-22.md` 新規 / `index.md` BT Results link / `strategies/vwap-mean-reversion.md` fresh BT + bug note / `sessions/2026-04-22-session.md` Addendum + 訂正
 - **KB 整合**: `sync_kb_index.py --write` で auto-synced portfolio block 再生成、vwap-mean-reversion が PAIR_PROMOTED に正しく表示されるよう整合
