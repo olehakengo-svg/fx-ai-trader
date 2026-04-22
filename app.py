@@ -168,6 +168,8 @@ from modules.indicators import (
     _calc_fibonacci_levels, detect_candle_patterns,
     dow_theory_analysis, volume_obv_analysis, detect_divergence,
 )
+# v11.1: anti-trend penalty for inline MR/pullback strategies (vwap_mean_reversion)
+from modules.confidence_v2 import apply_penalty as _v2_apply_penalty
 
 
 
@@ -3223,6 +3225,11 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                                 reasons.append(f"✅ [VWAP-MR] JPY cross α boost +{_vmr_boost}")
                             else:
                                 reasons.append(f"⚠️ [VWAP-MR] High-friction pair penalty {_vmr_boost}")
+                        # v11.1: anti-trend penalty (VWAP-MR は MR by construction、ADX>25 で EV反転リスク)
+                        _vmr_conf_pre = conf
+                        conf = _v2_apply_penalty(conf, "MR", adx, conf_max=90)
+                        if conf < _vmr_conf_pre:
+                            reasons.append(f"🔧 [v2] MR anti-trend: ADX={adx:.1f}>25 → conf {_vmr_conf_pre}→{conf}")
                         # v9.x fix: recalculate SL/TP for the new signal direction
                         sl, tp = calc_sl_tp_v3(entry, signal, atr, sr_levels, tf=tf, symbol=symbol)
         except Exception as _vmr_err:
@@ -5898,6 +5905,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "lin_reg_channel",           # LRC: Linear Regression Channel
                 "orb_trap",                      # ORB Trap: Opening Range Fakeout Reversal
                 "london_close_reversal",         # LCR: London Close Wick Reversal (DISABLED)
+                "london_close_reversal_v2",      # LCR v2 H-2026-04-22-005: UTC 20:30-21:00 push+RSI極値 (Sentinel)
                 "gbp_deep_pullback",             # GBP Deep PB: BB-2σ/EMA50 deep pullback
                 "turtle_soup",                   # Turtle Soup: Liquidity Grab Reversal (Phase 5)
                 "trendline_sweep",               # TL Sweep: Trendline Sweep Trap (Phase 5)
@@ -8302,6 +8310,11 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                                     reasons.append(f"✅ [VWAP-MR] JPY cross α boost +{_vmr_b_sc}")
                                 else:
                                     reasons.append(f"⚠️ [VWAP-MR] High-friction pair penalty {_vmr_b_sc}")
+                            # v11: anti-trend penalty (VWAP-MR は MR by construction、ADX>25 で EV反転リスク)
+                            _vmr_conf_pre_sc = conf
+                            conf = _v2_apply_penalty(conf, "MR", adx, conf_max=90)
+                            if conf < _vmr_conf_pre_sc:
+                                reasons.append(f"🔧 [v2] MR anti-trend: ADX={adx:.1f}>25 → conf {_vmr_conf_pre_sc}→{conf}")
                         else:
                             reasons.append(f"🚫 [VWAP-MR] HTF Hard Block: {_vmr_sig_sc} blocked (htf={htf_agreement})")
         except Exception as _vmr_err_sc:

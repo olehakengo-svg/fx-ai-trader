@@ -43,12 +43,14 @@ from __future__ import annotations
 from typing import Optional
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
+from modules.confidence_v2 import apply_penalty
 
 
 class WickImbalanceReversion(StrategyBase):
     name = "wick_imbalance_reversion"
     mode = "daytrade"
     enabled = True
+    strategy_type = "MR"   # v11.1: ヒゲ偏り反発 = MR by construction (Osler 2003)
     params = {
         "window": 8,          # ヒゲ集計本数
         "threshold": 0.45,    # WIR閾値
@@ -154,7 +156,8 @@ class WickImbalanceReversion(StrategyBase):
         body_strength = min(0.5, abs(current_body) / (atr * 0.5))
         score = base_score + wir_bonus + body_strength
 
-        confidence = int(min(85, 50 + score * 3))
+        _legacy_confidence = int(min(85, 50 + score * 3))
+        confidence = apply_penalty(_legacy_confidence, self.strategy_type, ctx.adx, conf_max=85)
 
         reasons = [
             f"🕯️ [WickImb] WIR={wir:+.3f} (thr={threshold}) "

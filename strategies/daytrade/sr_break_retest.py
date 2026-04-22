@@ -38,6 +38,7 @@ SR Break & Retest (SBR) — サポート/レジスタンス・ブレイク後リ
 """
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
+from modules.confidence_v2 import apply_penalty
 from typing import Optional
 import numpy as np
 
@@ -46,6 +47,7 @@ class SrBreakRetest(StrategyBase):
     name = "sr_break_retest"
     mode = "daytrade"
     enabled = True
+    strategy_type = "pullback"   # v11.1: ブレイク→リテスト→継続 = pullback by construction
 
     # ══════════════════════════════════════════════════
     # パラメータ定数
@@ -352,7 +354,8 @@ class SrBreakRetest(StrategyBase):
             score += 0.3
             reasons.append(f"✅ 精密リテスト(精度{_retest_accuracy:.0%})")
 
-        conf = int(min(85, 50 + score * 4))
+        _legacy_conf = int(min(85, 50 + score * 4))
+        conf = apply_penalty(_legacy_conf, self.strategy_type, ctx.adx, conf_max=85)
         return Candidate(
             signal=signal, confidence=conf, sl=sl, tp=tp,
             reasons=reasons, entry_type=self.name, score=score
