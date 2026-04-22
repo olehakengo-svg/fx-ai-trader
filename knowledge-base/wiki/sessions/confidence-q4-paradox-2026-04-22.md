@@ -1,7 +1,12 @@
 # Confidence Q4 Paradox — 構造問題の発見と原因特定
 
+> **⚠️ SUPERSEDED by [[confidence-q4-full-quant-2026-04-22]]** (2026-04-22 ~11:00)
+> 本文書は **partial-quant trap** (WR + Fisher p のみ、post-hoc-selected M=4 Bonferroni) に該当。
+> Kelly / PF / EV / Wilson CI / Walk-Forward / MI / OR / Cohen's h / 正しい Bonferroni M=176 を含む
+> 全指標再計算版を上記 full-quant ドキュメントで確定. 本文書は定性的 root-cause 説明のみ参照価値あり.
+
 **Registered**: 2026-04-22 (UTC ~10:00)
-**Status**: **Analysis 完了 / Pre-registration 未確定** (運用判断はユーザー承認待ち)
+**Status**: **PARTIAL-QUANT (SUPERSEDED)** — full-quant 版で binding 確定
 **Based on**:
   - [[task1-win-dna-2026-04-21]] (WIN DNA で Q4 paradox を発見)
   - [[confidence-q4-paradox-2026-04-22.py]] (Q4 inversion 統計)
