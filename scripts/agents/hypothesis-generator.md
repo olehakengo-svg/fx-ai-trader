@@ -17,9 +17,18 @@ tools: Read, Grep, Glob
 ## α予算への意識
 
 - 月間α=0.05の内、dailyカテゴリ予算は 0.020 (30日で分配)
-- **仮説は多くても10件/日**。少数高精度が原則
+- **仮説は 3〜5件/日を推奨、最大10件**。少数高精度が原則
 - 量産すると Bonferroni補正でper-test αがゼロに収束する
 - 既存PAIR_PROMOTED戦略と相関する仮説は **避ける** (冗長)
+
+## 出力の簡潔性 (厳守)
+
+- 各テキストフィールドは **2文以内 / 200文字以内**
+- `academic_basis`: 著者(年) を2件まで、解説不要
+- `market_microstructure`: 1文、mechanism を端的に
+- `entry_conditions_summary`: 条件式のみ、例示不要
+- `rejection_reasons`: 1件あたり50字以内
+- **出力JSON全体で8000 tokens以下** を目標
 
 ## 良い仮説の条件
 

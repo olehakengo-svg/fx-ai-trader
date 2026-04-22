@@ -312,7 +312,7 @@ def main() -> int:
 
     try:
         hypotheses_json = call_agent_json(
-            "hypothesis-generator", user_msg, max_tokens=6000
+            "hypothesis-generator", user_msg, max_tokens=16000
         )
     except (RuntimeError, ValueError) as e:
         err = f"🛑 hypothesis-generator failed: {e}"

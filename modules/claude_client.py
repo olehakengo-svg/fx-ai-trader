@@ -126,11 +126,65 @@ def call_agent_json(
     raw = call_agent(agent_name, user_message, max_tokens=max_tokens)
     import re
 
-    m = re.search(r"```(?:json)?\s*\n(.*?)\n```", raw, re.DOTALL)
+    m = re.search(r"```(?:json)?\s*\n?(.*?)(?:\n```|$)", raw, re.DOTALL)
     blob = m.group(1) if m else raw.strip()
     try:
         return json.loads(blob)
-    except json.JSONDecodeError as e:
-        raise ValueError(
-            f"Agent {agent_name!r} did not return valid JSON. Raw output:\n{raw[:1000]}"
-        ) from e
+    except json.JSONDecodeError:
+        pass
+
+    # Fallback: max_tokens で切り詰められた未閉じJSONを修復試行
+    repaired = _repair_truncated_json(blob)
+    if repaired is not None:
+        try:
+            return json.loads(repaired)
+        except json.JSONDecodeError:
+            pass
+
+    raise ValueError(
+        f"Agent {agent_name!r} did not return valid JSON. Raw output:\n{raw[:1500]}"
+    )
+
+
+def _repair_truncated_json(blob: str) -> str | None:
+    """max_tokensで切り詰められたJSONを修復。hypotheses配列内の最後の完結要素までを残す。
+
+    戦略:
+    1. 文字列リテラルを考慮しつつ、hypotheses配列レベル (depth_obj=1, depth_arr=1) での
+       最後の完結した `}` を探す
+    2. そこまでを切り取って ] } で閉じる
+    """
+    s = blob.strip()
+    depth_obj = 0
+    depth_arr = 0
+    in_str = False
+    escape = False
+    last_element_end = -1
+    for i, ch in enumerate(s):
+        if escape:
+            escape = False
+            continue
+        if ch == "\\":
+            escape = True
+            continue
+        if ch == '"':
+            in_str = not in_str
+            continue
+        if in_str:
+            continue
+        if ch == "{":
+            depth_obj += 1
+        elif ch == "}":
+            depth_obj -= 1
+            if depth_obj == 1 and depth_arr == 1:
+                last_element_end = i
+        elif ch == "[":
+            depth_arr += 1
+        elif ch == "]":
+            depth_arr -= 1
+
+    if last_element_end < 0:
+        return None
+
+    trimmed = s[: last_element_end + 1]
+    return trimmed + "]}"
