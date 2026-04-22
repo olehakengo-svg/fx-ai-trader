@@ -3,16 +3,20 @@
 **Generated**: 2026-04-22 (UTC)
 **BT Baseline**: `raw/bt-results/full-bt-scan-2026-04-15.md` (365d DT 15m + 180d Scalp 1m/5m) + `bt-365d-2026-04-16.json`
 **Live Data**: `/api/demo/trades?limit=3000` (N=2525, W/L 2292, non-XAU)
-**Fresh 365d BT**: 実行中（完了後に追記）
+**Fresh 365d BT**: ✅ 完了 (`raw/bt-results/bt-365d-2026-04-22.json`, 1970s)
 **Method**: ΔEV = Live_EV − BT_EV (pip); two-proportion z; Wilson 95%; MFE/MAE causal decomposition
 
 ---
 
-## 🎯 Executive Summary (3-line)
+## 🎯 Executive Summary (Fresh BT 反映後, 5-line)
 
-1. **engulfing_bb×USD_JPY (N=75, z=-3.71, p=0.0002)** と **bb_squeeze_breakout×EUR_USD (N=25, z=-4.99, p<0.0001)** が統計的有意に BT を下回り、**regime-shift 型の overfitting** を確定。
-2. 根本原因は **(i) 2026-04-16 以降の regime feature rollout 欠落（pre-cutoff 77% NULL）**, **(ii) Immediate Death ≥50% in 8/10 cells**（entry 方向の破綻）, **(iii) Scalp family の friction 実現と BT モデル乖離**。
-3. **macdh_reversal×USD_JPY N=12 WR=0%** は catastrophic / **ema_trend_scalp 全体 N=280 PnL=-410p** は FORCE_DEMOTE 候補（次 Audit で正式判定）。
+1. **Fresh 365d DT BT 完了** (USDJPY/EURUSD/GBPUSD, `bt-365d-2026-04-22.json`). 全 3 ペアで Aggregate EV+, WF 3/3 窓安定.
+2. **Bonferroni 確定 (DT 15m, M=12, α=0.00417)** は新規 2 cells:
+   - ⭐ **sr_fib_confluence×USD_JPY** N=28 WR 21.4% vs BT 54.3% (z=-3.20, p=0.0014, PnL **-133p**)
+   - ⭐ **sr_break_retest×USD_JPY** N=15 WR 13.3% vs BT 58.0% (z=-3.14, p=0.0017, PnL **-96p**)
+3. Scalp 乖離 (bb_squeeze_breakout×EUR_USD, engulfing_bb×USD_JPY) は fresh Scalp BT 未実行のため fresh 判定保留. 前回推定では Bonferroni 有意だったが DT 15m ではない.
+4. **BT 自身が 7日で drift**: htf_false_breakout×USD_JPY が EV -0.809 劣化, dt_fib_reversal×GBP_USD が -0.293 (Audit B 既出), trendline_sweep×GBP_USD が -0.470 (ELITE 要注意).
+5. 根本原因は **(i) regime feature rollout gap (pre-cutoff 77% NULL)**, **(ii) Immediate Death ≥50% in 8/10 divergent cells**, **(iii) macdh_reversal×USD_JPY 0/12 catastrophic**. 最大 single loss は post-cutoff only で **sr_fib_confluence×USD_JPY -133p / ema_trend_scalp 合計 -410p**.
 
 ---
 
@@ -159,12 +163,14 @@ Portfolio baseline は **60.5%** (from tp-sl-deep-mechanics-2026-04-22 §B). **8
 
 | P | Action | 根拠 | Gate |
 |---|---|---|---|
-| **P0** | `macdh_reversal×USD_JPY` 即停止 (N=12 0% WR, Wilson≤23.8% << BEV 34.4%) | §4.3 | 構造的損失域確定 |
-| **P1** | `bb_squeeze_breakout×EUR_USD` FORCE_DEMOTE (§4.2 Bonferroni有意) | §1, §4.2 | Wilson upper < BEV |
-| **P2** | Scalp family (`ema_trend_scalp` 全ペア, `bb_rsi_reversion` JPY/USD) の **friction モデル見直し** — BT vs LIVE の spread/slippage 実現乖離定量測定 | §3.4 | 1m BT の再 calibration |
-| **P2** | `engulfing_bb×USD_JPY` Shadow 継続観察 (N=75 は小さくない, 境界判定) | §4.2 | 2026-05-15 再判定 |
-| **P3** | **Regime feature rollout 完了まで BT-Live比較は regime 条件付きでは無効** → post-cutoff only で再スキャン | §3.1 | データ整合前提 |
-| **HOLD** | 他の small-N cell (vwap_mean_reversion×EUR_JPY N=5 等) は統計推論不可. N≥15 まで待機 | §4.1 Type D | Wilson 幅過大 |
+| **P1** | `sr_fib_confluence×USD_JPY` FORCE_DEMOTE 候補 (Bonferroni⭐ Fresh BT) | §6.2, §6.3 | N=28 Wilson upper 39.5% ≈ BEV 34.4% |
+| **P1** | `sr_break_retest×USD_JPY` FORCE_DEMOTE 候補 (Bonferroni⭐ Fresh BT) | §6.2 | N=15 Wilson upper 37.9% ≈ BEV 34.4%, PnL -96p |
+| **P1** | `macdh_reversal×USD_JPY` 停止検討 (N≥20 到達で確定) | §4.3 | 0/12, raw p=0.0086, BT 未計測 |
+| **P2** | Scalp 専用 BT 再実行 (`bt_scalp_lab.py` or 180d 1m/5m) → bb_squeeze_breakout×EUR_USD と engulfing_bb×USD_JPY の fresh 検証 | §6.5 | 現時点 Scalp BT は 2026-04-15 scan 依存 |
+| **P2** | Scalp family (`ema_trend_scalp` 全ペア, `bb_rsi_reversion` JPY/USD) の **friction モデル再 calibration** — N=280 で -410p の慢性損失 | §3.4 | 1m BT の spread/slippage 実現乖離 |
+| **P2** | ELITE_LIVE `trendline_sweep×GBP_USD` の EV drift 監視 (BT ΔEV -0.470 / 7日) | §6.4 | 格下げ閾値 EV<+0.3 で再評価 |
+| **P3** | Regime feature rollout 完了まで regime 条件付き BT-Live 比較は無効 → post-cutoff only で再スキャン | §3.1 | データ整合前提 |
+| **HOLD** | 他 small-N cell (xs_momentum×USD_JPY N=7 / post_news_vol×USD_JPY N=8 / vix_carry_unwind×USD_JPY N=8 等) は N≥20 まで判定保留 | §4.1 Type D | Wilson 幅過大 |
 
 ### 5.1 本日実行しない判断 (multiple testing inflation guard)
 
@@ -176,17 +182,65 @@ Portfolio baseline は **60.5%** (from tp-sl-deep-mechanics-2026-04-22 §B). **8
 
 ---
 
-## §6. Fresh 365d BT (進行中)
+## §6. Fresh 365d BT (2026-04-22) — 完了結果
 
-実行コマンド: `BT_MODE=1 python3 tools/bt_365d_runner.py`  
-対象: USDJPY, EURUSD, GBPUSD × 365d × 15m  
-ETA: 20-25 分  
-進捗ログ: `/tmp/bt_divergence/bt_365d_run.log`
+実行: `BT_MODE=1 python3 tools/bt_365d_runner.py` / 1970s / `raw/bt-results/bt-365d-2026-04-22.json`
 
-**完了後の追記予定**:
-- 2026-04-15 (7日前) BT と 2026-04-22 BT の ΔWR / ΔEV 比較 — BT自体の drift があるか
-- Walk-forward stability 更新
-- 新 Bonferroni alpha 計算
+### 6.1 Fresh BT Aggregate (DT 15m × 365d)
+| Pair | N | WR | EV | Sharpe | MDD |
+|---|---:|---:|---:|---:|---:|
+| USD_JPY | 2157 | 63.0% | +0.390 | — | — |
+| EUR_USD | 1555 | 61.4% | +0.183 | — | — |
+| GBP_USD | 1986 | 58.7% | +0.057 | 0.461 | 73.1% |
+
+### 6.2 Fresh BT × Live 再乖離 (Bonferroni 補正後)
+
+**ALL period** (M=12, α=0.00417):
+- ⭐ **sr_fib_confluence×USD_JPY** N=28 WR=21.4% vs **BT 54.3%** z=-3.20 p=0.00140 (**新規有意**)
+- ⭐ **sr_break_retest×USD_JPY** N=15 WR=13.3% vs **BT 58.0%** z=-3.14 p=0.00171 (**新規有意**)
+
+**POST-Cutoff** (M=1, α=0.05):
+- sr_fib_confluence×GBP_USD N=12 WR=25% vs BT 58.2% p=0.023 (POST-only 確証)
+
+### 6.3 Fresh BT × Live top divergence (ALL, non-Bonferroni but large ΔEV)
+| # | Strategy×Pair | BT(N/WR/EV) | Live(N/WR/EV) | ΔEV | PnL | 判定 |
+|---|---|---|---|---:|---:|---|
+| 1 | **sr_fib_confluence×USD_JPY** | 151/54.3%/-0.061 | **28/21.4%/-4.757** | -4.696 | **-133.2** | ⭐Bonf 有意 — **停止候補** |
+| 2 | **sr_break_retest×USD_JPY** | 69/58.0%/-0.109 | 15/13.3%/-6.393 | -6.284 | **-95.9** | ⭐Bonf 有意 — **停止候補** |
+| 3 | xs_momentum×USD_JPY | 287/63.1%/+0.102 | 7/0.0%/-8.200 | -8.302 | -57.4 | raw p=0.0007 小N |
+| 4 | dt_sr_channel_reversal×GBP_USD | 56/55.4%/-0.079 | 17/17.6%/-4.276 | -4.197 | -72.7 | raw p=0.0063 継続観察 |
+| 5 | post_news_vol×USD_JPY | 17/70.6%/+1.002 | 8/25.0%/-5.213 | -6.215 | -41.7 | 小N |
+| 6 | vix_carry_unwind×USD_JPY | 106/69.8%/+0.574 | 8/25.0%/-4.213 | -4.787 | -33.7 | 小N |
+| 7 | sr_fib_confluence×EUR_USD | 233/57.5%/-0.022 | 24/29.2%/-2.263 | -2.241 | -54.3 | raw p=0.008 |
+
+### 6.4 **BT 自体の drift** (2026-04-15 → 2026-04-22, 7日差)
+最大の「BT が変化した」cells:
+
+| Strategy×Pair | BT_15 WR/EV | BT_22 WR/EV | ΔWR | ΔEV |
+|---|---|---|---:|---:|
+| htf_false_breakout×USD_JPY | 100.0%/+1.291 | 80.0%/+0.482 | -20.0 | **-0.809** |
+| trendline_sweep×GBP_USD | 77.2%/+0.838 | 69.3%/+0.368 | -7.9 | **-0.470** |
+| ema_cross×GBP_USD | 37.5%/-0.726 | 50.0%/-0.319 | +12.5 | +0.407 |
+| turtle_soup×GBP_USD | 63.6%/+0.187 | 67.4%/+0.543 | +3.8 | +0.356 |
+| vwap_mean_reversion×EUR_USD | 72.9%/+0.615 | 70.9%/+0.934 | -2.0 | +0.319 |
+| dt_fib_reversal×GBP_USD | 66.7%/+0.097 | 54.8%/-0.196 | -11.9 | **-0.293** (Audit B 既出) |
+| dt_sr_channel_reversal×GBP_USD | 66.0%/+0.180 | 55.4%/-0.079 | -10.6 | **-0.259** |
+| vwap_mean_reversion×GBP_USD | 72.3%/+1.087 | 67.3%/+0.848 | -5.0 | -0.239 |
+| post_news_vol×GBP_USD | 78.9%/+1.302 | 73.7%/+1.077 | -5.2 | -0.225 |
+| session_time_bias×EUR_USD | 69.0%/+0.301 | 63.7%/+0.180 | -5.3 | -0.121 |
+
+**含意**:
+- **htf_false_breakout×USD_JPY** の BT は 7日で EV -0.809 劣化 → 前回の 100% WR は sample size 14 の偶然で、新データ取り込みで補正された
+- `trendline_sweep×GBP_USD` ELITE_LIVE 格付けも EV +0.838 → +0.368 に低下。依然 ELITE だが **monitoring 要**
+- `vwap_mean_reversion×EUR_USD` は BT 自体が改善 (+0.319). Live 側は N=0 でまだ確認不可
+- `dt_sr_channel_reversal×GBP_USD` は **BT 自体が -0.26 悪化** — Live の divergence は少し減弱 (前回 ΔEV -4.456 → fresh BT では -4.197)
+
+### 6.5 Fresh BT で消えた Bonferroni 有意 cell
+- ~~bb_squeeze_breakout×EUR_USD~~: Scalp 1m 戦略のため fresh DT 15m BT に含まれない. **Scalp BT 再実行が必要** (未実施、別 task)
+- ~~engulfing_bb×USD_JPY~~: 同上 (Scalp 5m). Scalp BT 未再実行のため判定保留
+- dt_sr_channel_reversal×GBP_USD: fresh BT でも divergence は残るが BT 自身の悪化で効果量減
+
+→ **より信頼できる新 Bonferroni 確定 = sr_fib_confluence×USD_JPY と sr_break_retest×USD_JPY**
 
 ---
 
