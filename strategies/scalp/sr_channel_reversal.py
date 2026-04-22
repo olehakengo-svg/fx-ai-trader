@@ -1,6 +1,7 @@
 """SR/Channel Bounce Reversal — 水平線・並行チャネル反発 (Osler 2000)"""
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
+from modules.confidence_v2 import apply_penalty
 from typing import Optional
 
 
@@ -8,6 +9,7 @@ class SrChannelReversal(StrategyBase):
     name = "sr_channel_reversal"
     mode = "scalp"
     enabled = True   # v7.0: Sentinel再有効化 — デモデータ蓄積で検証
+    strategy_type = "MR"   # v11: S/R bounce = MR by construction
 
     # チューナブルパラメータ
     sr_proximity = 0.3    # ATR倍率
@@ -102,6 +104,7 @@ class SrChannelReversal(StrategyBase):
         if signal is None or score < self.min_score:
             return None
 
-        conf = int(min(85, 45 + score * 5))
+        _legacy_conf = int(min(85, 45 + score * 5))
+        conf = apply_penalty(_legacy_conf, self.strategy_type, ctx.adx, conf_max=85)
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
                          reasons=reasons, entry_type=self.name, score=score)

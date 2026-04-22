@@ -1,6 +1,7 @@
 """Three-Bar Reversal — 3本足反転パターン"""
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
+from modules.confidence_v2 import apply_penalty
 from typing import Optional
 
 
@@ -8,6 +9,7 @@ class ThreeBarReversal(StrategyBase):
     name = "three_bar_reversal"
     mode = "scalp"
     enabled = True   # v7.0: Sentinel再有効化 — デモデータ蓄積で検証
+    strategy_type = "MR"   # v11: 3-bar reversal = MR
 
     # チューナブルパラメータ
     bbpb_buy = 0.35
@@ -73,6 +75,7 @@ class ThreeBarReversal(StrategyBase):
         if signal is None:
             return None
 
-        conf = int(min(78, 45 + score * 4))
+        _legacy_conf = int(min(78, 45 + score * 4))
+        conf = apply_penalty(_legacy_conf, self.strategy_type, ctx.adx, conf_max=78)
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
                          reasons=reasons, entry_type=self.name, score=score)

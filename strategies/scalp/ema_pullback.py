@@ -1,6 +1,7 @@
 """EMA Pullback — トレンド方向のEMAプルバック反発"""
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
+from modules.confidence_v2 import apply_penalty
 from typing import Optional
 
 
@@ -8,6 +9,7 @@ class EmaPullback(StrategyBase):
     name = "ema_pullback"
     mode = "scalp"
     enabled = True   # v7.0: Sentinel再有効化 — デモデータ蓄積優先
+    strategy_type = "pullback"   # v11: トレンド方向 pullback — ADX>31で conf penalty
 
     # チューナブルパラメータ（学術水準: ADX≥20でトレンド確認）
     adx_min = 20           # ADXトレンド閾値（12→20: 学術的に有意なトレンド水準）
@@ -107,5 +109,7 @@ class EmaPullback(StrategyBase):
         if ctx.adx < self.adx_weak:
             conf = int(conf * 0.9)
             reasons.append(f"⚠️ ADX弱トレンド帯({ctx.adx:.1f}<{self.adx_weak}) → conf×0.9")
+        # v11: ADX過剰帯 (pullback threshold=31) でもペナルティ
+        conf = apply_penalty(conf, self.strategy_type, ctx.adx, conf_max=75)
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
                          reasons=reasons, entry_type=self.name, score=score)

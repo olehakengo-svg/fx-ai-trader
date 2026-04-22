@@ -1,6 +1,7 @@
 """EMA200 Trend Reversal — EMA200ブレイク後リテスト反発"""
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
+from modules.confidence_v2 import apply_penalty
 from typing import Optional
 
 
@@ -8,6 +9,7 @@ class Ema200TrendReversal(StrategyBase):
     name = "ema200_trend_reversal"
     mode = "daytrade"
     enabled = True   # v7.0: Sentinel再有効化 — デモデータ蓄積で再検証
+    strategy_type = "pullback"   # v11: EMA200リテスト後の新トレンド方向エントリ = pullback。ADX>31で conf penalty
 
     # チューナブルパラメータ
     ema200_dist_max = 0.5  # ATR倍率
@@ -71,6 +73,7 @@ class Ema200TrendReversal(StrategyBase):
         if signal is None:
             return None
 
-        conf = int(min(75, 40 + score * 4))
+        _legacy_conf = int(min(75, 40 + score * 4))
+        conf = apply_penalty(_legacy_conf, self.strategy_type, ctx.adx, conf_max=75)
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
                          reasons=reasons, entry_type=self.name, score=score)

@@ -1,12 +1,14 @@
 """MTF Reversal Confluence — 複数時間軸RSI+MACDクロス一致"""
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
+from modules.confidence_v2 import apply_penalty
 from typing import Optional
 
 
 class MtfReversalConfluence(StrategyBase):
     name = "mtf_reversal_confluence"
     mode = "scalp"
+    strategy_type = "MR"   # v11: Multi-TF reversal by construction
 
     # チューナブルパラメータ
     min_score = 3.2
@@ -84,6 +86,7 @@ class MtfReversalConfluence(StrategyBase):
         if signal is None or score < self.min_score:
             return None
 
-        conf = int(min(80, 40 + score * 5))
+        _legacy_conf = int(min(80, 40 + score * 5))
+        conf = apply_penalty(_legacy_conf, self.strategy_type, ctx.adx, conf_max=80)
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
                          reasons=reasons, entry_type=self.name, score=score)

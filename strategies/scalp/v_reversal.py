@@ -1,6 +1,7 @@
 """V-Reversal — 急落/急騰後の反転検出 (Cont 2001, Jegadeesh & Titman 1993)"""
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
+from modules.confidence_v2 import apply_penalty
 from typing import Optional
 
 
@@ -8,6 +9,7 @@ class VReversal(StrategyBase):
     name = "v_reversal"
     mode = "scalp"
     enabled = True   # v7.0: Sentinel再有効化 — デモデータ蓄積優先
+    strategy_type = "MR"   # v11: V-reversal = MR by construction
 
     # チューナブルパラメータ（緩和済み）
     min_drop_pip = 5.0     # 最低急落/急騰幅(pip)（8→5緩和）
@@ -113,6 +115,7 @@ class VReversal(StrategyBase):
         if signal is None:
             return None
 
-        conf = int(min(85, 50 + score * 5))
+        _legacy_conf = int(min(85, 50 + score * 5))
+        conf = apply_penalty(_legacy_conf, self.strategy_type, ctx.adx, conf_max=85)
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
                          reasons=reasons, entry_type=self.name, score=score)

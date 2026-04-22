@@ -1,12 +1,14 @@
 """MACD Histogram Reversal at BB Extreme — モメンタム消耗 + 価格極端 = 高確率反転"""
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
+from modules.confidence_v2 import apply_penalty
 from typing import Optional
 
 
 class MacdhReversal(StrategyBase):
     name = "macdh_reversal"
     mode = "scalp"
+    strategy_type = "MR"   # v11: BB極端+MACDHダイバージェンスは MR by construction
 
     # チューナブルパラメータ (v6.3 対策強化)
     bbpb_buy = 0.30       # BB%B BUY閾値（0.25→0.30緩和）
@@ -91,6 +93,7 @@ class MacdhReversal(StrategyBase):
         if signal is None:
             return None
 
-        conf = int(min(80, 45 + score * 4))
+        _legacy_conf = int(min(80, 45 + score * 4))
+        conf = apply_penalty(_legacy_conf, self.strategy_type, ctx.adx, conf_max=80)
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
                          reasons=reasons, entry_type=self.name, score=score)
