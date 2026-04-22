@@ -149,6 +149,37 @@ def scan_pair(pair: str, tf: str, days: int, horizons: list[int]) -> list[dict]:
     return results
 
 
+def by_fdr_threshold(pvalues: list[float], alpha: float = 0.01) -> tuple[float, np.ndarray]:
+    """Benjamini-Yekutieli FDR: returns (threshold, reject_mask).
+
+    BY is conservative variant of BH that holds under arbitrary dependence.
+    p_(i) <= (i / (m * c(m))) * alpha, where c(m) = sum(1/k for k in 1..m).
+    """
+    p_arr = np.asarray([p if p is not None else 1.0 for p in pvalues], dtype=float)
+    m = len(p_arr)
+    if m == 0:
+        return np.nan, np.zeros(0, dtype=bool)
+    c_m = np.sum(1.0 / np.arange(1, m + 1))
+    order = np.argsort(p_arr)
+    sorted_p = p_arr[order]
+    ranks = np.arange(1, m + 1)
+    thresholds = (ranks / (m * c_m)) * alpha
+    reject_sorted = sorted_p <= thresholds
+    # BH/BY: find the largest k such that p_(k) <= threshold_k; reject all <= k
+    if not reject_sorted.any():
+        reject_mask_sorted = np.zeros(m, dtype=bool)
+        cut_threshold = 0.0
+    else:
+        k_max = np.max(np.where(reject_sorted)[0])
+        reject_mask_sorted = np.zeros(m, dtype=bool)
+        reject_mask_sorted[: k_max + 1] = True
+        cut_threshold = float(sorted_p[k_max])
+    # unsort back to original order
+    reject_mask = np.zeros(m, dtype=bool)
+    reject_mask[order] = reject_mask_sorted
+    return cut_threshold, reject_mask
+
+
 def render_markdown(results: list[dict], pairs: list[str], tf: str, days: int,
                     horizons: list[int]) -> str:
     """Write results to markdown report."""
@@ -161,10 +192,15 @@ def render_markdown(results: list[dict], pairs: list[str], tf: str, days: int,
     bonferroni_alpha = 0.01 / n_tests
     df["sig_bonf"] = df["pvalue"].apply(
         lambda p: (p is not None) and (p < bonferroni_alpha))
+    # Benjamini-Yekutieli FDR (holds under arbitrary dependence)
+    by_threshold, by_mask = by_fdr_threshold(list(df["pvalue"]), alpha=0.01)
+    df["sig_by_fdr"] = by_mask
     df["abs_ic"] = df["ic"].abs()
     df_sorted = df.sort_values("abs_ic", ascending=False)
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    n_bonf_sig = int(df["sig_bonf"].sum())
+    n_by_sig = int(df["sig_by_fdr"].sum())
     lines = [
         f"# Alpha Factor Zoo — IC Scan",
         f"",
@@ -175,7 +211,8 @@ def render_markdown(results: list[dict], pairs: list[str], tf: str, days: int,
         f"- **Horizons (bars)**: {horizons}",
         f"- **Bootstrap**: {BOOTSTRAP_N} permutations",
         f"- **Total tests**: {n_tests}",
-        f"- **Bonferroni α**: {bonferroni_alpha:.2e}",
+        f"- **Bonferroni α**: {bonferroni_alpha:.2e} → {n_bonf_sig} cells sig",
+        f"- **BY-FDR α=0.01 cutoff p**: {by_threshold:.3e} → {n_by_sig} cells sig",
         f"",
         f"## Source",
         f"qlib Alpha158 サブセット (kbar 9 + rolling [5,10,20,30,60] × [MA, STD, ROC, QTLU, QTLD, RSV])",
@@ -184,12 +221,16 @@ def render_markdown(results: list[dict], pairs: list[str], tf: str, days: int,
         f"| Rank | Pair | TF | Factor | Horizon | N | IC | p-value | Bonf.sig |",
         f"|-----:|------|----|--------|--------:|--:|---:|--------:|:-:|",
     ]
+    # add BY-FDR column to top 20 table
+    lines[-2] = "| Rank | Pair | TF | Factor | Horizon | N | IC | p-value | Bonf | BY-FDR |"
+    lines[-1] = "|-----:|------|----|--------|--------:|--:|---:|--------:|:-:|:-:|"
     for i, row in enumerate(df_sorted.head(20).itertuples(), 1):
         pval_str = f"{row.pvalue:.3g}" if row.pvalue is not None else "—"
-        sig_mark = "✅" if row.sig_bonf else ""
+        bonf_mark = "✅" if row.sig_bonf else ""
+        by_mark = "✅" if row.sig_by_fdr else ""
         lines.append(
             f"| {i} | {row.pair} | {row.tf} | {row.factor} | {row.horizon} | "
-            f"{row.n} | {row.ic:+.4f} | {pval_str} | {sig_mark} |"
+            f"{row.n} | {row.ic:+.4f} | {pval_str} | {bonf_mark} | {by_mark} |"
         )
 
     # Bonferroni-significant subset
@@ -204,6 +245,25 @@ def render_markdown(results: list[dict], pairs: list[str], tf: str, days: int,
         lines.append("| Pair | TF | Factor | Horizon | IC | p-value |")
         lines.append("|------|----|--------|--------:|---:|--------:|")
         for row in sig_df.head(30).itertuples():
+            lines.append(
+                f"| {row.pair} | {row.tf} | {row.factor} | {row.horizon} | "
+                f"{row.ic:+.4f} | {row.pvalue:.3g} |"
+            )
+
+    # BY-FDR-significant subset (less conservative than Bonferroni, allows correlated tests)
+    by_sig_df = df_sorted[df_sorted["sig_by_fdr"] & ~df_sorted["sig_bonf"]]
+    lines.append("")
+    lines.append(f"## BY-FDR-Significant Factors (not caught by Bonferroni)")
+    lines.append(f"- BY-FDR は Bonferroni より gentle。本スキャン {n_tests} cells の一般相関構造で有効。")
+    lines.append(f"- BY-FDR p_cutoff = {by_threshold:.3e}")
+    if len(by_sig_df) == 0:
+        lines.append("- **該当なし** (Bonferroni でカバー済み or signal なし)")
+    else:
+        lines.append(f"- **{len(by_sig_df)} cells** が BY-FDR のみで有意 (Bonferroni では漏れた)")
+        lines.append("")
+        lines.append("| Pair | TF | Factor | Horizon | IC | p-value |")
+        lines.append("|------|----|--------|--------:|---:|--------:|")
+        for row in by_sig_df.head(30).itertuples():
             lines.append(
                 f"| {row.pair} | {row.tf} | {row.factor} | {row.horizon} | "
                 f"{row.ic:+.4f} | {row.pvalue:.3g} |"
