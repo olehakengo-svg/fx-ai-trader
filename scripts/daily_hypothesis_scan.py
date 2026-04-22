@@ -255,6 +255,33 @@ def notify_discord(message: str) -> None:
         print(f"⚠️  Discord notify failed: {e}", file=sys.stderr)
 
 
+def notify_discord_hypotheses(date_str: str, hypotheses: list[dict]) -> None:
+    """各仮説の詳細を Discord に個別メッセージで送信 (1900字制限回避)"""
+    webhook = os.environ.get("DISCORD_WEBHOOK_URL")
+    if not webhook:
+        return
+    for i, h in enumerate(hypotheses, 1):
+        bt = h.get("bt_parameters", {})
+        lines = [
+            f"**[{i}/{len(hypotheses)}] {h.get('id','?')} — `{h.get('name','')}`**",
+            f"_type_: {h.get('edge_type','?')}  |  _priority_: {h.get('priority','?')}",
+            f"**仮説**: {h.get('hypothesis_1_line','')}",
+            f"**学術根拠**: {h.get('academic_basis','')}",
+            f"**微細構造**: {h.get('market_microstructure','')}",
+            f"**失敗シナリオ**: {h.get('failure_scenario','')}",
+            f"**BT条件**: `{bt.get('timeframe','?')}` × {bt.get('target_instruments',[])} / "
+            f"TP={bt.get('tp_rule','?')} SL={bt.get('sl_rule','?')} RR={bt.get('min_rr','?')}",
+            f"**entry**: {bt.get('entry_conditions_summary','')}",
+            f"**friction={h.get('friction_estimate_pct','?')}%  N/yr={h.get('expected_n_per_year','?')}"
+            f"  相関={h.get('correlation_with_existing','?')}**",
+        ]
+        msg = "\n".join(lines)[:1900]
+        try:
+            requests.post(webhook, json={"content": msg}, timeout=10)
+        except requests.RequestException as e:
+            print(f"⚠️  Discord hypothesis notify failed: {e}", file=sys.stderr)
+
+
 # ── メイン ──────────────────────────────────────────────
 
 def build_user_message(ctx: dict[str, Any]) -> str:
@@ -403,6 +430,7 @@ def main() -> int:
         f"Summary: `knowledge-base/wiki/analyses/candidates/{date_str}.md`"
     )
     notify_discord(notify_msg)
+    notify_discord_hypotheses(date_str, hypotheses)
 
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2, default=str))
