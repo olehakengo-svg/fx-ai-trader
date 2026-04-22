@@ -1,13 +1,13 @@
 # Alpha Factor Zoo — IC Scan
 
-- **Generated**: 2026-04-22 10:33 UTC
-- **Pairs**: USD_JPY
+- **Generated**: 2026-04-22 12:37 UTC
+- **Pairs**: USD_JPY, EUR_USD, GBP_USD, EUR_JPY, GBP_JPY
 - **TF**: 15m
-- **Lookback**: 90 days
-- **Horizons (bars)**: [1, 16]
+- **Lookback**: 365 days
+- **Horizons (bars)**: [1, 5, 10, 16]
 - **Bootstrap**: 100 permutations
-- **Total tests**: 78
-- **Bonferroni α**: 1.28e-04
+- **Total tests**: 780
+- **Bonferroni α**: 1.28e-05
 
 ## Source
 qlib Alpha158 サブセット (kbar 9 + rolling [5,10,20,30,60] × [MA, STD, ROC, QTLU, QTLD, RSV])
@@ -15,37 +15,62 @@ qlib Alpha158 サブセット (kbar 9 + rolling [5,10,20,30,60] × [MA, STD, ROC
 ## Top 20 |IC| (全 pair × horizon)
 | Rank | Pair | TF | Factor | Horizon | N | IC | p-value | Bonf.sig |
 |-----:|------|----|--------|--------:|--:|---:|--------:|:-:|
-| 1 | USD_JPY | 15m | KSFT2 | 1 | 6134 | -0.0429 | 0 | ✅ |
-| 2 | USD_JPY | 15m | KSFT | 1 | 6134 | -0.0420 | 0 | ✅ |
-| 3 | USD_JPY | 15m | RSV10 | 1 | 6125 | -0.0360 | 0 | ✅ |
-| 4 | USD_JPY | 15m | MA20 | 1 | 6115 | +0.0359 | 0.01 |  |
-| 5 | USD_JPY | 15m | RSV20 | 1 | 6115 | -0.0358 | 0.01 |  |
-| 6 | USD_JPY | 15m | QTLD20 | 1 | 6115 | +0.0346 | 0.01 |  |
-| 7 | USD_JPY | 15m | ROC10 | 1 | 6124 | -0.0339 | 0 | ✅ |
-| 8 | USD_JPY | 15m | QTLD10 | 1 | 6125 | +0.0324 | 0.01 |  |
-| 9 | USD_JPY | 15m | QTLU20 | 1 | 6115 | +0.0322 | 0.01 |  |
-| 10 | USD_JPY | 15m | QTLD30 | 1 | 6105 | +0.0313 | 0.03 |  |
-| 11 | USD_JPY | 15m | QTLD5 | 1 | 6130 | +0.0307 | 0 | ✅ |
-| 12 | USD_JPY | 15m | RSV5 | 1 | 6130 | -0.0298 | 0.01 |  |
-| 13 | USD_JPY | 15m | KMID | 1 | 6134 | -0.0294 | 0.02 |  |
-| 14 | USD_JPY | 15m | MA30 | 1 | 6105 | +0.0287 | 0.03 |  |
-| 15 | USD_JPY | 15m | QTLU5 | 1 | 6130 | +0.0276 | 0.01 |  |
-| 16 | USD_JPY | 15m | KUP2 | 1 | 6134 | +0.0274 | 0.04 |  |
-| 17 | USD_JPY | 15m | KMID2 | 1 | 6134 | -0.0273 | 0.01 |  |
-| 18 | USD_JPY | 15m | MA5 | 1 | 6130 | +0.0271 | 0.01 |  |
-| 19 | USD_JPY | 15m | MA10 | 1 | 6125 | +0.0265 | 0.01 |  |
-| 20 | USD_JPY | 15m | ROC20 | 1 | 6114 | -0.0260 | 0.05 |  |
+| 1 | EUR_JPY | 15m | KSFT2 | 1 | 25277 | -0.0815 | 0 | ✅ |
+| 2 | EUR_JPY | 15m | KSFT | 1 | 25277 | -0.0768 | 0 | ✅ |
+| 3 | GBP_JPY | 15m | KSFT | 1 | 25168 | -0.0747 | 0 | ✅ |
+| 4 | GBP_JPY | 15m | KSFT2 | 1 | 25168 | -0.0742 | 0 | ✅ |
+| 5 | EUR_JPY | 15m | KMID2 | 1 | 25277 | -0.0569 | 0 | ✅ |
+| 6 | GBP_JPY | 15m | KMID | 1 | 25168 | -0.0558 | 0 | ✅ |
+| 7 | EUR_JPY | 15m | KMID | 1 | 25277 | -0.0555 | 0 | ✅ |
+| 8 | GBP_JPY | 15m | KMID2 | 1 | 25168 | -0.0538 | 0 | ✅ |
+| 9 | EUR_JPY | 15m | RSV5 | 1 | 25273 | -0.0530 | 0 | ✅ |
+| 10 | EUR_JPY | 15m | KLOW2 | 1 | 25277 | -0.0520 | 0 | ✅ |
+| 11 | EUR_JPY | 15m | QTLU5 | 1 | 25273 | +0.0515 | 0 | ✅ |
+| 12 | EUR_JPY | 15m | RSV10 | 1 | 25268 | -0.0502 | 0 | ✅ |
+| 13 | GBP_JPY | 15m | RSV5 | 1 | 25164 | -0.0480 | 0 | ✅ |
+| 14 | EUR_USD | 15m | KSFT2 | 1 | 25436 | -0.0472 | 0 | ✅ |
+| 15 | EUR_JPY | 15m | MA5 | 1 | 25273 | +0.0470 | 0 | ✅ |
+| 16 | EUR_JPY | 15m | KLOW | 1 | 25277 | -0.0449 | 0 | ✅ |
+| 17 | GBP_JPY | 15m | QTLU5 | 1 | 25164 | +0.0447 | 0 | ✅ |
+| 18 | EUR_JPY | 15m | QTLD5 | 1 | 25273 | +0.0441 | 0 | ✅ |
+| 19 | EUR_JPY | 15m | QTLU10 | 1 | 25268 | +0.0436 | 0 | ✅ |
+| 20 | EUR_USD | 15m | KSFT | 1 | 25436 | -0.0434 | 0 | ✅ |
 
-## Bonferroni-Significant Factors (p < 1.28e-04)
-- **5 cells** が Bonferroni 補正後有意
+## Bonferroni-Significant Factors (p < 1.28e-05)
+- **183 cells** が Bonferroni 補正後有意
 
 | Pair | TF | Factor | Horizon | IC | p-value |
 |------|----|--------|--------:|---:|--------:|
-| USD_JPY | 15m | KSFT2 | 1 | -0.0429 | 0 |
-| USD_JPY | 15m | KSFT | 1 | -0.0420 | 0 |
-| USD_JPY | 15m | RSV10 | 1 | -0.0360 | 0 |
-| USD_JPY | 15m | ROC10 | 1 | -0.0339 | 0 |
-| USD_JPY | 15m | QTLD5 | 1 | +0.0307 | 0 |
+| EUR_JPY | 15m | KSFT2 | 1 | -0.0815 | 0 |
+| EUR_JPY | 15m | KSFT | 1 | -0.0768 | 0 |
+| GBP_JPY | 15m | KSFT | 1 | -0.0747 | 0 |
+| GBP_JPY | 15m | KSFT2 | 1 | -0.0742 | 0 |
+| EUR_JPY | 15m | KMID2 | 1 | -0.0569 | 0 |
+| GBP_JPY | 15m | KMID | 1 | -0.0558 | 0 |
+| EUR_JPY | 15m | KMID | 1 | -0.0555 | 0 |
+| GBP_JPY | 15m | KMID2 | 1 | -0.0538 | 0 |
+| EUR_JPY | 15m | RSV5 | 1 | -0.0530 | 0 |
+| EUR_JPY | 15m | KLOW2 | 1 | -0.0520 | 0 |
+| EUR_JPY | 15m | QTLU5 | 1 | +0.0515 | 0 |
+| EUR_JPY | 15m | RSV10 | 1 | -0.0502 | 0 |
+| GBP_JPY | 15m | RSV5 | 1 | -0.0480 | 0 |
+| EUR_USD | 15m | KSFT2 | 1 | -0.0472 | 0 |
+| EUR_JPY | 15m | MA5 | 1 | +0.0470 | 0 |
+| EUR_JPY | 15m | KLOW | 1 | -0.0449 | 0 |
+| GBP_JPY | 15m | QTLU5 | 1 | +0.0447 | 0 |
+| EUR_JPY | 15m | QTLD5 | 1 | +0.0441 | 0 |
+| EUR_JPY | 15m | QTLU10 | 1 | +0.0436 | 0 |
+| EUR_USD | 15m | KSFT | 1 | -0.0434 | 0 |
+| GBP_USD | 15m | KSFT2 | 1 | -0.0430 | 0 |
+| EUR_JPY | 15m | QTLD10 | 1 | +0.0429 | 0 |
+| GBP_JPY | 15m | RSV10 | 1 | -0.0427 | 0 |
+| EUR_USD | 15m | RSV5 | 1 | -0.0425 | 0 |
+| EUR_JPY | 15m | MA10 | 1 | +0.0423 | 0 |
+| EUR_JPY | 15m | RSV20 | 1 | -0.0418 | 0 |
+| GBP_JPY | 15m | MA5 | 1 | +0.0416 | 0 |
+| GBP_USD | 15m | KSFT | 1 | -0.0413 | 0 |
+| EUR_JPY | 15m | MA20 | 1 | +0.0410 | 0 |
+| EUR_JPY | 15m | QTLD20 | 1 | +0.0405 | 0 |
 
 ## 判断プロトコル遵守 (CLAUDE.md)
 - **本スキャンは 1 回 BT** → 実装判断は **保留** (lesson-reactive-changes)
