@@ -12,6 +12,15 @@
 - **KB 整合**: `sync_kb_index.py --write` で auto-synced portfolio block 再生成、vwap-mean-reversion が PAIR_PROMOTED に正しく表示されるよう整合
 - **Next**: (1) Scalp BT 完了待ち → vwap_mr 発火確認、(2) Scalp 全体負 EV は monthly re-evaluate、(3) Live N≥20 到達後に v3 Bonferroni 再計算
 
+## 2026-04-22 (追記): Scalp EV breakdown + silent-except lesson + vwap_mr 5m 365d 延長 BT
+- **Scalp 180d BT 戦略別分解** (`raw/bt-results/scalp-180d-strategy-breakdown-2026-04-22.md`): ema_trend_scalp が単独で損失 37.6% (N=5726 EV=-0.242)、上位 3 戦略で 70.4%。N≥100 の全 10 戦略が負 EV
+- **反直感的発見**: FORCE_DEMOTED 除外後の Live-proxy で 1m Scalp EV=-0.289→**-0.338 悪化** (WR 55.1%→51.0%)。FORCE_DEMOTED は "損は出すが高 WR" 群、除外すると残存戦略の WR 50% ノイズが支配的 → Live filter は流出を止めるが Scalp +EV にはならない
+- **BT/Live 乖離 #7 (候補)**: `_compute_scalp_signal_v2` (app.py L7941-8330) は FORCE_DEMOTED を respect しない — QUALIFIED_TYPES フィルタ (L5266-L5297) のみ。BT Overall EV は Live demote 前の raw aggregate
+- **Scalp vwap_mr 5m × 365d 延長 BT** (`bt-scalp-5m-365d-jpy-2026-04-22.json`, 1180s): 180d 小 N signal (N=5) を 365d で再検証 → N=9 WR=77.8% EV=+0.427 で signal 持続、方向一致。Gate N≥20 未達で Live 実装は引き続き保留
+- **付随発見**: **GBPJPY 5m Overall N=1300 EV=+0.026** — Scalp scope で貴重な構造的正 EV cell (180d postfix +0.019 → 365d +0.026 で persistence)。GBPJPY 5m で ema_trend_scalp が N=464 EV=+0.087 と正 EV (global では FORCE_DEMOTED、pair-specific audit 候補)
+- **KB 更新**: `lessons/lesson-silent-except-hides-nameerror.md` 新規 / `decisions/vwap-mr-jpy-reconfirmation-2026-04-22.md` 新規 / `strategies/vwap-mean-reversion.md` に 365d × 5m 結果追加 / `sessions/2026-04-22-session.md` Addendum 2 & 3 追加 / `lessons/index.md` + `decisions/index.md` リンク追加
+- **Next**: (1) ema_trend_scalp × GBPJPY 5m の global demote vs pair-specific +EV 精査、(2) 5m Scalp walk-forward validation、(3) Live N≥20 (現 16/20) 到達後に Kelly aggregate 初回計算
+
 ## 2026-04-21: wiki-daily-update (自動スケジュールタスク)
 - **Daily trade log**: `raw/trade-logs/2026-04-21.md` 作成 — post-cutoff FX-only N=244, WR=38.9%, PnL=-129.5pip
 - **wiki/index.md**: System State更新 — PnL -174.4→**-129.5pip**, N 282→244, WR 36.5%→38.9%, EV -0.62→-0.53, Ruin 0.04%→**0.0%**, Kelly edge -13.48%→-11.65%, N 448→410, last_updated 2026-04-20→2026-04-21; Trade Logs セクションに2026-04-21追加

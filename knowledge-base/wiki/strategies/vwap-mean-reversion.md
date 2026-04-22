@@ -46,6 +46,30 @@ Post-fix 180d × {1m, 5m} × JPY crosses (`raw/bt-results/bt-scalp-180d-jpy-post
 - ⚠️ 1m 版は両ペア負 EV、5m 版は正 EV だが N=2-3 で結論不可
 - 🚫 Scalp 全体 EV は改善せず、Scalp vwap_mr は Live 配置候補として保留（365d 延長 BT or 1 年 N 蓄積まで）
 
+### Scalp 5m × 365d 延長 BT (2026-04-22, `raw/bt-results/bt-scalp-5m-365d-jpy-2026-04-22.json`)
+
+1180s で EUR_JPY / GBP_JPY × 365d × 5m を実行し、180d の小 N (+EV) signal の持続性を検証:
+
+| Window | Pair | N | WR | EV | PnL | ΔN vs 180d |
+|---|---|--:|--:|--:|--:|--:|
+| 180d | EUR_JPY 5m | 2 | 100.0% | +0.874 | +1.7 | — |
+| **365d** | **EUR_JPY 5m** | **4** | **100.0%** | **+0.839** | **+3.4** | +2 |
+| 180d | GBP_JPY 5m | 3 | 66.7% | +0.132 | +0.4 | — |
+| **365d** | **GBP_JPY 5m** | **5** | **60.0%** | **+0.098** | **+0.5** | +2 |
+| **365d 合計** | JPY 2pair | **9** | 77.8% | **+0.427** | +3.9 | |
+
+**判定**:
+- 180d → 365d で N 5 → 9 (+4)、signal は維持、方向一致
+- 加重 EV +0.427 は正方向だが、Gate 閾値 (N ≥ 20) に未達
+- EURJPY 100% WR は「VWAP 2σ mean reversion が日を選んで機能」と整合
+- Live 配置は引き続き **保留**（lesson-reactive-changes 遵守、N ≥ 20 or 30 累積まで）
+- 5m 版 Live 展開は N 蓄積に 1 年以上要する見込み（180d で N=5 → 年換算 N ≈ 10 前後）
+
+**付随発見 (365d × 5m Overall)**:
+- GBP_JPY 5m Overall: N=1300 **EV=+0.026** — Scalp scope で貴重な構造的正 EV cell
+- EUR_JPY 5m Overall: N=1206 EV=-0.075
+- 詳細: `raw/bt-results/scalp-180d-strategy-breakdown-2026-04-22.md#addendum`
+
 ## Live Performance (post-cutoff, 2026-04-08〜)
 | Strategy | Pairs | N | WR | PnL |
 |---|---|---|---|---|
