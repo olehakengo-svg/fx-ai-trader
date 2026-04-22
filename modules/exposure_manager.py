@@ -45,18 +45,25 @@ class ExposureManager:
     }
 
     def __init__(self):
-        self._positions: Dict[str, dict] = {}   # trade_id → {instrument, direction, units}
+        self._positions: Dict[str, dict] = {}   # trade_id → {instrument, direction, units, is_shadow}
         self._lock = threading.Lock()
 
     # ── ポジション管理 ──
 
-    def add_position(self, trade_id: str, instrument: str, direction: str, units: int):
-        """ポジション追加 (エントリー時に呼ぶ)"""
+    def add_position(self, trade_id: str, instrument: str, direction: str,
+                     units: int, is_shadow: bool = False):
+        """ポジション追加 (エントリー時に呼ぶ).
+
+        is_shadow=True のポジションは登録のみ行い、エクスポージャー集計および
+        同方向カウントから除外する (OANDA未送信のため実弾リスクなし).
+        v9.0 設計: ExposureManager は OANDA実弾専用リスク管理。
+        """
         with self._lock:
             self._positions[trade_id] = {
                 "instrument": instrument,
                 "direction": direction,
                 "units": units,
+                "is_shadow": bool(is_shadow),
             }
 
     def remove_position(self, trade_id: str):
@@ -81,9 +88,14 @@ class ExposureManager:
             return self._calc_exposure_unlocked()
 
     def _calc_exposure_unlocked(self) -> Dict[str, int]:
-        """ロックなしの内部計算 (ロック取得済みの文脈で使用)"""
+        """ロックなしの内部計算 (ロック取得済みの文脈で使用).
+
+        Shadow ポジション (is_shadow=True) は OANDA未送信のため集計から除外。
+        """
         exposure: Dict[str, int] = {}
         for pos in self._positions.values():
+            if pos.get("is_shadow"):
+                continue
             currencies = self._PAIR_CURRENCIES.get(pos["instrument"])
             if not currencies:
                 continue
@@ -126,10 +138,10 @@ class ExposureManager:
                 return False, (f"{quote} net exposure {abs(new_quote):,}u "
                                f"> {_limit_quote:,}u limit")
 
-            # 2. 同方向ポジション数チェック (通貨横断)
+            # 2. 同方向ポジション数チェック (通貨横断) — Shadow除外
             same_dir_count = sum(
                 1 for p in self._positions.values()
-                if p["direction"] == direction
+                if p["direction"] == direction and not p.get("is_shadow")
             )
             if same_dir_count >= self.MAX_SAME_DIRECTION:
                 return False, (f"same-direction ({direction}) positions "

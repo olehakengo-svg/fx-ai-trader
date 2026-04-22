@@ -507,8 +507,10 @@ class DemoTrader:
                 _inst_exp = _ot_exp.get("instrument", "USD_JPY")
                 _dir_exp = _ot_exp.get("direction", "BUY")
                 _units_exp = _ot_exp.get("units", 10000)
+                _is_shadow_exp = bool(_ot_exp.get("is_shadow", 0))
                 if _tid_exp:
-                    self._exposure_mgr.add_position(_tid_exp, _inst_exp, _dir_exp, _units_exp)
+                    self._exposure_mgr.add_position(_tid_exp, _inst_exp, _dir_exp,
+                                                    _units_exp, is_shadow=_is_shadow_exp)
             if _open_for_exp:
                 print(f"[ExposureManager] DB sync: {len(_open_for_exp)} open positions restored", flush=True)
         except Exception as _exp_err:
@@ -4052,8 +4054,10 @@ class DemoTrader:
         # v6.5: DD Phase Tagging — エントリー時のDD状態を記録 (データ打ち切り回避)
         self._dd_phase_at_entry[trade_id] = self._defensive_mode
         # v6.5: Exposure tracking — ポジション追加
+        # v9.x: Shadow は登録のみ、集計から除外 (OANDA未送信のため実弾リスクなし)
         self._exposure_mgr.add_position(trade_id, instrument, signal,
-                                        int(_os.environ.get("OANDA_UNITS", "10000")))
+                                        int(_os.environ.get("OANDA_UNITS", "10000")),
+                                        is_shadow=bool(_is_shadow))
 
         # ══════════════════════════════════════════════════════
         # ── v9.4 PRIME gate (binding: prereg-6-prime-strategies-2026-04-21)

@@ -65,6 +65,46 @@ class TestExposureManager:
         allowed2, reason2 = em.check_new_trade("XAU_USD", "BUY", 1000)
         assert allowed2 is True, f"Should allow: XAU at exactly 10,000u limit, got: {reason2}"
 
+    def test_exposure_shadow_excluded_from_aggregation(self):
+        """Shadow positions (is_shadow=True) must not count toward exposure limits.
+
+        Regression: 2026-04-22 Discord alert #4 — Shadow positions accumulated in
+        ExposureManager and blocked LIVE entries ("USD net 40K>20K limit" ×11).
+        v9.0 design: ExposureManager is OANDA-live only; Shadow is OANDA-untransmitted.
+        """
+        em = ExposureManager()
+        # Shadow BUY USD_JPY 15000u — should NOT count
+        em.add_position("shadow_t1", "USD_JPY", "BUY", 15000, is_shadow=True)
+        # Live SELL EUR_USD 10000u — USD:+10000
+        em.add_position("live_t1", "EUR_USD", "SELL", 10000, is_shadow=False)
+
+        exp = em.get_currency_exposure()
+        # Only the live position contributes
+        assert exp.get("USD") == 10000, f"Shadow leaked into USD exposure: {exp}"
+        assert exp.get("EUR") == -10000, f"Unexpected EUR exposure: {exp}"
+        assert "JPY" not in exp or exp.get("JPY", 0) == 0, (
+            f"Shadow USD_JPY leaked into JPY: {exp}"
+        )
+
+        # New LIVE trade that would exceed limit without Shadow exclusion
+        # must be allowed now (previously blocked by the bug)
+        allowed, reason = em.check_new_trade("USD_JPY", "BUY", 5000)
+        assert allowed is True, (
+            f"LIVE trade should be allowed (Shadow should not count); got: {reason}"
+        )
+
+    def test_exposure_shadow_same_direction_excluded(self):
+        """Shadow positions must not count toward MAX_SAME_DIRECTION (3)."""
+        em = ExposureManager()
+        # 3 Shadow BUYs
+        em.add_position("s1", "USD_JPY", "BUY", 1000, is_shadow=True)
+        em.add_position("s2", "EUR_USD", "BUY", 1000, is_shadow=True)
+        em.add_position("s3", "GBP_USD", "BUY", 1000, is_shadow=True)
+
+        # A 4th LIVE BUY should still be allowed (Shadow doesn't count)
+        allowed, reason = em.check_new_trade("AUD_USD", "BUY", 1000)
+        assert allowed is True, f"Shadow leaked into same-direction count: {reason}"
+
     def test_exposure_remove_clears_position(self):
         """After remove_position, exposure returns to zero."""
         em = ExposureManager()
