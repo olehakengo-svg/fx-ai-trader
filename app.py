@@ -9148,6 +9148,155 @@ def demo_analysis_page():
     return render_template("demo_analysis.html", api_token=_API_AUTH_TOKEN)
 
 
+@app.route("/strategies")
+def strategies_page():
+    # v9.x (2026-04-22): 全戦略 Tier/Live ステータス確認 UI
+    return render_template("strategies.html", api_token=_API_AUTH_TOKEN)
+
+
+@app.route("/api/strategies/status")
+def api_strategies_status():
+    """全戦略の Tier 分類 + post-cutoff rolling window stats を集約."""
+    import json as _json
+    from datetime import timedelta as _td
+
+    _FIDELITY_CUTOFF = "2026-04-08T00:00:00"
+    rolling_days = request.args.get("rolling_days", default=30, type=int)
+    rolling_cutoff = (datetime.now(timezone.utc)
+                      - _td(days=rolling_days)
+                      ).strftime("%Y-%m-%dT%H:%M:%S")
+    effective_date_from = max(_FIDELITY_CUTOFF, rolling_cutoff)
+
+    tier_master_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "knowledge-base", "wiki", "tier-master.json",
+    )
+    try:
+        with open(tier_master_path, "r", encoding="utf-8") as f:
+            tier_master = _json.load(f)
+    except Exception as e:
+        return jsonify({"error": f"tier-master.json read failed: {e}"}), 500
+
+    # Classification helpers
+    elite = set(tier_master.get("elite_live", []))
+    force_demoted = set(tier_master.get("force_demoted", []))
+    scalp_sentinel = set(tier_master.get("scalp_sentinel", []))
+    universal_sentinel = set(tier_master.get("universal_sentinel", []))
+    pair_promoted = {(s, p) for s, p in tier_master.get("pair_promoted", [])}
+    pair_demoted = {(s, p) for s, p in tier_master.get("pair_demoted", [])}
+    lot_boost = set(tier_master.get("strategy_lot_boost", []))
+
+    # Aggregate live + shadow stats (post-cutoff)
+    live_stats = _demo_db.get_stats(
+        date_from=effective_date_from, exclude_xau=True, exclude_shadow=True,
+    )
+    shadow_stats = _demo_db.get_stats(
+        date_from=effective_date_from, exclude_xau=True, exclude_shadow=False,
+    )
+
+    # Per-pair stats for PAIR_PROMOTED/DEMOTED cells
+    cell_pairs = {p for _, p in pair_promoted} | {p for _, p in pair_demoted}
+    per_pair: dict = {}
+    for pair in cell_pairs:
+        try:
+            per_pair[pair] = _demo_db.get_stats(
+                date_from=effective_date_from, exclude_xau=True,
+                exclude_shadow=True, instrument=pair,
+            ).get("by_type", {})
+        except Exception:
+            per_pair[pair] = {}
+
+    # Union of all known strategies
+    all_strategies = set()
+    all_strategies.update(elite, force_demoted, scalp_sentinel, universal_sentinel, lot_boost)
+    all_strategies.update(s for s, _ in pair_promoted)
+    all_strategies.update(s for s, _ in pair_demoted)
+    all_strategies.update((live_stats.get("by_type") or {}).keys())
+    all_strategies.update((shadow_stats.get("by_type") or {}).keys())
+    all_strategies.discard("unknown")
+    all_strategies.discard("")
+
+    def _primary_tier(strat: str) -> str:
+        if strat in elite:
+            return "ELITE_LIVE"
+        if strat in force_demoted:
+            return "FORCE_DEMOTED"
+        if any(s == strat for s, _ in pair_promoted):
+            return "PAIR_PROMOTED"
+        if any(s == strat for s, _ in pair_demoted):
+            return "PAIR_DEMOTED"
+        if strat in scalp_sentinel:
+            return "SCALP_SENTINEL"
+        if strat in universal_sentinel:
+            return "UNIVERSAL_SENTINEL"
+        return "PHASE0_SHADOW"
+
+    def _wiki_slug(strat: str) -> str:
+        return strat.replace("_", "-")
+
+    strategies_out = []
+    for strat in sorted(all_strategies):
+        live = (live_stats.get("by_type") or {}).get(strat, {})
+        shadow = (shadow_stats.get("by_type") or {}).get(strat, {})
+        # shadow-only = shadow_total - live
+        sh_n = int(shadow.get("trades", 0)) - int(live.get("trades", 0))
+        sh_pnl = round(float(shadow.get("pnl", 0)) - float(live.get("pnl", 0)), 1)
+
+        promoted_pairs = sorted(p for s, p in pair_promoted if s == strat)
+        demoted_pairs = sorted(p for s, p in pair_demoted if s == strat)
+
+        pair_cells = []
+        for p in promoted_pairs:
+            cell = (per_pair.get(p, {}) or {}).get(strat, {})
+            pair_cells.append({
+                "pair": p, "tier": "PAIR_PROMOTED",
+                "n": int(cell.get("trades", 0)),
+                "wr": float(cell.get("win_rate", 0)),
+                "pnl": float(cell.get("pnl", 0)),
+            })
+        for p in demoted_pairs:
+            cell = (per_pair.get(p, {}) or {}).get(strat, {})
+            pair_cells.append({
+                "pair": p, "tier": "PAIR_DEMOTED",
+                "n": int(cell.get("trades", 0)),
+                "wr": float(cell.get("win_rate", 0)),
+                "pnl": float(cell.get("pnl", 0)),
+            })
+
+        strategies_out.append({
+            "name": strat,
+            "tier": _primary_tier(strat),
+            "lot_boost": strat in lot_boost,
+            "wiki_slug": _wiki_slug(strat),
+            "live": {
+                "n": int(live.get("trades", 0)),
+                "wr": float(live.get("win_rate", 0)),
+                "pnl": float(live.get("pnl", 0)),
+            },
+            "shadow": {"n": max(sh_n, 0), "pnl": sh_pnl},
+            "pair_cells": pair_cells,
+        })
+
+    # Tier distribution summary
+    tier_counts: dict = {}
+    for s in strategies_out:
+        tier_counts[s["tier"]] = tier_counts.get(s["tier"], 0) + 1
+
+    return jsonify({
+        "generated_at": tier_master.get("generated_at"),
+        "effective_date_from": effective_date_from,
+        "rolling_days": rolling_days,
+        "tier_counts": tier_counts,
+        "totals": {
+            "strategies": len(strategies_out),
+            "live_n": live_stats.get("total", 0),
+            "live_pnl": live_stats.get("total_pnl", 0),
+            "live_wr": live_stats.get("decided_win_rate", 0),
+        },
+        "strategies": strategies_out,
+    })
+
+
 @app.route("/api/performance")
 def api_performance():
     """

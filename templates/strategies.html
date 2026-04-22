@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>FX AI • Strategies</title>
+<style>
+:root{
+  --bg:#0d1117; --bg1:#161b22; --bg2:#21262d; --bg3:#2d333b;
+  --border:#30363d; --border2:#40474f;
+  --t1:#e6edf3; --t2:#8b949e; --t3:#6e7681; --t4:#484f58;
+  --green:#22c55e; --green-d:#16a34a; --green-bg:rgba(34,197,94,.1);
+  --red:#ef4444; --red-d:#dc2626; --red-bg:rgba(239,68,68,.1);
+  --blue:#3b82f6; --blue-d:#2563eb; --blue-bg:rgba(59,130,246,.1);
+  --gold:#eab308; --gold-bg:rgba(234,179,8,.1);
+  --purple:#a855f7; --purple-bg:rgba(168,85,247,.1);
+  --cyan:#06b6d4; --cyan-bg:rgba(6,182,212,.1);
+  --gray:#6b7280; --gray-bg:rgba(107,114,128,.1);
+  --radius:8px; --radius-sm:5px; --radius-pill:999px;
+  --shadow:0 2px 8px rgba(0,0,0,.3);
+  --trans:all .18s ease;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;line-height:1.55;min-height:100vh}
+a{color:inherit;text-decoration:none}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;height:50px;padding:0 20px;background:var(--bg1);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;backdrop-filter:blur(8px)}
+.topbar h1{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.topbar h1 .sub{color:var(--t2);font-weight:500;font-size:13px}
+.topbar h1 .dot-sep{color:var(--t4)}
+.topbar-r{display:flex;align-items:center;gap:10px}
+.topbar a.nav{color:var(--t2);font-size:12px;padding:5px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);transition:var(--trans)}
+.topbar a.nav:hover{color:var(--t1);background:var(--bg2);border-color:var(--border2)}
+#refreshBtn{background:none;border:1px solid var(--border);color:var(--t2);border-radius:var(--radius-sm);padding:5px 12px;cursor:pointer;font-size:12px;transition:var(--trans);font-family:inherit}
+#refreshBtn:hover{color:var(--t1);background:var(--bg2);border-color:var(--blue)}
+#refreshBtn.loading{opacity:.5;pointer-events:none}
+
+.hero{padding:20px 24px 12px;display:flex;flex-direction:column;gap:14px;max-width:1400px;margin:0 auto}
+.hero-meta{display:flex;align-items:baseline;gap:16px;color:var(--t2);font-size:11.5px;flex-wrap:wrap}
+.hero-meta b{color:var(--t1);font-weight:600}
+.hero-meta .dot-sep{color:var(--t4)}
+.totals{display:flex;gap:12px;flex-wrap:wrap}
+.totals .stat{background:var(--bg1);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;display:flex;flex-direction:column;gap:2px;min-width:120px}
+.totals .stat .label{font-size:10.5px;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+.totals .stat .val{font-size:18px;font-weight:700;color:var(--t1);font-variant-numeric:tabular-nums}
+.totals .stat .val.pos{color:var(--green)}
+.totals .stat .val.neg{color:var(--red)}
+
+.tier-bar{display:flex;flex-wrap:wrap;gap:8px}
+.tier-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:var(--radius-pill);font-size:11.5px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:var(--trans);user-select:none}
+.tier-pill .tpc{font-variant-numeric:tabular-nums;opacity:.85}
+.tier-pill.inactive{opacity:.4}
+.tier-pill:hover{transform:translateY(-1px)}
+.t-ELITE_LIVE{background:var(--green-bg);color:var(--green);border-color:rgba(34,197,94,.3)}
+.t-PAIR_PROMOTED{background:var(--blue-bg);color:var(--blue);border-color:rgba(59,130,246,.3)}
+.t-PAIR_DEMOTED{background:var(--gold-bg);color:var(--gold);border-color:rgba(234,179,8,.3)}
+.t-SCALP_SENTINEL{background:var(--purple-bg);color:var(--purple);border-color:rgba(168,85,247,.3)}
+.t-UNIVERSAL_SENTINEL{background:var(--cyan-bg);color:var(--cyan);border-color:rgba(6,182,212,.3)}
+.t-FORCE_DEMOTED{background:var(--red-bg);color:var(--red);border-color:rgba(239,68,68,.3)}
+.t-PHASE0_SHADOW{background:var(--gray-bg);color:var(--t2);border-color:var(--border)}
+
+.filter-bar{display:flex;align-items:center;gap:12px;padding:12px 24px;background:var(--bg1);border-top:1px solid var(--border);border-bottom:1px solid var(--border);position:sticky;top:50px;z-index:9;flex-wrap:wrap}
+.search{flex:1;min-width:180px;max-width:320px;position:relative}
+.search input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--t1);padding:7px 12px 7px 32px;border-radius:var(--radius-sm);font-size:12.5px;font-family:inherit;transition:var(--trans)}
+.search input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 2px var(--blue-bg)}
+.search::before{content:"🔍";position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:11px;opacity:.6}
+.ctrl{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--t2)}
+.ctrl select{background:var(--bg);border:1px solid var(--border);color:var(--t1);padding:6px 10px;border-radius:var(--radius-sm);font-size:12px;font-family:inherit;cursor:pointer}
+.ctrl select:hover{border-color:var(--border2)}
+.ctrl select:focus{outline:none;border-color:var(--blue)}
+
+.container{max-width:1400px;margin:0 auto;padding:20px 24px 60px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+
+.card{background:var(--bg1);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px 12px;transition:var(--trans);position:relative;display:flex;flex-direction:column;gap:10px;border-left:3px solid var(--t4)}
+.card:hover{border-color:var(--border2);transform:translateY(-1px);box-shadow:var(--shadow)}
+.card.tier-ELITE_LIVE{border-left-color:var(--green)}
+.card.tier-PAIR_PROMOTED{border-left-color:var(--blue)}
+.card.tier-PAIR_DEMOTED{border-left-color:var(--gold)}
+.card.tier-SCALP_SENTINEL{border-left-color:var(--purple)}
+.card.tier-UNIVERSAL_SENTINEL{border-left-color:var(--cyan)}
+.card.tier-FORCE_DEMOTED{border-left-color:var(--red);opacity:.7}
+.card.tier-PHASE0_SHADOW{border-left-color:var(--gray)}
+
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.card-title{font-size:13.5px;font-weight:700;color:var(--t1);word-break:break-all;line-height:1.35;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.card-badges{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.badge{display:inline-block;padding:2px 8px;border-radius:var(--radius-pill);font-size:10px;font-weight:700;letter-spacing:.3px;white-space:nowrap}
+.badge.boost{background:var(--gold-bg);color:var(--gold);border:1px solid rgba(234,179,8,.3)}
+.badge.new{background:var(--blue-bg);color:var(--blue);border:1px solid rgba(59,130,246,.3);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.65}}
+
+.tier-row .tier-pill{cursor:default}
+
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:8px 0 4px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.m{display:flex;flex-direction:column;gap:2px;align-items:flex-start}
+.m .l{font-size:9.5px;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;font-weight:600}
+.m .v{font-size:13px;font-weight:700;color:var(--t1);font-variant-numeric:tabular-nums}
+.m .v.dim{color:var(--t3)}
+.m .v.pos{color:var(--green)}
+.m .v.neg{color:var(--red)}
+
+.shadow-row{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--t2)}
+.shadow-row .key{color:var(--t3)}
+.shadow-row .val{font-variant-numeric:tabular-nums;color:var(--t1)}
+.shadow-row .val.pos{color:var(--green)}
+.shadow-row .val.neg{color:var(--red)}
+
+.pair-cells{display:flex;flex-direction:column;gap:4px}
+.pair-cell{display:grid;grid-template-columns:auto auto 1fr auto;gap:8px;font-size:11px;padding:4px 8px;border-radius:var(--radius-sm);background:var(--bg2);align-items:center}
+.pair-cell .p{font-weight:700;color:var(--t1);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.pair-cell .tier-tag{font-size:9px;padding:1px 6px;border-radius:var(--radius-pill);font-weight:700}
+.pair-cell .tier-tag.PAIR_PROMOTED{background:var(--blue-bg);color:var(--blue)}
+.pair-cell .tier-tag.PAIR_DEMOTED{background:var(--gold-bg);color:var(--gold)}
+.pair-cell .stat-mini{color:var(--t2);font-variant-numeric:tabular-nums}
+.pair-cell .stat-mini b{color:var(--t1);font-weight:600}
+.pair-cell .stat-mini.pos b{color:var(--green)}
+.pair-cell .stat-mini.neg b{color:var(--red)}
+
+.card-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:auto}
+.card-footer a{font-size:11px;color:var(--t2);padding:3px 9px;border:1px solid var(--border);border-radius:var(--radius-sm);transition:var(--trans)}
+.card-footer a:hover{color:var(--blue);border-color:var(--blue);background:var(--blue-bg)}
+
+.empty{grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--t2)}
+.empty h2{font-size:15px;color:var(--t1);margin-bottom:6px}
+.skel{grid-column:span 1;height:180px;background:var(--bg1);border:1px solid var(--border);border-radius:var(--radius);animation:skel 1.4s ease-in-out infinite}
+@keyframes skel{0%,100%{opacity:.4}50%{opacity:.7}}
+
+@media(max-width:600px){
+  .topbar h1 .sub{display:none}
+  .totals{flex-direction:column}
+  .totals .stat{min-width:0;width:100%}
+  .grid{grid-template-columns:1fr}
+  .metrics{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1>
+    <span>FX AI</span>
+    <span class="dot-sep">•</span>
+    <span class="sub">Strategies</span>
+  </h1>
+  <div class="topbar-r">
+    <a href="/" class="nav">← Cockpit</a>
+    <a href="/demo-analysis" class="nav">Analysis</a>
+    <button id="refreshBtn" type="button">↻ Refresh</button>
+  </div>
+</div>
+
+<div class="hero">
+  <div class="hero-meta" id="metaLine"><span>Loading…</span></div>
+  <div class="totals" id="totalsRow"></div>
+  <div class="tier-bar" id="tierBar"></div>
+</div>
+
+<div class="filter-bar">
+  <div class="search"><input id="searchInput" type="text" placeholder="Search strategy or pair…" autocomplete="off"></div>
+  <div class="ctrl">
+    <label for="tierFilter">Tier</label>
+    <select id="tierFilter">
+      <option value="all">All</option>
+      <option value="ELITE_LIVE">ELITE_LIVE</option>
+      <option value="PAIR_PROMOTED">PAIR_PROMOTED</option>
+      <option value="PAIR_DEMOTED">PAIR_DEMOTED</option>
+      <option value="SCALP_SENTINEL">SCALP_SENTINEL</option>
+      <option value="UNIVERSAL_SENTINEL">UNIVERSAL_SENTINEL</option>
+      <option value="FORCE_DEMOTED">FORCE_DEMOTED</option>
+      <option value="PHASE0_SHADOW">PHASE0_SHADOW</option>
+    </select>
+  </div>
+  <div class="ctrl">
+    <label for="sortSel">Sort</label>
+    <select id="sortSel">
+      <option value="tier">Tier priority</option>
+      <option value="pnl_desc">PnL (high → low)</option>
+      <option value="pnl_asc">PnL (low → high)</option>
+      <option value="n_desc">Live N</option>
+      <option value="wr_desc">Win rate</option>
+      <option value="name">Name (A → Z)</option>
+    </select>
+  </div>
+  <div class="ctrl">
+    <label for="daysSel">Window</label>
+    <select id="daysSel">
+      <option value="7">7d</option>
+      <option value="30" selected>30d</option>
+      <option value="90">90d</option>
+      <option value="365">365d</option>
+    </select>
+  </div>
+</div>
+
+<div class="container">
+  <div id="grid" class="grid">
+    <div class="skel"></div><div class="skel"></div><div class="skel"></div>
+    <div class="skel"></div><div class="skel"></div><div class="skel"></div>
+  </div>
+</div>
+
+<script>
+// Tier label & ordering (trusted enum, no user input)
+const TIER_LABEL = {
+  ELITE_LIVE:"ELITE", PAIR_PROMOTED:"PROMOTED", PAIR_DEMOTED:"DEMOTED",
+  SCALP_SENTINEL:"SCALP-SENT", UNIVERSAL_SENTINEL:"UNIV-SENT",
+  FORCE_DEMOTED:"FORCE-DEM", PHASE0_SHADOW:"PHASE0"
+};
+const TIER_ORDER = ["ELITE_LIVE","PAIR_PROMOTED","PAIR_DEMOTED","SCALP_SENTINEL","UNIVERSAL_SENTINEL","PHASE0_SHADOW","FORCE_DEMOTED"];
+const TIER_RANK = Object.fromEntries(TIER_ORDER.map((t,i)=>[t,i]));
+const VALID_TIER = new Set(TIER_ORDER);
+
+let state = { data:null, filter:{q:"", tier:"all"}, sort:"tier", days:30 };
+
+function fmt(n, digits=1){
+  if(n===null||n===undefined||Number.isNaN(n)) return "—";
+  return Number(n).toFixed(digits).replace(/\.0$/,"");
+}
+function cls(v){ return v>0?"pos":v<0?"neg":"dim"; }
+
+// XSS-safe DOM builders — we use createElement + textContent, never innerHTML,
+// for any value that originates from the API (strategy name, pair, tier).
+function h(tag, opts={}, children=[]){
+  const el = document.createElement(tag);
+  if(opts.cls) el.className = opts.cls;
+  if(opts.text != null) el.textContent = String(opts.text);
+  if(opts.title) el.title = String(opts.title);
+  if(opts.href) el.href = String(opts.href);
+  if(opts.target) el.target = String(opts.target);
+  if(opts.rel) el.rel = String(opts.rel);
+  if(opts.type) el.type = String(opts.type);
+  if(opts.dataset){ for(const k in opts.dataset) el.dataset[k] = String(opts.dataset[k]); }
+  for(const c of children){ if(c) el.appendChild(c); }
+  return el;
+}
+function sanTier(t){ return VALID_TIER.has(t) ? t : "PHASE0_SHADOW"; }
+function sanSlug(s){ return String(s||"").replace(/[^a-zA-Z0-9_-]/g,""); }
+
+async function loadData(){
+  const btn = document.getElementById("refreshBtn");
+  btn.classList.add("loading");
+  try{
+    const r = await fetch(`/api/strategies/status?rolling_days=${state.days}`);
+    if(!r.ok) throw new Error(r.statusText);
+    state.data = await r.json();
+    render();
+  }catch(e){
+    const grid = document.getElementById("grid");
+    grid.textContent = "";
+    const box = h("div",{cls:"empty"},[
+      h("h2",{text:"Load failed"}),
+      h("div",{text:String(e)}),
+    ]);
+    grid.appendChild(box);
+  }finally{
+    btn.classList.remove("loading");
+  }
+}
+
+function renderMeta(){
+  const d = state.data;
+  const el = document.getElementById("metaLine");
+  el.textContent = "";
+  const genAt = d.generated_at ? new Date(d.generated_at).toLocaleString("ja-JP") : "—";
+
+  const s1 = h("span");
+  s1.append("Window: ");
+  s1.appendChild(h("b",{text:`from ${d.effective_date_from || "—"}`}));
+  s1.append(` (rolling ${Number(d.rolling_days)||0}d, post-cutoff 2026-04-08)`);
+
+  const s2 = h("span",{cls:"dot-sep",text:"•"});
+
+  const s3 = h("span");
+  s3.append("Tier master: ");
+  s3.appendChild(h("b",{text:genAt}));
+
+  el.append(s1, s2, s3);
+}
+
+function renderTotals(){
+  const t = state.data.totals || {};
+  const el = document.getElementById("totalsRow");
+  el.textContent = "";
+  const pnl = Number(t.live_pnl)||0;
+  const wr = t.live_wr;
+  const mk = (label, valEl) => {
+    const box = h("div",{cls:"stat"});
+    box.appendChild(h("span",{cls:"label",text:label}));
+    box.appendChild(valEl);
+    return box;
+  };
+  el.appendChild(mk("Strategies", h("span",{cls:"val",text:String(t.strategies||0)})));
+  el.appendChild(mk("Live N", h("span",{cls:"val",text:String(t.live_n||0)})));
+  el.appendChild(mk("Live WR", h("span",{cls:"val",text:(wr===null||wr===undefined?"—":fmt(wr)+"%")})));
+  el.appendChild(mk("Live PnL (pip)",
+    h("span",{cls:`val ${cls(pnl)}`,text:(pnl>0?"+":"")+fmt(pnl)})
+  ));
+}
+
+function renderTierBar(){
+  const c = state.data.tier_counts || {};
+  const el = document.getElementById("tierBar");
+  el.textContent = "";
+  const cur = state.filter.tier;
+  TIER_ORDER.filter(t=>c[t]).forEach(t=>{
+    const active = (cur==="all" || cur===t);
+    const pill = h("span",{cls:`tier-pill t-${t} ${active?"":"inactive"}`,dataset:{tier:t}});
+    pill.append(TIER_LABEL[t]+" ");
+    pill.appendChild(h("span",{cls:"tpc",text:String(c[t])}));
+    pill.onclick = ()=>{
+      state.filter.tier = (state.filter.tier===t ? "all" : t);
+      document.getElementById("tierFilter").value = state.filter.tier;
+      render();
+    };
+    el.appendChild(pill);
+  });
+}
+
+function buildCard(s){
+  const tier = sanTier(s.tier);
+  const live = s.live || {n:0,wr:0,pnl:0};
+  const sh = s.shadow || {n:0,pnl:0};
+  const card = h("div",{cls:`card tier-${tier}`,dataset:{name:s.name||"",tier:tier}});
+
+  // head
+  const head = h("div",{cls:"card-head"});
+  head.appendChild(h("div",{cls:"card-title",text:String(s.name||"")}));
+  const badges = h("div",{cls:"card-badges"});
+  if(s.lot_boost) badges.appendChild(h("span",{cls:"badge boost",text:"⚡ BOOST",title:"Lot boost applied"}));
+  const hasNew = (s.pair_cells||[]).some(c=>c.pair==="USD_JPY" && c.tier==="PAIR_PROMOTED" &&
+    (s.name==="streak_reversal" || s.name==="vwap_mean_reversion"));
+  if(hasNew) badges.appendChild(h("span",{cls:"badge new",text:"NEW",title:"Promoted 2026-04-22"}));
+  head.appendChild(badges);
+  card.appendChild(head);
+
+  // tier row
+  const tierRow = h("div",{cls:"tier-row"});
+  tierRow.appendChild(h("span",{cls:`tier-pill t-${tier}`,text:TIER_LABEL[tier]}));
+  card.appendChild(tierRow);
+
+  // metrics
+  const metrics = h("div",{cls:"metrics"});
+  const mEl = (label, valText, valCls)=>{
+    const m = h("div",{cls:"m"});
+    m.appendChild(h("span",{cls:"l",text:label}));
+    m.appendChild(h("span",{cls:`v ${valCls||""}`,text:valText}));
+    return m;
+  };
+  const n = Number(live.n)||0;
+  const wr = Number(live.wr)||0;
+  const pnl = Number(live.pnl)||0;
+  const ev = n>0 ? pnl/n : null;
+  metrics.appendChild(mEl("Live N", String(n), n?"":"dim"));
+  metrics.appendChild(mEl("WR", n?fmt(wr)+"%":"—", n?"":"dim"));
+  metrics.appendChild(mEl("EV (pip)", ev!=null?fmt(ev,2):"—", ev!=null?cls(ev):"dim"));
+  metrics.appendChild(mEl("PnL", (pnl>0?"+":"")+fmt(pnl), cls(pnl)));
+  card.appendChild(metrics);
+
+  // shadow
+  const shRow = h("div",{cls:"shadow-row"});
+  shRow.appendChild(h("span",{cls:"key",text:"Shadow"}));
+  const shRight = h("span");
+  shRight.appendChild(h("span",{cls:"val",text:`N=${Number(sh.n)||0}`}));
+  shRight.append(" \u00a0 ");
+  const shPnl = Number(sh.pnl)||0;
+  shRight.appendChild(h("span",{cls:`val ${cls(shPnl)}`,text:(shPnl>0?"+":"")+fmt(shPnl)+"p"}));
+  shRow.appendChild(shRight);
+  card.appendChild(shRow);
+
+  // pair cells
+  if((s.pair_cells||[]).length){
+    const cells = h("div",{cls:"pair-cells"});
+    for(const c of s.pair_cells){
+      const cTier = (c.tier==="PAIR_PROMOTED"||c.tier==="PAIR_DEMOTED") ? c.tier : "PAIR_DEMOTED";
+      const row = h("div",{cls:"pair-cell"});
+      row.appendChild(h("span",{cls:"p",text:String(c.pair||"")}));
+      row.appendChild(h("span",{cls:`tier-tag ${cTier}`,text:cTier==="PAIR_PROMOTED"?"PP":"PD"}));
+      const nc = Number(c.n)||0;
+      const wrc = Number(c.wr)||0;
+      const wrCls = wrc>=55 ? "pos" : (wrc<=45 && nc>=20 ? "neg" : "");
+      const stat1 = h("span",{cls:`stat-mini ${wrCls}`});
+      stat1.append("N");
+      stat1.appendChild(h("b",{text:String(nc)}));
+      stat1.append(" / WR");
+      stat1.appendChild(h("b",{text:fmt(wrc)+"%"}));
+      row.appendChild(stat1);
+      const pnlc = Number(c.pnl)||0;
+      const stat2 = h("span",{cls:`stat-mini ${cls(pnlc)}`});
+      stat2.appendChild(h("b",{text:(pnlc>0?"+":"")+fmt(pnlc)}));
+      stat2.append("p");
+      row.appendChild(stat2);
+      cells.appendChild(row);
+    }
+    card.appendChild(cells);
+  }
+
+  // footer
+  const footer = h("div",{cls:"card-footer"});
+  const slug = sanSlug(s.wiki_slug);
+  if(slug){
+    footer.appendChild(h("a",{
+      text:"Wiki ↗",
+      href:`https://github.com/olehakengo-svg/fx-ai-trader/blob/main/knowledge-base/wiki/strategies/${slug}.md`,
+      target:"_blank", rel:"noopener",
+    }));
+  }
+  card.appendChild(footer);
+
+  return card;
+}
+
+function render(){
+  renderMeta();
+  renderTotals();
+  renderTierBar();
+
+  const q = (state.filter.q || "").toLowerCase().trim();
+  const tierF = state.filter.tier;
+  let list = (state.data.strategies || []).filter(s=>{
+    if(tierF!=="all" && s.tier!==tierF) return false;
+    if(q){
+      const hit = String(s.name||"").toLowerCase().includes(q) ||
+        (s.pair_cells||[]).some(c=>String(c.pair||"").toLowerCase().includes(q));
+      if(!hit) return false;
+    }
+    return true;
+  });
+
+  const byTier = (a,b)=>(TIER_RANK[a.tier]??99)-(TIER_RANK[b.tier]??99) || String(a.name).localeCompare(String(b.name));
+  const sorters = {
+    tier: byTier,
+    pnl_desc: (a,b)=>(Number(b.live.pnl)||0)-(Number(a.live.pnl)||0) || byTier(a,b),
+    pnl_asc: (a,b)=>(Number(a.live.pnl)||0)-(Number(b.live.pnl)||0) || byTier(a,b),
+    n_desc: (a,b)=>(Number(b.live.n)||0)-(Number(a.live.n)||0) || byTier(a,b),
+    wr_desc: (a,b)=>{
+      const ra = (Number(a.live.n)||0)>=10 ? (Number(a.live.wr)||0) : -1;
+      const rb = (Number(b.live.n)||0)>=10 ? (Number(b.live.wr)||0) : -1;
+      return rb-ra || byTier(a,b);
+    },
+    name: (a,b)=>String(a.name).localeCompare(String(b.name)),
+  };
+  list.sort(sorters[state.sort] || byTier);
+
+  const grid = document.getElementById("grid");
+  grid.textContent = "";
+  if(!list.length){
+    const empty = h("div",{cls:"empty"},[
+      h("h2",{text:"No strategies match"}),
+      h("div",{text:"Try clearing filters."}),
+    ]);
+    grid.appendChild(empty);
+    return;
+  }
+  for(const s of list) grid.appendChild(buildCard(s));
+}
+
+document.getElementById("searchInput").addEventListener("input", e=>{
+  state.filter.q = e.target.value; render();
+});
+document.getElementById("tierFilter").addEventListener("change", e=>{
+  state.filter.tier = e.target.value; render();
+});
+document.getElementById("sortSel").addEventListener("change", e=>{
+  state.sort = e.target.value; render();
+});
+document.getElementById("daysSel").addEventListener("change", e=>{
+  state.days = parseInt(e.target.value,10) || 30; loadData();
+});
+document.getElementById("refreshBtn").addEventListener("click", loadData);
+
+loadData();
+</script>
+</body>
+</html>
