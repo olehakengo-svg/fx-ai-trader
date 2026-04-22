@@ -24,6 +24,7 @@ from strategies.daytrade.sr_break_retest import SrBreakRetest
 from strategies.daytrade.lin_reg_channel import LinRegChannel
 from strategies.daytrade.orb_trap import OrbTrap
 from strategies.daytrade.london_close_reversal import LondonCloseReversal
+from strategies.daytrade.london_close_reversal_v2 import LondonCloseReversalV2
 from strategies.daytrade.gbp_deep_pullback import GbpDeepPullback
 from strategies.daytrade.turtle_soup import TurtleSoup
 from strategies.daytrade.trendline_sweep import TrendlineSweep
@@ -66,6 +67,7 @@ class DaytradeEngine:
             LinRegChannel(),               # LRC: Linear Regression Channel (Gauss-Markov)
             OrbTrap(),                     # ORB Trap: Opening Range Fakeout Reversal
             LondonCloseReversal(),         # LCR: London Close Wick Reversal (DISABLED)
+            LondonCloseReversalV2(),       # LCR v2: H-2026-04-22-005 (UTC 20:30-21:00, push+RSI極値) — Sentinel
             GbpDeepPullback(),             # GBP Deep PB: BB-2σ/EMA50 deep pullback
             TurtleSoup(),                  # Turtle Soup: Liquidity Grab Reversal (Connors 1995)
             TrendlineSweep(),              # TL Sweep: Trendline Sweep Trap (Edwards & Magee)

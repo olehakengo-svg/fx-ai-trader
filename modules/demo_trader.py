@@ -3089,6 +3089,7 @@ class DemoTrader:
             "lin_reg_channel",           # LRC: Linear Regression Channel (2026-04-05)
             "orb_trap",                      # ORB Trap: Opening Range Fakeout Reversal (2026-04-05)
             "london_close_reversal",         # LCR: London Close Wick Reversal (DISABLED)
+            "london_close_reversal_v2",      # LCR v2: H-2026-04-22-005 UTC 20:30-21:00 push+RSI極値 (Sentinel)
             "gbp_deep_pullback",             # GBP Deep PB: BB-2σ/EMA50 deep pullback (2026-04-05)
             "turtle_soup",                   # Turtle Soup: Liquidity Grab Reversal (Phase 5, 2026-04-05)
             "trendline_sweep",               # TL Sweep: Trendline Sweep Trap (Phase 5, 2026-04-05)
@@ -5047,6 +5048,10 @@ class DemoTrader:
         #   Live 9日: up_trend×BUY N=20 WR=15% / uncertain×BUY N=9 WR=11% → 全regimeで敗北
         #   詳細: wiki/analyses/sell-bias-forensics-2026-04-17.md
         "ema_trend_scalp",
+        # v9.6 (2026-04-22): H-2026-04-22-004 BT 全ペア緩和版でPF<1/EV_fric<0確定
+        # EUR_USD 1h N=262 PF=0.64 / GBP_USD 1h N=208 PF=0.57 → UNIVERSAL_SENTINEL→FORCE_DEMOTED
+        # 根拠: wiki/analyses/pre-registration-2026-04-22.md
+        "ema200_trend_reversal",
     }
 
     # ── Elite Track: 摩擦モデルv2 BT + v5.95統合BT監査 ──
@@ -5242,9 +5247,10 @@ class DemoTrader:
         # v8.0: engulfing_bb → FORCE_DEMOTED昇格 (WR=14.3% -$353.5)
         # REMOVED v2.1: three_bar_reversal — 180日N=6、構造的にN蓄積不能（4条件同時必須）
         "london_close_reversal",       # ロンドンクローズ反転 — EV≈0, Sentinel再検証
+        "london_close_reversal_v2",    # LCR v2 H-2026-04-22-005: UTC 20:30-21:00 push+RSI極値 (BT 5m EUR_USD/GBP_JPY Sentinel合格)
         "dt_fib_reversal",             # DT Fib反発 — 未検証, Sentinel蓄積
         "dt_sr_channel_reversal",      # DT SR/チャネル反発 — 未検証, Sentinel蓄積
-        "ema200_trend_reversal",       # EMA200ブレイクリテスト — 未検証, Sentinel蓄積
+        # REMOVED 2026-04-22: ema200_trend_reversal → _FORCE_DEMOTED (H-2026-04-22-004 全ペア負EV)
         "post_news_vol",               # ニュース後ボラ — WR=42.4%, Sentinel再検証
     }
 

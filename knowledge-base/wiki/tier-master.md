@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-04-21 08:08 UTC
+**最終更新**: 2026-04-22 09:08 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -38,27 +38,28 @@
 
 ## B. Shadow戦略（OANDA非通過 — デモのみ記録）
 
-### B-1. FORCE_DEMOTED（17戦略 — 全ペア強制Shadow）
+### B-1. FORCE_DEMOTED（18戦略 — 全ペア強制Shadow）
 
 | # | 戦略名 | 365d BT JPY EV | EUR EV | GBP EV |
 |---|---|---|---|---|
 | 1 | atr_regime_break | — | — | — |
 | 2 | dt_bb_rsi_mr | — | — | — |
-| 3 | ema_cross | — | — | — |
-| 4 | ema_pullback | — | — | — |
-| 5 | ema_ribbon_ride | — | — | — |
-| 6 | ema_trend_scalp | — | — | — |
-| 7 | engulfing_bb | — | — | — |
-| 8 | fib_reversal | — | — | — |
-| 9 | inducement_ob | — | — | — |
-| 10 | intraday_seasonality | — | — | — |
-| 11 | lin_reg_channel | — | — | — |
-| 12 | macdh_reversal | — | — | — |
-| 13 | orb_trap | — | — | — |
-| 14 | sr_break_retest | — | — | — |
-| 15 | sr_channel_reversal | — | — | — |
-| 16 | sr_fib_confluence | — | — | — |
-| 17 | stoch_trend_pullback | — | — | — |
+| 3 | ema200_trend_reversal | — | — | — |
+| 4 | ema_cross | — | — | — |
+| 5 | ema_pullback | — | — | — |
+| 6 | ema_ribbon_ride | — | — | — |
+| 7 | ema_trend_scalp | — | — | — |
+| 8 | engulfing_bb | — | — | — |
+| 9 | fib_reversal | — | — | — |
+| 10 | inducement_ob | — | — | — |
+| 11 | intraday_seasonality | — | — | — |
+| 12 | lin_reg_channel | — | — | — |
+| 13 | macdh_reversal | — | — | — |
+| 14 | orb_trap | — | — | — |
+| 15 | sr_break_retest | — | — | — |
+| 16 | sr_channel_reversal | — | — | — |
+| 17 | sr_fib_confluence | — | — | — |
+| 18 | stoch_trend_pullback | — | — | — |
 
 ### B-2. SCALP_SENTINEL（2戦略 — Scalp最小ロットShadow）
 
@@ -74,11 +75,11 @@
 | 1 | doji_breakout | GBP_USD, USD_JPY |
 | 2 | dt_fib_reversal | なし |
 | 3 | dt_sr_channel_reversal | なし |
-| 4 | ema200_trend_reversal | なし |
-| 5 | eurgbp_daily_mr | なし |
-| 6 | gotobi_fix | なし |
-| 7 | liquidity_sweep | なし |
-| 8 | london_close_reversal | なし |
+| 4 | eurgbp_daily_mr | なし |
+| 5 | gotobi_fix | なし |
+| 6 | liquidity_sweep | なし |
+| 7 | london_close_reversal | なし |
+| 8 | london_close_reversal_v2 | なし |
 | 9 | post_news_vol | EUR_USD, GBP_USD |
 | 10 | squeeze_release_momentum | EUR_USD |
 | 11 | trend_rebound | なし |
