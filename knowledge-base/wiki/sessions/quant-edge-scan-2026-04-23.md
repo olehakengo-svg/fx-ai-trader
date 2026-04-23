@@ -147,9 +147,70 @@ Tokyo/London/NY × Scalp/DT × Range/Trend の 3 軸で 20 以上の仮説を体
 
 ---
 
-### 🔄 T1/T2/D1/R1/S3 (edge_lab.py 実行中)
+### 🎯 T1/T2/D1/R1/S3 (edge_lab.py 結果)
 
-USD_JPY BT 実行中 (10+ min CPU). 完了後に追加。
+**実行**: 365d × 15m × 5 ペア (USD_JPY/EUR_USD/GBP_USD/EUR_JPY/GBP_JPY), enriched trades=8,391
+**ファイル**: `raw/bt-results/edge-lab-2026-04-23.md` / `.json`
+
+#### T1 AR(1) Momentum × Session (⭐⭐ 逆向き発見)
+**期待**: aligned (momentum) > counter (MR) → 逆の結果
+- USD_JPY London: MR 66%/+0.55 vs Momentum 56%/+0.20 — **MR 優位**
+- EUR_JPY London: MR 69%/+0.26 vs Momentum 60%/+0.07
+- GBP_USD NY: MR 57%/-0.01 vs Momentum 52%/-0.15 (両方負だが MR がマシ)
+
+**結論**: 現行ポートフォリオの trade log では **counter-trend (MR) alignment の方が有意に高 EV**.
+既存 vwap_mean_reversion の好成績と整合する構造。
+「momentum alignment で filter」は **逆効果**、むしろ counter-alignment で fire を許可すべき。
+
+#### T2 Gotobi Effect × JPY (⭐ 弱)
+ほぼ全て Non-Gotobi > Gotobi。唯一の edge:
+- **EUR_JPY × NY × Gotobi**: +0.32 pip edge vs Non-Gotobi (92 trades)
+これも Bonferroni (15 tests) 後 p > 0.05 推定。Not actionable.
+
+#### D1 Realized Vol Z-score Quintile (⭐⭐ pair依存)
+**USD_JPY**: Q1 (low vol) 69%/+0.68 EV = best, Q2-Q5 平均 +0.3
+→ **USD_JPY は低 vol 時に強い** (既存の vol_adaptive fires がほぼ裏目かもしれない、要検証)
+
+**EUR_JPY**: Q4 (high vol) 70%/+0.30 EV (逆パターン)
+**EUR_USD**: Q1 (low vol) 69%/+0.45 EV = best
+
+→ **ペア別に vol preference が異なる**. Portfolio-wide filter NG.
+
+#### R1 Hurst Regime (⭐ 弱)
+MR regime (H<0.45) が理論通り MR 戦略優位なはずだが、N 分布が trend regime (H>0.55) に偏り:
+- USD_JPY trend N=1364 EV=+0.40 ≈ MR N=339 EV=+0.41
+- 各 pair で regime 差は 0.1 pip 以下
+
+**結論**: Hurst を entry gate としては使えない (discrimination 弱). シグナル直交性だけ確認で閉じる。
+
+#### S3 Round-Number Distance (⭐ pair依存)
+- **USD_JPY Q2 (近い)**: 66%/+0.55 EV = best — **round-number magnetism 弱いが存在**
+- **EUR_USD Q5 (遠い)**: 65%/+0.34 EV = best (**逆パターン — momentum 方向**)
+- GBP_JPY Q1 (最も近い) 67%/+0.44 — magnetism あり
+
+ペア依存. Not portfolio-wide.
+
+#### Cross: vwap_mean_reversion × Hurst (⭐⭐⭐ 重要発見)
+
+| Pair | MR regime | Trend regime |
+|------|----------:|-------------:|
+| USD_JPY | 14/64%/+0.70 | **83/77%/+1.47** |
+| EUR_USD | 21/71%/+0.94 | **113/71%/+1.09** |
+| GBP_USD | 31/55%/+0.07 | **108/69%/+1.09** |
+| EUR_JPY | 47/68%/+0.46 | 124/66%/+0.73 |
+| GBP_JPY | 51/77%/+1.00 | **152/78%/+1.15** |
+
+**驚くべき結論**: vwap_mean_reversion が **trend regime で最も強い** (MR regime ではない).
+- 解釈: vwap_MR は local mean-reversion を trend 方向の pullback で狙う → trend regime の pullback が hit-rate 高い
+- 既存戦略の学術的解釈と一致 (Bid/ask の 3σ 逆行は trend 中でも起きる、trend で早く回復しやすい)
+
+**アクション**: vwap_mean_reversion の shadow filter に Hurst<0.45 を付けるのは NG (誤った regime gate)
+
+---
+
+### ⏸ N1 News-gated NY
+edge_lab.py が entry_time を trade log に含まず → post-hoc 分類不可.
+next session で tools/edge_lab.py を再実行 (entry_time 追加済み source は commit 済) すれば可能. 単独 BT 実行は CPU コスト大 (~45 min).
 
 ---
 
