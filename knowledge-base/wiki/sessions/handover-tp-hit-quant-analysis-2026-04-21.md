@@ -53,7 +53,7 @@
 
 ### 🟢 Research-type (実装前に BT 検証必要)
 - [x] `spread_at_entry` edge の 365d BT 検証 — **INVALIDATED 2026-04-23**: ペア識別子との交絡 (Simpson's paradox) で edge は擬似効果。詳細 [[spread-at-entry-confounding-2026-04-23]]
-- [ ] `score` 計算方法見直し — 現在 p=0.42 noise、冗長な計算かも
+- [~] `score` 計算方法見直し — **WATCH 2026-04-23**: post-cutoff aggregate p=0.55 noise 確認、bb_rsi_reversion で inverse 傾向 (Bonferroni 後非有意)。N>=200 で再検証。詳細 [[score-predictive-power-2026-04-23]]
 
 ### 🔵 Routine
 - [ ] 毎セッション開始時: `python3 tools/quant_readiness.py` で状態把握
