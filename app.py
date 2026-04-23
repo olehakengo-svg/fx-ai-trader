@@ -1704,18 +1704,19 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     elif combined < -_dt_threshold: signal, conf = "SELL", int(min(95, 50 + abs(combined) * 55))
     else:                           signal, conf = "WAIT", int(max(25, 50 - abs(combined) * 40))
 
-    # ⑬ VWAP deviation bonus (Massive API only)
+    # ⑬ VWAP deviation (Massive API only)
+    # 2026-04-23 Phase 2a: conf bonus 中立化。
+    # 実測で "VWAP上位/下位 確度UP" ラベルは逆校正 (Delta -4.6pp, TF -1.2 MR -2.1)。
+    # 観察事実ラベルのみ保持、conf +3 加点は停止。
     _vwap_rsns = []
     if "vwap" in df.columns and signal != "WAIT":
         _vwap = float(row["vwap"])
         if _vwap > 0:
             _vwap_dev = (entry - _vwap) / _vwap * 100
             if signal == "BUY" and _vwap_dev > 0:
-                conf = min(95, conf + 3)
-                _vwap_rsns.append(f"✅ VWAP上位(+{_vwap_dev:.2f}%): BUY確度UP")
+                _vwap_rsns.append(f"VWAP上位(+{_vwap_dev:.2f}%)")
             elif signal == "SELL" and _vwap_dev < 0:
-                conf = min(95, conf + 3)
-                _vwap_rsns.append(f"✅ VWAP下位({_vwap_dev:.2f}%): SELL確度UP")
+                _vwap_rsns.append(f"VWAP下位({_vwap_dev:.2f}%)")
 
     # ⑥ S/R-snapped SL/TP（TF対応スイングモード）
     # WAIT時はcombinedの符号で方向を決定（0の場合はBUY）
@@ -2741,35 +2742,33 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             ema_boost = int(np.clip(ema_score * 8, -15, 15))
         else:
             ema_boost = int(np.clip(-ema_score * 8, -15, 15))
-        # EMAトレンド整合ボーナス
+        # 2026-04-23 Phase 2a: EMA整合 / VWAP bonus 中立化。
+        # 実測で トレンド has: Delta -3.7pp (TF -14.0pp!), "確度UP" has: Delta -4.2pp
+        # (TF -11.2pp)。TF-biased 加点が TF 戦略を特に傷つけていた。
+        # ema_boost 自体は base ema_score 分のみ維持、整合加点は停止。
+        # 観察事実ラベルは保持。
         if signal == "BUY" and ema9 > ema21 > ema50:
-            ema_boost += 5
-            reasons.append("✅ EMA順列 (9>21>50): SR BUY確度UP")
+            reasons.append("EMA順列 (9>21>50)")
         elif signal == "SELL" and ema9 < ema21 < ema50:
-            ema_boost += 5
-            reasons.append("✅ EMA逆順列 (9<21<50): SR SELL確度UP")
+            reasons.append("EMA逆順列 (9<21<50)")
         elif signal == "BUY" and ema9 < ema21:
-            ema_boost -= 5
-            reasons.append("⚠️ EMA逆行 (9<21): SR BUYだが確度DOWN")
+            reasons.append("EMA逆行 (9<21)")
         elif signal == "SELL" and ema9 > ema21:
-            ema_boost -= 5
-            reasons.append("⚠️ EMA逆行 (9>21): SR SELLだが確度DOWN")
-        # MACD整合
+            reasons.append("EMA逆行 (9>21)")
+        # MACD整合 boost も中立化 (同理由)
         if signal == "BUY" and macdh > 0 and macdh > macdh_prev:
-            ema_boost += 3
+            reasons.append("MACD bullish momentum")
         elif signal == "SELL" and macdh < 0 and macdh < macdh_prev:
-            ema_boost += 3
-        # VWAP deviation bonus (Massive API only)
+            reasons.append("MACD bearish momentum")
+        # VWAP deviation (Massive API only) - bonus 中立化
         if "vwap" in df.columns:
             _vwap_dt = float(row["vwap"])
             if _vwap_dt > 0:
                 _vwap_dev_dt = (entry - _vwap_dt) / _vwap_dt * 100
                 if signal == "BUY" and _vwap_dev_dt > 0:
-                    ema_boost += 3
-                    reasons.append(f"✅ VWAP上位(+{_vwap_dev_dt:.2f}%): BUY確度UP")
+                    reasons.append(f"VWAP上位(+{_vwap_dev_dt:.2f}%)")
                 elif signal == "SELL" and _vwap_dev_dt < 0:
-                    ema_boost += 3
-                    reasons.append(f"✅ VWAP下位({_vwap_dev_dt:.2f}%): SELL確度UP")
+                    reasons.append(f"VWAP下位({_vwap_dev_dt:.2f}%)")
 
         # v10: Respect DTE strategy's self-calibrated confidence.
         # Root-cause: legacy `base_conf + ema_boost` is trend-follow biased and
@@ -5945,6 +5944,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "intraday_seasonality",          # Alpha#1: 日中リターン季節性 (Breedon & Ranaldo 2013)
                 "wick_imbalance_reversion",      # Alpha#2: ヒゲ不均衡平均回帰 (Osler 2003)
                 "atr_regime_break",              # Alpha#3: ATRレジーム転換ブレイクアウト (Engle 1982)
+                # v9.x: T3 Tokyo Range Breakout (2026-04-23) — Minimum Live USD_JPY BUY-only
+                "tokyo_range_breakout_up",       # Andersen-Bollerslev 1997 + WFA STABLE_EDGE (OOS WR=74.5%)
             }
             DT_BLOCKED = {"unknown", "wait"}
 
