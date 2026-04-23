@@ -49,11 +49,12 @@ EMA200, 反発, RR不足, 方向不一致
 - MR: -6.7pp
 - **根拠コード**:
   - 多数の strategy file に `reasons.append("✅ EMA短期方向一致")` 等 (label-only, conf_adj なし)
-  - `app.py:8869-8878` Layer 1 `大口方向一致` → `score *= 1.15` (**active boost**)
+  - ~~`app.py:8869-8878` Layer 1 `大口方向一致` → `score *= 1.15`~~ → [[layer1-bias-direct-audit-2026-04-23]]
+    で実測: 99% が neutral で未適用、適用時は +18.3pp 正校正。**Layer 1 は主因ではない**
   - `modules/massive_signals.py` 機関フロー は前セッションで既中立化 (conf_adj=0)
-- **未処理**: `app.py:8869-8878` Layer 1 score *= 1.15 boost は依然アクティブ。
-  TF で最強の逆校正 -16.7pp はこの 15% boost が主因の可能性が高い。
-- **推奨**: Category-aware gate または中立化 — 要ユーザー承認。
+- **真の原因**: TF 戦略そのものの regime mismatch — EMA alignment 検出 = trend 終盤で
+  fade される selection bias。戦略レベルの Tier 降格 / Sentinel で対処すべき。
+- **推奨**: 個別 app.py Layer 1 修正は不要。TF 戦略群の Tier 再評価を優先。
 
 ### 2. VWAPスロープ (Delta -7.0pp, N=1647)
 
@@ -102,10 +103,11 @@ EMA200, 反発, RR不足, 方向不一致
 
 ### User review required
 
-- [ ] `app.py:8869-8878` Layer 1 大口方向一致 `score *= 1.15` の category-aware 化 or 中立化
-      (前セッションで EMA順列 ema_boost / MACD / DT VWAP の中立化は **ユーザーが REJECT** したため、
-       今回も confirm 必須)
+- [ ] ~~`app.py:8869-8878` Layer 1 大口方向一致 `score *= 1.15` の中立化~~ → [[layer1-bias-direct-audit-2026-04-23]]
+      で実測棄却。Layer 1 は正校正かつ dormant、修正不要。
 - [ ] 多数 strategy files の "EMA方向一致" 等の label を "[observed] EMA alignment" に変更
+      (低リスクだが範囲広、user 承認後に一括 edit)
+- [ ] TF 戦略群の Tier 再評価 — regime mismatch は strategy gating で対処すべき (別タスク)
 
 ### Re-audit schedule
 
