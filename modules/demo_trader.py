@@ -2510,6 +2510,17 @@ class DemoTrader:
             except Exception as _me:
                 print(f"[DemoTrader/{mode}] Massive enhancement error: {_me}")
 
+            # ── Shadow variant routing (Phase 1, 2026-04-23) ──
+            # Filter-specialized entry_type for independent N accumulation in PHASE0_SHADOW.
+            try:
+                from modules.shadow_variants import derive_variant_entry_type
+                _variant = derive_variant_entry_type(sig, df, symbol)
+                if _variant:
+                    sig["_base_entry_type"] = sig.get("entry_type")
+                    sig["entry_type"] = _variant
+            except Exception as _ve:
+                print(f"[DemoTrader/{mode}] variant routing error: {_ve}")
+
         except Exception as e:
             self._add_log(f"⚠️ [{cfg['label']}] シグナル取得失敗: {e}")
             import traceback; traceback.print_exc()
