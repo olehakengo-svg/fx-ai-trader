@@ -52,7 +52,7 @@
 - [ ] **bb_squeeze_breakout × USD_JPY** Live 確認 (shadow N=38 EV=+1.87 但し Live N 不足)
 
 ### 🟢 Research-type (実装前に BT 検証必要)
-- [ ] `spread_at_entry` edge の 365d BT 検証 (別セッション)
+- [x] `spread_at_entry` edge の 365d BT 検証 — **INVALIDATED 2026-04-23**: ペア識別子との交絡 (Simpson's paradox) で edge は擬似効果。詳細 [[spread-at-entry-confounding-2026-04-23]]
 - [ ] `score` 計算方法見直し — 現在 p=0.42 noise、冗長な計算かも
 
 ### 🔵 Routine
