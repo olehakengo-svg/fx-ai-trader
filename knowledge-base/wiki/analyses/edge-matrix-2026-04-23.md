@@ -258,13 +258,18 @@ FX は volume proxy なので bar range で代替。
 | ID | エッジ | データ源 | Status (2026-04-23) |
 |----|-------|---------|--------------------|
 | **T3** | Tokyo Range UP breakout × 4 pair | tokyo_range_breakout_wfa.py | 🟢 **STABLE_EDGE 確定 → Shadow 候補** |
-| T1 | AR(1) momentum × session | edge_lab.py (post-hoc) | 🔄 実行中 |
-| T2 | Gotobi × JPY | edge_lab.py + calendar | 🔄 実行中 |
+| T1 | AR(1) momentum × session | edge_lab.py (post-hoc) | 🔴 **逆向き** — counter-alignment (MR) が momentum より高 EV |
+| T2 | Gotobi × JPY | edge_lab.py + calendar | 🔴 **not actionable** — Bonferroni 後 p>0.05 |
 | L1 | London OFI proxy | 新規 `tools/london_ofi.py` | 🟡 weak (ρ<0.05), filter 用途 |
-| N1 | News-gated NY | 新規 `tools/nfp_gated_ny.py` | ⏸ edge_lab 完了後実行 |
-| S3 | Round-number magnetism | edge_lab.py (post-hoc) | 🔄 実行中 |
-| D1 | Vol z-score quintile | edge_lab.py (post-hoc) | 🔄 実行中 |
-| R1 | Hurst regime | edge_lab.py (post-hoc) | 🔄 実行中 |
+| N1 | News-gated NY | 新規 `tools/nfp_gated_ny.py` | ⏸ 次セッション (edge_lab 再実行後 post-hoc) |
+| S3 | Round-number magnetism | edge_lab.py (post-hoc) | 🟡 pair依存 (USD_JPY/GBP_JPY close, EUR_USD far) |
+| D1 | Vol z-score quintile | edge_lab.py (post-hoc) | 🟡 pair依存 (USD_JPY/EUR_USD low vol, EUR_JPY high vol) |
+| R1 | Hurst regime | edge_lab.py (post-hoc) | 🔴 **不使用** — regime EV 差 <0.1p で discriminator 弱 |
+
+### ⭐⭐⭐ 補足: Cross hypothesis 発見
+| Cross | 発見 | 含意 |
+|-------|------|------|
+| vwap_MR × Hurst | **Trend regime (H>0.55) で最も強い** (USD_JPY +1.47 EV, GBP_JPY +1.15) | 「MR-only in H<0.45」gate は**誤り** — vwap_MR は trend 内 pullback で hit |
 
 ### ⭐⭐ (次回優先度、BT データ蓄積後に検証)
 T4, L2, N3, S1, S2, D2, D3, R2, TR1-TR4
