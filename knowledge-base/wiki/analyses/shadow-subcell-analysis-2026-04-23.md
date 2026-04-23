@@ -127,6 +127,25 @@
 
 「部分的クオンツの罠」は**昇格局面**の教訓。逆方向に「過剰 Bonferroni」(relegation 判断に discovery 基準を当てる) という罠がある。
 
+## Postscript: Phase 1 variant routing validation (2026-04-23)
+
+Shadow variant 案 (Lever-B 抽出) を実装前に Bootstrap EV CI + 実コスト + Top1-drop で検証:
+
+| Variant | N | Bootstrap EV_cost CI | 実コスト | EV実コスト後 | Top1-drop | 判定 |
+|---|---|---|---|---|---|---|
+| engulfing_bb_lvn (全sess) | 51 | [-1.35, +1.89] | 1.33p | -0.11p | -0.14p | ✗ Fail |
+| **engulfing_bb_lvn_london_ny** | 25 (subset) | — (shadow で再測定) | — | +1.5p estimate | +0.3〜 | **精密化で採用** |
+| stoch_trend_pullback_tokyo | 45 | [-13.86, +22.35] | 5.28p | -2.20p | -6.10p | **✗ 撤回** |
+| ema_trend_scalp_ny | 57 | [-15.26, +20.43] | 8.65p | -6.67p | -6.61p | **✗ 撤回** |
+
+**教訓**: Lever-B で「上位セル」に見えた EV は Top1 単独依存の tail-driven 幻想だった。
+実コスト (broker 執行劣化) が Tokyo/NY セッションで異常に重く、session filter では救済不可。
+新戦略採用前の Bootstrap + Top1-drop 二重検証が必須。
+
+撤回: stoch_trend_pullback_tokyo, ema_trend_scalp_ny (routing コードから削除)
+採用: engulfing_bb_lvn_london_ny のみ PHASE0_SHADOW で N 蓄積
+検証スクリプト: `/tmp/bootstrap_engulfing_lvn.py`, `/tmp/bootstrap_session_variants.py`
+
 ## References
 - User memory: [feedback_partial_quant_trap](/Users/jg-n-012/.claude/projects/-Users-jg-n-012-test/memory/feedback_partial_quant_trap.md)
 - Analysis script: `/tmp/subcell_analysis.py`, `/tmp/why_edgeless.py`
