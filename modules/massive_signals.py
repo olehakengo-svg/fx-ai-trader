@@ -271,21 +271,21 @@ class MassiveSignalEnhancer:
         current_price = float(close[-1])
         atr = float(df["atr"].iloc[-1]) if "atr" in df.columns else price_range * 0.1
 
-        # HVN近接: support/resistance → +3
+        # 2026-04-23 Phase 2a: HVN/LVN conf_adj を中立化。
+        # TF root-cause 分析で HVN has: Delta -6.3pp (逆校正), LVN has: +2.4pp (弱正)。
+        # "S/R確度UP" 文言は TF 前提の楽観ラベル -> 削除し観察事実のみ残す。
+        # 検証: wiki/analyses/tf-inverse-rootcause-2026-04-23.md
         near_hvn = any(abs(current_price - h) < atr * 0.3 for h in hvn_levels)
-        # LVN内: 不安定ゾーン → -2
         near_lvn = any(abs(current_price - l) < atr * 0.3 for l in lvn_levels)
 
         if near_hvn and direction != "WAIT":
-            result["conf_adj"] = +3
+            result["conf_adj"] = 0  # neutralized (was +3)
             result["near_node"] = "HVN"
-            result["reasons"].append(
-                f"HVN近接 (高出来高ノード): S/R確度UP (+3)")
+            result["reasons"].append("HVN近接 (高出来高ノード)")
         elif near_lvn and direction != "WAIT":
-            result["conf_adj"] = -2
+            result["conf_adj"] = 0  # neutralized (was -2)
             result["near_node"] = "LVN"
-            result["reasons"].append(
-                f"LVN内 (低出来高ノード): 不安定ゾーン (-2)")
+            result["reasons"].append("LVN内 (低出来高ノード)")
 
         return result
 
@@ -337,29 +337,21 @@ class MassiveSignalEnhancer:
             elif close[idx] < open_[idx]:
                 bearish_count += 1
 
-        # フロー方向判定
+        # 2026-04-23 Phase 2a: 機関フロー conf_adj を中立化、断定的「方向一致/不一致」削除。
+        # TF root-cause 分析で 機関フロー has: Delta -10.4pp (逆校正)、方向一致 has: Delta -16.2pp。
+        # "BUY/SELL方向一致 (+3)" などの断定的ラベルが誤った確信を生成していた。
+        # 観察事実 (bullish_count/bearish_count) のみ残す。
+        # 検証: wiki/analyses/tf-inverse-rootcause-2026-04-23.md
         if bullish_count > bearish_count:
             result["flow_direction"] = "bullish"
-            if direction == "BUY":
-                result["conf_adj"] = +3
+            if direction in ("BUY", "SELL"):
                 result["reasons"].append(
-                    f"機関フロー: 買い優勢 ({bullish_count}/{len(recent_large)}本) "
-                    f"BUY方向一致 (+3)")
-            elif direction == "SELL":
-                result["reasons"].append(
-                    f"機関フロー: 買い優勢 ({bullish_count}/{len(recent_large)}本) "
-                    f"SELL方向不一致")
+                    f"機関フロー: 買い優勢 ({bullish_count}/{len(recent_large)}本)")
         elif bearish_count > bullish_count:
             result["flow_direction"] = "bearish"
-            if direction == "SELL":
-                result["conf_adj"] = +3
+            if direction in ("BUY", "SELL"):
                 result["reasons"].append(
-                    f"機関フロー: 売り優勢 ({bearish_count}/{len(recent_large)}本) "
-                    f"SELL方向一致 (+3)")
-            elif direction == "BUY":
-                result["reasons"].append(
-                    f"機関フロー: 売り優勢 ({bearish_count}/{len(recent_large)}本) "
-                    f"BUY方向不一致")
+                    f"機関フロー: 売り優勢 ({bearish_count}/{len(recent_large)}本)")
 
         return result
 
