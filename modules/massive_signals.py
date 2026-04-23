@@ -191,8 +191,10 @@ class MassiveSignalEnhancer:
                     result["slope_direction"] = "falling"
 
                 if result["slope_direction"] != "flat":
+                    # 2026-04-23: 断定ラベル→観察表記 (Delta WR -7.0pp の逆校正ラベル)
+                    # 検証: wiki/analyses/full-label-audit-2026-04-23.md
                     result["reasons"].append(
-                        f"VWAPスロープ {result['slope_direction']}")
+                        f"[observed] vwap_slope={result['slope_direction']}")
 
         return result
 
@@ -345,13 +347,15 @@ class MassiveSignalEnhancer:
         if bullish_count > bearish_count:
             result["flow_direction"] = "bullish"
             if direction in ("BUY", "SELL"):
+                # 2026-04-23: 断定ラベル→観察表記 (Delta WR: 買い優勢 -3.5pp / 売り優勢 -6.4pp の逆校正)
+                # 検証: wiki/analyses/full-label-audit-2026-04-23.md
                 result["reasons"].append(
-                    f"機関フロー: 買い優勢 ({bullish_count}/{len(recent_large)}本)")
+                    f"[observed] flow_bullish_candles={bullish_count}/{len(recent_large)}")
         elif bearish_count > bullish_count:
             result["flow_direction"] = "bearish"
             if direction in ("BUY", "SELL"):
                 result["reasons"].append(
-                    f"機関フロー: 売り優勢 ({bearish_count}/{len(recent_large)}本)")
+                    f"[observed] flow_bearish_candles={bearish_count}/{len(recent_large)}")
 
         return result
 
