@@ -75,9 +75,18 @@ London 流動性流入により trend 継続性が高い (Andersen-Bollerslev 19
 - Breakout = close > Tokyo_max or close < Tokyo_min at UTC 7-9
 - E[|Δ| | breakout] > E[|Δ| | non-breakout] の検定
 
-**Tool**: 新規 `tools/tokyo_range_breakout.py` 必要
+**Tool**: 新規 `tools/tokyo_range_breakout.py` ✅ 実装済, `tools/tokyo_range_breakout_wfa.py` ✅ WFA 実装済
 **N要件**: pair × year で N≈200 (daily 1 event)
-**Priority**: ⭐⭐
+**Priority**: ⭐⭐⭐ (当初 ⭐⭐ → 365d BT で強シグナル確認 → WFA で STABLE_EDGE 確定)
+
+**検証結果 (2026-04-23)**:
+- 365d BT: USD_JPY UP N=98 mean=+17.67 WR=72.4% t=4.48 (Bonferroni-safe)
+- WFA (IS/OOS 各 158-159d): **4/5 ペアで UP breakout STABLE_EDGE**
+  - USD_JPY / EUR_JPY / GBP_JPY / GBP_USD = 🟢 STABLE_EDGE
+  - EUR_USD = 🟡 NOISY_BUT_ALIVE
+  - 全 DOWN breakout = 🟡 NOISY_BUT_ALIVE (variance 大)
+- 判定: **構造的エッジ (非カーブフィット)** — Shadow N≥30 段階へ進める準備完了
+- 参照: `raw/bt-results/tokyo-range-breakout-wfa-2026-04-23.md`
 
 ### T4. Tokyo Fix Mean Reversion (00:55 UTC)
 **仮説**: 9:55 JST (Tokyo Fix) 付近で機関系 benchmark flow が集中。
@@ -246,18 +255,19 @@ FX は volume proxy なので bar range で代替。
 ## 8. 優先度統合マトリクス
 
 ### ⭐⭐⭐ (即座に観察すべき、N既存 or 薄データで成立)
-| ID | エッジ | データ源 |
-|----|-------|---------|
-| T1 | AR(1) momentum × session | edge_lab.py (post-hoc) |
-| T2 | Gotobi × JPY | edge_lab.py + calendar |
-| L1 | London OFI proxy | 新規 `tools/london_ofi.py` |
-| N1 | News-gated NY | 新規 `tools/nfp_gated_ny.py` |
-| S3 | Round-number magnetism | edge_lab.py (post-hoc) |
-| D1 | Vol z-score quintile | edge_lab.py (post-hoc) |
-| R1 | Hurst regime | edge_lab.py (post-hoc) |
+| ID | エッジ | データ源 | Status (2026-04-23) |
+|----|-------|---------|--------------------|
+| **T3** | Tokyo Range UP breakout × 4 pair | tokyo_range_breakout_wfa.py | 🟢 **STABLE_EDGE 確定 → Shadow 候補** |
+| T1 | AR(1) momentum × session | edge_lab.py (post-hoc) | 🔄 実行中 |
+| T2 | Gotobi × JPY | edge_lab.py + calendar | 🔄 実行中 |
+| L1 | London OFI proxy | 新規 `tools/london_ofi.py` | 🟡 weak (ρ<0.05), filter 用途 |
+| N1 | News-gated NY | 新規 `tools/nfp_gated_ny.py` | ⏸ edge_lab 完了後実行 |
+| S3 | Round-number magnetism | edge_lab.py (post-hoc) | 🔄 実行中 |
+| D1 | Vol z-score quintile | edge_lab.py (post-hoc) | 🔄 実行中 |
+| R1 | Hurst regime | edge_lab.py (post-hoc) | 🔄 実行中 |
 
 ### ⭐⭐ (次回優先度、BT データ蓄積後に検証)
-T3, T4, L2, N3, S1, S2, D2, D3, R2, TR1-TR4
+T4, L2, N3, S1, S2, D2, D3, R2, TR1-TR4
 
 ### ⭐ (低優先、既存戦略で捕捉済み可能性)
 L3, N2, S4, R3
