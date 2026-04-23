@@ -1,0 +1,407 @@
+[
+  {
+    "pair": "USD_JPY",
+    "is_window": {
+      "start": "2025-04-20",
+      "end": "2025-10-20",
+      "days": 158
+    },
+    "oos_window": {
+      "start": "2025-10-21",
+      "end": "2026-04-23",
+      "days": 159
+    },
+    "is_stats": {
+      "UP": {
+        "n": 47,
+        "mean_pip": 17.721276595744456,
+        "std_pip": 42.89981865839876,
+        "wr_positive": 70.2127659574468,
+        "t_stat": 2.8319688804747387
+      },
+      "DOWN": {
+        "n": 42,
+        "mean_pip": 3.4261904761901887,
+        "std_pip": 45.97702873394293,
+        "wr_positive": 50.0,
+        "t_stat": 0.4829423012094447
+      },
+      "NONE": {
+        "n": 42,
+        "mean_pip": 1.3285714285714112,
+        "std_pip": 48.461100186567,
+        "wr_positive": 59.523809523809526,
+        "t_stat": 0.17767089262804786
+      }
+    },
+    "oos_stats": {
+      "UP": {
+        "n": 51,
+        "mean_pip": 17.617647058823668,
+        "std_pip": 35.09264324826419,
+        "wr_positive": 74.50980392156863,
+        "t_stat": 3.5852290937400664
+      },
+      "DOWN": {
+        "n": 34,
+        "mean_pip": 11.16176470588265,
+        "std_pip": 35.52324023629924,
+        "wr_positive": 58.82352941176471,
+        "t_stat": 1.8321446081114634
+      },
+      "NONE": {
+        "n": 43,
+        "mean_pip": -3.0325581395347565,
+        "std_pip": 29.376487362089094,
+        "wr_positive": 41.86046511627907,
+        "t_stat": -0.6769295908752463
+      }
+    },
+    "up_verdict": {
+      "verdict": "STABLE_EDGE",
+      "is_mean": 17.721276595744456,
+      "is_wr": 70.2127659574468,
+      "oos_mean": 17.617647058823668,
+      "oos_wr": 74.50980392156863,
+      "mean_diff_pct": 0.6,
+      "wr_diff_pp": 4.3,
+      "oos_alive": true,
+      "stability_ok": true
+    },
+    "down_verdict": {
+      "verdict": "NOISY_BUT_ALIVE",
+      "is_mean": 3.4261904761901887,
+      "is_wr": 50.0,
+      "oos_mean": 11.16176470588265,
+      "oos_wr": 58.82352941176471,
+      "mean_diff_pct": 225.8,
+      "wr_diff_pp": 8.8,
+      "oos_alive": true,
+      "stability_ok": false
+    }
+  },
+  {
+    "pair": "EUR_USD",
+    "is_window": {
+      "start": "2025-04-20",
+      "end": "2025-10-20",
+      "days": 158
+    },
+    "oos_window": {
+      "start": "2025-10-21",
+      "end": "2026-04-23",
+      "days": 159
+    },
+    "is_stats": {
+      "UP": {
+        "n": 47,
+        "mean_pip": 8.997872340425708,
+        "std_pip": 27.469770536817386,
+        "wr_positive": 61.702127659574465,
+        "t_stat": 2.24560685069369
+      },
+      "DOWN": {
+        "n": 41,
+        "mean_pip": 13.134146341463135,
+        "std_pip": 27.277862102016567,
+        "wr_positive": 73.17073170731707,
+        "t_stat": 3.0830704570060625
+      },
+      "NONE": {
+        "n": 37,
+        "mean_pip": -3.7945945945946677,
+        "std_pip": 32.63445324115539,
+        "wr_positive": 45.94594594594595,
+        "t_stat": -0.7072776015920598
+      }
+    },
+    "oos_stats": {
+      "UP": {
+        "n": 48,
+        "mean_pip": 6.227083333333234,
+        "std_pip": 22.16638539530206,
+        "wr_positive": 62.5,
+        "t_stat": 1.9463028408022585
+      },
+      "DOWN": {
+        "n": 44,
+        "mean_pip": 2.2363636363637034,
+        "std_pip": 20.56201364065953,
+        "wr_positive": 61.36363636363637,
+        "t_stat": 0.7214448162748422
+      },
+      "NONE": {
+        "n": 31,
+        "mean_pip": -1.9838709677420396,
+        "std_pip": 25.193395150498414,
+        "wr_positive": 45.16129032258064,
+        "t_stat": -0.43843737648947695
+      }
+    },
+    "up_verdict": {
+      "verdict": "NOISY_BUT_ALIVE",
+      "is_mean": 8.997872340425708,
+      "is_wr": 61.702127659574465,
+      "oos_mean": 6.227083333333234,
+      "oos_wr": 62.5,
+      "mean_diff_pct": 30.8,
+      "wr_diff_pp": 0.8,
+      "oos_alive": true,
+      "stability_ok": false
+    },
+    "down_verdict": {
+      "verdict": "NOISY_BUT_ALIVE",
+      "is_mean": 13.134146341463135,
+      "is_wr": 73.17073170731707,
+      "oos_mean": 2.2363636363637034,
+      "oos_wr": 61.36363636363637,
+      "mean_diff_pct": 83.0,
+      "wr_diff_pp": 11.8,
+      "oos_alive": true,
+      "stability_ok": false
+    }
+  },
+  {
+    "pair": "GBP_USD",
+    "is_window": {
+      "start": "2025-04-20",
+      "end": "2025-10-20",
+      "days": 158
+    },
+    "oos_window": {
+      "start": "2025-10-21",
+      "end": "2026-04-23",
+      "days": 159
+    },
+    "is_stats": {
+      "UP": {
+        "n": 51,
+        "mean_pip": 12.63529411764711,
+        "std_pip": 29.36406249295168,
+        "wr_positive": 70.58823529411765,
+        "t_stat": 3.0729415807647324
+      },
+      "DOWN": {
+        "n": 45,
+        "mean_pip": 9.28444444444453,
+        "std_pip": 40.954424292569264,
+        "wr_positive": 62.22222222222222,
+        "t_stat": 1.5207623549623452
+      },
+      "NONE": {
+        "n": 25,
+        "mean_pip": -7.147999999999666,
+        "std_pip": 22.452921769783327,
+        "wr_positive": 40.0,
+        "t_stat": -1.5917750200375471
+      }
+    },
+    "oos_stats": {
+      "UP": {
+        "n": 51,
+        "mean_pip": 9.625490196078534,
+        "std_pip": 26.805851301075833,
+        "wr_positive": 64.70588235294117,
+        "t_stat": 2.564356138250193
+      },
+      "DOWN": {
+        "n": 54,
+        "mean_pip": 5.731481481481488,
+        "std_pip": 27.322164547908493,
+        "wr_positive": 66.66666666666666,
+        "t_stat": 1.5415182507107041
+      },
+      "NONE": {
+        "n": 18,
+        "mean_pip": 15.333333333333249,
+        "std_pip": 37.39545426920261,
+        "wr_positive": 61.111111111111114,
+        "t_stat": 1.7396184948269962
+      }
+    },
+    "up_verdict": {
+      "verdict": "STABLE_EDGE",
+      "is_mean": 12.63529411764711,
+      "is_wr": 70.58823529411765,
+      "oos_mean": 9.625490196078534,
+      "oos_wr": 64.70588235294117,
+      "mean_diff_pct": 23.8,
+      "wr_diff_pp": 5.9,
+      "oos_alive": true,
+      "stability_ok": true
+    },
+    "down_verdict": {
+      "verdict": "NOISY_BUT_ALIVE",
+      "is_mean": 9.28444444444453,
+      "is_wr": 62.22222222222222,
+      "oos_mean": 5.731481481481488,
+      "oos_wr": 66.66666666666666,
+      "mean_diff_pct": 38.3,
+      "wr_diff_pp": 4.4,
+      "oos_alive": true,
+      "stability_ok": false
+    }
+  },
+  {
+    "pair": "EUR_JPY",
+    "is_window": {
+      "start": "2025-04-20",
+      "end": "2025-10-20",
+      "days": 158
+    },
+    "oos_window": {
+      "start": "2025-10-21",
+      "end": "2026-04-23",
+      "days": 159
+    },
+    "is_stats": {
+      "UP": {
+        "n": 50,
+        "mean_pip": 16.30999999999983,
+        "std_pip": 38.95880003285506,
+        "wr_positive": 70.0,
+        "t_stat": 2.9602840927919853
+      },
+      "DOWN": {
+        "n": 43,
+        "mean_pip": 6.388372093022958,
+        "std_pip": 37.949049130486216,
+        "wr_positive": 53.48837209302325,
+        "t_stat": 1.103884240322409
+      },
+      "NONE": {
+        "n": 36,
+        "mean_pip": 0.05277777777771399,
+        "std_pip": 29.24729319015014,
+        "wr_positive": 52.77777777777778,
+        "t_stat": 0.010827212781965426
+      }
+    },
+    "oos_stats": {
+      "UP": {
+        "n": 52,
+        "mean_pip": 12.548536580561084,
+        "std_pip": 29.785406214438837,
+        "wr_positive": 65.38461538461539,
+        "t_stat": 3.0380241751623833
+      },
+      "DOWN": {
+        "n": 33,
+        "mean_pip": 9.762852774415512,
+        "std_pip": 37.50184121888553,
+        "wr_positive": 57.57575757575758,
+        "t_stat": 1.4954817563281275
+      },
+      "NONE": {
+        "n": 31,
+        "mean_pip": 5.229032258064363,
+        "std_pip": 29.854617555514828,
+        "wr_positive": 64.51612903225806,
+        "t_stat": 0.9751931809007994
+      }
+    },
+    "up_verdict": {
+      "verdict": "STABLE_EDGE",
+      "is_mean": 16.30999999999983,
+      "is_wr": 70.0,
+      "oos_mean": 12.548536580561084,
+      "oos_wr": 65.38461538461539,
+      "mean_diff_pct": 23.1,
+      "wr_diff_pp": 4.6,
+      "oos_alive": true,
+      "stability_ok": true
+    },
+    "down_verdict": {
+      "verdict": "NOISY_BUT_ALIVE",
+      "is_mean": 6.388372093022958,
+      "is_wr": 53.48837209302325,
+      "oos_mean": 9.762852774415512,
+      "oos_wr": 57.57575757575758,
+      "mean_diff_pct": 52.8,
+      "wr_diff_pp": 4.1,
+      "oos_alive": true,
+      "stability_ok": false
+    }
+  },
+  {
+    "pair": "GBP_JPY",
+    "is_window": {
+      "start": "2025-04-20",
+      "end": "2025-10-20",
+      "days": 158
+    },
+    "oos_window": {
+      "start": "2025-10-21",
+      "end": "2026-04-23",
+      "days": 159
+    },
+    "is_stats": {
+      "UP": {
+        "n": 51,
+        "mean_pip": 19.013725490196084,
+        "std_pip": 53.28765453026096,
+        "wr_positive": 68.62745098039215,
+        "t_stat": 2.548154182149011
+      },
+      "DOWN": {
+        "n": 37,
+        "mean_pip": -3.027027027026655,
+        "std_pip": 51.65111468224282,
+        "wr_positive": 43.24324324324324,
+        "t_stat": -0.35648188217180654
+      },
+      "NONE": {
+        "n": 38,
+        "mean_pip": 4.9871189039863175,
+        "std_pip": 33.259703815674555,
+        "wr_positive": 60.526315789473685,
+        "t_stat": 0.9243216889897924
+      }
+    },
+    "oos_stats": {
+      "UP": {
+        "n": 57,
+        "mean_pip": 16.763157894736803,
+        "std_pip": 46.33806222837051,
+        "wr_positive": 66.66666666666666,
+        "t_stat": 2.7312118943134998
+      },
+      "DOWN": {
+        "n": 39,
+        "mean_pip": 5.2410256410256695,
+        "std_pip": 47.573094733660085,
+        "wr_positive": 58.97435897435898,
+        "t_stat": 0.6879980127633344
+      },
+      "NONE": {
+        "n": 19,
+        "mean_pip": 23.37368421052618,
+        "std_pip": 35.157522847071455,
+        "wr_positive": 84.21052631578947,
+        "t_stat": 2.897915415004916
+      }
+    },
+    "up_verdict": {
+      "verdict": "STABLE_EDGE",
+      "is_mean": 19.013725490196084,
+      "is_wr": 68.62745098039215,
+      "oos_mean": 16.763157894736803,
+      "oos_wr": 66.66666666666666,
+      "mean_diff_pct": 11.8,
+      "wr_diff_pp": 2.0,
+      "oos_alive": true,
+      "stability_ok": true
+    },
+    "down_verdict": {
+      "verdict": "NOISY_BUT_ALIVE",
+      "is_mean": -3.027027027026655,
+      "is_wr": 43.24324324324324,
+      "oos_mean": 5.2410256410256695,
+      "oos_wr": 58.97435897435898,
+      "mean_diff_pct": 273.1,
+      "wr_diff_pp": 15.7,
+      "oos_alive": true,
+      "stability_ok": false
+    }
+  }
+]
