@@ -1,8 +1,18 @@
 # Pre-registration: Phase 4 — Regime-native Strategy Design (2026-04-23)
 
 **Locked**: 2026-04-23 (本 doc 確定以降、binding criteria 変更禁止)
+**Status (2026-04-23 updated)**: **DOWNSTREAM of
+[[pre-registration-phase4-adaptive-regime-classifier-2026-04-23]]**.
+本 doc の D1-D4 candidate は adaptive classifier stability GO **かつ**
+per-regime edge test の survivor-empty regime が特定された後にのみ authorize.
+Upstream 優先理由はユーザー指摘 (2026-04-23): static strategy fitting は
+現 regime snapshot への overfitting 危険、adaptive logic は overfitting 判定
+機構が別 (classifier stability 検定) で処理できる。
+
 **Scope**: 新戦略 design + backtest-level validation (no live deploy until pass)
-**Prerequisite**: [[cell-level-scan-2026-04-23]] Scenario A 確定
+**Prerequisite**: [[cell-level-scan-2026-04-23]] Scenario A 確定 +
+                  [[pre-registration-phase4-adaptive-regime-classifier-2026-04-23]]
+                  Phase B per-regime edge test 完了
 **Data foundation**: [[regime-characterization-2026-04-23]]
 
 ## Purpose
