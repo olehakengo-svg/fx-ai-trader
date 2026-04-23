@@ -3153,6 +3153,8 @@ class DemoTrader:
             "intraday_seasonality",          # Alpha#1: 日中リターン季節性 (Breedon & Ranaldo 2013)
             "wick_imbalance_reversion",      # Alpha#2: ヒゲ不均衡平均回帰 (Osler 2003)
             "atr_regime_break",              # Alpha#3: ATRレジーム転換ブレイクアウト (Engle 1982)
+            # v9.x: T3 Tokyo Range Breakout (2026-04-23) — Minimum Live USD_JPY BUY-only
+            "tokyo_range_breakout_up",       # Andersen-Bollerslev 1997 + WFA STABLE_EDGE (OOS WR=74.5%)
             # DISABLED (FXアナリストレビュー):
             # "ihs_neckbreak",       # 廃止: 2t EV≒0, 低頻度
             # "dual_sr_breakout",    # 廃止: 未評価
@@ -5151,6 +5153,10 @@ class DemoTrader:
         # v2.1: VWAP MR — Massive API exclusive α, Bonferroni p<10^-7 friction-adjusted
         # v9.1: vwap_mean_reversion 1.5→2.0 — 365d BT 3ペア平均EV>+1.0, N=575, PF>2.0
         "vwap_mean_reversion": 2.0,
+        # v9.x (2026-04-23): T3 Tokyo Range Breakout Minimum Live — Kelly 0.25x 相当
+        # WFA STABLE_EDGE (USD_JPY OOS N=51 WR=74.5% mean=+17.6p) 確認済だが初見 live のため trial 0.5x
+        # N>=15 & EV_cost>-0.5p & WR>=52% 確認後、1.0 (full Kelly Half) または 1.5 (Elite) に昇格検討
+        "tokyo_range_breakout_up": 0.5,
     }
 
     # ── Scalp Sentinel: 摩擦込みEV<0 → 最小ロットでデータ収集のみ ──

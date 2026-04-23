@@ -48,6 +48,7 @@
 | [[london-close-reversal-v2]] | no BT data | UNIVERSAL_SENTINEL |
 | [[london-ny-swing]] | GBP_USD: EV=+0.362 WR=72.7% | LOT_BOOST (not sentinel/elite) |
 | [[mtf-reversal-confluence]] | no BT data | LOT_BOOST (not sentinel/elite) |
+| [[tokyo-range-breakout-up]] | no BT data | LOT_BOOST (not sentinel/elite) |
 | [[trend-rebound]] | no BT data | UNIVERSAL_SENTINEL |
 | [[turtle-soup]] | GBP_USD: EV=+0.386 WR=69.7% | LOT_BOOST (not sentinel/elite) |
 | [[v-reversal]] | no BT data | UNIVERSAL_SENTINEL |
