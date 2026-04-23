@@ -2,13 +2,16 @@
 Shadow variant routing — derive filter-specialized entry_type names from runtime conditions.
 
 Phase 1 variants (derived from quant analysis 2026-04-23):
-- engulfing_bb_lvn: LVN zone filter (baseline N=158 WR=27.2% EV=-3.43 → N=51 WR=39.2% EV=+0.22, lift +3.65p)
-- stoch_trend_pullback_tokyo: Tokyo session only
-- ema_trend_scalp_ny: NY session only
+- engulfing_bb_lvn_london_ny: LVN zone × London(UTC7-12)/NY(UTC16-21) session
+    * 元 engulfing_bb_lvn (全セッション) は Bootstrap EV_lo<0 で昇格ゲート不通過
+    * セル分解で Overlap/Tokyo が drag、London N=13 WR=53.8% EV=+0.68p, NY N=12 WR=41.7% EV=+2.40p
+    * 精密化により真のエッジ源 (LVN × London/NY) のみ shadow 対象化
+- stoch_trend_pullback_tokyo: Tokyo session only (UTC 0-7)
+- ema_trend_scalp_ny: NY session only (UTC 16-21)
 
 New entry_type names are NOT listed in _FORCE_DEMOTED, so signals automatically
 accumulate as PHASE0_SHADOW for independent N tracking. Kelly Half Live promotion
-gate evaluated after N≥30 per variant.
+gate evaluated after variant-specific Bootstrap EV_cost_lo > 0 確認.
 """
 from datetime import datetime, timezone
 
@@ -43,10 +46,13 @@ def derive_variant_entry_type(sig, df=None, symbol=None):
     rtext = _reasons_text(sig)
     h = _hour_utc()
 
-    # engulfing_bb + LVN zone (MassiveSignalEnhancer tags "LVN内" or "低出来高ノード")
+    # engulfing_bb + LVN zone + London(7-12) or NY(16-21) session
+    # (Overlap 12-16 と Tokyo 0-7 は EV drag のため除外)
     if et == "engulfing_bb":
-        if "LVN内" in rtext or "低出来高ノード" in rtext:
-            return "engulfing_bb_lvn"
+        in_lvn = ("LVN内" in rtext) or ("低出来高ノード" in rtext)
+        in_london_ny = (7 <= h < 12) or (16 <= h < 21)
+        if in_lvn and in_london_ny:
+            return "engulfing_bb_lvn_london_ny"
         return None
 
     # stoch_trend_pullback in Tokyo session (UTC 0-7)
