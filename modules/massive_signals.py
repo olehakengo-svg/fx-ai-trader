@@ -144,34 +144,31 @@ class MassiveSignalEnhancer:
             return result
 
         # ── ゾーン分類 ──
+        # 2026-04-23: VWAP alignment 実測で逆校正 (aligned WR 20.0% vs conflict WR 26.7%)。
+        # 根本原因: このロジックは TF (trend-following) 前提だが、shadow データの多くは
+        # MR (mean-reversion) 戦略で価格のVWAP上下は support/resistance として逆作用。
+        # conf_adj を 0 に中立化。ゾーン情報は reasons に残し分析・ログ用途で保持。
+        # 検証: /tmp/triple_audit.py, wiki/analyses/shadow-subcell-analysis-2026-04-23.md
         dev = current_price - current_vwap
         zone = "NEUTRAL"
-        adj = 0
+        adj = 0  # neutralized — see comment above
 
         if dev > 2 * sigma:
             zone = "VWAP_EXTENDED"
-            if direction == "BUY":
-                adj = -3  # 過伸長でBUY減点
             result["reasons"].append(
-                f"VWAP +2sigma超過: 過伸長ゾーン (dev={dev / sigma:.1f}sigma)")
+                f"VWAP +{dev / sigma:.1f}sigma ゾーン (過伸長域)")
         elif dev > 0:
             zone = "VWAP_ABOVE_NEAR"
-            if direction == "BUY":
-                adj = +2  # VWAP上でBUY加点
             result["reasons"].append(
-                f"VWAP上位ゾーン (+{dev / sigma:.1f}sigma): BUY確度UP")
+                f"VWAP上位 (+{dev / sigma:.1f}sigma)")
         elif dev < -2 * sigma:
             zone = "VWAP_EXTENDED_DOWN"
-            if direction == "SELL":
-                adj = -3  # 過伸長でSELL減点
             result["reasons"].append(
-                f"VWAP -2sigma超過: 下方過伸長ゾーン (dev={dev / sigma:.1f}sigma)")
+                f"VWAP {dev / sigma:.1f}sigma ゾーン (下方過伸長)")
         elif dev < 0:
             zone = "VWAP_BELOW_NEAR"
-            if direction == "SELL":
-                adj = +2  # VWAP下でSELL加点
             result["reasons"].append(
-                f"VWAP下位ゾーン ({dev / sigma:.1f}sigma): SELL確度UP")
+                f"VWAP下位 ({dev / sigma:.1f}sigma)")
 
         result["zone"] = zone
         result["conf_adj"] = adj
@@ -186,26 +183,16 @@ class MassiveSignalEnhancer:
                 x = np.arange(len(valid_vwap))
                 slope = float(np.polyfit(x, valid_vwap, 1)[0])
 
-                slope_adj = 0
+                # 2026-04-23: slope_adj も TF 前提のため中立化 (VWAP ゾーン修正と同理由)。
+                # 方向情報は reasons にログ保持、conf_adj は加算しない。
                 if slope > 0:
                     result["slope_direction"] = "rising"
-                    if direction == "BUY":
-                        slope_adj = +2
-                    elif direction == "SELL":
-                        slope_adj = -2
                 elif slope < 0:
                     result["slope_direction"] = "falling"
-                    if direction == "SELL":
-                        slope_adj = +2
-                    elif direction == "BUY":
-                        slope_adj = -2
 
-                if slope_adj != 0:
-                    result["conf_adj"] += slope_adj
+                if result["slope_direction"] != "flat":
                     result["reasons"].append(
-                        f"VWAPスロープ {result['slope_direction']}: "
-                        f"{'方向一致' if slope_adj > 0 else '方向不一致'} "
-                        f"({'+' if slope_adj > 0 else ''}{slope_adj})")
+                        f"VWAPスロープ {result['slope_direction']}")
 
         return result
 
