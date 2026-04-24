@@ -107,6 +107,8 @@
   - 5-7日で N≥500/group, 30日で p<0.05 検出想定
 
 ## Key Decisions
+- [[shadow-deep-mining-2026-04-24]] -- **🎯 最新** Shadow 7次元診断 → Scenario A 追認 / bb_rsi・ema・sr_channel の MR 系は現行 regime で dead (friction>edge)
+- [[pre-registration-mafe-dynamic-exit-2026-04-24]] -- MAFE-based Time-Decay Exit の forward-usable pre-reg (target: bb_rsi_reversion, 48 param cells, Bonferroni α=1.04e-3)
 - [[external-audit-2026-04-24]] -- **🎯 最新監査** Gap/Over-eng/Resource/Must-Do-Don't + surgery 結果 (§5 Action Items tracked)
 - [[audit-completion-protocol]] -- 監査後の completion 追跡フロー (session-start で §5 確認必須)
 - [[independent-audit-2026-04-10]] -- 2 audits, binding recommendations
