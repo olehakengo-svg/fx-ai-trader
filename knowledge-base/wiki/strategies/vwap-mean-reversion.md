@@ -73,10 +73,11 @@ Post-fix 180d × {1m, 5m} × JPY crosses (`raw/bt-results/bt-scalp-180d-jpy-post
 ## Live Performance (post-cutoff, 2026-04-08〜)
 | Strategy | Pairs | N | WR | PnL | Updated |
 |---|---|---|---|---|---|
-| vwap_mean_reversion | all | 6 | 50.0% | -4.6 pip | 2026-04-22 |
+| vwap_mean_reversion | all | 8 | 50.0% | -17.5 pip | 2026-04-23 |
 
-⚠️ **重大変化**: 前回 N=2 WR=50% +36.9pip からN=6に増加し、PnL=-4.6pipへ反転。4新規トレードで**-41.5pip**。2026-04-22 ロンドン早朝に GBP_USD BUY (OANDA #350905) + EUR_JPY BUY (OANDA #350909) の2件live fill確認。WRは50%を維持しているが、avg loss > avg win のパターンが示唆される。N=6では統計的判断不可 — 継続監視。
-Data source: /api/demo/stats?date_from=2026-04-08 (2026-04-22)
+⚠️ **悪化継続**: N=6 -4.6pip (2026-04-22) → N=8 -17.5pip (2026-04-23). 2新規トレードで**-12.9pip**の追加損失。WRは50%を維持しているが、avg_loss >> avg_win パターンが強まっている。PnLは3日で +36.9→-4.6→-17.5 と急転落。
+BT実績 (GBP_JPY: EV=+1.025, EUR_JPY: EV=+0.672) との乖離が拡大中。N=8では統計的判断不可 — 継続監視。N≥20到達まで実装変更なし (lesson-reactive-changes)。
+Data source: /api/demo/stats?date_from=2026-04-08 (2026-04-23)
 
 ## Signal Logic
 VWAP 2-sigma mean reversion. Enters BUY when price drops below VWAP minus 2 standard deviations, expecting reversion to VWAP. Massive API exclusive alpha — requires intraday VWAP calculation from tick/volume data. Bonferroni-corrected p<10^-7 across JPY crosses.

@@ -1,5 +1,16 @@
 # Knowledge Base Change Log
 
+## 2026-04-23 (wiki-daily-update): 自動スケジュールタスク
+- **Daily trade log**: `raw/trade-logs/2026-04-23.md` 作成 — post-cutoff FX-only N=255, WR=39.6%, PnL=-171.9pip
+- **wiki/index.md**: System State更新 — DD 28.15%→**28.01%** (280.1pip), PnL -171.0→**-171.9pip**, N 248→255, WR 39.1%→39.6%, EV -0.69→-0.67, Kelly edge -13.56%→-15.11%, Ruin **0.04%→0.78%** ⚠️, last_updated 2026-04-22→2026-04-23; Trade Logs セクションに2026-04-23追加
+- **Strategy pages** (1ページ更新):
+  - `vwap-mean-reversion.md` — Live更新: N=6→8, PnL=-4.6→**-17.5pip** (2新規トレードで-12.9pip追加、avg_loss>>avg_win パターン継続)
+- **OANDA今日**: live fills=0 (全30件shadow_tracking, IDs 2755-2784), 総system trades=2,784
+- **Risk state**: DD=28.01%, lot=0.2x, Kelly=0.0 (edge=-15.11%), MC ruin=0.78%, median equity=797.35, VaR95=8.41
+- **Learning API**: scalp WR=48.2% EV=+0.25 (Ready, N=245), daytrade WR=40.0% EV=-1.91 (N=15)
+- **主要観察**: ⚠️ MC ruin 0.04%→0.78% (20x悪化、Kelly edge悪化が主因). ⚠️ vwap_mean_reversion 3日連続悪化 (+36.9→-4.6→-17.5). trend_rebound N=17 WR=23.5%で止血閾値に接近. session_time_bias WR=0% N=4 (ELITE_LIVE tier、小N注意). bb_rsi_reversion が scalp_5m で blacklist/restore ループを繰り返し中.
+- **Lint**: 参照ファイル確認済み / wikilink破損なし / 陳腐化: vwap-mean-reversion更新済み, 他は前回同様多数あるがデータ変化なし
+
 ## 2026-04-23: 5-Proposal 並列分析 (A/C/D/E 完了、B running)
 - **新規 session doc**: `wiki/sessions/five-proposal-parallel-2026-04-22.md` 作成
 - **A (KSFT × vwap_mr)**: 4 pair で quartile 分析 — pair 毎に逆方向の quartile 優位、統一 filter は不可。GBP_JPY × KSFT≤-0.818 (N=68 WR=83.8% PF=4.63) のみ standout
