@@ -9332,6 +9332,8 @@ def api_strategies_status():
         # shadow-only = shadow_total - live
         sh_n = int(shadow.get("trades", 0)) - int(live.get("trades", 0))
         sh_pnl = round(float(shadow.get("pnl", 0)) - float(live.get("pnl", 0)), 1)
+        sh_wins = int(shadow.get("wins", 0)) - int(live.get("wins", 0))
+        sh_wr = round(sh_wins / sh_n * 100, 1) if sh_n > 0 else 0.0
 
         promoted_pairs = sorted(p for s, p in pair_promoted if s == strat)
         demoted_pairs = sorted(p for s, p in pair_demoted if s == strat)
@@ -9364,7 +9366,12 @@ def api_strategies_status():
                 "wr": float(live.get("win_rate", 0)),
                 "pnl": float(live.get("pnl", 0)),
             },
-            "shadow": {"n": max(sh_n, 0), "pnl": sh_pnl},
+            "shadow": {
+                "n": max(sh_n, 0),
+                "wins": max(sh_wins, 0),
+                "wr": sh_wr,
+                "pnl": sh_pnl,
+            },
             "pair_cells": pair_cells,
         })
 
@@ -9372,6 +9379,13 @@ def api_strategies_status():
     tier_counts: dict = {}
     for s in strategies_out:
         tier_counts[s["tier"]] = tier_counts.get(s["tier"], 0) + 1
+
+    tot_sh_n = max(int(shadow_stats.get("total", 0)) - int(live_stats.get("total", 0)), 0)
+    tot_sh_wins = max(int(shadow_stats.get("wins", 0)) - int(live_stats.get("wins", 0)), 0)
+    tot_sh_pnl = round(
+        float(shadow_stats.get("total_pnl", 0)) - float(live_stats.get("total_pnl", 0)), 1
+    )
+    tot_sh_wr = round(tot_sh_wins / tot_sh_n * 100, 1) if tot_sh_n > 0 else 0.0
 
     return jsonify({
         "generated_at": tier_master.get("generated_at"),
@@ -9383,6 +9397,9 @@ def api_strategies_status():
             "live_n": live_stats.get("total", 0),
             "live_pnl": live_stats.get("total_pnl", 0),
             "live_wr": live_stats.get("decided_win_rate", 0),
+            "shadow_n": tot_sh_n,
+            "shadow_wr": tot_sh_wr,
+            "shadow_pnl": tot_sh_pnl,
         },
         "strategies": strategies_out,
     })
