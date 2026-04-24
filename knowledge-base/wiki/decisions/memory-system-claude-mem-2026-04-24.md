@@ -2,7 +2,7 @@
 
 **Date**: 2026-04-24
 **Decision Type**: アーキテクチャ変更（開発ツール層）
-**Status**: PROPOSED — 実装待ち (user-side install 完了後に適用)
+**Status**: IMPLEMENTED (Phase 1 install / Phase 2 exclusion 完了)
 
 ## 背景
 
@@ -82,25 +82,41 @@ SessionStart hook で ~30KB、UserPromptSubmit hook で毎ターン ~5KB (`KB_SY
 ```
 → Claude Code 再起動
 
-### Phase 2: fx-ai-trader 側で injection 無効化 (Claude 実行)
-1. `~/.claude-mem/settings.json` の hook injection 設定を確認
-2. project `.claude/settings.json` で claude-mem の SessionStart / UserPromptSubmit hook を上書き無効化、または claude-mem の project-level exclusion 機能を使用
-3. MCP `search` / `timeline` / `get_observations` ツールのみ残す
+### Phase 2: fx-ai-trader 側で injection 無効化 (Claude 実行) — DONE 2026-04-24
+1. ~~`~/.claude-mem/settings.json` の hook injection 設定を確認~~ → 完了
+2. ~~project `.claude/settings.json` で claude-mem の SessionStart / UserPromptSubmit hook を上書き無効化、または claude-mem の project-level exclusion 機能を使用~~ → claude-mem 側の native 機能で対応: `~/.claude-mem/settings.json` に `"CLAUDE_MEM_EXCLUDED_PROJECTS": "/Users/jg-n-012/test/fx-ai-trader"` を設定
+3. MCP `search` / `timeline` / `get_observations` ツールのみ残す (他プロジェクトのデータを横断検索する用途)
+
+**注意**: `CLAUDE_MEM_EXCLUDED_PROJECTS` は以下 3 hook のみを短絡する:
+- `UserPromptSubmit` (session-init)
+- `PostToolUse *` (observation)
+- `PreToolUse Read` (file-context)
+
+以下 3 hook は**対象外**（ただし capture 済データが無ければ実効空動作）:
+- `SessionStart context` — 過去 observation がゼロなので注入内容も空
+- `Stop summarize` / `SessionEnd` — 同上
+
+結果: fx-ai-trader では claude-mem の自動注入・capture は発生しない。MCP 検索ツールは他プロジェクトのデータに対してのみ有効。
+
+バックアップ: `~/.claude-mem/settings.json.bak-b1-2026-04-24`
 
 ### Phase 3: 動作確認
-- `curl http://localhost:37777/health` → worker 生存
-- 新 session 起動して `KB_SYNC` の二重注入が無いこと確認
-- `KB_SYNC` 注入サイズが従来（~30KB）のまま保たれていること
+- [x] `~/.claude-mem/worker.pid` 生存確認 (pid 72034)
+- [x] `CLAUDE_MEM_EXCLUDED_PROJECTS` regex マッチ確認 (cwd `/Users/jg-n-012/test/fx-ai-trader` 一致)
+- [ ] 次 session 起動時に `KB_SYNC` 以外の自動注入が無いこと確認 (observational)
+- [ ] PostToolUse に observation hook 呼び出しログが無いこと確認 (`~/.claude-mem/logs/`)
 
 ### Phase 4: 運用ルール確定
-- **fx-ai-trader**: KB が single source of truth、claude-mem は debug 時の履歴検索のみ
-- **他プロジェクト**: claude-mem 標準運用で可
+- **fx-ai-trader**: KB が single source of truth、claude-mem は他プロジェクトでのみ作動
+- **他プロジェクト**: claude-mem 標準運用で可 (scratch/検証プロジェクト等)
+- **撤退**: `mv ~/.claude-mem/settings.json.bak-b1-2026-04-24 ~/.claude-mem/settings.json` で即時 rollback
 
 ## Success Criteria
-- [ ] claude-mem worker が port 37777 で稼働
-- [ ] fx-ai-trader 新 session 起動時、KB auto-load 以外の自動注入が発生しない
-- [ ] MCP `search` ツールで過去 tool-call を検索可能
-- [ ] 既存 PostToolUse hook (post-edit-check.sh 等) が壊れていない
+- [x] claude-mem worker が稼働 (port は `37700 + uid%100` = 37701)
+- [x] fx-ai-trader cwd で `EXCLUDED_PROJECTS` 短絡条件が成立
+- [ ] fx-ai-trader 新 session 起動時、KB auto-load 以外の自動注入が発生しない (次 session で observational verification)
+- [ ] MCP `search` ツールで他プロジェクトの過去 tool-call を検索可能 (次 session で動作テスト)
+- [x] 既存 PostToolUse hook (post-edit-check.sh 等) が壊れていない (本セッションで編集動作確認済)
 
 ## リスクと撤退基準
 - Context 二重注入が発生（KB_SYNC サイズ > 50KB/ターン）→ Phase 2 再設定
