@@ -3432,7 +3432,11 @@ class DemoTrader:
             _gate_group = "mtf_gated" if (_ab_hash % 2 == 0) else "label_only"
 
             # Group A (mtf_gated): conflict なら LIVE→SHADOW 降格
-            if _gate_group == "mtf_gated":
+            # v2.1 fix (2026-04-24): ELITE_LIVE 戦略は MTF gate から免除
+            #   — ELITE は DT幹として BT 365日 STRONG 確認済みで、既存
+            #   _SHADOW_MODE Phase0 gate と同じく LIVE 送信を維持する必要あり.
+            #   A/B hash の半分で無条件 shadow 降格される実装漏れがあった.
+            if _gate_group == "mtf_gated" and entry_type not in self._ELITE_LIVE:
                 if _mtf_alignment == "conflict":
                     if not _is_shadow:
                         _is_shadow = True
@@ -3446,6 +3450,8 @@ class DemoTrader:
                         _mtf_gate_action = "kept"  # 既に shadow なので変化なし
                 else:
                     _mtf_gate_action = "kept"
+            elif _gate_group == "mtf_gated" and entry_type in self._ELITE_LIVE:
+                _mtf_gate_action = "elite_exempt"
             # Group B (label_only): アクションなし
         except Exception as _e:
             _mtf_regime_str = "uncertain"
@@ -4270,6 +4276,22 @@ class DemoTrader:
         if _is_shadow:
             _is_promoted = False
 
+        # ── v2.1 Emergency Trip (2026-04-24): vwap_mean_reversion OANDA 送信停止 ──
+        # Live post-cutoff 16d: N=10 WR=40% PnL=-47.7pip (-4.77p/trade).
+        # BT 365d (EV=+1.025/+0.672) との乖離が持続. Shadow は継続 (DB記録/統計).
+        # Kill-switch: env var VWAP_MR_OANDA_TRIP (default=1); "0" で解除.
+        # 解除条件: v2 sublimation logic が Shadow で N≥20 正 EV を実証.
+        _VWAP_MR_OANDA_TRIP = _os.environ.get("VWAP_MR_OANDA_TRIP", "1") == "1"
+        if _VWAP_MR_OANDA_TRIP and entry_type == "vwap_mean_reversion":
+            if not _is_shadow:
+                _is_shadow = True
+                _is_promoted = False
+                _shadow_at_open = True
+                self._add_log(
+                    "[EMERGENCY_TRIP] vwap_mean_reversion OANDA 送信停止 "
+                    "(Live N=10 WR=40% -47.7pip). Shadow 継続."
+                )
+
         # ══════════════════════════════════════════════════════
         # v10 Q4 GATE (transition safety net during confidence_v2 rollout)
         # ══════════════════════════════════════════════════════
@@ -4281,7 +4303,11 @@ class DemoTrader:
         # Effect estimate: +572.7 pip/month recovery.
         # Planned removal: ~2026-06-03 after confidence_v2 validation.
         _q4_conf_val = float(sig.get("confidence", 0) or 0)
-        if _q4_should_shadow(entry_type, _q4_conf_val):
+        # v2.1 fix (2026-04-24): ELITE_LIVE は Q4 gate からも免除
+        #   — Q4 rule (Kelly<0 AND Wilson_hi<BEV AND N>=15) は 4 戦略の
+        #   confidence_v2 transition を目的とした net で、DT幹の ELITE は
+        #   別 pre-reg で BT STRONG 確認済み. 混在で LIVE が封じ込まれていた.
+        if entry_type not in self._ELITE_LIVE and _q4_should_shadow(entry_type, _q4_conf_val):
             if not _is_shadow:
                 _q4_reason = _q4_gate_reason(entry_type, _q4_conf_val) or "Q4_GATE"
                 self._add_log(f"🛡️ {_q4_reason}")

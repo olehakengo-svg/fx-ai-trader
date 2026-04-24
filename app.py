@@ -3172,6 +3172,10 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             print(f"[streak_reversal] {_stk_err}")
 
     # ── Strategy: vwap_mean_reversion — VWAP-2σ回帰 (Massive API only) ──
+    # v2 sublimation (2026-04-24): Live -47.7pip の濃毒化対応. 元の 2σ signal に
+    #   追加ゲートを挿入 (slope flat / ADX hard block / active hours / reclaim conf).
+    #   env var VWAP_MR_V2=1 (default on); "0" で旧挙動へ即時ロールバック.
+    #   OANDA 送信は demo_trader.py の緊急トリップで別途停止 (Shadow 継続).
     if _ENABLE_VWAP_MEAN_REVERSION and "vwap" in df.columns and (signal == "WAIT" or conf < 50):
         try:
             _vmr_vwap = float(row["vwap"])
@@ -3187,6 +3191,51 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                     elif _vmr_dev > 2 * _vmr_std:
                         _vmr_signal = "SELL"
                         _vmr_conf = int(50 + min(5, abs(_vmr_dev) * 3))
+
+                    # ── v2 sublimation filters (Shadow-only validation) ──
+                    import os as _vmr_os_mod
+                    _VMR_V2 = _vmr_os_mod.environ.get("VWAP_MR_V2", "1") == "1"
+                    if _VMR_V2 and _vmr_signal:
+                        # (1) VWAP slope flat only (normalized |slope| <= 0.3 * sigma/bar)
+                        try:
+                            _vwap_tail = df["vwap"].tail(10).values
+                            if len(_vwap_tail) >= 5:
+                                _vmr_slope_raw = (float(_vwap_tail[-1]) - float(_vwap_tail[0])) / max(1, len(_vwap_tail) - 1)
+                                _vmr_slope_norm = abs(_vmr_slope_raw) / max(1e-9, _vmr_std * _vmr_vwap / 100)
+                                if _vmr_slope_norm > 0.3:
+                                    reasons.append(f"🚫 [VWAP-MR v2] slope too steep (|norm|={_vmr_slope_norm:.2f}>0.3) → skip")
+                                    _vmr_signal = None
+                        except Exception:
+                            pass
+                        # (2) ADX hard block (>=22 で MR は逆行): already penalty exists but v2 = hard block
+                        if _vmr_signal is not None:
+                            try:
+                                if float(adx) >= 22.0:
+                                    reasons.append(f"🚫 [VWAP-MR v2] ADX={adx:.1f}>=22 hard block (trending)")
+                                    _vmr_signal = None
+                            except Exception:
+                                pass
+                        # (3) Active hours (UTC 7-20): Asia 深夜 / NY 引け後は除外
+                        if _vmr_signal is not None:
+                            try:
+                                _vmr_hour = datetime.now(timezone.utc).hour
+                                if _vmr_hour not in range(7, 20):
+                                    reasons.append(f"🚫 [VWAP-MR v2] outside active hours (UTC {_vmr_hour})")
+                                    _vmr_signal = None
+                            except Exception:
+                                pass
+                        # (4) Reclaim confirmation: 直前バーが σ 端に対して中心寄りであること
+                        if _vmr_signal is not None:
+                            try:
+                                _vmr_dev_prev = float(_vmr_dev_series.iloc[-2]) if len(_vmr_dev_series) >= 2 else _vmr_dev
+                                if _vmr_signal == "BUY" and _vmr_dev_prev <= _vmr_dev:
+                                    reasons.append(f"🚫 [VWAP-MR v2] no reclaim (prev {_vmr_dev_prev:.2f} ≤ cur {_vmr_dev:.2f})")
+                                    _vmr_signal = None
+                                elif _vmr_signal == "SELL" and _vmr_dev_prev >= _vmr_dev:
+                                    reasons.append(f"🚫 [VWAP-MR v2] no reclaim (prev {_vmr_dev_prev:+.2f} ≥ cur {_vmr_dev:+.2f})")
+                                    _vmr_signal = None
+                            except Exception:
+                                pass
 
                     # v9.x fix: HTF Hard Block check — VWAP-MR runs after DTE HTF block,
                     # so must independently respect HTF agreement direction
@@ -8279,6 +8328,47 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                     elif _vmr_dev_sc > 2 * _vmr_std_sc:
                         _vmr_sig_sc = "SELL"
                         _vmr_conf_sc = int(50 + min(5, abs(_vmr_dev_sc) * 3))
+
+                    # ── v2 sublimation filters (Shadow-only validation, Scalp) ──
+                    import os as _vmr_os_mod_sc
+                    _VMR_V2_SC = _vmr_os_mod_sc.environ.get("VWAP_MR_V2", "1") == "1"
+                    if _VMR_V2_SC and _vmr_sig_sc:
+                        try:
+                            _vwap_tail_sc = df["vwap"].tail(10).values
+                            if len(_vwap_tail_sc) >= 5:
+                                _slope_raw_sc = (float(_vwap_tail_sc[-1]) - float(_vwap_tail_sc[0])) / max(1, len(_vwap_tail_sc) - 1)
+                                _slope_norm_sc = abs(_slope_raw_sc) / max(1e-9, _vmr_std_sc * _vmr_vwap_sc / 100)
+                                if _slope_norm_sc > 0.3:
+                                    reasons.append(f"🚫 [VWAP-MR v2/sc] slope too steep (|norm|={_slope_norm_sc:.2f}>0.3)")
+                                    _vmr_sig_sc = None
+                        except Exception:
+                            pass
+                        if _vmr_sig_sc is not None:
+                            try:
+                                if float(adx) >= 22.0:
+                                    reasons.append(f"🚫 [VWAP-MR v2/sc] ADX={adx:.1f}>=22 hard block")
+                                    _vmr_sig_sc = None
+                            except Exception:
+                                pass
+                        if _vmr_sig_sc is not None:
+                            try:
+                                _h_sc = datetime.now(timezone.utc).hour
+                                if _h_sc not in range(7, 20):
+                                    reasons.append(f"🚫 [VWAP-MR v2/sc] outside active hours (UTC {_h_sc})")
+                                    _vmr_sig_sc = None
+                            except Exception:
+                                pass
+                        if _vmr_sig_sc is not None:
+                            try:
+                                _dp_sc = float(_vmr_dev_series_sc.iloc[-2]) if len(_vmr_dev_series_sc) >= 2 else _vmr_dev_sc
+                                if _vmr_sig_sc == "BUY" and _dp_sc <= _vmr_dev_sc:
+                                    reasons.append(f"🚫 [VWAP-MR v2/sc] no reclaim")
+                                    _vmr_sig_sc = None
+                                elif _vmr_sig_sc == "SELL" and _dp_sc >= _vmr_dev_sc:
+                                    reasons.append(f"🚫 [VWAP-MR v2/sc] no reclaim")
+                                    _vmr_sig_sc = None
+                            except Exception:
+                                pass
 
                     # v9.x fix: HTF Hard Block check
                     if _vmr_sig_sc:
