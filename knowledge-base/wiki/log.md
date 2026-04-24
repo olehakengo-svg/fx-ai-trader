@@ -1,5 +1,16 @@
 # Knowledge Base Change Log
 
+## 2026-04-24 (wiki-daily-update): 自動スケジュールタスク
+- **Daily trade log**: `raw/trade-logs/2026-04-24.md` 作成 — post-cutoff FX-only N=259, WR=39.0%, PnL=-215.0pip
+- **wiki/index.md**: System State更新 — DD 28.01%→**32.32%** ⚠️ (323.2pip), PnL -171.9→**-215.0pip**, N 255→259, WR 39.6%→39.0%, EV -0.67→-0.83, Kelly edge -15.11%→-17.97%, Ruin **0.78%→2.72%** ⚠️, last_updated 2026-04-23→2026-04-24; Trade Logs セクションに2026-04-24追加
+- **Strategy pages** (1ページ更新):
+  - `vwap-mean-reversion.md` — Live更新: N=8→10, PnL=-17.5→**-47.7pip** (2新規トレードで-30.2pip追加、OANDA kill-switch適用確認, WR 50%→40%)
+- **OANDA今日**: live fill=1 (GBP_USD BUY bb_rsi_reversion → scalp_5m_gbp OANDA#378534, 12:39 UTC), shadow=29 (IDs 3056-3085), 総system trades=3,085
+- **Risk state**: DD=32.32%, lot=0.2x, Kelly=0.0 (edge=-17.97%), MC ruin=2.72%, median equity=747.4, VaR95=9.01, CVaR95=15.98
+- **Learning API**: scalp WR=48.2% EV=+0.25 (Ready, N=245), daytrade WR=40.0% EV=-1.91 (N=15, Underperforming); Auto-adj 2026-04-23: daytrade_gbpusd threshold 30→35, scalp_5m threshold 30→35, bb_rsi blacklisted
+- **主要観察**: ⚠️ DD 32.32% (前日+4.31pp、最大1日増加). ⚠️ MC ruin 0.78%→2.72% (3.5x悪化). ⚠️ vwap_mr N=10 -47.7pip (kill-switch確認済み). bb_rsi_reversion -12.9pip today (N=126, WR=40.5%). trend_rebound N=17 WR=23.5% stop threshold到達 — 手動評価要.
+- **Lint**: 参照ファイル確認済み / wikilink問題なし (elite-freeing-patch-2026-04-24.md は wiki/analyses/ に存在) / WR/PnL整合性問題なし / 陳腐化: 前回から変化なし (多数のstaleページあるが今日のデータ変化なし)
+
 ## 2026-04-23 (wiki-daily-update): 自動スケジュールタスク
 - **Daily trade log**: `raw/trade-logs/2026-04-23.md` 作成 — post-cutoff FX-only N=255, WR=39.6%, PnL=-171.9pip
 - **wiki/index.md**: System State更新 — DD 28.15%→**28.01%** (280.1pip), PnL -171.0→**-171.9pip**, N 248→255, WR 39.1%→39.6%, EV -0.69→-0.67, Kelly edge -13.56%→-15.11%, Ruin **0.04%→0.78%** ⚠️, last_updated 2026-04-22→2026-04-23; Trade Logs セクションに2026-04-23追加
