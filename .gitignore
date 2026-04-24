@@ -58,3 +58,7 @@ bt_*.json
 session_matrix_*.json
 HANDOVER_PROMPT.md
 node_modules/
+
+# ── BT results: 大きな per-trade ダンプは git 非追跡 (summary.json と result-stub.md のみ track) ──
+raw/bt-results/**/trades.json
+.remember/tmp/

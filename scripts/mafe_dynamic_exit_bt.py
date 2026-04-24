@@ -77,6 +77,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+# Prevent app.py AutoStart from spawning live demo_trader threads when we
+# later import compute_scalp_signal. Must be set before any `import app`.
+os.environ.setdefault("BT_MODE", "1")
+
 # Load .env so MASSIVE_API_KEY / OANDA_TOKEN are picked up for local runs
 # (matches the pattern used in app.py and _bt_baseline_comparison.py).
 try:
@@ -279,8 +283,7 @@ def extract_bb_rsi_entries(symbol: str, df) -> List[Dict[str, Any]]:
        entry_type == TARGET_STRATEGY. Return list of entry dicts.
     """
     # Deferred imports to avoid loading app.py in --dry-run
-    from app import compute_scalp_signal, _compute_bt_htf_bias
-    from modules.data import get_master_bias
+    from app import compute_scalp_signal, _compute_bt_htf_bias, get_master_bias
     try:
         _layer1 = get_master_bias(symbol)
     except Exception:
@@ -613,7 +616,7 @@ def run(args) -> int:
                 file=sys.stderr,
             )
             return 2
-        from modules.data import add_indicators
+        from modules.indicators import add_indicators
         all_entries: List[Dict[str, Any]] = []
         pair_df: Dict[str, Any] = {}
         for sym in PAIRS:
