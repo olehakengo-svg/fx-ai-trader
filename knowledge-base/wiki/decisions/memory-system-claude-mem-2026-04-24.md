@@ -19,11 +19,20 @@
 
 SessionStart hook で ~30KB、UserPromptSubmit hook で毎ターン ~5KB (`KB_SYNC` + security guidance) を既に注入中。
 
-## claude-mem の仕様
+## claude-mem の仕様（ソース確認済、2026-04-24）
 
-- Claude Code プラグイン (global install)
-- 5 Lifecycle Hooks: SessionStart / UserPromptSubmit / PostToolUse / Stop / SessionEnd
-- Bun 管理 Worker Service (port 37777), SQLite + Chroma ベクタ DB
+- Claude Code プラグイン (global install via marketplace `thedotmack`)
+- **7 Hooks** (plugin/hooks/hooks.json):
+  - `Setup *` — smart-install.js（初回のみ、Bun/SQLite/Chroma setup、`~/.claude-mem/` 作成）
+  - `SessionStart startup|clear|compact` — 3サブhook: ①smart-install確認 ②worker起動 ③**context注入**
+  - `UserPromptSubmit` — session-init
+  - `PreToolUse Read` — file-context capture
+  - `PostToolUse *` — observation（全tool call capture）
+  - `Stop` — summarize
+  - `SessionEnd` — session-complete
+- **Worker port**: 固定ではなく `$((37700 + UID % 100))` で計算（被らないため）
+- **Env override**: `CLAUDE_MEM_WORKER_PORT` / `CLAUDE_MEM_WORKER_HOST` / `CLAUDE_MEM_DATA_DIR`
+- Bun 管理 Worker Service、SQLite + Chroma ベクタ DB
 - Claude Agent SDK で全 tool call を意味圧縮 → 次 session で過去 observation を自動注入
 - 依存: Node 18+, Bun, uv, Claude Agent SDK
 
