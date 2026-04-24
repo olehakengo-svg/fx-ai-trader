@@ -2,7 +2,7 @@
 
 ## 🎯 最重要目標: 月利100% → 年利1,200%
 **全施策の判断基準。これに寄与しない施策は後回し。**
-- 現在: **DD防御0.2x** (DD=**25.9%**, defensive mode) → 月利47%（BT推定、クリーンデータ蓄積中）
+- 現在: **DD防御0.2x** (DD=**28.01%**, defensive mode) → 月利47%（BT推定、クリーンデータ蓄積中）
 - Phase 3 (Kelly Half): 月利594%
 - 詳細: **[[roadmap-v2.1]]** (DT幹+Scalp枝統合、v2.1)
 - 旧: [[roadmap-v2]] (v2.0) / [[roadmap-to-100pct]] (v1)
@@ -79,12 +79,12 @@
 <!-- KB_PORTFOLIO_END -->
 
 ## System State (v9.4 / v2.1)
-- Defensive mode: **0.2x** (DD=**28.15%** / 281.5pip, defensive mode — v8.4以降クリーンデータ起点)
+- Defensive mode: **0.2x** (DD=**28.01%** / 280.1pip, defensive mode — v8.4以降クリーンデータ起点)
 - XAU: **Stopped** (v8.4) -- post-cutoff XAU loss = -2,280pip (102% of total loss)
-- FX-only post-cutoff (2026-04-08〜): **-171.0pip** (live N=248, WR=39.1%, EV=-0.69) ※ ema_trend_scalp FORCE_DEMOTED後
-- Ruin probability: **0.04%** (MC 5,000 sims, N=300 forward)
-- Aggregate Kelly: **0.0** (edge=-13.56%, WR=43.0%, N=414)
-- Last updated: 2026-04-22 (wiki-daily-update)
+- FX-only post-cutoff (2026-04-08〜): **-171.9pip** (live N=255, WR=39.6%, EV=-0.67) ※ ema_trend_scalp FORCE_DEMOTED後
+- Ruin probability: **0.78%** ⚠️ (MC 5,000 sims, N=300 forward — 前回0.04%から上昇)
+- Aggregate Kelly: **0.0** (edge=-15.11%, WR=39.6%, N=255)
+- Last updated: 2026-04-23 (wiki-daily-update)
 - scalp_eurjpy: **Stopped** (v8.6) -- friction/ATR=43.6%, 構造的不可能
 - scalp_5m_eur / scalp_5m_gbp: **Active** (v8.6) -- 5m摩擦改善モード
 - New modes (v9.0): **daytrade_eurjpy**, **daytrade_gbpjpy**, **[[rnb-usdjpy]]** (all auto_start)
@@ -114,6 +114,7 @@
 - [[negative-strategy-stopping-rule]] -- Shadow 止血ルール Level A/B/C（Bayesian 基準）
 
 ## Session History
+- **2026-04-23 wiki-daily-update** — N=255, WR=39.6%, PnL=-171.9pip, DD=28.01%, ruin=0.78% ⚠️ (from 0.04%), vwap_mr N=8 -17.5pip継続悪化, live fills=0
 - [[sessions/quant-edge-scan-2026-04-23]] — **🎯 最新** Session/Horizon/Regime 3軸エッジスキャン (T3 Tokyo Range Breakout 確認 / L1 OFI MR / edge_lab T1-T2-D1-R1-S3 実行)
 - [[sessions/handover-2026-04-22]] — **🎯 次セッション引き継ぎ** 2026-04-22 総括: TP-hit 分析 + Scalp vwap_mr バグ修正 + Exposure/Resend fix + OSS 横断調査/qlib/pybroker 転用
 - [[sessions/handover-tp-hit-quant-analysis-2026-04-21]] — **🎯 次セッション引き継ぎ #2** TP-hit 698件 quant 分析 (family-wise noise 結論、3副次発見: score 予測力ゼロ / confidence 負相関 / spread edge 有意)
@@ -170,6 +171,7 @@
 - [[bt-live-divergence-scan-2026-04-22]] / [[bt-live-divergence-v3-full-stack-2026-04-22]] — 365d JPY DT + 180d Scalp fresh BT
 
 ### Trade Logs
+- [[2026-04-23]] — daily summary (auto-generated 2026-04-23)
 - [[2026-04-22]] — daily summary (auto-generated 2026-04-22)
 - [[2026-04-21]] — daily summary (auto-generated 2026-04-21)
 - [[2026-04-21-monitor]] / [[2026-04-21-pre_tokyo]] / [[2026-04-21-post_tokyo]]
