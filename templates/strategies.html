@@ -253,6 +253,21 @@ table.strategies tr[data-tier=FORCE_DEMOTED]      td.stripe{border-left-color:va
 .pnl-cell{font-variant-numeric:tabular-nums;font-weight:700}
 .pnl-cell.pos{color:var(--go)} .pnl-cell.neg{color:var(--block)} .pnl-cell.zero{color:var(--t-dim)}
 
+/* Shadow section — equal billing to Live. Dim chrome + purple accent (cyan would clash with UNIVERSAL_SENTINEL) */
+table.strategies thead th.sh-lead,
+table.strategies tbody td.sh-lead{border-left:1px dashed var(--border-hi)}
+table.strategies thead th.sh{color:var(--purple);letter-spacing:.12em}
+.sh-cell{display:flex;flex-direction:column;gap:2px;min-width:68px;align-items:flex-end}
+.sh-val{font-variant-numeric:tabular-nums;font-weight:600;font-size:12px}
+.sh-val.pos{color:var(--go)} .sh-val.neg{color:var(--block)} .sh-val.dim{color:var(--t-dim)}
+.sh-sub{font-size:9.5px;color:var(--t-low);font-family:var(--mono);letter-spacing:.02em}
+.sh-sub.warn{color:var(--warn)} .sh-sub.pos{color:var(--go)}
+.sh-n{display:inline-flex;align-items:baseline;gap:3px;font-variant-numeric:tabular-nums;justify-content:flex-end;width:100%}
+.sh-n .big{font-weight:700;font-size:12.5px;color:var(--purple)}
+.sh-n.stall .big{color:var(--t-dim)}
+.sh-n.ready .big{color:var(--go)}
+.sh-n .gate{font-size:10px;color:var(--t-dim)}
+
 /* expand */
 tr.pair-row{background:var(--panel-hi)}
 tr.pair-row td{padding:14px 20px 16px 56px;font-size:11.5px;color:var(--t-mid);border-top:1px dashed var(--border)}
@@ -612,8 +627,23 @@ function enrich(list){
     const kelly = n >= 10 ? kellyFrac(wr, 1.0) : null;
     const bt = BT_REF[s.name] || {};
     const diff = (bt.ev != null && ev != null) ? (ev - bt.ev) : null;
+
+    /* Shadow — same statistical treatment as Live (Wilson, Kelly) */
+    const shN   = Number(s.shadow?.n)||0;
+    const shWr  = Number(s.shadow?.wr)||0;
+    const shPnl = Number(s.shadow?.pnl)||0;
+    const shEv  = shN ? shPnl/shN : null;
+    const shWins   = Math.round((shWr/100) * shN);
+    const shWilson = shN >= 5  ? wilsonLower(shWins, shN, 1.96) : null;
+    const shKelly  = shN >= 10 ? kellyFrac(shWr, 1.0)            : null;
+
     const decision = decide(s);
-    return { ...s, _n:n,_wr:wr,_pnl:pnl,_ev:ev,_wilson:wilson,_kelly:kelly,_bt:bt,_diff:diff,_decision:decision };
+    return { ...s,
+      _n:n,_wr:wr,_pnl:pnl,_ev:ev,_wilson:wilson,_kelly:kelly,
+      _bt:bt,_diff:diff,_decision:decision,
+      _shN:shN,_shWr:shWr,_shPnl:shPnl,_shEv:shEv,
+      _shWilson:shWilson,_shKelly:shKelly,
+    };
   });
 }
 
@@ -626,11 +656,17 @@ function renderGlobalKpi(){
   el.textContent = "";
   const pnl = Number(t.live_pnl)||0;
   const wr  = t.live_wr;
+  const shN = Number(t.shadow_n)||0;
+  const shWr = (t.shadow_wr==null?null:Number(t.shadow_wr));
+  const shPnl = Number(t.shadow_pnl)||0;
   const items = [
-    ["STRATEGIES", String(t.strategies||0), ""],
-    ["LIVE N",     String(t.live_n||0),     ""],
-    ["LIVE WR",    (wr==null?"—":fmt(wr)+"%"), ""],
-    ["LIVE PnL",   (pnl===0?"0":signed(pnl)), cls3(pnl)],
+    ["STRATEGIES", String(t.strategies||0),                    ""],
+    ["LIVE N",     String(t.live_n||0),                         ""],
+    ["LIVE WR",    (wr==null?"—":fmt(wr)+"%"),                  ""],
+    ["LIVE PnL",   (pnl===0?"0":signed(pnl)),                   cls3(pnl)],
+    ["SHADOW N",   String(shN),                                  (shN?"":"dim")],
+    ["SHADOW WR",  (shN>=5&&shWr!=null?fmt(shWr)+"%":"—"),       (shN?"":"dim")],
+    ["SHADOW PnL", (shN?signed(shPnl):"—"),                      (shN?cls3(shPnl):"dim")],
   ];
   for(const [lbl,val,vcls] of items){
     const k = h("div",{cls:"kpi"});
@@ -720,8 +756,12 @@ function renderTable(list){
     { k:"wr",       t:"WR (Wilson)", num:true, optional:true },
     { k:"kelly",    t:"KELLY",       num:true },
     { k:"n",        t:"N",           num:true },
-    { k:"shn",      t:"Sh N",        num:true, optional:true },
     { k:"pnl",      t:"PNL",         num:true },
+    /* Shadow section — equal statistical treatment as Live */
+    { k:"shev",     t:"Sh EV",       num:true, optional:true, cls:"sh-lead sh" },
+    { k:"shwr",     t:"Sh WR",       num:true, optional:true, cls:"sh" },
+    { k:"shn",      t:"Sh N",        num:true,                cls:"sh" },
+    { k:"shpnl",    t:"Sh PnL",      num:true, optional:true, cls:"sh" },
     { k:"exp",      t:"",            num:false },
   ];
   const table = h("table",{cls:"strategies",role:"table",aria:{label:"Strategies"}});
@@ -840,16 +880,55 @@ function renderTable(list){
     nTd.appendChild(nBox);
     tr.appendChild(nTd);
 
-    /* Shadow N */
-    const shN = Number(s.shadow?.n)||0;
-    const shTd = h("td",{cls:"num optional"});
-    shTd.appendChild(h("span",{cls:`ev-val ${shN?"":"dim"}`,text:String(shN)}));
-    tr.appendChild(shTd);
-
     /* PnL */
     const pnlTd = h("td",{cls:"num"});
     pnlTd.appendChild(h("span",{cls:`pnl-cell ${cls3(s._pnl)}`,text:s._n ? signed(s._pnl) : "—"}));
     tr.appendChild(pnlTd);
+
+    /* Shadow EV — lead cell of shadow section */
+    const shEvTd = h("td",{cls:"num optional sh-lead"});
+    if(s._shEv != null){
+      const box = h("div",{cls:"sh-cell"});
+      box.appendChild(h("span",{cls:`sh-val ${cls3(s._shEv)}`,text:signed(s._shEv,2)+"p"}));
+      if(s._bt?.ev != null){
+        const dv = s._shEv - s._bt.ev;
+        box.appendChild(h("span",{cls:`sh-sub ${Math.abs(dv)>=2?"warn":""}`,text:`Δbt ${signed(dv,2)}`}));
+      }
+      shEvTd.appendChild(box);
+    } else {
+      shEvTd.appendChild(h("span",{cls:"sh-val dim",text:"—"}));
+    }
+    tr.appendChild(shEvTd);
+
+    /* Shadow WR (Wilson) */
+    const shWrTd = h("td",{cls:"num optional"});
+    if(s._shN >= 5){
+      const box = h("div",{cls:"sh-cell"});
+      box.appendChild(h("span",{cls:"sh-val",text:fmt(s._shWr)+"%"}));
+      if(s._shWilson != null){
+        const bad  = s._shWilson < BEV_WR_DEFAULT;
+        const good = s._shWilson >= 55;
+        box.appendChild(h("span",{cls:`sh-sub ${bad?"warn":(good?"pos":"")}`,text:`W.L ${fmt(s._shWilson)}%`}));
+      }
+      shWrTd.appendChild(box);
+    } else {
+      shWrTd.appendChild(h("span",{cls:"sh-val dim",text:"—"}));
+    }
+    tr.appendChild(shWrTd);
+
+    /* Shadow N */
+    const shNTd = h("td",{cls:"num"});
+    const shState = s._shN >= GATE_READY_N ? "ready" : (s._shN >= 5 ? "" : "stall");
+    const shNBox = h("span",{cls:`sh-n ${shState}`});
+    shNBox.appendChild(h("span",{cls:"big",text:String(s._shN)}));
+    shNBox.appendChild(h("span",{cls:"gate",text:`/${GATE_READY_N}`}));
+    shNTd.appendChild(shNBox);
+    tr.appendChild(shNTd);
+
+    /* Shadow PnL */
+    const shPnlTd = h("td",{cls:"num optional"});
+    shPnlTd.appendChild(h("span",{cls:`pnl-cell ${s._shN?cls3(s._shPnl):"zero"}`,text:s._shN?signed(s._shPnl):"—"}));
+    tr.appendChild(shPnlTd);
 
     /* expand */
     const expTd = h("td",{cls:"num"});
@@ -986,7 +1065,14 @@ function renderCards(list){
     m.appendChild(mk("Live N",   String(s._n||0),                                s._n?"":"dim"));
     m.appendChild(mk("WR",       s._n?fmt(s._wr)+"%":"—",                        s._n?"":"dim"));
     m.appendChild(mk("W.L 95%",  s._wilson!=null?fmt(s._wilson)+"%":"—",        s._wilson!=null?(s._wilson<BEV_WR_DEFAULT?"neg":"pos"):"dim"));
-    m.appendChild(mk("Sh N",     String(Number(s.shadow?.n)||0),                 (Number(s.shadow?.n)||0)?"":"dim"));
+    m.appendChild(mk("Live PnL", s._n?signed(s._pnl):"—",                        s._n?cls3(s._pnl):"dim"));
+    /* Shadow section (vault data — equal statistical billing) */
+    m.appendChild(mk("Sh EV",    s._shEv!=null?signed(s._shEv,2)+"p":"—",        s._shEv!=null?cls3(s._shEv):"dim"));
+    m.appendChild(mk("Sh WR",    s._shN>=5?fmt(s._shWr)+"%":"—",                 s._shN?"":"dim"));
+    m.appendChild(mk("Sh W.L",   s._shWilson!=null?fmt(s._shWilson)+"%":"—",     s._shWilson!=null?(s._shWilson<BEV_WR_DEFAULT?"neg":"pos"):"dim"));
+    m.appendChild(mk("Sh Kelly", s._shKelly!=null?signed(s._shKelly*100,1)+"%":"—", s._shKelly!=null?cls3(s._shKelly):"dim"));
+    m.appendChild(mk("Sh N",     String(s._shN||0),                               s._shN?"":"dim"));
+    m.appendChild(mk("Sh PnL",   s._shN?signed(s._shPnl):"—",                    s._shN?cls3(s._shPnl):"dim"));
     card.appendChild(m);
 
     if(s._decision.note){
