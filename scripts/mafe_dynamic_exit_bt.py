@@ -31,11 +31,17 @@ Binding CANDIDATE:
 
 All REJECT -> closure path, no code deployment.
 
-Data source (requires env vars):
+Data source (requires env vars, loaded from .env via python-dotenv if present):
     MASSIVE_API_KEY   primary (5m OHLCV, up to 180d+ per call with pagination)
     OANDA_TOKEN       fallback (range fetch with chunked pagination)
 
-Usage (on Render Shell with env vars set):
+Local setup (once):
+    1. cp .env.example .env    (if .env missing)
+    2. echo "MASSIVE_API_KEY=<your_key>" >> .env
+    3. echo "OANDA_TOKEN=<your_token>"   >> .env
+    .env is gitignored; keys are user-owned (same as configured on Render).
+
+Usage (local or Render Shell):
     python3 scripts/mafe_dynamic_exit_bt.py \\
         --from 2025-04-09 \\
         --to   2026-04-08 \\
@@ -70,6 +76,18 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+# Load .env so MASSIVE_API_KEY / OANDA_TOKEN are picked up for local runs
+# (matches the pattern used in app.py and _bt_baseline_comparison.py).
+try:
+    from dotenv import load_dotenv
+    _DOTENV_PATH = Path(__file__).resolve().parents[1] / ".env"
+    if _DOTENV_PATH.exists():
+        load_dotenv(_DOTENV_PATH)
+    else:
+        load_dotenv()  # fall back to CWD / inherited env
+except ImportError:
+    pass  # dotenv optional; env vars may already be set by the shell
 
 # ---------------------------------------------------------------------------
 # Configuration (LOCKED from pre-reg)
@@ -579,6 +597,22 @@ def run(args) -> int:
         print("[dry-run] generating 50 synthetic trades for logic validation...", flush=True)
         trades = _synthetic_trades(50)
     else:
+        # Fail fast if neither data-source credential is present.
+        has_massive = bool(os.environ.get("MASSIVE_API_KEY"))
+        has_oanda = bool(os.environ.get("OANDA_TOKEN") or os.environ.get("OANDA_API_TOKEN"))
+        print(
+            f"[env] MASSIVE_API_KEY={'set' if has_massive else 'MISSING'} | "
+            f"OANDA_TOKEN={'set' if has_oanda else 'MISSING'}",
+            flush=True,
+        )
+        if not (has_massive or has_oanda):
+            print(
+                "[fatal] neither MASSIVE_API_KEY nor OANDA_TOKEN found. "
+                "For local runs, put them in .env at the repo root (see script "
+                "docstring). For Render, set them in the service env.",
+                file=sys.stderr,
+            )
+            return 2
         from modules.data import add_indicators
         all_entries: List[Dict[str, Any]] = []
         pair_df: Dict[str, Any] = {}
