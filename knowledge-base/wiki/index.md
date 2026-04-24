@@ -107,6 +107,8 @@
   - 5-7日で N≥500/group, 30日で p<0.05 検出想定
 
 ## Key Decisions
+- [[external-audit-2026-04-24]] -- **🎯 最新監査** Gap/Over-eng/Resource/Must-Do-Don't + surgery 結果 (§5 Action Items tracked)
+- [[audit-completion-protocol]] -- 監査後の completion 追跡フロー (session-start で §5 確認必須)
 - [[independent-audit-2026-04-10]] -- 2 audits, binding recommendations
 - [[xau-stop-rationale]] -- FX profitable without XAU
 - [[mfe-zero-analysis]] -- 90.6% of losses never go favorable
