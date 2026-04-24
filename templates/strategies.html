@@ -188,6 +188,7 @@ table.strategies thead th{
   text-align:left; white-space:nowrap;
 }
 table.strategies thead th.num{text-align:right}
+table.strategies thead th.stripe{width:6px;padding:0;background:var(--panel-hi);border-bottom:1px solid var(--border-hi)}
 table.strategies tbody tr{border-bottom:1px solid var(--border);transition:background var(--trans);animation:rowIn .3s ease-out both}
 @keyframes rowIn{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
 table.strategies tbody tr:hover{background:var(--panel-hover)}
@@ -729,7 +730,7 @@ function renderTable(list){
   const thead = h("thead");
   const hr = h("tr");
   for(const c of cols){
-    const cls = `${c.num?"num":""} ${c.optional?"optional":""}`.trim();
+    const cls = [c.cls||"", c.num?"num":"", c.optional?"optional":""].filter(Boolean).join(" ");
     hr.appendChild(h("th",{cls, text:c.t}));
   }
   thead.appendChild(hr);
