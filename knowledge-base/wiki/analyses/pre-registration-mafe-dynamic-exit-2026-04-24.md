@@ -153,33 +153,35 @@ elif bar_index >= X and MFE_cumulative >= Y:
 - BT v3 (現行) — per-pair RT friction を exit cost に加算
 - Market-order exit を想定するため、TP/SL でなく市場執行の slippage を適用
 
-### Implementation outline
+### Implementation (committed)
 
-```python
-# /tmp/mafe_dynamic_exit_bt.py (script to be authored post-LOCK)
+Script: `scripts/mafe_dynamic_exit_bt.py` (committed 2026-04-24)
 
-BASELINE_STRATEGY = "bb_rsi_reversion"
-X_GRID = [3, 5, 8, 12]
-Y_GRID = [0, 1, 2, 3]
-Z_GRID = [3, 5, 8]
-BT_FROM = "2025-04-09"
-BT_TO   = "2026-04-08"
-PAIRS = ["USD_JPY","EUR_USD","GBP_USD","EUR_JPY","GBP_JPY"]
-FRICTION = {"USD_JPY":2.14, "EUR_USD":2.00, "GBP_USD":4.53, "EUR_JPY":2.50, "GBP_JPY":3.0}
+Local dry-run (synthetic, logic validation only):
+```bash
+python3 scripts/mafe_dynamic_exit_bt.py --dry-run --output-dir /tmp/mafe-dry
+```
 
-# Step 1: replay baseline bb_rsi_reversion entries on historical 5m bars
-# Step 2: for each entry, simulate per-bar MFE/MAE evolution
-# Step 3: apply exit rule at each (X,Y,Z) combination
-# Step 4: compute V2 PnL vs BASE PnL per param-cell
-# Step 5: Fisher/Welch/Wilson/WF per cell
-# Step 6: output /tmp/mafe_dynamic_exit_results.csv
+Full BT run on Render Shell (requires `MASSIVE_API_KEY` + `OANDA_TOKEN`):
+```bash
+python3 scripts/mafe_dynamic_exit_bt.py \
+    --from 2025-04-09 --to 2026-04-08 \
+    --output-dir raw/bt-results/mafe-dynamic-exit-2026-04-24
+```
+
+Sanity run before full BT (smaller window, ~2 weeks):
+```bash
+python3 scripts/mafe_dynamic_exit_bt.py \
+    --from 2025-04-09 --to 2025-04-23 \
+    --output-dir /tmp/mafe-sanity
 ```
 
 ### Output artifacts
 
-- `/tmp/mafe_dynamic_exit_results.csv` (48 rows × metrics)
-- `raw/bt-results/mafe-dynamic-exit-2026-04-24.json` (machine-readable)
-- `wiki/analyses/mafe-dynamic-exit-result-2026-04-24.md` (human-readable, post-BT)
+- `raw/bt-results/mafe-dynamic-exit-2026-04-24/summary.json` — 48-cell verdict table
+- `raw/bt-results/mafe-dynamic-exit-2026-04-24/trades.json` — per-trade baseline + V2 simulations
+- `raw/bt-results/mafe-dynamic-exit-2026-04-24/result-stub.md` — markdown summary (seed for wiki)
+- `wiki/analyses/mafe-dynamic-exit-result-2026-04-24.md` — final human-readable analysis (authored post-BT)
 
 ## 6. Post-BT Decision Tree (LOCKED before data look)
 
