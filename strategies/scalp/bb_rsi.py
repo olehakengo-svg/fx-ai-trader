@@ -47,6 +47,17 @@ class BBRsiReversion(StrategyBase):
     tp_mult_tier1 = 2.2   # TP倍率 (Tier1) v6.3: 2.0→2.2 極端ゾーン反転幅大
     tp_mult_tier2 = 1.5   # TP倍率 (Tier2)
 
+    # ── v11.1 (2026-04-25) Asymmetric Agility Rule 3 — RR floor ──
+    # Pre-2026-04-25 観測: 実測 TP=4.92p / SL=4.27p → 実効 RR=1.17.
+    # WR=32.3% (Wilson_lo=26.4%) で BEV_WR=48.1% を必要とする構造的負EV.
+    # BEV_WR = 1/(1+RR) → WR=32.3% で +EV を満たす最低 RR = 2.10.
+    # 摩擦 (USD_JPY 2.14p RT) と TP 拡張による WR drop を勘案し
+    # Tier2 で RR=2.5, Tier1 で RR=3.0 をフロアとして強制する.
+    # ATR ベースの旧 TP は背面互換のため維持し、フロアが上回る場合のみ拡張する.
+    # 詳細: [[bb-rsi-fix-rr-2.5-2026-04-25]] / [[lesson-asymmetric-agility-2026-04-25]]
+    rr_floor_tier1 = 3.0  # Tier1 (極端ゾーン): RR≥3.0 強制
+    rr_floor_tier2 = 2.5  # Tier2 (通常): RR≥2.5 強制 (BEV margin vs WR=32.3%)
+
     # ── USD/JPY専用: Gold Hours (Option C + v6.3強化) ──
     # v7.0: Death Valley撤廃 — マーケット開いてる間は攻める。
     # 静的時間ブロックではなくSpread/SL Gate(動的)が防御を担う。
@@ -141,11 +152,13 @@ class BBRsiReversion(StrategyBase):
             if ctx.macdh > ctx.macdh_prev and ctx.macdh_prev <= ctx.macdh_prev2:
                 score += 0.6
                 reasons.append("✅ MACD-H反転上昇（モメンタム消耗→回復）")
-            # SL/TP
-            tp_mult = self.tp_mult_tier1 if tier1 else self.tp_mult_tier2
-            tp = ctx.entry + ctx.atr7 * tp_mult
+            # SL/TP — v11.1 RR floor (Rule 3 Asymmetric Agility 2026-04-25)
             sl_dist = max(abs(ctx.entry - ctx.bb_lower) + ctx.atr7 * 0.3, _min_sl)
             sl = ctx.entry - sl_dist
+            tp_mult = self.tp_mult_tier1 if tier1 else self.tp_mult_tier2
+            rr_floor = self.rr_floor_tier1 if tier1 else self.rr_floor_tier2
+            tp_dist = max(ctx.atr7 * tp_mult, sl_dist * rr_floor)
+            tp = ctx.entry + tp_dist
 
         # ── SELL判定 ──
         # v7.0: Stoch K<D strict → K<D OR K下落中（反転方向で許容）
@@ -185,10 +198,13 @@ class BBRsiReversion(StrategyBase):
             if ctx.macdh < ctx.macdh_prev and ctx.macdh_prev >= ctx.macdh_prev2:
                 score += 0.6
                 reasons.append("✅ MACD-H反転下落（モメンタム消耗→回復）")
-            tp_mult = self.tp_mult_tier1 if tier1 else self.tp_mult_tier2
-            tp = ctx.entry - ctx.atr7 * tp_mult
+            # SL/TP — v11.1 RR floor (Rule 3 Asymmetric Agility 2026-04-25)
             sl_dist = max(abs(ctx.bb_upper - ctx.entry) + ctx.atr7 * 0.3, _min_sl)
             sl = ctx.entry + sl_dist
+            tp_mult = self.tp_mult_tier1 if tier1 else self.tp_mult_tier2
+            rr_floor = self.rr_floor_tier1 if tier1 else self.rr_floor_tier2
+            tp_dist = max(ctx.atr7 * tp_mult, sl_dist * rr_floor)
+            tp = ctx.entry - tp_dist
 
         if signal is None:
             return None

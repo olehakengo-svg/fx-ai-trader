@@ -1,5 +1,10 @@
 # Pre-Registration: bb_rsi_reversion RR 1.5 救済 BT 365日検定 (2026-04-25)
 
+> ⚠️ **撤回 (2026-04-25 同日)** — 本 pre-reg は [[lesson-asymmetric-agility-2026-04-25]] Rule 3 (Immediate, 算数破綻修正) により**撤回**.
+> 365日 BT を待たず本番コードに RR=2.5 (Tier2) / RR=3.0 (Tier1) 即時適用済.
+> 詳細: [[bb-rsi-fix-rr-2.5-2026-04-25]]
+> 本ドキュメントは規律改定の証跡として参考保管 (削除しない).
+
 ## 1. 背景と動機
 
 TP-hit deep-mining ([[tp-hit-deep-mining-grail-2026-04-25]]) で

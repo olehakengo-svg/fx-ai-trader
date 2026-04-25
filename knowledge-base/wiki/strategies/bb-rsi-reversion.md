@@ -1,7 +1,32 @@
 # bb_rsi_reversion
 
-## Status: SCALP_SENTINEL + PAIR_DEMOTED (全ペア)
+## Status: SCALP_SENTINEL + PAIR_DEMOTED (全ペア) + OANDA_TRIP (BB_RSI_OANDA_TRIP=1)
 **現行**: SCALP_SENTINEL (最小ロット shadow)。EUR_JPY / EUR_USD / GBP_USD / USD_JPY の 4 ペアすべて PAIR_DEMOTED — 実弾通過なし。
+
+## ★ 2026-04-25 v11.1 RR floor 適用 (Asymmetric Agility Rule 3)
+
+### 修正内容
+TP 計算式を `max(ATR×tp_mult, SL_dist × RR_floor)` に変更.
+
+| Tier | tp_mult (旧 ATR 倍率) | RR_floor (新, 強制) |
+|---|---:|---:|
+| Tier1 (極端ゾーン) | 2.2 | **3.0** |
+| Tier2 (通常) | 1.5 | **2.5** |
+
+### 数学的根拠
+WR=32.3% (Wilson_lo=26.4%) で BEV_WR=48.1% を必要とする構造的負 EV.
+旧 RR=1.17 では算数破綻 → RR=2.5 (Tier2) で BEV_WR=28.6% に降下、観測 32.3% に対し +3.7pp マージン確保.
+
+### 規律根拠
+[[lesson-asymmetric-agility-2026-04-25]] Rule 3 (Immediate, 算数破綻修正) — 365日 BT スキップ.
+撤回された pre-reg: [[bb-rsi-rr15-rescue-2026-04-25]].
+詳細修正記録: [[bb-rsi-fix-rr-2.5-2026-04-25]].
+
+### 監視 (Rule 2 警報閾値)
+- N=10 で Wilson_lo (WR) < 20% → 即停止
+- N=20 で PF < 0.7 → 即停止
+- N=30 で EV < -1.0p → 即停止
+- N=30 で Wilson_lo > 28.6% AND PF > 1.1 → Rule 1 経路で OANDA TRIP 解除 pre-reg 起案
 
 ## 2026-04-21 post-Cutoff 観測
 

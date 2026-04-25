@@ -19,3 +19,16 @@
 2. **既存戦略との整合性**: 新対策がBonferroni有意な既存エッジと矛盾しないか
 3. **バグ修正 vs パラメータ変更**: バグ修正は即時OK。パラメータ変更はBT検証後
 4. **動機の記録**: 「なぜ今これを変えるか」を1行で書く。感情的理由（「SHADOWで利益が取れていた」）なら保留
+
+---
+
+### ★ 2026-04-25 改定: Asymmetric Agility 適用範囲
+
+本 lesson は [[lesson-asymmetric-agility-2026-04-25]] の **Rule 1 (Slow & Strict)** の根拠 lesson として継続有効.
+ただし**全変更に対称的に課す運用は撤回**. 適用範囲は以下に限定:
+
+- ✅ **Rule 1 領域 (本 lesson 適用)**: 新戦略追加, 新フィルタ導入, Shadow→Live 昇格, pair promotion, lot 拡大
+- ❌ **Rule 2 領域 (本 lesson 不適用)**: 損失停止, Shadow 降格, lot↓ — 数トレードで即断可
+- ❌ **Rule 3 領域 (本 lesson 不適用)**: 算数破綻 / 構造バグ修正 — 365日 BT スキップ
+
+判断時は [[lesson-asymmetric-agility-2026-04-25]] §3 のフローチャートを参照すること.

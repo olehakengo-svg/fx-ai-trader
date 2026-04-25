@@ -1,5 +1,22 @@
 # Knowledge Base Change Log
 
+## 2026-04-25 (rule:R3): Asymmetric Agility 規律改定 + bb_rsi RR=2.5 即時適用
+- **規律改定**: `wiki/lessons/lesson-asymmetric-agility-2026-04-25.md` 新規 — 3層非対称ルール (Rule 1 Slow & Strict / Rule 2 Fast & Reactive / Rule 3 Immediate)
+- **CLAUDE.md**: 判断プロトコルを Rule 1/2/3 分類に書き換え、コミットメッセージに `rule:R[1|2|3]` 明示要求
+- **lesson-reactive-changes**: §改定で Rule 1 領域に限定する追記
+- **lessons/index.md**: 新 lesson のエントリ追加
+- **Rule 3 第1適用 — bb_rsi_reversion**:
+  - `strategies/scalp/bb_rsi.py` に `rr_floor_tier1=3.0` / `rr_floor_tier2=2.5` を追加
+  - TP 計算を `max(ATR×tp_mult, SL_dist × RR_floor)` に変更 (BUY/SELL 対称, 後方互換 max 並走)
+  - 数学根拠: WR=32.3% で BEV_WR=48.1% 必要 vs 観測 RR=1.17 → 構造的負 EV. RR≥2.10 で BEV、Wilson_lo (26.4%) で 2.79、TP-extension WR drop 補正後 ≈ 2.66
+- **新規 doc**: `wiki/analyses/bb-rsi-fix-rr-2.5-2026-04-25.md` (修正記録 + 数学 derivation + 影響範囲 + Rule 2 警報閾値)
+- **撤回**: `wiki/analyses/bb-rsi-rr15-rescue-2026-04-25.md` を Rule 3 即時適用により撤回マーク (削除はせず証跡保管)
+- **bb-rsi-reversion strategy KB**: v11.1 RR floor セクション追加、Status に OANDA_TRIP 明記、Rule 2 監視閾値記載
+- **dt_bb_rsi_mr 適用見送り**: WR データ不在 + 0.01 lot Sentinel + MIN_RR=1.2 既存ガード → Rule 1 経路で順次対応
+- **OANDA TRIP 維持**: `BB_RSI_OANDA_TRIP=1` 解除しない. Live PnL 直接影響ゼロ
+- **Lint 結果**: 7 target files / 119 actual wikilinks 全 resolved (broken=0). 唯一の "broken" は `[[lesson-名前]]` テンプレートプレースホルダ (既存)
+- **問題なし**: ⚠️ フラグ無し
+
 ## 2026-04-25 (wiki-lint): TP-hit grid 分析 + stale unresolved 整理
 - **新規 doc**: `wiki/analyses/tp-hit-pair-session-grid-2026-04-25.md` (Universe N=2,494, 36-cell grid, BEV-gap 数学分析)
 - **修正 doc**: `wiki/sessions/2026-04-25-session.md` (Phase 2 narrative 追加、stale 4 件 [x] 化)、`wiki/strategies/bb-squeeze-breakout.md` (USD_JPY direction-asymmetric Shadow split 追記)
