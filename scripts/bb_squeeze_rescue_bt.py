@@ -540,11 +540,17 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--from", dest="from_iso", default="2025-04-26")
     ap.add_argument("--to", dest="to_iso", default="2026-04-25")
-    ap.add_argument("--output-dir", default="raw/bt-results/bb-squeeze-rescue-2026-04-25")
+    ap.add_argument("--output-dir", default=None,
+                    help="Output dir (default: /tmp/... for dry-run, raw/... for live)")
     ap.add_argument("--dry-run", action="store_true",
                     help="Use synthetic null trades; expects all REJECT")
     ap.add_argument("--n-synth", type=int, default=200)
     args = ap.parse_args()
+    # Default output dir: dry-run goes to /tmp to avoid clobbering tracked production summaries
+    if args.output_dir is None:
+        args.output_dir = ("/tmp/bb-squeeze-rescue-dryrun"
+                           if args.dry_run
+                           else "raw/bt-results/bb-squeeze-rescue-2026-04-25")
     # Allow `from app import ...` regardless of CWD (mirrors mafe harness).
     _proj_root = str(Path(__file__).resolve().parents[1])
     if _proj_root not in sys.path:

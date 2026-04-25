@@ -218,10 +218,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--from", dest="from_iso", default="2025-04-26")
     ap.add_argument("--to", dest="to_iso", default="2026-04-25")
-    ap.add_argument("--output-dir", default="raw/bt-results/time-floor-meta-2026-04-25")
+    ap.add_argument("--output-dir", default=None)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--n-synth", type=int, default=60, help="per-strategy synthetic trades")
     args = ap.parse_args()
+    if args.output_dir is None:
+        args.output_dir = ("/tmp/time-floor-meta-dryrun"
+                           if args.dry_run
+                           else "raw/bt-results/time-floor-meta-2026-04-25")
     _proj_root = str(Path(__file__).resolve().parents[1])
     if _proj_root not in sys.path:
         sys.path.insert(0, _proj_root)
