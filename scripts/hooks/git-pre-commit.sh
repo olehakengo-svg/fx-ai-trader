@@ -144,4 +144,39 @@ if [[ -f "$DRIFT_CHECK" ]]; then
     fi
 fi
 
+# ── KB Integrity: edge_md_lint (EDGE.md manifest) ──
+# Added 2026-04-26: Validate cell-aware routing manifest
+echo "[pre-commit] Checking EDGE.md manifest..."
+EDGE_LINT="$REPO_ROOT/tools/edge_md_lint.py"
+EDGE_MD="$REPO_ROOT/knowledge-base/wiki/manifests/EDGE.md"
+if [[ -f "$EDGE_LINT" && -f "$EDGE_MD" ]]; then
+    if ! python3 "$EDGE_LINT" --check "$EDGE_MD" >/dev/null 2>&1; then
+        echo ""
+        echo "❌ edge_md_lint.py --check FAILED"
+        echo "   EDGE.md manifest is invalid. Run:"
+        echo "     python3 tools/edge_md_lint.py knowledge-base/wiki/manifests/EDGE.md"
+        echo ""
+        exit 1
+    fi
+fi
+
+# ── KB Integrity: routing_table.json sync with EDGE.md ──
+# Added 2026-04-26: Ensure exported routing matches manifest
+echo "[pre-commit] Checking routing_table.json sync..."
+EDGE_EXPORT="$REPO_ROOT/tools/edge_md_export.py"
+ROUTING_TABLE="$REPO_ROOT/modules/routing_table.json"
+if [[ -f "$EDGE_EXPORT" && -f "$EDGE_MD" && -f "$ROUTING_TABLE" ]]; then
+    # Compare ignoring generated_at field
+    EXPECTED=$(python3 "$EDGE_EXPORT" --stdout 2>/dev/null \
+        | python3 -c "import sys, json; d=json.load(sys.stdin); d.pop('generated_at',None); print(json.dumps(d, sort_keys=True))")
+    ACTUAL=$(python3 -c "import json; d=json.load(open('$ROUTING_TABLE')); d.pop('generated_at',None); print(json.dumps(d, sort_keys=True))")
+    if [[ "$EXPECTED" != "$ACTUAL" ]]; then
+        echo ""
+        echo "❌ routing_table.json out of sync with EDGE.md"
+        echo "   Run: python3 tools/edge_md_export.py"
+        echo ""
+        exit 1
+    fi
+fi
+
 echo "[pre-commit] All checks passed."

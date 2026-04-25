@@ -5570,9 +5570,35 @@ class DemoTrader:
         if info and info.get("status") == "demoted":
             return False
 
+        # ── Cell-aware routing (EDGE.md, 2026-04-26) ──
+        # (strategy, cell3d) で BLOCK 認定された場合のみブロック.
+        # _get_current_cell3d は本 phase では stub (None 返却) で、
+        # cell3d runtime 計算は別 task. 空 manifest または cell3d 未取得時は
+        # 既存挙動を一切変えない.
+        try:
+            cell3d = self._get_current_cell3d(instrument)
+        except Exception:
+            cell3d = None
+        if cell3d:
+            try:
+                from modules.cell_routing import get_routing
+                if get_routing(entry_type, instrument, cell3d) == "BLOCK":
+                    return False
+                # KELLY_HALF/FULL は lot 計算側で適用 (本 phase では未配線)
+            except Exception:
+                pass  # fail-open
+
         # v6.2: OANDA送信は許可。N<10の未検証戦略はSentinel lotで保護
         # (ロット計算側の _is_sentinel 判定で 0.01lot 化される)
         return True
+
+    def _get_current_cell3d(self, instrument: str):
+        """Return current v6 cell3d "{regime}__{vol}__{session}" or None.
+
+        Stub. Wired up in a future task (Phase D-bridge plan).
+        See: knowledge-base/wiki/manifests/SPEC.md
+        """
+        return None
 
     def _apply_adjustments(self, adjustments: list):
         """学習エンジンの調整を適用。
