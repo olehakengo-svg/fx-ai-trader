@@ -1,0 +1,242 @@
+{
+  "pre_reg": "phase5-tfgrid-multi-tf-2026-04-26.md (D1)",
+  "alpha_cell": 0.005,
+  "n_cells": 10,
+  "from": "2025-04-26",
+  "to": "2026-04-25",
+  "dry_run": false,
+  "meta_verdict": "ALL_REJECT",
+  "survivors_count": 0,
+  "cells": [
+    {
+      "cell_id": "C01",
+      "params": {
+        "id": "C01",
+        "pair": "EURUSD=X",
+        "tf": "15m"
+      },
+      "n": 635,
+      "wins": 193,
+      "rate_pct": 30.393700787401574,
+      "ev": -3.111434195725445,
+      "pf": 0.5799958516834163,
+      "wilson_lo_pct": 26.942879347016273,
+      "p_welch": 0.0008091039083649637,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_pct": 11.338582677165354,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C02",
+      "params": {
+        "id": "C02",
+        "pair": "EURUSD=X",
+        "tf": "30m"
+      },
+      "n": 352,
+      "wins": 124,
+      "rate_pct": 35.22727272727273,
+      "ev": -3.104137581168719,
+      "pf": 0.6755492708486318,
+      "wilson_lo_pct": 30.42097707878732,
+      "p_welch": 0.06422311484448341,
+      "wf_signs": [
+        -1,
+        -1,
+        1,
+        -1
+      ],
+      "wf_agree": 3,
+      "mae_breaker_pct": 15.056818181818182,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C03",
+      "params": {
+        "id": "C03",
+        "pair": "EURUSD=X",
+        "tf": "1h"
+      },
+      "n": 199,
+      "wins": 64,
+      "rate_pct": 32.1608040201005,
+      "ev": -3.4436862885856376,
+      "pf": 0.7103367590937738,
+      "wilson_lo_pct": 26.06170530057708,
+      "p_welch": 0.17211477147748488,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_pct": 9.547738693467336,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C04",
+      "params": {
+        "id": "C04",
+        "pair": "EURUSD=X",
+        "tf": "2h"
+      },
+      "n": 0,
+      "wins": 0,
+      "rate_pct": 0,
+      "ev": 0,
+      "pf": 0,
+      "wilson_lo_pct": 0.0,
+      "p_welch": 1.0,
+      "wf_signs": [],
+      "wf_agree": 0,
+      "mae_breaker_pct": 0,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C05",
+      "params": {
+        "id": "C05",
+        "pair": "EURUSD=X",
+        "tf": "4h"
+      },
+      "n": 48,
+      "wins": 11,
+      "rate_pct": 22.916666666666664,
+      "ev": -8.460044642857062,
+      "pf": 0.5964509919164599,
+      "wilson_lo_pct": 13.307691028989044,
+      "p_welch": 0.19663494127176862,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_pct": 4.166666666666666,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C06",
+      "params": {
+        "id": "C06",
+        "pair": "USDJPY=X",
+        "tf": "15m"
+      },
+      "n": 757,
+      "wins": 232,
+      "rate_pct": 30.647291941875825,
+      "ev": -4.745133043972017,
+      "pf": 0.5480726578893995,
+      "wilson_lo_pct": 27.46760377075393,
+      "p_welch": 3.9187825874142463e-07,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_pct": 27.476882430647294,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C07",
+      "params": {
+        "id": "C07",
+        "pair": "USDJPY=X",
+        "tf": "30m"
+      },
+      "n": 402,
+      "wins": 138,
+      "rate_pct": 34.32835820895522,
+      "ev": -5.352052238807392,
+      "pf": 0.62315564725739,
+      "wilson_lo_pct": 29.8548393631599,
+      "p_welch": 0.002317349992236684,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_pct": 30.597014925373134,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C08",
+      "params": {
+        "id": "C08",
+        "pair": "USDJPY=X",
+        "tf": "1h"
+      },
+      "n": 197,
+      "wins": 47,
+      "rate_pct": 23.85786802030457,
+      "ev": -12.242360406092741,
+      "pf": 0.43325335689540456,
+      "wilson_lo_pct": 18.442087586963254,
+      "p_welch": 9.860882861879949e-06,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_pct": 31.472081218274113,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C09",
+      "params": {
+        "id": "C09",
+        "pair": "USDJPY=X",
+        "tf": "2h"
+      },
+      "n": 0,
+      "wins": 0,
+      "rate_pct": 0,
+      "ev": 0,
+      "pf": 0,
+      "wilson_lo_pct": 0.0,
+      "p_welch": 1.0,
+      "wf_signs": [],
+      "wf_agree": 0,
+      "mae_breaker_pct": 0,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C10",
+      "params": {
+        "id": "C10",
+        "pair": "USDJPY=X",
+        "tf": "4h"
+      },
+      "n": 50,
+      "wins": 12,
+      "rate_pct": 24.0,
+      "ev": -7.624685714286679,
+      "pf": 0.7422550174814784,
+      "wilson_lo_pct": 14.297252401872207,
+      "p_welch": 0.4415486848942598,
+      "wf_signs": [
+        -1,
+        -1,
+        1,
+        -1
+      ],
+      "wf_agree": 3,
+      "mae_breaker_pct": 0.0,
+      "verdict": "REJECT"
+    }
+  ]
+}

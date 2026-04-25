@@ -1,0 +1,204 @@
+{
+  "pre_reg": "phase5-tfgrid-multi-tf-2026-04-26.md (D1)",
+  "alpha_cell": 0.00625,
+  "n_cells": 8,
+  "from": "2025-04-26",
+  "to": "2026-04-25",
+  "dry_run": false,
+  "meta_verdict": "ALL_REJECT",
+  "survivors_count": 0,
+  "cells": [
+    {
+      "cell_id": "C01",
+      "params": {
+        "id": "C01",
+        "pair": "EURUSD=X",
+        "tf": "15m"
+      },
+      "n": 193,
+      "wins": 48,
+      "rate_pct": 24.870466321243523,
+      "ev": -3.270799407845991,
+      "pf": 0.5809451103861647,
+      "wilson_lo_pct": 19.30229622521964,
+      "p_welch": 0.045836168570250066,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_pct": 11.917098445595855,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C02",
+      "params": {
+        "id": "C02",
+        "pair": "EURUSD=X",
+        "tf": "30m"
+      },
+      "n": 66,
+      "wins": 17,
+      "rate_pct": 25.757575757575758,
+      "ev": -3.0456709956710597,
+      "pf": 0.6929807335646104,
+      "wilson_lo_pct": 16.74870734589668,
+      "p_welch": 0.45443042069152684,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_pct": 9.090909090909092,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C03",
+      "params": {
+        "id": "C03",
+        "pair": "EURUSD=X",
+        "tf": "1h"
+      },
+      "n": 36,
+      "wins": 13,
+      "rate_pct": 36.11111111111111,
+      "ev": 2.700396825397109,
+      "pf": 1.2096103496072939,
+      "wilson_lo_pct": 22.47538679218132,
+      "p_welch": 0.4980450163612834,
+      "wf_signs": [
+        -1,
+        1,
+        -1,
+        -1
+      ],
+      "wf_agree": 3,
+      "mae_breaker_pct": 11.11111111111111,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C04",
+      "params": {
+        "id": "C04",
+        "pair": "EURUSD=X",
+        "tf": "4h"
+      },
+      "n": 8,
+      "wins": 2,
+      "rate_pct": 25.0,
+      "ev": -1.6687500000002164,
+      "pf": 0.9062217762167459,
+      "wilson_lo_pct": 7.147768885802765,
+      "p_welch": 0.9756889186995167,
+      "wf_signs": [
+        1,
+        -1,
+        1,
+        -1
+      ],
+      "wf_agree": 2,
+      "mae_breaker_pct": 0.0,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C05",
+      "params": {
+        "id": "C05",
+        "pair": "GBPUSD=X",
+        "tf": "15m"
+      },
+      "n": 184,
+      "wins": 42,
+      "rate_pct": 22.82608695652174,
+      "ev": -6.476725543478128,
+      "pf": 0.4162829809372319,
+      "wilson_lo_pct": 17.35394525786798,
+      "p_welch": 4.4491289560629134e-05,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_pct": 23.369565217391305,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C06",
+      "params": {
+        "id": "C06",
+        "pair": "GBPUSD=X",
+        "tf": "30m"
+      },
+      "n": 78,
+      "wins": 23,
+      "rate_pct": 29.48717948717949,
+      "ev": -6.405114468864017,
+      "pf": 0.5322876920999009,
+      "wilson_lo_pct": 20.5240767244175,
+      "p_welch": 0.04195484112643392,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_pct": 30.76923076923077,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C07",
+      "params": {
+        "id": "C07",
+        "pair": "GBPUSD=X",
+        "tf": "1h"
+      },
+      "n": 35,
+      "wins": 6,
+      "rate_pct": 17.142857142857142,
+      "ev": -14.413010204081532,
+      "pf": 0.31129553818878497,
+      "wilson_lo_pct": 8.10252994485672,
+      "p_welch": 0.004338028778401809,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_pct": 22.857142857142858,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C08",
+      "params": {
+        "id": "C08",
+        "pair": "GBPUSD=X",
+        "tf": "4h"
+      },
+      "n": 8,
+      "wins": 3,
+      "rate_pct": 37.5,
+      "ev": -6.480267857143321,
+      "pf": 0.8055047887535168,
+      "wilson_lo_pct": 13.684175946152106,
+      "p_welch": 0.8388662125273938,
+      "wf_signs": [
+        -1,
+        1,
+        -1,
+        1
+      ],
+      "wf_agree": 2,
+      "mae_breaker_pct": 12.5,
+      "verdict": "REJECT"
+    }
+  ]
+}
