@@ -1,0 +1,270 @@
+{
+  "pre_reg": "phase5-9d-edge-matrix-2026-04-25.md (S6)",
+  "alpha_cell": 0.004166666666666667,
+  "n_cells": 12,
+  "from": "2025-04-26",
+  "to": "2026-04-25",
+  "dry_run": false,
+  "meta_verdict": "ALL_REJECT",
+  "survivors_count": 0,
+  "cells": [
+    {
+      "cell_id": "C01",
+      "params": {
+        "id": "C01",
+        "pair": "EURUSD=X",
+        "vp_h": 4,
+        "va_pct": 0.8
+      },
+      "n": 477,
+      "wins": 169,
+      "rate_pct": 35.42976939203354,
+      "ev": -1.4237305340808586,
+      "pf": 0.7573860631177858,
+      "p_welch": 0.7029483459446413,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_pct": 0.0,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C02",
+      "params": {
+        "id": "C02",
+        "pair": "EURUSD=X",
+        "vp_h": 4,
+        "va_pct": 0.85
+      },
+      "n": 381,
+      "wins": 128,
+      "rate_pct": 33.59580052493438,
+      "ev": -1.7324913072460666,
+      "pf": 0.7180055234263778,
+      "p_welch": 0.4216841730751515,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_pct": 0.0,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C03",
+      "params": {
+        "id": "C03",
+        "pair": "EURUSD=X",
+        "vp_h": 6,
+        "va_pct": 0.8
+      },
+      "n": 718,
+      "wins": 245,
+      "rate_pct": 34.12256267409471,
+      "ev": -1.66688239016951,
+      "pf": 0.7150341110879719,
+      "p_welch": 0.3229275527309602,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_pct": 0.0,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C04",
+      "params": {
+        "id": "C04",
+        "pair": "EURUSD=X",
+        "vp_h": 6,
+        "va_pct": 0.85
+      },
+      "n": 650,
+      "wins": 227,
+      "rate_pct": 34.92307692307692,
+      "ev": -1.49170425502799,
+      "pf": 0.742489038454115,
+      "p_welch": 0.5563199726165597,
+      "wf_signs": [
+        1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 3,
+      "mae_breaker_pct": 0.0,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C05",
+      "params": {
+        "id": "C05",
+        "pair": "EURUSD=X",
+        "vp_h": 8,
+        "va_pct": 0.8
+      },
+      "n": 848,
+      "wins": 290,
+      "rate_pct": 34.19811320754717,
+      "ev": -1.5196940837518107,
+      "pf": 0.7401859742116742,
+      "p_welch": 0.47566571257661894,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_pct": 0.0,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C06",
+      "params": {
+        "id": "C06",
+        "pair": "EURUSD=X",
+        "vp_h": 8,
+        "va_pct": 0.85
+      },
+      "n": 745,
+      "wins": 255,
+      "rate_pct": 34.22818791946309,
+      "ev": -1.5749129104424198,
+      "pf": 0.7318530214867036,
+      "p_welch": 0.42548962689900327,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_pct": 0.0,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C07",
+      "params": {
+        "id": "C07",
+        "pair": "EURGBP=X",
+        "vp_h": 4,
+        "va_pct": 0.8
+      },
+      "n": 0,
+      "wins": 0,
+      "rate_pct": 0,
+      "ev": 0,
+      "pf": 0,
+      "p_welch": 1.0,
+      "wf_signs": [],
+      "wf_agree": 0,
+      "mae_breaker_pct": 0,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C08",
+      "params": {
+        "id": "C08",
+        "pair": "EURGBP=X",
+        "vp_h": 4,
+        "va_pct": 0.85
+      },
+      "n": 0,
+      "wins": 0,
+      "rate_pct": 0,
+      "ev": 0,
+      "pf": 0,
+      "p_welch": 1.0,
+      "wf_signs": [],
+      "wf_agree": 0,
+      "mae_breaker_pct": 0,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C09",
+      "params": {
+        "id": "C09",
+        "pair": "EURGBP=X",
+        "vp_h": 6,
+        "va_pct": 0.8
+      },
+      "n": 0,
+      "wins": 0,
+      "rate_pct": 0,
+      "ev": 0,
+      "pf": 0,
+      "p_welch": 1.0,
+      "wf_signs": [],
+      "wf_agree": 0,
+      "mae_breaker_pct": 0,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C10",
+      "params": {
+        "id": "C10",
+        "pair": "EURGBP=X",
+        "vp_h": 6,
+        "va_pct": 0.85
+      },
+      "n": 0,
+      "wins": 0,
+      "rate_pct": 0,
+      "ev": 0,
+      "pf": 0,
+      "p_welch": 1.0,
+      "wf_signs": [],
+      "wf_agree": 0,
+      "mae_breaker_pct": 0,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C11",
+      "params": {
+        "id": "C11",
+        "pair": "EURGBP=X",
+        "vp_h": 8,
+        "va_pct": 0.8
+      },
+      "n": 0,
+      "wins": 0,
+      "rate_pct": 0,
+      "ev": 0,
+      "pf": 0,
+      "p_welch": 1.0,
+      "wf_signs": [],
+      "wf_agree": 0,
+      "mae_breaker_pct": 0,
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C12",
+      "params": {
+        "id": "C12",
+        "pair": "EURGBP=X",
+        "vp_h": 8,
+        "va_pct": 0.85
+      },
+      "n": 0,
+      "wins": 0,
+      "rate_pct": 0,
+      "ev": 0,
+      "pf": 0,
+      "p_welch": 1.0,
+      "wf_signs": [],
+      "wf_agree": 0,
+      "mae_breaker_pct": 0,
+      "verdict": "REJECT"
+    }
+  ]
+}

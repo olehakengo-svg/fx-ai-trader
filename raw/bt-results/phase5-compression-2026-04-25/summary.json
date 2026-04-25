@@ -1,0 +1,733 @@
+{
+  "pre_reg": "knowledge-base/wiki/analyses/phase5-pure-edge-portfolio-2026-04-25.md (S2)",
+  "alpha_cell": 0.002777777777777778,
+  "n_cells": 18,
+  "mae_catastrophic_pips": 15.0,
+  "from": "2025-04-26",
+  "to": "2026-04-25",
+  "dry_run": false,
+  "meta_verdict": "ALL_REJECT",
+  "survivors_count": 0,
+  "cells": [
+    {
+      "cell_id": "C01",
+      "params": {
+        "id": "C01",
+        "bb_pct": 0.05,
+        "tp_mult": 3.0,
+        "breakout": "close_break"
+      },
+      "n": 1779,
+      "wins": 62,
+      "rate_pct": 3.4851039910061834,
+      "ev": -2.7573112340144865,
+      "pf": 0.10110898737459686,
+      "wilson_lo_pct": 2.7281095681977363,
+      "avg_win": 8.899236971934778,
+      "avg_loss": 3.178223283384814,
+      "real_rr": 2.800066634228755,
+      "p_welch": 8.463532861798477e-11,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>2.0": false,
+        "PF>1.5": false,
+        "WR>=30%": false,
+        "N>=20": true,
+        "RealRR>=2.5": true,
+        "p<0.00278": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C02",
+      "params": {
+        "id": "C02",
+        "bb_pct": 0.05,
+        "tp_mult": 3.0,
+        "breakout": "atr_distance"
+      },
+      "n": 7389,
+      "wins": 256,
+      "rate_pct": 3.4646095547435376,
+      "ev": -2.9132718281300134,
+      "pf": 0.10156061138521805,
+      "wilson_lo_pct": 3.0712010216237826,
+      "avg_win": 9.50524320512124,
+      "avg_loss": 3.3589664655213487,
+      "real_rr": 2.8298118789482825,
+      "p_welch": 5.037861746509904e-13,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>2.0": false,
+        "PF>1.5": false,
+        "WR>=30%": false,
+        "N>=20": true,
+        "RealRR>=2.5": true,
+        "p<0.00278": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C03",
+      "params": {
+        "id": "C03",
+        "bb_pct": 0.05,
+        "tp_mult": 4.0,
+        "breakout": "close_break"
+      },
+      "n": 1779,
+      "wins": 44,
+      "rate_pct": 2.4732996065205173,
+      "ev": -2.806094486674902,
+      "pf": 0.0962800502570261,
+      "wilson_lo_pct": 1.8475300028678323,
+      "avg_win": 12.087263809885199,
+      "avg_loss": 3.1837934867029403,
+      "real_rr": 3.79649743627137,
+      "p_welch": 2.7535558493406573e-11,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>2.0": false,
+        "PF>1.5": false,
+        "WR>=30%": false,
+        "N>=20": true,
+        "RealRR>=2.5": true,
+        "p<0.00278": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C04",
+      "params": {
+        "id": "C04",
+        "bb_pct": 0.05,
+        "tp_mult": 4.0,
+        "breakout": "atr_distance"
+      },
+      "n": 7389,
+      "wins": 194,
+      "rate_pct": 2.625524428204087,
+      "ev": -2.9451236543837354,
+      "pf": 0.10063898429934931,
+      "wilson_lo_pct": 2.2848255034669593,
+      "avg_win": 12.552194410603358,
+      "avg_loss": 3.3629804583597718,
+      "real_rr": 3.732461299143393,
+      "p_welch": 2.1368625032644582e-13,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>2.0": false,
+        "PF>1.5": false,
+        "WR>=30%": false,
+        "N>=20": true,
+        "RealRR>=2.5": true,
+        "p<0.00278": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C05",
+      "params": {
+        "id": "C05",
+        "bb_pct": 0.05,
+        "tp_mult": 5.0,
+        "breakout": "close_break"
+      },
+      "n": 1779,
+      "wins": 39,
+      "rate_pct": 2.1922428330522767,
+      "ev": -2.8036276982131496,
+      "pf": 0.10027384865097326,
+      "wilson_lo_pct": 1.6077744181972418,
+      "avg_win": 14.253089861264126,
+      "avg_loss": 3.1859334366152274,
+      "real_rr": 4.473756324428037,
+      "p_welch": 3.5658163217024885e-11,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>2.0": false,
+        "PF>1.5": false,
+        "WR>=30%": false,
+        "N>=20": true,
+        "RealRR>=2.5": true,
+        "p<0.00278": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C06",
+      "params": {
+        "id": "C06",
+        "bb_pct": 0.05,
+        "tp_mult": 5.0,
+        "breakout": "atr_distance"
+      },
+      "n": 7389,
+      "wins": 170,
+      "rate_pct": 2.3007172824468807,
+      "ev": -2.934416314749811,
+      "pf": 0.10699871057301247,
+      "wilson_lo_pct": 1.9828409231820818,
+      "avg_win": 15.282166670518944,
+      "avg_loss": 3.3633980445594496,
+      "real_rr": 4.543668774273982,
+      "p_welch": 3.171911463027964e-13,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>2.0": false,
+        "PF>1.5": false,
+        "WR>=30%": false,
+        "N>=20": true,
+        "RealRR>=2.5": true,
+        "p<0.00278": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C07",
+      "params": {
+        "id": "C07",
+        "bb_pct": 0.1,
+        "tp_mult": 3.0,
+        "breakout": "close_break"
+      },
+      "n": 3088,
+      "wins": 122,
+      "rate_pct": 3.950777202072539,
+      "ev": -2.7973921001025377,
+      "pf": 0.11389886637272836,
+      "wilson_lo_pct": 3.3189631370763704,
+      "avg_win": 9.101373024307815,
+      "avg_loss": 3.2868220883621735,
+      "real_rr": 2.7690494890287893,
+      "p_welch": 2.0594439054470742e-11,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>2.0": false,
+        "PF>1.5": false,
+        "WR>=30%": false,
+        "N>=20": true,
+        "RealRR>=2.5": true,
+        "p<0.00278": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C08",
+      "params": {
+        "id": "C08",
+        "bb_pct": 0.1,
+        "tp_mult": 3.0,
+        "breakout": "atr_distance"
+      },
+      "n": 10969,
+      "wins": 376,
+      "rate_pct": 3.4278421004649466,
+      "ev": -3.0192089276154808,
+      "pf": 0.10177717900802397,
+      "wilson_lo_pct": 3.10332284248891,
+      "avg_win": 9.98018709363316,
+      "avg_loss": 3.480624287191573,
+      "real_rr": 2.867355471361696,
+      "p_welch": 2.080403724295209e-14,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>2.0": false,
+        "PF>1.5": false,
+        "WR>=30%": false,
+        "N>=20": true,
+        "RealRR>=2.5": true,
+        "p<0.00278": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C09",
+      "params": {
+        "id": "C09",
+        "bb_pct": 0.1,
+        "tp_mult": 4.0,
+        "breakout": "close_break"
+      },
+      "n": 3088,
+      "wins": 92,
+      "rate_pct": 2.9792746113989637,
+      "ev": -2.833170917414826,
+      "pf": 0.11304059344283085,
+      "wilson_lo_pct": 2.435569466092912,
+      "avg_win": 12.119729426396217,
+      "avg_loss": 3.292338751737468,
+      "real_rr": 3.6811914995078396,
+      "p_welch": 8.928397872220662e-12,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>2.0": false,
+        "PF>1.5": false,
+        "WR>=30%": false,
+        "N>=20": true,
+        "RealRR>=2.5": true,
+        "p<0.00278": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C10",
+      "params": {
+        "id": "C10",
+        "bb_pct": 0.1,
+        "tp_mult": 4.0,
+        "breakout": "atr_distance"
+      },
+      "n": 10969,
+      "wins": 289,
+      "rate_pct": 2.6346977846658763,
+      "ev": -3.0352863540803074,
+      "pf": 0.10504578076688978,
+      "wilson_lo_pct": 2.3511376492485345,
+      "avg_win": 13.52217825440128,
+      "avg_loss": 3.4833301061263087,
+      "real_rr": 3.881968645641463,
+      "p_welch": 1.3701516815841001e-14,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>2.0": false,
+        "PF>1.5": false,
+        "WR>=30%": false,
+        "N>=20": true,
+        "RealRR>=2.5": true,
+        "p<0.00278": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C11",
+      "params": {
+        "id": "C11",
+        "bb_pct": 0.1,
+        "tp_mult": 5.0,
+        "breakout": "close_break"
+      },
+      "n": 3088,
+      "wins": 77,
+      "rate_pct": 2.493523316062176,
+      "ev": -2.8396433970463146,
+      "pf": 0.11578254604904667,
+      "wilson_lo_pct": 1.9997588714307069,
+      "avg_win": 14.911948091577473,
+      "avg_loss": 3.2936030598241457,
+      "real_rr": 4.527548651346486,
+      "p_welch": 8.760338913018497e-12,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>2.0": false,
+        "PF>1.5": false,
+        "WR>=30%": false,
+        "N>=20": true,
+        "RealRR>=2.5": true,
+        "p<0.00278": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C12",
+      "params": {
+        "id": "C12",
+        "bb_pct": 0.1,
+        "tp_mult": 5.0,
+        "breakout": "atr_distance"
+      },
+      "n": 10969,
+      "wins": 241,
+      "rate_pct": 2.1971009207767347,
+      "ev": -3.0361027121630797,
+      "pf": 0.10902522396692496,
+      "wilson_lo_pct": 1.939044593652164,
+      "avg_win": 16.90939355126339,
+      "avg_loss": 3.4841698821375293,
+      "real_rr": 4.8532058204032,
+      "p_welch": 1.428372404808735e-14,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>2.0": false,
+        "PF>1.5": false,
+        "WR>=30%": false,
+        "N>=20": true,
+        "RealRR>=2.5": true,
+        "p<0.00278": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C13",
+      "params": {
+        "id": "C13",
+        "bb_pct": 0.15,
+        "tp_mult": 3.0,
+        "breakout": "close_break"
+      },
+      "n": 4203,
+      "wins": 177,
+      "rate_pct": 4.211277658815132,
+      "ev": -2.8371953539863135,
+      "pf": 0.12501407092598693,
+      "wilson_lo_pct": 3.6447174444851025,
+      "avg_win": 9.62571928649346,
+      "avg_loss": 3.385117830728715,
+      "real_rr": 2.843540392926686,
+      "p_welch": 6.227790708900581e-12,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>2.0": false,
+        "PF>1.5": false,
+        "WR>=30%": false,
+        "N>=20": true,
+        "RealRR>=2.5": true,
+        "p<0.00278": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C14",
+      "params": {
+        "id": "C14",
+        "bb_pct": 0.15,
+        "tp_mult": 3.0,
+        "breakout": "atr_distance"
+      },
+      "n": 14335,
+      "wins": 548,
+      "rate_pct": 3.8228113010115106,
+      "ev": -3.037251522718423,
+      "pf": 0.1178650863472368,
+      "wilson_lo_pct": 3.521085991407839,
+      "avg_win": 10.615686016524306,
+      "avg_loss": 3.579922863220706,
+      "real_rr": 2.965339316549916,
+      "p_welch": 1.1916434653578609e-14,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>2.0": false,
+        "PF>1.5": false,
+        "WR>=30%": false,
+        "N>=20": true,
+        "RealRR>=2.5": true,
+        "p<0.00278": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C15",
+      "params": {
+        "id": "C15",
+        "bb_pct": 0.15,
+        "tp_mult": 4.0,
+        "breakout": "close_break"
+      },
+      "n": 4203,
+      "wins": 136,
+      "rate_pct": 3.2357839638353556,
+      "ev": -2.8550357403332915,
+      "pf": 0.12944989767199777,
+      "wilson_lo_pct": 2.7420671301013066,
+      "avg_win": 13.120185382265058,
+      "avg_loss": 3.3892452492276464,
+      "real_rr": 3.871123042882463,
+      "p_welch": 4.512252587407356e-12,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>2.0": false,
+        "PF>1.5": false,
+        "WR>=30%": false,
+        "N>=20": true,
+        "RealRR>=2.5": true,
+        "p<0.00278": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C16",
+      "params": {
+        "id": "C16",
+        "bb_pct": 0.15,
+        "tp_mult": 4.0,
+        "breakout": "atr_distance"
+      },
+      "n": 14335,
+      "wins": 429,
+      "rate_pct": 2.992675270317405,
+      "ev": -3.050560542824977,
+      "pf": 0.1226197712350365,
+      "wilson_lo_pct": 2.7260962380637563,
+      "avg_win": 14.245992509484841,
+      "avg_loss": 3.5841590801067893,
+      "real_rr": 3.9747098806396686,
+      "p_welch": 8.493665588381205e-15,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>2.0": false,
+        "PF>1.5": false,
+        "WR>=30%": false,
+        "N>=20": true,
+        "RealRR>=2.5": true,
+        "p<0.00278": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C17",
+      "params": {
+        "id": "C17",
+        "bb_pct": 0.15,
+        "tp_mult": 5.0,
+        "breakout": "close_break"
+      },
+      "n": 4203,
+      "wins": 113,
+      "rate_pct": 2.6885557934808473,
+      "ev": -2.868564708776555,
+      "pf": 0.1307800513490231,
+      "wilson_lo_pct": 2.2410671320467315,
+      "avg_win": 16.05304474885824,
+      "avg_loss": 3.3913377818114507,
+      "real_rr": 4.733543451482341,
+      "p_welch": 3.5736561982342955e-12,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>2.0": false,
+        "PF>1.5": false,
+        "WR>=30%": false,
+        "N>=20": true,
+        "RealRR>=2.5": true,
+        "p<0.00278": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C18",
+      "params": {
+        "id": "C18",
+        "bb_pct": 0.15,
+        "tp_mult": 5.0,
+        "breakout": "atr_distance"
+      },
+      "n": 14335,
+      "wins": 345,
+      "rate_pct": 2.406696895709801,
+      "ev": -3.077611128508689,
+      "pf": 0.12052768462322233,
+      "wilson_lo_pct": 2.1682707681661797,
+      "avg_win": 17.524958031879855,
+      "avg_loss": 3.5856802035861746,
+      "real_rr": 4.887484950373567,
+      "p_welch": 3.935840434358498e-15,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>2.0": false,
+        "PF>1.5": false,
+        "WR>=30%": false,
+        "N>=20": true,
+        "RealRR>=2.5": true,
+        "p<0.00278": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    }
+  ]
+}

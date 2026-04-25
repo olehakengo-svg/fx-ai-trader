@@ -1,0 +1,1012 @@
+{
+  "pre_reg": "knowledge-base/wiki/analyses/phase5-pure-edge-portfolio-2026-04-25.md (S1)",
+  "alpha_cell": 0.001851851851851852,
+  "n_cells": 27,
+  "mae_catastrophic_pips": 15.0,
+  "from": "2025-04-26",
+  "to": "2026-04-25",
+  "dry_run": false,
+  "meta_verdict": "ALL_REJECT",
+  "survivors_count": 0,
+  "cells": [
+    {
+      "cell_id": "C01",
+      "params": {
+        "id": "C01",
+        "swing_lookback": 3,
+        "handover": "Tokyo_close",
+        "tp_rr": 1.0
+      },
+      "n": 1908,
+      "wins": 734,
+      "rate_pct": 38.469601677148844,
+      "ev": -3.237144771840932,
+      "pf": 0.462995363107925,
+      "wilson_lo_pct": 36.31175714156824,
+      "p_welch": 4.102186604315504e-11,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C02",
+      "params": {
+        "id": "C02",
+        "swing_lookback": 3,
+        "handover": "Tokyo_close",
+        "tp_rr": 1.2
+      },
+      "n": 1908,
+      "wins": 659,
+      "rate_pct": 34.538784067085956,
+      "ev": -3.322673735886757,
+      "pf": 0.48283472210146117,
+      "wilson_lo_pct": 32.438172417924314,
+      "p_welch": 3.0910921769389124e-11,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C03",
+      "params": {
+        "id": "C03",
+        "swing_lookback": 3,
+        "handover": "Tokyo_close",
+        "tp_rr": 1.5
+      },
+      "n": 1908,
+      "wins": 579,
+      "rate_pct": 30.345911949685533,
+      "ev": -3.383848524164711,
+      "pf": 0.5044590601244618,
+      "wilson_lo_pct": 28.32414208795715,
+      "p_welch": 5.348886650585144e-11,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C04",
+      "params": {
+        "id": "C04",
+        "swing_lookback": 3,
+        "handover": "London_open",
+        "tp_rr": 1.0
+      },
+      "n": 1887,
+      "wins": 742,
+      "rate_pct": 39.32167461579226,
+      "ev": -3.2751086515924235,
+      "pf": 0.48745048979739614,
+      "wilson_lo_pct": 37.14154678315717,
+      "p_welch": 1.1556900968591074e-10,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C05",
+      "params": {
+        "id": "C05",
+        "swing_lookback": 3,
+        "handover": "London_open",
+        "tp_rr": 1.2
+      },
+      "n": 1887,
+      "wins": 660,
+      "rate_pct": 34.97615262321145,
+      "ev": -3.438199089125678,
+      "pf": 0.4977925773103995,
+      "wilson_lo_pct": 32.856893378601924,
+      "p_welch": 2.0685804475775153e-11,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C06",
+      "params": {
+        "id": "C06",
+        "swing_lookback": 3,
+        "handover": "London_open",
+        "tp_rr": 1.5
+      },
+      "n": 1887,
+      "wins": 586,
+      "rate_pct": 31.054583995760467,
+      "ev": -3.415795744695224,
+      "pf": 0.5274369245906377,
+      "wilson_lo_pct": 29.007057419925136,
+      "p_welch": 2.3052846445092518e-10,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C07",
+      "params": {
+        "id": "C07",
+        "swing_lookback": 3,
+        "handover": "NY_close",
+        "tp_rr": 1.0
+      },
+      "n": 1260,
+      "wins": 458,
+      "rate_pct": 36.34920634920635,
+      "ev": -3.4939213373129254,
+      "pf": 0.3681159420011431,
+      "wilson_lo_pct": 33.738462892823286,
+      "p_welch": 9.39464900227705e-13,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C08",
+      "params": {
+        "id": "C08",
+        "swing_lookback": 3,
+        "handover": "NY_close",
+        "tp_rr": 1.2
+      },
+      "n": 1260,
+      "wins": 407,
+      "rate_pct": 32.301587301587304,
+      "ev": -3.6255172999090064,
+      "pf": 0.37972077025410716,
+      "wilson_lo_pct": 29.776656297495514,
+      "p_welch": 1.9806389232954905e-13,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C09",
+      "params": {
+        "id": "C09",
+        "swing_lookback": 3,
+        "handover": "NY_close",
+        "tp_rr": 1.5
+      },
+      "n": 1260,
+      "wins": 346,
+      "rate_pct": 27.460317460317462,
+      "ev": -3.891007696679105,
+      "pf": 0.374498094636163,
+      "wilson_lo_pct": 25.06722308791974,
+      "p_welch": 1.6700835731800794e-15,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C10",
+      "params": {
+        "id": "C10",
+        "swing_lookback": 6,
+        "handover": "Tokyo_close",
+        "tp_rr": 1.0
+      },
+      "n": 1674,
+      "wins": 654,
+      "rate_pct": 39.06810035842294,
+      "ev": -3.12970014095073,
+      "pf": 0.47986069992127295,
+      "wilson_lo_pct": 36.75838726031484,
+      "p_welch": 1.65932786946284e-09,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C11",
+      "params": {
+        "id": "C11",
+        "swing_lookback": 6,
+        "handover": "Tokyo_close",
+        "tp_rr": 1.2
+      },
+      "n": 1674,
+      "wins": 594,
+      "rate_pct": 35.483870967741936,
+      "ev": -3.1311898121061876,
+      "pf": 0.5087901068631726,
+      "wilson_lo_pct": 33.22742085425497,
+      "p_welch": 6.539993800644101e-09,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C12",
+      "params": {
+        "id": "C12",
+        "swing_lookback": 6,
+        "handover": "Tokyo_close",
+        "tp_rr": 1.5
+      },
+      "n": 1674,
+      "wins": 521,
+      "rate_pct": 31.12305854241338,
+      "ev": -3.1888467123299487,
+      "pf": 0.5309103279348679,
+      "wilson_lo_pct": 28.95042461617219,
+      "p_welch": 1.1647176436330135e-08,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C13",
+      "params": {
+        "id": "C13",
+        "swing_lookback": 6,
+        "handover": "London_open",
+        "tp_rr": 1.0
+      },
+      "n": 1622,
+      "wins": 625,
+      "rate_pct": 38.53267570900123,
+      "ev": -3.376430371256636,
+      "pf": 0.476692507330705,
+      "wilson_lo_pct": 36.193948525499756,
+      "p_welch": 7.389827603791404e-11,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C14",
+      "params": {
+        "id": "C14",
+        "swing_lookback": 6,
+        "handover": "London_open",
+        "tp_rr": 1.2
+      },
+      "n": 1622,
+      "wins": 560,
+      "rate_pct": 34.5252774352651,
+      "ev": -3.4866785300660412,
+      "pf": 0.49263420442253036,
+      "wilson_lo_pct": 32.25043310052183,
+      "p_welch": 4.799691705039127e-11,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C15",
+      "params": {
+        "id": "C15",
+        "swing_lookback": 6,
+        "handover": "London_open",
+        "tp_rr": 1.5
+      },
+      "n": 1622,
+      "wins": 488,
+      "rate_pct": 30.08631319358816,
+      "ev": -3.5235078171147647,
+      "pf": 0.5177653508471523,
+      "wilson_lo_pct": 27.90349750706081,
+      "p_welch": 2.2062536404146114e-10,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C16",
+      "params": {
+        "id": "C16",
+        "swing_lookback": 6,
+        "handover": "NY_close",
+        "tp_rr": 1.0
+      },
+      "n": 1152,
+      "wins": 433,
+      "rate_pct": 37.58680555555556,
+      "ev": -3.333178285215514,
+      "pf": 0.4165353230726709,
+      "wilson_lo_pct": 34.83545294209702,
+      "p_welch": 8.279120173967127e-10,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C17",
+      "params": {
+        "id": "C17",
+        "swing_lookback": 6,
+        "handover": "NY_close",
+        "tp_rr": 1.2
+      },
+      "n": 1152,
+      "wins": 392,
+      "rate_pct": 34.02777777777778,
+      "ev": -3.426883085409182,
+      "pf": 0.42741709550476165,
+      "wilson_lo_pct": 31.34882864943683,
+      "p_welch": 3.9776483254717096e-10,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C18",
+      "params": {
+        "id": "C18",
+        "swing_lookback": 6,
+        "handover": "NY_close",
+        "tp_rr": 1.5
+      },
+      "n": 1152,
+      "wins": 332,
+      "rate_pct": 28.819444444444443,
+      "ev": -3.8474852317102326,
+      "pf": 0.40159094931755956,
+      "wilson_lo_pct": 26.277750731465588,
+      "p_welch": 2.916781218375201e-13,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C19",
+      "params": {
+        "id": "C19",
+        "swing_lookback": 12,
+        "handover": "Tokyo_close",
+        "tp_rr": 1.0
+      },
+      "n": 1422,
+      "wins": 568,
+      "rate_pct": 39.943741209563996,
+      "ev": -2.918501446808686,
+      "pf": 0.5105121798259815,
+      "wilson_lo_pct": 37.42840783835957,
+      "p_welch": 3.351638179220998e-07,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C20",
+      "params": {
+        "id": "C20",
+        "swing_lookback": 12,
+        "handover": "Tokyo_close",
+        "tp_rr": 1.2
+      },
+      "n": 1422,
+      "wins": 505,
+      "rate_pct": 35.51336146272855,
+      "ev": -3.101483582690201,
+      "pf": 0.5170669735175425,
+      "wilson_lo_pct": 33.06808801942239,
+      "p_welch": 6.246096107212007e-08,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C21",
+      "params": {
+        "id": "C21",
+        "swing_lookback": 12,
+        "handover": "Tokyo_close",
+        "tp_rr": 1.5
+      },
+      "n": 1422,
+      "wins": 444,
+      "rate_pct": 31.223628691983123,
+      "ev": -3.191392583927501,
+      "pf": 0.534133142140793,
+      "wilson_lo_pct": 28.868316151838368,
+      "p_welch": 6.535050518457468e-08,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C22",
+      "params": {
+        "id": "C22",
+        "swing_lookback": 12,
+        "handover": "London_open",
+        "tp_rr": 1.0
+      },
+      "n": 1347,
+      "wins": 514,
+      "rate_pct": 38.15887156644395,
+      "ev": -3.491312270520825,
+      "pf": 0.47070764702953793,
+      "wilson_lo_pct": 35.601787061648864,
+      "p_welch": 1.1668575122949133e-10,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C23",
+      "params": {
+        "id": "C23",
+        "swing_lookback": 12,
+        "handover": "London_open",
+        "tp_rr": 1.2
+      },
+      "n": 1347,
+      "wins": 465,
+      "rate_pct": 34.521158129175944,
+      "ev": -3.5655090763898407,
+      "pf": 0.489632183433785,
+      "wilson_lo_pct": 32.02939244924362,
+      "p_welch": 1.654939683254042e-10,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C24",
+      "params": {
+        "id": "C24",
+        "swing_lookback": 12,
+        "handover": "London_open",
+        "tp_rr": 1.5
+      },
+      "n": 1347,
+      "wins": 404,
+      "rate_pct": 29.992576095025985,
+      "ev": -3.673138457346032,
+      "pf": 0.5065516147661737,
+      "wilson_lo_pct": 27.605196959665957,
+      "p_welch": 2.245527791506186e-10,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C25",
+      "params": {
+        "id": "C25",
+        "swing_lookback": 12,
+        "handover": "NY_close",
+        "tp_rr": 1.0
+      },
+      "n": 1023,
+      "wins": 399,
+      "rate_pct": 39.002932551319645,
+      "ev": -3.7780276979233727,
+      "pf": 0.409356331301994,
+      "wilson_lo_pct": 36.06041859912285,
+      "p_welch": 7.552225851043946e-11,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C26",
+      "params": {
+        "id": "C26",
+        "swing_lookback": 12,
+        "handover": "NY_close",
+        "tp_rr": 1.2
+      },
+      "n": 1023,
+      "wins": 358,
+      "rate_pct": 34.99511241446726,
+      "ev": -3.918952297747464,
+      "pf": 0.4163372888612261,
+      "wilson_lo_pct": 32.13340867098673,
+      "p_welch": 2.2955727691528152e-11,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    },
+    {
+      "cell_id": "C27",
+      "params": {
+        "id": "C27",
+        "swing_lookback": 12,
+        "handover": "NY_close",
+        "tp_rr": 1.5
+      },
+      "n": 1023,
+      "wins": 304,
+      "rate_pct": 29.716520039100686,
+      "ev": -4.4850718425983365,
+      "pf": 0.3766370086420761,
+      "wilson_lo_pct": 26.99606457973832,
+      "p_welch": 1.3149187223256658e-15,
+      "wf_signs": [
+        -1,
+        -1,
+        -1,
+        -1
+      ],
+      "wf_agree": 4,
+      "mae_breaker_n": 0,
+      "mae_breaker_pct": 0.0,
+      "floor_infeasible": false,
+      "survivor_conds": {
+        "EV>1.0": false,
+        "PF>1.5": false,
+        "WR>60%": false,
+        "N>=30": true,
+        "Wlo>50%": false,
+        "p<0.00185": true,
+        "WF_4/4": true,
+        "FLOOR_FEASIBLE": true
+      },
+      "verdict": "REJECT"
+    }
+  ]
+}
