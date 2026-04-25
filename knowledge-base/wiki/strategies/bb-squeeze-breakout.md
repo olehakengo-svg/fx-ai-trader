@@ -36,6 +36,20 @@
 | EUR_USD | — | N=14 EV=-3.05 ❌ |
 | GBP_USD | — | N=4 EV=+5.97 (N小) |
 
+### 2026-04-25 監視: USD_JPY Shadow direction-asymmetric edge
+
+post-cutoff (>=2026-04-16) Shadow (WEEKEND_CLOSE 除外) を direction 分解:
+
+| Side | N | WR | EV | 判定 |
+|---|---|---|---|---|
+| **SELL** | 15 | 46.7% | **+4.94p** | ★ 正方向 edge 候補 |
+| BUY | 26 | 19.2% | -0.73p | ✗ 負 EV |
+| Aggregate | 41 | 29.3% | +1.34p | ▲ direction 混合 (誤解を招く) |
+
+aggregate「N=41 EV=+1.55」は SELL の正 EV が BUY 負を相殺した混合。実態は SELL のみ. cell-level (USD_JPY × SELL) で Shadow N≥20 蓄積後 pre-reg LOCK 候補 (mechanism: filter-type → Wilson WR + EV CI 下限 binding gate). Live 04-16 以降 0 fire (PAIR_PROMOTED USD_JPY は active だが、Q4/MTF gate or cooldown で抑制中の可能性).
+
+**注**: aggregate-only 表記は [[lesson-confounding-in-pooled-metrics-2026-04-23]] と同類のリスク。cell-level monitor 推奨.
+
 ## 2026-04-21 PAIR_PROMOTED 判断
 
 **根拠:**
