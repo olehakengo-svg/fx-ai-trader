@@ -191,60 +191,23 @@ def synth_null_trades_per_strategy(n_per_strategy: int = 60, seed: int = 42) -> 
 # ---------------------------------------------------------------------------
 
 def extract_real_trades_multi(from_iso: str, to_iso: str) -> Dict[str, List[Dict[str, Any]]]:
-    from app import compute_scalp_signal, _compute_bt_htf_bias, get_master_bias
-    from modules.data import fetch_ohlcv_massive, fetch_ohlcv_range
+    """365日 BT用: 全 PAIRS で 7 戦略を並行抽出. compute_scalp_signal は1呼出毎に
+    1 entry_type しか返さないため、戦略ごとに extract を回す (mafe pattern)."""
+    from bb_squeeze_rescue_bt import _fetch_range_5m, _extract_strategy_entries
+    from modules.indicators import add_indicators
     out: Dict[str, List[Dict[str, Any]]] = {s: [] for s in TARGET_STRATEGIES}
     for symbol in PAIRS:
         try:
-            df = None
-            try:
-                days = (datetime.fromisoformat(to_iso[:10]) - datetime.fromisoformat(from_iso[:10])).days + 5
-                df = fetch_ohlcv_massive(symbol, "5m", days=days)
-                df = df.loc[(df.index >= from_iso) & (df.index <= to_iso)]
-            except Exception:
-                df = fetch_ohlcv_range(symbol, from_iso, to_iso, interval="5m")
-            if df is None or len(df) < 200:
-                continue
-            try:
-                _layer1 = get_master_bias(symbol)
-            except Exception:
-                _layer1 = {"direction": "neutral", "label": "-", "score": 0}
-            _htf = _compute_bt_htf_bias(df, min(300, len(df) - 1), mode="scalp")
-            for i in range(max(200, 50), len(df) - MAX_HOLD_BARS - 1):
-                bar_df = df.iloc[max(0, i - 500): i + 1]
-                bar_time = df.index[i]
-                if hasattr(bar_time, "tzinfo") and bar_time.tzinfo is None:
-                    bar_time = bar_time.replace(tzinfo=timezone.utc)
-                try:
-                    sig = compute_scalp_signal(
-                        bar_df, tf="5m", sr_levels=[],
-                        symbol=symbol, backtest_mode=True,
-                        bt_layer1=_layer1, bt_htf=_htf,
-                    )
-                except Exception:
-                    continue
-                if not sig: continue
-                etype = (sig.get("entry_type") or "")
-                if etype not in out: continue
-                future = df.iloc[i+1: i+1+MAX_HOLD_BARS]
-                bars = [(future.index[k],
-                         float(future.iloc[k]["Open"]),
-                         float(future.iloc[k]["High"]),
-                         float(future.iloc[k]["Low"]),
-                         float(future.iloc[k]["Close"])) for k in range(len(future))]
-                out[etype].append({
-                    "pair": symbol, "symbol": symbol,
-                    "direction": sig.get("signal", "BUY"),
-                    "entry_price": float(sig.get("entry_price") or bar_df.iloc[-1]["Close"]),
-                    "tp": float(sig.get("tp") or 0),
-                    "sl": float(sig.get("sl") or 0),
-                    "bars": bars,
-                    "regime": (sig.get("regime") or {}).get("regime", "UNK"),
-                    "entry_ts": bar_time.isoformat(),
-                    "entry_type": etype,
-                })
+            df = _fetch_range_5m(symbol, from_iso, to_iso)
+            df = add_indicators(df).dropna()
         except Exception as e:
-            print(f"[err] {symbol}: {e}", flush=True)
+            print(f"[err] {symbol}: {e}", flush=True); continue
+        for strat in TARGET_STRATEGIES:
+            try:
+                ents = _extract_strategy_entries(symbol, df, strat)
+                out[strat].extend(ents)
+            except Exception as e:
+                print(f"[err] {symbol}/{strat}: {e}", flush=True)
     return out
 
 # ---------------------------------------------------------------------------
@@ -259,6 +222,9 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--n-synth", type=int, default=60, help="per-strategy synthetic trades")
     args = ap.parse_args()
+    _proj_root = str(Path(__file__).resolve().parents[1])
+    if _proj_root not in sys.path:
+        sys.path.insert(0, _proj_root)
 
     print("=" * 90)
     print("Time-Floor Meta Rescue BT — pre-reg LOCKED 2026-04-25")

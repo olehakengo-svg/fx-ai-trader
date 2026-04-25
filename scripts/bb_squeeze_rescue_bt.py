@@ -426,64 +426,108 @@ def synth_null_trades(n: int = 200, seed: int = 42) -> List[Dict[str, Any]]:
 # Real trade extraction (stub — full implementation parallel to mafe harness)
 # ---------------------------------------------------------------------------
 
-def extract_real_trades(from_iso: str, to_iso: str) -> List[Dict[str, Any]]:
-    """Replay bb_squeeze_breakout entries via compute_scalp_signal across PAIRS.
-    Implemented only when not in --dry-run. Mirrors mafe_dynamic_exit_bt.py
-    extract_bb_rsi_entries pattern but filters to TARGET_STRATEGY.
+def _fetch_range_5m(symbol: str, from_iso: str, to_iso: str):
+    """Try MASSIVE first then OANDA range (mirrors mafe harness)."""
+    last_err = None
+    try:
+        from modules.data import fetch_ohlcv_massive
+        days = (datetime.fromisoformat(to_iso[:10]) - datetime.fromisoformat(from_iso[:10])).days + 5
+        df = fetch_ohlcv_massive(symbol, "5m", days=days)
+        df = df.loc[(df.index >= from_iso) & (df.index <= to_iso)]
+        if len(df) > 1000:
+            print(f"[MASSIVE] {symbol}: {len(df)} bars", flush=True)
+            return df
+        last_err = f"massive returned only {len(df)} bars"
+    except Exception as e:
+        last_err = f"massive failed: {e}"
+    try:
+        from modules.data import fetch_ohlcv_range
+        df1 = fetch_ohlcv_range(symbol, from_iso, to_iso, interval="5m")
+        if len(df1) > 1000:
+            print(f"[OANDA/range] {symbol}: {len(df1)} bars", flush=True)
+            return df1
+        last_err = f"oanda returned only {len(df1)} bars"
+    except Exception as e:
+        last_err = f"oanda failed: {e}; prev: {last_err}"
+    raise RuntimeError(f"Both data sources failed for {symbol}: {last_err}")
+
+
+def _extract_strategy_entries(symbol: str, df, target_strategy: str,
+                              max_hold_bars: int = MAX_HOLD_BARS) -> List[Dict[str, Any]]:
+    """Replay compute_scalp_signal across df, capture target_strategy entries
+    + the next max_hold_bars OHLC for simulate_pnl. Mirrors mafe extract pattern.
     """
-    # Deferred imports
     from app import compute_scalp_signal, _compute_bt_htf_bias, get_master_bias
-    from modules.data import fetch_ohlcv_massive, fetch_ohlcv_range
+    try:
+        _layer1 = get_master_bias(symbol)
+    except Exception:
+        _layer1 = {"direction": "neutral", "label": "-", "score": 0}
+    _htf_cache = {
+        "htf": _compute_bt_htf_bias(df, min(300, len(df) - 1), mode="scalp"),
+        "layer1": _layer1,
+    }
+    _last_htf_recalc = 0
+    _HTF_RECALC = 48  # 4h
+    out: List[Dict[str, Any]] = []
+    last_entry_bar = -99
+    pip = PIP_MULT.get(symbol, 100.0)
+    fric_half = FRICTION_RT.get(symbol, 2.0) / 2.0 / pip
+
+    for i in range(max(200, 50), len(df) - max_hold_bars - 1):
+        if i - last_entry_bar < 1:
+            continue
+        if i - _last_htf_recalc >= _HTF_RECALC:
+            _htf_cache["htf"] = _compute_bt_htf_bias(df, i, mode="scalp")
+            _last_htf_recalc = i
+        bar_df = df.iloc[max(0, i - 500): i + 1]
+        bar_time = df.index[i]
+        if hasattr(bar_time, "tzinfo") and bar_time.tzinfo is None:
+            bar_time = bar_time.replace(tzinfo=timezone.utc)
+        try:
+            sig = compute_scalp_signal(
+                bar_df, tf="5m", sr_levels=[],
+                symbol=symbol, backtest_mode=True,
+                bar_time=bar_time, htf_cache=_htf_cache,
+            )
+        except Exception:
+            continue
+        if not sig: continue
+        if sig.get("signal") == "WAIT": continue
+        if (sig.get("entry_type") or "") != target_strategy: continue
+        if i + 1 >= len(df): continue
+        ep_raw = float(df.iloc[i + 1]["Open"])
+        sig_dir = sig.get("signal", "BUY")
+        ep = ep_raw + fric_half if sig_dir == "BUY" else ep_raw - fric_half
+        future = df.iloc[i + 1: i + 1 + max_hold_bars]
+        bars = [(future.index[k],
+                 float(future.iloc[k]["Open"]),
+                 float(future.iloc[k]["High"]),
+                 float(future.iloc[k]["Low"]),
+                 float(future.iloc[k]["Close"])) for k in range(len(future))]
+        out.append({
+            "pair": symbol, "symbol": symbol,
+            "direction": sig_dir, "entry_price": ep,
+            "tp": float(sig.get("tp") or ep),
+            "sl": float(sig.get("sl") or ep),
+            "bars": bars,
+            "regime": (sig.get("regime") or {}).get("regime", "UNK") if isinstance(sig.get("regime"), dict) else (sig.get("regime") or "UNK"),
+            "entry_ts": bar_time.isoformat(),
+            "entry_type": target_strategy,
+        })
+        last_entry_bar = i
+    print(f"[entries] {symbol}: {len(out)} {target_strategy} entries", flush=True)
+    return out
+
+
+def extract_real_trades(from_iso: str, to_iso: str) -> List[Dict[str, Any]]:
+    """365日 BT用: 全 PAIRS で bb_squeeze_breakout を抽出."""
+    from modules.indicators import add_indicators
     out: List[Dict[str, Any]] = []
     for symbol in PAIRS:
         try:
-            df = None
-            try:
-                days = (datetime.fromisoformat(to_iso[:10]) - datetime.fromisoformat(from_iso[:10])).days + 5
-                df = fetch_ohlcv_massive(symbol, "5m", days=days)
-                df = df.loc[(df.index >= from_iso) & (df.index <= to_iso)]
-            except Exception:
-                df = fetch_ohlcv_range(symbol, from_iso, to_iso, interval="5m")
-            if df is None or len(df) < 200:
-                print(f"[skip] {symbol}: insufficient data", flush=True)
-                continue
-            try:
-                _layer1 = get_master_bias(symbol)
-            except Exception:
-                _layer1 = {"direction": "neutral", "label": "-", "score": 0}
-            _htf = _compute_bt_htf_bias(df, min(300, len(df) - 1), mode="scalp")
-            for i in range(max(200, 50), len(df) - MAX_HOLD_BARS - 1):
-                bar_df = df.iloc[max(0, i - 500): i + 1]
-                bar_time = df.index[i]
-                if hasattr(bar_time, "tzinfo") and bar_time.tzinfo is None:
-                    bar_time = bar_time.replace(tzinfo=timezone.utc)
-                try:
-                    sig = compute_scalp_signal(
-                        bar_df, tf="5m", sr_levels=[],
-                        symbol=symbol, backtest_mode=True,
-                        bt_layer1=_layer1, bt_htf=_htf,
-                    )
-                except Exception:
-                    continue
-                if not sig: continue
-                if (sig.get("entry_type") or "") != TARGET_STRATEGY: continue
-                # Capture bars after entry for simulator
-                future = df.iloc[i+1: i+1+MAX_HOLD_BARS]
-                bars = [(future.index[k],
-                         float(future.iloc[k]["Open"]),
-                         float(future.iloc[k]["High"]),
-                         float(future.iloc[k]["Low"]),
-                         float(future.iloc[k]["Close"])) for k in range(len(future))]
-                out.append({
-                    "pair": symbol, "symbol": symbol,
-                    "direction": sig.get("signal", "BUY"),
-                    "entry_price": float(sig.get("entry_price") or bar_df.iloc[-1]["Close"]),
-                    "tp": float(sig.get("tp") or 0),
-                    "sl": float(sig.get("sl") or 0),
-                    "bars": bars,
-                    "regime": (sig.get("regime") or {}).get("regime", "UNK"),
-                    "entry_ts": bar_time.isoformat(),
-                })
+            df = _fetch_range_5m(symbol, from_iso, to_iso)
+            df = add_indicators(df).dropna()
+            out.extend(_extract_strategy_entries(symbol, df, TARGET_STRATEGY))
         except Exception as e:
             print(f"[err] {symbol}: {e}", flush=True)
     return out
@@ -501,6 +545,10 @@ def main():
                     help="Use synthetic null trades; expects all REJECT")
     ap.add_argument("--n-synth", type=int, default=200)
     args = ap.parse_args()
+    # Allow `from app import ...` regardless of CWD (mirrors mafe harness).
+    _proj_root = str(Path(__file__).resolve().parents[1])
+    if _proj_root not in sys.path:
+        sys.path.insert(0, _proj_root)
 
     print("=" * 78)
     print(f"bb_squeeze_breakout Rescue BT — pre-reg LOCKED 2026-04-25")
