@@ -1664,21 +1664,33 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
         htf_filter = htf  # 1H+4H フィルタ
     htf_agreement = htf_filter.get("agreement", "mixed")
 
-    if htf_agreement == "bull":
-        # 両足強気 → BUYのみ有効、SELLは0に
-        if combined < 0:
-            combined = 0.0
-        else:
-            combined = min(1.0, combined * 1.2)  # BUY方向を強化
-    elif htf_agreement == "bear":
-        # 両足弱気 → SELLのみ有効、BUYは0に
-        if combined > 0:
-            combined = 0.0
-        else:
-            combined = max(-1.0, combined * 1.2)  # SELL方向を強化
-    else:
-        # 不一致 → 全体的に抑制（閾値を実質的に引き上げ）
-        combined *= 0.60
+    # ⚠️ MTF alignment soft-modulation DISABLED (2026-04-26 Phase 0 / Edge Reset rule:R3)
+    # 根拠:
+    #  - tf-inverse-rootcause-2026-04-23.md: TF系 Δ-7.5pp 逆校正、MR系 Δ+10.8pp。
+    #    単一ロジック適用が TF と MR で意味逆転していた
+    #  - MTF Engine 単一 TF ADX は η²<0.005 = 分散の 0.5% も説明できないノイズ
+    #  - H4/D1 を M5 から resample 生成しており microstructure 喪失
+    # 復活条件 (Phase 1, 2026-04-26 plan):
+    #  - OANDA native H4/D1 fetch を modules/htf_data_source.py で実装
+    #  - strategy_category.apply_policy() で TF/MR/BR 分岐
+    #  - A/B (mtf_gated vs label_only) で WR 差が統計的に正と確認
+    # 注意: htf_agreement 変数は下流の HTF Hard Block (L2486+, L2077+) で
+    #       依然使われるので保持。ここは soft modulation のみ無効化。
+    # ─── Disabled block (kept for reference) ──────────────────────────
+    # if htf_agreement == "bull":
+    #     if combined < 0:
+    #         combined = 0.0
+    #     else:
+    #         combined = min(1.0, combined * 1.2)
+    # elif htf_agreement == "bear":
+    #     if combined > 0:
+    #         combined = 0.0
+    #     else:
+    #         combined = max(-1.0, combined * 1.2)
+    # else:
+    #     combined *= 0.60
+    # ──────────────────────────────────────────────────────────────────
+    pass  # Phase 0 Edge Reset: MTF soft-modulation removed
 
     # ⑧ Strict threshold
     THRESHOLD = 0.28
