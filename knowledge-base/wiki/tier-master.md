@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-04-22 15:52 UTC
+**最終更新**: 2026-04-25 05:15 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -116,7 +116,7 @@
 | 21 | vol_surge_detector | EUR_JPY |
 | 22 | xs_momentum | USD_JPY |
 
-### B-5. Phase0 Shadow Gate（18戦略 — 自動Shadow）
+### B-5. Phase0 Shadow Gate（19戦略 — 自動Shadow）
 
 | # | 戦略名 | mode | 理由 |
 |---|---|---|---|
@@ -137,7 +137,8 @@
 | 15 | session_vol_expansion | scalp | PP/EL未指定 → 自動Shadow |
 | 16 | three_bar_reversal | scalp | PP/EL未指定 → 自動Shadow |
 | 17 | tokyo_nakane_momentum | daytrade | PP/EL未指定 → 自動Shadow |
-| 18 | turtle_soup | daytrade | PP/EL未指定 → 自動Shadow |
+| 18 | tokyo_range_breakout_up | daytrade | PP/EL未指定 → 自動Shadow |
+| 19 | turtle_soup | daytrade | PP/EL未指定 → 自動Shadow |
 
 ## C. 整合性チェック結果
 

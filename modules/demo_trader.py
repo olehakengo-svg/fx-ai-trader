@@ -4292,6 +4292,24 @@ class DemoTrader:
                     "(Live N=10 WR=40% -47.7pip). Shadow 継続."
                 )
 
+        # ── v2.1.1 Emergency Trip (2026-04-25): bb_rsi_reversion OANDA 送信停止 ──
+        # TP-hit deep-mining: USD_JPY × RANGE 全 session 統合 N=217 TP=70 SL=111.
+        # AvgWin=+4.24p / AvgLoss=-3.94p (W:L=1.08), TP距離4.92p / SL距離4.27p (RR=1.17).
+        # Break-even WR=48.1% required, 実測 32.3% → 構造的 EV負 (-0.58p/trade, PF=0.75).
+        # Live OANDA の 60% (76 TP-hit) を占有 → 単一戦略集中リスク.
+        # Kill-switch: env var BB_RSI_OANDA_TRIP (default=1); "0" で解除.
+        # 解除条件: RR 1.5 拡張版が BT 365日で EV+ 実証 (pre-reg 別途).
+        _BB_RSI_OANDA_TRIP = _os.environ.get("BB_RSI_OANDA_TRIP", "1") == "1"
+        if _BB_RSI_OANDA_TRIP and entry_type == "bb_rsi_reversion":
+            if not _is_shadow:
+                _is_shadow = True
+                _is_promoted = False
+                _shadow_at_open = True
+                self._add_log(
+                    "[EMERGENCY_TRIP] bb_rsi_reversion OANDA 送信停止 "
+                    "(USD_JPY×RANGE N=217 EV=-0.58 PF=0.75 RR=1.17). Shadow 継続."
+                )
+
         # ══════════════════════════════════════════════════════
         # v10 Q4 GATE (transition safety net during confidence_v2 rollout)
         # ══════════════════════════════════════════════════════
@@ -4344,6 +4362,32 @@ class DemoTrader:
                 f"[SHADOW] Phase0 tier gate: {entry_type} {instrument} "
                 f"→ shadow (not in ELITE_LIVE/PAIR_PROMOTED/PRIME)"
             )
+
+        # ── v2.1.1 Grail Sentinel Bypass (2026-04-25) ──
+        # TP-hit deep-mining 抽出の 4 grail cluster (Wlo>15%, EV>+9p, PF>3) を
+        # Sentinel(0.01lot)で先行投入. フィルタ合致時のみ shadow gate 全段を
+        # bypass し OANDA 送信. 0.01lot = 1000u 強制で実弾リスク最小化.
+        # Pre-reg: knowledge-base/wiki/analyses/tp-hit-deep-mining-grail-2026-04-25.md
+        # Kill-switch: env var GRAIL_SENTINEL_ENABLED (default=1); "0" で解除.
+        _GRAIL_ENABLED = _os.environ.get("GRAIL_SENTINEL_ENABLED", "1") == "1"
+        if _GRAIL_ENABLED and entry_type in self._GRAIL_CANDIDATES:
+            try:
+                _hour_utc = datetime.now(timezone.utc).hour
+                _is_grail = self._check_grail_filter(entry_type, instrument, _hour_utc)
+            except Exception as _ge:
+                _is_grail = False
+                self._add_log(f"[GRAIL] filter check failed ({_ge}) — bypass skipped")
+            if _is_grail:
+                _is_shadow = False
+                _is_promoted = True
+                _shadow_at_open = False
+                # Force Sentinel lot: 0.01lot = 1000u (FX). XAU は別系統 (除外済).
+                _adjusted_units = 1000
+                self._add_log(
+                    f"[GRAIL] {entry_type} {instrument} hour={_hour_utc} "
+                    f"→ LIVE Sentinel (0.01lot=1000u) — pre-reg cluster match"
+                )
+
         # ── v9.x: Shadow persistence fix ──
         # Bug: open_trade()はL3890の_is_shadowで書込み。その後の安全ネット
         # (L4049: not promoted→shadow, L4055: Phase0 gate)でis_shadowが変更されても
@@ -5396,6 +5440,17 @@ class DemoTrader:
         "gbp_deep_pullback",     # DT: GBP EV=+1.06
     }
 
+    # v2.1.1 (2026-04-25): Grail Sentinel candidates — TP-hit deep-mining 抽出
+    # Source: knowledge-base/wiki/analyses/tp-hit-deep-mining-grail-2026-04-25.md
+    # Shadow に眠る Wlo>15%, EV>+9p, PF>3 の高純度クラスタを Sentinel(0.01lot)で先行投入.
+    # フィルタは _check_grail_filter() で評価, 合致時のみ is_shadow=False で OANDA 送信.
+    _GRAIL_CANDIDATES = {
+        "ema200_trend_reversal",  # USD_JPY × NY × RANGE: N=8 Wlo=40.9% EV=+9.40 PF=19.80
+        "vol_surge_detector",     # USD_JPY × London × TREND_BEAR: N=7 Wlo=25% EV=+9.51 PF=6.05
+        "vix_carry_unwind",       # USD_JPY × London × TREND_BEAR: N=4 Wlo=15% EV=+11.12 PF=2.99
+        "ny_close_reversal",      # USD_JPY × NY × RANGE: N=4 Wlo=51% EV=+2.15 PF=4.58
+    }
+
     # Master switch: when True, non-ELITE non-SENTINEL strategies get is_shadow=True
     # Override via environment variable SHADOW_MODE (default: "true")
     _SHADOW_MODE = _os.environ.get("SHADOW_MODE", "true").lower() in ("true", "1", "yes")
@@ -5690,6 +5745,61 @@ class DemoTrader:
             # 寄せる: 'range' を返して guardrail を事実上スキップ。
             self._add_log(f"[REGIME_GUARDRAIL] labeler failed for {instrument}: {e} (fail-open)")
             return "range"  # fail-open: guardrail スキップして既存経路へ
+
+    # ══════════════════════════════════════════════════════════════
+    # v2.1.1: Grail Sentinel filter (2026-04-25)
+    # ══════════════════════════════════════════════════════════════
+    def _check_grail_filter(self, entry_type, instrument, hour_utc):
+        """Returns True if this trade matches a pre-registered Grail cluster.
+
+        Grail clusters were extracted from TP-hit deep-mining (N>=4, Wlo>15%,
+        EV>+5p, PF>2). Filter is intentionally narrow (USD_JPY only, hour-bounded,
+        MTF squeeze + range_tight) to avoid curve-fit. Pre-reg:
+        knowledge-base/wiki/analyses/tp-hit-deep-mining-grail-2026-04-25.md
+        """
+        if entry_type not in self._GRAIL_CANDIDATES:
+            return False
+        if instrument != "USD_JPY":  # 全 grail が USD_JPY 専用 (観測値)
+            return False
+        try:
+            mtf = self._get_mtf_regime(instrument)
+            mtf_regime = mtf.get("regime") or "uncertain"
+            mtf_vol = mtf.get("vol") or ""
+            h4 = int(mtf.get("h4", 3) or 3)
+            d1 = int(mtf.get("d1", 3) or 3)
+        except Exception:
+            return False
+
+        # Grail #5 (top): ema200_trend_reversal × NY × RANGE
+        # 観測 N=8 TP=6 Wlo=40.9% EV=+9.40 PF=19.80 H4∈{-1,0} D1=0
+        if (entry_type == "ema200_trend_reversal"
+                and 13 <= hour_utc < 22
+                and mtf_regime == "range_tight"
+                and mtf_vol == "squeeze"
+                and h4 in (-1, 0)
+                and d1 == 0):
+            return True
+        # Grail #4: vol_surge_detector × London × TREND_BEAR (squeeze→breakout)
+        # 観測 N=7 TP=4 Wlo=25.0% EV=+9.51 PF=6.05 D1=0 hour∈{11,12} 集中
+        if (entry_type == "vol_surge_detector"
+                and 11 <= hour_utc <= 12
+                and mtf_regime == "range_tight"
+                and mtf_vol == "squeeze"
+                and d1 == 0):
+            return True
+        # Grail #2: vix_carry_unwind × London × TREND_BEAR
+        # 観測 N=4 TP=2 Wlo=15.0% EV=+11.12 PF=2.99 (小N — 慎重昇格)
+        if (entry_type == "vix_carry_unwind"
+                and 7 <= hour_utc <= 11
+                and mtf_regime == "range_tight"
+                and mtf_vol == "squeeze"):
+            return True
+        # Grail #19: ny_close_reversal × NY後半 × RANGE
+        # 観測 N=4 TP=4 Wlo=51% EV=+2.15 PF=4.58 (TP-rate 100%, 小利)
+        if (entry_type == "ny_close_reversal"
+                and 17 <= hour_utc < 22):
+            return True
+        return False
 
     # ══════════════════════════════════════════════════════════════
     # v9.3: MTF Regime Engine (D1 dominant × H4 confirm)

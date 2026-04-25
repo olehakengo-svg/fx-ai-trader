@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-22T15:52:59.029068+00:00",
+  "generated_at": "2026-04-25T05:15:21.660099+00:00",
   "elite_live": [
     "gbp_deep_pullback",
     "session_time_bias",
@@ -215,6 +215,7 @@
     "london_ny_swing",
     "mtf_reversal_confluence",
     "session_time_bias",
+    "tokyo_range_breakout_up",
     "turtle_soup",
     "vix_carry_unwind",
     "vol_momentum_scalp",
