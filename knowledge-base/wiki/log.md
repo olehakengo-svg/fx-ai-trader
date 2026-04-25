@@ -1,5 +1,13 @@
 # Knowledge Base Change Log
 
+## 2026-04-25 (wiki-lint): TP-hit grid 分析 + stale unresolved 整理
+- **新規 doc**: `wiki/analyses/tp-hit-pair-session-grid-2026-04-25.md` (Universe N=2,494, 36-cell grid, BEV-gap 数学分析)
+- **修正 doc**: `wiki/sessions/2026-04-25-session.md` (Phase 2 narrative 追加、stale 4 件 [x] 化)、`wiki/strategies/bb-squeeze-breakout.md` (USD_JPY direction-asymmetric Shadow split 追記)
+- **Lint 結果**: 全 wikilinks resolved (新規 doc 12 / session 10 / bb-squeeze 4)、broken=0
+- **整合性 cross-check**: bb_squeeze_breakout × USD_JPY = PAIR_PROMOTED が strategies/index/tier-master の 3 箇所で一致
+- **発見ハイライト**: 全 16 cell (N≥50) で BEV gap < 0、Bonferroni 通過は USD_JPY×NY-overlap×SELL のみ (EV=-0.35p で BEV 未達)、唯一の正 EV hour cell は USD_JPY×hr19×BUY (N=29 EV=+3.29p)
+- **問題なし**: ⚠️ フラグ無し
+
 ## 2026-04-24 (wiki-daily-update): 自動スケジュールタスク
 - **Daily trade log**: `raw/trade-logs/2026-04-24.md` 作成 — post-cutoff FX-only N=259, WR=39.0%, PnL=-215.0pip
 - **wiki/index.md**: System State更新 — DD 28.01%→**32.32%** ⚠️ (323.2pip), PnL -171.9→**-215.0pip**, N 255→259, WR 39.6%→39.0%, EV -0.67→-0.83, Kelly edge -15.11%→-17.97%, Ruin **0.78%→2.72%** ⚠️, last_updated 2026-04-23→2026-04-24; Trade Logs セクションに2026-04-24追加
