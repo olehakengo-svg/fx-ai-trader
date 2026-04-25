@@ -19,6 +19,15 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Optional, Tuple
 
+# 2026-04-26 Phase 1: category-aware conf_adj scaling.
+# 現時点では _POLICY 全 0.0 で behavior 変化ゼロ (plumbing のみ)。
+# Phase 1.5 で実測 monotonicity に基づき _POLICY を tuning する。
+try:
+    from modules.strategy_category import apply_policy as _apply_policy
+except Exception:  # pragma: no cover - defensive
+    def _apply_policy(enhancer: str, entry_type, raw_adj: float) -> float:
+        return 0.0  # safest fallback: keep neutral if registry import fails
+
 
 class MassiveSignalEnhancer:
     """Enhance trading signals using Massive API data features."""
@@ -34,7 +43,8 @@ class MassiveSignalEnhancer:
     CONF_CAP = 95             # 最大confidence
 
     def enhance(self, df: pd.DataFrame, base_signal: dict,
-                symbol: str = "USDJPY=X") -> dict:
+                symbol: str = "USDJPY=X",
+                entry_type: Optional[str] = None) -> dict:
         """
         基本シグナルをMassive固有データで強化する。
 
@@ -46,6 +56,12 @@ class MassiveSignalEnhancer:
             compute_signal / compute_daytrade_signal の戻り値
         symbol : str
             通貨ペアシンボル
+        entry_type : str, optional
+            戦略名 (ema_pullback, bb_rsi_reversion 等)。
+            指定された場合、strategy_category.apply_policy() 経由で
+            category 別に conf_adj が scale される (2026-04-26 Phase 1)。
+            None の場合は OTHER として中立扱い。
+            base_signal["entry_type"] にあればそちらを優先 fallback。
 
         Returns
         -------
@@ -62,15 +78,18 @@ class MassiveSignalEnhancer:
         reasons = list(sig.get("reasons", []))
         enhancement_details = {}
 
+        # entry_type 解決: 引数優先、なければ base_signal から、それでもなければ None
+        et = entry_type if entry_type is not None else sig.get("entry_type")
+
         # ── 1. VWAPゾーン分析 ──
-        vwap_result = self._vwap_zone_analysis(df, direction)
+        vwap_result = self._vwap_zone_analysis(df, direction, entry_type=et)
         conf += vwap_result["conf_adj"]
         reasons.extend(vwap_result["reasons"])
         enhancement_details["vwap_zone"] = vwap_result["zone"]
         enhancement_details["vwap_slope"] = vwap_result["slope_direction"]
 
         # ── 2. ボリュームプロファイル分析 ──
-        vp_result = self._volume_profile_analysis(df, direction)
+        vp_result = self._volume_profile_analysis(df, direction, entry_type=et)
         conf += vp_result["conf_adj"]
         reasons.extend(vp_result["reasons"])
         enhancement_details["volume_profile"] = {
@@ -80,7 +99,7 @@ class MassiveSignalEnhancer:
         }
 
         # ── 3. 機関投資家フロー ──
-        inst_result = self._institutional_flow(df, direction)
+        inst_result = self._institutional_flow(df, direction, entry_type=et)
         conf += inst_result["conf_adj"]
         reasons.extend(inst_result["reasons"])
         enhancement_details["institutional_flow"] = {
@@ -101,9 +120,13 @@ class MassiveSignalEnhancer:
     #  1. VWAPゾーン分析
     # ══════════════════════════════════════════════════
     def _vwap_zone_analysis(self, df: pd.DataFrame,
-                            direction: str) -> dict:
+                            direction: str,
+                            entry_type: Optional[str] = None) -> dict:
         """
         VWAPバンド (±1sigma, ±2sigma) + スロープで確度補正。
+
+        2026-04-26 Phase 1: entry_type が渡されれば apply_policy() 経由で
+        category 別 scale。現状 _POLICY 全 0.0 で中立維持 (plumbing only)。
         """
         result: Dict = {"conf_adj": 0, "reasons": [], "zone": "NEUTRAL",
                         "slope_direction": "flat"}
@@ -145,13 +168,16 @@ class MassiveSignalEnhancer:
 
         # ── ゾーン分類 ──
         # 2026-04-23: VWAP alignment 実測で逆校正 (aligned WR 20.0% vs conflict WR 26.7%)。
-        # 根本原因: このロジックは TF (trend-following) 前提だが、shadow データの多くは
-        # MR (mean-reversion) 戦略で価格のVWAP上下は support/resistance として逆作用。
-        # conf_adj を 0 に中立化。ゾーン情報は reasons に残し分析・ログ用途で保持。
+        # 2026-04-26 Phase 1: raw_adj を直接加算せず apply_policy() 経由で
+        # category × enhancer 別 scale。現状 _POLICY[vwap_zone] 全 0.0 で
+        # behavior 変化ゼロ (Phase 1.5 で実測 monotonicity 後に tuning)。
         # 検証: /tmp/triple_audit.py, wiki/analyses/shadow-subcell-analysis-2026-04-23.md
         dev = current_price - current_vwap
         zone = "NEUTRAL"
-        adj = 0  # neutralized — see comment above
+        # Phase 1 仮の raw_adj 候補 (Phase 1.5 で実測 monotonicity 検証):
+        #   過去仮説: VWAP方向と signal 方向が一致なら +3、逆なら -2
+        # 現時点では direction を見ず zone のみ記録、scale は apply_policy() で 0
+        raw_adj = 0  # Phase 1: keep raw at 0 until monotonicity confirmed
 
         if dev > 2 * sigma:
             zone = "VWAP_EXTENDED"
@@ -171,7 +197,8 @@ class MassiveSignalEnhancer:
                 f"VWAP下位 ({dev / sigma:.1f}sigma)")
 
         result["zone"] = zone
-        result["conf_adj"] = adj
+        # Phase 1 plumbing: apply_policy で scale (現状 0.0 multiplier)
+        result["conf_adj"] = int(_apply_policy("vwap_zone", entry_type, raw_adj))
 
         # ── VWAPスロープ ──
         slope_bars = min(self.VWAP_LOOKBACK, len(df))
@@ -202,9 +229,13 @@ class MassiveSignalEnhancer:
     #  2. ボリュームプロファイル分析
     # ══════════════════════════════════════════════════
     def _volume_profile_analysis(self, df: pd.DataFrame,
-                                 direction: str) -> dict:
+                                 direction: str,
+                                 entry_type: Optional[str] = None) -> dict:
         """
         価格帯別出来高分布からHVN (High Volume Node) / LVN (Low Volume Node) を検出。
+
+        2026-04-26 Phase 1: HVN / LVN の raw_adj 候補を apply_policy() 経由で
+        category 別 scale。現状 _POLICY 全 0.0 で behavior 変化ゼロ。
         """
         result: Dict = {"conf_adj": 0, "reasons": [],
                         "hvn_levels": [], "lvn_levels": [], "near_node": "none"}
@@ -277,17 +308,20 @@ class MassiveSignalEnhancer:
         # TF root-cause 分析で HVN has: Delta -6.3pp (逆校正), LVN has: +2.4pp (弱正)。
         # "S/R確度UP" 文言は TF 前提の楽観ラベル -> 削除し観察事実のみ残す。
         # 検証: wiki/analyses/tf-inverse-rootcause-2026-04-23.md
+        # 2026-04-26 Phase 1: raw_adj 候補は固定で 0 を保ち apply_policy() 経由化。
+        # Phase 1.5 で実測 monotonicity 後 raw 値 (例: HVN +3 / LVN -2 等) を復活検討。
         near_hvn = any(abs(current_price - h) < atr * 0.3 for h in hvn_levels)
         near_lvn = any(abs(current_price - l) < atr * 0.3 for l in lvn_levels)
 
         if near_hvn and direction != "WAIT":
-            result["conf_adj"] = 0  # neutralized (was +3)
             result["near_node"] = "HVN"
             result["reasons"].append("HVN近接 (高出来高ノード)")
+            # Phase 1 plumbing: raw=0 → apply_policy → 0 (中立維持)
+            result["conf_adj"] = int(_apply_policy("volume_profile_hvn", entry_type, 0))
         elif near_lvn and direction != "WAIT":
-            result["conf_adj"] = 0  # neutralized (was -2)
             result["near_node"] = "LVN"
             result["reasons"].append("LVN内 (低出来高ノード)")
+            result["conf_adj"] = int(_apply_policy("volume_profile_lvn", entry_type, 0))
 
         return result
 
@@ -295,9 +329,13 @@ class MassiveSignalEnhancer:
     #  3. 機関投資家フロー検出
     # ══════════════════════════════════════════════════
     def _institutional_flow(self, df: pd.DataFrame,
-                            direction: str) -> dict:
+                            direction: str,
+                            entry_type: Optional[str] = None) -> dict:
         """
         大口キャンドル (body > 2x avg, volume > 2x avg) の方向から機関フローを推定。
+
+        2026-04-26 Phase 1: apply_policy() 経由で category 別 scale。
+        現状 _POLICY 全 0.0 で behavior 変化ゼロ。
         """
         result: Dict = {"conf_adj": 0, "reasons": [],
                         "flow_direction": "neutral", "large_candle_count": 0}
@@ -357,15 +395,22 @@ class MassiveSignalEnhancer:
                 result["reasons"].append(
                     f"[observed] flow_bearish_candles={bearish_count}/{len(recent_large)}")
 
+        # 2026-04-26 Phase 1 plumbing: raw=0 → apply_policy → 0 (中立維持).
+        # Phase 1.5 で flow_direction × entry_type の WR 実測後に raw 値復活検討.
+        result["conf_adj"] = int(_apply_policy("institutional_flow", entry_type, 0))
+
         return result
 
     # ══════════════════════════════════════════════════
     #  診断用: 現在のシグナル品質メトリクス
     # ══════════════════════════════════════════════════
     def get_signal_quality(self, df: pd.DataFrame,
-                           symbol: str = "USDJPY=X") -> dict:
+                           symbol: str = "USDJPY=X",
+                           entry_type: Optional[str] = None) -> dict:
         """
         シグナル品質メトリクスを返す (/api/massive/signal-quality 用)。
+
+        2026-04-26 Phase 1: entry_type を内部 enhancer に貫通 (plumbing).
         """
         if "vwap" not in df.columns or len(df) < 5:
             return {"available": False, "reason": "VWAP data not available"}
@@ -374,11 +419,11 @@ class MassiveSignalEnhancer:
         current_price = float(close[-1])
 
         # VWAPゾーン
-        vwap_info = self._vwap_zone_analysis(df, "BUY")  # direction neutral
+        vwap_info = self._vwap_zone_analysis(df, "BUY", entry_type=entry_type)
         # ボリュームプロファイル
-        vp_info = self._volume_profile_analysis(df, "BUY")
+        vp_info = self._volume_profile_analysis(df, "BUY", entry_type=entry_type)
         # 機関フロー
-        inst_info = self._institutional_flow(df, "BUY")
+        inst_info = self._institutional_flow(df, "BUY", entry_type=entry_type)
 
         return {
             "available": True,

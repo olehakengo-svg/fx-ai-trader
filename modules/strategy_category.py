@@ -100,24 +100,57 @@ def category_of(entry_type: str | None) -> Category:
     return "OTHER"
 
 
-# Phase 2 conf_adj policy (initial hypothesis, subject to empirical tuning)
-# 実データで monotonicity を確認したら値を調整する
+# Conf_adj policy.
+#
+# 2026-04-26 Edge Reset Phase 1 (Option A: plumbing only):
+#   全エントリを 0.0 (中立) に統一。massive_signals.py からの apply_policy()
+#   呼び出しを wire up したが、現時点では behavior 変化ゼロ。
+#   Phase 1.5 (次セッション) で shadow N>=15/category の monotonicity を
+#   実測してから data-driven に値を tuning する。
+#
+# 過去の仮説初期値 (commit 9787dd8 当時、reference 用):
+#   "vwap_zone":          TF:1.0  MR:-1.0  BR:0.5
+#   "vwap_slope":         TF:1.0  MR:-1.0  BR:0.5
+#   "volume_profile_lvn": MR:1.0
+#   他は 0.0
+# これらは BT 楽観バイアス + 検証なしで設定されていたため Phase 1 で凍結。
 _POLICY: Dict[str, Dict[Category, float]] = {
     # signal enhancer name -> category -> multiplier applied to raw_adj
-    "vwap_zone":           {"TF": 1.0, "MR": -1.0, "BR": 0.5, "OTHER": 0.0},
-    "vwap_slope":          {"TF": 1.0, "MR": -1.0, "BR": 0.5, "OTHER": 0.0},
-    "institutional_flow":  {"TF": 0.0, "MR": 0.0,  "BR": 0.0, "OTHER": 0.0},  # 全中立 (Delta-10.4pp観測)
-    "mtf_alignment":       {"TF": 0.0, "MR": 0.0,  "BR": 0.0, "OTHER": 0.0},  # aligned WR 10% 観測で全中立
-    "volume_profile_hvn":  {"TF": 0.0, "MR": 0.0,  "BR": 0.0, "OTHER": 0.0},  # Delta-6.3pp 観測
-    "volume_profile_lvn":  {"TF": 0.0, "MR": 1.0,  "BR": 0.0, "OTHER": 0.0},  # LVN は MR に薄陽性 (+2.4pp)
+    "vwap_zone":           {"TF": 0.0, "MR": 0.0, "BR": 0.0, "OTHER": 0.0},
+    "vwap_slope":          {"TF": 0.0, "MR": 0.0, "BR": 0.0, "OTHER": 0.0},
+    "institutional_flow":  {"TF": 0.0, "MR": 0.0, "BR": 0.0, "OTHER": 0.0},
+    "mtf_alignment":       {"TF": 0.0, "MR": 0.0, "BR": 0.0, "OTHER": 0.0},
+    "volume_profile_hvn":  {"TF": 0.0, "MR": 0.0, "BR": 0.0, "OTHER": 0.0},
+    "volume_profile_lvn":  {"TF": 0.0, "MR": 0.0, "BR": 0.0, "OTHER": 0.0},
+    # Phase 1.5 candidate keys (app.py compute_daytrade_signal 統合用)
+    "ema_alignment":       {"TF": 0.0, "MR": 0.0, "BR": 0.0, "OTHER": 0.0},
+    "macd_alignment":      {"TF": 0.0, "MR": 0.0, "BR": 0.0, "OTHER": 0.0},
+    "vwap_deviation":      {"TF": 0.0, "MR": 0.0, "BR": 0.0, "OTHER": 0.0},
 }
 
 
 def apply_policy(enhancer: str, entry_type: str | None, raw_adj: float) -> float:
     """Scale raw conf_adj by category-specific policy.
 
-    現時点では呼び出されていない (VWAP は全中立化中)。Phase 2 で
-    `_vwap_zone_analysis` 等が本関数経由で加点する形に段階移行する。
+    本関数は 2026-04-26 Phase 1 で massive_signals.py から使用される。
+    現時点では _POLICY が全 0.0 のため出力は常に 0.0 (中立化を維持)。
+
+    Phase 1.5 で shadow N>=15/category の monotonicity 実測後に
+    _POLICY 値を data-driven に tuning する。
+
+    Parameters
+    ----------
+    enhancer : str
+        signal enhancer 名 (vwap_zone / volume_profile_hvn 等)
+    entry_type : str | None
+        戦略名。None なら OTHER として中立扱い。
+    raw_adj : float
+        enhancer が計算した raw な conf 加点候補
+
+    Returns
+    -------
+    float
+        category × enhancer policy で scale された conf_adj
     """
     cat = category_of(entry_type)
     policy = _POLICY.get(enhancer, {})
