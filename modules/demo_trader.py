@@ -2764,6 +2764,25 @@ class DemoTrader:
         mode_trades = [t for t in open_trades
                        if t.get("mode") == mode or (not t.get("mode") and t.get("tf") == tf)]
 
+        # ══════════════════════════════════════════════════════════════
+        # ── Phase 4d-II R2-A: stoch_trend_pullback × Overlap session 抑制 ──
+        # Evidence: knowledge-base/wiki/analyses/phase4d-II-nature-pooling-result-2026-04-26.md
+        #   N=54  WR=11.1%  Wilson 95%=[5.2,22.2]%  vs baseline 24.4%  lift=-13.3%
+        #   本日 7 検定中で唯一の clean session-only suppress 候補
+        # Asymmetric Agility R2 framework (lot↓/suppression, Bonferroni不要)
+        # rule:R2  撤回: confidence×1.0 に戻して即時 revert 可能
+        # ══════════════════════════════════════════════════════════════
+        if entry_type == "stoch_trend_pullback":
+            _hour_utc = datetime.now(timezone.utc).hour
+            if 13 <= _hour_utc < 17:  # Overlap session (London×NY, UTC 13:00-17:00)
+                _orig_conf = confidence
+                confidence = int(confidence * 0.5)
+                self._add_log(
+                    f"[R2_PHASE4D_II] {instrument} stoch_trend_pullback × Overlap "
+                    f"suppress conf {_orig_conf}->{confidence} "
+                    f"(WR=11.1% N=54 vs base 24.4%)"
+                )
+
         # ── エントリーフィルター（ブロック理由カウント付き） ──
         if not hasattr(self, '_block_counts'):
             self._block_counts = {}
