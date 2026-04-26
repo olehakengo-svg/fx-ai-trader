@@ -290,60 +290,334 @@ mechanism thesis なき戦略は BT 楽観バイアスで「見せかけの edge
 
 ---
 
-## Track 5: Risk Management (要点)
+## Track 5: Risk Management (深化版 — Track ④ imperative-wozniak セッション執筆)
 
-### 5.1 Kelly Criterion
+> **執筆セッション**: `fx-edge-reset-imperative-wozniak.md` (本日 2026-04-26 PM)
+> **Live data 出所**: ローカル `demo_trades.db` (2026-04-02 〜 2026-04-24, 22.5日間, 16.57 trades/day)
+> **scope**: FX のみ (XAU除外, `feedback_exclude_xau.md` 適用), N=373 closed trades (LIVE+SHADOW)
+> **計算ソース**: `modules/risk_analytics.py` (kelly_fraction, monte_carlo_ruin, calculate_var_cvar, strategy_correlation)
+> **位置付け**: Track ① (microstructure) と Track ② (liquidity) が「edge はどこに / なぜあるか」を扱うのに対し、Track ④ は「edge があったとして何 lot で運用し、DD をどう制御するか」を扱う
 
-```
-Kelly fraction f* = (p × b - q) / b
-  p = win rate
-  q = 1 - p (loss rate)
-  b = avg win / avg loss
+---
 
-例: WR=55%, avg win/avg loss = 1.5
-  f* = (0.55 × 1.5 - 0.45) / 1.5 = 0.25 = 25%
-```
+### 5.1 Kelly Criterion — 数式・歴史・我々の Live 実測
 
-### 5.2 Kelly Half ルール (我々の運用)
-
-実用的に Kelly の 1/2 で運用:
-- DD 半分以下に
-- volatility of returns 半分以下に
-- ただし期待 growth は 75% (Kelly Full の)
-
-我々の Live Kelly = **-17.97%** は **負 EV**。lot を 0.5× してもさらに損失加速する数学。
-→ Live lot 増設は Kelly > 0 が前提条件。
-
-### 5.3 Sharpe / Sortino / Maximum DD
-
-- Sharpe = (annual return - risk-free) / annual std → Quant の業界標準
-- Sortino = Sharpe の downside std 版 → 上振れ vol を penalty しない
-- Maximum DD = peak から trough の最大下落率
-- Monte Carlo DD = ランダムサンプルでの DD 分布 → "worst case" 推定
-
-### 5.4 月利 100% 目標 (¥454,816/月) の数学
+#### (a) 一般論
+Kelly (1956) は対数効用最大化問題の解として `f* = (p×b - q) / b` を導出した。
 
 ```
-複利前提:
-  1 年で 12 倍 = 月利 100% × 12 = 1200%/年 (年利)
-  Sharpe ≈ 5+ (極めて aggressive、機関 hedge fund も到達困難)
-
-必要条件:
-  - WR > 55%
-  - Risk:Reward > 2:1
-  - Trade frequency 100+/day (lot 微小)
-  - DD < 30% を Kelly Half で達成
-  - Slippage / spread / friction を吸収できる edge
-
-→ 達成困難だが不可能ではない。Kelly が +20%/trade レベル必要 (現在 -17.97%)。
+p = win rate, q = 1-p, b = avg_win / avg_loss
+f* > 0 ⇔ edge = p×b - q > 0
 ```
 
-### 5.5 教訓 (Track 5)
+**重要な前提**: edge ≤ 0 のとき Kelly は **正の解を持たない** (fraction は 0 以下に張り付く)。`risk_analytics.py:208` の `full_kelly = max(0.0, full_kelly)` がこの clipping を実装。
 
-- Kelly < 0 で lot 増設は数学的に破滅
-- Kelly Half ルールは sustainable な lot 増加の標準
-- 月利 100% は Kelly +20%/trade 級の edge が必須 (現在は逆方向)
-- Phase 3 で edge を構築できれば Kelly Half を経由して目標到達可能
+#### (b) 我々の Live 実測 (FX, N=373, XAU除外)
+
+```
+全 FX 集約:
+  N=373, WR=30.3% (Wilson95% [25.9%, 35.1%])
+  avg_win  = +12.84 pip
+  avg_loss = -7.53 pip → b = 1.705
+  edge = p×b - q = 0.303 × 1.705 - 0.697 = -0.1807
+  full_kelly = max(0, -18.07%) = 0%   ← clipping
+  half_kelly = 0%, quarter_kelly = 0%
+```
+
+→ 既存ノート末尾と memory `feedback_partial_quant_trap.md` で参照される **「Live Kelly -17.97%」は edge 値 -0.1807 ≈ -18.07% に対応**。Kelly fraction 自体は clipping により 0% で、**lot を「Kelly に従って」減らすことすら不可能** な領域にある。
+
+> **数値整合性メモ** (ラベル実測主義 `feedback_label_empirical_audit.md`):
+> 既存ノート §1.6 の `Live N=259, WR=39.0%, EV=-0.83 pip` は本セッション (2026-04-26 PM, demo_trades.db 直クエリ) では再現せず:
+> - 現 DB の同条件 (FX, XAU除外, status=CLOSED) は **N=373, WR=30.3%, EV=-1.34 pip**
+> - 任意の単一 `entry_time >= cutoff` でも N=259, WR=39.0% は再現不可 (試行: 04-08〜04-18 すべて WR<30%)
+> - 推定原因: §1.6 執筆時点 (本日午前) のスナップショット差 + 4/24 までの直近 trades 追加で WR 悪化
+> - 本 Track 5 の数値は **直 DB クエリ (ローカル `demo_trades.db`, 2026-04-02〜04-24)** に基づく実測値。§1.6 の数値が古い可能性が高いが、本セッションは Track 5 の scope のため §1.6 修正は別セッション (Track ① 担当 curried-ritchie / valiant-dahl) に委譲。
+
+**Sub-segment 別 Kelly edge** (XAU除外):
+
+| Segment | N | WR (Wilson95) | b | edge | Kelly Full |
+|---|---|---|---|---|---|
+| LIVE only (is_shadow=0) | 36 | 50.0% [34.5, 65.5] | 1.023 | +0.0117 | 1.14% |
+| SHADOW only (is_shadow=1) | 337 | 28.2% [23.7, 33.2] | 1.779 | -0.2166 | **0%** (clip) |
+| USD_JPY (全) | 194 | 36.6% [30.1, 43.6] | 1.531 | -0.0738 | **0%** |
+| EUR_USD (全) | 91 | 17.6% [11.1, 26.7] | 3.656 | -0.1814 | **0%** |
+| GBP_USD (全) | 76 | 32.9% [23.4, 44.1] | 1.164 | -0.2880 | **0%** |
+| EUR_JPY (全) | 9 | 11.1% [2.0, 43.5] | 2.025 | -0.6639 | **0%** (N不足) |
+
+**示唆**:
+- LIVE only の N=36 は Wilson 下限 34.5% が Bonferroni を通る臨界以下 (`feedback_partial_quant_trap.md` 参照)。**positive Kelly に見えるのは N 過少のノイズ**。
+- SHADOW (N=337) が「真の戦略期待値」に近い。edge -21.66% は GBP_USD の friction 4.53pip (`friction-analysis.md`) を吸収できていない構造を反映。
+- EUR_USD は b=3.656 と odds が大きいが WR=17.6% で edge 負。「稀に大勝、多くは小負け」型は Kelly では不利。
+
+#### (c) Phase 4d-II / friction-analysis との照合
+- friction-analysis: GBP_USD RT friction = 4.53pip → 上の per-pair edge -28.80% は 「GBP_USD 平均敗北 -11.69pip / 平均勝利 +13.61pip / WR 32.9%」 と無矛盾 (friction が EV のおおよそ 4 pip 分を持っていく)。
+- Phase 4d-II nature pooling (memory obs 81): primary 全 NULL → 戦略レベルで positive Kelly が出るセル不在。本節の per-pair Kelly が全て負である事実と整合。
+
+---
+
+### 5.2 Kelly Half / Quarter — 数学的根拠と我々への適用
+
+#### (a) 一般論
+Full Kelly は **対数効用最大化** だが「期待 vol が極端に高い」「分布の尾を過大評価する」問題があり、実務では Half (1/2) や Quarter (1/4) を採用する。代表的な性質 (Thorp 2006; MacLean, Thorp & Ziemba 2010):
+
+| Sizing | Growth rate | std of growth | Median DD | 破産確率 (尾) |
+|---|---|---|---|---|
+| Full Kelly (f*) | 100% | 100% | 1× baseline | 高 |
+| Half Kelly (f*/2) | **75%** | **50%** | **0.5×** | 大幅低下 |
+| Quarter Kelly (f*/4) | 44% | 25% | 0.25× | ほぼゼロ |
+
+→ Half Kelly は「成長率を 25% だけ犠牲にして、std と DD を半減」させる構造。
+
+#### (b) 我々への適用 (`risk_analytics.py:209-210`)
+production はデフォルトで `recommendation = "half_kelly"` を返す (L219)。`compute_risk_dashboard` 経由で `/api/risk/dashboard` に乗る。
+
+しかし **Kelly が clipping で 0% である現状では Half/Quarter は無意味** (0 の半分も 0)。意味を持つのは「edge を作って Kelly > 0 になった後」。
+
+#### (c) Sustainability チェック
+仮に Phase 3 で edge=+10% (Kelly Full=10%) を構築できた場合の Half Kelly 適用:
+- Full Kelly: 1 trade あたり資金の 10% を risk
+- Half Kelly: 5%
+- 1000pip 資本 → 1trade あたり 50pip までの loss 許容
+- 平均 loss 7.53pip (現状) → 6.6 trades 連続負けで Half Kelly DD limit に到達
+
+→ **edge を作るのが先決**。Kelly Half は「edge ありき」のツール。
+
+---
+
+### 5.3 Sharpe / Sortino / DSR (多重検定考慮)
+
+#### (a) 一般論
+- **Sharpe** (Sharpe 1966): `(mean_return - rf) / std_return`、業界標準。年率化は `× √N_periods_per_year`。
+- **Sortino** (Sortino & Price 1994): 分母を **downside-only std** に置換。上振れ vol を penalty しない、より「実損リスク」志向。
+- **DSR (Deflated Sharpe Ratio)** (Bailey & Lopez de Prado 2014): 多重検定 (HARKing) を考慮した補正版。M 個の戦略を試して最良を選んだ場合、観測 Sharpe を `√(2 ln(M)/N)` 程度割引く必要。
+
+#### (b) 我々の Live 実測 (FX, N=373)
+
+```
+Per-trade metrics (FX, XAU除外, N=373):
+  mean_pnl = -1.34 pip
+  std_pnl  = 18.27 pip
+  downside_std = 14.92 pip (loss-only)
+
+Sharpe (per-trade) = -1.34 / 18.27 = -0.0733
+Sortino (per-trade) = -1.34 / 14.92 = -0.0898
+
+年率化 (16.57 trades/day × 252 trade days = 4175 trades/year):
+  Annualized Sharpe = -0.0733 × √4175 ≈ -4.74
+  Annualized Sortino = -0.0898 × √4175 ≈ -5.81
+```
+
+**警告**: per-trade Sharpe を √N で年率化する慣行は **trade 間 IID 仮定**に依存。我々の戦略は同時刻に複数 mode が発火しうるため、daily-resampled Sharpe の方が保守的。
+
+**戦略別 Sharpe (per-trade)**:
+
+| Strategy mode | N | EV (pip) | std | Sharpe/trade |
+|---|---|---|---|---|
+| `scalp` | 93 | +3.77 | 16.38 | **+0.230** ✅ |
+| `scalp_eur` | 58 | +1.12 | 18.20 | +0.061 |
+| `scalp_5m_gbp` | 37 | -1.12 | 7.42 | -0.151 |
+| `scalp_5m` | 34 | -2.11 | 4.30 | -0.491 |
+| `scalp_5m_eur` | 21 | -1.54 | 3.81 | -0.405 |
+| `daytrade` | 64 | -5.89 | 19.45 | -0.303 |
+| `daytrade_gbpusd` | 39 | -5.50 | 35.10 | -0.157 |
+| `daytrade_eur` | 11 | -7.30 | 6.98 | -1.046 |
+
+→ **`scalp` (USD_JPY) のみ正の Sharpe (+0.230/trade)**、年率換算 +14.9 (ただし N=93 で DSR 補正前)。他 8 戦略は全て負 Sharpe。
+
+#### (c) DSR 補正での生存検定
+試行戦略数 M = 9 (本表の 9 modes), N = 93 (scalp の N) の場合:
+```
+Haircut ≈ √(2 ln(9) / 93) = √(0.0473) = 0.217 (per-trade Sharpe)
+scalp 観測 Sharpe = 0.230
+DSR-adjusted Sharpe = 0.230 - 0.217 = 0.013 (≈ 0)
+```
+
+→ **scalp の Sharpe は M=9 の多重検定を考慮するとほぼ消滅**。`feedback_partial_quant_trap.md` の警告 (PF だけ見る → Bonferroni を通過しない) と同じ構造。Track ⑤ (mellow-sky) の Survivorship bias 議論と接続。
+
+---
+
+### 5.4 Drawdown — 実測 + Monte Carlo
+
+#### (a) 一般論
+- **Maximum DD**: 観測 equity curve の peak-to-trough 最大下落 (pip 絶対値 or %)
+- **Recovery time**: Max DD から peak まで戻るのに要した bar/trade 数
+- **Pain index**: 全期間での平均 DD (DD 累積積分 / 期間)
+- **Monte Carlo DD**: 過去 PnL から bootstrap resample → 多数の equity curve を生成 → DD 分布を観察
+
+`risk_analytics.py:73 monte_carlo_ruin` がこれを実装 (10,000 paths × 500 trades, replace=True, seed=42)。
+
+#### (b) 我々の Live 実測 (initial=1000pip, ruin=50% DD)
+
+**実測 (現データの sequential equity curve, N=373)**:
+- Realized Max DD = **965.5 pip** (= 開始資本の 96.5% — 既に ruin 寸前)
+
+**Monte Carlo (10,000 paths, 500-trade horizon, seed=42)**:
+
+| Segment | Ruin prob | Median Max DD | Worst-99% DD |
+|---|---|---|---|
+| ALL FX (N=373) | **85.5%** | 820 pip | 1703 pip |
+| LIVE only (N=36) | 86.1% | 820 pip | 2258 pip |
+| SHADOW (N=337) | 89.9% | 853 pip | 1585 pip |
+| USD_JPY (N=194) | 57.4% | 547 pip | 1255 pip |
+| EUR_USD (N=91) | 53.2% | 517 pip | 1018 pip |
+| GBP_USD (N=76) | **99.6%** | 1762 pip | 3109 pip |
+| EUR_JPY (N=9) | 100% | 3016 pip | 3509 pip |
+
+**示唆**:
+- 戦略 portfolio 全体で **次 500 trade の ruin 確率 85.5%**。これは「lot を半分にする」程度では救えない (Kelly clipping 領域だから)
+- GBP_USD 単独で MC ruin 99.6%。`friction-analysis.md` で「GBP_USD は limit-only 強制」と既に対処されているが、それでも残存 friction 4.53pip が edge 不在で一方的損失化
+- USD_JPY が最も健全 (ruin prob 57.4%) だが、それでも positive ではない
+
+#### (c) Phase 5 BT との照合
+Phase 5 BT (Phase4d-II 結果, memory obs 80-81): primary 全 NULL、BREAKOUT joint WEAK、survivor=0。本節の MC ruin 85.5% と整合 — **戦略 portfolio に inherent edge 不在 → 将来 PnL の bootstrap 分布も負方向に重心**。
+
+---
+
+### 5.5 Correlation Matrix と "False Diversification"
+
+#### (a) 一般論
+9 戦略 × 5 pair の portfolio で見かけ上は分散しているが、**戦略間 PnL correlation が高ければ実効自由度は低下** する。Markowitz (1952) の portfolio variance 公式:
+
+```
+σ_portfolio² = Σ wᵢ²σᵢ² + 2 Σ wᵢ wⱼ σᵢ σⱼ ρᵢⱼ
+```
+
+→ ρ→1 で分散効果消失、ρ→-1 で分散効果最大、ρ=0 で √N 削減。
+
+#### (b) 我々の Live 実測 (`risk_analytics.strategy_correlation`, modes with N≥10)
+
+|corr|≥0.3 を flag した結果 (5 ペアのみ flagged, 残り 31 ペア低 correlation):
+
+| Pair | corr | direction |
+|---|---|---|
+| daytrade × daytrade_gbpusd | **-0.344** | negative |
+| daytrade_eur × daytrade_gbpusd | +0.313 | positive |
+| daytrade_eur × scalp_5m | +0.304 | positive |
+| daytrade_eur × scalp_5m_eur | -0.457 | negative |
+| daytrade_gbpusd × scalp_eur | **-0.751** | negative |
+
+**示唆**:
+- 36 pair のうち 31 pair (86%) で |corr|<0.3 → **戦略間は概ね uncorrelated**
+- 2 pair で moderate negative correlation (daytrade_gbpusd × scalp_eur = -0.75) → 構造的 hedge
+- これは **edge があれば** 良いニュース (実効自由度が高い → DD を抑制できる)
+- **edge がなければ** 単に「異なる戦略で別々に負ける」だけ — 現状
+
+#### (c) lessons / Phase 4 との照合
+- `lesson-toxic-anti-patterns-2026-04-25.md` (TAP-1/2/3): 中間帯 RSI/Stoch + AND は edge 構造的に不在 → correlation と無関係に portfolio 負
+- Phase 4d nature pooling (obs 81): BREAKOUT 性戦略 joint WEAK → correlation matrix を見るより前に、戦略個々の edge が課題
+
+---
+
+### 5.6 月利 100% (¥454,816/月) 目標の sustainability 数学
+
+#### (a) 必要条件の分解
+複利前提で 1 ヶ月 +100%、年率 +1200%。これを達成する Sharpe / Kelly の数学:
+
+```
+Annual return target = 12.0 (1200%)
+Annual std (assuming target Sharpe S):
+  return / std = S → std = 12.0 / S
+
+例: S=3 (機関 hedge fund 一流) → annual std = 4.0 (400%)
+    S=5 (極めて稀) → annual std = 2.4 (240%)
+    S=2 (現実的) → annual std = 6.0 (600%) — 月で破産しうる
+```
+
+→ **S ≥ 5 が事実上必須** (S=2 では std が大きすぎ、Kelly Half でも DD 制御不能)。
+
+#### (b) Live 実測との gap
+現状 (FX, N=373):
+- Annualized Sharpe = -4.74
+- Required Sharpe = +5.0
+- **Gap = +9.74 (Sharpe 単位)** ≒ 「正負反転 + 業界トップ層へ」
+- Kelly edge: 現状 -18.07% → 目標 +20% (Kelly Full)、**gap = +38pp**
+
+これは「微調整」では到達不能。`mtf-rustling-candle` 計画 (memory obs 76) の Track B closure と R2 suppress/boost が示すように **戦略生成構造そのものの再設計** (Phase 3) が必要。
+
+#### (c) sustainability の前提条件 (要 Phase 3 で達成)
+1. **Kelly Full ≥ +10%** (Half で +5%) — edge p×b - q ≥ 0.10
+2. **WR ≥ 50%** または **b ≥ 2.0** — どちらか (両方なら理想)
+3. **Trade frequency**: 現状 16.57/day × 22.5日 = 373 trades は十分。問題は edge
+4. **Per-trade friction ≤ 1pip** (現状 USD_JPY 2.14pip, GBP_USD 4.53pip) — Track ① で議論
+
+→ 1-2 が **Phase 3 mechanism-driven edge re-build** の主目標。3-4 は Phase 1-2 で実装済 (`friction_model_v2.py`, R2 routing)。
+
+---
+
+### 5.7 Risk Premium と Tail Risk — 我々が **取らない** べき edge
+
+#### (a) Edge 三分類 (Track ⑤ mellow-sky でも扱われる予定)
+- **Information edge**: 機関の領分、retail 不可
+- **Structural edge**: 流動性 zone, stop hunt, MR in low vol → **我々の主戦場**
+- **Risk premium**: vol selling, carry, crisis insurance — 平時に小利、危機で巨損
+
+#### (b) Risk premium 戦略の歴史的 tail event
+| 戦略 | 平時 | Crisis | 結果 |
+|---|---|---|---|
+| Carry trade (AUD/JPY long) | +5%/year swap | -30% in 1 day (2008) | LTCM 1998, COVID 2020 |
+| Vol selling (FX option short) | +1pip/day theta | -100pip in 30sec (2015 SNB) | Tail crash |
+| Mean reversion in trend | + small | trend で死亡 | 2020 USD/JPY 大円安 |
+
+#### (c) 我々の戦略は risk premium を取っているか?
+- `scalp_*` (5m / 1m): hold time < 1h → swap rate 影響軽微、tail vol exposure は短時間限定
+- `daytrade_*` (1h / 15m): hold time 1-6h → tail event 中の DD risk あり
+- BUT: **explicitly に risk premium を取る戦略は無い** (vol selling や crisis hedge は実装外)
+
+→ 現状は「risk premium を意図せず受け取り」「edge は構造的不在」という最悪パターン。Phase 3 では **Structural edge のみ** を狙うべき (`pullback_to_liquidity_v1`, `asia_range_fade_v1` の方向)。
+
+---
+
+### 5.8 Live Kelly -17.97% の Track ④ 視点総括 — 5.1-5.7 統合
+
+#### Risk Mgmt 視点での失敗構造
+
+```
+Track ① (microstructure):  friction が edge を上回る
+Track ② (liquidity):       liquidity zone を活用していない (TAP-1/2/3)
+                              ↓
+Track ④ (本 Track):        edge ≤ 0 → Kelly clip 0
+                              ↓
+            lot 縮小は EV 改善せず (-1.34 pip/trade のまま)
+                              ↓
+            MC ruin 85.5% (500-trade horizon, 50% DD)
+                              ↓
+         Sharpe -4.74 (annualized) — 全戦略中 1 つ (scalp) のみ正
+                              ↓
+            DSR 補正で scalp Sharpe ≈ 0 — 多重検定で消える
+```
+
+#### 数学的にやってはいけないこと
+1. **lot を上げて挽回**: edge<0 で lot↑ は破産確率↑のみ
+2. **lot を半分にして "Half Kelly 風"**: Kelly が clip 0 なので意味なし、損失速度が半減するだけ
+3. **戦略を増やして分散**: correlation 既に低い (86% pair で |r|<0.3)、増やしても負 EV を分散するだけ
+4. **過去の勝ち戦略 (scalp) に集中**: DSR 補正で Sharpe ≈ 0、N 不足で false positive リスク
+
+#### 数学的に唯一許される行動 = **Phase 3 の実行**
+- mechanism-driven edge を 1 つでも構築 (`pullback_to_liquidity_v1` or `asia_range_fade_v1`)
+- それが Wilson 95% 下限で Kelly > 0 を示すまで lot 増設禁止
+- pre-reg LOCK で HARKing を防止 (Phase 1.7 で済)
+- friction_model_v2 で cost-adjusted EV を BT で測定 (Phase 1.7 で済)
+
+#### 月利 100% gap の最終定量
+| 項目 | 現状 (Live) | 目標 (月利 100%) | Gap |
+|---|---|---|---|
+| WR | 30.3% | ≥50% | +20pp |
+| EV/trade | -1.34 pip | ≥+0.5 pip | +1.84 pip |
+| Kelly edge | -18.07% | ≥+10% | +28pp |
+| Sharpe (annual) | -4.74 | ≥+5.0 | **+9.74** |
+| MC ruin (500-trade) | 85.5% | <5% | -80pp |
+
+→ どの metric も「微調整」レンジを越えている。**Phase 3 の戦略生成構造そのものの再設計**が必要 (memory obs 76: mtf-rustling-candle Section 9-11 の R2 suppress/boost authorization と同方向)。
+
+#### 残課題 (次セッション以降に持ち越し)
+本セッションで **未消化** な深化候補:
+1. **portfolio_kelly** (`risk_analytics.py:758`) を使った per-strategy lot allocation の optimization (現状 lot 固定)
+2. Daily-resampled Sharpe の実測 (per-trade Sharpe の独立性仮定の妥当性検証)
+3. `compute_risk_dashboard` (`risk_analytics.py:409`) の Render 本番 API (`/api/risk/dashboard`) 出力との照合 (本セッションはローカル DB のみ)
+4. tail risk の explicit シミュレーション (3-σ event での DD 分布)
+5. R2 suppress/boost (memory obs 77) 適用後の Kelly 再計算 (Phase 3 完了後)
+
+→ いずれも **Phase 3 完了後に再 audit** すべき。本 Track の現時点での結論は変わらない: **edge を作る前に risk metric を最適化しても無意味**。
 
 ---
 
@@ -355,7 +629,7 @@ Kelly fraction f* = (p × b - q) / b
 | 2 Liquidity | `pre-reg-pullback-to-liquidity-v1` / `pre-reg-asia-range-fade-v1` (Phase 1.7) の mechanism |
 | 3 Quant Edge | `strategy-mechanism-audit-2026-04-26.md` (Phase 1.7) の判定基準 |
 | 4 Session × Pair | `friction_model_v2.py` の session/mode multiplier の数値根拠 |
-| 5 Risk Management | Kelly Half / Live Kelly -17.97% の数学的解釈 |
+| 5 Risk Management | Kelly clip 0% / MC ruin 85.5% / 月利100% gap +9.74 Sharpe (深化版で定量化, imperative-wozniak セッション) |
 
 → 本学習ノートは Phase 1.7 までの実装の **理論的基礎** を体系化したもの。
 新規実装はないが、今後の意思決定 (Phase 1.5 _POLICY tuning, Phase 3 BT, ...) で常時参照可能。
@@ -366,7 +640,7 @@ Kelly fraction f* = (p × b - q) / b
 - Track 2: Round number での WR を Live data で実測 (USDJPY 150.000 等)
 - Track 3: 365日 BT 結果に対し friction v2 で再シミュレーション
 - Track 4: Session × pair × strategy の 3D WR matrix (`empirical_validator.aggregate_3d`)
-- Track 5: Monte Carlo DD simulator 構築
+- Track 5: ✅ MC DD simulator 実装済 (5.4) / 残: portfolio_kelly per-strategy lot allocation, daily-resampled Sharpe, Render `/api/risk/dashboard` 照合, tail-event simulation, R2 適用後 Kelly 再計算 — 詳細は §5.8 末尾
 
 ## References
 
@@ -391,3 +665,7 @@ Kelly fraction f* = (p × b - q) / b
 - Kelly Jr (1956) "A New Interpretation of Information Rate" (Kelly criterion 原典)
 - Sharpe (1966) "Mutual Fund Performance"
 - Sortino & Price (1994) "Performance Measurement in a Downside Risk Framework"
+- Thorp (2006) "The Kelly Criterion in Blackjack, Sports Betting, and the Stock Market"
+- MacLean, Thorp & Ziemba (2010) "The Kelly Capital Growth Investment Criterion"
+- Bailey & Lopez de Prado (2014) "The Deflated Sharpe Ratio" (DSR — 多重検定補正)
+- Markowitz (1952) "Portfolio Selection" (correlation 分散効果)
