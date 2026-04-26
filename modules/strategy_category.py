@@ -216,18 +216,45 @@ def _normalize_session(session_name: str | None) -> str:
     return session_name
 
 
-# Pair-specific spread quintile boundaries (pip).
-# Cuts split spreads into q0..q4 (q0 = lowest, q4 = highest).
-# Approximate calibration from `friction-analysis.md` per-pair distributions.
-# More accurate calibration is U13/U14 (Wave 2): XAU 完全除外後の sqlite-fx
-# クエリで N>=30/(pair, session) 確認後に再 calibrate。
-_SPREAD_QUINTILE_CUTS: Dict[str, list[float]] = {
-    "USD_JPY": [0.4, 0.6, 0.8, 1.2],
-    "EUR_USD": [0.4, 0.6, 0.8, 1.2],
-    "GBP_USD": [0.8, 1.2, 1.6, 2.4],
-    "EUR_JPY": [0.6, 0.9, 1.2, 1.6],
+# ─────────────────────────────────────────────────────────────────────────
+# Spread quartile cuts (Phase 4d-II compatible, U18 fix 2026-04-27 Wave 2 Day 3)
+#
+# **重要**: U18 で発見された問題 — Wave 1 deploy 前の static cuts (5-bin quintile)
+# は Phase 4d-II の **rank-based pair-internal quartile (4-bin)** と乖離していた。
+# 本 fix では Phase 4d-II 互換の 4-bin quartile に置き換え、production data
+# (N=2000) ベースで baked cuts を導出。
+#
+# Phase 4d-II quartile method:
+#   - pair-internal: 各 pair の trades を spread 順に sort、4 等分 (equal-N)
+#   - degenerate data 対応: tied values は arbitrary tie-break (production の
+#     `pd.qcut` 相当)
+#
+# 本実装の cuts source: production API `/api/demo/trades?limit=2000` で取得した
+# pair-internal percentile (25th/50th/75th)。spread degenerate (USD_JPY 75%+ が
+# 0.8) のため、cuts は意味のある outlier-detection に collapse する:
+#   - q0/q1/q2: majority 値 (e.g., USD_JPY 0.8) を含む
+#   - q3: outlier (高 spread tail) のみ
+#
+# Live deploy では rank が分からないので value-based threshold で近似:
+#   - 値 > q75 → q3 (outlier)
+#   - 値 = q50/q25/q0 → q0/q1/q2 (cuts が degenerate ならば q0 に collapse)
+#
+# Phase 4d-II R2-A 4 cells を本実装で再現する場合、(*London, q0) は majority
+# 値の suppress、(*, q3) は outlier の suppress を意味する。
+# ─────────────────────────────────────────────────────────────────────────
+
+# Production-derived pair-internal quartile cuts (production /api/demo/trades, N=2000)
+# 各 pair の [25th, 50th, 75th] percentile of spread_at_entry (XAU 除外)
+# Last calibrated: 2026-04-27 (U18 fix)
+_SPREAD_QUARTILE_CUTS: Dict[str, list[float]] = {
+    "USD_JPY": [0.8, 0.8, 0.8],   # n=1048, distinct=5, mostly 0.8, max=2.6 (q3=outliers)
+    "EUR_USD": [0.8, 0.8, 0.8],   # n=470, distinct=1 (all 0.8)、quartile は無意味、q3 always empty
+    "GBP_USD": [1.3, 1.3, 1.3],   # n=374, distinct=2, mostly 1.3, max=2.0 (q3=outliers)
+    "EUR_JPY": [1.7, 1.9, 2.0],   # n=86, distinct=13、唯一 cuts に意味がある pair
+    "GBP_JPY": [2.8, 2.8, 2.8],   # n=21, mostly 2.8 (q3=outliers)
 }
-_SPREAD_QUINTILE_CUTS_DEFAULT: list[float] = [0.5, 1.0, 1.5, 2.0]
+# 未登録 pair の fallback (古い USD_JPY 静的 cuts に近似)
+_SPREAD_QUARTILE_CUTS_DEFAULT: list[float] = [0.8, 1.0, 1.5]
 
 
 def _normalize_pair(pair: str | None) -> str:
@@ -240,28 +267,55 @@ def _normalize_pair(pair: str | None) -> str:
     return p
 
 
-def compute_spread_quintile(spread_pips: float | None, pair: str | None) -> str:
-    """Return spread quintile label "q0".."q4" for given pair.
+def compute_spread_quartile(spread_pips: float | None, pair: str | None) -> str:
+    """Return Phase 4d-II compatible spread quartile label "q0".."q3" for pair.
 
-    Pair-specific cuts are derived from friction-analysis.md medians; q0 is the
-    tightest (lowest spread) bucket, q4 the widest. None / non-finite spreads
-    fall back to "q2" (the median bucket) so downstream lookups still work
-    rather than raising.
+    Quartile assignment (4-bin, NOT 5-bin):
+      - spread <= cuts[0] → q0
+      - cuts[0] < spread <= cuts[1] → q1
+      - cuts[1] < spread <= cuts[2] → q2
+      - spread > cuts[2] → q3
+
+    For degenerate spread distributions (most pairs have ≤2 distinct values),
+    cuts collapse and assignment falls into q0 (majority) or q3 (outliers).
+
+    None / non-finite / negative spreads fall back to "q1" (median-ish bucket).
     """
     if spread_pips is None:
-        return "q2"
+        return "q1"
     try:
         sp = float(spread_pips)
     except (TypeError, ValueError):
-        return "q2"
-    if not (sp == sp) or sp < 0:  # NaN guard via self-equality
-        return "q2"
+        return "q1"
+    if not (sp == sp) or sp < 0:  # NaN guard
+        return "q1"
 
-    cuts = _SPREAD_QUINTILE_CUTS.get(_normalize_pair(pair), _SPREAD_QUINTILE_CUTS_DEFAULT)
+    cuts = _SPREAD_QUARTILE_CUTS.get(
+        _normalize_pair(pair), _SPREAD_QUARTILE_CUTS_DEFAULT
+    )
     for i, c in enumerate(cuts):
         if sp <= c:
             return f"q{i}"
-    return "q4"
+    return "q3"
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Backward-compat alias (DEPRECATED)
+#
+# Wave 1 deploy 時は `compute_spread_quintile()` (5-bin) を使用していたが、
+# U18 で Phase 4d-II との乖離が発覚し 4-bin quartile に統一。app.py の呼び出し
+# 側は新 API (`compute_spread_quartile`) に移行済。本 alias は外部 import
+# 互換のため一時残置、Wave 3 で削除予定。
+# ─────────────────────────────────────────────────────────────────────────
+
+def compute_spread_quintile(spread_pips: float | None, pair: str | None) -> str:
+    """[DEPRECATED] Use compute_spread_quartile() (Phase 4d-II compatible, 4-bin).
+
+    本関数は U18 fix 前の 5-bin quintile 互換 alias。新コードは
+    compute_spread_quartile() を使用すること。q0-q3 の 4-bin に揃え、q4 は
+    使用しない (Phase 4d-II 仕様)。
+    """
+    return compute_spread_quartile(spread_pips, pair)
 
 
 def apply_r2a_suppress_gate(

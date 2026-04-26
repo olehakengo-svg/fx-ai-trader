@@ -3868,18 +3868,20 @@ def compute_1h_zone_signal(df: pd.DataFrame,
         base["sl"]         = _rp(sl, symbol)
         _conf_raw = int(min(score * 18, 95))
 
-        # ── R2-A Suppress (rule:R2, 2026-04-26 Wave 1) ──
+        # ── R2-A Suppress (rule:R2, 2026-04-26 Wave 1, U18 fix 2026-04-27) ──
         # Phase 4d-II Wilson upper < baseline 4 cells を confidence ×0.5 で抑制。
-        # 詳細は modules/strategy_category._R2A_SUPPRESS。Bonferroni 不要
-        # (Asymmetric Agility R2 教科書用途、loss prevention only)。
+        # U18 fix: 5-bin quintile → 4-bin quartile (Phase 4d-II 互換)、
+        # production-derived pair-internal cuts。詳細:
+        #   - modules/strategy_category._R2A_SUPPRESS / _SPREAD_QUARTILE_CUTS
+        # Bonferroni 不要 (Asymmetric Agility R2 教科書用途、loss prevention only)。
         try:
             from modules.strategy_category import (
                 apply_r2a_suppress_gate,
-                compute_spread_quintile,
+                compute_spread_quartile,
             )
             _pip_unit = 0.01 if "JPY" in symbol.upper() else 0.0001
             _spread_pips = _bt_spread(row.name, symbol) / _pip_unit
-            _spread_q = compute_spread_quintile(_spread_pips, symbol)
+            _spread_q = compute_spread_quartile(_spread_pips, symbol)
             _conf_after = apply_r2a_suppress_gate(
                 etype, session.get("name"), _spread_q, _conf_raw
             )
