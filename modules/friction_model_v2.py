@@ -161,6 +161,55 @@ def list_supported_pairs() -> list[str]:
     return sorted(_PAIR_FRICTION.keys())
 
 
+# ─── Wave 2 / A3: Cost-aware Frequency Throttle ──────────────────────
+# 出典: C3_Ishikawa Online DRL — spread 0.01%→0.05% で WR 59.5%→49.2%、
+# Sharpe 2.04→0.68 と急落。コスト感度カーブが極めて急峻なので、
+# 閾値超のセルでは取引頻度自体を絞る (confidence減衰 = effective gate)。
+def cost_throttle_factor(
+    pair: str,
+    mode: Mode = "DT",
+    session: Session = "default",
+    *,
+    threshold_ratio: float = 1.55,
+    throttle: float = 0.7,
+) -> tuple[float, dict]:
+    """Return confidence multiplier based on adjusted/base friction ratio.
+
+    adjusted_rt_pips / rt_friction_pips が threshold_ratio を超えるとき、
+    confidence に throttle 倍率を掛けて取引頻度を絞る。
+
+    Returns
+    -------
+    (factor, detail)
+        factor : 1.0 (通常) または throttle 値 (例: 0.7) — confidence multiplier
+        detail : {"ratio": float, "adjusted": float, "base": float, "applied": bool}
+
+    Notes
+    -----
+    DT mode (mode_mult=1.0) では ratio = session_mult。
+    threshold=1.55 (empirical, 2026-04-27 N1 audit): Tokyo Scalp(ratio=1.52, N=44 WR=61.4%
+    EV=+5.89pip) を保護するため初期案 1.5 から引き上げ。
+    発火: Sydney DT(1.60) / Asia_early DT(1.55, edge case) / Sydney Scalp(1.68)。
+    非発火: Tokyo Scalp(1.52) / Tokyo DT(1.45) / overlap_LN(0.85) 等。
+    """
+    f = friction_for(pair, mode=mode, session=session)
+    if f.get("unsupported"):
+        return 1.0, {"ratio": None, "applied": False, "reason": "unsupported_pair"}
+    base = f["rt_friction_pips"]
+    adjusted = f["adjusted_rt_pips"]
+    if base <= 0:
+        return 1.0, {"ratio": None, "applied": False, "reason": "invalid_base"}
+    ratio = adjusted / base
+    applied = ratio >= threshold_ratio
+    factor = throttle if applied else 1.0
+    return factor, {
+        "ratio": round(ratio, 3),
+        "adjusted": round(adjusted, 3),
+        "base": round(base, 3),
+        "applied": applied,
+    }
+
+
 def is_scalp_dead(pair: str, atr_pips: float, threshold: float = 0.30) -> bool:
     """Return True if Scalp strategy is structurally dead for this pair given ATR.
 

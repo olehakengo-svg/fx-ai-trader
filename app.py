@@ -809,8 +809,25 @@ def calc_sl_tp_v3(entry: float, signal: str, atr: float, sr_levels: list,
     if abs(sl - entry) < _min_sl_dist:
         sl = entry - _min_sl_dist if signal == "BUY" else entry + _min_sl_dist
 
-    # Ensure minimum RR
-    if abs(tp - entry) < abs(sl - entry) * min_rr:
+    # ── Wave 2 / A2: SL pip clamp [3, 50] (rule:R1-bypass, ref: B3_Constraint_Heuristics) ──
+    # B3 SmartFX (10年データ, 3通貨) で SL ∈ [3, 50] pip が最適と報告。
+    # 下限3pip: スプレッド近接の即死回避 / 上限50pip: 1トレード最大損失制限。
+    # 上限は短期TF (≤1h) のみ適用 (4h+ swingは大きなATRが正常)
+    _pip_unit = 0.01 if "JPY" in symbol.upper() else 0.0001
+    _sl_pip = abs(sl - entry) / _pip_unit
+    _short_tf = tf in ("1m", "5m", "15m", "30m", "1h")
+    _sl_clamped = False
+    if _sl_pip < 3.0:
+        _new_dist = 3.0 * _pip_unit
+        sl = entry - _new_dist if signal == "BUY" else entry + _new_dist
+        _sl_clamped = True
+    elif _short_tf and _sl_pip > 50.0:
+        _new_dist = 50.0 * _pip_unit
+        sl = entry - _new_dist if signal == "BUY" else entry + _new_dist
+        _sl_clamped = True
+
+    # Ensure minimum RR (SLがclampされた場合は再計算で整合)
+    if _sl_clamped or abs(tp - entry) < abs(sl - entry) * min_rr:
         tp = (entry + abs(sl - entry) * (min_rr + 0.3)
               if signal == "BUY"
               else entry - abs(sl - entry) * (min_rr + 0.3))
@@ -3874,6 +3891,52 @@ def compute_1h_zone_signal(df: pd.DataFrame,
             _conf_raw = _conf_after
         except Exception:
             # gate 失敗時は raw confidence を維持 (fail-open)
+            pass
+
+        # ── Wave 2 / A3: Cost-aware Frequency Throttle (rule:R1-bypass) ──
+        # 出典: C3_Ishikawa — friction が pair-baseline の 1.5x 超で confidence×0.7。
+        # session_mult 単独では Sydney/Asia_early で発火 (DT mode)。
+        # fail-open: 例外時は raw confidence を維持。
+        try:
+            from modules.friction_model_v2 import cost_throttle_factor
+            _sess_raw = (session.get("name") or "").strip()
+            _sess_norm_map = {
+                "Tokyo": "Tokyo", "東京": "Tokyo",
+                "London": "London", "ロンドン": "London",
+                "NY": "NY", "New York": "NY", "ニューヨーク": "NY",
+                "Sydney": "Sydney", "シドニー": "Sydney",
+                "Asia_early": "Asia_early",
+                "overlap_LN": "overlap_LN",
+                "NY × London": "overlap_LN", "Overlap": "overlap_LN",
+            }
+            _sess_for_friction = _sess_norm_map.get(_sess_raw, "default")
+            _ct_factor, _ct_detail = cost_throttle_factor(
+                symbol, mode="DT", session=_sess_for_friction
+            )
+            if _ct_detail.get("applied"):
+                _conf_after_ct = int(round(_conf_raw * _ct_factor))
+                reasons.append(
+                    f"⚠️ A3 cost throttle ({_sess_for_friction} ratio={_ct_detail['ratio']}): "
+                    f"conf {_conf_raw}→{_conf_after_ct}"
+                )
+                _conf_raw = _conf_after_ct
+        except Exception:
+            pass
+
+        # ── Wave 2 / A4: Vol-scaled confidence (rule:R1-bypass) ──
+        # detect_market_regime() の vol_scale (clip 0.5〜1.5) を confidence に反映。
+        # 高ボラで dampen、低ボラで boost。HIGH_VOL (>2.5x) は別途 binary mute で対応済。
+        try:
+            _vs = float(regime.get("vol_scale", 1.0)) if isinstance(regime, dict) else 1.0
+            if _vs != 1.0:
+                _conf_after_vs = int(round(_conf_raw * _vs))
+                if _conf_after_vs != _conf_raw:
+                    reasons.append(
+                        f"📐 A4 vol_scale ({_vs:.2f}× atr_ratio={regime.get('atr_ratio')}): "
+                        f"conf {_conf_raw}→{_conf_after_vs}"
+                    )
+                    _conf_raw = _conf_after_vs
+        except Exception:
             pass
 
         base["confidence"] = _conf_raw
@@ -7484,8 +7547,17 @@ def detect_market_regime(df: pd.DataFrame) -> dict:
     ema_bull = (ema9 > ema21 > ema50) and (close > ema200)
     ema_bear = (ema9 < ema21 < ema50) and (close < ema200)
 
-    # Regime classification
-    if atr_ratio > 1.8:
+    # ── Wave 2 / A4: Vol-scaled Confidence (rule:R1-bypass) ──
+    # 出典: C2_Zhang — vol-targeting reward。binary mute の threshold を 1.8→2.5 に上げ
+    # extreme のみ完全ミュート。1.0〜2.5 帯は vol_scale 連続スケールで confidence に反映。
+    # vol_scale = clip(1.5/atr_ratio, 0.5, 1.5) で低ボラ→1.5 boost / 高ボラ→0.5 dampen。
+    if atr_ratio <= 0:
+        vol_scale = 1.0
+    else:
+        vol_scale = max(0.5, min(1.5, 1.5 / atr_ratio))
+
+    # Regime classification (HIGH_VOL threshold: 1.8 → 2.5)
+    if atr_ratio > 2.5:
         regime = "HIGH_VOL"
         label  = "⚠️ 高ボラティリティ — 警戒"
     elif adx < 20 and bb_pct < 40:
@@ -7544,6 +7616,7 @@ def detect_market_regime(df: pd.DataFrame) -> dict:
         "close_vs_ema200": round(close - ema200, 3),
         "range_sub":       range_sub,
         "squeeze_bars":    squeeze_bars,
+        "vol_scale":       round(vol_scale, 3),  # Wave 2 / A4: confidence multiplier
     }
 
 
