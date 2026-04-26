@@ -95,6 +95,13 @@
 - 物理仮説: Round number magnet (.00/.50 fade)
 - 副次 edge 候補 (別 pre-reg LOCK 検討)
 
+### 3.4 GBP_JPY × R1 MR Regime (H<0.45) ✨ (365d 完了で新規追加)
+
+- 365日 N=234 で WR **66.2%** EV+0.22
+- 730日 N=450 で WR 66.0% EV+0.21 (整合性 ✅)
+- 物理仮説: GBP/JPY 高ボラ cross の **range 局面** mean revert
+- 副次 edge 候補 (別期間 walk-forward + LOCK 推奨)
+
 ## 4. 削除推奨戦略との整合性
 
 [[lesson-six-dead-strategies-removal-2026-04-26]] で削除推奨した 6 戦略のうち:
