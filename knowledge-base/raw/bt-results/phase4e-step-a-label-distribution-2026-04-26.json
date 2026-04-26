@@ -1,0 +1,18 @@
+{
+  "USD_JPY": {
+    "n_total": 24768,
+    "n_defined": 24744,
+    "TREND_UP_pct": 33.27675396055609,
+    "NEUTRAL_pct": 38.89023601681215,
+    "TREND_DOWN_pct": 27.83301002263175,
+    "switch_rate_pct": 10.55797803617571
+  },
+  "EUR_USD": {
+    "n_total": 24768,
+    "n_defined": 24744,
+    "TREND_UP_pct": 30.415454251535724,
+    "NEUTRAL_pct": 39.57727125767863,
+    "TREND_DOWN_pct": 30.007274490785644,
+    "switch_rate_pct": 10.404554263565892
+  }
+}
