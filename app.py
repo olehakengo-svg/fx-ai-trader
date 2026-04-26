@@ -1716,6 +1716,13 @@ def compute_signal(df: pd.DataFrame, tf: str, sr_levels: list, symbol="USDJPY=X"
     elif combined < -_dt_threshold: signal, conf = "SELL", int(min(95, 50 + abs(combined) * 55))
     else:                           signal, conf = "WAIT", int(max(25, 50 - abs(combined) * 40))
 
+    # R2-A Suppress (rule:R2, 2026-04-26 Wave 1):
+    # 本 swing path には entry_type 変数が存在せず、また R2-A 対象 4 cells
+    # (stoch_trend_pullback / sr_channel_reversal / ema_trend_scalp /
+    # vol_surge_detector) はすべて DT/Scalp mode 戦略で swing mode では発火
+    # しないため、本 path に gate は不要。Daytrade path (compute_daytrade_signal,
+    # base["confidence"] = ... 直前) でのみ R2-A gate を適用する。
+
     # ⑬ VWAP deviation (Massive API only)
     # 2026-04-23 Phase 2a: conf bonus 中立化。
     # 実測で "VWAP上位/下位 確度UP" ラベルは逆校正 (Delta -4.6pp, TF -1.2 MR -2.1)。
@@ -3842,7 +3849,34 @@ def compute_1h_zone_signal(df: pd.DataFrame,
         base["entry"]      = _rp(entry, symbol)
         base["tp"]         = _rp(tp, symbol)
         base["sl"]         = _rp(sl, symbol)
-        base["confidence"] = int(min(score * 18, 95))
+        _conf_raw = int(min(score * 18, 95))
+
+        # ── R2-A Suppress (rule:R2, 2026-04-26 Wave 1) ──
+        # Phase 4d-II Wilson upper < baseline 4 cells を confidence ×0.5 で抑制。
+        # 詳細は modules/strategy_category._R2A_SUPPRESS。Bonferroni 不要
+        # (Asymmetric Agility R2 教科書用途、loss prevention only)。
+        try:
+            from modules.strategy_category import (
+                apply_r2a_suppress_gate,
+                compute_spread_quintile,
+            )
+            _pip_unit = 0.01 if "JPY" in symbol.upper() else 0.0001
+            _spread_pips = _bt_spread(row.name, symbol) / _pip_unit
+            _spread_q = compute_spread_quintile(_spread_pips, symbol)
+            _conf_after = apply_r2a_suppress_gate(
+                etype, session.get("name"), _spread_q, _conf_raw
+            )
+            if _conf_after != _conf_raw:
+                reasons.append(
+                    f"⚠️ R2-A suppress ({etype}×{session.get('name')}×{_spread_q}): "
+                    f"conf {_conf_raw}→{_conf_after}"
+                )
+            _conf_raw = _conf_after
+        except Exception:
+            # gate 失敗時は raw confidence を維持 (fail-open)
+            pass
+
+        base["confidence"] = _conf_raw
         base["entry_type"] = etype
         base["reasons"]    = reasons
         # ── シナリオ崩壊撤退レベル ──

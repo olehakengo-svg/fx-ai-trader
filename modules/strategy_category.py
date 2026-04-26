@@ -165,3 +165,136 @@ def iter_all_strategies() -> Iterable[tuple[str, Category]]:
         yield s, "MR"
     for s in BR_STRATEGIES:
         yield s, "BR"
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# R2-A Suppress (2026-04-26 Wave 1, rule:R2)
+#
+# Phase 4d-II nature pooling (`phase4d-II-nature-pooling-result-2026-04-26.md`,
+# memory obs 81) で Wilson upper < baseline と判定された 4 cells を
+# confidence ×0.5 で抑制する。Bonferroni 不要 (Asymmetric Agility R2 教科書
+# 用途、loss prevention only)。
+#
+# 出典:
+#   - stoch_trend_pullback × Overlap × q2: WR 7.7% vs baseline 24.4% (Δ=-16.7pp)
+#   - sr_channel_reversal × London × q3:   WR 15.0% vs baseline 27.1% (Δ=-12.1pp)
+#   - ema_trend_scalp × London × q0:        WR 17.0% vs baseline 21.4% (Δ=-4.4pp)
+#   - vol_surge_detector × Tokyo × q3:      WR 30.4%, Phase 4d-II 最大負 edge
+#
+# Session name は Phase 4d KB canonical bucket (Tokyo / London / Overlap /
+# NewYork) を採用。app.py 側の "NY × London" 等は _normalize_session() で
+# 変換する。
+# ─────────────────────────────────────────────────────────────────────────
+
+_R2A_SUPPRESS: Dict[tuple, float] = {
+    ("stoch_trend_pullback", "Overlap", "q2"): 0.5,
+    ("sr_channel_reversal",  "London",  "q3"): 0.5,
+    ("ema_trend_scalp",      "London",  "q0"): 0.5,
+    ("vol_surge_detector",   "Tokyo",   "q3"): 0.5,
+}
+
+
+def _normalize_session(session_name: str | None) -> str:
+    """Map app.py session names to Phase 4d KB canonical buckets.
+
+    app.py `get_session_info()` returns names like "NY × London" /
+    "東京 × London" / "New York"; Phase 4d KB uses "Overlap" / "Overlap_TK" /
+    "NewYork". This normalizer keeps the lookup table readable.
+    """
+    if not session_name:
+        return ""
+    if session_name in ("NY × London", "overlap_LN", "overlap_lnny", "Overlap"):
+        return "Overlap"
+    if session_name in ("東京 × London", "overlap_TK", "Overlap_TK"):
+        return "Overlap_TK"
+    if session_name in ("New York", "NewYork", "NY"):
+        return "NewYork"
+    if session_name in ("Tokyo", "東京"):
+        return "Tokyo"
+    if session_name in ("London", "ロンドン"):
+        return "London"
+    return session_name
+
+
+# Pair-specific spread quintile boundaries (pip).
+# Cuts split spreads into q0..q4 (q0 = lowest, q4 = highest).
+# Approximate calibration from `friction-analysis.md` per-pair distributions.
+# More accurate calibration is U13/U14 (Wave 2): XAU 完全除外後の sqlite-fx
+# クエリで N>=30/(pair, session) 確認後に再 calibrate。
+_SPREAD_QUINTILE_CUTS: Dict[str, list[float]] = {
+    "USD_JPY": [0.4, 0.6, 0.8, 1.2],
+    "EUR_USD": [0.4, 0.6, 0.8, 1.2],
+    "GBP_USD": [0.8, 1.2, 1.6, 2.4],
+    "EUR_JPY": [0.6, 0.9, 1.2, 1.6],
+}
+_SPREAD_QUINTILE_CUTS_DEFAULT: list[float] = [0.5, 1.0, 1.5, 2.0]
+
+
+def _normalize_pair(pair: str | None) -> str:
+    if not pair:
+        return ""
+    p = pair.replace("/", "_").replace("=X", "").upper()
+    # "USDJPY" / "EURUSD" 等の underscore なし 6 文字形式を "USD_JPY" 形式に正規化
+    if "_" not in p and len(p) == 6:
+        p = p[:3] + "_" + p[3:]
+    return p
+
+
+def compute_spread_quintile(spread_pips: float | None, pair: str | None) -> str:
+    """Return spread quintile label "q0".."q4" for given pair.
+
+    Pair-specific cuts are derived from friction-analysis.md medians; q0 is the
+    tightest (lowest spread) bucket, q4 the widest. None / non-finite spreads
+    fall back to "q2" (the median bucket) so downstream lookups still work
+    rather than raising.
+    """
+    if spread_pips is None:
+        return "q2"
+    try:
+        sp = float(spread_pips)
+    except (TypeError, ValueError):
+        return "q2"
+    if not (sp == sp) or sp < 0:  # NaN guard via self-equality
+        return "q2"
+
+    cuts = _SPREAD_QUINTILE_CUTS.get(_normalize_pair(pair), _SPREAD_QUINTILE_CUTS_DEFAULT)
+    for i, c in enumerate(cuts):
+        if sp <= c:
+            return f"q{i}"
+    return "q4"
+
+
+def apply_r2a_suppress_gate(
+    entry_type: str | None,
+    session_name: str | None,
+    spread_quintile: str | None,
+    conf: int | float,
+) -> int:
+    """R2-A: confidence ×0.5 for Wilson-upper-below-baseline cells.
+
+    Gate is applied AFTER existing confidence calculation. Reversible by
+    removing entries from `_R2A_SUPPRESS`. No effect on non-listed cells.
+
+    Parameters
+    ----------
+    entry_type : str | None
+        Strategy name (e.g. "stoch_trend_pullback"). None / unknown → no-op.
+    session_name : str | None
+        Session name from `get_session_info()["name"]` (app.py L593-619) or a
+        Phase 4d KB canonical name. Internally normalized.
+    spread_quintile : str | None
+        "q0".."q4" — output of `compute_spread_quintile()`.
+    conf : int | float
+        Pre-suppression confidence (0..95).
+
+    Returns
+    -------
+    int
+        Suppressed confidence. Identical to input when cell not listed.
+    """
+    if not entry_type:
+        return int(conf)
+    sess = _normalize_session(session_name)
+    key = (entry_type, sess, spread_quintile or "")
+    mult = _R2A_SUPPRESS.get(key, 1.0)
+    return int(round(float(conf) * mult))
