@@ -230,10 +230,12 @@ def test_load_strategy_scalp_mode():
 
 
 def test_load_strategy_missing_returns_none():
-    """pullback_to_liquidity_v1 は MISSING → None + warn"""
-    assert "pullback_to_liquidity_v1" in MISSING_STRATEGIES
-    h = load_strategy("pullback_to_liquidity_v1")
-    assert h is None
+    """R-A (2026-04-27): MISSING_STRATEGIES は empty。Skip-on-missing 機構の
+    挙動 test は invalid name (ValueError) で代替。"""
+    # R-A 後: MISSING_STRATEGIES は empty
+    assert len(MISSING_STRATEGIES) == 0
+    # Skip-on-missing 機構自体の挙動 test
+    # ("invalid name → ValueError" は test_load_strategy_invalid_raises で実施)
 
 
 def test_load_strategy_invalid_raises():
@@ -243,7 +245,7 @@ def test_load_strategy_invalid_raises():
 
 
 def test_load_all_phase3_strategies():
-    """K=7 全戦略を load、5 LOADED + 2 MISSING を期待"""
+    """R-A 実装後: K=7 全戦略 LOADED、MISSING 0。"""
     loaded = []
     skipped = []
     for name in PHASE3_STRATEGIES:
@@ -252,9 +254,9 @@ def test_load_all_phase3_strategies():
             skipped.append(name)
         else:
             loaded.append(name)
-    assert len(loaded) == 5
-    assert len(skipped) == 2
-    assert set(skipped) == MISSING_STRATEGIES
+    assert len(loaded) == 7
+    assert len(skipped) == 0
+    assert set(skipped) == MISSING_STRATEGIES  # both empty
 
 
 # ─── Group F: WFAStats / AnchoredWFAResult dataclass ─────────────────
@@ -348,7 +350,7 @@ def test_verify_strategy_modes_returns_all_strategies():
 
 
 def test_verify_strategy_modes_implemented_strategies_match():
-    """実装済 5 戦略は全て match=True (drift なし)。"""
+    """全 7 戦略 (R-A 後) は match=True (drift なし)。"""
     result = verify_strategy_modes()
     implemented = [n for n in PHASE3_STRATEGIES if n not in MISSING_STRATEGIES]
     for name in implemented:
@@ -359,13 +361,27 @@ def test_verify_strategy_modes_implemented_strategies_match():
         assert entry["class_mode"] == EXPECTED_STRATEGY_CLASS_MODES[name]
 
 
-def test_verify_strategy_modes_missing_strategies_skip():
-    """MISSING_STRATEGIES 2 戦略は match=False with MISSING error。"""
+def test_verify_strategy_modes_no_missing_after_r_a():
+    """R-A 実装後: MISSING_STRATEGIES は empty、全 7 戦略実装済。"""
+    assert len(MISSING_STRATEGIES) == 0
     result = verify_strategy_modes()
-    for name in MISSING_STRATEGIES:
-        entry = result[name]
-        assert entry["match"] is False
-        assert "MISSING" in (entry.get("error") or "")
+    # 全 7 戦略 match
+    matches = sum(1 for v in result.values() if v.get("match"))
+    assert matches == 7, f"Expected all 7 match, got {matches}: {result}"
+
+
+def test_verify_strategy_modes_phase3_universe_complete():
+    """Phase 3 BT K=7 universe が完全実装されていることの最終 check。"""
+    expected_strategies = {
+        "pullback_to_liquidity_v1", "asia_range_fade_v1",
+        "gbp_deep_pullback", "vol_momentum_scalp", "htf_false_breakout",
+        "liquidity_sweep", "london_fix_reversal",
+    }
+    assert set(PHASE3_STRATEGIES) == expected_strategies
+    # 全戦略 LOADED
+    result = verify_strategy_modes()
+    for name in expected_strategies:
+        assert result[name]["match"] is True, f"{name} did not load: {result[name]}"
 
 
 # ─── Group I: R6 verify_friction_patch_works (Phase 3 BT pre-flight) ───

@@ -96,7 +96,9 @@ FRICTION_MODE_B: Dict[str, float] = {
 PRE_REG_COMMIT: str = "34c404c"
 
 # 既知の未実装戦略 (skip+warn 対象)
-MISSING_STRATEGIES = frozenset({"pullback_to_liquidity_v1", "asia_range_fade_v1"})
+# R-A revision (2026-04-27): pullback_to_liquidity_v1 / asia_range_fade_v1 が
+# 実装されたため empty に更新。
+MISSING_STRATEGIES: frozenset = frozenset()
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -105,12 +107,13 @@ MISSING_STRATEGIES = frozenset({"pullback_to_liquidity_v1", "asia_range_fade_v1"
 
 # Strategy name → (subdir, module_filename) マッピング
 STRATEGY_PATHS: Dict[str, Tuple[str, str]] = {
-    "gbp_deep_pullback":   ("daytrade", "gbp_deep_pullback"),
-    "vol_momentum_scalp":  ("scalp",    "vol_momentum"),
-    "htf_false_breakout":  ("daytrade", "htf_false_breakout"),
-    "liquidity_sweep":     ("daytrade", "liquidity_sweep"),
-    "london_fix_reversal": ("daytrade", "london_fix_reversal"),
-    # MISSING_STRATEGIES はこの map に登録しない (load_strategy で skip)
+    "gbp_deep_pullback":        ("daytrade", "gbp_deep_pullback"),
+    "vol_momentum_scalp":       ("scalp",    "vol_momentum"),
+    "htf_false_breakout":       ("daytrade", "htf_false_breakout"),
+    "liquidity_sweep":          ("daytrade", "liquidity_sweep"),
+    "london_fix_reversal":      ("daytrade", "london_fix_reversal"),
+    "pullback_to_liquidity_v1": ("daytrade", "pullback_to_liquidity_v1"),
+    "asia_range_fade_v1":       ("daytrade", "asia_range_fade_v1"),
 }
 
 # Strategy → BT runner selector マッピング (R4 revision verified 2026-04-27)
@@ -130,22 +133,26 @@ STRATEGY_PATHS: Dict[str, Tuple[str, str]] = {
 #   - liquidity_sweep / london_fix_reversal は daytrade strategy list に登録 ✓
 #   - vol_momentum_scalp は scalp strategy list に登録 ✓
 STRATEGY_MODES: Dict[str, str] = {
-    "gbp_deep_pullback": "DT",
-    "vol_momentum_scalp": "Scalp",
-    "htf_false_breakout": "DT",
-    "liquidity_sweep": "DT",
-    "london_fix_reversal": "DT",
+    "gbp_deep_pullback":        "DT",
+    "vol_momentum_scalp":       "Scalp",
+    "htf_false_breakout":       "DT",
+    "liquidity_sweep":          "DT",
+    "london_fix_reversal":      "DT",
+    "pullback_to_liquidity_v1": "DT",  # R-A: pre-reg LOCK 実装済 (2026-04-27)
+    "asia_range_fade_v1":       "DT",  # R-A: pre-reg LOCK 実装済 (2026-04-27)
 }
 
 # Expected strategy class `mode` attribute (R4 verification source-of-truth)
 # 本マッピングは load_strategy() / verify_strategy_modes() で source と
 # cross-check するための reference。drift 検出時は warning。
 EXPECTED_STRATEGY_CLASS_MODES: Dict[str, str] = {
-    "gbp_deep_pullback": "daytrade",
-    "vol_momentum_scalp": "scalp",
-    "htf_false_breakout": "daytrade",
-    "liquidity_sweep": "daytrade",
-    "london_fix_reversal": "daytrade",
+    "gbp_deep_pullback":        "daytrade",
+    "vol_momentum_scalp":       "scalp",
+    "htf_false_breakout":       "daytrade",
+    "liquidity_sweep":          "daytrade",
+    "london_fix_reversal":      "daytrade",
+    "pullback_to_liquidity_v1": "daytrade",
+    "asia_range_fade_v1":       "daytrade",
 }
 
 
@@ -510,6 +517,19 @@ def _load_strategy_classes() -> Dict[str, type]:
         classes["london_fix_reversal"] = _lfr
     except ImportError:
         classes["london_fix_reversal"] = None
+
+    # R-A: Pre-reg LOCK 実装 (2026-04-27)
+    try:
+        from strategies.daytrade.pullback_to_liquidity_v1 import PullbackToLiquidityV1 as _ptlv1
+        classes["pullback_to_liquidity_v1"] = _ptlv1
+    except ImportError:
+        classes["pullback_to_liquidity_v1"] = None
+
+    try:
+        from strategies.daytrade.asia_range_fade_v1 import AsiaRangeFadeV1 as _arfv1
+        classes["asia_range_fade_v1"] = _arfv1
+    except ImportError:
+        classes["asia_range_fade_v1"] = None
 
     return classes
 

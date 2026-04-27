@@ -3200,6 +3200,9 @@ class DemoTrader:
             "atr_regime_break",              # Alpha#3: ATRレジーム転換ブレイクアウト (Engle 1982)
             # v9.x: T3 Tokyo Range Breakout (2026-04-23) — Minimum Live USD_JPY BUY-only
             "tokyo_range_breakout_up",       # Andersen-Bollerslev 1997 + WFA STABLE_EDGE (OOS WR=74.5%)
+            # 2026-04-27 R-A: Pre-reg LOCK 2 戦略実装 (Phase 3 BT K=7 universe 完全化)
+            "pullback_to_liquidity_v1",      # TF Structural: HTF×M15 pullback×liquidity rejection (Moskowitz 2012)
+            "asia_range_fade_v1",            # MR Structural: UTC 02-06 range fade with rejection (Lo & MacKinlay 1988)
             # DISABLED (FXアナリストレビュー):
             # "ihs_neckbreak",       # 廃止: 2t EV≒0, 低頻度
             # "dual_sr_breakout",    # 廃止: 未評価
@@ -5290,6 +5293,12 @@ class DemoTrader:
         # Shadow post-cutoff 条件分析: USD_JPY N=13 WR=61.5% EV=+5.39p PF=4.76
         # Bootstrap 95% CI [+1.12, +11.78] 完全正値域, Overlap session N=7 WR=100% コアエッジ
         # 詳細: wiki/analyses/shadow-subcell-analysis-2026-04-23.md
+        # v10 (2026-04-27, rule:R2): post_news_vol — Shadow N=6 全敗 (USD_JPY -68.2p,
+        # GBP_USD -2.4p, EUR_USD 0t), net_edge_audit -50pt vs benchmark.
+        # 旧 BT 4/14 era EV=+1.762 N=26 は post-cutoff で完全崩壊. PAIR_PROMOTED×GBP/EUR
+        # と矛盾するため、本ブロックを優先 (FORCE_DEMOTED は PAIR_PROMOTED より優先評価).
+        # 詳細: reports/deployment-wave-analysis-2026-04-27.md §4
+        "post_news_vol",
     }
 
     # ── Elite Track: 摩擦モデルv2 BT + v5.95統合BT監査 ──
@@ -5421,8 +5430,12 @@ class DemoTrader:
         # 対策1: vix_carry_unwind×JPY — 4/14で+58.7pip(SHADOW), BT EV=+0.212 N=49 WR=67.3%
         ("vix_carry_unwind", "USD_JPY"),
         # 対策2: post_news_vol×GBP/EUR — 4/14で+46pip(SHADOW), BT GBP EV=+1.762 N=26
-        ("post_news_vol", "GBP_USD"),
-        ("post_news_vol", "EUR_USD"),
+        # REMOVED 2026-04-27 (rule:R2 整合性 fix): post_news_vol は L5301 で
+        # FORCE_DEMOTED 登録済 (Shadow N=6 全敗、net_edge_audit -50pt)。
+        # FORCE_DEMOTED ∩ PAIR_PROMOTED 重複は tier_integrity_check.py で
+        # ERROR、FORCE_DEMOTED の優先評価規律に従い PAIR_PROMOTED 登録を撤回。
+        # ("post_news_vol", "GBP_USD"),
+        # ("post_news_vol", "EUR_USD"),
         # REMOVED v9.1: engulfing_bb×EUR — FORCE_DEMOTED (死コード)
         # v2.1 提案4: vwap_mr DT GBP/EUR — 365日BT Bias④⑤修正後にSTRONG出現
         # GBP_USD: N=254 EV=+0.758 PF=2.69 PnL=+193p

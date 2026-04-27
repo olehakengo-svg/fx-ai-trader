@@ -4710,10 +4710,34 @@ _BT_HTF_RECALC_DT    = 16      # 16バー(15m) = 4時間ごとに再計算
 _BT_HTF_RECALC_SW    = 5       # 5バー(1d)  = 5日ごとに再計算
 
 
+def _bt_classify_session(h: int) -> str:
+    """U19 fix (2026-04-27): UTC hour → friction_model_v2._SESSION_MULTIPLIER key。
+
+    Phase 3 BT Mode A/B 切替が BT pipeline に伝播するための session
+    classification。app.py:get_session_info() の境界と整合させる。
+    """
+    if 13 <= h < 17:
+        return "overlap_LN"
+    if 13 <= h < 22:
+        return "NY"
+    if 7 <= h < 13:
+        return "London"
+    if 2 <= h < 7:
+        return "Tokyo"
+    if 0 <= h < 2:
+        return "Asia_early"
+    return "Sydney"  # h >= 22 or h < 0 (defensive)
+
+
 def _bt_spread(bar_time, symbol: str = "USDJPY=X") -> float:
     """BT用 時間帯変動スプレッドモデル v2 (ペア別実測値ベース)
     461t本番監査に基づく実測スプレッドを反映。
     Phase A: EUR_GBP/GBP_USD/EUR_USD/EUR_JPY を個別モデルに分離。
+
+    U19 fix (2026-04-27): pair 別 base_spread 計算後、
+    `friction_model_v2._SESSION_MULTIPLIER` を適用して Phase 3 BT
+    の Mode A/B 切替が BT pipeline に伝播するように補正。
+    fail-open: import / classification 失敗時は base_spread のみ返却 (旧挙動)。
     """
     try:
         h = bar_time.hour if hasattr(bar_time, 'hour') else 0
@@ -4727,55 +4751,63 @@ def _bt_spread(bar_time, symbol: str = "USDJPY=X") -> float:
     _is_eur_usd = "EURUSD" in _s or "EUR_USD" in _s
     _is_eur_jpy = "EURJPY" in _s or "EUR_JPY" in _s
     _is_jpy = "JPY" in _s
+
+    # ── base_spread 計算 (旧 return 値、pair × hour ベース) ──
     if _is_gold:
         # XAU/USD: OANDA Japan spread (pipLocation=-2, 1pip=0.01)
-        if h < 2:     return 0.050   # 5.0pip
-        elif h < 7:   return 0.040   # 4.0pip
-        elif h < 16:  return 0.030   # 3.0pip (LDN/NY)
-        elif h < 20:  return 0.035   # 3.5pip
-        else:         return 0.050   # 5.0pip
+        if h < 2:     base_spread = 0.050   # 5.0pip
+        elif h < 7:   base_spread = 0.040   # 4.0pip
+        elif h < 16:  base_spread = 0.030   # 3.0pip (LDN/NY)
+        elif h < 20:  base_spread = 0.035   # 3.5pip
+        else:         base_spread = 0.050   # 5.0pip
     elif _is_eur_gbp:
-        # EUR/GBP: 実測平均1.367pip → BT: 1.0-2.0pip (non-JPY pip=0.0001)
-        if h < 2:     return 0.00020  # 2.0pip
-        elif h < 7:   return 0.00015  # 1.5pip
-        elif h < 16:  return 0.00010  # 1.0pip (最狭)
-        elif h < 20:  return 0.00012  # 1.2pip
-        else:         return 0.00020  # 2.0pip
+        if h < 2:     base_spread = 0.00020  # 2.0pip
+        elif h < 7:   base_spread = 0.00015  # 1.5pip
+        elif h < 16:  base_spread = 0.00010  # 1.0pip
+        elif h < 20:  base_spread = 0.00012  # 1.2pip
+        else:         base_spread = 0.00020  # 2.0pip
     elif _is_gbp_usd:
-        # GBP/USD: 実測平均1.300pip → BT: 0.8-1.8pip
-        if h < 2:     return 0.00018  # 1.8pip
-        elif h < 7:   return 0.00012  # 1.2pip
-        elif h < 16:  return 0.00008  # 0.8pip (最狭)
-        elif h < 20:  return 0.00010  # 1.0pip
-        else:         return 0.00018  # 1.8pip
+        if h < 2:     base_spread = 0.00018  # 1.8pip
+        elif h < 7:   base_spread = 0.00012  # 1.2pip
+        elif h < 16:  base_spread = 0.00008  # 0.8pip
+        elif h < 20:  base_spread = 0.00010  # 1.0pip
+        else:         base_spread = 0.00018  # 1.8pip
     elif _is_eur_usd:
-        # EUR/USD: 実測平均0.658pip → BT: 0.3-1.0pip
-        if h < 2:     return 0.00010  # 1.0pip
-        elif h < 7:   return 0.00005  # 0.5pip
-        elif h < 16:  return 0.00003  # 0.3pip (最狭)
-        elif h < 20:  return 0.00004  # 0.4pip
-        else:         return 0.00010  # 1.0pip
+        if h < 2:     base_spread = 0.00010  # 1.0pip
+        elif h < 7:   base_spread = 0.00005  # 0.5pip
+        elif h < 16:  base_spread = 0.00003  # 0.3pip
+        elif h < 20:  base_spread = 0.00004  # 0.4pip
+        else:         base_spread = 0.00010  # 1.0pip
     elif _is_eur_jpy:
-        # EUR/JPY: JPYよりスプレッド広い (pip=0.01)
-        if h < 2:     return 0.015    # 1.5pip
-        elif h < 7:   return 0.008    # 0.8pip
-        elif h < 16:  return 0.005    # 0.5pip (最狭)
-        elif h < 20:  return 0.007    # 0.7pip
-        else:         return 0.015    # 1.5pip
+        if h < 2:     base_spread = 0.015    # 1.5pip
+        elif h < 7:   base_spread = 0.008    # 0.8pip
+        elif h < 16:  base_spread = 0.005    # 0.5pip
+        elif h < 20:  base_spread = 0.007    # 0.7pip
+        else:         base_spread = 0.015    # 1.5pip
     elif _is_jpy:
-        # USD/JPY: 実測平均0.677pip → BT: 0.3-1.0pip (微調整)
-        if h < 2:     return 0.010    # 1.0pip
-        elif h < 7:   return 0.005    # 0.5pip
-        elif h < 16:  return 0.003    # 0.3pip (LDN/NY)
-        elif h < 20:  return 0.004    # 0.4pip
-        else:         return 0.010    # 1.0pip
+        if h < 2:     base_spread = 0.010    # 1.0pip
+        elif h < 7:   base_spread = 0.005    # 0.5pip
+        elif h < 16:  base_spread = 0.003    # 0.3pip
+        elif h < 20:  base_spread = 0.004    # 0.4pip
+        else:         base_spread = 0.010    # 1.0pip
     else:
         # フォールバック: 未知ペア
-        if h < 2:     return 0.00010  # 1.0pip
-        elif h < 7:   return 0.00006  # 0.6pip
-        elif h < 16:  return 0.00003  # 0.3pip
-        elif h < 20:  return 0.00004  # 0.4pip
-        else:         return 0.00010  # 1.0pip
+        if h < 2:     base_spread = 0.00010  # 1.0pip
+        elif h < 7:   base_spread = 0.00006  # 0.6pip
+        elif h < 16:  base_spread = 0.00003  # 0.3pip
+        elif h < 20:  base_spread = 0.00004  # 0.4pip
+        else:         base_spread = 0.00010  # 1.0pip
+
+    # ── U19 fix: session multiplier 適用 (fail-open) ──
+    try:
+        from modules.friction_model_v2 import _SESSION_MULTIPLIER
+        sess = _bt_classify_session(h)
+        # multiplier lookup with default fallback
+        mult = _SESSION_MULTIPLIER.get(sess, _SESSION_MULTIPLIER.get("default", 1.0))
+        return base_spread * mult
+    except Exception:
+        # import / lookup 失敗時は base_spread のみ返却 (旧挙動)
+        return base_spread
 
 
 # ── BT スリッページ係数 (v9.4 Tier 1: wiki friction-analysis 準拠) ──
@@ -6106,6 +6138,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "atr_regime_break",              # Alpha#3: ATRレジーム転換ブレイクアウト (Engle 1982)
                 # v9.x: T3 Tokyo Range Breakout (2026-04-23) — Minimum Live USD_JPY BUY-only
                 "tokyo_range_breakout_up",       # Andersen-Bollerslev 1997 + WFA STABLE_EDGE (OOS WR=74.5%)
+                # 2026-04-27 R-A: Pre-reg LOCK 2 戦略実装 (Phase 3 BT K=7 universe 完全化)
+                "pullback_to_liquidity_v1",      # TF Structural: HTF×M15 pullback×liquidity rejection (Moskowitz 2012)
+                "asia_range_fade_v1",            # MR Structural: UTC 02-06 range fade with rejection (Lo & MacKinlay 1988)
             }
             DT_BLOCKED = {"unknown", "wait"}
 
