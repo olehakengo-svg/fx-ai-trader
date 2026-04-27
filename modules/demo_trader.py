@@ -5153,6 +5153,7 @@ class DemoTrader:
             # Phase 3.2: pair-specific friction を先に取得 (by_type_pair が必要)
             _by_type_pair_for_friction = data.get("by_type_pair", {})
             changes = []
+            change_log_entries = []
             for et, stats in by_type.items():
                 n = stats.get("n", 0)
                 ev = stats.get("ev", 0)
@@ -5168,12 +5169,19 @@ class DemoTrader:
                 _wins_int = int(round(n * wr / 100.0))
                 _wL_bf = self._wilson_bf_lower(_wins_int, int(n), self._WILSON_BF_Z)
                 _wilson_pass = _wL_bf > self._BREAKEVEN_WR
-                # ファストトラック: 十分なサンプル+高WR+EV>friction+Wilson_BF合格
+                # P0#3 (2026-04-27 audit): Kelly<0 promotion guard
+                # Block promote if measured Kelly is negative (positive evidence of -EV).
+                # None means insufficient data (<10 closed) — do not block.
+                _kelly_f = self._get_strategy_kelly(et, "")
+                _kelly_block = (_kelly_f is not None and _kelly_f < 0)
+                # ファストトラック: 十分なサンプル+高WR+EV>friction+Wilson_BF合格+Kelly≥0
                 if (n >= 20 and wr >= 60.0
-                        and ev >= friction_pip and _wilson_pass):
+                        and ev >= friction_pip and _wilson_pass
+                        and not _kelly_block):
                     status = "promoted"
-                # 通常トラック: コスト補正後にEV正 + Wilson_BF合格
-                elif n >= 30 and ev >= friction_pip and _wilson_pass:
+                # 通常トラック: コスト補正後にEV正 + Wilson_BF合格 + Kelly≥0
+                elif (n >= 30 and ev >= friction_pip and _wilson_pass
+                      and not _kelly_block):
                     status = "promoted"
                 # v8.9: 降格閾値緩和 N≥30→N≥20 (今日のEV分解で十分な根拠)
                 elif n >= 20 and ev < -0.5 and et not in SMC_PROTECTED:
@@ -5192,11 +5200,24 @@ class DemoTrader:
                 self._promoted_types[et] = {
                     "status": status, "n": n, "wr": wr, "ev": ev,
                     "friction_pip": round(friction_pip, 3),
+                    "kelly_f": (round(_kelly_f, 4)
+                                if _kelly_f is not None else None),
+                    "wilson_bf_lower": round(_wL_bf, 4),
                 }
                 if old != status:
                     changes.append(
                         f"{et}: {old}→{status} (N={n} WR={wr}% EV={ev:+.2f} fric={friction_pip:.2f}pip)"
                     )
+                    change_log_entries.append({
+                        "scope": "strategy", "entry_type": et,
+                        "old": old, "new": status,
+                        "n": int(n), "wr": float(wr), "ev": float(ev),
+                        "friction_pip": round(friction_pip, 3),
+                        "kelly_f": (round(_kelly_f, 4)
+                                    if _kelly_f is not None else None),
+                        "wilson_bf_lower": round(_wL_bf, 4),
+                        "kelly_blocked": bool(_kelly_block),
+                    })
 
             # ── v8.9: ペア別降格 — グローバルEVが正でもペア別で負の組み合わせを検出 ──
             by_type_pair = data.get("by_type_pair", {})
@@ -5218,9 +5239,48 @@ class DemoTrader:
                                 f"🔻 {_et}×{_inst}: auto-PAIR_DEMOTED "
                                 f"(N={_n} WR={_wr}% EV={_ev:+.2f})"
                             )
+                            change_log_entries.append({
+                                "scope": "pair", "entry_type": _et,
+                                "instrument": _inst,
+                                "old": "active", "new": "pair_demoted",
+                                "n": int(_n), "wr": float(_wr),
+                                "ev": float(_ev),
+                            })
 
             if changes:
                 self._add_log(f"🎯 戦略昇格更新: {', '.join(changes[:5])}")
+            # P0#1 (2026-04-27 audit): persist tier transitions to algo_change_log
+            # Without this, promotion/demotion history is unauditable in DB.
+            for _entry in change_log_entries:
+                try:
+                    if _entry.get("scope") == "pair":
+                        _desc = (
+                            f"{_entry['entry_type']}×{_entry['instrument']}: "
+                            f"{_entry['old']}→{_entry['new']} "
+                            f"(N={_entry['n']} WR={_entry['wr']:.1f}% "
+                            f"EV={_entry['ev']:+.2f})"
+                        )
+                    else:
+                        _desc = (
+                            f"{_entry['entry_type']}: "
+                            f"{_entry['old']}→{_entry['new']} "
+                            f"(N={_entry['n']} WR={_entry['wr']:.1f}% "
+                            f"EV={_entry['ev']:+.2f} "
+                            f"fric={_entry['friction_pip']:.2f}pip "
+                            f"kelly={_entry.get('kelly_f')} "
+                            f"wilson_bf={_entry['wilson_bf_lower']:.3f})"
+                        )
+                    self._db.save_algo_change(
+                        change_type="tier_transition",
+                        description=_desc,
+                        params_before={"status": _entry["old"]},
+                        params_after={k: v for k, v in _entry.items()
+                                      if k != "old"},
+                        triggered_by="evaluate_promotions",
+                    )
+                except Exception as _e:
+                    print(f"[Promotion] algo_change_log write failed: {_e}",
+                          flush=True)
             # ── v6.2: N cache DB永続化 (deploy survive) ──
             try:
                 self._db.set_system_kv("strategy_n_cache", json.dumps(self._strategy_n_cache))

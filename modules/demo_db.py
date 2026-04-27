@@ -1145,10 +1145,30 @@ class DemoDB:
             ev = sum(t["pnl_pips"] for t in trades) / len(trades)
             return round(w / len(trades) * 100, 1), round(ev, 2), len(trades)
 
+        def _calc_wf_halves(trades: list) -> tuple:
+            """Phase 3.4: 50/50 split by entry_time → (h1_avg, h2_avg).
+            Used by _evaluate_promotions for Walk-Forward collapse demote.
+            """
+            if not trades or len(trades) < 4:
+                return 0.0, 0.0
+            sorted_t = sorted(trades, key=lambda r: r.get("entry_time") or "")
+            half = len(sorted_t) // 2
+            h1 = sorted_t[:half]
+            h2 = sorted_t[half:]
+            h1_avg = sum((t["pnl_pips"] or 0) for t in h1) / len(h1) if h1 else 0.0
+            h2_avg = sum((t["pnl_pips"] or 0) for t in h2) / len(h2) if h2 else 0.0
+            return round(h1_avg, 3), round(h2_avg, 3)
+
+        def _by_type_entry(v):
+            wr, ev, n = _calc_wr(v)
+            h1, h2 = _calc_wf_halves(v)
+            return {"wr": wr, "ev": ev, "n": n,
+                    "wf_h1_avg": h1, "wf_h2_avg": h2}
+
         return {
             "ready": True,
             "sample": len(closed),
-            "by_type":   {k: {"wr": _calc_wr(v)[0], "ev": _calc_wr(v)[1], "n": len(v)} for k, v in by_type.items()},
+            "by_type":   {k: _by_type_entry(v) for k, v in by_type.items()},
             # v8.9: ペア×戦略別 — キーは "entry_type|instrument" 形式
             "by_type_pair": {f"{k[0]}|{k[1]}": {"wr": _calc_wr(v)[0], "ev": _calc_wr(v)[1], "n": len(v),
                              "entry_type": k[0], "instrument": k[1]} for k, v in by_type_pair.items()},

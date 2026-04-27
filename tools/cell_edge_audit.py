@@ -1,4 +1,4 @@
-"""Cell-by-Cell Edge Audit (Q1', 2026-04-27; v2 added 2026-04-27 evening)
+"""Cell-by-Cell Edge Audit (Q1', 2026-04-27; v2 + v3 added 2026-04-27)
 
 Identify promotion-eligible cells from demo_trades.db.
 
@@ -7,6 +7,9 @@ Cell key:
   v2 (--mode v2): (entry_type, session, pair, mode)
     - spread_quartile を drop (USD_JPY/EUR_USD で degenerate, discriminating power ゼロ)
     - pair を追加 (cross-pair 比較で edge を見つける)
+  v3 (--mode v3): (entry_type, session, pair, direction, mode)
+    - 非対称エッジ検出 (USD_JPY/SELLは負けるがGBP_USD/BUYは勝つ型)
+    - dt_bb_rsi_mr GBP_USD/BUY のような direction-specific edge 監査用
 
 For each cell with N >= MIN_N, compute:
   - N, WR, Wilson 95% lower bound
@@ -154,7 +157,7 @@ def fetch_trades(db_path: str, include_shadow: bool,
     if since_iso is not None:
         if include_shadow:
             rows = conn.execute("""
-                SELECT trade_id, entry_type, mode, instrument, tf,
+                SELECT trade_id, entry_type, mode, instrument, direction, tf,
                        entry_time, entry_price, sl, spread_at_entry,
                        outcome, pnl_pips, is_shadow
                 FROM demo_trades
@@ -163,7 +166,7 @@ def fetch_trades(db_path: str, include_shadow: bool,
             """, (since_iso,)).fetchall()
         else:
             rows = conn.execute("""
-                SELECT trade_id, entry_type, mode, instrument, tf,
+                SELECT trade_id, entry_type, mode, instrument, direction, tf,
                        entry_time, entry_price, sl, spread_at_entry,
                        outcome, pnl_pips, is_shadow
                 FROM demo_trades
@@ -173,7 +176,7 @@ def fetch_trades(db_path: str, include_shadow: bool,
     else:
         if include_shadow:
             rows = conn.execute("""
-                SELECT trade_id, entry_type, mode, instrument, tf,
+                SELECT trade_id, entry_type, mode, instrument, direction, tf,
                        entry_time, entry_price, sl, spread_at_entry,
                        outcome, pnl_pips, is_shadow
                 FROM demo_trades
@@ -181,7 +184,7 @@ def fetch_trades(db_path: str, include_shadow: bool,
             """).fetchall()
         else:
             rows = conn.execute("""
-                SELECT trade_id, entry_type, mode, instrument, tf,
+                SELECT trade_id, entry_type, mode, instrument, direction, tf,
                        entry_time, entry_price, sl, spread_at_entry,
                        outcome, pnl_pips, is_shadow
                 FROM demo_trades
@@ -212,13 +215,30 @@ def cell_key_v2(row: sqlite3.Row) -> tuple[str, str, str, str]:
     return (et, sess, pair, mode)
 
 
+def cell_key_v3(row: sqlite3.Row) -> tuple[str, str, str, str, str]:
+    """v3: v2 + direction (BUY/SELL). For asymmetric edge detection."""
+    et = row["entry_type"] or "unknown"
+    sess_raw = derive_session_from_utc(row["entry_time"])
+    sess = _normalize_session(sess_raw)
+    pair = row["instrument"] or "USD_JPY"
+    direction = (row["direction"] or "?").upper()
+    mode = normalize_mode(row["mode"])
+    return (et, sess, pair, direction, mode)
+
+
 def aggregate_cells(rows: Iterable[sqlite3.Row], mode: str = "v1") -> dict[tuple, dict]:
     """Aggregate trades into cells.
 
     mode: 'v1' (entry_type × session × spread_quartile × mode)
           'v2' (entry_type × session × pair × mode) — degenerate dim 削除
+          'v3' (entry_type × session × pair × direction × mode) — 非対称エッジ検出
     """
-    keyfn = cell_key_v2 if mode == "v2" else cell_key
+    if mode == "v3":
+        keyfn = cell_key_v3
+    elif mode == "v2":
+        keyfn = cell_key_v2
+    else:
+        keyfn = cell_key
     cells: dict[tuple, dict] = defaultdict(lambda: {
         "n": 0, "wins": 0, "losses": 0,
         "gross_profit": 0.0, "gross_loss": 0.0,
@@ -279,8 +299,12 @@ def score_cells(cells: dict[tuple, dict], min_n: int, mode: str = "v1") -> list[
         pf = (c["gross_profit"] / c["gross_loss"]) if c["gross_loss"] > 0 else float("inf")
         p_raw = binomial_two_sided_pvalue(wins, n, p0=0.5)
         p_bonf = min(1.0, p_raw * n_tests)
-        # v1 key: (et, sess, q, mode), v2 key: (et, sess, pair, mode)
-        if mode == "v2":
+        # v1 key: (et, sess, q, mode), v2 key: (et, sess, pair, mode), v3: + direction
+        if mode == "v3":
+            et, sess, pair, direction, md = k
+            cell_dim = {"entry_type": et, "session": sess, "pair": pair,
+                        "direction": direction, "mode": md}
+        elif mode == "v2":
             et, sess, pair, md = k
             cell_dim = {"entry_type": et, "session": sess, "pair": pair, "mode": md}
         else:
@@ -324,10 +348,16 @@ def score_cells(cells: dict[tuple, dict], min_n: int, mode: str = "v1") -> list[
 
 def render_markdown(rows: list[dict], min_n: int, include_shadow: bool,
                     audit_mode: str = "v1", window: str = "all") -> str:
-    """Render audit results to markdown. Supports both v1/v2 cell schemas."""
+    """Render audit results to markdown. Supports v1/v2/v3 cell schemas."""
     candidates = [r for r in rows if r["promotion_candidate"]]
     watch = [r for r in rows if r.get("watch_candidate")]
-    third_dim = "pair" if audit_mode == "v2" else "spread_quartile"
+    if audit_mode == "v3":
+        third_dim = "pair"
+    elif audit_mode == "v2":
+        third_dim = "pair"
+    else:
+        third_dim = "spread_quartile"
+    extra_dim = "direction" if audit_mode == "v3" else None
     lines = [
         f"# Cell-by-Cell Edge Audit ({audit_mode}, window={window}, {datetime.now(timezone.utc).date().isoformat()})",
         "",
@@ -342,39 +372,61 @@ def render_markdown(rows: list[dict], min_n: int, include_shadow: bool,
         "",
     ]
     if candidates:
-        lines += [
-            f"| entry_type | session | {third_dim} | mode | N | wins | WR | Wilson [lo, hi] | EV pip | PF | p (Bonf) |",
-            "|---|---|---|---|---|---|---|---|---|---|---|",
-        ]
-        for r in candidates:
-            pf_str = f"{r['pf']:.2f}" if r["pf"] is not None else "inf"
-            lines.append(
-                f"| {r['entry_type']} | {r['session']} | {r[third_dim]} | {r['mode']} | "
-                f"{r['n']} | {r['wins']} | {r['wr']:.1%} | "
-                f"[{r['wilson_lower']:.1%}, {r['wilson_upper']:.1%}] | "
-                f"{r['ev_pip']:+.2f} | {pf_str} | {r['p_value_bonferroni']:.4f} |"
-            )
+        if extra_dim:
+            lines += [
+                f"| entry_type | session | {third_dim} | {extra_dim} | mode | N | wins | WR | Wilson [lo, hi] | EV pip | PF | p (Bonf) |",
+                "|---|---|---|---|---|---|---|---|---|---|---|---|",
+            ]
+            for r in candidates:
+                pf_str = f"{r['pf']:.2f}" if r["pf"] is not None else "inf"
+                lines.append(
+                    f"| {r['entry_type']} | {r['session']} | {r[third_dim]} | {r[extra_dim]} | {r['mode']} | "
+                    f"{r['n']} | {r['wins']} | {r['wr']:.1%} | "
+                    f"[{r['wilson_lower']:.1%}, {r['wilson_upper']:.1%}] | "
+                    f"{r['ev_pip']:+.2f} | {pf_str} | {r['p_value_bonferroni']:.4f} |"
+                )
+        else:
+            lines += [
+                f"| entry_type | session | {third_dim} | mode | N | wins | WR | Wilson [lo, hi] | EV pip | PF | p (Bonf) |",
+                "|---|---|---|---|---|---|---|---|---|---|---|",
+            ]
+            for r in candidates:
+                pf_str = f"{r['pf']:.2f}" if r["pf"] is not None else "inf"
+                lines.append(
+                    f"| {r['entry_type']} | {r['session']} | {r[third_dim]} | {r['mode']} | "
+                    f"{r['n']} | {r['wins']} | {r['wr']:.1%} | "
+                    f"[{r['wilson_lower']:.1%}, {r['wilson_upper']:.1%}] | "
+                    f"{r['ev_pip']:+.2f} | {pf_str} | {r['p_value_bonferroni']:.4f} |"
+                )
     else:
         lines.append("_No cells passed promotion criteria._")
 
+    def _row_dim_cells(r: dict) -> str:
+        if extra_dim:
+            return f"{r[third_dim]} | {r[extra_dim]}"
+        return f"{r[third_dim]}"
+
+    dim_header = f"{third_dim} | {extra_dim}" if extra_dim else third_dim
+    pad = "---|" if extra_dim else ""
+
     if watch:
         lines += ["", "## WATCH Candidates (FDR-significant only)", "",
-                  f"| entry_type | session | {third_dim} | mode | N | WR | Wilson lo | EV pip | p (Bonf / BH) |",
-                  "|---|---|---|---|---|---|---|---|---|"]
+                  f"| entry_type | session | {dim_header} | mode | N | WR | Wilson lo | EV pip | p (Bonf / BH) |",
+                  f"|---|---|---|{pad}---|---|---|---|---|---|"]
         for r in watch:
             lines.append(
-                f"| {r['entry_type']} | {r['session']} | {r[third_dim]} | {r['mode']} | "
+                f"| {r['entry_type']} | {r['session']} | {_row_dim_cells(r)} | {r['mode']} | "
                 f"{r['n']} | {r['wr']:.1%} | {r['wilson_lower']:.1%} | "
                 f"{r['ev_pip']:+.2f} | {r['p_value_bonferroni']:.4f} / {r['p_value_bh_fdr']:.4f} |"
             )
 
     lines += ["", "## All Qualified Cells (sorted by Wilson lower)", "",
-              f"| entry_type | session | {third_dim} | mode | N (Live/Shadow) | WR | Wilson lower | EV pip | PF | p (raw / Bonf / BH) |",
-              "|---|---|---|---|---|---|---|---|---|---|"]
+              f"| entry_type | session | {dim_header} | mode | N (Live/Shadow) | WR | Wilson lower | EV pip | PF | p (raw / Bonf / BH) |",
+              f"|---|---|---|{pad}---|---|---|---|---|---|---|"]
     for r in rows:
         pf_str = f"{r['pf']:.2f}" if r["pf"] is not None else "inf"
         lines.append(
-            f"| {r['entry_type']} | {r['session']} | {r[third_dim]} | {r['mode']} | "
+            f"| {r['entry_type']} | {r['session']} | {_row_dim_cells(r)} | {r['mode']} | "
             f"{r['n']} ({r['live_n']}/{r['shadow_n']}) | {r['wr']:.1%} | "
             f"{r['wilson_lower']:.1%} | {r['ev_pip']:+.2f} | {pf_str} | "
             f"{r['p_value_raw']:.4f} / {r['p_value_bonferroni']:.4f} / "
@@ -402,8 +454,11 @@ def main():
                         help="Include is_shadow=1 trades in cell aggregation")
     parser.add_argument("--min-n", type=int, default=MIN_N)
     parser.add_argument("--out-dir", default="raw/audits")
-    parser.add_argument("--mode", choices=["v1", "v2"], default="v1",
-                        help="v1: spread_quartile dim / v2: pair dim (degenerate drop)")
+    parser.add_argument("--mode", choices=["v1", "v2", "v3"], default="v1",
+                        help="v1: spread_quartile dim / v2: pair dim / "
+                             "v3: pair × direction (asymmetric edge)")
+    parser.add_argument("--strategy", default=None,
+                        help="Filter to single entry_type for focused audit")
     parser.add_argument("--window", default="all",
                         help="Time window: 7d/14d/30d/all (default all)")
     args = parser.parse_args()
@@ -414,6 +469,11 @@ def main():
     if not rows_db:
         print("[cell_edge_audit] No closed trades found", file=sys.stderr)
         sys.exit(1)
+    if args.strategy:
+        rows_db = [r for r in rows_db if r["entry_type"] == args.strategy]
+        if not rows_db:
+            print(f"[cell_edge_audit] No trades for strategy={args.strategy!r}", file=sys.stderr)
+            sys.exit(1)
     cells = aggregate_cells(rows_db, mode=args.mode)
     scored = score_cells(cells, args.min_n, mode=args.mode)
     today = datetime.now(timezone.utc).date().isoformat()

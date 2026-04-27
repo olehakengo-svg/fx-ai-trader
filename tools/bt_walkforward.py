@@ -119,6 +119,54 @@ def window_stats(trades: list[dict]) -> dict:
     }
 
 
+def halves_stability(trades: list[dict]) -> dict:
+    """50/50 split by chronological order — H1 vs H2 EV decay analysis.
+
+    Returns dict with h1_ev, h2_ev, h2_over_h1_ratio, verdict.
+    Verdict thresholds (Phase 2 quant audit):
+      - stable: H2 / |H1| >= 0.5 (decay <= 50% from H1)
+      - borderline: H2 / |H1| in [0.0, 0.5)
+      - collapse: H2 / H1 < 0 (sign flip)
+    """
+    parsed = []
+    for t in trades:
+        ts = parse_entry_time(t.get("entry_time", ""))
+        if ts is None:
+            continue
+        parsed.append((ts, t))
+    n_total = len(parsed)
+    if n_total < 4:
+        return {"n_total": n_total, "verdict": "N<4_skipped"}
+    parsed.sort(key=lambda x: x[0])
+    half = n_total // 2
+    h1 = [t for _, t in parsed[:half]]
+    h2 = [t for _, t in parsed[half:]]
+    h1_pnls = [compute_pnl_pip(t) for t in h1]
+    h2_pnls = [compute_pnl_pip(t) for t in h2]
+    h1_ev = sum(h1_pnls) / len(h1_pnls) if h1_pnls else 0.0
+    h2_ev = sum(h2_pnls) / len(h2_pnls) if h2_pnls else 0.0
+    h1_wins = sum(1 for t in h1 if t.get("outcome") == "WIN")
+    h2_wins = sum(1 for t in h2 if t.get("outcome") == "WIN")
+    if h1_ev > 0 and h2_ev < 0:
+        verdict = "collapse"
+    elif h1_ev <= 0 and h2_ev <= 0:
+        verdict = "both_negative"
+    elif abs(h1_ev) > 1e-6:
+        ratio = h2_ev / abs(h1_ev)
+        verdict = "stable" if ratio >= 0.5 else "borderline"
+    else:
+        verdict = "h1_zero"
+    return {
+        "n_total": n_total,
+        "h1_n": len(h1), "h1_ev": round(h1_ev, 3),
+        "h1_wr": round(h1_wins / len(h1) * 100, 1) if h1 else 0.0,
+        "h2_n": len(h2), "h2_ev": round(h2_ev, 3),
+        "h2_wr": round(h2_wins / len(h2) * 100, 1) if h2 else 0.0,
+        "h2_over_h1_abs": round(h2_ev / abs(h1_ev), 3) if abs(h1_ev) > 1e-6 else None,
+        "verdict": verdict,
+    }
+
+
 def stability_metrics(per_window: list[dict]) -> dict:
     """CV(EV), positive-window ratio, min/max EV."""
     active = [w for w in per_window if w["n"] >= 5]
@@ -191,10 +239,12 @@ def scan_symbol(yf_symbol: str, pair: str, lookback: int, interval: str,
             per_window.append(ws)
         agg = window_stats(st_trades)
         stab = stability_metrics(per_window)
+        halves = halves_stability(st_trades)
         strategies[strat] = {
             "aggregate": agg,
             "per_window": per_window,
             "stability": stab,
+            "halves": halves,
         }
 
     print(f"  {len(trades)} trades, {len(strategies)} strategies (N≥10)")
