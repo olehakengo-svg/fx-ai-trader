@@ -1,5 +1,46 @@
 # FX AI Trader - Changelog
 
+## 2026-04-27 P0-2/P0-3 Live-thaw Discipline — net_edge monitor + thaw gate [rule:R2/R1]
+
+### 動機
+本日のクオンツ提案ロードマップ P0 のうち、P0-1 (post_news_vol demote) は commit fe5344d に取り込み済。本コミットは P0-2 (daily_live_monitor + net_edge_audit) と P0-3 (live-thaw-gate doc) を別単位で投入する。Kelly=-17.97% / DD=32.32% の危機状態下で、**負エッジの常設監視と解凍判断の文書化**を pre-register する目的。
+
+### 1. daily_live_monitor に net_edge_audit を組み込み (P0-2, rule:R2)
+- 全戦略で `net_edge_wr_pt` を毎日算出 (N≥5 のみ採用)
+- `net_edge_wr_pt ≤ -10pt` を WARNING alert に昇格 (severity 1)
+- 出力 JSON に `net_edge` フィールド追加 — 監視サブシステム連携用
+- 配置: `tools/daily_live_monitor.py:415-444`
+
+実測 alert (2026-04-27 初回実行):
+```
+NET_EDGE post_news_vol: -50.0pt (-14.65pip) N=6
+NET_EDGE dt_fib_reversal: -20.8pt (+1.09pip) N=6
+NET_EDGE bb_squeeze_breakout: -17.1pt (-1.64pip) N=15
+NET_EDGE orb_trap: -16.7pt (-8.18pip) N=5
+NET_EDGE sr_channel_reversal: -15.3pt (-1.08pip) N=24
+```
+
+うち `bb_squeeze_breakout × USD_JPY` は `_PAIR_PROMOTED` (BT N=42 WR=76.2%) と矛盾しており、Live N=5 全敗 (post-promotion 2026-04-21〜) は **BT-Live divergence** の典型。Rule 1 撤回判断は別途。
+
+### 2. live-thaw-gate-2026-04-27.md 起票 (P0-3, rule:R1)
+Live 解凍条件を **4 項目 AND** で pre-register:
+- G1: seed-exclusion 適用後の aggregate Kelly > 0
+- G2: ELITE_LIVE 候補 (bb_rsi_reversion / fib_reversal) の cell-level Wilson > BEV
+- G3: SR Anti-Hunt EUR_USD Sentinel N≥30 で WR>60% かつ Wilson>55%
+- G4: 直近 14 日の DD < 10%
+
+撤回条件 (Rule 2/R3) も明文化: net_edge alert 2 戦略同時 / 連続 SL 4 回 / DD>15% (7d) 等で即 Live=0 復帰。配置: `knowledge-base/wiki/decisions/live-thaw-gate-2026-04-27.md`
+
+### 回帰テスト
+482/482 通過 (新規追加なし)
+
+### 残課題 (P1+)
+- `tools/live_thaw_check.py` 実装 (4 条件を CLI で一括判定)
+- bb_squeeze_breakout × USD_JPY の Rule 1 撤回判断
+- SR Anti-Hunt Phase 4 BT (pre-reg LOCK)
+
+---
+
 ## 2026-04-27 P1 Aggregation Hygiene — seed-exclusion + net_edge_WR audit [rule:R3]
 
 ### 問題

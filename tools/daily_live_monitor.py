@@ -412,6 +412,35 @@ def main():
             alerts.append(f"WAVE2 {gate}: {info['anomaly']}")
             severity = max(severity, 1)
 
+    # ─── net_edge_audit (P0-2, 2026-04-27) ─────────────────────────────
+    # 戦略の WR vs benchmark (同期間×同 pair×同 direction 他戦略 Shadow) を比較し、
+    # 市場ベータ便乗エッジを検出する。net_edge_wr_pt < -10 を warning として記録。
+    # 詳細: reports/deployment-wave-analysis-2026-04-27.md §4
+    net_edge_summary: list[dict] = []
+    try:
+        from tools.net_edge_audit import audit_strategy
+        from modules.demo_db import DemoDB
+        _db = DemoDB(db_path=args.db)
+        with _db._safe_conn() as _conn:
+            _ets = [r[0] for r in _conn.execute(
+                "SELECT DISTINCT entry_type FROM demo_trades "
+                "WHERE entry_type IS NOT NULL AND entry_type != '' "
+                "AND (instrument IS NULL OR instrument NOT LIKE '%XAU%') "
+                "AND status='CLOSED'"
+            ).fetchall()]
+        for et in sorted(_ets):
+            r = audit_strategy(_db, et, window_h=0)
+            if r.get("n_strat", 0) >= 5:
+                net_edge_summary.append(r)
+                if r.get("net_edge_wr_pt", 0) <= -10:
+                    alerts.append(
+                        f"NET_EDGE {et}: {r['net_edge_wr_pt']:+.1f}pt "
+                        f"({r['net_edge_pip']:+.2f}pip) N={r['n_strat']}"
+                    )
+                    severity = max(severity, 1)
+    except Exception as _e:
+        alerts.append(f"NET_EDGE audit failed: {type(_e).__name__}: {_e}")
+
     today = datetime.now(timezone.utc).date().isoformat()
     snapshot = {
         "date": today,
@@ -426,6 +455,7 @@ def main():
         "elite_live_post_m1": elite_post_m1,  # M1 deploy 後のみ
         "m1_deploy_time": M1_DEPLOY_TIME,
         "post_m1_total_rows": len(post_m1_rows),
+        "net_edge": net_edge_summary,      # P0-2 (2026-04-27): 戦略 WR vs market beta
         "alerts": alerts,
         "severity": severity,
         "severity_label": SEV_LABEL[severity],

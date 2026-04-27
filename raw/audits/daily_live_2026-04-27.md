@@ -1,7 +1,7 @@
 # Daily Live Monitor — 2026-04-27
 
-DB: demo_trades.db (closed trades total = 359, Live = 34)
-Severity: **OK**
+DB: demo_trades.db (closed trades total = 367, Live = 34)
+Severity: **WARNING**
 
 ## C1-PROMOTE Live状況
 
@@ -18,7 +18,7 @@ Severity: **OK**
 
 ## ELITE_LIVE 3戦略 (M1 修正効果監視)
 M1 deploy: **2026-04-27T05:51:00 UTC** (commit 641bfe4)
-Post-M1 total trades: 0
+Post-M1 total trades: 8
 
 ### 全期間 (BT-Live divergence baseline)
 
@@ -38,9 +38,13 @@ Post-M1 total trades: 0
 
 ## Alerts
 
-_No alerts._
+- NET_EDGE bb_squeeze_breakout: -17.1pt (-1.64pip) N=15
+- NET_EDGE dt_fib_reversal: -20.8pt (+1.09pip) N=6
+- NET_EDGE orb_trap: -16.7pt (-8.18pip) N=5
+- NET_EDGE post_news_vol: -50.0pt (-14.65pip) N=6
+- NET_EDGE sr_channel_reversal: -15.3pt (-1.08pip) N=24
 
-## Wave 2 gate firing rate (post-deploy 2026-04-27+, N=27)
+## Wave 2 gate firing rate (post-deploy 2026-04-27+, N=35)
 
 | Gate | fired | rate | anomaly |
 |---|---|---|---|
@@ -48,4 +52,4 @@ _No alerts._
 | A3 cost throttle | 0 | 0.0% | - |
 | A4 vol_scale | 0 | 0.0% | - |
 
-_post-deploy N=27 < 50 のため、anomaly 判定はサンプル蓄積待ち_
+_post-deploy N=35 < 50 のため、anomaly 判定はサンプル蓄積待ち_
