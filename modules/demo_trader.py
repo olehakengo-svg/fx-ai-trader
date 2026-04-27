@@ -3222,6 +3222,8 @@ class DemoTrader:
             "sr_anti_hunt_bounce",           # SR Anti-Hunt Bounce: KDE+hunt-aware SL
             "sr_liquidity_grab",             # SR Liquidity Grab: SMC post-hunt reversal
             "cpd_divergence",                # CPD Divergence: EUR/GBP correlation breakdown (前セッション WIP, Sentinel)
+            "vdr_jpy",                       # VDR JPY: yield differential rotation (前セッション WIP, Sentinel)
+            "vsg_jpy_reversal",              # VSG JPY Reversal: vol surge reversal (前セッション WIP, Sentinel)
             # DISABLED (FXアナリストレビュー):
             # "ihs_neckbreak",       # 廃止: 2t EV≒0, 低頻度
             # "dual_sr_breakout",    # 廃止: 未評価
@@ -5065,9 +5067,62 @@ class DemoTrader:
         # 学習完了後に戦略昇格を再評価
         self._evaluate_promotions()
 
-    # BT/本番コスト補正: 1トレードあたり1.0pipのコストを考慮
-    # EV > _BT_COST_PER_TRADE であれば、コスト差引後もEV正
-    _BT_COST_PER_TRADE = 1.0  # pips (spread + slippage)
+    # BT/本番コスト補正: 1トレードあたり1.0pipのコストを考慮 (legacy fallback)
+    # Phase 3.2 (2026-04-27): pair-specific friction を friction_model_v2 から取得
+    # by_type_pair の N で重み付け平均し、戦略毎の expected friction を算出。
+    # EV > expected_friction であれば、コスト差引後もEV正
+    _BT_COST_PER_TRADE = 1.0  # pips (legacy flat fallback)
+
+    # Phase 3.3 (2026-04-27): Bonferroni-adjusted Wilson lower bound gate.
+    # k=52 strategies × multi-window → use z=3.29 (α=0.05/52 ≈ 0.001)
+    # gate: wilson_bf_lower(wins, n) > breakeven_wr (≈ 0.294 for Trend Following)
+    _BREAKEVEN_WR = 0.294
+    _WILSON_BF_Z = 3.29
+
+    @staticmethod
+    def _wilson_bf_lower(wins: int, n: int, z: float = 3.29) -> float:
+        """Wilson score lower bound with Bonferroni z. Used by promotion gate."""
+        import math as _m
+        if n <= 0:
+            return 0.0
+        p = wins / n
+        den = 1 + z * z / n
+        centre = p + z * z / (2 * n)
+        spread = z * _m.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
+        return max(0.0, (centre - spread) / den)
+
+    @staticmethod
+    def _strategy_friction_pips(entry_type: str,
+                                 by_type_pair: dict,
+                                 mode: str = "DT") -> float:
+        """Weighted-average friction (pip) across pairs the strategy fired on.
+
+        Falls back to _BT_COST_PER_TRADE (1.0pip) if friction model has no data.
+        """
+        try:
+            from modules.friction_model_v2 import friction_for
+        except Exception:
+            return DemoTrader._BT_COST_PER_TRADE
+        weighted_sum = 0.0
+        total_n = 0
+        for _key, _stats in by_type_pair.items():
+            if (_stats.get("entry_type") or "") != entry_type:
+                continue
+            inst = _stats.get("instrument") or ""
+            n = int(_stats.get("n", 0))
+            if n <= 0 or not inst:
+                continue
+            try:
+                f = friction_for(inst, mode=mode)
+                if f.get("unsupported"):
+                    continue
+                weighted_sum += float(f.get("adjusted_rt_pips", 0)) * n
+                total_n += n
+            except Exception:
+                continue
+        if total_n == 0:
+            return DemoTrader._BT_COST_PER_TRADE
+        return weighted_sum / total_n
 
     def _evaluate_promotions(self):
         """デモ実績に基づいて戦略をOANDA昇格/降格判定
@@ -5095,6 +5150,8 @@ class DemoTrader:
                     )
                 return
             by_type = data.get("by_type", {})
+            # Phase 3.2: pair-specific friction を先に取得 (by_type_pair が必要)
+            _by_type_pair_for_friction = data.get("by_type_pair", {})
             changes = []
             for et, stats in by_type.items():
                 n = stats.get("n", 0)
@@ -5103,23 +5160,43 @@ class DemoTrader:
                 # v6.1: N cache更新 (Confidence-based Lot Scaling 用)
                 self._strategy_n_cache[et] = n
                 old = self._promoted_types.get(et, {}).get("status", "pending")
-                # ファストトラック: 十分なサンプル+高WR+高EV
-                if n >= 20 and wr >= 60.0 and ev >= self._BT_COST_PER_TRADE:
+                # Phase 3.2: pair-weighted friction (fallback to 1.0pip if model unavailable)
+                friction_pip = self._strategy_friction_pips(
+                    et, _by_type_pair_for_friction, mode="DT"
+                )
+                # Phase 3.3: Wilson_BF lower bound — Bonferroni-corrected proof of edge
+                _wins_int = int(round(n * wr / 100.0))
+                _wL_bf = self._wilson_bf_lower(_wins_int, int(n), self._WILSON_BF_Z)
+                _wilson_pass = _wL_bf > self._BREAKEVEN_WR
+                # ファストトラック: 十分なサンプル+高WR+EV>friction+Wilson_BF合格
+                if (n >= 20 and wr >= 60.0
+                        and ev >= friction_pip and _wilson_pass):
                     status = "promoted"
-                # 通常トラック: コスト補正後にEV正 (EV≥1.0pip)
-                elif n >= 30 and ev >= self._BT_COST_PER_TRADE:
+                # 通常トラック: コスト補正後にEV正 + Wilson_BF合格
+                elif n >= 30 and ev >= friction_pip and _wilson_pass:
                     status = "promoted"
                 # v8.9: 降格閾値緩和 N≥30→N≥20 (今日のEV分解で十分な根拠)
                 elif n >= 20 and ev < -0.5 and et not in SMC_PROTECTED:
+                    status = "demoted"
+                # Phase 3.4: Walk-Forward 崩壊降格 — H1>0 & H2<0 (sign flip)
+                elif (n >= 20
+                      and stats.get("wf_h1_avg", 0) > 0
+                      and stats.get("wf_h2_avg", 0) < 0
+                      and et not in SMC_PROTECTED):
                     status = "demoted"
                 # v8.9: 自動復帰パス — demotedでもShadowデータが改善すればpending復帰
                 elif old == "demoted" and n >= 30 and ev > 0:
                     status = "pending"
                 else:
                     status = old if old in ("promoted", "demoted") else "pending"
-                self._promoted_types[et] = {"status": status, "n": n, "wr": wr, "ev": ev}
+                self._promoted_types[et] = {
+                    "status": status, "n": n, "wr": wr, "ev": ev,
+                    "friction_pip": round(friction_pip, 3),
+                }
                 if old != status:
-                    changes.append(f"{et}: {old}→{status} (N={n} WR={wr}% EV={ev:+.2f})")
+                    changes.append(
+                        f"{et}: {old}→{status} (N={n} WR={wr}% EV={ev:+.2f} fric={friction_pip:.2f}pip)"
+                    )
 
             # ── v8.9: ペア別降格 — グローバルEVが正でもペア別で負の組み合わせを検出 ──
             by_type_pair = data.get("by_type_pair", {})
@@ -5516,6 +5593,13 @@ class DemoTrader:
         # v2.1: VWAP MR JPY crosses — friction-adjusted BT annual pip estimates
         ("vwap_mean_reversion", "EUR_JPY"): 1.8,  # annual +2,837pip (16bar@15m)
         ("vwap_mean_reversion", "GBP_JPY"): 1.8,  # annual +3,827pip (16bar@15m, strongest α)
+        # v10 (2026-04-27, rule:R2): bb_squeeze_breakout × USD_JPY 緊急 lot 縮小.
+        # 365d BT N=42 WR=76.2% で PAIR_PROMOTED 復活 (2026-04-21) したが、Live は
+        # post-promotion N=5 全敗 (-11.9pip cum). Wilson 95% CI 非重複で BT-Live
+        # divergence の可能性極めて高い (p<0.001). N=10 に達するまで観測継続だが
+        # 出血最小化のため lot を 0.01x trial 化. 詳細:
+        # knowledge-base/wiki/decisions/kelly-recompute-2026-04-27.md Action 2
+        ("bb_squeeze_breakout", "USD_JPY"): 0.01,
     }
 
     # 全モードSentinel: scalp以外にも適用される戦略Sentinel

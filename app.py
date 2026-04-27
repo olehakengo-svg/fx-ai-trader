@@ -6145,6 +6145,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "sr_anti_hunt_bounce",           # SR Anti-Hunt Bounce: KDE+hunt-aware SL
                 "sr_liquidity_grab",             # SR Liquidity Grab: SMC post-hunt reversal
                 "cpd_divergence",                # CPD Divergence: EUR/GBP correlation breakdown (前セッション WIP, Sentinel)
+                "vdr_jpy",                       # VDR JPY: yield differential rotation (前セッション WIP, Sentinel)
+                "vsg_jpy_reversal",              # VSG JPY Reversal: vol surge reversal (前セッション WIP, Sentinel)
             }
             DT_BLOCKED = {"unknown", "wait"}
 
@@ -9435,7 +9437,6 @@ def strategies_page():
     return render_template("strategies.html", api_token=_API_AUTH_TOKEN)
 
 
-@app.route("/api/strategies/status")
 def _wilson_lower(wins: int, n: int, z: float = 1.96) -> float:
     """Wilson score interval lower bound. Used by /api/strategies/status."""
     import math as _m
@@ -9502,6 +9503,7 @@ def _strategy_extended_metrics(trades: list) -> dict:
     }
 
 
+@app.route("/api/strategies/status")
 def api_strategies_status():
     """全戦略の Tier 分類 + post-cutoff rolling window stats を集約."""
     import json as _json
@@ -9690,6 +9692,76 @@ def api_strategies_status():
             "shadow_pnl": tot_sh_pnl,
         },
         "strategies": strategies_out,
+    })
+
+
+@app.route("/api/admin/regenerate-tier-master", methods=["POST"])
+def api_admin_regenerate_tier_master():
+    """Phase 3.5: tier-master.json の generated_at を更新するだけの軽量再生成。
+
+    現状の tier 分類 (elite_live / force_demoted / pair_promoted ...) は
+    人間判断 + cell_edge_audit 結果を反映した手動キュレーション資産であり、
+    完全自動再生成は危険 (Bonferroni 不通過 cell の誤昇格を生む)。
+
+    このエンドポイントは:
+      1. tier-master.json を読み込み generated_at だけを現在時刻で更新
+      2. tools/sync_kb_index.py / tier_integrity_check.py を呼んで KB 同期
+      3. UI の `tier_master_stale` フラグを解除する目的で使用
+
+    実 tier 編集は別フロー (cell_edge_audit → 手動レビュー → KB編集) を維持。
+    Render cron で daily 実行する想定。
+    """
+    import json as _json
+    import subprocess
+    from datetime import timezone as _tz
+    # Optional: simple shared-secret guard (env var)
+    expected_token = os.environ.get("ADMIN_API_TOKEN")
+    if expected_token:
+        provided = request.headers.get("X-Admin-Token") or request.args.get("token")
+        if provided != expected_token:
+            return jsonify({"error": "unauthorized"}), 401
+
+    tier_master_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        "knowledge-base", "wiki", "tier-master.json",
+    )
+    try:
+        with open(tier_master_path, "r", encoding="utf-8") as f:
+            tm = _json.load(f)
+    except Exception as e:
+        return jsonify({"error": f"read failed: {e}"}), 500
+
+    new_stamp = datetime.now(_tz.utc).isoformat()
+    tm["generated_at"] = new_stamp
+
+    try:
+        with open(tier_master_path, "w", encoding="utf-8") as f:
+            _json.dump(tm, f, indent=2, ensure_ascii=False)
+            f.write("\n")
+    except Exception as e:
+        return jsonify({"error": f"write failed: {e}"}), 500
+
+    # Best-effort KB sync (non-fatal)
+    sync_results = {}
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    for tool in ("sync_kb_index.py", "tier_integrity_check.py"):
+        try:
+            r = subprocess.run(
+                ["python3", os.path.join("tools", tool), "--check"],
+                cwd=project_root, capture_output=True, text=True, timeout=30,
+            )
+            sync_results[tool] = {"rc": r.returncode,
+                                  "stdout_tail": r.stdout[-200:]}
+        except Exception as e:
+            sync_results[tool] = {"error": str(e)}
+
+    return jsonify({
+        "ok": True,
+        "generated_at": new_stamp,
+        "elite_live_count": len(tm.get("elite_live", [])),
+        "force_demoted_count": len(tm.get("force_demoted", [])),
+        "pair_promoted_count": len(tm.get("pair_promoted", [])),
+        "sync": sync_results,
     })
 
 
