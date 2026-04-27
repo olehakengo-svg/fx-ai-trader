@@ -6141,6 +6141,10 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 # 2026-04-27 R-A: Pre-reg LOCK 2 戦略実装 (Phase 3 BT K=7 universe 完全化)
                 "pullback_to_liquidity_v1",      # TF Structural: HTF×M15 pullback×liquidity rejection (Moskowitz 2012)
                 "asia_range_fade_v1",            # MR Structural: UTC 02-06 range fade with rejection (Lo & MacKinlay 1988)
+                # 2026-04-27 SR Anti-Hunt 二段構え (前セッション WIP, Shadow 5 majors 全走)
+                "sr_anti_hunt_bounce",           # SR Anti-Hunt Bounce: KDE+hunt-aware SL
+                "sr_liquidity_grab",             # SR Liquidity Grab: SMC post-hunt reversal
+                "cpd_divergence",                # CPD Divergence: EUR/GBP correlation breakdown (前セッション WIP, Sentinel)
             }
             DT_BLOCKED = {"unknown", "wait"}
 
@@ -8238,6 +8242,36 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     # WAIT用テンプレート生成関数
     # ──────────────────────────────────────────────────────────
     def _make_result(sig, conf, sl_v, tp_v, rr_v, reasons_list, entry_type, score_v=0.0):
+        # ── U20 fix (2026-04-27): R2-A Suppress gate を Scalp path にも適用 ──
+        # Wave 1 R2-A 5 cells のうち全戦略が scalp mode のため、DT path の
+        # gate (compute_daytrade_signal) では構造的に通過しなかった (Phase γ
+        # measurement で確認、wave2-phase-gamma-logit-result.md)。
+        # 中央集権化のため _make_result 入口に gate を追加、entry_type +
+        # session + spread_q で suppress 判定。fail-open (gate 失敗時は
+        # raw conf 維持)。
+        if sig in ("BUY", "SELL") and entry_type and entry_type not in ("wait",):
+            try:
+                from modules.strategy_category import (
+                    apply_r2a_suppress_gate,
+                    compute_spread_quartile,
+                )
+                _pip_unit_u20 = 0.01 if "JPY" in symbol.upper() else 0.0001
+                _bt_t = bar_time if bar_time else row.name
+                _spread_pips_u20 = _bt_spread(_bt_t, symbol) / _pip_unit_u20
+                _spread_q_u20 = compute_spread_quartile(_spread_pips_u20, symbol)
+                _conf_after_u20 = apply_r2a_suppress_gate(
+                    entry_type, session.get("name"), _spread_q_u20, conf
+                )
+                if _conf_after_u20 != conf:
+                    reasons_list = list(reasons_list) + [
+                        f"⚠️ R2-A suppress ({entry_type}×{session.get('name')}×{_spread_q_u20}): "
+                        f"conf {conf}→{_conf_after_u20}"
+                    ]
+                    conf = _conf_after_u20
+            except Exception:
+                # gate 失敗時は raw conf を維持 (fail-open)
+                pass
+
         atr_s = atr7 if atr7 > 0 else atr
         ts_str = row.name.strftime("%Y-%m-%d %H:%M UTC") if hasattr(row.name, "strftime") else str(row.name)
         return {
@@ -9402,6 +9436,72 @@ def strategies_page():
 
 
 @app.route("/api/strategies/status")
+def _wilson_lower(wins: int, n: int, z: float = 1.96) -> float:
+    """Wilson score interval lower bound. Used by /api/strategies/status."""
+    import math as _m
+    if n == 0:
+        return 0.0
+    p = wins / n
+    den = 1 + z * z / n
+    centre = p + z * z / (2 * n)
+    spread = z * _m.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
+    return max(0.0, (centre - spread) / den)
+
+
+def _strategy_extended_metrics(trades: list) -> dict:
+    """Compute extended metrics per strategy from raw trade rows.
+
+    Returns dict with: avg_net_pips, wilson_lower, wilson_bf_lower (k=52, z=3.29),
+    wf_h1_avg, wf_h2_avg, concentration_top_pct, unique_days, top_cell.
+    """
+    n = len(trades)
+    if n == 0:
+        return {
+            "avg_net_pips": 0.0, "wilson_lower": 0.0, "wilson_bf_lower": 0.0,
+            "wf_h1_avg": 0.0, "wf_h2_avg": 0.0,
+            "concentration_top_pct": 0.0, "unique_days": 0, "top_cell": None,
+        }
+    pnls = [float(t.get("pnl_pips") or 0) for t in trades]
+    sp_in = [float(t.get("spread_at_entry") or 0) for t in trades]
+    sp_out = [float(t.get("spread_at_exit") or 0) for t in trades]
+    slip = [float(t.get("slippage_pips") or 0) for t in trades]
+    fric_per = [a + b + c for a, b, c in zip(sp_in, sp_out, slip)]
+    avg_raw = sum(pnls) / n
+    avg_fric = sum(fric_per) / n if fric_per else 0.0
+    avg_net = avg_raw - avg_fric
+    wins = sum(1 for x in pnls if x > 0)
+    wL = _wilson_lower(wins, n, z=1.96)
+    wL_bf = _wilson_lower(wins, n, z=3.29)  # Bonferroni for k≈52 strategies
+    sorted_t = sorted(trades, key=lambda r: r.get("entry_time") or "")
+    half = n // 2
+    h1 = [float(r.get("pnl_pips") or 0) for r in sorted_t[:half]] if half > 0 else []
+    h2 = [float(r.get("pnl_pips") or 0) for r in sorted_t[half:]]
+    h1_avg = (sum(h1) / len(h1)) if h1 else 0.0
+    h2_avg = (sum(h2) / len(h2)) if h2 else 0.0
+    cells: dict = {}
+    for r in trades:
+        k = (r.get("instrument") or "?", r.get("direction") or "?")
+        cells[k] = cells.get(k, 0) + 1
+    if cells:
+        top_key, top_n = max(cells.items(), key=lambda kv: kv[1])
+        top_cell = f"{top_key[0]}/{top_key[1]}"
+        top_pct = round(top_n * 100.0 / n, 1)
+    else:
+        top_cell = None
+        top_pct = 0.0
+    days = {(t.get("entry_time") or "")[:10] for t in trades if t.get("entry_time")}
+    return {
+        "avg_net_pips": round(avg_net, 3),
+        "wilson_lower": round(wL, 4),
+        "wilson_bf_lower": round(wL_bf, 4),
+        "wf_h1_avg": round(h1_avg, 3),
+        "wf_h2_avg": round(h2_avg, 3),
+        "concentration_top_pct": top_pct,
+        "unique_days": len(days),
+        "top_cell": top_cell,
+    }
+
+
 def api_strategies_status():
     """全戦略の Tier 分類 + post-cutoff rolling window stats を集約."""
     import json as _json
@@ -9440,6 +9540,20 @@ def api_strategies_status():
     shadow_stats = _demo_db.get_stats(
         date_from=effective_date_from, exclude_xau=True, exclude_shadow=False,
     )
+
+    # Phase 3.1: extended metrics — pull raw trades for Wilson/WF/concentration
+    try:
+        _raw_trades = _demo_db.get_closed_trades(
+            limit=100000, date_from=effective_date_from,
+        )
+        _trades_by_strat: dict = {}
+        for _t in _raw_trades:
+            if (_t.get("instrument") or "") == "XAU_USD":
+                continue
+            _et = _t.get("entry_type") or "unknown"
+            _trades_by_strat.setdefault(_et, []).append(_t)
+    except Exception:
+        _trades_by_strat = {}
 
     # Per-pair stats for PAIR_PROMOTED/DEMOTED cells
     cell_pairs = {p for _, p in pair_promoted} | {p for _, p in pair_demoted}
@@ -9512,6 +9626,7 @@ def api_strategies_status():
                 "pnl": float(cell.get("pnl", 0)),
             })
 
+        ext = _strategy_extended_metrics(_trades_by_strat.get(strat, []))
         strategies_out.append({
             "name": strat,
             "tier": _primary_tier(strat),
@@ -9529,6 +9644,8 @@ def api_strategies_status():
                 "pnl": sh_pnl,
             },
             "pair_cells": pair_cells,
+            # Phase 3.1: extended metrics for proper promotion-candidate audit
+            "extended": ext,
         })
 
     # Tier distribution summary
@@ -9543,8 +9660,23 @@ def api_strategies_status():
     )
     tot_sh_wr = round(tot_sh_wins / tot_sh_n * 100, 1) if tot_sh_n > 0 else 0.0
 
+    # Phase 3.1: tier_master may be stale; expose both stamps so UI can warn.
+    _tm_stamp = tier_master.get("generated_at")
+    _now_iso = datetime.now(timezone.utc).isoformat()
+    _tm_stale = False
+    try:
+        if _tm_stamp:
+            _delta = datetime.now(timezone.utc) - datetime.fromisoformat(
+                _tm_stamp.replace("Z", "+00:00")
+            )
+            _tm_stale = _delta.total_seconds() > 86400  # >24h stale flag
+    except Exception:
+        pass
+
     return jsonify({
-        "generated_at": tier_master.get("generated_at"),
+        "generated_at": _now_iso,
+        "tier_master_generated_at": _tm_stamp,
+        "tier_master_stale": _tm_stale,
         "effective_date_from": effective_date_from,
         "rolling_days": rolling_days,
         "tier_counts": tier_counts,
