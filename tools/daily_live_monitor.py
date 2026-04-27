@@ -36,9 +36,45 @@ PROMOTED_CELLS = [
         "mode_pattern": "scalp",  # exact match (1m only)
         "session_hours_utc": (0, 7),
         "spread_max_pips": 0.8,
-        "current_lot": 0.05,
+        "current_lot": 0.01,  # 0.05→0.01 縮小済 (commit 1467d7e)
     },
 ]
+
+# ELITE_LIVE 3 strategies (post-M1 fix tracking, 2026-04-27 evening)
+# M1 修正: spread_sl_gate ELITE_LIVE 免除 (commit 641bfe4)
+# 期待: post-M1 (2026-04-27 ~14:51 JST) で ELITE 3 戦略の Live fire 再開
+ELITE_LIVE_CELLS = [
+    {
+        "id": "E1",
+        "name": "session_time_bias (any pair)",
+        "entry_type": "session_time_bias",
+        "instrument": None,  # any
+        "mode_pattern": None,  # any
+        "session_hours_utc": None,  # any
+        "spread_max_pips": None,
+    },
+    {
+        "id": "E2",
+        "name": "trendline_sweep (any pair)",
+        "entry_type": "trendline_sweep",
+        "instrument": None,
+        "mode_pattern": None,
+        "session_hours_utc": None,
+        "spread_max_pips": None,
+    },
+    {
+        "id": "E3",
+        "name": "gbp_deep_pullback (any pair)",
+        "entry_type": "gbp_deep_pullback",
+        "instrument": None,
+        "mode_pattern": None,
+        "session_hours_utc": None,
+        "spread_max_pips": None,
+    },
+]
+
+# M1 修正デプロイ時刻 (post-deploy filter 用)
+M1_DEPLOY_TIME = "2026-04-27T05:51:00"  # 641bfe4 push 時刻 (UTC)
 
 WATCH_CELLS = [
     {
@@ -93,25 +129,28 @@ def consecutive_losses_at_tail(rows: list[sqlite3.Row]) -> int:
 
 # ─── Cell matchers ──────────────────────────────────────────────────────
 def cell_matches(row: sqlite3.Row, cell: dict) -> bool:
+    """Match a row to a cell. Cell fields with None are wildcards."""
     if row["entry_type"] != cell["entry_type"]:
         return False
-    if row["instrument"] != cell["instrument"]:
+    if cell.get("instrument") is not None and row["instrument"] != cell["instrument"]:
         return False
     mode = (row["mode"] or "").lower()
-    if mode != cell["mode_pattern"]:  # exact "scalp" (excludes scalp_5m, scalp_eur)
+    if cell.get("mode_pattern") is not None and mode != cell["mode_pattern"]:
         return False
-    try:
-        h = datetime.fromisoformat(
-            (row["entry_time"] or "").replace("Z", "+00:00")
-        ).astimezone(timezone.utc).hour
-    except Exception:
-        return False
-    lo, hi = cell["session_hours_utc"]
-    if not (lo <= h < hi):
-        return False
-    spread = row["spread_at_entry"] if row["spread_at_entry"] is not None else 0.0
-    if spread > cell["spread_max_pips"]:
-        return False
+    if cell.get("session_hours_utc") is not None:
+        try:
+            h = datetime.fromisoformat(
+                (row["entry_time"] or "").replace("Z", "+00:00")
+            ).astimezone(timezone.utc).hour
+        except Exception:
+            return False
+        lo, hi = cell["session_hours_utc"]
+        if not (lo <= h < hi):
+            return False
+    if cell.get("spread_max_pips") is not None:
+        spread = row["spread_at_entry"] if row["spread_at_entry"] is not None else 0.0
+        if spread > cell["spread_max_pips"]:
+            return False
     return True
 
 
@@ -277,6 +316,36 @@ def render_md(snapshot: dict) -> str:
             f"| {c['name']} | {c['live']['n']} | {c['live']['wr']:.1%} | "
             f"{c['live']['wilson_lower']:.1%} | {c['live']['ev_pip']:+.2f} |"
         )
+
+    # ELITE_LIVE 3戦略の追跡 (M1 修正効果監視)
+    L += [
+        "",
+        "## ELITE_LIVE 3戦略 (M1 修正効果監視)",
+        f"M1 deploy: **{snapshot['m1_deploy_time']} UTC** (commit 641bfe4)",
+        f"Post-M1 total trades: {snapshot.get('post_m1_total_rows', 0)}",
+        "",
+        "### 全期間 (BT-Live divergence baseline)",
+        "",
+        "| Cell | Live N | WR | EV pip | Shadow N |",
+        "|---|---|---|---|---|",
+    ]
+    for c in snapshot.get("elite_live_all", []):
+        L.append(
+            f"| {c['name']} | {c['live']['n']} | {c['live']['wr']:.1%} | "
+            f"{c['live']['ev_pip']:+.2f} | {c['shadow']['n']} |"
+        )
+    L += [
+        "",
+        "### Post-M1 (修正後 only)",
+        "",
+        "| Cell | Live N | WR | EV pip | Shadow N |",
+        "|---|---|---|---|---|",
+    ]
+    for c in snapshot.get("elite_live_post_m1", []):
+        L.append(
+            f"| {c['name']} | {c['live']['n']} | {c['live']['wr']:.1%} | "
+            f"{c['live']['ev_pip']:+.2f} | {c['shadow']['n']} |"
+        )
     L += ["", "## Alerts",  ""]
     if snapshot["alerts"]:
         for a in snapshot["alerts"]:
@@ -325,6 +394,12 @@ def main():
     watch = [cell_stats(c, all_rows) for c in WATCH_CELLS]
     wave2 = wave2_firing_rate(all_rows)
 
+    # ELITE_LIVE 3 戦略の追跡 (M1 修正 post-deploy 効果監視)
+    elite = [cell_stats(c, all_rows) for c in ELITE_LIVE_CELLS]
+    # post-M1 (2026-04-27T05:51 UTC+) のみで集計
+    post_m1_rows = [r for r in all_rows if (r["entry_time"] or "") >= M1_DEPLOY_TIME]
+    elite_post_m1 = [cell_stats(c, post_m1_rows) for c in ELITE_LIVE_CELLS]
+
     severity = 0
     alerts: list[str] = []
     for c in promoted:
@@ -347,6 +422,10 @@ def main():
         "promoted": promoted,
         "watch": watch,
         "wave2": wave2,
+        "elite_live_all": elite,           # M1 修正前後 全期間
+        "elite_live_post_m1": elite_post_m1,  # M1 deploy 後のみ
+        "m1_deploy_time": M1_DEPLOY_TIME,
+        "post_m1_total_rows": len(post_m1_rows),
         "alerts": alerts,
         "severity": severity,
         "severity_label": SEV_LABEL[severity],

@@ -1,8 +1,8 @@
 {
   "date": "2026-04-27",
-  "generated_at": "2026-04-27T03:13:39.983158+00:00",
+  "generated_at": "2026-04-27T06:14:40.176029+00:00",
   "db_path": "demo_trades.db",
-  "total_closed": 354,
+  "total_closed": 359,
   "total_live": 34,
   "promoted": [
     {
@@ -96,22 +96,196 @@
     "A2 SL clamp": {
       "fired": 0,
       "rate_pct": 0.0,
-      "post_deploy_n": 22,
+      "post_deploy_n": 27,
       "anomaly": null
     },
     "A3 cost throttle": {
       "fired": 0,
       "rate_pct": 0.0,
-      "post_deploy_n": 22,
+      "post_deploy_n": 27,
       "anomaly": null
     },
     "A4 vol_scale": {
       "fired": 0,
       "rate_pct": 0.0,
-      "post_deploy_n": 22,
+      "post_deploy_n": 27,
       "anomaly": null
     }
   },
+  "elite_live_all": [
+    {
+      "id": "E1",
+      "name": "session_time_bias (any pair)",
+      "live": {
+        "n": 1,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": -6.5,
+        "consec_loss_tail": 1
+      },
+      "shadow": {
+        "n": 2,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": -15.3,
+        "consec_loss_tail": 2
+      },
+      "total": {
+        "n": 3,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": -12.367,
+        "consec_loss_tail": 3
+      }
+    },
+    {
+      "id": "E2",
+      "name": "trendline_sweep (any pair)",
+      "live": {
+        "n": 0,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": 0.0,
+        "consec_loss_tail": 0
+      },
+      "shadow": {
+        "n": 0,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": 0.0,
+        "consec_loss_tail": 0
+      },
+      "total": {
+        "n": 0,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": 0.0,
+        "consec_loss_tail": 0
+      }
+    },
+    {
+      "id": "E3",
+      "name": "gbp_deep_pullback (any pair)",
+      "live": {
+        "n": 0,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": 0.0,
+        "consec_loss_tail": 0
+      },
+      "shadow": {
+        "n": 0,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": 0.0,
+        "consec_loss_tail": 0
+      },
+      "total": {
+        "n": 0,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": 0.0,
+        "consec_loss_tail": 0
+      }
+    }
+  ],
+  "elite_live_post_m1": [
+    {
+      "id": "E1",
+      "name": "session_time_bias (any pair)",
+      "live": {
+        "n": 0,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": 0.0,
+        "consec_loss_tail": 0
+      },
+      "shadow": {
+        "n": 0,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": 0.0,
+        "consec_loss_tail": 0
+      },
+      "total": {
+        "n": 0,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": 0.0,
+        "consec_loss_tail": 0
+      }
+    },
+    {
+      "id": "E2",
+      "name": "trendline_sweep (any pair)",
+      "live": {
+        "n": 0,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": 0.0,
+        "consec_loss_tail": 0
+      },
+      "shadow": {
+        "n": 0,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": 0.0,
+        "consec_loss_tail": 0
+      },
+      "total": {
+        "n": 0,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": 0.0,
+        "consec_loss_tail": 0
+      }
+    },
+    {
+      "id": "E3",
+      "name": "gbp_deep_pullback (any pair)",
+      "live": {
+        "n": 0,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": 0.0,
+        "consec_loss_tail": 0
+      },
+      "shadow": {
+        "n": 0,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": 0.0,
+        "consec_loss_tail": 0
+      },
+      "total": {
+        "n": 0,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": 0.0,
+        "consec_loss_tail": 0
+      }
+    }
+  ],
+  "m1_deploy_time": "2026-04-27T05:51:00",
+  "post_m1_total_rows": 0,
   "alerts": [],
   "severity": 0,
   "severity_label": "OK"
