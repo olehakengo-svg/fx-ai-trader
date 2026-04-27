@@ -22,6 +22,20 @@ def pip_multiplier(instrument: str = "USD_JPY") -> float:
     return 10000.0
 
 
+# ─────────────────────────────────────────────────────────────────────────
+# Seed/backfill replay artifact filter (2026-04-27)
+# ─────────────────────────────────────────────────────────────────────────
+# 観測: fib_reversal Apr 8 02:40-02:53 UTC で 16 件のトレードが entry→exit < 1秒で
+# CLOSED 状態となっていた。これは backtest replay か seed data であり、リアルタイム
+# Shadow とは経済的に異なる (TP まで瞬時到達 = 未来情報の漏洩)。
+# 5秒未満の hold は実トレードとして成立しない (OANDA tick frequency ~1秒, 最小TP距離
+# 数pip → 一般に数十秒以上要する) ため、5秒を seed/replay の判定閾値とする。
+# 詳細: reports/deployment-wave-analysis-2026-04-27.md §5
+SEED_HOLD_SEC_THRESHOLD = 5  # exposed for Python-side filtering / asserts
+# SQL fragment is a hardcoded literal (no user input) — safe by construction.
+_SEED_EXCLUSION_SQL = "(strftime('%s', exit_time) - strftime('%s', entry_time)) >= 5"
+
+
 class DemoDB:
     def __init__(self, db_path: str = "demo_trades.db"):
         self._path = db_path
@@ -575,11 +589,20 @@ class DemoDB:
             rows = conn.execute(query, params).fetchall()
             return [dict(r) for r in rows]
 
-    def get_all_closed(self, exclude_shadow: bool = True) -> list:
-        """v8.4: exclude_shadow=True でShadowトレード除外（risk_analytics/Kelly汚染防止）"""
+    def get_all_closed(self, exclude_shadow: bool = True,
+                       exclude_seed: bool = True) -> list:
+        """v8.4: exclude_shadow=True でShadowトレード除外（risk_analytics/Kelly汚染防止）
+
+        v10 (2026-04-27): exclude_seed=True で seed/backfill replay (hold<5s)
+        を除外。Apr 8 fib_reversal 16件 instant-exit が Kelly/学習エンジンを汚染
+        していた構造的測定バグを修正。
+        詳細: reports/deployment-wave-analysis-2026-04-27.md §5
+        """
         q = "SELECT * FROM demo_trades WHERE status='CLOSED'"
         if exclude_shadow:
             q += " AND (is_shadow IS NULL OR is_shadow = 0)"
+        if exclude_seed:
+            q += " AND " + _SEED_EXCLUSION_SQL
         q += " ORDER BY exit_time"
         with self._safe_conn() as conn:
             rows = conn.execute(q).fetchall()
@@ -587,7 +610,8 @@ class DemoDB:
 
     def get_stats(self, date_from: str = None, date_to: str = None,
                   mode: str = None, exclude_shadow: bool = True,
-                  exclude_xau: bool = True, instrument: str = None) -> dict:
+                  exclude_xau: bool = True, instrument: str = None,
+                  exclude_seed: bool = True) -> dict:
         """Compute aggregate stats from closed trades.
 
         v8.4: exclude_shadow=True でis_shadow=1を除外（デフォルト）。
@@ -596,6 +620,8 @@ class DemoDB:
         少数の XAU トレードが P/L を支配するため（例: 3 trades で -1136p）。
         CLAUDE.md user memory「XAU除外」ルールに準拠。
         v9.1: instrument フィルタ追加。選択中ペアの WR/P/L のみ集計可能。
+        v10 (2026-04-27): exclude_seed=True で hold<5s の seed/backfill replay を除外。
+        Apr 8 fib_reversal 16件 instant-exit が WR/PF を inflate していた問題対応。
         """
         # v9.1 (2026-04-17): is_shadow を常に SELECT し、shadow/live 内訳を返す。
         # exclude_shadow はメイン統計の算出対象行をフィルタするのみ。
@@ -603,6 +629,8 @@ class DemoDB:
                  "FROM demo_trades WHERE status='CLOSED'")
         if exclude_xau:
             query += " AND (instrument IS NULL OR instrument NOT LIKE '%XAU%')"
+        if exclude_seed:
+            query += " AND " + _SEED_EXCLUSION_SQL
         params = []
         if instrument:
             # Comma-separated list supported: "USD_JPY" or "USD_JPY,EUR_USD"
@@ -1136,7 +1164,8 @@ class DemoDB:
                                          instrument: str = None,
                                          after_date: str = None,
                                          min_trades: int = 0,
-                                         exclude_xau: bool = True) -> dict:
+                                         exclude_xau: bool = True,
+                                         exclude_seed: bool = True) -> dict:
         """Aggregate Sentinel / Shadow (is_shadow=1) closed trades for promotion evaluation.
 
         v9.x (2026-04-20): lesson-sentinel-n-measurement-bug 修正の一環。
@@ -1174,6 +1203,8 @@ class DemoDB:
         params: list = []
         if exclude_xau:
             query += " AND (instrument IS NULL OR instrument NOT LIKE '%XAU%')"
+        if exclude_seed:
+            query += " AND " + _SEED_EXCLUSION_SQL
         if entry_type:
             query += " AND entry_type = ?"
             params.append(entry_type)

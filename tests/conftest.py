@@ -12,6 +12,20 @@ os.environ["TESTING"] = "1"
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
+@pytest.fixture(autouse=True)
+def _bypass_seed_exclusion(monkeypatch):
+    """Tests use db.open_trade()→db.close_trade() with no delay, producing
+    hold<5s rows that look like seed/replay artifacts to the production
+    SEED_HOLD_SEC_THRESHOLD filter (added 2026-04-27). Globally patch the SQL
+    fragment to a no-op for tests; explicit seed-exclusion tests opt out via
+    `monkeypatch.undo()` or by manipulating timestamps directly."""
+    try:
+        import modules.demo_db as _dd
+        monkeypatch.setattr(_dd, "_SEED_EXCLUSION_SQL", "1=1")
+    except ImportError:
+        pass
+
+
 @pytest.fixture
 def sample_ohlcv():
     """Generate a realistic OHLCV DataFrame with 300 rows for testing indicators."""

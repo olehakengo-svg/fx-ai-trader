@@ -1,5 +1,48 @@
 # FX AI Trader - Changelog
 
+## 2026-04-27 P1 Aggregation Hygiene — seed-exclusion + net_edge_WR audit [rule:R3]
+
+### 問題
+集計クエリ (`get_stats` / `get_all_closed` / `get_shadow_trades_for_evaluation` / `get_trades_for_learning`) が **entry→exit < 5秒の seed/backfill replay artifact** を含めていた。Apr 8 fib_reversal の 16件 instant-exit (TP_HIT 同時刻 約0.1秒で達成) が WR 67% / cum_pip +342.8 を inflate していた。これは **TP まで瞬時到達 = 未来情報の漏洩** で、リアルタイム経済性とは別物。
+
+### 修正 (`modules/demo_db.py`)
+- 定数 `SEED_HOLD_SEC_THRESHOLD = 5` 追加
+- リテラル SQL 断片 `_SEED_EXCLUSION_SQL` 追加 (parameterized 不要、untrusted input なし)
+- `exclude_seed: bool = True` パラメータを以下 3 関数に追加 (default ON):
+  - `get_all_closed()` — Kelly/学習エンジン source
+  - `get_stats()` — UI/ダッシュボード aggregate
+  - `get_shadow_trades_for_evaluation()` — Sentinel 昇格判定
+
+### 新規ツール (`tools/net_edge_audit.py`)
+戦略の **net_edge_WR** = strat_WR − benchmark_WR を算出。benchmark は同期間×同 instrument×同 direction の **他戦略 Shadow**。市場ベータ便乗 (例: GBP/USD 単一ラリーに乗っただけ) と真のエッジを分離。Wilson 95% 下限も同時表示。
+- `--strategy <entry_type>`: 単一戦略
+- `--all`: 全戦略ランキング (n_strat ≥ 5 を上位ソート)
+- `--db <path>`: SQLite ファイル指定 (default `demo.db`)
+
+### 実測結果 (2026-04-27, demo_trades.db, --all)
+ポジティブ候補:
+- `bb_rsi_reversion` N=32 strat 47% / Wilson 31% / bench 27% / **net +20pt +6.21pip**
+- `fib_reversal` N=31 strat 48% / Wilson 32% / bench 19% / net +30pt +4.59pip (seed 除外後)
+- `intraday_seasonality` N=6 strat 67% / Wilson 30% / bench 50% / net +17pt +4.64pip (Wilson 下限が広く有意性弱)
+
+Suppress 候補:
+- `post_news_vol` N=6 / **net -50pt -14.65pip**
+- `bb_squeeze_breakout` N=15 / net -17pt
+- `sr_channel_reversal` N=24 / net -15pt
+
+### conftest.py 修正
+`pytest fixture autouse` で `_SEED_EXCLUSION_SQL` を `1=1` に patch。テストは `db.open_trade()→db.close_trade()` を即時連続で呼ぶため hold<5s となり seed 扱いされる。新規 `tests/test_seed_exclusion.py` は `monkeypatch.undo()` で patch を外しタイムスタンプ手作りで検証。
+
+### 回帰テスト
+- 既存: 467/467 通過 (15.8s)
+- 新規 `tests/test_seed_exclusion.py` 7件 (全 PASS):
+  - 閾値定数, get_all_closed default/opt-in, get_stats inflation 検証, shadow eval, 境界 (4s 排除 / 5s 通過)
+
+### 分類根拠 (rule:R3 = Immediate)
+構造バグ (集計の bias) のため 365日BT 不要。data-derivation で原因特定済み。
+
+---
+
 ## 2026-04-27 Cross-thread Signal Dedup Guard — race-condition下の二重発火防止 [rule:R3]
 
 ### 問題
