@@ -4407,6 +4407,36 @@ class DemoTrader:
                     f"→ LIVE Sentinel (0.01lot=1000u) — pre-reg cluster match"
                 )
 
+        # ── 2026-04-27: C1-PROMOTE Bypass (rule:R1) ──
+        # Q1' Cell Edge Audit で Bonferroni-significant な fib_reversal × Tokyo
+        # × q0 × scalp (N=24 WR=87.5% Wlo=69.0% p_bonf=0.0007) を 0.05 lot
+        # (5000u) で Live 投入。フィルタ合致時のみ shadow gate を bypass。
+        # Pre-reg: knowledge-base/wiki/decisions/pre-reg-cell-promotion-2026-04-27.md
+        # Kill-switch: env var C1_PROMOTE_ENABLED (default=1); "0" で解除。
+        # LOCK 期間: 2026-04-27 〜 2026-05-11。Live N≥10 で再評価。
+        _C1_ENABLED = _os.environ.get("C1_PROMOTE_ENABLED", "1") == "1"
+        if (_C1_ENABLED and not _is_promoted
+                and entry_type in self._C1_PROMOTE_CANDIDATES):
+            try:
+                _hour_utc = datetime.now(timezone.utc).hour
+                _is_c1 = self._check_c1_promote_filter(
+                    entry_type, instrument, mode, _hour_utc, _spread_entry
+                )
+            except Exception as _c1e:
+                _is_c1 = False
+                self._add_log(f"[C1-PROMOTE] filter check failed ({_c1e}) — bypass skipped")
+            if _is_c1:
+                _is_shadow = False
+                _is_promoted = True
+                _shadow_at_open = False
+                # Force C1 lot: 0.05lot = 5000u (FX, USD_JPY only).
+                _adjusted_units = 5000
+                self._add_log(
+                    f"[C1-PROMOTE] {entry_type} {instrument} hour={_hour_utc} "
+                    f"spread={_spread_entry:.2f} → LIVE 0.05lot (5000u) — "
+                    f"Q1' Bonferroni p=0.0007"
+                )
+
         # ── v9.x: Shadow persistence fix ──
         # Bug: open_trade()はL3890の_is_shadowで書込み。その後の安全ネット
         # (L4049: not promoted→shadow, L4055: Phase0 gate)でis_shadowが変更されても
@@ -5470,6 +5500,15 @@ class DemoTrader:
         "ny_close_reversal",      # USD_JPY × NY × RANGE: N=4 Wlo=51% EV=+2.15 PF=4.58
     }
 
+    # ── 2026-04-27: C1-PROMOTE candidates (Q1' Cell Edge Audit, rule:R1) ──
+    # Pre-reg: knowledge-base/wiki/decisions/pre-reg-cell-promotion-2026-04-27.md
+    # Bonferroni-significant cell を Live 0.05 lot (5000u) で先行投入。
+    # 0.05 lot = Kelly Quarter (0.204) のさらに 1/4 で初動最保守。
+    # フィルタは _check_c1_promote_filter() で評価。
+    _C1_PROMOTE_CANDIDATES = {
+        "fib_reversal",   # USD_JPY × Tokyo × q0 × scalp: N=24 WR=87.5% Wlo=69.0% p_bonf=0.0007
+    }
+
     # Master switch: when True, non-ELITE non-SENTINEL strategies get is_shadow=True
     # Override via environment variable SHADOW_MODE (default: "true")
     _SHADOW_MODE = _os.environ.get("SHADOW_MODE", "true").lower() in ("true", "1", "yes")
@@ -5843,6 +5882,38 @@ class DemoTrader:
         # 観測 N=4 TP=4 Wlo=51% EV=+2.15 PF=4.58 (TP-rate 100%, 小利)
         if (entry_type == "ny_close_reversal"
                 and 17 <= hour_utc < 22):
+            return True
+        return False
+
+    def _check_c1_promote_filter(self, entry_type, instrument, mode,
+                                 hour_utc, spread_pips):
+        """C1-PROMOTE filter (rule:R1, 2026-04-27).
+
+        Pre-reg LOCK: pre-reg-cell-promotion-2026-04-27.md.
+        Bonferroni-significant cells のみ Live 0.05 lot で先行投入。
+
+        C1 #1: fib_reversal × USD_JPY × Tokyo × q0 × scalp(1m)
+            観測 N=24 (all Shadow) WR=87.5% Wlo=69.0% EV=+10.82pip
+            PF=14.60 Bonferroni p=0.0007 Kelly Half=0.408.
+            Conditions:
+              - instrument == USD_JPY
+              - mode == "scalp" (1m only, NOT scalp_5m)
+              - Tokyo session (UTC hour 0-7)
+              - spread quartile q0 (USD_JPY q0 cut <= 0.8 pip)
+        """
+        if entry_type not in self._C1_PROMOTE_CANDIDATES:
+            return False
+        # C1 #1: fib_reversal × Tokyo × q0 × Scalp (USD_JPY only)
+        if entry_type == "fib_reversal":
+            if instrument != "USD_JPY":
+                return False
+            if mode != "scalp":  # scalp_5m / scalp_5m_eur 等は除外 (1m only)
+                return False
+            if not (0 <= hour_utc < 7):  # Tokyo session
+                return False
+            # q0 = spread <= USD_JPY q0 cut (0.8 pip from _SPREAD_QUARTILE_CUTS)
+            if spread_pips is None or spread_pips > 0.8:
+                return False
             return True
         return False
 
