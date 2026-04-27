@@ -9,7 +9,7 @@
 - **最優先: クリーンデータ蓄積 → Kelly Half到達**
 
 <!-- KB_PORTFOLIO_START -->
-## Current Portfolio (auto-synced, 2026-04-25)
+## Current Portfolio (auto-synced, 2026-04-27 wiki-daily)
 
 ### ELITE_LIVE (never shadowed)
 | Strategy | BT Data | Status |
@@ -49,7 +49,6 @@
 | [[london-ny-swing]] | GBP_USD: EV=+0.362 WR=72.7% | LOT_BOOST (not sentinel/elite) |
 | [[mtf-reversal-confluence]] | no BT data | LOT_BOOST (not sentinel/elite) |
 | [[tokyo-range-breakout-up]] | no BT data | LOT_BOOST (not sentinel/elite) |
-| [[trend-rebound]] | no BT data | UNIVERSAL_SENTINEL |
 | [[turtle-soup]] | GBP_USD: EV=+0.386 WR=69.7% | LOT_BOOST (not sentinel/elite) |
 | [[v-reversal]] | no BT data | UNIVERSAL_SENTINEL |
 | [[vol-spike-mr]] | USD_JPY: EV=+0.148 WR=64.6% | UNIVERSAL_SENTINEL |
@@ -75,17 +74,19 @@
 | [[sr-channel-reversal]] | no BT data | FORCE_DEMOTED |
 | [[sr-fib-confluence]] | EUR_USD: EV=+0.103 WR=64.9%; USD_JPY: EV=+0.252 WR=67.7% | FORCE_DEMOTED |
 | [[stoch-trend-pullback]] | no BT data | FORCE_DEMOTED |
+| [[trend-rebound]] | no BT data | FORCE_DEMOTED |
 
 <!-- KB_PORTFOLIO_END -->
 
 ## System State (v9.4 / v2.1)
 - Defensive mode: **0.2x** (DD=**32.32%** / 323.2pip ⚠️, defensive mode — v8.4以降クリーンデータ起点)
 - XAU: **Stopped** (v8.4) -- post-cutoff XAU loss = -2,280pip (102% of total loss)
-- FX-only post-cutoff (2026-04-08〜): **-215.0pip** (Live `is_shadow=0`, snapshot 2026-04-24 AM, N=259, WR=39.0%, EV=-0.83) ※ ema_trend_scalp FORCE_DEMOTED後
+- FX-only post-cutoff (2026-04-08〜): **-240.7pip** (Live `is_shadow=0`, snapshot 2026-04-27 UTC~12:00, N=268, WR=37.7%, EV=-0.90) ※ trend_rebound FORCE_DEMOTED後
+  - 前回 (2026-04-24 AM): N=259, WR=39.0%, PnL=-215.0pip (+9 trades, -25.7pip since)
   - 別 metric: Live+Shadow 直クエリ 2026-04-26 PM では N=373, WR=30.3%, edge=-18.07% (Kelly edge -18.07% ≈ -17.97% で本質一致、filter 違いの集計差)
-- Ruin probability: **2.72%** ⚠️ (MC 5,000 sims, N=300 forward — 前回0.78%から上昇)
-- Aggregate Kelly: **0.0** (edge=-17.97%, WR=39.0%, N=259, Live `is_shadow=0`)
-- Last updated: 2026-04-24 (wiki-daily-update); U17 snapshot drift closure: 2026-04-26 (curried-ritchie session)
+- Ruin probability: **2.72%** ⚠️ (MC 5,000 sims, N=300 forward — last computed 2026-04-24、要再計算)
+- Aggregate Kelly: **0.0** (edge≈-17.97%, WR=37.7%, N=268, Live `is_shadow=0`)
+- Last updated: 2026-04-27 (wiki-daily-update); prev: 2026-04-24 (wiki-daily-update); U17 snapshot drift closure: 2026-04-26 (curried-ritchie session)
 - scalp_eurjpy: **Stopped** (v8.6) -- friction/ATR=43.6%, 構造的不可能
 - scalp_5m_eur / scalp_5m_gbp: **Active** (v8.6) -- 5m摩擦改善モード
 - New modes (v9.0): **daytrade_eurjpy**, **daytrade_gbpjpy**, **[[rnb-usdjpy]]** (all auto_start)
@@ -177,6 +178,8 @@
 - [[bt-live-divergence-scan-2026-04-22]] / [[bt-live-divergence-v3-full-stack-2026-04-22]] — 365d JPY DT + 180d Scalp fresh BT
 
 ### Trade Logs
+- [[2026-04-27]] — daily summary (auto-generated 2026-04-27)
+- [[2026-04-27-monitor]] / [[2026-04-27-pre_tokyo]] / [[2026-04-27-post_tokyo]]
 - [[2026-04-24]] — daily summary (auto-generated 2026-04-24)
 - [[2026-04-23]] — daily summary (auto-generated 2026-04-23)
 - [[2026-04-22]] — daily summary (auto-generated 2026-04-22)

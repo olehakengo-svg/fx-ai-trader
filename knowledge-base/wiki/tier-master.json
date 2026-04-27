@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-25T05:15:21.660099+00:00",
+  "generated_at": "2026-04-27T12:24:25.151129+00:00",
   "elite_live": [
     "gbp_deep_pullback",
     "session_time_bias",
@@ -22,7 +22,8 @@
     "sr_break_retest",
     "sr_channel_reversal",
     "sr_fib_confluence",
-    "stoch_trend_pullback"
+    "stoch_trend_pullback",
+    "trend_rebound"
   ],
   "scalp_sentinel": [
     "bb_rsi_reversion",
@@ -39,7 +40,6 @@
     "london_close_reversal_v2",
     "post_news_vol",
     "squeeze_release_momentum",
-    "trend_rebound",
     "v_reversal",
     "vix_carry_unwind",
     "vol_spike_mr"
@@ -194,10 +194,6 @@
     [
       "stoch_trend_pullback",
       "USD_JPY"
-    ],
-    [
-      "trend_rebound",
-      "EUR_USD"
     ],
     [
       "vol_surge_detector",
