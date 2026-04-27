@@ -22,9 +22,9 @@ from modules.strategy_category import (
 
 # ─── _R2A_SUPPRESS dict 構造 ─────────────────────────────────────────
 
-def test_r2a_suppress_has_4_cells():
-    """Plan で固定された 4 cells が確実に登録されている。"""
-    assert len(_R2A_SUPPRESS) == 4
+def test_r2a_suppress_has_5_cells():
+    """Wave 1 (4 cells) + 2026-04-27 Q1' audit (1 cell) = 5 cells が登録されている。"""
+    assert len(_R2A_SUPPRESS) == 5
 
 
 def test_r2a_suppress_all_multipliers_are_half():
@@ -34,12 +34,15 @@ def test_r2a_suppress_all_multipliers_are_half():
 
 
 def test_r2a_suppress_canonical_cells_present():
-    """4 cells 全て canonical session name で登録されている。"""
+    """5 cells 全て canonical session name で登録されている。"""
     expected = {
+        # Wave 1 (Phase 4d-II Wilson upper < baseline)
         ("stoch_trend_pullback", "Overlap", "q2"),
         ("sr_channel_reversal", "London", "q3"),
         ("ema_trend_scalp", "London", "q0"),
         ("vol_surge_detector", "Tokyo", "q3"),
+        # Q1' 2026-04-27 (Bonferroni p=0.0020, N=28 WR=17.9% Wilson lower 7.9%)
+        ("ema_trend_scalp", "Overlap", "q0"),
     }
     assert set(_R2A_SUPPRESS.keys()) == expected
 
@@ -47,11 +50,13 @@ def test_r2a_suppress_canonical_cells_present():
 # ─── apply_r2a_suppress_gate() 動作 ─────────────────────────────────
 
 @pytest.mark.parametrize("strategy,session,spread_q,expected_mult", [
-    # R2-A 対象 cells (×0.5)
+    # R2-A Wave 1 対象 cells (×0.5)
     ("stoch_trend_pullback", "Overlap", "q2", 0.5),
     ("sr_channel_reversal", "London", "q3", 0.5),
     ("ema_trend_scalp", "London", "q0", 0.5),
     ("vol_surge_detector", "Tokyo", "q3", 0.5),
+    # Q1' 2026-04-27 追加 (×0.5)
+    ("ema_trend_scalp", "Overlap", "q0", 0.5),
     # 同戦略・別 session/spread (×1.0 = no-op)
     ("ema_trend_scalp", "Tokyo", "q2", 1.0),
     ("ema_trend_scalp", "London", "q1", 1.0),

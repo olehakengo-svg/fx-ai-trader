@@ -191,6 +191,10 @@ _R2A_SUPPRESS: Dict[tuple, float] = {
     ("sr_channel_reversal",  "London",  "q3"): 0.5,
     ("ema_trend_scalp",      "London",  "q0"): 0.5,
     ("vol_surge_detector",   "Tokyo",   "q3"): 0.5,
+    # ── 2026-04-27 Q1' Cell Edge Audit (rule:R2, pre-reg-cell-promotion-2026-04-27) ──
+    # ema_trend_scalp × Overlap × q0 × Scalp: N=28 WR=17.9% Wilson lower 7.9%
+    # Bonferroni p=0.0020 で明確な負エッジ確定。Rule 2 (loss prevention) で即時 suppress。
+    ("ema_trend_scalp",      "Overlap", "q0"): 0.5,
 }
 
 
