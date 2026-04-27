@@ -49,13 +49,45 @@ Live-confirmed but N-thin (Bonferroni 不通過、要追加 N):
 - **Initial lot**: **0.05 lot (Kelly Quarter / 4)** — 極めて保守的に開始
   - 理由: N=24 全 Shadow、Live 経験ゼロ。Live discount 不明
   - Kelly Half = 0.408 だが、Live 初動は Quarter の 1/4 = 0.10 をさらに半分 = 0.05 lot
-- **Promotion gate**: Live N ≥ 10 で再評価
-  - Live Wilson lower > 50% 維持 → 0.10 lot
-  - Live Wilson lower > 60% 維持 → 0.20 lot (Kelly Quarter 相当)
-- **Rollback gate**: 以下のいずれかで即 Shadow 復帰
-  - Live N ≥ 5 で WR < 50%
-  - Live N ≥ 10 で Wilson lower < 40%
-  - 連続 3 LOSS
+
+##### Standard graduation path
+
+| Live N | 条件 | Lot |
+|---|---|---|
+| 0〜4 | (初期) | 0.05 維持 |
+| ≥ 5 | WR ≥ 50% | 0.05 維持 (確認期) |
+| ≥ 10 | Wilson lower > 50% | **0.10** 昇格 |
+| ≥ 20 | Wilson lower > 60% | **0.20** 昇格 (Kelly Quarter) |
+| ≥ 30 | Wilson lower > 60% | **0.40** 昇格 |
+| ≥ 50 | Wilson lower > 60% | **0.80** 昇格 (Kelly Half target) |
+
+##### Fast-track rules (2026-04-27 追加, ユーザー承認)
+
+Live discount が想定 (×0.5) より良い場合、段階を skip して加速:
+
+| 条件 | 通常 lot | Fast-track lot |
+|---|---|---|
+| Live N≥10 AND WR ≥ 80% AND Wlo > 60% | 0.10 | **0.20** (skip 0.10) |
+| Live N≥20 AND WR ≥ 85% AND Wlo > 70% | 0.20 | **0.40** (skip 0.20) |
+| Live N≥30 AND WR ≥ 85% AND Wlo > 75% | 0.40 | **0.80** (skip 0.40) |
+
+**Fast-track 安全条件 (全て満たす必要あり)**:
+1. 直近 5 trades が連続 LOSS ではない
+2. Bonferroni p < 0.01 (Shadow + Live 合算)
+3. MC ruin ≤ 5% (現在の Live state simulation で再計算)
+4. Fast-track 適用は同一 cell につき各段階 1 回のみ
+5. tools/daily_live_monitor.py が直近 7 日間 severity=OK を出している
+
+##### Rollback gate (常時優先、fast-track より優先)
+
+以下のいずれかで即対応:
+
+| 条件 | アクション |
+|---|---|
+| Live N ≥ 5 で WR < 50% | 0.05 lot 復帰 + observation 延長 |
+| Live N ≥ 10 で Wilson lower < 40% | 即 Shadow 復帰 |
+| 連続 3 LOSS | 0.05 lot 復帰 (一段階以上昇格していた場合) |
+| MC ruin > 10% | 即 Shadow 復帰 |
 
 ### Tier 2: SUPPRESS (Bonferroni-significant losers)
 

@@ -1,0 +1,118 @@
+{
+  "date": "2026-04-27",
+  "generated_at": "2026-04-27T03:13:39.983158+00:00",
+  "db_path": "demo_trades.db",
+  "total_closed": 354,
+  "total_live": 34,
+  "promoted": [
+    {
+      "id": "C1",
+      "name": "fib_reversal × Tokyo × q0 × Scalp",
+      "live": {
+        "n": 0,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": 0.0,
+        "consec_loss_tail": 0
+      },
+      "shadow": {
+        "n": 24,
+        "wins": 21,
+        "wr": 0.875,
+        "wilson_lower": 0.69,
+        "ev_pip": 10.825,
+        "consec_loss_tail": 1
+      },
+      "total": {
+        "n": 24,
+        "wins": 21,
+        "wr": 0.875,
+        "wilson_lower": 0.69,
+        "ev_pip": 10.825,
+        "consec_loss_tail": 1
+      }
+    }
+  ],
+  "watch": [
+    {
+      "id": "W1",
+      "name": "bb_rsi_reversion × Tokyo × q0 × Scalp",
+      "live": {
+        "n": 9,
+        "wins": 7,
+        "wr": 0.7778,
+        "wilson_lower": 0.4526,
+        "ev_pip": 4.611,
+        "consec_loss_tail": 0
+      },
+      "shadow": {
+        "n": 0,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": 0.0,
+        "consec_loss_tail": 0
+      },
+      "total": {
+        "n": 9,
+        "wins": 7,
+        "wr": 0.7778,
+        "wilson_lower": 0.4526,
+        "ev_pip": 4.611,
+        "consec_loss_tail": 0
+      }
+    },
+    {
+      "id": "W2",
+      "name": "bb_rsi_reversion × London × q0 × Scalp",
+      "live": {
+        "n": 11,
+        "wins": 6,
+        "wr": 0.5455,
+        "wilson_lower": 0.2801,
+        "ev_pip": 1.464,
+        "consec_loss_tail": 1
+      },
+      "shadow": {
+        "n": 0,
+        "wins": 0,
+        "wr": 0.0,
+        "wilson_lower": 0.0,
+        "ev_pip": 0.0,
+        "consec_loss_tail": 0
+      },
+      "total": {
+        "n": 11,
+        "wins": 6,
+        "wr": 0.5455,
+        "wilson_lower": 0.2801,
+        "ev_pip": 1.464,
+        "consec_loss_tail": 1
+      }
+    }
+  ],
+  "wave2": {
+    "A2 SL clamp": {
+      "fired": 0,
+      "rate_pct": 0.0,
+      "post_deploy_n": 22,
+      "anomaly": null
+    },
+    "A3 cost throttle": {
+      "fired": 0,
+      "rate_pct": 0.0,
+      "post_deploy_n": 22,
+      "anomaly": null
+    },
+    "A4 vol_scale": {
+      "fired": 0,
+      "rate_pct": 0.0,
+      "post_deploy_n": 22,
+      "anomaly": null
+    }
+  },
+  "alerts": [],
+  "severity": 0,
+  "severity_label": "OK"
+}

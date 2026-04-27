@@ -1,0 +1,53 @@
+{
+  "generated_at": "2026-04-27T03:18:08.747785+00:00",
+  "scope": "Live+Shadow",
+  "audit_mode": "v2",
+  "window": "30d",
+  "min_n": 15,
+  "total_trades": 354,
+  "qualified_cells": 2,
+  "promotion_candidates": 1,
+  "watch_candidates": 0,
+  "cells": [
+    {
+      "entry_type": "fib_reversal",
+      "session": "Tokyo",
+      "pair": "USD_JPY",
+      "mode": "Scalp",
+      "n": 24,
+      "wins": 21,
+      "live_n": 0,
+      "shadow_n": 24,
+      "wr": 0.875,
+      "wilson_lower": 0.69,
+      "wilson_upper": 0.9566,
+      "ev_pip": 10.825,
+      "pf": 14.602,
+      "p_value_raw": 0.00024,
+      "p_value_bonferroni": 0.00048,
+      "p_value_bh_fdr": 0.00048,
+      "promotion_candidate": true,
+      "watch_candidate": false
+    },
+    {
+      "entry_type": "ema_trend_scalp",
+      "session": "Overlap",
+      "pair": "EUR_USD",
+      "mode": "Scalp",
+      "n": 15,
+      "wins": 3,
+      "live_n": 0,
+      "shadow_n": 15,
+      "wr": 0.2,
+      "wilson_lower": 0.0705,
+      "wilson_upper": 0.4519,
+      "ev_pip": -1.473,
+      "pf": 0.424,
+      "p_value_raw": 0.02014,
+      "p_value_bonferroni": 0.04027,
+      "p_value_bh_fdr": 0.02014,
+      "promotion_candidate": false,
+      "watch_candidate": false
+    }
+  ]
+}
