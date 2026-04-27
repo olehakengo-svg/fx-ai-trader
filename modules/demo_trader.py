@@ -414,6 +414,11 @@ class DemoTrader:
         # ── リバウンド対策: 全方向連敗トラッカー + 価格ベロシティ ──
         self._total_losses_window = []  # [(timestamp, mode, pips)] 直近の全損失記録
         self._price_history = {}        # {instrument: [(timestamp, price)]} 通貨ペア別価格推移
+        # ── Cross-thread dedup: race-condition下での同一シグナル二重発火を抑制 ──
+        # キー: (entry_type, instrument, direction) → 最終 reserve 時刻
+        # 60秒以内の同一キーをブロック (DB commit を待たない即時判定で
+        # 並行モードスレッドの open_trades fetch race を回避)
+        self._recent_signal_emits = {}
 
         # ── Equity Curve Protector: 段階的DDロット縮小 v7.0 ──
         # v7.0: binary ON/OFF -> graduated reduction (risk_analytics.DD_LOT_TIERS)
@@ -3069,6 +3074,27 @@ class DemoTrader:
             _block(f"conf<{self._params['confidence_threshold']}(was:{confidence})"); return
 
         # ── 重複エントリー防止 ──
+        # (Pre) Cross-thread reservation: 並行モードスレッドが同一(entry_type,instrument,direction)を
+        # 同時刻に評価し、各々 get_open_trades() で「open なし」と判定して両者 INSERT する
+        # race condition を防ぐ。DB を介さず in-memory + self._lock で即時判定。
+        # 観測実例: vol_spike_mr 389/390 (0.0002s), sr_fib_confluence 360/361 (0.0002s),
+        #           intraday_seasonality 436/437 (6s), stoch_trend_pullback 183/184 (35s)
+        _signal_key = (entry_type, instrument, signal)
+        _now_dedup = datetime.now(timezone.utc)
+        _dedup_window = timedelta(seconds=60)
+        with self._lock:
+            _last_emit = self._recent_signal_emits.get(_signal_key)
+            if _last_emit and (_now_dedup - _last_emit) < _dedup_window:
+                _age = (_now_dedup - _last_emit).total_seconds()
+                _block(f"recent_emit({entry_type},{int(_age)}s<60s)")
+                return
+            # 予約: 以降の guard で block されても 60s expire で自動解放されるため cleanup 不要
+            self._recent_signal_emits[_signal_key] = _now_dedup
+            # 古いエントリ掃除 (メモリ保護)
+            _stale_cutoff = _now_dedup - timedelta(seconds=120)
+            self._recent_signal_emits = {
+                k: v for k, v in self._recent_signal_emits.items() if v > _stale_cutoff
+            }
         # (A) 同価格帯ブロック（モード別: scalp=1.0pip, DT=5pip, other=3pip）
         # scalp: 1.5→1.0pip (エントリー機会増), DT: 1.5→5pip (マシンガン防止)
         _is_jpy = "JPY" in instrument
@@ -4052,14 +4078,29 @@ class DemoTrader:
         # スプレッドがSL距離の35%超 → エッジ不足で即死リスク
         # 本番データ: Fast Exit(<2min) N=11 PnL=-30.7pip の主因
         # v7.2: XAU専用閾値 45% — ATRベースSLが広く設計上4.2%程度だが安全網として緩和
+        #
+        # 2026-04-27 M1 修正 (rule:R3, lesson-master-integration-2026-04-27):
+        #   ELITE_LIVE 3戦略は post-patch (2026-04-24) で fire=0 状態。
+        #   原因仮説 #1: spread_sl_gate (35% threshold) が SL_dist 1-3pip regime
+        #   で過剰 block。BT EV+0.58〜+1.06 の堅い edge を持つ ELITE_LIVE は
+        #   spread/SL >35% でも数学的に正 EV (Wilson Half計算で正当化可)。
+        #   ELITE_LIVE 戦略は本 gate を免除する (rule:R3 構造バグ修正)。
         # ══════════════════════════════════════════════════════════════
         _sl_dist_pips = abs(current_price - sl) * _pip_m_mon
         if _sl_dist_pips > 0 and _spread_entry > 0:
             _spread_sl_ratio = _spread_entry / _sl_dist_pips
             _ssl_threshold = 0.45 if "XAU" in instrument else 0.35
-            if _spread_sl_ratio > _ssl_threshold:
+            # M1 (2026-04-27): ELITE_LIVE は spread_sl_gate 免除
+            _is_elite_live = entry_type in self._ELITE_LIVE
+            if _spread_sl_ratio > _ssl_threshold and not _is_elite_live:
                 _block(f"spread_sl_gate({_spread_entry:.1f}/{_sl_dist_pips:.1f}pip={_spread_sl_ratio:.0%}>{_ssl_threshold:.0%})")
                 return
+            elif _spread_sl_ratio > _ssl_threshold and _is_elite_live:
+                # ELITE_LIVE 通過時はログのみ (M1 修正効果 monitor 用)
+                self._add_log(
+                    f"[ELITE_BYPASS] {entry_type} {instrument} spread_sl_ratio="
+                    f"{_spread_sl_ratio:.0%}>{_ssl_threshold:.0%} → 通過 (M1 免除)"
+                )
 
         trade_id = self._db.open_trade(
             direction=signal,

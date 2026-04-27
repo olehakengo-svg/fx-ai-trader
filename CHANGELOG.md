@@ -1,5 +1,36 @@
 # FX AI Trader - Changelog
 
+## 2026-04-27 Cross-thread Signal Dedup Guard — race-condition下の二重発火防止 [rule:R3]
+
+### 問題
+複数モードスレッド (scalp / daytrade / daytrade_gbpusd 等) が同一シグナルを並行評価する際、各々が `get_open_trades()` で「open なし」と判定したまま `self._lock` 外で同時 INSERT する race condition により、同一 (entry_type, instrument, direction) が二重発火していた。既存の `same_price` ガードは DB 反映前のため無効、`cooldown` は post-exit 限定で機能せず。
+
+### 実測重複発火 (Shadow, instant-exit replay 除外後)
+- `vol_spike_mr` 389/390: USD_JPY BUY, **0.0002秒差** (純粋 race condition)
+- `sr_fib_confluence` 360/361: GBP_USD BUY, 0.0002秒差・0bp 差
+- `intraday_seasonality` 436/437: GBP_USD BUY, 6秒差, 0.44bp
+- `stoch_trend_pullback` 183/184: USD_JPY SELL, 35秒差・同pnl
+
+### 修正 (`modules/demo_trader.py`)
+- `__init__`: `self._recent_signal_emits: dict[(entry_type, instrument, direction), datetime]` 追加
+- `_tick_entry`: 既存 `same_price` ガードの直前に in-memory dedup を挿入。`self._lock` 配下で 60秒以内の同一キーをブロック (DB を介さない即時判定)。120秒で stale 自動掃除。
+- ブロック理由ログ: `recent_emit({entry_type},{age}s<60s)`
+
+### 回帰テスト (`tests/test_signal_dedup.py`)
+9 件追加、全 PASS:
+- 1st emit / 同キー連発 / 別方向 / 別pair / 別戦略の境界
+- 60秒境界 (61秒で解放、6秒・35秒以内ブロック)
+- 8並行スレッド race → 1 winner / 7 BLOCK
+- stale 掃除でメモリ有界
+
+### 既存テスト
+432/432 通過 (回帰なし)
+
+### 分類根拠 (rule:R3 = Immediate)
+構造バグ (ガード漏れ) のため 365日BT スキップ可。データ駆動分析 (sqlite-fx 実測 6 件) で原因特定済み。Rule 2 監視に格下げ (誤ブロック発生時即 revert)。
+
+---
+
 ## 2026-04-07 v6.1 収益構造安定化 — GBP依存脱却 + USD/JPY救済 + Confidence Lot
 
 ### P0: USD/JPY デイトレ救済
