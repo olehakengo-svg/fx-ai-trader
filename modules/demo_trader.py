@@ -4409,11 +4409,16 @@ class DemoTrader:
 
         # ── 2026-04-27: C1-PROMOTE Bypass (rule:R1) ──
         # Q1' Cell Edge Audit で Bonferroni-significant な fib_reversal × Tokyo
-        # × q0 × scalp (N=24 WR=87.5% Wlo=69.0% p_bonf=0.0007) を 0.05 lot
-        # (5000u) で Live 投入。フィルタ合致時のみ shadow gate を bypass。
+        # × q0 × scalp (N=24 WR=87.5% Wlo=69.0% p_bonf=0.0007) を Live 投入。
         # Pre-reg: knowledge-base/wiki/decisions/pre-reg-cell-promotion-2026-04-27.md
         # Kill-switch: env var C1_PROMOTE_ENABLED (default=1); "0" で解除。
-        # LOCK 期間: 2026-04-27 〜 2026-05-11。Live N≥10 で再評価。
+        # LOCK 期間: 2026-04-27 〜 2026-05-11。Live N≥30 で再評価。
+        #
+        # 2026-04-27 evening 修正 (lesson-cell-audit-bt-required-2026-04-27):
+        #   既存 BT cache 確認で fib_reversal × USD_JPY × scalp aggregate が
+        #   180d EV=-0.308 (N=66, WR=53.0%) と判明。Tokyo q0 cell の優位性は
+        #   subset outlier 可能性が残存 → Recovery Path SENTINEL 整合の
+        #   0.01 lot (1000u) に縮小。Live N で OOS 検証を継続。
         _C1_ENABLED = _os.environ.get("C1_PROMOTE_ENABLED", "1") == "1"
         if (_C1_ENABLED and not _is_promoted
                 and entry_type in self._C1_PROMOTE_CANDIDATES):
@@ -4429,12 +4434,13 @@ class DemoTrader:
                 _is_shadow = False
                 _is_promoted = True
                 _shadow_at_open = False
-                # Force C1 lot: 0.05lot = 5000u (FX, USD_JPY only).
-                _adjusted_units = 5000
+                # Force C1 lot: 0.01lot = 1000u (FX, USD_JPY only) —
+                # Recovery Path SENTINEL 整合 (downsized 0.05→0.01 evening 2026-04-27).
+                _adjusted_units = 1000
                 self._add_log(
                     f"[C1-PROMOTE] {entry_type} {instrument} hour={_hour_utc} "
-                    f"spread={_spread_entry:.2f} → LIVE 0.05lot (5000u) — "
-                    f"Q1' Bonferroni p=0.0007"
+                    f"spread={_spread_entry:.2f} → LIVE 0.01lot SENTINEL (1000u) — "
+                    f"Q1' Bonferroni p=0.0007 / 180d BT aggregate EV=-0.308 cautious"
                 )
 
         # ── v9.x: Shadow persistence fix ──

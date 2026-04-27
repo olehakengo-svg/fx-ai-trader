@@ -46,9 +46,14 @@ Live-confirmed but N-thin (Bonferroni 不通過、要追加 N):
 #### **C1-PROMOTE: fib_reversal × Tokyo × q0 × Scalp**
 
 - **Action**: Shadow → Live 昇格
-- **Initial lot**: **0.05 lot (Kelly Quarter / 4)** — 極めて保守的に開始
-  - 理由: N=24 全 Shadow、Live 経験ゼロ。Live discount 不明
-  - Kelly Half = 0.408 だが、Live 初動は Quarter の 1/4 = 0.10 をさらに半分 = 0.05 lot
+- **Initial lot (revised 2026-04-27 evening)**: **0.01 lot (Recovery Path SENTINEL 整合)**
+  - 当初案: 0.05 lot (Kelly Quarter / 4)
+  - **修正トリガ**: 既存 BT cache (data/cache/bt_scan_scalp_results.json) で
+    fib_reversal × USD_JPY × scalp aggregate が **180d EV=-0.308 negative** と確認
+  - Q1' Tokyo q0 cell (N=24 WR=87.5%) は **subset outlier 可能性が排除しきれない**
+  - lesson-orb-trap-bt-divergence (60d positive → 180d negative) 再現リスク
+  - → KB Recovery Path (N≥30 & WR≥50% → SENTINEL 0.01 lot) に整合させて **0.01 lot 開始**
+  - 詳細: [[lesson-cell-audit-bt-required-2026-04-27]]
 
 ##### Standard graduation path
 
