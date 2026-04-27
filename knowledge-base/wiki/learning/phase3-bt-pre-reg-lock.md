@@ -321,53 +321,7 @@ scipy.stats で計算 (baseline WR=39%, β=0.20):
 - **U13/U14 final calibration**: Mode B multiplier は現 4 cells (N≥30) のみベース、60 days passive 蓄積後の最終 calibration が望ましい
 - **vol_surge_detector baseline**: Phase 4d-II で baseline 不明、Phase 3 BT で再分析必要
 
-### 9.1.bis Multi-Change Confounded Period (2026-04-27 Wave 2 Day 4 追記)
-
-**事象**: Pre-reg LOCK 文書 commit (`34c404c`) 後、以下 5 changes が短時間内に連続 deploy:
-
-1. Wave 1 R2-A suppress (commit `f1cc1aa`) — 4 cells の confidence ×0.5
-2. **U18 4-bin quartile fix** (commit `e362254`) — Phase 4d-II 互換 cuts に変更
-3. **Wave2 A2/A3/A4** (commit `4df389f`, rule:R1-bypass) — SL pip clamp + cost throttle + vol scale
-4. **C2-SUPPRESS expansion** (commit `795d4af`) — `_R2A_SUPPRESS` に `(ema_trend_scalp, Overlap, q0)` 追加
-5. **fib_reversal C1-PROMOTE** (commit `7437e19`) — Live 0.05 lot 昇格 (rule:R1)
-
-**結果**: 個別 effect の clean attribution が不可能、measurement period (deploy 〜 hold-out 2026-05-01) は **confounded**。
-
-**判断 (Quant Rigor 規律)**:
-
-1. **Phase 3 BT 着手 timing 修正**: 当初 ε (+7d) → **ζ (+14d, 2026-05-11) 以降**に延期。理由: 5 changes の effect が confounded で、Phase 3 BT で baseline 比較する pre-deploy データが汚染されている。安定 baseline には measurement 期間延長が必要。
-
-2. **De-confounding plan 別文書化** ([wave2-deconfounding-plan.md](wave2-deconfounding-plan.md)):
-   - per-trade treatment indicator (5 個の binary flag) を attach
-   - logit 多変量回帰で個別 β estimate
-   - matched cell-level Pre-Post 比較で副作用検出
-   - Bonferroni K=5 で α=0.01、N(treated) ≥ 100 で各 treatment β 検出可能
-
-3. **判定基準調整**:
-   - 当初 §6.1 PAIR_PROMOTED 昇格基準 (Live N≥30 + Wilson 95% lower > BEV + Bonferroni p<0.00714) は **measurement 期間が clean な場合**の前提
-   - confounded 期間中は **Bonferroni K を再計算** (Phase 3 BT K=7 + Wave 2 confounded K=5 → joint K=12 で α=0.0042 → ΔWR detect ≥ 11pp at N=259)
-   - ζ (+14d) 以降の hold-out only で full 採用判定
-
-4. **Phase 3 BT design 影響**:
-   - 当初 Mode A (status quo) vs Mode B (calibrated) の 2-arm BT 設計
-   - confounded を考慮し **4-arm 設計** に拡張検討:
-     - Arm 1: Mode A 単独 (Wave 2 changes off)
-     - Arm 2: Mode B 単独 (Wave 2 changes off)
-     - Arm 3: Mode A + Wave 2 changes (current production)
-     - Arm 4: Mode B + Wave 2 changes
-   - ただし 4-arm は K 増で detection power 低下、 trade-off 検討は Wave 3
-
-**実装 schedule**:
-
-| Phase | timing | Action |
-|-------|--------|--------|
-| α (済) | +6h | qualitative gate-fire check (R2-A 0/36, expected for Tokyo session) |
-| β | +12h (04-27 12:00 UTC) | London 開始、R2-A target cells 初発火期待 |
-| γ | +24h (04-27 23:27 UTC) | initial logit fit (各 treatment N≥10 達成後) |
-| δ | +72h (04-30 02:00 JST) | Bonferroni-significant β estimates (K=5, α=0.01) |
-| ε | +7d (05-04) | Phase 3 BT GO/NO-GO **1st 判断は HOLD**、ζ まで継続 |
-| **ζ** | **+14d (05-11)** | **Phase 3 BT GO/NO-GO 最終判断** (de-confounding 結果を input に) |
-| η | +30d (05-27) | long-term equilibrium、Phase 3 BT 結果と統合
+> **Note (2026-04-27 R1 revision)**: 当初本セクションに §9.1.bis として "Multi-Change Confounded Period" の判断 (Phase 3 BT timing ε → ζ 延期、Bonferroni K joint=12、4-arm BT design 等) を追記したが、これは **BT data 観測前に LOCK terms を変更する HARKing pattern** に該当するため revert。LOCK 文書外の補足記録として `phase3-bt-supplementary-2026-04-27.md` を別途作成。本 LOCK §6 採用基準 (K=7, α=0.00714, WFA dates, G1-G5) は **Phase 3 BT 完了まで不変**。
 
 ### 9.2 Phase 3 GO/NO-GO 判断 (Wave 1 monitor との接続)
 

@@ -113,13 +113,39 @@ STRATEGY_PATHS: Dict[str, Tuple[str, str]] = {
     # MISSING_STRATEGIES はこの map に登録しない (load_strategy で skip)
 }
 
-# Strategy → BT mode (DT or Scalp) マッピング
+# Strategy → BT runner selector マッピング (R4 revision verified 2026-04-27)
+#
+# 値の意味: BT runner 選択ラベル。"DT" は app.run_daytrade_backtest を選択、
+# "Scalp" は app.run_scalp_backtest を選択。strategy class の `mode` 属性
+# (e.g., "daytrade", "scalp") とは別の runner-selector key であることに注意。
+#
+# 検証 (R4 verification, 2026-04-27):
+#   - gbp_deep_pullback   strategies/daytrade/gbp_deep_pullback.py: mode="daytrade" → DT ✓
+#   - vol_momentum_scalp  strategies/scalp/vol_momentum.py:        mode="scalp"    → Scalp ✓
+#   - htf_false_breakout  strategies/daytrade/htf_false_breakout.py: mode="daytrade" → DT ✓
+#   - liquidity_sweep     strategies/daytrade/liquidity_sweep.py:    mode="daytrade" → DT ✓
+#   - london_fix_reversal strategies/daytrade/london_fix_reversal.py: mode="daytrade" → DT ✓
+#
+# Production 統合確認 (modules/demo_trader.py):
+#   - liquidity_sweep / london_fix_reversal は daytrade strategy list に登録 ✓
+#   - vol_momentum_scalp は scalp strategy list に登録 ✓
 STRATEGY_MODES: Dict[str, str] = {
     "gbp_deep_pullback": "DT",
     "vol_momentum_scalp": "Scalp",
     "htf_false_breakout": "DT",
     "liquidity_sweep": "DT",
     "london_fix_reversal": "DT",
+}
+
+# Expected strategy class `mode` attribute (R4 verification source-of-truth)
+# 本マッピングは load_strategy() / verify_strategy_modes() で source と
+# cross-check するための reference。drift 検出時は warning。
+EXPECTED_STRATEGY_CLASS_MODES: Dict[str, str] = {
+    "gbp_deep_pullback": "daytrade",
+    "vol_momentum_scalp": "scalp",
+    "htf_false_breakout": "daytrade",
+    "liquidity_sweep": "daytrade",
+    "london_fix_reversal": "daytrade",
 }
 
 
@@ -431,6 +457,162 @@ def run_anchored_wfa(
         oos_ev_degradation=oos_ev_degradation,
         p_value=p_value,
     )
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Section 5.5: Verification helpers (R4, R6 quant rigor revision 2026-04-27)
+# ─────────────────────────────────────────────────────────────────────────
+
+def _load_strategy_classes() -> Dict[str, type]:
+    """全 PHASE3 戦略の class object を static import で取得 (security 対応)。
+
+    importlib.import_module() の dynamic import を避け、静的 import
+    で whitelisted modules のみを load (CWE-706 対策)。
+
+    Returns:
+        Dict[strategy_name, class_object | None]
+        MISSING_STRATEGIES や ImportError は None。
+    """
+    classes: Dict[str, type] = {}
+
+    # Static imports (whitelisted modules only, no dynamic dispatch)
+    try:
+        from strategies.daytrade.gbp_deep_pullback import GbpDeepPullback as _gbp
+        classes["gbp_deep_pullback"] = _gbp
+    except ImportError:
+        classes["gbp_deep_pullback"] = None
+
+    try:
+        from strategies.scalp.vol_momentum import VolMomentumScalp as _vms
+        classes["vol_momentum_scalp"] = _vms
+    except ImportError:
+        classes["vol_momentum_scalp"] = None
+
+    try:
+        from strategies.daytrade.htf_false_breakout import HtfFalseBreakout as _hfb
+        classes["htf_false_breakout"] = _hfb
+    except ImportError:
+        try:
+            # クラス名が異なる可能性 (snake_case → CamelCase 変換差)、
+            # 失敗時は module を import せず None を保持
+            classes["htf_false_breakout"] = None
+        except ImportError:
+            classes["htf_false_breakout"] = None
+
+    try:
+        from strategies.daytrade.liquidity_sweep import LiquiditySweep as _ls
+        classes["liquidity_sweep"] = _ls
+    except ImportError:
+        classes["liquidity_sweep"] = None
+
+    try:
+        from strategies.daytrade.london_fix_reversal import LondonFixReversal as _lfr
+        classes["london_fix_reversal"] = _lfr
+    except ImportError:
+        classes["london_fix_reversal"] = None
+
+    return classes
+
+
+def verify_strategy_modes() -> Dict[str, Dict[str, str]]:
+    """STRATEGY_MODES と各 strategy class `mode` 属性の整合性を verify。
+
+    R4 revision: Phase 3 BT 実行前に runner selector mapping が strategy
+    class の actual mode と一致しているか確認。drift 検出時は warning を返す。
+
+    Static import 使用 (CWE-706 対策、_load_strategy_classes 経由)。
+
+    Returns:
+        Dict[strategy_name, {"runner_selector": str, "class_mode": str | None,
+                              "match": bool, "error": str | None}]
+    """
+    classes = _load_strategy_classes()
+    results: Dict[str, Dict[str, str]] = {}
+
+    for name in PHASE3_STRATEGIES:
+        if name in MISSING_STRATEGIES:
+            results[name] = {
+                "runner_selector": "(skip)",
+                "class_mode": None,
+                "match": False,
+                "error": "MISSING_STRATEGIES (source not found)",
+            }
+            continue
+
+        runner_selector = STRATEGY_MODES.get(name, "?")
+        expected_class_mode = EXPECTED_STRATEGY_CLASS_MODES.get(name, "?")
+        cls = classes.get(name)
+
+        if cls is None:
+            results[name] = {
+                "runner_selector": runner_selector,
+                "class_mode": None,
+                "match": False,
+                "error": "class not loadable (static import failed)",
+            }
+            continue
+
+        class_mode = getattr(cls, "mode", None)
+        class_name_attr = getattr(cls, "name", None)
+        match = (class_mode == expected_class_mode and class_name_attr == name)
+        results[name] = {
+            "runner_selector": runner_selector,
+            "class_mode": class_mode or "(not found)",
+            "match": match,
+            "error": None if match else (
+                f"expected mode={expected_class_mode!r} name={name!r}, "
+                f"got mode={class_mode!r} name={class_name_attr!r}"
+            ),
+        }
+
+    return results
+
+
+def verify_friction_patch_works() -> Dict[str, object]:
+    """Friction Mode A vs B で実際に friction value が変わることを verify。
+
+    R6 revision: Phase 3 BT 着手前の必須 smoke test。
+    `patch_friction_model()` が `_SESSION_MULTIPLIER` を上書きするだけでは
+    不十分で、`friction_for()` 関数が実際に異なる値を返すかどうかを確認。
+
+    Returns:
+        {"passed": bool, "mode_a_tokyo": float, "mode_b_tokyo": float,
+         "diff": float, "error": str | None}
+    """
+    try:
+        from modules.friction_model_v2 import friction_for
+    except ImportError as e:
+        return {"passed": False, "error": f"cannot import friction_for: {e}"}
+
+    # Mode A 適用
+    with patch_friction_model(FRICTION_MODE_A):
+        try:
+            result_a = friction_for("USD_JPY", mode="DT", session="Tokyo")
+            mode_a_tokyo = float(result_a.get("adjusted_rt_pips", float("nan")))
+        except Exception as e:
+            return {"passed": False, "error": f"Mode A friction_for failed: {e}"}
+
+    # Mode B 適用
+    with patch_friction_model(FRICTION_MODE_B):
+        try:
+            result_b = friction_for("USD_JPY", mode="DT", session="Tokyo")
+            mode_b_tokyo = float(result_b.get("adjusted_rt_pips", float("nan")))
+        except Exception as e:
+            return {"passed": False, "error": f"Mode B friction_for failed: {e}"}
+
+    diff = mode_a_tokyo - mode_b_tokyo
+    # Mode A Tokyo=1.45, Mode B Tokyo=0.80 → 約 1.81× 差
+    expected_min_diff = 0.5  # USD_JPY 2.14pip × (1.45-0.80) ≈ 1.39pip 差期待
+
+    passed = abs(diff) >= expected_min_diff and not math.isnan(diff)
+    return {
+        "passed": passed,
+        "mode_a_tokyo": mode_a_tokyo,
+        "mode_b_tokyo": mode_b_tokyo,
+        "diff": diff,
+        "expected_min_diff": expected_min_diff,
+        "error": None if passed else f"insufficient diff: {diff:.4f} < {expected_min_diff}",
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────

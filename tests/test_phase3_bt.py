@@ -11,6 +11,7 @@ import pytest
 
 from tools.phase3_bt import (
     ALPHA_BONFERRONI,
+    EXPECTED_STRATEGY_CLASS_MODES,
     FDR_Q,
     FRICTION_MODE_A,
     FRICTION_MODE_B,
@@ -32,6 +33,8 @@ from tools.phase3_bt import (
     load_strategy,
     patch_friction_model,
     run_anchored_wfa,
+    verify_friction_patch_works,
+    verify_strategy_modes,
     welch_t_test,
     wilson_lower,
 )
@@ -334,3 +337,64 @@ def test_run_anchored_wfa_missing_handle_returns_none():
     """handle=None (missing strategy) → None"""
     result = run_anchored_wfa(None, "USDJPY=X", FRICTION_MODE_A)
     assert result is None
+
+
+# ─── Group H: R4 verify_strategy_modes (Phase 3 BT pre-flight) ────────
+
+def test_verify_strategy_modes_returns_all_strategies():
+    """K=7 全戦略が verification 結果に含まれる。"""
+    result = verify_strategy_modes()
+    assert set(result.keys()) == set(PHASE3_STRATEGIES)
+
+
+def test_verify_strategy_modes_implemented_strategies_match():
+    """実装済 5 戦略は全て match=True (drift なし)。"""
+    result = verify_strategy_modes()
+    implemented = [n for n in PHASE3_STRATEGIES if n not in MISSING_STRATEGIES]
+    for name in implemented:
+        entry = result[name]
+        assert entry["match"] is True, \
+            f"Drift detected: {name} {entry}"
+        # class_mode が EXPECTED と一致
+        assert entry["class_mode"] == EXPECTED_STRATEGY_CLASS_MODES[name]
+
+
+def test_verify_strategy_modes_missing_strategies_skip():
+    """MISSING_STRATEGIES 2 戦略は match=False with MISSING error。"""
+    result = verify_strategy_modes()
+    for name in MISSING_STRATEGIES:
+        entry = result[name]
+        assert entry["match"] is False
+        assert "MISSING" in (entry.get("error") or "")
+
+
+# ─── Group I: R6 verify_friction_patch_works (Phase 3 BT pre-flight) ───
+
+def test_verify_friction_patch_works_passes():
+    """Mode A vs Mode B で実 friction value が顕著に異なることを確認。
+
+    USD_JPY DT Tokyo:
+      Mode A: 2.14 × 1.0 (DT) × 1.45 (Tokyo) = 3.103 pip
+      Mode B: 2.14 × 1.0 (DT) × 0.80 (Tokyo) = 1.712 pip
+      diff: 1.391 pip
+    """
+    result = verify_friction_patch_works()
+    assert result["passed"] is True, f"Smoke test failed: {result}"
+    assert result["diff"] >= 0.5
+
+
+def test_verify_friction_patch_a_higher_than_b_on_tokyo():
+    """Mode A Tokyo (1.45×) が Mode B Tokyo (0.80×) より高い friction を返す。"""
+    result = verify_friction_patch_works()
+    assert result["mode_a_tokyo"] > result["mode_b_tokyo"]
+    # Approximate ratio: 1.45 / 0.80 = 1.8125
+    ratio = result["mode_a_tokyo"] / result["mode_b_tokyo"]
+    assert 1.7 < ratio < 1.9, f"Ratio {ratio} out of expected range [1.7, 1.9]"
+
+
+def test_verify_friction_patch_works_smoke_no_lingering_state():
+    """smoke test 実行後に _SESSION_MULTIPLIER が original 状態に restore されている。"""
+    from modules import friction_model_v2
+    original = dict(friction_model_v2._SESSION_MULTIPLIER)
+    _ = verify_friction_patch_works()
+    assert friction_model_v2._SESSION_MULTIPLIER == original
