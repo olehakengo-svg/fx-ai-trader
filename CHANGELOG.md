@@ -1,5 +1,47 @@
 # FX AI Trader - Changelog
 
+## 2026-04-27 M2: Regime Gate Over-block Fix [rule:R3]
+
+### 動機
+M1 (commit 641bfe4) で `spread_sl_gate` に ELITE_LIVE bypass を追加したが、post-deploy 4 時間で
+ELITE_BYPASS log = 0 / ELITE 3 戦略 Live fire = 0 継続。Production trade を解析したところ
+**streak_reversal × USD_JPY (PAIR_PROMOTED)** が `mtf_gate_action=kept` にもかかわらず is_shadow=1
+強制で 4/4 trade が Shadow-only になっていた。Root cause: `modules/demo_trader.py` の
+**DT TREND_BULL TF bypass gate** (旧 line 3046-3056) が `not _is_mr_entry` の negation form で
+`_RANGE_MR_STRATEGIES` 未登録の全戦略を一括 shadow 化していた。RANGE gate (line 3024) は
+positive list を使う対称な実装だったため、TREND_BULL gate のみ bug。
+
+### 修正
+1. **TREND_BULL gate を positive list 化**: `not _is_mr_entry` → `entry_type in _DT_TREND_STRATEGIES`
+2. **両 regime gate (RANGE / TREND_BULL) に ELITE_LIVE / PAIR_PROMOTED 例外を追加**:
+   `_regime_gate_exempt = entry_type in self._ELITE_LIVE or (entry_type, instrument) in self._PAIR_PROMOTED`
+
+### 影響
+**Direct targets** (intended Live 復活):
+- streak_reversal × USD_JPY: PAIR_PROMOTED (二重 WF stable, BT 5streak BUY p=1.3e-5)
+- session_time_bias / gbp_deep_pullback (ELITE_LIVE)
+- trendline_sweep (ELITE_LIVE — RANGE / TREND_BULL 両方の gate から免除)
+
+**Side-effect** (UNIVERSAL_SENTINEL 系の TREND_BULL × daytrade での発火許可):
+- liquidity_sweep, gotobi_fix, trend_rebound, dt_fib_reversal 等
+- N<10 sentinel lot (0.01) で発火可、`_is_promoted()` default True のまま
+- 原則 #1/#4 と整合。daily_live_monitor.py で発火頻度を観察、予期せぬ Live promotion を
+  検知した場合は positive list を適切に拡張
+
+### 検証
+- 511 tests pass (回帰なし)
+- AST parse OK
+- `tests/test_signal_dedup.py` 9 件 (M1 と同 commit) も継続 pass
+
+### KB
+- 詳細: [lesson-trend-bull-gate-overblock-2026-04-27](knowledge-base/wiki/lessons/lesson-trend-bull-gate-overblock-2026-04-27.md)
+- KB streak-reversal.md は MR 分類だが code MR set 未登録 = code/KB 不整合発見
+
+### 後続
+- post-deploy で ELITE_BYPASS log と ELITE 3 戦略 / streak_reversal の Live fire を確認
+- 1日 Live N≥5 達成しない場合は更なる gate 調査 (HTF self-block / SELL_ONLY / pair filter)
+
+
 ## 2026-04-27 P0-2/P0-3 Live-thaw Discipline — net_edge monitor + thaw gate [rule:R2/R1]
 
 ### 動機

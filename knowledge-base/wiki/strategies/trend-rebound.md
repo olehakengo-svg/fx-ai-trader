@@ -4,8 +4,13 @@
 - **Entry Type**: `trend_rebound`
 - **Category**: MR (Mean Reversion)
 - **Timeframe**: DT 15m
-- **Status**: UNIVERSAL_SENTINEL; EUR_USD PAIR_DEMOTED
-- **Active Pairs**: Sentinel on USD_JPY, GBP_USD, EUR_JPY, EUR_GBP
+- **Status**: FORCE_DEMOTED
+- **Active Pairs**: 全ペア OANDA 送信停止 (Shadow データ蓄積のみ)
+
+## Previously
+- 〜2026-04-26: UNIVERSAL_SENTINEL; EUR_USD PAIR_DEMOTED
+- 2026-04-27: tier-master.json で FORCE_DEMOTED に変更 (前セッションでの整理)
+  EUR_USD pair_demoted エントリも撤去済 (FORCE_DEMOTED 全ペア包含)
 
 ## BT Performance (365d, 15m)
 BT data not available for this entry_type
@@ -30,9 +35,9 @@ Counter-trend rebound in strong trending conditions. Enters against the prevaili
 
 ## Current Configuration
 - Lot Boost: default (1.0x)
-- PAIR_DEMOTED: EUR_USD (v8.9: N=6 WR=16.7% EV=-1.85 Kelly=-43.0%)
+- PAIR_DEMOTED: (FORCE_DEMOTED 一括化により撤去)
 - PAIR_PROMOTED: none
-- Watch list (v9.5): USD_JPY (Live N=10 EV=−0.78, Gate 微不通過 — 次 N≥20 で再判定)
+- Status: **FORCE_DEMOTED** (OANDA 送信全ペア停止、Shadow 蓄積継続)
 
 ## Related
 - [[index]] — Tier classification

@@ -3021,9 +3021,18 @@ class DemoTrader:
             "adx_trend_continuation", "lin_reg_channel", "trendline_sweep",
             "london_ny_swing", "turtle_soup", "jpy_basket_trend",
         }
+        # M2 (2026-04-27, rule:R3): ELITE_LIVE / PAIR_PROMOTED は本 gate を免除。
+        # 理由: pre-registered として 365日 BT STRONG 又は WF クロスTF stable を
+        # 確認済み。regime safety net は混在で LIVE を封じ込めていた (M1 の
+        # spread_sl_gate と同型)。詳細: lesson-trend-bull-gate-overblock-2026-04-27
+        _regime_gate_exempt = (
+            entry_type in self._ELITE_LIVE
+            or (entry_type, instrument) in self._PAIR_PROMOTED
+        )
         if (_base_mode == "daytrade"
                 and _regime_type_r == "RANGE"
-                and entry_type in _DT_TREND_STRATEGIES):
+                and entry_type in _DT_TREND_STRATEGIES
+                and not _regime_gate_exempt):
             if _is_shadow_eligible:
                 _is_shadow = True
                 self._add_log(
@@ -3042,9 +3051,15 @@ class DemoTrader:
         # ── v8.0→v8.1: DT TREND_BULL TF戦略遮断（MR免除）──
         # TF戦略: N=17 WR=0% (ema_cross/sr_fib/sr_break — トレンド末期追っかけ)
         # MR戦略: N=3 WR=100% (dt_bb_rsi_mr/dt_sr_channel_reversal — 逆張り成功)
-        # v8.0は全遮断→v8.1でMR免除。_is_mr_entryは上流Phase2で定義済み
+        # M2 (2026-04-27, rule:R3): negation form (`not _is_mr_entry`) から
+        # 明示的 positive list (`_DT_TREND_STRATEGIES`) へ変更。RANGE gate と
+        # 対称的に揃え、`_RANGE_MR_STRATEGIES` 未登録の MR-style 戦略
+        # (streak_reversal 等) と ELITE_LIVE / PAIR_PROMOTED の過剰 block を解消。
+        # streak_reversal × USD_JPY (PAIR_PROMOTED): Live N=0 / Shadow N=4 だった
+        # 主因。session_time_bias / gbp_deep_pullback (ELITE) も同根因。
         if (_base_mode == "daytrade" and _regime_type_r == "TREND_BULL"
-                and not _is_mr_entry):
+                and entry_type in _DT_TREND_STRATEGIES
+                and not _regime_gate_exempt):
             if _is_shadow_eligible:
                 _is_shadow = True
                 self._add_log(
@@ -3203,6 +3218,10 @@ class DemoTrader:
             # 2026-04-27 R-A: Pre-reg LOCK 2 戦略実装 (Phase 3 BT K=7 universe 完全化)
             "pullback_to_liquidity_v1",      # TF Structural: HTF×M15 pullback×liquidity rejection (Moskowitz 2012)
             "asia_range_fade_v1",            # MR Structural: UTC 02-06 range fade with rejection (Lo & MacKinlay 1988)
+            # 2026-04-27 SR Anti-Hunt 二段構え (前セッション WIP, Shadow 5 majors 全走で蓄積中)
+            "sr_anti_hunt_bounce",           # SR Anti-Hunt Bounce: KDE+hunt-aware SL
+            "sr_liquidity_grab",             # SR Liquidity Grab: SMC post-hunt reversal
+            "cpd_divergence",                # CPD Divergence: EUR/GBP correlation breakdown (前セッション WIP, Sentinel)
             # DISABLED (FXアナリストレビュー):
             # "ihs_neckbreak",       # 廃止: 2t EV≒0, 低頻度
             # "dual_sr_breakout",    # 廃止: 未評価
