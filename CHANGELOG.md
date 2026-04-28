@@ -1,5 +1,36 @@
 # FX AI Trader - Changelog
 
+## 2026-04-28 — SCORE_GATE Direction-Aware Misalignment [rule:R1]
+
+### 動機
+
+P0 audit で判明した ELITE_LIVE 戦略の構造的 LIVE 発火不能問題を解消。本番 12日間で `session_time_bias` (ELITE_LIVE) が全期間 0 件、`trendline_sweep` / `gbp_deep_pullback` も SELL 0 件 / BUY のみ発火という偏在を確認。真因は app.py daytrade pipeline の score 符号反転 (BUY=正 / SELL=負) と modules/demo_trader.py SCORE_GATE の `score<0` 一律 block の**設計衝突**。詳細: [raw/audits/low_firing_root_cause_2026-04-28.md](raw/audits/low_firing_root_cause_2026-04-28.md)
+
+### 変更内容
+
+- **modules/demo_trader.py:2862-2880** — SCORE_GATE を direction-aware misalignment 判定に変更
+  - 旧: `_entry_score < 0` 一律 block
+  - 新: `(BUY × score<0) or (SELL × score>0)` のみ block (戦略 signal と combined score の符号アラインメント)
+  - score=0 はそのまま通過 (未実装戦略デフォルト保護を維持)
+  - Sentinel系 (SCALP_SENTINEL / UNIVERSAL_SENTINEL) は引き続き bypass
+
+### Pre-reg LOCK (rule:R1, 2週間)
+
+- **LOCK 期間**: 2026-04-28 ~ 2026-05-12
+- **Pre-reg 文書**: [knowledge-base/wiki/decisions/score-gate-direction-aware-2026-04-28.md](knowledge-base/wiki/decisions/score-gate-direction-aware-2026-04-28.md)
+- **Primary KPI**: ELITE_LIVE 3戦略 × {BUY, SELL} = 6 strata で N≥15, WR≥40% (Wilson下限>30%), PF≥0.8, EV≥-0.5p, 連敗<6
+- **即停止条件 (rule:R2)**: ELITE_LIVE×SELL N≥10 で WR<30%, 全体 N≥15 で PF<0.6, 同一戦略×ペアで6連敗, Live累計損失>-¥10,000
+- **Re-eval 2026-05-12**: 全KPI通過 → 定着、1つでも失格 → revert + app.py符号反転の根本見直しPhaseへ
+
+### 期待効果
+
+ELITE_LIVE × SELL の構造block解消により:
+- session_time_bias (EUR_USD/GBP_USD SELL bias 設計) の Live 発火復旧
+- trendline_sweep × {EURUSD, EURGBP, XAUUSD} (SELL_ONLY_PAIRS) の Live 発火復旧
+- gbp_deep_pullback × GBP_USD × SELL の Live 発火復旧
+
+---
+
 ## 2026-04-28 — Promotion Infrastructure Rewire [rule:R1+R3]
 
 ### 動機

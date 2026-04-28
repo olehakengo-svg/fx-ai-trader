@@ -2864,18 +2864,34 @@ class DemoTrader:
             entry_type in self._SCALP_SENTINEL
             or entry_type in self._UNIVERSAL_SENTINEL
         )
-        if _entry_score < 0 and not _sentinel_score_bypass:
+        # v9.x M3 (2026-04-28, rule:R1): direction-aware misalignment SCORE_GATE
+        # 旧: `_entry_score < 0` 一律block。daytrade pipeline (app.py L2544/2552/2554)
+        # は SELL signal を `score = -strategy_score * 0.5` で符号反転して方向情報に
+        # するため、ELITE_LIVE SELL 戦略 (session_time_bias 等) が構造的にLIVE発火不可
+        # だった (本番過去12日で session_time_bias 全期間 0件、trendline_sweep/
+        # gbp_deep_pullback も SELL 0件 / BUY のみ発火)。
+        # 新: 戦略 signal と sig['score'] の符号アラインメントで判定。
+        #   BUY signal × score>0 = aligned (通過)
+        #   SELL signal × score<0 = aligned (通過)
+        #   符号不一致のみ block (戦略自身が「入るな」と言っている本来意図を保持)
+        # Pre-reg LOCK: knowledge-base/wiki/decisions/score-gate-direction-aware-2026-04-28.md
+        # Re-evaluation: 2026-05-12 (N≥15で WR<40% or PF<0.8 or 6連敗 → 即 revert)
+        _score_misaligned = (
+            (signal == "BUY" and _entry_score < 0)
+            or (signal == "SELL" and _entry_score > 0)
+        )
+        if _score_misaligned and not _sentinel_score_bypass:
             self._add_log(
-                f"[SCORE_GATE] Blocked: {entry_type} score={_entry_score:.2f} < 0 | "
-                f"{signal} {instrument} {mode}"
+                f"[SCORE_GATE] Blocked: {entry_type} score={_entry_score:.2f} "
+                f"misaligned with signal={signal} | {instrument} {mode}"
             )
-            _block(f"score_gate({_entry_score:.2f}<0)")
+            _block(f"score_gate(misalign:{signal},{_entry_score:.2f})")
             return
-        elif _entry_score < 0 and _sentinel_score_bypass:
+        elif _score_misaligned and _sentinel_score_bypass:
             # shadow 側に通すための観測ログ (ボリュームに注意: Sentinelのみ)
             self._add_log(
-                f"[SCORE_GATE] Sentinel bypass: {entry_type} score={_entry_score:.2f} < 0 | "
-                f"{signal} {instrument} {mode} (is_shadow will be enforced)"
+                f"[SCORE_GATE] Sentinel bypass: {entry_type} score={_entry_score:.2f} "
+                f"misaligned with {signal} | {instrument} {mode} (is_shadow will be enforced)"
             )
 
         # ══════════════════════════════════════════════════════════════
