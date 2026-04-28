@@ -3270,6 +3270,8 @@ class DemoTrader:
             # 2026-04-27 Phase 5: Bonferroni-significant 統計エッジ (前セッション WIP, Sentinel)
             "rsk_gbpjpy_reversion",          # RSK GBP_JPY: realized skewness reversion (Bonferroni 13通過)
             "mqe_gbpusd_fix",                # MQE GBP_USD: month-end fix reversal (Bonferroni 3通過, WR 69.8%)
+            # 2026-04-28 Phase 8 Track A 3-way interaction discovery (Sentinel override)
+            "pd_eurjpy_h20_bbpb3_sell",      # EUR_JPY hour=20 bbpb=3 SELL (training Wilson_lo=0.521, holdout EV=+2.14p, override)
             # DISABLED (FXアナリストレビュー):
             # "ihs_neckbreak",       # 廃止: 2t EV≒0, 低頻度
             # "dual_sr_breakout",    # 廃止: 未評価
@@ -6017,6 +6019,8 @@ class DemoTrader:
         "dt_sr_channel_reversal",      # DT SR/チャネル反発 — 未検証, Sentinel蓄積
         # REMOVED 2026-04-22: ema200_trend_reversal → _FORCE_DEMOTED (H-2026-04-22-004 全ペア負EV)
         "post_news_vol",               # ニュース後ボラ — WR=42.4%, Sentinel再検証
+        # 2026-04-28 Phase 8 Track A 3-way interaction discovery (Sentinel override)
+        "pd_eurjpy_h20_bbpb3_sell",    # EUR_JPY hour=20 bbpb=3 SELL (training Wilson_lo=0.521, holdout EV=+2.14p, override)
     }
 
     # ══════════════════════════════════════════════════════════════

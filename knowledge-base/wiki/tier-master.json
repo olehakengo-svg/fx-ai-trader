@@ -40,6 +40,7 @@
     "london_close_reversal",
     "london_close_reversal_v2",
     "mqe_gbpusd_fix",
+    "pd_eurjpy_h20_bbpb3_sell",
     "post_news_vol",
     "rsk_gbpjpy_reversion",
     "squeeze_release_momentum",

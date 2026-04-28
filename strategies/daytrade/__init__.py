@@ -61,6 +61,8 @@ from strategies.daytrade.vdr_jpy import VdrJpy
 from strategies.daytrade.vsg_jpy_reversal import VsgJpyReversal
 from strategies.daytrade.rsk_gbpjpy_reversion import RskGbpjpyReversion
 from strategies.daytrade.mqe_gbpusd_fix import MqeGbpusdFix
+# Phase 8 (2026-04-28): Track A 3-way interaction discovery (Sentinel override)
+from strategies.daytrade.pd_eurjpy_h20_bbpb3_sell import PdEurJpyH20Bbpb3Sell
 
 
 class DaytradeEngine:
@@ -111,6 +113,7 @@ class DaytradeEngine:
             VsgJpyReversal(),              # Phase 4: EWMA vol surprise reversal EUR/GBP_JPY (Bonferroni 7 通過)
             RskGbpjpyReversion(),          # Phase 5: realized skewness reversion GBP_JPY (Bonferroni 13 通過)
             MqeGbpusdFix(),                # Phase 5: month-end fix reversal GBP_USD (Bonferroni 3, WR 69.8%)
+            PdEurJpyH20Bbpb3Sell(),        # Phase 8 Track A: EUR_JPY hour=20 bbpb=3 SELL (Sentinel, override)
             DtFibReversal(),
             DtSrChannelReversal(),
             Ema200TrendReversal(),

@@ -6181,6 +6181,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 # 2026-04-27 Phase 5 (RSK Bonferroni 13 通過、MQE Bonferroni 3 通過)
                 "rsk_gbpjpy_reversion",          # RSK GBP_JPY: realized skewness reversion (Bonferroni 13)
                 "mqe_gbpusd_fix",                # MQE GBP_USD: month-end fix reversal (Bonferroni 3, WR 69.8%)
+                # 2026-04-28 Phase 8 Track A 3-way interaction discovery (Sentinel override)
+                "pd_eurjpy_h20_bbpb3_sell",      # EUR_JPY hour=20 bbpb=3 SELL (training Wilson_lo=0.521, holdout EV=+2.14p)
             }
             DT_BLOCKED = {"unknown", "wait"}
 

@@ -1,0 +1,2881 @@
+{
+  "stage": 1,
+  "params": {
+    "days": 275,
+    "pairs": [
+      "USD_JPY"
+    ],
+    "forwards": [
+      4,
+      8,
+      12
+    ],
+    "bh_q": 0.1,
+    "holdout_days": 90,
+    "sl_atr": 1.0,
+    "tp_atr": 1.5,
+    "triplets": [
+      [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      [
+        "hour_utc",
+        "bbpb_15m_b",
+        "atr_pct_60d_b"
+      ],
+      [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      [
+        "dow",
+        "hour_utc"
+      ]
+    ]
+  },
+  "n_cells_total": 129,
+  "n_survivors": 0,
+  "elapsed_sec": 141.7,
+  "all_results": [
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        0,
+        0
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 125,
+      "wr": 0.432,
+      "wilson_lower": 0.3485,
+      "ev_net_pip": -1.396,
+      "pf": 0.795,
+      "kelly": -0.1111,
+      "sharpe_per_event": -0.1086,
+      "trades_per_month": 13.6,
+      "p_value": 0.152121
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        0,
+        0
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 125,
+      "wr": 0.424,
+      "wilson_lower": 0.3409,
+      "ev_net_pip": -1.381,
+      "pf": 0.807,
+      "kelly": -0.1014,
+      "sharpe_per_event": -0.1034,
+      "trades_per_month": 13.6,
+      "p_value": 0.107031
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        0,
+        0
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 125,
+      "wr": 0.424,
+      "wilson_lower": 0.3409,
+      "ev_net_pip": -1.608,
+      "pf": 0.781,
+      "kelly": -0.119,
+      "sharpe_per_event": -0.1194,
+      "trades_per_month": 13.6,
+      "p_value": 0.107031
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        0,
+        0
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 120,
+      "wr": 0.3833,
+      "wilson_lower": 0.3012,
+      "ev_net_pip": -2.729,
+      "pf": 0.649,
+      "kelly": -0.2076,
+      "sharpe_per_event": -0.2082,
+      "trades_per_month": 13.1,
+      "p_value": 0.013376
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        0,
+        0
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 120,
+      "wr": 0.4,
+      "wilson_lower": 0.3168,
+      "ev_net_pip": -2.861,
+      "pf": 0.639,
+      "kelly": -0.2261,
+      "sharpe_per_event": -0.2169,
+      "trades_per_month": 13.1,
+      "p_value": 0.035324
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        0,
+        0
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 120,
+      "wr": 0.3833,
+      "wilson_lower": 0.3012,
+      "ev_net_pip": -2.797,
+      "pf": 0.652,
+      "kelly": -0.2049,
+      "sharpe_per_event": -0.209,
+      "trades_per_month": 13.1,
+      "p_value": 0.013376
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        0,
+        4
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 103,
+      "wr": 0.3981,
+      "wilson_lower": 0.3088,
+      "ev_net_pip": -2.231,
+      "pf": 0.683,
+      "kelly": -0.1844,
+      "sharpe_per_event": -0.1811,
+      "trades_per_month": 11.2,
+      "p_value": 0.048234
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        0,
+        4
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 103,
+      "wr": 0.4272,
+      "wilson_lower": 0.336,
+      "ev_net_pip": -1.969,
+      "pf": 0.719,
+      "kelly": -0.1673,
+      "sharpe_per_event": -0.1577,
+      "trades_per_month": 11.2,
+      "p_value": 0.167444
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        0,
+        4
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 103,
+      "wr": 0.4272,
+      "wilson_lower": 0.336,
+      "ev_net_pip": -1.748,
+      "pf": 0.753,
+      "kelly": -0.1398,
+      "sharpe_per_event": -0.1372,
+      "trades_per_month": 11.2,
+      "p_value": 0.167444
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        0,
+        4
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 110,
+      "wr": 0.4273,
+      "wilson_lower": 0.3388,
+      "ev_net_pip": -1.295,
+      "pf": 0.802,
+      "kelly": -0.1052,
+      "sharpe_per_event": -0.1042,
+      "trades_per_month": 12.0,
+      "p_value": 0.152338
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        0,
+        4
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 110,
+      "wr": 0.4273,
+      "wilson_lower": 0.3388,
+      "ev_net_pip": -1.23,
+      "pf": 0.818,
+      "kelly": -0.0953,
+      "sharpe_per_event": -0.0961,
+      "trades_per_month": 12.0,
+      "p_value": 0.152338
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        0,
+        4
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 110,
+      "wr": 0.4273,
+      "wilson_lower": 0.3388,
+      "ev_net_pip": -1.279,
+      "pf": 0.813,
+      "kelly": -0.0981,
+      "sharpe_per_event": -0.0991,
+      "trades_per_month": 12.0,
+      "p_value": 0.152338
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        1,
+        0
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 108,
+      "wr": 0.5278,
+      "wilson_lower": 0.4343,
+      "ev_net_pip": 0.47,
+      "pf": 1.083,
+      "kelly": 0.0403,
+      "sharpe_per_event": 0.0355,
+      "trades_per_month": 11.8,
+      "p_value": 0.630634
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        1,
+        0
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 108,
+      "wr": 0.4907,
+      "wilson_lower": 0.3984,
+      "ev_net_pip": 0.012,
+      "pf": 1.002,
+      "kelly": 0.0009,
+      "sharpe_per_event": 0.0008,
+      "trades_per_month": 11.8,
+      "p_value": 0.923401
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        1,
+        0
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 108,
+      "wr": 0.5093,
+      "wilson_lower": 0.4163,
+      "ev_net_pip": 0.303,
+      "pf": 1.044,
+      "kelly": 0.0212,
+      "sharpe_per_event": 0.0203,
+      "trades_per_month": 11.8,
+      "p_value": 0.923401
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        1,
+        0
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 107,
+      "wr": 0.271,
+      "wilson_lower": 0.1958,
+      "ev_net_pip": -5.7,
+      "pf": 0.393,
+      "kelly": -0.4187,
+      "sharpe_per_event": -0.4363,
+      "trades_per_month": 11.7,
+      "p_value": 2e-06
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        1,
+        0
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 107,
+      "wr": 0.2897,
+      "wilson_lower": 0.2122,
+      "ev_net_pip": -5.704,
+      "pf": 0.444,
+      "kelly": -0.3624,
+      "sharpe_per_event": -0.3959,
+      "trades_per_month": 11.7,
+      "p_value": 1.6e-05
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        1,
+        0
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 107,
+      "wr": 0.2804,
+      "wilson_lower": 0.204,
+      "ev_net_pip": -5.793,
+      "pf": 0.446,
+      "kelly": -0.3485,
+      "sharpe_per_event": -0.3965,
+      "trades_per_month": 11.7,
+      "p_value": 6e-06
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        1,
+        4
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 102,
+      "wr": 0.4216,
+      "wilson_lower": 0.3303,
+      "ev_net_pip": -1.918,
+      "pf": 0.694,
+      "kelly": -0.1859,
+      "sharpe_per_event": -0.1649,
+      "trades_per_month": 11.1,
+      "p_value": 0.137099
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        1,
+        4
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 102,
+      "wr": 0.4118,
+      "wilson_lower": 0.3212,
+      "ev_net_pip": -1.555,
+      "pf": 0.784,
+      "kelly": -0.1131,
+      "sharpe_per_event": -0.1152,
+      "trades_per_month": 11.1,
+      "p_value": 0.091838
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        1,
+        4
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 102,
+      "wr": 0.4216,
+      "wilson_lower": 0.3303,
+      "ev_net_pip": -1.212,
+      "pf": 0.831,
+      "kelly": -0.0858,
+      "sharpe_per_event": -0.0877,
+      "trades_per_month": 11.1,
+      "p_value": 0.137099
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        6,
+        4
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 104,
+      "wr": 0.4327,
+      "wilson_lower": 0.3416,
+      "ev_net_pip": -2.055,
+      "pf": 0.706,
+      "kelly": -0.1805,
+      "sharpe_per_event": -0.1603,
+      "trades_per_month": 11.3,
+      "p_value": 0.202173
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        6,
+        4
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 104,
+      "wr": 0.4423,
+      "wilson_lower": 0.3506,
+      "ev_net_pip": -1.189,
+      "pf": 0.831,
+      "kelly": -0.0901,
+      "sharpe_per_event": -0.0875,
+      "trades_per_month": 11.3,
+      "p_value": 0.28069
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        6,
+        4
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 104,
+      "wr": 0.4519,
+      "wilson_lower": 0.3597,
+      "ev_net_pip": -0.848,
+      "pf": 0.88,
+      "kelly": -0.0614,
+      "sharpe_per_event": -0.0609,
+      "trades_per_month": 11.3,
+      "p_value": 0.377584
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        6,
+        4
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 108,
+      "wr": 0.3796,
+      "wilson_lower": 0.2937,
+      "ev_net_pip": -2.71,
+      "pf": 0.634,
+      "kelly": -0.219,
+      "sharpe_per_event": -0.2115,
+      "trades_per_month": 11.8,
+      "p_value": 0.015749
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        6,
+        4
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 108,
+      "wr": 0.3611,
+      "wilson_lower": 0.2767,
+      "ev_net_pip": -3.165,
+      "pf": 0.616,
+      "kelly": -0.2254,
+      "sharpe_per_event": -0.234,
+      "trades_per_month": 11.8,
+      "p_value": 0.005024
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        6,
+        4
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 108,
+      "wr": 0.3611,
+      "wilson_lower": 0.2767,
+      "ev_net_pip": -3.165,
+      "pf": 0.62,
+      "kelly": -0.2216,
+      "sharpe_per_event": -0.2318,
+      "trades_per_month": 11.8,
+      "p_value": 0.005024
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        11,
+        3
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 114,
+      "wr": 0.3333,
+      "wilson_lower": 0.2535,
+      "ev_net_pip": -4.173,
+      "pf": 0.441,
+      "kelly": -0.4234,
+      "sharpe_per_event": -0.3728,
+      "trades_per_month": 12.4,
+      "p_value": 0.000475
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        11,
+        3
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 114,
+      "wr": 0.3158,
+      "wilson_lower": 0.2377,
+      "ev_net_pip": -4.227,
+      "pf": 0.506,
+      "kelly": -0.3082,
+      "sharpe_per_event": -0.3306,
+      "trades_per_month": 12.4,
+      "p_value": 0.000104
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        11,
+        3
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 114,
+      "wr": 0.3246,
+      "wilson_lower": 0.2456,
+      "ev_net_pip": -4.188,
+      "pf": 0.526,
+      "kelly": -0.2929,
+      "sharpe_per_event": -0.3158,
+      "trades_per_month": 12.4,
+      "p_value": 0.000227
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        11,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 117,
+      "wr": 0.4017,
+      "wilson_lower": 0.3174,
+      "ev_net_pip": -2.184,
+      "pf": 0.661,
+      "kelly": -0.2058,
+      "sharpe_per_event": -0.1869,
+      "trades_per_month": 12.8,
+      "p_value": 0.041501
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        11,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 117,
+      "wr": 0.4359,
+      "wilson_lower": 0.3495,
+      "ev_net_pip": -1.905,
+      "pf": 0.74,
+      "kelly": -0.1535,
+      "sharpe_per_event": -0.1447,
+      "trades_per_month": 12.8,
+      "p_value": 0.195349
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        11,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 117,
+      "wr": 0.4103,
+      "wilson_lower": 0.3254,
+      "ev_net_pip": -2.035,
+      "pf": 0.733,
+      "kelly": -0.1498,
+      "sharpe_per_event": -0.151,
+      "trades_per_month": 12.8,
+      "p_value": 0.063996
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        12,
+        2
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 103,
+      "wr": 0.4175,
+      "wilson_lower": 0.3269,
+      "ev_net_pip": -2.418,
+      "pf": 0.68,
+      "kelly": -0.1962,
+      "sharpe_per_event": -0.1836,
+      "trades_per_month": 11.2,
+      "p_value": 0.114468
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        12,
+        2
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 103,
+      "wr": 0.4272,
+      "wilson_lower": 0.336,
+      "ev_net_pip": -2.09,
+      "pf": 0.733,
+      "kelly": -0.1554,
+      "sharpe_per_event": -0.1505,
+      "trades_per_month": 11.2,
+      "p_value": 0.167444
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        12,
+        2
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 103,
+      "wr": 0.4175,
+      "wilson_lower": 0.3269,
+      "ev_net_pip": -2.244,
+      "pf": 0.715,
+      "kelly": -0.166,
+      "sharpe_per_event": -0.1632,
+      "trades_per_month": 11.2,
+      "p_value": 0.114468
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        12,
+        3
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 103,
+      "wr": 0.3786,
+      "wilson_lower": 0.2909,
+      "ev_net_pip": -2.333,
+      "pf": 0.682,
+      "kelly": -0.1767,
+      "sharpe_per_event": -0.1779,
+      "trades_per_month": 11.2,
+      "p_value": 0.017609
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        12,
+        3
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 103,
+      "wr": 0.4078,
+      "wilson_lower": 0.3178,
+      "ev_net_pip": -1.956,
+      "pf": 0.744,
+      "kelly": -0.1406,
+      "sharpe_per_event": -0.1413,
+      "trades_per_month": 11.2,
+      "p_value": 0.075619
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        12,
+        3
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 103,
+      "wr": 0.3981,
+      "wilson_lower": 0.3088,
+      "ev_net_pip": -2.098,
+      "pf": 0.731,
+      "kelly": -0.1464,
+      "sharpe_per_event": -0.1505,
+      "trades_per_month": 11.2,
+      "p_value": 0.048234
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        12,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 107,
+      "wr": 0.4393,
+      "wilson_lower": 0.3489,
+      "ev_net_pip": -1.072,
+      "pf": 0.838,
+      "kelly": -0.0852,
+      "sharpe_per_event": -0.0823,
+      "trades_per_month": 11.7,
+      "p_value": 0.245891
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        12,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 107,
+      "wr": 0.4393,
+      "wilson_lower": 0.3489,
+      "ev_net_pip": -1.046,
+      "pf": 0.851,
+      "kelly": -0.0767,
+      "sharpe_per_event": -0.077,
+      "trades_per_month": 11.7,
+      "p_value": 0.245891
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        12,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 107,
+      "wr": 0.4579,
+      "wilson_lower": 0.3666,
+      "ev_net_pip": -0.843,
+      "pf": 0.88,
+      "kelly": -0.0624,
+      "sharpe_per_event": -0.0615,
+      "trades_per_month": 11.7,
+      "p_value": 0.43944
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        13,
+        0
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 109,
+      "wr": 0.3853,
+      "wilson_lower": 0.2993,
+      "ev_net_pip": -2.271,
+      "pf": 0.739,
+      "kelly": -0.1364,
+      "sharpe_per_event": -0.1424,
+      "trades_per_month": 11.9,
+      "p_value": 0.021086
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        13,
+        0
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 109,
+      "wr": 0.4037,
+      "wilson_lower": 0.3164,
+      "ev_net_pip": -1.793,
+      "pf": 0.791,
+      "kelly": -0.1067,
+      "sharpe_per_event": -0.1108,
+      "trades_per_month": 11.9,
+      "p_value": 0.054909
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        13,
+        0
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 109,
+      "wr": 0.4037,
+      "wilson_lower": 0.3164,
+      "ev_net_pip": -1.889,
+      "pf": 0.782,
+      "kelly": -0.1122,
+      "sharpe_per_event": -0.1163,
+      "trades_per_month": 11.9,
+      "p_value": 0.054909
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        13,
+        0
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 105,
+      "wr": 0.3048,
+      "wilson_lower": 0.2249,
+      "ev_net_pip": -4.829,
+      "pf": 0.508,
+      "kelly": -0.2948,
+      "sharpe_per_event": -0.3207,
+      "trades_per_month": 11.5,
+      "p_value": 7.8e-05
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        13,
+        0
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 105,
+      "wr": 0.3143,
+      "wilson_lower": 0.2334,
+      "ev_net_pip": -5.017,
+      "pf": 0.504,
+      "kelly": -0.3088,
+      "sharpe_per_event": -0.3274,
+      "trades_per_month": 11.5,
+      "p_value": 0.000178
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        13,
+        0
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 105,
+      "wr": 0.3333,
+      "wilson_lower": 0.2505,
+      "ev_net_pip": -4.982,
+      "pf": 0.512,
+      "kelly": -0.3174,
+      "sharpe_per_event": -0.3225,
+      "trades_per_month": 11.5,
+      "p_value": 0.000821
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        14,
+        4
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 105,
+      "wr": 0.381,
+      "wilson_lower": 0.2938,
+      "ev_net_pip": -4.401,
+      "pf": 0.508,
+      "kelly": -0.3691,
+      "sharpe_per_event": -0.3127,
+      "trades_per_month": 11.5,
+      "p_value": 0.018741
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        14,
+        4
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 105,
+      "wr": 0.381,
+      "wilson_lower": 0.2938,
+      "ev_net_pip": -4.242,
+      "pf": 0.55,
+      "kelly": -0.3121,
+      "sharpe_per_event": -0.2843,
+      "trades_per_month": 11.5,
+      "p_value": 0.018741
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        14,
+        4
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 105,
+      "wr": 0.3714,
+      "wilson_lower": 0.2851,
+      "ev_net_pip": -4.028,
+      "pf": 0.575,
+      "kelly": -0.2746,
+      "sharpe_per_event": -0.2638,
+      "trades_per_month": 11.5,
+      "p_value": 0.010818
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        20,
+        3
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 111,
+      "wr": 0.2342,
+      "wilson_lower": 0.1652,
+      "ev_net_pip": -6.344,
+      "pf": 0.211,
+      "kelly": -0.8739,
+      "sharpe_per_event": -0.7305,
+      "trades_per_month": 12.1,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        20,
+        3
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 111,
+      "wr": 0.2072,
+      "wilson_lower": 0.1422,
+      "ev_net_pip": -7.147,
+      "pf": 0.212,
+      "kelly": -0.7692,
+      "sharpe_per_event": -0.7813,
+      "trades_per_month": 12.1,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        20,
+        3
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 111,
+      "wr": 0.2072,
+      "wilson_lower": 0.1422,
+      "ev_net_pip": -7.139,
+      "pf": 0.236,
+      "kelly": -0.6703,
+      "sharpe_per_event": -0.7409,
+      "trades_per_month": 12.1,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        20,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 108,
+      "wr": 0.5833,
+      "wilson_lower": 0.4891,
+      "ev_net_pip": 1.732,
+      "pf": 1.519,
+      "kelly": 0.1992,
+      "sharpe_per_event": 0.1824,
+      "trades_per_month": 11.8,
+      "p_value": 0.101433
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        20,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 108,
+      "wr": 0.5741,
+      "wilson_lower": 0.4799,
+      "ev_net_pip": 2.38,
+      "pf": 1.607,
+      "kelly": 0.2169,
+      "sharpe_per_event": 0.2168,
+      "trades_per_month": 11.8,
+      "p_value": 0.148576
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        20,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 108,
+      "wr": 0.5833,
+      "wilson_lower": 0.4891,
+      "ev_net_pip": 2.241,
+      "pf": 1.518,
+      "kelly": 0.1992,
+      "sharpe_per_event": 0.1974,
+      "trades_per_month": 11.8,
+      "p_value": 0.101433
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        0,
+        0
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 632,
+      "wr": 0.4082,
+      "wilson_lower": 0.3706,
+      "ev_net_pip": -2.53,
+      "pf": 0.658,
+      "kelly": -0.2125,
+      "sharpe_per_event": -0.1893,
+      "trades_per_month": 68.9,
+      "p_value": 5e-06
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        0,
+        0
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 612,
+      "wr": 0.4118,
+      "wilson_lower": 0.3734,
+      "ev_net_pip": -2.236,
+      "pf": 0.721,
+      "kelly": -0.159,
+      "sharpe_per_event": -0.1533,
+      "trades_per_month": 66.8,
+      "p_value": 1.5e-05
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        0,
+        0
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 607,
+      "wr": 0.4152,
+      "wilson_lower": 0.3766,
+      "ev_net_pip": -2.067,
+      "pf": 0.75,
+      "kelly": -0.1381,
+      "sharpe_per_event": -0.1362,
+      "trades_per_month": 66.2,
+      "p_value": 3.3e-05
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        0,
+        0
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 593,
+      "wr": 0.398,
+      "wilson_lower": 0.3594,
+      "ev_net_pip": -2.735,
+      "pf": 0.64,
+      "kelly": -0.224,
+      "sharpe_per_event": -0.2023,
+      "trades_per_month": 64.7,
+      "p_value": 1e-06
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        0,
+        0
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 568,
+      "wr": 0.375,
+      "wilson_lower": 0.3362,
+      "ev_net_pip": -3.105,
+      "pf": 0.637,
+      "kelly": -0.2137,
+      "sharpe_per_event": -0.2128,
+      "trades_per_month": 62.0,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        0,
+        0
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 566,
+      "wr": 0.3781,
+      "wilson_lower": 0.3391,
+      "ev_net_pip": -3.042,
+      "pf": 0.655,
+      "kelly": -0.1995,
+      "sharpe_per_event": -0.2023,
+      "trades_per_month": 61.7,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        0,
+        1
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 899,
+      "wr": 0.4549,
+      "wilson_lower": 0.4227,
+      "ev_net_pip": -1.519,
+      "pf": 0.766,
+      "kelly": -0.139,
+      "sharpe_per_event": -0.1192,
+      "trades_per_month": 98.1,
+      "p_value": 0.007593
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        0,
+        1
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 861,
+      "wr": 0.4367,
+      "wilson_lower": 0.4039,
+      "ev_net_pip": -1.334,
+      "pf": 0.814,
+      "kelly": -0.0998,
+      "sharpe_per_event": -0.096,
+      "trades_per_month": 93.9,
+      "p_value": 0.000229
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        0,
+        1
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 840,
+      "wr": 0.4274,
+      "wilson_lower": 0.3943,
+      "ev_net_pip": -1.583,
+      "pf": 0.794,
+      "kelly": -0.1108,
+      "sharpe_per_event": -0.1097,
+      "trades_per_month": 91.6,
+      "p_value": 2.9e-05
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        0,
+        1
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 888,
+      "wr": 0.3525,
+      "wilson_lower": 0.3218,
+      "ev_net_pip": -3.243,
+      "pf": 0.572,
+      "kelly": -0.2633,
+      "sharpe_per_event": -0.2541,
+      "trades_per_month": 96.9,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        0,
+        1
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 843,
+      "wr": 0.3689,
+      "wilson_lower": 0.337,
+      "ev_net_pip": -3.413,
+      "pf": 0.59,
+      "kelly": -0.2561,
+      "sharpe_per_event": -0.2487,
+      "trades_per_month": 92.0,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        0,
+        1
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 830,
+      "wr": 0.3639,
+      "wilson_lower": 0.3318,
+      "ev_net_pip": -3.378,
+      "pf": 0.61,
+      "kelly": -0.2329,
+      "sharpe_per_event": -0.2372,
+      "trades_per_month": 90.5,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        1,
+        0
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 237,
+      "wr": 0.4177,
+      "wilson_lower": 0.3567,
+      "ev_net_pip": -3.007,
+      "pf": 0.579,
+      "kelly": -0.3042,
+      "sharpe_per_event": -0.2383,
+      "trades_per_month": 25.9,
+      "p_value": 0.013405
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        1,
+        0
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 230,
+      "wr": 0.4174,
+      "wilson_lower": 0.3555,
+      "ev_net_pip": -2.843,
+      "pf": 0.658,
+      "kelly": -0.2173,
+      "sharpe_per_event": -0.1929,
+      "trades_per_month": 25.1,
+      "p_value": 0.01452
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        1,
+        0
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 230,
+      "wr": 0.4,
+      "wilson_lower": 0.3388,
+      "ev_net_pip": -2.912,
+      "pf": 0.667,
+      "kelly": -0.1994,
+      "sharpe_per_event": -0.1892,
+      "trades_per_month": 25.1,
+      "p_value": 0.002923
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        1,
+        0
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 236,
+      "wr": 0.3856,
+      "wilson_lower": 0.3258,
+      "ev_net_pip": -2.366,
+      "pf": 0.666,
+      "kelly": -0.1934,
+      "sharpe_per_event": -0.179,
+      "trades_per_month": 25.7,
+      "p_value": 0.000533
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        1,
+        0
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 222,
+      "wr": 0.3874,
+      "wilson_lower": 0.3257,
+      "ev_net_pip": -2.146,
+      "pf": 0.728,
+      "kelly": -0.145,
+      "sharpe_per_event": -0.1452,
+      "trades_per_month": 24.2,
+      "p_value": 0.000963
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        1,
+        0
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 222,
+      "wr": 0.3829,
+      "wilson_lower": 0.3214,
+      "ev_net_pip": -2.422,
+      "pf": 0.712,
+      "kelly": -0.1549,
+      "sharpe_per_event": -0.159,
+      "trades_per_month": 24.2,
+      "p_value": 0.000588
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        1,
+        1
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 1269,
+      "wr": 0.4121,
+      "wilson_lower": 0.3854,
+      "ev_net_pip": -2.402,
+      "pf": 0.642,
+      "kelly": -0.2294,
+      "sharpe_per_event": -0.1952,
+      "trades_per_month": 138.4,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        1,
+        1
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 1149,
+      "wr": 0.4091,
+      "wilson_lower": 0.381,
+      "ev_net_pip": -2.379,
+      "pf": 0.691,
+      "kelly": -0.1833,
+      "sharpe_per_event": -0.1723,
+      "trades_per_month": 125.3,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        1,
+        1
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 1104,
+      "wr": 0.4094,
+      "wilson_lower": 0.3808,
+      "ev_net_pip": -2.315,
+      "pf": 0.711,
+      "kelly": -0.1664,
+      "sharpe_per_event": -0.1613,
+      "trades_per_month": 120.4,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        1,
+        1
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 1254,
+      "wr": 0.3772,
+      "wilson_lower": 0.3508,
+      "ev_net_pip": -2.697,
+      "pf": 0.614,
+      "kelly": -0.2369,
+      "sharpe_per_event": -0.2175,
+      "trades_per_month": 136.8,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        1,
+        1
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 1120,
+      "wr": 0.3821,
+      "wilson_lower": 0.3541,
+      "ev_net_pip": -2.685,
+      "pf": 0.658,
+      "kelly": -0.1984,
+      "sharpe_per_event": -0.1947,
+      "trades_per_month": 122.2,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        1,
+        1
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 1075,
+      "wr": 0.3898,
+      "wilson_lower": 0.3611,
+      "ev_net_pip": -2.735,
+      "pf": 0.667,
+      "kelly": -0.1943,
+      "sharpe_per_event": -0.1913,
+      "trades_per_month": 117.3,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        1,
+        2
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 272,
+      "wr": 0.375,
+      "wilson_lower": 0.3196,
+      "ev_net_pip": -3.1,
+      "pf": 0.566,
+      "kelly": -0.2877,
+      "sharpe_per_event": -0.2567,
+      "trades_per_month": 29.7,
+      "p_value": 4.5e-05
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        1,
+        2
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 271,
+      "wr": 0.3653,
+      "wilson_lower": 0.3102,
+      "ev_net_pip": -3.607,
+      "pf": 0.56,
+      "kelly": -0.2869,
+      "sharpe_per_event": -0.2746,
+      "trades_per_month": 29.6,
+      "p_value": 1.1e-05
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        1,
+        2
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 270,
+      "wr": 0.3704,
+      "wilson_lower": 0.315,
+      "ev_net_pip": -3.344,
+      "pf": 0.607,
+      "kelly": -0.24,
+      "sharpe_per_event": -0.2404,
+      "trades_per_month": 29.5,
+      "p_value": 2.4e-05
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        1,
+        2
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 275,
+      "wr": 0.4291,
+      "wilson_lower": 0.372,
+      "ev_net_pip": -2.121,
+      "pf": 0.671,
+      "kelly": -0.2101,
+      "sharpe_per_event": -0.1777,
+      "trades_per_month": 30.0,
+      "p_value": 0.021764
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        1,
+        2
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 273,
+      "wr": 0.4286,
+      "wilson_lower": 0.3713,
+      "ev_net_pip": -1.323,
+      "pf": 0.811,
+      "kelly": -0.0996,
+      "sharpe_per_event": -0.0977,
+      "trades_per_month": 29.8,
+      "p_value": 0.021285
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        1,
+        2
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 272,
+      "wr": 0.4191,
+      "wilson_lower": 0.362,
+      "ev_net_pip": -1.767,
+      "pf": 0.769,
+      "kelly": -0.1256,
+      "sharpe_per_event": -0.1259,
+      "trades_per_month": 29.7,
+      "p_value": 0.009003
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        2,
+        1
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 899,
+      "wr": 0.4549,
+      "wilson_lower": 0.4227,
+      "ev_net_pip": -1.261,
+      "pf": 0.784,
+      "kelly": -0.1256,
+      "sharpe_per_event": -0.1075,
+      "trades_per_month": 98.1,
+      "p_value": 0.007593
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        2,
+        1
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 840,
+      "wr": 0.4429,
+      "wilson_lower": 0.4096,
+      "ev_net_pip": -1.191,
+      "pf": 0.824,
+      "kelly": -0.0947,
+      "sharpe_per_event": -0.0899,
+      "trades_per_month": 91.6,
+      "p_value": 0.001034
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        2,
+        1
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 811,
+      "wr": 0.4414,
+      "wilson_lower": 0.4076,
+      "ev_net_pip": -1.206,
+      "pf": 0.833,
+      "kelly": -0.0883,
+      "sharpe_per_event": -0.0862,
+      "trades_per_month": 88.5,
+      "p_value": 0.000953
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        2,
+        1
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 904,
+      "wr": 0.3562,
+      "wilson_lower": 0.3256,
+      "ev_net_pip": -3.382,
+      "pf": 0.522,
+      "kelly": -0.3263,
+      "sharpe_per_event": -0.2938,
+      "trades_per_month": 98.6,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        2,
+        1
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 837,
+      "wr": 0.3656,
+      "wilson_lower": 0.3336,
+      "ev_net_pip": -3.443,
+      "pf": 0.564,
+      "kelly": -0.2824,
+      "sharpe_per_event": -0.2687,
+      "trades_per_month": 91.3,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        2,
+        1
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 807,
+      "wr": 0.3656,
+      "wilson_lower": 0.333,
+      "ev_net_pip": -3.367,
+      "pf": 0.591,
+      "kelly": -0.2528,
+      "sharpe_per_event": -0.2511,
+      "trades_per_month": 88.0,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        2,
+        2
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 894,
+      "wr": 0.4016,
+      "wilson_lower": 0.3699,
+      "ev_net_pip": -2.509,
+      "pf": 0.607,
+      "kelly": -0.2601,
+      "sharpe_per_event": -0.2214,
+      "trades_per_month": 97.5,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        2,
+        2
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 835,
+      "wr": 0.382,
+      "wilson_lower": 0.3497,
+      "ev_net_pip": -2.976,
+      "pf": 0.608,
+      "kelly": -0.2467,
+      "sharpe_per_event": -0.2336,
+      "trades_per_month": 91.1,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        2,
+        2
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 810,
+      "wr": 0.3802,
+      "wilson_lower": 0.3475,
+      "ev_net_pip": -2.984,
+      "pf": 0.628,
+      "kelly": -0.2253,
+      "sharpe_per_event": -0.2224,
+      "trades_per_month": 88.4,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        2,
+        2
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 881,
+      "wr": 0.3882,
+      "wilson_lower": 0.3566,
+      "ev_net_pip": -2.266,
+      "pf": 0.641,
+      "kelly": -0.2171,
+      "sharpe_per_event": -0.1993,
+      "trades_per_month": 96.1,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        2,
+        2
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 835,
+      "wr": 0.4,
+      "wilson_lower": 0.3673,
+      "ev_net_pip": -2.198,
+      "pf": 0.693,
+      "kelly": -0.1769,
+      "sharpe_per_event": -0.1714,
+      "trades_per_month": 91.1,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        2,
+        2
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 809,
+      "wr": 0.4005,
+      "wilson_lower": 0.3673,
+      "ev_net_pip": -2.293,
+      "pf": 0.698,
+      "kelly": -0.1735,
+      "sharpe_per_event": -0.1712,
+      "trades_per_month": 88.3,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        3,
+        1
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 307,
+      "wr": 0.4332,
+      "wilson_lower": 0.379,
+      "ev_net_pip": -1.612,
+      "pf": 0.734,
+      "kelly": -0.1566,
+      "sharpe_per_event": -0.1386,
+      "trades_per_month": 33.5,
+      "p_value": 0.022281
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        3,
+        1
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 303,
+      "wr": 0.4257,
+      "wilson_lower": 0.3713,
+      "ev_net_pip": -1.963,
+      "pf": 0.73,
+      "kelly": -0.1575,
+      "sharpe_per_event": -0.1483,
+      "trades_per_month": 33.1,
+      "p_value": 0.011357
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        3,
+        1
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 301,
+      "wr": 0.4053,
+      "wilson_lower": 0.3514,
+      "ev_net_pip": -2.026,
+      "pf": 0.731,
+      "kelly": -0.1491,
+      "sharpe_per_event": -0.1487,
+      "trades_per_month": 32.8,
+      "p_value": 0.001211
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        3,
+        1
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 306,
+      "wr": 0.3725,
+      "wilson_lower": 0.3203,
+      "ev_net_pip": -2.937,
+      "pf": 0.567,
+      "kelly": -0.2842,
+      "sharpe_per_event": -0.2567,
+      "trades_per_month": 33.4,
+      "p_value": 1e-05
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        3,
+        1
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 301,
+      "wr": 0.3887,
+      "wilson_lower": 0.3354,
+      "ev_net_pip": -2.547,
+      "pf": 0.664,
+      "kelly": -0.1969,
+      "sharpe_per_event": -0.1928,
+      "trades_per_month": 32.8,
+      "p_value": 0.000134
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        3,
+        1
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 298,
+      "wr": 0.396,
+      "wilson_lower": 0.3421,
+      "ev_net_pip": -2.488,
+      "pf": 0.685,
+      "kelly": -0.1825,
+      "sharpe_per_event": -0.1804,
+      "trades_per_month": 32.5,
+      "p_value": 0.000392
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        3,
+        2
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 1277,
+      "wr": 0.3853,
+      "wilson_lower": 0.359,
+      "ev_net_pip": -2.753,
+      "pf": 0.589,
+      "kelly": -0.2694,
+      "sharpe_per_event": -0.2347,
+      "trades_per_month": 139.3,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        3,
+        2
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 1123,
+      "wr": 0.3669,
+      "wilson_lower": 0.3392,
+      "ev_net_pip": -2.953,
+      "pf": 0.615,
+      "kelly": -0.2294,
+      "sharpe_per_event": -0.2261,
+      "trades_per_month": 122.5,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        3,
+        2
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 1071,
+      "wr": 0.3791,
+      "wilson_lower": 0.3505,
+      "ev_net_pip": -2.884,
+      "pf": 0.64,
+      "kelly": -0.2132,
+      "sharpe_per_event": -0.2116,
+      "trades_per_month": 116.8,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        3,
+        2
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 1293,
+      "wr": 0.4091,
+      "wilson_lower": 0.3826,
+      "ev_net_pip": -1.903,
+      "pf": 0.692,
+      "kelly": -0.1822,
+      "sharpe_per_event": -0.162,
+      "trades_per_month": 141.1,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        3,
+        2
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 1158,
+      "wr": 0.4154,
+      "wilson_lower": 0.3873,
+      "ev_net_pip": -2.013,
+      "pf": 0.717,
+      "kelly": -0.1642,
+      "sharpe_per_event": -0.1537,
+      "trades_per_month": 126.3,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        3,
+        2
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 1104,
+      "wr": 0.423,
+      "wilson_lower": 0.3942,
+      "ev_net_pip": -1.948,
+      "pf": 0.742,
+      "kelly": -0.1471,
+      "sharpe_per_event": -0.1414,
+      "trades_per_month": 120.4,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        3,
+        3
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 322,
+      "wr": 0.3913,
+      "wilson_lower": 0.3396,
+      "ev_net_pip": -2.241,
+      "pf": 0.654,
+      "kelly": -0.2069,
+      "sharpe_per_event": -0.1849,
+      "trades_per_month": 35.1,
+      "p_value": 0.000114
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        3,
+        3
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 301,
+      "wr": 0.3821,
+      "wilson_lower": 0.329,
+      "ev_net_pip": -2.608,
+      "pf": 0.66,
+      "kelly": -0.1972,
+      "sharpe_per_event": -0.1906,
+      "trades_per_month": 32.8,
+      "p_value": 5.1e-05
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        3,
+        3
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 299,
+      "wr": 0.3779,
+      "wilson_lower": 0.3248,
+      "ev_net_pip": -2.459,
+      "pf": 0.693,
+      "kelly": -0.1678,
+      "sharpe_per_event": -0.1721,
+      "trades_per_month": 32.6,
+      "p_value": 2.9e-05
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        3,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 335,
+      "wr": 0.406,
+      "wilson_lower": 0.3547,
+      "ev_net_pip": -2.978,
+      "pf": 0.563,
+      "kelly": -0.3151,
+      "sharpe_per_event": -0.2526,
+      "trades_per_month": 36.5,
+      "p_value": 0.000683
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        3,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 322,
+      "wr": 0.3882,
+      "wilson_lower": 0.3366,
+      "ev_net_pip": -2.802,
+      "pf": 0.632,
+      "kelly": -0.2257,
+      "sharpe_per_event": -0.2121,
+      "trades_per_month": 35.1,
+      "p_value": 7.1e-05
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        3,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 322,
+      "wr": 0.4099,
+      "wilson_lower": 0.3576,
+      "ev_net_pip": -2.705,
+      "pf": 0.663,
+      "kelly": -0.2084,
+      "sharpe_per_event": -0.1947,
+      "trades_per_month": 35.1,
+      "p_value": 0.001452
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        4,
+        2
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 865,
+      "wr": 0.3665,
+      "wilson_lower": 0.335,
+      "ev_net_pip": -3.047,
+      "pf": 0.564,
+      "kelly": -0.2836,
+      "sharpe_per_event": -0.256,
+      "trades_per_month": 94.4,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        4,
+        2
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 801,
+      "wr": 0.3608,
+      "wilson_lower": 0.3283,
+      "ev_net_pip": -3.08,
+      "pf": 0.611,
+      "kelly": -0.2295,
+      "sharpe_per_event": -0.232,
+      "trades_per_month": 87.4,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        4,
+        2
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 794,
+      "wr": 0.3615,
+      "wilson_lower": 0.3288,
+      "ev_net_pip": -3.209,
+      "pf": 0.61,
+      "kelly": -0.2309,
+      "sharpe_per_event": -0.236,
+      "trades_per_month": 86.6,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        4,
+        2
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 900,
+      "wr": 0.4211,
+      "wilson_lower": 0.3893,
+      "ev_net_pip": -1.871,
+      "pf": 0.71,
+      "kelly": -0.1721,
+      "sharpe_per_event": -0.1529,
+      "trades_per_month": 98.2,
+      "p_value": 2e-06
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        4,
+        2
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 844,
+      "wr": 0.4301,
+      "wilson_lower": 0.3971,
+      "ev_net_pip": -1.786,
+      "pf": 0.753,
+      "kelly": -0.1411,
+      "sharpe_per_event": -0.1324,
+      "trades_per_month": 92.1,
+      "p_value": 5.5e-05
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        4,
+        2
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 836,
+      "wr": 0.4378,
+      "wilson_lower": 0.4045,
+      "ev_net_pip": -1.602,
+      "pf": 0.783,
+      "kelly": -0.1215,
+      "sharpe_per_event": -0.1155,
+      "trades_per_month": 91.2,
+      "p_value": 0.000362
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        4,
+        3
+      ],
+      "direction": "BUY",
+      "forward_bars": 4,
+      "n_trades": 644,
+      "wr": 0.413,
+      "wilson_lower": 0.3756,
+      "ev_net_pip": -1.727,
+      "pf": 0.741,
+      "kelly": -0.1442,
+      "sharpe_per_event": -0.1333,
+      "trades_per_month": 70.3,
+      "p_value": 1.2e-05
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        4,
+        3
+      ],
+      "direction": "BUY",
+      "forward_bars": 8,
+      "n_trades": 598,
+      "wr": 0.4231,
+      "wilson_lower": 0.3841,
+      "ev_net_pip": -1.711,
+      "pf": 0.769,
+      "kelly": -0.1273,
+      "sharpe_per_event": -0.1219,
+      "trades_per_month": 65.2,
+      "p_value": 0.000193
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        4,
+        3
+      ],
+      "direction": "BUY",
+      "forward_bars": 12,
+      "n_trades": 592,
+      "wr": 0.4172,
+      "wilson_lower": 0.3782,
+      "ev_net_pip": -1.686,
+      "pf": 0.78,
+      "kelly": -0.1176,
+      "sharpe_per_event": -0.1167,
+      "trades_per_month": 64.6,
+      "p_value": 6.5e-05
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        4,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 696,
+      "wr": 0.4023,
+      "wilson_lower": 0.3665,
+      "ev_net_pip": -2.757,
+      "pf": 0.611,
+      "kelly": -0.2562,
+      "sharpe_per_event": -0.2202,
+      "trades_per_month": 75.9,
+      "p_value": 0.0
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        4,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 656,
+      "wr": 0.4024,
+      "wilson_lower": 0.3656,
+      "ev_net_pip": -2.865,
+      "pf": 0.64,
+      "kelly": -0.2264,
+      "sharpe_per_event": -0.2089,
+      "trades_per_month": 71.6,
+      "p_value": 1e-06
+    },
+    {
+      "pair": "USD_JPY",
+      "triplet": [
+        "bbpb_15m_b",
+        "rsi_15m_b"
+      ],
+      "buckets": [
+        4,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 652,
+      "wr": 0.4003,
+      "wilson_lower": 0.3634,
+      "ev_net_pip": -2.668,
+      "pf": 0.672,
+      "kelly": -0.195,
+      "sharpe_per_event": -0.1883,
+      "trades_per_month": 71.1,
+      "p_value": 0.0
+    }
+  ],
+  "survivors": []
+}

@@ -1,0 +1,202 @@
+{
+  "stage": 2,
+  "params": {
+    "days": 275,
+    "holdout_days": 90,
+    "stage1_input": "/Users/jg-n-012/test/fx-ai-trader/raw/phase8/track_a/stage1_20260428_0507.json"
+  },
+  "n_tested": 5,
+  "n_final_survivors": 4,
+  "results": [
+    {
+      "pair": "EUR_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        20,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 102,
+      "wr": 0.6078,
+      "wilson_lower": 0.5108,
+      "ev_net_pip": 2.888,
+      "pf": 1.552,
+      "kelly": 0.2161,
+      "sharpe_per_event": 0.2135,
+      "trades_per_month": 11.1,
+      "p_value": 0.037067,
+      "gates": {
+        "bh_fdr": true,
+        "wilson_gt_50": true,
+        "n_ge_100": true,
+        "ev_pos": true,
+        "capacity": true,
+        "sharpe_pos": true
+      },
+      "stage2_holdout": {
+        "n": 40,
+        "wr": 0.6,
+        "wilson_lower": 0.446,
+        "ev_net_pip": 2.1,
+        "pf": 1.324
+      },
+      "stage2_pass": true
+    },
+    {
+      "pair": "EUR_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        20,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 102,
+      "wr": 0.6176,
+      "wilson_lower": 0.5207,
+      "ev_net_pip": 3.171,
+      "pf": 1.596,
+      "kelly": 0.2307,
+      "sharpe_per_event": 0.231,
+      "trades_per_month": 11.1,
+      "p_value": 0.022298,
+      "gates": {
+        "bh_fdr": true,
+        "wilson_gt_50": true,
+        "n_ge_100": true,
+        "ev_pos": true,
+        "capacity": true,
+        "sharpe_pos": true
+      },
+      "stage2_holdout": {
+        "n": 40,
+        "wr": 0.6,
+        "wilson_lower": 0.446,
+        "ev_net_pip": 2.142,
+        "pf": 1.33
+      },
+      "stage2_pass": true
+    },
+    {
+      "pair": "GBP_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        20,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 4,
+      "n_trades": 104,
+      "wr": 0.6154,
+      "wilson_lower": 0.5194,
+      "ev_net_pip": 4.476,
+      "pf": 1.929,
+      "kelly": 0.2963,
+      "sharpe_per_event": 0.2998,
+      "trades_per_month": 11.3,
+      "p_value": 0.023646,
+      "gates": {
+        "bh_fdr": true,
+        "wilson_gt_50": true,
+        "n_ge_100": true,
+        "ev_pos": true,
+        "capacity": true,
+        "sharpe_pos": true
+      },
+      "stage2_holdout": {
+        "n": 37,
+        "wr": 0.4865,
+        "wilson_lower": 0.3345,
+        "ev_net_pip": -0.116,
+        "pf": 0.984
+      },
+      "stage2_pass": false
+    },
+    {
+      "pair": "GBP_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        20,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 8,
+      "n_trades": 104,
+      "wr": 0.7115,
+      "wilson_lower": 0.6182,
+      "ev_net_pip": 7.144,
+      "pf": 2.496,
+      "kelly": 0.4264,
+      "sharpe_per_event": 0.4496,
+      "trades_per_month": 11.3,
+      "p_value": 1.9e-05,
+      "gates": {
+        "bh_fdr": true,
+        "wilson_gt_50": true,
+        "n_ge_100": true,
+        "ev_pos": true,
+        "capacity": true,
+        "sharpe_pos": true
+      },
+      "stage2_holdout": {
+        "n": 37,
+        "wr": 0.5946,
+        "wilson_lower": 0.4349,
+        "ev_net_pip": 2.88,
+        "pf": 1.363
+      },
+      "stage2_pass": true
+    },
+    {
+      "pair": "GBP_JPY",
+      "triplet": [
+        "hour_utc",
+        "bbpb_15m_b"
+      ],
+      "buckets": [
+        20,
+        3
+      ],
+      "direction": "SELL",
+      "forward_bars": 12,
+      "n_trades": 104,
+      "wr": 0.7115,
+      "wilson_lower": 0.6182,
+      "ev_net_pip": 7.058,
+      "pf": 2.418,
+      "kelly": 0.4173,
+      "sharpe_per_event": 0.437,
+      "trades_per_month": 11.3,
+      "p_value": 1.9e-05,
+      "gates": {
+        "bh_fdr": true,
+        "wilson_gt_50": true,
+        "n_ge_100": true,
+        "ev_pos": true,
+        "capacity": true,
+        "sharpe_pos": true
+      },
+      "stage2_holdout": {
+        "n": 37,
+        "wr": 0.5946,
+        "wilson_lower": 0.4349,
+        "ev_net_pip": 2.772,
+        "pf": 1.341
+      },
+      "stage2_pass": true
+    }
+  ]
+}

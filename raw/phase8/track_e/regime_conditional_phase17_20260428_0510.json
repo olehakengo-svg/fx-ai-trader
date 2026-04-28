@@ -1,0 +1,95 @@
+{
+  "strategy": "phase7_hour20_jpy_sell",
+  "by_regime": {
+    "USD_JPY": {
+      "up_trend": {
+        "n": 23,
+        "wr": 0.6087,
+        "wilson_lower": 0.4079,
+        "ev_net_pip": 2.158,
+        "sharpe_pe": 0.202
+      },
+      "down_trend": {
+        "n": 27,
+        "wr": 0.4815,
+        "wilson_lower": 0.3074,
+        "ev_net_pip": 0.097,
+        "sharpe_pe": 0.0063
+      },
+      "range": {
+        "n": 14,
+        "wr": 0.7143,
+        "wilson_lower": 0.4535,
+        "ev_net_pip": 3.681,
+        "sharpe_pe": 0.4111
+      },
+      "uncertain": {
+        "n": 88,
+        "wr": 0.5341,
+        "wilson_lower": 0.4306,
+        "ev_net_pip": 0.089,
+        "sharpe_pe": 0.0088
+      }
+    },
+    "EUR_JPY": {
+      "up_trend": {
+        "n": 21,
+        "wr": 0.619,
+        "wilson_lower": 0.4088,
+        "ev_net_pip": 2.569,
+        "sharpe_pe": 0.1778
+      },
+      "down_trend": {
+        "n": 18,
+        "wr": 0.6111,
+        "wilson_lower": 0.3862,
+        "ev_net_pip": 2.915,
+        "sharpe_pe": 0.1676
+      },
+      "range": {
+        "n": 12,
+        "wr": 0.6667,
+        "wilson_lower": 0.3906,
+        "ev_net_pip": 5.687,
+        "sharpe_pe": 0.4593
+      },
+      "uncertain": {
+        "n": 99,
+        "wr": 0.5657,
+        "wilson_lower": 0.4674,
+        "ev_net_pip": 1.853,
+        "sharpe_pe": 0.1332
+      }
+    },
+    "GBP_JPY": {
+      "up_trend": {
+        "n": 27,
+        "wr": 0.6667,
+        "wilson_lower": 0.4782,
+        "ev_net_pip": 3.404,
+        "sharpe_pe": 0.2222
+      },
+      "down_trend": {
+        "n": 19,
+        "wr": 0.5789,
+        "wilson_lower": 0.3628,
+        "ev_net_pip": 3.823,
+        "sharpe_pe": 0.1908
+      },
+      "range": {
+        "n": 18,
+        "wr": 0.6667,
+        "wilson_lower": 0.4375,
+        "ev_net_pip": 3.115,
+        "sharpe_pe": 0.1841
+      },
+      "uncertain": {
+        "n": 88,
+        "wr": 0.6136,
+        "wilson_lower": 0.5092,
+        "ev_net_pip": 4.373,
+        "sharpe_pe": 0.2578
+      }
+    }
+  }
+}
