@@ -6147,6 +6147,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "cpd_divergence",                # CPD Divergence: EUR/GBP correlation breakdown (前セッション WIP, Sentinel)
                 "vdr_jpy",                       # VDR JPY: yield differential rotation (前セッション WIP, Sentinel)
                 "vsg_jpy_reversal",              # VSG JPY Reversal: vol surge reversal (前セッション WIP, Sentinel)
+                # 2026-04-27 Phase 5 (RSK Bonferroni 13 通過、MQE Bonferroni 3 通過)
+                "rsk_gbpjpy_reversion",          # RSK GBP_JPY: realized skewness reversion (Bonferroni 13)
+                "mqe_gbpusd_fix",                # MQE GBP_USD: month-end fix reversal (Bonferroni 3, WR 69.8%)
             }
             DT_BLOCKED = {"unknown", "wait"}
 
