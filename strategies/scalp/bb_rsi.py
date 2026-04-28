@@ -243,5 +243,12 @@ class BBRsiReversion(StrategyBase):
             reasons.append(
                 f"📊 レジーム: レンジ(ADX={ctx.adx:.1f}<{self.adx_max})"
             )
+        # RNR: TP shift away from round numbers (psychological resistance)
+        try:
+            from modules.round_number import shift_tp_inside
+            _pip_rn = 0.01 if "JPY" in ctx.symbol.upper() else 0.0001
+            tp = shift_tp_inside(tp, signal, pip=_pip_rn, shift_pips=3.0)
+        except Exception:
+            pass
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
                          reasons=reasons, entry_type=self.name, score=score)

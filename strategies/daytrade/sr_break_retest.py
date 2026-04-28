@@ -279,7 +279,22 @@ class SrBreakRetest(StrategyBase):
         else:
             tp = ctx.entry - _tp_dist
 
+        # RNR: TP shift away from round numbers; expand SL if SR level near round
+        try:
+            from modules.round_number import (
+                shift_tp_inside, expand_sl_for_round, is_near_round,
+            )
+            _pip_rn = 0.01 if "JPY" in ctx.symbol.upper() else 0.0001
+            tp = shift_tp_inside(tp, signal, pip=_pip_rn, shift_pips=3.0)
+            # SR level が round number 近傍なら SL 更に深く (狩り集中対策)
+            sl = expand_sl_for_round(sl, sr_level, signal, pip=_pip_rn,
+                                      expand_factor=1.3, atr=ctx.atr)
+        except Exception:
+            pass
+
         # ── RR最低保証チェック ──
+        _sl_dist = abs(ctx.entry - sl)
+        _tp_dist = abs(tp - ctx.entry)
         if _sl_dist <= 0 or _tp_dist / _sl_dist < self.MIN_RR:
             return None
 

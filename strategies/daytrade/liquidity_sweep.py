@@ -653,6 +653,16 @@ class LiquiditySweep(StrategyBase):
             _tp_dist = _sl_dist * self.MIN_RR
             tp = ctx.entry + _tp_dist if _is_buy else ctx.entry - _tp_dist
 
+        # RNR: TP shift away from round numbers; sweep at round = strong edge
+        try:
+            from modules.round_number import shift_tp_inside, round_confluence_boost
+            _pip_rn = 0.01 if "JPY" in ctx.symbol.upper() else 0.0001
+            _signal_str = "BUY" if _is_buy else "SELL"
+            tp = shift_tp_inside(tp, _signal_str, pip=_pip_rn, shift_pips=3.0)
+            _tp_dist = abs(tp - ctx.entry)
+        except Exception:
+            pass
+
         _rr = _tp_dist / _sl_dist
 
         # RR再確認 (TP最大距離キャップ後にRR不足の場合はスキップ)
@@ -701,6 +711,16 @@ class LiquiditySweep(StrategyBase):
         # ADX中間域ボーナス (15-22 = 最適レンジMR環境)
         if 15 <= ctx.adx <= 22:
             _score += 0.3
+
+        # RNR: sweep が round number 近傍なら機関 stop が集中 = strong edge
+        try:
+            from modules.round_number import round_confluence_boost
+            _pip_rn = 0.01 if "JPY" in ctx.symbol.upper() else 0.0001
+            _rn_boost = round_confluence_boost(_extreme, pip=_pip_rn, threshold_pips=3.0)
+            if _rn_boost > 0:
+                _score += 0.5 * _rn_boost
+        except Exception:
+            pass
 
         # ── Reasons ──
         _level_pip = _level * ctx.pip_mult

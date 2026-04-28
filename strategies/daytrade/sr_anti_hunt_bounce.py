@@ -123,6 +123,19 @@ class SrAntiHuntBounce(StrategyBase):
             score += 0.5
             reasons.append(f"✅ BB上限一致 (BB%B={ctx.bbpb:.2f})")
 
+        # 2026-04-28: hunt event log for sr_audit Stage A+B
+        try:
+            from modules.hunt_event_logger import log_hunt_event
+            log_hunt_event(
+                strategy=self.name, instrument=ctx.symbol, direction=signal,
+                entry_price=float(ctx.entry), sl=float(sl), tp=float(tp),
+                level=float(nearest_level), side=side, atr_price=float(atr),
+                extra={"adx": float(ctx.adx), "bbpb": float(ctx.bbpb),
+                       "rr": float(rr), "score": float(score)},
+            )
+        except Exception:
+            pass  # never let logging break the strategy
+
         return Candidate(
             signal=signal,
             confidence=min(100, int(score * 20)),

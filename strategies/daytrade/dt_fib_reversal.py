@@ -2,6 +2,7 @@
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from strategies.scalp.fib import _calc_fibonacci_levels
+from modules.round_number import shift_tp_inside, round_confluence_boost
 from typing import Optional
 
 
@@ -73,6 +74,14 @@ class DtFibReversal(StrategyBase):
 
         if signal is None:
             return None
+
+        # RNR: TP shift away from round numbers (3pip 内側) + Fib×round confluence boost
+        pip = 0.01 if "JPY" in ctx.symbol.upper() else 0.0001
+        tp = shift_tp_inside(tp, signal, pip=pip, shift_pips=3.0)
+        rn_boost = round_confluence_boost(_fv, pip=pip, threshold_pips=3.0)
+        if rn_boost > 0:
+            score += 0.3 * rn_boost
+            reasons.append(f"✅ Fib×Round confluence (boost={0.3*rn_boost:.2f})")
 
         # v11: Confidence v2 — MR anti-trend penalty (ADX>25 reduces conf)
         from modules.confidence_v2 import apply_penalty

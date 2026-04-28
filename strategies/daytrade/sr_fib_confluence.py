@@ -1,6 +1,7 @@
 """SR + Fibonacci Confluence — SR/Fibコンフルエンス (15m足)"""
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
+from modules.round_number import shift_tp_inside, round_confluence_boost, is_near_round
 from typing import Optional
 
 
@@ -48,6 +49,19 @@ class SrFibConfluence(StrategyBase):
 
         if signal is None:
             return None
+
+        # RNR: TP shift away from round numbers
+        pip = 0.01 if "JPY" in ctx.symbol.upper() else 0.0001
+        tp = shift_tp_inside(tp, signal, pip=pip, shift_pips=3.0)
+        # entry が round number 近傍なら confidence boost (psychological double-confluence)
+        if is_near_round(ctx.entry, pip=pip, threshold_pips=3.0):
+            score += 0.3
+            reasons.append("✅ Round number 近傍コンフルエンス")
+            # SL を round number 越えに更に深く
+            if signal == "BUY":
+                sl -= 0.3 * ctx.atr7
+            else:
+                sl += 0.3 * ctx.atr7
 
         _entry_type = "sr_fib_confluence" if _has_sr_fib else "ob_retest"
         conf = int(min(80, 45 + score * 4))

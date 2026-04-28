@@ -121,6 +121,24 @@ class SrLiquidityGrab(StrategyBase):
             f"✅ RR={rr:.2f} ≥ {self.TARGET_RR}",
         ]
 
+        # 2026-04-28: hunt event log for sr_audit Stage A+B
+        try:
+            from modules.hunt_event_logger import log_hunt_event
+            log_hunt_event(
+                strategy=self.name, instrument=ctx.symbol, direction=signal,
+                entry_price=float(ctx.entry), sl=float(sl), tp=float(tp),
+                level=float(nearest_level), side=side, atr_price=float(atr),
+                extra={
+                    "adx": float(ctx.adx),
+                    "rr": float(rr), "score": float(score),
+                    "hunt_extreme_price": float(hunt_event["extreme"]),
+                    "hunt_excursion": float(hunt_event["excursion"]),
+                    "hunt_excursion_atr_ratio": float(hunt_event["excursion_atr_ratio"]),
+                },
+            )
+        except Exception:
+            pass
+
         return Candidate(
             signal=signal,
             confidence=min(100, int(score * 20)),

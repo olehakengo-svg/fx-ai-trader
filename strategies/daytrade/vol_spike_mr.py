@@ -144,6 +144,13 @@ class VolSpikeMR(StrategyBase):
             sl = spike_high + ctx.atr * self.SL_BUFFER
             tp = entry - ctx.atr * self.TP_ATR_MULT
 
+        # RNR: TP shift away from round numbers (USD/JPY pip=0.01)
+        try:
+            from modules.round_number import shift_tp_inside
+            tp = shift_tp_inside(tp, signal, pip=0.01, shift_pips=3.0)
+        except Exception:
+            pass
+
         # ══════════════════════════════════════════════════
         # Step 5: RR検証
         # ══════════════════════════════════════════════════
