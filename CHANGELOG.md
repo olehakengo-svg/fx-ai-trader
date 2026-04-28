@@ -1,5 +1,149 @@
 # FX AI Trader - Changelog
 
+## 2026-04-28 — Promotion Infrastructure Rewire [rule:R1+R3]
+
+### 動機
+
+obs 252/254/257/258/259/267/268/298 で確認された昇格ゲートの構造的欠陥群を一括修正。Sentinel/UNIVERSAL_SENTINEL 戦略が `is_shadow=0` フィルタにより N=0 で永久凍結する構造バグ (obs 257)、algo_change_log がランタイム昇格・降格イベントで未配線 (obs 298 致命的欠落 #1)、KPI 閾値が UI 表示のみで判定に未使用 (obs 298)、FORCE_DEMOTED からの自動復帰メカニズムが完全欠如、Walk-Forward 復帰パターン (H1≤0 & H2>0) の自動検出が欠落、を同時解消。
+
+### Commits
+
+- **4bc55bd** `feat(strategies): S/R anti-hunt-bounce + liquidity-grab + audit tooling [rule:R3]`
+  pre-commit hook の auto-stage 副作用で `modules/demo_db.py +33` および `modules/demo_trader.py +459` (Shadow methods + Kelly clean + KPI gate + WF recovery + algo_change_log 配線) も同梱。S/R 戦略本体と昇格ゲート改修本体が同 commit に共存。
+- **bb43385** `feat(promotion): KPI thresholds + Pre-reg LOCK + 5 test suites + auto-recovery cron [rule:R1+R3]`
+  config.py (STRATEGY_PROFILE_MODE_A/B), 5 テストスイート 67 件, tools/auto_force_demoted_recovery.py, Pre-reg LOCK 文書を追加。
+
+### 変更内容
+
+#### 1. Shadow-aware promotion gate (obs 257 解消, rule:R3)
+- 新規メソッド: `_binomial_two_sided_p` (staticmethod), `_shadow_promotion_decision` (pure), `_evaluate_shadow_promotions` (DB integration)
+- `modules/demo_db.py:get_shadow_trades_for_evaluation` (L1200) を消費
+- shadow-contamination 防止: aggregate Kelly / lot sizing / 学習エンジンは引き続き `is_shadow=0` 維持。本パスは「昇格候補の探索」専用
+- 判定基準: N≥20 AND Wilson_BF lower (Z=3.29) > 0.50 AND Bonferroni p < 0.05
+- 結果は `algo_change_log` に `change_type="shadow_promotion_candidate"` で記録のみ。tier-master.json には書き込まず
+
+#### 2. FORCE_DEMOTED 自動復帰 cron (obs 255/267 解消, rule:R3)
+- `tools/auto_force_demoted_recovery.py`: tier-master.json の `force_demoted` 配列をスキャンし、復帰条件を満たす戦略を atomic write + .bak で外す
+- 復帰条件: N≥30 AND Wilson_BF lower>0.50 AND Bonferroni p<0.05
+- スケジュールタスク `fx-ai-auto-force-demoted-recovery` で daily 09:31 (local) 実行
+- **Dry-run 結果 (2026-04-28)**: 18 force_demoted 戦略のうち復帰条件達成は **0 件** (false positive ゼロ実証)。intraday_seasonality は N=6 で N≥30 未達、sr_channel_reversal は p_bonf=0.0001 で**有意にマイナス**で正しく拘束維持
+
+#### 3. Kelly clean helper (obs 298 #2 解消, rule:R2)
+- 新規ヘルパー `_get_strategy_kelly_clean(entry_type)`: aggregate Kelly L5842-5880 と厳密に同じフィルタ条件 (CLOSED + is_shadow=0 + XAU除外 + FIDELITY_CUTOFF) で Kelly fraction を返す
+- `_evaluate_promotions` の事前ゲートに Kelly<0 ブロックを追加 (L5172-5184)
+- 既存 SHIELD gate (L4571-4590) は冗長な防御層として保持
+- ⚠️ **2026-04-28 lesson との関係**: CLAUDE.md の新ルール「Kelly は事後指標、発掘段階の gate として使わない」と整合確認が必要。本変更は**昇格** (発掘ではなく既知エッジの実弾投入判断) ゲートに使用しているが、Day-7 ratification で再評価予定
+
+#### 4. Walk-Forward 復帰パターン (obs 298 #3 解消, rule:R2)
+- `modules/demo_db.py:_calc_wf_halves` を拡張し、Mann-Whitney U one-sided test (H2 > H1) の p_value を返す
+- `_evaluate_promotions` の demoted→pending 復帰条件に WF パターン追加: N≥20 AND H1≤0 AND H2>0 AND p<0.10
+- 既存 v8.9 復帰条件 (N≥30 AND EV>0) と OR 結合
+- FORCE_DEMOTED は手動フラグなので touch しない (cron 経由のみ復帰)
+
+#### 5. STRATEGY_PROFILES KPI 閾値配線 (obs 298 解消, rule:R1)
+- `modules/config.py` に `STRATEGY_PROFILE_MODE_A` (22 戦略, scalp/Trend Following), `STRATEGY_PROFILE_MODE_B` (51 戦略, daytrade/Mean Reversion), `get_strategy_profile_mode()` を追加
+- `_evaluate_promotions` でハードコード閾値 (`WR≥60%`) を Mode 別 `kpi_wr`/`kpi_ev` 動的参照に置換
+- **Mode 未定義の戦略は legacy 閾値にフォールバック (back-compat)**
+- **R1 Pre-reg LOCK 適用**: `wiki/decisions/pre-reg-promotion-rewire-2026-04-28.md`。Day-7 ratification (2026-05-05 09:00 JST、scheduled-task `promotion-rewire-day7-ratification` 登録済) で rollback trigger 監視
+
+#### 6. algo_change_log 配線 (obs 298 致命的欠落 #1 解消, rule:R3)
+- `_evaluate_promotions` 内で status 変更 (pending→promoted, promoted→demoted, demoted→pending) ごとに `_db.save_algo_change(change_type="tier_transition", ...)` を呼出
+- 記録項目: timestamp, entry_type, old_status, new_status, decision_reason, N, WR, EV, friction_pip, kelly_f, wilson_bf_lower
+- exception 安全 (失敗時は print log のみ、commit はブロックしない)
+
+### テスト
+
+| ファイル | テスト数 | 対象 |
+|---|---:|---|
+| `tests/test_shadow_promotion_gate.py` | 18 | `_binomial_two_sided_p`, `_shadow_promotion_decision`, `_evaluate_shadow_promotions` |
+| `tests/test_kelly_promotion_gate.py` | 12 | `_get_strategy_kelly_clean` + 事前 gate |
+| `tests/test_kpi_threshold_promotion.py` | 20 | Mode A/B 閾値の正しい適用 + back-compat fallback |
+| `tests/test_wf_recovery.py` | 9 | Mann-Whitney p<0.10 復帰、FORCE_DEMOTED 非干渉 |
+| `tests/test_auto_force_demoted_recovery.py` | 8 | cron 単体: dry-run, atomic write, .bak |
+| **合計** | **67** | **全 pass** |
+
+回帰テスト: full suite 622 passed, 1 xfailed (regression なし)
+
+### Pre-reg LOCK Day-7 検証
+
+`wiki/decisions/pre-reg-promotion-rewire-2026-04-28.md` 参照。
+
+**Rollback trigger** (任意ヒットで該当戦略を pending 降格 + STRATEGY_PROFILE から削除):
+1. 新ゲート下で promoted になった戦略が post-flip N≥10 で EV<0 (72h 以内)
+2. aggregate Live PnL が pre-deploy baseline から 2σ 以上乖離 (7d)
+3. `tests/test_kpi_threshold_promotion.py` が schema drift で fail
+
+**Day-7 ratification**: scheduled-task `promotion-rewire-day7-ratification` (one-time fireAt=2026-05-05T09:00:00+09:00, enabled) が algo_change_log を audit して ratify or rollback を判定
+
+### 残課題 (statusとして wiki に追記予定)
+
+- BT_COST_PER_TRADE のペア別化 (`friction_model_v2` per-pair 値を `_evaluate_promotions` 摩擦閾値に反映)
+- tier-master.json の動的生成化 (現在 2 日陳腐化)
+- per-pair-direction セル拡張 (`dt_bb_rsi_mr` BUY/SELL 非対称性検出)
+- Codex レビュー結果に基づく追加修正
+
+---
+
+## 2026-04-27 evening — Kelly Recompute + bb_squeeze_breakout 縮小 + thaw CLI [rule:R2/R3]
+
+### 動機
+本日の P0 (commit 9e53794, fe5344d, 9ded0e7) で評価系の bias 補正が完了したため、memory 175 の **「Kelly = -17.97% / DD = 32.32% / 危機状態」** の前提を再検証。Live aggregate を seed-exclusion 込みで再計算し、live-thaw-gate G1 の現実値を確定。
+
+### 1. kelly-recompute-2026-04-27.md (rule:R3)
+seed-exclusion 適用後の Live aggregate Kelly を計算:
+
+| 計算 | N | WR | total_pip | full_Kelly |
+|------|--:|---:|---------:|----------:|
+| LEGACY (seed込み) | 36 | 50.00% | +6.0p | +1.14% |
+| **CLEAN (seed除外)** | **34** | **50.00%** | **+4.3p** | **+0.87%** |
+
+**結論**: Live Kelly は補正後 **+0.87% borderline positive**。memory 175 の -17.97% は別 metric (おそらく friction-adjusted or Track5 MC) 由来で、本日の Live aggregate Clean とは異なる。
+
+戦略・ペア別内訳:
+- **bb_rsi_reversion**: Live N=20 WR=65% Wilson 43% +190.6pip — 唯一の真エッジ候補
+- **GBP_USD Live**: N=4 全敗だが、うち 1 件 (turtle_soup -170p) が支配的 → outlier-driven、構造的問題ではない
+- **USD_JPY Live**: N=29 WR=55% (主に bb_rsi_reversion 寄与)
+- **EUR_USD Live**: N=1 評価不能
+
+配置: `knowledge-base/wiki/decisions/kelly-recompute-2026-04-27.md`
+
+### 2. bb_squeeze_breakout × USD_JPY lot 縮小 (rule:R2)
+`_PAIR_LOT_BOOST` に `("bb_squeeze_breakout", "USD_JPY"): 0.01` を追加。
+- 365d BT N=42 WR=76.2% → PAIR_PROMOTED (2026-04-21) したが Live N=5 全敗 (-11.9pip)
+- Wilson 95% CI: BT [60%, 88%] vs Live [0%, 52%] **完全非重複** (p<0.001)
+- N=10 達成まで 0.01x trial で出血最小化、その時点で Rule 1 撤回判断
+
+### 3. tools/live_thaw_check.py (rule:R3)
+G1-G4 を CLI で一括判定する道具を実装。
+
+```bash
+$ python3 tools/live_thaw_check.py
+  ✅ G1 Live Kelly > 0          — Kelly=+0.87% (Wilson WR L=34.1% — noise範囲)
+  ❌ G2 ELITE cell Wilson > BEV — no cell with Wilson_pip > BEV (need N>=10 per cell)
+  ❌ G3 SR Anti-Hunt EUR_USD    — N=0 < 30 (Sentinel 未開始)
+  ✅ G4 14d DD < 10%            — max_dd_14d=35.7pip (0.36% proxy)
+  OVERALL: BLOCKED (2/4)
+```
+- `--gate G1` で単独評価、`--json` で機械可読出力
+- exit code: 0 ALL PASS / 1 BLOCKED → cron で alert subsystem 連携可
+
+### 認識更新
+
+- **「全面 lot=0 凍結」は過剰**。bb_rsi_reversion は Live で機能している実エッジ候補
+- **GBP_USD は単発 outlier (turtle_soup -170p) 支配のため freeze せず、daily_live_monitor 経由で監視**
+- **解凍 gate は依然 BLOCKED (G2/G3 未充足)**。G2 は cell-level audit (P1) で評価、G3 は SR Anti-Hunt Phase 6 Sentinel 観測 (P2) で蓄積
+
+### 回帰テスト
+506 passed, 1 xfailed (新規追加なし、既存全通過)
+
+### 残課題 (P1+)
+- bb_rsi_reversion cell-level audit (G2 評価準備)
+- SR Anti-Hunt Phase 4 BT (pre-reg LOCK) → Phase 5/6 で G3 評価
+- block-bootstrap (block=4h) を net_edge_audit に追加 (autocorr-aware)
+- bb_squeeze_breakout × USD_JPY 追加 5 件で Rule 1 撤回判定
+
+---
+
 ## 2026-04-27 M2: Regime Gate Over-block Fix [rule:R3]
 
 ### 動機
