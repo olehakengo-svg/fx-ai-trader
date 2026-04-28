@@ -1,0 +1,144 @@
+{
+  "audit": "fib_reversal_subcond",
+  "pre_registered_grid": {
+    "sessions": [
+      [
+        "Tokyo",
+        0,
+        5
+      ],
+      [
+        "London",
+        6,
+        11
+      ],
+      [
+        "NY_LDN",
+        12,
+        16
+      ],
+      [
+        "NY_Late",
+        17,
+        23
+      ]
+    ],
+    "directions": [
+      "BUY",
+      "SELL"
+    ],
+    "K": 8
+  },
+  "params": {
+    "entry_type": "fib_reversal",
+    "instrument": "USD_JPY",
+    "tf": "1m",
+    "days": 30,
+    "friction_pip": 1.5,
+    "bev": 0.294
+  },
+  "generated_at": "2026-04-27T18:26:23.444679+00:00",
+  "results": {
+    "Tokyo_BUY": {
+      "n": 6,
+      "n_live": 0,
+      "n_shadow": 6,
+      "wr": 0.5,
+      "ev_gross": 0.867,
+      "ev_net": -0.633,
+      "pf_net": 0.736,
+      "wilson_bf_lower": 0.1276,
+      "z_bf": 2.734,
+      "pass_n": false,
+      "pass_ev": false,
+      "pass_wilson": false,
+      "decision": "REJECTED"
+    },
+    "Tokyo_SELL": {
+      "n": 18,
+      "n_live": 0,
+      "n_shadow": 18,
+      "wr": 1.0,
+      "ev_gross": 14.656,
+      "ev_net": 13.156,
+      "pf_net": "inf",
+      "wilson_bf_lower": 0.7065,
+      "z_bf": 2.734,
+      "pass_n": true,
+      "pass_ev": true,
+      "pass_wilson": true,
+      "decision": "SENTINEL_CANDIDATE"
+    },
+    "London_BUY": {
+      "n": 1,
+      "n_live": 0,
+      "n_shadow": 1,
+      "wr": 1.0,
+      "ev_gross": 5.2,
+      "ev_net": 3.7,
+      "pf_net": "inf",
+      "wilson_bf_lower": 0.118,
+      "z_bf": 2.734,
+      "pass_n": false,
+      "pass_ev": true,
+      "pass_wilson": false,
+      "decision": "REJECTED"
+    },
+    "London_SELL": {
+      "n": 3,
+      "n_live": 0,
+      "n_shadow": 3,
+      "wr": 0.3333,
+      "ev_gross": 38.5,
+      "ev_net": 37.0,
+      "pf_net": 8.351,
+      "wilson_bf_lower": 0.0367,
+      "z_bf": 2.734,
+      "pass_n": false,
+      "pass_ev": true,
+      "pass_wilson": false,
+      "decision": "REJECTED"
+    },
+    "NY_LDN_BUY": {
+      "n": 1,
+      "n_live": 0,
+      "n_shadow": 1,
+      "wr": 1.0,
+      "ev_gross": 3.4,
+      "ev_net": 1.9,
+      "pf_net": "inf",
+      "wilson_bf_lower": 0.118,
+      "z_bf": 2.734,
+      "pass_n": false,
+      "pass_ev": true,
+      "pass_wilson": false,
+      "decision": "REJECTED"
+    },
+    "NY_LDN_SELL": {
+      "n": 1,
+      "n_live": 0,
+      "n_shadow": 1,
+      "wr": 0.0,
+      "ev_gross": -61.6,
+      "ev_net": -63.1,
+      "pf_net": 0.0,
+      "wilson_bf_lower": 0.0,
+      "z_bf": 2.734,
+      "pass_n": false,
+      "pass_ev": false,
+      "pass_wilson": false,
+      "decision": "REJECTED"
+    },
+    "NY_Late_BUY": {
+      "n": 0,
+      "decision": "INSUFFICIENT_N"
+    },
+    "NY_Late_SELL": {
+      "n": 0,
+      "decision": "INSUFFICIENT_N"
+    }
+  },
+  "survivors": [
+    "Tokyo_SELL"
+  ]
+}

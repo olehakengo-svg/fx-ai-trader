@@ -2533,6 +2533,12 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             reasons.append(f"🚫 [DTE] HTF Hard Block: {_htf_blocked_count}候補ブロック (htf={htf_agreement})")
         _dt_candidates = _htf_filtered
     _dt_best = _dt_engine.select_best(_dt_candidates)
+    # 2026-04-28 (sr-strategies-signal-track): shadow-always candidates を抽出。
+    # SR Anti-Hunt-Bounce / SR Liquidity-Grab は score=3.0/3.5 で primary slot を
+    # 競争で取れないため、Shadow trade として並行記録するためのリストを準備。
+    # demo_trader が sig["shadow_emit_signals"] を読み取り is_shadow=1 で
+    # open_trade を呼ぶ。
+    _dt_shadow_emits = _dt_engine.split_shadow_always(_dt_candidates, _dt_best)
     if _dt_best:
         # DTE候補のスコア（符号付き: BUY=+, SELL=-）
         _dte_score = _dt_best.score * 0.5 if _dt_best.signal == "BUY" else -(_dt_best.score * 0.5)
@@ -3339,6 +3345,30 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         except Exception:
             pass
 
+    # 2026-04-28 (sr-strategies-signal-track): shadow_emit_signals — SR系
+    # で primary 競争に敗北した候補を Shadow trade として並行記録するための
+    # ペイロード。各要素は demo_trader._db.open_trade() に渡せる dict。
+    _shadow_emit_payload = []
+    try:
+        for _c in (_dt_shadow_emits or []):
+            _se_signal = _c.signal
+            _se_conf = int(getattr(_c, "confidence", 50) or 50)
+            _se_sl = float(_c.sl)
+            _se_tp = float(_c.tp)
+            _shadow_emit_payload.append({
+                "signal": _se_signal,
+                "entry": _rp(entry, symbol),
+                "confidence": _se_conf,
+                "sl": _se_sl, "tp": _se_tp,
+                "entry_type": _c.entry_type,
+                "reasons": list(_c.reasons or []),
+                "score": round(float(_c.score), 3),
+                "atr": _rp(atr, symbol),
+            })
+    except NameError:
+        # _dt_shadow_emits 未定義パス (DTE skip 等) — 安全に空
+        pass
+
     return {
         "timestamp": ts_str, "symbol": (symbol.replace("=X","")[:3] + "/" + symbol.replace("=X","")[3:]) if symbol else "USD/JPY", "tf": tf,
         "entry": _rp(entry, symbol), "signal": signal, "confidence": conf,
@@ -3346,6 +3376,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         "session": session, "htf_bias": htf, "swing_mode": tf in ("1h","4h","1d"),
         "reasons": reasons, "mode": "daytrade",
         "entry_type": _dt_entry_type,
+        "shadow_emit_signals": _shadow_emit_payload,
         "dual_scenarios": dual_scenarios,
         "sr_entry_map": sr_entry_map,
         "score": round(score, 3),

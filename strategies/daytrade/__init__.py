@@ -169,8 +169,30 @@ class DaytradeEngine:
             logger.debug(f"[DaytradeEngine] 全戦略None: {', '.join(_rejected)}")
         return candidates
 
+    # 2026-04-28 (sr-strategies-signal-track plan):
+    # 戦略 score が低くても Shadow trade として無条件記録すべき戦略の集合。
+    # select_best で他戦略に敗北しても Shadow N 蓄積路を残す。
+    # 詳細: knowledge-base/wiki/decisions/sr-strategies-signal-track-2026-04-28.md
+    SHADOW_ALWAYS_STRATEGIES = frozenset({
+        "sr_anti_hunt_bounce",
+        "sr_liquidity_grab",
+    })
+
     def select_best(self, candidates: list[Candidate]) -> Optional[Candidate]:
         """最高スコアの候補を選択。"""
         if not candidates:
             return None
         return max(candidates, key=lambda c: c.score)
+
+    def split_shadow_always(self, candidates: list[Candidate],
+                             best: Optional[Candidate]) -> list[Candidate]:
+        """SHADOW_ALWAYS_STRATEGIES に該当する候補で best 以外のものを返す。
+
+        select_best で primary slot を取れなかった shadow-always strategy を
+        Shadow trade として並行記録するための補助メソッド。
+        """
+        if not candidates:
+            return []
+        return [c for c in candidates
+                if c is not best
+                and c.entry_type in self.SHADOW_ALWAYS_STRATEGIES]

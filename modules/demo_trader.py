@@ -2692,6 +2692,49 @@ class DemoTrader:
             print(f"[DemoTrader/{mode}] _tick_entry error: {_entry_err}", flush=True)
             import traceback; traceback.print_exc()
 
+        # 2026-04-28 (sr-strategies-signal-track): SHADOW_ALWAYS strategies の
+        # 並行 Shadow trade 記録。primary 競争で敗北した SR 系 candidate を
+        # is_shadow=1 で DB 永続化し、N 蓄積路を確保する。
+        # 詳細: knowledge-base/wiki/decisions/sr-strategies-signal-track-2026-04-28.md
+        try:
+            _shadow_emits = sig.get("shadow_emit_signals") or []
+            for _se in _shadow_emits:
+                if not isinstance(_se, dict):
+                    continue
+                _se_signal = _se.get("signal")
+                if _se_signal not in ("BUY", "SELL"):
+                    continue
+                _se_entry_type = _se.get("entry_type") or ""
+                _se_entry = float(_se.get("entry") or sig.get("entry") or 0)
+                if _se_entry <= 0:
+                    continue
+                _se_sl = float(_se.get("sl") or 0)
+                _se_tp = float(_se.get("tp") or 0)
+                if _se_sl <= 0 or _se_tp <= 0:
+                    continue
+                _se_conf = int(_se.get("confidence") or 50)
+                _se_score = float(_se.get("score") or 0)
+                _se_reasons = list(_se.get("reasons") or [])
+                _se_reasons.append(
+                    f"[SHADOW_EMIT] {_se_entry_type} score={_se_score:.2f} "
+                    f"(primary={sig.get('entry_type','?')} won)"
+                )
+                self._db.open_trade(
+                    direction=_se_signal,
+                    entry_price=_se_entry,
+                    sl=_se_sl, tp=_se_tp,
+                    entry_type=_se_entry_type,
+                    confidence=_se_conf,
+                    tf=tf,
+                    reasons=_se_reasons,
+                    score=_se_score,
+                    mode=mode,
+                    instrument=instrument,
+                    is_shadow=True,
+                )
+        except Exception as _se_err:
+            print(f"[DemoTrader/{mode}] shadow_emit error: {_se_err}", flush=True)
+
     def _tick_entry(self, mode: str, cfg: dict, sig: dict,
                     tf: str, instrument: str):
         """_tickの後半: エントリー判定・実行。例外は呼び出し元でキャッチ。"""
