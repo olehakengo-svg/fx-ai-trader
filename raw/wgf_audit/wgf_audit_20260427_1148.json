@@ -1,0 +1,62 @@
+[
+  {
+    "n": 38,
+    "rate_50_retrace": 1.0,
+    "wilson_50_lo": 0.9082,
+    "p_50": 0.0,
+    "asia_close_pos_rate": 0.3684,
+    "wilson_close_lo": 0.2338,
+    "p_close_pos": 0.96352,
+    "avg_gap_pip": 24.39,
+    "avg_retrace_pip": -2.28,
+    "pair": "USD_JPY"
+  },
+  {
+    "n": 36,
+    "rate_50_retrace": 1.0,
+    "wilson_50_lo": 0.9036,
+    "p_50": 0.0,
+    "asia_close_pos_rate": 0.5,
+    "wilson_close_lo": 0.3447,
+    "p_close_pos": 0.56603,
+    "avg_gap_pip": 15.36,
+    "avg_retrace_pip": 0.24,
+    "pair": "EUR_USD"
+  },
+  {
+    "n": 31,
+    "rate_50_retrace": 1.0,
+    "wilson_50_lo": 0.8897,
+    "p_50": 0.0,
+    "asia_close_pos_rate": 0.4516,
+    "wilson_close_lo": 0.2916,
+    "p_close_pos": 0.76344,
+    "avg_gap_pip": 19.13,
+    "avg_retrace_pip": 4.18,
+    "pair": "GBP_USD"
+  },
+  {
+    "n": 41,
+    "rate_50_retrace": 1.0,
+    "wilson_50_lo": 0.9143,
+    "p_50": 0.0,
+    "asia_close_pos_rate": 0.6098,
+    "wilson_close_lo": 0.4573,
+    "p_close_pos": 0.10551,
+    "avg_gap_pip": 28.44,
+    "avg_retrace_pip": 3.14,
+    "pair": "EUR_JPY"
+  },
+  {
+    "n": 36,
+    "rate_50_retrace": 1.0,
+    "wilson_50_lo": 0.9036,
+    "p_50": 0.0,
+    "asia_close_pos_rate": 0.6111,
+    "wilson_close_lo": 0.4486,
+    "p_close_pos": 0.12149,
+    "avg_gap_pip": 39.04,
+    "avg_retrace_pip": 6.72,
+    "pair": "GBP_JPY"
+  }
+]
