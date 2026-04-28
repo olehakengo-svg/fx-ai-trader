@@ -1,0 +1,151 @@
+{
+  "stage": "4_quick",
+  "results": [
+    {
+      "spec": {
+        "pair": "GBP_JPY",
+        "direction": "SELL",
+        "feature": "hour_utc",
+        "bucket": 20,
+        "forward_bars": 12,
+        "train_n": 133,
+        "train_wr": 0.632,
+        "train_ev": 3.99
+      },
+      "holdout_n": 65,
+      "holdout_wr": 0.5692,
+      "holdout_wilson_lower": 0.4483,
+      "holdout_ev_pip": 2.785,
+      "delta_wr": -0.063,
+      "keep": true
+    },
+    {
+      "spec": {
+        "pair": "GBP_JPY",
+        "direction": "SELL",
+        "feature": "hour_utc",
+        "bucket": 20,
+        "forward_bars": 8,
+        "train_n": 133,
+        "train_wr": 0.609,
+        "train_ev": 3.53
+      },
+      "holdout_n": 65,
+      "holdout_wr": 0.5692,
+      "holdout_wilson_lower": 0.4483,
+      "holdout_ev_pip": 2.867,
+      "delta_wr": -0.04,
+      "keep": true
+    },
+    {
+      "spec": {
+        "pair": "EUR_JPY",
+        "direction": "SELL",
+        "feature": "hour_utc",
+        "bucket": 20,
+        "forward_bars": 8,
+        "train_n": 136,
+        "train_wr": 0.581,
+        "train_ev": 2.4
+      },
+      "holdout_n": 65,
+      "holdout_wr": 0.5538,
+      "holdout_wilson_lower": 0.4334,
+      "holdout_ev_pip": 1.216,
+      "delta_wr": -0.027,
+      "keep": true
+    },
+    {
+      "spec": {
+        "pair": "EUR_JPY",
+        "direction": "SELL",
+        "feature": "hour_utc",
+        "bucket": 20,
+        "forward_bars": 12,
+        "train_n": 136,
+        "train_wr": 0.581,
+        "train_ev": 2.39
+      },
+      "holdout_n": 65,
+      "holdout_wr": 0.5538,
+      "holdout_wilson_lower": 0.4334,
+      "holdout_ev_pip": 1.242,
+      "delta_wr": -0.027,
+      "keep": true
+    }
+  ],
+  "keepers": [
+    {
+      "spec": {
+        "pair": "GBP_JPY",
+        "direction": "SELL",
+        "feature": "hour_utc",
+        "bucket": 20,
+        "forward_bars": 12,
+        "train_n": 133,
+        "train_wr": 0.632,
+        "train_ev": 3.99
+      },
+      "holdout_n": 65,
+      "holdout_wr": 0.5692,
+      "holdout_wilson_lower": 0.4483,
+      "holdout_ev_pip": 2.785,
+      "delta_wr": -0.063,
+      "keep": true
+    },
+    {
+      "spec": {
+        "pair": "GBP_JPY",
+        "direction": "SELL",
+        "feature": "hour_utc",
+        "bucket": 20,
+        "forward_bars": 8,
+        "train_n": 133,
+        "train_wr": 0.609,
+        "train_ev": 3.53
+      },
+      "holdout_n": 65,
+      "holdout_wr": 0.5692,
+      "holdout_wilson_lower": 0.4483,
+      "holdout_ev_pip": 2.867,
+      "delta_wr": -0.04,
+      "keep": true
+    },
+    {
+      "spec": {
+        "pair": "EUR_JPY",
+        "direction": "SELL",
+        "feature": "hour_utc",
+        "bucket": 20,
+        "forward_bars": 8,
+        "train_n": 136,
+        "train_wr": 0.581,
+        "train_ev": 2.4
+      },
+      "holdout_n": 65,
+      "holdout_wr": 0.5538,
+      "holdout_wilson_lower": 0.4334,
+      "holdout_ev_pip": 1.216,
+      "delta_wr": -0.027,
+      "keep": true
+    },
+    {
+      "spec": {
+        "pair": "EUR_JPY",
+        "direction": "SELL",
+        "feature": "hour_utc",
+        "bucket": 20,
+        "forward_bars": 12,
+        "train_n": 136,
+        "train_wr": 0.581,
+        "train_ev": 2.39
+      },
+      "holdout_n": 65,
+      "holdout_wr": 0.5538,
+      "holdout_wilson_lower": 0.4334,
+      "holdout_ev_pip": 1.242,
+      "delta_wr": -0.027,
+      "keep": true
+    }
+  ]
+}

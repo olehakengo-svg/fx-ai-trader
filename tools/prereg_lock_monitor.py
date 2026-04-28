@@ -56,6 +56,40 @@ PREREG_LOCKS = [
             "unique_days_min": 7,
         },
     },
+    {
+        # Discovered 2026-04-28 in 86-cell v3 audit
+        # see: wiki/decisions/pre-reg-overlap-cells-2026-04-28.md
+        "id": "volsurge_usdjpy_sell_overlap_2026-04-28",
+        "strategy": "vol_surge_detector",
+        "pair": "USD_JPY",
+        "direction": "SELL",
+        "session": "Overlap",
+        "expires": "2026-05-26",
+        "trigger": {
+            "shadow_n_min": 30,
+            "wilson_bf_624_min": 0.294,
+            "p_bonferroni_max": 0.05,
+            "wf_verdict_in": ["stable", "borderline"],
+            "avg_net_min": 0.0,
+            "unique_days_min": 7,
+        },
+    },
+    {
+        "id": "emacross_usdjpy_sell_overlap_2026-04-28",
+        "strategy": "ema_cross",
+        "pair": "USD_JPY",
+        "direction": "SELL",
+        "session": "Overlap",
+        "expires": "2026-05-26",
+        "trigger": {
+            "shadow_n_min": 30,
+            "wilson_bf_624_min": 0.294,
+            "p_bonferroni_max": 0.05,
+            "wf_verdict_in": ["stable", "borderline"],
+            "avg_net_min": 0.0,
+            "unique_days_min": 7,
+        },
+    },
 ]
 
 _ALLOWED_SCHEMES = ("https", "http")
