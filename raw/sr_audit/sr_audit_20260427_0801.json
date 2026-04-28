@@ -1,0 +1,5626 @@
+[
+  {
+    "pair": "USD_JPY",
+    "tf": "15m",
+    "window_days": 365,
+    "n_bars": 24743,
+    "n_levels": 1,
+    "levels": [
+      {
+        "price": 147.3739478957916,
+        "touch_count": 790,
+        "age_bars": 23742,
+        "obviousness": 0.5983,
+        "kde_density": 0.1922,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 73,
+              "wick_excursion_dist": {
+                "p50": 0.08905,
+                "p90": 0.16745,
+                "p99": 0.70377,
+                "max": 1.22505,
+                "mean": 0.11953
+              },
+              "post_hunt_reversal_wr": 0.5342,
+              "avg_bars_to_reversal": 1.95,
+              "n_reversal_success": 39,
+              "n_reversal_fail": 34
+            },
+            "support": {
+              "n_hunts": 66,
+              "wick_excursion_dist": {
+                "p50": 0.09395,
+                "p90": 0.18995,
+                "p99": 0.4378,
+                "max": 0.53595,
+                "mean": 0.11948
+              },
+              "post_hunt_reversal_wr": 0.3939,
+              "avg_bars_to_reversal": 2.27,
+              "n_reversal_success": 26,
+              "n_reversal_fail": 40
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 21,
+              "wick_excursion_dist": {
+                "p50": 0.13005,
+                "p90": 0.33105,
+                "p99": 1.08025,
+                "max": 1.22505,
+                "mean": 0.219
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 2.14,
+              "n_reversal_success": 14,
+              "n_reversal_fail": 7
+            },
+            "support": {
+              "n_hunts": 26,
+              "wick_excursion_dist": {
+                "p50": 0.14795,
+                "p90": 0.28745,
+                "p99": 0.4982,
+                "max": 0.53595,
+                "mean": 0.1816
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 2.46,
+              "n_reversal_success": 13,
+              "n_reversal_fail": 13
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 6,
+              "wick_excursion_dist": {
+                "p50": 0.29205,
+                "p90": 0.86305,
+                "p99": 1.18885,
+                "max": 1.22505,
+                "mean": 0.44289
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 2.5,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 11,
+              "wick_excursion_dist": {
+                "p50": 0.19395,
+                "p90": 0.38495,
+                "p99": 0.52085,
+                "max": 0.53595,
+                "mean": 0.24986
+              },
+              "post_hunt_reversal_wr": 0.5455,
+              "avg_bars_to_reversal": 1.67,
+              "n_reversal_success": 6,
+              "n_reversal_fail": 5
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.50105,
+                "p90": 1.08025,
+                "p99": 1.21057,
+                "max": 1.22505,
+                "mean": 0.62905
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.67,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.28745,
+                "p90": 0.46575,
+                "p99": 0.52893,
+                "max": 0.53595,
+                "mean": 0.32545
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 2
+            }
+          }
+        }
+      }
+    ],
+    "aggregate": {
+      "k=0.5": {
+        "total_hunts": 139,
+        "avg_p90_excursion_pip": 0.1787,
+        "avg_reversal_wr": 0.46405
+      },
+      "k=1.0": {
+        "total_hunts": 47,
+        "avg_p90_excursion_pip": 0.30925,
+        "avg_reversal_wr": 0.58335
+      },
+      "k=1.5": {
+        "total_hunts": 17,
+        "avg_p90_excursion_pip": 0.624,
+        "avg_reversal_wr": 0.6061
+      },
+      "k=2.0": {
+        "total_hunts": 7,
+        "avg_p90_excursion_pip": 0.773,
+        "avg_reversal_wr": 0.75
+      }
+    }
+  },
+  {
+    "pair": "EUR_USD",
+    "tf": "15m",
+    "window_days": 365,
+    "n_bars": 24759,
+    "n_levels": 20,
+    "levels": [
+      {
+        "price": 1.1641399398797596,
+        "touch_count": 1216,
+        "age_bars": 20772,
+        "obviousness": 0.6624,
+        "kde_density": 39.0431,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 77,
+              "wick_excursion_dist": {
+                "p50": 0.00056,
+                "p90": 0.00103,
+                "p99": 0.00249,
+                "max": 0.00524,
+                "mean": 0.00067
+              },
+              "post_hunt_reversal_wr": 0.3377,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 26,
+              "n_reversal_fail": 51
+            },
+            "support": {
+              "n_hunts": 95,
+              "wick_excursion_dist": {
+                "p50": 0.00054,
+                "p90": 0.00158,
+                "p99": 0.0043,
+                "max": 0.00536,
+                "mean": 0.00088
+              },
+              "post_hunt_reversal_wr": 0.3053,
+              "avg_bars_to_reversal": 2.66,
+              "n_reversal_success": 29,
+              "n_reversal_fail": 66
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 12,
+              "wick_excursion_dist": {
+                "p50": 0.00106,
+                "p90": 0.00145,
+                "p99": 0.00482,
+                "max": 0.00524,
+                "mean": 0.00136
+              },
+              "post_hunt_reversal_wr": 0.25,
+              "avg_bars_to_reversal": 1.33,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 9
+            },
+            "support": {
+              "n_hunts": 22,
+              "wick_excursion_dist": {
+                "p50": 0.00153,
+                "p90": 0.00388,
+                "p99": 0.00512,
+                "max": 0.00536,
+                "mean": 0.00191
+              },
+              "post_hunt_reversal_wr": 0.6818,
+              "avg_bars_to_reversal": 2.6,
+              "n_reversal_success": 15,
+              "n_reversal_fail": 7
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.00524,
+                "p90": 0.00524,
+                "p99": 0.00524,
+                "max": 0.00524,
+                "mean": 0.00524
+              },
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 10,
+              "wick_excursion_dist": {
+                "p50": 0.00272,
+                "p90": 0.00434,
+                "p99": 0.00526,
+                "max": 0.00536,
+                "mean": 0.00283
+              },
+              "post_hunt_reversal_wr": 0.7,
+              "avg_bars_to_reversal": 2.29,
+              "n_reversal_success": 7,
+              "n_reversal_fail": 3
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.00524,
+                "p90": 0.00524,
+                "p99": 0.00524,
+                "max": 0.00524,
+                "mean": 0.00524
+              },
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 6,
+              "wick_excursion_dist": {
+                "p50": 0.00359,
+                "p90": 0.00479,
+                "p99": 0.0053,
+                "max": 0.00536,
+                "mean": 0.00364
+              },
+              "post_hunt_reversal_wr": 0.8333,
+              "avg_bars_to_reversal": 2.2,
+              "n_reversal_success": 5,
+              "n_reversal_fail": 1
+            }
+          }
+        }
+      },
+      {
+        "price": 1.1647520240480962,
+        "touch_count": 1150,
+        "age_bars": 20661,
+        "obviousness": 0.7603,
+        "kde_density": 36.8721,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 73,
+              "wick_excursion_dist": {
+                "p50": 0.00055,
+                "p90": 0.00105,
+                "p99": 0.00327,
+                "max": 0.00463,
+                "mean": 0.0007
+              },
+              "post_hunt_reversal_wr": 0.3973,
+              "avg_bars_to_reversal": 2.45,
+              "n_reversal_success": 29,
+              "n_reversal_fail": 44
+            },
+            "support": {
+              "n_hunts": 88,
+              "wick_excursion_dist": {
+                "p50": 0.00055,
+                "p90": 0.00114,
+                "p99": 0.0046,
+                "max": 0.00484,
+                "mean": 0.00082
+              },
+              "post_hunt_reversal_wr": 0.3977,
+              "avg_bars_to_reversal": 2.09,
+              "n_reversal_success": 35,
+              "n_reversal_fail": 53
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 10,
+              "wick_excursion_dist": {
+                "p50": 0.00111,
+                "p90": 0.00294,
+                "p99": 0.00446,
+                "max": 0.00463,
+                "mean": 0.00162
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 2.8,
+              "n_reversal_success": 5,
+              "n_reversal_fail": 5
+            },
+            "support": {
+              "n_hunts": 19,
+              "wick_excursion_dist": {
+                "p50": 0.00113,
+                "p90": 0.00399,
+                "p99": 0.00479,
+                "max": 0.00484,
+                "mean": 0.0018
+              },
+              "post_hunt_reversal_wr": 0.3158,
+              "avg_bars_to_reversal": 2.33,
+              "n_reversal_success": 6,
+              "n_reversal_fail": 13
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.00275,
+                "p90": 0.00425,
+                "p99": 0.00459,
+                "max": 0.00463,
+                "mean": 0.00284
+              },
+              "post_hunt_reversal_wr": 0.3333,
+              "avg_bars_to_reversal": 5.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 8,
+              "wick_excursion_dist": {
+                "p50": 0.00292,
+                "p90": 0.00465,
+                "p99": 0.00482,
+                "max": 0.00484,
+                "mean": 0.00307
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.75,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 4
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.00275,
+                "p90": 0.00275,
+                "p99": 0.00275,
+                "max": 0.00275,
+                "mean": 0.00275
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 5.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 7,
+              "wick_excursion_dist": {
+                "p50": 0.003,
+                "p90": 0.00467,
+                "p99": 0.00483,
+                "max": 0.00484,
+                "mean": 0.00311
+              },
+              "post_hunt_reversal_wr": 0.4286,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 4
+            }
+          }
+        }
+      },
+      {
+        "price": 1.1608754909819639,
+        "touch_count": 1124,
+        "age_bars": 21543,
+        "obviousness": 0.6599,
+        "kde_density": 34.6366,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 84,
+              "wick_excursion_dist": {
+                "p50": 0.00062,
+                "p90": 0.00117,
+                "p99": 0.00265,
+                "max": 0.00373,
+                "mean": 0.00076
+              },
+              "post_hunt_reversal_wr": 0.4048,
+              "avg_bars_to_reversal": 2.26,
+              "n_reversal_success": 34,
+              "n_reversal_fail": 50
+            },
+            "support": {
+              "n_hunts": 99,
+              "wick_excursion_dist": {
+                "p50": 0.00063,
+                "p90": 0.00128,
+                "p99": 0.00229,
+                "max": 0.00288,
+                "mean": 0.00075
+              },
+              "post_hunt_reversal_wr": 0.3232,
+              "avg_bars_to_reversal": 1.84,
+              "n_reversal_success": 32,
+              "n_reversal_fail": 67
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 17,
+              "wick_excursion_dist": {
+                "p50": 0.00116,
+                "p90": 0.00218,
+                "p99": 0.00352,
+                "max": 0.00373,
+                "mean": 0.00137
+              },
+              "post_hunt_reversal_wr": 0.5294,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 9,
+              "n_reversal_fail": 8
+            },
+            "support": {
+              "n_hunts": 20,
+              "wick_excursion_dist": {
+                "p50": 0.00098,
+                "p90": 0.00208,
+                "p99": 0.00273,
+                "max": 0.00288,
+                "mean": 0.00121
+              },
+              "post_hunt_reversal_wr": 0.35,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 7,
+              "n_reversal_fail": 13
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.00242,
+                "p90": 0.00347,
+                "p99": 0.00371,
+                "max": 0.00373,
+                "mean": 0.00269
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 6,
+              "wick_excursion_dist": {
+                "p50": 0.00178,
+                "p90": 0.00249,
+                "p99": 0.00284,
+                "max": 0.00288,
+                "mean": 0.00181
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 3
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00283,
+                "p90": 0.00355,
+                "p99": 0.00372,
+                "max": 0.00373,
+                "mean": 0.00283
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00248,
+                "p90": 0.0028,
+                "p99": 0.00287,
+                "max": 0.00288,
+                "mean": 0.00248
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 1
+            }
+          }
+        }
+      },
+      {
+        "price": 1.173729258517034,
+        "touch_count": 1104,
+        "age_bars": 20603,
+        "obviousness": 0.5967,
+        "kde_density": 34.3644,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 64,
+              "wick_excursion_dist": {
+                "p50": 0.00057,
+                "p90": 0.00124,
+                "p99": 0.00382,
+                "max": 0.005,
+                "mean": 0.00078
+              },
+              "post_hunt_reversal_wr": 0.4219,
+              "avg_bars_to_reversal": 2.48,
+              "n_reversal_success": 27,
+              "n_reversal_fail": 37
+            },
+            "support": {
+              "n_hunts": 90,
+              "wick_excursion_dist": {
+                "p50": 0.00063,
+                "p90": 0.00114,
+                "p99": 0.00177,
+                "max": 0.00193,
+                "mean": 0.00071
+              },
+              "post_hunt_reversal_wr": 0.4,
+              "avg_bars_to_reversal": 2.31,
+              "n_reversal_success": 36,
+              "n_reversal_fail": 54
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 15,
+              "wick_excursion_dist": {
+                "p50": 0.001,
+                "p90": 0.00286,
+                "p99": 0.00474,
+                "max": 0.005,
+                "mean": 0.00151
+              },
+              "post_hunt_reversal_wr": 0.4667,
+              "avg_bars_to_reversal": 2.57,
+              "n_reversal_success": 7,
+              "n_reversal_fail": 8
+            },
+            "support": {
+              "n_hunts": 21,
+              "wick_excursion_dist": {
+                "p50": 0.00103,
+                "p90": 0.00153,
+                "p99": 0.00189,
+                "max": 0.00193,
+                "mean": 0.0011
+              },
+              "post_hunt_reversal_wr": 0.4762,
+              "avg_bars_to_reversal": 2.1,
+              "n_reversal_success": 10,
+              "n_reversal_fail": 11
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.00312,
+                "p90": 0.00462,
+                "p99": 0.00496,
+                "max": 0.005,
+                "mean": 0.00353
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 3.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 0,
+              "wick_excursion_dist": {},
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 0
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.00312,
+                "p90": 0.00462,
+                "p99": 0.00496,
+                "max": 0.005,
+                "mean": 0.00353
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 3.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 0,
+              "wick_excursion_dist": {},
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 0
+            }
+          }
+        }
+      },
+      {
+        "price": 1.1659761923847696,
+        "touch_count": 1039,
+        "age_bars": 20659,
+        "obviousness": 0.6438,
+        "kde_density": 33.8152,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 70,
+              "wick_excursion_dist": {
+                "p50": 0.0006,
+                "p90": 0.00109,
+                "p99": 0.00253,
+                "max": 0.0034,
+                "mean": 0.0007
+              },
+              "post_hunt_reversal_wr": 0.3714,
+              "avg_bars_to_reversal": 2.38,
+              "n_reversal_success": 26,
+              "n_reversal_fail": 44
+            },
+            "support": {
+              "n_hunts": 82,
+              "wick_excursion_dist": {
+                "p50": 0.00058,
+                "p90": 0.00104,
+                "p99": 0.00444,
+                "max": 0.00607,
+                "mean": 0.00074
+              },
+              "post_hunt_reversal_wr": 0.3415,
+              "avg_bars_to_reversal": 2.32,
+              "n_reversal_success": 28,
+              "n_reversal_fail": 54
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 13,
+              "wick_excursion_dist": {
+                "p50": 0.00108,
+                "p90": 0.00205,
+                "p99": 0.00325,
+                "max": 0.0034,
+                "mean": 0.00129
+              },
+              "post_hunt_reversal_wr": 0.4615,
+              "avg_bars_to_reversal": 2.5,
+              "n_reversal_success": 6,
+              "n_reversal_fail": 7
+            },
+            "support": {
+              "n_hunts": 12,
+              "wick_excursion_dist": {
+                "p50": 0.00113,
+                "p90": 0.00388,
+                "p99": 0.00585,
+                "max": 0.00607,
+                "mean": 0.00178
+              },
+              "post_hunt_reversal_wr": 0.5833,
+              "avg_bars_to_reversal": 1.57,
+              "n_reversal_success": 7,
+              "n_reversal_fail": 5
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.0017,
+                "p90": 0.00205,
+                "p99": 0.00213,
+                "max": 0.00213,
+                "mean": 0.00179
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 1.5,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00506,
+                "p90": 0.00587,
+                "p99": 0.00605,
+                "max": 0.00607,
+                "mean": 0.00506
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 0
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 0,
+              "wick_excursion_dist": {},
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00506,
+                "p90": 0.00587,
+                "p99": 0.00605,
+                "max": 0.00607,
+                "mean": 0.00506
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 0
+            }
+          }
+        }
+      },
+      {
+        "price": 1.165364108216433,
+        "touch_count": 1034,
+        "age_bars": 20659,
+        "obviousness": 0.7417,
+        "kde_density": 33.7076,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 70,
+              "wick_excursion_dist": {
+                "p50": 0.00054,
+                "p90": 0.00099,
+                "p99": 0.00314,
+                "max": 0.00402,
+                "mean": 0.00069
+              },
+              "post_hunt_reversal_wr": 0.3714,
+              "avg_bars_to_reversal": 2.31,
+              "n_reversal_success": 26,
+              "n_reversal_fail": 44
+            },
+            "support": {
+              "n_hunts": 84,
+              "wick_excursion_dist": {
+                "p50": 0.00066,
+                "p90": 0.00118,
+                "p99": 0.00379,
+                "max": 0.00545,
+                "mean": 0.00084
+              },
+              "post_hunt_reversal_wr": 0.3452,
+              "avg_bars_to_reversal": 2.76,
+              "n_reversal_success": 29,
+              "n_reversal_fail": 55
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 12,
+              "wick_excursion_dist": {
+                "p50": 0.00119,
+                "p90": 0.00268,
+                "p99": 0.00388,
+                "max": 0.00402,
+                "mean": 0.00153
+              },
+              "post_hunt_reversal_wr": 0.25,
+              "avg_bars_to_reversal": 1.67,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 9
+            },
+            "support": {
+              "n_hunts": 29,
+              "wick_excursion_dist": {
+                "p50": 0.00106,
+                "p90": 0.00277,
+                "p99": 0.00489,
+                "max": 0.00545,
+                "mean": 0.0014
+              },
+              "post_hunt_reversal_wr": 0.3793,
+              "avg_bars_to_reversal": 2.27,
+              "n_reversal_success": 11,
+              "n_reversal_fail": 18
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.00244,
+                "p90": 0.00363,
+                "p99": 0.00398,
+                "max": 0.00402,
+                "mean": 0.00264
+              },
+              "post_hunt_reversal_wr": 0.25,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 3
+            },
+            "support": {
+              "n_hunts": 7,
+              "wick_excursion_dist": {
+                "p50": 0.00275,
+                "p90": 0.00425,
+                "p99": 0.00533,
+                "max": 0.00545,
+                "mean": 0.00255
+              },
+              "post_hunt_reversal_wr": 0.5714,
+              "avg_bars_to_reversal": 1.75,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 3
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00244,
+                "p90": 0.00268,
+                "p99": 0.00274,
+                "max": 0.00275,
+                "mean": 0.00244
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.00282,
+                "p90": 0.00493,
+                "p99": 0.0054,
+                "max": 0.00545,
+                "mean": 0.00368
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 1
+            }
+          }
+        }
+      },
+      {
+        "price": 1.1720970340681363,
+        "touch_count": 1055,
+        "age_bars": 20605,
+        "obviousness": 0.4645,
+        "kde_density": 32.1614,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 58,
+              "wick_excursion_dist": {
+                "p50": 0.00061,
+                "p90": 0.00103,
+                "p99": 0.00154,
+                "max": 0.0019,
+                "mean": 0.00068
+              },
+              "post_hunt_reversal_wr": 0.3448,
+              "avg_bars_to_reversal": 2.4,
+              "n_reversal_success": 20,
+              "n_reversal_fail": 38
+            },
+            "support": {
+              "n_hunts": 79,
+              "wick_excursion_dist": {
+                "p50": 0.0006,
+                "p90": 0.00111,
+                "p99": 0.00191,
+                "max": 0.00244,
+                "mean": 0.00069
+              },
+              "post_hunt_reversal_wr": 0.5063,
+              "avg_bars_to_reversal": 2.12,
+              "n_reversal_success": 40,
+              "n_reversal_fail": 39
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 10,
+              "wick_excursion_dist": {
+                "p50": 0.0011,
+                "p90": 0.00133,
+                "p99": 0.00185,
+                "max": 0.0019,
+                "mean": 0.0011
+              },
+              "post_hunt_reversal_wr": 0.4,
+              "avg_bars_to_reversal": 1.75,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 6
+            },
+            "support": {
+              "n_hunts": 15,
+              "wick_excursion_dist": {
+                "p50": 0.0011,
+                "p90": 0.0017,
+                "p99": 0.00234,
+                "max": 0.00244,
+                "mean": 0.00124
+              },
+              "post_hunt_reversal_wr": 0.8,
+              "avg_bars_to_reversal": 2.08,
+              "n_reversal_success": 12,
+              "n_reversal_fail": 3
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00152,
+                "p90": 0.00183,
+                "p99": 0.0019,
+                "max": 0.0019,
+                "mean": 0.00152
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 4.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.0021,
+                "p90": 0.00237,
+                "p99": 0.00243,
+                "max": 0.00244,
+                "mean": 0.0021
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 0
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.0019,
+                "p90": 0.0019,
+                "p99": 0.0019,
+                "max": 0.0019,
+                "mean": 0.0019
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 4.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.00244,
+                "p90": 0.00244,
+                "p99": 0.00244,
+                "max": 0.00244,
+                "mean": 0.00244
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 0
+            }
+          }
+        }
+      },
+      {
+        "price": 1.1635278557114228,
+        "touch_count": 1026,
+        "age_bars": 20772,
+        "obviousness": 0.5645,
+        "kde_density": 32.0996,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 64,
+              "wick_excursion_dist": {
+                "p50": 0.00072,
+                "p90": 0.00118,
+                "p99": 0.0034,
+                "max": 0.00585,
+                "mean": 0.00084
+              },
+              "post_hunt_reversal_wr": 0.4375,
+              "avg_bars_to_reversal": 2.32,
+              "n_reversal_success": 28,
+              "n_reversal_fail": 36
+            },
+            "support": {
+              "n_hunts": 96,
+              "wick_excursion_dist": {
+                "p50": 0.00063,
+                "p90": 0.0017,
+                "p99": 0.00397,
+                "max": 0.00475,
+                "mean": 0.00092
+              },
+              "post_hunt_reversal_wr": 0.3438,
+              "avg_bars_to_reversal": 2.06,
+              "n_reversal_success": 33,
+              "n_reversal_fail": 63
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 19,
+              "wick_excursion_dist": {
+                "p50": 0.00098,
+                "p90": 0.00164,
+                "p99": 0.00515,
+                "max": 0.00585,
+                "mean": 0.00128
+              },
+              "post_hunt_reversal_wr": 0.4737,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 9,
+              "n_reversal_fail": 10
+            },
+            "support": {
+              "n_hunts": 30,
+              "wick_excursion_dist": {
+                "p50": 0.00133,
+                "p90": 0.00337,
+                "p99": 0.00451,
+                "max": 0.00475,
+                "mean": 0.00164
+              },
+              "post_hunt_reversal_wr": 0.4333,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 13,
+              "n_reversal_fail": 17
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.00176,
+                "p90": 0.00468,
+                "p99": 0.00574,
+                "max": 0.00585,
+                "mean": 0.00258
+              },
+              "post_hunt_reversal_wr": 0.25,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 3
+            },
+            "support": {
+              "n_hunts": 10,
+              "wick_excursion_dist": {
+                "p50": 0.00268,
+                "p90": 0.00401,
+                "p99": 0.00467,
+                "max": 0.00475,
+                "mean": 0.00282
+              },
+              "post_hunt_reversal_wr": 0.7,
+              "avg_bars_to_reversal": 1.86,
+              "n_reversal_success": 7,
+              "n_reversal_fail": 3
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.0039,
+                "p90": 0.00546,
+                "p99": 0.00581,
+                "max": 0.00585,
+                "mean": 0.0039
+              },
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 7,
+              "wick_excursion_dist": {
+                "p50": 0.00334,
+                "p90": 0.00426,
+                "p99": 0.0047,
+                "max": 0.00475,
+                "mean": 0.00335
+              },
+              "post_hunt_reversal_wr": 0.5714,
+              "avg_bars_to_reversal": 1.75,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 3
+            }
+          }
+        }
+      },
+      {
+        "price": 1.1614875751503007,
+        "touch_count": 1047,
+        "age_bars": 21536,
+        "obviousness": 0.562,
+        "kde_density": 31.7653,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 66,
+              "wick_excursion_dist": {
+                "p50": 0.00059,
+                "p90": 0.00134,
+                "p99": 0.0023,
+                "max": 0.00312,
+                "mean": 0.00074
+              },
+              "post_hunt_reversal_wr": 0.3485,
+              "avg_bars_to_reversal": 2.17,
+              "n_reversal_success": 23,
+              "n_reversal_fail": 43
+            },
+            "support": {
+              "n_hunts": 94,
+              "wick_excursion_dist": {
+                "p50": 0.0006,
+                "p90": 0.00149,
+                "p99": 0.00276,
+                "max": 0.00349,
+                "mean": 0.00083
+              },
+              "post_hunt_reversal_wr": 0.4362,
+              "avg_bars_to_reversal": 2.63,
+              "n_reversal_success": 41,
+              "n_reversal_fail": 53
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 14,
+              "wick_excursion_dist": {
+                "p50": 0.00134,
+                "p90": 0.00185,
+                "p99": 0.00296,
+                "max": 0.00312,
+                "mean": 0.00139
+              },
+              "post_hunt_reversal_wr": 0.4286,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 6,
+              "n_reversal_fail": 8
+            },
+            "support": {
+              "n_hunts": 19,
+              "wick_excursion_dist": {
+                "p50": 0.00139,
+                "p90": 0.00269,
+                "p99": 0.00335,
+                "max": 0.00349,
+                "mean": 0.00158
+              },
+              "post_hunt_reversal_wr": 0.4737,
+              "avg_bars_to_reversal": 2.67,
+              "n_reversal_success": 9,
+              "n_reversal_fail": 10
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.00162,
+                "p90": 0.00274,
+                "p99": 0.00308,
+                "max": 0.00312,
+                "mean": 0.00192
+              },
+              "post_hunt_reversal_wr": 0.75,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 6,
+              "wick_excursion_dist": {
+                "p50": 0.00251,
+                "p90": 0.0031,
+                "p99": 0.00345,
+                "max": 0.00349,
+                "mean": 0.00234
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 2.5,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 2
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.00312,
+                "p90": 0.00312,
+                "p99": 0.00312,
+                "max": 0.00312,
+                "mean": 0.00312
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00309,
+                "p90": 0.00341,
+                "p99": 0.00348,
+                "max": 0.00349,
+                "mean": 0.00309
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 5.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 1
+            }
+          }
+        }
+      },
+      {
+        "price": 1.1725050901803606,
+        "touch_count": 1061,
+        "age_bars": 20605,
+        "obviousness": 0.4008,
+        "kde_density": 31.6534,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 67,
+              "wick_excursion_dist": {
+                "p50": 0.00059,
+                "p90": 0.0011,
+                "p99": 0.00199,
+                "max": 0.00249,
+                "mean": 0.0007
+              },
+              "post_hunt_reversal_wr": 0.4328,
+              "avg_bars_to_reversal": 2.31,
+              "n_reversal_success": 29,
+              "n_reversal_fail": 38
+            },
+            "support": {
+              "n_hunts": 89,
+              "wick_excursion_dist": {
+                "p50": 0.00061,
+                "p90": 0.00112,
+                "p99": 0.00211,
+                "max": 0.00285,
+                "mean": 0.00071
+              },
+              "post_hunt_reversal_wr": 0.4831,
+              "avg_bars_to_reversal": 2.47,
+              "n_reversal_success": 43,
+              "n_reversal_fail": 46
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 10,
+              "wick_excursion_dist": {
+                "p50": 0.00133,
+                "p90": 0.0018,
+                "p99": 0.00243,
+                "max": 0.00249,
+                "mean": 0.00134
+              },
+              "post_hunt_reversal_wr": 0.2,
+              "avg_bars_to_reversal": 4.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 8
+            },
+            "support": {
+              "n_hunts": 19,
+              "wick_excursion_dist": {
+                "p50": 0.00103,
+                "p90": 0.00185,
+                "p99": 0.00269,
+                "max": 0.00285,
+                "mean": 0.00124
+              },
+              "post_hunt_reversal_wr": 0.6316,
+              "avg_bars_to_reversal": 3.25,
+              "n_reversal_success": 12,
+              "n_reversal_fail": 7
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.00166,
+                "p90": 0.00226,
+                "p99": 0.00247,
+                "max": 0.00249,
+                "mean": 0.00183
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 4.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.00191,
+                "p90": 0.00259,
+                "p99": 0.00282,
+                "max": 0.00285,
+                "mean": 0.00202
+              },
+              "post_hunt_reversal_wr": 0.75,
+              "avg_bars_to_reversal": 3.33,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 1
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 0,
+              "wick_excursion_dist": {},
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.00285,
+                "p90": 0.00285,
+                "p99": 0.00285,
+                "max": 0.00285,
+                "mean": 0.00285
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 5.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 0
+            }
+          }
+        }
+      },
+      {
+        "price": 1.1729131462925853,
+        "touch_count": 1094,
+        "age_bars": 20605,
+        "obviousness": 0.4661,
+        "kde_density": 31.6357,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 71,
+              "wick_excursion_dist": {
+                "p50": 0.00062,
+                "p90": 0.00105,
+                "p99": 0.00167,
+                "max": 0.00209,
+                "mean": 0.00071
+              },
+              "post_hunt_reversal_wr": 0.3662,
+              "avg_bars_to_reversal": 2.54,
+              "n_reversal_success": 26,
+              "n_reversal_fail": 45
+            },
+            "support": {
+              "n_hunts": 83,
+              "wick_excursion_dist": {
+                "p50": 0.00061,
+                "p90": 0.00111,
+                "p99": 0.00256,
+                "max": 0.00325,
+                "mean": 0.00073
+              },
+              "post_hunt_reversal_wr": 0.494,
+              "avg_bars_to_reversal": 2.27,
+              "n_reversal_success": 41,
+              "n_reversal_fail": 42
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 16,
+              "wick_excursion_dist": {
+                "p50": 0.00103,
+                "p90": 0.0014,
+                "p99": 0.002,
+                "max": 0.00209,
+                "mean": 0.00108
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 2.75,
+              "n_reversal_success": 8,
+              "n_reversal_fail": 8
+            },
+            "support": {
+              "n_hunts": 16,
+              "wick_excursion_dist": {
+                "p50": 0.00106,
+                "p90": 0.00196,
+                "p99": 0.00313,
+                "max": 0.00325,
+                "mean": 0.00124
+              },
+              "post_hunt_reversal_wr": 0.625,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 10,
+              "n_reversal_fail": 6
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00179,
+                "p90": 0.00203,
+                "p99": 0.00208,
+                "max": 0.00209,
+                "mean": 0.00179
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.00181,
+                "p90": 0.003,
+                "p99": 0.00323,
+                "max": 0.00325,
+                "mean": 0.002
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 4.5,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 2
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 0,
+              "wick_excursion_dist": {},
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00283,
+                "p90": 0.00317,
+                "p99": 0.00324,
+                "max": 0.00325,
+                "mean": 0.00283
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 5.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 1
+            }
+          }
+        }
+      },
+      {
+        "price": 1.1694446693386773,
+        "touch_count": 898,
+        "age_bars": 20626,
+        "obviousness": 0.7111,
+        "kde_density": 30.1923,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 54,
+              "wick_excursion_dist": {
+                "p50": 0.00073,
+                "p90": 0.00138,
+                "p99": 0.00226,
+                "max": 0.0027,
+                "mean": 0.00082
+              },
+              "post_hunt_reversal_wr": 0.463,
+              "avg_bars_to_reversal": 2.16,
+              "n_reversal_success": 25,
+              "n_reversal_fail": 29
+            },
+            "support": {
+              "n_hunts": 72,
+              "wick_excursion_dist": {
+                "p50": 0.00077,
+                "p90": 0.00117,
+                "p99": 0.00268,
+                "max": 0.00372,
+                "mean": 0.00085
+              },
+              "post_hunt_reversal_wr": 0.4444,
+              "avg_bars_to_reversal": 2.34,
+              "n_reversal_success": 32,
+              "n_reversal_fail": 40
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 16,
+              "wick_excursion_dist": {
+                "p50": 0.00121,
+                "p90": 0.00182,
+                "p99": 0.00257,
+                "max": 0.0027,
+                "mean": 0.00129
+              },
+              "post_hunt_reversal_wr": 0.5625,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 9,
+              "n_reversal_fail": 7
+            },
+            "support": {
+              "n_hunts": 24,
+              "wick_excursion_dist": {
+                "p50": 0.00114,
+                "p90": 0.00203,
+                "p99": 0.00339,
+                "max": 0.00372,
+                "mean": 0.00126
+              },
+              "post_hunt_reversal_wr": 0.5417,
+              "avg_bars_to_reversal": 2.38,
+              "n_reversal_success": 13,
+              "n_reversal_fail": 11
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.00176,
+                "p90": 0.00184,
+                "p99": 0.00186,
+                "max": 0.00187,
+                "mean": 0.00165
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.00225,
+                "p90": 0.00343,
+                "p99": 0.0037,
+                "max": 0.00372,
+                "mean": 0.00274
+              },
+              "post_hunt_reversal_wr": 0.3333,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 2
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 0,
+              "wick_excursion_dist": {},
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00299,
+                "p90": 0.00358,
+                "p99": 0.00371,
+                "max": 0.00372,
+                "mean": 0.00299
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 1
+            }
+          }
+        }
+      },
+      {
+        "price": 1.1686285571142285,
+        "touch_count": 1000,
+        "age_bars": 20638,
+        "obviousness": 0.5806,
+        "kde_density": 29.2116,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 79,
+              "wick_excursion_dist": {
+                "p50": 0.00057,
+                "p90": 0.0011,
+                "p99": 0.0026,
+                "max": 0.00268,
+                "mean": 0.00073
+              },
+              "post_hunt_reversal_wr": 0.3544,
+              "avg_bars_to_reversal": 2.54,
+              "n_reversal_success": 28,
+              "n_reversal_fail": 51
+            },
+            "support": {
+              "n_hunts": 90,
+              "wick_excursion_dist": {
+                "p50": 0.00053,
+                "p90": 0.00101,
+                "p99": 0.00195,
+                "max": 0.00291,
+                "mean": 0.00062
+              },
+              "post_hunt_reversal_wr": 0.3778,
+              "avg_bars_to_reversal": 2.59,
+              "n_reversal_success": 34,
+              "n_reversal_fail": 56
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 15,
+              "wick_excursion_dist": {
+                "p50": 0.0011,
+                "p90": 0.00236,
+                "p99": 0.00267,
+                "max": 0.00268,
+                "mean": 0.00138
+              },
+              "post_hunt_reversal_wr": 0.5333,
+              "avg_bars_to_reversal": 1.75,
+              "n_reversal_success": 8,
+              "n_reversal_fail": 7
+            },
+            "support": {
+              "n_hunts": 14,
+              "wick_excursion_dist": {
+                "p50": 0.00103,
+                "p90": 0.00171,
+                "p99": 0.00277,
+                "max": 0.00291,
+                "mean": 0.00118
+              },
+              "post_hunt_reversal_wr": 0.4286,
+              "avg_bars_to_reversal": 2.5,
+              "n_reversal_success": 6,
+              "n_reversal_fail": 8
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 8,
+              "wick_excursion_dist": {
+                "p50": 0.00179,
+                "p90": 0.00261,
+                "p99": 0.00267,
+                "max": 0.00268,
+                "mean": 0.00185
+              },
+              "post_hunt_reversal_wr": 0.625,
+              "avg_bars_to_reversal": 1.2,
+              "n_reversal_success": 5,
+              "n_reversal_fail": 3
+            },
+            "support": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.00183,
+                "p90": 0.00269,
+                "p99": 0.00289,
+                "max": 0.00291,
+                "mean": 0.00206
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 3.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 1
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.00231,
+                "p90": 0.00265,
+                "p99": 0.00268,
+                "max": 0.00268,
+                "mean": 0.00222
+              },
+              "post_hunt_reversal_wr": 0.75,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.00291,
+                "p90": 0.00291,
+                "p99": 0.00291,
+                "max": 0.00291,
+                "mean": 0.00291
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 0
+            }
+          }
+        }
+      },
+      {
+        "price": 1.166384248496994,
+        "touch_count": 946,
+        "age_bars": 20658,
+        "obviousness": 0.5785,
+        "kde_density": 29.1446,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 56,
+              "wick_excursion_dist": {
+                "p50": 0.00055,
+                "p90": 0.00107,
+                "p99": 0.00245,
+                "max": 0.003,
+                "mean": 0.00069
+              },
+              "post_hunt_reversal_wr": 0.4464,
+              "avg_bars_to_reversal": 2.48,
+              "n_reversal_success": 25,
+              "n_reversal_fail": 31
+            },
+            "support": {
+              "n_hunts": 89,
+              "wick_excursion_dist": {
+                "p50": 0.00058,
+                "p90": 0.00129,
+                "p99": 0.00471,
+                "max": 0.00647,
+                "mean": 0.00079
+              },
+              "post_hunt_reversal_wr": 0.3146,
+              "avg_bars_to_reversal": 1.96,
+              "n_reversal_success": 28,
+              "n_reversal_fail": 61
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 10,
+              "wick_excursion_dist": {
+                "p50": 0.00121,
+                "p90": 0.0021,
+                "p99": 0.00291,
+                "max": 0.003,
+                "mean": 0.00141
+              },
+              "post_hunt_reversal_wr": 0.4,
+              "avg_bars_to_reversal": 1.75,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 6
+            },
+            "support": {
+              "n_hunts": 28,
+              "wick_excursion_dist": {
+                "p50": 0.00094,
+                "p90": 0.00207,
+                "p99": 0.00593,
+                "max": 0.00647,
+                "mean": 0.00141
+              },
+              "post_hunt_reversal_wr": 0.3929,
+              "avg_bars_to_reversal": 1.82,
+              "n_reversal_success": 11,
+              "n_reversal_fail": 17
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.00173,
+                "p90": 0.00194,
+                "p99": 0.00199,
+                "max": 0.002,
+                "mean": 0.00156
+              },
+              "post_hunt_reversal_wr": 0.3333,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 8,
+              "wick_excursion_dist": {
+                "p50": 0.00176,
+                "p90": 0.00507,
+                "p99": 0.00633,
+                "max": 0.00647,
+                "mean": 0.00253
+              },
+              "post_hunt_reversal_wr": 0.625,
+              "avg_bars_to_reversal": 1.8,
+              "n_reversal_success": 5,
+              "n_reversal_fail": 3
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 0,
+              "wick_excursion_dist": {},
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00547,
+                "p90": 0.00627,
+                "p99": 0.00645,
+                "max": 0.00647,
+                "mean": 0.00547
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 0
+            }
+          }
+        }
+      },
+      {
+        "price": 1.1682205010020041,
+        "touch_count": 951,
+        "age_bars": 20639,
+        "obviousness": 0.5153,
+        "kde_density": 29.1024,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 59,
+              "wick_excursion_dist": {
+                "p50": 0.00068,
+                "p90": 0.00134,
+                "p99": 0.00303,
+                "max": 0.00309,
+                "mean": 0.00083
+              },
+              "post_hunt_reversal_wr": 0.2881,
+              "avg_bars_to_reversal": 2.18,
+              "n_reversal_success": 17,
+              "n_reversal_fail": 42
+            },
+            "support": {
+              "n_hunts": 70,
+              "wick_excursion_dist": {
+                "p50": 0.00062,
+                "p90": 0.00145,
+                "p99": 0.00692,
+                "max": 0.00831,
+                "mean": 0.00097
+              },
+              "post_hunt_reversal_wr": 0.5286,
+              "avg_bars_to_reversal": 2.22,
+              "n_reversal_success": 37,
+              "n_reversal_fail": 33
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 18,
+              "wick_excursion_dist": {
+                "p50": 0.00104,
+                "p90": 0.00228,
+                "p99": 0.00307,
+                "max": 0.00309,
+                "mean": 0.0013
+              },
+              "post_hunt_reversal_wr": 0.2778,
+              "avg_bars_to_reversal": 1.6,
+              "n_reversal_success": 5,
+              "n_reversal_fail": 13
+            },
+            "support": {
+              "n_hunts": 20,
+              "wick_excursion_dist": {
+                "p50": 0.00113,
+                "p90": 0.00288,
+                "p99": 0.00793,
+                "max": 0.00831,
+                "mean": 0.0019
+              },
+              "post_hunt_reversal_wr": 0.45,
+              "avg_bars_to_reversal": 2.22,
+              "n_reversal_success": 9,
+              "n_reversal_fail": 11
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 5,
+              "wick_excursion_dist": {
+                "p50": 0.00198,
+                "p90": 0.00305,
+                "p99": 0.00309,
+                "max": 0.00309,
+                "mean": 0.00211
+              },
+              "post_hunt_reversal_wr": 0.6,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 7,
+              "wick_excursion_dist": {
+                "p50": 0.00211,
+                "p90": 0.0071,
+                "p99": 0.00819,
+                "max": 0.00831,
+                "mean": 0.00338
+              },
+              "post_hunt_reversal_wr": 0.7143,
+              "avg_bars_to_reversal": 2.2,
+              "n_reversal_success": 5,
+              "n_reversal_fail": 2
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.00299,
+                "p90": 0.00307,
+                "p99": 0.00309,
+                "max": 0.00309,
+                "mean": 0.00269
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.00421,
+                "p90": 0.00771,
+                "p99": 0.00825,
+                "max": 0.00831,
+                "mean": 0.00469
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.5,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 2
+            }
+          }
+        }
+      },
+      {
+        "price": 1.1629157715430862,
+        "touch_count": 951,
+        "age_bars": 21536,
+        "obviousness": 0.4665,
+        "kde_density": 28.7182,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 63,
+              "wick_excursion_dist": {
+                "p50": 0.00068,
+                "p90": 0.00121,
+                "p99": 0.00169,
+                "max": 0.00169,
+                "mean": 0.00075
+              },
+              "post_hunt_reversal_wr": 0.3968,
+              "avg_bars_to_reversal": 2.72,
+              "n_reversal_success": 25,
+              "n_reversal_fail": 38
+            },
+            "support": {
+              "n_hunts": 77,
+              "wick_excursion_dist": {
+                "p50": 0.00063,
+                "p90": 0.00183,
+                "p99": 0.00351,
+                "max": 0.00414,
+                "mean": 0.0009
+              },
+              "post_hunt_reversal_wr": 0.4675,
+              "avg_bars_to_reversal": 2.36,
+              "n_reversal_success": 36,
+              "n_reversal_fail": 41
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 12,
+              "wick_excursion_dist": {
+                "p50": 0.00115,
+                "p90": 0.00165,
+                "p99": 0.00169,
+                "max": 0.00169,
+                "mean": 0.00116
+              },
+              "post_hunt_reversal_wr": 0.3333,
+              "avg_bars_to_reversal": 3.0,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 8
+            },
+            "support": {
+              "n_hunts": 18,
+              "wick_excursion_dist": {
+                "p50": 0.0015,
+                "p90": 0.0031,
+                "p99": 0.004,
+                "max": 0.00414,
+                "mean": 0.0018
+              },
+              "post_hunt_reversal_wr": 0.5556,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 10,
+              "n_reversal_fail": 8
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.00132,
+                "p90": 0.00132,
+                "p99": 0.00132,
+                "max": 0.00132,
+                "mean": 0.00132
+              },
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 8,
+              "wick_excursion_dist": {
+                "p50": 0.00262,
+                "p90": 0.00356,
+                "p99": 0.00408,
+                "max": 0.00414,
+                "mean": 0.00271
+              },
+              "post_hunt_reversal_wr": 0.625,
+              "avg_bars_to_reversal": 1.6,
+              "n_reversal_success": 5,
+              "n_reversal_fail": 3
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 0,
+              "wick_excursion_dist": {},
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 5,
+              "wick_excursion_dist": {
+                "p50": 0.00301,
+                "p90": 0.00381,
+                "p99": 0.0041,
+                "max": 0.00414,
+                "mean": 0.00304
+              },
+              "post_hunt_reversal_wr": 0.8,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 1
+            }
+          }
+        }
+      },
+      {
+        "price": 1.1706688376753507,
+        "touch_count": 930,
+        "age_bars": 20625,
+        "obviousness": 0.693,
+        "kde_density": 28.7122,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 63,
+              "wick_excursion_dist": {
+                "p50": 0.00063,
+                "p90": 0.00093,
+                "p99": 0.00193,
+                "max": 0.00269,
+                "mean": 0.0007
+              },
+              "post_hunt_reversal_wr": 0.4127,
+              "avg_bars_to_reversal": 2.31,
+              "n_reversal_success": 26,
+              "n_reversal_fail": 37
+            },
+            "support": {
+              "n_hunts": 76,
+              "wick_excursion_dist": {
+                "p50": 0.00064,
+                "p90": 0.00122,
+                "p99": 0.00193,
+                "max": 0.00258,
+                "mean": 0.00073
+              },
+              "post_hunt_reversal_wr": 0.4342,
+              "avg_bars_to_reversal": 2.42,
+              "n_reversal_success": 33,
+              "n_reversal_fail": 43
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 7,
+              "wick_excursion_dist": {
+                "p50": 0.00103,
+                "p90": 0.00193,
+                "p99": 0.00261,
+                "max": 0.00269,
+                "mean": 0.00127
+              },
+              "post_hunt_reversal_wr": 0.7143,
+              "avg_bars_to_reversal": 2.2,
+              "n_reversal_success": 5,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 18,
+              "wick_excursion_dist": {
+                "p50": 0.00113,
+                "p90": 0.00163,
+                "p99": 0.00243,
+                "max": 0.00258,
+                "mean": 0.00121
+              },
+              "post_hunt_reversal_wr": 0.4444,
+              "avg_bars_to_reversal": 2.5,
+              "n_reversal_success": 8,
+              "n_reversal_fail": 10
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00179,
+                "p90": 0.00251,
+                "p99": 0.00267,
+                "max": 0.00269,
+                "mean": 0.00179
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 4.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00209,
+                "p90": 0.00248,
+                "p99": 0.00257,
+                "max": 0.00258,
+                "mean": 0.00209
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 5.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 1
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.00269,
+                "p90": 0.00269,
+                "p99": 0.00269,
+                "max": 0.00269,
+                "mean": 0.00269
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 4.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00209,
+                "p90": 0.00248,
+                "p99": 0.00257,
+                "max": 0.00258,
+                "mean": 0.00209
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 5.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 1
+            }
+          }
+        }
+      },
+      {
+        "price": 1.174545370741483,
+        "touch_count": 898,
+        "age_bars": 20603,
+        "obviousness": 0.7273,
+        "kde_density": 27.9957,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 50,
+              "wick_excursion_dist": {
+                "p50": 0.00075,
+                "p90": 0.00146,
+                "p99": 0.00326,
+                "max": 0.00418,
+                "mean": 0.0009
+              },
+              "post_hunt_reversal_wr": 0.54,
+              "avg_bars_to_reversal": 2.74,
+              "n_reversal_success": 27,
+              "n_reversal_fail": 23
+            },
+            "support": {
+              "n_hunts": 75,
+              "wick_excursion_dist": {
+                "p50": 0.00065,
+                "p90": 0.00137,
+                "p99": 0.00234,
+                "max": 0.00257,
+                "mean": 0.00082
+              },
+              "post_hunt_reversal_wr": 0.3733,
+              "avg_bars_to_reversal": 2.79,
+              "n_reversal_success": 28,
+              "n_reversal_fail": 47
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 14,
+              "wick_excursion_dist": {
+                "p50": 0.00135,
+                "p90": 0.00214,
+                "p99": 0.00394,
+                "max": 0.00418,
+                "mean": 0.00158
+              },
+              "post_hunt_reversal_wr": 0.6429,
+              "avg_bars_to_reversal": 3.0,
+              "n_reversal_success": 9,
+              "n_reversal_fail": 5
+            },
+            "support": {
+              "n_hunts": 25,
+              "wick_excursion_dist": {
+                "p50": 0.00105,
+                "p90": 0.00207,
+                "p99": 0.00249,
+                "max": 0.00257,
+                "mean": 0.00126
+              },
+              "post_hunt_reversal_wr": 0.4,
+              "avg_bars_to_reversal": 3.0,
+              "n_reversal_success": 10,
+              "n_reversal_fail": 15
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.0023,
+                "p90": 0.00381,
+                "p99": 0.00415,
+                "max": 0.00418,
+                "mean": 0.00271
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 6,
+              "wick_excursion_dist": {
+                "p50": 0.00203,
+                "p90": 0.00242,
+                "p99": 0.00255,
+                "max": 0.00257,
+                "mean": 0.00198
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 3.0,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 3
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.00418,
+                "p90": 0.00418,
+                "p99": 0.00418,
+                "max": 0.00418,
+                "mean": 0.00418
+              },
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00242,
+                "p90": 0.00254,
+                "p99": 0.00256,
+                "max": 0.00257,
+                "mean": 0.00242
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 5.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 1
+            }
+          }
+        }
+      },
+      {
+        "price": 1.1625077154308618,
+        "touch_count": 949,
+        "age_bars": 21536,
+        "obviousness": 0.4012,
+        "kde_density": 27.9809,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 46,
+              "wick_excursion_dist": {
+                "p50": 0.0007,
+                "p90": 0.00121,
+                "p99": 0.00189,
+                "max": 0.0021,
+                "mean": 0.00079
+              },
+              "post_hunt_reversal_wr": 0.3913,
+              "avg_bars_to_reversal": 2.72,
+              "n_reversal_success": 18,
+              "n_reversal_fail": 28
+            },
+            "support": {
+              "n_hunts": 83,
+              "wick_excursion_dist": {
+                "p50": 0.00066,
+                "p90": 0.0017,
+                "p99": 0.0031,
+                "max": 0.00373,
+                "mean": 0.00091
+              },
+              "post_hunt_reversal_wr": 0.4337,
+              "avg_bars_to_reversal": 2.11,
+              "n_reversal_success": 36,
+              "n_reversal_fail": 47
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 16,
+              "wick_excursion_dist": {
+                "p50": 0.00113,
+                "p90": 0.00151,
+                "p99": 0.00203,
+                "max": 0.0021,
+                "mean": 0.00114
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 2.38,
+              "n_reversal_success": 8,
+              "n_reversal_fail": 8
+            },
+            "support": {
+              "n_hunts": 23,
+              "wick_excursion_dist": {
+                "p50": 0.00147,
+                "p90": 0.00287,
+                "p99": 0.00356,
+                "max": 0.00373,
+                "mean": 0.00171
+              },
+              "post_hunt_reversal_wr": 0.3913,
+              "avg_bars_to_reversal": 2.22,
+              "n_reversal_success": 9,
+              "n_reversal_fail": 14
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.00139,
+                "p90": 0.00196,
+                "p99": 0.00209,
+                "max": 0.0021,
+                "mean": 0.00153
+              },
+              "post_hunt_reversal_wr": 0.3333,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 11,
+              "wick_excursion_dist": {
+                "p50": 0.00211,
+                "p90": 0.00297,
+                "p99": 0.00365,
+                "max": 0.00373,
+                "mean": 0.00219
+              },
+              "post_hunt_reversal_wr": 0.4545,
+              "avg_bars_to_reversal": 1.4,
+              "n_reversal_success": 5,
+              "n_reversal_fail": 6
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 0,
+              "wick_excursion_dist": {},
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.00291,
+                "p90": 0.00356,
+                "p99": 0.00371,
+                "max": 0.00373,
+                "mean": 0.00298
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 1
+            }
+          }
+        }
+      },
+      {
+        "price": 1.159243266533066,
+        "touch_count": 927,
+        "age_bars": 21545,
+        "obviousness": 0.6789,
+        "kde_density": 27.3297,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 70,
+              "wick_excursion_dist": {
+                "p50": 0.00068,
+                "p90": 0.00131,
+                "p99": 0.00241,
+                "max": 0.00267,
+                "mean": 0.00085
+              },
+              "post_hunt_reversal_wr": 0.4,
+              "avg_bars_to_reversal": 2.25,
+              "n_reversal_success": 28,
+              "n_reversal_fail": 42
+            },
+            "support": {
+              "n_hunts": 76,
+              "wick_excursion_dist": {
+                "p50": 0.00074,
+                "p90": 0.00147,
+                "p99": 0.00288,
+                "max": 0.00334,
+                "mean": 0.00085
+              },
+              "post_hunt_reversal_wr": 0.3684,
+              "avg_bars_to_reversal": 2.36,
+              "n_reversal_success": 28,
+              "n_reversal_fail": 48
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 17,
+              "wick_excursion_dist": {
+                "p50": 0.00123,
+                "p90": 0.00212,
+                "p99": 0.00259,
+                "max": 0.00267,
+                "mean": 0.00137
+              },
+              "post_hunt_reversal_wr": 0.4118,
+              "avg_bars_to_reversal": 1.71,
+              "n_reversal_success": 7,
+              "n_reversal_fail": 10
+            },
+            "support": {
+              "n_hunts": 17,
+              "wick_excursion_dist": {
+                "p50": 0.00144,
+                "p90": 0.0025,
+                "p99": 0.00324,
+                "max": 0.00334,
+                "mean": 0.00151
+              },
+              "post_hunt_reversal_wr": 0.4706,
+              "avg_bars_to_reversal": 1.25,
+              "n_reversal_success": 8,
+              "n_reversal_fail": 9
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00194,
+                "p90": 0.00215,
+                "p99": 0.00219,
+                "max": 0.0022,
+                "mean": 0.00194
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.5,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 6,
+              "wick_excursion_dist": {
+                "p50": 0.00192,
+                "p90": 0.00253,
+                "p99": 0.0027,
+                "max": 0.00272,
+                "mean": 0.00197
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 3
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00194,
+                "p90": 0.00215,
+                "p99": 0.00219,
+                "max": 0.0022,
+                "mean": 0.00194
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.5,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.0021,
+                "p90": 0.0026,
+                "p99": 0.00271,
+                "max": 0.00272,
+                "mean": 0.00219
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 1
+            }
+          }
+        }
+      }
+    ],
+    "aggregate": {
+      "k=0.5": {
+        "total_hunts": 2991,
+        "avg_p90_excursion_pip": 0.00124,
+        "avg_reversal_wr": 0.40114
+      },
+      "k=1.0": {
+        "total_hunts": 682,
+        "avg_p90_excursion_pip": 0.00227,
+        "avg_reversal_wr": 0.46652
+      },
+      "k=1.5": {
+        "total_hunts": 177,
+        "avg_p90_excursion_pip": 0.00325,
+        "avg_reversal_wr": 0.54996
+      },
+      "k=2.0": {
+        "total_hunts": 81,
+        "avg_p90_excursion_pip": 0.00371,
+        "avg_reversal_wr": 0.67865
+      }
+    }
+  },
+  {
+    "pair": "GBP_USD",
+    "tf": "15m",
+    "window_days": 365,
+    "n_bars": 24731,
+    "n_levels": 20,
+    "levels": [
+      {
+        "price": 1.3435967535070141,
+        "touch_count": 1516,
+        "age_bars": 24642,
+        "obviousness": 0.5755,
+        "kde_density": 42.0819,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 114,
+              "wick_excursion_dist": {
+                "p50": 0.0008,
+                "p90": 0.00154,
+                "p99": 0.00196,
+                "max": 0.00267,
+                "mean": 0.00089
+              },
+              "post_hunt_reversal_wr": 0.3246,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 37,
+              "n_reversal_fail": 77
+            },
+            "support": {
+              "n_hunts": 165,
+              "wick_excursion_dist": {
+                "p50": 0.0008,
+                "p90": 0.00154,
+                "p99": 0.0029,
+                "max": 0.00406,
+                "mean": 0.00092
+              },
+              "post_hunt_reversal_wr": 0.3212,
+              "avg_bars_to_reversal": 2.21,
+              "n_reversal_success": 53,
+              "n_reversal_fail": 112
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 27,
+              "wick_excursion_dist": {
+                "p50": 0.00135,
+                "p90": 0.00188,
+                "p99": 0.00249,
+                "max": 0.00267,
+                "mean": 0.00141
+              },
+              "post_hunt_reversal_wr": 0.3704,
+              "avg_bars_to_reversal": 2.3,
+              "n_reversal_success": 10,
+              "n_reversal_fail": 17
+            },
+            "support": {
+              "n_hunts": 42,
+              "wick_excursion_dist": {
+                "p50": 0.00137,
+                "p90": 0.00236,
+                "p99": 0.00373,
+                "max": 0.00406,
+                "mean": 0.00152
+              },
+              "post_hunt_reversal_wr": 0.381,
+              "avg_bars_to_reversal": 2.25,
+              "n_reversal_success": 16,
+              "n_reversal_fail": 26
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 8,
+              "wick_excursion_dist": {
+                "p50": 0.00177,
+                "p90": 0.00194,
+                "p99": 0.00196,
+                "max": 0.00196,
+                "mean": 0.00172
+              },
+              "post_hunt_reversal_wr": 0.375,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 5
+            },
+            "support": {
+              "n_hunts": 9,
+              "wick_excursion_dist": {
+                "p50": 0.0017,
+                "p90": 0.00297,
+                "p99": 0.00395,
+                "max": 0.00406,
+                "mean": 0.00198
+              },
+              "post_hunt_reversal_wr": 0.3333,
+              "avg_bars_to_reversal": 2.67,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 6
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.00177,
+                "p90": 0.00177,
+                "p99": 0.00177,
+                "max": 0.00177,
+                "mean": 0.00177
+              },
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.0027,
+                "p90": 0.00378,
+                "p99": 0.00403,
+                "max": 0.00406,
+                "mean": 0.00286
+              },
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 3
+            }
+          }
+        }
+      },
+      {
+        "price": 1.3427359318637275,
+        "touch_count": 1528,
+        "age_bars": 24648,
+        "obviousness": 0.4377,
+        "kde_density": 40.7427,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 112,
+              "wick_excursion_dist": {
+                "p50": 0.00077,
+                "p90": 0.00168,
+                "p99": 0.00281,
+                "max": 0.00353,
+                "mean": 0.00095
+              },
+              "post_hunt_reversal_wr": 0.3482,
+              "avg_bars_to_reversal": 2.51,
+              "n_reversal_success": 39,
+              "n_reversal_fail": 73
+            },
+            "support": {
+              "n_hunts": 144,
+              "wick_excursion_dist": {
+                "p50": 0.00084,
+                "p90": 0.00162,
+                "p99": 0.00322,
+                "max": 0.00374,
+                "mean": 0.00096
+              },
+              "post_hunt_reversal_wr": 0.3889,
+              "avg_bars_to_reversal": 2.3,
+              "n_reversal_success": 56,
+              "n_reversal_fail": 88
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 18,
+              "wick_excursion_dist": {
+                "p50": 0.00174,
+                "p90": 0.00271,
+                "p99": 0.00341,
+                "max": 0.00353,
+                "mean": 0.00188
+              },
+              "post_hunt_reversal_wr": 0.3889,
+              "avg_bars_to_reversal": 2.71,
+              "n_reversal_success": 7,
+              "n_reversal_fail": 11
+            },
+            "support": {
+              "n_hunts": 31,
+              "wick_excursion_dist": {
+                "p50": 0.00144,
+                "p90": 0.00198,
+                "p99": 0.00357,
+                "max": 0.00374,
+                "mean": 0.00154
+              },
+              "post_hunt_reversal_wr": 0.3548,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 11,
+              "n_reversal_fail": 20
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 9,
+              "wick_excursion_dist": {
+                "p50": 0.00186,
+                "p90": 0.00297,
+                "p99": 0.00348,
+                "max": 0.00353,
+                "mean": 0.00222
+              },
+              "post_hunt_reversal_wr": 0.2222,
+              "avg_bars_to_reversal": 2.5,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 7
+            },
+            "support": {
+              "n_hunts": 9,
+              "wick_excursion_dist": {
+                "p50": 0.00194,
+                "p90": 0.0033,
+                "p99": 0.00369,
+                "max": 0.00374,
+                "mean": 0.00217
+              },
+              "post_hunt_reversal_wr": 0.2222,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 7
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.00266,
+                "p90": 0.00279,
+                "p99": 0.00282,
+                "max": 0.00282,
+                "mean": 0.00268
+              },
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 3
+            },
+            "support": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.0032,
+                "p90": 0.00363,
+                "p99": 0.00373,
+                "max": 0.00374,
+                "mean": 0.00296
+              },
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 3
+            }
+          }
+        }
+      },
+      {
+        "price": 1.3499668336673347,
+        "touch_count": 1266,
+        "age_bars": 22866,
+        "obviousness": 0.8,
+        "kde_density": 36.2055,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 95,
+              "wick_excursion_dist": {
+                "p50": 0.00075,
+                "p90": 0.00153,
+                "p99": 0.00251,
+                "max": 0.00333,
+                "mean": 0.00089
+              },
+              "post_hunt_reversal_wr": 0.4316,
+              "avg_bars_to_reversal": 2.37,
+              "n_reversal_success": 41,
+              "n_reversal_fail": 54
+            },
+            "support": {
+              "n_hunts": 112,
+              "wick_excursion_dist": {
+                "p50": 0.00077,
+                "p90": 0.00166,
+                "p99": 0.00394,
+                "max": 0.00964,
+                "mean": 0.00106
+              },
+              "post_hunt_reversal_wr": 0.3393,
+              "avg_bars_to_reversal": 2.13,
+              "n_reversal_success": 38,
+              "n_reversal_fail": 74
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 26,
+              "wick_excursion_dist": {
+                "p50": 0.0013,
+                "p90": 0.00183,
+                "p99": 0.00311,
+                "max": 0.00333,
+                "mean": 0.00138
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 2.69,
+              "n_reversal_success": 13,
+              "n_reversal_fail": 13
+            },
+            "support": {
+              "n_hunts": 31,
+              "wick_excursion_dist": {
+                "p50": 0.00147,
+                "p90": 0.00309,
+                "p99": 0.00794,
+                "max": 0.00964,
+                "mean": 0.002
+              },
+              "post_hunt_reversal_wr": 0.4194,
+              "avg_bars_to_reversal": 1.38,
+              "n_reversal_success": 13,
+              "n_reversal_fail": 18
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 5,
+              "wick_excursion_dist": {
+                "p50": 0.00199,
+                "p90": 0.00298,
+                "p99": 0.0033,
+                "max": 0.00333,
+                "mean": 0.00221
+              },
+              "post_hunt_reversal_wr": 0.8,
+              "avg_bars_to_reversal": 2.75,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 13,
+              "wick_excursion_dist": {
+                "p50": 0.00224,
+                "p90": 0.00393,
+                "p99": 0.00896,
+                "max": 0.00964,
+                "mean": 0.00284
+              },
+              "post_hunt_reversal_wr": 0.5385,
+              "avg_bars_to_reversal": 1.14,
+              "n_reversal_success": 7,
+              "n_reversal_fail": 6
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.00333,
+                "p90": 0.00333,
+                "p99": 0.00333,
+                "max": 0.00333,
+                "mean": 0.00333
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 6,
+              "wick_excursion_dist": {
+                "p50": 0.00343,
+                "p90": 0.0068,
+                "p99": 0.00935,
+                "max": 0.00964,
+                "mean": 0.00415
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 3
+            }
+          }
+        }
+      },
+      {
+        "price": 1.3504833266533067,
+        "touch_count": 1195,
+        "age_bars": 22860,
+        "obviousness": 0.8,
+        "kde_density": 34.1553,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 89,
+              "wick_excursion_dist": {
+                "p50": 0.00071,
+                "p90": 0.00121,
+                "p99": 0.00204,
+                "max": 0.00282,
+                "mean": 0.00079
+              },
+              "post_hunt_reversal_wr": 0.4719,
+              "avg_bars_to_reversal": 2.62,
+              "n_reversal_success": 42,
+              "n_reversal_fail": 47
+            },
+            "support": {
+              "n_hunts": 129,
+              "wick_excursion_dist": {
+                "p50": 0.00072,
+                "p90": 0.00158,
+                "p99": 0.004,
+                "max": 0.01015,
+                "mean": 0.00097
+              },
+              "post_hunt_reversal_wr": 0.3488,
+              "avg_bars_to_reversal": 2.53,
+              "n_reversal_success": 45,
+              "n_reversal_fail": 84
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 16,
+              "wick_excursion_dist": {
+                "p50": 0.0013,
+                "p90": 0.00192,
+                "p99": 0.00268,
+                "max": 0.00282,
+                "mean": 0.00136
+              },
+              "post_hunt_reversal_wr": 0.5625,
+              "avg_bars_to_reversal": 2.56,
+              "n_reversal_success": 9,
+              "n_reversal_fail": 7
+            },
+            "support": {
+              "n_hunts": 29,
+              "wick_excursion_dist": {
+                "p50": 0.00158,
+                "p90": 0.00289,
+                "p99": 0.00851,
+                "max": 0.01015,
+                "mean": 0.00193
+              },
+              "post_hunt_reversal_wr": 0.4828,
+              "avg_bars_to_reversal": 2.36,
+              "n_reversal_success": 14,
+              "n_reversal_fail": 15
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00217,
+                "p90": 0.00269,
+                "p99": 0.0028,
+                "max": 0.00282,
+                "mean": 0.00217
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 12,
+              "wick_excursion_dist": {
+                "p50": 0.00224,
+                "p90": 0.00418,
+                "p99": 0.00951,
+                "max": 0.01015,
+                "mean": 0.00301
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 2.17,
+              "n_reversal_success": 6,
+              "n_reversal_fail": 6
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.00282,
+                "p90": 0.00282,
+                "p99": 0.00282,
+                "max": 0.00282,
+                "mean": 0.00282
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 6,
+              "wick_excursion_dist": {
+                "p50": 0.00277,
+                "p90": 0.00722,
+                "p99": 0.00986,
+                "max": 0.01015,
+                "mean": 0.00403
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 2.5,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 2
+            }
+          }
+        }
+      },
+      {
+        "price": 1.3509998196392785,
+        "touch_count": 1113,
+        "age_bars": 22858,
+        "obviousness": 0.64,
+        "kde_density": 32.8676,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 74,
+              "wick_excursion_dist": {
+                "p50": 0.0007,
+                "p90": 0.00136,
+                "p99": 0.00281,
+                "max": 0.0032,
+                "mean": 0.00088
+              },
+              "post_hunt_reversal_wr": 0.4189,
+              "avg_bars_to_reversal": 2.42,
+              "n_reversal_success": 31,
+              "n_reversal_fail": 43
+            },
+            "support": {
+              "n_hunts": 106,
+              "wick_excursion_dist": {
+                "p50": 0.00071,
+                "p90": 0.00155,
+                "p99": 0.00475,
+                "max": 0.01067,
+                "mean": 0.00104
+              },
+              "post_hunt_reversal_wr": 0.3868,
+              "avg_bars_to_reversal": 2.22,
+              "n_reversal_success": 41,
+              "n_reversal_fail": 65
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 15,
+              "wick_excursion_dist": {
+                "p50": 0.0013,
+                "p90": 0.00252,
+                "p99": 0.00313,
+                "max": 0.0032,
+                "mean": 0.0016
+              },
+              "post_hunt_reversal_wr": 0.4,
+              "avg_bars_to_reversal": 2.17,
+              "n_reversal_success": 6,
+              "n_reversal_fail": 9
+            },
+            "support": {
+              "n_hunts": 33,
+              "wick_excursion_dist": {
+                "p50": 0.00135,
+                "p90": 0.0033,
+                "p99": 0.00879,
+                "max": 0.01067,
+                "mean": 0.00185
+              },
+              "post_hunt_reversal_wr": 0.3333,
+              "avg_bars_to_reversal": 2.09,
+              "n_reversal_success": 11,
+              "n_reversal_fail": 22
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 6,
+              "wick_excursion_dist": {
+                "p50": 0.0021,
+                "p90": 0.00294,
+                "p99": 0.00317,
+                "max": 0.0032,
+                "mean": 0.00219
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 1.75,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 7,
+              "wick_excursion_dist": {
+                "p50": 0.00331,
+                "p90": 0.00715,
+                "p99": 0.01032,
+                "max": 0.01067,
+                "mean": 0.0043
+              },
+              "post_hunt_reversal_wr": 0.7143,
+              "avg_bars_to_reversal": 1.8,
+              "n_reversal_success": 5,
+              "n_reversal_fail": 2
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.00249,
+                "p90": 0.00304,
+                "p99": 0.00318,
+                "max": 0.0032,
+                "mean": 0.00252
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.00405,
+                "p90": 0.00891,
+                "p99": 0.01049,
+                "max": 0.01067,
+                "mean": 0.00551
+              },
+              "post_hunt_reversal_wr": 0.75,
+              "avg_bars_to_reversal": 2.33,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 1
+            }
+          }
+        }
+      },
+      {
+        "price": 1.341875110220441,
+        "touch_count": 1148,
+        "age_bars": 24660,
+        "obviousness": 0.5,
+        "kde_density": 31.5708,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 94,
+              "wick_excursion_dist": {
+                "p50": 0.00083,
+                "p90": 0.00152,
+                "p99": 0.00354,
+                "max": 0.00368,
+                "mean": 0.00101
+              },
+              "post_hunt_reversal_wr": 0.383,
+              "avg_bars_to_reversal": 2.39,
+              "n_reversal_success": 36,
+              "n_reversal_fail": 58
+            },
+            "support": {
+              "n_hunts": 110,
+              "wick_excursion_dist": {
+                "p50": 0.00078,
+                "p90": 0.00169,
+                "p99": 0.00283,
+                "max": 0.00528,
+                "mean": 0.00097
+              },
+              "post_hunt_reversal_wr": 0.5091,
+              "avg_bars_to_reversal": 2.41,
+              "n_reversal_success": 56,
+              "n_reversal_fail": 54
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 23,
+              "wick_excursion_dist": {
+                "p50": 0.00149,
+                "p90": 0.00228,
+                "p99": 0.00365,
+                "max": 0.00368,
+                "mean": 0.00166
+              },
+              "post_hunt_reversal_wr": 0.3478,
+              "avg_bars_to_reversal": 2.62,
+              "n_reversal_success": 8,
+              "n_reversal_fail": 15
+            },
+            "support": {
+              "n_hunts": 27,
+              "wick_excursion_dist": {
+                "p50": 0.00128,
+                "p90": 0.00228,
+                "p99": 0.00465,
+                "max": 0.00528,
+                "mean": 0.00158
+              },
+              "post_hunt_reversal_wr": 0.4815,
+              "avg_bars_to_reversal": 2.62,
+              "n_reversal_success": 13,
+              "n_reversal_fail": 14
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 5,
+              "wick_excursion_dist": {
+                "p50": 0.00182,
+                "p90": 0.00362,
+                "p99": 0.00368,
+                "max": 0.00368,
+                "mean": 0.00245
+              },
+              "post_hunt_reversal_wr": 0.2,
+              "avg_bars_to_reversal": 4.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 4
+            },
+            "support": {
+              "n_hunts": 6,
+              "wick_excursion_dist": {
+                "p50": 0.00229,
+                "p90": 0.00408,
+                "p99": 0.00516,
+                "max": 0.00528,
+                "mean": 0.00253
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.33,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 3
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.0036,
+                "p90": 0.00367,
+                "p99": 0.00368,
+                "max": 0.00368,
+                "mean": 0.0036
+              },
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00381,
+                "p90": 0.00498,
+                "p99": 0.00525,
+                "max": 0.00528,
+                "mean": 0.00381
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 1
+            }
+          }
+        }
+      },
+      {
+        "price": 1.3491060120240481,
+        "touch_count": 1162,
+        "age_bars": 22870,
+        "obviousness": 0.657,
+        "kde_density": 31.3217,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 93,
+              "wick_excursion_dist": {
+                "p50": 0.00069,
+                "p90": 0.0012,
+                "p99": 0.00235,
+                "max": 0.00419,
+                "mean": 0.00082
+              },
+              "post_hunt_reversal_wr": 0.4301,
+              "avg_bars_to_reversal": 2.58,
+              "n_reversal_success": 40,
+              "n_reversal_fail": 53
+            },
+            "support": {
+              "n_hunts": 106,
+              "wick_excursion_dist": {
+                "p50": 0.00071,
+                "p90": 0.00171,
+                "p99": 0.00669,
+                "max": 0.00878,
+                "mean": 0.00102
+              },
+              "post_hunt_reversal_wr": 0.4906,
+              "avg_bars_to_reversal": 2.12,
+              "n_reversal_success": 52,
+              "n_reversal_fail": 54
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 17,
+              "wick_excursion_dist": {
+                "p50": 0.0012,
+                "p90": 0.00203,
+                "p99": 0.00387,
+                "max": 0.00419,
+                "mean": 0.00151
+              },
+              "post_hunt_reversal_wr": 0.4118,
+              "avg_bars_to_reversal": 2.86,
+              "n_reversal_success": 7,
+              "n_reversal_fail": 10
+            },
+            "support": {
+              "n_hunts": 23,
+              "wick_excursion_dist": {
+                "p50": 0.00146,
+                "p90": 0.00351,
+                "p99": 0.00835,
+                "max": 0.00878,
+                "mean": 0.00228
+              },
+              "post_hunt_reversal_wr": 0.6087,
+              "avg_bars_to_reversal": 1.64,
+              "n_reversal_success": 14,
+              "n_reversal_fail": 9
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 5,
+              "wick_excursion_dist": {
+                "p50": 0.0019,
+                "p90": 0.00329,
+                "p99": 0.0041,
+                "max": 0.00419,
+                "mean": 0.00222
+              },
+              "post_hunt_reversal_wr": 0.6,
+              "avg_bars_to_reversal": 1.33,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 12,
+              "wick_excursion_dist": {
+                "p50": 0.00277,
+                "p90": 0.00653,
+                "p99": 0.00856,
+                "max": 0.00878,
+                "mean": 0.00325
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 1.25,
+              "n_reversal_success": 8,
+              "n_reversal_fail": 4
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00304,
+                "p90": 0.00396,
+                "p99": 0.00417,
+                "max": 0.00419,
+                "mean": 0.00304
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 5,
+              "wick_excursion_dist": {
+                "p50": 0.00361,
+                "p90": 0.00801,
+                "p99": 0.0087,
+                "max": 0.00878,
+                "mean": 0.005
+              },
+              "post_hunt_reversal_wr": 0.6,
+              "avg_bars_to_reversal": 1.33,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 2
+            }
+          }
+        }
+      },
+      {
+        "price": 1.348417354709419,
+        "touch_count": 1018,
+        "age_bars": 22874,
+        "obviousness": 0.5468,
+        "kde_density": 29.0473,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 73,
+              "wick_excursion_dist": {
+                "p50": 0.00068,
+                "p90": 0.00134,
+                "p99": 0.00344,
+                "max": 0.00488,
+                "mean": 0.00086
+              },
+              "post_hunt_reversal_wr": 0.3288,
+              "avg_bars_to_reversal": 2.17,
+              "n_reversal_success": 24,
+              "n_reversal_fail": 49
+            },
+            "support": {
+              "n_hunts": 94,
+              "wick_excursion_dist": {
+                "p50": 0.00079,
+                "p90": 0.00172,
+                "p99": 0.0063,
+                "max": 0.00809,
+                "mean": 0.00103
+              },
+              "post_hunt_reversal_wr": 0.5851,
+              "avg_bars_to_reversal": 2.38,
+              "n_reversal_success": 55,
+              "n_reversal_fail": 39
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 12,
+              "wick_excursion_dist": {
+                "p50": 0.00144,
+                "p90": 0.00286,
+                "p99": 0.00466,
+                "max": 0.00488,
+                "mean": 0.00178
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 2.5,
+              "n_reversal_success": 6,
+              "n_reversal_fail": 6
+            },
+            "support": {
+              "n_hunts": 25,
+              "wick_excursion_dist": {
+                "p50": 0.00154,
+                "p90": 0.00272,
+                "p99": 0.00763,
+                "max": 0.00809,
+                "mean": 0.00198
+              },
+              "post_hunt_reversal_wr": 0.68,
+              "avg_bars_to_reversal": 2.53,
+              "n_reversal_success": 17,
+              "n_reversal_fail": 8
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.00275,
+                "p90": 0.00428,
+                "p99": 0.00482,
+                "max": 0.00488,
+                "mean": 0.00298
+              },
+              "post_hunt_reversal_wr": 0.75,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 9,
+              "wick_excursion_dist": {
+                "p50": 0.00195,
+                "p90": 0.00655,
+                "p99": 0.00793,
+                "max": 0.00809,
+                "mean": 0.00305
+              },
+              "post_hunt_reversal_wr": 0.8889,
+              "avg_bars_to_reversal": 2.25,
+              "n_reversal_success": 8,
+              "n_reversal_fail": 1
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00375,
+                "p90": 0.00466,
+                "p99": 0.00486,
+                "max": 0.00488,
+                "mean": 0.00375
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.00617,
+                "p90": 0.0077,
+                "p99": 0.00805,
+                "max": 0.00809,
+                "mean": 0.00572
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 1
+            }
+          }
+        }
+      },
+      {
+        "price": 1.3415307815631263,
+        "touch_count": 1091,
+        "age_bars": 24660,
+        "obviousness": 0.5551,
+        "kde_density": 27.9379,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 79,
+              "wick_excursion_dist": {
+                "p50": 0.00098,
+                "p90": 0.00181,
+                "p99": 0.0039,
+                "max": 0.00403,
+                "mean": 0.00113
+              },
+              "post_hunt_reversal_wr": 0.4051,
+              "avg_bars_to_reversal": 2.38,
+              "n_reversal_success": 32,
+              "n_reversal_fail": 47
+            },
+            "support": {
+              "n_hunts": 108,
+              "wick_excursion_dist": {
+                "p50": 0.00083,
+                "p90": 0.00181,
+                "p99": 0.00477,
+                "max": 0.00525,
+                "mean": 0.00102
+              },
+              "post_hunt_reversal_wr": 0.5278,
+              "avg_bars_to_reversal": 2.51,
+              "n_reversal_success": 57,
+              "n_reversal_fail": 51
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 20,
+              "wick_excursion_dist": {
+                "p50": 0.00158,
+                "p90": 0.00279,
+                "p99": 0.004,
+                "max": 0.00403,
+                "mean": 0.00191
+              },
+              "post_hunt_reversal_wr": 0.3,
+              "avg_bars_to_reversal": 1.83,
+              "n_reversal_success": 6,
+              "n_reversal_fail": 14
+            },
+            "support": {
+              "n_hunts": 29,
+              "wick_excursion_dist": {
+                "p50": 0.00147,
+                "p90": 0.00256,
+                "p99": 0.00516,
+                "max": 0.00525,
+                "mean": 0.00171
+              },
+              "post_hunt_reversal_wr": 0.6207,
+              "avg_bars_to_reversal": 2.17,
+              "n_reversal_success": 18,
+              "n_reversal_fail": 11
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 7,
+              "wick_excursion_dist": {
+                "p50": 0.00247,
+                "p90": 0.00393,
+                "p99": 0.00402,
+                "max": 0.00403,
+                "mean": 0.00267
+              },
+              "post_hunt_reversal_wr": 0.1429,
+              "avg_bars_to_reversal": 3.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 6
+            },
+            "support": {
+              "n_hunts": 8,
+              "wick_excursion_dist": {
+                "p50": 0.00201,
+                "p90": 0.00503,
+                "p99": 0.00523,
+                "max": 0.00525,
+                "mean": 0.0026
+              },
+              "post_hunt_reversal_wr": 0.625,
+              "avg_bars_to_reversal": 2.2,
+              "n_reversal_success": 5,
+              "n_reversal_fail": 3
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00395,
+                "p90": 0.00401,
+                "p99": 0.00403,
+                "max": 0.00403,
+                "mean": 0.00395
+              },
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.00493,
+                "p90": 0.00493,
+                "p99": 0.00493,
+                "max": 0.00493,
+                "mean": 0.00493
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 4.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 0
+            }
+          }
+        }
+      },
+      {
+        "price": 1.3518606412825651,
+        "touch_count": 998,
+        "age_bars": 22858,
+        "obviousness": 0.5023,
+        "kde_density": 27.6906,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 70,
+              "wick_excursion_dist": {
+                "p50": 0.00065,
+                "p90": 0.0015,
+                "p99": 0.00222,
+                "max": 0.00234,
+                "mean": 0.00079
+              },
+              "post_hunt_reversal_wr": 0.4286,
+              "avg_bars_to_reversal": 2.43,
+              "n_reversal_success": 30,
+              "n_reversal_fail": 40
+            },
+            "support": {
+              "n_hunts": 101,
+              "wick_excursion_dist": {
+                "p50": 0.00071,
+                "p90": 0.00134,
+                "p99": 0.00466,
+                "max": 0.01153,
+                "mean": 0.00097
+              },
+              "post_hunt_reversal_wr": 0.4257,
+              "avg_bars_to_reversal": 1.79,
+              "n_reversal_success": 43,
+              "n_reversal_fail": 58
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 15,
+              "wick_excursion_dist": {
+                "p50": 0.00144,
+                "p90": 0.00209,
+                "p99": 0.00232,
+                "max": 0.00234,
+                "mean": 0.00143
+              },
+              "post_hunt_reversal_wr": 0.4,
+              "avg_bars_to_reversal": 2.17,
+              "n_reversal_success": 6,
+              "n_reversal_fail": 9
+            },
+            "support": {
+              "n_hunts": 20,
+              "wick_excursion_dist": {
+                "p50": 0.00135,
+                "p90": 0.00317,
+                "p99": 0.01023,
+                "max": 0.01153,
+                "mean": 0.00221
+              },
+              "post_hunt_reversal_wr": 0.45,
+              "avg_bars_to_reversal": 1.67,
+              "n_reversal_success": 9,
+              "n_reversal_fail": 11
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 5,
+              "wick_excursion_dist": {
+                "p50": 0.00196,
+                "p90": 0.00227,
+                "p99": 0.00233,
+                "max": 0.00234,
+                "mean": 0.00196
+              },
+              "post_hunt_reversal_wr": 0.6,
+              "avg_bars_to_reversal": 2.33,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 8,
+              "wick_excursion_dist": {
+                "p50": 0.00266,
+                "p90": 0.00672,
+                "p99": 0.01105,
+                "max": 0.01153,
+                "mean": 0.00386
+              },
+              "post_hunt_reversal_wr": 0.375,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 5
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 0,
+              "wick_excursion_dist": {},
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.00383,
+                "p90": 0.00947,
+                "p99": 0.01132,
+                "max": 0.01153,
+                "mean": 0.00554
+              },
+              "post_hunt_reversal_wr": 0.75,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 1
+            }
+          }
+        }
+      },
+      {
+        "price": 1.3522049699398797,
+        "touch_count": 1005,
+        "age_bars": 22853,
+        "obviousness": 0.4472,
+        "kde_density": 27.2023,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 66,
+              "wick_excursion_dist": {
+                "p50": 0.00067,
+                "p90": 0.00143,
+                "p99": 0.00218,
+                "max": 0.00234,
+                "mean": 0.00084
+              },
+              "post_hunt_reversal_wr": 0.4697,
+              "avg_bars_to_reversal": 2.45,
+              "n_reversal_success": 31,
+              "n_reversal_fail": 35
+            },
+            "support": {
+              "n_hunts": 93,
+              "wick_excursion_dist": {
+                "p50": 0.0007,
+                "p90": 0.00147,
+                "p99": 0.00555,
+                "max": 0.01187,
+                "mean": 0.001
+              },
+              "post_hunt_reversal_wr": 0.4409,
+              "avg_bars_to_reversal": 2.17,
+              "n_reversal_success": 41,
+              "n_reversal_fail": 52
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 12,
+              "wick_excursion_dist": {
+                "p50": 0.00145,
+                "p90": 0.00209,
+                "p99": 0.00231,
+                "max": 0.00234,
+                "mean": 0.00147
+              },
+              "post_hunt_reversal_wr": 0.5833,
+              "avg_bars_to_reversal": 1.86,
+              "n_reversal_success": 7,
+              "n_reversal_fail": 5
+            },
+            "support": {
+              "n_hunts": 25,
+              "wick_excursion_dist": {
+                "p50": 0.0012,
+                "p90": 0.00309,
+                "p99": 0.01023,
+                "max": 0.01187,
+                "mean": 0.00197
+              },
+              "post_hunt_reversal_wr": 0.56,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 14,
+              "n_reversal_fail": 11
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00217,
+                "p90": 0.0023,
+                "p99": 0.00233,
+                "max": 0.00234,
+                "mean": 0.00217
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 8,
+              "wick_excursion_dist": {
+                "p50": 0.00263,
+                "p90": 0.00707,
+                "p99": 0.01139,
+                "max": 0.01187,
+                "mean": 0.00382
+              },
+              "post_hunt_reversal_wr": 0.625,
+              "avg_bars_to_reversal": 1.6,
+              "n_reversal_success": 5,
+              "n_reversal_fail": 3
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.00234,
+                "p90": 0.00234,
+                "p99": 0.00234,
+                "max": 0.00234,
+                "mean": 0.00234
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.00417,
+                "p90": 0.00981,
+                "p99": 0.01167,
+                "max": 0.01187,
+                "mean": 0.00561
+              },
+              "post_hunt_reversal_wr": 0.75,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 1
+            }
+          }
+        }
+      },
+      {
+        "price": 1.345662725450902,
+        "touch_count": 979,
+        "age_bars": 23070,
+        "obviousness": 0.694,
+        "kde_density": 26.9789,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 76,
+              "wick_excursion_dist": {
+                "p50": 0.00074,
+                "p90": 0.00146,
+                "p99": 0.00226,
+                "max": 0.00229,
+                "mean": 0.00087
+              },
+              "post_hunt_reversal_wr": 0.3947,
+              "avg_bars_to_reversal": 2.17,
+              "n_reversal_success": 30,
+              "n_reversal_fail": 46
+            },
+            "support": {
+              "n_hunts": 100,
+              "wick_excursion_dist": {
+                "p50": 0.00074,
+                "p90": 0.00157,
+                "p99": 0.00437,
+                "max": 0.00533,
+                "mean": 0.00098
+              },
+              "post_hunt_reversal_wr": 0.52,
+              "avg_bars_to_reversal": 2.42,
+              "n_reversal_success": 52,
+              "n_reversal_fail": 48
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 15,
+              "wick_excursion_dist": {
+                "p50": 0.00146,
+                "p90": 0.00214,
+                "p99": 0.00228,
+                "max": 0.00229,
+                "mean": 0.00149
+              },
+              "post_hunt_reversal_wr": 0.6,
+              "avg_bars_to_reversal": 2.11,
+              "n_reversal_success": 9,
+              "n_reversal_fail": 6
+            },
+            "support": {
+              "n_hunts": 25,
+              "wick_excursion_dist": {
+                "p50": 0.00149,
+                "p90": 0.00374,
+                "p99": 0.0051,
+                "max": 0.00533,
+                "mean": 0.00194
+              },
+              "post_hunt_reversal_wr": 0.44,
+              "avg_bars_to_reversal": 2.55,
+              "n_reversal_success": 11,
+              "n_reversal_fail": 14
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.00196,
+                "p90": 0.00228,
+                "p99": 0.00229,
+                "max": 0.00229,
+                "mean": 0.00185
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 10,
+              "wick_excursion_dist": {
+                "p50": 0.00226,
+                "p90": 0.0041,
+                "p99": 0.00521,
+                "max": 0.00533,
+                "mean": 0.0027
+              },
+              "post_hunt_reversal_wr": 0.7,
+              "avg_bars_to_reversal": 3.14,
+              "n_reversal_success": 7,
+              "n_reversal_fail": 3
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 0,
+              "wick_excursion_dist": {},
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00437,
+                "p90": 0.00514,
+                "p99": 0.00531,
+                "max": 0.00533,
+                "mean": 0.00437
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 0
+            }
+          }
+        }
+      },
+      {
+        "price": 1.3468678757515031,
+        "touch_count": 974,
+        "age_bars": 23070,
+        "obviousness": 0.5011,
+        "kde_density": 26.3321,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 66,
+              "wick_excursion_dist": {
+                "p50": 0.00081,
+                "p90": 0.00134,
+                "p99": 0.00385,
+                "max": 0.00643,
+                "mean": 0.00092
+              },
+              "post_hunt_reversal_wr": 0.4394,
+              "avg_bars_to_reversal": 1.93,
+              "n_reversal_success": 29,
+              "n_reversal_fail": 37
+            },
+            "support": {
+              "n_hunts": 86,
+              "wick_excursion_dist": {
+                "p50": 0.00077,
+                "p90": 0.00152,
+                "p99": 0.00491,
+                "max": 0.00654,
+                "mean": 0.001
+              },
+              "post_hunt_reversal_wr": 0.4535,
+              "avg_bars_to_reversal": 2.26,
+              "n_reversal_success": 39,
+              "n_reversal_fail": 47
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 11,
+              "wick_excursion_dist": {
+                "p50": 0.00141,
+                "p90": 0.00246,
+                "p99": 0.00604,
+                "max": 0.00643,
+                "mean": 0.00191
+              },
+              "post_hunt_reversal_wr": 0.5455,
+              "avg_bars_to_reversal": 2.5,
+              "n_reversal_success": 6,
+              "n_reversal_fail": 5
+            },
+            "support": {
+              "n_hunts": 24,
+              "wick_excursion_dist": {
+                "p50": 0.00142,
+                "p90": 0.00335,
+                "p99": 0.0061,
+                "max": 0.00654,
+                "mean": 0.00186
+              },
+              "post_hunt_reversal_wr": 0.4167,
+              "avg_bars_to_reversal": 1.8,
+              "n_reversal_success": 10,
+              "n_reversal_fail": 14
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00445,
+                "p90": 0.00604,
+                "p99": 0.00639,
+                "max": 0.00643,
+                "mean": 0.00445
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.5,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 9,
+              "wick_excursion_dist": {
+                "p50": 0.00227,
+                "p90": 0.005,
+                "p99": 0.00638,
+                "max": 0.00654,
+                "mean": 0.00293
+              },
+              "post_hunt_reversal_wr": 0.4444,
+              "avg_bars_to_reversal": 1.5,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 5
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00445,
+                "p90": 0.00604,
+                "p99": 0.00639,
+                "max": 0.00643,
+                "mean": 0.00445
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.5,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 5,
+              "wick_excursion_dist": {
+                "p50": 0.00377,
+                "p90": 0.00577,
+                "p99": 0.00646,
+                "max": 0.00654,
+                "mean": 0.00389
+              },
+              "post_hunt_reversal_wr": 0.8,
+              "avg_bars_to_reversal": 1.5,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 1
+            }
+          }
+        }
+      },
+      {
+        "price": 1.347384368737475,
+        "touch_count": 941,
+        "age_bars": 22874,
+        "obviousness": 0.4185,
+        "kde_density": 25.7181,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 65,
+              "wick_excursion_dist": {
+                "p50": 0.00074,
+                "p90": 0.00158,
+                "p99": 0.00348,
+                "max": 0.00592,
+                "mean": 0.00094
+              },
+              "post_hunt_reversal_wr": 0.4154,
+              "avg_bars_to_reversal": 2.11,
+              "n_reversal_success": 27,
+              "n_reversal_fail": 38
+            },
+            "support": {
+              "n_hunts": 88,
+              "wick_excursion_dist": {
+                "p50": 0.00078,
+                "p90": 0.00153,
+                "p99": 0.00538,
+                "max": 0.00705,
+                "mean": 0.00105
+              },
+              "post_hunt_reversal_wr": 0.4659,
+              "avg_bars_to_reversal": 2.49,
+              "n_reversal_success": 41,
+              "n_reversal_fail": 47
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 15,
+              "wick_excursion_dist": {
+                "p50": 0.00152,
+                "p90": 0.00205,
+                "p99": 0.00538,
+                "max": 0.00592,
+                "mean": 0.00171
+              },
+              "post_hunt_reversal_wr": 0.4667,
+              "avg_bars_to_reversal": 2.43,
+              "n_reversal_success": 7,
+              "n_reversal_fail": 8
+            },
+            "support": {
+              "n_hunts": 25,
+              "wick_excursion_dist": {
+                "p50": 0.00138,
+                "p90": 0.00284,
+                "p99": 0.00659,
+                "max": 0.00705,
+                "mean": 0.00188
+              },
+              "post_hunt_reversal_wr": 0.52,
+              "avg_bars_to_reversal": 2.23,
+              "n_reversal_success": 13,
+              "n_reversal_fail": 12
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 5,
+              "wick_excursion_dist": {
+                "p50": 0.00195,
+                "p90": 0.0044,
+                "p99": 0.00576,
+                "max": 0.00592,
+                "mean": 0.00258
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 2.2,
+              "n_reversal_success": 5,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 9,
+              "wick_excursion_dist": {
+                "p50": 0.00268,
+                "p90": 0.00552,
+                "p99": 0.0069,
+                "max": 0.00705,
+                "mean": 0.00307
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 1.5,
+              "n_reversal_success": 6,
+              "n_reversal_fail": 3
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.00592,
+                "p90": 0.00592,
+                "p99": 0.00592,
+                "max": 0.00592,
+                "mean": 0.00592
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 6,
+              "wick_excursion_dist": {
+                "p50": 0.00283,
+                "p90": 0.00609,
+                "p99": 0.00696,
+                "max": 0.00705,
+                "mean": 0.00381
+              },
+              "post_hunt_reversal_wr": 0.6667,
+              "avg_bars_to_reversal": 1.5,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 2
+            }
+          }
+        }
+      },
+      {
+        "price": 1.3461792184368737,
+        "touch_count": 954,
+        "age_bars": 23070,
+        "obviousness": 0.6113,
+        "kde_density": 25.3193,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 80,
+              "wick_excursion_dist": {
+                "p50": 0.00072,
+                "p90": 0.00154,
+                "p99": 0.00188,
+                "max": 0.00229,
+                "mean": 0.00087
+              },
+              "post_hunt_reversal_wr": 0.575,
+              "avg_bars_to_reversal": 2.35,
+              "n_reversal_success": 46,
+              "n_reversal_fail": 34
+            },
+            "support": {
+              "n_hunts": 97,
+              "wick_excursion_dist": {
+                "p50": 0.00073,
+                "p90": 0.00162,
+                "p99": 0.00492,
+                "max": 0.00585,
+                "mean": 0.00102
+              },
+              "post_hunt_reversal_wr": 0.3711,
+              "avg_bars_to_reversal": 2.19,
+              "n_reversal_success": 36,
+              "n_reversal_fail": 61
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 18,
+              "wick_excursion_dist": {
+                "p50": 0.0015,
+                "p90": 0.00175,
+                "p99": 0.0022,
+                "max": 0.00229,
+                "mean": 0.00141
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.56,
+              "n_reversal_success": 9,
+              "n_reversal_fail": 9
+            },
+            "support": {
+              "n_hunts": 24,
+              "wick_excursion_dist": {
+                "p50": 0.00149,
+                "p90": 0.00387,
+                "p99": 0.00563,
+                "max": 0.00585,
+                "mean": 0.00202
+              },
+              "post_hunt_reversal_wr": 0.5417,
+              "avg_bars_to_reversal": 1.77,
+              "n_reversal_success": 13,
+              "n_reversal_fail": 11
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 5,
+              "wick_excursion_dist": {
+                "p50": 0.00164,
+                "p90": 0.00172,
+                "p99": 0.00172,
+                "max": 0.00172,
+                "mean": 0.00164
+              },
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 5
+            },
+            "support": {
+              "n_hunts": 11,
+              "wick_excursion_dist": {
+                "p50": 0.00218,
+                "p90": 0.00393,
+                "p99": 0.00566,
+                "max": 0.00585,
+                "mean": 0.00259
+              },
+              "post_hunt_reversal_wr": 0.3636,
+              "avg_bars_to_reversal": 1.25,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 7
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 0,
+              "wick_excursion_dist": {},
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 5,
+              "wick_excursion_dist": {
+                "p50": 0.00373,
+                "p90": 0.00508,
+                "p99": 0.00577,
+                "max": 0.00585,
+                "mean": 0.00375
+              },
+              "post_hunt_reversal_wr": 0.6,
+              "avg_bars_to_reversal": 1.33,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 2
+            }
+          }
+        }
+      },
+      {
+        "price": 1.3525492985971945,
+        "touch_count": 924,
+        "age_bars": 22853,
+        "obviousness": 0.4079,
+        "kde_density": 25.2815,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 62,
+              "wick_excursion_dist": {
+                "p50": 0.00082,
+                "p90": 0.00137,
+                "p99": 0.00211,
+                "max": 0.0023,
+                "mean": 0.00088
+              },
+              "post_hunt_reversal_wr": 0.2903,
+              "avg_bars_to_reversal": 2.28,
+              "n_reversal_success": 18,
+              "n_reversal_fail": 44
+            },
+            "support": {
+              "n_hunts": 101,
+              "wick_excursion_dist": {
+                "p50": 0.00075,
+                "p90": 0.00143,
+                "p99": 0.00535,
+                "max": 0.01222,
+                "mean": 0.00103
+              },
+              "post_hunt_reversal_wr": 0.3465,
+              "avg_bars_to_reversal": 2.31,
+              "n_reversal_success": 35,
+              "n_reversal_fail": 66
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 16,
+              "wick_excursion_dist": {
+                "p50": 0.0013,
+                "p90": 0.00187,
+                "p99": 0.00225,
+                "max": 0.0023,
+                "mean": 0.00134
+              },
+              "post_hunt_reversal_wr": 0.25,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 12
+            },
+            "support": {
+              "n_hunts": 30,
+              "wick_excursion_dist": {
+                "p50": 0.00122,
+                "p90": 0.00311,
+                "p99": 0.01023,
+                "max": 0.01222,
+                "mean": 0.00192
+              },
+              "post_hunt_reversal_wr": 0.3,
+              "avg_bars_to_reversal": 1.44,
+              "n_reversal_success": 9,
+              "n_reversal_fail": 21
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.00199,
+                "p90": 0.00224,
+                "p99": 0.00229,
+                "max": 0.0023,
+                "mean": 0.00189
+              },
+              "post_hunt_reversal_wr": 0.3333,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 12,
+              "wick_excursion_dist": {
+                "p50": 0.0023,
+                "p90": 0.00518,
+                "p99": 0.01146,
+                "max": 0.01222,
+                "mean": 0.00325
+              },
+              "post_hunt_reversal_wr": 0.4167,
+              "avg_bars_to_reversal": 1.2,
+              "n_reversal_success": 5,
+              "n_reversal_fail": 7
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00215,
+                "p90": 0.00227,
+                "p99": 0.0023,
+                "max": 0.0023,
+                "mean": 0.00215
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 6,
+              "wick_excursion_dist": {
+                "p50": 0.00337,
+                "p90": 0.00878,
+                "p99": 0.01188,
+                "max": 0.01222,
+                "mean": 0.00496
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 3
+            }
+          }
+        }
+      },
+      {
+        "price": 1.3392926452905811,
+        "touch_count": 892,
+        "age_bars": 24660,
+        "obviousness": 0.6868,
+        "kde_density": 24.7019,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 63,
+              "wick_excursion_dist": {
+                "p50": 0.00094,
+                "p90": 0.00179,
+                "p99": 0.00383,
+                "max": 0.00404,
+                "mean": 0.00108
+              },
+              "post_hunt_reversal_wr": 0.3492,
+              "avg_bars_to_reversal": 2.14,
+              "n_reversal_success": 22,
+              "n_reversal_fail": 41
+            },
+            "support": {
+              "n_hunts": 78,
+              "wick_excursion_dist": {
+                "p50": 0.00089,
+                "p90": 0.00175,
+                "p99": 0.00277,
+                "max": 0.00301,
+                "mean": 0.00098
+              },
+              "post_hunt_reversal_wr": 0.4615,
+              "avg_bars_to_reversal": 2.56,
+              "n_reversal_success": 36,
+              "n_reversal_fail": 42
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 14,
+              "wick_excursion_dist": {
+                "p50": 0.00151,
+                "p90": 0.00328,
+                "p99": 0.00399,
+                "max": 0.00404,
+                "mean": 0.00185
+              },
+              "post_hunt_reversal_wr": 0.4286,
+              "avg_bars_to_reversal": 1.83,
+              "n_reversal_success": 6,
+              "n_reversal_fail": 8
+            },
+            "support": {
+              "n_hunts": 16,
+              "wick_excursion_dist": {
+                "p50": 0.00148,
+                "p90": 0.00219,
+                "p99": 0.00262,
+                "max": 0.00269,
+                "mean": 0.00158
+              },
+              "post_hunt_reversal_wr": 0.4375,
+              "avg_bars_to_reversal": 2.57,
+              "n_reversal_success": 7,
+              "n_reversal_fail": 9
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 7,
+              "wick_excursion_dist": {
+                "p50": 0.00227,
+                "p90": 0.00383,
+                "p99": 0.00402,
+                "max": 0.00404,
+                "mean": 0.00247
+              },
+              "post_hunt_reversal_wr": 0.5714,
+              "avg_bars_to_reversal": 2.25,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 3
+            },
+            "support": {
+              "n_hunts": 5,
+              "wick_excursion_dist": {
+                "p50": 0.00218,
+                "p90": 0.00249,
+                "p99": 0.00267,
+                "max": 0.00269,
+                "mean": 0.0021
+              },
+              "post_hunt_reversal_wr": 0.4,
+              "avg_bars_to_reversal": 2.5,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 3
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00298,
+                "p90": 0.00355,
+                "p99": 0.00368,
+                "max": 0.0037,
+                "mean": 0.00298
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 4.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00244,
+                "p90": 0.00264,
+                "p99": 0.00269,
+                "max": 0.00269,
+                "mean": 0.00244
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 2.5,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 0
+            }
+          }
+        }
+      },
+      {
+        "price": 1.3556482565130261,
+        "touch_count": 840,
+        "age_bars": 22805,
+        "obviousness": 0.6963,
+        "kde_density": 24.6898,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 65,
+              "wick_excursion_dist": {
+                "p50": 0.00073,
+                "p90": 0.00132,
+                "p99": 0.00532,
+                "max": 0.01048,
+                "mean": 0.00095
+              },
+              "post_hunt_reversal_wr": 0.5077,
+              "avg_bars_to_reversal": 2.21,
+              "n_reversal_success": 33,
+              "n_reversal_fail": 32
+            },
+            "support": {
+              "n_hunts": 72,
+              "wick_excursion_dist": {
+                "p50": 0.00065,
+                "p90": 0.00135,
+                "p99": 0.00379,
+                "max": 0.00845,
+                "mean": 0.00089
+              },
+              "post_hunt_reversal_wr": 0.4722,
+              "avg_bars_to_reversal": 2.59,
+              "n_reversal_success": 34,
+              "n_reversal_fail": 38
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 15,
+              "wick_excursion_dist": {
+                "p50": 0.00115,
+                "p90": 0.00217,
+                "p99": 0.00935,
+                "max": 0.01048,
+                "mean": 0.00188
+              },
+              "post_hunt_reversal_wr": 0.5333,
+              "avg_bars_to_reversal": 2.62,
+              "n_reversal_success": 8,
+              "n_reversal_fail": 7
+            },
+            "support": {
+              "n_hunts": 16,
+              "wick_excursion_dist": {
+                "p50": 0.00126,
+                "p90": 0.00172,
+                "p99": 0.00746,
+                "max": 0.00845,
+                "mean": 0.00173
+              },
+              "post_hunt_reversal_wr": 0.5625,
+              "avg_bars_to_reversal": 2.22,
+              "n_reversal_success": 9,
+              "n_reversal_fail": 7
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 6,
+              "wick_excursion_dist": {
+                "p50": 0.00172,
+                "p90": 0.00645,
+                "p99": 0.01008,
+                "max": 0.01048,
+                "mean": 0.0031
+              },
+              "post_hunt_reversal_wr": 0.3333,
+              "avg_bars_to_reversal": 1.5,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 4
+            },
+            "support": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00517,
+                "p90": 0.00779,
+                "p99": 0.00838,
+                "max": 0.00845,
+                "mean": 0.00517
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 0
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.01048,
+                "p90": 0.01048,
+                "p99": 0.01048,
+                "max": 0.01048,
+                "mean": 0.01048
+              },
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.00845,
+                "p90": 0.00845,
+                "p99": 0.00845,
+                "max": 0.00845,
+                "mean": 0.00845
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 0
+            }
+          }
+        }
+      },
+      {
+        "price": 1.3404977955911823,
+        "touch_count": 910,
+        "age_bars": 24660,
+        "obviousness": 0.8,
+        "kde_density": 23.9241,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 61,
+              "wick_excursion_dist": {
+                "p50": 0.0009,
+                "p90": 0.0017,
+                "p99": 0.00318,
+                "max": 0.0037,
+                "mean": 0.00104
+              },
+              "post_hunt_reversal_wr": 0.459,
+              "avg_bars_to_reversal": 2.46,
+              "n_reversal_success": 28,
+              "n_reversal_fail": 33
+            },
+            "support": {
+              "n_hunts": 91,
+              "wick_excursion_dist": {
+                "p50": 0.00093,
+                "p90": 0.00181,
+                "p99": 0.00393,
+                "max": 0.00422,
+                "mean": 0.00109
+              },
+              "post_hunt_reversal_wr": 0.4835,
+              "avg_bars_to_reversal": 2.32,
+              "n_reversal_success": 44,
+              "n_reversal_fail": 47
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 14,
+              "wick_excursion_dist": {
+                "p50": 0.00161,
+                "p90": 0.00273,
+                "p99": 0.00359,
+                "max": 0.0037,
+                "mean": 0.00174
+              },
+              "post_hunt_reversal_wr": 0.5714,
+              "avg_bars_to_reversal": 2.38,
+              "n_reversal_success": 8,
+              "n_reversal_fail": 6
+            },
+            "support": {
+              "n_hunts": 23,
+              "wick_excursion_dist": {
+                "p50": 0.00155,
+                "p90": 0.00287,
+                "p99": 0.00415,
+                "max": 0.00422,
+                "mean": 0.00187
+              },
+              "post_hunt_reversal_wr": 0.3478,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 8,
+              "n_reversal_fail": 15
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 3,
+              "wick_excursion_dist": {
+                "p50": 0.00249,
+                "p90": 0.00346,
+                "p99": 0.00368,
+                "max": 0.0037,
+                "mean": 0.00274
+              },
+              "post_hunt_reversal_wr": 0.3333,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 7,
+              "wick_excursion_dist": {
+                "p50": 0.00215,
+                "p90": 0.00334,
+                "p99": 0.00384,
+                "max": 0.0039,
+                "mean": 0.00239
+              },
+              "post_hunt_reversal_wr": 0.5714,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 3
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.0037,
+                "p90": 0.0037,
+                "p99": 0.0037,
+                "max": 0.0037,
+                "mean": 0.0037
+              },
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.0039,
+                "p90": 0.0039,
+                "p99": 0.0039,
+                "max": 0.0039,
+                "mean": 0.0039
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 4.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 0
+            }
+          }
+        }
+      },
+      {
+        "price": 1.335332865731463,
+        "touch_count": 928,
+        "age_bars": 24681,
+        "obviousness": 0.7467,
+        "kde_density": 23.779,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 80,
+              "wick_excursion_dist": {
+                "p50": 0.00087,
+                "p90": 0.00177,
+                "p99": 0.00254,
+                "max": 0.00313,
+                "mean": 0.00098
+              },
+              "post_hunt_reversal_wr": 0.4375,
+              "avg_bars_to_reversal": 2.11,
+              "n_reversal_success": 35,
+              "n_reversal_fail": 45
+            },
+            "support": {
+              "n_hunts": 90,
+              "wick_excursion_dist": {
+                "p50": 0.00083,
+                "p90": 0.00194,
+                "p99": 0.00456,
+                "max": 0.00943,
+                "mean": 0.00113
+              },
+              "post_hunt_reversal_wr": 0.3556,
+              "avg_bars_to_reversal": 2.28,
+              "n_reversal_success": 32,
+              "n_reversal_fail": 58
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 24,
+              "wick_excursion_dist": {
+                "p50": 0.00145,
+                "p90": 0.00235,
+                "p99": 0.00296,
+                "max": 0.00313,
+                "mean": 0.00161
+              },
+              "post_hunt_reversal_wr": 0.625,
+              "avg_bars_to_reversal": 1.73,
+              "n_reversal_success": 15,
+              "n_reversal_fail": 9
+            },
+            "support": {
+              "n_hunts": 22,
+              "wick_excursion_dist": {
+                "p50": 0.00146,
+                "p90": 0.00359,
+                "p99": 0.00828,
+                "max": 0.00943,
+                "mean": 0.00217
+              },
+              "post_hunt_reversal_wr": 0.4091,
+              "avg_bars_to_reversal": 2.22,
+              "n_reversal_success": 9,
+              "n_reversal_fail": 13
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 5,
+              "wick_excursion_dist": {
+                "p50": 0.00222,
+                "p90": 0.00282,
+                "p99": 0.0031,
+                "max": 0.00313,
+                "mean": 0.00229
+              },
+              "post_hunt_reversal_wr": 0.8,
+              "avg_bars_to_reversal": 2.75,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 1
+            },
+            "support": {
+              "n_hunts": 7,
+              "wick_excursion_dist": {
+                "p50": 0.00292,
+                "p90": 0.00595,
+                "p99": 0.00908,
+                "max": 0.00943,
+                "mean": 0.00374
+              },
+              "post_hunt_reversal_wr": 0.2857,
+              "avg_bars_to_reversal": 2.5,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 5
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.00267,
+                "p90": 0.00304,
+                "p99": 0.00312,
+                "max": 0.00313,
+                "mean": 0.00267
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 5,
+              "wick_excursion_dist": {
+                "p50": 0.00323,
+                "p90": 0.00711,
+                "p99": 0.0092,
+                "max": 0.00943,
+                "mean": 0.00417
+              },
+              "post_hunt_reversal_wr": 0.2,
+              "avg_bars_to_reversal": 4.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 4
+            }
+          }
+        }
+      }
+    ],
+    "aggregate": {
+      "k=0.5": {
+        "total_hunts": 3648,
+        "avg_p90_excursion_pip": 0.00156,
+        "avg_reversal_wr": 0.42507
+      },
+      "k=1.0": {
+        "total_hunts": 863,
+        "avg_p90_excursion_pip": 0.0026,
+        "avg_reversal_wr": 0.46582
+      },
+      "k=1.5": {
+        "total_hunts": 271,
+        "avg_p90_excursion_pip": 0.00418,
+        "avg_reversal_wr": 0.53914
+      },
+      "k=2.0": {
+        "total_hunts": 104,
+        "avg_p90_excursion_pip": 0.00529,
+        "avg_reversal_wr": 0.59325
+      }
+    }
+  },
+  {
+    "pair": "EUR_JPY",
+    "tf": "15m",
+    "window_days": 365,
+    "n_bars": 24583,
+    "n_levels": 1,
+    "levels": [
+      {
+        "price": 183.8564729458918,
+        "touch_count": 695,
+        "age_bars": 8398,
+        "obviousness": 0.5704,
+        "kde_density": 0.1432,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 50,
+              "wick_excursion_dist": {
+                "p50": 0.10103,
+                "p90": 0.19813,
+                "p99": 0.3564,
+                "max": 0.36253,
+                "mean": 0.12181
+              },
+              "post_hunt_reversal_wr": 0.4,
+              "avg_bars_to_reversal": 2.3,
+              "n_reversal_success": 20,
+              "n_reversal_fail": 30
+            },
+            "support": {
+              "n_hunts": 58,
+              "wick_excursion_dist": {
+                "p50": 0.10647,
+                "p90": 0.18247,
+                "p99": 0.36542,
+                "max": 0.51647,
+                "mean": 0.1247
+              },
+              "post_hunt_reversal_wr": 0.3276,
+              "avg_bars_to_reversal": 2.32,
+              "n_reversal_success": 19,
+              "n_reversal_fail": 39
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 8,
+              "wick_excursion_dist": {
+                "p50": 0.16578,
+                "p90": 0.35377,
+                "p99": 0.36165,
+                "max": 0.36253,
+                "mean": 0.21303
+              },
+              "post_hunt_reversal_wr": 0.375,
+              "avg_bars_to_reversal": 2.33,
+              "n_reversal_success": 3,
+              "n_reversal_fail": 5
+            },
+            "support": {
+              "n_hunts": 8,
+              "wick_excursion_dist": {
+                "p50": 0.19147,
+                "p90": 0.33097,
+                "p99": 0.49792,
+                "max": 0.51647,
+                "mean": 0.23197
+              },
+              "post_hunt_reversal_wr": 0.125,
+              "avg_bars_to_reversal": 2.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 7
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.29878,
+                "p90": 0.35877,
+                "p99": 0.36215,
+                "max": 0.36253,
+                "mean": 0.28453
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 3.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.38397,
+                "p90": 0.48997,
+                "p99": 0.51382,
+                "max": 0.51647,
+                "mean": 0.38397
+              },
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 2
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 0,
+              "wick_excursion_dist": {},
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.51647,
+                "p90": 0.51647,
+                "p99": 0.51647,
+                "max": 0.51647,
+                "mean": 0.51647
+              },
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 1
+            }
+          }
+        }
+      }
+    ],
+    "aggregate": {
+      "k=0.5": {
+        "total_hunts": 108,
+        "avg_p90_excursion_pip": 0.1903,
+        "avg_reversal_wr": 0.3638
+      },
+      "k=1.0": {
+        "total_hunts": 16,
+        "avg_p90_excursion_pip": 0.34237,
+        "avg_reversal_wr": 0.25
+      },
+      "k=1.5": {
+        "total_hunts": 6,
+        "avg_p90_excursion_pip": 0.42437,
+        "avg_reversal_wr": 0.25
+      },
+      "k=2.0": {
+        "total_hunts": 1,
+        "avg_p90_excursion_pip": 0.51647,
+        "avg_reversal_wr": 0.0
+      }
+    }
+  },
+  {
+    "pair": "GBP_JPY",
+    "tf": "15m",
+    "window_days": 365,
+    "n_bars": 24408,
+    "n_levels": 1,
+    "levels": [
+      {
+        "price": 198.8991138754404,
+        "touch_count": 748,
+        "age_bars": 19566,
+        "obviousness": 0.6386,
+        "kde_density": 0.1463,
+        "hunts_by_k": {
+          "k=0.5": {
+            "resistance": {
+              "n_hunts": 63,
+              "wick_excursion_dist": {
+                "p50": 0.10789,
+                "p90": 0.20449,
+                "p99": 0.44981,
+                "max": 0.56389,
+                "mean": 0.13153
+              },
+              "post_hunt_reversal_wr": 0.3651,
+              "avg_bars_to_reversal": 1.7,
+              "n_reversal_success": 23,
+              "n_reversal_fail": 40
+            },
+            "support": {
+              "n_hunts": 79,
+              "wick_excursion_dist": {
+                "p50": 0.11311,
+                "p90": 0.20111,
+                "p99": 0.49689,
+                "max": 0.76911,
+                "mean": 0.14024
+              },
+              "post_hunt_reversal_wr": 0.3544,
+              "avg_bars_to_reversal": 2.79,
+              "n_reversal_success": 28,
+              "n_reversal_fail": 51
+            }
+          },
+          "k=1.0": {
+            "resistance": {
+              "n_hunts": 10,
+              "wick_excursion_dist": {
+                "p50": 0.21189,
+                "p90": 0.39829,
+                "p99": 0.54733,
+                "max": 0.56389,
+                "mean": 0.25889
+              },
+              "post_hunt_reversal_wr": 0.4,
+              "avg_bars_to_reversal": 1.5,
+              "n_reversal_success": 4,
+              "n_reversal_fail": 6
+            },
+            "support": {
+              "n_hunts": 16,
+              "wick_excursion_dist": {
+                "p50": 0.19911,
+                "p90": 0.39961,
+                "p99": 0.71676,
+                "max": 0.76911,
+                "mean": 0.26167
+              },
+              "post_hunt_reversal_wr": 0.3125,
+              "avg_bars_to_reversal": 3.4,
+              "n_reversal_success": 5,
+              "n_reversal_fail": 11
+            }
+          },
+          "k=1.5": {
+            "resistance": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.34539,
+                "p90": 0.50869,
+                "p99": 0.55837,
+                "max": 0.56389,
+                "mean": 0.36639
+              },
+              "post_hunt_reversal_wr": 0.5,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 2,
+              "n_reversal_fail": 2
+            },
+            "support": {
+              "n_hunts": 4,
+              "wick_excursion_dist": {
+                "p50": 0.39961,
+                "p90": 0.66441,
+                "p99": 0.75864,
+                "max": 0.76911,
+                "mean": 0.46036
+              },
+              "post_hunt_reversal_wr": 0.25,
+              "avg_bars_to_reversal": 4.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 3
+            }
+          },
+          "k=2.0": {
+            "resistance": {
+              "n_hunts": 1,
+              "wick_excursion_dist": {
+                "p50": 0.56389,
+                "p90": 0.56389,
+                "p99": 0.56389,
+                "max": 0.56389,
+                "mean": 0.56389
+              },
+              "post_hunt_reversal_wr": 1.0,
+              "avg_bars_to_reversal": 1.0,
+              "n_reversal_success": 1,
+              "n_reversal_fail": 0
+            },
+            "support": {
+              "n_hunts": 2,
+              "wick_excursion_dist": {
+                "p50": 0.59461,
+                "p90": 0.73421,
+                "p99": 0.76562,
+                "max": 0.76911,
+                "mean": 0.59461
+              },
+              "post_hunt_reversal_wr": 0.0,
+              "avg_bars_to_reversal": 0.0,
+              "n_reversal_success": 0,
+              "n_reversal_fail": 2
+            }
+          }
+        }
+      }
+    ],
+    "aggregate": {
+      "k=0.5": {
+        "total_hunts": 142,
+        "avg_p90_excursion_pip": 0.2028,
+        "avg_reversal_wr": 0.35975
+      },
+      "k=1.0": {
+        "total_hunts": 26,
+        "avg_p90_excursion_pip": 0.39895,
+        "avg_reversal_wr": 0.35625
+      },
+      "k=1.5": {
+        "total_hunts": 8,
+        "avg_p90_excursion_pip": 0.58655,
+        "avg_reversal_wr": 0.375
+      },
+      "k=2.0": {
+        "total_hunts": 3,
+        "avg_p90_excursion_pip": 0.64905,
+        "avg_reversal_wr": 0.5
+      }
+    }
+  }
+]

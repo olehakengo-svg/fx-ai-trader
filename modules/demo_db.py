@@ -1146,24 +1146,41 @@ class DemoDB:
             return round(w / len(trades) * 100, 1), round(ev, 2), len(trades)
 
         def _calc_wf_halves(trades: list) -> tuple:
-            """Phase 3.4: 50/50 split by entry_time → (h1_avg, h2_avg).
-            Used by _evaluate_promotions for Walk-Forward collapse demote.
+            """Phase 3.4: 50/50 split by entry_time → (h1_avg, h2_avg, p_value).
+
+            p_value: one-sided Mann-Whitney U test for H2 > H1 (None if <3 per
+            half or scipy unavailable). Used by _evaluate_promotions for both
+            Walk-Forward collapse demote (H1>0, H2<0) AND recovery
+            (H1≤0, H2>0, p<0.10).
             """
             if not trades or len(trades) < 4:
-                return 0.0, 0.0
+                return 0.0, 0.0, None
             sorted_t = sorted(trades, key=lambda r: r.get("entry_time") or "")
             half = len(sorted_t) // 2
             h1 = sorted_t[:half]
             h2 = sorted_t[half:]
-            h1_avg = sum((t["pnl_pips"] or 0) for t in h1) / len(h1) if h1 else 0.0
-            h2_avg = sum((t["pnl_pips"] or 0) for t in h2) / len(h2) if h2 else 0.0
-            return round(h1_avg, 3), round(h2_avg, 3)
+            h1_pnls = [(t["pnl_pips"] or 0) for t in h1]
+            h2_pnls = [(t["pnl_pips"] or 0) for t in h2]
+            h1_avg = sum(h1_pnls) / len(h1_pnls) if h1_pnls else 0.0
+            h2_avg = sum(h2_pnls) / len(h2_pnls) if h2_pnls else 0.0
+            p_val = None
+            if len(h1_pnls) >= 3 and len(h2_pnls) >= 3:
+                try:
+                    from scipy import stats as _sst
+                    _, _p = _sst.mannwhitneyu(
+                        h2_pnls, h1_pnls, alternative="greater"
+                    )
+                    p_val = float(_p)
+                except Exception:
+                    p_val = None
+            return round(h1_avg, 3), round(h2_avg, 3), p_val
 
         def _by_type_entry(v):
             wr, ev, n = _calc_wr(v)
-            h1, h2 = _calc_wf_halves(v)
+            h1, h2, p_val = _calc_wf_halves(v)
             return {"wr": wr, "ev": ev, "n": n,
-                    "wf_h1_avg": h1, "wf_h2_avg": h2}
+                    "wf_h1_avg": h1, "wf_h2_avg": h2,
+                    "wf_p_value": p_val}
 
         return {
             "ready": True,

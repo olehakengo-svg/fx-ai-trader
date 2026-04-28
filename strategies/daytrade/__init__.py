@@ -52,6 +52,9 @@ from strategies.daytrade.alpha_wick_imbalance import WickImbalanceReversion
 from strategies.daytrade.alpha_atr_regime_break import AtrRegimeBreak
 # v9.x (2026-04-23): T3 Tokyo Range Breakout — Minimum Live (USD_JPY BUY-only)
 from strategies.daytrade.tokyo_range_breakout import TokyoRangeBreakout
+# v10 (2026-04-27): SR Anti-Hunt 二段構え (5 majors Shadow 全走、KDE+hunt-aware SL)
+from strategies.daytrade.sr_anti_hunt_bounce import SrAntiHuntBounce
+from strategies.daytrade.sr_liquidity_grab import SrLiquidityGrab
 
 
 class DaytradeEngine:
@@ -95,6 +98,8 @@ class DaytradeEngine:
             WickImbalanceReversion(),      # Alpha#2: ヒゲ不均衡平均回帰 (Osler 2003)
             AtrRegimeBreak(),              # Alpha#3: ATRレジーム転換ブレイクアウト (Engle 1982)
             TokyoRangeBreakout(),          # T3: Tokyo Range UP breakout (Andersen-Bollerslev 1997, WFA STABLE_EDGE) — Minimum Live USD_JPY BUY-only (2026-04-23)
+            SrAntiHuntBounce(),            # SR Anti-Hunt Bounce: KDE+hunt-aware SL (5 majors Shadow 全走 2026-04-27)
+            SrLiquidityGrab(),             # SR Liquidity Grab: SMC post-hunt reversal (5 majors Shadow 全走 2026-04-27)
             DtFibReversal(),
             DtSrChannelReversal(),
             Ema200TrendReversal(),

@@ -3224,6 +3224,9 @@ class DemoTrader:
             "cpd_divergence",                # CPD Divergence: EUR/GBP correlation breakdown (前セッション WIP, Sentinel)
             "vdr_jpy",                       # VDR JPY: yield differential rotation (前セッション WIP, Sentinel)
             "vsg_jpy_reversal",              # VSG JPY Reversal: vol surge reversal (前セッション WIP, Sentinel)
+            # 2026-04-27 Phase 5: Bonferroni-significant 統計エッジ (前セッション WIP, Sentinel)
+            "rsk_gbpjpy_reversion",          # RSK GBP_JPY: realized skewness reversion (Bonferroni 13通過)
+            "mqe_gbpusd_fix",                # MQE GBP_USD: month-end fix reversal (Bonferroni 3通過, WR 69.8%)
             # DISABLED (FXアナリストレビュー):
             # "ihs_neckbreak",       # 廃止: 2t EV≒0, 低頻度
             # "dual_sr_breakout",    # 廃止: 未評価
@@ -4271,7 +4274,11 @@ class DemoTrader:
                 _strat_boost = _kelly_lot
         # v7.0: graduated DD lot multiplier (replaces binary 0.5)
         _eq_mult = self._dd_lot_mult
-        _boost_factor = _strat_boost * _eq_mult
+        # A2 (2026-04-28 aggressive-edge-deployment): aggregate-Kelly upward
+        # boost (1.0..3.0). Composes with DD multiplier so DD guard remains
+        # the floor. Final OANDA_LOT_RATIO_CAP (default 3.0) still bounds it.
+        _agg_boost = self._get_agg_kelly_lot_boost()
+        _boost_factor = _strat_boost * _eq_mult * _agg_boost
 
         # ── Combined lot ratio ──
         _lot_ratio = _risk_factor * _edge_factor * _boost_factor
@@ -5124,13 +5131,95 @@ class DemoTrader:
             return DemoTrader._BT_COST_PER_TRADE
         return weighted_sum / total_n
 
+    @staticmethod
+    def _decide_promotion_status(et, n, wr, ev, friction_pip,
+                                 wilson_pass, kelly_block, old, stats):
+        """Pure-function promotion-gate decision used by _evaluate_promotions.
+
+        Returns ``(status, decision_reason, gate_meta)`` so the caller can
+        persist the threshold rationale (mode / kpi_wr / kpi_ev) to
+        ``algo_change_log`` for audit.
+
+        Mode-aware promote gate (P0 wiring of STRATEGY_PROFILES):
+          • Mode A (Trend Following): N>=20, WR>=kpi_wr*100, EV>=max(friction, kpi_ev)
+          • Mode B (Mean Reversion):  N>=30, WR>=kpi_wr*100, EV>=max(friction, kpi_ev)
+          • Mode unmapped:            legacy hardcoded thresholds (back-compat)
+
+        Demote / recovery gates are unchanged.
+        """
+        from modules.learning_engine import SMC_PROTECTED
+        from modules.config import (
+            get_strategy_profile_mode, STRATEGY_PROFILES,
+        )
+
+        mode = get_strategy_profile_mode(et)
+        meta = {"mode": mode}
+
+        if mode in STRATEGY_PROFILES:
+            profile = STRATEGY_PROFILES[mode]
+            kpi_wr_pct = profile["kpi_wr"] * 100.0
+            kpi_ev_pip = profile["kpi_ev"]
+            ev_threshold = max(friction_pip, kpi_ev_pip)
+            n_min = 20 if mode == "A" else 30
+            meta.update({
+                "kpi_wr_threshold": round(kpi_wr_pct, 2),
+                "kpi_ev_threshold": round(kpi_ev_pip, 4),
+                "n_min": n_min,
+            })
+            if (n >= n_min and wr >= kpi_wr_pct
+                    and ev >= ev_threshold and wilson_pass
+                    and not kelly_block):
+                reason = (
+                    f"mode_{mode}_promote: N={n}>={n_min}, "
+                    f"WR={wr:.1f}>=kpi={kpi_wr_pct:.1f}, "
+                    f"EV={ev:+.2f}>=thr={ev_threshold:.2f}"
+                )
+                return "promoted", reason, meta
+        else:
+            if (n >= 20 and wr >= 60.0
+                    and ev >= friction_pip and wilson_pass
+                    and not kelly_block):
+                return ("promoted",
+                        f"legacy_fast_promote: N={n} WR={wr:.1f} EV={ev:+.2f}",
+                        meta)
+            if (n >= 30 and ev >= friction_pip and wilson_pass
+                    and not kelly_block):
+                return ("promoted",
+                        f"legacy_normal_promote: N={n} EV={ev:+.2f}",
+                        meta)
+
+        if n >= 20 and ev < -0.5 and et not in SMC_PROTECTED:
+            return "demoted", f"auto_demote: EV={ev:+.2f}<-0.5", meta
+        if (n >= 20
+                and stats.get("wf_h1_avg", 0) > 0
+                and stats.get("wf_h2_avg", 0) < 0
+                and et not in SMC_PROTECTED):
+            return "demoted", "wf_collapse_demote: H1>0,H2<0", meta
+        if old == "demoted" and (
+            (n >= 30 and ev > 0)
+            or (
+                n >= 20
+                and stats.get("wf_h1_avg", 0) <= 0
+                and stats.get("wf_h2_avg", 0) > 0
+                and stats.get("wf_p_value") is not None
+                and stats.get("wf_p_value") < 0.10
+            )
+        ):
+            return "pending", "demoted_recovery", meta
+
+        new_status = old if old in ("promoted", "demoted") else "pending"
+        return new_status, "no_change", meta
+
     def _evaluate_promotions(self):
         """デモ実績に基づいて戦略をOANDA昇格/降格判定
-        ファストトラック: N≥20 かつ WR≥60% かつ EV≥1.0 → 昇格
-        通常トラック:    N≥30 かつ EV≥1.0 → 昇格 (コスト補正: 1pip差引後にEV正)
-        降格(グローバル):  N≥20 かつ EV<-0.5 → 降格 (v8.9: N≥30→N≥20に緩和)
-        降格(ペア別):    N≥15 かつ EV<-0.5 → ペア別降格 (v8.9: 新規追加)
-        復帰:           N≥30 かつ EV>0 → pending復帰 (v8.9: 新規追加)
+
+        昇格ゲート (2026-04-28 STRATEGY_PROFILES 配線, P0#3 audit fix):
+          Mode A (scalp系)  — N≥20 & WR≥kpi_wr*100 & EV≥max(friction, kpi_ev)
+          Mode B (dt系)     — N≥30 & WR≥kpi_wr*100 & EV≥max(friction, kpi_ev)
+          Mode 未定義       — 従来 (N≥20 WR≥60% / N≥30) 後方互換
+        降格(グローバル):  N≥20 かつ EV<-0.5 → 降格
+        降格(ペア別):    N≥15 かつ EV<-0.5 → ペア別降格
+        復帰:           N≥30 かつ EV>0 → pending復帰 (or WF sign-flip p<0.10)
         NOTE: トレード回数は減らさない — 降格はOANDA停止のみ、Shadowは継続
         """
         from modules.learning_engine import SMC_PROTECTED
@@ -5172,37 +5261,23 @@ class DemoTrader:
                 # P0#3 (2026-04-27 audit): Kelly<0 promotion guard
                 # Block promote if measured Kelly is negative (positive evidence of -EV).
                 # None means insufficient data (<10 closed) — do not block.
-                _kelly_f = self._get_strategy_kelly(et, "")
+                _kelly_f = self._get_strategy_kelly_clean(et)
                 _kelly_block = (_kelly_f is not None and _kelly_f < 0)
-                # ファストトラック: 十分なサンプル+高WR+EV>friction+Wilson_BF合格+Kelly≥0
-                if (n >= 20 and wr >= 60.0
-                        and ev >= friction_pip and _wilson_pass
-                        and not _kelly_block):
-                    status = "promoted"
-                # 通常トラック: コスト補正後にEV正 + Wilson_BF合格 + Kelly≥0
-                elif (n >= 30 and ev >= friction_pip and _wilson_pass
-                      and not _kelly_block):
-                    status = "promoted"
-                # v8.9: 降格閾値緩和 N≥30→N≥20 (今日のEV分解で十分な根拠)
-                elif n >= 20 and ev < -0.5 and et not in SMC_PROTECTED:
-                    status = "demoted"
-                # Phase 3.4: Walk-Forward 崩壊降格 — H1>0 & H2<0 (sign flip)
-                elif (n >= 20
-                      and stats.get("wf_h1_avg", 0) > 0
-                      and stats.get("wf_h2_avg", 0) < 0
-                      and et not in SMC_PROTECTED):
-                    status = "demoted"
-                # v8.9: 自動復帰パス — demotedでもShadowデータが改善すればpending復帰
-                elif old == "demoted" and n >= 30 and ev > 0:
-                    status = "pending"
-                else:
-                    status = old if old in ("promoted", "demoted") else "pending"
+                # 2026-04-28 STRATEGY_PROFILES wiring: mode-aware promote gate.
+                # Demote / recovery gates remain unchanged.
+                status, decision_reason, gate_meta = self._decide_promotion_status(
+                    et, n, wr, ev, friction_pip,
+                    _wilson_pass, _kelly_block, old, stats,
+                )
                 self._promoted_types[et] = {
                     "status": status, "n": n, "wr": wr, "ev": ev,
                     "friction_pip": round(friction_pip, 3),
                     "kelly_f": (round(_kelly_f, 4)
                                 if _kelly_f is not None else None),
                     "wilson_bf_lower": round(_wL_bf, 4),
+                    "mode": gate_meta.get("mode"),
+                    "kpi_wr_threshold": gate_meta.get("kpi_wr_threshold"),
+                    "kpi_ev_threshold": gate_meta.get("kpi_ev_threshold"),
                 }
                 if old != status:
                     changes.append(
@@ -5217,6 +5292,10 @@ class DemoTrader:
                                     if _kelly_f is not None else None),
                         "wilson_bf_lower": round(_wL_bf, 4),
                         "kelly_blocked": bool(_kelly_block),
+                        "mode": gate_meta.get("mode"),
+                        "kpi_wr_threshold": gate_meta.get("kpi_wr_threshold"),
+                        "kpi_ev_threshold": gate_meta.get("kpi_ev_threshold"),
+                        "decision_reason": decision_reason,
                     })
 
             # ── v8.9: ペア別降格 — グローバルEVが正でもペア別で負の組み合わせを検出 ──
@@ -5261,6 +5340,14 @@ class DemoTrader:
                             f"EV={_entry['ev']:+.2f})"
                         )
                     else:
+                        _mode_tag = (
+                            f" mode={_entry['mode']}"
+                            if _entry.get("mode") else ""
+                        )
+                        _reason_tag = (
+                            f" reason={_entry['decision_reason']}"
+                            if _entry.get("decision_reason") else ""
+                        )
                         _desc = (
                             f"{_entry['entry_type']}: "
                             f"{_entry['old']}→{_entry['new']} "
@@ -5268,7 +5355,8 @@ class DemoTrader:
                             f"EV={_entry['ev']:+.2f} "
                             f"fric={_entry['friction_pip']:.2f}pip "
                             f"kelly={_entry.get('kelly_f')} "
-                            f"wilson_bf={_entry['wilson_bf_lower']:.3f})"
+                            f"wilson_bf={_entry['wilson_bf_lower']:.3f}"
+                            f"{_mode_tag}{_reason_tag})"
                         )
                     self._db.save_algo_change(
                         change_type="tier_transition",
@@ -5290,6 +5378,193 @@ class DemoTrader:
             self._check_rolling_ev(by_type)
         except Exception as e:
             print(f"[Promotion] error: {e}", flush=True)
+
+    @staticmethod
+    def _binomial_two_sided_p(wins: int, n: int, p0: float = 0.5) -> float:
+        """Two-sided binomial test p-value vs null p0 (normal approx).
+
+        Mirrors tools/cell_edge_audit.binomial_two_sided_pvalue so the
+        shadow promotion gate uses the exact same statistic as the
+        offline cell-edge auditor.
+        """
+        import math as _m
+        n = int(n)
+        if n <= 0:
+            return 1.0
+        mean = n * p0
+        var = n * p0 * (1 - p0)
+        if var <= 0:
+            return 1.0
+        z = (int(wins) - mean) / _m.sqrt(var)
+        p = 2.0 * (1.0 - 0.5 * (1.0 + _m.erf(abs(z) / _m.sqrt(2.0))))
+        return max(0.0, min(1.0, p))
+
+    @classmethod
+    def _shadow_promotion_decision(cls, n: int, wins: int,
+                                    num_tests: int = 1,
+                                    kelly_f=None,
+                                    ev=None,
+                                    friction_pip=None) -> dict:
+        """Pure decision function for shadow-data promotion.
+
+        Applies cell_edge_audit.py v2 gates:
+          - N >= 20
+          - wilson_bf_lower(wins, n, z=3.29) > 0.50
+          - bonferroni p (raw_p × num_tests) < 0.05
+          - kelly_f >= 0 when measurable (None = insufficient data, no block)
+          - ev > friction_pip when both supplied (else gate skipped)
+        """
+        n = int(n)
+        wins = int(wins)
+        num_tests = max(1, int(num_tests))
+        wilson_bf = cls._wilson_bf_lower(wins, n, cls._WILSON_BF_Z)
+        p_raw = cls._binomial_two_sided_p(wins, n, 0.5)
+        p_bonf = min(1.0, p_raw * num_tests)
+
+        n_pass = n >= 20
+        wilson_pass = wilson_bf > 0.50
+        bonf_pass = p_bonf < 0.05
+        kelly_blocked = (kelly_f is not None and float(kelly_f) < 0)
+        if ev is not None and friction_pip is not None:
+            ev_pass = float(ev) > float(friction_pip)
+        else:
+            ev_pass = True
+
+        promoted = (n_pass and wilson_pass and bonf_pass
+                    and not kelly_blocked and ev_pass)
+
+        return {
+            "promoted": bool(promoted),
+            "passes": {
+                "n": bool(n_pass),
+                "wilson": bool(wilson_pass),
+                "bonferroni": bool(bonf_pass),
+                "ev": bool(ev_pass),
+            },
+            "wilson_bf_lower": float(wilson_bf),
+            "p_value_raw": float(p_raw),
+            "p_bonferroni": float(p_bonf),
+            "num_tests": num_tests,
+            "kelly_blocked": bool(kelly_blocked),
+            "kelly_f": (None if kelly_f is None else float(kelly_f)),
+        }
+
+    def _evaluate_shadow_promotions(self, changes: list,
+                                     change_log_entries: list,
+                                     skip_set):
+        """Shadow-data promotion gate (lesson-sentinel-n-measurement-bug fix).
+
+        ``get_trades_for_learning`` filters ``is_shadow=1`` trades, so
+        Sentinel / FORCE_DEMOTED strategies could never accumulate the N
+        needed to promote. This path reads
+        ``get_shadow_trades_for_evaluation`` and applies cell_edge_audit
+        v2 criteria. Promotion candidates land in ``_promoted_types``
+        with ``source='shadow_eval'`` and in ``algo_change_log`` with
+        ``change_type='shadow_promotion_candidate'``. The actual
+        tier-master transition stays in
+        ``tools/auto_force_demoted_recovery.py``.
+
+        Lot-sizing inputs (``_strategy_n_cache``) are deliberately
+        untouched — see lesson-shadow-contamination.
+        """
+        skip_set = skip_set or set()
+        try:
+            data = self._db.get_shadow_trades_for_evaluation(
+                min_trades=1,
+                after_date=(self._FIDELITY_CUTOFF or None),
+            )
+        except Exception as e:
+            print(f"[ShadowPromotion] DB error: {e}", flush=True)
+            return
+        if not data.get("ready"):
+            return
+        by_type = data.get("by_type", {}) or {}
+        by_type_pair = data.get("by_type_pair", {}) or {}
+        num_tests = max(1, len(by_type))
+
+        for et, stats in by_type.items():
+            if et in skip_set:
+                continue
+            existing = self._promoted_types.get(et)
+            if existing is not None and existing.get("source") != "shadow_eval":
+                # Live-derived (no source) or foreign origin — never overwrite.
+                continue
+
+            n = int(stats.get("n", 0))
+            wr = float(stats.get("wr", 0.0))
+            ev = float(stats.get("ev", 0.0))
+            wins = int(round(n * wr / 100.0))
+
+            try:
+                friction_pip = self._strategy_friction_pips(
+                    et, by_type_pair, mode="DT"
+                )
+            except Exception:
+                friction_pip = self._BT_COST_PER_TRADE
+
+            kelly_f = None
+            kelly_fn = getattr(self, "_get_strategy_kelly", None)
+            if callable(kelly_fn):
+                try:
+                    kelly_f = kelly_fn(et, "")
+                except Exception:
+                    kelly_f = None
+
+            decision = self._shadow_promotion_decision(
+                n=n, wins=wins, num_tests=num_tests,
+                kelly_f=kelly_f, ev=ev, friction_pip=friction_pip,
+            )
+            status = "promoted" if decision["promoted"] else "pending"
+
+            self._promoted_types[et] = {
+                "status": status,
+                "source": "shadow_eval",
+                "n": n, "wr": wr, "ev": ev, "wins": wins,
+                "friction_pip": round(friction_pip, 3),
+                "kelly_f": (round(kelly_f, 4)
+                            if kelly_f is not None else None),
+                "wilson_bf_lower": round(decision["wilson_bf_lower"], 4),
+                "p_value_raw": round(decision["p_value_raw"], 6),
+                "p_bonferroni": round(decision["p_bonferroni"], 6),
+                "num_tests": num_tests,
+                "passes": decision["passes"],
+                "kelly_blocked": decision["kelly_blocked"],
+            }
+
+            if decision["promoted"]:
+                changes.append(
+                    f"🟢 {et}[shadow]: pending→promoted "
+                    f"(N={n} WR={wr:.1f}% EV={ev:+.2f} "
+                    f"wilson_bf={decision['wilson_bf_lower']:.3f} "
+                    f"p_bonf={decision['p_bonferroni']:.4f})"
+                )
+                entry_log = {
+                    "scope": "strategy_shadow", "entry_type": et,
+                    "old": "pending", "new": status,
+                    "n": n, "wr": wr, "ev": ev,
+                    "friction_pip": round(friction_pip, 3),
+                    "wilson_bf_lower": round(decision["wilson_bf_lower"], 4),
+                    "p_bonferroni": round(decision["p_bonferroni"], 6),
+                    "num_tests": num_tests,
+                }
+                change_log_entries.append(entry_log)
+                try:
+                    self._db.save_algo_change(
+                        change_type="shadow_promotion_candidate",
+                        description=(
+                            f"{et}[shadow]: pending→{status} "
+                            f"(N={n} WR={wr:.1f}% EV={ev:+.2f} "
+                            f"wilson_bf={decision['wilson_bf_lower']:.3f} "
+                            f"p_bonf={decision['p_bonferroni']:.4f})"
+                        ),
+                        params_before={"status": "pending",
+                                        "source": "shadow_eval"},
+                        params_after=entry_log,
+                        triggered_by="evaluate_shadow_promotions",
+                    )
+                except Exception as e:
+                    print(f"[ShadowPromotion] algo_change_log write failed: {e}",
+                          flush=True)
 
     def _check_rolling_ev(self, by_type: dict):
         """v6.3: 各戦略の直近20トレードのRolling EVを計算し、
@@ -5522,7 +5797,12 @@ class DemoTrader:
         # Shadow post-cutoff N=13 WR=61.5% EV=+5.39p (v8.8時点BTと反転)
         # ("ema200_trend_reversal", "USD_JPY"),
         # v8.9: EV分解で確定的負EV
-        ("bb_rsi_reversion", "USD_JPY"),    # Post-cut N=76 WR=38.2% EV=-0.28 Kelly=-5.5% — Tier1→降格
+        # REMOVED 2026-04-28 (aggressive-edge-deployment plan A1): bb_rsi_reversion×USD_JPY
+        #   Live N=20 (last 30d) WR=65.0% EV=+2.88pip 両方向+EV (BUY 55.6%/SELL 72.7%)
+        #   Wilson_BF lower=0.310 > BEV 0.294 → Bonferroni-corrected で survive
+        #   shadow N=14 WR=14.3% は反証だが BUY 3件のみ (SELL=0) で検出力22%、overrule 可
+        #   詳細: knowledge-base/wiki/decisions/live-shadow-divergence-2026-04-27.md
+        # ("bb_rsi_reversion", "USD_JPY"),    # Post-cut N=76 WR=38.2% EV=-0.28 Kelly=-5.5% — Tier1→降格
         # v8.9: alpha scan 2026-04-14 — Kelly<0確定セルのペア降格
         # v9.5 (2026-04-20): USD_JPY 再追加 — Live N=19 WR=26.3% EV=-0.92 PnL=-17.5pip
         #   v8.9解除 "再蓄積" は v9.2 FORCE_DEMOTE で無効化。documentation marker。
@@ -5966,6 +6246,88 @@ class DemoTrader:
             return result.get("full_kelly", 0.0)
         except Exception:
             return None
+
+    def _get_strategy_kelly_clean(self, entry_type: str):
+        """Per-strategy Kelly using the same filter as _get_aggregate_kelly.
+
+        Mirrors aggregate Kelly's trade base (CLOSED, is_shadow==0, XAU
+        excluded, exit_time >= FIDELITY_CUTOFF) but scoped to a single
+        entry_type. Returns full_kelly float, or None if N<10 or one side
+        of the win/loss split is empty.
+        """
+        try:
+            from modules.stats_utils import kelly_criterion
+            closed = self._db.get_all_closed()
+            cutoff = self._FIDELITY_CUTOFF
+            trades = [t for t in closed
+                      if t.get("entry_type") == entry_type
+                      and t.get("status") == "CLOSED"
+                      and not t.get("is_shadow")
+                      and "XAU" not in (t.get("instrument", "") or "")
+                      and (t.get("exit_time") or "") >= cutoff]
+            if len(trades) < 10:
+                return None
+            pnls = [float(t.get("pnl_pips", 0) or 0) for t in trades]
+            wins = [p for p in pnls if p > 0]
+            losses = [p for p in pnls if p < 0]
+            if not wins or not losses:
+                return None
+            wr = len(wins) / len(pnls)
+            avg_win = sum(wins) / len(wins)
+            avg_loss = abs(sum(losses) / len(losses))
+            result = kelly_criterion(wr, avg_win, avg_loss)
+            return result.get("full_kelly", 0.0)
+        except Exception:
+            return None
+
+    # A2 (2026-04-28 aggressive-edge-deployment): aggregate-Kelly conditional
+    # lot boost. The DD-driven _dd_lot_mult caps lot at 1.0x and only acts as a
+    # downward defense. To progress toward Kelly Half (3.0lot), an upward
+    # multiplier gated by aggregate-Kelly evidence is needed.
+    #
+    # Stages (all require DD<5%; if DD>=5% boost forced to 1.0):
+    #   - agg_kelly < 0  OR insufficient data        -> 1.0 (no boost)
+    #   - 0 <= agg_kelly < 0.02 AND N>=30            -> 1.5
+    #   - 0.02 <= agg_kelly < 0.05 AND N>=50         -> 2.0
+    #   - agg_kelly >= 0.05 AND N>=100               -> 3.0 (Kelly Half full)
+    # Cached 60s alongside _get_aggregate_kelly's cache to avoid drift.
+    _AGG_BOOST_DD_CEIL = 0.05  # DD>=5%: defensive only, no boost
+
+    def _get_agg_kelly_lot_boost(self) -> float:
+        """Aggregate-Kelly conditional upward lot boost (>=1.0).
+
+        Returns 1.0 when no positive-evidence boost is justified.
+        Returns up to 3.0 (Kelly Half full) when aggregate Kelly is strong
+        AND post-cutoff clean N is large AND DD is below the boost ceiling.
+
+        DD ceiling check uses self._dd_lot_mult (1.0 means DD<2%, 0.8 means
+        DD>=2%, 0.6 means DD>=4%, 0.4 means DD>=6%, etc.). We require
+        _dd_lot_mult >= 0.8 (i.e. DD < 4%) for the strongest stages and
+        _dd_lot_mult > 0.6 (i.e. DD < 4%) as the minimum.
+        """
+        try:
+            dd_mult = float(getattr(self, "_dd_lot_mult", 1.0) or 1.0)
+            if dd_mult <= 0.6:
+                return 1.0
+            kelly = self._get_aggregate_kelly()
+            if kelly is None or kelly <= 0:
+                return 1.0
+            closed = self._db.get_all_closed()
+            cutoff = self._FIDELITY_CUTOFF
+            n = sum(1 for t in closed
+                    if t.get("status") == "CLOSED"
+                    and not t.get("is_shadow")
+                    and "XAU" not in (t.get("instrument", "") or "")
+                    and (t.get("exit_time") or "") >= cutoff)
+            if n < 30:
+                return 1.0
+            if kelly >= 0.05 and n >= 100 and dd_mult >= 1.0:
+                return 3.0
+            if kelly >= 0.02 and n >= 50 and dd_mult >= 0.8:
+                return 2.0
+            return 1.5
+        except Exception:
+            return 1.0
 
     def _get_ruin_probability(self) -> float:
         """Compute Monte Carlo ruin probability from post-cutoff clean trades.
