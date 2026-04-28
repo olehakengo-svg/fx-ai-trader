@@ -30,6 +30,7 @@
     "vol_surge_detector"
   ],
   "universal_sentinel": [
+    "cpd_divergence",
     "doji_breakout",
     "dt_fib_reversal",
     "dt_sr_channel_reversal",
@@ -38,11 +39,17 @@
     "liquidity_sweep",
     "london_close_reversal",
     "london_close_reversal_v2",
+    "mqe_gbpusd_fix",
     "post_news_vol",
+    "rsk_gbpjpy_reversion",
     "squeeze_release_momentum",
+    "sr_anti_hunt_bounce",
+    "sr_liquidity_grab",
     "v_reversal",
+    "vdr_jpy",
     "vix_carry_unwind",
-    "vol_spike_mr"
+    "vol_spike_mr",
+    "vsg_jpy_reversal"
   ],
   "pair_promoted": [
     [

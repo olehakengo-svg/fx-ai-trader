@@ -55,6 +55,12 @@ from strategies.daytrade.tokyo_range_breakout import TokyoRangeBreakout
 # v10 (2026-04-27): SR Anti-Hunt 二段構え (5 majors Shadow 全走、KDE+hunt-aware SL)
 from strategies.daytrade.sr_anti_hunt_bounce import SrAntiHuntBounce
 from strategies.daytrade.sr_liquidity_grab import SrLiquidityGrab
+# v11 (2026-04-27): Phase 2-5 audit-driven edges
+from strategies.daytrade.cpd_divergence import CpdDivergence
+from strategies.daytrade.vdr_jpy import VdrJpy
+from strategies.daytrade.vsg_jpy_reversal import VsgJpyReversal
+from strategies.daytrade.rsk_gbpjpy_reversion import RskGbpjpyReversion
+from strategies.daytrade.mqe_gbpusd_fix import MqeGbpusdFix
 
 
 class DaytradeEngine:
@@ -100,6 +106,11 @@ class DaytradeEngine:
             TokyoRangeBreakout(),          # T3: Tokyo Range UP breakout (Andersen-Bollerslev 1997, WFA STABLE_EDGE) — Minimum Live USD_JPY BUY-only (2026-04-23)
             SrAntiHuntBounce(),            # SR Anti-Hunt Bounce: KDE+hunt-aware SL (5 majors Shadow 全走 2026-04-27)
             SrLiquidityGrab(),             # SR Liquidity Grab: SMC post-hunt reversal (5 majors Shadow 全走 2026-04-27)
+            CpdDivergence(),               # Phase 2: EUR/GBP_USD cointegration breakdown convergence (Sentinel)
+            VdrJpy(),                      # Phase 3: VWAP deviation reversion JPY-only (Sentinel)
+            VsgJpyReversal(),              # Phase 4: EWMA vol surprise reversal EUR/GBP_JPY (Bonferroni 7 通過)
+            RskGbpjpyReversion(),          # Phase 5: realized skewness reversion GBP_JPY (Bonferroni 13 通過)
+            MqeGbpusdFix(),                # Phase 5: month-end fix reversal GBP_USD (Bonferroni 3, WR 69.8%)
             DtFibReversal(),
             DtSrChannelReversal(),
             Ema200TrendReversal(),
