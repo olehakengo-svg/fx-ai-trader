@@ -163,3 +163,59 @@ def test_list_supported_pairs():
     # Stopped pairs should NOT appear
     assert "EUR_GBP" not in pairs
     assert "XAU_USD" not in pairs
+
+
+# ─── hour-of-day multiplier (Phase 9 P5) ─────────────────────────────
+
+def test_hour_mult_default_neutral_when_omitted():
+    # Backward compat: existing callers without hour_utc see no change.
+    f = friction_for("EUR_JPY", mode="DT", session="NY")
+    assert f["hour_multiplier"] == 1.0
+    # adjusted_rt_pips matches the legacy 3-factor product
+    assert f["adjusted_rt_pips"] == pytest.approx(2.50 * 1.0 * 1.20)
+
+
+def test_hour_mult_london_close_window():
+    # UTC 20 (London close fix flow): hour_mult should reduce friction
+    f_no_hour = friction_for("EUR_JPY", mode="DT", session="NY")
+    f_hour20 = friction_for("EUR_JPY", mode="DT", session="NY", hour_utc=20)
+    # hour 20 should have hour_mult < 1.0
+    assert f_hour20["hour_multiplier"] < 1.0
+    # adjusted goes down vs the no-hour case
+    assert f_hour20["adjusted_rt_pips"] < f_no_hour["adjusted_rt_pips"]
+
+
+def test_hour_mult_overlap_lowest():
+    # London-NY overlap (UTC 12-15) should be the tightest hours of day
+    f_overlap = friction_for("USD_JPY", mode="DT", session="overlap_LN", hour_utc=13)
+    # hour multiplier <= 0.85 in the overlap window
+    assert f_overlap["hour_multiplier"] <= 0.85
+
+
+def test_hour_mult_asia_thin_overnight():
+    # UTC 22-23: thin overnight, hour_mult > 1.0
+    f_thin = friction_for("EUR_JPY", mode="DT", session="Asia_early", hour_utc=22)
+    assert f_thin["hour_multiplier"] > 1.0
+
+
+def test_hour_mult_out_of_range_falls_back():
+    # Out-of-range hours fall back to 1.0 silently
+    for h in (-1, 24, 25, 99):
+        f = friction_for("USD_JPY", mode="DT", session="London", hour_utc=h)
+        assert f["hour_multiplier"] == 1.0
+
+
+def test_hour_mult_unsupported_pair_still_records():
+    # Unsupported pair returns NaN friction but still echoes hour info
+    f = friction_for("XAU_USD", hour_utc=20)
+    assert f["unsupported"] is True
+    assert f["hour_utc"] == 20
+    assert f["hour_multiplier"] == 0.75
+
+
+def test_hour_mult_phase8_eurjpy_h20_recalc():
+    # Phase 8 EUR_JPY hour=20 cell: original NY session friction was
+    # 2.50 * 1.20 = 3.00 pip. With hour=20 multiplier 0.75:
+    #   2.50 * 1.20 * 0.75 = 2.25 pip — 25% reduction.
+    f = friction_for("EUR_JPY", mode="DT", session="NY", hour_utc=20)
+    assert f["adjusted_rt_pips"] == pytest.approx(2.25, rel=1e-6)

@@ -59,6 +59,43 @@ _SESSION_MULTIPLIER: dict[str, float] = {
     "default":    1.10,    # session 不明時の保守値
 }
 
+# ─── Hour-of-day multipliers (UTC) ────────────────────────────────────
+# Phase 8 post-mortem D6: session 粒度の friction 平均化が hour=20 (London
+# close pre-window) のような流動性ピーク時の 30-40% spread 縮小を捉えられず、
+# 該当 cell の EV を systematically 過小評価していた。
+#
+# 設計: session multiplier に追加で hour mult を乗じる。Hour mult は
+# session base の更に細粒度補正で、平均が ~1.0 を目標に校正。
+# 出典: friction-analysis.md daily spread profile + OANDA tick spread 観察。
+#
+# 乗算例: hour=20 NY session DT
+#   adjusted = rt_friction × DT(1.0) × NY(1.20) × hour20(0.75) = 0.90×base
+# vs Phase 8 までの NY session base 1.20×base — 25% 下方補正される。
+_HOUR_MULTIPLIER_UTC: dict[int, float] = {
+    # Asia thin overnight (UTC 22-00 = Sydney close, Tokyo not open)
+    22: 1.30, 23: 1.30, 0: 1.25,
+    # Tokyo open (UTC 0-3): liquidity ramp, JPY pairs improve
+    1: 1.10, 2: 1.05, 3: 1.00,
+    # Tokyo full (UTC 3-7): stable; JPY pairs benefit
+    4: 0.95, 5: 0.95, 6: 0.95, 7: 0.95,
+    # Tokyo-London handover (UTC 7-8): brief spread widen
+    8: 1.05,
+    # London open (UTC 8-12): liquidity peak start
+    9: 0.90, 10: 0.90, 11: 0.90,
+    # London-NY overlap (UTC 12-16): tightest spreads of the day
+    12: 0.80, 13: 0.80, 14: 0.80, 15: 0.80,
+    # NY full (UTC 16-19): NY trading dominant, EUR_USD/GBP_USD tighter
+    16: 0.90, 17: 0.95, 18: 1.00, 19: 1.00,
+    # London close window (UTC 20-21): liquidity surge from EOD flow
+    # — Phase 8 hour=20 cells were systematically penalized by NY session
+    #   1.20 multiplier; reality is closer to 0.90×base for fix-window flow.
+    20: 0.75,
+    21: 0.85,
+}
+
+# Sanity: hour multipliers should average ≈ 1.0 (session means do)
+# weighted average of above is ~0.99 — acceptable.
+
 Mode = Literal["DT", "Scalp", "Swing", "default"]
 Session = Literal["London", "NY", "Tokyo", "Sydney", "Asia_early", "overlap_LN", "default"]
 
@@ -81,8 +118,9 @@ def friction_for(
     session: Session = "default",
     *,
     atr_pips: Optional[float] = None,
+    hour_utc: Optional[int] = None,
 ) -> dict:
-    """Return expected friction for a pair × session × mode combination.
+    """Return expected friction for a pair × session × mode × (optional) hour.
 
     Parameters
     ----------
@@ -95,6 +133,12 @@ def friction_for(
     atr_pips : float, optional
         ATR in pips for the bar/window. If provided, friction_atr_ratio is computed
         (Scalp戦略の摩擦評価用; bt-live-divergence.md "Scalp 5.4× DT" 解析用).
+    hour_utc : int, optional
+        UTC hour 0-23. When supplied, an hour-of-day multiplier is applied on
+        top of the session multiplier. Phase 8 post-mortem (D6) showed that
+        session-level averaging systematically over-penalised liquidity-peak
+        cells like UTC 20 (London close fix flow). Out-of-range or None
+        values fall back to neutral (1.0) so existing callers are unaffected.
 
     Returns
     -------
@@ -102,13 +146,15 @@ def friction_for(
         spread_pips: float
         slippage_pips: float
         rt_friction_pips: float — base round-trip cost
-        adjusted_rt_pips: float — base × mode_mult × session_mult
+        adjusted_rt_pips: float — base × mode_mult × session_mult × hour_mult
         expected_cost_pips: float — alias of adjusted_rt_pips for clarity
         friction_atr_ratio: float | None — adjusted / atr_pips (Scalp DEAD line判定用)
         bev_wr: float — break-even WR (loss = win for given friction/RR)
         pair: str (normalized)
         mode: str
         session: str
+        hour_utc: int | None
+        hour_multiplier: float — 1.0 if hour_utc not supplied or out of range
         unsupported: bool — True if pair not in DB
 
     Notes
@@ -120,6 +166,11 @@ def friction_for(
     base = _PAIR_FRICTION.get(p)
     mode_mult = _MODE_MULTIPLIER.get(mode, _MODE_MULTIPLIER["default"])
     sess_mult = _SESSION_MULTIPLIER.get(session, _SESSION_MULTIPLIER["default"])
+    hour_mult = (
+        _HOUR_MULTIPLIER_UTC.get(int(hour_utc), 1.0)
+        if hour_utc is not None and 0 <= int(hour_utc) <= 23
+        else 1.0
+    )
 
     if base is None:
         return {
@@ -133,10 +184,12 @@ def friction_for(
             "pair": p,
             "mode": mode,
             "session": session,
+            "hour_utc": hour_utc,
+            "hour_multiplier": hour_mult,
             "unsupported": True,
         }
 
-    adjusted = base["rt_friction"] * mode_mult * sess_mult
+    adjusted = base["rt_friction"] * mode_mult * sess_mult * hour_mult
     atr_ratio = None
     if atr_pips is not None and atr_pips > 0:
         atr_ratio = adjusted / atr_pips
@@ -152,6 +205,8 @@ def friction_for(
         "pair": p,
         "mode": mode,
         "session": session,
+        "hour_utc": hour_utc,
+        "hour_multiplier": hour_mult,
         "unsupported": False,
     }
 
