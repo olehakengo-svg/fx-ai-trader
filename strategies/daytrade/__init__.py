@@ -176,10 +176,16 @@ class DaytradeEngine:
     # 戦略 score が低くても Shadow trade として無条件記録すべき戦略の集合。
     # select_best で他戦略に敗北しても Shadow N 蓄積路を残す。
     # 詳細: knowledge-base/wiki/decisions/sr-strategies-signal-track-2026-04-28.md
-    SHADOW_ALWAYS_STRATEGIES = frozenset({
-        "sr_anti_hunt_bounce",
-        "sr_liquidity_grab",
-    })
+    #
+    # 2026-04-28 R2 demotion (rule:R2):
+    # 本番実測 4 日 / N=300 で sr_anti_hunt_bounce と sr_liquidity_grab 両戦略とも
+    # EV<0 を確認 (USDJPY: EV=-1.41p WR=26%, EURUSD: EV=-1.12p WR=20%, ほか)。
+    # SHADOW_EMIT 経路は Phase 8 cell_edge_audit の N に直接乗るため、EV<0 で
+    # 強制 emit を継続するとデータ汚染で Wilson_BF / Bonferroni / Kelly が誤誘導
+    # される。R2 警報閾値 (N>=30, EV<0) で **両戦略を SHADOW_ALWAYS から除外**。
+    # 戦略本体の enabled=True は維持 → primary 競争で勝てば trade 化、shadow 強制
+    # emit のみ停止。詳細: lesson-shadow-always-emit-cleanup-2026-04-28.md
+    SHADOW_ALWAYS_STRATEGIES = frozenset()
 
     def select_best(self, candidates: list[Candidate]) -> Optional[Candidate]:
         """最高スコアの候補を選択。"""

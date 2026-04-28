@@ -4,8 +4,8 @@
 - **Entry Type**: `sr_anti_hunt_bounce`
 - **Category**: MR (Mean Reversion / Defensive bounce at SR)
 - **Timeframe**: DT 15m
-- **Status**: NEW (2026-04-27) — Shadow 5 majors 全走 (PAIR_PROMOTED 不在で OANDA は default Sentinel 0.01lot)
-- **Active Pairs**: USDJPY, EURUSD, GBPUSD, EURJPY, GBPJPY (全5 majors)
+- **Status**: SHADOW_DEMOTED — R2 triggered 2026-04-28 (本番実測 EV<0 確定、SHADOW_ALWAYS から除外、enabled=True は維持)
+- **Active Pairs**: USDJPY, EURUSD, GBPUSD, EURJPY, GBPJPY (全5 majors) — primary 競争通過時のみ trade 化
 
 ## 攻めの姿勢 (CLAUDE.md 4原則)
 - 「攻撃は最大の防御」「クリーンデータ蓄積が最優先」
@@ -25,6 +25,27 @@
 → Trade-outcome では USD_JPY/EUR_USD/GBP_USD のみ EV>0 (sim)
 → Quarterly stability: USD_JPY のみ std<0.10 で安定、EUR/GBP_USD はやや不安定
 → **Live 検証で確定する** (Shadow data accumulation 優先)
+
+## 本番実測 (2026-04-28, 4 日, N=300 closed)
+
+| Pair | N | WR | mean pnl | sum | sim EV | 乖離 |
+|---|---:|---:|---:|---:|---:|---:|
+| USD_JPY | 173 | 26% | **-1.41p** | -243.9p | +0.55p | -1.96p |
+| EUR_USD | 65 | 20% | **-1.12p** | -72.7p | +0.57p | -1.69p |
+| GBP_USD | 50 | 34% | +0.31p | +15.5p | +6.45p | -6.14p |
+| EUR_JPY | 8 | 25% | -4.59p | -36.7p | -6.19p | +1.60p |
+| GBP_JPY | 4 | 25% | -4.47p | -17.9p | -10.95p | +6.48p |
+| **合計** | **300** | **26%** | **-1.19p** | **-355.7p** | — | — |
+
+→ sim EV (Phase 2 audit) が **全 majors で実測より 1.69-6.14p 楽観**評価。BT-Live divergence 確定。
+→ **GBP_USD のみ実測 EV>0** だが +0.31p で marginal、friction 1 click で消える水準。
+→ R2 Fast & Reactive 警報閾値 (EV<0, N>=30) を **USDJPY/EURUSD で発動** → SHADOW_ALWAYS_STRATEGIES から除外 (2026-04-28 commit)。
+→ OANDA forwarding 確認: `is_shadow=0 ∧ oanda_trade_id` で **2 件流入**。`mode=scalp_eur` で 1 件、`mode=daytrade` で 1 件。
+
+## 教訓
+- [[../lessons/lesson-shadow-always-emit-cleanup-2026-04-28]] — SHADOW_ALWAYS の無条件 emit は EV<0 戦略を**自動的にデータ蓄積汚染源**にする
+- [[../lessons/lesson-data-source-production-first-2026-04-28]] — ローカル DB と本番 DB の乖離調査時は **本番優先**
+- [[../decisions/sr-strategies-signal-track-2026-04-28]] — SHADOW_EMIT 経路の元設計
 
 ## Signal Logic
 1. ペアフィルター: 5 majors すべて
