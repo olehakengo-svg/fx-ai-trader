@@ -1,0 +1,382 @@
+[
+  {
+    "pair": "USD_JPY",
+    "n_days": 259,
+    "correlation": {
+      "n": 259,
+      "corr": 0.1149,
+      "p": 0.064787,
+      "tokyo_ret_mean_pip": 0.357,
+      "london_ret_mean_pip": 3.619
+    },
+    "event_grid": [
+      {
+        "n_events": 226,
+        "sigma_threshold": 0.5,
+        "win_rate": 0.4469,
+        "wilson_lower": 0.3835,
+        "wilson_upper": 0.5121,
+        "p_value": 0.95195,
+        "avg_counter_pip": -3.5,
+        "sharpe_annualized_daily": -2.063,
+        "pair": "USD_JPY",
+        "sigma": 0.5
+      },
+      {
+        "n_events": 200,
+        "sigma_threshold": 1.0,
+        "win_rate": 0.44,
+        "wilson_lower": 0.373,
+        "wilson_upper": 0.5093,
+        "p_value": 0.961581,
+        "avg_counter_pip": -3.924,
+        "sharpe_annualized_daily": -2.239,
+        "pair": "USD_JPY",
+        "sigma": 1.0
+      },
+      {
+        "n_events": 175,
+        "sigma_threshold": 1.5,
+        "win_rate": 0.44,
+        "wilson_lower": 0.3685,
+        "wilson_upper": 0.5141,
+        "p_value": 0.951988,
+        "avg_counter_pip": -4.119,
+        "sharpe_annualized_daily": -2.358,
+        "pair": "USD_JPY",
+        "sigma": 1.5
+      },
+      {
+        "n_events": 148,
+        "sigma_threshold": 2.0,
+        "win_rate": 0.4527,
+        "wilson_lower": 0.3747,
+        "wilson_upper": 0.5331,
+        "p_value": 0.891277,
+        "avg_counter_pip": -3.144,
+        "sharpe_annualized_daily": -1.881,
+        "pair": "USD_JPY",
+        "sigma": 2.0
+      }
+    ],
+    "quarterly": {
+      "wrs": [
+        0.419,
+        0.415,
+        0.5,
+        0.5
+      ],
+      "wr_std": 0.042,
+      "avg_pips": [
+        -4.64,
+        -6.45,
+        -0.41,
+        0.43
+      ]
+    }
+  },
+  {
+    "pair": "EUR_JPY",
+    "n_days": 257,
+    "correlation": {
+      "n": 257,
+      "corr": 0.066,
+      "p": 0.291618,
+      "tokyo_ret_mean_pip": 0.106,
+      "london_ret_mean_pip": 3.066
+    },
+    "event_grid": [
+      {
+        "n_events": 214,
+        "sigma_threshold": 0.5,
+        "win_rate": 0.4112,
+        "wilson_lower": 0.3474,
+        "wilson_upper": 0.4781,
+        "p_value": 0.996234,
+        "avg_counter_pip": -2.528,
+        "sharpe_annualized_daily": -1.448,
+        "pair": "EUR_JPY",
+        "sigma": 0.5
+      },
+      {
+        "n_events": 180,
+        "sigma_threshold": 1.0,
+        "win_rate": 0.4333,
+        "wilson_lower": 0.3631,
+        "wilson_upper": 0.5064,
+        "p_value": 0.968947,
+        "avg_counter_pip": -1.976,
+        "sharpe_annualized_daily": -1.098,
+        "pair": "EUR_JPY",
+        "sigma": 1.0
+      },
+      {
+        "n_events": 142,
+        "sigma_threshold": 1.5,
+        "win_rate": 0.4437,
+        "wilson_lower": 0.3645,
+        "wilson_upper": 0.5258,
+        "p_value": 0.923278,
+        "avg_counter_pip": -1.328,
+        "sharpe_annualized_daily": -0.752,
+        "pair": "EUR_JPY",
+        "sigma": 1.5
+      },
+      {
+        "n_events": 112,
+        "sigma_threshold": 2.0,
+        "win_rate": 0.4464,
+        "wilson_lower": 0.3577,
+        "wilson_upper": 0.5387,
+        "p_value": 0.890434,
+        "avg_counter_pip": -2.284,
+        "sharpe_annualized_daily": -1.303,
+        "pair": "EUR_JPY",
+        "sigma": 2.0
+      }
+    ],
+    "quarterly": {
+      "wrs": [
+        0.415,
+        0.469,
+        0.432,
+        0.469
+      ],
+      "wr_std": 0.024,
+      "avg_pips": [
+        -0.71,
+        -0.23,
+        -4.48,
+        0.42
+      ]
+    }
+  },
+  {
+    "pair": "GBP_JPY",
+    "n_days": 252,
+    "correlation": {
+      "n": 252,
+      "corr": 0.1135,
+      "p": 0.072081,
+      "tokyo_ret_mean_pip": -1.353,
+      "london_ret_mean_pip": 4.219
+    },
+    "event_grid": [
+      {
+        "n_events": 210,
+        "sigma_threshold": 0.5,
+        "win_rate": 0.4571,
+        "wilson_lower": 0.3911,
+        "wilson_upper": 0.5247,
+        "p_value": 0.905155,
+        "avg_counter_pip": -4.193,
+        "sharpe_annualized_daily": -1.84,
+        "pair": "GBP_JPY",
+        "sigma": 0.5
+      },
+      {
+        "n_events": 175,
+        "sigma_threshold": 1.0,
+        "win_rate": 0.4514,
+        "wilson_lower": 0.3795,
+        "wilson_upper": 0.5254,
+        "p_value": 0.913278,
+        "avg_counter_pip": -5.337,
+        "sharpe_annualized_daily": -2.311,
+        "pair": "GBP_JPY",
+        "sigma": 1.0
+      },
+      {
+        "n_events": 147,
+        "sigma_threshold": 1.5,
+        "win_rate": 0.4354,
+        "wilson_lower": 0.3579,
+        "wilson_upper": 0.5162,
+        "p_value": 0.95065,
+        "avg_counter_pip": -7.897,
+        "sharpe_annualized_daily": -3.426,
+        "pair": "GBP_JPY",
+        "sigma": 1.5
+      },
+      {
+        "n_events": 109,
+        "sigma_threshold": 2.0,
+        "win_rate": 0.4404,
+        "wilson_lower": 0.3508,
+        "wilson_upper": 0.534,
+        "p_value": 0.910164,
+        "avg_counter_pip": -9.405,
+        "sharpe_annualized_daily": -3.988,
+        "pair": "GBP_JPY",
+        "sigma": 2.0
+      }
+    ],
+    "quarterly": {
+      "wrs": [
+        0.564,
+        0.42,
+        0.404,
+        0.434
+      ],
+      "wr_std": 0.063,
+      "avg_pips": [
+        3.46,
+        -4.13,
+        -5.08,
+        -11.33
+      ]
+    }
+  },
+  {
+    "pair": "EUR_USD",
+    "n_days": 259,
+    "correlation": {
+      "n": 259,
+      "corr": 0.0733,
+      "p": 0.239536,
+      "tokyo_ret_mean_pip": -0.202,
+      "london_ret_mean_pip": -0.585
+    },
+    "event_grid": [
+      {
+        "n_events": 233,
+        "sigma_threshold": 0.5,
+        "win_rate": 0.5021,
+        "wilson_lower": 0.4384,
+        "wilson_upper": 0.5658,
+        "p_value": 0.5,
+        "avg_counter_pip": -0.93,
+        "sharpe_annualized_daily": -0.921,
+        "pair": "EUR_USD",
+        "sigma": 0.5
+      },
+      {
+        "n_events": 177,
+        "sigma_threshold": 1.0,
+        "win_rate": 0.4633,
+        "wilson_lower": 0.3914,
+        "wilson_upper": 0.5367,
+        "p_value": 0.853681,
+        "avg_counter_pip": -2.211,
+        "sharpe_annualized_daily": -2.036,
+        "pair": "EUR_USD",
+        "sigma": 1.0
+      },
+      {
+        "n_events": 147,
+        "sigma_threshold": 1.5,
+        "win_rate": 0.4694,
+        "wilson_lower": 0.3905,
+        "wilson_upper": 0.5498,
+        "p_value": 0.79521,
+        "avg_counter_pip": -1.767,
+        "sharpe_annualized_daily": -1.704,
+        "pair": "EUR_USD",
+        "sigma": 1.5
+      },
+      {
+        "n_events": 107,
+        "sigma_threshold": 2.0,
+        "win_rate": 0.4486,
+        "wilson_lower": 0.3578,
+        "wilson_upper": 0.543,
+        "p_value": 0.877054,
+        "avg_counter_pip": -2.91,
+        "sharpe_annualized_daily": -2.612,
+        "pair": "EUR_USD",
+        "sigma": 2.0
+      }
+    ],
+    "quarterly": {
+      "wrs": [
+        0.508,
+        0.426,
+        0.564,
+        0.518
+      ],
+      "wr_std": 0.05,
+      "avg_pips": [
+        -1.01,
+        -2.02,
+        0.27,
+        -0.83
+      ]
+    }
+  },
+  {
+    "pair": "GBP_USD",
+    "n_days": 259,
+    "correlation": {
+      "n": 259,
+      "corr": 0.046,
+      "p": 0.460871,
+      "tokyo_ret_mean_pip": -0.637,
+      "london_ret_mean_pip": -0.337
+    },
+    "event_grid": [
+      {
+        "n_events": 219,
+        "sigma_threshold": 0.5,
+        "win_rate": 0.4886,
+        "wilson_lower": 0.4232,
+        "wilson_upper": 0.5544,
+        "p_value": 0.657376,
+        "avg_counter_pip": -1.53,
+        "sharpe_annualized_daily": -1.153,
+        "pair": "GBP_USD",
+        "sigma": 0.5
+      },
+      {
+        "n_events": 174,
+        "sigma_threshold": 1.0,
+        "win_rate": 0.5,
+        "wilson_lower": 0.4265,
+        "wilson_upper": 0.5735,
+        "p_value": 0.5302,
+        "avg_counter_pip": -2.112,
+        "sharpe_annualized_daily": -1.512,
+        "pair": "GBP_USD",
+        "sigma": 1.0
+      },
+      {
+        "n_events": 149,
+        "sigma_threshold": 1.5,
+        "win_rate": 0.4899,
+        "wilson_lower": 0.4109,
+        "wilson_upper": 0.5694,
+        "p_value": 0.628365,
+        "avg_counter_pip": -2.487,
+        "sharpe_annualized_daily": -1.725,
+        "pair": "GBP_USD",
+        "sigma": 1.5
+      },
+      {
+        "n_events": 122,
+        "sigma_threshold": 2.0,
+        "win_rate": 0.5082,
+        "wilson_lower": 0.4206,
+        "wilson_upper": 0.5953,
+        "p_value": 0.463955,
+        "avg_counter_pip": -1.225,
+        "sharpe_annualized_daily": -0.837,
+        "pair": "GBP_USD",
+        "sigma": 2.0
+      }
+    ],
+    "quarterly": {
+      "wrs": [
+        0.583,
+        0.486,
+        0.381,
+        0.533
+      ],
+      "wr_std": 0.075,
+      "avg_pips": [
+        2.96,
+        -2.89,
+        -4.94,
+        -1.7
+      ]
+    }
+  }
+]

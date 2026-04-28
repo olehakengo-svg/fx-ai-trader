@@ -49,6 +49,60 @@ STRATEGY_PROFILES = {
 }
 
 # ═══════════════════════════════════════════════════════
+#  Per-strategy profile-mode classification
+#  Used by promotion-gate (modules.demo_trader._evaluate_promotions)
+#  to look up KPI thresholds (kpi_wr / kpi_ev) per strategy.
+#  Strategies absent from this map fall back to the legacy hardcoded
+#  promotion thresholds (back-compat).
+# ═══════════════════════════════════════════════════════
+STRATEGY_PROFILE_MODE_A = frozenset({
+    # Scalp-class strategies — Mode A (Trend Following, low-WR/high-RR)
+    "bb_rsi_reversion", "macdh_reversal", "stoch_trend_pullback",
+    "bb_squeeze_breakout", "london_breakout", "tokyo_bb",
+    "mtf_reversal_confluence", "fib_reversal", "ema_pullback",
+    "session_vol_expansion", "vol_momentum_scalp", "ema_ribbon_ride",
+    "gold_pips_hunter", "london_shrapnel", "vol_surge_detector",
+    "confluence_scalp", "v_reversal", "trend_rebound",
+    "sr_channel_reversal", "engulfing_bb", "three_bar_reversal",
+    "ema_trend_scalp",
+})
+
+STRATEGY_PROFILE_MODE_B = frozenset({
+    # Daytrade-class strategies — Mode B (Mean Reversion, high-WR/low-RR)
+    "sr_fib_confluence", "ema_cross", "htf_false_breakout",
+    "london_session_breakout", "tokyo_nakane_momentum",
+    "adx_trend_continuation", "sr_break_retest", "lin_reg_channel",
+    "orb_trap", "london_close_reversal", "london_close_reversal_v2",
+    "gbp_deep_pullback", "turtle_soup", "trendline_sweep",
+    "inducement_ob", "dual_sr_bounce", "london_ny_swing",
+    "jpy_basket_trend", "gold_vol_break", "gold_trend_momentum",
+    "liquidity_sweep", "session_time_bias", "gotobi_fix",
+    "london_fix_reversal", "vix_carry_unwind", "xs_momentum",
+    "hmm_regime_filter", "vol_spike_mr", "doji_breakout",
+    "ny_close_reversal", "streak_reversal", "vwap_mean_reversion",
+    "post_news_vol", "dt_fib_reversal", "dt_sr_channel_reversal",
+    "ema200_trend_reversal", "squeeze_release_momentum",
+    "eurgbp_daily_mr", "dt_bb_rsi_mr", "intraday_seasonality",
+    "wick_imbalance_reversion", "atr_regime_break",
+    "tokyo_range_breakout_up", "pullback_to_liquidity_v1",
+    "asia_range_fade_v1", "sr_anti_hunt_bounce", "sr_liquidity_grab",
+    "cpd_divergence", "vdr_jpy", "vsg_jpy_reversal",
+    "keltner_squeeze_breakout", "donchian_momentum_breakout",
+})
+
+
+def get_strategy_profile_mode(entry_type: str):
+    """Return "A" / "B" for known strategies, or None for unmapped entries.
+
+    None signals the legacy hardcoded promotion thresholds should apply.
+    """
+    if entry_type in STRATEGY_PROFILE_MODE_A:
+        return "A"
+    if entry_type in STRATEGY_PROFILE_MODE_B:
+        return "B"
+    return None
+
+# ═══════════════════════════════════════════════════════
 #  時間帯x方向バイアス — Massive API 10,518バー第三者評価結果
 #  SL=4pip TP=12pip (1:3 RR) ランダム2,094トレード検証
 # ═══════════════════════════════════════════════════════

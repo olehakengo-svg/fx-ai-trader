@@ -1,0 +1,74 @@
+[
+  {
+    "leader": "EUR_USD",
+    "laggard": "GBP_USD",
+    "n_events": 117,
+    "win_rate": 0.5897,
+    "wilson_lower": 0.4991,
+    "wilson_upper": 0.6746,
+    "p_value": 0.031998,
+    "avg_aligned_pip": 1.478,
+    "sharpe_annualized": 17.799,
+    "params": {
+      "corr_window_bars": 16,
+      "corr_breakdown": 0.3,
+      "z_spread_threshold": 1.5,
+      "forward_bars": 4,
+      "expected_corr_sign": 1
+    }
+  },
+  {
+    "leader": "EUR_JPY",
+    "laggard": "GBP_JPY",
+    "n_events": 199,
+    "win_rate": 0.4824,
+    "wilson_lower": 0.414,
+    "wilson_upper": 0.5515,
+    "p_value": 0.714623,
+    "avg_aligned_pip": -0.519,
+    "sharpe_annualized": -3.839,
+    "params": {
+      "corr_window_bars": 16,
+      "corr_breakdown": 0.3,
+      "z_spread_threshold": 1.5,
+      "forward_bars": 4,
+      "expected_corr_sign": 1
+    }
+  },
+  {
+    "leader": "USD_JPY",
+    "laggard": "EUR_USD",
+    "n_events": 590,
+    "win_rate": 0.4831,
+    "wilson_lower": 0.443,
+    "wilson_upper": 0.5234,
+    "p_value": 0.80635,
+    "avg_aligned_pip": -0.432,
+    "sharpe_annualized": -7.381,
+    "params": {
+      "corr_window_bars": 16,
+      "corr_breakdown": 0.3,
+      "z_spread_threshold": 1.5,
+      "forward_bars": 4,
+      "expected_corr_sign": -1
+    }
+  },
+  {
+    "leader": "USD_JPY",
+    "laggard": "GBP_USD",
+    "n_events": 835,
+    "win_rate": 0.4946,
+    "wilson_lower": 0.4608,
+    "wilson_upper": 0.5285,
+    "p_value": 0.635341,
+    "avg_aligned_pip": -0.258,
+    "sharpe_annualized": -2.901,
+    "params": {
+      "corr_window_bars": 16,
+      "corr_breakdown": 0.3,
+      "z_spread_threshold": 1.5,
+      "forward_bars": 4,
+      "expected_corr_sign": -1
+    }
+  }
+]
