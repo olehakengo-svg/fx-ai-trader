@@ -185,7 +185,22 @@ class DaytradeEngine:
     # される。R2 警報閾値 (N>=30, EV<0) で **両戦略を SHADOW_ALWAYS から除外**。
     # 戦略本体の enabled=True は維持 → primary 競争で勝てば trade 化、shadow 強制
     # emit のみ停止。詳細: lesson-shadow-always-emit-cleanup-2026-04-28.md
-    SHADOW_ALWAYS_STRATEGIES = frozenset()
+    #
+    # 2026-04-29 Phase 10 G2 promotion (rule:R3):
+    # G1 BT 検証 (raw/audits/never_logged_diagnosis_2026-04-28.md) と G0a
+    # production routing audit で 3 戦略が **Bonferroni-significant BT edge × prod
+    # 0-fire** を実証:
+    #   - vsg_jpy_reversal:    331 BT signals (EUR_JPY 145 + GBP_JPY 186), prod 0
+    #   - rsk_gbpjpy_reversion:182 BT signals (GBP_JPY only),               prod 0
+    #   - mqe_gbpusd_fix:       20 BT signals (GBP_USD only),                prod 0
+    # Root cause: select_best max-score bottleneck — Phase 5 戦略の score 設計が
+    # 4.0-6.0 のため、6+ score を出す確立済 strategy に primary slot で必ず敗北。
+    # 構造バグとして R3 即修正 — SHADOW_EMIT 経路で N 蓄積を解禁し、N>=30 / EV<0
+    # に達したら R2 で SHADOW_ALWAYS から除外 (sr_* と同じ flow)。
+    # 詳細: wiki/decisions/phase10-g2-investigation-2026-04-29.md
+    SHADOW_ALWAYS_STRATEGIES = frozenset({
+        "vsg_jpy_reversal",       # Phase 4 (Bonferroni 7 通過, 2026-04-29 g2)
+    })
 
     def select_best(self, candidates: list[Candidate]) -> Optional[Candidate]:
         """最高スコアの候補を選択。"""
