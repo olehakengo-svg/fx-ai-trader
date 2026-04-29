@@ -9507,6 +9507,15 @@ def _strategy_extended_metrics(trades: list) -> dict:
 
     Returns dict with: avg_net_pips, wilson_lower, wilson_bf_lower (k=52, z=3.29),
     wf_h1_avg, wf_h2_avg, concentration_top_pct, unique_days, top_cell.
+
+    Note on avg_net_pips:
+        pnl_pips is computed in demo_db.close_trade() from the actual fill
+        prices — ASK on entry / BID on exit (BUY) — so the round-trip spread
+        and signal-to-fill slippage are already embedded. Subtracting
+        spread_at_entry + spread_at_exit + slippage_pips here would double-
+        count friction by ~2-3× the true cost. avg_net_pips is therefore the
+        plain mean of pnl_pips. spread_at_entry / spread_at_exit /
+        slippage_pips remain on the row as diagnostic metadata only.
     """
     n = len(trades)
     if n == 0:
@@ -9516,13 +9525,7 @@ def _strategy_extended_metrics(trades: list) -> dict:
             "concentration_top_pct": 0.0, "unique_days": 0, "top_cell": None,
         }
     pnls = [float(t.get("pnl_pips") or 0) for t in trades]
-    sp_in = [float(t.get("spread_at_entry") or 0) for t in trades]
-    sp_out = [float(t.get("spread_at_exit") or 0) for t in trades]
-    slip = [float(t.get("slippage_pips") or 0) for t in trades]
-    fric_per = [a + b + c for a, b, c in zip(sp_in, sp_out, slip)]
-    avg_raw = sum(pnls) / n
-    avg_fric = sum(fric_per) / n if fric_per else 0.0
-    avg_net = avg_raw - avg_fric
+    avg_net = sum(pnls) / n
     wins = sum(1 for x in pnls if x > 0)
     wL = _wilson_lower(wins, n, z=1.96)
     wL_bf = _wilson_lower(wins, n, z=3.29)  # Bonferroni for k≈52 strategies

@@ -472,7 +472,8 @@ const GATE_STATE = {
 };
 
 const GATE_READY_N = 20;
-const BEV_WR_DEFAULT = 44; /* symmetric R:R friction-adjusted proxy */
+const BEV_WR_DEFAULT = 44; /* symmetric R:R friction-adjusted proxy (%, 0..100) */
+const WILSON_BF_PROMOTE_FRAC = 0.44; /* Bonferroni-Wilson lower bound (fraction 0..1) required to call KELLY_READY */
 
 /* ------------------------------------------------------------------ */
 /* State                                                              */
@@ -540,7 +541,6 @@ function kellyFrac(wr_pct, b=1.0){
 function decide(s){
   const tier = sanTier(s.tier);
   const n = Number(s.live?.n)||0;
-  const wr = Number(s.live?.wr)||0;
   const pnl = Number(s.live?.pnl)||0;
   const ev = n ? pnl/n : null;
   const shN = Number(s.shadow?.n)||0;
@@ -548,6 +548,12 @@ function decide(s){
   const shEv = shN ? shPnl/shN : null;
   const bt = BT_REF[s.name] || {};
   const gate = GATE_STATE[s.name];
+  /* extended is from server _strategy_extended_metrics; fractions in 0..1 */
+  const ext = s.extended || {};
+  const wlBF = (ext.wilson_bf_lower==null) ? null : Number(ext.wilson_bf_lower);
+  const wfH1 = Number(ext.wf_h1_avg||0);
+  const wfH2 = Number(ext.wf_h2_avg||0);
+  const wfFlip = (Math.sign(wfH1)!==0 && Math.sign(wfH2)!==0 && Math.sign(wfH1)!==Math.sign(wfH2));
 
   if(gate?.trip === "OANDA_TRIP"){
     return { code:"OANDA_TRIP", label:"OANDA 停止", level:"block", priority:96, note:gate.note };
@@ -559,8 +565,17 @@ function decide(s){
   if(tier === "ELITE_LIVE"){
     if(n < 5) return { code:"STALLED", label:"FIRE 不足", level:"warn", priority:88,
       note:`ELITE_LIVE だが Live N=${n}. Apr 24 gate patch (9ad84a0) 後の fire 回復観測中.` };
-    if(n >= GATE_READY_N && ev > 0) return { code:"KELLY_READY", label:"KELLY 可", level:"go", priority:90,
-      note:`N=${n} (≥${GATE_READY_N}) かつ EV>0. Aggregate Kelly 再計算対象.` };
+    /* WF half flip: stat regime split — block GO ranking even if EV>0 */
+    if(n >= GATE_READY_N && wfFlip) return { code:"WF_FLIP", label:"WF反転", level:"warn", priority:92,
+      note:`WF h1=${signed(wfH1,2)} → h2=${signed(wfH2,2)} 符号反転. 後半性能崩壊 — Promotion gate fail.` };
+    if(n >= GATE_READY_N && ev > 0 && wlBF != null && wlBF >= WILSON_BF_PROMOTE_FRAC){
+      return { code:"KELLY_READY", label:"KELLY 可", level:"go", priority:90,
+        note:`N=${n} EV=${signed(ev,2)} W.L_BF=${(wlBF*100).toFixed(1)}% (≥${(WILSON_BF_PROMOTE_FRAC*100).toFixed(0)}%). Bonferroni-passed.` };
+    }
+    if(n >= GATE_READY_N && ev > 0 && wlBF != null && wlBF < WILSON_BF_PROMOTE_FRAC){
+      return { code:"BF_FAIL", label:"BF未通過", level:"warn", priority:84,
+        note:`EV=${signed(ev,2)}>0 だが W.L_BF=${(wlBF*100).toFixed(1)}%<${(WILSON_BF_PROMOTE_FRAC*100).toFixed(0)}%. multi-comparison 通過待ち.` };
+    }
     if(n >= GATE_READY_N && ev <= 0 && (bt.ev||0) > 0){
       const dv = Math.abs((bt.ev||0) - ev);
       return { code:"DIVERGENCE", label:"BT-Live 乖離", level:"warn", priority:94,
@@ -572,14 +587,18 @@ function decide(s){
   if(tier === "PAIR_PROMOTED"){
     if(n >= GATE_READY_N && ev <= 0) return { code:"DEMOTE_REVIEW", label:"降格検討", level:"warn", priority:78,
       note:`Live N=${n} EV=${signed(ev,2)}. 継続悪化なら PAIR_DEMOTED 降格検討.` };
+    if(n >= GATE_READY_N && ev > 0 && wlBF != null && wlBF < WILSON_BF_PROMOTE_FRAC){
+      return { code:"BF_FAIL", label:"BF未通過", level:"warn", priority:74,
+        note:`EV=${signed(ev,2)}>0 だが W.L_BF=${(wlBF*100).toFixed(1)}%<${(WILSON_BF_PROMOTE_FRAC*100).toFixed(0)}%. 偽陽性懸念.` };
+    }
     if(n >= GATE_READY_N && ev > 0) return { code:"HEALTHY", label:"稼働中", level:"go", priority:40,
-      note:`Live N=${n} EV=${signed(ev,2)}. 正常稼働.` };
+      note:`Live N=${n} EV=${signed(ev,2)}${wlBF!=null?` W.L_BF=${(wlBF*100).toFixed(1)}%`:""}. 正常稼働.` };
     return { code:"LEARNING", label:"N 蓄積", level:"info", priority:50,
       note:`Live N=${n}/${GATE_READY_N}. 確証待ち.` };
   }
   if(tier === "PAIR_DEMOTED"){
     if(shN >= GATE_READY_N && shEv > 0) return { code:"RE_PROMOTE", label:"復格候補", level:"go", priority:68,
-      note:`Shadow N=${shN} EV=${signed(shEv,2)}. 再昇格検討.` };
+      note:`Shadow N=${shN} EV=${signed(shEv,2)}. 再昇格検討 (Bonferroni 確認要).` };
     return { code:"SHADOW", label:"Shadow", level:"info", priority:22,
       note:"PAIR_DEMOTED — Shadow 記録のみ." };
   }
@@ -954,6 +973,19 @@ function renderTable(list){
   });
   table.appendChild(tbody);
   wrap.appendChild(table);
+
+  /* Restore expanded rows after re-render (auto-refresh preserves user UX) */
+  if(state.expanded.size){
+    list.forEach(s=>{
+      if(!state.expanded.has(s.name)) return;
+      const tr = tbody.querySelector(`tr[data-name="${CSS.escape(s.name)}"]`);
+      if(!tr) return;
+      const btn = tr.querySelector(".expand-btn");
+      /* toggleExpand toggles — clear set entry first to avoid double-toggle */
+      state.expanded.delete(s.name);
+      if(btn) btn.click();
+    });
+  }
 }
 
 function toggleExpand(name, anchorTr, s, btn){
@@ -968,13 +1000,55 @@ function toggleExpand(name, anchorTr, s, btn){
   }
   const tr = h("tr",{cls:"pair-row",dataset:{for:name}});
   const td = h("td");
-  td.colSpan = 13;
+  td.colSpan = 16; /* matches cols.length in renderTable */
   const box = h("div");
 
   /* note */
   if(s._decision?.note){
     const nl = h("div",{cls:"note-line",text:s._decision.note});
     box.appendChild(nl);
+  }
+
+  /* extended stats — Wilson_BF / WF / concentration / unique_days
+     surfaced from server _strategy_extended_metrics (not used elsewhere in UI) */
+  const ext = s.extended || {};
+  if(s._n >= 5 && (ext.wilson_bf_lower!=null || ext.wf_h1_avg!=null)){
+    const wlBF  = ext.wilson_bf_lower==null ? null : Number(ext.wilson_bf_lower)*100;
+    const wfH1  = Number(ext.wf_h1_avg||0);
+    const wfH2  = Number(ext.wf_h2_avg||0);
+    const conc  = Number(ext.concentration_top_pct||0);
+    const days  = Number(ext.unique_days||0);
+    const topC  = String(ext.top_cell||"—");
+    const wfFlip = (Math.sign(wfH1)!==0 && Math.sign(wfH2)!==0 && Math.sign(wfH1)!==Math.sign(wfH2));
+    const grid = h("div",{cls:"pair-grid",style:"margin-bottom:10px"});
+    const mkExt = (lbl,val,sub,vcls) => {
+      const tile = h("div",{cls:"pair-tile"});
+      tile.appendChild(h("span",{cls:"p-name",text:lbl}));
+      const stats = h("span",{cls:"p-stats"});
+      const sp = h("span");
+      sp.appendChild(h("span",{cls:`v ${vcls||""}`,text:val}));
+      if(sub) sp.appendChild(h("span",{cls:"k",style:"margin-left:6px",text:sub}));
+      stats.appendChild(sp);
+      tile.appendChild(stats);
+      return tile;
+    };
+    grid.appendChild(mkExt("W.L (BF z=3.29)",
+      wlBF==null?"—":fmt(wlBF)+"%",
+      `gate ${(WILSON_BF_PROMOTE_FRAC*100).toFixed(0)}%`,
+      wlBF==null?"dim":(wlBF>=WILSON_BF_PROMOTE_FRAC*100?"pos":"neg")));
+    grid.appendChild(mkExt("WF h1→h2",
+      `${signed(wfH1,2)} → ${signed(wfH2,2)}`,
+      wfFlip?"flip":"stable",
+      wfFlip?"neg":(wfH2>0?"pos":"dim")));
+    grid.appendChild(mkExt("Top cell",
+      topC,
+      `${fmt(conc)}% conc`,
+      conc>=70?"neg":(conc>=50?"":"pos")));
+    grid.appendChild(mkExt("Unique days",
+      String(days),
+      `N=${s._n}`,
+      days>=7?"pos":(days>=3?"":"dim")));
+    box.appendChild(grid);
   }
 
   /* pair cells */
@@ -1135,13 +1209,39 @@ function filterSort(all){
 function renderMeta(){
   const d = state.data || {};
   const el = document.getElementById("metaLine");
-  const genAt = d.generated_at ? new Date(d.generated_at).toLocaleString("ja-JP") : "—";
-  el.textContent = [
-    `window ${d.rolling_days||0}d`,
-    `from ${d.effective_date_from||"—"}`,
-    `tier-master ${genAt}`,
-    `post-cutoff 2026-04-08`,
-  ].join("  ·  ");
+  el.textContent = "";
+  const tmStamp = d.tier_master_generated_at
+    ? new Date(d.tier_master_generated_at).toLocaleString("ja-JP")
+    : "—";
+  const effFrom = d.effective_date_from
+    ? new Date(d.effective_date_from).toLocaleString("ja-JP")
+    : "—";
+  /* If rolling window is clamped by post-cutoff, surface it. effective_date_from
+     ≥ FIDELITY_CUTOFF means the user-selected days had no effect on the window. */
+  const rollingDays = Number(d.rolling_days)||0;
+  let clampedNote = "";
+  try{
+    if(d.effective_date_from){
+      const effMs = Date.parse(d.effective_date_from);
+      const reqMs = Date.now() - rollingDays*86400_000;
+      if(effMs - reqMs > 86400_000){
+        const trueDays = Math.round((Date.now() - effMs)/86400_000);
+        clampedNote = ` (cutoff 制限 → 実 ${trueDays}d)`;
+      }
+    }
+  }catch(_){}
+  el.appendChild(document.createTextNode(
+    `window ${rollingDays}d${clampedNote}  ·  from ${effFrom}  ·  tier-master ${tmStamp}`
+  ));
+  if(d.tier_master_stale){
+    const warn = h("span",{
+      cls:"pill dec warn",
+      style:"margin-left:10px;font-size:10px",
+      text:"⚠ tier-master >24h stale",
+      title:"24時間以上 tier-master.json が再生成されていません。/api/admin/regenerate-tier-master を実行してください。",
+    });
+    el.appendChild(warn);
+  }
 }
 
 function render(){
