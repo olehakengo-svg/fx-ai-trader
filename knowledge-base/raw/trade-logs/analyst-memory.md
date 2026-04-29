@@ -599,6 +599,16 @@ NYセッションは極めて薄商い。1件のみの執行だが、スプレ�
 - N=1（本日累計N=3）では判断材料として不十分
 - bb_rsi_reversion の累積クリーンデータ（Fidelity Cutoff後）が蓄積途上であり、EV算出不可
 
+### 2026-04-29 (Post-London Report)
+| WR | **0.0%** |
+| PnL | **-8.9 pips** |
+| 戦略 | ペア | PnL | 失敗要因 |
+GBP_USDは本日レジームRANGING（ATR%ile=31%）であり、session_time_biasのBTデータ（GBP_USD EV=+0.113、WR=67.1%）が想定するトレンド性が現実化しなかった典型ケース。
+| セッションWR | — | 0.0% |
+| セッションPnL | 約-9.6pips（残差） | -8.9pips |
+- 本日累計N=4、WR=0.0%、PnL=-18.5pipsであり、東京・ロンドン双方で勝ちゼロ
+- 全ペアがRANGING状態（ATR%ile 31-43%）で推移しており、東京引き続きロンドンでもトレンド系戦略の成立条件が欠如
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
