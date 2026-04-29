@@ -7859,7 +7859,7 @@ def train_ml_model() -> bool:
             # Simulate outcome
             sig = "BUY" if cross_up else "SELL"
             ep  = float(df.iloc[i+1]["Open"])
-            _spread = _bt_spread(df.index[i], symbol)
+            _spread = _bt_spread(df.index[i], "USDJPY=X")
             ep  = ep + _spread/2 if sig == "BUY" else ep - _spread/2
             sl  = ep - atr7 * SL_MULT if sig == "BUY" else ep + atr7 * SL_MULT
             tp  = ep + atr7 * TP_MULT if sig == "BUY" else ep - atr7 * TP_MULT
