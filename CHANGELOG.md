@@ -1,5 +1,51 @@
 # FX AI Trader - Changelog
 
+## 2026-04-29 — MTF 15m/5m/1m Cascade Scalp Strategies (順張り + 逆張り) [rule:R1]
+
+### 動機
+
+scalp モードの WR が伸び悩んでおり、ユーザー要望は教科書的 MTF 階層を満たす順張り・逆張り両方の新規戦略追加。既存 22 個の scalp 戦略はすべて 1m 単独評価 + ぼんやりした H1/H4 HTF で、教科書的な M15→M5→M1 3 段カスケードを厳密に踏む戦略は不在 (overlap audit 確認済み)。3 段カスケードで誤シグナルを段階的に削減し WR を上げる狙い。
+
+ユーザー指示「対応通貨ペアはスプレッドの低いもの・タイムゾーンもスプレッドが低いことを条件」と CLAUDE.md「静的時間ブロック禁止」を両立するため、`friction_model_v2.hour_mult_for(hour_utc) <= 0.95` による**動的時間帯ガード**を採用。
+
+### 変更内容
+
+- **modules/friction_model_v2.py** — `hour_mult_for(hour_utc)` getter 追加
+- **modules/htf_data_source.py** — `_TTL` に M15/M5 追加 + `compute_mtf_features(symbol)` helper 新設 (M15 trend features + M5 SMA21/BB%B/RSI div features を一括計算)
+- **app.py:get_htf_bias** — 戻り値辞書に `m15`, `m5` キーを追加 (既存 h1/h4 callers は非破壊)
+- **strategies/scalp/mtf_trend_follow_scalp.py** (新規) — strategy_type="trend"
+  - USD_JPY/EUR_USD のみ、hour_mult ≤ 0.95
+  - M15: ADX≥22 + EMA9>EMA21 + ema_slope 一致
+  - M5: SMA21 プルバック反発 + BB%B 中間帯
+  - M1: 直前3本 micro pivot break + MACD-H 上昇 + Stoch GC + 陽線
+  - SL = 直前3本 Low - 1pip, TP = max(M5 swing, RR×1.3)
+- **strategies/scalp/mtf_counter_trend_scalp.py** (新規) — strategy_type="MR"
+  - USD_JPY/EUR_USD のみ、hour_mult ≤ 0.95
+  - M15: ADX≥25 + 明確トレンド方向
+  - M5: BB%B≥0.92 (or ≤0.08) + RSI divergence (両方要求)
+  - M1: engulfing/pin bar + Stoch cross + 陰陽線確認
+  - SL = M5 wick + 1pip (max 12pip), TP = 固定 5-6pip OR RR×1.2
+- **strategies/scalp/__init__.py** — 2 戦略を ScalperEngine に登録
+- **knowledge-base/wiki/strategies/mtf-trend-follow-scalp.md** (新規)
+- **knowledge-base/wiki/strategies/mtf-counter-trend-scalp.md** (新規)
+
+### Pre-reg LOCK (rule:R1, 14 日)
+
+- **LOCK 期間**: 2026-04-29 ~ 2026-05-13
+- **検証**: 365 日 BT (USD_JPY + EUR_USD scalp mode) → Bonferroni (12 cell, α=0.0042) → Pre-reg shadow N≥15/strata
+- **合格 KPI**:
+  - 順張り: WR≥52%, PF≥1.20, Wilson下限≥50%, N≥50
+  - 逆張り: WR≥52%, PF≥1.15, Wilson下限≥48%, N≥30
+- **即停止 (rule:R2)**: shadow N≥10 で WR<35% (順張り) / <30% (逆張り)、PF<0.7、6連敗
+
+### Out of Scope
+
+- micro_scalp/ への追加 (scalp/ のみ)
+- daytrade モードへの 1h/15m/5m 版拡張 (将来検討)
+- ML スコアリング (現時点はルールベース)
+
+---
+
 ## 2026-04-28 — SCORE_GATE Direction-Aware Misalignment [rule:R1]
 
 ### 動機

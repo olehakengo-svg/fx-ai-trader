@@ -133,7 +133,12 @@ def _require_auth():
     if not any(request.path.startswith(p) for p in _PROTECTED_PREFIXES):
         return  # 対象外のエンドポイント
     auth = request.headers.get("Authorization", "")
-    if auth == f"Bearer {_API_AUTH_TOKEN}":
+    expected = f"Bearer {_API_AUTH_TOKEN}"
+    # P2-1 (2026-04-29): hmac.compare_digest defends against timing attacks on the
+    # Bearer token. Plain == returns early on the first mismatching byte and leaks
+    # token prefix length over a high-resolution timing channel.
+    import hmac as _hmac
+    if _hmac.compare_digest(auth.encode("utf-8"), expected.encode("utf-8")):
         return  # 認証成功
     return jsonify({"error": "Unauthorized", "message": "Valid Bearer token required"}), 401
 
@@ -1275,6 +1280,19 @@ def get_htf_bias(symbol: str) -> dict:
         "score": avg, "agreement": agreement, "label": label,
         "h1": results.get("1h", {}), "h4": results.get("4h", {}),
     }
+
+    # MTF cascade features (M15 + M5) for mtf_*_scalp strategies.
+    # Non-breaking: existing callers reading h1/h4 are unaffected.
+    try:
+        from modules.htf_data_source import compute_mtf_features
+        mtf = compute_mtf_features(symbol)
+        if mtf.get("m15") is not None:
+            data["m15"] = mtf["m15"]
+        if mtf.get("m5") is not None:
+            data["m5"] = mtf["m5"]
+    except Exception as e:
+        print(f"[HTF/mtf_features] {e}")
+
     _htf_cache[key] = {"data": data, "ts": now}
     return data
 
@@ -4740,6 +4758,12 @@ def _compute_bt_htf_bias(df: "pd.DataFrame", bar_idx: int,
             if   h1_sc > 0.2 and h4_sc > 0.2:  agreement = "bull"; label = "📈 1H+4H 上昇一致 → BUYのみ有効"
             elif h1_sc < -0.2 and h4_sc < -0.2: agreement = "bear"; label = "📉 1H+4H 下降一致 → SELLのみ有効"
             else:                                agreement = "mixed"; label = "⚖️ 1H+4H 不一致 → シグナル抑制中"
+            # NOTE: M15/M5 features for mtf_*_scalp strategies are NOT
+            # injected in BT mode here. Per-recalc resample+add_indicators
+            # made 7d BT take 1h+ for 2 pairs (verified 2026-04-29). Live
+            # mode populates m15/m5 via compute_mtf_features (OANDA native).
+            # For BT validation of mtf_*_scalp use a dedicated vectorized
+            # runner that precomputes m15/m5 once over the entire df.
             return {
                 "score": avg, "agreement": agreement, "label": label,
                 "h1": results.get("1h", {}), "h4": results.get("4h", {}),
@@ -12354,9 +12378,13 @@ def api_demo_close_trade():
     if not targets:
         return jsonify({"closed": 0, "results": []})
 
+    # P2-5/P2-6 (2026-04-29): _ba_cache already collapses N+1 to one fetch per
+    # instrument (≤ 7 pairs). The remaining gap is silent skip when bid/ask
+    # comes back unusable — surface those skips in `errors` so the UI can warn
+    # the user instead of returning a misleading "success".
     results = []
+    errors: list = []
     for t in targets:
-        # bid/ask反映: BUY決済=bid, SELL決済=ask
         _inst = MODE_CONFIG.get(t.get("mode", ""), {}).get("instrument", "USD_JPY")
         if _inst not in _ba_cache:
             _ba_cache[_inst] = fetch_oanda_bid_ask(_inst)
@@ -12366,6 +12394,11 @@ def api_demo_close_trade():
         else:
             price = _demo_trader._get_realtime_price(_inst)
         if price <= 0:
+            errors.append({
+                "trade_id": t["trade_id"],
+                "instrument": _inst,
+                "reason": "price_unavailable",
+            })
             continue
 
         r = _demo_db.close_trade(t["trade_id"], price, close_reason="MANUAL_CLOSE")
@@ -12377,9 +12410,15 @@ def api_demo_close_trade():
                 f"🔴 手動クローズ [{t.get('mode','')}]: {t['direction']} @ {t['entry_price']:.{_price_dec}f} → "
                 f"{price:.{_price_dec}f} | PnL {r.get('pnl_pips',0):+.1f}pip | ID: {t['trade_id']}"
             )
+        else:
+            errors.append({
+                "trade_id": t["trade_id"],
+                "instrument": _inst,
+                "reason": r.get("error", "close_failed"),
+            })
         results.append(r)
 
-    return jsonify({"closed": len(results), "results": results})
+    return jsonify({"closed": len(results), "results": results, "errors": errors})
 
 
 @app.route("/api/oanda/accounts")
@@ -13398,7 +13437,10 @@ def api_chart_data():
             })
         return jsonify({"candles": candles, "tf": tf, "count": len(candles), "symbol": symbol})
     except Exception as e:
-        return jsonify({"candles": [], "error": str(e)})
+        # P3-3 (2026-04-29): keep upstream details server-side; expose only a generic
+        # message. yfinance/OANDA exception strings can leak internal paths and tokens.
+        print(f"[api_chart_data] {symbol} {tf}: {e}", flush=True)
+        return jsonify({"candles": [], "error": "data_unavailable"})
 
 
 @app.route("/api/demo/params", methods=["GET", "POST"])

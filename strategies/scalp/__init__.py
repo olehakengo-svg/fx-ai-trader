@@ -34,6 +34,8 @@ from strategies.scalp.london_shrapnel import LondonShrapnel
 from strategies.scalp.gold_pips import GoldPipsHunter
 from strategies.scalp.confluence_scalp import ConfluenceScalp
 from strategies.scalp.ema_trend_scalp import EmaTrendScalp
+from strategies.scalp.mtf_trend_follow_scalp import MtfTrendFollowScalp
+from strategies.scalp.mtf_counter_trend_scalp import MtfCounterTrendScalp
 
 
 class ScalperEngine:
@@ -61,6 +63,8 @@ class ScalperEngine:
             GoldPipsHunter(),       # XAU/USD 5m方向同期包み足 (Gold専用)
             ConfluenceScalp(),     # Triple Confluence + MSS (UTC 12-17, HTF Hard Block)
             EmaTrendScalp(),       # EMA21プルバック順張り (ADX>=20, BB中間帯, bb_rsiのGAP補完)
+            MtfTrendFollowScalp(),    # 教科書 MTF 15m→5m→1m 順張り (USD_JPY/EUR_USD, low-spread hour only)
+            MtfCounterTrendScalp(),   # 教科書 MTF 15m→5m→1m 逆張り (5m BB%B+RSI div, 固定小幅TP)
             EngulfingBB(),          # enabled=False
             ThreeBarReversal(),     # enabled=False
             SrChannelReversal(),    # enabled=False

@@ -216,6 +216,24 @@ def list_supported_pairs() -> list[str]:
     return sorted(_PAIR_FRICTION.keys())
 
 
+def hour_mult_for(hour_utc: Optional[int]) -> float:
+    """Return the hour-of-day multiplier from _HOUR_MULTIPLIER_UTC.
+
+    Used by strategies that gate on liquidity-tight windows (e.g.
+    mtf_trend_follow_scalp / mtf_counter_trend_scalp). Out-of-range
+    or None returns 1.0 (neutral).
+    """
+    if hour_utc is None:
+        return 1.0
+    try:
+        h = int(hour_utc)
+    except (TypeError, ValueError):
+        return 1.0
+    if not (0 <= h <= 23):
+        return 1.0
+    return _HOUR_MULTIPLIER_UTC.get(h, 1.0)
+
+
 # ─── Wave 2 / A3: Cost-aware Frequency Throttle ──────────────────────
 # 出典: C3_Ishikawa Online DRL — spread 0.01%→0.05% で WR 59.5%→49.2%、
 # Sharpe 2.04→0.68 と急落。コスト感度カーブが極めて急峻なので、
