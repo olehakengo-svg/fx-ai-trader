@@ -36,7 +36,7 @@ References:
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 WILSON_Z_95 = 1.959963984540054
@@ -150,7 +150,15 @@ def bonferroni_per_family(
 
 @dataclass
 class PowerCheck:
-    """Pre-LOCK feasibility report for a hypothesised edge."""
+    """Pre-LOCK feasibility report for a hypothesised edge.
+
+    Clustering fields (added 2026-04-28) are populated only when
+    ``shadow_trades`` is supplied to ``mde_pre_reg_check``. They guard
+    against single-day-dominance / burst-firing artifacts that can pass
+    Wilson + Bonferroni gates on inflated effective-N (cf. fib_reversal/
+    USD_JPY/h00-06 case: 17 of 24 wins fired in one 17-min window on a
+    single day, yet WR=87.5% and p_Bonferroni=0.0009).
+    """
 
     n_planned: int
     target_wr: float
@@ -161,6 +169,9 @@ class PowerCheck:
     feasible_wilson: bool
     feasible_bonferroni: Optional[bool]
     notes: list[str]
+    feasible_clustering: Optional[bool] = None
+    clustering_verdict: Optional[str] = None
+    clustering_flags: list[str] = field(default_factory=list)
 
 
 def mde_pre_reg_check(
@@ -169,6 +180,8 @@ def mde_pre_reg_check(
     target_wilson_lower: float = 0.5,
     bonferroni_threshold: Optional[float] = None,
     z: float = WILSON_Z_95,
+    shadow_trades: Optional[list] = None,
+    pair: Optional[str] = None,
 ) -> PowerCheck:
     """Phase 9 pre-reg LOCK power check.
 
@@ -177,6 +190,24 @@ def mde_pre_reg_check(
     gate in pre-reg LOCK creation: if ``feasible_wilson`` is False, do not
     commit the LOCK — adjust holdout span, target_wr, RR, or thin the cell
     count before locking.
+
+    When ``shadow_trades`` is supplied, also runs a within-cell clustering
+    artifact check (single-day-dominance / burst-firing / same-setup price
+    cluster). ``feasible_clustering=False`` when the verdict is
+    ``artifactual``; this should block LOCK independently of the Wilson /
+    Bonferroni feasibility (a 17-trade burst on one day at one price level
+    is not a 17-trade independent sample regardless of how good the
+    Wilson lower bound looks).
+
+    Parameters
+    ----------
+    shadow_trades
+        Optional list of trade records (sqlite3.Row, dict, or any mapping
+        with ``entry_time``/``entry_price``/``sl``/``instrument`` keys) to
+        feed ``clustering_artifacts.detect_repeat_firing``. None skips the
+        check (preserves backward compatibility).
+    pair
+        Optional pair override for pip-size resolution in clustering.
     """
     n_required = min_n_for_wilson(target_wr, target_wilson_lower, z=z)
     detectable = min_detectable_wr(n_planned, target_wilson_lower, z=z)
@@ -201,6 +232,25 @@ def mde_pre_reg_check(
                 f"p≈{p:.2e} > threshold {bonferroni_threshold:.2e}"
             )
 
+    feasible_cluster: Optional[bool] = None
+    cluster_verdict: Optional[str] = None
+    cluster_flags: list[str] = []
+    if shadow_trades is not None:
+        # Lazy import to avoid circular dependency risk
+        from research.edge_discovery.clustering_artifacts import (
+            detect_repeat_firing,
+        )
+        cluster = detect_repeat_firing(shadow_trades, pair=pair)
+        cluster_verdict = cluster["verdict"]
+        cluster_flags = list(cluster.get("flags") or [])
+        feasible_cluster = cluster_verdict != "artifactual"
+        if not feasible_cluster:
+            notes.append(
+                f"clustering={cluster_verdict}: flags={cluster_flags} — "
+                f"single-setup repeat-firing inflates effective-N; "
+                f"LOCK requires fold-aware deduplication first"
+            )
+
     return PowerCheck(
         n_planned=n_planned,
         target_wr=target_wr,
@@ -211,4 +261,7 @@ def mde_pre_reg_check(
         feasible_wilson=feasible_wilson,
         feasible_bonferroni=feasible_bonf,
         notes=notes,
+        feasible_clustering=feasible_cluster,
+        clustering_verdict=cluster_verdict,
+        clustering_flags=cluster_flags,
     )

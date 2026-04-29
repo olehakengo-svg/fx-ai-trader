@@ -42,7 +42,30 @@ STRATEGY_DIRS = [
 ]
 
 # app.py内インライン戦略（ファイル非分離）
-INLINE_STRATEGIES = {"vwap_mean_reversion", "streak_reversal"}
+# 2026-04-28 P1.1: 本番DBで発火実績がある inline 戦略
+#   - vwap_mean_reversion (7d LIVE=8 + Shadow=27) ← 隠れた No.2 LIVE戦略
+#   - streak_reversal (PAIR_PROMOTED USD_JPY)
+#   - dual_sr_bounce (PAIR_PROMOTED USD_JPY)
+#   - ny_close_reversal (12d 2件、_GRAIL_CANDIDATES 登録済)
+INLINE_STRATEGIES = {
+    "vwap_mean_reversion",
+    "streak_reversal",
+    "dual_sr_bounce",
+    "ny_close_reversal",
+}
+
+# 2026-04-28 P1.1: legacy dead inline entry_type — app.py には残存するが
+# 過去30日以上発火していない。死亡コードパスのため WARN 抑制。
+# 削除候補だが影響範囲確認のため LEGACY-keep として明示分類。
+# 復活した場合 (本番で発火確認) は INLINE_STRATEGIES へ昇格させる。
+LEGACY_DEAD_INLINE = {
+    "bb_bounce", "divergence", "donchian", "dual_sr_breakout",
+    "ema_trend", "fib_pullback", "hs_neckbreak", "ihs_neckbreak",
+    "momentum", "ob_retest", "reg_channel", "sr_bounce",
+    "strong_sr_breakout", "tokyo_bb",
+}
+
+APP_PY = os.path.join(_PROJECT_ROOT, "app.py")
 
 
 # ══════════════════════════════════════════════════════════════
@@ -240,6 +263,75 @@ def check_integrity(sets: dict, strat_files: dict) -> list:
     for strat, pair in sets["pair_promoted"]:
         if strat in el:
             issues.append(("INFO", f"ELITE '{strat}' also in PAIR_PROMOTED ({pair}) — redundant but harmless"))
+
+    # 12. (2026-04-28 P1.1) Inline strategy parity check
+    #     app.py 内で `entry_type = "..."` / `_dt_entry_type = "..."` で代入される
+    #     戦略名のうち、engine registry にも存在しないものは inline 戦略。これらは
+    #     INLINE_STRATEGIES (本ファイル) と demo_trader.py::_INLINE_STRATEGIES の
+    #     双方に登録され、本番監視ダッシュボードで可視化されている必要がある。
+    #     P1.1 audit: vwap_mean_reversion 7d LIVE=8 が strategy_status から漏れていた。
+    try:
+        if os.path.exists(APP_PY):
+            with open(APP_PY) as f:
+                app_src = f.read()
+            inline_pattern = re.compile(
+                r'(?:_dt_entry_type|entry_type)\s*=\s*["\']([a-z_][\w]*)["\']'
+            )
+            assigned = set(inline_pattern.findall(app_src))
+            # engine 既知の戦略 (strat_files に含まれる) は inline ではない
+            engine_known = set(strat_files.keys())
+            inline_used = assigned - engine_known - {"unknown", "wait", ""}
+            # placeholder 値 (e.g., "ema_cross" がengineにあっても inlineパスで再代入されるケース)
+            # は除外。assigned に居るが engine_known にあるものは「engine + inline 両用」
+            # = engine 経由で status 出現するため OK。
+
+            # demo_trader.py から _INLINE_STRATEGIES を抽出
+            dt_inline = set()
+            try:
+                with open(DEMO_TRADER) as f:
+                    dt_src = f.read()
+                m = re.search(
+                    r'_INLINE_STRATEGIES\s*=\s*\[(.*?)\]', dt_src, re.S
+                )
+                if m:
+                    dt_inline = set(re.findall(r'["\']([a-z_][\w]*)["\']', m.group(1)))
+            except Exception:
+                pass
+
+            for s in sorted(inline_used):
+                if s in LEGACY_DEAD_INLINE:
+                    # 過去30日以上発火なし。死亡コードパスのため警告抑制。
+                    # 削除提案として INFO で記録。
+                    issues.append((
+                        "INFO",
+                        f"Legacy dead inline '{s}' assigned in app.py — "
+                        f"no production firing in 30+ days. Candidate for removal."
+                    ))
+                    continue
+                if s not in INLINE_STRATEGIES:
+                    issues.append((
+                        "WARN",
+                        f"Inline entry_type '{s}' assigned in app.py but missing "
+                        f"from INLINE_STRATEGIES (tools/tier_integrity_check.py:45). "
+                        f"If alive, add to INLINE_STRATEGIES; if dead, add to LEGACY_DEAD_INLINE."
+                    ))
+                if s not in dt_inline and s not in LEGACY_DEAD_INLINE:
+                    issues.append((
+                        "WARN",
+                        f"Inline entry_type '{s}' missing from "
+                        f"_INLINE_STRATEGIES in modules/demo_trader.py "
+                        f"_get_strategy_status — won't show in /api/demo/status"
+                    ))
+            # Reverse check: INLINE_STRATEGIES 側に居るが app.py で assign 形跡なし
+            for s in INLINE_STRATEGIES:
+                if s not in assigned:
+                    issues.append((
+                        "INFO",
+                        f"INLINE '{s}' declared but no `entry_type = ...` "
+                        f"assignment found in app.py (may be set elsewhere)"
+                    ))
+    except Exception as e:
+        issues.append(("WARN", f"Inline parity check failed: {e}"))
 
     return issues
 

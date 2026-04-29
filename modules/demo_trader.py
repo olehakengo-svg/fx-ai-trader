@@ -5742,6 +5742,39 @@ class DemoTrader:
         except Exception as e:
             print(f"[StrategyStatus] 1H error: {e}", flush=True)
 
+        # v9.x M3 (2026-04-28, P1.1): Inline strategies — app.py 内に直接実装され
+        # engine 経由でない戦略を可視化。これらは strategies/ 配下にファイルが
+        # 無く DaytradeEngine/ScalperEngine の registry にも入らないが、
+        # entry_type として本番DB に書き込まれ、tier-master の pair_promoted や
+        # learning engine の対象になる。本番監視で漏れていた問題を解消。
+        # P1.1 audit: vwap_mean_reversion 7d LIVE=8 (本番LIVEの18%) が見えていなかった。
+        _INLINE_STRATEGIES = [
+            ("vwap_mean_reversion", "daytrade_inline"),
+            # 以下は legacy/レガシー命名で本番に残存する entry_type。pair_promoted / 自動学習
+            # 対象として追跡が必要。 raw/audits/low_firing_root_cause_2026-04-28.md
+            # の P1 補足調査参照。
+            ("streak_reversal", "scalp_inline"),
+            ("dual_sr_bounce", "daytrade_inline"),
+            ("ny_close_reversal", "daytrade_inline"),  # _GRAIL_CANDIDATES 登録、本番で散発発火
+        ]
+        try:
+            for inline_name, inline_cat in _INLINE_STRATEGIES:
+                promo = self._promoted_types.get(inline_name, {})
+                blacklisted = (inline_name in self._params.get("entry_type_blacklist", []))
+                status_list.append({
+                    "name": inline_name,
+                    "category": inline_cat,
+                    "enabled": True,  # inline 戦略は常に enabled (発火条件で制御)
+                    "smc_protected": inline_name in SMC_PROTECTED,
+                    "promotion": promo.get("status", "pending"),
+                    "promo_n": promo.get("n", 0),
+                    "promo_wr": promo.get("wr", 0),
+                    "promo_ev": promo.get("ev", 0),
+                    "blacklisted": blacklisted,
+                })
+        except Exception as e:
+            print(f"[StrategyStatus] Inline error: {e}", flush=True)
+
         return status_list
 
     # 本番EV負 → OANDA停止（デモ継続）の強制降格リスト
