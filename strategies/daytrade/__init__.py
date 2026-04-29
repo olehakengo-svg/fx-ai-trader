@@ -200,6 +200,7 @@ class DaytradeEngine:
     # 詳細: wiki/decisions/phase10-g2-investigation-2026-04-29.md
     SHADOW_ALWAYS_STRATEGIES = frozenset({
         "vsg_jpy_reversal",       # Phase 4 (Bonferroni 7 通過, 2026-04-29 g2)
+        "rsk_gbpjpy_reversion",   # Phase 5 (Bonferroni 13 通過, 2026-04-29 g2)
     })
 
     def select_best(self, candidates: list[Candidate]) -> Optional[Candidate]:
