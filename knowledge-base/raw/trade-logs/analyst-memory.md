@@ -589,6 +589,16 @@ NYセッションは極めて薄商い。1件のみの執行だが、スプレ�
 前日8トレード中7件がSL_HIT（1件はTIME_DECAY_EXIT）。WR=12.5%はBT期待値（想定50-60%台）を大幅に下回る。
 - USD_JPYは現在レジーム=RANGING（ATR%ile 31%）、低ボラ環境でSMAスロープほぼゼロ（-0.00013）
 
+### 2026-04-29 (Post-Tokyo Report)
+| WR | 0.0% (0/1) |
+| PnL | **-3.4 pips** |
+| 本日累計 PnL | -9.6 pips（N=3, WR=0.0%） |
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+- スプレッド 0.8 pips は正常範囲（spread_guard 引っかかりなし）
+- **bb_rsi_reversion** はKBに PAIR_PROMOTED / ELITE_LIVE のいずれにも未登録であることに留意
+- N=1（本日累計N=3）では判断材料として不十分
+- bb_rsi_reversion の累積クリーンデータ（Fidelity Cutoff後）が蓄積途上であり、EV算出不可
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
