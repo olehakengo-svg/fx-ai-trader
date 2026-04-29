@@ -201,6 +201,7 @@ class DaytradeEngine:
     SHADOW_ALWAYS_STRATEGIES = frozenset({
         "vsg_jpy_reversal",       # Phase 4 (Bonferroni 7 通過, 2026-04-29 g2)
         "rsk_gbpjpy_reversion",   # Phase 5 (Bonferroni 13 通過, 2026-04-29 g2)
+        "mqe_gbpusd_fix",         # Phase 5 (Bonferroni 3 通過, WR 69.8%, 2026-04-29 g2)
     })
 
     def select_best(self, candidates: list[Candidate]) -> Optional[Candidate]:
