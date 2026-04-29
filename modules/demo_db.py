@@ -22,6 +22,18 @@ def pip_multiplier(instrument: str = "USD_JPY") -> float:
     return 10000.0
 
 
+def _wilson_lower(wins: int, n: int, z: float = 1.96) -> float:
+    """Wilson score interval lower bound — inlined to avoid circular import with app.py."""
+    import math as _m
+    if n == 0:
+        return 0.0
+    p = wins / n
+    den = 1 + z * z / n
+    centre = p + z * z / (2 * n)
+    spread = z * _m.sqrt(p * (1 - p) / n + z * z / (4 * n * n))
+    return max(0.0, (centre - spread) / den)
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # Seed/backfill replay artifact filter (2026-04-27)
 # ─────────────────────────────────────────────────────────────────────────
@@ -216,7 +228,8 @@ class DemoDB:
                 ("cooldown_elapsed", "0"),      # 前回決済からの経過秒数
             ]:
                 try:
-                    conn.execute(f"ALTER TABLE demo_trades ADD COLUMN {_col} REAL DEFAULT {_default}")
+                    # column names / defaults are hardcoded literals from the loop above — no user input.
+                    conn.execute(f"ALTER TABLE demo_trades ADD COLUMN {_col} REAL DEFAULT {_default}")  # nosem
                 except Exception:
                     pass
 
@@ -229,7 +242,7 @@ class DemoDB:
             # ── MAFE (Max Adverse / Favorable Excursion) ──
             for _col in ["mafe_adverse_pips", "mafe_favorable_pips"]:
                 try:
-                    conn.execute(f"ALTER TABLE demo_trades ADD COLUMN {_col} REAL DEFAULT 0")
+                    conn.execute(f"ALTER TABLE demo_trades ADD COLUMN {_col} REAL DEFAULT 0")  # nosem
                 except Exception:
                     pass
 
@@ -256,7 +269,7 @@ class DemoDB:
                 ("mtf_gate_action", "TEXT", "''"),  # 'kept'/'downgraded'/'none'
             ]:
                 try:
-                    conn.execute(f"ALTER TABLE demo_trades ADD COLUMN {_col} {_type} DEFAULT {_default}")
+                    conn.execute(f"ALTER TABLE demo_trades ADD COLUMN {_col} {_type} DEFAULT {_default}")  # nosem
                 except Exception:
                     pass
 
@@ -625,7 +638,7 @@ class DemoDB:
         """
         # v9.1 (2026-04-17): is_shadow を常に SELECT し、shadow/live 内訳を返す。
         # exclude_shadow はメイン統計の算出対象行をフィルタするのみ。
-        query = ("SELECT pnl_pips, pnl_r, outcome, entry_type, confidence, close_reason, is_shadow "
+        query = ("SELECT pnl_pips, pnl_r, outcome, entry_type, confidence, close_reason, is_shadow, entry_time "
                  "FROM demo_trades WHERE status='CLOSED'")
         if exclude_xau:
             query += " AND (instrument IS NULL OR instrument NOT LIKE '%XAU%')"
@@ -676,21 +689,37 @@ class DemoDB:
         total_pnl = sum(r["pnl_pips"] for r in rows)
         avg_r = sum(r["pnl_r"] for r in rows) / total
 
-        # By entry type
-        by_type = {}
+        # By entry type — accumulate pnl rows for extended quant metrics (Wilson CI + Walk-Forward)
+        by_type: dict = {}
+        by_type_pnls: dict = {}  # et -> [(entry_time, pnl_pips), ...] for WF h1/h2 split
         for r in rows:
             et = r["entry_type"] or "unknown"
             if et not in by_type:
                 by_type[et] = {"trades": 0, "wins": 0, "pnl": 0}
+                by_type_pnls[et] = []
             by_type[et]["trades"] += 1
             if r["outcome"] == "WIN":
                 by_type[et]["wins"] += 1
             by_type[et]["pnl"] += r["pnl_pips"]
+            by_type_pnls[et].append((r["entry_time"] or "", float(r["pnl_pips"] or 0)))
         for et in by_type:
             t = by_type[et]["trades"]
-            by_type[et]["win_rate"] = round(by_type[et]["wins"] / t * 100, 1) if t > 0 else 0
+            w = by_type[et]["wins"]
+            by_type[et]["win_rate"] = round(w / t * 100, 1) if t > 0 else 0
             # v9.1: float precision artifacts fix (-17.999999... → -18.0)
             by_type[et]["pnl"] = round(by_type[et]["pnl"], 1)
+            # P1-2 (2026-04-29): expose Wilson CI lower bound (z=1.96) and Bonferroni-corrected (z=3.29, k≈52)
+            # so the demo-analysis UI can rank strategies by statistical confidence rather than raw WR.
+            by_type[et]["wilson_lower"] = round(_wilson_lower(w, t, z=1.96) * 100, 1)
+            by_type[et]["wilson_bf_lower"] = round(_wilson_lower(w, t, z=3.29) * 100, 1)
+            # Walk-Forward H1/H2 split — chronological halves for stability check.
+            # H1>0, H2<0 with significant gap → strategy decay candidate.
+            sorted_pnls = sorted(by_type_pnls[et], key=lambda x: x[0])
+            half = t // 2
+            h1 = [p for _, p in sorted_pnls[:half]]
+            h2 = [p for _, p in sorted_pnls[half:]]
+            by_type[et]["wf_h1_avg"] = round(sum(h1) / len(h1), 2) if h1 else 0.0
+            by_type[et]["wf_h2_avg"] = round(sum(h2) / len(h2), 2) if h2 else 0.0
 
         # BREAKEVEN を LOSS と区別してカウント (2026-04-05 audit fix M5)
         losses = sum(1 for r in rows if r["outcome"] == "LOSS")
@@ -700,6 +729,12 @@ class DemoDB:
         decided = wins + losses
         decided_wr = round(wins / decided * 100, 1) if decided > 0 else 0.0
 
+        # P1-2 (2026-04-29): overall Wilson CI lower bound on the decided WR (BE excluded).
+        # Bonferroni z=3.29 corresponds to k≈52 simultaneous strategy comparisons —
+        # same convention as _strategy_extended_metrics in app.py.
+        overall_wilson = round(_wilson_lower(wins, decided, z=1.96) * 100, 1) if decided > 0 else 0.0
+        overall_wilson_bf = round(_wilson_lower(wins, decided, z=3.29) * 100, 1) if decided > 0 else 0.0
+
         return {
             "total": total,
             "wins": wins,
@@ -707,6 +742,8 @@ class DemoDB:
             "breakevens": breakevens,
             "win_rate": round(wins / total * 100, 1),
             "decided_win_rate": decided_wr,
+            "wilson_lower": overall_wilson,
+            "wilson_bf_lower": overall_wilson_bf,
             "total_pnl": round(total_pnl, 1),
             "ev": round(total_pnl / total, 2),
             "avg_r": round(avg_r, 2),
