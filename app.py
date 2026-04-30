@@ -13996,15 +13996,41 @@ def _auto_start_trader():
         except Exception as _e:
             print(f"[AutoStart/Verify] {_mode} check failed: {_e}", flush=True)
 
-# Render/Gunicorn環境では __name__ != "__main__" なので、
-# モジュール読み込み時に自動起動スレッドを開始
-# BT_MODE=1の場合はスキップ（BT実行時にDemoTraderを起動しない）
+# Polarity-inverted autostart gate (rule:R3 — structural fix for BT contamination).
+#
+# Old behaviour: autostart unless BT_MODE / TESTING / NO_AUTOSTART explicitly set.
+#   Problem: every BT script that imported `app` had to remember to set one of
+#   those vars. Forgetting it spun up the full DemoTrader (12 modes, HMM
+#   auto-fit, MainLoop ticks, COT/MasterBias/INST/FUND 404 retry storms, the
+#   [ML] training NameError loop) inside the BT process, contaminating BT
+#   wall time. The 42-minute MTF cascade BT was dominated by this.
+#
+# New behaviour: autostart ONLY when explicitly running on Render (or when
+#   developer forces it locally). Local dev, BT scripts, tests, ad-hoc
+#   imports default to clean behaviour with no env-var ceremony required.
+#
+# Production impact: Render sets RENDER=1 by convention (already used at
+#   app.py:71 and :81 to detect production), so the prod path is unchanged.
+#
+# Backwards compat: legacy BT_MODE=1 / NO_AUTOSTART=1 / TESTING=1 still keep
+#   autostart off, so existing BT scripts keep working unchanged.
 import threading as _threading_mod
-if not os.environ.get("BT_MODE") and not os.environ.get("TESTING") and os.environ.get("NO_AUTOSTART", "") != "1":
+_is_prod = bool(os.environ.get("RENDER"))
+_force_local = os.environ.get("FORCE_AUTOSTART", "") == "1"
+_legacy_off = (
+    os.environ.get("BT_MODE")
+    or os.environ.get("TESTING")
+    or os.environ.get("NO_AUTOSTART", "") == "1"
+)
+if (_is_prod or _force_local) and not _legacy_off:
     _auto_start_thread = _threading_mod.Thread(target=_auto_start_trader, daemon=True)
     _auto_start_thread.start()
 else:
-    print("[BT_MODE/TESTING/NO_AUTOSTART] Auto-start skipped", flush=True)
+    if _legacy_off:
+        _why = "BT_MODE/TESTING/NO_AUTOSTART"
+    else:
+        _why = "no RENDER/FORCE_AUTOSTART"
+    print(f"[autostart] skipped — {_why}. Set FORCE_AUTOSTART=1 locally if needed.", flush=True)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
