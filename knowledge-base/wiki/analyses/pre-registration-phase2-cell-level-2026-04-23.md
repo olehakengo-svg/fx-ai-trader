@@ -64,7 +64,7 @@ cell = (strategy_name, instrument, session_regime)
 
 **全 5 条件を満たす cell のみ生存者とする**:
 
-1. **N ≥ 30** (小-N 排除、[[feedback_partial_quant_trap]] 原則)
+1. **N ≥ 30** (小-N 排除、feedback_partial_quant_trap 原則)
 2. **Wilson 95% lower > BEV_WR_cell + 0.03** (経済的マージン 3pp 確保)
 3. **Fisher exact p < 2.5e-4** (Bonferroni α=0.05/M, M=340 ≈ 1.47e-4; 本 scan では 2.5e-4 で保守寄り)
 4. **Kelly > 0.05** (BT_COST_cell 減算後も正期待値)

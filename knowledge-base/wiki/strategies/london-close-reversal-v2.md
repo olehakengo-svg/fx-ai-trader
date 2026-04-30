@@ -65,6 +65,6 @@ Bonferroni α (18検定) = 0.0028 → いずれも未達
 
 ## Related
 - [[pre-registration-2026-04-22]] — Live昇格binding基準
-- [[feedback_partial_quant_trap]] — 判定プロトコル
+- feedback_partial_quant_trap — 判定プロトコル
 - [[session-time-bias]] — 既存の session戦略 (ELITE_LIVE、直交性確認)
 - 原戦略 [[london-close-reversal]] (UTC 15:00-16:15 wick-based) — 別アルゴリズム、併存

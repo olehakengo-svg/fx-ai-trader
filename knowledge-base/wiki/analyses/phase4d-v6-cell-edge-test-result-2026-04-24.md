@@ -146,4 +146,4 @@ negative cell として認定可能.
 - [[pre-registration-phase4d-v6-cell-edge-test-2026-04-24]] (本 pre-reg)
 - [[phase4c-v6-classifier-stability-result-2026-04-24]] (PHASE_D_CELLS 15 authorization)
 - [[phase4b-cell-edge-test-result-2026-04-24]] (v5 Phase D baseline)
-- [[feedback_success_until_achieved]] (Null closure 禁止)
+- feedback_success_until_achieved (Null closure 禁止)

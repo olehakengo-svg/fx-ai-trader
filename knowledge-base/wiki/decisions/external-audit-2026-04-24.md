@@ -144,7 +144,7 @@ Week 3-4 (〜2026-05-22):
 - [[elite-freeing-patch-2026-04-24]] (surgery 実装詳細)
 - [[audit-completion-protocol]] (post-audit 完了追跡フロー)
 - [[lesson-reactive-changes]] (1日データ判断禁止)
-- [[lesson-bt-live-divergence]] (6 楽観バイアス)
+- ~~[[lesson-bt-live-divergence]]~~ (6 楽観バイアス)
 - [[lesson-premature-neutralization-2026-04-23]] (Null closure 禁止)
 
 ## 更新履歴

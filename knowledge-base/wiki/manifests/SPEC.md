@@ -31,8 +31,8 @@ edges:
     bonferroni_passed: <bool>
     routing: <Routing>
     routing_lot_multiplier: <float>  # optional, only with KELLY_HALF/FULL
-    source_prereg: "[[wikilink]]"
-    source_result: "[[wikilink]]"
+    source_prereg: "`[[wikilink]]`"
+    source_result: "`[[wikilink]]`"
     expires_at: "<ISO8601>"
 ---
 

@@ -91,7 +91,7 @@ TIME_DECAY_EXIT を delay/抑制しても、対象戦略 (7) のいずれも EV>
 - **メタ SURVIVOR (H1採択)**: 3戦略以上が B3 通過 → Time-Floor を Phase2a 議論に格上げ.
   別 pre-reg「TIME_DECAY_EXIT 改修 deploy plan」起案.
 - **メタ CANDIDATE**: 1-2 戦略が B3 通過 → 個別戦略 deploy のみ検討、横断改修は保留.
-- **メタ REJECT**: 0 戦略 → Time-Decay 仮説を closure ([[lesson-time-decay-bias]] 起案).
+- **メタ REJECT**: 0 戦略 → Time-Decay 仮説を closure (~~[[lesson-time-decay-bias]]~~ 起案).
 
 ## 7. 副次仮説 (Bonferroni対象外)
 

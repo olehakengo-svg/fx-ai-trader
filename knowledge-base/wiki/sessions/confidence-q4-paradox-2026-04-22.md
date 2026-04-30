@@ -9,8 +9,8 @@
 **Status**: **PARTIAL-QUANT (SUPERSEDED)** — full-quant 版で binding 確定
 **Based on**:
   - [[task1-win-dna-2026-04-21]] (WIN DNA で Q4 paradox を発見)
-  - [[confidence-q4-paradox-2026-04-22.py]] (Q4 inversion 統計)
-  - [[confidence-q4-features-2026-04-22.py]] (Q4 特徴量 enrichment 分析)
+  - [[confidence-q4-paradox-2026-04-22]] (Q4 inversion 統計)
+  - confidence-q4-features-2026-04-22.py (Q4 特徴量 enrichment 分析)
 
 ---
 

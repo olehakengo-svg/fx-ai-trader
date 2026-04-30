@@ -149,19 +149,19 @@ Routing table が疎 (特定 regime で survivor 0) の場合に限り、
 2. **Classifier 実装** (`modules/regime_classifier.py` 相当): §3 のロジックを
    **そのまま**コード化。パラメータ調整禁止
 3. **Stability 検定 script**: §4 の S1-S3 を計算、GO/FAIL 判定
-4. **KB 記録**: [[phase4-classifier-stability-<date>]] で結果を記録
+4. **KB 記録**: `[[phase4-classifier-stability-<date>]]` で結果を記録
 
 ### Phase B (Stability GO 時のみ)
 
 5. **過去 trade に regime label 付与** (entry bar の regime で分類)
 6. **Per-regime edge test** (§5)
-7. **Routing table 作成** → [[phase4-routing-table-<date>]]
+7. **Routing table 作成** → `[[phase4-routing-table-<date>]]`
 
 ### Phase C (Routing 決定後)
 
 8. **Shadow deploy** (routing logic を production signal 関数に backtest_mode
    分岐で統合、既存 strategies は unchanged、gate として動作)
-9. **Shadow 14d N≥200 → [[pre-registration-phase4-adaptive-shadow-<date>]]**
+9. **Shadow 14d N≥200 → `[[pre-registration-phase4-adaptive-shadow-<date>]]`**
    で promote/demote 判定
 
 ## 7. Disallowed (本 doc 確定後)

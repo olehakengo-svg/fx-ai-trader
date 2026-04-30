@@ -118,4 +118,4 @@ Scenario 判定は Step B/C 完了まで pending.
 - [[phase4c-signalC-field-ranking-result-2026-04-26]] (H4 +20.5%/+18.9% 発見元)
 - [[phase4d-v6-cell-edge-test-result-2026-04-24]] (live 16d power denial)
 - [[manifests/SPEC]] (EDGE.md routing infrastructure)
-- [[feedback_success_until_achieved]] (closure 短絡禁止 — defer は closure ではない)
+- feedback_success_until_achieved (closure 短絡禁止 — defer は closure ではない)

@@ -79,14 +79,13 @@
 <!-- KB_PORTFOLIO_END -->
 
 ## System State (v9.4 / v2.1)
-- Defensive mode: **0.2x** (DD=**32.32%** / 323.2pip ⚠️, defensive mode — v8.4以降クリーンデータ起点)
+- Defensive mode: **0.2x** (DD=**34.76%** / 347.6pip ⚠️, defensive mode — v8.4以降クリーンデータ起点)
 - XAU: **Stopped** (v8.4) -- post-cutoff XAU loss = -2,280pip (102% of total loss)
-- FX-only post-cutoff (2026-04-08〜): **-240.7pip** (Live `is_shadow=0`, snapshot 2026-04-27 UTC~12:00, N=268, WR=37.7%, EV=-0.90) ※ trend_rebound FORCE_DEMOTED後
-  - 前回 (2026-04-24 AM): N=259, WR=39.0%, PnL=-215.0pip (+9 trades, -25.7pip since)
-  - 別 metric: Live+Shadow 直クエリ 2026-04-26 PM では N=373, WR=30.3%, edge=-18.07% (Kelly edge -18.07% ≈ -17.97% で本質一致、filter 違いの集計差)
-- Ruin probability: **2.72%** ⚠️ (MC 5,000 sims, N=300 forward — last computed 2026-04-24、要再計算)
-- Aggregate Kelly: **0.0** (edge≈-17.97%, WR=37.7%, N=268, Live `is_shadow=0`)
-- Last updated: 2026-04-27 (wiki-daily-update); prev: 2026-04-24 (wiki-daily-update); U17 snapshot drift closure: 2026-04-26 (curried-ritchie session)
+- FX-only post-cutoff (2026-04-08〜): **-228.6pip** (Live `is_shadow=0`, snapshot 2026-04-29 auto wiki-daily, N=286, WR=38.1%, EV=-0.80)
+  - 前回 (2026-04-27): N=268, WR=37.7%, PnL=-240.7pip; 前々回 (2026-04-24): N=259, WR=39.0%, PnL=-215.0pip
+- Ruin probability: **1.72%** ⚠️ (MC 5,000 sims, N=300 forward — 2026-04-29)
+- Aggregate Kelly: **0.0** (edge≈-18.04%, WR=38.11%, N=286, Live `is_shadow=0`)
+- Last updated: 2026-04-29 (wiki-daily-update); prev: 2026-04-27 (wiki-daily-update)
 - scalp_eurjpy: **Stopped** (v8.6) -- friction/ATR=43.6%, 構造的不可能
 - scalp_5m_eur / scalp_5m_gbp: **Active** (v8.6) -- 5m摩擦改善モード
 - New modes (v9.0): **daytrade_eurjpy**, **daytrade_gbpjpy**, **[[rnb-usdjpy]]** (all auto_start)
@@ -120,6 +119,7 @@
 - [[negative-strategy-stopping-rule]] -- Shadow 止血ルール Level A/B/C（Bayesian 基準）
 
 ## Session History
+- **2026-04-29 wiki-daily-update** — N=286, WR=38.1%, PnL=-228.6pip, DD=34.76% ⚠️ (from 32.32%), ruin=1.72% (from 2.72%), vol_momentum_scalp唯一正Kelly (+7.78%), live fills=0 (全shadow_tracking), latest OANDA ID=3590
 - **2026-04-24 wiki-daily-update** — N=259, WR=39.0%, PnL=-215.0pip, DD=32.32% ⚠️ (from 28.01%), ruin=2.72% ⚠️ (from 0.78%), vwap_mr N=10 -47.7pip OANDA kill-switch適用, live fills=1 (GBP_USD bb_rsi #378534)
 - **2026-04-23 wiki-daily-update** — N=255, WR=39.6%, PnL=-171.9pip, DD=28.01%, ruin=0.78% ⚠️ (from 0.04%), vwap_mr N=8 -17.5pip継続悪化, live fills=0
 - [[sessions/quant-edge-scan-2026-04-23]] — **🎯 最新** Session/Horizon/Regime 3軸エッジスキャン (T3 Tokyo Range Breakout 確認 / L1 OFI MR / edge_lab T1-T2-D1-R1-S3 実行)
@@ -178,7 +178,8 @@
 - [[bt-live-divergence-scan-2026-04-22]] / [[bt-live-divergence-v3-full-stack-2026-04-22]] — 365d JPY DT + 180d Scalp fresh BT
 
 ### Trade Logs
-- [[2026-04-27]] — daily summary (auto-generated 2026-04-27)
+- [[2026-04-29]] — daily summary (auto-generated 2026-04-29)
+- ~~[[2026-04-27]]~~ — daily summary (auto-generated 2026-04-27)
 - [[2026-04-27-monitor]] / [[2026-04-27-pre_tokyo]] / [[2026-04-27-post_tokyo]]
 - [[2026-04-24]] — daily summary (auto-generated 2026-04-24)
 - [[2026-04-23]] — daily summary (auto-generated 2026-04-23)

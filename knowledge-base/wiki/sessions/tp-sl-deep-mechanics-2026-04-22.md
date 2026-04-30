@@ -209,7 +209,7 @@ N が小さすぎて統計推論不能. 個別 trade の構造を機械的に列
 
 ### H.4 Priority ranking (WR 改善寄与度)
 
-1. **Confidence Q4 paradox filter** (既存 [[confidence-q4-paradox]] 記録済) — 最も uplift 大
+1. **Confidence Q4 paradox filter** (既存 [[confidence-q4-paradox-2026-04-22]] 記録済) — 最も uplift 大
 2. **Score Q1 drop** — 戦略 score の lowest quartile は systematic loser
 3. **mtf_alignment=conflict drop** — 既存 gate の漏れチェック
 4. **spread Q4 drop** — friction 動的排除 (既存 Spread Gate と重なるが ex-post で測定)

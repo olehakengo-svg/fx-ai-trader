@@ -1,5 +1,16 @@
 # Knowledge Base Change Log
 
+## 2026-04-29 (wiki-daily-update): 自動スケジュールタスク
+- **Daily trade log**: `raw/trade-logs/2026-04-29.md` 作成 — post-cutoff FX-only N=286, WR=38.1%, PnL=-228.6pip
+- **wiki/index.md**: System State更新 — DD 32.32%→**34.76%** ⚠️ (347.6pip), PnL -240.7→**-228.6pip**, N 268→286, WR 37.7%→38.1%, EV -0.90→-0.80, Kelly edge -17.97%→-18.04%, Ruin **2.72%→1.72%** (改善), last_updated 2026-04-27→2026-04-29; Trade Logs セクション + Session History に2026-04-29追加
+- **Strategy pages**: 更新なし (vwap_mean_reversion N=10 PnL=-47.7pip 前回2026-04-24から変化なし)
+- **OANDA今日**: live fill=0 (全30件shadow_tracking, IDs 3561-3590), 総system audit count=3,590
+- **Learning API**: ConnectionRefused (endpoint unavailable)
+- **Risk state**: DD=34.76%, lot=0.2x, Kelly=0.0 (edge=-18.04%), MC ruin=1.72%, median equity=758.1, VaR95=8.72, CVaR95=15.05
+- **主要観察**: ⚠️ DD 34.76% (+2.44pp from 2026-04-27). ✅ MC ruin 2.72%→1.72% (改善). 🎯 vol_momentum_scalp 唯一正Kelly edge (+7.78%, half-Kelly=3.37%). ⚠️ trend_rebound N=17 WR=23.5% (止血閾値域). ⚠️ session_time_bias (ELITE_LIVE) N=5 WR=20% (小N注意). ⚠️ DSR overall=0.0 全戦略で有意な正Sharpeなし.
+- **Lint**: vwap_mean_reversion更新なし (同一数値), bb_rsi_reversion N=151 最大volume継続, wikilink問題なし
+- **陳腐化**: Session History 前回 2026-04-27 → 今回 2026-04-29 更新済み
+
 ## 2026-04-25 (rule:R3): Asymmetric Agility 規律改定 + bb_rsi RR=2.5 即時適用
 - **規律改定**: `wiki/lessons/lesson-asymmetric-agility-2026-04-25.md` 新規 — 3層非対称ルール (Rule 1 Slow & Strict / Rule 2 Fast & Reactive / Rule 3 Immediate)
 - **CLAUDE.md**: 判断プロトコルを Rule 1/2/3 分類に書き換え、コミットメッセージに `rule:R[1|2|3]` 明示要求

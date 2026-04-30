@@ -5,7 +5,7 @@
 **Plan**: `/Users/jg-n-012/.claude/plans/mtf-rustling-candle.md` Section 2 Phase I
 **Phase 0 audit**: PASS — primary fields populated ≥99% (`/tmp/phase4c_phase0_audit.txt`)
 **Upstream**: [[phase4c-mtf-regime-result-2026-04-24]] (Signal A null), [[phase4c-mtf-signalB-adx-result-2026-04-24]] (Signal B null)
-**Memory**: [[feedback_success_until_achieved]], [[feedback_partial_quant_trap]], [[feedback_label_empirical_audit]]
+**Memory**: feedback_success_until_achieved, feedback_partial_quant_trap, feedback_label_empirical_audit
 
 ## 0. Rationale
 

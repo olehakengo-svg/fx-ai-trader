@@ -87,7 +87,7 @@ backtest_mode 分岐で完全再利用すること (CLAUDE.md rule)。
 
 ### Step 6. Post-deploy audit
 
-promotion 30d 後、再監査 ([[feedback_partial_quant_trap]] Audit B pattern):
+promotion 30d 後、再監査 (feedback_partial_quant_trap Audit B pattern):
 - N, WR, PF, Wilson CI を現数値で再計算
 - 劣化 > 10pp → PAIR_DEMOTED
 

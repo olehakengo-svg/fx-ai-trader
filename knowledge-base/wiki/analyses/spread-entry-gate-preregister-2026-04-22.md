@@ -104,7 +104,7 @@ OOS-1 期間で N≥200 の post-cutoff trades が必要（pair毎 N≥50）。�
 - Evidence: [[tp-hit-quant-analysis-2026-04-20]] §Phase 5 Bonferroni table line 136
 - Friction prior: [[friction-analysis]] per-pair BEV_WR
 - Methodology: [[pre-registration-2026-04-21]] LIVE 監視の binding 基準
-- Lessons: [[lesson-partial-quant-trap]], [[lesson-reactive-changes]], [[lesson-all-time-vs-post-cutoff-confusion]]
+- Lessons: ~~[[lesson-partial-quant-trap]]~~, [[lesson-reactive-changes]], [[lesson-all-time-vs-post-cutoff-confusion]]
 - Counterpart: [[regime-2d-v2-preregister-2026-04-20]] — 並行執行
 
 ---

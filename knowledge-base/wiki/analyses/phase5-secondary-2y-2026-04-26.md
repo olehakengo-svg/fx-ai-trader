@@ -86,7 +86,7 @@ Bonferroni: outer 3 cluster 独立検定 → 各 cluster 内 α_cell = 0.05 / 9 
 ## 7. 副次仮説 (Bonferroni 対象外, 観察記録のみ)
 
 実装上の興味深い観察として:
-- TF 依存性: 5m → 上位足で Edge 安定化するか ([[Phase D]] に引き継ぎ)
+- TF 依存性: 5m → 上位足で Edge 安定化するか (~~[[Phase D]]~~ に引き継ぎ)
 - PAIR 独立性: 関連 PAIR 1個追加で SURVIVOR cell が複数 PAIR で観察されるか
 
 これらは判定軸ではなく **パラメータ感度の参考情報**.

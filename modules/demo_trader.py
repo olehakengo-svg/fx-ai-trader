@@ -3219,6 +3219,9 @@ class DemoTrader:
             # 2026-04-29: 教科書的 MTF 15m→5m→1m カスケード scalp 2 戦略 (rule:R1, Sentinel)
             "mtf_trend_follow_scalp",   # MTF 順張り USD_JPY/EUR_USD low-spread hour only
             "mtf_counter_trend_scalp",  # MTF 逆張り 5m BB%B+RSI div → 固定小幅 TP
+            # 2026-04-30: 別軸 — spread_gate 最上位 + 15m regime classifier + 既存戦略継承 (rule:R1, Sentinel)
+            "mtf_regime_trend_cascade_scalp",   # regime classifier → trend cell → ema_pullback 継承 (enabled)
+            # "mtf_regime_range_cascade_scalp", # range cell → bb_rsi 継承 (enabled=False, deprecated v1)
             # DISABLED (FXアナリストレビュー 2026-04-03):
             # "ihs_neckbreak",       # 廃止: 1m足でパターン認識不適
             # "sr_touch_bounce",     # 廃止: BT結果なし, sr_fib(15m)と重複

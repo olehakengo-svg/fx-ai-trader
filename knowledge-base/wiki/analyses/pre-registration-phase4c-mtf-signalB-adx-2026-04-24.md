@@ -4,7 +4,7 @@
 **Track**: B — Signal B (ADX)
 **Upstream**: [[pre-registration-phase4c-mtf-regime-2026-04-24]] (Signal A, Scenario A closure)
 **Next session queued**: Signal C (structural HH/HL), Signal D (composite)
-**Parent memory**: [[feedback_success_until_achieved]]
+**Parent memory**: feedback_success_until_achieved
 
 ## 0. Rationale (何故 Signal B を別 pre-reg で検定するか)
 
@@ -214,5 +214,5 @@ Track B 終了は誤り.
 - [[pre-registration-phase4c-mtf-regime-2026-04-24]] (Signal A, upstream)
 - [[phase4c-mtf-regime-result-2026-04-24]] (Signal A result, Scenario A provisional)
 - [[phase4b-cell-edge-test-result-2026-04-24]] (先行 power denial evidence)
-- [[feedback_success_until_achieved]] (memory, 継続 mandate)
+- feedback_success_until_achieved (memory, 継続 mandate)
 - Wilder, J.W. (1978). *New Concepts in Technical Trading Systems*. ADX / DMI 原論.

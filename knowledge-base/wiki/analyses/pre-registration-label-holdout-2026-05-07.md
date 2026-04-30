@@ -94,7 +94,7 @@ code change を許可するか判定する。
 
 - [ ] `python3 /tmp/quant_validation.py --cutoff 2026-04-24 --end 2026-05-07` 実行
   (現 script に cutoff 引数追加必要)
-- [ ] 出力を [[quant-validation-holdout-2026-05-07]] に記録
+- [ ] 出力を ~~[[quant-validation-holdout-2026-05-07]]~~ に記録
 - [ ] 上記 GO 条件ヒット label の code change を実装
 - [ ] GO 条件 miss は "maintained candidate" として記録
 - [ ] カテゴリ Kelly 判定は 2 連続 holdout 後のため、本回は observation only

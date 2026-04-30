@@ -109,7 +109,7 @@ PHASE_D_CELLS が v5 PHASE_B_CELLS 10 を上回る
 1. `/tmp/phase4c_v6_classifier_stability.py` 作成
 2. v5 script 再利用、feature compute を F7/F8 追加、cell assignment を 3D 化
 3. OANDA 10 months × 2 pairs で S1/S2/S3 検定
-4. KB 結果記録: [[phase4c-v6-classifier-stability-2026-04-24]]
+4. KB 結果記録: [[phase4c-v6-classifier-stability-result-2026-04-24]]
 5. Phase D cell edge test は別 pre-reg (v6 stability authorize 後)
 
 ## 8. Explicit non-goal

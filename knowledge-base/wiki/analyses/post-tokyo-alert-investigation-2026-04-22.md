@@ -123,7 +123,7 @@ curl -s "https://fx-ai-trader.onrender.com/api/demo/trades?limit=200" | jq '[.tr
 - **PAIR_PROMOTED な vwap×EUR_JPY が Shadow=1 で入っている**理由は P1 バグ由来の可能性大 (exposure block で OANDA 未送信 → is_shadow=1 safety net 発動)
 - P1 修正後は vwap×EUR_JPY は通常の LIVE 経路に戻る見込み
 - FORCE_DEMOTED 2 件 (stoch/sr_break) の含み益 +18.4pip は **確定利益ではなく未決済評価益**
-- 過去の [[../decisions/]] を繰り返さない: N=1 の含み益で Tier 変更は [[lesson-reactive-changes]] 違反
+- 過去の  を繰り返さない: N=1 の含み益で Tier 変更は [[lesson-reactive-changes]] 違反
 - **決済後の post-cutoff N≥30 で再評価**するまで変更しない
 
 ### 次回評価トリガ

@@ -153,5 +153,5 @@ range_sub + mtf_alignment + h4_label×strategy + ε`
 - `research/edge_discovery/mtf_regime_engine.py` label_d1 (EMA200 anchor)
 - `research/edge_discovery/strategy_family_map.py` strategy_aware_alignment
 - `modules/demo_trader.py` L5840-5876 `_get_mtf_state` (live cache + label call)
-- [[feedback_label_empirical_audit]] (memory: 実測 query が code 演繹に優先)
+- feedback_label_empirical_audit (memory: 実測 query が code 演繹に優先)
 - [[lesson-asymmetric-agility-2026-04-25]] (Rule 1/2/3 framework)

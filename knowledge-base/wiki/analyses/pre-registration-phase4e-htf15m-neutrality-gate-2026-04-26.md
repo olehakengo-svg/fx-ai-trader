@@ -187,4 +187,4 @@ H4 +18.9% を 80% 維持と仮定.
 - [[phase4c-mtf-regime-result-2026-04-24]] (Track B closure, 失敗事例)
 - [[manifests/SPEC]] (EDGE.md routing infrastructure)
 - [[lesson-asymmetric-agility-2026-04-25]] (Rule R1 適用根拠)
-- [[feedback_success_until_achieved]] (closure 短絡禁止 memory)
+- feedback_success_until_achieved (closure 短絡禁止 memory)

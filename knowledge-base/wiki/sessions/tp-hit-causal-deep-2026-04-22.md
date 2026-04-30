@@ -282,7 +282,7 @@ Shadow data で観測された WIN trade の共通条件:
 1. **早期 drive**: 最初の 3-5 足以内に MFE が SL 距離を超える (= entry direction が正しく、反転せずに走った).
 2. **MAE の浅さ**: WIN 内 MAE/|SL| 中央値は概ね 0.3-0.5 (SL に半分も届かず反転).
 3. **regime congruence**: mtf_alignment=aligned で WR lift 1.27x (N=138 shadow, Fisher p=0.028).
-4. **confidence Q1 が意外に WIN**: N=485 WR=32.6% (lift 1.17x, p=0.012) — confidence 逆相関示唆 (既存 [[confidence-inversion]] と整合).
+4. **confidence Q1 が意外に WIN**: N=485 WR=32.6% (lift 1.17x, p=0.012) — confidence 逆相関示唆 (既存 ~~[[confidence-inversion]]~~ と整合).
 5. **戦略固有の session × vol state**:
    - Mean reversion (fib / bb_rsi / sr_channel): NY session + ADX Q2-Q3 (overheated pullback 狙い)
    - Trend pullback (stoch_trend_pullback): ATR Q1 + BUY (low-vol trend continuation)

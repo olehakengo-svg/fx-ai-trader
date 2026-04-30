@@ -10,7 +10,7 @@ related: [[edge-reset-direction-2026-04-26]], [[external-audit-2026-04-24]]
 
 ## Trigger
 
-シニアクオンツ監査 ([[../../../.claude/plans/synchronous-plotting-seahorse]]) で発見:
+シニアクオンツ監査 (../../../.claude/plans/synchronous-plotting-seahorse) で発見:
 - Live (is_shadow=0): N=36, WR=50.0%, +6.0 pip total, +53.3R
 - Shadow (is_shadow=1): N=383, WR=30.0%, -432.1 pip, -77.67R
 

@@ -256,7 +256,7 @@ WR=42-46% は BEV_WR=34.4% を 8-12pp 上回るが、**friction と負 R-multipl
 3. **close_reason の多元性**: "TP-hit" に TP_HIT / OANDA_SL_TP / SIGNAL_REVERSE / MAX_HOLD_TIME を含むため、純粋な「価格が TP へ到達」の再現性とは乖離。close_reason 別の再分析は future work。
 4. **pnl_r は 全 WIN で正値**（LOSS 側の負 R は含まない） — 本分析の EV は全サンプル（WIN+LOSS）加重で算出している点に注意。
 5. **m=107 の multiple testing 補正を適用済み**だが、条件を事後選別した時点で事前仮説ではなくなる → 本分析は **hypothesis-generating exploratory analysis** であり confirmatory ではない。confirmatory 再検証は post-cutoff N≥100 の pre-registered 条件で行うべき（[[pre-registration-2026-04-21]] 方式）。
-6. **XAU は全処理で除外**（[[feedback_exclude_xau]]）。
+6. **XAU は全処理で除外**（feedback_exclude_xau）。
 
 ## 数学的まとめ（re-usable formulas）
 

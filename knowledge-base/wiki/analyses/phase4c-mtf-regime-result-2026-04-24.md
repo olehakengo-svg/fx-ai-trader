@@ -8,7 +8,7 @@
 > 「本 pre-reg (Signal A, 16 days) 下での null」に限定.
 > 再検証は**別セッション**で新 pre-reg LOCK の上で実施する.
 >
-> 参照: [[feedback_success_until_achieved]] (memory)
+> 参照: feedback_success_until_achieved (memory)
 
 **Pre-reg**: [[pre-registration-phase4c-mtf-regime-2026-04-24]]
 **Script**: `/tmp/phase4c_mtf_regime_test.py`

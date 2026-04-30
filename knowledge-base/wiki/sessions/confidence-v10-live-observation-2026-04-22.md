@@ -137,6 +137,6 @@ daytrade MR-type 戦略で `strategy_type` 未タグ → anti-trend penalty 未�
 
 - [[confidence-q4-full-quant-2026-04-22]] — 発動の binding quant 証跡
 - [[confidence-formula-root-cause-2026-04-22]] — コード病因解剖
-- [[modules/confidence_v2.py]] — 実装
-- [[modules/confidence_q4_gate.py]] — 移行期 safety net
+- modules/confidence_v2.py — 実装
+- modules/confidence_q4_gate.py — 移行期 safety net
 - Commit `8fc90eb` — v10 実装本体
