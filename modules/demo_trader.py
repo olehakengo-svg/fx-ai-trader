@@ -2720,7 +2720,7 @@ class DemoTrader:
                 if _se_sl <= 0 or _se_tp <= 0:
                     continue
                 # 60s dedup gate (primary と key 空間共有 — _maybe_reserve_signal_emit)
-                if not self._maybe_reserve_signal_emit(_se_entry_type, instrument, _se_signal):
+                if self._maybe_reserve_signal_emit(_se_entry_type, instrument, _se_signal) is not None:
                     continue
                 _se_conf = int(_se.get("confidence") or 50)
                 _se_score = float(_se.get("score") or 0)
@@ -2746,11 +2746,12 @@ class DemoTrader:
             print(f"[DemoTrader/{mode}] shadow_emit error: {_se_err}", flush=True)
 
     def _maybe_reserve_signal_emit(self, entry_type: str, instrument: str,
-                                   signal: str, *, window_sec: int = 60) -> bool:
+                                   signal: str, *, window_sec: int = 60):
         """Reserve a (entry_type, instrument, signal) slot for `window_sec`.
 
-        Returns True if the slot was free and is now reserved (caller may emit).
-        Returns False if a recent emit is still within the window (caller should skip).
+        Returns None if the slot was free and is now reserved (caller may emit).
+        Returns the age (float seconds) of the blocking prior emit if a recent
+        emit is still within the window (caller should skip / log age).
 
         Centralizes the dedup logic shared by primary trade (_tick_entry) and
         shadow_emit loop. Single key space across all emit paths so a primary
@@ -2767,14 +2768,14 @@ class DemoTrader:
         with self._lock:
             last = self._recent_signal_emits.get(key)
             if last and (now - last) < window:
-                return False
+                return (now - last).total_seconds()
             self._recent_signal_emits[key] = now
             # 古いエントリ掃除 (メモリ保護) — window の 2 倍を保持
             stale_cutoff = now - timedelta(seconds=2 * window_sec)
             self._recent_signal_emits = {
                 k: v for k, v in self._recent_signal_emits.items() if v > stale_cutoff
             }
-        return True
+        return None
 
     def _tick_entry(self, mode: str, cfg: dict, sig: dict,
                     tf: str, instrument: str):
@@ -3194,22 +3195,12 @@ class DemoTrader:
         # race condition を防ぐ。DB を介さず in-memory + self._lock で即時判定。
         # 観測実例: vol_spike_mr 389/390 (0.0002s), sr_fib_confluence 360/361 (0.0002s),
         #           intraday_seasonality 436/437 (6s), stoch_trend_pullback 183/184 (35s)
-        _signal_key = (entry_type, instrument, signal)
-        _now_dedup = datetime.now(timezone.utc)
-        _dedup_window = timedelta(seconds=60)
-        with self._lock:
-            _last_emit = self._recent_signal_emits.get(_signal_key)
-            if _last_emit and (_now_dedup - _last_emit) < _dedup_window:
-                _age = (_now_dedup - _last_emit).total_seconds()
-                _block(f"recent_emit({entry_type},{int(_age)}s<60s)")
-                return
-            # 予約: 以降の guard で block されても 60s expire で自動解放されるため cleanup 不要
-            self._recent_signal_emits[_signal_key] = _now_dedup
-            # 古いエントリ掃除 (メモリ保護)
-            _stale_cutoff = _now_dedup - timedelta(seconds=120)
-            self._recent_signal_emits = {
-                k: v for k, v in self._recent_signal_emits.items() if v > _stale_cutoff
-            }
+        # rule:R3 (2026-04-30): shadow_emit 経路と key 空間共有のため
+        # _maybe_reserve_signal_emit() に集約。詳細: lesson-shadow-emit-dedup-2026-04-30
+        _dedup_age = self._maybe_reserve_signal_emit(entry_type, instrument, signal)
+        if _dedup_age is not None:
+            _block(f"recent_emit({entry_type},{int(_dedup_age)}s<60s)")
+            return
         # (A) 同価格帯ブロック（モード別: scalp=1.0pip, DT=5pip, other=3pip）
         # scalp: 1.5→1.0pip (エントリー機会増), DT: 1.5→5pip (マシンガン防止)
         _is_jpy = "JPY" in instrument
