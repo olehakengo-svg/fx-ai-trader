@@ -161,9 +161,45 @@ Wilson_BF 下限が ~50% 縮小。「データ多くて高 confidence」だっ�
 - `GET /api/admin/dedup_status` — 現状の cross-tab + last startup result (no-auth, read-only)
 - `POST /api/admin/dedup_run` — backfill 強制再実行 (Bearer 必須、idempotent)
 
+## 二次発見 (post-deploy 監視で判明)
+
+修正後の loop 監視で SHADOW_ALWAYS shadow の sub-60s rate が 81.2% と発覚。診断カウンタで原因特定したところ、**dedup gate code は正常動作中**だが in-memory `_recent_signal_emits` が **gunicorn restart で消失** していた。
+
+leak 期間 07:57-08:14 UTC は **2 deploy のタイミング** (`87cc750`@07:58 + `8aade72`@08:05) と完全に一致。各 deploy → `__init__()` 再実行 → `_recent_signal_emits = {}` でクリア → 60s 履歴消失 → 連続 emit が「初回」として通過。
+
+### 追加対策 (commit `ebf4a52`)
+
+1. `DemoDB.get_recent_signal_emits(window_sec=120)` 新設 — 過去 120s の demo_trades 行から `(entry_type, instrument, direction) → max(entry_time)` を返却。
+2. `DemoTrader.__init__` で起動時 hydrate 実行、`_dedup_stats["hydrated_from_db"]` で件数を可視化。再起動後も 60s window が即座に有効。
+3. `_DEDUP_BACKFILL_CUTOFF` を `datetime.now()` に動的化 — deploy-storm leak rows も次回 backfill で flag される。
+
+### 最終実測値 (commit `ebf4a52` deploy 後)
+
+| 指標 | 修正前 | 修正後 |
+|---|---:|---:|
+| `total_flagged` | 68 | **76** (+8) |
+| `vsg_jpy_reversal` flagged | 8 | **11** |
+| `rsk_gbpjpy_reversion` flagged | 0 | **5** |
+| `mqe_gbpusd_fix` flagged | 60 | 60 |
+| `hydrated_from_db` | (未実装) | 1 |
+
+deploy-storm leak の +8 件が dedup_violation=1 に flag、Wilson/Kelly 入力からも除外。
+
+## 完了状況
+
+| 対策 | 状態 | commit |
+|---|---|---|
+| shadow_emit 60s dedup gate 移植 | ✅ | `6a45bb2` |
+| helper 抽出 (lesson 一般化) | ✅ | `fbef071` |
+| 過去汚染 flag 化 (timedelta fix 含む) | ✅ | `13eb929` + `b6f54d5` |
+| 診断 endpoint + 計測カウンタ | ✅ | `4c2bebd` + `d08b8d5` + `a88852f` |
+| Restart-resilient hydration + dynamic cutoff | ✅ | `ebf4a52` |
+| audit document + lesson | ✅ | `976fa1d` + `ebf4a52` |
+
 ## クロスリファレンス
 
 - 静的解析証拠: [[../lessons/lesson-shadow-emit-dedup-2026-04-30]] §1-2
-- 修正実装詳細: commit `6a45bb2` (gate 移植), `fbef071` (helper 抽出), `13eb929` (flag 化), `4c2bebd` (診断)
+- 二次発見の構造的教訓: [[../lessons/lesson-shadow-emit-dedup-2026-04-30]] §「追記」
+- 修正実装詳細: commit `6a45bb2` (gate 移植), `fbef071` (helper 抽出), `13eb929` (flag 化), `4c2bebd` (診断), **`ebf4a52` (hydration + dynamic cutoff)**
 - 前回の同種問題: [[../lessons/lesson-shadow-always-emit-cleanup-2026-04-28]]
 - 関連戦略: [[../strategies/vsg_jpy_reversal]], [[../strategies/rsk_gbpjpy_reversion]], [[../strategies/mqe_gbpusd_fix]]
