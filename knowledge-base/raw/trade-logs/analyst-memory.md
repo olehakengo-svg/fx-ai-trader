@@ -619,6 +619,16 @@ GBP_USDは本日レジームRANGING（ATR%ile=31%）であり、session_time_bia
 - Cutoff後累計でもN=5にとどまる。これはシステム稼働から**3週間超**が経過している水準としては深刻な低頻度。
 - 月利100%目標に対し、1日1件ペースでは統計蓄積もPnL蓄積も成立しない。
 
+### 2026-04-30 (Post-Tokyo Report)
+| セッション内PnL | — |
+| セッション内WR | — |
+本日累計（参考）: N=5, WR=40.0%, PnL=−3.8 pips（東京前の累積）
+- ブロック内容は全て設計通りの品質フィルター（`recent_emit`、`score_gate`、`direction_filter`）
+- `same_price_0pip`の多発は市場側の問題（低ボラ）であり、システム側の誤動作ではない
+- `scalp_5m_eur:sl_cluster`(2件) は正常なリスク管理作動
+- 本日累計N=5はFidelity Cutoff後の統計として無意味（判断閾値N≥30に遠く及ばない）
+- **コード変更禁止原則に加え、データ的根拠も存在しない**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
