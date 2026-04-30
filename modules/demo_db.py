@@ -452,7 +452,18 @@ class DemoDB:
         Idempotent: only scans rows with dedup_violation=0 in the buggy window,
         and after the first run those that should be flagged are flagged
         (subsequent runs find 0 candidates among un-flagged rows in the window).
+
+        2026-04-30 (rule:R3): verbose logging added to make backfill state
+        observable in production logs (previous version was silent on no-op).
         """
+        # 2026-04-30: 無条件 entry log で deploy 完了確認可能にする
+        print("[migration/dedup_backfill] starting...", flush=True)
+        result = self._backfill_dedup_violation_impl()
+        print(f"[migration/dedup_backfill] result: {result}", flush=True)
+        return result
+
+    def _backfill_dedup_violation_impl(self) -> dict:
+        """Internal implementation; returns dict with detailed stats for logging."""
         try:
             with self._lock, self._safe_conn() as conn:
                 # IN 句をハードコード化 — 対象 entry_type はクラス定数 _DEDUP_BACKFILL_TARGETS
@@ -470,22 +481,20 @@ class DemoDB:
                 ).fetchall()
                 # Defensive: if class constant size changed without query update, abort.
                 if len(self._DEDUP_BACKFILL_TARGETS) != 3:
-                    print(
-                        f"[migration/dedup_backfill] target count mismatch "
-                        f"({len(self._DEDUP_BACKFILL_TARGETS)} vs SQL=3) — skipping",
-                        flush=True,
-                    )
-                    return
+                    return {"status": "abort_target_mismatch",
+                            "target_count": len(self._DEDUP_BACKFILL_TARGETS)}
                 if not rows:
-                    return  # nothing to flag — idempotent no-op
+                    return {"status": "no_candidates", "rows_examined": 0}
                 last_seen: dict = {}
                 flag_ids: list = []
+                parse_errors = 0
                 window = timedelta(seconds=self._DEDUP_BACKFILL_WINDOW_SEC)
                 for r in rows:
                     key = (r["entry_type"], r["instrument"], r["direction"])
                     try:
                         et = datetime.fromisoformat(r["entry_time"])
                     except Exception:
+                        parse_errors += 1
                         continue
                     last = last_seen.get(key)
                     if last is not None and (et - last) < window:
@@ -493,21 +502,50 @@ class DemoDB:
                     else:
                         last_seen[key] = et
                 if not flag_ids:
-                    return
+                    return {"status": "no_flags", "rows_examined": len(rows),
+                            "parse_errors": parse_errors,
+                            "unique_keys": len(last_seen)}
                 conn.executemany(
                     "UPDATE demo_trades SET dedup_violation = 1 WHERE trade_id = ?",
                     [(tid,) for tid in flag_ids],
                 )
                 conn.commit()
-                print(
-                    f"[migration/dedup_backfill] flagged {len(flag_ids)} contaminated "
-                    f"shadow rows (entry_time < {self._DEDUP_BACKFILL_CUTOFF}, "
-                    f"targets={list(self._DEDUP_BACKFILL_TARGETS)})",
-                    flush=True,
-                )
+                return {"status": "flagged",
+                        "flagged": len(flag_ids),
+                        "rows_examined": len(rows),
+                        "parse_errors": parse_errors,
+                        "unique_keys": len(last_seen),
+                        "cutoff": self._DEDUP_BACKFILL_CUTOFF}
         except Exception as _e:
-            # Backfill failure must not block startup — log and continue.
-            print(f"[migration/dedup_backfill] skipped: {_e}", flush=True)
+            # Backfill failure must not block startup — return error info for logging.
+            import traceback
+            return {"status": "exception",
+                    "error": str(_e),
+                    "type": type(_e).__name__,
+                    "traceback": traceback.format_exc()[:500]}
+
+    def get_dedup_violation_summary(self) -> dict:
+        """Diagnostic: count rows by (is_shadow, dedup_violation, target) bucket.
+        Used by /api/admin/dedup_status to verify backfill ran correctly.
+        """
+        with self._safe_conn() as conn:
+            rows = conn.execute(
+                """SELECT entry_type, is_shadow, dedup_violation, COUNT(*) AS n
+                   FROM demo_trades
+                   WHERE entry_type IN (?, ?, ?)
+                   GROUP BY entry_type, is_shadow, dedup_violation
+                   ORDER BY entry_type, is_shadow, dedup_violation""",
+                tuple(self._DEDUP_BACKFILL_TARGETS),
+            ).fetchall()
+            total = conn.execute(
+                "SELECT COUNT(*) AS n FROM demo_trades WHERE dedup_violation = 1"
+            ).fetchone()
+        return {
+            "by_target": [dict(r) for r in rows],
+            "total_flagged": total["n"] if total else 0,
+            "cutoff": self._DEDUP_BACKFILL_CUTOFF,
+            "targets": list(self._DEDUP_BACKFILL_TARGETS),
+        }
 
     # ── Trade CRUD ──────────────────────────────────
 

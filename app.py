@@ -122,6 +122,7 @@ _PROTECTED_PREFIXES = (
     "/api/config/toggle_oanda",
     "/api/demo/params", "/api/db/backup", "/api/performance/record",
     "/api/hmm/train", "/api/bt-pipeline", "/api/backtest-long",
+    "/api/admin/",  # rule:R3 (2026-04-30): diagnostic / maintenance endpoints
 )
 
 def _require_auth():
@@ -13521,6 +13522,35 @@ def api_demo_params():
         result = _demo_trader.set_params(updates)
         return jsonify(result)
     return jsonify(_demo_trader.get_params())
+
+
+@app.route("/api/admin/dedup_status")
+def api_admin_dedup_status():
+    """Diagnostic endpoint for dedup_violation backfill verification (rule:R3, 2026-04-30).
+
+    Returns aggregate counts of rows by (entry_type, is_shadow, dedup_violation)
+    for SHADOW_ALWAYS targets. Used to confirm that the backfill in DemoDB.__init__
+    correctly flagged the pre-fix contamination window.
+
+    GET → public read-only diagnostic (no Bearer required, returns counts only).
+    POST → re-run backfill explicitly (Bearer required, idempotent).
+    """
+    try:
+        if request.method == "POST":
+            return jsonify(_demo_db._backfill_dedup_violation_impl() or {})
+        return jsonify(_demo_db.get_dedup_violation_summary())
+    except Exception as e:
+        return jsonify({"error": str(e), "type": type(e).__name__}), 500
+
+
+@app.route("/api/admin/dedup_run", methods=["POST"])
+def api_admin_dedup_run():
+    """Force-trigger the dedup_violation backfill. Idempotent (rule:R3, 2026-04-30)."""
+    try:
+        result = _demo_db._backfill_dedup_violation_impl() or {}
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e), "type": type(e).__name__}), 500
 
 
 @app.route("/api/demo/learning")
