@@ -639,6 +639,16 @@ GBP_USDは本日レジームRANGING（ATR%ile=31%）であり、session_time_bia
 > ⚠️ **streak_reversalの-23.4pipsは本セッション最大損失**。xs_momentumの+22.2pipsとほぼ相殺される規模であり、1トレードでセッションPnLを破壊しうるリスクが顕在化。
 | 本日累計 PnL | **-4.3 pips** | ロンドン単体 +6.4 pips | 東京: -10.7 pips（逆算） |
 
+### 2026-04-30 (Post-NY Report)
+| WR | — |
+| PnL | **±0.0 pips** |
+### セッション別PnL比較
+| Session | N | WR% | PnL (pips) | 評価 |
+> ※ 本日累計（system集計）は N=11 / WR=54.5% / PnL=−4.3 と乖離あり。ロンドン外のトレードがシステム内部で計上されている可能性（クリーンデータ外のshadow分含む）。本レポートではFidelity Cutoff後の有効データであるロンドンセッション値（N=7）を正とする。
+**ロンドン** — N=7 / WR=71.4% / +6.4 pips。唯一のアクティブ帯域。
+| 2 | **BT vs Live乖離：session_time_bias / GBP_USD** ΔWR=+26.7pp（Live WR=33.3%、N=3） | 中（N不足） |
+| 4 | **本日累計PnL乖離**（system=−4.3 pips vs London単独=+6.4 pips）の出所確認 | 中 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
