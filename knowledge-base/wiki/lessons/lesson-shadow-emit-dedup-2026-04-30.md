@@ -110,3 +110,25 @@ HAVING COUNT(*) > 1;
 - 2026-04-28 `lesson-shadow-always-emit-cleanup-2026-04-28.md` — SHADOW_ALWAYS を `frozenset()` 化 (R2)
 - 2026-04-29 `febe1cd` — Phase 10 G2 で 3 戦略を SHADOW_ALWAYS に再投入 (R3)
 - 2026-04-30 `6a45bb2` — 60s dedup gate を SHADOW_EMIT 経路に移植 (R3) ← 本 lesson 対象
+
+## 追記: 二次の構造的 leak — restart で in-memory state が消失する (2026-04-30 後半発見)
+
+post-fix の loop 監視 (08:20 UTC) で、`_recent_signal_emits` の sub-60s rate が **81.2%** と発覚。診断カウンタ (`primary_called/blocked/passed`, `shadow_called/blocked/passed`) を追加して原因特定したところ:
+
+- gate code 自体は **正常動作中** (primary path で blocked=43% を観測)
+- leak rows (07:57-08:14 UTC, 19件) の発生窓は **2 commit deploy のタイミングと完全一致** (`87cc750`@07:58 + `8aade72`@08:05)
+- 各 deploy → gunicorn 再起動 → `__init__()` 再実行 → `self._recent_signal_emits = {}` でクリア → 60s 履歴消失 → 連続 emit が「初回」として通過
+
+### この発見の意味
+
+dedup gate は機能していた。しかし **active development の deploy 連発で履歴が消失** → 60s window が再起動毎にリセットされる構造を持っていた。本番運用では deploy 頻度が低く実害は限定的だが、開発期は容易に劣化する。
+
+### 構造的対策 (commit `<次の commit>`)
+
+1. **DB ベース startup hydration** — `DemoDB.get_recent_signal_emits(window_sec=120)` を追加し、`DemoTrader.__init__` で過去 120 秒分の demo_trades 行から `_recent_signal_emits` を復元。再起動後も gate が即座に有効。
+2. **Backfill cutoff の動的化** — `_DEDUP_BACKFILL_CUTOFF` を NOW に dynamic 化。deploy-storm leak rows (19件) も `dedup_violation=1` に flag されるようにする。
+3. **`hydrated_from_db` 計測カウンタ** — `_dedup_stats["hydrated_from_db"]` で起動時の復元件数を可視化、deploy 後の gate 健全性を `/api/admin/dedup_status` で確認可能。
+
+### 一般化された教訓
+
+> **In-memory な dedup / cooldown / cache state は、process restart で必ず消失することを設計時に前提する。** 短い時間窓 (60s 等) を持つ gate は、deploy を「見かけ上の bypass」として誤動作させる。`__init__` で DB から hydrate するか、永続層 (system_kv 等) に書き出すか、stateless 判定 (DB 直接 query) のいずれかを選択すべき。

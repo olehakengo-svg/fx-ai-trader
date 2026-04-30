@@ -463,8 +463,51 @@ class DemoDB:
         print(f"[migration/dedup_backfill] result: {result}", flush=True)
         return result
 
+    def get_recent_signal_emits(self, *, window_sec: int = 120) -> dict:
+        """Return dict {(entry_type, instrument, direction): max_entry_time_dt}
+        for any rows inserted within the last `window_sec` seconds.
+
+        Used by DemoTrader.__init__ to hydrate the in-memory dedup state
+        across gunicorn restarts (rule:R3, 2026-04-30). Without this,
+        each deploy clears the 60s window and lets duplicates slip through
+        for the first 60s post-restart — observed as 19 leak rows during
+        the 17min deploy storm @07:57-08:14 UTC.
+        """
+        cutoff = (datetime.now(timezone.utc) - timedelta(seconds=window_sec)).isoformat()
+        result: dict = {}
+        try:
+            with self._safe_conn() as conn:
+                rows = conn.execute(
+                    """SELECT entry_type, instrument, direction, MAX(entry_time) AS et
+                       FROM demo_trades
+                       WHERE entry_time >= ?
+                         AND entry_type IS NOT NULL AND entry_type != ''
+                         AND instrument IS NOT NULL AND instrument != ''
+                         AND direction IN ('BUY','SELL')
+                       GROUP BY entry_type, instrument, direction""",
+                    (cutoff,),
+                ).fetchall()
+                for r in rows:
+                    try:
+                        dt = datetime.fromisoformat(r["et"])
+                    except Exception:
+                        continue
+                    result[(r["entry_type"], r["instrument"], r["direction"])] = dt
+        except Exception:
+            return {}
+        return result
+
     def _backfill_dedup_violation_impl(self) -> dict:
-        """Internal implementation; returns dict with detailed stats for logging."""
+        """Internal implementation; returns dict with detailed stats for logging.
+
+        2026-04-30 (extended): cutoff dynamically set to NOW so that any
+        sub-60s duplicates that slipped through during deploy storms also
+        get flagged on subsequent startups. Idempotent because already-flagged
+        rows are excluded by `dedup_violation = 0` in the WHERE clause.
+        """
+        # Dynamic cutoff = NOW (covers deploy-storm leak rows that came after
+        # the static 02:42 UTC commit timestamp).
+        dynamic_cutoff = datetime.now(timezone.utc).isoformat()
         try:
             with self._lock, self._safe_conn() as conn:
                 # IN 句をハードコード化 — 対象 entry_type はクラス定数 _DEDUP_BACKFILL_TARGETS
@@ -478,7 +521,7 @@ class DemoDB:
                          AND entry_time < ?
                          AND entry_type IN (?, ?, ?)
                        ORDER BY entry_type, instrument, direction, entry_time""",
-                    (self._DEDUP_BACKFILL_CUTOFF, *self._DEDUP_BACKFILL_TARGETS),
+                    (dynamic_cutoff, *self._DEDUP_BACKFILL_TARGETS),
                 ).fetchall()
                 # Defensive: if class constant size changed without query update, abort.
                 if len(self._DEDUP_BACKFILL_TARGETS) != 3:
@@ -516,7 +559,7 @@ class DemoDB:
                         "rows_examined": len(rows),
                         "parse_errors": parse_errors,
                         "unique_keys": len(last_seen),
-                        "cutoff": self._DEDUP_BACKFILL_CUTOFF}
+                        "cutoff": dynamic_cutoff}
         except Exception as _e:
             # Backfill failure must not block startup — return error info for logging.
             import traceback
@@ -542,18 +585,20 @@ class DemoDB:
                 "SELECT COUNT(*) AS n FROM demo_trades WHERE dedup_violation = 1"
             ).fetchone()
             # Diagnose: how many candidates the backfill SHOULD see right now
+            # (cutoff = NOW so this counts all unflagged target shadows)
+            now_iso = datetime.now(timezone.utc).isoformat()
             cand = conn.execute(
                 """SELECT COUNT(*) AS n FROM demo_trades
                    WHERE is_shadow = 1 AND dedup_violation = 0
                      AND entry_time < ?
                      AND entry_type IN (?, ?, ?)""",
-                (self._DEDUP_BACKFILL_CUTOFF, *self._DEDUP_BACKFILL_TARGETS),
+                (now_iso, *self._DEDUP_BACKFILL_TARGETS),
             ).fetchone()
         return {
             "by_target": [dict(r) for r in rows],
             "total_flagged": total["n"] if total else 0,
             "candidates_remaining": cand["n"] if cand else 0,
-            "cutoff": self._DEDUP_BACKFILL_CUTOFF,
+            "cutoff": now_iso,  # dynamic — reflects what backfill uses now
             "targets": list(self._DEDUP_BACKFILL_TARGETS),
             "last_startup_backfill_result": self._last_backfill_result,
         }

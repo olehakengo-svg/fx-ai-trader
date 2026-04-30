@@ -433,7 +433,27 @@ class DemoTrader:
             "primary_called": 0, "primary_blocked": 0, "primary_passed": 0,
             "shadow_called": 0, "shadow_blocked": 0, "shadow_passed": 0,
             "shadow_pass_log": [],  # last 20 events for forensic
+            "hydrated_from_db": 0,  # rows hydrated at startup (set below)
         }
+        # 2026-04-30 (rule:R3): Restart-resilient state recovery — dedup gate
+        # is in-memory only, so each gunicorn restart loses the 60s history.
+        # During active development with multiple deploys/hour, this lets
+        # clusters slip through (observed: 19 leak rows during 17min deploy
+        # storm @07:57-08:14 UTC). Hydrate the dict from the last 120s of DB
+        # rows so the gate keeps blocking even immediately post-restart.
+        try:
+            hydrated = self._db.get_recent_signal_emits(window_sec=120) or {}
+            for key, ts in hydrated.items():
+                self._recent_signal_emits[key] = ts
+            self._dedup_stats["hydrated_from_db"] = len(hydrated)
+            if hydrated:
+                print(
+                    f"[startup/dedup_hydrate] restored {len(hydrated)} keys "
+                    f"from last 120s DB rows",
+                    flush=True,
+                )
+        except Exception as _he:
+            print(f"[startup/dedup_hydrate] skipped: {_he}", flush=True)
 
         # ── Equity Curve Protector: 段階的DDロット縮小 v7.0 ──
         # v7.0: binary ON/OFF -> graduated reduction (risk_analytics.DD_LOT_TIERS)
