@@ -271,3 +271,64 @@ v2.3 で発見した 2 バグ (SL formula + 1m oscillator over-fitting) を既�
 1. **`mtf_trend_follow_scalp` に h1 macro gate のみ追加** (oscillator 維持) → BT 検証
 2. **`ema_trend_scalp` に moderate_trend regime gate 追加** → demo_trades 実測 trend_up_strong negative cell を排除
 3. **両者で BT 改善が出れば commit** (rule:R3 構造改善)
+
+## 続・既存戦略への適用試行 (2026-04-30 22:30)
+
+### 試行 1: mtf_trend_follow_scalp + h1 macro gate のみ (oscillator 維持)
+
+```python
+# 追加: m15 trend gate の直後
+h1 = ctx.htf.get("h1") if isinstance(ctx.htf, dict) else None
+macro_dir = slope_direction_macro_gated(m15, h1)
+if macro_dir == 0:
+    return None
+```
+
+**結果**: USD_JPY 180d **N=0**, EUR_USD **N=0** (改善なし)
+
+→ macdh + stoch の cascading filter が依然として binding constraint。h1 macro gate を **後置** しても 1m oscillator が先に全件を消滅させるため意味なし。
+
+### 試行 2: ema_trend_scalp + moderate_trend regime gate
+
+```python
+# 追加: ADX_MIN check の直後
+_m15 = ctx.htf.get("m15")
+if _m15 and classify_15m(_m15) != REGIME_MODERATE_TREND:
+    return None
+```
+
+**結果 比較**:
+
+| Pair | Metric | Before (ADX≥15) | After (+ moderate_trend gate) |
+|---|---|---|---|
+| USD_JPY | N | 10100 | 1203 (-88%) |
+| USD_JPY | WR | 36.9% | 36.3% |
+| USD_JPY | PF | 0.91 | 0.88 |
+| USD_JPY | EV | -0.22p | -0.29p |
+| EUR_USD | N | 9995 | 1163 (-88%) |
+| EUR_USD | WR | 32.4% | 32.3% |
+| EUR_USD | PF | 0.76 | 0.76 |
+
+**判定**: N は劇的削減 (88%) するが **WR/PF は改善せず losing system のまま** → revert。
+
+### 重要発見: ema_trend_scalp は BT で構造的損失
+
+180d BT で N=10000 / WR=32-37% / PF=0.76-0.91 / EV negative / Kelly negative。
+- Production routing 済 (app.py:5536 QUALIFIED_TYPES)
+- demo_trades 実測では trend_up_weak で WR=41.7% (small N=12) と局所的に勝てるが、
+  aggregate は BT で losing
+- **BT-Live divergence の可能性**: BT は m15/m5 を OANDA から取れない pipeline 制約あり、
+  Live では compute_mtf_features(OANDA) で異なる挙動の可能性
+
+### 次セッターン推奨アクション
+
+1. **ema_trend_scalp の Live 実績を demo_trades.db で再確認**:
+   - 直近 90 日での aggregate N / WR / PF
+   - regime cell 別 breakdown (trend_up_strong / weak / range)
+   - Live で本当に losing なら **demote 候補** (rule:R2 fast & reactive)
+2. **mtf_trend_follow_scalp / mtf_counter_trend_scalp も同様に Live 検証**:
+   - BT で N=0 だったが Live は OANDA m15/m5 経由で異なる
+   - 直近 N が 0 ならアラートして再設計
+3. **v2.3 の Lesson: 武器の transfer は ensemble 込みで考える**:
+   - 単独 filter swap は edge 破壊か N 削減のみ
+   - 真の改善には filter ensemble の再設計が必要
