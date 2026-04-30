@@ -29,6 +29,14 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 
 ## バグ・設計ミスの教訓
 
+### [[lesson-shadow-emit-dedup-2026-04-30]]
+**発見日**: 2026-04-30 | **修正**: rule:R3 commit `6a45bb2`
+- 問題: SHADOW_EMIT 経路 (`demo_trader.py:2700-2734`) が `_tick_entry` の 60s `_recent_signal_emits` dedup をバイパスし、tick 毎に同 (entry_type, instrument, signal) の shadow を量産
+- 症状: 本番デモで `vsg_jpy_reversal` / `rsk_gbpjpy_reversion` / `mqe_gbpusd_fix` の shadow が同タイミングで複数発火、`learning_engine` の N が tick 数で過大計上
+- 原因: SHADOW_EMIT 導入時に「dedup は primary の責務」という暗黙仮定で `_recent_signal_emits` を共有しなかった。`lesson-shadow-always-emit-cleanup-2026-04-28` で既知の「per-bar dedup なし」が SHADOW_ALWAYS 再投入 (`febe1cd`, 2026-04-29) で再発
+- 修正: shadow_emit ループに primary と key 空間を共有する 60s dedup gate を移植
+- 教訓: **bypass 経路 (shadow / sentinel / variant 等) を作るときは、primary 側の guard chain のうちどれを共有しどれを意図的に外すかを明示する。dedup は機能要件で、共有しない設計は構造バグ。**
+
 ### [[lesson-shadow-always-emit-cleanup-2026-04-28]]
 **発見日**: 2026-04-28 | **修正**: rule:R2 commit (本コミット)
 - 問題: `SHADOW_ALWAYS_STRATEGIES` set 登録戦略が **EV<0 でも無条件 emit** され、shadow trade DB に汚染データを蓄積
