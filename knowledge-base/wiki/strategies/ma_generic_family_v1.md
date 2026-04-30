@@ -278,6 +278,38 @@ WF 3-fold: 全 fold で PF>1.3 (f1=2.18, f2=2.20, f3=1.67), EV>0。
 2. **NY-only 昇格パス追加** (Tokyo/London が decay 継続でも NY 単独で達成可)
 3. 2026-04 H1 急落の構造原因解析を **Phase B 期間中に必須**
 
+## Run 3: 再設計 v1a/c/d-rev 90d BT (2026-04-30 07:24 UTC)
+
+v1a/c/d 全て BT 90d の cells で **昇格条件未達** だが、構造的改善は確認:
+
+| 戦略 (rev) | N | WR | PF | Kelly | EV pip | 結論 |
+|---|---|---|---|---|---|---|
+| ma_mr_hybrid (v1a-rev) | 1 | 100% | 99 | 0 | +4.88 | 🔴 M15 5bps gap 過剰絞り (N=1)、再々設計必要 |
+| ma_regime_switch (v1c-rev) | 397 | 49.1% | 0.94 | 0 | -0.14 | 🟡 機構正常化 (旧 N=22→397, +18x) も break-even |
+| bb_rsi_ema_aligned (v1d-rev) | 365 | 35.6% | 0.97 | 0 | -0.09 | 🟡 旧 v1d (N=1131 EV=-0.73) 比改善、break-even |
+
+**v1c-rev London cell** が唯一の正値: N=99 WR 53.5% PF 1.17 Kelly 7.95% (昇格条件未達だが
+方向性は正しい)。
+
+### Run 3 から得られた知見
+
+1. **v1a-rev**: 5bps M15 trend gap は USD_JPY スキャルで通過率が 1/90d まで落ち過剰絞り。
+   再々設計案: gap 撤去 (方向ニュートラル) or 緩和 (1bp) + 別フィルタ追加 (例: VWAP)。
+2. **v1c-rev**: ATR percentile regime classifier は機構として **正常稼働** することを確認
+   (旧 v1c の N=22 機能不全から N=397 へ大幅改善)。ただし現市場環境ではエッジ未達 ⇒
+   閾値最適化 or 別 regime axis (例: ADX percentile) を試行する価値あり。
+3. **v1d-rev**: ADX>=30 + Gold Hours の LIVE-validated ボーナス条件**でも spread 0.8 pip
+   負担を乗り越えるエッジは出ない**。MR の TP が 4-5 pip 域に収まるため、spread 比率
+   が高すぎる構造的限界。MR 戦略の本番昇格には **spread <0.5 pip 銘柄 or pair** が
+   必要 — USD_JPY は十分タイトだが MR スキャルの cost-edge ratio が厳しい。
+
+### 再々設計フェーズ (deferred to v2)
+
+v1b LIVE 検証完了 (2026-05-30) を待ってから着手:
+- v1a-rev2: M15 trend filter 撤去 + 別の過熱条件追加 (例: 5-bar Z-score)
+- v1c-rev2: ATR percentile + ADX percentile の 2D regime classifier
+- v1d-rev2: spread 影響を minimize する large TP MR (TP ≥ 8 pip 強制)
+
 ## CHANGELOG
 
 - 2026-04-30: 初期実装 (rule:R1)。v1a/b/c/d 4 変種を `_SCALP_SENTINEL`
