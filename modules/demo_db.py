@@ -56,10 +56,11 @@ class DemoDB:
         # 毎クエリ新接続 + WAL PRAGMA → スレッドローカル接続再利用で5-10ms/query削減
         self._local = threading.local()
         self._log_write_count = 0  # ログ回転カウンタ（COUNT(*)排除用）
+        self._last_backfill_result = None  # populated by _backfill_dedup_violation
         self._init_tables()
         # rule:R3 (2026-04-30): backfill dedup_violation flag for pre-fix shadow rows.
         # Idempotent (only flags rows with dedup_violation=0 in the buggy time window).
-        self._backfill_dedup_violation()
+        self._last_backfill_result = self._backfill_dedup_violation()
 
     def _conn(self) -> sqlite3.Connection:
         """Thread-local connection pooling: 同一スレッド内は接続再利用"""
@@ -540,11 +541,21 @@ class DemoDB:
             total = conn.execute(
                 "SELECT COUNT(*) AS n FROM demo_trades WHERE dedup_violation = 1"
             ).fetchone()
+            # Diagnose: how many candidates the backfill SHOULD see right now
+            cand = conn.execute(
+                """SELECT COUNT(*) AS n FROM demo_trades
+                   WHERE is_shadow = 1 AND dedup_violation = 0
+                     AND entry_time < ?
+                     AND entry_type IN (?, ?, ?)""",
+                (self._DEDUP_BACKFILL_CUTOFF, *self._DEDUP_BACKFILL_TARGETS),
+            ).fetchone()
         return {
             "by_target": [dict(r) for r in rows],
             "total_flagged": total["n"] if total else 0,
+            "candidates_remaining": cand["n"] if cand else 0,
             "cutoff": self._DEDUP_BACKFILL_CUTOFF,
             "targets": list(self._DEDUP_BACKFILL_TARGETS),
+            "last_startup_backfill_result": self._last_backfill_result,
         }
 
     # ── Trade CRUD ──────────────────────────────────
