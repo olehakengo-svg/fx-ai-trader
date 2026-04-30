@@ -9,7 +9,7 @@ import uuid
 import os
 import glob as _glob_mod
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 
 def pip_multiplier(instrument: str = "USD_JPY") -> float:
