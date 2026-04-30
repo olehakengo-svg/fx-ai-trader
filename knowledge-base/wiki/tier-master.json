@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-30T03:17:35Z",
+  "generated_at": "2026-04-30T05:02:30.658297+00:00",
   "elite_live": [
     "gbp_deep_pullback",
     "session_time_bias",
@@ -19,18 +19,21 @@
     "lin_reg_channel",
     "macdh_reversal",
     "orb_trap",
+    "post_news_vol",
     "sr_break_retest",
     "sr_channel_reversal",
     "sr_fib_confluence",
-    "stoch_trend_pullback",
-    "trend_rebound"
+    "stoch_trend_pullback"
   ],
   "scalp_sentinel": [
     "bb_rsi_reversion",
+    "mtf_counter_trend_scalp",
+    "mtf_regime_range_cascade_scalp",
+    "mtf_regime_trend_cascade_scalp",
+    "mtf_trend_follow_scalp",
     "vol_surge_detector"
   ],
   "universal_sentinel": [
-    "cpd_divergence",
     "doji_breakout",
     "dt_fib_reversal",
     "dt_sr_channel_reversal",
@@ -39,18 +42,13 @@
     "liquidity_sweep",
     "london_close_reversal",
     "london_close_reversal_v2",
-    "mqe_gbpusd_fix",
     "pd_eurjpy_h20_bbpb3_sell",
     "post_news_vol",
-    "rsk_gbpjpy_reversion",
     "squeeze_release_momentum",
-    "sr_anti_hunt_bounce",
-    "sr_liquidity_grab",
+    "trend_rebound",
     "v_reversal",
-    "vdr_jpy",
     "vix_carry_unwind",
-    "vol_spike_mr",
-    "vsg_jpy_reversal"
+    "vol_spike_mr"
   ],
   "pair_promoted": [
     [
@@ -68,14 +66,6 @@
     [
       "ema200_trend_reversal",
       "USD_JPY"
-    ],
-    [
-      "post_news_vol",
-      "EUR_USD"
-    ],
-    [
-      "post_news_vol",
-      "GBP_USD"
     ],
     [
       "squeeze_release_momentum",
@@ -140,10 +130,6 @@
       "GBP_USD"
     ],
     [
-      "bb_rsi_reversion",
-      "USD_JPY"
-    ],
-    [
       "bb_squeeze_breakout",
       "EUR_GBP"
     ],
@@ -202,6 +188,10 @@
     [
       "stoch_trend_pullback",
       "USD_JPY"
+    ],
+    [
+      "trend_rebound",
+      "EUR_USD"
     ],
     [
       "vol_surge_detector",

@@ -5907,6 +5907,12 @@ class DemoTrader:
         "vol_surge_detector",     # v6.3: 発火率改善(閾値緩和), Sentinel継続
         # REMOVED: ema_ribbon_ride → FORCE_DEMOTED (重複削除)
         # v8.2: bb_squeeze_breakout → FORCE_DEMOTED (BT EV=-0.799, 構造的赤字)
+        # 2026-04-29: MTF cascade scalp 4 戦略を Pre-reg LOCK Sentinel として登録
+        "mtf_trend_follow_scalp",         # 教科書 MTF 15m→5m→1m 順張り (rule:R1)
+        "mtf_counter_trend_scalp",        # 教科書 MTF 15m→5m→1m 逆張り (rule:R1)
+        # 2026-04-30: 別軸 regime cascade (commit 83a9e10 v2.3 Rule 1 PASS)
+        "mtf_regime_trend_cascade_scalp",  # spread_gate最上位 + H1 macro gate + ema_pullback継承
+        "mtf_regime_range_cascade_scalp",  # enabled=False (実測で edge なし、UI 表示用に登録)
     }
 
     # ══════════════════════════════════════════════════════════════
