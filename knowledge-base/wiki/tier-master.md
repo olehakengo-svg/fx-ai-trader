@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-04-30 05:02 UTC
+**最終更新**: 2026-04-30 08:23 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -62,16 +62,20 @@
 | 17 | sr_fib_confluence | — | — | — |
 | 18 | stoch_trend_pullback | — | — | — |
 
-### B-2. SCALP_SENTINEL（6戦略 — Scalp最小ロットShadow）
+### B-2. SCALP_SENTINEL（10戦略 — Scalp最小ロットShadow）
 
 | # | 戦略名 |
 |---|---|
-| 1 | bb_rsi_reversion |
-| 2 | mtf_counter_trend_scalp |
-| 3 | mtf_regime_range_cascade_scalp |
-| 4 | mtf_regime_trend_cascade_scalp |
-| 5 | mtf_trend_follow_scalp |
-| 6 | vol_surge_detector |
+| 1 | bb_rsi_ema_aligned |
+| 2 | bb_rsi_reversion |
+| 3 | ma_mr_hybrid |
+| 4 | ma_regime_switch |
+| 5 | ma_trend_perfect |
+| 6 | mtf_counter_trend_scalp |
+| 7 | mtf_regime_range_cascade_scalp |
+| 8 | mtf_regime_trend_cascade_scalp |
+| 9 | mtf_trend_follow_scalp |
+| 10 | vol_surge_detector |
 
 ### B-3. UNIVERSAL_SENTINEL（15戦略 — 全モードSentinel）
 

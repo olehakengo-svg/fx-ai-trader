@@ -38,6 +38,7 @@
 ### SHADOW (Data Collection)
 | Strategy | BT Data | Notes |
 |----------|---------|-------|
+| [[bb-rsi-ema-aligned]] | no BT data | SCALP_SENTINEL |
 | [[bb-rsi-reversion]] | no BT data | SCALP_SENTINEL |
 | [[dt-sr-channel-reversal]] | EUR_JPY: EV=+0.178 WR=63.8% | UNIVERSAL_SENTINEL |
 | [[eurgbp-daily-mr]] | no BT data | UNIVERSAL_SENTINEL |
@@ -47,7 +48,14 @@
 | [[london-close-reversal]] | no BT data | UNIVERSAL_SENTINEL |
 | [[london-close-reversal-v2]] | no BT data | UNIVERSAL_SENTINEL |
 | [[london-ny-swing]] | GBP_USD: EV=+0.362 WR=72.7% | LOT_BOOST (not sentinel/elite) |
+| [[ma-mr-hybrid]] | no BT data | SCALP_SENTINEL |
+| [[ma-regime-switch]] | no BT data | SCALP_SENTINEL |
+| [[ma-trend-perfect]] | no BT data | SCALP_SENTINEL |
+| [[mtf-counter-trend-scalp]] | no BT data | SCALP_SENTINEL |
+| [[mtf-regime-range-cascade-scalp]] | no BT data | SCALP_SENTINEL |
+| [[mtf-regime-trend-cascade-scalp]] | no BT data | SCALP_SENTINEL |
 | [[mtf-reversal-confluence]] | no BT data | LOT_BOOST (not sentinel/elite) |
+| [[mtf-trend-follow-scalp]] | no BT data | SCALP_SENTINEL |
 | [[pd-eurjpy-h20-bbpb3-sell]] | no BT data | UNIVERSAL_SENTINEL |
 | [[tokyo-range-breakout-up]] | no BT data | LOT_BOOST (not sentinel/elite) |
 | [[trend-rebound]] | no BT data | UNIVERSAL_SENTINEL |

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-30T05:02:30.658297+00:00",
+  "generated_at": "2026-04-30T08:23:54.765492+00:00",
   "elite_live": [
     "gbp_deep_pullback",
     "session_time_bias",
@@ -26,7 +26,11 @@
     "stoch_trend_pullback"
   ],
   "scalp_sentinel": [
+    "bb_rsi_ema_aligned",
     "bb_rsi_reversion",
+    "ma_mr_hybrid",
+    "ma_regime_switch",
+    "ma_trend_perfect",
     "mtf_counter_trend_scalp",
     "mtf_regime_range_cascade_scalp",
     "mtf_regime_trend_cascade_scalp",
