@@ -9,7 +9,7 @@
 - **最優先: クリーンデータ蓄積 → Kelly Half到達**
 
 <!-- KB_PORTFOLIO_START -->
-## Current Portfolio (auto-synced, 2026-04-27 wiki-daily)
+## Current Portfolio (auto-synced, 2026-04-30)
 
 ### ELITE_LIVE (never shadowed)
 | Strategy | BT Data | Status |
@@ -48,7 +48,9 @@
 | [[london-close-reversal-v2]] | no BT data | UNIVERSAL_SENTINEL |
 | [[london-ny-swing]] | GBP_USD: EV=+0.362 WR=72.7% | LOT_BOOST (not sentinel/elite) |
 | [[mtf-reversal-confluence]] | no BT data | LOT_BOOST (not sentinel/elite) |
+| [[pd-eurjpy-h20-bbpb3-sell]] | no BT data | UNIVERSAL_SENTINEL |
 | [[tokyo-range-breakout-up]] | no BT data | LOT_BOOST (not sentinel/elite) |
+| [[trend-rebound]] | no BT data | UNIVERSAL_SENTINEL |
 | [[turtle-soup]] | GBP_USD: EV=+0.386 WR=69.7% | LOT_BOOST (not sentinel/elite) |
 | [[v-reversal]] | no BT data | UNIVERSAL_SENTINEL |
 | [[vol-spike-mr]] | USD_JPY: EV=+0.148 WR=64.6% | UNIVERSAL_SENTINEL |
@@ -74,11 +76,10 @@
 | [[sr-channel-reversal]] | no BT data | FORCE_DEMOTED |
 | [[sr-fib-confluence]] | EUR_USD: EV=+0.103 WR=64.9%; USD_JPY: EV=+0.252 WR=67.7% | FORCE_DEMOTED |
 | [[stoch-trend-pullback]] | no BT data | FORCE_DEMOTED |
-| [[trend-rebound]] | no BT data | FORCE_DEMOTED |
 
 <!-- KB_PORTFOLIO_END -->
 
-## System State (v9.4 / v2.1)
+## System State (v9.5 / v2.1)
 - Defensive mode: **0.2x** (DD=**34.76%** / 347.6pip ⚠️, defensive mode — v8.4以降クリーンデータ起点)
 - XAU: **Stopped** (v8.4) -- post-cutoff XAU loss = -2,280pip (102% of total loss)
 - FX-only post-cutoff (2026-04-08〜): **-228.6pip** (Live `is_shadow=0`, snapshot 2026-04-29 auto wiki-daily, N=286, WR=38.1%, EV=-0.80)
@@ -108,7 +109,9 @@
   - 5-7日で N≥500/group, 30日で p<0.05 検出想定
 
 ## Key Decisions
-- [[shadow-deep-mining-2026-04-24]] -- **🎯 最新** Shadow 7次元診断 → Scenario A 追認 / bb_rsi・ema・sr_channel の MR 系は現行 regime で dead (friction>edge)
+- [[regime-cascade-empirical-redesign-2026-04-30]] -- **🎯 最新** Regime Cascade 実測再設計 — v1 教科書仮説を否定、binary moderate_trend gate 採用、range cascade 停止 (rule:R1+R3)
+- [[strategies-page-audit-followup-2026-04-30]] -- B1/B3 訂正: ELITE bypass 不要・FORCE_DEMOTED Live発火0件確認。direction_cells API 追加
+- [[shadow-deep-mining-2026-04-24]] -- Shadow 7次元診断 → Scenario A 追認 / bb_rsi・ema・sr_channel の MR 系は現行 regime で dead (friction>edge)
 - [[pre-registration-mafe-dynamic-exit-2026-04-24]] -- MAFE-based Time-Decay Exit の forward-usable pre-reg (target: bb_rsi_reversion, 48 param cells, Bonferroni α=1.04e-3)
 - [[external-audit-2026-04-24]] -- **🎯 最新監査** Gap/Over-eng/Resource/Must-Do-Don't + surgery 結果 (§5 Action Items tracked)
 - [[audit-completion-protocol]] -- 監査後の completion 追跡フロー (session-start で §5 確認必須)
@@ -119,6 +122,7 @@
 - [[negative-strategy-stopping-rule]] -- Shadow 止血ルール Level A/B/C（Bayesian 基準）
 
 ## Session History
+- **2026-04-30 session** — Regime Cascade v2.1 実装+commit (binary moderate_trend, L3 slim, SL floor). direction_cells API 追加. B1/B3 監査訂正. 2コミット push
 - **2026-04-29 wiki-daily-update** — N=286, WR=38.1%, PnL=-228.6pip, DD=34.76% ⚠️ (from 32.32%), ruin=1.72% (from 2.72%), vol_momentum_scalp唯一正Kelly (+7.78%), live fills=0 (全shadow_tracking), latest OANDA ID=3590
 - **2026-04-24 wiki-daily-update** — N=259, WR=39.0%, PnL=-215.0pip, DD=32.32% ⚠️ (from 28.01%), ruin=2.72% ⚠️ (from 0.78%), vwap_mr N=10 -47.7pip OANDA kill-switch適用, live fills=1 (GBP_USD bb_rsi #378534)
 - **2026-04-23 wiki-daily-update** — N=255, WR=39.6%, PnL=-171.9pip, DD=28.01%, ruin=0.78% ⚠️ (from 0.04%), vwap_mr N=8 -17.5pip継続悪化, live fills=0

@@ -1,13 +1,21 @@
 # mtf_regime_trend_cascade_scalp
 
-## Status: REDESIGNED v2 (2026-04-30) — Pre-reg LOCK pending Rule 1 BT
+## Status: v2.1 (2026-04-30) — Shadow 蓄積中 / Rule 1 BT は N≥50 達成待ち
 
 データ駆動 regime gate を持つ別軸 cascade scalp 戦略。走行中 `mtf_trend_follow_scalp` との差別化 3 軸:
 
 1. **spread_gate を最上位に昇格** (`hour_mult ≤ 0.85` + 4 重ハードゲート)
-2. **既存 `ema_pullback` の 1m bounce トリガーを継承再利用**
-3. **15m regime classifier v2: `moderate_trend` (binary) のみ発火**
-   — ADX 18-25 + |slope|>0 + Hurst 0.40-0.55 (実測 trend_up_weak 相当)
+2. **既存 `ema_pullback` の 1m bounce トリガーを継承 (L3 slim 化済)**
+3. **15m regime classifier v2.1: `moderate_trend` (binary) のみ発火**
+   — ADX 18-25 + |slope|>0 + **Hurst 0.75-0.95** (実測 R/S 分布に合わせた閾値)
+
+### v2 → v2.1 変更点 (2026-04-30, rule:R3)
+- **L3 ema_order 削除**: 15m slope_dir が方向確定済みのため冗長 (32件ブロックしていた)
+- **L3 ema9_touch 削除**: 5m pullback が近接確認済みのため冗長 (17件ブロックしていた)
+- **SL floor修正**: `max(atr7×0.3, 5pip)` — EUR_USD で sl_dist < spread になるバグ修正
+- **Hurst閾値キャリブレーション**: [0.65,0.85] → [0.75,0.95]
+  — 実測 R/S 分布 (USD_JPY L0通過バー N=475): P5=0.858, P25=0.905, P50=0.932
+  — 旧設定は実測分布の完全下方に外れており N≈0 を引き起こしていた (理論値との混同)
 
 ## v1 → v2 の経緯 (重要)
 
@@ -81,18 +89,34 @@
 - shadow only deploy
 - N ≥ 15/strata で KPI 評価
 
-## 失敗時継続検証 (closure 短絡禁止)
+## vec BT 実績 (v2.1, 180d, ローカル Massive キャッシュ 2025-10-14〜2026-04-15)
 
-1. ADX band 感度: 18-25 → {16-22, 20-28, 18-30}
-2. Hurst band 感度: 0.40-0.55 → {0.35-0.60, 0.45-0.55}
-3. 1m trigger 差替え: ema_pullback → stoch_trend_pullback / engulfing_bb 派生
-4. spread_gate 緩和: hour_mult ≤ 0.85 → 0.90
+| ペア | N | WR% | Wilson_lo | EV(p) | PF | Kelly% | Rule 1 判定 |
+|---|---|---|---|---|---|---|---|
+| USD_JPY | 13 | 46.2% | 23.2% | +5.6 | 2.99 | 30.7% | N不足 (目標≥50) |
+| EUR_USD | 26 | 61.5% | 42.5% | +2.7 | 2.36 | 35.5% | N不足 (目標≥50) |
+
+**現状**: N不足で Rule 1 判定不可。EUR_USD は WR/PF が強い正のedge を示す。  
+**次アクション**: Shadow で live データ蓄積 → N≥50 到達時に再評価。
+
+### N が低い原因分析
+- L0 spread gate が 84.6% をブロック (有効時間: 12-15 UTC / 20-21 UTC = 6h/day)
+- L1 Hurst[0.75,0.95] + ADX[18,25] 同時通過率 37.9%
+- L3 4条件 (bounce/bullish-bar/MACD-H/Stoch) がさらにフィルタリング
+
+### 失敗時継続検証 (closure 短絡禁止)
+1. **ADX band 感度**: 18-25 → {16-27, 18-30}
+2. **Hurst band 感度**: 0.75-0.95 → {0.70-0.97}
+3. **hour_mult 緩和**: ≤0.85 → ≤0.90 (9-11 UTC を追加)
+4. **L3 Stoch/MACD-H 片方削除** (N vs Quality トレードオフ検証)
+5. **1m trigger 差替え**: ema_pullback → stoch_trend_pullback
 
 ## Files
-- `strategies/scalp/mtf_regime_trend_cascade_scalp.py`
+- `strategies/scalp/mtf_regime_trend_cascade_scalp.py` (v2.1)
 - `modules/spread_gate.py`
-- `modules/regime_classifier.py` (v2)
+- `modules/regime_classifier.py` (v2.1: Hurst 閾値修正)
 - `modules/htf_data_source.py:_compute_m15_features` 拡張 (range_20 / hurst_64 / atr15)
+- `_bt_regime_cascade_scalp_vec.py` (vectorized BT runner with local cache)
 
-## Pre-reg
-365 日 BT 結果は `raw/bt-results/regime_cascade_scalp_{TS}.json` に保存予定。
+## BT 履歴
+- `raw/bt-results/regime_cascade_scalp_vec_20260430_121212.json` — 180d USD_JPY+EUR_USD v2.1

@@ -2719,16 +2719,9 @@ class DemoTrader:
                 _se_tp = float(_se.get("tp") or 0)
                 if _se_sl <= 0 or _se_tp <= 0:
                     continue
-                # ── 60s dedup: tick 毎の同一 (entry_type,instrument,signal) 量産を抑止 ──
-                _se_signal_key = (_se_entry_type, instrument, _se_signal)
-                _se_now = datetime.now(timezone.utc)
-                _se_dedup_window = timedelta(seconds=60)
-                with self._lock:
-                    _se_last = self._recent_signal_emits.get(_se_signal_key)
-                    if _se_last and (_se_now - _se_last) < _se_dedup_window:
-                        continue
-                    # 予約: primary と同じ key 空間に登録 (primary 側 _tick_entry とも整合)
-                    self._recent_signal_emits[_se_signal_key] = _se_now
+                # 60s dedup gate (primary と key 空間共有 — _maybe_reserve_signal_emit)
+                if not self._maybe_reserve_signal_emit(_se_entry_type, instrument, _se_signal):
+                    continue
                 _se_conf = int(_se.get("confidence") or 50)
                 _se_score = float(_se.get("score") or 0)
                 _se_reasons = list(_se.get("reasons") or [])
@@ -2751,6 +2744,37 @@ class DemoTrader:
                 )
         except Exception as _se_err:
             print(f"[DemoTrader/{mode}] shadow_emit error: {_se_err}", flush=True)
+
+    def _maybe_reserve_signal_emit(self, entry_type: str, instrument: str,
+                                   signal: str, *, window_sec: int = 60) -> bool:
+        """Reserve a (entry_type, instrument, signal) slot for `window_sec`.
+
+        Returns True if the slot was free and is now reserved (caller may emit).
+        Returns False if a recent emit is still within the window (caller should skip).
+
+        Centralizes the dedup logic shared by primary trade (_tick_entry) and
+        shadow_emit loop. Single key space across all emit paths so a primary
+        emit naturally suppresses immediately-following shadow emits of the same
+        (entry_type, instrument, signal) tuple, and vice versa.
+
+        rule:R3 (2026-04-30): extracted from inline dedup at _tick_entry to
+        prevent the same class of bug as lesson-shadow-emit-dedup-2026-04-30
+        (bypass paths missing the dedup gate).
+        """
+        key = (entry_type, instrument, signal)
+        now = datetime.now(timezone.utc)
+        window = timedelta(seconds=window_sec)
+        with self._lock:
+            last = self._recent_signal_emits.get(key)
+            if last and (now - last) < window:
+                return False
+            self._recent_signal_emits[key] = now
+            # 古いエントリ掃除 (メモリ保護) — window の 2 倍を保持
+            stale_cutoff = now - timedelta(seconds=2 * window_sec)
+            self._recent_signal_emits = {
+                k: v for k, v in self._recent_signal_emits.items() if v > stale_cutoff
+            }
+        return True
 
     def _tick_entry(self, mode: str, cfg: dict, sig: dict,
                     tf: str, instrument: str):

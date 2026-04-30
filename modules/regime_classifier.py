@@ -39,12 +39,18 @@ REGIME_CHOPPY = REGIME_NO_GO
 # trend_up_weak (= moderate trend) の demo_trades 実測ラベル定義に倣う
 ADX_MODERATE_MIN = 18.0
 ADX_MODERATE_MAX = 25.0     # ≥25 (trend_up_strong) は実測で WR drop
-# Hurst R/S 64-bar の実測分布 (USD_JPY 7d M15):
-#   min=0.336  median=0.849  max=1.000
-# R/S 短期計算は持続性側に偏るため、絶対閾値は実装依存。
-# 「中庸帯 = median ± 0.10」を初期値に置く (BT 感度分析対象).
-HURST_MODERATE_LOW = 0.65
-HURST_MODERATE_HIGH = 0.85  # median 0.849 ± 0.10 を取り、上限/下限の極端を除外
+# Hurst R/S 64-bar の実測分布 (USD_JPY 90d 1m→M15 実測 2026-04-30, rule:R3 calibration):
+#   L0通過バー(12-15/20-21 UTC)でHurst>0.5のサンプルN=475:
+#   P5=0.858  P25=0.905  P50=0.932  P75=0.949  P90=0.986
+#
+#   旧設定 [0.65, 0.85] は実測分布の完全下方に外れており N=0 を引き起こしていた。
+#   (理論 H=0.5 のランダムウォーク仮定と実測 R/S 値の混同 = キャリブレーションバグ)
+#
+#   修正: 実測 P5–P90 (≈ 0.75–0.97) のうち中庸帯 [P5, P75] = [0.858, 0.949] を採用。
+#   BT 感度分析対象として [0.75, 0.95] を初期値に設定。
+#   (0.95 超は extreme persistent → strong trend / choppy として除外)
+HURST_MODERATE_LOW = 0.75
+HURST_MODERATE_HIGH = 0.95  # 実測 P75=0.949。極端な strong trend を除外
 SLOPE_DIRECTIONAL_THRESHOLD = 0.0  # |slope|>0 で方向性あり
 
 
@@ -53,7 +59,7 @@ def classify_15m(htf_m15: Optional[dict]) -> str:
 
     Returns
     -------
-    "moderate_trend" : ADX 18-25 + |slope|>0 + 0.40≤Hurst≤0.55
+    "moderate_trend" : ADX 18-25 + |slope|>0 + 0.75≤Hurst≤0.95 (R/S 実測分布に合わせた閾値)
     "no_go"          : 上記条件を満たさない全ケース (= 戦略発火させない)
 
     Notes
