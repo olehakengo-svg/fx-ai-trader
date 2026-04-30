@@ -36,6 +36,8 @@ from strategies.scalp.confluence_scalp import ConfluenceScalp
 from strategies.scalp.ema_trend_scalp import EmaTrendScalp
 from strategies.scalp.mtf_trend_follow_scalp import MtfTrendFollowScalp
 from strategies.scalp.mtf_counter_trend_scalp import MtfCounterTrendScalp
+from strategies.scalp.mtf_regime_trend_cascade_scalp import MtfRegimeTrendCascadeScalp
+from strategies.scalp.mtf_regime_range_cascade_scalp import MtfRegimeRangeCascadeScalp
 
 
 class ScalperEngine:
@@ -65,6 +67,8 @@ class ScalperEngine:
             EmaTrendScalp(),       # EMA21プルバック順張り (ADX>=20, BB中間帯, bb_rsiのGAP補完)
             MtfTrendFollowScalp(),    # 教科書 MTF 15m→5m→1m 順張り (USD_JPY/EUR_USD, low-spread hour only)
             MtfCounterTrendScalp(),   # 教科書 MTF 15m→5m→1m 逆張り (5m BB%B+RSI div, 固定小幅TP)
+            MtfRegimeTrendCascadeScalp(),  # 別軸: spread_gate最上位 + 15m regime classifier + ema_pullback継承 (rule:R1)
+            MtfRegimeRangeCascadeScalp(),  # 別軸: spread_gate最上位 + 15m regime=range + bb_rsi継承 (rule:R1)
             EngulfingBB(),          # enabled=False
             ThreeBarReversal(),     # enabled=False
             SrChannelReversal(),    # enabled=False

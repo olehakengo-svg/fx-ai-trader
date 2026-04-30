@@ -1,0 +1,7 @@
+# Development-only deps — profiling and analysis tooling.
+# Installed via: pip install -r requirements-dev.txt
+# These are NOT pulled into Render production builds (which use requirements.txt).
+
+py-spy>=0.3.14
+line_profiler>=4.1.0
+snakeviz>=2.2.0

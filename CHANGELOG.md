@@ -1,5 +1,54 @@
 # FX AI Trader - Changelog
 
+## 2026-04-30 — Regime Cascade Empirical Redesign v2 (data-driven binary gate) [rule:R1+R3]
+
+### 動機
+
+別軸 cascade scalp 戦略 (2026-04-29 着工) について、demo_trades.db (N=462) のラベル実測クエリで v1 仮説「regime ∈ {trend_up, trend_down} で TF 戦略、regime == range で MR 戦略」が**否定方向**であることを発見:
+
+- ema_trend_scalp × **trend_up_strong**: N=30 WR=**16.7%** (Wilson_lo=7.34%) — 強トレンドで TF が最低
+- ema_trend_scalp × **trend_up_weak**: N=12 WR=**41.7%** — 中庸が最高
+- bb_rsi_reversion × **range_tight**: N=8 WR=**12.5%** (Wilson_lo=2.24%) — range で MR が最低
+- sr_channel_reversal × range_tight: N=10 WR=**0%** (Wilson_lo=0%)
+
+CLAUDE.md「KB は更新するもの」原則に基づき、教科書仮説を実測で更新。`{moderate_trend, no_go}` の binary classifier に簡素化。
+
+### 変更内容
+
+- **modules/regime_classifier.py** v2 — 4 ラベル → binary `{moderate_trend, no_go}` に変更
+  - moderate_trend = ADX 18-25 + |slope|>0 + Hurst 0.40-0.55 (実測 trend_up_weak 相当)
+  - 新ヘルパ `slope_direction(htf_m15) -> {-1, 0, +1}` で BUY/SELL 方向を ema_slope 符号から決定
+  - 旧定数 (REGIME_TREND_UP 等) は backwards-compat で REGIME_MODERATE_TREND/NO_GO の alias
+- **strategies/scalp/mtf_regime_trend_cascade_scalp.py** — moderate_trend gate に書換
+  - confidence sweet-spot を `21 ≤ ADX ≤ 24` (中庸帯センター) に変更
+  - score 式を ADX 18-25 帯対応 (`min((adx-18)*0.10, 0.7)`)
+- **strategies/scalp/mtf_regime_range_cascade_scalp.py** — `enabled = False` (rule:R3)
+  - 実測根拠で 365 日 BT を待たず即停止 (bb_rsi×range Wilson_lo=2.24%)
+  - 失敗時継続検証で別 trigger を試す場合は enable に戻す
+- **knowledge-base/wiki/strategies/mtf-regime-trend-cascade-scalp.md** — v2 仕様 + 実測表
+- **knowledge-base/wiki/strategies/mtf-regime-range-cascade-scalp.md** — DEPRECATED 反映
+- **knowledge-base/wiki/decisions/regime-cascade-empirical-redesign-2026-04-30.md** (新規) — 実測根拠と判断ロジック
+
+### 検証要件 (Rule 1)
+
+1. 365 日 BT (USD_JPY + EUR_USD) — WR≥52% / PF≥1.20 / Wilson_lo≥50% / N≥50/cell / Kelly>0
+2. Bonferroni: 戦略×ペア×セッション = 6 cell, α=0.05/6=0.00833
+3. Walk-Forward: 240d/60d 3 分割, 評価期間 Wilson_lo≥48% を 3/3
+4. Pre-reg LOCK 14 日 (shadow only)
+5. shadow 後の SQL ラベル実測クエリで moderate_trend cell の WR を検証
+
+### 失敗時継続検証 (closure 短絡禁止)
+
+- ADX band 感度: 18-25 → {16-22, 20-28, 18-30}
+- Hurst band 感度: 0.40-0.55 → {0.35-0.60, 0.45-0.55}
+- 1m trigger 差替え: ema_pullback → stoch_trend_pullback / engulfing_bb 派生
+- range cascade 復活 (3-bar reversal / vol_surge climax を 1m trigger に)
+
+### 教訓
+
+「N=8〜30 でも複数戦略が同じ regime ラベルで collinear に低 WR を示すなら、構造的方向性として設計に反映できる」— 部分的クオンツの罠 (PF/Wilson 必須) と KB-defer の両極端を回避し、実測駆動で設計を更新する勇気。
+
+
 ## 2026-04-29 — MTF 15m/5m/1m Cascade Scalp Strategies (順張り + 逆張り) [rule:R1]
 
 ### 動機

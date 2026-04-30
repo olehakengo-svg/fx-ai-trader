@@ -283,6 +283,26 @@ def _compute_m15_features(df) -> Optional[dict]:
     ema21_3ago = float(df_i["ema21"].iloc[-4]) if "ema21" in df_i.columns and len(df_i) >= 4 else ema21_now
     ema_slope = ema21_now - ema21_3ago
 
+    # ── range_20: 直近20本の High - Low 幅 (regime classifier 用) ──
+    range_20 = 0.0
+    try:
+        if len(df_i) >= 20:
+            recent20 = df_i.iloc[-20:]
+            range_20 = float(recent20["High"].max() - recent20["Low"].min())
+    except Exception:
+        range_20 = 0.0
+
+    # ── hurst_64: 64バー Close の Hurst 指数 (持続性スコア) ──
+    hurst_64 = 0.5
+    try:
+        if len(df_i) >= 32:
+            from modules.regime_classifier import hurst_rs  # local import to avoid cycle
+            hurst_64 = hurst_rs(df_i["Close"].iloc[-64:].tolist())
+    except Exception:
+        hurst_64 = 0.5
+
+    atr_val = float(last.get("atr", 0.0) or 0.0)
+
     return {
         "close": float(last["Close"]),
         "ema9": float(last.get("ema9", 0.0) or 0.0),
@@ -291,7 +311,10 @@ def _compute_m15_features(df) -> Optional[dict]:
         "ema_slope": ema_slope,            # ema21 の 3 バー差分
         "adx": float(last.get("adx", 0.0) or 0.0),
         "rsi14": float(last.get("rsi", 50.0) or 50.0),
-        "atr": float(last.get("atr", 0.0) or 0.0),
+        "atr": atr_val,
+        "atr15": atr_val,                  # alias for regime_classifier readability
+        "range_20": range_20,              # 直近20本 high-low 幅
+        "hurst_64": hurst_64,              # R/S Hurst (64バー)
     }
 
 
