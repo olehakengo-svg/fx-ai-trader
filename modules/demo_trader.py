@@ -410,7 +410,14 @@ class DemoTrader:
         # 連敗トラッカー: mode -> {"direction": str, "count": int}
         self._consec_losses = {}  # mode -> {dir -> consecutive_loss_count}
         # SL後クールダウン: mode -> {"price": float, "time": datetime, "direction": str}
-        self._last_exit = {}      # mode -> last exit info
+        # Cooldown tracking. Key:
+        #   (mode, instrument, direction, is_shadow) -> {time, price, exit_price, ...}
+        # 2026-04-30 (rule:R3): mode 単独 key だと USD_JPY scalp の SL 直後に
+        # EUR_USD scalp や 反対方向 signal も全停止し N 蓄積を毀損していた。
+        # 連敗カウンタは direction-aware なのに cooldown は両方向停止という
+        # 設計の非対称も解消。shadow と live を分離 (shadow exit は live cooldown
+        # を発火しない) するため is_shadow も key に含める。
+        self._last_exit = {}
         # ── リバウンド対策: 全方向連敗トラッカー + 価格ベロシティ ──
         self._total_losses_window = []  # [(timestamp, mode, pips)] 直近の全損失記録
         self._price_history = {}        # {instrument: [(timestamp, price)]} 通貨ペア別価格推移
@@ -2149,8 +2156,13 @@ class DemoTrader:
                 )
 
                 # ── クールダウン記録（SL後の即再エントリー防止、WINは除外）──
+                # 2026-04-30 (rule:R3): key を (mode, instrument, direction, is_shadow)
+                # に拡張。pair/方向/shadow が独立カウントされ、他ペアや反対方向の
+                # entry を巻き添えに止めない。
                 if outcome != "WIN":
-                    self._last_exit[mode] = {
+                    _ck = self._cooldown_key(mode, _inst, direction,
+                                             bool(trade.get("is_shadow", False)))
+                    self._last_exit[_ck] = {
                         "price": trade["entry_price"],
                         "exit_price": price,
                         "time": datetime.now(timezone.utc),
@@ -2745,6 +2757,24 @@ class DemoTrader:
         except Exception as _se_err:
             print(f"[DemoTrader/{mode}] shadow_emit error: {_se_err}", flush=True)
 
+    def _cooldown_key(self, mode: str, instrument: str, direction: str,
+                      is_shadow: bool):
+        """Cooldown lookup key.
+
+        2026-04-30 (rule:R3): pair/direction/shadow を分離し、
+        他ペア・反対方向・shadow exit が live entry を巻き添えに止めないようにする。
+        """
+        return (mode, instrument, direction, bool(is_shadow))
+
+    def _get_cooldown_age(self, mode: str, instrument: str, direction: str,
+                          *, is_shadow: bool = False):
+        """Return seconds since matching exit, or None if no record."""
+        key = self._cooldown_key(mode, instrument, direction, is_shadow)
+        last = self._last_exit.get(key)
+        if not last:
+            return None
+        return (datetime.now(timezone.utc) - last["time"]).total_seconds()
+
     def _maybe_reserve_signal_emit(self, entry_type: str, instrument: str,
                                    signal: str, *, window_sec: int = 60):
         """Reserve a (entry_type, instrument, signal) slot for `window_sec`.
@@ -3254,6 +3284,13 @@ class DemoTrader:
             # 2026-04-30: 別軸 — spread_gate 最上位 + 15m regime classifier + 既存戦略継承 (rule:R1, Sentinel)
             "mtf_regime_trend_cascade_scalp",   # regime classifier → trend cell → ema_pullback 継承 (enabled)
             # "mtf_regime_range_cascade_scalp", # range cell → bb_rsi 継承 (enabled=False, deprecated v1)
+            # 2026-04-30: MA-Generic Family v1 (ma_generic_family_v1, rule:R1) — USD_JPY 限定
+            # v1b は Shadow 稼働 (BT 180d Tokyo/NY 6/6 PASS), v1a/c/d は __init__.py で
+            # REDESIGN_PENDING (登録のみ、エンジン未投入)
+            "ma_trend_perfect",                 # v1b: H1+M15 大循環 + M5 EMA21 再ブレイク順張り (active)
+            "ma_mr_hybrid",                     # v1a-rev: M15 短期 × M5 過熱 MR (REDESIGN)
+            "ma_regime_switch",                 # v1c-rev: ATR percentile regime classifier (REDESIGN)
+            "bb_rsi_ema_aligned",               # v1d-rev: bb_rsi + ADX>=30 + Gold Hours (REDESIGN)
             # DISABLED (FXアナリストレビュー 2026-04-03):
             # "ihs_neckbreak",       # 廃止: 1m足でパターン認識不適
             # "sr_touch_bounce",     # 廃止: BT結果なし, sr_fib(15m)と重複
@@ -5106,8 +5143,14 @@ class DemoTrader:
             self._add_log(f"   {_sr_detail}")
 
             # ── クールダウン記録（WINは除外）──
+            # 2026-04-30 (rule:R3): key を (mode, instrument, direction, is_shadow)
+            # に拡張。pair/方向/shadow が独立カウントされる。
             if outcome != "WIN":
-                self._last_exit[mode] = {
+                _ck_sr = self._cooldown_key(
+                    mode, trade.get("instrument", ""), direction,
+                    bool(trade.get("is_shadow", False)),
+                )
+                self._last_exit[_ck_sr] = {
                     "price": trade["entry_price"],
                     "exit_price": _close_price,
                     "time": datetime.now(timezone.utc),
