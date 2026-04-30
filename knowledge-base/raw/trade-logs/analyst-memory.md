@@ -629,6 +629,16 @@ GBP_USDは本日レジームRANGING（ATR%ile=31%）であり、session_time_bia
 - 本日累計N=5はFidelity Cutoff後の統計として無意味（判断閾値N≥30に遠く及ばない）
 - **コード変更禁止原則に加え、データ的根拠も存在しない**
 
+### 2026-04-30 (Post-London Report)
+| 勝率 (WR) | **71.4%** (5勝2敗) |
+| セッション PnL | **+6.4 pips** |
+| Payoff比 | **0.49** (非対称リスクに注意) |
+| 戦略 | ペア | PnL | 成功要因 |
+**本セッションの最大貢献:** xs_momentum GBP_USD (+22.2p) がセッションPnLの347%分を単独で稼ぎ、他の損失を相殺した構造。
+| 戦略 | ペア | PnL | 失敗要因 |
+> ⚠️ **streak_reversalの-23.4pipsは本セッション最大損失**。xs_momentumの+22.2pipsとほぼ相殺される規模であり、1トレードでセッションPnLを破壊しうるリスクが顕在化。
+| 本日累計 PnL | **-4.3 pips** | ロンドン単体 +6.4 pips | 東京: -10.7 pips（逆算） |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
