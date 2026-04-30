@@ -101,7 +101,10 @@ def _load_local_cache(symbol: str, interval: str, days: int) -> Optional[pd.Data
     cache_sym = _CACHE_SYMBOL_MAP.get(
         symbol, symbol.replace("=X", "").replace("/", "_")
     )
-    suffix_map = {"1m": "1m", "5m": "5m", "15m": "15m", "M5": "5m", "M15": "15m"}
+    suffix_map = {
+        "1m": "1m", "5m": "5m", "15m": "15m", "1h": "1h",
+        "M5": "5m", "M15": "15m", "H1": "1h",
+    }
     suffix = suffix_map.get(interval, interval)
     path = os.path.join(_CACHE_DIR, f"{cache_sym}_{suffix}.parquet")
     if not os.path.exists(path):
@@ -184,6 +187,47 @@ class HtfFeatureSpec:
     # Optional: include Hurst / range_20 on M15 (used by regime cascade)
     include_hurst_m15: bool = False
     include_range_20_m15: bool = False
+    # Optional: load + forward-fill H1 features (used by macro-gated strategies)
+    include_h1: bool = False
+    h1_fields: list[str] = field(default_factory=lambda: [
+        "close", "ema9", "ema21", "ema50", "ema200", "adx", "rsi14",
+    ])
+
+    # ── Level 3 production-parity toggles (2026-04-30, rule:R1-bypass) ──
+    # All default False so existing runners reproduce bit-identical results.
+    # Each toggle injects a piece of compute_scalp_signal's per-bar context
+    # so that strategies referencing ctx.sr_levels / ctx.layer{0,2,3} /
+    # ctx.regime / ctx.session / ctx.htf['agreement'] etc. behave the same
+    # under harness BT as under production run_scalp_backtest.
+
+    # Tier A: SR levels (find_sr_levels_weighted on 1m, recalc'd periodically)
+    inject_sr_levels: bool = False
+    sr_recalc_interval: int = 100      # mirrors SR_RECALC=100 in app.py:5416
+    sr_lookback_bars: int = 300         # mirrors df.iloc[max(0, ci-300):ci]
+    sr_max_levels: int = 8
+    sr_min_touches: int = 2
+
+    # Tier A: Master HTF bias (1H+4H agreement / score)
+    inject_master_bias: bool = False
+    htf_recalc_interval: int = 60       # mirrors _BT_HTF_RECALC_SCALP=60
+    htf_mode: str = "scalp"             # "scalp" (1H+4H) or "daytrade" (4H+1D)
+
+    # Tier B: Layer scores (Layer 0/2/3 — Layer 1 comes from inject_master_bias)
+    # NOTE: Layer 0 (is_trade_prohibited), Layer 2 (compute_layer2_score),
+    # Layer 3 (compute_layer3_score) are evaluated per-bar against the same
+    # 1m window the strategy sees. Lazy-imported from app.py.
+    inject_layer_scores: bool = False
+
+    # Tier B: Market regime (4-class TREND_BULL/BEAR/RANGE/HIGH_VOL)
+    inject_regime: bool = False
+
+    # Tier C: Bar-time-aware session info (Tokyo/London/NY/etc with mult)
+    inject_session: bool = False
+
+    # Tier C: Apply production score / Wilson / BEV gate post-evaluation.
+    # When enabled, candidates that fail the per-strategy R2-A suppress gate
+    # (apply_r2a_suppress_gate in modules.strategy_category) are dropped.
+    apply_score_gate: bool = False
 
     def __post_init__(self) -> None:
         """Auto-extend field lists based on `include_*` toggles.
@@ -278,6 +322,22 @@ def compute_m15_features(df_15: pd.DataFrame, spec: HtfFeatureSpec
     return out.fillna(0.0)
 
 
+def compute_h1_features(df_1h: pd.DataFrame, spec: HtfFeatureSpec
+                        ) -> pd.DataFrame:
+    """H1 indicators per bar — macro trend gate."""
+    from modules.indicators import add_indicators
+    df = add_indicators(df_1h.copy())
+    out = pd.DataFrame(index=df.index)
+    out["close"] = df["Close"]
+    out["ema9"] = df.get("ema9", 0.0)
+    out["ema21"] = df.get("ema21", 0.0)
+    out["ema50"] = df.get("ema50", 0.0)
+    out["ema200"] = df.get("ema200", 0.0)
+    out["adx"] = df.get("adx", 0.0)
+    out["rsi14"] = df.get("rsi", 50.0)
+    return out.fillna(0.0)
+
+
 def compute_m5_features(df_5: pd.DataFrame, spec: HtfFeatureSpec
                         ) -> pd.DataFrame:
     """M5 indicators + custom features per bar."""
@@ -307,6 +367,113 @@ def compute_m5_features(df_5: pd.DataFrame, spec: HtfFeatureSpec
         out["rsi_div_bear"] = bear
         out["rsi_div_bull"] = bull
     return out.fillna(0.0)
+
+
+# ─── Production-parity helpers (Level 3) ────────────────────────────
+def _compute_htf_bias_for_window(df_past: pd.DataFrame, mode: str = "scalp"
+                                 ) -> dict:
+    """Bar-locked HTF bias mirror of app.py:_compute_bt_htf_bias.
+
+    Re-implemented here to avoid importing app.py (Flask init, sentry, etc).
+    Behavior must stay aligned with app.py:4644-4776 — any change to that
+    function should be reflected here. Out-of-sync would re-introduce
+    BT/Live divergence (lessons/bt-live-divergence).
+
+    Returns dict compatible with get_htf_bias():
+      {score, agreement, label, h1: {...}, h4: {...}}
+    """
+    from modules.data import resample_df
+    from modules.indicators import add_indicators
+
+    if mode == "daytrade":
+        configs = [("h4", "4h", 100), ("d1", "1D", 50)]
+    else:
+        configs = [("1h", "1h", 30), ("4h", "4h", 15)]
+
+    results: dict[str, dict] = {}
+    for tf_key, rule, min_bars in configs:
+        try:
+            df_h = resample_df(df_past, rule)
+            if len(df_h) < min_bars:
+                results[tf_key] = {"score": 0.0, "label": "BT: データ不足",
+                                    "rsi": 50.0}
+                continue
+            df_h = add_indicators(df_h).dropna(subset=["ema9", "ema21"])
+            if len(df_h) < 5:
+                results[tf_key] = {"score": 0.0, "label": "BT: 不足",
+                                    "rsi": 50.0}
+                continue
+            row = df_h.iloc[-1]
+            c = float(row["Close"])
+            e9 = float(row["ema9"])
+            e21 = float(row["ema21"])
+            e50 = float(row["ema50"]) if pd.notna(row.get("ema50")) else e21
+            rsi = float(row.get("rsi", 50))
+            ema200 = float(row.get("ema200", e50))
+
+            if c > e9 > e21 > e50:    sc, lbl = 1.0,  "↗↗ 強気"
+            elif c > e21 and e9 > e21: sc, lbl = 0.6,  "↗ 強気"
+            elif c > e21:              sc, lbl = 0.3,  "↗ 弱強気"
+            elif c < e9 < e21 < e50:  sc, lbl = -1.0, "↘↘ 弱気"
+            elif c < e21 and e9 < e21: sc, lbl = -0.6, "↘ 弱気"
+            elif c < e21:              sc, lbl = -0.3, "↘ 弱弱気"
+            else:                      sc, lbl = 0.0,  "↔ 中立"
+
+            if mode == "daytrade":
+                if c > ema200: sc = min(1.0, sc + 0.1)
+                else:          sc = max(-1.0, sc - 0.1)
+
+            results[tf_key] = {
+                "score": sc, "label": lbl,
+                "rsi": round(rsi, 1),
+                "ema9": round(e9, 3), "ema21": round(e21, 3),
+                "ema50": round(e50, 3), "close": round(c, 3),
+            }
+        except Exception:
+            results[tf_key] = {"score": 0.0, "label": "BT: 計算失敗",
+                                "rsi": 50.0}
+
+    if mode == "daytrade":
+        h4_sc = results.get("h4", {}).get("score", 0.0)
+        d1_sc = results.get("d1", {}).get("score", 0.0)
+        avg = round(h4_sc * 0.40 + d1_sc * 0.60, 3)
+        if   h4_sc > 0.2 and d1_sc > 0.2:  agr, lab = "bull",  "📈 4H+1D 上昇"
+        elif h4_sc < -0.2 and d1_sc < -0.2: agr, lab = "bear",  "📉 4H+1D 下降"
+        else:                                agr, lab = "mixed", "⚖️ 4H+1D 不一致"
+        return {"score": avg, "agreement": agr, "label": lab,
+                "h4": results.get("h4", {}), "d1": results.get("d1", {}),
+                "h1": results.get("h4", {})}
+
+    h1_sc = results.get("1h", {}).get("score", 0.0)
+    h4_sc = results.get("4h", {}).get("score", 0.0)
+    avg = round(h1_sc * 0.40 + h4_sc * 0.60, 3)
+    if   h1_sc > 0.2 and h4_sc > 0.2:  agr, lab = "bull",  "📈 1H+4H 上昇"
+    elif h1_sc < -0.2 and h4_sc < -0.2: agr, lab = "bear",  "📉 1H+4H 下降"
+    else:                                agr, lab = "mixed", "⚖️ 1H+4H 不一致"
+    return {"score": avg, "agreement": agr, "label": lab,
+            "h1": results.get("1h", {}), "h4": results.get("4h", {})}
+
+
+def _bt_session_info(bar_time) -> dict:
+    """Bar-time-aware mirror of app.py:get_session_info()."""
+    h = bar_time.hour if hasattr(bar_time, "hour") else 12
+    if 13 <= h < 17:
+        return {"name": "NY × London", "mult": 1.20, "color": "green",
+                "label": "🟢 NY×ロンドン"}
+    if 13 <= h < 22:
+        return {"name": "New York", "mult": 1.05, "color": "green",
+                "label": "🟢 NY"}
+    if 7 <= h < 9:
+        return {"name": "東京 × London", "mult": 1.00, "color": "yellow",
+                "label": "🟡 東京×London"}
+    if 8 <= h < 17:
+        return {"name": "London", "mult": 1.05, "color": "green",
+                "label": "🟢 London"}
+    if 0 <= h < 9:
+        return {"name": "Tokyo", "mult": 0.90, "color": "yellow",
+                "label": "🟡 Tokyo"}
+    return {"name": "Off-hours", "mult": 0.65, "color": "red",
+            "label": "🔴 閑散"}
 
 
 # ─── Trade simulation ────────────────────────────────────────────────
@@ -357,20 +524,32 @@ class VecBacktestRunner:
     cooldown_bars: int = 30
     max_hold_bars: int = 240
     window_bars: int = 100   # df window passed to SignalContext.from_df
+    _has_h1: bool = field(default=False, init=False, repr=False)
+
+    # Internal caches populated by _build_*_cache helpers when the
+    # corresponding inject_* toggle is enabled. Keyed by `i // recalc`.
+    _sr_cache: dict = field(default_factory=dict, init=False, repr=False)
+    _htf_bias_cache: dict = field(default_factory=dict, init=False, repr=False)
+    _layer1_static: dict = field(default_factory=dict, init=False, repr=False)
 
     def run(self, symbol: str, days: int, verbose: bool = True) -> dict:
         t_load = time.perf_counter()
         df_1m = load_1m(symbol, days, verbose=verbose)
         df_15 = load_htf(symbol, "M15", verbose=verbose)
         df_5 = load_htf(symbol, "M5", verbose=verbose)
+        df_1h = None
+        if self.spec.include_h1:
+            df_1h = _load_local_cache(symbol, "1h", days=0)
         df_1m.attrs["symbol"] = symbol
         if verbose:
+            h1_n = len(df_1h) if df_1h is not None else 0
             print(f"  1m={len(df_1m)} bars  M5={len(df_5)}  M15={len(df_15)} "
-                  f"(load={time.perf_counter() - t_load:.1f}s)")
+                  f" H1={h1_n} (load={time.perf_counter() - t_load:.1f}s)")
 
         t_feat = time.perf_counter()
         feat_15 = compute_m15_features(df_15, self.spec)
         feat_5 = compute_m5_features(df_5, self.spec)
+        feat_1h = compute_h1_features(df_1h, self.spec) if df_1h is not None else None
         if verbose:
             print(f"  HTF features done ({time.perf_counter() - t_feat:.1f}s)")
 
@@ -400,7 +579,19 @@ class VecBacktestRunner:
             feat_5_re.add_prefix("m5_").rename(columns={"m5_ts": "ts"}),
             on="ts", direction="backward",
         )
+        if feat_1h is not None:
+            feat_1h_re = feat_1h.reset_index().rename(
+                columns={feat_1h.index.name or "index": "ts"}
+            )
+            feat_1h_re["ts"] = pd.to_datetime(feat_1h_re["ts"])
+            feat_1h_re.sort_values("ts", inplace=True)
+            merged = pd.merge_asof(
+                merged,
+                feat_1h_re.add_prefix("h1_").rename(columns={"h1_ts": "ts"}),
+                on="ts", direction="backward",
+            )
         merged = merged.set_index("ts")
+        self._has_h1 = feat_1h is not None
 
         strat = self.strategy_factory()
         if not getattr(strat, "enabled", True):
@@ -417,6 +608,21 @@ class VecBacktestRunner:
 
         from strategies.context import SignalContext
 
+        # ── Level 3 caches (built once, looked up per-bar) ────────────
+        if self.spec.inject_sr_levels:
+            t_sr = time.perf_counter()
+            self._sr_cache = self._build_sr_cache(df_1m)
+            if verbose:
+                print(f"  SR cache: {len(self._sr_cache)} snapshots "
+                      f"({time.perf_counter() - t_sr:.1f}s)")
+        if self.spec.inject_master_bias:
+            t_htf = time.perf_counter()
+            self._htf_bias_cache = self._build_htf_bias_cache(df_1m)
+            if verbose:
+                print(f"  HTF bias cache: {len(self._htf_bias_cache)} snapshots "
+                      f"({time.perf_counter() - t_htf:.1f}s)")
+            self._layer1_static = self._fetch_layer1_static(symbol)
+
         trades = []
         last_exit_idx = -self.cooldown_bars
         n_eval = 0
@@ -432,17 +638,63 @@ class VecBacktestRunner:
                         for k in self.spec.m15_fields}
             m5_dict = {k: self._coerce(row.get(f"m5_{k}"), k)
                        for k in self.spec.m5_fields}
+            h1_dict = (
+                {k: self._coerce(row.get(f"h1_{k}"), k)
+                 for k in self.spec.h1_fields}
+                if self._has_h1 else {}
+            )
 
             try:
                 window = df_1m.iloc[max(0, i - self.window_bars): i + 1]
+                bar_time = window.index[-1]
+
+                # ── ctx.htf: features for mtf_*, optionally + bias keys ──
+                htf_payload: dict[str, Any] = {
+                    "m15": m15_dict, "m5": m5_dict,
+                    "h1": h1_dict, "h4": {},
+                }
+                if self.spec.inject_master_bias and self._htf_bias_cache:
+                    bias = self._htf_bias_cache.get(
+                        i // self.spec.htf_recalc_interval, {}
+                    )
+                    # Merge bias keys (agreement/score/label) without
+                    # overwriting feature dicts when we have H1 features
+                    # (mtf strategies need ema21/ema50; bias h1 has same).
+                    htf_payload.setdefault("h1", bias.get("h1", {}))
+                    if not h1_dict:
+                        htf_payload["h1"] = bias.get("h1", {})
+                    htf_payload["h4"] = bias.get("h4", {})
+                    htf_payload["agreement"] = bias.get("agreement", "mixed")
+                    htf_payload["score"] = bias.get("score", 0.0)
+                    htf_payload["label"] = bias.get("label", "")
+
+                # ── ctx.sr_levels ─────────────────────────────────────
+                sr_levels: list = []
+                if self.spec.inject_sr_levels and self._sr_cache:
+                    sr_levels = self._sr_cache.get(
+                        i // self.spec.sr_recalc_interval, []
+                    )
+
+                # ── Layer 0/2/3, regime, session (lazy-imported helpers) ──
+                layer0 = self._compute_layer0(window, bar_time) \
+                    if self.spec.inject_layer_scores else {}
+                layer2 = self._compute_layer2(window) \
+                    if self.spec.inject_layer_scores else {}
+                layer3 = self._compute_layer3(window, sr_levels) \
+                    if self.spec.inject_layer_scores else {}
+                regime = self._compute_regime(window) \
+                    if self.spec.inject_regime else {}
+                session = _bt_session_info(bar_time) \
+                    if self.spec.inject_session else {}
+
                 ctx = SignalContext.from_df(
                     df=window, row=window.iloc[-1], symbol=symbol, tf="1m",
-                    sr_levels=[],
-                    layer0={}, layer1={}, regime={}, layer2={}, layer3={},
-                    htf={"m15": m15_dict, "m5": m5_dict, "h1": {}, "h4": {}},
-                    session={},
+                    sr_levels=sr_levels,
+                    layer0=layer0, layer1=self._layer1_static,
+                    regime=regime, layer2=layer2, layer3=layer3,
+                    htf=htf_payload, session=session,
                     backtest_mode=True,
-                    bar_time=window.index[-1],
+                    bar_time=bar_time,
                 )
             except Exception:
                 continue
@@ -453,6 +705,15 @@ class VecBacktestRunner:
                 continue
             if cand is None:
                 continue
+
+            # ── Tier C: optional production score gate ────────────────
+            if self.spec.apply_score_gate and cand is not None:
+                try:
+                    cand = self._apply_score_gate(cand, ctx, symbol, bar_time)
+                except Exception:
+                    pass
+                if cand is None:
+                    continue
 
             outcome, pnl_pips, exit_off = simulate_outcome(
                 df_1m=df_1m, entry_idx=i, signal=cand.signal,
@@ -500,6 +761,139 @@ class VecBacktestRunner:
             return v
         except (TypeError, ValueError):
             return 0.0
+
+    # ── Level 3 cache builders ───────────────────────────────────────
+    def _build_sr_cache(self, df_1m: pd.DataFrame) -> dict:
+        """Pre-compute SR levels every `sr_recalc_interval` bars.
+
+        Mirror of app.py:5416-5423. Returns dict keyed by bar_idx//recalc.
+        Stored values are lists of float prices (compute_layer3_score
+        accepts both float-list and dict-list, but production passes
+        float prices).
+        """
+        from modules.indicators import find_sr_levels_weighted
+        cache: dict[int, list[float]] = {}
+        recalc = self.spec.sr_recalc_interval
+        lookback = self.spec.sr_lookback_bars
+        for ci in range(2 * recalc, len(df_1m), recalc):
+            sl = df_1m.iloc[max(0, ci - lookback):ci]
+            try:
+                levels = find_sr_levels_weighted(
+                    sl, window=5, tolerance_pct=0.003,
+                    min_touches=self.spec.sr_min_touches,
+                    max_levels=self.spec.sr_max_levels,
+                    bars_per_day=288,
+                )
+                cache[ci // recalc] = [lv["price"] for lv in levels]
+            except Exception:
+                cache[ci // recalc] = []
+        return cache
+
+    def _build_htf_bias_cache(self, df_1m: pd.DataFrame) -> dict:
+        """Pre-compute HTF bias every `htf_recalc_interval` bars.
+
+        Mirrors app.py:_compute_bt_htf_bias (5454-5457 recalc loop).
+        """
+        cache: dict[int, dict] = {}
+        recalc = self.spec.htf_recalc_interval
+        n = len(df_1m)
+        for bar_idx in range(0, n, recalc):
+            df_past = df_1m.iloc[:bar_idx + 1]
+            if len(df_past) < 60:
+                cache[bar_idx // recalc] = {
+                    "score": 0, "agreement": "neutral", "label": "BT: 不足",
+                    "h1": {"score": 0.0, "rsi": 50.0},
+                    "h4": {"score": 0.0, "rsi": 50.0},
+                }
+                continue
+            cache[bar_idx // recalc] = _compute_htf_bias_for_window(
+                df_past, mode=self.spec.htf_mode
+            )
+        return cache
+
+    @staticmethod
+    def _fetch_layer1_static(symbol: str) -> dict:
+        """One-shot get_master_bias call (Layer 1 institutional flow).
+
+        Mirrors app.py:5403-5408. master_bias depends on global market
+        state (DXY/VIX/COT) so it's effectively static over a BT window;
+        a single fetch matches production behavior of caching for
+        MASTER_BIAS_TTL.
+        """
+        try:
+            from app import get_master_bias
+            return get_master_bias(symbol)
+        except Exception:
+            return {"direction": "neutral", "label": "—", "score": 0}
+
+    # ── Per-bar layer score helpers (lazy-import from app) ──────────
+    @staticmethod
+    def _compute_layer0(window: pd.DataFrame, bar_time) -> dict:
+        try:
+            from app import is_trade_prohibited
+            return is_trade_prohibited(window, bar_time=bar_time)
+        except Exception:
+            return {"prohibited": False, "reason": "", "layer": 0}
+
+    @staticmethod
+    def _compute_layer2(window: pd.DataFrame) -> dict:
+        try:
+            from app import compute_layer2_score
+            return compute_layer2_score(window, "1m")
+        except Exception:
+            return {"score": 0.0, "label": "—", "components": {}}
+
+    @staticmethod
+    def _compute_layer3(window: pd.DataFrame, sr_levels: list) -> dict:
+        try:
+            from app import compute_layer3_score
+            return compute_layer3_score(window, "1m", sr_levels)
+        except Exception:
+            return {"score": 0.0, "label": "—", "components": {}}
+
+    @staticmethod
+    def _compute_regime(window: pd.DataFrame) -> dict:
+        try:
+            from app import detect_market_regime
+            return detect_market_regime(window)
+        except Exception:
+            return {"regime": "UNKNOWN", "label": "—"}
+
+    @staticmethod
+    def _apply_score_gate(cand: Any, ctx: Any, symbol: str, bar_time) -> Any:
+        """Apply production R2-A suppress gate post-evaluation.
+
+        Mirrors app.py:_make_result U20 gate (8324-8352). Only applies
+        when entry_type + session + spread_q are computable; fail-open
+        on any error (returns cand unchanged) — matches production
+        fail-open behavior.
+        """
+        sig = getattr(cand, "signal", None)
+        entry_type = getattr(cand, "entry_type", None)
+        if sig not in ("BUY", "SELL") or not entry_type or entry_type == "wait":
+            return cand
+        try:
+            from modules.strategy_category import (
+                apply_r2a_suppress_gate, compute_spread_quartile,
+            )
+            from app import _bt_spread
+            pip_unit = 0.01 if "JPY" in symbol.upper() else 0.0001
+            spread_pips = _bt_spread(bar_time, symbol) / pip_unit
+            spread_q = compute_spread_quartile(spread_pips, symbol)
+            sess = ctx.session.get("name") if ctx.session else None
+            conf = float(getattr(cand, "confidence", 0) or 0)
+            new_conf = apply_r2a_suppress_gate(
+                entry_type, sess, spread_q, conf
+            )
+            if new_conf <= 0:
+                return None
+            try:
+                cand.confidence = new_conf
+            except AttributeError:
+                pass
+            return cand
+        except Exception:
+            return cand
 
     @staticmethod
     def _stats(symbol: str, days: int, trades: list[dict],

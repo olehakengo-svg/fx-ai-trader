@@ -1,5 +1,47 @@
 # FX AI Trader - Changelog
 
+## 2026-04-30 — bt_vec_harness Level 3 production-parity toggles [rule:R1-bypass / additive]
+
+### 動機
+
+既存 `modules/bt_vec_harness.py` は per-strategy raw 評価のみで、`ctx.sr_levels=[]`、`layer0/1/2/3={}`、`regime={}`、`session={}` を空辞書として渡していた。これにより `compute_scalp_signal` のように SR/Layer/Regime/Session を参照する戦略は production と挙動が乖離。365 日 BT で Tier 判定基盤を高速化する目的で、これらを harness で埋められるようにする (master plan: `bt-serialized-willow.md` Phase E)。
+
+### 変更内容
+
+- **modules/bt_vec_harness.py** — `HtfFeatureSpec` に opt-in トグル群を追加 (全 default False)
+  - **Tier A**: `inject_sr_levels` (`find_sr_levels_weighted` を `sr_recalc_interval=100` 毎に pre-compute)、`inject_master_bias` (`_compute_bt_htf_bias` を harness 内に再実装、`htf_recalc_interval=60` 毎に cache)
+  - **Tier B**: `inject_layer_scores` (Layer 0/2/3 を per-bar 計算、app からの lazy-import)、`inject_regime` (`detect_market_regime` per-bar)
+  - **Tier C**: `inject_session` (bar-time 連動 `get_session_info` 相当)、`apply_score_gate` (production R2-A suppress gate を post-evaluation で適用)
+- **HTF bias 再実装**: `_compute_htf_bias_for_window()` を harness 内に新設し app.py の Flask init を回避。挙動は app.py:`_compute_bt_htf_bias` (4644-4776) と同一 (将来 production 側変更時に同期必須 — lessons/bt-live-divergence)
+- **Layer 1 master bias**: `_fetch_layer1_static()` で BT 開始時に 1 回だけ `get_master_bias` を呼出し ctx.layer1 に注入 (production の MASTER_BIAS_TTL キャッシュ挙動と等価)
+- **score gate (Tier C)**: `_apply_score_gate()` で `apply_r2a_suppress_gate` + `_bt_spread`/spread_q を計算し、conf=0 になった候補をドロップ。fail-open
+
+### 検証
+
+1. **既存 4 cell BT bit-identical 確認**: `_bt_mtf_cascade_scalp_vec.py --days 7` 全トグル off で:
+   - USDJPY × mtf_trend_follow: N=1 WR=100% EV=+12.5p (旧と同一)
+   - USDJPY × mtf_counter_trend: N=3 EV=-7.2p (acceptance criteria と一致)
+   - EURUSD × mtf_counter_trend: N=4 EV=+0.47p PF=1.168 Kelly=7.187% (acceptance criteria と完全一致)
+2. **全トグル on smoke test**: USDJPY × mtf_counter_trend 7d
+   - SR cache 70 snapshots / HTF bias cache 119 snapshots build 成功
+   - Layer 0/2/3、regime、session、layer1 master bias 注入正常動作
+   - eval=40.5s (旧 10.3s) — 4× 増、90d 換算 ~6-7 分 (目標 30 分以内に余裕)
+   - 同戦略は新 ctx 参照しないため N=3 EV=-7.2p で同一 (期待通り)
+
+### 既存への影響
+
+- **既存 4 cell BT (mtf_trend_follow_scalp / mtf_counter_trend_scalp)**: bit-identical (default toggles off)
+- **既存 commit 8f2150e / 13f7d24**: 破壊変更なし (additive only)
+- live trading コードへの影響: なし (BT 専用)
+
+### 次のステップ
+
+1. 365 日 production parity BT を `inject_sr_levels=True, inject_master_bias=True, inject_layer_scores=True, inject_regime=True, inject_session=True` で実行し `_bt_mtf_cascade_scalp.py` (run_scalp_backtest 経由) と数値同値性検証
+2. Level 2 (76 戦略 sanity check) を harness 経由で再走させ Tier 判定基盤として活用
+3. master plan `bt-serialized-willow.md` Phase F (`compute_scalp_signal` の harness 化) へ進む
+
+---
+
 ## 2026-04-30 — Regime Cascade Empirical Redesign v2 (data-driven binary gate) [rule:R1+R3]
 
 ### 動機
