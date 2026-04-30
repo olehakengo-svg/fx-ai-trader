@@ -98,6 +98,43 @@ def slope_direction(htf_m15: Optional[dict]) -> int:
     return 0
 
 
+def slope_direction_macro_gated(
+    htf_m15: Optional[dict],
+    htf_h1: Optional[dict],
+) -> int:
+    """Macro-trend-aligned slope direction (rule:R3, 2026-04-30).
+
+    実測根拠 (USD_JPY 60d edge collapse 解析):
+      古い 120d (横ばい): PF≈3+ / 直近 60d (+337pip 強上昇): PF=0.35.
+      M15 短期 EMA21 3-bar slope は強上昇中でも一時的負転し SELL 発火、
+      マクロと逆向きで systematic LOSS となる構造を示した.
+      H1 EMA21 vs EMA50 で macro trend を判定し、整合方向のみ通過.
+
+    Logic:
+      - H1 EMA21 > EMA50  → bullish macro → BUY (M15 slope>0) のみ許可
+      - H1 EMA21 < EMA50  → bearish macro → SELL (M15 slope<0) のみ許可
+      - H1 不明 / 中立 → fallback to slope_direction(htf_m15)
+
+    Returns +1 / -1 / 0.
+    """
+    base_dir = slope_direction(htf_m15)
+    if base_dir == 0:
+        return 0
+    if not htf_h1 or not isinstance(htf_h1, dict):
+        return base_dir   # fallback
+    h1_ema21 = float(htf_h1.get("ema21", 0.0) or 0.0)
+    h1_ema50 = float(htf_h1.get("ema50", 0.0) or 0.0)
+    if h1_ema21 <= 0 or h1_ema50 <= 0:
+        return base_dir
+    h1_bull = h1_ema21 > h1_ema50
+    h1_bear = h1_ema21 < h1_ema50
+    if h1_bull and base_dir > 0:
+        return +1
+    if h1_bear and base_dir < 0:
+        return -1
+    return 0  # macro と M15 slope が不一致 → no_go
+
+
 # ─── Hurst exponent (R/S method) ────────────────────────────────────
 # 64 バーで R/S 解析. moderate_trend 判定の安定性を上げるため計算する.
 def hurst_rs(series: Iterable[float], min_window: int = 8) -> float:

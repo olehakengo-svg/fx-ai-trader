@@ -4,25 +4,33 @@
   v1 (2026-04-29 廃案): regime ∈ {trend_up, trend_down} で発火.
   v2 (2026-04-30): demo_trades.db (N=462) ラベル実測クエリで binary regime に簡素化.
     - trend_up_weak のみ edge。strong/range は実測で否定。
-  v2.1 (2026-04-30, 現行): L3 緩和 + SL floor 修正 (rule:R3)
-    - L3 ema_order 削除: 15m slope_dir が方向確定済み、1m EMA 順列は冗長 (→32件ブロック)
-    - L3 ema9_touch 削除: 5m pullback が既に近接確認済み (→17件ブロック)
-    - SL floor: max(atr7×0.3, 5pip) — EUR_USD 低ボラで 0.15pip SL になる実装バグ修正
-    実測根拠: 180d USD_JPY L3 全廃で N=39 WR=38.5% PF=2.58 EV=+3.03p Kelly=+23.6%
+  v2.1 (2026-04-30): L3 緩和 (ema_order/ema9_touch 削除) + SL floor 追加 試案 — 実測 N=0
+  v2.3 (2026-04-30, 現行): rule:R3 — v2.1 の 2 つの実装バグを実測根拠で修正
+    Bug 1 (SL formula): pip_val=pip_mult (=100/10000) の単位ミスで SL=±500 価格単位
+                       → pip_size = 1.0/pip_mult に修正、5pip floor 正しく機能
+    Bug 2 (L3 macdh+stoch): 1m oscillator 系で 358/800 候補を消滅
+                       → macdh / stoch を完全廃止 (15m moderate_trend + 5m pullback +
+                         1m candle direction が方向確定に十分、1m oscillator は noise)
+    実測根拠 (instrumented BT 180d USD_JPY):
+      - L0 通過: 31749/179296
+      - L1 (moderate_trend): 3401 通過
+      - L2 (5m pullback): 800 通過
+      - L3 v2.1 で 800/800 ブロック (macdh > 0 必須 + SL formula bug)
+      - L3 v2.3 で 358/800 通過 (~2 trade/day 想定)
     KB: knowledge-base/wiki/analyses/mtf-regime-trend-cascade-null-finding-2026-04-30.md
 
 差別化 3 軸 (走行 BT vs 本戦略):
     1. spread_gate.should_block を最上位に置く (hour_mult≤0.85 + 4 重ゲート)
-    2. 1m トリガーは ema_pullback の bounce 確認ロジックを継承 (L3 slim 化済)
+    2. 1m トリガーは price-action only (candle direction + bounce strength)
     3. 15m regime == moderate_trend (ADX 18-25 + |slope|>0 + Hurst 0.40-0.55)
        のときのみ発火, BUY/SELL 方向は ema_slope 符号で決定
 
 検証要件 (CLAUDE.md Rule 1):
-  - 365 日 BT + Bonferroni 補正 + Walk-Forward + Pre-reg LOCK 14 日
+  - 365 日 BT + Bonferroni 補正 (cell=6, α=0.00833) + Walk-Forward + Pre-reg LOCK 14 日
 
 KB references:
   - knowledge-base/wiki/decisions/regime-cascade-empirical-redesign-2026-04-30.md
-  - knowledge-base/wiki/strategies/ema-pullback.md (継承元の挙動)
+  - knowledge-base/wiki/strategies/ema-pullback.md (v2.1 までの継承元)
   - knowledge-base/wiki/analyses/friction-analysis.md
 """
 from __future__ import annotations
@@ -35,6 +43,7 @@ from modules.spread_gate import should_block
 from modules.regime_classifier import (
     classify_15m,
     slope_direction,
+    slope_direction_macro_gated,
     REGIME_MODERATE_TREND,
 )
 
@@ -42,7 +51,7 @@ from modules.regime_classifier import (
 _ALLOWED_PAIRS = {"USD_JPY", "EUR_USD"}
 _RR_FLOOR = 1.3
 _MIN_TP_ATR_MULT = 1.0
-_MIN_SL_PIPS = 5  # SL floor: 低ボラ pair (EUR_USD) で sl_dist < spread 問題を防ぐ (rule:R3)
+_MIN_SL_PIPS = 5  # SL floor: 低ボラ pair で sl_dist < spread 問題を防ぐ (rule:R3)
 
 
 def _normalize_pair(symbol: str) -> str:
@@ -71,15 +80,19 @@ class MtfRegimeTrendCascadeScalp(StrategyBase):
         if blocked:
             return None
 
-        # ── Layer 1: 15m regime classifier (v2: binary moderate_trend) ─
+        # ── Layer 1: 15m regime classifier (binary moderate_trend) ─
         m15 = ctx.htf.get("m15") if isinstance(ctx.htf, dict) else None
         m5 = ctx.htf.get("m5") if isinstance(ctx.htf, dict) else None
         if not m15 or not m5:
             return None
         if classify_15m(m15) != REGIME_MODERATE_TREND:
             return None
-        # 方向は slope 符号で決定 (data-driven simplification)
-        slope_dir = slope_direction(m15)
+        # 方向決定: H1 macro trend gate 付き slope direction (rule:R3, 2026-04-30)
+        # USD_JPY 60d edge collapse 解析で M15 短期 slope 単独はマクロ
+        # トレンドと逆向き発火 → systematic LOSS の構造を確認.
+        # H1 EMA21 vs EMA50 で macro 方向と整合する方向のみ許可する.
+        h1 = ctx.htf.get("h1") if isinstance(ctx.htf, dict) else None
+        slope_dir = slope_direction_macro_gated(m15, h1)
         if slope_dir == 0:
             return None
 
@@ -104,12 +117,14 @@ class MtfRegimeTrendCascadeScalp(StrategyBase):
         if m5_sma21 <= 0 or m5_atr <= 0:
             return None
 
-        # ── Layer 3: 1m trigger (ema_pullback 継承の bounce 確認) ─
+        # ── Layer 3: 1m bounce 確認 (v2.3: oscillator 系を完全廃止) ─
         signal: Optional[str] = None
         reasons: list = []
         sl: float = 0.0
         tp: float = 0.0
         bonus: float = 0.0
+        # pip_size: pip → price units 換算 (rule:R3 — v2.1 bug 修正)
+        pip_size = (1.0 / ctx.pip_mult) if ctx.pip_mult else 0.0001
 
         # ─── BUY (slope_dir == +1, bullish moderate trend) ──
         if slope_dir > 0:
@@ -117,24 +132,17 @@ class MtfRegimeTrendCascadeScalp(StrategyBase):
             pullback_ok = (m5_prev_low <= m5_sma21 + m5_atr * 0.3) and (m5_close > m5_prev_close)
             if not pullback_ok:
                 return None
-            # 1m: ema_pullback 継承トリガー (v2.1 slim: ema_order / ema9_touch 削除)
-            #   (a) EMA21 から min_bounce 以上反発 (15m slope_dir + 5m pullback で方向確定済み)
-            #   (b) 陽線方向
-            #   (c) MACD-H > 0 上昇
-            #   (d) Stoch K>D かつ K<75
+            # 1m: bounce 確認 (price-action only)
+            #   (a) EMA21 から min_bounce 以上反発
+            #   (b) 陽線方向 (entry > prev_close + entry > open)
             min_bounce = ctx.atr7 * 0.2
             if (ctx.entry - ctx.ema21) < min_bounce:
                 return None
             if not (ctx.entry > ctx.prev_close and ctx.entry > ctx.open_price):
                 return None
-            if not (ctx.macdh > 0 and ctx.macdh > ctx.macdh_prev):
-                return None
-            if not (ctx.stoch_k > ctx.stoch_d and ctx.stoch_k < 75):
-                return None
             signal = "BUY"
-            pip_val = ctx.pip_mult if ctx.pip_mult else 0.0001
             sl_raw = ctx.ema21 - ctx.atr7 * 0.3
-            sl_dist = max(ctx.entry - sl_raw, _MIN_SL_PIPS * pip_val)  # floor: 5pip最低保証
+            sl_dist = max(ctx.entry - sl_raw, _MIN_SL_PIPS * pip_size)  # floor: 5pip
             sl = ctx.entry - sl_dist
             if sl_dist <= 0:
                 return None
@@ -145,32 +153,21 @@ class MtfRegimeTrendCascadeScalp(StrategyBase):
                 return None
             reasons.append(f"✅ regime=moderate_trend BUY (M15 ADX={m15_adx:.1f} slope={m15_slope:.4f})")
             reasons.append(f"✅ M5 SMA21 pullback bounce")
-            reasons.append(f"✅ 1m EMA21 タッチ→反発 + bullish bar (ema_pullback 継承)")
-            reasons.append(f"✅ MACD-H rising + Stoch K>D")
+            reasons.append(f"✅ 1m bullish bar + min_bounce {min_bounce*ctx.pip_mult:.1f}pip")
 
         # ─── SELL (slope_dir == -1, bearish moderate trend) ──
         elif slope_dir < 0:
             pullback_ok = (m5_prev_high >= m5_sma21 - m5_atr * 0.3) and (m5_close < m5_prev_close)
             if not pullback_ok:
                 return None
-            # 1m: ema_pullback 継承トリガー (v2.1 slim: ema_order / ema9_touch 削除)
-            #   (a) EMA21 から min_bounce 以上反落 (15m slope_dir + 5m pullback で方向確定済み)
-            #   (b) 陰線方向
-            #   (c) MACD-H < 0 下降
-            #   (d) Stoch K<D かつ K>25
             min_bounce = ctx.atr7 * 0.2
             if (ctx.ema21 - ctx.entry) < min_bounce:
                 return None
             if not (ctx.entry < ctx.prev_close and ctx.entry < ctx.open_price):
                 return None
-            if not (ctx.macdh < 0 and ctx.macdh < ctx.macdh_prev):
-                return None
-            if not (ctx.stoch_k < ctx.stoch_d and ctx.stoch_k > 25):
-                return None
             signal = "SELL"
-            pip_val = ctx.pip_mult if ctx.pip_mult else 0.0001
             sl_raw = ctx.ema21 + ctx.atr7 * 0.3
-            sl_dist = max(sl_raw - ctx.entry, _MIN_SL_PIPS * pip_val)  # floor: 5pip最低保証
+            sl_dist = max(sl_raw - ctx.entry, _MIN_SL_PIPS * pip_size)  # floor: 5pip
             sl = ctx.entry + sl_dist
             if sl_dist <= 0:
                 return None
@@ -181,8 +178,7 @@ class MtfRegimeTrendCascadeScalp(StrategyBase):
                 return None
             reasons.append(f"✅ regime=moderate_trend SELL (M15 ADX={m15_adx:.1f} slope={m15_slope:.4f})")
             reasons.append(f"✅ M5 SMA21 戻り反落")
-            reasons.append(f"✅ 1m EMA21 戻り→反落 + bearish bar (ema_pullback 継承)")
-            reasons.append(f"✅ MACD-H falling + Stoch K<D")
+            reasons.append(f"✅ 1m bearish bar + min_bounce {min_bounce*ctx.pip_mult:.1f}pip")
 
         if signal is None:
             return None

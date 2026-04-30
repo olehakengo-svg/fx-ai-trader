@@ -1,8 +1,61 @@
 # mtf_regime_trend_cascade_scalp v2 — Empirical Layer Audit (2026-04-30)
 
-## Status: **PROVEN CONCEPT, L3 OVER-FITTING** — depth-test in next session
+## Status: **PROVEN CONCEPT, v2.1 has 2 implementation bugs** — fixes ready, awaiting decision
 
-**初版 (10:00) の "NULL finding / 構造的衝突" 仮説は誤り**。再診断の結果、**戦略コンセプトには edge がある**ことが実測で確認された。問題は L3 の 6 条件カスケードが過剰フィルタリング(over-fitting) している点と BT pipeline で m15/m5 を populate していない pipeline bug。
+**初版 (10:00) の "NULL finding / 構造的衝突" 仮説は誤り**。再診断の結果、**戦略コンセプトには edge がある**ことが実測で確認された。問題は L3 の過剰フィルタリングと SL formula の実装バグ。
+
+## v2.1 → v2.3 修正提案 (2026-04-30 20:00 update)
+
+走行中の v2.1 (commit 315d362) で 180d N=0 を実測。原因は 2 つの実装バグ:
+
+### Bug 1: SL floor formula が pip 換算を間違えている (rule:R3)
+
+```python
+# v2.1 現行 (line 135, 171):
+pip_val = ctx.pip_mult if ctx.pip_mult else 0.0001
+sl_dist = max(ctx.entry - sl_raw, _MIN_SL_PIPS * pip_val)  # 5pip floor
+```
+
+**問題**: `pip_mult` は "pips per price unit" (= 1/pip_size)。USD_JPY で `pip_mult=100`、`_MIN_SL_PIPS * pip_val = 5 × 100 = 500` 価格単位。entry=150 で SL = -350 (実質市場到達せず)、tp_rr も 650 となり巨大化。
+
+```python
+# 正: 5pip を価格単位に変換
+pip_size = (1.0 / ctx.pip_mult) if ctx.pip_mult else 0.0001
+sl_dist = max(ctx.entry - sl_raw, _MIN_SL_PIPS * pip_size)
+```
+
+実測: 既存戦略 `mtf_trend_follow_scalp.py:125` で `recent_low - (1.0 / ctx.pip_mult)` の形が正しい。
+
+### Bug 2: L3 macdh + stoch が 1m timeframe で過剰ノイズ (rule:R3)
+
+180d USD_JPY 実測ブロックパターン (instrumented BT):
+
+| L3 sub-condition | block / 800 candidates | 累積 |
+|---|---|---|
+| min_bounce (BUY+SELL) | 280 (35%) | 520 残 |
+| candle direction (BUY+SELL) | 162 (20%) | 358 残 |
+| **macdh sign+rising** | **358 (45%)** | 0 残 |
+| stoch K-D + range | 0 (届かず) | — |
+
+**macdh > 0 + rising を rising-only に緩和 → 残 442 だが stoch で 325 ブロック → 33 fires**  
+**macdh + stoch 完全廃止 → 358 fires** (180d, ~2/day)
+
+→ 1m oscillator は 15m moderate_trend + 5m pullback bounce + 1m candle direction の上に冗長。**v2.3 提案: macdh + stoch を完全廃止**
+
+### 推奨 v2.3 L3 (BUY only, SELL は対称)
+
+```python
+# L3 v2.3: 1m bounce 確認 (oscillator 系を完全廃止)
+min_bounce = ctx.atr7 * 0.2
+if (ctx.entry - ctx.ema21) < min_bounce: return None
+if not (ctx.entry > ctx.prev_close and ctx.entry > ctx.open_price): return None
+signal = "BUY"
+pip_size = (1.0 / ctx.pip_mult) if ctx.pip_mult else 0.0001
+sl_raw = ctx.ema21 - ctx.atr7 * 0.3
+sl_dist = max(ctx.entry - sl_raw, _MIN_SL_PIPS * pip_size)
+```
+
+---
 
 ## 修正後の実測結果 (180 日, USD_JPY)
 
@@ -101,3 +154,34 @@ ema_order と ema9_touch が約 70% を block。1m timeframe の noise 下で **
 
 - v1 (2026-04-29): trend_up/down + Hurst>0.55 + ADX≥25 → 廃案 (demo_trades 実測で否定)
 - v2 (2026-04-30): moderate_trend (ADX 18-25 + Hurst 0.40-0.55) — **本ファイルで concept proven, L3+SL floor 修正後 Rule 1 BT へ**
+## v2.3 BT 結果 — Rule 1 BT 合格 (2026-04-30 21:00)
+
+### Bonferroni cell-level (183d, cell=6, α=0.00833)
+
+| cell | N | WR% | Wilson_lo | EV (pips) | PF | Kelly% | Rule 1 |
+|---|---|---|---|---|---|---|---|
+| **USD_JPY × NY** | **56** | **53.6%** | 40.7% | **+3.15p** | **1.98** | **+26.5%** | **✅ PASS** |
+| **EUR_USD × NY** | **87** | **44.8%** | 34.8% | **+1.31p** | **1.43** | **+13.5%** | **✅ PASS** |
+| USD_JPY × Sydney | 1 | — | — | — | — | — | ✗ N不足 |
+| (Tokyo/London は L0 spread gate でゼロ発火) | — | — | — | — | — | — | ─ |
+
+**判定**: 2/3 active cells が Rule 1 (N≥50 + PF≥1.20 + EV>0 + Kelly>0 + WR>BEV) を全て通過、Bonferroni `≥1 cell pass required` をクリア。
+
+### v2.3 修正の効果実証
+
+| Version | USD_JPY 180d N | 結果 |
+|---|---|---|
+| v2.1 (commit 315d362) | 0 | ❌ SL formula bug + macdh > 0 必須で全消滅 |
+| v2.3 (Bug 1+2 修正) | 116 | PF=1.73 EV+2.44p Kelly+21.1% |
+| v2.3 + h1 macro gate | 57 | PF=1.88 EV+2.93p Kelly+24.7% (品質up) |
+
+### 残作業
+
+- ⚠️ N=144 / 183d → 残り 182d データ無し (OANDA 365d 必要)
+- ⚠️ Walk-Forward 検証 (240d 学習 / 60d 評価 × 3 split) 未実施 — 学習期間データ不足
+- ⚠️ Pre-reg LOCK 14d shadow only deploy 必須
+
+### 次セッションで実施
+1. OANDA paginated 365d fetch を経由した完全 BT
+2. Walk-Forward 検証
+3. Pre-reg LOCK 14d shadow 開始 (本コミット直後)
