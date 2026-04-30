@@ -254,7 +254,7 @@ tr.new-row{animation:row-enter .3s ease}
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>ID</th><th>通貨</th><th>方向</th><th>Units</th><th>Open Price</th><th>SL</th><th>TP</th><th>未実現P/L</th><th>Open Time</th></tr>
+          <tr><th>ID</th><th>戦略</th><th>通貨</th><th>方向</th><th>Units</th><th>Open Price</th><th>SL</th><th>TP</th><th>未実現P/L</th><th>Open Time</th></tr>
         </thead>
         <tbody id="open-tbody"></tbody>
       </table>
@@ -464,13 +464,15 @@ async function loadLive(){
     const tbody=document.getElementById('open-tbody');
     const trades=d.open_trades||[];
     if(!trades.length){
-      tbody.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--t3)">オープンポジションなし</td></tr>';
+      tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--t3)">オープンポジションなし</td></tr>';
     } else {
       tbody.innerHTML=trades.map(t=>{
         const dirCls=t.direction==='BUY'?'tag-buy':'tag-sell';
         const upl=parseFloat(t.unrealized_pl||0);
+        const strat=t.strategy?normalizeStratName(t.strategy):'—';
         return `<tr>
           <td>${_h(t.id)}</td>
+          <td style="font-weight:600;font-size:11px" title="${_h(t.strategy||'')}">${_h(strat)}</td>
           <td>${_h(t.instrument)}</td>
           <td class="${dirCls}">${t.direction}</td>
           <td>${_fmt(t.units,0)}</td>
