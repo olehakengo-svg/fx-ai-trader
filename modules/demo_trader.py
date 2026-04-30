@@ -2696,6 +2696,13 @@ class DemoTrader:
         # 並行 Shadow trade 記録。primary 競争で敗北した SR 系 candidate を
         # is_shadow=1 で DB 永続化し、N 蓄積路を確保する。
         # 詳細: knowledge-base/wiki/decisions/sr-strategies-signal-track-2026-04-28.md
+        #
+        # 2026-04-30 (rule:R3 構造バグ修正): shadow_emit ループは _tick_entry を
+        # 経由しないため、primary trade 側の 60s dedup (self._recent_signal_emits)
+        # を共有していなかった。結果として SHADOW_ALWAYS 戦略 (vsg_jpy_reversal /
+        # rsk_gbpjpy_reversion / mqe_gbpusd_fix) が tick 毎に shadow を量産し、
+        # 同一 (entry_type,instrument,signal) が秒〜分単位で複数発火する症状が
+        # 発生していた。primary と同じ key 空間を使う 60s dedup を移植して抑止する。
         try:
             _shadow_emits = sig.get("shadow_emit_signals") or []
             for _se in _shadow_emits:
@@ -2712,6 +2719,16 @@ class DemoTrader:
                 _se_tp = float(_se.get("tp") or 0)
                 if _se_sl <= 0 or _se_tp <= 0:
                     continue
+                # ── 60s dedup: tick 毎の同一 (entry_type,instrument,signal) 量産を抑止 ──
+                _se_signal_key = (_se_entry_type, instrument, _se_signal)
+                _se_now = datetime.now(timezone.utc)
+                _se_dedup_window = timedelta(seconds=60)
+                with self._lock:
+                    _se_last = self._recent_signal_emits.get(_se_signal_key)
+                    if _se_last and (_se_now - _se_last) < _se_dedup_window:
+                        continue
+                    # 予約: primary と同じ key 空間に登録 (primary 側 _tick_entry とも整合)
+                    self._recent_signal_emits[_se_signal_key] = _se_now
                 _se_conf = int(_se.get("confidence") or 50)
                 _se_score = float(_se.get("score") or 0)
                 _se_reasons = list(_se.get("reasons") or [])
