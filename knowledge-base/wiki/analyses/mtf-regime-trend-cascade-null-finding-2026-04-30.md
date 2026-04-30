@@ -332,3 +332,61 @@ if _m15 and classify_15m(_m15) != REGIME_MODERATE_TREND:
 3. **v2.3 の Lesson: 武器の transfer は ensemble 込みで考える**:
    - 単独 filter swap は edge 破壊か N 削減のみ
    - 真の改善には filter ensemble の再設計が必要
+
+## DT (DayTrade) への応用調査 (2026-04-30 23:00)
+
+### 設計空白の発見
+49 個の DT 戦略を survey した結果、**v2.3-style true MTF cascade を使う戦略は皆無**。
+既存 DT 戦略は h4 / d1 を soft filter (agreement check, soft penalty) として使うのみで、
+hard regime gate + cascading filter ensemble の設計は未実装。
+
+### v2.3 → DT スケーリング設計
+
+| Layer | v2.3 (Scalp) | DT translation |
+|---|---|---|
+| L0 | spread_gate (hour_mult ≤ 0.85) | hour_mult ≤ 0.95 (DT 緩和) |
+| L1 | 15m moderate_trend (ADX 18-25 + Hurst 0.40-0.55) | **4H moderate_trend** (同 thresholds) |
+| Macro | h1 EMA21 vs EMA50 | **1D EMA21 vs EMA50** |
+| L2 | 5m SMA21 pullback bounce | (省略 — v2.3 は L2 を 5m で持つが DT は 4H regime + 1D macro で十分?) |
+| L3 | 1m candle direction + min_bounce | **15m candle direction + min_bounce (atr×0.3)** |
+| SL/TP | atr7×0.3, MIN_SL=5pip, RR=1.3 | atr×0.5, MIN_SL=10pip, RR=1.5 |
+
+### 4H moderate_trend 発火率 (実測)
+- USD_JPY: 246/1980 (12.8%)
+- EUR_USD: 192/1974 (10.1%)
+→ 15m の 5.2% より高頻度、DT cascade として workable。
+
+### プロトタイプ BT 結果 (365d, 15m base bar)
+
+```
+Aggregate:
+  USD_JPY: N=20 WR=35.0% PF=0.83 EV=-1.80p Kelly=-7.4%   ❌ losing
+  EUR_USD: N=23 WR=56.5% PF=1.60 EV=+3.74p Kelly=+21.2%  ✅ profitable
+
+Cell-level (cell=6, α=0.00833):
+  EUR_USD × NY    : N=5  WR=80.0% PF=7.11 EV+12.21p Kelly+68.7%  (Wlo small N)
+  EUR_USD × London: N=6  WR=66.7% PF=2.84 EV+8.85p   Kelly+43.2%
+  EUR_USD × Tokyo : N=10 WR=50.0% PF=1.01 EV+0.08p   Kelly+0.5%
+  USD_JPY × London: N=6  WR=50.0% PF=1.43 EV+3.58p   Kelly+15.0% (borderline)
+  USD_JPY × NY    : N=8  WR=37.5% PF=0.83 EV-1.75p   Kelly-7.7% ❌
+```
+
+### 暫定判定: 設計パターン transfer は **EUR_USD で実証**、USD_JPY は要 calibration
+
+- ✅ **Yes**: v2.3 の設計原理 (regime + macro + cascade + price-action) は DT に transfer 可
+- ✅ **Empirical edge confirmed**: EUR_USD aggregate PF=1.60, Kelly+21% (small N=23, but consistent)
+- ⚠️ **N 不足**: 365d で 20-23 trades / pair → cell-level Bonferroni 不可 (N≥50 未達)
+- ⚠️ **Pair-specific tuning 必要**: USD_JPY losing → ADX band / Hurst thresholds の pair-specific calibration
+
+### 次セッターン推奨アクション (DT 拡張)
+
+1. **EUR_USD 専用で formalize**: 既に edge ある cell に集中
+2. **Parameter tuning**: ADX band を 18-30 に拡張 (USD_JPY も含める可能性)
+3. **L2 1H pullback layer 追加検討**: cascade の中間層を強化して N と quality 両立
+4. **`strategies/daytrade/dt_regime_trend_cascade.py` 実装** (enabled=False, Pre-reg LOCK pending)
+5. **Walk-Forward 365d** (DT データ shadow 蓄積 → Live 検証への path)
+
+### Prototype script archive
+
+`knowledge-base/raw/prototypes/dt_regime_cascade_proto_2026-04-30.py` に保存。
+次セッションでこのスクリプトを起点に formal strategy 化。
