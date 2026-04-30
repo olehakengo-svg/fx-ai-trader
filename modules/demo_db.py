@@ -57,6 +57,9 @@ class DemoDB:
         self._local = threading.local()
         self._log_write_count = 0  # ログ回転カウンタ（COUNT(*)排除用）
         self._init_tables()
+        # rule:R3 (2026-04-30): backfill dedup_violation flag for pre-fix shadow rows.
+        # Idempotent (only flags rows with dedup_violation=0 in the buggy time window).
+        self._backfill_dedup_violation()
 
     def _conn(self) -> sqlite3.Connection:
         """Thread-local connection pooling: 同一スレッド内は接続再利用"""
@@ -252,6 +255,16 @@ class DemoDB:
             except Exception:
                 pass
 
+            # ── 2026-04-30 (rule:R3): dedup_violation flag for contaminated rows ──
+            # SHADOW_EMIT 経路に 60s dedup gate が無く tick 毎に同戦略 shadow を量産していた
+            # バグ (commit 6a45bb2 で修正) の汚染レコードを post-hoc に flag するための列.
+            # 詳細: knowledge-base/wiki/lessons/lesson-shadow-emit-dedup-2026-04-30.md
+            # 0 = clean, 1 = duplicate (60s window 内の 2 件目以降, learning から除外対象)
+            try:
+                conn.execute("ALTER TABLE demo_trades ADD COLUMN dedup_violation INTEGER DEFAULT 0")
+            except Exception:
+                pass
+
             # ── v9.3: MTF Regime Monitor カラム ──
             # D1 dominant × H4 confirm の 7-class regime を entry 時点で記録.
             # 14日蓄積後に cross-tab 分析で gate 化判断.
@@ -417,6 +430,84 @@ class DemoDB:
                 pass
 
             conn.commit()
+
+    # ── 2026-04-30 (rule:R3): Pre-fix shadow contamination backfill ──
+    # Phase 10 G2 で SHADOW_ALWAYS に投入された vsg_jpy_reversal /
+    # rsk_gbpjpy_reversion / mqe_gbpusd_fix が 60s dedup gate 不在の状態で
+    # tick 毎に量産されていた (commit 6a45bb2 で gate 修正済み)。fix commit
+    # timestamp より前の 2 件目以降の emit を dedup_violation=1 で flag し
+    # learning_engine / get_stats から除外可能にする。
+    # 詳細: knowledge-base/wiki/lessons/lesson-shadow-emit-dedup-2026-04-30.md
+    _DEDUP_BACKFILL_CUTOFF = "2026-04-30T02:42:00+00:00"  # commit 6a45bb2 timestamp
+    _DEDUP_BACKFILL_TARGETS = (
+        "vsg_jpy_reversal",
+        "rsk_gbpjpy_reversion",
+        "mqe_gbpusd_fix",
+    )
+    _DEDUP_BACKFILL_WINDOW_SEC = 60
+
+    def _backfill_dedup_violation(self):
+        """One-shot post-hoc flag for contaminated SHADOW_ALWAYS rows.
+
+        Idempotent: only scans rows with dedup_violation=0 in the buggy window,
+        and after the first run those that should be flagged are flagged
+        (subsequent runs find 0 candidates among un-flagged rows in the window).
+        """
+        try:
+            with self._lock, self._safe_conn() as conn:
+                # IN 句をハードコード化 — 対象 entry_type はクラス定数 _DEDUP_BACKFILL_TARGETS
+                # と同一の 3 戦略のみで、ユーザー入力は通らない。SQL は完全に static literal。
+                # 値は parameterized bind (?) で渡す。
+                rows = conn.execute(
+                    """SELECT trade_id, entry_type, instrument, direction, entry_time
+                       FROM demo_trades
+                       WHERE is_shadow = 1
+                         AND dedup_violation = 0
+                         AND entry_time < ?
+                         AND entry_type IN (?, ?, ?)
+                       ORDER BY entry_type, instrument, direction, entry_time""",
+                    (self._DEDUP_BACKFILL_CUTOFF, *self._DEDUP_BACKFILL_TARGETS),
+                ).fetchall()
+                # Defensive: if class constant size changed without query update, abort.
+                if len(self._DEDUP_BACKFILL_TARGETS) != 3:
+                    print(
+                        f"[migration/dedup_backfill] target count mismatch "
+                        f"({len(self._DEDUP_BACKFILL_TARGETS)} vs SQL=3) — skipping",
+                        flush=True,
+                    )
+                    return
+                if not rows:
+                    return  # nothing to flag — idempotent no-op
+                last_seen: dict = {}
+                flag_ids: list = []
+                window = timedelta(seconds=self._DEDUP_BACKFILL_WINDOW_SEC)
+                for r in rows:
+                    key = (r["entry_type"], r["instrument"], r["direction"])
+                    try:
+                        et = datetime.fromisoformat(r["entry_time"])
+                    except Exception:
+                        continue
+                    last = last_seen.get(key)
+                    if last is not None and (et - last) < window:
+                        flag_ids.append(r["trade_id"])
+                    else:
+                        last_seen[key] = et
+                if not flag_ids:
+                    return
+                conn.executemany(
+                    "UPDATE demo_trades SET dedup_violation = 1 WHERE trade_id = ?",
+                    [(tid,) for tid in flag_ids],
+                )
+                conn.commit()
+                print(
+                    f"[migration/dedup_backfill] flagged {len(flag_ids)} contaminated "
+                    f"shadow rows (entry_time < {self._DEDUP_BACKFILL_CUTOFF}, "
+                    f"targets={list(self._DEDUP_BACKFILL_TARGETS)})",
+                    flush=True,
+                )
+        except Exception as _e:
+            # Backfill failure must not block startup — log and continue.
+            print(f"[migration/dedup_backfill] skipped: {_e}", flush=True)
 
     # ── Trade CRUD ──────────────────────────────────
 
@@ -638,8 +729,11 @@ class DemoDB:
         """
         # v9.1 (2026-04-17): is_shadow を常に SELECT し、shadow/live 内訳を返す。
         # exclude_shadow はメイン統計の算出対象行をフィルタするのみ。
+        # 2026-04-30 (rule:R3): dedup_violation=1 は SHADOW_EMIT 60s dedup gate
+        # 不在期間の汚染レコード — Wilson/Kelly/Bonferroni を歪めるため常時除外。
+        # 詳細: lesson-shadow-emit-dedup-2026-04-30.md
         query = ("SELECT pnl_pips, pnl_r, outcome, entry_type, confidence, close_reason, is_shadow, entry_time "
-                 "FROM demo_trades WHERE status='CLOSED'")
+                 "FROM demo_trades WHERE status='CLOSED' AND dedup_violation = 0")
         if exclude_xau:
             query += " AND (instrument IS NULL OR instrument NOT LIKE '%XAU%')"
         if exclude_seed:
@@ -1271,9 +1365,13 @@ class DemoDB:
                 "min_required": int,
             }
         """
+        # 2026-04-30 (rule:R3): dedup_violation=1 を除外。SHADOW_EMIT 60s dedup gate
+        # 不在期間 (commit 6a45bb2 以前) に量産された SHADOW_ALWAYS shadows は
+        # 統計的に独立な観測ではなく、Sentinel 昇格判定 (Wilson/Bonferroni/Kelly)
+        # を歪める。詳細: lesson-shadow-emit-dedup-2026-04-30.md
         query = ("SELECT pnl_pips, outcome, entry_type, instrument, entry_time "
                  "FROM demo_trades "
-                 "WHERE status='CLOSED' AND is_shadow = 1")
+                 "WHERE status='CLOSED' AND is_shadow = 1 AND dedup_violation = 0")
         params: list = []
         if exclude_xau:
             query += " AND (instrument IS NULL OR instrument NOT LIKE '%XAU%')"
