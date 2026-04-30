@@ -9801,6 +9801,14 @@ def api_strategies_status():
     )
     tot_sh_wr = round(tot_sh_wins / tot_sh_n * 100, 1) if tot_sh_n > 0 else 0.0
 
+    # Phase 3.2: FORCE_DEMOTED shadow を除外した KPI (signal 品質向上)
+    # FORCE_DEMOTED は記録継続だが昇格候補ではないため aggregate KPI を汚す
+    _clean = [s for s in strategies_out if s["tier"] != "FORCE_DEMOTED"]
+    clean_sh_n = sum(s["shadow"]["n"] for s in _clean)
+    clean_sh_wins = sum(s["shadow"]["wins"] for s in _clean)
+    clean_sh_pnl = round(sum(s["shadow"]["pnl"] for s in _clean), 1)
+    clean_sh_wr = round(clean_sh_wins / clean_sh_n * 100, 1) if clean_sh_n > 0 else 0.0
+
     # Phase 3.1: tier_master may be stale; expose both stamps so UI can warn.
     _tm_stamp = tier_master.get("generated_at")
     _now_iso = datetime.now(timezone.utc).isoformat()
@@ -9829,6 +9837,10 @@ def api_strategies_status():
             "shadow_n": tot_sh_n,
             "shadow_wr": tot_sh_wr,
             "shadow_pnl": tot_sh_pnl,
+            # Phase 3.2: FORCE_DEMOTED 除外 KPI (信号品質のみ計測)
+            "clean_shadow_n": clean_sh_n,
+            "clean_shadow_wr": clean_sh_wr,
+            "clean_shadow_pnl": clean_sh_pnl,
         },
         "strategies": strategies_out,
     })
