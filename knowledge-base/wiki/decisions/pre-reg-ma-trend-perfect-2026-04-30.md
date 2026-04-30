@@ -136,6 +136,11 @@ LOCK 終了時 (2026-05-14) に以下のいずれかが発生したら **昇格�
 4. spread 実測 > 0.8 pip × 1.5 = 1.2 pip (USD_JPY 構造的悪化)
 5. ema_trend_scalp 同期間 Shadow と比較して相対 PF 比 < 1.5x に劣化 (Plan
    設計時の改善基準割れ)
+6. **ATR 14d 平均 (M15) が f3 baseline 0.1201 の +20% を超える** = 0.1441 以上
+   (Tier 2 macro forensic, `research/edge_discovery/v1b_f3_macro.py` で発見:
+   ATR vol expansion が SL 接触ノイズを拡大し v1b エッジを希釈する構造的経路。
+   f1→f3 で ATR +15.0%、EMA21 cross continuation +18.0% にもかかわらず WR
+   劣化したのは vol regime mismatch が原因)
 
 ## 6-bis. Forensic Report (Tier 1+1.5, 2026-04-30) 確認事項
 
