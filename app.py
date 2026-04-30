@@ -5565,6 +5565,12 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 # v8.9: 統計的エッジ戦略 (Bonferroni p<0.000287)
                 "streak_reversal",        # 連続足反転 (USD_JPY)
                 "vwap_mean_reversion",    # VWAP-2σ回帰 (Massive API only)
+                # 2026-04-30 MA-Generic Family v1 (rule:R1) — USD_JPY 限定
+                # v1b は Shadow 稼働、v1a/c/d は REDESIGN_PENDING (登録のみ)
+                "ma_trend_perfect",       # v1b: H1+M15 大循環 + M5 EMA21 再ブレイク順張り
+                "ma_mr_hybrid",           # v1a-rev: M15 短期トレンド × M5 過熱 MR
+                "ma_regime_switch",       # v1c-rev: ATR percentile regime classifier
+                "bb_rsi_ema_aligned",     # v1d-rev: bb_rsi + ADX>=30 + Gold Hours
             }
             BLOCKED_TYPES = {"unknown", "momentum", "wait"}
 
@@ -8264,6 +8270,27 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         if tf == "30m":
             htf = get_htf_bias_daytrade(symbol)
 
+    # ── Phase 1 (2026-04-30) inject M15/M5 features for mtf_*_scalp ──
+    # Three mtf_ scalp strategies (mtf_counter_trend_scalp,
+    # mtf_regime_trend_cascade_scalp, mtf_trend_follow_scalp) require
+    # ctx.htf["m15"] and ctx.htf["m5"] feature dicts and silently return
+    # None at the precondition guard when missing. compute_mtf_features()
+    # in modules/htf_data_source.py was implemented but never wired into
+    # production. Discovered 2026-04-30 silent-strategies audit.
+    if not isinstance(htf, dict):
+        htf = dict(htf) if htf else {}
+    if not backtest_mode and ("m15" not in htf or "m5" not in htf):
+        try:
+            from modules.htf_data_source import compute_mtf_features
+            _mtf_feat = compute_mtf_features(symbol)
+            if _mtf_feat.get("m15") is not None:
+                htf["m15"] = _mtf_feat["m15"]
+            if _mtf_feat.get("m5") is not None:
+                htf["m5"] = _mtf_feat["m5"]
+        except Exception:
+            # fail-open: mtf_ strategies handle missing m15/m5 gracefully
+            pass
+
     row = df.iloc[-1]
     entry = float(row["Close"])
     atr = float(row["atr"])
@@ -8321,7 +8348,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     # ──────────────────────────────────────────────────────────
     # WAIT用テンプレート生成関数
     # ──────────────────────────────────────────────────────────
-    def _make_result(sig, conf, sl_v, tp_v, rr_v, reasons_list, entry_type, score_v=0.0):
+    def _make_result(sig, conf, sl_v, tp_v, rr_v, reasons_list, entry_type, score_v=0.0, shadow_emits=None):
         # ── U20 fix (2026-04-27): R2-A Suppress gate を Scalp path にも適用 ──
         # Wave 1 R2-A 5 cells のうち全戦略が scalp mode のため、DT path の
         # gate (compute_daytrade_signal) では構造的に通過しなかった (Phase γ
@@ -8370,6 +8397,10 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             },
             "regime": regime, "layer2": layer2, "layer3": layer3,
             "scalp_score": round(score_v, 3),
+            # Phase 5 (2026-04-30): non-winning scalp candidates emitted to
+            # the shadow trade pipeline. Read by demo_trader._tick at
+            # modules/demo_trader.py:2707 — same key shape as compute_daytrade.
+            "shadow_emit_signals": list(shadow_emits or []),
             "indicators": {
                 "ema9": round(ema9, 3), "ema21": round(ema21, 3),
                 "ema50": round(ema50, 3), "ema200": round(ema200, 3),
@@ -8444,6 +8475,31 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     # スコア降順で最良を選択
     best = max(candidates, key=lambda c: c[6])
     signal, conf, sl, tp, reasons, entry_type, score = best
+
+    # ── Phase 5 (2026-04-30): build loser shadow-emit payload ──
+    # Mirror compute_daytrade_signal:3387-3406 pattern. Records non-winning
+    # scalp candidates as is_shadow=1 trades through the existing
+    # demo_trader.py:2707 shadow_emit_signals consumer. Default is empty
+    # (matches SHADOW_ALWAYS_STRATEGIES whitelist = empty); set
+    # LOG_SCALP_LOSERS_AS_SHADOW=1 to record every loser for Wilson_lo /
+    # Kelly accumulation across all 22+ scalp strategies.
+    _sc_shadow_emit_payload: list = []
+    try:
+        _sc_winner_obj = max(_candidates, key=lambda c: c.score)
+        _sc_losers = _engine.split_shadow_always(_candidates, _sc_winner_obj)
+        for _c in _sc_losers:
+            _sc_shadow_emit_payload.append({
+                "signal": _c.signal,
+                "entry": _rp(entry, symbol),
+                "confidence": int(getattr(_c, "confidence", 50) or 50),
+                "sl": float(_c.sl), "tp": float(_c.tp),
+                "entry_type": _c.entry_type,
+                "reasons": list(_c.reasons or []),
+                "score": round(float(_c.score), 3),
+                "atr": _rp(atr, symbol),
+            })
+    except Exception:
+        pass  # fail-open
 
     # ── Confluence Scalp: 内部でHTF Hard Block + Session Gate済み → 外部フィルター適用外 ──
     if entry_type == "confluence_scalp":

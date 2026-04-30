@@ -5913,6 +5913,13 @@ class DemoTrader:
         # 2026-04-30: 別軸 regime cascade (commit 83a9e10 v2.3 Rule 1 PASS)
         "mtf_regime_trend_cascade_scalp",  # spread_gate最上位 + H1 macro gate + ema_pullback継承
         "mtf_regime_range_cascade_scalp",  # enabled=False (実測で edge なし、UI 表示用に登録)
+        # 2026-04-30: MA-Generic Family v1 — ema_trend_scalp 置換実験 (rule:R1)
+        # USD_JPY 限定。WF 3-fold + Bonferroni + Wilson95下限>0.1 + Kelly>0.1 + N≥30 で
+        # Shadow→LIVE 昇格判定。詳細: knowledge-base/wiki/strategies/ma_generic_family_v1.md
+        "ma_mr_hybrid",                    # v1a: H1 EMA200 整合 × M5 過熱 MR
+        "ma_trend_perfect",                # v1b: H1+M15 大循環 + M5 EMA21 再ブレイク
+        "ma_regime_switch",                # v1c: Trend/Range レジーム切替
+        "bb_rsi_ema_aligned",              # v1d: bb_rsi + H1 EMA200 整合 (LIVE 既存エッジ拡張)
     }
 
     # ══════════════════════════════════════════════════════════════

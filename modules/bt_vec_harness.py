@@ -229,6 +229,13 @@ class HtfFeatureSpec:
     # (apply_r2a_suppress_gate in modules.strategy_category) are dropped.
     apply_score_gate: bool = False
 
+    # Tier C: Round-trip spread cost subtracted from pnl_pips (2026-04-30).
+    # Default 0.0 maintains bit-identical backward compatibility. Set to a
+    # positive value (e.g. 0.8 for USD_JPY scalp) to bake friction into the
+    # win/loss simulation. Used by ma_generic_family_v1 BT for production
+    # parity vs the optimistic High/Low touch model.
+    inject_spread: float = 0.0
+
     def __post_init__(self) -> None:
         """Auto-extend field lists based on `include_*` toggles.
 
@@ -720,6 +727,9 @@ class VecBacktestRunner:
                 entry_px=ctx.entry, sl=cand.sl, tp=cand.tp,
                 pip_mult=pip_mult, max_bars=self.max_hold_bars,
             )
+            # Round-trip spread cost (rule:R3 friction, 2026-04-30).
+            if self.spec.inject_spread > 0:
+                pnl_pips -= self.spec.inject_spread
             trades.append({
                 "ts": str(window.index[-1]),
                 "signal": cand.signal,
@@ -928,4 +938,7 @@ class VecBacktestRunner:
             "avg_loss_pips": round(avg_loss, 3),
             "eval_secs": round(eval_secs, 2),
             "trades_sample": trades[:10],
+            # Full trade list — added 2026-04-30 for ma_family_validation.
+            # Backward-compatible: existing callers use trades_sample.
+            "trades_full": trades,
         }
