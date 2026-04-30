@@ -9583,6 +9583,60 @@ def _strategy_extended_metrics(trades: list) -> dict:
     }
 
 
+def _direction_cells(trades: list, min_n: int = 3, z_bf: float = 2.576) -> list:
+    """Pair × Direction の方向別 cell 集計 (Aggregate Fallacy 緩和用).
+
+    trades は live + shadow 両方含む (shadow N の方が多く direction bias を検出しやすい).
+    z_bf=2.576 は Bonferroni k=10 (5pair×2dir) の 90% 位相閾値 (α=0.005 片側).
+
+    Returns list of cells sorted by ev descending (正 edge 候補を先頭に).
+
+    audit: knowledge-base/wiki/analyses/strategies-page-audit-followup-2026-04-30.md
+    """
+    from collections import defaultdict
+    _cells: dict = defaultdict(lambda: {"pnls": [], "wins": 0, "n_shadow": 0, "n_live": 0})
+    for t in trades:
+        inst = t.get("instrument") or "?"
+        dirn = t.get("direction") or "?"
+        if inst == "XAU_USD":
+            continue
+        pnl = float(t.get("pnl_pips") or 0)
+        key = (inst, dirn)
+        _cells[key]["pnls"].append(pnl)
+        if pnl > 0:
+            _cells[key]["wins"] += 1
+        if t.get("is_shadow"):
+            _cells[key]["n_shadow"] += 1
+        else:
+            _cells[key]["n_live"] += 1
+
+    out = []
+    for (inst, dirn), data in _cells.items():
+        pnls = data["pnls"]
+        n = len(pnls)
+        if n < min_n:
+            continue
+        wins = data["wins"]
+        wr = round(wins * 100.0 / n, 1)
+        ev = round(sum(pnls) / n, 2)
+        wl = _wilson_lower(wins, n, z=1.96)
+        wl_bf = _wilson_lower(wins, n, z=z_bf)
+        out.append({
+            "pair": inst,
+            "direction": dirn,
+            "n": n,
+            "n_live": data["n_live"],
+            "n_shadow": data["n_shadow"],
+            "wr": wr,
+            "ev": ev,
+            "wilson_lo": round(wl, 4),
+            "wilson_bf_lo": round(wl_bf, 4),
+        })
+
+    out.sort(key=lambda x: x["ev"], reverse=True)
+    return out
+
+
 @app.route("/api/strategies/status")
 def api_strategies_status():
     """全戦略の Tier 分類 + post-cutoff rolling window stats を集約."""
@@ -9708,7 +9762,9 @@ def api_strategies_status():
                 "pnl": float(cell.get("pnl", 0)),
             })
 
-        ext = _strategy_extended_metrics(_trades_by_strat.get(strat, []))
+        strat_trades = _trades_by_strat.get(strat, [])
+        ext = _strategy_extended_metrics(strat_trades)
+        dcells = _direction_cells(strat_trades)
         strategies_out.append({
             "name": strat,
             "tier": _primary_tier(strat),
@@ -9728,6 +9784,9 @@ def api_strategies_status():
             "pair_cells": pair_cells,
             # Phase 3.1: extended metrics for proper promotion-candidate audit
             "extended": ext,
+            # Phase 3.2: direction_cells — pair×direction 方向別集計 (Aggregate Fallacy 緩和)
+            # Includes live+shadow trades. ev>0 かつ wilson_bf_lo>BEV が昇格候補シグナル.
+            "direction_cells": dcells,
         })
 
     # Tier distribution summary
