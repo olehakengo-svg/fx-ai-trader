@@ -224,3 +224,50 @@ WF1: EUR_USD only / WF2: USD_JPY only / WF3: 両方
 | 検証 KPI | 全 PF/EV/Kelly が positive、WR > BEV、N > 50 (cell-level) |
 
 **現状**: Rule 1 LOCK の **5 項目中 4 項目 substantially 完了**。残るは shadow N 蓄積期間。
+
+## v2.3 修正の Sister 戦略への適用調査 (2026-04-30 22:00, lesson)
+
+### 目的
+v2.3 で発見した 2 バグ (SL formula + 1m oscillator over-fitting) を既存 MTF sister 戦略
+(`mtf_trend_follow_scalp`, `mtf_counter_trend_scalp`) に応用できるか実測検証。
+
+### 実測結果
+
+| 戦略 | original BT | 修正適用後 BT | 判定 |
+|---|---|---|---|
+| mtf_trend_follow_scalp (USD_JPY 180d) | N=0 | **N=1331 WR=34.2% PF=0.88 EV=-0.55p** | ❌ flood + losing |
+| mtf_trend_follow_scalp (EUR_USD 180d) | N=0 | **N=1093 WR=36.9% PF=0.88 EV=-0.46p** | ❌ flood + losing |
+| mtf_counter_trend_scalp | N=0 | (未実施 — engulfing+pin+RSI div で自然 selective) | — |
+
+→ 修正は revert 済み (commit HEAD 維持)
+
+### 教訓 — Filter Calibration 整合性
+
+**v2.3 の "drop macdh + stoch" 修正は単独では成立しない**。v2.3 が機能した条件:
+- 上流に **moderate_trend regime gate** (binary, ADX 18-25 + Hurst 0.40-0.55, 5% pass rate)
+- **h1 macro gate** (M15 短期 slope vs H1 macro 不一致時 no_go)
+- **min_bounce** check (1m EMA21 から atr7×0.2 以上の反発)
+
+これらが上流で 95%+ を絞り込むため、L3 で 1m oscillator を廃止しても noise が流入しない。
+
+`mtf_trend_follow_scalp` は ADX>=min と EMA9>EMA21 だけで、上流フィルタが圧倒的に弱い:
+- 上流 pass rate: 高 (大部分の時間で trend 条件成立)
+- → macdh + stoch が **最後の noise discriminator として必要**
+- 廃止すると 1300+ trades / 180d でほぼ全て noise → losing system
+
+### 正しい応用パターン
+
+| 既存戦略 | 適用可能要素 | 注意点 |
+|---|---|---|
+| mtf_trend_follow_scalp | h1 macro gate (✓ 追加可能) / moderate_trend regime gate (要再 BT) | 1m oscillator 廃止は **NG** |
+| mtf_counter_trend_scalp | h1 macro gate (✓) | 既に engulfing+pin+RSI div で高 selective |
+| ema_trend_scalp | moderate_trend regime gate (✓ demo_trades 実測 trend_up_strong WR=16.7% を排除) | ADX>=15 を ADX 18-25 へ |
+| ema_pullback | h1 macro gate (✓) | 既存 4 oscillator は維持 |
+
+**結論**: v2.3 の真の価値は **「3 層 filter ensemble (regime + macro + bounce) を上流に置いた上で L3 を slim にする設計」** であり、その逆 (上流弱+L3 slim) には適用不可。filter は **個別ではなく ensemble で評価**する必要がある。
+
+### 次セッションで実施 (新発見 lesson 反映)
+
+1. **`mtf_trend_follow_scalp` に h1 macro gate のみ追加** (oscillator 維持) → BT 検証
+2. **`ema_trend_scalp` に moderate_trend regime gate 追加** → demo_trades 実測 trend_up_strong negative cell を排除
+3. **両者で BT 改善が出れば commit** (rule:R3 構造改善)
