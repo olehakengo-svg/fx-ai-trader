@@ -13594,7 +13594,15 @@ def api_admin_dedup_status():
     try:
         if request.method == "POST":
             return jsonify(_demo_db._backfill_dedup_violation_impl() or {})
-        return jsonify(_demo_db.get_dedup_violation_summary())
+        summary = _demo_db.get_dedup_violation_summary()
+        # 2026-04-30: include runtime dedup gate stats so we can verify the
+        # gate is actually being called and blocking duplicates as expected.
+        try:
+            summary["runtime_dedup_stats"] = getattr(_demo_trader, "_dedup_stats", None)
+            summary["runtime_dedup_dict_size"] = len(getattr(_demo_trader, "_recent_signal_emits", {}) or {})
+        except Exception as _e:
+            summary["runtime_dedup_stats_error"] = str(_e)
+        return jsonify(summary)
     except Exception as e:
         return jsonify({"error": str(e), "type": type(e).__name__}), 500
 

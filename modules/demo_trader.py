@@ -426,6 +426,14 @@ class DemoTrader:
         # 60秒以内の同一キーをブロック (DB commit を待たない即時判定で
         # 並行モードスレッドの open_trades fetch race を回避)
         self._recent_signal_emits = {}
+        # 2026-04-30 diagnostics: count dedup outcomes per emit path so we can
+        # tell from /api/admin/dedup_status whether the gate is actually being
+        # called and whether it's blocking or passing.
+        self._dedup_stats = {
+            "primary_called": 0, "primary_blocked": 0, "primary_passed": 0,
+            "shadow_called": 0, "shadow_blocked": 0, "shadow_passed": 0,
+            "shadow_pass_log": [],  # last 20 events for forensic
+        }
 
         # ── Equity Curve Protector: 段階的DDロット縮小 v7.0 ──
         # v7.0: binary ON/OFF -> graduated reduction (risk_analytics.DD_LOT_TIERS)
@@ -2732,7 +2740,7 @@ class DemoTrader:
                 if _se_sl <= 0 or _se_tp <= 0:
                     continue
                 # 60s dedup gate (primary と key 空間共有 — _maybe_reserve_signal_emit)
-                if self._maybe_reserve_signal_emit(_se_entry_type, instrument, _se_signal) is not None:
+                if self._maybe_reserve_signal_emit(_se_entry_type, instrument, _se_signal, _path="shadow") is not None:
                     continue
                 _se_conf = int(_se.get("confidence") or 50)
                 _se_score = float(_se.get("score") or 0)
@@ -2776,12 +2784,15 @@ class DemoTrader:
         return (datetime.now(timezone.utc) - last["time"]).total_seconds()
 
     def _maybe_reserve_signal_emit(self, entry_type: str, instrument: str,
-                                   signal: str, *, window_sec: int = 60):
+                                   signal: str, *, window_sec: int = 60,
+                                   _path: str = "shadow"):
         """Reserve a (entry_type, instrument, signal) slot for `window_sec`.
 
         Returns None if the slot was free and is now reserved (caller may emit).
         Returns the age (float seconds) of the blocking prior emit if a recent
         emit is still within the window (caller should skip / log age).
+
+        _path: "primary" or "shadow" — for diagnostic counters (2026-04-30).
 
         Centralizes the dedup logic shared by primary trade (_tick_entry) and
         shadow_emit loop. Single key space across all emit paths so a primary
@@ -2796,15 +2807,41 @@ class DemoTrader:
         now = datetime.now(timezone.utc)
         window = timedelta(seconds=window_sec)
         with self._lock:
+            try:
+                self._dedup_stats[f"{_path}_called"] += 1
+            except Exception:
+                pass
             last = self._recent_signal_emits.get(key)
             if last and (now - last) < window:
-                return (now - last).total_seconds()
+                age_sec = (now - last).total_seconds()
+                try:
+                    self._dedup_stats[f"{_path}_blocked"] += 1
+                except Exception:
+                    pass
+                return age_sec
             self._recent_signal_emits[key] = now
             # 古いエントリ掃除 (メモリ保護) — window の 2 倍を保持
             stale_cutoff = now - timedelta(seconds=2 * window_sec)
             self._recent_signal_emits = {
                 k: v for k, v in self._recent_signal_emits.items() if v > stale_cutoff
             }
+            try:
+                self._dedup_stats[f"{_path}_passed"] += 1
+                if _path == "shadow":
+                    age_to_last = (now - last).total_seconds() if last else None
+                    log = self._dedup_stats.get("shadow_pass_log") or []
+                    log.append({
+                        "ts": now.isoformat(),
+                        "entry_type": entry_type,
+                        "instrument": instrument,
+                        "signal": signal,
+                        "age_to_last": age_to_last,
+                        "had_prior": last is not None,
+                        "dict_size": len(self._recent_signal_emits),
+                    })
+                    self._dedup_stats["shadow_pass_log"] = log[-20:]
+            except Exception:
+                pass
         return None
 
     def _tick_entry(self, mode: str, cfg: dict, sig: dict,
@@ -2992,37 +3029,50 @@ class DemoTrader:
         # scalp: 高頻度のため2本まで（シグナル方向転換に対応）
         # DT/1H/swing: 1本ずつ
         _base_mode = _get_base_mode(mode)
-        _mode_limits = {"scalp": 2, "daytrade": 1, "daytrade_1h": 1, "swing": 1}
+        _mode_limits = {"scalp": 2, "scalp_5m": 1, "daytrade": 1, "daytrade_1h": 1, "swing": 1}
         _mode_limit = _mode_limits.get(_base_mode, 1)
-        # v8.9: Shadow trades は non-shadow のみカウント（スロット占有しない）
-        _mode_inst_trades = [t for t in open_trades
-                            if t.get("instrument", "USD_JPY") == instrument
-                            and _get_base_mode(t.get("mode", "")) == _base_mode
-                            and not t.get("is_shadow", False)]
-        if len(_mode_inst_trades) >= _mode_limit:
-            if _is_slot_shadow_eligible:
+        # 2026-04-30 (rule:R2 / H1): shadow を per-cell で別カウント。
+        # 旧版は shadow をスロットカウントから完全除外 → 同 cell に shadow 5 本以上
+        # 同時保有可能で、価格過程が単一なため duplicate observations を量産。
+        # Wilson CI が √n で偽縮小し、demote/promote の false positive を生んでいた。
+        # Live 上限の概ね 2 倍を shadow per-cell 上限として明示し artefact を限界づける。
+        _shadow_per_cell_limits = {
+            "scalp": 4, "scalp_5m": 2, "daytrade": 2, "daytrade_1h": 2, "swing": 2,
+        }
+        _shadow_per_cell_limit = _shadow_per_cell_limits.get(_base_mode, 2)
+        _mode_inst_live = [t for t in open_trades
+                           if t.get("instrument", "USD_JPY") == instrument
+                           and _get_base_mode(t.get("mode", "")) == _base_mode
+                           and not t.get("is_shadow", False)]
+        _mode_inst_shadow = [t for t in open_trades
+                             if t.get("instrument", "USD_JPY") == instrument
+                             and _get_base_mode(t.get("mode", "")) == _base_mode
+                             and t.get("is_shadow", False)]
+        if len(_mode_inst_live) >= _mode_limit:
+            if _is_slot_shadow_eligible and len(_mode_inst_shadow) < _shadow_per_cell_limit:
                 _is_shadow = True
                 self._add_log(
                     f"[SHADOW] Slot bypass: {entry_type} {mode}/{instrument} "
-                    f"({len(_mode_inst_trades)}/{_mode_limit} → shadow)"
+                    f"(live={len(_mode_inst_live)}/{_mode_limit} "
+                    f"shadow={len(_mode_inst_shadow)}/{_shadow_per_cell_limit} → shadow)"
                 )
             else:
-                _block(f"max_per_mode_pair({_base_mode}/{instrument}:{len(_mode_inst_trades)}/{_mode_limit})"); return
+                _block(
+                    f"max_per_mode_pair({_base_mode}/{instrument}:"
+                    f"live={len(_mode_inst_live)}/{_mode_limit},"
+                    f"shadow={len(_mode_inst_shadow)}/{_shadow_per_cell_limit})"
+                )
+                return
         # ── 同一ペア逆方向ヘッジ防止 (2026-04-06 audit fix) ──
-        # scalp limit=2 でもBUY+SELL同時保有はスプレッド二重消費 → ブロック
-        # v8.9: Shadow trades はヘッジブロックも免除（デモデータ収集目的）
-        _hedge_blocked = False
-        for _ot in _mode_inst_trades:
+        # scalp limit=2 でもBUY+SELL同時保有はスプレッド二重消費 → ブロック。
+        # 2026-04-30 (rule:R2 / H2): shadow バイパスを撤廃。同時刻に逆方向 sample を
+        # 二重記録すると score-max selection で「負けた方の戦略」も shadow に入り、
+        # 戦略間ランキング情報を破壊する。dedup 60s で shadow 経路は十分守られる。
+        # ヘッジは Live/Shadow 問わず常に block する。
+        for _ot in _mode_inst_live + _mode_inst_shadow:
             if _ot.get("direction") and _ot["direction"] != signal:
-                _hedge_blocked = True; break
-        if _hedge_blocked:
-            if _is_slot_shadow_eligible:
-                _is_shadow = True
-                self._add_log(
-                    f"[SHADOW] Hedge bypass: {entry_type} {mode}/{instrument} → shadow"
-                )
-            else:
-                _block(f"hedge_block({_base_mode}/{instrument}:{signal})"); return
+                _block(f"hedge_block({_base_mode}/{instrument}:{signal})")
+                return
         # グローバル安全上限（全通貨ペア・全モード合計）
         # v8.9: Shadow trades は別上限 (max_open + 8) — N蓄積を優先しつつメモリ保護
         _max_open = self._params["max_open_trades"]
@@ -3067,10 +3117,13 @@ class DemoTrader:
                 _block(f"market_close_30min(end={_session_end_hour}:00UTC)"); return
 
         # ── v6.5: Cross-pair Exposure Check (通貨集中リスク防止) ──
-        # v9.0: Shadow/Demo bypass — ExposureManagerはOANDA実弾専用リスク管理
-        # デモトレードにExposure制限を適用するとN蓄積を阻害する (2,357+ blocks observed)
-        # OANDA転送時に別途OandaBridgeが独自のリスク管理を実施
-        if not _is_shadow_eligible:
+        # v9.0: Shadow trade のみ bypass — ExposureManagerはOANDA実弾専用リスク管理。
+        # 2026-04-30 (rule:R3): 旧版は `_is_shadow_eligible` で gating していたため、
+        # FORCE_DEMOTED/Sentinel 戦略が Live スロット空き時に normal Live で
+        # OANDA 注文を出す経路でも 20k currency cap / same-direction 3件 cap を
+        # 全バイパスしていた (実弾リスク漏洩)。実際に shadow flag が立った場合
+        # のみ skip するのが正しい意図。
+        if not _is_shadow:
             import os as _os_exp
             _exp_units_est = int(_os_exp.environ.get("OANDA_UNITS", "10000"))
             _exp_ok, _exp_reason = self._exposure_mgr.check_new_trade(
@@ -3227,7 +3280,7 @@ class DemoTrader:
         #           intraday_seasonality 436/437 (6s), stoch_trend_pullback 183/184 (35s)
         # rule:R3 (2026-04-30): shadow_emit 経路と key 空間共有のため
         # _maybe_reserve_signal_emit() に集約。詳細: lesson-shadow-emit-dedup-2026-04-30
-        _dedup_age = self._maybe_reserve_signal_emit(entry_type, instrument, signal)
+        _dedup_age = self._maybe_reserve_signal_emit(entry_type, instrument, signal, _path="primary")
         if _dedup_age is not None:
             _block(f"recent_emit({entry_type},{int(_dedup_age)}s<60s)")
             return
@@ -3431,9 +3484,11 @@ class DemoTrader:
         # BT: COOLDOWN=1バー。本番もBTと同一の1バー分に統一
         # 根拠: BT COOLDOWN=1bar → DT 15m=900s, 1H=3600s
         # 旧設定(DT=30s)ではBT比30倍速で再エントリー → WR 62.2%→40% の乖離原因
-        last_ex = self._last_exit.get(mode)
-        if last_ex:
-            _ex_age = (datetime.now(timezone.utc) - last_ex["time"]).total_seconds()
+        # 2026-04-30 (rule:R3): pair/direction/shadow 別 key で lookup。
+        # USD_JPY scalp の SL 直後に EUR_USD scalp や 反対方向 entry を
+        # 巻き添えに止めない。連敗カウンタの direction-aware と整合。
+        _ex_age = self._get_cooldown_age(mode, instrument, signal, is_shadow=_is_shadow)
+        if _ex_age is not None:
             _cooldown_sec = {"scalp": 60, "scalp_5m": 300, "daytrade": 900, "daytrade_1h": 3600, "swing": 14400}.get(_base_mode, 60)
             if _ex_age < _cooldown_sec:
                 _block(f"cooldown({int(_ex_age)}s/{_cooldown_sec}s)"); return
@@ -4230,11 +4285,14 @@ class DemoTrader:
                 _spread_entry = round((_ba["ask"] - _ba["bid"]) * _pip_m_mon, 2)
         except Exception:
             pass
-        # COOLDOWN経過時間
+        # COOLDOWN経過時間 (DB記録用)
+        # 2026-04-30 (rule:R3): 同 mode/instrument/direction/shadow の最新 exit からの経過秒。
         _cd_elapsed = 0.0
-        _last_ex = self._last_exit.get(mode)
-        if _last_ex:
-            _cd_elapsed = round((datetime.now(timezone.utc) - _last_ex["time"]).total_seconds(), 1)
+        _cd_age_dbg = self._get_cooldown_age(
+            mode, instrument, signal, is_shadow=_is_shadow,
+        )
+        if _cd_age_dbg is not None:
+            _cd_elapsed = round(_cd_age_dbg, 1)
 
         # ══════════════════════════════════════════════════════════════
         # ── v7.0: Spread/SL Gate — Fast Exit 根本対策 ──
