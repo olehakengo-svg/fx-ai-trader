@@ -29,6 +29,22 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 
 ## バグ・設計ミスの教訓
 
+### [[lesson-shadow-eligible-exposure-bypass-2026-04-30]]
+**発見日**: 2026-04-30 | **修正**: rule:R3 commit `a88852f` + `d955aae` (test)
+- 問題: ExposureManager bypass が `_is_shadow_eligible` (資格) で gating され、FORCE_DEMOTED / Sentinel 戦略が Live スロット空き時に通貨 / 同方向 cap を全バイパスして OANDA 実弾注文
+- 症状: 本番ログで `[ALERT] Exposure blocked` が FORCE_DEMOTED 戦略について発火 0 件
+- 原因: `_is_shadow_eligible_full` (資格) と `_is_shadow` (実状態) を v8.9 で分離した時、exposure check を最終フラグで gate するべきポイントが見落とされた
+- 修正: `if not _is_shadow_eligible:` → `if not _is_shadow:` (実フラグで gate)
+- 教訓: **「資格 (eligible)」と「実状態 (effective)」を区別する**。bypass 条件式は最終状態で gate すべき。設計レビュー時、bypass 条件の右辺がどの抽象レベルの変数かを確認する。
+
+### [[lesson-cooldown-key-globalization-2026-04-30]]
+**発見日**: 2026-04-30 | **修正**: rule:R3 commit `a88852f` + `d955aae` (test)
+- 問題: `self._last_exit` が `mode` 単独 key で、pair / direction / shadow が独立追跡されていない
+- 症状: USD_JPY scalp の SL 直後に EUR_USD scalp も全停止 / 反対方向 signal も block / 連敗カウンタの direction-aware と非対称
+- 原因: 初期実装の単一 pair × 単一方向想定が multi-pair / multi-direction 拡張で更新されず、value 内に保存していた `direction` を read 側で使わなかった (key 構造の責務拡大が見落とされた技術負債)
+- 修正: key を `(mode, instrument, direction, is_shadow)` tuple に拡張、`_cooldown_key` / `_get_cooldown_age` ヘルパーで lookup を集約
+- 教訓: **辞書 key は「同一 block 域に属する単位」を全て含める**。value 内に分類情報を保存しているのに read で使っていない場合、key の責務が古い (技術負債のシグナル)。direction-aware / agnostic が同ファイルで混在するなら設計の非対称が必ずバグを生む。
+
 ### [[lesson-shadow-emit-dedup-2026-04-30]]
 **発見日**: 2026-04-30 | **修正**: rule:R3 commit `6a45bb2`
 - 問題: SHADOW_EMIT 経路 (`demo_trader.py:2700-2734`) が `_tick_entry` の 60s `_recent_signal_emits` dedup をバイパスし、tick 毎に同 (entry_type, instrument, signal) の shadow を量産
