@@ -1858,8 +1858,15 @@ class DemoTrader:
             # ══════════════════════════════════════════════════════════════
             # v6.5 fix: OANDA trade IDがないトレードはPYRAMID対象外
             # (OANDA停止中に開設されたデモ専用トレードのmodify_sl_sync無限失敗を防止)
+            # 2026-05-01 halt: env-var gate. Live audit (N=23, Decided WR 5.9%,
+            # 100% sub-60s, EV -1.56pip/event, total -5,563JPY) demonstrated the
+            # BE-SL design is structurally giving back parent profit. Default off
+            # until the SL placement is redesigned. See
+            # knowledge-base/wiki/decisions/pyramid-mechanism-halt-2026-05-01.md
+            _PYRAMID_ENABLED = _os.environ.get("PYRAMID_ENABLED", "0") == "1"
             _has_oanda_id = bool(trade.get("oanda_trade_id"))
-            if (trade_id not in self._pyramided_trades
+            if (_PYRAMID_ENABLED
+                    and trade_id not in self._pyramided_trades
                     and _has_oanda_id
                     and _entry_type_pe in self._PE_50PCT_ELIGIBLE):
                 _pyr_atr = self._entry_atr.get(
