@@ -338,6 +338,31 @@ Initial run (2026-05-01, LOCK day 1/30):
 - ATR 14d M15 = 0.0907 << 0.1441 ✅ Failure #6 pass
 - 直近環境は f3 baseline より低 vol = v1b に追い風
 
+### Cross-pair Generalization BT (Tier 2 ④, 2026-05-01)
+
+スクリプト: `research/edge_discovery/v1b_cross_pair_bt.py`
+
+180d BT × pair-specific spread (USD_JPY=0.8, EUR_USD=0.5, GBP_USD=0.7):
+
+| Pair | N | WR | PF | Kelly | Wilson95下限 | Verdict |
+|---|---|---|---|---|---|---|
+| **USD_JPY** | 369 | 60.7% | 1.99 | 30.2% | **55.6%** | 🎯 STRUCTURAL EDGE |
+| **GBP_USD** | 385 | 55.3% | 1.53 | 19.0% | **50.3%** | 🎯 STRUCTURAL EDGE |
+| EUR_USD | 373 | 51.7% | 1.45 | 15.9% | 46.7% | ✅ Generalizes |
+
+**Session-level 一貫性**: 3 pair すべて London + NY で PF>1.6。
+
+**重要発見**: v1b は **USD_JPY 特化 overfit ではなく汎用 trend-follow edge**。
+仮説 (M15 大循環 + M5 EMA21 再ブレイクは asset-class agnostic な短期 trend
+persistence 捕捉) が 3 pair 独立評価で 3/3 通過。
+
+### Phase D 横展開計画 (v1b LIVE 昇格後)
+
+Phase B (2026-05-30) クリア後、Phase C (USD_JPY LIVE) 30d を経て Phase D で:
+1. **GBP_USD 横展開**: Wilson 50.3% で promotion 閾値クリア、優先候補
+2. **EUR_USD 検証継続**: Wilson 46.7% でボーダー、LIVE Shadow N≥30 で再判定
+3. **3-pair portfolio Sharpe**: combined で単独 USD_JPY を上回る期待
+
 ### Portfolio Kelly Analysis (Tier 2 ③, 2026-05-01)
 
 スクリプト: `research/edge_discovery/portfolio_kelly.py`
