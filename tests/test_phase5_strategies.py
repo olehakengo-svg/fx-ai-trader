@@ -29,6 +29,33 @@ def _make_skewed_history(n=200, skew_direction=-1, base=180.0, atr=0.20):
     return df
 
 
+def _make_strong_neg_skew_ctx(n=200, base=180.0, backtest_mode=True):
+    """Build a GBP_JPY ctx that reliably triggers negative-skew BUY emission.
+
+    Quiet history with a single large negative spike at iloc[-2] (in BT mode
+    that bar lies inside the rolling 30-bar window evaluated at iloc[-1] and
+    is the only window in the 96-bar normalization span carrying extreme
+    skew, so |z| is large). Last bar is a tiny positive return so closed-bar
+    direction confirms a BUY.
+    """
+    np.random.seed(42)
+    rets = np.zeros(n)
+    rets[1:n - 2] = np.random.normal(0, 0.0001, n - 3)
+    rets[-2] = -0.005      # large neg spike in last 30-bar window
+    rets[-1] = 0.0002      # small positive close → bar closes up
+    closes = base * np.cumprod(1 + rets)
+    dates = pd.date_range("2024-01-01", periods=n, freq="15min")
+    df = pd.DataFrame({
+        "Open": closes - 0.05, "High": closes + 0.10, "Low": closes - 0.10,
+        "Close": closes, "Volume": [1000] * n,
+    }, index=dates)
+    return SignalContext(
+        entry=float(closes[-1]), open_price=float(closes[-2]),
+        atr=0.20, adx=20.0, df=df, symbol="GBPJPY=X", tf="15m",
+        is_jpy=True, pip_mult=100, backtest_mode=backtest_mode,
+    )
+
+
 class TestRskGbpjpyReversion:
     def test_only_gbpjpy_allowed(self):
         s = RskGbpjpyReversion()
@@ -75,6 +102,29 @@ class TestRskGbpjpyReversion:
             is_jpy=True, pip_mult=100,
         )
         assert s.evaluate(ctx) is None
+
+    # ── rule:R3 (2026-04-30): per-bar dedup regression ──
+
+    def test_per_bar_dedup_blocks_repeat(self):
+        """Same closed bar → second evaluate must return None.
+
+        2026-04-30 shadow audit: rsk fired 76 times in one day (median
+        inter-entry gap 35.7s), all loss, -813.7 pips. Same root cause as
+        vsg pre-fix (commit 8719a44) — 30s polling against in-progress bar
+        with no per-bar gate.
+        """
+        s = RskGbpjpyReversion()
+        ctx = _make_strong_neg_skew_ctx()
+        first = s.evaluate(ctx)
+        assert first is not None, "Test setup must trigger emission"
+        assert first.signal == "BUY"
+        assert first.entry_type == "rsk_gbpjpy_reversion"
+        # Same df, same bar timestamp — must dedup.
+        second = s.evaluate(ctx)
+        assert second is None, (
+            "Per-bar dedup must block second emit on same closed bar "
+            "(rule:R3, prevents 30s-poll cluster)"
+        )
 
 
 class TestMqeGbpusdFix:
