@@ -433,12 +433,20 @@ def is_trade_prohibited(df=None, bar_time=None) -> dict:
     hour_utc = now_utc.hour
 
     # ① 低流動性セッション
-    # 22:00-23:59 UTC: 深夜 — 出来高不足で取引禁止
+    # 22:00-23:59 UTC: 深夜 — 出来高は thin だが force_shadow=True で
+    #   Bonferroni-significant な深夜時間限定戦略 (gotobi_fix, LCR_v2,
+    #   pd_eurjpy_h20_bbpb3_sell 等) のサンプル蓄積を許可。CLAUDE.md
+    #   原則#3「静的時間ブロックは使わない」遵守 + Phase 2 audit
+    #   (audit/2026-04-30/bot-uptime-heatmap.md) に基づき 2026-04-30 改修。
+    #   prohibited=True から force_shadow=True に降格 → LIVE は走らず Shadow N
+    #   のみ蓄積、Wilson_lo 確認後に LIVE 昇格判断 (Asymmetric Agility Rule 1)。
     # 00:00-06:59 UTC: 東京セッション — 平均回帰戦略で稼働
     if hour_utc >= 22:
         return {
-            "prohibited": True,
-            "reason":     f"🌙 深夜セッション ({hour_utc:02d}:00 UTC) — 出来高不足",
+            "prohibited": False,
+            "force_shadow": True,
+            "tokyo_mode": False,
+            "reason":     f"🌙 深夜セッション ({hour_utc:02d}:00 UTC) — shadow-only (Wilson_lo 蓄積)",
             "layer": 0, "check": "session",
         }
     if hour_utc < 7:
@@ -13096,6 +13104,12 @@ def api_oanda_live():
                 ot["stop_loss"] = float(orders[ot["sl_order_id"]]["price"])
             if ot["tp_order_id"] in orders:
                 ot["take_profit"] = float(orders[ot["tp_order_id"]]["price"])
+        # Attach strategy name via local DB join (demo_trades → oanda_audit)
+        if open_trades:
+            oids = [ot["id"] for ot in open_trades if ot.get("id")]
+            strat_map = _demo_db.get_strategy_by_oanda_ids(oids)
+            for ot in open_trades:
+                ot["strategy"] = strat_map.get(ot["id"], "")
         result["open_trades"] = open_trades
     else:
         result["account"] = {}

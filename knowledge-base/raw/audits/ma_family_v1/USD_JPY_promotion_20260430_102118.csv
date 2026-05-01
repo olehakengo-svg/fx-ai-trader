@@ -1,0 +1,13 @@
+strategy,session,n,wr_pct,wilson_lo_pct,ev_pips,pf,kelly,p_value,bev_wr,c1_wf_all_pf_gt1_3,c2_bh_significant,c3_wilson95_gt_10pct,c4_kelly_gt_0_10,c5_n_ge_30,promote_to_live
+ma_mr_hybrid,Tokyo,112,30.36,22.61,-0.456,0.739,0.0,0.99998,0.489,False,False,True,False,True,False
+ma_mr_hybrid,London,103,22.33,15.37,-1.388,0.393,0.0,1.0,0.5373,False,False,True,False,True,False
+ma_mr_hybrid,NY,139,24.46,18.06,-0.815,0.583,0.0,1.0,0.4678,False,False,True,False,True,False
+ma_mr_hybrid,ALL,376,26.33,22.13,-0.867,0.565,0.0,1.0,0.5022,False,False,True,False,True,False
+ma_regime_switch,Tokyo,142,33.1,25.89,-1.385,0.543,0.0,1.0,0.5608,False,False,True,False,True,False
+ma_regime_switch,London,138,39.13,31.39,-0.669,0.776,0.0,0.99948,0.5268,False,False,True,False,True,False
+ma_regime_switch,NY,150,37.33,30.0,-0.769,0.784,0.0,0.99876,0.4928,False,False,True,False,True,False
+ma_regime_switch,ALL,477,35.85,31.67,-0.948,0.709,0.0,1.0,0.5105,False,False,True,False,True,False
+bb_rsi_ema_aligned,Tokyo,17,41.18,21.61,1.784,1.458,12.9314,0.42739,0.3636,True,False,True,True,False,False
+bb_rsi_ema_aligned,London,6,0.0,0.0,-6.933,0.0,0.0,1.0,1.1154,False,False,False,False,False,False
+bb_rsi_ema_aligned,NY,12,16.67,4.7,-3.8,0.422,0.0,0.95993,0.3539,False,False,False,False,False,False
+bb_rsi_ema_aligned,ALL,40,25.0,14.19,-1.761,0.661,0.0,0.96602,0.3739,False,False,True,False,True,False

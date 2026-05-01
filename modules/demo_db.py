@@ -1662,6 +1662,30 @@ class DemoDB:
             ).fetchall()
             return [dict(r) for r in rows]
 
+    def get_strategy_by_oanda_ids(self, oanda_ids: list) -> dict:
+        """Map OANDA trade IDs → strategy name.
+
+        Uses the same COALESCE(demo_trades.entry_type, oanda_audit.entry_type)
+        precedence as get_oanda_trades, so open and closed views agree.
+        Returns {oanda_trade_id: strategy} for IDs that resolved to a non-empty
+        strategy (unresolved IDs are absent from the mapping).
+        """
+        if not oanda_ids:
+            return {}
+        placeholders = ",".join("?" * len(oanda_ids))
+        query = (
+            f"SELECT d.oanda_trade_id AS oid, "
+            f"       COALESCE(d.entry_type, a.entry_type) AS strategy "
+            f"FROM demo_trades d "
+            f"LEFT JOIN oanda_audit a "
+            f"  ON d.trade_id = a.demo_trade_id AND a.bridge_status = 'sent' "
+            f"WHERE d.oanda_trade_id IN ({placeholders}) "
+            f"  AND d.oanda_trade_id IS NOT NULL AND d.oanda_trade_id != ''"
+        )
+        with self._safe_conn() as conn:
+            rows = conn.execute(query, list(oanda_ids)).fetchall()
+            return {r["oid"]: r["strategy"] for r in rows if r["strategy"]}
+
     def get_oanda_stats(self, date_from: str = None, date_to: str = None,
                         instrument: str = None) -> dict:
         """Compute aggregate stats from closed OANDA trades."""

@@ -303,12 +303,44 @@ v1a/c/d 全て BT 90d の cells で **昇格条件未達** だが、構造的改
    が高すぎる構造的限界。MR 戦略の本番昇格には **spread <0.5 pip 銘柄 or pair** が
    必要 — USD_JPY は十分タイトだが MR スキャルの cost-edge ratio が厳しい。
 
-### 再々設計フェーズ (deferred to v2)
+### 再々設計フェーズ (v2, 2026-04-30 即日実施 — シニアクオンツ視点)
 
-v1b LIVE 検証完了 (2026-05-30) を待ってから着手:
-- v1a-rev2: M15 trend filter 撤去 + 別の過熱条件追加 (例: 5-bar Z-score)
-- v1c-rev2: ATR percentile + ADX percentile の 2D regime classifier
-- v1d-rev2: spread 影響を minimize する large TP MR (TP ≥ 8 pip 強制)
+数学的厳密性 (Vasicek O-U / Mandelbrot R/S / Cont volume divergence) で
+v1a/c/d を全面再設計し 90d BT 実施。**全戦略 LIVE 昇格未達**。
+
+| v2 | 数学的基盤 | N | WR | PF | EV | 評価 |
+|---|---|---|---|---|---|---|
+| ma_mr_hybrid v2 | Vasicek O-U キャリブレーション | 376 | 26.3% | 0.57 | -0.87 | 🔴 全滅 |
+| ma_regime_switch v2 | Hurst exponent × ATR percentile 2D | 477 | 35.9% | 0.71 | -0.95 | 🔴 regime classify 機能せず |
+| bb_rsi_ema_aligned v2 | 出来高ダイバージェンス + adaptive TP | 40 | 25.0% | 0.66 | -1.76 | 🟡 Tokyo cell N=17 EV +1.78 (唯一兆候) |
+
+### v2 失敗の数学的考察
+
+**O-U (Vasicek 1977)**: 60-bar 1m calibration window 内で stationary mean
+が shift し偽 μ を学習。USD_JPY 1m は MR 過程ではなく micro-trend dominant
+= O-U の前提逸脱。
+
+**Hurst (Mandelbrot 1972, Lo 1991 修正版が必要)**: 64-bar R/S estimator は
+Lo (1991) 警告通り variance 大、random walk でも H=0.5±0.15 ブレ。decisive
+regime classifier でなく random gating に近い挙動。
+
+**Volume divergence (Cont 2001)**: Tokyo cell で唯一 +EV (N=17, Kelly 12.9%)。
+180d で N=30 達成すれば検証価値あり。institutional flow detection 仮説は
+現データでも非反証。
+
+### シニアクオンツ的結論
+
+数学的厳密性 ≠ 利益。USD_JPY 1m scalp は noise dominated で、long-memory /
+mean reversion の理論モデルは適用範囲外。
+
+### v3 への申し送り (v1b LIVE 検証完了後着手)
+
+1. O-U / Hurst を **M5 or M15 timeframe** で再試行 (1m は noise)
+2. Volume divergence のみ Tokyo session で 180d 検証継続候補
+3. Spread 0.8 pip 環境では MR 戦略の期待値が構造的に不利 — pair extension
+   (low spread で 0.5pip 以下のもの = なし、USD_JPY が既に最良) を諦め、
+   trend follow (v1b) に資源集中するのが defensible
+4. 4-cell BH (strategy-level) では v1b 単独有意化が課題、365d データ拡充で再評価
 
 ## CHANGELOG
 
