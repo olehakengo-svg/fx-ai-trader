@@ -34,7 +34,7 @@ Bailey & Lopez de Prado (2014) *"The Probability of Backtest Overfitting"* 流�
 ## 1. 対象戦略リスト (43戦略)
 
 `demo_trader.QUALIFIED_TYPES` + Tier Master (`tier-master.md`) に登録された全戦略.
-[[tier-master]] と ~~[[../../research/edge_discovery/strategy_family_map|strategy_family_map.py]]~~
+[[tier-master]] と ~~`research/edge_discovery/strategy_family_map.py`~~
 からの機械的抽出 (2026-04-20 時点). XAU 専用戦略は除外 (user memory: XAU除外).
 
 ### 1.1 Family 分類 (expected base family)

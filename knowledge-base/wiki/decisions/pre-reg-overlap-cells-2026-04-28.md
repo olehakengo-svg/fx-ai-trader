@@ -103,6 +103,6 @@ direction_filter: SELL
 ## 関連 KB
 
 - [[pre-reg-bbrsi-eurusd-2026-04-27]] (既存 STRICT LOCK)
-- [[../../raw/audits/cell-bonferroni-2026-04-27]] (audit framework)
+- [[cell-bonferroni-2026-04-27]] (audit framework)
 - [[lesson-shadow-vs-live-confusion-2026-04-28]] (shadow asymmetric bet 原則)
-- [[../syntheses/roadmap-v2.1]] (Gate 1: Kelly>0 への発掘パス)
+- [[roadmap-v2.1]] (Gate 1: Kelly>0 への発掘パス)

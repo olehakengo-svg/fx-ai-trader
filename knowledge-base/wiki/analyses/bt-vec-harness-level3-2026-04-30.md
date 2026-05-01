@@ -5,7 +5,7 @@ status: implemented
 related:
   - "[[bt-live-divergence]]"
   - "[[claude-harness-design]]"
-  - "[[../../../CHANGELOG#2026-04-30 — bt_vec_harness Level 3 production-parity toggles]]"
+  - "[CHANGELOG.md §2026-04-30 — bt_vec_harness Level 3 production-parity toggles](../../../CHANGELOG.md)"
   - master plan: `/Users/jg-n-012/.claude/plans/bt-serialized-willow.md`
 ---
 

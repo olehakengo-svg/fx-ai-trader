@@ -4,7 +4,7 @@ type: analysis
 status: published
 rule: R2
 related:
-  - "[[low-firing-root-cause-2026-04-28]]"
+  - "`low-firing-root-cause-2026-04-28` (referenced audit, not present in KB)"
   - "[[elite-live-0-fire-investigation-2026-04-24]]"
   - "[[portfolio-concentration-vwap-mr-2026-04-25]]"
   - "[[roadmap-v2.1]]"

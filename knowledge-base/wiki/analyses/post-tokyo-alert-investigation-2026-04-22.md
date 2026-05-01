@@ -9,7 +9,7 @@ triggers:
 
 # Post-Tokyo Alert Investigation (2026-04-22)
 
-**Trigger**: 09:09 UTC Discord alert + [[../raw/trade-logs/2026-04-22-monitor]] 診断 4 項目
+**Trigger**: 09:09 UTC Discord alert + [[2026-04-22-monitor]] 診断 4 項目
 
 ## 結論サマリ
 
@@ -142,8 +142,8 @@ curl -s "https://fx-ai-trader.onrender.com/api/demo/trades?limit=200" | jq '[.tr
 | +48h | Kelly Half 到達判定の LIVE N 増加を確認 |
 
 ## Related
-- [[../raw/trade-logs/2026-04-22-monitor]] — alert raw content
-- [[../lessons/lesson-clean-slate-2026-04-16]] — ExposureManager v9.0 Shadow bypass 設計文書
-- [[../lessons/lesson-reactive-changes]] — FORCE_DEMOTED 含み益で動かさない原則
+- [[2026-04-22-monitor]] — alert raw content
+- [[lesson-clean-slate-2026-04-16]] — ExposureManager v9.0 Shadow bypass 設計文書
+- [[lesson-reactive-changes]] — FORCE_DEMOTED 含み益で動かさない原則
 - [[regime-2d-v2-rescan-result-2026-04-22]] — 並行執行 (NO-OP, 本日確定)
 - [[spread-entry-gate-preregister-2026-04-22]] — OOS-1 待機中

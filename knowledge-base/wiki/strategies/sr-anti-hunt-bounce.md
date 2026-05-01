@@ -43,9 +43,9 @@
 → OANDA forwarding 確認: `is_shadow=0 ∧ oanda_trade_id` で **2 件流入**。`mode=scalp_eur` で 1 件、`mode=daytrade` で 1 件。
 
 ## 教訓
-- [[../lessons/lesson-shadow-always-emit-cleanup-2026-04-28]] — SHADOW_ALWAYS の無条件 emit は EV<0 戦略を**自動的にデータ蓄積汚染源**にする
-- [[../lessons/lesson-data-source-production-first-2026-04-28]] — ローカル DB と本番 DB の乖離調査時は **本番優先**
-- [[../decisions/sr-strategies-signal-track-2026-04-28]] — SHADOW_EMIT 経路の元設計
+- [[lesson-shadow-always-emit-cleanup-2026-04-28]] — SHADOW_ALWAYS の無条件 emit は EV<0 戦略を**自動的にデータ蓄積汚染源**にする
+- [[lesson-data-source-production-first-2026-04-28]] — ローカル DB と本番 DB の乖離調査時は **本番優先**
+- [[sr-strategies-signal-track-2026-04-28]] — SHADOW_EMIT 経路の元設計
 
 ## Signal Logic
 1. ペアフィルター: 5 majors すべて

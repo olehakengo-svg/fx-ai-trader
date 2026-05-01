@@ -3,7 +3,7 @@ title: SHADOW_EMIT 60s dedup gate 不在による汚染データ蓄積イベン�
 date: 2026-04-30
 type: decision
 severity: HIGH
-related: [[../lessons/lesson-shadow-emit-dedup-2026-04-30]], [[../lessons/lesson-shadow-always-emit-cleanup-2026-04-28]], [[../lessons/lesson-select-best-bottleneck-2026-04-28]], [[phase10-g2-investigation-2026-04-29]], [[../strategies/vsg_jpy_reversal]], [[../strategies/rsk_gbpjpy_reversion]], [[../strategies/mqe_gbpusd_fix]]
+related: [[lesson-shadow-emit-dedup-2026-04-30]], [[lesson-shadow-always-emit-cleanup-2026-04-28]], [[lesson-select-best-bottleneck-2026-04-28]], [[phase10-g2-investigation-2026-04-29]], `vsg_jpy_reversal`, `rsk_gbpjpy_reversion`, `mqe_gbpusd_fix`
 ---
 
 # SHADOW_EMIT 60s dedup gate 不在による汚染データ蓄積イベント (2026-04-30)
@@ -198,8 +198,8 @@ deploy-storm leak の +8 件が dedup_violation=1 に flag、Wilson/Kelly 入力
 
 ## クロスリファレンス
 
-- 静的解析証拠: [[../lessons/lesson-shadow-emit-dedup-2026-04-30]] §1-2
-- 二次発見の構造的教訓: [[../lessons/lesson-shadow-emit-dedup-2026-04-30]] §「追記」
+- 静的解析証拠: [[lesson-shadow-emit-dedup-2026-04-30]] §1-2
+- 二次発見の構造的教訓: [[lesson-shadow-emit-dedup-2026-04-30]] §「追記」
 - 修正実装詳細: commit `6a45bb2` (gate 移植), `fbef071` (helper 抽出), `13eb929` (flag 化), `4c2bebd` (診断), **`ebf4a52` (hydration + dynamic cutoff)**
-- 前回の同種問題: [[../lessons/lesson-shadow-always-emit-cleanup-2026-04-28]]
-- 関連戦略: [[../strategies/vsg_jpy_reversal]], [[../strategies/rsk_gbpjpy_reversion]], [[../strategies/mqe_gbpusd_fix]]
+- 前回の同種問題: [[lesson-shadow-always-emit-cleanup-2026-04-28]]
+- 関連戦略: `vsg_jpy_reversal`, `rsk_gbpjpy_reversion`, `mqe_gbpusd_fix`

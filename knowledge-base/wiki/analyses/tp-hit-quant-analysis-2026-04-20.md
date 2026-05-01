@@ -141,7 +141,7 @@
 **Bonferroni 通過 5 件、ただし解釈に注意**:
 1. **mafe_favorable / mafe_adverse** は **intra-trade post-hoc 指標**。TP-hit と機構上ほぼ同義（分母=母集団から WIN を抜き出せば favorable が大きいのは当然）。**これらは再現性条件として採用しない**。
 2. **spread_at_entry が WIN で 0.08 pip 低い**（0.763 vs 0.842） — 経済的には BEV_WR=34.4% を 1pp 近く押し上げる実効的エッジ。低スプレッド時の発注が TP-hit と相関。
-3. **confidence が WIN で 1.6 低い**（負の相関！）— 直感に反するが、high-confidence ほど thin edge で失敗する可能性を示唆（[[lesson-confidence-ic-zero.md]] と整合）。
+3. **confidence が WIN で 1.6 低い**（負の相関！）— 直感に反するが、high-confidence ほど thin edge で失敗する可能性を示唆（[[lesson-confidence-ic-zero]] と整合）。
 4. **score の分布は WIN vs LOSS で統計的に識別不能**（p=0.42） — 現行 score_gate は TP-hit 予測力ゼロ。
 
 ---

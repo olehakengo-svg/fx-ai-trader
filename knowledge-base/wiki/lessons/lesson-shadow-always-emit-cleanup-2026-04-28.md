@@ -3,7 +3,7 @@ title: SHADOW_ALWAYS_STRATEGIES の無条件 emit がデータ蓄積汚染源に
 date: 2026-04-28
 type: lesson
 severity: HIGH
-related: [[lesson-shadow-vs-live-confusion-2026-04-28]], [[../decisions/sr-strategies-signal-track-2026-04-28]], [[../strategies/sr-anti-hunt-bounce]], [[../strategies/sr-liquidity-grab]]
+related: [[lesson-shadow-vs-live-confusion-2026-04-28]], [[sr-strategies-signal-track-2026-04-28]], [[sr-anti-hunt-bounce]], [[sr-liquidity-grab]]
 ---
 
 # SHADOW_ALWAYS の無条件 emit が EV<0 戦略を「自動的にデータ蓄積汚染源」にする (2026-04-28)

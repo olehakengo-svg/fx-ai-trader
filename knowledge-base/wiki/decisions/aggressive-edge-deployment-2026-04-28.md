@@ -3,7 +3,7 @@ title: 攻めの Edge Deployment — 月利100% への実装パス
 date: 2026-04-28
 type: deployment-decision
 session_ref: aggressive-edge-deployment
-related: [[live-shadow-divergence-2026-04-27]], [[../syntheses/roadmap-v2.1]]
+related: [[live-shadow-divergence-2026-04-27]], [[roadmap-v2.1]]
 ---
 
 # 攻めの Edge Deployment — Day 0 実装結果 (2026-04-28)
@@ -12,7 +12,7 @@ related: [[live-shadow-divergence-2026-04-27]], [[../syntheses/roadmap-v2.1]]
 
 P0 governance 完了後の数学的監査で、保守ルート (P0/P1 のみ) は月利45%天井で停滞、
 攻め 4 アクション並列で月利90-110%圏内到達可能と判明。
-([[../../../.claude/plans/aggressive-edge-deployment-2026-04-28]])
+(`.claude/plans/aggressive-edge-deployment-2026-04-28.md`)
 
 ## クオンツ規律
 
@@ -210,8 +210,8 @@ python3 tools/fib_reversal_subcond_audit.py
 ---
 
 ## Related
-- [[../../../.claude/plans/aggressive-edge-deployment-2026-04-28]]
+- `.claude/plans/aggressive-edge-deployment-2026-04-28.md`
 - [[live-shadow-divergence-2026-04-27]]
-- [[../syntheses/roadmap-v2.1]]
-- [[../analyses/friction-analysis]]
+- [[roadmap-v2.1]]
+- [[friction-analysis]]
 - [[edge-reset-direction-2026-04-26]]

@@ -3,7 +3,7 @@ title: SHADOW_EMIT 経路が _tick_entry の 60s dedup をバイパスしてい�
 date: 2026-04-30
 type: lesson
 severity: HIGH
-related: [[lesson-shadow-always-emit-cleanup-2026-04-28]], [[lesson-select-best-bottleneck-2026-04-28]], [[lesson-shadow-contamination]], [[../decisions/sr-strategies-signal-track-2026-04-28]]
+related: [[lesson-shadow-always-emit-cleanup-2026-04-28]], [[lesson-select-best-bottleneck-2026-04-28]], [[lesson-shadow-contamination]], [[sr-strategies-signal-track-2026-04-28]]
 ---
 
 # SHADOW_EMIT が 60s dedup をバイパスし、tick 毎に shadow を量産していた (2026-04-30)
