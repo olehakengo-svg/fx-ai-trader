@@ -62,3 +62,6 @@ node_modules/
 # ── BT results: 大きな per-trade ダンプは git 非追跡 (summary.json と result-stub.md のみ track) ──
 raw/bt-results/**/trades.json
 .remember/tmp/
+
+# ── ML model artifacts (app.py:5332-5333 writes to cwd; should never be tracked) ──
+*.pkl
