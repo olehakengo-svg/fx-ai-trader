@@ -679,6 +679,16 @@ GBP_USDは本日レジームRANGING（ATR%ile=31%）であり、session_time_bia
 GBP_USDは現在TRENDING_UP（SMA20 Slope=+0.00540）。ディープ・プルバック戦略はトレンドの強い環境では構造的に不利。ELITEステータス（BT EV=+1.064）であっても現レジームとの適合性に疑問符。
 | 累計PnL貢献 | -7.1 pips（推定） | -10.6 pips |
 
+### 2026-05-01 (Post-NY Report)
+| PnL | **-7.8 pips** |
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+### セッション別PnL比較
+| セッション | N | WR% | PnL (pips) | 評価 |
+> ※本日累計テーブルにN=14, WR=42.9%, PnL=-17.7との記載があるが、セッション合計N=12, PnL=-16.8との乖離は集計タイミング差と思われる。セッション別テーブルを採用。
+**東京セッション** — N=6, WR=50.0%, +1.6pips。ただし規模が小さく有意とは言えない。
+**ロンドンセッション** — N=5, WR=40.0%, -10.6pips。PnL単独では最大損失。EUR_USD RANGING環境下で方向性戦略が機能しなかった可能性。
+- `bb_rsi_reversion` (EUR_USD) がNY唯一のトレードでTIME_DECAY_EXIT → 反平均回帰的な値動き
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
