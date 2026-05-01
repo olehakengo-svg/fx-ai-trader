@@ -649,6 +649,16 @@ GBP_USDは本日レジームRANGING（ATR%ile=31%）であり、session_time_bia
 | 2 | **BT vs Live乖離：session_time_bias / GBP_USD** ΔWR=+26.7pp（Live WR=33.3%、N=3） | 中（N不足） |
 | 4 | **本日累計PnL乖離**（system=−4.3 pips vs London単独=+6.4 pips）の出所確認 | 中 |
 
+### 2026-05-01 (Pre-Tokyo Briefing)
+- **PnL合計**: -4.3 pips（11トレード、WR 54.5%）
+- **勝ちトレードの頭打ち**: xs_momentum +22.2、bb_rsi_reversion +6.9が牽引したが、streak_reversal -23.4の単発損失が全体を沈める
+- **実態**: 勝率は5割超だが、**最大損失(-23.4)が最大利益(+22.2)を上回るリスク非対称**が今日も継続
+| Strategy | Pair | N | WR% | EV | 判定 |
+- N=1での評価は統計的に無意味だが、USD_JPYが現在VOLATILE（ATR%ile 64%）レジームにある点と-23.4という損失規模は注目に値する
+- BT実績なし（KB: "no BT data"）の戦略がPAIR_PROMOTEDで稼働中
+- **本日の対処**: BT根拠のない戦略については、Nが積み上がるまで損失1件の重みが過大になる点を認識して監視継続
+### 課題②：session_time_bias（GBP_USD）— WR 33.3% / EV -3.33
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
