@@ -1754,10 +1754,20 @@ class DemoTrader:
                             if new_sl < sl:
                                 sl = new_sl
 
-            # ── OANDA連携: トレーリングSL変更をミラー ──
+            # ── OANDA連携 + DB 永続化 (rule:R3 BE-skip 構造バグ修正 2026-04-30) ──
+            # Shadow trade: OANDA 経由しないため modify_sl_sync は False → 旧コードでは
+            # 毎 tick で sl が _original_sl に revert され BE/Tier2 trail が機能していなかった
+            # (forensic: 高MFE→SL 22/22 件が G1 タグ pnl_r ≤ -1R 着地)。
+            # Shadow は DB に直接永続化し、Live は従来通り OANDA mirror で同期。
             if sl != _original_sl:
-                if not self._oanda.modify_sl_sync(trade_id, sl, instrument=_inst):
-                    sl = _original_sl  # OANDA失敗時はSLを元に戻す
+                _is_shadow_t = bool(trade.get("is_shadow", 0))
+                if _is_shadow_t:
+                    try:
+                        self._db.update_sl_tp(trade_id, sl, tp)
+                    except Exception:
+                        sl = _original_sl
+                elif not self._oanda.modify_sl_sync(trade_id, sl, instrument=_inst):
+                    sl = _original_sl  # Live: OANDA 同期失敗時のみ revert
 
             # ── v8.9: 含み益リアルタイム検知 (0.5秒ループ内) ──
             # 大幅含み益のDiscord通知 + Shadow含み益警告
