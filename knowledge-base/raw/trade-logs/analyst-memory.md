@@ -669,6 +669,16 @@ GBP_USDは本日レジームRANGING（ATR%ile=31%）であり、session_time_bia
 - SELL側の-9.1pipが全体PnLを圧迫。USD_JPYはSMA20 Slope=-0.00054（ほぼフラット）だが、VOLATILE環境ではモメンタム継続リスクが高い。方向バイアスなしの逆張りでSELLエントリーが下降加速に捕まった可能性。
 - TIME_DECAY_EXIT（-1.0）は戦略上許容範囲だが、ボラ高環境でのTP設定が狭い可能性も示唆。
 
+### 2026-05-01 (Post-London Report)
+| 勝率（WR） | **40.0%** |
+| 純PnL | **-10.6 pips** |
+セッション全体は赤字。gbp_deep_pullbackの1件がセッションPnLを大きく毀損。
+| 戦略 | ペア | PnL | 成功要因 |
+| 戦略 | ペア | PnL | 失敗要因 |
+| **vix_carry_unwind** | USD_JPY | -0.1 pips | BREAKEVENでSL_HIT — BT WR=67.3%に対し直近ライブWR=33.3%（🔴乖離アラート）。 |
+GBP_USDは現在TRENDING_UP（SMA20 Slope=+0.00540）。ディープ・プルバック戦略はトレンドの強い環境では構造的に不利。ELITEステータス（BT EV=+1.064）であっても現レジームとの適合性に疑問符。
+| 累計PnL貢献 | -7.1 pips（推定） | -10.6 pips |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
