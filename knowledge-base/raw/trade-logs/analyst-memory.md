@@ -659,6 +659,16 @@ GBP_USDは本日レジームRANGING（ATR%ile=31%）であり、session_time_bia
 - **本日の対処**: BT根拠のない戦略については、Nが積み上がるまで損失1件の重みが過大になる点を認識して監視継続
 ### 課題②：session_time_bias（GBP_USD）— WR 33.3% / EV -3.33
 
+### 2026-05-01 (Post-Tokyo Report)
+| WR | 50.0% |
+| PnL | **+1.6 pips** |
+| 本日累計N | 10 / WR 50.0% / +10.8 pips |
+| # | Strategy | Pair | Dir | PnL | Reason |
+| ✅ | bb_rsi_reversion | USD_JPY | BUY | +3.6 | 同上、3連続TP_HIT局面でEV貢献 |
+| # | Strategy | Pair | Dir | PnL | Reason |
+- SELL側の-9.1pipが全体PnLを圧迫。USD_JPYはSMA20 Slope=-0.00054（ほぼフラット）だが、VOLATILE環境ではモメンタム継続リスクが高い。方向バイアスなしの逆張りでSELLエントリーが下降加速に捕まった可能性。
+- TIME_DECAY_EXIT（-1.0）は戦略上許容範囲だが、ボラ高環境でのTP設定が狭い可能性も示唆。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
