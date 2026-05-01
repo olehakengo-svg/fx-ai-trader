@@ -680,7 +680,16 @@ const _stratAbbrev={
   ichimoku_cloud:'Ichi Cloud',
   pivot_bounce:'Pivot Bounce'
 };
-function normalizeStratName(raw){return _stratAbbrev[raw]||raw.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}
+function normalizeStratName(raw){
+  // Pyramid suffix " (PYR)" is appended server-side for risk-free ladder adds.
+  // Strip it before lookup, prepend 🔺 marker so it's visible at a glance.
+  const m=String(raw).match(/^(.+?)\s*\(PYR\)$/);
+  if(m){
+    const base=m[1];
+    return '🔺 '+(_stratAbbrev[base]||base.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()));
+  }
+  return _stratAbbrev[raw]||raw.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+}
 
 function setPairFilter(p){
   _ccPairFilter=p;

@@ -1624,14 +1624,26 @@ class DemoDB:
         demo_trades stores oanda_trade_id + entry_type.
         Join path: oanda_trades.oanda_trade_id → demo_trades.oanda_trade_id → demo_trades.entry_type
         Fallback: oanda_audit via demo_trade_id (for sent status records).
+        Pyramid (PYR_) resolution: pyramid OANDA trades have no demo_trades row and
+        only a 'filled' audit row whose entry_type is the MODE name (not strategy).
+        Resolve via the audit's demo_trade_id 'PYR_<parent>' → parent demo_trades row.
         """
         query = ("SELECT t.*, "
-                 "COALESCE(d.entry_type, a.entry_type) AS strategy "
+                 "COALESCE(d.entry_type, a.entry_type, "
+                 "         pd.entry_type || ' (PYR)') AS strategy "
                  "FROM oanda_trades t "
                  "LEFT JOIN demo_trades d "
                  "ON t.oanda_trade_id = d.oanda_trade_id AND d.oanda_trade_id IS NOT NULL AND d.oanda_trade_id != '' "
                  "LEFT JOIN oanda_audit a "
-                 "ON d.trade_id = a.demo_trade_id AND a.bridge_status = 'sent'")
+                 "ON d.trade_id = a.demo_trade_id AND a.bridge_status = 'sent' "
+                 "LEFT JOIN (SELECT oanda_trade_id, MIN(demo_trade_id) AS demo_trade_id "
+                 "           FROM oanda_audit "
+                 "           WHERE demo_trade_id LIKE 'PYR_%' "
+                 "           GROUP BY oanda_trade_id) a_pyr "
+                 "ON t.oanda_trade_id = a_pyr.oanda_trade_id "
+                 "LEFT JOIN demo_trades pd "
+                 "ON pd.trade_id = substr(a_pyr.demo_trade_id, 5) "
+                 "   AND pd.entry_type IS NOT NULL AND pd.entry_type != ''")
         params = []
         conditions = []
         if state and state.upper() != "ALL":
