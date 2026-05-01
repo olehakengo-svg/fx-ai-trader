@@ -1,0 +1,67 @@
+
+══════════════════════════════════════════════════════════════════════════════
+Portfolio Kelly Analysis — v1b + bb_rsi + vol_momentum
+══════════════════════════════════════════════════════════════════════════════
+LIVE trades loaded: 251
+strategy
+bb_rsi_reversion      234
+vol_momentum_scalp     17
+dtype: int64
+
+v1b BT trades (proxy): 369
+
+──────────────────────────────────────────────────────────────────────────────
+(1) Per-strategy stats (raw)
+──────────────────────────────────────────────────────────────────────────────
+  bb_rsi_reversion          N= 234  mean=-0.023  std=4.406  WR=46.6%  PF=0.99
+  vol_momentum_scalp        N=  17  mean=0.282  std=3.886  WR=52.9%  PF=1.18
+  ma_trend_perfect          N= 369  mean=1.732  std=5.706  WR=60.7%  PF=1.99
+
+──────────────────────────────────────────────────────────────────────────────
+(2) Daily PnL aggregation
+──────────────────────────────────────────────────────────────────────────────
+  Date range: 2025-10-17 → 2026-05-01
+  Strategies: ['bb_rsi_reversion', 'ma_trend_perfect', 'vol_momentum_scalp']
+  Days with any trade: 105
+
+  Daily stats:
+    bb_rsi_reversion          active_days= 16  mean=-0.338  std=18.338  Sharpe=-0.29  Kelly_s=-0.00
+    ma_trend_perfect          active_days= 95  mean=6.729  std=13.474  Sharpe=7.93  Kelly_s=0.04
+    vol_momentum_scalp        active_days=  6  mean=0.800  std=9.352  Sharpe=1.36  Kelly_s=0.01
+
+──────────────────────────────────────────────────────────────────────────────
+(3) Cross-strategy daily correlation matrix
+──────────────────────────────────────────────────────────────────────────────
+strategy            bb_rsi_reversion  ma_trend_perfect  vol_momentum_scalp
+strategy                                                                  
+bb_rsi_reversion               1.000             0.086              -0.544
+ma_trend_perfect               0.086             1.000              -0.093
+vol_momentum_scalp            -0.544            -0.093               1.000
+
+──────────────────────────────────────────────────────────────────────────────
+(4) Portfolio Kelly (multivariate)
+──────────────────────────────────────────────────────────────────────────────
+  n_days_overlap: 105
+  raw_kelly: {'bb_rsi_reversion': -0.002, 'ma_trend_perfect': 0.037, 'vol_momentum_scalp': 0.028}
+  normalized_weights: {'bb_rsi_reversion': 0.0, 'ma_trend_perfect': 0.57, 'vol_momentum_scalp': 0.43}
+  portfolio_mean_pip: 3.491
+  portfolio_std_pip: 7.362
+  portfolio_sharpe_annual: 7.528
+  individual_sharpe_annual: {'bb_rsi_reversion': -0.117, 'ma_trend_perfect': 7.456, 'vol_momentum_scalp': 0.352}
+
+──────────────────────────────────────────────────────────────────────────────
+(5) Lot allocation recommendation
+──────────────────────────────────────────────────────────────────────────────
+  Combined portfolio Sharpe: 7.528
+  Best individual Sharpe   : 7.456
+  Diversification gain     : +1.0%
+
+  Quarter-Kelly recommendation (conservative scaling 0.25):
+    bb_rsi_reversion          weight=0.00  quarter_kelly_lot=0.000
+    ma_trend_perfect          weight=0.57  quarter_kelly_lot=0.142
+    vol_momentum_scalp        weight=0.43  quarter_kelly_lot=0.107
+
+Caveats:
+  - vol_momentum_scalp N=17 LIVE — small sample, weight unreliable
+  - ma_trend_perfect N=369 BT proxy — LIVE may diverge
+  - Daily aggregation assumes intra-day hedge effects washed out

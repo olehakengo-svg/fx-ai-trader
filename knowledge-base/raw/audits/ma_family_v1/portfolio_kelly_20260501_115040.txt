@@ -1,0 +1,27 @@
+
+══════════════════════════════════════════════════════════════════════════════
+Portfolio Kelly Analysis — v1b + bb_rsi + vol_momentum
+══════════════════════════════════════════════════════════════════════════════
+LIVE trades loaded: 251
+strategy
+bb_rsi_reversion      234
+vol_momentum_scalp     17
+dtype: int64
+Traceback (most recent call last):
+  File "/Users/jg-n-012/test/fx-ai-trader/research/edge_discovery/portfolio_kelly.py", line 227, in <module>
+    main()
+  File "/Users/jg-n-012/test/fx-ai-trader/research/edge_discovery/portfolio_kelly.py", line 167, in main
+    v1b = load_v1b_bt_trades(
+  File "/Users/jg-n-012/test/fx-ai-trader/research/edge_discovery/portfolio_kelly.py", line 69, in load_v1b_bt_trades
+    df = pd.read_csv(csv_path)
+  File "/Users/jg-n-012/Library/Python/3.9/lib/python/site-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/Users/jg-n-012/Library/Python/3.9/lib/python/site-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/Users/jg-n-012/Library/Python/3.9/lib/python/site-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/Users/jg-n-012/Library/Python/3.9/lib/python/site-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/Users/jg-n-012/Library/Python/3.9/lib/python/site-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: 'knowledge-base/raw/audits/ma_family_v1/USD_JPY_trades_20260430_064233.csv'
