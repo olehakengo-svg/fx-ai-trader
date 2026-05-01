@@ -38,7 +38,7 @@ Stage 7: ELITE_LIVE   — 全ペア自動通過、ELITE_LIVE核戦略
 |------|----------|-------|-------|
 | BB extreme MR × USD_JPY | [[bb-rsi-reversion]] | Lo & MacKinlay 1988 | ~0% (thin edge) |
 | ORB fakeout reversal | [[orb-trap]] | Bulkowski 2005 | insuff (N=2) |
-| London fix reversal × GBP | [[london-fix-reversal]] | Krohn 2024 | insuff (N蓄積中) |
+| London fix reversal × GBP | ~~london-fix-reversal~~ (DEMOTED v9.1 — 365d BT GBP EV=-0.239 WR=47.4% で PAIR_PROMOTED 削除、現状 Phase0 Shadow Gate / USD_JPY PAIR_DEMOTED。詳細: `wiki/strategies/london-fix-reversal.md`) | Krohn 2024 | insuff (N蓄積中) |
 
 ### Stage 4: SENTINEL
 | Edge | Strategy | Paper | Status |

@@ -13,7 +13,7 @@ Priority 2 (PAIR_PROMOTED 候補抽出) を **post-P1 データ蓄積を待っ�
 - post-P1 新規 shadow (score_gate バイパス対象) と比較する**基準点**として保存
 - 1〜2 週間後に P2 を再実行する際、分布シフトの有無を判定する対照データ
 
-参照: ~~[[lesson-bt-live-divergence]]~~ の "6つの構造的楽観バイアス"、[[lesson-orb-trap-bt-divergence]] (サンプル窓バイアス)
+参照: ~~[[bt-live-divergence]]~~ の "6つの構造的楽観バイアス"、[[lesson-orb-trap-bt-divergence]] (サンプル窓バイアス)
 
 ## Aggregate (全体)
 
@@ -200,7 +200,7 @@ P2 (SSOT drift fix) merge + deploy 後の実測 (commit `6438d02`):
 
 - [[lesson-sentinel-n-measurement-bug]] — 今回の baseline を取るためのツール (P3)
 - [[lesson-sentinel-score-gate-gap]] — P1、shadow 蓄積加速策
-- ~~[[lesson-bt-live-divergence]]~~ — 6つの構造的楽観バイアス
+- ~~[[bt-live-divergence]]~~ — 6つの構造的楽観バイアス
 - [[lesson-orb-trap-bt-divergence]] — 短期BT符号反転事例
 - [[pair-promoted-candidates-2026-04-20]] — P2 初回分析 (復活候補ゼロ判定、本ベースラインで再検証予定)
 - [[tier-master]] — 現行 Tier 分類 (Source of Truth)

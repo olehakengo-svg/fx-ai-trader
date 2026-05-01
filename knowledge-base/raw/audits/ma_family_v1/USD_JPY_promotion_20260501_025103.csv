@@ -1,0 +1,5 @@
+strategy,session,n,wr_pct,wilson_lo_pct,ev_pips,pf,kelly,p_value,bev_wr,c1_wf_all_pf_gt1_3,c2_bh_significant,c3_wilson95_gt_10pct,c4_kelly_gt_0_10,c5_n_ge_30,promote_to_live
+ma_trend_perfect,Tokyo,91,73.63,63.75,2.933,3.842,54.4634,1e-05,0.5069,True,True,True,True,True,True
+ma_trend_perfect,London,99,59.6,49.75,1.666,1.972,29.3754,0.05033,0.5086,True,False,True,True,True,False
+ma_trend_perfect,NY,124,61.29,52.5,2.052,2.19,33.3093,0.00545,0.4949,True,True,True,True,True,True
+ma_trend_perfect,ALL,369,60.7,55.64,1.732,1.988,30.1691,0.00026,0.5157,True,False,True,True,True,False

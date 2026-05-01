@@ -1,0 +1,134 @@
+[
+  {
+    "pair": "USD_JPY",
+    "spread": 0.8,
+    "n": 369,
+    "wr": 60.7,
+    "pf": 1.988,
+    "kelly": 30.169,
+    "ev": 1.732,
+    "wilson_lo": 55.64,
+    "cells": [
+      {
+        "session": "Tokyo",
+        "n": 91,
+        "wr_pct": 73.63,
+        "ev_pips": 2.933,
+        "pf": 3.842,
+        "pair": "USD_JPY"
+      },
+      {
+        "session": "London",
+        "n": 99,
+        "wr_pct": 59.6,
+        "ev_pips": 1.666,
+        "pf": 1.972,
+        "pair": "USD_JPY"
+      },
+      {
+        "session": "NY",
+        "n": 124,
+        "wr_pct": 61.29,
+        "ev_pips": 2.052,
+        "pf": 2.19,
+        "pair": "USD_JPY"
+      },
+      {
+        "session": "ALL",
+        "n": 369,
+        "wr_pct": 60.7,
+        "ev_pips": 1.732,
+        "pf": 1.988,
+        "pair": "USD_JPY"
+      }
+    ]
+  },
+  {
+    "pair": "EUR_USD",
+    "spread": 0.5,
+    "n": 373,
+    "wr": 51.74,
+    "pf": 1.45,
+    "kelly": 15.897,
+    "ev": 0.821,
+    "wilson_lo": 46.68,
+    "cells": [
+      {
+        "session": "Tokyo",
+        "n": 66,
+        "wr_pct": 48.48,
+        "ev_pips": 0.365,
+        "pf": 1.215,
+        "pair": "EUR_USD"
+      },
+      {
+        "session": "London",
+        "n": 99,
+        "wr_pct": 59.6,
+        "ev_pips": 1.493,
+        "pf": 2.015,
+        "pair": "EUR_USD"
+      },
+      {
+        "session": "NY",
+        "n": 159,
+        "wr_pct": 54.09,
+        "ev_pips": 1.175,
+        "pf": 1.634,
+        "pair": "EUR_USD"
+      },
+      {
+        "session": "ALL",
+        "n": 373,
+        "wr_pct": 51.74,
+        "ev_pips": 0.821,
+        "pf": 1.45,
+        "pair": "EUR_USD"
+      }
+    ]
+  },
+  {
+    "pair": "GBP_USD",
+    "spread": 0.7,
+    "n": 385,
+    "wr": 55.32,
+    "pf": 1.527,
+    "kelly": 19.033,
+    "ev": 1.151,
+    "wilson_lo": 50.33,
+    "cells": [
+      {
+        "session": "Tokyo",
+        "n": 88,
+        "wr_pct": 60.23,
+        "ev_pips": 1.322,
+        "pf": 1.899,
+        "pair": "GBP_USD"
+      },
+      {
+        "session": "London",
+        "n": 95,
+        "wr_pct": 60.0,
+        "ev_pips": 1.938,
+        "pf": 2.041,
+        "pair": "GBP_USD"
+      },
+      {
+        "session": "NY",
+        "n": 142,
+        "wr_pct": 59.86,
+        "ev_pips": 2.021,
+        "pf": 2.016,
+        "pair": "GBP_USD"
+      },
+      {
+        "session": "ALL",
+        "n": 385,
+        "wr_pct": 55.32,
+        "ev_pips": 1.151,
+        "pf": 1.527,
+        "pair": "GBP_USD"
+      }
+    ]
+  }
+]

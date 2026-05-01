@@ -2,7 +2,7 @@
 title: SR Anti-Hunt-Bounce / Liquidity-Grab — signal-to-trade pipeline gap (G3 N=0 root cause)
 date: 2026-04-28
 type: bug-finding + architectural-proposal
-related: [[live-thaw-gate-2026-04-27]], [[../strategies/sr-anti-hunt-bounce]]
+related: [[live-thaw-gate-2026-04-27]], [[sr-anti-hunt-bounce]]
 ---
 
 # SR strategies が Shadow trade を生成しない根本原因 (2026-04-28)

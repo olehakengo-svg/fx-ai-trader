@@ -4,7 +4,7 @@ date: 2026-04-28
 type: lesson
 severity: HIGH
 recurrence: 4th
-related: [[lesson-asymmetric-agility-2026-04-25]], [[lesson-agent-snapshot-bias-2026-04-28]], [[../syntheses/roadmap-v2.1]]
+related: [[lesson-asymmetric-agility-2026-04-25]], [[lesson-agent-snapshot-bias-2026-04-28]], [[roadmap-v2.1]]
 ---
 
 # Shadow vs Live コスト構造の混同 (2026-04-28)
@@ -81,8 +81,8 @@ CLAUDE.md は既に明示している:
 
 - [[lesson-asymmetric-agility-2026-04-25]] (Rule 1/2/3 — fast/slow ルート)
 - [[lesson-agent-snapshot-bias-2026-04-28]] (前回の自己訂正)
-- [[../syntheses/roadmap-v2.1]] (Gate 1 = Kelly>0 を「発掘待ち」と誤読)
-- [[../decisions/aggressive-edge-deployment-2026-04-28]] (user 方針)
+- [[roadmap-v2.1]] (Gate 1 = Kelly>0 を「発掘待ち」と誤読)
+- [[aggressive-edge-deployment-2026-04-28]] (user 方針)
 
 ## CLAUDE.md 追記推奨 (別タスクで spawn 済)
 

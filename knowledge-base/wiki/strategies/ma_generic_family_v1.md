@@ -319,3 +319,74 @@ v1b LIVE 検証完了 (2026-05-30) を待ってから着手:
 - 2026-04-30 (same day): 90d 4 戦略 + 180d v1b 単独 BT 完了。v1b Tokyo/NY が
   rule:R1 昇格条件完全達成 (BH q<0.05、Kelly>30%、Wilson95>50%)。
   Pre-reg LOCK 候補に確定。--strategies フィルタを runner に追加。
+
+## LOCK 期間中の独立タスク (2026-05-01〜)
+
+### Phase B Daily Monitor (Tier 1 ①)
+
+スクリプト: `research/edge_discovery/v1b_phase_b_monitor.py`
+出力: `knowledge-base/raw/audits/ma_family_v1/phase_b_monitor/phase_b_<YYYY-MM-DD>.md`
+
+毎日自動評価:
+- Render API `/api/demo/trades` から ma_trend_perfect LIVE trades fetch
+- Tokyo / London / NY cell ごとの Wilson95下限 計算
+- LOCK Failure Conditions #1, #2, #4, #5, #6 評価
+- ATR 14d M15 平均をローカル parquet から自動計算 (Failure #6)
+
+Initial run (2026-05-01, LOCK day 1/30):
+- v1b LIVE N=0 (デプロイ直後)
+- ATR 14d M15 = 0.0907 << 0.1441 ✅ Failure #6 pass
+- 直近環境は f3 baseline より低 vol = v1b に追い風
+
+### Cross-pair Generalization BT (Tier 2 ④, 2026-05-01)
+
+スクリプト: `research/edge_discovery/v1b_cross_pair_bt.py`
+
+180d BT × pair-specific spread (USD_JPY=0.8, EUR_USD=0.5, GBP_USD=0.7):
+
+| Pair | N | WR | PF | Kelly | Wilson95下限 | Verdict |
+|---|---|---|---|---|---|---|
+| **USD_JPY** | 369 | 60.7% | 1.99 | 30.2% | **55.6%** | 🎯 STRUCTURAL EDGE |
+| **GBP_USD** | 385 | 55.3% | 1.53 | 19.0% | **50.3%** | 🎯 STRUCTURAL EDGE |
+| EUR_USD | 373 | 51.7% | 1.45 | 15.9% | 46.7% | ✅ Generalizes |
+
+**Session-level 一貫性**: 3 pair すべて London + NY で PF>1.6。
+
+**重要発見**: v1b は **USD_JPY 特化 overfit ではなく汎用 trend-follow edge**。
+仮説 (M15 大循環 + M5 EMA21 再ブレイクは asset-class agnostic な短期 trend
+persistence 捕捉) が 3 pair 独立評価で 3/3 通過。
+
+### Phase D 横展開計画 (v1b LIVE 昇格後)
+
+Phase B (2026-05-30) クリア後、Phase C (USD_JPY LIVE) 30d を経て Phase D で:
+1. **GBP_USD 横展開**: Wilson 50.3% で promotion 閾値クリア、優先候補
+2. **EUR_USD 検証継続**: Wilson 46.7% でボーダー、LIVE Shadow N≥30 で再判定
+3. **3-pair portfolio Sharpe**: combined で単独 USD_JPY を上回る期待
+
+### Portfolio Kelly Analysis (Tier 2 ③, 2026-05-01)
+
+スクリプト: `research/edge_discovery/portfolio_kelly.py`
+
+LIVE データ + v1b BT proxy で portfolio 最適化:
+
+| 戦略 | N | mean pip | std pip | daily Sharpe (annual) | Kelly weight |
+|---|---|---|---|---|---|
+| bb_rsi_reversion | 234 LIVE | -0.023 | 4.41 | -0.117 | **0.00** |
+| vol_momentum_scalp | 17 LIVE | +0.282 | 3.89 | +0.352 | 0.43 |
+| ma_trend_perfect (BT proxy) | 369 | +1.732 | 5.71 | +7.456 | **0.57** |
+
+**重要発見**:
+- bb_rsi_reversion は **集計 LIVE level で break-even 以下** (mean -0.023 pip)。
+  LIVE Kelly 0.43 は cell-level (USD_JPY × London) のみで、aggregate ではエッジ消失
+- ma_trend_perfect 単独 Sharpe 7.46 vs portfolio 7.53 = diversification gain +1.0%
+- v1b に集中するのが defensible (vol_momentum N=17 不確実、bb_rsi は dilution)
+
+**Quarter-Kelly 推奨 lot allocation** (Phase C 開始時):
+- ma_trend_perfect: 0.142 lot (= 0.57 weight × 0.25 conservative scaling)
+- vol_momentum_scalp: 0.107 lot (Phase C で N≥30 確認後)
+- bb_rsi_reversion: 0.000 lot (aggregate level でエッジなし)
+
+Caveats:
+- v1b は BT proxy、LIVE divergence prior 30-50% Sharpe haircut 想定
+- daily aggregation は intra-day hedge を前提
+- 105 days overlap、半年 LIVE で更新推奨

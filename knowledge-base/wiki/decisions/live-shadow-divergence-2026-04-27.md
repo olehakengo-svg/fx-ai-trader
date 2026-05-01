@@ -163,8 +163,8 @@ Live total without ±largest both       = +40.7 pip
 - VPIN/GARCH/CS-MR 実装 (edge-witty-umbrella P2 dependency)
 
 ## Related
-- [[../syntheses/roadmap-v2.1]]
-- [[../analyses/friction-analysis]]
-- [[../analyses/bt-live-divergence]]
+- [[roadmap-v2.1]]
+- [[friction-analysis]]
+- [[bt-live-divergence]]
 - [[edge-reset-direction-2026-04-26]]
 - [[external-audit-2026-04-24]]

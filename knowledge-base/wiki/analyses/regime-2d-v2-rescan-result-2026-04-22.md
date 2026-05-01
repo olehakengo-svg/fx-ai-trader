@@ -62,7 +62,7 @@ Pre-register §3 は「独立 Fisher test 数に応じた Bonferroni」を採用
 ### fib_reversal FAIL の解釈
 - N=10/9 は小-N （Wilson 95%CI: BUY [5.7, 51.0], SELL [2.0, 43.5] — CI 完全重複）
 - 符号反転は **noise 範囲内**と判定
-- ただし ~~[[lesson-partial-quant-trap]]~~ と整合的: 小-N BT を ground truth と誤認する危険
+- ただし ~~`lesson-partial-quant-trap` (MEMORY: 部分的クオンツの罠)~~ と整合的: 小-N BT を ground truth と誤認する危険
 - **アクション**: 現状の REGIME_ADAPTIVE 設定（fib_reversal: tu=MR, td=TF）は変更しない。post-cutoff N が各 regime で ≥30 に蓄積した時点で Audit B パターンで再検証
 
 ---
@@ -102,8 +102,8 @@ Pre-register §3 は「独立 Fisher test 数に応じた Bonferroni」を採用
 
 - Preregister: [[regime-2d-v2-preregister-2026-04-20]]
 - Parallel track: [[spread-entry-gate-preregister-2026-04-22]]
-- Backfill prerequisite: [[../raw/mtf-backfill-guide-2026-04-20|mtf-backfill-guide]]
-- Lesson: ~~[[lesson-partial-quant-trap]]~~, [[lesson-reactive-changes]]
+- Backfill prerequisite: [[mtf-backfill-guide-2026-04-20|mtf-backfill-guide]]
+- Lesson: ~~`lesson-partial-quant-trap` (MEMORY: 部分的クオンツの罠)~~, [[lesson-reactive-changes]]
 - TP-hit analysis (same-day): [[tp-hit-quant-analysis-2026-04-20]]
 
 ---

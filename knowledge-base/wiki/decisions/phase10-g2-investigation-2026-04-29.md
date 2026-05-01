@@ -4,10 +4,10 @@ phase: Phase 10 G2
 rule: R3
 status: in-progress (1/3 strategies committed)
 related:
-  - "~~[[../../../raw/audits/never_logged_diagnosis_2026-04-28]]~~"
-  - "~~[[../../../raw/audits/production_routing_audit_2026-04-28]]~~"
-  - "[[../lessons/lesson-select-best-bottleneck-2026-04-28]]"
-  - "[[../lessons/lesson-shadow-always-emit-cleanup-2026-04-28]]"
+  - "~~raw/audits/never_logged_diagnosis_2026-04-28~~ (file not present)"
+  - "~~raw/audits/production_routing_audit_2026-04-28~~ (file not present)"
+  - "[[lesson-select-best-bottleneck-2026-04-28]]"
+  - "[[lesson-shadow-always-emit-cleanup-2026-04-28]]"
 ---
 
 # Phase 10 G2: NEVER_LOGGED 3 戦略 production routing 修正

@@ -25,7 +25,7 @@
 - **bb-rsi-reversion strategy KB**: v11.1 RR floor セクション追加、Status に OANDA_TRIP 明記、Rule 2 監視閾値記載
 - **dt_bb_rsi_mr 適用見送り**: WR データ不在 + 0.01 lot Sentinel + MIN_RR=1.2 既存ガード → Rule 1 経路で順次対応
 - **OANDA TRIP 維持**: `BB_RSI_OANDA_TRIP=1` 解除しない. Live PnL 直接影響ゼロ
-- **Lint 結果**: 7 target files / 119 actual wikilinks 全 resolved (broken=0). 唯一の "broken" は `[[lesson-名前]]` テンプレートプレースホルダ (既存)
+- **Lint 結果**: 7 target files / 119 actual wikilinks 全 resolved (broken=0). 唯一の "broken" は `lesson-名前` テンプレートプレースホルダ (既存)
 - **問題なし**: ⚠️ フラグ無し
 
 ## 2026-04-25 (wiki-lint): TP-hit grid 分析 + stale unresolved 整理

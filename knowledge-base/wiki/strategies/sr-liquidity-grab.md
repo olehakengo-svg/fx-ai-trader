@@ -23,8 +23,8 @@
 → R2 適用で SHADOW_ALWAYS_STRATEGIES から除外。
 
 ## 教訓
-- [[../lessons/lesson-shadow-always-emit-cleanup-2026-04-28]]
-- [[../lessons/lesson-data-source-production-first-2026-04-28]]
+- [[lesson-shadow-always-emit-cleanup-2026-04-28]]
+- [[lesson-data-source-production-first-2026-04-28]]
 
 ## 攻めの姿勢
 audit weak pair も Live で確認。Shadow data 蓄積 → 30 trade で per-pair PAIR_PROMOTED 判定。

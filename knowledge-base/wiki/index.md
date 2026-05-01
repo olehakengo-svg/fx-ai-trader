@@ -38,7 +38,7 @@
 ### SHADOW (Data Collection)
 | Strategy | BT Data | Notes |
 |----------|---------|-------|
-| [[bb-rsi-ema-aligned]] | no BT data | SCALP_SENTINEL |
+| `bb-rsi-ema-aligned` | no BT data | SCALP_SENTINEL |
 | [[bb-rsi-reversion]] | no BT data | SCALP_SENTINEL |
 | [[dt-sr-channel-reversal]] | EUR_JPY: EV=+0.178 WR=63.8% | UNIVERSAL_SENTINEL |
 | [[eurgbp-daily-mr]] | no BT data | UNIVERSAL_SENTINEL |
@@ -48,9 +48,9 @@
 | [[london-close-reversal]] | no BT data | UNIVERSAL_SENTINEL |
 | [[london-close-reversal-v2]] | no BT data | UNIVERSAL_SENTINEL |
 | [[london-ny-swing]] | GBP_USD: EV=+0.362 WR=72.7% | LOT_BOOST (not sentinel/elite) |
-| [[ma-mr-hybrid]] | no BT data | SCALP_SENTINEL |
-| [[ma-regime-switch]] | no BT data | SCALP_SENTINEL |
-| [[ma-trend-perfect]] | no BT data | SCALP_SENTINEL |
+| `ma-mr-hybrid` | no BT data | SCALP_SENTINEL |
+| `ma-regime-switch` | no BT data | SCALP_SENTINEL |
+| `ma-trend-perfect` | no BT data | SCALP_SENTINEL |
 | [[mtf-counter-trend-scalp]] | no BT data | SCALP_SENTINEL |
 | [[mtf-regime-range-cascade-scalp]] | no BT data | SCALP_SENTINEL |
 | [[mtf-regime-trend-cascade-scalp]] | no BT data | SCALP_SENTINEL |
@@ -138,6 +138,7 @@
 - [[sessions/handover-2026-04-22]] — **🎯 次セッション引き継ぎ** 2026-04-22 総括: TP-hit 分析 + Scalp vwap_mr バグ修正 + Exposure/Resend fix + OSS 横断調査/qlib/pybroker 転用
 - [[sessions/handover-tp-hit-quant-analysis-2026-04-21]] — **🎯 次セッション引き継ぎ #2** TP-hit 698件 quant 分析 (family-wise noise 結論、3副次発見: score 予測力ゼロ / confidence 負相関 / spread edge 有意)
 - [[sessions/2026-04-22-session]] — TP-hit quant 分析 (research only, 実装なし) + KB ドキュメンテーション強化
+- [[sessions/vwap-mr-live-analysis-2026-04-22]] — vwap_mean_reversion 全 trade Live 実測深部分析 (LIVE + Shadow)
 - [[sessions/handover-shadow-deep-analysis-2026-04-21]] — **🎯 次セッション引き継ぎ** Shadow 全戦略 TP/SL 分析 + 戦略分割
 - [[sessions/2026-04-21-session]] — Attack A (bb_squeeze×USD_JPY PAIR_PROMOTED) + Attack B (negative戦略止血条件) + Tier1 BT validation + Quant深部検証
 - [[sessions/2026-04-20-session]] — Sentinel score_gate bypass (P1) + N measurement fix (P3) + KB drift fix (P4) + shadow baseline analysis + resend-shadow-leak fix
@@ -190,8 +191,8 @@
 - [[bt-live-divergence-scan-2026-04-22]] / [[bt-live-divergence-v3-full-stack-2026-04-22]] — 365d JPY DT + 180d Scalp fresh BT
 
 ### Trade Logs
-- [[2026-04-29]] — daily summary (auto-generated 2026-04-29)
-- ~~[[2026-04-27]]~~ — daily summary (auto-generated 2026-04-27)
+- [[2026-04-29-session]] — daily summary (auto-generated 2026-04-29)
+- ~~`2026-04-27`~~ — daily summary (auto-generated 2026-04-27, no daily file present)
 - [[2026-04-27-monitor]] / [[2026-04-27-pre_tokyo]] / [[2026-04-27-post_tokyo]]
 - [[2026-04-24]] — daily summary (auto-generated 2026-04-24)
 - [[2026-04-23]] — daily summary (auto-generated 2026-04-23)
