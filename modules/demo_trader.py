@@ -3044,6 +3044,16 @@ class DemoTrader:
         _is_slot_shadow_eligible = True  # v8.9: 全戦略がスロットbypass可能
         _is_shadow = False  # 実際にフィルターをバイパスした場合にTrueになる
 
+        # ── Phase 2 resolution (2026-04-30, rule:R3): Layer 0 force_shadow ──
+        # is_trade_prohibited() now returns force_shadow=True for UTC 22-23
+        # instead of prohibited=True. This unblocks deep-night strategies
+        # (gotobi_fix, LCR_v2, pd_eurjpy_h20_bbpb3_sell) that were silenced
+        # for 30 days while still keeping LIVE exposure off until shadow
+        # Wilson_lo evidence accumulates. See audit/2026-04-30/bot-uptime-heatmap.md.
+        _layer0_force_shadow = sig.get("layer_status", {}).get("layer0", {}).get("force_shadow", False)
+        if _layer0_force_shadow:
+            _is_shadow = True
+
         # ── 通貨ペア×モードクラス別ポジション制限 ──
         # scalp/DT/1H/swingが独立してポジションを持てる
         # scalp: 高頻度のため2本まで（シグナル方向転換に対応）

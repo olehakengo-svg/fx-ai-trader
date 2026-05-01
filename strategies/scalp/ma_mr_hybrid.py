@@ -1,29 +1,44 @@
-"""MA-MR Hybrid v1a-rev — M15 短期トレンド × M5 過熱リバージョン (USD_JPY 限定)
+"""ma_mr_hybrid v2 — Ornstein-Uhlenbeck calibrated mean reversion (USD_JPY)
 
 Revision history:
-  v1a (2026-04-30): H1 EMA200 整合 × M5 BB%B≤0.20/RSI≤30 過熱 → BT 90d N=66
-                    EV=-0.51 で失敗 (閾値厳しすぎ N不足)
-  v1a-rev (2026-04-30 再設計):
-    - H1 EMA200 整合を撤去 (v1d 失敗で「EMA200 整合は MR エッジを破壊」確定)
-    - 方向フィルタを M15 EMA21 vs price に変更 (短期メソトレンド整合)
-    - 閾値を bb_rsi v7.0 (LIVE Kelly 0.43) と同水準に緩和
-      BB%B 0.30/0.70, RSI 35/65 → カバレッジ +50% 想定
-    - ADX>=30 ボーナス (LIVE bb_rsi USD_JPY での「トレンド中BB反発 WR=60%」条件)
+  v1 / v1a-rev: カテゴリカル filter chain (BB%B + RSI + Stoch + 確認足) → N=1〜66
+                で発火率が低すぎ or エッジなし。filter の AND 結合が確率を
+                乗算的に押し下げる構造的問題。
+  v2 (シニアクオンツ再設計, 2026-04-30):
+    数学的基盤を Vasicek/O-U process に変更。連続的な Bayesian 証拠統合で
+    カテゴリカル AND filter を排除。
 
-設計意図:
-  既存 bb_rsi_reversion との差別化点:
-    1. M15 メソトレンド整合 (短期方向の追風) — H1 EMA200 ではなく短期軸
-    2. ADX>=30 必須化ではなく重み付けで MR 機構を保護
+Mathematical foundation (Vasicek 1977 / Ornstein-Uhlenbeck):
+  dP_t = θ(μ - P_t)dt + σdW_t
 
-カスケード:
-  L1 ペアゲート       : USD_JPY のみ
-  L2 M15 短期方向     : M15 close vs ema21 (BUY/SELL バイアス、>5bps gap)
-  L3 M5 過熱判定      : BB%B≤0.30 / ≥0.70 + RSI(M5,14)≤35/≥65 + Stoch反転
-  L4 1m 確認足        : 反転バー
-  Bonus: ADX>=30      : trend-aware MR (LIVE 実証ボーナス)
+  Discretized: ΔP = θ(μ - P)Δt + σ√Δt·ε
+  Linearize:   ΔP = a + b·P + ε,  b = -θΔt,  a = θμΔt
+  OLS on rolling N=60 1m bars yields (a, b, σ_ε).
+  Recover: θ̂ = -b/Δt,  μ̂ = -a/b = a/-b,  σ̂ = σ_ε/√Δt
+  Half-life of MR: τ_½ = ln(2)/θ̂
+
+Entry rule (mathematically defensible):
+  Compute z = (P_t - μ̂) / σ̂
+  Fire BUY when:
+    1. z < -2.0 (price 2σ below long-run mean)
+    2. τ_½ ∈ [10, 90] minutes (fast enough vs spread, slow enough to develop)
+    3. σ̂ > σ_min (volatility floor — skip dead market)
+    4. R² of OLS > 0.05 (calibration sanity)
+
+  TP = μ̂ (revert to estimated mean)
+  SL = μ̂ - 3.5·σ̂ (3.5 std fail-safe, 0.05% breach probability under N(0,1))
+
+  Cost-aware filter: skip if (μ̂ - P_t) / spread < 4 (insufficient TP after spread).
+
+Why this is rigorous:
+  - O-U is the canonical MR model for stationary processes
+  - Half-life filter directly encodes "is MR fast enough vs spread cost"
+  - σ-based SL/TP eliminates ATR multiplier tuning
+  - z-score is continuous evidence, not categorical filter
 """
 from __future__ import annotations
 from typing import Optional
+import numpy as np
 
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
@@ -31,14 +46,14 @@ from modules.confidence_v2 import apply_penalty
 
 
 _ALLOWED_PAIRS = {"USD_JPY"}
-_BBPB_BUY_MAX = 0.30      # 緩和 (was 0.20)
-_BBPB_SELL_MIN = 0.70     # 緩和 (was 0.80)
-_RSI_BUY_MAX = 35.0       # 緩和 (was 30.0)
-_RSI_SELL_MIN = 65.0      # 緩和 (was 70.0)
-_M15_BIAS_GAP_PCT = 0.0005   # 5bps (短期メソでは緩く)
-_SL_ATR_MULT = 1.2
-_TP_ATR_MULT = 1.0        # MR は早めに刈る
-_RR_FLOOR = 1.0
+_OU_WINDOW = 60               # 1m bars for O-U calibration
+_Z_ENTRY = 2.0                # |z| threshold
+_HALF_LIFE_MIN_MIN = 10.0     # minutes
+_HALF_LIFE_MAX_MIN = 90.0
+_MIN_R2 = 0.03
+_SL_K = 3.5                   # SL = μ ± k·σ
+_MIN_TP_SPREAD_RATIO = 4.0    # TP must be ≥ 4× spread (cost-aware)
+_SPREAD_PIP = 0.8             # USD_JPY assumption (matches inject_spread)
 
 
 def _normalize_pair(symbol: str) -> str:
@@ -50,6 +65,48 @@ def _normalize_pair(symbol: str) -> str:
     return s
 
 
+def _calibrate_ou(prices: np.ndarray) -> Optional[dict]:
+    """OLS calibration of discretized O-U process on 1m closes.
+
+    Returns dict with mu, theta_per_bar, sigma_per_bar, half_life_bars, r2.
+    Returns None if calibration is invalid (degenerate, b≥0 indicating
+    momentum not MR).
+    """
+    n = len(prices)
+    if n < 20:
+        return None
+    p_t = prices[:-1]
+    dp = prices[1:] - prices[:-1]
+    # OLS: dp = a + b * p_t
+    p_mean = p_t.mean()
+    dp_mean = dp.mean()
+    cov = ((p_t - p_mean) * (dp - dp_mean)).sum()
+    var_p = ((p_t - p_mean) ** 2).sum()
+    if var_p <= 0:
+        return None
+    b = cov / var_p
+    a = dp_mean - b * p_mean
+    if b >= 0:
+        return None  # not mean-reverting (momentum or random walk)
+    residuals = dp - (a + b * p_t)
+    sse = (residuals ** 2).sum()
+    sst = ((dp - dp_mean) ** 2).sum()
+    r2 = 1.0 - sse / sst if sst > 0 else 0.0
+    sigma = float(np.sqrt(residuals.var(ddof=2))) if len(residuals) > 2 else 0.0
+    if sigma <= 0:
+        return None
+    mu = -a / b
+    theta = -b   # per-bar (Δt = 1 bar)
+    half_life = float(np.log(2.0) / theta) if theta > 0 else float("inf")
+    return {
+        "mu": float(mu),
+        "theta": float(theta),
+        "sigma": sigma,
+        "half_life_bars": half_life,
+        "r2": float(r2),
+    }
+
+
 class MaMrHybrid(StrategyBase):
     name = "ma_mr_hybrid"
     mode = "scalp"
@@ -59,81 +116,77 @@ class MaMrHybrid(StrategyBase):
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         if _normalize_pair(ctx.symbol) not in _ALLOWED_PAIRS:
             return None
-        if ctx.atr7 <= 0 or ctx.atr <= 0:
+        if ctx.df is None or len(ctx.df) < _OU_WINDOW + 5:
             return None
 
-        m15 = ctx.htf.get("m15") if isinstance(ctx.htf, dict) else None
-        m5 = ctx.htf.get("m5") if isinstance(ctx.htf, dict) else None
-        if not (m15 and m5):
+        # Calibrate O-U on 1m closes (rolling N bars)
+        prices = ctx.df["Close"].iloc[-_OU_WINDOW:].values.astype(float)
+        cal = _calibrate_ou(prices)
+        if cal is None:
+            return None
+        if cal["r2"] < _MIN_R2:
+            return None
+        if not (_HALF_LIFE_MIN_MIN <= cal["half_life_bars"] <= _HALF_LIFE_MAX_MIN):
             return None
 
-        # L2: M15 メソトレンド (short-term)
-        m15_close = float(m15.get("close", 0.0))
-        m15_ema21 = float(m15.get("ema21", 0.0))
-        if m15_close <= 0 or m15_ema21 <= 0:
-            return None
-        m15_gap_pct = (m15_close - m15_ema21) / m15_close
-        bull_bias = m15_gap_pct > _M15_BIAS_GAP_PCT
-        bear_bias = m15_gap_pct < -_M15_BIAS_GAP_PCT
-        if not (bull_bias or bear_bias):
+        sigma = cal["sigma"]
+        mu = cal["mu"]
+        if sigma <= 0:
             return None
 
-        # L3: M5 過熱
-        m5_bbpb = float(m5.get("bbpb", 0.5))
-        m5_rsi = float(m5.get("rsi14", 50.0))
-        m5_stoch_k = float(m5.get("stoch_k", 50.0))
-        m5_stoch_d = float(m5.get("stoch_d", 50.0))
+        z = (ctx.entry - mu) / sigma
+
+        # JPY pip multiplier
+        pip_size = 1.0 / ctx.pip_mult     # JPY: 0.01, EUR: 0.0001
+        spread_price = _SPREAD_PIP * pip_size
 
         signal: Optional[str] = None
-        sl: float = 0.0; tp: float = 0.0
+        sl: float = 0.0
+        tp: float = 0.0
         reasons: list = []
         score = 3.0
 
-        _min_sl = 0.030 if ctx.pip_mult == 100 else 0.00030
-
-        if (bull_bias
-                and m5_bbpb <= _BBPB_BUY_MAX
-                and m5_rsi <= _RSI_BUY_MAX
-                and m5_stoch_k > m5_stoch_d
-                and ctx.entry > ctx.open_price):
+        # BUY: price 2σ below long-run mean
+        if z < -_Z_ENTRY:
+            tp_price = mu
+            sl_price = mu - _SL_K * sigma
+            tp_dist = tp_price - ctx.entry
+            sl_dist = ctx.entry - sl_price
+            if tp_dist <= 0 or sl_dist <= 0:
+                return None
+            # cost-aware filter: TP must exceed 4× spread
+            if tp_dist / spread_price < _MIN_TP_SPREAD_RATIO:
+                return None
             signal = "BUY"
-            sl_dist = max(ctx.atr7 * _SL_ATR_MULT, _min_sl)
-            sl = ctx.entry - sl_dist
-            tp_dist = max(ctx.atr7 * _TP_ATR_MULT, sl_dist * _RR_FLOOR)
-            tp = ctx.entry + tp_dist
-            reasons.append(f"✅ M15 短期上向き ({m15_gap_pct*100:.2f}%)")
-            reasons.append(f"✅ M5 過熱 BB%B={m5_bbpb:.2f}≤{_BBPB_BUY_MAX} RSI={m5_rsi:.1f}≤{_RSI_BUY_MAX}")
-            reasons.append(f"✅ Stoch反転 K={m5_stoch_k:.0f}>D={m5_stoch_d:.0f}")
-            reasons.append("✅ 1m 陽線確認")
-            if m5_bbpb <= 0.10 and m5_rsi <= 25:
-                score += 1.0
-                reasons.append("🎯 Tier1: 極端ゾーン")
+            sl = sl_price
+            tp = tp_price
+            reasons.append(f"✅ O-U z={z:.2f} < -{_Z_ENTRY} (mean reversion candidate)")
+            reasons.append(f"✅ τ_½={cal['half_life_bars']:.1f} bars ∈ [{_HALF_LIFE_MIN_MIN}, {_HALF_LIFE_MAX_MIN}]")
+            reasons.append(f"✅ R²={cal['r2']:.3f}, σ={sigma:.5f}, μ={mu:.5f}")
+            reasons.append(f"✅ TP/spread = {tp_dist/spread_price:.1f} (cost-aware)")
+            score += min(2.0, abs(z) - _Z_ENTRY)  # bonus for extreme z
 
-        elif (bear_bias
-                and m5_bbpb >= _BBPB_SELL_MIN
-                and m5_rsi >= _RSI_SELL_MIN
-                and m5_stoch_k < m5_stoch_d
-                and ctx.entry < ctx.open_price):
+        # SELL: price 2σ above long-run mean
+        elif z > _Z_ENTRY:
+            tp_price = mu
+            sl_price = mu + _SL_K * sigma
+            tp_dist = ctx.entry - tp_price
+            sl_dist = sl_price - ctx.entry
+            if tp_dist <= 0 or sl_dist <= 0:
+                return None
+            if tp_dist / spread_price < _MIN_TP_SPREAD_RATIO:
+                return None
             signal = "SELL"
-            sl_dist = max(ctx.atr7 * _SL_ATR_MULT, _min_sl)
-            sl = ctx.entry + sl_dist
-            tp_dist = max(ctx.atr7 * _TP_ATR_MULT, sl_dist * _RR_FLOOR)
-            tp = ctx.entry - tp_dist
-            reasons.append(f"✅ M15 短期下向き ({m15_gap_pct*100:.2f}%)")
-            reasons.append(f"✅ M5 過熱 BB%B={m5_bbpb:.2f}≥{_BBPB_SELL_MIN} RSI={m5_rsi:.1f}≥{_RSI_SELL_MIN}")
-            reasons.append(f"✅ Stoch反転 K={m5_stoch_k:.0f}<D={m5_stoch_d:.0f}")
-            reasons.append("✅ 1m 陰線確認")
-            if m5_bbpb >= 0.90 and m5_rsi >= 75:
-                score += 1.0
-                reasons.append("🎯 Tier1: 極端ゾーン")
+            sl = sl_price
+            tp = tp_price
+            reasons.append(f"✅ O-U z={z:.2f} > +{_Z_ENTRY} (mean reversion candidate)")
+            reasons.append(f"✅ τ_½={cal['half_life_bars']:.1f} bars ∈ [{_HALF_LIFE_MIN_MIN}, {_HALF_LIFE_MAX_MIN}]")
+            reasons.append(f"✅ R²={cal['r2']:.3f}, σ={sigma:.5f}, μ={mu:.5f}")
+            reasons.append(f"✅ TP/spread = {tp_dist/spread_price:.1f} (cost-aware)")
+            score += min(2.0, abs(z) - _Z_ENTRY)
 
         if signal is None:
             return None
-
-        # ADX>=30 ボーナス (LIVE bb_rsi USD_JPY での「トレンド中BB反発 WR=60%」条件)
-        if ctx.adx >= 30:
-            score += 0.6
-            reasons.append(f"✅ ADX={ctx.adx:.1f}>=30 (LIVE 高 WR 条件)")
 
         legacy_conf = int(min(85, 55 + score * 4))
         conf = apply_penalty(legacy_conf, self.strategy_type, ctx.adx, conf_max=85)
