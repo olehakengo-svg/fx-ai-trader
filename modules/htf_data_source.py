@@ -390,16 +390,60 @@ def _compute_m5_features(df) -> Optional[dict]:
     }
 
 
+def _compute_h1_features(df) -> Optional[dict]:
+    """H1 candles から macro trend features を抽出。
+
+    Used by ma_trend_perfect (v1b) and other strategies that gate on H1
+    EMA200 trend bias. Returns dict with close, ema9/21/50/200, adx, rsi14
+    or None if insufficient data.
+    """
+    if df is None or len(df) < 30:
+        return None
+    try:
+        from modules.indicators import add_indicators  # type: ignore
+    except Exception as e:
+        logger.warning(f"[htf_data_source] add_indicators import failed: {e}")
+        return None
+    try:
+        df_i = add_indicators(df.copy())
+    except Exception as e:
+        logger.warning(f"[htf_data_source] H1 add_indicators failed: {e}")
+        return None
+
+    if len(df_i) < 30:
+        return None
+    last = df_i.iloc[-1]
+    return {
+        "close": float(last["Close"]),
+        "ema9": float(last.get("ema9", 0.0) or 0.0),
+        "ema21": float(last.get("ema21", 0.0) or 0.0),
+        "ema50": float(last.get("ema50", 0.0) or 0.0),
+        "ema200": float(last.get("ema200", 0.0) or 0.0),
+        "adx": float(last.get("adx", 0.0) or 0.0),
+        "rsi14": float(last.get("rsi", 50.0) or 50.0),
+        "atr": float(last.get("atr", 0.0) or 0.0),
+    }
+
+
 def compute_mtf_features(symbol: str) -> dict:
-    """Fetch M15 + M5 OANDA candles and return features for MTF cascade scalps.
+    """Fetch H1 + M15 + M5 OANDA candles and return features for MTF strategies.
 
     Returns
     -------
-    {"m15": {...} or None, "m5": {...} or None}
+    {"h1": {...} or None, "m15": {...} or None, "m5": {...} or None}
         features are None when OANDA unavailable or compute fails — strategy
         must guard for this.
+
+    H1 added 2026-05-03 to support ma_trend_perfect (v1b) and other strategies
+    that gate on H1 EMA200 macro trend bias. Without h1, those strategies were
+    silently returning None at their precondition guard.
     """
-    out: dict = {"m15": None, "m5": None}
+    out: dict = {"h1": None, "m15": None, "m5": None}
+    try:
+        df_h1 = fetch_htf_candles(symbol, granularity="H1", count=240)
+        out["h1"] = _compute_h1_features(df_h1)
+    except Exception as e:
+        logger.debug(f"[htf_data_source] H1 features failed for {symbol}: {e}")
     try:
         df_m15 = fetch_htf_candles(symbol, granularity="M15", count=80)
         out["m15"] = _compute_m15_features(df_m15)

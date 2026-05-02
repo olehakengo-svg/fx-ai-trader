@@ -8270,25 +8270,32 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         if tf == "30m":
             htf = get_htf_bias_daytrade(symbol)
 
-    # ── Phase 1 (2026-04-30) inject M15/M5 features for mtf_*_scalp ──
-    # Three mtf_ scalp strategies (mtf_counter_trend_scalp,
+    # ── Phase 1 (2026-04-30) inject M15/M5/H1 features for MTF + MA strategies ──
+    # MTF scalp strategies (mtf_counter_trend_scalp,
     # mtf_regime_trend_cascade_scalp, mtf_trend_follow_scalp) require
-    # ctx.htf["m15"] and ctx.htf["m5"] feature dicts and silently return
-    # None at the precondition guard when missing. compute_mtf_features()
-    # in modules/htf_data_source.py was implemented but never wired into
-    # production. Discovered 2026-04-30 silent-strategies audit.
+    # ctx.htf["m15"] and ctx.htf["m5"] feature dicts.
+    # MA-Generic Family v1 (ma_trend_perfect / ma_mr_hybrid /
+    # ma_regime_switch / bb_rsi_ema_aligned) additionally require
+    # ctx.htf["h1"] for macro trend bias gates (H1 EMA200 alignment).
+    # All strategies silently return None at their precondition guard
+    # when these are missing. compute_mtf_features() in
+    # modules/htf_data_source.py was implemented but never wired in.
+    # H1 added 2026-05-03 (root cause for MA family zero fires since
+    # 2026-04-30 deploy).
     if not isinstance(htf, dict):
         htf = dict(htf) if htf else {}
-    if not backtest_mode and ("m15" not in htf or "m5" not in htf):
+    if not backtest_mode and ("m15" not in htf or "m5" not in htf or "h1" not in htf):
         try:
             from modules.htf_data_source import compute_mtf_features
             _mtf_feat = compute_mtf_features(symbol)
+            if _mtf_feat.get("h1") is not None:
+                htf["h1"] = _mtf_feat["h1"]
             if _mtf_feat.get("m15") is not None:
                 htf["m15"] = _mtf_feat["m15"]
             if _mtf_feat.get("m5") is not None:
                 htf["m5"] = _mtf_feat["m5"]
         except Exception:
-            # fail-open: mtf_ strategies handle missing m15/m5 gracefully
+            # fail-open: strategies handle missing htf keys gracefully
             pass
 
     row = df.iloc[-1]
