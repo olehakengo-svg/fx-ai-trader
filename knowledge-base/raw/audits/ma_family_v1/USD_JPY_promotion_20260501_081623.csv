@@ -1,0 +1,5 @@
+strategy,session,n,wr_pct,wilson_lo_pct,ev_pips,pf,kelly,p_value,bev_wr,c1_wf_all_pf_gt1_3,c2_bh_significant,c3_wilson95_gt_10pct,c4_kelly_gt_0_10,c5_n_ge_30,promote_to_live
+bb_rsi_ema_aligned,Tokyo,179,35.75,29.1,-0.238,0.914,0.0,0.99467,0.4489,False,False,True,False,True,False
+bb_rsi_ema_aligned,London,151,28.48,21.88,-1.023,0.7,0.0,0.99986,0.4245,False,False,True,False,True,False
+bb_rsi_ema_aligned,NY,140,32.14,24.97,-0.125,0.956,0.0,0.99693,0.431,False,False,True,False,True,False
+bb_rsi_ema_aligned,ALL,691,35.17,31.7,-0.197,0.932,0.0,1.0,0.4442,False,False,True,False,True,False

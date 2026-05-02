@@ -319,3 +319,41 @@ v1b LIVE 検証完了 (2026-05-30) を待ってから着手:
 - 2026-04-30 (same day): 90d 4 戦略 + 180d v1b 単独 BT 完了。v1b Tokyo/NY が
   rule:R1 昇格条件完全達成 (BH q<0.05、Kelly>30%、Wilson95>50%)。
   Pre-reg LOCK 候補に確定。--strategies フィルタを runner に追加。
+
+## v2 180d 反証 (2026-05-01) — シニアクオンツ最終結論
+
+ユーザ指示で v2 (Vasicek O-U / Hurst R/S / Volume divergence) を git 履歴から
+復元、180d BT で確認:
+
+### v1d v2 (Volume divergence + adaptive TP) on 180d × USD_JPY × spread 0.8
+
+| Cell | N | WR | PF | Kelly | Wilson95下限 | EV pip |
+|---|---|---|---|---|---|---|
+| Tokyo | 179 | 35.8% | 0.91 | 0 | 29.1% | **-0.238** |
+| London | 151 | 28.5% | 0.70 | 0 | 21.9% | -1.023 |
+| NY | 140 | 32.1% | 0.96 | 0 | 25.0% | -0.125 |
+| **ALL** | **691** | 35.2% | 0.93 | 0 | 31.7% | **-0.197** |
+
+### 重要発見
+
+- **90d BT で v1d v2 Tokyo cell N=17 EV +1.78 と見えていた兆候は、180d N=179
+  で EV -0.238 と反証**。N=17 はサンプル不足ゆえの偶然だった。
+- Volume divergence theory (Cont 2001 / Easley-LopezdePrado-O'Hara 2012) は
+  数学的に正しいが、USD_JPY 1m スキャル + spread 0.8pip 環境では実エッジを
+  捻出できない。
+
+### v2 全 3 戦略の 90/180d 評価サマリ
+
+| 戦略 (v2) | 数学的基盤 | 結果 | 判定 |
+|---|---|---|---|
+| ma_mr_hybrid v2 | Vasicek O-U | 90d N=376 WR 26.3% EV -0.87 | 🔴 反証 |
+| ma_regime_switch v2 | Hurst × ATR percentile | 90d N=477 WR 35.9% EV -0.95 | 🔴 反証 |
+| **bb_rsi_ema_aligned v2** | Volume divergence | **180d N=691 WR 35.2% EV -0.197** | 🔴 反証 |
+
+### シニアクオンツ最終結論 (2026-05-01)
+
+- v2 全 3 戦略 が 90d/180d で反証 → **数学的厳密性 ≠ 利益** が再確認
+- v1b ma_trend_perfect が依然唯一の structural edge (3-pair generalization 含む)
+- **v3 着手の前に v1b LIVE 検証 (Phase B 30d) の結果を待つ** のが defensible
+- v1a/c/d は REDESIGN_PENDING のまま休眠継続。v3 は LOCK 解除後 (2026-05-30
+  以降) に v1b LIVE データを踏まえて再設計
