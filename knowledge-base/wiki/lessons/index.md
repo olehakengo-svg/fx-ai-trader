@@ -45,6 +45,14 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 - 修正: key を `(mode, instrument, direction, is_shadow)` tuple に拡張、`_cooldown_key` / `_get_cooldown_age` ヘルパーで lookup を集約
 - 教訓: **辞書 key は「同一 block 域に属する単位」を全て含める**。value 内に分類情報を保存しているのに read で使っていない場合、key の責務が古い (技術負債のシグナル)。direction-aware / agnostic が同ファイルで混在するなら設計の非対称が必ずバグを生む。
 
+### [[lesson-per-bar-dedup-tf-aware-2026-05-03]]
+**発見日**: 2026-05-03 | **修正**: rule:R3 (本コミット)
+- 問題: `_maybe_reserve_signal_emit` の dedup window が 60s ハードコードで、15m / 5m バー戦略は同一バー再発火を素通し
+- 症状: 28 戦略×ペア combo / 318 件未フラグ violation / 約 -1,000p 累積（うち sr_anti_hunt_bounce -357p / sr_fib_confluence -290p / ema_trend_scalp -85p 等）。OANDA fill は 4 件のみで Live 直撃は限定的、大半は Shadow phantom emission による Live N/WR/EV の統計汚染
+- 原因: [[lesson-shadow-emit-dedup-2026-04-30]] で「shadow 経路バイパス」は塞いだが、window 値そのものが TF 非対応のまま
+- 修正: `_tf_to_window_sec(tf)` helper を追加、primary / shadow 両 caller を TF 経由に切替（1m=60s, 5m=300s, 15m=900s, 1h=3600s）
+- 教訓: **gate の挙動を「すべての対象に等しく適用する」と仮定してはいけない。bar-based 戦略の per-bar guard は bar 長そのもので測る。固定値はマルチTF系で必ず壊れる**
+
 ### [[lesson-shadow-emit-dedup-2026-04-30]]
 **発見日**: 2026-04-30 | **修正**: rule:R3 commit `6a45bb2`
 - 問題: SHADOW_EMIT 経路 (`demo_trader.py:2700-2734`) が `_tick_entry` の 60s `_recent_signal_emits` dedup をバイパスし、tick 毎に同 (entry_type, instrument, signal) の shadow を量産

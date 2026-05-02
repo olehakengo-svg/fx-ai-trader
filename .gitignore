@@ -35,7 +35,14 @@ knowledge-base/.qdrant/
 Thumbs.db
 
 # ── Claude Code ──
-.claude/
+.claude/*
+!.claude/commands/
+!.claude/commands/*.md
+!.claude/settings.json
+
+# ── AI coordination run logs ──
+.ai/runs/*
+!.ai/runs/.gitkeep
 
 # ── テスト・キャッシュ ──
 .pytest_cache/

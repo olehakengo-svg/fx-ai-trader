@@ -4,8 +4,8 @@
 - **Entry Type**: `vwap_mean_reversion`
 - **Category**: MR (Mean Reversion)
 - **Timeframe**: Scalp 1m, DT 15m/1h
-- **Status**: PAIR_PROMOTED (EUR_JPY, GBP_JPY, EUR_USD, GBP_USD, USD_JPY); LOT_BOOST 1.5x
-- **Active Pairs**: EUR_JPY / GBP_JPY / EUR_USD / GBP_USD / USD_JPY (PAIR_PROMOTED)
+- **Status**: FORCE_DEMOTED (2026-05-01 audit P0-8; Live N=10 WR=40.0% PnL=-47.7p)
+- **Active Pairs**: None (FORCE_DEMOTED; OANDA forwarding stopped, Shadow accumulation continues)
 
 ## BT Performance (365d, 15m)
 From massive alpha scan (Bonferroni significant, friction-adjusted):
@@ -23,7 +23,7 @@ From massive alpha scan (Bonferroni significant, friction-adjusted):
 | EUR_JPY | 223 | 68.2% | +0.672 | +149.9 pip | +0.103 / +0.219 / +0.101 |
 | GBP_JPY | 267 | 78.3% | +1.025 | +273.7 pip | +0.338 / +0.205 / +0.313 |
 
-PAIR_PROMOTED の既存根拠を 2026-04-22 スキャンで再確証（walk-forward 全窓で正 EV、GBP_JPY は最強セル）。
+Historical PAIR_PROMOTED 根拠。2026-05-01 audit P0-8 で Live degradation を優先し、全ペア FORCE_DEMOTED に変更。
 
 Scalp (Bonferroni significant):
 | Edge | Pair | TF | Hold | N | fWR | fEV(pip) | Annual PnL |
@@ -83,10 +83,10 @@ Data source: /api/demo/stats?date_from=2026-04-08 (2026-04-24)
 VWAP 2-sigma mean reversion. Enters BUY when price drops below VWAP minus 2 standard deviations, expecting reversion to VWAP. Massive API exclusive alpha — requires intraday VWAP calculation from tick/volume data. Bonferroni-corrected p<10^-7 across JPY crosses.
 
 ## Current Configuration
-- Lot Boost: 1.5x (strategy-level)
+- Lot Boost: default (1.0x) — FORCE_DEMOTED
 - PAIR_DEMOTED: none
-- PAIR_PROMOTED: EUR_JPY (15m 16bar: annual +2,837pip), GBP_JPY (15m 16bar: annual +3,827pip, strongest alpha), EUR_USD, GBP_USD, **USD_JPY** (v9.x 2026-04-22: 5m 180d WF pos=1.00 CV=0.51 N=155 EV=+0.925)
-- PAIR_LOT_BOOST: EUR_JPY 1.8x, GBP_JPY 1.8x
+- PAIR_PROMOTED: none (removed 2026-05-01 audit P0-8)
+- PAIR_LOT_BOOST: none (removed 2026-05-01 audit P0-8)
 
 ## 緊急トリップ + v2 sublimation (2026-04-24)
 

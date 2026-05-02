@@ -9,7 +9,7 @@
 - **最優先: クリーンデータ蓄積 → Kelly Half到達**
 
 <!-- KB_PORTFOLIO_START -->
-## Current Portfolio (auto-synced, 2026-04-30)
+## Current Portfolio (auto-synced, 2026-05-03)
 
 ### ELITE_LIVE (never shadowed)
 | Strategy | BT Data | Status |
@@ -31,7 +31,6 @@
 | [[streak-reversal]] | USD_JPY | no BT data | PAIR_PROMOTED |
 | [[vix-carry-unwind]] | USD_JPY | USD_JPY: EV=+0.212 WR=67.3% | PAIR_PROMOTED |
 | [[vol-momentum-scalp]] | EUR_JPY | no BT data | PAIR_PROMOTED |
-| [[vwap-mean-reversion]] | EUR_JPY, EUR_USD, GBP_JPY, GBP_USD, USD_JPY | no BT data | PAIR_PROMOTED |
 | [[wick-imbalance-reversion]] | GBP_USD | no BT data | PAIR_PROMOTED |
 | [[xs-momentum]] | EUR_USD, GBP_USD | EUR_USD: EV=+0.225 WR=68.0%; USD_JPY: EV=+0.270 WR=68.7% | PAIR_PROMOTED |
 
@@ -58,9 +57,7 @@
 | [[mtf-trend-follow-scalp]] | no BT data | SCALP_SENTINEL |
 | [[pd-eurjpy-h20-bbpb3-sell]] | no BT data | UNIVERSAL_SENTINEL |
 | [[tokyo-range-breakout-up]] | no BT data | LOT_BOOST (not sentinel/elite) |
-| [[trend-rebound]] | no BT data | UNIVERSAL_SENTINEL |
 | [[turtle-soup]] | GBP_USD: EV=+0.386 WR=69.7% | LOT_BOOST (not sentinel/elite) |
-| [[v-reversal]] | no BT data | UNIVERSAL_SENTINEL |
 | [[vol-spike-mr]] | USD_JPY: EV=+0.148 WR=64.6% | UNIVERSAL_SENTINEL |
 | [[vol-surge-detector]] | no BT data | SCALP_SENTINEL |
 
@@ -68,6 +65,7 @@
 | Strategy | BT Data | Status |
 |----------|---------|--------|
 | [[atr-regime-break]] | no BT data | FORCE_DEMOTED |
+| [[donchian-momentum-breakout]] | no BT data | FORCE_DEMOTED |
 | [[dt-bb-rsi-mr]] | EUR_USD: EV=-0.077 WR=52.0%; GBP_USD: EV=-0.135 WR=51.3%; USD_JPY: EV=-0.023 WR=54.2% | FORCE_DEMOTED |
 | [[ema-cross]] | no BT data | FORCE_DEMOTED |
 | [[ema-pullback]] | no BT data | FORCE_DEMOTED |
@@ -84,6 +82,9 @@
 | [[sr-channel-reversal]] | no BT data | FORCE_DEMOTED |
 | [[sr-fib-confluence]] | EUR_USD: EV=+0.103 WR=64.9%; USD_JPY: EV=+0.252 WR=67.7% | FORCE_DEMOTED |
 | [[stoch-trend-pullback]] | no BT data | FORCE_DEMOTED |
+| [[trend-rebound]] | no BT data | FORCE_DEMOTED |
+| [[v-reversal]] | no BT data | FORCE_DEMOTED |
+| [[vwap-mean-reversion]] | no BT data | FORCE_DEMOTED |
 
 <!-- KB_PORTFOLIO_END -->
 

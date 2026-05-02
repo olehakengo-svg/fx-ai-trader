@@ -356,6 +356,35 @@ class DemoDB:
                 CREATE INDEX IF NOT EXISTS idx_oanda_audit_trade ON oanda_audit(demo_trade_id);
             """)
 
+            # ── pending_oanda_ops: persistent failure queue (audit P0-6) ──
+            # Audit 2026-05-01 Pillar 1.2: OandaBridge `_fire()` retries 3 times
+            # then drops the failure on the floor; demo_trades stays CLOSED while
+            # OANDA may still be OPEN. We persist every transmit attempt as
+            # status='pending' before the broker call and mark it 'done' (or
+            # 'failed' after final retry). Recover-on-startup reads the table
+            # and surfaces still-'pending' rows so an operator can reconcile.
+            conn.executescript("""
+                CREATE TABLE IF NOT EXISTS pending_oanda_ops (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    op_type         TEXT NOT NULL,        -- 'open' | 'close'
+                    demo_trade_id   TEXT NOT NULL,
+                    instrument      TEXT,
+                    direction       TEXT,
+                    units           INTEGER DEFAULT 0,
+                    sl              REAL,
+                    tp              REAL,
+                    status          TEXT NOT NULL DEFAULT 'pending',
+                                                            -- pending | done | failed
+                    attempts        INTEGER DEFAULT 0,
+                    last_error      TEXT DEFAULT '',
+                    oanda_trade_id  TEXT DEFAULT '',
+                    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+                    updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+                CREATE INDEX IF NOT EXISTS idx_pending_status ON pending_oanda_ops(status);
+                CREATE INDEX IF NOT EXISTS idx_pending_demo   ON pending_oanda_ops(demo_trade_id);
+            """)
+
             # ── 遅延インデックス作成: ALTER TABLE後のカラムに依存するインデックス ──
             # mode カラムは ALTER TABLE で追加されるため、executescript 外で作成
             try:
@@ -426,6 +455,32 @@ class DemoDB:
                     import logging
                     logging.getLogger(__name__).warning(
                         f"[SHADOW_MIGRATION] Fixed {_total_fixed} FORCE_DEMOTED trades: is_shadow=0→1"
+                    )
+            except Exception:
+                pass
+
+            # ── 2026-05-03 (rule:R3): OANDA-fill is_shadow drift backfill ──
+            # Audit (2026-05-03 01:46 GMT+9): in a 2000-trade window, 13 of
+            # 34 OANDA-executed trades (38.2%) had is_shadow=1 — `WHERE
+            # is_shadow=0` aggregates were silently dropping live PnL.
+            # Root cause: set_oanda_trade_id only updated oanda_trade_id,
+            # not is_shadow. Forward path now flips is_shadow=0 atomically;
+            # this migration corrects historical rows. Must run AFTER the
+            # v9.x FORCE_DEMOTED migration so OANDA fills override the
+            # blanket shadow flip (a trade that actually executed at OANDA
+            # is by definition live, regardless of FORCE_DEMOTED status).
+            try:
+                _drift_cur = conn.execute(
+                    "UPDATE demo_trades SET is_shadow=0 "
+                    "WHERE is_shadow=1 "
+                    "  AND oanda_trade_id IS NOT NULL "
+                    "  AND oanda_trade_id != ''"
+                )
+                if _drift_cur.rowcount > 0:
+                    import logging
+                    logging.getLogger(__name__).warning(
+                        f"[SHADOW_DRIFT_BACKFILL] Fixed {_drift_cur.rowcount} "
+                        f"OANDA-filled trades: is_shadow=1→0"
                     )
             except Exception:
                 pass
@@ -809,7 +864,8 @@ class DemoDB:
     def get_stats(self, date_from: str = None, date_to: str = None,
                   mode: str = None, exclude_shadow: bool = True,
                   exclude_xau: bool = True, instrument: str = None,
-                  exclude_seed: bool = True) -> dict:
+                  exclude_seed: bool = True,
+                  date_field: str = "entry_time") -> dict:
         """Compute aggregate stats from closed trades.
 
         v8.4: exclude_shadow=True でis_shadow=1を除外（デフォルト）。
@@ -820,7 +876,11 @@ class DemoDB:
         v9.1: instrument フィルタ追加。選択中ペアの WR/P/L のみ集計可能。
         v10 (2026-04-27): exclude_seed=True で hold<5s の seed/backfill replay を除外。
         Apr 8 fib_reversal 16件 instant-exit が WR/PF を inflate していた問題対応。
+        date_field: default entry_time for historical UI compatibility. Use
+        exit_time for realized-PnL risk gates such as daily-loss halts.
         """
+        if date_field not in ("entry_time", "exit_time"):
+            raise ValueError(f"Unsupported date_field: {date_field!r}")
         # v9.1 (2026-04-17): is_shadow を常に SELECT し、shadow/live 内訳を返す。
         # exclude_shadow はメイン統計の算出対象行をフィルタするのみ。
         # 2026-04-30 (rule:R3): dedup_violation=1 は SHADOW_EMIT 60s dedup gate
@@ -843,10 +903,10 @@ class DemoDB:
                 query += f" AND instrument IN ({','.join('?' * len(insts))})"
                 params.extend(insts)
         if date_from:
-            query += " AND entry_time >= ?"
+            query += f" AND {date_field} >= ?"
             params.append(date_from)
         if date_to:
-            query += " AND entry_time <= ?"
+            query += f" AND {date_field} <= ?"
             params.append(date_to + "T23:59:59" if len(date_to) == 10 else date_to)
         if mode:
             modes = [m.strip() for m in mode.split(",") if m.strip()]
@@ -950,12 +1010,24 @@ class DemoDB:
                 conn.commit()
 
     def set_oanda_trade_id(self, trade_id: str, oanda_trade_id: str):
-        """Link a demo trade to its OANDA trade ID."""
+        """Link a demo trade to its OANDA trade ID.
+
+        A non-empty oanda_trade_id means OANDA actually filled this order
+        — by definition, a live execution. Flip is_shadow=0 in the same
+        statement so `WHERE is_shadow=0` aggregates do not silently drop
+        live PnL (was 38.2% drift in a 2000-trade window, 2026-05-03 audit).
+        """
         with self._lock:
             with self._safe_conn() as conn:
-                conn.execute(
-                    "UPDATE demo_trades SET oanda_trade_id=? WHERE trade_id=?",
-                    (oanda_trade_id, trade_id))
+                if oanda_trade_id:
+                    conn.execute(
+                        "UPDATE demo_trades SET oanda_trade_id=?, is_shadow=0 "
+                        "WHERE trade_id=?",
+                        (oanda_trade_id, trade_id))
+                else:
+                    conn.execute(
+                        "UPDATE demo_trades SET oanda_trade_id=? WHERE trade_id=?",
+                        (oanda_trade_id, trade_id))
                 conn.commit()
 
     def get_oanda_mappings(self) -> list:
@@ -1059,6 +1131,73 @@ class DemoDB:
         with self._safe_conn() as conn:
             row = conn.execute("SELECT COUNT(*) as cnt FROM oanda_audit").fetchone()
             return row["cnt"] if row else 0
+
+    # ── Pending OANDA Ops (audit 2026-05-01 P0-6) ─────
+    # OandaBridge fire-and-forget mode silently drops failures after 3
+    # retries; demo_trades stays CLOSED while OANDA may still be OPEN.
+    # The pending_oanda_ops table persists every transmit attempt so a
+    # restart recovery can surface unsynced failures rather than losing
+    # them.
+
+    def pending_op_create(self, op_type: str, demo_trade_id: str,
+                          *, instrument: str = "", direction: str = "",
+                          units: int = 0, sl: float = 0.0,
+                          tp: float = 0.0) -> int:
+        """Insert a pending op row, returning its id."""
+        with self._lock:
+            with self._safe_conn() as conn:
+                cur = conn.execute(
+                    """
+                    INSERT INTO pending_oanda_ops
+                        (op_type, demo_trade_id, instrument, direction,
+                         units, sl, tp, status, attempts)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 0)
+                    """,
+                    (op_type, demo_trade_id, instrument, direction,
+                     int(units or 0), float(sl or 0.0), float(tp or 0.0)),
+                )
+                conn.commit()
+                return int(cur.lastrowid)
+
+    def pending_op_mark_done(self, op_id: int, oanda_trade_id: str = "") -> None:
+        with self._lock:
+            with self._safe_conn() as conn:
+                conn.execute(
+                    """
+                    UPDATE pending_oanda_ops
+                       SET status='done', oanda_trade_id=?, updated_at=datetime('now')
+                     WHERE id=?
+                    """,
+                    (oanda_trade_id or "", int(op_id)),
+                )
+                conn.commit()
+
+    def pending_op_mark_failed(self, op_id: int, error_msg: str,
+                               attempts: int = 0) -> None:
+        with self._lock:
+            with self._safe_conn() as conn:
+                conn.execute(
+                    """
+                    UPDATE pending_oanda_ops
+                       SET status='failed', last_error=?, attempts=?,
+                           updated_at=datetime('now')
+                     WHERE id=?
+                    """,
+                    (str(error_msg)[:500], int(attempts), int(op_id)),
+                )
+                conn.commit()
+
+    def pending_op_list(self, status: str = "pending", limit: int = 200) -> list:
+        with self._safe_conn() as conn:
+            rows = conn.execute(
+                """
+                SELECT * FROM pending_oanda_ops
+                 WHERE status = ?
+                 ORDER BY id ASC LIMIT ?
+                """,
+                (status, int(limit)),
+            ).fetchall()
+            return [dict(r) for r in rows]
 
     # ── Learning adjustments ──────────────────────────
 
@@ -1624,6 +1763,17 @@ class DemoDB:
         demo_trades stores oanda_trade_id + entry_type.
         Join path: oanda_trades.oanda_trade_id → demo_trades.oanda_trade_id → demo_trades.entry_type
         Fallback: oanda_audit via demo_trade_id (for sent status records).
+
+        ⚠️ CRITICAL JOIN INVARIANT (audit 2026-05-01 Pillar 3.1) ⚠️
+            The ON clause MUST include `AND a.bridge_status = 'sent'`. The
+            `oanda_audit.entry_type` column is dual-purpose: rows with
+            bridge_status='sent' carry the strategy name; rows with
+            bridge_status='filled' carry the OANDA-side mode (e.g. PYR_BUY,
+            PYR_SELL — pyramid child positions). Without this filter the
+            COALESCE below silently substitutes a pyramid mode label for a
+            strategy name and Kelly/WR aggregations are wrong (PYR children
+            counted as independent strategy fires). Regression covered by
+            tests/test_oanda_audit_join_invariant.py.
         """
         query = ("SELECT t.*, "
                  "COALESCE(d.entry_type, a.entry_type) AS strategy "

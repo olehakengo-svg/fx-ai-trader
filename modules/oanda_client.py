@@ -262,3 +262,56 @@ class OandaClient:
             params.append(f"count={min(count, 5000)}")
         path += "?" + "&".join(params)
         return self._request("GET", path, timeout=30)
+
+    # ── Transactions (v20) ────────────────────────────
+    # Authoritative server-side ledger. Used to detect is_shadow labelling
+    # drift (demo_trades.is_shadow=1 yet ORDER_FILL exists) and to source
+    # official realizedPL / fill prices for forensic audit.
+
+    def list_transactions(self, from_time: str = None, to_time: str = None,
+                          types: list = None, page_size: int = 1000) -> tuple:
+        """List transaction ID range for a time window.
+        GET /v3/accounts/:id/transactions
+        from_time/to_time: RFC3339 (e.g. 2026-05-01T00:00:00Z)
+        types: list of TransactionFilter (e.g. ["ORDER_FILL"])
+        Response: {"from","to","pageSize","type","count","pages":[...]}
+        """
+        params = [f"pageSize={page_size}"]
+        if from_time:
+            params.append(f"from={from_time}")
+        if to_time:
+            params.append(f"to={to_time}")
+        if types:
+            params.append("type=" + ",".join(types))
+        path = f"/v3/accounts/{self._account_id}/transactions"
+        if params:
+            path += "?" + "&".join(params)
+        return self._request("GET", path, timeout=30)
+
+    def get_transactions_id_range(self, from_id: str, to_id: str,
+                                  types: list = None) -> tuple:
+        """Fetch transactions in an ID range.
+        GET /v3/accounts/:id/transactions/idrange?from=&to=&type=
+        Returns full transaction objects (tradeOpened, tradesClosed,
+        instrument, time, price, units, pl, financing, commission, etc.).
+        """
+        params = [f"from={from_id}", f"to={to_id}"]
+        if types:
+            params.append("type=" + ",".join(types))
+        path = (f"/v3/accounts/{self._account_id}/transactions/idrange?"
+                + "&".join(params))
+        return self._request("GET", path, timeout=30)
+
+    def get_transactions_since_id(self, since_id: str,
+                                  types: list = None) -> tuple:
+        """Fetch all transactions since a given ID (exclusive).
+        GET /v3/accounts/:id/transactions/sinceid?id=
+        Use this for incremental sync after a stream reconnect or daily
+        batch top-up.
+        """
+        params = [f"id={since_id}"]
+        if types:
+            params.append("type=" + ",".join(types))
+        path = (f"/v3/accounts/{self._account_id}/transactions/sinceid?"
+                + "&".join(params))
+        return self._request("GET", path, timeout=30)

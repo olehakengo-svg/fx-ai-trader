@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-30T08:23:54.765492+00:00",
+  "generated_at": "2026-05-02T17:51:28.402040+00:00",
   "elite_live": [
     "gbp_deep_pullback",
     "session_time_bias",
@@ -7,6 +7,7 @@
   ],
   "force_demoted": [
     "atr_regime_break",
+    "donchian_momentum_breakout",
     "dt_bb_rsi_mr",
     "ema_cross",
     "ema_pullback",
@@ -23,7 +24,10 @@
     "sr_break_retest",
     "sr_channel_reversal",
     "sr_fib_confluence",
-    "stoch_trend_pullback"
+    "stoch_trend_pullback",
+    "trend_rebound",
+    "v_reversal",
+    "vwap_mean_reversion"
   ],
   "scalp_sentinel": [
     "bb_rsi_ema_aligned",
@@ -86,26 +90,6 @@
     [
       "vol_momentum_scalp",
       "EUR_JPY"
-    ],
-    [
-      "vwap_mean_reversion",
-      "EUR_JPY"
-    ],
-    [
-      "vwap_mean_reversion",
-      "EUR_USD"
-    ],
-    [
-      "vwap_mean_reversion",
-      "GBP_JPY"
-    ],
-    [
-      "vwap_mean_reversion",
-      "GBP_USD"
-    ],
-    [
-      "vwap_mean_reversion",
-      "USD_JPY"
     ],
     [
       "wick_imbalance_reversion",
@@ -216,8 +200,7 @@
     "tokyo_range_breakout_up",
     "turtle_soup",
     "vix_carry_unwind",
-    "vol_momentum_scalp",
-    "vwap_mean_reversion"
+    "vol_momentum_scalp"
   ],
   "shield_eur_dt_whitelist": [
     "htf_false_breakout"

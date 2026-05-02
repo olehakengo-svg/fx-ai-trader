@@ -10,6 +10,7 @@ import threading
 import time
 import json
 import os as _os
+import sys
 from datetime import datetime, timezone, timedelta
 
 from modules.demo_db import DemoDB
@@ -297,6 +298,21 @@ class DemoTrader:
         self._engine = LearningEngine(db)
         self._daily_review = DailyReviewEngine(db, self._engine)
         self._oanda = OandaBridge(db=self._db)
+        # P0-6: surface any pending_oanda_ops that survived a previous crash
+        # so an operator can reconcile rather than losing the failure
+        # silently. Best-effort — never block startup on this.
+        try:
+            import logging as _logging
+            _recovered = self._oanda.recover_pending_ops()
+            if _recovered.get("pending") or _recovered.get("failed"):
+                _logging.getLogger(__name__).warning(
+                    f"[DemoTrader] OANDA pending-ops recovery: {_recovered}"
+                )
+        except Exception as _exc:
+            import logging as _logging
+            _logging.getLogger(__name__).warning(
+                f"[DemoTrader] OANDA pending-ops recovery failed: {_exc}"
+            )
         self._lock = threading.Lock()
 
         # モード別ランナー管理
@@ -318,11 +334,15 @@ class DemoTrader:
                 print(f"[HMM] Agreement warm-start: {_ag_summary}", flush=True)
         except Exception:
             pass
-        # v9.0: Auto-fit HMM on startup (background thread)
-        self._hmm_fit_thread = threading.Thread(
-            target=self._auto_fit_hmm, daemon=True, name="hmm-autofit"
-        )
-        self._hmm_fit_thread.start()
+        # v9.0: Auto-fit HMM on startup (background thread).
+        # Skip under pytest: many DemoTrader instances are constructed and
+        # each fit is CPU-heavy, while tests do not assert fitted HMM params.
+        self._hmm_fit_thread = None
+        if "pytest" not in sys.modules:
+            self._hmm_fit_thread = threading.Thread(
+                target=self._auto_fit_hmm, daemon=True, name="hmm-autofit"
+            )
+            self._hmm_fit_thread.start()
 
         # デイリーレビューエンジンを自動起動
         self._daily_review.start()
@@ -539,6 +559,13 @@ class DemoTrader:
                       flush=True)
         self._trade_high_water = {}     # trade_id -> max favorable price（BE/トレーリング用）
         # ── MAFE (Max Adverse / Favorable Excursion) ──
+        # 2026-05-01 audit P0-5: protect read-modify-write sequences on
+        # the per-trade trackers below. They are touched from at least
+        # _sltp_loop, _main_loop and _sync_oanda_closures concurrently;
+        # without a lock the inner-dict mutations (`_mt["max_high"] = ...`)
+        # and the pop+cleanup sequences race. RLock so a tick can hold it
+        # across nested helpers without self-deadlock.
+        self._tracker_lock = threading.RLock()
         self._mafe_tracker = {}         # {trade_id: {"max_high": float, "min_low": float}}
         # ── 建値ガード用: エントリー時ATR保存 ──
         self._entry_atr = {}            # {trade_id: atr_value (raw price units)}
@@ -1471,9 +1498,11 @@ class DemoTrader:
                     _inst_oa = demo_trade.get("instrument", "USD_JPY")
                     _pip_m_oa = 100 if ("JPY" in _inst_oa or "XAU" in _inst_oa) else 10000
                     _ep_oa = demo_trade.get("entry_price", 0)
-                    _mt_oa = self._mafe_tracker.pop(trade_id, None)
-                    self._entry_atr.pop(trade_id, None)
-                    self._entry_adx.pop(trade_id, None)
+                    # 2026-05-01 audit P0-5: pop+cleanup must be atomic
+                    with self._tracker_lock:
+                        _mt_oa = self._mafe_tracker.pop(trade_id, None)
+                        self._entry_atr.pop(trade_id, None)
+                        self._entry_adx.pop(trade_id, None)
                     self._pyramided_trades.discard(trade_id)
                     self._dd_phase_at_entry.pop(trade_id, None)
                     self._exposure_mgr.remove_position(trade_id)
@@ -1665,15 +1694,17 @@ class DemoTrader:
             # ══════════════════════════════════════════════════════════════
             # ── MAFE追跡: Max Adverse / Favorable Excursion ──
             # 各バーの価格でmax_high/min_lowを更新し、決済時にMAE/MFEをDB保存
+            # 2026-05-01 audit P0-5: read-modify-write は _tracker_lock 配下で実行
             # ══════════════════════════════════════════════════════════════
-            if trade_id not in self._mafe_tracker:
-                self._mafe_tracker[trade_id] = {"max_high": price, "min_low": price}
-            else:
-                _mt = self._mafe_tracker[trade_id]
-                if price > _mt["max_high"]:
-                    _mt["max_high"] = price
-                if price < _mt["min_low"]:
-                    _mt["min_low"] = price
+            with self._tracker_lock:
+                if trade_id not in self._mafe_tracker:
+                    self._mafe_tracker[trade_id] = {"max_high": price, "min_low": price}
+                else:
+                    _mt = self._mafe_tracker[trade_id]
+                    if price > _mt["max_high"]:
+                        _mt["max_high"] = price
+                    if price < _mt["min_low"]:
+                        _mt["min_low"] = price
 
             # ══════════════════════════════════════════════════════════════
             # ── ブレイクイーブン (共通建値ガード) ──
@@ -2083,11 +2114,13 @@ class DemoTrader:
                     _spread_exit = round((_ba_rt["ask"] - _ba_rt["bid"]) * _pip_m_exit, 2)
 
                 # ── MAFE計算: 保持中のmax/min → MAE/MFE (pips) ──
+                # 2026-05-01 audit P0-5: pop+cleanup must be atomic
                 _mafe_adverse = 0.0
                 _mafe_favorable = 0.0
-                _mt = self._mafe_tracker.pop(trade_id, None)
-                self._entry_atr.pop(trade_id, None)
-                self._entry_adx.pop(trade_id, None)
+                with self._tracker_lock:
+                    _mt = self._mafe_tracker.pop(trade_id, None)
+                    self._entry_atr.pop(trade_id, None)
+                    self._entry_adx.pop(trade_id, None)
                 self._pyramided_trades.discard(trade_id)
                 self._dd_phase_at_entry.pop(trade_id, None)
                 if _mt:
@@ -2759,8 +2792,12 @@ class DemoTrader:
                 _se_tp = float(_se.get("tp") or 0)
                 if _se_sl <= 0 or _se_tp <= 0:
                     continue
-                # 60s dedup gate (primary と key 空間共有 — _maybe_reserve_signal_emit)
-                if self._maybe_reserve_signal_emit(_se_entry_type, instrument, _se_signal, _path="shadow") is not None:
+                # Per-bar dedup gate, TF-aware (primary と key 空間共有 — _maybe_reserve_signal_emit)
+                # rule:R3 (2026-05-03): window_sec was hardcoded 60s; 15m/5m bars
+                # leaked through. Use bar duration from caller's tf.
+                _shadow_window = self._tf_to_window_sec(tf)
+                if self._maybe_reserve_signal_emit(_se_entry_type, instrument, _se_signal,
+                                                    window_sec=_shadow_window, _path="shadow") is not None:
                     continue
                 _se_conf = int(_se.get("confidence") or 50)
                 _se_score = float(_se.get("score") or 0)
@@ -2802,6 +2839,20 @@ class DemoTrader:
         if not last:
             return None
         return (datetime.now(timezone.utc) - last["time"]).total_seconds()
+
+    @staticmethod
+    def _tf_to_window_sec(tf) -> int:
+        """Map a strategy timeframe label to its bar duration in seconds.
+
+        Used by the dedup gate so a 15m strategy is blocked for 15 minutes
+        (one bar), not the legacy 60-second window. Audit (2026-05-03)
+        showed 318 unflagged per-bar dedup violations across 28 combos
+        because the 60s default missed 15m / 5m bars.
+        """
+        return {
+            "1m": 60, "5m": 300, "15m": 900,
+            "30m": 1800, "1h": 3600, "4h": 14400,
+        }.get((tf or "").strip(), 60)
 
     def _maybe_reserve_signal_emit(self, entry_type: str, instrument: str,
                                    signal: str, *, window_sec: int = 60,
@@ -3300,9 +3351,15 @@ class DemoTrader:
         #           intraday_seasonality 436/437 (6s), stoch_trend_pullback 183/184 (35s)
         # rule:R3 (2026-04-30): shadow_emit 経路と key 空間共有のため
         # _maybe_reserve_signal_emit() に集約。詳細: lesson-shadow-emit-dedup-2026-04-30
-        _dedup_age = self._maybe_reserve_signal_emit(entry_type, instrument, signal, _path="primary")
+        # rule:R3 (2026-05-03): TF-aware window — 60s default leaked 15m/5m bar
+        # re-emits (audit found 318 violations across 28 combos pre-fix).
+        _primary_window = self._tf_to_window_sec(tf)
+        _dedup_age = self._maybe_reserve_signal_emit(
+            entry_type, instrument, signal,
+            window_sec=_primary_window, _path="primary",
+        )
         if _dedup_age is not None:
-            _block(f"recent_emit({entry_type},{int(_dedup_age)}s<60s)")
+            _block(f"recent_emit({entry_type},{int(_dedup_age)}s<{_primary_window}s)")
             return
         # (A) 同価格帯ブロック（モード別: scalp=1.0pip, DT=5pip, other=3pip）
         # scalp: 1.5→1.0pip (エントリー機会増), DT: 1.5→5pip (マシンガン防止)
@@ -4315,6 +4372,32 @@ class DemoTrader:
             _cd_elapsed = round(_cd_age_dbg, 1)
 
         # ══════════════════════════════════════════════════════════════
+        # ── Layer 0: spread_gate.should_block (audit 2026-05-01 P0-3) ──
+        # modules/spread_gate.py を Live のシグナル経路に配線する。
+        # 監査 (Pillar 4.1) で「定義されているが呼ばれていない」と判定された
+        # ハードゲート。hour_mult / quoted spread / adjusted_rt の 3 軸を
+        # 最低限チェックする(df_1m=None なので volume/ATR ratio は skip)。
+        #
+        # 適用範囲:
+        #   - Scalp 系のみ (friction_for(mode="Scalp") に基づく閾値設計)。
+        #   - ELITE_LIVE / PAIR_PROMOTED は spread_sl_gate と同じ理屈で免除。
+        # 失敗時は保守的に「通過」させる (gate を blocker にしない)。
+        # ══════════════════════════════════════════════════════════════
+        if _base_mode == "scalp" and signal in ("BUY", "SELL"):
+            _is_elite_live = entry_type in self._ELITE_LIVE
+            _is_pair_promoted = (entry_type, instrument) in self._PAIR_PROMOTED
+            if not (_is_elite_live or _is_pair_promoted):
+                try:
+                    from modules.spread_gate import should_block as _sg_should_block
+                    _hour_utc = datetime.now(timezone.utc).hour
+                    _sg_blocked, _sg_info = _sg_should_block(instrument, _hour_utc, df_1m=None)
+                    if _sg_blocked:
+                        _block(f"spread_gate({_sg_info.get('reason', 'unknown')})")
+                        return
+                except Exception:
+                    pass  # gate 自身の障害で trading を止めない (保守)
+
+        # ══════════════════════════════════════════════════════════════
         # ── v7.0: Spread/SL Gate — Fast Exit 根本対策 ──
         # スプレッドがSL距離の35%超 → エッジ不足で即死リスク
         # 本番データ: Fast Exit(<2min) N=11 PnL=-30.7pip の主因
@@ -5158,14 +5241,16 @@ class DemoTrader:
                 pass
 
             # ── MAFE計算 (SIGNAL_REVERSE決済パス) ──
+            # 2026-05-01 audit P0-5: pop+cleanup must be atomic
             _mafe_adverse_sr = 0.0
             _mafe_favorable_sr = 0.0
             _is_jpy_or_xau_sr = "JPY" in _instrument_sr or "XAU" in _instrument_sr
             _pip_m_sr = 100 if _is_jpy_or_xau_sr else 10000
             entry_price_sr = trade.get("entry_price", 0)
-            _mt_sr = self._mafe_tracker.pop(trade_id, None)
-            self._entry_atr.pop(trade_id, None)
-            self._entry_adx.pop(trade_id, None)
+            with self._tracker_lock:
+                _mt_sr = self._mafe_tracker.pop(trade_id, None)
+                self._entry_atr.pop(trade_id, None)
+                self._entry_adx.pop(trade_id, None)
             self._pyramided_trades.discard(trade_id)
             self._dd_phase_at_entry.pop(trade_id, None)
             if _mt_sr and entry_price_sr:
@@ -5983,6 +6068,21 @@ class DemoTrader:
         # と矛盾するため、本ブロックを優先 (FORCE_DEMOTED は PAIR_PROMOTED より優先評価).
         # 詳細: reports/deployment-wave-analysis-2026-04-27.md §4
         "post_news_vol",
+        # ──────────────────────────────────────────────────────────────
+        # 2026-05-01 audit P0-8 phase 1 (Pillar 6.2):
+        # Render Live で deeply-negative EV を蓄積している戦略を一斉に
+        # SHADOW へ降格。負け続けの aggregate Kelly 引き下げを止め、
+        # vol_momentum_scalp 1 戦略への集中リスクを是正する第一波。
+        # 第二波 (bb_squeeze_breakout / streak_reversal /
+        # wick_imbalance_reversion / doji_breakout) は Live N≥20 まで
+        # 観測継続。ELITE_LIVE の session_time_bias は同コミットで
+        # _UNIVERSAL_SENTINEL に格下げ (pre-reg LOCK 破棄、wiki/decisions
+        # 更新は別 PR)。
+        # 紐付け: ~/.claude/plans/ok-spawn-ok-kind-metcalfe.md
+        "vwap_mean_reversion",          # Live N=10 WR=40% PnL=-47.7p (IS→OOS 95.3% degrade)
+        "donchian_momentum_breakout",   # Live N=3 WR=33.3% PnL=-32.1p
+        "v_reversal",                   # Live N=3 WR=0% PnL=-10.1p
+        "trend_rebound",                # Live N=17 WR=23.5% PnL=-26.0p
     }
 
     # ── Elite Track: 摩擦モデルv2 BT + v5.95統合BT監査 ──
@@ -6009,9 +6109,9 @@ class DemoTrader:
         # v9.1: london_fix_reversal 1.3→1.0 — 365d BT GBP EV=-0.239, EUR EV=-0.103
         "london_fix_reversal": 1.0,
         # REMOVED: stoch_trend_pullback → _UNIVERSAL_SENTINEL降格 (全ペアEVマイナス)
-        # v2.1: VWAP MR — Massive API exclusive α, Bonferroni p<10^-7 friction-adjusted
-        # v9.1: vwap_mean_reversion 1.5→2.0 — 365d BT 3ペア平均EV>+1.0, N=575, PF>2.0
-        "vwap_mean_reversion": 2.0,
+        # REMOVED 2026-05-01 audit P0-8: vwap_mean_reversion → FORCE_DEMOTED
+        # after live degradation; remove strategy-wide boost to avoid
+        # FORCE_DEMOTED/LOT_BOOST tier conflicts.
         # v9.x (2026-04-23): T3 Tokyo Range Breakout Minimum Live — Kelly 0.25x 相当
         # WFA STABLE_EDGE (USD_JPY OOS N=51 WR=74.5% mean=+17.6p) 確認済だが初見 live のため trial 0.5x
         # N>=15 & EV_cost>-0.5p & WR>=52% 確認後、1.0 (full Kelly Half) または 1.5 (Elite) に昇格検討
@@ -6123,11 +6223,9 @@ class DemoTrader:
         ("bb_squeeze_breakout", "USD_JPY"),
         # REMOVED v9.1: fib_reversal×EUR — FORCE_DEMOTED (死コード)
         # REMOVED v9.1: sr_channel_reversal×EUR — FORCE_DEMOTED (死コード)
-        # v2.1: VWAP MR JPY crosses — Bonferroni p<10^-7, friction-adjusted BT scan
-        # EUR_JPY 15m 16bar: WR=55.8% EV=+3.85pip annual +2,837pip
-        ("vwap_mean_reversion", "EUR_JPY"),
-        # GBP_JPY 15m 16bar: WR=56.2% EV=+5.17pip annual +3,827pip (strongest α)
-        ("vwap_mean_reversion", "GBP_JPY"),
+        # REMOVED 2026-05-01 audit P0-8: vwap_mean_reversion → FORCE_DEMOTED
+        # after live degradation; remove pair promotions to preserve tier
+        # integrity and stop OANDA forwarding.
         # v2.1: 4/14分析対策 — SHADOW勝者をSENTINEL復活
         # 対策1: vix_carry_unwind×JPY — 4/14で+58.7pip(SHADOW), BT EV=+0.212 N=49 WR=67.3%
         ("vix_carry_unwind", "USD_JPY"),
@@ -6139,11 +6237,8 @@ class DemoTrader:
         # ("post_news_vol", "GBP_USD"),
         # ("post_news_vol", "EUR_USD"),
         # REMOVED v9.1: engulfing_bb×EUR — FORCE_DEMOTED (死コード)
-        # v2.1 提案4: vwap_mr DT GBP/EUR — 365日BT Bias④⑤修正後にSTRONG出現
-        # GBP_USD: N=254 EV=+0.758 PF=2.69 PnL=+193p
-        ("vwap_mean_reversion", "GBP_USD"),
-        # EUR_USD: N=210 EV=+0.615 PF=2.53 PnL=+129p
-        ("vwap_mean_reversion", "EUR_USD"),
+        # REMOVED 2026-05-01 audit P0-8: vwap_mean_reversion → FORCE_DEMOTED
+        # after live degradation.
         # REMOVED v9.1: bb_squeeze_breakout×GBP_JPY — FORCE_DEMOTED (死コード)
         # REMOVED v9.1: stoch_trend_pullback×GBP_JPY — FORCE_DEMOTED (死コード)
         # vol_momentum×EUR_JPY 5m: EV=+0.608 N=34 STRONG
@@ -6175,11 +6270,8 @@ class DemoTrader:
         #   単一TF根拠を超えたクロスTF確証。Phase0 auto-Shadow → PP昇格
         #   詳細: raw/analysis/roadmap-acceleration-synthesis-2026-04-22.md
         ("streak_reversal", "USD_JPY"),
-        # vwap_mean_reversion×USD_JPY:
-        #   P4 5m 180d × 30d WF: N=155 EV=+0.925 pos=1.00 CV=0.51 ✅stable
-        #   既存PP (EUR_JPY/GBP_JPY/EUR_USD/GBP_USD) に USD_JPY を追加
-        #   BT 15m 16bar: N=705 WR=55.0% EV=+2.98pip annual +2,099pip
-        ("vwap_mean_reversion", "USD_JPY"),
+        # REMOVED 2026-05-01 audit P0-8: vwap_mean_reversion → FORCE_DEMOTED
+        # after live degradation.
         # 2026-04-23: ema200_trend_reversal×USD_JPY PAIR_PROMOTED (FORCE_DEMOTED解除)
         # Shadow 条件分析 post-cutoff 2026-04-08:
         #   USD_JPY pair-level N=13 WR=61.5% EV=+5.39p PF=4.76 pos_ratio=0.89
@@ -6196,9 +6288,8 @@ class DemoTrader:
     _PAIR_LOT_BOOST = {
         # REMOVED v9.1: fib_reversal×JPY, ema_pullback×JPY/EUR — FORCE_DEMOTED (死コード)
         ("vol_surge_detector", "EUR_USD"): 1.8,   # N=7 EV=+1.20 Kelly=32.7% → Half=16.4% (N小→控えめ)
-        # v2.1: VWAP MR JPY crosses — friction-adjusted BT annual pip estimates
-        ("vwap_mean_reversion", "EUR_JPY"): 1.8,  # annual +2,837pip (16bar@15m)
-        ("vwap_mean_reversion", "GBP_JPY"): 1.8,  # annual +3,827pip (16bar@15m, strongest α)
+        # REMOVED 2026-05-01 audit P0-8: vwap_mean_reversion → FORCE_DEMOTED
+        # after live degradation; pair boost removed.
         # v10 (2026-04-27, rule:R2): bb_squeeze_breakout × USD_JPY 緊急 lot 縮小.
         # 365d BT N=42 WR=76.2% で PAIR_PROMOTED 復活 (2026-04-21) したが、Live は
         # post-promotion N=5 全敗 (-11.9pip cum). Wilson 95% CI 非重複で BT-Live
@@ -6228,9 +6319,11 @@ class DemoTrader:
         "vol_spike_mr",                # Vol Spike MR: JPY PF=1.92 (BT最高PF)
         "doji_breakout",               # Doji Breakout: 3連続doji→breakout follow
         # v7.0: 全disabled戦略をSentinel再有効化 — デモデータ蓄積優先 (4原則#4)
-        "v_reversal",                  # 急落/急騰反転 — BT未検証, Sentinel蓄積
+        # REMOVED 2026-05-01 audit P0-8: v_reversal → FORCE_DEMOTED
+        # (Live N=3 WR=0% PnL=-10.1p)
         # REMOVED: ema_pullback → FORCE_DEMOTED (重複削除、PAIR_PROMOTED×JPYで復活済み)
-        "trend_rebound",               # 強トレンド逆張り — 学術的エッジ疑義, Sentinel検証
+        # REMOVED 2026-05-01 audit P0-8: trend_rebound → FORCE_DEMOTED
+        # (Live N=17 WR=23.5% PnL=-26.0p)
         # REMOVED: sr_channel_reversal → FORCE_DEMOTED (重複削除)
         # v8.0: engulfing_bb → FORCE_DEMOTED昇格 (WR=14.3% -$353.5)
         # REMOVED v2.1: three_bar_reversal — 180日N=6、構造的にN蓄積不能（4条件同時必須）
@@ -6597,13 +6690,20 @@ class DemoTrader:
         except Exception:
             return 1.0
 
+    # MC Ruin gate: minimum sample size for a ~95% CI on ruin probability.
+    # Audit 2026-05-01 Pillar 4.3 raised this from 10 (statistically loose) to 20.
+    _MIN_RUIN_TRADES = 20
+    # Cache TTL for the ruin computation. Tightened from 300s to 180s
+    # (audit 2026-05-01 Pillar 4.6) to shorten the emergency-halt response window.
+    _RUIN_CACHE_TTL_S = 180
+
     def _get_ruin_probability(self) -> float:
         """Compute Monte Carlo ruin probability from post-cutoff clean trades.
         Returns ruin probability (0.0-1.0) or None if insufficient data.
-        Cached for 300 seconds (MC simulation is expensive).
+        Cached for _RUIN_CACHE_TTL_S seconds (MC simulation is expensive).
         """
         now = time.time()
-        if hasattr(self, '_ruin_prob_cache') and (now - self._ruin_prob_cache_ts) < 300:
+        if hasattr(self, '_ruin_prob_cache') and (now - self._ruin_prob_cache_ts) < self._RUIN_CACHE_TTL_S:
             return self._ruin_prob_cache
         try:
             from modules.risk_analytics import monte_carlo_ruin
@@ -6615,7 +6715,7 @@ class DemoTrader:
                       and "XAU" not in (t.get("instrument", "") or "")
                       and (t.get("exit_time") or "") >= cutoff]
             pnl_list = [float(t.get("pnl_pips", 0) or 0) for t in trades]
-            if len(pnl_list) < 10:
+            if len(pnl_list) < self._MIN_RUIN_TRADES:
                 self._ruin_prob_cache = None
                 self._ruin_prob_cache_ts = now
                 return None

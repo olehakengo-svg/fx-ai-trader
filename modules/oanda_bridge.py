@@ -52,6 +52,24 @@ class OandaBridge:
         # ── Execution Audit: トレードごとの実行記録 ──
         self._execution_audit = []    # 直近50件
         self._max_audit = 50
+        # ── Daily Loss Gate (audit 2026-05-01 P0-2) ──
+        # CLAUDE.md / roadmap-v2.1 に明記の "Scalp 1日損失 -2% で OANDA 転送停止"
+        # を Live transmit-only halt として実装。demo_trader.MODE_CONFIG 側の
+        # daily_loss_limit_pips=-99999 (実質無効) をブリッジレベルで補完する。
+        # 既定値: -20 pip ≒ 1000pip ベース資本の -2%。env 上書き可。
+        # 0 以下 / 設定なし → ゲート無効化 (後方互換)。
+        try:
+            self._daily_loss_limit_pips = float(
+                os.environ.get("DAILY_LOSS_LIMIT_PIPS", "20")
+            )
+        except (TypeError, ValueError):
+            self._daily_loss_limit_pips = 20.0
+        self._daily_loss_cache_ts = 0.0
+        self._daily_loss_cache_blocked = False
+        self._daily_loss_cache_pnl = 0.0
+        self._daily_loss_cache_ttl_s = 30.0  # 短めキャッシュ (DBヒット抑止)
+        self._daily_loss_halt_day = ""  # once tripped, stay halted through UTC day
+        self._daily_loss_lock = threading.Lock()
 
     # デフォルト全モード — MODE_CONFIGと同期（UI表示用）
     # v9.0: is_mode_allowed()は常にTrue。_ALL_MODESはUI状態表示のみに使用
@@ -367,6 +385,55 @@ class OandaBridge:
         t = threading.Thread(target=_run, daemon=True)
         t.start()
 
+    # ── Daily Loss Gate (audit 2026-05-01 P0-2) ───────
+
+    def _check_daily_loss_gate(self) -> tuple[bool, float]:
+        """Return (blocked, today_pnl_pip).
+
+        Transmit-only halt: when today's Live `total_pnl` (is_shadow=0,
+        exclude_xau, exclude_seed) drops below -DAILY_LOSS_LIMIT_PIPS, OANDA
+        transmits are blocked for the rest of the UTC day. demo_trader keeps
+        running so the day's data continues to accumulate (per audit
+        Pillar 4.2 user-confirmed default).
+
+        Cached for `_daily_loss_cache_ttl_s` to keep the hot path cheap.
+        Errors are non-fatal: the gate fails OPEN (transmit allowed) so a
+        DB hiccup never silently kills live trading. The audit log records
+        the block at the call site.
+        """
+        if self._daily_loss_limit_pips <= 0 or self._db is None:
+            return False, 0.0
+        import time as _time
+        from datetime import datetime, timezone
+        now = _time.time()
+        today_iso = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        with self._daily_loss_lock:
+            if self._daily_loss_halt_day == today_iso:
+                return True, self._daily_loss_cache_pnl
+            if (now - self._daily_loss_cache_ts) < self._daily_loss_cache_ttl_s:
+                return self._daily_loss_cache_blocked, self._daily_loss_cache_pnl
+        # Compute outside the lock — DB call may take >1s under contention.
+        try:
+            stats = self._db.get_stats(
+                date_from=today_iso,
+                exclude_shadow=True,
+                exclude_xau=True,
+                exclude_seed=True,
+                date_field="exit_time",
+            )
+            pnl = float(stats.get("total_pnl", 0.0) or 0.0)
+        except Exception as e:
+            logger.warning(f"[OandaBridge] daily-loss-gate DB read failed: {e}")
+            return False, 0.0
+        blocked = pnl <= -float(self._daily_loss_limit_pips)
+        with self._daily_loss_lock:
+            self._daily_loss_cache_ts = now
+            self._daily_loss_cache_blocked = blocked
+            self._daily_loss_cache_pnl = pnl
+            if blocked:
+                self._daily_loss_halt_day = today_iso
+        return blocked, pnl
+
     # ── Open Trade ────────────────────────────────────
 
     def open_trade(self, demo_trade_id: str, direction: str,
@@ -390,6 +457,50 @@ class OandaBridge:
             logger.debug(f"[OandaBridge] mode={mode} not in allowed_modes, skip")
             return
 
+        # Daily loss gate (audit 2026-05-01 P0-2). Transmit-only halt: the
+        # demo trade is still recorded by the caller; we only refuse to
+        # forward to OANDA. demo_trader continues to accumulate today's
+        # data so the close of the day is not blinded.
+        try:
+            _dl_blocked, _dl_pnl = self._check_daily_loss_gate()
+        except Exception:
+            _dl_blocked, _dl_pnl = False, 0.0
+        if _dl_blocked:
+            _reason = (
+                f"daily_loss_limit({_dl_pnl:.1f}pip<=-{self._daily_loss_limit_pips:.1f}pip)"
+            )
+            logger.warning(f"[OandaBridge] OPEN BLOCKED ({_reason}) "
+                           f"demo={demo_trade_id} mode={mode} {direction} {instrument}")
+            try:
+                self._add_audit(
+                    demo_trade_id=demo_trade_id, entry_type=mode,
+                    is_live=False, bridge_status="blocked",
+                    block_reason=_reason,
+                    direction=direction, instrument=instrument,
+                    units=(units if units > 0 else self._units),
+                )
+            except Exception as e:
+                logger.warning(f"[OandaBridge] audit write failed during daily-loss block: {e}")
+            if log_callback:
+                log_callback(f"🔗 OANDA: [HALT] {_reason} — {direction} {instrument} not transmitted")
+            return
+
+        # Persist a pending row BEFORE the broker call (audit P0-6).
+        # The row stays 'pending' until either pending_op_mark_done or
+        # pending_op_mark_failed is called below; restart-recovery
+        # surfaces any 'pending' rows that survived a crash.
+        _pending_id = None
+        if self._db is not None:
+            try:
+                _pending_id = self._db.pending_op_create(
+                    "open", demo_trade_id,
+                    instrument=instrument, direction=direction,
+                    units=(units if units > 0 else self._units),
+                    sl=sl, tp=tp,
+                )
+            except Exception as e:
+                logger.warning(f"[OandaBridge] pending_op_create failed: {e}")
+
         def _do():
             import time as _time
             side = "buy" if direction == "BUY" else "sell"
@@ -397,7 +508,9 @@ class OandaBridge:
             _lot_disp = f"{_lot}u({_lot/10000:.2f}lot)"
             _latency_ms = 0
             ok, data = None, {}
+            _attempts_made = 0
             for _attempt in range(3):
+                _attempts_made = _attempt + 1
                 _t0 = _time.monotonic()
                 ok, data = self._client.market_order(
                     side=side,
@@ -461,6 +574,11 @@ class OandaBridge:
                         direction=direction, instrument=instrument,
                         units=_lot, oanda_trade_id=oanda_id,
                     )
+                    if _pending_id is not None and self._db is not None:
+                        try:
+                            self._db.pending_op_mark_done(_pending_id, oanda_id)
+                        except Exception as e:
+                            logger.warning(f"[OandaBridge] pending_op_mark_done failed: {e}")
                 else:
                     # 注文は成功したがtradeIDが取れない
                     _msg = f"OPEN {side} ok but no tradeID: {json.dumps(data)[:300]}"
@@ -468,6 +586,12 @@ class OandaBridge:
                     self._log_error(_msg)
                     if log_callback:
                         log_callback(f"🔗 OANDA: [WARN] Order ok but no tradeID — {instrument}")
+                    if _pending_id is not None and self._db is not None:
+                        try:
+                            self._db.pending_op_mark_failed(
+                                _pending_id, _msg, attempts=_attempts_made)
+                        except Exception as e:
+                            logger.warning(f"[OandaBridge] pending_op_mark_failed failed: {e}")
             else:
                 _err = str(data.get("message", data))[:120]
                 _msg = f"OPEN {side} FAILED (demo={demo_trade_id}, mode={mode}, sl={sl}, tp={tp}): {json.dumps(data)[:300]}"
@@ -479,6 +603,12 @@ class OandaBridge:
                         f"🔗 OANDA: [FAILED] {side.upper()} {instrument} "
                         f"{_lot_disp} — {_err}"
                     )
+                if _pending_id is not None and self._db is not None:
+                    try:
+                        self._db.pending_op_mark_failed(
+                            _pending_id, _err, attempts=_attempts_made)
+                    except Exception as e:
+                        logger.warning(f"[OandaBridge] pending_op_mark_failed failed: {e}")
 
         self._fire(_do)
 
@@ -494,14 +624,31 @@ class OandaBridge:
             logger.debug(f"[OandaBridge] No OANDA mapping for demo={demo_trade_id}, skip close")
             return
 
+        # P0-6: pending row for the close as well.
+        _pending_id = None
+        if self._db is not None:
+            try:
+                _pending_id = self._db.pending_op_create(
+                    "close", demo_trade_id, direction="", units=0,
+                )
+            except Exception as e:
+                logger.warning(f"[OandaBridge] pending_op_create(close) failed: {e}")
+
         def _do():
+            _attempts_made = 0
             for attempt in range(3):
+                _attempts_made = attempt + 1
                 ok, data = self._client.close_trade(oanda_id)
                 if ok:
                     with self._lock:
                         self._trade_map.pop(demo_trade_id, None)
                     logger.info(f"[OandaBridge] CLOSE OANDA #{oanda_id} "
                                 f"(demo={demo_trade_id}, reason={reason})")
+                    if _pending_id is not None and self._db is not None:
+                        try:
+                            self._db.pending_op_mark_done(_pending_id, oanda_id)
+                        except Exception as e:
+                            logger.warning(f"[OandaBridge] pending_op_mark_done(close) failed: {e}")
                     return
                 # OANDA側で既にクローズ済みならマッピング削除
                 err_code = data.get("error")
@@ -509,6 +656,11 @@ class OandaBridge:
                     with self._lock:
                         self._trade_map.pop(demo_trade_id, None)
                     logger.info(f"[OandaBridge] CLOSE #{oanda_id} already closed (404), mapping removed")
+                    if _pending_id is not None and self._db is not None:
+                        try:
+                            self._db.pending_op_mark_done(_pending_id, oanda_id)
+                        except Exception as e:
+                            logger.warning(f"[OandaBridge] pending_op_mark_done(close-404) failed: {e}")
                     return
                 # Transient errors: retry after backoff
                 if err_code in (429, 503, "timeout", "network") and attempt < 2:
@@ -520,9 +672,75 @@ class OandaBridge:
                 _msg = f"CLOSE failed #{oanda_id} (demo={demo_trade_id}): {json.dumps(data)[:200]}"
                 logger.error(f"[OandaBridge] {_msg}")
                 self._log_error(_msg)
+                if _pending_id is not None and self._db is not None:
+                    try:
+                        self._db.pending_op_mark_failed(
+                            _pending_id, _msg, attempts=_attempts_made)
+                    except Exception as e:
+                        logger.warning(f"[OandaBridge] pending_op_mark_failed(close) failed: {e}")
                 return
 
         self._fire(_do)
+
+    # ── Pending ops recovery (audit P0-6) ─────────────
+
+    def recover_pending_ops(self) -> dict:
+        """Surface pending_oanda_ops rows that did not reach a terminal state.
+
+        Called once from app.py startup. Returns a summary dict. Side effects:
+          - 'pending' rows older than 5 minutes at startup are flagged 'failed'
+            with a 'startup_orphan' marker so they don't keep the queue dirty.
+          - 'failed' rows are NOT auto-replayed (a stale signal could be
+            economically wrong); we just emit a warning so an operator can
+            triage via the API.
+        Returns: {"pending": N, "stale_marked_failed": M, "failed": K}
+        """
+        if self._db is None:
+            return {"pending": 0, "stale_marked_failed": 0, "failed": 0}
+        try:
+            pending = self._db.pending_op_list("pending", limit=500)
+            failed = self._db.pending_op_list("failed", limit=500)
+        except Exception as e:
+            logger.warning(f"[OandaBridge] recover_pending_ops list failed: {e}")
+            return {"pending": 0, "stale_marked_failed": 0, "failed": 0}
+        from datetime import datetime, timezone, timedelta
+        now = datetime.now(timezone.utc)
+        stale_cutoff = now - timedelta(minutes=5)
+        stale_marked = 0
+        for row in pending:
+            try:
+                created = datetime.fromisoformat(
+                    str(row.get("created_at", "")).replace("Z", "+00:00")
+                )
+                if created.tzinfo is None:
+                    created = created.replace(tzinfo=timezone.utc)
+            except (ValueError, TypeError):
+                continue
+            if created < stale_cutoff:
+                try:
+                    self._db.pending_op_mark_failed(
+                        int(row["id"]),
+                        "startup_orphan: in-flight when previous process died",
+                        attempts=int(row.get("attempts", 0) or 0),
+                    )
+                    stale_marked += 1
+                except Exception as e:
+                    logger.warning(f"[OandaBridge] mark stale orphan failed: {e}")
+        if failed:
+            logger.warning(
+                f"[OandaBridge] {len(failed)} pending_oanda_ops rows are still "
+                f"in 'failed' state — operator reconciliation required"
+            )
+        if pending:
+            logger.warning(
+                f"[OandaBridge] {len(pending)} pending_oanda_ops rows survived "
+                f"restart ({stale_marked} marked failed as startup_orphan)"
+            )
+        return {
+            "pending": len(pending),
+            "stale_marked_failed": stale_marked,
+            "failed": len(failed),
+        }
 
     # ── Modify SL ─────────────────────────────────────
 

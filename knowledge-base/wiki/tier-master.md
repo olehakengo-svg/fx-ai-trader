@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-04-30 08:23 UTC
+**最終更新**: 2026-05-02 17:51 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -16,7 +16,7 @@
 | 2 | session_time_bias | +0.195 | +0.251 | +0.149 |
 | 3 | trendline_sweep | — | +0.574 | +0.838 |
 
-### A-2. PAIR_PROMOTED（16エントリ — 指定ペアのみ通過）
+### A-2. PAIR_PROMOTED（11エントリ — 指定ペアのみ通過）
 
 | # | 戦略名 | ペア | 365d BT EV |
 |---|---|---|---|
@@ -28,39 +28,38 @@
 | 6 | streak_reversal | USD_JPY | +1.169 |
 | 7 | vix_carry_unwind | USD_JPY | +0.506 |
 | 8 | vol_momentum_scalp | EUR_JPY | — |
-| 9 | vwap_mean_reversion | EUR_JPY | +1.155 |
-| 10 | vwap_mean_reversion | EUR_USD | +0.827 |
-| 11 | vwap_mean_reversion | GBP_JPY | +1.155 |
-| 12 | vwap_mean_reversion | GBP_USD | +1.087 |
-| 13 | vwap_mean_reversion | USD_JPY | +1.155 |
-| 14 | wick_imbalance_reversion | GBP_USD | — |
-| 15 | xs_momentum | EUR_USD | +0.126 |
-| 16 | xs_momentum | GBP_USD | -0.013 |
+| 9 | wick_imbalance_reversion | GBP_USD | — |
+| 10 | xs_momentum | EUR_USD | +0.126 |
+| 11 | xs_momentum | GBP_USD | -0.013 |
 
 ## B. Shadow戦略（OANDA非通過 — デモのみ記録）
 
-### B-1. FORCE_DEMOTED（18戦略 — 全ペア強制Shadow）
+### B-1. FORCE_DEMOTED（22戦略 — 全ペア強制Shadow）
 
 | # | 戦略名 | 365d BT JPY EV | EUR EV | GBP EV |
 |---|---|---|---|---|
 | 1 | atr_regime_break | — | — | — |
-| 2 | dt_bb_rsi_mr | — | — | — |
-| 3 | ema_cross | — | — | — |
-| 4 | ema_pullback | — | — | — |
-| 5 | ema_ribbon_ride | — | — | — |
-| 6 | ema_trend_scalp | — | — | — |
-| 7 | engulfing_bb | — | — | — |
-| 8 | fib_reversal | — | — | — |
-| 9 | inducement_ob | — | — | — |
-| 10 | intraday_seasonality | — | — | — |
-| 11 | lin_reg_channel | — | — | — |
-| 12 | macdh_reversal | — | — | — |
-| 13 | orb_trap | — | — | — |
-| 14 | post_news_vol | +1.119 | +0.844 | +1.302 |
-| 15 | sr_break_retest | — | — | — |
-| 16 | sr_channel_reversal | — | — | — |
-| 17 | sr_fib_confluence | — | — | — |
-| 18 | stoch_trend_pullback | — | — | — |
+| 2 | donchian_momentum_breakout | — | — | — |
+| 3 | dt_bb_rsi_mr | — | — | — |
+| 4 | ema_cross | — | — | — |
+| 5 | ema_pullback | — | — | — |
+| 6 | ema_ribbon_ride | — | — | — |
+| 7 | ema_trend_scalp | — | — | — |
+| 8 | engulfing_bb | — | — | — |
+| 9 | fib_reversal | — | — | — |
+| 10 | inducement_ob | — | — | — |
+| 11 | intraday_seasonality | — | — | — |
+| 12 | lin_reg_channel | — | — | — |
+| 13 | macdh_reversal | — | — | — |
+| 14 | orb_trap | — | — | — |
+| 15 | post_news_vol | +1.119 | +0.844 | +1.302 |
+| 16 | sr_break_retest | — | — | — |
+| 17 | sr_channel_reversal | — | — | — |
+| 18 | sr_fib_confluence | — | — | — |
+| 19 | stoch_trend_pullback | — | — | — |
+| 20 | trend_rebound | — | — | — |
+| 21 | v_reversal | — | — | — |
+| 22 | vwap_mean_reversion | +1.155 | +0.827 | +1.087 |
 
 ### B-2. SCALP_SENTINEL（10戦略 — Scalp最小ロットShadow）
 
@@ -160,7 +159,9 @@
 
 ## C. 整合性チェック結果
 
-✅ **全チェックパス** — FORCE_DEMOTED残存なし、矛盾なし
+### ⚠️ WARN（1件）
+- No strategy file found for 'donchian_momentum_breakout'
+
 ### ℹ️ INFO（14件）
 - Legacy dead inline 'bb_bounce' assigned in app.py — no production firing in 30+ days. Candidate for removal.
 - Legacy dead inline 'divergence' assigned in app.py — no production firing in 30+ days. Candidate for removal.

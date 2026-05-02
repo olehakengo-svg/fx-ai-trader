@@ -4,8 +4,8 @@
 - **Entry Type**: `trend_rebound`
 - **Category**: MR (Mean Reversion)
 - **Timeframe**: DT 15m
-- **Status**: UNIVERSAL_SENTINEL + PAIR_DEMOTED (EUR_USD)
-- **Active Pairs**: USD_JPY/GBP_USD は Shadow tier 通過; EUR_USD は明示 PAIR_DEMOTED で Shadow only
+- **Status**: FORCE_DEMOTED (2026-05-01 audit P0-8; Live N=17 WR=23.5% PnL=-26.0p)
+- **Active Pairs**: None (FORCE_DEMOTED; OANDA forwarding stopped)
 
 ## Previously
 - 〜2026-04-26: UNIVERSAL_SENTINEL; EUR_USD PAIR_DEMOTED

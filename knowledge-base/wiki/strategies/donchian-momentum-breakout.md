@@ -4,8 +4,8 @@
 - **Entry Type**: `donchian_momentum_breakout`
 - **Category**: Breakout / TF
 - **Timeframe**: DT 15m
-- **Status**: SHADOW (not in any promotion/demotion list)
-- **Active Pairs**: Shadow on all pairs
+- **Status**: FORCE_DEMOTED (2026-05-01 audit P0-8; Live N=3 WR=33.3% PnL=-32.1p)
+- **Active Pairs**: None (FORCE_DEMOTED; Shadow accumulation only)
 
 ## BT Performance (365d, 15m)
 BT data not available for this entry_type
@@ -26,6 +26,7 @@ Enters on Donchian channel breakout (new N-period high/low) with momentum confir
 - Lot Boost: default (1.0x)
 - PAIR_DEMOTED: none
 - PAIR_PROMOTED: none
+- Status: **FORCE_DEMOTED**
 
 ## Related
 - [[index]] — Tier classification

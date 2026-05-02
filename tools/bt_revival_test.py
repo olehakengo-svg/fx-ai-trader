@@ -42,6 +42,10 @@ import pandas as pd
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
+# This file is a manual, long-running BT harness. The `test_*` function names
+# are CLI selectors, not pytest unit tests.
+__test__ = False
+
 # ── Reuse bt_scanner infrastructure ──
 from tools.bt_scanner import (
     PAIRS, CACHE_DIR, load_parquet,
