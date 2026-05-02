@@ -1461,10 +1461,21 @@ class DemoDB:
 
         by_type = {}
         by_type_pair = {}  # v8.9: ペア×戦略別 (自動降格用)
+        by_type_pair_hour = {}  # W2-4 (2026-05-03): cell × hour-bucket for H-1 gate
         by_conf_band = {"low": [], "mid": [], "high": []}
         by_hour = {}
         by_regime = {}
         by_layer1 = {"bull": [], "bear": [], "neutral": []}
+
+        # W2-4: import bucket helpers (lazy — config might not be importable in tests)
+        try:
+            from modules.config import (
+                utc_hour_from_iso as _h1_utc_hour,
+                hour_to_bucket as _h1_hour_to_bucket,
+            )
+        except Exception:
+            _h1_utc_hour = None
+            _h1_hour_to_bucket = None
 
         for t in closed:
             # By entry type
@@ -1489,6 +1500,17 @@ class DemoDB:
                 by_hour.setdefault(h, []).append(t)
             except Exception:
                 pass
+
+            # W2-4: By (entry_type, instrument, hour_bucket)
+            #   spec: wiki/learning/h1-hour-bucket-design-2026-05-03.md
+            #   This is a PROMOTION-LEVEL cell — never used as signal filter.
+            if _h1_utc_hour is not None and _h1_hour_to_bucket is not None:
+                _hr = _h1_utc_hour(t.get("entry_time"))
+                _bucket = _h1_hour_to_bucket(_hr) if _hr is not None else None
+                if _bucket is not None:
+                    by_type_pair_hour.setdefault(
+                        (et, inst, _bucket), []
+                    ).append(t)
 
             # By regime
             try:
@@ -1553,6 +1575,14 @@ class DemoDB:
             # v8.9: ペア×戦略別 — キーは "entry_type|instrument" 形式
             "by_type_pair": {f"{k[0]}|{k[1]}": {"wr": _calc_wr(v)[0], "ev": _calc_wr(v)[1], "n": len(v),
                              "entry_type": k[0], "instrument": k[1]} for k, v in by_type_pair.items()},
+            # W2-4 (2026-05-03): cell × hour-bucket for H-1 promotion gate.
+            # Key format: "entry_type|instrument|bucket".
+            "by_type_pair_hour": {
+                f"{k[0]}|{k[1]}|{k[2]}": {
+                    "wr": _calc_wr(v)[0], "ev": _calc_wr(v)[1], "n": len(v),
+                    "entry_type": k[0], "instrument": k[1], "bucket": k[2],
+                } for k, v in by_type_pair_hour.items()
+            },
             "by_conf":   {k: {"wr": _calc_wr(v)[0], "ev": _calc_wr(v)[1], "n": len(v)} for k, v in by_conf_band.items()},
             "by_hour":   {k: {"wr": _calc_wr(v)[0], "ev": _calc_wr(v)[1], "n": len(v)} for k, v in by_hour.items()},
             "by_regime": {k: {"wr": _calc_wr(v)[0], "ev": _calc_wr(v)[1], "n": len(v)} for k, v in by_regime.items()},
@@ -1649,8 +1679,19 @@ class DemoDB:
                 "ev": round(pnl / n, 2),
             }
 
+        # W2-4 (2026-05-03): hour-bucket helpers for shadow cell evaluator.
+        try:
+            from modules.config import (
+                utc_hour_from_iso as _h1_utc_hour,
+                hour_to_bucket as _h1_hour_to_bucket,
+            )
+        except Exception:
+            _h1_utc_hour = None
+            _h1_hour_to_bucket = None
+
         by_type: dict = {}
         by_type_pair: dict = {}
+        by_type_pair_hour: dict = {}  # W2-4
         by_instrument: dict = {}
         for r in rows:
             et = r.get("entry_type") or "unknown"
@@ -1658,6 +1699,14 @@ class DemoDB:
             by_type.setdefault(et, []).append(r)
             by_type_pair.setdefault((et, inst), []).append(r)
             by_instrument.setdefault(inst, []).append(r)
+            # W2-4: bucket key for shadow cells
+            if _h1_utc_hour is not None and _h1_hour_to_bucket is not None:
+                _hr = _h1_utc_hour(r.get("entry_time"))
+                _bucket = _h1_hour_to_bucket(_hr) if _hr is not None else None
+                if _bucket is not None:
+                    by_type_pair_hour.setdefault(
+                        (et, inst, _bucket), []
+                    ).append(r)
 
         overall = _agg(rows)
         return {
@@ -1668,6 +1717,13 @@ class DemoDB:
             "by_type_pair": {
                 f"{k[0]}|{k[1]}": {**_agg(v), "entry_type": k[0], "instrument": k[1]}
                 for k, v in by_type_pair.items()
+            },
+            # W2-4: shadow cell × hour-bucket evaluator output
+            "by_type_pair_hour": {
+                f"{k[0]}|{k[1]}|{k[2]}": {
+                    **_agg(v), "entry_type": k[0],
+                    "instrument": k[1], "bucket": k[2],
+                } for k, v in by_type_pair_hour.items()
             },
             "by_instrument": {k: _agg(v) for k, v in by_instrument.items()},
             "overall_wr": overall["wr"],
