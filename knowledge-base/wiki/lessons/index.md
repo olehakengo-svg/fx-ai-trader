@@ -45,6 +45,14 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 - 修正: key を `(mode, instrument, direction, is_shadow)` tuple に拡張、`_cooldown_key` / `_get_cooldown_age` ヘルパーで lookup を集約
 - 教訓: **辞書 key は「同一 block 域に属する単位」を全て含める**。value 内に分類情報を保存しているのに read で使っていない場合、key の責務が古い (技術負債のシグナル)。direction-aware / agnostic が同ファイルで混在するなら設計の非対称が必ずバグを生む。
 
+### `lesson-is-shadow-drift-on-oanda-fill-2026-05-03`
+**発見日**: 2026-05-03 | **修正**: rule:R3 (本コミット)
+- 問題: `DemoDB.set_oanda_trade_id` が `oanda_trade_id` のみ更新し `is_shadow` を flip しなかった結果、OANDA 実弾約定でも `is_shadow=1` のまま残留
+- 症状: 直近 2000 trade で OANDA 実約定 34 件のうち **13 件 (38.2%) が is_shadow=1** にドリフト。`WHERE is_shadow=0` ベースの Live PnL 集計が 38% 過小計上。fib_reversal C1 promote は memory S467 で N=4 と見えていたが、実は N=11 (7 件隠れていた)
+- 原因: 「OANDA fill = live」という SSOT が DB スキーマ上 2 列 (oanda_trade_id, is_shadow) に分散。書き込み経路で片方しか更新されないと整合性が崩れる
+- 修正: `set_oanda_trade_id` で oanda_trade_id 非空時に `is_shadow=0` を atomic flip、起動時 backfill マイグレーションで歴史データを is_shadow=0 に補正
+- 教訓: **同じ事実を表す複数列は同じ statement で更新する。SSOT は 1 列に正規化するか、UPDATE の片方欠落を CI で防ぐ。「is_shadow=0 で集計する」ルール (memory feedback_live_shadow_separation) より「`oanda_trade_id IS NOT NULL` で集計する」が正しい live 判定**
+
 ### [[lesson-per-bar-dedup-tf-aware-2026-05-03]]
 **発見日**: 2026-05-03 | **修正**: rule:R3 (本コミット)
 - 問題: `_maybe_reserve_signal_emit` の dedup window が 60s ハードコードで、15m / 5m バー戦略は同一バー再発火を素通し
