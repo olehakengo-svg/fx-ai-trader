@@ -12794,6 +12794,14 @@ def _build_strategy_status_map():
         # ═══ 1H ═══
         "keltner_squeeze_breakout", "donchian_momentum_breakout",
         "h1_breakout_retest", "h1_fib_reversal", "h1_ema200_trend_reversal",
+        # ═══ D1 (Shadow only) ═══
+        # Turtle System 2 — 55-day Donchian breakout, USDJPY long-only.
+        # Wave 1 BT verdict: B (Shadow-promote). Live promotion blocked until
+        # live shadow N>=80 + Bonferroni p<0.10. Each unit has an independent
+        # 2N stop (anti-Martingale). Pyramid manager: modules/turtle_s2_pyramid.py
+        # Source of truth: wiki/learning/s2-turtle-55day-bt-2026-05-03.md
+        "turtle_s2_unit_1", "turtle_s2_unit_2",
+        "turtle_s2_unit_3", "turtle_s2_unit_4",
     }
     for et in sorted(_ALL_KNOWN_TYPES):
         if et in strategies:
