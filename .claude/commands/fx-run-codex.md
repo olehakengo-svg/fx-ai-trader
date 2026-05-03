@@ -23,9 +23,17 @@ cd /Users/jg-n-012/test/fx-ai-trader
 
 `$ARGUMENTS` が空の場合は、Codex を実行せず、どの番号を実行するかユーザーに確認する。複数タスクがある状態で暗黙に最新タスクを走らせない。
 
-実行は Claude Code の Codex companion 経由にする。raw Bash の `codex exec` は使わない。Codex が動いた場合は Codex アプリ側の persistent task/thread に表示され、そこで作業が進むことを期待する。
+実行は Claude Code の Codex companion 経由にする。raw Bash の `codex exec` は使わない。
 
-実行後、出力された run directory、Codex companion job id、final report の場所を確認する。
+実行後、出力された run directory、Codex companion Job ID、status command、result command、final report の場所を確認する。Codex アプリの左サイドバーはタイトルが省略・混線することがあるため、会話一覧の表示名では判断しない。必ず Job ID と Codex session ID で追跡する。
+
+ユーザーへは少なくとも以下を報告する:
+
+- Job ID
+- status command
+- result command
+- Codex session ID（status 出力にあれば）
+- final report path
 
 ## クオンツ確認
 

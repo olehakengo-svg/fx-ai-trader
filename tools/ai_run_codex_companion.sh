@@ -172,9 +172,33 @@ if [[ -n "${CODEX_COMPANION_ARGS:-}" ]]; then
   COMPANION_ARGS=(task "${EXTRA_ARGS[@]}" --background --write --cwd "$ROOT" --prompt-file "$PROMPT_FILE")
 fi
 
-node "$COMPANION_SCRIPT" "${COMPANION_ARGS[@]}"
+COMPANION_OUTPUT="$(node "$COMPANION_SCRIPT" "${COMPANION_ARGS[@]}")"
+printf "%s\n" "$COMPANION_OUTPUT"
+
+JOB_ID="$(printf "%s\n" "$COMPANION_OUTPUT" | grep -Eo 'task-[[:alnum:]]+-[[:alnum:]]+' | head -1 || true)"
+if [[ -n "$JOB_ID" ]]; then
+  TRACK_FILE="$RUN_DIR/codex-job.txt"
+  cat > "$TRACK_FILE" <<EOF
+job_id=$JOB_ID
+task=$TASK
+run_dir=$RUN_DIR
+final_file=$FINAL_FILE
+thread_title=$THREAD_TITLE
+status_command=node "$COMPANION_SCRIPT" status $JOB_ID
+result_command=node "$COMPANION_SCRIPT" result $JOB_ID
+EOF
+
+  echo
+  echo "Codex companion tracking:"
+  echo "  Job ID: $JOB_ID"
+  echo "  Status: node \"$COMPANION_SCRIPT\" status $JOB_ID"
+  echo "  Result: node \"$COMPANION_SCRIPT\" result $JOB_ID"
+  echo "  Tracking file: $TRACK_FILE"
+  echo
+  node "$COMPANION_SCRIPT" status "$JOB_ID" || true
+fi
 
 echo
-echo "Codex companion task launched. It should appear in the Codex app/task thread list."
+echo "Codex companion task launched. Track it by Job ID; the app sidebar can show truncated or unrelated task titles."
 echo "Expected run report: $FINAL_FILE"
 echo "Review with Claude Code after completion: /fx-review-result"
