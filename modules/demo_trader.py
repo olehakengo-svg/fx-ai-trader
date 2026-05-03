@@ -5436,6 +5436,148 @@ class DemoTrader:
             return DemoTrader._BT_COST_PER_TRADE
         return weighted_sum / total_n
 
+    # ─────────────────────────────────────────────────────────────────
+    # W3-1 (2026-05-03): H-1 Hour-Bucket Cell-Level Promotion Gate
+    #   spec: wiki/learning/h1-hour-bucket-design-2026-05-03.md
+    #   parent audit: wiki/learning/h1-spread-time-audit-2026-05-03.md
+    #
+    #   *** THIS IS A PROMOTION-LEVEL GATE — NOT A SIGNAL FILTER. ***
+    #   It evaluates (strategy, instrument, hour_bucket) cells using the
+    #   same Wilson/EV/N statistics as the global promotion gate.
+    #   Compatible with `feedback_ma_filter_breaks_mr` (no signal-stage
+    #   filters added to MR strategies).
+    #
+    #   Explicit snapshot grandfathering only; no signal-stage filters.
+    # ─────────────────────────────────────────────────────────────────
+    @staticmethod
+    def _decide_hour_bucket_action(cell_stats: dict,
+                                   current_promotion: str,
+                                   is_grandfathered: bool,
+                                   cfg) -> tuple:
+        """Pure-function H-1 hour-bucket gate decision.
+
+        Args:
+            cell_stats: dict with keys {n, wr, ev_mean, ev_ci_lo, wilson_lo}
+                for one (strategy, instrument, bucket) cell.
+            current_promotion: "live" | "shadow" | "demoted" | "pending".
+                Note: in this codebase "promoted" is the live tier — caller
+                should pass "live" when promoted_types[et].status == "promoted".
+            is_grandfathered: True if strategy is in _GRANDFATHERED_LIVE.
+            cfg: modules.config (passed in for testability).
+
+        Returns:
+            (new_promotion, reason)
+
+        Invariants:
+            - Never returns a harder block than current ("soft_demote" only).
+            - Disabled gate or grandfathered: never changes status.
+            - Insufficient N: never changes status (no false demote on small N).
+        """
+        if not getattr(cfg, "H1_GATE_ENABLED", False):
+            return current_promotion, "gate_disabled"
+        if is_grandfathered:
+            return current_promotion, "grandfather"
+        n = int(cell_stats.get("n", 0) or 0)
+        wilson_lo = float(cell_stats.get("wilson_lo", 0.0) or 0.0)
+        ev_ci_lo = float(cell_stats.get("ev_ci_lo", 0.0) or 0.0)
+        n_min = int(getattr(cfg, "H1_GATE_MIN_N", 30))
+        if n < n_min:
+            return current_promotion, "n_below_min"
+        if (wilson_lo > getattr(cfg, "H1_GATE_WILSON_LO", 0.40)
+                and ev_ci_lo >= getattr(cfg, "H1_GATE_EV_CI_LO", 0.0)):
+            return current_promotion, "bucket_pass"
+        # Failure modes — soft demote one step
+        if current_promotion == "live":
+            return "shadow", "bucket_fail_demote_to_shadow"
+        if current_promotion in ("shadow", "pending"):
+            return "demoted", "bucket_fail_demote_from_shadow"
+        return current_promotion, "already_demoted"
+
+    def _is_strategy_grandfathered(self, et: str) -> bool:
+        """Return True when strategy is in the explicit W3-1 grandfather set."""
+        try:
+            from modules.config import _GRANDFATHERED_LIVE
+        except Exception:
+            _GRANDFATHERED_LIVE = frozenset()
+        return et in _GRANDFATHERED_LIVE
+
+    @staticmethod
+    def _ev_ci_lower(ev_mean: float, ev_std: float, n: int, z: float = 1.96) -> float:
+        """95% normal-approx lower CI for mean pip EV."""
+        import math as _m
+        if n <= 0:
+            return 0.0
+        if n == 1 or ev_std <= 0:
+            return float(ev_mean)
+        return float(ev_mean) - z * (float(ev_std) / _m.sqrt(float(n)))
+
+    def _evaluate_hour_bucket_cells(self, by_type_pair_hour: dict,
+                                    is_shadow_path: bool = False) -> list:
+        """Evaluate H1 gate over all (strategy, instrument, bucket) cells.
+
+        Args:
+            by_type_pair_hour: dict from get_trades_for_learning /
+                get_shadow_trades_for_evaluation. Keys are
+                "et|inst|bucket" strings; values have {n, wr, ev_mean,
+                ev_std,
+                entry_type, instrument, bucket}.
+            is_shadow_path: True when called against the shadow aggregator
+                (current_promotion defaults to "shadow" instead of using
+                _promoted_types).
+
+        Returns:
+            list of dicts:
+                {entry_type, instrument, bucket, n, wr, ev_mean, ev_std,
+                 ev_ci_lo, wilson_lo,
+                 current, new, reason, grandfathered}
+            Always populated regardless of gate state — observational layer.
+        """
+        try:
+            import modules.config as cfg
+        except Exception:
+            return []
+        out = []
+        for _key, stats in (by_type_pair_hour or {}).items():
+            et = stats.get("entry_type")
+            inst = stats.get("instrument")
+            bucket = stats.get("bucket")
+            if not et or not inst or not bucket:
+                continue
+            n = int(stats.get("n", 0) or 0)
+            wr = float(stats.get("wr", 0) or 0)
+            ev_mean = float(stats.get("ev_mean", stats.get("ev", 0)) or 0)
+            ev_std = float(stats.get("ev_std", 0) or 0)
+            ev_ci_lo = self._ev_ci_lower(ev_mean, ev_std, n)
+            wins = int(round(n * wr / 100.0)) if n > 0 else 0
+            wL = self._wilson_bf_lower(wins, n, 1.96)
+            cell = {
+                "n": n, "wr": wr, "ev_mean": ev_mean,
+                "ev_std": ev_std, "ev_ci_lo": ev_ci_lo,
+                "wilson_lo": wL,
+            }
+            if is_shadow_path:
+                current = "shadow"
+            else:
+                cur_status = (self._promoted_types or {}).get(et, {}).get(
+                    "status", "pending"
+                )
+                # Map internal "promoted" → public "live" for gate semantics.
+                current = "live" if cur_status == "promoted" else cur_status
+            grandfathered = self._is_strategy_grandfathered(et)
+            new, reason = self._decide_hour_bucket_action(
+                cell, current, grandfathered, cfg
+            )
+            out.append({
+                "entry_type": et, "instrument": inst, "bucket": bucket,
+                "n": n, "wr": wr, "ev": ev_mean,
+                "ev_mean": ev_mean, "ev_std": ev_std,
+                "ev_ci_lo": round(ev_ci_lo, 4),
+                "wilson_lo": round(wL, 4),
+                "current": current, "new": new, "reason": reason,
+                "grandfathered": grandfathered,
+            })
+        return out
+
     @staticmethod
     def _decide_promotion_status(et, n, wr, ev, friction_pip,
                                  wilson_pass, kelly_block, old, stats):
@@ -5681,6 +5823,98 @@ class DemoTrader:
                 pass
             # ── v6.3: Rolling EV Monitor (直近20トレードの滑走EV) ──
             self._check_rolling_ev(by_type)
+
+            # ── W3-1 (2026-05-03): H-1 hour-bucket promotion gate ──
+            #   spec: wiki/learning/h1-hour-bucket-design-2026-05-03.md
+            #   Promotion-level only: this never filters signal generation.
+            #   It applies after the normal promotion decision and can only
+            #   soft-demote one tier (promoted/live -> pending/shadow).
+            try:
+                import modules.config as _cfg
+                _bth = data.get("by_type_pair_hour", {}) or {}
+                _bucket_decisions = self._evaluate_hour_bucket_cells(
+                    _bth, is_shadow_path=False
+                )
+                # Persist for monitoring (always, including env-disabled runs).
+                try:
+                    self._db.set_system_kv(
+                        "h1_bucket_status_cache",
+                        json.dumps(_bucket_decisions, default=str)
+                    )
+                except Exception:
+                    pass
+                if getattr(_cfg, "H1_GATE_ENABLED", False):
+                    _live_bucket_fails = {}
+                    for _d in _bucket_decisions:
+                        if _d["current"] == "live" and _d["new"] == "shadow":
+                            _live_bucket_fails.setdefault(
+                                _d["entry_type"], []
+                            ).append(_d)
+                    for _et, _fails in sorted(_live_bucket_fails.items()):
+                        if self._is_strategy_grandfathered(_et):
+                            continue
+                        _old_info = self._promoted_types.get(_et, {})
+                        if _old_info.get("status") != "promoted":
+                            continue
+                        _new_info = dict(_old_info)
+                        _new_info["status"] = "pending"
+                        _new_info["h1_bucket_gate"] = _fails
+                        self._promoted_types[_et] = _new_info
+                        _bucket_labels = ",".join(
+                            f"{d['instrument']}:{d['bucket']}"
+                            for d in _fails
+                        )
+                        self._add_log(
+                            f"[H1] {_et}: promoted→pending soft-demote "
+                            f"({ _bucket_labels })"
+                        )
+                        try:
+                            self._db.save_algo_change(
+                                change_type="tier_transition",
+                                description=(
+                                    f"{_et}: promoted→pending "
+                                    f"(H1 bucket gate: {_bucket_labels})"
+                                ),
+                                params_before={"status": "promoted"},
+                                params_after={
+                                    "status": "pending",
+                                    "h1_bucket_gate": _fails,
+                                },
+                                triggered_by="evaluate_promotions",
+                            )
+                        except Exception as _e:
+                            print(
+                                f"[H1Gate] algo_change_log write failed: {_e}",
+                                flush=True,
+                            )
+                    if not hasattr(self, "_runtime_hour_bucket_demoted"):
+                        self._runtime_hour_bucket_demoted = set()
+                    _new_demoted = {
+                        (_d["entry_type"], _d["instrument"], _d["bucket"])
+                        for _d in _bucket_decisions
+                        if _d["new"] != _d["current"]
+                    }
+                    _added = _new_demoted - self._runtime_hour_bucket_demoted
+                    if _added:
+                        self._runtime_hour_bucket_demoted |= _added
+                        for _et, _inst, _bk in sorted(_added):
+                            self._add_log(
+                                f"🔻 [H1] {_et}×{_inst}×{_bk}: bucket_demote "
+                                f"(W3-1 hour-bucket gate)"
+                            )
+                # Always log a summary count for visibility.
+                _fail_n = sum(
+                    1 for _d in _bucket_decisions
+                    if _d["new"] != _d["current"]
+                )
+                if _bucket_decisions:
+                    self._add_log(
+                        f"[H1] hour-bucket evaluator: cells={len(_bucket_decisions)} "
+                        f"would_change={_fail_n} "
+                        f"enabled={getattr(_cfg, 'H1_GATE_ENABLED', False)}"
+                    )
+            except Exception as _e_h1:
+                print(f"[H1Gate] eval error: {_e_h1}", flush=True)
         except Exception as e:
             print(f"[Promotion] error: {e}", flush=True)
 

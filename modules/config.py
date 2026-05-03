@@ -103,6 +103,114 @@ def get_strategy_profile_mode(entry_type: str):
     return None
 
 # ═══════════════════════════════════════════════════════
+#  H-1 Hour-Bucket Cell-Level Promotion Gate (2026-05-03)
+#  W3-1
+#  spec: wiki/learning/h1-hour-bucket-design-2026-05-03.md
+#  parent audit: wiki/learning/h1-spread-time-audit-2026-05-03.md
+#
+#  *** IMPORTANT ***
+#  This is a PROMOTION-LEVEL cell evaluator, NOT a signal-stage filter.
+#  4原則 #3 ("静的時間ブロックは使わない") refers to signal-side static
+#  blocks. This gate evaluates (strategy, instrument, hour_bucket) cells
+#  at promotion time using the same Wilson/EV/N statistics as the global
+#  promotion gate. It DOES NOT skip signal generation, MR/TF logic, or
+#  the existing dynamic spread/SL gate. Compatible with `feedback_ma_filter_breaks_mr`.
+#
+#  Default H1_GATE_ENABLED=True for W3-1; set env H1_GATE_ENABLED=0 to disable.
+# ═══════════════════════════════════════════════════════
+HOUR_BUCKETS = {
+    "A": range(0, 6),     # Asia late / EU pre-open
+    "B": range(6, 12),    # Asia close / London open
+    "C": range(12, 18),   # London-NY overlap
+    "D": range(18, 24),   # NY late / Asia next-day
+}
+H1_HOUR_BUCKETS_4 = tuple(
+    (label, min(hours), max(hours) + 1)
+    for label, hours in HOUR_BUCKETS.items()
+)
+H1_HOUR_BUCKETS_24 = tuple((f"H{h:02d}", h, h + 1) for h in range(24))
+
+H1_PROMOTION_BUCKET_MODE = os.environ.get("H1_BUCKET_MODE", "4_bucket")
+H1_GATE_MIN_N = int(os.environ.get("H1_GATE_MIN_N", "30"))
+H1_GATE_WILSON_LO = float(os.environ.get("H1_GATE_WILSON_LO", "0.40"))
+H1_GATE_EV_CI_LO = float(os.environ.get("H1_GATE_EV_CI_LO", "0.0"))
+H1_GATE_ACTION = os.environ.get("H1_GATE_ACTION", "soft_demote")  # never "hard_block"
+H1_GATE_ENABLED = os.environ.get("H1_GATE_ENABLED", "1") in ("1", "true", "True")
+
+# Backward-compatible aliases for W2-4 audit tooling.
+H1_BUCKET_N_MIN = H1_GATE_MIN_N
+H1_BUCKET_N_MIN_SHADOW = H1_GATE_MIN_N
+H1_BUCKET_WILSON_MIN = H1_GATE_WILSON_LO
+H1_BUCKET_EV_MIN_PIP = H1_GATE_EV_CI_LO
+
+# Strategies currently in LIVE tier that must not be re-evaluated by the H1 gate.
+# Added explicitly per `feedback_ma_filter_breaks_mr` — adding filters to MR
+# strategies historically destroyed Live edge. Snapshot source:
+# knowledge-base/wiki/tier-master.json generated_at=2026-05-02T17:51:28+00:00
+# plus bb_rsi_reversion from the W3-1 task contract.
+_GRANDFATHERED_LIVE = frozenset({
+    "bb_rsi_reversion",
+    "gbp_deep_pullback",
+    "session_time_bias",
+    "trendline_sweep",
+    "bb_squeeze_breakout",
+    "doji_breakout",
+    "ema200_trend_reversal",
+    "squeeze_release_momentum",
+    "streak_reversal",
+    "vix_carry_unwind",
+    "vol_momentum_scalp",
+    "wick_imbalance_reversion",
+    "xs_momentum",
+})
+H1_GRANDFATHERED_LIVE = _GRANDFATHERED_LIVE
+
+
+def _h1_buckets():
+    """Return active bucket tuple ((label, lo_hr, hi_hr_excl), ...)."""
+    if H1_PROMOTION_BUCKET_MODE == "24_bucket":
+        return H1_HOUR_BUCKETS_24
+    return H1_HOUR_BUCKETS_4
+
+
+def utc_hour_from_iso(iso_ts):
+    """Parse ISO timestamp → UTC hour (int 0-23) or None on failure.
+
+    Pure function — used by promotion-gate aggregation only. Never call from
+    signal pipeline (would convert dynamic logic into static time block).
+    """
+    if not iso_ts:
+        return None
+    try:
+        from datetime import datetime
+        if isinstance(iso_ts, str):
+            return datetime.fromisoformat(iso_ts).hour
+        if hasattr(iso_ts, "hour"):
+            return int(iso_ts.hour)
+    except Exception:
+        return None
+    return None
+
+
+def hour_to_bucket(hour, mode=None):
+    """Map UTC hour (0-23) → bucket label per active mode. Returns None if hour invalid."""
+    if hour is None:
+        return None
+    try:
+        h = int(hour)
+    except Exception:
+        return None
+    if h < 0 or h > 23:
+        return None
+    use_mode = mode or H1_PROMOTION_BUCKET_MODE
+    buckets = H1_HOUR_BUCKETS_24 if use_mode == "24_bucket" else H1_HOUR_BUCKETS_4
+    for label, lo, hi in buckets:
+        if lo <= h < hi:
+            return label
+    return None
+
+
+# ═══════════════════════════════════════════════════════
 #  時間帯x方向バイアス — Massive API 10,518バー第三者評価結果
 #  SL=4pip TP=12pip (1:3 RR) ランダム2,094トレード検証
 # ═══════════════════════════════════════════════════════
