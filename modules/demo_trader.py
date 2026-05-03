@@ -6202,7 +6202,7 @@ class DemoTrader:
         ("bb_squeeze_breakout", "EUR_JPY"),   # 未評価 → 保護
         ("bb_squeeze_breakout", "GBP_JPY"),   # 未評価 → 保護
         ("bb_squeeze_breakout", "EUR_GBP"),   # 未評価 → 保護
-        # 2026-05-03 R2 15-cell LOCK: Gate 0 ACCEPT stop-OANDA set.
+        # 2026-05-03 R2 15-cell LOCK: TRUE_LIVE counterfactual + Tier 1 extension
         ("vwap_mean_reversion", "GBP_USD"),
         ("vix_carry_unwind", "USD_JPY"),
         ("sr_channel_reversal", "USD_JPY"),
@@ -6239,7 +6239,7 @@ class DemoTrader:
         # v9.x 2026-04-21: bb_squeeze_breakout×USD_JPY PAIR_PROMOTED復活
         # 365d BT 5m: N=42 WR=76.2% EV=+0.426 PnL=+17.9 (shadow post-cut N=41 EV=+1.55)
         # EUR_USD shadow EV=-3.05 のためペア限定。FORCE_DEMOTED残存でEUR/GBP保護。lot=1.0x(trial)
-        # REMOVED 2026-05-03 R2 15-cell LOCK: TRUE_LIVE N=9 EV=-1.40p.
+        # REMOVED 2026-05-03 R2 15-cell LOCK: TRUE_LIVE N=9 EV=-1.40 PnL=-12.6
         # ("bb_squeeze_breakout", "USD_JPY"),
         # REMOVED v9.1: fib_reversal×EUR — FORCE_DEMOTED (死コード)
         # REMOVED v9.1: sr_channel_reversal×EUR — FORCE_DEMOTED (死コード)
@@ -6248,7 +6248,7 @@ class DemoTrader:
         # integrity and stop OANDA forwarding.
         # v2.1: 4/14分析対策 — SHADOW勝者をSENTINEL復活
         # 対策1: vix_carry_unwind×JPY — 4/14で+58.7pip(SHADOW), BT EV=+0.212 N=49 WR=67.3%
-        # REMOVED 2026-05-03 R2 15-cell LOCK: TRUE_LIVE N=7 EV=-6.04p.
+        # REMOVED 2026-05-03 R2 15-cell LOCK: TRUE_LIVE N=7 EV=-6.04 PnL=-42.3
         # ("vix_carry_unwind", "USD_JPY"),
         # 対策2: post_news_vol×GBP/EUR — 4/14で+46pip(SHADOW), BT GBP EV=+1.762 N=26
         # REMOVED 2026-04-27 (rule:R2 整合性 fix): post_news_vol は L5301 で
@@ -6376,7 +6376,7 @@ class DemoTrader:
         # without explicit re-promotion (Live WR 22.2%, PnL -43.4p, demoted
         # to _UNIVERSAL_SENTINEL with QUICK_HARVEST_EXEMPT removed).
         "trendline_sweep",       # DT: GBP EV=+0.60, EUR EV=+0.93
-        # REMOVED 2026-05-03 R2 Tier 1 extension: GBP_USD TRUE_LIVE N=3 EV=-4.43p.
+        # REMOVED 2026-05-03 R2 15-cell LOCK: GBP_USD TRUE_LIVE N=3 EV=-4.43 PnL=-13.3
         # "gbp_deep_pullback",
     }
 
@@ -6448,8 +6448,10 @@ class DemoTrader:
     })
     _QUICK_HARVEST_MULT = 0.85      # v6.8: 0.70→0.85 (DT WIN 7件の19.2pip利益漏出修復)
     _QUICK_HARVEST_EXEMPT = frozenset({
-        # REMOVED 2026-05-03 R2 Tier 1 extension: no longer ELITE/PAIR_PROMOTED.
-        # ("gbp_deep_pullback", "GBP_USD"),
+        # 2026-05-03 R2 15-cell LOCK consistency fix:
+        # gbp_deep_pullback x GBP_USD と vix_carry_unwind x USD_JPY は
+        # _ELITE_LIVE / _PAIR_PROMOTED から demote されたため QH_EXEMPT も解除。
+        # ("gbp_deep_pullback", "GBP_USD"),  # demoted 2026-05-03 (15-cell LOCK)
         # 2026-05-01 audit P0-8 phase 1 — session_time_bias を ELITE_LIVE→
         # SENTINEL 降格に伴い QH_EXEMPT を解除。Live で WR 22.2% / -43.4p
         # なので quick-harvest TP 短縮を「適用する」側に戻して被弾を抑える。
@@ -6457,8 +6459,7 @@ class DemoTrader:
         # ("session_time_bias", "EUR_USD"),
         # ("session_time_bias", "GBP_USD"),
         # v9.1: london_fix_reversal×GBP_USD削除 — PAIR_PROMOTED解除済み (365d BT EV=-0.239)
-        # REMOVED 2026-05-03 R2 15-cell LOCK: no longer PAIR_PROMOTED.
-        # ("vix_carry_unwind", "USD_JPY"),
+        # ("vix_carry_unwind", "USD_JPY"),  # demoted 2026-05-03 (15-cell LOCK)
     })
     # v9.1 Clean Slate: v9.1デプロイ(08:00 UTC)以前のデータはshadow永続化バグ+FORCE_DEMOTED OANDA漏出で汚染
     # 07:59以前の8件がshadow+OANDA IDの遷移期間トレード → Kelly計算を汚染(-0.148)

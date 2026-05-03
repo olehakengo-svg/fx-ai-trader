@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-05-03 15:10 UTC
+**最終更新**: 2026-05-03 14:52 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -168,7 +168,10 @@
 
 ## C. 整合性チェック結果
 
-✅ **全チェックパス** — FORCE_DEMOTED残存なし、矛盾なし
+### ⚠️ WARN（2件）
+- QUICK_HARVEST_EXEMPT (gbp_deep_pullback, GBP_USD) not in ELITE/PAIR_PROMOTED
+- QUICK_HARVEST_EXEMPT (vix_carry_unwind, USD_JPY) not in ELITE/PAIR_PROMOTED
+
 ### ℹ️ INFO（14件）
 - Legacy dead inline 'bb_bounce' assigned in app.py — no production firing in 30+ days. Candidate for removal.
 - Legacy dead inline 'divergence' assigned in app.py — no production firing in 30+ days. Candidate for removal.
