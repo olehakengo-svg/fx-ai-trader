@@ -6202,6 +6202,20 @@ class DemoTrader:
         ("bb_squeeze_breakout", "EUR_JPY"),   # 未評価 → 保護
         ("bb_squeeze_breakout", "GBP_JPY"),   # 未評価 → 保護
         ("bb_squeeze_breakout", "EUR_GBP"),   # 未評価 → 保護
+        # 2026-05-03 R2 14-cell TRUE_LIVE stop LOCK (rule:R2):
+        # Live bleeding cells moved to PAIR_DEMOTED, including the two
+        # formerly PAIR_PROMOTED conflicts below. Ref:
+        # r2-strategy-instrument-counterfactual-2026-05-03.
+        ("bb_rsi_reversion", "USD_JPY"),
+        ("bb_squeeze_breakout", "USD_JPY"),
+        ("session_time_bias", "GBP_USD"),
+        ("sr_channel_reversal", "EUR_USD"),
+        ("sr_channel_reversal", "USD_JPY"),
+        ("trend_rebound", "USD_JPY"),
+        ("v_reversal", "USD_JPY"),
+        ("vix_carry_unwind", "USD_JPY"),
+        ("vol_surge_detector", "USD_JPY"),
+        ("vwap_mean_reversion", "GBP_USD"),
     }
 
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
@@ -6224,18 +6238,20 @@ class DemoTrader:
         ("xs_momentum", "EUR_USD"),
         # REMOVED v9.0: trendline_sweep → ELITE_LIVE (PAIR_PROMOTED redundant)
         # (was: EUR EV=+0.927 N=73 WR=80.8% PF=2.52 / GBP EV=+0.599 N=134 WR=73.1% PF=1.68)
-        # v9.x 2026-04-21: bb_squeeze_breakout×USD_JPY PAIR_PROMOTED復活
-        # 365d BT 5m: N=42 WR=76.2% EV=+0.426 PnL=+17.9 (shadow post-cut N=41 EV=+1.55)
-        # EUR_USD shadow EV=-3.05 のためペア限定。FORCE_DEMOTED残存でEUR/GBP保護。lot=1.0x(trial)
-        ("bb_squeeze_breakout", "USD_JPY"),
+        # REMOVED 2026-05-03 R2 14-cell TRUE_LIVE stop LOCK:
+        # bb_squeeze_breakout×USD_JPY Live N=9 EV=-1.40 Wilson_lo=12.06%
+        # Kelly raw=-0.64; moved to _PAIR_DEMOTED.
+        # ("bb_squeeze_breakout", "USD_JPY"),
         # REMOVED v9.1: fib_reversal×EUR — FORCE_DEMOTED (死コード)
         # REMOVED v9.1: sr_channel_reversal×EUR — FORCE_DEMOTED (死コード)
         # REMOVED 2026-05-01 audit P0-8: vwap_mean_reversion → FORCE_DEMOTED
         # after live degradation; remove pair promotions to preserve tier
         # integrity and stop OANDA forwarding.
         # v2.1: 4/14分析対策 — SHADOW勝者をSENTINEL復活
-        # 対策1: vix_carry_unwind×JPY — 4/14で+58.7pip(SHADOW), BT EV=+0.212 N=49 WR=67.3%
-        ("vix_carry_unwind", "USD_JPY"),
+        # REMOVED 2026-05-03 R2 14-cell TRUE_LIVE stop LOCK:
+        # vix_carry_unwind×USD_JPY Live N=7 EV=-6.04 Wilson_lo=8.22%
+        # Kelly raw=-0.41; moved to _PAIR_DEMOTED.
+        # ("vix_carry_unwind", "USD_JPY"),
         # 対策2: post_news_vol×GBP/EUR — 4/14で+46pip(SHADOW), BT GBP EV=+1.762 N=26
         # REMOVED 2026-04-27 (rule:R2 整合性 fix): post_news_vol は L5301 で
         # FORCE_DEMOTED 登録済 (Shadow N=6 全敗、net_edge_audit -50pt)。
@@ -6297,13 +6313,10 @@ class DemoTrader:
         ("vol_surge_detector", "EUR_USD"): 1.8,   # N=7 EV=+1.20 Kelly=32.7% → Half=16.4% (N小→控えめ)
         # REMOVED 2026-05-01 audit P0-8: vwap_mean_reversion → FORCE_DEMOTED
         # after live degradation; pair boost removed.
-        # v10 (2026-04-27, rule:R2): bb_squeeze_breakout × USD_JPY 緊急 lot 縮小.
-        # 365d BT N=42 WR=76.2% で PAIR_PROMOTED 復活 (2026-04-21) したが、Live は
-        # post-promotion N=5 全敗 (-11.9pip cum). Wilson 95% CI 非重複で BT-Live
-        # divergence の可能性極めて高い (p<0.001). N=10 に達するまで観測継続だが
-        # 出血最小化のため lot を 0.01x trial 化. 詳細:
-        # knowledge-base/wiki/decisions/kelly-recompute-2026-04-27.md Action 2
-        ("bb_squeeze_breakout", "USD_JPY"): 0.01,
+        # REMOVED 2026-05-03 R2 14-cell TRUE_LIVE stop LOCK:
+        # bb_squeeze_breakout×USD_JPY moved to _PAIR_DEMOTED, so no pair-level
+        # live lot override remains.
+        # ("bb_squeeze_breakout", "USD_JPY"): 0.01,
     }
 
     # 全モードSentinel: scalp以外にも適用される戦略Sentinel
@@ -6440,8 +6453,10 @@ class DemoTrader:
         # ("session_time_bias", "USD_JPY"),
         # ("session_time_bias", "EUR_USD"),
         # ("session_time_bias", "GBP_USD"),
-        # v9.1: london_fix_reversal×GBP_USD削除 — PAIR_PROMOTED解除済み (365d BT EV=-0.239)
-        ("vix_carry_unwind", "USD_JPY"),    # イベント戦略、TP到達が前提
+        # REMOVED 2026-05-03 R2 14-cell TRUE_LIVE stop LOCK:
+        # vix_carry_unwind×USD_JPY moved to _PAIR_DEMOTED, so Quick-Harvest
+        # exemption must not survive as a live override.
+        # ("vix_carry_unwind", "USD_JPY"),
     })
     # v9.1 Clean Slate: v9.1デプロイ(08:00 UTC)以前のデータはshadow永続化バグ+FORCE_DEMOTED OANDA漏出で汚染
     # 07:59以前の8件がshadow+OANDA IDの遷移期間トレード → Kelly計算を汚染(-0.148)

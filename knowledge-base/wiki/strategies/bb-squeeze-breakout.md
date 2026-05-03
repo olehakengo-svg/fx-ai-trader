@@ -4,14 +4,14 @@
 - **Entry Type**: `bb_squeeze_breakout`
 - **Category**: Breakout / VOL
 - **Timeframe**: Scalp 1m/5m, DT 15m
-- **Status**: PAIR_PROMOTED (USD_JPY) — EUR/GBP/JPYcross は PAIR_DEMOTED で保護
-- **Active Pairs**: USD_JPY (trial, 1.0x lot)
+- **Status**: PAIR_DEMOTED (USD_JPY/EUR_USD/GBP_USD/EUR_JPY/GBP_JPY/EUR_GBP)
+- **Active Pairs**: none (2026-05-03 R2 TRUE_LIVE stop LOCK)
 
 ## BT Performance (365d, 5m Scalp)
 
 | Pair | N | WR | EV | PnL | 判定 |
 |---|---|---|---|---|---|
-| USD_JPY | 43 | 74.4% | +0.354 | +22.5p | ✅ PAIR_PROMOTED |
+| USD_JPY | 43 | 74.4% | +0.354 | +22.5p | superseded by 2026-05-03 TRUE_LIVE PAIR_DEMOTED |
 | EUR_USD | shadow EV=-3.05 (5d) | — | — | — | ❌ PAIR_DEMOTED 継続 |
 | GBP_USD | shadow N=4 (5d) | — | — | — | ❌ PAIR_DEMOTED 継続 |
 
@@ -49,6 +49,12 @@ post-cutoff (>=2026-04-16) Shadow (WEEKEND_CLOSE 除外) を direction 分解:
 aggregate「N=41 EV=+1.55」は SELL の正 EV が BUY 負を相殺した混合。実態は SELL のみ. cell-level (USD_JPY × SELL) で Shadow N≥20 蓄積後 pre-reg LOCK 候補 (mechanism: filter-type → Wilson WR + EV CI 下限 binding gate). Live 04-16 以降 0 fire (PAIR_PROMOTED USD_JPY は active だが、Q4/MTF gate or cooldown で抑制中の可能性).
 
 **注**: aggregate-only 表記は [[lesson-confounding-in-pooled-metrics-2026-04-23]] と同類のリスク。cell-level monitor 推奨.
+
+## 2026-05-03 R2 TRUE_LIVE stop LOCK
+
+`bb_squeeze_breakout × USD_JPY` は R2 14-cell stop list に入り、PAIR_PROMOTED から PAIR_DEMOTED へ移動。TRUE_LIVE snapshot では N=9, EV=-1.40p, Wilson_lo=12.06%, raw Kelly=-0.64。旧 BT / Shadow 根拠より Live 実測を上位真実として、OANDA forwarding を停止する。
+
+Related: `knowledge-base/wiki/decisions/r2-strategy-instrument-counterfactual-2026-05-03.md`, `.ai/decisions/2026-05-03-2230-r2-14cell-blocked-pair-promoted-conflict.md`.
 
 ## 2026-04-21 PAIR_PROMOTED 判断
 
