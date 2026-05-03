@@ -247,3 +247,37 @@ W1P1 (`.ai/decisions/20260504-0150-s6-w1p1-conditional-promote.md`) で:
 - 8-pattern primary set (4 bull/bear pair) は全て symmetry pass + HR > 54% + N > 999
 
 W1P2 はこの 8 patterns について **friction 込み + statistical rigor (Bonferroni / bootstrap / OOS / yearly) で BT 化**するタスク。raw HR は既知だが effective WR はまだ未知。
+
+
+## Result (2026-05-03T17:19:41Z)
+
+exit=0 · 182s
+
+```
+Implemented W1P2 in [tools/s6_w1p2_primary_bt.py](/data/repo/fx-ai-trader/tools/s6_w1p2_primary_bt.py) and wrote results to `chart_pattern_w1p2_bt` in the locked SQLite DB.
+
+System `python3` lacked pandas, so I ran the required commands via `PATH=.venv/bin:$PATH python3`. Integrity check passed: `parquet=(903828, 7), signals=22094, outcomes=22094`.
+
+**Overall Verdict: 0-1/8 ACCEPT**
+
+No pattern qualifies for Wave 4 promotion. All 8 are `REJECT`, driven by friction-adjusted `PF < 1.05`, negative `kelly_half`, Bonferroni p-values far above `0.00625`, and non-positive total yearly PnL causing `max_year_share=NULL`.
+
+| Pattern | Dir | PF | Wilson_lo | OOS/IS | max_year_share | positive_years | bonf_p | Kelly half | Verdict |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| ascending_triangle | BUY | 0.829 | 0.535 | 1.048 | NULL | 1 | 0.881 | -0.057 | REJECT |
+| descending_triangle | SELL | 0.802 | 0.538 | 0.857 | NULL | 2 | 0.905 | -0.068 | REJECT |
+| rising_wedge | BUY | 0.793 | 0.544 | 0.971 | NULL | 2 | 0.959 | -0.074 | REJECT |
+| falling_wedge | SELL | 0.774 | 0.540 | 1.127 | NULL | 1 | 0.945 | -0.083 | REJECT |
+| double_bottom | BUY | 0.741 | 0.581 | 1.156 | NULL | 0 | 0.279 | -0.104 | REJECT |
+| double_top | SELL | 0.677 | 0.561 | 1.217 | NULL | 0 | 0.203 | -0.137 | REJECT |
+| inverse_head_shoulders | BUY | 0.868 | 0.560 | 1.238 | NULL | 5 | 0.473 | -0.045 | REJECT |
+| head_shoulders | SELL | 0.748 | 0.551 | 0.854 | NULL | 1 | 0.889 | -0.098 | REJECT |
+
+**Promote 推奨 list:** none.
+
+**Exploratory list:** none under this pre-registered matrix. These are not borderline; PF/Kelly/Bonferroni are critical rejects.
+
+**Reject list:** all 8 primary patterns. Main exclusion reason: TP arrival rate is above 50%, but average win/loss economics after 2.1 pip friction do not support profitability.
+
+**Next:** do not promote chart pattern family to Wave 4. Per the pre-registration, postpone this family to Wave 5+ unless a new, separately p
+…(truncated)
