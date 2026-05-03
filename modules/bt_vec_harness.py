@@ -110,6 +110,15 @@ def _load_local_cache(symbol: str, interval: str, days: int) -> Optional[pd.Data
     if not os.path.exists(path):
         return None
     df = pd.read_parquet(path)
+    df = df.rename(
+        columns={
+            "open": "Open",
+            "high": "High",
+            "low": "Low",
+            "close": "Close",
+            "volume": "Volume",
+        }
+    )
     if days > 0:
         cutoff = df.index[-1] - pd.Timedelta(days=days)
         df = df[df.index >= cutoff]

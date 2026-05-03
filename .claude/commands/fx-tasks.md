@@ -10,7 +10,7 @@ description: List queued Codex tasks for fx-ai-trader
 
 ```bash
 cd /Users/jg-n-012/test/fx-ai-trader
-./tools/ai_run_codex.sh --list
+./tools/ai_run_codex_companion.sh --list
 ```
 
 出力を日本語で整理して報告する。実装や Codex 実行はしない。

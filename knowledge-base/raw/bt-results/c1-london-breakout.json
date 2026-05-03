@@ -1,0 +1,2342 @@
+{
+  "cells": [
+    {
+      "cell_id": "aw6_close_time_12utc_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "close",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_close_time_12utc_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "close",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_close_time_12utc_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "close",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_close_range_1.0_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "close",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_close_range_1.0_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "close",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_close_range_1.0_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "close",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_close_range_1.5_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "close",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_close_range_1.5_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "close",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_close_range_1.5_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "close",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_high_break_time_12utc_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "high_break",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_high_break_time_12utc_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "high_break",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_high_break_time_12utc_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "high_break",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_high_break_range_1.0_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "high_break",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_high_break_range_1.0_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "high_break",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_high_break_range_1.0_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "high_break",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_high_break_range_1.5_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "high_break",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_high_break_range_1.5_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "high_break",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_high_break_range_1.5_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "high_break",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_m1_close_time_12utc_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "m1_close",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_m1_close_time_12utc_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "m1_close",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_m1_close_time_12utc_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "m1_close",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_m1_close_range_1.0_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "m1_close",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_m1_close_range_1.0_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "m1_close",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_m1_close_range_1.0_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "m1_close",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_m1_close_range_1.5_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "m1_close",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_m1_close_range_1.5_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "m1_close",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw6_m1_close_range_1.5_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 6,
+        "entry_method": "m1_close",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_close_time_12utc_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "close",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_close_time_12utc_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "close",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_close_time_12utc_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "close",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_close_range_1.0_rf1.0",
+      "is_primary": true,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "close",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_close_range_1.0_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "close",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_close_range_1.0_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "close",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_close_range_1.5_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "close",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_close_range_1.5_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "close",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_close_range_1.5_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "close",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_high_break_time_12utc_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "high_break",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_high_break_time_12utc_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "high_break",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_high_break_time_12utc_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "high_break",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_high_break_range_1.0_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "high_break",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_high_break_range_1.0_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "high_break",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_high_break_range_1.0_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "high_break",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_high_break_range_1.5_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "high_break",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_high_break_range_1.5_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "high_break",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_high_break_range_1.5_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "high_break",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_m1_close_time_12utc_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "m1_close",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_m1_close_time_12utc_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "m1_close",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_m1_close_time_12utc_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "m1_close",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_m1_close_range_1.0_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "m1_close",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_m1_close_range_1.0_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "m1_close",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_m1_close_range_1.0_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "m1_close",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_m1_close_range_1.5_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "m1_close",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_m1_close_range_1.5_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "m1_close",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw7_m1_close_range_1.5_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 7,
+        "entry_method": "m1_close",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_close_time_12utc_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "close",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_close_time_12utc_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "close",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_close_time_12utc_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "close",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_close_range_1.0_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "close",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_close_range_1.0_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "close",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_close_range_1.0_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "close",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_close_range_1.5_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "close",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_close_range_1.5_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "close",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_close_range_1.5_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "close",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_high_break_time_12utc_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "high_break",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_high_break_time_12utc_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "high_break",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_high_break_time_12utc_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "high_break",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_high_break_range_1.0_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "high_break",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_high_break_range_1.0_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "high_break",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_high_break_range_1.0_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "high_break",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_high_break_range_1.5_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "high_break",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_high_break_range_1.5_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "high_break",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_high_break_range_1.5_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "high_break",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_m1_close_time_12utc_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "m1_close",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_m1_close_time_12utc_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "m1_close",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_m1_close_time_12utc_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "m1_close",
+        "exit_method": "time_12utc",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_m1_close_range_1.0_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "m1_close",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_m1_close_range_1.0_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "m1_close",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_m1_close_range_1.0_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "m1_close",
+        "exit_method": "range_1.0",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_m1_close_range_1.5_rf1.0",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "m1_close",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.0
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_m1_close_range_1.5_rf1.2",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "m1_close",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.2
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    },
+    {
+      "cell_id": "aw8_m1_close_range_1.5_rf1.5",
+      "is_primary": false,
+      "params": {
+        "asian_window_h": 8,
+        "entry_method": "m1_close",
+        "exit_method": "range_1.5",
+        "range_filter_mult": 1.5
+      },
+      "stats": {
+        "avg_holding_bars": 0.0,
+        "bonferroni_p": 1.0,
+        "bonferroni_pass": false,
+        "kelly_fraction": 0.0,
+        "max_dd_pip": 0.0,
+        "n": 0,
+        "oos_is_pf_ratio": 0.0,
+        "p_value": 1.0,
+        "pf": 0.0,
+        "pnl_pip_net": 0,
+        "pnl_pip_raw": 0,
+        "sharpe": 0.0,
+        "wilson_lo_pct": 0.0,
+        "wins": 0,
+        "wr_pct": 0.0
+      },
+      "trades": []
+    }
+  ],
+  "header": {
+    "actual_data_window": {
+      "bars": 920906,
+      "coverage_days": 4502,
+      "coverage_ratio": 0.999778,
+      "end": "2026-04-29T23:55:00+00:00",
+      "requested_days": 4503,
+      "start": "2014-01-01T22:00:00+00:00"
+    },
+    "bonferroni_m": 81,
+    "data_source": "local_parquet:data/cache/extended/GBP_JPY_5m_long.parquet",
+    "git_sha": "9d85bdcd9112e26cdb702572c50a3ffe41001809",
+    "interval": "M5",
+    "limitations": [],
+    "live_separation": "bt_only",
+    "pair": "GBP_JPY",
+    "primary_cell": {
+      "asian_window_h": 7,
+      "entry_method": "close",
+      "exit_method": "range_1.0",
+      "range_filter_mult": 1.0
+    },
+    "seed": 20260503,
+    "spread_profile_source": "fallback friction-analysis.md London FX-only 0.86pip; H-1 audit files absent",
+    "strategy": "c1_london_open_breakout",
+    "time_window": {
+      "end": "2026-04-30",
+      "start": "2014-01-01"
+    }
+  },
+  "primary": {
+    "cell_id": "aw7_close_range_1.0_rf1.0",
+    "is_primary": true,
+    "params": {
+      "asian_window_h": 7,
+      "entry_method": "close",
+      "exit_method": "range_1.0",
+      "range_filter_mult": 1.0
+    },
+    "stats": {
+      "avg_holding_bars": 0.0,
+      "bonferroni_p": 1.0,
+      "bonferroni_pass": false,
+      "kelly_fraction": 0.0,
+      "max_dd_pip": 0.0,
+      "n": 0,
+      "oos_is_pf_ratio": 0.0,
+      "p_value": 1.0,
+      "pf": 0.0,
+      "pnl_pip_net": 0,
+      "pnl_pip_raw": 0,
+      "sharpe": 0.0,
+      "wilson_lo_pct": 0.0,
+      "wins": 0,
+      "wr_pct": 0.0
+    },
+    "trades": []
+  },
+  "scenario_verdict": {
+    "matrix_passes": {
+      "bonferroni_pass": false,
+      "kelly_gt_0": false,
+      "n_ge_30": false,
+      "oos_is_ge_0_80": false,
+      "pf_ge_1_10": false,
+      "sharpe_ge_0_5": false,
+      "wilson_lo_ge_50": false
+    },
+    "scenario": "REJECT"
+  }
+}

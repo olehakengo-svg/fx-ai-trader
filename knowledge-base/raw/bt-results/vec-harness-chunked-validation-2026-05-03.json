@@ -1,0 +1,9 @@
+{
+  "max_abs_pnl_diff": 0.0,
+  "n_chunked": 2,
+  "n_reference": 2,
+  "reason": "ok",
+  "reference_window_days": 30,
+  "schema_version": 1,
+  "verdict": "ACCEPT"
+}

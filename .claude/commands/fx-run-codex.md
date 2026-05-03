@@ -11,19 +11,31 @@ argument-hint: [task-number-or-file]
 
 ```bash
 cd /Users/jg-n-012/test/fx-ai-trader
-./tools/ai_run_codex.sh --list
+./tools/ai_run_codex_companion.sh --list
 ```
 
 `$ARGUMENTS` にタスク番号またはタスクファイルが指定されている場合だけ、次を実行する:
 
 ```bash
 cd /Users/jg-n-012/test/fx-ai-trader
-./tools/ai_run_codex.sh $ARGUMENTS
+./tools/ai_run_codex_companion.sh $ARGUMENTS
 ```
 
 `$ARGUMENTS` が空の場合は、Codex を実行せず、どの番号を実行するかユーザーに確認する。複数タスクがある状態で暗黙に最新タスクを走らせない。
 
-実行後、出力された run directory と final report の場所を確認する。
+実行は Claude Code の Codex companion 経由にする。raw Bash の `codex exec` は使わない。
+
+実行後、出力された run directory、Codex companion Job ID、status command、result command、final report の場所を確認する。Codex アプリの左サイドバーはタイトルが省略・混線することがあるため、会話一覧の表示名では判断しない。必ず Job ID と Codex session ID で追跡する。
+
+status/result は `./tools/ai_codex_status.sh <job_id>` / `./tools/ai_codex_status.sh --result <job_id>` を使う。Codex companion の job store は `codex-inline` / `codex-openai-codex` / 一時ディレクトリに分かれることがあるため、raw `codex-companion.mjs status` を直叩きしない。
+
+ユーザーへは少なくとも以下を報告する:
+
+- Job ID
+- status command
+- result command
+- Codex session ID（status 出力にあれば）
+- final report path
 
 ## クオンツ確認
 

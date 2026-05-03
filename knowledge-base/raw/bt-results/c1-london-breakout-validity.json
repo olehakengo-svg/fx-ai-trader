@@ -1,0 +1,104 @@
+{
+  "header": {
+    "data_sha256": "14d4ec64c99caea105f030ec079e53267e4c97770cc2ef38e5e5307d6cfb5bfe",
+    "data_source": "local_parquet:data/cache/massive/GBP_JPY_5m.parquet",
+    "git_sha": "9d85bdcd9112e26cdb702572c50a3ffe41001809",
+    "interval": "M5",
+    "live_separation": "bt_only",
+    "pair": "GBP_JPY",
+    "seed": 20260503,
+    "time_window": {
+      "end": "2026-04-30",
+      "start": "2014-01-01"
+    }
+  },
+  "scenario_verdict": "REJECT",
+  "v1_null_bootstrap": {
+    "actual_gt_p95": false,
+    "actual_pf": 1.012699,
+    "iterations": 1000,
+    "p95_pf": 1.174465
+  },
+  "v2_rsk_correlation": {
+    "reason": "Codex sandbox DNS/network blocked; Render rsk_gbpjpy_reversion correlation must be rerun outside sandbox.",
+    "rerun_required_on": "claude_main",
+    "source": "https://fx-ai-trader.onrender.com/api/demo/trades?days=365&limit=5000",
+    "status": "SKIP_NETWORK"
+  },
+  "v3_broker_cross_check": {
+    "reason": "Codex sandbox DNS/network blocked; same-cache cross-check is invalid.",
+    "rerun_required_on": "claude_main",
+    "source": "independent GBPJPY M5 broker feed (yfinance/dukascopy or equivalent)",
+    "status": "SKIP_NETWORK"
+  },
+  "v4_cohort": {
+    "accept_no_single_cohort_gt_50pct": false,
+    "max_abs_share": 2.828929,
+    "rows": [
+      {
+        "cohort": "2014-2016 pre-Brexit",
+        "n": 129,
+        "pf": 1.098652,
+        "pnl_pip_net": 240.36,
+        "share_of_total_pnl": 1.458238,
+        "wr_pct": 46.511628
+      },
+      {
+        "cohort": "2016-2017 Brexit Vote",
+        "n": 67,
+        "pf": 0.800831,
+        "pnl_pip_net": -300.92,
+        "share_of_total_pnl": -1.82565,
+        "wr_pct": 43.283582
+      },
+      {
+        "cohort": "2018-2019 calm",
+        "n": 133,
+        "pf": 1.186544,
+        "pnl_pip_net": 412.42,
+        "share_of_total_pnl": 2.502108,
+        "wr_pct": 48.120301
+      },
+      {
+        "cohort": "2020 COVID",
+        "n": 61,
+        "pf": 0.683225,
+        "pnl_pip_net": -371.91,
+        "share_of_total_pnl": -2.256338,
+        "wr_pct": 34.42623
+      },
+      {
+        "cohort": "2021-2022 Truss budget",
+        "n": 108,
+        "pf": 0.808489,
+        "pnl_pip_net": -466.2895,
+        "share_of_total_pnl": -2.828929,
+        "wr_pct": 44.444444
+      },
+      {
+        "cohort": "2023-2024",
+        "n": 105,
+        "pf": 1.206289,
+        "pnl_pip_net": 461.149043,
+        "share_of_total_pnl": 2.797742,
+        "wr_pct": 51.428571
+      },
+      {
+        "cohort": "2025-2026",
+        "n": 59,
+        "pf": 1.194363,
+        "pnl_pip_net": 190.019467,
+        "share_of_total_pnl": 1.152828,
+        "wr_pct": 44.067797
+      }
+    ]
+  },
+  "v5_orphan_check": {
+    "path": ".ai/runs/20260503-183623-20260503-1830-w3-4-rerun-c1-london-breakout-gbpjpy-12yr/orphan_check.log",
+    "status": "SEE_RUN_LOG"
+  },
+  "v6_spread_profile": {
+    "basis": "entry hour round-trip spread subtracted from entry_price basis",
+    "status": "RECORDED_IN_BT"
+  }
+}

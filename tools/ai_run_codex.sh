@@ -80,6 +80,64 @@ select_task_by_number() {
   printf "%s\n" "${TASKS[$((choice - 1))]}"
 }
 
+run_codex_with_watchdog() {
+  local final_file="$1"
+  local events_file="$2"
+  shift 2
+
+  local final_stable_seconds="${AI_FINAL_STABLE_SECONDS:-20}"
+  local final_min_bytes="${AI_FINAL_MIN_BYTES:-50}"
+  local max_seconds="${AI_CODEX_MAX_SECONDS:-7200}"
+  local last_size="-1"
+  local last_change="$SECONDS"
+  local size
+  local codex_pid
+  local rc=0
+
+  codex "$@" "$(cat "$PROMPT_FILE")" > >(tee "$events_file") &
+  codex_pid=$!
+
+  set +e
+  while kill -0 "$codex_pid" 2>/dev/null; do
+    if [[ -s "$final_file" ]]; then
+      size="$(wc -c < "$final_file" | tr -d '[:space:]')"
+      if [[ "$size" != "$last_size" ]]; then
+        last_size="$size"
+        last_change="$SECONDS"
+      elif (( size >= final_min_bytes && SECONDS - last_change >= final_stable_seconds )); then
+        echo "[ai_run_codex] final report is stable (${size} bytes); stopping lingering codex pid ${codex_pid}" >&2
+        kill "$codex_pid" 2>/dev/null
+        sleep 2
+        if kill -0 "$codex_pid" 2>/dev/null; then
+          kill -9 "$codex_pid" 2>/dev/null
+        fi
+        wait "$codex_pid" 2>/dev/null
+        set -e
+        return 0
+      fi
+    fi
+
+    if (( SECONDS - last_change >= max_seconds )); then
+      echo "[ai_run_codex] codex timed out after ${max_seconds}s without stable final report" >&2
+      kill "$codex_pid" 2>/dev/null
+      sleep 2
+      if kill -0 "$codex_pid" 2>/dev/null; then
+        kill -9 "$codex_pid" 2>/dev/null
+      fi
+      wait "$codex_pid" 2>/dev/null
+      set -e
+      return 124
+    fi
+
+    sleep 2
+  done
+
+  wait "$codex_pid"
+  rc=$?
+  set -e
+  return "$rc"
+}
+
 TASK=""
 case "${1:-}" in
   --help|-h)
@@ -165,10 +223,10 @@ if [[ -n "${CODEX_ARGS:-}" ]]; then
   # shellcheck disable=SC2206
   CODEX_ARGS_SPLIT=($CODEX_ARGS)
   echo "Codex args: ${CODEX_ARGS}" >&2
-  codex "${CODEX_ARGS_SPLIT[@]}" "$(cat "$PROMPT_FILE")" | tee "$EVENTS_FILE"
+  run_codex_with_watchdog "$FINAL_FILE" "$EVENTS_FILE" "${CODEX_ARGS_SPLIT[@]}"
 else
   echo "Codex model: $CODEX_MODEL_DEFAULT" >&2
-  codex "${CODEX_ARGS_DEFAULT[@]}" "$(cat "$PROMPT_FILE")" | tee "$EVENTS_FILE"
+  run_codex_with_watchdog "$FINAL_FILE" "$EVENTS_FILE" "${CODEX_ARGS_DEFAULT[@]}"
 fi
 
 echo

@@ -4739,6 +4739,38 @@ def _compute_bt_htf_bias(df: "pd.DataFrame", bar_idx: int,
             except Exception:
                 results[tf_key] = {"score": 0.0, "label": "BT: 計算失敗", "rsi": 50.0}
 
+        scalp_mtf = {"m15": {}, "m5": {}}
+        if mode == "scalp":
+            try:
+                _mtf_cache = _bt_scalp_mtf_precompute_cache.get(
+                    _bt_scalp_mtf_cache_key(df)
+                )
+                if _mtf_cache is None:
+                    _mtf_cache = _build_bt_scalp_mtf_cache(df)
+                _mtf_row = _mtf_cache["merged"].iloc[bar_idx]
+
+                def _coerce_mtf(field_name: str, value):
+                    if isinstance(value, (bool, np.bool_)):
+                        return bool(value)
+                    if pd.isna(value):
+                        return False if field_name.startswith("rsi_div_") else 0.0
+                    if field_name.startswith("rsi_div_"):
+                        return bool(value)
+                    return float(value)
+
+                scalp_mtf = {
+                    "m15": {
+                        field: _coerce_mtf(field, _mtf_row.get(f"m15_{field}"))
+                        for field in _mtf_cache["m15_fields"]
+                    },
+                    "m5": {
+                        field: _coerce_mtf(field, _mtf_row.get(f"m5_{field}"))
+                        for field in _mtf_cache["m5_fields"]
+                    },
+                }
+            except Exception:
+                scalp_mtf = {"m15": {}, "m5": {}}
+
         if mode == "daytrade":
             h4_sc = results.get("h4", {}).get("score", 0.0)
             d1_sc = results.get("d1", {}).get("score", 0.0)
@@ -4759,15 +4791,11 @@ def _compute_bt_htf_bias(df: "pd.DataFrame", bar_idx: int,
             if   h1_sc > 0.2 and h4_sc > 0.2:  agreement = "bull"; label = "📈 1H+4H 上昇一致 → BUYのみ有効"
             elif h1_sc < -0.2 and h4_sc < -0.2: agreement = "bear"; label = "📉 1H+4H 下降一致 → SELLのみ有効"
             else:                                agreement = "mixed"; label = "⚖️ 1H+4H 不一致 → シグナル抑制中"
-            # NOTE: M15/M5 features for mtf_*_scalp strategies are NOT
-            # injected in BT mode here. Per-recalc resample+add_indicators
-            # made 7d BT take 1h+ for 2 pairs (verified 2026-04-29). Live
-            # mode populates m15/m5 via compute_mtf_features (OANDA native).
-            # For BT validation of mtf_*_scalp use a dedicated vectorized
-            # runner that precomputes m15/m5 once over the entire df.
             return {
                 "score": avg, "agreement": agreement, "label": label,
                 "h1": results.get("1h", {}), "h4": results.get("4h", {}),
+                "m15": scalp_mtf.get("m15", {}),
+                "m5": scalp_mtf.get("m5", {}),
             }
 
     except Exception:
@@ -4775,6 +4803,77 @@ def _compute_bt_htf_bias(df: "pd.DataFrame", bar_idx: int,
         return {"score": 0, "agreement": "neutral", "label": "BT: HTF計算失敗",
                 "h1": {"score": 0.0, "label": "—", "rsi": 50.0},
                 "h4": {"score": 0.0, "label": "—", "rsi": 50.0}}
+
+
+_bt_scalp_mtf_precompute_cache: dict = {}
+
+
+def _bt_scalp_mtf_cache_key(df: "pd.DataFrame"):
+    try:
+        return (id(df), len(df), df.index[0], df.index[-1])
+    except Exception:
+        return (id(df), len(df))
+
+
+def _build_bt_scalp_mtf_cache(df: "pd.DataFrame") -> dict:
+    """Precompute M15/M5 BT features once per source df for scalp mode."""
+    cache_key = _bt_scalp_mtf_cache_key(df)
+
+    cached = _bt_scalp_mtf_precompute_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    from modules.bt_vec_harness import (
+        HtfFeatureSpec,
+        compute_m15_features,
+        compute_m5_features,
+    )
+
+    spec = HtfFeatureSpec(
+        include_hurst_m15=True,
+        include_range_20_m15=True,
+        include_rsi_divergence_m5=True,
+    )
+    df_15 = resample_df(df, "15min")
+    df_5 = resample_df(df, "5min")
+    feat_15 = compute_m15_features(df_15, spec)
+    feat_5 = compute_m5_features(df_5, spec)
+
+    feat_15_re = feat_15.reset_index().rename(
+        columns={feat_15.index.name or "index": "ts"}
+    )
+    feat_5_re = feat_5.reset_index().rename(
+        columns={feat_5.index.name or "index": "ts"}
+    )
+    base = pd.DataFrame({"ts": pd.to_datetime(df.index)})
+    for frame in (base, feat_15_re, feat_5_re):
+        frame["ts"] = pd.to_datetime(frame["ts"])
+        frame.sort_values("ts", inplace=True)
+
+    merged = pd.merge_asof(
+        base,
+        feat_15_re.add_prefix("m15_").rename(columns={"m15_ts": "ts"}),
+        on="ts",
+        direction="backward",
+    )
+    merged = pd.merge_asof(
+        merged,
+        feat_5_re.add_prefix("m5_").rename(columns={"m5_ts": "ts"}),
+        on="ts",
+        direction="backward",
+    ).set_index("ts")
+
+    payload = {
+        "merged": merged,
+        "m15_fields": tuple(spec.m15_fields),
+        "m5_fields": tuple(spec.m5_fields),
+    }
+    _bt_scalp_mtf_precompute_cache[cache_key] = payload
+    if len(_bt_scalp_mtf_precompute_cache) > 4:
+        oldest_key = next(iter(_bt_scalp_mtf_precompute_cache))
+        if oldest_key != cache_key:
+            del _bt_scalp_mtf_precompute_cache[oldest_key]
+    return payload
 
 
 # HTF BT再計算間隔 (全バーで計算するとBTが遅くなるため定期的に更新)
