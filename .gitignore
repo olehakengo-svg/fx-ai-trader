@@ -18,6 +18,7 @@ env/
 dist/
 build/
 tools/.venv-qdrant-ingest/
+tools/vec_harness_chunked_state/
 knowledge-base/.qdrant/
 
 # ── データベース (ローカル) ──
@@ -51,6 +52,8 @@ htmlcov/
 *.log
 knowledge-base/.obsidian/
 data/cache/
+tools/bt/cot_cache/
+tools/bt/price_cache/
 
 # ── 一時BT/分析スクリプト (repo root) ──
 _bt_*.py

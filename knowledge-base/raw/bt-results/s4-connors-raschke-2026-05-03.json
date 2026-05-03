@@ -1,0 +1,5 @@
+{
+  "status": "INTERVENTION_LIST_MISSING",
+  "error": "INTERVENTION_LIST_MISSING: expected definitive 8-event list in /Users/jg-n-012/test/wiki/learning/global-retail-fx-edges-2026-05-03.md, found 0 date(s): []",
+  "bonferroni_m": 27
+}

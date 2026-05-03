@@ -1,0 +1,203 @@
+{
+  "phase": "W3 Data Prep",
+  "task_id": "20260503-1715-w3-data-prep-gbpjpy-usdjpy-m5-12y",
+  "generated_at": "2026-05-03T09:21:43.139344+00:00",
+  "requested_range": {
+    "from": "2014-01-01",
+    "to": "2026-04-30"
+  },
+  "artifacts": [
+    {
+      "kind": "m5_ohlc_parquet",
+      "pair": "USD_JPY",
+      "path": "data/cache/massive/USD_JPY_5m_2014_2026.parquet",
+      "n_bars": 903828,
+      "range_from": "2014-01-02 04:55:00+00:00",
+      "range_to": "2026-04-30 23:55:00+00:00",
+      "columns": [
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "vwap",
+        "n_transactions"
+      ],
+      "size_bytes": 22356359,
+      "sha256": "f6ca974b2438b5b082ae02523a25985e1398bbe9bad5a2aa504059ccce0c4009",
+      "source": "Massive Market Data API (Polygon-compatible C:USDJPY/C:GBPJPY)"
+    },
+    {
+      "kind": "m5_ohlc_parquet",
+      "pair": "GBP_JPY",
+      "path": "data/cache/massive/GBP_JPY_5m_2014_2026.parquet",
+      "n_bars": 925109,
+      "range_from": "2014-01-02 04:55:00+00:00",
+      "range_to": "2026-04-30 23:55:00+00:00",
+      "columns": [
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "vwap",
+        "n_transactions"
+      ],
+      "size_bytes": 24971981,
+      "sha256": "14d4ec64c99caea105f030ec079e53267e4c97770cc2ef38e5e5307d6cfb5bfe",
+      "source": "Massive Market Data API (Polygon-compatible C:USDJPY/C:GBPJPY)"
+    },
+    {
+      "kind": "m5_ohlc_parquet_active",
+      "path": "data/cache/massive/USD_JPY_5m.parquet",
+      "n_bars": 903828,
+      "range_from": "2014-01-02 04:55:00+00:00",
+      "range_to": "2026-04-30 23:55:00+00:00",
+      "size_bytes": 22356359,
+      "sha256": "f6ca974b2438b5b082ae02523a25985e1398bbe9bad5a2aa504059ccce0c4009",
+      "note": "Path read by tools/bt/c1_london_breakout.py and tools/bt/s4_connors_raschke.py (12yr-replaced 2026-05-03)"
+    },
+    {
+      "kind": "m5_ohlc_parquet_active",
+      "path": "data/cache/massive/GBP_JPY_5m.parquet",
+      "n_bars": 925109,
+      "range_from": "2014-01-02 04:55:00+00:00",
+      "range_to": "2026-04-30 23:55:00+00:00",
+      "size_bytes": 24971981,
+      "sha256": "14d4ec64c99caea105f030ec079e53267e4c97770cc2ef38e5e5307d6cfb5bfe",
+      "note": "Path read by tools/bt/c1_london_breakout.py and tools/bt/s4_connors_raschke.py (12yr-replaced 2026-05-03)"
+    },
+    {
+      "kind": "daily_close_json",
+      "pair": "EURUSD",
+      "path": "tools/bt/price_cache/EURUSD.json",
+      "n_rows": 3210,
+      "range_from": "2014-01-01",
+      "range_to": "2026-05-01",
+      "size_bytes": 214288,
+      "sha256": "984de3e3121692c508fa99f8fc2082a0b63f40492b8773892e63bf483ce2d06b",
+      "source": "yfinance (via tools/bt/cot_socrata_fetcher.py --download-yfinance)"
+    },
+    {
+      "kind": "daily_close_json",
+      "pair": "GBPUSD",
+      "path": "tools/bt/price_cache/GBPUSD.json",
+      "n_rows": 3210,
+      "range_from": "2014-01-01",
+      "range_to": "2026-05-01",
+      "size_bytes": 214207,
+      "sha256": "0b0873c253e7cde693a00e63fe1ca8f263228c31679c3666418dc09f602f1771",
+      "source": "yfinance (via tools/bt/cot_socrata_fetcher.py --download-yfinance)"
+    },
+    {
+      "kind": "daily_close_json",
+      "pair": "NZDUSD",
+      "path": "tools/bt/price_cache/NZDUSD.json",
+      "n_rows": 3210,
+      "range_from": "2014-01-01",
+      "range_to": "2026-05-01",
+      "size_bytes": 214634,
+      "sha256": "b643521277939c4cee7ecb831526c1e469a1f14c3641ed928cdda6e17e8cf8b4",
+      "source": "yfinance (via tools/bt/cot_socrata_fetcher.py --download-yfinance)"
+    },
+    {
+      "kind": "daily_close_json",
+      "pair": "USDCAD",
+      "path": "tools/bt/price_cache/USDCAD.json",
+      "n_rows": 3210,
+      "range_from": "2014-01-01",
+      "range_to": "2026-05-01",
+      "size_bytes": 214248,
+      "sha256": "7ed973f8a54fa13d403468ab181c625e5d96dc29b257b0bd78b9204e7b789aa0",
+      "source": "yfinance (via tools/bt/cot_socrata_fetcher.py --download-yfinance)"
+    },
+    {
+      "kind": "daily_close_json",
+      "pair": "USDCHF",
+      "path": "tools/bt/price_cache/USDCHF.json",
+      "n_rows": 3210,
+      "range_from": "2014-01-01",
+      "range_to": "2026-05-01",
+      "size_bytes": 214595,
+      "sha256": "59ef36787ded5ce9f4419dd88d71d9bd1570f225176b43b74a243d0f8bbab2a9",
+      "source": "yfinance (via tools/bt/cot_socrata_fetcher.py --download-yfinance)"
+    },
+    {
+      "kind": "daily_close_json",
+      "pair": "USDJPY",
+      "path": "tools/bt/price_cache/USDJPY.json",
+      "n_rows": 3210,
+      "range_from": "2014-01-01",
+      "range_to": "2026-05-01",
+      "size_bytes": 213902,
+      "sha256": "0730bfc160eabed58714468b280e83d3ae69cce94cc966095c9d88003d6dcfe4",
+      "source": "yfinance (via tools/bt/cot_socrata_fetcher.py --download-yfinance)"
+    },
+    {
+      "kind": "cot_tff_json",
+      "pair": "EURUSD",
+      "path": "tools/bt/cot_cache/EURUSD.json",
+      "n_rows": 643,
+      "range_from": "2014-01-07",
+      "range_to": "2026-04-28",
+      "size_bytes": 472615,
+      "sha256": "9b7c85023a783c1ec464ab583d9573a0e3769fc40d74bbba2122af090663f386",
+      "source": "CFTC Socrata API (publicreporting.cftc.gov/resource/gpe5-46if.json)"
+    },
+    {
+      "kind": "cot_tff_json",
+      "pair": "GBPUSD",
+      "path": "tools/bt/cot_cache/GBPUSD.json",
+      "n_rows": 643,
+      "range_from": "2014-01-07",
+      "range_to": "2026-04-28",
+      "size_bytes": 479534,
+      "sha256": "ba5c472782815a41783a06656a16497a62790dbc114338c9d106882081413c40",
+      "source": "CFTC Socrata API (publicreporting.cftc.gov/resource/gpe5-46if.json)"
+    },
+    {
+      "kind": "cot_tff_json",
+      "pair": "NZDUSD",
+      "path": "tools/bt/cot_cache/NZDUSD.json",
+      "n_rows": 643,
+      "range_from": "2014-01-07",
+      "range_to": "2026-04-28",
+      "size_bytes": 472771,
+      "sha256": "c7b24d7c436267c5e107d0b252dac6f53129027472bebf5bc63da2cf9d37b539",
+      "source": "CFTC Socrata API (publicreporting.cftc.gov/resource/gpe5-46if.json)"
+    },
+    {
+      "kind": "cot_tff_json",
+      "pair": "USDCAD",
+      "path": "tools/bt/cot_cache/USDCAD.json",
+      "n_rows": 643,
+      "range_from": "2014-01-07",
+      "range_to": "2026-04-28",
+      "size_bytes": 481750,
+      "sha256": "100b3faf69c57ae94868a272a456d92ccafdef6e8d4217a12eb0e31caaefd44a",
+      "source": "CFTC Socrata API (publicreporting.cftc.gov/resource/gpe5-46if.json)"
+    },
+    {
+      "kind": "cot_tff_json",
+      "pair": "USDCHF",
+      "path": "tools/bt/cot_cache/USDCHF.json",
+      "n_rows": 643,
+      "range_from": "2014-01-07",
+      "range_to": "2026-04-28",
+      "size_bytes": 475300,
+      "sha256": "d4e6b72d98766fc0a4a4578464fac1f2b811f74857ddedb8a98cb329f3ca1d56",
+      "source": "CFTC Socrata API (publicreporting.cftc.gov/resource/gpe5-46if.json)"
+    },
+    {
+      "kind": "cot_tff_json",
+      "pair": "USDJPY",
+      "path": "tools/bt/cot_cache/USDJPY.json",
+      "n_rows": 643,
+      "range_from": "2014-01-07",
+      "range_to": "2026-04-28",
+      "size_bytes": 478407,
+      "sha256": "cd8fc9e511ef7d26d26250dc8dd600b4c4c4cbc8b0618a885834de97ea53bb99",
+      "source": "CFTC Socrata API (publicreporting.cftc.gov/resource/gpe5-46if.json)"
+    }
+  ]
+}

@@ -1,8 +1,7 @@
 {
-  "generated_at": "2026-05-02T17:51:28.402040+00:00",
+  "generated_at": "2026-05-03T02:20:21.746659+00:00",
   "elite_live": [
     "gbp_deep_pullback",
-    "session_time_bias",
     "trendline_sweep"
   ],
   "force_demoted": [
@@ -52,9 +51,8 @@
     "london_close_reversal_v2",
     "pd_eurjpy_h20_bbpb3_sell",
     "post_news_vol",
+    "session_time_bias",
     "squeeze_release_momentum",
-    "trend_rebound",
-    "v_reversal",
     "vix_carry_unwind",
     "vol_spike_mr"
   ],
@@ -228,18 +226,6 @@
     [
       "gbp_deep_pullback",
       "GBP_USD"
-    ],
-    [
-      "session_time_bias",
-      "EUR_USD"
-    ],
-    [
-      "session_time_bias",
-      "GBP_USD"
-    ],
-    [
-      "session_time_bias",
-      "USD_JPY"
     ],
     [
       "vix_carry_unwind",

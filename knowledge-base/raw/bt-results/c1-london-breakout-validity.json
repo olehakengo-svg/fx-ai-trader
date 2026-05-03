@@ -1,0 +1,107 @@
+{
+  "header": {
+    "data_source": "local_parquet:data/cache/extended/GBP_JPY_5m_long.parquet",
+    "git_sha": "f6976e74099dc71b43b00afddb4a6576973c4560",
+    "interval": "M5",
+    "live_separation": "bt_only",
+    "pair": "GBP_JPY",
+    "time_window": {
+      "end": "2026-04-30",
+      "start": "2014-01-01"
+    }
+  },
+  "scenario_verdict": "REJECT",
+  "v1_null_bootstrap": {
+    "actual_gt_p95": false,
+    "actual_pf": 1.01441,
+    "iterations": 1000,
+    "p95_pf": 1.166656
+  },
+  "v2_rsk_correlation": {
+    "note": "correlation not computed without daily aligned pnl schema; counts only",
+    "rsk_avg_pnl_pips": -7.390588,
+    "rsk_first_entry": "2026-04-30T08:01:29.412924+00:00",
+    "rsk_last_entry": "2026-05-01T07:05:55.147402+00:00",
+    "rsk_shadow_count": 85,
+    "rsk_sum_pnl_pips": -628.2,
+    "rsk_trade_count": 85,
+    "source": "render_snapshot:render-demo-trades-20260503.db",
+    "status": "FETCHED"
+  },
+  "v3_broker_cross_check": {
+    "bars": 17006,
+    "reason": "yfinance intraday does not provide 2014-2026 M5 coverage",
+    "source": "yfinance",
+    "status": "PARTIAL_ONLY"
+  },
+  "v4_cohort": {
+    "accept_no_single_cohort_gt_50pct": false,
+    "max_abs_share": 3.399537,
+    "rows": [
+      {
+        "cohort": "2014-2016 pre-Brexit",
+        "n": 131,
+        "pf": 1.209566,
+        "pnl_pip_net": 493.54,
+        "share_of_total_pnl": 2.594575,
+        "wr_pct": 49.618321
+      },
+      {
+        "cohort": "2016-2017 Brexit Vote",
+        "n": 66,
+        "pf": 0.782911,
+        "pnl_pip_net": -331.36,
+        "share_of_total_pnl": -1.741983,
+        "wr_pct": 42.424242
+      },
+      {
+        "cohort": "2018-2019 calm",
+        "n": 132,
+        "pf": 1.173046,
+        "pnl_pip_net": 378.83,
+        "share_of_total_pnl": 1.991536,
+        "wr_pct": 47.727273
+      },
+      {
+        "cohort": "2020 COVID",
+        "n": 56,
+        "pf": 0.794077,
+        "pnl_pip_net": -216.96,
+        "share_of_total_pnl": -1.140574,
+        "wr_pct": 37.5
+      },
+      {
+        "cohort": "2021-2022 Truss budget",
+        "n": 121,
+        "pf": 0.765273,
+        "pnl_pip_net": -646.66,
+        "share_of_total_pnl": -3.399537,
+        "wr_pct": 42.975207
+      },
+      {
+        "cohort": "2023-2024",
+        "n": 106,
+        "pf": 1.159363,
+        "pnl_pip_net": 359.99,
+        "share_of_total_pnl": 1.892493,
+        "wr_pct": 50.0
+      },
+      {
+        "cohort": "2025-2026",
+        "n": 61,
+        "pf": 1.143871,
+        "pnl_pip_net": 152.84,
+        "share_of_total_pnl": 0.803491,
+        "wr_pct": 44.262295
+      }
+    ]
+  },
+  "v5_orphan_check": {
+    "path": "",
+    "status": "NOT_PROVIDED"
+  },
+  "v6_spread_profile": {
+    "basis": "entry hour round-trip spread subtracted from entry_price basis",
+    "status": "RECORDED_IN_BT"
+  }
+}

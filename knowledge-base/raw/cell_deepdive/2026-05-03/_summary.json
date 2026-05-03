@@ -1,0 +1,89 @@
+{
+  "generated_at": "2026-05-03T00:00:00+00:00",
+  "source_tool": "cell_edge_audit_v1 (cell_deepdive_audit.py not yet implemented)",
+  "window": "365d",
+  "db": "demo_trades.db",
+  "meta": {
+    "trades_total": 475,
+    "trades_live": 36,
+    "trades_shadow": 439,
+    "trades_window_365d": 426,
+    "trades_fetched": 475,
+    "trades_kept": 426,
+    "qualified_cells": 3,
+    "m_global": 3,
+    "date_range_first": "2026-04-02",
+    "date_range_last": "2026-05-02",
+    "strategy_counts": {
+      "ema_trend_scalp": {"shadow": 88},
+      "fib_reversal": {"shadow": 49},
+      "sr_fib_confluence": {"shadow": 34},
+      "sr_channel_reversal": {"shadow": 28},
+      "engulfing_bb": {"shadow": 23},
+      "bb_rsi_reversion": {"live": 22, "shadow": 14},
+      "sr_break_retest": {"shadow": 22},
+      "dt_bb_rsi_mr": {"shadow": 17},
+      "ema200_trend_reversal": {"shadow": 17},
+      "stoch_trend_pullback": {"shadow": 17}
+    },
+    "target_7_strategies": {
+      "sr_anti_hunt_bounce": 0,
+      "sr_liquidity_grab": 0,
+      "cpd_divergence": 0,
+      "vdr_jpy": 0,
+      "vsg_jpy_reversal": 0,
+      "rsk_gbpjpy_reversion": 0,
+      "mqe_gbpusd_fix": 0
+    }
+  },
+  "candidates": [
+    {
+      "rank": 1,
+      "entry_type": "fib_reversal",
+      "session": "Tokyo",
+      "spread_quartile": "q0",
+      "mode": "Scalp",
+      "direction": "both",
+      "regime": "all",
+      "N": 25,
+      "N_live": 0,
+      "N_shadow": 25,
+      "WR": 0.84,
+      "wilson_lower": 0.653,
+      "wilson_upper": 0.936,
+      "EV_net_pips": 10.24,
+      "PF": 12.18,
+      "p_bonf": 0.0020,
+      "kelly_fraction": null,
+      "wf_stable": null,
+      "recommendation": "Pre-reg LOCK recommended — promote via Rule 1 (Slow & Strict) for Live evaluation",
+      "note": "All shadow trades (live_n=0). Kelly and WF stability not computable from this cell subset alone. Overall fib_reversal shadow: N=49, WR=63.3%, Kelly=42.5%, RR=1.77, PF=3.04."
+    }
+  ],
+  "negative_edge_cells": [
+    {
+      "entry_type": "ema_trend_scalp",
+      "session": "London",
+      "spread_quartile": "q0",
+      "mode": "Scalp",
+      "N": 33,
+      "WR": 0.242,
+      "wilson_lower": 0.128,
+      "PF": 0.602,
+      "p_bonf": 0.0092,
+      "action": "DEMOTE_CANDIDATE"
+    },
+    {
+      "entry_type": "ema_trend_scalp",
+      "session": "Overlap",
+      "spread_quartile": "q0",
+      "mode": "Scalp",
+      "N": 29,
+      "WR": 0.172,
+      "wilson_lower": 0.076,
+      "PF": 0.327,
+      "p_bonf": 0.0013,
+      "action": "DEMOTE_CANDIDATE"
+    }
+  ]
+}

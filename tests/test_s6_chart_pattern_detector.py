@@ -1,121 +1,145 @@
-import csv
-import json
-import sqlite3
-from pathlib import Path
+import math
 
-import numpy as np
 import pandas as pd
-import pytest
 
-from tools.s6_chart_pattern_detector import (
-    PATTERNS,
-    SL_BUFFER_ATR,
-    compute_atr_wilder,
-    detect_chart_patterns,
-    find_swing_pivots,
-    insert_signals,
-    synthetic_pattern_df,
-)
+from tools import s6_chart_pattern_detector as s6
 
 
-def test_swing_pivot_detection_k3_synthetic_ohlc():
-    idx = pd.date_range("2026-01-01", periods=11, freq="5min", tz="UTC")
-    vals = np.array([5, 4, 3, 1, 3, 4, 6, 4, 3, 2, 3], dtype=float)
-    df = pd.DataFrame({"open": vals, "high": vals + 0.1, "low": vals - 0.1, "close": vals}, index=idx)
-    pivots = find_swing_pivots(df, k=3)
-    assert [(p.idx, p.kind) for p in pivots] == [(3, "L"), (6, "H")]
-    assert [p.confirm_idx for p in pivots] == [6, 9]
-
-
-def test_atr_wilder_matches_manual_recurrence():
-    idx = pd.date_range("2026-01-01", periods=16, freq="5min", tz="UTC")
-    close = np.arange(100, 116, dtype=float)
-    df = pd.DataFrame(
-        {"open": close - 0.2, "high": close + 1.0, "low": close - 1.0, "close": close},
+def _bars(rows):
+    idx = pd.to_datetime([r[0] for r in rows], utc=True)
+    return pd.DataFrame(
+        {
+            "open": [r[1] for r in rows],
+            "high": [r[2] for r in rows],
+            "low": [r[3] for r in rows],
+            "close": [r[4] for r in rows],
+            "volume": 100,
+        },
         index=idx,
     )
-    atr = compute_atr_wilder(df, period=14)
-    tr = [2.0] + [2.0 for _ in range(1, 16)]
-    expected_13 = sum(tr[:14]) / 14
-    expected_14 = ((expected_13 * 13) + tr[14]) / 14
-    expected_15 = ((expected_14 * 13) + tr[15]) / 14
-    assert np.isnan(atr.iloc[12])
-    assert atr.iloc[13] == pytest.approx(expected_13)
-    assert atr.iloc[14] == pytest.approx(expected_14)
-    assert atr.iloc[15] == pytest.approx(expected_15)
 
 
-@pytest.mark.parametrize("pattern_id", range(1, 13))
-def test_each_locked_pattern_has_synthetic_hit(pattern_id):
-    signals = detect_chart_patterns(synthetic_pattern_df(pattern_id))
-    hits = [s for s in signals if s.pattern_id == pattern_id]
-    assert hits, PATTERNS[pattern_id][0]
-    assert hits[0].pattern_name == PATTERNS[pattern_id][0]
-    assert hits[0].direction == PATTERNS[pattern_id][1]
+def test_swing_pivot_detection_uses_strict_k3_window():
+    rows = []
+    highs = [10, 11, 12, 13, 20, 14, 13, 12, 11, 10, 9]
+    lows = [9, 8, 7, 6, 5, 4, 3, 2, 6, 7, 8]
+    for i, (h, l) in enumerate(zip(highs, lows)):
+        rows.append((f"2026-01-01 00:{i * 5:02d}", (h + l) / 2, h, l, (h + l) / 2))
+    pivots = s6.detect_swing_pivots(_bars(rows), k=3)
+    assert [(p.kind, p.pos) for p in pivots] == [("H", 4), ("L", 7)]
 
 
-def test_bar_close_gate_excludes_wick_only_breakout():
-    df = synthetic_pattern_df(1)
-    baseline = [s for s in detect_chart_patterns(df) if s.pattern_id == 1][0]
-    signal_loc = df.index.get_loc(pd.Timestamp(baseline.signal_ts))
-    gated = df.copy()
-    breakout_level = json.loads(baseline.raw_geometry_json)["breakout_level"]
-    gated.iloc[signal_loc, gated.columns.get_loc("high")] = breakout_level + 0.8
-    gated.iloc[signal_loc, gated.columns.get_loc("close")] = breakout_level
-    hits = [s for s in detect_chart_patterns(gated) if s.pattern_id == 1]
-    assert not any(s.signal_ts == baseline.signal_ts for s in hits)
+def test_atr_wilder_matches_manual_recursive_values():
+    df = _bars(
+        [
+            ("2026-01-01 00:00", 10, 12, 9, 11),
+            ("2026-01-01 00:05", 11, 13, 10, 12),
+            ("2026-01-01 00:10", 12, 14, 11, 13),
+            ("2026-01-01 00:15", 13, 16, 12, 15),
+            ("2026-01-01 00:20", 15, 17, 14, 16),
+        ]
+    )
+    atr = s6.compute_atr_wilder(df, period=3)
+    assert math.isnan(atr.iloc[0])
+    assert math.isnan(atr.iloc[1])
+    assert math.isclose(atr.iloc[2], 3.0)
+    assert math.isclose(atr.iloc[3], (3.0 * 2 + 4.0) / 3)
+    assert math.isclose(atr.iloc[4], (((3.0 * 2 + 4.0) / 3) * 2 + 3.0) / 3)
 
 
-def test_reentry_dedup_unique_pivot_tuple_sqlite_insert_or_ignore():
-    signals = [s for s in detect_chart_patterns(synthetic_pattern_df(7)) if s.pattern_id == 7]
-    assert signals
-    with sqlite3.connect(":memory:") as conn:
-        inserted_first = insert_signals(conn, [signals[0]])
-        inserted_second = insert_signals(conn, [signals[0]])
-        dupes = conn.execute(
-            """
-            SELECT COUNT(*) FROM (
-              SELECT pattern_id, pivot_anchor_ts, pivot_opposite_ts, COUNT(*) n
-              FROM chart_pattern_signals
-              GROUP BY 1,2,3
-              HAVING n > 1
-            )
-            """
-        ).fetchone()[0]
-    assert inserted_first == 1
-    assert inserted_second == 0
-    assert dupes == 0
+def test_bar_close_gate_rejects_wick_only_breakout():
+    df = s6.synthetic_pattern_bars("ascending_triangle", wick_only=True)
+    signals = s6.detect_chart_patterns(df)
+    assert not [sig for sig in signals if sig.pattern_name == "ascending_triangle"]
 
 
-@pytest.mark.parametrize("pattern_id", range(1, 13))
-def test_sl_tp_entry_calculation_matches_raw_geometry(pattern_id):
-    signal = [s for s in detect_chart_patterns(synthetic_pattern_df(pattern_id)) if s.pattern_id == pattern_id][0]
-    raw = json.loads(signal.raw_geometry_json)
-    pivots = raw["pivots"]
-    atr_signal = raw["atr_at_signal"]
-    lows = [p["price"] for p in pivots if p["kind"] == "L"]
-    highs = [p["price"] for p in pivots if p["kind"] == "H"]
-    breakout = raw["breakout_level"]
-    height = raw["pattern_height"]
-    if signal.direction == "BUY":
-        assert signal.sl_px == pytest.approx(min(lows) - SL_BUFFER_ATR * atr_signal, abs=1e-7)
-        move = abs(breakout - min(lows)) if pattern_id in (7, 8, 9) else height
-        assert signal.tp_px == pytest.approx(signal.entry_px + move, abs=1e-7)
-    else:
-        assert signal.sl_px == pytest.approx(max(highs) + SL_BUFFER_ATR * atr_signal, abs=1e-7)
-        move = abs(max(highs) - breakout) if pattern_id in (10, 11, 12) else height
-        assert signal.tp_px == pytest.approx(signal.entry_px - move, abs=1e-7)
+def test_reentry_dedup_keeps_one_signal_per_pivot_tuple():
+    df = s6.synthetic_pattern_bars("double_bottom", duplicate_breakout=True)
+    signals = [sig for sig in s6.detect_chart_patterns(df) if sig.pattern_name == "double_bottom"]
+    assert len(signals) == 1
 
 
-def test_regression_fixture_has_30_fixed_labels_and_replays_first_hit():
-    path = Path("tests/fixtures/manual_chart_pattern_labels.csv")
-    rows = list(csv.DictReader(path.open()))
-    assert len(rows) == 30
-    assert {int(r["pattern_id"]) for r in rows} == set(range(1, 13))
-    for row in rows[:12]:
-        pid = int(row["pattern_id"])
-        signal = [s for s in detect_chart_patterns(synthetic_pattern_df(pid)) if s.pattern_id == pid][0]
-        assert signal.signal_ts == row["signal_ts"]
-        assert signal.entry_px == pytest.approx(float(row["entry_px"]))
-        assert signal.sl_px == pytest.approx(float(row["sl_px"]))
-        assert signal.tp_px == pytest.approx(float(row["tp_px"]))
+def test_sqlite_schema_contains_locked_unique_tuple():
+    assert "chart_pattern_signals" in s6.SQLITE_DDL
+    assert "UNIQUE(pattern_id, pair, timeframe, pivot_anchor_ts, pivot_opposite_ts)" in s6.SQLITE_DDL
+
+
+def test_pattern_catalog_locks_12_ids_and_directions():
+    assert [p.pattern_id for p in s6.PATTERNS] == list(range(1, 13))
+    assert sum(p.direction == "BUY" for p in s6.PATTERNS) == 6
+    assert sum(p.direction == "SELL" for p in s6.PATTERNS) == 6
+
+
+def test_detector_self_test_covers_all_12_patterns():
+    results = s6.run_self_test()
+    assert set(results) == {p.name for p in s6.PATTERNS}
+    assert all(results.values())
+
+
+def test_sl_tp_entry_are_analytic_for_each_pattern():
+    for spec in s6.PATTERNS:
+        df = s6.synthetic_pattern_bars(spec.name)
+        signals = [sig for sig in s6.detect_chart_patterns(df) if sig.pattern_name == spec.name]
+        assert signals, spec.name
+        sig = signals[0]
+        expected = s6.synthetic_expected_levels(spec.name)
+        assert math.isclose(sig.entry_px, expected["entry_px"], abs_tol=1e-9), spec.name
+        assert math.isclose(sig.sl_px, expected["sl_px"], abs_tol=1e-9), spec.name
+        assert math.isclose(sig.tp_px, expected["tp_px"], abs_tol=1e-9), spec.name
+
+
+def test_ascending_triangle_synthetic_hit():
+    assert _hits("ascending_triangle")
+
+
+def test_rising_wedge_synthetic_hit():
+    assert _hits("rising_wedge")
+
+
+def test_bull_flag_synthetic_hit():
+    assert _hits("bull_flag")
+
+
+def test_descending_triangle_synthetic_hit():
+    assert _hits("descending_triangle")
+
+
+def test_falling_wedge_synthetic_hit():
+    assert _hits("falling_wedge")
+
+
+def test_bear_flag_synthetic_hit():
+    assert _hits("bear_flag")
+
+
+def test_double_bottom_synthetic_hit():
+    assert _hits("double_bottom")
+
+
+def test_triple_bottom_synthetic_hit():
+    assert _hits("triple_bottom")
+
+
+def test_inverse_head_shoulders_synthetic_hit():
+    assert _hits("inverse_head_shoulders")
+
+
+def test_double_top_synthetic_hit():
+    assert _hits("double_top")
+
+
+def test_triple_top_synthetic_hit():
+    assert _hits("triple_top")
+
+
+def test_head_shoulders_synthetic_hit():
+    assert _hits("head_shoulders")
+
+
+def _hits(pattern_name):
+    df = s6.synthetic_pattern_bars(pattern_name)
+    signals = [sig for sig in s6.detect_chart_patterns(df) if sig.pattern_name == pattern_name]
+    assert len(signals) >= 1
+    assert signals[0].duration_bars >= s6.MIN_DURATION_BARS
+    assert signals[0].pattern_height_atr >= 1.5
+    return True

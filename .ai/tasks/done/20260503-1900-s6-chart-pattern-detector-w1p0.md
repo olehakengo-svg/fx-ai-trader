@@ -260,37 +260,3 @@ sqlite3 data/chart_patterns.db "SELECT pattern_name, MIN(signal_ts), MAX(signal_
 PR 作成は本タスクで実行しない。proposal doc + detector 実装 + test のみ。Claude review 後、別 task で commit/deploy。
 
 最終レポートには status, files changed, signal 総数 (pattern 別内訳), regression fixture 30 件の固定値, residual risks, 次タスク (= Wave 2 BT spec proposal) を含む。
-
-
-## Result (2026-05-03T13:25:55Z)
-
-exit=0 · 495s
-
-```
-実装は完了しましたが、W1P0 verdict は **NEEDS_MORE_EVIDENCE / production run blocked** です。理由は、この checkout に `data/` が存在せず、指定入力 `data/cache/massive/USD_JPY_5m.parquet` がないため、903,828 bars の signal 数・分布・SQLite 生成を検証できなかったことです。
-
-変更した主ファイル:
-- [tools/s6_chart_pattern_detector.py](/data/repo/fx-ai-trader/tools/s6_chart_pattern_detector.py:1)  
-  12 pattern detector、ATR、swing pivot、bar-close gate、SL/TP、SQLite DDL、dedup、self-test。
-- [tools/s6_run_w1p0.py](/data/repo/fx-ai-trader/tools/s6_run_w1p0.py:1)  
-  parquet 読み込み → detector → SQLite insert-or-ignore driver。
-- [tests/test_s6_chart_pattern_detector.py](/data/repo/fx-ai-trader/tests/test_s6_chart_pattern_detector.py:1)  
-  29 tests: pivot、ATR、12 synthetic hits、bar-close gate、re-entry dedup、SL/TP analytic check、fixture replay。
-- [tests/fixtures/manual_chart_pattern_labels.csv](/data/repo/fx-ai-trader/tests/fixtures/manual_chart_pattern_labels.csv:1)  
-  30 deterministic fixture rows。
-- [knowledge-base/wiki/strategies/s6-chart-pattern.md](/data/repo/fx-ai-trader/knowledge-base/wiki/strategies/s6-chart-pattern.md:1)
-- [knowledge-base/wiki/decisions/s6-w1p0-detector-2026-05-03.md](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/s6-w1p0-detector-2026-05-03.md:1)
-- `.ai/runs/20260503-s6-w1p0-chart-pattern/final.md` exists, but `.ai/runs/*` is gitignored.
-
-Verification:
-- `python3 tools/s6_chart_pattern_detector.py --self-test` → PASS, 12/12 synthetic hit.
-- `python3 -m pytest -q tests/test_s6_chart_pattern_detector.py` → PASS, 29 passed.
-- `python3 -m py_compile tools/s6_chart_pattern_detector.py tools/s6_run_w1p0.py` → PASS.
-- Production parquet check → FAIL: `data/cache/massive/USD_JPY_5m.parquet` not found.
-- `tools/s6_run_w1p0.py` production run → FAIL before DB write for same missing parquet.
-
-Signal counts:
-- Production total: unavailable.
-- Synthetic self-test: each of 12 patterns has 1 deterministic hit.
-- `data/chart_patterns.db` was not created because the locked input parquet is absen
-…(truncated)

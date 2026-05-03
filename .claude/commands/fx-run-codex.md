@@ -27,6 +27,8 @@ cd /Users/jg-n-012/test/fx-ai-trader
 
 実行後、出力された run directory、Codex companion Job ID、status command、result command、final report の場所を確認する。Codex アプリの左サイドバーはタイトルが省略・混線することがあるため、会話一覧の表示名では判断しない。必ず Job ID と Codex session ID で追跡する。
 
+status/result は `./tools/ai_codex_status.sh <job_id>` / `./tools/ai_codex_status.sh --result <job_id>` を使う。Codex companion の job store は `codex-inline` / `codex-openai-codex` / 一時ディレクトリに分かれることがあるため、raw `codex-companion.mjs status` を直叩きしない。
+
 ユーザーへは少なくとも以下を報告する:
 
 - Job ID

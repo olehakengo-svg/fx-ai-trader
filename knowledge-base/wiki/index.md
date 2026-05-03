@@ -15,7 +15,6 @@
 | Strategy | BT Data | Status |
 |----------|---------|--------|
 | [[gbp-deep-pullback]] | GBP_USD: EV=+1.064 WR=75.3% | ELITE_LIVE |
-| [[session-time-bias]] | EUR_USD: EV=+0.215 WR=69.6%; GBP_USD: EV=+0.113 WR=67.1%; USD_JPY: EV=+0.580 WR=79.0% | ELITE_LIVE |
 | [[trendline-sweep]] | EUR_USD: EV=+0.927 WR=80.8%; GBP_USD: EV=+0.599 WR=73.1% | ELITE_LIVE |
 
 ### PAIR_PROMOTED (SENTINEL)
@@ -56,6 +55,7 @@
 | [[mtf-reversal-confluence]] | no BT data | LOT_BOOST (not sentinel/elite) |
 | [[mtf-trend-follow-scalp]] | no BT data | SCALP_SENTINEL |
 | [[pd-eurjpy-h20-bbpb3-sell]] | no BT data | UNIVERSAL_SENTINEL |
+| [[session-time-bias]] | EUR_USD: EV=+0.215 WR=69.6%; GBP_USD: EV=+0.113 WR=67.1%; USD_JPY: EV=+0.580 WR=79.0% | UNIVERSAL_SENTINEL |
 | [[tokyo-range-breakout-up]] | no BT data | LOT_BOOST (not sentinel/elite) |
 | [[turtle-soup]] | GBP_USD: EV=+0.386 WR=69.7% | LOT_BOOST (not sentinel/elite) |
 | [[vol-spike-mr]] | USD_JPY: EV=+0.148 WR=64.6% | UNIVERSAL_SENTINEL |
@@ -89,13 +89,17 @@
 <!-- KB_PORTFOLIO_END -->
 
 ## System State (v9.5 / v2.1)
-- Defensive mode: **0.2x** (DD=**34.76%** / 347.6pip ⚠️, defensive mode — v8.4以降クリーンデータ起点)
+- Defensive mode: **0.2x** (DD=**40.65%** / 406.5pip ⚠️⚠️, defensive mode — Render API 2026-05-03 実測)
 - XAU: **Stopped** (v8.4) -- post-cutoff XAU loss = -2,280pip (102% of total loss)
-- FX-only post-cutoff (2026-04-08〜): **-228.6pip** (Live `is_shadow=0`, snapshot 2026-04-29 auto wiki-daily, N=286, WR=38.1%, EV=-0.80)
-  - 前回 (2026-04-27): N=268, WR=37.7%, PnL=-240.7pip; 前々回 (2026-04-24): N=259, WR=39.0%, PnL=-215.0pip
-- Ruin probability: **1.72%** ⚠️ (MC 5,000 sims, N=300 forward — 2026-04-29)
-- Aggregate Kelly: **0.0** (edge≈-18.04%, WR=38.11%, N=286, Live `is_shadow=0`)
-- Last updated: 2026-04-29 (wiki-daily-update); prev: 2026-04-27 (wiki-daily-update)
+- FX-only post-cutoff (2026-04-08〜) — Render API 2026-05-03 fresh fetch (bucket 3-split LOCKED):
+  - **TRUE_LIVE** (`is_shadow=0 AND oanda_trade_id != ''`): **N=371** (incl BE) / **346** (WIN/LOSS), WR=39.89%, EV=-0.686, PnL=-254.6pip
+  - FLAG_DRIFT (`is_shadow=0` だが OANDA未送信): N=140, WR=32.86%, PnL=-132.4pip (`raw/audits/oanda-passthrough-gap-2026-05-03.md` 由来 write-path bug)
+  - SHADOW (`is_shadow=1`): N=3,819, WR=23.72%, PnL=-4,985.6pip — **Live 判断には混入禁止** (memory `feedback_live_vs_shadow_strict_separation`)
+  - 旧記載 "N=29 (`oanda_trade_id != ''`)" は **誤り** — 実態は `mode='daytrade'` only サブセット、SUPERSEDED by [[aggregate-kelly-decomposition-2026-05-03-corrigendum]]
+- Ruin probability: **1.88%** ⚠️ (MC 5,000 sims, N=300 forward — Render API 2026-05-03)
+- Aggregate Kelly: **0.0** (raw=-0.69 with TRUE_LIVE N=371) — Bonferroni-powered cell-level demote が実行可能、N=371 で Gate 1 unlock 経路が再開
+- Aggregate Kelly decomposition 2026-05-03: 旧 doc は SUPERSEDED。新 SSOT: [[aggregate-kelly-decomposition-2026-05-03-corrigendum]] (TRUE_LIVE Strategy × Pair 出血ランキング、ELITE_LIVE `session_time_bias × GBP_USD` 出血特定)
+- Last updated: 2026-05-03 (Render API direct); prev: 2026-04-29 (wiki-daily-update)
 - scalp_eurjpy: **Stopped** (v8.6) -- friction/ATR=43.6%, 構造的不可能
 - scalp_5m_eur / scalp_5m_gbp: **Active** (v8.6) -- 5m摩擦改善モード
 - New modes (v9.0): **daytrade_eurjpy**, **daytrade_gbpjpy**, **[[rnb-usdjpy]]** (all auto_start)
@@ -118,7 +122,10 @@
   - 5-7日で N≥500/group, 30日で p<0.05 検出想定
 
 ## Key Decisions
-- [[regime-cascade-empirical-redesign-2026-04-30]] -- **🎯 最新** Regime Cascade 実測再設計 — v1 教科書仮説を否定、binary moderate_trend gate 採用、range cascade 停止 (rule:R1+R3)
+- [[complex-gate-edge-destruction-pattern-2026-05-03]] -- **🎯 最新 (2026-05-03)** Complex gate edge-destruction pattern — MTF cascade / HMM / multi-condition gate は BT で映えても Live/OOS で edge 破壊 (4例再現)、Wave 設計に simple-first 原則導入 (rule:R3)
+- [[aggregate-kelly-decomposition-2026-05-03-corrigendum]] -- **🎯 SSOT (rev2)** TRUE_LIVE bucket only N=371、Strategy×Pair 出血ランキング再特定、ELITE_LIVE `session_time_bias × GBP_USD` 出血特定、surgical demote 経路は **再開可能**
+- [[aggregate-kelly-decomposition-2026-05-03]] -- (2026-05-03 旧) 数値部分は corrigendum で SUPERSEDED (N=29 は mode='daytrade' subset 誤集計)
+- [[regime-cascade-empirical-redesign-2026-04-30]] -- Regime Cascade 実測再設計 — v1 教科書仮説を否定、binary moderate_trend gate 採用、range cascade 停止 (rule:R1+R3)
 - [[strategies-page-audit-followup-2026-04-30]] -- B1/B3 訂正: ELITE bypass 不要・FORCE_DEMOTED Live発火0件確認。direction_cells API 追加
 - [[shadow-deep-mining-2026-04-24]] -- Shadow 7次元診断 → Scenario A 追認 / bb_rsi・ema・sr_channel の MR 系は現行 regime で dead (friction>edge)
 - [[pre-registration-mafe-dynamic-exit-2026-04-24]] -- MAFE-based Time-Decay Exit の forward-usable pre-reg (target: bb_rsi_reversion, 48 param cells, Bonferroni α=1.04e-3)

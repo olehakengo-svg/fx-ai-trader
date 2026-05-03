@@ -1889,8 +1889,15 @@ class DemoTrader:
             # ══════════════════════════════════════════════════════════════
             # v6.5 fix: OANDA trade IDがないトレードはPYRAMID対象外
             # (OANDA停止中に開設されたデモ専用トレードのmodify_sl_sync無限失敗を防止)
+            # 2026-05-01 audit P0-8 / Pillar 2.4 — DO NOT REMOVE this gate.
+            # PYR was burning -1.56pip/event for 3 weeks. DISABLE_PYRAMIDING=1
+            # short-circuits the emit branch before any OANDA call.
+            _pyramiding_disabled = _os.environ.get(
+                "DISABLE_PYRAMIDING", ""
+            ).strip().lower() in ("1", "true", "yes")
             _has_oanda_id = bool(trade.get("oanda_trade_id"))
-            if (trade_id not in self._pyramided_trades
+            if (not _pyramiding_disabled
+                    and trade_id not in self._pyramided_trades
                     and _has_oanda_id
                     and _entry_type_pe in self._PE_50PCT_ELIGIBLE):
                 _pyr_atr = self._entry_atr.get(
@@ -6309,7 +6316,10 @@ class DemoTrader:
         # REMOVED v2.1: gold_trend_momentum — XAU全停止中、BT不能。復活時に再評価
         "liquidity_sweep",             # v8.2: Liquidity Sweep: ウィック構造ストップ狩りリバーサル (Osler 2003) — Sentinel蓄積
         # v8.5: 学術文献リサーチ6新エッジ
-        # REMOVED: session_time_bias → PAIR_PROMOTED済み、SENTINEL矛盾のためshadow化が発生していた (v8.9)
+        # 2026-05-01 audit P0-8 phase 1 — DO NOT REMOVE this line until Live
+        # N≥20 + WR>50% + Wilson lower > Bonferroni-BEV met. ELITE_LIVE → SENTINEL
+        # demote: Live N=9 WR=22.2% PnL=-43.4p; QUICK_HARVEST_EXEMPT removed.
+        "session_time_bias",
         # REMOVED: london_fix_reversal → PAIR_PROMOTED済み、同上 (v8.9)
         "gotobi_fix",                  # 五十日仲値Fix (Bessho 2023)
         "vix_carry_unwind",            # VIXキャリー巻戻し (Brunnermeier 2009)
@@ -6348,7 +6358,9 @@ class DemoTrader:
     # DT幹: BT 365日 STRONG確認済み
     # Scalp枝: _PAIR_PROMOTEDでSENTINEL通過（SHADOWされない）
     _ELITE_LIVE = {
-        "session_time_bias",     # DT核: JPY EV=+0.58, EUR EV=+0.22, GBP EV=+0.11
+        # 2026-05-01 audit P0-8 phase 1 — DO NOT add session_time_bias back
+        # without explicit re-promotion (Live WR 22.2%, PnL -43.4p, demoted
+        # to _UNIVERSAL_SENTINEL with QUICK_HARVEST_EXEMPT removed).
         "trendline_sweep",       # DT: GBP EV=+0.60, EUR EV=+0.93
         "gbp_deep_pullback",     # DT: GBP EV=+1.06
     }
@@ -6422,10 +6434,12 @@ class DemoTrader:
     _QUICK_HARVEST_MULT = 0.85      # v6.8: 0.70→0.85 (DT WIN 7件の19.2pip利益漏出修復)
     _QUICK_HARVEST_EXEMPT = frozenset({
         ("gbp_deep_pullback", "GBP_USD"),   # 高WR戦略は全TP許可
-        # v8.9: 方向性DT戦略はTP短縮不要（4-6h保有、BT WR=65-77%でTP到達率が高い）
-        ("session_time_bias", "USD_JPY"),
-        ("session_time_bias", "EUR_USD"),
-        ("session_time_bias", "GBP_USD"),
+        # 2026-05-01 audit P0-8 phase 1 — session_time_bias を ELITE_LIVE→
+        # SENTINEL 降格に伴い QH_EXEMPT を解除。Live で WR 22.2% / -43.4p
+        # なので quick-harvest TP 短縮を「適用する」側に戻して被弾を抑える。
+        # ("session_time_bias", "USD_JPY"),
+        # ("session_time_bias", "EUR_USD"),
+        # ("session_time_bias", "GBP_USD"),
         # v9.1: london_fix_reversal×GBP_USD削除 — PAIR_PROMOTED解除済み (365d BT EV=-0.239)
         ("vix_carry_unwind", "USD_JPY"),    # イベント戦略、TP到達が前提
     })

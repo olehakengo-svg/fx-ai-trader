@@ -163,37 +163,3 @@ If a candidate's `run_scalp_backtest` returns N=0 even though the strategy is in
 If OOS PF degrades by >15% from IS PF on any candidate, flag `OVERFIT_SUSPECTED` and downgrade verdict by one tier (Promote → Shadow, Shadow → Reject). This is in the LOCKED rule per the complex-gate decision doc.
 
 In the final report: status, files changed, the verdict per candidate, the K=4 Bonferroni table, the OVERFIT_SUSPECTED flags, the recommended next task. The next task after at least one Promote/Shadow is **A3-simple — register the Promote candidate to OANDA bridge with monitoring**; otherwise **A2-alt2 — pre-register the next simple candidate from the broader Scalp pool**.
-
-
-## Result (2026-05-03T13:17:06Z)
-
-exit=0 · 252s
-
-```
-Implemented the pre-reg wrapper and pending aggregate artifacts without touching forbidden areas (`app.py`, `modules/`, `strategies/`, decisions/index/strategy wiki).
-
-Changed:
-- [tools/scalp_alt_pre_reg_bt.py](/data/repo/fx-ai-trader/tools/scalp_alt_pre_reg_bt.py)
-- [tests/test_scalp_alt_pre_reg_bt.py](/data/repo/fx-ai-trader/tests/test_scalp_alt_pre_reg_bt.py)
-- [scalp-alt-pre-registration-2026-05-03.md](/data/repo/fx-ai-trader/knowledge-base/wiki/learning/scalp-alt-pre-registration-2026-05-03.md)
-- [scalp-alt-180d-2026-05-03.json](/data/repo/fx-ai-trader/knowledge-base/raw/bt-results/scalp-alt-180d-2026-05-03.json)
-- [scalp-alt-180d-2026-05-03.md](/data/repo/fx-ai-trader/knowledge-base/raw/bt-results/scalp-alt-180d-2026-05-03.md)
-- [.ai run report](/data/repo/fx-ai-trader/.ai/runs/20260503-1700-a2-alt-simple-structure-scalp-pre-reg/final.md)
-
-Current verdicts are `BT_PENDING` for all four because I did not run the long foreground BT commands per the task split:
-
-| Strategy | Verdict | Bonf p | Overfit |
-|---|---:|---:|---|
-| `bb_squeeze_breakout` | BT_PENDING | NA | false |
-| `engulfing_bb` | BT_PENDING | NA | false |
-| `fib_reversal` | BT_PENDING | NA | false |
-| `sr_channel_reversal` | BT_PENDING | NA | false |
-
-Verification:
-- Passed: `python3 tools/scalp_alt_pre_reg_bt.py --dry-run`
-- Passed: direct assertion harness for all new tests
-- Passed: `python3 -m py_compile tools/scalp_alt_pre_reg_bt.py tests/test_scalp_alt_pre_reg_bt.py`
-- Blocked: `python3 -m pytest tests/test_scalp_alt_pre_reg_bt.py -v` because `pytest` is not installed in this environment.
-
-Next task: Parent Claude should run the four `--candidate` commands in foreground, then rerun `--aggregate`. After actual verdicts exist: `A3-simple` if one candidate is Promote; otherwise `A2-alt2` if all are Reject/Insufficient/BT_GATE_BLOCKED.
-```

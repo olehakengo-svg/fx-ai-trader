@@ -4,6 +4,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+# Keep Codex companion job state in a persistent plugin data store when the
+# caller did not provide one. Claude Code plugin contexts may set a different
+# CLAUDE_PLUGIN_DATA; preserve that value and record it for tracking.
+export CLAUDE_PLUGIN_DATA="${CLAUDE_PLUGIN_DATA:-$HOME/.claude/plugins/data/codex-inline}"
+
 usage() {
   cat <<'EOF'
 Usage:
@@ -164,6 +169,7 @@ echo "Task: $TASK"
 echo "Run:  $RUN_DIR"
 echo "Thread title: $THREAD_TITLE"
 echo "Codex companion: $COMPANION_SCRIPT"
+echo "Codex companion data: $CLAUDE_PLUGIN_DATA"
 
 COMPANION_ARGS=(task --background --write --cwd "$ROOT" --prompt-file "$PROMPT_FILE")
 if [[ -n "${CODEX_COMPANION_ARGS:-}" ]]; then
@@ -184,18 +190,20 @@ task=$TASK
 run_dir=$RUN_DIR
 final_file=$FINAL_FILE
 thread_title=$THREAD_TITLE
-status_command=node "$COMPANION_SCRIPT" status $JOB_ID
-result_command=node "$COMPANION_SCRIPT" result $JOB_ID
+claude_plugin_data=$CLAUDE_PLUGIN_DATA
+status_command=./tools/ai_codex_status.sh $JOB_ID
+result_command=./tools/ai_codex_status.sh --result $JOB_ID
 EOF
 
   echo
   echo "Codex companion tracking:"
   echo "  Job ID: $JOB_ID"
-  echo "  Status: node \"$COMPANION_SCRIPT\" status $JOB_ID"
-  echo "  Result: node \"$COMPANION_SCRIPT\" result $JOB_ID"
+  echo "  Data: $CLAUDE_PLUGIN_DATA"
+  echo "  Status: ./tools/ai_codex_status.sh $JOB_ID"
+  echo "  Result: ./tools/ai_codex_status.sh --result $JOB_ID"
   echo "  Tracking file: $TRACK_FILE"
   echo
-  node "$COMPANION_SCRIPT" status "$JOB_ID" || true
+  ./tools/ai_codex_status.sh "$JOB_ID" || true
 fi
 
 echo

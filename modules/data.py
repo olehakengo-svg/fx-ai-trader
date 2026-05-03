@@ -27,6 +27,43 @@ _data_cache:  dict = {}   # (symbol,interval,period) -> (df, timestamp)
 _price_cache: dict = {}   # TwelveData realtime price cache
 _last_data_source: dict = {}  # interval -> source name
 
+_PARQUET_CACHE_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "data",
+    "cache",
+    "massive",
+)
+_PARQUET_SYMBOL_MAP = {
+    "USDJPY=X": "USD_JPY",
+    "JPY=X": "USD_JPY",
+    "EURUSD=X": "EUR_USD",
+    "EURJPY=X": "EUR_JPY",
+    "GBPUSD=X": "GBP_USD",
+    "GBPJPY=X": "GBP_JPY",
+    "EURGBP=X": "EUR_GBP",
+    "USDJPY": "USD_JPY",
+    "EURUSD": "EUR_USD",
+    "EURJPY": "EUR_JPY",
+    "GBPUSD": "GBP_USD",
+    "GBPJPY": "GBP_JPY",
+    "EURGBP": "EUR_GBP",
+    "USD_JPY": "USD_JPY",
+    "EUR_USD": "EUR_USD",
+    "EUR_JPY": "EUR_JPY",
+    "GBP_USD": "GBP_USD",
+    "GBP_JPY": "GBP_JPY",
+    "EUR_GBP": "EUR_GBP",
+}
+_PARQUET_INTERVAL_MAP = {
+    "1m": "1m",
+    "5m": "5m",
+    "15m": "15m",
+    "30m": "30m",
+    "1h": "1h",
+    "4h": "4h",
+    "1d": "1d",
+}
+
 # TF別キャッシュTTL
 # (2026-04-05 perf) TTL延長: ネットワーク負荷40%削減
 # 旧: 1m=10s(40%hit) 5m=15s 15m=45s(33%hit) → 新: 80%+ヒット率達成
@@ -76,6 +113,54 @@ def _fetch_raw(symbol: str, period: str, interval: str) -> pd.DataFrame:
     elif getattr(df.index, "tz", None) is not None:
         df.index = df.index.tz_convert("UTC")
     return df.dropna()
+
+
+def _load_parquet_cache_fallback(symbol: str, interval: str, days: int,
+                                 min_bars: float):
+    """Read a local read-only parquet cache for offline BT fallback."""
+    cache_symbol = _PARQUET_SYMBOL_MAP.get(
+        symbol,
+        symbol.replace("=X", "").replace("/", "_"),
+    )
+    suffix = _PARQUET_INTERVAL_MAP.get(interval)
+    if suffix is None:
+        return None, None
+
+    path = os.path.join(_PARQUET_CACHE_DIR, f"{cache_symbol}_{suffix}.parquet")
+    if not os.path.exists(path):
+        return None, None
+
+    modified_at = datetime.fromtimestamp(os.path.getmtime(path), timezone.utc)
+    try:
+        df = pd.read_parquet(path)
+    except Exception as e:
+        print(f"[parquet-cache/{interval}] {symbol} read error: {e}")
+        return None, modified_at
+    df = df.rename(
+        columns={
+            "open": "Open",
+            "high": "High",
+            "low": "Low",
+            "close": "Close",
+            "volume": "Volume",
+        }
+    )
+
+    if not isinstance(df.index, pd.DatetimeIndex):
+        df.index = pd.to_datetime(df.index, utc=True)
+    elif df.index.tz is None:
+        df.index = df.index.tz_localize("UTC")
+    else:
+        df.index = df.index.tz_convert("UTC")
+
+    df = df.sort_index().dropna()
+    if days > 0 and len(df) > 0:
+        cutoff = df.index[-1] - timedelta(days=days)
+        df = df[df.index >= cutoff]
+
+    if len(df) < max(1, int(min_bars)):
+        return None, modified_at
+    return df, modified_at
 
 
 # ═══════════════════════════════════════════════════════
@@ -663,13 +748,29 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
             print(f"[yfinance/{interval}] fetch error: {e}")
             df = None
 
+    # -- (4) 最終フォールバック: ローカル parquet キャッシュ (BT/開発専用) --
+    if df is None:
+        parquet_df, parquet_ts = _load_parquet_cache_fallback(
+            symbol, interval, days, min_bars
+        )
+        if parquet_df is not None:
+            df = parquet_df
+            _last_data_source[interval] = "parquet-cache"
+            print(
+                f"[parquet-cache/{interval}] WARNING using offline-cached data "
+                f"for {symbol} (cache_ts={parquet_ts.isoformat()})"
+            )
+
     # 全ソース失敗時: staleキャッシュがあれば返す (2026-04-05 audit fix)
     if df is None:
         with _cache_lock:
             if key in _data_cache:
                 print(f"[fetch_ohlcv] ALL sources failed for {symbol}/{interval} → returning stale cache")
                 return _data_cache[key][0].copy()
-        raise ValueError(f"All data sources failed for {symbol}/{interval}")
+        raise ValueError(
+            f"All data sources failed for {symbol}/{interval}; "
+            "local parquet cache unavailable"
+        )
 
     with _cache_lock:
         _data_cache[key] = (df, now)

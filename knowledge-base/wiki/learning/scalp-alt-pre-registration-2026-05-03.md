@@ -1,47 +1,47 @@
-# Scalp Alt Simple-Structure Pre-registration (LOCKED)
+# Scalp alt pre-registration — 2026-05-03
 
-- Date: 2026-05-03
-- Engine: `run_scalp_backtest` standard BT only
-- Lookback: 180d
-- Lineage: direct simple-first execution of `knowledge-base/wiki/decisions/complex-gate-edge-destruction-pattern-2026-05-03.md`.
-- Registration to OANDA bridge is out of scope and gated on this verdict.
+**Rule**: `R1 Slow & Strict`
+**Decision lineage**: `complex-gate-edge-destruction-pattern-2026-05-03` simple-first principle
 
-## LOCKED Thresholds
+## LOCKED thresholds
 
-- Bonferroni K=4; alpha/K=0.0125. Candidate pool is fixed ex ante.
-- Promote: N>=30, PF>=1.30, Wilson_lo > BEV_WR + 5pp, WF IS/OOS PF>=1.20, Bonferroni p < 0.0125, max DD <=30%.
-- Shadow: N>=30, PF>=1.10, Wilson_lo > BEV_WR, WF IS/OOS PF>=1.00, max DD <=30%.
-- Reject: any other configuration.
-- Insufficient: N<30 with explicit gap-to-30.
-- OVERFIT_SUSPECTED: OOS PF < IS PF * 0.85; downgrade Promote->Shadow or Shadow->Reject.
-- BEV_WR: USD_JPY=34.4%, EUR_USD=39.7%.
-- Metric note: if `run_scalp_backtest` trade_log lacks literal `pnl_pips`, EV/PF/DD use reconstructed sign-adjusted engine PnL units from `tp_m/sl_m/actual_sl_m`; raw engine output is retained in JSON.
+- Promote: N>=30, PF>=1.3, Wilson_lo > BEV_WR + 5pp, WF PF_IS>=1.2 and PF_OOS>=1.2, Bonferroni p<0.01250, max DD<=30%.
+- Shadow: N>=30, PF>=1.1, Wilson_lo > BEV_WR, WF PF_IS>=1.0 and PF_OOS>=1.0, max DD<=30%.
+- Reject: any other configuration. Insufficient: N<30.
+- OVERFIT_SUSPECTED: OOS PF < IS PF x 0.85 triggers a one-tier downgrade.
 
-## Verdict Summary
+## Bonferroni K=4 justification
 
-| # | Strategy | Pair | TF | Verdict | N | WR | EV | PF | Bonf p | Overfit | Gap |
-|---|---|---|---|---|---:|---:|---:|---:|---:|---|---:|
-| 1 | `bb_squeeze_breakout` | USD_JPY | 5m | BT_PENDING | NA | NA | NA | NA | NA | False | 30 |
-| 2 | `engulfing_bb` | USD_JPY | 5m | BT_PENDING | NA | NA | NA | NA | NA | False | 30 |
-| 3 | `fib_reversal` | EUR_USD | 1m | BT_PENDING | NA | NA | NA | NA | NA | False | 30 |
-| 4 | `sr_channel_reversal` | EUR_USD | 5m | BT_PENDING | NA | NA | NA | NA | NA | False | 30 |
+- Decision pool fixed ex ante as 4 simple-structure scalp candidates: bb_squeeze_breakout, engulfing_bb, fib_reversal, sr_channel_reversal.
+- Alpha/K = 0.01250.
 
-## Per-candidate Quant Table
+## Summary table
 
-| Strategy | N | Wins/Losses | WR | EV | PF | Wilson 95% CI | max DD pip | max DD % | WF IS PF/OOS PF | WF IS WR/OOS WR | Bonf p | Half-Kelly |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| `bb_squeeze_breakout` | NA | NA/NA | NA | NA | NA | [NA, NA] | NA | NA | NA/NA | NA/NA | NA | NA |
-| `engulfing_bb` | NA | NA/NA | NA | NA | NA | [NA, NA] | NA | NA | NA/NA | NA/NA | NA | NA |
-| `fib_reversal` | NA | NA/NA | NA | NA | NA | [NA, NA] | NA | NA | NA/NA | NA/NA | NA | NA |
-| `sr_channel_reversal` | NA | NA/NA | NA | NA | NA | [NA, NA] | NA | NA | NA/NA | NA/NA | NA | NA |
+| Strategy | Pair | TF | Roadmap EV | Complexity | Verdict | Flags | N | PF | Bonf p |
+|---|---|---|---:|---|---|---|---:|---:|---:|
+| `sr_channel_reversal` | `EUR_USD` | `5m` | 0.231 | SR / channel bounce (1 level set) | Promote | none | 52 | 2.724 | 0.00418322 |
+| `fib_reversal` | `EUR_USD` | `1m` | 0.426 | Fib retracement (1 level set) | Reject | none | 101 | 3.150 | 0.00015895 |
+| `engulfing_bb` | `USD_JPY` | `5m` | 0.677 | engulfing candle + BB extreme (2 conditions) | Reject | none | 30 | 1.557 | 0.09299531 |
+| `bb_squeeze_breakout` | `USD_JPY` | `5m` | 1.030 | BB + squeeze (1 indicator + 1 condition) | Insufficient | none | 24 | 4.872 | 0.00023226 |
 
-## Candidate Notes
+## Per-candidate quant table
 
-- `bb_squeeze_breakout`: BT_PENDING. missing parent-run JSON: /data/repo/fx-ai-trader/knowledge-base/raw/bt-results/scalp-alt-bb_squeeze-2026-05-03.json.
-- `engulfing_bb`: BT_PENDING. missing parent-run JSON: /data/repo/fx-ai-trader/knowledge-base/raw/bt-results/scalp-alt-engulfing-2026-05-03.json.
-- `fib_reversal`: BT_PENDING. missing parent-run JSON: /data/repo/fx-ai-trader/knowledge-base/raw/bt-results/scalp-alt-fib-2026-05-03.json.
-- `sr_channel_reversal`: BT_PENDING. missing parent-run JSON: /data/repo/fx-ai-trader/knowledge-base/raw/bt-results/scalp-alt-sr-2026-05-03.json.
+| Strategy | Verdict | Flags | N | Wins/Losses | WR | EV pip/trade | PF | Wilson 95% CI | Max DD pip | Max DD % | WF PF IS/OOS | WF WR IS/OOS | Bonferroni one-sided p | half-Kelly |
+|---|---|---|---:|---|---:|---:|---:|---|---:|---:|---|---|---:|---:|
+| `sr_channel_reversal` | Promote | none | 52 | 32 / 20 | 61.538% | 0.373 | 2.724 | [47.960%, 73.530%] | 3.022 | 14.841 | 2.557 / 2.889 | 61.538% / 61.538% | 0.00418322 | 0.194700 |
+Verdict note: all pre-registered conditions passed
+| `fib_reversal` | Reject | none | 101 | 60 / 41 | 59.406% | 0.388 | 3.150 | [49.655%, 68.468%] | 2.983 | 220.963 | 2.157 / 4.956 | 50.000% / 68.627% | 0.00015895 | 0.202700 |
+Verdict note: max DD > 30% or undefined
+| `engulfing_bb` | Reject | none | 30 | 16 / 14 | 53.333% | 0.212 | 1.557 | [36.142%, 69.768%] | 7.566 | 188.209 | 1.162 / 1.948 | 40.000% / 66.667% | 0.09299531 | 0.095400 |
+Verdict note: max DD > 30% or undefined, Bonferroni threshold failed for Promote
+| `bb_squeeze_breakout` | Insufficient | none | 24 | 18 / 6 | 75.000% | 0.913 | 4.872 | [55.100%, 88.001%] | 2.976 | 26.731 | 2.442 / inf | 75.000% / 75.000% | 0.00023226 | 0.298000 |
+Verdict note: N<30, gap_to_30=6
 
-## Next Task
+## Promote cap
 
-Parent Claude — execute the four pre-registered --candidate runs, then rerun --aggregate
+- Promote candidates identified: 1 (at most one allowed by decision policy).
+- Top ranked candidate: `sr_channel_reversal`.
+
+## Recommendation
+
+- Next recommended task: A3-simple — register the Promote candidate to OANDA bridge with monitoring
