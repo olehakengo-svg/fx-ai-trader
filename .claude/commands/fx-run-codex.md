@@ -11,19 +11,21 @@ argument-hint: [task-number-or-file]
 
 ```bash
 cd /Users/jg-n-012/test/fx-ai-trader
-./tools/ai_run_codex.sh --list
+./tools/ai_run_codex_companion.sh --list
 ```
 
 `$ARGUMENTS` にタスク番号またはタスクファイルが指定されている場合だけ、次を実行する:
 
 ```bash
 cd /Users/jg-n-012/test/fx-ai-trader
-./tools/ai_run_codex.sh $ARGUMENTS
+./tools/ai_run_codex_companion.sh $ARGUMENTS
 ```
 
 `$ARGUMENTS` が空の場合は、Codex を実行せず、どの番号を実行するかユーザーに確認する。複数タスクがある状態で暗黙に最新タスクを走らせない。
 
-実行後、出力された run directory と final report の場所を確認する。
+実行は Claude Code の Codex companion 経由にする。raw Bash の `codex exec` は使わない。Codex が動いた場合は Codex アプリ側の persistent task/thread に表示され、そこで作業が進むことを期待する。
+
+実行後、出力された run directory、Codex companion job id、final report の場所を確認する。
 
 ## クオンツ確認
 
