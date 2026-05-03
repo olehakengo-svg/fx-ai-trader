@@ -167,6 +167,67 @@ Pre-registered primary: `(Asian 7h / M5 close break / range×1.0 exit / range >=
 - Validity JSON: `knowledge-base/raw/bt-results/c1-london-breakout-validity.json`
 - Run report: `.ai/runs/20260503-183623-20260503-1830-w3-4-rerun-c1-london-breakout-gbpjpy-12yr/final.md`
 
+## Second Data Source Confirmation (Dukascopy)
+
+REJECT verdict は massive cache（XM 系）単独ではなく、独立した Dukascopy bid M5 cache でも同等の結論に到達している。データソース起因の偽 REJECT ではない。
+
+### Data Manifest (Dukascopy)
+
+| Field | Value |
+|---|---|
+| data_source | `local_parquet:data/cache/extended/GBP_JPY_5m_long.parquet` |
+| data_sha256 | `7623ca53aff60ed64c6b09eb427812d88474e7aaeff5a1a0bca4f1af258d7252` |
+| live_separation | `bt_only` |
+| acquisition path | host-side `npx dukascopy-node` 3-part incremental fetch（sandbox DNS bypass） |
+| actual bars | 920,906（2014-01-01T22:00:00Z → 2026-04-29T23:55:00Z） |
+| weekday window bars | 900,921 / expected_naive 926,496 → coverage_ratio_naive=0.9724 |
+| build script | `tools/data/build_gbpjpy_m5_long_parquet.py`（multi `--input-dir` + volume passthrough、 `.to_numpy()` で integer index → DatetimeIndex 再アライメント NaN bug を修正） |
+| audit | `data/cache/extended/GBP_JPY_5m_long.audit.json` |
+
+### Primary Cell — 二データソースの一致
+
+| Source | data_sha256 | bars | N | WR% | PF | Sharpe | Wilson lo% | Bonf pass | Kelly | Net pip | Verdict |
+|---|---|---:|---:|---:|---:|---:|---:|---|---:|---:|---|
+| Massive cache (parallel Codex run) | `14d4ec64c99c…` | 925,109 | 662 | 45.62 | 1.0127 | 0.08 | 41.86 | False | 0.0057 | 164.83 | REJECT |
+| Dukascopy (this run) | `7623ca53aff6…` | 920,906 | 673 | 45.91 | 1.0144 | 0.09 | 42.18 | False | 0.0065 | 190.22 | REJECT |
+
+差は trading-day 境界の差（4 days 程度）と Asian-window 中央値再計算による cell membership の境界効果のみ。**両ソースで同じ matrix axes（Wilson lo / PF / Bonferroni / Sharpe）が同方向に失格**。
+
+### Validity Re-run on Dukascopy Cache
+
+| Check | Result | Evidence |
+|---|---|---|
+| V1 null bootstrap (n=1000, seed=20260503) | REJECT | actual_pf=1.01441, p95_pf=1.166656, actual_gt_p95=False |
+| V2 rsk correlation | FETCHED | `render_snapshot:render-demo-trades-20260503.db` → rsk_gbpjpy_reversion N=85, all is_shadow=1, sum_pnl=-628.20 pip, avg_pnl=-7.39 pip |
+| V3 broker cross-check | PARTIAL_ONLY | yfinance bars=17,006（intraday は 60d 上限のため 12yr 検証としては SUPPORTING ONLY） |
+| V4 cohort consistency | REJECT | max_abs_share=3.40（2021-2022 Truss budget cohort: N=121, PF=0.77, net=-646.66 pip → -340% concentration） |
+| V5 orphan check | NOT_PROVIDED | host run、`pgrep -f app.py` 重複なし |
+| V6 spread profile | RECORDED | entry hour round-trip spread を entry_price basis から減算済 |
+
+`scenario_verdict` から決まる最終判定: **REJECT**（BLOCKED_DATA は parquet rebuild で解消）。
+
+### Best Cell（参考、採用しない）
+
+`aw6_high_break_time_12utc_rf1.5`（Asian 6h, high-break entry, 12 UTC time exit, range×1.5）
+
+| N | WR% | PF | Sharpe | Kelly | Wilson lo% | Bonf pass | Net pip |
+|---:|---:|---:|---:|---:|---:|---|---:|
+| 334 | 50.00 | 1.80 | 3.49 | 0.22 | 44.67 | False | 4999.96 |
+
+PF/Sharpe/Net pip は健全だが:
+
+1. Pre-registered primary ではない（post-hoc selection）
+2. Bonferroni m=81 を通らない（Wilson lo 44.67% < 50% で binomial WR test も棄却域）
+3. KB lesson に従えば **WR<50% かつ asymmetric R:R の breakout に対して binomial Bonferroni は棄却し過ぎる構造を持つ**ため、検出力ゼロのテストでも採用条件には使えない（[[lesson-bev-wr-friction-vs-strategy-rr-2026-04-15]] 等で同様の警告）
+
+best cell を Shadow promote 候補に切り上げるなら、別 entry 仕様として **新規 pre-registration LOCK を切り直す** 必要がある。今回の primary REJECT を上書きする evidence にはならない。
+
+### 結論：データ補修ではなくエッジ自体の不在
+
+二独立データソース（XM massive + Dukascopy）が一致して REJECT。今回の REJECT は data blocker（前 partial 判定）でも sandbox 制約（V2/V3 SKIP）でもなく、**事前登録 primary cell に統計的エッジが存在しないこと**を示している。
+
+`global-retail-fx-edges-2026-05-03` の §C-1 を academic only / rejected に降格する後続タスクと、別 pair / 別仕様（best cell の独立 pre-reg）に切り直す検討は分離して進める。
+
 ## Superseded Parent Partial Verdict
 
 > Superseded by 12yr rerun on 2026-05-03 19:xx JST. Original parent BLOCKED_DATA section preserved below for audit trail.
