@@ -1,7 +1,7 @@
 # S6 Chart Pattern Detector (USDJPY M5)
 
-- **Status**: Wave 2 BT completed; all tested cells rejected (no LIVE / Shadow exposure)
-- **Stage**: 0 (BT_REJECTED / NO_EDGE) — detector exists, BT edge not validated
+- **Status**: PARKED 2026-05-04 — Wave 2b pre-registration BT confirmed no edge; ATR 12-pattern geometry on USD_JPY M5 not pursued further (no LIVE / Shadow exposure)
+- **Stage**: 0 (BT_REJECTED / PARKED) — detector exists, BT edge not validated across 4 wave checkpoints (W1P0 / W2 / W2a / W2b)
 - **Rule**: R1 Slow & Strict
 - **Scope**: USD_JPY / M5 only, no LIVE or Shadow routing exposure
 - **Artifact**: `data/chart_patterns.db` / `chart_pattern_signals`
@@ -42,7 +42,8 @@ Entry is bar-close breakout only. Wick-only breakout is rejected. Re-entry dedup
 | W1P0 | Detector + label generation, USDJPY M5 only | DONE |
 | W2 | USDJPY M5 12.3y backtest by pattern/cell | DONE — all cells REJECT |
 | W2a | Spread-adjusted EV and 9-axis root-cause diagnosis | DONE — no spread-adj flips; no LIVE/Shadow eligibility |
-| W3 | 6 pair x 3 TF sweep, Bonferroni m=216 | BLOCKED unless detector geometry is revised |
+| W2b | Top-3 London_NY_overlap candidates, rr=1.25, dual intrabar resolve | DONE — 18 INSUFFICIENT / 6 REJECT; no PROMOTE/SHADOW |
+| W3 | 6 pair x 3 TF sweep, Bonferroni m=216 | BLOCKED unless W2b follow-up explicitly reopens scope |
 | W4 | Shadow promote / LIVE candidate gate | Not eligible |
 
 ## Phase 0 Result
@@ -66,7 +67,7 @@ Production run over `data/cache/massive/USD_JPY_5m.parquet` generated 22,094 sig
 
 ## Next Task
 
-Wave 2a confirmed no spread-adjusted PROMOTE/SHADOW flips. Before any W3 expansion, keep Wave 2b as detector-geometry diagnosis only; LIVE/Shadow exposure remains explicitly out of scope.
+Wave 2b confirmed no PROMOTE/SHADOW rows under the pre-registered top-3 London_NY_overlap diagnostic. C1/C2 remained N<30 on OOS_1; C3 reached OOS_1 N=58 but PF=1.18 below the SHADOW gate. Before any W3 expansion, decide whether to run Wave 2c regime deepdive or park S6; LIVE/Shadow exposure remains explicitly out of scope.
 
 ## Wave 2 Result (2026-05-03)
 
@@ -88,3 +89,23 @@ Wedge direction result:
 | falling_wedge | 0.74 | 0.88 | reversed better, but still REJECT |
 
 Decision record: `knowledge-base/wiki/decisions/s6-w2-bt-2026-05-03.md`.
+
+## Wave 2b Result (2026-05-04)
+
+Pre-registration input was frozen W1P0 labels in `data/chart_patterns.db` and OHLC from `data/cache/massive/USD_JPY_5m.parquet`. Simulation used `signal_ts + 1 bar` open entry, `12 <= hour(signal_ts UTC) < 16` with entry also constrained to 12-15 UTC for the locked verification check, W2a empirical hour spread, frozen SL, recomputed `rr=1.25` TP, max hold 30 bars, and both `SL_FIRST` / `TP_FIRST` intrabar interpretations.
+
+Verdict summary:
+
+| Rows | PROMOTE | SHADOW | REJECT | INSUFFICIENT |
+|---:|---:|---:|---:|---:|
+| 24 | 0 | 0 | 6 | 18 |
+
+OOS_1 main verdict:
+
+| Candidate | Cell | SL_FIRST | TP_FIRST | Note |
+|---|---|---|---|---|
+| C1 | triple_bottom x London_NY_overlap x rr=1.25 | INSUFFICIENT, N=9, EV=-2.96, PF=0.79 | INSUFFICIENT, N=9, EV=-2.96, PF=0.79 | N<30 |
+| C2 | triple_top x London_NY_overlap x rr=1.25 | INSUFFICIENT, N=5, EV=13.69, PF=5.84 | INSUFFICIENT, N=5, EV=13.69, PF=5.84 | N<30 |
+| C3 | inverse_head_shoulders x London_NY_overlap x rr=1.25 | REJECT, N=58, EV=1.91, PF=1.18 | REJECT, N=58, EV=1.91, PF=1.18 | PF<1.2 SHADOW gate |
+
+Decision record: `knowledge-base/wiki/decisions/s6-w2b-pre-reg-bt-2026-05-04.md`.
