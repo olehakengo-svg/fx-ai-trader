@@ -41,6 +41,7 @@ Entry is bar-close breakout only. Wick-only breakout is rejected. Re-entry dedup
 |---|---|---|
 | W1P0 | Detector + label generation, USDJPY M5 only | DONE |
 | W2 | USDJPY M5 12.3y backtest by pattern/cell | DONE — all cells REJECT |
+| W2a | Spread-adjusted EV and 9-axis root-cause diagnosis | DONE — no spread-adj flips; no LIVE/Shadow eligibility |
 | W3 | 6 pair x 3 TF sweep, Bonferroni m=216 | BLOCKED unless detector geometry is revised |
 | W4 | Shadow promote / LIVE candidate gate | Not eligible |
 
@@ -65,7 +66,7 @@ Production run over `data/cache/massive/USD_JPY_5m.parquet` generated 22,094 sig
 
 ## Next Task
 
-Wave 2 found no PROMOTE/SHADOW cells. Before any W3 expansion, revise the detector geometry or hypothesis family; LIVE/Shadow exposure remains explicitly out of scope.
+Wave 2a confirmed no spread-adjusted PROMOTE/SHADOW flips. Before any W3 expansion, keep Wave 2b as detector-geometry diagnosis only; LIVE/Shadow exposure remains explicitly out of scope.
 
 ## Wave 2 Result (2026-05-03)
 
