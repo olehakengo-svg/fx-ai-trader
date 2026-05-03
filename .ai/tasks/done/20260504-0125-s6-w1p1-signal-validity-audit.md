@@ -210,3 +210,50 @@ W1P0 (`.ai/decisions/20260504-0125-s6-w1p0-inventory-manual-promote.md`) で man
 - PK duplicate 0
 
 W1P1 はこの inventory に **outcome label を付ける**だけのタスク。BT ではない、predictive power の statistical test もしない。次の W1P2 にバトンを渡すための clean labelled dataset を作る。
+
+
+## Result (2026-05-03T16:49:38Z)
+
+exit=0 · 336s
+
+```
+**Verdict: NEEDS_MORE_EVIDENCE**
+
+W1P1 labeling completed in [tools/s6_w1p1_outcome_audit.py](/data/repo/fx-ai-trader/tools/s6_w1p1_outcome_audit.py). The target SQLite was absent in this checkout, so I regenerated W1P0 into `knowledge-base/raw/bt-results/s6-w1p0-production-2026-05-04.sqlite`; it matched the pre-registered `signals N=22094`. Then I added only `chart_pattern_outcomes`.
+
+System `python3` had no pandas, so I used `.venv/bin/python` for the required commands.
+
+**Verdict Drivers**
+- Labeled: `22094 / 22094` = `100.0%` -> ACCEPT
+- DM: `1 / 22094` = `0.0045%` -> ACCEPT
+- TP+SL+TO: `22093` -> ACCEPT
+- hit_rate > 50%: `10 / 12` -> ACCEPT
+- bull/bear symmetry: `5 / 6` pairs within 10pp -> NEEDS_MORE_EVIDENCE
+- overall median `pnl_pips`: `+6.30` -> ACCEPT
+
+**Outcome Distribution**
+| Pattern | Dir | TP | SL | TO | DM | Total |
+|---|---:|---:|---:|---:|---:|---:|
+| ascending_triangle | BUY | 2035 | 1612 | 125 | 0 | 3772 |
+| rising_wedge | BUY | 944 | 692 | 110 | 1 | 1747 |
+| bull_flag | BUY | 169 | 206 | 1 | 0 | 376 |
+| descending_triangle | SELL | 1568 | 1206 | 65 | 0 | 2839 |
+| falling_wedge | SELL | 699 | 483 | 69 | 0 | 1251 |
+| bear_flag | SELL | 110 | 147 | 4 | 0 | 261 |
+| double_bottom | BUY | 2775 | 1874 | 17 | 0 | 4666 |
+| triple_bottom | BUY | 99 | 56 | 0 | 0 | 155 |
+| inverse_head_shoulders | BUY | 580 | 401 | 18 | 0 | 999 |
+| double_top | SELL | 2794 | 2058 | 17 | 0 | 4869 |
+| triple_top | SELL | 76 | 66 | 0 | 0 | 142 |
+| head_shoulders | SELL | 590 | 419 | 8 | 0 | 1017 |
+
+**Hit Rate Ranked**
+| Rank | Pattern | Dir | TP | SL | TO | N | Hit rate |
+|---:|---|---:|---:|---:|---:|---:|---:|
+| 1 | triple_bottom | BUY | 99 | 56 | 0 | 155 | 63.9% |
+| 2 | double_bottom | BUY | 2775 | 1874 | 17 | 4666 | 59.5% |
+| 3 | inverse_head_shoulders | BUY | 580 | 401 | 18 | 999 | 58.1% |
+| 4 | head_shoulders | SELL | 590 | 419 | 8 | 1017 | 58.0% |
+| 5 | double_top | SELL | 2794 | 2058 | 17 | 4869 | 57.4% |
+| 6 | falling_wedge | SEL
+…(truncated)
