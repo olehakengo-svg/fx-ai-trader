@@ -4,8 +4,8 @@
 - **Entry Type**: `bb_squeeze_breakout`
 - **Category**: Breakout / VOL
 - **Timeframe**: Scalp 1m/5m, DT 15m
-- **Status**: PAIR_PROMOTED (USD_JPY) — EUR/GBP/JPYcross は PAIR_DEMOTED で保護
-- **Active Pairs**: USD_JPY (trial, 1.0x lot)
+- **Status**: PAIR_DEMOTED (USD_JPY 含む全 pair) — 2026-05-03 R2 15-cell LOCK で USD_JPY も demote (Shadow 蓄積モード)
+- **Active Pairs**: なし (Shadow N 蓄積中、Live 不採用)
 
 ## BT Performance (365d, 5m Scalp)
 

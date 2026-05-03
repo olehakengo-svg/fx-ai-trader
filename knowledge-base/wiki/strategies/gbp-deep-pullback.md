@@ -4,8 +4,9 @@
 - **Entry Type**: `gbp_deep_pullback`
 - **Category**: TF (Trend Following)
 - **Timeframe**: DT 15m
-- **Status**: ELITE_LIVE
-- **Active Pairs**: GBP_USD
+- **Status**: PAIR_DEMOTED (GBP_USD)
+- **Active Pairs**: なし (Shadow N 蓄積中)
+- **Recent change**: 2026-05-03 R2 15-cell LOCK で elite tier から PAIR_DEMOTED に降格 (Live 占有率/EV 劣化、Gate 0 ACCEPT 経路で除外)
 
 ## BT Performance (365d, 15m)
 | Pair | N | WR | EV | PF | PnL |
