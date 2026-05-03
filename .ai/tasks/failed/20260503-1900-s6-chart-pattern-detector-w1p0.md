@@ -262,7 +262,7 @@ PR 作成は本タスクで実行しない。proposal doc + detector 実装 + te
 最終レポートには status, files changed, signal 総数 (pattern 別内訳), regression fixture 30 件の固定値, residual risks, 次タスク (= Wave 2 BT spec proposal) を含む。
 
 
-## Error (2026-05-03T12:51:32Z)
+## Error (2026-05-03T12:56:16Z)
 
 ```
 Reading prompt from stdin...
@@ -275,7 +275,7 @@ approval: never
 sandbox: danger-full-access
 reasoning effort: none
 reasoning summaries: none
-session id: 019dede4-d3e9-7cb0-aa88-03ddfa8296a2
+session id: 019dede9-2cdf-7370-8982-97425f56baf8
 --------
 user
 ## 0. 目的 (rev0)
