@@ -34,6 +34,27 @@ def _wilson_lower(wins: int, n: int, z: float = 1.96) -> float:
     return max(0.0, (centre - spread) / den)
 
 
+def assign_hour_bucket(utc_hour):
+    """Map UTC hour to W3-1 H1 bucket label A/B/C/D."""
+    try:
+        hour = int(utc_hour)
+    except Exception:
+        return None
+    if hour < 0 or hour > 23:
+        return None
+    try:
+        from modules.config import hour_to_bucket
+        return hour_to_bucket(hour, "4_bucket")
+    except Exception:
+        if hour < 6:
+            return "A"
+        if hour < 12:
+            return "B"
+        if hour < 18:
+            return "C"
+        return "D"
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # Seed/backfill replay artifact filter (2026-04-27)
 # ─────────────────────────────────────────────────────────────────────────
@@ -1461,21 +1482,17 @@ class DemoDB:
 
         by_type = {}
         by_type_pair = {}  # v8.9: ペア×戦略別 (自動降格用)
-        by_type_pair_hour = {}  # W2-4 (2026-05-03): cell × hour-bucket for H-1 gate
+        by_type_pair_hour = {}  # W3-1 (2026-05-03): cell × hour-bucket for H-1 gate
         by_conf_band = {"low": [], "mid": [], "high": []}
         by_hour = {}
         by_regime = {}
         by_layer1 = {"bull": [], "bear": [], "neutral": []}
 
-        # W2-4: import bucket helpers (lazy — config might not be importable in tests)
+        # W3-1: import timestamp parser lazily; bucket assignment is local.
         try:
-            from modules.config import (
-                utc_hour_from_iso as _h1_utc_hour,
-                hour_to_bucket as _h1_hour_to_bucket,
-            )
+            from modules.config import utc_hour_from_iso as _h1_utc_hour
         except Exception:
             _h1_utc_hour = None
-            _h1_hour_to_bucket = None
 
         for t in closed:
             # By entry type
@@ -1501,12 +1518,12 @@ class DemoDB:
             except Exception:
                 pass
 
-            # W2-4: By (entry_type, instrument, hour_bucket)
+            # W3-1: By (entry_type, instrument, hour_bucket)
             #   spec: wiki/learning/h1-hour-bucket-design-2026-05-03.md
             #   This is a PROMOTION-LEVEL cell — never used as signal filter.
-            if _h1_utc_hour is not None and _h1_hour_to_bucket is not None:
+            if _h1_utc_hour is not None:
                 _hr = _h1_utc_hour(t.get("entry_time"))
-                _bucket = _h1_hour_to_bucket(_hr) if _hr is not None else None
+                _bucket = assign_hour_bucket(_hr) if _hr is not None else None
                 if _bucket is not None:
                     by_type_pair_hour.setdefault(
                         (et, inst, _bucket), []
@@ -1530,6 +1547,17 @@ class DemoDB:
             w = sum(1 for t in trades if t["outcome"] == "WIN")
             ev = sum(t["pnl_pips"] for t in trades) / len(trades)
             return round(w / len(trades) * 100, 1), round(ev, 2), len(trades)
+
+        def _calc_ev_std(trades):
+            if not trades:
+                return 0.0
+            pnls = [(t.get("pnl_pips") or 0.0) for t in trades]
+            n = len(pnls)
+            if n < 2:
+                return 0.0
+            mean = sum(pnls) / n
+            var = sum((p - mean) ** 2 for p in pnls) / (n - 1)
+            return round(var ** 0.5, 4)
 
         def _calc_wf_halves(trades: list) -> tuple:
             """Phase 3.4: 50/50 split by entry_time → (h1_avg, h2_avg, p_value).
@@ -1575,11 +1603,13 @@ class DemoDB:
             # v8.9: ペア×戦略別 — キーは "entry_type|instrument" 形式
             "by_type_pair": {f"{k[0]}|{k[1]}": {"wr": _calc_wr(v)[0], "ev": _calc_wr(v)[1], "n": len(v),
                              "entry_type": k[0], "instrument": k[1]} for k, v in by_type_pair.items()},
-            # W2-4 (2026-05-03): cell × hour-bucket for H-1 promotion gate.
+            # W3-1 (2026-05-03): cell × hour-bucket for H-1 promotion gate.
             # Key format: "entry_type|instrument|bucket".
             "by_type_pair_hour": {
                 f"{k[0]}|{k[1]}|{k[2]}": {
-                    "wr": _calc_wr(v)[0], "ev": _calc_wr(v)[1], "n": len(v),
+                    "wr": _calc_wr(v)[0], "ev": _calc_wr(v)[1],
+                    "ev_mean": _calc_wr(v)[1], "ev_std": _calc_ev_std(v),
+                    "n": len(v),
                     "entry_type": k[0], "instrument": k[1], "bucket": k[2],
                 } for k, v in by_type_pair_hour.items()
             },
@@ -1677,21 +1707,27 @@ class DemoDB:
                 "n": n,
                 "wr": round(wins / n * 100, 1),
                 "ev": round(pnl / n, 2),
+                "ev_mean": round(pnl / n, 2),
+                "ev_std": round(
+                    (
+                        sum(
+                            (((t.get("pnl_pips") or 0.0) - (pnl / n)) ** 2)
+                            for t in trades
+                        ) / (n - 1)
+                    ) ** 0.5,
+                    4,
+                ) if n > 1 else 0.0,
             }
 
-        # W2-4 (2026-05-03): hour-bucket helpers for shadow cell evaluator.
+        # W3-1 (2026-05-03): hour-bucket helper for shadow cell evaluator.
         try:
-            from modules.config import (
-                utc_hour_from_iso as _h1_utc_hour,
-                hour_to_bucket as _h1_hour_to_bucket,
-            )
+            from modules.config import utc_hour_from_iso as _h1_utc_hour
         except Exception:
             _h1_utc_hour = None
-            _h1_hour_to_bucket = None
 
         by_type: dict = {}
         by_type_pair: dict = {}
-        by_type_pair_hour: dict = {}  # W2-4
+        by_type_pair_hour: dict = {}  # W3-1
         by_instrument: dict = {}
         for r in rows:
             et = r.get("entry_type") or "unknown"
@@ -1699,10 +1735,10 @@ class DemoDB:
             by_type.setdefault(et, []).append(r)
             by_type_pair.setdefault((et, inst), []).append(r)
             by_instrument.setdefault(inst, []).append(r)
-            # W2-4: bucket key for shadow cells
-            if _h1_utc_hour is not None and _h1_hour_to_bucket is not None:
+            # W3-1: bucket key for shadow cells
+            if _h1_utc_hour is not None:
                 _hr = _h1_utc_hour(r.get("entry_time"))
-                _bucket = _h1_hour_to_bucket(_hr) if _hr is not None else None
+                _bucket = assign_hour_bucket(_hr) if _hr is not None else None
                 if _bucket is not None:
                     by_type_pair_hour.setdefault(
                         (et, inst, _bucket), []
@@ -1718,7 +1754,7 @@ class DemoDB:
                 f"{k[0]}|{k[1]}": {**_agg(v), "entry_type": k[0], "instrument": k[1]}
                 for k, v in by_type_pair.items()
             },
-            # W2-4: shadow cell × hour-bucket evaluator output
+            # W3-1: shadow cell × hour-bucket evaluator output
             "by_type_pair_hour": {
                 f"{k[0]}|{k[1]}|{k[2]}": {
                     **_agg(v), "entry_type": k[0],

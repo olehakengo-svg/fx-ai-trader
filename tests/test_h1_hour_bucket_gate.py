@@ -1,15 +1,15 @@
-"""H-1 Hour-Bucket Cell-Level Promotion Gate — unit + integration tests.
+"""H-1 Hour-Bucket Promotion Gate — unit + integration tests.
 
-Wave 2 task W2-4 (2026-05-03).
+W3-1 (2026-05-03).
 
 Spec: wiki/learning/h1-hour-bucket-design-2026-05-03.md
 Parent audit: wiki/learning/h1-spread-time-audit-2026-05-03.md
 
 Covers:
-  1. Pure helpers (utc_hour_from_iso, hour_to_bucket) in modules.config
+  1. Pure helpers (utc_hour_from_iso, hour_to_bucket, assign_hour_bucket)
   2. Pure decision function DemoTrader._decide_hour_bucket_action
   3. Cell aggregator additions in modules.demo_db (by_type_pair_hour)
-  4. Grandfather behavior (explicit set + runtime auto-grandfather)
+  4. Grandfather behavior (explicit snapshot set)
   5. Default OFF guarantees no behavior change (regression)
 """
 import os
@@ -46,15 +46,22 @@ class TestUtcHourFromIso:
 
 class TestHourToBucket:
     def test_4_bucket_boundaries(self):
-        # A_00-05: 0-5 inclusive, 6 excluded
-        assert cfg.hour_to_bucket(0, "4_bucket") == "A_00-05"
-        assert cfg.hour_to_bucket(5, "4_bucket") == "A_00-05"
-        assert cfg.hour_to_bucket(6, "4_bucket") == "B_06-11"
-        assert cfg.hour_to_bucket(11, "4_bucket") == "B_06-11"
-        assert cfg.hour_to_bucket(12, "4_bucket") == "C_12-17"
-        assert cfg.hour_to_bucket(17, "4_bucket") == "C_12-17"
-        assert cfg.hour_to_bucket(18, "4_bucket") == "D_18-23"
-        assert cfg.hour_to_bucket(23, "4_bucket") == "D_18-23"
+        assert cfg.hour_to_bucket(0, "4_bucket") == "A"
+        assert cfg.hour_to_bucket(5, "4_bucket") == "A"
+        assert cfg.hour_to_bucket(6, "4_bucket") == "B"
+        assert cfg.hour_to_bucket(11, "4_bucket") == "B"
+        assert cfg.hour_to_bucket(12, "4_bucket") == "C"
+        assert cfg.hour_to_bucket(17, "4_bucket") == "C"
+        assert cfg.hour_to_bucket(18, "4_bucket") == "D"
+        assert cfg.hour_to_bucket(23, "4_bucket") == "D"
+
+    def test_demo_db_assign_hour_bucket_boundaries(self):
+        from modules.demo_db import assign_hour_bucket
+
+        assert assign_hour_bucket(0) == "A"
+        assert assign_hour_bucket(5) == "A"
+        assert assign_hour_bucket(6) == "B"
+        assert assign_hour_bucket(23) == "D"
 
     def test_24_bucket(self):
         assert cfg.hour_to_bucket(13, "24_bucket") == "H13"
@@ -72,17 +79,16 @@ class TestHourToBucket:
 # 2. Pure decision function — _decide_hour_bucket_action
 # =====================================================================
 
-def _make_cfg_stub(*, enabled=True, n_min_live=30, n_min_shadow=20,
-                   wilson_min=0.40, ev_min=-0.5):
+def _make_cfg_stub(*, enabled=True, n_min=30,
+                   wilson_min=0.40, ev_ci_min=0.0):
     """Return a stub config object with H1 fields, leaving other fields
     untouched. We pass this into _decide_hour_bucket_action directly so
     the test does not depend on the live config module state."""
     return types.SimpleNamespace(
         H1_GATE_ENABLED=enabled,
-        H1_BUCKET_N_MIN=n_min_live,
-        H1_BUCKET_N_MIN_SHADOW=n_min_shadow,
-        H1_BUCKET_WILSON_MIN=wilson_min,
-        H1_BUCKET_EV_MIN_PIP=ev_min,
+        H1_GATE_MIN_N=n_min,
+        H1_GATE_WILSON_LO=wilson_min,
+        H1_GATE_EV_CI_LO=ev_ci_min,
     )
 
 
@@ -90,7 +96,7 @@ class TestDecideHourBucketAction:
     def test_gate_disabled_never_changes_status(self):
         c = _make_cfg_stub(enabled=False)
         out = DemoTrader._decide_hour_bucket_action(
-            {"n": 100, "wr": 10, "ev": -5, "wilson_lo": 0.05},
+            {"n": 100, "wr": 10, "ev_mean": -5, "ev_ci_lo": -8, "wilson_lo": 0.05},
             "live", False, c,
         )
         assert out == ("live", "gate_disabled")
@@ -98,48 +104,46 @@ class TestDecideHourBucketAction:
     def test_grandfathered_live_protected(self):
         c = _make_cfg_stub(enabled=True)
         out = DemoTrader._decide_hour_bucket_action(
-            {"n": 100, "wr": 5, "ev": -10, "wilson_lo": 0.0},
+            {"n": 100, "wr": 5, "ev_mean": -10, "ev_ci_lo": -12, "wilson_lo": 0.0},
             "live", True, c,
         )
         assert out == ("live", "grandfather")
 
     def test_n_below_min_no_action(self):
-        c = _make_cfg_stub(enabled=True, n_min_live=30)
+        c = _make_cfg_stub(enabled=True, n_min=30)
         out = DemoTrader._decide_hour_bucket_action(
-            {"n": 5, "wr": 0, "ev": -100, "wilson_lo": 0.0},
+            {"n": 5, "wr": 0, "ev_mean": -100, "ev_ci_lo": -100, "wilson_lo": 0.0},
             "live", False, c,
         )
         # Below n_min — must not act (no false demote on thin data)
         assert out == ("live", "n_below_min")
 
-    def test_n_min_threshold_differs_for_live_vs_shadow(self):
-        c = _make_cfg_stub(enabled=True, n_min_live=30, n_min_shadow=20)
-        # N=25 — below live threshold but above shadow threshold
-        # A live cell would be n_below_min, shadow cell evaluates the gate
+    def test_n_min_threshold_is_same_for_live_and_shadow(self):
+        c = _make_cfg_stub(enabled=True, n_min=30)
+        # N=25 is below the W3-1 H1_GATE_MIN_N for both live and shadow.
         live_out = DemoTrader._decide_hour_bucket_action(
-            {"n": 25, "wr": 5, "ev": -10, "wilson_lo": 0.0},
+            {"n": 25, "wr": 5, "ev_mean": -10, "ev_ci_lo": -10, "wilson_lo": 0.0},
             "live", False, c,
         )
         assert live_out == ("live", "n_below_min")
         shadow_out = DemoTrader._decide_hour_bucket_action(
-            {"n": 25, "wr": 5, "ev": -10, "wilson_lo": 0.0},
+            {"n": 25, "wr": 5, "ev_mean": -10, "ev_ci_lo": -10, "wilson_lo": 0.0},
             "shadow", False, c,
         )
-        assert shadow_out == ("demoted", "bucket_fail_demote_from_shadow")
+        assert shadow_out == ("shadow", "n_below_min")
 
     def test_bucket_pass_keeps_status(self):
         c = _make_cfg_stub(enabled=True)
         out = DemoTrader._decide_hour_bucket_action(
-            {"n": 100, "wr": 80, "ev": 5.0, "wilson_lo": 0.65},
+            {"n": 100, "wr": 80, "ev_mean": 5.0, "ev_ci_lo": 1.0, "wilson_lo": 0.65},
             "live", False, c,
         )
         assert out == ("live", "bucket_pass")
 
     def test_bucket_fail_live_demotes_to_shadow(self):
         c = _make_cfg_stub(enabled=True)
-        # Wilson lo below threshold
         out = DemoTrader._decide_hour_bucket_action(
-            {"n": 100, "wr": 30, "ev": -2.0, "wilson_lo": 0.20},
+            {"n": 100, "wr": 30, "ev_mean": -2.0, "ev_ci_lo": -3.0, "wilson_lo": 0.20},
             "live", False, c,
         )
         assert out == ("shadow", "bucket_fail_demote_to_shadow")
@@ -147,7 +151,7 @@ class TestDecideHourBucketAction:
     def test_bucket_fail_shadow_demotes_further(self):
         c = _make_cfg_stub(enabled=True)
         out = DemoTrader._decide_hour_bucket_action(
-            {"n": 50, "wr": 10, "ev": -3.0, "wilson_lo": 0.05},
+            {"n": 50, "wr": 10, "ev_mean": -3.0, "ev_ci_lo": -4.0, "wilson_lo": 0.05},
             "shadow", False, c,
         )
         assert out == ("demoted", "bucket_fail_demote_from_shadow")
@@ -155,33 +159,31 @@ class TestDecideHourBucketAction:
     def test_already_demoted_stays(self):
         c = _make_cfg_stub(enabled=True)
         out = DemoTrader._decide_hour_bucket_action(
-            {"n": 100, "wr": 10, "ev": -5.0, "wilson_lo": 0.05},
+            {"n": 100, "wr": 10, "ev_mean": -5.0, "ev_ci_lo": -6.0, "wilson_lo": 0.05},
             "demoted", False, c,
         )
         assert out == ("demoted", "already_demoted")
 
-    def test_ev_just_above_threshold_passes(self):
-        # Boundary: ev_min=-0.5 → -0.49 passes (> not >=)
-        c = _make_cfg_stub(enabled=True, ev_min=-0.5, wilson_min=0.40)
+    def test_ev_ci_at_threshold_passes(self):
+        c = _make_cfg_stub(enabled=True, ev_ci_min=0.0, wilson_min=0.40)
         out = DemoTrader._decide_hour_bucket_action(
-            {"n": 100, "wr": 60, "ev": -0.49, "wilson_lo": 0.41},
+            {"n": 100, "wr": 60, "ev_mean": 0.5, "ev_ci_lo": 0.0, "wilson_lo": 0.41},
             "live", False, c,
         )
         assert out == ("live", "bucket_pass")
 
-    def test_ev_at_threshold_fails(self):
-        # Boundary: ev > ev_min strict — equals should fail
-        c = _make_cfg_stub(enabled=True, ev_min=-0.5, wilson_min=0.40)
+    def test_negative_ev_ci_fails(self):
+        c = _make_cfg_stub(enabled=True, ev_ci_min=0.0, wilson_min=0.40)
         out = DemoTrader._decide_hour_bucket_action(
-            {"n": 100, "wr": 60, "ev": -0.5, "wilson_lo": 0.41},
+            {"n": 100, "wr": 60, "ev_mean": 0.5, "ev_ci_lo": -0.01, "wilson_lo": 0.41},
             "live", False, c,
         )
         assert out[0] == "shadow"
 
     def test_wilson_at_threshold_fails(self):
-        c = _make_cfg_stub(enabled=True, ev_min=-0.5, wilson_min=0.40)
+        c = _make_cfg_stub(enabled=True, ev_ci_min=0.0, wilson_min=0.40)
         out = DemoTrader._decide_hour_bucket_action(
-            {"n": 100, "wr": 60, "ev": 1.0, "wilson_lo": 0.40},
+            {"n": 100, "wr": 60, "ev_mean": 1.0, "ev_ci_lo": 0.2, "wilson_lo": 0.40},
             "live", False, c,
         )
         assert out[0] == "shadow"
@@ -225,7 +227,7 @@ class TestByTypePairHourAggregation:
 
     def test_live_aggregator_emits_by_type_pair_hour(self, db):
         """LIVE rows aggregate into by_type_pair_hour at promotion-stage."""
-        # 4 LIVE bb_rsi_reversion / USD_JPY @ hour 13 (bucket C_12-17)
+        # 4 LIVE bb_rsi_reversion / USD_JPY @ hour 13 (bucket C)
         for i in range(4):
             self._direct_insert(
                 db,
@@ -242,12 +244,12 @@ class TestByTypePairHourAggregation:
         assert result.get("ready"), f"DB fixture not ready: {result}"
         bth = result.get("by_type_pair_hour", {})
         assert bth, "by_type_pair_hour must be populated"
-        key = "bb_rsi_reversion|USD_JPY|C_12-17"
+        key = "bb_rsi_reversion|USD_JPY|C"
         assert key in bth, (
             f"missing key {key!r}, got {list(bth)!r}"
         )
         cell = bth[key]
-        assert cell["bucket"] == "C_12-17"
+        assert cell["bucket"] == "C"
         assert cell["entry_type"] == "bb_rsi_reversion"
         assert cell["instrument"] == "USD_JPY"
         assert cell["n"] == 4
@@ -270,14 +272,14 @@ class TestByTypePairHourAggregation:
         assert result.get("ready"), f"shadow DB not ready: {result}"
         bth = result.get("by_type_pair_hour", {})
         assert bth, "shadow by_type_pair_hour must be populated"
-        key = "fib_reversal|USD_JPY|A_00-05"
+        key = "fib_reversal|USD_JPY|A"
         assert key in bth, f"missing {key!r}, got {list(bth)!r}"
         assert bth[key]["n"] == 3
-        assert bth[key]["bucket"] == "A_00-05"
+        assert bth[key]["bucket"] == "A"
 
     def test_buckets_split_correctly_across_hours(self, db):
         """A single strategy across multiple hours yields multiple cells."""
-        # 2 trades at hr 03 (A_00-05), 2 at hr 09 (B_06-11), 2 at 14 (C_12-17)
+        # 2 trades at hr 03 (A), 2 at hr 09 (B), 2 at 14 (C)
         plan = [(0, 3), (1, 3), (2, 9), (3, 9), (4, 14), (5, 14)]
         for tid, hr in plan:
             self._direct_insert(
@@ -294,13 +296,13 @@ class TestByTypePairHourAggregation:
         result = db.get_trades_for_learning(min_trades=1)
         bth = result.get("by_type_pair_hour", {})
         keys = sorted(bth.keys())
-        assert "vol_momentum_scalp|EUR_USD|A_00-05" in keys
-        assert "vol_momentum_scalp|EUR_USD|B_06-11" in keys
-        assert "vol_momentum_scalp|EUR_USD|C_12-17" in keys
+        assert "vol_momentum_scalp|EUR_USD|A" in keys
+        assert "vol_momentum_scalp|EUR_USD|B" in keys
+        assert "vol_momentum_scalp|EUR_USD|C" in keys
         for k in (
-            "vol_momentum_scalp|EUR_USD|A_00-05",
-            "vol_momentum_scalp|EUR_USD|B_06-11",
-            "vol_momentum_scalp|EUR_USD|C_12-17",
+            "vol_momentum_scalp|EUR_USD|A",
+            "vol_momentum_scalp|EUR_USD|B",
+            "vol_momentum_scalp|EUR_USD|C",
         ):
             assert bth[k]["n"] == 2, f"{k}: expected n=2"
 
@@ -325,7 +327,7 @@ class TestByTypePairHourAggregation:
             )
         result = db.get_trades_for_learning(min_trades=1)
         bth = result.get("by_type_pair_hour", {})
-        key = "bb_rsi_reversion|USD_JPY|A_00-05"
+        key = "bb_rsi_reversion|USD_JPY|A"
         if key in bth:
             assert bth[key]["n"] == 1, (
                 "LIVE aggregator must exclude shadow rows; got "
@@ -334,19 +336,38 @@ class TestByTypePairHourAggregation:
 
 
 # =====================================================================
-# 4. Default OFF regression — no _promoted_types changes when disabled
+# 4. Config regression — gate enabled and grandfathered by default
 # =====================================================================
 
 class TestDefaultDisabledRegression:
-    def test_module_default_is_disabled(self):
-        """Code-level default must be OFF — config can be flipped via env
-        but the safe ship state is gate disabled."""
-        # If H1_GATE_ENABLED env var is unset, default should be False.
-        if "H1_GATE_ENABLED" in os.environ and os.environ["H1_GATE_ENABLED"] in ("1", "true", "True"):
-            pytest.skip("env var explicitly enabled — skipping default check")
-        assert cfg.H1_GATE_ENABLED is False
+    def test_module_default_is_enabled(self):
+        """W3-1 ships the promotion-level gate active; grandfathering and
+        N>=30 protect existing LIVE cells."""
+        if "H1_GATE_ENABLED" in os.environ and os.environ["H1_GATE_ENABLED"] in ("0", "false", "False"):
+            pytest.skip("env var explicitly disabled — skipping default check")
+        assert cfg.H1_GATE_ENABLED is True
 
     def test_grandfather_set_includes_bb_rsi_reversion(self):
         """bb_rsi_reversion is the only LIVE strategy with N≥30 hour-bucket
         signal at this audit window. It must be in the grandfather set."""
-        assert "bb_rsi_reversion" in cfg.H1_GRANDFATHERED_LIVE
+        assert "bb_rsi_reversion" in cfg._GRANDFATHERED_LIVE
+
+    def test_grandfather_set_includes_live_snapshot_strategies(self):
+        """Snapshot LIVE config tiers are protected explicitly, not by
+        runtime auto-grandfathering."""
+        expected = {
+            "bb_rsi_reversion",
+            "gbp_deep_pullback",
+            "session_time_bias",
+            "trendline_sweep",
+            "bb_squeeze_breakout",
+            "doji_breakout",
+            "ema200_trend_reversal",
+            "squeeze_release_momentum",
+            "streak_reversal",
+            "vix_carry_unwind",
+            "vol_momentum_scalp",
+            "wick_imbalance_reversion",
+            "xs_momentum",
+        }
+        assert expected.issubset(cfg._GRANDFATHERED_LIVE)

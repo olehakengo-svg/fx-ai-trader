@@ -104,7 +104,7 @@ def get_strategy_profile_mode(entry_type: str):
 
 # ═══════════════════════════════════════════════════════
 #  H-1 Hour-Bucket Cell-Level Promotion Gate (2026-05-03)
-#  Wave 2 task W2-4
+#  W3-1
 #  spec: wiki/learning/h1-hour-bucket-design-2026-05-03.md
 #  parent audit: wiki/learning/h1-spread-time-audit-2026-05-03.md
 #
@@ -116,32 +116,54 @@ def get_strategy_profile_mode(entry_type: str):
 #  promotion gate. It DOES NOT skip signal generation, MR/TF logic, or
 #  the existing dynamic spread/SL gate. Compatible with `feedback_ma_filter_breaks_mr`.
 #
-#  Default H1_GATE_ENABLED=False — observational only until A/B passes.
+#  Default H1_GATE_ENABLED=True for W3-1; set env H1_GATE_ENABLED=0 to disable.
 # ═══════════════════════════════════════════════════════
-H1_HOUR_BUCKETS_4 = (
-    ("A_00-05", 0, 6),    # Asia late / EU pre-open
-    ("B_06-11", 6, 12),   # Asia close / London open
-    ("C_12-17", 12, 18),  # London-NY overlap
-    ("D_18-23", 18, 24),  # NY late / Asia next-day
+HOUR_BUCKETS = {
+    "A": range(0, 6),     # Asia late / EU pre-open
+    "B": range(6, 12),    # Asia close / London open
+    "C": range(12, 18),   # London-NY overlap
+    "D": range(18, 24),   # NY late / Asia next-day
+}
+H1_HOUR_BUCKETS_4 = tuple(
+    (label, min(hours), max(hours) + 1)
+    for label, hours in HOUR_BUCKETS.items()
 )
 H1_HOUR_BUCKETS_24 = tuple((f"H{h:02d}", h, h + 1) for h in range(24))
 
 H1_PROMOTION_BUCKET_MODE = os.environ.get("H1_BUCKET_MODE", "4_bucket")
-H1_BUCKET_N_MIN = int(os.environ.get("H1_BUCKET_N_MIN", "30"))
-H1_BUCKET_N_MIN_SHADOW = int(os.environ.get("H1_BUCKET_N_MIN_SHADOW", "20"))
-H1_BUCKET_WILSON_MIN = float(os.environ.get("H1_BUCKET_WILSON_MIN", "0.40"))
-H1_BUCKET_EV_MIN_PIP = float(os.environ.get("H1_BUCKET_EV_MIN_PIP", "-0.5"))
+H1_GATE_MIN_N = int(os.environ.get("H1_GATE_MIN_N", "30"))
+H1_GATE_WILSON_LO = float(os.environ.get("H1_GATE_WILSON_LO", "0.40"))
+H1_GATE_EV_CI_LO = float(os.environ.get("H1_GATE_EV_CI_LO", "0.0"))
 H1_GATE_ACTION = os.environ.get("H1_GATE_ACTION", "soft_demote")  # never "hard_block"
-H1_GATE_ENABLED = os.environ.get("H1_GATE_ENABLED", "0") in ("1", "true", "True")
+H1_GATE_ENABLED = os.environ.get("H1_GATE_ENABLED", "1") in ("1", "true", "True")
+
+# Backward-compatible aliases for W2-4 audit tooling.
+H1_BUCKET_N_MIN = H1_GATE_MIN_N
+H1_BUCKET_N_MIN_SHADOW = H1_GATE_MIN_N
+H1_BUCKET_WILSON_MIN = H1_GATE_WILSON_LO
+H1_BUCKET_EV_MIN_PIP = H1_GATE_EV_CI_LO
 
 # Strategies currently in LIVE tier that must not be re-evaluated by the H1 gate.
 # Added explicitly per `feedback_ma_filter_breaks_mr` — adding filters to MR
-# strategies historically destroyed Live edge. The runtime auto-grandfather
-# (any strategy with `_promoted_types[et].status == "promoted"`) is applied on
-# top of this set in demo_trader._decide_hour_bucket_action.
-H1_GRANDFATHERED_LIVE = frozenset({
+# strategies historically destroyed Live edge. Snapshot source:
+# knowledge-base/wiki/tier-master.json generated_at=2026-05-02T17:51:28+00:00
+# plus bb_rsi_reversion from the W3-1 task contract.
+_GRANDFATHERED_LIVE = frozenset({
     "bb_rsi_reversion",
+    "gbp_deep_pullback",
+    "session_time_bias",
+    "trendline_sweep",
+    "bb_squeeze_breakout",
+    "doji_breakout",
+    "ema200_trend_reversal",
+    "squeeze_release_momentum",
+    "streak_reversal",
+    "vix_carry_unwind",
+    "vol_momentum_scalp",
+    "wick_imbalance_reversion",
+    "xs_momentum",
 })
+H1_GRANDFATHERED_LIVE = _GRANDFATHERED_LIVE
 
 
 def _h1_buckets():

@@ -10,6 +10,8 @@ Cell key:
   v3 (--mode v3): (entry_type, session, pair, direction, mode)
     - 非対称エッジ検出 (USD_JPY/SELLは負けるがGBP_USD/BUYは勝つ型)
     - dt_bb_rsi_mr GBP_USD/BUY のような direction-specific edge 監査用
+  v4 (--mode v4): (entry_type, pair, hour_bucket, direction, mode)
+    - W3-1 H1 promotion gate audit: A/B/C/D bucket health
 
 For each cell with N >= MIN_N, compute:
   - N, WR, Wilson 95% lower bound
@@ -53,6 +55,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from modules.strategy_category import (  # noqa: E402
     compute_spread_quartile,
     _normalize_session,
+)
+from modules.config import (  # noqa: E402
+    H1_GATE_EV_CI_LO,
+    H1_GATE_MIN_N,
+    H1_GATE_WILSON_LO,
+    hour_to_bucket,
+    utc_hour_from_iso,
 )
 
 
@@ -147,6 +156,15 @@ def normalize_mode(mode: str) -> str:
     return mode
 
 
+def ev_ci_lower(ev_mean: float, ev_std: float, n: int, z: float = WILSON_Z) -> float:
+    """Normal-approx lower CI for mean pip EV."""
+    if n <= 0:
+        return 0.0
+    if n == 1 or ev_std <= 0:
+        return ev_mean
+    return ev_mean - z * (ev_std / math.sqrt(n))
+
+
 # ─── Core audit ─────────────────────────────────────────────────────────
 def fetch_trades(db_path: str, include_shadow: bool,
                  since_iso: str | None = None) -> list[sqlite3.Row]:
@@ -226,14 +244,28 @@ def cell_key_v3(row: sqlite3.Row) -> tuple[str, str, str, str, str]:
     return (et, sess, pair, direction, mode)
 
 
+def cell_key_v4(row: sqlite3.Row) -> tuple[str, str, str, str, str]:
+    """v4: H1 gate key: strategy × pair × hour bucket × direction × mode."""
+    et = row["entry_type"] or "unknown"
+    pair = row["instrument"] or "USD_JPY"
+    hr = utc_hour_from_iso(row["entry_time"])
+    bucket = hour_to_bucket(hr, "4_bucket") or "?"
+    direction = (row["direction"] or "?").upper()
+    mode = normalize_mode(row["mode"])
+    return (et, pair, bucket, direction, mode)
+
+
 def aggregate_cells(rows: Iterable[sqlite3.Row], mode: str = "v1") -> dict[tuple, dict]:
     """Aggregate trades into cells.
 
     mode: 'v1' (entry_type × session × spread_quartile × mode)
           'v2' (entry_type × session × pair × mode) — degenerate dim 削除
           'v3' (entry_type × session × pair × direction × mode) — 非対称エッジ検出
+          'v4' (entry_type × pair × hour_bucket × direction × mode) — H1 gate
     """
-    if mode == "v3":
+    if mode == "v4":
+        keyfn = cell_key_v4
+    elif mode == "v3":
         keyfn = cell_key_v3
     elif mode == "v2":
         keyfn = cell_key_v2
@@ -242,7 +274,7 @@ def aggregate_cells(rows: Iterable[sqlite3.Row], mode: str = "v1") -> dict[tuple
     cells: dict[tuple, dict] = defaultdict(lambda: {
         "n": 0, "wins": 0, "losses": 0,
         "gross_profit": 0.0, "gross_loss": 0.0,
-        "pnl_sum": 0.0, "live_n": 0, "shadow_n": 0,
+        "pnl_sum": 0.0, "pnl_sq_sum": 0.0, "live_n": 0, "shadow_n": 0,
     })
     for r in rows:
         k = keyfn(r)
@@ -250,6 +282,7 @@ def aggregate_cells(rows: Iterable[sqlite3.Row], mode: str = "v1") -> dict[tuple
         c["n"] += 1
         pnl = float(r["pnl_pips"] or 0.0)
         c["pnl_sum"] += pnl
+        c["pnl_sq_sum"] += pnl * pnl
         if r["outcome"] == "WIN":
             c["wins"] += 1
             c["gross_profit"] += abs(pnl)
@@ -299,8 +332,19 @@ def score_cells(cells: dict[tuple, dict], min_n: int, mode: str = "v1") -> list[
         pf = (c["gross_profit"] / c["gross_loss"]) if c["gross_loss"] > 0 else float("inf")
         p_raw = binomial_two_sided_pvalue(wins, n, p0=0.5)
         p_bonf = min(1.0, p_raw * n_tests)
-        # v1 key: (et, sess, q, mode), v2 key: (et, sess, pair, mode), v3: + direction
-        if mode == "v3":
+        ev_std = 0.0
+        if n > 1:
+            var = (c["pnl_sq_sum"] - (c["pnl_sum"] * c["pnl_sum"] / n)) / (n - 1)
+            ev_std = math.sqrt(max(0.0, var))
+        ev_ci_lo = ev_ci_lower(ev, ev_std, n)
+        # v1 key: (et, sess, q, mode), v2 key: (et, sess, pair, mode),
+        # v3: + direction, v4: (et, pair, bucket, direction, mode)
+        if mode == "v4":
+            et, pair, bucket, direction, md = k
+            cell_dim = {"entry_type": et, "pair": pair,
+                        "hour_bucket": bucket, "direction": direction,
+                        "mode": md}
+        elif mode == "v3":
             et, sess, pair, direction, md = k
             cell_dim = {"entry_type": et, "session": sess, "pair": pair,
                         "direction": direction, "mode": md}
@@ -318,6 +362,7 @@ def score_cells(cells: dict[tuple, dict], min_n: int, mode: str = "v1") -> list[
             "wilson_lower": round(wl, 4),
             "wilson_upper": round(wu, 4),
             "ev_pip": round(ev, 3),
+            "ev_ci_lower": round(ev_ci_lo, 4),
             "pf": round(pf, 3) if pf != float("inf") else None,
             "p_value_raw": round(p_raw, 5),
             "p_value_bonferroni": round(p_bonf, 5),
@@ -341,6 +386,12 @@ def score_cells(cells: dict[tuple, dict], min_n: int, mode: str = "v1") -> list[
             and bh < PROMOTION_BONFERRONI_ALPHA
             and p_bonf >= PROMOTION_BONFERRONI_ALPHA
         )
+        if mode == "v4":
+            rec["h1_bucket_pass"] = (
+                rec["n"] >= H1_GATE_MIN_N
+                and rec["wilson_lower"] > H1_GATE_WILSON_LO
+                and rec["ev_ci_lower"] >= H1_GATE_EV_CI_LO
+            )
         out.append(rec)
     out.sort(key=lambda x: x["wilson_lower"], reverse=True)
     return out
@@ -351,26 +402,51 @@ def render_markdown(rows: list[dict], min_n: int, include_shadow: bool,
     """Render audit results to markdown. Supports v1/v2/v3 cell schemas."""
     candidates = [r for r in rows if r["promotion_candidate"]]
     watch = [r for r in rows if r.get("watch_candidate")]
-    if audit_mode == "v3":
+    if audit_mode == "v4":
+        third_dim = "pair"
+    elif audit_mode == "v3":
         third_dim = "pair"
     elif audit_mode == "v2":
         third_dim = "pair"
     else:
         third_dim = "spread_quartile"
-    extra_dim = "direction" if audit_mode == "v3" else None
+    extra_dim = "direction" if audit_mode in ("v3", "v4") else None
+    if audit_mode == "v4":
+        cell_dims = "entry_type × pair × hour_bucket × direction × mode"
+    else:
+        cell_dims = f"entry_type × session × **{third_dim}** × mode"
     lines = [
         f"# Cell-by-Cell Edge Audit ({audit_mode}, window={window}, {datetime.now(timezone.utc).date().isoformat()})",
         "",
         f"Source: demo_trades.db, scope: {'Live + Shadow' if include_shadow else 'Live only'}",
-        f"Cell key dims: entry_type × session × **{third_dim}** × mode",
+        f"Cell key dims: {cell_dims}",
         f"Min N per cell: **{min_n}**, Time window: **{window}**",
         f"Total cells qualified: **{len(rows)}**",
         f"Promotion candidates (Wilson lower > {PROMOTION_WILSON_LOWER:.0%} AND Bonferroni p < {PROMOTION_BONFERRONI_ALPHA}): **{len(candidates)}**",
         f"WATCH candidates (BH FDR p < {PROMOTION_BONFERRONI_ALPHA}, Bonferroni 不通過): **{len(watch)}**",
         "",
-        "## Promotion Candidates",
-        "",
     ]
+    if audit_mode == "v4":
+        lines += [
+            "## H1 Bucket Gate Breakdown",
+            "",
+            f"Thresholds: N≥{H1_GATE_MIN_N}, Wilson lo>{H1_GATE_WILSON_LO:.2f}, "
+            f"EV CI lo≥{H1_GATE_EV_CI_LO:.2f}",
+            "",
+            "| entry_type | pair | bucket | direction | mode | N | WR | Wilson lo | EV CI lo | status |",
+            "|---|---|---|---|---|---:|---:|---:|---:|---|",
+        ]
+        for r in rows:
+            status = "PASS" if r.get("h1_bucket_pass") else "FAIL"
+            lines.append(
+                f"| {r['entry_type']} | {r['pair']} | {r['hour_bucket']} | "
+                f"{r['direction']} | {r['mode']} | {r['n']} | "
+                f"{r['wr']:.1%} | {r['wilson_lower']:.1%} | "
+                f"{r['ev_ci_lower']:+.2f} | {status} |"
+            )
+        return "\n".join(lines) + "\n"
+
+    lines += ["## Promotion Candidates", ""]
     if candidates:
         if extra_dim:
             lines += [
@@ -454,9 +530,9 @@ def main():
                         help="Include is_shadow=1 trades in cell aggregation")
     parser.add_argument("--min-n", type=int, default=MIN_N)
     parser.add_argument("--out-dir", default="raw/audits")
-    parser.add_argument("--mode", choices=["v1", "v2", "v3"], default="v1",
+    parser.add_argument("--mode", choices=["v1", "v2", "v3", "v4"], default="v1",
                         help="v1: spread_quartile dim / v2: pair dim / "
-                             "v3: pair × direction (asymmetric edge)")
+                             "v3: pair × direction / v4: H1 hour bucket")
     parser.add_argument("--strategy", default=None,
                         help="Filter to single entry_type for focused audit")
     parser.add_argument("--window", default="all",
