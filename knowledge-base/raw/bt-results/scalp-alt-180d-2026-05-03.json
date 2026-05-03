@@ -1,0 +1,340 @@
+{
+  "generated_at": "2026-05-03T13:16:56.917592+00:00",
+  "input_paths": {
+    "bb_squeeze_breakout": "/data/repo/fx-ai-trader/knowledge-base/raw/bt-results/scalp-alt-bb_squeeze-2026-05-03.json",
+    "engulfing_bb": "/data/repo/fx-ai-trader/knowledge-base/raw/bt-results/scalp-alt-engulfing-2026-05-03.json",
+    "fib_reversal": "/data/repo/fx-ai-trader/knowledge-base/raw/bt-results/scalp-alt-fib-2026-05-03.json",
+    "sr_channel_reversal": "/data/repo/fx-ai-trader/knowledge-base/raw/bt-results/scalp-alt-sr-2026-05-03.json"
+  },
+  "locked_constants": {
+    "alpha": 0.05,
+    "alpha_bonferroni": 0.0125,
+    "bev_wr_by_pair": {
+      "EUR_USD": 0.397,
+      "USD_JPY": 0.344
+    },
+    "bonferroni_k": 4,
+    "initial_capital_pip_surrogate": 100.0,
+    "lock_date": "2026-05-03",
+    "lookback_days": 180,
+    "min_n": 30,
+    "oos_stability_ratio_min": 0.85,
+    "promote": {
+      "bonferroni_p_lt": 0.0125,
+      "max_dd_pct_lte": 0.3,
+      "pf_min": 1.3,
+      "wf_is_pf_min": 1.2,
+      "wf_oos_pf_min": 1.2,
+      "wilson_margin_over_bev": 0.05
+    },
+    "promote_tiebreak_fields": [
+      "bonferroni_p",
+      "-pf",
+      "-ev_pip_per_trade",
+      "-n"
+    ],
+    "shadow": {
+      "max_dd_pct_lte": 0.3,
+      "pf_min": 1.1,
+      "wf_is_pf_min": 1.0,
+      "wf_oos_pf_min": 1.0,
+      "wilson_margin_over_bev": 0.0
+    }
+  },
+  "next_task": "Parent Claude \u2014 execute the four pre-registered --candidate runs, then rerun --aggregate",
+  "records": [
+    {
+      "candidate": {
+        "interval": "5m",
+        "ordinal": 1,
+        "pair": "USD_JPY",
+        "roadmap_bt_ev": 1.03,
+        "strategy": "bb_squeeze_breakout",
+        "structure_complexity": "BB + squeeze (1 indicator + 1 condition)",
+        "symbol": "USDJPY=X"
+      },
+      "engine": {
+        "name": "run_scalp_backtest",
+        "status": "BT_PENDING"
+      },
+      "generated_at": "2026-05-03T13:16:56.917453+00:00",
+      "locked_constants": {
+        "alpha": 0.05,
+        "alpha_bonferroni": 0.0125,
+        "bev_wr_by_pair": {
+          "EUR_USD": 0.397,
+          "USD_JPY": 0.344
+        },
+        "bonferroni_k": 4,
+        "initial_capital_pip_surrogate": 100.0,
+        "lock_date": "2026-05-03",
+        "lookback_days": 180,
+        "min_n": 30,
+        "oos_stability_ratio_min": 0.85,
+        "promote": {
+          "bonferroni_p_lt": 0.0125,
+          "max_dd_pct_lte": 0.3,
+          "pf_min": 1.3,
+          "wf_is_pf_min": 1.2,
+          "wf_oos_pf_min": 1.2,
+          "wilson_margin_over_bev": 0.05
+        },
+        "promote_tiebreak_fields": [
+          "bonferroni_p",
+          "-pf",
+          "-ev_pip_per_trade",
+          "-n"
+        ],
+        "shadow": {
+          "max_dd_pct_lte": 0.3,
+          "pf_min": 1.1,
+          "wf_is_pf_min": 1.0,
+          "wf_oos_pf_min": 1.0,
+          "wilson_margin_over_bev": 0.0
+        }
+      },
+      "metrics": {
+        "interval": "5m",
+        "lookback_days": 180,
+        "pair": "USD_JPY",
+        "roadmap_bt_ev": 1.03,
+        "strategy": "bb_squeeze_breakout",
+        "structure_complexity": "BB + squeeze (1 indicator + 1 condition)",
+        "symbol": "USDJPY=X"
+      },
+      "run_id": "scalp-alt-180d-2026-05-03",
+      "schema": "scalp_alt_pre_reg_candidate_v1",
+      "verdict": {
+        "base_verdict": "BT_PENDING",
+        "downgraded_for_overfit": false,
+        "gap_to_30": 30,
+        "overfit_suspected": false,
+        "reasons": [
+          "missing parent-run JSON: /data/repo/fx-ai-trader/knowledge-base/raw/bt-results/scalp-alt-bb_squeeze-2026-05-03.json"
+        ],
+        "verdict": "BT_PENDING"
+      }
+    },
+    {
+      "candidate": {
+        "interval": "5m",
+        "ordinal": 2,
+        "pair": "USD_JPY",
+        "roadmap_bt_ev": 0.677,
+        "strategy": "engulfing_bb",
+        "structure_complexity": "engulfing candle + BB extreme (2 conditions)",
+        "symbol": "USDJPY=X"
+      },
+      "engine": {
+        "name": "run_scalp_backtest",
+        "status": "BT_PENDING"
+      },
+      "generated_at": "2026-05-03T13:16:56.917523+00:00",
+      "locked_constants": {
+        "alpha": 0.05,
+        "alpha_bonferroni": 0.0125,
+        "bev_wr_by_pair": {
+          "EUR_USD": 0.397,
+          "USD_JPY": 0.344
+        },
+        "bonferroni_k": 4,
+        "initial_capital_pip_surrogate": 100.0,
+        "lock_date": "2026-05-03",
+        "lookback_days": 180,
+        "min_n": 30,
+        "oos_stability_ratio_min": 0.85,
+        "promote": {
+          "bonferroni_p_lt": 0.0125,
+          "max_dd_pct_lte": 0.3,
+          "pf_min": 1.3,
+          "wf_is_pf_min": 1.2,
+          "wf_oos_pf_min": 1.2,
+          "wilson_margin_over_bev": 0.05
+        },
+        "promote_tiebreak_fields": [
+          "bonferroni_p",
+          "-pf",
+          "-ev_pip_per_trade",
+          "-n"
+        ],
+        "shadow": {
+          "max_dd_pct_lte": 0.3,
+          "pf_min": 1.1,
+          "wf_is_pf_min": 1.0,
+          "wf_oos_pf_min": 1.0,
+          "wilson_margin_over_bev": 0.0
+        }
+      },
+      "metrics": {
+        "interval": "5m",
+        "lookback_days": 180,
+        "pair": "USD_JPY",
+        "roadmap_bt_ev": 0.677,
+        "strategy": "engulfing_bb",
+        "structure_complexity": "engulfing candle + BB extreme (2 conditions)",
+        "symbol": "USDJPY=X"
+      },
+      "run_id": "scalp-alt-180d-2026-05-03",
+      "schema": "scalp_alt_pre_reg_candidate_v1",
+      "verdict": {
+        "base_verdict": "BT_PENDING",
+        "downgraded_for_overfit": false,
+        "gap_to_30": 30,
+        "overfit_suspected": false,
+        "reasons": [
+          "missing parent-run JSON: /data/repo/fx-ai-trader/knowledge-base/raw/bt-results/scalp-alt-engulfing-2026-05-03.json"
+        ],
+        "verdict": "BT_PENDING"
+      }
+    },
+    {
+      "candidate": {
+        "interval": "1m",
+        "ordinal": 3,
+        "pair": "EUR_USD",
+        "roadmap_bt_ev": 0.426,
+        "strategy": "fib_reversal",
+        "structure_complexity": "Fib retracement (1 level set)",
+        "symbol": "EURUSD=X"
+      },
+      "engine": {
+        "name": "run_scalp_backtest",
+        "status": "BT_PENDING"
+      },
+      "generated_at": "2026-05-03T13:16:56.917551+00:00",
+      "locked_constants": {
+        "alpha": 0.05,
+        "alpha_bonferroni": 0.0125,
+        "bev_wr_by_pair": {
+          "EUR_USD": 0.397,
+          "USD_JPY": 0.344
+        },
+        "bonferroni_k": 4,
+        "initial_capital_pip_surrogate": 100.0,
+        "lock_date": "2026-05-03",
+        "lookback_days": 180,
+        "min_n": 30,
+        "oos_stability_ratio_min": 0.85,
+        "promote": {
+          "bonferroni_p_lt": 0.0125,
+          "max_dd_pct_lte": 0.3,
+          "pf_min": 1.3,
+          "wf_is_pf_min": 1.2,
+          "wf_oos_pf_min": 1.2,
+          "wilson_margin_over_bev": 0.05
+        },
+        "promote_tiebreak_fields": [
+          "bonferroni_p",
+          "-pf",
+          "-ev_pip_per_trade",
+          "-n"
+        ],
+        "shadow": {
+          "max_dd_pct_lte": 0.3,
+          "pf_min": 1.1,
+          "wf_is_pf_min": 1.0,
+          "wf_oos_pf_min": 1.0,
+          "wilson_margin_over_bev": 0.0
+        }
+      },
+      "metrics": {
+        "interval": "1m",
+        "lookback_days": 180,
+        "pair": "EUR_USD",
+        "roadmap_bt_ev": 0.426,
+        "strategy": "fib_reversal",
+        "structure_complexity": "Fib retracement (1 level set)",
+        "symbol": "EURUSD=X"
+      },
+      "run_id": "scalp-alt-180d-2026-05-03",
+      "schema": "scalp_alt_pre_reg_candidate_v1",
+      "verdict": {
+        "base_verdict": "BT_PENDING",
+        "downgraded_for_overfit": false,
+        "gap_to_30": 30,
+        "overfit_suspected": false,
+        "reasons": [
+          "missing parent-run JSON: /data/repo/fx-ai-trader/knowledge-base/raw/bt-results/scalp-alt-fib-2026-05-03.json"
+        ],
+        "verdict": "BT_PENDING"
+      }
+    },
+    {
+      "candidate": {
+        "interval": "5m",
+        "ordinal": 4,
+        "pair": "EUR_USD",
+        "roadmap_bt_ev": 0.231,
+        "strategy": "sr_channel_reversal",
+        "structure_complexity": "SR / channel bounce (1 level set)",
+        "symbol": "EURUSD=X"
+      },
+      "engine": {
+        "name": "run_scalp_backtest",
+        "status": "BT_PENDING"
+      },
+      "generated_at": "2026-05-03T13:16:56.917572+00:00",
+      "locked_constants": {
+        "alpha": 0.05,
+        "alpha_bonferroni": 0.0125,
+        "bev_wr_by_pair": {
+          "EUR_USD": 0.397,
+          "USD_JPY": 0.344
+        },
+        "bonferroni_k": 4,
+        "initial_capital_pip_surrogate": 100.0,
+        "lock_date": "2026-05-03",
+        "lookback_days": 180,
+        "min_n": 30,
+        "oos_stability_ratio_min": 0.85,
+        "promote": {
+          "bonferroni_p_lt": 0.0125,
+          "max_dd_pct_lte": 0.3,
+          "pf_min": 1.3,
+          "wf_is_pf_min": 1.2,
+          "wf_oos_pf_min": 1.2,
+          "wilson_margin_over_bev": 0.05
+        },
+        "promote_tiebreak_fields": [
+          "bonferroni_p",
+          "-pf",
+          "-ev_pip_per_trade",
+          "-n"
+        ],
+        "shadow": {
+          "max_dd_pct_lte": 0.3,
+          "pf_min": 1.1,
+          "wf_is_pf_min": 1.0,
+          "wf_oos_pf_min": 1.0,
+          "wilson_margin_over_bev": 0.0
+        }
+      },
+      "metrics": {
+        "interval": "5m",
+        "lookback_days": 180,
+        "pair": "EUR_USD",
+        "roadmap_bt_ev": 0.231,
+        "strategy": "sr_channel_reversal",
+        "structure_complexity": "SR / channel bounce (1 level set)",
+        "symbol": "EURUSD=X"
+      },
+      "run_id": "scalp-alt-180d-2026-05-03",
+      "schema": "scalp_alt_pre_reg_candidate_v1",
+      "verdict": {
+        "base_verdict": "BT_PENDING",
+        "downgraded_for_overfit": false,
+        "gap_to_30": 30,
+        "overfit_suspected": false,
+        "reasons": [
+          "missing parent-run JSON: /data/repo/fx-ai-trader/knowledge-base/raw/bt-results/scalp-alt-sr-2026-05-03.json"
+        ],
+        "verdict": "BT_PENDING"
+      }
+    }
+  ],
+  "run_id": "scalp-alt-180d-2026-05-03",
+  "schema": "scalp_alt_pre_reg_aggregate_v1",
+  "verdict_counts": {
+    "BT_PENDING": 4
+  }
+}
