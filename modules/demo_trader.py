@@ -6216,6 +6216,12 @@ class DemoTrader:
         ("vix_carry_unwind", "USD_JPY"),
         ("vol_surge_detector", "USD_JPY"),
         ("vwap_mean_reversion", "GBP_USD"),
+        # 2026-05-04 R2 Tier 1 extension (rule:R2):
+        # gbp_deep_pullback × GBP_USD demoted from ELITE_LIVE per
+        # r2-tier1-hour-bucket-extension-2026-05-03 (TRUE_LIVE N=3 EV=-4.43p).
+        # Brings counterfactual aggregate raw Kelly -0.0028 → +0.0094
+        # (Gate 0 ACCEPT). MC60d 0.0090 → 0.0030.
+        ("gbp_deep_pullback", "GBP_USD"),
     }
 
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
@@ -6375,7 +6381,10 @@ class DemoTrader:
         # without explicit re-promotion (Live WR 22.2%, PnL -43.4p, demoted
         # to _UNIVERSAL_SENTINEL with QUICK_HARVEST_EXEMPT removed).
         "trendline_sweep",       # DT: GBP EV=+0.60, EUR EV=+0.93
-        "gbp_deep_pullback",     # DT: GBP EV=+1.06
+        # 2026-05-04 R2 Tier 1 extension (rule:R2): gbp_deep_pullback removed.
+        # GBP_USD TRUE_LIVE N=3 EV=-4.43p (Kelly raw=-0.96), promoted to PAIR_DEMOTED.
+        # Ref: r2-tier1-hour-bucket-extension-2026-05-03.
+        # "gbp_deep_pullback",     # DT: GBP EV=+1.06 (BT) — Live で逆方向劣化
     }
 
     # v2.1.1 (2026-04-25): Grail Sentinel candidates — TP-hit deep-mining 抽出
@@ -6446,7 +6455,10 @@ class DemoTrader:
     })
     _QUICK_HARVEST_MULT = 0.85      # v6.8: 0.70→0.85 (DT WIN 7件の19.2pip利益漏出修復)
     _QUICK_HARVEST_EXEMPT = frozenset({
-        ("gbp_deep_pullback", "GBP_USD"),   # 高WR戦略は全TP許可
+        # 2026-05-04 R2 Tier 1 extension (rule:R2): gbp_deep_pullback × GBP_USD
+        # exemption removed. tier downgrade ELITE_LIVE→PAIR_DEMOTED で
+        # quick-harvest TP 短縮を適用する側に戻す。
+        # ("gbp_deep_pullback", "GBP_USD"),   # 高WR戦略は全TP許可 — Live で N=3 EV=-4.43p
         # 2026-05-01 audit P0-8 phase 1 — session_time_bias を ELITE_LIVE→
         # SENTINEL 降格に伴い QH_EXEMPT を解除。Live で WR 22.2% / -43.4p
         # なので quick-harvest TP 短縮を「適用する」側に戻して被弾を抑える。

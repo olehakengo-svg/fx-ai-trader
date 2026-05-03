@@ -4,8 +4,9 @@
 - **Entry Type**: `gbp_deep_pullback`
 - **Category**: TF (Trend Following)
 - **Timeframe**: DT 15m
-- **Status**: ELITE_LIVE
-- **Active Pairs**: GBP_USD
+- **Status**: PAIR_DEMOTED (2026-05-04 R2 Tier 1 extension)
+- **Active Pairs**: (none — GBP_USD demoted)
+- **Recent change**: 2026-05-04 — strategy demoted from elite tier; not in promotion list. TRUE_LIVE GBP_USD N=3 EV=-4.43p (ref: r2-tier1-hour-bucket-extension-2026-05-03)
 
 ## BT Performance (365d, 15m)
 | Pair | N | WR | EV | PF | PnL |

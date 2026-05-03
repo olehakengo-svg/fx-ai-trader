@@ -1,7 +1,6 @@
 {
-  "generated_at": "2026-05-03T14:04:22.168089+00:00",
+  "generated_at": "2026-05-03T16:05:17.392244+00:00",
   "elite_live": [
-    "gbp_deep_pullback",
     "trendline_sweep"
   ],
   "force_demoted": [
@@ -160,6 +159,10 @@
       "USD_JPY"
     ],
     [
+      "gbp_deep_pullback",
+      "GBP_USD"
+    ],
+    [
       "london_fix_reversal",
       "USD_JPY"
     ],
@@ -254,10 +257,5 @@
     "vol_spike_mr",
     "xs_momentum"
   ],
-  "quick_harvest_exempt": [
-    [
-      "gbp_deep_pullback",
-      "GBP_USD"
-    ]
-  ]
+  "quick_harvest_exempt": []
 }
