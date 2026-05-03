@@ -1,8 +1,8 @@
 # S6 Chart Pattern Detector (USDJPY M5)
 
-- **Status**: Wave 1 Phase 0 detector-only completed (no LIVE / Shadow exposure)
-- **Stage**: 0 (DETECTOR_ONLY) — pre-BT, pre-Shadow, pre-LIVE
-- **Rule**: R2 Fast & Reactive
+- **Status**: Wave 2 BT completed; all tested cells rejected (no LIVE / Shadow exposure)
+- **Stage**: 0 (BT_REJECTED / NO_EDGE) — detector exists, BT edge not validated
+- **Rule**: R1 Slow & Strict
 - **Scope**: USD_JPY / M5 only, no LIVE or Shadow routing exposure
 - **Artifact**: `data/chart_patterns.db` / `chart_pattern_signals`
 
@@ -40,9 +40,9 @@ Entry is bar-close breakout only. Wick-only breakout is rejected. Re-entry dedup
 | Wave | Scope | Status |
 |---|---|---|
 | W1P0 | Detector + label generation, USDJPY M5 only | DONE |
-| W2 | USDJPY M5 12.3y backtest by pattern/cell | NEXT |
-| W3 | 6 pair x 3 TF sweep, Bonferroni m=216 | Not started |
-| W4 | Shadow promote / LIVE candidate gate | Not started |
+| W2 | USDJPY M5 12.3y backtest by pattern/cell | DONE — all cells REJECT |
+| W3 | 6 pair x 3 TF sweep, Bonferroni m=216 | BLOCKED unless detector geometry is revised |
+| W4 | Shadow promote / LIVE candidate gate | Not eligible |
 
 ## Phase 0 Result
 
@@ -65,4 +65,25 @@ Production run over `data/cache/massive/USD_JPY_5m.parquet` generated 22,094 sig
 
 ## Next Task
 
-Wave 2 should run a production-faithful backtest over these labels before any routing integration. LIVE/Shadow exposure remains explicitly out of scope until W4.
+Wave 2 found no PROMOTE/SHADOW cells. Before any W3 expansion, revise the detector geometry or hypothesis family; LIVE/Shadow exposure remains explicitly out of scope.
+
+## Wave 2 Result (2026-05-03)
+
+Backtest input was frozen W1P0 labels in `data/chart_patterns.db` (`USD_JPY`/`M5`, 22,094 rows) and `data/cache/massive/USD_JPY_5m.parquet` (2014-01-02 to 2026-04-30). Simulation used `signal_ts + 1 bar` open entry, fixed 1.5 pip USDJPY spread, signal-table SL/TP, max hold 20 bars, and entry-price-based MAFE/MFE.
+
+Verdict summary:
+
+| Mode | Trade fills | Verdict rows | PROMOTE | SHADOW | REJECT | INSUFFICIENT |
+|---|---:|---:|---:|---:|---:|---:|
+| isolated | 22,093 | 12 | 0 | 0 | 12 | 0 |
+| arbitrated | 17,393 | 12 | 0 | 0 | 12 | 0 |
+| reversed (wedge #2/#5) | 2,997 | 2 | 0 | 0 | 2 | 0 |
+
+Wedge direction result:
+
+| Pattern | Literal PF | Reversed PF | Direction note |
+|---|---:|---:|---|
+| rising_wedge | 0.79 | 0.77 | literal slightly better, both REJECT |
+| falling_wedge | 0.74 | 0.88 | reversed better, but still REJECT |
+
+Decision record: `knowledge-base/wiki/decisions/s6-w2-bt-2026-05-03.md`.
