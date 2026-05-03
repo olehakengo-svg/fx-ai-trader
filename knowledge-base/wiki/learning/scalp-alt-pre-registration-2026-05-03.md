@@ -20,7 +20,7 @@
 | Strategy | Pair | TF | Roadmap EV | Complexity | Verdict | Flags | N | PF | Bonf p |
 |---|---|---|---:|---|---|---|---:|---:|---:|
 | `sr_channel_reversal` | `EUR_USD` | `5m` | 0.231 | SR / channel bounce (1 level set) | Promote | none | 52 | 2.724 | 0.00418322 |
-| `fib_reversal` | `EUR_USD` | `1m` | 0.426 | Fib retracement (1 level set) | Reject | none | 101 | 3.150 | 0.00015895 |
+| `fib_reversal` | `EUR_USD` | `1m` | 0.426 | Fib retracement (1 level set) | Reject | none | 102 | 3.190 | 0.00010304 |
 | `engulfing_bb` | `USD_JPY` | `5m` | 0.677 | engulfing candle + BB extreme (2 conditions) | Reject | none | 30 | 1.557 | 0.09299531 |
 | `bb_squeeze_breakout` | `USD_JPY` | `5m` | 1.030 | BB + squeeze (1 indicator + 1 condition) | Insufficient | none | 24 | 4.872 | 0.00023226 |
 
@@ -30,7 +30,7 @@
 |---|---|---|---:|---|---:|---:|---:|---|---:|---:|---|---|---:|---:|
 | `sr_channel_reversal` | Promote | none | 52 | 32 / 20 | 61.538% | 0.373 | 2.724 | [47.960%, 73.530%] | 3.022 | 14.841 | 2.557 / 2.889 | 61.538% / 61.538% | 0.00418322 | 0.194700 |
 Verdict note: all pre-registered conditions passed
-| `fib_reversal` | Reject | none | 101 | 60 / 41 | 59.406% | 0.388 | 3.150 | [49.655%, 68.468%] | 2.983 | 220.963 | 2.157 / 4.956 | 50.000% / 68.627% | 0.00015895 | 0.202700 |
+| `fib_reversal` | Reject | none | 102 | 61 / 41 | 59.804% | 0.392 | 3.190 | [50.100%, 68.796%] | 2.983 | 144.106 | 2.218 / 4.956 | 50.980% / 68.627% | 0.00010304 | 0.205300 |
 Verdict note: max DD > 30% or undefined
 | `engulfing_bb` | Reject | none | 30 | 16 / 14 | 53.333% | 0.212 | 1.557 | [36.142%, 69.768%] | 7.566 | 188.209 | 1.162 / 1.948 | 40.000% / 66.667% | 0.09299531 | 0.095400 |
 Verdict note: max DD > 30% or undefined, Bonferroni threshold failed for Promote
@@ -45,3 +45,4 @@ Verdict note: N<30, gap_to_30=6
 ## Recommendation
 
 - Next recommended task: A3-simple — register the Promote candidate to OANDA bridge with monitoring
+

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "run_at": "2026-05-03T13:11:49.912284+00:00",
+  "run_at": "2026-05-03T14:43:47.073540+00:00",
   "wrapper_fingerprint": "b6d7386b5c48789871894a76b07f61c3a741fba176353e90e9250014a9533e02",
   "candidate": {
     "pair": "EUR_USD",
@@ -38,44 +38,44 @@
   },
   "engine_timeout_seconds": 600,
   "stats": {
-    "n": 101,
-    "wins": 60,
+    "n": 102,
+    "wins": 61,
     "losses": 41,
-    "win_rate": 59.406,
-    "ev_pips": 0.388,
-    "profit_factor": 3.15,
-    "gross_profit": 57.456,
+    "win_rate": 59.804,
+    "ev_pips": 0.392,
+    "profit_factor": 3.19,
+    "gross_profit": 58.176,
     "gross_loss_abs": 18.238,
-    "wilson_lo_95": 49.655,
-    "wilson_hi_95": 68.468,
+    "wilson_lo_95": 50.1,
+    "wilson_hi_95": 68.796,
     "bev_wr": 39.7,
-    "bonferroni_p": 0.00015895,
+    "bonferroni_p": 0.00010304,
     "bonferroni_alpha_div_k": 0.0125,
-    "kelly_full": 0.4055,
-    "kelly_half": 0.2027,
+    "kelly_full": 0.4106,
+    "kelly_half": 0.2053,
     "max_drawdown_pips": 2.983,
-    "max_drawdown_pct": 220.963,
+    "max_drawdown_pct": 144.106,
     "walk_forward": {
       "split": "50/50 chronological split",
       "midpoint_utc": "2026-01-21T10:31:00+00:00",
       "is": {
-        "n": 50,
-        "wins": 25,
+        "n": 51,
+        "wins": 26,
         "losses": 25,
-        "win_rate": 50.0,
-        "ev_pips": 0.272,
-        "profit_factor": 2.157,
-        "gross_profit": 25.377,
+        "win_rate": 50.98,
+        "ev_pips": 0.281,
+        "profit_factor": 2.218,
+        "gross_profit": 26.097,
         "gross_loss_abs": 11.765,
-        "wilson_lo_95": 36.644,
-        "wilson_hi_95": 63.355,
+        "wilson_lo_95": 37.681,
+        "wilson_hi_95": 64.143,
         "bev_wr": 39.7,
-        "bonferroni_p": 0.35786721,
+        "bonferroni_p": 0.26548281,
         "bonferroni_alpha_div_k": 0.0125,
-        "kelly_full": 0.2682,
-        "kelly_half": 0.1341,
+        "kelly_full": 0.28,
+        "kelly_half": 0.14,
         "max_drawdown_pips": 2.983,
-        "max_drawdown_pct": 220.963
+        "max_drawdown_pct": 144.106
       },
       "oos": {
         "n": 51,
@@ -105,7 +105,7 @@
   "flags": [],
   "overfit": {
     "flagged": false,
-    "oos_to_is_ratio": 2.297636,
+    "oos_to_is_ratio": 2.234445,
     "threshold": 0.85
   },
   "engine": {
@@ -114,20 +114,20 @@
     "window_start_utc": "2025-10-17T07:44:00+00:00",
     "window_end_utc": "2026-04-15T04:25:00+00:00",
     "midpoint_utc": "2026-01-21T10:31:00+00:00",
-    "raw_trade_count_all": 1480,
-    "raw_trade_count_strategy": 101,
+    "raw_trade_count_all": 1481,
+    "raw_trade_count_strategy": 102,
     "summary": {
-      "win_rate": 58.4,
-      "trades": 1480,
-      "wins": 865,
+      "win_rate": 58.5,
+      "trades": 1481,
+      "wins": 866,
       "losses": 615,
       "rr": 2.4,
       "avg_hold_bars": 6.5,
       "avg_hold_min": 6.5,
       "trades_per_day": 8.2,
-      "expected_value": -0.212,
-      "max_drawdown": 324.078,
-      "sharpe": -0.163,
+      "expected_value": -0.211,
+      "max_drawdown": 323.587,
+      "sharpe": -0.162,
       "verdict": "❌ 摩擦込EVマイナス（不推奨）",
       "period": "過去180日 (1m足)",
       "sl_mult": 0.75,
@@ -142,14 +142,14 @@
         {
           "label": "窓2",
           "trades": 493,
-          "win_rate": 58.6,
-          "expected_value": -0.221
+          "win_rate": 58.8,
+          "expected_value": -0.215
         },
         {
           "label": "窓3",
           "trades": 493,
-          "win_rate": 61.7,
-          "expected_value": -0.089
+          "win_rate": 61.5,
+          "expected_value": -0.096
         }
       ],
       "consistency": "0/3 窓でプラス期待値",
@@ -195,11 +195,11 @@
           "promotion_candidate": false
         },
         "fib_reversal": {
-          "wins": 60,
-          "total": 101,
-          "pnl": -15.3836,
-          "win_rate": 59.4,
-          "ev": -0.152,
+          "wins": 61,
+          "total": 102,
+          "pnl": -14.834700000000003,
+          "win_rate": 59.8,
+          "ev": -0.145,
           "promotion_candidate": false
         },
         "engulfing_bb": {
@@ -852,6 +852,17 @@
           "sl_m": 1.488,
           "tp_m": 1.518,
           "actual_sl_m": 1.518,
+          "exit_reason": "tp_sl"
+        },
+        {
+          "sig": "BUY",
+          "outcome": "WIN",
+          "bars": 8,
+          "type": "fib_reversal",
+          "entry_time": "2025-10-23 08:58:00+00:00",
+          "sl_m": 1.0,
+          "tp_m": 0.72,
+          "actual_sl_m": null,
           "exit_reason": "tp_sl"
         },
         {
@@ -16547,25 +16558,25 @@
       "friction_model": "v2_461t_audit",
       "signal_reverse_count": 0,
       "signal_reverse_ratio": 0.0,
-      "avg_exit_friction_m": 0.2053,
-      "sortino": -2.984,
+      "avg_exit_friction_m": 0.2052,
+      "sortino": -2.977,
       "calmar": -0.165,
       "profit_factor": 0.702,
       "quant": {
         "kelly": {
           "full_kelly": 0,
           "half_kelly": 0,
-          "edge": -0.1247,
-          "odds_ratio": 0.4988,
-          "win_rate": 0.584
+          "edge": -0.1233,
+          "odds_ratio": 0.4986,
+          "win_rate": 0.585
         },
         "risk_of_ruin": 1.0,
         "wr_significance": {
           "p_value": 0.0,
           "significant": true,
-          "observed_wr": 0.5845,
+          "observed_wr": 0.5847,
           "null_wr": 0.45,
-          "n": 1480
+          "n": 1481
         }
       },
       "walk_forward_anchored": {
@@ -16573,10 +16584,10 @@
           {
             "split": 1,
             "train": {
-              "n": 250,
-              "wr": 57.6,
-              "ev": -0.2724,
-              "sharpe": -3.118
+              "n": 251,
+              "wr": 57.8,
+              "ev": -0.2692,
+              "sharpe": -3.085
             },
             "test": {
               "n": 246,
@@ -16584,16 +16595,16 @@
               "ev": -0.3764,
               "sharpe": -4.686
             },
-            "ev_degradation_pct": -0.382,
-            "sharpe_degradation_pct": -0.503
+            "ev_degradation_pct": -0.398,
+            "sharpe_degradation_pct": -0.519
           },
           {
             "split": 2,
             "train": {
-              "n": 496,
-              "wr": 55.2,
-              "ev": -0.324,
-              "sharpe": -3.857
+              "n": 497,
+              "wr": 55.3,
+              "ev": -0.3223,
+              "sharpe": -3.839
             },
             "test": {
               "n": 246,
@@ -16601,16 +16612,16 @@
               "ev": -0.3025,
               "sharpe": -3.563
             },
-            "ev_degradation_pct": 0.066,
-            "sharpe_degradation_pct": 0.076
+            "ev_degradation_pct": 0.061,
+            "sharpe_degradation_pct": 0.072
           },
           {
             "split": 3,
             "train": {
-              "n": 742,
-              "wr": 55.5,
-              "ev": -0.3169,
-              "sharpe": -3.759
+              "n": 743,
+              "wr": 55.6,
+              "ev": -0.3157,
+              "sharpe": -3.746
             },
             "test": {
               "n": 246,
@@ -16618,16 +16629,16 @@
               "ev": -0.1485,
               "sharpe": -1.877
             },
-            "ev_degradation_pct": 0.531,
-            "sharpe_degradation_pct": 0.501
+            "ev_degradation_pct": 0.53,
+            "sharpe_degradation_pct": 0.499
           },
           {
             "split": 4,
             "train": {
-              "n": 988,
+              "n": 989,
               "wr": 56.8,
-              "ev": -0.2749,
-              "sharpe": -3.305
+              "ev": -0.2741,
+              "sharpe": -3.297
             },
             "test": {
               "n": 246,
@@ -16635,16 +16646,16 @@
               "ev": -0.1278,
               "sharpe": -1.604
             },
-            "ev_degradation_pct": 0.535,
-            "sharpe_degradation_pct": 0.515
+            "ev_degradation_pct": 0.534,
+            "sharpe_degradation_pct": 0.513
           },
           {
             "split": 5,
             "train": {
-              "n": 1234,
-              "wr": 57.5,
-              "ev": -0.2456,
-              "sharpe": -2.974
+              "n": 1235,
+              "wr": 57.6,
+              "ev": -0.245,
+              "sharpe": -2.968
             },
             "test": {
               "n": 246,
@@ -16652,13 +16663,13 @@
               "ev": -0.043,
               "sharpe": -0.544
             },
-            "ev_degradation_pct": 0.825,
+            "ev_degradation_pct": 0.824,
             "sharpe_degradation_pct": 0.817
           }
         ],
         "summary": {
           "n_splits": 5,
-          "avg_is_sharpe": -3.403,
+          "avg_is_sharpe": -3.387,
           "avg_oos_sharpe": -2.455,
           "oos_positive_windows": 0,
           "oos_consistency": "0/5",
@@ -16668,48 +16679,48 @@
       },
       "monte_carlo": {
         "n_sims": 2000,
-        "n_trades": 1480,
+        "n_trades": 1481,
         "ci_level": 0.95,
         "ev": {
-          "mean": -0.2112,
-          "median": -0.2114,
-          "ci_low": -0.274,
-          "ci_high": -0.1466,
-          "p5": -0.2644,
-          "p95": -0.1588
+          "mean": -0.2116,
+          "median": -0.2117,
+          "ci_low": -0.2814,
+          "ci_high": -0.1437,
+          "p5": -0.2682,
+          "p95": -0.1553
         },
         "win_rate": {
-          "mean": 58.4694,
-          "median": 58.5135,
-          "ci_low": 56.1486,
-          "ci_high": 60.8784,
-          "p5": 56.4189,
-          "p95": 60.473
+          "mean": 58.4595,
+          "median": 58.474,
+          "ci_low": 55.9082,
+          "ci_high": 60.9723,
+          "p5": 56.3808,
+          "p95": 60.5672
         },
         "max_dd": {
-          "mean": 320.0833,
-          "median": 318.9649,
-          "ci_low": 313.6601,
-          "ci_high": 332.7952,
-          "p5": 314.1551,
-          "p95": 329.9368
+          "mean": 319.7365,
+          "median": 318.5708,
+          "ci_low": 313.1112,
+          "ci_high": 332.5128,
+          "p5": 313.7632,
+          "p95": 329.4535
         },
         "profit_factor": {
-          "mean": 0.7035,
-          "median": 0.7021,
-          "ci_low": 0.6347,
-          "ci_high": 0.7803,
-          "p5": 0.6446,
-          "p95": 0.7642
+          "mean": 0.7031,
+          "median": 0.7013,
+          "ci_low": 0.6278,
+          "ci_high": 0.7824,
+          "p5": 0.6407,
+          "p95": 0.7692
         },
         "actual": {
-          "ev": -0.2119,
-          "max_dd": 324.0781,
-          "win_rate": 58.4
+          "ev": -0.2114,
+          "max_dd": 323.5872,
+          "win_rate": 58.5
         },
         "mdd_luck_assessment": "NORMAL",
         "ev_verdict": "NEGATIVE",
-        "ev_ci_width": 0.1274,
+        "ev_ci_width": 0.1377,
         "ev_crosses_zero": false,
         "n_required_for_significance": 0
       }
@@ -16736,6 +16747,18 @@
       "entry_time": "2025-10-22 15:53:00+00:00",
       "sl_m": 1.875,
       "tp_m": 1.35,
+      "actual_sl_m": null,
+      "exit_reason": "tp_sl",
+      "symbol": "EUR_USD"
+    },
+    {
+      "sig": "BUY",
+      "outcome": "WIN",
+      "bars": 8,
+      "type": "fib_reversal",
+      "entry_time": "2025-10-23 08:58:00+00:00",
+      "sl_m": 1.0,
+      "tp_m": 0.72,
       "actual_sl_m": null,
       "exit_reason": "tp_sl",
       "symbol": "EUR_USD"
