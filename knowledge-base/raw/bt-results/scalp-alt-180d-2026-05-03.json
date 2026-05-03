@@ -1,0 +1,359 @@
+{
+  "run_at": "2026-05-03T13:12:38.639056+00:00",
+  "bonferroni": {
+    "alpha": 0.05,
+    "k": 4,
+    "alpha_div_k": 0.0125,
+    "justification": "Decision pool fixed ex ante as 4 simple-structure scalp candidates: bb_squeeze_breakout, engulfing_bb, fib_reversal, sr_channel_reversal."
+  },
+  "thresholds": {
+    "promote": {
+      "min_n": 30,
+      "min_pf": 1.3,
+      "min_wilson_lo_pp_over_bev": 5.0,
+      "min_pf_is": 1.2,
+      "min_pf_oos": 1.2,
+      "max_dd_pct": 30.0,
+      "bonf_alpha_div_k": 0.0125
+    },
+    "shadow": {
+      "min_n": 30,
+      "min_pf": 1.1,
+      "min_wilson_lo_pp_over_bev": 0.0,
+      "min_pf_is": 1.0,
+      "min_pf_oos": 1.0,
+      "max_dd_pct": 30.0
+    }
+  },
+  "candidates": [
+    {
+      "strategy": "sr_channel_reversal",
+      "pair": "EUR_USD",
+      "interval": "5m",
+      "roadmap_ev_pips": 0.231,
+      "structure_complexity": "SR / channel bounce (1 level set)",
+      "verdict": "Promote",
+      "reasons": [],
+      "flags": [],
+      "overfit": {
+        "flagged": false,
+        "oos_to_is_ratio": 1.12984,
+        "threshold": 0.85
+      },
+      "stats": {
+        "n": 52,
+        "wins": 32,
+        "losses": 20,
+        "win_rate": 61.538,
+        "ev_pips": 0.373,
+        "profit_factor": 2.724,
+        "gross_profit": 30.638,
+        "gross_loss_abs": 11.247,
+        "wilson_lo_95": 47.96,
+        "wilson_hi_95": 73.53,
+        "bev_wr": 39.7,
+        "bonferroni_p": 0.00418322,
+        "bonferroni_alpha_div_k": 0.0125,
+        "kelly_full": 0.3895,
+        "kelly_half": 0.1947,
+        "max_drawdown_pips": 3.022,
+        "max_drawdown_pct": 14.841,
+        "walk_forward": {
+          "split": "50/50 chronological split",
+          "midpoint_utc": "2026-01-14T16:00:00+00:00",
+          "is": {
+            "n": 26,
+            "wins": 16,
+            "losses": 10,
+            "win_rate": 61.538,
+            "ev_pips": 0.334,
+            "profit_factor": 2.557,
+            "gross_profit": 14.273,
+            "gross_loss_abs": 5.582,
+            "wilson_lo_95": 42.535,
+            "wilson_hi_95": 77.571,
+            "bev_wr": 39.7,
+            "bonferroni_p": 0.08021463,
+            "bonferroni_alpha_div_k": 0.0125,
+            "kelly_full": 0.3747,
+            "kelly_half": 0.1874,
+            "max_drawdown_pips": 2.825,
+            "max_drawdown_pct": 55.654
+          },
+          "oos": {
+            "n": 26,
+            "wins": 16,
+            "losses": 10,
+            "win_rate": 61.538,
+            "ev_pips": 0.412,
+            "profit_factor": 2.889,
+            "gross_profit": 16.365,
+            "gross_loss_abs": 5.665,
+            "wilson_lo_95": 42.535,
+            "wilson_hi_95": 77.571,
+            "bev_wr": 39.7,
+            "bonferroni_p": 0.08021463,
+            "bonferroni_alpha_div_k": 0.0125,
+            "kelly_full": 0.4024,
+            "kelly_half": 0.2012,
+            "max_drawdown_pips": 3.022,
+            "max_drawdown_pct": 25.891
+          }
+        }
+      },
+      "gate_blocked_likely_gates": [],
+      "json_path": "/Users/jg-n-012/test/fx-ai-trader/knowledge-base/raw/bt-results/scalp-alt-sr-2026-05-03.json"
+    },
+    {
+      "strategy": "fib_reversal",
+      "pair": "EUR_USD",
+      "interval": "1m",
+      "roadmap_ev_pips": 0.426,
+      "structure_complexity": "Fib retracement (1 level set)",
+      "verdict": "Reject",
+      "reasons": [
+        "max DD > 30% or undefined"
+      ],
+      "flags": [],
+      "overfit": {
+        "flagged": false,
+        "oos_to_is_ratio": 2.297636,
+        "threshold": 0.85
+      },
+      "stats": {
+        "n": 101,
+        "wins": 60,
+        "losses": 41,
+        "win_rate": 59.406,
+        "ev_pips": 0.388,
+        "profit_factor": 3.15,
+        "gross_profit": 57.456,
+        "gross_loss_abs": 18.238,
+        "wilson_lo_95": 49.655,
+        "wilson_hi_95": 68.468,
+        "bev_wr": 39.7,
+        "bonferroni_p": 0.00015895,
+        "bonferroni_alpha_div_k": 0.0125,
+        "kelly_full": 0.4055,
+        "kelly_half": 0.2027,
+        "max_drawdown_pips": 2.983,
+        "max_drawdown_pct": 220.963,
+        "walk_forward": {
+          "split": "50/50 chronological split",
+          "midpoint_utc": "2026-01-21T10:31:00+00:00",
+          "is": {
+            "n": 50,
+            "wins": 25,
+            "losses": 25,
+            "win_rate": 50.0,
+            "ev_pips": 0.272,
+            "profit_factor": 2.157,
+            "gross_profit": 25.377,
+            "gross_loss_abs": 11.765,
+            "wilson_lo_95": 36.644,
+            "wilson_hi_95": 63.355,
+            "bev_wr": 39.7,
+            "bonferroni_p": 0.35786721,
+            "bonferroni_alpha_div_k": 0.0125,
+            "kelly_full": 0.2682,
+            "kelly_half": 0.1341,
+            "max_drawdown_pips": 2.983,
+            "max_drawdown_pct": 220.963
+          },
+          "oos": {
+            "n": 51,
+            "wins": 35,
+            "losses": 16,
+            "win_rate": 68.627,
+            "ev_pips": 0.502,
+            "profit_factor": 4.956,
+            "gross_profit": 32.079,
+            "gross_loss_abs": 6.473,
+            "wilson_lo_95": 54.973,
+            "wilson_hi_95": 79.672,
+            "bev_wr": 39.7,
+            "bonferroni_p": 9.041e-05,
+            "bonferroni_alpha_div_k": 0.0125,
+            "kelly_full": 0.5478,
+            "kelly_half": 0.2739,
+            "max_drawdown_pips": 2.65,
+            "max_drawdown_pct": 17.565
+          }
+        }
+      },
+      "gate_blocked_likely_gates": [],
+      "json_path": "/Users/jg-n-012/test/fx-ai-trader/knowledge-base/raw/bt-results/scalp-alt-fib-2026-05-03.json"
+    },
+    {
+      "strategy": "engulfing_bb",
+      "pair": "USD_JPY",
+      "interval": "5m",
+      "roadmap_ev_pips": 0.677,
+      "structure_complexity": "engulfing candle + BB extreme (2 conditions)",
+      "verdict": "Reject",
+      "reasons": [
+        "max DD > 30% or undefined",
+        "Bonferroni threshold failed for Promote"
+      ],
+      "flags": [],
+      "overfit": {
+        "flagged": false,
+        "oos_to_is_ratio": 1.67642,
+        "threshold": 0.85
+      },
+      "stats": {
+        "n": 30,
+        "wins": 16,
+        "losses": 14,
+        "win_rate": 53.333,
+        "ev_pips": 0.212,
+        "profit_factor": 1.557,
+        "gross_profit": 17.761,
+        "gross_loss_abs": 11.405,
+        "wilson_lo_95": 36.142,
+        "wilson_hi_95": 69.768,
+        "bev_wr": 34.4,
+        "bonferroni_p": 0.09299531,
+        "bonferroni_alpha_div_k": 0.0125,
+        "kelly_full": 0.1909,
+        "kelly_half": 0.0954,
+        "max_drawdown_pips": 7.566,
+        "max_drawdown_pct": 188.209,
+        "walk_forward": {
+          "split": "50/50 chronological split",
+          "midpoint_utc": "2026-02-10T02:00:00+00:00",
+          "is": {
+            "n": 15,
+            "wins": 6,
+            "losses": 9,
+            "win_rate": 40.0,
+            "ev_pips": 0.061,
+            "profit_factor": 1.162,
+            "gross_profit": 6.581,
+            "gross_loss_abs": 5.665,
+            "wilson_lo_95": 19.824,
+            "wilson_hi_95": 64.253,
+            "bev_wr": 34.4,
+            "bonferroni_p": 1.0,
+            "bonferroni_alpha_div_k": 0.0125,
+            "kelly_full": 0.0557,
+            "kelly_half": 0.0278,
+            "max_drawdown_pips": 4.397,
+            "max_drawdown_pct": 109.378
+          },
+          "oos": {
+            "n": 15,
+            "wins": 10,
+            "losses": 5,
+            "win_rate": 66.667,
+            "ev_pips": 0.363,
+            "profit_factor": 1.948,
+            "gross_profit": 11.18,
+            "gross_loss_abs": 5.74,
+            "wilson_lo_95": 41.713,
+            "wilson_hi_95": 84.824,
+            "bev_wr": 34.4,
+            "bonferroni_p": 0.04352876,
+            "bonferroni_alpha_div_k": 0.0125,
+            "kelly_full": 0.3244,
+            "kelly_half": 0.1622,
+            "max_drawdown_pips": 4.462,
+            "max_drawdown_pct": null
+          }
+        }
+      },
+      "gate_blocked_likely_gates": [],
+      "json_path": "/Users/jg-n-012/test/fx-ai-trader/knowledge-base/raw/bt-results/scalp-alt-engulfing-2026-05-03.json"
+    },
+    {
+      "strategy": "bb_squeeze_breakout",
+      "pair": "USD_JPY",
+      "interval": "5m",
+      "roadmap_ev_pips": 1.03,
+      "structure_complexity": "BB + squeeze (1 indicator + 1 condition)",
+      "verdict": "Insufficient",
+      "reasons": [
+        "N<30",
+        "gap_to_30=6"
+      ],
+      "flags": [],
+      "overfit": {
+        "flagged": false,
+        "oos_to_is_ratio": Infinity,
+        "threshold": 0.85
+      },
+      "stats": {
+        "n": 24,
+        "wins": 18,
+        "losses": 6,
+        "win_rate": 75.0,
+        "ev_pips": 0.913,
+        "profit_factor": 4.872,
+        "gross_profit": 27.563,
+        "gross_loss_abs": 5.658,
+        "wilson_lo_95": 55.1,
+        "wilson_hi_95": 88.001,
+        "bev_wr": 34.4,
+        "bonferroni_p": 0.00023226,
+        "bonferroni_alpha_div_k": 0.0125,
+        "kelly_full": 0.596,
+        "kelly_half": 0.298,
+        "max_drawdown_pips": 2.976,
+        "max_drawdown_pct": 26.731,
+        "walk_forward": {
+          "split": "50/50 chronological split",
+          "midpoint_utc": "2026-02-17T03:35:00+00:00",
+          "is": {
+            "n": 12,
+            "wins": 9,
+            "losses": 3,
+            "win_rate": 75.0,
+            "ev_pips": 0.68,
+            "profit_factor": 2.442,
+            "gross_profit": 13.815,
+            "gross_loss_abs": 5.658,
+            "wilson_lo_95": 46.769,
+            "wilson_hi_95": 91.106,
+            "bev_wr": 34.4,
+            "bonferroni_p": 0.01965657,
+            "bonferroni_alpha_div_k": 0.0125,
+            "kelly_full": 0.4428,
+            "kelly_half": 0.2214,
+            "max_drawdown_pips": 2.976,
+            "max_drawdown_pct": 26.731
+          },
+          "oos": {
+            "n": 12,
+            "wins": 9,
+            "losses": 3,
+            "win_rate": 75.0,
+            "ev_pips": 1.146,
+            "profit_factor": "inf",
+            "gross_profit": 13.748,
+            "gross_loss_abs": 0,
+            "wilson_lo_95": 46.769,
+            "wilson_hi_95": 91.106,
+            "bev_wr": 34.4,
+            "bonferroni_p": 0.01965657,
+            "bonferroni_alpha_div_k": 0.0125,
+            "kelly_full": 0.0,
+            "kelly_half": 0.0,
+            "max_drawdown_pips": 0.0,
+            "max_drawdown_pct": 0.0
+          }
+        }
+      },
+      "gate_blocked_likely_gates": [],
+      "json_path": "/Users/jg-n-012/test/fx-ai-trader/knowledge-base/raw/bt-results/scalp-alt-bb_squeeze-2026-05-03.json"
+    }
+  ],
+  "summary": {
+    "promote_candidates": [
+      "sr_channel_reversal"
+    ],
+    "promote_count": 1,
+    "top_ranked_strategy": "sr_channel_reversal",
+    "next_task": "A3-simple — register the Promote candidate to OANDA bridge with monitoring",
+    "simple_first_lineage": "complex-gate-edge-destruction-pattern-2026-05-03"
+  }
+}
