@@ -165,7 +165,7 @@ If OOS PF degrades by >15% from IS PF on any candidate, flag `OVERFIT_SUSPECTED`
 In the final report: status, files changed, the verdict per candidate, the K=4 Bonferroni table, the OVERFIT_SUSPECTED flags, the recommended next task. The next task after at least one Promote/Shadow is **A3-simple — register the Promote candidate to OANDA bridge with monitoring**; otherwise **A2-alt2 — pre-register the next simple candidate from the broader Scalp pool**.
 
 
-## Error (2026-05-03T12:37:58Z)
+## Error (2026-05-03T12:55:41Z)
 
 ```
 Reading prompt from stdin...
@@ -178,7 +178,7 @@ approval: never
 sandbox: danger-full-access
 reasoning effort: none
 reasoning summaries: none
-session id: 019dedd8-31e8-7a90-a25a-c8dde9543ee5
+session id: 019dede8-a3c0-7953-aca1-ac4746c94d78
 --------
 user
 # Objective
@@ -336,23 +336,7 @@ If OOS PF degrades by >15% from IS PF on any candidate, flag `OVERFIT_SUSPECTED`
 
 In the final report: status, files changed, the verdict per candidate, the K=4 Bonferroni table, the OVERFIT_SUSPECTED flags, the recommended next task. The next task after at least one Promote/Shadow is **A3-simple — register the Promote candidate to OANDA bridge with monitoring**; otherwise **A2-alt2 — pre-register the next simple candidate from the broader Scalp pool**.
 
-2026-05-03T12:37:42.893555Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 401 Unauthorized, url: wss://api.openai.com/v1/responses
-2026-05-03T12:37:43.381513Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 401 Unauthorized, url: wss://api.openai.com/v1/responses
-2026-05-03T12:37:43.986059Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 401 Unauthorized, url: wss://api.openai.com/v1/responses
-ERROR: Reconnecting... 2/5
-2026-05-03T12:37:44.710260Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 401 Unauthorized, url: wss://api.openai.com/v1/responses
-ERROR: Reconnecting... 3/5
-2026-05-03T12:37:45.864553Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 401 Unauthorized, url: wss://api.openai.com/v1/responses
-ERROR: Reconnecting... 4/5
-2026-05-03T12:37:47.780511Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 401 Unauthorized, url: wss://api.openai.com/v1/responses
-ERROR: Reconnecting... 5/5
-2026-05-03T12:37:51.455713Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 401 Unauthorized, url: wss://api.openai.com/v1/responses
-ERROR: Reconnecting... 1/5
-ERROR: Reconnecting... 2/5
-ERROR: Reconnecting... 3/5
-ERROR: Reconnecting... 4/5
-ERROR: Reconnecting... 5/5
-ERROR: unexpected status 401 Unauthorized: Missing bearer or basic authentication in header, url: https://api.openai.com/v1/responses, cf-ray: 9f5f51ef2e2a5012-PDX, request id: req_d256441743264ba999e8b753f51884cb
-ERROR: unexpected status 401 Unauthorized: Missing bearer or basic authentication in header, url: https://api.openai.com/v1/responses, cf-ray: 9f5f51ef2e2a5012-PDX, request id: req_d256441743264ba999e8b753f51884cb
+ERROR: Quota exceeded. Check your plan and billing details.
+ERROR: Quota exceeded. Check your plan and billing details.
 
 ```
