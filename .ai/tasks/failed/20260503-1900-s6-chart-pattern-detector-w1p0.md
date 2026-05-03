@@ -262,7 +262,7 @@ PR 作成は本タスクで実行しない。proposal doc + detector 実装 + te
 最終レポートには status, files changed, signal 総数 (pattern 別内訳), regression fixture 30 件の固定値, residual risks, 次タスク (= Wave 2 BT spec proposal) を含む。
 
 
-## Error (2026-05-03T12:38:47Z)
+## Error (2026-05-03T12:51:32Z)
 
 ```
 Reading prompt from stdin...
@@ -275,7 +275,7 @@ approval: never
 sandbox: danger-full-access
 reasoning effort: none
 reasoning summaries: none
-session id: 019dedd8-f411-7be1-92a4-60cab8487374
+session id: 019dede4-d3e9-7cb0-aa88-03ddfa8296a2
 --------
 user
 ## 0. 目的 (rev0)
@@ -526,23 +526,7 @@ PR 作成は本タスクで実行しない。proposal doc + detector 実装 + te
 
 最終レポートには status, files changed, signal 総数 (pattern 別内訳), regression fixture 30 件の固定値, residual risks, 次タスク (= Wave 2 BT spec proposal) を含む。
 
-2026-05-03T12:38:32.259312Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 401 Unauthorized, url: wss://api.openai.com/v1/responses
-2026-05-03T12:38:32.607806Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 401 Unauthorized, url: wss://api.openai.com/v1/responses
-2026-05-03T12:38:33.134972Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 401 Unauthorized, url: wss://api.openai.com/v1/responses
-ERROR: Reconnecting... 2/5
-2026-05-03T12:38:33.929911Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 401 Unauthorized, url: wss://api.openai.com/v1/responses
-ERROR: Reconnecting... 3/5
-2026-05-03T12:38:35.075227Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 401 Unauthorized, url: wss://api.openai.com/v1/responses
-ERROR: Reconnecting... 4/5
-2026-05-03T12:38:36.916844Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 401 Unauthorized, url: wss://api.openai.com/v1/responses
-ERROR: Reconnecting... 5/5
-2026-05-03T12:38:40.287405Z ERROR codex_api::endpoint::responses_websocket: failed to connect to websocket: HTTP error: 401 Unauthorized, url: wss://api.openai.com/v1/responses
-ERROR: Reconnecting... 1/5
-ERROR: Reconnecting... 2/5
-ERROR: Reconnecting... 3/5
-ERROR: Reconnecting... 4/5
-ERROR: Reconnecting... 5/5
-ERROR: unexpected status 401 Unauthorized: Missing bearer or basic authentication in header, url: https://api.openai.com/v1/responses, cf-ray: 9f5f531f0851b84b-PDX, request id: req_d18832f64c2242ef9e98abb411036403
-ERROR: unexpected status 401 Unauthorized: Missing bearer or basic authentication in header, url: https://api.openai.com/v1/responses, cf-ray: 9f5f531f0851b84b-PDX, request id: req_d18832f64c2242ef9e98abb411036403
+ERROR: Quota exceeded. Check your plan and billing details.
+ERROR: Quota exceeded. Check your plan and billing details.
 
 ```
