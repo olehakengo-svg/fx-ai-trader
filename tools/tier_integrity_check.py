@@ -38,7 +38,11 @@ BT_365D = os.path.join(
 )
 STRATEGY_DIRS = [
     os.path.join(_PROJECT_ROOT, "strategies", d)
-    for d in ("daytrade", "scalp", "swing")
+    # 2026-05-01 audit P0-8: include hourly/ so donchian_momentum_breakout
+    # and similar 1h strategies resolve to a backing file (otherwise
+    # tier_integrity_check warns about a missing strategy file even though
+    # the .py exists under strategies/hourly/).
+    for d in ("daytrade", "scalp", "swing", "hourly")
 ]
 
 # app.py内インライン戦略（ファイル非分離）

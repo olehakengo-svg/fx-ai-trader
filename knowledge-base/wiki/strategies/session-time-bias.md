@@ -1,6 +1,10 @@
 # Session Time Bias — セッション時刻バイアス
 
-## Stage: ELITE_LIVE (v2.1)
+## Stage: UNIVERSAL_SENTINEL (2026-05-01 audit P0-8 phase 1)
+
+> **2026-05-01 demote**: ELITE_LIVE → UNIVERSAL_SENTINEL (Live N=9 WR=22.2% PnL=-43.4p; pre-reg LOCK 撤回は別 PR)
+
+### Historical (pre-demote, 365d BT)
 
 ### 365-day BT Scan Results
 | Pair | EV | WR | N |
