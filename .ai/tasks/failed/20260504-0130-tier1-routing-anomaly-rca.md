@@ -133,3 +133,10 @@ memory `feedback_live_shadow_separation`: `is_shadow=0` で Live 集計、Shadow
 DNS 失敗時は `/tmp/live-trades-20260503.json` フォールバック (前 audit と同じ SSOT)。
 
 最終レポートに: status, files changed, top block reason (% 含む), pre/post-cutoff 比較, H1/H2/H3 verdict, recommended fix (例: spread gate 緩和、Phase Gate 解除、特定 hour bucket 除外等の R3 patch 候補)、次タスク (実装は別 task)。
+
+
+## Error (2026-05-03T17:15:57Z)
+
+```
+orphaned: container restarted while task was running
+```
