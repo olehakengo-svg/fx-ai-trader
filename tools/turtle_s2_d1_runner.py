@@ -40,6 +40,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from modules.turtle_s2_pyramid import TurtleS2PyramidManager, UnitState  # noqa: E402
+from modules.data import fetch_ohlcv  # noqa: E402
 from strategies.daytrade.turtle_s2_donchian import (  # noqa: E402
     SUPPORTED_PAIRS,
     evaluate_d1,
@@ -48,6 +49,9 @@ from strategies.daytrade.turtle_s2_donchian import (  # noqa: E402
 
 
 STATE_DIR = REPO_ROOT / "data" / "turtle_s2_state"
+YFINANCE_SYMBOL_BY_PAIR = {
+    "USD_JPY": "USDJPY=X",
+}
 
 
 def _state_path(pair: str) -> Path:
@@ -90,12 +94,23 @@ def _clear_state(pair: str) -> None:
 def _load_d1_dataframe(pair: str, source: str, lookback: int = 120) -> pd.DataFrame:
     """Load the most recent ``lookback`` D1 bars for ``pair``.
 
-    For now supports the local parquet sidecar that the BT pipeline produces
-    at ``data/{PAIR}_d1.parquet``. The Render path is intentionally a TODO:
-    pulling D1 history through the bridge belongs to a follow-up because it
-    needs a new endpoint contract; the runner falls through to parquet when
-    ``source != "render"``.
+    ``source=parquet`` reads the local BT sidecar. ``source=render`` fetches
+    fresh D1 bars through the production data abstraction so Render cron jobs
+    do not depend on a checked-in cache file.
     """
+    if source == "render":
+        symbol = YFINANCE_SYMBOL_BY_PAIR.get(pair)
+        if not symbol:
+            raise ValueError(f"No D1 fetch symbol configured for pair: {pair}")
+        fetch_days = max(lookback + 40, 160)
+        df = fetch_ohlcv(symbol, period=f"{fetch_days}d", interval="1d")
+        if df is None or df.empty:
+            raise RuntimeError(f"D1 fetch returned no bars for {pair} ({symbol})")
+        if "timestamp" in df.columns and not isinstance(df.index, pd.DatetimeIndex):
+            df = df.set_index("timestamp")
+        df = df.sort_index().tail(lookback)
+        return df
+
     parquet_path = REPO_ROOT / "data" / f"{pair}_d1.parquet"
     if not parquet_path.exists():
         raise FileNotFoundError(

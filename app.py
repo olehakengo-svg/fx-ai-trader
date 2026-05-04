@@ -9800,6 +9800,15 @@ def _direction_cells(trades: list, min_n: int = 3, z_bf: float = 2.576) -> list:
     return out
 
 
+TURTLE_S2_ENTRY_TYPES = {
+    "turtle_s2_unit_1",
+    "turtle_s2_unit_2",
+    "turtle_s2_unit_3",
+    "turtle_s2_unit_4",
+}
+TURTLE_S2_SUPPORTED_PAIRS = {"USD_JPY"}
+
+
 @app.route("/api/strategies/status")
 def api_strategies_status():
     """全戦略の Tier 分類 + post-cutoff rolling window stats を集約."""
@@ -9873,6 +9882,7 @@ def api_strategies_status():
     all_strategies.update(s for s, _ in pair_demoted)
     all_strategies.update((live_stats.get("by_type") or {}).keys())
     all_strategies.update((shadow_stats.get("by_type") or {}).keys())
+    all_strategies.update(TURTLE_S2_ENTRY_TYPES)
     all_strategies.discard("unknown")
     all_strategies.discard("")
 
@@ -12788,6 +12798,10 @@ def _build_strategy_status_map():
 
     def _get_pair_lifecycle(et, inst):
         """ペア別ライフサイクルステータスを判定"""
+        if et in TURTLE_S2_ENTRY_TYPES:
+            if inst in TURTLE_S2_SUPPORTED_PAIRS:
+                return "shadow_only"
+            return "unsupported"
         if (et, inst) in _pair_demoted:
             return "demoted"
         if (et, inst) in _pair_promoted:
@@ -12802,6 +12816,8 @@ def _build_strategy_status_map():
         return "active"
 
     def _get_boost(et, inst):
+        if et in TURTLE_S2_ENTRY_TYPES and inst not in TURTLE_S2_SUPPORTED_PAIRS:
+            return 0.0
         return _pair_lot_boost.get((et, inst), _strat_lot_boost.get(et, 1.0))
 
     # FORCE_DEMOTED戦略
@@ -12889,7 +12905,7 @@ def _build_strategy_status_map():
         "orb_trap", "london_close_reversal", "gbp_deep_pullback",
         "turtle_soup", "trendline_sweep", "inducement_ob",
         "dual_sr_bounce", "london_ny_swing", "jpy_basket_trend",
-        "gold_vol_break",
+        "gold_vol_break", "tokyo_range_breakout_up",
         # ═══ 1H ═══
         "keltner_squeeze_breakout", "donchian_momentum_breakout",
         "h1_breakout_retest", "h1_fib_reversal", "h1_ema200_trend_reversal",
@@ -12906,17 +12922,22 @@ def _build_strategy_status_map():
         if et in strategies:
             continue  # 既にFORCE_DEMOTED / promoted / overrides で登録済み
         _mode = _overrides.get(et, "auto")
-        _eff = et not in _force_demoted and _mode != "off"
+        _is_turtle_s2 = et in TURTLE_S2_ENTRY_TYPES
+        _eff = False if _is_turtle_s2 else (et not in _force_demoted and _mode != "off")
         _pair_map = {}
         for inst in _all_instruments:
             _pair_map[inst] = {
                 "lifecycle": _get_pair_lifecycle(et, inst),
                 "boost": _get_boost(et, inst),
             }
-        _label = _mode_labels.get(_mode, _mode) if _mode != "auto" else "active"
+        _auto_status = "shadow_only" if _is_turtle_s2 else "active"
+        _label = (
+            "SHADOW_ONLY（D1 runner）" if _is_turtle_s2
+            else (_mode_labels.get(_mode, _mode) if _mode != "auto" else "active")
+        )
         strategies[et] = {
             "force_demoted": False,
-            "auto_status": "active",
+            "auto_status": _auto_status,
             "mode": _mode,
             "effective": _eff,
             "label": _label,
@@ -12925,6 +12946,27 @@ def _build_strategy_status_map():
         }
 
     return strategies, _all_instruments
+
+
+@app.route("/api/internal/turtle_s2_d1/run", methods=["POST"])
+def api_internal_turtle_s2_d1_run():
+    """Run the Turtle S2 D1 shadow evaluator inside the web process.
+
+    Render cron jobs do not share the web service's mounted SQLite disk, so the
+    cron triggers this endpoint and the web process writes the shadow audit row.
+    """
+    cron_secret = os.environ.get("CRON_SECRET")
+    if not cron_secret:
+        return jsonify({"error": "CRON_SECRET is not configured"}), 503
+    if request.headers.get("X-Cron-Secret") != cron_secret:
+        return jsonify({"error": "unauthorized"}), 401
+
+    import json as _json
+    from tools.turtle_s2_d1_runner import run_once
+
+    result = run_once("USD_JPY", "render")
+    safe_result = _json.loads(_json.dumps(result, default=str))
+    return jsonify({"ok": True, "result": safe_result})
 
 
 @app.route("/api/config/oanda_control", methods=["GET", "POST"])

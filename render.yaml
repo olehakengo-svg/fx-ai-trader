@@ -14,6 +14,8 @@ services:
         value: "3.11.0"
       - key: DB_PATH
         value: /var/data/demo_trades.db
+      - key: CRON_SECRET
+        sync: false
 
   - type: worker
     name: fx-ai-discord-bot
@@ -59,6 +61,20 @@ services:
     plan: starter
     envVars:
       - key: DISCORD_WEBHOOK_URL
+        sync: false
+
+  # Turtle System 2: USD_JPY D1 shadow-only evaluator (NY close +5m)
+  - type: cron
+    name: fx-ai-turtle-s2-d1
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    schedule: "5 21 * * 1-5"
+    startCommand: python3 scripts/turtle_s2_d1_trigger.py
+    plan: starter
+    envVars:
+      - key: API_BASE
+        value: https://fx-ai-trader.onrender.com
+      - key: CRON_SECRET
         sync: false
 
   # Alpha Budget: 月初 reset (毎月1日 UTC 00:05)
