@@ -129,3 +129,14 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T15:23:58Z)
+
+exit=0 · 146s
+
+```
+作成しました: [audits/edge_design/trend_rebound.md](/data/repo/fx-ai-trader/audits/edge_design/trend_rebound.md)
+
+結論は `THESIS_VALID_DESIGN_BROKEN`、Redesign Recommendation は `A` です。主な破綻軸は Axis 2 の `momentum_limit` 片側条件と、Axis 5 の 1ATR stop geometry。BT は実行していません。既存 evidence は EUR_USD / USD_JPY の R2 audit 数値を使用し、WF folds ≥3 と ALL aggregate は `INSUFFICIENT_EVIDENCE` として明記しました。
+```
