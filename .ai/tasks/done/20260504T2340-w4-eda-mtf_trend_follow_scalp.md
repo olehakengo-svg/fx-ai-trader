@@ -129,3 +129,21 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T15:52:43Z)
+
+exit=0 · 128s
+
+```
+作成しました: [audits/edge_design/mtf_trend_follow_scalp.md](/data/repo/fx-ai-trader/audits/edge_design/mtf_trend_follow_scalp.md)
+
+結果は `THESIS_VALID_TIMING_BROKEN`、Redesign Recommendation は `A` です。  
+BT は実行していません。既存 `demo_trades.db` / tier-master を確認し、current exact strategy の Wilson/PF/Kelly は decision-grade source に無いため `INSUFFICIENT_EVIDENCE` として明記しました。
+
+検証済み:
+- テンプレート各セクションあり
+- Axis 1-5 は `strategies/scalp/mtf_trend_follow_scalp.py:LINE` 形式で引用
+- Empirical Evidence Table に Wilson lo / PF / Kelly の不足理由あり
+- Verdict / Recommendation は指定候補内から選択済み
+```
