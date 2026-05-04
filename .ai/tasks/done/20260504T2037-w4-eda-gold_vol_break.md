@@ -129,3 +129,16 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T11:21:52Z)
+
+exit=0 · 120s
+
+```
+作成済みです: [audits/edge_design/gold_vol_break.md](/data/repo/fx-ai-trader/audits/edge_design/gold_vol_break.md)
+
+内容は `gold_vol_break` 単体の 8 軸監査で、Verdict は `THESIS_VALID_DESIGN_BROKEN`、Redesign Recommendation は `B` にしました。主因は Axis 3 の未確定足/dedup 欠落リスクと、Axis 5 の breakout に対する fixed TP/SL geometry の弱さです。
+
+BT は実行していません。既存 `demo_trades.db` では `gold_vol_break` / XAU 行が 0 件だったため、Wilson lo / PF / Kelly などは `INSUFFICIENT_EVIDENCE` として明記しています。
+```
