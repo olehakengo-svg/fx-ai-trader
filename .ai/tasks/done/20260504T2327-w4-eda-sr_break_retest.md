@@ -129,3 +129,17 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T15:15:33Z)
+
+exit=0 · 106s
+
+```
+作成しました: [audits/edge_design/sr_break_retest.md](/data/repo/fx-ai-trader/audits/edge_design/sr_break_retest.md)
+
+結論は `THESIS_VALID_DESIGN_BROKEN`、Redesign Recommendation は `B` です。  
+主な破綻軸は Axis 3 の current bar 判定 / dedup 欠落による timing risk と、Axis 5 の breakout continuation に対して fixed TP 中心で trailing がない exit geometry です。
+
+BT は実行していません。統計根拠は既存 `tier-master` 欠損と `raw/audits/daily_live_latest.json` / `raw/audits/cell_negative_edge_2026-04-28_all_shadow.json` の既存 audit DB 数値だけを使っています。
+```
