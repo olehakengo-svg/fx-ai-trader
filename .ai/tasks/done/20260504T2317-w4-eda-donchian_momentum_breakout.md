@@ -129,3 +129,20 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T14:47:08Z)
+
+exit=0 · 124s
+
+```
+作成しました: [audits/edge_design/donchian_momentum_breakout.md](/data/repo/fx-ai-trader/audits/edge_design/donchian_momentum_breakout.md)
+
+要点:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `B`
+- 主な破綻軸: Axis 3 timing / dedup 契約、Axis 5 fixed TP/SL geometry、補助的に Axis 6 ALL scope の pair-specific 不足
+- Axis 7 は既存 gate-progression の `N=6 / WR=33.33% / Wilson lo=9.68% / PF=0.257 / Kelly=0.0000 / Bonferroni p=1.0000` を採用し、WF folds 欠落のため `INSUFFICIENT_EVIDENCE` と明記
+
+制約通り、BT 実行と戦略コード変更はしていません。
+```
