@@ -281,3 +281,34 @@ PR description に以下を含める:
 - 既存 currency_strength.py: `modules/currency_strength.py` (52 行)
 - 既存 stats_utils.py の Wilson/Bonferroni: `modules/stats_utils.py`
 - W4-EDA Tier 1 監査（並列で進行中、TIMING_BROKEN 自動判定として H3 は寄与）
+
+
+## Result (2026-05-04T09:32:59Z)
+
+exit=0 · 519s
+
+```
+実装・検証・push まで完了しました。PR 作成だけは GitHub API が `403 Resource not accessible by personal access token` で拒否したため未作成です。branch は push 済みなので、GitHub の PR 作成画面から開けます。
+
+Branch: `feature/fx-nexus-step1-shadow-audit`  
+Commit: `3443cf2 Add FX Nexus graph shadow audit`
+
+主な追加:
+- [modules/fx_graph.py](/data/repo/fx-ai-trader/modules/fx_graph.py): MLE `V_ti` と triangular residual `alpha`
+- [tools/fx_nexus_shadow_audit.py](/data/repo/fx-ai-trader/tools/fx_nexus_shadow_audit.py): H1/H2/H3 audit markdown 生成
+- [tests/test_fx_graph.py](/data/repo/fx-ai-trader/tests/test_fx_graph.py): 3 ケース追加
+- [knowledge-base/wiki/decisions/fx-nexus-step1-prereg-2026-05-04.md](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/fx-nexus-step1-prereg-2026-05-04.md): pre-reg LOCK
+- [knowledge-base/wiki/decisions/fx-nexus-step1-audit-2026-05-04.md](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/fx-nexus-step1-audit-2026-05-04.md): 監査出力
+
+検証:
+- `pytest tests/test_fx_graph.py -v`: `3 passed`
+- `python3 tools/fx_nexus_shadow_audit.py ...`: 成功、audit markdown 生成
+- `pytest tests/ -v`: `933 passed, 1 xfailed`
+
+監査 verdict:
+- H1 `V_ti`: `NEEDS_MORE`
+- H2 `alpha residual`: `NEEDS_MORE`。有意ペアは 2/5 なので Wave 5 spec 起票はまだ不可。
+- H3 `exec jitter`: `NEEDS_MORE`。365d 15m BT データが現環境で取得できず、SRM/Asia control は N=0。
+
+Render 本番デプロイはしていません。`basket_strength()` 本体と LIVE 戦略ロジックも変更していません。
+```
