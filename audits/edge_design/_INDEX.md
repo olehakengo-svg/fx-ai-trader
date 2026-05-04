@@ -38,3 +38,6 @@ Codex audit が `audits/edge_design/<strategy>.md` を書くたびに 1 行ず�
 | london_session_breakout | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./london_session_breakout.md) |
 | london_shrapnel | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./london_shrapnel.md) |
 | macdh | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./macdh.md) |
+| mqe_gbpusd_fix | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | A | 2026-05-04 | [audit](./mqe_gbpusd_fix.md) |
+| mtf_confluence | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | A | 2026-05-04 | [audit](./mtf_confluence.md) |
+| ofi_mr | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./ofi_mr.md) |
