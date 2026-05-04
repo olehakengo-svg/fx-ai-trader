@@ -129,3 +129,22 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T08:56:38Z)
+
+exit=0 · 109s
+
+```
+作成しました: [audits/edge_design/wick_imbalance_reversion.md](/data/repo/fx-ai-trader/audits/edge_design/wick_imbalance_reversion.md)
+
+内容は指定テンプレート通りで、結論は以下です。
+
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `B`
+- 主破綻軸: Axis 4 `HTF Hard Block`、副破綻軸: Axis 3 timing / Axis 5 SL/TP geometry
+- BT 実行なし。既存 tier-master / audit / BT/WF artifact のみ参照
+- Axis 1-5 は `strategies/daytrade/alpha_wick_imbalance.py:LINE` 形式でコード引用済み
+
+`git status` 上は新規ファイル 1 件のみです。
+```
