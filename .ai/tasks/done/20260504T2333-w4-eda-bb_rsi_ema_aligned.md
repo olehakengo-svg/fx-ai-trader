@@ -129,3 +129,22 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T15:32:43Z)
+
+exit=0 · 133s
+
+```
+監査ファイルを新規作成しました。
+
+[bb_rsi_ema_aligned.md](/data/repo/fx-ai-trader/audits/edge_design/bb_rsi_ema_aligned.md)
+
+内容は指定テンプレート通りで、主判定は以下です。
+
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `A`
+- 主破綻軸: Axis 5 `stop/TP geometry`
+- Axis 7: Bonferroni-adjusted p は既存 tier-master / audit CSV に family size がなく `INSUFFICIENT_EVIDENCE` と明記
+- BT 実行なし。既存 audit DB / tier-master のみ参照しました。
+```
