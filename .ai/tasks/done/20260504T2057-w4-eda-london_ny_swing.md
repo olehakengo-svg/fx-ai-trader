@@ -129,3 +129,19 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T12:16:22Z)
+
+exit=0 · 162s
+
+```
+作成しました: [audits/edge_design/london_ny_swing.md](/data/repo/fx-ai-trader/audits/edge_design/london_ny_swing.md)
+
+要点:
+- Verdict: `THESIS_VALID_TIMING_BROKEN`
+- Redesign Recommendation: `A`
+- 主破綻軸: Axis 3 timing window
+- 統計根拠: tier-master は EV `—`、`demo_trades.db` 側も対象行 0 件のため `INSUFFICIENT_EVIDENCE` として正当化
+- BT は実行していません。既存コード、tier-master、audit DB のみ確認しました。
+```
