@@ -136,3 +136,24 @@ git diff HEAD~1..HEAD -- app.py strategies/ tools/ | wc -l  # → 0 expected
 PR 作成までで止まる。Render auto-deploy への影響は merge 時に発生 → Claude/user review 必須。
 
 最終レポートに: status, files changed, lot=0.1 設定確認, integrity check 出力, commit hash, 90日後 LIVE 段階昇格条件 reaffirm, 次タスク (90日 monitoring + 段階昇格 verification spec)。
+
+
+## Result (2026-05-04T05:30:52Z)
+
+exit=0 · 15s
+
+```
+Status: **DEFERRED / dispatch 待機**
+
+現在日は **2026-05-04** なので、指定条件の **2026-05-11 post-merge audit で Live aggregate raw Kelly ≥ 0 を実測確認後** にはまだ到達していません。したがって、この turn では `_PAIR_PROMOTED` 登録、lot=0.1 設定、KB regen、commit、PR 作成は実行しません。
+
+現時点の扱い:
+
+- Files changed: なし
+- Commit: なし
+- PR: なし
+- Reason: Gate 0 reality 検証未完了のため dispatch 条件未成立
+- Next dispatch condition: `r2-postmerge-audit-2026-05-10/11` で TRUE_LIVE aggregate raw Kelly ≥ 0 を確認
+
+dispatch 後に実行する内容はこの spec の通りで問題ありません。特に `sr_channel_reversal × EUR_USD` は **lot=0.1 SHADOW 登録のみ**、90日後の LIVE lot=1.0 昇格は別判定として、N≥30 / WR / Wilson_lo / PF / DD / Bonferroni を再確認する前提で扱います。
+```
