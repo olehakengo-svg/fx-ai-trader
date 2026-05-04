@@ -129,3 +129,21 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T14:59:18Z)
+
+exit=0 · 139s
+
+```
+作成しました: [audits/edge_design/ema_trend_scalp.md](/data/repo/fx-ai-trader/audits/edge_design/ema_trend_scalp.md)
+
+要点:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `B`
+- 主破綻軸: Axis 3 `LOOKAHEAD`、Axis 4 `BREAKS`
+- 新規 BT は実行していません。既存 tier-master / audit artifacts / local DB 確認のみです。
+- Wilson lo / PF / Kelly は既存 evidence で埋め、aggregate で欠けるものは `INSUFFICIENT_EVIDENCE` として明記しました。
+
+検証として、ファイル存在、valid verdict、valid recommendation、Wilson/PF/Kelly table、code citation を確認済みです。
+```
