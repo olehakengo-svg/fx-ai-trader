@@ -689,6 +689,16 @@ GBP_USDは現在TRENDING_UP（SMA20 Slope=+0.00540）。ディープ・プルバ
 **ロンドンセッション** — N=5, WR=40.0%, -10.6pips。PnL単独では最大損失。EUR_USD RANGING環境下で方向性戦略が機能しなかった可能性。
 - `bb_rsi_reversion` (EUR_USD) がNY唯一のトレードでTIME_DECAY_EXIT → 反平均回帰的な値動き
 
+### 2026-05-04 (Pre-Tokyo Briefing)
+前日（2026-05-03）は**トレード執行なし**。PnL = ¥0、N = 0、WR = N/A。
+Cutoff後累計はN=22、WR=45.5%、PnL=−12.1pips相当。システムは稼働中（OANDA NAV: 435,495.96）だが実質的に無執行日が継続している。
+| Strategy | Pair | N | WR% | EV | 判定 |
+| bb_rsi_reversion | USD_JPY | 9 | 44.4% | −0.03 | ⚪ N不足（EV≈0） |
+| vix_carry_unwind | USD_JPY | 4 | 25.0% | −5.25 | 🔴 N不足・EV深刻 |
+- `direction_filter`の遮断集中（92件）が本当にレジーム由来の正常動作なのか、または過剰収縮なのかを**rnb_usdjpyのシグナル品質**で判断する必要がある
+- `recent_emit`のクールダウン時間が実質的にセッション全体をカバーしている可能性を注視
+| USD_JPY | VOLATILE | 67% | −0.001 | 方向性不明確。bb_rsi_reversionには不利。fib_reversalは機能する可能性あり。vix_carry_unwindはVOLATILEで本来有利なはずだがWR=25%は構造問題の示唆 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
