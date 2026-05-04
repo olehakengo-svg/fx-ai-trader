@@ -13,3 +13,4 @@ Codex audit が `audits/edge_design/<strategy>.md` を書くたびに 1 行ず�
 | streak_reversal | Tier 1 (LIVE) | THESIS_VALID_DESIGN_BROKEN | A | 2026-05-04 | [audit](./streak_reversal.md) |
 | vol_momentum_scalp | Tier 1 (LIVE) | THESIS_VALID_TIMING_BROKEN | A | 2026-05-04 | [audit](./vol_momentum_scalp.md) |
 | wick_imbalance_reversion | Tier 1 (LIVE) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./wick_imbalance_reversion.md) |
+| xs_momentum | Tier 1 (LIVE) | THESIS_VALID_TIMING_BROKEN | A | 2026-05-04 | [audit](./xs_momentum.md) |

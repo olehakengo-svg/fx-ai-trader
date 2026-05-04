@@ -16,17 +16,21 @@ Spec §6 stop condition 1 を満たすため、Tier 2-4 dispatch は user の明
 | 5 | streak_reversal | USD_JPY (INLINE app.py) | **THESIS_VALID_DESIGN_BROKEN** | A |
 | 6 | vol_momentum_scalp | EUR_JPY | THESIS_VALID_TIMING_BROKEN | A |
 | 7 | wick_imbalance_reversion | GBP_USD | **THESIS_VALID_DESIGN_BROKEN** | B |
-| 8 | xs_momentum | EUR_USD, GBP_USD | (in flight) | — |
+| 8 | xs_momentum | EUR_USD, GBP_USD | THESIS_VALID_TIMING_BROKEN | A |
 
-## Counts (7 audited + 1 in flight)
+## Counts (8/8 audited — FINAL)
 
-| Category | Count | Halt Threshold |
-|---|---|---|
-| THESIS_VALID_DESIGN_BROKEN | **3** | **≥ 3 → HALT** ✗ |
-| THESIS_VALID_TIMING_BROKEN | 2 | — |
-| THESIS_VALID_INSUFFICIENT_EVIDENCE | 2 | — |
-| THESIS_INVALID | 0 | ≥ 30% → HALT |
-| THESIS_VALID_DESIGN_VALID | **0** | — |
+| Category | Count | % | Halt Threshold |
+|---|---|---|---|
+| THESIS_VALID_DESIGN_BROKEN | **3** | 37.5% | **≥ 3 → HALT** ✗ |
+| THESIS_VALID_TIMING_BROKEN | **3** | 37.5% | — |
+| THESIS_VALID_INSUFFICIENT_EVIDENCE | 2 | 25.0% | — |
+| THESIS_INVALID | 0 | 0% | ≥ 30% → HALT |
+| THESIS_VALID_DESIGN_VALID | **0** | **0%** | — |
+
+**Gate Decision (final):** HALT triggered, but user authorized continuation
+to Tier 2-4 (option A) — proceed with full 85-strategy audit, then bulk
+redesign in Wave 4.
 
 ## Common failure pattern (across DESIGN_BROKEN cluster)
 
