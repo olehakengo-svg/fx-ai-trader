@@ -129,3 +129,16 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T14:50:09Z)
+
+exit=0 · 147s
+
+```
+監査ファイルを作成しました: [audits/edge_design/dt_bb_rsi_mr.md](/data/repo/fx-ai-trader/audits/edge_design/dt_bb_rsi_mr.md)
+
+結果は `THESIS_VALID_DESIGN_BROKEN`、Redesign Recommendation は `B` です。主な破綻軸は Axis 3 / 4 / 5 として整理し、closed-bar 化、HTF/ADX filter 分離、BB_mid target + band 外 SL への geometry 再設計案を書いています。
+
+BT は実行していません。既存の tier-master / audit 系資料だけを使い、Wilson / PF / Kelly は埋めた上で、Bonferroni と WF 安定性が不足するため Axis 7 は `INSUFFICIENT_EVIDENCE` にしています。
+```
