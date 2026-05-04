@@ -129,3 +129,19 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T15:18:24Z)
+
+exit=0 · 137s
+
+```
+作成しました: [audits/edge_design/sr_channel_reversal.md](/data/repo/fx-ai-trader/audits/edge_design/sr_channel_reversal.md)
+
+内容は指定テンプレート通りで、Verdict は `THESIS_VALID_DESIGN_BROKEN`、Redesign Recommendation は `B` です。Axis 1-5 は `strategies/scalp/sr_channel_reversal.py:LINE` 形式で引用済み、Empirical Evidence Table も Wilson/PF/Kelly を既存 audit DB 由来で埋めています。
+
+検証:
+- 必須セクション、Verdict、Recommendation の存在確認済み
+- コード引用 `strategies/scalp/sr_channel_reversal.py:N` は 58 件
+- BT は実行していません。
+```
