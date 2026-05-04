@@ -29,3 +29,6 @@ Codex audit が `audits/edge_design/<strategy>.md` を書くたびに 1 行ず�
 | gold_pips | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./gold_pips.md) |
 | gold_trend_momentum | Tier 2 (Shadow) | THESIS_VALID_TIMING_BROKEN | A | 2026-05-04 | [audit](./gold_trend_momentum.md) |
 | gold_vol_break | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./gold_vol_break.md) |
+| hmm_regime_filter | Tier 2 (Shadow) | THESIS_VALID_INSUFFICIENT_EVIDENCE | C | 2026-05-04 | [audit](./hmm_regime_filter.md) |
+| htf_false_breakout | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | A | 2026-05-04 | [audit](./htf_false_breakout.md) |
+| jpy_basket_trend | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./jpy_basket_trend.md) |
