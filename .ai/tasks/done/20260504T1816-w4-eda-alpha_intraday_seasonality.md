@@ -129,3 +129,16 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T09:43:00Z)
+
+exit=0 · 173s
+
+```
+作成しました: [alpha_intraday_seasonality.md](/data/repo/fx-ai-trader/audits/edge_design/alpha_intraday_seasonality.md)
+
+結果は `THESIS_VALID_DESIGN_BROKEN` / Redesign Recommendation `A` です。主な破綻軸は Axis 4 の HTF Hard Block と Axis 5 の ATR bracket exit geometry。Trigger 自体は seasonality thesis と整合、統計根拠は `INSUFFICIENT_EVIDENCE` として Wilson / PF / WF / Bonferroni / Kelly を表に整理しました。
+
+検証はファイル存在・verdict・recommendation・Empirical Evidence Table・コード引用形式を確認済みです。BT は制約どおり実行していません。
+```
