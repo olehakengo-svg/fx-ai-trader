@@ -129,3 +129,20 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T13:37:32Z)
+
+exit=0 · 138s
+
+```
+作成しました: [audits/edge_design/session_vol_expansion.md](/data/repo/fx-ai-trader/audits/edge_design/session_vol_expansion.md)
+
+結論は `THESIS_VALID_DESIGN_BROKEN`、Redesign Recommendation は `B` です。思想は EUR/USD London open の volatility expansion として明確ですが、主な破綻は Axis 2/3/5 です。
+
+検証:
+- 新規BTは実行していません。
+- audit DB は `demo_trades` / `oanda_audit` / `evaluated_candidates` を確認し、`session_vol_expansion` は N=0。
+- Wilson lo / PF / Kelly は `INSUFFICIENT_EVIDENCE` として正当化済み。
+- Axis 1-5 は `strategies/scalp/session_vol_expansion.py:LINE` 形式で引用済み。
+```
