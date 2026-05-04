@@ -129,3 +129,21 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T08:49:32Z)
+
+exit=0 · 162s
+
+```
+作成しました: [audits/edge_design/streak_reversal.md](/data/repo/fx-ai-trader/audits/edge_design/streak_reversal.md)
+
+要点:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `A`
+- Axis 1 は AMBIGUOUS ではなく、連続足 extension の MR thesis として確定
+- 主な破綻軸は Axis 4 の daytrade HTF hard block、補助的に Axis 3 の bar-close/dedup 不明確さ、Axis 5 の scalp `0.5ATR / 1.2ATR` geometry
+- Wilson lo / PF / WF folds / Bonferroni p / Kelly は既存 KB/audit DB 由来で埋めています
+
+BT は実行していません。
+```
