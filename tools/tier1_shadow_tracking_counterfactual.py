@@ -70,11 +70,16 @@ def decide_variants(breakdown: dict[str, Any]) -> tuple[str, dict[str, set[str]]
         "V1": {top_condition},
         "V2": {top_condition} | elite_conditions,
         "V3": elite_conditions,
+        "v1-narrow": {top_condition, "__NARROW_ELITE_EUR__"},
     }
 
 
 def is_elite_cell(key: tuple[str, str], tiers: dict[str, Any]) -> bool:
     return key[0] in tiers["elite_live"] or key in tiers["pair_promoted"]
+
+
+def is_elite_live_eur_cell(key: tuple[str, str], tiers: dict[str, Any]) -> bool:
+    return key[0] in tiers["elite_live"] and key[1] == "EUR_USD"
 
 
 def counterfactual(
@@ -100,6 +105,7 @@ def counterfactual(
             "V1": "Top sub-condition single removal, broad relaxation",
             "V2": "Top sub-condition removal plus current tier-master ELITE_LIVE/PAIR_PROMOTED full bypass",
             "V3": "Current tier-master ELITE_LIVE/PAIR_PROMOTED full bypass only",
+            "v1-narrow": "daytrade_eur top sub-condition only for current ELITE_LIVE EUR_USD cells, excluding drift rows",
         },
         "top_subcondition": top_condition,
         "tier_master_elite_live": sorted(tiers["elite_live"]),
@@ -119,6 +125,10 @@ def counterfactual(
             rescue = 0
             rescued_drift = 0
             for cond, n in by_cell_condition[key].items():
+                if "__NARROW_ELITE_EUR__" in rules:
+                    if cond == top_condition and is_elite_live_eur_cell(key, tiers):
+                        rescue += n
+                    continue
                 if cond in rules:
                     rescue += n
                     if cond == "audit_state_drift_shadow_skip_not_final_shadow":
@@ -152,10 +162,10 @@ def counterfactual(
                 "counterfactual_route_through": pct(cf_filled, total),
             })
 
-        tier23_regression_pct = pct(
-            total_non_tier1_shadow_top if top_condition in rules else 0,
-            total_non_tier1_shadow,
+        tier23_top_rows = 0 if "__NARROW_ELITE_EUR__" in rules else (
+            total_non_tier1_shadow_top if top_condition in rules else 0
         )
+        tier23_regression_pct = pct(tier23_top_rows, total_non_tier1_shadow)
         risk_reject = double_exec_hits > 0 or data_integrity_hits > 0
         route_rate = pct(tier1_filled, tier1_total)
         if risk_reject:
@@ -176,6 +186,7 @@ def counterfactual(
             "reference_route_total": ref_total,
             "tier2_3_regression_proxy": {
                 "non_lock_top_subcondition_rows": total_non_tier1_shadow_top if top_condition in rules else 0,
+                "non_lock_top_subcondition_rows_rescued": tier23_top_rows,
                 "non_lock_shadow_tracking_rows": total_non_tier1_shadow,
                 "pct": tier23_regression_pct,
             },
@@ -191,6 +202,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--audit", required=True)
     parser.add_argument("--trades", default=str(DEFAULT_TRADES))
+    parser.add_argument("--variant", help="Single variant alias, e.g. v1-narrow")
     parser.add_argument("--variants", default="V1,V2,V3")
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
@@ -199,7 +211,8 @@ def main() -> int:
     trade_rows = load_rows(Path(args.trades)) if Path(args.trades).exists() else []
     tiers = load_tier_master()
     breakdown = analyze(audit_rows, trade_rows, tiers)
-    variants = [v.strip() for v in args.variants.split(",") if v.strip()]
+    variant_text = args.variant or args.variants
+    variants = [v.strip() for v in variant_text.split(",") if v.strip()]
     result = counterfactual(audit_rows, breakdown, tiers, variants)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)

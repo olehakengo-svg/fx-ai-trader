@@ -284,3 +284,38 @@ forensic (`20260504-1410-tier1-shadow-tracking-forensic-relaxation`) で確定:
 - tier-master stale: ELITE_LIVE は `trendline_sweep` のみ (gbp_deep_pullback / session_time_bias は demoted)
 
 本タスクは V1 ACCEPT を起点に、**実装に至る前に必須の forensic 3 phase + patch 草案 + adversarial review** を pre-reg LOCK で進め、Production safety を担保した上で実装提案を出すのが目的。
+
+
+## Result (2026-05-04T07:07:45Z)
+
+exit=0 · 248s
+
+```
+完了しました。結論は **NEEDS_MORE_EVIDENCE / patch 提案 NO_GO** です。
+
+Phase 1 では `daytrade_eur` block は broker/regulatory 起因ではなく、2026-04-08 の `OANDA WR=29.2%` 対策として入った静的 SHIELD と確認しました。したがって stale guard 判定は可能ですが、Phase 3 の tier-master refresh により現在の `ELITE_LIVE` は `trendline_sweep` のみでした。
+
+主要結果:
+
+- Phase 2 drift rows: **104 件**検出。`8b943193-5d4 / trendline_sweep|GBP_USD / OANDA trade id 258830` を含む。
+- Phase 3 tier integrity: **ERROR=0**。
+- V1 narrow 対象 cell: **`trendline_sweep|EUR_USD` のみ**。
+- Patch artifact: [v1-narrow-impl-patch.diff](/data/repo/fx-ai-trader/.ai/runs/20260504-0704-tier1-shadow-tracking-v1-narrow-proposal/v1-narrow-impl-patch.diff)
+- Patch size: **+86 / -0**、audit reason は `mode_block_overridden_for_elite_eur`。
+- `git apply --check`: PASS。
+- Adversarial review: **8/8 PASS**。
+- Counterfactual narrow: **Tier1 route-through 31.48%**、Tier 2/3 regression **0.00%**、double-execution risk **0**。
+
+NO_GO 理由は route-through 閾値です。事前条件は `>= 50%` ですが、ELITE_LIVE-only に絞ると救済されるのは `trendline_sweep|EUR_USD` の 4 rows だけで、全 Tier1 は `17/54 = 31.48%` に留まります。
+
+Artifacts:
+
+- [Phase 1 rationale](/data/repo/fx-ai-trader/.ai/runs/20260504-0704-tier1-shadow-tracking-v1-narrow-proposal/phase1-daytrade-eur-rationale.md)
+- [Drift rows JSON](/data/repo/fx-ai-trader/.ai/runs/20260504-0704-tier1-shadow-tracking-v1-narrow-proposal/drift-rows.json)
+- [Tier snapshot](/data/repo/fx-ai-trader/.ai/runs/20260504-0704-tier1-shadow-tracking-v1-narrow-proposal/phase3-tier-master-snapshot.md)
+- [Counterfactual narrow](/data/repo/fx-ai-trader/.ai/runs/20260504-0704-tier1-shadow-tracking-v1-narrow-proposal/counterfactual-narrow.json)
+- [Adversarial review](/data/repo/fx-ai-trader/.ai/runs/20260504-0704-tier1-shadow-tracking-v1-narrow-proposal/phase5-adversarial-review.md)
+- [NO_GO next task spec](/data/repo/fx-ai-trader/.ai/runs/20260504-0704-tier1-shadow-tracking-v1-narrow-proposal/no-go-next-task-wave4-5-routing-layer-spec.md)
+
+I did not edit `modules/`, `app.py`, `stra
+…(truncated)
