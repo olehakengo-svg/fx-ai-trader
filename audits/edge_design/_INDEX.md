@@ -17,3 +17,6 @@ Codex audit が `audits/edge_design/<strategy>.md` を書くたびに 1 行ず�
 | adx_trend_continuation | Tier 2 (Shadow) | THESIS_VALID_INSUFFICIENT_EVIDENCE | A | 2026-05-04 | [audit](./adx_trend_continuation.md) |
 | alpha_atr_regime_break | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./alpha_atr_regime_break.md) |
 | alpha_intraday_seasonality | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | A | 2026-05-04 | [audit](./alpha_intraday_seasonality.md) |
+| alpha_wick_imbalance | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./alpha_wick_imbalance.md) |
+| asia_range_fade_v1 | Tier 2 (Shadow) | THESIS_VALID_TIMING_BROKEN | A | 2026-05-04 | [audit](./asia_range_fade_v1.md) |
+| bb_rsi | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./bb_rsi.md) |
