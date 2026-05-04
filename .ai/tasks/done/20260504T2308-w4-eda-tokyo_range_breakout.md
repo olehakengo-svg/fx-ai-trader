@@ -129,3 +129,24 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T14:21:36Z)
+
+exit=0 · 161s
+
+```
+作成しました: [audits/edge_design/tokyo_range_breakout.md](/data/repo/fx-ai-trader/audits/edge_design/tokyo_range_breakout.md)
+
+結果は以下です。
+
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `B`
+- Axis 2: `PASS`
+- Axis 3: `LOOKAHEAD`
+- Axis 4: `BREAKS`
+- Axis 5: `MISALIGNED`
+- Axis 7: `INSUFFICIENT_EVIDENCE`
+
+BT は実行していません。既存 WFA artifact から Wilson lo は補助的に算出し、PF / Bonferroni / Kelly / WF folds>=3 は tier-master / audit DB に decision-grade 値がないため `INSUFFICIENT_EVIDENCE` として明記しました。コード引用は `strategies/daytrade/tokyo_range_breakout.py:LINE` 形式で入っています。
+```
