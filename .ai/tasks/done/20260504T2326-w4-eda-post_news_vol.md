@@ -129,3 +129,16 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T15:13:14Z)
+
+exit=0 · 122s
+
+```
+作成しました: [audits/edge_design/post_news_vol.md](/data/repo/fx-ai-trader/audits/edge_design/post_news_vol.md)
+
+結論は `THESIS_VALID_DESIGN_BROKEN`、Redesign Recommendation は `A` です。主な破綻軸は Axis 2 / 3 / 5 で、特に `post_news` thesis に対して経済カレンダー/event-window 条件がなく、任意のATR spikeを拾っている点を中核問題として扱いました。
+
+BTは実行していません。既存 tier-master / audit artifact のみ参照し、Wilson lo / PF / Kelly は埋めたうえで、ALL-level WF folds と Bonferroni 通過は `INSUFFICIENT_EVIDENCE` として明記しています。
+```
