@@ -129,3 +129,19 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T15:26:31Z)
+
+exit=0 · 119s
+
+```
+作成完了しました: [audits/edge_design/v_reversal.md](/data/repo/fx-ai-trader/audits/edge_design/v_reversal.md)
+
+要点:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `B`
+- 主破綻軸: Axis 3 `LOOKAHEAD`、Axis 5 `MISALIGNED`
+- BT は実行していません。既存 tier-master / audit / decision artifacts のみを使用しました。
+- Acceptance の必須項目も確認済みです。
+```
