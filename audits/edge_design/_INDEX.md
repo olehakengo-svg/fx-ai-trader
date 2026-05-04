@@ -41,3 +41,6 @@ Codex audit が `audits/edge_design/<strategy>.md` を書くたびに 1 行ず�
 | mqe_gbpusd_fix | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | A | 2026-05-04 | [audit](./mqe_gbpusd_fix.md) |
 | mtf_confluence | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | A | 2026-05-04 | [audit](./mtf_confluence.md) |
 | ofi_mr | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./ofi_mr.md) |
+| pullback_to_liquidity_v1 | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | A | 2026-05-04 | [audit](./pullback_to_liquidity_v1.md) |
+| rsk_gbpjpy_reversion | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | A | 2026-05-04 | [audit](./rsk_gbpjpy_reversion.md) |
+| session_vol_expansion | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./session_vol_expansion.md) |
