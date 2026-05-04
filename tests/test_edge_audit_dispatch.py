@@ -75,6 +75,55 @@ def test_dispatch_writes_queue_file_with_replaced_placeholders(tmp_path):
     assert written[0].name.endswith("-w4-eda-bb_rsi_reversion.md")
 
 
+def test_dispatch_slices_at_render_marker(tmp_path):
+    """Documentation prologue above RENDER-BELOW must not appear in output."""
+    template = (
+        "# Documentation header (must not appear in rendered task)\n"
+        "Some narrative.\n\n"
+        "<!-- W4EDA-RENDER-BEGIN -->\n"
+        "---\n"
+        "id: {{TASK_ID}}\n"
+        "---\n\n"
+        "Strategy: {{STRATEGY}}\n"
+    )
+    template_path = tmp_path / "_PROMPT_TEMPLATE.md"
+    template_path.write_text(template)
+    queue_dir = tmp_path / "queue"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "tools/edge_audit_dispatch.py",
+            "--strategy",
+            "x",
+            "--strategy-path",
+            "p",
+            "--tier",
+            "T1",
+            "--source-tier",
+            "elite_live",
+            "--pairs",
+            "ALL",
+            "--metrics",
+            "[]",
+            "--template",
+            str(template_path),
+            "--queue-dir",
+            str(queue_dir),
+            "--created-at",
+            "2026-05-04T15:00:00+0900",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    body = next(queue_dir.glob("*-w4-eda-x.md")).read_text()
+    assert "Documentation header" not in body
+    assert "Some narrative" not in body
+    assert body.lstrip().startswith("---\nid:")
+    assert "Strategy: x" in body
+
+
 def test_dispatch_creates_queue_dir_if_missing(tmp_path):
     template_path = tmp_path / "_PROMPT_TEMPLATE.md"
     template_path.write_text("S={{STRATEGY}}\n")

@@ -32,6 +32,9 @@ def _build_task_id(strategy: str, created_at: str) -> str:
     return f"{digits[:8]}T{digits[8:12]}-w4-eda-{strategy}"
 
 
+RENDER_MARKER = "<!-- W4EDA-RENDER-BEGIN -->"
+
+
 def dispatch(
     *,
     strategy: str,
@@ -45,6 +48,8 @@ def dispatch(
     created_at: str,
 ) -> Path:
     template = template_path.read_text()
+    if RENDER_MARKER in template:
+        template = template.split(RENDER_MARKER, 1)[1].lstrip()
     task_id = _build_task_id(strategy, created_at)
     substitutions = {
         "TASK_ID": task_id,

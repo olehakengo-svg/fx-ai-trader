@@ -1,25 +1,20 @@
-<!-- audits/edge_design/_PROMPT_TEMPLATE.md
-     W4-EDA per-strategy Codex audit prompt template (spec §3 + §5.1).
-     Placeholders are double-curly: {{NAME}}.
-     Use tools/edge_audit_dispatch.py to render this into .ai/tasks/queue/. -->
+<!--
+W4-EDA per-strategy Codex audit prompt template (spec sections 3 and 5.1).
+Documented placeholders (NAME|description, no curly braces here):
+- TASK_ID|  YYYYMMDDTHHMM-w4-eda-strategy
+- STRATEGY|  basename, e.g. bb_rsi_reversion
+- STRATEGY_PATH|  e.g. strategies/scalp/bb_rsi.py
+- TIER|  Tier 1 (LIVE) / Tier 2 (Shadow) / Tier 3 (FORCE_DEMOTED) / Tier 4 (SCALP_SENTINEL)
+- SOURCE_TIER|  tier-master category
+- PAIRS|  comma-joined or ALL
+- HISTORICAL_METRICS_JSON|  JSON excerpt
+- CREATED_AT|  ISO8601 timestamp
 
-# W4-EDA Codex Audit Prompt Template
+Render with tools/edge_audit_dispatch.py — emits everything after the
+unique marker on the next line.
+-->
 
-Placeholders (置換必須 — `tools/edge_audit_dispatch.py` が処理):
-- `{{TASK_ID}}` — `<YYYYMMDDTHHMM>-w4-eda-<strategy>`
-- `{{STRATEGY}}` — 戦略名（ファイル basename, e.g. `bb_rsi_reversion`）
-- `{{STRATEGY_PATH}}` — 戦略ファイル相対パス（e.g. `strategies/scalp/bb_rsi.py`）
-- `{{TIER}}` — `Tier 1 (LIVE)` / `Tier 2 (Shadow)` / `Tier 3 (FORCE_DEMOTED)` / `Tier 4 (SCALP_SENTINEL)`
-- `{{SOURCE_TIER}}` — tier-master 由来カテゴリ（`elite_live` / `pair_promoted` / `phase0_shadow` / `force_demoted` / `scalp_sentinel`）
-- `{{PAIRS}}` — 対象ペア（カンマ区切り、`ALL` 可）
-- `{{HISTORICAL_METRICS_JSON}}` — tier-master.json から該当行を抜粋した JSON ブロック
-- `{{CREATED_AT}}` — ISO8601 タイムスタンプ
-
----
-
-## Codex Task Body Template (queue file content)
-
-```yaml
+<!-- W4EDA-RENDER-BEGIN -->
 ---
 id: {{TASK_ID}}
 title: "[W4-EDA] Edge Design Audit — {{STRATEGY}}"
