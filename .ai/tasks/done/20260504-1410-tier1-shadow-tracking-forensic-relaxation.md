@@ -233,3 +233,43 @@ Tier1 RCA (`.ai/tasks/done/20260504-0215-tier1-routing-anomaly-rca-rerun.md`) �
 - audit route-through 15/92 = 16.30%
 
 本タスクは shadow_tracking の **内部** に踏み込み、緩和可能な sub-condition を identify + 安全に緩める設計を pre-reg LOCK で検証する。実装変更は別タスク。
+
+
+## Result (2026-05-04T05:30:04Z)
+
+exit=0 · 300s
+
+```
+完了しました。production code (`modules/`, `app.py`, `strategies/`) は未編集です。
+
+成果物:
+- [forensic-report.md](/data/repo/fx-ai-trader/.ai/runs/20260504-0527-tier1-shadow-tracking-forensic/forensic-report.md)
+- [adversarial-review.md](/data/repo/fx-ai-trader/.ai/runs/20260504-0527-tier1-shadow-tracking-forensic/adversarial-review.md)
+- [sub-condition-breakdown.json](/data/repo/fx-ai-trader/.ai/runs/20260504-0527-tier1-shadow-tracking-forensic/sub-condition-breakdown.json)
+- [counterfactual.json](/data/repo/fx-ai-trader/.ai/runs/20260504-0527-tier1-shadow-tracking-forensic/counterfactual.json)
+- [tier1_shadow_tracking_breakdown.py](/data/repo/fx-ai-trader/tools/tier1_shadow_tracking_breakdown.py)
+- [tier1_shadow_tracking_counterfactual.py](/data/repo/fx-ai-trader/tools/tier1_shadow_tracking_counterfactual.py)
+
+**Phase A 結論**
+`shadow_tracking` は単独 gate ではなく、`_is_shadow=True` の最終 audit label でした。実 upstream は slot bypass、alpha-scan shadow gate、MTF downgrade、Q4 gate、pair/force demotion safety net、Phase0 tier gate、post-gate SHIELD/mode/Kelly/MC escalation です。最終 audit が `_is_shadow` を優先するため、`shield_mode_blocked(...)` や `pair_demoted(...)` が `shadow_tracking` に潰れます。
+
+**Phase B breakdown**
+locked 10-cell cohort の `shadow_tracking N=74`:
+
+| sub-condition | N | share |
+|---|---:|---:|
+| `post_gate_mode_blocked:daytrade_eur` | 30 | 40.5% |
+| `pair_demoted_safety_net` | 29 | 39.2% |
+| `persisted_shadow_unknown_for_promoted_cell` | 10 | 13.5% |
+| `mtf_conflict_downgrade` | 3 | 4.1% |
+| `audit_state_drift_shadow_skip_not_final_shadow` | 2 | 2.7% |
+
+Tier1 enumerated 6-cell cohort の `shadow_tracking N=39`:
+`pair_demoted_safety_net=17`, `post_gate_mode_blocked:daytrade_eur=14`, `persisted_shadow_unknown_for_promoted_cell=7`, drift `1`。
+
+**Counterfactual / Verdict**
+| Variant | Tier1 route-through | Regression proxy | Risk | Verdict |
+|---|---:|---:|---:|---|
+| V1 top sub-condition removal | 27/54 = 50.0% | 2.3% | 0 | ACCEPT |
+| V2 top + current ELITE/PAIR by
+…(truncated)
