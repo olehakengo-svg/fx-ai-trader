@@ -129,3 +129,21 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T07:24:22Z)
+
+exit=0 · 136s
+
+```
+作成しました: [audits/edge_design/squeeze_release_momentum.md](/data/repo/fx-ai-trader/audits/edge_design/squeeze_release_momentum.md)
+
+主な判定:
+- Verdict: `THESIS_VALID_TIMING_BROKEN`
+- Redesign Recommendation: `A`
+- Axis 2/4/5 は概ね整合
+- Axis 3 は strategy 内に bar-close / per-bar dedup 保証がなく、intrabar 依存リスクとして `LOOKAHEAD`
+- Axis 7 は既存資料では positive signal あり。ただし N<30、tier-master EV `—`、Bonferroni/Kelly は decision-grade 不足として明記
+
+BT やコード変更は実行していません。監査ファイルのみ追加しています。
+```
