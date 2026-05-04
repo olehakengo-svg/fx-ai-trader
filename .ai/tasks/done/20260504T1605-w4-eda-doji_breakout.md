@@ -129,3 +129,22 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T07:18:54Z)
+
+exit=0 · 131s
+
+```
+`audits/edge_design/doji_breakout.md` を新規作成しました。
+
+主な結論:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `A`
+- 主要 failure mode: Axis 2 の trigger mismatch
+  - `doji_high/doji_low` を計算しているのに、実際の trigger は Doji レンジ外 close を要求せず、`bo_body > ATR * 0.5` とローソク方向だけで breakout 扱いしている点。
+- Axis 5 も fixed TP / trailing 不在で `MISALIGNED` と判定。
+- Empirical Evidence は Wilson / PF / Kelly を埋め、Bonferroni と BT Kelly は既存 tier-master/audit では不足として明記しました。
+
+BT 実行や戦略コード変更はしていません。
+```
