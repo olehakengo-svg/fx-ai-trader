@@ -26,3 +26,6 @@ Codex audit が `audits/edge_design/<strategy>.md` を書くたびに 1 行ず�
 | ema200_reversal | Tier 2 (Shadow) | THESIS_VALID_TIMING_BROKEN | A | 2026-05-04 | [audit](./ema200_reversal.md) |
 | ema_ribbon | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./ema_ribbon.md) |
 | fib | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./fib.md) |
+| gold_pips | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./gold_pips.md) |
+| gold_trend_momentum | Tier 2 (Shadow) | THESIS_VALID_TIMING_BROKEN | A | 2026-05-04 | [audit](./gold_trend_momentum.md) |
+| gold_vol_break | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./gold_vol_break.md) |

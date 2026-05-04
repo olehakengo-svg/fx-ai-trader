@@ -1,0 +1,131 @@
+---
+id: 20260504T2047-w4-eda-jpy_basket_trend
+title: "[W4-EDA] Edge Design Audit — jpy_basket_trend"
+owner: codex
+status: queued
+priority: P1
+created_at: 2026-05-04T20:47:00+0900
+roadmap_gate: "W4 Edge Design Audit — jpy_basket_trend の 8 軸設計監査"
+rule: R1
+prereq_artifacts:
+  - docs/superpowers/specs/2026-05-04-edge-design-audit-design.md
+  - audits/edge_design/_INVENTORY.md
+  - strategies/daytrade/jpy_basket_trend.py
+related:
+  - knowledge-base/wiki/lessons/feedback_ma_filter_breaks_mr.md
+  - knowledge-base/wiki/lessons/feedback_hmm_gate_same_trap.md
+  - knowledge-base/wiki/lessons/feedback_partial_quant_trap.md
+  - knowledge-base/wiki/lessons/feedback_label_empirical_audit.md
+---
+```
+
+# 0. なぜこのタスクか
+
+Spec `docs/superpowers/specs/2026-05-04-edge-design-audit-design.md` §1 の核心仮説:
+
+> 大半の demoted/underperforming 戦略は「思想は正、設計が誤」に分類される。
+> エントリータイミング設計を再設計すれば復活する candidate が相当数存在する。
+
+`jpy_basket_trend` (`Tier 2 (Shadow)` / `phase0_shadow`) について 8 軸で診断し、
+verdict と再設計推奨度を発行する。
+
+# 1. Inputs
+
+- Strategy file: `strategies/daytrade/jpy_basket_trend.py`
+- Pairs: `ALL`
+- Historical metrics (tier-master 由来):
+
+```json
+[{"tier": "phase0_shadow", "strategy": "jpy_basket_trend", "pair": "ALL", "tier_master_md_365d_BT_EV": "—"}]
+```
+
+# 2. Method (8 axes — spec §3)
+
+各軸を順に処理。**コード参照は必ず `strategies/daytrade/jpy_basket_trend.py:LINE` 形式で引用する**。
+
+1. **思想 articulation** — 暗黙の仮説を 1-2 行で文章化。**コードからのみ推論**。post-hoc rationalization 禁止。導出不能なら `AMBIGUOUS` とマークして停止し、Verdict を `THESIS_VALID_INSUFFICIENT_EVIDENCE` でクローズ（思想を捏造して下流の Axis を埋めてはならない）。
+2. **trigger 整合** — entry condition が思想を数学的に捕捉しているか。MR thesis なら oversold/extension 系（RSI, BB %B, z-score 等）が trigger に出ているか。momentum thesis なら trend 確認（EMA 整合, breakout 確認 等）が trigger に出ているか。Verdict: `PASS` / `MISMATCH`。MISMATCH なら数式 or 条件文で対比。
+3. **timing window** — bar-close vs intrabar、look-ahead bias、signal→execution latency。Verdict: `OK` / `LATE` / `LOOKAHEAD`。bar dedup 欠落で同 bar 多重 entry のリスクがあれば `LOOKAHEAD` 寄り。
+4. **filter coherence** — 各 filter について「思想を強化（`STRENGTHENS`）／中立（`NEUTRAL`）／破壊（`BREAKS`）」を判定。**重要先行例**（必ず参照）:
+   - MA filter on MR strategy → BREAKS（feedback_ma_filter_breaks_mr.md）
+   - HMM regime gate on edge that depends on regime tail → BREAKS（feedback_hmm_gate_same_trap.md）
+5. **stop/TP geometry** — R:R が思想に整合しているか。MR=wide stop（mean まで戻る前に切らない）、momentum=asymm（trend 継続を取りに行く）、breakout=trailing。Verdict: `ALIGNED` / `MISALIGNED`。
+6. **pair-regime fit** — 各 pair について thesis fit。Verdict per pair: `FIT` / `FORCED`。複数 pair なら表形式（USDJPY=FIT, EURUSD=FORCED 等）。
+7. **empirical evidence** — Wilson lower bound (95% CI) / PF / WF folds (≥3) / Bonferroni-adjusted p / Kelly fraction。**`feedback_partial_quant_trap.md` 準拠（N/WR/EV だけでは不可）**。tier-master 由来 + audit DB から引く。BT 不要。数値が欠ける場合は `INSUFFICIENT_EVIDENCE` でその旨を明記。
+8. **failure mode 診断** — `Tier 2 (Shadow)` ∈ {`Tier 3`, `Tier 4`}、または Tier 1/2 で metrics 劣化のもの。**どの軸（2/3/4/5）で破綻したか同定**し、再設計案を最低 1 案。「思想は正、設計が誤」仮説を裏付ける具体方針:
+   - Trigger 修正（条件式変更）
+   - Filter 削除 or 置換
+   - Timing 変更（bar-close 化、execution timing 修正）
+   - Stop/TP geometry 変更
+
+# 3. Output
+
+ファイル `audits/edge_design/jpy_basket_trend.md` に以下フォーマットで **新規** 出力（既存があれば追記ではなく上書き）。
+
+```markdown
+---
+strategy: jpy_basket_trend
+tier: Tier 2 (Shadow)
+source_tier: phase0_shadow
+pairs: ALL
+audited_at: <YYYY-MM-DD>
+auditor: codex
+---
+
+## Axis 1: 思想 articulation
+
+<thesis 文 (1-2 行) + コード引用 `strategies/daytrade/jpy_basket_trend.py:N`>
+
+## Axes 2-7: 8軸診断
+
+| Axis | Verdict | Evidence |
+|------|---------|----------|
+| 2 (trigger 整合) | PASS / MISMATCH | <数式/条件 + path:line> |
+| 3 (timing window) | OK / LATE / LOOKAHEAD | <path:line> |
+| 4 (filter coherence) | NEUTRAL / STRENGTHENS / BREAKS | <filter 名 + path:line + 思想との関係> |
+| 5 (stop/TP geometry) | ALIGNED / MISALIGNED | <R:R 値 + path:line> |
+| 6 (pair-regime fit) | FIT / FORCED | <per-pair 表 if multi> |
+| 7 (empirical evidence) | <verdict per metric> | <数値テーブル below> |
+
+## Axis 8: failure mode 診断
+
+<Tier 3/4 必須。どの軸で破綻したか + 再設計案 1 案>
+
+## Verdict
+
+`THESIS_VALID_DESIGN_VALID` | `THESIS_VALID_DESIGN_BROKEN` | `THESIS_VALID_TIMING_BROKEN` | `THESIS_VALID_INSUFFICIENT_EVIDENCE` | `THESIS_INVALID`
+
+## Redesign Recommendation
+
+`S` | `A` | `B` | `C` | `D`
+
+<具体修正案（1-3 段落）：trigger/filter/timing/stop のどれを、どう変えるか。コードレベルの diff 想像でも可。>
+
+## Empirical Evidence Table
+
+| Metric | Value | Source |
+|--------|-------|--------|
+| N (trades) | ... | audit DB |
+| Win rate | ... | audit DB |
+| Wilson lo (95%) | ... | audit DB |
+| PF | ... | tier-master |
+| WF folds (3+) | ... | tier-master |
+| Bonferroni-adj p | ... | tier-master |
+| Kelly fraction | ... | tier-master |
+```
+
+# 4. Constraints
+
+- **Single strategy only**. 他戦略を batch しない。
+- **No BT execution**. 統計的根拠は既存 audit DB / tier-master のみ。新規 BT が必要と判断したら verdict に `INSUFFICIENT_EVIDENCE` をつけて停止し、必要 BT 内容を Output に明記。
+- **No code modification**. Audit のみ。再設計提案は文章のみ。
+- **Cite code with `path:line`**. Axis 1-5 は file:line 必須。
+- **Axis 1 が AMBIGUOUS なら停止**. Thesis 捏造禁止。
+
+# 5. Acceptance
+
+- `audits/edge_design/jpy_basket_trend.md` が §3 のテンプレ通りに存在する
+- Verdict が 5 分類のいずれか
+- Redesign Recommendation が S/A/B/C/D のいずれか
+- Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
+- Code citation が path:line 形式
