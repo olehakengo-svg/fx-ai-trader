@@ -129,3 +129,20 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T08:54:15Z)
+
+exit=0 · 250s
+
+```
+作成しました: [audits/edge_design/vol_momentum_scalp.md](/data/repo/fx-ai-trader/audits/edge_design/vol_momentum_scalp.md)
+
+要点:
+- Verdict: `THESIS_VALID_TIMING_BROKEN`
+- Redesign Recommendation: `A`
+- Axis 2/4/5 は概ね整合、破綻候補は Axis 3 の closed-bar / per-bar dedup 不在
+- Empirical Evidence は pair-specific audit DB が不足しているため `INSUFFICIENT_EVIDENCE` を明記し、既存 historical BT と strategy-level live audit 値を分離して記載
+
+コード変更・BT実行はしていません。
+```
