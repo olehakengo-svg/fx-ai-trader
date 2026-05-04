@@ -129,3 +129,16 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T10:25:48Z)
+
+exit=0 · 131s
+
+```
+作成しました: [audits/edge_design/cpd_divergence.md](/data/repo/fx-ai-trader/audits/edge_design/cpd_divergence.md)
+
+結果は `THESIS_VALID_TIMING_BROKEN`、Redesign Recommendation は `A` です。主因は Axis 3 の current-bar / leader alignment / dedup 欠落で、Axis 7 は `raw/cpd_refine` の Wilson/PF/Kelly はあるものの、Bonferroni 不通過・WF folds>=3 欠落・audit DB rows=0 のため `INSUFFICIENT_EVIDENCE` としました。
+
+BT は制約通り実行していません。ローカル確認はファイル構造、verdict/recommendation、コード引用、Empirical Evidence Table の存在チェックまでです。
+```
