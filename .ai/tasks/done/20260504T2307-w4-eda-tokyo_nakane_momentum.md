@@ -129,3 +129,24 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T14:18:21Z)
+
+exit=0 · 122s
+
+```
+作成完了しました。
+
+- 追加: [tokyo_nakane_momentum.md](/data/repo/fx-ai-trader/audits/edge_design/tokyo_nakane_momentum.md)
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `A`
+- 主因: Axis 4 の HTF hard block と `ctx.is_jpy` による JPY cross 拡張が、USD/JPY 仲値リバーサル thesis と衝突
+- Axis 7: PF / WF / Bonferroni p / Kelly は既存 tier-master/audit DB で不足のため `INSUFFICIENT_EVIDENCE` と明記
+
+検査済み:
+- 指定テンプレートの主要セクションあり
+- Axis 1-5 に `strategies/daytrade/tokyo_nakane_momentum.py:LINE` 形式の code citation あり
+- Wilson lo は N=10, WR=70% から 39.68% として派生記載
+- 戦略コード変更なし、監査 Markdown のみ追加しました。
+```
