@@ -709,6 +709,16 @@ Cutoff後累計はN=22、WR=45.5%、PnL=−12.1pips相当。システムは稼�
 | vix_carry_unwind 乖離 | BT WR=67.3% vs Live WR=25.0%（N=4）は要継続観察だが、N=4で降格判断には早い |
 | EUR_JPY | VOLATILE (66%ile) | 継続VOLATILE | ボラ系戦略有利、ただし hedge_block 多発注意 |
 
+### 2026-05-04 (Post-London Report)
+| PnL | **-13.6 pips** |
+| 戦略 | ペア | 結果 | PnL | 成功要因 |
+| 戦略 | ペア | 結果 | PnL | 失敗要因 |
+| sr_fib_confluence | GBP_USD | LOSS | **-12.6 pips** | SIGNAL_REVERSE終了—サポート/フィボ水準での反転期待がGBP_USD上昇トレンドに逆らう形となり、シグナルそのものが反転（TRENDING_UPに逆張りした構造的ミスマッチ） |
+**注目点**: sr_fib_confluenceの-12.6 pipsは本日の全損失の**約89%**を占める。SIGNAL_REVERSEという終了理由は「エントリー後に市場が逆行しシグナル消失」を意味し、GBP_USDのTRENDING_UPレジームで逆張り的なSR/Fib戦略を取ったことのレジームミスマッチが根本原因と見られる。
+> 本日累計 N=7, WR=57.1%, PnL=-12.5 pips
+> ロンドン分 N=4, PnL=-13.6 pips
+> ∴ **東京セッション推計**: N=3, PnL≈+1.1 pips（東京は小幅プラス）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
