@@ -129,3 +129,19 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T12:10:48Z)
+
+exit=0 · 136s
+
+```
+作成しました: [audits/edge_design/keltner_squeeze_breakout.md](/data/repo/fx-ai-trader/audits/edge_design/keltner_squeeze_breakout.md)
+
+要点:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `B`
+- 主破綻軸: Axis 3 `LOOKAHEAD`、Axis 5 `MISALIGNED`
+- Axis 7 は `INSUFFICIENT_EVIDENCE` として正当化。`demo_trades.db` / `oanda_audit` では対象 entry_type が N=0、tier-master 側も 365d EV/PF/WF/Kelly が `—` でした。
+- BT は実行していません。監査ファイルのみ追加しています。
+```
