@@ -20,3 +20,6 @@ Codex audit が `audits/edge_design/<strategy>.md` を書くたびに 1 行ず�
 | alpha_wick_imbalance | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./alpha_wick_imbalance.md) |
 | asia_range_fade_v1 | Tier 2 (Shadow) | THESIS_VALID_TIMING_BROKEN | A | 2026-05-04 | [audit](./asia_range_fade_v1.md) |
 | bb_rsi | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./bb_rsi.md) |
+| confluence_scalp | Tier 2 (Shadow) | THESIS_VALID_TIMING_BROKEN | A | 2026-05-04 | [audit](./confluence_scalp.md) |
+| cpd_divergence | Tier 2 (Shadow) | THESIS_VALID_TIMING_BROKEN | A | 2026-05-04 | [audit](./cpd_divergence.md) |
+| dt_sr_channel | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./dt_sr_channel.md) |
