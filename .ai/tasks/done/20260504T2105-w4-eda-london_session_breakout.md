@@ -129,3 +129,24 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T12:37:04Z)
+
+exit=0 · 116s
+
+```
+作成しました: [audits/edge_design/london_session_breakout.md](/data/repo/fx-ai-trader/audits/edge_design/london_session_breakout.md)
+
+結果は以下です。
+
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `B`
+- 主破綻軸: Axis 2 / 3 / 4 / 5
+- Axis 7: `INSUFFICIENT_EVIDENCE`
+  - tier-master は EV `—`
+  - local sqlite / demo DB に exact `london_session_breakout` 行なし
+  - Wilson lo / PF / WF folds / Bonferroni p / Kelly は既存 evidence 不足として明記
+
+制約どおり BT は実行していません。コード変更も audit markdown の新規作成のみです。
+```
