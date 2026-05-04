@@ -140,3 +140,38 @@ memory `feedback_live_shadow_separation`: `is_shadow=0` で Live 集計、Shadow
 DNS 失敗時は `/tmp/live-trades-20260503.json` フォールバック (前 audit と同じ SSOT)。
 
 最終レポートに: status, files changed, top block reason (% 含む), pre/post-cutoff 比較, H1/H2/H3 verdict, recommended fix (例: spread gate 緩和、Phase Gate 解除、特定 hour bucket 除外等の R3 patch 候補)、次タスク (実装は別 task)。
+
+
+## Result (2026-05-04T05:08:34Z)
+
+exit=0 · 274s
+
+```
+実装・RCA 生成まで完了しました。production 実測では **ACCEPT** です。
+
+変更:
+- [tools/tier1_routing_rca.py](/data/repo/fx-ai-trader/tools/tier1_routing_rca.py)
+- [tests/test_tier1_routing_rca.py](/data/repo/fx-ai-trader/tests/test_tier1_routing_rca.py)
+- [tier1-routing-rca-2026-05-04.md](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/tier1-routing-rca-2026-05-04.md)
+- [.ai/runs/20260504-tier1-routing-rca/final.md](/data/repo/fx-ai-trader/.ai/runs/20260504-tier1-routing-rca/final.md)
+
+結論:
+- Top block reason: `shadow_tracking` = `74 / 77` blocks, `96.10%`
+- matched sent→filled pass-through: `15 / 15 = 100.00%`
+- audited route-through: `15 / 92 = 16.30%`
+- Live-only gate blocks: `0`
+- つまり spread / SL / phase / MC ruin gate が Live 約定を潰している証拠はなく、post-cutoff の blocker は Shadow/reference 側の `shadow_tracking` 支配です。
+
+Verdict:
+- H1: ACCEPT。route blocker は `shadow_tracking` 支配。
+- H2: ACCEPT。post-cutoff blocker concentration が `shadow_tracking`。
+- H3: REJECT。対象 cell は route rows `N=92`、sent rows `N=15` で発火しています。
+
+Verification:
+- `python3 tools/tier1_routing_rca.py --dry-run` passed
+- `.venv/bin/python -m pytest -q tests/test_tier1_routing_rca.py` passed: `3 passed`
+- `python3 -m pytest ...` は system Python に pytest が無く、PEP 668 externally managed で user install も拒否されたため、この container では exact command は実行不能でした。
+- production run と grep verdict 確認は完了済みです。
+
+Recommended fix は ledger に記載済みです。本 task では実装変更なし。次は spread/SL gate 緩和ではなく、Gate 0 demotion/shadow dispatch と edge erosion の整合 RCA を切るのが妥当です。
+```
