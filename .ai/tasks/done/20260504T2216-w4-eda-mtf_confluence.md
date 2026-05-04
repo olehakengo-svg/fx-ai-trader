@@ -129,3 +129,23 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T13:07:05Z)
+
+exit=0 · 104s
+
+```
+監査ファイルを新規作成しました。
+
+[mtf_confluence.md](/data/repo/fx-ai-trader/audits/edge_design/mtf_confluence.md)
+
+内容は指定テンプレート通りで、結論は以下です。
+
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `A`
+- 主な破綻軸: Axis 3 timing / Axis 5 stop-TP geometry
+- Empirical evidence: Wilson/PF/Kelly は既存 gate-progression 集計で埋め、WF folds は `INSUFFICIENT_EVIDENCE` と明記
+
+制約通り、BT 実行とコード変更はしていません。
+```
