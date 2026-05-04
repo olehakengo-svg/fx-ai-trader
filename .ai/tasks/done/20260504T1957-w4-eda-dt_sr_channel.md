@@ -129,3 +129,23 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T10:28:44Z)
+
+exit=0 · 143s
+
+```
+作成しました: [audits/edge_design/dt_sr_channel.md](/data/repo/fx-ai-trader/audits/edge_design/dt_sr_channel.md)
+
+結果は以下です。
+
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `B`
+- 主な破綻軸: Axis 3 `LOOKAHEAD`、Axis 5 `MISALIGNED`
+- Axis 7: `INSUFFICIENT_EVIDENCE`。Wilson lo / PF / Kelly は既存 audit から埋め、WF folds は ALL/phase0_shadow として不足を明記
+- BT は実行していません
+- 戦略コードの引用は Axis 1-5 で `strategies/daytrade/dt_sr_channel.py:LINE` 形式にしています
+
+`dt_sr_channel.py` の実装上の entry_type が `dt_sr_channel_reversal` なので、監査本文ではその対応も明記しています。
+```
