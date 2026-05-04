@@ -699,6 +699,16 @@ Cutoff後累計はN=22、WR=45.5%、PnL=−12.1pips相当。システムは稼�
 - `recent_emit`のクールダウン時間が実質的にセッション全体をカバーしている可能性を注視
 | USD_JPY | VOLATILE | 67% | −0.001 | 方向性不明確。bb_rsi_reversionには不利。fib_reversalは機能する可能性あり。vix_carry_unwindはVOLATILEで本来有利なはずだがWR=25%は構造問題の示唆 |
 
+### 2026-05-04 (Post-Tokyo Report)
+| 純PnL | **+1.1 pips** |
+| 戦略 | ペア | 方向 | PnL | 成功要因 |
+| **bb_rsi_reversion** | USD_JPY | SELL | **+6.4 pips** | TP_HIT、USD/JPY VOLATILE レジーム下でバンド端からの回帰が高EV条件を満たした |
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+> 注目点：bb_rsi_reversion の2トレードを合算すると EV=+0.20（N=2）。個別の損益振れ幅（±6 pips）に対しネット収益が微小であり、1トレードあたりのリスクリワード効率が低い状態。
+| EV方向 | bb_rsi_reversion EV=+0.20、streak_reversal EV=+0.70、どちらも正値 |
+| vix_carry_unwind 乖離 | BT WR=67.3% vs Live WR=25.0%（N=4）は要継続観察だが、N=4で降格判断には早い |
+| EUR_JPY | VOLATILE (66%ile) | 継続VOLATILE | ボラ系戦略有利、ただし hedge_block 多発注意 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
