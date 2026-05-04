@@ -129,3 +129,23 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T11:42:32Z)
+
+exit=0 · 83s
+
+```
+作成完了しました。
+
+[audits/edge_design/hmm_regime_filter.md](/data/repo/fx-ai-trader/audits/edge_design/hmm_regime_filter.md)
+
+内容は指定テンプレート通りで、主判定は以下です。
+
+- Verdict: `THESIS_VALID_INSUFFICIENT_EVIDENCE`
+- Redesign Recommendation: `C`
+- Axis 7: `demo_trades.db` 上で `demo_trades.entry_type` / `oanda_audit.entry_type` ともに N=0 のため、Wilson/PF/Kelly は `INSUFFICIENT_EVIDENCE` として正当化
+- 主な診断: alpha strategy ではなく defensive overlay なので、通常の trigger/timing/SLTP 破綻ではなく、strategy audit 対象としての単位と ALL pair 共有 state が問題
+
+BT は実行していません。変更は監査 markdown の新規追加のみです。
+```
