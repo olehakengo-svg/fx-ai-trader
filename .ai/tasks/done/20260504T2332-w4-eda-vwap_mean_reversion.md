@@ -129,3 +129,20 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T15:29:56Z)
+
+exit=0 · 172s
+
+```
+作成しました: [audits/edge_design/vwap_mean_reversion.md](/data/repo/fx-ai-trader/audits/edge_design/vwap_mean_reversion.md)
+
+要点:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `B`
+- 破綻軸: Axis 3 timing、Axis 4 HTF hard block、Axis 5 stop/TP geometry
+- Trigger 自体は `PASS`
+- BT は実行していません
+- Empirical Evidence は audit DB / tier-master で Wilson/PF/Kelly 等が揃わないため `INSUFFICIENT_EVIDENCE` として正当化済みです。
+```
