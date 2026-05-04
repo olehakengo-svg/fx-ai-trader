@@ -129,3 +129,20 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T13:31:40Z)
+
+exit=0 · 146s
+
+```
+作成しました: [audits/edge_design/pullback_to_liquidity_v1.md](/data/repo/fx-ai-trader/audits/edge_design/pullback_to_liquidity_v1.md)
+
+要点:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `A`
+- 主破綻軸: Axis 2 trigger と Axis 3 timing
+- Empirical evidence: 既存 audit DB / tier-master では `INSUFFICIENT_EVIDENCE` と明記
+
+BT は実行していません。監査ファイルのみ追加し、戦略コードは変更していません。
+```
