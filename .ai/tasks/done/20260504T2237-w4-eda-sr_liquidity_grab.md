@@ -129,3 +129,22 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T14:05:03Z)
+
+exit=0 · 170s
+
+```
+作成完了しました。
+
+Audit file:
+[ audits/edge_design/sr_liquidity_grab.md](/data/repo/fx-ai-trader/audits/edge_design/sr_liquidity_grab.md)
+
+主な結論:
+- Verdict: `THESIS_VALID_TIMING_BROKEN`
+- Redesign Recommendation: `A`
+- 破綻軸: 主に Axis 3 timing window、次点で Axis 6 pair-regime fit
+- BT は実行していません。既存 tier-master / audit DB / KB summary のみ参照しました。
+- Wilson / PF / Kelly は、現 local `demo_trades.db` に exact rows が無いため `INSUFFICIENT_EVIDENCE` として正当化しています。
+```
