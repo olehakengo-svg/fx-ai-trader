@@ -129,3 +129,16 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T07:21:33Z)
+
+exit=0 · 126s
+
+```
+作成しました: [audits/edge_design/ema200_trend_reversal.md](/data/repo/fx-ai-trader/audits/edge_design/ema200_trend_reversal.md)
+
+内容は指定テンプレート通りで、Verdict は `THESIS_VALID_INSUFFICIENT_EVIDENCE`、Redesign Recommendation は `A` にしています。主因は trigger/stop の設計破綻ではなく、昇格根拠が USDJPY Overlap/NY 寄りなのに session gate がない点と、Wilson / WF / Bonferroni が decision-grade まで揃っていない点です。
+
+BT は実行していません。既存の tier-master、shadow sub-cell analysis、既存BT/WFレポート、R2 demotion lock の数値だけを使っています。
+```
