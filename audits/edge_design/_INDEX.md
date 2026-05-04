@@ -6,4 +6,4 @@ Codex audit が `audits/edge_design/<strategy>.md` を書くたびに 1 行ず�
 
 | Strategy | Tier | Verdict | Recommendation | Audited At | Audit File |
 |---|---|---|---|---|---|
-| _(空: 監査未実施)_ | | | | | |
+| trendline_sweep | Tier 1 (LIVE) | THESIS_VALID_INSUFFICIENT_EVIDENCE | A | 2026-05-04 | [audit](./trendline_sweep.md) |
