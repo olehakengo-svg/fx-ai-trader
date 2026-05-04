@@ -129,3 +129,21 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T15:38:10Z)
+
+exit=0 · 126s
+
+```
+作成しました: [audits/edge_design/ma_regime_switch.md](/data/repo/fx-ai-trader/audits/edge_design/ma_regime_switch.md)
+
+主要判定:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `A`
+- 主破綻軸: Axis 2 / 4
+- 理由: thesis は明確だが、中心の regime trigger が M15 ATR percentile ではなく `ctx.bb_width_pct` proxy になっており、regime switch の設計が thesis とズレています。
+- Empirical evidence は既存 audit DB から Wilson lo / PF / Kelly を埋め、Bonferroni-adjusted p は保存値がないため `INSUFFICIENT_EVIDENCE` として正当化しました。
+
+BT は実行していません。コード変更もしていません。
+```
