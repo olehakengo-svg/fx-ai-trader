@@ -4623,7 +4623,13 @@ class DemoTrader:
         # v9.0: lot上限をenv OANDA_LOT_RATIO_CAP で設定可能 (デフォルト3.0)
         # ロードマップPhase 3 Kelly Half (3.0lot) に対応
         _lot_cap = float(_os.environ.get("OANDA_LOT_RATIO_CAP", "3.0"))
-        _lot_ratio = max(0.3, min(_lot_ratio, _lot_cap))
+        _min_lot_ratio = self._lot_floor_ratio_for(
+            entry_type=entry_type,
+            instrument=instrument,
+            configured_pair_boost=self._PAIR_LOT_BOOST.get(_pair_key),
+            is_sentinel=_is_sentinel,
+        )
+        _lot_ratio = max(_min_lot_ratio, min(_lot_ratio, _lot_cap))
 
         # ── v9.4 PRIME lot cap ──
         # Pre-registered trial lot: Tier A = 0.3x, Tier B = 0.1x。
@@ -6324,6 +6330,23 @@ class DemoTrader:
         # live lot override remains.
         # ("bb_squeeze_breakout", "USD_JPY"): 0.01,
     }
+
+    @staticmethod
+    def _lot_floor_ratio_for(entry_type: str,
+                             instrument: str,
+                             configured_pair_boost,
+                             is_sentinel: bool) -> float:
+        """Return the minimum lot ratio after strategy/pair sizing.
+
+        Pair-specific trial boosts below the standard 0.3x floor are deliberate
+        risk controls. They must remain below the normal live minimum, otherwise
+        a documented 0.1x trial silently becomes 0.3x exposure.
+        """
+        if is_sentinel:
+            return 0.1
+        if configured_pair_boost is not None and configured_pair_boost < 0.3:
+            return max(float(configured_pair_boost), 0.01)
+        return 0.3
 
     # 全モードSentinel: scalp以外にも適用される戦略Sentinel
     _UNIVERSAL_SENTINEL = {
