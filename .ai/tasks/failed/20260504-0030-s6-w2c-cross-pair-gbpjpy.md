@@ -215,3 +215,10 @@ python3 tools/s6_w2c_cross_pair.py --pair EUR_USD --tf M5 --aux-only
 PR 作成は本タスクで実行しない。proposal doc + 実装 + test のみ。Claude review 後、別 task で commit/deploy。
 
 最終レポートには status, files changed, GBP_JPY 12 pattern isolated verdict 表, regime axis 24 verdict 表, USD_JPY との比較表 (CONFIRMS/CONTRADICTS/N_INSUFFICIENT), EUR_USD 補助結果, H1〜H4 verdict, 最終判断 (PARK 確定 / Wave 2d 提案 / Wave 4 LIVE candidate), residual risks, 次タスクを含む。
+
+
+## Error (2026-05-04T05:24:22Z)
+
+```
+orphaned: container restarted while task was running
+```
