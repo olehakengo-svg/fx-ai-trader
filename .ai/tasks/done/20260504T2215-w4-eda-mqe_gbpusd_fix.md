@@ -129,3 +129,20 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T13:04:46Z)
+
+exit=0 · 146s
+
+```
+作成しました: [mqe_gbpusd_fix.md](/data/repo/fx-ai-trader/audits/edge_design/mqe_gbpusd_fix.md)
+
+要点:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `A`
+- 主破綻軸: Axis 5 の stop/TP geometry、補助的に Axis 3 の window/dedup
+- Empirical evidence は Wilson/p_bonf は既存 `mqe_audit` で埋め、PF/WF/Kelly は既存 tier-master/audit DB で確認できないため `INSUFFICIENT_EVIDENCE` と明記
+
+コード変更やBT実行はしていません。
+```
