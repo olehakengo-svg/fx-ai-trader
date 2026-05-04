@@ -129,3 +129,20 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T13:34:41Z)
+
+exit=0 · 147s
+
+```
+作成済みです: [audits/edge_design/rsk_gbpjpy_reversion.md](/data/repo/fx-ai-trader/audits/edge_design/rsk_gbpjpy_reversion.md)
+
+要点:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `A`
+- 主破綻軸: Axis 5 stop/TP geometry
+- Axis 7 は Wilson / Bonferroni は既存 `raw/rsk_audit` から記載、PF / WF folds / Kelly は既存 tier-master / audit DB から復元不可として `INSUFFICIENT_EVIDENCE`
+
+新規 BT は実行していません。`git diff --check` は通っています。
+```
