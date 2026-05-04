@@ -1,6 +1,6 @@
 ---
 id: 20260504-0215-tier1-routing-anomaly-rca-rerun
-title: Tier 1 LIVE routing anomaly RCA — ELITE_LIVE 0.5% OANDA pass-through 構造解析 (R3 forensic) [RERUN: previous run lost to silent push failure]
+title: "Tier 1 LIVE routing anomaly RCA — ELITE_LIVE 0.5% OANDA pass-through 構造解析 (R3 forensic) [RERUN — previous run lost to silent push failure]"
 owner: codex
 status: queued
 priority: P0
