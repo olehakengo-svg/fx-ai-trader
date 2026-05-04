@@ -719,6 +719,16 @@ Cutoff後累計はN=22、WR=45.5%、PnL=−12.1pips相当。システムは稼�
 > ロンドン分 N=4, PnL=-13.6 pips
 > ∴ **東京セッション推計**: N=3, PnL≈+1.1 pips（東京は小幅プラス）
 
+### 2026-05-04 (Post-NY Report)
+| 勝率 (WR) | 0.0% |
+| PnL | **-2.5 pips** |
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+### セッション別PnL比較
+| Session | N | WR% | PnL (pips) | 評価 |
+| 本日合計WR | 50.0% |
+| 本日合計PnL | **-15.0 pips** |
+| 最良セッション | **東京** (+1.1 pips, WR 66.7%) |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
