@@ -129,3 +129,22 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T14:12:36Z)
+
+exit=0 · 146s
+
+```
+作成しました: [audits/edge_design/stoch_pullback.md](/data/repo/fx-ai-trader/audits/edge_design/stoch_pullback.md)
+
+実施内容:
+- `strategies/scalp/stoch_pullback.py` の行番号付き引用で Axis 1-5 を診断
+- Verdict: `THESIS_VALID_TIMING_BROKEN`
+- Redesign Recommendation: `A`
+- Empirical Evidence Table に Wilson lo / PF / Kelly を記載し、WF folds と Bonferroni は `INSUFFICIENT_EVIDENCE` として正当化
+- 新規 BT は実行していません
+- 戦略コードは変更していません
+
+補足: `tier-master` では同一実装の entry type `stoch_trend_pullback` が FORCE_DEMOTED / PAIR_DEMOTED にも載っていたため、その衝突は Axis 8 に明記しつつ、front matter はユーザー指定どおり `stoch_pullback` / `phase0_shadow` で出力しています。
+```
