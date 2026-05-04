@@ -129,3 +129,21 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T09:39:34Z)
+
+exit=0 · 128s
+
+```
+作成しました: [audits/edge_design/alpha_atr_regime_break.md](/data/repo/fx-ai-trader/audits/edge_design/alpha_atr_regime_break.md)
+
+要点:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `B`
+- 破綻軸: Axis 3 timing / Axis 4 filter coherence、補助的に Axis 7 empirical evidence
+- BT は実行していません。既存 tier-master / audit DB / raw BT artefact のみ参照しました。
+- Axis 1-5 は `strategies/daytrade/alpha_atr_regime_break.py:LINE` 形式でコード引用済みです。
+
+確認では対象ファイルは新規追加状態です。
+```
