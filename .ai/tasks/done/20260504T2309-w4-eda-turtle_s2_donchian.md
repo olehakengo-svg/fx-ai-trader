@@ -129,3 +129,19 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T14:24:54Z)
+
+exit=0 · 164s
+
+```
+作成しました: [audits/edge_design/turtle_s2_donchian.md](/data/repo/fx-ai-trader/audits/edge_design/turtle_s2_donchian.md:1)
+
+要点:
+- Verdict: `THESIS_VALID_INSUFFICIENT_EVIDENCE`
+- Redesign Recommendation: `C`
+- Axis 2/4/5 は設計破綻なし。55D Donchian breakout、BoJ guard、2N stop + 20D low exit は thesis と整合。
+- Axis 7 は live audit DB が `turtle_s2%` / `%turtle%` で N=0、WF folds>=3 も不足のため evidence 不足。
+- BT は実行していません。既存 DB / KB / strategy docstring の値だけで監査しています。
+```
