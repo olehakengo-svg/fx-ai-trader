@@ -129,3 +129,19 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T09:58:39Z)
+
+exit=0 · 111s
+
+```
+作成しました: [audits/edge_design/asia_range_fade_v1.md](/data/repo/fx-ai-trader/audits/edge_design/asia_range_fade_v1.md)
+
+要点:
+- Verdict: `THESIS_VALID_TIMING_BROKEN`
+- Redesign Recommendation: `A`
+- 主破綻軸: Axis 3。range formation が current signal/rejection bar を含んでおり、4-bar same-direction dedup も未実装。
+- Axis 7: 既存 tier-master/audit DB では N=0 / EV `—` のため `INSUFFICIENT_EVIDENCE` として正当化。
+- BT は実行していません。コード変更もしていません。
+```
