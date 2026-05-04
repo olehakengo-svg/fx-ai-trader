@@ -129,3 +129,20 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T14:38:31Z)
+
+exit=0 · 101s
+
+```
+作成しました: [audits/edge_design/vol_momentum.md](/data/repo/fx-ai-trader/audits/edge_design/vol_momentum.md)
+
+内容は指定テンプレートに沿って、Verdict は `THESIS_VALID_TIMING_BROKEN`、Redesign Recommendation は `A` にしています。コード変更やBT実行はしていません。
+
+検証済み:
+- Axis 1-5 に `strategies/scalp/vol_momentum.py:LINE` 形式の引用あり
+- Empirical Evidence Table あり
+- Wilson / PF / Kelly は既存 audit 値を記載し、ALL phase0_shadow として不足する箇所は `INSUFFICIENT_EVIDENCE` で明記
+- `audits/edge_design/vol_momentum_scalp.md` は変更していません
+```
