@@ -129,3 +129,20 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T12:39:44Z)
+
+exit=0 · 127s
+
+```
+作成しました: [audits/edge_design/london_shrapnel.md](/data/repo/fx-ai-trader/audits/edge_design/london_shrapnel.md)
+
+要点:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `B`
+- 破綻軸: Axis 2 trigger、Axis 3 timing、Axis 5 stop/TP
+- Axis 7 は `INSUFFICIENT_EVIDENCE`: `demo_trades.db` の `demo_trades` / `evaluated_candidates` / `oanda_audit` に exact `london_shrapnel` 行が 0 件で、tier-master も 365d BT EV `—`
+
+バックテストは実行していません。
+```
