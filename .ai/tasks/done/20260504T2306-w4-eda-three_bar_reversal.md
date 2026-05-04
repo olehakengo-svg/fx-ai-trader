@@ -129,3 +129,15 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T14:15:46Z)
+
+exit=0 · 117s
+
+```
+作成しました: [audits/edge_design/three_bar_reversal.md](/data/repo/fx-ai-trader/audits/edge_design/three_bar_reversal.md:1)
+
+結果は `THESIS_VALID_TIMING_BROKEN` / Redesign Recommendation `A` です。  
+BT は実行せず、既存の gate-progression 集計から `N=3`, `Wilson lo=6.15%`, `PF=1.314`, `Kelly=0.0797`, `Bonferroni p=1.0000` を使用し、WF folds 不足は `INSUFFICIENT_EVIDENCE` として明記しました。
+```
