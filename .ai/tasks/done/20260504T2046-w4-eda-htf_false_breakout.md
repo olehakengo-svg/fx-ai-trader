@@ -129,3 +129,20 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T11:45:58Z)
+
+exit=0 · 173s
+
+```
+作成しました: [audits/edge_design/htf_false_breakout.md](/data/repo/fx-ai-trader/audits/edge_design/htf_false_breakout.md)
+
+主な判定:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `A`
+- 破綻軸: Axis 2 trigger 整合、Axis 3 timing window
+- Axis 7: `INSUFFICIENT_EVIDENCE`。Wilson lo / PF / Kelly は既存 audit DB 値を記載し、N=1 のため信頼不可として正当化済みです。
+
+BT やコード変更は実行していません。監査ファイルのみ新規追加しています。
+```
