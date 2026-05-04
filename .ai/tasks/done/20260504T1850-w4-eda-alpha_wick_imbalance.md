@@ -129,3 +129,22 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T09:56:14Z)
+
+exit=0 · 154s
+
+```
+`audits/edge_design/alpha_wick_imbalance.md` を新規作成しました。
+
+内容は指定テンプレート通りで、結論は以下です。
+
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `B`
+- 主破綻軸: Axis 4 の HTF Hard Block、補助的に Axis 3 timing / Axis 5 stop-TP geometry
+- Empirical evidence: tier-master / local audit DB は不足、sidecar BT は参考値として分離記載
+- BT は実行していません
+
+受け入れ条件の見出し、Wilson/PF/Kelly 欄、`path:line` 形式のコード引用も確認済みです。
+```
