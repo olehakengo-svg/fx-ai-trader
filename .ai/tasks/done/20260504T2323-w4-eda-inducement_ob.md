@@ -129,3 +129,22 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T15:05:03Z)
+
+exit=0 · 147s
+
+```
+作成しました: [audits/edge_design/inducement_ob.md](/data/repo/fx-ai-trader/audits/edge_design/inducement_ob.md)
+
+結果は以下です。
+
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `A`
+- 主な破綻軸: Axis 3 timing、Axis 4 filter、Axis 5 stop/TP geometry
+- BT は実行していません
+- 戦略コードは変更していません
+
+Acceptance の主要項目も確認済みです。Wilson / PF / Kelly は既存 gate-progression audit 値で埋め、WF folds は `INSUFFICIENT_EVIDENCE` として正当化しています。
+```
