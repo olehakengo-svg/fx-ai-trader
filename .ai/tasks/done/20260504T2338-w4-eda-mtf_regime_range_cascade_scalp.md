@@ -129,3 +129,22 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T15:47:07Z)
+
+exit=0 · 160s
+
+```
+完了しました。
+
+作成ファイル: [audits/edge_design/mtf_regime_range_cascade_scalp.md](/data/repo/fx-ai-trader/audits/edge_design/mtf_regime_range_cascade_scalp.md)
+
+要点:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `B`
+- 主破綻軸: Axis 3 `LOOKAHEAD`、Axis 4 `BREAKS`
+- BT は実行していません。
+- exact strategy の audit DB 行は 0 件だったため、PF / WF folds / Bonferroni / Kelly は `INSUFFICIENT_EVIDENCE` として正当化しました。
+- Axis 1-5 は `strategies/scalp/mtf_regime_range_cascade_scalp.py:LINE` 形式で引用済みです。
+```
