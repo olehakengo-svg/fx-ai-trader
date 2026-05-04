@@ -129,3 +129,19 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T14:56:25Z)
+
+exit=0 · 151s
+
+```
+作成しました: [ema_pullback.md](/data/repo/fx-ai-trader/audits/edge_design/ema_pullback.md)
+
+要点:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `A`
+- 主な破綻軸: Axis 3 `LOOKAHEAD`、Axis 5 `MISALIGNED`
+- BT は実行していません。既存 tier-master / audit DB 相当の文書と local DB 読み取りだけで埋め、不足分は `INSUFFICIENT_EVIDENCE` として明記しました。
+- Wilson lo / PF / Kelly は最新 gate-progression aggregate 由来で埋めています。
+```
