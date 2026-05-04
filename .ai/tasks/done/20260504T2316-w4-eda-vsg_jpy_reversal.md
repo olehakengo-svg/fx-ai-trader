@@ -129,3 +129,22 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T14:44:30Z)
+
+exit=0 · 130s
+
+```
+作成しました: [audits/edge_design/vsg_jpy_reversal.md](/data/repo/fx-ai-trader/audits/edge_design/vsg_jpy_reversal.md)
+
+内容は指定テンプレートに沿って、単一戦略のみ監査しています。主判定は以下です。
+
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `A`
+- 破綻軸: Axis 5 stop/TP geometry
+- Axis 7: PF / WF folds / Kelly は既存成果物から確認不能のため `INSUFFICIENT_EVIDENCE`
+- BT実行なし、戦略コード変更なし
+
+コード引用は Axis 1-5 で `strategies/daytrade/vsg_jpy_reversal.py:LINE` 形式にしています。
+```
