@@ -129,3 +129,21 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T09:36:52Z)
+
+exit=0 · 198s
+
+```
+作成しました: [audits/edge_design/adx_trend_continuation.md](/data/repo/fx-ai-trader/audits/edge_design/adx_trend_continuation.md)
+
+内容は指定テンプレートに沿って、Axis 1-8、Verdict、Redesign Recommendation、Empirical Evidence Table を埋めています。コード変更や BT 実行はしていません。
+
+結論は以下です。
+
+- Verdict: `THESIS_VALID_INSUFFICIENT_EVIDENCE`
+- Redesign Recommendation: `A`
+- 主因: trigger/filter/stop は概ね整合、ただし strategy 内の closed-bar / per-bar dedup 不在による Axis 3 リスクと、`ALL` cell なのに実装は EURUSD 専用という Axis 6 齟齬、さらに Axis 7 の統計不足
+- Empirical Evidence: audit DB 側の Wilson lo / PF / Kelly は埋め、tier-master 欠落分は `INSUFFICIENT_EVIDENCE` として明記済み
+```
