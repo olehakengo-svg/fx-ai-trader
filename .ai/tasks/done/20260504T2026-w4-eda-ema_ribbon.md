@@ -129,3 +129,16 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T10:52:38Z)
+
+exit=0 · 153s
+
+```
+作成しました: [ema_ribbon.md](/data/repo/fx-ai-trader/audits/edge_design/ema_ribbon.md)
+
+結論は `THESIS_VALID_DESIGN_BROKEN`、再設計推奨度は `B` です。主破綻は Axis 3 の intrabar/current-bar timing と dedup 欠落、Axis 5 の小さすぎる固定 TP / R:R geometry としました。
+
+検証: テンプレ項目、Verdict、Recommendation、Empirical Evidence Table、Axis 1-5 の `strategies/scalp/ema_ribbon.py:LINE` 引用を確認済みです。BT は制約どおり実行していません。
+```
