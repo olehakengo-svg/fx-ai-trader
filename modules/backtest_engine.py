@@ -35,6 +35,55 @@ from modules.stats_utils import (
 class BacktestEngine:
     """共通BT統計エンジン + Walk-Forward Optimization"""
 
+    @staticmethod
+    def jittered_bar_execution_price(
+        bar_open: float,
+        bar_close: float,
+        exec_lag_jitter: float = 0.0,
+        rng: Optional[random.Random] = None,
+    ) -> float:
+        """Return an opt-in intra-bar execution price for timing-bias audits.
+
+        exec_lag_jitter=0.0 preserves the historical closed-bar/open execution
+        behavior. Values in (0, 1] sample uniformly between bar open and at
+        most ``jitter`` of the open-to-close path.
+        """
+        jitter = float(exec_lag_jitter)
+        if jitter == 0.0:
+            return float(bar_open)
+        if jitter < 0.0 or jitter > 1.0:
+            raise ValueError("exec_lag_jitter must be in [0.0, 1.0]")
+        rng = rng or random.Random(1729)
+        offset = rng.uniform(0.0, jitter)
+        return float(bar_open) + (float(bar_close) - float(bar_open)) * offset
+
+    @staticmethod
+    def apply_exec_lag_jitter_to_pnls(
+        trades: List[dict],
+        exec_lag_jitter: float = 0.0,
+        seed: int = 1729,
+    ) -> List[float]:
+        """Recompute simple signed PnL for synthetic or normalized trades.
+
+        Expected trade keys: sig, entry_open, entry_close, exit_price. This is
+        intentionally read-only and used by timing-bias tests/audits; existing
+        strategy logic is not changed.
+        """
+        rng = random.Random(seed)
+        pnls: List[float] = []
+        for trade in trades:
+            entry = BacktestEngine.jittered_bar_execution_price(
+                trade["entry_open"],
+                trade["entry_close"],
+                exec_lag_jitter=exec_lag_jitter,
+                rng=rng,
+            )
+            exit_price = float(trade["exit_price"])
+            sig = str(trade.get("sig", "BUY")).upper()
+            pnl = exit_price - entry if sig == "BUY" else entry - exit_price
+            pnls.append(pnl)
+        return pnls
+
     # ══════════════════════════════════════════════════════
     #  1. 統合統計計算 (5つのBT関数の重複コードを一本化)
     # ══════════════════════════════════════════════════════

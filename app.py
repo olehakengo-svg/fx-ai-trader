@@ -18,6 +18,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timezone
 import os
+import random
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -6090,14 +6091,17 @@ _dt_bt_cache: dict = {}
 
 def run_daytrade_backtest(symbol: str = "USDJPY=X",
                           lookback_days: int = 55,
-                          interval: str = "15m") -> dict:
+                          interval: str = "15m",
+                          exec_lag_jitter: float = 0.0) -> dict:
     """
     デイトレードBT — compute_daytrade_signal統合版
     本番環境と同一のエントリーロジック（compute_daytrade_signal）を使用。
     BT固有: SL/TP simulation, trade tracking, entry cooldown
     """
     global _dt_bt_cache
-    cache_key = f"{symbol}_{interval}_{lookback_days}"
+    if exec_lag_jitter < 0.0 or exec_lag_jitter > 1.0:
+        return {"error": "exec_lag_jitter must be in [0.0, 1.0]", "mode": "daytrade"}
+    cache_key = f"{symbol}_{interval}_{lookback_days}_jitter{exec_lag_jitter:.4f}"
     now = datetime.now()
     cached = _dt_bt_cache.get(cache_key)
     if cached and (now - cached["ts"]).total_seconds() < DT_BT_TTL:
@@ -6180,6 +6184,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 max_levels=8, bars_per_day=96)
 
         MIN_BARS = 100 if interval == "1h" else 200  # 1h足は100バー(4日)で十分
+
+        _exec_jitter_rng = random.Random(1729)
+        _exec_lag_jitter = float(exec_lag_jitter)
 
         for i in range(max(MIN_BARS, 50), len(df) - MAX_HOLD - 1):
             if i - last_bar < COOLDOWN:
@@ -6352,7 +6359,17 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             # BT用: 次バーのOpenでエントリー（スプレッド+スリッページ反映）
             if i + 1 >= len(df):
                 continue
-            ep = float(df.iloc[i + 1]["Open"])
+            _entry_bar_dt = df.iloc[i + 1]
+            if _exec_lag_jitter > 0.0:
+                from modules.backtest_engine import BacktestEngine
+                ep = BacktestEngine.jittered_bar_execution_price(
+                    float(_entry_bar_dt["Open"]),
+                    float(_entry_bar_dt["Close"]),
+                    exec_lag_jitter=_exec_lag_jitter,
+                    rng=_exec_jitter_rng,
+                )
+            else:
+                ep = float(_entry_bar_dt["Open"])
             _spread = _bt_spread(bar_time, symbol)
             # Phase A: spread + slippage at entry
             ep = ep + (_spread / 2 + _slip_dt) if sig == "BUY" else ep - (_spread / 2 + _slip_dt)
@@ -6597,6 +6614,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                                 "entry_time": str(bar_time),
                                 "exit_friction_m": round(_exit_friction_m_dt, 4),
                                 "exit_reason": _exit_reason_dt,
+                                "exec_lag_jitter": _exec_lag_jitter,
                                 "_is_range_tp_override": _is_range_tp_override}
                 if outcome == "LOSS" and _exit_reason_dt != "signal_reverse":
                     if sig == "BUY" and fut_close < sl:
@@ -6704,6 +6722,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "data_source": _last_data_source.get(interval, "yfinance"),
                 "bars_fetched": len(df),
                 "friction_model": "v2_461t_audit",
+                "exec_lag_jitter": _exec_lag_jitter,
                 "signal_reverse_count": _sr_count_dt,
                 "signal_reverse_ratio": _sr_ratio_dt,
                 "avg_exit_friction_m": round(sum(t.get("exit_friction_m", 0) for t in trades) / max(n, 1), 4),
