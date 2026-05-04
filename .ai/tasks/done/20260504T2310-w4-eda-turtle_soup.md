@@ -129,3 +129,22 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T14:27:50Z)
+
+exit=0 · 142s
+
+```
+作成しました: [audits/edge_design/turtle_soup.md](/data/repo/fx-ai-trader/audits/edge_design/turtle_soup.md)
+
+内容は指定テンプレート通りで、主判定は以下です。
+
+- Verdict: `THESIS_VALID_TIMING_BROKEN`
+- Redesign Recommendation: `A`
+- 主破綻軸: Axis 3 timing、Axis 6/7 scope/evidence
+- BT 実行: なし
+- 戦略コード変更: なし
+
+Empirical Evidence Table には latest audit DB の N/WR/Wilson/PF/Bonferroni/Kelly と、補助的な既存 GBPUSD BT/WF 参考値を分けて記載しています。
+```
