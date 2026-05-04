@@ -129,3 +129,19 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T15:02:01Z)
+
+exit=0 · 130s
+
+```
+作成しました: [audits/edge_design/engulfing_bb.md](/data/repo/fx-ai-trader/audits/edge_design/engulfing_bb.md)
+
+要点:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `B`
+- 主な破綻軸: Axis 3 `LOOKAHEAD`、Axis 5 `MISALIGNED`、補助的に Axis 6 `FORCED`
+- BTは実行していません。既存 `tier-master` / local DB / 既存 sidecar artifact のみ参照しました。
+- コード変更はしていません。追加したのは監査Markdownのみです。
+```
