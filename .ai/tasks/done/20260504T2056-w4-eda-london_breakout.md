@@ -129,3 +129,19 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T12:13:06Z)
+
+exit=0 · 105s
+
+```
+作成しました: [audits/edge_design/london_breakout.md](/data/repo/fx-ai-trader/audits/edge_design/london_breakout.md)
+
+要点:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `B`
+- 主な破綻軸: Axis 2 / 3 / 5
+- 新規BTは実行していません。
+- Axis 7 は exact `phase0_shadow ALL` の根拠不足を `INSUFFICIENT_EVIDENCE` としつつ、既存 C-1 London Breakout artifact の Wilson/PF/Kelly を参考値として表に入れています。
+```
