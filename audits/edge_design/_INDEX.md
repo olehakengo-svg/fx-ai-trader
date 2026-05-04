@@ -23,3 +23,6 @@ Codex audit が `audits/edge_design/<strategy>.md` を書くたびに 1 行ず�
 | confluence_scalp | Tier 2 (Shadow) | THESIS_VALID_TIMING_BROKEN | A | 2026-05-04 | [audit](./confluence_scalp.md) |
 | cpd_divergence | Tier 2 (Shadow) | THESIS_VALID_TIMING_BROKEN | A | 2026-05-04 | [audit](./cpd_divergence.md) |
 | dt_sr_channel | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./dt_sr_channel.md) |
+| ema200_reversal | Tier 2 (Shadow) | THESIS_VALID_TIMING_BROKEN | A | 2026-05-04 | [audit](./ema200_reversal.md) |
+| ema_ribbon | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./ema_ribbon.md) |
+| fib | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./fib.md) |
