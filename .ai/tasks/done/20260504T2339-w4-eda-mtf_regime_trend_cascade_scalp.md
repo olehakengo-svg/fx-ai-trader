@@ -129,3 +129,19 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T15:50:02Z)
+
+exit=0 · 141s
+
+```
+作成しました: [audits/edge_design/mtf_regime_trend_cascade_scalp.md](/data/repo/fx-ai-trader/audits/edge_design/mtf_regime_trend_cascade_scalp.md)
+
+要点:
+- Verdict: `THESIS_VALID_DESIGN_BROKEN`
+- Redesign Recommendation: `A`
+- 主破綻軸: Axis 3 `LOOKAHEAD`、Axis 5 `MISALIGNED`
+- empirical evidence は既存 artifact のみ使用し、BT は実行していません。
+- `demo_trades.db` 側は exact strategy rows が 0 件、既存 180d USD_JPY vec harness は N=34 / PF=0.741 / Wilson lo=26.366% / Kelly=0 として記載しました。
+```
