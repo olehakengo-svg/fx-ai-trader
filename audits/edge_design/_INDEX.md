@@ -14,3 +14,6 @@ Codex audit が `audits/edge_design/<strategy>.md` を書くたびに 1 行ず�
 | vol_momentum_scalp | Tier 1 (LIVE) | THESIS_VALID_TIMING_BROKEN | A | 2026-05-04 | [audit](./vol_momentum_scalp.md) |
 | wick_imbalance_reversion | Tier 1 (LIVE) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./wick_imbalance_reversion.md) |
 | xs_momentum | Tier 1 (LIVE) | THESIS_VALID_TIMING_BROKEN | A | 2026-05-04 | [audit](./xs_momentum.md) |
+| adx_trend_continuation | Tier 2 (Shadow) | THESIS_VALID_INSUFFICIENT_EVIDENCE | A | 2026-05-04 | [audit](./adx_trend_continuation.md) |
+| alpha_atr_regime_break | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | B | 2026-05-04 | [audit](./alpha_atr_regime_break.md) |
+| alpha_intraday_seasonality | Tier 2 (Shadow) | THESIS_VALID_DESIGN_BROKEN | A | 2026-05-04 | [audit](./alpha_intraday_seasonality.md) |
