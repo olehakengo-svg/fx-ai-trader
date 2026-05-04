@@ -25,6 +25,34 @@ from modules.prime_gate import classify_prime, prime_fingerprint
 from modules.confidence_q4_gate import should_shadow as _q4_should_shadow, gate_reason as _q4_gate_reason
 import numpy as np
 
+SHADOW_TRACKING_BLOCK_REASON = "shadow_tracking"
+SHADOW_AUDIT_REASONS = {
+    "slot_bypass": "slot_full_shadow_overflow",
+    "max_open_bypass": "max_open_global_cap_shadow",
+    "active_hours_bypass": "out_of_active_hours_shadow_eligible",
+    "alpha_scan": "alpha_scan_toxic_segment_shadow",
+    "mtf_downgrade": "mtf_conflict_downgrade_non_elite",
+    "regime_guardrail": "regime_guardrail_directional_shadow",
+    "emergency_trip": "emergency_kill_switch_shadow",
+    "q4_gate": "q4_paradox_non_elite_shadow",
+    "not_promoted_safety_net": "not_promoted_safety_net_shadow",
+    "phase0_tier_gate": "phase0_three_tier_routing_shadow",
+    "post_gate_late_oanda_shield": "post_gate_late_oanda_shield_shadow",
+}
+
+
+def _resolve_shadow_audit_block_reason(is_shadow: bool, reason: str) -> str:
+    if not is_shadow:
+        return ""
+    return reason or SHADOW_TRACKING_BLOCK_REASON
+
+
+def _shadow_audit_log_fragment(is_shadow: bool, block_reason: str, tier_state: str) -> str:
+    return (
+        f"is_shadow={str(bool(is_shadow)).lower()} | "
+        f"block_reason={block_reason} | tier_state={tier_state}"
+    )
+
 # モード別設定
 MODE_CONFIG = {
     "daytrade": {
@@ -5006,7 +5034,10 @@ class DemoTrader:
             _promo_status = _promo.get("status", "pending")
             _block_reason = ""
             if _is_shadow:
-                _block_reason = "shadow_tracking"
+                _block_reason = _resolve_shadow_audit_block_reason(
+                    _is_shadow,
+                    SHADOW_TRACKING_BLOCK_REASON,
+                )
             elif _strat_mode == "off":
                 _block_reason = "手動停止"
             elif mode in self._OANDA_MODE_BLOCKED:

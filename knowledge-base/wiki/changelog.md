@@ -349,3 +349,8 @@
 - [[independent-audit-2026-04-10]] — "Shadow除去なしにWR/EVは信頼できない"
 - [[bb-rsi-reversion]] — WR 52.2% vs 34% の矛盾はデータ期間の差
 - [[friction-analysis]] — avg_friction 7.04 は XAU込み。FX-only≈2.5pip
+2026-05-04  FX Nexus Step 1 pre-reg and shadow audit scaffolding
+             ├── Added FX graph MLE currency value and triangular alpha residual data-layer functions.
+             ├── Added opt-in `exec_lag_jitter` timing audit path for DT backtests; default remains 0.0.
+             ├── Added `tools/fx_nexus_shadow_audit.py` to produce H1/H2/H3 verdict markdown.
+             └── Locked Step 1 criteria in `wiki/decisions/fx-nexus-step1-prereg-2026-05-04.md`.

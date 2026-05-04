@@ -50,3 +50,14 @@ def basket_strength(pair_returns: Dict[str, pd.Series]) -> Dict[str, pd.Series]:
 def basket_strength_percentile(strength: pd.Series, window: int = 96) -> pd.Series:
     """Rolling percentile of strength (0-1)."""
     return strength.rolling(window).rank(pct=True)
+
+
+def mle_currency_value(log_prices: pd.DataFrame) -> pd.DataFrame:
+    """MLE-based currency value wrapper for FX graph analysis.
+
+    Use this alongside basket_strength() to compare empirical basket strength
+    with the constrained cross-sectional currency value estimate.
+    """
+    from modules.fx_graph import compute_currency_value
+
+    return compute_currency_value(log_prices)
