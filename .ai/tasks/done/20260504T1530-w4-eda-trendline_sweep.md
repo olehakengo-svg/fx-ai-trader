@@ -129,3 +129,21 @@ auditor: codex
 - Redesign Recommendation が S/A/B/C/D のいずれか
 - Empirical Evidence Table の Wilson lo / PF / Kelly が埋まっている（または `INSUFFICIENT_EVIDENCE` で正当化）
 - Code citation が path:line 形式
+
+
+## Result (2026-05-04T07:01:32Z)
+
+exit=0 · 158s
+
+```
+作成しました: [audits/edge_design/trendline_sweep.md](/data/repo/fx-ai-trader/audits/edge_design/trendline_sweep.md)
+
+要点:
+- Verdict: `THESIS_VALID_INSUFFICIENT_EVIDENCE`
+- Redesign Recommendation: `A`
+- Axis 2/3/4/5 は設計破綻なし
+- 問題は Axis 6/7: `ALL` live scope に対して EURGBP/XAUUSD の十分な Wilson/PF/Kelly 根拠がなく、指定 sqlite にも `trendline_sweep` 行がありません
+- 提案は trigger/timing/stop 変更ではなく、live routing を EURUSD/GBPUSD に絞り、EURGBP/XAUUSD は evidence が揃うまで shadow 戻し
+
+検証はファイル内容と必須 citation / verdict / recommendation / evidence table の存在確認まで行いました。コード変更や BT 実行はしていません。
+```
