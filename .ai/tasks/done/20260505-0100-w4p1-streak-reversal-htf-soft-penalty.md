@@ -94,3 +94,32 @@ scalp variant `app.py:8707-8745` には HTF block が無いので変更不要。
 - Stop/TP geometry 変更 (audit Axis 5 — 別 phase)
 - Closed-bar 化 (audit Axis 3 — 別 phase)
 - Live 昇格 (本タスクは shadow 提案までで停止、user 承認後別タスク)
+
+
+## Result (2026-05-05T00:29:32Z)
+
+exit=0 · 1039s
+
+```
+完了しました。LOCK criteria は **FAIL** です。理由は soft penalty variant が N/EV/PF は改善したものの、pre-reg の Wilson/Kelly/方向付き Bonferroni 条件を満たさなかったためです。
+
+変更点:
+- Pre-reg LOCK 追加: [streak-reversal-htf-soft-penalty-pre-reg.md](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/streak-reversal-htf-soft-penalty-pre-reg.md)
+- soft penalty 実装をフラグ配下に追加: [app.py](/data/repo/fx-ai-trader/app.py:3236)
+  - デフォルトは **hard reject 維持**
+  - `STREAK_REVERSAL_HTF_SOFT_PENALTY=1` のときだけ proposed variant 有効
+- 4件のTDDテスト追加: [test_streak_reversal_htf_soft_penalty.py](/data/repo/fx-ai-trader/tests/test_streak_reversal_htf_soft_penalty.py:73)
+- BT比較レポート保存: [streak-reversal-htf-soft-penalty-2026-05-05.json](/data/repo/fx-ai-trader/knowledge-base/raw/bt-results/streak-reversal-htf-soft-penalty-2026-05-05.json)
+
+BT要約:
+- baseline hard reject: N=1224, WR=37.99%, EV=+0.395, PF=1.037, Wilson lo=0.353, Kelly=0.013
+- proposed soft penalty: N=1564, WR=39.96%, EV=+0.775, PF=1.073, Wilson lo=0.376, Kelly=0.027
+- Verdict: **FAIL**
+- 未達: direction-aware Bonferroni, Wilson lo >= current+0.05, Kelly >= 0.40
+
+検証:
+- `NO_AUTOSTART=1 .venv/bin/pytest -q tests/test_streak_reversal_htf_soft_penalty.py tests/test_bt_htf_m15_m5_inject.py tests/test_bt_wrapper_fingerprint.py`
+- 結果: `14 passed`
+
+補足: full `run_daytrade_backtest` の365d 15mは Yahoo 60日制限と production 経路の実行時間で完走不可だったため、repo内の `USD_JPY_5m.parquet` を15mへリサンプルした focused A/Bで判定しました。adversarial review はレポート内に記録済みで、FAIL後の live behavior expansion は防いでいます。
+```

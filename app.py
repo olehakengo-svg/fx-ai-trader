@@ -3225,24 +3225,41 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 if _stk_streak >= 3:
                     _stk_bonus = _stk_streak * 3  # 3→+9, 4→+12, 5→+15
                     _stk_dir = "BUY" if _stk_bearish >= 3 else "SELL"
-                    # v9.x fix: HTF Hard Block check for streak_reversal
+                    # v12: streak_reversal is an MR tail-event edge. HTF contrary
+                    # cases are soft-penalized instead of hard-rejected.
                     _stk_htf_blocked = False
                     if htf_agreement == "bull" and _stk_dir == "SELL":
                         _stk_htf_blocked = True
                     elif htf_agreement == "bear" and _stk_dir == "BUY":
                         _stk_htf_blocked = True
+                    _stk_soft_penalty_enabled = os.environ.get(
+                        "STREAK_REVERSAL_HTF_SOFT_PENALTY", "0"
+                    ) == "1"
 
-                    if not _stk_htf_blocked and (signal == "WAIT" or signal == _stk_dir):
+                    if _stk_htf_blocked and not _stk_soft_penalty_enabled:
+                        if signal != "WAIT":
+                            conf = max(25, conf - _stk_bonus)
+                            reasons.append(f"⚠️ [Streak] HTF hard block baseline: {_stk_streak}連続足 → 確度DOWN")
+                    elif signal == "WAIT" or signal == _stk_dir:
                         # No signal or same direction: apply as primary or boost
                         if signal == "WAIT":
                             signal = _stk_dir
                             _dt_entry_type = "streak_reversal"
-                            conf = 50 + _stk_bonus
+                            if _stk_htf_blocked:
+                                conf = max(25, conf - 25)
+                            else:
+                                conf = 50 + _stk_bonus
                             # v9.x fix: recalculate SL/TP for the new direction
                             sl, tp = calc_sl_tp_v3(entry, signal, atr, sr_levels, tf=tf, symbol=symbol)
                         else:
-                            conf = min(92, conf + _stk_bonus)
-                        reasons.append(f"✅ [Streak] {_stk_streak}連続{'陰線→BUY' if _stk_dir == 'BUY' else '陽線→SELL'} (Bonferroni p<0.001)")
+                            if _stk_htf_blocked:
+                                conf = max(25, conf - 25)
+                            else:
+                                conf = min(92, conf + _stk_bonus)
+                        if _stk_htf_blocked:
+                            reasons.append(f"⚠️ [Streak] HTF soft penalty: {_stk_streak}連続{'陰線→BUY' if _stk_dir == 'BUY' else '陽線→SELL'} (Bonferroni p<0.001)")
+                        else:
+                            reasons.append(f"✅ [Streak] {_stk_streak}連続{'陰線→BUY' if _stk_dir == 'BUY' else '陽線→SELL'} (Bonferroni p<0.001)")
                     elif signal != "WAIT":
                         # Counter-signal: reduce confidence
                         conf = max(25, conf - _stk_bonus)

@@ -1,0 +1,266 @@
+{
+  "run_at": "2026-05-05T00:28:21.894095+00:00",
+  "config": {
+    "pair": "USD_JPY",
+    "interval": "15m",
+    "lookback_days": 365,
+    "engine": "focused_streak_reversal_ab",
+    "data_source": "data/cache/massive/USD_JPY_5m.parquet",
+    "data_window": {
+      "start": "2025-05-01T03:00:00+00:00",
+      "end": "2026-04-30T23:45:00+00:00"
+    },
+    "pre_reg": "knowledge-base/wiki/decisions/streak-reversal-htf-soft-penalty-pre-reg.md",
+    "note": "Full app.run_daytrade_backtest was attempted first: Yahoo 15m 365d unavailable; local 5m resampled production run exceeded practical turn time and was interrupted. This focused runner isolates the pre-registered streak HTF hard-vs-soft change.",
+    "implementation_default": "baseline hard reject; proposed requires STREAK_REVERSAL_HTF_SOFT_PENALTY=1 because LOCK verdict is FAIL"
+  },
+  "external_current_reference_from_w4_audit": {
+    "n": 468,
+    "wr": 0.722,
+    "wilson_lo": 0.68,
+    "pf": 3.07,
+    "bonferroni_p": 1.3e-05,
+    "kelly": 0.487
+  },
+  "variants": [
+    {
+      "name": "baseline_hard_reject",
+      "soft_penalty_enabled": false,
+      "htf_blocked_candidates": 1283,
+      "htf_blocked_emitted": 0,
+      "streak_reversal": {
+        "n": 1224,
+        "wins": 465,
+        "losses": 759,
+        "wr": 0.3799019607843137,
+        "wr_pct": 37.99,
+        "ev": 0.3951797385620976,
+        "profit_factor": 1.0365885022692902,
+        "wilson_lo_95": 0.35312678706252865,
+        "kelly_full": 0.013409413401590686,
+        "binomial_p_raw": 3.925376385850769e-17,
+        "bonferroni_p_k76": 2.9832860532465846e-15,
+        "binomial_p_directional_wr_gt_50": 1.0,
+        "bonferroni_p_directional_k76": 1.0
+      },
+      "streak_reversal_wf_3fold": {
+        "fold_count": 3,
+        "positive_ratio": 1.0,
+        "folds": [
+          {
+            "fold": 1,
+            "n": 408,
+            "wr": 0.3799019607843137,
+            "ev": 0.05931372549014492,
+            "positive": true
+          },
+          {
+            "fold": 2,
+            "n": 408,
+            "wr": 0.37745098039215685,
+            "ev": 0.9715686274510358,
+            "positive": true
+          },
+          {
+            "fold": 3,
+            "n": 408,
+            "wr": 0.38235294117647056,
+            "ev": 0.15465686274511203,
+            "positive": true
+          }
+        ]
+      },
+      "trade_log_sample": [
+        {
+          "bar_idx": 202,
+          "entry_time": "2025-05-05 05:45:00+00:00",
+          "sig": "SELL",
+          "streak": 3,
+          "htf": "mixed",
+          "htf_blocked": false,
+          "confidence": 59,
+          "outcome": "LOSS",
+          "pnl_pips": -20.100000000002183
+        },
+        {
+          "bar_idx": 207,
+          "entry_time": "2025-05-05 07:00:00+00:00",
+          "sig": "BUY",
+          "streak": 3,
+          "htf": "mixed",
+          "htf_blocked": false,
+          "confidence": 59,
+          "outcome": "LOSS",
+          "pnl_pips": -20.90000000000032
+        },
+        {
+          "bar_idx": 217,
+          "entry_time": "2025-05-05 09:30:00+00:00",
+          "sig": "BUY",
+          "streak": 3,
+          "htf": "mixed",
+          "htf_blocked": false,
+          "confidence": 59,
+          "outcome": "LOSS",
+          "pnl_pips": -24.00000000000091
+        },
+        {
+          "bar_idx": 235,
+          "entry_time": "2025-05-05 14:00:00+00:00",
+          "sig": "BUY",
+          "streak": 3,
+          "htf": "mixed",
+          "htf_blocked": false,
+          "confidence": 59,
+          "outcome": "WIN",
+          "pnl_pips": 38.39999999999861
+        },
+        {
+          "bar_idx": 244,
+          "entry_time": "2025-05-05 16:15:00+00:00",
+          "sig": "SELL",
+          "streak": 5,
+          "htf": "mixed",
+          "htf_blocked": false,
+          "confidence": 65,
+          "outcome": "WIN",
+          "pnl_pips": 44.80000000000075
+        }
+      ]
+    },
+    {
+      "name": "proposed_soft_penalty",
+      "soft_penalty_enabled": true,
+      "htf_blocked_candidates": 640,
+      "htf_blocked_emitted": 640,
+      "streak_reversal": {
+        "n": 1564,
+        "wins": 625,
+        "losses": 939,
+        "wr": 0.39961636828644503,
+        "wr_pct": 39.962,
+        "ev": 0.7754475703324818,
+        "profit_factor": 1.073466964702179,
+        "wilson_lo_95": 0.3756154687612081,
+        "kelly_full": 0.02734932940526824,
+        "binomial_p_raw": 2.006842539248594e-15,
+        "bonferroni_p_k76": 1.5252003298289313e-13,
+        "binomial_p_directional_wr_gt_50": 1.0,
+        "bonferroni_p_directional_k76": 1.0
+      },
+      "streak_reversal_wf_3fold": {
+        "fold_count": 3,
+        "positive_ratio": 0.6666666666666666,
+        "folds": [
+          {
+            "fold": 1,
+            "n": 521,
+            "wr": 0.3934740882917466,
+            "ev": 0.5213051823415923,
+            "positive": true
+          },
+          {
+            "fold": 2,
+            "n": 521,
+            "wr": 0.4126679462571977,
+            "ev": 1.9191938579654935,
+            "positive": true
+          },
+          {
+            "fold": 3,
+            "n": 522,
+            "wr": 0.39272030651340994,
+            "ev": -0.11245210727967506,
+            "positive": false
+          }
+        ]
+      },
+      "trade_log_sample": [
+        {
+          "bar_idx": 202,
+          "entry_time": "2025-05-05 05:45:00+00:00",
+          "sig": "SELL",
+          "streak": 3,
+          "htf": "mixed",
+          "htf_blocked": false,
+          "confidence": 59,
+          "outcome": "LOSS",
+          "pnl_pips": -20.100000000002183
+        },
+        {
+          "bar_idx": 207,
+          "entry_time": "2025-05-05 07:00:00+00:00",
+          "sig": "BUY",
+          "streak": 3,
+          "htf": "mixed",
+          "htf_blocked": false,
+          "confidence": 59,
+          "outcome": "LOSS",
+          "pnl_pips": -20.90000000000032
+        },
+        {
+          "bar_idx": 217,
+          "entry_time": "2025-05-05 09:30:00+00:00",
+          "sig": "BUY",
+          "streak": 3,
+          "htf": "mixed",
+          "htf_blocked": false,
+          "confidence": 59,
+          "outcome": "LOSS",
+          "pnl_pips": -24.00000000000091
+        },
+        {
+          "bar_idx": 235,
+          "entry_time": "2025-05-05 14:00:00+00:00",
+          "sig": "BUY",
+          "streak": 3,
+          "htf": "mixed",
+          "htf_blocked": false,
+          "confidence": 59,
+          "outcome": "WIN",
+          "pnl_pips": 38.39999999999861
+        },
+        {
+          "bar_idx": 244,
+          "entry_time": "2025-05-05 16:15:00+00:00",
+          "sig": "SELL",
+          "streak": 5,
+          "htf": "mixed",
+          "htf_blocked": false,
+          "confidence": 65,
+          "outcome": "WIN",
+          "pnl_pips": 44.80000000000075
+        }
+      ]
+    }
+  ],
+  "comparison": {
+    "delta_n": 340,
+    "delta_wr": 0.019714407502131326,
+    "delta_ev": 0.3802678317703842,
+    "delta_profit_factor": 0.03687846243288884,
+    "delta_wilson_lo_95": 0.022488681698679458,
+    "delta_kelly_full": 0.013939916003677555
+  },
+  "lock_criteria": {
+    "n_sufficient": true,
+    "aggregate_wr_not_degrade": true,
+    "aggregate_ev_not_degrade": true,
+    "aggregate_pf_not_degrade": true,
+    "wf_folds_gte_3": true,
+    "wf_positive_ratio_accept": true,
+    "bonferroni_significant": false,
+    "wilson_lo_gte_current_plus_0_05": false,
+    "kelly_gte_0_40": false
+  },
+  "verdict": "FAIL",
+  "adversarial_review": {
+    "status": "PASS",
+    "post_hoc_selection_check": "No parameter search; fixed hard-vs-soft switch only.",
+    "data_leakage_check": "Signals use candles up to bar i; entries use bar i+1; HTF is calculated from data up to the signal timestamp.",
+    "lookahead_bias_check": "15m OHLC is chronological resample of 5m parquet; no future outcome fields are used for signal generation.",
+    "promotion_boundary": "Verdict FAIL blocks live/shadow promotion despite implementation availability.",
+    "statistical_test_direction_check": "Two-sided WR binomial p is not accepted as edge evidence when WR <= 50%; directional WR>50 Bonferroni p is used for LOCK criteria.",
+    "live_behavior_expansion_check": "Default remains hard-reject after FAIL; no live expansion without explicit env override and separate approval."
+  }
+}
