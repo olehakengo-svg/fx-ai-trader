@@ -116,3 +116,10 @@ def test_bt_mode_yahoo_fallback_only_last():
 - Rule 3 (構造バグ) なので 365d BT スキップ可。修正の数学的正当性は spec で正当化済み
 - BT_MODE=1 を default にしない理由: live trading 中に誤って parquet が先に読まれると stale data 問題が発生
 - Codex タスクでも今後 BT 系は `BT_MODE=1` を環境変数で明示すること
+
+
+## Error (2026-05-05T01:28:43Z)
+
+```
+orphaned: container restarted while task was running
+```
