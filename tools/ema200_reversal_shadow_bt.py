@@ -26,6 +26,7 @@ STRATEGY = "ema200_trend_reversal"
 FLAG = "EMA200_REVERSAL_REDESIGN_V2"
 SHADOW_PROMOTE_FLAG = "EMA200_REVERSAL_REDESIGN_V2_SHADOW_PROMOTE"
 OUTFILE = ROOT / "bt-results" / "ema200_reversal-shadow-redesign-v2-2026-05-05.json"
+VARIANT = "usd_jpy_routing_per_bar_dedup_v2"
 
 
 def _compute_ema200_only_signal(df, tf, sr_levels, symbol="USDJPY=X",
@@ -40,6 +41,9 @@ def _compute_ema200_only_signal(df, tf, sr_levels, symbol="USDJPY=X",
     prev = df.iloc[-2] if len(df) >= 2 else row
     entry = float(row["Close"])
     atr = float(row.get("atr", 0.0))
+    if bar_time is None:
+        bar_time = df.index[-1]
+    hour_utc = bar_time.hour if hasattr(bar_time, "hour") else 12
     is_jpy = "JPY" in symbol.upper()
     ctx = SignalContext(
         entry=entry,
@@ -78,6 +82,7 @@ def _compute_ema200_only_signal(df, tf, sr_levels, symbol="USDJPY=X",
         htf=(htf_cache or {}).get("htf", {}) if isinstance(htf_cache, dict) else {},
         backtest_mode=backtest_mode,
         bar_time=bar_time,
+        hour_utc=hour_utc,
     )
     cand = Ema200TrendReversal().evaluate(ctx)
     if cand is None:
@@ -282,7 +287,7 @@ def main() -> int:
     result = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "strategy": STRATEGY,
-        "variant": "usd_jpy_routing_per_bar_dedup_v2",
+        "variant": VARIANT,
         "flag": FLAG,
         "shadow_worker_flag": SHADOW_PROMOTE_FLAG,
         "lookback_days": LOOKBACK_DAYS,
@@ -316,8 +321,8 @@ def main() -> int:
         "self_review": {
             "catastrophic_only": "PASS: verdict ignores positive-direction and Kelly; applies only v2 catastrophic/floor rules when N>=20.",
             "insufficient_bt_evidence": "PASS: proposed N<20 becomes INSUFFICIENT_BT_EVIDENCE and shadow recommendation.",
-            "production_live_safety": "PASS: strategy behavior is default-off unless EMA200_REVERSAL_REDESIGN_V2=1; shadow emit also requires EMA200_REVERSAL_REDESIGN_V2_SHADOW_PROMOTE=1.",
-            "post_hoc_adjustment": "PASS: only the pre-registered USD_JPY routing + per-bar dedup V2 variant is evaluated.",
+            "production_live_safety": f"PASS: strategy behavior is default-off unless {FLAG}=1; shadow emit also requires {SHADOW_PROMOTE_FLAG}=1.",
+            "post_hoc_adjustment": f"PASS: only the pre-registered {VARIANT} variant is evaluated.",
             "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo fallback for 15m price data.",
         },
     }

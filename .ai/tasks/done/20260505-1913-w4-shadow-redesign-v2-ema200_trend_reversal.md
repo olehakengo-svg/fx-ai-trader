@@ -135,3 +135,36 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T17:16:57Z)
+
+exit=0 · 800s
+
+```
+実装と検証まで完了しました。`EMA200_TREND_REVERSAL_REDESIGN_V2=1` 配下でのみ、`ema200_trend_reversal` を USDJPY かつ `12 <= hour_utc < 16` に絞る session gate を追加しました。default OFF なので live 影響はありません。
+
+変更ファイル:
+- [ema200_reversal.py](/data/repo/fx-ai-trader/strategies/daytrade/ema200_reversal.py)
+- [__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py)
+- [test_ema200_trend_reversal_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_ema200_trend_reversal_shadow_redesign_v2.py)
+- [ema200_trend_reversal_shadow_bt.py](/data/repo/fx-ai-trader/tools/ema200_trend_reversal_shadow_bt.py)
+- [ema200_reversal_shadow_bt.py](/data/repo/fx-ai-trader/tools/ema200_reversal_shadow_bt.py)
+- [ema200_trend_reversal-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/ema200_trend_reversal-shadow-redesign-v2-2026-05-05.json)
+
+BT verdict: `REJECT`
+
+Reason:
+- baseline: `N=113`, `PF=1.0126`, `wilson_lo=0.5274`, `PnL=1.0084`
+- proposed: `N=32`, `PF=1.1154`, `wilson_lo=0.4831`, `PnL=2.4174`
+- proposed N is `32`, so `N<20` の `INSUFFICIENT_BT_EVIDENCE` 免除は使えません
+- `n_change_pct=-71.6814%` が v2 catastrophic threshold `>= -30%` に違反
+- sanity floor は PASS、Kelly / positive direction は要求していません
+
+Shadow promote は `REJECT` のため有効化していません。double-flag の登録経路は実装済みですが、`EMA200_TREND_REVERSAL_REDESIGN_V2_SHADOW_PROMOTE=1` を明示しない限り worker 登録されません。
+
+Verification:
+- `.venv/bin/pytest -q tests/test_ema200_trend_reversal_shadow_redesign_v2.py tests/test_ema200_reversal_shadow_redesign_v2.py tests/test_dt_sr_channel_shadow_redesign_v2.py` → `16 passed`
+- `.venv/bin/python tools/ema200_trend_reversal_shadow_bt.py` → report generated
+- `git diff --check` → clean
+```

@@ -17,6 +17,7 @@ class Ema200TrendReversal(StrategyBase):
     ema200_dist_max = 0.5  # ATR倍率
     cross_window = 5       # クロス検出ウィンドウ
     REDESIGN_V2_ENV = "EMA200_REVERSAL_REDESIGN_V2"
+    TREND_REVERSAL_REDESIGN_V2_ENV = "EMA200_TREND_REVERSAL_REDESIGN_V2"
     _v2_seen_bar_keys: set[tuple[str, str, str]] = set()
 
     @classmethod
@@ -26,8 +27,25 @@ class Ema200TrendReversal(StrategyBase):
     def _redesign_v2_enabled(self) -> bool:
         return os.environ.get(self.REDESIGN_V2_ENV) == "1"
 
+    def _trend_reversal_redesign_v2_enabled(self) -> bool:
+        return os.environ.get(self.TREND_REVERSAL_REDESIGN_V2_ENV) == "1"
+
     def _symbol_key(self, ctx: SignalContext) -> str:
         return (ctx.symbol or "").upper().replace("=X", "").replace("/", "").replace("_", "")
+
+    def _hour_utc(self, ctx: SignalContext) -> int:
+        if ctx.bar_time is not None and hasattr(ctx.bar_time, "hour"):
+            return int(ctx.bar_time.hour)
+        hour = getattr(ctx, "hour_utc", None)
+        if hour is not None:
+            return int(hour)
+        try:
+            idx = ctx.df.index[-1]
+            if hasattr(idx, "hour"):
+                return int(idx.hour)
+        except Exception:
+            pass
+        return 12
 
     def _closed_bar_id(self, ctx: SignalContext):
         if ctx.bar_time is not None:
@@ -52,7 +70,10 @@ class Ema200TrendReversal(StrategyBase):
             return None
 
         _v2 = self._redesign_v2_enabled()
-        if _v2 and self._symbol_key(ctx) != "USDJPY":
+        _trend_v2 = self._trend_reversal_redesign_v2_enabled()
+        if (_v2 or _trend_v2) and self._symbol_key(ctx) != "USDJPY":
+            return None
+        if _trend_v2 and not (12 <= self._hour_utc(ctx) < 16):
             return None
 
         signal = None
@@ -115,6 +136,11 @@ class Ema200TrendReversal(StrategyBase):
             reasons.append(
                 f"✅ EMA200_REVERSAL_REDESIGN_V2: USD_JPY routed, "
                 f"per-bar dedup closed_bar={self._closed_bar_id(ctx)}"
+            )
+        if _trend_v2:
+            reasons.append(
+                f"✅ EMA200_TREND_REVERSAL_REDESIGN_V2: USD_JPY "
+                f"Overlap/NY-overlap session gate hour_utc={self._hour_utc(ctx)}"
             )
 
         _legacy_conf = int(min(75, 40 + score * 4))
