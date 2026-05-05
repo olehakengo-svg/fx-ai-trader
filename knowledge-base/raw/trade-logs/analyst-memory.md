@@ -729,6 +729,16 @@ Cutoff後累計はN=22、WR=45.5%、PnL=−12.1pips相当。システムは稼�
 | 本日合計PnL | **-15.0 pips** |
 | 最良セッション | **東京** (+1.1 pips, WR 66.7%) |
 
+### 2026-05-05 (Pre-Tokyo Briefing)
+前日（2026-05-04）は **8トレード、WR 50.0%、PnL -15.0** と赤字セッション。
+`sr_fib_confluence` の -12.6（SIGNAL_REVERSE）と `gbp_deep_pullback` による累積損が全体を押し下げ、勝率では均衡しているにもかかわらず損益が非対称に傾いている典型的なペイオフ逆転構造が出現した。
+| Strategy | Pair | N | WR% | EV | 判定 |
+> **全体**: N=16、WR 43.8%、PnL -46.2
+### 課題①：`sr_fib_confluence` — SIGNAL_REVERSE による大損
+- PnL -12.6（EV -12.60、N=1）
+- エグジット理由が `SIGNAL_REVERSE` ＝ エントリー後に逆方向シグナルが発生し損切り。GBP_USDはTRENDING_UPレジームであり、逆張り系フィブ戦略がトレンドに逆行した可能性が高い。
+- **本日の対処方針**: GBP_USDがTRENDING_UP継続中の間、`sr_fib_confluence`のGBP_USD向けシグナルは統計的根拠が薄い。N蓄積を優先し、昇格判断は保留。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
