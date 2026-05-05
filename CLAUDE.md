@@ -10,29 +10,12 @@ Claudeは**クオンツアナリスト兼実装者**として動作する。エ�
 3. **静的時間ブロックは使わない** — UTC固定のブロックは禁止。市場条件で判断
 4. **攻撃は最大の防御** — 防御フィルターの積み上げよりデータ蓄積を優先
 
-## クオンツ判断の最重要原則 (2026-04-27 追加, ユーザー指示)
-
-**KB は更新するもの、絶対のルールではない。**
-
-- KB は過去の判断・BT結果・lesson の集積であり、**仮説と参照点の集合**
-- 新しい実測データ + 統計的に堅い分析 (Bonferroni/Wilson 等) が KB を**更新すべき情報**を生み出すなら、KB を変える方向の判断をする
-- 「KB に書いてあるから」「KB に書いてないから」という思考停止は **クオンツの規律違反**
-- 真の規律は: KBを読む → 新データと突き合わせる → 整合/矛盾を分析する → 必要なら KB を更新する提案を出す
-
-### 過去の同種ミス (再発防止のため記録)
-
-3度同じパターンで自己訂正している:
-1. Aggregate Fallacy (cell ごとに edge は分かれる) を理解せず KB の aggregate 数字で「月利100%は無理」と断言
-2. Q1' の cell-level Bonferroni-significant 発見を出した後、ユーザー指摘でまた KB 全面服従して「C1 撤退」発言
-3. 「フラットな意見を」と言われた直後に再び KB-defer モードに戻った
-
-**これらは全て「KB を絶対視」または「自分の分析を絶対視」の両極端の振動**。中道は **両方を尊重しつつ、新データで KB を更新する勇気を持つ**こと。
-
-### 実装ルール
-
-- **新発見 (Bonferroni 有意 cell, Live 想定外な edge 等) を出した時、自動的に KB との整合性をチェックする**
-- **KB と矛盾する場合、矛盾理由 (時期, データ範囲, 分析手法) を文書化して KB 更新提案を出す**
-- **KB に従う場合も、理由を明示する** (思考停止ではなく能動的判断)
+## クオンツ判断の規律
+**KB は仮説と参照点の集合。絶対のルールではない。**
+- 新データ + 統計的に堅い分析 (Bonferroni/Wilson) が KB と矛盾するなら、KB 更新を提案する
+- 「KB に書いてある/ない」は思考停止。両極端 (KB 絶対視 ⇄ 自己分析絶対視) の振動を回避
+- 規律: KB読む → 新データと突き合わせ → 整合/矛盾を分析 → KB更新案を出す
+- 詳細・過去事例: `wiki/lessons/lesson-cell-audit-bt-required-2026-04-27.md`, `wiki/lessons/lesson-kb-blind-pp-proposal.md`
 
 ## 最重要目標（全施策の判断基準）
 **月利100%（¥454,816/月）→ 年利1,200%**
@@ -41,14 +24,14 @@ Claudeは**クオンツアナリスト兼実装者**として動作する。エ�
 - **クリーンデータ蓄積が最優先** — Kelly Half到達の前提条件
 
 ## セッション開始プロトコル
-> SessionStart hookが自動で以下をコンテキストに注入済み:
-> index.md(Tier+State) / 未解決事項 / lessons / 最新daily report / analyst-memory
+SessionStart hook が index.md / 未解決事項 / lessons / 最新daily report / analyst-memory を自動注入。
+追加確認: `git log --oneline -10` / changelog vs index.md 整合 / 現在の市場セッション / 直近12hトレード活動 (0件なら原因調査)
 
-追加で確認すべきこと:
-1. `git log --oneline -10` でコード変更を確認
-2. changelog最新バージョンと wiki/index.md の整合を確認
-3. 現在の市場セッション(Tokyo/London/NY)と時間帯を認識する
-4. 直近12hのトレード活動を確認（0件なら即座に原因調査）
+## Quick Commands
+- **Tests**: `python3 -m pytest tests/ -x -q` (92 tests, fixtures in `tests/conftest.py`)
+- **Project check**: `python3 scripts/check.py`
+- **KB sync**: `python3 tools/sync_kb_index.py --write` && `python3 tools/tier_integrity_check.py --write`
+- **CI**: `.github/workflows/ci.yml` (pytest + check.py)
 
 ## Knowledge Base (Obsidian Vault)
 **詳細な知見・分析・意思決定の根拠は `knowledge-base/` に構造化して保存。**
@@ -56,6 +39,7 @@ Claudeは**クオンツアナリスト兼実装者**として動作する。エ�
 |---|---|
 | `wiki/index.md` | 全戦略Tier分類、システム状態、ポートフォリオ |
 | `wiki/tier-master.md` | 全戦略Shadow/OANDA通過マスタ（自動生成） |
+| `wiki/strategies/` | 戦略別カード (BT/Live/判断履歴) |
 | `wiki/analyses/` | 摩擦分析、取引ルール、system-reference.md、**claude-harness-design.md** |
 | `wiki/decisions/` | 独立監査結果、覆された判断 |
 | `wiki/lessons/` | 過去の間違い・修正・教訓 |
@@ -63,79 +47,39 @@ Claudeは**クオンツアナリスト兼実装者**として動作する。エ�
 | `raw/bt-results/` | BT結果（自動保存） |
 | `raw/audits/` | 週次/月次ストラテジー監査（自動） |
 
-### KB運用ルール — 厳密版（形骸化防止）
+Sub-scope: `services/discord_bot/CLAUDE.md` (Discord bot 固有規律)
 
-#### 書き込みルール（WRITE）
-- **CLAUDE.mdはWHO/WHAT/WHEREのスキーマのみ** — HOWの詳細はKBに書く
-- feat()コミット時に関連するchangelog/wiki更新も**同じコミットに含める**（別コミット禁止）
-- 新戦略(entry_type)追加時は`wiki/strategies/{name}.md`を**同じコミットで作成**（pre-commitが警告）
-- セッション終了が近い場合はコード変更よりKB更新を優先する
-- `python3 tools/sync_kb_index.py --write` をTier変更後に必ず実行
-- `python3 tools/tier_integrity_check.py --write` をTier変更後に必ず実行（tier-master.md更新 + 整合チェック）
-- Tier変更（FORCE_DEMOTED/PAIR_PROMOTED/ELITE_LIVE等）後は**必ず** `tier_integrity_check.py --check` でERROR=0を確認
+### KB運用ルール
+**CLAUDE.md は WHO/WHAT/WHERE のみ。HOW の詳細は KB に書く。**
 
-#### 読み取りルール（READ）— 判断前に必ず実行
-- **戦略に関する判断の前に**:
-  1. `wiki/tier-master.md` を読む — 現在の全戦略Tier/Shadow/OANDA通過状態
-  2. `wiki/strategies/{strategy}.md` を読む — 過去のBT/Live/判断履歴
-  3. `raw/bt-results/` の最新スキャン結果を確認 — 365日BT EV/WR/PF
-  4. `wiki/lessons/index.md` で関連lessonを確認 — 同じ間違いを繰り返さない
-- **パラメータ変更の前に**:
-  1. `wiki/analyses/friction-analysis.md` を読む — ペア別摩擦データ
-  2. `wiki/analyses/bt-live-divergence.md` を読む — 6つの構造的楽観バイアス
-  3. 変更の根拠が**365日BT or Live N≥30**か確認 — 1日データなら実装保留
-- **新戦略実装の前に**:
-  1. `wiki/strategies/` で類似戦略の過去結果を確認
-  2. `raw/bt-results/` でBTデータを確認
-  3. `wiki/decisions/` で過去の類似判断を確認
-- **BTスキャン実行後に必ず**:
-  1. `wiki/analyses/macro-data-analysis-protocol.md` のフローに従う
-  2. VIXレジーム別 × 戦略別WR/EV分析を実施
-  3. DXY方向別 × ペア別WR/EV分析を実施
-  4. マクロ条件付きαがあれば`raw/bt-results/`に記録
+**WRITE**:
+- feat() コミット時、関連 changelog/wiki 更新を**同じコミットに含める** (別コミット禁止)
+- 新戦略追加時は `wiki/strategies/{name}.md` を同コミットで作成
+- Tier 変更後: `python3 tools/sync_kb_index.py --write` && `tools/tier_integrity_check.py --write` → `--check` で ERROR=0 確認
 
-#### 判断プロトコル（全判断に適用、2026-04-25 Asymmetric Agility 改定）
-**まず変更の種類を分類する**。詳細: [[lesson-asymmetric-agility-2026-04-25]]
-- **Rule 1 (Slow & Strict)** — 新戦略 / 新フィルタ / Shadow→Live 昇格 / lot↑ / pair promotion
-  → 365日BT or Live N≥30 + Bonferroni + Pre-reg LOCK 必須
-- **Rule 2 (Fast & Reactive)** — 損失停止 / Shadow降格 / lot↓ / pair demotion
-  → 数トレード〜N=10 で即断可。EV/Kelly/占有率の警報閾値で判断
-- **Rule 3 (Immediate)** — 算数破綻 (BEV違反) / 構造バグ (gate漏れ, SL/TP独立計算等)
-  → 365日BTスキップ。数学/code derivation を analyses/ に文書化、Rule 2 監視に格下げ
+**READ — 判断前に必ず実行**:
+- 戦略判断: `wiki/tier-master.md` → `wiki/strategies/{name}.md` → `raw/bt-results/` → `wiki/lessons/index.md`
+- パラメータ変更: `wiki/analyses/friction-analysis.md` + `bt-live-divergence.md` + 365日BT/Live N≥30 根拠
+- BTスキャン後: `wiki/analyses/macro-data-analysis-protocol.md` フロー (VIX/DXY × 戦略別)
+- 詳細フロー: `wiki/analyses/claude-harness-design.md`
 
-**全Rule 共通**:
-1. **KB参照**: どのKBページを読んだか → 0ページなら**判断を停止してKBを読む**
-2. **既存戦略との整合性**: Bonferroni有意な既存エッジと矛盾しないか
-3. **動機の記録**: 感情的理由（「利益が取れていた」）→ **保留** / データ駆動 → GO
-4. **コミットメッセージに `rule:R[1|2|3]` を明示**
+### 判断プロトコル (Asymmetric Agility, 詳細: `wiki/lessons/lesson-asymmetric-agility-2026-04-25.md`)
+- **Rule 1 (Slow & Strict)** — 新戦略 / 新フィルタ / Shadow→Live 昇格 / lot↑ / pair promotion → 365日BT or Live N≥30 + Bonferroni + Pre-reg LOCK
+- **Rule 2 (Fast & Reactive)** — 損失停止 / Shadow降格 / lot↓ / pair demotion → 数トレード〜N=10 で即断可
+- **Rule 3 (Immediate)** — 算数破綻 / 構造バグ → 365日BTスキップ、数学/code derivation を analyses/ に文書化
 
-#### 違反した場合
-- `wiki/lessons/` に教訓ページを作成する（lesson-reactive-changes参照）
-- 次セッションのsession-start hookが教訓を注入し、再発を防止する
+**全Rule共通**: KB参照ゼロ→判断停止 / 既存 Bonferroni 有意エッジとの整合性確認 / 動機 (データ駆動 vs 感情) を記録 / コミットに `rule:R[1|2|3]` 明示
 
-## Production Environment
-- **URL**: https://fx-ai-trader.onrender.com
-- **API**: `/api/demo/status`, `/api/demo/trades`, `/api/demo/logs`
-- **Risk**: `/api/risk/dashboard` (VaR/CVaR/Kelly/MC/DD)
-- **Deploy**: Render Proプラン (auto-deploy from GitHub main)
-- **IMPORTANT**: 分析は本番(Render)データを使用。ローカルDBは開発用のみ
+**違反時**: `wiki/lessons/` に教訓ページ作成 → session-start hook で次回再発防止
 
-## OANDA API Integration
-- **ブローカー**: OANDA Japan（本番口座 `Claude_auto_trade_KG`）
-- **アーキテクチャ**: OandaClient → OandaBridge(fire-and-forget) → demo_trader.py
-- 詳細: `knowledge-base/wiki/analyses/system-reference.md`
-
-## Design Principles
-- **本番環境を常に参照**: 分析・データ取得はRender本番サーバーから
-- **BT/本番ロジック統一**: BT関数は本番signal関数(backtest_mode=True)を使用
-- **本番変更は必ずBTにも反映**: QUALIFIED_TYPES/フィルターの同期必須
-- **カーブフィッティング禁止**: パラメータ調整完了(2026-04-04)。データ蓄積フェーズ
-
-## Key Architecture
-- Backend: Flask (app.py (main Flask app))
-- Demo trader: modules/demo_trader.py (background threads per mode)
-- Risk: modules/risk_analytics.py (VaR/CVaR/Kelly/MC/DSR)
-- 全モード詳細: `wiki/analyses/system-reference.md`
+## 環境とアーキテクチャ
+- **本番**: https://fx-ai-trader.onrender.com (Render Pro, auto-deploy from `main`)
+- **API**: `/api/demo/{status,trades,logs}` / `/api/risk/dashboard` (VaR/CVaR/Kelly/MC/DD)
+- **OANDA**: 本番口座 `Claude_auto_trade_KG` / OandaClient → OandaBridge(fire-and-forget) → demo_trader.py
+- **Stack**: Flask (`app.py`) / `modules/demo_trader.py` (per-mode background threads) / `modules/risk_analytics.py`
+- **データ一次ソース**: Render 本番。ローカル DB は開発用のみ。BT 関数は本番 signal 関数 (`backtest_mode=True`)、QUALIFIED_TYPES/フィルター は本番⇄BT 同期必須
+- **カーブフィッティング禁止** — データ蓄積フェーズ
+- 詳細: `wiki/analyses/system-reference.md`
 
 ## 詳細リファレンス（全てKBに一元化）
 - **クオンツ判断ルール・運用プロトコル**: `wiki/analyses/claude-harness-design.md`
