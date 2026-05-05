@@ -36,6 +36,7 @@ Sentinel 戦略:
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
+import os
 
 
 class DtBbRsiMR(StrategyBase):
@@ -90,6 +91,7 @@ class DtBbRsiMR(StrategyBase):
     # EUR/GBP は eurgbp_daily_mr 専用 → 除外
     # USD/JPY, EUR/USD, GBP/USD のみ対象
     _ALLOWED_SYMBOLS = frozenset({"USDJPY", "EURUSD", "GBPUSD"})
+    _v2_seen_closed_bar_keys: set[tuple[str, str, str]] = set()
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         """
@@ -115,6 +117,42 @@ class DtBbRsiMR(StrategyBase):
         if _sym not in self._ALLOWED_SYMBOLS:
             return None
 
+        _redesign_v2 = os.environ.get("DT_BB_RSI_MR_REDESIGN_V2") == "1"
+
+        if _redesign_v2:
+            if ctx.df is None or len(ctx.df) < 3:
+                return None
+            _sig_row = ctx.df.iloc[-2]
+            _prev_sig_row = ctx.df.iloc[-3]
+            _closed_bar_time = getattr(_sig_row, "name", None)
+            _sig_entry = float(_sig_row["Close"])
+            _sig_open = float(_sig_row["Open"])
+            _sig_bbpb = float(_sig_row.get("bb_pband", ctx.bbpb))
+            _sig_rsi = float(_sig_row.get("rsi", ctx.rsi))
+            _sig_stoch_k = float(_sig_row.get("stoch_k", ctx.stoch_k))
+            _sig_stoch_d = float(_sig_row.get("stoch_d", ctx.stoch_d))
+            _sig_macdh = float(_sig_row.get("macd_hist", ctx.macdh))
+            _sig_macdh_prev = float(_prev_sig_row.get("macd_hist", ctx.macdh_prev))
+            _sig_macdh_prev2 = (
+                float(ctx.df.iloc[-4].get("macd_hist", ctx.macdh_prev2))
+                if len(ctx.df) >= 4
+                else ctx.macdh_prev2
+            )
+            _sig_label = "closed-bar"
+        else:
+            _sig_row = None
+            _closed_bar_time = None
+            _sig_entry = ctx.entry
+            _sig_open = ctx.open_price
+            _sig_bbpb = ctx.bbpb
+            _sig_rsi = ctx.rsi
+            _sig_stoch_k = ctx.stoch_k
+            _sig_stoch_d = ctx.stoch_d
+            _sig_macdh = ctx.macdh
+            _sig_macdh_prev = ctx.macdh_prev
+            _sig_macdh_prev2 = ctx.macdh_prev2
+            _sig_label = "current-bar"
+
         # ═══════════════════════════════════════════════════
         # STEP 2: レジームフィルター (ADX < 25)
         # Wilder (1978): ADX >= 25 はトレンド領域。
@@ -138,7 +176,9 @@ class DtBbRsiMR(StrategyBase):
         # v7.0: prev_stoch_k — Stochクロスオーバー緩和用
         # 厳密なK>D(クロス瞬間)ではなく、K上昇中(反転方向)でも許容
         _prev_stoch_k = (
-            float(ctx.df.iloc[-2].get("stoch_k", 50))
+            float(ctx.df.iloc[-3].get("stoch_k", 50))
+            if _redesign_v2 and ctx.df is not None and len(ctx.df) >= 3
+            else float(ctx.df.iloc[-2].get("stoch_k", 50))
             if ctx.df is not None and len(ctx.df) >= 2
             else 50.0
         )
@@ -146,47 +186,57 @@ class DtBbRsiMR(StrategyBase):
         # ── BUY判定 ──
         # BB%B ≤ 0.30 (BB下限接近) + RSI14 < 45 + StochK < 40
         # + Stoch反転確認: K > D (ゴールデンクロス) OR K上昇中 (K > prev_K)
-        if (ctx.bbpb <= self.BBPB_BUY_THRES
-                and ctx.rsi < self.RSI_BUY_THRES
-                and ctx.stoch_k < self.STOCH_BUY_THRES
-                and (ctx.stoch_k > ctx.stoch_d
-                     or ctx.stoch_k > _prev_stoch_k)):
+        if (_sig_bbpb <= self.BBPB_BUY_THRES
+                and _sig_rsi < self.RSI_BUY_THRES
+                and _sig_stoch_k < self.STOCH_BUY_THRES
+                and (_sig_stoch_k > _sig_stoch_d
+                     or _sig_stoch_k > _prev_stoch_k)):
 
             # ── 反転足確認: 現在バー陽線 (Close > Open) ──
             # 15m足の実体で反転方向を確認 (ノイズ低減)
-            if ctx.entry <= ctx.open_price:
+            if _sig_entry <= _sig_open:
                 return None
 
             signal = "BUY"
+            if _redesign_v2 and not ctx.backtest_mode:
+                _key = (_sym, signal, str(_closed_bar_time))
+                if _key in self._v2_seen_closed_bar_keys:
+                    return None
+                self._v2_seen_closed_bar_keys.add(_key)
 
             # Tier1 判定: 極端ゾーン (高確信)
-            _tier1 = (ctx.bbpb <= self.BBPB_EXTREME_BUY
-                      and ctx.rsi < self.RSI_EXTREME_BUY
-                      and ctx.stoch_k < self.STOCH_EXTREME_BUY)
+            _tier1 = (_sig_bbpb <= self.BBPB_EXTREME_BUY
+                      and _sig_rsi < self.RSI_EXTREME_BUY
+                      and _sig_stoch_k < self.STOCH_EXTREME_BUY)
 
             score = 4.5 if _tier1 else 3.0
             # RSI深度ボーナス: RSIが低いほどスコア加算
-            score += (self.RSI_BUY_THRES - ctx.rsi) * 0.04
+            score += (self.RSI_BUY_THRES - _sig_rsi) * 0.04
 
             reasons.append(
-                f"✅ BB下限接近(BB%B={ctx.bbpb:.2f}≤{self.BBPB_BUY_THRES}) "
+                f"✅ BB下限接近(BB%B={_sig_bbpb:.2f}≤{self.BBPB_BUY_THRES}) "
                 f"— 平均回帰 (Bollinger 1992)"
             )
-            reasons.append(f"✅ RSI14売られすぎ({ctx.rsi:.1f}<{self.RSI_BUY_THRES}) (Wilder 1978)")
-            _stoch_cross = ctx.stoch_k > ctx.stoch_d
-            _stoch_rising = ctx.stoch_k > _prev_stoch_k
+            reasons.append(f"✅ RSI14売られすぎ({_sig_rsi:.1f}<{self.RSI_BUY_THRES}) (Wilder 1978)")
+            _stoch_cross = _sig_stoch_k > _sig_stoch_d
+            _stoch_rising = _sig_stoch_k > _prev_stoch_k
             reasons.append(
-                f"✅ Stoch反転確認(K={ctx.stoch_k:.0f}"
-                f"{'>D=' + str(int(ctx.stoch_d)) if _stoch_cross else ''}"
+                f"✅ Stoch反転確認(K={_sig_stoch_k:.0f}"
+                f"{'>D=' + str(int(_sig_stoch_d)) if _stoch_cross else ''}"
                 f"{'↑prev=' + str(int(_prev_stoch_k)) if _stoch_rising else ''}"
                 f") — 過売り圏反転 (Lane 1984)"
             )
             reasons.append(
-                f"✅ 反転足確認: Close={ctx.entry:.5f} > Open={ctx.open_price:.5f}"
+                f"✅ 反転足確認({_sig_label}): Close={_sig_entry:.5f} > Open={_sig_open:.5f}"
             )
+            if _redesign_v2:
+                reasons.append(
+                    f"✅ DT_BB_RSI_MR_REDESIGN_V2: closed_bar_time={_closed_bar_time} "
+                    "で確定し次バー約定"
+                )
 
             # Stochクロスギャップボーナス
-            _gap = ctx.stoch_k - ctx.stoch_d
+            _gap = _sig_stoch_k - _sig_stoch_d
             if _gap > 2.0:
                 score += 0.5
                 reasons.append(f"✅ Stochクロスギャップ大({_gap:.1f}>2.0)")
@@ -195,10 +245,10 @@ class DtBbRsiMR(StrategyBase):
                 reasons.append("🎯 Tier1: 極端条件（高確信 — BB%B<0.10, RSI<30, Stoch<20）")
 
             # MACD方向ボーナス (モメンタム転換確認)
-            if ctx.macdh > 0:
+            if _sig_macdh > 0:
                 score += 0.4
                 reasons.append("✅ MACDヒストグラム正（上昇モメンタム）")
-            if ctx.macdh > ctx.macdh_prev and ctx.macdh_prev <= ctx.macdh_prev2:
+            if _sig_macdh > _sig_macdh_prev and _sig_macdh_prev <= _sig_macdh_prev2:
                 score += 0.5
                 reasons.append("✅ MACD-H反転上昇（モメンタム消耗→回復）")
 
@@ -211,46 +261,56 @@ class DtBbRsiMR(StrategyBase):
         # ── SELL判定 ──
         # BB%B ≥ 0.70 (BB上限接近) + RSI14 > 55 + StochK > 60
         # + Stoch反転確認: K < D (デッドクロス) OR K下落中 (K < prev_K)
-        elif (ctx.bbpb >= self.BBPB_SELL_THRES
-                and ctx.rsi > self.RSI_SELL_THRES
-                and ctx.stoch_k > self.STOCH_SELL_THRES
-                and (ctx.stoch_k < ctx.stoch_d
-                     or ctx.stoch_k < _prev_stoch_k)):
+        elif (_sig_bbpb >= self.BBPB_SELL_THRES
+                and _sig_rsi > self.RSI_SELL_THRES
+                and _sig_stoch_k > self.STOCH_SELL_THRES
+                and (_sig_stoch_k < _sig_stoch_d
+                     or _sig_stoch_k < _prev_stoch_k)):
 
             # ── 反転足確認: 現在バー陰線 (Close < Open) ──
-            if ctx.entry >= ctx.open_price:
+            if _sig_entry >= _sig_open:
                 return None
 
             signal = "SELL"
+            if _redesign_v2 and not ctx.backtest_mode:
+                _key = (_sym, signal, str(_closed_bar_time))
+                if _key in self._v2_seen_closed_bar_keys:
+                    return None
+                self._v2_seen_closed_bar_keys.add(_key)
 
             # Tier1 判定: 極端ゾーン
-            _tier1 = (ctx.bbpb >= self.BBPB_EXTREME_SELL
-                      and ctx.rsi > self.RSI_EXTREME_SELL
-                      and ctx.stoch_k > self.STOCH_EXTREME_SELL)
+            _tier1 = (_sig_bbpb >= self.BBPB_EXTREME_SELL
+                      and _sig_rsi > self.RSI_EXTREME_SELL
+                      and _sig_stoch_k > self.STOCH_EXTREME_SELL)
 
             score = 4.5 if _tier1 else 3.0
             # RSI深度ボーナス: RSIが高いほどスコア加算
-            score += (ctx.rsi - self.RSI_SELL_THRES) * 0.04
+            score += (_sig_rsi - self.RSI_SELL_THRES) * 0.04
 
             reasons.append(
-                f"✅ BB上限接近(BB%B={ctx.bbpb:.2f}≥{self.BBPB_SELL_THRES}) "
+                f"✅ BB上限接近(BB%B={_sig_bbpb:.2f}≥{self.BBPB_SELL_THRES}) "
                 f"— 平均回帰 (Bollinger 1992)"
             )
-            reasons.append(f"✅ RSI14買われすぎ({ctx.rsi:.1f}>{self.RSI_SELL_THRES}) (Wilder 1978)")
-            _stoch_cross = ctx.stoch_k < ctx.stoch_d
-            _stoch_falling = ctx.stoch_k < _prev_stoch_k
+            reasons.append(f"✅ RSI14買われすぎ({_sig_rsi:.1f}>{self.RSI_SELL_THRES}) (Wilder 1978)")
+            _stoch_cross = _sig_stoch_k < _sig_stoch_d
+            _stoch_falling = _sig_stoch_k < _prev_stoch_k
             reasons.append(
-                f"✅ Stoch反転確認(K={ctx.stoch_k:.0f}"
-                f"{'<D=' + str(int(ctx.stoch_d)) if _stoch_cross else ''}"
+                f"✅ Stoch反転確認(K={_sig_stoch_k:.0f}"
+                f"{'<D=' + str(int(_sig_stoch_d)) if _stoch_cross else ''}"
                 f"{'↓prev=' + str(int(_prev_stoch_k)) if _stoch_falling else ''}"
                 f") — 過買い圏反転 (Lane 1984)"
             )
             reasons.append(
-                f"✅ 反転足確認: Close={ctx.entry:.5f} < Open={ctx.open_price:.5f}"
+                f"✅ 反転足確認({_sig_label}): Close={_sig_entry:.5f} < Open={_sig_open:.5f}"
             )
+            if _redesign_v2:
+                reasons.append(
+                    f"✅ DT_BB_RSI_MR_REDESIGN_V2: closed_bar_time={_closed_bar_time} "
+                    "で確定し次バー約定"
+                )
 
             # Stochクロスギャップボーナス
-            _gap = ctx.stoch_d - ctx.stoch_k
+            _gap = _sig_stoch_d - _sig_stoch_k
             if _gap > 2.0:
                 score += 0.5
                 reasons.append(f"✅ Stochクロスギャップ大({_gap:.1f}>2.0)")
@@ -259,10 +319,10 @@ class DtBbRsiMR(StrategyBase):
                 reasons.append("🎯 Tier1: 極端条件（高確信 — BB%B>0.90, RSI>70, Stoch>80）")
 
             # MACD方向ボーナス
-            if ctx.macdh < 0:
+            if _sig_macdh < 0:
                 score += 0.4
                 reasons.append("✅ MACDヒストグラム負（下落モメンタム）")
-            if ctx.macdh < ctx.macdh_prev and ctx.macdh_prev >= ctx.macdh_prev2:
+            if _sig_macdh < _sig_macdh_prev and _sig_macdh_prev >= _sig_macdh_prev2:
                 score += 0.5
                 reasons.append("✅ MACD-H反転下落（モメンタム消耗→回復）")
 

@@ -135,3 +135,35 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T15:39:37Z)
+
+exit=0 · 1981s
+
+```
+実装と検証まで完了しました。
+
+変更:
+- [dt_bb_rsi_mr.py](/data/repo/fx-ai-trader/strategies/daytrade/dt_bb_rsi_mr.py:120): `DT_BB_RSI_MR_REDESIGN_V2=1` 配下で `df.iloc[-2]` の BB%B/RSI/Stoch/candle color を使う closed-bar variant を追加。default OFF なので live 既存挙動は維持。
+- [dt_bb_rsi_mr.py](/data/repo/fx-ai-trader/strategies/daytrade/dt_bb_rsi_mr.py:201): non-BT live のみ `(symbol, signal, closed_bar_time)` dedup を追加。
+- [__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:242): `DT_BB_RSI_MR_REDESIGN_V2_SHADOW_PROMOTE=1` との double flag で shadow-always 登録可能に追加。
+- [test_dt_bb_rsi_mr_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_dt_bb_rsi_mr_shadow_redesign_v2.py:1): default OFF、closed-bar ON、dedup、shadow double flag のテストを追加。
+- [dt_bb_rsi_mr_shadow_bt.py](/data/repo/fx-ai-trader/tools/dt_bb_rsi_mr_shadow_bt.py:1): 365d MASSIVE BT runner を追加。
+- BT report: [dt_bb_rsi_mr-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/dt_bb_rsi_mr-shadow-redesign-v2-2026-05-05.json:1)
+
+検証:
+- `.venv/bin/python -m pytest tests/test_dt_bb_rsi_mr_shadow_redesign_v2.py -q` → `5 passed`
+- `.venv/bin/python -m py_compile ...` → OK
+- `.venv/bin/python tools/dt_bb_rsi_mr_shadow_bt.py` → 365d BT 完走、MASSIVE 15m cache 使用
+
+v2 LOCK verdict: `REJECT`
+
+理由:
+- USD_JPY は `PASS`: proposed PF `1.028`, Wilson lo `0.5043`, N減少 `-11.25%`
+- EUR_USD は catastrophic は通過したが sanity floor 失敗: proposed PF `0.8432 < 0.85`
+- GBP_USD も sanity floor 失敗: proposed PF `0.5841 < 0.85`
+- overall は pair universe 全体で `REJECT`
+
+そのため `DT_BB_RSI_MR_REDESIGN_V2_SHADOW_PROMOTE` は設定していません。BT 判定は Kelly や positive direction を要求せず、v2 の catastrophic/floor だけで判定しています。
+```
