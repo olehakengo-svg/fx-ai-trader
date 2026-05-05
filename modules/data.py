@@ -669,6 +669,25 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
     expected = days * _bars_per_day.get(interval, 24) * 0.55  # FX=24h x 55%稼働
     min_bars = max(100, expected * 0.30)
 
+    # -- BT mode: local Massive parquet first, before any network provider. --
+    if os.environ.get("BT_MODE") == "1":
+        parquet_df, parquet_ts = _load_parquet_cache_fallback(
+            symbol, interval, days, min_bars
+        )
+        if parquet_df is not None:
+            _last_data_source[interval] = "massive-parquet"
+            print(
+                f"[massive-parquet/{interval}] {symbol} {len(parquet_df)} bars "
+                f"(cache_ts={parquet_ts.isoformat()})"
+            )
+            with _cache_lock:
+                _data_cache[key] = (parquet_df, now)
+            return parquet_df.copy()
+        if os.environ.get("BT_REQUIRE_MASSIVE_CACHE") == "1":
+            raise ValueError(
+                f"BT_MODE requires local Massive parquet cache for {symbol}/{interval}"
+            )
+
     # -- (0) Massive API 最優先: 全FXペア × 全TF (有料契約、高品質データ) --
     # v9.0: Massive(Polygon)を最優先に昇格。全6ペア+全TF対応。
     _MASSIVE_SYMBOLS = {

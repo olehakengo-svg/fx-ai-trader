@@ -31,6 +31,7 @@ SL/TP:
   SL = Swing H/L (8本) ± ATR×0.3, max ATR×1.5, min ATR×0.8
   TP = ATR×2.5 (MIN_RR=1.5 保証)
 """
+import os
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
@@ -71,9 +72,34 @@ class SqueezeReleaseMomentum(StrategyBase):
     # ── 対象ペア: EUR/USD, GBP/USD のみ ──
     # USD/JPY: BT WR=50% (14t), BEV=53% → 摩擦込み負EV確定 → 除外
     _ALLOWED_PAIRS = ("EURUSD", "GBPUSD")
+    _REDESIGN_ENV = "SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2"
+    _last_emitted_keys = set()
+
+    @classmethod
+    def _redesign_enabled(cls) -> bool:
+        return os.environ.get(cls._REDESIGN_ENV) == "1"
+
+    @classmethod
+    def reset_dedup_state(cls) -> None:
+        cls._last_emitted_keys.clear()
+
+    @staticmethod
+    def _row_float(row, *names: str, default: float = 0.0) -> float:
+        for name in names:
+            if name in row.index:
+                return float(row.get(name, default))
+        return float(default)
+
+    def _emit_once(self, ctx: SignalContext, signal: str, bar_id) -> bool:
+        key = (ctx.symbol, signal, bar_id)
+        if key in self._last_emitted_keys:
+            return False
+        self._last_emitted_keys.add(key)
+        return True
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         """2段フィルターによるSqueeze Release Momentum検出。"""
+        redesign_v2 = self._redesign_enabled()
 
         # ══════════════════════════════════════
         # ペアフィルター: EUR/USD, GBP/USD のみ
@@ -109,31 +135,50 @@ class SqueezeReleaseMomentum(StrategyBase):
         # BB幅が前足より拡大（Release開始）かつ
         # 価格がBB上端/下端に位置（方向確定）
         # ══════════════════════════════════════
-        if len(ctx.df) < 2:
+        _min_trigger_bars = 3 if redesign_v2 else 2
+        if len(ctx.df) < _min_trigger_bars:
             return None
-        _prev = ctx.df.iloc[-2]
-        _prev_bb_width = float(_prev.get("bb_width", 0))
+        if redesign_v2:
+            _signal_bar = ctx.df.iloc[-2]
+            _prev = ctx.df.iloc[-3]
+            _signal_bb_width = self._row_float(_signal_bar, "bb_width")
+            _prev_bb_width = self._row_float(_prev, "bb_width")
+            _signal_bbpb = self._row_float(_signal_bar, "bb_pband", "bbpb", default=0.5)
+            _signal_open = self._row_float(_signal_bar, "Open", "open")
+            _signal_close = self._row_float(_signal_bar, "Close", "close")
+            _bar_id = ctx.bar_time if ctx.bar_time is not None else ctx.df.index[-1]
+        else:
+            _prev = ctx.df.iloc[-2]
+            _prev_bb_width = float(_prev.get("bb_width", 0))
+            _signal_bb_width = ctx.bb_width
+            _signal_bbpb = ctx.bbpb
+            _signal_open = ctx.open_price
+            _signal_close = ctx.entry
+            _bar_id = ctx.bar_time if ctx.bar_time is not None else ctx.df.index[-1]
 
         # Release判定: BB幅が前足より拡大
-        if _prev_bb_width <= 0 or ctx.bb_width < _prev_bb_width:
+        if _prev_bb_width <= 0 or _signal_bb_width < _prev_bb_width:
             return None  # BB未拡大 → Release未発生
 
         # 方向判定 (bbpb)
-        _is_buy = ctx.bbpb > self.BBPB_BUY_THRES
-        _is_sell = ctx.bbpb < self.BBPB_SELL_THRES
+        _is_buy = _signal_bbpb > self.BBPB_BUY_THRES
+        _is_sell = _signal_bbpb < self.BBPB_SELL_THRES
         if not _is_buy and not _is_sell:
             return None
 
         # 陽線/陰線確認（最低限のノイズ排除）
-        if _is_buy and ctx.entry <= ctx.open_price:
+        if _is_buy and _signal_close <= _signal_open:
             return None  # BUYなのに陰線
-        if _is_sell and ctx.entry >= ctx.open_price:
+        if _is_sell and _signal_close >= _signal_open:
             return None  # SELLなのに陽線
+
+        signal = "BUY" if _is_buy else "SELL"
+        if redesign_v2 and not self._emit_once(ctx, signal, _bar_id):
+            return None
 
         # ══════════════════════════════════════
         # SL計算: Swing H/L ± ATR×0.3
         # ══════════════════════════════════════
-        signal = "BUY" if _is_buy else "SELL"
         _lookback = min(self.SL_SWING_LOOKBACK, len(ctx.df) - 1)
 
         if _is_buy:
@@ -174,7 +219,7 @@ class SqueezeReleaseMomentum(StrategyBase):
             f"✅ SRM {signal}: squeeze_bars={_squeeze_bars} "
             f"(≥{self.MIN_SQUEEZE_BARS}) bb_pct={_bb_pct:.1f}",
             f"✅ BB Release: width {_prev_bb_width:.{_prec}f}"
-            f"→{ctx.bb_width:.{_prec}f} (拡大) bbpb={ctx.bbpb:.2f}",
+            f"→{_signal_bb_width:.{_prec}f} (拡大) bbpb={_signal_bbpb:.2f}",
             f"📊 RR={_rr:.1f} SL={sl:.{_prec}f} TP={tp:.{_prec}f} "
             f"(Swing={'L' if _is_buy else 'H'}={_swing:.{_prec}f})",
         ]

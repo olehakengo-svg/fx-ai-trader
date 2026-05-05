@@ -139,3 +139,42 @@ PASS の場合、shadow 設定を以下のどれかで提案:
 - shadow 観測中の N 蓄積は production 自然進行に任せる
 - shadow-first アーキテクチャ: BT で大量 catastrophic 排除 → shadow で真値推定 → live ramp
 - 60-90 日後に shadow data から Bonferroni/Wilson/Kelly 判定する別 task が後続
+
+
+## Result (2026-05-05T01:44:17Z)
+
+exit=0 · 324s
+
+```
+実装と検証まで進めました。結果は **LOCK criteria REJECT** です。理由は、SRM 対象ペアの必須 MASSIVE cache が不足しており、Yahoo fallback 禁止条件下で BT 比較を実行できないためです。
+
+変更点:
+- V2 実装: [squeeze_release_momentum.py](/data/repo/fx-ai-trader/strategies/daytrade/squeeze_release_momentum.py:75)
+  - `SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2=1` 配下で closed-bar trigger (`df.iloc[-2]`) + per-bar dedup を追加
+  - flag OFF は現行維持
+- BT_MODE MASSIVE-first 修正: [modules/data.py](/data/repo/fx-ai-trader/modules/data.py:672)
+  - `BT_MODE=1` で local MASSIVE parquet を network provider より先に読む
+  - `BT_REQUIRE_MASSIVE_CACHE=1` で fallback 禁止
+- Pre-reg / REJECT 記録: [squeeze_release_momentum-shadow-redesign-2026-05-05.md](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/squeeze_release_momentum-shadow-redesign-2026-05-05.md:1)
+- BT report: [squeeze_release_momentum-shadow-bt-2026-05-05.json](/data/repo/fx-ai-trader/knowledge-base/raw/bt-results/squeeze_release_momentum-shadow-bt-2026-05-05.json:1)
+- Tests: [test_squeeze_release_momentum_shadow_redesign.py](/data/repo/fx-ai-trader/tests/test_squeeze_release_momentum_shadow_redesign.py:1)
+- Re-runnable BT script: [squeeze_release_momentum_shadow_bt.py](/data/repo/fx-ai-trader/tools/squeeze_release_momentum_shadow_bt.py:1)
+
+BT verdict:
+- Missing:
+  - `data/cache/massive/EUR_USD_15m.parquet`
+  - `data/cache/massive/GBP_USD_15m.parquet`
+- `overall_verdict`: `FAIL`
+- `shadow_promote_recommendation`: `REJECT`
+- Shadow設定変更: **なし**
+
+Verification:
+- `NO_AUTOSTART=1 .venv/bin/pytest -q tests/test_squeeze_release_momentum_shadow_redesign.py tests/test_fetch_ohlcv_bt_mode.py tests/test_bt_data_loader_parquet_fallback.py`
+- Result: `9 passed`
+
+Codex self-review:
+- Relative check only: PASS, absolute Kelly gate 未使用
+- Live safety: PASS, V2 は flag OFF default
+- Post-hoc adjustment: PASS, locked variant のみ
+- Shadow promote: REJECT のため未適用
+```

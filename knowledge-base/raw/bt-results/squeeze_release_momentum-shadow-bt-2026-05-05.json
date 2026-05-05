@@ -1,0 +1,82 @@
+{
+  "generated_at": "2026-05-05T01:43:43.088973+00:00",
+  "strategy": "squeeze_release_momentum",
+  "variant": "closed_bar_dedup_v2",
+  "flag": "SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2",
+  "lookback_days": 365,
+  "minimum_days": 90,
+  "interval": "15m",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1",
+  "targets": [
+    "EUR_USD",
+    "GBP_USD"
+  ],
+  "missing_caches": [
+    "data/cache/massive/EUR_USD_15m.parquet",
+    "data/cache/massive/GBP_USD_15m.parquet"
+  ],
+  "cells": {
+    "EUR_USD": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/EUR_USD_15m.parquet"
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/EUR_USD_15m.parquet"
+      },
+      "lock_criteria": {
+        "verdict": "FAIL",
+        "reason": "missing_massive_cache"
+      }
+    },
+    "GBP_USD": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/GBP_USD_15m.parquet"
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/GBP_USD_15m.parquet"
+      },
+      "lock_criteria": {
+        "verdict": "FAIL",
+        "reason": "missing_massive_cache"
+      }
+    }
+  },
+  "overall_verdict": "FAIL",
+  "shadow_promote_recommendation": "REJECT",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 0.0,
+  "self_review": {
+    "relative_check_only": "PASS: verdict uses relative PF/Wilson/N/PnL and sanity floors; no absolute Kelly gate.",
+    "production_live_safety": "PASS: strategy behavior is default-off unless SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered closed_bar_dedup_v2 variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo/network fallback for this report."
+  }
+}
