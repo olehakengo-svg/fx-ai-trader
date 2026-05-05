@@ -44,6 +44,7 @@ from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
 import numpy as np
+import os
 
 
 class LinRegChannel(StrategyBase):
@@ -77,6 +78,11 @@ class LinRegChannel(StrategyBase):
     # ── 共通 ──
     SL_ATR_BUFFER = 0.3         # SLバッファ: ATR × 0.3
     MAX_HOLD_BARS = 12          # 最大保持: 12バー = 3H (15m)
+    _v2_seen_signal_keys: set[tuple[str, str, str, str]] = set()
+
+    @classmethod
+    def reset_dedup_state(cls):
+        cls._v2_seen_signal_keys.clear()
 
     def _compute_lin_reg(self, closes: np.ndarray):
         """最小二乗法で線形回帰チャネルを計算。
@@ -126,6 +132,9 @@ class LinRegChannel(StrategyBase):
         return (alpha, beta, sigma, r_squared, upper_now, lower_now, mid_now)
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        if os.environ.get("LIN_REG_CHANNEL_REDESIGN_V2") == "1":
+            return self._evaluate_redesign_v2(ctx)
+
         # ── ペア制限: EUR/USD + XAU/USD のみ ──
         # USD/JPY: 7t EV=-0.053 (負EV)
         # GBP/USD: 15t EV=+0.002 (ゼロ)
@@ -296,6 +305,135 @@ class LinRegChannel(StrategyBase):
             reasons.append("✅ EMA短期方向一致")
 
         # 傾き強度ボーナス
+        if _slope_norm >= 0.10:
+            score += 0.3
+            reasons.append(f"✅ 強トレンド(slope={_slope_norm:.3f})")
+
+        conf = int(min(85, 50 + score * 4))
+        return Candidate(
+            signal=signal, confidence=conf, sl=sl, tp=tp,
+            reasons=reasons, entry_type=self.name, score=score
+        )
+
+    def _evaluate_redesign_v2(self, ctx: SignalContext) -> Optional[Candidate]:
+        # Pair universe is intentionally unchanged; the V2 flag only changes
+        # signal/execution timing and MR geometry.
+        _sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+        if _sym not in ("EURUSD",):
+            return None
+
+        if ctx.df is None or len(ctx.df) < self.LR_PERIOD + 6:
+            return None
+
+        signal_df = ctx.df.iloc[:-1]
+        signal_bar = signal_df.iloc[-1]
+        signal_bar_time = getattr(signal_bar, "name", None)
+        signal_close = float(signal_bar["Close"])
+        signal_open = float(signal_bar["Open"])
+        signal_low = float(signal_bar["Low"])
+        signal_high = float(signal_bar["High"])
+        signal_atr = float(signal_bar.get("atr", ctx.atr))
+        signal_ema9 = float(signal_bar.get("ema9", ctx.ema9))
+        signal_ema21 = float(signal_bar.get("ema21", ctx.ema21))
+
+        if signal_atr <= 0:
+            return None
+
+        _closes = signal_df["Close"].iloc[-self.LR_PERIOD:].values
+        _lr = self._compute_lin_reg(_closes)
+        if _lr is None:
+            return None
+
+        alpha, beta, sigma, r2, upper, lower, mid = _lr
+        if r2 < self.MIN_R2:
+            return None
+
+        _slope_norm = abs(beta) / signal_atr if signal_atr > 0 else 0
+        if _slope_norm < self.MIN_SLOPE_ATR:
+            return None
+
+        _htf = ctx.htf or {}
+        _agreement = _htf.get("agreement", "mixed")
+        _channel_width = upper - lower
+        _mr_zone = _channel_width * self.MR_ZONE_PCT
+
+        signal = None
+        score = 0.0
+        reasons = []
+        sl = 0.0
+        tp = 0.0
+
+        if self.MR_ENABLED and beta > 0:
+            if (signal_close <= lower + _mr_zone
+                    and signal_close > signal_open
+                    and signal_close > lower
+                    and _agreement != "bear"):
+                signal = "BUY"
+                score = 4.5
+                sl = min(signal_low, lower) - signal_atr * self.SL_ATR_BUFFER
+                tp = mid
+                reasons.append(
+                    f"✅ LRC MR BUY V2: closed-bar lower-zone reversal "
+                    f"(R²={r2:.2f}, slope={_slope_norm:.3f})"
+                )
+
+        elif self.MR_ENABLED and beta < 0:
+            if (signal_close >= upper - _mr_zone
+                    and signal_close < signal_open
+                    and signal_close < upper
+                    and _agreement != "bull"):
+                signal = "SELL"
+                score = 4.5
+                sl = max(signal_high, upper) + signal_atr * self.SL_ATR_BUFFER
+                tp = mid
+                reasons.append(
+                    f"✅ LRC MR SELL V2: closed-bar upper-zone reversal "
+                    f"(R²={r2:.2f}, slope={_slope_norm:.3f})"
+                )
+
+        if signal is None:
+            return None
+
+        # V2 keeps TP at the regression midline. If the actual next-bar entry
+        # cannot produce the required RR to that mean target, skip instead of
+        # moving TP beyond the thesis target.
+        _sl_dist = abs(ctx.entry - sl)
+        _tp_dist = abs(tp - ctx.entry)
+        if _sl_dist <= 0 or _tp_dist / _sl_dist < self.MR_MIN_RR:
+            return None
+        _rr = _tp_dist / _sl_dist
+
+        if not ctx.backtest_mode:
+            _key = (_sym, self.name, str(signal_bar_time), signal)
+            if _key in self._v2_seen_signal_keys:
+                return None
+            self._v2_seen_signal_keys.add(_key)
+
+        _dec = 3 if ctx.is_jpy or ctx.pip_mult == 100 else 5
+        reasons.append(
+            f"✅ LIN_REG_CHANNEL_REDESIGN_V2: signal_bar_time={signal_bar_time} "
+            "で確定し次バー約定"
+        )
+        reasons.append(
+            f"✅ MR geometry: midline_TP={tp:.{_dec}f} no_RR_TP_extension "
+            f"SL={sl:.{_dec}f} RR={_rr:.1f}"
+        )
+        reasons.append(
+            f"✅ チャネル(closed): Upper={upper:.{_dec}f} Mid={mid:.{_dec}f} "
+            f"Lower={lower:.{_dec}f} (width={_channel_width * ctx.pip_mult:.1f}pip)"
+        )
+
+        if r2 >= 0.85:
+            score += 0.5
+            reasons.append(f"✅ 高適合度(R²={r2:.2f}≥0.85)")
+        if (signal == "BUY" and _agreement == "bull") or (
+                signal == "SELL" and _agreement == "bear"):
+            score += 0.5
+            reasons.append(f"✅ HTF方向一致({_agreement})")
+        if (signal == "BUY" and signal_ema9 > signal_ema21) or (
+                signal == "SELL" and signal_ema9 < signal_ema21):
+            score += 0.3
+            reasons.append("✅ EMA短期方向一致(closed)")
         if _slope_norm >= 0.10:
             score += 0.3
             reasons.append(f"✅ 強トレンド(slope={_slope_norm:.3f})")

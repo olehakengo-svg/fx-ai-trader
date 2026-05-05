@@ -272,6 +272,9 @@ class DaytradeEngine:
         if (os.environ.get("JPY_BASKET_TREND_REDESIGN_V2") == "1"
                 and os.environ.get("JPY_BASKET_TREND_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"jpy_basket_trend"}
+        if (os.environ.get("LIN_REG_CHANNEL_REDESIGN_V2") == "1"
+                and os.environ.get("LIN_REG_CHANNEL_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"lin_reg_channel"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

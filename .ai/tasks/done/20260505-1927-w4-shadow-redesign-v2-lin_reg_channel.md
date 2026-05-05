@@ -135,3 +135,41 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T22:56:58Z)
+
+exit=0 · 808s
+
+```
+Implemented `lin_reg_channel` redesign V2 behind `LIN_REG_CHANNEL_REDESIGN_V2=1`.
+
+Changes:
+- V2 path in [strategies/daytrade/lin_reg_channel.py](/data/repo/fx-ai-trader/strategies/daytrade/lin_reg_channel.py:134):
+  - signal uses closed bar only: `ctx.df.iloc[:-1]`
+  - entry remains next-bar execution via `ctx.entry`
+  - BUY/SELL reversal checks use signal bar `Close/Open`
+  - TP stays at regression midline; no RR-based TP extension
+  - live dedup key: `(symbol, strategy, signal_bar_time, direction)`
+- Shadow worker registration is double-flagged in [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:275):
+  - requires both `LIN_REG_CHANNEL_REDESIGN_V2=1`
+  - and `LIN_REG_CHANNEL_REDESIGN_V2_SHADOW_PROMOTE=1`
+- Added tests in [tests/test_lin_reg_channel_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_lin_reg_channel_shadow_redesign_v2.py:85).
+- Added BT runner/report generator in [tools/lin_reg_channel_shadow_bt.py](/data/repo/fx-ai-trader/tools/lin_reg_channel_shadow_bt.py:1).
+- Generated report: [bt-results/lin_reg_channel-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/lin_reg_channel-shadow-redesign-v2-2026-05-05.json:1).
+
+Verification:
+- `5 passed`: `tests/test_lin_reg_channel_shadow_redesign_v2.py`
+- `10 passed`: plus existing `tests/test_dt_sr_channel_shadow_redesign_v2.py`
+- `py_compile` passed
+- 365d MASSIVE BT ran with `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1`
+
+v2 LOCK verdict: `REJECT`.
+
+Reason: proposed improved PF/Wilson/PnL, but N dropped too much:
+- baseline: `N=148`, `PF=0.9573`, `wilson_lo=0.5005`, `PnL=-3.8589`
+- proposed: `N=82`, `PF=1.1018`, `wilson_lo=0.5138`, `PnL=5.1248`
+- `n_change_pct=-44.5946`, failing required `>= -30`
+
+No shadow promote was enabled.
+```
