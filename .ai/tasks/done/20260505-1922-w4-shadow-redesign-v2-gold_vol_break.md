@@ -135,3 +135,33 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T19:49:32Z)
+
+exit=0 · 204s
+
+```
+完了しました。
+
+実装は Axis 3 の最小変更に絞り、`GOLD_VOL_BREAK_REDESIGN_V2=1` のときだけ確定足 `ctx.df.iloc[-2]` の BB(2.5σ) breakout / ATR surge / ADX-DI / body で判定し、同一 `signal_bar_time` の再 emit を dedup します。default OFF なので live 既存挙動は変わりません。  
+該当: [gold_vol_break.py](/data/repo/fx-ai-trader/strategies/daytrade/gold_vol_break.py:47)
+
+shadow worker 登録は二重 flag です。`GOLD_VOL_BREAK_REDESIGN_V2=1` かつ `GOLD_VOL_BREAK_REDESIGN_V2_SHADOW_PROMOTE=1` のときだけ `gold_vol_break` を shadow-always に入れます。  
+該当: [__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:263)
+
+BT 比較用に `run_daytrade_backtest()` の cache key に `GOLD_VOL_BREAK_REDESIGN_V2` を追加しました。baseline/proposed が同一プロセスで混ざらないようにするためです。  
+該当: [app.py](/data/repo/fx-ai-trader/app.py:6150)
+
+追加テスト: [test_gold_vol_break_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_gold_vol_break_shadow_redesign_v2.py:111)
+
+検証:
+- `.venv/bin/pytest -q tests/test_gold_vol_break_shadow_redesign_v2.py` → `5 passed`
+- `.venv/bin/pytest -q tests/test_gold_vol_break_shadow_redesign_v2.py tests/test_gold_trend_momentum_shadow_redesign_v2.py` → `10 passed`
+- `python3 -m py_compile ...` → OK
+- `git diff --check` → OK
+
+BT report は生成済みです: [gold_vol_break-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/gold_vol_break-shadow-redesign-v2-2026-05-05.json:1)
+
+v2 LOCK verdict は **REJECT** です。理由は catastrophic regression ではなく、必須の `data/cache/massive/XAU_USD_15m.parquet` が存在せず、`BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1` で production `run_daytrade_backtest()` が Yahoo/API fallback を拒否して停止したためです。これは `N<20` の `INSUFFICIENT_BT_EVIDENCE` ではなく、mandatory source unavailable として分離しました。shadow promote 設定は有効化していません。
+```

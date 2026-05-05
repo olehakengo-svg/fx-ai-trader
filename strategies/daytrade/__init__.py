@@ -260,6 +260,9 @@ class DaytradeEngine:
         if (os.environ.get("GOLD_TREND_MOMENTUM_REDESIGN_V2") == "1"
                 and os.environ.get("GOLD_TREND_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"gold_trend_momentum"}
+        if (os.environ.get("GOLD_VOL_BREAK_REDESIGN_V2") == "1"
+                and os.environ.get("GOLD_VOL_BREAK_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"gold_vol_break"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

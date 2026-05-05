@@ -1,0 +1,95 @@
+{
+  "generated_at": "2026-05-05T19:48:55.109040+00:00",
+  "strategy": "gold_vol_break",
+  "variant": "closed_bar_bb_breakout_dedup_v2",
+  "flag": "GOLD_VOL_BREAK_REDESIGN_V2",
+  "shadow_worker_flag": "GOLD_VOL_BREAK_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest(symbol=\"XAU_USD\", lookback_days=365, interval=\"15m\", backtest_mode=True)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "bt_require_massive_cache": "1",
+  "massive_cache_verified": false,
+  "targets": [
+    "XAU_USD"
+  ],
+  "missing_caches": [
+    "data/cache/massive/XAU_USD_15m.parquet"
+  ],
+  "bt_execution": {
+    "baseline_env": {
+      "BT_MODE": "1",
+      "BT_REQUIRE_MASSIVE_CACHE": "1",
+      "GOLD_VOL_BREAK_REDESIGN_V2": "unset"
+    },
+    "proposed_env": {
+      "BT_MODE": "1",
+      "BT_REQUIRE_MASSIVE_CACHE": "1",
+      "GOLD_VOL_BREAK_REDESIGN_V2": "1"
+    },
+    "baseline_error": "BT_MODE requires local Massive parquet cache for XAU_USD/15m",
+    "proposed_error": "BT_MODE requires local Massive parquet cache for XAU_USD/15m",
+    "baseline_data_source": null,
+    "proposed_data_source": null
+  },
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": {
+      "pf_change": ">= -0.10",
+      "wilson_lo_change": ">= -0.05",
+      "n_change_pct": ">= -30",
+      "pnl_sign_preserved": true
+    },
+    "sanity_floor": {
+      "wilson_lo_proposed": ">= 0.20",
+      "pf_proposed": ">= 0.85"
+    },
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "XAU_USD": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "BT_MODE requires local Massive parquet cache for XAU_USD/15m"
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "BT_MODE requires local Massive parquet cache for XAU_USD/15m"
+      },
+      "lock_criteria": {
+        "verdict": "REJECT",
+        "reason": "missing_massive_cache_required_by_bt_spec",
+        "bt_evidence_threshold": "NOT_APPLICABLE: mandatory source data unavailable; proposed N was not measured",
+        "catastrophic_check": "NOT_RUN",
+        "sanity_floor": "NOT_RUN",
+        "shadow_promote_recommendation": "REJECT"
+      }
+    }
+  },
+  "overall_verdict": "REJECT",
+  "shadow_promote_recommendation": "REJECT",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start, after mandatory XAU_USD 15m MASSIVE cache is available",
+  "self_review": {
+    "catastrophic_only": "PASS: no positive-direction or Kelly threshold is used; catastrophic checks run only after N>=20 measured BT trades.",
+    "insufficient_bt_evidence": "PASS: measured proposed N<20 would map to INSUFFICIENT_BT_EVIDENCE; missing mandatory data is kept separate from low-N evidence.",
+    "production_live_safety": "PASS: strategy behavior is default-off unless GOLD_VOL_BREAK_REDESIGN_V2=1; shadow emit also requires GOLD_VOL_BREAK_REDESIGN_V2_SHADOW_PROMOTE=1.",
+    "post_hoc_adjustment": "PASS: implemented only the pre-registered timing redesign: closed signal bar BB/ATR/ADX/DI/body and per-signal-bar dedup.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 blocked Yahoo/GC=F/API fallback; no resample substitute was used.",
+    "live_promotion": "PASS: no live promotion was configured; shadow promotion is rejected because mandatory BT source data is unavailable."
+  }
+}

@@ -25,6 +25,7 @@ v7.3変更:
   TP: ATR7 × 3.0 (RR=1:3以上を確保)
   SL: ATR7 × 1.0
 """
+import os
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
@@ -44,8 +45,36 @@ class GoldVolBreak(StrategyBase):
     sl_mult = 1.0            # SL = ATR7 × 1.0
 
     _enabled_symbols = frozenset({"XAUUSD"})
+    _dedup_state: dict = {}
+
+    @classmethod
+    def reset_dedup_state(cls):
+        cls._dedup_state.clear()
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get("GOLD_VOL_BREAK_REDESIGN_V2") == "1"
+
+    def _signal_bar_time(self, ctx: SignalContext):
+        try:
+            return ctx.df.index[-2]
+        except Exception:
+            return ctx.bar_time
+
+    def _dedup_seen(self, ctx: SignalContext, signal: str, signal_bar_time) -> bool:
+        key = (
+            ctx.symbol.upper().replace("=X", "").replace("_", "").replace("/", ""),
+            self.name,
+            signal_bar_time,
+        )
+        if key in self._dedup_state:
+            return True
+        self._dedup_state[key] = signal
+        return False
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        if self._redesign_v2_enabled():
+            return self._evaluate_redesign_v2(ctx)
+
         _sym = ctx.symbol.upper().replace("=X", "").replace("_", "")
         if _sym not in self._enabled_symbols:
             return None
@@ -156,6 +185,141 @@ class GoldVolBreak(StrategyBase):
         elif (signal == "BUY" and _htf_ag == "bear") or (signal == "SELL" and _htf_ag == "bull"):
             score -= 1.5
             reasons.append(f"⚠️ HTF逆行({_htf_ag}) — 大幅減点")
+
+        reasons.append(f"📊 RR={_rr:.1f}:1 (TP={self.tp_mult}ATR, SL={self.sl_mult}ATR)")
+        conf = int(min(85, 50 + score * 4))
+
+        return Candidate(
+            signal=signal, confidence=conf, sl=sl, tp=tp,
+            reasons=reasons, entry_type=self.name, score=score,
+        )
+
+    def _evaluate_redesign_v2(self, ctx: SignalContext) -> Optional[Candidate]:
+        """V2 shadow variant: closed signal bar, next/current bar execution, dedup."""
+        _sym = ctx.symbol.upper().replace("=X", "").replace("_", "").replace("/", "")
+        if _sym not in self._enabled_symbols:
+            return None
+
+        if ctx.df is None or len(ctx.df) < 30:
+            return None
+
+        _df = ctx.df
+        signal_bar = _df.iloc[-2]
+        prev_signal_bar = _df.iloc[-3]
+        signal_bar_time = self._signal_bar_time(ctx)
+
+        _atr14 = float(signal_bar.get("atr", ctx.atr))
+        _atr7 = float(signal_bar.get("atr7", ctx.atr7))
+        if _atr14 <= 0 or _atr7 <= 0:
+            return None
+
+        _adx = float(signal_bar.get("adx", ctx.adx))
+        if _adx < self.adx_min:
+            return None
+
+        _atr_surge = _atr7 > _atr14 * self.atr_surge_ratio
+        if not _atr_surge:
+            return None
+
+        _bb_upper = float(signal_bar.get("bb_upper", ctx.bb_upper))
+        _bb_lower = float(signal_bar.get("bb_lower", ctx.bb_lower))
+        _bb_mid = float(signal_bar.get("bb_mid", ctx.bb_mid))
+        _band_abs = _bb_upper - _bb_lower
+        _sigma = _band_abs / 4.0 if _band_abs > 0 else 0
+        if _sigma <= 0:
+            return None
+
+        _bb_upper_25 = _bb_mid + self.bb_sigma * _sigma
+        _bb_lower_25 = _bb_mid - self.bb_sigma * _sigma
+
+        _sig_open = float(signal_bar["Open"])
+        _sig_close = float(signal_bar["Close"])
+        _body = abs(_sig_close - _sig_open)
+        if _body < _atr7 * self.body_min_atr:
+            return None
+
+        _adx_pos = float(signal_bar.get("adx_pos", ctx.adx_pos))
+        _adx_neg = float(signal_bar.get("adx_neg", ctx.adx_neg))
+        entry = ctx.entry
+
+        signal = None
+        score = 0.0
+        reasons = []
+        sl = 0.0
+        tp = 0.0
+        _min_sl = 0.030
+
+        if (_sig_close > _bb_upper_25
+                and _sig_close > _sig_open
+                and _adx_pos > _adx_neg):
+            signal = "BUY"
+            score = 4.0
+            _dist = round((_sig_close - _bb_upper_25) / _sigma, 2)
+            reasons.append(
+                f"✅ GOLD_VOL_BREAK_REDESIGN_V2 closed-bar BUY signal={signal_bar_time} "
+                f"BB({self.bb_sigma}σ) breakout distance={_dist}σ"
+            )
+            reasons.append(
+                f"✅ closed ATR surge ATR7={_atr7:.2f}>ATR14×{self.atr_surge_ratio}={_atr14 * self.atr_surge_ratio:.2f}"
+            )
+            reasons.append(f"✅ closed ADX={_adx:.1f} +DI={_adx_pos:.1f}>-DI={_adx_neg:.1f} body={_body:.2f}")
+            tp = entry + _atr7 * self.tp_mult
+            sl = entry - max(_atr7 * self.sl_mult, _min_sl)
+
+        elif (_sig_close < _bb_lower_25
+              and _sig_close < _sig_open
+              and _adx_neg > _adx_pos):
+            signal = "SELL"
+            score = 4.0
+            _dist = round((_bb_lower_25 - _sig_close) / _sigma, 2)
+            reasons.append(
+                f"✅ GOLD_VOL_BREAK_REDESIGN_V2 closed-bar SELL signal={signal_bar_time} "
+                f"BB({self.bb_sigma}σ) breakout distance={_dist}σ"
+            )
+            reasons.append(
+                f"✅ closed ATR surge ATR7={_atr7:.2f}>ATR14×{self.atr_surge_ratio}={_atr14 * self.atr_surge_ratio:.2f}"
+            )
+            reasons.append(f"✅ closed ADX={_adx:.1f} -DI={_adx_neg:.1f}>+DI={_adx_pos:.1f} body={_body:.2f}")
+            tp = entry - _atr7 * self.tp_mult
+            sl = entry + max(_atr7 * self.sl_mult, _min_sl)
+
+        if signal is None:
+            return None
+
+        _tp_dist = abs(tp - entry)
+        _sl_dist = abs(entry - sl)
+        _rr = _tp_dist / max(_sl_dist, 1e-8)
+        if _rr < 2.0:
+            return None
+
+        if self._dedup_seen(ctx, signal, signal_bar_time):
+            return None
+
+        if _adx >= 35:
+            score += 0.8
+            reasons.append(f"✅ closed-bar ADX super strong {_adx:.1f}>=35")
+        elif _adx >= 28:
+            score += 0.4
+
+        _di_gap = abs(_adx_pos - _adx_neg)
+        if _di_gap >= 15:
+            score += 0.5
+            reasons.append(f"✅ closed-bar DI gap {_di_gap:.1f}>=15")
+
+        _macdh = float(signal_bar.get("macd_hist", ctx.macdh))
+        _macdh_prev = float(prev_signal_bar.get("macd_hist", ctx.macdh_prev))
+        if signal == "BUY" and _macdh > 0 and _macdh > _macdh_prev:
+            score += 0.3
+        elif signal == "SELL" and _macdh < 0 and _macdh < _macdh_prev:
+            score += 0.3
+
+        _htf_ag = ctx.htf.get("agreement", "mixed") if ctx.htf else "mixed"
+        if (signal == "BUY" and _htf_ag == "bull") or (signal == "SELL" and _htf_ag == "bear"):
+            score += 0.5
+            reasons.append(f"✅ HTF aligned({_htf_ag})")
+        elif (signal == "BUY" and _htf_ag == "bear") or (signal == "SELL" and _htf_ag == "bull"):
+            score -= 1.5
+            reasons.append(f"⚠️ HTF against({_htf_ag})")
 
         reasons.append(f"📊 RR={_rr:.1f}:1 (TP={self.tp_mult}ATR, SL={self.sl_mult}ATR)")
         conf = int(min(85, 50 + score * 4))
