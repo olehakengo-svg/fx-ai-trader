@@ -184,6 +184,9 @@ class ScalperEngine:
         if (os.environ.get("GOLD_PIPS_REDESIGN_V2") == "1"
                 and os.environ.get("GOLD_PIPS_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"gold_pips_hunter"}
+        if (os.environ.get("LONDON_BREAKOUT_REDESIGN_V2") == "1"
+                and os.environ.get("LONDON_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"london_breakout"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

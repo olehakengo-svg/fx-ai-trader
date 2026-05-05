@@ -135,3 +135,41 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T23:48:20Z)
+
+exit=0 · 3047s
+
+```
+実装完了しました。
+
+主な変更:
+- [strategies/scalp/london_breakout.py](/data/repo/fx-ai-trader/strategies/scalp/london_breakout.py:39)
+  `LONDON_BREAKOUT_REDESIGN_V2=1` の時だけ、rolling 120 bars ではなく UTC `00:00 <= t < 07:00` の fixed Asia window を使い、確定済み close で breakout 判定します。default OFF なので既存 live 挙動は不変です。
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:187)
+  `LONDON_BREAKOUT_REDESIGN_V2=1` かつ `LONDON_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE=1` の double flag 時だけ shadow loser emit 対象に登録。
+- [tools/london_breakout_shadow_bt.py](/data/repo/fx-ai-trader/tools/london_breakout_shadow_bt.py:1)
+  365d MASSIVE A/B BT runner 追加。`app.run_daytrade_backtest(..., backtest_mode=True)` を呼び、strategy-filter compute patch で `london_breakout` のみ比較。
+- [tests/test_london_breakout_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_london_breakout_shadow_redesign_v2.py:77)
+  default OFF 保持、fixed Asia window、closed-bar 判定、double-flag shadow 登録をテスト。
+
+BT report:
+- [bt-results/london_breakout-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/london_breakout-shadow-redesign-v2-2026-05-05.json:1)
+- Overall verdict: `PASS`
+- Shadow recommendation: `RECOMMEND_SHADOW`
+
+Proposed 365d MASSIVE results:
+- `USD_JPY`: N=103, PF=2.1348, Wilson_lo=0.6872, EV=1.0216
+- `EUR_USD`: N=250, PF=1.7361, Wilson_lo=0.6823, EV=0.6840
+- `GBP_USD`: N=288, PF=1.3609, Wilson_lo=0.6462, EV=0.3762
+- `EUR_JPY`: N=185, PF=1.6603, Wilson_lo=0.6729, EV=0.6306
+- `GBP_JPY`: N=217, PF=1.5457, Wilson_lo=0.6461, EV=0.5610
+
+Verification:
+- `.venv/bin/pytest tests/test_london_breakout_shadow_redesign_v2.py -q` → `5 passed`
+- `.venv/bin/python -m py_compile strategies/scalp/london_breakout.py tools/london_breakout_shadow_bt.py` → passed
+- JSON validation for the BT report → passed
+
+Codex self-review: criteria は v2 どおり catastrophic/floor のみで、positive direction や absolute Kelly は要求していません。baseline が `<20` で sample不足だった cell は、proposed N>=20 のため即 REJECT には
+…(truncated)
