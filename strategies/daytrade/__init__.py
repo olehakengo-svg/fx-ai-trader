@@ -266,6 +266,9 @@ class DaytradeEngine:
         if (os.environ.get("HTF_FALSE_BREAKOUT_REDESIGN_V2") == "1"
                 and os.environ.get("HTF_FALSE_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"htf_false_breakout"}
+        if (os.environ.get("INDUCEMENT_OB_REDESIGN_V2") == "1"
+                and os.environ.get("INDUCEMENT_OB_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"inducement_ob"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

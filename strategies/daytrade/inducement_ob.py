@@ -25,6 +25,7 @@ v1 → v2 改修要点 (2026-04-07):
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
+import os
 import numpy as np
 
 
@@ -83,11 +84,36 @@ class InducementOrderBlock(StrategyBase):
     BUY_ONLY_PAIRS = {"USDJPY"}
     SELL_ONLY_PAIRS = {"EURUSD"}
 
+    # Redesign v2: live-safe default OFF. When enabled, keep the thesis and
+    # replace the stop geometry with sweep-extreme outside + ATR buffer.
+    REDESIGN_V2_FLAG = "INDUCEMENT_OB_REDESIGN_V2"
+    REDESIGN_V2_SWEEP_BUFFER_ATR = 0.3
+
     def _normalize_symbol(self, symbol: str) -> str:
         s = symbol.upper().replace("=X", "").replace("=F", "").replace("/", "").replace("_", "")
         if s in ("GC", "GCF"):
             return "XAUUSD"
         return s
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get(self.REDESIGN_V2_FLAG) == "1"
+
+    def _compute_stop_loss(self, ctx, signal, ob, liq_grab, atr, pip_unit):
+        """Return stop loss for legacy or redesign-v2 geometry."""
+        _is_buy = signal == "BUY"
+        if not self._redesign_v2_enabled():
+            if _is_buy:
+                return ob["ob_low"] - self.SL_FIXED_PIPS * pip_unit
+            return ob["ob_high"] + self.SL_FIXED_PIPS * pip_unit
+
+        fixed_buffer = self.SL_FIXED_PIPS * pip_unit
+        atr_buffer = atr * self.REDESIGN_V2_SWEEP_BUFFER_ATR
+        spread_buffer = max(atr_buffer, fixed_buffer)
+        sweep_extreme = float(liq_grab["sweep_extreme"])
+
+        if _is_buy:
+            return min(float(ob["ob_low"]), sweep_extreme) - spread_buffer
+        return max(float(ob["ob_high"]), sweep_extreme) + spread_buffer
 
     # ══════════════════════════════════════════════════
     # Order Block 検出 (v1と同一)
@@ -554,11 +580,7 @@ class InducementOrderBlock(StrategyBase):
         _is_jpy_xau = ctx.is_jpy or "XAU" in ctx.symbol.upper()
         _pip_unit = 0.01 if _is_jpy_xau else 0.0001
 
-        # SL: OB境界 + 固定SL_FIXED_PIPS (v2: 超タイト)
-        if _is_buy:
-            sl = ob["ob_low"] - self.SL_FIXED_PIPS * _pip_unit
-        else:
-            sl = ob["ob_high"] + self.SL_FIXED_PIPS * _pip_unit
+        sl = self._compute_stop_loss(ctx, signal, ob, liq_grab, ctx.atr, _pip_unit)
 
         # TP: インパルスピーク/トラフ or ATR × TP_ATR_MULT (v2: 拡大)
         if _is_buy:
@@ -622,6 +644,10 @@ class InducementOrderBlock(StrategyBase):
             f"✅ HTF OB: 1H zone [{htf_ob['htf_ob_low']:.5f}-{htf_ob['htf_ob_high']:.5f}]",
             f"RR={_rr:.1f}, ADX={ctx.adx:.1f}, SL={_sl_dist/_pip_unit:.1f}pip",
         ]
+        if self._redesign_v2_enabled():
+            _reasons.append(
+                f"INDUCEMENT_OB_REDESIGN_V2: sweep_extreme_sl buffer={max(ctx.atr * self.REDESIGN_V2_SWEEP_BUFFER_ATR, self.SL_FIXED_PIPS * _pip_unit):.5f}"
+            )
 
         return Candidate(
             signal=signal,

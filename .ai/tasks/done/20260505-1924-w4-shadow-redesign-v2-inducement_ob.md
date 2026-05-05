@@ -135,3 +135,31 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T21:40:20Z)
+
+exit=0 · 1647s
+
+```
+Implemented v2 under default-off flags.
+
+Changed:
+- `strategies/daytrade/inducement_ob.py`: added `INDUCEMENT_OB_REDESIGN_V2=1` stop geometry using sweep extreme outside + `max(0.3 ATR, 2 pip)` buffer.
+- `strategies/daytrade/__init__.py`: shadow worker registration behind double flag:
+  `INDUCEMENT_OB_REDESIGN_V2=1` + `INDUCEMENT_OB_REDESIGN_V2_SHADOW_PROMOTE=1`.
+- `app.py`: BT cache key now includes `INDUCEMENT_OB_REDESIGN_V2`, preventing baseline/proposed cache contamination.
+- `tests/test_inducement_ob_shadow_redesign_v2.py`: default-off, BUY/SELL stop geometry, and double-flag shadow registration tests.
+
+BT report:
+- [bt-results/inducement_ob-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/inducement_ob-shadow-redesign-v2-2026-05-05.json)
+- Verdict: `INSUFFICIENT_BT_EVIDENCE`
+- Proposed N: USD_JPY 12, EUR_USD 14, GBP_USD 19, EUR_GBP 18
+- XAU_USD skipped as missing mandatory `data/cache/massive/XAU_USD_15m.parquet`; no substitute used.
+- v2 decision: catastrophic check skipped per spec, shadow promote recommended.
+
+Verification:
+- `.venv/bin/pytest tests/test_inducement_ob_shadow_redesign_v2.py` passed: 4 tests.
+- `python3 -m py_compile strategies/daytrade/inducement_ob.py strategies/daytrade/__init__.py app.py` passed.
+- BT ran with `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1` and MASSIVE parquet only.
+```
