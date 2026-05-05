@@ -137,3 +137,31 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T14:41:10Z)
+
+exit=0 · 196s
+
+```
+完了しました。
+
+実装は `CONFLUENCE_SCALP_REDESIGN_V2=1` 配下の closed-bar / dedup V2 を確認し、shadow worker 登録を追加しました。shadow emit は `CONFLUENCE_SCALP_REDESIGN_V2=1` かつ `CONFLUENCE_SCALP_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag 時だけ有効です。flag OFF の live 影響はありません。
+
+主要ファイル:
+- [confluence_scalp.py](/data/repo/fx-ai-trader/strategies/scalp/confluence_scalp.py:321)
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:169)
+- [test_confluence_scalp_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_confluence_scalp_shadow_redesign_v2.py:132)
+- [confluence_scalp_shadow_bt.py](/data/repo/fx-ai-trader/tools/confluence_scalp_shadow_bt.py:147)
+- [BT report](/data/repo/fx-ai-trader/bt-results/confluence_scalp-shadow-redesign-v2-2026-05-05.json)
+
+v2 LOCK verdict: `INSUFFICIENT_BT_EVIDENCE`  
+Reason: proposed 365d BT trades are `<20` in every cell, so catastrophic check is skipped per v2 spec and shadow promote is recommended.
+
+Verification:
+- `9 passed` for confluence redesign tests
+- `13 passed` including related scalp v2 shadow route regression
+- `py_compile` passed for `confluence_scalp.py` and `confluence_scalp_shadow_bt.py`
+
+Note: `confluence_scalp` is registered under `ScalperEngine`, so the report uses the production scalp BT path; `run_daytrade_backtest()` does not naturally evaluate this strategy.
+```
