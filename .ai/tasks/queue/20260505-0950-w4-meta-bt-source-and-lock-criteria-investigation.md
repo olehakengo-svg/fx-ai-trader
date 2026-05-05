@@ -1,90 +1,59 @@
 ---
 id: 20260505-0950-w4-meta-bt-source-and-lock-criteria-investigation
-title: "[W4-Meta] BT データソース乖離 + LOCK criteria 緩和案 (W4P1 後の root cause)"
+title: "[W4-Meta] BT MASSIVE 必須化 + LOCK criteria 緩和 + production 経路修正"
 owner: codex
 status: queued
 priority: P0
 created_at: 2026-05-05T09:50:00+0900
-roadmap_gate: "W4-Redesign 72 件 mass batch を再開する前の前提条件整備"
+roadmap_gate: "W4-Redesign 72 件 mass batch を再開する前の前提条件整備 (BT データソース統一 + LOCK criteria 改訂)"
 rule: R1
 prereq_artifacts:
   - .ai/tasks/done/20260505-0100-w4p1-streak-reversal-htf-soft-penalty.md
   - knowledge-base/raw/bt-results/streak-reversal-htf-soft-penalty-2026-05-05.json
   - knowledge-base/wiki/decisions/streak-reversal-htf-soft-penalty-pre-reg.md
   - audits/edge_design/streak_reversal.md
+  - tools/bt_data_cache.py
+  - modules/data.py
 related:
   - knowledge-base/raw/bt-results/edge-lab-2026-04-23.json
   - knowledge-base/wiki/lessons/feedback_partial_quant_trap.md
+  - knowledge-base/wiki/lessons/feedback_label_empirical_audit.md
 ---
 
 # 0. なぜこのタスクか
 
-W4P1 streak_reversal で **FAIL** が出たが、内容は不可解:
+W4P1 streak_reversal で **FAIL** が出た。User 指摘 (2026-05-05):
 
-**Audit が引用した数値 (edge-lab-2026-04-23.json):**
-- N=468, WR=72.2%, PF=3.07, Wilson lo=68%, Bonferroni p=1.3e-5, Kelly=0.487
+> 「BT のデータソースは MASSIVE を使うことになっていたんだけど、なんで別のものを使う形になっているの？」
 
-**W4P1 の Codex BT (USD_JPY_5m parquet→15m resample, focused A/B):**
-- baseline (現行 hard reject): N=1224, WR=37.99%, EV=+0.395, PF=1.037, Wilson lo=0.353, Kelly=0.013
-- proposed (soft penalty): N=1564, WR=39.96%, EV=+0.775, PF=1.073, Wilson lo=0.376, Kelly=0.027
+確認:
+- repo は MASSIVE Market Data API 由来の parquet cache (`data/cache/massive/{PAIR}_{TF}.parquet`) を **正式 BT データソース** として持つ
+- `tools/bt_data_cache.py` / `modules/data.py:fetch_ohlcv_massive` が経路
+- W4P1 で Codex は `USD_JPY_5m.parquet` (MASSIVE 由来) を 15m リサンプルして A/B BT を実施 → これ自体は MASSIVE データだが production 経路と完全等価ではない
+- production の `run_daytrade_backtest` は Yahoo 60d 制限で 365d 完走不可と Codex は記録した → これは production code path の **bug** (本来 MASSIVE cache を使うべき)
 
-完全に別の母集団。soft penalty は positive direction だが Pre-reg LOCK 絶対基準（Kelly>=0.40 等）に届かず FAIL。
+# 1. このタスクで答える質問
 
-72 件の mass batch を再開する前に、**(A) BT データソース整合性** と **(B) LOCK criteria の妥当性** を整理する必要がある。
+## Q1: production BT path が Yahoo に fallback している原因
 
-# 1. 仮説
+`run_daytrade_backtest` (`app.py` 経由) のデータ取得経路を遡り:
+- どこで Yahoo 60d 制限がかかるか
+- なぜ MASSIVE cache (`data/cache/massive/`) が使われていないか
+- 修正すべき file:line を特定
 
-## A. BT データソース乖離の原因候補
+## Q2: 統一 BT データソース仕様
 
-1. **edge-lab-2026-04-23.json は cell 別 (filtered) 集計**: 特定の hour bucket / session / pair filter 後の N=468 — つまり「特定 cohort で WR=72%」
-2. **W4P1 BT は無 filter aggregate**: USD_JPY 全時間帯 15m re-sampled → N=1224 → WR=38% に下がる (signal の発火タイミングが幅広く拾われた)
-3. つまり **同じ戦略の `aggregate` vs `cell-filtered`** の違い。Audit は cell-filtered を引用していた可能性。
+W4-Redesign 全 72 件で使う統一仕様:
+- **必須**: MASSIVE cache (`data/cache/massive/{PAIR}_{TF}.parquet`)
+- **必須**: production の signal/exit 関数 (backtest_mode=True) を呼ぶ — リサンプルや helper 関数で代替しない
+- **必須**: 365d window (cache が ~10 年あるので問題なし)
+- **必須**: cell vs aggregate の区別を明示 — audit DB (edge-lab) は cell-filtered の可能性、その場合は同じ cell で BT し直す
 
-## B. LOCK criteria (Kelly>=0.40 等) は厳しすぎ
+## Q3: LOCK criteria 改訂 (絶対 → 相対 + sanity floor)
 
-mass dispatch のテンプレで「Kelly >= 0.40 が望ましい」と書いたが、これは streak_reversal の audit 数値 (Kelly=0.487) を念頭にした標準。実際の baseline Kelly がそもそも低い戦略 (例: 0.013) では、改善しても 0.40 に届かない。
+mass dispatch のテンプレで「Kelly >= 0.40」を一律要求したのは streak_reversal の audit 数値に偏った tuning。各戦略 baseline が異なるので絶対基準は不適切。
 
-**正しい LOCK criteria 設計:**
-- 絶対基準: 戦略毎に baseline を測ってから設定 (impossible to set globally)
-- **相対基準を主軸に**:
-  - regression なし (PF, Wilson lo, EV が悪化しない)
-  - positive direction (改善方向で 95% CI 上限が現行を上回る)
-  - cell-level Bonferroni 有意 (multiple testing 補正後 p<0.05)
-- **絶対 floor**: Wilson lo >= 0.45, PF >= 1.0 など最低限の sanity
-
-# 2. このタスクの目的
-
-1. **edge-lab-2026-04-23.json と W4P1 BT の差分原因を特定**
-2. **W4-Redesign 全 72 件で使うべき統一 BT データソース指定**
-3. **LOCK criteria を相対基準ベースに改訂した spec template 提案**
-4. **改訂版 dispatch script も成果物に含める** (Claude が再実行できるように)
-
-# 3. Investigation Steps
-
-## Step 1: edge-lab-2026-04-23.json の中身確認
-
-- N=468 はどの cohort/filter で出たか
-- 何の指標か (cell-filtered? hour-bucket? session-only?)
-- streak_reversal だけでなく他戦略も同様の cell vs aggregate の乖離があるか
-
-## Step 2: W4P1 BT path の確認
-
-- USD_JPY_5m → 15m リサンプルが production の `run_daytrade_backtest` と等価か
-- 5m → 15m リサンプル時に発火タイミングが変わって N が増えるのは正しいか
-- production 経路で 365d full BT が完走できない原因 (Yahoo 60d 制限) の回避策
-
-## Step 3: 統一 BT データソース提案
-
-選択肢:
-- **A**: 現行 `run_daytrade_backtest` 経路 + 90d window (Yahoo 60d 制限内で複数 fold)
-- **B**: repo 内 parquet (USD_JPY_5m, etc.) を base に長期 BT
-- **C**: edge-lab cell-filtered 系を再利用 (cohort 仕様明示)
-
-各選択肢の長所/短所をまとめ、推奨 + spec を出す。
-
-## Step 4: LOCK criteria 改訂 template
-
-例:
+改訂案:
 ```yaml
 lock_criteria:
   regression_check:
@@ -93,7 +62,10 @@ lock_criteria:
     - ev_change >= 0  # EV 悪化なし
   positive_direction:
     - n_change_pct >= -10  # 発火数大幅減少なし
-    - one_of: [wilson_lo_change >= +0.02, ev_change_pct >= +10, pf_change >= +0.05]
+    - one_of:  # 改善方向の少なくとも一つ
+      - wilson_lo_change >= +0.02
+      - ev_change_pct >= +10
+      - pf_change >= +0.05
   significance:
     - cell_level_bonferroni_p < 0.05  # cell 別 Bonferroni
   sanity_floor:
@@ -101,42 +73,103 @@ lock_criteria:
     - pf_proposed >= 1.0
 ```
 
-戦略毎に絶対 Kelly 基準を要求する代わりに、relative + sanity の組み合わせ。
+## Q4: edge-lab vs Codex BT の N 乖離
 
-## Step 5: 改訂 dispatch script 提案
+audit DB (edge-lab-2026-04-23.json) が引用していた数値と Codex BT 数値が乖離する原因:
+- cell-filtered (時間帯/session フィルタ後) vs aggregate
+- 期間 (edge-lab は何日ぶんか / Codex BT は何日ぶんか)
+- pair filter (USD_JPY のみか他 pair 込みか)
 
-`tools/w4_redesign_dispatch_v2.py` で:
-- audit から redesign axis を抽出
-- 統一 BT データソース指定を埋め込む
+# 2. Investigation Steps
+
+## Step 1: production BT path 解析
+
+`tools/bt_*.py` と `modules/bt_vec_harness.py` を調査:
+- 365d BT のデータ取得が `fetch_ohlcv_massive` 経由か `yfinance` 経由か
+- どちらの経路か file:line で特定
+- Yahoo 経路を MASSIVE cache 優先に修正する patch 案
+
+## Step 2: MASSIVE cache 状態確認
+
+```bash
+ls -la data/cache/massive/*.parquet
+```
+
+各 pair / TF の保存期間 (start/end date) を確認。365d 必要量に足りるか。
+
+## Step 3: edge-lab-2026-04-23.json の cohort 確認
+
+streak_reversal の N=468/Kelly=0.487 がどの cohort で出たか:
+- pair: USD_JPY のみ?
+- session: NY のみ? Asian + NY?
+- tf: 15m? 5m?
+- 期間: 何日?
+
+audit DB が cell-filtered なら、同じ cell 仕様で W4P1 BT を再実行したらどうなるか試算 (実行不要、analytical estimate)。
+
+## Step 4: 統一 BT 仕様 spec
+
+`knowledge-base/wiki/analyses/w4-redesign-bt-spec-2026-05-05.md` に:
+- データソース: `data/cache/massive/{PAIR}_{TF}.parquet` (MASSIVE 由来)
+- production signal 関数を `backtest_mode=True` で呼ぶ
+- cell 仕様: audit が cell-filtered なら同 cell、aggregate なら全期間
+- 365d window, 必要に応じて 730d / 1825d 拡張
+- BT framework: `modules/bt_vec_harness.py` または `tools/bt_365d_runner.py` どちらが適切か
+
+## Step 5: LOCK criteria 改訂 spec
+
+`knowledge-base/wiki/decisions/w4-redesign-lock-criteria-v2-2026-05-05.md` に:
+- 上記 Q3 の YAML 形式 LOCK criteria
+- W4P1 streak_reversal を改訂基準で再評価したらどうなるか試算
+  - regression: PF +0.036, Wilson lo +0.023, EV +0.380 → ALL PASS
+  - positive direction: N +28%, EV +96% → PASS
+  - significance: cell-level Bonferroni 計算 (data あれば)
+  - sanity: Wilson lo 0.376 < 0.40 → SANITY FAIL
+  → **Verdict 試算: SANITY FLOOR 不達 (Wilson 0.376) で REJECT、ただし「あと 0.024 で達成」という近接判定**
+- 改訂基準でも streak_reversal がギリギリ FAIL なら、サニティ floor を 0.35 に下げるか検討
+
+## Step 6: dispatch script v2 spec
+
+`tools/w4_redesign_dispatch_v2.py` の仕様 (実装は Claude が後で):
+- audit から redesign axis 抽出
+- MASSIVE cache 経路を強制 (prompt に明記)
 - 改訂 LOCK criteria を埋め込む
-- 72 件分の queue file を再生成
+- 既存 paused tasks (`.ai/tasks/queue/_paused_w4_redesign/`) を置換せず別 ID で再生成
 
-実装はしない (Claude が走らせる側)、提案 spec のみ。
+## Step 7: production BT path patch 提案 (実装はしない)
 
-## Step 6: Codex 自己レビュー
+Q1 で発見した Yahoo fallback bug の修正案:
+- どのファイルの何行目を変更すればいいか
+- `fetch_ohlcv_massive` をデフォルトに、Yahoo は完全 fallback (or 削除)
+- patch 案 diff を `knowledge-base/wiki/decisions/bt-massive-default-2026-05-05.md` に記録
+
+## Step 8: Codex 自己レビュー
 
 - BT 乖離の説明が論理的か
-- LOCK criteria が緩すぎず厳しすぎないか (W4P1 の soft penalty が PASS するレベルになるか)
-- post-hoc adjustment になっていないか (W4P1 を救済する目的で基準を緩めていないか)
+- LOCK criteria が緩すぎず厳しすぎないか (W4P1 が borderline pass/fail になるレベル)
+- post-hoc adjustment になっていないか (W4P1 を救済する目的で基準を緩めていないか — 適切な justification 必須)
 
-# 4. Acceptance
+# 3. Acceptance
 
-- `knowledge-base/wiki/analyses/w4-redesign-bt-source-and-lock-criteria-2026-05-05.md` に:
-  - BT データソース乖離の原因分析
-  - 統一 BT データソース推奨
-  - 改訂 LOCK criteria template
-  - dispatch script v2 spec
-  - W4P1 streak_reversal を改訂基準で再評価したらどうなるか試算
-- 既存 W4P1 の判定 (FAIL) を覆すかどうかの推奨
+成果物:
+1. `knowledge-base/wiki/analyses/w4-redesign-bt-spec-2026-05-05.md` (BT データソース統一仕様)
+2. `knowledge-base/wiki/decisions/w4-redesign-lock-criteria-v2-2026-05-05.md` (LOCK criteria 改訂)
+3. `knowledge-base/wiki/decisions/bt-massive-default-2026-05-05.md` (production path patch 案)
+4. W4P1 streak_reversal の改訂基準下での verdict 試算 (PASS / borderline / REJECT)
+5. dispatch script v2 spec
+6. Codex self-review section
 
-# 5. Out of Scope
+# 4. Out of Scope
 
-- W4P1 の再 BT 実行 (Step 6 試算のみ)
+- production BT path の patch 実装 (本タスクは spec 案まで、実装は別タスク)
+- W4P1 の再 BT 実行 (試算のみ)
 - 72 件の re-dispatch (Claude が別タスクで実行)
 - audit DB の再構築
 
-# 6. Notes
+# 5. Notes
 
 - post-hoc justification 罠注意: W4P1 を pass させるためだけに基準を緩めるのではなく、汎用的に正しい基準を提案
-- audit は user 仮説 ("思想は正、設計が誤") を前提に行われた。LOCK criteria が厳しすぎて全件 FAIL になると audit の意義が消える
+- 「MASSIVE 必須」は user 明示指示なので spec に明文化
+- production の BT が Yahoo に依存しているなら、それは別の bug として記録 (Rule 3 candidate)
 - 同時に、緩すぎて noise を拾うのも危険 (post-hoc selection)
+- audit は user 仮説 ("思想は正、設計が誤") を前提に行われた。LOCK criteria が厳しすぎて全件 FAIL になると audit の意義が消える
