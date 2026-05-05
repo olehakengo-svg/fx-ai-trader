@@ -135,3 +135,43 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T17:03:03Z)
+
+exit=0 · 811s
+
+```
+実装完了です。
+
+変更点:
+- [strategies/daytrade/ema200_reversal.py](/data/repo/fx-ai-trader/strategies/daytrade/ema200_reversal.py:19)
+  - `EMA200_REVERSAL_REDESIGN_V2=1` 配下でのみ有効
+  - USD_JPY routing
+  - `(symbol, signal, closed_bar)` per-bar dedup
+  - `ctx.bar_time` 優先、なければ `ctx.df.index[-1]` fallback
+- [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:248)
+  - `EMA200_REVERSAL_REDESIGN_V2=1` かつ `EMA200_REVERSAL_REDESIGN_V2_SHADOW_PROMOTE=1` の時だけ shadow worker 登録
+- [tests/test_ema200_reversal_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_ema200_reversal_shadow_redesign_v2.py)
+  - default OFF、USD_JPY routing、dedup、df index fallback、double-flag shadow 登録をテスト
+- [tools/ema200_reversal_shadow_bt.py](/data/repo/fx-ai-trader/tools/ema200_reversal_shadow_bt.py)
+  - 365d MASSIVE BT report generator
+
+BT report:
+- [bt-results/ema200_reversal-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/ema200_reversal-shadow-redesign-v2-2026-05-05.json)
+- Verdict: `PASS`
+- USD_JPY 365d MASSIVE 15m
+- baseline: `N=113`, `PF=1.0126`, `wilson_lo=0.5274`, `PnL=1.0084`
+- proposed: `N=113`, `PF=1.0126`, `wilson_lo=0.5274`, `PnL=1.0084`
+- catastrophic check: PASS
+- sanity floor: PASS
+- recommendation: `RECOMMEND_SHADOW`
+
+Verification:
+- `.venv/bin/pytest -q tests/test_ema200_reversal_shadow_redesign_v2.py tests/test_dt_sr_channel_shadow_redesign_v2.py tests/test_adx_trend_continuation_shadow_redesign_v2.py` → `15 passed`
+- `.venv/bin/python tools/ema200_reversal_shadow_bt.py` → report generated, `Overall: PASS`
+- `.venv/bin/python -m py_compile tools/ema200_reversal_shadow_bt.py strategies/daytrade/ema200_reversal.py`
+- `git diff --check` clean
+
+Self-review passed: no Kelly requirement, no positive-direction requirement, no post-hoc adjustment, and live impact remains zero with flags unset.
+```

@@ -1,4 +1,6 @@
 """EMA200 Trend Reversal — EMA200ブレイク後リテスト反発"""
+import os
+
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from modules.confidence_v2 import apply_penalty
@@ -14,9 +16,43 @@ class Ema200TrendReversal(StrategyBase):
     # チューナブルパラメータ
     ema200_dist_max = 0.5  # ATR倍率
     cross_window = 5       # クロス検出ウィンドウ
+    REDESIGN_V2_ENV = "EMA200_REVERSAL_REDESIGN_V2"
+    _v2_seen_bar_keys: set[tuple[str, str, str]] = set()
+
+    @classmethod
+    def reset_dedup_state(cls):
+        cls._v2_seen_bar_keys.clear()
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get(self.REDESIGN_V2_ENV) == "1"
+
+    def _symbol_key(self, ctx: SignalContext) -> str:
+        return (ctx.symbol or "").upper().replace("=X", "").replace("/", "").replace("_", "")
+
+    def _closed_bar_id(self, ctx: SignalContext):
+        if ctx.bar_time is not None:
+            return ctx.bar_time
+        try:
+            return ctx.df.index[-1]
+        except Exception:
+            return None
+
+    def _v2_duplicate(self, ctx: SignalContext, signal: str) -> bool:
+        bar_id = self._closed_bar_id(ctx)
+        if bar_id is None:
+            return True
+        key = (self._symbol_key(ctx), signal, str(bar_id))
+        if key in self._v2_seen_bar_keys:
+            return True
+        self._v2_seen_bar_keys.add(key)
+        return False
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         if ctx.df is None or len(ctx.df) < 20:
+            return None
+
+        _v2 = self._redesign_v2_enabled()
+        if _v2 and self._symbol_key(ctx) != "USDJPY":
             return None
 
         signal = None
@@ -72,6 +108,14 @@ class Ema200TrendReversal(StrategyBase):
 
         if signal is None:
             return None
+
+        if _v2:
+            if self._v2_duplicate(ctx, signal):
+                return None
+            reasons.append(
+                f"✅ EMA200_REVERSAL_REDESIGN_V2: USD_JPY routed, "
+                f"per-bar dedup closed_bar={self._closed_bar_id(ctx)}"
+            )
 
         _legacy_conf = int(min(75, 40 + score * 4))
         conf = apply_penalty(_legacy_conf, self.strategy_type, ctx.adx, conf_max=75)
