@@ -35,6 +35,7 @@ References:
 """
 from __future__ import annotations
 
+import os
 from typing import Optional
 
 from strategies.base import Candidate, StrategyBase
@@ -61,6 +62,7 @@ class AsiaRangeFadeV1(StrategyBase):
     ATR_MAX_PIPS = 8.0             # ATR > 8pip → no entry (vol expansion)
     SL_ATR_BUFFER = 0.5            # SL = range_low - 0.5×ATR (BUY)
     TP_RANGE_FRACTION = 0.7        # TP candidate: entry ± 0.7 × range_size
+    REDESIGN_V2_ENV = "ASIA_RANGE_FADE_V1_REDESIGN_V2"
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         df = ctx.df
@@ -79,7 +81,14 @@ class AsiaRangeFadeV1(StrategyBase):
             return None
 
         # ── RANGE_FORMATION ──
-        recent = df.iloc[-self.RANGE_LOOKBACK:]
+        # V2 forms the range from bars closed before the signal/rejection bar.
+        redesign_v2 = os.environ.get(self.REDESIGN_V2_ENV, "0") == "1"
+        if redesign_v2:
+            recent = df.iloc[-(self.RANGE_LOOKBACK + 1):-1]
+        else:
+            recent = df.iloc[-self.RANGE_LOOKBACK:]
+        if len(recent) < self.RANGE_LOOKBACK:
+            return None
         try:
             range_high = float(recent["High"].max())
             range_low = float(recent["Low"].min())
@@ -177,7 +186,8 @@ class AsiaRangeFadeV1(StrategyBase):
             f"✅ session UTC h={h} ∈ [{self.SESSION_HOUR_MIN},{self.SESSION_HOUR_MAX}] "
             f"(LOCK condition)",
             f"✅ range_size {range_size_pips:.1f}pip ≤ {self.RANGE_SIZE_ATR_MULT_MAX}×ATR "
-            f"({atr_pips * self.RANGE_SIZE_ATR_MULT_MAX:.1f}pip)",
+            f"({atr_pips * self.RANGE_SIZE_ATR_MULT_MAX:.1f}pip)"
+            f"{' using closed prior range' if redesign_v2 else ''}",
             f"✅ bars_in_range {bars_in_range_pct*100:.0f}% ≥ "
             f"{self.BARS_IN_RANGE_PCT_MIN*100:.0f}%",
             f"✅ {('range_low' if sig == 'BUY' else 'range_high')} touch "

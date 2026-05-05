@@ -139,3 +139,27 @@ PASS の場合、shadow 設定を以下のどれかで提案:
 - shadow 観測中の N 蓄積は production 自然進行に任せる
 - shadow-first アーキテクチャ: BT で大量 catastrophic 排除 → shadow で真値推定 → live ramp
 - 60-90 日後に shadow data から Bonferroni/Wilson/Kelly 判定する別 task が後続
+
+
+## Result (2026-05-05T09:32:12Z)
+
+exit=0 · 1453s
+
+```
+実装と検証まで完了しました。`asia_range_fade_v1` は [V2 flag](/data/repo/fx-ai-trader/strategies/daytrade/asia_range_fade_v1.py:65) 配下で、range formation を `df.iloc[-(RANGE_LOOKBACK + 1):-1]` の closed prior window に切り替えました。flag 未設定時は現行挙動のままです。
+
+追加した成果物:
+- Pre-reg LOCK: [asia_range_fade_v1-shadow-redesign-2026-05-05.md](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/asia_range_fade_v1-shadow-redesign-2026-05-05.md:1)
+- 失敗テスト/緑化: [test_asia_range_fade_v1_shadow_redesign.py](/data/repo/fx-ai-trader/tests/test_asia_range_fade_v1_shadow_redesign.py:56)
+- BT runner: [asia_range_fade_v1_shadow_bt.py](/data/repo/fx-ai-trader/tools/asia_range_fade_v1_shadow_bt.py:1)
+- BT結果JSON: [asia_range_fade_v1-shadow-bt-2026-05-05.json](/data/repo/fx-ai-trader/knowledge-base/raw/bt-results/asia_range_fade_v1-shadow-bt-2026-05-05.json:1)
+
+BT LOCK verdict は `REJECT` です。MASSIVE 15m cache + `BT_MODE=1` で 90d minimum を実行しましたが、全5 target が production `run_daytrade_backtest()` の `<20 trades` error になり、relative catastrophic / positive_direction / sanity_floor を判定可能なサンプルに到達しませんでした。したがって shadow promote 設定は適用していません。
+
+検証:
+- `.venv/bin/pytest tests/test_asia_range_fade_v1_shadow_redesign.py tests/test_fetch_ohlcv_bt_mode.py -q` → `6 passed`
+- `.venv/bin/python -m json.tool ...asia_range_fade_v1-shadow-bt-2026-05-05.json` → OK
+- `.venv/bin/python -m py_compile tools/asia_range_fade_v1_shadow_bt.py strategies/daytrade/asia_range_fade_v1.py` → OK
+
+Self-review: relative check のみ使用、絶対 Kelly 基準なし。V2 は default-off。LOCK rejected のため shadow/live routing 変更なし。
+```
