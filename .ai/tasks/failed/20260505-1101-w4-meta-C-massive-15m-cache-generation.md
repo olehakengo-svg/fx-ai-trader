@@ -117,3 +117,10 @@ ls -la data/cache/massive/*_15m.parquet
 - API 経路 fail なら resample で代替可だが、warning 付きで記録
 - MASSIVE_API_KEY が Codex 環境にない場合は env 確認 + 設定方法を記録 (Render secret 必要)
 - Task A が完了していなくても本 task は実行可 (cache 生成は独立)
+
+
+## Error (2026-05-05T01:38:09Z)
+
+```
+orphaned: container restarted while task was running
+```
