@@ -68,3 +68,23 @@ df.to_parquet(target)
 
 - **5 分以内完結を最優先**
 - API 経路で fail なら resample fallback (5m parquet → 15m)
+
+
+## Result (2026-05-05T07:33:46Z)
+
+exit=0 · 281s
+
+```
+完了しました。
+
+`data/cache/massive/EUR_JPY_15m.parquet` を API fetch 経路で生成し、検証済みです。
+
+- rows: `316453`
+- min: `2014-01-05 22:00:00+00:00`
+- max: `2026-05-05 07:30:00+00:00`
+- size: `6.3M`
+- `modules/data.py` 変更なし
+- commit: `c693a66 Add EUR_JPY 15m massive cache`
+
+途中でディスク空き不足が出たため、Python キャッシュ類だけ削除して空きを確保し、parquet は `zstd` 圧縮で保存しました。Git working tree は clean です。
+```
