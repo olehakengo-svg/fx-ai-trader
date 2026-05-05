@@ -234,3 +234,30 @@ Work in this repository. Respect existing uncommitted changes. Do not revert use
 6. **direction edge 毀損 (Kelly -15% 超え) が複数戦略で出たら overlay 採用は STOP**。Phase 3 起動を report で否定し、claude にエスカレート。
 
 In the final report, include status, files changed, verification output, **per-strategy Phase 2 verdict 表 (ADOPT_FOR_SHADOW / REJECT)**, max DD 削減率と Kelly 変化率の集計、LIVE regression test 結果、Phase 3 (Shadow 4 週並走) 起動可否の推奨、remaining risks。
+
+
+## Result (2026-05-05T02:38:13Z)
+
+exit=0 · 8s
+
+```
+BLOCKED_PRECONDITION.
+
+The canonical Phase 1 audit still begins with:
+
+```text
+# VFO-1 Phase 1 Verdict: FAIL
+
+**Decision:** PHASE 1 FAIL
+```
+
+Per your instruction, I stopped before implementation because `knowledge-base/raw/audits/vfo1-phase1-2026-05-04.md` does not confirm “PASS under override”.
+
+Additional blockers found during required reading:
+
+- `knowledge-base/wiki/decisions/vol-forecast-overlay-2026-05-04.md` is missing.
+- `knowledge-base/wiki/lessons/feedback_ma_filter_breaks_mr.md` is missing.
+- `knowledge-base/wiki/lessons/feedback_bt_must_use_massive.md` is missing.
+
+No files were changed.
+```
