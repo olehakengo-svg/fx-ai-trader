@@ -6147,7 +6147,11 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
     global _dt_bt_cache
     if exec_lag_jitter < 0.0 or exec_lag_jitter > 1.0:
         return {"error": "exec_lag_jitter must be in [0.0, 1.0]", "mode": "daytrade"}
-    cache_key = f"{symbol}_{interval}_{lookback_days}_jitter{exec_lag_jitter:.4f}_bt{int(bool(backtest_mode))}"
+    _gtm_v2_cache_flag = os.environ.get("GOLD_TREND_MOMENTUM_REDESIGN_V2", "0")
+    cache_key = (
+        f"{symbol}_{interval}_{lookback_days}_jitter{exec_lag_jitter:.4f}"
+        f"_bt{int(bool(backtest_mode))}_gtmV2{_gtm_v2_cache_flag}"
+    )
     now = datetime.now()
     cached = _dt_bt_cache.get(cache_key)
     if cached and (now - cached["ts"]).total_seconds() < DT_BT_TTL:

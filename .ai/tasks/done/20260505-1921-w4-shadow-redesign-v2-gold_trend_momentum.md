@@ -135,3 +135,38 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T19:45:34Z)
+
+exit=0 · 302s
+
+```
+実装完了しました。
+
+主な変更:
+- [gold_trend_momentum.py](/data/repo/fx-ai-trader/strategies/daytrade/gold_trend_momentum.py:70)
+  `GOLD_TREND_MOMENTUM_REDESIGN_V2=1` 配下でのみ V2 を有効化。
+- [gold_trend_momentum.py](/data/repo/fx-ai-trader/strategies/daytrade/gold_trend_momentum.py:274)
+  `signal_bar = df.iloc[-2]`、pullback/stop window は current bar 除外、`ctx.entry` execution、per-signal-bar dedup を実装。
+- [__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:260)
+  shadow worker 登録は `GOLD_TREND_MOMENTUM_REDESIGN_V2=1` と `GOLD_TREND_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag 必須。
+- [app.py](/data/repo/fx-ai-trader/app.py:6150)
+  baseline/proposed BT の cache 混線を避けるため、daytrade BT cache key に V2 flag を追加。
+- [test_gold_trend_momentum_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_gold_trend_momentum_shadow_redesign_v2.py:113)
+  flag OFF 互換、current-bar-only 拒否、closed-bar emit、dedup、shadow 二重 flag をテスト。
+
+BT report:
+- [gold_trend_momentum-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/gold_trend_momentum-shadow-redesign-v2-2026-05-05.json)
+
+V2 LOCK verdict:
+- `REJECT`
+- 理由: mandatory source `data/cache/massive/XAU_USD_15m.parquet` が存在せず、`BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1` で baseline/proposed とも停止。
+- Yahoo/GC=F fallback と resample 代替は使っていません。
+- これは measured `N < 20` ではなく mandatory BT source missing なので、`INSUFFICIENT_BT_EVIDENCE` ではなく conservative `REJECT` として shadow promote は未設定です。
+
+検証:
+- `.venv/bin/python -m pytest -q tests/test_gold_trend_momentum_shadow_redesign_v2.py tests/test_fetch_ohlcv_bt_mode.py`
+- 結果: `8 passed`
+- `py_compile`: `app.py`, strategy, engine files 通過。
+```
