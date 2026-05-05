@@ -90,3 +90,25 @@ rows >= 200k, end >= 2026-04-01, start <= 2014-12-31。
 - **5 分以内完結を最優先**: 余計な work (test 追加、refactor 等) 禁止
 - 既存 parquet が old 1 年版なら overwrite OK
 - API 経路で fail なら resample fallback (5m parquet → 15m) で OK
+
+
+## Result (2026-05-05T07:28:31Z)
+
+exit=0 · 37s
+
+```
+完了です。既存 `data/cache/massive/USD_JPY_15m.parquet` は条件を満たしていたため、仕様どおり no-op で停止しました。
+
+確認結果:
+
+```text
+rows 302916
+min 2014-01-02 05:00:00+00:00
+max 2026-05-01 00:00:00+00:00
+index_tz UTC
+```
+
+`>= 200k rows`、`start <= 2014-12-31`、`end >= 2026-04-01` を満たしています。既存ファイルが十分だったため fetch/save/commit は実行していません。
+
+補足: `tests/test_fetch_ohlcv_massive_pagination.py` が未追跡で存在しますが、今回の範囲外なので触っていません。
+```
