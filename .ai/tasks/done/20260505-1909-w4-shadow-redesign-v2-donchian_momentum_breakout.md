@@ -135,3 +135,30 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T15:06:00Z)
+
+exit=0 · 235s
+
+```
+Implemented DMB redesign v2 under default-OFF flags.
+
+Changed:
+- [strategies/hourly/donchian_momentum_breakout.py](/data/repo/fx-ai-trader/strategies/hourly/donchian_momentum_breakout.py:83): `DONCHIAN_MOMENTUM_BREAKOUT_REDESIGN_V2=1` enables closed-bar trigger, buffer, and per-bar dedup.
+- [strategies/hourly/__init__.py](/data/repo/fx-ai-trader/strategies/hourly/__init__.py:80) and [app.py](/data/repo/fx-ai-trader/app.py:4307): opt-in hourly shadow emit path via `DONCHIAN_MOMENTUM_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE=1`.
+- [app.py](/data/repo/fx-ai-trader/app.py:6137): `run_daytrade_backtest(..., backtest_mode=True)` supported.
+- Added tests: [tests/test_donchian_momentum_breakout_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_donchian_momentum_breakout_shadow_redesign_v2.py:1)
+- Added BT runner: [tools/donchian_momentum_breakout_shadow_bt.py](/data/repo/fx-ai-trader/tools/donchian_momentum_breakout_shadow_bt.py:1)
+
+BT artifact:
+- [bt-results/donchian_momentum_breakout-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/donchian_momentum_breakout-shadow-redesign-v2-2026-05-05.json:1)
+- Verdict: `REJECT`
+- Reason: required MASSIVE `1h` parquet caches are missing for all target pairs, and fallback is blocked by `BT_REQUIRE_MASSIVE_CACHE=1`. No shadow promote was applied.
+
+Verification:
+- `6 passed` for DMB v2 tests.
+- `13 passed` for BT/cache wrapper tests.
+- `9 passed` for adjacent v2 redesign tests.
+- `py_compile` passed for touched Python files.
+```

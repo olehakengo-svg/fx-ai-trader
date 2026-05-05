@@ -1,0 +1,186 @@
+{
+  "generated_at": "2026-05-05T15:05:23.573682+00:00",
+  "strategy": "donchian_momentum_breakout",
+  "variant": "closed_bar_buffer_dedup_v2",
+  "flag": "DONCHIAN_MOMENTUM_BREAKOUT_REDESIGN_V2",
+  "shadow_worker_flag": "DONCHIAN_MOMENTUM_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "1h",
+  "runner": "app.run_daytrade_backtest(backtest_mode=True; production BT path; strategy-only signal patch)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": false,
+  "targets": [
+    "USD_JPY",
+    "EUR_USD",
+    "GBP_USD",
+    "EUR_JPY",
+    "GBP_JPY"
+  ],
+  "missing_caches": [
+    "data/cache/massive/USD_JPY_1h.parquet",
+    "data/cache/massive/EUR_USD_1h.parquet",
+    "data/cache/massive/GBP_USD_1h.parquet",
+    "data/cache/massive/EUR_JPY_1h.parquet",
+    "data/cache/massive/GBP_JPY_1h.parquet"
+  ],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": {
+      "pf_change": ">= -0.10",
+      "wilson_lo_change": ">= -0.05",
+      "n_change_pct": ">= -30",
+      "pnl_sign_preserved": true
+    },
+    "sanity_floor": {
+      "wilson_lo_proposed": ">= 0.20",
+      "pf_proposed": ">= 0.85"
+    },
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "USD_JPY": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/USD_JPY_1h.parquet"
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/USD_JPY_1h.parquet"
+      },
+      "lock_criteria": {
+        "verdict": "REJECT",
+        "reason": "missing_massive_cache"
+      }
+    },
+    "EUR_USD": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/EUR_USD_1h.parquet"
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/EUR_USD_1h.parquet"
+      },
+      "lock_criteria": {
+        "verdict": "REJECT",
+        "reason": "missing_massive_cache"
+      }
+    },
+    "GBP_USD": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/GBP_USD_1h.parquet"
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/GBP_USD_1h.parquet"
+      },
+      "lock_criteria": {
+        "verdict": "REJECT",
+        "reason": "missing_massive_cache"
+      }
+    },
+    "EUR_JPY": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/EUR_JPY_1h.parquet"
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/EUR_JPY_1h.parquet"
+      },
+      "lock_criteria": {
+        "verdict": "REJECT",
+        "reason": "missing_massive_cache"
+      }
+    },
+    "GBP_JPY": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/GBP_JPY_1h.parquet"
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/GBP_JPY_1h.parquet"
+      },
+      "lock_criteria": {
+        "verdict": "REJECT",
+        "reason": "missing_massive_cache"
+      }
+    }
+  },
+  "overall_verdict": "REJECT",
+  "shadow_promote_recommendation": "REJECT",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 0.0,
+  "self_review": {
+    "catastrophic_only": "PASS: verdict ignores positive-direction and Kelly; applies only v2 catastrophic/floor rules when N>=20.",
+    "insufficient_bt_evidence": "PASS: proposed N<20 becomes INSUFFICIENT_BT_EVIDENCE and shadow recommendation.",
+    "production_live_safety": "PASS: strategy behavior is default-off unless DONCHIAN_MOMENTUM_BREAKOUT_REDESIGN_V2=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered closed_bar_buffer_dedup_v2 variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo/network fallback for this report."
+  }
+}

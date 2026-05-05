@@ -6,6 +6,7 @@ DaytradeEngineと同一パターン: 全戦略を順番に評価し、最高ス�
 """
 from __future__ import annotations
 import logging
+import os
 from typing import Optional
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
@@ -75,3 +76,16 @@ class HourlyEngine:
         if not candidates:
             return None
         return max(candidates, key=lambda c: c.score)
+
+    def split_shadow_always(self, candidates: list[Candidate],
+                             best: Optional[Candidate]) -> list[Candidate]:
+        """Opt-in shadow emit list for hourly redesign variants."""
+        if not candidates:
+            return []
+        _shadow_always = frozenset()
+        if (os.environ.get("DONCHIAN_MOMENTUM_BREAKOUT_REDESIGN_V2") == "1"
+                and os.environ.get("DONCHIAN_MOMENTUM_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"donchian_momentum_breakout"}
+        return [c for c in candidates
+                if c is not best
+                and c.entry_type in _shadow_always]

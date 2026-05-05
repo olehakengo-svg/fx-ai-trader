@@ -4307,6 +4307,7 @@ def compute_hourly_signal(df: pd.DataFrame, tf: str = "1h",
     engine = HourlyEngine()
     candidates = engine.evaluate_all(ctx)
     best = engine.select_best(candidates)
+    shadow_emits = engine.split_shadow_always(candidates, best)
 
     if best is None:
         _wait["entry"] = entry
@@ -4314,6 +4315,20 @@ def compute_hourly_signal(df: pd.DataFrame, tf: str = "1h",
         return _wait
 
     # ── 結果フォーマット ──
+    shadow_emit_payload = []
+    for cand in shadow_emits:
+        shadow_emit_payload.append({
+            "signal": cand.signal,
+            "entry": _rp(entry, symbol),
+            "confidence": int(getattr(cand, "confidence", 50) or 50),
+            "sl": float(cand.sl),
+            "tp": float(cand.tp),
+            "entry_type": cand.entry_type,
+            "reasons": list(cand.reasons or []),
+            "score": round(float(cand.score), 3),
+            "atr": _rp(atr, symbol),
+        })
+
     return {
         "signal": best.signal,
         "entry": entry,
@@ -4325,6 +4340,7 @@ def compute_hourly_signal(df: pd.DataFrame, tf: str = "1h",
         "score": round(best.score, 3),
         "atr": atr,
         "mode": "hourly",
+        "shadow_emit_signals": shadow_emit_payload,
         "indicators": {
             "ema9": round(float(row.get("ema9", entry)), 3),
             "ema21": round(float(row.get("ema21", entry)), 3),
@@ -6121,7 +6137,8 @@ _dt_bt_cache: dict = {}
 def run_daytrade_backtest(symbol: str = "USDJPY=X",
                           lookback_days: int = 55,
                           interval: str = "15m",
-                          exec_lag_jitter: float = 0.0) -> dict:
+                          exec_lag_jitter: float = 0.0,
+                          backtest_mode: bool = True) -> dict:
     """
     デイトレードBT — compute_daytrade_signal統合版
     本番環境と同一のエントリーロジック（compute_daytrade_signal）を使用。
@@ -6130,7 +6147,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
     global _dt_bt_cache
     if exec_lag_jitter < 0.0 or exec_lag_jitter > 1.0:
         return {"error": "exec_lag_jitter must be in [0.0, 1.0]", "mode": "daytrade"}
-    cache_key = f"{symbol}_{interval}_{lookback_days}_jitter{exec_lag_jitter:.4f}"
+    cache_key = f"{symbol}_{interval}_{lookback_days}_jitter{exec_lag_jitter:.4f}_bt{int(bool(backtest_mode))}"
     now = datetime.now()
     cached = _dt_bt_cache.get(cache_key)
     if cached and (now - cached["ts"]).total_seconds() < DT_BT_TTL:
@@ -6270,7 +6287,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             try:
                 sig_result = compute_daytrade_signal(
                     bar_df, tf=interval, sr_levels=current_sr,
-                    symbol=symbol, backtest_mode=True,
+                    symbol=symbol, backtest_mode=backtest_mode,
                     bar_time=bar_time, htf_cache=_htf_cache,
                 )
             except Exception:
@@ -6617,7 +6634,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                             _sr_result_dt = compute_daytrade_signal(
                                 _sr_bar_df_dt, tf=interval,
                                 sr_levels=[s["price"] for s in current_sr_weighted],
-                                symbol=symbol, backtest_mode=True,
+                                symbol=symbol, backtest_mode=backtest_mode,
                                 bar_time=_sr_bar_time_dt, htf_cache=_htf_cache,
                             )
                             _sr_sig_dt = _sr_result_dt.get("signal", "WAIT")
