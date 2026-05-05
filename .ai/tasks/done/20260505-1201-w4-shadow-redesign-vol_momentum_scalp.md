@@ -139,3 +139,43 @@ PASS の場合、shadow 設定を以下のどれかで提案:
 - shadow 観測中の N 蓄積は production 自然進行に任せる
 - shadow-first アーキテクチャ: BT で大量 catastrophic 排除 → shadow で真値推定 → live ramp
 - 60-90 日後に shadow data から Bonferroni/Wilson/Kelly 判定する別 task が後続
+
+
+## Result (2026-05-05T02:16:50Z)
+
+exit=0 · 1918s
+
+```
+実装と検証まで完了しました。結論は **LOCK FAIL → shadow promote は REJECT** です。
+
+変更内容:
+- [strategies/scalp/vol_momentum.py](/data/repo/fx-ai-trader/strategies/scalp/vol_momentum.py:66)
+  - `VOL_MOMENTUM_SCALP_REDESIGN_V2=1` 配下で closed-bar signal 固定
+  - `df.iloc[-2]` の `%B` / 足色 / ADX / DI / RSI / BB幅pct を評価
+  - `ctx.entry` は次bar execution基準として維持
+  - `(symbol, strategy, signal, bar_id)` dedup追加
+  - default OFFなのでlive production影響なし
+- [tests/test_vol_momentum_scalp_shadow_redesign.py](/data/repo/fx-ai-trader/tests/test_vol_momentum_scalp_shadow_redesign.py:104)
+  - closed-bar使用、現行default不変、同一bar dedupをテスト
+- [knowledge-base/wiki/decisions/vol_momentum_scalp-shadow-redesign-2026-05-05.md](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/vol_momentum_scalp-shadow-redesign-2026-05-05.md:1)
+  - Pre-reg LOCKと判定結果を記録
+- [knowledge-base/raw/bt-results/vol_momentum_scalp-shadow-bt-2026-05-05.json](/data/repo/fx-ai-trader/knowledge-base/raw/bt-results/vol_momentum_scalp-shadow-bt-2026-05-05.json:1)
+  - 365d MASSIVE BT結果を保存
+- [tools/vol_momentum_scalp_shadow_bt.py](/data/repo/fx-ai-trader/tools/vol_momentum_scalp_shadow_bt.py:1)
+  - 再実行用BTスクリプト追加
+
+BT結果:
+- Runner: `run_scalp_backtest()` production scalp path
+  - `vol_momentum_scalp` はScalp engine登録で、`run_daytrade_backtest()` では評価対象外になるため。
+- Data: `BT_MODE=1`, `BT_REQUIRE_MASSIVE_CACHE=1`, `USD_JPY_5m.parquet`
+- Current: `N=80`, `PF=1.4613`, `wilson_lo=0.5408`, `EV=0.2268`
+- Proposed: `N=83`, `PF=1.4809`, `wilson_lo=0.5190`, `EV=0.2395`
+- FAIL理由: `wilson_lo_change=-0.0218` がLOCK閾値 `>= -0.02` をわずかに下回りました。
+
+Verification:
+- `pytest tests/test_vol_momentum_scalp_shadow_redesign.py tests/test_squeeze_release_momentum_shadow_redesign.py tests/test_fetch_ohlcv_bt_mode.py` → `11 passed`
+- `py_compile` → OK
+- Self-review: relative checkのみ、Kelly絶対基準なし、flag default OFF、post-hoc adjustmentなし。
+
+shadow promote設定は入れていません。
+```
