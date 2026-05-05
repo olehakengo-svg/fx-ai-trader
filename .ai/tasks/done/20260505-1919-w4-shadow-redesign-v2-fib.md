@@ -137,3 +137,34 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T19:36:07Z)
+
+exit=0 · 1662s
+
+```
+実装完了です。
+
+`FIB_REDESIGN_V2=1` 配下で [dt_fib_reversal.py](/data/repo/fx-ai-trader/strategies/daytrade/dt_fib_reversal.py:29) に closed-bar 判定、per-bar dedup、`1.2ATR / Fib±0.5ATR` の wider SL を追加しました。flag OFF では既存挙動のままです。BT 側では [app.py](/data/repo/fx-ai-trader/app.py:6454) で flag ON の `dt_fib_reversal` だけ strategy SL/TP を保存し、shadow worker 登録は [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:257) で `FIB_REDESIGN_V2=1` かつ `FIB_REDESIGN_V2_SHADOW_PROMOTE=1` の opt-in にしています。
+
+追加:
+- [tests/test_fib_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_fib_shadow_redesign_v2.py:110)
+- [tools/fib_shadow_bt.py](/data/repo/fx-ai-trader/tools/fib_shadow_bt.py:1)
+- [bt-results/fib-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/fib-shadow-redesign-v2-2026-05-05.json:1)
+
+検証:
+- `.venv/bin/pytest -q tests/test_fib_shadow_redesign_v2.py` → `5 passed`
+- `.venv/bin/python -m py_compile strategies/daytrade/dt_fib_reversal.py strategies/daytrade/__init__.py app.py tools/fib_shadow_bt.py` → OK
+- `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1` 365d MASSIVE BT → `PASS`
+
+BT verdict:
+- Scope: `USD_JPY` narrow cell
+- Current: `N=167`, `PF=1.2375`, `wilson_lo=0.5839`, `PnL=24.5542`
+- Proposed: `N=240`, `PF=1.2599`, `wilson_lo=0.5453`, `PnL=34.9442`
+- Lock: `pf_change=+0.0224`, `wilson_lo_change=-0.0386`, `n_change_pct=+43.7%`, sign preserved
+- Overall: `PASS`
+- Shadow recommendation: `RECOMMEND_SHADOW`
+
+Self-review: catastrophic/floor only、Kelly 不使用、positive direction 不要求、flag OFF live 影響ゼロ、post-hoc adjustment なし。
+```

@@ -254,6 +254,9 @@ class DaytradeEngine:
         if (os.environ.get("EMA_CROSS_REDESIGN_V2") == "1"
                 and os.environ.get("EMA_CROSS_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"ema_cross"}
+        if (os.environ.get("FIB_REDESIGN_V2") == "1"
+                and os.environ.get("FIB_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"dt_fib_reversal"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

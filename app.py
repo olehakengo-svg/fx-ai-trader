@@ -6451,6 +6451,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             _DT_PRESERVE_SLTP = {"squeeze_release_momentum", "bb_rsi_ema_aligned"}
             if _dt_sr_channel_v2_geometry:
                 _DT_PRESERVE_SLTP = _DT_PRESERVE_SLTP | {"dt_sr_channel_reversal"}
+            if entry_type == "dt_fib_reversal" and os.environ.get("FIB_REDESIGN_V2") == "1":
+                _DT_PRESERVE_SLTP = _DT_PRESERVE_SLTP | {"dt_fib_reversal"}
             _ais_v2_time_exit_dt = (
                 entry_type == "intraday_seasonality"
                 and os.environ.get("ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2", "0") == "1"
