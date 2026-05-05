@@ -137,3 +137,54 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T17:50:50Z)
+
+exit=0 · 1998s
+
+```
+実装完了しました。
+
+変更点:
+- [ema_cross.py](/data/repo/fx-ai-trader/strategies/daytrade/ema_cross.py:37)
+  - `EMA_CROSS_REDESIGN_V2=1` 配下で closed-bar confirmation に切替
+  - current/intrabar の `entry/open/macdh/rsi/ema_score` を confirmation に使わない
+  - live 時のみ `(symbol, direction, signal_bar_time)` dedup
+  - default OFF なので既存 live 挙動は変更なし
+
+- [__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:254)
+  - `EMA_CROSS_REDESIGN_V2=1`
+  - `EMA_CROSS_REDESIGN_V2_SHADOW_PROMOTE=1`
+  の double flag で shadow worker emit に登録
+
+- [test_ema_cross_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_ema_cross_shadow_redesign_v2.py:1)
+  - default OFF 保持
+  - V2 closed-bar 使用
+  - current-bar だけの intrabar signal reject
+  - live dedup
+  - shadow promote double flag
+
+- [ema_cross_shadow_bt.py](/data/repo/fx-ai-trader/tools/ema_cross_shadow_bt.py:1)
+  - 365d MASSIVE BT report generator
+
+BT report:
+- [ema_cross-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/ema_cross-shadow-redesign-v2-2026-05-05.json:1)
+- Target: `USD_JPY`
+- Baseline: `N=31`, `PF=0.5627`, `Wilson_lo=0.2916`, `PnL=-14.1281`
+- Proposed: `N=38`, `PF=1.1441`, `Wilson_lo=0.4989`, `PnL=3.5346`
+- v2 LOCK verdict: `PASS`
+- Shadow recommendation: `RECOMMEND_SHADOW`
+
+Verification:
+- `15 passed` via:
+  - `tests/test_ema_cross_shadow_redesign_v2.py`
+  - `tests/test_adx_trend_continuation_shadow_redesign_v2.py`
+  - `tests/test_dt_bb_rsi_mr_shadow_redesign_v2.py`
+
+Self-review:
+- Catastrophic/floor criteria only; Kelly and positive-direction are not required.
+- Live impact is zero unless `EMA_CROSS_REDESIGN_V2=1`.
+- Shadow emit still requires explicit `EMA_CROSS_REDESIGN_V2_SHADOW_PROMOTE=1`.
+- No post-hoc parameter adjustment after BT.
+```

@@ -13,6 +13,7 @@ from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
 import logging
+import os
 
 logger = logging.getLogger("ema_cross")
 
@@ -33,6 +34,14 @@ class EmaCross(StrategyBase):
     rsi_buy_max = 70
     rsi_sell_min = 30
     htf_score_threshold = 0.6  # HTFパーフェクトオーダー代替閾値
+    _v2_dedup_state: set[tuple[str, str, str]] = set()
+
+    @classmethod
+    def reset_dedup_state(cls):
+        cls._v2_dedup_state.clear()
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get("EMA_CROSS_REDESIGN_V2") == "1"
 
     # ── 1H ADX算出 ──────────────────────────────────
 
@@ -151,6 +160,8 @@ class EmaCross(StrategyBase):
     # ── メイン評価 ──────────────────────────────────
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        _redesign_v2 = self._redesign_v2_enabled()
+
         # ═══ Phase 1: ADX趨勢ハードフィルター ═══
         _adx_ok, _adx_reason = self._check_adx_trend_filter(ctx)
         if not _adx_ok:
@@ -158,22 +169,48 @@ class EmaCross(StrategyBase):
 
         if ctx.df is None or len(ctx.df) < 10:
             return None
+        if _redesign_v2:
+            if len(ctx.df) < 11:
+                return None
+            if not ctx.backtest_mode and ctx.bar_time is None:
+                return None
+            _signal_df = ctx.df.iloc[:-1]
+            _signal_row = _signal_df.iloc[-1]
+            _signal_bar_time = getattr(_signal_row, "name", None)
+            _entry = float(_signal_row["Close"])
+            _open_price = float(_signal_row["Open"])
+            _atr = float(_signal_row.get("atr", ctx.atr))
+            _atr7 = float(_signal_row.get("atr7", ctx.atr7))
+            _ema9 = float(_signal_row.get("ema9", ctx.ema9))
+            _ema21 = float(_signal_row.get("ema21", ctx.ema21))
+            _macdh = float(_signal_row.get("macd_hist", ctx.macdh))
+            _rsi = float(_signal_row.get("rsi", ctx.rsi))
+            _ema_score = (_ema9 - _ema21) / max(_atr, 1e-8)
+        else:
+            _signal_df = ctx.df
+            _signal_bar_time = None
+            _entry = ctx.entry
+            _open_price = ctx.open_price
+            _atr = ctx.atr
+            _atr7 = ctx.atr7
+            _ema9 = ctx.ema9
+            _ema21 = ctx.ema21
+            _macdh = ctx.macdh
+            _rsi = ctx.rsi
+            _ema_score = ctx.ema_score if ctx.ema_score != 0.0 else (ctx.ema9 - ctx.ema21) / max(ctx.atr, 1e-8)
 
         signal = None
         score = 0.0
         reasons = []
 
-        # EMAスコア: DT関数から渡される複合スコア、なければローカル計算
-        ema_score = ctx.ema_score if ctx.ema_score != 0.0 else (ctx.ema9 - ctx.ema21) / max(ctx.atr, 1e-8)
-
         # (1) 直近N本以内にEMAクロスが発生したか
         _cross_dir = None
         _cross_bar = None
-        for _cb in range(2, min(self.cross_window + 1, len(ctx.df))):
-            _e9p = float(ctx.df["ema9"].iloc[-_cb - 1])
-            _e21p = float(ctx.df["ema21"].iloc[-_cb - 1])
-            _e9c = float(ctx.df["ema9"].iloc[-_cb])
-            _e21c = float(ctx.df["ema21"].iloc[-_cb])
+        for _cb in range(2, min(self.cross_window + 1, len(_signal_df))):
+            _e9p = float(_signal_df["ema9"].iloc[-_cb - 1])
+            _e21p = float(_signal_df["ema21"].iloc[-_cb - 1])
+            _e9c = float(_signal_df["ema9"].iloc[-_cb])
+            _e21c = float(_signal_df["ema21"].iloc[-_cb])
             if _e9p <= _e21p and _e9c > _e21c:
                 _cross_dir = "BUY"
                 _cross_bar = _cb
@@ -192,28 +229,28 @@ class EmaCross(StrategyBase):
 
         # (2) プルバック確認
         if _cross_dir == "BUY":
-            _pb_low = min(float(ctx.df["Low"].iloc[-j]) for j in range(1, _cross_bar))
-            _pullback_depth = (float(ctx.df["High"].iloc[-_cross_bar]) - _pb_low) / max(ctx.atr, 1e-8)
-            _pullback_ok = _pullback_depth >= self.pullback_min and ctx.entry > ctx.ema21
+            _pb_low = min(float(_signal_df["Low"].iloc[-j]) for j in range(1, _cross_bar))
+            _pullback_depth = (float(_signal_df["High"].iloc[-_cross_bar]) - _pb_low) / max(_atr, 1e-8)
+            _pullback_ok = _pullback_depth >= self.pullback_min and _entry > _ema21
         else:
-            _pb_high = max(float(ctx.df["High"].iloc[-j]) for j in range(1, _cross_bar))
-            _pullback_depth = (_pb_high - float(ctx.df["Low"].iloc[-_cross_bar])) / max(ctx.atr, 1e-8)
-            _pullback_ok = _pullback_depth >= self.pullback_min and ctx.entry < ctx.ema21
+            _pb_high = max(float(_signal_df["High"].iloc[-j]) for j in range(1, _cross_bar))
+            _pullback_depth = (_pb_high - float(_signal_df["Low"].iloc[-_cross_bar])) / max(_atr, 1e-8)
+            _pullback_ok = _pullback_depth >= self.pullback_min and _entry < _ema21
 
         if not _pullback_ok:
             return None
 
         # (3) 方向再確認 + エントリー条件
-        _candle_bull = ctx.entry > ctx.open_price
-        _candle_bear = ctx.entry < ctx.open_price
-        _rsi_ok_buy = ctx.rsi < self.rsi_buy_max
-        _rsi_ok_sell = ctx.rsi > self.rsi_sell_min
+        _candle_bull = _entry > _open_price
+        _candle_bear = _entry < _open_price
+        _rsi_ok_buy = _rsi < self.rsi_buy_max
+        _rsi_ok_sell = _rsi > self.rsi_sell_min
 
         # ADXボーナス（20を基準にスコア加算、max 0.8）
         _adx_bonus = max(0, min((ctx.adx - 20) * 0.03, 0.8))
 
-        if (_cross_dir == "BUY" and ctx.ema9 > ctx.ema21 and _candle_bull
-                and ctx.macdh > 0 and _rsi_ok_buy and ema_score > self.ema_score_threshold):
+        if (_cross_dir == "BUY" and _ema9 > _ema21 and _candle_bull
+                and _macdh > 0 and _rsi_ok_buy and _ema_score > self.ema_score_threshold):
             signal = "BUY"
             score = 3.5 + _adx_bonus
             reasons.append("✅ EMAクロスリテスト: 9/21 GC {}本前, PB={:.1f}ATR".format(
@@ -221,12 +258,12 @@ class EmaCross(StrategyBase):
             reasons.append("✅ ADXトレンド: {}".format(_adx_reason))
             reasons.append("✅ {}".format(_htf_reason))
             reasons.append("✅ 5条件: ADX({:.0f}), MACD+, RSI({:.0f}), 陽線, EMA維持".format(
-                ctx.adx, ctx.rsi))
-            tp = ctx.entry + ctx.atr7 * 2.0
-            sl = ctx.entry - ctx.atr7 * 1.0
+                ctx.adx, _rsi))
+            tp = ctx.entry + _atr7 * 2.0
+            sl = ctx.entry - _atr7 * 1.0
 
-        elif (_cross_dir == "SELL" and ctx.ema9 < ctx.ema21 and _candle_bear
-                and ctx.macdh < 0 and _rsi_ok_sell and ema_score < -self.ema_score_threshold):
+        elif (_cross_dir == "SELL" and _ema9 < _ema21 and _candle_bear
+                and _macdh < 0 and _rsi_ok_sell and _ema_score < -self.ema_score_threshold):
             signal = "SELL"
             score = 3.5 + _adx_bonus
             reasons.append("✅ EMAクロスリテスト: 9/21 DC {}本前, PB={:.1f}ATR".format(
@@ -234,12 +271,24 @@ class EmaCross(StrategyBase):
             reasons.append("✅ ADXトレンド: {}".format(_adx_reason))
             reasons.append("✅ {}".format(_htf_reason))
             reasons.append("✅ 5条件: ADX({:.0f}), MACD-, RSI({:.0f}), 陰線, EMA維持".format(
-                ctx.adx, ctx.rsi))
-            tp = ctx.entry - ctx.atr7 * 2.0
-            sl = ctx.entry + ctx.atr7 * 1.0
+                ctx.adx, _rsi))
+            tp = ctx.entry - _atr7 * 2.0
+            sl = ctx.entry + _atr7 * 1.0
 
         if signal is None:
             return None
+        if _redesign_v2:
+            if not ctx.backtest_mode:
+                _sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+                _key = (_sym, signal, str(_signal_bar_time))
+                if _key in self._v2_dedup_state:
+                    return None
+                self._v2_dedup_state.add(_key)
+            reasons.append(
+                "✅ EMA_CROSS_REDESIGN_V2: signal_bar_time={} で確定し次バー約定".format(
+                    _signal_bar_time
+                )
+            )
 
         conf = int(min(80, 45 + score * 4))
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
