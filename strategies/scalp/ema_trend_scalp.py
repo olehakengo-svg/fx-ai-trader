@@ -32,6 +32,7 @@ Sentinel戦略:
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
+import os
 
 
 class EmaTrendScalp(StrategyBase):
@@ -48,6 +49,7 @@ class EmaTrendScalp(StrategyBase):
 
     # ── トレンド確認 ──
     ADX_MIN = 15            # ADX ≥ 15: トレンド存在の最低条件 (v7.0: 20→15, EUR ADX<20が64.2%)
+    REDESIGN_V2_ADX_MAX = 31.0  # v2: moderate-trend pullback gate (Axis 4)
 
     # ── EMA プルバックゾーン (ATR7倍率) ──
     # 価格がEMA21から±この範囲内 = プルバック中と判定
@@ -76,6 +78,10 @@ class EmaTrendScalp(StrategyBase):
     # ── ペアフィルター ──
     _DISABLED_SYMBOLS = frozenset({"EURGBP"})   # EUR/GBP構造的不可能
 
+    @staticmethod
+    def redesign_v2_enabled() -> bool:
+        return os.environ.get("EMA_TREND_SCALP_REDESIGN_V2") == "1"
+
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         """
         EMA21プルバック順張りシグナル評価。
@@ -100,6 +106,9 @@ class EmaTrendScalp(StrategyBase):
         # STEP 2: ADXトレンド確認
         # ═══════════════════════════════════════════
         if ctx.adx < self.ADX_MIN:
+            return None
+        redesign_v2 = self.redesign_v2_enabled()
+        if redesign_v2 and ctx.adx > self.REDESIGN_V2_ADX_MAX:
             return None
 
         # ═══════════════════════════════════════════
@@ -198,9 +207,14 @@ class EmaTrendScalp(StrategyBase):
         # ═══════════════════════════════════════════
 
         # ── ADX強度ボーナス (Wilder 1978) ──
-        if ctx.adx >= 30:
+        if not redesign_v2 and ctx.adx >= 30:
             score += 0.5
             reasons.append(f"✅ 強トレンド(ADX={ctx.adx:.1f}>=30)")
+        elif redesign_v2:
+            reasons.append(
+                f"✅ EMA_TREND_SCALP_REDESIGN_V2 moderate ADX gate "
+                f"({self.ADX_MIN:.0f}<={ctx.adx:.1f}<={self.REDESIGN_V2_ADX_MAX:.0f})"
+            )
 
         # ── EMA50整列ボーナス (パーフェクトオーダー) ──
         if signal == "BUY" and ctx.ema9 > ctx.ema21 > ctx.ema50:

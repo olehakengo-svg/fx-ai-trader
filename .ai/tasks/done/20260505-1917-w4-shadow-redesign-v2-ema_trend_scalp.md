@@ -135,3 +135,36 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T18:56:01Z)
+
+exit=0 · 726s
+
+```
+実装完了しました。
+
+変更点:
+- [ema_trend_scalp.py](/data/repo/fx-ai-trader/strategies/scalp/ema_trend_scalp.py:81): `EMA_TREND_SCALP_REDESIGN_V2=1` 配下で `ADX > 31` を hard block。
+- [ema_trend_scalp.py](/data/repo/fx-ai-trader/strategies/scalp/ema_trend_scalp.py:209): V2 ON 時は `ADX>=30` 強トレンド bonus を無効化。
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:178): `EMA_TREND_SCALP_REDESIGN_V2=1` + `EMA_TREND_SCALP_REDESIGN_V2_SHADOW_PROMOTE=1` の double flag で shadow worker 登録。
+- [test_ema_trend_scalp_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_ema_trend_scalp_shadow_redesign_v2.py:42): flag OFF 維持、V2 gate、bonus 削除、shadow registration をテスト。
+- [ema_trend_scalp_shadow_bt.py](/data/repo/fx-ai-trader/tools/ema_trend_scalp_shadow_bt.py:1): 365d MASSIVE BT runner を追加。
+
+BT report:
+- [ema_trend_scalp-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/ema_trend_scalp-shadow-redesign-v2-2026-05-05.json)
+- Target: `GBP_JPY`
+- MASSIVE cache: verified
+- Baseline N: `0`
+- Proposed N: `0`
+- v2 LOCK verdict: `INSUFFICIENT_BT_EVIDENCE`
+- Decision: `RECOMMEND_SHADOW`
+- Catastrophic check: skipped per spec because proposed N < 20
+
+Verification:
+- `.venv/bin/python -m pytest tests/test_ema_trend_scalp_shadow_redesign_v2.py -q` → `4 passed`
+- `.venv/bin/python -m py_compile ...` → passed
+- `.venv/bin/python tools/ema_trend_scalp_shadow_bt.py` → report generated
+
+Self-review: PASS. 判定は catastrophic / N<20 rule のみで、Kelly や positive direction は要求していません。flag OFF では live 挙動は変わりません。
+```
