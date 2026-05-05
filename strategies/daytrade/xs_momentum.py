@@ -34,6 +34,10 @@ Cross-Sectional Currency Momentum (XS Momentum)
   TP: ATR(15m) x 3.0  (momentum = higher RR)
   MIN_RR: 1.5
 """
+from __future__ import annotations
+
+import os
+
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
@@ -73,6 +77,15 @@ class XsMomentum(StrategyBase):
     # ヘルパー
     # ──────────────────────────────────────────────────
 
+    _dedup_state: dict = {}
+
+    @classmethod
+    def reset_dedup_state(cls):
+        cls._dedup_state.clear()
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get("XS_MOMENTUM_REDESIGN_V2") == "1"
+
     def _calc_momentum(self, df, atr: float) -> float:
         """20バー正規化モメンタムを計算。ATR単位で返す。"""
         if len(df) < self.MOM_LOOKBACK + 1:
@@ -98,6 +111,8 @@ class XsMomentum(StrategyBase):
     # ──────────────────────────────────────────────────
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        _v2 = self._redesign_v2_enabled()
+
         # ── ペアフィルター (主要3ペア) ──
         _sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
         if _sym not in ("EURUSD", "USDJPY", "GBPUSD"):
@@ -111,8 +126,36 @@ class XsMomentum(StrategyBase):
         if ctx.atr <= 0:
             return None
 
+        _signal_df = ctx.df
+        if _v2 and not ctx.backtest_mode:
+            if len(ctx.df) < self.MOM_LOOKBACK + 6:
+                return None
+            _signal_df = ctx.df.iloc[:-1]
+            if len(_signal_df) < self.MOM_LOOKBACK + 5:
+                return None
+
+        _signal_row = _signal_df.iloc[-1]
+        _atr = ctx.atr
+        _adx = ctx.adx
+        _ema9 = ctx.ema9
+        _ema21 = ctx.ema21
+        _signal_close = ctx.entry
+        _signal_open = ctx.open_price
+        _bar_id = None
+        if _v2:
+            _atr = float(_signal_row.get("atr", ctx.atr))
+            _adx = float(_signal_row.get("adx", ctx.adx))
+            _ema9 = float(_signal_row.get("ema9", ctx.ema9))
+            _ema21 = float(_signal_row.get("ema21", ctx.ema21))
+            _signal_close = float(_signal_row["Close"])
+            _signal_open = float(_signal_row["Open"])
+            try:
+                _bar_id = ctx.bar_time or _signal_df.index[-1]
+            except Exception:
+                _bar_id = ctx.bar_time
+
         # ── ADX トレンドフィルター ──
-        if ctx.adx < self.ADX_MIN:
+        if _adx < self.ADX_MIN:
             return None
 
         # v8.9: London-NYセッション限定 — 本番データ根拠
@@ -133,7 +176,7 @@ class XsMomentum(StrategyBase):
         # ═══════════════════════════════════════════════════
         # モメンタム計算
         # ═══════════════════════════════════════════════════
-        _mom = self._calc_momentum(ctx.df, ctx.atr)
+        _mom = self._calc_momentum(_signal_df, _atr)
 
         # モメンタム閾値チェック
         if abs(_mom) < self.MOM_THRESHOLD:
@@ -142,7 +185,7 @@ class XsMomentum(StrategyBase):
         # ═══════════════════════════════════════════════════
         # ディスパージョン計算
         # ═══════════════════════════════════════════════════
-        _disp = self._calc_dispersion(ctx.df, ctx.atr)
+        _disp = self._calc_dispersion(_signal_df, _atr)
         _high_disp = _disp > self.DISP_THRESHOLD
 
         # ═══════════════════════════════════════════════════
@@ -153,26 +196,31 @@ class XsMomentum(StrategyBase):
 
         if _mom > self.MOM_THRESHOLD:
             # BUY: 上昇モメンタム
-            if ctx.ema9 <= ctx.ema21:
+            if _ema9 <= _ema21:
                 return None  # EMAトレンド不一致
-            if ctx.entry <= ctx.open_price:
+            if _signal_close <= _signal_open:
                 return None  # 確認足不成立 (陰線)
             signal = "BUY"
         elif _mom < -self.MOM_THRESHOLD:
             # SELL: 下降モメンタム
-            if ctx.ema9 >= ctx.ema21:
+            if _ema9 >= _ema21:
                 return None  # EMAトレンド不一致
-            if ctx.entry >= ctx.open_price:
+            if _signal_close >= _signal_open:
                 return None  # 確認足不成立 (陽線)
             signal = "SELL"
         else:
             return None
 
+        if _v2 and _bar_id is not None:
+            _dedup_key = (ctx.symbol, signal, _bar_id)
+            if self._dedup_state.get(_dedup_key):
+                return None
+
         # ═══════════════════════════════════════════════════
         # SL/TP 計算
         # ═══════════════════════════════════════════════════
-        _sl_dist = ctx.atr * self.SL_ATR_MULT
-        _tp_dist = ctx.atr * self.TP_ATR_MULT
+        _sl_dist = _atr * self.SL_ATR_MULT
+        _tp_dist = _atr * self.TP_ATR_MULT
 
         if signal == "BUY":
             sl = ctx.entry - _sl_dist
@@ -219,15 +267,15 @@ class XsMomentum(StrategyBase):
         # EMAアライメントボーナス
         score += 0.5
         reasons.append(
-            f"EMA alignment: EMA9={ctx.ema9:.{_dec}f} "
+            f"EMA alignment: EMA9={_ema9:.{_dec}f} "
             f"{'>' if signal == 'BUY' else '<'} "
-            f"EMA21={ctx.ema21:.{_dec}f}"
+            f"EMA21={_ema21:.{_dec}f}"
         )
 
         # ADX強度ボーナス
-        if ctx.adx >= 30:
+        if _adx >= 30:
             score += 0.3
-            reasons.append(f"Strong trend ADX={ctx.adx:.1f}>=30")
+            reasons.append(f"Strong trend ADX={_adx:.1f}>=30")
 
         # HTF方向一致ボーナス
         _htf = ctx.htf or {}
@@ -241,6 +289,8 @@ class XsMomentum(StrategyBase):
         reasons.append(f"RR={_rr:.1f} SL={sl:.{_dec}f} TP={tp:.{_dec}f}")
 
         conf = int(min(85, 50 + score * 4))
+        if _v2 and _bar_id is not None:
+            self._dedup_state[(ctx.symbol, signal, _bar_id)] = True
         return Candidate(
             signal=signal, confidence=conf, sl=sl, tp=tp,
             reasons=reasons, entry_type=self.name, score=score

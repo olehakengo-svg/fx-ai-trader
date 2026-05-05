@@ -141,3 +141,32 @@ PASS の場合、shadow 設定を以下のどれかで提案:
 - shadow 観測中の N 蓄積は production 自然進行に任せる
 - shadow-first アーキテクチャ: BT で大量 catastrophic 排除 → shadow で真値推定 → live ramp
 - 60-90 日後に shadow data から Bonferroni/Wilson/Kelly 判定する別 task が後続
+
+
+## Result (2026-05-05T08:28:19Z)
+
+exit=0 · 2753s
+
+```
+Implemented `xs_momentum` V2 behind `XS_MOMENTUM_REDESIGN_V2=1`, default off.
+
+Changed:
+- [xs_momentum.py](/data/repo/fx-ai-trader/strategies/daytrade/xs_momentum.py): closed-bar signal values + per `(symbol, signal, bar_id)` dedup under flag.
+- [test_xs_momentum_shadow_redesign.py](/data/repo/fx-ai-trader/tests/test_xs_momentum_shadow_redesign.py): failing coverage for default-off behavior, dedup, and live closed-bar semantics.
+- [xs_momentum_shadow_bt.py](/data/repo/fx-ai-trader/tools/xs_momentum_shadow_bt.py): MASSIVE + `BT_MODE=1` A/B BT runner.
+- [xs_momentum-shadow-redesign-2026-05-05.md](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/xs_momentum-shadow-redesign-2026-05-05.md): pre-reg LOCK, BT verdict, self-review.
+- [xs_momentum-shadow-bt-2026-05-05.json](/data/repo/fx-ai-trader/knowledge-base/raw/bt-results/xs_momentum-shadow-bt-2026-05-05.json): BT comparison output.
+
+Verification:
+- `.venv/bin/pytest tests/test_xs_momentum_shadow_redesign.py` → `4 passed`
+- `python3 -m py_compile strategies/daytrade/xs_momentum.py tools/xs_momentum_shadow_bt.py` → OK
+- BT used `massive-parquet` for all target cells.
+
+LOCK verdict: `REJECT`.
+
+Reason: `GBP_USD` improved directionally but failed sanity floor:
+- `GBP_USD`: PF `0.7722 < 0.95`, Wilson lo `0.5280`
+- Overall: `FAIL / REJECT`
+
+No shadow promote setting was applied.
+```
