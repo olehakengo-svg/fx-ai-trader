@@ -137,3 +137,36 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T22:25:49Z)
+
+exit=0 · 2694s
+
+```
+実装完了です。
+
+変更点:
+- [jpy_basket_trend.py](/data/repo/fx-ai-trader/strategies/daytrade/jpy_basket_trend.py:52)
+  `JPY_BASKET_TREND_REDESIGN_V2=1` 配下で V2 を追加。確定足 `[-2]`、USDJPY/EURJPY の real basket PO 一致、HTF は opposite だけ拒否、per `(symbol, strategy, signal, bar_time)` dedup。
+- [__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:272)
+  `JPY_BASKET_TREND_REDESIGN_V2_SHADOW_PROMOTE=1` との二重 flag で shadow-always 登録。
+- [app.py](/data/repo/fx-ai-trader/app.py:6154)
+  BT cache key に JPY basket V2 flag を追加し、baseline/proposed cache 混線を防止。
+- [test_jpy_basket_trend_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_jpy_basket_trend_shadow_redesign_v2.py:120)
+  default OFF 保持、current-bar-only reject、basket PO 必須、closed-bar signal、dedup、shadow 登録をテスト。
+- [jpy_basket_trend_shadow_bt.py](/data/repo/fx-ai-trader/tools/jpy_basket_trend_shadow_bt.py:1)
+  365d MASSIVE A/B BT runner を追加。
+
+検証:
+- `.venv/bin/pytest -q tests/test_jpy_basket_trend_shadow_redesign_v2.py` → `6 passed`
+- `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1` 相当で [BT report](/data/repo/fx-ai-trader/bt-results/jpy_basket_trend-shadow-redesign-v2-2026-05-05.json:1) 生成済み。
+
+v2 LOCK verdict: `PASS`, shadow promote recommendation: `RECOMMEND_SHADOW`.
+
+BT 要点:
+- `USD_JPY`: baseline N=14 は baseline evidence insufficient。proposed N=61, PF=1.3817, Wilson_lo=0.5811, sanity floor pass。
+- `EUR_JPY`: baseline N=54 → proposed N=98, PF +0.487, Wilson_lo +0.134, N +81.48%, PnL sign preserved。catastrophic check pass。
+
+Codex self-review も report に保存済みです。Positive direction / Kelly は判定に使っていません。Flag default OFF なので live 影響はありません。
+```

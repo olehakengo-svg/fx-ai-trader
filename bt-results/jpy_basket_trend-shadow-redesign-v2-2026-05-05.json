@@ -1,0 +1,122 @@
+{
+  "generated_at": "2026-05-05T22:25:12.736485+00:00",
+  "strategy": "jpy_basket_trend",
+  "variant": "real_basket_po_closed_bar_dedup_v2",
+  "flag": "JPY_BASKET_TREND_REDESIGN_V2",
+  "shadow_worker_flag": "JPY_BASKET_TREND_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest(backtest_mode=True; production daytrade path; strategy-only compute patch)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": true,
+  "targets": [
+    "USD_JPY",
+    "EUR_JPY"
+  ],
+  "missing_caches": [],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": {
+      "pf_change": ">= -0.10",
+      "wilson_lo_change": ">= -0.05",
+      "n_change_pct": ">= -30",
+      "pnl_sign_preserved": true
+    },
+    "sanity_floor": {
+      "wilson_lo_proposed": ">= 0.20",
+      "pf_proposed": ">= 0.85"
+    },
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "USD_JPY": {
+      "current": {
+        "N": 14,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 14,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 61,
+        "wins": 43,
+        "WR": 0.7049,
+        "EV": 0.2448,
+        "PnL": 14.9335,
+        "PF": 1.3817,
+        "wilson_lo": 0.5811,
+        "total_trades_all_strategies": 61,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24644
+      },
+      "lock_criteria": {
+        "reason": "current baseline returned <20-trade BT error; catastrophic regression is not established, so v2 filter applies proposed sanity floor only",
+        "current_baseline_evidence": "INSUFFICIENT_BT_EVIDENCE",
+        "n_change_pct": 335.7143,
+        "catastrophic_check": "SKIPPED_BASELINE_INSUFFICIENT",
+        "sanity_floor": true,
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "EUR_JPY": {
+      "current": {
+        "N": 54,
+        "wins": 31,
+        "WR": 0.5741,
+        "EV": -0.23,
+        "PnL": -12.4177,
+        "PF": 0.7562,
+        "wilson_lo": 0.4416,
+        "total_trades_all_strategies": 54,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24361
+      },
+      "proposed": {
+        "N": 98,
+        "wins": 66,
+        "WR": 0.6735,
+        "EV": 0.1752,
+        "PnL": 17.1739,
+        "PF": 1.2432,
+        "wilson_lo": 0.5756,
+        "total_trades_all_strategies": 98,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24361
+      },
+      "lock_criteria": {
+        "pf_change": 0.487,
+        "wilson_lo_change": 0.134,
+        "n_change_pct": 81.4815,
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "sanity_floor": true,
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    }
+  },
+  "overall_verdict": "PASS",
+  "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 1152.9,
+  "self_review": {
+    "catastrophic_only": "PASS: verdict ignores positive-direction and Kelly; applies only v2 catastrophic/floor rules when N>=20.",
+    "insufficient_bt_evidence": "PASS: proposed N<20 becomes INSUFFICIENT_BT_EVIDENCE and shadow recommendation.",
+    "production_live_safety": "PASS: strategy behavior is default-off unless JPY_BASKET_TREND_REDESIGN_V2=1; shadow emit also requires JPY_BASKET_TREND_REDESIGN_V2_SHADOW_PROMOTE=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered real_basket_po_closed_bar_dedup_v2 variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo fallback for 15m price data; required MASSIVE cache files are checked before running."
+  }
+}
