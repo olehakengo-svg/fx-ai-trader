@@ -1,11 +1,11 @@
 ---
 id: 20260505-1331-w4-meta-C-massive-15m-cache-generation-retry
-title: "[W4-Meta C] MASSIVE 15m parquet cache 生成 (USD_JPY, GBP_JPY 他)"
+title: "[W4-Meta C retry] 15m parquet cache 生成 (API 優先 + resample fallback)"
 owner: codex
 status: queued
 priority: P1
-created_at: 2026-05-05T11:01:00+0900
-roadmap_gate: "W4-Redesign 72 件のうち 15m TF を使う戦略 (streak_reversal 等) の strict BT 必須前提"
+created_at: 2026-05-05T13:31:00+0900
+roadmap_gate: "W4-Redesign 70 件 (shadow-redesign) 再開の前提条件"
 rule: R3
 prereq_artifacts:
   - knowledge-base/wiki/analyses/w4-redesign-bt-spec-2026-05-05.md
@@ -17,110 +17,112 @@ related:
 
 # 0. なぜこのタスクか
 
-W4-Meta investigation で発覚: 現 MASSIVE cache は **5m と 1h のみ完備、15m は欠落** している pair が多い。
+worker side の `data/cache/massive/` に 15m parquet が無い (gitignore で push されない、env-local cache)。
+shadow-redesign の strict BT (`BT_REQUIRE_MASSIVE_CACHE=1`) で REJECT 多発の根本原因。
 
-```
-data/cache/massive/USD_JPY_5m.parquet  ✓ 2014-2026
-data/cache/massive/USD_JPY_15m.parquet ✗ 欠落
-data/cache/massive/USD_JPY_1h.parquet  ✓
-data/cache/massive/GBP_JPY_5m.parquet  ✓
-data/cache/massive/GBP_JPY_15m.parquet ?
-```
+W4P1 task が orphan で fail、retry。
 
-15m TF は many strategies の primary TF (streak_reversal, doji_breakout, ema200_reversal 等)。BT を strict に再現するためには 15m parquet が必要。
+# 1. 戦略 (二段階 fallback)
 
-# 1. 仕様
+## Step 1: MASSIVE API 経由生成 (推奨)
 
-`tools/bt_data_cache.py` の経路で生成:
-
-## オプション A: MASSIVE API から直接取得 (推奨)
-
+`MASSIVE_API_KEY` 環境変数 が利用可能なら:
 ```python
 from modules.data import fetch_ohlcv_massive
 df = fetch_ohlcv_massive("USD_JPY", "15m", days=4500)  # ~12 年
 df.to_parquet("data/cache/massive/USD_JPY_15m.parquet")
 ```
 
-## オプション B: 5m から resample (fallback)
+API rate limit 配慮 (per-pair 1-3 秒 sleep)。
 
-MASSIVE API key 不在時のみ:
+## Step 2: 5m → 15m resample fallback
+
+`MASSIVE_API_KEY` 未設定 or API エラー時:
+
 ```python
 df_5m = pd.read_parquet("data/cache/massive/USD_JPY_5m.parquet")
-df_15m = df_5m.resample("15min", label="right", closed="right").agg({
-    "Open": "first", "High": "max", "Low": "min", "Close": "last", "Volume": "sum"
-}).dropna()
+df_15m = (df_5m.resample("15min", label="right", closed="right")
+                .agg({"Open":"first","High":"max","Low":"min","Close":"last","Volume":"sum"})
+                .dropna())
 df_15m.to_parquet("data/cache/massive/USD_JPY_15m.parquet")
 ```
 
-ただし resample は production の 15m bar と完全等価でない可能性 (broker tick の境界が異なる)。MASSIVE API 経由を強く推奨。
+ただし **broker bar 境界とのズレ可能性** を warning として `knowledge-base/raw/bt-results/massive-15m-cache-generation-2026-05-05.md` に明記。
 
-## 対象 pair
+## Step 3: 5m parquet も無い場合
 
-W4-Redesign で 15m を使う pair (audit から推定):
-- USD_JPY, GBP_JPY, EUR_USD, GBP_USD, EUR_JPY, EUR_GBP, AUD_USD
+REPORT_BLOCKED — user に `MASSIVE_API_KEY` を Render dashboard で設定要請。
 
-# 2. Implementation Steps
+# 2. 対象 pair
+
+W4-Redesign で 15m を使う pair:
+- USD_JPY, GBP_JPY, EUR_USD, GBP_USD, EUR_JPY, EUR_GBP
+
+(AUD_USD は cache 状態確認後に追加判断)
+
+# 3. Implementation Steps
 
 ## Step 1: 既存 cache 状態確認
 
 ```bash
 ls -la data/cache/massive/*_15m.parquet
+ls -la data/cache/massive/*_5m.parquet
 ```
 
-各 pair の 15m parquet 有無 + 期間 (2014-2026 が必要、365d なら最低 3 年以上欲しい)。
+各 pair の 15m, 5m 有無 + 期間 (start/end date) を確認。
 
-## Step 2: API 経路確認
+## Step 2: MASSIVE_API_KEY 確認
 
-`MASSIVE_API_KEY` 環境変数が利用可能か。Codex 環境で setup されている前提だが、不在なら resample fallback。
+```python
+import os
+has_key = bool(os.environ.get("MASSIVE_API_KEY"))
+```
 
-## Step 3: 不足 pair の 15m parquet 生成
+True → Step 3a (API)、False → Step 3b (resample)、5m もない → Step 4 (REPORT_BLOCKED)
 
-存在しない pair について:
-- API 経由で 4500 日分 (12 年) 取得
-- `data/cache/massive/{pair}_15m.parquet` に保存
-- 期間検証: start_date < 2014-12-31, end_date > 2026-04-01
+## Step 3a: API 経由生成 (各不足 pair)
 
-## Step 4: resample との等価性検証 (sanity check)
+`fetch_ohlcv_massive()` で 4500 日分取得 → Parquet 保存。
+schema: Datetime, Open, High, Low, Close, Volume (既存 5m / 1h と整合)
 
-5m → resample 15m と直接 API 取得 15m を比較:
-- N (bar count) が ±5% 以内
-- OHLC 各 bar の値が一致 (or 小数点誤差以内)
+## Step 3b: 5m → resample fallback
 
-差分が大きい場合は API 経路を採用、resample を warning 付きで記録。
+5m parquet → 15m に集約 → Parquet 保存。
+warning として generation report に「resample-derived, broker-tick boundary may differ ±1 bar」を記録。
 
-## Step 5: 検証 BT サンプル
+## Step 4: 検証
 
-`BT_MODE=1` で USD_JPY 15m を読み、`run_daytrade_backtest` が完走することを確認 (Task A 完了後)。
+各生成 parquet について:
+- N (bar count) 妥当性 (15m なら ~35040 bars/年)
+- start/end date 期待範囲
+- OHLC 値が NaN でない
+- pandas で読み込めるか
+
+## Step 5: BT 軽量サンプル
+
+`BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1` で USD_JPY 15m を読み、Yahoo 経路に逃げないことを確認。
 
 ## Step 6: Codex self-review
 
-- API rate limit 配慮 (per-pair sleep 1-3 秒)
-- Parquet schema が既存 5m / 1h と整合
-- 既存 tests に regression なし
+- API rate limit 守ったか
+- resample fallback の場合 warning 適切か
+- 既存 BT テスト regression なし
 
-# 3. Acceptance
+# 4. Acceptance
 
-- USD_JPY_15m, GBP_JPY_15m, EUR_USD_15m, GBP_USD_15m, EUR_JPY_15m, EUR_GBP_15m, AUD_USD_15m の parquet が存在
-- 各期間 >= 1095 日 (3 年)、ideally 4000+ 日
-- API 経由 vs resample のいずれを使ったか `knowledge-base/raw/bt-results/massive-15m-cache-generation-2026-05-05.md` に記録
+- USD_JPY_15m, GBP_JPY_15m, EUR_USD_15m, GBP_USD_15m, EUR_JPY_15m, EUR_GBP_15m の parquet が `data/cache/massive/` に存在
+- 各期間 >= 1095 日 (3 年) ideally 4000+ 日
+- API 経由 vs resample のいずれを使ったか + warning を `massive-15m-cache-generation-2026-05-05.md` に記録
 - 既存 BT テスト緑
 
-# 4. Out of Scope
+# 5. Out of Scope
 
-- 1m parquet 生成 (本 task は 15m 限定)
-- 他 TF (1h, 4h, D1) 補完
-- production BT path patch (Task A)
-- W4P1 再 BT (Task B)
+- 1m parquet, 4h, D1 補完
+- BT 経路 path patch (Task A)
+- Shadow promote 判定
 
-# 5. Notes
+# 6. Notes
 
-- API 経路 fail なら resample で代替可だが、warning 付きで記録
-- MASSIVE_API_KEY が Codex 環境にない場合は env 確認 + 設定方法を記録 (Render secret 必要)
-- Task A が完了していなくても本 task は実行可 (cache 生成は独立)
-
-
-## Error (2026-05-05T01:38:09Z)
-
-```
-orphaned: container restarted while task was running
-```
+- `data/cache/` は .gitignore 範囲なので生成した parquet は git に含まれない (worker のローカル fs に保持)
+- worker container restart で消える可能性 — 各 shadow-redesign task が generate-if-missing する責任を負う設計を別途検討 (本 task の Out of Scope だが提案として記録 OK)
+- 長期解: `MASSIVE_API_KEY` を Render `fx-ai-trader-codex-runner` service の secret に追加 (user dashboard 操作)
