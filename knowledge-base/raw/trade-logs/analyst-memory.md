@@ -749,6 +749,16 @@ Cutoff後累計はN=22、WR=45.5%、PnL=−12.1pips相当。システムは稼�
 ### 推奨戦略配分
 | 🔴 最優先 | `gbp-deep-pullback` | GBP_USD | ELITE_LIVE・BT EV=+1.064・TRENDING_UP整合 |
 
+### 2026-05-05 (Post-London Report)
+| 勝率（WR） | 50.0% |
+| 合計PnL | **-1.1 pips** |
+| EV | -0.55 pips/trade |
+ロンドンセッション（UTC 07:00–16:00）は2トレードのみで実質的な不活性セッション。PnLは僅かにマイナスで着地。
+| 戦略 | ペア | 方向 | PnL | 成功要因 |
+**成功要因1文**: SL/TPによる規律ある利確が機能したが、+0.8pipsに対してスプレッドが0.8pipsであり、実質的な純益はゼロ水準（摩擦調整後EV≈0）。
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+| 累計PnL | -7.4 pips（残差推定） | -1.1 pips | 損失拡大継続 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
