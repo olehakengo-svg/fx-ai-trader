@@ -173,3 +173,32 @@ Q1 で発見した Yahoo fallback bug の修正案:
 - production の BT が Yahoo に依存しているなら、それは別の bug として記録 (Rule 3 candidate)
 - 同時に、緩すぎて noise を拾うのも危険 (post-hoc selection)
 - audit は user 仮説 ("思想は正、設計が誤") を前提に行われた。LOCK criteria が厳しすぎて全件 FAIL になると audit の意義が消える
+
+
+## Result (2026-05-05T00:45:25Z)
+
+exit=0 · 153s
+
+```
+完了しました。コード実装はせず、指定どおり spec / patch 案の文書化までです。
+
+追加した成果物:
+
+- [w4-redesign-bt-spec-2026-05-05.md](/data/repo/fx-ai-trader/knowledge-base/wiki/analyses/w4-redesign-bt-spec-2026-05-05.md:1)  
+  MASSIVE cache 統一仕様、production runner 必須、365d window、cell vs aggregate、edge-lab と W4P1 の N 乖離、dispatch v2 spec、自レビューを記録。
+
+- [w4-redesign-lock-criteria-v2-2026-05-05.md](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/w4-redesign-lock-criteria-v2-2026-05-05.md:1)  
+  絶対 Kelly gate を廃止し、相対改善 + Bonferroni + sanity floor に改訂。W4P1 は v2 でも `REJECT` 試算です。主因は `wilson_lo_proposed=0.3756 < 0.40` と positive-direction Bonferroni 未成立。
+
+- [bt-massive-default-2026-05-05.md](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/bt-massive-default-2026-05-05.md:1)  
+  production BT path が Yahoo に到達する原因、修正対象 file:line、`BT_MODE=1` で MASSIVE parquet を first source にする patch 案を記録。
+
+主要結論:
+
+- `run_daytrade_backtest()` は [app.py](/data/repo/fx-ai-trader/app.py:6128) で `fetch_ohlcv()` を呼びます。
+- `fetch_ohlcv()` は live Massive API → OANDA → TwelveData → Yahoo → local parquet の順で、local MASSIVE parquet が最後です。Yahoo 呼び出しは [modules/data.py](/data/repo/fx-ai-trader/modules/data.py:740)、parquet fallback は [modules/data.py](/data/repo/fx-ai-trader/modules/data.py:752) です。
+- 現 cache は `USD_JPY_5m` と `GBP_JPY_5m` のみで、どちらも 2014-01-02 から 2026-04-30 まであり 365d には十分。ただし strict な 15m production BT に必要な `USD_JPY_15m.parquet` は現 checkout にありません。
+- edge-lab の `streak_reversal N=468` は `USD_JPY` aggregate の production trade_log cohort。W4P1 の `N=1224/1564` は focused detector + 5m resample なので同じ estimand ではありません。
+
+検証は文書作成とデータ/経路調査のみです。BT 再実行と production patch 実装は out of scope のため実施していません。
+```
