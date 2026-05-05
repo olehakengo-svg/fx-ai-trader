@@ -1,0 +1,61 @@
+{
+  "generated_at": "2026-05-05T00:38:52Z",
+  "protocol": "NSG-1",
+  "cases": [
+    {
+      "case_id": "A",
+      "label": "W3-3 S4 Connors-Raschke primary fail",
+      "expected": "FAIL",
+      "actual": "FAIL",
+      "median_lift": 0.9948717948717949,
+      "sign_agreement": 1.0,
+      "variance_cv": 1.7849680980653722,
+      "a_pass": true,
+      "b_pass": true,
+      "c_pass": false,
+      "pass_overall": false,
+      "n_neighbors": 5,
+      "skipped_axes": [],
+      "source": "Recovered from committed W3-3 Scenario C decision 1d0459c plus current blocked raw stub; full 27-cell raw JSON not present in working tree.",
+      "limitation": "Recovered subset uses documented primary metrics and documented grid-selection trap facts, not the full raw 27-cell table."
+    },
+    {
+      "case_id": "B",
+      "label": "W3-2 S2 Turtle confirmation",
+      "expected": "PASS",
+      "actual": "PASS",
+      "median_lift": 0.9857142857142857,
+      "sign_agreement": 1.0,
+      "variance_cv": 0.025000000000000022,
+      "a_pass": true,
+      "b_pass": true,
+      "c_pass": true,
+      "pass_overall": true,
+      "n_neighbors": 3,
+      "skipped_axes": [],
+      "source": "knowledge-base/wiki/learning/s2-turtle-verdict-pre-registration-2026-05-03.md and knowledge-base/wiki/analyses/pre-registration-s2-turtle-usdjpy-long-2026-05-03.md",
+      "limitation": "Wave 1 raw BT grid is documented as absent; subset is reconstructed from documented accepted BT cell stats."
+    },
+    {
+      "case_id": "C",
+      "label": "Tier 1 doji_breakout 365d BT confirmation",
+      "expected": "PASS",
+      "actual": "PASS",
+      "median_lift": 1.0414466978785677,
+      "sign_agreement": 1.0,
+      "variance_cv": 0.1414213562373095,
+      "a_pass": true,
+      "b_pass": true,
+      "c_pass": true,
+      "pass_overall": true,
+      "n_neighbors": 2,
+      "skipped_axes": [],
+      "source": "knowledge-base/raw/bt-results/bt-365d-2026-04-22.json entry_breakdown for doji_breakout",
+      "limitation": "365d BT entry breakdown has N/WR/EV but no raw per-trade payoff distribution; Wilson_lo was recomputed from N/WR and Kelly was represented by a conservative EV-consistent proxy."
+    }
+  ],
+  "threshold_sweep": {
+    "needed": false,
+    "reason": "All three retrospective verdicts matched the NSG-1 expected outcomes."
+  }
+}
