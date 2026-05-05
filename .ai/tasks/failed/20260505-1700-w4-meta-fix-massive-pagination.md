@@ -116,3 +116,10 @@ API key 不在 or rate limit エラーなら skip + warning log。
 - User 報告: API plan は paid なので permission 制限ではない
 - このバグが直ると C mini tasks (現 resample fallback) が API 経路で動く → broker bar 境界完全一致
 - 既存 resample fallback は keep (network 不可時用)
+
+
+## Error (2026-05-05T06:23:00Z)
+
+```
+orphaned: container restarted while task was running
+```
