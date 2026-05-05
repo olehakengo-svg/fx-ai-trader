@@ -6366,6 +6366,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "mqe_gbpusd_fix",                # MQE GBP_USD: month-end fix reversal (Bonferroni 3, WR 69.8%)
                 # 2026-04-28 Phase 8 Track A 3-way interaction discovery (Sentinel override)
                 "pd_eurjpy_h20_bbpb3_sell",      # EUR_JPY hour=20 bbpb=3 SELL (training Wilson_lo=0.521, holdout EV=+2.14p)
+                "bb_rsi_ema_aligned",            # BT-only strategy-filter path for scalp shadow redesign
             }
             DT_BLOCKED = {"unknown", "wait"}
 
@@ -6423,7 +6424,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
             # SL可変: エントリー価格からRR比で逆算
             # ── 例外: SRM等は戦略SLを完全保存 (1H BT _1H_PRESERVE_SLTP 準拠) ──
-            _DT_PRESERVE_SLTP = {"squeeze_release_momentum"}
+            _DT_PRESERVE_SLTP = {"squeeze_release_momentum", "bb_rsi_ema_aligned"}
             _ais_v2_time_exit_dt = (
                 entry_type == "intraday_seasonality"
                 and os.environ.get("ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2", "0") == "1"
@@ -6453,7 +6454,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 sl_dist_dt += atr * 0.2
 
             # ── SL狩り対策④: 平均回帰カウンタートレンドSLバッファ ──
-            _mean_rev = {"bb_rsi_reversion", "macdh_reversal", "v_reversal",
+            _mean_rev = {"bb_rsi_reversion", "bb_rsi_ema_aligned", "macdh_reversal", "v_reversal",
                         "trend_rebound", "fib_reversal"}
             _bt_l1 = sig_result.get("layer_status", {}).get("layer1", {})
             _bt_l1_dir = _bt_l1.get("direction", "neutral") if isinstance(_bt_l1, dict) else "neutral"
@@ -8704,6 +8705,21 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 "score": round(float(_c.score), 3),
                 "atr": _rp(atr, symbol),
             })
+        if (os.environ.get("BB_RSI_EMA_ALIGNED_REDESIGN_V2") == "1"
+                and os.environ.get("BB_RSI_EMA_ALIGNED_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            from strategies.scalp.bb_rsi_ema_aligned import BbRsiEmaAligned
+            _bb_aligned = BbRsiEmaAligned().evaluate(_ctx)
+            if _bb_aligned is not None and _bb_aligned.entry_type != getattr(_sc_winner_obj, "entry_type", None):
+                _sc_shadow_emit_payload.append({
+                    "signal": _bb_aligned.signal,
+                    "entry": _rp(entry, symbol),
+                    "confidence": int(getattr(_bb_aligned, "confidence", 50) or 50),
+                    "sl": float(_bb_aligned.sl), "tp": float(_bb_aligned.tp),
+                    "entry_type": _bb_aligned.entry_type,
+                    "reasons": list(_bb_aligned.reasons or []),
+                    "score": round(float(_bb_aligned.score), 3),
+                    "atr": _rp(atr, symbol),
+                })
     except Exception:
         pass  # fail-open
 

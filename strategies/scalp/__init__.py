@@ -163,6 +163,9 @@ class ScalperEngine:
         if (os.environ.get("BB_RSI_REDESIGN_V2") == "1"
                 and os.environ.get("BB_RSI_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"bb_rsi_reversion"}
+        if (os.environ.get("BB_RSI_EMA_ALIGNED_REDESIGN_V2") == "1"
+                and os.environ.get("BB_RSI_EMA_ALIGNED_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"bb_rsi_ema_aligned"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

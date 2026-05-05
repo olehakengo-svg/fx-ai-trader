@@ -135,3 +135,29 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T14:37:19Z)
+
+exit=0 · 862s
+
+```
+実装完了しました。`bb_rsi_ema_aligned` に `BB_RSI_EMA_ALIGNED_REDESIGN_V2=1` 配下の hybrid exit geometry を追加し、flag OFF では親 `bb_rsi` の SL/TP を維持します。主変更は [strategies/scalp/bb_rsi_ema_aligned.py](/data/repo/fx-ai-trader/strategies/scalp/bb_rsi_ema_aligned.py:59) です。
+
+Shadow promote 経路も追加済みです。`BB_RSI_EMA_ALIGNED_REDESIGN_V2=1` かつ `BB_RSI_EMA_ALIGNED_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag のときだけ shadow emit され、primary/live slot には入れない形にしています: [app.py](/data/repo/fx-ai-trader/app.py:8708)。BT 用に `run_daytrade_backtest()` の strategy-filter path で `bb_rsi_ema_aligned` を許可し、SL/TP を preserve する調整も入れています: [app.py](/data/repo/fx-ai-trader/app.py:6369)。
+
+BT report は生成済みです: [bt-results/bb_rsi_ema_aligned-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/bb_rsi_ema_aligned-shadow-redesign-v2-2026-05-05.json:1)
+
+v2 LOCK verdict: **PASS**
+- baseline: `N=158`, `PF=1.2511`, `Wilson_lo=0.423`, `EV=0.1443`, `PnL=22.8047`
+- proposed: `N=158`, `PF=1.4556`, `Wilson_lo=0.423`, `EV=0.2619`, `PnL=41.3802`
+- catastrophic check: PASS (`pf_change=+0.2045`, `wilson_lo_change=0`, `n_change_pct=0`, PnL sign preserved)
+- sanity floor: PASS
+- recommendation: `RECOMMEND_SHADOW`
+
+Verification:
+- `.venv/bin/python -m pytest -q tests/test_bb_rsi_ema_aligned_shadow_redesign_v2.py` → `3 passed`
+- `.venv/bin/python -m pytest -q tests/test_bb_rsi_ema_aligned_shadow_redesign_v2.py tests/test_bb_rsi_shadow_redesign_v2.py tests/test_adx_trend_continuation_shadow_redesign_v2.py tests/test_asia_range_fade_v1_shadow_redesign_v2.py` → `16 passed`
+- `.venv/bin/python -m py_compile strategies/scalp/bb_rsi_ema_aligned.py strategies/scalp/__init__.py tools/bb_rsi_ema_aligned_shadow_bt.py app.py` → passed
+- BT used `massive-parquet` with `BT_MODE=1` / `BT_REQUIRE_MASSIVE_CACHE=1`; no Yahoo fallback.
+```

@@ -25,6 +25,7 @@ Revision history:
   L5 entry_type 書換  : "bb_rsi_ema_aligned" にして集計分離
 """
 from __future__ import annotations
+import os
 from typing import Optional
 
 from strategies.context import SignalContext
@@ -35,6 +36,9 @@ from strategies.scalp.bb_rsi import BBRsiReversion
 _ALLOWED_PAIRS = {"USD_JPY"}
 _ADX_MIN = 30.0
 _GOLD_HOURS = frozenset({5, 6, 7, 8, 19, 20, 21, 22, 23})
+_REDESIGN_V2_FLAG = "BB_RSI_EMA_ALIGNED_REDESIGN_V2"
+_RR_FLOOR_V2 = 3.0
+_ATR_STOP_BUFFER_V2 = 0.3
 
 
 def _normalize_pair(symbol: str) -> str:
@@ -51,6 +55,50 @@ class BbRsiEmaAligned(BBRsiReversion):
     mode = "scalp"
     enabled = True
     strategy_type = "MR"
+
+    @staticmethod
+    def _redesign_v2_enabled() -> bool:
+        return os.environ.get(_REDESIGN_V2_FLAG, "0").lower() in ("1", "true", "yes")
+
+    @staticmethod
+    def _recent_swing_mid(ctx: SignalContext) -> float:
+        if ctx.df is None or len(ctx.df) == 0:
+            return ctx.bb_mid
+        window = ctx.df.iloc[-min(12, len(ctx.df)):]
+        try:
+            return (float(window["High"].max()) + float(window["Low"].min())) / 2.0
+        except Exception:
+            return ctx.bb_mid
+
+    def _apply_redesign_v2_geometry(self, cand: Candidate, ctx: SignalContext) -> Optional[Candidate]:
+        min_sl = 0.030 if ctx.pip_mult == 100 else 0.00030
+        swing_mid = self._recent_swing_mid(ctx)
+        if cand.signal == "BUY":
+            sl_dist = max(abs(ctx.entry - ctx.bb_lower) + ctx.atr7 * _ATR_STOP_BUFFER_V2, min_sl)
+            cand.sl = ctx.entry - sl_dist
+            targets = [ctx.entry + sl_dist * _RR_FLOOR_V2]
+            if ctx.bb_mid > ctx.entry:
+                targets.append(ctx.bb_mid)
+            if swing_mid > ctx.entry:
+                targets.append(swing_mid)
+            cand.tp = max(targets)
+        elif cand.signal == "SELL":
+            sl_dist = max(abs(ctx.bb_upper - ctx.entry) + ctx.atr7 * _ATR_STOP_BUFFER_V2, min_sl)
+            cand.sl = ctx.entry + sl_dist
+            targets = [ctx.entry - sl_dist * _RR_FLOOR_V2]
+            if ctx.bb_mid < ctx.entry:
+                targets.append(ctx.bb_mid)
+            if swing_mid < ctx.entry:
+                targets.append(swing_mid)
+            cand.tp = min(targets)
+        else:
+            return None
+
+        cand.reasons = [
+            f"[{_REDESIGN_V2_FLAG}] hybrid exit: BB mid/swing mid/RR>=3.0; "
+            f"SL=BB outside+ATR*{_ATR_STOP_BUFFER_V2}"
+        ] + cand.reasons
+        return cand
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         # L1: USD_JPY 限定
@@ -69,6 +117,11 @@ class BbRsiEmaAligned(BBRsiReversion):
         cand = super().evaluate(ctx)
         if cand is None:
             return None
+
+        if self._redesign_v2_enabled():
+            cand = self._apply_redesign_v2_geometry(cand, ctx)
+            if cand is None:
+                return None
 
         # L5: entry_type を本戦略名に書き換え (集計分離のため)
         cand.entry_type = self.name
