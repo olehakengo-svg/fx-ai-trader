@@ -124,3 +124,10 @@ ls -la data/cache/massive/*_15m.parquet
 ```
 orphaned: container restarted while task was running
 ```
+
+
+## Error (2026-05-05T02:37:21Z)
+
+```
+orphaned: container restarted while task was running
+```
