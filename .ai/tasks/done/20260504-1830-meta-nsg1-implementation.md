@@ -163,3 +163,46 @@ Work in this repository. Respect existing uncommitted changes. Do not revert use
 5. 最終レポート `final.md` に: status, files changed, verification 出力 summary, retrospective verdict 表, remaining risks, next recommended task。
 
 In the final report, include status, files changed, verification output summary, retrospective verdict table, remaining risks, and next recommended task.
+
+
+## Result (2026-05-05T00:42:18Z)
+
+exit=0 · 455s
+
+```
+Implemented and committed NSG-1.
+
+Commit: `6fb6319 feat(audit): implement NSG-1 neighborhood stability gate`
+
+**Files Changed**
+- [tools/audit/neighborhood_stability.py](/data/repo/fx-ai-trader/tools/audit/neighborhood_stability.py:1)
+- [tests/test_neighborhood_stability.py](/data/repo/fx-ai-trader/tests/test_neighborhood_stability.py:1)
+- [tools/audit/gate0_evaluator.py](/data/repo/fx-ai-trader/tools/audit/gate0_evaluator.py:1)
+- [nsg1-retrospective-w3-3-s4-2026-05-04.md](/data/repo/fx-ai-trader/knowledge-base/raw/audits/nsg1-retrospective-w3-3-s4-2026-05-04.md:1)
+- [nsg1-retrospective-summary-2026-05-04.json](/data/repo/fx-ai-trader/knowledge-base/raw/audits/nsg1-retrospective-summary-2026-05-04.json:1)
+- [neighborhood-stability-gate-2026-05-04.md](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/neighborhood-stability-gate-2026-05-04.md:1)
+- [.ai run final.md](/data/repo/fx-ai-trader/.ai/runs/20260505-003852-meta-nsg1-implementation/final.md:1)
+
+**Verification**
+- `python3 -m pytest tests/test_neighborhood_stability.py -v`: PASS, 7 tests.
+- `python3 tools/audit/gate0_evaluator.py --require-nsg1 --help`: PASS.
+- `python3 -m ruff check tools/audit/neighborhood_stability.py`: PASS.
+- `python3 -m mypy tools/audit/neighborhood_stability.py`: PASS.
+- Audit report files exist.
+
+Note: exact `ruff ...` and `mypy ...` console-script commands fail because `/home/worker/.local/bin` is not on PATH in this shell. The same installed tools pass via `python3 -m ruff` and `python3 -m mypy`.
+
+**Retrospective Verdicts**
+
+| Case | median_lift | sign_agreement | variance_cv | Verdict | Expected |
+|---|---:|---:|---:|---|---|
+| W3-3 S4 | 0.995 | 1.000 | 1.785 | FAIL | FAIL |
+| W3-2 Turtle | 0.986 | 1.000 | 0.025 | PASS | PASS |
+| doji_breakout | 1.041 | 1.000 | 0.141 | PASS | PASS |
+
+No threshold sweep was needed.
+
+**Remaining Risks**
+- The named NSG spec file was absent, so I created a recovered working copy from the task contract.
+- S4 full
+…(truncated)
