@@ -224,6 +224,9 @@ class DaytradeEngine:
         if (os.environ.get("ADX_TREND_CONTINUATION_REDESIGN_V2") == "1"
                 and os.environ.get("ADX_TREND_CONTINUATION_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"adx_trend_continuation"}
+        if (os.environ.get("ALPHA_ATR_REGIME_BREAK_REDESIGN_V2") == "1"
+                and os.environ.get("ALPHA_ATR_REGIME_BREAK_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"atr_regime_break"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

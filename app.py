@@ -2546,12 +2546,16 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # 旧: select_best後の最善候補にのみ適用 → 戦略内バイパスの余地あり
     # 新: 候補リスト段階で除外 → 次善候補にフォールバック可能
     _ais_v2_enabled = os.environ.get("ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2", "0") == "1"
+    _aarb_v2_enabled = os.environ.get("ALPHA_ATR_REGIME_BREAK_REDESIGN_V2", "0") == "1"
     if htf_agreement in ("bull", "bear"):
         _blocked_dir = "SELL" if htf_agreement == "bull" else "BUY"
         _htf_filtered = [c for c in _dt_candidates
                          if (
                              getattr(c, "entry_type", "") == "intraday_seasonality"
                              and _ais_v2_enabled
+                         ) or (
+                             getattr(c, "entry_type", "") == "atr_regime_break"
+                             and _aarb_v2_enabled
                          ) or not (hasattr(c, 'signal') and c.signal == _blocked_dir)]
         _htf_blocked_count = len(_dt_candidates) - len(_htf_filtered)
         if _htf_blocked_count > 0:

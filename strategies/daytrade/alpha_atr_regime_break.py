@@ -39,6 +39,7 @@ Alpha #3: ATR Regime Break (ボラティリティ・レジーム転換ブレイ�
 """
 from __future__ import annotations
 import math
+import os
 from typing import Optional
 import numpy as np
 from strategies.base import StrategyBase, Candidate
@@ -49,16 +50,21 @@ class AtrRegimeBreak(StrategyBase):
     name = "atr_regime_break"
     mode = "daytrade"
     enabled = True
+    REDESIGN_V2_ENV = "ALPHA_ATR_REGIME_BREAK_REDESIGN_V2"
     params = {
         "quiet_window": 12,   # 静穏期判定ウィンドウ（バー数）
         "surge_mult": 1.5,    # ATR急伸倍率
     }
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get(self.REDESIGN_V2_ENV) == "1"
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         df = ctx.df
         if df is None:
             return None
 
+        redesign_v2 = self._redesign_v2_enabled()
         quiet_window = self.params.get("quiet_window", 12)
         surge_mult = self.params.get("surge_mult", 1.5)
 
@@ -81,9 +87,15 @@ class AtrRegimeBreak(StrategyBase):
 
         atr_series = df[atr_col]
 
-        # ── 現在バーのATR急伸チェック ──
-        current_atr = atr_series.iloc[-1]
-        prev_atr = atr_series.iloc[-2]
+        signal_pos = len(df) - 2 if redesign_v2 else len(df) - 1
+        prev_pos = signal_pos - 1
+        if prev_pos < 0:
+            return None
+
+        # ── ATR急伸チェック ──
+        # V2: signal bar を closed bar (df.iloc[-2]) に固定し、ctx.entry を次バー実行価格として扱う。
+        current_atr = atr_series.iloc[signal_pos]
+        prev_atr = atr_series.iloc[prev_pos]
 
         if prev_atr <= 0 or current_atr <= 0:
             return None
@@ -92,8 +104,8 @@ class AtrRegimeBreak(StrategyBase):
         if surge_ratio < surge_mult:
             return None  # 急伸していない
 
-        # ── 直前 quiet_window 本の CV（現在バー除外） ──
-        atr_window = atr_series.iloc[-(quiet_window + 1):-1]
+        # ── 直前 quiet_window 本の CV（signal bar 除外） ──
+        atr_window = atr_series.iloc[signal_pos - quiet_window:signal_pos]
         if len(atr_window) < quiet_window:
             return None
 
@@ -108,7 +120,7 @@ class AtrRegimeBreak(StrategyBase):
 
         # ── CV分布を構築し、パーセンタイルを計算（現在ウィンドウ除外） ──
         # ベクトル化: pandas rolling で CV を一括計算 (O(N) vs O(N×W) loop)
-        _atr_hist = atr_series.iloc[:-1]  # 現在バー除外
+        _atr_hist = atr_series.iloc[:signal_pos]  # signal bar 除外
         if len(_atr_hist) < quiet_window + 30:
             return None
         _rolling_mean = _atr_hist.rolling(window=quiet_window).mean()
@@ -129,32 +141,34 @@ class AtrRegimeBreak(StrategyBase):
         if cv_pctl > quiet_pctl:
             return None  # 静穏期ではない
 
-        # ── エントリー方向: 現在バーの方向 ──
-        current_close = df.iloc[-1]["Close"]
-        current_open = df.iloc[-1]["Open"]
+        # ── エントリー方向: signal bar の方向 ──
+        signal_bar = df.iloc[signal_pos]
+        current_close = signal_bar["Close"]
+        current_open = signal_bar["Open"]
         bar_body = current_close - current_open
 
         # body が ATR の 10% 未満 → 方向不明確、スキップ
-        if abs(bar_body) < ctx.atr * 0.10:
+        if abs(bar_body) < current_atr * 0.10:
             return None
 
         signal = "BUY" if bar_body > 0 else "SELL"
 
         # ── HTF Hard Block (v9.1) ──
-        _htf = ctx.htf or {}
-        _htf_agreement = _htf.get("agreement", "mixed")
-        if _htf_agreement == "bull" and signal == "SELL":
-            return None
-        if _htf_agreement == "bear" and signal == "BUY":
-            return None
+        if not redesign_v2:
+            _htf = ctx.htf or {}
+            _htf_agreement = _htf.get("agreement", "mixed")
+            if _htf_agreement == "bull" and signal == "SELL":
+                return None
+            if _htf_agreement == "bear" and signal == "BUY":
+                return None
 
         # ── 追加フィルタ: 急伸バーのレンジが十分大きいこと ──
-        bar_range = df.iloc[-1]["High"] - df.iloc[-1]["Low"]
-        if bar_range < ctx.atr * 0.8:
+        bar_range = signal_bar["High"] - signal_bar["Low"]
+        if bar_range < current_atr * 0.8:
             return None  # ATRは急伸したがバーのレンジが伴っていない
 
         # ── SL/TP: ATRベース ──
-        atr = ctx.atr
+        atr = current_atr if redesign_v2 else ctx.atr
         # SLは直前の静穏期のATR（小さい）ではなく現在ATR基準
         sl_mult = 1.2  # レジームブレイク後はSLをタイトに
         # TPはsurge_ratioに応じて拡大（勢いが強いほど伸ばす）
@@ -184,6 +198,8 @@ class AtrRegimeBreak(StrategyBase):
             f"CV_pctl={cv_pctl:.0%} (quiet<{quiet_pctl:.0%})",
             f"bar_body={bar_body/atr:.2f}ATR range={bar_range/atr:.2f}ATR",
         ]
+        if redesign_v2:
+            reasons.append("V2 closed-bar signal + HTF hard block removed")
 
         return Candidate(
             signal=signal,

@@ -135,3 +135,31 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T11:58:08Z)
+
+exit=0 · 2244s
+
+```
+実装完了です。
+
+V2 は [alpha_atr_regime_break.py](/data/repo/fx-ai-trader/strategies/daytrade/alpha_atr_regime_break.py:53) で `ALPHA_ATR_REGIME_BREAK_REDESIGN_V2=1` 配下に限定しました。default OFF では既存挙動のままです。V2 ON 時だけ `df.iloc[-2]` を closed signal bar として使い、戦略内 HTF hard block を外します。さらに [app.py](/data/repo/fx-ai-trader/app.py:2549) 側の候補リスト HTF block も同 flag の `atr_regime_break` だけ例外化しました。
+
+Shadow worker 登録は [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:227) に追加済みです。`ALPHA_ATR_REGIME_BREAK_REDESIGN_V2=1` と `ALPHA_ATR_REGIME_BREAK_REDESIGN_V2_SHADOW_PROMOTE=1` の両方がある場合のみ shadow-always に入ります。
+
+BT report は指定パスに作成済みです: [alpha_atr_regime_break-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/alpha_atr_regime_break-shadow-redesign-v2-2026-05-05.json:1)
+
+v2 LOCK verdict:
+- Overall: `INSUFFICIENT_BT_EVIDENCE`
+- Shadow recommendation: `RECOMMEND_SHADOW`
+- Proposed N: USD_JPY `4`, EUR_USD `2`, GBP_USD `5`
+- v2 spec 通り、proposed N < 20 なので catastrophic / sanity floor は skip しています。
+
+Verification:
+- `.venv/bin/pytest -q tests/test_alpha_atr_regime_break_shadow_redesign_v2.py tests/test_adx_trend_continuation_shadow_redesign_v2.py` → `9 passed`
+- `.venv/bin/python -m py_compile strategies/daytrade/alpha_atr_regime_break.py tools/alpha_atr_regime_break_shadow_bt.py`
+- `.venv/bin/python -m json.tool bt-results/alpha_atr_regime_break-shadow-redesign-v2-2026-05-05.json >/dev/null`
+
+Codex self-review は report 内にも記録済みです。Kelly / positive direction は判定に使っていません。BT は `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1` で production `run_daytrade_backtest()` を呼び、MASSIVE parquet を読んで実行しました。
+```
