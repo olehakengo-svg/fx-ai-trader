@@ -40,6 +40,7 @@ Alpha #2: Wick Imbalance Reversion (ヒゲ不均衡平均回帰)
   - Mandelbrot (1963) "The variation of certain speculative prices" (fat tails from clustered activity)
 """
 from __future__ import annotations
+import os
 from typing import Optional
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
@@ -51,16 +52,21 @@ class WickImbalanceReversion(StrategyBase):
     mode = "daytrade"
     enabled = True
     strategy_type = "MR"   # v11.1: ヒゲ偏り反発 = MR by construction (Osler 2003)
+    REDESIGN_V2_ENV = "ALPHA_WICK_IMBALANCE_REDESIGN_V2"
     params = {
         "window": 8,          # ヒゲ集計本数
         "threshold": 0.45,    # WIR閾値
     }
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get(self.REDESIGN_V2_ENV) == "1"
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         df = ctx.df
         if df is None:
             return None
 
+        redesign_v2 = self._redesign_v2_enabled()
         window = self.params.get("window", 8)
         threshold = self.params.get("threshold", 0.45)
 
@@ -71,8 +77,15 @@ class WickImbalanceReversion(StrategyBase):
         if ctx.atr <= 0:
             return None
 
-        # ── 直前 window 本のヒゲを集計（現在バー除外） ──
-        lookback = df.iloc[-(window + 1):-1]  # 現在バーの1つ前まで
+        # ── 直前 window 本のヒゲを集計 ──
+        # V2: confirmation bar を closed bar (df.iloc[-2]) に固定し、
+        # WIR window もその直前へずらす。ctx.entry は次足実行価格として扱う。
+        confirm_pos = len(df) - 2 if redesign_v2 else len(df) - 1
+        lookback_start = confirm_pos - window
+        if lookback_start < 0:
+            return None
+        lookback = df.iloc[lookback_start:confirm_pos]
+        confirm_bar = df.iloc[confirm_pos]
 
         total_upper = 0.0
         total_lower = 0.0
@@ -103,9 +116,9 @@ class WickImbalanceReversion(StrategyBase):
         if abs(wir) < threshold:
             return None
 
-        # ── 現在バーのbodyで方向確認 ──
-        current_close = df.iloc[-1]["Close"]
-        current_open = df.iloc[-1]["Open"]
+        # ── confirmation bar の body で方向確認 ──
+        current_close = confirm_bar["Close"]
+        current_open = confirm_bar["Open"]
         current_body = current_close - current_open
 
         # 追加フィルタ: 現在バーのbodyがATRの5%以上（微小bodyは無視）
@@ -124,12 +137,13 @@ class WickImbalanceReversion(StrategyBase):
             return None
 
         # ── HTF Hard Block (v9.1) ──
-        _htf = ctx.htf or {}
-        _htf_agreement = _htf.get("agreement", "mixed")
-        if _htf_agreement == "bull" and signal == "SELL":
-            return None
-        if _htf_agreement == "bear" and signal == "BUY":
-            return None
+        if not redesign_v2:
+            _htf = ctx.htf or {}
+            _htf_agreement = _htf.get("agreement", "mixed")
+            if _htf_agreement == "bull" and signal == "SELL":
+                return None
+            if _htf_agreement == "bear" and signal == "BUY":
+                return None
 
         # ── ボラティリティ・レジームフィルタ ──
         # BB width percentile が極端に低い（圧縮相場）ではWIRが歪むので除外
@@ -164,6 +178,8 @@ class WickImbalanceReversion(StrategyBase):
             f"upper={total_upper:.5f} lower={total_lower:.5f}",
             f"confirm_body={current_body/atr:.2f}ATR window={window}",
         ]
+        if redesign_v2:
+            reasons.append("V2 closed-bar confirmation + HTF hard block removed")
 
         return Candidate(
             signal=signal,

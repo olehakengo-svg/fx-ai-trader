@@ -230,6 +230,9 @@ class DaytradeEngine:
         if (os.environ.get("ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2") == "1"
                 and os.environ.get("ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"intraday_seasonality"}
+        if (os.environ.get("ALPHA_WICK_IMBALANCE_REDESIGN_V2") == "1"
+                and os.environ.get("ALPHA_WICK_IMBALANCE_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"wick_imbalance_reversion"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

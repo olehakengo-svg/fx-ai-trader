@@ -135,3 +135,30 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T12:50:00Z)
+
+exit=0 · 2083s
+
+```
+実装と検証まで完了しました。`ALPHA_WICK_IMBALANCE_REDESIGN_V2=1` 配下で、WIR trigger は維持しつつ confirmation を closed bar `iloc[-2]` に固定、WIR window をその直前へ移動、HTF Hard Block を V2 では解除しました。flag OFF が default なので live 既存経路は変更されません。
+
+変更:
+- [alpha_wick_imbalance.py](/data/repo/fx-ai-trader/strategies/daytrade/alpha_wick_imbalance.py:55)
+- [DaytradeEngine shadow opt-in](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:233)
+- [app.py DTE HTF filter exception](/data/repo/fx-ai-trader/app.py:2550)
+- [test_alpha_wick_imbalance_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_alpha_wick_imbalance_shadow_redesign_v2.py:1)
+- [alpha_wick_imbalance_shadow_bt.py](/data/repo/fx-ai-trader/tools/alpha_wick_imbalance_shadow_bt.py:1)
+- BT report: [alpha_wick_imbalance-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/alpha_wick_imbalance-shadow-redesign-v2-2026-05-05.json:1)
+
+検証:
+- `.venv/bin/pytest -q tests/test_alpha_wick_imbalance_shadow_redesign_v2.py` → `4 passed`
+- `.venv/bin/pytest -q tests/test_alpha_wick_imbalance_shadow_redesign_v2.py tests/test_alpha_atr_regime_break_shadow_redesign_v2.py tests/test_alpha_intraday_seasonality_shadow_redesign_v2.py` → `13 passed`
+- `py_compile` → pass
+- 365d MASSIVE BT: `BT_MODE=1`, `BT_REQUIRE_MASSIVE_CACHE=1`, production `app.run_daytrade_backtest()` 経由
+
+v2 LOCK verdict は `REJECT` です。理由は USD_JPY で `pnl_sign_preserved=False`: baseline PnL `+1.1718` から proposed PnL `-8.2127` に正→負の符号反転が発生しました。EUR_USD と GBP_USD は PASS でしたが、USD_JPY の catastrophic absolute NG により overall REJECT です。
+
+そのため `ALPHA_WICK_IMBALANCE_REDESIGN_V2_SHADOW_PROMOTE` を有効化する設定変更はしていません。BT report 内の self-review は PASS で、Kelly / positive direction は判定に使っていません。
+```
