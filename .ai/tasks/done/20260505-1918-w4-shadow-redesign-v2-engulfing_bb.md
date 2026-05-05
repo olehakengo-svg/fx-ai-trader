@@ -137,3 +137,34 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T19:07:51Z)
+
+exit=0 · 676s
+
+```
+実装完了しました。`ENGULFING_BB_REDESIGN_V2=1` の default-OFF flag 配下で closed-bar signal variant を追加し、flag OFF の live/legacy path は触らない構成です。
+
+主な変更:
+- [strategies/scalp/engulfing_bb.py](/data/repo/fx-ai-trader/strategies/scalp/engulfing_bb.py:24): V2 flag ON 時だけ `df.iloc[-2]` を signal bar、`df.iloc[-3]` を前足として engulfing / BB%B / RSI5 / Stoch / range を確定足から読む分岐を追加。
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:181): shadow worker 登録は `ENGULFING_BB_REDESIGN_V2=1` と `ENGULFING_BB_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag 必須。
+- [tests/test_engulfing_bb_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_engulfing_bb_shadow_redesign_v2.py:79): default OFF preservation、current-bar only signal rejection、closed-bar geometry、shadow double flag を追加。
+- [tools/engulfing_bb_shadow_bt.py](/data/repo/fx-ai-trader/tools/engulfing_bb_shadow_bt.py:1): 365d MASSIVE BT report generator を追加。
+- [bt-results/engulfing_bb-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/engulfing_bb-shadow-redesign-v2-2026-05-05.json:1): BT report 生成済み。
+
+検証:
+- `.venv/bin/pytest -q tests/test_engulfing_bb_shadow_redesign_v2.py` → `4 passed`
+- `.venv/bin/pytest -q tests/test_engulfing_bb_shadow_redesign_v2.py tests/test_bb_rsi_shadow_redesign_v2.py` → `8 passed`
+- `.venv/bin/python tools/engulfing_bb_shadow_bt.py` → report generated
+
+v2 LOCK verdict: `REJECT`
+
+BT summary:
+- `USD_JPY`: PASS, N `317 -> 311`, PF `1.1258 -> 1.1512`
+- `EUR_USD`: REJECT, catastrophic PASS だが sanity floor NG, proposed PF `0.7045 < 0.85`
+- `GBP_USD`: REJECT, catastrophic PASS だが sanity floor NG, proposed PF `0.6392 < 0.85`
+- `EUR_JPY`: PASS, N `316 -> 317`, PF `0.9781 -> 0.9153`
+
+Overall が `REJECT` のため、shadow promote flag は設定していません。Codex self-review も report 内に記録済みで、Kelly/positive-direction は判定に使わず、catastrophic + sanity floor のみで判定しています。
+```
