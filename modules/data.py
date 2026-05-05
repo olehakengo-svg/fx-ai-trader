@@ -389,7 +389,19 @@ def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
     url = base_url
     params = "?adjusted=true&sort=asc&limit=50000"
     _headers = {"User-Agent": "Mozilla/5.0", "Authorization": f"Bearer {api_key}"}
-    max_pages = 30  # 最大ページ数（1m/5m: 180日+取得可能）
+    # Massive can paginate long FX aggregate ranges in relatively small chunks.
+    # Size the cap from the requested range so 4500d 15m cache builds do not
+    # stop several years early.
+    _BARS_PER_DAY = {
+        "1m":  24 * 60,
+        "5m":  24 * 12,
+        "15m": 24 * 4,
+        "30m": 24 * 2,
+        "1h":  24,
+        "4h":  6,
+        "1d":  1,
+    }
+    max_pages = max(30, min(2500, int(((days + 3) * _BARS_PER_DAY[interval]) / 3000) + 10))
 
     for page in range(max_pages):
         req = _ur.Request(url + params, headers=_headers)
