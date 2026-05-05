@@ -137,3 +137,44 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T16:48:57Z)
+
+exit=0 · 4126s
+
+```
+実装完了。ただし v2 LOCK verdict は **REJECT** なので、shadow promote は有効化していません。
+
+変更点:
+- [strategies/daytrade/dt_sr_channel.py](/data/repo/fx-ai-trader/strategies/daytrade/dt_sr_channel.py:20)
+  - `DT_SR_CHANNEL_REDESIGN_V2=1` 配下で closed-bar signal 固定
+  - `ctx.df.iloc[-2]` の SR/channel proximity、RSI、MACD-H turn で判定
+  - live 時のみ `(symbol, entry_type, signal_bar_time, direction)` dedup
+  - boundary 外 SL + mean-side TP の MR geometry
+- [app.py](/data/repo/fx-ai-trader/app.py:6438)
+  - V2 flag 時だけ BT が dt_sr_channel の戦略 SL/TP を保存し、MR geometry を評価可能に調整
+- [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:245)
+  - shadow worker 登録は `DT_SR_CHANNEL_REDESIGN_V2=1` かつ `DT_SR_CHANNEL_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag 必須
+- [tests/test_dt_sr_channel_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_dt_sr_channel_shadow_redesign_v2.py:86)
+  - default OFF 保持、closed-bar 判定、current-bar 無視、dedup、double-flag shadow 登録をテスト
+- [tools/dt_sr_channel_shadow_bt.py](/data/repo/fx-ai-trader/tools/dt_sr_channel_shadow_bt.py:21)
+  - 365d MASSIVE baseline/proposed BT runner 追加
+
+BT report:
+- [bt-results/dt_sr_channel-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/dt_sr_channel-shadow-redesign-v2-2026-05-05.json)
+- MASSIVE parquet 使用確認: all target `data_source: massive-parquet`
+- Overall: **REJECT**
+- 主因:
+  - `USD_JPY`: PF 0.9339 → 0.7635、sanity floor NG
+  - `EUR_JPY`: PF 0.9993 → 0.6743、sanity floor NG
+  - `GBP_JPY`: PnL +13.7663 → -48.3385 で `pnl_sign_preserved=false`
+  - `EUR_USD` のみ PASS
+
+Verification:
+- `.venv/bin/pytest -q tests/test_dt_sr_channel_shadow_redesign_v2.py tests/test_dt_bb_rsi_mr_shadow_redesign_v2.py tests/test_asia_range_fade_v1_shadow_redesign_v2.py` → 14 passed
+- `.venv/bin/python -m py_compile app.py strategies/daytrade/dt_sr_channel.py strategies/daytrade/__init__.py tools/dt_sr_channel_shadow_bt.py` → passed
+
+Self-review:
+- catastrophic check + sanity floor のみで判定、Kelly/po
+…(truncated)

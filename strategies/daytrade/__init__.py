@@ -242,6 +242,9 @@ class DaytradeEngine:
         if (os.environ.get("DT_BB_RSI_MR_REDESIGN_V2") == "1"
                 and os.environ.get("DT_BB_RSI_MR_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"dt_bb_rsi_mr"}
+        if (os.environ.get("DT_SR_CHANNEL_REDESIGN_V2") == "1"
+                and os.environ.get("DT_SR_CHANNEL_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"dt_sr_channel_reversal"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

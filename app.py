@@ -6435,6 +6435,12 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             # ATR-based TP floor: 最低 ATR×1.5 を保証
             tp_dist_dt = abs(tp - ep)
             _atr_tp_floor = atr * _atr_tp_floor_mult
+            _dt_sr_channel_v2_geometry = (
+                entry_type == "dt_sr_channel_reversal"
+                and os.environ.get("DT_SR_CHANNEL_REDESIGN_V2") == "1"
+            )
+            if _dt_sr_channel_v2_geometry:
+                _atr_tp_floor = atr * 0.8
             if tp_dist_dt < _atr_tp_floor:
                 tp = ep + _atr_tp_floor if sig == "BUY" else ep - _atr_tp_floor
                 tp_dist_dt = _atr_tp_floor
@@ -6442,6 +6448,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             # SL可変: エントリー価格からRR比で逆算
             # ── 例外: SRM等は戦略SLを完全保存 (1H BT _1H_PRESERVE_SLTP 準拠) ──
             _DT_PRESERVE_SLTP = {"squeeze_release_momentum", "bb_rsi_ema_aligned"}
+            if _dt_sr_channel_v2_geometry:
+                _DT_PRESERVE_SLTP = _DT_PRESERVE_SLTP | {"dt_sr_channel_reversal"}
             _ais_v2_time_exit_dt = (
                 entry_type == "intraday_seasonality"
                 and os.environ.get("ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2", "0") == "1"
@@ -6569,7 +6577,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 tp_dist_dt = abs(tp - ep)
 
             # RR不足チェック（SL拡大後に再判定）
-            if tp_dist_dt < sl_dist_dt:
+            if tp_dist_dt < sl_dist_dt and not _dt_sr_channel_v2_geometry:
                 continue
 
             sl_m = abs(ep - sl) / max(atr, 1e-6)
