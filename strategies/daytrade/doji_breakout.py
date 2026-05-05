@@ -34,6 +34,7 @@ Doji Breakout — 連続Doji後のボラティリティ解放ブレイクアウ�
 """
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
+import os
 from typing import Optional
 
 
@@ -54,6 +55,15 @@ class DojiBreakout(StrategyBase):
     TP_ATR_MULT = 2.0          # TP = ATR × 2.0 (低WR補償で広TP)
     MIN_RR = 1.2               # 最低リスクリワード比
     MAX_HOLD_BARS = 6          # 6バー = 1.5時間 @ 15m
+    BREAKOUT_BUFFER_ATR = 0.1   # range-close buffer = max(spread, ATR×0.1)
+
+    def __init__(self, require_range_close: Optional[bool] = None):
+        if require_range_close is None:
+            require_range_close = (
+                os.getenv("DOJI_BREAKOUT_RANGE_CLOSE", "").lower()
+                in {"1", "true", "yes", "on"}
+            )
+        self.require_range_close = bool(require_range_close)
 
     # ──────────────────────────────────────────────────
     # ヘルパー
@@ -66,6 +76,73 @@ class DojiBreakout(StrategyBase):
         if bar_range <= 0:
             return 0.0
         return abs(close_p - open_p) / bar_range
+
+    @staticmethod
+    def _estimated_spread(ctx: SignalContext) -> float:
+        """BT/live contextからprice単位のspreadを推定する。"""
+        pip_mult = max(float(getattr(ctx, "pip_mult", 10000) or 10000), 1.0)
+
+        for source in (getattr(ctx, "session", None), getattr(ctx, "layer0", None)):
+            if isinstance(source, dict):
+                if source.get("spread") is not None:
+                    return max(0.0, float(source["spread"]))
+                if source.get("spread_pips") is not None:
+                    return max(0.0, float(source["spread_pips"]) / pip_mult)
+
+        symbol = str(getattr(ctx, "symbol", "") or "").upper()
+        hour = int(getattr(ctx, "hour_utc", 12) or 12)
+        is_gbp_usd = "GBPUSD" in symbol or "GBP_USD" in symbol
+        is_eur_usd = "EURUSD" in symbol or "EUR_USD" in symbol
+        is_jpy = "JPY" in symbol
+
+        if is_gbp_usd:
+            if hour < 2:
+                spread = 0.00018
+            elif hour < 7:
+                spread = 0.00012
+            elif hour < 16:
+                spread = 0.00008
+            elif hour < 20:
+                spread = 0.00010
+            else:
+                spread = 0.00018
+        elif is_eur_usd:
+            if hour < 2:
+                spread = 0.00010
+            elif hour < 7:
+                spread = 0.00005
+            elif hour < 16:
+                spread = 0.00003
+            elif hour < 20:
+                spread = 0.00004
+            else:
+                spread = 0.00010
+        elif is_jpy:
+            if hour < 2:
+                spread = 0.010
+            elif hour < 7:
+                spread = 0.005
+            elif hour < 16:
+                spread = 0.003
+            elif hour < 20:
+                spread = 0.004
+            else:
+                spread = 0.010
+        else:
+            if hour < 2:
+                spread = 0.00010
+            elif hour < 7:
+                spread = 0.00006
+            elif hour < 16:
+                spread = 0.00003
+            elif hour < 20:
+                spread = 0.00004
+            else:
+                spread = 0.00010
+        return spread
+
+    def _breakout_buffer(self, ctx: SignalContext) -> float:
+        return max(self._estimated_spread(ctx), ctx.atr * self.BREAKOUT_BUFFER_ATR)
 
     # ──────────────────────────────────────────────────
     # メインロジック
@@ -133,11 +210,17 @@ class DojiBreakout(StrategyBase):
         if bo_body <= ctx.atr * self.BREAK_SIZE_MIN:
             return None  # ブレイクアウト足のボディが不十分
 
+        breakout_buffer = self._breakout_buffer(ctx) if self.require_range_close else 0.0
+
         # ブレイクアウト方向
         if bo_close > bo_open:
+            if self.require_range_close and bo_close <= doji_high + breakout_buffer:
+                return None
             signal = "BUY"
             bo_dir = "UP"
         elif bo_close < bo_open:
+            if self.require_range_close and bo_close >= doji_low - breakout_buffer:
+                return None
             signal = "SELL"
             bo_dir = "DOWN"
         else:
@@ -191,6 +274,10 @@ class DojiBreakout(StrategyBase):
             f"{self.CONSECUTIVE_DOJIS}連続Doji → {bo_dir}ブレイク "
             f"(dojiレンジ={doji_range_pip:.1f}pip, BO実体={bo_body_pip:.1f}pip)"
         )
+        if self.require_range_close:
+            reasons.append(
+                f"✅ Dojiレンジ外close確認(buffer={breakout_buffer * ctx.pip_mult:.1f}pip)"
+            )
 
         # ── HTF方向一致ボーナス ──
         _htf = ctx.htf or {}

@@ -96,3 +96,40 @@ post-hoc selection / data leakage / look-ahead bias チェック。
 - このタスクは W4-Redesign 40 件一括 dispatch の一部。Codex は serial 処理で 1 件ずつ進めること。
 - 実装が大規模 (Axis 2-5 全部修正等) になる場合は途中で abort し、scope を絞って別タスク化する。
 - audit に書かれていない設計変更を勝手に追加しない (post-hoc justification 罠)。
+
+
+## Result (2026-05-05T00:34:09Z)
+
+exit=0 · 241s
+
+```
+完了しました。判定は **FAIL / REJECT** です。理由は proposed variant の 365d BT が両 target ともデータ取得不能で、LOCK criteria の WF / significance / Kelly を評価できなかったためです。
+
+実施内容:
+- Pre-reg LOCK 作成: [doji_breakout-redesign-2026-05-05.md](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/doji_breakout-redesign-2026-05-05.md)
+- 失敗テスト追加 → 緑化: [test_doji_breakout_redesign.py](/data/repo/fx-ai-trader/tests/test_doji_breakout_redesign.py)
+- proposed trigger 実装: [doji_breakout.py](/data/repo/fx-ai-trader/strategies/daytrade/doji_breakout.py:60)
+  - default は現行挙動のまま
+  - `require_range_close=True` または `DOJI_BREAKOUT_RANGE_CLOSE=1` の時だけ shadow proposed variant
+  - `bo_close > doji_high + max(spread, 0.1ATR)` / `bo_close < doji_low - buffer`
+- A/B BT runner 追加: [doji_breakout_redesign_bt.py](/data/repo/fx-ai-trader/tools/doji_breakout_redesign_bt.py)
+- BT 結果保存: [doji_breakout-redesign-2026-05-05.json](/data/repo/fx-ai-trader/knowledge-base/raw/bt-results/doji_breakout-redesign-2026-05-05.json)
+
+検証:
+- `pytest tests/test_doji_breakout_redesign.py tests/test_edge_significance.py -q`
+- 結果: `46 passed`
+- `py_compile` も通過
+
+BT 結果:
+- `GBP_USD`: `All data sources failed for GBPUSD=X/15m; local parquet cache unavailable`
+- `USD_JPY`: `All data sources failed for USDJPY=X/15m; local parquet cache unavailable`
+- overall verdict: `FAIL`
+
+Codex self-review:
+- post-hoc selection: PASS
+- data leakage: PASS
+- look-ahead bias: PASS
+- live promote: PASS
+
+PASS ではないため **commit は作成していません**。Live 昇格もしていません。
+```

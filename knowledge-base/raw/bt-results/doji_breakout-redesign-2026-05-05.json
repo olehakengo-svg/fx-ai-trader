@@ -1,0 +1,116 @@
+{
+  "generated_at": "2026-05-05T00:32:59.982302+00:00",
+  "strategy": "doji_breakout",
+  "variant": "range_close_buffer",
+  "lookback_days": 365,
+  "interval": "15m",
+  "targets": [
+    "GBP_USD",
+    "USD_JPY"
+  ],
+  "bonferroni_family_size": 2,
+  "cells": {
+    "GBP_USD": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "kelly": null,
+        "wilson_lo": 0.0,
+        "wf3": {
+          "folds": [],
+          "n_folds": 0,
+          "positive_ratio": 0.0
+        },
+        "total_trades_all_strategies": 0,
+        "bt_error": "All data sources failed for GBPUSD=X/15m; local parquet cache unavailable"
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "kelly": null,
+        "wilson_lo": 0.0,
+        "wf3": {
+          "folds": [],
+          "n_folds": 0,
+          "positive_ratio": 0.0
+        },
+        "total_trades_all_strategies": 0,
+        "bt_error": "All data sources failed for GBPUSD=X/15m; local parquet cache unavailable"
+      },
+      "significance": {
+        "raw_p_vs_current_wr": 1.0,
+        "bonferroni_p": 1.0,
+        "wilson_lo_delta": 0.0
+      },
+      "lock_criteria": {
+        "stable": false,
+        "significant": false,
+        "kelly_desired": false,
+        "verdict": "FAIL"
+      }
+    },
+    "USD_JPY": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "kelly": null,
+        "wilson_lo": 0.0,
+        "wf3": {
+          "folds": [],
+          "n_folds": 0,
+          "positive_ratio": 0.0
+        },
+        "total_trades_all_strategies": 0,
+        "bt_error": "All data sources failed for USDJPY=X/15m; local parquet cache unavailable"
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "kelly": null,
+        "wilson_lo": 0.0,
+        "wf3": {
+          "folds": [],
+          "n_folds": 0,
+          "positive_ratio": 0.0
+        },
+        "total_trades_all_strategies": 0,
+        "bt_error": "All data sources failed for USDJPY=X/15m; local parquet cache unavailable"
+      },
+      "significance": {
+        "raw_p_vs_current_wr": 1.0,
+        "bonferroni_p": 1.0,
+        "wilson_lo_delta": 0.0
+      },
+      "lock_criteria": {
+        "stable": false,
+        "significant": false,
+        "kelly_desired": false,
+        "verdict": "FAIL"
+      }
+    }
+  },
+  "overall_verdict": "FAIL",
+  "elapsed_s": 3.0,
+  "self_review": {
+    "post_hoc_selection": "PASS: only the locked range_close_buffer variant was evaluated.",
+    "data_leakage": "PASS: run_daytrade_backtest uses rolling bar_df slices and next-bar entry.",
+    "lookahead_bias": "PASS: proposed trigger reads the already-closed breakout bar at df.iloc[-2], matching existing timing.",
+    "live_promote": "PASS: variant is default-off and selected only by test/env flag."
+  }
+}
