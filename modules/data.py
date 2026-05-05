@@ -344,6 +344,18 @@ def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
         "GBPJPY=X": "C:GBPJPY",
         "GBPUSD=X": "C:GBPUSD",
         "EURGBP=X": "C:EURGBP",
+        "USDJPY":   "C:USDJPY",
+        "EURUSD":   "C:EURUSD",
+        "EURJPY":   "C:EURJPY",
+        "GBPJPY":   "C:GBPJPY",
+        "GBPUSD":   "C:GBPUSD",
+        "EURGBP":   "C:EURGBP",
+        "USD_JPY":  "C:USDJPY",
+        "EUR_USD":  "C:EURUSD",
+        "EUR_JPY":  "C:EURJPY",
+        "GBP_JPY":  "C:GBPJPY",
+        "GBP_USD":  "C:GBPUSD",
+        "EUR_GBP":  "C:EURGBP",
     }
     massive_ticker = _SYMBOL_MAP.get(symbol)
     if not massive_ticker:
