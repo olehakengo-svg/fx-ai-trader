@@ -172,6 +172,9 @@ class ScalperEngine:
         if (os.environ.get("EMA_PULLBACK_REDESIGN_V2") == "1"
                 and os.environ.get("EMA_PULLBACK_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"ema_pullback"}
+        if (os.environ.get("EMA_RIBBON_REDESIGN_V2") == "1"
+                and os.environ.get("EMA_RIBBON_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"ema_ribbon_ride"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

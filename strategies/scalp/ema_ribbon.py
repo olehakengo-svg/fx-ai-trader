@@ -36,6 +36,7 @@ EMA Ribbon Ride — パーフェクトオーダー押し目戦略 (Trend Pullbac
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
+import os
 
 
 class EmaRibbonRide(StrategyBase):
@@ -52,6 +53,16 @@ class EmaRibbonRide(StrategyBase):
     di_gap_min = 5             # v6.3: DI乖離最低要件 (方向性の確度を担保)
     bb_width_pct_min = 0.35    # v6.3: BB幅パーセンタイル最低 (ノイズBK排除)
     body_ratio_min = 0.40      # v6.3: 足の実体比率最低 (ヒゲだらけの足を排除)
+    v2_tp_atr_floor = 2.0
+    v2_tp_r_floor = 1.5
+    _v2_dedup_state: set[tuple[str, str, str]] = set()
+
+    @classmethod
+    def reset_dedup_state(cls):
+        cls._v2_dedup_state.clear()
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get("EMA_RIBBON_REDESIGN_V2") == "1"
 
     # ── ペア別TP倍率 (BT最適化 2026-04-06, v6.3 更新) ──
     _tp_mult_by_pair = {
@@ -69,6 +80,8 @@ class EmaRibbonRide(StrategyBase):
     _blocked_hours = frozenset(range(0, 7))       # v6.3: UTC 0-6 完全ブロック (ペナルティでは不十分)
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        _redesign_v2 = self._redesign_v2_enabled()
+
         # ── 通貨ペアフィルター: BT正EVペアのみ発火 ──
         _sym_clean = ctx.symbol.upper().replace("=X", "").replace("_", "")
         if _sym_clean not in self._enabled_symbols:
@@ -78,17 +91,70 @@ class EmaRibbonRide(StrategyBase):
         if ctx.hour_utc in self._blocked_hours:
             return None
 
+        if _redesign_v2:
+            if ctx.df is None or len(ctx.df) < 6:
+                return None
+            if not ctx.backtest_mode and ctx.bar_time is None:
+                return None
+            _signal_df = ctx.df.iloc[:-1]
+            _signal_row = _signal_df.iloc[-1]
+            _prev_row = _signal_df.iloc[-2]
+            _signal_bar_time = getattr(_signal_row, "name", None)
+            _entry = float(_signal_row["Close"])
+            _open_price = float(_signal_row["Open"])
+            _bar_high = float(_signal_row["High"])
+            _bar_low = float(_signal_row["Low"])
+            _atr7 = float(_signal_row.get("atr7", ctx.atr7))
+            _ema9 = float(_signal_row.get("ema9", ctx.ema9))
+            _ema21 = float(_signal_row.get("ema21", ctx.ema21))
+            _ema50 = float(_signal_row.get("ema50", ctx.ema50))
+            _ema200 = float(_signal_row.get("ema200", ctx.ema200))
+            _adx = float(_signal_row.get("adx", ctx.adx))
+            _adx_pos = float(_signal_row.get("adx_pos", ctx.adx_pos))
+            _adx_neg = float(_signal_row.get("adx_neg", ctx.adx_neg))
+            _rsi5 = float(_signal_row.get("rsi5", _signal_row.get("rsi", ctx.rsi5)))
+            _stoch_k = float(_signal_row.get("stoch_k", ctx.stoch_k))
+            _stoch_d = float(_signal_row.get("stoch_d", ctx.stoch_d))
+            _macdh = float(_signal_row.get("macd_hist", ctx.macdh))
+            _macdh_prev = float(_prev_row.get("macd_hist", ctx.macdh_prev))
+            if "bb_width" in ctx.df.columns and len(_signal_df) >= 50:
+                _bb_width = float(_signal_row.get("bb_width", ctx.bb_width))
+                _bw_series = _signal_df["bb_width"].iloc[-50:]
+                _bb_width_pct = float((_bw_series < _bb_width).sum()) / 50.0
+            else:
+                _bb_width_pct = ctx.bb_width_pct
+        else:
+            _signal_bar_time = None
+            _entry = ctx.entry
+            _open_price = ctx.open_price
+            _bar_high = ctx.high if hasattr(ctx, 'high') else None
+            _bar_low = ctx.low if hasattr(ctx, 'low') else None
+            _atr7 = ctx.atr7
+            _ema9 = ctx.ema9
+            _ema21 = ctx.ema21
+            _ema50 = ctx.ema50
+            _ema200 = ctx.ema200
+            _adx = ctx.adx
+            _adx_pos = ctx.adx_pos
+            _adx_neg = ctx.adx_neg
+            _rsi5 = ctx.rsi5
+            _stoch_k = ctx.stoch_k
+            _stoch_d = ctx.stoch_d
+            _macdh = ctx.macdh
+            _macdh_prev = ctx.macdh_prev
+            _bb_width_pct = ctx.bb_width_pct
+
         # ── 最低ADX要件 (v6.3: 25) ──
-        if ctx.adx < self.adx_min:
+        if _adx < self.adx_min:
             return None
 
         # ── v6.3: DI乖離最低要件 (方向性の確度を担保) ──
-        _di_gap = abs(ctx.adx_pos - ctx.adx_neg)
+        _di_gap = abs(_adx_pos - _adx_neg)
         if _di_gap < self.di_gap_min:
             return None
 
         # ── v6.3: BB幅パーセンタイルチェック (ノイズBK排除) ──
-        if hasattr(ctx, 'bb_width_pct') and ctx.bb_width_pct < self.bb_width_pct_min:
+        if _bb_width_pct < self.bb_width_pct_min:
             return None
 
         signal = None
@@ -102,71 +168,86 @@ class EmaRibbonRide(StrategyBase):
         # ── Strict パーフェクトオーダー判定 (v6.3: Relaxed→Strict) ──
         # v6.3: EMA9>EMA21>EMA50 を必須とする (Relaxed POがダマシの主因)
         # 完全PO (EMA9>21>50>200) は追加ボーナス
-        _strict_bull = (ctx.ema9 > ctx.ema21 > ctx.ema50 > ctx.ema200)
-        _strict_bear = (ctx.ema9 < ctx.ema21 < ctx.ema50 < ctx.ema200)
+        _strict_bull = (_ema9 > _ema21 > _ema50 > _ema200)
+        _strict_bear = (_ema9 < _ema21 < _ema50 < _ema200)
         # v6.3: Strict PO = EMA9>21>50 (200は不要)
-        bull_po = (ctx.ema9 > ctx.ema21 > ctx.ema50)
-        bear_po = (ctx.ema9 < ctx.ema21 < ctx.ema50)
+        bull_po = (_ema9 > _ema21 > _ema50)
+        bear_po = (_ema9 < _ema21 < _ema50)
 
         if not bull_po and not bear_po:
             return None
 
         # ── EMA9近接判定: 押し目/戻りが発生しているか ──
-        ema9_dist = abs(ctx.entry - ctx.ema9)
-        proximity_threshold = ctx.atr7 * self.ema_proximity_atr
+        ema9_dist = abs(_entry - _ema9)
+        proximity_threshold = _atr7 * self.ema_proximity_atr
 
         if ema9_dist > proximity_threshold:
             return None  # EMA9から遠すぎる = 押し目ではなく乖離中
 
         # ── v6.3: 足の実体比率チェック (ヒゲ足排除) ──
-        _bar_range = abs(ctx.high - ctx.low) if hasattr(ctx, 'high') and hasattr(ctx, 'low') else 0
-        _bar_body = abs(ctx.entry - ctx.open_price)
+        _bar_range = abs(_bar_high - _bar_low) if _bar_high is not None and _bar_low is not None else 0
+        _bar_body = abs(_entry - _open_price)
         _body_ratio = _bar_body / _bar_range if _bar_range > 0 else 0
 
         # ── BUY: Bull Perfect Order + 押し目反転 ──
-        if bull_po and ctx.rsi5 < self.rsi_buy_max:
+        if bull_po and _rsi5 < self.rsi_buy_max:
             # 現在足が陽線 = 押し目からの反転確認
             # v6.3: 実体比率チェック
-            if ctx.entry > ctx.open_price and _body_ratio >= self.body_ratio_min:
+            if _entry > _open_price and _body_ratio >= self.body_ratio_min:
                 signal = "BUY"
                 score = 3.0
 
-                reasons.append(f"✅ EMAリボンStrict PO(EMA9={ctx.ema9:.5g}>21={ctx.ema21:.5g}>50={ctx.ema50:.5g})")
-                reasons.append(f"✅ EMA9押し目(距離={ema9_dist/ctx.atr7:.2f}ATR≤{self.ema_proximity_atr})")
-                reasons.append(f"✅ 陽線反転(C={ctx.entry:.5g}>O={ctx.open_price:.5g}, body={_body_ratio:.0%})")
-                reasons.append(f"✅ RSI5非過熱({ctx.rsi5:.1f}<{self.rsi_buy_max})")
+                reasons.append(f"✅ EMAリボンStrict PO(EMA9={_ema9:.5g}>21={_ema21:.5g}>50={_ema50:.5g})")
+                reasons.append(f"✅ EMA9押し目(距離={ema9_dist/_atr7:.2f}ATR≤{self.ema_proximity_atr})")
+                reasons.append(f"✅ 陽線反転(C={_entry:.5g}>O={_open_price:.5g}, body={_body_ratio:.0%})")
+                reasons.append(f"✅ RSI5非過熱({_rsi5:.1f}<{self.rsi_buy_max})")
 
                 # TP: トレンド方向にATR分
-                tp = ctx.entry + ctx.atr7 * self.tp_mult
+                tp = ctx.entry + _atr7 * self.tp_mult
                 # SL: EMA21の下 + バッファ（PO崩壊 = 撤退）
-                sl_base = ctx.ema21 - ctx.atr7 * 0.3
+                sl_base = _ema21 - _atr7 * 0.3
                 sl = min(sl_base, ctx.entry - _min_sl)
 
         # ── SELL: Bear Perfect Order + 戻り反転 ──
-        elif bear_po and ctx.rsi5 > self.rsi_sell_min:
-            if ctx.entry < ctx.open_price and _body_ratio >= self.body_ratio_min:
+        elif bear_po and _rsi5 > self.rsi_sell_min:
+            if _entry < _open_price and _body_ratio >= self.body_ratio_min:
                 signal = "SELL"
                 score = 3.0
 
-                reasons.append(f"✅ EMAリボンStrict PO(EMA9={ctx.ema9:.5g}<21={ctx.ema21:.5g}<50={ctx.ema50:.5g})")
-                reasons.append(f"✅ EMA9戻り(距離={ema9_dist/ctx.atr7:.2f}ATR≤{self.ema_proximity_atr})")
-                reasons.append(f"✅ 陰線反転(C={ctx.entry:.5g}<O={ctx.open_price:.5g}, body={_body_ratio:.0%})")
-                reasons.append(f"✅ RSI5非過冷({ctx.rsi5:.1f}>{self.rsi_sell_min})")
+                reasons.append(f"✅ EMAリボンStrict PO(EMA9={_ema9:.5g}<21={_ema21:.5g}<50={_ema50:.5g})")
+                reasons.append(f"✅ EMA9戻り(距離={ema9_dist/_atr7:.2f}ATR≤{self.ema_proximity_atr})")
+                reasons.append(f"✅ 陰線反転(C={_entry:.5g}<O={_open_price:.5g}, body={_body_ratio:.0%})")
+                reasons.append(f"✅ RSI5非過冷({_rsi5:.1f}>{self.rsi_sell_min})")
 
-                tp = ctx.entry - ctx.atr7 * self.tp_mult
-                sl_base = ctx.ema21 + ctx.atr7 * 0.3
+                tp = ctx.entry - _atr7 * self.tp_mult
+                sl_base = _ema21 + _atr7 * 0.3
                 sl = max(sl_base, ctx.entry + _min_sl)
 
         if signal is None:
             return None
 
-        # ── ペア別TP倍率適用 ──
-        _effective_tp_mult = self._tp_mult_by_pair.get(_sym_clean, self.tp_mult)
-        if tp != 0.0:
-            if signal == "BUY":
-                tp = ctx.entry + ctx.atr7 * _effective_tp_mult
-            else:
-                tp = ctx.entry - ctx.atr7 * _effective_tp_mult
+        if _redesign_v2:
+            _risk = abs(ctx.entry - sl)
+            _tp_dist = max(_atr7 * self.v2_tp_atr_floor, _risk * self.v2_tp_r_floor)
+            tp = ctx.entry + _tp_dist if signal == "BUY" else ctx.entry - _tp_dist
+            if not ctx.backtest_mode:
+                _key = (_sym_clean, signal, str(_signal_bar_time))
+                if _key in self._v2_dedup_state:
+                    return None
+                self._v2_dedup_state.add(_key)
+            reasons.append(
+                "✅ EMA_RIBBON_REDESIGN_V2: signal_bar_time={} で確定し次バー約定; TP=max({:.1f}ATR,{:.1f}R)".format(
+                    _signal_bar_time, self.v2_tp_atr_floor, self.v2_tp_r_floor
+                )
+            )
+        else:
+            # ── ペア別TP倍率適用 ──
+            _effective_tp_mult = self._tp_mult_by_pair.get(_sym_clean, self.tp_mult)
+            if tp != 0.0:
+                if signal == "BUY":
+                    tp = ctx.entry + ctx.atr7 * _effective_tp_mult
+                else:
+                    tp = ctx.entry - ctx.atr7 * _effective_tp_mult
 
         # ── 時間帯スコア調整 (12-17 UTC 最優先, v6.3: 0-6完全ブロック済み) ──
         if ctx.hour_utc in self._prime_hours:
@@ -193,30 +274,30 @@ class EmaRibbonRide(StrategyBase):
             reasons.append("✅ 完全パーフェクトオーダー +0.5")
 
         # ADX強度ボーナス
-        if ctx.adx >= 30:
+        if _adx >= 30:
             score += 0.6
-            reasons.append(f"✅ ADX強トレンド({ctx.adx:.1f}≥30) +0.6")
-        elif ctx.adx >= 25:
+            reasons.append(f"✅ ADX強トレンド({_adx:.1f}≥30) +0.6")
+        elif _adx >= 25:
             score += 0.3
 
         # EMA9-21 乖離方向ボーナス (EMA9がEMA21からどれだけ離れているか)
-        ema_spread = abs(ctx.ema9 - ctx.ema21) / ctx.atr7 if ctx.atr7 > 0 else 0
+        ema_spread = abs(_ema9 - _ema21) / _atr7 if _atr7 > 0 else 0
         if ema_spread >= 0.5:
             score += 0.3
             reasons.append(f"✅ EMAスプレッド良好({ema_spread:.2f}ATR≥0.5)")
 
         # Stochastic 押し目確認ボーナス
-        if signal == "BUY" and ctx.stoch_k < 40 and ctx.stoch_k > ctx.stoch_d:
+        if signal == "BUY" and _stoch_k < 40 and _stoch_k > _stoch_d:
             score += 0.4
-            reasons.append(f"✅ Stoch押し目圏(K={ctx.stoch_k:.0f}<40)&ゴールデンクロス")
-        elif signal == "SELL" and ctx.stoch_k > 60 and ctx.stoch_k < ctx.stoch_d:
+            reasons.append(f"✅ Stoch押し目圏(K={_stoch_k:.0f}<40)&ゴールデンクロス")
+        elif signal == "SELL" and _stoch_k > 60 and _stoch_k < _stoch_d:
             score += 0.4
-            reasons.append(f"✅ Stoch戻り圏(K={ctx.stoch_k:.0f}>60)&デッドクロス")
+            reasons.append(f"✅ Stoch戻り圏(K={_stoch_k:.0f}>60)&デッドクロス")
 
         # MACD方向一致
-        if signal == "BUY" and ctx.macdh > 0 and ctx.macdh > ctx.macdh_prev:
+        if signal == "BUY" and _macdh > 0 and _macdh > _macdh_prev:
             score += 0.2
-        elif signal == "SELL" and ctx.macdh < 0 and ctx.macdh < ctx.macdh_prev:
+        elif signal == "SELL" and _macdh < 0 and _macdh < _macdh_prev:
             score += 0.2
 
         # ── Confidence ──

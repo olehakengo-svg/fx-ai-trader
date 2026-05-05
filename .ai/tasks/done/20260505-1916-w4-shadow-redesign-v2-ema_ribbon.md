@@ -137,3 +137,34 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T18:43:21Z)
+
+exit=0 · 2031s
+
+```
+完了しました。
+
+変更点:
+- [strategies/scalp/ema_ribbon.py](/data/repo/fx-ai-trader/strategies/scalp/ema_ribbon.py:56): `EMA_RIBBON_REDESIGN_V2=1` 配下で closed-bar trigger、live dedup、`TP=max(2.0ATR, 1.5R)` geometry を追加。default OFF なので live 既存挙動は維持。
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:175): `EMA_RIBBON_REDESIGN_V2=1` + `EMA_RIBBON_REDESIGN_V2_SHADOW_PROMOTE=1` の double flag で shadow worker emit 対象に登録。
+- [tests/test_ema_ribbon_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_ema_ribbon_shadow_redesign_v2.py:118): flag OFF 保持、closed-bar 判定、current-only reject、dedup、shadow double flag をテスト。
+- [tools/ema_ribbon_shadow_bt.py](/data/repo/fx-ai-trader/tools/ema_ribbon_shadow_bt.py:1): 365d MASSIVE BT report generator を追加。
+- BT report: [bt-results/ema_ribbon-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/ema_ribbon-shadow-redesign-v2-2026-05-05.json:1)
+
+結果:
+- 365d BT: `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1`
+- 対象: `USD_JPY`, `EUR_USD`, `EUR_JPY` 15m MASSIVE cache
+- Overall verdict: `INSUFFICIENT_BT_EVIDENCE`
+- Proposed N: `0` `<20`
+- v2 LOCK: catastrophic check / sanity floor は spec 通り `SKIPPED`
+- Shadow promote recommendation: `RECOMMEND_SHADOW`
+
+検証:
+- `.venv/bin/pytest tests/test_ema_ribbon_shadow_redesign_v2.py -q` → `5 passed`
+- `.venv/bin/pytest tests/test_ema_ribbon_shadow_redesign_v2.py tests/test_ema_pullback_shadow_redesign_v2.py -q` → `10 passed`
+- `.venv/bin/python -m py_compile strategies/scalp/ema_ribbon.py tools/ema_ribbon_shadow_bt.py` → pass
+
+Codex self-review も report 内で PASS: catastrophic-only 判定、Kelly 非要求、flag OFF live 無影響、post-hoc adjustment なし。
+```
