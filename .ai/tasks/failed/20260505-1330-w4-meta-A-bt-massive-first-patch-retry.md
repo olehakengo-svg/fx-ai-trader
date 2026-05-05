@@ -123,3 +123,10 @@ def test_bt_mode_yahoo_fallback_only_last():
 ```
 orphaned: container restarted while task was running
 ```
+
+
+## Error (2026-05-05T02:34:54Z)
+
+```
+orphaned: container restarted while task was running
+```
