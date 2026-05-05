@@ -135,3 +135,28 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T13:39:31Z)
+
+exit=0 · 2937s
+
+```
+実装と検証まで完了しました。
+
+`asia_range_fade_v1` の V2 timing redesign は既存の `ASIA_RANGE_FADE_V1_REDESIGN_V2` flag 配下で closed-prior range を使う形になっており、今回追加で shadow worker 登録を `ASIA_RANGE_FADE_V1_REDESIGN_V2=1` かつ `ASIA_RANGE_FADE_V1_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag 配下にしました。flag OFF では live 影響はありません。
+
+追加/更新:
+- [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:236): asia_range_fade_v1 の shadow promote worker env hook
+- [tests/test_asia_range_fade_v1_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_asia_range_fade_v1_shadow_redesign_v2.py:1): V2 closed-prior range と shadow hook のテスト
+- [tools/asia_range_fade_v1_shadow_bt.py](/data/repo/fx-ai-trader/tools/asia_range_fade_v1_shadow_bt.py:28): 365d / v2 LOCK criteria / `INSUFFICIENT_BT_EVIDENCE` 対応
+- [bt-results/asia_range_fade_v1-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/asia_range_fade_v1-shadow-redesign-v2-2026-05-05.json:1): BT report
+
+BT verdict:
+`INSUFFICIENT_BT_EVIDENCE`。5 pairs すべて proposed N=0 / `<20` だったため、v2 spec 通り catastrophic check と sanity floor はスキップし、`RECOMMEND_SHADOW` です。BT は `BT_MODE=1`, `BT_REQUIRE_MASSIVE_CACHE=1`, 365d, MASSIVE parquet, production `run_daytrade_backtest()` 経由で完走しました。
+
+Verification:
+- `.venv/bin/pytest tests/test_asia_range_fade_v1_shadow_redesign_v2.py tests/test_asia_range_fade_v1_shadow_redesign.py -q` → `7 passed`
+- `.venv/bin/python -m py_compile tools/asia_range_fade_v1_shadow_bt.py strategies/daytrade/asia_range_fade_v1.py strategies/daytrade/__init__.py` → OK
+- `.venv/bin/python -m json.tool bt-results/asia_range_fade_v1-shadow-redesign-v2-2026-05-05.json` → OK
+```
