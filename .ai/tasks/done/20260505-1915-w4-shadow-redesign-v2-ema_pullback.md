@@ -135,3 +135,27 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T18:08:55Z)
+
+exit=0 · 1050s
+
+```
+実装完了しました。
+
+V2 は `EMA_PULLBACK_REDESIGN_V2=1` 配下でのみ有効です。default OFF では既存 live 挙動に触れません。V2 ON 時は [ema_pullback.py](/data/repo/fx-ai-trader/strategies/scalp/ema_pullback.py:35) で closed signal bar を使い、`ctx.entry` は execution bar として分離し、SL は BUY `min(signal_low, ema21 - 0.6ATR)` / SELL `max(signal_high, ema21 + 0.6ATR)` に変更しています。同一 signal bar の live 再発火 dedup も入れました。
+
+Shadow worker 登録は [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:172) に追加済みで、`EMA_PULLBACK_REDESIGN_V2=1` かつ `EMA_PULLBACK_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag 時だけ `ema_pullback` が shadow-always 対象になります。
+
+BT report は [ema_pullback-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/ema_pullback-shadow-redesign-v2-2026-05-05.json:106) に生成済みです。365d / `BT_MODE=1` / `BT_REQUIRE_MASSIVE_CACHE=1` / production `run_daytrade_backtest(backtest_mode=True)` で実行し、target は audit recommendation に合わせて USD_JPY に絞りました。
+
+Verdict: `INSUFFICIENT_BT_EVIDENCE`  
+Proposed N = 0 `<20` のため、v2 spec 通り catastrophic check / sanity floor は skip、shadow promote 推奨です。
+
+検証:
+- `.venv/bin/pytest -q tests/test_ema_pullback_shadow_redesign_v2.py tests/test_bb_rsi_shadow_redesign_v2.py` → `9 passed`
+- `.venv/bin/python -m py_compile strategies/scalp/ema_pullback.py strategies/scalp/__init__.py tools/ema_pullback_shadow_bt.py` → OK
+
+Self-review も report 内で PASS: catastrophic-only 判定、Kelly 不要求、flag OFF live zero、post-hoc adjustment なし。
+```
