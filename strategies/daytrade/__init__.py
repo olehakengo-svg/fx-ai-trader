@@ -236,6 +236,9 @@ class DaytradeEngine:
         if (os.environ.get("ASIA_RANGE_FADE_V1_REDESIGN_V2") == "1"
                 and os.environ.get("ASIA_RANGE_FADE_V1_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"asia_range_fade_v1"}
+        if (os.environ.get("CPD_DIVERGENCE_REDESIGN_V2") == "1"
+                and os.environ.get("CPD_DIVERGENCE_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"cpd_divergence"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

@@ -137,3 +137,36 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T15:01:31Z)
+
+exit=0 · 1187s
+
+```
+実装完了です。
+
+変更点:
+- [cpd_divergence.py](/data/repo/fx-ai-trader/strategies/daytrade/cpd_divergence.py): `CPD_DIVERGENCE_REDESIGN_V2=1` 配下で closed-bar `ctx.df.iloc[-2]`、leader `<= signal_bar_time` alignment、per-bar dedup を追加。default OFF は現行挙動維持。
+- [__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py): `CPD_DIVERGENCE_REDESIGN_V2=1` + `CPD_DIVERGENCE_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag で shadow worker emit 対象に登録。
+- [test_cpd_divergence_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_cpd_divergence_shadow_redesign_v2.py): current-bar leak、closed-bar signal、leader cut、dedup、shadow opt-in のテスト追加。
+- [cpd_divergence_shadow_bt.py](/data/repo/fx-ai-trader/tools/cpd_divergence_shadow_bt.py): 365d MASSIVE A/B BT runner 追加。
+- [cpd_divergence-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/cpd_divergence-shadow-redesign-v2-2026-05-05.json): BT report 生成。
+
+検証:
+- `15 passed`  
+  `tests/test_cpd_divergence_shadow_redesign_v2.py tests/test_cpd_divergence.py tests/test_adx_trend_continuation_shadow_redesign_v2.py`
+
+BT verdict:
+- `overall_verdict`: `INSUFFICIENT_BT_EVIDENCE`
+- baseline `N=0`
+- proposed `N=11`
+- v2 criteria 通り、`N < 20` のため catastrophic check / sanity floor は skip
+- `shadow_promote_recommendation`: `RECOMMEND_SHADOW`
+
+Codex self-review:
+- catastrophic check / N<20 rule のみで判定。
+- Kelly / positive direction は要求していません。
+- live 影響は default OFF。shadow emit も二重 flag が必要です。
+- post-hoc parameter adjustment はしていません。
+```

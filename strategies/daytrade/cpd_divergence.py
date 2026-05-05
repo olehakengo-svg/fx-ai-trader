@@ -24,6 +24,7 @@ Shadow only — PAIR_PROMOTED に追加しない。30 trade Live で再検証。
 from __future__ import annotations
 from typing import Optional
 import math
+import os
 
 import numpy as np
 import pandas as pd
@@ -55,19 +56,43 @@ class CpdDivergence(StrategyBase):
 
     MAX_HOLD_BARS = 2
 
+    _dedup_state: dict = {}
+    _leader_cache: dict = {}
+
+    @classmethod
+    def reset_dedup_state(cls):
+        cls._dedup_state.clear()
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get("CPD_DIVERGENCE_REDESIGN_V2") == "1"
+
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        v2 = self._redesign_v2_enabled()
         sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
         if sym not in self._ALLOWED_SYMBOLS:
             return None
         if ctx.df is None or len(ctx.df) < 80:
             return None
 
+        signal_df = ctx.df
+        signal_bar_time = None
+        if v2:
+            if ctx.bar_time is not None:
+                try:
+                    signal_df = ctx.df.loc[:ctx.bar_time]
+                except Exception:
+                    signal_df = ctx.df
+            if signal_df is None or len(signal_df) < 81:
+                return None
+            signal_bar_time = signal_df.index[-2]
+            signal_df = signal_df.iloc[:-1]
+
         # Build 60-bar return series for the laggard
-        b_close = ctx.df["Close"].astype(float)
+        b_close = signal_df["Close"].astype(float)
         b_ret = b_close.pct_change()
 
         # Need leader (EUR_USD) data — load via ctx.htf or fallback to module-level cache
-        leader_df = self._load_leader_aligned(ctx)
+        leader_df = self._load_leader_aligned(ctx, signal_bar_time=signal_bar_time, redesign_v2=v2)
         if leader_df is None or len(leader_df) < 80:
             return None
 
@@ -129,6 +154,12 @@ class CpdDivergence(StrategyBase):
         if rr < self.MIN_RR:
             return None
 
+        if v2:
+            dedup_key = (self.name, sym, signal, str(signal_bar_time))
+            if self._dedup_state.get(dedup_key):
+                return None
+            self._dedup_state[dedup_key] = True
+
         score = 4.0
         # Stronger score for more extreme z_spread or lower correlation
         if abs(z_spread) > 3.0:
@@ -153,7 +184,8 @@ class CpdDivergence(StrategyBase):
             score=float(score),
         )
 
-    def _load_leader_aligned(self, ctx: SignalContext) -> Optional[pd.DataFrame]:
+    def _load_leader_aligned(self, ctx: SignalContext, signal_bar_time=None,
+                             redesign_v2: bool = False) -> Optional[pd.DataFrame]:
         """Load EUR_USD DataFrame aligned to ctx.df timestamps.
 
         Production path: cached BTDataCache call. Test path: ctx.layer3 may
@@ -161,14 +193,44 @@ class CpdDivergence(StrategyBase):
         """
         cached = ctx.layer3.get("cpd_leader_df") if ctx.layer3 else None
         if cached is not None:
-            return cached
+            return self._cut_leader_to_signal_time(cached, signal_bar_time) if redesign_v2 else cached
         try:
-            from tools.bt_data_cache import BTDataCache
-            cache = BTDataCache()
-            df = cache.get("EUR_USD", "15m", days=2)
+            cache_key = ("EUR_USD", "15m", bool(redesign_v2),
+                         os.environ.get("BT_REQUIRE_MASSIVE_CACHE") == "1")
+            df = self._leader_cache.get(cache_key)
+            if df is None:
+                if os.environ.get("BT_REQUIRE_MASSIVE_CACHE") == "1":
+                    from pathlib import Path
+                    path = Path(__file__).resolve().parents[2] / "data/cache/massive/EUR_USD_15m.parquet"
+                    if not path.exists():
+                        return None
+                    df = pd.read_parquet(path)
+                else:
+                    from tools.bt_data_cache import BTDataCache
+                    cache = BTDataCache()
+                    df = cache.get("EUR_USD", "15m", days=365 if redesign_v2 else 2)
+                self._leader_cache[cache_key] = df
             if df.index.tz is None:
                 df.index = df.index.tz_localize("UTC")
+            if redesign_v2:
+                return self._cut_leader_to_signal_time(df, signal_bar_time)
             # Align to ctx.df last 80 bars
             return df.tail(120)
         except Exception:
             return None
+
+    @staticmethod
+    def _cut_leader_to_signal_time(df: pd.DataFrame, signal_bar_time) -> pd.DataFrame:
+        if signal_bar_time is None or df is None:
+            return df
+        aligned = df.copy()
+        if aligned.index.tz is None:
+            aligned.index = aligned.index.tz_localize("UTC")
+        ts = pd.Timestamp(signal_bar_time)
+        if ts.tzinfo is None and aligned.index.tz is not None:
+            ts = ts.tz_localize(aligned.index.tz)
+        elif ts.tzinfo is not None and aligned.index.tz is None:
+            aligned.index = aligned.index.tz_localize(ts.tzinfo)
+        elif ts.tzinfo is not None and aligned.index.tz is not None:
+            ts = ts.tz_convert(aligned.index.tz)
+        return aligned.loc[:ts]
