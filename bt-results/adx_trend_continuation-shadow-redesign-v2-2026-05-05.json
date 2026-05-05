@@ -1,0 +1,84 @@
+{
+  "generated_at": "2026-05-05T11:19:02.417113+00:00",
+  "strategy": "adx_trend_continuation",
+  "variant": "closed_bar_dedup_v2",
+  "flag": "ADX_TREND_CONTINUATION_REDESIGN_V2",
+  "shadow_worker_flag": "ADX_TREND_CONTINUATION_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest (production daytrade path; strategy-only DaytradeEngine patch)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": true,
+  "targets": [
+    "EUR_USD"
+  ],
+  "missing_caches": [],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": {
+      "pf_change": ">= -0.10",
+      "wilson_lo_change": ">= -0.05",
+      "n_change_pct": ">= -30",
+      "pnl_sign_preserved": true
+    },
+    "sanity_floor": {
+      "wilson_lo_proposed": ">= 0.20",
+      "pf_proposed": ">= 0.85"
+    },
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "EUR_USD": {
+      "current": {
+        "N": 101,
+        "wins": 75,
+        "WR": 0.7426,
+        "EV": 0.5482,
+        "PnL": 55.3716,
+        "PF": 1.9096,
+        "wilson_lo": 0.6495,
+        "total_trades_all_strategies": 101,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24612
+      },
+      "proposed": {
+        "N": 101,
+        "wins": 75,
+        "WR": 0.7426,
+        "EV": 0.5482,
+        "PnL": 55.3716,
+        "PF": 1.9096,
+        "wilson_lo": 0.6495,
+        "total_trades_all_strategies": 101,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24612
+      },
+      "lock_criteria": {
+        "pf_change": 0.0,
+        "wilson_lo_change": 0.0,
+        "n_change_pct": 0.0,
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "sanity_floor": true,
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    }
+  },
+  "overall_verdict": "PASS",
+  "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 620.4,
+  "self_review": {
+    "catastrophic_only": "PASS: verdict ignores positive-direction and Kelly; applies only v2 catastrophic/floor rules when N>=20.",
+    "insufficient_bt_evidence": "PASS: proposed N<20 becomes INSUFFICIENT_BT_EVIDENCE and shadow recommendation.",
+    "production_live_safety": "PASS: strategy behavior is default-off unless ADX_TREND_CONTINUATION_REDESIGN_V2=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered closed_bar_dedup_v2 variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo/network fallback for this report."
+  }
+}

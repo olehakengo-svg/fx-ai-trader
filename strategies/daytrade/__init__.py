@@ -5,6 +5,7 @@ DaytradeEngine — デイトレ戦略群の統括エンジン。
 """
 from __future__ import annotations
 import logging
+import os
 from typing import Optional
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
@@ -219,6 +220,10 @@ class DaytradeEngine:
         """
         if not candidates:
             return []
+        _shadow_always = self.SHADOW_ALWAYS_STRATEGIES
+        if (os.environ.get("ADX_TREND_CONTINUATION_REDESIGN_V2") == "1"
+                and os.environ.get("ADX_TREND_CONTINUATION_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"adx_trend_continuation"}
         return [c for c in candidates
                 if c is not best
-                and c.entry_type in self.SHADOW_ALWAYS_STRATEGIES]
+                and c.entry_type in _shadow_always]

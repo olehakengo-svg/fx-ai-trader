@@ -36,6 +36,8 @@ ADX Trend Continuation (ADX TC) — トレンド押し目/戻り目エントリ�
   - ema_crossとの差別化: クロスイベントではなくプルバック検出
   - プルバック検出と確認足を時間的に分離（同一足矛盾を解消）
 """
+import os
+
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
@@ -76,7 +78,18 @@ class AdxTrendContinuation(StrategyBase):
     # ── 最大保持 ──
     MAX_HOLD_BARS = 12          # 12バー = 3時間 (15m足)
 
+    _dedup_state: dict = {}
+
+    @classmethod
+    def reset_dedup_state(cls):
+        cls._dedup_state.clear()
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get("ADX_TREND_CONTINUATION_REDESIGN_V2") == "1"
+
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        _v2 = self._redesign_v2_enabled()
+
         # ── EUR/USD ONLY: 他ペアでは負EV ──
         # EUR/USD: 15t WR=78.6% EV=+1.706 → EUR/USD専用
         # USD/JPY: 14t WR=50% EV=-0.719 (ノイジー)
@@ -91,6 +104,50 @@ class AdxTrendContinuation(StrategyBase):
         if ctx.df is None or len(ctx.df) < _min_bars:
             return None
 
+        _signal_df = ctx.df
+        _bar_id = None
+        if _v2:
+            if not ctx.backtest_mode and ctx.bar_time is None:
+                return None
+            if not ctx.backtest_mode and ctx.bar_time is not None:
+                try:
+                    _signal_df = ctx.df.loc[:ctx.bar_time]
+                except Exception:
+                    _signal_df = ctx.df
+            if len(_signal_df) < _min_bars:
+                return None
+            try:
+                _bar_id = ctx.bar_time or _signal_df.index[-1]
+            except Exception:
+                _bar_id = ctx.bar_time
+
+        _signal_row = _signal_df.iloc[-1]
+        _entry = ctx.entry
+        _open_price = ctx.open_price
+        _atr = ctx.atr
+        _adx = ctx.adx
+        _adx_pos = ctx.adx_pos
+        _adx_neg = ctx.adx_neg
+        _ema9 = ctx.ema9
+        _ema21 = ctx.ema21
+        _ema50 = ctx.ema50
+        _ema200 = ctx.ema200
+        _current_rsi = ctx.rsi
+        _macdh = ctx.macdh
+        if _v2:
+            _entry = float(_signal_row["Close"])
+            _open_price = float(_signal_row["Open"])
+            _atr = float(_signal_row.get("atr", ctx.atr))
+            _adx = float(_signal_row.get("adx", ctx.adx))
+            _adx_pos = float(_signal_row.get("adx_pos", ctx.adx_pos))
+            _adx_neg = float(_signal_row.get("adx_neg", ctx.adx_neg))
+            _ema9 = float(_signal_row.get("ema9", ctx.ema9))
+            _ema21 = float(_signal_row.get("ema21", ctx.ema21))
+            _ema50 = float(_signal_row.get("ema50", ctx.ema50))
+            _ema200 = float(_signal_row.get("ema200", ctx.ema200))
+            _current_rsi = float(_signal_row.get("rsi", ctx.rsi))
+            _macdh = float(_signal_row.get("macd_hist", ctx.macdh))
+
         # ── ペア別パラメータ選択 ──
         _adx_thres = self.ADX_THRES_EUR
         _rsi_pb_thres = self.RSI_PB_THRES_EUR
@@ -99,17 +156,17 @@ class AdxTrendContinuation(StrategyBase):
         # ═══════════════════════════════════════════════════
         # 条件1: ADX >= 閾値（トレンド存在確認）
         # ═══════════════════════════════════════════════════
-        if ctx.adx < _adx_thres:
+        if _adx < _adx_thres:
             return None
 
         # ═══════════════════════════════════════════════════
         # 条件2+3: 方向判定 + EMAパーフェクトオーダー
         # ═══════════════════════════════════════════════════
-        _buy_direction = ctx.adx_pos > ctx.adx_neg
-        _sell_direction = ctx.adx_neg > ctx.adx_pos
+        _buy_direction = _adx_pos > _adx_neg
+        _sell_direction = _adx_neg > _adx_pos
 
-        _buy_perfect = ctx.ema9 > ctx.ema21 > ctx.ema50
-        _sell_perfect = ctx.ema9 < ctx.ema21 < ctx.ema50
+        _buy_perfect = _ema9 > _ema21 > _ema50
+        _sell_perfect = _ema9 < _ema21 < _ema50
 
         _is_buy = _buy_direction and _buy_perfect
         _is_sell = _sell_direction and _sell_perfect
@@ -133,7 +190,7 @@ class AdxTrendContinuation(StrategyBase):
         #     - 価格がEMA9-EMA21ゾーンにタッチ/侵入
         #     - RSIがプルバック水準まで低下
         # ═══════════════════════════════════════════════════
-        _rsi_col = "rsi" if "rsi" in ctx.df.columns else None
+        _rsi_col = "rsi" if "rsi" in _signal_df.columns else None
 
         _pb_found = False
         _pb_rsi_val = 0.0
@@ -141,23 +198,23 @@ class AdxTrendContinuation(StrategyBase):
 
         for offset in range(1, self.PB_LOOKBACK + 1):
             idx = -(offset + 1)  # -2, -3, -4 (前1本, 前2本, 前3本)
-            if abs(idx) > len(ctx.df):
+            if abs(idx) > len(_signal_df):
                 break
-            _pb_bar = ctx.df.iloc[idx]
+            _pb_bar = _signal_df.iloc[idx]
             _pb_rsi = float(_pb_bar[_rsi_col]) if _rsi_col else 50.0
 
             if _is_buy:
                 _pb_low = float(_pb_bar["Low"])
                 # EMA9ゾーンタッチ: Low <= EMA9 (価格がEMAまで下がった)
-                _price_touched = _pb_low <= ctx.ema9
+                _price_touched = _pb_low <= _ema9
                 # EMA21突き抜けすぎ防止
-                _not_broken = _pb_low >= ctx.ema21 - ctx.atr * 0.5
+                _not_broken = _pb_low >= _ema21 - _atr * 0.5
                 # RSIプルバック: RSI < 閾値
                 _rsi_pulled = _pb_rsi < _rsi_pb_thres
             else:
                 _pb_high = float(_pb_bar["High"])
-                _price_touched = _pb_high >= ctx.ema9
-                _not_broken = _pb_high <= ctx.ema21 + ctx.atr * 0.5
+                _price_touched = _pb_high >= _ema9
+                _not_broken = _pb_high <= _ema21 + _atr * 0.5
                 _rsi_pulled = _pb_rsi > (100 - _rsi_pb_thres)  # > 45
 
             if _price_touched and _not_broken and _rsi_pulled:
@@ -174,19 +231,18 @@ class AdxTrendContinuation(StrategyBase):
         # ═══════════════════════════════════════════════════
 
         # ── 確認足: 陽線(BUY)/陰線(SELL) ──
-        if _is_buy and ctx.entry <= ctx.open_price:
+        if _is_buy and _entry <= _open_price:
             return None  # 陰線 = リバウンド未確認
-        if _is_sell and ctx.entry >= ctx.open_price:
+        if _is_sell and _entry >= _open_price:
             return None  # 陽線 = リバウンド未確認
 
         # ── 価格回復: Close > EMA9 (BUY) / Close < EMA9 (SELL) ──
-        if _is_buy and ctx.entry <= ctx.ema9:
+        if _is_buy and _entry <= _ema9:
             return None  # EMA9未回復
-        if _is_sell and ctx.entry >= ctx.ema9:
+        if _is_sell and _entry >= _ema9:
             return None  # EMA9未回復
 
         # ── RSI回復確認 ──
-        _current_rsi = ctx.rsi
         if _is_buy and _current_rsi < _rsi_recover:
             return None  # RSI暴落中
         if _is_sell and _current_rsi > (100 - _rsi_recover):  # > 55
@@ -196,28 +252,33 @@ class AdxTrendContinuation(StrategyBase):
         # シグナル生成
         # ═══════════════════════════════════════════════════
         signal = "BUY" if _is_buy else "SELL"
+        if _v2 and _bar_id is not None:
+            _dedup_key = (ctx.symbol, signal, _bar_id)
+            if self._dedup_state.get(_dedup_key):
+                return None
+
         score = 4.5
         reasons = []
 
         # ── SL計算: スイングロー/ハイ - ATR×0.3バッファ ──
-        _lookback = min(self.SL_SWING_LOOKBACK, len(ctx.df) - 1)
+        _lookback = min(self.SL_SWING_LOOKBACK, len(_signal_df) - 1)
         if _is_buy:
-            _swing_low = float(ctx.df["Low"].iloc[-_lookback:].min())
-            sl = _swing_low - ctx.atr * self.SL_ATR_BUFFER
+            _swing_low = float(_signal_df["Low"].iloc[-_lookback:].min())
+            sl = _swing_low - _atr * self.SL_ATR_BUFFER
         else:
-            _swing_high = float(ctx.df["High"].iloc[-_lookback:].max())
-            sl = _swing_high + ctx.atr * self.SL_ATR_BUFFER
+            _swing_high = float(_signal_df["High"].iloc[-_lookback:].max())
+            sl = _swing_high + _atr * self.SL_ATR_BUFFER
 
         # ── TP計算: ATR×2.5 (RR≥1.5保証) ──
-        _sl_dist = abs(ctx.entry - sl)
-        _tp_target = ctx.atr * self.TP_ATR_MULT
+        _sl_dist = abs(_entry - sl)
+        _tp_target = _atr * self.TP_ATR_MULT
         _tp_min_rr = _sl_dist * self.MIN_RR
         _tp_dist = max(_tp_target, _tp_min_rr)
 
         if _is_buy:
-            tp = ctx.entry + _tp_dist
+            tp = _entry + _tp_dist
         else:
-            tp = ctx.entry - _tp_dist
+            tp = _entry - _tp_dist
 
         # ── RR最低保証チェック ──
         if _sl_dist <= 0 or _tp_dist / _sl_dist < self.MIN_RR:
@@ -230,22 +291,22 @@ class AdxTrendContinuation(StrategyBase):
         _rr = _tp_dist / _sl_dist if _sl_dist > 0 else 0
 
         reasons.append(
-            f"✅ ADX TC {signal}: ADX={ctx.adx:.1f}≥{_adx_thres} "
-            f"+DI={ctx.adx_pos:.1f} -DI={ctx.adx_neg:.1f} "
+            f"✅ ADX TC {signal}: ADX={_adx:.1f}≥{_adx_thres} "
+            f"+DI={_adx_pos:.1f} -DI={_adx_neg:.1f} "
             f"(Wilder 1978 / Menkhoff 2012)"
         )
         reasons.append(
             f"✅ EMAパーフェクトオーダー: "
-            f"EMA9={ctx.ema9:.3f} {'>' if _is_buy else '<'} "
-            f"EMA21={ctx.ema21:.3f} {'>' if _is_buy else '<'} "
-            f"EMA50={ctx.ema50:.3f}"
+            f"EMA9={_ema9:.3f} {'>' if _is_buy else '<'} "
+            f"EMA21={_ema21:.3f} {'>' if _is_buy else '<'} "
+            f"EMA50={_ema50:.3f}"
         )
         reasons.append(
             f"✅ プルバック検出: RSI={_pb_rsi_val:.1f}<{_rsi_pb_thres} "
-            f"+ EMAゾーンタッチ({_pb_price_val:.3f}→EMA9={ctx.ema9:.3f})"
+            f"+ EMAゾーンタッチ({_pb_price_val:.3f}→EMA9={_ema9:.3f})"
         )
         reasons.append(
-            f"✅ リバウンド確認: Close={ctx.entry:.3f}>EMA9 "
+            f"✅ リバウンド確認: Close={_entry:.3f}>EMA9 "
             f"+ RSI回復={_current_rsi:.1f}≥{_rsi_recover}"
         )
         reasons.append(
@@ -255,9 +316,9 @@ class AdxTrendContinuation(StrategyBase):
         # ── ボーナス条件 ──
 
         # ADX強度ボーナス (≥35: 強トレンド)
-        if ctx.adx >= 35:
+        if _adx >= 35:
             score += 0.5
-            reasons.append(f"✅ 強トレンド(ADX={ctx.adx:.1f}≥35)")
+            reasons.append(f"✅ 強トレンド(ADX={_adx:.1f}≥35)")
 
         # HTF方向一致ボーナス
         if (_is_buy and _agreement == "bull") or \
@@ -266,33 +327,35 @@ class AdxTrendContinuation(StrategyBase):
             reasons.append(f"✅ HTF方向一致({_agreement})")
 
         # EMA200方向一致ボーナス
-        if (_is_buy and ctx.entry > ctx.ema200) or \
-           (_is_sell and ctx.entry < ctx.ema200):
+        if (_is_buy and _entry > _ema200) or \
+           (_is_sell and _entry < _ema200):
             score += 0.3
             reasons.append("✅ EMA200方向一致")
 
         # MACD-H方向一致ボーナス
-        if (_is_buy and ctx.macdh > 0) or \
-           (_is_sell and ctx.macdh < 0):
+        if (_is_buy and _macdh > 0) or \
+           (_is_sell and _macdh < 0):
             score += 0.3
-            reasons.append(f"✅ MACD-H方向一致({ctx.macdh:.4f})")
+            reasons.append(f"✅ MACD-H方向一致({_macdh:.4f})")
 
         # プルバック深度ボーナス: EMA21に近いほど良質
-        _curr_low = float(ctx.df.iloc[-1]["Low"])
-        _curr_high = float(ctx.df.iloc[-1]["High"])
+        _curr_low = float(_signal_df.iloc[-1]["Low"])
+        _curr_high = float(_signal_df.iloc[-1]["High"])
         if _is_buy:
-            _ema_spread = ctx.ema9 - ctx.ema21
-            _pb_depth = (ctx.ema9 - _pb_price_val) / _ema_spread \
+            _ema_spread = _ema9 - _ema21
+            _pb_depth = (_ema9 - _pb_price_val) / _ema_spread \
                 if _ema_spread > 0 else 0
         else:
-            _ema_spread = ctx.ema21 - ctx.ema9
-            _pb_depth = (_pb_price_val - ctx.ema9) / _ema_spread \
+            _ema_spread = _ema21 - _ema9
+            _pb_depth = (_pb_price_val - _ema9) / _ema_spread \
                 if _ema_spread > 0 else 0
         if _pb_depth >= 0.5:
             score += 0.3
             reasons.append(f"✅ 深いプルバック(depth={_pb_depth:.0%})")
 
         conf = int(min(85, 50 + score * 4))
+        if _v2 and _bar_id is not None:
+            self._dedup_state[(ctx.symbol, signal, _bar_id)] = True
         return Candidate(
             signal=signal, confidence=conf, sl=sl, tp=tp,
             reasons=reasons, entry_type=self.name, score=score

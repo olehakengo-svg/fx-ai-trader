@@ -137,3 +137,42 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T11:20:10Z)
+
+exit=0 · 880s
+
+```
+実装完了しました。
+
+変更点:
+- [strategies/daytrade/adx_trend_continuation.py](/data/repo/fx-ai-trader/strategies/daytrade/adx_trend_continuation.py:81)
+  - `ADX_TREND_CONTINUATION_REDESIGN_V2=1` 配下で closed-bar / `bar_id` dedup を追加。
+  - flag OFF は既存挙動維持。
+  - live intrabar (`backtest_mode=False` かつ `bar_time=None`) は emit しません。
+- [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:223)
+  - shadow worker 登録を opt-in 化。
+  - `ADX_TREND_CONTINUATION_REDESIGN_V2=1` と `ADX_TREND_CONTINUATION_REDESIGN_V2_SHADOW_PROMOTE=1` の両方がある場合のみ `SHADOW_ALWAYS` に入ります。
+- [tests/test_adx_trend_continuation_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_adx_trend_continuation_shadow_redesign_v2.py:104)
+  - default OFF、dedup、live intrabar block、closed bar emit、shadow worker opt-in を固定。
+- [tools/adx_trend_continuation_shadow_bt.py](/data/repo/fx-ai-trader/tools/adx_trend_continuation_shadow_bt.py:1)
+  - MASSIVE cache + production `run_daytrade_backtest()` A/B runner を追加。
+
+BT report:
+- [bt-results/adx_trend_continuation-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/adx_trend_continuation-shadow-redesign-v2-2026-05-05.json:1)
+- Verdict: `PASS`
+- EUR_USD 365d 15m MASSIVE:
+  - baseline: `N=101`, `PF=1.9096`, `wilson_lo=0.6495`, `PnL=55.3716`
+  - proposed: `N=101`, `PF=1.9096`, `wilson_lo=0.6495`, `PnL=55.3716`
+  - catastrophic check: PASS
+  - sanity floor: PASS
+  - shadow promote recommendation: `RECOMMEND_SHADOW`
+
+Verification:
+- `./.venv/bin/python -m pytest -q tests/test_adx_trend_continuation_shadow_redesign_v2.py` → `5 passed`
+- `./.venv/bin/python -m py_compile strategies/daytrade/adx_trend_continuation.py strategies/daytrade/__init__.py tools/adx_trend_continuation_shadow_bt.py` → passed
+- BT used `BT_MODE=1`, `BT_REQUIRE_MASSIVE_CACHE=1`, data source `massive-parquet`.
+
+Self-review: verdict uses catastrophic/sanity only, no positive-direction or absolute Kelly requirement; V2 and shadow wor
+…(truncated)
