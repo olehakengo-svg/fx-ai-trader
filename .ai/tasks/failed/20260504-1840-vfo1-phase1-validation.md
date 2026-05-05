@@ -139,3 +139,10 @@ Work in this repository. Respect existing uncommitted changes. Do not revert use
 4. レポートは **判定 (PASS/FAIL) を目立つ形で先頭** に。
 
 In the final report, include status, files changed, verification output summary, **Phase 1 verdict (PASS/FAIL)**, per-instrument-TF improvement table, remaining risks, and next recommended task (= Task B 起動可否)。
+
+
+## Error (2026-05-05T00:53:37Z)
+
+```
+orphaned: container restarted while task was running
+```

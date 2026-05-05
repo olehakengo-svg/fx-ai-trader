@@ -142,3 +142,10 @@ Codex は以下をすべて実行し、結果を artifact に貼ること:
 
 直接寄与なし (PnL や戦略エッジに変化はない)。
 ただし後続 R3 RCA で `block_reason` を一次キーとして cohort 分割できるようになることで、forensic 1 回あたりのコストを大幅に削減する。とくに pair-demote safety net や Phase0 三層 routing の挙動を独立に追える効果が大きく、間接的に W3 / W4 のロードマップ進捗を加速する。
+
+
+## Error (2026-05-05T00:53:37Z)
+
+```
+orphaned: container restarted while task was running
+```
