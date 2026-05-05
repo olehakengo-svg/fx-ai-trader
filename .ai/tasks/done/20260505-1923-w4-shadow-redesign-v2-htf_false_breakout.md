@@ -135,3 +135,45 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T21:12:19Z)
+
+exit=0 · 4933s
+
+```
+実装と検証まで完了しました。
+
+変更:
+- V2 実装: [strategies/daytrade/htf_false_breakout.py](/data/repo/fx-ai-trader/strategies/daytrade/htf_false_breakout.py)
+  - `HTF_FALSE_BREAKOUT_REDESIGN_V2=1` のときのみ有効。
+  - 15m df から明示 H1 OHLC を aggregate。
+  - SR は breakout H1 bar より前の 20 H1 bars。
+  - breakout 後 1-4 本の 15m closed bar で、最初の SR 内復帰だけ entry。
+- Shadow worker 登録口: [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py)
+  - `HTF_FALSE_BREAKOUT_REDESIGN_V2=1` かつ `HTF_FALSE_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag 必須。
+- BT cache key に V2 flag 追加: [app.py](/data/repo/fx-ai-trader/app.py)
+- 失敗テスト追加: [tests/test_htf_false_breakout_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_htf_false_breakout_shadow_redesign_v2.py)
+- 365d MASSIVE BT runner 追加: [tools/htf_false_breakout_shadow_bt.py](/data/repo/fx-ai-trader/tools/htf_false_breakout_shadow_bt.py)
+
+検証:
+- `.venv/bin/pytest tests/test_htf_false_breakout_shadow_redesign_v2.py -q` → `5 passed`
+- `.venv/bin/python -m py_compile ...` → pass
+- 365d BT report: [bt-results/htf_false_breakout-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/htf_false_breakout-shadow-redesign-v2-2026-05-05.json)
+
+V2 LOCK verdict: `REJECT`
+
+主因:
+- `EUR_JPY`: proposed が PF `0.6506`, Wilson lo `0.3438`, PnL `-13.3451` で sanity/catastrophic NG。
+- `GBP_USD`: PF/WR/EV は改善したが N change `-33.0769%` で `n_change_pct >= -30` を割ったため catastrophic NG。
+
+通過 cell:
+- `USD_JPY`: PASS
+- `EUR_USD`: PASS
+- `GBP_JPY`: PASS
+
+結論:
+- Overall が `REJECT` なので shadow promote は実施していません。
+- Live 影響は default OFF でゼロです。
+- Kelly や positive direction は判定に使っていません。
+```

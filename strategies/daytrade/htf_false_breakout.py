@@ -20,6 +20,7 @@ from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
 import numpy as np
+import os
 
 
 class HtfFalseBreakout(StrategyBase):
@@ -47,6 +48,9 @@ class HtfFalseBreakout(StrategyBase):
     JPY_OB_ATR_PROXIMITY = 0.5  # OB接触判定: ATR×0.5以内
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        if os.environ.get("HTF_FALSE_BREAKOUT_REDESIGN_V2") == "1":
+            return self._evaluate_redesign_v2(ctx)
+
         if ctx.df is None or len(ctx.df) < 20:
             return None
 
@@ -235,6 +239,176 @@ class HtfFalseBreakout(StrategyBase):
         # v6.1: JPY追加理由を付加
         if _jpy_reasons:
             reasons.extend(_jpy_reasons)
+
+        conf = int(min(85, 50 + score * 4))
+        return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
+                         reasons=reasons, entry_type=self.name, score=score)
+
+    def _evaluate_redesign_v2(self, ctx: SignalContext) -> Optional[Candidate]:
+        if ctx.df is None or len(ctx.df) < (self.sr_lookback_1h + 2) * 4:
+            return None
+        if not hasattr(ctx.df, "resample"):
+            return None
+
+        try:
+            resample_bars = (self.sr_lookback_1h + 3) * 4 + self.fb_confirm_bars
+            h1_source = ctx.df.tail(resample_bars)
+            h1 = (
+                h1_source[["Open", "High", "Low", "Close"]]
+                .resample("1h", label="right", closed="right")
+                .agg({"Open": "first", "High": "max", "Low": "min", "Close": "last"})
+                .dropna()
+            )
+        except Exception:
+            return None
+
+        if len(h1) < self.sr_lookback_1h + 2:
+            return None
+
+        break_h1 = h1.iloc[-2]
+        break_time = h1.index[-2]
+        sr_slice = h1.iloc[-(self.sr_lookback_1h + 2):-2]
+        if len(sr_slice) < self.sr_lookback_1h:
+            return None
+
+        sr_high = float(sr_slice["High"].max())
+        sr_low = float(sr_slice["Low"].min())
+        sr_range = sr_high - sr_low
+        if sr_range <= 0 or sr_range < ctx.atr * 0.5:
+            return None
+
+        break_open = float(break_h1["Open"])
+        break_high = float(break_h1["High"])
+        break_low = float(break_h1["Low"])
+        break_close = float(break_h1["Close"])
+        break_range = break_high - break_low
+        break_body = abs(break_close - break_open)
+        body_ok = (break_body / break_range >= self.close_body_min) if break_range > 0 else False
+        if not body_ok:
+            return None
+
+        break_dir = None
+        if break_close > sr_high:
+            break_dir = "UP"
+        elif break_close < sr_low:
+            break_dir = "DOWN"
+        if break_dir is None:
+            return None
+
+        post_break = ctx.df.loc[ctx.df.index > break_time]
+        if post_break.empty or len(post_break) > self.fb_confirm_bars:
+            return None
+        if ctx.bar_time is not None and post_break.index[-1] != ctx.bar_time:
+            return None
+
+        closes = post_break["Close"].astype(float)
+        if break_dir == "UP":
+            reentry_mask = closes < sr_high
+        else:
+            reentry_mask = closes > sr_low
+        if not bool(reentry_mask.iloc[-1]):
+            return None
+        if bool(reentry_mask.iloc[:-1].any()):
+            return None
+
+        current_close = float(closes.iloc[-1])
+
+        jpy_reasons = []
+        if ctx.is_jpy and "JPY" in ctx.symbol:
+            jpy_pass = False
+            try:
+                if "rsi" in ctx.df.columns and len(ctx.df) >= self.JPY_RSI_DIV_LOOKBACK:
+                    div_sub = ctx.df.tail(self.JPY_RSI_DIV_LOOKBACK)
+                    high_vals = div_sub["High"].values
+                    low_vals = div_sub["Low"].values
+                    rsi_vals = div_sub["rsi"].values
+                    mid = len(div_sub) // 2
+                    ph_r = int(np.argmax(high_vals[mid:])) + mid
+                    ph_p = int(np.argmax(high_vals[:mid]))
+                    pl_r = int(np.argmin(low_vals[mid:])) + mid
+                    pl_p = int(np.argmin(low_vals[:mid]))
+
+                    if break_dir == "UP":
+                        if high_vals[ph_r] > high_vals[ph_p] and rsi_vals[ph_r] < rsi_vals[ph_p]:
+                            jpy_pass = True
+                            jpy_reasons.append("✅ JPY: RSI弱気ダイバージェンス確認")
+                    else:
+                        if low_vals[pl_r] < low_vals[pl_p] and rsi_vals[pl_r] > rsi_vals[pl_p]:
+                            jpy_pass = True
+                            jpy_reasons.append("✅ JPY: RSI強気ダイバージェンス確認")
+            except Exception:
+                pass
+
+            if not jpy_pass:
+                ob_threshold = ctx.atr * self.JPY_OB_ATR_PROXIMITY
+                if ob_threshold <= 0:
+                    return None
+                ob_dist_high = abs(current_close - sr_high)
+                ob_dist_low = abs(current_close - sr_low)
+                if break_dir == "UP" and ob_dist_high <= ob_threshold:
+                    jpy_pass = True
+                    jpy_reasons.append(f"✅ JPY: OB接触(SR高値{ob_dist_high/ob_threshold:.0%})")
+                elif break_dir == "DOWN" and ob_dist_low <= ob_threshold:
+                    jpy_pass = True
+                    jpy_reasons.append(f"✅ JPY: OB接触(SR安値{ob_dist_low/ob_threshold:.0%})")
+
+            if not jpy_pass:
+                return None
+
+        htf = ctx.htf or {}
+        agreement = htf.get("agreement", "mixed")
+
+        reasons = ["✅ HTF_FALSE_BREAKOUT_REDESIGN_V2: explicit closed H1 breakout + first 15m re-entry"]
+        score = 4.0
+        signal = None
+        sl = 0.0
+        tp = 0.0
+        sr_center = (sr_high + sr_low) / 2
+
+        if break_dir == "UP":
+            if agreement == "bull":
+                return None
+            signal = "SELL"
+            tp = max(sr_center, ctx.entry - ctx.atr * self.tp_min_atr)
+            if tp >= ctx.entry:
+                tp = ctx.entry - ctx.atr * self.tp_min_atr
+            sl = break_high + ctx.atr * self.sl_atr_buffer
+            reasons.append(f"✅ False Breakout(上方H1): SR高値{sr_high:.5f}突破→初回回帰")
+            reasons.append(f"✅ closed_h1_break_time={break_time} reentry_close={current_close:.5f} < SR_H={sr_high:.5f}")
+        elif break_dir == "DOWN":
+            if agreement == "bear":
+                return None
+            signal = "BUY"
+            tp = min(sr_center, ctx.entry + ctx.atr * self.tp_min_atr)
+            if tp <= ctx.entry:
+                tp = ctx.entry + ctx.atr * self.tp_min_atr
+            sl = break_low - ctx.atr * self.sl_atr_buffer
+            reasons.append(f"✅ False Breakout(下方H1): SR安値{sr_low:.5f}下抜け→初回回帰")
+            reasons.append(f"✅ closed_h1_break_time={break_time} reentry_close={current_close:.5f} > SR_L={sr_low:.5f}")
+
+        if signal is None:
+            return None
+
+        revert_depth = abs(current_close - (sr_high if break_dir == "UP" else sr_low)) / sr_range
+        if revert_depth > 0.3:
+            score += 0.5
+            reasons.append(f"✅ 深い回帰(SR内{revert_depth:.0%})")
+
+        if (signal == "BUY" and agreement == "bull") or (signal == "SELL" and agreement == "bear"):
+            score += 0.5
+            reasons.append(f"✅ HTF方向一致({agreement})")
+
+        if (signal == "BUY" and ctx.ema9 > ctx.ema21) or (signal == "SELL" and ctx.ema9 < ctx.ema21):
+            score += 0.3
+            reasons.append("✅ EMA短期方向一致")
+
+        if ctx.adx < 25:
+            score += 0.3
+            reasons.append(f"✅ レンジ環境(ADX={ctx.adx:.1f}<25)")
+
+        reasons.append(f"📊 SR=[{sr_low:.5f}-{sr_high:.5f}] range={sr_range*ctx.pip_mult:.1f}pip")
+        if jpy_reasons:
+            reasons.extend(jpy_reasons)
 
         conf = int(min(85, 50 + score * 4))
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,

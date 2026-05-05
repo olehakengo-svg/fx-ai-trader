@@ -263,6 +263,9 @@ class DaytradeEngine:
         if (os.environ.get("GOLD_VOL_BREAK_REDESIGN_V2") == "1"
                 and os.environ.get("GOLD_VOL_BREAK_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"gold_vol_break"}
+        if (os.environ.get("HTF_FALSE_BREAKOUT_REDESIGN_V2") == "1"
+                and os.environ.get("HTF_FALSE_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"htf_false_breakout"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]
