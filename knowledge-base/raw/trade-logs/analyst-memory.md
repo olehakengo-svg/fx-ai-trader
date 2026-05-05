@@ -759,6 +759,16 @@ Cutoff後累計はN=22、WR=45.5%、PnL=−12.1pips相当。システムは稼�
 | 戦略 | ペア | 方向 | PnL | 失敗要因 |
 | 累計PnL | -7.4 pips（残差推定） | -1.1 pips | 損失拡大継続 |
 
+### 2026-05-05 (Post-NY Report)
+| WR | — |
+| PnL | **+0.0 pips** |
+### セッション別PnL比較
+| Session | N | WR% | PnL (pips) | 評価 |
+> ※ Fidelity Cutoff後の「本日累計」は N=3 / WR=33.3% / PnL=−8.5 pipsと乖離あり。セッション集計と時刻の整合性から、本日の確定値は **N=2 / WR=50% / PnL=−1.1 pips** を採用。残差1トレード（−7.4pips相当）は前セッション境界の可能性あり。
+- OANDA接続は `Active: True` だが NAV/Balance が **None** のまま
+- `Latency: None ms` — APIは接続しているが資金情報の取得が失敗している
+- これにより全シグナルが安全サイドでSKIP継続
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
