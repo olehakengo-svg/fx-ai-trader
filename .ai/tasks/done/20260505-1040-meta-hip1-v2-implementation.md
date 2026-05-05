@@ -156,3 +156,38 @@ Work in this repository. Respect existing uncommitted changes. Do not revert use
 5. installation report に **「LIVE 影響ゼロ確認: env 未設定で `fetch_ohlcv` 経路の挙動が pre-implementation と完全同値」** を grep + diff 結果と共に明記。
 
 In the final report, include status, files changed, verification output summary, **LIVE 影響ゼロ regression test 結果**, opt-in BT cut verification 結果, remaining risks, next recommended task。
+
+
+## Result (2026-05-05T02:43:42Z)
+
+exit=0 · 295s
+
+```
+Implemented HIP-1 v2 fail-safe holdout guard. No commit was created.
+
+**Files Changed**
+- [modules/data.py](/data/repo/fx-ai-trader/modules/data.py): added `_apply_holdout_guard()`, manifest validation, counter, and one call in `_load_parquet_cache_fallback()`.
+- [tests/test_holdout_guard.py](/data/repo/fx-ai-trader/tests/test_holdout_guard.py): added 8 tests, with v2 LIVE-default no-op tests first.
+- [data/_holdout_locked/MANIFEST.json](/data/repo/fx-ai-trader/data/_holdout_locked/MANIFEST.json): added v2 manifest.
+- [.pre-commit-config.yaml](/data/repo/fx-ai-trader/.pre-commit-config.yaml) and [tools/precommit/check_holdout_manifest.py](/data/repo/fx-ai-trader/tools/precommit/check_holdout_manifest.py): added manifest/validation-mode guard.
+- [tools/audit/holdout_validation_runner.py](/data/repo/fx-ai-trader/tools/audit/holdout_validation_runner.py): added skeleton, sets `FX_HOLDOUT_GUARD=1` immediately.
+- [knowledge-base/raw/audits/hip1-v2-installation-2026-05-05.md](/data/repo/fx-ai-trader/knowledge-base/raw/audits/hip1-v2-installation-2026-05-05.md)
+- [.ai/runs/20260505-024246-meta-hip1-v2-implementation/final.md](/data/repo/fx-ai-trader/.ai/runs/20260505-024246-meta-hip1-v2-implementation/final.md)
+
+**Verification**
+- `.venv/bin/python -m pytest tests/test_holdout_guard.py -v`: 8 passed
+- Neighbor loader tests: 5 passed
+- `.venv/bin/python -m ruff check modules/data.py tools/audit/holdout_validation_runner.py tools/precommit/check_holdout_manifest.py`: passed
+- `PATH="$PWD/.venv/bin:$PATH" pre-commit run --all-files`: passed
+- `PATH="$PWD/.venv/bin:$PATH" pre-commit run --files data/_holdout_locked/MANIFEST.json`: rejected as expected
+- `python3 tools/audit/holdout_validation_runner.py --help`: exit 0
+- `git diff --check`: passed
+
+**LIVE 影響ゼロ Regression**
+Compared detached `HEAD` worktree vs modified tree with `FX_HOLDOUT_GUARD` unset:
+
+```text
+pre_status=0 post_status=0
+diff_status=0
+62 lines pre, 62 lines post, 0-line d
+…(truncated)

@@ -1,0 +1,71 @@
+{
+  "generated_at": "2026-05-05T02:16:14.533542+00:00",
+  "strategy": "vol_momentum_scalp",
+  "variant": "closed_bar_dedup_v2",
+  "flag": "VOL_MOMENTUM_SCALP_REDESIGN_V2",
+  "lookback_days": 365,
+  "minimum_days": 90,
+  "interval": "5m",
+  "runner": "app.run_scalp_backtest (production scalp path; vol_momentum_scalp is not a daytrade strategy)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1",
+  "targets": [
+    "USD_JPY"
+  ],
+  "missing_target_caches": [],
+  "missing_enabled_pair_caches": [
+    "data/cache/massive/EUR_JPY_5m.parquet",
+    "data/cache/massive/GBP_USD_5m.parquet",
+    "data/cache/massive/XAU_USD_5m.parquet"
+  ],
+  "cells": {
+    "USD_JPY": {
+      "current": {
+        "N": 80,
+        "wins": 52,
+        "WR": 0.65,
+        "EV": 0.2268,
+        "PnL": 18.142,
+        "PF": 1.4613,
+        "wilson_lo": 0.5408,
+        "total_trades_all_strategies": 1272,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 73935
+      },
+      "proposed": {
+        "N": 83,
+        "wins": 52,
+        "WR": 0.6265,
+        "EV": 0.2395,
+        "PnL": 19.876,
+        "PF": 1.4809,
+        "wilson_lo": 0.519,
+        "total_trades_all_strategies": 1276,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 73935
+      },
+      "lock_criteria": {
+        "pf_change": 0.0196,
+        "wilson_lo_change": -0.0218,
+        "n_change_pct": 3.75,
+        "pnl_sign_preserved": true,
+        "ev_change_pct": 5.5996,
+        "non_catastrophic": false,
+        "positive_direction": true,
+        "sanity_floor": true,
+        "verdict": "FAIL"
+      }
+    }
+  },
+  "overall_verdict": "FAIL",
+  "shadow_promote_recommendation": "REJECT",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 1500.4,
+  "self_review": {
+    "relative_check_only": "PASS: verdict uses relative PF/Wilson/N/PnL and sanity floors; no absolute Kelly gate.",
+    "production_live_safety": "PASS: strategy behavior is default-off unless VOL_MOMENTUM_SCALP_REDESIGN_V2=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered closed_bar_dedup_v2 variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo/network fallback for this report."
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "lock_window_utc": ["2025-11-04T00:00:00Z", "2026-05-04T00:00:00Z"],
+  "issued_at": "2026-05-05T10:40:00+0900",
+  "issuer": "claude-司令塔",
+  "expires_at": "2026-08-05T00:00:00Z",
+  "rationale": "Wave 4 6-month holdout window (HIP-1 v2 fail-safe scoped)",
+  "covered_paths": ["data/cache/**/*.parquet"],
+  "guard_env": "FX_HOLDOUT_GUARD",
+  "validation_env": "FX_HOLDOUT_VALIDATION"
+}

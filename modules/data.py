@@ -8,10 +8,11 @@ OHLCV data retrieval from multiple sources:
   - yfinance (fallback)
 """
 
+import json
+import logging
 import os
 import threading
 import pandas as pd
-import numpy as np
 import yfinance as yf
 from datetime import datetime, timezone, timedelta
 
@@ -19,6 +20,7 @@ from modules.config import CACHE_TTL
 
 # スレッドセーフティ用ロック
 _cache_lock = threading.Lock()
+_logger = logging.getLogger(__name__)
 
 # ═══════════════════════════════════════════════════════
 #  Module-level caches and state
@@ -33,6 +35,25 @@ _PARQUET_CACHE_DIR = os.path.join(
     "cache",
     "massive",
 )
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_HOLDOUT_MANIFEST_PATH = os.path.join(
+    _REPO_ROOT,
+    "data",
+    "_holdout_locked",
+    "MANIFEST.json",
+)
+_HOLDOUT_CUT_COUNTER = 0
+_HOLDOUT_REQUIRED_MANIFEST_KEYS = {
+    "version",
+    "lock_window_utc",
+    "issued_at",
+    "issuer",
+    "expires_at",
+    "rationale",
+    "covered_paths",
+    "guard_env",
+    "validation_env",
+}
 _PARQUET_SYMBOL_MAP = {
     "USDJPY=X": "USD_JPY",
     "JPY=X": "USD_JPY",
@@ -89,6 +110,80 @@ _TD_INTERVALS = {"1m", "5m", "15m", "30m", "1h"}
 _TD_OUTPUTSIZE = {
     "1m": 500, "5m": 600, "15m": 600, "30m": 800, "1h": 900,
 }
+
+
+def _load_holdout_manifest() -> dict:
+    try:
+        with open(_HOLDOUT_MANIFEST_PATH, encoding="utf-8") as f:
+            manifest = json.load(f)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"Invalid holdout manifest JSON: {e}") from e
+    except OSError as e:
+        raise RuntimeError(f"Unable to read holdout manifest: {e}") from e
+
+    if not isinstance(manifest, dict):
+        raise RuntimeError("Invalid holdout manifest: top-level object required")
+
+    missing = _HOLDOUT_REQUIRED_MANIFEST_KEYS - set(manifest)
+    if missing:
+        raise RuntimeError(
+            f"Invalid holdout manifest: missing keys {sorted(missing)}"
+        )
+
+    lock_window = manifest.get("lock_window_utc")
+    if not isinstance(lock_window, list) or len(lock_window) != 2:
+        raise RuntimeError("Invalid holdout manifest: lock_window_utc must have 2 values")
+
+    try:
+        pd.Timestamp(lock_window[0]).tz_convert("UTC")
+        pd.Timestamp(lock_window[1]).tz_convert("UTC")
+    except Exception as e:
+        raise RuntimeError(f"Invalid holdout manifest lock_window_utc: {e}") from e
+
+    return manifest
+
+
+def _apply_holdout_guard(df: pd.DataFrame, source_path: str) -> pd.DataFrame:
+    """v2 fail-safe: opt-in via FX_HOLDOUT_GUARD=1 only."""
+    if os.environ.get("FX_HOLDOUT_GUARD") != "1":
+        return df
+    if not os.path.exists(_HOLDOUT_MANIFEST_PATH):
+        return df
+
+    manifest = _load_holdout_manifest()
+    if os.environ.get("FX_HOLDOUT_VALIDATION") == "1":
+        _logger.warning(
+            "HOLDOUT VALIDATION MODE: bypassing holdout guard for %s",
+            source_path,
+        )
+        return df
+
+    lock_start_raw, lock_end_raw = manifest["lock_window_utc"]
+    lock_start = pd.Timestamp(lock_start_raw).tz_convert("UTC")
+    lock_end = pd.Timestamp(lock_end_raw).tz_convert("UTC")
+    index = df.index
+    if not isinstance(index, pd.DatetimeIndex):
+        index = pd.to_datetime(index, utc=True)
+    elif index.tz is None:
+        index = index.tz_localize("UTC")
+    else:
+        index = index.tz_convert("UTC")
+
+    locked = (index >= lock_start) & (index < lock_end)
+    cut_count = int(locked.sum())
+    if cut_count == 0:
+        return df
+
+    global _HOLDOUT_CUT_COUNTER
+    _HOLDOUT_CUT_COUNTER += cut_count
+    _logger.debug(
+        "Holdout guard cut %s rows from %s in [%s, %s)",
+        cut_count,
+        source_path,
+        lock_start.isoformat(),
+        lock_end.isoformat(),
+    )
+    return df.loc[~locked].copy()
 
 
 # ═══════════════════════════════════════════════════════
@@ -157,6 +252,7 @@ def _load_parquet_cache_fallback(symbol: str, interval: str, days: int,
     if days > 0 and len(df) > 0:
         cutoff = df.index[-1] - timedelta(days=days)
         df = df[df.index >= cutoff]
+    df = _apply_holdout_guard(df, path)
 
     if len(df) < max(1, int(min_bars)):
         return None, modified_at
@@ -171,7 +267,8 @@ def fetch_ohlcv_twelvedata(symbol: str, interval: str) -> pd.DataFrame:
     TwelveData time_series APIからOHLCVデータを取得しDataFrameで返す。
     TWELVEDATA_API_KEY 環境変数が必要。
     """
-    import urllib.request as _ur, json as _js
+    import json as _js
+    import urllib.request as _ur
     api_key = os.environ.get("TWELVEDATA_API_KEY", "")
     if not api_key:
         raise ValueError("TWELVEDATA_API_KEY not set")
@@ -230,7 +327,9 @@ def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
     interval: "1m","5m","15m","30m","1h","4h","1d"
     days: 取得日数
     """
-    import urllib.request as _ur, json as _js, time as _time
+    import json as _js
+    import time as _time
+    import urllib.request as _ur
 
     api_key = os.environ.get("MASSIVE_API_KEY", "")
     if not api_key:
@@ -285,7 +384,7 @@ def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
         try:
             with _ur.urlopen(req, timeout=45) as r:
                 data = _js.load(r)
-        except Exception as e:
+        except Exception:
             if page == 0:
                 raise
             break  # ページネーション中のエラーは中断
@@ -509,7 +608,8 @@ def fetch_ohlcv_range(symbol: str, from_time: str, to_time: str,
     rows, times = [], []
     for c in all_candles:
         mid = c.get("mid", {})
-        if not mid: continue
+        if not mid:
+            continue
         rows.append({
             "Open": float(mid["o"]), "High": float(mid["h"]),
             "Low": float(mid["l"]), "Close": float(mid["c"]),
@@ -655,10 +755,14 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
     # period文字列から日数を計算
     def _period_to_days(p: str) -> int:
         p = p.strip()
-        if p.endswith("d"):   return int(p[:-1])
-        if p.endswith("mo"):  return int(p[:-2]) * 30
-        if p.endswith("y"):   return int(p[:-1]) * 365
-        if p == "max":        return 365 * 8
+        if p.endswith("d"):
+            return int(p[:-1])
+        if p.endswith("mo"):
+            return int(p[:-2]) * 30
+        if p.endswith("y"):
+            return int(p[:-1]) * 365
+        if p == "max":
+            return 365 * 8
         return 90
 
     days = _period_to_days(period)
@@ -753,7 +857,7 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
     # v6.4: XAU_USD は yfinance(GC=F先物)フォールバック禁止
     # GC=Fは先物価格でスポット($3000)と大幅乖離($4800)→指標全壊
     if df is None and "XAU" in symbol.upper():
-        print(f"[fetch_ohlcv] XAU: OANDA candles失敗、yfinance(GC=F)禁止 → データなし")
+        print("[fetch_ohlcv] XAU: OANDA candles失敗、yfinance(GC=F)禁止 → データなし")
     elif df is None:
         try:
             df = _fetch_raw(symbol, period, interval)

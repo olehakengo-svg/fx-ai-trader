@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: hip1-holdout-manifest
+        name: HIP-1 holdout manifest guard
+        entry: python3 tools/precommit/check_holdout_manifest.py
+        language: system
+        pass_filenames: true
+        always_run: true
