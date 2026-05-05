@@ -2545,10 +2545,14 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # ── v9.1: HTF Hard Block — 候補リスト全体からHTF違反を除外 ──
     # 旧: select_best後の最善候補にのみ適用 → 戦略内バイパスの余地あり
     # 新: 候補リスト段階で除外 → 次善候補にフォールバック可能
+    _ais_v2_enabled = os.environ.get("ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2", "0") == "1"
     if htf_agreement in ("bull", "bear"):
         _blocked_dir = "SELL" if htf_agreement == "bull" else "BUY"
         _htf_filtered = [c for c in _dt_candidates
-                         if not (hasattr(c, 'signal') and c.signal == _blocked_dir)]
+                         if (
+                             getattr(c, "entry_type", "") == "intraday_seasonality"
+                             and _ais_v2_enabled
+                         ) or not (hasattr(c, 'signal') and c.signal == _blocked_dir)]
         _htf_blocked_count = len(_dt_candidates) - len(_htf_filtered)
         if _htf_blocked_count > 0:
             import logging as _dte_htf_log
@@ -6412,6 +6416,12 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             # SL可変: エントリー価格からRR比で逆算
             # ── 例外: SRM等は戦略SLを完全保存 (1H BT _1H_PRESERVE_SLTP 準拠) ──
             _DT_PRESERVE_SLTP = {"squeeze_release_momentum"}
+            _ais_v2_time_exit_dt = (
+                entry_type == "intraday_seasonality"
+                and os.environ.get("ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2", "0") == "1"
+            )
+            if _ais_v2_time_exit_dt:
+                _DT_PRESERVE_SLTP = _DT_PRESERVE_SLTP | {"intraday_seasonality"}
             tp_dist_dt = abs(tp - ep)
             if entry_type in _DT_PRESERVE_SLTP:
                 # 戦略SL保存: swing H/L ± ATR buffer で精密計算済み
@@ -6450,6 +6460,52 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             _spread_sl_ratio_dt = _spread / max(sl_dist_dt, 1e-8)
             _sg_threshold_dt = 0.45 if "XAU" in symbol.upper() else 0.20  # DT: 20%閾値
             if _spread_sl_ratio_dt > _sg_threshold_dt:
+                continue
+
+            # V2 thin seasonality exit geometry: the thesis estimates same
+            # weekday×hour Open→Close returns, so BT exits at the entry bar
+            # close with only a protective distribution-derived SL.
+            if _ais_v2_time_exit_dt:
+                _exit_bar_dt = df.iloc[i + 1]
+                _exit_close_dt = float(_exit_bar_dt["Close"])
+                _exit_high_dt = float(_exit_bar_dt["High"])
+                _exit_low_dt = float(_exit_bar_dt["Low"])
+                _is_range_tp_override = False
+                _protective_sl_hit_dt = (
+                    (_exit_low_dt <= sl) if sig == "BUY" else (_exit_high_dt >= sl)
+                )
+                if _protective_sl_hit_dt:
+                    _net_pnl_dt = (sl - ep) if sig == "BUY" else (ep - sl)
+                    _exit_reason_dt = "protective_sl"
+                else:
+                    _exit_px_dt = (
+                        _exit_close_dt - _exit_friction_dt
+                        if sig == "BUY" else _exit_close_dt + _exit_friction_dt
+                    )
+                    _net_pnl_dt = (_exit_px_dt - ep) if sig == "BUY" else (ep - _exit_px_dt)
+                    _exit_reason_dt = "time_exit_1bar"
+                _net_r_dt = _net_pnl_dt / max(atr, 1e-6)
+                outcome = "WIN" if _net_r_dt > 0 else "LOSS"
+                bars_held = 1
+                last_bar = i + 1 + bars_held
+                if outcome == "LOSS" and _exit_reason_dt != "time_exit_1bar":
+                    _last_sl_bar_dt = i + 1 + bars_held
+                    _last_sl_dir_dt = sig
+                trade_dict = {"outcome": outcome, "bars_held": bars_held,
+                                "sig": sig, "ep": _rp(ep, symbol),
+                                "sl": _rp(sl, symbol), "tp": _rp(tp, symbol),
+                                "bar_idx": i, "entry_type": entry_type,
+                                "sl_m": round(sl_dist_dt / max(atr, 1e-6), 3),
+                                "tp_m": round(max(_net_r_dt, 0.0), 3),
+                                "entry_time": str(bar_time),
+                                "exit_friction_m": 0.0,
+                                "exit_reason": _exit_reason_dt,
+                                "exec_lag_jitter": _exec_lag_jitter,
+                                "_is_range_tp_override": _is_range_tp_override,
+                                "_time_exit_net_r": round(_net_r_dt, 4)}
+                if outcome == "LOSS":
+                    trade_dict["actual_sl_m"] = round(abs(_net_r_dt), 3)
+                trades.append(trade_dict)
                 continue
 
             # ── v8.7 Phase B: RANGE TP Override (DT) ──

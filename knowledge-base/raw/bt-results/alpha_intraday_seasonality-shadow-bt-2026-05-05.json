@@ -1,0 +1,242 @@
+{
+  "generated_at": "2026-05-05T09:06:35.388555+00:00",
+  "strategy": "intraday_seasonality",
+  "variant": "thin_seasonality_v2",
+  "flag": "ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2",
+  "lookback_days": 365,
+  "minimum_days": 90,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest (production daytrade path, DaytradeEngine strategy-isolated)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1",
+  "targets": [
+    "EUR_USD",
+    "GBP_USD",
+    "USD_JPY",
+    "EUR_JPY",
+    "GBP_JPY",
+    "EUR_GBP"
+  ],
+  "missing_caches": [],
+  "cells": {
+    "EUR_USD": {
+      "current": {
+        "N": 191,
+        "wins": 123,
+        "WR": 0.644,
+        "EV": 0.0876,
+        "PnL": 16.7309,
+        "PF": 1.1372,
+        "wilson_lo": 0.5738,
+        "total_trades_all_strategies": 191,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24612
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 1,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "FAIL",
+        "reason": "bt_error",
+        "non_catastrophic": false,
+        "positive_direction": false,
+        "sanity_floor": false
+      }
+    },
+    "GBP_USD": {
+      "current": {
+        "N": 249,
+        "wins": 148,
+        "WR": 0.5944,
+        "EV": -0.1732,
+        "PnL": -43.1186,
+        "PF": 0.7758,
+        "wilson_lo": 0.5324,
+        "total_trades_all_strategies": 249,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24585
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 2,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "FAIL",
+        "reason": "bt_error",
+        "non_catastrophic": false,
+        "positive_direction": false,
+        "sanity_floor": false
+      }
+    },
+    "USD_JPY": {
+      "current": {
+        "N": 238,
+        "wins": 156,
+        "WR": 0.6555,
+        "EV": 0.1304,
+        "PnL": 31.038,
+        "PF": 1.2106,
+        "wilson_lo": 0.593,
+        "total_trades_all_strategies": 238,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24644
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 3,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "FAIL",
+        "reason": "bt_error",
+        "non_catastrophic": false,
+        "positive_direction": false,
+        "sanity_floor": false
+      }
+    },
+    "EUR_JPY": {
+      "current": {
+        "N": 226,
+        "wins": 151,
+        "WR": 0.6681,
+        "EV": 0.1482,
+        "PnL": 33.495,
+        "PF": 1.2536,
+        "wilson_lo": 0.6044,
+        "total_trades_all_strategies": 226,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24361
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 1,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "FAIL",
+        "reason": "bt_error",
+        "non_catastrophic": false,
+        "positive_direction": false,
+        "sanity_floor": false
+      }
+    },
+    "GBP_JPY": {
+      "current": {
+        "N": 284,
+        "wins": 167,
+        "WR": 0.588,
+        "EV": -0.0348,
+        "PnL": -9.8758,
+        "PF": 0.952,
+        "wilson_lo": 0.53,
+        "total_trades_all_strategies": 284,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24017
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 2,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "FAIL",
+        "reason": "bt_error",
+        "non_catastrophic": false,
+        "positive_direction": false,
+        "sanity_floor": false
+      }
+    },
+    "EUR_GBP": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "FAIL",
+        "reason": "bt_error",
+        "non_catastrophic": false,
+        "positive_direction": false,
+        "sanity_floor": false
+      }
+    }
+  },
+  "overall_verdict": "FAIL",
+  "shadow_promote_recommendation": "REJECT",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 876.0,
+  "self_review": {
+    "relative_check_only": "PASS: verdict uses relative PF/Wilson/N/PnL and sanity floors; no absolute Kelly gate.",
+    "production_live_safety": "PASS: V2 behavior is default-off unless ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered thin_seasonality_v2 variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo/network fallback for this report."
+  }
+}

@@ -30,6 +30,7 @@ Alpha #1: Intraday Return Seasonality (日中リターン季節性)
 """
 from __future__ import annotations
 import math
+import os
 from typing import Optional
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
@@ -39,15 +40,35 @@ class IntradaySeasonality(StrategyBase):
     name = "intraday_seasonality"
     mode = "daytrade"
     enabled = True
+    _REDESIGN_ENV = "ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2"
     params = {
         "lookback_days": 60,      # 季節性計算の遡及日数
         "min_effect_size": 0.3,   # Cohen's d 最低閾値
+        "min_samples_v2": 30,
+        "bonferroni_t_v2": 3.5,   # approx normal two-sided p < 0.05 / (5 weekdays * 24 hours)
     }
+
+    @classmethod
+    def redesign_v2_enabled(cls) -> bool:
+        return os.environ.get(cls._REDESIGN_ENV) == "1"
+
+    @staticmethod
+    def _quantile(values: list[float], q: float) -> float:
+        if not values:
+            return 0.0
+        xs = sorted(values)
+        pos = min(max(q, 0.0), 1.0) * (len(xs) - 1)
+        lo = int(math.floor(pos))
+        hi = int(math.ceil(pos))
+        if lo == hi:
+            return xs[lo]
+        return xs[lo] + (xs[hi] - xs[lo]) * (pos - lo)
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         df = ctx.df
         if df is None or len(df) < 200:
             return None
+        redesign_v2 = self.redesign_v2_enabled()
 
         # ── 現在バーの曜日・時間帯を取得 ──
         bar_time = ctx.bar_time
@@ -84,14 +105,15 @@ class IntradaySeasonality(StrategyBase):
         except Exception:
             return None
 
-        if len(matched) < 8:
+        min_samples = int(self.params.get("min_samples_v2", 30)) if redesign_v2 else 8
+        if len(matched) < min_samples:
             return None
 
         # リターン計算（ベクトル化）
         _open = matched["Open"].values
         _close = matched["Close"].values
         _valid = _open > 0
-        if _valid.sum() < 8:
+        if _valid.sum() < min_samples:
             return None
         _rets = (_close[_valid] - _open[_valid]) / _open[_valid]
 
@@ -104,7 +126,7 @@ class IntradaySeasonality(StrategyBase):
 
         # 最低サンプル数チェック（統計的信頼性）
         n = len(returns)
-        if n < 8:
+        if n < min_samples:
             return None
 
         # ── t検定: 平均リターンが0と有意に異なるか ──
@@ -118,8 +140,9 @@ class IntradaySeasonality(StrategyBase):
         t_stat = mean_ret / (std_ret / math.sqrt(n))
         cohens_d = abs(mean_ret) / std_ret
 
-        # 有意性チェック: |t| > 2.0 (≈ p < 0.05 for df ≥ 8)
-        if abs(t_stat) < 2.0:
+        # 有意性チェック。V2 は weekday×hour bucket 多重検定を前提にした薄い baseline。
+        t_threshold = float(self.params.get("bonferroni_t_v2", 3.5)) if redesign_v2 else 2.0
+        if abs(t_stat) < t_threshold:
             return None
 
         # 効果量フィルター
@@ -130,28 +153,44 @@ class IntradaySeasonality(StrategyBase):
         signal = "BUY" if mean_ret > 0 else "SELL"
 
         # ── HTF Hard Block (v9.1) ──
+        # V2: seasonality thesis is bucket-flow based, so HTF agreement must not
+        # delete the tail. The production DTE candidate-level block is also
+        # softened in app.py under the same flag.
         _htf = ctx.htf or {}
         _htf_agreement = _htf.get("agreement", "mixed")
-        if _htf_agreement == "bull" and signal == "SELL":
-            return None
-        if _htf_agreement == "bear" and signal == "BUY":
-            return None
+        if not redesign_v2:
+            if _htf_agreement == "bull" and signal == "SELL":
+                return None
+            if _htf_agreement == "bear" and signal == "BUY":
+                return None
 
-        # ── SL/TP: ATRベース ──
+        # ── SL/TP ──
         atr = ctx.atr
         if atr <= 0:
             return None
 
-        sl_mult = 1.5
-        # TP倍率: 効果量が大きいほどTPを広げる（最大2.5ATR）
-        tp_mult = min(2.5, 1.5 + cohens_d)
-
-        if signal == "BUY":
-            sl = ctx.entry - atr * sl_mult
-            tp = ctx.entry + atr * tp_mult
+        if redesign_v2:
+            adverse_q = self._quantile(returns, 0.10 if signal == "BUY" else 0.90)
+            favorable_q = self._quantile(returns, 0.65 if signal == "BUY" else 0.35)
+            sl_dist = max(abs(adverse_q) * ctx.entry, std_ret * ctx.entry, atr * 0.50)
+            tp_dist = max(abs(favorable_q) * ctx.entry, abs(mean_ret) * ctx.entry, atr * 0.25)
+            if signal == "BUY":
+                sl = ctx.entry - sl_dist
+                tp = ctx.entry + tp_dist
+            else:
+                sl = ctx.entry + sl_dist
+                tp = ctx.entry - tp_dist
         else:
-            sl = ctx.entry + atr * sl_mult
-            tp = ctx.entry - atr * tp_mult
+            sl_mult = 1.5
+            # TP倍率: 効果量が大きいほどTPを広げる（最大2.5ATR）
+            tp_mult = min(2.5, 1.5 + cohens_d)
+
+            if signal == "BUY":
+                sl = ctx.entry - atr * sl_mult
+                tp = ctx.entry + atr * tp_mult
+            else:
+                sl = ctx.entry + atr * sl_mult
+                tp = ctx.entry - atr * tp_mult
 
         # ── スコアリング ──
         # t統計量の絶対値と効果量で重み付け
@@ -168,6 +207,11 @@ class IntradaySeasonality(StrategyBase):
             f"mean={mean_ret*10000:.1f}bp σ={std_ret*10000:.1f}bp",
             f"t={t_stat:.2f} d={cohens_d:.2f} N={n}",
         ]
+        if redesign_v2:
+            reasons.append(
+                f"✅ V2 thin seasonality: minN={min_samples} t>={t_threshold:.1f} "
+                f"HTF={_htf_agreement} soft time_exit=1bar"
+            )
 
         return Candidate(
             signal=signal,

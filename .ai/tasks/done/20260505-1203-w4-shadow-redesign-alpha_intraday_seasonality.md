@@ -139,3 +139,35 @@ PASS の場合、shadow 設定を以下のどれかで提案:
 - shadow 観測中の N 蓄積は production 自然進行に任せる
 - shadow-first アーキテクチャ: BT で大量 catastrophic 排除 → shadow で真値推定 → live ramp
 - 60-90 日後に shadow data から Bonferroni/Wilson/Kelly 判定する別 task が後続
+
+
+## Result (2026-05-05T09:07:25Z)
+
+exit=0 · 2310s
+
+```
+完了しました。V2 実装は入れましたが、LOCK 判定は **FAIL / REJECT** です。Shadow promote 設定は適用していません。
+
+主な変更:
+- [alpha_intraday_seasonality.py](/data/repo/fx-ai-trader/strategies/daytrade/alpha_intraday_seasonality.py:43): `ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2=1` 配下で、N>=30、Bonferroni-aware `t>=3.5`、HTF hard block softening、distribution-based SL/TP を実装。
+- [app.py](/data/repo/fx-ai-trader/app.py:2548): DTE candidate-level HTF hard block も `intraday_seasonality` V2 だけ除外。
+- [app.py](/data/repo/fx-ai-trader/app.py:6419): BT の V2 exit を `1bar time_exit + protective SL` として評価。
+- [test_alpha_intraday_seasonality_shadow_redesign.py](/data/repo/fx-ai-trader/tests/test_alpha_intraday_seasonality_shadow_redesign.py:55): 失敗テスト追加済み。
+- [alpha_intraday_seasonality-shadow-redesign-2026-05-05.md](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/alpha_intraday_seasonality-shadow-redesign-2026-05-05.md:1): pre-reg LOCK と最終 REJECT を記録。
+- BT 結果: [alpha_intraday_seasonality-shadow-bt-2026-05-05.json](/data/repo/fx-ai-trader/knowledge-base/raw/bt-results/alpha_intraday_seasonality-shadow-bt-2026-05-05.json)
+
+BT verdict:
+- `overall_verdict`: `FAIL`
+- `shadow_promote_recommendation`: `REJECT`
+- 理由: V2 が pre-reg の `N>=30` / `t>=3.5` で発火数不足。proposed は各 pair で 0-3 trades 相当となり、`run_daytrade_backtest()` が `サンプル数不足（20トレード未満）` を返したため、non-catastrophic / sanity floor を満たせませんでした。
+
+検証:
+- `.venv/bin/pytest tests/test_alpha_intraday_seasonality_shadow_redesign.py -q` → `4 passed`
+- `python3 -m py_compile app.py strategies/daytrade/alpha_intraday_seasonality.py tools/alpha_intraday_seasonality_shadow_bt.py` → pass
+- `NO_AUTOSTART=1 .venv/bin/python tools/alpha_intraday_seasonality_shadow_bt.py` → MASSIVE 15m parquet 365d run 完走、`FAIL`
+
+Self-review:
+- relative check のみ使用、Kelly 絶対基準なし。
+- V2 は default-off flag 配下で live production には影響なし。
+- FAIL 後に threshold 緩和などの post-hoc adjustment はしていません。
+```
