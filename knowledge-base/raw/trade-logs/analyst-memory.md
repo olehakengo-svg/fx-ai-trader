@@ -739,6 +739,16 @@ Cutoff後累計はN=22、WR=45.5%、PnL=−12.1pips相当。システムは稼�
 - エグジット理由が `SIGNAL_REVERSE` ＝ エントリー後に逆方向シグナルが発生し損切り。GBP_USDはTRENDING_UPレジームであり、逆張り系フィブ戦略がトレンドに逆行した可能性が高い。
 - **本日の対処方針**: GBP_USDがTRENDING_UP継続中の間、`sr_fib_confluence`のGBP_USD向けシグナルは統計的根拠が薄い。N蓄積を優先し、昇格判断は保留。
 
+### 2026-05-05 (Post-Tokyo Report)
+| PnL | — |
+| WR | — |
+本日累計ではN=1、WR=0%、PnL=**-7.4 pips**（セッション外の1件、詳細不明）。
+- Cutoff後のトレードがN=1（本日のみ）のため、いかなる戦略も統計的判断基準（N≥10「傾向」、N≥30「判断可能」）に達していない
+- 東京セッション0件は「戦略の問題」ではなく、後述のブロック構造と流動性起因と判断
+| USD_JPY | VOLATILE | 71% | ヘッジブロック多発中、注意 |
+### 推奨戦略配分
+| 🔴 最優先 | `gbp-deep-pullback` | GBP_USD | ELITE_LIVE・BT EV=+1.064・TRENDING_UP整合 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
