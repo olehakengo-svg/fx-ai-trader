@@ -1,0 +1,79 @@
+{
+  "generated_at": "2026-05-05T19:39:27.284700+00:00",
+  "strategy": "gold_pips_hunter",
+  "variant": "closed_bar_dedup_rr_guard_v2",
+  "flag": "GOLD_PIPS_REDESIGN_V2",
+  "shadow_worker_flag": "GOLD_PIPS_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "1m",
+  "runner": "app.run_scalp_backtest (production scalp path; strategy-isolated ScalperEngine patch)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": false,
+  "bt_runner_note": "gold_pips_hunter is a scalp-engine strategy; run_daytrade_backtest does not evaluate it.",
+  "targets": [
+    "XAU_USD"
+  ],
+  "missing_caches": [
+    "data/cache/massive/XAU_USD_1m.parquet"
+  ],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": {
+      "pf_change": ">= -0.10",
+      "wilson_lo_change": ">= -0.05",
+      "n_change_pct": ">= -30",
+      "pnl_sign_preserved": true
+    },
+    "sanity_floor": {
+      "wilson_lo_proposed": ">= 0.20",
+      "pf_proposed": ">= 0.85"
+    },
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "XAU_USD": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/XAU_USD_1m.parquet"
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/XAU_USD_1m.parquet"
+      },
+      "lock_criteria": {
+        "verdict": "REJECT",
+        "reason": "missing_massive_cache",
+        "catastrophic_check": "NOT_RUN",
+        "sanity_floor": "NOT_RUN",
+        "shadow_promote_recommendation": "REJECT"
+      }
+    }
+  },
+  "overall_verdict": "REJECT",
+  "shadow_promote_recommendation": "REJECT",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 0.0,
+  "self_review": {
+    "catastrophic_only": "PASS: verdict ignores positive-direction and Kelly; applies only v2 catastrophic/floor rules when N>=20.",
+    "insufficient_bt_evidence": "PASS: proposed N<20 would become INSUFFICIENT_BT_EVIDENCE and shadow recommendation when BT data is available.",
+    "production_live_safety": "PASS: strategy behavior is default-off unless GOLD_PIPS_REDESIGN_V2=1; shadow emit also requires GOLD_PIPS_REDESIGN_V2_SHADOW_PROMOTE=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered closed_bar_dedup_rr_guard_v2 variant is evaluated; no thresholds are adjusted after BT.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo/GC=F fallback for this report.",
+    "runner_note": "PASS: production scalp runner is used because gold_pips_hunter is not in the daytrade engine."
+  }
+}

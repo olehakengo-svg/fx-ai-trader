@@ -135,3 +135,22 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T19:39:58Z)
+
+exit=0 · 196s
+
+```
+実装しました。`GOLD_PIPS_REDESIGN_V2=1` 配下でのみ、gold_pips は確定済み signal bar `df[-2]` と `prev_bar=df[-3]` を使い、`ctx.entry` で次バー約定扱い、SL/TP は `tp_distance >= 1.5*risk` を満たさない場合 skip、同一 `(symbol, signal, signal_bar_time)` は dedup します。flag OFF の live 挙動は既存 path のままです。  
+主な変更: [gold_pips.py](/data/repo/fx-ai-trader/strategies/scalp/gold_pips.py:55), [scalp engine shadow opt-in](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:184), [tests](/data/repo/fx-ai-trader/tests/test_gold_pips_shadow_redesign_v2.py:119), [BT script](/data/repo/fx-ai-trader/tools/gold_pips_shadow_bt.py:1)
+
+BT report は [gold_pips-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/gold_pips-shadow-redesign-v2-2026-05-05.json:1) に生成済みです。Verdict は **REJECT**。理由は catastrophic regression ではなく、必須データ `data/cache/massive/XAU_USD_1m.parquet` が存在せず、`BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1` 条件で 365d BT を実行できないためです。gold_pips は scalp engine 戦略なので、report には `run_daytrade_backtest` では評価されない旨を明記し、production scalp path の `run_scalp_backtest` を使う runner にしています。
+
+検証:
+- `.venv/bin/pytest -q tests/test_gold_pips_shadow_redesign_v2.py` → 5 passed
+- `.venv/bin/pytest -q tests/test_gold_pips_shadow_redesign_v2.py tests/test_engulfing_bb_shadow_redesign_v2.py tests/test_confluence_scalp_shadow_redesign_v2.py` → 14 passed
+- `.venv/bin/python -m py_compile strategies/scalp/gold_pips.py tools/gold_pips_shadow_bt.py` → passed
+
+Shadow promote は REJECT のため有効化していません。
+```
