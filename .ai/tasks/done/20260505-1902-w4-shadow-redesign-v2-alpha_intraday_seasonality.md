@@ -135,3 +135,44 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T12:14:43Z)
+
+exit=0 · 961s
+
+```
+完了しました。
+
+変更点:
+- [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:227)
+  - `ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2=1`
+  - `ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2_SHADOW_PROMOTE=1`
+  の両方が立った時だけ `intraday_seasonality` を shadow worker emit 対象に登録。
+- [tests/test_alpha_intraday_seasonality_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_alpha_intraday_seasonality_shadow_redesign_v2.py:1)
+  - default OFF の HTF hard block 維持
+  - V2 の HTF softening
+  - `N>=30`
+  - distribution geometry
+  - shadow worker opt-in 登録
+- [tools/alpha_intraday_seasonality_shadow_bt.py](/data/repo/fx-ai-trader/tools/alpha_intraday_seasonality_shadow_bt.py:1)
+  - v2 LOCK criteria に更新
+  - `minimum_days=365`
+  - proposed `N<20` は `INSUFFICIENT_BT_EVIDENCE`
+  - positive direction / Kelly 不使用
+  - report 出力先を指定通り [bt-results/alpha_intraday_seasonality-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/alpha_intraday_seasonality-shadow-redesign-v2-2026-05-05.json:1) に変更
+
+BT verdict:
+- `overall_verdict`: `INSUFFICIENT_BT_EVIDENCE`
+- `shadow_promote_recommendation`: `RECOMMEND_SHADOW`
+- proposed N: `EUR_USD=1`, `GBP_USD=2`, `USD_JPY=3`, `EUR_JPY=1`, `GBP_JPY=2`, `EUR_GBP=0`
+- v2 spec 通り catastrophic check / sanity floor は skip しています。
+
+検証:
+- `.venv/bin/pytest tests/test_alpha_intraday_seasonality_shadow_redesign_v2.py tests/test_alpha_intraday_seasonality_shadow_redesign.py -q` → `9 passed`
+- `.venv/bin/pytest tests/test_adx_trend_continuation_shadow_redesign_v2.py tests/test_alpha_atr_regime_break_shadow_redesign_v2.py tests/test_alpha_intraday_seasonality_shadow_redesign_v2.py -q` → `14 passed`
+- `python3 -m py_compile strategies/daytrade/__init__.py strategies/daytrade/alpha_intraday_seasonality.py tools/alpha_intraday_seasonality_shadow_bt.py` → pass
+- `NO_AUTOSTART=1 .venv/bin/python tools/alpha_intraday_seasonality_shadow_bt.py` → MASSIVE 15m parquet 365d run 完走
+
+Self-review も report 内に記録済みです。Liv
+…(truncated)

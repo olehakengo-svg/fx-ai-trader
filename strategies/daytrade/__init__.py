@@ -227,6 +227,9 @@ class DaytradeEngine:
         if (os.environ.get("ALPHA_ATR_REGIME_BREAK_REDESIGN_V2") == "1"
                 and os.environ.get("ALPHA_ATR_REGIME_BREAK_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"atr_regime_break"}
+        if (os.environ.get("ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2") == "1"
+                and os.environ.get("ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"intraday_seasonality"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]
