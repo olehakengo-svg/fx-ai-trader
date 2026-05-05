@@ -141,3 +141,26 @@ PASS の場合、shadow 設定を以下のどれかで提案:
 - shadow 観測中の N 蓄積は production 自然進行に任せる
 - shadow-first アーキテクチャ: BT で大量 catastrophic 排除 → shadow で真値推定 → live ramp
 - 60-90 日後に shadow data から Bonferroni/Wilson/Kelly 判定する別 task が後続
+
+
+## Result (2026-05-05T11:04:53Z)
+
+exit=0 · 5528s
+
+```
+Implemented the V2 timing hardening for `confluence_scalp` behind `CONFLUENCE_SCALP_REDESIGN_V2=1`.
+
+Changes:
+- [strategies/scalp/confluence_scalp.py](/data/repo/fx-ai-trader/strategies/scalp/confluence_scalp.py): closed-bar trigger inputs, CHoCH/MSB closed-tail usage, and per-bar dedup under the flag. Default remains current behavior.
+- [tests/test_confluence_scalp_shadow_redesign.py](/data/repo/fx-ai-trader/tests/test_confluence_scalp_shadow_redesign.py): failing/green coverage for default-off behavior, live closed-bar behavior, and dedup.
+- [tools/confluence_scalp_shadow_bt.py](/data/repo/fx-ai-trader/tools/confluence_scalp_shadow_bt.py): MASSIVE + `BT_MODE=1` A/B runner.
+- [knowledge-base/wiki/decisions/confluence_scalp-shadow-redesign-2026-05-05.md](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/confluence_scalp-shadow-redesign-2026-05-05.md): pre-reg LOCK plus final verdict.
+- [knowledge-base/raw/bt-results/confluence_scalp-shadow-bt-2026-05-05.json](/data/repo/fx-ai-trader/knowledge-base/raw/bt-results/confluence_scalp-shadow-bt-2026-05-05.json): BT report.
+
+BT verdict: **REJECT**, so I did not apply shadow promote settings. Four cells were `<20 trades`; EUR_JPY had metrics but V2 was unchanged, so it failed `positive_direction`.
+
+Verification:
+- `.venv/bin/python -m pytest tests/test_confluence_scalp_shadow_redesign.py tests/test_fetch_ohlcv_bt_mode.py` → `7 passed`
+- `.venv/bin/python -m py_compile strategies/scalp/confluence_scalp.py tools/confluence_scalp_shadow_bt.py` → OK
+- BT used production scalp path with MASSIVE 15m cache. I used `run_scalp_backtest()` because `confluence_scalp` is registered in the scalp engine; `run_daytrade_backtest()` does not evaluate this strategy.
+```

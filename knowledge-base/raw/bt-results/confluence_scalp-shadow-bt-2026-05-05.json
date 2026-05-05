@@ -1,0 +1,212 @@
+{
+  "generated_at": "2026-05-05T11:03:40.692936+00:00",
+  "strategy": "confluence_scalp",
+  "variant": "closed_bar_dedup_v2",
+  "flag": "CONFLUENCE_SCALP_REDESIGN_V2",
+  "lookback_days": 365,
+  "minimum_days": 90,
+  "interval": "15m",
+  "runner": "app.run_scalp_backtest (production scalp path; strategy-isolated ScalperEngine patch)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1",
+  "bt_error_data_source_note": "run_scalp_backtest omits data_source/bars_fetched when it returns the <20 trades error; console output showed massive-parquet/15m for each target and missing_caches is empty.",
+  "targets": [
+    "EUR_USD",
+    "USD_JPY",
+    "EUR_JPY",
+    "GBP_USD",
+    "GBP_JPY"
+  ],
+  "missing_caches": [],
+  "cells": {
+    "EUR_USD": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 3,
+        "bt_error": "サンプル数不足（3トレード）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 3,
+        "bt_error": "サンプル数不足（3トレード）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "FAIL",
+        "reason": "bt_error",
+        "non_catastrophic": false,
+        "positive_direction": false,
+        "sanity_floor": false
+      }
+    },
+    "USD_JPY": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 5,
+        "bt_error": "サンプル数不足（5トレード）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 5,
+        "bt_error": "サンプル数不足（5トレード）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "FAIL",
+        "reason": "bt_error",
+        "non_catastrophic": false,
+        "positive_direction": false,
+        "sanity_floor": false
+      }
+    },
+    "EUR_JPY": {
+      "current": {
+        "N": 10,
+        "wins": 6,
+        "WR": 0.6,
+        "EV": 0.2999,
+        "PnL": 2.999,
+        "PF": 1.5447,
+        "wilson_lo": 0.3127,
+        "total_trades_all_strategies": 10,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24361
+      },
+      "proposed": {
+        "N": 10,
+        "wins": 6,
+        "WR": 0.6,
+        "EV": 0.2999,
+        "PnL": 2.999,
+        "PF": 1.5447,
+        "wilson_lo": 0.3127,
+        "total_trades_all_strategies": 10,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24361
+      },
+      "lock_criteria": {
+        "pf_change": 0.0,
+        "wilson_lo_change": 0.0,
+        "n_change_pct": 0.0,
+        "pnl_sign_preserved": true,
+        "ev_change_pct": 0.0,
+        "non_catastrophic": true,
+        "positive_direction": false,
+        "sanity_floor": true,
+        "verdict": "FAIL"
+      }
+    },
+    "GBP_USD": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 5,
+        "bt_error": "サンプル数不足（5トレード）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 5,
+        "bt_error": "サンプル数不足（5トレード）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "FAIL",
+        "reason": "bt_error",
+        "non_catastrophic": false,
+        "positive_direction": false,
+        "sanity_floor": false
+      }
+    },
+    "GBP_JPY": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 5,
+        "bt_error": "サンプル数不足（5トレード）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 5,
+        "bt_error": "サンプル数不足（5トレード）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "FAIL",
+        "reason": "bt_error",
+        "non_catastrophic": false,
+        "positive_direction": false,
+        "sanity_floor": false
+      }
+    }
+  },
+  "overall_verdict": "FAIL",
+  "shadow_promote_recommendation": "REJECT",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 5268.9,
+  "self_review": {
+    "relative_check_only": "PASS: verdict uses relative PF/Wilson/N/PnL and sanity floors; no absolute Kelly gate.",
+    "production_live_safety": "PASS: strategy behavior is default-off unless CONFLUENCE_SCALP_REDESIGN_V2=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered closed_bar_dedup_v2 variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo/network fallback for this report.",
+    "runner_note": "PASS: confluence_scalp is a scalp-engine strategy, so run_scalp_backtest is the production runner; run_daytrade_backtest does not evaluate this strategy."
+  }
+}

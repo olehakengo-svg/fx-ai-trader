@@ -21,6 +21,7 @@ from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
 import logging
+import os
 
 logger = logging.getLogger("confluence_scalp")
 
@@ -311,10 +312,19 @@ class ConfluenceScalp(StrategyBase):
     # ── EUR/GBP disabled ──
     _disabled_symbols = frozenset({"EURGBP"})
 
-    def _estimate_spread_pips(self, ctx: SignalContext) -> float:
+    _dedup_state: dict = {}
+
+    @classmethod
+    def reset_dedup_state(cls):
+        cls._dedup_state.clear()
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get("CONFLUENCE_SCALP_REDESIGN_V2") == "1"
+
+    def _estimate_spread_pips(self, ctx: SignalContext, hour_utc: int | None = None) -> float:
         """ペア別スプレッド推定 (BT spread v2ベース)。"""
         sym = ctx.symbol.upper()
-        h = ctx.hour_utc
+        h = ctx.hour_utc if hour_utc is None else hour_utc
         if "GBP" in sym and "JPY" not in sym:
             # GBP/USD: 0.8-1.8pip
             return 1.0 if 7 <= h <= 16 else 1.5
@@ -331,22 +341,73 @@ class ConfluenceScalp(StrategyBase):
             return 1.0  # conservative default
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        _v2 = self._redesign_v2_enabled()
+
         # ── ペア無効化 ──
         _sym = ctx.symbol.upper().replace("=X", "").replace("_", "")
         if _sym in self._disabled_symbols:
             return None
 
+        _signal_df = ctx.df
+        if _v2:
+            if _signal_df is None or len(_signal_df) < 4:
+                return None
+            if not ctx.backtest_mode:
+                # Live may include an in-progress tail bar. Use the latest
+                # completed signal bar and keep ctx.entry as execution context.
+                _signal_df = _signal_df.iloc[:-1]
+                if len(_signal_df) < 4:
+                    return None
+
+            _signal_row = _signal_df.iloc[-1]
+            _signal_prev = _signal_df.iloc[-2]
+            _signal_prev2 = _signal_df.iloc[-3]
+            _entry = ctx.entry
+            _atr7 = float(_signal_row.get("atr7", _signal_row.get("atr", ctx.atr7)))
+            _ema9 = float(_signal_row.get("ema9", ctx.ema9))
+            _ema21 = float(_signal_row.get("ema21", ctx.ema21))
+            _ema9_prev = float(_signal_prev.get("ema9", ctx.ema9_prev))
+            _ema21_prev = float(_signal_prev.get("ema21", ctx.ema21_prev))
+            _rsi5 = float(_signal_row.get("rsi5", _signal_row.get("rsi", ctx.rsi5)))
+            _bbpb = float(_signal_row.get("bb_pband", ctx.bbpb))
+            _macdh = float(_signal_row.get("macd_hist", ctx.macdh))
+            _macdh_prev = float(_signal_prev.get("macd_hist", ctx.macdh_prev))
+            _macdh_prev2 = float(_signal_prev2.get("macd_hist", ctx.macdh_prev2))
+            _adx = float(_signal_row.get("adx", ctx.adx))
+            _stoch_k = float(_signal_row.get("stoch_k", ctx.stoch_k))
+            _stoch_d = float(_signal_row.get("stoch_d", ctx.stoch_d))
+            _bar_time = ctx.bar_time or _signal_df.index[-1]
+            _hour_utc = _bar_time.hour if hasattr(_bar_time, "hour") else ctx.hour_utc
+            _bar_id = _bar_time
+        else:
+            _entry = ctx.entry
+            _atr7 = ctx.atr7
+            _ema9 = ctx.ema9
+            _ema21 = ctx.ema21
+            _ema9_prev = ctx.ema9_prev
+            _ema21_prev = ctx.ema21_prev
+            _rsi5 = ctx.rsi5
+            _bbpb = ctx.bbpb
+            _macdh = ctx.macdh
+            _macdh_prev = ctx.macdh_prev
+            _macdh_prev2 = ctx.macdh_prev2
+            _adx = ctx.adx
+            _stoch_k = ctx.stoch_k
+            _stoch_d = ctx.stoch_d
+            _hour_utc = ctx.hour_utc
+            _bar_id = None
+
         # ══════════════════════════════════════════════════
         # 防御層 1: Session Gate (UTC 12-17)
         # ══════════════════════════════════════════════════
-        if not (self._SESSION_START <= ctx.hour_utc <= self._SESSION_END):
+        if not (self._SESSION_START <= _hour_utc <= self._SESSION_END):
             return None
 
         # ══════════════════════════════════════════════════
         # 防御層 2: MFE Guard (ATR/Spread >= 10)
         # ══════════════════════════════════════════════════
-        _atr_pips = ctx.atr7 * ctx.pip_mult
-        _spread_pips = self._estimate_spread_pips(ctx)
+        _atr_pips = _atr7 * ctx.pip_mult
+        _spread_pips = self._estimate_spread_pips(ctx, _hour_utc)
         _mfe_ratio = _atr_pips / max(_spread_pips, 0.1)
         if _mfe_ratio < self._MFE_GUARD_RATIO:
             return None
@@ -365,22 +426,22 @@ class ConfluenceScalp(StrategyBase):
         reasons = []
 
         # ── Family A: Trend (EMA9/21) ──
-        _ema_bull = ctx.ema9 > ctx.ema21
-        _ema_bear = ctx.ema9 < ctx.ema21
-        _ema_cross_bull = (ctx.ema9 > ctx.ema21 and ctx.ema9_prev <= ctx.ema21_prev)
-        _ema_cross_bear = (ctx.ema9 < ctx.ema21 and ctx.ema9_prev >= ctx.ema21_prev)
+        _ema_bull = _ema9 > _ema21
+        _ema_bear = _ema9 < _ema21
+        _ema_cross_bull = (_ema9 > _ema21 and _ema9_prev <= _ema21_prev)
+        _ema_cross_bear = (_ema9 < _ema21 and _ema9_prev >= _ema21_prev)
 
         # ── Family B: Oscillator (RSI5 extreme + BB%B extreme) ──
-        _osc_buy = (ctx.rsi5 < self._RSI5_BUY_EXTREME
-                    and ctx.bbpb < self._BBPB_BUY_EXTREME)
-        _osc_sell = (ctx.rsi5 > self._RSI5_SELL_EXTREME
-                     and ctx.bbpb > self._BBPB_SELL_EXTREME)
+        _osc_buy = (_rsi5 < self._RSI5_BUY_EXTREME
+                    and _bbpb < self._BBPB_BUY_EXTREME)
+        _osc_sell = (_rsi5 > self._RSI5_SELL_EXTREME
+                     and _bbpb > self._BBPB_SELL_EXTREME)
 
         # ── Family C: Momentum (MACD-H reversal) ──
-        _macdh_bull = (ctx.macdh > ctx.macdh_prev
-                       and ctx.macdh_prev <= ctx.macdh_prev2)
-        _macdh_bear = (ctx.macdh < ctx.macdh_prev
-                       and ctx.macdh_prev >= ctx.macdh_prev2)
+        _macdh_bull = (_macdh > _macdh_prev
+                       and _macdh_prev <= _macdh_prev2)
+        _macdh_bear = (_macdh < _macdh_prev
+                       and _macdh_prev >= _macdh_prev2)
 
         # ══════════════════════════════════════════════════
         # BUY: 3族合意 + HTF Hard Block
@@ -394,8 +455,8 @@ class ConfluenceScalp(StrategyBase):
             reasons.append(
                 f"✅ Triple Confluence BUY: "
                 f"EMA9>21{_cross_tag} + "
-                f"RSI5={ctx.rsi5:.1f}<{self._RSI5_BUY_EXTREME} + "
-                f"BB%B={ctx.bbpb:.2f}<{self._BBPB_BUY_EXTREME} + "
+                f"RSI5={_rsi5:.1f}<{self._RSI5_BUY_EXTREME} + "
+                f"BB%B={_bbpb:.2f}<{self._BBPB_BUY_EXTREME} + "
                 f"MACD-H反転上昇"
             )
 
@@ -411,19 +472,24 @@ class ConfluenceScalp(StrategyBase):
             reasons.append(
                 f"✅ Triple Confluence SELL: "
                 f"EMA9<21{_cross_tag} + "
-                f"RSI5={ctx.rsi5:.1f}>{self._RSI5_SELL_EXTREME} + "
-                f"BB%B={ctx.bbpb:.2f}>{self._BBPB_SELL_EXTREME} + "
+                f"RSI5={_rsi5:.1f}>{self._RSI5_SELL_EXTREME} + "
+                f"BB%B={_bbpb:.2f}>{self._BBPB_SELL_EXTREME} + "
                 f"MACD-H反転下落"
             )
         else:
             return None
 
+        if _v2 and _bar_id is not None:
+            _dedup_key = (ctx.symbol, signal, _bar_id)
+            if self._dedup_state.get(_dedup_key):
+                return None
+
         # ══════════════════════════════════════════════════
         # CHoCH (Change of Character) ボーナス
         # ══════════════════════════════════════════════════
         _choch = None
-        if ctx.df is not None and len(ctx.df) >= 30:
-            _choch = detect_choch(ctx.df, lookback=30)
+        if _signal_df is not None and len(_signal_df) >= 30:
+            _choch = detect_choch(_signal_df, lookback=30)
             if _choch and _choch["direction"] == signal:
                 score += 2.0
                 reasons.append(
@@ -431,7 +497,7 @@ class ConfluenceScalp(StrategyBase):
                     f"(level={_choch['level']:.5f})"
                 )
                 # MSB confirmation
-                if detect_msb(ctx.df, signal, lookback=15):
+                if detect_msb(_signal_df, signal, lookback=15):
                     score += 1.0
                     reasons.append("✅ MSB確認: 構造継続 (HH/LL更新)")
 
@@ -439,9 +505,9 @@ class ConfluenceScalp(StrategyBase):
         # Additional Score Bonuses
         # ══════════════════════════════════════════════════
         # ADX > 25: trending environment bonus
-        if ctx.adx > 25:
+        if _adx > 25:
             score += 0.5
-            reasons.append(f"✅ トレンド環境(ADX={ctx.adx:.1f}>25)")
+            reasons.append(f"✅ トレンド環境(ADX={_adx:.1f}>25)")
 
         # HTF alignment bonus
         if (_htf_dir == "bull" and signal == "BUY") or \
@@ -450,9 +516,9 @@ class ConfluenceScalp(StrategyBase):
             reasons.append(f"✅ HTF方向一致({_htf_dir})")
 
         # Peak overlap bonus (UTC 13-16)
-        if 13 <= ctx.hour_utc <= 16:
+        if 13 <= _hour_utc <= 16:
             score += 0.5
-            reasons.append(f"✅ London/NY重複ピーク(UTC {ctx.hour_utc})")
+            reasons.append(f"✅ London/NY重複ピーク(UTC {_hour_utc})")
 
         # MFE ratio quality bonus
         if _mfe_ratio >= 15:
@@ -460,41 +526,41 @@ class ConfluenceScalp(StrategyBase):
             reasons.append(f"✅ 高MFE余地(ATR/Spread={_mfe_ratio:.1f})")
 
         # Stoch confirmation bonus
-        if signal == "BUY" and ctx.stoch_k < 30 and ctx.stoch_k > ctx.stoch_d:
+        if signal == "BUY" and _stoch_k < 30 and _stoch_k > _stoch_d:
             score += 0.5
             reasons.append(
-                f"✅ Stochゴールデンクロス(K={ctx.stoch_k:.0f})")
-        elif signal == "SELL" and ctx.stoch_k > 70 and ctx.stoch_k < ctx.stoch_d:
+                f"✅ Stochゴールデンクロス(K={_stoch_k:.0f})")
+        elif signal == "SELL" and _stoch_k > 70 and _stoch_k < _stoch_d:
             score += 0.5
             reasons.append(
-                f"✅ Stochデッドクロス(K={ctx.stoch_k:.0f})")
+                f"✅ Stochデッドクロス(K={_stoch_k:.0f})")
 
         # ══════════════════════════════════════════════════
         # SL / TP
         # ══════════════════════════════════════════════════
         _min_sl = 0.030 if ctx.pip_mult == 100 else 0.00030  # JPY+XAU: pip=0.01
-        sl_dist = max(ctx.atr7 * self._SL_ATR_MULT, _min_sl)
-        tp_dist = ctx.atr7 * self._TP_ATR_MULT
+        sl_dist = max(_atr7 * self._SL_ATR_MULT, _min_sl)
+        tp_dist = _atr7 * self._TP_ATR_MULT
         if signal == "BUY":
-            sl = ctx.entry - sl_dist
-            tp = ctx.entry + tp_dist
+            sl = _entry - sl_dist
+            tp = _entry + tp_dist
         else:
-            sl = ctx.entry + sl_dist
-            tp = ctx.entry - tp_dist
+            sl = _entry + sl_dist
+            tp = _entry - tp_dist
 
         # ══════════════════════════════════════════════════
         # Friction Minimizer: 指値エントリー価格 (optional)
         # ══════════════════════════════════════════════════
         _limit_price = None
-        if ctx.df is not None and len(ctx.df) >= 3:
-            _limit_price = compute_limit_entry_price(ctx.df, signal)
+        if _signal_df is not None and len(_signal_df) >= 3:
+            _limit_price = compute_limit_entry_price(_signal_df, signal)
 
         # ══════════════════════════════════════════════════
         # Confidence & Result
         # ══════════════════════════════════════════════════
         conf = int(min(90, 55 + score * 3.5))
         reasons.append(
-            f"📊 Session Gate: UTC {ctx.hour_utc} | "
+            f"📊 Session Gate: UTC {_hour_utc} | "
             f"MFE Ratio: {_mfe_ratio:.1f} | "
             f"HTF: {_htf_dir}"
         )
@@ -512,6 +578,9 @@ class ConfluenceScalp(StrategyBase):
                 f"__CHOCH__:{_choch['direction']}:"
                 f"{_choch['level']:.{_prec}f}"
             )
+
+        if _v2 and _bar_id is not None:
+            self._dedup_state[(ctx.symbol, signal, _bar_id)] = True
 
         return Candidate(
             signal=signal, confidence=conf, sl=sl, tp=tp,
