@@ -159,6 +159,10 @@ class ScalperEngine:
         log_all = os.getenv("LOG_SCALP_LOSERS_AS_SHADOW", "0").lower() in ("1", "true", "yes")
         if log_all:
             return [c for c in candidates if c is not best]
+        _shadow_always = self.SHADOW_ALWAYS_STRATEGIES
+        if (os.environ.get("BB_RSI_REDESIGN_V2") == "1"
+                and os.environ.get("BB_RSI_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"bb_rsi_reversion"}
         return [c for c in candidates
                 if c is not best
-                and c.entry_type in self.SHADOW_ALWAYS_STRATEGIES]
+                and c.entry_type in _shadow_always]

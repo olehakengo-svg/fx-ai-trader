@@ -137,3 +137,46 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T14:22:23Z)
+
+exit=0 · 2536s
+
+```
+実装完了です。
+
+変更:
+- [strategies/scalp/bb_rsi.py](/data/repo/fx-ai-trader/strategies/scalp/bb_rsi.py:72)
+  - `BB_RSI_REDESIGN_V2=1` 配下でのみ、JPY `ADX>=30` tail の MR anti-trend confidence penalty を bypass。
+  - flag OFF は既存挙動そのままです。
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:162)
+  - `BB_RSI_REDESIGN_V2=1` かつ `BB_RSI_REDESIGN_V2_SHADOW_PROMOTE=1` の両方が立った場合だけ `bb_rsi_reversion` を shadow emit 対象に登録。
+- [tests/test_bb_rsi_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_bb_rsi_shadow_redesign_v2.py:55)
+  - default OFF 保持、V2 high-ADX bypass、non-JPY 非影響、shadow double-flag をテスト。
+- [tools/bb_rsi_shadow_bt.py](/data/repo/fx-ai-trader/tools/bb_rsi_shadow_bt.py:1)
+  - 365d MASSIVE BT report generator。
+- [bt-results/bb_rsi-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/bb_rsi-shadow-redesign-v2-2026-05-05.json)
+  - BT report 生成済み。
+
+検証:
+- `.venv/bin/pytest tests/test_bb_rsi_shadow_redesign_v2.py tests/test_asia_range_fade_v1_shadow_redesign_v2.py -q`
+  - `8 passed`
+- `python3 -m json.tool bt-results/bb_rsi-shadow-redesign-v2-2026-05-05.json`
+  - OK
+- `python3 -m py_compile tools/bb_rsi_shadow_bt.py strategies/scalp/bb_rsi.py strategies/scalp/__init__.py`
+  - OK
+
+BT verdict:
+- Overall: `INSUFFICIENT_BT_EVIDENCE`
+- Proposed N: `0` for `USD_JPY`, `EUR_JPY`, `EUR_USD`, `GBP_USD`
+- v2 LOCK rule に従い、catastrophic check は skip、shadow promote 推奨です。
+- Report runner: `app.run_daytrade_backtest` with MASSIVE `15m` parquet mandatory (`BT_MODE=1`, `BT_REQUIRE_MASSIVE_CACHE=1`).
+
+Self-review:
+- catastrophic / insufficient evidence rule のみで判定。
+- absolute Kelly / positive direction は要求していません。
+- live default は完全 OFF。
+- shadow emit も `BB_RSI_REDESIGN_V2_SHADOW_PROMOTE=1` がない限り OFF。
+- post-hoc adjustment なし。
+```
