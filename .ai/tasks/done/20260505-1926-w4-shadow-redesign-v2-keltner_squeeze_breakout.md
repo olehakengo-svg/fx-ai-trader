@@ -135,3 +135,30 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-05T22:42:56Z)
+
+exit=0 · 992s
+
+```
+Implemented KSB redesign v2 under flag.
+
+Changes:
+- [keltner_squeeze_breakout.py](/data/repo/fx-ai-trader/strategies/hourly/keltner_squeeze_breakout.py:89): added `KELTNER_SQUEEZE_BREAKOUT_REDESIGN_V2`, closed-bar `df.iloc[-2]` signal evaluation, next/current `ctx.entry` SL/TP anchoring, live `bar_time` guard, and per `(symbol, strategy, bar_time)` dedup.
+- [__init__.py](/data/repo/fx-ai-trader/strategies/hourly/__init__.py:89): added opt-in shadow worker registration behind both `KELTNER_SQUEEZE_BREAKOUT_REDESIGN_V2=1` and `KELTNER_SQUEEZE_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE=1`.
+- [test_keltner_squeeze_breakout_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_keltner_squeeze_breakout_shadow_redesign_v2.py:1): added default-off, closed-bar, current-intrabar rejection, live missing-bar-time block, dedup, and shadow registration tests.
+- [keltner_squeeze_breakout_shadow_bt.py](/data/repo/fx-ai-trader/tools/keltner_squeeze_breakout_shadow_bt.py:1): added 365d MASSIVE-only A/B BT report generator.
+
+BT:
+- Generated missing `1h` MASSIVE parquet caches directly from Massive API for the five target pairs.
+- Report written: [keltner_squeeze_breakout-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/keltner_squeeze_breakout-shadow-redesign-v2-2026-05-05.json:1)
+- Verdict: `INSUFFICIENT_BT_EVIDENCE`
+- Proposed N: `0` for all target cells, so catastrophic check and sanity floor were skipped per v2 criteria.
+- Shadow recommendation: `RECOMMEND_SHADOW`
+
+Verification:
+- `.venv/bin/pytest -q tests/test_keltner_squeeze_breakout_shadow_redesign_v2.py tests/test_donchian_momentum_breakout_shadow_redesign_v2.py` → `12 passed`
+- `python -m py_compile` for touched strategy/engine/BT script passed.
+- `git diff --check` passed.
+```

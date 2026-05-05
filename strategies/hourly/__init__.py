@@ -86,6 +86,9 @@ class HourlyEngine:
         if (os.environ.get("DONCHIAN_MOMENTUM_BREAKOUT_REDESIGN_V2") == "1"
                 and os.environ.get("DONCHIAN_MOMENTUM_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"donchian_momentum_breakout"}
+        if (os.environ.get("KELTNER_SQUEEZE_BREAKOUT_REDESIGN_V2") == "1"
+                and os.environ.get("KELTNER_SQUEEZE_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"keltner_squeeze_breakout"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

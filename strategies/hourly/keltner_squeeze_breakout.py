@@ -42,6 +42,7 @@ SL/TP:
   BE: TP×BE_TRIGGER_PCT到達でSL→BE+1pip
   Trailing: BE後、直近N本の安値/高値 - ATR×TRAIL_ATR_MULT で追従
 """
+import os
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
@@ -85,13 +86,29 @@ class KeltnerSqueezeBreakout(StrategyBase):
     # ── 最大保持 ──
     MAX_HOLD_BARS = 24          # 24時間
 
+    REDESIGN_V2_ENV = "KELTNER_SQUEEZE_BREAKOUT_REDESIGN_V2"
+    _dedup_state: dict = {}
+
+    @classmethod
+    def reset_dedup_state(cls):
+        cls._dedup_state.clear()
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get(self.REDESIGN_V2_ENV) == "1"
+
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        _v2 = self._redesign_v2_enabled()
+
         # ── USD/JPY無効化: WR=33.3% EV=+2.2pip → 実環境スプレッド/スリッページで負EV転落リスク大 ──
         if ctx.is_jpy:
             return None
 
         # ── DataFrame十分性チェック ──
         if ctx.df is None or len(ctx.df) < 20:
+            return None
+        if _v2 and len(ctx.df) < 21:
+            return None
+        if _v2 and not ctx.backtest_mode and ctx.bar_time is None:
             return None
 
         # ── squeeze_on列の存在チェック ──
@@ -110,10 +127,36 @@ class KeltnerSqueezeBreakout(StrategyBase):
             _adx_min = self.ADX_MIN_EUR
             _tp_mult = self.TP_ATR_MULT_EUR
 
+        _signal_df = ctx.df
+        _signal_pos = -2 if _v2 else -1
+        _signal_row = _signal_df.iloc[_signal_pos]
+        _prev_signal_row = _signal_df.iloc[_signal_pos - 1]
+        _signal_bar_id = None
+        if _v2:
+            try:
+                _signal_bar_id = _signal_row.name
+            except Exception:
+                _signal_bar_id = ctx.bar_time
+
+        _entry = ctx.entry
+        _sig_close = float(_signal_row["Close"])
+        _sig_open = float(_signal_row["Open"])
+        _atr = float(_signal_row.get("atr", ctx.atr)) if _v2 else ctx.atr
+        _adx = float(_signal_row.get("adx", ctx.adx)) if _v2 else ctx.adx
+        _macdh = float(_signal_row.get("macd_hist", ctx.macdh)) if _v2 else ctx.macdh
+        _macdh_prev = float(_prev_signal_row.get("macd_hist", ctx.macdh_prev)) if _v2 else ctx.macdh_prev
+        _ema9 = float(_signal_row.get("ema9", ctx.ema9)) if _v2 else ctx.ema9
+        _ema21 = float(_signal_row.get("ema21", ctx.ema21)) if _v2 else ctx.ema21
+        _ema50 = float(_signal_row.get("ema50", ctx.ema50)) if _v2 else ctx.ema50
+        _ema200 = float(_signal_row.get("ema200", ctx.ema200)) if _v2 else ctx.ema200
+
+        if _atr <= 0:
+            return None
+
         # ═══════════════════════════════════════════════════
         # 条件1-2: スクイーズ検出 — 前N本で連続squeeze_on=True
         # ═══════════════════════════════════════════════════
-        _curr_squeeze = bool(ctx.df["squeeze_on"].iloc[-1])
+        _curr_squeeze = bool(_signal_df["squeeze_on"].iloc[_signal_pos])
 
         # 現在足でスクイーズ中 = まだ放出されていない → WAIT
         if _curr_squeeze:
@@ -121,8 +164,11 @@ class KeltnerSqueezeBreakout(StrategyBase):
 
         # 直前バーまでのスクイーズ連続長を計測
         _sq_count = 0
-        for i in range(2, min(self.MAX_SQUEEZE_BARS + 3, len(ctx.df))):
-            if bool(ctx.df["squeeze_on"].iloc[-i]):
+        for i in range(1, min(self.MAX_SQUEEZE_BARS + 2, len(_signal_df))):
+            _sq_pos = _signal_pos - i
+            if abs(_sq_pos) > len(_signal_df):
+                break
+            if bool(_signal_df["squeeze_on"].iloc[_sq_pos]):
                 _sq_count += 1
             else:
                 break
@@ -138,11 +184,11 @@ class KeltnerSqueezeBreakout(StrategyBase):
         # ═══════════════════════════════════════════════════
         # 条件3-4: スクイーズ放出方向の確認
         # ═══════════════════════════════════════════════════
-        _kelt_upper = float(ctx.df["kelt_upper"].iloc[-1])
-        _kelt_lower = float(ctx.df["kelt_lower"].iloc[-1])
-        _kelt_mid = float(ctx.df["kelt_mid"].iloc[-1])
-        _close = ctx.entry
-        _open = ctx.open_price
+        _kelt_upper = float(_signal_df["kelt_upper"].iloc[_signal_pos])
+        _kelt_lower = float(_signal_df["kelt_lower"].iloc[_signal_pos])
+        _kelt_mid = float(_signal_df["kelt_mid"].iloc[_signal_pos])
+        _close = _sig_close if _v2 else ctx.entry
+        _open = _sig_open if _v2 else ctx.open_price
 
         # ブレイク閾値: Keltner(ATR×1.5)の80% = 実質ATR×1.2相当
         # スクイーズ検出はATR×1.5を使うが、ブレイク確認は緩和
@@ -158,7 +204,7 @@ class KeltnerSqueezeBreakout(StrategyBase):
         # ═══════════════════════════════════════════════════
         # 条件5: ブレイク足の品質 — 実体比率
         # ═══════════════════════════════════════════════════
-        _bar_range = float(ctx.df.iloc[-1]["High"]) - float(ctx.df.iloc[-1]["Low"])
+        _bar_range = float(_signal_row["High"]) - float(_signal_row["Low"])
         _body = abs(_close - _open)
         _body_ratio = _body / _bar_range if _bar_range > 0 else 0
 
@@ -175,25 +221,25 @@ class KeltnerSqueezeBreakout(StrategyBase):
         # 条件6: MACD-Hモメンタム確認
         # ═══════════════════════════════════════════════════
         if _is_buy:
-            if ctx.macdh <= 0:
+            if _macdh <= 0:
                 return None
-            if ctx.macdh_prev >= ctx.macdh:
+            if _macdh_prev >= _macdh:
                 return None  # 拡大していない
         else:
-            if ctx.macdh >= 0:
+            if _macdh >= 0:
                 return None
-            if ctx.macdh_prev <= ctx.macdh:
+            if _macdh_prev <= _macdh:
                 return None  # 縮小していない
 
         # ═══════════════════════════════════════════════════
         # 条件7: ADXトレンド開始検出
         # ═══════════════════════════════════════════════════
         _adx_rising = False
-        if len(ctx.df) >= 2 and "adx" in ctx.df.columns:
-            _prev_adx = float(ctx.df["adx"].iloc[-2])
-            _adx_rising = (ctx.adx - _prev_adx) >= self.ADX_RISE_THRESHOLD
+        if len(_signal_df) >= 2 and "adx" in _signal_df.columns:
+            _prev_adx = float(_signal_df["adx"].iloc[_signal_pos - 1])
+            _adx_rising = (_adx - _prev_adx) >= self.ADX_RISE_THRESHOLD
 
-        if ctx.adx < _adx_min and not _adx_rising:
+        if _adx < _adx_min and not _adx_rising:
             return None
 
         # ═══════════════════════════════════════════════════
@@ -210,48 +256,60 @@ class KeltnerSqueezeBreakout(StrategyBase):
         # 圧縮後のブレイクはEMA200付近で発生することがあるため、
         # ハードブロックではなくスコア減算で対応
         _ema200_aligned = True
-        if _is_buy and ctx.entry < ctx.ema200:
+        if _is_buy and _close < _ema200:
             _ema200_aligned = False
-        if _is_sell and ctx.entry > ctx.ema200:
+        if _is_sell and _close > _ema200:
             _ema200_aligned = False
 
         # ═══════════════════════════════════════════════════
         # シグナル生成
         # ═══════════════════════════════════════════════════
         signal = "BUY" if _is_buy else "SELL"
+        if _v2 and _signal_bar_id is not None:
+            _dedup_key = (
+                ctx.symbol.upper().replace("=X", "").replace("_", "").replace("/", ""),
+                self.name,
+                _signal_bar_id,
+            )
+            if self._dedup_state.get(_dedup_key):
+                return None
+
         score = 5.0  # 1H戦略は基本スコア高め
         reasons = []
 
         # ── SL: スクイーズ期間のスイングHL + ATR×MAX cap ──
         # 旧: 反対側Keltnerバンド → SLが140pipと巨大化する問題
         # 新: スクイーズ中のswing low/high + ATRバッファ、最大ATR×1.5で制限
-        _sq_start = -(1 + _sq_count)
-        _sq_end = -1
+        _sq_end_pos = _signal_pos
+        _sq_start_pos = _signal_pos - _sq_count
+        _sq_window = _signal_df.iloc[_sq_start_pos:_sq_end_pos]
+        if len(_sq_window) < _sq_count:
+            return None
         if _is_buy:
             # BUY: SL = スクイーズ中のLow最低値 - ATR×0.3
-            _swing_low = float(ctx.df["Low"].iloc[_sq_start:_sq_end].min())
-            _sl_raw = _swing_low - ctx.atr * 0.3
+            _swing_low = float(_sq_window["Low"].min())
+            _sl_raw = _swing_low - _atr * 0.3
             # ATR×MAX_ATR_MULT で制限
-            _max_sl_dist = ctx.atr * self.SL_MAX_ATR_MULT
-            sl = max(_sl_raw, ctx.entry - _max_sl_dist)
+            _max_sl_dist = _atr * self.SL_MAX_ATR_MULT
+            sl = max(_sl_raw, _entry - _max_sl_dist)
         else:
             # SELL: SL = スクイーズ中のHigh最高値 + ATR×0.3
-            _swing_high = float(ctx.df["High"].iloc[_sq_start:_sq_end].max())
-            _sl_raw = _swing_high + ctx.atr * 0.3
+            _swing_high = float(_sq_window["High"].max())
+            _sl_raw = _swing_high + _atr * 0.3
             # ATR×MAX_ATR_MULT で制限
-            _max_sl_dist = ctx.atr * self.SL_MAX_ATR_MULT
-            sl = min(_sl_raw, ctx.entry + _max_sl_dist)
+            _max_sl_dist = _atr * self.SL_MAX_ATR_MULT
+            sl = min(_sl_raw, _entry + _max_sl_dist)
 
         # ── TP: ATR × TP_MULT ──
-        _sl_dist = abs(ctx.entry - sl)
-        _tp_target = ctx.atr * _tp_mult
+        _sl_dist = abs(_entry - sl)
+        _tp_target = _atr * _tp_mult
         _tp_min_rr = _sl_dist * self.MIN_RR
         _tp_dist = max(_tp_target, _tp_min_rr)
 
         if _is_buy:
-            tp = ctx.entry + _tp_dist
+            tp = _entry + _tp_dist
         else:
-            tp = ctx.entry - _tp_dist
+            tp = _entry - _tp_dist
 
         # ── RR最低保証 ──
         if _sl_dist <= 0 or _tp_dist / _sl_dist < self.MIN_RR:
@@ -269,8 +327,12 @@ class KeltnerSqueezeBreakout(StrategyBase):
             f"✅ KSB {signal}: スクイーズ{_sq_count}本({_sq_count}h)→放出 "
             f"(Bollinger 2001 / Keltner 1960)"
         )
+        if _v2:
+            reasons.append(
+                f"✅ KELTNER_SQUEEZE_BREAKOUT_REDESIGN_V2 closed-bar signal={_signal_bar_id}"
+            )
         reasons.append(
-            f"✅ Keltnerブレイク: Close={ctx.entry:.3f} "
+            f"✅ Keltnerブレイク: Close={_close:.3f} "
             f"{'>' if _is_buy else '<'} "
             f"{'Upper' if _is_buy else 'Lower'}(80%)="
             f"{_break_upper if _is_buy else _break_lower:.3f}"
@@ -279,7 +341,7 @@ class KeltnerSqueezeBreakout(StrategyBase):
             f"✅ 実体比率: {_body_ratio:.0%}≥{self.BODY_RATIO_MIN:.0%}"
         )
         reasons.append(
-            f"✅ MACD-H加速: {ctx.macdh:.4f} "
+            f"✅ MACD-H加速: {_macdh:.4f} "
             f"({'拡大' if _is_buy else '縮小'}中)"
         )
         reasons.append(
@@ -304,7 +366,7 @@ class KeltnerSqueezeBreakout(StrategyBase):
         # ADX上昇ボーナス
         if _adx_rising:
             score += 0.5
-            reasons.append(f"✅ ADX急上昇(+{ctx.adx - _prev_adx:.1f})")
+            reasons.append(f"✅ ADX急上昇(+{_adx - _prev_adx:.1f})")
 
         # HTF方向一致ボーナス
         if (_is_buy and _agreement == "bull") or \
@@ -313,10 +375,10 @@ class KeltnerSqueezeBreakout(StrategyBase):
             reasons.append(f"✅ HTF方向一致({_agreement})")
 
         # EMAパーフェクトオーダーボーナス
-        if _is_buy and ctx.ema9 > ctx.ema21 > ctx.ema50:
+        if _is_buy and _ema9 > _ema21 > _ema50:
             score += 0.3
             reasons.append("✅ EMAパーフェクトオーダー(9>21>50)")
-        elif _is_sell and ctx.ema9 < ctx.ema21 < ctx.ema50:
+        elif _is_sell and _ema9 < _ema21 < _ema50:
             score += 0.3
             reasons.append("✅ EMAパーフェクトオーダー(9<21<50)")
 
@@ -326,6 +388,8 @@ class KeltnerSqueezeBreakout(StrategyBase):
             reasons.append(f"✅ 高RR({_rr:.1f}≥2.5)")
 
         conf = int(min(90, 50 + score * 4))
+        if _v2 and _signal_bar_id is not None:
+            self._dedup_state[_dedup_key] = True
         return Candidate(
             signal=signal, confidence=conf, sl=sl, tp=tp,
             reasons=reasons, entry_type=self.name, score=score
