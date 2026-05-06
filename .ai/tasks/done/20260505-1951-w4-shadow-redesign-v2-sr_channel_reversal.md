@@ -143,3 +143,55 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T09:58:27Z)
+
+exit=0 · 4222s
+
+```
+実装と検証まで完了しました。
+
+変更:
+- [strategies/scalp/sr_channel_reversal.py](/data/repo/fx-ai-trader/strategies/scalp/sr_channel_reversal.py)
+  - `SR_CHANNEL_REVERSAL_REDESIGN_V2=1` 配下でのみ V2 を有効化
+  - 確定足 `df.iloc[-2]` で SR/channel proximity、RSI5、Stoch cross、MACD-H turn を判定
+  - 次バー `ctx.entry` で candidate 化
+  - live 時のみ `(symbol, strategy, closed_bar_time, direction)` dedup
+  - boundary 外側 SL + mean-side TP へ変更
+  - default OFF の legacy path は元挙動維持
+
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py)
+  - `SR_CHANNEL_REVERSAL_REDESIGN_V2=1` かつ `SR_CHANNEL_REVERSAL_REDESIGN_V2_SHADOW_PROMOTE=1` の double flag 時だけ shadow emit 対象化
+
+- [tests/test_sr_channel_reversal_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_sr_channel_reversal_shadow_redesign_v2.py)
+  - default OFF
+  - closed-bar 判定
+  - current-bar 無視
+  - live dedup
+  - double flag shadow registration
+
+- [tools/sr_channel_reversal_shadow_bt.py](/data/repo/fx-ai-trader/tools/sr_channel_reversal_shadow_bt.py)
+  - 365d MASSIVE BT report generator
+  - v2.1 criteria: `pnl_sign_preserved` のみ REJECT 根拠、PF/Wilson/N drop は warn-only
+
+BT report:
+- [bt-results/sr_channel_reversal-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/sr_channel_reversal-shadow-redesign-v2-2026-05-05.json)
+
+v2.1 LOCK verdict: `REJECT`
+
+理由: proposed N は全 cell で 20 以上あり、catastrophic check 対象。全 5 pairs で baseline PnL が正、proposed PnL が負に反転しました。
+
+```text
+USD_JPY  current N=275 PnL=+17.833  proposed N=112 PnL=-31.460  REJECT
+EUR_JPY  current N=291 PnL=+49.077  proposed N=127 PnL=-19.258  REJECT
+EUR_USD  current N=211 PnL=+28.931  proposed N=74  PnL=-9.857   REJECT
+GBP_USD  current N=261 PnL=+16.288  proposed N=89  PnL=-8.685   REJECT
+GBP_JPY  current N=283 PnL=+13.012  proposed N=117 PnL=-30.160  REJECT
+```
+
+Shadow promote は未実施です。shadow registration のコードは double flag 配下にありますが、`SR_CHANNEL_REVERSAL_REDESIGN_V2_SHADOW_PROMOTE` は有効化していません。
+
+検証:
+- `.venv/bin/pytest tests
+…(truncated)

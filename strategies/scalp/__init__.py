@@ -199,6 +199,9 @@ class ScalperEngine:
         if (os.environ.get("SESSION_VOL_EXPANSION_REDESIGN_V2") == "1"
                 and os.environ.get("SESSION_VOL_EXPANSION_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"session_vol_expansion"}
+        if (os.environ.get("SR_CHANNEL_REVERSAL_REDESIGN_V2") == "1"
+                and os.environ.get("SR_CHANNEL_REVERSAL_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"sr_channel_reversal"}
         if (os.environ.get("MA_REGIME_SWITCH_REDESIGN_V2") == "1"
                 and os.environ.get("MA_REGIME_SWITCH_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"ma_regime_switch"}
