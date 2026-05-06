@@ -181,7 +181,7 @@ class HtfFeatureSpec:
     will both compute it and forward it into the per-bar dict.
     """
     m15_fields: list[str] = field(default_factory=lambda: [
-        "close", "adx", "ema9", "ema21", "ema50", "rsi14", "atr", "ema_slope",
+        "close", "adx", "ema9", "ema21", "ema50", "rsi14", "atr", "atr_pct", "ema_slope",
     ])
     m5_fields: list[str] = field(default_factory=lambda: [
         "close", "high", "low",
@@ -314,6 +314,8 @@ def compute_m15_features(df_15: pd.DataFrame, spec: HtfFeatureSpec
     out["ema50"] = df.get("ema50", 0.0)
     out["rsi14"] = df.get("rsi", 50.0)
     out["atr"] = df.get("atr", 0.0)
+    atr_window = out["atr"].rolling(50, min_periods=20)
+    out["atr_pct"] = atr_window.rank(pct=True).fillna(0.5) * 100.0
     # 3-bar ema21 difference (ema_slope used by trend_follow + regime_trend)
     out["ema_slope"] = out["ema21"].diff(3).fillna(0.0)
     if spec.include_range_20_m15:

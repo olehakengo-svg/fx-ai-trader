@@ -43,7 +43,7 @@ from strategies.scalp.mtf_regime_range_cascade_scalp import MtfRegimeRangeCascad
 # v1b は Shadow 稼働開始 (BT 180d Tokyo/NY 6/6 PASS)、v1a/c/d は BT 失敗で再設計待ち
 from strategies.scalp.ma_trend_perfect import MaTrendPerfect
 # REDESIGN_PENDING: from strategies.scalp.ma_mr_hybrid import MaMrHybrid    # v1a 閾値厳しすぎ N=66 不足
-# REDESIGN_PENDING: from strategies.scalp.ma_regime_switch import MaRegimeSwitch  # v1c regime classifier 機能不全
+from strategies.scalp.ma_regime_switch import MaRegimeSwitch
 # REDESIGN_PENDING: from strategies.scalp.bb_rsi_ema_aligned import BbRsiEmaAligned  # v1d EMA200 整合が MR エッジ破壊
 
 
@@ -81,7 +81,7 @@ class ScalperEngine:
             # v1a/c/d は BT 失敗で再設計フェーズ (詳細: pre-reg-ma-trend-perfect-2026-04-30.md)
             MaTrendPerfect(),       # v1b: H1+M15 大循環 + M5 EMA21 再ブレイク順張り
             # REDESIGN_PENDING MaMrHybrid(),     # v1a 再設計待ち
-            # REDESIGN_PENDING MaRegimeSwitch(), # v1c 再設計待ち
+            *([MaRegimeSwitch()] if os.environ.get("MA_REGIME_SWITCH_REDESIGN_V2") == "1" else []),
             # REDESIGN_PENDING BbRsiEmaAligned(),# v1d 再設計待ち
             EngulfingBB(),          # enabled=False
             ThreeBarReversal(),     # enabled=False
@@ -190,6 +190,9 @@ class ScalperEngine:
         if (os.environ.get("LONDON_SHRAPNEL_REDESIGN_V2") == "1"
                 and os.environ.get("LONDON_SHRAPNEL_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"london_shrapnel"}
+        if (os.environ.get("MA_REGIME_SWITCH_REDESIGN_V2") == "1"
+                and os.environ.get("MA_REGIME_SWITCH_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"ma_regime_switch"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

@@ -24,6 +24,7 @@ Revision history:
   L4 1m 確認           : 反転バー
 """
 from __future__ import annotations
+import os
 from typing import Optional
 
 from strategies.base import StrategyBase, Candidate
@@ -38,6 +39,7 @@ _M15_ADX_MIN_TREND = 22.0
 _SL_ATR_MULT = 1.0
 _TP_ATR_MULT_TREND = 1.6
 _TP_ATR_MULT_MR = 1.0
+_V2_FLAG = "MA_REGIME_SWITCH_REDESIGN_V2"
 
 
 def _normalize_pair(symbol: str) -> str:
@@ -47,6 +49,64 @@ def _normalize_pair(symbol: str) -> str:
     if len(s) == 6:
         return f"{s[:3]}_{s[3:]}"
     return s
+
+
+def _env_flag(name: str) -> bool:
+    return os.environ.get(name, "0").lower() in ("1", "true", "yes")
+
+
+def _m15_atr_pct_from_context(ctx: SignalContext) -> Optional[float]:
+    """Compute current M15 ATR rolling percentile from the causal ctx.df slice."""
+    df = ctx.df
+    if df is None or len(df) < 150:
+        return None
+    try:
+        import pandas as pd
+
+        ohlc = df[["Open", "High", "Low", "Close"]].copy()
+        if not isinstance(ohlc.index, pd.DatetimeIndex):
+            return None
+        m15 = ohlc.resample("15min").agg(
+            {"Open": "first", "High": "max", "Low": "min", "Close": "last"}
+        ).dropna()
+        if len(m15) < 50:
+            return None
+        prev_close = m15["Close"].shift(1)
+        tr = pd.concat(
+            [
+                m15["High"] - m15["Low"],
+                (m15["High"] - prev_close).abs(),
+                (m15["Low"] - prev_close).abs(),
+            ],
+            axis=1,
+        ).max(axis=1)
+        atr = tr.rolling(14, min_periods=14).mean().dropna()
+        if len(atr) < 50:
+            return None
+        window = atr.iloc[-50:]
+        current = float(window.iloc[-1])
+        if current <= 0:
+            return None
+        return float((window < current).sum()) / float(len(window)) * 100.0
+    except Exception:
+        return None
+
+
+def _regime_atr_pct(ctx: SignalContext, m15: dict) -> Optional[float]:
+    if not _env_flag(_V2_FLAG):
+        return ctx.bb_width_pct * 100.0
+
+    for key in ("atr_pct", "atr_percentile", "atr_rolling_pct"):
+        if key in m15:
+            try:
+                value = float(m15.get(key))
+            except (TypeError, ValueError):
+                continue
+            if 0.0 <= value <= 1.0:
+                return value * 100.0
+            if 0.0 <= value <= 100.0:
+                return value
+    return _m15_atr_pct_from_context(ctx)
 
 
 class MaRegimeSwitch(StrategyBase):
@@ -66,10 +126,9 @@ class MaRegimeSwitch(StrategyBase):
         if not (m15 and m5):
             return None
 
-        # ATR percentile: ctx.bb_width_pct を流用するか、簡易には ctx.atr/ctx.atr7 比
-        # ctx には bb_width_pct (1m, 50バー percentile) があるため、これを vol regime proxy に
-        # bb_width も atr も同じく volatility magnitude を捉える指標
-        atr_pct = ctx.bb_width_pct * 100  # 0-100 scale
+        atr_pct = _regime_atr_pct(ctx, m15)
+        if atr_pct is None:
+            return None
 
         signal: Optional[str] = None
         sl: float = 0.0; tp: float = 0.0
@@ -100,12 +159,16 @@ class MaRegimeSwitch(StrategyBase):
                 signal = "BUY"
                 reasons.append(f"📊 Regime=High vol (atr_pct={atr_pct:.0f}>={_ATR_PCT_HIGH:.0f})")
                 reasons.append(f"✅ Trend BUY: M15 大循環 ADX={m15_adx:.1f}")
+                if _env_flag(_V2_FLAG):
+                    reasons.append("✅ MA_REGIME_SWITCH_REDESIGN_V2: M15 ATR rolling percentile regime")
             elif (perfect_bear and m5_prev_close >= m5_ema21 > m5_close
                     and ctx.entry < ctx.open_price
                     and ctx.macdh < ctx.macdh_prev):
                 signal = "SELL"
                 reasons.append(f"📊 Regime=High vol (atr_pct={atr_pct:.0f})")
                 reasons.append(f"✅ Trend SELL: M15 大循環 ADX={m15_adx:.1f}")
+                if _env_flag(_V2_FLAG):
+                    reasons.append("✅ MA_REGIME_SWITCH_REDESIGN_V2: M15 ATR rolling percentile regime")
 
         # --- Low vol → MR regime ---
         elif atr_pct <= _ATR_PCT_LOW:
@@ -120,12 +183,16 @@ class MaRegimeSwitch(StrategyBase):
                 signal = "BUY"
                 reasons.append(f"📊 Regime=Low vol (atr_pct={atr_pct:.0f}<={_ATR_PCT_LOW:.0f})")
                 reasons.append(f"✅ Range BUY: M5 過熱 BB%B={m5_bbpb:.2f} RSI={m5_rsi:.1f}")
+                if _env_flag(_V2_FLAG):
+                    reasons.append("✅ MA_REGIME_SWITCH_REDESIGN_V2: M15 ATR rolling percentile regime")
             elif (m5_bbpb >= 0.70 and m5_rsi >= 65
                     and m5_stoch_k < m5_stoch_d
                     and ctx.entry < ctx.open_price):
                 signal = "SELL"
                 reasons.append(f"📊 Regime=Low vol (atr_pct={atr_pct:.0f})")
                 reasons.append(f"✅ Range SELL: M5 過熱 BB%B={m5_bbpb:.2f} RSI={m5_rsi:.1f}")
+                if _env_flag(_V2_FLAG):
+                    reasons.append("✅ MA_REGIME_SWITCH_REDESIGN_V2: M15 ATR rolling percentile regime")
 
         # --- Mid vol → no fire ---
         else:

@@ -135,3 +135,48 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T01:37:54Z)
+
+exit=0 · 1756s
+
+```
+実装と検証まで完了しました。
+
+変更内容:
+- `ma_regime_switch` V2 flag 追加: `MA_REGIME_SWITCH_REDESIGN_V2`
+- regime 判定を legacy の `ctx.bb_width_pct * 100` から、flag ON 時は M15 ATR rolling percentile (`atr_pct`) に切替
+- live default OFF: `ScalperEngine` には V2 flag ON の時だけ登録
+- shadow emit は二重 flag:
+  - `MA_REGIME_SWITCH_REDESIGN_V2=1`
+  - `MA_REGIME_SWITCH_REDESIGN_V2_SHADOW_PROMOTE=1`
+- BT/live HTF feature に `m15.atr_pct` を追加
+- 専用テスト追加: `tests/test_ma_regime_switch_shadow_redesign_v2.py`
+- BT runner/report 追加:
+  - `tools/ma_regime_switch_shadow_bt.py`
+  - `bt-results/ma_regime_switch-shadow-redesign-v2-2026-05-05.json`
+
+検証:
+- `.venv/bin/python -m pytest tests/test_ma_regime_switch_shadow_redesign_v2.py -q`
+  - `5 passed`
+- `.venv/bin/python -m pytest tests/test_ma_regime_switch_shadow_redesign_v2.py tests/test_bb_rsi_shadow_redesign_v2.py -q`
+  - `9 passed`
+- BT: `BT_MODE=1`, `BT_REQUIRE_MASSIVE_CACHE=1`, MASSIVE parquet 使用
+  - runner: `app.run_daytrade_backtest`
+  - interval: `15m`
+  - USD_JPY baseline: `N=26`, `PF=0.8949`, `Wilson_lo=0.3546`, `PnL=-1.8131`
+  - USD_JPY proposed: `N=131`, `PF=1.0664`, `Wilson_lo=0.5252`, `PnL=5.1733`
+
+v2 LOCK verdict: `PASS`
+
+理由:
+- proposed `N=131 >= 20`
+- `pf_change=+0.1715`
+- `wilson_lo_change=+0.1706`
+- `n_change_pct=+403.8462`
+- PnL sign preserved
+- sanity floor pass: `PF=1.0664 >= 0.85`, `Wilson_lo=0.5252 >= 0.20`
+
+Codex self-review も report 内で PASS です。既存の未追跡 `ma_mr_hybrid` 関連ファイルは今回の対象外として触っていません。
+```

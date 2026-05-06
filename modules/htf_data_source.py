@@ -302,6 +302,14 @@ def _compute_m15_features(df) -> Optional[dict]:
         hurst_64 = 0.5
 
     atr_val = float(last.get("atr", 0.0) or 0.0)
+    atr_pct = 50.0
+    try:
+        if "atr" in df_i.columns and len(df_i) >= 20 and atr_val > 0:
+            atr_window = df_i["atr"].iloc[-50:].dropna()
+            if len(atr_window) >= 20:
+                atr_pct = float((atr_window < atr_val).sum()) / float(len(atr_window)) * 100.0
+    except Exception:
+        atr_pct = 50.0
 
     return {
         "close": float(last["Close"]),
@@ -312,6 +320,7 @@ def _compute_m15_features(df) -> Optional[dict]:
         "adx": float(last.get("adx", 0.0) or 0.0),
         "rsi14": float(last.get("rsi", 50.0) or 50.0),
         "atr": atr_val,
+        "atr_pct": atr_pct,                # M15 ATR rolling percentile (0-100)
         "atr15": atr_val,                  # alias for regime_classifier readability
         "range_20": range_20,              # 直近20本 high-low 幅
         "hurst_64": hurst_64,              # R/S Hurst (64バー)

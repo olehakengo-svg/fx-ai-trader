@@ -6399,6 +6399,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "bb_rsi_ema_aligned",            # BT-only strategy-filter path for scalp shadow redesign
                 "engulfing_bb",                  # BT-only strategy-filter path for scalp shadow redesign
                 "london_breakout",               # BT-only strategy-filter path for scalp shadow redesign
+                "ma_regime_switch",              # BT-only strategy-filter path for scalp shadow redesign
             }
             DT_BLOCKED = {"unknown", "wait"}
 

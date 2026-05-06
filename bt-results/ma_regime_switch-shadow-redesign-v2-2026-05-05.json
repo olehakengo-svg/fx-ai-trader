@@ -1,0 +1,84 @@
+{
+  "generated_at": "2026-05-06T01:37:16.493033+00:00",
+  "strategy": "ma_regime_switch",
+  "variant": "m15_atr_percentile_regime_v2",
+  "flag": "MA_REGIME_SWITCH_REDESIGN_V2",
+  "shadow_worker_flag": "MA_REGIME_SWITCH_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest (production daytrade path; strategy-filter compute_daytrade_signal patch)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": true,
+  "targets": [
+    "USD_JPY"
+  ],
+  "missing_caches": [],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": {
+      "pf_change": ">= -0.10",
+      "wilson_lo_change": ">= -0.05",
+      "n_change_pct": ">= -30",
+      "pnl_sign_preserved": true
+    },
+    "sanity_floor": {
+      "wilson_lo_proposed": ">= 0.20",
+      "pf_proposed": ">= 0.85"
+    },
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "USD_JPY": {
+      "current": {
+        "N": 26,
+        "wins": 14,
+        "WR": 0.5385,
+        "EV": -0.0697,
+        "PnL": -1.8131,
+        "PF": 0.8949,
+        "wilson_lo": 0.3546,
+        "total_trades_all_strategies": 26,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24644
+      },
+      "proposed": {
+        "N": 131,
+        "wins": 80,
+        "WR": 0.6107,
+        "EV": 0.0395,
+        "PnL": 5.1733,
+        "PF": 1.0664,
+        "wilson_lo": 0.5252,
+        "total_trades_all_strategies": 131,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24644
+      },
+      "lock_criteria": {
+        "pf_change": 0.1715,
+        "wilson_lo_change": 0.1706,
+        "n_change_pct": 403.8462,
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "sanity_floor": true,
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    }
+  },
+  "overall_verdict": "PASS",
+  "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 623.1,
+  "self_review": {
+    "catastrophic_only": "PASS: verdict ignores positive-direction and Kelly; applies only v2 catastrophic/floor rules when N>=20.",
+    "insufficient_bt_evidence": "PASS: proposed N<20 becomes INSUFFICIENT_BT_EVIDENCE and shadow recommendation.",
+    "production_live_safety": "PASS: strategy is absent from ScalperEngine unless MA_REGIME_SWITCH_REDESIGN_V2=1; shadow loser emit also needs MA_REGIME_SWITCH_REDESIGN_V2_SHADOW_PROMOTE=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered M15 ATR percentile regime replacement is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo/network fallback for this report."
+  }
+}
