@@ -143,3 +143,10 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
 
 
+
+
+## Error (2026-05-06T10:08:15Z)
+
+```
+orphaned: container restarted while task was running
+```
