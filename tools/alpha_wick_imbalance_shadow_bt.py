@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A/B BT filter for alpha wick imbalance V2 shadow redesign."""
+"""A/B BT filter for wick_imbalance_reversion V2 shadow redesign."""
 from __future__ import annotations
 
 import json
@@ -19,17 +19,16 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 TARGETS = [
-    ("USD_JPY", "USDJPY=X"),
-    ("EUR_USD", "EURUSD=X"),
     ("GBP_USD", "GBPUSD=X"),
 ]
 LOOKBACK_DAYS = 365
 MINIMUM_DAYS = 365
 INTERVAL = "15m"
 STRATEGY = "wick_imbalance_reversion"
-FLAG = "ALPHA_WICK_IMBALANCE_REDESIGN_V2"
-SHADOW_FLAG = "ALPHA_WICK_IMBALANCE_REDESIGN_V2_SHADOW_PROMOTE"
-OUTFILE = ROOT / "bt-results" / "alpha_wick_imbalance-shadow-redesign-v2-2026-05-05.json"
+FLAG = "WICK_IMBALANCE_REVERSION_REDESIGN_V2"
+LEGACY_FLAG = "ALPHA_WICK_IMBALANCE_REDESIGN_V2"
+SHADOW_FLAG = "WICK_IMBALANCE_REVERSION_REDESIGN_V2_SHADOW_PROMOTE"
+OUTFILE = ROOT / "bt-results" / "wick_imbalance_reversion-shadow-redesign-v2-2026-05-05.json"
 
 
 def _compute_wick_only_signal(df, tf, sr_levels, symbol="USDJPY=X",
@@ -155,12 +154,14 @@ def _stats(result: dict) -> dict:
 
 def _run(app, data_mod, symbol: str, proposed: bool) -> dict:
     os.environ[FLAG] = "1" if proposed else "0"
+    os.environ[LEGACY_FLAG] = "0"
     app._dt_bt_cache.clear()
     data_mod._data_cache.clear()
     return app.run_daytrade_backtest(
         symbol=symbol,
         lookback_days=LOOKBACK_DAYS,
         interval=INTERVAL,
+        backtest_mode=True,
     )
 
 
@@ -186,9 +187,9 @@ def _criteria(current: dict, proposed: dict) -> dict:
     if proposed["N"] < 20:
         return {
             "verdict": "INSUFFICIENT_BT_EVIDENCE",
-            "reason": "proposed BT trades < 20; v2 spec skips catastrophic and sanity floors",
+            "reason": "proposed BT trades < 20; v2.1 skips catastrophic check and recommends shadow",
             "catastrophic_check": "SKIPPED",
-            "sanity_floor": "SKIPPED",
+            "sanity_floor": "REMOVED_V2_1",
             "shadow_promote_recommendation": "RECOMMEND_SHADOW",
         }
     err = current.get("bt_error") or proposed.get("bt_error")
@@ -198,7 +199,7 @@ def _criteria(current: dict, proposed: dict) -> dict:
             "reason": "bt_error",
             "bt_error": err,
             "catastrophic_check": False,
-            "sanity_floor": False,
+            "sanity_floor": "REMOVED_V2_1",
             "shadow_promote_recommendation": "REJECT",
         }
 
@@ -212,19 +213,14 @@ def _criteria(current: dict, proposed: dict) -> dict:
         "wilson_lo_change": round(wilson_lo_change, 4),
         "n_change_pct": round(n_change_pct, 4) if math.isfinite(n_change_pct) else str(n_change_pct),
         "pnl_sign_preserved": _pnl_sign_preserved(current["PnL"], proposed["PnL"]),
+        "warn_only": ["pf_change", "wilson_lo_change", "n_change_pct"],
     }
-    catastrophic_pass = (
-        pf_change >= -0.10
-        and wilson_lo_change >= -0.05
-        and n_change_pct >= -30
-        and checks["pnl_sign_preserved"]
-    )
-    sanity_floor = proposed["wilson_lo"] >= 0.20 and proposed_pf >= 0.85
-    verdict = "PASS" if catastrophic_pass and sanity_floor else "REJECT"
+    catastrophic_pass = checks["pnl_sign_preserved"]
+    verdict = "PASS" if catastrophic_pass else "REJECT"
     return {
         **checks,
         "catastrophic_check": catastrophic_pass,
-        "sanity_floor": sanity_floor,
+        "sanity_floor": "REMOVED_V2_1",
         "verdict": verdict,
         "shadow_promote_recommendation": "RECOMMEND_SHADOW" if verdict == "PASS" else "REJECT",
     }
@@ -275,7 +271,7 @@ def main() -> int:
 
     result = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "strategy": "alpha_wick_imbalance",
+        "strategy": STRATEGY,
         "entry_type": STRATEGY,
         "variant": "closed_bar_no_htf_hard_block_v2",
         "flag": FLAG,
@@ -289,17 +285,15 @@ def main() -> int:
         "bt_mode": os.environ.get("BT_MODE"),
         "massive_cache_verified": not missing,
         "targets": [pair for pair, _ in TARGETS],
-        "targets_note": "Matches the existing 365d target BT cells cited in the W4 audit.",
+        "targets_note": "Pair-promoted Tier 1 cell from the W4 audit.",
         "missing_caches": missing,
         "lock_spec": {
             "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
             "catastrophic_check": {
-                "pf_change": ">= -0.10",
-                "wilson_lo_change": ">= -0.05",
-                "n_change_pct": ">= -30",
-                "pnl_sign_preserved": True,
+                "pnl_sign_preserved": "baseline PnL > 0 and proposed PnL < 0 is the only REJECT condition",
             },
-            "sanity_floor": {"wilson_lo_proposed": ">= 0.20", "pf_proposed": ">= 0.85"},
+            "warn_only": ["pf_change", "wilson_lo_change", "n_change_pct"],
+            "sanity_floor": "REMOVED in v2.1",
             "positive_direction": "not required",
             "absolute_kelly": "not required",
         },
@@ -311,9 +305,9 @@ def main() -> int:
         "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
         "elapsed_s": round(time.time() - started, 1),
         "self_review": {
-            "catastrophic_only": "PASS: verdict ignores positive-direction and Kelly; applies only v2 catastrophic/floor rules when N>=20.",
+            "catastrophic_only": "PASS: verdict uses only pnl_sign_preserved when proposed N>=20; PF/Wilson/N changes are WARN only.",
             "insufficient_bt_evidence": "PASS: proposed N<20 becomes INSUFFICIENT_BT_EVIDENCE and shadow recommendation.",
-            "production_live_safety": "PASS: strategy behavior is default-off unless ALPHA_WICK_IMBALANCE_REDESIGN_V2=1; shadow emit also requires the separate shadow flag.",
+            "production_live_safety": "PASS: strategy behavior is default-off unless WICK_IMBALANCE_REVERSION_REDESIGN_V2=1; shadow emit also requires the separate shadow flag.",
             "post_hoc_adjustment": "PASS: only the pre-registered closed_bar_no_htf_hard_block_v2 variant is evaluated.",
             "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo/network fallback for this report.",
         },

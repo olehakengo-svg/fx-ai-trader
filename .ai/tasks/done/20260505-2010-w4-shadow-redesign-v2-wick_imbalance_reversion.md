@@ -141,3 +141,48 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T20:42:57Z)
+
+exit=0 · 817s
+
+```
+実装完了です。
+
+変更点:
+- `WICK_IMBALANCE_REVERSION_REDESIGN_V2=1` で v2 variant を有効化。
+- default OFF では live path 影響なし。
+- closed-bar confirmation + HTF hard block bypass を flag 配下に実装。
+- shadow worker 登録は二重 flag:
+  `WICK_IMBALANCE_REVERSION_REDESIGN_V2=1`
+  `WICK_IMBALANCE_REVERSION_REDESIGN_V2_SHADOW_PROMOTE=1`
+- 既存 `ALPHA_WICK_IMBALANCE_*` は互換 alias として維持。
+
+主要ファイル:
+- [alpha_wick_imbalance.py](/data/repo/fx-ai-trader/strategies/daytrade/alpha_wick_imbalance.py:55)
+- [app.py](/data/repo/fx-ai-trader/app.py:2552)
+- [__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:236)
+- [test_wick_imbalance_reversion_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_wick_imbalance_reversion_shadow_redesign_v2.py:1)
+- [BT report](/data/repo/fx-ai-trader/bt-results/wick_imbalance_reversion-shadow-redesign-v2-2026-05-05.json:1)
+
+検証:
+- `.venv/bin/pytest -q tests/test_wick_imbalance_reversion_shadow_redesign_v2.py tests/test_alpha_wick_imbalance_shadow_redesign_v2.py`
+  - `8 passed`
+- `.venv/bin/python -m py_compile ...`
+  - OK
+- `git diff --check`
+  - OK
+
+365d MASSIVE BT:
+- runner: `app.run_daytrade_backtest(..., backtest_mode=True)`
+- `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1`
+- target: `GBP_USD`
+- current: `N=114`, `PnL=-5.4544`
+- proposed: `N=152`, `PnL=-17.067`
+- v2.1 criteria: `pnl_sign_preserved=true`
+- verdict: `PASS`
+- shadow recommendation: `RECOMMEND_SHADOW`
+
+PF / Wilson / N change は report に WARN only として記録し、verdict には使っていません。sanity floor も v2.1 通り removed です。
+```

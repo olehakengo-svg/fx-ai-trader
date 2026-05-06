@@ -52,14 +52,18 @@ class WickImbalanceReversion(StrategyBase):
     mode = "daytrade"
     enabled = True
     strategy_type = "MR"   # v11.1: ヒゲ偏り反発 = MR by construction (Osler 2003)
-    REDESIGN_V2_ENV = "ALPHA_WICK_IMBALANCE_REDESIGN_V2"
+    REDESIGN_V2_ENV = "WICK_IMBALANCE_REVERSION_REDESIGN_V2"
+    LEGACY_REDESIGN_V2_ENV = "ALPHA_WICK_IMBALANCE_REDESIGN_V2"
     params = {
         "window": 8,          # ヒゲ集計本数
         "threshold": 0.45,    # WIR閾値
     }
 
     def _redesign_v2_enabled(self) -> bool:
-        return os.environ.get(self.REDESIGN_V2_ENV) == "1"
+        return (
+            os.environ.get(self.REDESIGN_V2_ENV) == "1"
+            or os.environ.get(self.LEGACY_REDESIGN_V2_ENV) == "1"
+        )
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         df = ctx.df

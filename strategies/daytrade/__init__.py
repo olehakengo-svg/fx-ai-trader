@@ -233,8 +233,10 @@ class DaytradeEngine:
         if (os.environ.get("ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2") == "1"
                 and os.environ.get("ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"intraday_seasonality"}
-        if (os.environ.get("ALPHA_WICK_IMBALANCE_REDESIGN_V2") == "1"
-                and os.environ.get("ALPHA_WICK_IMBALANCE_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+        if ((os.environ.get("WICK_IMBALANCE_REVERSION_REDESIGN_V2") == "1"
+                and os.environ.get("WICK_IMBALANCE_REVERSION_REDESIGN_V2_SHADOW_PROMOTE") == "1")
+                or (os.environ.get("ALPHA_WICK_IMBALANCE_REDESIGN_V2") == "1"
+                    and os.environ.get("ALPHA_WICK_IMBALANCE_REDESIGN_V2_SHADOW_PROMOTE") == "1")):
             _shadow_always = _shadow_always | {"wick_imbalance_reversion"}
         if (os.environ.get("ASIA_RANGE_FADE_V1_REDESIGN_V2") == "1"
                 and os.environ.get("ASIA_RANGE_FADE_V1_REDESIGN_V2_SHADOW_PROMOTE") == "1"):

@@ -2548,7 +2548,10 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # 新: 候補リスト段階で除外 → 次善候補にフォールバック可能
     _ais_v2_enabled = os.environ.get("ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2", "0") == "1"
     _aarb_v2_enabled = os.environ.get("ALPHA_ATR_REGIME_BREAK_REDESIGN_V2", "0") == "1"
-    _awi_v2_enabled = os.environ.get("ALPHA_WICK_IMBALANCE_REDESIGN_V2", "0") == "1"
+    _awi_v2_enabled = (
+        os.environ.get("WICK_IMBALANCE_REVERSION_REDESIGN_V2", "0") == "1"
+        or os.environ.get("ALPHA_WICK_IMBALANCE_REDESIGN_V2", "0") == "1"
+    )
     _tnm_v2_enabled = os.environ.get("TOKYO_NAKANE_MOMENTUM_REDESIGN_V2", "0") == "1"
     if htf_agreement in ("bull", "bear"):
         _blocked_dir = "SELL" if htf_agreement == "bull" else "BUY"
@@ -6210,6 +6213,12 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
     _vdr_v2_cache_flag = os.environ.get("VDR_JPY_REDESIGN_V2", "0")
     _vsg_v2_cache_flag = os.environ.get("VSG_JPY_REVERSAL_REDESIGN_V2", "0")
     _vmr_v2_cache_flag = os.environ.get("VWAP_MEAN_REVERSION_REDESIGN_V2", "0")
+    _wir_v2_cache_flag = (
+        "1" if (
+            os.environ.get("WICK_IMBALANCE_REVERSION_REDESIGN_V2", "0") == "1"
+            or os.environ.get("ALPHA_WICK_IMBALANCE_REDESIGN_V2", "0") == "1"
+        ) else "0"
+    )
     cache_key = (
         f"{symbol}_{interval}_{lookback_days}_jitter{exec_lag_jitter:.4f}"
         f"_bt{int(bool(backtest_mode))}_gtmV2{_gtm_v2_cache_flag}"
@@ -6224,7 +6233,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         f"_sbrV2{_sbr_v2_cache_flag}_sfcV2{_sfc_v2_cache_flag}"
         f"_trbV2{_trb_v2_cache_flag}_tsV2{_ts_v2_cache_flag}"
         f"_vdrV2{_vdr_v2_cache_flag}_vsgV2{_vsg_v2_cache_flag}"
-        f"_vmrV2{_vmr_v2_cache_flag}"
+        f"_vmrV2{_vmr_v2_cache_flag}_wirV2{_wir_v2_cache_flag}"
     )
     now = datetime.now()
     cached = _dt_bt_cache.get(cache_key)
