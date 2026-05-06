@@ -143,3 +143,28 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
 
 
+
+
+## Result (2026-05-06T11:31:40Z)
+
+exit=0 · 774s
+
+```
+実装完了です。
+
+- [strategies/daytrade/mqe_gbpusd_fix.py](/data/repo/fx-ai-trader/strategies/daytrade/mqe_gbpusd_fix.py:68): `MQE_GBPUSD_FIX_REDESIGN_V2=1` 配下で `15:30-16:00` window、同一月末 fix window の dedup、`max_hold_bars=6` を追加。flag OFF は legacy `15:00-16:00` のままです。
+- [app.py](/data/repo/fx-ai-trader/app.py:3446): `max_hold_bars` を signal payload に通し、[app.py](/data/repo/fx-ai-trader/app.py:6657) の production `run_daytrade_backtest()` 側で strategy-specific 6bar time exit を実行するようにしました。
+- [strategies/base.py](/data/repo/fx-ai-trader/strategies/base.py:22): `Candidate.max_hold_bars` を後方互換の optional field として追加。
+- [tools/mqe_gbpusd_fix_shadow_bt.py](/data/repo/fx-ai-trader/tools/mqe_gbpusd_fix_shadow_bt.py:1): 365d MASSIVE BT runner を追加。
+- BT report: [bt-results/mqe_gbpusd_fix-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/mqe_gbpusd_fix-shadow-redesign-v2-2026-05-05.json:1)
+
+BT verdict は `PASS` です。365d MASSIVE `GBP_USD_15m` で baseline `N=30, PnL=+3.0203`、proposed `N=24, PnL=+1.4182`。v2.1 criteria どおり、PF/Wilson/N drop は WARN のみで、`pnl_sign_preserved=true` を唯一の catastrophic 判定として通しています。
+
+Verification:
+- `.venv/bin/pytest -q tests/test_mqe_gbpusd_fix_shadow_redesign_v2.py` → `5 passed`
+- `.venv/bin/pytest -q tests/test_mqe_gbpusd_fix_shadow_redesign_v2.py tests/test_trade_sim.py` → `20 passed`
+- `python3 -m py_compile strategies/base.py strategies/daytrade/mqe_gbpusd_fix.py tools/mqe_gbpusd_fix_shadow_bt.py app.py`
+- `git diff --check`
+
+Shadow promote recommendation is `RECOMMEND_SHADOW`. `mqe_gbpusd_fix` is already in `DaytradeEngine.SHADOW_ALWAYS_STRATEGIES`; V2 remains default OFF and activates only with `MQE_GBPUSD_FIX_REDESIGN_V2=1`.
+```

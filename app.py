@@ -3430,6 +3430,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 "reasons": list(_c.reasons or []),
                 "score": round(float(_c.score), 3),
                 "atr": _rp(atr, symbol),
+                "max_hold_bars": getattr(_c, "max_hold_bars", None),
             })
     except NameError:
         # _dt_shadow_emits 未定義パス (DTE skip 等) — 安全に空
@@ -3442,6 +3443,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         "session": session, "htf_bias": htf, "swing_mode": tf in ("1h","4h","1d"),
         "reasons": reasons, "mode": "daytrade",
         "entry_type": _dt_entry_type,
+        "max_hold_bars": getattr(_dt_best, "max_hold_bars", None) if _dt_best is not None else None,
         "shadow_emit_signals": _shadow_emit_payload,
         "dual_scenarios": dual_scenarios,
         "sr_entry_map": sr_entry_map,
@@ -6159,6 +6161,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
     _mtf_confluence_v2_cache_flag = os.environ.get("MTF_CONFLUENCE_REDESIGN_V2", "0")
     _pnv_v2_cache_flag = os.environ.get("POST_NEWS_VOL_REDESIGN_V2", "0")
     _rsk_v2_cache_flag = os.environ.get("RSK_GBPJPY_REVERSION_REDESIGN_V2", "0")
+    _mqe_v2_cache_flag = os.environ.get("MQE_GBPUSD_FIX_REDESIGN_V2", "0")
     _sbr_v2_cache_flag = os.environ.get("SR_BREAK_RETEST_REDESIGN_V2", "0")
     cache_key = (
         f"{symbol}_{interval}_{lookback_days}_jitter{exec_lag_jitter:.4f}"
@@ -6169,7 +6172,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         f"_mtfCascadeV2{_mtf_v2_cache_flag}_pnvV2{_pnv_v2_cache_flag}"
         f"_mtfRangeCascadeV2{_mtf_range_v2_cache_flag}"
         f"_mtfConfluenceV2{_mtf_confluence_v2_cache_flag}"
-        f"_rskV2{_rsk_v2_cache_flag}_sbrV2{_sbr_v2_cache_flag}"
+        f"_rskV2{_rsk_v2_cache_flag}_mqeV2{_mqe_v2_cache_flag}"
+        f"_sbrV2{_sbr_v2_cache_flag}"
     )
     now = datetime.now()
     cached = _dt_bt_cache.get(cache_key)
@@ -6177,6 +6181,11 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         return cached["result"]
 
     try:
+        try:
+            from strategies.daytrade.mqe_gbpusd_fix import MqeGbpusdFix as _MqeGbpusdFix
+            _MqeGbpusdFix.reset_dedup_state()
+        except Exception:
+            pass
         df = fetch_ohlcv(symbol, period=f"{lookback_days}d", interval=interval)
         df = add_indicators(df)
         df = df.dropna()
@@ -6321,6 +6330,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 continue
 
             entry_type = sig_result.get("entry_type", "unknown")
+            _strategy_max_hold = sig_result.get("max_hold_bars")
 
             # Phase D: Post-SL同方向ブロック
             if (_last_sl_dir_dt and i - _last_sl_bar_dt < _POST_SL_BLOCK_DT
@@ -6644,7 +6654,10 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             _dt_ts_thr = atr * 1.5
             _dt_ts_trail = atr * 0.5
             _be_offset = 0.002 if _is_jpy_scale(symbol) else 0.00002
-            for j in range(1, MAX_HOLD + 1):
+            _trade_max_hold = MAX_HOLD
+            if isinstance(_strategy_max_hold, int) and _strategy_max_hold > 0:
+                _trade_max_hold = min(MAX_HOLD, _strategy_max_hold)
+            for j in range(1, _trade_max_hold + 1):
                 if i+1+j >= len(df): break
                 fut = df.iloc[i+1+j]
                 hi, lo = float(fut["High"]), float(fut["Low"])
@@ -6753,6 +6766,23 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                             break
                         else:
                             outcome = "LOSS"; bars_held = j; break
+
+                if j == _trade_max_hold and outcome is None and _strategy_max_hold:
+                    _time_exit_px_dt = (
+                        fut_close - _exit_friction_dt
+                        if sig == "BUY" else fut_close + _exit_friction_dt
+                    )
+                    _time_pnl_dt = (
+                        (_time_exit_px_dt - ep) if sig == "BUY"
+                        else (ep - _time_exit_px_dt)
+                    )
+                    outcome = "WIN" if _time_pnl_dt > 0 else "LOSS"
+                    bars_held = j
+                    tp_m_actual = round(abs(_time_pnl_dt) / max(atr, 1e-6), 3)
+                    if outcome == "LOSS":
+                        sl_m = tp_m_actual
+                    _exit_reason_dt = f"time_exit_{_trade_max_hold}bar"
+                    break
 
             if outcome:
                 # ── EXIT基準クールダウン（本番統一）──

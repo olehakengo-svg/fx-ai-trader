@@ -21,6 +21,7 @@ mqe_audit (2026-04-27, 730d) 結果:
 from __future__ import annotations
 from typing import Optional
 import calendar
+import os
 
 import numpy as np
 import pandas as pd
@@ -64,8 +65,17 @@ class MqeGbpusdFix(StrategyBase):
     MIN_RR = 1.4
     MAX_HOLD_BARS = 6
     PRIOR_MOVE_BARS = 4
+    _dedup_state: set[tuple[str, object, str]] = set()
+
+    @classmethod
+    def reset_dedup_state(cls) -> None:
+        cls._dedup_state.clear()
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get("MQE_GBPUSD_FIX_REDESIGN_V2") == "1"
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        redesign_v2 = self._redesign_v2_enabled()
         sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
         if sym not in self._ALLOWED_SYMBOLS:
             return None
@@ -79,11 +89,19 @@ class MqeGbpusdFix(StrategyBase):
         if not hasattr(ts, "hour") or not hasattr(ts, "year"):
             return None
 
-        # Time window check
-        if not (self.FIX_HOUR_START <= ts.hour < self.FIX_HOUR_END):
-            return None
+        # Time window check. Legacy path intentionally remains 15:00-16:00.
+        if redesign_v2:
+            if not (ts.hour == 15 and ts.minute >= 30):
+                return None
+        else:
+            if not (self.FIX_HOUR_START <= ts.hour < self.FIX_HOUR_END):
+                return None
         if not _is_month_end_window(ts, days_before=self.MONTH_END_DAYS):
             return None
+        if redesign_v2:
+            dedup_key = (sym, ts.date(), "london_fix_1530_1600")
+            if dedup_key in self._dedup_state:
+                return None
 
         # Prior move (last N bars)
         prior_close = float(ctx.df["Close"].iloc[-(self.PRIOR_MOVE_BARS + 1)])
@@ -117,6 +135,9 @@ class MqeGbpusdFix(StrategyBase):
             f"✅ Prior {self.PRIOR_MOVE_BARS}-bar move {prior_move:+.5f} → fade {signal}",
             f"✅ RR={rr:.2f} hold≤{self.MAX_HOLD_BARS}bar",
         ]
+        if redesign_v2:
+            reasons.append("✅ MQE_GBPUSD_FIX_REDESIGN_V2 15:30-16:00 dedup + 6bar time stop")
+            self._dedup_state.add(dedup_key)
 
         return Candidate(
             signal=signal,
@@ -126,4 +147,5 @@ class MqeGbpusdFix(StrategyBase):
             reasons=reasons,
             entry_type=self.name,
             score=float(score),
+            max_hold_bars=self.MAX_HOLD_BARS if redesign_v2 else None,
         )

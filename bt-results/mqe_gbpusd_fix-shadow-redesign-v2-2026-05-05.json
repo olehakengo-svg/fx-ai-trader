@@ -1,0 +1,91 @@
+{
+  "generated_at": "2026-05-06T11:30:44.909838+00:00",
+  "strategy": "mqe_gbpusd_fix",
+  "variant": "fix_window_1530_1600_dedup_time_stop_6bar_v2",
+  "flag": "MQE_GBPUSD_FIX_REDESIGN_V2",
+  "target_scope": "GBP_USD only; trigger thesis and pair gate unchanged",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest(backtest_mode=True; production daytrade path; strategy-only compute patch)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": true,
+  "targets": [
+    "GBP_USD"
+  ],
+  "missing_caches": [],
+  "lock_spec": {
+    "version": "v2.1",
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": {
+      "pnl_sign_preserved": "baseline PnL > 0 and proposed PnL < 0 is the only REJECT condition"
+    },
+    "warn_only": [
+      "pf_change",
+      "wilson_lo_change",
+      "n_change_pct"
+    ],
+    "sanity_floor": "removed",
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "GBP_USD": {
+      "current": {
+        "N": 30,
+        "wins": 19,
+        "WR": 0.6333,
+        "EV": 0.1007,
+        "PnL": 3.0203,
+        "PF": 1.1934,
+        "wilson_lo": 0.4551,
+        "total_trades_all_strategies": 30,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24585
+      },
+      "proposed": {
+        "N": 24,
+        "wins": 15,
+        "WR": 0.625,
+        "EV": 0.0591,
+        "PnL": 1.4182,
+        "PF": 1.134,
+        "wilson_lo": 0.4271,
+        "total_trades_all_strategies": 24,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24585
+      },
+      "lock_criteria": {
+        "pf_change_warn_only": -0.0594,
+        "wilson_lo_change_warn_only": -0.028,
+        "n_change_pct_warn_only": -20.0,
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+        "warnings": {
+          "bt_error_current": null,
+          "bt_error_proposed": null,
+          "pf_wilson_n_are_warn_only": true,
+          "sanity_floor_removed_in_v2_1": true
+        }
+      }
+    }
+  },
+  "overall_verdict": "PASS",
+  "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+  "shadow_registration_note": "mqe_gbpusd_fix is already in DaytradeEngine.SHADOW_ALWAYS_STRATEGIES; V2 behavior remains default-off unless MQE_GBPUSD_FIX_REDESIGN_V2=1",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 542.3,
+  "self_review": {
+    "catastrophic_only": "PASS: verdict uses only pnl_sign_preserved when proposed N>=20; PF/Wilson/N are warnings only.",
+    "insufficient_bt_evidence": "PASS: proposed N<20 becomes INSUFFICIENT_BT_EVIDENCE and recommends shadow.",
+    "absolute_kelly": "PASS: no Kelly or live-promotion threshold is used.",
+    "production_live_safety": "PASS: strategy V2 timing/dedup/time-stop metadata is default-off unless MQE_GBPUSD_FIX_REDESIGN_V2=1.",
+    "post_hoc_adjustment": "PASS: only the audit-recommended 15:30-16:00 + 1/window dedup + 6bar time stop variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo fallback for this report."
+  }
+}

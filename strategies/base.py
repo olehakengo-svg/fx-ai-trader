@@ -19,6 +19,7 @@ class Candidate:
     reasons: list        # ["✅ ...", "⚠️ ..."]
     entry_type: str      # "bb_rsi_reversion" etc.
     score: float         # スコア（候補選択に使用）
+    max_hold_bars: Optional[int] = None  # Optional strategy-specific BT time stop
 
     def as_tuple(self) -> tuple:
         """旧形式の candidates タプルに変換（後方互換）。"""
