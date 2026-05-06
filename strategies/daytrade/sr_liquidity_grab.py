@@ -5,6 +5,7 @@ Shadow 5 majors 全走 — 30 trade 蓄積で per-pair edge 実測判定
 """
 from __future__ import annotations
 from typing import Optional
+import os
 
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
@@ -27,8 +28,14 @@ class SrLiquidityGrab(StrategyBase):
     SL_BUFFER_ATR = 0.3
     TARGET_RR = 1.5
     MAX_HOLD_BARS = 8
+    _v2_seen_closed_bar_keys: set[tuple[str, str, str, str]] = set()
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        if os.environ.get("SR_LIQUIDITY_GRAB_REDESIGN_V2") == "1":
+            return self._evaluate_redesign_v2(ctx)
+        return self._evaluate_legacy(ctx)
+
+    def _evaluate_legacy(self, ctx: SignalContext) -> Optional[Candidate]:
         sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
         if sym not in self._ALLOWED_SYMBOLS:
             return None
@@ -149,13 +156,133 @@ class SrLiquidityGrab(StrategyBase):
             score=float(score),
         )
 
+    def _evaluate_redesign_v2(self, ctx: SignalContext) -> Optional[Candidate]:
+        sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+        if sym not in self._ALLOWED_SYMBOLS:
+            return None
+        if not ctx.sr_levels:
+            return None
+        if ctx.df is None or len(ctx.df) < self.HUNT_LOOKBACK + 3:
+            return None
+
+        signal_bar_pos = len(ctx.df) - 2
+        signal_bar = ctx.df.iloc[signal_bar_pos]
+        signal_bar_time = getattr(signal_bar, "name", None)
+        signal_close = float(signal_bar["Close"])
+        signal_open = float(signal_bar["Open"])
+        signal_atr = max(float(signal_bar.get("atr", ctx.atr)), 1e-9)
+        signal_adx = float(signal_bar.get("adx", ctx.adx))
+
+        if signal_adx >= self.ADX_MAX:
+            return None
+
+        nearest_level = None
+        nearest_dist = float("inf")
+        for lv in ctx.sr_levels:
+            price = float(lv.get("price", 0.0)) if isinstance(lv, dict) else float(lv)
+            d = abs(signal_close - price)
+            if d < nearest_dist:
+                nearest_dist = d
+                nearest_level = price
+        if nearest_level is None or nearest_dist > self.SR_PROXIMITY_ATR * signal_atr:
+            return None
+
+        hunt_event = self._find_recent_hunt(
+            ctx, nearest_level, signal_atr, reference_pos=signal_bar_pos
+        )
+        if hunt_event is None:
+            return None
+
+        side = hunt_event["side"]
+        if side == "resistance":
+            if signal_close >= signal_open or signal_close >= nearest_level:
+                return None
+            signal = "SELL"
+            sl = hunt_event["extreme"] + self.SL_BUFFER_ATR * signal_atr
+        else:
+            if signal_close <= signal_open or signal_close <= nearest_level:
+                return None
+            signal = "BUY"
+            sl = hunt_event["extreme"] - self.SL_BUFFER_ATR * signal_atr
+
+        pip = 0.01 if "JPY" in sym else 0.0001
+        if signal == "BUY":
+            sl_dist = ctx.entry - sl
+            target_above = [
+                float(lv["price"]) if isinstance(lv, dict) else float(lv)
+                for lv in ctx.sr_levels
+                if (float(lv["price"]) if isinstance(lv, dict)
+                    else float(lv)) > ctx.entry + 0.3 * signal_atr
+            ]
+            rr_tp = ctx.entry + self.TARGET_RR * sl_dist
+            tp = min(target_above + [rr_tp]) if target_above else rr_tp
+            tp = shift_tp_inside(tp, "BUY", pip=pip, shift_pips=3.0)
+        else:
+            sl_dist = sl - ctx.entry
+            target_below = [
+                float(lv["price"]) if isinstance(lv, dict) else float(lv)
+                for lv in ctx.sr_levels
+                if (float(lv["price"]) if isinstance(lv, dict)
+                    else float(lv)) < ctx.entry - 0.3 * signal_atr
+            ]
+            rr_tp = ctx.entry - self.TARGET_RR * sl_dist
+            tp = max(target_below + [rr_tp]) if target_below else rr_tp
+            tp = shift_tp_inside(tp, "SELL", pip=pip, shift_pips=3.0)
+
+        if signal == "BUY":
+            risk = ctx.entry - sl
+            reward = tp - ctx.entry
+        else:
+            risk = sl - ctx.entry
+            reward = ctx.entry - tp
+        if risk <= 0 or reward <= 0:
+            return None
+        rr = reward / risk
+        if rr < self.TARGET_RR * 0.9:
+            return None
+
+        if not ctx.backtest_mode:
+            dedup_key = (sym, self.name, str(signal_bar_time), signal)
+            if dedup_key in self._v2_seen_closed_bar_keys:
+                return None
+            self._v2_seen_closed_bar_keys.add(dedup_key)
+
+        score = 3.5
+        if hunt_event["excursion_atr_ratio"] > 2.5:
+            score += 0.5
+        rn_boost = round_confluence_boost(nearest_level, pip, threshold_pips=3.0)
+        if rn_boost > 0:
+            score += 0.5 * rn_boost
+
+        reasons = [
+            f"✅ Hunt 検出: {side}, excursion={hunt_event['excursion']:.5f} "
+            f"(={hunt_event['excursion_atr_ratio']:.2f}×ATR)",
+            f"✅ Liquidity grab {signal}, level={nearest_level:.5f}",
+            f"✅ Anti-hunt SL: {sl:.5f} (hunt_extreme±0.3 ATR)",
+            f"✅ RR={rr:.2f} ≥ {self.TARGET_RR}",
+            f"✅ SR_LIQUIDITY_GRAB_REDESIGN_V2: closed_bar_time={signal_bar_time} で確定し次バー約定",
+        ]
+
+        return Candidate(
+            signal=signal,
+            confidence=min(100, int(score * 20)),
+            sl=float(sl),
+            tp=float(tp),
+            reasons=reasons,
+            entry_type=self.name,
+            score=float(score),
+        )
+
     def _find_recent_hunt(self, ctx: SignalContext, level: float,
-                           atr: float) -> Optional[dict]:
+                           atr: float, reference_pos: int | None = None) -> Optional[dict]:
         threshold = self.HUNT_K_ATR * atr
+        if reference_pos is None:
+            reference_pos = len(ctx.df) - 1
         for i in range(1, self.HUNT_LOOKBACK + 1):
-            if i >= len(ctx.df):
+            pos = reference_pos - i
+            if pos < 0:
                 break
-            row = ctx.df.iloc[-1 - i]
+            row = ctx.df.iloc[pos]
             high = float(row["High"])
             low = float(row["Low"])
             close = float(row["Close"])

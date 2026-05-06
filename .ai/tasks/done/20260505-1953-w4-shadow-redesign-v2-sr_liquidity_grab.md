@@ -141,3 +141,50 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T12:57:10Z)
+
+exit=0 · 3016s
+
+```
+実装完了しました。
+
+変更点:
+- [sr_liquidity_grab.py](/data/repo/fx-ai-trader/strategies/daytrade/sr_liquidity_grab.py:33)
+  - `SR_LIQUIDITY_GRAB_REDESIGN_V2=1` 配下で v2 variant を有効化
+  - `df.iloc[-2]` の確定 bar で reversal / reclaim 判定
+  - hunt 検出は signal bar より前の確定 bar を参照
+  - live 時のみ `(symbol, strategy, signal_bar_time, side)` dedup
+  - flag OFF は legacy path のまま
+
+- [__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:308)
+  - `SR_LIQUIDITY_GRAB_REDESIGN_V2=1` かつ `SR_LIQUIDITY_GRAB_REDESIGN_V2_SHADOW_PROMOTE=1` のときだけ shadow worker 登録
+
+- [test_sr_liquidity_grab_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_sr_liquidity_grab_shadow_redesign_v2.py:1)
+  - default OFF の legacy 保持
+  - closed bar signal 使用
+  - current bar signal 無視
+  - live dedup
+  - double-flag shadow registration
+
+- [sr_liquidity_grab_shadow_bt.py](/data/repo/fx-ai-trader/tools/sr_liquidity_grab_shadow_bt.py:1)
+  - 365d / MASSIVE parquet / `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1`
+  - `run_daytrade_backtest(backtest_mode=True)` 経路
+  - v2.1 LOCK criteria: N<20 は `INSUFFICIENT_BT_EVIDENCE`、PF/Wilson/N drop は reject 不使用
+
+BT artifact:
+- [sr_liquidity_grab-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/sr_liquidity_grab-shadow-redesign-v2-2026-05-05.json:1)
+
+BT result:
+- Overall verdict: `INSUFFICIENT_BT_EVIDENCE`
+- Aggregate proposed N: `1`
+- Catastrophic check: skipped per v2.1 because proposed N < 20
+- Shadow recommendation: `RECOMMEND_SHADOW`
+
+Verification:
+- `.venv/bin/python -m pytest -q tests/test_sr_liquidity_grab_shadow_redesign_v2.py tests/test_sr_liquidity_grab.py`
+- Result: `10 passed, 1 xfailed`
+
+Self-review passed: verdict uses only v2.1 catastrophic/N<20 logic, no Kelly/sanity floor promotion gate, and live behavior remains default OFF unless both redesign and shadow promote env flags are set.
+```

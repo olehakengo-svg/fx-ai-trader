@@ -305,6 +305,9 @@ class DaytradeEngine:
         if (os.environ.get("SR_ANTI_HUNT_BOUNCE_REDESIGN_V2") == "1"
                 and os.environ.get("SR_ANTI_HUNT_BOUNCE_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"sr_anti_hunt_bounce"}
+        if (os.environ.get("SR_LIQUIDITY_GRAB_REDESIGN_V2") == "1"
+                and os.environ.get("SR_LIQUIDITY_GRAB_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"sr_liquidity_grab"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]
