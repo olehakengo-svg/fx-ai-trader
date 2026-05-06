@@ -220,6 +220,9 @@ class ScalperEngine:
         if (os.environ.get("VBP_REDESIGN_V2") == "1"
                 and os.environ.get("VBP_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"vbp"}
+        if (os.environ.get("VOL_SURGE_REDESIGN_V2") == "1"
+                and os.environ.get("VOL_SURGE_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"vol_surge_detector"}
         _vol_momentum_redesign_v2 = (
             os.environ.get("VOL_MOMENTUM_SCALP_REDESIGN_V2") == "1"
             or os.environ.get("VOL_MOMENTUM_REDESIGN_V2") == "1"

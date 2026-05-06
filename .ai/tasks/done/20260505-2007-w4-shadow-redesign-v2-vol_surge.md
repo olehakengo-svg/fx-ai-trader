@@ -141,3 +141,38 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T19:41:51Z)
+
+exit=0 · 1517s
+
+```
+実装完了しました。
+
+変更:
+- [strategies/scalp/vol_surge.py](/data/repo/fx-ai-trader/strategies/scalp/vol_surge.py)
+  - `VOL_SURGE_REDESIGN_V2=1` 配下で確定足 `iloc[-2]` の surge / BB%B / RSI / candle / ADX-DI / EMA を評価
+  - 次 bar の `ctx.entry` で SL/TP を算出
+  - `(symbol, strategy, mode, signal_bar_time)` dedup を追加
+  - flag OFF は現行挙動維持
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py)
+  - `VOL_SURGE_REDESIGN_V2=1` + `VOL_SURGE_REDESIGN_V2_SHADOW_PROMOTE=1` の double flag で shadow loser emit 登録
+- [tests/test_vol_surge_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_vol_surge_shadow_redesign_v2.py)
+  - default OFF、closed-bar trigger、current-bar ignore、dedup、shadow double flag をテスト
+- [tools/vol_surge_shadow_bt.py](/data/repo/fx-ai-trader/tools/vol_surge_shadow_bt.py)
+  - MASSIVE parquet 365d A/B report 生成 runner
+- [bt-results/vol_surge-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/vol_surge-shadow-redesign-v2-2026-05-05.json)
+  - v2.1 LOCK report
+
+検証:
+- `.venv/bin/pytest -q tests/test_vol_surge_shadow_redesign_v2.py` → `5 passed`
+- `py_compile` → OK
+- BT report overall verdict: `PASS`
+  - current aggregate: `N=88064`, `PnL=-4438.3834`, `PF=0.93`
+  - proposed aggregate: `N=88252`, `PnL=-4052.6303`, `PF=0.9362`
+  - v2.1 catastrophic: `pnl_sign_preserved=True`
+  - shadow recommendation: `RECOMMEND_SHADOW`
+
+Note: `vol_surge_detector` は scalp strategy なので `run_daytrade_backtest()` では評価されません。`app.run_scalp_backtest()` は full 6-pair A/B では実行時間が現実的でなかったため、report は MASSIVE parquet + production `VolSurgeDetector` logic 相当の isolated harness で生成し、その caveat を JSON に明記しています。
+```

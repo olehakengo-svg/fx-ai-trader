@@ -24,6 +24,7 @@ Volume Surge Detector — 出来高急増クライマックス反転 / モメン
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
+import os
 
 
 class VolSurgeDetector(StrategyBase):
@@ -53,6 +54,11 @@ class VolSurgeDetector(StrategyBase):
     _blocked_hours_by_pair = {
         "USDJPY": frozenset(range(17, 24)),  # v6.3: NY_Late以降のみブロック
     }
+    _v2_seen_signal_bar_keys: set[tuple[str, str, str, str]] = set()
+
+    @classmethod
+    def reset_dedup_state(cls) -> None:
+        cls._v2_seen_signal_bar_keys.clear()
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         if ctx.df is None or len(ctx.df) < self.vol_lookback + 5:
@@ -64,11 +70,54 @@ class VolSurgeDetector(StrategyBase):
         if _blocked and ctx.hour_utc in _blocked:
             return None
 
+        _redesign_v2 = os.environ.get("VOL_SURGE_REDESIGN_V2") == "1"
+        _signal_bar_time = None
+        _sig_label = "current-bar"
+
+        if _redesign_v2:
+            if len(ctx.df) < self.vol_lookback + 6:
+                return None
+            _sig_row = ctx.df.iloc[-2]
+            _signal_bar_time = getattr(_sig_row, "name", None)
+            _sig_open = float(_sig_row["Open"])
+            _sig_close = float(_sig_row["Close"])
+            _sig_atr7 = float(_sig_row.get("atr7", _sig_row.get("atr", ctx.atr7)))
+            _sig_bbpb = float(_sig_row.get("bb_pband", ctx.bbpb))
+            _sig_rsi5 = float(_sig_row.get("rsi5", _sig_row.get("rsi", ctx.rsi5)))
+            _sig_adx = float(_sig_row.get("adx", ctx.adx))
+            _sig_adx_pos = float(_sig_row.get("adx_pos", ctx.adx_pos))
+            _sig_adx_neg = float(_sig_row.get("adx_neg", ctx.adx_neg))
+            _sig_ema9 = float(_sig_row.get("ema9", ctx.ema9))
+            _sig_ema21 = float(_sig_row.get("ema21", ctx.ema21))
+            _sig_ema200 = float(_sig_row.get("ema200", ctx.ema200))
+            _sig_stoch_k = float(_sig_row.get("stoch_k", ctx.stoch_k))
+            _sig_stoch_d = float(_sig_row.get("stoch_d", ctx.stoch_d))
+            _sig_ema200_bull = _sig_close > _sig_ema200 if _sig_ema200 else ctx.ema200_bull
+            _sig_label = "closed-bar"
+        else:
+            _sig_open = ctx.open_price
+            _sig_close = ctx.entry
+            _sig_atr7 = ctx.atr7
+            _sig_bbpb = ctx.bbpb
+            _sig_rsi5 = ctx.rsi5
+            _sig_adx = ctx.adx
+            _sig_adx_pos = ctx.adx_pos
+            _sig_adx_neg = ctx.adx_neg
+            _sig_ema9 = ctx.ema9
+            _sig_ema21 = ctx.ema21
+            _sig_stoch_k = ctx.stoch_k
+            _sig_stoch_d = ctx.stoch_d
+            _sig_ema200_bull = ctx.ema200_bull
+
         # ── 出来高急増判定 ──
         # Volume列がない or 0ばかりの場合はバーレンジ(H-L)で代替
         _use_volume = False
         if "Volume" in ctx.df.columns:
-            _vol_series = ctx.df["Volume"].iloc[-(self.vol_lookback + 1):]
+            _vol_series = (
+                ctx.df["Volume"].iloc[-(self.vol_lookback + 2):-1]
+                if _redesign_v2
+                else ctx.df["Volume"].iloc[-(self.vol_lookback + 1):]
+            )
             _vol_mean = float(_vol_series.iloc[:-1].mean())
             _vol_cur = float(_vol_series.iloc[-1])
             if _vol_mean > 0 and _vol_cur > 0:
@@ -79,7 +128,12 @@ class VolSurgeDetector(StrategyBase):
             _surge_ratio = round(_vol_cur / max(_vol_mean, 1), 1)
         else:
             # バーレンジ代替: (High-Low) / ATR7 で正規化
-            _ranges = (ctx.df["High"] - ctx.df["Low"]).iloc[-(self.vol_lookback + 1):]
+            _range_all = ctx.df["High"] - ctx.df["Low"]
+            _ranges = (
+                _range_all.iloc[-(self.vol_lookback + 2):-1]
+                if _redesign_v2
+                else _range_all.iloc[-(self.vol_lookback + 1):]
+            )
             _range_mean = float(_ranges.iloc[:-1].mean())
             _range_cur = float(_ranges.iloc[-1])
             if _range_mean <= 0:
@@ -87,7 +141,7 @@ class VolSurgeDetector(StrategyBase):
             _surge = _range_cur >= _range_mean * self.vol_surge_mult
             _surge_ratio = round(_range_cur / max(_range_mean, 1e-8), 1)
             # v6.3: バーレンジ/ATR比率チェック (ATR対比で有意な動きか)
-            if ctx.atr7 > 0 and _range_cur / ctx.atr7 < self.bar_range_atr_min:
+            if _sig_atr7 > 0 and _range_cur / _sig_atr7 < self.bar_range_atr_min:
                 _surge = False  # ATR対比で動き不足
 
         if not _surge:
@@ -102,59 +156,69 @@ class VolSurgeDetector(StrategyBase):
         _mode = None  # "climax" or "momentum"
 
         # ── A: クライマックス反転 (BB極端 + RSI過熱 + 反転足) ──
-        if (ctx.bbpb <= self.climax_bbpb_buy
-                and ctx.rsi5 < self.climax_rsi_buy
-                and ctx.entry > ctx.open_price):
+        if (_sig_bbpb <= self.climax_bbpb_buy
+                and _sig_rsi5 < self.climax_rsi_buy
+                and _sig_close > _sig_open):
             signal = "BUY"
             _mode = "climax"
             score = 3.5
             reasons.append(f"✅ 出来高急増({_surge_ratio}x≥{self.vol_surge_mult}x) — クライマックス")
-            reasons.append(f"✅ BB下限圏(%B={ctx.bbpb:.2f}≤{self.climax_bbpb_buy}) + RSI過売({ctx.rsi5:.1f})")
-            reasons.append(f"✅ 陽線反転(C={ctx.entry:.5g}>O={ctx.open_price:.5g})")
+            reasons.append(f"✅ BB下限圏(%B={_sig_bbpb:.2f}≤{self.climax_bbpb_buy}) + RSI過売({_sig_rsi5:.1f})")
+            reasons.append(f"✅ 陽線反転({_sig_label}: C={_sig_close:.5g}>O={_sig_open:.5g})")
             tp = ctx.entry + ctx.atr7 * self.climax_tp_mult
             sl = ctx.entry - max(ctx.atr7 * self.climax_sl_mult, _min_sl)
 
-        elif (ctx.bbpb >= self.climax_bbpb_sell
-              and ctx.rsi5 > self.climax_rsi_sell
-              and ctx.entry < ctx.open_price):
+        elif (_sig_bbpb >= self.climax_bbpb_sell
+              and _sig_rsi5 > self.climax_rsi_sell
+              and _sig_close < _sig_open):
             signal = "SELL"
             _mode = "climax"
             score = 3.5
             reasons.append(f"✅ 出来高急増({_surge_ratio}x≥{self.vol_surge_mult}x) — クライマックス")
-            reasons.append(f"✅ BB上限圏(%B={ctx.bbpb:.2f}≥{self.climax_bbpb_sell}) + RSI過買({ctx.rsi5:.1f})")
-            reasons.append(f"✅ 陰線反転(C={ctx.entry:.5g}<O={ctx.open_price:.5g})")
+            reasons.append(f"✅ BB上限圏(%B={_sig_bbpb:.2f}≥{self.climax_bbpb_sell}) + RSI過買({_sig_rsi5:.1f})")
+            reasons.append(f"✅ 陰線反転({_sig_label}: C={_sig_close:.5g}<O={_sig_open:.5g})")
             tp = ctx.entry - ctx.atr7 * self.climax_tp_mult
             sl = ctx.entry + max(ctx.atr7 * self.climax_sl_mult, _min_sl)
 
         # ── B: モメンタム初動乗り (ADX + DI方向 + EMA整列) ──
-        elif (ctx.adx >= self.momentum_adx_min
-              and ctx.adx_pos > ctx.adx_neg
-              and ctx.ema9 > ctx.ema21
-              and ctx.entry > ctx.open_price):
+        elif (_sig_adx >= self.momentum_adx_min
+              and _sig_adx_pos > _sig_adx_neg
+              and _sig_ema9 > _sig_ema21
+              and _sig_close > _sig_open):
             signal = "BUY"
             _mode = "momentum"
             score = 3.0
             reasons.append(f"✅ 出来高急増({_surge_ratio}x) — モメンタム初動")
-            reasons.append(f"✅ ADX={ctx.adx:.1f}≥{self.momentum_adx_min} +DI={ctx.adx_pos:.1f}>-DI={ctx.adx_neg:.1f}")
-            reasons.append(f"✅ EMA整列(9>{ctx.ema9:.5g}>21>{ctx.ema21:.5g}) + 陽線")
+            reasons.append(f"✅ ADX={_sig_adx:.1f}≥{self.momentum_adx_min} +DI={_sig_adx_pos:.1f}>-DI={_sig_adx_neg:.1f}")
+            reasons.append(f"✅ EMA整列(9>{_sig_ema9:.5g}>21>{_sig_ema21:.5g}) + 陽線")
             tp = ctx.entry + ctx.atr7 * self.momentum_tp_mult
             sl = ctx.entry - max(ctx.atr7 * self.momentum_sl_mult, _min_sl)
 
-        elif (ctx.adx >= self.momentum_adx_min
-              and ctx.adx_neg > ctx.adx_pos
-              and ctx.ema9 < ctx.ema21
-              and ctx.entry < ctx.open_price):
+        elif (_sig_adx >= self.momentum_adx_min
+              and _sig_adx_neg > _sig_adx_pos
+              and _sig_ema9 < _sig_ema21
+              and _sig_close < _sig_open):
             signal = "SELL"
             _mode = "momentum"
             score = 3.0
             reasons.append(f"✅ 出来高急増({_surge_ratio}x) — モメンタム初動")
-            reasons.append(f"✅ ADX={ctx.adx:.1f}≥{self.momentum_adx_min} -DI={ctx.adx_neg:.1f}>+DI={ctx.adx_pos:.1f}")
-            reasons.append(f"✅ EMA整列(9<{ctx.ema9:.5g}<21<{ctx.ema21:.5g}) + 陰線")
+            reasons.append(f"✅ ADX={_sig_adx:.1f}≥{self.momentum_adx_min} -DI={_sig_adx_neg:.1f}>+DI={_sig_adx_pos:.1f}")
+            reasons.append(f"✅ EMA整列(9<{_sig_ema9:.5g}<21<{_sig_ema21:.5g}) + 陰線")
             tp = ctx.entry - ctx.atr7 * self.momentum_tp_mult
             sl = ctx.entry + max(ctx.atr7 * self.momentum_sl_mult, _min_sl)
 
         if signal is None:
             return None
+
+        if _redesign_v2:
+            _key = (ctx.symbol, self.name, _mode or "unknown", str(_signal_bar_time))
+            if _key in self._v2_seen_signal_bar_keys:
+                return None
+            self._v2_seen_signal_bar_keys.add(_key)
+            reasons.append(
+                f"✅ VOL_SURGE_REDESIGN_V2: closed_bar_time={_signal_bar_time} "
+                "で確定し次バー約定"
+            )
 
         # ── スコアボーナス ──
         # 出来高倍率ボーナス
@@ -166,18 +230,18 @@ class VolSurgeDetector(StrategyBase):
 
         # Stoch確認
         if _mode == "climax":
-            if signal == "BUY" and ctx.stoch_k < 25 and ctx.stoch_k > ctx.stoch_d:
+            if signal == "BUY" and _sig_stoch_k < 25 and _sig_stoch_k > _sig_stoch_d:
                 score += 0.4
-                reasons.append(f"✅ Stochゴールデンクロス(K={ctx.stoch_k:.0f})")
-            elif signal == "SELL" and ctx.stoch_k > 75 and ctx.stoch_k < ctx.stoch_d:
+                reasons.append(f"✅ Stochゴールデンクロス(K={_sig_stoch_k:.0f})")
+            elif signal == "SELL" and _sig_stoch_k > 75 and _sig_stoch_k < _sig_stoch_d:
                 score += 0.4
-                reasons.append(f"✅ Stochデッドクロス(K={ctx.stoch_k:.0f})")
+                reasons.append(f"✅ Stochデッドクロス(K={_sig_stoch_k:.0f})")
 
         # EMA200方向一致ボーナス (momentum)
         if _mode == "momentum":
-            if signal == "BUY" and ctx.ema200_bull:
+            if signal == "BUY" and _sig_ema200_bull:
                 score += 0.3
-            elif signal == "SELL" and not ctx.ema200_bull:
+            elif signal == "SELL" and not _sig_ema200_bull:
                 score += 0.3
 
         conf = int(min(85, 50 + score * 4))

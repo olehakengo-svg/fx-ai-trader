@@ -1,0 +1,329 @@
+{
+  "generated_at": "2026-05-06T19:40:58.024392+00:00",
+  "strategy": "vol_surge_detector",
+  "variant": "closed_bar_timing_and_dedup_v2",
+  "flag": "VOL_SURGE_REDESIGN_V2",
+  "shadow_worker_flag": "VOL_SURGE_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "strategy-isolated MASSIVE harness using production VolSurgeDetector.evaluate() and production indicators",
+  "runner_note": "vol_surge_detector is a scalp strategy; run_daytrade_backtest does not evaluate it. app.run_scalp_backtest was attempted but was too slow for the full 6-pair A/B run in this environment.",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": true,
+  "targets": [
+    "EUR_GBP",
+    "EUR_JPY",
+    "EUR_USD",
+    "GBP_JPY",
+    "GBP_USD",
+    "USD_JPY"
+  ],
+  "missing_caches": [],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": "REJECT only when baseline PnL > 0 and proposed PnL < 0",
+    "pf_change": "WARN ONLY",
+    "wilson_lo_change": "WARN ONLY",
+    "n_change_pct": "WARN ONLY",
+    "sanity_floor": "REMOVED in v2.1",
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "aggregate": {
+    "current": {
+      "N": 88064,
+      "wins": 24650,
+      "WR": 0.2799,
+      "EV": -0.0504,
+      "PnL": -4438.3834,
+      "gross_profit": 58975.6166,
+      "gross_loss": 63414.0,
+      "PF": 0.93,
+      "wilson_lo": 0.277,
+      "bt_error": null
+    },
+    "proposed": {
+      "N": 88252,
+      "wins": 24772,
+      "WR": 0.2807,
+      "EV": -0.0459,
+      "PnL": -4052.6303,
+      "gross_profit": 59427.3697,
+      "gross_loss": 63480.0,
+      "PF": 0.9362,
+      "wilson_lo": 0.2777,
+      "bt_error": null
+    },
+    "lock_criteria": {
+      "pf_change_warn_only": 0.0062,
+      "wilson_lo_change_warn_only": 0.0007,
+      "n_change_pct_warn_only": 0.2135,
+      "pnl_sign_preserved": true,
+      "catastrophic_check": true,
+      "verdict": "PASS",
+      "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+    }
+  },
+  "cells": {
+    "EUR_GBP": {
+      "current": {
+        "N": 13933,
+        "wins": 3844,
+        "WR": 0.2759,
+        "EV": -0.0823,
+        "PnL": -1146.2455,
+        "gross_profit": 8942.7545,
+        "gross_loss": 10089.0,
+        "PF": 0.8864,
+        "wilson_lo": 0.2685,
+        "total_trades_all_strategies": 13933,
+        "bt_error": null,
+        "data_source": "massive-parquet-direct",
+        "bars_fetched": 305610
+      },
+      "proposed": {
+        "N": 13927,
+        "wins": 3879,
+        "WR": 0.2785,
+        "EV": -0.0674,
+        "PnL": -938.7236,
+        "gross_profit": 9109.2764,
+        "gross_loss": 10048.0,
+        "PF": 0.9066,
+        "wilson_lo": 0.2711,
+        "total_trades_all_strategies": 13927,
+        "bt_error": null,
+        "data_source": "massive-parquet-direct",
+        "bars_fetched": 305610
+      },
+      "lock_criteria": {
+        "pf_change_warn_only": 0.0202,
+        "wilson_lo_change_warn_only": 0.0026,
+        "n_change_pct_warn_only": -0.0431,
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "EUR_JPY": {
+      "current": {
+        "N": 13649,
+        "wins": 3843,
+        "WR": 0.2816,
+        "EV": -0.0375,
+        "PnL": -511.8789,
+        "gross_profit": 9294.1211,
+        "gross_loss": 9806.0,
+        "PF": 0.9478,
+        "wilson_lo": 0.2741,
+        "total_trades_all_strategies": 13649,
+        "bt_error": null,
+        "data_source": "massive-parquet-direct",
+        "bars_fetched": 314680
+      },
+      "proposed": {
+        "N": 13683,
+        "wins": 3831,
+        "WR": 0.28,
+        "EV": -0.0425,
+        "PnL": -581.8298,
+        "gross_profit": 9270.1702,
+        "gross_loss": 9852.0,
+        "PF": 0.9409,
+        "wilson_lo": 0.2725,
+        "total_trades_all_strategies": 13683,
+        "bt_error": null,
+        "data_source": "massive-parquet-direct",
+        "bars_fetched": 314680
+      },
+      "lock_criteria": {
+        "pf_change_warn_only": -0.0069,
+        "wilson_lo_change_warn_only": -0.0016,
+        "n_change_pct_warn_only": 0.2491,
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "EUR_USD": {
+      "current": {
+        "N": 17076,
+        "wins": 4677,
+        "WR": 0.2739,
+        "EV": -0.0762,
+        "PnL": -1301.5379,
+        "gross_profit": 11097.4621,
+        "gross_loss": 12399.0,
+        "PF": 0.895,
+        "wilson_lo": 0.2673,
+        "total_trades_all_strategies": 17076,
+        "bt_error": null,
+        "data_source": "massive-parquet-direct",
+        "bars_fetched": 305215
+      },
+      "proposed": {
+        "N": 17067,
+        "wins": 4726,
+        "WR": 0.2769,
+        "EV": -0.0625,
+        "PnL": -1066.2791,
+        "gross_profit": 11274.7209,
+        "gross_loss": 12341.0,
+        "PF": 0.9136,
+        "wilson_lo": 0.2702,
+        "total_trades_all_strategies": 17067,
+        "bt_error": null,
+        "data_source": "massive-parquet-direct",
+        "bars_fetched": 305215
+      },
+      "lock_criteria": {
+        "pf_change_warn_only": 0.0186,
+        "wilson_lo_change_warn_only": 0.0029,
+        "n_change_pct_warn_only": -0.0527,
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "GBP_JPY": {
+      "current": {
+        "N": 14291,
+        "wins": 4087,
+        "WR": 0.286,
+        "EV": -0.0217,
+        "PnL": -310.751,
+        "gross_profit": 9893.249,
+        "gross_loss": 10204.0,
+        "PF": 0.9695,
+        "wilson_lo": 0.2786,
+        "total_trades_all_strategies": 14291,
+        "bt_error": null,
+        "data_source": "massive-parquet-direct",
+        "bars_fetched": 315993
+      },
+      "proposed": {
+        "N": 14333,
+        "wins": 4047,
+        "WR": 0.2824,
+        "EV": -0.0341,
+        "PnL": -489.0968,
+        "gross_profit": 9796.9032,
+        "gross_loss": 10286.0,
+        "PF": 0.9525,
+        "wilson_lo": 0.275,
+        "total_trades_all_strategies": 14333,
+        "bt_error": null,
+        "data_source": "massive-parquet-direct",
+        "bars_fetched": 315993
+      },
+      "lock_criteria": {
+        "pf_change_warn_only": -0.017,
+        "wilson_lo_change_warn_only": -0.0036,
+        "n_change_pct_warn_only": 0.2939,
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "GBP_USD": {
+      "current": {
+        "N": 15823,
+        "wins": 4402,
+        "WR": 0.2782,
+        "EV": -0.0485,
+        "PnL": -767.422,
+        "gross_profit": 10653.578,
+        "gross_loss": 11421.0,
+        "PF": 0.9328,
+        "wilson_lo": 0.2713,
+        "total_trades_all_strategies": 15823,
+        "bt_error": null,
+        "data_source": "massive-parquet-direct",
+        "bars_fetched": 304532
+      },
+      "proposed": {
+        "N": 15818,
+        "wins": 4424,
+        "WR": 0.2797,
+        "EV": -0.0428,
+        "PnL": -677.6569,
+        "gross_profit": 10716.3431,
+        "gross_loss": 11394.0,
+        "PF": 0.9405,
+        "wilson_lo": 0.2727,
+        "total_trades_all_strategies": 15818,
+        "bt_error": null,
+        "data_source": "massive-parquet-direct",
+        "bars_fetched": 304532
+      },
+      "lock_criteria": {
+        "pf_change_warn_only": 0.0077,
+        "wilson_lo_change_warn_only": 0.0014,
+        "n_change_pct_warn_only": -0.0316,
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "USD_JPY": {
+      "current": {
+        "N": 13292,
+        "wins": 3797,
+        "WR": 0.2857,
+        "EV": -0.0301,
+        "PnL": -400.5481,
+        "gross_profit": 9094.4519,
+        "gross_loss": 9495.0,
+        "PF": 0.9578,
+        "wilson_lo": 0.278,
+        "total_trades_all_strategies": 13292,
+        "bt_error": null,
+        "data_source": "massive-parquet-direct",
+        "bars_fetched": 302713
+      },
+      "proposed": {
+        "N": 13424,
+        "wins": 3865,
+        "WR": 0.2879,
+        "EV": -0.0223,
+        "PnL": -299.0441,
+        "gross_profit": 9259.9559,
+        "gross_loss": 9559.0,
+        "PF": 0.9687,
+        "wilson_lo": 0.2803,
+        "total_trades_all_strategies": 13424,
+        "bt_error": null,
+        "data_source": "massive-parquet-direct",
+        "bars_fetched": 302713
+      },
+      "lock_criteria": {
+        "pf_change_warn_only": 0.0109,
+        "wilson_lo_change_warn_only": 0.0023,
+        "n_change_pct_warn_only": 0.9931,
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    }
+  },
+  "overall_verdict": "PASS",
+  "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 291.7,
+  "self_review": {
+    "catastrophic_only": "PASS: verdict uses only PnL sign preservation when proposed N>=20; PF/Wilson/N are warn-only.",
+    "insufficient_bt_evidence": "PASS: proposed N<20 becomes INSUFFICIENT_BT_EVIDENCE and still recommends shadow.",
+    "absolute_kelly": "PASS: no Kelly threshold is calculated or required.",
+    "production_live_safety": "PASS: strategy behavior is default-off unless VOL_SURGE_REDESIGN_V2=1; shadow emit also requires VOL_SURGE_REDESIGN_V2_SHADOW_PROMOTE=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered closed_bar_timing_and_dedup_v2 variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo/network fallback for this report."
+  }
+}
