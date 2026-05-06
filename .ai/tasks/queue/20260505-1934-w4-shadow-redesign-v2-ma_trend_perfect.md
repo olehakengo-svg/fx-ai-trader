@@ -1,14 +1,14 @@
 ---
-id: 20260505-1932-w4-shadow-redesign-v2-ma_mr_hybrid
-title: "[W4-Shadow-Redesign v2.1] ma_mr_hybrid (Tier 4 (SCALP_SENTINEL)) — relaxed spec"
+id: 20260505-1934-w4-shadow-redesign-v2-ma_trend_perfect
+title: "[W4-Shadow-Redesign v2.1] ma_trend_perfect (Tier 4 (SCALP_SENTINEL)) — relaxed spec"
 owner: codex
 status: queued
 priority: P1
-created_at: 2026-05-05T19:32:00+0900
+created_at: 2026-05-05T19:34:00+0900
 roadmap_gate: "W4-Shadow-Redesign v2.1: BT は filter、shadow が真の estimator (v1 で 5/5 REJECT した教訓)"
 rule: R1
 prereq_artifacts:
-  - audits/edge_design/ma_mr_hybrid.md
+  - audits/edge_design/ma_trend_perfect.md
 related:
   - knowledge-base/wiki/lessons/feedback_shadow_first_quant_architecture.md
   - knowledge-base/wiki/lessons/feedback_audit_purpose_design_not_n.md
@@ -29,19 +29,19 @@ v1 spec で 5/5 REJECT した教訓:
 
 # 1. 再設計対象
 
-W4-EDA audit (`audits/edge_design/ma_mr_hybrid.md`):
-- Verdict: **THESIS_VALID_DESIGN_BROKEN** / Recommendation: **A**
+W4-EDA audit (`audits/edge_design/ma_trend_perfect.md`):
+- Verdict: **THESIS_VALID_TIMING_BROKEN** / Recommendation: **A**
 - Tier: Tier 4 (SCALP_SENTINEL)
 
 ## Axis 8 抜粋
 
-> Tier 4 (SCALP_SENTINEL) なので failure mode 診断対象。破綻軸は Axis 4 が主、Axis 3 と Axis 5 が副次。Axis 2 の trigger は M5 BB%B/RSI/Stoch を持つため思想の捕捉自体は成立しているが、M15 EMA21 5bps hard gate が MR の entry tail を過剰に削り、既存 audit では v1a-rev が 90d N=1 まで縮退している。さらに未確定 bar/dedup 不在の timing と、BB mid/VWAP/EMA などの mean target を使わない 1:1 ATR geometry が、scalp MR の cost-edge ratio を悪化させる。
+> Tier 4 (SCALP_SENTINEL) としての主破綻候補は Axis 3。Axis 2 は順張り再加速を数学的に捕捉し、Axis 4 の H1/M15/M5 フィルタは thesis を強化し、Axis 5 の `1.0ATR : 1.8ATR` は momentum scalp と整合する。一方で、1m 確認が current bar の `ctx.entry > ctx.open_price` / `ctx.entry < ctx.open_price` と MACD-H 増減に依存し、strategy 内に bar-close gating と dedup key がないため、BT の bar-close 仮定と live evaluation の intrabar 挙動がズレるリスクがある。
 
-再設計案は Filter 削除/置換を主軸にする。具体的には M15 bias hard gate を撤去し、方向は entry gate ではなく score feature に落とす。代替 trigger は `m5_bbpb <= 0.30 AND m5_rsi <= 35 AND stoch_k_cross_up` / `m5_bbpb >= 0.70 AND m5_rsi >= 65 AND stoch_k_cross_down` を bar-close 確定で判定し、M15 EMA
+再設計案は `closed-bar M5 breakout + next-bar 1m confirmation + per-bar dedup`。M5 EMA21 再ブレイクと 1m candle/MACD-H 確認を確定足のみで評価し、entry は次 bar execution に分離する。Candidate または上位 execution 層に `(entry_type, symbol, signal, signal_bar_time)` を渡して同一 bar 多重
 
 ## Redesign Recommendation 抜粋
 
-> 思想はコードから十分に導けるため `THESIS_INVALID` ではない。M5 過熱リバージョン trigger は成立しているが、M15 EMA21 5bps hard filter が MR edge を削る構造になっており、既存 audit の N=1 と整合する。まず `strategies/scalp/ma_mr_hybrid.py:75`-`strategies/scalp/ma_mr_hybrid.py:79` の bull/bear hard gate を entry 必須条件から外し、M15 gap は confidence/reason だけに使う設計へ移すのが最小修正。
+> 思想と trigger/filter/stop の骨格は維持する。修正対象は timing の 1 系統で、`ctx.entry > ctx.open_price` / `ctx.entry < ctx.open_price` と `ctx.macdh` 増減を評価する足を「直近確定 1m bar」に固定し、発注は次 bar 以降にする。M5 側も `m5_close` が確定済みであることをコンテキスト契約に明示し、未確定 M5 snapshot なら発火させない。
 
 # 2. v2.1 LOCK criteria (shadow-first 修正)
 
@@ -89,18 +89,18 @@ XAU データ不在 / 必須 parquet 不在の扱い:
 
 # 4. Implementation Steps
 
-## Step 1: 既存 audit 確認 (`audits/edge_design/ma_mr_hybrid.md`)
+## Step 1: 既存 audit 確認 (`audits/edge_design/ma_trend_perfect.md`)
 
 audit が指摘する redesign axis を読み、**最小 1 軸** で実装。
 
 ## Step 2: 実装 (flag 配下)
 
-`MA_MR_HYBRID_REDESIGN_V2=1` 環境変数 / config flag で proposed variant を有効化。
+`MA_TREND_PERFECT_REDESIGN_V2=1` 環境変数 / config flag で proposed variant を有効化。
 default OFF で live は影響受けない。
 
 ## Step 3: 失敗テスト + 緑
 
-`tests/test_ma_mr_hybrid_shadow_redesign_v2.py`
+`tests/test_ma_trend_perfect_shadow_redesign_v2.py`
 
 ## Step 4: 365d BT (BT_MODE=1, MASSIVE)
 
@@ -126,7 +126,7 @@ REJECT → 文書化のみ、shadow 設定変更なし
 
 - 実装 (flag 配下、live OFF default)
 - 失敗テスト緑
-- BT report (`bt-results/ma_mr_hybrid-shadow-redesign-v2-2026-05-05.json`)
+- BT report (`bt-results/ma_trend_perfect-shadow-redesign-v2-2026-05-05.json`)
 - v2 LOCK verdict (PASS / INSUFFICIENT_BT_EVIDENCE / REJECT)
 - Codex self-review 通過
 
@@ -145,8 +145,3 @@ REJECT → 文書化のみ、shadow 設定変更なし
 
 
 
-## Error (2026-05-06T10:00:49Z)
-
-```
-orphaned: container restarted while task was running
-```
