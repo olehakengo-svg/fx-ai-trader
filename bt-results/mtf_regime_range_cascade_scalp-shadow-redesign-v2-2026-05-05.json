@@ -1,0 +1,123 @@
+{
+  "generated_at": "2026-05-06T07:16:26.911277+00:00",
+  "strategy": "mtf_regime_range_cascade_scalp",
+  "variant": "range_edge_reclaim_closed_bar_v2",
+  "flag": "MTF_REGIME_RANGE_CASCADE_SCALP_REDESIGN_V2",
+  "shadow_worker_flag": "MTF_REGIME_RANGE_CASCADE_SCALP_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest(backtest_mode=True; production daytrade path; strategy-only compute patch)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": true,
+  "targets": [
+    "USD_JPY",
+    "EUR_USD"
+  ],
+  "missing_caches": [],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": {
+      "pnl_sign_preserved_only": "baseline PnL > 0 and proposed PnL < 0 is the only REJECT condition"
+    },
+    "warn_only": [
+      "pf_change",
+      "wilson_lo_change",
+      "n_change_pct"
+    ],
+    "sanity_floor": "REMOVED in v2.1",
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "USD_JPY": {
+      "current": {
+        "N": 99,
+        "wins": 45,
+        "WR": 0.4545,
+        "EV": 0.1836,
+        "PnL": 18.179,
+        "PF": 1.5444,
+        "wilson_lo": 0.36,
+        "total_trades_all_strategies": 99,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24644
+      },
+      "proposed": {
+        "N": 204,
+        "wins": 104,
+        "WR": 0.5098,
+        "EV": 0.1673,
+        "PnL": 34.1375,
+        "PF": 1.3518,
+        "wilson_lo": 0.4417,
+        "total_trades_all_strategies": 204,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24644
+      },
+      "lock_criteria": {
+        "pf_change_warn_only": -0.1926,
+        "wilson_lo_change_warn_only": 0.0817,
+        "n_change_pct_warn_only": 106.0606,
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "sanity_floor": "REMOVED_IN_V2_1",
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "EUR_USD": {
+      "current": {
+        "N": 86,
+        "wins": 41,
+        "WR": 0.4767,
+        "EV": 0.225,
+        "PnL": 19.3527,
+        "PF": 1.6934,
+        "wilson_lo": 0.3745,
+        "total_trades_all_strategies": 86,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24612
+      },
+      "proposed": {
+        "N": 189,
+        "wins": 87,
+        "WR": 0.4603,
+        "EV": 0.0695,
+        "PnL": 13.1261,
+        "PF": 1.1321,
+        "wilson_lo": 0.3908,
+        "total_trades_all_strategies": 189,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24612
+      },
+      "lock_criteria": {
+        "pf_change_warn_only": -0.5613,
+        "wilson_lo_change_warn_only": 0.0163,
+        "n_change_pct_warn_only": 119.7674,
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "sanity_floor": "REMOVED_IN_V2_1",
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    }
+  },
+  "overall_verdict": "PASS",
+  "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 1220.2,
+  "self_review": {
+    "catastrophic_only": "PASS: v2.1 verdict uses only pnl_sign_preserved when proposed N>=20.",
+    "warn_only_metrics": "PASS: PF, Wilson lower, and N drop are reported only as warnings.",
+    "absolute_kelly": "PASS: no Kelly threshold is applied.",
+    "production_live_safety": "PASS: redesign and shadow worker behavior are default-off env flags.",
+    "post_hoc_adjustment": "PASS: only the pre-registered range_edge_reclaim_closed_bar_v2 variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo fallback for this report."
+  }
+}

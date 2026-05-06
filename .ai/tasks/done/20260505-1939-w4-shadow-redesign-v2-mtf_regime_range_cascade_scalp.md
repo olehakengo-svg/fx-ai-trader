@@ -285,3 +285,33 @@ ERROR: Quota exceeded. Check your plan and billing details.
 ERROR: Quota exceeded. Check your plan and billing details.
 
 ```
+
+
+## Result (2026-05-06T07:17:08Z)
+
+exit=0 · 1447s
+
+```
+実装完了しました。`MTF_REGIME_RANGE_CASCADE_SCALP_REDESIGN_V2=1` 配下でのみ、確定済み signal bar の range-edge reclaim trigger を使うようにしました。flag OFF では既存 live 動作は変わりません。
+
+主な変更:
+- [mtf_regime_range_cascade_scalp.py](/data/repo/fx-ai-trader/strategies/scalp/mtf_regime_range_cascade_scalp.py:71): V2 flag、range cohort、live dedup を追加
+- [mtf_regime_range_cascade_scalp.py](/data/repo/fx-ai-trader/strategies/scalp/mtf_regime_range_cascade_scalp.py:175): BUY/SELL を closed bar の sweep/reclaim + RSI/Stoch recross に変更
+- [app.py](/data/repo/fx-ai-trader/app.py:6158): BT cache key / DT strategy-filter / SLTP preserve / shadow emit 配線を追加
+- [__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:208): shadow worker 登録を `*_SHADOW_PROMOTE=1` opt-in に追加
+- [test_mtf_regime_range_cascade_scalp_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_mtf_regime_range_cascade_scalp_shadow_redesign_v2.py:78): flag OFF/ON、range_tight block、dedup、shadow opt-in のテスト追加
+- [mtf_regime_range_cascade_scalp_shadow_bt.py](/data/repo/fx-ai-trader/tools/mtf_regime_range_cascade_scalp_shadow_bt.py:221): v2.1 LOCK criteria wrapper 追加
+
+検証:
+- `.venv/bin/python -m pytest -q tests/test_mtf_regime_range_cascade_scalp_shadow_redesign_v2.py tests/test_mtf_regime_trend_cascade_scalp_shadow_redesign_v2.py`
+- 結果: `6 passed`
+- `.venv/bin/python tools/mtf_regime_range_cascade_scalp_shadow_bt.py`
+- report: [bt-results/mtf_regime_range_cascade_scalp-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/mtf_regime_range_cascade_scalp-shadow-redesign-v2-2026-05-05.json:1)
+
+BT verdict: `PASS`, shadow promote recommendation: `RECOMMEND_SHADOW`.
+
+BT summary:
+- USD_JPY: baseline N=99 PnL=18.179 → proposed N=204 PnL=34.1375, `pnl_sign_preserved=true`
+- EUR_USD: baseline N=86 PnL=19.3527 → proposed N=189 PnL=13.1261, `pnl_sign_preserved=true`
+- PF / Wilson / N change は report に WARN ONLY として記録し、REJECT 根拠には使っていません。
+```

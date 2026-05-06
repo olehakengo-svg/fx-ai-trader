@@ -6155,6 +6155,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
     _lsb_v2_cache_flag = os.environ.get("LONDON_SESSION_BREAKOUT_REDESIGN_V2", "0")
     _lny_v2_cache_flag = os.environ.get("LONDON_NY_SWING_REDESIGN_V2", "0")
     _mtf_v2_cache_flag = os.environ.get("MTF_REGIME_TREND_CASCADE_SCALP_REDESIGN_V2", "0")
+    _mtf_range_v2_cache_flag = os.environ.get("MTF_REGIME_RANGE_CASCADE_SCALP_REDESIGN_V2", "0")
     _pnv_v2_cache_flag = os.environ.get("POST_NEWS_VOL_REDESIGN_V2", "0")
     _rsk_v2_cache_flag = os.environ.get("RSK_GBPJPY_REVERSION_REDESIGN_V2", "0")
     cache_key = (
@@ -6164,6 +6165,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         f"_iobV2{_iob_v2_cache_flag}_jbtV2{_jbt_v2_cache_flag}"
         f"_lsbV2{_lsb_v2_cache_flag}_lnyV2{_lny_v2_cache_flag}"
         f"_mtfCascadeV2{_mtf_v2_cache_flag}_pnvV2{_pnv_v2_cache_flag}"
+        f"_mtfRangeCascadeV2{_mtf_range_v2_cache_flag}"
         f"_rskV2{_rsk_v2_cache_flag}"
     )
     now = datetime.now()
@@ -6407,6 +6409,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "london_breakout",               # BT-only strategy-filter path for scalp shadow redesign
                 "ma_regime_switch",              # BT-only strategy-filter path for scalp shadow redesign
                 "mtf_regime_trend_cascade_scalp", # BT-only strategy-filter path for scalp shadow redesign
+                "mtf_regime_range_cascade_scalp", # BT-only strategy-filter path for scalp shadow redesign
             }
             DT_BLOCKED = {"unknown", "wait"}
 
@@ -6480,6 +6483,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "squeeze_release_momentum",
                 "bb_rsi_ema_aligned",
                 "mtf_regime_trend_cascade_scalp",
+                "mtf_regime_range_cascade_scalp",
             }
             if _dt_sr_channel_v2_geometry:
                 _DT_PRESERVE_SLTP = _DT_PRESERVE_SLTP | {"dt_sr_channel_reversal"}
@@ -8798,6 +8802,22 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                     "entry_type": _mtf_cascade.entry_type,
                     "reasons": list(_mtf_cascade.reasons or []),
                     "score": round(float(_mtf_cascade.score), 3),
+                    "atr": _rp(atr, symbol),
+                })
+        if (os.environ.get("MTF_REGIME_RANGE_CASCADE_SCALP_REDESIGN_V2") == "1"
+                and os.environ.get("MTF_REGIME_RANGE_CASCADE_SCALP_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            from strategies.scalp.mtf_regime_range_cascade_scalp import MtfRegimeRangeCascadeScalp
+            _mtf_range_cascade = MtfRegimeRangeCascadeScalp().evaluate(_ctx)
+            if (_mtf_range_cascade is not None
+                    and _mtf_range_cascade.entry_type != getattr(_sc_winner_obj, "entry_type", None)):
+                _sc_shadow_emit_payload.append({
+                    "signal": _mtf_range_cascade.signal,
+                    "entry": _rp(entry, symbol),
+                    "confidence": int(getattr(_mtf_range_cascade, "confidence", 50) or 50),
+                    "sl": float(_mtf_range_cascade.sl), "tp": float(_mtf_range_cascade.tp),
+                    "entry_type": _mtf_range_cascade.entry_type,
+                    "reasons": list(_mtf_range_cascade.reasons or []),
+                    "score": round(float(_mtf_range_cascade.score), 3),
                     "atr": _rp(atr, symbol),
                 })
     except Exception:
