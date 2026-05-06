@@ -63,8 +63,8 @@ class VolMomentumScalp(StrategyBase):
         "EURJPY": frozenset(range(16, 24)),  # NY_Lateブロック
     }
 
-    _REDESIGN_ENV = "VOL_MOMENTUM_REDESIGN_V2"
-    _LEGACY_REDESIGN_ENV = "VOL_MOMENTUM_SCALP_REDESIGN_V2"
+    _REDESIGN_ENV = "VOL_MOMENTUM_SCALP_REDESIGN_V2"
+    _LEGACY_REDESIGN_ENV = "VOL_MOMENTUM_REDESIGN_V2"
     _last_emitted_keys = set()
 
     @classmethod

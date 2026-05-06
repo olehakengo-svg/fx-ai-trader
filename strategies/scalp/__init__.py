@@ -220,8 +220,15 @@ class ScalperEngine:
         if (os.environ.get("VBP_REDESIGN_V2") == "1"
                 and os.environ.get("VBP_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"vbp"}
-        if (os.environ.get("VOL_MOMENTUM_REDESIGN_V2") == "1"
-                and os.environ.get("VOL_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+        _vol_momentum_redesign_v2 = (
+            os.environ.get("VOL_MOMENTUM_SCALP_REDESIGN_V2") == "1"
+            or os.environ.get("VOL_MOMENTUM_REDESIGN_V2") == "1"
+        )
+        _vol_momentum_shadow_promote = (
+            os.environ.get("VOL_MOMENTUM_SCALP_REDESIGN_V2_SHADOW_PROMOTE") == "1"
+            or os.environ.get("VOL_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE") == "1"
+        )
+        if _vol_momentum_redesign_v2 and _vol_momentum_shadow_promote:
             _shadow_always = _shadow_always | {"vol_momentum_scalp"}
         if (os.environ.get("MTF_REGIME_RANGE_CASCADE_SCALP_REDESIGN_V2") == "1"
                 and os.environ.get("MTF_REGIME_RANGE_CASCADE_SCALP_REDESIGN_V2_SHADOW_PROMOTE") == "1"):

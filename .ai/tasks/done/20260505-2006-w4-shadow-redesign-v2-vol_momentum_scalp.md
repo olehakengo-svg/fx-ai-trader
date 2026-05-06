@@ -141,3 +141,35 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T19:16:00Z)
+
+exit=0 · 386s
+
+```
+完了しました。
+
+実装:
+- [strategies/scalp/vol_momentum.py](/data/repo/fx-ai-trader/strategies/scalp/vol_momentum.py:66): `VOL_MOMENTUM_SCALP_REDESIGN_V2=1` 配下で closed signal bar `df.iloc[-2]` を使い、同一 `(symbol, strategy, signal, bar_id)` の dedup を適用。default OFF は現行 path 維持。
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:223): shadow emit は redesign flag と shadow promote flag の二重 flag 必須。今回 verdict は promote 不可なので、default OFF のままです。
+- [tools/vol_momentum_scalp_shadow_bt.py](/data/repo/fx-ai-trader/tools/vol_momentum_scalp_shadow_bt.py:21): audit 対象の `EUR_JPY` を target にして、指定 report 名へ出力。
+
+テスト:
+- 追加: [tests/test_vol_momentum_scalp_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_vol_momentum_scalp_shadow_redesign_v2.py:104)
+- 実行: `.venv/bin/pytest -q tests/test_vol_momentum_scalp_shadow_redesign_v2.py tests/test_vol_momentum_shadow_redesign_v2.py tests/test_vol_momentum_scalp_shadow_redesign.py`
+- 結果: `14 passed`
+
+BT report:
+- [bt-results/vol_momentum_scalp-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/vol_momentum_scalp-shadow-redesign-v2-2026-05-05.json:1)
+- Verdict: `BLOCKED_DATA`
+- 理由: `data/cache/massive/EUR_JPY_5m.parquet` が存在しないため、365d MASSIVE BT は実行不可。
+- Shadow promote: `BLOCKED_DATA` のため未登録、flag default OFF 維持。
+
+Codex self-review:
+- catastrophic check only: report に明記。
+- PF / Wilson / N drop: WARN only。
+- Kelly absolute threshold: 不使用。
+- post-hoc adjustment: なし。
+- live 影響: `VOL_MOMENTUM_SCALP_REDESIGN_V2` default OFF でゼロ。
+```

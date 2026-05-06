@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A/B BT filter for vol_momentum V2.1 timing hardening."""
+"""A/B BT filter for vol_momentum_scalp V2.1 timing hardening."""
 from __future__ import annotations
 
 import json
@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 TARGETS = [
-    ("USD_JPY", "USDJPY=X"),
+    ("EUR_JPY", "EURJPY=X"),
 ]
 ENABLED_PAIR_CACHES = [
     "USD_JPY",
@@ -31,9 +31,10 @@ LOOKBACK_DAYS = 365
 MINIMUM_DAYS = 365
 INTERVAL = "5m"
 STRATEGY = "vol_momentum_scalp"
-FLAG = "VOL_MOMENTUM_REDESIGN_V2"
-SHADOW_PROMOTE_FLAG = "VOL_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE"
-OUTFILE = ROOT / "bt-results" / "vol_momentum-shadow-redesign-v2-2026-05-05.json"
+FLAG = "VOL_MOMENTUM_SCALP_REDESIGN_V2"
+LEGACY_FLAG = "VOL_MOMENTUM_REDESIGN_V2"
+SHADOW_PROMOTE_FLAG = "VOL_MOMENTUM_SCALP_REDESIGN_V2_SHADOW_PROMOTE"
+OUTFILE = ROOT / "bt-results" / "vol_momentum_scalp-shadow-redesign-v2-2026-05-05.json"
 
 
 def _cache_path(pair: str) -> Path:
@@ -187,7 +188,7 @@ def _compute_strategy_only_signal(df, tf, sr_levels, symbol="USDJPY=X",
 
 def _run(app, data_mod, symbol: str, proposed: bool, days: int) -> dict:
     os.environ[FLAG] = "1" if proposed else "0"
-    os.environ["VOL_MOMENTUM_SCALP_REDESIGN_V2"] = "1" if proposed else "0"
+    os.environ[LEGACY_FLAG] = "1" if proposed else "0"
     app._dt_bt_cache.clear()
     data_mod._data_cache.clear()
     from strategies.scalp.vol_momentum import VolMomentumScalp
@@ -309,7 +310,7 @@ def main() -> int:
 
     result = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "strategy": "vol_momentum",
+        "strategy": "vol_momentum_scalp",
         "entry_type": STRATEGY,
         "variant": "closed_bar_dedup_v2",
         "flag": FLAG,
