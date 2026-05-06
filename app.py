@@ -6155,13 +6155,14 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
     _lsb_v2_cache_flag = os.environ.get("LONDON_SESSION_BREAKOUT_REDESIGN_V2", "0")
     _lny_v2_cache_flag = os.environ.get("LONDON_NY_SWING_REDESIGN_V2", "0")
     _mtf_v2_cache_flag = os.environ.get("MTF_REGIME_TREND_CASCADE_SCALP_REDESIGN_V2", "0")
+    _pnv_v2_cache_flag = os.environ.get("POST_NEWS_VOL_REDESIGN_V2", "0")
     cache_key = (
         f"{symbol}_{interval}_{lookback_days}_jitter{exec_lag_jitter:.4f}"
         f"_bt{int(bool(backtest_mode))}_gtmV2{_gtm_v2_cache_flag}"
         f"_gvbV2{_gvb_v2_cache_flag}_hfbV2{_hfb_v2_cache_flag}"
         f"_iobV2{_iob_v2_cache_flag}_jbtV2{_jbt_v2_cache_flag}"
         f"_lsbV2{_lsb_v2_cache_flag}_lnyV2{_lny_v2_cache_flag}"
-        f"_mtfCascadeV2{_mtf_v2_cache_flag}"
+        f"_mtfCascadeV2{_mtf_v2_cache_flag}_pnvV2{_pnv_v2_cache_flag}"
     )
     now = datetime.now()
     cached = _dt_bt_cache.get(cache_key)

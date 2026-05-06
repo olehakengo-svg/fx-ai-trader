@@ -29,6 +29,8 @@ Post-News Volatility Run — 指標後の流動性空白狙い
 SL: 異常足のスイングエクストリーム ± ATR × SL_ATR_BUFFER
 TP: 異常足range × TP_RANGE_MULT or ATR × TP_ATR_MULT
 """
+import os
+from datetime import datetime, timezone
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
@@ -83,12 +85,119 @@ class PostNewsVol(StrategyBase):
     ALLOWED_PAIRS = {
         "USDJPY", "EURUSD", "GBPUSD", "EURGBP", "XAUUSD",
     }
+    _dedup_state: dict = {}
+
+    @classmethod
+    def reset_dedup_state(cls):
+        cls._dedup_state.clear()
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get("POST_NEWS_VOL_REDESIGN_V2") == "1"
 
     def _normalize_symbol(self, symbol: str) -> str:
         s = symbol.upper().replace("=X", "").replace("=F", "").replace("/", "").replace("_", "")
         if s in ("GC", "GCF"):
             return "XAUUSD"
         return s
+
+    def _symbol_currencies(self, symbol: str) -> set[str]:
+        if symbol == "XAUUSD":
+            return {"XAU", "USD"}
+        if len(symbol) >= 6:
+            return {symbol[:3], symbol[3:6]}
+        return {symbol}
+
+    def _coerce_utc(self, value):
+        if value is None:
+            return None
+        if hasattr(value, "to_pydatetime"):
+            value = value.to_pydatetime()
+        elif isinstance(value, str):
+            try:
+                value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except ValueError:
+                return None
+        if not isinstance(value, datetime):
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    def _bar_time_at(self, ctx: SignalContext, idx: int):
+        try:
+            return self._coerce_utc(ctx.df.index[idx])
+        except Exception:
+            return self._coerce_utc(ctx.bar_time)
+
+    def _event_time(self, event):
+        if isinstance(event, dict):
+            for key in ("time", "time_utc", "timestamp", "datetime", "event_time", "release_time"):
+                ts = self._coerce_utc(event.get(key))
+                if ts is not None:
+                    return ts
+        return self._coerce_utc(event)
+
+    def _event_is_high_impact(self, event) -> bool:
+        if not isinstance(event, dict):
+            return True
+        raw = event.get("impact", event.get("importance", event.get("tier", "high")))
+        if isinstance(raw, (int, float)):
+            return raw >= 3
+        return str(raw).strip().lower() in {"high", "high_impact", "h", "3", "red"}
+
+    def _event_matches_symbol(self, event, symbol: str) -> bool:
+        if not isinstance(event, dict):
+            return True
+        raw = event.get("currency", event.get("ccy", event.get("country_currency")))
+        if not raw:
+            return True
+        currencies = self._symbol_currencies(symbol)
+        if isinstance(raw, str):
+            event_currencies = {raw.upper()}
+        else:
+            try:
+                event_currencies = {str(v).upper() for v in raw}
+            except TypeError:
+                event_currencies = {str(raw).upper()}
+        return bool(currencies & event_currencies)
+
+    def _calendar_events(self, ctx: SignalContext):
+        session = ctx.session if isinstance(ctx.session, dict) else {}
+        for key in ("high_impact_calendar_events", "calendar_events", "news_events", "economic_events"):
+            events = session.get(key)
+            if events:
+                return events
+        return []
+
+    def _event_window_match(self, ctx: SignalContext, symbol: str, bar_time):
+        """Return matching high-impact event for bar_time in event[-5m,+45m]."""
+        if bar_time is None:
+            return None
+        for event in self._calendar_events(ctx):
+            event_time = self._event_time(event)
+            if event_time is None:
+                continue
+            if not self._event_is_high_impact(event):
+                continue
+            if not self._event_matches_symbol(event, symbol):
+                continue
+            delta_min = (bar_time - event_time).total_seconds() / 60.0
+            if -5.0 <= delta_min <= 45.0:
+                return event
+        return None
+
+    def _dedup_seen(self, ctx: SignalContext, spike, signal: str, signal_bar_time) -> bool:
+        key = (
+            self._normalize_symbol(ctx.symbol),
+            self.name,
+            spike.get("idx"),
+            signal_bar_time,
+            signal,
+        )
+        if key in self._dedup_state:
+            return True
+        self._dedup_state[key] = True
+        return False
 
     # ══════════════════════════════════════════════════
     # 異常足検出
@@ -203,6 +312,9 @@ class PostNewsVol(StrategyBase):
     # ══════════════════════════════════════════════════
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        if self._redesign_v2_enabled():
+            return self._evaluate_redesign_v2(ctx)
+
         # ── ペアフィルター ──
         _sym = self._normalize_symbol(ctx.symbol)
         if _sym not in self.ALLOWED_PAIRS:
@@ -311,6 +423,115 @@ class PostNewsVol(StrategyBase):
         return Candidate(
             signal=signal,
             confidence=min(85, 50 + int(_spike_mult * 5) + int(_rr * 3)),
+            sl=round(sl, 5 if not ctx.is_jpy else 3),
+            tp=round(tp, 5 if not ctx.is_jpy else 3),
+            reasons=_reasons,
+            entry_type=self.name,
+            score=_score,
+        )
+
+    def _evaluate_redesign_v2(self, ctx: SignalContext) -> Optional[Candidate]:
+        """V2 shadow variant: event-window spike + closed follow bar + dedup."""
+        _sym = self._normalize_symbol(ctx.symbol)
+        if _sym not in self.ALLOWED_PAIRS:
+            return None
+
+        if ctx.df is None or len(ctx.df) < self.ATR_LOOKBACK + self.SPIKE_LOOKBACK + 6:
+            return None
+
+        if ctx.hour_utc < self.ACTIVE_HOURS_START or ctx.hour_utc >= self.ACTIVE_HOURS_END:
+            return None
+        if ctx.is_friday and ctx.hour_utc >= self.FRIDAY_BLOCK_HOUR:
+            return None
+
+        signal_idx = len(ctx.df) - 2
+        signal_bar = ctx.df.iloc[signal_idx]
+        signal_bar_time = self._bar_time_at(ctx, signal_idx)
+        signal_atr = float(signal_bar.get("atr", ctx.atr))
+        signal_adx = float(signal_bar.get("adx", ctx.adx))
+        if signal_atr <= 0 or signal_adx < self.ADX_MIN:
+            return None
+
+        spikes = self._find_spike_bars(ctx.df, signal_atr, signal_idx)
+        if not spikes:
+            return None
+
+        _best = None
+        _best_spike = None
+        _best_event = None
+        for spike in reversed(spikes):
+            spike_time = self._bar_time_at(ctx, spike["idx"])
+            event = self._event_window_match(ctx, _sym, spike_time)
+            if event is None:
+                continue
+            result = self._check_follow_through(ctx.df, spike, signal_atr, signal_idx)
+            if result:
+                _best = result
+                _best_spike = spike
+                _best_event = event
+                break
+
+        if _best is None:
+            return None
+
+        signal = _best["signal"]
+        spike = _best_spike
+        _is_buy = signal == "BUY"
+        entry = ctx.entry
+
+        if self._dedup_seen(ctx, spike, signal, signal_bar_time):
+            return None
+
+        if _is_buy:
+            sl = spike["spike_low"] - signal_atr * self.SL_ATR_BUFFER
+        else:
+            sl = spike["spike_high"] + signal_atr * self.SL_ATR_BUFFER
+
+        # V2 keeps spike invalidation SL but uses a wider management target to
+        # avoid cutting off the post-news tail before shadow exit telemetry exists.
+        _tp_range = spike["spike_range"] * max(self.TP_RANGE_MULT, 1.2)
+        _tp_atr = signal_atr * max(self.TP_ATR_MULT, 3.0)
+        _tp_dist = max(_tp_range, _tp_atr)
+        tp = entry + _tp_dist if _is_buy else entry - _tp_dist
+
+        _sl_dist = abs(entry - sl)
+        if _sl_dist <= 0:
+            return None
+        if _is_buy and sl >= entry:
+            return None
+        if not _is_buy and sl <= entry:
+            return None
+
+        _tp_dist_final = abs(tp - entry)
+        if _tp_dist_final / _sl_dist < self.MIN_RR:
+            _tp_dist_final = _sl_dist * self.MIN_RR
+            tp = entry + _tp_dist_final if _is_buy else entry - _tp_dist_final
+        _rr = _tp_dist_final / _sl_dist
+
+        _spike_mult = spike["spike_range"] / signal_atr if signal_atr > 0 else 1.0
+        _delay = signal_idx - spike["idx"]
+        _score = 5.2
+        if _spike_mult >= 4.0:
+            _score += 2.0
+        elif _spike_mult >= 3.0:
+            _score += 1.0
+        if _rr >= 2.5:
+            _score += 1.0
+        if _delay <= 2:
+            _score += 0.5
+
+        event_label = "high-impact event"
+        if isinstance(_best_event, dict):
+            event_label = str(_best_event.get("name") or _best_event.get("event") or event_label)
+        _reasons = [
+            f"✅ POST_NEWS_VOL_REDESIGN_V2 event-window {event_label}",
+            f"✅ closed-bar follow-through signal={signal_bar_time} delay={_delay} bars",
+            f"✅ spike TR/ATR={_spike_mult:.1f}x, RR={_rr:.1f}, ADX={signal_adx:.1f}",
+        ]
+
+        return Candidate(
+            signal=signal,
+            confidence=min(85, 52 + int(_spike_mult * 5) + int(_rr * 3)),
             sl=round(sl, 5 if not ctx.is_jpy else 3),
             tp=round(tp, 5 if not ctx.is_jpy else 3),
             reasons=_reasons,

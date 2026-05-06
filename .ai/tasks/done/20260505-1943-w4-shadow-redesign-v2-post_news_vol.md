@@ -135,3 +135,53 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T04:40:08Z)
+
+exit=0 · 2508s
+
+```
+実装完了しました。
+
+変更点:
+- `POST_NEWS_VOL_REDESIGN_V2=1` 配下で v2 variant を追加
+  - high-impact event window `[-5m,+45m]` 必須
+  - follow-through は `df.iloc[-2]` の確定足だけ使用
+  - current bar only signal は不採用
+  - `(symbol, strategy, spike_idx, signal_bar_time, signal)` dedup
+  - spike extreme SL 維持、TP は shadow 向けに少し広めの management target
+- Shadow worker 登録を二重 flag 化
+  - `POST_NEWS_VOL_REDESIGN_V2=1`
+  - `POST_NEWS_VOL_REDESIGN_V2_SHADOW_PROMOTE=1`
+- BT cache key に v2 flag を追加
+- 新規テスト追加: [tests/test_post_news_vol_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_post_news_vol_shadow_redesign_v2.py:130)
+- BT runner 追加: [tools/post_news_vol_shadow_bt.py](/data/repo/fx-ai-trader/tools/post_news_vol_shadow_bt.py:1)
+- BT report 生成: [bt-results/post_news_vol-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/post_news_vol-shadow-redesign-v2-2026-05-05.json:1)
+
+検証:
+- `./.venv/bin/python -m pytest tests/test_post_news_vol_shadow_redesign_v2.py -q`  
+  → `6 passed`
+- `./.venv/bin/python -m py_compile strategies/daytrade/post_news_vol.py strategies/daytrade/__init__.py tools/post_news_vol_shadow_bt.py app.py`  
+  → OK
+- `./.venv/bin/python tools/post_news_vol_shadow_bt.py`  
+  → 365d MASSIVE BT 完了
+
+v2 LOCK verdict:
+- Overall: `INSUFFICIENT_BT_EVIDENCE`
+- Shadow recommendation: `RECOMMEND_SHADOW`
+- Proposed N:
+  - USD_JPY: `0`
+  - EUR_USD: `0`
+  - GBP_USD: `0`
+  - EUR_GBP: `0`
+
+理由: MASSIVE OHLCV cache には economic calendar event feed がないため、v2 の event-window gate が正しく働き、BT では proposed trades が 20 未満になりました。v2 spec に従って catastrophic check / sanity floor は skip、shadow promote 推奨です。
+
+Codex self-review:
+- catastrophic check のみで判定: PASS
+- absolute Kelly 不要求: PASS
+- default OFF で live 影響ゼロ: PASS
+- post-hoc adjustment なし: PASS
+- Yahoo fallback 禁止: PASS (`BT_MODE=1`, `BT_REQUIRE_MASSIVE_CACHE=1`)
+```

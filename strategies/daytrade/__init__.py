@@ -284,6 +284,9 @@ class DaytradeEngine:
         if (os.environ.get("ORB_TRAP_REDESIGN_V2") == "1"
                 and os.environ.get("ORB_TRAP_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"orb_trap"}
+        if (os.environ.get("POST_NEWS_VOL_REDESIGN_V2") == "1"
+                and os.environ.get("POST_NEWS_VOL_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"post_news_vol"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]
