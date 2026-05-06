@@ -27,6 +27,7 @@ from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
 import numpy as np
+import os
 
 
 class LondonSessionBreakout(StrategyBase):
@@ -53,7 +54,20 @@ class LondonSessionBreakout(StrategyBase):
     # ── 最大保持 ──
     max_hold_bars = 8      # 8バー(8時間) — ロンドンセッション中に決着
 
+    _enabled_symbols_v2 = frozenset({"EURUSD", "GBPUSD"})
+    _dedup_state: dict = {}
+
+    @classmethod
+    def reset_dedup_state(cls):
+        cls._dedup_state.clear()
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get("LONDON_SESSION_BREAKOUT_REDESIGN_V2") == "1"
+
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        if self._redesign_v2_enabled():
+            return self._evaluate_redesign_v2(ctx)
+
         # ── DISABLED: context fix (2026-04-04) で hour_utc が正しく渡されるようになり、
         # 初めて実BT可能に → 結果: EUR WR=10% ev=-9.9, JPY WR=0% ev=-10.7
         # Asia compression→London breakout ロジック要再設計 ──
@@ -218,5 +232,139 @@ class LondonSessionBreakout(StrategyBase):
             reasons.append("✅ EMA50長期方向一致")
 
         conf = int(min(85, 50 + score * 4))
+        return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
+                         reasons=reasons, entry_type=self.name, score=score)
+
+    def _evaluate_redesign_v2(self, ctx: SignalContext) -> Optional[Candidate]:
+        _sym = ctx.symbol.upper().replace("=X", "").replace("_", "").replace("/", "")
+        if _sym not in self._enabled_symbols_v2:
+            return None
+        if ctx.df is None or len(ctx.df) < 80 or ctx.atr <= 0:
+            return None
+
+        _signal_df = ctx.df
+        if not ctx.backtest_mode:
+            if len(ctx.df) < 81:
+                return None
+            _signal_df = ctx.df.iloc[:-1]
+        if len(_signal_df) < 80:
+            return None
+
+        _signal_bar = _signal_df.iloc[-1]
+        _signal_time = _signal_df.index[-1]
+        _signal_hour = _signal_time.hour if hasattr(_signal_time, "hour") else ctx.hour_utc
+        if _signal_hour != 7:
+            return None
+
+        _trade_date = _signal_time.date() if hasattr(_signal_time, "date") else None
+        if _trade_date is None or not hasattr(_signal_df.index, "date"):
+            return None
+
+        _dates = _signal_df.index.date
+        _hours = _signal_df.index.hour
+        _asia_mask = (_dates == _trade_date) & (_hours >= self.asia_start_h) & (_hours < self.asia_end_h)
+        _asia_slice = _signal_df[_asia_mask]
+        _bars_per_hour = 1 if ctx.tf in ("1h", "60m") else 4
+        if len(_asia_slice) < max(3, _bars_per_hour * 3):
+            return None
+
+        _asia_high = float(_asia_slice["High"].max())
+        _asia_low = float(_asia_slice["Low"].min())
+        _asia_range = _asia_high - _asia_low
+        if _asia_range <= 0:
+            return None
+
+        _daily_asia_ranges = []
+        _all_dates = sorted(set(_dates))
+        for _d in _all_dates:
+            if _d >= _trade_date:
+                continue
+            _day_mask = (_dates == _d) & (_hours >= self.asia_start_h) & (_hours < self.asia_end_h)
+            _day_asia = _signal_df[_day_mask]
+            if len(_day_asia) >= max(3, _bars_per_hour * 3):
+                _daily_asia_ranges.append(float(_day_asia["High"].max()) - float(_day_asia["Low"].min()))
+        _daily_asia_ranges = _daily_asia_ranges[-self.asia_range_lookback_days:]
+        if len(_daily_asia_ranges) >= 5:
+            _median_range = float(np.median(_daily_asia_ranges))
+            if _asia_range < _median_range * 0.6:
+                return None
+            if _asia_range > _median_range * 2.0:
+                return None
+        elif _asia_range * ctx.pip_mult < 8:
+            return None
+
+        _signal_close = float(_signal_bar["Close"])
+        _signal_open = float(_signal_bar["Open"])
+        _signal_high = float(_signal_bar["High"])
+        _signal_low = float(_signal_bar["Low"])
+        _signal_ema9 = float(_signal_bar.get("ema9", ctx.ema9))
+        _signal_ema21 = float(_signal_bar.get("ema21", ctx.ema21))
+        _signal_ema50 = float(_signal_bar.get("ema50", ctx.ema50))
+
+        _bar_range = max(_signal_high - _signal_low, abs(_signal_close - _signal_open))
+        _body = abs(_signal_close - _signal_open)
+        _body_ratio = _body / _bar_range if _bar_range > 0 else 0.0
+        if _body_ratio < self.body_ratio_min:
+            return None
+
+        _spread_proxy = 0.2 / ctx.pip_mult
+        _break_buffer = max(_spread_proxy, ctx.atr * 0.1)
+        _both_broke = (_signal_high > _asia_high + _break_buffer) and (_signal_low < _asia_low - _break_buffer)
+        if _both_broke:
+            return None
+
+        _htf = ctx.htf or {}
+        _agreement = _htf.get("agreement", "mixed")
+        signal = None
+        score = 4.0
+        reasons = []
+        sl = 0.0
+        tp = 0.0
+        _min_sl = 0.00030
+
+        if (_signal_close > _asia_high + _break_buffer
+                and _signal_close > _signal_open
+                and _signal_ema9 > _signal_ema21
+                and _agreement != "bear"):
+            signal = "BUY"
+            sl = min(_asia_low - ctx.atr * 0.1, ctx.entry - _min_sl)
+            _risk = max(ctx.entry - sl, _min_sl)
+            tp = ctx.entry + max(ctx.atr * 2.0, _risk * 1.5)
+            reasons.append(
+                f"✅ LONDON_SESSION_BREAKOUT_REDESIGN_V2 07UTC closed breakout: C={_signal_close:.5f}>AsiaH={_asia_high:.5f}+buffer"
+            )
+            reasons.append(f"✅ body={_body_ratio:.0%}, EMA9>21, MTF={_agreement}, execution={ctx.entry:.5f}")
+        elif (_signal_close < _asia_low - _break_buffer
+              and _signal_close < _signal_open
+              and _signal_ema9 < _signal_ema21
+              and _agreement != "bull"):
+            signal = "SELL"
+            sl = max(_asia_high + ctx.atr * 0.1, ctx.entry + _min_sl)
+            _risk = max(sl - ctx.entry, _min_sl)
+            tp = ctx.entry - max(ctx.atr * 2.0, _risk * 1.5)
+            reasons.append(
+                f"✅ LONDON_SESSION_BREAKOUT_REDESIGN_V2 07UTC closed breakout: C={_signal_close:.5f}<AsiaL={_asia_low:.5f}-buffer"
+            )
+            reasons.append(f"✅ body={_body_ratio:.0%}, EMA9<21, MTF={_agreement}, execution={ctx.entry:.5f}")
+
+        if signal is None:
+            return None
+
+        _dedup_key = (_sym, _trade_date, signal)
+        if self._dedup_state.get(_dedup_key):
+            return None
+        self._dedup_state[_dedup_key] = True
+
+        if ctx.adx >= 25:
+            score += 0.4
+            reasons.append(f"✅ ADX trend confirmation({ctx.adx:.1f})")
+        if (signal == "BUY" and _agreement == "bull") or (signal == "SELL" and _agreement == "bear"):
+            score += 0.4
+            reasons.append(f"✅ HTF full agreement({_agreement})")
+        if (signal == "BUY" and _signal_ema50 < _signal_ema9) or (
+                signal == "SELL" and _signal_ema50 > _signal_ema9):
+            score += 0.2
+
+        conf = int(min(82, 50 + score * 4))
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
                          reasons=reasons, entry_type=self.name, score=score)

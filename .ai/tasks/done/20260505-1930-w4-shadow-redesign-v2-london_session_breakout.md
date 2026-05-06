@@ -135,3 +135,36 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T00:40:41Z)
+
+exit=0 · 1054s
+
+```
+実装完了です。
+
+主な変更:
+- [london_session_breakout.py](/data/repo/fx-ai-trader/strategies/daytrade/london_session_breakout.py:57): `LONDON_SESSION_BREAKOUT_REDESIGN_V2=1` 配下で V2 branch を追加。default OFF では既存 hard disable のままです。
+- [london_session_breakout.py](/data/repo/fx-ai-trader/strategies/daytrade/london_session_breakout.py:238): EUR_USD / GBP_USD 限定、07UTC 確定足、Asia range、body ratio、EMA/HTF、同日同方向 dedup、break buffer、V2 SL/TP geometry を実装。
+- [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:278): `LONDON_SESSION_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE=1` との二重 flag で shadow worker 登録。
+- [app.py](/data/repo/fx-ai-trader/app.py:6155): BT cache key に V2 flag を追加。
+- [app.py](/data/repo/fx-ai-trader/app.py:6476): V2 時だけ strategy SL/TP を BT 側で preserve。
+- [tests/test_london_session_breakout_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_london_session_breakout_shadow_redesign_v2.py:1): default OFF、V2 trigger、JPY/時間 gate、live closed-bar、dedup、shadow double flag を追加。
+- [tools/london_session_breakout_shadow_bt.py](/data/repo/fx-ai-trader/tools/london_session_breakout_shadow_bt.py:1): 365d MASSIVE A/B BT runner を追加。
+
+検証:
+- `.venv/bin/pytest -q tests/test_london_session_breakout_shadow_redesign_v2.py` → `6 passed`
+- `python3 -m py_compile strategies/daytrade/london_session_breakout.py tools/london_session_breakout_shadow_bt.py` → OK
+- `.venv/bin/python tools/london_session_breakout_shadow_bt.py` → report 生成済み
+
+BT report:
+- [bt-results/london_session_breakout-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/london_session_breakout-shadow-redesign-v2-2026-05-05.json:1)
+- MASSIVE 15m cache verified
+- EUR_USD proposed: `N=66`, `PF=4.4463`, `wilson_lo=0.7431`
+- GBP_USD proposed: `N=75`, `PF=3.5306`, `wilson_lo=0.7257`
+- v2 LOCK verdict: `PASS`
+- shadow recommendation: `RECOMMEND_SHADOW`
+
+Self-review: catastrophic/floor のみで判定し、positive direction / Kelly は要求していません。Live 影響は default OFF でゼ
+…(truncated)

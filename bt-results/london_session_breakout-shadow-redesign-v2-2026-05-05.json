@@ -1,0 +1,123 @@
+{
+  "generated_at": "2026-05-06T00:40:05.125039+00:00",
+  "strategy": "london_session_breakout",
+  "variant": "closed_07utc_london_pair_breakout_v2",
+  "flag": "LONDON_SESSION_BREAKOUT_REDESIGN_V2",
+  "shadow_worker_flag": "LONDON_SESSION_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest(..., backtest_mode=True; production daytrade path; strategy-only compute patch)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": true,
+  "targets": [
+    "EUR_USD",
+    "GBP_USD"
+  ],
+  "missing_caches": [],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": {
+      "pf_change": ">= -0.10",
+      "wilson_lo_change": ">= -0.05",
+      "n_change_pct": ">= -30",
+      "pnl_sign_preserved": true
+    },
+    "sanity_floor": {
+      "wilson_lo_proposed": ">= 0.20",
+      "pf_proposed": ">= 0.85"
+    },
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "EUR_USD": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 66,
+        "wins": 56,
+        "WR": 0.8485,
+        "EV": 2.3506,
+        "PnL": 155.1387,
+        "PF": 4.4463,
+        "wilson_lo": 0.7431,
+        "total_trades_all_strategies": 66,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24612
+      },
+      "lock_criteria": {
+        "pf_change": 4.4463,
+        "wilson_lo_change": 0.7431,
+        "n_change_pct": "inf",
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "sanity_floor": true,
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "GBP_USD": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 75,
+        "wins": 62,
+        "WR": 0.8267,
+        "EV": 2.0634,
+        "PnL": 154.7555,
+        "PF": 3.5306,
+        "wilson_lo": 0.7257,
+        "total_trades_all_strategies": 75,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24585
+      },
+      "lock_criteria": {
+        "pf_change": 3.5306,
+        "wilson_lo_change": 0.7257,
+        "n_change_pct": "inf",
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "sanity_floor": true,
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    }
+  },
+  "overall_verdict": "PASS",
+  "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 243.1,
+  "self_review": {
+    "catastrophic_only": "PASS: verdict ignores positive-direction and Kelly; applies only v2 catastrophic/floor rules when N>=20.",
+    "insufficient_bt_evidence": "PASS: proposed N<20 becomes INSUFFICIENT_BT_EVIDENCE and shadow recommendation.",
+    "production_live_safety": "PASS: strategy behavior is default-off unless LONDON_SESSION_BREAKOUT_REDESIGN_V2=1; shadow emit also needs a second promote flag.",
+    "post_hoc_adjustment": "PASS: only the pre-registered closed-07UTC London-pair breakout variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo/network fallback for this report."
+  }
+}
