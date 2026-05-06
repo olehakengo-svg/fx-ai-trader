@@ -211,6 +211,9 @@ class ScalperEngine:
         if (os.environ.get("MTF_REGIME_RANGE_CASCADE_SCALP_REDESIGN_V2") == "1"
                 and os.environ.get("MTF_REGIME_RANGE_CASCADE_SCALP_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"mtf_regime_range_cascade_scalp"}
+        if (os.environ.get("MTF_COUNTER_TREND_SCALP_REDESIGN_V2") == "1"
+                and os.environ.get("MTF_COUNTER_TREND_SCALP_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"mtf_counter_trend_scalp"}
         if (os.environ.get("MTF_CONFLUENCE_REDESIGN_V2") == "1"
                 and os.environ.get("MTF_CONFLUENCE_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"mtf_reversal_confluence"}

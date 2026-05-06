@@ -143,3 +143,54 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
 
 
+
+
+## Result (2026-05-06T11:06:53Z)
+
+exit=0 · 243s
+
+```
+実装完了しました。
+
+主な変更:
+- [strategies/scalp/mtf_counter_trend_scalp.py](/data/repo/fx-ai-trader/strategies/scalp/mtf_counter_trend_scalp.py:105)
+  - `MTF_COUNTER_TREND_SCALP_REDESIGN_V2=1` 配下でのみ V2 有効化
+  - M1 trigger を `df.iloc[-2]` の closed signal bar に固定
+  - `ctx.entry` は current/next bar execution として維持
+  - `m15` / `m5` の `is_closed=False` を V2 で reject
+  - live 時だけ `(pair, strategy, signal, signal_bar_time)` dedup
+  - flag OFF は既存挙動維持
+
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:214)
+  - `MTF_COUNTER_TREND_SCALP_REDESIGN_V2=1`
+  - `MTF_COUNTER_TREND_SCALP_REDESIGN_V2_SHADOW_PROMOTE=1`
+  の double flag 時のみ shadow always 登録
+
+- [tests/test_mtf_counter_trend_scalp_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_mtf_counter_trend_scalp_shadow_redesign_v2.py:1)
+  - flag OFF の既存挙動
+  - V2 closed 1m bar 評価
+  - current in-progress bar 無視
+  - HTF closed snapshot 必須
+  - live dedup
+  - shadow promote double flag
+
+- [tools/mtf_counter_trend_scalp_shadow_bt.py](/data/repo/fx-ai-trader/tools/mtf_counter_trend_scalp_shadow_bt.py:1)
+  - v2.1 LOCK criteria runner
+  - `BT_MODE=1`, `BT_REQUIRE_MASSIVE_CACHE=1`
+  - `run_daytrade_backtest(..., backtest_mode=True)` 使用
+  - PF / Wilson / N drop は WARN only
+  - REJECT は PnL 正→負反転のみ
+
+BT report:
+- [bt-results/mtf_counter_trend_scalp-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/mtf_counter_trend_scalp-shadow-redesign-v2-2026-05-05.json:1)
+- Verdict: `BLOCKED_DATA`
+- 理由: MASSIVE 必須 cache 不足
+  - `data/cache/massive/USD_JPY_1m.parquet`
+  - `data/cache/massive/EUR_USD_1m.parquet`
+  - `data/cache/massive/EUR_USD_5m.parquet`
+
+Verification:
+- `.venv/bin/python -m pytest tests/test_mtf_counter_trend_scalp_shadow_redesign_v2.py -q` -> `6 passed`
+- `.venv/bin/python tools/mtf_counter_trend_scalp_shadow_bt.py` -> report generated, `Overall: BLOCKED_DATA`
+- `.venv/bin/python -m py_compile strategies/scalp/mtf_counter_trend_scalp.py tools/mtf_coun
+…(truncated)

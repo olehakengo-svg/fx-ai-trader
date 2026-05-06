@@ -17,6 +17,7 @@
   - strategy_type="MR" のため confidence_v2 が ADX>25 で penalty
 """
 from __future__ import annotations
+import os
 from typing import Optional
 
 from strategies.base import StrategyBase, Candidate
@@ -106,8 +107,18 @@ class MtfCounterTrendScalp(StrategyBase):
     mode = "scalp"
     enabled = True
     strategy_type = "MR"
+    _v2_dedup_state: set[tuple[str, str, str, str]] = set()
+
+    @classmethod
+    def reset_dedup_state(cls):
+        cls._v2_dedup_state.clear()
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get("MTF_COUNTER_TREND_SCALP_REDESIGN_V2") == "1"
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        redesign_v2 = self._redesign_v2_enabled()
+
         # ── ペアガード ──────────────────────────────────────
         pair = _normalize_pair(ctx.symbol)
         if pair not in _ALLOWED_PAIRS:
@@ -123,7 +134,11 @@ class MtfCounterTrendScalp(StrategyBase):
         m5 = ctx.htf.get("m5") if isinstance(ctx.htf, dict) else None
         if not m15 or not m5:
             return None
+        if redesign_v2 and (m15.get("is_closed") is False or m5.get("is_closed") is False):
+            return None
         if ctx.df is None or len(ctx.df) < 3:
+            return None
+        if redesign_v2 and len(ctx.df) < 3:
             return None
 
         m15_adx = float(m15.get("adx", 0.0))
@@ -139,6 +154,27 @@ class MtfCounterTrendScalp(StrategyBase):
         m5_div_bear = bool(m5.get("rsi_div_bear", False))
         m5_div_bull = bool(m5.get("rsi_div_bull", False))
 
+        signal_df = ctx.df
+        signal_bar_time = getattr(ctx.df.iloc[-1], "name", None)
+        trigger_entry = ctx.entry
+        trigger_open = ctx.open_price
+        trigger_stoch_k = ctx.stoch_k
+        trigger_stoch_d = ctx.stoch_d
+        trigger_adx = ctx.adx
+        if redesign_v2:
+            # V2: iloc[-2] is the last closed 1m signal bar; ctx.entry remains
+            # the next/current bar execution price.
+            signal_df = ctx.df.iloc[:-1]
+            if len(signal_df) < 2:
+                return None
+            signal_row = signal_df.iloc[-1]
+            signal_bar_time = getattr(signal_row, "name", None)
+            trigger_entry = float(signal_row["Close"])
+            trigger_open = float(signal_row["Open"])
+            trigger_stoch_k = float(signal_row.get("stoch_k", ctx.stoch_k))
+            trigger_stoch_d = float(signal_row.get("stoch_d", ctx.stoch_d))
+            trigger_adx = float(signal_row.get("adx", ctx.adx))
+
         signal: Optional[str] = None
         reasons: list = []
         sl: float = 0.0
@@ -152,11 +188,11 @@ class MtfCounterTrendScalp(StrategyBase):
             if not m5_div_bear:
                 return None
             # 1m 反転トリガ
-            if not (_is_bearish_engulfing(ctx.df) or _is_bearish_pin(ctx.df)):
+            if not (_is_bearish_engulfing(signal_df) or _is_bearish_pin(signal_df)):
                 return None
-            if not (ctx.stoch_k < ctx.stoch_d):
+            if not (trigger_stoch_k < trigger_stoch_d):
                 return None
-            if not (ctx.entry < ctx.open_price):
+            if not (trigger_entry < trigger_open):
                 return None
             signal = "SELL"
             sl = m5_high + (1.0 / ctx.pip_mult)
@@ -180,11 +216,11 @@ class MtfCounterTrendScalp(StrategyBase):
                 return None
             if not m5_div_bull:
                 return None
-            if not (_is_bullish_engulfing(ctx.df) or _is_bullish_pin(ctx.df)):
+            if not (_is_bullish_engulfing(signal_df) or _is_bullish_pin(signal_df)):
                 return None
-            if not (ctx.stoch_k > ctx.stoch_d):
+            if not (trigger_stoch_k > trigger_stoch_d):
                 return None
-            if not (ctx.entry > ctx.open_price):
+            if not (trigger_entry > trigger_open):
                 return None
             signal = "BUY"
             sl = m5_low - (1.0 / ctx.pip_mult)
@@ -204,6 +240,19 @@ class MtfCounterTrendScalp(StrategyBase):
 
         if signal is None:
             return None
+        # MR 戦略: ADX が高すぎると確率的に勝てない (1m ADX>35 で reject)
+        if trigger_adx > 35:
+            return None
+        if redesign_v2:
+            if not ctx.backtest_mode:
+                key = (pair, self.name, signal, str(signal_bar_time))
+                if key in self._v2_dedup_state:
+                    return None
+                self._v2_dedup_state.add(key)
+            reasons.append(
+                f"✅ MTF_COUNTER_TREND_SCALP_REDESIGN_V2: "
+                f"closed 1m signal_bar_time={signal_bar_time}; execution uses current bar"
+            )
 
         # ── confidence (counter-trend なので 55 start) ───────
         conf = 55
@@ -217,11 +266,7 @@ class MtfCounterTrendScalp(StrategyBase):
             conf += 5
             bonus += 0.5
             reasons.append(f"✅ peak liquidity hour (mult={h_mult:.2f})")
-        conf = apply_penalty(conf, self.strategy_type, ctx.adx, conf_max=80)
-
-        # MR 戦略: ADX が高すぎると確率的に勝てない (1m ADX>35 で reject)
-        if ctx.adx > 35:
-            return None
+        conf = apply_penalty(conf, self.strategy_type, trigger_adx, conf_max=80)
 
         # ── score: bb_rsi 範囲に揃える (3.5-5.5) ────────────
         # bb_rsi_reversion: 3.0-15 (extreme zone で大加点)

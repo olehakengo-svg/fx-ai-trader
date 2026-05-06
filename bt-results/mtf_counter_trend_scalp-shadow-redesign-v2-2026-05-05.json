@@ -1,0 +1,105 @@
+{
+  "generated_at": "2026-05-06T11:06:21.344257+00:00",
+  "strategy": "mtf_counter_trend_scalp",
+  "variant": "closed_m1_signal_bar_next_bar_execution_v2",
+  "flag": "MTF_COUNTER_TREND_SCALP_REDESIGN_V2",
+  "shadow_worker_flag": "MTF_COUNTER_TREND_SCALP_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "1m",
+  "runner": "app.run_daytrade_backtest(backtest_mode=True; production daytrade path; strategy-only compute patch)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet for 1m/5m/15m with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": false,
+  "targets": [
+    "USD_JPY",
+    "EUR_USD"
+  ],
+  "missing_caches": [
+    "data/cache/massive/USD_JPY_1m.parquet",
+    "data/cache/massive/EUR_USD_1m.parquet",
+    "data/cache/massive/EUR_USD_5m.parquet"
+  ],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": {
+      "pnl_sign_preserved_only": "baseline PnL > 0 and proposed PnL < 0 is the only REJECT condition"
+    },
+    "warn_only": [
+      "pf_change",
+      "wilson_lo_change",
+      "n_change_pct"
+    ],
+    "sanity_floor": "REMOVED in v2.1",
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "USD_JPY": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/USD_JPY_1m.parquet, data/cache/massive/EUR_USD_1m.parquet, data/cache/massive/EUR_USD_5m.parquet"
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/USD_JPY_1m.parquet, data/cache/massive/EUR_USD_1m.parquet, data/cache/massive/EUR_USD_5m.parquet"
+      },
+      "lock_criteria": {
+        "verdict": "BLOCKED_DATA",
+        "reason": "missing_massive_cache",
+        "shadow_promote_recommendation": "IMPLEMENTATION_ONLY_DEFAULT_OFF"
+      }
+    },
+    "EUR_USD": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/USD_JPY_1m.parquet, data/cache/massive/EUR_USD_1m.parquet, data/cache/massive/EUR_USD_5m.parquet"
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/USD_JPY_1m.parquet, data/cache/massive/EUR_USD_1m.parquet, data/cache/massive/EUR_USD_5m.parquet"
+      },
+      "lock_criteria": {
+        "verdict": "BLOCKED_DATA",
+        "reason": "missing_massive_cache",
+        "shadow_promote_recommendation": "IMPLEMENTATION_ONLY_DEFAULT_OFF"
+      }
+    }
+  },
+  "overall_verdict": "BLOCKED_DATA",
+  "shadow_promote_recommendation": "IMPLEMENTATION_ONLY_DEFAULT_OFF",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 0.0,
+  "self_review": {
+    "catastrophic_only": "PASS: v2.1 verdict uses only pnl_sign_preserved when proposed N>=20.",
+    "warn_only_metrics": "PASS: PF, Wilson lower, and N drop are reported only as warnings.",
+    "absolute_kelly": "PASS: no Kelly threshold is applied.",
+    "production_live_safety": "PASS: redesign and shadow worker behavior are default-off env flags.",
+    "post_hoc_adjustment": "PASS: only the pre-registered timing/data-contract variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo fallback for this report."
+  }
+}
