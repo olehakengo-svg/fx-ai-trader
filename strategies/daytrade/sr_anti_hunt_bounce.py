@@ -18,6 +18,7 @@ TP: 直近の対側 SR or RR=2.0 / MIN_RR=1.5
 """
 from __future__ import annotations
 from typing import Optional
+import os
 
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
@@ -55,8 +56,14 @@ class SrAntiHuntBounce(StrategyBase):
     TARGET_RR = 2.0
 
     MAX_HOLD_BARS = 12
+    _v2_seen_closed_bar_keys: set[tuple[str, str, str, str]] = set()
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        if os.environ.get("SR_ANTI_HUNT_BOUNCE_REDESIGN_V2") == "1":
+            return self._evaluate_redesign_v2(ctx)
+        return self._evaluate_legacy(ctx)
+
+    def _evaluate_legacy(self, ctx: SignalContext) -> Optional[Candidate]:
         sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
         if sym not in self._ALLOWED_SYMBOLS:
             return None
@@ -146,12 +153,111 @@ class SrAntiHuntBounce(StrategyBase):
             score=float(score),
         )
 
+    def _evaluate_redesign_v2(self, ctx: SignalContext) -> Optional[Candidate]:
+        sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+        if sym not in self._ALLOWED_SYMBOLS:
+            return None
+        if not ctx.sr_levels or ctx.df is None or len(ctx.df) < self.CONFIRMATION_BARS + 2:
+            return None
+
+        signal_bar = ctx.df.iloc[-2]
+        signal_bar_time = getattr(signal_bar, "name", None)
+        signal_close = float(signal_bar["Close"])
+        signal_open = float(signal_bar["Open"])
+        signal_atr = max(float(signal_bar.get("atr", ctx.atr)), 1e-9)
+        signal_adx = float(signal_bar.get("adx", ctx.adx))
+        signal_bbpb = float(signal_bar.get("bb_pband", ctx.bbpb))
+
+        if signal_adx >= self.ADX_MAX:
+            return None
+
+        proximity_distance = self.SR_PROXIMITY_ATR * signal_atr
+        nearest_level = None
+        nearest_dist = float("inf")
+        for lv in ctx.sr_levels:
+            price = float(lv.get("price", 0.0)) if isinstance(lv, dict) else float(lv)
+            d = abs(signal_close - price)
+            if d < nearest_dist:
+                nearest_dist = d
+                nearest_level = price
+        if nearest_level is None or nearest_dist > proximity_distance:
+            return None
+
+        if signal_close > nearest_level:
+            side = "support"
+            signal = "BUY"
+        else:
+            side = "resistance"
+            signal = "SELL"
+
+        if signal == "BUY" and signal_close <= signal_open:
+            return None
+        if signal == "SELL" and signal_close >= signal_open:
+            return None
+
+        if not self._confirmed_no_recent_hunt(ctx, nearest_level, side, end_iloc=-1,
+                                              atr_override=signal_atr):
+            return None
+
+        sl, tp = self._compute_sl_tp(ctx, nearest_level, signal, sym,
+                                     atr_override=signal_atr)
+        if sl is None or tp is None:
+            return None
+
+        if signal == "BUY":
+            risk = ctx.entry - sl
+            reward = tp - ctx.entry
+        else:
+            risk = sl - ctx.entry
+            reward = ctx.entry - tp
+        if risk <= 0 or reward <= 0:
+            return None
+        rr = reward / risk
+        if rr < self.MIN_RR:
+            return None
+
+        if not ctx.backtest_mode:
+            dedup_key = (sym, self.name, str(signal_bar_time), signal)
+            if dedup_key in self._v2_seen_closed_bar_keys:
+                return None
+            self._v2_seen_closed_bar_keys.add(dedup_key)
+
+        score = 3.0
+        reasons = [
+            f"✅ SR近接(closed {nearest_level:.5f}, dist={nearest_dist/signal_atr:.2f}ATR) bounce候補",
+            f"✅ {side}側、{signal} シグナル, RR={rr:.2f}",
+            f"✅ Anti-hunt SL: {sl:.5f}（P90+ATR バッファ）",
+            f"✅ レジーム OK (closed ADX={signal_adx:.1f}<{self.ADX_MAX})",
+            f"✅ SR_ANTI_HUNT_BOUNCE_REDESIGN_V2: closed_bar_time={signal_bar_time} で確定し次バー約定",
+        ]
+        if signal == "BUY" and signal_bbpb < 0.3:
+            score += 0.5
+            reasons.append(f"✅ BB下限一致(closed BB%B={signal_bbpb:.2f})")
+        elif signal == "SELL" and signal_bbpb > 0.7:
+            score += 0.5
+            reasons.append(f"✅ BB上限一致(closed BB%B={signal_bbpb:.2f})")
+
+        return Candidate(
+            signal=signal,
+            confidence=min(100, int(score * 20)),
+            sl=float(sl),
+            tp=float(tp),
+            reasons=reasons,
+            entry_type=self.name,
+            score=float(score),
+        )
+
     def _confirmed_no_recent_hunt(self, ctx: SignalContext,
-                                   level: float, side: str) -> bool:
+                                   level: float, side: str, end_iloc: int | None = None,
+                                   atr_override: float | None = None) -> bool:
         if ctx.df is None or len(ctx.df) < self.CONFIRMATION_BARS + 1:
             return False
-        recent = ctx.df.iloc[-(self.CONFIRMATION_BARS + 1):-1]
-        atr = max(ctx.atr, 1e-9)
+        if end_iloc is None:
+            recent = ctx.df.iloc[-(self.CONFIRMATION_BARS + 1):-1]
+        else:
+            start_iloc = end_iloc - self.CONFIRMATION_BARS
+            recent = ctx.df.iloc[start_iloc:end_iloc]
+        atr = max(atr_override if atr_override is not None else ctx.atr, 1e-9)
         threshold = 1.0 * atr
         for _, row in recent.iterrows():
             high = float(row["High"])
@@ -166,8 +272,8 @@ class SrAntiHuntBounce(StrategyBase):
         return True
 
     def _compute_sl_tp(self, ctx: SignalContext, level: float,
-                       signal: str, sym: str):
-        atr = max(ctx.atr, 1e-9)
+                       signal: str, sym: str, atr_override: float | None = None):
+        atr = max(atr_override if atr_override is not None else ctx.atr, 1e-9)
         pip_size = 0.01 if "JPY" in sym else 0.0001
 
         p90_pip = self._P90_EXCURSION_PIP.get(sym)

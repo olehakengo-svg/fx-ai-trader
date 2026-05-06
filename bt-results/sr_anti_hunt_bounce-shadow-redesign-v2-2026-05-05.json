@@ -1,0 +1,287 @@
+{
+  "generated_at": "2026-05-06T08:07:10.936634+00:00",
+  "strategy": "sr_anti_hunt_bounce",
+  "variant": "closed_bar_signal_next_bar_execution_dedup_v2",
+  "flag": "SR_ANTI_HUNT_BOUNCE_REDESIGN_V2",
+  "shadow_worker_flag": "SR_ANTI_HUNT_BOUNCE_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest(backtest_mode=True; production daytrade path; strategy-only compute patch)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": true,
+  "targets": [
+    "USD_JPY",
+    "EUR_USD",
+    "GBP_USD",
+    "EUR_JPY",
+    "GBP_JPY"
+  ],
+  "missing_caches": [],
+  "lock_spec": {
+    "version": "v2.1",
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": {
+      "pnl_sign_preserved_only": "baseline PnL > 0 and proposed PnL < 0 is the only REJECT condition"
+    },
+    "sanity_floor": "REMOVED in v2.1",
+    "n_pf_wilson_changes": "WARN ONLY in v2.1",
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "USD_JPY": {
+      "current": {
+        "N": 134,
+        "wins": 117,
+        "WR": 0.8731,
+        "EV": 3.4902,
+        "PnL": 467.6846,
+        "PF": 3.5971,
+        "wilson_lo": 0.8062,
+        "total_trades_all_strategies": 134,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24644
+      },
+      "proposed": {
+        "N": 81,
+        "wins": 67,
+        "WR": 0.8272,
+        "EV": 3.1303,
+        "PnL": 253.5507,
+        "PF": 2.7946,
+        "wilson_lo": 0.7305,
+        "total_trades_all_strategies": 81,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24644
+      },
+      "lock_criteria": {
+        "verdict": "PASS",
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "catastrophic_rule": "baseline PnL > 0 and proposed PnL < 0 is the only REJECT condition",
+        "sanity_floor": "REMOVED_IN_V2_1",
+        "warnings_only": {
+          "pf_change": -0.8025,
+          "wilson_lo_change": -0.0757,
+          "n_change_pct": -39.5522
+        },
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "EUR_USD": {
+      "current": {
+        "N": 80,
+        "wins": 70,
+        "WR": 0.875,
+        "EV": 3.8134,
+        "PnL": 305.0705,
+        "PF": 4.7638,
+        "wilson_lo": 0.785,
+        "total_trades_all_strategies": 80,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24612
+      },
+      "proposed": {
+        "N": 53,
+        "wins": 49,
+        "WR": 0.9245,
+        "EV": 4.4866,
+        "PnL": 237.7875,
+        "PF": 8.0026,
+        "wilson_lo": 0.8214,
+        "total_trades_all_strategies": 53,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24612
+      },
+      "lock_criteria": {
+        "verdict": "PASS",
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "catastrophic_rule": "baseline PnL > 0 and proposed PnL < 0 is the only REJECT condition",
+        "sanity_floor": "REMOVED_IN_V2_1",
+        "warnings_only": {
+          "pf_change": 3.2388,
+          "wilson_lo_change": 0.0364,
+          "n_change_pct": -33.75
+        },
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "GBP_USD": {
+      "current": {
+        "N": 130,
+        "wins": 109,
+        "WR": 0.8385,
+        "EV": 3.8157,
+        "PnL": 496.0429,
+        "PF": 3.205,
+        "wilson_lo": 0.7656,
+        "total_trades_all_strategies": 130,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24585
+      },
+      "proposed": {
+        "N": 93,
+        "wins": 76,
+        "WR": 0.8172,
+        "EV": 3.7202,
+        "PnL": 345.9779,
+        "PF": 2.8811,
+        "wilson_lo": 0.7266,
+        "total_trades_all_strategies": 93,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24585
+      },
+      "lock_criteria": {
+        "verdict": "PASS",
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "catastrophic_rule": "baseline PnL > 0 and proposed PnL < 0 is the only REJECT condition",
+        "sanity_floor": "REMOVED_IN_V2_1",
+        "warnings_only": {
+          "pf_change": -0.3239,
+          "wilson_lo_change": -0.039,
+          "n_change_pct": -28.4615
+        },
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "EUR_JPY": {
+      "current": {
+        "N": 139,
+        "wins": 118,
+        "WR": 0.8489,
+        "EV": 2.9483,
+        "PnL": 409.811,
+        "PF": 3.5182,
+        "wilson_lo": 0.7801,
+        "total_trades_all_strategies": 139,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24361
+      },
+      "proposed": {
+        "N": 114,
+        "wins": 100,
+        "WR": 0.8772,
+        "EV": 3.4551,
+        "PnL": 393.8786,
+        "PF": 4.4696,
+        "wilson_lo": 0.8044,
+        "total_trades_all_strategies": 114,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24361
+      },
+      "lock_criteria": {
+        "verdict": "PASS",
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "catastrophic_rule": "baseline PnL > 0 and proposed PnL < 0 is the only REJECT condition",
+        "sanity_floor": "REMOVED_IN_V2_1",
+        "warnings_only": {
+          "pf_change": 0.9514,
+          "wilson_lo_change": 0.0243,
+          "n_change_pct": -17.9856
+        },
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "GBP_JPY": {
+      "current": {
+        "N": 105,
+        "wins": 90,
+        "WR": 0.8571,
+        "EV": 3.1056,
+        "PnL": 326.0928,
+        "PF": 4.1167,
+        "wilson_lo": 0.7776,
+        "total_trades_all_strategies": 105,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24017
+      },
+      "proposed": {
+        "N": 75,
+        "wins": 62,
+        "WR": 0.8267,
+        "EV": 2.726,
+        "PnL": 204.4506,
+        "PF": 3.0541,
+        "wilson_lo": 0.7257,
+        "total_trades_all_strategies": 75,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24017
+      },
+      "lock_criteria": {
+        "verdict": "PASS",
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "catastrophic_rule": "baseline PnL > 0 and proposed PnL < 0 is the only REJECT condition",
+        "sanity_floor": "REMOVED_IN_V2_1",
+        "warnings_only": {
+          "pf_change": -1.0626,
+          "wilson_lo_change": -0.0519,
+          "n_change_pct": -28.5714
+        },
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    }
+  },
+  "aggregate": {
+    "current": {
+      "N": 588,
+      "wins": 504,
+      "WR": 0.8571,
+      "EV": 3.4094,
+      "PnL": 2004.7018,
+      "PF": "not_reconstructed_from_cell_stats",
+      "wilson_lo": 0.8265,
+      "bt_error": null
+    },
+    "proposed": {
+      "N": 416,
+      "wins": 354,
+      "WR": 0.851,
+      "EV": 3.4511,
+      "PnL": 1435.6453,
+      "PF": "not_reconstructed_from_cell_stats",
+      "wilson_lo": 0.8135,
+      "bt_error": null
+    },
+    "lock_criteria": {
+      "verdict": "PASS",
+      "pnl_sign_preserved": true,
+      "catastrophic_check": true,
+      "catastrophic_rule": "baseline PnL > 0 and proposed PnL < 0 is the only REJECT condition",
+      "sanity_floor": "REMOVED_IN_V2_1",
+      "warnings_only": {
+        "pf_change": "not_reconstructed_from_cell_stats",
+        "wilson_lo_change": -0.013,
+        "n_change_pct": -29.2517
+      },
+      "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+    }
+  },
+  "overall_verdict": "PASS",
+  "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 2790.7,
+  "self_review": {
+    "catastrophic_only": "PASS: v2.1 verdict uses only pnl_sign_preserved when proposed N>=20.",
+    "insufficient_bt_evidence": "PASS: proposed N<20 becomes INSUFFICIENT_BT_EVIDENCE and shadow recommendation.",
+    "sanity_floor_removed": "PASS: no PF/Wilson floor gates shadow promotion.",
+    "production_live_safety": "PASS: strategy behavior is default-off unless SR_ANTI_HUNT_BOUNCE_REDESIGN_V2=1; shadow emit also requires SR_ANTI_HUNT_BOUNCE_REDESIGN_V2_SHADOW_PROMOTE=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered closed-bar timing + live dedup V2 variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo fallback for 15m price data."
+  }
+}

@@ -141,3 +141,41 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T08:08:19Z)
+
+exit=0 · 3037s
+
+```
+実装完了しました。
+
+変更点:
+- [sr_anti_hunt_bounce.py](/data/repo/fx-ai-trader/strategies/daytrade/sr_anti_hunt_bounce.py:61)
+  `SR_ANTI_HUNT_BOUNCE_REDESIGN_V2=1` の時だけ closed signal bar `df.iloc[-2]` で SR proximity / reversal body / BB%B / ADX を判定し、`ctx.entry` を次 bar execution price として扱う V2 経路を追加。
+- [__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:299)
+  `SR_ANTI_HUNT_BOUNCE_REDESIGN_V2=1` かつ `SR_ANTI_HUNT_BOUNCE_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag 時だけ shadow worker に登録。
+- [test_sr_anti_hunt_bounce_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_sr_anti_hunt_bounce_shadow_redesign_v2.py:1)
+  default OFF 互換、closed-bar 判定、current-bar 無視、live dedup、shadow promote 二重 flag を追加。
+- [sr_anti_hunt_bounce_shadow_bt.py](/data/repo/fx-ai-trader/tools/sr_anti_hunt_bounce_shadow_bt.py:1)
+  365d MASSIVE / production `run_daytrade_backtest(backtest_mode=True)` 用 A/B runner を追加。
+
+BT report:
+- [sr_anti_hunt_bounce-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/sr_anti_hunt_bounce-shadow-redesign-v2-2026-05-05.json:1)
+
+v2.1 LOCK verdict:
+- `PASS`
+- Shadow promote recommendation: `RECOMMEND_SHADOW`
+- Aggregate baseline: `N=588`, `PnL=2004.7018`, `EV=3.4094`
+- Aggregate proposed: `N=416`, `PnL=1435.6453`, `EV=3.4511`
+- Catastrophic check: pass because `pnl_sign_preserved=True`
+- WARN only: `N change=-29.2517%`, `Wilson lo change=-0.013`
+
+Verification:
+- `.venv/bin/pytest -q tests/test_sr_anti_hunt_bounce.py tests/test_sr_anti_hunt_bounce_shadow_redesign_v2.py`
+- Result: `14 passed`
+- `.venv/bin/python tools/sr_anti_hunt_bounce_shadow_bt.py`
+- Result: report saved, `Overall: PASS`
+
+Self-review is recorded in the BT JSON and passes the requested checks: catastrophic-only verdict, no Kelly/floor gate, flag OFF live default, double-flag shadow registration, and no post-hoc variant adjustment.
+```
