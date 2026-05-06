@@ -275,6 +275,9 @@ class DaytradeEngine:
         if (os.environ.get("LIN_REG_CHANNEL_REDESIGN_V2") == "1"
                 and os.environ.get("LIN_REG_CHANNEL_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"lin_reg_channel"}
+        if (os.environ.get("LONDON_NY_SWING_REDESIGN_V2") == "1"
+                and os.environ.get("LONDON_NY_SWING_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"london_ny_swing"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

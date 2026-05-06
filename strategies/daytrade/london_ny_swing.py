@@ -23,9 +23,11 @@ London-NY Swing — ロンドン高安ブレイク追随デイトレード
   TP: 前日High (BUY) / 前日Low (SELL), or ATR×3.0 (fallback)
   SL: London High/Low の反対側 + ATR×0.3
 """
+import os
+from typing import Optional
+
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
-from typing import Optional
 
 
 class LondonNySwing(StrategyBase):
@@ -46,8 +48,18 @@ class LondonNySwing(StrategyBase):
     max_ldn_range_atr = 4.0  # ロンドンレンジ最大幅（異常排除）
 
     _enabled_symbols = frozenset({"EURUSD", "GBPUSD"})
+    _dedup_state: dict = {}
+
+    @classmethod
+    def reset_dedup_state(cls):
+        cls._dedup_state.clear()
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get("LONDON_NY_SWING_REDESIGN_V2") == "1"
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        _v2 = self._redesign_v2_enabled()
+
         # ── ペアフィルター ──
         _sym = ctx.symbol.upper().replace("=X", "").replace("_", "")
         if _sym not in self._enabled_symbols:
@@ -62,6 +74,34 @@ class LondonNySwing(StrategyBase):
 
         if ctx.adx < self.adx_min:
             return None
+
+        _signal_df = ctx.df
+        _signal_bar_id = None
+        if _v2:
+            if ctx.backtest_mode:
+                _signal_df = ctx.df
+            else:
+                if len(ctx.df) < 51:
+                    return None
+                _signal_df = ctx.df.iloc[:-1]
+            if len(_signal_df) < 50:
+                return None
+            _signal_bar = _signal_df.iloc[-1]
+            try:
+                _signal_bar_id = _signal_df.index[-1]
+            except Exception:
+                _signal_bar_id = ctx.bar_time
+            _signal_close = float(_signal_bar["Close"])
+            _signal_open = float(_signal_bar["Open"])
+            _signal_ema9 = float(_signal_bar.get("ema9", ctx.ema9))
+            _signal_ema21 = float(_signal_bar.get("ema21", ctx.ema21))
+            _signal_ema50 = float(_signal_bar.get("ema50", ctx.ema50))
+        else:
+            _signal_close = ctx.entry
+            _signal_open = ctx.open_price
+            _signal_ema9 = ctx.ema9
+            _signal_ema21 = ctx.ema21
+            _signal_ema50 = ctx.ema50
 
         # ── ロンドンセッションの高安計算 ──
         _ldn_high = None
@@ -105,8 +145,8 @@ class LondonNySwing(StrategyBase):
 
         # ── H1 EMA20方向の簡易判定 ──
         # 15m足の4本 ≈ 1H。直近4本のEMA9トレンドで代替
-        _h1_bull = ctx.ema9 > ctx.ema21 and ctx.entry > ctx.ema50
-        _h1_bear = ctx.ema9 < ctx.ema21 and ctx.entry < ctx.ema50
+        _h1_bull = _signal_ema9 > _signal_ema21 and _signal_close > _signal_ema50
+        _h1_bear = _signal_ema9 < _signal_ema21 and _signal_close < _signal_ema50
 
         signal = None
         score = 0.0
@@ -116,14 +156,16 @@ class LondonNySwing(StrategyBase):
         _min_sl = 0.00030 if "JPY" not in _sym else 0.030
 
         # ── BUY: London High ブレイク + H1 UP ──
-        if (ctx.entry > _ldn_high + ctx.atr * self.break_buffer
+        if (_signal_close > _ldn_high + ctx.atr * self.break_buffer
                 and _h1_bull
-                and ctx.entry > ctx.open_price):  # 陽線
+                and _signal_close > _signal_open):  # 陽線
             signal = "BUY"
             score = 3.5
-            reasons.append(f"✅ London High突破(C={ctx.entry:.5f}>LH={_ldn_high:.5f}+buffer)")
+            reasons.append(f"✅ London High突破(C={_signal_close:.5f}>LH={_ldn_high:.5f}+buffer)")
             reasons.append(f"✅ H1方向UP(EMA9>21>50)")
             reasons.append(f"✅ 陽線確認 + ADX={ctx.adx:.1f}")
+            if _v2:
+                reasons.append(f"✅ LONDON_NY_SWING_REDESIGN_V2 closed signal bar; execution={ctx.entry:.5f}")
 
             # TP: 前日Highまたはfallback
             if _prev_day_high and _prev_day_high > ctx.entry:
@@ -136,14 +178,16 @@ class LondonNySwing(StrategyBase):
             sl = min(sl, ctx.entry - _min_sl)
 
         # ── SELL: London Low ブレイク + H1 DOWN ──
-        elif (ctx.entry < _ldn_low - ctx.atr * self.break_buffer
+        elif (_signal_close < _ldn_low - ctx.atr * self.break_buffer
               and _h1_bear
-              and ctx.entry < ctx.open_price):  # 陰線
+              and _signal_close < _signal_open):  # 陰線
             signal = "SELL"
             score = 3.5
-            reasons.append(f"✅ London Low突破(C={ctx.entry:.5f}<LL={_ldn_low:.5f}-buffer)")
+            reasons.append(f"✅ London Low突破(C={_signal_close:.5f}<LL={_ldn_low:.5f}-buffer)")
             reasons.append(f"✅ H1方向DOWN(EMA9<21<50)")
             reasons.append(f"✅ 陰線確認 + ADX={ctx.adx:.1f}")
+            if _v2:
+                reasons.append(f"✅ LONDON_NY_SWING_REDESIGN_V2 closed signal bar; execution={ctx.entry:.5f}")
 
             if _prev_day_low and _prev_day_low < ctx.entry:
                 tp = _prev_day_low
@@ -162,6 +206,12 @@ class LondonNySwing(StrategyBase):
         _sl_dist = abs(ctx.entry - sl)
         if _tp_dist < _sl_dist * 1.3:
             return None
+
+        if _v2:
+            _dedup_key = (_sym, self.name, signal, _signal_bar_id)
+            if self._dedup_state.get(_dedup_key):
+                return None
+            self._dedup_state[_dedup_key] = True
 
         # ── スコアボーナス ──
         if ctx.adx >= 30:

@@ -135,3 +135,37 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T00:22:34Z)
+
+exit=0 · 2019s
+
+```
+完了しました。
+
+実装:
+- [strategies/daytrade/london_ny_swing.py](/data/repo/fx-ai-trader/strategies/daytrade/london_ny_swing.py): `LONDON_NY_SWING_REDESIGN_V2=1` 配下で timing hardening を追加。live は末尾未確定 bar を使わず closed signal bar で trigger 判定、execution は `ctx.entry` のまま分離。同一 `(symbol, strategy, signal, signal_bar)` dedup も追加。
+- [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py): `LONDON_NY_SWING_REDESIGN_V2` + `LONDON_NY_SWING_REDESIGN_V2_SHADOW_PROMOTE` の二重 flag で shadow-always 登録。
+- [app.py](/data/repo/fx-ai-trader/app.py): BT cache key に V2 flag を追加し、baseline/proposed 混線を防止。
+- [tests/test_london_ny_swing_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_london_ny_swing_shadow_redesign_v2.py): default OFF、closed-bar trigger、dedup、shadow promote double flag をテスト。
+- [tools/london_ny_swing_shadow_bt.py](/data/repo/fx-ai-trader/tools/london_ny_swing_shadow_bt.py): 365d MASSIVE A/B BT runner を追加。
+
+BT report:
+- [bt-results/london_ny_swing-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/london_ny_swing-shadow-redesign-v2-2026-05-05.json)
+- Overall verdict: `PASS`
+- Shadow recommendation: `RECOMMEND_SHADOW`
+
+Key BT results:
+- `EUR_USD`: proposed N=144, PF=2.028, Wilson lo=0.6587, catastrophic PASS
+- `GBP_USD`: proposed N=151, PF=1.7591, Wilson lo=0.6525, catastrophic PASS
+- MASSIVE source verified: `massive-parquet`, no missing caches.
+
+Verification:
+- `.venv/bin/pytest -q tests/test_london_ny_swing_shadow_redesign_v2.py` → `5 passed`
+- `.venv/bin/pytest -q tests/test_london_ny_swing_shadow_redesign_v2.py tests/test_asia_range_fade_v1_shadow_redesign_v2.py tests/test_adx_trend_continuation_shadow_redesign_v2.py` → `14 passed`
+- `.venv/bin/python -m py_compile ...` → passed
+- 365d BT: `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1`, `run_daytrade_backtest(..., backtest_mode=True)`
+
+Self-review passed: no Kelly/positive-direction requirement was used, catastrophic/floor only; V2 is defa
+…(truncated)
