@@ -799,6 +799,16 @@ Cutoff後累計はN=22、WR=45.5%、PnL=−12.1pips相当。システムは稼�
 ### 推奨戦略配分
 | ○ | post-news-vol（SENTINEL） | GBP/USD | TRENDING_UP環境下・NY米指標後のVolスパイクに親和性（BT EV=+1.762） |
 
+### 2026-05-06 (Post-NY Report)
+| PnL | **+0.0 pips** |
+| WR | **—** |
+### セッション別PnL比較
+| Session | N | WR% | PnL (pips) | 評価 |
+| 合計PnL | **+6.2 pips** |
+| WR | **50.0%** |
+| 最良セッション | **London** (+11.8 pips, WR 100%) |
+| 最悪セッション | **Tokyo** (-5.6 pips, WR 0%) |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
