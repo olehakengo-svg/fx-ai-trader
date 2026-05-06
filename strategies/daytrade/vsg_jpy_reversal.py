@@ -32,6 +32,7 @@ Live/BT 整合 (rule:R1, 2026-04-30):
 Shadow: enabled=True、PAIR_PROMOTED 追加なし default Sentinel
 """
 from __future__ import annotations
+import os
 from typing import Optional
 
 import numpy as np
@@ -59,6 +60,20 @@ class VsgJpyReversal(StrategyBase):
     MIN_RR = 1.4
 
     MAX_HOLD_BARS = 4
+    REDESIGN_V2_SL_ATR_MULT = 1.8
+    REDESIGN_V2_TP_ATR_MULT = 0.9
+    REDESIGN_V2_THRESHOLDS = {
+        "EURJPY": 1.5,
+        "GBPJPY": 1.0,
+    }
+    REDESIGN_V2_MAX_HOLD_BARS = {
+        "EURJPY": 2,
+        "GBPJPY": 4,
+    }
+
+    @staticmethod
+    def _redesign_v2_enabled() -> bool:
+        return os.environ.get("VSG_JPY_REVERSAL_REDESIGN_V2", "0").lower() in ("1", "true", "yes")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs) if hasattr(super(), "__init__") else None
@@ -91,7 +106,13 @@ class VsgJpyReversal(StrategyBase):
             return None
         surprise = (realized - forecast) / forecast
 
-        if surprise <= self.SURPRISE_THRESHOLD:
+        redesign_v2 = self._redesign_v2_enabled()
+        surprise_threshold = (
+            self.REDESIGN_V2_THRESHOLDS.get(sym, self.SURPRISE_THRESHOLD)
+            if redesign_v2 else self.SURPRISE_THRESHOLD
+        )
+
+        if surprise <= surprise_threshold:
             return None
 
         # Direction: fade
@@ -112,12 +133,14 @@ class VsgJpyReversal(StrategyBase):
             return None
 
         atr = max(ctx.atr, 1e-9)
+        sl_atr_mult = self.REDESIGN_V2_SL_ATR_MULT if redesign_v2 else self.SL_ATR_MULT
+        tp_atr_mult = self.REDESIGN_V2_TP_ATR_MULT if redesign_v2 else self.TP_ATR_MULT
         if signal == "BUY":
-            sl = ctx.entry - self.SL_ATR_MULT * atr
-            tp = ctx.entry + self.TP_ATR_MULT * atr
+            sl = ctx.entry - sl_atr_mult * atr
+            tp = ctx.entry + tp_atr_mult * atr
         else:
-            sl = ctx.entry + self.SL_ATR_MULT * atr
-            tp = ctx.entry - self.TP_ATR_MULT * atr
+            sl = ctx.entry + sl_atr_mult * atr
+            tp = ctx.entry - tp_atr_mult * atr
 
         # RNR: TP shift away from round numbers
         tp = shift_tp_inside(tp, signal, pip=0.01, shift_pips=3.0)
@@ -127,16 +150,26 @@ class VsgJpyReversal(StrategyBase):
         if sl_dist <= 0:
             return None
         rr = tp_dist / sl_dist
-        if rr < self.MIN_RR:
+        if tp_dist <= 0:
+            return None
+        if not redesign_v2 and rr < self.MIN_RR:
             return None
 
         score = 4.0 + min(2.0, surprise - 1.0)   # bigger surprise → higher score
 
         ratio = 1.0 + surprise   # realized / forecast
+        max_hold_bars = (
+            self.REDESIGN_V2_MAX_HOLD_BARS.get(sym, self.MAX_HOLD_BARS)
+            if redesign_v2 else None
+        )
         reasons = [
-            f"✅ Vol surprise: realized/forecast={ratio:.2f}x (>{1+self.SURPRISE_THRESHOLD:.1f}x)",
+            f"✅ Vol surprise: realized/forecast={ratio:.2f}x (>{1+surprise_threshold:.1f}x)",
             f"✅ Fade {signal} (last_ret={last_ret*100:+.3f}%)",
-            f"✅ RR={rr:.2f} hold≤{self.MAX_HOLD_BARS}bar",
+            (
+                f"✅ VSG_JPY_REVERSAL_REDESIGN_V2 geometry "
+                f"SL={sl_atr_mult:.1f}ATR TP={tp_atr_mult:.1f}ATR "
+                f"RR={rr:.2f} hold≤{max_hold_bars}bar"
+            ) if redesign_v2 else f"✅ RR={rr:.2f} hold≤{self.MAX_HOLD_BARS}bar",
         ]
 
         # Mark this closed bar as emitted so subsequent intra-bar polls are no-ops.
@@ -151,4 +184,5 @@ class VsgJpyReversal(StrategyBase):
             reasons=reasons,
             entry_type=self.name,
             score=float(score),
+            max_hold_bars=max_hold_bars,
         )

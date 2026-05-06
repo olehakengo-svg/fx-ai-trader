@@ -141,3 +141,43 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T20:05:46Z)
+
+exit=0 · 1401s
+
+```
+実装と検証まで完了しました。V2 は `VSG_JPY_REVERSAL_REDESIGN_V2=1` 配下でのみ有効で、default OFF では既存 geometry / live 経路に影響しません。
+
+変更点:
+- [strategies/daytrade/vsg_jpy_reversal.py](/data/repo/fx-ai-trader/strategies/daytrade/vsg_jpy_reversal.py:63)
+  - V2 geometry: `SL=1.8 ATR`, `TP=0.9 ATR`, legacy `MIN_RR` gate は V2 時のみ撤廃
+  - pair 別: `EURJPY threshold=1.5 hold=2`, `GBPJPY threshold=1.0 hold=4`
+  - `Candidate.max_hold_bars` を V2 時だけ設定
+- [app.py](/data/repo/fx-ai-trader/app.py:6179)
+  - BT cache key に V2 flag を追加
+  - V2 時だけ `vsg_jpy_reversal` の SL/TP を production BT 内で preserve
+  - V2 時だけ Quick Harvest / RR skip が geometry を壊さないよう調整
+- [tests/test_vsg_jpy_reversal_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_vsg_jpy_reversal_shadow_redesign_v2.py:54)
+  - default OFF 不変、V2 geometry、GBP_JPY threshold relaxation、pair gate、既存 shadow route preservation を追加
+- [tools/vsg_jpy_reversal_shadow_bt.py](/data/repo/fx-ai-trader/tools/vsg_jpy_reversal_shadow_bt.py:1)
+  - 365d MASSIVE / `run_daytrade_backtest(backtest_mode=True)` report runner を追加
+
+BT report:
+- [bt-results/vsg_jpy_reversal-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/vsg_jpy_reversal-shadow-redesign-v2-2026-05-05.json:1)
+- Data: `massive-parquet`, `BT_MODE=1`, `BT_REQUIRE_MASSIVE_CACHE=1`
+- Verdict: `REJECT`
+- Reason: v2.1 の唯一の catastrophic 条件に該当
+  - `GBP_JPY` baseline `PnL=+2.0219R`
+  - `GBP_JPY` proposed `PnL=-124.9457R`
+  - `pnl_sign_preserved=false`
+- `EUR_JPY` は baseline/proposed とも PnL 負なので v2.1 上は `PASS`、PF/Wilson/N 変化は WARN only として記録済みです。
+
+検証:
+- `.venv/bin/python -m pytest tests/test_vsg_jpy_reversal_shadow_redesign_v2.py tests/test_vsg_jpy_reversal.py` → `17 passed`
+- `.venv/bin/python -m py_compile strategies/daytrade/vsg_jpy_reversal.py strategies/daytrade/__init__.py app.py tools/vsg_jpy_reversal_shadow_bt.py` → pass
+- report JSON validation → pass
+
+REJECT のため、V2 shadow promote 設定は適用していません。既存の legacy `vsg_jpy_reversal` shadow route はそのまま維持しています。
+```

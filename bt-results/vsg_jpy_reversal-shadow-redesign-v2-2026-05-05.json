@@ -1,0 +1,127 @@
+{
+  "generated_at": "2026-05-06T20:04:45.789326+00:00",
+  "strategy": "vsg_jpy_reversal",
+  "variant": "v2_mr_exit_geometry_sl_1p8atr_tp_0p9atr_no_min_rr_pair_hold",
+  "flag": "VSG_JPY_REVERSAL_REDESIGN_V2",
+  "shadow_worker_flag": "VSG_JPY_REVERSAL_REDESIGN_V2_SHADOW_PROMOTE",
+  "target_scope": "EUR_JPY and GBP_JPY; trigger thesis preserved with GBP_JPY threshold relaxed to 1.0",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest(backtest_mode=True; production daytrade path; strategy-only compute patch)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "bt_require_massive_cache": "1",
+  "massive_cache_verified": true,
+  "targets": [
+    "EUR_JPY",
+    "GBP_JPY"
+  ],
+  "missing_caches": [],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": "pnl_sign_preserved only: baseline PnL > 0 and proposed PnL < 0 rejects",
+    "warn_only": [
+      "pf_change",
+      "wilson_lo_change",
+      "n_change_pct"
+    ],
+    "sanity_floor": "removed in v2.1",
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "EUR_JPY": {
+      "current": {
+        "N": 304,
+        "wins": 174,
+        "WR": 0.5724,
+        "EV": -0.0333,
+        "PnL": -10.1125,
+        "PF": 0.944,
+        "wilson_lo": 0.5162,
+        "total_trades_all_strategies": 304,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24361
+      },
+      "proposed": {
+        "N": 515,
+        "wins": 254,
+        "WR": 0.4932,
+        "EV": -0.2016,
+        "PnL": -103.8263,
+        "PF": 0.612,
+        "wilson_lo": 0.4502,
+        "total_trades_all_strategies": 515,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24361
+      },
+      "lock_criteria": {
+        "verdict": "PASS",
+        "catastrophic_check": true,
+        "pnl_sign_preserved": true,
+        "warn_only_metrics": {
+          "pf_change": -0.332,
+          "wilson_lo_change": -0.066,
+          "n_change_pct": 69.4079
+        },
+        "sanity_floor": "REMOVED_IN_V2_1",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "GBP_JPY": {
+      "current": {
+        "N": 316,
+        "wins": 185,
+        "WR": 0.5854,
+        "EV": 0.0064,
+        "PnL": 2.0219,
+        "PF": 1.0109,
+        "wilson_lo": 0.5304,
+        "total_trades_all_strategies": 316,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24017
+      },
+      "proposed": {
+        "N": 918,
+        "wins": 530,
+        "WR": 0.5773,
+        "EV": -0.1361,
+        "PnL": -124.9457,
+        "PF": 0.7472,
+        "wilson_lo": 0.5451,
+        "total_trades_all_strategies": 918,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24017
+      },
+      "lock_criteria": {
+        "verdict": "REJECT",
+        "catastrophic_check": false,
+        "pnl_sign_preserved": false,
+        "warn_only_metrics": {
+          "pf_change": -0.2637,
+          "wilson_lo_change": 0.0147,
+          "n_change_pct": 190.5063
+        },
+        "sanity_floor": "REMOVED_IN_V2_1",
+        "shadow_promote_recommendation": "REJECT"
+      }
+    }
+  },
+  "overall_verdict": "REJECT",
+  "shadow_promote_recommendation": "REJECT",
+  "shadow_registration_note": "base vsg_jpy_reversal is already in DaytradeEngine.SHADOW_ALWAYS_STRATEGIES; V2 behavior is default-off unless VSG_JPY_REVERSAL_REDESIGN_V2=1. No V2 shadow-promote setting is applied when the overall verdict is REJECT.",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 1182.5,
+  "self_review": {
+    "catastrophic_only": "PASS: verdict uses only pnl_sign_preserved when proposed N>=20; PF/Wilson/N are warn-only.",
+    "insufficient_bt_evidence": "PASS: proposed N<20 becomes INSUFFICIENT_BT_EVIDENCE and recommends shadow.",
+    "production_live_safety": "PASS: V2 trigger/geometry/time-exit are default-off unless VSG_JPY_REVERSAL_REDESIGN_V2=1; BT cache and SL/TP preserve are flag-aware.",
+    "post_hoc_adjustment": "PASS: only pre-registered V2 exit geometry plus pair threshold/hold candidates from the audit are evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 requires MASSIVE parquet and prevents Yahoo fallback for this report."
+  }
+}
