@@ -145,3 +145,10 @@ REJECT → 文書化のみ、shadow 設定変更なし
 
 
 
+
+
+## Error (2026-05-06T11:18:04Z)
+
+```
+orphaned: container restarted while task was running
+```
