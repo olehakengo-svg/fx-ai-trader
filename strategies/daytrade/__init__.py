@@ -323,6 +323,9 @@ class DaytradeEngine:
         if (os.environ.get("VDR_JPY_REDESIGN_V2") == "1"
                 and os.environ.get("VDR_JPY_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"vdr_jpy"}
+        if (os.environ.get("VWAP_MEAN_REVERSION_REDESIGN_V2") == "1"
+                and os.environ.get("VWAP_MEAN_REVERSION_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"vwap_mean_reversion"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

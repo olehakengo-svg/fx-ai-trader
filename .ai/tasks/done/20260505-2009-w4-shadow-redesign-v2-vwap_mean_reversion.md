@@ -143,3 +143,37 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T20:28:46Z)
+
+exit=0 · 1345s
+
+```
+実装完了です。
+
+変更点:
+- [app.py](/data/repo/fx-ai-trader/app.py:3292): `VWAP_MEAN_REVERSION_REDESIGN_V2=1` のときだけ VWAP MR を再有効化。
+- [app.py](/data/repo/fx-ai-trader/app.py:3375): live 時は確定済み bar を使い、同一 closed bar の重複発火を dedup。
+- [app.py](/data/repo/fx-ai-trader/app.py:3406): V2 では HTF direction hard veto を外し、理由に V2 closed-bar marker を出力。
+- [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:326): `VWAP_MEAN_REVERSION_REDESIGN_V2_SHADOW_PROMOTE=1` との二重 flag で shadow emit 登録。
+- [tests/test_vwap_mean_reversion_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_vwap_mean_reversion_shadow_redesign_v2.py:98): default OFF、closed-bar、current-bar 無視、dedup、HTF veto removal、shadow flag をテスト。
+- [tools/vwap_mean_reversion_shadow_bt.py](/data/repo/fx-ai-trader/tools/vwap_mean_reversion_shadow_bt.py:1): 365d MASSIVE BT report runner 追加。
+
+検証:
+- `.venv/bin/pytest -q tests/test_vwap_mean_reversion_shadow_redesign_v2.py` → `6 passed`
+- `python3 -m py_compile app.py strategies/daytrade/__init__.py tests/test_vwap_mean_reversion_shadow_redesign_v2.py tools/vwap_mean_reversion_shadow_bt.py` → OK
+- `git diff --check` → OK
+- 365d MASSIVE BT report generated: [bt-results/vwap_mean_reversion-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/vwap_mean_reversion-shadow-redesign-v2-2026-05-05.json:273)
+
+BT verdict:
+- Overall: `INSUFFICIENT_BT_EVIDENCE`
+- Shadow recommendation: `RECOMMEND_SHADOW`
+- Proposed N:
+  - `EUR_USD`: 161, PASS
+  - `GBP_USD`: 178, PASS
+  - `EUR_JPY`: 108, PASS
+  - `USD_JPY`, `GBP_JPY`, `EUR_GBP`: N<20, `INSUFFICIENT_BT_EVIDENCE`
+
+Self-review passed: catastrophic check is PnL sign only, no Kelly / PF / Wilson floor used for rejection, and live behavior remains default OFF unless both V2/shadow flags are explicitly enabled.
+```

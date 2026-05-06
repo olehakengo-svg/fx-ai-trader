@@ -1,0 +1,285 @@
+{
+  "generated_at": "2026-05-06T20:28:09.408510+00:00",
+  "strategy": "vwap_mean_reversion",
+  "variant": "closed_bar_timing_and_htf_soft_v2",
+  "flag": "VWAP_MEAN_REVERSION_REDESIGN_V2",
+  "shadow_worker_flag": "VWAP_MEAN_REVERSION_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest(backtest_mode=True; vwap_mean_reversion strategy-filter signal path; neutral HTF/SR precompute for BT filter)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": true,
+  "targets": [
+    "USD_JPY",
+    "EUR_USD",
+    "GBP_USD",
+    "EUR_JPY",
+    "GBP_JPY",
+    "EUR_GBP"
+  ],
+  "missing_caches": [],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic check, recommend shadow",
+    "catastrophic_check": "pnl_sign_preserved only; NG only when baseline PnL > 0 and proposed PnL < 0",
+    "sanity_floor": "REMOVED in v2.1",
+    "pf_change_wilson_lo_change_n_change_pct": "WARN ONLY",
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "USD_JPY": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "INSUFFICIENT_BT_EVIDENCE",
+        "reason": "proposed BT trades < 20; catastrophic check skipped under v2.1",
+        "catastrophic_check": "SKIPPED",
+        "warnings": {
+          "pf_change": 0.0,
+          "wilson_lo_change": 0.0,
+          "n_change_pct": 0.0,
+          "note": "WARN ONLY in v2.1; not used for verdict"
+        },
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "EUR_USD": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 161,
+        "wins": 93,
+        "WR": 0.5776,
+        "EV": -0.0231,
+        "PnL": -3.7219,
+        "PF": 0.9612,
+        "wilson_lo": 0.5004,
+        "total_trades_all_strategies": 161,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24612
+      },
+      "lock_criteria": {
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "warnings": {
+          "pf_change": 0.9612,
+          "wilson_lo_change": 0.5004,
+          "n_change_pct": "inf",
+          "note": "WARN ONLY in v2.1; not used for verdict"
+        },
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "GBP_USD": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 178,
+        "wins": 104,
+        "WR": 0.5843,
+        "EV": -0.0949,
+        "PnL": -16.8983,
+        "PF": 0.8476,
+        "wilson_lo": 0.5108,
+        "total_trades_all_strategies": 178,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24585
+      },
+      "lock_criteria": {
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "warnings": {
+          "pf_change": 0.8476,
+          "wilson_lo_change": 0.5108,
+          "n_change_pct": "inf",
+          "note": "WARN ONLY in v2.1; not used for verdict"
+        },
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "EUR_JPY": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 108,
+        "wins": 66,
+        "WR": 0.6111,
+        "EV": 0.0653,
+        "PnL": 7.0529,
+        "PF": 1.1178,
+        "wilson_lo": 0.5169,
+        "total_trades_all_strategies": 108,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24361
+      },
+      "lock_criteria": {
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "warnings": {
+          "pf_change": 1.1178,
+          "wilson_lo_change": 0.5169,
+          "n_change_pct": "inf",
+          "note": "WARN ONLY in v2.1; not used for verdict"
+        },
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "GBP_JPY": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "INSUFFICIENT_BT_EVIDENCE",
+        "reason": "proposed BT trades < 20; catastrophic check skipped under v2.1",
+        "catastrophic_check": "SKIPPED",
+        "warnings": {
+          "pf_change": 0.0,
+          "wilson_lo_change": 0.0,
+          "n_change_pct": 0.0,
+          "note": "WARN ONLY in v2.1; not used for verdict"
+        },
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "EUR_GBP": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "INSUFFICIENT_BT_EVIDENCE",
+        "reason": "proposed BT trades < 20; catastrophic check skipped under v2.1",
+        "catastrophic_check": "SKIPPED",
+        "warnings": {
+          "pf_change": 0.0,
+          "wilson_lo_change": 0.0,
+          "n_change_pct": 0.0,
+          "note": "WARN ONLY in v2.1; not used for verdict"
+        },
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    }
+  },
+  "overall_verdict": "INSUFFICIENT_BT_EVIDENCE",
+  "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 228.3,
+  "self_review": {
+    "catastrophic_only": "PASS: only positive-to-negative PnL sign flip can reject when N>=20.",
+    "insufficient_bt_evidence": "PASS: proposed N<20 becomes INSUFFICIENT_BT_EVIDENCE and recommends shadow.",
+    "sanity_floor_removed": "PASS: PF/Wilson/N changes are warnings only.",
+    "production_live_safety": "PASS: behavior is default-off unless VWAP_MEAN_REVERSION_REDESIGN_V2=1.",
+    "post_hoc_adjustment": "PASS: no thresholds adjusted after results.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents fallback."
+  }
+}

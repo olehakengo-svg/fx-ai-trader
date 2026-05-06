@@ -91,6 +91,7 @@ _ENABLE_VWAP_MEAN_REVERSION = False  # 2026-04-28 R3 disabled: 同バー多重�
 # lesson-silent-except-hides-nameerror (2026-04-22) で復活したが Pre-reg LOCK
 # の停止条件がなく、復活直後から Live -10.57p / Shadow -540p 級の損失を蓄積
 # 詳細: lesson-vwap-mr-revival-without-stop-condition-2026-04-28.md
+_VWAP_MEAN_REVERSION_V2_SEEN_BAR_KEYS = set()
 
 # NYクローズ時間帯バイアス定義 (WR%, pair, direction)
 _NY_CLOSE_BIAS = {
@@ -3288,12 +3289,27 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     #   追加ゲートを挿入 (slope flat / ADX hard block / active hours / reclaim conf).
     #   env var VWAP_MR_V2=1 (default on); "0" で旧挙動へ即時ロールバック.
     #   OANDA 送信は demo_trader.py の緊急トリップで別途停止 (Shadow 継続).
-    if _ENABLE_VWAP_MEAN_REVERSION and "vwap" in df.columns and (signal == "WAIT" or conf < 50):
+    _VMR_REDESIGN_V2 = os.environ.get("VWAP_MEAN_REVERSION_REDESIGN_V2", "0") == "1"
+    if (_ENABLE_VWAP_MEAN_REVERSION or _VMR_REDESIGN_V2) and "vwap" in df.columns and (signal == "WAIT" or conf < 50):
         try:
-            _vmr_vwap = float(row["vwap"])
-            if _vmr_vwap > 0 and len(df) >= 50:
-                _vmr_dev = (entry - _vmr_vwap) / _vmr_vwap * 100
-                _vmr_dev_series = ((df["Close"] - df["vwap"]) / df["vwap"] * 100).tail(50)
+            _vmr_signal_df = df
+            _vmr_signal_row = row
+            _vmr_signal_time = bar_time if bar_time else row.name
+            if _VMR_REDESIGN_V2 and not backtest_mode:
+                if len(df) < 51:
+                    _vmr_signal_df = None
+                else:
+                    _vmr_signal_df = df.iloc[:-1]
+                    _vmr_signal_row = _vmr_signal_df.iloc[-1]
+                    _vmr_signal_time = _vmr_signal_row.name
+            if _vmr_signal_df is not None:
+                _vmr_vwap = float(_vmr_signal_row["vwap"])
+            else:
+                _vmr_vwap = 0.0
+            if _vmr_vwap > 0 and _vmr_signal_df is not None and len(_vmr_signal_df) >= 50:
+                _vmr_signal_entry = float(_vmr_signal_row["Close"])
+                _vmr_dev = (_vmr_signal_entry - _vmr_vwap) / _vmr_vwap * 100
+                _vmr_dev_series = ((_vmr_signal_df["Close"] - _vmr_signal_df["vwap"]) / _vmr_signal_df["vwap"] * 100).tail(50)
                 _vmr_std = float(_vmr_dev_series.std())
                 if _vmr_std > 0:
                     _vmr_signal = None
@@ -3310,7 +3326,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                     if _VMR_V2 and _vmr_signal:
                         # (1) VWAP slope flat only (normalized |slope| <= 0.3 * sigma/bar)
                         try:
-                            _vwap_tail = df["vwap"].tail(10).values
+                            _vwap_tail = _vmr_signal_df["vwap"].tail(10).values
                             if len(_vwap_tail) >= 5:
                                 _vmr_slope_raw = (float(_vwap_tail[-1]) - float(_vwap_tail[0])) / max(1, len(_vwap_tail) - 1)
                                 _vmr_slope_norm = abs(_vmr_slope_raw) / max(1e-9, _vmr_std * _vmr_vwap / 100)
@@ -3330,7 +3346,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                         # (3) Active hours (UTC 7-20): Asia 深夜 / NY 引け後は除外
                         if _vmr_signal is not None:
                             try:
-                                _vmr_hour = datetime.now(timezone.utc).hour
+                                _vmr_hour = _vmr_signal_time.hour if hasattr(_vmr_signal_time, 'hour') else datetime.now(timezone.utc).hour
                                 if _vmr_hour not in range(7, 20):
                                     reasons.append(f"🚫 [VWAP-MR v2] outside active hours (UTC {_vmr_hour})")
                                     _vmr_signal = None
@@ -3349,14 +3365,28 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                             except Exception:
                                 pass
 
+                    if _vmr_signal and _VMR_REDESIGN_V2 and not backtest_mode:
+                        _vmr_seen_key = (
+                            str(symbol).upper().replace("=X", ""),
+                            str(tf),
+                            "vwap_mean_reversion",
+                            str(_vmr_signal_time),
+                        )
+                        if _vmr_seen_key in _VWAP_MEAN_REVERSION_V2_SEEN_BAR_KEYS:
+                            reasons.append(f"🚫 [VWAP-MR V2] duplicate closed bar {_vmr_signal_time} → skip")
+                            _vmr_signal = None
+                        else:
+                            _VWAP_MEAN_REVERSION_V2_SEEN_BAR_KEYS.add(_vmr_seen_key)
+
                     # v9.x fix: HTF Hard Block check — VWAP-MR runs after DTE HTF block,
-                    # so must independently respect HTF agreement direction
+                    # so must independently respect HTF agreement direction. V2 removes
+                    # this veto because counter-trend extension is the MR thesis.
                     if _vmr_signal:
                         _vmr_htf_blocked = False
-                        if htf_agreement == "bull" and _vmr_signal == "SELL":
+                        if not _VMR_REDESIGN_V2 and htf_agreement == "bull" and _vmr_signal == "SELL":
                             _vmr_htf_blocked = True
                             reasons.append(f"🚫 [VWAP-MR] HTF Hard Block: SELL blocked (htf=bull)")
-                        elif htf_agreement == "bear" and _vmr_signal == "BUY":
+                        elif not _VMR_REDESIGN_V2 and htf_agreement == "bear" and _vmr_signal == "BUY":
                             _vmr_htf_blocked = True
                             reasons.append(f"🚫 [VWAP-MR] HTF Hard Block: BUY blocked (htf=bear)")
 
@@ -3372,6 +3402,8 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                                 reasons.append(f"✅ [VWAP-MR] Price < VWAP-2σ ({_vmr_dev:.2f}%, σ={_vmr_std:.2f}) → BUY (Bonferroni p<0.001)")
                             else:
                                 reasons.append(f"✅ [VWAP-MR] Price > VWAP+2σ ({_vmr_dev:+.2f}%, σ={_vmr_std:.2f}) → SELL (Bonferroni p<0.001)")
+                            if _VMR_REDESIGN_V2:
+                                reasons.append(f"✅ [VWAP-MR V2] closed_bar_time={_vmr_signal_time} next-bar execution; HTF direction veto disabled")
 
                     # v2.1: pair-specific confidence boost (friction-adjusted BT scan)
                     if _dt_entry_type == "vwap_mean_reversion":
@@ -6177,6 +6209,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
     _ts_v2_cache_flag = os.environ.get("TURTLE_SOUP_REDESIGN_V2", "0")
     _vdr_v2_cache_flag = os.environ.get("VDR_JPY_REDESIGN_V2", "0")
     _vsg_v2_cache_flag = os.environ.get("VSG_JPY_REVERSAL_REDESIGN_V2", "0")
+    _vmr_v2_cache_flag = os.environ.get("VWAP_MEAN_REVERSION_REDESIGN_V2", "0")
     cache_key = (
         f"{symbol}_{interval}_{lookback_days}_jitter{exec_lag_jitter:.4f}"
         f"_bt{int(bool(backtest_mode))}_gtmV2{_gtm_v2_cache_flag}"
@@ -6191,6 +6224,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         f"_sbrV2{_sbr_v2_cache_flag}_sfcV2{_sfc_v2_cache_flag}"
         f"_trbV2{_trb_v2_cache_flag}_tsV2{_ts_v2_cache_flag}"
         f"_vdrV2{_vdr_v2_cache_flag}_vsgV2{_vsg_v2_cache_flag}"
+        f"_vmrV2{_vmr_v2_cache_flag}"
     )
     now = datetime.now()
     cached = _dt_bt_cache.get(cache_key)
