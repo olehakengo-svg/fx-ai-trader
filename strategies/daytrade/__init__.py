@@ -299,6 +299,9 @@ class DaytradeEngine:
         if (os.environ.get("SR_BREAK_RETEST_REDESIGN_V2") == "1"
                 and os.environ.get("SR_BREAK_RETEST_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"sr_break_retest"}
+        if (os.environ.get("SR_FIB_CONFLUENCE_REDESIGN_V2") == "1"
+                and os.environ.get("SR_FIB_CONFLUENCE_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"sr_fib_confluence", "ob_retest"}
         if (os.environ.get("SR_ANTI_HUNT_BOUNCE_REDESIGN_V2") == "1"
                 and os.environ.get("SR_ANTI_HUNT_BOUNCE_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"sr_anti_hunt_bounce"}

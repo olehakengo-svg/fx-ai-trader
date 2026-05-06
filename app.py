@@ -6163,6 +6163,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
     _rsk_v2_cache_flag = os.environ.get("RSK_GBPJPY_REVERSION_REDESIGN_V2", "0")
     _mqe_v2_cache_flag = os.environ.get("MQE_GBPUSD_FIX_REDESIGN_V2", "0")
     _sbr_v2_cache_flag = os.environ.get("SR_BREAK_RETEST_REDESIGN_V2", "0")
+    _sfc_v2_cache_flag = os.environ.get("SR_FIB_CONFLUENCE_REDESIGN_V2", "0")
     cache_key = (
         f"{symbol}_{interval}_{lookback_days}_jitter{exec_lag_jitter:.4f}"
         f"_bt{int(bool(backtest_mode))}_gtmV2{_gtm_v2_cache_flag}"
@@ -6173,7 +6174,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         f"_mtfRangeCascadeV2{_mtf_range_v2_cache_flag}"
         f"_mtfConfluenceV2{_mtf_confluence_v2_cache_flag}"
         f"_rskV2{_rsk_v2_cache_flag}_mqeV2{_mqe_v2_cache_flag}"
-        f"_sbrV2{_sbr_v2_cache_flag}"
+        f"_sbrV2{_sbr_v2_cache_flag}_sfcV2{_sfc_v2_cache_flag}"
     )
     now = datetime.now()
     cached = _dt_bt_cache.get(cache_key)
@@ -8422,6 +8423,7 @@ def compute_layer3_score(df: pd.DataFrame, tf: str, sr_levels: list) -> dict:
 
     score_add = 0.0
     comps = {}
+    structured = {"signal_bar_time": str(getattr(row, "name", ""))}
 
     # ① Order Block proximity (SMC)
     try:
@@ -8433,6 +8435,14 @@ def compute_layer3_score(df: pd.DataFrame, tf: str, sr_levels: list) -> dict:
             ob_sc += 0.30   # price near bullish OB → potential long
         if ob_bear:
             ob_sc -= 0.30   # price near bearish OB → potential short
+        for ob in reversed(ob_zones_l3[-5:]):
+            ob_low = float(ob.get("low", 0.0))
+            ob_high = float(ob.get("high", 0.0))
+            if ob_low - atr * 0.5 <= close <= ob_high + atr * 0.5:
+                structured["ob_zone_low"] = min(ob_low, ob_high)
+                structured["ob_zone_high"] = max(ob_low, ob_high)
+                structured["confluence_type"] = f"{ob.get('type', 'ob')}_ob_retest"
+                break
         comps["ob_contact"] = round(ob_sc, 3)
         score_add += ob_sc
     except Exception:
@@ -8455,6 +8465,17 @@ def compute_layer3_score(df: pd.DataFrame, tf: str, sr_levels: list) -> dict:
             fib_bear_382 = swing_low + sw_range * 0.382
             fib_bear_618 = swing_low + sw_range * 0.618
             in_bear_fib  = fib_bear_382 - atr * 0.3 <= close <= fib_bear_618 + atr * 0.3
+            fib_candidates = [
+                ("fib_38.2_bull", fib382),
+                ("fib_50.0_bull", fib50),
+                ("fib_61.8_bull", fib618),
+                ("fib_38.2_bear", fib_bear_382),
+                ("fib_61.8_bear", fib_bear_618),
+            ]
+            fib_name, fib_level = min(fib_candidates, key=lambda x: abs(close - x[1]))
+            if abs(close - fib_level) <= atr * 0.35:
+                structured["fib_level"] = float(fib_level)
+                structured["confluence_type"] = fib_name
             fib_sc = 0.0
             if in_bull_fib:  fib_sc += 0.25
             if in_bear_fib:  fib_sc -= 0.25
@@ -8501,6 +8522,8 @@ def compute_layer3_score(df: pd.DataFrame, tf: str, sr_levels: list) -> dict:
             dist = abs(_sr_price(nearest) - close)
             if dist < atr * 0.5:
                 sr_type = nearest.get("type", "") if isinstance(nearest, dict) else ""
+                structured["sr_level"] = float(_sr_price(nearest))
+                structured.setdefault("confluence_type", f"sr_{sr_type or 'level'}")
                 sr_sc = 0.15 if sr_type == "support" else -0.15
                 comps["sr_proximity"] = round(sr_sc, 3)
                 score_add += sr_sc
@@ -8523,6 +8546,7 @@ def compute_layer3_score(df: pd.DataFrame, tf: str, sr_levels: list) -> dict:
         "score":      round(score, 3),
         "label":      label,
         "components": comps,
+        **structured,
     }
 
 

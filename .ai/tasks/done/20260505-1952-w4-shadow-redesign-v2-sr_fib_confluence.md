@@ -141,3 +141,47 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T12:06:19Z)
+
+exit=0 · 2045s
+
+```
+実装完了しました。
+
+主な変更:
+- [strategies/daytrade/sr_fib_confluence.py](/data/repo/fx-ai-trader/strategies/daytrade/sr_fib_confluence.py:26)
+  - `SR_FIB_CONFLUENCE_REDESIGN_V2=1` 配下でのみ V2 を有効化。
+  - `dt_reasons` 文字列ではなく、`layer3.fib_level` / `ob_zone_low/high` の structured gate を使用。
+  - live 時は未確定 current bar を使わず closed bar で判定。
+  - `(symbol, strategy, signal, signal_bar, confluence_type)` dedup を追加。
+
+- [app.py](/data/repo/fx-ai-trader/app.py:8426)
+  - `compute_layer3_score()` が `fib_level`, `sr_level`, `ob_zone_low/high`, `confluence_type`, `signal_bar_time` を返すよう追加。
+  - BT cache key に `SR_FIB_CONFLUENCE_REDESIGN_V2` を追加。
+
+- [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:302)
+  - `SR_FIB_CONFLUENCE_REDESIGN_V2=1` かつ `SR_FIB_CONFLUENCE_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag で shadow emit 登録。
+
+- [tests/test_sr_fib_confluence_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_sr_fib_confluence_shadow_redesign_v2.py:1)
+  - default OFF、文字列 reason 拒否、structured fib/OB gate、closed-bar、dedup、shadow opt-in をテスト。
+
+- [tools/sr_fib_confluence_shadow_bt.py](/data/repo/fx-ai-trader/tools/sr_fib_confluence_shadow_bt.py:1)
+  - 365d MASSIVE BT report runner を追加。
+  - v2.1 LOCK criteria は `pnl_sign_preserved` のみ REJECT 条件。PF/Wilson/N drop は warn only。
+
+BT report:
+- [bt-results/sr_fib_confluence-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/sr_fib_confluence-shadow-redesign-v2-2026-05-05.json:72)
+- Target: `EUR_USD` 365d MASSIVE
+- Baseline: N=341, PnL=39.1728, PF=1.1753
+- Proposed: N=340, PnL=41.1119, PF=1.1856
+- v2.1 verdict: `PASS`
+- Shadow recommendation: `RECOMMEND_SHADOW`
+
+Verification:
+- `.venv/bin/pytest tests/test_sr_fib_confluence_shadow_redesign_v2.py -q` → `6 passed`
+- `.venv/bin/python -m py_compile strategies/daytrade/sr_fib_confluence.py tools/sr_fib_confluence_shadow_bt.py app.py` → passed
+
+Note: full 6-pair BT was started, but 1 baseline cell took about 6 minutes, so
+…(truncated)
