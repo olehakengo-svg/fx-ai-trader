@@ -17,6 +17,8 @@ Confluence Scalp v2 — Triple Confluence + MSS (Market Structure Shift)
   - Triple Confluence → 3理論族の合意で false signal を排除
   - CHoCH → 構造的トレンド転換を検出（単純な指標クロスではなく市場構造の変化）
 """
+from __future__ import annotations
+
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional

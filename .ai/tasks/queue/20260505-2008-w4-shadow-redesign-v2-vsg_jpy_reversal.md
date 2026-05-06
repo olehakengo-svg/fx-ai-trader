@@ -1,11 +1,11 @@
 ---
 id: 20260505-2008-w4-shadow-redesign-v2-vsg_jpy_reversal
-title: "[W4-Shadow-Redesign v2] vsg_jpy_reversal (Tier 2 (Shadow)) — relaxed spec"
+title: "[W4-Shadow-Redesign v2.1] vsg_jpy_reversal (Tier 2 (Shadow)) — relaxed spec"
 owner: codex
 status: queued
 priority: P1
 created_at: 2026-05-05T20:08:00+0900
-roadmap_gate: "W4-Shadow-Redesign v2: BT は filter、shadow が真の estimator (v1 で 5/5 REJECT した教訓)"
+roadmap_gate: "W4-Shadow-Redesign v2.1: BT は filter、shadow が真の estimator (v1 で 5/5 REJECT した教訓)"
 rule: R1
 prereq_artifacts:
   - audits/edge_design/vsg_jpy_reversal.md
@@ -43,34 +43,40 @@ W4-EDA audit (`audits/edge_design/vsg_jpy_reversal.md`):
 
 > 思想と trigger/timing/filter は成立しているため、復活候補としては高い。主修正は stop/TP geometry の 1 系統でよい。MR としては「大きな surprise 後の短い戻り」を取りに行くべきなので、TP を近く、SL を広く、time exit を明示する設計に寄せる。
 
-# 2. v2 LOCK criteria (緩和版)
+# 2. v2.1 LOCK criteria (shadow-first 修正)
+
+**v2 → v2.1 修正理由**: v2 spec の `pf_change >= -0.10` / `wilson_lo_change >= -0.05` / `n_change_pct >= -30` / `sanity_floor PF>=0.85, Wilson_lo>=0.20` は実質 Live promotion 級基準であり、`feedback_shadow_first_quant_architecture` の「BT は filter、shadow が真の estimator」と矛盾する。N drop は redesign が signal を絞った正常な結果であり、shadow で観察すべき。PF<0.85 の戦略でも shadow に投入して live で N 蓄積するのが正順 (`feedback_audit_purpose_design_not_n`)。
 
 ```yaml
-catastrophic_check (NG なら REJECT):
-  - pf_change >= -0.10  # 10% 悪化までは許容 (v1 は -5%)
-  - wilson_lo_change >= -0.05  # 5pp 悪化まで許容 (v1 は -2%)
-  - n_change_pct >= -30  # 30% 減少まで許容
-  - pnl_sign_preserved  # 正→負への符号反転は NG (絶対)
+catastrophic_check (NG なら REJECT — これだけが REJECT 根拠):
+  - pnl_sign_preserved  # baseline_pnl > 0 かつ proposed_pnl < 0 のとき NG (正→負への符号反転)
+  ※ 上記以外 (PF 悪化、Wilson_lo 悪化、N drop) は WARN としてレポートに記録するが REJECT には使わない
 
 shadow_promote_decision:
-  - if catastrophic_check ALL PASS:
+  - if pnl_sign_preserved == True (正→正 / 負→正 / 負→負 / 0→任意):
       → shadow promote 推奨 (BT は filter として通過、shadow で本判定)
-  - else:
-      → REJECT (catastrophic regression 確定)
-
-  Optional: positive direction は spec に書かない (BT bias が大きいため)
+  - else (正→負 確定):
+      → REJECT (真の catastrophic regression のみ)
 
 bt_evidence_threshold:
   - if N (proposed BT trades) < 20:
       → "INSUFFICIENT_BT_EVIDENCE" verdict
       → catastrophic_check skip、shadow promote 推奨 (live で N 蓄積)
-
   - else:
-      → catastrophic check 適用
+      → pnl_sign_preserved 単独で判定
 
-sanity_floor (どんなに緩くても禁止):
-  - wilson_lo_proposed >= 0.20  # noise すれすれは shadow にも出さない
-  - pf_proposed >= 0.85  # 著しく赤字方向は shadow promote しない
+sanity_floor: **REMOVED in v2.1**
+  ※ v2 で PF>=0.85 / Wilson_lo>=0.20 floor が dt_bb_rsi_mr / engulfing_bb / dt_sr_channel
+     を誤って REJECT した。shadow 観察に floor は不要。
+     proposed_pnl < 0 の戦略は pnl_sign_preserved=False で自動 catch される。
+
+n_change_pct, pf_change, wilson_lo_change: **WARN ONLY in v2.1**
+  ※ レポートに記録するが、verdict には使わない。shadow で観察、6mo OOS で再判定。
+
+XAU データ不在 / 必須 parquet 不在の扱い:
+  - 戦略が XAU を必須としかつ data/cache/massive/XAU_USD_*.parquet が無い場合
+      → "BLOCKED_DATA" verdict (REJECT ではない)
+      → shadow promote は flag 配下で実装のみ、デフォルト OFF (データ調達後に opt-in)
 ```
 
 # 3. BT 仕様

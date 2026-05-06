@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 from tools.r2_postmerge_audit import (
