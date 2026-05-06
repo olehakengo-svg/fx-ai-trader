@@ -42,12 +42,15 @@ from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
 import numpy as np
+import os
 
 
 class TurtleSoup(StrategyBase):
     name = "turtle_soup"
     mode = "daytrade"
     enabled = True
+    REDESIGN_V2_ENV = "TURTLE_SOUP_REDESIGN_V2"
+    _v2_seen_closed_bar_keys: set[tuple[str, str, str, str]] = set()
 
     # ══════════════════════════════════════════════════
     # パラメータ定数
@@ -96,6 +99,9 @@ class TurtleSoup(StrategyBase):
     }
     # EUR/GBP: BUY WR=35% → SELL-onlyフィルター
     SELL_ONLY_PAIRS = {"EURGBP"}
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get(self.REDESIGN_V2_ENV, "0") == "1"
 
     def _normalize_symbol(self, symbol: str) -> str:
         s = symbol.upper().replace("=X", "").replace("=F", "").replace("/", "").replace("_", "")
@@ -172,7 +178,7 @@ class TurtleSoup(StrategyBase):
     # ══════════════════════════════════════════════════
 
     def _detect_sweep_and_reclaim(self, df, level: float, direction: str,
-                                  atr: float):
+                                  atr: float, signal_bar_idx: int | None = None):
         """Sweep（流動性グラブ）+ Reclaim（回帰）を検出。
 
         Args:
@@ -187,7 +193,9 @@ class TurtleSoup(StrategyBase):
         if len(df) < self.SWEEP_LOOKBACK + 2:
             return None
 
-        _cur_idx = len(df) - 1
+        _cur_idx = len(df) - 1 if signal_bar_idx is None else int(signal_bar_idx)
+        if _cur_idx < 1 or _cur_idx >= len(df):
+            return None
         _prev_idx = _cur_idx - 1
         _sweep_margin = atr * self.SWEEP_MARGIN_ATR
 
@@ -250,6 +258,8 @@ class TurtleSoup(StrategyBase):
             "sweep_bar_idx": _sweep_bar_idx,
             "level": level,
             "direction": direction,
+            "signal_bar_idx": _cur_idx,
+            "signal_bar_time": getattr(df.index[_cur_idx], "isoformat", lambda: str(df.index[_cur_idx]))(),
         }
 
     # ══════════════════════════════════════════════════
@@ -257,6 +267,7 @@ class TurtleSoup(StrategyBase):
     # ══════════════════════════════════════════════════
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        _redesign_v2 = self._redesign_v2_enabled()
         # ── ペアフィルター ──
         _sym = self._normalize_symbol(ctx.symbol)
         if _sym not in self.ALLOWED_PAIRS:
@@ -266,13 +277,20 @@ class TurtleSoup(StrategyBase):
         _min_bars = self.FRACTAL_LOOKBACK + self.FRACTAL_N + 2
         if ctx.df is None or len(ctx.df) < _min_bars:
             return None
+        _signal_bar_idx = len(ctx.df) - 2 if _redesign_v2 else len(ctx.df) - 1
+        _signal_bar_time = ctx.df.index[_signal_bar_idx]
+        _hour_utc = ctx.hour_utc
+        _is_friday = ctx.is_friday
+        if _redesign_v2 and hasattr(_signal_bar_time, "hour"):
+            _hour_utc = _signal_bar_time.hour
+            _is_friday = _signal_bar_time.weekday() == 4
 
         # ── 時間帯フィルター ──
-        if ctx.hour_utc < self.ACTIVE_HOURS_START or ctx.hour_utc >= self.ACTIVE_HOURS_END:
+        if _hour_utc < self.ACTIVE_HOURS_START or _hour_utc >= self.ACTIVE_HOURS_END:
             return None
 
         # ── 金曜フィルター ──
-        if ctx.is_friday and ctx.hour_utc >= self.FRIDAY_BLOCK_HOUR:
+        if _is_friday and _hour_utc >= self.FRIDAY_BLOCK_HOUR:
             return None
 
         # ── ADXフィルター（レンジ/強トレンド除外） ──
@@ -305,7 +323,8 @@ class TurtleSoup(StrategyBase):
                 continue
 
             result = self._detect_sweep_and_reclaim(
-                ctx.df, _level, "UP", ctx.atr
+                ctx.df, _level, "UP", ctx.atr,
+                signal_bar_idx=_signal_bar_idx if _redesign_v2 else None,
             )
             if result and _touches > _best_touches:
                 _best_candidate = result
@@ -319,7 +338,8 @@ class TurtleSoup(StrategyBase):
                 continue
 
             result = self._detect_sweep_and_reclaim(
-                ctx.df, _level, "DOWN", ctx.atr
+                ctx.df, _level, "DOWN", ctx.atr,
+                signal_bar_idx=_signal_bar_idx if _redesign_v2 else None,
             )
             if result and _touches > _best_touches:
                 _best_candidate = result
@@ -333,6 +353,16 @@ class TurtleSoup(StrategyBase):
         # ── SELL-onlyペアフィルター ──
         if _sym in self.SELL_ONLY_PAIRS and _best_candidate["signal"] != "SELL":
             return None
+        if _redesign_v2 and not ctx.backtest_mode:
+            _dedup_key = (
+                _sym,
+                self.name,
+                str(_best_candidate.get("signal_bar_time", _signal_bar_time)),
+                _best_candidate["signal"],
+            )
+            if _dedup_key in self._v2_seen_closed_bar_keys:
+                return None
+            self._v2_seen_closed_bar_keys.add(_dedup_key)
 
         # ═══════════════════════════════════════════════════
         # STEP 4: SL/TP 計算
@@ -414,6 +444,11 @@ class TurtleSoup(StrategyBase):
             f"Sweep extreme={_extreme:.5f}, reclaim confirmed",
             f"RR={_rr:.1f}, ADX={ctx.adx:.1f}",
         ]
+        if _redesign_v2:
+            _reasons.append(
+                f"✅ TURTLE_SOUP_REDESIGN_V2: closed_bar_time="
+                f"{_best_candidate.get('signal_bar_time', _signal_bar_time)} next-bar execution + per-bar dedup"
+            )
 
         return Candidate(
             signal=signal,

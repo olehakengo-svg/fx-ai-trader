@@ -143,3 +143,46 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T17:07:43Z)
+
+exit=0 · 2688s
+
+```
+実装とBTまで完了しました。
+
+変更点:
+- [turtle_soup.py](/data/repo/fx-ai-trader/strategies/daytrade/turtle_soup.py:52)
+  - `TURTLE_SOUP_REDESIGN_V2=1` 配下で closed-bar signal 化
+  - signal bar は `df.iloc[-2]`、entry は既存 production runner の next-bar execution
+  - live 時のみ `(symbol, strategy, signal_bar_time, signal)` dedup
+  - default OFF なので現行 live 挙動は維持
+- [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:320)
+  - `TURTLE_SOUP_REDESIGN_V2=1` かつ `TURTLE_SOUP_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag で shadow emit 登録
+- [app.py](/data/repo/fx-ai-trader/app.py:6173)
+  - BT cache key に V2 flag を追加して baseline/proposed 混線を防止
+- [tests/test_turtle_soup_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_turtle_soup_shadow_redesign_v2.py:60)
+  - default OFF preservation
+  - closed-bar/current-bar rejection
+  - live dedup
+  - shadow promote 二重 flag をテスト
+- [tools/turtle_soup_shadow_bt.py](/data/repo/fx-ai-trader/tools/turtle_soup_shadow_bt.py:13)
+  - `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1`
+  - production `run_daytrade_backtest(..., backtest_mode=True)` 経由の 365d A/B report runner
+
+BT report:
+- [bt-results/turtle_soup-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/turtle_soup-shadow-redesign-v2-2026-05-05.json:1)
+- Overall verdict: `PASS`
+- Shadow recommendation: `RECOMMEND_SHADOW`
+- GBP_USD:
+  - baseline `N=328`, `PnL=159.8511`, `PF=1.632`
+  - proposed `N=311`, `PnL=91.9903`, `PF=1.3054`
+  - v2.1 判定: PnL 正→正なので catastrophic check PASS
+- EUR_GBP: `INSUFFICIENT_BT_EVIDENCE` (`N=0`)
+- XAU_USD: `BLOCKED_DATA` (`data/cache/massive/XAU_USD_15m.parquet` 不在)
+
+Verification:
+- `.venv/bin/pytest -q tests/test_turtle_soup_shadow_redesign_v2.py` → `5 passed`
+- `.venv/bin/python -m py_compile strategies/daytrade/turtle_soup.py strategies/daytrade/__init__.py tools/turtle_soup_shadow_bt.py` → OK
+```
