@@ -22,6 +22,7 @@ vdr_audit (2026-04-27, 365d) 結果:
 Shadow: enabled=True, PAIR_PROMOTED 追加なし (default Sentinel 0.01lot)
 """
 from __future__ import annotations
+import os
 from typing import Optional
 
 import numpy as np
@@ -41,11 +42,33 @@ class VdrJpy(StrategyBase):
     _ALLOWED_SYMBOLS = frozenset({"USDJPY", "EURJPY", "GBPJPY"})
 
     DEV_SIGMA_THRESHOLD = 1.5      # |entry - VWAP| / ATR > 1.5
+    V2_DEV_SIGMA_THRESHOLDS = {
+        "USDJPY": 2.0,
+        "EURJPY": 1.5,
+        "GBPJPY": 1.5,
+    }
     SL_ATR_MULT = 1.0
     MIN_RR = 1.2                   # VWAP target may be closer than RR=2 sometimes
     TARGET_RR_FALLBACK = 1.5       # if VWAP is not far enough
 
     MAX_HOLD_BARS = 4              # 60 min
+    V2_USDJPY_MAX_HOLD_BARS = 2    # raw audit best: USD_JPY sigma=2.0 fw=2
+
+    @staticmethod
+    def _redesign_v2_enabled() -> bool:
+        return os.environ.get("VDR_JPY_REDESIGN_V2", "0").lower() in ("1", "true", "yes")
+
+    def _dev_sigma_threshold(self, sym: str) -> float:
+        if self._redesign_v2_enabled():
+            return self.V2_DEV_SIGMA_THRESHOLDS.get(sym, self.DEV_SIGMA_THRESHOLD)
+        return self.DEV_SIGMA_THRESHOLD
+
+    def _max_hold_bars(self, sym: str) -> Optional[int]:
+        if not self._redesign_v2_enabled():
+            return None
+        if sym == "USDJPY":
+            return self.V2_USDJPY_MAX_HOLD_BARS
+        return self.MAX_HOLD_BARS
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
@@ -62,8 +85,9 @@ class VdrJpy(StrategyBase):
         atr = max(ctx.atr, 1e-9)
         deviation = ctx.entry - vwap
         dev_atr = deviation / atr
+        dev_threshold = self._dev_sigma_threshold(sym)
 
-        if abs(dev_atr) < self.DEV_SIGMA_THRESHOLD:
+        if abs(dev_atr) < dev_threshold:
             return None
 
         # Direction: toward VWAP
@@ -93,10 +117,13 @@ class VdrJpy(StrategyBase):
         if rr < self.MIN_RR:
             return None
 
-        # Confirmation: bar direction should agree with signal
-        if signal == "BUY" and ctx.entry < ctx.open_price:
-            return None
-        if signal == "SELL" and ctx.entry > ctx.open_price:
+        # Confirmation: v1 uses a hard gate; v2 keeps the candidate and scores
+        # the candle as evidence so entry timing can be observed in shadow.
+        confirms_candle = (
+            (signal == "BUY" and ctx.entry >= ctx.open_price)
+            or (signal == "SELL" and ctx.entry <= ctx.open_price)
+        )
+        if not self._redesign_v2_enabled() and not confirms_candle:
             return None
 
         score = 4.0
@@ -105,12 +132,21 @@ class VdrJpy(StrategyBase):
             score += 0.5
         if abs(dev_atr) > 2.5:
             score += 0.5
+        if self._redesign_v2_enabled():
+            score += 0.25 if confirms_candle else -0.50
 
+        max_hold_bars = self._max_hold_bars(sym)
         reasons = [
-            f"✅ VWAP deviation: {dev_atr:+.2f}×ATR (>{self.DEV_SIGMA_THRESHOLD})",
+            f"✅ VWAP deviation: {dev_atr:+.2f}×ATR (>{dev_threshold})",
             f"✅ {signal} toward VWAP {vwap:.3f} from entry {ctx.entry:.3f}",
-            f"✅ RR={rr:.2f} (target VWAP, hold≤{self.MAX_HOLD_BARS}bar)",
+            f"✅ RR={rr:.2f} (target VWAP, hold≤{max_hold_bars or self.MAX_HOLD_BARS}bar)",
         ]
+        if self._redesign_v2_enabled():
+            reasons.append("✅ VDR_JPY_REDESIGN_V2: pair-specific trigger/time-exit variant")
+            if confirms_candle:
+                reasons.append("✅ candle confirmation score bonus")
+            else:
+                reasons.append("⚠️ candle confirmation absent: score penalty, not hard gate")
 
         return Candidate(
             signal=signal,
@@ -120,6 +156,7 @@ class VdrJpy(StrategyBase):
             reasons=reasons,
             entry_type=self.name,
             score=float(score),
+            max_hold_bars=max_hold_bars,
         )
 
     def _session_vwap(self, ctx: SignalContext) -> Optional[float]:

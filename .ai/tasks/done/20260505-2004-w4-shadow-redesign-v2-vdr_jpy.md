@@ -141,3 +141,49 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T18:52:13Z)
+
+exit=0 · 1063s
+
+```
+実装完了です。
+
+変更点:
+- [strategies/daytrade/vdr_jpy.py](/data/repo/fx-ai-trader/strategies/daytrade/vdr_jpy.py:44)
+  - `VDR_JPY_REDESIGN_V2=1` 配下で pair-specific threshold
+    - USDJPY: `2.0`
+    - EURJPY/GBPJPY: `1.5`
+  - candle confirmation を v2 では hard gate から score bonus/penalty へ変更
+  - `Candidate.max_hold_bars` に time-exit contract を載せる
+    - USDJPY: `2`
+    - EURJPY/GBPJPY: `4`
+  - flag OFF は既存 hard gate / threshold / max_hold 未設定のまま
+
+- [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:323)
+  - `VDR_JPY_REDESIGN_V2=1` かつ `VDR_JPY_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag で `vdr_jpy` を shadow-always 登録
+
+- [app.py](/data/repo/fx-ai-trader/app.py:6174)
+  - BT cache key に `VDR_JPY_REDESIGN_V2` を追加し、baseline/proposed 混線を防止
+
+- 追加テスト:
+  - [tests/test_vdr_jpy_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_vdr_jpy_shadow_redesign_v2.py)
+
+検証:
+- `11 passed in 0.38s`
+  - `tests/test_vdr_jpy.py`
+  - `tests/test_vdr_jpy_shadow_redesign_v2.py`
+
+BT report:
+- [bt-results/vdr_jpy-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/vdr_jpy-shadow-redesign-v2-2026-05-05.json)
+
+v2.1 LOCK verdict:
+- Overall: `PASS`
+- Shadow promote recommendation: `RECOMMEND_SHADOW`
+- USD_JPY: `PASS`, proposed `N=1586`, PnL sign preserved
+- EUR_JPY: `INSUFFICIENT_BT_EVIDENCE`, proposed `N=13`, shadow推奨
+- GBP_JPY: `PASS`, proposed `N=1439`, PnL sign preserved
+
+BT は `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1` で実行し、MASSIVE parquet 15m cache を使用しました。PF/Wilson/N 変化は report に WARN として残し、判定には v2.1 指定どおり catastrophic の `pnl_sign_preserved` のみを使っています。
+```

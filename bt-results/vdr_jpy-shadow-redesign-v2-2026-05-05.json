@@ -1,0 +1,174 @@
+{
+  "generated_at": "2026-05-06T18:44:54.194622+00:00",
+  "strategy": "vdr_jpy",
+  "variant": "pair_specific_threshold_soft_candle_time_exit_v2_1",
+  "flag": "VDR_JPY_REDESIGN_V2",
+  "shadow_worker_flag": "VDR_JPY_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest(backtest_mode=True; production daytrade execution/data path; vdr_jpy strategy-only compute patch; unused SR/HTF precompute disabled)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "data_source_note": "run_daytrade_backtest omits data_source/bars_fetched when it returns the <20 trades error; console output verified massive-parquet/15m for USDJPY=X, EURJPY=X, and GBPJPY=X.",
+  "bt_mode": "1",
+  "massive_cache_verified": true,
+  "targets": [
+    "USD_JPY",
+    "EUR_JPY",
+    "GBP_JPY"
+  ],
+  "missing_caches": [],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": "pnl_sign_preserved only: REJECT only when baseline_pnl > 0 and proposed_pnl < 0",
+    "sanity_floor": "REMOVED in v2.1",
+    "warn_only": [
+      "pf_change",
+      "wilson_lo_change",
+      "n_change_pct"
+    ],
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "USD_JPY": {
+      "current": {
+        "N": 865,
+        "wins": 574,
+        "WR": 0.6636,
+        "EV": 0.218,
+        "PnL": 188.5312,
+        "PF": 1.2908,
+        "wilson_lo": 0.6314,
+        "total_trades_all_strategies": 865,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24644,
+        "exit_reasons": {
+          "signal_reverse": 2,
+          "tp_sl": 863
+        }
+      },
+      "proposed": {
+        "N": 1586,
+        "wins": 819,
+        "WR": 0.5164,
+        "EV": 0.0368,
+        "PnL": 58.2977,
+        "PF": 1.0728,
+        "wilson_lo": 0.4918,
+        "total_trades_all_strategies": 1586,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24644,
+        "exit_reasons": {
+          "time_exit_2bar": 1029,
+          "tp_sl": 557
+        }
+      },
+      "lock_criteria": {
+        "pf_change": -0.218,
+        "wilson_lo_change": -0.1396,
+        "n_change_pct": 83.3526,
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "EUR_JPY": {
+      "current": {
+        "N": 0,
+        "wins": null,
+        "WR": null,
+        "EV": null,
+        "PnL": null,
+        "PF": null,
+        "wilson_lo": null,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 13,
+        "wins": null,
+        "WR": null,
+        "EV": null,
+        "PnL": null,
+        "PF": null,
+        "wilson_lo": null,
+        "total_trades_all_strategies": 13,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "pf_change": null,
+        "wilson_lo_change": null,
+        "n_change_pct": null,
+        "catastrophic_check": "SKIPPED_PROPOSED_N_LT_20",
+        "pnl_sign_preserved": null,
+        "verdict": "INSUFFICIENT_BT_EVIDENCE",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "GBP_JPY": {
+      "current": {
+        "N": 701,
+        "wins": 461,
+        "WR": 0.6576,
+        "EV": 0.1625,
+        "PnL": 113.9162,
+        "PF": 1.2254,
+        "wilson_lo": 0.6217,
+        "total_trades_all_strategies": 701,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24017,
+        "exit_reasons": {
+          "signal_reverse": 2,
+          "tp_sl": 699
+        }
+      },
+      "proposed": {
+        "N": 1439,
+        "wins": 819,
+        "WR": 0.5691,
+        "EV": 0.1229,
+        "PnL": 176.8765,
+        "PF": 1.2514,
+        "wilson_lo": 0.5434,
+        "total_trades_all_strategies": 1439,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24017,
+        "exit_reasons": {
+          "signal_reverse": 1,
+          "time_exit_4bar": 613,
+          "tp_sl": 825
+        }
+      },
+      "lock_criteria": {
+        "pf_change": 0.026,
+        "wilson_lo_change": -0.0783,
+        "n_change_pct": 105.2782,
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    }
+  },
+  "overall_verdict": "PASS",
+  "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 386.9,
+  "self_review": {
+    "catastrophic_only": "PASS: v2.1 verdict uses only pnl_sign_preserved when proposed N>=20; PF/Wilson/N are warn-only.",
+    "insufficient_bt_evidence": "PASS: proposed N<20 maps to INSUFFICIENT_BT_EVIDENCE and shadow recommendation.",
+    "production_live_safety": "PASS: redesigned behavior is default-off unless VDR_JPY_REDESIGN_V2=1; shadow emit also requires VDR_JPY_REDESIGN_V2_SHADOW_PROMOTE=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered pair-specific threshold, soft candle confirmation, and time-exit variant was evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo fallback; required MASSIVE 15m cache files were present before running."
+  }
+}
