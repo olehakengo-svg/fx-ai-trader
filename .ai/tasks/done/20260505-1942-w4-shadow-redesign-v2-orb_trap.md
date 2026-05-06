@@ -137,3 +137,40 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T03:57:46Z)
+
+exit=0 · 2024s
+
+```
+実装と検証まで完了しました。
+
+変更点:
+- [orb_trap.py](/data/repo/fx-ai-trader/strategies/daytrade/orb_trap.py:45): `ORB_TRAP_REDESIGN_V2=1` を追加。
+- [orb_trap.py](/data/repo/fx-ai-trader/strategies/daytrade/orb_trap.py:328): V2 有効時は RR 不足で TP を OR 反対端の外へ延伸せず、signal reject に変更。
+- [__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:284): shadow 登録は `ORB_TRAP_REDESIGN_V2=1` かつ `ORB_TRAP_REDESIGN_V2_SHADOW_PROMOTE=1` の double flag のみ。
+- [test_orb_trap_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_orb_trap_shadow_redesign_v2.py:76): default-off、V2 reject、V2 valid TP、shadow double flag を追加。
+- [orb_trap_shadow_bt.py](/data/repo/fx-ai-trader/tools/orb_trap_shadow_bt.py:1): MASSIVE 365d A/B BT runner 追加。
+
+BT report:
+- [orb_trap-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/orb_trap-shadow-redesign-v2-2026-05-05.json:1)
+- Runner: `app.run_daytrade_backtest(backtest_mode=True)`
+- Env: `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1`
+- Data source: MASSIVE parquet confirmed for 15m target caches.
+
+LOCK verdict: `REJECT`
+
+Key BT cells:
+- `USD_JPY`: proposed `N=13` → `INSUFFICIENT_BT_EVIDENCE`, shadow would be allowed for this cell alone.
+- `EUR_USD`: proposed `N=30`, PF change `-0.2162`, Wilson lo change `-0.1931`, N change `-85.29%` → catastrophic fail.
+- `GBP_USD`: proposed `N=39`, PF change `-0.1120`, Wilson lo change `-0.1307`, N change `-76.92%` → catastrophic fail.
+
+Because overall verdict is `REJECT`, I did not enable shadow promotion. The shadow worker path exists but remains inert unless both env flags are explicitly set.
+
+Verification:
+- `13 passed`: `tests/test_orb_trap_shadow_redesign_v2.py`, plus adjacent V2 shadow tests for `dt_bb_rsi_mr` and `asia_range_fade_v1`.
+- `py_compile` passed for touched strategy/engine/tool files.
+
+Self-review result: passed. The decision used only v2 catastrophic/floor rules where `N>=20`, skipped catastrophic for `N<20`, did not require Kelly or positive direction, kept 
+…(truncated)

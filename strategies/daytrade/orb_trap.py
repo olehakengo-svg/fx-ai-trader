@@ -32,6 +32,7 @@ ORB Trap (Opening Range Breakout Trap) — セッションオープンレンジ�
       min(Low  of break bars) - ATR×0.3  [DOWN]
   TP: OR反対端 (SELL → OR_low, BUY → OR_high)
 """
+import os
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
@@ -41,6 +42,7 @@ class OrbTrap(StrategyBase):
     name = "orb_trap"
     mode = "daytrade"
     enabled = True
+    REDESIGN_V2_ENV = "ORB_TRAP_REDESIGN_V2"
 
     # ══════════════════════════════════════════════════
     # パラメータ定数
@@ -78,6 +80,10 @@ class OrbTrap(StrategyBase):
     # ──────────────────────────────────────────────────
     # ヘルパー
     # ──────────────────────────────────────────────────
+
+    @classmethod
+    def _redesign_v2_enabled(cls) -> bool:
+        return os.environ.get(cls.REDESIGN_V2_ENV) == "1"
 
     @staticmethod
     def _bar_minutes(bar_dt) -> int:
@@ -319,8 +325,12 @@ class OrbTrap(StrategyBase):
         if _sl_d <= 0:
             return None
 
+        _redesign_v2 = self._redesign_v2_enabled()
+
         # RR不足時のTP補正
         _rr = _tp_d / _sl_d
+        if _rr < self.MIN_RR and _redesign_v2:
+            return None
         if _rr < self.MIN_RR:
             _tp_d = _sl_d * self.MIN_RR
             tp = ctx.entry - _tp_d if signal == "SELL" else ctx.entry + _tp_d
@@ -337,6 +347,8 @@ class OrbTrap(StrategyBase):
             f"✅ OR: H={_rh:.{_dec}f} L={_rl:.{_dec}f} "
             f"(range={_or_pip:.1f}pip)"
         )
+        if _redesign_v2:
+            reasons.append("✅ ORB_TRAP_REDESIGN_V2: TP fixed at OR opposite edge; no MIN_RR extension")
         reasons.append(f"📊 RR={_rr:.1f} SL={sl:.{_dec}f} TP={tp:.{_dec}f}")
 
         # 反転足確認ボーナス (break方向と逆の実体)

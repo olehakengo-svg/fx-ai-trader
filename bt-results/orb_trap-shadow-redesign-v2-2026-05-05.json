@@ -1,0 +1,160 @@
+{
+  "generated_at": "2026-05-06T03:57:07.101740+00:00",
+  "strategy": "orb_trap",
+  "variant": "fixed_or_edge_tp_v2",
+  "flag": "ORB_TRAP_REDESIGN_V2",
+  "shadow_worker_flag": "ORB_TRAP_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest(backtest_mode=True; production daytrade path; strategy-only compute patch)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": true,
+  "data_source_note": "run_daytrade_backtest omits data_source/bars_fetched when it returns the <20 trades error; console output should show massive-parquet/15m for each target.",
+  "targets": [
+    "USD_JPY",
+    "EUR_USD",
+    "GBP_USD"
+  ],
+  "missing_caches": [],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": {
+      "pf_change": ">= -0.10",
+      "wilson_lo_change": ">= -0.05",
+      "n_change_pct": ">= -30",
+      "pnl_sign_preserved": true
+    },
+    "sanity_floor": {
+      "wilson_lo_proposed": ">= 0.20",
+      "pf_proposed": ">= 0.85"
+    },
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "USD_JPY": {
+      "current": {
+        "N": 79,
+        "wins": 43,
+        "WR": 0.5443,
+        "EV": -0.245,
+        "PnL": -19.356,
+        "PF": 0.7331,
+        "wilson_lo": 0.435,
+        "total_trades_all_strategies": 79,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24644
+      },
+      "proposed": {
+        "N": 13,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 13,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "INSUFFICIENT_BT_EVIDENCE",
+        "reason": "proposed BT trades < 20; v2 spec skips catastrophic check and sanity floor",
+        "catastrophic_check": "SKIPPED",
+        "sanity_floor": "SKIPPED",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "EUR_USD": {
+      "current": {
+        "N": 204,
+        "wins": 121,
+        "WR": 0.5931,
+        "EV": -0.0163,
+        "PnL": -3.3161,
+        "PF": 0.9786,
+        "wilson_lo": 0.5246,
+        "total_trades_all_strategies": 204,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24612
+      },
+      "proposed": {
+        "N": 30,
+        "wins": 15,
+        "WR": 0.5,
+        "EV": -0.1814,
+        "PnL": -5.4432,
+        "PF": 0.7624,
+        "wilson_lo": 0.3315,
+        "total_trades_all_strategies": 30,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24612
+      },
+      "lock_criteria": {
+        "pf_change": -0.2162,
+        "wilson_lo_change": -0.1931,
+        "n_change_pct": -85.2941,
+        "pnl_sign_preserved": true,
+        "catastrophic_check": false,
+        "sanity_floor": false,
+        "verdict": "REJECT",
+        "shadow_promote_recommendation": "REJECT"
+      }
+    },
+    "GBP_USD": {
+      "current": {
+        "N": 169,
+        "wins": 100,
+        "WR": 0.5917,
+        "EV": -0.0996,
+        "PnL": -16.8289,
+        "PF": 0.8743,
+        "wilson_lo": 0.5164,
+        "total_trades_all_strategies": 169,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24585
+      },
+      "proposed": {
+        "N": 39,
+        "wins": 21,
+        "WR": 0.5385,
+        "EV": -0.1781,
+        "PnL": -6.9444,
+        "PF": 0.7623,
+        "wilson_lo": 0.3857,
+        "total_trades_all_strategies": 39,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24585
+      },
+      "lock_criteria": {
+        "pf_change": -0.112,
+        "wilson_lo_change": -0.1307,
+        "n_change_pct": -76.9231,
+        "pnl_sign_preserved": true,
+        "catastrophic_check": false,
+        "sanity_floor": false,
+        "verdict": "REJECT",
+        "shadow_promote_recommendation": "REJECT"
+      }
+    }
+  },
+  "overall_verdict": "REJECT",
+  "shadow_promote_recommendation": "REJECT",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 1880.1,
+  "self_review": {
+    "catastrophic_only": "PASS: verdict ignores positive-direction and Kelly; applies only v2 catastrophic/floor rules when N>=20.",
+    "insufficient_bt_evidence": "PASS: proposed N<20 becomes INSUFFICIENT_BT_EVIDENCE and shadow recommendation.",
+    "production_live_safety": "PASS: strategy behavior is default-off unless ORB_TRAP_REDESIGN_V2=1; shadow emit also requires ORB_TRAP_REDESIGN_V2_SHADOW_PROMOTE=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered fixed_or_edge_tp_v2 variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo fallback for 15m price data; required MASSIVE caches are verified before BT."
+  }
+}
