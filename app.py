@@ -2548,6 +2548,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     _ais_v2_enabled = os.environ.get("ALPHA_INTRADAY_SEASONALITY_REDESIGN_V2", "0") == "1"
     _aarb_v2_enabled = os.environ.get("ALPHA_ATR_REGIME_BREAK_REDESIGN_V2", "0") == "1"
     _awi_v2_enabled = os.environ.get("ALPHA_WICK_IMBALANCE_REDESIGN_V2", "0") == "1"
+    _tnm_v2_enabled = os.environ.get("TOKYO_NAKANE_MOMENTUM_REDESIGN_V2", "0") == "1"
     if htf_agreement in ("bull", "bear"):
         _blocked_dir = "SELL" if htf_agreement == "bull" else "BUY"
         _htf_filtered = [c for c in _dt_candidates
@@ -2560,6 +2561,9 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                          ) or (
                              getattr(c, "entry_type", "") == "wick_imbalance_reversion"
                              and _awi_v2_enabled
+                         ) or (
+                             getattr(c, "entry_type", "") == "tokyo_nakane_momentum"
+                             and _tnm_v2_enabled
                          ) or not (hasattr(c, 'signal') and c.signal == _blocked_dir)]
         _htf_blocked_count = len(_dt_candidates) - len(_htf_filtered)
         if _htf_blocked_count > 0:
@@ -6156,6 +6160,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
     _jbt_v2_cache_flag = os.environ.get("JPY_BASKET_TREND_REDESIGN_V2", "0")
     _lsb_v2_cache_flag = os.environ.get("LONDON_SESSION_BREAKOUT_REDESIGN_V2", "0")
     _lny_v2_cache_flag = os.environ.get("LONDON_NY_SWING_REDESIGN_V2", "0")
+    _tnm_v2_cache_flag = os.environ.get("TOKYO_NAKANE_MOMENTUM_REDESIGN_V2", "0")
     _mtf_v2_cache_flag = os.environ.get("MTF_REGIME_TREND_CASCADE_SCALP_REDESIGN_V2", "0")
     _mtf_range_v2_cache_flag = os.environ.get("MTF_REGIME_RANGE_CASCADE_SCALP_REDESIGN_V2", "0")
     _mtf_confluence_v2_cache_flag = os.environ.get("MTF_CONFLUENCE_REDESIGN_V2", "0")
@@ -6170,6 +6175,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         f"_gvbV2{_gvb_v2_cache_flag}_hfbV2{_hfb_v2_cache_flag}"
         f"_iobV2{_iob_v2_cache_flag}_jbtV2{_jbt_v2_cache_flag}"
         f"_lsbV2{_lsb_v2_cache_flag}_lnyV2{_lny_v2_cache_flag}"
+        f"_tnmV2{_tnm_v2_cache_flag}"
         f"_mtfCascadeV2{_mtf_v2_cache_flag}_pnvV2{_pnv_v2_cache_flag}"
         f"_mtfRangeCascadeV2{_mtf_range_v2_cache_flag}"
         f"_mtfConfluenceV2{_mtf_confluence_v2_cache_flag}"

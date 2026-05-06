@@ -281,6 +281,9 @@ class DaytradeEngine:
         if (os.environ.get("LONDON_SESSION_BREAKOUT_REDESIGN_V2") == "1"
                 and os.environ.get("LONDON_SESSION_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"london_session_breakout"}
+        if (os.environ.get("TOKYO_NAKANE_MOMENTUM_REDESIGN_V2") == "1"
+                and os.environ.get("TOKYO_NAKANE_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"tokyo_nakane_momentum"}
         if (os.environ.get("LONDON_NY_SWING_REDESIGN_V2") == "1"
                 and os.environ.get("LONDON_NY_SWING_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"london_ny_swing"}

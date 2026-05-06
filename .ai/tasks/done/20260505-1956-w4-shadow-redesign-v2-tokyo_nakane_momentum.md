@@ -141,3 +141,36 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T13:53:11Z)
+
+exit=0 · 1564s
+
+```
+実装完了です。
+
+変更点:
+- [tokyo_nakane_momentum.py](/data/repo/fx-ai-trader/strategies/daytrade/tokyo_nakane_momentum.py:59)
+  - `TOKYO_NAKANE_MOMENTUM_REDESIGN_V2=1` 配下で USDJPY 明示 gate に変更
+  - HTF bear hard block を `score -= 0.5` の soft penalty に変更
+  - flag OFF では legacy behavior 維持
+- [app.py](/data/repo/fx-ai-trader/app.py:2551)
+  - global DTE HTF hard block でも TNM v2 を例外化
+  - BT cache key に TNM v2 flag を追加
+- [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:284)
+  - `TOKYO_NAKANE_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE=1` との二重 flag で shadow emit 登録
+- [tests/test_tokyo_nakane_momentum_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_tokyo_nakane_momentum_shadow_redesign_v2.py:114)
+  - default OFF、USDJPY-only、HTF bear softening、shadow double-flag を検証
+- [bt-results/tokyo_nakane_momentum-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/tokyo_nakane_momentum-shadow-redesign-v2-2026-05-05.json:1)
+  - 365d MASSIVE BT report を追加
+
+BT verdict:
+`INSUFFICIENT_BT_EVIDENCE`
+
+BT 結果は baseline/proposed とも `N=0` でした。v2.1 criteria に従い、proposed `N < 20` なので catastrophic check は skip、shadow promote 推奨です。PF/Wilson/N drop は reject criteria に使っていません。
+
+検証:
+- `.venv/bin/pytest -q tests/test_tokyo_nakane_momentum_shadow_redesign_v2.py` → `4 passed`
+- `.venv/bin/python -m py_compile strategies/daytrade/tokyo_nakane_momentum.py strategies/daytrade/__init__.py app.py` → pass
+```

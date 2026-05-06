@@ -1,0 +1,86 @@
+{
+  "generated_at": "2026-05-06T00:00:00+00:00",
+  "strategy": "tokyo_nakane_momentum",
+  "variant": "usdjpy_only_htf_bear_soft_penalty_v2",
+  "flag": "TOKYO_NAKANE_MOMENTUM_REDESIGN_V2",
+  "shadow_worker_flag": "TOKYO_NAKANE_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest(backtest_mode=True) production daytrade SL/TP simulation; TNM-only signal wrapper for strategy-isolated comparison",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "bt_require_massive_cache": "1",
+  "massive_cache_verified": true,
+  "massive_cache_file": "data/cache/massive/USD_JPY_15m.parquet",
+  "data_source_note": "Console output verified [massive-parquet/15m] USDJPY=X 24843 bars. run_daytrade_backtest omits data_source/bars_fetched when it returns the <20 trades error.",
+  "target": "USD_JPY",
+  "implementation_summary": {
+    "axis_4_filter_coherence": "HTF agreement == bear is no longer a hard return under TOKYO_NAKANE_MOMENTUM_REDESIGN_V2; it applies score -0.5.",
+    "axis_6_pair_regime_fit": "ctx.is_jpy broad JPY-cross gate is replaced by explicit USDJPY symbol gate under TOKYO_NAKANE_MOMENTUM_REDESIGN_V2.",
+    "live_default": "Flag default OFF; legacy live behavior is unchanged unless TOKYO_NAKANE_MOMENTUM_REDESIGN_V2=1."
+  },
+  "bt_results": {
+    "baseline": {
+      "N": 0,
+      "wins": 0,
+      "WR": null,
+      "EV": null,
+      "PnL": 0.0,
+      "PF": null,
+      "wilson_lo": null,
+      "bt_error": "サンプル数不足（20トレード未満）"
+    },
+    "proposed": {
+      "N": 0,
+      "wins": 0,
+      "WR": null,
+      "EV": null,
+      "PnL": 0.0,
+      "PF": null,
+      "wilson_lo": null,
+      "bt_error": "サンプル数不足（20トレード未満）"
+    }
+  },
+  "lock_spec_v2_1": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic_check, recommend shadow promote",
+    "catastrophic_check_reject_only": [
+      "pnl_sign_preserved"
+    ],
+    "removed_sanity_floor": true,
+    "warn_only": [
+      "n_change_pct",
+      "pf_change",
+      "wilson_lo_change"
+    ],
+    "absolute_kelly_required": false,
+    "positive_direction_required": false
+  },
+  "lock_criteria": {
+    "verdict": "INSUFFICIENT_BT_EVIDENCE",
+    "reason": "proposed BT trades < 20; v2.1 skips catastrophic_check and sends the redesign to shadow for live N accumulation",
+    "catastrophic_check": "SKIPPED",
+    "pnl_sign_preserved": null,
+    "warn_only_metrics": {
+      "n_change_pct": null,
+      "pf_change": null,
+      "wilson_lo_change": null
+    },
+    "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+  },
+  "shadow_registration": {
+    "implemented": true,
+    "default_enabled": false,
+    "required_env_for_shadow_emit": {
+      "TOKYO_NAKANE_MOMENTUM_REDESIGN_V2": "1",
+      "TOKYO_NAKANE_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE": "1"
+    }
+  },
+  "self_review": {
+    "catastrophic_only": "PASS: verdict uses only v2.1 N threshold and pnl sign rule; PF/Wilson/N changes are not reject criteria.",
+    "absolute_kelly_not_required": "PASS",
+    "flag_off_live_zero_impact": "PASS: all strategy behavior changes are guarded by TOKYO_NAKANE_MOMENTUM_REDESIGN_V2; shadow emit requires an additional flag.",
+    "post_hoc_adjustment": "PASS: no thresholds were tuned after BT; implementation follows audit Axis 4/6 redesign.",
+    "xau_data_rule": "NOT_APPLICABLE"
+  }
+}

@@ -27,6 +27,7 @@ Tokyo Nakane Momentum (TNM) — 仲値リバーサル BUY専用戦略
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
+import os
 
 
 class TokyoNakaneMomentum(StrategyBase):
@@ -55,10 +56,25 @@ class TokyoNakaneMomentum(StrategyBase):
 
     # ── 最大保持 ──
     max_hold_bars = 6           # 6バー = 90分 (仲値反転は迅速)
+    redesign_v2_env = "TOKYO_NAKANE_MOMENTUM_REDESIGN_V2"
+
+    @classmethod
+    def _redesign_v2_enabled(cls) -> bool:
+        return os.environ.get(cls.redesign_v2_env, "0") == "1"
+
+    @staticmethod
+    def _is_usdjpy_symbol(symbol: str) -> bool:
+        _sym = (symbol or "").upper().replace("=X", "").replace("_", "").replace("/", "")
+        return _sym == "USDJPY"
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        _redesign_v2 = self._redesign_v2_enabled()
+
         # ── USD/JPY専用 ──
-        if not ctx.is_jpy:
+        if _redesign_v2:
+            if not self._is_usdjpy_symbol(ctx.symbol):
+                return None
+        elif not ctx.is_jpy:
             return None
 
         # ── 月曜(0)・金曜(4)除外: 仲値フロー不安定 ──
@@ -116,13 +132,9 @@ class TokyoNakaneMomentum(StrategyBase):
         # BUY ONLY — UP→SELLは完全ブロック
         # ═══════════════════════════════════════════════════
 
-        # ── HTFハードフィルター: 強烈な円高(4H+1D bear一致)ではBUY禁止 ──
-        # 根拠: 4H+1D両方がbearish = マクロ的円高。仲値の実需フロー(数pip規模)では
-        # 制度的売り圧力を超克できない → BUYを完全ブロック。
-        # 注意: 15m EMA方向はフィルターに使わない（仲値BUYは本質的に逆張り）
         _htf = ctx.htf or {}
         _agreement = _htf.get("agreement", "mixed")
-        if _agreement == "bear":
+        if _agreement == "bear" and not _redesign_v2:
             return None  # 4H+1D下落一致 → 仲値BUY禁止
 
         # ── エントリートリガー: 陽線確認 ──
@@ -133,6 +145,8 @@ class TokyoNakaneMomentum(StrategyBase):
         signal = "BUY"
         score = 4.0
         reasons = []
+        if _redesign_v2:
+            reasons.append("✅ TOKYO_NAKANE_MOMENTUM_REDESIGN_V2: USDJPY-only thin fixing reversal")
 
         # SL: Pre-fix安値 - ATR×0.3
         sl = _prefix_low - ctx.atr * self.sl_atr_buffer
@@ -172,11 +186,12 @@ class TokyoNakaneMomentum(StrategyBase):
                 f"リバーサル強度高"
             )
 
-        # HTF方向 — bull=ボーナス, bear=上でhard blockされ到達しない, mixed=ニュートラル
-        # (bearは上のhard filterで既にreturn None済み)
         if _agreement == "bull":
             score += 0.5
             reasons.append(f"✅ HTF方向一致({_agreement})")
+        elif _agreement == "bear" and _redesign_v2:
+            score -= 0.5
+            reasons.append("⚠️ HTF bear一致: v2ではhard blockせずscore -0.5")
 
         # EMA方向一致ボーナス
         if ctx.ema9 > ctx.ema21:
