@@ -769,6 +769,16 @@ Cutoff後累計はN=22、WR=45.5%、PnL=−12.1pips相当。システムは稼�
 - `Latency: None ms` — APIは接続しているが資金情報の取得が失敗している
 - これにより全シグナルが安全サイドでSKIP継続
 
+### 2026-05-06 (Pre-Tokyo Briefing)
+| 前日PnL | **-8.5 pip** |
+| 全体WR | **33.3%** |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **全体**: N=12, WR=41.7%, PnL=-31.3pip（Cutoff後累計）
+| USD_JPY TIME_DECAY | 2件(N=2)はノイズ。N=5まで追跡継続。ただしEV=-0.78は要監視 |
+- **最も危険な組み合わせ**: GBP_USD TRENDING_UP × bb_rsi_reversion SELL → 継続リスク高
+- **最も環境適合**: EUR_USD RANGING × 平均回帰系（ただし約定量が少ない）
+- **機会領域**: USD_JPY/EUR_JPY VOLATILE × モメンタム系（streak_reversal等）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
