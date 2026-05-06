@@ -141,3 +141,43 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T13:26:32Z)
+
+exit=0 · 609s
+
+```
+実装と検証まで完了しました。
+
+変更:
+- [strategies/scalp/three_bar_reversal.py](/data/repo/fx-ai-trader/strategies/scalp/three_bar_reversal.py:30)
+  - `THREE_BAR_REVERSAL_REDESIGN_V2=1` 配下で V2 trigger を追加
+  - legacy は default OFF のまま完全維持
+  - BUY: 前足 High 突破ではなく前足 Open 回復
+  - SELL: 前足 Low 割れではなく前足 Open 割れ
+  - BB%B/RSI5 は `0.40/0.60`, `45/55`
+  - live intrabar 重複対策として `symbol + strategy + bar_time + signal` dedup を追加
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:208)
+  - shadow emit は `THREE_BAR_REVERSAL_REDESIGN_V2=1` かつ `THREE_BAR_REVERSAL_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag のみ
+- [app.py](/data/repo/fx-ai-trader/app.py:6426)
+  - BT-only strategy-filter path として `three_bar_reversal` を `run_daytrade_backtest()` 側に許可
+- [tests/test_three_bar_reversal_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_three_bar_reversal_shadow_redesign_v2.py:79)
+  - default OFF、BUY/SELL V2、live dedup、shadow double-flag をテスト
+- [tools/three_bar_reversal_shadow_bt.py](/data/repo/fx-ai-trader/tools/three_bar_reversal_shadow_bt.py:1)
+  - `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1`
+  - `run_daytrade_backtest(..., backtest_mode=True)` で 365d baseline/proposed 比較
+  - v2.1 LOCK criteria 実装
+
+検証:
+- `.venv/bin/pytest -q tests/test_three_bar_reversal_shadow_redesign_v2.py` → `6 passed`
+- `.venv/bin/pytest -q tests/test_three_bar_reversal_shadow_redesign_v2.py tests/test_engulfing_bb_shadow_redesign_v2.py tests/test_sr_channel_reversal_shadow_redesign_v2.py` → `15 passed`
+- `.venv/bin/python tools/three_bar_reversal_shadow_bt.py` → report 生成済み
+
+BT report:
+- [bt-results/three_bar_reversal-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/three_bar_reversal-shadow-redesign-v2-2026-05-05.json:1)
+
+v2.1 verdict は `REJECT` です。理由は EUR_JPY が proposed N=279 で evidence threshold を満たしたうえで、baseline PnL `+5.1096` から proposed PnL `-11.5603` に正→負反転したためです。これは v2.1 の唯一の catastrophic reject 条件に該当します。
+
+そのため shadow promote は実施していません。実
+…(truncated)
