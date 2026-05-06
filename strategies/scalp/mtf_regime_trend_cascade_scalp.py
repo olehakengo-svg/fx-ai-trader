@@ -34,6 +34,7 @@ KB references:
   - knowledge-base/wiki/analyses/friction-analysis.md
 """
 from __future__ import annotations
+import os
 from typing import Optional
 
 from strategies.base import StrategyBase, Candidate
@@ -68,6 +69,14 @@ class MtfRegimeTrendCascadeScalp(StrategyBase):
     mode = "scalp"
     enabled = True
     strategy_type = "trend"
+    _v2_dedup_state: set[tuple[str, str, str, str]] = set()
+
+    @classmethod
+    def reset_dedup_state(cls):
+        cls._v2_dedup_state.clear()
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get("MTF_REGIME_TREND_CASCADE_SCALP_REDESIGN_V2") == "1"
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         # ── ペアガード ──────────────────────────────────────
@@ -100,6 +109,28 @@ class MtfRegimeTrendCascadeScalp(StrategyBase):
             return None
         if ctx.atr7 <= 0:
             return None
+
+        redesign_v2 = self._redesign_v2_enabled()
+        signal_bar_time = None
+        if redesign_v2:
+            if len(ctx.df) < 6:
+                return None
+            if not ctx.backtest_mode and ctx.bar_time is None:
+                return None
+            signal_row = ctx.df.iloc[-2]
+            prev_row = ctx.df.iloc[-3]
+            signal_bar_time = getattr(signal_row, "name", None)
+            trigger_entry = float(signal_row["Close"])
+            trigger_open = float(signal_row["Open"])
+            trigger_prev_close = float(prev_row["Close"])
+            trigger_ema21 = float(signal_row.get("ema21", ctx.ema21))
+            trigger_atr7 = float(signal_row.get("atr7", ctx.atr7))
+        else:
+            trigger_entry = ctx.entry
+            trigger_open = ctx.open_price
+            trigger_prev_close = ctx.prev_close
+            trigger_ema21 = ctx.ema21
+            trigger_atr7 = ctx.atr7
 
         m15_adx = float(m15.get("adx", 0.0))
         m15_slope = float(m15.get("ema_slope", 0.0))
@@ -135,13 +166,13 @@ class MtfRegimeTrendCascadeScalp(StrategyBase):
             # 1m: bounce 確認 (price-action only)
             #   (a) EMA21 から min_bounce 以上反発
             #   (b) 陽線方向 (entry > prev_close + entry > open)
-            min_bounce = ctx.atr7 * 0.2
-            if (ctx.entry - ctx.ema21) < min_bounce:
+            min_bounce = trigger_atr7 * 0.2
+            if (trigger_entry - trigger_ema21) < min_bounce:
                 return None
-            if not (ctx.entry > ctx.prev_close and ctx.entry > ctx.open_price):
+            if not (trigger_entry > trigger_prev_close and trigger_entry > trigger_open):
                 return None
             signal = "BUY"
-            sl_raw = ctx.ema21 - ctx.atr7 * 0.3
+            sl_raw = trigger_ema21 - trigger_atr7 * 0.3
             sl_dist = max(ctx.entry - sl_raw, _MIN_SL_PIPS * pip_size)  # floor: 5pip
             sl = ctx.entry - sl_dist
             if sl_dist <= 0:
@@ -149,7 +180,7 @@ class MtfRegimeTrendCascadeScalp(StrategyBase):
             tp_swing = m5_swing_high
             tp_rr = ctx.entry + sl_dist * _RR_FLOOR
             tp = max(tp_swing, tp_rr)
-            if (tp - ctx.entry) < ctx.atr7 * _MIN_TP_ATR_MULT:
+            if (tp - ctx.entry) < trigger_atr7 * _MIN_TP_ATR_MULT:
                 return None
             reasons.append(f"✅ regime=moderate_trend BUY (M15 ADX={m15_adx:.1f} slope={m15_slope:.4f})")
             reasons.append(f"✅ M5 SMA21 pullback bounce")
@@ -160,13 +191,13 @@ class MtfRegimeTrendCascadeScalp(StrategyBase):
             pullback_ok = (m5_prev_high >= m5_sma21 - m5_atr * 0.3) and (m5_close < m5_prev_close)
             if not pullback_ok:
                 return None
-            min_bounce = ctx.atr7 * 0.2
-            if (ctx.ema21 - ctx.entry) < min_bounce:
+            min_bounce = trigger_atr7 * 0.2
+            if (trigger_ema21 - trigger_entry) < min_bounce:
                 return None
-            if not (ctx.entry < ctx.prev_close and ctx.entry < ctx.open_price):
+            if not (trigger_entry < trigger_prev_close and trigger_entry < trigger_open):
                 return None
             signal = "SELL"
-            sl_raw = ctx.ema21 + ctx.atr7 * 0.3
+            sl_raw = trigger_ema21 + trigger_atr7 * 0.3
             sl_dist = max(sl_raw - ctx.entry, _MIN_SL_PIPS * pip_size)  # floor: 5pip
             sl = ctx.entry + sl_dist
             if sl_dist <= 0:
@@ -174,7 +205,7 @@ class MtfRegimeTrendCascadeScalp(StrategyBase):
             tp_swing = m5_swing_low
             tp_rr = ctx.entry - sl_dist * _RR_FLOOR
             tp = min(tp_swing, tp_rr)
-            if (ctx.entry - tp) < ctx.atr7 * _MIN_TP_ATR_MULT:
+            if (ctx.entry - tp) < trigger_atr7 * _MIN_TP_ATR_MULT:
                 return None
             reasons.append(f"✅ regime=moderate_trend SELL (M15 ADX={m15_adx:.1f} slope={m15_slope:.4f})")
             reasons.append(f"✅ M5 SMA21 戻り反落")
@@ -182,6 +213,17 @@ class MtfRegimeTrendCascadeScalp(StrategyBase):
 
         if signal is None:
             return None
+        if redesign_v2:
+            if not ctx.backtest_mode:
+                sym = _normalize_pair(ctx.symbol)
+                key = (sym, self.name, signal, str(signal_bar_time))
+                if key in self._v2_dedup_state:
+                    return None
+                self._v2_dedup_state.add(key)
+            reasons.append(
+                f"✅ MTF_REGIME_TREND_CASCADE_SCALP_REDESIGN_V2: "
+                f"signal_bar_time={signal_bar_time} confirmed; execution uses current bar"
+            )
 
         # ── confidence (moderate_trend 専用、v2 スコア体系) ─
         # 注: m15_adx は 18-25 にクランプ済 (regime gate 通過時)

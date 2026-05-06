@@ -6154,12 +6154,14 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
     _jbt_v2_cache_flag = os.environ.get("JPY_BASKET_TREND_REDESIGN_V2", "0")
     _lsb_v2_cache_flag = os.environ.get("LONDON_SESSION_BREAKOUT_REDESIGN_V2", "0")
     _lny_v2_cache_flag = os.environ.get("LONDON_NY_SWING_REDESIGN_V2", "0")
+    _mtf_v2_cache_flag = os.environ.get("MTF_REGIME_TREND_CASCADE_SCALP_REDESIGN_V2", "0")
     cache_key = (
         f"{symbol}_{interval}_{lookback_days}_jitter{exec_lag_jitter:.4f}"
         f"_bt{int(bool(backtest_mode))}_gtmV2{_gtm_v2_cache_flag}"
         f"_gvbV2{_gvb_v2_cache_flag}_hfbV2{_hfb_v2_cache_flag}"
         f"_iobV2{_iob_v2_cache_flag}_jbtV2{_jbt_v2_cache_flag}"
         f"_lsbV2{_lsb_v2_cache_flag}_lnyV2{_lny_v2_cache_flag}"
+        f"_mtfCascadeV2{_mtf_v2_cache_flag}"
     )
     now = datetime.now()
     cached = _dt_bt_cache.get(cache_key)
@@ -6400,6 +6402,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "engulfing_bb",                  # BT-only strategy-filter path for scalp shadow redesign
                 "london_breakout",               # BT-only strategy-filter path for scalp shadow redesign
                 "ma_regime_switch",              # BT-only strategy-filter path for scalp shadow redesign
+                "mtf_regime_trend_cascade_scalp", # BT-only strategy-filter path for scalp shadow redesign
             }
             DT_BLOCKED = {"unknown", "wait"}
 
@@ -6463,7 +6466,11 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
 
             # SL可変: エントリー価格からRR比で逆算
             # ── 例外: SRM等は戦略SLを完全保存 (1H BT _1H_PRESERVE_SLTP 準拠) ──
-            _DT_PRESERVE_SLTP = {"squeeze_release_momentum", "bb_rsi_ema_aligned"}
+            _DT_PRESERVE_SLTP = {
+                "squeeze_release_momentum",
+                "bb_rsi_ema_aligned",
+                "mtf_regime_trend_cascade_scalp",
+            }
             if _dt_sr_channel_v2_geometry:
                 _DT_PRESERVE_SLTP = _DT_PRESERVE_SLTP | {"dt_sr_channel_reversal"}
             if entry_type == "dt_fib_reversal" and os.environ.get("FIB_REDESIGN_V2") == "1":
@@ -8764,6 +8771,21 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                     "entry_type": _bb_aligned.entry_type,
                     "reasons": list(_bb_aligned.reasons or []),
                     "score": round(float(_bb_aligned.score), 3),
+                    "atr": _rp(atr, symbol),
+                })
+        if (os.environ.get("MTF_REGIME_TREND_CASCADE_SCALP_REDESIGN_V2") == "1"
+                and os.environ.get("MTF_REGIME_TREND_CASCADE_SCALP_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            from strategies.scalp.mtf_regime_trend_cascade_scalp import MtfRegimeTrendCascadeScalp
+            _mtf_cascade = MtfRegimeTrendCascadeScalp().evaluate(_ctx)
+            if _mtf_cascade is not None and _mtf_cascade.entry_type != getattr(_sc_winner_obj, "entry_type", None):
+                _sc_shadow_emit_payload.append({
+                    "signal": _mtf_cascade.signal,
+                    "entry": _rp(entry, symbol),
+                    "confidence": int(getattr(_mtf_cascade, "confidence", 50) or 50),
+                    "sl": float(_mtf_cascade.sl), "tp": float(_mtf_cascade.tp),
+                    "entry_type": _mtf_cascade.entry_type,
+                    "reasons": list(_mtf_cascade.reasons or []),
+                    "score": round(float(_mtf_cascade.score), 3),
                     "atr": _rp(atr, symbol),
                 })
     except Exception:

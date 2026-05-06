@@ -137,3 +137,47 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T03:05:34Z)
+
+exit=0 · 1412s
+
+```
+実装・テスト・365d BT report まで完了しました。
+
+変更点:
+- [strategies/scalp/mtf_regime_trend_cascade_scalp.py](/data/repo/fx-ai-trader/strategies/scalp/mtf_regime_trend_cascade_scalp.py:72)
+  - `MTF_REGIME_TREND_CASCADE_SCALP_REDESIGN_V2=1` 配下で `df.iloc[-2]` の確定足 trigger 化
+  - live 時のみ `(symbol, strategy, signal, signal_bar_time)` dedup
+  - default OFF なので通常 live は現行挙動
+- [app.py](/data/repo/fx-ai-trader/app.py:6157)
+  - BT cache key に V2 flag を追加
+  - strategy-only `run_daytrade_backtest()` BT 用に entry_type allow/preserve を追加
+  - shadow worker 登録用 hook は env flag 配下で追加。ただし今回 verdict は REJECT なので有効化はしていません。
+- [tests/test_mtf_regime_trend_cascade_scalp_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_mtf_regime_trend_cascade_scalp_shadow_redesign_v2.py:68)
+  - flag OFF 無影響
+  - flag ON 確定足 trigger
+  - live dedup を固定
+- [tools/mtf_regime_trend_cascade_scalp_shadow_bt.py](/data/repo/fx-ai-trader/tools/mtf_regime_trend_cascade_scalp_shadow_bt.py:1)
+  - `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1`
+  - MASSIVE 15m cache
+  - `app.run_daytrade_backtest(backtest_mode=True)` 経由
+
+検証:
+- `.venv/bin/python -m pytest tests/test_mtf_regime_trend_cascade_scalp_shadow_redesign_v2.py -q` → `2 passed`
+- `.venv/bin/python -m py_compile strategies/scalp/mtf_regime_trend_cascade_scalp.py tools/mtf_regime_trend_cascade_scalp_shadow_bt.py app.py` → OK
+- `git diff --check` → OK
+- BT report: [bt-results/mtf_regime_trend_cascade_scalp-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/mtf_regime_trend_cascade_scalp-shadow-redesign-v2-2026-05-05.json:1)
+
+v2 LOCK verdict: **REJECT**
+
+理由:
+- USD_JPY: proposed `N=90`, baseline `N=170`, `n_change_pct=-47.06%`
+- EUR_USD: proposed `N=98`, baseline `N=149`, `n_change_pct=-34.23%`
+- どちらも PF / Wilson / EV は改善しましたが、v2 catastrophic check の `n_change_pct >= -30` を両ペアで割ったため REJECT です。
+- `N >= 20` なので `INSUFFICIENT_BT_EVIDENCE` ではありません。
+- REJECT のため shadow promote 設定変更はしていません。
+
+作業前からあった未追跡ファイル `tests/test_mqe_gbpusd_fi
+…(truncated)
