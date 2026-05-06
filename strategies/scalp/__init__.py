@@ -229,6 +229,9 @@ class ScalperEngine:
         if (os.environ.get("TREND_REBOUND_REDESIGN_V2") == "1"
                 and os.environ.get("TREND_REBOUND_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"trend_rebound"}
+        if (os.environ.get("V_REVERSAL_REDESIGN_V2") == "1"
+                and os.environ.get("V_REVERSAL_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"v_reversal"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

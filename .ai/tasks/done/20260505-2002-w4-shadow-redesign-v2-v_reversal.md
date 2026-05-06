@@ -143,3 +143,32 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T18:28:04Z)
+
+exit=0 · 4046s
+
+```
+完了しました。
+
+実装:
+- [strategies/scalp/v_reversal.py](/data/repo/fx-ai-trader/strategies/scalp/v_reversal.py:29): `V_REVERSAL_REDESIGN_V2=1` 配下で `df.iloc[-2]` 確定足 signal 化、次足 `ctx.entry` execution、live 時の `(strategy, symbol, signal, closed_bar_time)` dedup を追加。
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:232): `V_REVERSAL_REDESIGN_V2` + `V_REVERSAL_REDESIGN_V2_SHADOW_PROMOTE` の二重 flag で shadow emit 登録。
+- [tests/test_v_reversal_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_v_reversal_shadow_redesign_v2.py:98): default OFF 無影響、closed-bar 採用、current-bar 無視、live dedup、shadow promote flag をテスト。
+- [tools/v_reversal_shadow_bt.py](/data/repo/fx-ai-trader/tools/v_reversal_shadow_bt.py:323): v2.1 LOCK criteria で BT report を生成する runner を追加。
+
+BT:
+- 出力: [bt-results/v_reversal-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/v_reversal-shadow-redesign-v2-2026-05-05.json:1)
+- `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1`
+- 365d / 15m / MASSIVE parquet / 6 FX pairs
+- Overall verdict: `INSUFFICIENT_BT_EVIDENCE`
+- Proposed N: `0` across all cells, so catastrophic check skipped per v2.1
+- Shadow recommendation: `RECOMMEND_SHADOW`
+
+検証:
+- `.venv/bin/pytest -q tests/test_v_reversal_shadow_redesign_v2.py` → `5 passed`
+- `.venv/bin/python -m py_compile strategies/scalp/v_reversal.py tools/v_reversal_shadow_bt.py` → passed
+
+Self-review も report 内で通過済みです。Live は default OFF のままで、shadow emit も promote flag を明示しない限り有効化されません。
+```
