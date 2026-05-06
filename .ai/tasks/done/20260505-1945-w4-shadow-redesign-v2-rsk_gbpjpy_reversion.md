@@ -135,3 +135,39 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T05:27:10Z)
+
+exit=0 · 861s
+
+```
+実装と検証まで完了しました。
+
+変更点:
+- [strategies/daytrade/rsk_gbpjpy_reversion.py](/data/repo/fx-ai-trader/strategies/daytrade/rsk_gbpjpy_reversion.py:58)
+  - `RSK_GBPJPY_REVERSION_REDESIGN_V2=1` 配下で `SL=1.8ATR`, `TP=0.8ATR`, `MIN_RR` gate bypass。
+  - default OFF では現行 `SL=1.0ATR`, `TP=1.5ATR`, `MIN_RR=1.4` のまま。
+- [app.py](/data/repo/fx-ai-trader/app.py:6159)
+  - BT cache key に V2 flag を追加。
+  - V2 flag ON 時だけ `rsk_gbpjpy_reversion` の strategy SL/TP を preserve し、短い TP と低 RR を production BT 側で潰さないよう調整。
+- [tests/test_rsk_gbpjpy_reversion_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_rsk_gbpjpy_reversion_shadow_redesign_v2.py:44)
+  - default OFF 不変、V2 geometry 適用、GBPJPY pair gate 維持をテスト。
+- [tools/rsk_gbpjpy_reversion_shadow_bt.py](/data/repo/fx-ai-trader/tools/rsk_gbpjpy_reversion_shadow_bt.py:1)
+  - 365d MASSIVE A/B BT runner 追加。
+
+BT report:
+- [bt-results/rsk_gbpjpy_reversion-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/rsk_gbpjpy_reversion-shadow-redesign-v2-2026-05-05.json:1)
+
+v2 LOCK verdict: **REJECT**
+- Baseline: `N=177`, `PF=1.077`, `Wilson lo=0.5253`, `PnL=+7.4997`
+- Proposed: `N=268`, `PF=0.5991`, `Wilson lo=0.6057`, `PnL=-72.1315`
+- Reject reason: `pf_change=-0.4779`, `pnl_sign_preserved=false`, `pf_proposed=0.5991 < 0.85`
+- `N>=20` なので `INSUFFICIENT_BT_EVIDENCE` ではなく catastrophic/sanity 判定を適用。
+- Shadow promote は **未適用**。REJECT なので設定変更なし。
+
+Verification:
+- `.venv/bin/python -m pytest -q tests/test_rsk_gbpjpy_reversion_shadow_redesign_v2.py tests/test_phase5_strategies.py` -> `13 passed`
+- `.venv/bin/python -m py_compile strategies/daytrade/rsk_gbpjpy_reversion.py app.py tools/rsk_gbpjpy_reversion_shadow_bt.py` -> passed
+- BT: `BT_MODE=1`, `BT_REQUIRE_MASSIVE_CACHE=1`, `massive-parquet`, `GBPJPY=X 24216 bars` read, report generated.
+```

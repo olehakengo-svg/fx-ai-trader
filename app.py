@@ -6156,6 +6156,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
     _lny_v2_cache_flag = os.environ.get("LONDON_NY_SWING_REDESIGN_V2", "0")
     _mtf_v2_cache_flag = os.environ.get("MTF_REGIME_TREND_CASCADE_SCALP_REDESIGN_V2", "0")
     _pnv_v2_cache_flag = os.environ.get("POST_NEWS_VOL_REDESIGN_V2", "0")
+    _rsk_v2_cache_flag = os.environ.get("RSK_GBPJPY_REVERSION_REDESIGN_V2", "0")
     cache_key = (
         f"{symbol}_{interval}_{lookback_days}_jitter{exec_lag_jitter:.4f}"
         f"_bt{int(bool(backtest_mode))}_gtmV2{_gtm_v2_cache_flag}"
@@ -6163,6 +6164,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         f"_iobV2{_iob_v2_cache_flag}_jbtV2{_jbt_v2_cache_flag}"
         f"_lsbV2{_lsb_v2_cache_flag}_lnyV2{_lny_v2_cache_flag}"
         f"_mtfCascadeV2{_mtf_v2_cache_flag}_pnvV2{_pnv_v2_cache_flag}"
+        f"_rskV2{_rsk_v2_cache_flag}"
     )
     now = datetime.now()
     cached = _dt_bt_cache.get(cache_key)
@@ -6459,8 +6461,14 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 entry_type == "dt_sr_channel_reversal"
                 and os.environ.get("DT_SR_CHANNEL_REDESIGN_V2") == "1"
             )
+            _rsk_v2_geometry = (
+                entry_type == "rsk_gbpjpy_reversion"
+                and os.environ.get("RSK_GBPJPY_REVERSION_REDESIGN_V2") == "1"
+            )
             if _dt_sr_channel_v2_geometry:
                 _atr_tp_floor = atr * 0.8
+            if _rsk_v2_geometry:
+                _atr_tp_floor = atr * 0.5
             if tp_dist_dt < _atr_tp_floor:
                 tp = ep + _atr_tp_floor if sig == "BUY" else ep - _atr_tp_floor
                 tp_dist_dt = _atr_tp_floor
@@ -6485,6 +6493,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             if (entry_type == "london_session_breakout"
                     and os.environ.get("LONDON_SESSION_BREAKOUT_REDESIGN_V2") == "1"):
                 _DT_PRESERVE_SLTP = _DT_PRESERVE_SLTP | {"london_session_breakout"}
+            if _rsk_v2_geometry:
+                _DT_PRESERVE_SLTP = _DT_PRESERVE_SLTP | {"rsk_gbpjpy_reversion"}
             tp_dist_dt = abs(tp - ep)
             if entry_type in _DT_PRESERVE_SLTP:
                 # 戦略SL保存: swing H/L ± ATR buffer で精密計算済み
@@ -6606,7 +6616,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 tp_dist_dt = abs(tp - ep)
 
             # RR不足チェック（SL拡大後に再判定）
-            if tp_dist_dt < sl_dist_dt and not _dt_sr_channel_v2_geometry:
+            if tp_dist_dt < sl_dist_dt and not (_dt_sr_channel_v2_geometry or _rsk_v2_geometry):
                 continue
 
             sl_m = abs(ep - sl) / max(atr, 1e-6)

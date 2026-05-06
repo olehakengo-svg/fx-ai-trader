@@ -27,6 +27,7 @@ Live/BT 整合 (rule:R3, 2026-04-30 — vsg と同根の per-bar dedup 修正):
     詳細: knowledge-base/wiki/decisions/shadow-audit-2026-04-30.md
 """
 from __future__ import annotations
+import os
 from typing import Optional
 
 import numpy as np
@@ -53,6 +54,9 @@ class RskGbpjpyReversion(StrategyBase):
     TP_ATR_MULT = 1.5
     MIN_RR = 1.4
     MAX_HOLD_BARS = 6
+
+    REDESIGN_V2_SL_ATR_MULT = 1.8
+    REDESIGN_V2_TP_ATR_MULT = 0.8
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs) if hasattr(super(), "__init__") else None
@@ -119,12 +123,15 @@ class RskGbpjpyReversion(StrategyBase):
             return None
 
         atr = max(ctx.atr, 1e-9)
+        redesign_v2 = os.environ.get("RSK_GBPJPY_REVERSION_REDESIGN_V2", "0") == "1"
+        sl_atr_mult = self.REDESIGN_V2_SL_ATR_MULT if redesign_v2 else self.SL_ATR_MULT
+        tp_atr_mult = self.REDESIGN_V2_TP_ATR_MULT if redesign_v2 else self.TP_ATR_MULT
         if signal == "BUY":
-            sl = ctx.entry - self.SL_ATR_MULT * atr
-            tp = ctx.entry + self.TP_ATR_MULT * atr
+            sl = ctx.entry - sl_atr_mult * atr
+            tp = ctx.entry + tp_atr_mult * atr
         else:
-            sl = ctx.entry + self.SL_ATR_MULT * atr
-            tp = ctx.entry - self.TP_ATR_MULT * atr
+            sl = ctx.entry + sl_atr_mult * atr
+            tp = ctx.entry - tp_atr_mult * atr
 
         tp = shift_tp_inside(tp, signal, pip=0.01, shift_pips=3.0)
 
@@ -133,7 +140,9 @@ class RskGbpjpyReversion(StrategyBase):
         if sl_dist <= 0:
             return None
         rr = tp_dist / sl_dist
-        if rr < self.MIN_RR:
+        if tp_dist <= 0:
+            return None
+        if not redesign_v2 and rr < self.MIN_RR:
             return None
 
         score = 4.0 + min(2.0, abs(latest_z) - self.Z_THRESHOLD)
@@ -141,7 +150,11 @@ class RskGbpjpyReversion(StrategyBase):
             f"✅ Realized skew z={latest_z:+.2f} (>{self.Z_THRESHOLD})",
             f"✅ Skewness MR {signal} (downside exhaustion)" if signal == "BUY"
                 else f"✅ Skewness MR {signal} (upside exhaustion)",
-            f"✅ RR={rr:.2f} hold≤{self.MAX_HOLD_BARS}bar",
+            (
+                f"✅ RSK_GBPJPY_REVERSION_REDESIGN_V2 geometry "
+                f"SL={sl_atr_mult:.1f}ATR TP={tp_atr_mult:.1f}ATR RR={rr:.2f} "
+                f"hold≤{self.MAX_HOLD_BARS}bar"
+            ) if redesign_v2 else f"✅ RR={rr:.2f} hold≤{self.MAX_HOLD_BARS}bar",
         ]
 
         # Mark this closed bar as emitted so subsequent intra-bar polls are no-ops.
