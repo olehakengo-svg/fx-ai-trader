@@ -1,0 +1,84 @@
+{
+  "generated_at": "2026-05-06T14:10:16.584068+00:00",
+  "strategy": "tokyo_range_breakout_up",
+  "variant": "bar_close_buffered_compression_invalidation_exit_v2",
+  "flag": "TOKYO_RANGE_BREAKOUT_REDESIGN_V2",
+  "shadow_worker_flag": "TOKYO_RANGE_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest(backtest_mode=True; production daytrade path; strategy-only compute patch)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": true,
+  "targets": [
+    "USD_JPY"
+  ],
+  "missing_caches": [],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": "REJECT only when baseline PnL > 0 and proposed PnL < 0",
+    "warn_only": [
+      "PF change",
+      "Wilson lower change",
+      "N change pct"
+    ],
+    "sanity_floor": "REMOVED in v2.1",
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "USD_JPY": {
+      "current": {
+        "N": 51,
+        "wins": 35,
+        "WR": 0.6863,
+        "EV": 0.206,
+        "PnL": 10.5042,
+        "PF": 1.3741,
+        "wilson_lo": 0.5497,
+        "total_trades_all_strategies": 51,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24644
+      },
+      "proposed": {
+        "N": 26,
+        "wins": 16,
+        "WR": 0.6154,
+        "EV": 0.329,
+        "PnL": 8.5529,
+        "PF": 1.6476,
+        "wilson_lo": 0.4253,
+        "total_trades_all_strategies": 26,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24644
+      },
+      "lock_criteria": {
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+        "warnings": {
+          "pf_change": 0.2735,
+          "wilson_lo_change": -0.1244,
+          "n_change_pct": -49.0196,
+          "warn_only": true
+        }
+      }
+    }
+  },
+  "overall_verdict": "PASS",
+  "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 762.2,
+  "self_review": {
+    "catastrophic_only": "PASS: verdict uses only pnl_sign_preserved when proposed N>=20; PF/Wilson/N are warnings only.",
+    "insufficient_bt_evidence": "PASS: proposed N<20 becomes INSUFFICIENT_BT_EVIDENCE and recommends shadow.",
+    "production_live_safety": "PASS: strategy behavior is default-off unless TOKYO_RANGE_BREAKOUT_REDESIGN_V2=1; shadow emit also requires TOKYO_RANGE_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered bar-close/buffer/compression/invalidation V2 variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo fallback for 15m price data.",
+    "absolute_kelly": "PASS: no absolute Kelly threshold is used."
+  }
+}

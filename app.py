@@ -6169,6 +6169,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
     _mqe_v2_cache_flag = os.environ.get("MQE_GBPUSD_FIX_REDESIGN_V2", "0")
     _sbr_v2_cache_flag = os.environ.get("SR_BREAK_RETEST_REDESIGN_V2", "0")
     _sfc_v2_cache_flag = os.environ.get("SR_FIB_CONFLUENCE_REDESIGN_V2", "0")
+    _trb_v2_cache_flag = os.environ.get("TOKYO_RANGE_BREAKOUT_REDESIGN_V2", "0")
     cache_key = (
         f"{symbol}_{interval}_{lookback_days}_jitter{exec_lag_jitter:.4f}"
         f"_bt{int(bool(backtest_mode))}_gtmV2{_gtm_v2_cache_flag}"
@@ -6181,6 +6182,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         f"_mtfConfluenceV2{_mtf_confluence_v2_cache_flag}"
         f"_rskV2{_rsk_v2_cache_flag}_mqeV2{_mqe_v2_cache_flag}"
         f"_sbrV2{_sbr_v2_cache_flag}_sfcV2{_sfc_v2_cache_flag}"
+        f"_trbV2{_trb_v2_cache_flag}"
     )
     now = datetime.now()
     cached = _dt_bt_cache.get(cache_key)
@@ -6191,6 +6193,11 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         try:
             from strategies.daytrade.mqe_gbpusd_fix import MqeGbpusdFix as _MqeGbpusdFix
             _MqeGbpusdFix.reset_dedup_state()
+        except Exception:
+            pass
+        try:
+            from strategies.daytrade.tokyo_range_breakout import TokyoRangeBreakout as _TokyoRangeBreakout
+            _TokyoRangeBreakout.reset_dedup_state()
         except Exception:
             pass
         df = fetch_ohlcv(symbol, period=f"{lookback_days}d", interval=interval)
@@ -6521,6 +6528,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             if (entry_type == "london_session_breakout"
                     and os.environ.get("LONDON_SESSION_BREAKOUT_REDESIGN_V2") == "1"):
                 _DT_PRESERVE_SLTP = _DT_PRESERVE_SLTP | {"london_session_breakout"}
+            if (entry_type == "tokyo_range_breakout_up"
+                    and os.environ.get("TOKYO_RANGE_BREAKOUT_REDESIGN_V2") == "1"):
+                _DT_PRESERVE_SLTP = _DT_PRESERVE_SLTP | {"tokyo_range_breakout_up"}
             if _rsk_v2_geometry:
                 _DT_PRESERVE_SLTP = _DT_PRESERVE_SLTP | {"rsk_gbpjpy_reversion"}
             tp_dist_dt = abs(tp - ep)

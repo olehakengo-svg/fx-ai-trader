@@ -45,6 +45,7 @@ from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
 import logging
+import os
 
 logger = logging.getLogger("tokyo_range_breakout")
 
@@ -75,10 +76,50 @@ class TokyoRangeBreakout(StrategyBase):
 
     # ── 対象ペア (Minimum Live: USD_JPY のみ) ──
     _ENABLED_PAIRS = {"USDJPY"}
+    redesign_v2_env = "TOKYO_RANGE_BREAKOUT_REDESIGN_V2"
+    V2_MIN_RANGE_PIP = 5.0
+    V2_COMPRESSION_PERCENTILE = 0.70
+    V2_MAX_RANGE_PIP_FALLBACK = 35.0
+    V2_ATR_BUFFER_MULT = 0.07
+    V2_MIN_BUFFER_PIP = 0.5
+    V2_TARGET_R = 2.0
+    _v2_dedup_keys: set[tuple[str, object, str]] = set()
+
+    @classmethod
+    def _redesign_v2_enabled(cls) -> bool:
+        return os.environ.get(cls.redesign_v2_env, "0") == "1"
+
+    @classmethod
+    def reset_dedup_state(cls) -> None:
+        cls._v2_dedup_keys.clear()
+
+    @staticmethod
+    def _symbol_key(symbol: str) -> str:
+        return (symbol or "").upper().replace("=X", "").replace("/", "").replace("_", "")
+
+    def _historical_tokyo_range_pips(self, df, today_date, pip_mult: float) -> list[float]:
+        ranges = []
+        for day in sorted(set(df.index.date)):
+            if day >= today_date:
+                continue
+            day_mask = (
+                (df.index.date == day)
+                & (df.index.hour >= self.TOKYO_START_H)
+                & (df.index.hour < self.TOKYO_END_H)
+            )
+            day_bars = df[day_mask]
+            if len(day_bars) < self.MIN_TOKYO_BARS:
+                continue
+            day_range = float(day_bars["High"].max()) - float(day_bars["Low"].min())
+            if day_range > 0:
+                ranges.append(day_range * pip_mult)
+        return ranges
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        _redesign_v2 = self._redesign_v2_enabled()
+
         # ── ペアフィルター: USD_JPY のみ (Minimum Live) ──
-        _sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+        _sym = self._symbol_key(ctx.symbol)
         if _sym not in self._ENABLED_PAIRS:
             return None
 
@@ -132,12 +173,41 @@ class TokyoRangeBreakout(StrategyBase):
         _tokyo_range_pip = _tokyo_range * ctx.pip_mult
         if _tokyo_range <= 0:
             return None
-        if _tokyo_range_pip < self.MIN_RANGE_PIP:
-            return None
+        _compression_cap_pip = None
+        if _redesign_v2:
+            if _tokyo_range_pip < self.V2_MIN_RANGE_PIP:
+                return None
+            _hist_ranges = self._historical_tokyo_range_pips(ctx.df, today_date, ctx.pip_mult)
+            if len(_hist_ranges) >= 20:
+                _hist_sorted = sorted(_hist_ranges)
+                _pct_idx = int((len(_hist_sorted) - 1) * self.V2_COMPRESSION_PERCENTILE)
+                _compression_cap_pip = float(_hist_sorted[_pct_idx])
+            else:
+                _compression_cap_pip = self.V2_MAX_RANGE_PIP_FALLBACK
+            if _tokyo_range_pip > _compression_cap_pip:
+                return None
+        else:
+            if _tokyo_range_pip < self.MIN_RANGE_PIP:
+                return None
 
-        # ── UP breakout 検出 (current bar close > Tokyo_high) ──
-        if ctx.entry <= _tokyo_high:
-            return None
+        # ── UP breakout 検出 ──
+        _pip_size = 0.01 if ctx.is_jpy else 0.0001
+        if _redesign_v2:
+            _breakout_buffer = max(ctx.atr * self.V2_ATR_BUFFER_MULT,
+                                   self.V2_MIN_BUFFER_PIP * _pip_size)
+            _last_closed_close = float(ctx.df.iloc[-1]["Close"])
+            if _last_closed_close <= _tokyo_high + _breakout_buffer:
+                return None
+        else:
+            _breakout_buffer = 0.0
+            _last_closed_close = ctx.entry
+            if ctx.entry <= _tokyo_high:
+                return None
+
+        if _redesign_v2:
+            _dedup_key = (_sym, today_date, "BUY")
+            if _dedup_key in self._v2_dedup_keys:
+                return None
 
         # ── Fresh breakout 検証: 今日の UTC 7-9 window で過去バーが未ブレイク ──
         # 今日の London open window 内の過去バー(現在バー除く)を取得
@@ -178,10 +248,16 @@ class TokyoRangeBreakout(StrategyBase):
         # ═══════════════════════════════════════════════════
         # シグナル生成
         # ═══════════════════════════════════════════════════
-        _pip_size = 0.01 if ctx.is_jpy else 0.0001
         entry = ctx.entry
-        sl = entry - self.SL_PIP * _pip_size
-        tp = entry + self.TP_PIP * _pip_size
+        if _redesign_v2:
+            _breakout_low = float(ctx.df.iloc[-1]["Low"])
+            sl = min(_breakout_low, _tokyo_high - _breakout_buffer)
+            if sl >= entry:
+                return None
+            tp = entry + (entry - sl) * self.V2_TARGET_R
+        else:
+            sl = entry - self.SL_PIP * _pip_size
+            tp = entry + self.TP_PIP * _pip_size
 
         _sl_d = abs(entry - sl)
         _tp_d = abs(tp - entry)
@@ -195,17 +271,29 @@ class TokyoRangeBreakout(StrategyBase):
         reasons = []
         _dec = 3 if ctx.is_jpy or ctx.pip_mult == 100 else 5
 
+        if _redesign_v2:
+            reasons.append(
+                "✅ TOKYO_RANGE_BREAKOUT_REDESIGN_V2: bar-close buffered breakout "
+                "+ Tokyo compression filter + invalidation/time-stop geometry"
+            )
         reasons.append(
-            f"✅ Tokyo Range Breakout UP: Close={entry:.{_dec}f} > "
-            f"Tokyo_high={_tokyo_high:.{_dec}f} (Andersen-Bollerslev 1997)"
+            f"✅ Tokyo Range Breakout UP: Close={_last_closed_close:.{_dec}f} > "
+            f"Tokyo_high+buffer={(_tokyo_high + _breakout_buffer):.{_dec}f} "
+            f"(Andersen-Bollerslev 1997)"
         )
+        if _redesign_v2:
+            reasons.append(
+                f"✅ Tokyo compression={_tokyo_range_pip:.1f}pip "
+                f"(cap<={_compression_cap_pip:.1f}p), London open UTC {ctx.hour_utc}:xx"
+            )
+        else:
+            reasons.append(
+                f"✅ Tokyo range={_tokyo_range_pip:.1f}pip (>={self.MIN_RANGE_PIP:.0f}p), "
+                f"London open UTC {ctx.hour_utc}:xx — fresh breakout"
+            )
         reasons.append(
-            f"✅ Tokyo range={_tokyo_range_pip:.1f}pip (>={self.MIN_RANGE_PIP:.0f}p), "
-            f"London open UTC {ctx.hour_utc}:xx — fresh breakout"
-        )
-        reasons.append(
-            f"📊 RR={_rr:.2f} TP=+{self.TP_PIP:.0f}p SL=-{self.SL_PIP:.0f}p "
-            f"HTF={_htf_agr}"
+            f"📊 RR={_rr:.2f} TP={((tp-entry)*ctx.pip_mult):+.1f}p "
+            f"SL={((sl-entry)*ctx.pip_mult):+.1f}p HTF={_htf_agr}"
         )
 
         # ═══════════════════════════════════════════════════
@@ -213,7 +301,7 @@ class TokyoRangeBreakout(StrategyBase):
         # ═══════════════════════════════════════════════════
 
         # 広 Tokyo range (>= 25pip): 圧縮エネルギー大
-        if _tokyo_range_pip >= 25.0:
+        if not _redesign_v2 and _tokyo_range_pip >= 25.0:
             score += 0.5
             reasons.append(f"✅ 広 Tokyo range({_tokyo_range_pip:.1f}p >= 25p)")
 
@@ -232,8 +320,12 @@ class TokyoRangeBreakout(StrategyBase):
             score += 0.3
             reasons.append(f"✅ ADX={ctx.adx:.1f} >= 20")
 
+        if _redesign_v2:
+            self._v2_dedup_keys.add(_dedup_key)
+
         conf = int(min(85, 50 + score * 4))
         return Candidate(
             signal="BUY", confidence=conf, sl=sl, tp=tp,
-            reasons=reasons, entry_type=self.name, score=score
+            reasons=reasons, entry_type=self.name, score=score,
+            max_hold_bars=self.MAX_HOLD_BARS if _redesign_v2 else None,
         )

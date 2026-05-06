@@ -141,3 +141,38 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T14:10:47Z)
+
+exit=0 · 1021s
+
+```
+実装完了しました。`TOKYO_RANGE_BREAKOUT_REDESIGN_V2=1` 配下で、Tokyo Range Breakout V2 を追加しています。default OFF なので live 既存挙動は変わりません。
+
+変更点:
+- [strategies/daytrade/tokyo_range_breakout.py](/data/repo/fx-ai-trader/strategies/daytrade/tokyo_range_breakout.py): bar-close + ATR/pip buffer、Tokyo range compression cap、session-level dedup、invalidation SL + 2R TP + `max_hold_bars` を V2 flag 配下に実装
+- [app.py](/data/repo/fx-ai-trader/app.py): V2 flag を BT cache key に追加、BT dedup reset、V2時だけ strategy SL/TP を保存
+- [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py): `TOKYO_RANGE_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE=1` との二重 flag で shadow worker 登録
+- [tests/test_tokyo_range_breakout_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_tokyo_range_breakout_shadow_redesign_v2.py): default OFF、buffer、compression、exit geometry、shadow二重flagをテスト
+- [tools/tokyo_range_breakout_shadow_bt.py](/data/repo/fx-ai-trader/tools/tokyo_range_breakout_shadow_bt.py): 365d MASSIVE A/B BT runner 追加
+
+検証:
+- `.venv/bin/python -m pytest -q tests/test_tokyo_range_breakout_shadow_redesign_v2.py tests/test_tokyo_nakane_momentum_shadow_redesign_v2.py`
+- 結果: `8 passed`
+- `.venv/bin/python -m py_compile strategies/daytrade/tokyo_range_breakout.py tools/tokyo_range_breakout_shadow_bt.py app.py strategies/daytrade/__init__.py`
+- 結果: OK
+
+BT report:
+- [bt-results/tokyo_range_breakout-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/tokyo_range_breakout-shadow-redesign-v2-2026-05-05.json)
+- Runner: `app.run_daytrade_backtest(..., backtest_mode=True)`
+- Data: `massive-parquet`, `BT_MODE=1`, `BT_REQUIRE_MASSIVE_CACHE=1`
+- Baseline USD_JPY: `N=51`, `PnL=10.5042`, `PF=1.3741`, `Wilson_lo=0.5497`
+- Proposed USD_JPY: `N=26`, `PnL=8.5529`, `PF=1.6476`, `Wilson_lo=0.4253`
+- v2.1 LOCK verdict: `PASS`
+- Shadow recommendation: `RECOMMEND_SHADOW`
+
+Self-review 通過:
+- REJECT 判定は `baseline PnL > 0 and proposed PnL < 0` のみ
+- PF/Wilson/N drop は warn-o
+…(truncated)
