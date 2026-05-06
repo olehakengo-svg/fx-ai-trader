@@ -135,3 +135,46 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T06:18:46Z)
+
+exit=0 · 1372s
+
+```
+実装完了しました。
+
+変更点:
+- [strategies/scalp/squeeze.py](/data/repo/fx-ai-trader/strategies/scalp/squeeze.py:26)
+  - `SQUEEZE_REDESIGN_V2=1` 配下で V2 trigger を追加。
+  - `df.iloc[-2]` の確定足だけを signal bar として使い、BB upper/lower cross または直近 range high/low break を要求。
+  - default OFF では既存ロジック無変更。
+  - live bar_time なしは block、同一 signal bar dedup も追加。
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:169)
+  - `SQUEEZE_REDESIGN_V2=1` + `SQUEEZE_REDESIGN_V2_SHADOW_PROMOTE=1` の時だけ shadow emit 対象化。
+- [app.py](/data/repo/fx-ai-trader/app.py:6405)
+  - `run_daytrade_backtest()` の strategy-filter BT 用 qualified type に `bb_squeeze_breakout` を追加。live signal には影響なし。
+- [tests/test_squeeze_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_squeeze_shadow_redesign_v2.py:1)
+  - default OFF、closed-bar breakout、BBPB proxy reject、intrabar reject、dedup、shadow opt-in をテスト。
+- [tools/squeeze_shadow_bt.py](/data/repo/fx-ai-trader/tools/squeeze_shadow_bt.py:1)
+  - 365d MASSIVE A/B BT runner を追加。
+
+BT report:
+- [bt-results/squeeze-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/squeeze-shadow-redesign-v2-2026-05-05.json:1)
+- Overall verdict: `INSUFFICIENT_BT_EVIDENCE`
+- Shadow recommendation: `RECOMMEND_SHADOW`
+- Cell verdicts:
+  - `USD_JPY`: `PASS`
+  - `EUR_USD`: `INSUFFICIENT_BT_EVIDENCE`
+  - `GBP_USD`: `PASS`
+  - `EUR_JPY`: `PASS`
+  - `GBP_JPY`: `PASS`
+  - `EUR_GBP`: `INSUFFICIENT_BT_EVIDENCE`
+
+Verification:
+- `.venv/bin/pytest -q tests/test_squeeze_shadow_redesign_v2.py tests/test_keltner_squeeze_breakout_shadow_redesign_v2.py`
+- Result: `13 passed`
+- `py_compile` passed for changed Python files.
+
+Self-review passed: no Kelly/live-promotion criteria used, no positive-direction requirement, default live behavior remains OFF, and BT used `BT_MODE=1` + `BT_REQUIRE_MASSIVE_CACHE=1` with MASSIVE parquet.
+```

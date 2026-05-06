@@ -6402,6 +6402,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 # 2026-04-28 Phase 8 Track A 3-way interaction discovery (Sentinel override)
                 "pd_eurjpy_h20_bbpb3_sell",      # EUR_JPY hour=20 bbpb=3 SELL (training Wilson_lo=0.521, holdout EV=+2.14p)
                 "bb_rsi_ema_aligned",            # BT-only strategy-filter path for scalp shadow redesign
+                "bb_squeeze_breakout",            # BT-only strategy-filter path for scalp shadow redesign
                 "engulfing_bb",                  # BT-only strategy-filter path for scalp shadow redesign
                 "london_breakout",               # BT-only strategy-filter path for scalp shadow redesign
                 "ma_regime_switch",              # BT-only strategy-filter path for scalp shadow redesign

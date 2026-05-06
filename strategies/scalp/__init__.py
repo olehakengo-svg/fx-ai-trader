@@ -166,6 +166,9 @@ class ScalperEngine:
         if (os.environ.get("BB_RSI_EMA_ALIGNED_REDESIGN_V2") == "1"
                 and os.environ.get("BB_RSI_EMA_ALIGNED_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"bb_rsi_ema_aligned"}
+        if (os.environ.get("SQUEEZE_REDESIGN_V2") == "1"
+                and os.environ.get("SQUEEZE_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"bb_squeeze_breakout"}
         if (os.environ.get("CONFLUENCE_SCALP_REDESIGN_V2") == "1"
                 and os.environ.get("CONFLUENCE_SCALP_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"confluence_scalp"}
