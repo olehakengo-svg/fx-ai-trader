@@ -47,6 +47,7 @@ Strategy #3: Order Flow Imbalance Mean Reversion (OFIMR)
   - Evans & Lyons (2002) "Order flow and exchange rate dynamics"
 """
 from __future__ import annotations
+import os
 from typing import Optional
 from strategies.micro_scalp.base import (
     MicroStrategyBase, MicroSignal, TickBar, CostModel,
@@ -78,17 +79,21 @@ class OrderFlowImbalanceMR(MicroStrategyBase):
     def evaluate(self, bars: list[TickBar]) -> Optional[MicroSignal]:
         W = self.window_sec
         DIST_BARS = 1800  # OFI分布構築窓
+        redesign_v2 = os.environ.get("OFI_MR_REDESIGN_V2", "0") == "1"
 
-        if len(bars) < DIST_BARS + W + 10:
+        if len(bars) < DIST_BARS + W + 10 + (1 if redesign_v2 else 0):
             return None
 
         # ── 現在窓のOFI ──
-        current_window = bars[-W:]
+        current_window = bars[-W - 1:-1] if redesign_v2 else bars[-W:]
         ofi_now = self._compute_ofi(current_window)
 
         # ── 過去OFI分布: 現在窓を除外してローリングOFI ──
         # 計算負荷低減のためストライド30秒でサンプリング
-        dist_bars = bars[-(DIST_BARS + W):-W]
+        if redesign_v2:
+            dist_bars = bars[-(DIST_BARS + W + 1):-(W + 1)]
+        else:
+            dist_bars = bars[-(DIST_BARS + W):-W]
         ofis = []
         stride = 30
         for start in range(0, len(dist_bars) - W, stride):
@@ -108,10 +113,10 @@ class OrderFlowImbalanceMR(MicroStrategyBase):
 
         # ── 価格がVWAPから乖離しているか ──
         vwap = self._vwap(current_window)
-        current_price = bars[-1].close
-        displacement = current_price - vwap
+        signal_price = current_window[-1].close if redesign_v2 else bars[-1].close
+        displacement = signal_price - vwap
 
-        atr = self._atr(bars[:-1], 60)
+        atr = self._atr(bars[:-1], 60) if redesign_v2 else self._atr(bars[:-1], 60)
         if atr <= 0:
             return None
 
@@ -132,36 +137,48 @@ class OrderFlowImbalanceMR(MicroStrategyBase):
             return None
 
         # ── SL/TP (cost-aware SL buffer 適用) ──
-        recent = bars[-W:]
+        recent = current_window if redesign_v2 else bars[-W:]
+        mid = bars[-1].close
         cost_buffer = 2.0 * entry_slip_price + 0.3 * atr
         if side == "BUY":
             sl_extreme = min(b.low for b in recent)
-            mid = bars[-1].close
             entry = self.cost.apply_to_entry(side, mid)
             # SL: 極値ベースとコストベースの大きい方
             sl = min(sl_extreme - 0.3 * atr, entry - cost_buffer)
             sl_dist = entry - sl
             tp_target_price = vwap  # mean reversion goal
             tp_dist_calc = tp_target_price - entry
-            tp_dist = max(tp_dist_calc, self.min_tp_pips * self.pip)
-            tp = entry + tp_dist
+            if redesign_v2:
+                if tp_dist_calc < self.min_tp_pips * self.pip:
+                    return None
+                tp_dist = tp_dist_calc
+                tp = tp_target_price
+            else:
+                tp_dist = max(tp_dist_calc, self.min_tp_pips * self.pip)
+                tp = entry + tp_dist
         else:
             sl_extreme = max(b.high for b in recent)
-            mid = bars[-1].close
             entry = self.cost.apply_to_entry(side, mid)
             sl = max(sl_extreme + 0.3 * atr, entry + cost_buffer)
             sl_dist = sl - entry
             tp_target_price = vwap
             tp_dist_calc = entry - tp_target_price
-            tp_dist = max(tp_dist_calc, self.min_tp_pips * self.pip)
-            tp = entry - tp_dist
+            if redesign_v2:
+                if tp_dist_calc < self.min_tp_pips * self.pip:
+                    return None
+                tp_dist = tp_dist_calc
+                tp = tp_target_price
+            else:
+                tp_dist = max(tp_dist_calc, self.min_tp_pips * self.pip)
+                tp = entry - tp_dist
 
         if sl_dist <= 0 or tp_dist <= 0:
             return None
         # R:R ≥ 0.7 最低ライン（MR戦略は典型的にR:R低めだが最低基準設定）
-        if tp_dist < sl_dist * 0.7:
+        if not redesign_v2 and tp_dist < sl_dist * 0.7:
             return None
 
+        variant = " OFI_MR_REDESIGN_V2" if redesign_v2 else ""
         return MicroSignal(
             side=side,
             entry=entry,
@@ -169,7 +186,7 @@ class OrderFlowImbalanceMR(MicroStrategyBase):
             tp=tp,
             max_hold_sec=self.max_hold_sec,
             reason=(
-                f"[OFIMR] z_ofi={z_ofi:+.2f} (thr=±{self.z_thresh}) "
+                f"[OFIMR{variant}] z_ofi={z_ofi:+.2f} (thr=±{self.z_thresh}) "
                 f"disp={displacement/self.pip:+.1f}pips "
                 f"VWAP={vwap:.5f} ATR={atr/self.pip:.1f}pips"
             ),

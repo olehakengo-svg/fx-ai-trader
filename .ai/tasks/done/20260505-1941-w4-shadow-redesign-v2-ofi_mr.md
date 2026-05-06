@@ -135,3 +135,38 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T03:23:29Z)
+
+exit=0 · 1040s
+
+```
+実装しました。`OFI_MR_REDESIGN_V2=1` の flag 配下でのみ `ofi_mr` が closed-bar feature window / next-bar entry reference / VWAP mean-target TP に切り替わります。default OFF なので live 既存挙動は変わりません。
+
+変更:
+- [strategies/micro_scalp/ofi_mr.py](/data/repo/fx-ai-trader/strategies/micro_scalp/ofi_mr.py:79)
+  - V2 flag 配下で `bars[-W-1:-1]` を signal window に使用
+  - entry reference は `bars[-1].close`
+  - TP は VWAP 固定、min TP が VWAP 越えになる場合は reject
+  - V2 では固定 `R:R >= 0.7` gate を外す
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:199)
+  - `OFI_MR_REDESIGN_V2=1` かつ `OFI_MR_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag で shadow worker 登録
+- [tests/test_ofi_mr_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_ofi_mr_shadow_redesign_v2.py:42)
+  - default OFF 保持、VWAP 越え拒否、closed feature window / next-bar entry、shadow promote 二重 flag を固定
+- [tools/ofi_mr_shadow_bt.py](/data/repo/fx-ai-trader/tools/ofi_mr_shadow_bt.py:1)
+  - MASSIVE native 15m cache の 365d report 生成ツール追加
+- [bt-results/ofi_mr-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/ofi_mr-shadow-redesign-v2-2026-05-05.json:1)
+
+BT verdict: **REJECT**
+- Proposed N: `5150`
+- Proposed Wilson lo: `0.3734` passes sanity floor
+- Proposed PF: `0.614` fails `pf_proposed >= 0.85`
+- Decision: `NO_CHANGE`, shadow promote しません
+
+Verification:
+- `.venv/bin/pytest tests/test_ofi_mr_shadow_redesign_v2.py -q` → `4 passed`
+- `.venv/bin/python -m py_compile tools/ofi_mr_shadow_bt.py strategies/micro_scalp/ofi_mr.py strategies/scalp/__init__.py` → OK
+
+Caveat: `ofi_mr` は `strategies.micro_scalp` 実装で、現行 `run_daytrade_backtest()` の qualified entry_type ではありません。report には production runner probe を入れていますが、app startup side effects により probe は timeout しました。MASSIVE cache BT 本体は native parquet のみ、Yahoo fallback / resample substitute なしで実行しています。
+```
