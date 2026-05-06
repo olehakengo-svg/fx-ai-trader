@@ -143,3 +143,38 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T13:15:49Z)
+
+exit=0 · 1085s
+
+```
+実装完了しました。
+
+主な変更:
+- [strategies/scalp/stoch_pullback.py](/data/repo/fx-ai-trader/strategies/scalp/stoch_pullback.py:30)
+  `STOCH_PULLBACK_REDESIGN_V2=1` のときだけ、直近確定足 `df.iloc[:-1].iloc[-1]` を signal bar として Stoch/EMA/RSI/BBPB を判定。live 時は `(symbol, signal, signal_bar_time)` で dedup。
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:172)
+  `STOCH_PULLBACK_REDESIGN_V2=1` かつ `STOCH_PULLBACK_REDESIGN_V2_SHADOW_PROMOTE=1` の二重フラグ時だけ shadow worker に登録。
+- [app.py](/data/repo/fx-ai-trader/app.py:6428)
+  `run_daytrade_backtest()` の BT-only strategy-filter allowlist に `stoch_trend_pullback` を追加。
+- [tests/test_stoch_pullback_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_stoch_pullback_shadow_redesign_v2.py:111)
+  default OFF、closed-bar 判定、intrabar 無視、live dedup、shadow 二重フラグをテスト。
+- [tools/stoch_pullback_shadow_bt.py](/data/repo/fx-ai-trader/tools/stoch_pullback_shadow_bt.py:1)
+  365d MASSIVE / production `run_daytrade_backtest(backtest_mode=True)` runner を追加。v2.1 criteria は `pnl_sign_preserved` のみ REJECT 根拠、PF/Wilson/N は WARN ONLY。
+
+検証:
+- `.venv/bin/pytest -q tests/test_stoch_pullback_shadow_redesign_v2.py`
+  `5 passed`
+- `.venv/bin/python tools/stoch_pullback_shadow_bt.py`
+  レポート生成済み: [bt-results/stoch_pullback-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/stoch_pullback-shadow-redesign-v2-2026-05-05.json)
+
+BT 結果は `USD_JPY` 365d / MASSIVE parquet:
+- baseline: `N=321`, `PnL=13.6167`, `PF=1.0665`, `Wilson_lo=0.5594`
+- proposed: `N=313`, `PnL=17.8677`, `PF=1.0892`, `Wilson_lo=0.5681`
+- v2.1 verdict: `PASS`
+- shadow recommendation: `RECOMMEND_SHADOW`
+
+Codex self-review もレポート内に記録済みです。Live は default OFF のままで、V2 挙動も shadow emit も環境変数を入れない限り有効になりません。
+```

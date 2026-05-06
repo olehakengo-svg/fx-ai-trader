@@ -169,6 +169,9 @@ class ScalperEngine:
         if (os.environ.get("SQUEEZE_REDESIGN_V2") == "1"
                 and os.environ.get("SQUEEZE_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"bb_squeeze_breakout"}
+        if (os.environ.get("STOCH_PULLBACK_REDESIGN_V2") == "1"
+                and os.environ.get("STOCH_PULLBACK_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"stoch_trend_pullback"}
         if (os.environ.get("CONFLUENCE_SCALP_REDESIGN_V2") == "1"
                 and os.environ.get("CONFLUENCE_SCALP_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"confluence_scalp"}

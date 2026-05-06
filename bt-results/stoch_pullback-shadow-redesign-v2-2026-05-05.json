@@ -1,0 +1,132 @@
+{
+  "generated_at": "2026-05-06T13:15:09.812517+00:00",
+  "strategy": "stoch_trend_pullback",
+  "variant": "closed_bar_confirmation_dedup_v2",
+  "flag": "STOCH_PULLBACK_REDESIGN_V2",
+  "shadow_worker_flag": "STOCH_PULLBACK_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest(backtest_mode=True; production daytrade path; strategy-only compute patch)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": true,
+  "targets": [
+    "USD_JPY"
+  ],
+  "target_scope_note": "strategy-filter BT targets USD_JPY first because the audit identifies it as the only N>=30 pair bucket with weak positive fit before closed-bar redesign; cross-pair shadow observation remains out of scope.",
+  "missing_caches": [],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": {
+      "pnl_sign_preserved_only": "baseline PnL > 0 and proposed PnL < 0 is the only REJECT trigger"
+    },
+    "sanity_floor": "REMOVED in v2.1",
+    "warn_only": [
+      "pf_change",
+      "wilson_lo_change",
+      "n_change_pct"
+    ],
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "aggregate": {
+    "current": {
+      "N": 321,
+      "wins": 197,
+      "WR": 0.6137,
+      "EV": 0.0424,
+      "PnL": 13.6167,
+      "PF": 1.0665,
+      "wilson_lo": 0.5594,
+      "total_trades_all_strategies": 321,
+      "bt_error": null,
+      "data_source": null,
+      "bars_fetched": null
+    },
+    "proposed": {
+      "N": 313,
+      "wins": 195,
+      "WR": 0.623,
+      "EV": 0.0571,
+      "PnL": 17.8677,
+      "PF": 1.0892,
+      "wilson_lo": 0.5681,
+      "total_trades_all_strategies": 313,
+      "bt_error": null,
+      "data_source": null,
+      "bars_fetched": null
+    },
+    "lock_criteria": {
+      "pf_change": 0.0227,
+      "wilson_lo_change": 0.0087,
+      "n_change_pct": -2.4922,
+      "pnl_sign_preserved": true,
+      "catastrophic_check": true,
+      "sanity_floor": "REMOVED",
+      "warn_only": {
+        "pf_change": 0.0227,
+        "wilson_lo_change": 0.0087,
+        "n_change_pct": -2.4922
+      },
+      "verdict": "PASS",
+      "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+    }
+  },
+  "cells": {
+    "USD_JPY": {
+      "current": {
+        "N": 321,
+        "wins": 197,
+        "WR": 0.6137,
+        "EV": 0.0424,
+        "PnL": 13.6167,
+        "PF": 1.0665,
+        "wilson_lo": 0.5594,
+        "total_trades_all_strategies": 321,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24644
+      },
+      "proposed": {
+        "N": 313,
+        "wins": 195,
+        "WR": 0.623,
+        "EV": 0.0571,
+        "PnL": 17.8677,
+        "PF": 1.0892,
+        "wilson_lo": 0.5681,
+        "total_trades_all_strategies": 313,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24644
+      },
+      "lock_criteria": {
+        "pf_change": 0.0227,
+        "wilson_lo_change": 0.0087,
+        "n_change_pct": -2.4922,
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "sanity_floor": "REMOVED",
+        "warn_only": {
+          "pf_change": 0.0227,
+          "wilson_lo_change": 0.0087,
+          "n_change_pct": -2.4922
+        },
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    }
+  },
+  "overall_verdict": "PASS",
+  "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 570.1,
+  "self_review": {
+    "catastrophic_only": "PASS: verdict ignores PF, Wilson, N drop, positive-direction and Kelly; applies only pnl_sign_preserved when N>=20.",
+    "insufficient_bt_evidence": "PASS: proposed N<20 becomes INSUFFICIENT_BT_EVIDENCE and shadow recommendation.",
+    "production_live_safety": "PASS: strategy behavior is default-off unless STOCH_PULLBACK_REDESIGN_V2=1; shadow emit also requires STOCH_PULLBACK_REDESIGN_V2_SHADOW_PROMOTE=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered closed_bar_confirmation_dedup_v2 variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo/network fallback for 15m price data."
+  }
+}
