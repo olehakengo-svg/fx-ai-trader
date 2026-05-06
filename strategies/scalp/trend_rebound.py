@@ -1,4 +1,5 @@
 """Trend Rebound — 強トレンド時の逆張りリバウンド (Jegadeesh 1990)"""
+import os
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
@@ -40,6 +41,12 @@ class TrendRebound(StrategyBase):
         _momentum = 0.0
         if len(ctx.df) >= 10:
             _momentum = (ctx.entry - float(ctx.df["Close"].iloc[-10])) * ctx.pip_mult
+        _redesign_v2 = os.environ.get("TREND_REBOUND_REDESIGN_V2") == "1"
+        _buy_momentum_ok = _momentum < self.momentum_limit
+        _sell_momentum_ok = _momentum > -self.momentum_limit
+        if _redesign_v2:
+            _buy_momentum_ok = -self.momentum_limit <= _momentum < self.momentum_limit
+            _sell_momentum_ok = -self.momentum_limit < _momentum <= self.momentum_limit
 
         # BUY: 下降トレンド中のリバウンド
         if (ctx.stoch_k < self.stoch_buy
@@ -47,12 +54,14 @@ class TrendRebound(StrategyBase):
                 and ctx.bbpb < self.bbpb_buy
                 and ctx.entry > ctx.open_price  # 陽線確認
                 and ctx.ema9 < ctx.ema21         # 下降トレンド確認
-                and _momentum < self.momentum_limit):
+                and _buy_momentum_ok):
             signal = "BUY"
             score = 3.5
             reasons.append(f"✅ Trend Rebound BUY: ADX={ctx.adx:.0f}≥{self.adx_min} + EMA下降(9<21)")
             reasons.append(f"✅ 極端値: Stoch={ctx.stoch_k:.0f}<{self.stoch_buy}, RSI={ctx.rsi5:.0f}<{self.rsi5_buy}, BB%B={ctx.bbpb:.2f}<{self.bbpb_buy}")
             reasons.append(f"✅ 陽線反転 + モメンタム中立({_momentum:+.1f}pip)")
+            if _redesign_v2:
+                reasons.append(f"✅ TREND_REBOUND_REDESIGN_V2 momentum gate: {-self.momentum_limit}≤mom<{self.momentum_limit}")
             if ctx.macdh > ctx.macdh_prev:
                 score += 0.5
                 reasons.append("✅ MACD-H反転上昇")
@@ -70,12 +79,14 @@ class TrendRebound(StrategyBase):
                 and ctx.bbpb > self.bbpb_sell
                 and ctx.entry < ctx.open_price  # 陰線確認
                 and ctx.ema9 > ctx.ema21         # 上昇トレンド確認
-                and _momentum > -self.momentum_limit):
+                and _sell_momentum_ok):
             signal = "SELL"
             score = 3.5
             reasons.append(f"✅ Trend Rebound SELL: ADX={ctx.adx:.0f}≥{self.adx_min} + EMA上昇(9>21)")
             reasons.append(f"✅ 極端値: Stoch={ctx.stoch_k:.0f}>{self.stoch_sell}, RSI={ctx.rsi5:.0f}>{self.rsi5_sell}, BB%B={ctx.bbpb:.2f}>{self.bbpb_sell}")
             reasons.append(f"✅ 陰線反転 + モメンタム中立({_momentum:+.1f}pip)")
+            if _redesign_v2:
+                reasons.append(f"✅ TREND_REBOUND_REDESIGN_V2 momentum gate: {-self.momentum_limit}<mom≤{self.momentum_limit}")
             if ctx.macdh < ctx.macdh_prev:
                 score += 0.5
                 reasons.append("✅ MACD-H反転下落")

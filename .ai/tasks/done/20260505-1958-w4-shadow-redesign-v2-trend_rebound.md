@@ -141,3 +141,37 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T15:11:26Z)
+
+exit=0 · 3605s
+
+```
+Implemented `trend_rebound` V2 under default-OFF flags.
+
+Changed:
+- [strategies/scalp/trend_rebound.py](/data/repo/fx-ai-trader/strategies/scalp/trend_rebound.py): `TREND_REBOUND_REDESIGN_V2=1` now blocks excessive tail continuation:
+  - BUY: `-8 <= momentum < +8`
+  - SELL: `-8 < momentum <= +8`
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py): shadow worker registration added behind double flag:
+  - `TREND_REBOUND_REDESIGN_V2=1`
+  - `TREND_REBOUND_REDESIGN_V2_SHADOW_PROMOTE=1`
+- [app.py](/data/repo/fx-ai-trader/app.py): allows `trend_rebound` through the BT-only daytrade strategy-filter path.
+- [tests/test_trend_rebound_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_trend_rebound_shadow_redesign_v2.py): added red/green coverage.
+- [tools/trend_rebound_shadow_bt.py](/data/repo/fx-ai-trader/tools/trend_rebound_shadow_bt.py): 365d MASSIVE A/B BT runner.
+
+Verification:
+- `.venv/bin/python -m py_compile strategies/scalp/trend_rebound.py strategies/scalp/__init__.py tools/trend_rebound_shadow_bt.py app.py`
+- `.venv/bin/pytest -q tests/test_trend_rebound_shadow_redesign_v2.py`
+- Result: `5 passed`
+
+BT report:
+- [bt-results/trend_rebound-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/trend_rebound-shadow-redesign-v2-2026-05-05.json)
+- Runner: `app.run_daytrade_backtest(..., backtest_mode=True)` with `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1`
+- MASSIVE 15m parquet verified for all targets.
+- Overall verdict: `INSUFFICIENT_BT_EVIDENCE`
+- Shadow recommendation: `RECOMMEND_SHADOW`
+
+Proposed BT N was `<20` on every pair, so v2.1 correctly skipped catastrophic check and did not apply PF/Wilson/N-drop as reject criteria. Self-review in the report passes: catastrophic-only verdict logic, no Kelly requirement, flag OFF live impact, no post-hoc adjustment.
+```

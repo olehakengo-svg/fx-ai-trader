@@ -1,0 +1,287 @@
+{
+  "generated_at": "2026-05-06T15:10:57.019461+00:00",
+  "strategy": "trend_rebound",
+  "variant": "momentum_tail_continuation_filter_v2",
+  "flag": "TREND_REBOUND_REDESIGN_V2",
+  "shadow_worker_flag": "TREND_REBOUND_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest(backtest_mode=True; production daytrade path; strategy-only compute patch)",
+  "runner_note": "trend_rebound is a scalp strategy; this BT uses the user-required daytrade runner with compute_daytrade_signal patched to emit only trend_rebound.",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": true,
+  "data_source_note": "run_daytrade_backtest omits data_source/bars_fetched when it returns the <20 trades error; console output should show massive-parquet/15m for each target.",
+  "targets": [
+    "EUR_USD",
+    "USD_JPY",
+    "EUR_JPY",
+    "GBP_USD",
+    "GBP_JPY",
+    "EUR_GBP"
+  ],
+  "missing_caches": [],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": "pnl_sign_preserved only: reject only if baseline PnL > 0 and proposed PnL < 0",
+    "sanity_floor": "REMOVED in v2.1",
+    "pf_wilson_n_changes": "WARN_ONLY in v2.1",
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "EUR_USD": {
+      "current": {
+        "N": 12,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 12,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "INSUFFICIENT_BT_EVIDENCE",
+        "reason": "proposed BT trades < 20; v2.1 skips catastrophic check and recommends shadow",
+        "catastrophic_check": "SKIPPED",
+        "sanity_floor": "REMOVED_V2_1",
+        "warnings_only": {
+          "pf_change": 0.0,
+          "wilson_lo_change": 0.0,
+          "n_change_pct": -100.0
+        },
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "USD_JPY": {
+      "current": {
+        "N": 26,
+        "wins": 10,
+        "WR": 0.3846,
+        "EV": -0.481,
+        "PnL": -12.5065,
+        "PF": 0.4709,
+        "wilson_lo": 0.2243,
+        "total_trades_all_strategies": 26,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24644
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "INSUFFICIENT_BT_EVIDENCE",
+        "reason": "proposed BT trades < 20; v2.1 skips catastrophic check and recommends shadow",
+        "catastrophic_check": "SKIPPED",
+        "sanity_floor": "REMOVED_V2_1",
+        "warnings_only": {
+          "pf_change": -0.4709,
+          "wilson_lo_change": -0.2243,
+          "n_change_pct": -100.0
+        },
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "EUR_JPY": {
+      "current": {
+        "N": 13,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 13,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "INSUFFICIENT_BT_EVIDENCE",
+        "reason": "proposed BT trades < 20; v2.1 skips catastrophic check and recommends shadow",
+        "catastrophic_check": "SKIPPED",
+        "sanity_floor": "REMOVED_V2_1",
+        "warnings_only": {
+          "pf_change": 0.0,
+          "wilson_lo_change": 0.0,
+          "n_change_pct": -100.0
+        },
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "GBP_USD": {
+      "current": {
+        "N": 18,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 18,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 1,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 1,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "INSUFFICIENT_BT_EVIDENCE",
+        "reason": "proposed BT trades < 20; v2.1 skips catastrophic check and recommends shadow",
+        "catastrophic_check": "SKIPPED",
+        "sanity_floor": "REMOVED_V2_1",
+        "warnings_only": {
+          "pf_change": 0.0,
+          "wilson_lo_change": 0.0,
+          "n_change_pct": -94.4444
+        },
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "GBP_JPY": {
+      "current": {
+        "N": 11,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 11,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "INSUFFICIENT_BT_EVIDENCE",
+        "reason": "proposed BT trades < 20; v2.1 skips catastrophic check and recommends shadow",
+        "catastrophic_check": "SKIPPED",
+        "sanity_floor": "REMOVED_V2_1",
+        "warnings_only": {
+          "pf_change": 0.0,
+          "wilson_lo_change": 0.0,
+          "n_change_pct": -100.0
+        },
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "EUR_GBP": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "INSUFFICIENT_BT_EVIDENCE",
+        "reason": "proposed BT trades < 20; v2.1 skips catastrophic check and recommends shadow",
+        "catastrophic_check": "SKIPPED",
+        "sanity_floor": "REMOVED_V2_1",
+        "warnings_only": {
+          "pf_change": 0.0,
+          "wilson_lo_change": 0.0,
+          "n_change_pct": 0.0
+        },
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    }
+  },
+  "overall_verdict": "INSUFFICIENT_BT_EVIDENCE",
+  "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 3399.0,
+  "self_review": {
+    "catastrophic_only": "PASS: v2.1 verdict uses only positive-to-negative PnL sign regression when proposed N>=20.",
+    "warn_only_metrics": "PASS: PF, Wilson lower bound, and N change are recorded only under warnings_only.",
+    "absolute_kelly": "PASS: no Kelly threshold is computed or required.",
+    "production_live_safety": "PASS: strategy behavior is default-off unless TREND_REBOUND_REDESIGN_V2=1; shadow emit also requires TREND_REBOUND_REDESIGN_V2_SHADOW_PROMOTE=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered momentum tail-continuation filter is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo fallback for 15m price data; missing caches produce BLOCKED_DATA."
+  }
+}

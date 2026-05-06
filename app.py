@@ -6440,6 +6440,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "mtf_regime_range_cascade_scalp", # BT-only strategy-filter path for scalp shadow redesign
                 "stoch_trend_pullback",          # BT-only strategy-filter path for scalp shadow redesign
                 "three_bar_reversal",            # BT-only strategy-filter path for scalp shadow redesign
+                "trend_rebound",                  # BT-only strategy-filter path for scalp shadow redesign
             }
             DT_BLOCKED = {"unknown", "wait"}
 

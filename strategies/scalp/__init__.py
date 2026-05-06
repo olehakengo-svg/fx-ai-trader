@@ -223,6 +223,9 @@ class ScalperEngine:
         if (os.environ.get("MTF_CONFLUENCE_REDESIGN_V2") == "1"
                 and os.environ.get("MTF_CONFLUENCE_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"mtf_reversal_confluence"}
+        if (os.environ.get("TREND_REBOUND_REDESIGN_V2") == "1"
+                and os.environ.get("TREND_REBOUND_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"trend_rebound"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]
