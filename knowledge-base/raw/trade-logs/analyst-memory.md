@@ -789,6 +789,16 @@ Cutoff後累計はN=22、WR=45.5%、PnL=−12.1pips相当。システムは稼�
 - VOLATILE環境下でのSL_HIT 1件は通常レンジ内事象。
 - 現在DD=28.01% → DD防御モード（0.2x）稼働中であり、パラメータ干渉のコストが高い。
 
+### 2026-05-06 (Post-London Report)
+| WR | 100.0%（参考値・N=1） |
+| PnL | **+11.8 pips** |
+| 戦略 | ペア | 方向 | PnL | 成功要因 |
+| WR | 0%（1件LOSS） | 100%（1件WIN） | +100pt |
+| PnL | **▲5.6 pips** | **+11.8 pips** | +17.4 pips 改善 |
+本日累計がN=2・WR50%・+6.2 pipsであることから、東京セッションでの1件は推定▲5.6 pipsのLOSSとなる。
+### 推奨戦略配分
+| ○ | post-news-vol（SENTINEL） | GBP/USD | TRENDING_UP環境下・NY米指標後のVolスパイクに親和性（BT EV=+1.762） |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
