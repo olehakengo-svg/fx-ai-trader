@@ -143,3 +143,31 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T21:06:44Z)
+
+exit=0 · 1393s
+
+```
+完了しました。`xs_momentum` の v2 flag path を acceptance 用に固め、shadow worker 登録は opt-in のまま追加しました。
+
+変更点:
+- [tests/test_xs_momentum_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_xs_momentum_shadow_redesign_v2.py:99): default OFF、per-bar dedup、live closed-bar、shadow opt-in 登録テストを追加
+- [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:307): `XS_MOMENTUM_REDESIGN_V2=1` + `XS_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE=1` の時だけ shadow always に登録
+- [app.py](/data/repo/fx-ai-trader/app.py:6203): BT cache key に `XS_MOMENTUM_REDESIGN_V2` を追加し、baseline/proposed cache 混入を防止
+- [tools/xs_momentum_shadow_bt.py](/data/repo/fx-ai-trader/tools/xs_momentum_shadow_bt.py:229): v2.1 LOCK criteria に更新。PF/Wilson/N/EV は warn-only、REJECT 根拠は `pnl_sign_preserved` のみ
+- [bt-results/xs_momentum-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/xs_momentum-shadow-redesign-v2-2026-05-05.json): 365d MASSIVE BT report 生成済み
+
+BT verdict:
+- Overall: `PASS`
+- Shadow recommendation: `RECOMMEND_SHADOW`
+- EUR_USD: baseline N=566 PnL=23.9137 → proposed N=557 PnL=34.1672, `PASS`
+- GBP_USD: baseline N=637 PnL=-125.6864 → proposed N=626 PnL=-116.6522, `PASS`
+- `BT_MODE=1`, `BT_REQUIRE_MASSIVE_CACHE=1`, `backtest_mode=True`, MASSIVE parquet verified
+
+Verification:
+- `.venv/bin/pytest -q tests/test_xs_momentum_shadow_redesign.py tests/test_xs_momentum_shadow_redesign_v2.py` → 9 passed
+- `.venv/bin/pytest -q tests/test_xs_momentum_shadow_redesign_v2.py` → 5 passed
+- `.venv/bin/python -m py_compile tools/xs_momentum_shadow_bt.py app.py strategies/daytrade/__init__.py strategies/daytrade/xs_momentum.py` → passed
+```

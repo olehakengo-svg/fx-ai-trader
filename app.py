@@ -6200,6 +6200,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
     _lsb_v2_cache_flag = os.environ.get("LONDON_SESSION_BREAKOUT_REDESIGN_V2", "0")
     _lny_v2_cache_flag = os.environ.get("LONDON_NY_SWING_REDESIGN_V2", "0")
     _tnm_v2_cache_flag = os.environ.get("TOKYO_NAKANE_MOMENTUM_REDESIGN_V2", "0")
+    _xs_mom_v2_cache_flag = os.environ.get("XS_MOMENTUM_REDESIGN_V2", "0")
     _mtf_v2_cache_flag = os.environ.get("MTF_REGIME_TREND_CASCADE_SCALP_REDESIGN_V2", "0")
     _mtf_range_v2_cache_flag = os.environ.get("MTF_REGIME_RANGE_CASCADE_SCALP_REDESIGN_V2", "0")
     _mtf_confluence_v2_cache_flag = os.environ.get("MTF_CONFLUENCE_REDESIGN_V2", "0")
@@ -6225,7 +6226,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         f"_gvbV2{_gvb_v2_cache_flag}_hfbV2{_hfb_v2_cache_flag}"
         f"_iobV2{_iob_v2_cache_flag}_jbtV2{_jbt_v2_cache_flag}"
         f"_lsbV2{_lsb_v2_cache_flag}_lnyV2{_lny_v2_cache_flag}"
-        f"_tnmV2{_tnm_v2_cache_flag}"
+        f"_tnmV2{_tnm_v2_cache_flag}_xsMomV2{_xs_mom_v2_cache_flag}"
         f"_mtfCascadeV2{_mtf_v2_cache_flag}_pnvV2{_pnv_v2_cache_flag}"
         f"_mtfRangeCascadeV2{_mtf_range_v2_cache_flag}"
         f"_mtfConfluenceV2{_mtf_confluence_v2_cache_flag}"

@@ -304,6 +304,9 @@ class DaytradeEngine:
         if (os.environ.get("SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2") == "1"
                 and os.environ.get("SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"squeeze_release_momentum"}
+        if (os.environ.get("XS_MOMENTUM_REDESIGN_V2") == "1"
+                and os.environ.get("XS_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"xs_momentum"}
         if (os.environ.get("SR_BREAK_RETEST_REDESIGN_V2") == "1"
                 and os.environ.get("SR_BREAK_RETEST_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"sr_break_retest"}

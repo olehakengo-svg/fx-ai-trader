@@ -1,0 +1,130 @@
+{
+  "generated_at": "2026-05-06T21:05:59.385410+00:00",
+  "strategy": "xs_momentum",
+  "variant": "closed_bar_dedup_v2",
+  "flag": "XS_MOMENTUM_REDESIGN_V2",
+  "shadow_worker_flag": "XS_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest(backtest_mode=True; production daytrade path; strategy-only compute patch)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": true,
+  "targets": [
+    "EUR_USD",
+    "GBP_USD"
+  ],
+  "missing_caches": [],
+  "lock_spec_v2_1": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE; skip catastrophic_check; recommend shadow",
+    "catastrophic_check": "pnl_sign_preserved only: baseline PnL > 0 and proposed PnL < 0 is the only REJECT condition",
+    "warn_only": [
+      "pf_change",
+      "wilson_lo_change",
+      "n_change_pct",
+      "ev_change_pct"
+    ],
+    "sanity_floor": "removed",
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "EUR_USD": {
+      "current": {
+        "N": 566,
+        "wins": 355,
+        "WR": 0.6272,
+        "EV": 0.0423,
+        "PnL": 23.9137,
+        "PF": 1.0617,
+        "wilson_lo": 0.5866,
+        "total_trades_all_strategies": 566,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24612
+      },
+      "proposed": {
+        "N": 557,
+        "wins": 353,
+        "WR": 0.6338,
+        "EV": 0.0613,
+        "PnL": 34.1672,
+        "PF": 1.091,
+        "wilson_lo": 0.593,
+        "total_trades_all_strategies": 557,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24612
+      },
+      "lock_criteria": {
+        "pnl_sign_preserved": true,
+        "baseline_pnl": 23.9137,
+        "proposed_pnl": 34.1672,
+        "catastrophic_check": "PASS",
+        "warn_only": {
+          "pf_change": 0.0293,
+          "wilson_lo_change": 0.0064,
+          "n_change_pct": -1.5901,
+          "ev_change_pct": 44.9173
+        },
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "GBP_USD": {
+      "current": {
+        "N": 637,
+        "wins": 359,
+        "WR": 0.5636,
+        "EV": -0.1973,
+        "PnL": -125.6864,
+        "PF": 0.7605,
+        "wilson_lo": 0.5248,
+        "total_trades_all_strategies": 637,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24585
+      },
+      "proposed": {
+        "N": 626,
+        "wins": 355,
+        "WR": 0.5671,
+        "EV": -0.1863,
+        "PnL": -116.6522,
+        "PF": 0.7722,
+        "wilson_lo": 0.528,
+        "total_trades_all_strategies": 626,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24585
+      },
+      "lock_criteria": {
+        "pnl_sign_preserved": true,
+        "baseline_pnl": -125.6864,
+        "proposed_pnl": -116.6522,
+        "catastrophic_check": "PASS",
+        "warn_only": {
+          "pf_change": 0.0117,
+          "wilson_lo_change": 0.0032,
+          "n_change_pct": -1.7268,
+          "ev_change_pct": 5.5753
+        },
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    }
+  },
+  "overall_verdict": "PASS",
+  "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 1230.6,
+  "self_review": {
+    "catastrophic_check_only": "PASS: verdict uses only pnl_sign_preserved when proposed N>=20; PF/Wilson/N/EV deltas are warn-only.",
+    "insufficient_bt_evidence": "PASS: proposed N<20 becomes INSUFFICIENT_BT_EVIDENCE and shadow recommendation.",
+    "production_live_safety": "PASS: strategy behavior is default-off unless XS_MOMENTUM_REDESIGN_V2=1; shadow emit also requires XS_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered closed_bar_dedup_v2 variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo/network fallback for this report.",
+    "absolute_kelly_gate": "PASS: no Kelly threshold is used."
+  }
+}
