@@ -141,3 +141,44 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T08:47:30Z)
+
+exit=0 · 2317s
+
+```
+実装完了しました。
+
+変更点:
+- [sr_break_retest.py](/data/repo/fx-ai-trader/strategies/daytrade/sr_break_retest.py:83)
+  - `SR_BREAK_RETEST_REDESIGN_V2=1` 配下でのみ、retest/bounce 判定を current bar から `ctx.df.iloc[-2]` の確定済み signal bar に変更
+  - live 時のみ `(symbol, strategy, side, signal_bar_time, sr_bucket)` dedup を追加
+  - flag OFF は現行挙動維持
+- [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:299)
+  - `SR_BREAK_RETEST_REDESIGN_V2=1` かつ `SR_BREAK_RETEST_REDESIGN_V2_SHADOW_PROMOTE=1` の double-flag で shadow worker 登録
+- [app.py](/data/repo/fx-ai-trader/app.py:6161)
+  - BT cache key に SBR V2 flag を追加し、baseline/proposed cache 混線を防止
+- [test_sr_break_retest_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_sr_break_retest_shadow_redesign_v2.py:117)
+  - flag OFF 互換、closed-bar 判定、current-bar 無視、live dedup、shadow double-flag 登録を追加
+- [sr_break_retest_shadow_bt.py](/data/repo/fx-ai-trader/tools/sr_break_retest_shadow_bt.py)
+  - 365d MASSIVE / production `run_daytrade_backtest(backtest_mode=True)` runner を追加
+
+検証:
+- `.venv/bin/pytest -q tests/test_sr_break_retest_shadow_redesign_v2.py` → 5 passed
+- `.venv/bin/pytest -q tests/test_sr_break_retest_shadow_redesign_v2.py tests/test_dt_sr_channel_shadow_redesign_v2.py` → 10 passed
+- `.venv/bin/python tools/sr_break_retest_shadow_bt.py` → report 生成済み
+
+BT report:
+- [bt-results/sr_break_retest-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/sr_break_retest-shadow-redesign-v2-2026-05-05.json)
+- Overall verdict: `PASS`
+- Shadow recommendation: `RECOMMEND_SHADOW`
+- USD_JPY: current `N=286 PnL=-5.79 PF=0.97` → proposed `N=284 PnL=6.299 PF=1.0333`
+- GBP_USD: current `N=277 PnL=-58.462 PF=0.7334` → proposed `N=290 PnL=-84.4893 PF=0.652`
+- v2.1 criteria 通り、GBP_USD の PF/Wilson/PnL 悪化は WARN ONLY。正 PnL → 負 PnL の catastrophic regression ではないため PASS。
+
+Self-review:
+- catastrophic check は `pnl_sign_preserved` のみ
+- Kelly / promotion-grade floor は未使用
+- live 影響は `SR_BREA
+…(truncated)

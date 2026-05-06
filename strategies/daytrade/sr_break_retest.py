@@ -41,6 +41,7 @@ from strategies.context import SignalContext
 from modules.confidence_v2 import apply_penalty
 from typing import Optional
 import numpy as np
+import os
 
 
 class SrBreakRetest(StrategyBase):
@@ -79,6 +80,14 @@ class SrBreakRetest(StrategyBase):
 
     # ── 最大保持 ──
     MAX_HOLD_BARS = 12          # 12バー = 3時間 (15m足)
+    _v2_seen_closed_bar_keys: set[tuple[str, str, str, str, str]] = set()
+
+    @classmethod
+    def reset_dedup_state(cls):
+        cls._v2_seen_closed_bar_keys.clear()
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get("SR_BREAK_RETEST_REDESIGN_V2") == "1"
 
     def _find_fractal_levels(self, df, n: int = 3, lookback: int = 80):
         """Williams Fractal でフラクタル高値/安値を検出。
@@ -145,6 +154,8 @@ class SrBreakRetest(StrategyBase):
         return clusters
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        _redesign_v2 = self._redesign_v2_enabled()
+
         # ── EUR/USD除外: EV≈0, スプレッド負担で本番負EV ──
         # USD/JPY: 64t WR=64.1% EV=+0.252 → 採用
         # GBP/USD: 46t WR=60.9% EV=+0.145 → 採用
@@ -184,6 +195,17 @@ class SrBreakRetest(StrategyBase):
         # ═══════════════════════════════════════════════════
         _break_margin = ctx.atr * self.BREAK_MARGIN_ATR
         _retest_zone = ctx.atr * self.RETEST_ZONE_ATR
+        if _redesign_v2:
+            signal_bar = ctx.df.iloc[-2]
+            signal_bar_time = getattr(signal_bar, "name", None)
+            signal_close = float(signal_bar["Close"])
+            signal_open = float(signal_bar["Open"])
+            signal_ema9 = float(signal_bar.get("ema9", ctx.ema9))
+        else:
+            signal_bar_time = None
+            signal_close = ctx.entry
+            signal_open = ctx.open_price
+            signal_ema9 = ctx.ema9
 
         _best_signal = None  # (signal, sr_level, touches, break_bar_idx)
 
@@ -213,12 +235,11 @@ class SrBreakRetest(StrategyBase):
                         if float(_pre_bar["Close"]) > _sr_level + _break_margin:
                             continue  # 既にブレイク済み→このバーはブレイク足ではない
 
-                    # ── リテスト確認: 現在足がSR水準に戻っている ──
-                    if abs(ctx.entry - _sr_level) <= _retest_zone:
-                        # かつ現在足がSR水準から反発（陽線 + Close > EMA9）
-                        if ctx.entry > ctx.open_price and \
-                           ctx.entry > _sr_level and \
-                           (not self.RETEST_BOUNCE_EMA or ctx.entry > ctx.ema9):
+                    # ── リテスト確認: V2は確定済みsignal bar、legacyは現在足 ──
+                    if abs(signal_close - _sr_level) <= _retest_zone:
+                        if signal_close > signal_open and \
+                           signal_close > _sr_level and \
+                           (not self.RETEST_BOUNCE_EMA or signal_close > signal_ema9):
                             if _best_signal is None or _touches > _best_signal[2]:
                                 _best_signal = ("BUY", _sr_level, _touches, _offset)
                     break  # この SR水準で最初のブレイクのみ評価
@@ -230,10 +251,10 @@ class SrBreakRetest(StrategyBase):
                         if float(_pre_bar["Close"]) < _sr_level - _break_margin:
                             continue
 
-                    if abs(ctx.entry - _sr_level) <= _retest_zone:
-                        if ctx.entry < ctx.open_price and \
-                           ctx.entry < _sr_level and \
-                           (not self.RETEST_BOUNCE_EMA or ctx.entry < ctx.ema9):
+                    if abs(signal_close - _sr_level) <= _retest_zone:
+                        if signal_close < signal_open and \
+                           signal_close < _sr_level and \
+                           (not self.RETEST_BOUNCE_EMA or signal_close < signal_ema9):
                             if _best_signal is None or _touches > _best_signal[2]:
                                 _best_signal = ("SELL", _sr_level, _touches, _offset)
                     break
@@ -242,6 +263,14 @@ class SrBreakRetest(StrategyBase):
             return None
 
         signal, sr_level, touches, break_offset = _best_signal
+
+        if _redesign_v2 and not ctx.backtest_mode:
+            _sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+            _sr_bucket = f"{round(sr_level / max(ctx.atr, 1e-9), 2):.2f}"
+            _key = (_sym, self.name, signal, str(signal_bar_time), _sr_bucket)
+            if _key in self._v2_seen_closed_bar_keys:
+                return None
+            self._v2_seen_closed_bar_keys.add(_key)
 
         # ═══════════════════════════════════════════════════
         # STEP 3: HTFフィルター（逆方向ブロック）
@@ -318,6 +347,12 @@ class SrBreakRetest(StrategyBase):
             f"{'>' if signal == 'BUY' else '<'} SR水準 "
             f"(Role Reversal確認)"
         )
+        if _redesign_v2:
+            reasons.append(
+                f"✅ SR_BREAK_RETEST_REDESIGN_V2: signal_bar={signal_bar_time} "
+                f"closed Close={signal_close:.{3 if ctx.is_jpy else 5}f} "
+                f"{'>' if signal == 'BUY' else '<'} Open/EMA9/SR、次バー以降で約定"
+            )
         reasons.append(
             f"📊 RR={_rr:.1f} SL={sl:.{3 if ctx.is_jpy else 5}f} "
             f"TP={tp:.{3 if ctx.is_jpy else 5}f}"

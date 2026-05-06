@@ -6158,6 +6158,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
     _mtf_range_v2_cache_flag = os.environ.get("MTF_REGIME_RANGE_CASCADE_SCALP_REDESIGN_V2", "0")
     _pnv_v2_cache_flag = os.environ.get("POST_NEWS_VOL_REDESIGN_V2", "0")
     _rsk_v2_cache_flag = os.environ.get("RSK_GBPJPY_REVERSION_REDESIGN_V2", "0")
+    _sbr_v2_cache_flag = os.environ.get("SR_BREAK_RETEST_REDESIGN_V2", "0")
     cache_key = (
         f"{symbol}_{interval}_{lookback_days}_jitter{exec_lag_jitter:.4f}"
         f"_bt{int(bool(backtest_mode))}_gtmV2{_gtm_v2_cache_flag}"
@@ -6166,7 +6167,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         f"_lsbV2{_lsb_v2_cache_flag}_lnyV2{_lny_v2_cache_flag}"
         f"_mtfCascadeV2{_mtf_v2_cache_flag}_pnvV2{_pnv_v2_cache_flag}"
         f"_mtfRangeCascadeV2{_mtf_range_v2_cache_flag}"
-        f"_rskV2{_rsk_v2_cache_flag}"
+        f"_rskV2{_rsk_v2_cache_flag}_sbrV2{_sbr_v2_cache_flag}"
     )
     now = datetime.now()
     cached = _dt_bt_cache.get(cache_key)

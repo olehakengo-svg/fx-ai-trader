@@ -1,0 +1,125 @@
+{
+  "generated_at": "2026-05-06T08:46:46.940404+00:00",
+  "strategy": "sr_break_retest",
+  "variant": "closed_bar_retest_confirmation_v2",
+  "flag": "SR_BREAK_RETEST_REDESIGN_V2",
+  "shadow_worker_flag": "SR_BREAK_RETEST_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest(backtest_mode=True; production daytrade path; strategy-only compute patch)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": true,
+  "targets": [
+    "USD_JPY",
+    "GBP_USD"
+  ],
+  "missing_caches": [],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": "REJECT only when baseline PnL > 0 and proposed PnL < 0",
+    "warn_only": [
+      "PF change",
+      "Wilson lower change",
+      "N change pct"
+    ],
+    "sanity_floor": "REMOVED in v2.1",
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "USD_JPY": {
+      "current": {
+        "N": 286,
+        "wins": 166,
+        "WR": 0.5804,
+        "EV": -0.0202,
+        "PnL": -5.79,
+        "PF": 0.97,
+        "wilson_lo": 0.5225,
+        "total_trades_all_strategies": 286,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24644
+      },
+      "proposed": {
+        "N": 284,
+        "wins": 171,
+        "WR": 0.6021,
+        "EV": 0.0222,
+        "PnL": 6.299,
+        "PF": 1.0333,
+        "wilson_lo": 0.5442,
+        "total_trades_all_strategies": 284,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24644
+      },
+      "lock_criteria": {
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+        "warnings": {
+          "pf_change": 0.0633,
+          "wilson_lo_change": 0.0217,
+          "n_change_pct": -0.6993,
+          "warn_only": true
+        }
+      }
+    },
+    "GBP_USD": {
+      "current": {
+        "N": 277,
+        "wins": 154,
+        "WR": 0.556,
+        "EV": -0.2111,
+        "PnL": -58.462,
+        "PF": 0.7334,
+        "wilson_lo": 0.4971,
+        "total_trades_all_strategies": 277,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24585
+      },
+      "proposed": {
+        "N": 290,
+        "wins": 154,
+        "WR": 0.531,
+        "EV": -0.2913,
+        "PnL": -84.4893,
+        "PF": 0.652,
+        "wilson_lo": 0.4736,
+        "total_trades_all_strategies": 290,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24585
+      },
+      "lock_criteria": {
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+        "warnings": {
+          "pf_change": -0.0814,
+          "wilson_lo_change": -0.0235,
+          "n_change_pct": 4.6931,
+          "warn_only": true
+        }
+      }
+    }
+  },
+  "overall_verdict": "PASS",
+  "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 2108.5,
+  "self_review": {
+    "catastrophic_only": "PASS: verdict uses only pnl_sign_preserved when proposed N>=20; PF/Wilson/N are warnings only.",
+    "insufficient_bt_evidence": "PASS: proposed N<20 becomes INSUFFICIENT_BT_EVIDENCE and recommends shadow.",
+    "production_live_safety": "PASS: strategy behavior is default-off unless SR_BREAK_RETEST_REDESIGN_V2=1; shadow emit also requires SR_BREAK_RETEST_REDESIGN_V2_SHADOW_PROMOTE=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered closed-bar retest confirmation V2 variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo fallback for 15m price data.",
+    "absolute_kelly": "PASS: no absolute Kelly threshold is used."
+  }
+}
