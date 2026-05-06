@@ -1,0 +1,246 @@
+{
+  "strategy": "vbp",
+  "report": "shadow-redesign-v2.1",
+  "generated_at": "2026-05-05",
+  "runner_required": "app.run_daytrade_backtest(symbol=\"USDJPY=X\", lookback_days=365, interval=\"15m\", backtest_mode=True)",
+  "runner_note": "vbp is implemented in strategies.micro_scalp and is not a qualified entry_type in run_daytrade_backtest; the daytrade probe verifies the production runner/source guard but cannot produce vbp trades.",
+  "data_source_required": "data/cache/massive/{PAIR}_15m.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "bt_require_massive_cache": "1",
+  "daytrade_probe": {
+    "baseline": {
+      "contains_vbp": false,
+      "error": "run_daytrade_backtest probe timed out after 20s during app startup/side effects"
+    },
+    "proposed": {
+      "contains_vbp": false,
+      "error": "run_daytrade_backtest probe timed out after 20s during app startup/side effects"
+    }
+  },
+  "micro_harness_note": "Native MASSIVE 15m cache only; no Yahoo fallback and no resample substitute. No 1s/tick MASSIVE cache exists in this workspace.",
+  "redesign_axis": "Axis 2/3: candidate break bar uses its own prior range; pullback bars start after the break bar for V2.",
+  "per_pair": {
+    "USD_JPY": {
+      "baseline": {
+        "trades": 0,
+        "wins": 0,
+        "losses": 0,
+        "gross_win_pips": 0,
+        "gross_loss_pips": 0,
+        "win_rate": 0.0,
+        "wilson_lo": 0.0,
+        "profit_factor": 0.0,
+        "total_pnl_pips": 0,
+        "expected_value_pips": 0.0,
+        "bars": 24843
+      },
+      "proposed": {
+        "trades": 78,
+        "wins": 38,
+        "losses": 40,
+        "gross_win_pips": 214.15,
+        "gross_loss_pips": 345.167,
+        "win_rate": 0.4872,
+        "wilson_lo": 0.3795,
+        "profit_factor": 0.6204,
+        "total_pnl_pips": -131.017,
+        "expected_value_pips": -1.6797,
+        "bars": 24843
+      }
+    },
+    "EUR_USD": {
+      "baseline": {
+        "trades": 0,
+        "wins": 0,
+        "losses": 0,
+        "gross_win_pips": 0,
+        "gross_loss_pips": 0,
+        "win_rate": 0.0,
+        "wilson_lo": 0.0,
+        "profit_factor": 0.0,
+        "total_pnl_pips": 0,
+        "expected_value_pips": 0.0,
+        "bars": 24811
+      },
+      "proposed": {
+        "trades": 94,
+        "wins": 36,
+        "losses": 58,
+        "gross_win_pips": 128.05,
+        "gross_loss_pips": 302.535,
+        "win_rate": 0.383,
+        "wilson_lo": 0.2911,
+        "profit_factor": 0.4233,
+        "total_pnl_pips": -174.485,
+        "expected_value_pips": -1.8562,
+        "bars": 24811
+      }
+    },
+    "GBP_USD": {
+      "baseline": {
+        "trades": 0,
+        "wins": 0,
+        "losses": 0,
+        "gross_win_pips": 0,
+        "gross_loss_pips": 0,
+        "win_rate": 0.0,
+        "wilson_lo": 0.0,
+        "profit_factor": 0.0,
+        "total_pnl_pips": 0,
+        "expected_value_pips": 0.0,
+        "bars": 24784
+      },
+      "proposed": {
+        "trades": 82,
+        "wins": 29,
+        "losses": 53,
+        "gross_win_pips": 98.95,
+        "gross_loss_pips": 220.362,
+        "win_rate": 0.3537,
+        "wilson_lo": 0.2589,
+        "profit_factor": 0.449,
+        "total_pnl_pips": -121.412,
+        "expected_value_pips": -1.4806,
+        "bars": 24784
+      }
+    },
+    "EUR_JPY": {
+      "baseline": {
+        "trades": 0,
+        "wins": 0,
+        "losses": 0,
+        "gross_win_pips": 0,
+        "gross_loss_pips": 0,
+        "win_rate": 0.0,
+        "wilson_lo": 0.0,
+        "profit_factor": 0.0,
+        "total_pnl_pips": 0,
+        "expected_value_pips": 0.0,
+        "bars": 24560
+      },
+      "proposed": {
+        "trades": 65,
+        "wins": 25,
+        "losses": 40,
+        "gross_win_pips": 97.4,
+        "gross_loss_pips": 207.338,
+        "win_rate": 0.3846,
+        "wilson_lo": 0.2759,
+        "profit_factor": 0.4698,
+        "total_pnl_pips": -109.938,
+        "expected_value_pips": -1.6914,
+        "bars": 24560
+      }
+    },
+    "GBP_JPY": {
+      "baseline": {
+        "trades": 0,
+        "wins": 0,
+        "losses": 0,
+        "gross_win_pips": 0,
+        "gross_loss_pips": 0,
+        "win_rate": 0.0,
+        "wilson_lo": 0.0,
+        "profit_factor": 0.0,
+        "total_pnl_pips": 0,
+        "expected_value_pips": 0.0,
+        "bars": 24216
+      },
+      "proposed": {
+        "trades": 53,
+        "wins": 27,
+        "losses": 26,
+        "gross_win_pips": 193.223,
+        "gross_loss_pips": 181.995,
+        "win_rate": 0.5094,
+        "wilson_lo": 0.3788,
+        "profit_factor": 1.0617,
+        "total_pnl_pips": 11.228,
+        "expected_value_pips": 0.2119,
+        "bars": 24216
+      }
+    },
+    "EUR_GBP": {
+      "baseline": {
+        "trades": 0,
+        "wins": 0,
+        "losses": 0,
+        "gross_win_pips": 0,
+        "gross_loss_pips": 0,
+        "win_rate": 0.0,
+        "wilson_lo": 0.0,
+        "profit_factor": 0.0,
+        "total_pnl_pips": 0,
+        "expected_value_pips": 0.0,
+        "bars": 24818
+      },
+      "proposed": {
+        "trades": 66,
+        "wins": 23,
+        "losses": 43,
+        "gross_win_pips": 41.45,
+        "gross_loss_pips": 96.202,
+        "win_rate": 0.3485,
+        "wilson_lo": 0.2448,
+        "profit_factor": 0.4309,
+        "total_pnl_pips": -54.752,
+        "expected_value_pips": -0.8296,
+        "bars": 24818
+      }
+    }
+  },
+  "aggregate": {
+    "baseline": {
+      "trades": 0,
+      "wins": 0,
+      "losses": 0,
+      "gross_win_pips": 0,
+      "gross_loss_pips": 0,
+      "win_rate": 0.0,
+      "wilson_lo": 0.0,
+      "profit_factor": 0.0,
+      "total_pnl_pips": 0,
+      "expected_value_pips": 0.0
+    },
+    "proposed": {
+      "trades": 438,
+      "wins": 178,
+      "losses": 260,
+      "gross_win_pips": 773.223,
+      "gross_loss_pips": 1353.599,
+      "win_rate": 0.4064,
+      "wilson_lo": 0.3614,
+      "profit_factor": 0.5712,
+      "total_pnl_pips": -580.376,
+      "expected_value_pips": -1.3251
+    }
+  },
+  "v2_lock": {
+    "verdict": "PASS",
+    "shadow_promote_decision": "SHADOW_PROMOTE_RECOMMENDED",
+    "catastrophic_check": {
+      "pnl_sign_preserved": true
+    },
+    "warnings_only": {
+      "n_change_pct": null,
+      "pf_change": 0.5712,
+      "wilson_lo_change": 0.3614,
+      "ev_change_pips": -1.3251
+    },
+    "sanity_floor": "REMOVED_IN_V2_1"
+  },
+  "shadow_registration": {
+    "implemented": true,
+    "flags_required": [
+      "VBP_REDESIGN_V2=1",
+      "VBP_REDESIGN_V2_SHADOW_PROMOTE=1"
+    ],
+    "default_live_impact": "zero; both flags default OFF"
+  },
+  "codex_self_review": {
+    "catastrophic_only_shadow_promote": true,
+    "absolute_kelly_required": false,
+    "flag_off_live_impact_zero": true,
+    "post_hoc_adjustment": false
+  }
+}

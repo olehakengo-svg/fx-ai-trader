@@ -39,6 +39,7 @@ Strategy #2: Volatility Breakout Pullback (VBP)
   - Brock, Lakonishok, LeBaron (1992) "Simple Technical Trading Rules"
 """
 from __future__ import annotations
+import os
 from typing import Optional
 from strategies.micro_scalp.base import (
     MicroStrategyBase, MicroSignal, TickBar, CostModel,
@@ -63,42 +64,71 @@ class VolatilityBreakoutPullback(MicroStrategyBase):
         if len(bars) < L + 10:
             return None
 
-        # ── 現在バー除外のレンジ ──
-        hist = bars[-(L + 1):-1]
-        H_prev = max(b.high for b in hist)
-        L_prev = min(b.low for b in hist)
-        range_prev = H_prev - L_prev
-        if range_prev <= 0:
-            return None
-
         # ── ブレイク発生バーを探索 (直近20秒以内) ──
         # 長時間前のブレイクは既にエッジ消失済みと判断
         t_break = None
         break_side = None
         break_price = None
+        H_prev = None
+        L_prev = None
+        range_prev = None
+        redesign_v2 = os.environ.get("VBP_REDESIGN_V2") == "1"
+
+        if not redesign_v2:
+            # ── 現在バー除外のレンジ ──
+            hist = bars[-(L + 1):-1]
+            H_prev = max(b.high for b in hist)
+            L_prev = min(b.low for b in hist)
+            range_prev = H_prev - L_prev
+            if range_prev <= 0:
+                return None
+
         for i in range(-20, -3):
             b = bars[i]
-            if b.close > H_prev:
+            if redesign_v2:
+                prior = bars[i - L:i]
+                if len(prior) < L:
+                    continue
+                H_i = max(p.high for p in prior)
+                L_i = min(p.low for p in prior)
+                range_i = H_i - L_i
+                if range_i <= 0:
+                    continue
+            else:
+                H_i = H_prev
+                L_i = L_prev
+                range_i = range_prev
+            if b.close > H_i:
                 t_break = i
                 break_side = "UP"
                 break_price = b.close
+                H_prev = H_i
+                L_prev = L_i
+                range_prev = range_i
                 break
-            if b.close < L_prev:
+            if b.close < L_i:
                 t_break = i
                 break_side = "DOWN"
                 break_price = b.close
+                H_prev = H_i
+                L_prev = L_i
+                range_prev = range_i
                 break
 
         if t_break is None:
             return None
+        if H_prev is None or L_prev is None or range_prev is None:
+            return None
 
         # ── ブレイク後の極値とpullback判定 ──
         post_break = bars[t_break:]
+        pullback_bars = bars[t_break + 1:] if redesign_v2 else post_break
+        if not pullback_bars:
+            return None
         if break_side == "UP":
             extreme = max(b.high for b in post_break)
             pullback_target = extreme - self.pullback_ratio * (extreme - H_prev)
-            current = bars[-1].close
-            pb_low = min(b.low for b in bars[t_break:])
+            pb_low = min(b.low for b in pullback_bars)
             # pullback完了条件: 最安値 <= target AND 現在が反発中
             if pb_low > pullback_target:
                 return None
@@ -114,7 +144,7 @@ class VolatilityBreakoutPullback(MicroStrategyBase):
         else:
             extreme = min(b.low for b in post_break)
             pullback_target = extreme + self.pullback_ratio * (L_prev - extreme)
-            pb_high = max(b.high for b in bars[t_break:])
+            pb_high = max(b.high for b in pullback_bars)
             if pb_high < pullback_target:
                 return None
             last3 = bars[-3:]
@@ -163,6 +193,7 @@ class VolatilityBreakoutPullback(MicroStrategyBase):
             reason=(
                 f"[VBP] break_side={break_side} range={range_prev/self.pip:.1f}pips "
                 f"pullback={self.pullback_ratio:.0%} burst={burst/self.pip:+.1f}pips"
+                f"{' VBP_REDESIGN_V2' if redesign_v2 else ''}"
             ),
             sl_pips=sl_dist / self.pip,
             tp_pips=tp_dist / self.pip,

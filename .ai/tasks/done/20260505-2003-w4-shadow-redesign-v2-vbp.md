@@ -141,3 +141,33 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T18:33:56Z)
+
+exit=0 · 317s
+
+```
+実装完了しました。
+
+主な変更:
+- [strategies/micro_scalp/vbp.py](/data/repo/fx-ai-trader/strategies/micro_scalp/vbp.py:75): `VBP_REDESIGN_V2=1` 配下で、候補 break bar ごとの `prior = bars[i-L:i]` から range を計算するよう修正。default OFF は legacy 挙動維持。
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:220): `VBP_REDESIGN_V2=1` かつ `VBP_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag で shadow always 登録。
+- [tests/test_vbp_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_vbp_shadow_redesign_v2.py:65): legacy miss / V2 signal / shadow promote double flag のテスト追加。
+- [tools/vbp_shadow_bt.py](/data/repo/fx-ai-trader/tools/vbp_shadow_bt.py:1): 365d MASSIVE native parquet BT report 生成 script 追加。
+- [bt-results/vbp-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/vbp-shadow-redesign-v2-2026-05-05.json:1): BT artifact 生成済み。
+
+BT v2 LOCK:
+- Verdict: `PASS`
+- Shadow decision: `SHADOW_PROMOTE_RECOMMENDED`
+- Baseline: `N=0`, PnL `0`
+- Proposed: `N=438`, PnL `-580.376pips`, PF `0.5712`, Wilson lo `0.3614`
+- v2.1 criteria 上は catastrophic が「baseline positive → proposed negative」のみなので、`0 → negative` は REJECT ではなく PASS です。PF / Wilson / EV は WARN only として artifact に記録しています。
+
+Verification:
+- `./.venv/bin/python -m pytest tests/test_vbp_shadow_redesign_v2.py tests/test_tvsm_shadow_redesign_v2.py tests/test_ofi_mr_shadow_redesign_v2.py -q` → `13 passed`
+- `./.venv/bin/python -m py_compile strategies/micro_scalp/vbp.py strategies/scalp/__init__.py tools/vbp_shadow_bt.py` → OK
+- `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1 ./.venv/bin/python tools/vbp_shadow_bt.py` → report generated
+
+Caveat: `vbp` は `strategies.micro_scalp` 実装で、現行 `run_daytrade_backtest()` の qualified `entry_type` ではありません。artifact には daytrade probe を入れましたが、app startup side effects により 20s timeout として記録されています。BT 本体は `data/cache/massive/{PAIR}_15m.parquet` のみを使い、Yahoo fallback / resample substitute は使っていません。
+```
