@@ -137,3 +137,47 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T01:04:18Z)
+
+exit=0 · 1382s
+
+```
+実装完了です。
+
+変更点:
+- [strategies/scalp/london_shrapnel.py](/data/repo/fx-ai-trader/strategies/scalp/london_shrapnel.py:66)
+  - `LONDON_SHRAPNEL_REDESIGN_V2=1` 配下でのみ V2 有効化
+  - closed-bar の `sweep + reclaim` trigger
+  - current/intrabar 判定を避ける next execution 形式
+  - per-bar dedup
+  - bounded target geometry
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:190)
+  - `LONDON_SHRAPNEL_REDESIGN_V2=1`
+  - `LONDON_SHRAPNEL_REDESIGN_V2_SHADOW_PROMOTE=1`
+  - の二重 flag 時だけ shadow worker emit 対象に登録
+- [tests/test_london_shrapnel_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_london_shrapnel_shadow_redesign_v2.py:102)
+  - default OFF legacy preservation
+  - V2 sweep/reclaim required
+  - closed-bar execution
+  - dedup
+  - shadow promote double-flag registration
+- [tools/london_shrapnel_shadow_bt.py](/data/repo/fx-ai-trader/tools/london_shrapnel_shadow_bt.py:1)
+  - 365d MASSIVE BT report generator
+
+Verification:
+- `./.venv/bin/python -m pytest tests/test_london_shrapnel_shadow_redesign_v2.py -q` → `5 passed`
+- `./.venv/bin/python -m py_compile tools/london_shrapnel_shadow_bt.py strategies/scalp/london_shrapnel.py` → OK
+- `git diff --check` → OK
+- 365d BT completed with `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1`
+
+BT report:
+- [bt-results/london_shrapnel-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/london_shrapnel-shadow-redesign-v2-2026-05-05.json:1)
+- EUR_USD proposed N=0
+- GBP_USD proposed N=0
+- Overall verdict: `INSUFFICIENT_BT_EVIDENCE`
+- Recommendation: `RECOMMEND_SHADOW`
+
+Per v2 LOCK criteria, proposed N<20 なので catastrophic check は skip、Kelly/positive direction は要求していません。Live impact は default OFF で、shadow emit も二重 flag がない限り有効化されません。
+```

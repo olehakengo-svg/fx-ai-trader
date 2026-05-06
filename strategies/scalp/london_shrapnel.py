@@ -23,6 +23,7 @@ London Shrapnel — ロンドン/NY重なり時間帯の異常ヒゲ反転スキ
 """
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
+import os
 from typing import Optional
 
 
@@ -43,6 +44,11 @@ class LondonShrapnel(StrategyBase):
     _enabled_symbols = frozenset({"EURUSD", "GBPUSD"})
     # 稼働時間 (London/NY overlap)
     _active_hours = frozenset(range(12, 18))
+    _dedup_seen: set[tuple[str, object, str]] = set()
+
+    @classmethod
+    def reset_dedup_state(cls):
+        cls._dedup_seen.clear()
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         # ── ペアフィルター ──
@@ -56,6 +62,9 @@ class LondonShrapnel(StrategyBase):
 
         if ctx.atr7 <= 0:
             return None
+
+        if os.environ.get("LONDON_SHRAPNEL_REDESIGN_V2") == "1":
+            return self._evaluate_redesign_v2(ctx, _sym)
 
         # ── ヒゲ計算 ──
         _body = abs(ctx.entry - ctx.open_price)
@@ -148,6 +157,106 @@ class LondonShrapnel(StrategyBase):
 
         conf = int(min(85, 50 + score * 4))
 
+        return Candidate(
+            signal=signal, confidence=conf, sl=sl, tp=tp,
+            reasons=reasons, entry_type=self.name, score=score,
+        )
+
+    def _evaluate_redesign_v2(self, ctx: SignalContext, sym: str) -> Optional[Candidate]:
+        """V2: closed-bar stop sweep + reclaim instead of generic long-wick reversal."""
+        if ctx.df is None or len(ctx.df) < 3:
+            return None
+
+        signal_row = ctx.df.iloc[-2]
+        prior_row = ctx.df.iloc[-3]
+        signal_time = ctx.df.index[-2] if hasattr(ctx.df, "index") else ctx.bar_time
+
+        sig_open = float(signal_row["Open"])
+        sig_close = float(signal_row["Close"])
+        sig_high = float(signal_row["High"])
+        sig_low = float(signal_row["Low"])
+        prior_low = float(prior_row["Low"])
+        prior_high = float(prior_row["High"])
+        atr = float(signal_row.get("atr7", signal_row.get("atr", ctx.atr7)))
+        if atr <= 0:
+            return None
+
+        bb_lower = float(signal_row.get("bb_lower", ctx.bb_lower))
+        bb_mid = float(signal_row.get("bb_mid", ctx.bb_mid or sig_close))
+        bb_upper = float(signal_row.get("bb_upper", ctx.bb_upper))
+        rsi5 = float(signal_row.get("rsi5", ctx.rsi5))
+        bbpb = float(signal_row.get("bb_pband", ctx.bbpb))
+
+        body = max(abs(sig_close - sig_open), atr * 0.01)
+        upper_wick = sig_high - max(sig_close, sig_open)
+        lower_wick = min(sig_close, sig_open) - sig_low
+        sweep_buffer = max(atr * 0.05, 0.00002)
+        min_sl = 0.00030
+
+        signal = None
+        score = 0.0
+        reasons = []
+        sl = 0.0
+        tp = 0.0
+        liquidity_low = min(prior_low, bb_lower)
+        liquidity_high = max(prior_high, bb_upper)
+
+        if (lower_wick >= atr * self.wick_atr_min
+                and lower_wick / body >= self.wick_body_ratio
+                and sig_close > sig_open
+                and sig_low < liquidity_low - sweep_buffer
+                and sig_close > liquidity_low
+                and rsi5 < self.rsi_buy_max):
+            signal = "BUY"
+            score = 4.0
+            sl = min(sig_low - atr * self.sl_buffer, ctx.entry - min_sl)
+            risk = max(ctx.entry - sl, min_sl)
+            raw_tp = ctx.entry + atr * self.tp_mult
+            rr_tp = ctx.entry + risk
+            mid_tp = bb_mid if bb_mid > ctx.entry else raw_tp
+            tp = min(raw_tp, rr_tp, mid_tp)
+            reasons.append("✅ LONDON_SHRAPNEL_REDESIGN_V2 closed-bar lower sweep + reclaim")
+            reasons.append(f"✅ sweep low {sig_low:.5f} < liquidity {liquidity_low:.5f}; close reclaimed {sig_close:.5f}")
+            reasons.append(f"✅ lower wick={lower_wick / atr:.1f}ATR, wick/body={lower_wick / body:.1f}x, RSI5={rsi5:.1f}")
+
+        elif (upper_wick >= atr * self.wick_atr_min
+              and upper_wick / body >= self.wick_body_ratio
+              and sig_close < sig_open
+              and sig_high > liquidity_high + sweep_buffer
+              and sig_close < liquidity_high
+              and rsi5 > self.rsi_sell_min):
+            signal = "SELL"
+            score = 4.0
+            sl = max(sig_high + atr * self.sl_buffer, ctx.entry + min_sl)
+            risk = max(sl - ctx.entry, min_sl)
+            raw_tp = ctx.entry - atr * self.tp_mult
+            rr_tp = ctx.entry - risk
+            mid_tp = bb_mid if bb_mid < ctx.entry else raw_tp
+            tp = max(raw_tp, rr_tp, mid_tp)
+            reasons.append("✅ LONDON_SHRAPNEL_REDESIGN_V2 closed-bar upper sweep + reclaim")
+            reasons.append(f"✅ sweep high {sig_high:.5f} > liquidity {liquidity_high:.5f}; close reclaimed {sig_close:.5f}")
+            reasons.append(f"✅ upper wick={upper_wick / atr:.1f}ATR, wick/body={upper_wick / body:.1f}x, RSI5={rsi5:.1f}")
+
+        if signal is None:
+            return None
+
+        dedup_key = (sym, signal_time, signal)
+        if dedup_key in self._dedup_seen:
+            return None
+        self._dedup_seen.add(dedup_key)
+
+        if signal == "BUY" and bbpb < 0.15:
+            score += 0.5
+            reasons.append(f"✅ BB極端圏(%B={bbpb:.2f}<0.15) +0.5")
+        elif signal == "SELL" and bbpb > 0.85:
+            score += 0.5
+            reasons.append(f"✅ BB極端圏(%B={bbpb:.2f}>0.85) +0.5")
+
+        if "GBP" in sym and ctx.adx >= 20:
+            score += 0.3
+            reasons.append(f"✅ GBPボラ環境(ADX={ctx.adx:.1f})")
+
+        conf = int(min(85, 50 + score * 4))
         return Candidate(
             signal=signal, confidence=conf, sl=sl, tp=tp,
             reasons=reasons, entry_type=self.name, score=score,
