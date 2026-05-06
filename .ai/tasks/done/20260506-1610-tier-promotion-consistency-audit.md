@@ -309,3 +309,18 @@ M7 で `is_live=1 AND bridge_status='filled'` 行が **1 件でも** 検出さ�
 2. 各 M の Verdict 整合性 (司令塔の演繹仮説と実測の乖離)
 3. 修正案を Wave 5 ロードマップに統合可能か
 4. 最重要矛盾を hot-fix Codex タスクに昇格させる優先順位
+
+
+## Result (2026-05-06T11:07:49Z)
+
+exit=0 · 21s
+
+```
+実行前 MUST チェックで orphan 条件に該当したため、監査を中断しました。
+
+検出 PID: `1608`
+
+補足: `pgrep` / `ps` が環境に存在しなかったため `/proc/*/cmdline` で代替検査しました。PID 検出後に cmdline を読もうとしましたが、その時点では `/proc/1608/cmdline` が消えており、プロセスは終了済みの可能性があります。
+
+指定どおり、`demo_trades.db` 監査・Render API 照合・レポート生成には進んでいません。
+```
