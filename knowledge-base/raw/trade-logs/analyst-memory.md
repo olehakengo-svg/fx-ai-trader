@@ -779,6 +779,16 @@ Cutoff後累計はN=22、WR=45.5%、PnL=−12.1pips相当。システムは稼�
 - **最も環境適合**: EUR_USD RANGING × 平均回帰系（ただし約定量が少ない）
 - **機会領域**: USD_JPY/EUR_JPY VOLATILE × モメンタム系（streak_reversal等）
 
+### 2026-05-06 (Post-Tokyo Report)
+| WR | **0.0%** (1敗) |
+| PnL | **−5.6 pips** |
+| 本日累計（参考） | N=2 / WR=50% / +6.2 pips |
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+- streak_reversal / USD_JPY はKB上「no BT data / PAIR_PROMOTED」。センチネル段階でありN蓄積中。
+- N=1（本日）の単一損失からシグナルは引き出せない。
+- VOLATILE環境下でのSL_HIT 1件は通常レンジ内事象。
+- 現在DD=28.01% → DD防御モード（0.2x）稼働中であり、パラメータ干渉のコストが高い。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
