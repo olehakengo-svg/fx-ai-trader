@@ -141,3 +141,30 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T19:09:00Z)
+
+exit=0 · 973s
+
+```
+実装と検証まで完了しました。
+
+変更点:
+- [strategies/scalp/vol_momentum.py](/data/repo/fx-ai-trader/strategies/scalp/vol_momentum.py:66): `VOL_MOMENTUM_REDESIGN_V2=1` 配下で closed-bar snapshot 判定、次 bar entry、signal bar dedup を適用。default OFF は現行挙動維持。
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:223): shadow promote は `VOL_MOMENTUM_REDESIGN_V2=1` かつ `VOL_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag 配下に登録。
+- [app.py](/data/repo/fx-ai-trader/app.py:5500): scalp BT cache に V2 flag を含め、flag ON/OFF 比較の cache 混線を防止。
+- [tests/test_vol_momentum_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_vol_momentum_shadow_redesign_v2.py:106): default OFF、closed-bar 判定、current-bar-only reject、dedup、shadow worker double-flag をテスト追加。
+- [bt-results/vol_momentum-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/vol_momentum-shadow-redesign-v2-2026-05-05.json): 365d MASSIVE BT report 生成。
+
+検証:
+- `9 passed`: `tests/test_vol_momentum_shadow_redesign_v2.py` + 既存 `tests/test_vol_momentum_scalp_shadow_redesign.py`
+- `py_compile`: `app.py`, strategy, scalp engine, BT tool
+- BT: `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1`, `run_daytrade_backtest(backtest_mode=True)` 使用
+
+v2.1 LOCK verdict: `REJECT`
+
+理由は v2.1 の唯一の catastrophic 条件に該当したためです。`USD_JPY` 365d で baseline PnL `+23.2456` から proposed PnL `-61.1635` に正→負反転しました。proposed N は `469` なので `INSUFFICIENT_BT_EVIDENCE` ではなく、`pnl_sign_preserved=False` による REJECT です。PF/Wilson/N drop は report に WARN-only として記録し、判定には使っていません。
+
+Shadow promote は適用していません。flag 配下の実装だけ入れてあり、default OFF のままです。
+```

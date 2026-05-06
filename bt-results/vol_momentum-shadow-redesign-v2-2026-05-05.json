@@ -1,0 +1,95 @@
+{
+  "generated_at": "2026-05-06T19:07:48.490935+00:00",
+  "strategy": "vol_momentum",
+  "entry_type": "vol_momentum_scalp",
+  "variant": "closed_bar_dedup_v2",
+  "flag": "VOL_MOMENTUM_REDESIGN_V2",
+  "shadow_worker_flag": "VOL_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "5m",
+  "runner": "app.run_daytrade_backtest(backtest_mode=True; production daytrade path; strategy-only compute patch)",
+  "runner_notes": [
+    "compute_daytrade_signal is patched to evaluate only vol_momentum_scalp.",
+    "BT HTF recomputation interval is disabled in this tool because vol_momentum_scalp does not consume HTF; execution, friction, cooldown, and next-bar entry remain in run_daytrade_backtest."
+  ],
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1",
+  "bt_mode": "1",
+  "massive_cache_verified": true,
+  "targets": [
+    "USD_JPY"
+  ],
+  "missing_target_caches": [],
+  "missing_enabled_pair_caches": [
+    "data/cache/massive/EUR_JPY_5m.parquet",
+    "data/cache/massive/GBP_USD_5m.parquet",
+    "data/cache/massive/XAU_USD_5m.parquet"
+  ],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": {
+      "pnl_sign_preserved_only": "baseline PnL > 0 and proposed PnL < 0 is the only REJECT condition"
+    },
+    "warn_only": [
+      "pf_change",
+      "wilson_lo_change",
+      "n_change_pct"
+    ],
+    "sanity_floor": "REMOVED in v2.1",
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "USD_JPY": {
+      "current": {
+        "N": 674,
+        "wins": 425,
+        "WR": 0.6306,
+        "EV": 0.0345,
+        "PnL": 23.2456,
+        "PF": 1.0522,
+        "wilson_lo": 0.5935,
+        "total_trades_all_strategies": 674,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 73935
+      },
+      "proposed": {
+        "N": 469,
+        "wins": 268,
+        "WR": 0.5714,
+        "EV": -0.1304,
+        "PnL": -61.1635,
+        "PF": 0.8304,
+        "wilson_lo": 0.5262,
+        "total_trades_all_strategies": 469,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 73935
+      },
+      "lock_criteria": {
+        "pf_change_warn_only": -0.2218,
+        "wilson_lo_change_warn_only": -0.0673,
+        "n_change_pct_warn_only": -30.4154,
+        "pnl_sign_preserved": false,
+        "catastrophic_check": false,
+        "sanity_floor": "REMOVED_IN_V2_1",
+        "positive_direction": "NOT_REQUIRED_IN_V2_1",
+        "verdict": "REJECT",
+        "shadow_promote_recommendation": "REJECT"
+      }
+    }
+  },
+  "overall_verdict": "REJECT",
+  "shadow_promote_recommendation": "REJECT",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 227.6,
+  "self_review": {
+    "catastrophic_only": "PASS: v2.1 verdict uses only pnl_sign_preserved when proposed N>=20.",
+    "warn_only_metrics": "PASS: PF, Wilson lower, and N drop are reported only as warnings.",
+    "absolute_kelly": "PASS: no Kelly threshold is applied.",
+    "production_live_safety": "PASS: redesign and shadow worker behavior are default-off env flags.",
+    "post_hoc_adjustment": "PASS: only the pre-registered closed_bar_dedup_v2 variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo/network fallback for this report."
+  }
+}

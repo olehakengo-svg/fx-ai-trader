@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A/B BT light filter for vol_momentum_scalp V2 timing hardening."""
+"""A/B BT filter for vol_momentum V2.1 timing hardening."""
 from __future__ import annotations
 
 import json
@@ -13,6 +13,7 @@ from pathlib import Path
 os.environ["BT_MODE"] = "1"
 os.environ["BT_REQUIRE_MASSIVE_CACHE"] = "1"
 os.environ["NO_AUTOSTART"] = "1"
+sys.modules.setdefault("pytest", object())
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -27,11 +28,12 @@ ENABLED_PAIR_CACHES = [
     "XAU_USD",
 ]
 LOOKBACK_DAYS = 365
-MINIMUM_DAYS = 90
+MINIMUM_DAYS = 365
 INTERVAL = "5m"
 STRATEGY = "vol_momentum_scalp"
-FLAG = "VOL_MOMENTUM_SCALP_REDESIGN_V2"
-OUTFILE = ROOT / "knowledge-base/raw/bt-results/vol_momentum_scalp-shadow-bt-2026-05-05.json"
+FLAG = "VOL_MOMENTUM_REDESIGN_V2"
+SHADOW_PROMOTE_FLAG = "VOL_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE"
+OUTFILE = ROOT / "bt-results" / "vol_momentum-shadow-redesign-v2-2026-05-05.json"
 
 
 def _cache_path(pair: str) -> Path:
@@ -88,16 +90,113 @@ def _stats(result: dict) -> dict:
     }
 
 
+def _build_ctx(df, tf, sr_levels, symbol, backtest_mode, bar_time, htf_cache):
+    from strategies.context import SignalContext
+
+    row = df.iloc[-1]
+    prev = df.iloc[-2] if len(df) >= 2 else row
+    entry = float(row["Close"])
+    atr = float(row.get("atr", 0.0) or 0.0)
+    atr7 = float(row.get("atr7", atr) or atr)
+    pip_mult = 100 if ("JPY" in symbol.upper() or "XAU" in symbol.upper()) else 10000
+    return SignalContext(
+        entry=entry,
+        open_price=float(row["Open"]),
+        atr=atr,
+        atr7=atr7,
+        ema9=float(row.get("ema9", entry)),
+        ema21=float(row.get("ema21", entry)),
+        ema50=float(row.get("ema50", entry)),
+        ema200=float(row.get("ema200", entry)),
+        ema200_bull=entry > float(row.get("ema200", entry)),
+        ema9_prev=float(prev.get("ema9", row.get("ema9", entry))),
+        ema21_prev=float(prev.get("ema21", row.get("ema21", entry))),
+        adx=float(row.get("adx", 25.0) or 25.0),
+        adx_pos=float(row.get("adx_pos", 25.0) or 25.0),
+        adx_neg=float(row.get("adx_neg", 25.0) or 25.0),
+        rsi=float(row.get("rsi", 50.0) or 50.0),
+        rsi5=float(row.get("rsi5", row.get("rsi", 50.0)) or 50.0),
+        rsi9=float(row.get("rsi9", row.get("rsi", 50.0)) or 50.0),
+        stoch_k=float(row.get("stoch_k", 50.0) or 50.0),
+        stoch_d=float(row.get("stoch_d", 50.0) or 50.0),
+        macdh=float(row.get("macd_hist", 0.0) or 0.0),
+        macdh_prev=float(prev.get("macd_hist", 0.0) or 0.0),
+        bbpb=float(row.get("bb_pband", 0.5) or 0.5),
+        bb_upper=float(row.get("bb_upper", entry + atr)),
+        bb_mid=float(row.get("bb_mid", entry)),
+        bb_lower=float(row.get("bb_lower", entry - atr)),
+        bb_width=float(row.get("bb_width", 0.0) or 0.0),
+        bb_width_pct=float(row.get("bb_width_pct", 0.60) or 0.60),
+        prev_close=float(prev["Close"]),
+        prev_open=float(prev["Open"]),
+        prev_high=float(prev["High"]),
+        prev_low=float(prev["Low"]),
+        htf=htf_cache.get("htf", {}) if htf_cache else {},
+        symbol=symbol,
+        tf=tf,
+        is_jpy="JPY" in symbol.upper(),
+        pip_mult=pip_mult,
+        df=df,
+        sr_levels=sr_levels,
+        backtest_mode=backtest_mode,
+        bar_time=bar_time,
+        hour_utc=bar_time.hour if hasattr(bar_time, "hour") else 12,
+    )
+
+
+def _compute_strategy_only_signal(df, tf, sr_levels, symbol="USDJPY=X",
+                                  backtest_mode=False, bar_time=None, htf_cache=None):
+    from strategies.scalp.vol_momentum import VolMomentumScalp
+
+    if df is None or len(df) < 3:
+        return {"signal": "WAIT", "entry_type": "wait", "reasons": ["insufficient df"]}
+    if bar_time is None:
+        bar_time = df.index[-1]
+    ctx = _build_ctx(df, tf, sr_levels, symbol, backtest_mode, bar_time, htf_cache)
+    cand = VolMomentumScalp().evaluate(ctx)
+    entry = float(df.iloc[-1]["Close"])
+    atr = float(df.iloc[-1].get("atr", 0.0) or 0.0)
+    if cand is None:
+        return {
+            "signal": "WAIT",
+            "entry": entry,
+            "entry_type": "wait",
+            "reasons": [f"{STRATEGY} no signal"],
+            "atr": atr,
+            "mode": "daytrade",
+            "indicators": {"adx": ctx.adx},
+            "shadow_emit_signals": [],
+        }
+    return {
+        "signal": cand.signal,
+        "entry": entry,
+        "confidence": cand.confidence,
+        "sl": float(cand.sl),
+        "tp": float(cand.tp),
+        "entry_type": cand.entry_type,
+        "reasons": [f"strategy-filter BT: {STRATEGY}"] + list(cand.reasons or []),
+        "score": float(cand.score),
+        "atr": atr,
+        "mode": "daytrade",
+        "layer_status": {},
+        "regime": {},
+        "indicators": {"adx": ctx.adx},
+        "shadow_emit_signals": [],
+    }
+
+
 def _run(app, data_mod, symbol: str, proposed: bool, days: int) -> dict:
     os.environ[FLAG] = "1" if proposed else "0"
-    app._scalp_bt_cache.clear()
+    os.environ["VOL_MOMENTUM_SCALP_REDESIGN_V2"] = "1" if proposed else "0"
+    app._dt_bt_cache.clear()
     data_mod._data_cache.clear()
     from strategies.scalp.vol_momentum import VolMomentumScalp
     VolMomentumScalp.reset_dedup_state()
-    return app.run_scalp_backtest(
+    return app.run_daytrade_backtest(
         symbol=symbol,
         lookback_days=days,
         interval=INTERVAL,
+        backtest_mode=True,
     )
 
 
@@ -120,46 +219,39 @@ def _pnl_sign_preserved(current: float, proposed: float) -> bool:
 
 
 def _criteria(current: dict, proposed: dict) -> dict:
+    if proposed["N"] < 20:
+        return {
+            "verdict": "INSUFFICIENT_BT_EVIDENCE",
+            "reason": "proposed BT trades < 20; v2.1 skips catastrophic check",
+            "catastrophic_check": "SKIPPED",
+            "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+        }
     err = current.get("bt_error") or proposed.get("bt_error")
     if err:
         return {
-            "verdict": "FAIL",
+            "verdict": "REJECT",
             "reason": "bt_error",
-            "non_catastrophic": False,
-            "positive_direction": False,
-            "sanity_floor": False,
+            "bt_error": err,
+            "catastrophic_check": False,
+            "shadow_promote_recommendation": "REJECT",
         }
     current_pf = _num(current["PF"])
     proposed_pf = _num(proposed["PF"])
     pf_change = proposed_pf - current_pf
     wilson_lo_change = proposed["wilson_lo"] - current["wilson_lo"]
     n_change_pct = _change_pct(proposed["N"], current["N"])
-    ev_change_pct = _change_pct(proposed["EV"], current["EV"])
-    checks = {
-        "pf_change": round(pf_change, 4) if math.isfinite(pf_change) else str(pf_change),
-        "wilson_lo_change": round(wilson_lo_change, 4),
-        "n_change_pct": round(n_change_pct, 4) if math.isfinite(n_change_pct) else str(n_change_pct),
-        "pnl_sign_preserved": _pnl_sign_preserved(current["PnL"], proposed["PnL"]),
-        "ev_change_pct": round(ev_change_pct, 4) if math.isfinite(ev_change_pct) else str(ev_change_pct),
-    }
-    non_cat = (
-        pf_change >= -0.05
-        and wilson_lo_change >= -0.02
-        and n_change_pct >= -20
-        and checks["pnl_sign_preserved"]
-    )
-    positive = (
-        wilson_lo_change >= 0.01
-        or ev_change_pct >= 5
-        or pf_change >= 0.02
-    )
-    floor = proposed["wilson_lo"] >= 0.30 and proposed_pf >= 0.95
+    pnl_sign_preserved = _pnl_sign_preserved(current["PnL"], proposed["PnL"])
+    verdict = "PASS" if pnl_sign_preserved else "REJECT"
     return {
-        **checks,
-        "non_catastrophic": non_cat,
-        "positive_direction": positive,
-        "sanity_floor": floor,
-        "verdict": "PASS" if non_cat and positive and floor else "FAIL",
+        "pf_change_warn_only": round(pf_change, 4) if math.isfinite(pf_change) else str(pf_change),
+        "wilson_lo_change_warn_only": round(wilson_lo_change, 4),
+        "n_change_pct_warn_only": round(n_change_pct, 4) if math.isfinite(n_change_pct) else str(n_change_pct),
+        "pnl_sign_preserved": pnl_sign_preserved,
+        "catastrophic_check": pnl_sign_preserved,
+        "sanity_floor": "REMOVED_IN_V2_1",
+        "positive_direction": "NOT_REQUIRED_IN_V2_1",
+        "verdict": verdict,
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW" if verdict == "PASS" else "REJECT",
     }
 
 
@@ -186,11 +278,14 @@ def main() -> int:
                             "PF": 0.0, "wilson_lo": 0.0, "bt_error": err},
                 "proposed": {"N": 0, "wins": 0, "WR": 0.0, "EV": 0.0, "PnL": 0.0,
                              "PF": 0.0, "wilson_lo": 0.0, "bt_error": err},
-                "lock_criteria": {"verdict": "FAIL", "reason": "missing_massive_cache"},
+                "lock_criteria": {"verdict": "BLOCKED_DATA", "reason": "missing_massive_cache"},
             }
     else:
         import app  # noqa: E402
         from modules import data as data_mod  # noqa: E402
+
+        app.compute_daytrade_signal = _compute_strategy_only_signal
+        app._BT_HTF_RECALC_DT = 10 ** 9
 
         for pair, symbol in TARGETS:
             print(f"Running baseline: {pair} {days}d", flush=True)
@@ -203,28 +298,58 @@ def main() -> int:
                 "lock_criteria": _criteria(current, proposed),
             }
 
-    overall = "PASS" if cells and all(c["lock_criteria"].get("verdict") == "PASS" for c in cells.values()) else "FAIL"
+    verdicts = [c["lock_criteria"].get("verdict") for c in cells.values()]
+    overall = "REJECT"
+    if verdicts and all(v == "PASS" for v in verdicts):
+        overall = "PASS"
+    elif verdicts and all(v in {"PASS", "INSUFFICIENT_BT_EVIDENCE"} for v in verdicts):
+        overall = "INSUFFICIENT_BT_EVIDENCE"
+    elif verdicts and any(v == "BLOCKED_DATA" for v in verdicts):
+        overall = "BLOCKED_DATA"
+
     result = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "strategy": STRATEGY,
+        "strategy": "vol_momentum",
+        "entry_type": STRATEGY,
         "variant": "closed_bar_dedup_v2",
         "flag": FLAG,
+        "shadow_worker_flag": SHADOW_PROMOTE_FLAG,
         "lookback_days": days,
         "minimum_days": MINIMUM_DAYS,
         "interval": INTERVAL,
-        "runner": "app.run_scalp_backtest (production scalp path; vol_momentum_scalp is not a daytrade strategy)",
+        "runner": "app.run_daytrade_backtest(backtest_mode=True; production daytrade path; strategy-only compute patch)",
+        "runner_notes": [
+            "compute_daytrade_signal is patched to evaluate only vol_momentum_scalp.",
+            "BT HTF recomputation interval is disabled in this tool because vol_momentum_scalp does not consume HTF; execution, friction, cooldown, and next-bar entry remain in run_daytrade_backtest.",
+        ],
         "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1",
+        "bt_mode": os.environ.get("BT_MODE"),
+        "massive_cache_verified": not missing_targets,
         "targets": [pair for pair, _ in TARGETS],
         "missing_target_caches": missing_targets,
         "missing_enabled_pair_caches": missing_enabled,
+        "lock_spec": {
+            "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+            "catastrophic_check": {
+                "pnl_sign_preserved_only": "baseline PnL > 0 and proposed PnL < 0 is the only REJECT condition",
+            },
+            "warn_only": ["pf_change", "wilson_lo_change", "n_change_pct"],
+            "sanity_floor": "REMOVED in v2.1",
+            "positive_direction": "not required",
+            "absolute_kelly": "not required",
+        },
         "cells": cells,
         "overall_verdict": overall,
-        "shadow_promote_recommendation": "REJECT" if overall != "PASS" else "RECOMMEND_SHADOW",
+        "shadow_promote_recommendation": (
+            "RECOMMEND_SHADOW" if overall in {"PASS", "INSUFFICIENT_BT_EVIDENCE"} else overall
+        ),
         "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
         "elapsed_s": round(time.time() - started, 1),
         "self_review": {
-            "relative_check_only": "PASS: verdict uses relative PF/Wilson/N/PnL and sanity floors; no absolute Kelly gate.",
-            "production_live_safety": "PASS: strategy behavior is default-off unless VOL_MOMENTUM_SCALP_REDESIGN_V2=1.",
+            "catastrophic_only": "PASS: v2.1 verdict uses only pnl_sign_preserved when proposed N>=20.",
+            "warn_only_metrics": "PASS: PF, Wilson lower, and N drop are reported only as warnings.",
+            "absolute_kelly": "PASS: no Kelly threshold is applied.",
+            "production_live_safety": "PASS: redesign and shadow worker behavior are default-off env flags.",
             "post_hoc_adjustment": "PASS: only the pre-registered closed_bar_dedup_v2 variant is evaluated.",
             "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo/network fallback for this report.",
         },

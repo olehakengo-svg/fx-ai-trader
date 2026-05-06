@@ -5497,7 +5497,11 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
     BT固有: SL/TP simulation, trade tracking, entry cooldown
     """
     global _scalp_bt_cache
-    cache_key = f"{symbol}_{interval}_{lookback_days}"
+    _vm_v2_cache_flag = "1" if (
+        os.environ.get("VOL_MOMENTUM_REDESIGN_V2") == "1"
+        or os.environ.get("VOL_MOMENTUM_SCALP_REDESIGN_V2") == "1"
+    ) else "0"
+    cache_key = f"{symbol}_{interval}_{lookback_days}_vmV2{_vm_v2_cache_flag}"
     now = datetime.now()
     if _df_override is None:
         cached = _scalp_bt_cache.get(cache_key)
@@ -6444,6 +6448,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "stoch_trend_pullback",          # BT-only strategy-filter path for scalp shadow redesign
                 "three_bar_reversal",            # BT-only strategy-filter path for scalp shadow redesign
                 "trend_rebound",                  # BT-only strategy-filter path for scalp shadow redesign
+                "vol_momentum_scalp",             # BT-only strategy-filter path for scalp shadow redesign
             }
             DT_BLOCKED = {"unknown", "wait"}
 

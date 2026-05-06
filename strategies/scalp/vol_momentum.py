@@ -63,12 +63,16 @@ class VolMomentumScalp(StrategyBase):
         "EURJPY": frozenset(range(16, 24)),  # NY_Lateブロック
     }
 
-    _REDESIGN_ENV = "VOL_MOMENTUM_SCALP_REDESIGN_V2"
+    _REDESIGN_ENV = "VOL_MOMENTUM_REDESIGN_V2"
+    _LEGACY_REDESIGN_ENV = "VOL_MOMENTUM_SCALP_REDESIGN_V2"
     _last_emitted_keys = set()
 
     @classmethod
     def _redesign_enabled(cls) -> bool:
-        return os.environ.get(cls._REDESIGN_ENV) == "1"
+        return (
+            os.environ.get(cls._REDESIGN_ENV) == "1"
+            or os.environ.get(cls._LEGACY_REDESIGN_ENV) == "1"
+        )
 
     @classmethod
     def reset_dedup_state(cls) -> None:
@@ -123,7 +127,7 @@ class VolMomentumScalp(StrategyBase):
                 _signal_bb_width_pct = float((_bw_series < _signal_bb_width).sum()) / len(_bw_series)
             else:
                 _signal_bb_width_pct = ctx.bb_width_pct
-            _bar_id = ctx.bar_time if ctx.bar_time is not None else ctx.df.index[-1]
+            _bar_id = ctx.df.index[-2]
         else:
             _signal_adx = ctx.adx
             _signal_adx_pos = ctx.adx_pos
