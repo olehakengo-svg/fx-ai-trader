@@ -36,6 +36,8 @@ Strategy #1: Tick Volume Spike Momentum (TVSM)
   - Biais, Hillion, Spatt (1995) "An Empirical Analysis of the LOB"
 """
 from __future__ import annotations
+from datetime import datetime, timezone
+import os
 from typing import Optional
 from strategies.micro_scalp.base import (
     MicroStrategyBase, MicroSignal, TickBar, CostModel,
@@ -44,16 +46,62 @@ from strategies.micro_scalp.base import (
 
 class TickVolumeSpikeMomentum(MicroStrategyBase):
     name = "tvsm"
+    v2_major_pairs = frozenset({"USD_JPY", "EUR_USD", "GBP_USD"})
+    v2_session_hours_utc = frozenset(range(7, 17))
+    v2_min_atr_cost_ratio = 3.0
+    v2_min_atr_spread_ratio = 8.0
 
     def __init__(self, cost: CostModel, spike_z: float = 3.0, tp_atr_mult: float = 3.0):
         super().__init__(cost)
         self.spike_z = spike_z
         self.tp_atr_mult = tp_atr_mult
 
+    @staticmethod
+    def _redesign_v2_enabled() -> bool:
+        return os.environ.get("TVSM_REDESIGN_V2", "0").lower() in ("1", "true", "yes")
+
+    @staticmethod
+    def _normalize_symbol(symbol: str) -> str:
+        return symbol.upper().replace("=X", "").replace("/", "_")
+
+    @staticmethod
+    def _utc_hour(ts: float) -> int:
+        return datetime.fromtimestamp(ts, tz=timezone.utc).hour
+
+    def _passes_redesign_v2_gate(self, latest: TickBar, atr: float,
+                                 entry_slip_price: float) -> bool:
+        symbol = self._normalize_symbol(self.cost.symbol)
+        if symbol not in self.v2_major_pairs:
+            return False
+
+        if self._utc_hour(latest.ts) not in self.v2_session_hours_utc:
+            return False
+
+        spread_price = latest.spread
+        if spread_price is None or spread_price <= 0:
+            spread_price = self.cost.spread_pips * self.pip
+
+        cost_ok = entry_slip_price > 0 and atr >= self.v2_min_atr_cost_ratio * entry_slip_price
+        spread_ok = spread_price > 0 and (atr / spread_price) >= self.v2_min_atr_spread_ratio
+        return cost_ok or spread_ok
+
     def evaluate(self, bars: list[TickBar]) -> Optional[MicroSignal]:
         # 必要履歴: 分布300s + 確認3s + 余裕
         LOOKBACK = 300
         if len(bars) < LOOKBACK + 5:
+            return None
+
+        redesign_v2 = self._redesign_v2_enabled()
+        spike_bar = bars[-3]     # スパイク候補（3秒前）
+        conf_bar = bars[-2]      # 確認1（2秒前）
+        latest = bars[-1]        # 現在バー（発注判定）
+
+        atr = self._atr(bars[:-1], 60)  # 現在バー除外
+        if atr <= 0:
+            return None
+
+        entry_slip_price = self.cost.total_cost_pips * self.pip
+        if redesign_v2 and not self._passes_redesign_v2_gate(latest, atr, entry_slip_price):
             return None
 
         # ── μ, σ 構築: 現在バー[t]とスパイクバー[t-2]を除外 ──
@@ -63,10 +111,6 @@ class TickVolumeSpikeMomentum(MicroStrategyBase):
         mu, sigma = self._mean_std(volumes)
         if sigma <= 0:
             return None
-
-        spike_bar = bars[-3]     # スパイク候補（3秒前）
-        conf_bar = bars[-2]      # 確認1（2秒前）
-        latest = bars[-1]        # 現在バー（発注判定）
 
         # ── スパイク判定 ──
         z_spike = (float(spike_bar.tick_volume) - mu) / sigma
@@ -88,14 +132,8 @@ class TickVolumeSpikeMomentum(MicroStrategyBase):
         if side == "SELL" and (move_1 >= 0 or move_2 >= 0):
             return None
 
-        # ── ATR(60s)とTP/SL算出 ──
-        atr = self._atr(bars[:-1], 60)  # 現在バー除外
-        if atr <= 0:
-            return None
-
         # Cost-aware SL buffer (2026-04-17 diagnostic 修正):
         # entry slip の2倍 + 0.5×ATR をSL下限にし、即死を防ぐ
-        entry_slip_price = self.cost.total_cost_pips * self.pip
         sl_dist_atr = 1.2 * atr
         sl_dist_cost_aware = 2.0 * entry_slip_price + 0.5 * atr
         sl_dist = max(sl_dist_atr, sl_dist_cost_aware)
@@ -129,7 +167,8 @@ class TickVolumeSpikeMomentum(MicroStrategyBase):
             tp=tp,
             max_hold_sec=self.max_hold_sec,
             reason=(
-                f"[TVSM] spike_z={z_spike:.2f} (thr={self.spike_z}) "
+                f"[TVSM]{' TVSM_REDESIGN_V2' if redesign_v2 else ''} "
+                f"spike_z={z_spike:.2f} (thr={self.spike_z}) "
                 f"body={body/self.pip:+.1f}pips ATR={atr/self.pip:.1f}pips"
             ),
             sl_pips=sl_dist / self.pip,

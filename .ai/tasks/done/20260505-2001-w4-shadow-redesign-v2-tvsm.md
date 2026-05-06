@@ -141,3 +141,40 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T17:20:03Z)
+
+exit=0 · 706s
+
+```
+実装完了です。
+
+変更:
+- [strategies/micro_scalp/tvsm.py](/data/repo/fx-ai-trader/strategies/micro_scalp/tvsm.py:49)
+  - `TVSM_REDESIGN_V2=1` 配下でのみ pre-trigger gate 追加
+  - major whitelist: `USD_JPY`, `EUR_USD`, `GBP_USD`
+  - UTC 07-16 の London/NY density window
+  - `ATR/entry_slip` または `ATR/spread` viability gate
+  - flag OFF は既存 trigger/挙動維持
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:217)
+  - `TVSM_REDESIGN_V2=1` + `TVSM_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag で shadow worker 登録
+- [tests/test_tvsm_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_tvsm_shadow_redesign_v2.py:76)
+  - default OFF、pair/session/cost gate、shadow promote 二重 flag を固定
+- [tools/tvsm_shadow_bt.py](/data/repo/fx-ai-trader/tools/tvsm_shadow_bt.py:1)
+  - 365d MASSIVE native parquet report generator
+- [bt-results/tvsm-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/tvsm-shadow-redesign-v2-2026-05-05.json:1)
+
+BT verdict: **PASS**
+- Baseline: `N=41`, PnL `+0.739pips`, PF `1.0036`, Wilson lo `0.3648`
+- Proposed: `N=34`, PnL `+38.785pips`, PF `1.2550`, Wilson lo `0.3674`
+- v2.1 catastrophic check: `pnl_sign_preserved=true`
+- Decision: `SHADOW_PROMOTE_RECOMMENDED`
+
+Verification:
+- `./.venv/bin/python -m pytest -q tests/test_tvsm_shadow_redesign_v2.py tests/test_ofi_mr_shadow_redesign_v2.py` -> `10 passed`
+- `./.venv/bin/python -m py_compile tools/tvsm_shadow_bt.py strategies/micro_scalp/tvsm.py strategies/scalp/__init__.py` -> OK
+- `./.venv/bin/python tools/tvsm_shadow_bt.py` -> report generated
+
+Caveat: `tvsm` is a `strategies.micro_scalp` strategy and is not a qualified `run_daytrade_backtest()` entry type. The report includes the required production runner probe, but the app startup side effects timed out after 20s; BT metrics were produced from native MASSIVE 15m parquet without Yahoo fallback or resampling. No 1s/tick MASSIVE cache exists in this workspace.
+```

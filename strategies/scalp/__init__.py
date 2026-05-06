@@ -214,6 +214,9 @@ class ScalperEngine:
         if (os.environ.get("OFI_MR_REDESIGN_V2") == "1"
                 and os.environ.get("OFI_MR_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"ofi_mr"}
+        if (os.environ.get("TVSM_REDESIGN_V2") == "1"
+                and os.environ.get("TVSM_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"tvsm"}
         if (os.environ.get("MTF_REGIME_RANGE_CASCADE_SCALP_REDESIGN_V2") == "1"
                 and os.environ.get("MTF_REGIME_RANGE_CASCADE_SCALP_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"mtf_regime_range_cascade_scalp"}
