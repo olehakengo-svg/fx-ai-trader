@@ -190,6 +190,9 @@ class ScalperEngine:
         if (os.environ.get("LONDON_SHRAPNEL_REDESIGN_V2") == "1"
                 and os.environ.get("LONDON_SHRAPNEL_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"london_shrapnel"}
+        if (os.environ.get("MACDH_REDESIGN_V2") == "1"
+                and os.environ.get("MACDH_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"macdh_reversal"}
         if (os.environ.get("MA_REGIME_SWITCH_REDESIGN_V2") == "1"
                 and os.environ.get("MA_REGIME_SWITCH_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"ma_regime_switch"}

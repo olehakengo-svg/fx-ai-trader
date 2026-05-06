@@ -137,3 +137,56 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T02:34:49Z)
+
+exit=0 · 2487s
+
+```
+実装完了です。
+
+変更点:
+- [strategies/scalp/macdh.py](/data/repo/fx-ai-trader/strategies/scalp/macdh.py:27)
+  - `MACDH_REDESIGN_V2=1` 配下でのみ有効。
+  - Tier1 extreme 専用化: `%B <= 0.15 / >= 0.85`, `RSI5 < 40 / > 60`
+  - MR geometry 修正: `SL=1.5ATR`, `TP=2R = 3.0ATR`
+  - default OFF なので live 既存挙動は維持。
+
+- [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:193)
+  - shadow worker 登録を二重 flag 化。
+  - `MACDH_REDESIGN_V2=1` かつ `MACDH_REDESIGN_V2_SHADOW_PROMOTE=1` の時だけ `macdh_reversal` を shadow emit 対象にします。
+
+- [tests/test_macdh_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_macdh_shadow_redesign_v2.py:55)
+  - default OFF 保持
+  - v2 trigger tightening
+  - v2 wide geometry
+  - shadow promote worker double-flag registration
+
+- [tools/macdh_shadow_bt.py](/data/repo/fx-ai-trader/tools/macdh_shadow_bt.py:1)
+  - `BT_MODE=1`, `BT_REQUIRE_MASSIVE_CACHE=1`
+  - `app.run_daytrade_backtest(backtest_mode=True)` 使用
+  - 365d / MASSIVE parquet / baseline vs proposed
+  - v2 LOCK criteria 実装
+
+BT report:
+- [bt-results/macdh-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/macdh-shadow-redesign-v2-2026-05-05.json:1)
+- Overall verdict: `INSUFFICIENT_BT_EVIDENCE`
+- Proposed BT trades: `N=0`, so v2 spec 通り catastrophic check と sanity floor は skip
+- Shadow recommendation: `RECOMMEND_SHADOW`
+
+Verification:
+- 先に MACDH test は赤を確認済み。
+- `.venv/bin/python -m pytest -q tests/test_macdh_shadow_redesign_v2.py` → `4 passed`
+- `.venv/bin/python -m pytest -q tests/test_macdh_shadow_redesign_v2.py tests/test_bb_rsi_shadow_redesign_v2.py tests/test_ema_trend_scalp_shadow_redesign_v2.py` → `12 passed`
+- `.venv/bin/python -m py_compile tools/macdh_shadow_bt.py` → OK
+
+Codex self-review:
+- catastrophic check のみで判定: PASS
+- Kelly/positive direction を要求していない: PASS
+- live 影響は `MACDH_REDESIGN_V2` default OFF で zero: PASS
+- shadow emit も別 flag 必須: PASS
+- post-hoc adjustment なし: PASS
+
+未追跡の既存別タスクらしい `tests/test_ma_trend_perfect_shadow_redesi
+…(truncated)

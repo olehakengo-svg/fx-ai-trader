@@ -1,4 +1,6 @@
 """MACD Histogram Reversal at BB Extreme — モメンタム消耗 + 価格極端 = 高確率反転"""
+import os
+
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from modules.confidence_v2 import apply_penalty
@@ -22,6 +24,10 @@ class MacdhReversal(StrategyBase):
     tier1_bbpb_sell = 0.85  # Tier1: BB極端ゾーン
     tier1_tp_mult = 1.8     # Tier1: TP拡大 (反転確度↑ → より深い利確)
     min_macdh_delta = 0.5   # v6.3: MACD-H反転強度フィルター (前2本平均の50%以上)
+    v2_rsi5_buy = 40        # V2: Tier1 extreme 専用に戻す
+    v2_rsi5_sell = 60
+    v2_sl_mult = 1.5        # V2: MR が平均回帰前に刈られにくい stop
+    v2_tp_r_mult = 2.0      # V2: SL 距離に対して 2R
 
     # ── ペア×セッションフィルター (v6.3: Death Valley全ペア適用) ──
     _disabled_symbols = frozenset({"EURGBP"})
@@ -45,6 +51,11 @@ class MacdhReversal(StrategyBase):
         reasons = []
         sl = 0.0
         tp = 0.0
+        _v2 = os.environ.get("MACDH_REDESIGN_V2") == "1"
+        _bbpb_buy = self.tier1_bbpb_buy if _v2 else self.bbpb_buy
+        _bbpb_sell = self.tier1_bbpb_sell if _v2 else self.bbpb_sell
+        _rsi5_buy = self.v2_rsi5_buy if _v2 else self.rsi5_buy
+        _rsi5_sell = self.v2_rsi5_sell if _v2 else self.rsi5_sell
 
         # ── v6.3: MACD-H反転強度チェック ──
         _macdh_avg = (abs(ctx.macdh_prev) + abs(ctx.macdh_prev2)) / 2 if (ctx.macdh_prev2 != 0) else abs(ctx.macdh_prev)
@@ -52,10 +63,10 @@ class MacdhReversal(StrategyBase):
         _macdh_strong = _macdh_delta >= _macdh_avg * self.min_macdh_delta if _macdh_avg > 0 else True
 
         # BUY: BB下限 + MACD-H上向き反転
-        if (ctx.bbpb < self.bbpb_buy
+        if (ctx.bbpb < _bbpb_buy
                 and ctx.macdh > ctx.macdh_prev
                 and ctx.macdh_prev <= ctx.macdh_prev2
-                and ctx.rsi5 < self.rsi5_buy
+                and ctx.rsi5 < _rsi5_buy
                 and _macdh_strong):
             # v6.3: Tier判定 (BB極端ゾーン = 高確信)
             _is_tier1 = ctx.bbpb <= self.tier1_bbpb_buy
@@ -63,32 +74,44 @@ class MacdhReversal(StrategyBase):
             signal = "BUY"
             score = 4.0 if _is_tier1 else 3.5
             reasons.append(f"✅ MACD-Hモメンタム反転上昇(H={ctx.macdh:.4f}, 前={ctx.macdh_prev:.4f}, delta={_macdh_delta:.4f})")
-            reasons.append(f"✅ BB下限圏(%B={ctx.bbpb:.2f}<{self.bbpb_buy}){' [Tier1]' if _is_tier1 else ''}")
-            reasons.append(f"✅ RSI5売られすぎ({ctx.rsi5:.1f}<{self.rsi5_buy})")
+            reasons.append(f"✅ BB下限圏(%B={ctx.bbpb:.2f}<{_bbpb_buy}){' [Tier1]' if _is_tier1 else ''}")
+            reasons.append(f"✅ RSI5売られすぎ({ctx.rsi5:.1f}<{_rsi5_buy})")
             if ctx.stoch_k > ctx.stoch_d:
                 score += 0.5
                 reasons.append("✅ Stochゴールデンクロス(K>D)")
-            tp = ctx.entry + ctx.atr7 * _tp_m
-            sl = ctx.entry - ctx.atr7 * self.sl_mult
+            if _v2:
+                _risk = ctx.atr7 * self.v2_sl_mult
+                tp = ctx.entry + _risk * self.v2_tp_r_mult
+                sl = ctx.entry - _risk
+                reasons.append("✅ MACDH_REDESIGN_V2 Tier1 extreme + wide MR geometry")
+            else:
+                tp = ctx.entry + ctx.atr7 * _tp_m
+                sl = ctx.entry - ctx.atr7 * self.sl_mult
 
         # SELL: BB上限 + MACD-H下向き反転
-        elif (ctx.bbpb > self.bbpb_sell
+        elif (ctx.bbpb > _bbpb_sell
                 and ctx.macdh < ctx.macdh_prev
                 and ctx.macdh_prev >= ctx.macdh_prev2
-                and ctx.rsi5 > self.rsi5_sell
+                and ctx.rsi5 > _rsi5_sell
                 and _macdh_strong):
             _is_tier1 = ctx.bbpb >= self.tier1_bbpb_sell
             _tp_m = self.tier1_tp_mult if _is_tier1 else self.tp_mult
             signal = "SELL"
             score = 4.0 if _is_tier1 else 3.5
             reasons.append(f"✅ MACD-Hモメンタム反転下落(H={ctx.macdh:.4f}, 前={ctx.macdh_prev:.4f}, delta={_macdh_delta:.4f})")
-            reasons.append(f"✅ BB上限圏(%B={ctx.bbpb:.2f}>{self.bbpb_sell}){' [Tier1]' if _is_tier1 else ''}")
-            reasons.append(f"✅ RSI5買われすぎ({ctx.rsi5:.1f}>{self.rsi5_sell})")
+            reasons.append(f"✅ BB上限圏(%B={ctx.bbpb:.2f}>{_bbpb_sell}){' [Tier1]' if _is_tier1 else ''}")
+            reasons.append(f"✅ RSI5買われすぎ({ctx.rsi5:.1f}>{_rsi5_sell})")
             if ctx.stoch_k < ctx.stoch_d:
                 score += 0.5
                 reasons.append("✅ Stochデッドクロス(K<D)")
-            tp = ctx.entry - ctx.atr7 * _tp_m
-            sl = ctx.entry + ctx.atr7 * self.sl_mult
+            if _v2:
+                _risk = ctx.atr7 * self.v2_sl_mult
+                tp = ctx.entry - _risk * self.v2_tp_r_mult
+                sl = ctx.entry + _risk
+                reasons.append("✅ MACDH_REDESIGN_V2 Tier1 extreme + wide MR geometry")
+            else:
+                tp = ctx.entry - ctx.atr7 * _tp_m
+                sl = ctx.entry + ctx.atr7 * self.sl_mult
 
         if signal is None:
             return None
