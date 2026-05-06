@@ -23,6 +23,7 @@ from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
 import numpy as np
+import os
 
 
 class SessionVolExpansion(StrategyBase):
@@ -54,7 +55,20 @@ class SessionVolExpansion(StrategyBase):
     # ── 最大保持 ──
     max_hold_bars = 30     # 30分
 
+    REDESIGN_V2_ENV = "SESSION_VOL_EXPANSION_REDESIGN_V2"
+    _dedup_state: dict = {}
+
+    @classmethod
+    def reset_dedup_state(cls):
+        cls._dedup_state.clear()
+
+    def _redesign_v2_enabled(self) -> bool:
+        return os.environ.get(self.REDESIGN_V2_ENV) == "1"
+
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        if self._redesign_v2_enabled():
+            return self._evaluate_redesign_v2(ctx)
+
         # ── EUR/USD専用 ──
         if ctx.is_jpy:
             return None
@@ -159,6 +173,148 @@ class SessionVolExpansion(StrategyBase):
             reasons.append(f"✅ ADXモメンタム({ctx.adx:.1f}>20)")
 
         # HTF方向一致ボーナス
+        _htf = ctx.htf or {}
+        _agreement = _htf.get("agreement", "mixed")
+        if (signal == "BUY" and _agreement == "bull") or \
+           (signal == "SELL" and _agreement == "bear"):
+            score += 0.5
+            reasons.append(f"✅ HTF方向一致({_agreement})")
+
+        conf = int(min(85, 50 + score * 4))
+        return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
+                         reasons=reasons, entry_type=self.name, score=score)
+
+    def _evaluate_redesign_v2(self, ctx: SignalContext) -> Optional[Candidate]:
+        # ── EUR/USD専用 ──
+        if ctx.is_jpy:
+            return None
+
+        if ctx.df is None or len(ctx.df) < self.compress_window + self.baseline_window + self.lookback_range + 2:
+            return None
+
+        _signal_df = ctx.df
+        if not ctx.backtest_mode:
+            if len(ctx.df) < self.compress_window + self.baseline_window + self.lookback_range + 3:
+                return None
+            _signal_df = ctx.df.iloc[:-1]
+        if len(_signal_df) < self.compress_window + self.baseline_window + self.lookback_range + 2:
+            return None
+
+        _signal_bar = _signal_df.iloc[-1]
+        _signal_time = _signal_df.index[-1]
+        _signal_hour = _signal_time.hour if hasattr(_signal_time, "hour") else ctx.hour_utc
+        _signal_minute = _signal_hour * 60
+        if hasattr(_signal_time, "minute"):
+            _signal_minute += _signal_time.minute
+        if _signal_minute < self.hour_start * 60 or _signal_minute > self.hour_end_minute:
+            return None
+
+        # ── スプレッドフィルター (本番のみ) ──
+        if not ctx.backtest_mode:
+            _session = ctx.session if ctx.session else {}
+            _spread_pip_live = _session.get("spread_pip", 0)
+            if _spread_pip_live > self.max_spread_pip and _spread_pip_live > 0:
+                return None
+
+        # ── アジアレンジ計算: signal bar 直前の breakout range からさらに前を使う ──
+        _asia_lookback = min(420, len(_signal_df) - 10)
+        _asia_slice = _signal_df.iloc[-_asia_lookback - self.lookback_range: -self.lookback_range]
+        if len(_asia_slice) < 60:
+            return None
+        _asia_high = float(_asia_slice["High"].max())
+        _asia_low = float(_asia_slice["Low"].min())
+        _asia_range_pip = (_asia_high - _asia_low) * ctx.pip_mult
+
+        if _asia_range_pip < self.asia_range_min_pip:
+            return None
+
+        # ── 圧縮検出: signal bar を除外した直近30本 vs 前60本 ──
+        _recent = _signal_df.iloc[-self.compress_window - 1:-1]
+        _baseline = _signal_df.iloc[-self.compress_window - self.baseline_window - 1:-self.compress_window - 1]
+        if len(_recent) < self.compress_window or len(_baseline) < self.baseline_window:
+            return None
+
+        _recent_avg_range = float((_recent["High"] - _recent["Low"]).mean())
+        _baseline_avg_range = float((_baseline["High"] - _baseline["Low"]).mean())
+
+        if _baseline_avg_range <= 0:
+            return None
+        _compression = _recent_avg_range / _baseline_avg_range
+        if _compression > self.compress_ratio:
+            return None
+
+        # ── ブレイクアウト検出: signal bar を除いた確定済みレンジ ──
+        _range_slice = _signal_df.iloc[-self.lookback_range - 1:-1]
+        if len(_range_slice) < self.lookback_range:
+            return None
+        _range_high = float(_range_slice["High"].max())
+        _range_low = float(_range_slice["Low"].min())
+
+        _signal_close = float(_signal_bar["Close"])
+        _signal_open = float(_signal_bar["Open"])
+        _signal_high = float(_signal_bar["High"])
+        _signal_low = float(_signal_bar["Low"])
+        _signal_atr = float(_signal_bar.get("atr", ctx.atr))
+        _signal_ema9 = float(_signal_bar.get("ema9", ctx.ema9))
+        _signal_ema21 = float(_signal_bar.get("ema21", ctx.ema21))
+        _bar_range = _signal_high - _signal_low if _signal_high > _signal_low else 0
+        _body = abs(_signal_close - _signal_open)
+        _body_ok = (_body / _bar_range >= self.body_ratio_min) if _bar_range > 0 else False
+        if not _body_ok:
+            return None
+
+        _session = ctx.session if ctx.session else {}
+        _spread_pip = float(_session.get("spread_pip", 0) or 0)
+        _break_buffer = max(_spread_pip / ctx.pip_mult, _signal_atr * 0.1)
+
+        signal = None
+        score = 0.0
+        reasons = []
+        sl = 0.0
+        tp = 0.0
+
+        # ── BUY: 確定済みレンジの上方へ signal close がブレイク ──
+        if (_signal_close > _range_high + _break_buffer
+                and _signal_ema9 > _signal_ema21):
+            signal = "BUY"
+            score = 4.0
+            reasons.append(
+                f"✅ SESSION_VOL_EXPANSION_REDESIGN_V2: closed range breakout C={_signal_close:.5f}>RHigh={_range_high:.5f}+buffer"
+            )
+            reasons.append(f"✅ Asia range={_asia_range_pip:.1f}pip (>={self.asia_range_min_pip})")
+            reasons.append("✅ EMA順列確認 (9>21)")
+            tp = _signal_close + _signal_atr * self.tp_atr_mult
+            sl = _asia_low - _signal_atr * self.sl_atr_buffer
+
+        # ── SELL: 確定済みレンジの下方へ signal close がブレイク ──
+        elif (_signal_close < _range_low - _break_buffer
+              and _signal_ema9 < _signal_ema21):
+            signal = "SELL"
+            score = 4.0
+            reasons.append(
+                f"✅ SESSION_VOL_EXPANSION_REDESIGN_V2: closed range breakout C={_signal_close:.5f}<RLow={_range_low:.5f}-buffer"
+            )
+            reasons.append(f"✅ Asia range={_asia_range_pip:.1f}pip (>={self.asia_range_min_pip})")
+            reasons.append("✅ EMA逆順列確認 (9<21)")
+            tp = _signal_close - _signal_atr * self.tp_atr_mult
+            sl = _asia_high + _signal_atr * self.sl_atr_buffer
+
+        if signal is None:
+            return None
+
+        _sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+        _dedup_key = (_sym, self.name, _signal_time, signal)
+        if self._dedup_state.get(_dedup_key):
+            return None
+        self._dedup_state[_dedup_key] = True
+
+        if _compression < 0.4:
+            score += 0.5
+            reasons.append(f"✅ 強圧縮({_compression:.2f}<0.4)")
+        if ctx.adx > 20:
+            score += 0.3
+            reasons.append(f"✅ ADXモメンタム({ctx.adx:.1f}>20)")
+
         _htf = ctx.htf or {}
         _agreement = _htf.get("agreement", "mixed")
         if (signal == "BUY" and _agreement == "bull") or \

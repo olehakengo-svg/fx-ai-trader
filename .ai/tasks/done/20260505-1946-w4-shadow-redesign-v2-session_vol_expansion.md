@@ -135,3 +135,31 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T05:55:20Z)
+
+exit=0 · 1655s
+
+```
+実装完了です。
+
+V2 は default OFF のまま、`SESSION_VOL_EXPANSION_REDESIGN_V2=1` 配下でだけ有効です。主変更は [session_vol_expansion.py](/data/repo/fx-ai-trader/strategies/scalp/session_vol_expansion.py:58) で、signal bar を除外した確定済みレンジ `[-lookback-1:-1]` を breakout 判定に使い、live では current intrabar を除外、同一 signal bar の dedup も追加しました。
+
+Shadow worker 登録も [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:196) に追加済みです。`SESSION_VOL_EXPANSION_REDESIGN_V2=1` と `SESSION_VOL_EXPANSION_REDESIGN_V2_SHADOW_PROMOTE=1` の二重 flag のときだけ shadow-always 対象になります。
+
+BT report は生成済みです: [session_vol_expansion-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/session_vol_expansion-shadow-redesign-v2-2026-05-05.json:1)
+
+結果:
+- baseline EUR_USD 365d: `N=0`
+- proposed EUR_USD 365d: `N=4`
+- verdict: `INSUFFICIENT_BT_EVIDENCE`
+- v2 spec 通り `N<20` なので catastrophic check / sanity floor は skip
+- shadow recommendation: `RECOMMEND_SHADOW`
+
+検証:
+- `.venv/bin/python -m pytest tests/test_session_vol_expansion_shadow_redesign_v2.py -q` → `5 passed`
+- `.venv/bin/python -m py_compile strategies/scalp/session_vol_expansion.py tools/session_vol_expansion_shadow_bt.py` → OK
+
+補足: `session_vol_expansion` は scalp engine 登録なので、BT artifact は production scalp path の `run_scalp_backtest()` を strategy-filter で使っています。report にも `run_daytrade_backtest()` がこの strategy を評価しない旨を明記しました。
+```
