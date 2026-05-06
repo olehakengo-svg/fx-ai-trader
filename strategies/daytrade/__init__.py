@@ -56,6 +56,7 @@ from strategies.daytrade.tokyo_range_breakout import TokyoRangeBreakout
 # v10 (2026-04-27): SR Anti-Hunt 二段構え (5 majors Shadow 全走、KDE+hunt-aware SL)
 from strategies.daytrade.sr_anti_hunt_bounce import SrAntiHuntBounce
 from strategies.daytrade.sr_liquidity_grab import SrLiquidityGrab
+from strategies.daytrade.pullback_to_liquidity_v1 import PullbackToLiquidityV1
 # v11 (2026-04-27): Phase 2-5 audit-driven edges
 from strategies.daytrade.cpd_divergence import CpdDivergence
 from strategies.daytrade.vdr_jpy import VdrJpy
@@ -119,6 +120,8 @@ class DaytradeEngine:
             DtSrChannelReversal(),
             Ema200TrendReversal(),
         ]
+        if os.environ.get("PULLBACK_TO_LIQUIDITY_V1_REDESIGN_V2") == "1":
+            self.strategies.append(PullbackToLiquidityV1())
 
     def get_strategy(self, name: str) -> Optional[StrategyBase]:
         """名前で戦略を取得。"""
@@ -287,6 +290,9 @@ class DaytradeEngine:
         if (os.environ.get("POST_NEWS_VOL_REDESIGN_V2") == "1"
                 and os.environ.get("POST_NEWS_VOL_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"post_news_vol"}
+        if (os.environ.get("PULLBACK_TO_LIQUIDITY_V1_REDESIGN_V2") == "1"
+                and os.environ.get("PULLBACK_TO_LIQUIDITY_V1_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"pullback_to_liquidity_v1"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

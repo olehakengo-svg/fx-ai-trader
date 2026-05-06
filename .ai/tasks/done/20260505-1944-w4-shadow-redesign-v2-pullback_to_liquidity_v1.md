@@ -135,3 +135,46 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T05:12:16Z)
+
+exit=0 · 1894s
+
+```
+実装、テスト、365d BT まで完了しました。
+
+変更:
+- [strategies/daytrade/pullback_to_liquidity_v1.py](/data/repo/fx-ai-trader/strategies/daytrade/pullback_to_liquidity_v1.py:54)
+  - `PULLBACK_TO_LIQUIDITY_V1_REDESIGN_V2=1` 配下で liquidity touch を `5.0 / ctx.pip_mult` の fixed-pip 近接に変更
+  - default OFF は既存 percentage 判定を維持
+- [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:123)
+  - default OFF では engine 登録なし
+  - `PULLBACK_TO_LIQUIDITY_V1_REDESIGN_V2=1` のときだけ strategy を engine に追加
+  - shadow emit は `PULLBACK_TO_LIQUIDITY_V1_REDESIGN_V2_SHADOW_PROMOTE=1` も必要な二重 flag
+- [tests/test_pullback_to_liquidity_v1_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_pullback_to_liquidity_v1_shadow_redesign_v2.py:70)
+  - default OFF 維持、5pip 外 reject、5pip 内 accept、live default non-registration、shadow double-flag を追加
+- [tools/pullback_to_liquidity_v1_shadow_bt.py](/data/repo/fx-ai-trader/tools/pullback_to_liquidity_v1_shadow_bt.py:1)
+  - MASSIVE cache / `run_daytrade_backtest(backtest_mode=True)` 用の A/B BT runner 追加
+
+検証:
+- `.venv/bin/pytest -q tests/test_pullback_to_liquidity_v1_shadow_redesign_v2.py`
+  - `5 passed`
+- `.venv/bin/python -m py_compile ...`
+  - OK
+- `.venv/bin/python tools/pullback_to_liquidity_v1_shadow_bt.py`
+  - report saved: [bt-results/pullback_to_liquidity_v1-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/pullback_to_liquidity_v1-shadow-redesign-v2-2026-05-05.json:1)
+
+v2 LOCK verdict: `REJECT`
+
+Aggregate:
+- current: `N=200`, `PF=0.8534`, `wilson_lo=0.5258`, `PnL=-22.7174`
+- proposed: `N=50`, `PF=0.6986`, `wilson_lo=0.4231`, `PnL=-12.6357`
+- catastrophic check failed:
+  - `pf_change=-0.1548`
+  - `wilson_lo_change=-0.1027`
+  - `n_change_pct=-75.0`
+- sanity floor failed: proposed `PF=0.6986 < 0.85`
+
+Shadow promote は行っていません。BT は filter として実施し、Kelly や positive direction は要求していません。
+```

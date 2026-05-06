@@ -34,6 +34,7 @@ References:
 """
 from __future__ import annotations
 
+import os
 from typing import Optional
 
 from strategies.base import Candidate, StrategyBase
@@ -50,6 +51,7 @@ class PullbackToLiquidityV1(StrategyBase):
     SWING_LOOKBACK = 20            # M15 bars
     SWING_MIN_AGE = 5              # swing は ≥ 5 bar 前であること
     LIQUIDITY_TOUCH_PCT = 0.001    # ±5pip (USD_JPY 158 で約 0.158)
+    LIQUIDITY_TOUCH_PIPS = 5.0     # V2: pair-aware fixed-pip proximity
     REJECTION_WICK_RATIO = 0.40    # 下髭/上髭 比率 ≥ 0.4
     VOLUME_BOOST = 1.20            # 直近 20 bar 平均の 1.2 倍以上
     VOLUME_LOOKBACK = 20
@@ -112,12 +114,20 @@ class PullbackToLiquidityV1(StrategyBase):
         except (KeyError, IndexError):
             return None
 
-        if sig == "BUY":
-            if current_low > swing_price * (1.0 + self.LIQUIDITY_TOUCH_PCT):
+        redesign_v2 = os.environ.get("PULLBACK_TO_LIQUIDITY_V1_REDESIGN_V2") == "1"
+        if redesign_v2:
+            touch_price = current_low if sig == "BUY" else current_high
+            liquidity_tolerance = self.LIQUIDITY_TOUCH_PIPS / max(ctx.pip_mult, 1)
+            if abs(touch_price - swing_price) > liquidity_tolerance:
                 return None
         else:
-            if current_high < swing_price * (1.0 - self.LIQUIDITY_TOUCH_PCT):
-                return None
+            liquidity_tolerance = swing_price * self.LIQUIDITY_TOUCH_PCT
+            if sig == "BUY":
+                if current_low > swing_price * (1.0 + self.LIQUIDITY_TOUCH_PCT):
+                    return None
+            else:
+                if current_high < swing_price * (1.0 - self.LIQUIDITY_TOUCH_PCT):
+                    return None
 
         # ── REJECTION_CANDLE (wick ratio ≥ 0.4) ──
         bar_high = current_high
@@ -177,6 +187,11 @@ class PullbackToLiquidityV1(StrategyBase):
             f"✅ volume {vol_current:.0f} ≥ {self.VOLUME_BOOST}× avg {vol_avg:.0f}",
             f"TP={tp:.5f} (ATR×{self.TP_MULT}), SL={sl:.5f} (ATR×{self.SL_MULT})",
         ]
+        if redesign_v2:
+            reasons.append(
+                "PULLBACK_TO_LIQUIDITY_V1_REDESIGN_V2: "
+                f"fixed-pip liquidity touch tolerance={liquidity_tolerance:.5f}"
+            )
 
         # Confidence: pre-reg では明記無し、structural mechanism strength から 70 default
         # (HTF + 5 conditions all pass の高品質 entry)
