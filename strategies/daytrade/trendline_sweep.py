@@ -54,6 +54,7 @@ Trendline Sweep Trap — 斜めの流動性ハント
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
+import os
 import numpy as np
 
 
@@ -104,11 +105,25 @@ class TrendlineSweep(StrategyBase):
     ALLOWED_PAIRS = {
         "EURUSD", "GBPUSD", "EURGBP", "XAUUSD",
     }
+    REDESIGN_V2_LIVE_PAIRS = frozenset({"EURUSD", "GBPUSD"})
+    REDESIGN_V2_SHADOW_PAIRS = frozenset({"EURGBP", "XAUUSD"})
     # BUY WR不足ペア: SELL方向のみ許可
     # EUR/USD: BUY WR=12% vs SELL WR=64%
     # EUR/GBP: BUY WR=42% vs SELL WR=58%
     # XAU/USD: BUY WR=46% vs SELL WR=73%
     SELL_ONLY_PAIRS = {"EURUSD", "EURGBP", "XAUUSD"}
+
+    @staticmethod
+    def redesign_v2_enabled() -> bool:
+        return os.environ.get("TRENDLINE_SWEEP_REDESIGN_V2") == "1"
+
+    @classmethod
+    def is_v2_live_pair(cls, symbol: str) -> bool:
+        return cls()._normalize_symbol(symbol) in cls.REDESIGN_V2_LIVE_PAIRS
+
+    @classmethod
+    def is_v2_shadow_pair(cls, symbol: str) -> bool:
+        return cls()._normalize_symbol(symbol) in cls.REDESIGN_V2_SHADOW_PAIRS
 
     def _normalize_symbol(self, symbol: str) -> str:
         s = symbol.upper().replace("=X", "").replace("=F", "").replace("/", "").replace("_", "")
@@ -468,6 +483,10 @@ class TrendlineSweep(StrategyBase):
             f"Sweep extreme={_extreme:.5f}, reclaim to TL confirmed",
             f"RR={_rr:.1f}, ADX={ctx.adx:.1f}",
         ]
+        if self.redesign_v2_enabled() and _sym in self.REDESIGN_V2_SHADOW_PAIRS:
+            _reasons.append(
+                "TRENDLINE_SWEEP_REDESIGN_V2: pair scoped to shadow evidence collection"
+            )
 
         return Candidate(
             signal=signal,

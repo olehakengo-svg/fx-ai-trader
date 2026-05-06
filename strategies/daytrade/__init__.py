@@ -314,6 +314,9 @@ class DaytradeEngine:
         if (os.environ.get("SR_LIQUIDITY_GRAB_REDESIGN_V2") == "1"
                 and os.environ.get("SR_LIQUIDITY_GRAB_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"sr_liquidity_grab"}
+        if (os.environ.get("TRENDLINE_SWEEP_REDESIGN_V2") == "1"
+                and os.environ.get("TRENDLINE_SWEEP_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"trendline_sweep"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

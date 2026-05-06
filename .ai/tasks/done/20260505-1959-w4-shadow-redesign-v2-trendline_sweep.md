@@ -141,3 +141,34 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T16:22:22Z)
+
+exit=0 · 4221s
+
+```
+実装完了しました。`TRENDLINE_SWEEP_REDESIGN_V2` は default OFF なので現行 live には影響しません。
+
+変更点:
+- [trendline_sweep.py](/data/repo/fx-ai-trader/strategies/daytrade/trendline_sweep.py:108): V2 scope を追加。Live 対象は `EURUSD/GBPUSD`、`EURGBP/XAUUSD` は shadow evidence collection 扱い。
+- [demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:6472): `trendline_sweep` の ELITE 判定を flag-aware に変更。V2 ON では `EUR_GBP/XAU_USD` を OANDA promoted から外します。
+- [__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:317): `TRENDLINE_SWEEP_REDESIGN_V2_SHADOW_PROMOTE=1` との二重 flag 時のみ shadow worker 登録。
+- [test_trendline_sweep_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_trendline_sweep_shadow_redesign_v2.py:81): flag OFF 互換、V2 routing、shadow worker double-flag を追加。
+- [trendline_sweep_shadow_bt.py](/data/repo/fx-ai-trader/tools/trendline_sweep_shadow_bt.py:1): 365d MASSIVE BT report runner を追加。
+
+BT report:
+- [trendline_sweep-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/trendline_sweep-shadow-redesign-v2-2026-05-05.json:1)
+- Overall verdict: `INSUFFICIENT_BT_EVIDENCE`
+- `EUR_USD`: PASS, N=227, PnL +135.3431R, PF 1.8444
+- `GBP_USD`: PASS, N=397, PnL +163.956R, PF 1.4747
+- `EUR_GBP`: `INSUFFICIENT_BT_EVIDENCE` because proposed N<20
+- `XAU_USD`: `BLOCKED_DATA` because `data/cache/massive/XAU_USD_15m.parquet` is absent
+
+Verification:
+- `.venv/bin/pytest -q tests/test_trendline_sweep_shadow_redesign_v2.py tests/test_tier1_routing_rca.py` -> 7 passed
+- `.venv/bin/python -m py_compile ...` -> passed
+- BT ran via `app.run_daytrade_backtest(..., backtest_mode=True)` with `BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1`
+
+Codex self-review: PASS. Verdict logic uses only `pnl_sign_preserved` when N>=20; PF/Wilson/N changes are warning-only; no Kelly or sanity floor is required; trigger/timing/SL/TP geometry is unchanged.
+```

@@ -3125,6 +3125,7 @@ class DemoTrader:
             entry_type in self._FORCE_DEMOTED
             or entry_type in self._SCALP_SENTINEL
             or entry_type in self._UNIVERSAL_SENTINEL
+            or self._is_trendline_sweep_v2_shadow_pair(entry_type, instrument)
         )
         _is_shadow_eligible = _is_shadow_eligible_full  # 後方互換 (他のbypassはこれを参照)
         _is_slot_shadow_eligible = True  # v8.9: 全戦略がスロットbypass可能
@@ -3316,7 +3317,7 @@ class DemoTrader:
         # 確認済み。regime safety net は混在で LIVE を封じ込めていた (M1 の
         # spread_sl_gate と同型)。詳細: lesson-trend-bull-gate-overblock-2026-04-27
         _regime_gate_exempt = (
-            entry_type in self._ELITE_LIVE
+            self._is_elite_live(entry_type, instrument)
             or (entry_type, instrument) in self._PAIR_PROMOTED
         )
         if (_base_mode == "daytrade"
@@ -3811,7 +3812,7 @@ class DemoTrader:
             #   — ELITE は DT幹として BT 365日 STRONG 確認済みで、既存
             #   _SHADOW_MODE Phase0 gate と同じく LIVE 送信を維持する必要あり.
             #   A/B hash の半分で無条件 shadow 降格される実装漏れがあった.
-            if _gate_group == "mtf_gated" and entry_type not in self._ELITE_LIVE:
+            if _gate_group == "mtf_gated" and not self._is_elite_live(entry_type, instrument):
                 if _mtf_alignment == "conflict":
                     if not _is_shadow:
                         _is_shadow = True
@@ -3825,7 +3826,7 @@ class DemoTrader:
                         _mtf_gate_action = "kept"  # 既に shadow なので変化なし
                 else:
                     _mtf_gate_action = "kept"
-            elif _gate_group == "mtf_gated" and entry_type in self._ELITE_LIVE:
+            elif _gate_group == "mtf_gated" and self._is_elite_live(entry_type, instrument):
                 _mtf_gate_action = "elite_exempt"
             # Group B (label_only): アクションなし
         except Exception as _e:
@@ -4419,7 +4420,7 @@ class DemoTrader:
         # 失敗時は保守的に「通過」させる (gate を blocker にしない)。
         # ══════════════════════════════════════════════════════════════
         if _base_mode == "scalp" and signal in ("BUY", "SELL"):
-            _is_elite_live = entry_type in self._ELITE_LIVE
+            _is_elite_live = self._is_elite_live(entry_type, instrument)
             _is_pair_promoted = (entry_type, instrument) in self._PAIR_PROMOTED
             if not (_is_elite_live or _is_pair_promoted):
                 try:
@@ -4450,7 +4451,7 @@ class DemoTrader:
             _spread_sl_ratio = _spread_entry / _sl_dist_pips
             _ssl_threshold = 0.45 if "XAU" in instrument else 0.35
             # M1 (2026-04-27): ELITE_LIVE は spread_sl_gate 免除
-            _is_elite_live = entry_type in self._ELITE_LIVE
+            _is_elite_live = self._is_elite_live(entry_type, instrument)
             if _spread_sl_ratio > _ssl_threshold and not _is_elite_live:
                 _block(f"spread_sl_gate({_spread_entry:.1f}/{_sl_dist_pips:.1f}pip={_spread_sl_ratio:.0%}>{_ssl_threshold:.0%})")
                 return
@@ -4754,7 +4755,7 @@ class DemoTrader:
         #   — Q4 rule (Kelly<0 AND Wilson_hi<BEV AND N>=15) は 4 戦略の
         #   confidence_v2 transition を目的とした net で、DT幹の ELITE は
         #   別 pre-reg で BT STRONG 確認済み. 混在で LIVE が封じ込まれていた.
-        if entry_type not in self._ELITE_LIVE and _q4_should_shadow(entry_type, _q4_conf_val):
+        if not self._is_elite_live(entry_type, instrument) and _q4_should_shadow(entry_type, _q4_conf_val):
             if not _is_shadow:
                 _q4_reason = _q4_gate_reason(entry_type, _q4_conf_val) or "Q4_GATE"
                 self._add_log(f"🛡️ {_q4_reason}")
@@ -4782,7 +4783,7 @@ class DemoTrader:
         if (self._SHADOW_MODE
                 and _is_promoted
                 and not _is_shadow
-                and entry_type not in self._ELITE_LIVE
+                and not self._is_elite_live(entry_type, instrument)
                 and (entry_type, instrument) not in self._PAIR_PROMOTED
                 and _prime_tier not in ("A", "B")):
             _is_shadow = True
@@ -6465,6 +6466,25 @@ class DemoTrader:
     # Override via environment variable SHADOW_MODE (default: "true")
     _SHADOW_MODE = _os.environ.get("SHADOW_MODE", "true").lower() in ("true", "1", "yes")
 
+    _TRENDLINE_SWEEP_REDESIGN_V2_LIVE_PAIRS = frozenset({"EUR_USD", "GBP_USD"})
+    _TRENDLINE_SWEEP_REDESIGN_V2_SHADOW_PAIRS = frozenset({"EUR_GBP", "XAU_USD"})
+
+    @staticmethod
+    def _trendline_sweep_redesign_v2_enabled() -> bool:
+        return _os.environ.get("TRENDLINE_SWEEP_REDESIGN_V2") == "1"
+
+    def _is_trendline_sweep_v2_shadow_pair(self, entry_type: str, instrument: str) -> bool:
+        return (
+            self._trendline_sweep_redesign_v2_enabled()
+            and entry_type == "trendline_sweep"
+            and instrument in self._TRENDLINE_SWEEP_REDESIGN_V2_SHADOW_PAIRS
+        )
+
+    def _is_elite_live(self, entry_type: str, instrument: str = "") -> bool:
+        if entry_type == "trendline_sweep" and self._trendline_sweep_redesign_v2_enabled():
+            return instrument in self._TRENDLINE_SWEEP_REDESIGN_V2_LIVE_PAIRS
+        return entry_type in self._ELITE_LIVE
+
     # ペア別SR感度: SAR高ペアに早逃げ余地
     _PAIR_SR_THRESHOLD = {
         "USD_JPY": 1.5,   # SAR=3.58 → 閾値緩和 (他ペア: デフォルト2.0)
@@ -6561,6 +6581,10 @@ class DemoTrader:
         # ── 明示的にOFFなら強制ブロック ──
         if _mode == "off":
             return False  # 手動停止
+
+        # V2 audit scope: keep EUR_GBP/XAU_USD as shadow-only evidence cells.
+        if self._is_trendline_sweep_v2_shadow_pair(entry_type, instrument):
+            return False
 
         # ── LIVE/SENTINELの明示指定: 手動昇格パス ──
         if _mode in ("live", "sentinel"):

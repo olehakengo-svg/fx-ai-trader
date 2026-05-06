@@ -1,0 +1,201 @@
+{
+  "generated_at": "2026-05-06T16:21:45.720650+00:00",
+  "strategy": "trendline_sweep",
+  "variant": "pair_scope_v2_eurusd_gbpusd_live_eurgbp_xau_shadow",
+  "flag": "TRENDLINE_SWEEP_REDESIGN_V2",
+  "shadow_worker_flag": "TRENDLINE_SWEEP_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "runner": "app.run_daytrade_backtest(backtest_mode=True; production daytrade path; strategy-only compute patch)",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1 and BT_REQUIRE_MASSIVE_CACHE=1",
+  "bt_mode": "1",
+  "live_pairs_v2": [
+    "EUR_USD",
+    "GBP_USD"
+  ],
+  "shadow_pairs_v2": [
+    "EUR_GBP",
+    "XAU_USD"
+  ],
+  "targets": [
+    "EUR_USD",
+    "GBP_USD",
+    "EUR_GBP",
+    "XAU_USD"
+  ],
+  "missing_caches": [
+    "data/cache/massive/XAU_USD_15m.parquet"
+  ],
+  "lock_spec": {
+    "bt_evidence_threshold": "if proposed N < 20 => INSUFFICIENT_BT_EVIDENCE, skip catastrophic, recommend shadow",
+    "catastrophic_check": {
+      "pnl_sign_preserved": "baseline PnL > 0 and proposed PnL < 0 is the only REJECT"
+    },
+    "warn_only": [
+      "pf_change",
+      "wilson_lo_change",
+      "n_change_pct"
+    ],
+    "sanity_floor": "REMOVED in v2.1",
+    "positive_direction": "not required",
+    "absolute_kelly": "not required"
+  },
+  "cells": {
+    "EUR_USD": {
+      "current": {
+        "N": 227,
+        "wins": 172,
+        "WR": 0.7577,
+        "EV": 0.5962,
+        "PnL": 135.3431,
+        "PF": 1.8444,
+        "wilson_lo": 0.698,
+        "total_trades_all_strategies": 227,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24612
+      },
+      "proposed": {
+        "N": 227,
+        "wins": 172,
+        "WR": 0.7577,
+        "EV": 0.5962,
+        "PnL": 135.3431,
+        "PF": 1.8444,
+        "wilson_lo": 0.698,
+        "total_trades_all_strategies": 227,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24612
+      },
+      "lock_criteria": {
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "warnings": {
+          "pf_change": 0.0,
+          "wilson_lo_change": 0.0,
+          "n_change_pct": 0.0
+        },
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "GBP_USD": {
+      "current": {
+        "N": 397,
+        "wins": 284,
+        "WR": 0.7154,
+        "EV": 0.413,
+        "PnL": 163.956,
+        "PF": 1.4747,
+        "wilson_lo": 0.6691,
+        "total_trades_all_strategies": 397,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24585
+      },
+      "proposed": {
+        "N": 397,
+        "wins": 284,
+        "WR": 0.7154,
+        "EV": 0.413,
+        "PnL": 163.956,
+        "PF": 1.4747,
+        "wilson_lo": 0.6691,
+        "total_trades_all_strategies": 397,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24585
+      },
+      "lock_criteria": {
+        "pnl_sign_preserved": true,
+        "catastrophic_check": true,
+        "warnings": {
+          "pf_change": 0.0,
+          "wilson_lo_change": 0.0,
+          "n_change_pct": 0.0
+        },
+        "verdict": "PASS",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW"
+      }
+    },
+    "EUR_GBP": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "total_trades_all_strategies": 0,
+        "bt_error": "サンプル数不足（20トレード未満）",
+        "data_source": null,
+        "bars_fetched": null
+      },
+      "lock_criteria": {
+        "verdict": "INSUFFICIENT_BT_EVIDENCE",
+        "reason": "proposed BT trades < 20; v2.1 skips catastrophic check",
+        "catastrophic_check": "SKIPPED",
+        "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+        "warnings": {
+          "n_change_pct": 0.0,
+          "pf_change": "WARN_ONLY",
+          "wilson_lo_change": "WARN_ONLY"
+        }
+      }
+    },
+    "XAU_USD": {
+      "current": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/XAU_USD_15m.parquet"
+      },
+      "proposed": {
+        "N": 0,
+        "wins": 0,
+        "WR": 0.0,
+        "EV": 0.0,
+        "PnL": 0.0,
+        "PF": 0.0,
+        "wilson_lo": 0.0,
+        "bt_error": "missing MASSIVE parquet cache: data/cache/massive/XAU_USD_15m.parquet"
+      },
+      "lock_criteria": {
+        "verdict": "BLOCKED_DATA",
+        "reason": "XAU shadow-only cache absent; implementation remains default-off until opt-in data exists",
+        "shadow_promote_recommendation": "IMPLEMENTATION_ONLY_DEFAULT_OFF"
+      }
+    }
+  },
+  "overall_verdict": "INSUFFICIENT_BT_EVIDENCE",
+  "shadow_promote_recommendation": "RECOMMEND_SHADOW",
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 1926.9,
+  "self_review": {
+    "catastrophic_only": "PASS: verdict uses pnl_sign_preserved only when proposed N>=20; PF/Wilson/N are warnings only.",
+    "absolute_kelly": "PASS: no Kelly threshold is used.",
+    "production_live_safety": "PASS: behavior is default-off unless TRENDLINE_SWEEP_REDESIGN_V2=1; parallel shadow emit also requires TRENDLINE_SWEEP_REDESIGN_V2_SHADOW_PROMOTE=1.",
+    "post_hoc_adjustment": "PASS: only the audit-specified pair routing scope changed; trigger/timing/SL/TP geometry is untouched.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo fallback for runnable 15m targets."
+  }
+}
