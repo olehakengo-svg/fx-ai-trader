@@ -145,3 +145,30 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
 
 
+
+
+## Result (2026-05-06T11:02:15Z)
+
+exit=0 · 3198s
+
+```
+完了しました。
+
+実装は flag 配下です。`MTF_CONFLUENCE_REDESIGN_V2=1` の時だけ [strategies/scalp/mtf_confluence.py](/data/repo/fx-ai-trader/strategies/scalp/mtf_confluence.py:18) で closed-bar 評価、同一 `(symbol, strategy, bar_time, signal)` dedup、MR geometry `TP=0.8ATR / SL=1.2ATR` を使います。default OFF なので live 既存挙動は維持です。shadow worker 登録も `MTF_CONFLUENCE_REDESIGN_V2_SHADOW_PROMOTE=1` との両方 opt-in にしました: [strategies/scalp/__init__.py](/data/repo/fx-ai-trader/strategies/scalp/__init__.py:214)。
+
+BT 用に [tools/mtf_confluence_shadow_bt.py](/data/repo/fx-ai-trader/tools/mtf_confluence_shadow_bt.py:1) を追加し、`BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1`、`app.run_daytrade_backtest(backtest_mode=True)` で 365d A/B を完走しました。report は [bt-results/mtf_confluence-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/mtf_confluence-shadow-redesign-v2-2026-05-05.json:1) です。
+
+BT verdict: `INSUFFICIENT_BT_EVIDENCE`、shadow promote recommendation: `RECOMMEND_SHADOW`。
+
+Pair summary:
+- `EUR_USD`: proposed N=13 → `INSUFFICIENT_BT_EVIDENCE`
+- `USD_JPY`: N=39 → `PASS`
+- `EUR_JPY`: N=51 → `PASS`
+- `GBP_USD`: N=28 → `PASS`
+- `GBP_JPY`: N=35 → `PASS`
+
+検証:
+- `.venv/bin/pytest -q tests/test_mtf_confluence_shadow_redesign_v2.py tests/test_confluence_scalp_shadow_redesign_v2.py tests/test_mtf_regime_range_cascade_scalp_shadow_redesign_v2.py` → `14 passed`
+- `.venv/bin/python -m py_compile strategies/scalp/mtf_confluence.py strategies/scalp/__init__.py app.py tools/mtf_confluence_shadow_bt.py`
+- report assertions: v2.1 sanity floor removed、PF/Wilson/N drop warn-only、missing cache なし、PASS/INSUFFICIENT のみ確認済み。
+```

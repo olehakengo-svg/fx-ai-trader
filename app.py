@@ -6156,6 +6156,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
     _lny_v2_cache_flag = os.environ.get("LONDON_NY_SWING_REDESIGN_V2", "0")
     _mtf_v2_cache_flag = os.environ.get("MTF_REGIME_TREND_CASCADE_SCALP_REDESIGN_V2", "0")
     _mtf_range_v2_cache_flag = os.environ.get("MTF_REGIME_RANGE_CASCADE_SCALP_REDESIGN_V2", "0")
+    _mtf_confluence_v2_cache_flag = os.environ.get("MTF_CONFLUENCE_REDESIGN_V2", "0")
     _pnv_v2_cache_flag = os.environ.get("POST_NEWS_VOL_REDESIGN_V2", "0")
     _rsk_v2_cache_flag = os.environ.get("RSK_GBPJPY_REVERSION_REDESIGN_V2", "0")
     _sbr_v2_cache_flag = os.environ.get("SR_BREAK_RETEST_REDESIGN_V2", "0")
@@ -6167,6 +6168,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         f"_lsbV2{_lsb_v2_cache_flag}_lnyV2{_lny_v2_cache_flag}"
         f"_mtfCascadeV2{_mtf_v2_cache_flag}_pnvV2{_pnv_v2_cache_flag}"
         f"_mtfRangeCascadeV2{_mtf_range_v2_cache_flag}"
+        f"_mtfConfluenceV2{_mtf_confluence_v2_cache_flag}"
         f"_rskV2{_rsk_v2_cache_flag}_sbrV2{_sbr_v2_cache_flag}"
     )
     now = datetime.now()
@@ -6409,6 +6411,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "engulfing_bb",                  # BT-only strategy-filter path for scalp shadow redesign
                 "london_breakout",               # BT-only strategy-filter path for scalp shadow redesign
                 "ma_regime_switch",              # BT-only strategy-filter path for scalp shadow redesign
+                "mtf_reversal_confluence",       # BT-only strategy-filter path for scalp shadow redesign
                 "mtf_regime_trend_cascade_scalp", # BT-only strategy-filter path for scalp shadow redesign
                 "mtf_regime_range_cascade_scalp", # BT-only strategy-filter path for scalp shadow redesign
             }
