@@ -293,6 +293,9 @@ class DaytradeEngine:
         if (os.environ.get("PULLBACK_TO_LIQUIDITY_V1_REDESIGN_V2") == "1"
                 and os.environ.get("PULLBACK_TO_LIQUIDITY_V1_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"pullback_to_liquidity_v1"}
+        if (os.environ.get("SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2") == "1"
+                and os.environ.get("SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"squeeze_release_momentum"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

@@ -1,6 +1,8 @@
 import pandas as pd
 
+from strategies.base import Candidate
 from strategies.context import SignalContext
+from strategies.daytrade import DaytradeEngine
 from strategies.daytrade.squeeze_release_momentum import SqueezeReleaseMomentum
 
 
@@ -92,13 +94,39 @@ def test_current_default_path_is_unchanged(monkeypatch):
     assert any("bbpb=0.82" in reason for reason in got.reasons)
 
 
+def test_redesign_v2_default_off_allows_existing_repeat(monkeypatch):
+    monkeypatch.delenv("SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2", raising=False)
+    SqueezeReleaseMomentum.reset_dedup_state()
+    ctx = _ctx(_df(signal_width=0.009, prev_width=0.010, current_width=0.015,
+                  signal_pband=0.50, current_pband=0.82, current_open=1.1005))
+    strategy = SqueezeReleaseMomentum()
+
+    assert strategy.evaluate(ctx) is not None
+    assert strategy.evaluate(ctx) is not None
+
+
 def test_redesign_v2_dedups_same_symbol_signal_bar(monkeypatch):
     monkeypatch.setenv("SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2", "1")
     SqueezeReleaseMomentum.reset_dedup_state()
     ctx = _ctx(_df())
+    strategy = SqueezeReleaseMomentum()
 
-    first = SqueezeReleaseMomentum().evaluate(ctx)
-    second = SqueezeReleaseMomentum().evaluate(ctx)
+    first = strategy.evaluate(ctx)
+    second = strategy.evaluate(ctx)
 
     assert first is not None
     assert second is None
+
+
+def test_redesign_v2_shadow_worker_registration_is_opt_in(monkeypatch):
+    engine = DaytradeEngine()
+    best = Candidate("BUY", 60, 1.0, 1.2, ["best"], "ema_cross", 6.0)
+    srm = Candidate("BUY", 60, 1.0, 1.2, ["srm"], "squeeze_release_momentum", 5.0)
+
+    monkeypatch.delenv("SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2", raising=False)
+    monkeypatch.delenv("SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE", raising=False)
+    assert engine.split_shadow_always([best, srm], best) == []
+
+    monkeypatch.setenv("SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2", "1")
+    monkeypatch.setenv("SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE", "1")
+    assert engine.split_shadow_always([best, srm], best) == [srm]

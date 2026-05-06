@@ -141,3 +141,30 @@ REJECT → 文書化のみ、shadow 設定変更なし
 - v1 spec で 5/5 REJECT は spec の問題 — **v2 では緩和**
 - N<20 の場合は「BT で判定不能なので shadow に出して実測」が正しい (BT bias を真値扱いしない)
 - post-hoc justification 罠 — 「v1 を救済する」のではなく「shadow-first 原則を厳密に適用」
+
+
+## Result (2026-05-06T06:52:25Z)
+
+exit=0 · 1985s
+
+```
+完了しました。
+
+SRM v2 は `SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2=1` 配下の closed-bar / per-bar dedup 実装を default OFF のまま維持し、shadow 側も `SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE=1` がない限り登録されない opt-in にしました。追加箇所は [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:296) です。
+
+テストは acceptance 名に合わせて [tests/test_squeeze_release_momentum_shadow_redesign_v2.py](/data/repo/fx-ai-trader/tests/test_squeeze_release_momentum_shadow_redesign_v2.py:1) に整理し、closed-bar 判定、default OFF 不変、dedup、shadow opt-in を確認しています。
+
+検証:
+` .venv/bin/pytest -q tests/test_squeeze_release_momentum_shadow_redesign_v2.py `
+結果: `6 passed`
+
+365d BT report は [bt-results/squeeze_release_momentum-shadow-redesign-v2-2026-05-05.json](/data/repo/fx-ai-trader/bt-results/squeeze_release_momentum-shadow-redesign-v2-2026-05-05.json:1) に生成済みです。`BT_MODE=1 BT_REQUIRE_MASSIVE_CACHE=1`、MASSIVE cache verified、`run_daytrade_backtest(..., backtest_mode=True)` 経由です。
+
+v2 LOCK verdict: **REJECT**
+
+主因:
+- `EUR_USD`: proposed N=29 なので catastrophic check 適用。`n_change_pct=-32.56%` が threshold `>= -30%` を割り REJECT。
+- `GBP_USD`: proposed N=27。`PF 0.5502` が sanity floor `>=0.85` 未満、PF/Wilson も catastrophic fail。
+
+したがって shadow promote は行っていません。Self-review も report 内で PASS: catastrophic-only、Kelly gate なし、positive direction 要求なし、flag OFF live impact zero、post-hoc adjustment なし、を記録しています。
+```

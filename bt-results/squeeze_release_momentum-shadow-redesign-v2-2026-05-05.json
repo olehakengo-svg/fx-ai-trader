@@ -1,0 +1,130 @@
+{
+  "generated_at": "2026-05-06T06:51:35.630939+00:00",
+  "strategy": "squeeze_release_momentum",
+  "variant": "closed_bar_dedup_v2",
+  "flag": "SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2",
+  "shadow_worker_flag": "SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE",
+  "lookback_days": 365,
+  "minimum_days": 365,
+  "interval": "15m",
+  "data_source_required": "data/cache/massive/{PAIR}_{TF}.parquet with BT_MODE=1",
+  "runner": "app.run_daytrade_backtest(symbol=..., lookback_days=365, interval=\"15m\", backtest_mode=True; production daytrade path; strategy-only compute patch)",
+  "bt_mode": "1",
+  "massive_cache_verified": true,
+  "targets": [
+    "EUR_USD",
+    "GBP_USD"
+  ],
+  "missing_caches": [],
+  "cells": {
+    "EUR_USD": {
+      "current": {
+        "N": 43,
+        "wins": 23,
+        "WR": 0.5349,
+        "EV": -0.0801,
+        "PnL": -3.4423,
+        "PF": 0.8991,
+        "wilson_lo": 0.3892,
+        "total_trades_all_strategies": 43,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24612
+      },
+      "proposed": {
+        "N": 29,
+        "wins": 15,
+        "WR": 0.5172,
+        "EV": -0.0951,
+        "PnL": -2.758,
+        "PF": 0.8711,
+        "wilson_lo": 0.3443,
+        "total_trades_all_strategies": 29,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24612
+      },
+      "lock_criteria": {
+        "pf_change": -0.028,
+        "wilson_lo_change": -0.0449,
+        "n_change_pct": -32.5581,
+        "pnl_sign_preserved": true,
+        "pf_threshold": -0.1,
+        "wilson_lo_threshold": -0.05,
+        "n_change_pct_threshold": -30.0,
+        "catastrophic_check": "FAIL",
+        "sanity_floor": true,
+        "verdict": "REJECT",
+        "shadow_promote_recommendation": "REJECT"
+      }
+    },
+    "GBP_USD": {
+      "current": {
+        "N": 32,
+        "wins": 19,
+        "WR": 0.5938,
+        "EV": -0.0415,
+        "PnL": -1.3295,
+        "PF": 0.9454,
+        "wilson_lo": 0.4226,
+        "total_trades_all_strategies": 32,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24585
+      },
+      "proposed": {
+        "N": 27,
+        "wins": 11,
+        "WR": 0.4074,
+        "EV": -0.4549,
+        "PnL": -12.2829,
+        "PF": 0.5502,
+        "wilson_lo": 0.2451,
+        "total_trades_all_strategies": 27,
+        "bt_error": null,
+        "data_source": "massive-parquet",
+        "bars_fetched": 24585
+      },
+      "lock_criteria": {
+        "pf_change": -0.3952,
+        "wilson_lo_change": -0.1775,
+        "n_change_pct": -15.625,
+        "pnl_sign_preserved": true,
+        "pf_threshold": -0.1,
+        "wilson_lo_threshold": -0.05,
+        "n_change_pct_threshold": -30.0,
+        "catastrophic_check": "FAIL",
+        "sanity_floor": false,
+        "verdict": "REJECT",
+        "shadow_promote_recommendation": "REJECT"
+      }
+    }
+  },
+  "overall_verdict": "REJECT",
+  "shadow_promote_recommendation": "REJECT",
+  "shadow_flag": "SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2_SHADOW_PROMOTE",
+  "lock_criteria_v2": {
+    "bt_evidence_threshold": "if proposed N < 20: INSUFFICIENT_BT_EVIDENCE; skip catastrophic_check",
+    "catastrophic_check": {
+      "pf_change_min": -0.1,
+      "wilson_lo_change_min": -0.05,
+      "n_change_pct_min": -30.0,
+      "pnl_sign_preserved": true
+    },
+    "sanity_floor": {
+      "wilson_lo_proposed_min": 0.2,
+      "pf_proposed_min": 0.85
+    },
+    "positive_direction_required": false,
+    "absolute_kelly_required": false
+  },
+  "shadow_accumulation_target": "60-90 days or N>=30 after shadow start",
+  "elapsed_s": 1260.2,
+  "self_review": {
+    "catastrophic_check_only": "PASS: verdict uses catastrophic PF/Wilson/N/PnL checks plus sanity floors; no positive-direction gate.",
+    "production_live_safety": "PASS: strategy behavior is default-off unless SQUEEZE_RELEASE_MOMENTUM_REDESIGN_V2=1.",
+    "post_hoc_adjustment": "PASS: only the pre-registered closed_bar_dedup_v2 variant is evaluated.",
+    "bt_source_guard": "PASS: BT_REQUIRE_MASSIVE_CACHE=1 prevents Yahoo/network fallback for this report.",
+    "absolute_kelly_gate": "PASS: no Kelly threshold is used."
+  }
+}
