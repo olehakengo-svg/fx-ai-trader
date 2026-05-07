@@ -44,7 +44,10 @@ from typing import Any
 import pandas as pd
 import requests
 
-PAIRS = ["EUR_USD", "USD_JPY", "GBP_USD", "EUR_JPY", "GBP_JPY", "EUR_GBP"]
+PAIRS = [
+    "EUR_USD", "USD_JPY", "GBP_USD", "AUD_USD", "USD_CAD", "USD_CHF", "NZD_USD",
+    "EUR_JPY", "GBP_JPY", "AUD_JPY", "EUR_AUD", "EUR_GBP", "EUR_CHF", "GBP_CHF",
+]
 ENDPOINT = "https://labs-api.oanda.com/graphql"
 HEADERS = {
     "Content-Type": "application/json",

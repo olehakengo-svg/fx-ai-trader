@@ -34,13 +34,18 @@ from bb_squeeze_rescue_bt import (  # noqa: E402
 )
 
 
-PAIRS = ["EUR_USD", "USD_JPY", "GBP_USD", "EUR_JPY", "GBP_JPY", "EUR_GBP"]
+PAIRS = [
+    "EUR_USD", "USD_JPY", "GBP_USD", "AUD_USD", "USD_CAD", "USD_CHF", "NZD_USD",
+    "EUR_JPY", "GBP_JPY", "AUD_JPY", "EUR_AUD", "EUR_GBP", "EUR_CHF", "GBP_CHF",
+]
 THRESHOLDS_HIGH = [65, 70, 75, 80, 85, 90]
 THRESHOLDS_LOW = [35, 30, 25, 20, 15, 10]
 HOLDING_BARS_H4 = [1, 2, 4, 12]
+# Phase 1c: 14 pairs * 12 thresholds * 4 holdings = 672 cells
 N_CELLS = len(PAIRS) * (len(THRESHOLDS_HIGH) + len(THRESHOLDS_LOW)) * len(HOLDING_BARS_H4)
 ALPHA_CELL = 0.05 / N_CELLS
 MIN_N = 20
+DEFAULT_WINDOW_DAYS = 90
 
 GRAPHQL_URL = "https://labs-api.oanda.com/graphql"
 GRAPHQL_QUERY = """query GetSentiments($instrument: String!, $granularity: Granularity!, $timeSpan: TimeSpan!) {
@@ -51,6 +56,7 @@ GRAPHQL_QUERY = """query GetSentiments($instrument: String!, $granularity: Granu
 
 ROOT = Path(__file__).resolve().parents[1]
 SENTIMENT_PATH = ROOT / "data" / "sentiment" / "oanda_labs_h4_90d.parquet"
+HISTORY_PATH = ROOT / "data" / "sentiment" / "oanda_labs_h4_history.parquet"
 OUT_DIR = ROOT / "bt-results" / "phase1b"
 CELLS_PATH = OUT_DIR / "oanda_contrarian_cells.parquet"
 REPORT_PATH = OUT_DIR / "oanda_contrarian_report.md"
@@ -121,19 +127,65 @@ def cache_covers_pairs(path: Path, pairs: List[str]) -> bool:
     return set(pairs).issubset(set(df["pair"].dropna().astype(str).unique()))
 
 
-def load_or_fetch_sentiment(pairs: List[str], no_fetch: bool, force_fetch: bool) -> Tuple[pd.DataFrame, List[str]]:
+def load_or_fetch_sentiment(
+    pairs: List[str],
+    no_fetch: bool,
+    force_fetch: bool,
+    history_only: bool = False,
+    prefer_history: bool = True,
+) -> Tuple[pd.DataFrame, List[str], str]:
+    """Resolve the sentiment dataframe to use for the BT.
+
+    Returns (df, errors, source_label) where source_label describes which
+    parquet was used. The cumulative history file is preferred when it has
+    more rows than the rolling fetch (this is what enables future runs to
+    reach beyond the 90d API window).
+    """
     SENTIMENT_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    history_df: Optional[pd.DataFrame] = None
+    if HISTORY_PATH.exists():
+        try:
+            history_df = normalize_sentiment(pd.read_parquet(HISTORY_PATH))
+        except Exception as exc:  # pragma: no cover - filesystem corruption path
+            history_df = None
+            print(f"[sentiment-warn] failed to read history: {exc}", flush=True)
+
+    if history_only:
+        if history_df is None or history_df.empty:
+            raise FileNotFoundError(
+                f"--history requested but {HISTORY_PATH} missing/empty; "
+                "run scripts/oanda_sentiment_cron.py first"
+            )
+        return history_df, [], f"history:{HISTORY_PATH.relative_to(ROOT)}"
+
     if no_fetch:
+        if prefer_history and history_df is not None and not history_df.empty:
+            return history_df, [], f"history:{HISTORY_PATH.relative_to(ROOT)}"
         if not SENTIMENT_PATH.exists():
             raise FileNotFoundError(f"--no-fetch requested but cache is missing: {SENTIMENT_PATH}")
-        return normalize_sentiment(pd.read_parquet(SENTIMENT_PATH)), []
-    if (
+        return (
+            normalize_sentiment(pd.read_parquet(SENTIMENT_PATH)),
+            [],
+            f"rolling:{SENTIMENT_PATH.relative_to(ROOT)}",
+        )
+
+    rolling_fresh = (
         SENTIMENT_PATH.exists()
         and not force_fetch
         and cache_is_fresh(SENTIMENT_PATH)
         and cache_covers_pairs(SENTIMENT_PATH, pairs)
-    ):
-        return normalize_sentiment(pd.read_parquet(SENTIMENT_PATH)), []
+    )
+    if rolling_fresh:
+        rolling_df = normalize_sentiment(pd.read_parquet(SENTIMENT_PATH))
+        if (
+            prefer_history
+            and history_df is not None
+            and not history_df.empty
+            and len(history_df) > len(rolling_df)
+        ):
+            return history_df, [], f"history:{HISTORY_PATH.relative_to(ROOT)}"
+        return rolling_df, [], f"rolling:{SENTIMENT_PATH.relative_to(ROOT)}"
 
     frames: List[pd.DataFrame] = []
     errors: List[str] = []
@@ -156,7 +208,23 @@ def load_or_fetch_sentiment(pairs: List[str], no_fetch: bool, force_fetch: bool)
         merged = pd.DataFrame(columns=["pair", "time_utc", "short_pct", "long_pct"])
 
     merged.to_parquet(SENTIMENT_PATH, index=False)
-    return merged, errors
+
+    # Even after a fresh fetch, prefer history if it covers more time.
+    if (
+        prefer_history
+        and history_df is not None
+        and not history_df.empty
+        and len(history_df) > len(merged)
+    ):
+        return history_df, errors, f"history:{HISTORY_PATH.relative_to(ROOT)}"
+    return merged, errors, f"rolling:{SENTIMENT_PATH.relative_to(ROOT)}"
+
+
+def filter_window(df: pd.DataFrame, window_days: int) -> pd.DataFrame:
+    if df.empty or window_days <= 0:
+        return df
+    cutoff = utc_now() - pd.Timedelta(days=window_days)
+    return df.loc[df["time_utc"] >= cutoff].reset_index(drop=True)
 
 
 def normalize_sentiment(df: pd.DataFrame) -> pd.DataFrame:
@@ -494,6 +562,9 @@ def write_report(
     sentiment_errors: List[str],
     skipped_pairs: List[str],
     pair_rows: Dict[str, int],
+    sentiment_source: str,
+    window_days: int,
+    sentiment_rows: int,
 ) -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     now = utc_now().isoformat()
@@ -505,11 +576,15 @@ def write_report(
     lines.append("")
     lines.append("## Header")
     lines.append(f"- Run timestamp UTC: {now}")
-    lines.append(f"- Pair set: {', '.join(PAIRS)}")
-    lines.append(f"- Cell grid: 6 pairs x 12 thresholds x 4 holdings = {N_CELLS}")
+    lines.append(f"- Pair set ({len(PAIRS)}): {', '.join(PAIRS)}")
+    lines.append(
+        f"- Cell grid: {len(PAIRS)} pairs x {len(THRESHOLDS_HIGH) + len(THRESHOLDS_LOW)} thresholds "
+        f"x {len(HOLDING_BARS_H4)} holdings = {N_CELLS}"
+    )
     lines.append(f"- m_used (N >= {MIN_N}): {m_used}")
     lines.append(f"- alpha_cell: {ALPHA_CELL:.8f}")
-    lines.append(f"- Sentiment cache: `{SENTIMENT_PATH.relative_to(ROOT)}`")
+    lines.append(f"- Sentiment source: `{sentiment_source}` (rows used: {sentiment_rows})")
+    lines.append(f"- Window: last {window_days} days from now")
     lines.append("")
     lines.append("## Top-Level Verdict")
     lines.append(f"**{verdict}**")
@@ -583,7 +658,14 @@ def run(args: argparse.Namespace) -> int:
     invalid = [p for p in pairs if p not in PAIRS]
     if invalid:
         raise ValueError(f"unsupported --pair {invalid}; allowed: {PAIRS}")
-    sentiment, sentiment_errors = load_or_fetch_sentiment(pairs, args.no_fetch, args.force_fetch)
+    sentiment, sentiment_errors, sentiment_source = load_or_fetch_sentiment(
+        pairs,
+        args.no_fetch,
+        args.force_fetch,
+        history_only=args.history,
+        prefer_history=not args.no_history,
+    )
+    sentiment = filter_window(sentiment, args.window_days)
     joined_by_pair: Dict[str, pd.DataFrame] = {}
     skipped_pairs: List[str] = []
     pair_rows: Dict[str, int] = {}
@@ -607,8 +689,17 @@ def run(args: argparse.Namespace) -> int:
     cells, m_used = build_grid(joined_by_pair)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     cells.to_parquet(CELLS_PATH, index=False)
-    write_report(cells, m_used, sentiment_errors, skipped_pairs, pair_rows)
-    print(f"[written] {SENTIMENT_PATH}")
+    write_report(
+        cells,
+        m_used,
+        sentiment_errors,
+        skipped_pairs,
+        pair_rows,
+        sentiment_source,
+        args.window_days,
+        len(sentiment),
+    )
+    print(f"[sentiment-source] {sentiment_source} rows={len(sentiment)} window={args.window_days}d")
     print(f"[written] {CELLS_PATH}")
     print(f"[written] {REPORT_PATH}")
     survivors = cells[cells["survivor"]]
@@ -620,10 +711,30 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Phase 1b OANDA retail-contrarian sentiment BT")
     ap.add_argument("--no-fetch", action="store_true", help="Use cached sentiment and error if it is missing")
     ap.add_argument("--force-fetch", action="store_true", help="Fetch sentiment even when cache is fresh")
+    ap.add_argument(
+        "--history",
+        action="store_true",
+        help="Force history-only mode (errors if oanda_labs_h4_history.parquet is missing/empty)",
+    )
+    ap.add_argument(
+        "--no-history",
+        action="store_true",
+        help="Ignore the cumulative history parquet even if it has more rows than the rolling cache",
+    )
+    ap.add_argument(
+        "--window-days",
+        type=int,
+        default=DEFAULT_WINDOW_DAYS,
+        help=f"Filter sentiment to the last N days (default {DEFAULT_WINDOW_DAYS}); 0 = no filter",
+    )
     ap.add_argument("--pair", choices=PAIRS, default=None, help="Limit run to one pair for debugging")
     args = ap.parse_args()
     if args.no_fetch and args.force_fetch:
         ap.error("--no-fetch and --force-fetch are mutually exclusive")
+    if args.history and args.no_history:
+        ap.error("--history and --no-history are mutually exclusive")
+    if args.window_days < 0:
+        ap.error("--window-days must be >= 0")
     return run(args)
 
 

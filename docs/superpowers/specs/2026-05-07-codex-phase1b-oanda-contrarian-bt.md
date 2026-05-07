@@ -37,7 +37,11 @@ This task is self-contained. No edits to existing strategies, gates, or DB schem
 
 ## 4. Inputs
 
-### 4.1 Sentiment data (fetched at run time)
+### 4.1 Sentiment data — dual source (rolling 90d + cumulative history)
+
+The script supports two sentiment sources and selects the larger one automatically (history-first when it has more rows). The cumulative history is what enables future runs to break beyond the rolling 90d API window.
+
+**Source A — rolling fetch (legacy fallback)**
 
 Endpoint:
 ```
@@ -60,9 +64,27 @@ query GetSentiments($instrument: String!, $granularity: Granularity!, $timeSpan:
 }
 ```
 
-Response shape (verified 2026-05-07): see `reference_oanda_labs_api.md` in the user's auto-memory or the dexter `get_oanda_labs_sentiment` reference implementation. List is **most-recent-first**, server returns ~541 points per pair.
+Response shape (verified 2026-05-07): see `reference_oanda_labs_api.md`. List is most-recent-first, server returns ~541 points per pair.
 
-Save merged DataFrame to `data/sentiment/oanda_labs_h4_90d.parquet` with columns: `pair, time_utc, short_pct, long_pct`.
+Cached to `data/sentiment/oanda_labs_h4_90d.parquet` with columns: `pair, time_utc, short_pct, long_pct` (refreshed if older than 12 h or on `--force-fetch`).
+
+**Source B — cumulative history (preferred when richer)**
+
+`data/sentiment/oanda_labs_h4_history.parquet` is the append-only file populated by `scripts/oanda_sentiment_cron.py` (hourly cron / `phase1b-bt-rerun` daily). Schema is the rolling cache + `fetched_at` column; dedup key is `(pair, time_utc)`. After ~3 months of cron uptime this file exceeds the 90-day API window — that is the whole point.
+
+**Source resolution rules**
+
+| flag                  | behaviour                                                                                       |
+|-----------------------|-------------------------------------------------------------------------------------------------|
+| (default)             | Use whichever of A/B has more rows after a freshness check; refetch if rolling cache is stale.  |
+| `--history`           | Hard-require Source B; error if `oanda_labs_h4_history.parquet` is missing/empty.               |
+| `--no-history`        | Ignore Source B; behave like the original Phase 1b (rolling-only).                               |
+| `--no-fetch`          | Use cached data, prefer history if present, never hit the network.                              |
+| `--force-fetch`       | Refresh Source A even if fresh; history preference still applies after the fetch.               |
+
+**Window filter**
+
+`--window-days N` (default 90) trims sentiment to `time_utc >= now - N days` after source resolution. Pass `0` for no filter (use everything in history). The chosen window is logged in the report header.
 
 ### 4.2 OHLC data (MASSIVE)
 
@@ -71,13 +93,18 @@ Read from `data/cache/massive/<PAIR>_1h.parquet`. **MASSIVE has only 1h, not 4h*
 - aggregate: open=first, high=max, low=min, close=last
 - drop incomplete final bar if not all 4 hours present
 
-### 4.3 Pair set (intersection of OANDA labs 16 ∪ MASSIVE 6)
+### 4.3 Pair set — Phase 1c expansion (14 pairs)
 
 ```python
-PAIRS = ["EUR_USD", "USD_JPY", "GBP_USD", "EUR_JPY", "GBP_JPY", "EUR_GBP"]
+PAIRS = [
+    "EUR_USD", "USD_JPY", "GBP_USD", "AUD_USD", "USD_CAD", "USD_CHF", "NZD_USD",
+    "EUR_JPY", "GBP_JPY", "AUD_JPY", "EUR_AUD", "EUR_GBP", "EUR_CHF", "GBP_CHF",
+]
 ```
 
-XAU/XAG excluded per `feedback_exclude_xau.md`. AUD/CAD/CHF/NZD pairs not in MASSIVE.
+XAU/XAG excluded per `feedback_exclude_xau.md`. The 8 cross/non-USD pairs were added in Phase 1c after `_SYMBOL_MAP` was extended in `modules/data.py` and the 1h MASSIVE cache backfilled (2026-05-07). The cron at `scripts/oanda_sentiment_cron.py` polls all 14 pairs.
+
+Cell grid: 14 pairs × 12 thresholds × 4 holdings = **672 cells**. Bonferroni `α_cell = 0.05 / 672 ≈ 7.44e-5`.
 
 ## 5. Cell grid
 
