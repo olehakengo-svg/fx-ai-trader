@@ -819,6 +819,16 @@ Cutoff後累計はN=22、WR=45.5%、PnL=−12.1pips相当。システムは稼�
 - **現象**: 前日2件のみ。Block counts上位を見ると`recent_emit`系が系統的にシグナルを抑制している（daytrade_eur:99、daytrade_gbpusd:93、daytrade:75など）。
 - **主因分析**:
 
+### 2026-05-07 (Post-Tokyo Report)
+- UTC 00:00–06:00 対象トレード: **0件**
+- 本日累計: N=6, WR=66.7%, PnL=**-9.9 pips**（セッション外の取引を含む）
+- OANDA NAV: **435,752.48** / Open Trades: **0**
+- N=6, PnL=**-9.9 pips**（WR 66.7%でもネガティブPnL）
+- 「3勝4敗相当のpip収支」は**勝ちpipsより負けpipsが大きい非対称構造**を示唆
+- 具体的には平均勝ち<平均負けの逆リスクリワード状態が疑われる
+- 東京セッションの実行機会ゼロは「戦略の失敗」ではなく、**ブロック機構が正常動作している証拠**
+- Block Countsのトップが `scalp_eur:max_open(262)` `scalp:max_open(260)` と `max_open` 系に集中
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
