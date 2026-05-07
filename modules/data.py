@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import threading
+import time
 import pandas as pd
 import yfinance as yf
 from datetime import datetime, timezone, timedelta
@@ -318,19 +319,80 @@ def fetch_ohlcv_twelvedata(symbol: str, interval: str) -> pd.DataFrame:
 # ═══════════════════════════════════════════════════════
 #  Massive Market Data fetch
 # ═══════════════════════════════════════════════════════
+def _massive_utc_now() -> datetime:
+    """Tiny indirection so tests can pin "now" without freezing the global clock.
+
+    Production callers get datetime.now(timezone.utc); tests monkeypatch this
+    helper to make chunked fetch boundaries deterministic.
+    """
+    return datetime.now(timezone.utc)
+
+
+# Approx 1.7 years per chunk; chosen so a 12y/15m fetch produces 7 chunks
+# (4380d / 630d ≈ 6.95). Each chunk still paginates internally via next_url
+# when the API truncates a single response.
+_MASSIVE_CHUNK_DAYS = 630
+
+
+def _fetch_chunk(
+    massive_ticker: str,
+    mult: int,
+    timespan: str,
+    chunk_start: datetime,
+    chunk_end: datetime,
+    api_key: str,
+) -> list:
+    """Fetch a single time-bounded Massive aggregate range.
+
+    Internally walks `next_url` pagination so chunks larger than the API's
+    50 000-row cap still come back complete. Returns the raw list of bar
+    dicts as Massive emits them.
+    """
+    import json as _js
+    import urllib.request as _ur
+
+    date_from = chunk_start.strftime("%Y-%m-%d")
+    date_to = chunk_end.strftime("%Y-%m-%d")
+    url = (
+        f"https://api.massive.com/v2/aggs/ticker/{massive_ticker}"
+        f"/range/{mult}/{timespan}/{date_from}/{date_to}"
+    )
+    params = "?adjusted=true&sort=asc&limit=50000"
+    headers = {"User-Agent": "Mozilla/5.0", "Authorization": f"Bearer {api_key}"}
+
+    rows: list = []
+    for _page in range(2500):  # safety cap; real chunks rarely exceed a few pages
+        req = _ur.Request(url + params, headers=headers)
+        try:
+            with _ur.urlopen(req, timeout=45) as r:
+                data = _js.load(r)
+        except Exception:
+            if _page == 0:
+                raise
+            break  # mid-pagination errors abort the chunk gracefully
+        results = data.get("results", [])
+        if not results:
+            break
+        rows.extend(results)
+        next_url = data.get("next_url")
+        if not next_url:
+            break
+        url = next_url
+        params = ""  # next_url already encodes filters; auth is in the header
+
+    return rows
+
+
 def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
     """
     Massive Market Data API (Polygon互換) からOHLCVデータを取得。
-    全6FXペア対応 (C:USDJPY, C:EURUSD, C:EURJPY, C:GBPUSD, C:GBPJPY, C:EURGBP)。
-    ページネーション対応で指定日数分を確実に取得。
+    全14 OANDA Labs FXペア対応 (C:USDJPY, C:EURUSD, ..., C:GBPCHF)。
+    時間範囲を ~630日チャンクに分割し、各チャンク内で next_url で
+    ページネーションする。長期(12年)取得でも本数取りこぼしなし。
 
     interval: "1m","5m","15m","30m","1h","4h","1d"
     days: 取得日数
     """
-    import json as _js
-    import time as _time
-    import urllib.request as _ur
-
     api_key = os.environ.get("MASSIVE_API_KEY", "")
     if not api_key:
         raise ValueError("MASSIVE_API_KEY not set")
@@ -400,57 +462,24 @@ def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
         raise ValueError(f"Interval {interval} not supported")
     mult, timespan = _IV_MAP[interval]
 
-    # Date range
-    from datetime import timedelta
-    end_dt   = datetime.now(timezone.utc)
-    start_dt = end_dt - timedelta(days=days + 3)  # +3日バッファ
-    date_from = start_dt.strftime("%Y-%m-%d")
-    date_to   = end_dt.strftime("%Y-%m-%d")
+    # Date range — +3d buffer matches the legacy single-shot path so historical
+    # cache contents stay byte-identical for callers like tools/bt_data_cache.py.
+    end_dt = _massive_utc_now()
+    start_dt = end_dt - timedelta(days=days + 3)
 
-    base_url = (f"https://api.massive.com/v2/aggs/ticker/{massive_ticker}"
-                f"/range/{mult}/{timespan}/{date_from}/{date_to}")
+    chunks: list = []
+    cursor = start_dt
+    chunk_span = timedelta(days=_MASSIVE_CHUNK_DAYS)
+    while cursor < end_dt:
+        chunk_end = min(cursor + chunk_span, end_dt)
+        chunks.append((cursor, chunk_end))
+        cursor = chunk_end
 
-    all_rows = []
-    url = base_url
-    params = "?adjusted=true&sort=asc&limit=50000"
-    _headers = {"User-Agent": "Mozilla/5.0", "Authorization": f"Bearer {api_key}"}
-    # Massive can paginate long FX aggregate ranges in relatively small chunks.
-    # Size the cap from the requested range so 4500d 15m cache builds do not
-    # stop several years early.
-    _BARS_PER_DAY = {
-        "1m":  24 * 60,
-        "5m":  24 * 12,
-        "15m": 24 * 4,
-        "30m": 24 * 2,
-        "1h":  24,
-        "4h":  6,
-        "1d":  1,
-    }
-    max_pages = max(30, min(2500, int(((days + 3) * _BARS_PER_DAY[interval]) / 3000) + 10))
-
-    for page in range(max_pages):
-        req = _ur.Request(url + params, headers=_headers)
-        try:
-            with _ur.urlopen(req, timeout=45) as r:
-                data = _js.load(r)
-        except Exception:
-            if page == 0:
-                raise
-            break  # ページネーション中のエラーは中断
-
-        results = data.get("results", [])
-        if not results:
-            break
-        all_rows.extend(results)
-
-        # ページネーション
-        next_url = data.get("next_url")
-        if not next_url:
-            break
-        # next_urlにはパラメータが含まれている場合がある
-        url = next_url
-        params = ""  # next_urlに既にパラメータが含まれる（APIキーはヘッダーで送信）
-        _time.sleep(0.1)  # レート制限対策
+    all_rows: list = []
+    for i, (cs, ce) in enumerate(chunks):
+        all_rows.extend(_fetch_chunk(massive_ticker, mult, timespan, cs, ce, api_key))
+        if i < len(chunks) - 1:
+            time.sleep(0.5)  # rate-limit between chunks
 
     if not all_rows:
         raise ValueError(f"Massive API: no data returned for {massive_ticker} {interval}")
