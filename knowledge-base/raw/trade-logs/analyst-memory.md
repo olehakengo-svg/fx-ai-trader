@@ -839,6 +839,16 @@ Cutoff後累計はN=22、WR=45.5%、PnL=−12.1pips相当。システムは稼�
 | 東京分PnL推定 | **-36.0 pips** | — |
 | 累計WR | 53.3% | ロンドン: 63.6% |
 
+### 2026-05-07 (Pre-Tokyo Briefing)
+前日（2026-05-06）は **2トレード、PnL +6.2pip、WR 50.0%** で小幅プラス着地。
+| Strategy | Pair | N | WR% | EV | PnL | ステータス |
+| trendline_sweep | GBP_USD | 5 | 80.0% | -0.22 | -1.1 | ⚠️ EV負 |
+| bb_rsi_reversion | GBP_USD | 4 | 50.0% | -0.15 | -0.6 | ⚠️ EV負 |
+> **N注記**: 全戦略 N<10。統計的に「データなし〜傾向」の域を出ず。EVの絶対値より方向性とLoss規模に注目すべき段階。
+- Cutoff後 N=2、WR=0%、EV=**-12.90**。前日も -5.6pip（SL_HIT）。
+- この戦略はKBで「no BT data」のまま PAIR_PROMOTED。実データで裏付けなし。
+- **対策**: 本日も稼働するが、N=10到達まで EV推移を注視。N=10時点でEV≦-3.0であれば降格判断の根拠となる。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
