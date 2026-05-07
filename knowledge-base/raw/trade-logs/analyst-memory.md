@@ -809,6 +809,16 @@ Cutoff後累計はN=22、WR=45.5%、PnL=−12.1pips相当。システムは稼�
 | 最良セッション | **London** (+11.8 pips, WR 100%) |
 | 最悪セッション | **Tokyo** (-5.6 pips, WR 0%) |
 
+### 2026-05-07 (Pre-Tokyo Briefing)
+- **PnL**: +6.2 pips（2トレード）
+- **WR**: 50.0%（1勝1敗）
+- **特記**: 1勝（bb_rsi_reversion USD_JPY +11.8p）が1敗（streak_reversal USD_JPY -5.6p）を相殺し辛うじてプラス着地。日次トレード数は極めて少なく、システムが過剰フィルタリング状態にある可能性あり。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| **合計** | | **8** | **37.5%** | — | **-16.0** | ❌ N不足・EV不明 |
+> **統計的注意**: 全戦略でN<10。判断可能水準（N≥30）に到達しているものはゼロ。EVの正負はすべて「傾向」以下の信頼度。PnL合計-16.0は前日の+6.2を差し引いた累積であり、構造的赤字が継続中。
+- **現象**: 前日2件のみ。Block counts上位を見ると`recent_emit`系が系統的にシグナルを抑制している（daytrade_eur:99、daytrade_gbpusd:93、daytrade:75など）。
+- **主因分析**:
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
