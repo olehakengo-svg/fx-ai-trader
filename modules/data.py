@@ -335,7 +335,8 @@ def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
     if not api_key:
         raise ValueError("MASSIVE_API_KEY not set")
 
-    # Massive ticker format
+    # Massive ticker format. Extended to the 14 OANDA Labs sentiment pairs
+    # (excluding XAU/XAG per project rule) for Phase 1c retail-contrarian BT.
     _SYMBOL_MAP = {
         "USDJPY=X": "C:USDJPY",
         "JPY=X":    "C:USDJPY",
@@ -344,18 +345,42 @@ def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
         "GBPJPY=X": "C:GBPJPY",
         "GBPUSD=X": "C:GBPUSD",
         "EURGBP=X": "C:EURGBP",
+        "AUDUSD=X": "C:AUDUSD",
+        "USDCAD=X": "C:USDCAD",
+        "USDCHF=X": "C:USDCHF",
+        "NZDUSD=X": "C:NZDUSD",
+        "AUDJPY=X": "C:AUDJPY",
+        "EURAUD=X": "C:EURAUD",
+        "EURCHF=X": "C:EURCHF",
+        "GBPCHF=X": "C:GBPCHF",
         "USDJPY":   "C:USDJPY",
         "EURUSD":   "C:EURUSD",
         "EURJPY":   "C:EURJPY",
         "GBPJPY":   "C:GBPJPY",
         "GBPUSD":   "C:GBPUSD",
         "EURGBP":   "C:EURGBP",
+        "AUDUSD":   "C:AUDUSD",
+        "USDCAD":   "C:USDCAD",
+        "USDCHF":   "C:USDCHF",
+        "NZDUSD":   "C:NZDUSD",
+        "AUDJPY":   "C:AUDJPY",
+        "EURAUD":   "C:EURAUD",
+        "EURCHF":   "C:EURCHF",
+        "GBPCHF":   "C:GBPCHF",
         "USD_JPY":  "C:USDJPY",
         "EUR_USD":  "C:EURUSD",
         "EUR_JPY":  "C:EURJPY",
         "GBP_JPY":  "C:GBPJPY",
         "GBP_USD":  "C:GBPUSD",
         "EUR_GBP":  "C:EURGBP",
+        "AUD_USD":  "C:AUDUSD",
+        "USD_CAD":  "C:USDCAD",
+        "USD_CHF":  "C:USDCHF",
+        "NZD_USD":  "C:NZDUSD",
+        "AUD_JPY":  "C:AUDJPY",
+        "EUR_AUD":  "C:EURAUD",
+        "EUR_CHF":  "C:EURCHF",
+        "GBP_CHF":  "C:GBPCHF",
     }
     massive_ticker = _SYMBOL_MAP.get(symbol)
     if not massive_ticker:
