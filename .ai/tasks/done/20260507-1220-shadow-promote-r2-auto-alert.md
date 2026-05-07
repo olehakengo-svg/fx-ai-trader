@@ -144,3 +144,43 @@ if N >= 10 and EV < 0:
 - `post_promotion_watchdog` は同期ロジックが似ているが、対象が異なる (PAIR_PROMOTED 2 cells vs SHADOW_PROMOTE=1 61 戦略)
 - 既存 `tools/auto_force_demoted_recovery.py` が「FORCE_DEMOTED → 復帰」方向なので、本タスクは逆向き「SHADOW_PROMOTE → demote 警告」
 - Discord MCP 経由通知は env `DISCORD_WEBHOOK_URL` が無ければ stdout fallback
+
+
+## Result (2026-05-07T03:25:40Z)
+
+exit=0 · 210s
+
+```
+実装完了しました。
+
+追加したもの:
+- [tools/shadow_promote_r2_alert.py](/data/repo/fx-ai-trader/tools/shadow_promote_r2_alert.py:1)
+  - Render API `/api/demo/trades?limit=2000` から取得
+  - `is_shadow=1`, `pnl_pips != NULL`, 直近30日、XAU除外
+  - `(strategy, instrument)` ごとに `N / EV / WR / PF / Wilson 95%`
+  - `N>=10 && EV<0` は WARN、`N>=30 && EV<0` は CRITICAL
+  - CRITICAL があれば exit `1`、API失敗は exit `2`
+  - `--json` で構造化 stdout
+  - Discord は CRITICAL のみ。`DISCORD_WEBHOOK_URL` がなければ stderr fallback
+  - `--no-discord` と `--include-all-static` も追加
+- [tests/test_shadow_promote_r2_alert.py](/data/repo/fx-ai-trader/tests/test_shadow_promote_r2_alert.py:1)
+  - N=9 no alert
+  - N=10 WARN
+  - N=30 CRITICAL
+  - N=30 positive OK
+  - network error exit 2
+  - empty trades exit 0
+  - XAU/live row exclusion
+
+生成済み report:
+- [shadow-promote-r2-alert-2026-05-07-0325.md](/data/repo/fx-ai-trader/knowledge-base/raw/audits/shadow-promote-r2-alert-2026-05-07-0325.md:1)
+
+検証結果:
+- `./.venv/bin/pytest tests/test_shadow_promote_r2_alert.py -q` → `7 passed`
+- `./.venv/bin/python tools/shadow_promote_r2_alert.py --smoke` → OK
+- `py_compile` → OK
+- 実 API 実行 → `OK=87 WARN=16 CRITICAL=12`, exit `1`
+- `--json` 出力 → `python3 -m json.tool` で valid JSON 確認済み
+
+補足: このローカル環境では `*_REDESIGN_V2_SHADOW_PROMOTE=1` env が 0 件だったため、実 API report は `--include-all-static --no-discord` で静的走査セットを対象に生成しました。本番 scheduled 実行では env=1 の戦略だけが対象になります。
+```
