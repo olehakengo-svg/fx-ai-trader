@@ -38,6 +38,8 @@ Turtle Soup (Liquidity Grab Reversal) — 流動性狩り逆張り
   SL: sweep extreme（突き抜けた最大値/最小値）± ATR × SL_ATR_BUFFER
   TP: 次のMajor Fractal水準（対面）、または ATR × TP_ATR_MULT
 """
+from __future__ import annotations
+
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from typing import Optional
