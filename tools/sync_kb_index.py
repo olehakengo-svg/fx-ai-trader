@@ -50,7 +50,11 @@ def _parse_simple_set(src: str, name: str) -> set:
     m = re.search(rf"{name}\s*=\s*\{{([^}}]+)\}}", src, re.DOTALL)
     if not m:
         return set()
-    return set(re.findall(r'"([a-z0-9_]+)"', m.group(1)))
+    body = "\n".join(
+        line for line in m.group(1).splitlines()
+        if not line.strip().startswith("#")
+    )
+    return set(re.findall(r'"([a-z0-9_]+)"', body))
 
 
 def _parse_dict_keys(src: str, name: str) -> set:
@@ -58,7 +62,11 @@ def _parse_dict_keys(src: str, name: str) -> set:
     m = re.search(rf"{name}\s*=\s*\{{(.+?)\n\s*\}}", src, re.DOTALL)
     if not m:
         return set()
-    return set(re.findall(r'"([a-z0-9_]+)"\s*:', m.group(1)))
+    body = "\n".join(
+        line for line in m.group(1).splitlines()
+        if not line.strip().startswith("#")
+    )
+    return set(re.findall(r'"([a-z0-9_]+)"\s*:', body))
 
 
 def _parse_tuple_set(src: str, name: str) -> set:
@@ -69,7 +77,11 @@ def _parse_tuple_set(src: str, name: str) -> set:
     if not m:
         return set()
     tuples = set()
-    for match in re.findall(r'\(\s*"([a-z0-9_]+)"\s*,\s*"([A-Z0-9_]+)"\s*\)', m.group(1)):
+    body = "\n".join(
+        line for line in m.group(1).splitlines()
+        if not line.strip().startswith("#")
+    )
+    for match in re.findall(r'\(\s*"([a-z0-9_]+)"\s*,\s*"([A-Z0-9_]+)"\s*\)', body):
         tuples.add(match)
     return tuples
 

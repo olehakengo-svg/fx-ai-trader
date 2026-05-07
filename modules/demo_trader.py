@@ -3130,6 +3130,10 @@ class DemoTrader:
         _is_shadow_eligible = _is_shadow_eligible_full  # 後方互換 (他のbypassはこれを参照)
         _is_slot_shadow_eligible = True  # v8.9: 全戦略がスロットbypass可能
         _is_shadow = False  # 実際にフィルターをバイパスした場合にTrueになる
+        _is_pair_promoted_live = (entry_type, instrument) in self._PAIR_PROMOTED
+        _is_live_tier_exempt = (
+            self._is_elite_live(entry_type, instrument) or _is_pair_promoted_live
+        )
 
         # ── 通貨ペア×モードクラス別ポジション制限 ──
         # scalp/DT/1H/swingが独立してポジションを持てる
@@ -3668,7 +3672,7 @@ class DemoTrader:
                 return
             # v8.9: EUR_USD SELL全面ブロック — Alpha Scan N=43 WR=11.6% EV=-2.714 PnL=-116.7pip
             # 最大のアルファ破壊源。BUYのみ許可。
-            if signal == "SELL":
+            if signal == "SELL" and not _is_live_tier_exempt:
                 if _is_slot_shadow_eligible:
                     _is_shadow = True
                     self._add_log(f"[SHADOW] EUR_USD SELL block: {entry_type} → shadow (EV=-2.714)")
@@ -3689,6 +3693,7 @@ class DemoTrader:
         # 完全ブロックではなくconf>=65で通過（高確信SELLは許可）
         # ══════════════════════════════════════════════════════════════
         if (_regime_type_r == "RANGE" and signal == "SELL"
+                and not _is_live_tier_exempt
                 and confidence < 65):
             if _is_slot_shadow_eligible:
                 _is_shadow = True
@@ -3707,6 +3712,7 @@ class DemoTrader:
             "gbp_deep_pullback", "vol_spike_mr",
         }
         if (_regime_type_r == "TREND_BULL" and signal == "BUY"
+                and not _is_live_tier_exempt
                 and entry_type not in _TREND_BULL_MR_EXEMPT
                 and confidence < 65):
             if _is_slot_shadow_eligible:
@@ -3720,7 +3726,7 @@ class DemoTrader:
         # ── v8.9: H11 × EUR_USD ブロック — Alpha Scan N=9 WR=22.2% EV=-4.489 PnL=-40.4pip ──
         # London mid-session: EUR_USDが叩かれるデスゾーン
         # ══════════════════════════════════════════════════════════════
-        if _utc_hour == 11 and instrument == "EUR_USD":
+        if _utc_hour == 11 and instrument == "EUR_USD" and not _is_live_tier_exempt:
             if _is_slot_shadow_eligible:
                 _is_shadow = True
                 self._add_log(f"[SHADOW] H11 EUR_USD block: {entry_type} → shadow (EV=-4.489)")
@@ -3732,7 +3738,7 @@ class DemoTrader:
         # ── v8.9: H13 × USD_JPY ブロック — Alpha Scan N=14 WR=28.6% EV=-2.486 PnL=-34.8pip ──
         # Pre-NY dead zone: JPYの流動性枯渇帯
         # ══════════════════════════════════════════════════════════════
-        if _utc_hour == 13 and instrument == "USD_JPY":
+        if _utc_hour == 13 and instrument == "USD_JPY" and not _is_live_tier_exempt:
             if _is_slot_shadow_eligible:
                 _is_shadow = True
                 self._add_log(f"[SHADOW] H13 USD_JPY block: {entry_type} → shadow (EV=-2.486)")
@@ -3742,7 +3748,7 @@ class DemoTrader:
 
         # ── v8.9: 昨日分析ベース追加ブロック (4/14) ──
         # H16-H20 × USD_JPY: 合計-68.2pip (N=27, WR=18.5%)。NY後半のJPY壊滅
-        if instrument == "USD_JPY" and 16 <= _utc_hour <= 20:
+        if instrument == "USD_JPY" and 16 <= _utc_hour <= 20 and not _is_live_tier_exempt:
             if _is_slot_shadow_eligible:
                 _is_shadow = True
                 self._add_log(f"[SHADOW] H{_utc_hour} USD_JPY block: {entry_type} → shadow")
@@ -3750,7 +3756,8 @@ class DemoTrader:
                 _block(f"alpha_scan(H16-20_USD_JPY,EV=-2.4)")
                 return
         # BUY × TREND_BEAR: N=19 EV=-1.67 PnL=-31.8pip。下降トレンドでBUYは逆張り自殺
-        if signal == "BUY" and _regime_type_r == "TREND_BEAR" and confidence < 70:
+        if (signal == "BUY" and _regime_type_r == "TREND_BEAR"
+                and not _is_live_tier_exempt and confidence < 70):
             if _is_slot_shadow_eligible:
                 _is_shadow = True
                 self._add_log(f"[SHADOW] BUY TREND_BEAR block: {entry_type} conf={confidence} → shadow")
@@ -3758,7 +3765,7 @@ class DemoTrader:
                 _block(f"alpha_scan(BUY_TREND_BEAR,conf={confidence}<70,EV=-1.67)")
                 return
         # H7-H8 × EUR_USD: N=14 EV=-2.38 PnL=-33.8pip。ロンドンオープン初動のEUR壊滅
-        if instrument == "EUR_USD" and _utc_hour in (7, 8):
+        if instrument == "EUR_USD" and _utc_hour in (7, 8) and not _is_live_tier_exempt:
             if _is_slot_shadow_eligible:
                 _is_shadow = True
                 self._add_log(f"[SHADOW] H{_utc_hour} EUR_USD block: {entry_type} → shadow")
@@ -3812,7 +3819,7 @@ class DemoTrader:
             #   — ELITE は DT幹として BT 365日 STRONG 確認済みで、既存
             #   _SHADOW_MODE Phase0 gate と同じく LIVE 送信を維持する必要あり.
             #   A/B hash の半分で無条件 shadow 降格される実装漏れがあった.
-            if _gate_group == "mtf_gated" and not self._is_elite_live(entry_type, instrument):
+            if _gate_group == "mtf_gated" and not _is_live_tier_exempt:
                 if _mtf_alignment == "conflict":
                     if not _is_shadow:
                         _is_shadow = True
@@ -3826,8 +3833,8 @@ class DemoTrader:
                         _mtf_gate_action = "kept"  # 既に shadow なので変化なし
                 else:
                     _mtf_gate_action = "kept"
-            elif _gate_group == "mtf_gated" and self._is_elite_live(entry_type, instrument):
-                _mtf_gate_action = "elite_exempt"
+            elif _gate_group == "mtf_gated" and _is_live_tier_exempt:
+                _mtf_gate_action = "live_tier_exempt"
             # Group B (label_only): アクションなし
         except Exception as _e:
             _mtf_regime_str = "uncertain"
@@ -4452,14 +4459,15 @@ class DemoTrader:
             _ssl_threshold = 0.45 if "XAU" in instrument else 0.35
             # M1 (2026-04-27): ELITE_LIVE は spread_sl_gate 免除
             _is_elite_live = self._is_elite_live(entry_type, instrument)
-            if _spread_sl_ratio > _ssl_threshold and not _is_elite_live:
+            _is_pair_promoted = (entry_type, instrument) in self._PAIR_PROMOTED
+            if _spread_sl_ratio > _ssl_threshold and not (_is_elite_live or _is_pair_promoted):
                 _block(f"spread_sl_gate({_spread_entry:.1f}/{_sl_dist_pips:.1f}pip={_spread_sl_ratio:.0%}>{_ssl_threshold:.0%})")
                 return
-            elif _spread_sl_ratio > _ssl_threshold and _is_elite_live:
-                # ELITE_LIVE 通過時はログのみ (M1 修正効果 monitor 用)
+            elif _spread_sl_ratio > _ssl_threshold and (_is_elite_live or _is_pair_promoted):
+                # ELITE_LIVE / PAIR_PROMOTED 通過時はログのみ
                 self._add_log(
-                    f"[ELITE_BYPASS] {entry_type} {instrument} spread_sl_ratio="
-                    f"{_spread_sl_ratio:.0%}>{_ssl_threshold:.0%} → 通過 (M1 免除)"
+                    f"[LIVE_TIER_BYPASS] {entry_type} {instrument} spread_sl_ratio="
+                    f"{_spread_sl_ratio:.0%}>{_ssl_threshold:.0%} → 通過"
                 )
 
         trade_id = self._db.open_trade(
@@ -6073,7 +6081,7 @@ class DemoTrader:
     # Phase4 (v6.8 Quant Audit — 556t本番データ): N≥30で負PF確定の4戦略を停止
     # bb_rsi_reversion のみ正PF(1.13) → 他全てOANDA停止、Demo Sentinel継続
     _FORCE_DEMOTED = {
-        "sr_fib_confluence", "ema_cross", "inducement_ob",
+        "ema_cross", "inducement_ob",
         "ema_ribbon_ride",
         "ema_pullback",
         "lin_reg_channel",
@@ -6091,7 +6099,8 @@ class DemoTrader:
         "sr_channel_reversal",  # v8.9: Post-cut N=17 WR=11.8% 即死率87.5% — BEV下回り確定(p=0.009)
         # v8.9: EV分解で確定的負EV — UNIVERSAL_SENTINEL→FORCE_DEMOTED格上げ
         "stoch_trend_pullback",  # Post-cut N=19 WR=31.6% EV=-0.97 PnL=-18.5 全ペアで負
-        "dt_bb_rsi_mr",          # Post-cut N=7(EUR) WR=14.3% EV=-4.09 PnL=-28.6
+        # REMOVED 2026-05-07 volume emergency: dt_bb_rsi_mr×USD_JPY PAIR_PROMOTED
+        # under EV/PF shadow exception; R2 live N>=10 EV<0 auto-demote guard applies.
         "orb_trap",              # v9.1: 365d BT全ペア負EV (JPY=-0.854, EUR=-0.488, GBP=-0.258)
         # v9.1: Alpha探索戦略BT結果 (2026-04-17)
         "intraday_seasonality",  # BT 365d: JPY EV=-0.109 / EUR EV=-0.144 / GBP EV=+0.037 (微弱) — 計算コスト大で費用対効果なし
@@ -6127,7 +6136,8 @@ class DemoTrader:
         "vwap_mean_reversion",          # Live N=10 WR=40% PnL=-47.7p (IS→OOS 95.3% degrade)
         "donchian_momentum_breakout",   # Live N=3 WR=33.3% PnL=-32.1p
         "v_reversal",                   # Live N=3 WR=0% PnL=-10.1p
-        "trend_rebound",                # Live N=17 WR=23.5% PnL=-26.0p
+        # REMOVED 2026-05-07 volume emergency: trend_rebound×USD_JPY PAIR_PROMOTED
+        # under EV/PF shadow exception; R2 live N>=10 EV<0 auto-demote guard applies.
     }
 
     # ── Elite Track: 摩擦モデルv2 BT + v5.95統合BT監査 ──
@@ -6235,7 +6245,8 @@ class DemoTrader:
         # REMOVED: ("vol_surge_detector", "USD_JPY"),
         # 2026-04-21: bb_squeeze_breakout FORCE_DEMOTED解除 → USD_JPY PAIR_PROMOTED
         # 他ペアは shadow EV マイナスのため PAIR_DEMOTED で保護
-        ("bb_squeeze_breakout", "EUR_USD"),   # shadow post-cut EV=-3.05 (N=14)
+        # REMOVED 2026-05-07 volume emergency: bb_squeeze_breakout×EUR_USD
+        # shadow 30d EV≈flat positive; PAIR_PROMOTED with R2 N>=10 EV<0 guard.
         ("bb_squeeze_breakout", "GBP_USD"),   # shadow post-cut N=4 (不十分)
         ("bb_squeeze_breakout", "EUR_JPY"),   # 未評価 → 保護
         ("bb_squeeze_breakout", "GBP_JPY"),   # 未評価 → 保護
@@ -6249,9 +6260,11 @@ class DemoTrader:
         ("session_time_bias", "GBP_USD"),
         ("sr_channel_reversal", "EUR_USD"),
         ("sr_channel_reversal", "USD_JPY"),
-        ("trend_rebound", "USD_JPY"),
+        # REMOVED 2026-05-07 volume emergency: trend_rebound×USD_JPY
+        # PAIR_PROMOTED under shadow EV/PF exception.
         ("v_reversal", "USD_JPY"),
-        ("vix_carry_unwind", "USD_JPY"),
+        # REMOVED 2026-05-07 volume emergency: vix_carry_unwind×USD_JPY
+        # PAIR_PROMOTED under shadow EV/PF exception.
         ("vol_surge_detector", "USD_JPY"),
         ("vwap_mean_reversion", "GBP_USD"),
         # 2026-05-04 R2 Tier 1 extension (rule:R2):
@@ -6280,6 +6293,19 @@ class DemoTrader:
         # shadow全敗→TP縮小(3.0→2.0)+London-NY限定で改善済み。実弾でQH適用開始
         ("xs_momentum", "GBP_USD"),
         ("xs_momentum", "EUR_USD"),
+        # 2026-05-07 P0 volume emergency:
+        # Shadow 30d EV>0 / PF>=1.0 / N>=10 cells promoted to preserve
+        # OANDA GOLD API tier. Wilson pre-reg is explicitly relaxed; R2
+        # volume_live_promotion_watchdog demotes any cell at Live N>=10 EV<0.
+        ("vix_carry_unwind", "USD_JPY"),       # shadow N=58 EV=+9.54 PF=1.65
+        ("mqe_gbpusd_fix", "GBP_USD"),         # shadow N=87 EV=+1.81 PF=1.30
+        ("sr_fib_confluence", "GBP_USD"),      # shadow N=39 EV=+1.35 PF=1.29
+        ("session_time_bias", "EUR_USD"),      # shadow N=23 EV=+0.63 PF=1.15
+        ("vsg_jpy_reversal", "EUR_JPY"),       # shadow N=20 EV=+1.82 PF=1.30
+        ("trend_rebound", "USD_JPY"),          # shadow N=17 EV=+1.14 PF=1.52
+        ("bb_squeeze_breakout", "EUR_USD"),    # shadow N=14 EV=+0.01 PF=1.00
+        ("dt_sr_channel_reversal", "EUR_JPY"), # shadow N=12 EV=+14.28 PF=3.61
+        ("dt_bb_rsi_mr", "USD_JPY"),           # shadow N=10 EV=+8.51 PF=4.38
         # REMOVED v9.0: trendline_sweep → ELITE_LIVE (PAIR_PROMOTED redundant)
         # (was: EUR EV=+0.927 N=73 WR=80.8% PF=2.52 / GBP EV=+0.599 N=134 WR=73.1% PF=1.68)
         # REMOVED 2026-05-03 R2 14-cell TRUE_LIVE stop LOCK:

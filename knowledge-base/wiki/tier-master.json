@@ -1,12 +1,11 @@
 {
-  "generated_at": "2026-05-03T16:05:17.392244+00:00",
+  "generated_at": "2026-05-07T06:02:19.974393+00:00",
   "elite_live": [
     "trendline_sweep"
   ],
   "force_demoted": [
     "atr_regime_break",
     "donchian_momentum_breakout",
-    "dt_bb_rsi_mr",
     "ema_cross",
     "ema_pullback",
     "ema_ribbon_ride",
@@ -21,9 +20,7 @@
     "post_news_vol",
     "sr_break_retest",
     "sr_channel_reversal",
-    "sr_fib_confluence",
     "stoch_trend_pullback",
-    "trend_rebound",
     "v_reversal",
     "vwap_mean_reversion"
   ],
@@ -57,6 +54,10 @@
   ],
   "pair_promoted": [
     [
+      "bb_squeeze_breakout",
+      "EUR_USD"
+    ],
+    [
       "doji_breakout",
       "GBP_USD"
     ],
@@ -65,19 +66,51 @@
       "USD_JPY"
     ],
     [
+      "dt_bb_rsi_mr",
+      "USD_JPY"
+    ],
+    [
+      "dt_sr_channel_reversal",
+      "EUR_JPY"
+    ],
+    [
       "ema200_trend_reversal",
       "USD_JPY"
+    ],
+    [
+      "mqe_gbpusd_fix",
+      "GBP_USD"
+    ],
+    [
+      "session_time_bias",
+      "EUR_USD"
     ],
     [
       "squeeze_release_momentum",
       "EUR_USD"
     ],
     [
+      "sr_fib_confluence",
+      "GBP_USD"
+    ],
+    [
       "streak_reversal",
       "USD_JPY"
     ],
     [
+      "trend_rebound",
+      "USD_JPY"
+    ],
+    [
+      "vix_carry_unwind",
+      "USD_JPY"
+    ],
+    [
       "vol_momentum_scalp",
+      "EUR_JPY"
+    ],
+    [
+      "vsg_jpy_reversal",
       "EUR_JPY"
     ],
     [
@@ -117,10 +150,6 @@
     [
       "bb_squeeze_breakout",
       "EUR_JPY"
-    ],
-    [
-      "bb_squeeze_breakout",
-      "EUR_USD"
     ],
     [
       "bb_squeeze_breakout",
@@ -195,15 +224,7 @@
       "EUR_USD"
     ],
     [
-      "trend_rebound",
-      "USD_JPY"
-    ],
-    [
       "v_reversal",
-      "USD_JPY"
-    ],
-    [
-      "vix_carry_unwind",
       "USD_JPY"
     ],
     [

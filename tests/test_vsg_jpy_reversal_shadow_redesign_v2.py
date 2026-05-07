@@ -103,15 +103,15 @@ def test_v2_flag_is_still_pair_gated(monkeypatch):
     assert VsgJpyReversal().evaluate(ctx) is None
 
 
-def test_existing_shadow_route_preserved_and_v2_promote_flag_is_non_destructive(monkeypatch):
+def test_pair_promoted_volume_cell_no_longer_uses_shadow_always_side_path(monkeypatch):
     other = Candidate("SELL", 80, 151.0, 150.0, [], "other", 9.0)
     vsg = Candidate("BUY", 70, 150.0, 151.0, [], "vsg_jpy_reversal", 4.0)
     engine = DaytradeEngine()
 
     monkeypatch.delenv("VSG_JPY_REVERSAL_REDESIGN_V2", raising=False)
     monkeypatch.delenv("VSG_JPY_REVERSAL_REDESIGN_V2_SHADOW_PROMOTE", raising=False)
-    assert engine.split_shadow_always([other, vsg], other) == [vsg]
+    assert engine.split_shadow_always([other, vsg], other) == []
 
     monkeypatch.setenv("VSG_JPY_REVERSAL_REDESIGN_V2", "1")
     monkeypatch.setenv("VSG_JPY_REVERSAL_REDESIGN_V2_SHADOW_PROMOTE", "1")
-    assert engine.split_shadow_always([other, vsg], other) == [vsg]
+    assert engine.split_shadow_always([other, vsg], other) == []

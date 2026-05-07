@@ -135,3 +135,35 @@ python3 tools/tier_integrity_check.py --check  # ERROR=0 確認
 - 期待 monthly PnL contribution: +750pip 程度 (selection bias 後でも +200~400pip 想定)
 - 自動 demote 機構は **selection bias 罠への第二の安全網**
 - Wave 5 で formal promotion 結果が出れば、本 task の 10 戦略は再評価対象 (formal 通過 → 維持、不通過 → demote)
+
+
+## Result (2026-05-07T06:02:54Z)
+
+exit=0 · 270s
+
+```
+Implemented the volume emergency promotion path.
+
+Changed:
+- Added the 9 new PAIR_PROMOTED cells in [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py) and kept existing `xs_momentum GBP_USD`.
+- Removed blocking tier conflicts for promoted cells from `_FORCE_DEMOTED` / `_PAIR_DEMOTED`.
+- Made PAIR_PROMOTED cells exempt from the shadow-downgrading gates that were likely to prevent live routing: alpha shadow gates, MTF downgrade, and `spread_sl_gate`.
+- Removed `mqe_gbpusd_fix` / `vsg_jpy_reversal` from `SHADOW_ALWAYS_STRATEGIES` to avoid double-path firing.
+- Added R2 safety valve: [tools/volume_live_promotion_watchdog.py](/data/repo/fx-ai-trader/tools/volume_live_promotion_watchdog.py), with `Live N>=10 && EV<0 => DEMOTE`, plus optional `--apply` source demotion.
+- Added regression tests in [tests/test_volume_live_promote_routing.py](/data/repo/fx-ai-trader/tests/test_volume_live_promote_routing.py).
+- Fixed [tools/sync_kb_index.py](/data/repo/fx-ai-trader/tools/sync_kb_index.py) so commented-out tier tuples do not pollute KB index output.
+- Regenerated `knowledge-base/wiki/tier-master.md`, `tier-master.json`, and `index.md`.
+
+Verification:
+- `.venv/bin/pytest tests/test_volume_live_promote_routing.py tests/test_vsg_jpy_reversal_shadow_redesign_v2.py -q` → `10 passed`
+- `python3 tools/sync_kb_index.py --write`
+- `python3 tools/tier_integrity_check.py --write`
+- `python3 tools/tier_integrity_check.py --check` → `ERROR=0`, all checks passed
+- `python3 tools/volume_live_promotion_watchdog.py --smoke` → OK
+- `py_compile` passed for touched Python files
+
+Notes:
+- PAIR_PROMOTED is now 18 entries: existing 9 plus 9 new cells, with `xs_momentum GBP_USD` maintained.
+- I did not perform Render redeploy or the 24h `/api/demo/trades` live confirmation from here; that still needs post-deploy observation.
+- Data separation is preserved: promotion basis is Shadow 30d EV/PF, while demotion trigger uses only non-shadow Live
+…(truncated)
