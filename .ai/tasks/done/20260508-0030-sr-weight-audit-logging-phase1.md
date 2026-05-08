@@ -238,3 +238,52 @@ WHERE entry_type IN (
 - pre-registration doc (`.ai/decisions/SR_strength_audit_preregistration.md`) の差分
 - §2.2 / §2.3 の E2E 検証 SQL とその実行結果
 - ファイル変更一覧 (git diff --stat)
+
+
+## Result (2026-05-08T07:58:08Z)
+
+exit=0 · 176s
+
+```
+確認しました。実装本体は既に `364027e feat(audit): record SR-level quality...` に入っており、現 HEAD はその後の task claim commit です。作業ツリーは clean です。
+
+**CREATE TABLE**
+```sql
+CREATE TABLE IF NOT EXISTS oanda_audit (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp       TEXT NOT NULL,
+    demo_trade_id   TEXT,
+    entry_type      TEXT,
+    direction       TEXT,
+    instrument      TEXT,
+    units           INTEGER DEFAULT 0,
+    is_live         INTEGER DEFAULT 0,
+    bridge_status   TEXT,
+    block_reason    TEXT DEFAULT '',
+    oanda_trade_id  TEXT DEFAULT '',
+    sr_strength     REAL,
+    sr_touches      INTEGER,
+    sr_days_span    REAL,
+    sr_is_strong    INTEGER,
+    sr_distance_atr REAL,
+    created_at      TEXT DEFAULT (datetime('now'))
+);
+```
+
+**実装要点**
+- `modules/demo_db.py:341`: `oanda_audit` CREATE TABLE に 5 列追加。
+- `modules/demo_db.py:497`: `PRAGMA table_info(oanda_audit)` ベースの冪等 ALTER。
+- `modules/demo_db.py:1120`: INSERT に `sr_strength/sr_touches/sr_days_span/sr_is_strong/sr_distance_atr` 追加。
+- `modules/oanda_bridge.py:202`: `_add_audit(..., sr_meta=None)` 追加。`is_strong` は `int(bool(...))` 化。
+- `modules/demo_trader.py:662`, `modules/demo_trader.py:4446`, `modules/demo_trader.py:4981`, `5000`, `5064`, `5085`, `5117`: audit 呼び出しへ `sr_meta` 伝播。
+- `app.py:3484`: `dual_sr_bounce` の `_dt_nearest_scenario` から `sr_meta` 生成。
+- `app.py:3478`, `app.py:8833`, `app.py:9005`, `app.py:9242`: daytrade/scalp/shadow emit の `sr_meta` 伝播。
+- `strategies/base.py:23`, `30`: `Candidate.sr_meta` と `sr_meta_from_level/from_price` 追加。
+- `strategies/daytrade/sr_anti_hunt_bounce.py:156`, `258`
+- `strategies/daytrade/dt_sr_channel.py:106`, `235`
+- `strategies/daytrade/sr_fib_confluence.py:96`, `244`
+- `strategies/scalp/sr_channel_reversal.py:134`, `287`
+
+**注意点**
+`strong_sr_breakout` は `app.py:5121` の `run_backtest()` 内だけで見つかり、production order/audit path は grep 上ありませんでした。既存テストは `_add_oanda_audit` wrapper に `strong_sr_breakout` を渡せることは確認していますが、実 live 発注パ
+…(truncated)
