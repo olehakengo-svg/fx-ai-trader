@@ -245,6 +245,12 @@ class ScalperEngine:
         if (os.environ.get("TREND_REBOUND_REDESIGN_V2") == "1"
                 and os.environ.get("TREND_REBOUND_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"trend_rebound"}
+        if (os.environ.get("MA_MR_HYBRID_REDESIGN_V2") == "1"
+                and os.environ.get("MA_MR_HYBRID_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"ma_mr_hybrid"}
+        if (os.environ.get("MA_TREND_PERFECT_REDESIGN_V2") == "1"
+                and os.environ.get("MA_TREND_PERFECT_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"ma_trend_perfect"}
         if (os.environ.get("V_REVERSAL_REDESIGN_V2") == "1"
                 and os.environ.get("V_REVERSAL_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"v_reversal"}

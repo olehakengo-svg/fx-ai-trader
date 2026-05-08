@@ -23,11 +23,19 @@ Revision history:
   Bonus: ADX>=30      : trend-aware MR (LIVE 実証ボーナス)
 """
 from __future__ import annotations
+import os
 from typing import Optional
 
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from modules.confidence_v2 import apply_penalty
+
+
+def _v2_active() -> bool:
+    """W4 redesign v2 gate. Default off; when on, M15 hard-gate becomes a soft
+    score feature so the strategy can emit signals even on neutral M15 bias.
+    Wired to ScalperEngine.split_shadow_always for shadow-promote enrolment."""
+    return os.environ.get("MA_MR_HYBRID_REDESIGN_V2", "0").lower() in ("1", "true", "yes")
 
 
 _ALLOWED_PAIRS = {"USD_JPY"}
@@ -75,8 +83,13 @@ class MaMrHybrid(StrategyBase):
         m15_gap_pct = (m15_close - m15_ema21) / m15_close
         bull_bias = m15_gap_pct > _M15_BIAS_GAP_PCT
         bear_bias = m15_gap_pct < -_M15_BIAS_GAP_PCT
-        if not (bull_bias or bear_bias):
+        v2 = _v2_active()
+        if not (bull_bias or bear_bias) and not v2:
             return None
+        if v2 and not (bull_bias or bear_bias):
+            # In v2 the M15 bias is no longer a hard gate. Direction is taken
+            # purely from M5 over-extension; bias is folded into score below.
+            bull_bias = bear_bias = False
 
         # L3: M5 過熱
         m5_bbpb = float(m5.get("bbpb", 0.5))
@@ -91,7 +104,10 @@ class MaMrHybrid(StrategyBase):
 
         _min_sl = 0.030 if ctx.pip_mult == 100 else 0.00030
 
-        if (bull_bias
+        buy_dir_ok = bull_bias or v2
+        sell_dir_ok = bear_bias or v2
+
+        if (buy_dir_ok
                 and m5_bbpb <= _BBPB_BUY_MAX
                 and m5_rsi <= _RSI_BUY_MAX
                 and m5_stoch_k > m5_stoch_d
@@ -101,7 +117,13 @@ class MaMrHybrid(StrategyBase):
             sl = ctx.entry - sl_dist
             tp_dist = max(ctx.atr7 * _TP_ATR_MULT, sl_dist * _RR_FLOOR)
             tp = ctx.entry + tp_dist
-            reasons.append(f"✅ M15 短期上向き ({m15_gap_pct*100:.2f}%)")
+            if v2:
+                reasons.append("✅ [MA_MR_HYBRID_REDESIGN_V2] M15 bias gate -> soft score")
+                if bull_bias:
+                    score += 0.5
+                    reasons.append(f"✅ M15 短期上向き soft-bonus ({m15_gap_pct*100:.2f}%)")
+            else:
+                reasons.append(f"✅ M15 短期上向き ({m15_gap_pct*100:.2f}%)")
             reasons.append(f"✅ M5 過熱 BB%B={m5_bbpb:.2f}≤{_BBPB_BUY_MAX} RSI={m5_rsi:.1f}≤{_RSI_BUY_MAX}")
             reasons.append(f"✅ Stoch反転 K={m5_stoch_k:.0f}>D={m5_stoch_d:.0f}")
             reasons.append("✅ 1m 陽線確認")
@@ -109,7 +131,7 @@ class MaMrHybrid(StrategyBase):
                 score += 1.0
                 reasons.append("🎯 Tier1: 極端ゾーン")
 
-        elif (bear_bias
+        elif (sell_dir_ok
                 and m5_bbpb >= _BBPB_SELL_MIN
                 and m5_rsi >= _RSI_SELL_MIN
                 and m5_stoch_k < m5_stoch_d
@@ -119,7 +141,13 @@ class MaMrHybrid(StrategyBase):
             sl = ctx.entry + sl_dist
             tp_dist = max(ctx.atr7 * _TP_ATR_MULT, sl_dist * _RR_FLOOR)
             tp = ctx.entry - tp_dist
-            reasons.append(f"✅ M15 短期下向き ({m15_gap_pct*100:.2f}%)")
+            if v2:
+                reasons.append("✅ [MA_MR_HYBRID_REDESIGN_V2] M15 bias gate -> soft score")
+                if bear_bias:
+                    score += 0.5
+                    reasons.append(f"✅ M15 短期下向き soft-bonus ({m15_gap_pct*100:.2f}%)")
+            else:
+                reasons.append(f"✅ M15 短期下向き ({m15_gap_pct*100:.2f}%)")
             reasons.append(f"✅ M5 過熱 BB%B={m5_bbpb:.2f}≥{_BBPB_SELL_MIN} RSI={m5_rsi:.1f}≥{_RSI_SELL_MIN}")
             reasons.append(f"✅ Stoch反転 K={m5_stoch_k:.0f}<D={m5_stoch_d:.0f}")
             reasons.append("✅ 1m 陰線確認")

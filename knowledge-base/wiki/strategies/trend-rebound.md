@@ -4,13 +4,15 @@
 - **Entry Type**: `trend_rebound`
 - **Category**: MR (Mean Reversion)
 - **Timeframe**: DT 15m
-- **Status**: FORCE_DEMOTED (2026-05-01 audit P0-8; Live N=17 WR=23.5% PnL=-26.0p)
-- **Active Pairs**: None (FORCE_DEMOTED; OANDA forwarding stopped)
+- **Status**: PAIR_PROMOTED × USD_JPY (2026-05-07 volume emergency promote — shadow N=17 EV=+1.14 PF=1.52, EV/PF shadow exception)
+- **Active Pairs**: USD_JPY (PROMOTED); EUR_USD (PAIR_DEMOTED)
+- **Auto-demote guard**: R2 live N>=10 EV<0 で自動降格
 
 ## Previously
 - 〜2026-04-26: UNIVERSAL_SENTINEL; EUR_USD PAIR_DEMOTED
 - 2026-04-27: tier-master.json で FORCE_DEMOTED に変更 (前セッションでの整理)
-  EUR_USD pair_demoted エントリも撤去済 (FORCE_DEMOTED 全ペア包含)
+- 2026-05-01 audit P0-8: FORCE_DEMOTED 確定 (Live N=17 WR=23.5% PnL=-26.0p)
+- 2026-05-07 volume emergency: USD_JPY のみ PAIR_PROMOTED として復帰 (shadow exception)
 
 ## BT Performance (365d, 15m)
 BT data not available for this entry_type

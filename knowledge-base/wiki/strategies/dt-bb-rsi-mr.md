@@ -4,8 +4,13 @@
 - **Entry Type**: `dt_bb_rsi_mr`
 - **Category**: MR (Mean Reversion)
 - **Timeframe**: DT 15m
-- **Status**: FORCE_DEMOTED (v8.9: Post-cut N=7 WR=14.3% EV=-4.09 PnL=-28.6)
-- **Active Pairs**: None (FORCE_DEMOTED); EUR_USD also PAIR_DEMOTED
+- **Status**: PAIR_PROMOTED × USD_JPY (2026-05-07 volume emergency promote — EV/PF shadow exception)
+- **Active Pairs**: USD_JPY (PROMOTED); EUR_USD (PAIR_DEMOTED)
+- **Auto-demote guard**: R2 live N>=10 EV<0 で自動降格
+
+## Previously
+- ~2026-05-06: FORCE_DEMOTED (v8.9 Post-cut N=7 WR=14.3% EV=-4.09 PnL=-28.6 — 365d BT 全ペア負EV)
+- 2026-05-07 volume emergency: USD_JPY のみ PAIR_PROMOTED として復帰 (shadow exception)
 
 ## BT Performance (365d, 15m)
 | Pair | N | WR | EV | PF | PnL |

@@ -4,8 +4,11 @@
 - **Entry Type**: `sr_fib_confluence`
 - **Category**: MR (Mean Reversion)
 - **Timeframe**: DT 15m
-- **Status**: FORCE_DEMOTED
-- **Active Pairs**: None (FORCE_DEMOTED)
+- **Status**: PAIR_PROMOTED × GBP_USD (shadow N=39 EV=+1.35 PF=1.29)
+- **Active Pairs**: GBP_USD (PROMOTED)
+
+## Previously
+- ~2026-05-06: FORCE_DEMOTED (v6.8 PAIR_PROMOTED 全削除: 本番 N=40 WR=28.9% -92.8pip, BT 乖離確定)
 
 ## BT Performance (365d, 15m)
 | Pair | N | WR | EV | PF | PnL |

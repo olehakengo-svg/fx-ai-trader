@@ -3,9 +3,17 @@ from pathlib import Path
 from tools.tier_integrity_check import parse_all
 
 
-DEMOTE_LOCK_14 = {
+# R2 demote-lock cells. Started as a 14-cell lock at the original R2 audit;
+# two cells were intentionally re-promoted on 2026-05-07 under the volume-
+# emergency programme (vix_carry_unwind×USD_JPY shadow N=58 EV=+9.54 PF=1.65;
+# trend_rebound×USD_JPY shadow N=17 EV=+1.14 PF=1.52). Both rides have a
+# live N>=10 EV<0 auto-demote guard so the lock can re-engage if the shadow
+# evidence inverts in production. The fixture below tracks the *current*
+# locked set; growing it requires the R2 audit gate documented in
+# wiki/decisions/. See modules/demo_trader.py lines 6263/6266 for the
+# explicit "REMOVED 2026-05-07 volume emergency" markers.
+DEMOTE_LOCK_12 = {
     ("vwap_mean_reversion", "GBP_USD"),
-    ("vix_carry_unwind", "USD_JPY"),
     ("sr_channel_reversal", "USD_JPY"),
     ("bb_rsi_reversion", "USD_JPY"),
     ("session_time_bias", "GBP_USD"),
@@ -15,15 +23,21 @@ DEMOTE_LOCK_14 = {
     ("engulfing_bb", "USD_JPY"),
     ("engulfing_bb", "EUR_USD"),
     ("v_reversal", "USD_JPY"),
-    ("trend_rebound", "USD_JPY"),
     ("sr_channel_reversal", "EUR_USD"),
     ("stoch_trend_pullback", "USD_JPY"),
 }
 
+# Cells that must never appear in pair_promoted because they remain demote-
+# locked. bb_squeeze_breakout×USD_JPY is the canonical case here. The earlier
+# fixture also listed vix_carry_unwind×USD_JPY but that pairing is now an
+# intentional volume-emergency promote (see DEMOTE_LOCK_12 docstring).
 PROMOTED_CONFLICTS = {
-    ("vix_carry_unwind", "USD_JPY"),
     ("bb_squeeze_breakout", "USD_JPY"),
 }
+
+# Backwards-compat alias kept so external tooling/import paths that already
+# referenced the old name don't break silently.
+DEMOTE_LOCK_14 = DEMOTE_LOCK_12
 
 
 def _tier_sets():
@@ -34,7 +48,7 @@ def _tier_sets():
 def test_r2_demote_lock_14_cells_are_pair_demoted():
     sets = _tier_sets()
 
-    assert DEMOTE_LOCK_14 <= sets["pair_demoted"]
+    assert DEMOTE_LOCK_12 <= sets["pair_demoted"]
 
 
 def test_r2_conflict_cells_are_removed_from_pair_promoted():
@@ -46,5 +60,5 @@ def test_r2_conflict_cells_are_removed_from_pair_promoted():
 def test_r2_demoted_cells_have_no_pair_level_live_overrides():
     sets = _tier_sets()
 
-    assert DEMOTE_LOCK_14.isdisjoint(sets["pair_lot_boost"])
-    assert DEMOTE_LOCK_14.isdisjoint(sets["quick_harvest_exempt"])
+    assert DEMOTE_LOCK_12.isdisjoint(sets["pair_lot_boost"])
+    assert DEMOTE_LOCK_12.isdisjoint(sets["quick_harvest_exempt"])

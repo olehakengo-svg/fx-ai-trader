@@ -60,5 +60,39 @@ should be retired from the muscle-memory of this repo.
 
 - HEAD before Task 4: `18343eb feat(bt): expand Phase 1b to 14 pairs and
   history-source` — 10 failures + 3 pagination = 13.
-- HEAD after Task 4 (this commit): **10 failures, all pre-existing.**
+- HEAD after Task 4: **10 failures, all pre-existing.**
 - Stash test: `git stash; pytest tests/...; git stash pop` — same 10.
+
+## Closure (2026-05-08)
+
+All 10 pre-existing failures cleared in a follow-up cleanup pass:
+
+1. **Drift checker (1 test)** — `dt_bb_rsi_mr`, `sr_fib_confluence`, and
+   `trend_rebound` were in `pair_promoted` per `modules/demo_trader.py` but
+   their wiki strategy pages still claimed `FORCE_DEMOTED`. Updated the three
+   pages (`dt-bb-rsi-mr.md`, `sr-fib-confluence.md`, `trend-rebound.md`) to
+   reflect the 2026-05-07 volume-emergency promotes; a `## Previously` block
+   preserves the prior `FORCE_DEMOTED` history. Truth source (`tier-master.json`)
+   was already correct.
+2. **`MA_MR_HYBRID_REDESIGN_V2` (3 tests)** — wired the redesign env-flag end
+   to end. `strategies/scalp/__init__.py` got the matching `_SHADOW_PROMOTE`
+   block (mirrors BB_RSI / SQUEEZE / etc); `strategies/scalp/ma_mr_hybrid.py`
+   converts the M15 bias hard-gate into a soft score boost when the flag is
+   set. Default-off is byte-identical to prior production behaviour.
+3. **`MA_TREND_PERFECT_REDESIGN_V2` (4 tests)** — same pattern. v2 path uses
+   the most-recent **closed** 1m bar (`df.iloc[-2]`) for the signal-bar
+   confirmation, requires `m5.is_closed=True`, adds class-level per-bar
+   dedup (`_v2_emitted_bars` + `reset_dedup_state()`), and emits the
+   `closed 1m … signal_bar=… / 次バー以降で約定` reasons the test asserts on.
+4. **R2 14-cell lock (2 tests)** — fixture was a stale snapshot. Two cells
+   were intentionally re-promoted on 2026-05-07 (`vix_carry_unwind×USD_JPY`
+   shadow N=58 EV=+9.54 PF=1.65; `trend_rebound×USD_JPY` shadow N=17 EV=+1.14
+   PF=1.52). Both have an R2 live N>=10 EV<0 auto-demote guard. Renamed the
+   constant `DEMOTE_LOCK_14 → DEMOTE_LOCK_12` (kept the old name as a
+   backwards-compat alias) and dropped `vix_carry_unwind×USD_JPY` from
+   `PROMOTED_CONFLICTS` since it is now a legitimate, audit-tracked promote
+   rather than a conflict.
+
+Verification: `python3 -m pytest tests/ -q` → **1372 PASS, 1 xfailed, 0 fail**.
+Pre-commit hook is unblocked; subsequent commits in this repo should not need
+`--no-verify`.
