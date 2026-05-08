@@ -81,9 +81,23 @@ class SrFibConfluence(StrategyBase):
                 sl += 0.3 * ctx.atr7
 
         _entry_type = "sr_fib_confluence" if _has_sr_fib else "ob_retest"
+        _sr_weighted = (ctx.layer3 or {}).get("sr_weighted_levels", [])
+        _meta_level = None
+        for lv in _sr_weighted:
+            try:
+                if abs(float(ctx.entry) - float(lv.get("price"))) <= ctx.atr * self.structured_proximity_atr:
+                    _meta_level = lv
+                    break
+            except Exception:
+                continue
         conf = int(min(80, 45 + score * 4))
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
-                         reasons=reasons, entry_type=_entry_type, score=score)
+                         reasons=reasons, entry_type=_entry_type, score=score,
+                         sr_meta=(
+                             Candidate.sr_meta_from_level(_meta_level, ctx.entry, ctx.atr)
+                             if _entry_type == "sr_fib_confluence"
+                             else None
+                         ))
 
     def _get_structured_confluence(self, ctx: SignalContext, entry: float,
                                    atr: float) -> Optional[dict]:
@@ -226,4 +240,14 @@ class SrFibConfluence(StrategyBase):
         self._v2_seen_signal_keys.add(dedup_key)
         conf = int(min(80, 45 + score * 4))
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
-                         reasons=reasons, entry_type=confluence["entry_type"], score=score)
+                         reasons=reasons, entry_type=confluence["entry_type"], score=score,
+                         sr_meta=(
+                             Candidate.sr_meta_from_price(
+                                 (ctx.layer3 or {}).get("sr_weighted_levels", []),
+                                 confluence.get("level", ctx.entry),
+                                 ctx.entry,
+                                 signal_atr,
+                             )
+                             if confluence["entry_type"] == "sr_fib_confluence"
+                             else None
+                         ))

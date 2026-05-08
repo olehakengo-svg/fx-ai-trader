@@ -2063,6 +2063,10 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # ── 通貨ペア判定 ──
     _dt_is_jpy = _is_jpy_scale(symbol)
     _dt_pip_mult = 100 if _dt_is_jpy else 10000  # price_diff * _dt_pip_mult = pips
+    _sr_price_levels = [
+        float(s.get("price")) if isinstance(s, dict) else s
+        for s in (sr_levels or [])
+    ]
 
     # ── Layer 0: 取引禁止チェック ──────────────────────────────
     layer0 = is_trade_prohibited(df, bar_time=bar_time)
@@ -2076,7 +2080,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # ── Layer 2/3 + レジーム判定 ──────────────────────────────
     regime = detect_market_regime(df)
     layer2 = compute_layer2_score(df, tf)
-    layer3 = compute_layer3_score(df, tf, sr_levels)
+    layer3 = compute_layer3_score(df, tf, _sr_price_levels)
 
     row   = df.iloc[-1]
     entry = float(row["Close"])
@@ -2534,10 +2538,11 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         symbol=symbol, tf=tf,
         is_jpy="JPY" in symbol.upper(),  # 実際のJPYペアのみ（XAU除外: TNM等のフィルター用）
         pip_mult=_dt_pip_mult,
-        df=df, sr_levels=sr_levels,
+        df=df, sr_levels=_sr_price_levels,
         layer0=layer0, layer1=layer1, regime=regime,
         layer2=layer2,
-        layer3={**layer3, "dt_reasons": reasons},  # 蓄積reasonsを渡す
+        layer3={**layer3, "dt_reasons": reasons,
+                "sr_weighted_levels": _dt_sr_weighted},  # 蓄積reasonsを渡す
         htf=htf_dt,
         backtest_mode=backtest_mode, bar_time=bar_time,
     )
@@ -2926,11 +2931,11 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # SR-aware TP snap
     _sr_offset = 0.005 if _is_jpy_scale(symbol) else 0.00005
     if act_s == "BUY":
-        tp_cands = [l for l in sr_levels if entry + atr*0.3 < l < entry + atr*TP_MULT*1.5]
+        tp_cands = [l for l in _sr_price_levels if entry + atr*0.3 < l < entry + atr*TP_MULT*1.5]
         if tp_cands:
             tp = round(min(tp_cands) - _sr_offset, _pd)
     else:
-        tp_cands = [l for l in sr_levels if entry - atr*TP_MULT*1.5 < l < entry - atr*0.3]
+        tp_cands = [l for l in _sr_price_levels if entry - atr*TP_MULT*1.5 < l < entry - atr*0.3]
         if tp_cands:
             tp = round(max(tp_cands) + _sr_offset, _pd)
 
@@ -3270,7 +3275,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                             else:
                                 conf = 50 + _stk_bonus
                             # v9.x fix: recalculate SL/TP for the new direction
-                            sl, tp = calc_sl_tp_v3(entry, signal, atr, sr_levels, tf=tf, symbol=symbol)
+                            sl, tp = calc_sl_tp_v3(entry, signal, atr, _sr_price_levels, tf=tf, symbol=symbol)
                         else:
                             if _stk_htf_blocked:
                                 conf = max(25, conf - 25)
@@ -3426,7 +3431,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                         if conf < _vmr_conf_pre:
                             reasons.append(f"🔧 [v2] MR anti-trend: ADX={adx:.1f}>25 → conf {_vmr_conf_pre}→{conf}")
                         # v9.x fix: recalculate SL/TP for the new signal direction
-                        sl, tp = calc_sl_tp_v3(entry, signal, atr, sr_levels, tf=tf, symbol=symbol)
+                        sl, tp = calc_sl_tp_v3(entry, signal, atr, _sr_price_levels, tf=tf, symbol=symbol)
         except Exception as _vmr_err:
             print(f"[vwap_mean_reversion] {_vmr_err}")
 
@@ -3470,10 +3475,22 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 "score": round(float(_c.score), 3),
                 "atr": _rp(atr, symbol),
                 "max_hold_bars": getattr(_c, "max_hold_bars", None),
+                "sr_meta": getattr(_c, "sr_meta", None),
             })
     except NameError:
         # _dt_shadow_emits 未定義パス (DTE skip 等) — 安全に空
         pass
+
+    _sr_meta = None
+    try:
+        from strategies.base import Candidate as _SrMetaCandidate
+        if _dt_best is not None and getattr(_dt_best, "sr_meta", None) is not None:
+            _sr_meta = _dt_best.sr_meta
+        elif _dt_nearest_scenario:
+            _sr_meta = _SrMetaCandidate.sr_meta_from_level(
+                _dt_nearest_scenario["sr"], entry, atr)
+    except Exception:
+        _sr_meta = None
 
     return {
         "timestamp": ts_str, "symbol": (symbol.replace("=X","")[:3] + "/" + symbol.replace("=X","")[3:]) if symbol else "USD/JPY", "tf": tf,
@@ -3482,6 +3499,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         "session": session, "htf_bias": htf, "swing_mode": tf in ("1h","4h","1d"),
         "reasons": reasons, "mode": "daytrade",
         "entry_type": _dt_entry_type,
+        "sr_meta": _sr_meta,
         "max_hold_bars": getattr(_dt_best, "max_hold_bars", None) if _dt_best is not None else None,
         "shadow_emit_signals": _shadow_emit_payload,
         "dual_scenarios": dual_scenarios,
@@ -5664,7 +5682,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             # ── 本番環境と統一: compute_scalp_signalを呼び出し ──
             _sr_key = i // SR_RECALC
             current_sr_weighted = _sr_cache.get(_sr_key, [])
-            current_sr = [sr["price"] for sr in current_sr_weighted]
+            current_sr = current_sr_weighted
 
             bar_df = df.iloc[max(0, i - 500):i + 1]
             bar_time = df.index[i]
@@ -5692,7 +5710,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                         if hasattr(_5m_time, 'tzinfo') and _5m_time.tzinfo is None:
                             _5m_time = _5m_time.replace(tzinfo=timezone.utc)
                         _5m_sr_key = _5m_idx // 50
-                        _5m_sr = [sr["price"] for sr in _sr_5m_cache.get(_5m_sr_key, [])]
+                        _5m_sr = _sr_5m_cache.get(_5m_sr_key, [])
                         _5m_sig = compute_scalp_signal(
                             _5m_bar_df, tf="5m", sr_levels=_5m_sr,
                             symbol=symbol, backtest_mode=True,
@@ -5935,7 +5953,7 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                                 _sr_bar_time = _sr_bar_time.replace(tzinfo=timezone.utc)
                             _sr_result = compute_scalp_signal(
                                 _sr_bar_df, tf=interval,
-                                sr_levels=[s["price"] for s in current_sr_weighted],
+                                sr_levels=current_sr_weighted,
                                 symbol=symbol, backtest_mode=True,
                                 bar_time=_sr_bar_time, htf_cache=_htf_cache,
                             )
@@ -6374,7 +6392,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             # ── 本番環境と統一: compute_daytrade_signalを呼び出し ──
             _dt_key = i // DT_SR_RECALC
             current_sr_weighted = _dt_sr_cache.get(_dt_key, [])
-            current_sr = [sr["price"] for sr in current_sr_weighted]
+            current_sr = current_sr_weighted
 
             # v9.1: 3500 bars (was 500) — intraday_seasonality needs 8+ weeks of same-dow×hour samples
             bar_df = df.iloc[max(0, i - 3500):i + 1]
@@ -6784,7 +6802,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                                 _sr_bar_time_dt = _sr_bar_time_dt.replace(tzinfo=timezone.utc)
                             _sr_result_dt = compute_daytrade_signal(
                                 _sr_bar_df_dt, tf=interval,
-                                sr_levels=[s["price"] for s in current_sr_weighted],
+                                sr_levels=current_sr_weighted,
                                 symbol=symbol, backtest_mode=backtest_mode,
                                 bar_time=_sr_bar_time_dt, htf_cache=_htf_cache,
                             )
@@ -8661,6 +8679,11 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     _sc_is_jpy = "JPY" in symbol.upper()
     _sc_is_jpy_scale = _sc_is_jpy or "XAU" in symbol.upper()
     _sc_pip_mult = 100 if _sc_is_jpy_scale else 10000
+    _sr_weighted_levels = [s for s in (sr_levels or []) if isinstance(s, dict)]
+    _sr_price_levels = [
+        float(s.get("price")) if isinstance(s, dict) else s
+        for s in (sr_levels or [])
+    ]
 
     # ── Layer 0/1/2/3: 共通前処理 ──
     layer0 = is_trade_prohibited(df, bar_time=bar_time)
@@ -8670,7 +8693,8 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         layer1 = get_master_bias(symbol)
     regime = detect_market_regime(df)
     layer2 = compute_layer2_score(df, tf)
-    layer3 = compute_layer3_score(df, tf, sr_levels)
+    layer3 = compute_layer3_score(df, tf, _sr_price_levels)
+    layer3 = {**layer3, "sr_weighted_levels": _sr_weighted_levels}
     if backtest_mode and htf_cache and "htf" in htf_cache:
         htf = htf_cache["htf"]
     else:
@@ -8763,7 +8787,8 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     # ──────────────────────────────────────────────────────────
     # WAIT用テンプレート生成関数
     # ──────────────────────────────────────────────────────────
-    def _make_result(sig, conf, sl_v, tp_v, rr_v, reasons_list, entry_type, score_v=0.0, shadow_emits=None):
+    def _make_result(sig, conf, sl_v, tp_v, rr_v, reasons_list, entry_type,
+                     score_v=0.0, shadow_emits=None, sr_meta=None):
         # ── U20 fix (2026-04-27): R2-A Suppress gate を Scalp path にも適用 ──
         # Wave 1 R2-A 5 cells のうち全戦略が scalp mode のため、DT path の
         # gate (compute_daytrade_signal) では構造的に通過しなかった (Phase γ
@@ -8805,6 +8830,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             "session": session, "htf_bias": htf, "swing_mode": False,
             "reasons": reasons_list, "mode": "scalp",
             "entry_type": entry_type,
+            "sr_meta": sr_meta,
             "layer_status": {
                 "layer0": layer0, "layer1": layer1,
                 "master_bias": layer1.get("label", "—"),
@@ -8869,7 +8895,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
 
     _ctx = SignalContext.from_df(
         df=df, row=row, symbol=symbol, tf=tf,
-        sr_levels=sr_levels,
+        sr_levels=_sr_price_levels,
         layer0=layer0, layer1=layer1, regime=regime,
         layer2=layer2, layer3=layer3, htf=htf, session=session,
         backtest_mode=backtest_mode, bar_time=bar_time,
@@ -8877,19 +8903,16 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     _engine = _ScalperEngine()
     _candidates = _engine.evaluate_all(_ctx)
 
-    # Candidate → tuple変換（後方互換: 既存の後処理がタプルを期待）
-    candidates = [c.as_tuple() for c in _candidates]
-
     # ──────────────────────────────────────────────────────────
     #  最良候補の選択: スコア最大の戦略を採用
     # ──────────────────────────────────────────────────────────
-    if not candidates:
+    if not _candidates:
         return _make_result("WAIT", 15, entry - atr * 0.5, entry + atr * 0.9, 1.8,
                             ["⛔ 全戦略の条件未達 → WAIT"], "wait")
 
     # スコア降順で最良を選択
-    best = max(candidates, key=lambda c: c[6])
-    signal, conf, sl, tp, reasons, entry_type, score = best
+    _best_obj = max(_candidates, key=lambda c: c.score)
+    signal, conf, sl, tp, reasons, entry_type, score = _best_obj.as_tuple()
 
     # ── Phase 5 (2026-04-30): build loser shadow-emit payload ──
     # Mirror compute_daytrade_signal:3387-3406 pattern. Records non-winning
@@ -8900,7 +8923,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     # Kelly accumulation across all 22+ scalp strategies.
     _sc_shadow_emit_payload: list = []
     try:
-        _sc_winner_obj = max(_candidates, key=lambda c: c.score)
+        _sc_winner_obj = _best_obj
         _sc_losers = _engine.split_shadow_always(_candidates, _sc_winner_obj)
         for _c in _sc_losers:
             _sc_shadow_emit_payload.append({
@@ -8912,6 +8935,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 "reasons": list(_c.reasons or []),
                 "score": round(float(_c.score), 3),
                 "atr": _rp(atr, symbol),
+                "sr_meta": getattr(_c, "sr_meta", None),
             })
         if (os.environ.get("BB_RSI_EMA_ALIGNED_REDESIGN_V2") == "1"
                 and os.environ.get("BB_RSI_EMA_ALIGNED_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
@@ -8977,7 +9001,8 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             tp_dist = abs(tp - entry)
             reasons.append("⚠️ RR不足 → TP最小RR1.8に拡張")
         rr = round(tp_dist / max(sl_dist, 1e-6), 2)
-        return _make_result(signal, conf, sl, tp, rr, reasons, entry_type, score)
+        return _make_result(signal, conf, sl, tp, rr, reasons, entry_type, score,
+                            sr_meta=getattr(_best_obj, "sr_meta", None))
 
     # ── EMA200 近接回避ゾーン ──
     # 200EMA付近は攻防ラインでウィップソーが多い → 軽度抑制（緩和済み）
@@ -9213,7 +9238,8 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
         reasons.append("⚠️ RR不足 → TP最小RR1.8に拡張")
 
     rr = round(tp_dist / max(sl_dist, 1e-6), 2)
-    return _make_result(signal, conf, sl, tp, rr, reasons, entry_type, score)
+    return _make_result(signal, conf, sl, tp, rr, reasons, entry_type, score,
+                        sr_meta=getattr(_best_obj, "sr_meta", None))
 
 
 def _compute_scalp_signal_v1_legacy(df: pd.DataFrame, tf: str, sr_levels: list,

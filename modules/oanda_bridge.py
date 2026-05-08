@@ -202,9 +202,14 @@ class OandaBridge:
     def _add_audit(self, demo_trade_id: str, entry_type: str,
                    is_live: bool, bridge_status: str, block_reason: str,
                    direction: str = "", instrument: str = "",
-                   units: int = 0, oanda_trade_id: str = ""):
+                   units: int = 0, oanda_trade_id: str = "",
+                   sr_meta=None):
         """トレード実行時のOANDA連携監査記録を追加 (インメモリ + DB永続化)."""
         from datetime import datetime, timezone
+        _sr = sr_meta or {}
+        _sr_is_strong = _sr.get("is_strong")
+        if _sr_is_strong is not None:
+            _sr_is_strong = int(bool(_sr_is_strong))
         entry = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "demo_trade_id": demo_trade_id,
@@ -216,6 +221,11 @@ class OandaBridge:
             "bridge_status": bridge_status,
             "block_reason": block_reason,
             "oanda_trade_id": oanda_trade_id,
+            "sr_strength": _sr.get("strength"),
+            "sr_touches": _sr.get("touches"),
+            "sr_days_span": _sr.get("days_span"),
+            "sr_is_strong": _sr_is_strong,
+            "sr_distance_atr": _sr.get("distance_atr"),
         }
         # インメモリキャッシュ (後方互換)
         self._execution_audit.append(entry)

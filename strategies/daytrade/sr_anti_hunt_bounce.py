@@ -75,6 +75,7 @@ class SrAntiHuntBounce(StrategyBase):
         atr = max(ctx.atr, 1e-9)
         proximity_distance = self.SR_PROXIMITY_ATR * atr
         nearest_level = None
+        nearest_level_obj = None
         nearest_dist = float("inf")
         for lv in ctx.sr_levels:
             price = float(lv.get("price", 0.0)) if isinstance(lv, dict) else float(lv)
@@ -82,6 +83,7 @@ class SrAntiHuntBounce(StrategyBase):
             if d < nearest_dist:
                 nearest_dist = d
                 nearest_level = price
+                nearest_level_obj = lv
         if nearest_level is None or nearest_dist > proximity_distance:
             return None
 
@@ -151,6 +153,12 @@ class SrAntiHuntBounce(StrategyBase):
             reasons=reasons,
             entry_type=self.name,
             score=float(score),
+            sr_meta=Candidate.sr_meta_from_price(
+                (ctx.layer3 or {}).get("sr_weighted_levels", []),
+                nearest_level,
+                ctx.entry,
+                atr,
+            ),
         )
 
     def _evaluate_redesign_v2(self, ctx: SignalContext) -> Optional[Candidate]:
@@ -173,6 +181,7 @@ class SrAntiHuntBounce(StrategyBase):
 
         proximity_distance = self.SR_PROXIMITY_ATR * signal_atr
         nearest_level = None
+        nearest_level_obj = None
         nearest_dist = float("inf")
         for lv in ctx.sr_levels:
             price = float(lv.get("price", 0.0)) if isinstance(lv, dict) else float(lv)
@@ -180,6 +189,7 @@ class SrAntiHuntBounce(StrategyBase):
             if d < nearest_dist:
                 nearest_dist = d
                 nearest_level = price
+                nearest_level_obj = lv
         if nearest_level is None or nearest_dist > proximity_distance:
             return None
 
@@ -245,6 +255,12 @@ class SrAntiHuntBounce(StrategyBase):
             reasons=reasons,
             entry_type=self.name,
             score=float(score),
+            sr_meta=Candidate.sr_meta_from_price(
+                (ctx.layer3 or {}).get("sr_weighted_levels", []),
+                nearest_level,
+                signal_close,
+                signal_atr,
+            ),
         )
 
     def _confirmed_no_recent_hunt(self, ctx: SignalContext,

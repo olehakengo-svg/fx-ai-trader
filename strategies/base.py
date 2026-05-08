@@ -6,7 +6,7 @@ evaluate() は条件を評価して Candidate を返すか、None を返す。
 """
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
 
 
 @dataclass
@@ -20,11 +20,65 @@ class Candidate:
     entry_type: str      # "bb_rsi_reversion" etc.
     score: float         # スコア（候補選択に使用）
     max_hold_bars: Optional[int] = None  # Optional strategy-specific BT time stop
+    sr_meta: Optional[dict] = None
 
     def as_tuple(self) -> tuple:
         """旧形式の candidates タプルに変換（後方互換）。"""
         return (self.signal, self.confidence, self.sl, self.tp,
                 self.reasons, self.entry_type, self.score)
+
+    @staticmethod
+    def sr_meta_from_level(level: Any, signal_price: float,
+                           atr_at_signal: Optional[float]) -> dict:
+        """Normalize a selected S/R level into oanda_audit metadata."""
+        if isinstance(level, dict):
+            price = level.get("price")
+            strength = level.get("strength")
+            touches = level.get("touches")
+            days_span = level.get("days_span")
+            is_strong = level.get("is_strong")
+        else:
+            price = level
+            strength = touches = days_span = is_strong = None
+
+        distance_atr = None
+        try:
+            atr = float(atr_at_signal) if atr_at_signal is not None else 0.0
+            if atr > 0 and price is not None:
+                distance_atr = round(abs(float(price) - float(signal_price)) / atr, 10)
+        except (TypeError, ValueError):
+            distance_atr = None
+
+        return {
+            "strength": float(strength) if strength is not None else None,
+            "touches": int(touches) if touches is not None else None,
+            "days_span": float(days_span) if days_span is not None else None,
+            "is_strong": bool(is_strong) if is_strong is not None else None,
+            "distance_atr": distance_atr,
+        }
+
+    @staticmethod
+    def sr_meta_from_price(levels: list, price: float, signal_price: float,
+                           atr_at_signal: Optional[float]) -> dict:
+        """Find the weighted level nearest to price, then normalize it."""
+        if not levels:
+            return Candidate.sr_meta_from_level(price, signal_price, atr_at_signal)
+        best = None
+        best_dist = float("inf")
+        for level in levels:
+            try:
+                level_price = float(level.get("price") if isinstance(level, dict) else level)
+                dist = abs(level_price - float(price))
+            except (TypeError, ValueError):
+                continue
+            if dist < best_dist:
+                best = level
+                best_dist = dist
+        return Candidate.sr_meta_from_level(
+            best if best is not None else price,
+            signal_price,
+            atr_at_signal,
+        )
 
 
 class StrategyBase:

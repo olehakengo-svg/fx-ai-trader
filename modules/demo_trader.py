@@ -659,6 +659,23 @@ class DemoTrader:
             print("[EMERGENCY_KILL] System is in KILLED state — all trading suspended. "
                   "Use emergency_resume() to restart.", flush=True)
 
+    def _add_oanda_audit(self, *, trade_id: str, entry_type: str,
+                         is_live: bool, bridge_status: str, block_reason: str,
+                         direction: str = "", instrument: str = "",
+                         units: int = 0, sr_meta=None):
+        """Forward OANDA audit rows with optional SR metadata."""
+        return self._oanda._add_audit(
+            demo_trade_id=trade_id,
+            entry_type=entry_type,
+            is_live=is_live,
+            bridge_status=bridge_status,
+            block_reason=block_reason,
+            direction=direction,
+            instrument=instrument,
+            units=units,
+            sr_meta=sr_meta,
+        )
+
     def _resend_pending_oanda_trades(self):
         """デプロイ中にOANDA未連携だったOPENトレードを補完送信.
         5分以上前のトレードはスキップ（価格乖離が大きいため）."""
@@ -2534,7 +2551,7 @@ class DemoTrader:
                 _outside_active_hours = True  # 下流でshadow判定に使用
 
         # Import here to avoid circular imports
-        from app import fetch_ohlcv, add_indicators, find_sr_levels
+        from app import fetch_ohlcv, add_indicators, find_sr_levels, find_sr_levels_weighted
 
         _base_mode_fn = _get_base_mode(mode)
         if _base_mode_fn == "daytrade":
@@ -2583,13 +2600,26 @@ class DemoTrader:
                 print(f"[DemoTrader/{mode}] Insufficient data: {len(df)} bars (need 50)")
                 return
 
-            sr = find_sr_levels(df)
+            try:
+                _bars_per_day = 288 if tf == "5m" else (96 if tf in ("15m", "30m") else 24)
+                sr = find_sr_levels_weighted(
+                    df, window=5, tolerance_pct=0.003, min_touches=2,
+                    max_levels=8, bars_per_day=_bars_per_day)
+            except Exception:
+                sr = find_sr_levels(df)
+
+            sr_for_signal = sr
+            if _base_mode_fn != "daytrade" and not _base_mode_fn.startswith("scalp"):
+                sr_for_signal = [
+                    float(s.get("price")) if isinstance(s, dict) else s
+                    for s in (sr or [])
+                ]
 
             # ── 1H Breakout mode: HourlyEngine (KSB+DMB) ──
             if _base_mode_fn == "daytrade_1h":
-                sig = compute_fn(df, tf, sr, symbol)
+                sig = compute_fn(df, tf, sr_for_signal, symbol)
             else:
-                sig = compute_fn(df, tf, sr, symbol)
+                sig = compute_fn(df, tf, sr_for_signal, symbol)
 
             # ── 5m補完: sr_channel_reversal / macdh_reversal は5mの方が高EV ──
             # 1m: WR=48.5%/-0.162, WR=46.7%/-0.023
@@ -2605,7 +2635,12 @@ class DemoTrader:
                     if _5m_actual:
                         df_5m = df_5m.dropna(subset=_5m_actual)
                     if len(df_5m) >= 50:
-                        sr_5m = find_sr_levels(df_5m)
+                        try:
+                            sr_5m = find_sr_levels_weighted(
+                                df_5m, window=5, tolerance_pct=0.003,
+                                min_touches=2, max_levels=8, bars_per_day=288)
+                        except Exception:
+                            sr_5m = find_sr_levels(df_5m)
                         sig_5m = compute_fn(df_5m, "5m", sr_5m, symbol)
                         if (sig_5m.get("signal") != "WAIT"
                                 and sig_5m.get("entry_type") in _5M_ONLY_STRATEGIES):
@@ -4408,6 +4443,7 @@ class DemoTrader:
         # ── P0監視: スリッページ・スプレッド・COOLDOWN記録 ──
         # ══════════════════════════════════════════════════════════════
         _signal_price = sig.get("entry", 0)  # シグナル関数のmid価格
+        _sr_meta = sig.get("sr_meta")
         _pip_m_mon = 100 if (_is_jpy or "XAU" in instrument) else 10000
         _slippage = round((current_price - _signal_price) * _pip_m_mon, 2) if _signal_price else 0
         if signal == "SELL":
@@ -4942,12 +4978,13 @@ class DemoTrader:
                         f"[SHIELD] Aggregate Kelly gate: {_agg_kelly:.3f} < 0 → "
                         f"OANDA blocked for {entry_type} {instrument} (SENTINEL still allowed)"
                     )
-                    self._oanda._add_audit(
-                        demo_trade_id=trade_id, entry_type=entry_type,
+                    self._add_oanda_audit(
+                        trade_id=trade_id, entry_type=entry_type,
                         is_live=False, bridge_status="blocked",
                         block_reason=f"agg_kelly={_agg_kelly:.3f}<0",
                         direction=signal, instrument=instrument,
                         units=_adjusted_units,
+                        sr_meta=_sr_meta,
                     )
                     _is_promoted = False  # fall through to non-OANDA path
 
@@ -4960,12 +4997,13 @@ class DemoTrader:
                         f"[SHIELD] MC ruin gate: {_ruin_prob:.1%} > 70% → "
                         f"OANDA blocked for {entry_type} {instrument}"
                     )
-                    self._oanda._add_audit(
-                        demo_trade_id=trade_id, entry_type=entry_type,
+                    self._add_oanda_audit(
+                        trade_id=trade_id, entry_type=entry_type,
                         is_live=False, bridge_status="blocked",
                         block_reason=f"mc_ruin={_ruin_prob:.3f}>0.7",
                         direction=signal, instrument=instrument,
                         units=_adjusted_units,
+                        sr_meta=_sr_meta,
                     )
                     _is_promoted = False  # fall through to non-OANDA path
 
@@ -5023,12 +5061,13 @@ class DemoTrader:
                     lot_label=_lot_tag,
                     signal_price=_signal_price,
                 )
-                self._oanda._add_audit(
-                    demo_trade_id=trade_id, entry_type=entry_type,
+                self._add_oanda_audit(
+                    trade_id=trade_id, entry_type=entry_type,
                     is_live=True, bridge_status="sent",
                     block_reason="",
                     direction=signal, instrument=instrument,
                     units=_adjusted_units,
+                    sr_meta=_sr_meta,
                 )
                 # v9.4: PRIME trade tag for 2026-05-15 re-evaluation
                 if _prime_match:
@@ -5043,12 +5082,13 @@ class DemoTrader:
                     f"🔗 OANDA: [BLOCKED] {signal} {instrument} — "
                     f"Reason: {_br}"
                 )
-                self._oanda._add_audit(
-                    demo_trade_id=trade_id, entry_type=entry_type,
+                self._add_oanda_audit(
+                    trade_id=trade_id, entry_type=entry_type,
                     is_live=False, bridge_status="blocked",
                     block_reason=_br,
                     direction=signal, instrument=instrument,
                     units=_adjusted_units,
+                    sr_meta=_sr_meta,
                 )
         else:
             # ── OANDA未連携: 理由を詳細記録 + 🔗ラベル ──
@@ -5074,12 +5114,13 @@ class DemoTrader:
             else:
                 _block_reason = f"pending(N={_promo_n}/30)"
 
-            self._oanda._add_audit(
-                demo_trade_id=trade_id, entry_type=entry_type,
+            self._add_oanda_audit(
+                trade_id=trade_id, entry_type=entry_type,
                 is_live=False, bridge_status="skipped",
                 block_reason=_block_reason,
                 direction=signal, instrument=instrument,
                 units=_adjusted_units,
+                sr_meta=_sr_meta,
             )
             self._add_log(
                 f"🔗 OANDA: [SKIP] {entry_type} — Reason: {_block_reason}"

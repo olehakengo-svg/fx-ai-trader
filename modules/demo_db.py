@@ -350,11 +350,17 @@ class DemoDB:
                     bridge_status   TEXT,
                     block_reason    TEXT DEFAULT '',
                     oanda_trade_id  TEXT DEFAULT '',
+                    sr_strength     REAL,
+                    sr_touches      INTEGER,
+                    sr_days_span    REAL,
+                    sr_is_strong    INTEGER,
+                    sr_distance_atr REAL,
                     created_at      TEXT DEFAULT (datetime('now'))
                 );
                 CREATE INDEX IF NOT EXISTS idx_oanda_audit_ts ON oanda_audit(timestamp);
                 CREATE INDEX IF NOT EXISTS idx_oanda_audit_trade ON oanda_audit(demo_trade_id);
             """)
+            self._ensure_oanda_audit_sr_columns(conn)
 
             # ── pending_oanda_ops: persistent failure queue (audit P0-6) ──
             # Audit 2026-05-01 Pillar 1.2: OandaBridge `_fire()` retries 3 times
@@ -486,6 +492,23 @@ class DemoDB:
                 pass
 
             conn.commit()
+
+    @staticmethod
+    def _ensure_oanda_audit_sr_columns(conn):
+        """Idempotently add SR-weight audit columns to existing DBs."""
+        existing = {
+            row["name"] if isinstance(row, sqlite3.Row) else row[1]
+            for row in conn.execute("PRAGMA table_info(oanda_audit)")
+        }
+        for col, col_type in [
+            ("sr_strength", "REAL"),
+            ("sr_touches", "INTEGER"),
+            ("sr_days_span", "REAL"),
+            ("sr_is_strong", "INTEGER"),
+            ("sr_distance_atr", "REAL"),
+        ]:
+            if col not in existing:
+                conn.execute(f"ALTER TABLE oanda_audit ADD COLUMN {col} {col_type}")  # nosem
 
     # ── 2026-04-30 (rule:R3): Pre-fix shadow contamination backfill ──
     # Phase 10 G2 で SHADOW_ALWAYS に投入された vsg_jpy_reversal /
@@ -1096,8 +1119,9 @@ class DemoDB:
                 conn.execute("""
                     INSERT INTO oanda_audit
                     (timestamp, demo_trade_id, entry_type, direction, instrument,
-                     units, is_live, bridge_status, block_reason, oanda_trade_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     units, is_live, bridge_status, block_reason, oanda_trade_id,
+                     sr_strength, sr_touches, sr_days_span, sr_is_strong, sr_distance_atr)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     entry.get("timestamp", ""),
                     entry.get("demo_trade_id", ""),
@@ -1109,6 +1133,11 @@ class DemoDB:
                     entry.get("bridge_status", ""),
                     entry.get("block_reason", ""),
                     entry.get("oanda_trade_id", ""),
+                    entry.get("sr_strength"),
+                    entry.get("sr_touches"),
+                    entry.get("sr_days_span"),
+                    entry.get("sr_is_strong"),
+                    entry.get("sr_distance_atr"),
                 ))
                 conn.commit()
 

@@ -60,6 +60,7 @@ class SrChannelReversal(StrategyBase):
         _ch_lower = float(_channel["lower"][-1]["value"]) if _channel else None
 
         # SR近接判定
+        _sr_weighted = (ctx.layer3 or {}).get("sr_weighted_levels", [])
         _sr_buy = [l for l in ctx.sr_levels if 0 < ctx.entry - l < ctx.atr * self.sr_proximity]
         _sr_sell = [l for l in ctx.sr_levels if 0 < l - ctx.entry < ctx.atr * self.sr_proximity]
         _at_ch_lower = _ch_lower and abs(ctx.entry - _ch_lower) < ctx.atr * self.sr_proximity
@@ -71,6 +72,7 @@ class SrChannelReversal(StrategyBase):
             signal = "BUY"
             if _sr_buy:
                 _nearest = max(_sr_buy)
+                _sr_level = _nearest
                 _dist = abs(ctx.entry - _nearest) / ctx.atr
                 score += max(0, (0.3 - _dist) * 3.0)
                 reasons.append(f"✅ SRサポート反発({_nearest:.3f}, dist={_dist:.2f}ATR)")
@@ -98,6 +100,7 @@ class SrChannelReversal(StrategyBase):
             signal = "SELL"
             if _sr_sell:
                 _nearest = min(_sr_sell)
+                _sr_level = _nearest
                 _dist = abs(_nearest - ctx.entry) / ctx.atr
                 score += max(0, (0.3 - _dist) * 3.0)
                 reasons.append(f"✅ SRレジスタンス反発({_nearest:.3f}, dist={_dist:.2f}ATR)")
@@ -124,8 +127,12 @@ class SrChannelReversal(StrategyBase):
 
         _legacy_conf = int(min(85, 45 + score * 5))
         conf = apply_penalty(_legacy_conf, self.strategy_type, ctx.adx, conf_max=85)
+        _meta_level = (_sr_level if "_sr_level" in locals()
+                       else (_ch_lower if signal == "BUY" else _ch_upper))
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
-                         reasons=reasons, entry_type=self.name, score=score)
+                         reasons=reasons, entry_type=self.name, score=score,
+                         sr_meta=Candidate.sr_meta_from_price(
+                             _sr_weighted, _meta_level, ctx.entry, ctx.atr))
 
     def _evaluate_redesign_v2(self, ctx: SignalContext) -> Optional[Candidate]:
         if ctx.df is None or len(ctx.df) < 11:
@@ -157,6 +164,7 @@ class SrChannelReversal(StrategyBase):
         )
 
         _sr_prices = [s["price"] if isinstance(s, dict) else s for s in ctx.sr_levels]
+        _sr_weighted = (ctx.layer3 or {}).get("sr_weighted_levels", [])
         _sr_buy = [l for l in _sr_prices if 0 < signal_price - l < signal_atr * self.sr_proximity]
         _sr_sell = [l for l in _sr_prices if 0 < l - signal_price < signal_atr * self.sr_proximity]
         _at_ch_lower = (
@@ -199,6 +207,7 @@ class SrChannelReversal(StrategyBase):
 
             if _sr_buy:
                 _nearest = max(_sr_buy)
+                _sr_level = _nearest
                 _dist = abs(signal_price - _nearest) / signal_atr
                 score += max(0, (0.3 - _dist) * 3.0)
                 reasons.append(f"✅ SRサポート反発(closed {_nearest:.3f}, dist={_dist:.2f}ATR)")
@@ -234,6 +243,7 @@ class SrChannelReversal(StrategyBase):
 
             if _sr_sell:
                 _nearest = min(_sr_sell)
+                _sr_level = _nearest
                 _dist = abs(_nearest - signal_price) / signal_atr
                 score += max(0, (0.3 - _dist) * 3.0)
                 reasons.append(f"✅ SRレジスタンス反発(closed {_nearest:.3f}, dist={_dist:.2f}ATR)")
@@ -270,5 +280,9 @@ class SrChannelReversal(StrategyBase):
 
         _legacy_conf = int(min(85, 45 + score * 5))
         conf = apply_penalty(_legacy_conf, self.strategy_type, ctx.adx, conf_max=85)
+        _meta_level = (_sr_level if "_sr_level" in locals()
+                       else (_ch_lower if signal == "BUY" else _ch_upper))
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
-                         reasons=reasons, entry_type=self.name, score=score)
+                         reasons=reasons, entry_type=self.name, score=score,
+                         sr_meta=Candidate.sr_meta_from_price(
+                             _sr_weighted, _meta_level, signal_price, signal_atr))

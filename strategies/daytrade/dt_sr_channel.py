@@ -53,6 +53,7 @@ class DtSrChannelReversal(StrategyBase):
         _ch_lower = float(_ch["lower"][-1]["value"]) if _ch else None
 
         _sr_prices = [s["price"] if isinstance(s, dict) else s for s in ctx.sr_levels]
+        _sr_weighted = (ctx.layer3 or {}).get("sr_weighted_levels", [])
         _sr_buy = [l for l in _sr_prices if 0 < ctx.entry - l < ctx.atr * self.sr_proximity]
         _sr_sell = [l for l in _sr_prices if 0 < l - ctx.entry < ctx.atr * self.sr_proximity]
         _at_ch_lower = _ch_lower and abs(ctx.entry - _ch_lower) < ctx.atr * self.sr_proximity
@@ -65,7 +66,8 @@ class DtSrChannelReversal(StrategyBase):
             signal = "BUY"
             score = 3.2
             if _sr_buy:
-                reasons.append(f"✅ DT SRサポート反発({max(_sr_buy):.3f})")
+                _sr_level = max(_sr_buy)
+                reasons.append(f"✅ DT SRサポート反発({_sr_level:.3f})")
             if _at_ch_lower:
                 score += 0.5
                 reasons.append(f"✅ DT チャネル下限反発({_ch_lower:.3f})")
@@ -82,7 +84,8 @@ class DtSrChannelReversal(StrategyBase):
             signal = "SELL"
             score = 3.2
             if _sr_sell:
-                reasons.append(f"✅ DT SRレジスタンス反発({min(_sr_sell):.3f})")
+                _sr_level = min(_sr_sell)
+                reasons.append(f"✅ DT SRレジスタンス反発({_sr_level:.3f})")
             if _at_ch_upper:
                 score += 0.5
                 reasons.append(f"✅ DT チャネル上限反発({_ch_upper:.3f})")
@@ -96,8 +99,12 @@ class DtSrChannelReversal(StrategyBase):
             return None
 
         conf = int(min(75, 40 + score * 4))
+        _meta_level = (_sr_level if "_sr_level" in locals()
+                       else (_ch_lower if signal == "BUY" else _ch_upper))
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
-                         reasons=reasons, entry_type=self.name, score=score)
+                         reasons=reasons, entry_type=self.name, score=score,
+                         sr_meta=Candidate.sr_meta_from_price(
+                             _sr_weighted, _meta_level, ctx.entry, ctx.atr))
 
     def _evaluate_redesign_v2(self, ctx: SignalContext) -> Optional[Candidate]:
         if ctx.df is None or len(ctx.df) < 21:
@@ -129,6 +136,7 @@ class DtSrChannelReversal(StrategyBase):
         )
 
         _sr_prices = [s["price"] if isinstance(s, dict) else s for s in ctx.sr_levels]
+        _sr_weighted = (ctx.layer3 or {}).get("sr_weighted_levels", [])
         _sr_buy = [l for l in _sr_prices if 0 < signal_price - l < signal_atr * self.sr_proximity]
         _sr_sell = [l for l in _sr_prices if 0 < l - signal_price < signal_atr * self.sr_proximity]
         _at_ch_lower = (
@@ -164,7 +172,8 @@ class DtSrChannelReversal(StrategyBase):
             tp = min(mean_targets)
 
             if _sr_buy:
-                reasons.append(f"✅ DT SRサポート反発(closed {max(_sr_buy):.3f})")
+                _sr_level = max(_sr_buy)
+                reasons.append(f"✅ DT SRサポート反発(closed {_sr_level:.3f})")
             if _at_ch_lower:
                 score += 0.5
                 reasons.append(f"✅ DT チャネル下限反発(closed {_ch_lower:.3f})")
@@ -190,7 +199,8 @@ class DtSrChannelReversal(StrategyBase):
             tp = max(mean_targets)
 
             if _sr_sell:
-                reasons.append(f"✅ DT SRレジスタンス反発(closed {min(_sr_sell):.3f})")
+                _sr_level = min(_sr_sell)
+                reasons.append(f"✅ DT SRレジスタンス反発(closed {_sr_level:.3f})")
             if _at_ch_upper:
                 score += 0.5
                 reasons.append(f"✅ DT チャネル上限反発(closed {_ch_upper:.3f})")
@@ -218,5 +228,9 @@ class DtSrChannelReversal(StrategyBase):
         )
 
         conf = int(min(75, 40 + score * 4))
+        _meta_level = (_sr_level if "_sr_level" in locals()
+                       else (_ch_lower if signal == "BUY" else _ch_upper))
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
-                         reasons=reasons, entry_type=self.name, score=score)
+                         reasons=reasons, entry_type=self.name, score=score,
+                         sr_meta=Candidate.sr_meta_from_price(
+                             _sr_weighted, _meta_level, signal_price, signal_atr))
