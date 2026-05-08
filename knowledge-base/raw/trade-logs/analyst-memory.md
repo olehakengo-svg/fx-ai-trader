@@ -849,6 +849,16 @@ Cutoff後累計はN=22、WR=45.5%、PnL=−12.1pips相当。システムは稼�
 - この戦略はKBで「no BT data」のまま PAIR_PROMOTED。実データで裏付けなし。
 - **対策**: 本日も稼働するが、N=10到達まで EV推移を注視。N=10時点でEV≦-3.0であれば降格判断の根拠となる。
 
+### 2026-05-08 (Pre-Tokyo Briefing)
+前日（2026-05-07）は **17トレード、WR 47.1%、PnL -75.4pip** と大幅損失セッション。Cutoff後累計も N=19、WR 47.4%、PnL -69.2pip に留まり、単日で累計損益を押し上げた格好。勝ちはあるが、数件の大型SL_HIT（-20pip前後）が全体を押し下げる典型的な非対称損失構造。
+| Strategy | Pair | N | WR% | EV | 判定 |
+| trendline_sweep | GBP_USD | 5 | 80.0% | **-0.22** | ⚠️ WR高いがEV負（摩擦大） |
+> **統計的判断ライン**: 全戦略 N<10。現時点で「判断可能」水準（N≥30）に達しているものはゼロ。EVの正負は「傾向」として読む。
+wick_imbalance_reversion  GBP_USD  -9.2pip (SIGNAL_REVERSE) + -9.3pip (SL_HIT)
+### 主要問題② — trendline_sweep のEV逆転
+WR 80%でも EV = -0.22。前日詳細を見ると、勝ちトレードは +1.1〜+1.4pip（小）、負けは -6.3pip（大）。典型的な **RR比の歪み**（Win小・Loss大）。ELITE_LIVEステータスを持つが、**本番GBP_USDでのリターン実績は現時点でBT想定（EV=+0.599）を大幅に下回っている**。
+**本日の対処**: 昇格ステータスは維持しつつも、N=30到達後に本番EVを改めてBT値と比較することを予約。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
