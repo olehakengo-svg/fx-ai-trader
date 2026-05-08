@@ -83,6 +83,24 @@ def test_n30_negative_ev_critical(tmp_path):
     assert exit_code == 1
 
 
+def test_apply_demote_suggestion_is_read_only_and_excludes_existing_registry_cells(tmp_path):
+    result, exit_code = spr2.run(
+        _trades("new_bad_cell", 30, -0.5, instrument="EUR_USD")
+        + _trades("bb_rsi_reversion", 30, -0.5, instrument="EUR_USD"),
+        _promoted("new_bad_cell", "bb_rsi_reversion"),
+        now=NOW,
+        report_dir=tmp_path,
+        write_md=False,
+        apply_demote=True,
+    )
+
+    suggestion = result["apply_demote_suggestion"]
+    assert suggestion["mode"] == "read_only"
+    assert ("new_bad_cell", "EUR_USD") in suggestion["missing_cells"]
+    assert ("bb_rsi_reversion", "EUR_USD") not in suggestion["missing_cells"]
+    assert exit_code == 1
+
+
 def test_n30_positive_ev_no_alert(tmp_path):
     result, exit_code = spr2.run(
         _trades("n30_good", 30, 0.5),

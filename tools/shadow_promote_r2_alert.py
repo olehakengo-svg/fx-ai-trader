@@ -31,6 +31,7 @@ LOOKBACK_DAYS = 30
 WARN_MIN_N = 10
 CRITICAL_MIN_N = 30
 REPORT_DIR = _PROJECT_ROOT / "knowledge-base" / "raw" / "audits"
+REGISTRY_PATH = _PROJECT_ROOT / "modules" / "shadow_demote_registry.py"
 
 PROMOTE_ENV_RE = re.compile(r'os\.environ\.get\("([A-Z0-9_]+_REDESIGN_V2_SHADOW_PROMOTE)"\)')
 UNION_RE = re.compile(r"_shadow_always\s*=\s*_shadow_always\s*\|\s*\{([^}]+)\}")
@@ -386,6 +387,15 @@ def render_markdown(result: dict[str, Any]) -> str:
     lines.append("- `strategies/daytrade/__init__.py` `split_shadow_always` / `SHADOW_ALWAYS_STRATEGIES`")
     lines.append("- `strategies/hourly/__init__.py` `split_shadow_always`")
     lines.append("- `strategies/scalp/__init__.py` `split_shadow_always`")
+    suggestion = result.get("apply_demote_suggestion") or {}
+    if suggestion:
+        lines.append("")
+        lines.append("## Apply Demote Suggestion")
+        lines.append("")
+        lines.append(f"- Registry: `{suggestion['registry_path']}`")
+        lines.append(f"- Missing CRITICAL cells: `{len(suggestion['missing_cells'])}`")
+        for strategy, instrument in suggestion["missing_cells"]:
+            lines.append(f"- Add `({strategy!r}, {instrument!r})`")
     lines.append("")
     lines.append("## All Cells")
     lines.append("")
@@ -401,6 +411,34 @@ def render_markdown(result: dict[str, Any]) -> str:
         )
     lines.append("")
     return "\n".join(lines)
+
+
+def build_apply_demote_suggestion(
+    cells: list[dict[str, Any]],
+    *,
+    registry_path: Path = REGISTRY_PATH,
+) -> dict[str, Any]:
+    """Return read-only registry additions for currently CRITICAL cells."""
+    try:
+        from modules.shadow_demote_registry import SHADOW_DEMOTED_CELLS
+    except Exception:
+        existing: set[tuple[str, str]] = set()
+    else:
+        existing = set(SHADOW_DEMOTED_CELLS)
+    critical_cells = sorted(
+        (str(c["strategy"]), str(c["instrument"]))
+        for c in cells
+        if c["severity"] == "CRITICAL" and c.get("instrument")
+    )
+    missing = [cell for cell in critical_cells if cell not in existing]
+    return {
+        "mode": "read_only",
+        "registry_path": str(registry_path),
+        "critical_cells": critical_cells,
+        "existing_cells": sorted(existing),
+        "missing_cells": missing,
+        "note": "Review these cells and edit modules/shadow_demote_registry.py in a separate human-approved change.",
+    }
 
 
 def write_report(markdown: str, now: datetime, report_dir: Path = REPORT_DIR) -> Path:
@@ -462,6 +500,7 @@ def run(
     report_dir: Path = REPORT_DIR,
     alert_discord: bool = False,
     webhook_url: str | None = None,
+    apply_demote: bool = False,
 ) -> tuple[dict[str, Any], int]:
     now = now or datetime.now(timezone.utc)
     filtered = filter_shadow_trades(
@@ -477,7 +516,10 @@ def run(
         "cells": cells,
         "report_path": None,
         "discord_alert_sent": False,
+        "apply_demote_suggestion": None,
     }
+    if apply_demote:
+        result["apply_demote_suggestion"] = build_apply_demote_suggestion(cells)
     if write_md:
         result["report_path"] = str(write_report(render_markdown(result), now, report_dir))
     critical = [c for c in cells if c["severity"] == "CRITICAL"]
@@ -565,6 +607,8 @@ def cli(fetcher: Callable[[str, int], list[dict]] = fetch_trades) -> int:
                         help="Audit all statically discovered SHADOW_PROMOTE strategies, ignoring env values")
     parser.add_argument("--no-discord", action="store_true",
                         help="Do not send Discord webhook alerts")
+    parser.add_argument("--apply-demote", action="store_true",
+                        help="Read-only: include suggested registry additions for CRITICAL cells")
     parser.add_argument("--smoke", action="store_true", help="Run synthetic fixture checks without network")
     args = parser.parse_args()
 
@@ -598,6 +642,7 @@ def cli(fetcher: Callable[[str, int], list[dict]] = fetch_trades) -> int:
         write_md=not args.no_report,
         alert_discord=not args.no_discord,
         webhook_url=os.environ.get("DISCORD_WEBHOOK_URL"),
+        apply_demote=args.apply_demote,
     )
     if args.json:
         print(json.dumps(result, indent=2, ensure_ascii=False, default=_json_default))

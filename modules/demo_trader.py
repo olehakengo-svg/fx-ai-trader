@@ -23,6 +23,7 @@ from modules.risk_analytics import get_dd_lot_multiplier, DD_LOT_TIERS
 from modules.hmm_regime import HMMRegime
 from modules.prime_gate import classify_prime, prime_fingerprint
 from modules.confidence_q4_gate import should_shadow as _q4_should_shadow, gate_reason as _q4_gate_reason
+from modules.shadow_demote_registry import is_shadow_demoted
 import numpy as np
 
 SHADOW_TRACKING_BLOCK_REASON = "shadow_tracking"
@@ -2820,6 +2821,12 @@ class DemoTrader:
                 if _se_signal not in ("BUY", "SELL"):
                     continue
                 _se_entry_type = _se.get("entry_type") or ""
+                if is_shadow_demoted(_se_entry_type, instrument):
+                    self._add_log(
+                        f"[R2_SHADOW_DEMOTE] skipped shadow_emit "
+                        f"{_se_entry_type} x {instrument}"
+                    )
+                    continue
                 _se_entry = float(_se.get("entry") or sig.get("entry") or 0)
                 if _se_entry <= 0:
                     continue
@@ -3134,6 +3141,13 @@ class DemoTrader:
         _is_live_tier_exempt = (
             self._is_elite_live(entry_type, instrument) or _is_pair_promoted_live
         )
+        if is_shadow_demoted(entry_type, instrument) and not _is_live_tier_exempt:
+            self._add_log(
+                f"[R2_SHADOW_DEMOTE] blocked shadow-tracking cell "
+                f"{entry_type} x {instrument}"
+            )
+            _block("r2_shadow_demoted_cell")
+            return
 
         # ── 通貨ペア×モードクラス別ポジション制限 ──
         # scalp/DT/1H/swingが独立してポジションを持てる
