@@ -14371,6 +14371,15 @@ def api_admin_dedup_run():
         return jsonify({"error": str(e), "type": type(e).__name__}), 500
 
 
+@app.route("/api/admin/flag_drift_backfill_status")
+def api_admin_flag_drift_backfill_status():
+    """Diagnostic endpoint for FLAG_DRIFT historical backfill verification."""
+    try:
+        return jsonify(_demo_db.get_flag_drift_backfill_status())
+    except Exception as e:
+        return jsonify({"error": str(e), "type": type(e).__name__}), 500
+
+
 @app.route("/api/demo/learning")
 def api_demo_learning():
     # 手動学習トリガー or 履歴取得

@@ -57,6 +57,7 @@ class DemoDB:
         self._local = threading.local()
         self._log_write_count = 0  # ログ回転カウンタ（COUNT(*)排除用）
         self._last_backfill_result = None  # populated by _backfill_dedup_violation
+        self._last_flag_drift_backfill_result = None
         self._init_tables()
         # rule:R3 (2026-04-30): backfill dedup_violation flag for pre-fix shadow rows.
         # Idempotent (only flags rows with dedup_violation=0 in the buggy time window).
@@ -263,6 +264,14 @@ class DemoDB:
             # 0 = clean, 1 = duplicate (60s window 内の 2 件目以降, learning から除外対象)
             try:
                 conn.execute("ALTER TABLE demo_trades ADD COLUMN dedup_violation INTEGER DEFAULT 0")
+            except Exception:
+                pass
+
+            # ── 2026-05-11 (rule:pre-reg): FLAG_DRIFT backfill marker ──
+            # Marks rows reclassified by the post-cutoff FX FLAG_DRIFT backfill
+            # from is_shadow=0 to is_shadow=1, keeping rollback/auditability.
+            try:
+                conn.execute("ALTER TABLE demo_trades ADD COLUMN flag_drift_backfilled INTEGER DEFAULT 0")
             except Exception:
                 pass
 
@@ -491,6 +500,8 @@ class DemoDB:
             except Exception:
                 pass
 
+            self._last_flag_drift_backfill_result = self._backfill_flag_drift_impl(conn)
+
             conn.commit()
 
     @staticmethod
@@ -679,6 +690,105 @@ class DemoDB:
             "cutoff": now_iso,  # dynamic — reflects what backfill uses now
             "targets": list(self._DEDUP_BACKFILL_TARGETS),
             "last_startup_backfill_result": self._last_backfill_result,
+        }
+
+    _FLAG_DRIFT_BACKFILL_CUTOFF = "2026-04-08T00:00:00"
+
+    def _backfill_flag_drift_impl(self, conn):
+        """Reclassify post-cutoff FX FLAG_DRIFT rows as shadow.
+
+        FLAG_DRIFT means a row was labelled live (`is_shadow=0`) despite no
+        `oanda_trade_id`. If oanda_audit says the bridge filled the trade, do
+        not backfill; that row needs oanda_trade_id repair instead.
+        """
+        try:
+            params = (self._FLAG_DRIFT_BACKFILL_CUTOFF,)
+            where = (
+                "entry_time >= ? "
+                "AND instrument != 'XAU_USD' "
+                "AND is_shadow = 0 "
+                "AND (oanda_trade_id IS NULL OR oanda_trade_id = '')"
+            )
+            unsafe = conn.execute(
+                "SELECT COUNT(*) AS n "
+                "FROM demo_trades t "
+                "JOIN oanda_audit a ON a.demo_trade_id = t.trade_id "
+                "WHERE t.entry_time >= ? "
+                "  AND t.instrument != 'XAU_USD' "
+                "  AND t.is_shadow = 0 "
+                "  AND (t.oanda_trade_id IS NULL OR t.oanda_trade_id = '') "
+                "  AND a.bridge_status = 'filled'",
+                params,
+            ).fetchone()
+            unsafe_count = int(unsafe["n"] if isinstance(unsafe, sqlite3.Row) else unsafe[0])
+            candidate = conn.execute(
+                f"SELECT COUNT(*) AS n FROM demo_trades WHERE {where}",
+                params,
+            ).fetchone()
+            candidate_count = int(candidate["n"] if isinstance(candidate, sqlite3.Row) else candidate[0])
+            if unsafe_count > 0:
+                return {
+                    "status": "unsafe",
+                    "fixed_count": 0,
+                    "candidate_count": candidate_count,
+                    "unsafe_filled_audit_count": unsafe_count,
+                    "cutoff": self._FLAG_DRIFT_BACKFILL_CUTOFF,
+                    "executed_at": datetime.now(timezone.utc).isoformat(),
+                }
+            if candidate_count == 0:
+                return {
+                    "status": "noop",
+                    "fixed_count": 0,
+                    "candidate_count": 0,
+                    "unsafe_filled_audit_count": 0,
+                    "cutoff": self._FLAG_DRIFT_BACKFILL_CUTOFF,
+                    "executed_at": datetime.now(timezone.utc).isoformat(),
+                }
+            cur = conn.execute(
+                "UPDATE demo_trades "
+                "SET is_shadow = 1, flag_drift_backfilled = 1 "
+                f"WHERE {where}",
+                params,
+            )
+            fixed_count = int(cur.rowcount)
+            return {
+                "status": "backfilled",
+                "fixed_count": fixed_count,
+                "candidate_count": candidate_count,
+                "unsafe_filled_audit_count": 0,
+                "cutoff": self._FLAG_DRIFT_BACKFILL_CUTOFF,
+                "executed_at": datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception as _e:
+            import traceback
+            return {
+                "status": "exception",
+                "fixed_count": 0,
+                "error": str(_e),
+                "type": type(_e).__name__,
+                "traceback": traceback.format_exc()[:500],
+                "cutoff": self._FLAG_DRIFT_BACKFILL_CUTOFF,
+            }
+
+    def get_flag_drift_backfill_status(self) -> dict:
+        """Diagnostic status for post-cutoff FX FLAG_DRIFT reclassification."""
+        with self._safe_conn() as conn:
+            row = conn.execute(
+                """SELECT COUNT(*) AS n FROM demo_trades
+                   WHERE entry_time >= ?
+                     AND instrument != 'XAU_USD'
+                     AND is_shadow = 0
+                     AND (oanda_trade_id IS NULL OR oanda_trade_id = '')""",
+                (self._FLAG_DRIFT_BACKFILL_CUTOFF,),
+            ).fetchone()
+            flagged = conn.execute(
+                "SELECT COUNT(*) AS n FROM demo_trades WHERE flag_drift_backfilled = 1"
+            ).fetchone()
+        return {
+            "cutoff": self._FLAG_DRIFT_BACKFILL_CUTOFF,
+            "remaining_flag_drift": int(row["n"] if row else 0),
+            "total_backfilled": int(flagged["n"] if flagged else 0),
+            "last_startup_backfill_result": self._last_flag_drift_backfill_result,
         }
 
     # ── Trade CRUD ──────────────────────────────────
