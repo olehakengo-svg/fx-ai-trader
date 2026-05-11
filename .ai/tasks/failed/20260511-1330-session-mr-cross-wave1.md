@@ -293,3 +293,10 @@ Wave 1 verdict 受領後、司令塔が判断:
 
 **司令塔承認**: 2026-05-11 13:30 JST (Claude as Quant)
 **Codex 着手承認待ち**: queued
+
+
+## Error (2026-05-11T07:38:49Z)
+
+```
+orphaned: container restarted while task was running
+```
