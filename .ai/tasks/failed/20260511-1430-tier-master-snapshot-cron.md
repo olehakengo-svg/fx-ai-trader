@@ -79,3 +79,10 @@ python3 scripts/save_tier_master_snapshot.py
 - snapshot 自動コミットで main の commit 履歴が 1 日 1 件増える。既存 auto-commit ノイズと同レベル
 - snapshot 内容は `tier-master.json` のコピーなので統計的に厳しい審査は不要 (UI 用 baseline)
 - ただし `tier-master.json` 自体が更新された直後 (cell_edge_audit 反映等) のタイミングで snapshot を取ると、その日の baseline が "更新済" になる。これは仕様として許容 (元々日次の点描)
+
+
+## Error (2026-05-11T06:36:06Z)
+
+```
+orphaned: container restarted while task was running
+```

@@ -171,3 +171,10 @@ ACCEPT 条件:
 - MASSIVE cache 不在 ペア × TF → fetch 必要、abort + 司令塔に上申
 - 戦略 evaluate() が BT 環境で動かない (依存欠落等) → 個別 strategy を skip、final.md に明記
 - 構造的に N=0 になる cell → null result として記録、棄却ではなく "INSUFFICIENT_BT_N" verdict
+
+
+## Error (2026-05-11T06:36:06Z)
+
+```
+orphaned: container restarted while task was running
+```
