@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_chart_macros.html" import cum_pnl_chart, n_progress_chart %}
 {% set active = "overview" %}
 {% block title %}overview{% endblock %}
 {% block content %}
@@ -38,6 +39,30 @@
       <div class="card-sub">OANDA_API_TOKEN / OANDA_ACCOUNT_ID 未設定</div>
     {% endif %}
   </div>
+</div>
+
+<h2 class="section">Cumulative PnL (Shadow)</h2>
+<div class="panel">
+  {% for r in reports %}
+    <div style="margin-bottom: 14px;">
+      <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px;">
+        <strong>{{ r.strategy_name }}</strong>
+        <span class="muted" style="font-size: 11px;">
+          N={{ r.n }} · WR={{ "%.1f"|format(r.wr * 100) }}% ·
+          {% set final = pnl_series[r.strategy_name].final %}
+          <span class="{% if final > 0 %}good{% elif final < 0 %}bad{% else %}muted{% endif %}">
+            cum PnL = {{ "%+.2f"|format(final) }} pt
+          </span>
+        </span>
+      </div>
+      {{ cum_pnl_chart(pnl_series[r.strategy_name]) }}
+    </div>
+  {% endfor %}
+</div>
+
+<h2 class="section">N progress toward H1 gate (target {{ h1_n_min }})</h2>
+<div class="panel">
+  {{ n_progress_chart(reports, h1_n_min) }}
 </div>
 
 <h2 class="section">Shadow strategies</h2>

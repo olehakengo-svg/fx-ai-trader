@@ -156,6 +156,21 @@
     a.lnk { color: var(--blue); text-decoration: none; }
     a.lnk:hover { text-decoration: underline; }
     code { background: var(--bg2); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+    /* Inline SVG chart styles (zero external dependency). */
+    .chart-wrap { background: var(--bg2); border-radius: 6px; padding: 12px; margin-top: 8px; }
+    .chart-wrap svg { display: block; width: 100%; height: auto; }
+    .chart-grid line { stroke: var(--bg3); stroke-width: 0.5; }
+    .chart-axis text { fill: var(--t3); font-size: 9px; font-family: "SF Mono", monospace; }
+    .chart-line { fill: none; stroke-width: 1.5; }
+    .chart-line.good { stroke: var(--green); }
+    .chart-line.bad { stroke: var(--red); }
+    .chart-line.neutral { stroke: var(--blue); }
+    .chart-area.good { fill: rgba(63,185,80,.10); stroke: none; }
+    .chart-area.bad { fill: rgba(248,81,73,.10); stroke: none; }
+    .chart-bar.shadow { fill: var(--blue); }
+    .chart-bar.live { fill: var(--green); }
+    .chart-zero { stroke: var(--t4); stroke-width: 0.5; stroke-dasharray: 2 2; }
+    .chart-label { fill: var(--t3); font-size: 10px; font-family: "SF Mono", monospace; }
   </style>
 </head>
 <body>

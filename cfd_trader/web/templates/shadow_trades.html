@@ -1,12 +1,22 @@
 {% extends "base.html" %}
+{% from "_chart_macros.html" import cum_pnl_chart %}
 {% block title %}{{ strategy_name }} trades{% endblock %}
 {% block content %}
 
 <h2 class="section">{{ strategy_name }} · shadow trades</h2>
 <div class="panel">
   <p class="muted" style="margin-bottom: 12px;">
-    N = {{ rows|length }} · is_shadow=1 only · sorted by entry ts ascending
+    N = {{ rows|length }} · is_shadow=1 only · sorted by entry ts ascending ·
+    <span class="{% if series.final > 0 %}good{% elif series.final < 0 %}bad{% else %}muted{% endif %}">
+      cum PnL = {{ "%+.2f"|format(series.final) }} pt
+    </span>
   </p>
+
+  {{ cum_pnl_chart(series, width=820, height=220) }}
+</div>
+
+<div class="panel">
+  <p class="muted" style="margin-bottom: 8px; font-size: 11px;">Trade ledger</p>
 
   {% if rows %}
   <table>

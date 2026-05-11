@@ -71,6 +71,37 @@ def _age_seconds(ts: str | None) -> int | None:
         return None
 
 
+def _cum_pnl_series(db_path: str, *, strategy_name: str) -> dict:
+    """Build cumulative PnL series for one strategy.
+
+    Returns {points: [(idx, cum_pnl_point), ...], ymin, ymax, n, final}.
+    Always returns valid bounds even for empty/single-point series so
+    SVG rendering does not divide-by-zero.
+    """
+    trades = shadow_trades_for(db_path, strategy_name=strategy_name)
+    trades_sorted = sorted(trades, key=lambda t: t.ts)
+    points = []
+    cum = 0.0
+    for i, t in enumerate(trades_sorted):
+        pnl = float(t.pnl_point) if t.pnl_point is not None else 0.0
+        cum += pnl
+        points.append((i + 1, cum))
+    if not points:
+        return {"points": [], "ymin": -1.0, "ymax": 1.0, "n": 0, "final": 0.0}
+    ys = [y for _, y in points]
+    ymin = min(0.0, min(ys))
+    ymax = max(0.0, max(ys))
+    if ymin == ymax:
+        ymax = ymin + 1.0
+    return {
+        "points": points,
+        "ymin": ymin,
+        "ymax": ymax,
+        "n": len(points),
+        "final": points[-1][1],
+    }
+
+
 @cfd_bp.route("/")
 def overview():
     db = _db_path()
@@ -81,6 +112,7 @@ def overview():
     for s in SHADOW_STRATEGIES:
         for row in bridge_summary_for(db, strategy_name=s):
             bridge_rows.append({**row, "strategy_name": s})
+    pnl_series = {s: _cum_pnl_series(db, strategy_name=s) for s in SHADOW_STRATEGIES}
     return render_template(
         "overview.html",
         reports=reports,
@@ -89,6 +121,7 @@ def overview():
         h1_n_min=H1_N_MIN,
         counts=counts,
         bridge_rows=bridge_rows,
+        pnl_series=pnl_series,
         oanda_env=_oanda_env_status(),
         last_shadow_age=_age_seconds(counts.get("last_shadow_ts")),
         last_live_age=_age_seconds(counts.get("last_live_ts")),
@@ -106,10 +139,12 @@ def shadow_trades(strategy_name: str):
         pnl = float(t.pnl_point) if t.pnl_point is not None else 0.0
         cum += pnl
         rows.append({"trade": t, "cum_pnl_point": cum})
+    series = _cum_pnl_series(db, strategy_name=strategy_name)
     return render_template(
         "shadow_trades.html",
         strategy_name=strategy_name,
         rows=rows,
+        series=series,
     )
 
 

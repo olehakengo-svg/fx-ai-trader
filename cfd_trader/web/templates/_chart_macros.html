@@ -1,0 +1,82 @@
+{# Reusable inline-SVG chart macros — zero external dependency, no SRI risk. #}
+
+{# Cumulative PnL line chart.
+   series = {points: [(x, y), ...], ymin, ymax, n, final}
+   width / height in SVG user units. #}
+{% macro cum_pnl_chart(series, width=620, height=180, pad_l=44, pad_r=12, pad_t=12, pad_b=24) %}
+  {% if series.points and series.n > 0 %}
+    {% set xmax = series.points[-1][0] if series.n > 1 else 1 %}
+    {% set xmin = 1 %}
+    {% set x_span = (xmax - xmin) if (xmax - xmin) > 0 else 1 %}
+    {% set y_span = (series.ymax - series.ymin) if (series.ymax - series.ymin) > 0 else 1 %}
+    {% set plot_w = width - pad_l - pad_r %}
+    {% set plot_h = height - pad_t - pad_b %}
+    {% set zero_y = pad_t + plot_h * (series.ymax - 0) / y_span %}
+    {# Build polyline points string. #}
+    {% set ns = namespace(pts='', area='') %}
+    {% for x, y in series.points %}
+      {% set px = pad_l + plot_w * ((x - xmin) / x_span if x_span > 0 else 0) %}
+      {% set py = pad_t + plot_h * ((series.ymax - y) / y_span) %}
+      {% set ns.pts = ns.pts + ('%.2f,%.2f '|format(px, py)) %}
+    {% endfor %}
+    {# Area polygon: extend down to zero baseline. #}
+    {% set first_x = pad_l %}
+    {% set last_x = pad_l + plot_w %}
+    {% set ns.area = ('%.2f,%.2f '|format(first_x, zero_y)) + ns.pts + ('%.2f,%.2f'|format(last_x, zero_y)) %}
+    {% set cls = 'good' if series.final >= 0 else 'bad' %}
+    <div class="chart-wrap">
+      <svg viewBox="0 0 {{ width }} {{ height }}" preserveAspectRatio="none" role="img" aria-label="cumulative pnl">
+        <g class="chart-grid">
+          <line x1="{{ pad_l }}" y1="{{ pad_t }}" x2="{{ pad_l }}" y2="{{ pad_t + plot_h }}"/>
+          <line x1="{{ pad_l }}" y1="{{ pad_t + plot_h }}" x2="{{ pad_l + plot_w }}" y2="{{ pad_t + plot_h }}"/>
+        </g>
+        <line class="chart-zero" x1="{{ pad_l }}" y1="{{ '%.2f'|format(zero_y) }}" x2="{{ pad_l + plot_w }}" y2="{{ '%.2f'|format(zero_y) }}"/>
+        <polygon class="chart-area {{ cls }}" points="{{ ns.area }}"/>
+        <polyline class="chart-line {{ cls }}" points="{{ ns.pts }}"/>
+        <g class="chart-axis">
+          <text x="{{ pad_l - 6 }}" y="{{ pad_t + 4 }}" text-anchor="end">{{ '%+.1f'|format(series.ymax) }}</text>
+          <text x="{{ pad_l - 6 }}" y="{{ pad_t + plot_h + 4 }}" text-anchor="end">{{ '%+.1f'|format(series.ymin) }}</text>
+          <text x="{{ pad_l - 6 }}" y="{{ '%.2f'|format(zero_y + 3) }}" text-anchor="end">0</text>
+          <text x="{{ pad_l }}" y="{{ height - 6 }}">1</text>
+          <text x="{{ pad_l + plot_w }}" y="{{ height - 6 }}" text-anchor="end">N={{ series.n }}</text>
+          <text x="{{ pad_l + plot_w / 2 }}" y="{{ height - 6 }}" text-anchor="middle" class="chart-label">cum PnL (pt) · final={{ '%+.2f'|format(series.final) }}</text>
+        </g>
+      </svg>
+    </div>
+  {% else %}
+    <div class="chart-wrap">
+      <p class="muted" style="text-align: center; padding: 24px 0; margin: 0; font-size: 11px;">
+        no trades yet — chart will populate once shadow catchup writes data
+      </p>
+    </div>
+  {% endif %}
+{% endmacro %}
+
+
+{# Per-strategy N progress bar chart (horizontal). reports = list of evaluate() output. #}
+{% macro n_progress_chart(reports, target, width=620, height=140, pad_l=120, pad_r=60, pad_t=12, pad_b=12) %}
+  {% set count = reports|length %}
+  {% if count == 0 %}
+    <div class="chart-wrap">
+      <p class="muted" style="text-align: center; padding: 24px 0; margin: 0; font-size: 11px;">no strategies registered</p>
+    </div>
+  {% else %}
+    {% set bar_h = ((height - pad_t - pad_b) / count) - 6 if count > 0 else 16 %}
+    {% set plot_w = width - pad_l - pad_r %}
+    {% set svg_h = pad_t + pad_b + count * (bar_h + 6) %}
+    <div class="chart-wrap">
+      <svg viewBox="0 0 {{ width }} {{ svg_h }}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="N progress per strategy">
+        {% for r in reports %}
+          {% set row_y = pad_t + loop.index0 * (bar_h + 6) %}
+          {% set pct = ((r.n / target) if target > 0 else 0) %}
+          {% set pct_clamped = (1.0 if pct > 1.0 else pct) %}
+          {% set bar_w = plot_w * pct_clamped %}
+          <text x="{{ pad_l - 8 }}" y="{{ row_y + bar_h / 2 + 4 }}" text-anchor="end" class="chart-label">{{ r.strategy_name }}</text>
+          <rect x="{{ pad_l }}" y="{{ row_y }}" width="{{ plot_w }}" height="{{ bar_h }}" fill="var(--bg3)" rx="3"/>
+          <rect x="{{ pad_l }}" y="{{ row_y }}" width="{{ '%.2f'|format(bar_w) }}" height="{{ bar_h }}" class="chart-bar shadow" rx="3"/>
+          <text x="{{ pad_l + plot_w + 6 }}" y="{{ row_y + bar_h / 2 + 4 }}" class="chart-label">{{ r.n }}/{{ target }}</text>
+        {% endfor %}
+      </svg>
+    </div>
+  {% endif %}
+{% endmacro %}

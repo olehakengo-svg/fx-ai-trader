@@ -46,6 +46,11 @@ def test_overview_renders(client) -> None:
     assert "orb_ny_open_short" in body
     assert "Shadow strategies" in body
     assert "drift check" in body
+    # Charts must render (inline SVG, no external script)
+    assert "Cumulative PnL" in body
+    assert "<svg" in body
+    assert "chart-line" in body
+    assert "N progress toward H1 gate" in body
 
 
 def test_overview_shows_n_count(client) -> None:
@@ -63,6 +68,9 @@ def test_shadow_trades_renders(client) -> None:
     assert "orb_ny_open_short" in body
     assert "pnl (pt)" in body
     assert "cum pnl" in body
+    # Cumulative PnL chart should render
+    assert "<svg" in body
+    assert "Trade ledger" in body
 
 
 def test_progress_renders(client) -> None:
