@@ -17,10 +17,15 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 from datetime import datetime, timezone
+from pathlib import Path
 import os
 import random
 import warnings
 warnings.filterwarnings("ignore")
+
+REPO_ROOT = Path(__file__).resolve().parent
+TIER_MASTER_PATH = REPO_ROOT / "knowledge-base" / "wiki" / "tier-master.json"
+TIER_MASTER_SNAPSHOT_DIR = REPO_ROOT / "knowledge-base" / "wiki" / "snapshots"
 
 # ── .env ファイル読込（ローカル開発用）──
 try:
@@ -10190,6 +10195,143 @@ TURTLE_S2_ENTRY_TYPES = {
 TURTLE_S2_SUPPORTED_PAIRS = {"USD_JPY"}
 
 
+def _tier_master_pair_set(tier_master: dict, key: str) -> set[tuple[str, str]]:
+    out: set[tuple[str, str]] = set()
+    for row in tier_master.get(key, []) or []:
+        if isinstance(row, (list, tuple)) and len(row) >= 2:
+            out.add((str(row[0]), str(row[1])))
+    return out
+
+
+def _tier_master_strategy_state(tier_master: dict) -> dict:
+    elite = set(tier_master.get("elite_live", []) or [])
+    force_demoted = set(tier_master.get("force_demoted", []) or [])
+    scalp_sentinel = set(tier_master.get("scalp_sentinel", []) or [])
+    universal_sentinel = set(tier_master.get("universal_sentinel", []) or [])
+    pair_promoted = _tier_master_pair_set(tier_master, "pair_promoted")
+    pair_demoted = _tier_master_pair_set(tier_master, "pair_demoted")
+    lot_boost = set(tier_master.get("strategy_lot_boost", []) or [])
+
+    strategies = set()
+    strategies.update(elite, force_demoted, scalp_sentinel, universal_sentinel, lot_boost)
+    strategies.update(s for s, _ in pair_promoted)
+    strategies.update(s for s, _ in pair_demoted)
+    strategies.discard("")
+
+    def primary_tier(strat: str) -> str:
+        if strat in elite:
+            return "ELITE_LIVE"
+        if strat in force_demoted:
+            return "FORCE_DEMOTED"
+        if any(s == strat for s, _ in pair_promoted):
+            return "PAIR_PROMOTED"
+        if any(s == strat for s, _ in pair_demoted):
+            return "PAIR_DEMOTED"
+        if strat in scalp_sentinel:
+            return "SCALP_SENTINEL"
+        if strat in universal_sentinel:
+            return "UNIVERSAL_SENTINEL"
+        return "PHASE0_SHADOW"
+
+    return {
+        "strategies": strategies,
+        "tier": {s: primary_tier(s) for s in strategies},
+        "pair_promoted": pair_promoted,
+        "pair_demoted": pair_demoted,
+        "lot_boost": lot_boost,
+    }
+
+
+def _cell_dicts(cells: set[tuple[str, str]]) -> list[dict]:
+    return [{"pair": pair, "tier": tier} for tier, pair in sorted((t, p) for p, t in cells)]
+
+
+def _strategy_cells(state: dict, strat: str) -> set[tuple[str, str]]:
+    cells = set()
+    cells.update((p, "PAIR_PROMOTED") for s, p in state["pair_promoted"] if s == strat)
+    cells.update((p, "PAIR_DEMOTED") for s, p in state["pair_demoted"] if s == strat)
+    return cells
+
+
+def _compute_strategies_diff(baseline: dict, target: dict) -> dict:
+    if baseline.get("generated_at") and baseline.get("generated_at") == target.get("generated_at"):
+        return {
+            "changes_by_strategy": {},
+            "changed_count": 0,
+            "new_count": 0,
+            "removed_count": 0,
+            "note": "snapshots have identical generated_at, no diff computed",
+        }
+
+    base = _tier_master_strategy_state(baseline)
+    tgt = _tier_master_strategy_state(target)
+    changes_by_strategy: dict[str, dict] = {}
+
+    for strat in sorted(base["strategies"] | tgt["strategies"]):
+        in_base = strat in base["strategies"]
+        in_target = strat in tgt["strategies"]
+        base_cells = _strategy_cells(base, strat)
+        target_cells = _strategy_cells(tgt, strat)
+        boost_from = strat in base["lot_boost"]
+        boost_to = strat in tgt["lot_boost"]
+        tier_from = base["tier"].get(strat)
+        tier_to = tgt["tier"].get(strat)
+        change = {
+            "tier_changed": tier_from != tier_to,
+            "tier_from": tier_from,
+            "tier_to": tier_to,
+            "pair_cells_added": _cell_dicts(target_cells - base_cells),
+            "pair_cells_removed": _cell_dicts(base_cells - target_cells),
+            "lot_boost_toggled": boost_from != boost_to,
+            "lot_boost_from": boost_from,
+            "lot_boost_to": boost_to,
+            "is_new": (not in_base) and in_target,
+            "is_removed": in_base and (not in_target),
+        }
+        if (
+            change["tier_changed"]
+            or change["pair_cells_added"]
+            or change["pair_cells_removed"]
+            or change["lot_boost_toggled"]
+            or change["is_new"]
+            or change["is_removed"]
+        ):
+            changes_by_strategy[strat] = change
+
+    return {
+        "changes_by_strategy": changes_by_strategy,
+        "changed_count": len(changes_by_strategy),
+        "new_count": sum(1 for c in changes_by_strategy.values() if c["is_new"]),
+        "removed_count": sum(1 for c in changes_by_strategy.values() if c["is_removed"]),
+    }
+
+
+def _load_json_file(path: Path) -> dict:
+    with Path(path).open("r", encoding="utf-8") as f:
+        import json as _json
+        return _json.load(f)
+
+
+def _snapshot_path_on_or_before(requested_date: str, snapshot_dir: Path = TIER_MASTER_SNAPSHOT_DIR):
+    try:
+        requested = datetime.strptime(requested_date, "%Y-%m-%d").date()
+    except ValueError:
+        return None, None
+    candidates = []
+    for path in Path(snapshot_dir).glob("tier-master-*.json"):
+        raw_date = path.stem.removeprefix("tier-master-")
+        try:
+            snap_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        if snap_date <= requested:
+            candidates.append((snap_date, path))
+    if not candidates:
+        return None, None
+    snap_date, path = max(candidates, key=lambda x: x[0])
+    return snap_date.isoformat(), path
+
+
 @app.route("/api/strategies/status")
 def api_strategies_status():
     """全戦略の Tier 分類 + post-cutoff rolling window stats を集約."""
@@ -10203,15 +10345,78 @@ def api_strategies_status():
                       ).strftime("%Y-%m-%dT%H:%M:%S")
     effective_date_from = max(_FIDELITY_CUTOFF, rolling_cutoff)
 
-    tier_master_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)),
-        "knowledge-base", "wiki", "tier-master.json",
-    )
     try:
-        with open(tier_master_path, "r", encoding="utf-8") as f:
+        with Path(TIER_MASTER_PATH).open("r", encoding="utf-8") as f:
             tier_master = _json.load(f)
     except Exception as e:
         return jsonify({"error": f"tier-master.json read failed: {e}"}), 500
+
+    since = request.args.get("since")
+    compare_from = request.args.get("compare_from")
+    compare_to = request.args.get("compare_to")
+    if compare_from and not compare_to:
+        return jsonify({"error": "compare_from requires compare_to"}), 400
+    if compare_to and not compare_from:
+        return jsonify({"error": "compare_to requires compare_from"}), 400
+
+    diff_meta = {
+        "diff_mode": None,
+        "baseline_date": None,
+        "actual_baseline_date": None,
+        "compare_target_date": None,
+        "actual_compare_target_date": None,
+        "changed_count": 0,
+        "new_count": 0,
+        "removed_count": 0,
+    }
+    changes_by_strategy = None
+    diff_warning = None
+    diff_note = None
+
+    if compare_from and compare_to:
+        actual_from, from_path = _snapshot_path_on_or_before(
+            compare_from, TIER_MASTER_SNAPSHOT_DIR
+        )
+        actual_to, to_path = _snapshot_path_on_or_before(compare_to, TIER_MASTER_SNAPSHOT_DIR)
+        diff_meta.update({
+            "diff_mode": "compare",
+            "baseline_date": compare_from,
+            "actual_baseline_date": actual_from,
+            "compare_target_date": compare_to,
+            "actual_compare_target_date": actual_to,
+        })
+        if not from_path or not to_path:
+            diff_warning = "no snapshot available"
+        else:
+            baseline_tm = _load_json_file(from_path)
+            tier_master = _load_json_file(to_path)
+            diff = _compute_strategies_diff(baseline_tm, tier_master)
+            changes_by_strategy = diff["changes_by_strategy"]
+            diff_meta.update({
+                "changed_count": diff["changed_count"],
+                "new_count": diff["new_count"],
+                "removed_count": diff["removed_count"],
+            })
+            diff_note = diff.get("note")
+    elif since:
+        actual_from, from_path = _snapshot_path_on_or_before(since, TIER_MASTER_SNAPSHOT_DIR)
+        diff_meta.update({
+            "diff_mode": "since",
+            "baseline_date": since,
+            "actual_baseline_date": actual_from,
+        })
+        if not from_path:
+            diff_warning = "no snapshot available"
+        else:
+            baseline_tm = _load_json_file(from_path)
+            diff = _compute_strategies_diff(baseline_tm, tier_master)
+            changes_by_strategy = diff["changes_by_strategy"]
+            diff_meta.update({
+                "changed_count": diff["changed_count"],
+                "new_count": diff["new_count"],
+                "removed_count": diff["removed_count"],
+            })
+            diff_note = diff.get("note")
 
     # Classification helpers
     elite = set(tier_master.get("elite_live", []))
@@ -10261,6 +10466,8 @@ def api_strategies_status():
     all_strategies.update(elite, force_demoted, scalp_sentinel, universal_sentinel, lot_boost)
     all_strategies.update(s for s, _ in pair_promoted)
     all_strategies.update(s for s, _ in pair_demoted)
+    if changes_by_strategy is not None:
+        all_strategies.update(changes_by_strategy.keys())
     all_strategies.update((live_stats.get("by_type") or {}).keys())
     all_strategies.update((shadow_stats.get("by_type") or {}).keys())
     all_strategies.update(TURTLE_S2_ENTRY_TYPES)
@@ -10319,7 +10526,7 @@ def api_strategies_status():
         strat_trades = _trades_by_strat.get(strat, [])
         ext = _strategy_extended_metrics(strat_trades)
         dcells = _direction_cells(strat_trades)
-        strategies_out.append({
+        row = {
             "name": strat,
             "tier": _primary_tier(strat),
             "lot_boost": strat in lot_boost,
@@ -10341,7 +10548,10 @@ def api_strategies_status():
             # Phase 3.2: direction_cells — pair×direction 方向別集計 (Aggregate Fallacy 緩和)
             # Includes live+shadow trades. ev>0 かつ wilson_bf_lo>BEV が昇格候補シグナル.
             "direction_cells": dcells,
-        })
+        }
+        if changes_by_strategy is not None:
+            row["changes"] = changes_by_strategy.get(strat)
+        strategies_out.append(row)
 
     # Tier distribution summary
     tier_counts: dict = {}
@@ -10376,7 +10586,7 @@ def api_strategies_status():
     except Exception:
         pass
 
-    return jsonify({
+    response_payload = {
         "generated_at": _now_iso,
         "tier_master_generated_at": _tm_stamp,
         "tier_master_stale": _tm_stale,
@@ -10397,7 +10607,14 @@ def api_strategies_status():
             "clean_shadow_pnl": clean_sh_pnl,
         },
         "strategies": strategies_out,
-    })
+        **diff_meta,
+    }
+    if diff_warning:
+        response_payload["warning"] = diff_warning
+    if diff_note:
+        response_payload["note"] = diff_note
+
+    return jsonify(response_payload)
 
 
 @app.route("/api/admin/regenerate-tier-master", methods=["POST"])

@@ -85,7 +85,7 @@ header.topbar{
 .triage{
   padding:16px 24px 14px;
   border-bottom:1px solid var(--border);
-  display:grid; grid-template-columns:auto 1fr; gap:18px; align-items:center;
+  display:grid; grid-template-columns:auto 1fr auto; gap:18px; align-items:center;
   max-width:1600px; margin:0 auto;
 }
 .triage-label{font-family:var(--serif);font-style:italic;font-size:13px;color:var(--t-mid);letter-spacing:.01em;position:relative;white-space:nowrap}
@@ -109,6 +109,24 @@ header.topbar{
 .chip .nm{font-weight:600}
 .chip .tag{font-size:9.5px;color:var(--t-mid);letter-spacing:.02em;text-transform:uppercase;padding-left:6px;border-left:1px solid var(--border)}
 .triage-empty{font-family:var(--serif);font-style:italic;color:var(--t-low);font-size:13px}
+.snapshot-controls{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.snapshot-controls input[type=date]{
+  height:28px;padding:0 8px;background:var(--panel);border:1px solid var(--border);
+  color:var(--t-hi);font-family:var(--mono);font-size:11px;border-radius:4px;
+}
+.snapshot-controls input[type=date]:focus{outline:none;border-color:var(--go-br);box-shadow:0 0 0 2px var(--go-bg)}
+.snapshot-controls .mini{height:28px;padding:0 8px;border:1px solid var(--border);border-radius:4px;background:var(--panel);font-family:var(--mono);font-size:10px;color:var(--t-mid)}
+.snapshot-controls .mini:hover,.snapshot-controls .mini.active{border-color:var(--border-hi);background:var(--panel-hi);color:var(--t-hi)}
+.snapshot-controls .mini.changed-on{border-color:var(--go-br);background:var(--go-bg);color:var(--go)}
+.compare-panel{display:none;align-items:center;gap:6px}
+.compare-panel.open{display:flex}
+.compare-panel .lbl{font-family:var(--mono);font-size:9.5px;color:var(--t-low);letter-spacing:.1em;text-transform:uppercase}
+.pill.change{font-size:9.5px;border-color:var(--border-hi);background:var(--panel-hi);color:var(--t-mid)}
+.pill.change.go{background:var(--go-bg);color:var(--go);border-color:var(--go-br)}
+.pill.change.warn{background:var(--warn-bg);color:var(--warn);border-color:var(--warn-br)}
+.pill.change.block{background:var(--block-bg);color:var(--block);border-color:var(--block-br)}
+.pill.change.info{background:var(--info-bg);color:var(--info);border-color:var(--info-br)}
+.change-pills{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
 
 /* filters */
 .filters{
@@ -334,6 +352,7 @@ body.density-compact .kelly-bar{display:none}
   .global-kpi{display:none}
   .brand-meta{display:none}
   .triage{grid-template-columns:1fr;gap:8px}
+  .snapshot-controls{justify-content:flex-start}
   table.strategies th.optional, table.strategies td.optional{display:none}
   .card-metrics{grid-template-columns:repeat(2,1fr)}
 }
@@ -358,6 +377,19 @@ body.density-compact .kelly-bar{display:none}
 <section class="triage">
   <div class="triage-label">TRIAGE · 今すぐ判断</div>
   <div class="triage-chips" id="triageChips"><span class="triage-empty">loading…</span></div>
+  <div class="snapshot-controls" aria-label="Snapshot diff controls">
+    <input id="changedSince" type="date" title="Changed since">
+    <button class="mini" type="button" data-since-preset="1">1d</button>
+    <button class="mini active" type="button" data-since-preset="7">7d</button>
+    <button class="mini" type="button" data-since-preset="30">30d</button>
+    <button class="mini" type="button" data-since-preset="off">OFF</button>
+    <button class="mini" type="button" id="changedOnlyBtn" aria-pressed="false">Changed only</button>
+    <button class="mini" type="button" id="compareToggle" aria-expanded="false">Compare</button>
+    <span class="compare-panel" id="comparePanel">
+      <span class="lbl">from</span><input id="compareFrom" type="date">
+      <span class="lbl">to</span><input id="compareTo" type="date">
+    </span>
+  </div>
 </section>
 
 <section class="filters">
@@ -474,6 +506,12 @@ const GATE_STATE = {
 const GATE_READY_N = 20;
 const BEV_WR_DEFAULT = 44; /* symmetric R:R friction-adjusted proxy (%, 0..100) */
 const WILSON_BF_PROMOTE_FRAC = 0.44; /* Bonferroni-Wilson lower bound (fraction 0..1) required to call KELLY_READY */
+function isoDaysAgo(days){
+  return new Date(Date.now() - days*86400_000).toISOString().slice(0,10);
+}
+function todayIso(){
+  return new Date().toISOString().slice(0,10);
+}
 
 /* ------------------------------------------------------------------ */
 /* State                                                              */
@@ -482,6 +520,7 @@ const state = {
   data:null, raw:[], enriched:[],
   filter:{ q:"", tier:"all", decision:"all" },
   sort:"priority", days:30, view:"table", density:"comfy",
+  diff:{ mode:"since", since:isoDaysAgo(7), compareFrom:isoDaysAgo(7), compareTo:todayIso(), changedOnly:false },
   expanded:new Set(),
 };
 
@@ -618,7 +657,16 @@ async function loadData(){
   const btn = document.getElementById("refreshBtn");
   btn.classList.add("loading");
   try{
-    const r = await fetch(`/api/strategies/status?rolling_days=${state.days}`,{cache:"no-store"});
+    const params = new URLSearchParams({rolling_days:String(state.days)});
+    if(state.diff.mode === "compare"){
+      if(state.diff.compareFrom && state.diff.compareTo){
+        params.set("compare_from", state.diff.compareFrom);
+        params.set("compare_to", state.diff.compareTo);
+      }
+    } else if(state.diff.mode === "since" && state.diff.since){
+      params.set("since", state.diff.since);
+    }
+    const r = await fetch(`/api/strategies/status?${params.toString()}`,{cache:"no-store"});
     if(!r.ok) throw new Error(`${r.status} ${r.statusText}`);
     state.data = await r.json();
     state.raw = state.data.strategies || [];
@@ -726,11 +774,33 @@ function renderTierDist(){
 function renderTriage(enriched){
   const el = document.getElementById("triageChips");
   el.textContent = "";
+  const d = state.data || {};
+  let count = 0;
+  if(d.diff_mode){
+    const changed = Number(d.changed_count)||0;
+    const label = d.diff_mode === "compare"
+      ? `Changed ${d.actual_baseline_date||d.baseline_date||"?"} → ${d.actual_compare_target_date||d.compare_target_date||"?"} (${changed})`
+      : `Changed since ${d.actual_baseline_date||d.baseline_date||"?"} (${changed})`;
+    const chip = h("span",{
+      cls:"chip",
+      title:d.warning || d.note || "Snapshots taken daily at 00:00 UTC",
+    });
+    chip.appendChild(h("span",{cls:`dot ${changed?"go":"info"}`}));
+    chip.appendChild(h("span",{cls:"nm",text:label}));
+    chip.appendChild(h("span",{cls:"tag",text:"snapshot"}));
+    chip.onclick = ()=>{
+      state.diff.changedOnly = !state.diff.changedOnly;
+      syncDiffControls();
+      render();
+    };
+    el.appendChild(chip);
+    count += 1;
+  }
   const triage = enriched
     .filter(s => s._decision.level === "warn" || s._decision.level === "block")
     .sort((a,b) => (b._decision.priority||0) - (a._decision.priority||0))
     .slice(0, 6);
-  if(!triage.length){
+  if(!triage.length && !count){
     el.appendChild(h("span",{cls:"triage-empty",text:"— all quiet · no action items —"}));
     return;
   }
@@ -752,6 +822,38 @@ function renderTriage(enriched){
     };
     el.appendChild(chip);
   });
+}
+
+function changePills(s){
+  const c = s.changes;
+  const pills = [];
+  if(!c) return pills;
+  if(c.is_new) pills.push(["NEW STRATEGY", "go"]);
+  if(c.is_removed) pills.push(["REMOVED STRATEGY", "warn"]);
+  if(c.tier_changed){
+    const cls = c.tier_to === "FORCE_DEMOTED" ? "block" : "info";
+    pills.push([`TIER: ${c.tier_from||"none"} → ${c.tier_to||"none"}`, cls]);
+  }
+  for(const cell of c.pair_cells_added || []){
+    pills.push([`+CELL: ${cell.pair}`, cell.tier === "PAIR_DEMOTED" ? "warn" : "go"]);
+  }
+  for(const cell of c.pair_cells_removed || []){
+    pills.push([`-CELL: ${cell.pair}`, "warn"]);
+  }
+  if(c.lot_boost_toggled){
+    pills.push([`LOT_BOOST: ${c.lot_boost_from?"on":"off"} → ${c.lot_boost_to?"on":"off"}`, "info"]);
+  }
+  return pills;
+}
+
+function appendChangePills(parent, s){
+  const pills = changePills(s);
+  if(!pills.length) return;
+  const wrap = h("div",{cls:"change-pills"});
+  for(const [label, level] of pills){
+    wrap.appendChild(h("span",{cls:`pill change ${level}`,text:label}));
+  }
+  parent.appendChild(wrap);
 }
 
 /* ------------------------------------------------------------------ */
@@ -814,6 +916,7 @@ function renderTable(list){
       meta.appendChild(h("span",{cls:"pill boost",text:"⚡ BOOST"}));
     }
     nameTd.appendChild(meta);
+    appendChangePills(nameTd, s);
     tr.appendChild(nameTd);
 
     /* decision */
@@ -1117,7 +1220,10 @@ function renderCards(list){
                           style:`animation-delay:${Math.min(i*12,360)}ms`});
 
     const head = h("div",{cls:"card-head"});
-    head.appendChild(h("div",{cls:"card-name",text:String(s.name||"")}));
+    const cardTitle = h("div");
+    cardTitle.appendChild(h("div",{cls:"card-name",text:String(s.name||"")}));
+    appendChangePills(cardTitle, s);
+    head.appendChild(cardTitle);
     const tags = h("div",{cls:"card-tags"});
     tags.appendChild(h("span",{cls:`pill dec ${s._decision.level}`,text:s._decision.label,title:s._decision.note||""}));
     tags.appendChild(h("span",{cls:`pill tier ${tier}`,text:TIER_LABEL[tier]}));
@@ -1178,6 +1284,7 @@ function filterSort(all){
   const decF = state.filter.decision;
 
   let list = all.filter(s=>{
+    if(state.diff.changedOnly && !s.changes) return false;
     if(tierF !== "all" && s.tier !== tierF) return false;
     if(decF === "attention" && !(s._decision.level==="warn"||s._decision.level==="block")) return false;
     if(decF === "go"    && s._decision.level !== "go")    return false;
@@ -1231,8 +1338,29 @@ function renderMeta(){
     }
   }catch(_){}
   el.appendChild(document.createTextNode(
-    `window ${rollingDays}d${clampedNote}  ·  from ${effFrom}  ·  tier-master ${tmStamp}`
+    `window ${rollingDays}d${clampedNote}  ·  from ${effFrom}  ·  tier-master ${tmStamp}  ·  Snapshots taken daily at 00:00 UTC`
   ));
+  if(d.diff_mode){
+    const actualBase = d.actual_baseline_date || d.baseline_date || "—";
+    const requestedBase = d.baseline_date || "—";
+    let label = `Baseline: ${actualBase}`;
+    if(actualBase !== requestedBase) label += ` (requested ${requestedBase}, fallback)`;
+    if(d.diff_mode === "compare"){
+      const actualTo = d.actual_compare_target_date || d.compare_target_date || "—";
+      const requestedTo = d.compare_target_date || "—";
+      label += ` · Target: ${actualTo}`;
+      if(actualTo !== requestedTo) label += ` (requested ${requestedTo}, fallback)`;
+    }
+    label += ` · changed ${Number(d.changed_count)||0}`;
+    el.appendChild(h("span",{cls:"pill dec info",style:"margin-left:10px;font-size:10px",text:label}));
+  }
+  if(d.warning || d.note){
+    el.appendChild(h("span",{
+      cls:`pill dec ${d.warning?"warn":"info"}`,
+      style:"margin-left:10px;font-size:10px",
+      text:d.warning || d.note,
+    }));
+  }
   if(d.tier_master_stale){
     const warn = h("span",{
       cls:"pill dec warn",
@@ -1263,6 +1391,36 @@ function render(){
   }
 }
 
+function syncDiffControls(){
+  const since = document.getElementById("changedSince");
+  const compareFrom = document.getElementById("compareFrom");
+  const compareTo = document.getElementById("compareTo");
+  const changedOnly = document.getElementById("changedOnlyBtn");
+  const compareToggle = document.getElementById("compareToggle");
+  const comparePanel = document.getElementById("comparePanel");
+  if(since) since.value = state.diff.since || "";
+  if(compareFrom) compareFrom.value = state.diff.compareFrom || "";
+  if(compareTo) compareTo.value = state.diff.compareTo || "";
+  if(changedOnly){
+    changedOnly.classList.toggle("changed-on", state.diff.changedOnly);
+    changedOnly.setAttribute("aria-pressed", String(state.diff.changedOnly));
+  }
+  const compareOn = state.diff.mode === "compare";
+  if(compareToggle){
+    compareToggle.classList.toggle("active", compareOn);
+    compareToggle.setAttribute("aria-expanded", String(compareOn));
+  }
+  if(comparePanel) comparePanel.classList.toggle("open", compareOn);
+  document.querySelectorAll("[data-since-preset]").forEach(b=>{
+    const p = b.dataset.sincePreset;
+    const active = state.diff.mode === "since" && (
+      (p === "off" && !state.diff.since) ||
+      (p !== "off" && state.diff.since === isoDaysAgo(Number(p)))
+    );
+    b.classList.toggle("active", active);
+  });
+}
+
 /* ------------------------------------------------------------------ */
 /* Bindings                                                           */
 /* ------------------------------------------------------------------ */
@@ -1272,6 +1430,43 @@ document.getElementById("decisionFilter").addEventListener("change",e=>{ state.f
 document.getElementById("daysSel").addEventListener("change",     e=>{ state.days = parseInt(e.target.value,10)||30; loadData(); });
 document.getElementById("sortSel").addEventListener("change",     e=>{ state.sort = e.target.value; render(); });
 document.getElementById("refreshBtn").addEventListener("click", loadData);
+document.getElementById("changedSince").addEventListener("change", e=>{
+  state.diff.mode = e.target.value ? "since" : "off";
+  state.diff.since = e.target.value;
+  syncDiffControls();
+  loadData();
+});
+document.querySelectorAll("[data-since-preset]").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    const p = b.dataset.sincePreset;
+    state.diff.mode = p === "off" ? "off" : "since";
+    state.diff.since = p === "off" ? "" : isoDaysAgo(Number(p));
+    syncDiffControls();
+    loadData();
+  });
+});
+document.getElementById("changedOnlyBtn").addEventListener("click", ()=>{
+  state.diff.changedOnly = !state.diff.changedOnly;
+  syncDiffControls();
+  render();
+});
+document.getElementById("compareToggle").addEventListener("click", ()=>{
+  state.diff.mode = state.diff.mode === "compare" ? "since" : "compare";
+  syncDiffControls();
+  loadData();
+});
+document.getElementById("compareFrom").addEventListener("change", e=>{
+  state.diff.compareFrom = e.target.value;
+  state.diff.mode = "compare";
+  syncDiffControls();
+  loadData();
+});
+document.getElementById("compareTo").addEventListener("change", e=>{
+  state.diff.compareTo = e.target.value;
+  state.diff.mode = "compare";
+  syncDiffControls();
+  loadData();
+});
 
 document.querySelectorAll("#viewToggle button").forEach(b=>{
   b.addEventListener("click", ()=>{
@@ -1318,6 +1513,7 @@ document.addEventListener("keydown", e=>{
 });
 
 /* init */
+syncDiffControls();
 loadData();
 setInterval(loadData, 90000); /* auto-refresh 90s */
 </script>
