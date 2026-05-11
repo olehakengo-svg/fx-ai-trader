@@ -14389,6 +14389,63 @@ def api_admin_force_demoted_leak_status():
         return jsonify({"error": str(e), "type": type(e).__name__}), 500
 
 
+@app.route("/api/admin/rt_patch_cleanup_2026_05_11", methods=["GET", "POST"])
+def api_admin_rt_patch_cleanup_2026_05_11():
+    """One-shot: clean up 12 trades corrupted by _rt_patch cross-pair
+    contamination on 2026-05-11 04:38-04:57 UTC, then reset eq_current /
+    dd_lot_mult / defensive_mode. Idempotent. GET = dry-run, POST = apply.
+    rule:R3 — incident remediation. See CHANGELOG 2026-05-11."""
+    import sqlite3 as _sql3
+    from scripts.cleanup_rt_patch_contamination_2026_05_11 import (
+        find_corrupted, mark_excluded, recompute_equity_state,
+        write_equity_state, _resolve_db_path,
+    )
+    apply = (request.method == "POST")
+    try:
+        db_path = _resolve_db_path()
+        conn = _sql3.connect(str(db_path))
+        conn.row_factory = _sql3.Row
+        try:
+            rows = find_corrupted(conn)
+            preview = [
+                {
+                    "trade_id": r["trade_id"][:16],
+                    "instrument": r["instrument"],
+                    "entry_price": r["entry_price"],
+                    "exit_price": r["exit_price"],
+                    "pnl_pips": r["pnl_pips"],
+                }
+                for r in rows
+            ]
+            if not apply:
+                state = recompute_equity_state(conn)
+                return jsonify({
+                    "mode": "dry-run",
+                    "db_path": str(db_path),
+                    "corrupted_count": len(rows),
+                    "rows": preview,
+                    "equity_pre": state,
+                })
+            fixed = 0
+            for r in rows:
+                fixed += mark_excluded(conn, r["trade_id"])
+            conn.commit()
+            state = recompute_equity_state(conn)
+            write_equity_state(conn, state)
+            conn.commit()
+            return jsonify({
+                "mode": "apply",
+                "db_path": str(db_path),
+                "rows_marked_excluded": fixed,
+                "rows": preview,
+                "equity_post": state,
+            })
+        finally:
+            conn.close()
+    except Exception as e:
+        return jsonify({"error": str(e), "type": type(e).__name__}), 500
+
+
 @app.route("/api/demo/learning")
 def api_demo_learning():
     # 手動学習トリガー or 履歴取得
