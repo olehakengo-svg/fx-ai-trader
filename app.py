@@ -14380,6 +14380,15 @@ def api_admin_flag_drift_backfill_status():
         return jsonify({"error": str(e), "type": type(e).__name__}), 500
 
 
+@app.route("/api/admin/force_demoted_leak_status")
+def api_admin_force_demoted_leak_status():
+    """Diagnostic endpoint for FORCE_DEMOTED live-leak backfill verification."""
+    try:
+        return jsonify(_demo_db.get_force_demoted_leak_backfill_status())
+    except Exception as e:
+        return jsonify({"error": str(e), "type": type(e).__name__}), 500
+
+
 @app.route("/api/demo/learning")
 def api_demo_learning():
     # 手動学習トリガー or 履歴取得

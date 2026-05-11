@@ -58,6 +58,7 @@ class DemoDB:
         self._log_write_count = 0  # ログ回転カウンタ（COUNT(*)排除用）
         self._last_backfill_result = None  # populated by _backfill_dedup_violation
         self._last_flag_drift_backfill_result = None
+        self._last_force_demoted_leak_backfill_result = None
         self._init_tables()
         # rule:R3 (2026-04-30): backfill dedup_violation flag for pre-fix shadow rows.
         # Idempotent (only flags rows with dedup_violation=0 in the buggy time window).
@@ -272,6 +273,14 @@ class DemoDB:
             # from is_shadow=0 to is_shadow=1, keeping rollback/auditability.
             try:
                 conn.execute("ALTER TABLE demo_trades ADD COLUMN flag_drift_backfilled INTEGER DEFAULT 0")
+            except Exception:
+                pass
+
+            # ── 2026-05-11 (rule:R3): FORCE_DEMOTED live-leak marker ──
+            # Marks historical FORCE_DEMOTED rows reclassified out of clean
+            # Live KPI after they leaked into OANDA/live aggregates.
+            try:
+                conn.execute("ALTER TABLE demo_trades ADD COLUMN force_demoted_live_leak INTEGER DEFAULT 0")
             except Exception:
                 pass
 
@@ -500,6 +509,10 @@ class DemoDB:
             except Exception:
                 pass
 
+            self._last_force_demoted_leak_backfill_result = (
+                self._backfill_force_demoted_leak_impl(conn)
+            )
+
             self._last_flag_drift_backfill_result = self._backfill_flag_drift_impl(conn)
 
             conn.commit()
@@ -693,6 +706,161 @@ class DemoDB:
         }
 
     _FLAG_DRIFT_BACKFILL_CUTOFF = "2026-04-08T00:00:00"
+    _FORCE_DEMOTED_LEAK_CUTOFF = "2026-04-08T00:00:00"
+    _FORCE_DEMOTED_LEAK_RULE_TS = "2026-05-11T00:00:00"
+
+    @staticmethod
+    def _force_demoted_entry_types() -> tuple:
+        """Return DemoTrader's current FORCE_DEMOTED strategy set."""
+        try:
+            from modules.demo_trader import DemoTrader
+            return tuple(sorted(DemoTrader._FORCE_DEMOTED))
+        except Exception:
+            return (
+                "atr_regime_break",
+                "donchian_momentum_breakout",
+                "ema_cross",
+                "ema_pullback",
+                "ema_ribbon_ride",
+                "ema_trend_scalp",
+                "engulfing_bb",
+                "fib_reversal",
+                "inducement_ob",
+                "intraday_seasonality",
+                "lin_reg_channel",
+                "macdh_reversal",
+                "orb_trap",
+                "post_news_vol",
+                "sr_break_retest",
+                "sr_channel_reversal",
+                "stoch_trend_pullback",
+                "v_reversal",
+                "vwap_mean_reversion",
+            )
+
+    def _backfill_force_demoted_leak_impl(self, conn):
+        """Reclassify historical FORCE_DEMOTED live rows as shadow KPI leaks."""
+        try:
+            force_demoted = self._force_demoted_entry_types()
+            if not force_demoted:
+                return {
+                    "status": "exception",
+                    "fixed_count": 0,
+                    "error": "empty FORCE_DEMOTED list",
+                    "cutoff": self._FORCE_DEMOTED_LEAK_CUTOFF,
+                }
+            placeholders = ",".join(["?"] * len(force_demoted))
+            params = (
+                self._FORCE_DEMOTED_LEAK_CUTOFF,
+                *force_demoted,
+            )
+            where = (
+                "entry_time >= ? "
+                "AND instrument != 'XAU_USD' "
+                "AND is_shadow = 0 "
+                f"AND entry_type IN ({placeholders}) "
+                "AND COALESCE(force_demoted_live_leak, 0) = 0"
+            )
+            unsafe = conn.execute(
+                "SELECT COUNT(DISTINCT t.trade_id) AS n "
+                "FROM demo_trades t "
+                "LEFT JOIN oanda_audit a ON a.demo_trade_id = t.trade_id "
+                "WHERE t.entry_time >= ? "
+                "  AND t.instrument != 'XAU_USD' "
+                "  AND t.is_shadow = 0 "
+                f"  AND t.entry_type IN ({placeholders}) "
+                "  AND COALESCE(t.force_demoted_live_leak, 0) = 0 "
+                "  AND t.entry_time >= ? "
+                "  AND ("
+                "    (t.oanda_trade_id IS NOT NULL AND t.oanda_trade_id != '') "
+                "    OR a.bridge_status = 'filled'"
+                "  )",
+                (*params, self._FORCE_DEMOTED_LEAK_RULE_TS),
+            ).fetchone()
+            unsafe_count = int(unsafe["n"] if isinstance(unsafe, sqlite3.Row) else unsafe[0])
+            candidate = conn.execute(
+                f"SELECT COUNT(*) AS n FROM demo_trades WHERE {where}",
+                params,
+            ).fetchone()
+            candidate_count = int(candidate["n"] if isinstance(candidate, sqlite3.Row) else candidate[0])
+            if unsafe_count > 0:
+                return {
+                    "status": "unsafe",
+                    "fixed_count": 0,
+                    "candidate_count": candidate_count,
+                    "unsafe_post_rule_fill_count": unsafe_count,
+                    "cutoff": self._FORCE_DEMOTED_LEAK_CUTOFF,
+                    "rule_ts": self._FORCE_DEMOTED_LEAK_RULE_TS,
+                    "force_demoted_count": len(force_demoted),
+                    "executed_at": datetime.now(timezone.utc).isoformat(),
+                }
+            if candidate_count == 0:
+                return {
+                    "status": "noop",
+                    "fixed_count": 0,
+                    "candidate_count": 0,
+                    "unsafe_post_rule_fill_count": 0,
+                    "cutoff": self._FORCE_DEMOTED_LEAK_CUTOFF,
+                    "rule_ts": self._FORCE_DEMOTED_LEAK_RULE_TS,
+                    "force_demoted_count": len(force_demoted),
+                    "executed_at": datetime.now(timezone.utc).isoformat(),
+                }
+            cur = conn.execute(
+                "UPDATE demo_trades "
+                "SET is_shadow = 1, force_demoted_live_leak = 1 "
+                f"WHERE {where}",
+                params,
+            )
+            fixed_count = int(cur.rowcount)
+            return {
+                "status": "backfilled",
+                "fixed_count": fixed_count,
+                "candidate_count": candidate_count,
+                "unsafe_post_rule_fill_count": 0,
+                "cutoff": self._FORCE_DEMOTED_LEAK_CUTOFF,
+                "rule_ts": self._FORCE_DEMOTED_LEAK_RULE_TS,
+                "force_demoted_count": len(force_demoted),
+                "executed_at": datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception as _e:
+            import traceback
+            return {
+                "status": "exception",
+                "fixed_count": 0,
+                "error": str(_e),
+                "type": type(_e).__name__,
+                "traceback": traceback.format_exc()[:500],
+                "cutoff": self._FORCE_DEMOTED_LEAK_CUTOFF,
+            }
+
+    def get_force_demoted_leak_backfill_status(self) -> dict:
+        """Diagnostic status for FORCE_DEMOTED live-leak reclassification."""
+        force_demoted = self._force_demoted_entry_types()
+        placeholders = ",".join(["?"] * len(force_demoted))
+        with self._safe_conn() as conn:
+            if force_demoted:
+                remaining = conn.execute(
+                    f"""SELECT COUNT(*) AS n FROM demo_trades
+                        WHERE entry_time >= ?
+                          AND instrument != 'XAU_USD'
+                          AND is_shadow = 0
+                          AND entry_type IN ({placeholders})
+                          AND COALESCE(force_demoted_live_leak, 0) = 0""",
+                    (self._FORCE_DEMOTED_LEAK_CUTOFF, *force_demoted),
+                ).fetchone()
+            else:
+                remaining = {"n": 0}
+            flagged = conn.execute(
+                "SELECT COUNT(*) AS n FROM demo_trades WHERE force_demoted_live_leak = 1"
+            ).fetchone()
+        return {
+            "cutoff": self._FORCE_DEMOTED_LEAK_CUTOFF,
+            "rule_ts": self._FORCE_DEMOTED_LEAK_RULE_TS,
+            "force_demoted_count": len(force_demoted),
+            "remaining_force_demoted_live_leaks": int(remaining["n"] if remaining else 0),
+            "total_backfilled": int(flagged["n"] if flagged else 0),
+            "last_startup_backfill_result": self._last_force_demoted_leak_backfill_result,
+        }
 
     def _backfill_flag_drift_impl(self, conn):
         """Reclassify post-cutoff FX FLAG_DRIFT rows as shadow.

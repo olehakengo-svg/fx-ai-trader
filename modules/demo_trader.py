@@ -676,6 +676,21 @@ class DemoTrader:
             sr_meta=sr_meta,
         )
 
+    def _apply_force_demoted_final_gate(self, *, entry_type: str,
+                                        is_shadow: bool,
+                                        is_promoted: bool,
+                                        shadow_at_open: bool):
+        """Last OANDA-send guard: FORCE_DEMOTED strategies cannot be live."""
+        if entry_type in self._FORCE_DEMOTED and not is_shadow:
+            is_shadow = True
+            is_promoted = False
+            shadow_at_open = True
+            self._add_log(
+                f"[FORCE_DEMOTED_GATE] {entry_type} forced to shadow "
+                "(downstream gate, depth-in-defense)"
+            )
+        return is_shadow, is_promoted, shadow_at_open
+
     def _resend_pending_oanda_trades(self):
         """デプロイ中にOANDA未連携だったOPENトレードを補完送信.
         5分以上前のトレードはスキップ（価格乖離が大きいため）."""
@@ -704,6 +719,14 @@ class DemoTrader:
                     except Exception:
                         pass
                 instrument = t.get("instrument", "USD_JPY")
+                entry_type = t.get("entry_type", "")
+                if entry_type in self._FORCE_DEMOTED:
+                    skipped += 1
+                    self._add_log(
+                        f"[FORCE_DEMOTED_GATE] resend skipped: {entry_type} "
+                        f"{instrument} trade={t['trade_id']}"
+                    )
+                    continue
                 self._oanda.open_trade(
                     demo_trade_id=t["trade_id"],
                     direction=t["direction"],
@@ -4912,6 +4935,13 @@ class DemoTrader:
                     f"spread={_spread_entry:.2f} → LIVE 0.01lot SENTINEL (1000u) — "
                     f"Q1' Bonferroni p=0.0007 / 180d BT aggregate EV=-0.308 cautious"
                 )
+
+        _is_shadow, _is_promoted, _shadow_at_open = self._apply_force_demoted_final_gate(
+            entry_type=entry_type,
+            is_shadow=_is_shadow,
+            is_promoted=_is_promoted,
+            shadow_at_open=_shadow_at_open,
+        )
 
         # ── v9.x: Shadow persistence fix ──
         # Bug: open_trade()はL3890の_is_shadowで書込み。その後の安全ネット
