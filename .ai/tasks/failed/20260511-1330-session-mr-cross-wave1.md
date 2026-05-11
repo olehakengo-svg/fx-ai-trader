@@ -300,3 +300,10 @@ Wave 1 verdict 受領後、司令塔が判断:
 ```
 orphaned: container restarted while task was running
 ```
+
+
+## Error (2026-05-11T07:58:18Z)
+
+```
+orphaned: container restarted while task was running
+```
