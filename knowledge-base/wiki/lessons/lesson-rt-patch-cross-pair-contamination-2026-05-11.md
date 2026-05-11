@@ -70,7 +70,13 @@ if symbol in ("USDJPY=X", "JPY=X"):
 - [x] symbol guard 追加 (USD/JPY 専用化)
 - [x] CHANGELOG + KB 同コミット
 - [x] DB cleanup script: `scripts/cleanup_rt_patch_contamination_2026_05_11.py`
-- [ ] production DB cleanup 実行 + Equity / DD state reset (post-deploy)
+- [x] production DB cleanup 実行 + Equity / DD state reset (post-deploy)
+  - 2026-05-11 09:21 UTC: POST で 12 件 EXCLUDED 化 (placeholder)
+  - 2026-05-11 09:21 UTC: DELETE で 12 件 demo_trades から完全削除 (idempotent 確認済)
+  - 影響: Trade Log UI から消失、Shadow learning aggregates から除外
+  - 注: contamination 12 件はすべて is_shadow=1 (Shadow) で Live equity (eq_current)
+    には直接影響なし。-621 の eq_current は contamination とは別個の通常 Live loss
+    (要別途追跡)
 
 ### 中期 (要 follow-up task)
 - `_price_cache` を dict 化して symbol を明示 (`{"USDJPY=X": {...}}`)、`_rt_patch` 側で `pc.get(symbol)` を取り出す
