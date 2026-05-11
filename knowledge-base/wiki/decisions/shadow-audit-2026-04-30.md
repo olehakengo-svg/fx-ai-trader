@@ -167,5 +167,5 @@
 
 - [x] 3 ソース突合（user UI / `/api/demo/stats` / `/api/demo/trades`）— 件数差は dedup_violation 除外 + intra-day timing で説明可
 - [x] テスト回帰: `pytest tests/test_entry_gates.py tests/test_shadow_promotion_gate.py tests/test_p2_system.py` 40/40 PASSED
-- [ ] Codex review: **2026-05-01 時点でレート上限到達 (5/7 解除)。解除後に独立レビュー実施予定**
+- [x] Codex review: **2026-05-07 実施済み（下記セクション参照）**
 - [x] 監査 SQL/queries 保存: `queries.sql` 同階層

@@ -1,5 +1,18 @@
 # Knowledge Base Change Log
 
+## 2026-05-07 (wiki-daily-update): 自動スケジュールタスク
+- **Daily trade log**: `raw/trade-logs/2026-05-07.md` 作成 — post-cutoff total N=530 (gross incl shadow), WR=38.5%, PnL=-414.2pip
+- **wiki/index.md**: System State更新 — DD 40.65%→**42.21%** ⚠️⚠️ (422.1pip), risk API PnL=-414.2, N=530 (gross), ruin **1.88%→2.08%** ↑, Kelly edge -17.06%, last_updated→2026-05-07; Session History + Trade Logs セクション追加
+- **Strategy pages** (2ページ更新):
+  - `bb-rsi-reversion.md` — 2026-05-07 観測追記: N=187 (was 126 on 2026-04-24), WR=38.0%, PnL=-52.7pip. 止血条件モニタリング注意
+  - `vwap-mean-reversion.md` — Live更新: N=10→11, WR=40.0%→36.4%, PnL=-47.7→**-63.1pip** (+1 shadow trade, -15.4pip)
+- **OANDA今日**: live fills=4 (GBP_USD BUY×3 + USD_JPY SELL×1, daytrade, OANDA#383016/383024/383031/383039, London 06-07 UTC), shadow=25, 総system=5,295
+- **Risk state**: DD=42.21%, lot=0.2x, Kelly=0.0 (edge=-17.06%), MC ruin=2.08%, eq_current=-405.2, VaR95=10.1, CVaR95=16.09
+- **Learning API**: scalp EV=-0.05 WR=40.5%, daytrade EV=-3.46 WR=34.8% (Underperforming ⚠️). scalp_5m confidence_threshold 30→35 (2026-05-04 auto-adj). 12:00 UTC blacklisted. SL multiplier 1.3x.
+- **主要観察**: ⚠️ DD 42.21% new high (+1.56pp from 2026-05-03). ⚠️ bb_rsi N=187 -52.7pip 継続悪化. ⚠️ session_time_bias N=9 WR=22.2% -43.4pip (Rule 2 評価推奨). ⚠️ vix_carry_unwind N=8 -41.5pip (PAIR_PROMOTED 要監視). ✅ daytrade live fills 4件 (London 06-07 UTC, system is executing). ORB Trap FORCE_DEMOTED shadow N=2 +34.3pip.
+- **Lint**: wikilink 問題なし. 陳腐化: session_time_bias ELITE_LIVE表記は stale text (tier-master では PAIR_PROMOTED, System State旧テキストに残存). TRUE_LIVE N=371 (2026-05-03 SSOT) は手動 audit 要; risk API N=530 は gross.
+- **Stale data flag**: System State の `- ELITE_LIVE tier (v2.1): session_time_bias, trendline_sweep, gbp_deep_pullback` は stale (tier-master では trendline_sweep のみ ELITE_LIVE)
+
 ## 2026-04-29 (wiki-daily-update): 自動スケジュールタスク
 - **Daily trade log**: `raw/trade-logs/2026-04-29.md` 作成 — post-cutoff FX-only N=286, WR=38.1%, PnL=-228.6pip
 - **wiki/index.md**: System State更新 — DD 32.32%→**34.76%** ⚠️ (347.6pip), PnL -240.7→**-228.6pip**, N 268→286, WR 37.7%→38.1%, EV -0.90→-0.80, Kelly edge -17.97%→-18.04%, Ruin **2.72%→1.72%** (改善), last_updated 2026-04-27→2026-04-29; Trade Logs セクション + Session History に2026-04-29追加

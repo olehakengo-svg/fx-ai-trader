@@ -28,6 +28,14 @@ WR=32.3% (Wilson_lo=26.4%) で BEV_WR=48.1% を必要とする構造的負 EV.
 - N=30 で EV < -1.0p → 即停止
 - N=30 で Wilson_lo > 28.6% AND PF > 1.1 → Rule 1 経路で OANDA TRIP 解除 pre-reg 起案
 
+## 2026-05-07 post-Cutoff 観測 (wiki-daily-update)
+
+| Bucket | N | WR | PnL | 備考 |
+|---|---|---|---|---|
+| Total post-cutoff (2026-04-08+) | 187 | **38.0%** | **-52.7pip** | SCALP_SENTINEL shadow のみ |
+
+⚠️ N=187 at WR=38.0% (BEV_WR≈34.4%)。N=126 (2026-04-24) から +61 trades, -37.9pip 追加損失。止血条件: N≥150 EV<-0.5 → FORCE_DEMOTED 起動検討。現在 EV≈-0.28/trade、Wilson_lo 確認推奨。
+
 ## 2026-04-21 post-Cutoff 観測
 
 | Bucket | N | EV | 備考 |

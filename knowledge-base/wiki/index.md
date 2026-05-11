@@ -91,21 +91,22 @@
 <!-- KB_PORTFOLIO_END -->
 
 ## System State (v9.5 / v2.1)
-- Defensive mode: **0.2x** (DD=**40.65%** / 406.5pip ⚠️⚠️, defensive mode — Render API 2026-05-03 実測)
+- Defensive mode: **0.2x** (DD=**42.21%** / 422.1pip ⚠️⚠️, defensive mode — Render API 2026-05-07 wiki-daily-update)
 - XAU: **Stopped** (v8.4) -- post-cutoff XAU loss = -2,280pip (102% of total loss)
-- FX-only post-cutoff (2026-04-08〜) — Render API 2026-05-03 fresh fetch (bucket 3-split LOCKED):
-  - **TRUE_LIVE** (`is_shadow=0 AND oanda_trade_id != ''`): **N=371** (incl BE) / **346** (WIN/LOSS), WR=39.89%, EV=-0.686, PnL=-254.6pip
+- FX-only post-cutoff (2026-04-08〜) — **2026-05-07 wiki-daily-update** (risk API gross, includes shadow):
+  - Total N=530, WR=38.5%, EV=-0.78, PnL=-414.2pip (gross: shadow + live combined)
+  - **TRUE_LIVE** (`is_shadow=0 AND oanda_trade_id != ''`) SSOT — 2026-05-03 実測: **N=371** (incl BE) / **346** (WIN/LOSS), WR=39.89%, EV=-0.686, PnL=-254.6pip (see [[aggregate-kelly-decomposition-2026-05-03-corrigendum]])
   - FLAG_DRIFT (`is_shadow=0` だが OANDA未送信): N=140, WR=32.86%, PnL=-132.4pip (`raw/audits/oanda-passthrough-gap-2026-05-03.md` 由来 write-path bug)
   - SHADOW (`is_shadow=1`): N=3,819, WR=23.72%, PnL=-4,985.6pip — **Live 判断には混入禁止** (memory `feedback_live_vs_shadow_strict_separation`)
   - 旧記載 "N=29 (`oanda_trade_id != ''`)" は **誤り** — 実態は `mode='daytrade'` only サブセット、SUPERSEDED by [[aggregate-kelly-decomposition-2026-05-03-corrigendum]]
-- Ruin probability: **1.88%** ⚠️ (MC 5,000 sims, N=300 forward — Render API 2026-05-03)
-- Aggregate Kelly: **0.0** (raw=-0.69 with TRUE_LIVE N=371) — Bonferroni-powered cell-level demote が実行可能、N=371 で Gate 1 unlock 経路が再開
+- Ruin probability: **2.08%** ⚠️ (MC 5,000 sims, N=300 forward — Render API 2026-05-07; was 1.88% on 2026-05-03)
+- Aggregate Kelly: **0.0** (raw edge=-17.06%; TRUE_LIVE SSOT: N=371 raw=-0.69) — Bonferroni-powered cell-level demote が実行可能、N=371 で Gate 1 unlock 経路が再開
 - Aggregate Kelly decomposition 2026-05-03: 旧 doc は SUPERSEDED。新 SSOT: [[aggregate-kelly-decomposition-2026-05-03-corrigendum]] (TRUE_LIVE Strategy × Pair 出血ランキング、ELITE_LIVE `session_time_bias × GBP_USD` 出血特定)
-- Last updated: 2026-05-03 (Render API direct); prev: 2026-04-29 (wiki-daily-update)
+- Last updated: 2026-05-07 (wiki-daily-update auto); prev: 2026-05-03 (Render API direct)
 - scalp_eurjpy: **Stopped** (v8.6) -- friction/ATR=43.6%, 構造的不可能
 - scalp_5m_eur / scalp_5m_gbp: **Active** (v8.6) -- 5m摩擦改善モード
 - New modes (v9.0): **daytrade_eurjpy**, **daytrade_gbpjpy**, **[[rnb-usdjpy]]** (all auto_start)
-- ELITE_LIVE tier (v2.1): session_time_bias, trendline_sweep, gbp_deep_pullback
+- ELITE_LIVE tier: **trendline_sweep** only (per tier-master.md 2026-05-07; session_time_bias=PAIR_PROMOTED EUR_USD, gbp_deep_pullback=PAIR_DEMOTED GBP_USD)
 - SHADOW_MODE: **active** (env SHADOW_MODE=true)
 - Massive API: **primary data source** (全6ペア×全TF)
 - New strategies (v2.1): ny_close_reversal, streak_reversal, vwap_mean_reversion
@@ -140,6 +141,7 @@
 - [[negative-strategy-stopping-rule]] -- Shadow 止血ルール Level A/B/C（Bayesian 基準）
 
 ## Session History
+- **2026-05-07 wiki-daily-update** — N=530 total (shadow+live, post-2026-04-08), WR=38.5%, PnL=-414.2pip (gross), DD=42.21%⚠️ (+1.56pp from 2026-05-03), ruin=2.08%, live fills=4 (GBP_USD×3 + USD_JPY×1 daytrade, OANDA#383016-383039), total system=5,295. bb_rsi N=187 -52.7pip, session_time_bias N=9 WR=22.2% -43.4pip⚠️, vix_carry_unwind N=8 -41.5pip⚠️
 - **2026-04-30 session** — Regime Cascade v2.1 実装+commit (binary moderate_trend, L3 slim, SL floor). direction_cells API 追加. B1/B3 監査訂正. 2コミット push
 - **2026-04-29 wiki-daily-update** — N=286, WR=38.1%, PnL=-228.6pip, DD=34.76% ⚠️ (from 32.32%), ruin=1.72% (from 2.72%), vol_momentum_scalp唯一正Kelly (+7.78%), live fills=0 (全shadow_tracking), latest OANDA ID=3590
 - **2026-04-24 wiki-daily-update** — N=259, WR=39.0%, PnL=-215.0pip, DD=32.32% ⚠️ (from 28.01%), ruin=2.72% ⚠️ (from 0.78%), vwap_mr N=10 -47.7pip OANDA kill-switch適用, live fills=1 (GBP_USD bb_rsi #378534)
@@ -200,6 +202,7 @@
 - [[bt-live-divergence-scan-2026-04-22]] / [[bt-live-divergence-v3-full-stack-2026-04-22]] — 365d JPY DT + 180d Scalp fresh BT
 
 ### Trade Logs
+- [[2026-05-07]] — daily summary (auto-generated 2026-05-07)
 - [[2026-04-29]] — daily summary (auto-generated 2026-04-29)
 - ~~[[2026-04-27]]~~ — daily summary (auto-generated 2026-04-27)
 - [[2026-04-27-monitor]] / [[2026-04-27-pre_tokyo]] / [[2026-04-27-post_tokyo]]
