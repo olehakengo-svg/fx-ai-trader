@@ -167,3 +167,10 @@ if is_shadow_demoted(strategy, instrument):
 - code edit が demote の唯一の確実手段
 - `sr_fib_confluence GBP_USD` は今日 PAIR_PROMOTED Live 化対象なので慎重保護
 - engulfing_bb USD_JPY: v1 demote しても v2 redesign (Round 1 ENGULFING_BB_REDESIGN_V2=1) は別 path で動き続けるべき
+
+
+## Error (2026-05-11T05:18:32Z)
+
+```
+orphaned: container restarted while task was running
+```

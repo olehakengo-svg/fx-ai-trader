@@ -165,3 +165,10 @@ related:
 - このタスクは UI 層のみで戦略ロジック・統計に影響しない。Rule 3 (即時) で進めて良い
 - ただし「FORCE_DEMOTED 入り」の視認性は Rule 2 (損失停止) の判断速度に直結するので、赤強調の色は既存 `--block` (rgba(244,63,94)) を使い、ユーザの色彩記憶を壊さない
 - snapshot 保存タイミングが UTC 00:00 = JST 09:00 のため、日中の tier 変更は翌日まで snapshot に反映されない。これは仕様として明示 (運用上、リアルタイム性が要るときは current state を見れば足りる)
+
+
+## Error (2026-05-11T05:18:32Z)
+
+```
+orphaned: container restarted while task was running
+```
