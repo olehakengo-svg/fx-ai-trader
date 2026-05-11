@@ -126,6 +126,25 @@ def mark_excluded(conn: sqlite3.Connection, trade_id: str) -> int:
     return cur.rowcount
 
 
+def delete_excluded(conn: sqlite3.Connection) -> list[str]:
+    """Permanently DELETE all rows previously marked SL_HIT_CORRUPTED_EXCLUDED.
+
+    Used when the EXCLUDED placeholder rows still pollute the UI / learning
+    datasets (is_shadow=1 rows are still aggregated by Shadow stats and shown
+    in Trade Log). Returns the list of deleted trade_ids.
+    """
+    cur = conn.execute(
+        "SELECT trade_id FROM demo_trades WHERE close_reason = ?",
+        (CONTAMINATION_MARKER,),
+    )
+    ids = [r["trade_id"] for r in cur.fetchall()]
+    conn.execute(
+        "DELETE FROM demo_trades WHERE close_reason = ?",
+        (CONTAMINATION_MARKER,),
+    )
+    return ids
+
+
 def recompute_equity_state(conn: sqlite3.Connection) -> dict:
     """Recompute eq_current from CLOSED Live trades.
     Returns dict with eq_current, eq_peak (unchanged here, just read), and

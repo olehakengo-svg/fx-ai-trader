@@ -14389,23 +14389,43 @@ def api_admin_force_demoted_leak_status():
         return jsonify({"error": str(e), "type": type(e).__name__}), 500
 
 
-@app.route("/api/admin/rt_patch_cleanup_2026_05_11", methods=["GET", "POST"])
+@app.route("/api/admin/rt_patch_cleanup_2026_05_11",
+           methods=["GET", "POST", "DELETE"])
 def api_admin_rt_patch_cleanup_2026_05_11():
     """One-shot: clean up 12 trades corrupted by _rt_patch cross-pair
     contamination on 2026-05-11 04:38-04:57 UTC, then reset eq_current /
-    dd_lot_mult / defensive_mode. Idempotent. GET = dry-run, POST = apply.
+    dd_lot_mult / defensive_mode. Idempotent.
+
+    - GET    = dry-run preview (find corrupted rows)
+    - POST   = mark EXCLUDED (placeholder: pnl_pips=0, outcome=BREAKEVEN)
+    - DELETE = permanently remove rows previously marked EXCLUDED
+               (use after POST when placeholder rows still pollute UI/learning)
+
     rule:R3 — incident remediation. See CHANGELOG 2026-05-11."""
     import sqlite3 as _sql3
     from scripts.cleanup_rt_patch_contamination_2026_05_11 import (
         find_corrupted, mark_excluded, recompute_equity_state,
-        write_equity_state, _resolve_db_path,
+        write_equity_state, _resolve_db_path, delete_excluded,
     )
-    apply = (request.method == "POST")
     try:
         db_path = _resolve_db_path()
         conn = _sql3.connect(str(db_path))
         conn.row_factory = _sql3.Row
         try:
+            if request.method == "DELETE":
+                ids = delete_excluded(conn)
+                conn.commit()
+                state = recompute_equity_state(conn)
+                write_equity_state(conn, state)
+                conn.commit()
+                return jsonify({
+                    "mode": "delete",
+                    "db_path": str(db_path),
+                    "rows_deleted": len(ids),
+                    "deleted_trade_ids": [tid[:16] for tid in ids],
+                    "equity_post": state,
+                })
+
             rows = find_corrupted(conn)
             preview = [
                 {
@@ -14417,7 +14437,7 @@ def api_admin_rt_patch_cleanup_2026_05_11():
                 }
                 for r in rows
             ]
-            if not apply:
+            if request.method == "GET":
                 state = recompute_equity_state(conn)
                 return jsonify({
                     "mode": "dry-run",
@@ -14426,6 +14446,7 @@ def api_admin_rt_patch_cleanup_2026_05_11():
                     "rows": preview,
                     "equity_pre": state,
                 })
+            # POST: mark excluded
             fixed = 0
             for r in rows:
                 fixed += mark_excluded(conn, r["trade_id"])
