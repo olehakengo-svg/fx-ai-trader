@@ -6359,6 +6359,17 @@ class DemoTrader:
         # Brings counterfactual aggregate raw Kelly -0.0028 → +0.0094
         # (Gate 0 ACCEPT). MC60d 0.0090 → 0.0030.
         ("gbp_deep_pullback", "GBP_USD"),
+        # 2026-05-11 clean-live audit (rule:R2):
+        # 2429e08 (FLAG-DRIFT) + b76be87 (FORCE-DEMOTED leak) backfill 後の
+        # production /api/strategies/status clean Live で per-cell Wilson_BF/
+        # Kelly 監査 (.ai/runs/20260511-164419-... + Claude in-place rerun):
+        # - vix_carry_unwind×USD_JPY: N=11 WR=54.5% PnL=-23.7 EV=-2.15
+        #   Wilson_BF_lo=0.190 < BEV (asymmetric loss, R2 N>=10 EV<0 satisfied)
+        # - streak_reversal×USD_JPY: N=4 WR=50.0% PnL=-27.5 EV=-6.88
+        #   Wilson_BF_lo=0.084, c52d8e3 r2-15cell-LOCK Gate 0 蘇生組の早期撤回
+        #   (5/4-5/19 review-gate で 5/11 demote、N=4 + Kelly<0 + WR<BEV 三条件揃)
+        ("vix_carry_unwind", "USD_JPY"),
+        ("streak_reversal", "USD_JPY"),
     }
 
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
@@ -6383,7 +6394,13 @@ class DemoTrader:
         # Shadow 30d EV>0 / PF>=1.0 / N>=10 cells promoted to preserve
         # OANDA GOLD API tier. Wilson pre-reg is explicitly relaxed; R2
         # volume_live_promotion_watchdog demotes any cell at Live N>=10 EV<0.
-        ("vix_carry_unwind", "USD_JPY"),       # shadow N=58 EV=+9.54 PF=1.65
+        # REMOVED 2026-05-11 clean-live audit (rule:R2):
+        # vix_carry_unwind×USD_JPY post-FLAG-DRIFT+FORCE-DEMOTED backfill
+        # production /api/strategies/status: N=11 WR=54.5% PnL=-23.7p
+        # EV=-2.15 Wilson_BF_lo=0.190 < BEV~0.5 — Bonferroni-corrected
+        # asymmetric loss confirmed. R2 volume_live_promotion_watchdog rule
+        # satisfied (Live N>=10, EV<0). → _PAIR_DEMOTED.
+        # ("vix_carry_unwind", "USD_JPY"),       # shadow N=58 EV=+9.54 PF=1.65
         ("mqe_gbpusd_fix", "GBP_USD"),         # shadow N=87 EV=+1.81 PF=1.30
         ("sr_fib_confluence", "GBP_USD"),      # shadow N=39 EV=+1.35 PF=1.29
         ("session_time_bias", "EUR_USD"),      # shadow N=23 EV=+0.63 PF=1.15
@@ -6448,7 +6465,13 @@ class DemoTrader:
         #   Bonferroni有意 BT 5streak BUY: N=586 WR=58.7% p=1.3e-5
         #   単一TF根拠を超えたクロスTF確証。Phase0 auto-Shadow → PP昇格
         #   詳細: raw/analysis/roadmap-acceleration-synthesis-2026-04-22.md
-        ("streak_reversal", "USD_JPY"),
+        # REMOVED 2026-05-11 clean-live audit (rule:R2):
+        # streak_reversal×USD_JPY c52d8e3 r2-15cell-LOCK Gate 0 ACCEPT 蘇生組。
+        # 5/4-5/11 で Live N=4 PnL=-27.5p WR=50% (BEV>=60% 未達)。
+        # post-FLAG-DRIFT+FORCE-DEMOTED clean cohort で EV=-6.88
+        # Wilson_BF_lo=0.084 — c52d8e3 8日 review-gate 早期撤回。
+        # → _PAIR_DEMOTED.
+        # ("streak_reversal", "USD_JPY"),
         # REMOVED 2026-05-01 audit P0-8: vwap_mean_reversion → FORCE_DEMOTED
         # after live degradation.
         # 2026-04-23: ema200_trend_reversal×USD_JPY PAIR_PROMOTED (FORCE_DEMOTED解除)

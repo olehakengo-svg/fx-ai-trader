@@ -4,11 +4,16 @@
 - **Entry Type**: `streak_reversal`
 - **Category**: MR (Mean Reversion)
 - **Timeframe**: DT 15m
-- **Status**: PAIR_PROMOTED (USD_JPY) — 2026-04-22 二重WF昇格
-- **Active Pairs**: USD_JPY (PAIR_PROMOTED), 他ペアは Phase0 auto-Shadow 継続
+- **Status**: PAIR_DEMOTED (USD_JPY) — 2026-05-11 clean-live audit demote (rule:R2)
+- **Active Pairs**: USD_JPY (PAIR_DEMOTED), 他ペアは Phase0 auto-Shadow 継続
 
 ## Previously
 - 〜2026-04-22: Phase0 auto-Shadow (PP/EL未指定) 全ペア
+- 2026-04-22: PAIR_PROMOTED × USD_JPY (二重WF昇格)
+- 2026-05-04: c52d8e3 r2-15cell-LOCK Gate 0 ACCEPT 蘇生組
+- 2026-05-11: clean-live audit demote — post-FLAG-DRIFT/FORCE-DEMOTED backfill 後の
+  production /api/strategies/status で Live N=4 PnL=-27.5p WR=50%
+  (BEV>=60% 未達)、Wilson_BF_lo=0.084、c52d8e3 8日 review-gate 早期撤回
 
 ## BT Performance (365d, 15m)
 From massive alpha scan (Bonferroni significant):

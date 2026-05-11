@@ -7,8 +7,14 @@ from tools import sync_kb_index
 from tools import volume_live_promotion_watchdog as watchdog
 
 
+# 2026-05-07 volume_emergency promote: 10 cells under shadow EV/PF
+# exception. R2 volume_live_promotion_watchdog demotes any cell at
+# Live N>=10 EV<0.
+# REMOVED 2026-05-11 clean-live audit:
+# - vix_carry_unwind × USD_JPY (Live N=11 EV=-2.15 Wilson_BF_lo=0.190)
+#   R2 watchdog rule satisfied (Live N>=10, EV<0). → PAIR_DEMOTED.
+#   See modules/demo_trader.py 2026-05-11 audit comment block.
 VOLUME_CELLS = [
-    ("vix_carry_unwind", "USD_JPY"),
     ("mqe_gbpusd_fix", "GBP_USD"),
     ("sr_fib_confluence", "GBP_USD"),
     ("xs_momentum", "GBP_USD"),
