@@ -781,7 +781,7 @@ def _rt_patch(df: pd.DataFrame, symbol: str, interval: str) -> pd.DataFrame:
     """
     価格キャッシュ(_price_cache)が新鮮なら、最終足のClose/High/Lowをリアルタイム更新。
     OHLCVを再取得せずに現在足を常に最新化するため、足型ズレを大幅に削減する。
-    USD/JPY の 1m/5m のみ対象。
+    1m/5m のみ対象。
     """
     if interval not in ("1m", "5m") or symbol not in _OANDA_SYMBOLS:
         return df
@@ -791,17 +791,20 @@ def _rt_patch(df: pd.DataFrame, symbol: str, interval: str) -> pd.DataFrame:
     price = None
 
     # (1) 既存の _price_cache (TwelveData等) を確認
-    with _cache_lock:
-        pc = dict(_price_cache)
-    if pc.get("ts"):
-        ts = pc["ts"]
-        now = datetime.now(timezone.utc) if ts.tzinfo else datetime.now()
-        age = (now - ts).total_seconds()
-        if age <= 10:
-            try:
-                price = float(pc["data"]["price"])
-            except (KeyError, TypeError, ValueError):
-                pass
+    # _price_cache は USD/JPY 専用 (api_price endpoint で USD/JPY のみ格納)。
+    # 他ペアに適用すると Close が USD/JPY 価格で汚染 → exit_price 異常を生む。
+    if symbol in ("USDJPY=X", "JPY=X"):
+        with _cache_lock:
+            pc = dict(_price_cache)
+        if pc.get("ts"):
+            ts = pc["ts"]
+            now = datetime.now(timezone.utc) if ts.tzinfo else datetime.now()
+            age = (now - ts).total_seconds()
+            if age <= 10:
+                try:
+                    price = float(pc["data"]["price"])
+                except (KeyError, TypeError, ValueError):
+                    pass
 
     # (2) _price_cache が古い場合、OANDAからリアルタイム価格取得
     if price is None and symbol in _OANDA_SYMBOLS:

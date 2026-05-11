@@ -1,5 +1,43 @@
 # FX AI Trader - Changelog
 
+## 2026-05-11 — fix: _rt_patch クロスペア価格汚染 (USD/JPY スカラを全ペアに適用していた) [rule:R3 — 構造バグ]
+
+### 動機
+
+ユーザーから `/demo-analysis` Trade Log の pip 表示異常を報告。production DB を確認したところ、本日 2026-05-11 4:38–4:57 UTC に GBP_USD / GBP_JPY / EUR_JPY の 12 件の SL_HIT が全て `exit_price ≈ 157.147` (USD/JPY の現スポット値) で記録され、Equity / DD / Kelly が大幅汚染されていた。同時刻に OANDA 401 (auth 障害) が発生していた。
+
+### 根本原因
+
+`modules/data.py:_rt_patch` (line 780-) は `_price_cache` の値で 1m/5m DataFrame の最終足 Close/High/Low を上書きするが、`_price_cache` は `/api/price?symbol=USD/JPY` で USD/JPY のみ格納される共有スカラ。にもかかわらず `_rt_patch` は `symbol in _OANDA_SYMBOLS` 全てで cache を読みに行っており、USD/JPY スポットを他ペアの Close として書き込んでいた。
+
+通常は (2) OANDA fetch で上書きされ顕在化しないが、OANDA 401 障害時にこのパスが残り、SLTP-Checker が SL_HIT 判定で 12 件をまとめて誤決済 → `close_trade(157.147)` が DB に書込まれた。
+
+### 変更内容
+
+- **modules/data.py:_rt_patch** — `_price_cache` 参照を `symbol in ("USDJPY=X", "JPY=X")` で guard。他ペアは OANDA → yfinance → parquet の fallback のみを使用する形に限定 (production-parity 維持)。
+- **scripts/cleanup_rt_patch_contamination_2026_05_11.py** — 12 件の corrupted trade を `outcome=BREAKEVEN`, `pnl_pips=0`, `close_reason='SL_HIT_CORRUPTED_EXCLUDED'` に修正し、system_kv の eq_current / eq_peak / dd_lot_mult / defensive_mode を再計算するワンショット script (idempotent / dry-run default)。post-deploy で `--apply` 実行予定。
+- **knowledge-base/wiki/lessons/lesson-rt-patch-cross-pair-contamination-2026-05-11.md** — 失敗モード分析、中期改善案 (`_price_cache` を dict 化、`|pnl_pips|>500p` sanity gate、障害時 unit test) を記録。
+
+### 検証
+
+- inline test: GBPUSD=X DataFrame Close が `_price_cache` (USD/JPY=157.147) で汚染されないこと確認、USDJPY=X は引続き patch される
+- `python3 -m pytest tests/ -q --ignore=tests/test_flag_drift_backfill.py -k "data"` 39 passed (regression なし)
+- `python3 scripts/check.py` 全6チェック通過
+
+### 既存への影響
+
+- USD/JPY (USDJPY=X / JPY=X) の rt_patch 挙動: 不変 (production-parity)
+- 他ペア (EUR/USD, GBP/USD, GBP/JPY, EUR/JPY, EUR/GBP, XAU/USD): cache 経路を停止。OANDA/yfinance/parquet の fallback のみ → 通常時は実質同等、OANDA 障害時に**汚染データが流れない**ように変更
+
+### Follow-up (別タスク)
+
+1. post-deploy で `scripts/cleanup_rt_patch_contamination_2026_05_11.py --apply` を Render shell で実行 → DB 12 件 + system_kv 修正
+2. `_price_cache` を `{symbol: {...}}` dict 化 → symbol guard を構造的に強制 (lesson 中期項目)
+3. `close_trade` 直前の `|pnl_pips|>500p` sanity gate (lesson 中期項目)
+4. OANDA 401/5xx 時の SLTP-Checker 動作を unit test で固定化
+
+---
+
 ## 2026-04-30 — bt_vec_harness Level 3 production-parity toggles [rule:R1-bypass / additive]
 
 ### 動機
