@@ -36,19 +36,31 @@ def audit_frame(df: pd.DataFrame, tf: str) -> dict:
             "end": None,
             "gap_count": 0,
             "completeness_pct": 0.0,
+            "completeness_pct_naive": 0.0,
+            "trading_days": 0,
         }
     deltas = data.index.to_series().diff().dropna()
     expected = pd.Timedelta(minutes=minutes)
-    gap_count = int((deltas > expected * 1.5).sum())
+    # FX market closes Sat 21:00 UTC → Sun 22:00 UTC (~49h gap).
+    # Threshold gaps > expected*1.5 AND <= 3 days as intra-week gaps;
+    # weekend gaps (> 3 days) are normal market closures.
+    intra_week_gaps = int(((deltas > expected * 1.5) & (deltas < pd.Timedelta(days=3))).sum())
     span_minutes = (data.index[-1] - data.index[0]).total_seconds() / 60
-    expected_rows = max(1, int(span_minutes / minutes) + 1)
-    completeness = min(100.0, 100.0 * len(data) / expected_rows)
+    expected_rows_naive = max(1, int(span_minutes / minutes) + 1)
+    completeness_naive = min(100.0, 100.0 * len(data) / expected_rows_naive)
+    # Weekend-aware: count trading days (Mon-Fri) in span and use 5/7 of
+    # the calendar span as the expected denominator.
+    trading_days = int(len(pd.bdate_range(data.index[0].normalize(), data.index[-1].normalize())))
+    expected_rows_tw = max(1, int(trading_days * (24 * 60 / minutes)))
+    completeness_tw = min(100.0, 100.0 * len(data) / expected_rows_tw)
     return {
         "rows": int(len(data)),
         "start": data.index[0].isoformat(),
         "end": data.index[-1].isoformat(),
-        "gap_count": gap_count,
-        "completeness_pct": round(completeness, 4),
+        "gap_count": intra_week_gaps,
+        "completeness_pct": round(completeness_tw, 4),
+        "completeness_pct_naive": round(completeness_naive, 4),
+        "trading_days": trading_days,
     }
 
 
