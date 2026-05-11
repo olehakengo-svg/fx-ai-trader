@@ -86,6 +86,32 @@ if _SENTRY_DSN:
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = not os.environ.get("RENDER")  # Render本番ではFalse
 
+# ── cfd-trader Phase 2 shadow dashboard (mounted at /cfd) ──
+try:
+    from cfd_trader.web.app import register as _cfd_register
+    _cfd_register(app)
+except ImportError:
+    pass
+
+# ── cfd-trader catchup scheduler (APScheduler, 21:30 UTC weekdays) ──
+if os.environ.get("RENDER") and not os.environ.get("TESTING"):
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from scripts.cfd_phase2_shadow_catchup import main as _cfd_catchup_main
+
+        def _cfd_catchup_job() -> None:
+            _cfd_catchup_main(["cfd_phase2_shadow_catchup", "SPX500_USD", "M5"])
+
+        _cfd_sched = BackgroundScheduler(timezone="UTC", daemon=True)
+        _cfd_sched.add_job(
+            _cfd_catchup_job, "cron",
+            hour=21, minute=30, day_of_week="mon-fri",
+            id="cfd_shadow_catchup", max_instances=1, coalesce=True,
+        )
+        _cfd_sched.start()
+    except ImportError:
+        pass
+
 # ── 統計的エッジ戦略トグル (Bonferroni-corrected, p<0.000287, 174 hypotheses) ──
 _ENABLE_NY_CLOSE_REVERSAL = True    # NYクローズ時間帯バイアス (UTC 20-22)
 _ENABLE_STREAK_REVERSAL = True      # 連続足反転 (3-5 streak → reversal)

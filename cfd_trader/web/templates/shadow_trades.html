@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ strategy_name }} trades{% endblock %}
+{% block content %}
+
+<div class="panel">
+  <h2>{{ strategy_name }} · shadow trades</h2>
+  <p class="muted">N = {{ rows|length }} · is_shadow=1 only · sorted by entry ts ascending</p>
+
+  {% if rows %}
+  <table>
+    <thead>
+      <tr>
+        <th>entry ts</th>
+        <th>exit ts</th>
+        <th>side</th>
+        <th class="num">entry</th>
+        <th class="num">exit</th>
+        <th class="num">pnl (pt)</th>
+        <th class="num">cum pnl</th>
+        <th>mode</th>
+        <th>extra</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      {% set t = row.trade %}
+      <tr>
+        <td>{{ t.ts }}</td>
+        <td>{{ t.exit_ts or "—" }}</td>
+        <td>{{ t.side }}</td>
+        <td class="num">{{ "%.2f"|format(t.entry_price) }}</td>
+        <td class="num">{{ "%.2f"|format(t.exit_price) if t.exit_price is not none else "—" }}</td>
+        <td class="num {% if t.pnl_point and t.pnl_point > 0 %}good{% elif t.pnl_point and t.pnl_point < 0 %}bad{% endif %}">
+          {% if t.pnl_point is not none %}{{ "%+.2f"|format(t.pnl_point) }}{% else %}—{% endif %}
+        </td>
+        <td class="num {% if row.cum_pnl_point > 0 %}good{% elif row.cum_pnl_point < 0 %}bad{% endif %}">
+          {{ "%+.2f"|format(row.cum_pnl_point) }}
+        </td>
+        <td><span class="pill pill-shadow">{{ t.mode }}</span></td>
+        <td class="muted" style="font-size: 11px;">{{ t.extra_json or "" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+    <p class="muted">no shadow trades yet — run <code>phase2_shadow_catchup.py</code> to populate.</p>
+  {% endif %}
+
+  <p style="margin-top: 16px;"><a href="/" style="color: var(--accent);">← back to overview</a></p>
+</div>
+
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% set active = "overview" %}
+{% block title %}overview{% endblock %}
+{% block content %}
+
+<div class="panel">
+  <h2>shadow strategies</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>strategy</th>
+        <th class="num">N</th>
+        <th class="num">WR</th>
+        <th class="num">EV (pt)</th>
+        <th class="num">PF</th>
+        <th class="num">Wilson_lo raw</th>
+        <th class="num">Wilson_lo Bonf</th>
+        <th class="num">Kelly</th>
+        <th class="num">Max DD</th>
+        <th class="num">H1 distance</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in reports %}
+      <tr>
+        <td>
+          <a href="/shadow-trades/{{ r.strategy_name }}" style="color: var(--accent); text-decoration: none;">
+            {{ r.strategy_name }}
+          </a>
+          <span class="pill pill-shadow">SHADOW</span>
+        </td>
+        <td class="num">{{ r.n }}</td>
+        <td class="num {% if r.wr >= 0.5 %}good{% else %}bad{% endif %}">{{ "%.3f"|format(r.wr) }}</td>
+        <td class="num {% if r.ev_point > 0 %}good{% else %}bad{% endif %}">{{ "%+.3f"|format(r.ev_point) }}</td>
+        <td class="num">{% if r.pf > 1e9 %}∞{% else %}{{ "%.2f"|format(r.pf) }}{% endif %}</td>
+        <td class="num">{{ "%.3f"|format(r.wilson_lo_raw) }}</td>
+        <td class="num">{{ "%.3f"|format(r.wilson_lo_bonferroni) }} <span class="muted">m={{ r.bonferroni_m }}</span></td>
+        <td class="num">{{ "%.3f"|format(r.kelly_fraction) }}</td>
+        <td class="num">{{ "%.2f"|format(r.max_dd_point) }}</td>
+        <td class="num {% if r.h1_gate_distance == 0 %}good{% else %}warn{% endif %}">{{ r.h1_gate_distance }}</td>
+        <td>
+          {% if r.h1_gate_distance == 0 %}
+            <span class="good">ready</span>
+          {% else %}
+            <span class="muted">need {{ r.h1_gate_distance }} more</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="panel">
+  <h2>drift check</h2>
+  {% if orphans %}
+    <p class="bad">⚠ {{ orphans|length }} orphan strategy(s) in oanda_audit not present in catalog:</p>
+    <ul>
+      {% for o in orphans %}<li>{{ o }}</li>{% endfor %}
+    </ul>
+  {% else %}
+    <p class="good">✓ 0 orphans</p>
+  {% endif %}
+</div>
+
+<div class="panel">
+  <h2>config</h2>
+  <dl class="kv">
+    <dt>DB</dt><dd>{{ db_path }}</dd>
+    <dt>H1 Gate N_min</dt><dd>{{ h1_n_min }}</dd>
+    <dt>data source</dt><dd>OANDA v20 candles · SPX500_USD M5</dd>
+    <dt>Live execution</dt><dd class="muted">disabled (Phase 4 / MT5)</dd>
+  </dl>
+</div>
+
+{% endblock %}

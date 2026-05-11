@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% set active = "progress" %}
+{% block title %}H1 Gate progress{% endblock %}
+{% block content %}
+
+<div class="panel">
+  <h2>H1 Gate progress · need N ≥ {{ h1_n_min }} for Live promote eval</h2>
+
+  {% for item in items %}
+  <div style="margin-bottom: 20px;">
+    <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+      <strong>{{ item.name }}</strong>
+      <span class="muted">{{ item.n }} / {{ item.target }} ({{ item.pct }}%)</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" style="width: {{ item.pct }}%"></div>
+    </div>
+    <div class="muted" style="font-size: 12px; margin-top: 4px;">
+      {% if item.distance == 0 %}
+        <span class="good">✓ H1 Gate reached — re-evaluate Bonferroni Wilson_lo & Kelly before Phase 4</span>
+      {% else %}
+        need {{ item.distance }} more shadow trade(s) · ≈ {{ item.distance }} trading day(s) at 1 trade/day
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="panel">
+  <h2>next phase</h2>
+  <p>
+    H1 Gate 通過後は <strong>Phase 4 (MT5 統合)</strong> へ。
+    Shadow データソース (OANDA candles) と Live 発注先 (MT5) で pricing/spread が異なるため、
+    Phase 4 着手前に MT5 candle で再キャリブレーション or 段階ランプ (shadow→ramp_1→live) を計画すること。
+  </p>
+</div>
+
+{% endblock %}
