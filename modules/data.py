@@ -415,6 +415,10 @@ def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
         "EURAUD=X": "C:EURAUD",
         "EURCHF=X": "C:EURCHF",
         "GBPCHF=X": "C:GBPCHF",
+        "EURNZD=X": "C:EURNZD",
+        "AUDNZD=X": "C:AUDNZD",
+        "AUDCAD=X": "C:AUDCAD",
+        "NZDCAD=X": "C:NZDCAD",
         "USDJPY":   "C:USDJPY",
         "EURUSD":   "C:EURUSD",
         "EURJPY":   "C:EURJPY",
@@ -429,6 +433,10 @@ def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
         "EURAUD":   "C:EURAUD",
         "EURCHF":   "C:EURCHF",
         "GBPCHF":   "C:GBPCHF",
+        "EURNZD":   "C:EURNZD",
+        "AUDNZD":   "C:AUDNZD",
+        "AUDCAD":   "C:AUDCAD",
+        "NZDCAD":   "C:NZDCAD",
         "USD_JPY":  "C:USDJPY",
         "EUR_USD":  "C:EURUSD",
         "EUR_JPY":  "C:EURJPY",
@@ -443,6 +451,10 @@ def fetch_ohlcv_massive(symbol: str, interval: str, days: int) -> pd.DataFrame:
         "EUR_AUD":  "C:EURAUD",
         "EUR_CHF":  "C:EURCHF",
         "GBP_CHF":  "C:GBPCHF",
+        "EUR_NZD":  "C:EURNZD",
+        "AUD_NZD":  "C:AUDNZD",
+        "AUD_CAD":  "C:AUDCAD",
+        "NZD_CAD":  "C:NZDCAD",
     }
     massive_ticker = _SYMBOL_MAP.get(symbol)
     if not massive_ticker:
