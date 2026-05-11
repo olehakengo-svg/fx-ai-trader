@@ -1,7 +1,7 @@
 <claude-mem-context>
 # Memory Context
 
-# [fx-ai-trader] recent context, 2026-05-03 8:56pm GMT+9
+# [fx-ai-trader] recent context, 2026-05-11 4:11pm GMT+9
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
@@ -39,3 +39,14 @@ S11 claude-mem Option B-1 implementation — EXCLUDED_PROJECTS設定をfx-ai-tra
 
 Access 77k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
+
+## Codex companion env injection
+
+`tools/ai_run_codex_companion.sh` may pass selected values from the repo-local `.env`
+into the Codex companion sandbox through `tools/codex-env-whitelist.txt`.
+
+- Add only env key names to `tools/codex-env-whitelist.txt`; never add values.
+- Any whitelist addition requires commander (Claude) review before use.
+- Do not add OANDA Live, Render, GitHub, or other production write credentials.
+- Do not echo injected secret values in Codex output, logs, tests, or run reports.
+- Keep `.env` local and uncommitted; the launcher reads it read-only.

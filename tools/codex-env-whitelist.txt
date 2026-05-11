@@ -1,0 +1,3 @@
+# Codex companion が .env から sandbox に inject してよい env key 列挙
+# 追加時は司令塔 (Claude) のレビュー必須。OANDA Live / Render / GitHub secret は絶対追加禁止。
+MASSIVE_API_KEY

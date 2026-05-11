@@ -4,6 +4,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
+CODEX_ENV_INJECT_DISABLE_AUTO=1 source "$ROOT/tools/codex_env_inject.sh"
+
 # Keep Codex companion job state in a persistent plugin data store when the
 # caller did not provide one. Claude Code plugin contexts may set a different
 # CLAUDE_PLUGIN_DATA; preserve that value and record it for tracking.
@@ -129,6 +131,8 @@ if [[ -z "$TASK" || ! -f "$TASK" ]]; then
   echo "Task not found: ${TASK:-<empty>}" >&2
   exit 1
 fi
+
+inject_codex_whitelist_env
 
 COMPANION_SCRIPT="$(resolve_companion_script || true)"
 if [[ -z "$COMPANION_SCRIPT" ]]; then
