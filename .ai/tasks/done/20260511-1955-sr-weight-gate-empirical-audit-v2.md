@@ -238,3 +238,55 @@ Verdict 別 next action:
 - REBORN_HEAVY ≥ 2 戦略 → 個別 redesign 実装タスクを順次投入 (司令塔が判断)
 - ALL DEAD → 思想再検討タスク (例: rejection magnitude が主軸ではないか / TP geometry の問題か)
 - 一部 REBORN_HEAVY → 段階的に redesign + 残りは catalog §B-2 (academic only) 検討
+
+
+## Result (2026-05-11T12:21:08Z)
+
+exit=0 · 4690s
+
+```
+実装と監査は完了し、main に commit しました。
+
+追加した成果物:
+- [tools/sr_weight_gate_audit_v2.py](/data/repo/fx-ai-trader/tools/sr_weight_gate_audit_v2.py)
+- [reports/sr_weight_gate_audit_v2_2026-05-11.md](/data/repo/fx-ai-trader/reports/sr_weight_gate_audit_v2_2026-05-11.md)
+- [raw/audits/sr_weight_gate_v2_2026-05-11.parquet](/data/repo/fx-ai-trader/raw/audits/sr_weight_gate_v2_2026-05-11.parquet)
+
+結果は 5 戦略すべて `DEAD` です。Summary:
+
+| Strategy | N total | N heavy | WR heavy | EV heavy | Verdict |
+|---|---:|---:|---:|---:|---|
+| sr_anti_hunt_bounce | 1441 | 68 | 0.3676 | -4.1755 | DEAD |
+| sr_break_retest | 294 | 54 | 0.3148 | -1.7896 | DEAD |
+| sr_fib_confluence | 4748 | 708 | 0.3955 | -0.6166 | DEAD |
+| sr_liquidity_grab | 6 | 0 | 0.0000 | 0.0000 | DEAD |
+| sr_channel_reversal | 2612 | 876 | 0.2671 | -0.0001 | DEAD |
+
+検証:
+- `.venv/bin/python tools/sr_weight_gate_audit_v2.py --unit-tests` PASS
+- `.venv/bin/python tools/sr_weight_gate_audit_v2.py --integration-tests` PASS
+- `.venv/bin/python tools/sr_weight_gate_audit_v2.py --all` 完走
+- `.venv/bin/python -m py_compile tools/sr_weight_gate_audit_v2.py` PASS
+
+Commit:
+```text
+92f2e85 feat(sr-redesign): empirical weight-gate audit v2 — 5 NULL strategy reborn verdict
+```
+
+`git log --oneline -5`:
+```text
+92f2e85 feat(sr-redesign): empirical weight-gate audit v2 — 5 NULL strategy reborn verdict
+e37a45f chore(codex): claim 20260511-1955-sr-weight-gate-empirical-audit-v2
+88705ea task(codex): queue SR weight-gate empirical audit v2 [rule:R1]
+2dfaf29 auto: KB session-end save (2026-05-11)
+3022848 chore(codex): recover 1 orphaned running task(s)
+```
+
+`git stash list` は空でした。
+
+`git status --short --untracked-files=no` は空で、tracked files は clean です。通常の `git status --short` には作業開始時点から存在した未追跡ファイルが残っています:
+```text
+?? knowledge-base/raw/audits/session-mr-cross-wave1-lookahead-audit.md
+?? knowledge-base/raw/bt-results/session-mr-cross-wave1-audit-2026-05-11.json
+?? knowledge-base/raw/bt-results/session-mr-cross-wave1-audit
+…(truncated)
