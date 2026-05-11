@@ -919,6 +919,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 | WR | 0% | 100% | ↑ 改善（N小により無意味） |
 | PnL | **▲8.0 pips** | **+0.8 pips** | ↑ 回復基調 |
 
+### 2026-05-11 (Post-NY Report)
+| WR | — |
+| PnL | 0.0 pips |
+### セッション別PnL比較
+| Session | N | WR% | PnL(pips) | 評価 |
+| 合計PnL | **−7.2 pips** |
+| WR | 50.0% |
+| 最良セッション | London（+0.8 pips、WR 100%） |
+| 最悪セッション | Tokyo（−8.0 pips、WR 0%） |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
