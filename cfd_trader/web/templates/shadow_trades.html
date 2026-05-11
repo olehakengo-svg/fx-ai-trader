@@ -2,9 +2,11 @@
 {% block title %}{{ strategy_name }} trades{% endblock %}
 {% block content %}
 
+<h2 class="section">{{ strategy_name }} · shadow trades</h2>
 <div class="panel">
-  <h2>{{ strategy_name }} · shadow trades</h2>
-  <p class="muted">N = {{ rows|length }} · is_shadow=1 only · sorted by entry ts ascending</p>
+  <p class="muted" style="margin-bottom: 12px;">
+    N = {{ rows|length }} · is_shadow=1 only · sorted by entry ts ascending
+  </p>
 
   {% if rows %}
   <table>
@@ -43,10 +45,12 @@
     </tbody>
   </table>
   {% else %}
-    <p class="muted">no shadow trades yet — run <code>phase2_shadow_catchup.py</code> to populate.</p>
+  <p class="muted">no shadow trades yet — run <code>scripts/cfd_phase2_shadow_catchup.py</code> to populate.</p>
   {% endif %}
 
-  <p style="margin-top: 16px;"><a href="/" style="color: var(--accent);">← back to overview</a></p>
+  <p style="margin-top: 16px;">
+    <a class="lnk" href="{{ url_for('cfd.overview') }}">← back to overview</a>
+  </p>
 </div>
 
 {% endblock %}

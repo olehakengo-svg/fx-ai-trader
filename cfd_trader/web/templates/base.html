@@ -2,111 +2,183 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>cfd-trader · {% block title %}dashboard{% endblock %}</title>
   <style>
     :root {
-      --bg: #0f1419;
-      --panel: #161b22;
-      --border: #30363d;
-      --text: #e6edf3;
-      --muted: #8b949e;
-      --accent: #58a6ff;
-      --good: #3fb950;
-      --bad: #f85149;
-      --warn: #d29922;
+      --bg0: #0d1117;
+      --bg1: #161b22;
+      --bg2: #21262d;
+      --bg3: #30363d;
+      --t1: #e6edf3;
+      --t2: #c9d1d9;
+      --t3: #8b949e;
+      --t4: #484f58;
+      --blue: #58a6ff;
+      --green: #3fb950;
+      --red: #f85149;
+      --gold: #e3b341;
+      --orange: #f0883e;
+      --purple: #bc8cff;
     }
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace;
-      background: var(--bg);
-      color: var(--text);
-      font-size: 14px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg0);
+      color: var(--t1);
+      font-size: 13px;
+      min-height: 100vh;
     }
-    header {
-      background: var(--panel);
-      border-bottom: 1px solid var(--border);
-      padding: 12px 24px;
+    .hdr {
+      background: var(--bg1);
+      border-bottom: 1px solid var(--bg3);
+      padding: 0 16px;
+      height: 52px;
       display: flex;
       align-items: center;
-      gap: 24px;
+      gap: 18px;
     }
-    header h1 {
-      font-size: 16px;
-      margin: 0;
-      font-weight: 600;
+    .logo {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--blue);
+      white-space: nowrap;
     }
-    header nav { display: flex; gap: 16px; }
-    header a {
-      color: var(--muted);
-      text-decoration: none;
-      font-size: 13px;
-    }
-    header a:hover, header a.active { color: var(--accent); }
-    main { padding: 24px; max-width: 1200px; margin: 0 auto; }
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
+    .logo small { color: var(--t3); font-weight: 400; font-size: 11px; margin-left: 4px; }
+    nav { display: flex; gap: 4px; }
+    nav a {
+      padding: 5px 12px;
       border-radius: 6px;
-      padding: 16px 20px;
-      margin-bottom: 16px;
-    }
-    .panel h2 {
-      margin: 0 0 12px 0;
-      font-size: 15px;
+      color: var(--t3);
+      text-decoration: none;
+      font-size: 12px;
       font-weight: 600;
-      color: var(--accent);
+      transition: all .15s;
     }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td {
-      text-align: left;
-      padding: 8px 12px;
-      border-bottom: 1px solid var(--border);
-    }
-    th { color: var(--muted); font-weight: 500; }
-    .num { text-align: right; font-variant-numeric: tabular-nums; }
-    .good { color: var(--good); }
-    .bad { color: var(--bad); }
-    .warn { color: var(--warn); }
-    .muted { color: var(--muted); }
+    nav a:hover { background: var(--bg2); color: var(--t1); }
+    nav a.active { background: var(--bg2); color: var(--blue); }
+    .hdr-right { margin-left: auto; display: flex; gap: 10px; align-items: center; }
     .pill {
       display: inline-block;
-      padding: 2px 8px;
+      padding: 2px 9px;
       border-radius: 10px;
-      font-size: 11px;
-      font-weight: 600;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .4px;
     }
-    .pill-shadow { background: rgba(88,166,255,.15); color: var(--accent); }
-    .pill-live { background: rgba(63,185,80,.15); color: var(--good); }
+    .pill-shadow { background: rgba(88,166,255,.12); color: var(--blue); border: 1px solid rgba(88,166,255,.3); }
+    .pill-live { background: rgba(63,185,80,.12); color: var(--green); border: 1px solid rgba(63,185,80,.3); }
+    .pill-warn { background: rgba(227,179,65,.12); color: var(--gold); border: 1px solid rgba(227,179,65,.3); }
+    .pill-bad { background: rgba(248,81,73,.12); color: var(--red); border: 1px solid rgba(248,81,73,.3); }
+    .pill-muted { background: var(--bg2); color: var(--t3); border: 1px solid var(--bg3); }
+    main { padding: 20px; max-width: 1280px; margin: 0 auto; }
+    .grid { display: grid; gap: 14px; }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+    @media (max-width: 900px) { .grid-3, .grid-4 { grid-template-columns: 1fr 1fr; } }
+    .card {
+      background: var(--bg1);
+      border: 1px solid var(--bg3);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .card-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--t3);
+      margin-bottom: 8px;
+    }
+    .card-big {
+      font-size: 22px;
+      font-weight: 700;
+      font-family: "SF Mono", "Courier New", monospace;
+      color: var(--t1);
+    }
+    .card-sub { font-size: 11px; color: var(--t3); margin-top: 4px; }
+    h2.section {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--t3);
+      margin: 22px 0 10px;
+    }
+    .panel {
+      background: var(--bg1);
+      border: 1px solid var(--bg3);
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 14px;
+    }
+    .panel h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--blue);
+      margin-bottom: 10px;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    th, td {
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--bg3);
+    }
+    th {
+      color: var(--t3);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+    tbody tr:hover { background: rgba(255,255,255,.02); }
+    .num { text-align: right; font-variant-numeric: tabular-nums; font-family: "SF Mono", monospace; }
+    .good { color: var(--green); }
+    .bad { color: var(--red); }
+    .warn { color: var(--gold); }
+    .muted { color: var(--t3); }
     .progress-bar {
       width: 100%;
       height: 8px;
-      background: var(--border);
+      background: var(--bg2);
       border-radius: 4px;
       overflow: hidden;
     }
     .progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, var(--accent), var(--good));
+      background: linear-gradient(90deg, var(--blue), var(--green));
       transition: width .3s;
     }
-    .kv { display: grid; grid-template-columns: 200px 1fr; gap: 6px 24px; }
-    .kv dt { color: var(--muted); }
+    .kv { display: grid; grid-template-columns: 180px 1fr; gap: 6px 16px; font-size: 12px; }
+    .kv dt { color: var(--t3); }
     .kv dd { margin: 0; font-variant-numeric: tabular-nums; }
-    .footer { color: var(--muted); font-size: 11px; margin-top: 32px; }
+    .footer { color: var(--t3); font-size: 11px; margin-top: 28px; text-align: center; }
+    a.lnk { color: var(--blue); text-decoration: none; }
+    a.lnk:hover { text-decoration: underline; }
+    code { background: var(--bg2); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>cfd-trader / Phase 2 shadow</h1>
+  <div class="hdr">
+    <div class="logo">cfd-trader <small>Phase 2 · SPX500_USD M5</small></div>
     <nav>
-      <a href="/" {% if active == 'overview' %}class="active"{% endif %}>overview</a>
-      <a href="/progress" {% if active == 'progress' %}class="active"{% endif %}>H1 Gate progress</a>
+      <a href="{{ url_for('cfd.overview') }}" {% if active == 'overview' %}class="active"{% endif %}>overview</a>
+      <a href="{{ url_for('cfd.bridge') }}" {% if active == 'bridge' %}class="active"{% endif %}>OANDA bridge</a>
+      <a href="{{ url_for('cfd.progress') }}" {% if active == 'progress' %}class="active"{% endif %}>H1 gate</a>
     </nav>
-  </header>
+    <div class="hdr-right">
+      {% if oanda_env %}
+        {% if oanda_env.configured %}
+          <span class="pill pill-live">OANDA {{ oanda_env.env }} {{ oanda_env.token_tail }}</span>
+        {% else %}
+          <span class="pill pill-warn">OANDA not configured</span>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
   <main>
     {% block content %}{% endblock %}
-    <div class="footer">SPX500_USD M5 · OANDA candles · is_shadow=1 only</div>
+    <div class="footer">cfd-trader Phase 2 · is_shadow=1 only (no Live execution) · MT5 統合は Phase 4</div>
   </main>
 </body>
 </html>

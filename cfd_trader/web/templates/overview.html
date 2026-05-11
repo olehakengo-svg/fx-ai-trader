@@ -3,12 +3,50 @@
 {% block title %}overview{% endblock %}
 {% block content %}
 
+{% macro fmt_age(sec) -%}
+  {%- if sec is none -%}—
+  {%- elif sec < 60 -%}{{ sec }}s ago
+  {%- elif sec < 3600 -%}{{ (sec // 60) }}m ago
+  {%- elif sec < 86400 -%}{{ (sec // 3600) }}h ago
+  {%- else -%}{{ (sec // 86400) }}d ago
+  {%- endif -%}
+{%- endmacro %}
+
+<div class="grid grid-4">
+  <div class="card">
+    <div class="card-title">Shadow trades</div>
+    <div class="card-big">{{ counts.shadow }}</div>
+    <div class="card-sub">last: {{ fmt_age(last_shadow_age) }}</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Live trades</div>
+    <div class="card-big {% if counts.live == 0 %}muted{% endif %}">{{ counts.live }}</div>
+    <div class="card-sub">{% if counts.live == 0 %}Phase 4 (MT5) で実行予定{% else %}last: {{ fmt_age(last_live_age) }}{% endif %}</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Strategies</div>
+    <div class="card-big">{{ reports|length }}</div>
+    <div class="card-sub">{% if orphans %}<span class="bad">{{ orphans|length }} orphan(s)</span>{% else %}<span class="good">no drift</span>{% endif %}</div>
+  </div>
+  <div class="card">
+    <div class="card-title">OANDA bridge</div>
+    {% if oanda_env.configured %}
+      <div class="card-big good" style="font-size:14px;">{{ oanda_env.env }} · {{ oanda_env.account_id }}</div>
+      <div class="card-sub">token {{ oanda_env.token_tail }}</div>
+    {% else %}
+      <div class="card-big warn" style="font-size:14px;">not configured</div>
+      <div class="card-sub">OANDA_API_TOKEN / OANDA_ACCOUNT_ID 未設定</div>
+    {% endif %}
+  </div>
+</div>
+
+<h2 class="section">Shadow strategies</h2>
 <div class="panel">
-  <h2>shadow strategies</h2>
   <table>
     <thead>
       <tr>
         <th>strategy</th>
+        <th>mode</th>
         <th class="num">N</th>
         <th class="num">WR</th>
         <th class="num">EV (pt)</th>
@@ -25,11 +63,9 @@
       {% for r in reports %}
       <tr>
         <td>
-          <a href="/shadow-trades/{{ r.strategy_name }}" style="color: var(--accent); text-decoration: none;">
-            {{ r.strategy_name }}
-          </a>
-          <span class="pill pill-shadow">SHADOW</span>
+          <a class="lnk" href="{{ url_for('cfd.shadow_trades', strategy_name=r.strategy_name) }}">{{ r.strategy_name }}</a>
         </td>
+        <td><span class="pill pill-shadow">SHADOW</span></td>
         <td class="num">{{ r.n }}</td>
         <td class="num {% if r.wr >= 0.5 %}good{% else %}bad{% endif %}">{{ "%.3f"|format(r.wr) }}</td>
         <td class="num {% if r.ev_point > 0 %}good{% else %}bad{% endif %}">{{ "%+.3f"|format(r.ev_point) }}</td>
@@ -41,9 +77,9 @@
         <td class="num {% if r.h1_gate_distance == 0 %}good{% else %}warn{% endif %}">{{ r.h1_gate_distance }}</td>
         <td>
           {% if r.h1_gate_distance == 0 %}
-            <span class="good">ready</span>
+            <span class="pill pill-live">ready</span>
           {% else %}
-            <span class="muted">need {{ r.h1_gate_distance }} more</span>
+            <span class="muted">need {{ r.h1_gate_distance }}</span>
           {% endif %}
         </td>
       </tr>
@@ -52,25 +88,62 @@
   </table>
 </div>
 
+<h2 class="section">OANDA transfer status</h2>
 <div class="panel">
-  <h2>drift check</h2>
-  {% if orphans %}
-    <p class="bad">⚠ {{ orphans|length }} orphan strategy(s) in oanda_audit not present in catalog:</p>
-    <ul>
-      {% for o in orphans %}<li>{{ o }}</li>{% endfor %}
-    </ul>
+  {% if bridge_rows %}
+  <table>
+    <thead>
+      <tr>
+        <th>strategy</th>
+        <th>route</th>
+        <th>mode</th>
+        <th>bridge_status</th>
+        <th class="num">N</th>
+        <th>last activity</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in bridge_rows %}
+      <tr>
+        <td>{{ b.strategy_name }}</td>
+        <td>
+          {% if b.is_shadow == 1 %}<span class="pill pill-shadow">SHADOW</span>
+          {% else %}<span class="pill pill-live">LIVE</span>{% endif %}
+        </td>
+        <td>{{ b.mode }}</td>
+        <td>
+          {% if b.bridge_status == 'filled' %}<span class="pill pill-live">filled</span>
+          {% elif b.bridge_status == 'sent' %}<span class="pill pill-warn">sent</span>
+          {% elif b.bridge_status == 'rejected' %}<span class="pill pill-bad">rejected</span>
+          {% else %}<span class="pill pill-muted">{{ b.bridge_status }}</span>{% endif %}
+        </td>
+        <td class="num">{{ b.n }}</td>
+        <td class="muted">{{ b.last_ts or "—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
   {% else %}
-    <p class="good">✓ 0 orphans</p>
+  <p class="muted">転送実績ゼロ。catchup が走ると Shadow trades = bridge_status 'filled' / is_shadow=1 として記録されます。<br>
+  詳細: <a class="lnk" href="{{ url_for('cfd.bridge') }}">OANDA bridge</a></p>
   {% endif %}
 </div>
 
+<h2 class="section">System</h2>
 <div class="panel">
-  <h2>config</h2>
   <dl class="kv">
     <dt>DB</dt><dd>{{ db_path }}</dd>
     <dt>H1 Gate N_min</dt><dd>{{ h1_n_min }}</dd>
     <dt>data source</dt><dd>OANDA v20 candles · SPX500_USD M5</dd>
-    <dt>Live execution</dt><dd class="muted">disabled (Phase 4 / MT5)</dd>
+    <dt>Live execution</dt><dd class="muted">disabled (Phase 4 / MT5 で計画)</dd>
+    <dt>drift check</dt>
+    <dd>
+      {% if orphans %}
+        <span class="bad">⚠ {{ orphans|length }} orphan(s) in oanda_audit:</span> {{ orphans|join(", ") }}
+      {% else %}
+        <span class="good">✓ 0 orphans</span>
+      {% endif %}
+    </dd>
   </dl>
 </div>
 

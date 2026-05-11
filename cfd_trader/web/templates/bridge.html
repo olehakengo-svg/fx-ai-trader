@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% set active = "bridge" %}
+{% block title %}OANDA bridge{% endblock %}
+{% block content %}
+
+{% macro fmt_age(sec) -%}
+  {%- if sec is none -%}—
+  {%- elif sec < 60 -%}{{ sec }}s ago
+  {%- elif sec < 3600 -%}{{ (sec // 60) }}m ago
+  {%- elif sec < 86400 -%}{{ (sec // 3600) }}h ago
+  {%- else -%}{{ (sec // 86400) }}d ago
+  {%- endif -%}
+{%- endmacro %}
+
+<div class="grid grid-4">
+  <div class="card">
+    <div class="card-title">Shadow rows</div>
+    <div class="card-big">{{ counts.shadow }}</div>
+    <div class="card-sub">last: {{ fmt_age(last_shadow_age) }}</div>
+  </div>
+  <div class="card">
+    <div class="card-title">Live rows</div>
+    <div class="card-big {% if counts.live == 0 %}muted{% endif %}">{{ counts.live }}</div>
+    <div class="card-sub">{% if counts.live == 0 %}is_shadow=0 未投入{% else %}last: {{ fmt_age(last_live_age) }}{% endif %}</div>
+  </div>
+  <div class="card">
+    <div class="card-title">OANDA env</div>
+    {% if oanda_env.configured %}
+      <div class="card-big good" style="font-size: 14px;">{{ oanda_env.env }}</div>
+      <div class="card-sub">{{ oanda_env.account_id }} · token {{ oanda_env.token_tail }}</div>
+    {% else %}
+      <div class="card-big warn" style="font-size: 14px;">not configured</div>
+      <div class="card-sub">OANDA_API_TOKEN / OANDA_ACCOUNT_ID 未設定</div>
+    {% endif %}
+  </div>
+  <div class="card">
+    <div class="card-title">Forwarding</div>
+    {% if oanda_env.configured %}
+      <div class="card-big good" style="font-size: 14px;">enabled</div>
+      <div class="card-sub">cfd_trader → OandaBridge fire-and-forget</div>
+    {% else %}
+      <div class="card-big warn" style="font-size: 14px;">disabled</div>
+      <div class="card-sub">shadow-only mode (no live posts)</div>
+    {% endif %}
+  </div>
+</div>
+
+<h2 class="section">Per-strategy bridge summary</h2>
+<div class="panel">
+  {% if bridge_rows %}
+  <table>
+    <thead>
+      <tr>
+        <th>strategy</th>
+        <th>route</th>
+        <th>mode</th>
+        <th>bridge_status</th>
+        <th class="num">N</th>
+        <th>last activity</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in bridge_rows %}
+      <tr>
+        <td>{{ b.strategy_name }}</td>
+        <td>
+          {% if b.is_shadow == 1 %}<span class="pill pill-shadow">SHADOW</span>
+          {% else %}<span class="pill pill-live">LIVE</span>{% endif %}
+        </td>
+        <td>{{ b.mode }}</td>
+        <td>
+          {% if b.bridge_status == 'filled' %}<span class="pill pill-live">filled</span>
+          {% elif b.bridge_status == 'sent' %}<span class="pill pill-warn">sent</span>
+          {% elif b.bridge_status == 'rejected' %}<span class="pill pill-bad">rejected</span>
+          {% else %}<span class="pill pill-muted">{{ b.bridge_status }}</span>{% endif %}
+        </td>
+        <td class="num">{{ b.n }}</td>
+        <td class="muted">{{ b.last_ts or "—" }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">転送実績ゼロ。<code>scripts/cfd_phase2_shadow_catchup.py</code> 実行後に Shadow 行が記録されます。</p>
+  {% endif %}
+</div>
+
+<h2 class="section">Recent activity (last {{ recent|length }})</h2>
+<div class="panel">
+  {% if recent %}
+  <table>
+    <thead>
+      <tr>
+        <th>ts</th>
+        <th>strategy</th>
+        <th>route</th>
+        <th>mode</th>
+        <th>status</th>
+        <th>side</th>
+        <th class="num">units</th>
+        <th class="num">entry</th>
+        <th class="num">exit</th>
+        <th class="num">pnl (pt)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in recent %}
+      <tr>
+        <td class="muted" style="font-size: 11px;">{{ e.ts }}</td>
+        <td>{{ e.strategy_name }}</td>
+        <td>
+          {% if e.is_shadow == 1 %}<span class="pill pill-shadow">SHADOW</span>
+          {% else %}<span class="pill pill-live">LIVE</span>{% endif %}
+        </td>
+        <td>{{ e.mode }}</td>
+        <td>
+          {% if e.bridge_status == 'filled' %}<span class="pill pill-live">filled</span>
+          {% elif e.bridge_status == 'sent' %}<span class="pill pill-warn">sent</span>
+          {% elif e.bridge_status == 'rejected' %}<span class="pill pill-bad">rejected</span>
+          {% else %}<span class="pill pill-muted">{{ e.bridge_status }}</span>{% endif %}
+        </td>
+        <td>{{ e.side }}</td>
+        <td class="num">{{ e.units }}</td>
+        <td class="num">{{ "%.2f"|format(e.entry_price) if e.entry_price is not none else "—" }}</td>
+        <td class="num">{{ "%.2f"|format(e.exit_price) if e.exit_price is not none else "—" }}</td>
+        <td class="num {% if e.pnl_point and e.pnl_point > 0 %}good{% elif e.pnl_point and e.pnl_point < 0 %}bad{% endif %}">
+          {% if e.pnl_point is not none %}{{ "%+.2f"|format(e.pnl_point) }}{% else %}—{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">audit ログがまだありません。</p>
+  {% endif %}
+</div>
+
+<h2 class="section">Status legend</h2>
+<div class="panel">
+  <dl class="kv">
+    <dt><span class="pill pill-shadow">SHADOW</span></dt>
+    <dd>is_shadow=1 — 実発注なし、判定のみ記録 (Phase 2)</dd>
+    <dt><span class="pill pill-live">LIVE</span></dt>
+    <dd>is_shadow=0 — 実発注 (Phase 4 / MT5 で計画)</dd>
+    <dt><span class="pill pill-warn">sent</span></dt>
+    <dd>OANDA に発注リクエスト送信済 — fill 結果待ち</dd>
+    <dt><span class="pill pill-live">filled</span></dt>
+    <dd>OANDA が約定を確認 — entry_price 確定</dd>
+    <dt><span class="pill pill-bad">rejected</span></dt>
+    <dd>OANDA に拒否された — extra_json に理由</dd>
+  </dl>
+</div>
+
+{% endblock %}

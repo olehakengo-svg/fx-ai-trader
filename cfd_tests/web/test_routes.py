@@ -44,7 +44,7 @@ def test_overview_renders(client) -> None:
     assert resp.status_code == 200
     body = resp.data.decode()
     assert "orb_ny_open_short" in body
-    assert "shadow strategies" in body
+    assert "Shadow strategies" in body
     assert "drift check" in body
 
 
@@ -69,9 +69,27 @@ def test_progress_renders(client) -> None:
     resp = client.get("/progress")
     assert resp.status_code == 200
     body = resp.data.decode()
-    assert "H1 Gate progress" in body
+    assert "H1 gate progress" in body
     assert "orb_ny_open_short" in body
     assert "progress-bar" in body
+
+
+def test_bridge_renders(client) -> None:
+    resp = client.get("/bridge")
+    assert resp.status_code == 200
+    body = resp.data.decode()
+    assert "OANDA" in body
+    assert "bridge_status" in body
+    # Seed used bridge_status=filled — should appear in summary
+    assert "filled" in body
+
+
+def test_bridge_empty_db_no_crash(tmp_path: Path) -> None:
+    db = tmp_path / "empty_bridge.db"
+    init_db(str(db))
+    app = create_app(db_path=str(db))
+    c = app.test_client()
+    assert c.get("/bridge").status_code == 200
 
 
 def test_empty_db_no_crash(tmp_path: Path) -> None:
