@@ -14624,7 +14624,12 @@ def api_risk_dashboard():
                             "_filters": {"effective_date_from": effective_date_from,
                                          "all_time": all_time}})
 
-        dashboard = compute_risk_dashboard(closed)
+        try:
+            dd_lot_mult = float(_demo_db.get_system_kv("dd_lot_mult", "1.0"))
+        except Exception:
+            dd_lot_mult = 1.0
+
+        dashboard = compute_risk_dashboard(closed, lot_multiplier=dd_lot_mult)
         dashboard["_filters"] = {
             "effective_date_from": effective_date_from,
             "all_time": all_time,
@@ -14636,7 +14641,6 @@ def api_risk_dashboard():
         try:
             eq_peak = float(_demo_db.get_system_kv("eq_peak", "0.0"))
             eq_current = float(_demo_db.get_system_kv("eq_current", "0.0"))
-            dd_lot_mult = float(_demo_db.get_system_kv("dd_lot_mult", "1.0"))
             dd = eq_peak - eq_current
             dd_pct = dd / max(1000.0, 1.0)
             dashboard["dd_status"] = {

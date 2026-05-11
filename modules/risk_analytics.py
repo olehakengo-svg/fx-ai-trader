@@ -75,7 +75,8 @@ def monte_carlo_ruin(pnl_list: List[float],
                      ruin_dd_pct: float = 0.50,
                      n_simulations: int = 10000,
                      n_trades_forward: int = 500,
-                     seed: int = 42) -> dict:
+                     seed: int = 42,
+                     lot_multiplier: float = 1.0) -> dict:
     """
     Bootstrap Monte Carlo simulation for ruin probability.
 
@@ -89,6 +90,7 @@ def monte_carlo_ruin(pnl_list: List[float],
         n_simulations: Number of MC paths (default 10000).
         n_trades_forward: Trades per simulation path (default 500).
         seed: Random seed for reproducibility.
+        lot_multiplier: Current lot multiplier applied to forward PnL.
 
     Returns:
         dict with ruin_probability, median_max_dd, worst_case_dd_99,
@@ -102,11 +104,12 @@ def monte_carlo_ruin(pnl_list: List[float],
             "expected_trades_to_ruin": float('inf'),
             "median_final_equity": initial_capital,
             "n_simulations": 0,
+            "lot_multiplier_applied": lot_multiplier,
             "insufficient": True,
         }
 
     rng = np.random.RandomState(seed)
-    pnl_arr = np.array(pnl_list, dtype=np.float64)
+    pnl_arr = np.array(pnl_list, dtype=np.float64) * float(lot_multiplier)
     ruin_threshold = initial_capital * ruin_dd_pct
 
     ruin_count = 0
@@ -164,6 +167,7 @@ def monte_carlo_ruin(pnl_list: List[float],
         "n_trades_forward": n_trades_forward,
         "ruin_dd_pct": ruin_dd_pct,
         "initial_capital": initial_capital,
+        "lot_multiplier_applied": lot_multiplier,
         "insufficient": False,
     }
 
@@ -407,13 +411,15 @@ def get_dd_lot_multiplier(dd_pct: float) -> float:
 # =====================================================================
 
 def compute_risk_dashboard(trades: List[dict],
-                           initial_capital: float = 1000.0) -> dict:
+                           initial_capital: float = 1000.0,
+                           lot_multiplier: float = 1.0) -> dict:
     """
     Compute all risk metrics from a list of closed trade dicts.
 
     Args:
         trades: List of closed trade dicts from DB.
         initial_capital: Base capital in pips.
+        lot_multiplier: Current lot multiplier for forward MC simulation.
 
     Returns:
         Combined dict of all risk analytics results.
@@ -482,6 +488,7 @@ def compute_risk_dashboard(trades: List[dict],
             initial_capital=initial_capital,
             n_simulations=5000,    # reduced for API response time
             n_trades_forward=300,
+            lot_multiplier=lot_multiplier,
         ),
         "kelly": kelly_fraction(win_rate, float(avg_win), float(avg_loss)),
         "strategy_kelly": strategy_kelly,
