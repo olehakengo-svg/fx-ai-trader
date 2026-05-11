@@ -4540,6 +4540,7 @@ class DemoTrader:
             slippage_pips=_slippage,
             cooldown_elapsed=_cd_elapsed,
             is_shadow=_is_shadow,
+            enforce_oanda_live_invariant=True,
             # v9.3: MTF regime monitor (cache した payload を使う — 二重 fetch 回避)
             mtf_regime=(self._mtf_cache.get(instrument, (None, {}))[1] or {}).get("regime", ""),
             mtf_d1_label=int((self._mtf_cache.get(instrument, (None, {}))[1] or {}).get("d1", 3)),
@@ -6565,6 +6566,44 @@ class DemoTrader:
         if entry_type == "trendline_sweep" and self._trendline_sweep_redesign_v2_enabled():
             return instrument in self._TRENDLINE_SWEEP_REDESIGN_V2_LIVE_PAIRS
         return entry_type in self._ELITE_LIVE
+
+    def _resolve_tier(self, entry_type: str, instrument: str = "", mode: str = "") -> str:
+        """Resolve the static tier used by write-path shadow safeguards."""
+        if instrument and (entry_type, instrument) in self._PAIR_DEMOTED:
+            return "PAIR_DEMOTED"
+        if instrument and (entry_type, instrument) in self._PAIR_PROMOTED:
+            return "PAIR_PROMOTED"
+        if self._is_elite_live(entry_type, instrument):
+            return "ELITE_LIVE"
+        if entry_type in self._FORCE_DEMOTED:
+            return "FORCE_DEMOTED"
+        if _get_base_mode(mode) == "scalp" and entry_type in self._SCALP_SENTINEL:
+            return "SCALP_SENTINEL"
+        if entry_type in self._UNIVERSAL_SENTINEL:
+            return "UNIVERSAL_SENTINEL"
+        if self._SHADOW_MODE:
+            return "PHASE0_SHADOW"
+        return "LIVE_CANDIDATE"
+
+    def _resolve_is_shadow_for_write(self, entry_type: str, instrument: str = "",
+                                     mode: str = "", *,
+                                     bridge_status: str = "",
+                                     oanda_trade_id: str = "") -> bool:
+        """Return the only safe persisted is_shadow value for a trade row.
+
+        A row is live only after OANDA fill confirmation. Any unsent, skipped,
+        blocked, or still-sent row remains shadow to prevent FLAG_DRIFT metrics.
+        """
+        tier = self._resolve_tier(entry_type, instrument, mode)
+        if tier in {
+            "SCALP_SENTINEL",
+            "PAIR_DEMOTED",
+            "FORCE_DEMOTED",
+            "UNIVERSAL_SENTINEL",
+            "PHASE0_SHADOW",
+        }:
+            return True
+        return not (bridge_status == "filled" and bool(oanda_trade_id))
 
     # ペア別SR感度: SAR高ペアに早逃げ余地
     _PAIR_SR_THRESHOLD = {

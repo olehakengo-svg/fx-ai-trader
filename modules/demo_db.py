@@ -692,6 +692,8 @@ class DemoDB:
                    signal_price: float = 0.0, spread_at_entry: float = 0.0,
                    slippage_pips: float = 0.0, cooldown_elapsed: float = 0.0,
                    is_shadow: bool = False,
+                   oanda_trade_id: str = "",
+                   enforce_oanda_live_invariant: bool = False,
                    mtf_regime: str = "", mtf_d1_label: int = 3,
                    mtf_h4_label: int = 3, mtf_vol_state: str = "",
                    gate_group: str = "", mtf_alignment: str = "",
@@ -704,6 +706,10 @@ class DemoDB:
         mtf_gate_action: 'kept' (そのまま) / 'downgraded' (conflict→shadow) / 'none'
         """
         trade_id = str(uuid.uuid4())[:12]
+        oanda_trade_id = oanda_trade_id or ""
+        persisted_is_shadow = bool(is_shadow) or (
+            bool(enforce_oanda_live_invariant) and not bool(oanda_trade_id)
+        )
         now_str = datetime.now(timezone.utc).isoformat()
         with self._lock:
             with self._safe_conn() as conn:
@@ -713,16 +719,18 @@ class DemoDB:
                          sl, tp, entry_type, confidence, tf, reasons, regime,
                          layer1_dir, score, ema_conf, sr_basis, mode, instrument,
                          signal_price, spread_at_entry, slippage_pips, cooldown_elapsed,
-                         is_shadow, mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state,
+                         is_shadow, oanda_trade_id,
+                         mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state,
                          gate_group, mtf_alignment, mtf_gate_action)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (trade_id, "OPEN", direction, entry_price, now_str,
                       sl, tp, entry_type, confidence, tf,
                       json.dumps(reasons or [], ensure_ascii=False),
                       json.dumps(regime or {}, ensure_ascii=False),
                       layer1_dir, score, ema_conf, sr_basis, mode, instrument,
                       signal_price, spread_at_entry, slippage_pips, cooldown_elapsed,
-                      1 if is_shadow else 0,
+                      1 if persisted_is_shadow else 0,
+                      oanda_trade_id,
                       mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state,
                       gate_group, mtf_alignment, mtf_gate_action))
                 conn.commit()
