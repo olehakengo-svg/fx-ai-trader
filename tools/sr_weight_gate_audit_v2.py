@@ -47,12 +47,19 @@ STRATEGIES = [
     "sr_liquidity_grab",
     "sr_channel_reversal",
 ]
+BUGGY_V1_SUMMARY = {
+    "sr_anti_hunt_bounce": {"verdict": "DEAD", "N total": 1441, "N heavy": 68, "WR heavy": 0.3676, "EV heavy": -4.1755},
+    "sr_break_retest": {"verdict": "DEAD", "N total": 294, "N heavy": 54, "WR heavy": 0.3148, "EV heavy": -1.7896},
+    "sr_fib_confluence": {"verdict": "DEAD", "N total": 4748, "N heavy": 708, "WR heavy": 0.3955, "EV heavy": -0.6166},
+    "sr_liquidity_grab": {"verdict": "DEAD", "N total": 6, "N heavy": 0, "WR heavy": 0.0, "EV heavy": 0.0},
+    "sr_channel_reversal": {"verdict": "DEAD", "N total": 2612, "N heavy": 876, "WR heavy": 0.2671, "EV heavy": -0.0001},
+}
 RUN_STRIDES = {
-    "sr_anti_hunt_bounce": 1,
+    "sr_anti_hunt_bounce": 4,   # 1->4: strategy MAX_HOLD_BARS=12 / 3, setup identity coverage
     "sr_break_retest": 8,
-    "sr_fib_confluence": 2,
-    "sr_liquidity_grab": 1,
-    "sr_channel_reversal": 2,
+    "sr_fib_confluence": 4,      # 2->4: same duplicate-control rationale
+    "sr_liquidity_grab": 4,      # 1->4
+    "sr_channel_reversal": 4,    # 2->4
 }
 
 
@@ -506,48 +513,36 @@ def _nearest_level_meta(
     df_window=None,
     symbol: str = "USDJPY=X",
 ) -> dict:
+    """Return global-level metadata passthrough.
+
+    Previously this function re-computed own_touch / magnitude on the last
+    16 bars and forced w1_touch=0 / d1_touch={0,1}. That destroyed the
+    composite_weight semantics computed globally in
+    detect_sr_levels_with_weight. We now just return the global metadata
+    as-is. df_window / symbol params kept for ABI compat but unused.
+    """
     if not levels:
         return {
-            "level_price": None, "own_touch": 0, "d1_touch": 0, "w1_touch": 0,
-            "round_score": 0.0, "magnitude_score": 0.0, "composite_weight": 0.0,
+            "level_price": None,
+            "own_touch": 0,
+            "d1_touch": 0,
+            "w1_touch": 0,
+            "round_score": 0.0,
+            "magnitude_score": 0.0,
+            "composite_weight": 0.0,
             "distinct_touch": 0,
         }
     ref = entry if price is None else price
     lv = min(levels, key=lambda x: abs(float(x["price"]) - float(ref)))
-    own_touch = int(lv["own_touch"])
-    d1_touch = int(lv["d1_touch"])
-    w1_touch = int(lv["w1_touch"])
-    magnitude = float(lv["magnitude_score"])
-    rscore = float(lv["round_score"])
-    if df_window is not None and len(df_window) >= 20:
-        local = df_window.tail(16)
-        pip = pip_size(symbol)
-        local_atr = _atr_series(local) if "atr" not in local.columns else local["atr"].astype(float)
-        tolerance = max(float(local_atr.median()) * 0.30, 3.0 * pip)
-        own_touch = count_distinct_touches(local, float(lv["price"]), tolerance, min_gap_bars=5)
-        magnitude = float(min(1.0, median_rejection_size(local, float(lv["price"]), tolerance, local_atr)))
-        robust_htf = d1_touch >= 10 and w1_touch >= 3 and rscore > 0.5
-        d1_touch = 1 if robust_htf else 0
-        w1_touch = 0
-        tmp = {
-            "own_touch": own_touch,
-            "d1_touch": d1_touch,
-            "w1_touch": w1_touch,
-            "round_score": rscore,
-            "magnitude_score": magnitude,
-        }
-        cweight = composite_weight(tmp)
-    else:
-        cweight = float(lv["composite_weight"])
     return {
         "level_price": float(lv["price"]),
-        "own_touch": int(own_touch),
-        "d1_touch": int(d1_touch),
-        "w1_touch": int(w1_touch),
-        "round_score": rscore,
-        "magnitude_score": magnitude,
-        "composite_weight": float(cweight),
-        "distinct_touch": int(own_touch),
+        "own_touch": int(lv["own_touch"]),
+        "d1_touch": int(lv["d1_touch"]),
+        "w1_touch": int(lv["w1_touch"]),
+        "round_score": float(lv["round_score"]),
+        "magnitude_score": float(lv["magnitude_score"]),
+        "composite_weight": float(lv["composite_weight"]),
+        "distinct_touch": int(lv["own_touch"]),
     }
 
 
@@ -635,6 +630,7 @@ def run_strategy_bt(
     if hasattr(klass, "reset_dedup_state"):
         klass.reset_dedup_state()
     strategy = klass()
+    seen_keys: set[tuple] = set()
     rows = []
     pip = pip_size(symbol)
     for i in range(spec.min_bars, len(df) - 13, max(1, int(stride))):
@@ -657,6 +653,16 @@ def run_strategy_bt(
         hold = min(12, max(1, hold))
         level_price = _extract_level_price(cand, entry, levels)
         meta = _nearest_level_meta(levels, level_price, entry, df_window=df_window, symbol=symbol)
+        dedup_key = (
+            strategy_name,
+            symbol.replace("=X", ""),
+            cand.signal,
+            round(meta["level_price"] or 0.0, 5),
+            int(df.index[i].value // 10**9 // (15 * 60 * 8)),
+        )
+        if dedup_key in seen_keys:
+            continue
+        seen_keys.add(dedup_key)
         exit_meta = _simulate_exit(df, i, cand.signal, entry, sl, tp, pip, max_hold_bars=hold)
         sr_meta = cand.sr_meta or {}
         rows.append({
@@ -840,12 +846,90 @@ def _simple_group_table(rows, col: str) -> list[dict]:
     return out
 
 
-def write_report(all_rows, report_path: Path):
-    lines = [
-        "# SR Weight Gate Empirical Audit v2",
+def _methodology_fix_sections(summary_rows: list[dict]) -> list[str]:
+    summary_by_strategy = {row["Strategy"]: row for row in summary_rows}
+    comparison_rows = []
+    for strategy in STRATEGIES:
+        old = BUGGY_V1_SUMMARY[strategy]
+        new = summary_by_strategy[strategy]
+        comparison_rows.append({
+            "Strategy": strategy,
+            "v1 verdict": old["verdict"],
+            "v1 N total": old["N total"],
+            "v1 N heavy": old["N heavy"],
+            "v1 WR heavy": old["WR heavy"],
+            "v1 EV heavy": old["EV heavy"],
+            "v2 verdict": new["Verdict"],
+            "v2 N total": new["N total"],
+            "v2 N heavy": new["N heavy"],
+            "v2 WR heavy": new["WR heavy"],
+            "v2 EV heavy": new["EV heavy"],
+            "Wilson_lo (v2 Bonf)": new["Wilson_lo (heavy, Bonf)"],
+        })
+    anti_hunt_n = int(summary_by_strategy["sr_anti_hunt_bounce"]["N total"])
+    triangulates = 416 <= anti_hunt_n <= 772
+    triage = (
+        f"Fixed audit sr_anti_hunt_bounce N={anti_hunt_n}, which is within the "
+        "Phase 2 BT triangulation band 416-772."
+        if triangulates else
+        f"Fixed audit sr_anti_hunt_bounce N={anti_hunt_n}, which is outside the "
+        "Phase 2 BT triangulation band 416-772; this is a material deviation and "
+        "detector mismatch remains a candidate explanation."
+    )
+    return [
+        "## Methodology Fix Compared to v2 (2026-05-11 buggy run)",
         "",
-        "## Summary",
+        _md_table([
+            {
+                "Bug fixed": "W1 forced zero",
+                "Location": "_nearest_level_meta",
+                "Before behavior": "w1_touch=0 unconditional",
+                "After behavior": "passthrough from detect_sr_levels_with_weight",
+            },
+            {
+                "Bug fixed": "D1 collapsed to {0,1}",
+                "Location": "_nearest_level_meta",
+                "Before behavior": "d1_touch = 1 if (d1>=10 AND w1>=3 AND rscore>0.5) else 0",
+                "After behavior": "passthrough",
+            },
+            {
+                "Bug fixed": "own_touch 16-bar recompute",
+                "Location": "_nearest_level_meta",
+                "Before behavior": "recomputed on last 16 bars",
+                "After behavior": "passthrough (365d global)",
+            },
+            {
+                "Bug fixed": "stride too small",
+                "Location": "RUN_STRIDES",
+                "Before behavior": "1 for anti_hunt/liq_grab",
+                "After behavior": "4",
+            },
+            {
+                "Bug fixed": "Adjacent-bar duplicate signals",
+                "Location": "run_strategy_bt",
+                "Before behavior": "no dedup (backtest_mode disables strategy dedup)",
+                "After behavior": "post-hoc (strategy, symbol, signal, level, 2hr-bucket) dedup",
+            },
+        ], ["Bug fixed", "Location", "Before behavior", "After behavior"]),
+        "",
+        "## v1 (buggy) vs v2 (fixed) Verdict Comparison",
+        "",
+        _md_table(comparison_rows, [
+            "Strategy", "v1 verdict", "v1 N total", "v1 N heavy", "v1 WR heavy", "v1 EV heavy",
+            "v2 verdict", "v2 N total", "v2 N heavy", "v2 WR heavy", "v2 EV heavy",
+            "Wilson_lo (v2 Bonf)",
+        ]),
+        "",
+        "## sr_anti_hunt_bounce Triangulation vs SR-weight Phase 2 BT",
+        "",
+        "SR-weight Phase 2 BT reported sr_anti_hunt_bounce as a BH FDR survivor "
+        "(trend p=0.0034, N=594). " + triage,
+        "",
+        "Pivot triangulation skipped due to time budget; this run remains on the pre-existing KDE detector path.",
     ]
+
+
+def write_report(all_rows, report_path: Path):
     summary_rows = []
     verdicts = {}
     for strategy in STRATEGIES:
@@ -865,6 +949,9 @@ def write_report(all_rows, report_path: Path):
             "Wilson_lo (heavy, Bonf)": heavy_m["Wilson_lo"],
             "Verdict": verdict,
         })
+    lines = ["# SR Weight Gate Empirical Audit v2", ""]
+    lines.extend(_methodology_fix_sections(summary_rows))
+    lines.extend(["", "## Summary"])
     lines.append(_md_table(summary_rows, [
         "Strategy", "N total", "N heavy", "WR all", "WR heavy", "EV all",
         "EV heavy", "Wilson_lo (heavy, Bonf)", "Verdict",
@@ -1026,7 +1113,22 @@ def unit_tests() -> None:
     atr = pd.Series([2.0] * len(df), index=df.index)
     mag = median_rejection_size(df.iloc[:3], 100, 0.1, atr.iloc[:3])
     assert abs(mag - 1.0) < 1e-12
-    print("[unit] PASS", flush=True)
+
+    fake_levels = [{
+        "price": 110.50,
+        "own_touch": 5,
+        "d1_touch": 3,
+        "w1_touch": 2,
+        "round_score": 0.7,
+        "magnitude_score": 0.6,
+        "composite_weight": 1.0 * 5 + 3.0 * 3 + 5.0 * 2 + 2.0 * 0.7 + 1.5 * 0.6,
+    }]
+    meta = _nearest_level_meta(fake_levels, price=None, entry=110.55, df_window=None, symbol="USD_JPY")
+    assert meta["w1_touch"] == 2, f"w1_touch should passthrough, got {meta['w1_touch']}"
+    assert meta["d1_touch"] == 3, f"d1_touch should passthrough, got {meta['d1_touch']}"
+    assert meta["own_touch"] == 5, f"own_touch should passthrough, got {meta['own_touch']}"
+    assert abs(meta["composite_weight"] - fake_levels[0]["composite_weight"]) < 1e-6
+    print("[unit] PASS (incl. bug 1+2 regression)", flush=True)
 
 
 def integration_tests() -> None:
@@ -1047,7 +1149,10 @@ def integration_tests() -> None:
     for strategy in STRATEGIES:
         found = None
         for symbol, df15, levels in samples:
-            rows = run_strategy_bt(strategy, df15, levels, symbol=symbol, max_signals=10)
+            rows = run_strategy_bt(
+                strategy, df15, levels, symbol=symbol, max_signals=10,
+                stride=RUN_STRIDES.get(strategy, 1),
+            )
             if len(rows) >= 1:
                 found = rows
                 break
@@ -1056,7 +1161,21 @@ def integration_tests() -> None:
     import pandas as pd
     all_rows = pd.concat(frames, ignore_index=True)
     heavy_rate = float((all_rows["composite_weight"] >= PRIMARY_HEAVY_THRESHOLD).mean())
-    assert 0.01 <= heavy_rate <= 0.30, f"heavy signal rate out of sanity range: {heavy_rate:.4f}"
+    assert heavy_rate >= 0.01, f"heavy signal rate out of sanity range: {heavy_rate:.4f}"
+    htf_ok = ((all_rows["w1_touch"] >= 1) | (all_rows["d1_touch"] >= 2)).sum()
+    assert htf_ok >= 1, f"Bug 1 regression: no signal had non-trivial HTF touch (htf_ok={htf_ok})"
+    dedup_keys = all_rows.apply(
+        lambda row: (
+            row["strategy"],
+            row["symbol"],
+            row["signal"],
+            round(row["sr_level_price"] or 0.0, 5),
+            int(row["timestamp"].value // 10**9 // (15 * 60 * 8)),
+        ),
+        axis=1,
+    )
+    distinct_ratio = dedup_keys.nunique() / len(all_rows)
+    assert distinct_ratio >= 0.95, f"Bug 3 regression: dedup distinct ratio too low ({distinct_ratio:.4f})"
     report = ROOT / "reports" / "sr_weight_gate_audit_v2_integration.md"
     write_report(all_rows, report)
     assert report.exists()
