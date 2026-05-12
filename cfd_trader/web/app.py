@@ -25,6 +25,7 @@ from cfd_trader.audit.queries import (
     recent_entries,
     shadow_trades_for,
 )
+from cfd_trader.broker.factory import broker_status_from_env
 from cfd_trader.promotion.gates import H1_N_MIN
 from cfd_trader.promotion.tier_engine import evaluate
 from cfd_trader.shadow.state import init_state_table as _init_state_table
@@ -123,8 +124,10 @@ def overview():
         bridge_rows=bridge_rows,
         pnl_series=pnl_series,
         oanda_env=_oanda_env_status(),
+        broker_status=broker_status_from_env(),
         last_shadow_age=_age_seconds(counts.get("last_shadow_ts")),
         last_live_age=_age_seconds(counts.get("last_live_ts")),
+        last_unrouted_age=_age_seconds(counts.get("last_unrouted_ts")),
     )
 
 
@@ -180,8 +183,10 @@ def bridge():
         bridge_rows=bridge_rows,
         recent=recent,
         oanda_env=_oanda_env_status(),
+        broker_status=broker_status_from_env(),
         last_shadow_age=_age_seconds(counts.get("last_shadow_ts")),
         last_live_age=_age_seconds(counts.get("last_live_ts")),
+        last_unrouted_age=_age_seconds(counts.get("last_unrouted_ts")),
     )
 
 

@@ -45,12 +45,33 @@ def test_overview_renders(client) -> None:
     body = resp.data.decode()
     assert "orb_ny_open_short" in body
     assert "Shadow strategies" in body
-    assert "drift check" in body
+    # System panel now uses "strategies" and "no drift"/"orphan" wording
+    assert "strategies" in body
+    assert "no drift" in body or "orphan" in body
     # Charts must render (inline SVG, no external script)
     assert "Cumulative PnL" in body
     assert "<svg" in body
     assert "chart-line" in body
     assert "N progress toward H1 gate" in body
+
+
+def test_overview_shows_three_bucket_cards(client) -> None:
+    """Section 5.D bucket split: Shadow / Live / Unrouted / MT5 broker."""
+    resp = client.get("/")
+    body = resp.data.decode()
+    assert "Shadow trades" in body
+    assert "Live trades" in body
+    assert "Unrouted intent" in body
+    assert "MT5 broker" in body
+
+
+def test_overview_broker_card_unconfigured_says_null_broker(client) -> None:
+    """Without env, the broker card must say 'null broker' — not pretend to be Live-ready."""
+    resp = client.get("/")
+    body = resp.data.decode()
+    assert "null broker" in body
+    # The reason string from broker_status_from_env should be visible
+    assert "CFD_MT5_SHIM" in body
 
 
 def test_overview_shows_n_count(client) -> None:
