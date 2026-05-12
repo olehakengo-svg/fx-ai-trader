@@ -949,6 +949,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 ### 推奨戦略配分
 - trendline-sweep (ELITE_LIVE): EUR_USD / GBP_USD
 
+### 2026-05-12 (Post-London Report)
+| PnL | **0.0 pips / $0.00** |
+| 勝率 (WR) | **N/A** |
+| PnL | $0 | $0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+**⚠️ NO ACTION推奨（ただし条件付き）**
+- **EUR_USD × session-time-bias** (EV=+0.215, RANGING適合)
+- **USD_JPY × doji-breakout** (EV=+0.338, RANGING適合)
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
