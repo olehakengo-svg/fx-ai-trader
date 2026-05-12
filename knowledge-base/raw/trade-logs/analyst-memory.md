@@ -959,6 +959,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 - **EUR_USD × session-time-bias** (EV=+0.215, RANGING適合)
 - **USD_JPY × doji-breakout** (EV=+0.338, RANGING適合)
 
+### 2026-05-12 (Pre-Tokyo Briefing)
+| 前日PnL合計 | **-7.2 pips** |
+| 全体WR | **50.0%** |
+前日は2件のみ約定。streak_reversalがUSD_JPYで小幅勝利（+0.8）した一方、dt_sr_channel_reversalがEUR_JPYで大幅損失（-8.0）を記録。1勝1敗だが損失側のロスが大きく、PnL合計はマイナス。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| trendline_sweep | GBP_USD | 5 | 80.0% | **-0.22** | -1.1 | 🟡 EV要注意（N不足） |
+| dt_sr_channel_reversal | EUR_JPY | 1+1=**2** | 0.0% | **-8.00** | -8.0 | 🔴 EV深刻（N不足） |
+> **補足**: 全戦略でN<10。統計的判断ラインには到達していないが、EV方向の傾向として記録。全体EV = -20.9 / 16 ≒ **-1.31**（負）。
+| BT期待値 | EV=+0.178（BT上は正だが極めて小さい）|
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
