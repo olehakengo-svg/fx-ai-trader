@@ -314,3 +314,43 @@ def integration_tests():
 - 任意の戦略が **REBORN_HEAVY** → 個別 redesign 実装タスク (司令塔判断)
 - **ALL DEAD でも sr_anti_hunt_bounce が Phase 2 BT N=594 と triangulate しない** → bug 4 (detector mismatch) を確認するため `--detector pivot` 再走を別タスクで投入
 - 全 DEAD かつ triangulate OK → weight thesis 棄却、思想再検討フェーズに移行
+
+
+## Result (2026-05-12T10:22:37Z)
+
+exit=0 · 1195s
+
+```
+Implemented and committed.
+
+Commit: `28a1114 fix(sr-redesign): weight-gate audit v2 methodology repair + re-run`
+
+Changed:
+- [tools/sr_weight_gate_audit_v2.py](/data/repo/fx-ai-trader/tools/sr_weight_gate_audit_v2.py): `_nearest_level_meta` passthrough, updated `RUN_STRIDES`, post-hoc dedup, regression tests, report comparison sections.
+- [reports/sr_weight_gate_audit_v2_2026-05-12.md](/data/repo/fx-ai-trader/reports/sr_weight_gate_audit_v2_2026-05-12.md): fixed KDE audit report with required comparison tables.
+- [raw/audits/sr_weight_gate_v2_2026-05-12.parquet](/data/repo/fx-ai-trader/raw/audits/sr_weight_gate_v2_2026-05-12.parquet): rerun raw output.
+- [final.md](/data/repo/fx-ai-trader/final.md): PR title/description, v1 vs v2 table, verification summary.
+
+Verification:
+- `.venv/bin/python tools/sr_weight_gate_audit_v2.py --unit-tests` passed.
+- `.venv/bin/python tools/sr_weight_gate_audit_v2.py --integration-tests` passed.
+- `.venv/bin/python tools/sr_weight_gate_audit_v2.py --all` completed and wrote both required outputs.
+
+Final verdict: all five strategies remain `DEAD`. `sr_anti_hunt_bounce` fixed N is `335`, outside Phase 2 BT triangulation band `416-772`, so detector mismatch remains a material follow-up candidate. Pivot triangulation was skipped and explicitly noted in the report.
+
+Final git verification:
+```text
+git log --oneline -5
+28a1114 fix(sr-redesign): weight-gate audit v2 methodology repair + re-run
+39fdb43 chore(codex): claim 20260512-0200-sr-weight-audit-v2-methodology-fix
+8b7042b task(codex): queue SR weight-gate audit v2 methodology fix [rule:R1]
+c558add feat(cfd-trader): MT5経由 OANDA CFD 発注経路 (Section 5.D 3-bucket 分離) (#20)
+58b0541 docs(KB): daily report 2026-05-12
+
+git stash list
+# empty
+
+git status --short
+# clean
+```
+```
