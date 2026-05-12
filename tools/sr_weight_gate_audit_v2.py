@@ -54,6 +54,13 @@ BUGGY_V1_SUMMARY = {
     "sr_liquidity_grab": {"verdict": "DEAD", "N total": 6, "N heavy": 0, "WR heavy": 0.0, "EV heavy": 0.0},
     "sr_channel_reversal": {"verdict": "DEAD", "N total": 2612, "N heavy": 876, "WR heavy": 0.2671, "EV heavy": -0.0001},
 }
+V2_FIXED_KDE_SUMMARY = {
+    "sr_anti_hunt_bounce": {"verdict": "DEAD", "N total": 335},
+    "sr_break_retest": {"verdict": "DEAD", "N total": 294},
+    "sr_fib_confluence": {"verdict": "DEAD", "N total": 2037},
+    "sr_liquidity_grab": {"verdict": "DEAD", "N total": 2},
+    "sr_channel_reversal": {"verdict": "DEAD", "N total": 1249},
+}
 RUN_STRIDES = {
     "sr_anti_hunt_bounce": 4,   # 1->4: strategy MAX_HOLD_BARS=12 / 3, setup identity coverage
     "sr_break_retest": 8,
@@ -284,6 +291,51 @@ def _srlevel_touch(level: Any) -> int:
     return int(getattr(level, "touch_count", 0) or 0)
 
 
+def _pivot_levels(
+    df, htf_df_d1, htf_df_w1,
+    tolerance_pip: float,
+    d1_tol_pip: float,
+    w1_tol_pip: float,
+    min_touches: int,
+):
+    """Pivot-based detector adapter wrapping production-style SR detection."""
+    from modules.indicators import find_sr_levels_weighted
+
+    # Tolerance conversions: pip -> fractional. own TF 15m bars_per_day=96, D1=1, W1=1.
+    # find_sr_levels_weighted uses tolerance_pct, so convert via the latest mid price.
+    def _frac_tol(df_, tol_pip):
+        if len(df_) == 0:
+            return 0.003
+        mid = float(df_["Close"].iloc[-1])
+        pip = 0.01 if mid > 50 else 0.0001
+        return max(1e-4, (tol_pip * pip) / mid)
+
+    own_pct = _frac_tol(df, tolerance_pip)
+    d1_pct = _frac_tol(htf_df_d1 if len(htf_df_d1) else df, d1_tol_pip)
+    w1_pct = _frac_tol(htf_df_w1 if len(htf_df_w1) else df, w1_tol_pip)
+
+    own = find_sr_levels_weighted(
+        df, window=5, tolerance_pct=own_pct,
+        min_touches=min_touches, max_levels=30, bars_per_day=96,
+    )
+    d1 = find_sr_levels_weighted(
+        htf_df_d1, window=5, tolerance_pct=d1_pct,
+        min_touches=2, max_levels=20, bars_per_day=1,
+    ) if len(htf_df_d1) >= 12 else []
+    w1 = find_sr_levels_weighted(
+        htf_df_w1, window=3, tolerance_pct=w1_pct,
+        min_touches=2, max_levels=20, bars_per_day=1,
+    ) if len(htf_df_w1) >= 8 else []
+    return own, d1, w1
+
+
+def _srlevel_strength(level):
+    """Return obviousness/strength score, robust to both KDE objects and pivot dicts."""
+    if isinstance(level, dict):
+        return float(level.get("strength", level.get("obviousness", 0.0)) or 0.0)
+    return float(getattr(level, "obviousness", 0.0) or 0.0)
+
+
 def detect_sr_levels_with_weight(
     df,
     htf_df_d1,
@@ -291,8 +343,17 @@ def detect_sr_levels_with_weight(
     tolerance_pip: float,
     min_touches: int,
     symbol: str = "USDJPY=X",
+    detector: str = "kde",
 ) -> list[dict]:
-    from modules.sr_detector import detect_sr_levels
+    """Detect levels with composite weight metadata.
+
+    detector="kde"   : sr_detector.detect_sr_levels (existing v2 fixed behavior)
+    detector="pivot" : indicators.find_sr_levels_weighted (Williams Fractal,
+                       matches production demo_trader / Phase 2 BT methodology)
+
+    All downstream metadata is computed identically regardless of detector;
+    only the candidate level set differs.
+    """
 
     pip = pip_size(symbol)
     tolerance = tolerance_pip * pip
@@ -303,30 +364,42 @@ def detect_sr_levels_with_weight(
     w1_tol_pip = max(float(atr_w1.median()) * 0.3 / pip, tolerance_pip)
     d1_match = max(float(atr_d1.median()) * 0.5, tolerance)
 
-    own = detect_sr_levels(
-        df,
-        symbol,
-        bandwidth_pips=max(5.0, tolerance_pip * 1.5),
-        touch_tolerance_pips=tolerance_pip,
-        min_touches=min_touches,
-        max_levels=30,
-    )
-    d1 = detect_sr_levels(
-        htf_df_d1,
-        symbol,
-        bandwidth_pips=max(5.0, d1_tol_pip * 1.5),
-        touch_tolerance_pips=d1_tol_pip,
-        min_touches=2,
-        max_levels=20,
-    ) if len(htf_df_d1) >= 5 else []
-    w1 = detect_sr_levels(
-        htf_df_w1,
-        symbol,
-        bandwidth_pips=max(5.0, w1_tol_pip * 1.5),
-        touch_tolerance_pips=w1_tol_pip,
-        min_touches=2,
-        max_levels=20,
-    ) if len(htf_df_w1) >= 5 else []
+    if detector == "pivot":
+        own, d1, w1 = _pivot_levels(
+            df, htf_df_d1, htf_df_w1,
+            tolerance_pip=tolerance_pip,
+            d1_tol_pip=d1_tol_pip,
+            w1_tol_pip=w1_tol_pip,
+            min_touches=min_touches,
+        )
+    elif detector == "kde":
+        from modules.sr_detector import detect_sr_levels
+        own = detect_sr_levels(
+            df,
+            symbol,
+            bandwidth_pips=max(5.0, tolerance_pip * 1.5),
+            touch_tolerance_pips=tolerance_pip,
+            min_touches=min_touches,
+            max_levels=30,
+        )
+        d1 = detect_sr_levels(
+            htf_df_d1,
+            symbol,
+            bandwidth_pips=max(5.0, d1_tol_pip * 1.5),
+            touch_tolerance_pips=d1_tol_pip,
+            min_touches=2,
+            max_levels=20,
+        ) if len(htf_df_d1) >= 5 else []
+        w1 = detect_sr_levels(
+            htf_df_w1,
+            symbol,
+            bandwidth_pips=max(5.0, w1_tol_pip * 1.5),
+            touch_tolerance_pips=w1_tol_pip,
+            min_touches=2,
+            max_levels=20,
+        ) if len(htf_df_w1) >= 5 else []
+    else:
+        raise ValueError(f"unknown detector: {detector}")
 
     levels = []
     for lv in own:
@@ -355,8 +428,8 @@ def detect_sr_levels_with_weight(
             "magnitude_score": float(min(1.0, mag_raw)),
             "magnitude_raw": float(mag_raw),
             "distinct_touch_events": int(own_touch),
-            "strength": float(getattr(lv, "obviousness", 0.0)),
-            "obviousness": float(getattr(lv, "obviousness", 0.0)),
+            "strength": float(_srlevel_strength(lv)),
+            "obviousness": float(_srlevel_strength(lv)),
         }
         meta["composite_weight"] = float(composite_weight(meta))
         meta["touches"] = meta["own_touch"]
@@ -846,7 +919,7 @@ def _simple_group_table(rows, col: str) -> list[dict]:
     return out
 
 
-def _methodology_fix_sections(summary_rows: list[dict]) -> list[str]:
+def _methodology_fix_sections(summary_rows: list[dict], detector: str = "kde") -> list[str]:
     summary_by_strategy = {row["Strategy"]: row for row in summary_rows}
     comparison_rows = []
     for strategy in STRATEGIES:
@@ -876,7 +949,7 @@ def _methodology_fix_sections(summary_rows: list[dict]) -> list[str]:
         "Phase 2 BT triangulation band 416-772; this is a material deviation and "
         "detector mismatch remains a candidate explanation."
     )
-    return [
+    lines = [
         "## Methodology Fix Compared to v2 (2026-05-11 buggy run)",
         "",
         _md_table([
@@ -924,12 +997,101 @@ def _methodology_fix_sections(summary_rows: list[dict]) -> list[str]:
         "",
         "SR-weight Phase 2 BT reported sr_anti_hunt_bounce as a BH FDR survivor "
         "(trend p=0.0034, N=594). " + triage,
+    ]
+    if detector == "kde":
+        lines.extend([
+            "",
+            "Pivot triangulation skipped due to time budget; this run remains on the pre-existing KDE detector path.",
+        ])
+    return lines
+
+
+def _pivot_comparison_sections(summary_rows: list[dict]) -> list[str]:
+    summary_by_strategy = {row["Strategy"]: row for row in summary_rows}
+    anti_hunt_n = int(summary_by_strategy["sr_anti_hunt_bounce"]["N total"])
+    in_band = 416 <= anti_hunt_n <= 772
+    status = "IN_BAND" if in_band else "OUT_OF_BAND"
+    deviation = (anti_hunt_n - 594) / 594 * 100.0
+    comparison_rows = []
+    for strategy in STRATEGIES:
+        old = BUGGY_V1_SUMMARY[strategy]
+        kde = V2_FIXED_KDE_SUMMARY[strategy]
+        pivot = summary_by_strategy[strategy]
+        comparison_rows.append({
+            "Strategy": strategy,
+            "v1 (buggy KDE) verdict": old["verdict"],
+            "v1 N": old["N total"],
+            "v2 fixed KDE (28a1114) verdict": kde["verdict"],
+            "v2 fixed KDE N": kde["N total"],
+            "v2 fixed PIVOT verdict": pivot["Verdict"],
+            "v2 fixed PIVOT N": pivot["N total"],
+            "sr_anti_hunt triangulation status (band 416-772)": status if strategy == "sr_anti_hunt_bounce" else "-",
+        })
+
+    detector_conclusion = (
+        "detector divergence is the explanatory variable for the sr_anti_hunt_bounce N mismatch"
+        if in_band else
+        "detector divergence is not sufficient to explain the sr_anti_hunt_bounce N mismatch"
+    )
+    return [
+        "## 3-Way Detector Comparison (only present when --detector pivot)",
         "",
-        "Pivot triangulation skipped due to time budget; this run remains on the pre-existing KDE detector path.",
+        _md_table(comparison_rows, [
+            "Strategy",
+            "v1 (buggy KDE) verdict",
+            "v1 N",
+            "v2 fixed KDE (28a1114) verdict",
+            "v2 fixed KDE N",
+            "v2 fixed PIVOT verdict",
+            "v2 fixed PIVOT N",
+            "sr_anti_hunt triangulation status (band 416-772)",
+        ]),
+        "",
+        "## Phase 2 BT Triangulation (sr_anti_hunt_bounce)",
+        "",
+        "- Phase 2 BT reported N=594 (BH FDR survivor, trend p=0.0034)",
+        "- v2 fixed KDE: N=335 (OUT_OF_BAND, deviation -43.6%)",
+        f"- v2 fixed PIVOT: N={anti_hunt_n} ({status}, deviation {deviation:+.1f}%)",
+        f"- Conclusion: {detector_conclusion}",
     ]
 
 
-def write_report(all_rows, report_path: Path):
+def _detector_verdict_sections(summary_rows: list[dict]) -> list[str]:
+    summary_by_strategy = {row["Strategy"]: row for row in summary_rows}
+    anti_hunt_n = int(summary_by_strategy["sr_anti_hunt_bounce"]["N total"])
+    status = "IN_BAND" if 416 <= anti_hunt_n <= 772 else "OUT_OF_BAND"
+    all_dead = all(row["Verdict"] == "DEAD" for row in summary_rows)
+    if status == "IN_BAND":
+        detector_decision = (
+            "detector mismatch CONFIRMED -> next action: align production demo_trader "
+            "and audit on same detector for consistent edge testing"
+        )
+    else:
+        detector_decision = (
+            "detector NOT the main cause -> next action: investigate Phase 2 BT methodology "
+            "(e.g., different SL/TP geometry, different exit conditions)"
+        )
+    if all_dead:
+        reproducibility = (
+            "pivot also returns all 5 DEAD: weight thesis truly falsified, pivot to alternative "
+            "SR design axes (rejection magnitude, TP geometry, regime gate)"
+        )
+    else:
+        reproducibility = "pivot reborn at least one strategy: detector-dependent edge - significant"
+    return [
+        "",
+        "## Verdict on Detector Hypothesis",
+        "",
+        "- v2 fixed KDE sr_anti_hunt_bounce N=335 (outside Phase 2 BT band 416-772)",
+        f"- v2 fixed PIVOT sr_anti_hunt_bounce N={anti_hunt_n} ({status})",
+        "- Decision rule outcome:",
+        f"  - {detector_decision}",
+        "- Verdict reproducibility across detectors:",
+        f"  - {reproducibility}",
+    ]
+
+
+def write_report(all_rows, report_path: Path, detector: str = "kde"):
     summary_rows = []
     verdicts = {}
     for strategy in STRATEGIES:
@@ -950,7 +1112,10 @@ def write_report(all_rows, report_path: Path):
             "Verdict": verdict,
         })
     lines = ["# SR Weight Gate Empirical Audit v2", ""]
-    lines.extend(_methodology_fix_sections(summary_rows))
+    lines.extend(_methodology_fix_sections(summary_rows, detector=detector))
+    if detector == "pivot":
+        lines.extend([""])
+        lines.extend(_pivot_comparison_sections(summary_rows))
     lines.extend(["", "## Summary"])
     lines.append(_md_table(summary_rows, [
         "Strategy", "N total", "N heavy", "WR all", "WR heavy", "EV all",
@@ -1016,6 +1181,8 @@ def write_report(all_rows, report_path: Path):
         f"- Runtime note: strategy signal collection used fixed strides {RUN_STRIDES}; "
         "this preserves evaluate() behavior but samples high-frequency duplicate opportunities.",
     ])
+    if detector == "pivot":
+        lines.extend(_detector_verdict_sections(summary_rows))
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return verdicts, summary_rows
@@ -1053,14 +1220,15 @@ def write_redesign_drafts(verdicts: dict[str, str]):
         )
 
 
-def run_all(limit_symbols: int | None = None, limit_bars: int | None = None):
+def run_all(limit_symbols: int | None = None, limit_bars: int | None = None,
+            detector: str = "kde"):
     import pandas as pd
 
     started = time.time()
     frames = []
     selected_targets = TARGETS[:limit_symbols] if limit_symbols else TARGETS
     for pair, symbol in selected_targets:
-        print(f"[audit] loading {pair}", flush=True)
+        print(f"[audit] loading {pair} (detector={detector})", flush=True)
         df15 = load_data(symbol, "15m")
         if limit_bars:
             df15 = df15.tail(limit_bars).copy()
@@ -1069,7 +1237,10 @@ def run_all(limit_symbols: int | None = None, limit_bars: int | None = None):
         d1 = resample_htf(df1h, "1D")
         w1 = resample_htf(df1h, "1W")
         tol_pip = max(float(df15["atr"].median()) * 0.30 / pip_size(symbol), 3.0)
-        levels = detect_sr_levels_with_weight(df15, d1, w1, tol_pip, min_touches=2, symbol=symbol)
+        levels = detect_sr_levels_with_weight(
+            df15, d1, w1, tol_pip, min_touches=2,
+            symbol=symbol, detector=detector,
+        )
         print(f"[audit] {pair}: weighted levels={len(levels)}", flush=True)
         for strategy in STRATEGIES:
             print(f"[audit] {pair} {strategy}", flush=True)
@@ -1081,11 +1252,12 @@ def run_all(limit_symbols: int | None = None, limit_bars: int | None = None):
             frames.append(rows)
     all_rows = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
     today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    raw_path = ROOT / "raw" / "audits" / f"sr_weight_gate_v2_{today}.parquet"
-    report_path = ROOT / "reports" / f"sr_weight_gate_audit_v2_{today}.md"
+    suffix = f"_{detector}" if detector != "kde" else ""
+    raw_path = ROOT / "raw" / "audits" / f"sr_weight_gate_v2{suffix}_{today}.parquet"
+    report_path = ROOT / "reports" / f"sr_weight_gate_audit_v2{suffix}_{today}.md"
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     all_rows.to_parquet(raw_path, index=False)
-    verdicts, summary_rows = write_report(all_rows, report_path)
+    verdicts, summary_rows = write_report(all_rows, report_path, detector=detector)
     write_redesign_drafts(verdicts)
     print(f"[audit] wrote {raw_path.relative_to(ROOT)}", flush=True)
     print(f"[audit] wrote {report_path.relative_to(ROOT)}", flush=True)
@@ -1128,10 +1300,16 @@ def unit_tests() -> None:
     assert meta["d1_touch"] == 3, f"d1_touch should passthrough, got {meta['d1_touch']}"
     assert meta["own_touch"] == 5, f"own_touch should passthrough, got {meta['own_touch']}"
     assert abs(meta["composite_weight"] - fake_levels[0]["composite_weight"]) < 1e-6
-    print("[unit] PASS (incl. bug 1+2 regression)", flush=True)
+
+    pivot_lv = {"price": 110.5, "touches": 4, "days_span": 30.0,
+                "strength": 0.7, "is_strong": True, "type": "support"}
+    assert _srlevel_price(pivot_lv) == 110.5
+    assert _srlevel_touch(pivot_lv) == 4
+    assert _srlevel_strength(pivot_lv) == 0.7
+    print("[unit] PASS (incl. bug 1+2 regression + pivot adapter)", flush=True)
 
 
-def integration_tests() -> None:
+def integration_tests(detector: str = "kde") -> None:
     unit_tests()
     samples = []
     for _pair, symbol in TARGETS:
@@ -1141,9 +1319,9 @@ def integration_tests() -> None:
         levels = detect_sr_levels_with_weight(
             df15, resample_htf(df1h, "1D"), resample_htf(df1h, "1W"),
             tolerance_pip=max(float(df15["atr"].median()) * 0.30 / pip_size(symbol), 3.0),
-            min_touches=2, symbol=symbol,
+            min_touches=2, symbol=symbol, detector=detector,
         )
-        assert len(levels) >= 1, "detect_sr_levels_with_weight returned no levels"
+        assert len(levels) >= 1, f"detect_sr_levels_with_weight({detector}) returned no levels"
         samples.append((symbol, df15, levels))
     frames = []
     for strategy in STRATEGIES:
@@ -1177,9 +1355,9 @@ def integration_tests() -> None:
     distinct_ratio = dedup_keys.nunique() / len(all_rows)
     assert distinct_ratio >= 0.95, f"Bug 3 regression: dedup distinct ratio too low ({distinct_ratio:.4f})"
     report = ROOT / "reports" / "sr_weight_gate_audit_v2_integration.md"
-    write_report(all_rows, report)
+    write_report(all_rows, report, detector=detector)
     assert report.exists()
-    print("[integration] PASS", flush=True)
+    print(f"[integration] PASS (detector={detector})", flush=True)
 
 
 def main() -> int:
@@ -1189,15 +1367,26 @@ def main() -> int:
     parser.add_argument("--integration-tests", action="store_true")
     parser.add_argument("--limit-symbols", type=int, default=None, help="debug only")
     parser.add_argument("--limit-bars", type=int, default=None, help="debug only")
+    parser.add_argument(
+        "--detector",
+        choices=["kde", "pivot"],
+        default="kde",
+        help=(
+            "kde = sr_detector.detect_sr_levels (default), "
+            "pivot = indicators.find_sr_levels_weighted (Williams Fractal + tolerance clustering, "
+            "matches production demo_trader)"
+        ),
+    )
     args = parser.parse_args()
     if args.unit_tests:
         unit_tests()
         return 0
     if args.integration_tests:
-        integration_tests()
+        integration_tests(detector=args.detector)
         return 0
     if args.all:
-        run_all(limit_symbols=args.limit_symbols, limit_bars=args.limit_bars)
+        run_all(limit_symbols=args.limit_symbols, limit_bars=args.limit_bars,
+                detector=args.detector)
         return 0
     parser.print_help()
     return 2
