@@ -939,6 +939,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 ### 課題①：`dt_sr_channel_reversal/EUR_JPY` — −8.0 (EV=−8.00)
 - EUR_JPYは現在 **VOLATILE（ATR%ile 81%）**、SMAスロープ −0.00217 で下降トレンド中
 
+### 2026-05-12 (Post-Tokyo Report)
+| PnL | ¥0 |
+| 勝率 (WR) | N/A |
+- Fidelity Cutoff後のクリーンN蓄積中。全戦略で本日N=0であり、統計的判断の根拠がない
+- OANDA転送率0%（SENT=0/50、全SKIP）はshadow_tracking=20件が示す通り、意図的シャドウ監視期間の継続であり、異常ではない
+- BT vs Live乖離の`xs_momentum GBP_USD`（ΔWR=−30.2pp、N_Live=3）はN<10のため「データなし」扱い — 過剰反応禁止
+- レジーム判断（EUR/JPY・GBP/JPYがVOLATILE、USD/JPYがRANGING高ATR）でパラメータ変更の必要性を示す構造的証拠は現時点で不十分
+### 推奨戦略配分
+- trendline-sweep (ELITE_LIVE): EUR_USD / GBP_USD
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
