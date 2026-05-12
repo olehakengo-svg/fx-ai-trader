@@ -21,22 +21,34 @@
   </div>
   <div class="card">
     <div class="card-title">Live trades</div>
-    <div class="card-big {% if counts.live == 0 %}muted{% endif %}">{{ counts.live }}</div>
-    <div class="card-sub">{% if counts.live == 0 %}Phase 4 (MT5) で実行予定{% else %}last: {{ fmt_age(last_live_age) }}{% endif %}</div>
+    <div class="card-big {% if counts.live == 0 %}muted{% else %}good{% endif %}">{{ counts.live }}</div>
+    <div class="card-sub">
+      {% if counts.live == 0 %}
+        broker未受理 — 配信待ち
+      {% else %}
+        last: {{ fmt_age(last_live_age) }}
+      {% endif %}
+    </div>
   </div>
   <div class="card">
-    <div class="card-title">Strategies</div>
-    <div class="card-big">{{ reports|length }}</div>
-    <div class="card-sub">{% if orphans %}<span class="bad">{{ orphans|length }} orphan(s)</span>{% else %}<span class="good">no drift</span>{% endif %}</div>
+    <div class="card-title">Unrouted intent</div>
+    <div class="card-big {% if counts.unrouted == 0 %}muted{% else %}warn{% endif %}">{{ counts.unrouted }}</div>
+    <div class="card-sub">
+      {% if counts.unrouted == 0 %}
+        is_shadow=0 で broker未到達 0件
+      {% else %}
+        last: {{ fmt_age(last_unrouted_age) }} · broker拒否/未配線
+      {% endif %}
+    </div>
   </div>
   <div class="card">
-    <div class="card-title">OANDA bridge</div>
-    {% if oanda_env.configured %}
-      <div class="card-big good" style="font-size:14px;">{{ oanda_env.env }} · {{ oanda_env.account_id }}</div>
-      <div class="card-sub">token {{ oanda_env.token_tail }}</div>
+    <div class="card-title">MT5 broker</div>
+    {% if broker_status.configured %}
+      <div class="card-big good" style="font-size:14px;">{{ broker_status.kind }}</div>
+      <div class="card-sub">{{ broker_status.shim_url }} · secret {{ broker_status.secret_tail }}</div>
     {% else %}
-      <div class="card-big warn" style="font-size:14px;">not configured</div>
-      <div class="card-sub">OANDA_API_TOKEN / OANDA_ACCOUNT_ID 未設定</div>
+      <div class="card-big warn" style="font-size:14px;">null broker</div>
+      <div class="card-sub">{{ broker_status.reason }}</div>
     {% endif %}
   </div>
 </div>
@@ -160,13 +172,29 @@
     <dt>DB</dt><dd>{{ db_path }}</dd>
     <dt>H1 Gate N_min</dt><dd>{{ h1_n_min }}</dd>
     <dt>data source</dt><dd>OANDA v20 candles · SPX500_USD M5</dd>
-    <dt>Live execution</dt><dd class="muted">disabled (Phase 4 / MT5 で計画)</dd>
-    <dt>drift check</dt>
+    <dt>strategies</dt>
     <dd>
+      {{ reports|length }} registered ·
       {% if orphans %}
-        <span class="bad">⚠ {{ orphans|length }} orphan(s) in oanda_audit:</span> {{ orphans|join(", ") }}
+        <span class="bad">⚠ {{ orphans|length }} orphan(s):</span> {{ orphans|join(", ") }}
       {% else %}
-        <span class="good">✓ 0 orphans</span>
+        <span class="good">✓ no drift</span>
+      {% endif %}
+    </dd>
+    <dt>OANDA candles env</dt>
+    <dd>
+      {% if oanda_env.configured %}
+        <span class="good">{{ oanda_env.env }}</span> · acct {{ oanda_env.account_id }} · token {{ oanda_env.token_tail }}
+      {% else %}
+        <span class="warn">not configured</span>
+      {% endif %}
+    </dd>
+    <dt>Live execution</dt>
+    <dd>
+      {% if broker_status.configured %}
+        <span class="good">{{ broker_status.kind }}</span> · {{ broker_status.shim_url }}
+      {% else %}
+        <span class="muted">null broker — {{ broker_status.reason }}</span>
       {% endif %}
     </dd>
   </dl>

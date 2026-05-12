@@ -50,11 +50,29 @@ _RECENT_SQL = (
     "FROM oanda_audit ORDER BY ts DESC LIMIT ?"
 )
 
-# Static literal — total counts split by is_shadow.
-_GLOBAL_COUNTS_SQL = (
-    "SELECT is_shadow, COUNT(*) AS n, MAX(ts) AS last_ts "
+# Static literal — total counts split by the 3 canonical buckets.
+# Section 5.D mandates bucket 3-split: SHADOW / LIVE (broker accepted) /
+# UNROUTED (live intent that never reached the broker). We can't just
+# GROUP BY is_shadow because that hides the LIVE-vs-UNROUTED split.
+# Three separate aggregate queries keep each statement static — the
+# semgrep rule against runtime SQL composition stays satisfied.
+_COUNT_SHADOW_GLOBAL_SQL = (
+    "SELECT COUNT(*) AS n, MAX(ts) AS last_ts "
     "FROM oanda_audit "
-    "GROUP BY is_shadow"
+    "WHERE is_shadow = 1"
+)
+_COUNT_LIVE_GLOBAL_SQL = (
+    "SELECT COUNT(*) AS n, MAX(ts) AS last_ts "
+    "FROM oanda_audit "
+    "WHERE is_shadow = 0 "
+    "AND broker_trade_id IS NOT NULL "
+    "AND broker_trade_id != ''"
+)
+_COUNT_UNROUTED_GLOBAL_SQL = (
+    "SELECT COUNT(*) AS n, MAX(ts) AS last_ts "
+    "FROM oanda_audit "
+    "WHERE is_shadow = 0 "
+    "AND (broker_trade_id IS NULL OR broker_trade_id = '')"
 )
 
 
@@ -119,15 +137,27 @@ def recent_entries(db_path: str, *, limit: int = 20) -> list[OandaAuditEntry]:
 
 
 def global_counts(db_path: str) -> dict:
-    """Aggregate counts {shadow: n, live: n, last_shadow_ts, last_live_ts}."""
+    """Aggregate counts split into the 3 canonical buckets.
+
+    Returns:
+        shadow / live / unrouted: row counts
+        last_*_ts: most recent ts seen in that bucket (None if empty)
+
+    "live" means the broker accepted the order (broker_trade_id present).
+    "unrouted" means is_shadow=0 but no broker_trade_id — order intent
+    that never reached the broker (rejections, NullBroker, pre-wiring
+    legacy rows). Section 5.D mandates this split: is_shadow=0 alone is
+    NOT the truth-set of "Live".
+    """
     with sqlite3.connect(db_path) as conn:
-        rows = conn.execute(_GLOBAL_COUNTS_SQL).fetchall()
-    out = {"shadow": 0, "live": 0, "last_shadow_ts": None, "last_live_ts": None}
-    for is_shadow, n, last_ts in rows:
-        if int(is_shadow) == 1:
-            out["shadow"] = int(n)
-            out["last_shadow_ts"] = last_ts
-        else:
-            out["live"] = int(n)
-            out["last_live_ts"] = last_ts
-    return out
+        shadow_n, shadow_ts = conn.execute(_COUNT_SHADOW_GLOBAL_SQL).fetchone()
+        live_n, live_ts = conn.execute(_COUNT_LIVE_GLOBAL_SQL).fetchone()
+        unrouted_n, unrouted_ts = conn.execute(_COUNT_UNROUTED_GLOBAL_SQL).fetchone()
+    return {
+        "shadow": int(shadow_n or 0),
+        "live": int(live_n or 0),
+        "unrouted": int(unrouted_n or 0),
+        "last_shadow_ts": shadow_ts,
+        "last_live_ts": live_ts,
+        "last_unrouted_ts": unrouted_ts,
+    }

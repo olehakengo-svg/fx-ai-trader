@@ -1,0 +1,4 @@
+Flask>=3.0,<4.0
+MetaTrader5>=5.0.45
+gunicorn>=21.0,<24.0; sys_platform != "win32"
+waitress>=3.0,<4.0; sys_platform == "win32"
