@@ -929,6 +929,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 | 最良セッション | London（+0.8 pips、WR 100%） |
 | 最悪セッション | Tokyo（−8.0 pips、WR 0%） |
 
+### 2026-05-12 (Pre-Tokyo Briefing)
+前日（2026-05-11）は **2件のトレード、PnL合計 −7.2、WR 50.0%**。
+| Strategy | Pair | N | WR% | EV | 判定 |
+| trendline_sweep | GBP_USD | 5 | 80.0% | **−0.22** | EV負（N不足） |
+| xs_momentum | GBP_USD | 3 | 33.3% | **−5.63** | 🔴 EV大幅負 |
+> **全体集計（Cutoff後）**: N=16、WR=62.5%、PnL=**−20.9**
+> WR62.5%にもかかわらずPnLがマイナスという典型的な **Payoff非対称問題**（負け時の損失が勝ち時の利益を大幅に上回る）。
+### 課題①：`dt_sr_channel_reversal/EUR_JPY` — −8.0 (EV=−8.00)
+- EUR_JPYは現在 **VOLATILE（ATR%ile 81%）**、SMAスロープ −0.00217 で下降トレンド中
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
