@@ -445,3 +445,57 @@ triangulation 結果別 next action:
 - **pivot で sr_anti_hunt_bounce N が 416-772 内** + 5/5 DEAD → detector は説明変数だが verdict は不変 → weight thesis 棄却。次は SL/TP geometry 軸への pivot
 - **pivot で N 整合 + REBORN_HEAVY 発生** → detector 依存の edge 存在 → 本番 demo trader を audit detector に揃える design 検討
 - **pivot でも N が band 外** → Phase 2 BT methodology 自体に未把握の divergence → Phase 2 BT スクリプト直接監査タスク
+
+
+## Result (2026-05-12T15:50:23Z)
+
+exit=0 · 624s
+
+```
+実装・実行・commit まで完了しました。
+
+PR title:
+`feat(sr-redesign): pivot detector triangulation for weight-gate audit v2`
+
+Commit:
+`512f773 feat(sr-redesign): pivot detector triangulation for weight-gate audit v2`
+
+変更:
+- [tools/sr_weight_gate_audit_v2.py](/data/repo/fx-ai-trader/tools/sr_weight_gate_audit_v2.py): `--detector {kde,pivot}` 追加、pivot adapter 追加、report の 3-way/triangulation セクション追加
+- [reports/sr_weight_gate_audit_v2_pivot_2026-05-12.md](/data/repo/fx-ai-trader/reports/sr_weight_gate_audit_v2_pivot_2026-05-12.md): pivot audit report
+- [raw/audits/sr_weight_gate_v2_pivot_2026-05-12.parquet](/data/repo/fx-ai-trader/raw/audits/sr_weight_gate_v2_pivot_2026-05-12.parquet): pivot raw output
+- [final.md](/data/repo/fx-ai-trader/final.md): PR description / verdict / verification summary 更新
+
+結果:
+- `sr_anti_hunt_bounce` pivot N = `140`
+- Phase 2 BT band `[416, 772]` に対して `OUT_OF_BAND`
+- 結論: detector mismatch だけでは Phase 2 BT との N divergence を説明できない
+- pivot でも 5/5 `DEAD`
+
+検証:
+```text
+.venv/bin/python -m py_compile tools/sr_weight_gate_audit_v2.py
+.venv/bin/python tools/sr_weight_gate_audit_v2.py --unit-tests
+.venv/bin/python tools/sr_weight_gate_audit_v2.py --integration-tests --detector pivot
+.venv/bin/python tools/sr_weight_gate_audit_v2.py --all --detector pivot
+```
+
+最終 git verify:
+```text
+git log --oneline -5
+512f773 feat(sr-redesign): pivot detector triangulation for weight-gate audit v2
+d186357 chore(codex): claim 20260513-0830-sr-weight-audit-v2-pivot-triangulation
+3020de4 task(codex): queue SR weight-gate audit v2 pivot triangulation [rule:R1]
+140c802 docs(KB): R2 alert 2026-05-12T14:21Z
+7d81c46 docs(KB): monitor alert 2026-05-12
+
+git stash list
+# empty
+
+git status --short
+# clean
+```
+
+既存 KDE output への diff も空でした:
+`reports/sr_weight_gate_audit_v2_2026-05-12.md` / `raw/audits/sr_weight_gate_v2_2026-05-12.parquet` は未変更です。
+```
