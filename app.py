@@ -6523,6 +6523,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 # 2026-04-27 SR Anti-Hunt 二段構え (前セッション WIP, Shadow 5 majors 全走)
                 "sr_anti_hunt_bounce",           # SR Anti-Hunt Bounce: KDE+hunt-aware SL
                 "sr_liquidity_grab",             # SR Liquidity Grab: SMC post-hunt reversal
+                "sr_weighted_bounce",            # SR Weighted Bounce v1: heavy wall + composite weight gate (Shadow-only 2026-05-13)
+                "sr_weighted_break",             # SR Weighted Break v1: heavy wall breakout retest (Shadow-only 2026-05-13, break family pair)
                 "cpd_divergence",                # CPD Divergence: EUR/GBP correlation breakdown (前セッション WIP, Sentinel)
                 "vdr_jpy",                       # VDR JPY: yield differential rotation (前セッション WIP, Sentinel)
                 "vsg_jpy_reversal",              # VSG JPY Reversal: vol surge reversal (前セッション WIP, Sentinel)
@@ -13530,6 +13532,7 @@ def _build_strategy_status_map():
         "turtle_soup", "trendline_sweep", "inducement_ob",
         "dual_sr_bounce", "london_ny_swing", "jpy_basket_trend",
         "gold_vol_break", "tokyo_range_breakout_up",
+        "sr_weighted_bounce", "sr_weighted_break",  # Shadow-only 2026-05-13
         # ═══ 1H ═══
         "keltner_squeeze_breakout", "donchian_momentum_breakout",
         "h1_breakout_retest", "h1_fib_reversal", "h1_ema200_trend_reversal",

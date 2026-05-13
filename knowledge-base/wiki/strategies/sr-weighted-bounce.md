@@ -11,6 +11,8 @@ tier: 0 (audit_only)
 
 # SR Weighted Bounce v1
 
+- **Status**: SHADOW_ONLY (audit_only, Tier 0) — Wave 1 Shadow 蓄積中、N>=30 で re-audit
+
 ## 思想
 SR 水平線の重み (touch_count + D1/W1 confluence + round_number + rejection magnitude) で
 gate された **heavy wall reversal**。survivor `sr_anti_hunt_bounce` の anti-hunt SL geometry

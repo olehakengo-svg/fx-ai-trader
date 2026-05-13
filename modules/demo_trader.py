@@ -3597,6 +3597,8 @@ class DemoTrader:
             # 2026-04-27 SR Anti-Hunt 二段構え (前セッション WIP, Shadow 5 majors 全走で蓄積中)
             "sr_anti_hunt_bounce",           # SR Anti-Hunt Bounce: KDE+hunt-aware SL
             "sr_liquidity_grab",             # SR Liquidity Grab: SMC post-hunt reversal
+            "sr_weighted_bounce",            # SR Weighted Bounce v1: heavy wall + composite weight gate (Shadow-only 2026-05-13)
+            "sr_weighted_break",             # SR Weighted Break v1: heavy wall breakout retest (Shadow-only 2026-05-13, break family pair)
             "cpd_divergence",                # CPD Divergence: EUR/GBP correlation breakdown (前セッション WIP, Sentinel)
             "vdr_jpy",                       # VDR JPY: yield differential rotation (前セッション WIP, Sentinel)
             "vsg_jpy_reversal",              # VSG JPY Reversal: vol surge reversal (前セッション WIP, Sentinel)
@@ -6550,6 +6552,8 @@ class DemoTrader:
         "london_close_reversal_v2",    # LCR v2 H-2026-04-22-005: UTC 20:30-21:00 push+RSI極値 (BT 5m EUR_USD/GBP_JPY Sentinel合格)
         "dt_fib_reversal",             # DT Fib反発 — 未検証, Sentinel蓄積
         "dt_sr_channel_reversal",      # DT SR/チャネル反発 — 未検証, Sentinel蓄積
+        "sr_weighted_bounce",          # SR Weighted Bounce v1: heavy wall + composite weight gate (Shadow-only 2026-05-13)
+        "sr_weighted_break",           # SR Weighted Break v1: heavy wall breakout retest (Shadow-only 2026-05-13, break family pair)
         # REMOVED 2026-04-22: ema200_trend_reversal → _FORCE_DEMOTED (H-2026-04-22-004 全ペア負EV)
         "post_news_vol",               # ニュース後ボラ — WR=42.4%, Sentinel再検証
         # 2026-04-28 Phase 8 Track A 3-way interaction discovery (Sentinel override)
