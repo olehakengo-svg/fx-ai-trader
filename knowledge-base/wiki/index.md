@@ -9,7 +9,7 @@
 - **最優先: クリーンデータ蓄積 → Kelly Half到達**
 
 <!-- KB_PORTFOLIO_START -->
-## Current Portfolio (auto-synced, 2026-05-11)
+## Current Portfolio (auto-synced, 2026-05-13)
 
 ### ELITE_LIVE (never shadowed)
 | Strategy | BT Data | Status |

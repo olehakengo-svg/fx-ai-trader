@@ -29,6 +29,14 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 
 ## バグ・設計ミスの教訓
 
+### [[lesson-import-time-env-pollution-2026-05-13]]
+**発見日**: 2026-05-13 | **修正**: rule:R3 commit `8dc7502e`
+- 問題: `tools/regime_gate_full_bt.py` がモジュールトップで `os.environ.setdefault("BT_MODE", "1")` を実行
+- 症状: `tests/test_regime_gate_full_bt.py` が import した瞬間に環境変数が pytest プロセス全体に漏れ、`tests/test_bt_data_loader_parquet_fallback.py` 等 3 テストが落ちる。`pytest tests/X.py` 単独では通るが `pytest tests/` で失敗
+- 原因: `if __name__ == "__main__":` ガードが無く、CLI 用 env-setup がライブラリ import 経路でも実行された
+- 修正: env-setup 3 行を `if __name__ == "__main__":` ブロックに退避
+- 教訓: **`tools/*.py` はスクリプトと同時にライブラリにもなる二重存在。モジュールトップでの `os.environ` / `os.chdir` / `argparse.parse_args` / `Thread.start` 等の副作用は禁止**。pre-commit `--no-verify` 習慣化を防ぐ動機にも直結
+
 ### [[lesson-shadow-eligible-exposure-bypass-2026-04-30]]
 **発見日**: 2026-04-30 | **修正**: rule:R3 commit `a88852f` + `d955aae` (test)
 - 問題: ExposureManager bypass が `_is_shadow_eligible` (資格) で gating され、FORCE_DEMOTED / Sentinel 戦略が Live スロット空き時に通貨 / 同方向 cap を全バイパスして OANDA 実弾注文
