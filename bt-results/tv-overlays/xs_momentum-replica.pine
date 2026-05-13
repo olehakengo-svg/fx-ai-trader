@@ -26,6 +26,8 @@ tp_mult    = input.float(2.0, "TP ATR mult", step=0.1)
 hour_from  = input.int(12,  "xs_momentum gate hour from (UTC)")
 hour_to    = input.int(18,  "xs_momentum gate hour to (UTC excl)")
 max_hold   = input.int(16,  "Max hold bars (time-stop)")
+// Tokyo gate is opt-in: production v8.9 ships London-NY only. Toggle to populate Tokyo segment cells.
+gate_tokyo = input.bool(false, "Also include Tokyo session (UTC 0-7)")
 
 // ── Phase 1 edge filter (H1 RSI directional agreement) ──
 // Phase 1 finding (USDJPY 15m, Jul 2025 - May 2026, N=501):
@@ -77,7 +79,9 @@ session_id(h) =>
     h < 7  ? 0 : h < 13 ? 1 : h < 22 ? 2 : 3   // 0=Tokyo 1=London 2=NY 3=Off
 
 cur_sess = session_id(h_utc)
-in_session = h_utc >= hour_from and h_utc < hour_to  // xs_momentum's own filter
+in_tokyo   = h_utc >= 0 and h_utc < 7
+in_primary = h_utc >= hour_from and h_utc < hour_to  // xs_momentum's own (London-NY) filter
+in_session = in_primary or (gate_tokyo and in_tokyo)
 
 // ── Direction ──
 ema_bull = ema9 > ema21
@@ -219,8 +223,9 @@ if barstate.islast and show_tbl_summary
     ret_pct = init_c > 0 ? 100.0 * net / init_c : 0.0
     color sum_bg = net > 0 ? color.new(color.green, 85) : net < 0 ? color.new(color.red, 85) : color.new(color.gray, 85)
     string filter_tag = use_rsi_filter ? ("RSI-filt(B>=" + str.tostring(buy_rsi_min) + ", S<=" + str.tostring(sell_rsi_max) + ")") : "raw"
-    table.cell(t_sum, 0, 1, "Filter mode",   bgcolor=sum_bg, text_color=color.white)
-    table.cell(t_sum, 1, 1, filter_tag,      bgcolor=sum_bg, text_color=color.white)
+    string gate_tag   = gate_tokyo ? "Tokyo+L-NY" : "London-NY"
+    table.cell(t_sum, 0, 1, "Filter / Gate", bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 1, filter_tag + " | " + gate_tag, bgcolor=sum_bg, text_color=color.white)
     table.cell(t_sum, 0, 2, "Total trades",  bgcolor=sum_bg, text_color=color.white)
     table.cell(t_sum, 1, 2, str.tostring(n_total), bgcolor=sum_bg, text_color=color.white)
     table.cell(t_sum, 0, 3, "Win / Loss / Even", bgcolor=sum_bg, text_color=color.white)
