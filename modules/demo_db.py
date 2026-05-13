@@ -123,6 +123,7 @@ class DemoDB:
                     reasons         TEXT,
                     regime          TEXT,
                     dow_regime      TEXT,
+                    v2_regime       TEXT,
                     layer1_dir      TEXT,
                     score           REAL,
                     close_reason    TEXT,
@@ -290,6 +291,14 @@ class DemoDB:
             # regime(JSON) and mtf_regime(D1/H4 monitor) are intentionally separate.
             try:
                 conn.execute("ALTER TABLE demo_trades ADD COLUMN dow_regime TEXT")
+            except Exception:
+                pass
+
+            # ── 2026-05-13: Universal v2 M15 regime observation tag ──
+            # Binary tactical classifier label at signal time. This is monitor-only
+            # and intentionally separate from regime(JSON), mtf_regime, and dow_regime.
+            try:
+                conn.execute("ALTER TABLE demo_trades ADD COLUMN v2_regime TEXT")
             except Exception:
                 pass
 
@@ -982,6 +991,7 @@ class DemoDB:
                    oanda_trade_id: str = "",
                    enforce_oanda_live_invariant: bool = False,
                    dow_regime: str = None,
+                   v2_regime: str = None,
                    mtf_regime: str = "", mtf_d1_label: int = 3,
                    mtf_h4_label: int = 3, mtf_vol_state: str = "",
                    gate_group: str = "", mtf_alignment: str = "",
@@ -1007,10 +1017,10 @@ class DemoDB:
                          sl, tp, entry_type, confidence, tf, reasons, regime,
                          layer1_dir, score, ema_conf, sr_basis, mode, instrument,
                          signal_price, spread_at_entry, slippage_pips, cooldown_elapsed,
-                         is_shadow, oanda_trade_id, dow_regime,
+                         is_shadow, oanda_trade_id, dow_regime, v2_regime,
                          mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state,
                          gate_group, mtf_alignment, mtf_gate_action)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (trade_id, "OPEN", direction, entry_price, now_str,
                       sl, tp, entry_type, confidence, tf,
                       json.dumps(reasons or [], ensure_ascii=False),
@@ -1018,7 +1028,7 @@ class DemoDB:
                       layer1_dir, score, ema_conf, sr_basis, mode, instrument,
                       signal_price, spread_at_entry, slippage_pips, cooldown_elapsed,
                       1 if persisted_is_shadow else 0,
-                      oanda_trade_id, dow_regime,
+                      oanda_trade_id, dow_regime, v2_regime,
                       mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state,
                       gate_group, mtf_alignment, mtf_gate_action))
                 conn.commit()

@@ -1,0 +1,4 @@
+model,features,N,brier_score,log_loss
+v2_only,v2_regime,5617,0.240150797,0.673315241
+dow_only,dow_regime,5617,0.240327522,0.673683727
+composite,dow_regime+v2_regime,5617,0.240400623,0.67383265
