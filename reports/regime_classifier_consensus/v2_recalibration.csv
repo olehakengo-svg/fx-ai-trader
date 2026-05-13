@@ -1,0 +1,8 @@
+mtf_regime,entry_type,N,WR,EV
+range_tight,bb_rsi_reversion,54,40.7,-0.113
+trend_down_strong,bb_rsi_reversion,38,31.6,-0.782
+trend_up_weak,bb_rsi_reversion,142,52.1,0.249
+uncertain,bb_rsi_reversion,60,33.3,-0.83
+trend_down_strong,fib_reversal,36,36.1,-0.844
+trend_up_weak,fib_reversal,37,35.1,-0.259
+trend_down_strong,macdh_reversal,33,36.4,-0.755

@@ -2906,6 +2906,9 @@ class DemoTrader:
                     f"[SHADOW_EMIT] {_se_entry_type} score={_se_score:.2f} "
                     f"(primary={sig.get('entry_type','?')} won)"
                 )
+                _se_dow_regime = self._compute_dow_regime(
+                    instrument, datetime.now(timezone.utc)
+                )
                 self._db.open_trade(
                     direction=_se_signal,
                     entry_price=_se_entry,
@@ -2918,6 +2921,7 @@ class DemoTrader:
                     mode=mode,
                     instrument=instrument,
                     is_shadow=True,
+                    dow_regime=_se_dow_regime,
                 )
         except Exception as _se_err:
             print(f"[DemoTrader/{mode}] shadow_emit error: {_se_err}", flush=True)
@@ -4545,6 +4549,7 @@ class DemoTrader:
                     f"{_spread_sl_ratio:.0%}>{_ssl_threshold:.0%} → 通過"
                 )
 
+        _dow_regime = self._compute_dow_regime(instrument, datetime.now(timezone.utc))
         trade_id = self._db.open_trade(
             direction=signal,
             entry_price=current_price,
@@ -4566,6 +4571,7 @@ class DemoTrader:
             cooldown_elapsed=_cd_elapsed,
             is_shadow=_is_shadow,
             enforce_oanda_live_invariant=True,
+            dow_regime=_dow_regime,
             # v9.3: MTF regime monitor (cache した payload を使う — 二重 fetch 回避)
             mtf_regime=(self._mtf_cache.get(instrument, (None, {}))[1] or {}).get("regime", ""),
             mtf_d1_label=int((self._mtf_cache.get(instrument, (None, {}))[1] or {}).get("d1", 3)),
@@ -7036,6 +7042,17 @@ class DemoTrader:
         except Exception:
             pass
         print(f"[DemoTrader] {msg}")
+
+    def _compute_dow_regime(self, instrument: str, entry_time) -> str:
+        """Best-effort Dow-regime observation tag; never blocks entry."""
+        try:
+            import pandas as pd
+            from lib.regime_classifier import classify_regime
+
+            return classify_regime(instrument, pd.Timestamp(entry_time))
+        except Exception as exc:
+            self._add_log(f"[regime-tag] classify_regime failed: {exc}")
+            return None
 
     # ══════════════════════════════════════════════════════════════
     # v9.2: Regime Guardrail (独立 labeler)
