@@ -29,6 +29,7 @@
 | [[squeeze-release-momentum]] | EUR_USD | EUR_USD: EV=+0.656 WR=73.3% | PAIR_PROMOTED |
 | [[sr-fib-confluence]] | GBP_USD | EUR_USD: EV=+0.103 WR=64.9%; USD_JPY: EV=+0.252 WR=67.7% | PAIR_PROMOTED |
 | [[trend-rebound]] | USD_JPY | no BT data | PAIR_PROMOTED |
+| [[vix-carry-unwind]] | USD_JPY | USD_JPY: EV=+0.212 WR=67.3% | PAIR_PROMOTED |
 | [[vol-momentum-scalp]] | EUR_JPY | no BT data | PAIR_PROMOTED |
 | [[vsg-jpy-reversal]] | EUR_JPY | no BT data | PAIR_PROMOTED |
 | [[wick-imbalance-reversion]] | GBP_USD | no BT data | PAIR_PROMOTED |
@@ -63,7 +64,6 @@
 | [[streak-reversal]] | no BT data | shadow only |
 | [[tokyo-range-breakout-up]] | no BT data | LOT_BOOST (not sentinel/elite) |
 | [[turtle-soup]] | GBP_USD: EV=+0.386 WR=69.7% | LOT_BOOST (not sentinel/elite) |
-| [[vix-carry-unwind]] | USD_JPY: EV=+0.212 WR=67.3% | UNIVERSAL_SENTINEL |
 | [[vol-spike-mr]] | USD_JPY: EV=+0.148 WR=64.6% | UNIVERSAL_SENTINEL |
 | [[vol-surge-detector]] | no BT data | SCALP_SENTINEL |
 
