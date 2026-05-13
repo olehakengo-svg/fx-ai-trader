@@ -3,7 +3,11 @@
 ## Status
 **rule:R2 (Fast & Reactive exploration with R1-spirit guardrails)** — pre-reg LOCK at 2026-05-13 18 UTC.
 0.05x defensive-minimum lot exploration pilot, Overlap (12-16 UTC) session-conditional.
-Implementation pending explicit user GO on `modules/demo_trader.py` change.
+**Implementation applied 2026-05-13 (user GO):** `modules/demo_trader.py` 5 spots edited
+(remove from `_PAIR_DEMOTED`, add to `_PAIR_PROMOTED`, new `_PAIR_SESSION_FILTER` +
+`_SESSION_BOUNDS_UTC`, session gate in `_promotion_allows_live`, `_PAIR_LOT_BOOST=0.05`).
+Verification: `scripts/check.py` ✓ / `tier_integrity_check.py --check` ✓ /
+`sync_kb_index.py --check` ✓ / `pytest tests/` 1458 passed.
 
 ## Why this is R2 exploration (NOT an R1 re-promotion)
 
@@ -128,9 +132,10 @@ These thresholds are LOCKED. No post-result tweaking — failure = re-demote.
 
 ## Acceptance / completion criteria
 
-- [ ] Pre-reg LOCK doc reviewed and approved by user
-- [ ] `modules/demo_trader.py` edits applied (5 spots above)
-- [ ] `scripts/check.py` clean, `tier_integrity_check.py --check` ERROR=0
+- [x] Pre-reg LOCK doc reviewed and approved by user (2026-05-13)
+- [x] `modules/demo_trader.py` edits applied (5 spots above) — 2026-05-13
+- [x] `scripts/check.py` clean, `tier_integrity_check.py --check` ERROR=0 — verified 2026-05-13
+- [x] `pytest tests/` 1458 passed — verified 2026-05-13
 - [ ] Commit message includes `rule:R2 (pilot)` + this doc path
 - [ ] First Overlap Live trade observed within 7d (else "no signal" audit)
 - [ ] Demote insurance trigger paths verified via dry-run

@@ -6391,7 +6391,14 @@ class DemoTrader:
         # - streak_reversal×USD_JPY: N=4 WR=50.0% PnL=-27.5 EV=-6.88
         #   Wilson_BF_lo=0.084, c52d8e3 r2-15cell-LOCK Gate 0 蘇生組の早期撤回
         #   (5/4-5/19 review-gate で 5/11 demote、N=4 + Kelly<0 + WR<BEV 三条件揃)
-        ("vix_carry_unwind", "USD_JPY"),
+        # 2026-05-13 (rule:R2 pilot): vix_carry_unwind×USD_JPY 全セル demote から
+        # Overlap-only cell-conditional re-promote へ移行。Cell-decomposed Live
+        # 解析で Overlap (12-16 UTC) N=3 EV=+5.93 (3/3 wins) — 5/11 aggregate
+        # demote は London 0/2 + Asia 5 が駆動、Overlap は clean. 365d BT cell
+        # N=22 EV=+1.30 と direction-of-evidence 収束.
+        # → _PAIR_PROMOTED + _PAIR_SESSION_FILTER + _PAIR_LOT_BOOST=0.05 へ移動.
+        # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
+        # ("vix_carry_unwind", "USD_JPY"),
         ("streak_reversal", "USD_JPY"),
     }
 
@@ -6423,7 +6430,13 @@ class DemoTrader:
         # EV=-2.15 Wilson_BF_lo=0.190 < BEV~0.5 — Bonferroni-corrected
         # asymmetric loss confirmed. R2 volume_live_promotion_watchdog rule
         # satisfied (Live N>=10, EV<0). → _PAIR_DEMOTED.
-        # ("vix_carry_unwind", "USD_JPY"),       # shadow N=58 EV=+9.54 PF=1.65
+        # 2026-05-13 (rule:R2 pilot): re-promote cell-conditional (Overlap only).
+        # Cell-decomposed Live: Overlap N=3 EV=+5.93 (3/3); London 0/2 + Asia 5
+        # が aggregate demote 駆動. 365d BT cell N=22 EV=+1.30.
+        # Gate: _PAIR_SESSION_FILTER={"Overlap"}, lot=0.05x (defensive min).
+        # Demote: Cell-Live N>=10 AND (EV<0 OR Wilson_LB<34.4%) → auto re-demote.
+        # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
+        ("vix_carry_unwind", "USD_JPY"),       # Overlap-only pilot, 0.05x lot
         ("mqe_gbpusd_fix", "GBP_USD"),         # shadow N=87 EV=+1.81 PF=1.30
         ("sr_fib_confluence", "GBP_USD"),      # shadow N=39 EV=+1.35 PF=1.29
         ("session_time_bias", "EUR_USD"),      # shadow N=23 EV=+0.63 PF=1.15
@@ -6508,6 +6521,21 @@ class DemoTrader:
         ("ema200_trend_reversal", "USD_JPY"),
     }
 
+    # Cell-conditional session filter for PAIR_PROMOTED entries.
+    # When present, the (strategy, pair) is live ONLY in the listed UTC sessions.
+    # Outside the allowed window, _promotion_allows_live returns False (shadow only).
+    # 2026-05-13 (rule:R2 pilot): vix_carry_unwind×USD_JPY Overlap-only pilot.
+    # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
+    _PAIR_SESSION_FILTER = {
+        ("vix_carry_unwind", "USD_JPY"): {"Overlap"},  # 12 <= UTC hour < 16
+    }
+    _SESSION_BOUNDS_UTC = (
+        ("Asia",    0,  7),
+        ("London",  7, 12),
+        ("Overlap",12, 16),
+        ("NY",     16, 24),
+    )
+
     # ペア別ロットブースト: PAIR_LOT_BOOST > _STRATEGY_LOT_BOOST (優先)
     # v8.9: Kelly Half適用 — alpha scan正EVセルにロットブースト
     _PAIR_LOT_BOOST = {
@@ -6519,6 +6547,10 @@ class DemoTrader:
         # bb_squeeze_breakout×USD_JPY moved to _PAIR_DEMOTED, so no pair-level
         # live lot override remains.
         # ("bb_squeeze_breakout", "USD_JPY"): 0.01,
+        # 2026-05-13 (rule:R2 pilot): C2 Overlap-only pilot defensive minimum.
+        # 0.05x = sub-floor (below standard 0.3 floor in _lot_floor_ratio_for).
+        # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
+        ("vix_carry_unwind", "USD_JPY"): 0.05,
     }
 
     @staticmethod
@@ -6798,6 +6830,21 @@ class DemoTrader:
 
         # ── ペア別復活: FORCE_DEMOTEDでもペア限定で復活 ──
         if instrument and (entry_type, instrument) in self._PAIR_PROMOTED:
+            # 2026-05-13 (rule:R2 pilot): cell-conditional session filter.
+            # _PAIR_SESSION_FILTER に登録された (strategy, pair) は指定 UTC
+            # session 内でのみ Live emit。それ以外は False を返し shadow に
+            # 落ちる (PAIR_PROMOTED の通過権限を session で狭める).
+            # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
+            _sess_filter = self._PAIR_SESSION_FILTER.get((entry_type, instrument))
+            if _sess_filter is not None:
+                from datetime import datetime as _dt, timezone as _tz
+                _hour_utc = _dt.now(_tz.utc).hour
+                _curr_sess = next(
+                    (name for name, lo, hi in self._SESSION_BOUNDS_UTC if lo <= _hour_utc < hi),
+                    None,
+                )
+                if _curr_sess not in _sess_filter:
+                    return False  # cell-conditional gate: outside allowed window
             return True  # ペア限定昇格
 
         # ── _FORCE_DEMOTED: 明示的モード指定がない場合はブロック ──
