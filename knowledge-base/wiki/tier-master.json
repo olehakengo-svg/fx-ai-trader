@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-11T08:11:52.088385+00:00",
+  "generated_at": "2026-05-13T13:23:55.638285+00:00",
   "elite_live": [
     "trendline_sweep"
   ],
@@ -49,6 +49,8 @@
     "post_news_vol",
     "session_time_bias",
     "squeeze_release_momentum",
+    "sr_weighted_bounce",
+    "sr_weighted_break",
     "vix_carry_unwind",
     "vol_spike_mr"
   ],
@@ -95,6 +97,10 @@
     ],
     [
       "trend_rebound",
+      "USD_JPY"
+    ],
+    [
+      "vix_carry_unwind",
       "USD_JPY"
     ],
     [
@@ -221,10 +227,6 @@
     ],
     [
       "v_reversal",
-      "USD_JPY"
-    ],
-    [
-      "vix_carry_unwind",
       "USD_JPY"
     ],
     [
