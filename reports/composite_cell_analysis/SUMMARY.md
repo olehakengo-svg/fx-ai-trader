@@ -2,34 +2,37 @@
 
 VERDICT: HOLD_GAP5_COMPOSITE
 
+feedback_label_empirical_audit: HOLD_GAP5_COMPOSITE
+
 This is a retrospective hypothesis-forming analysis on the frozen Phase B2.5 BT trade log. It must not be reused as Live promotion evidence or as proof that a Shadow gate is production-safe.
 
 ## Main Results
 
 - Trades evaluated: 5617
 - Composite global cells: 6 fixed dow_regime x v2_regime cells
-- Bonferroni effective m: 46
+- Bonferroni effective m: 47
 - Bonferroni passing strategy composite cells: 10
 - Best prediction model by Brier score: `v2_only`
+- Production guard: classifier thresholds, production code, DB, `.env`, and external credentials were not changed.
 
 ## Global Composite Crosstab
 
 | dow_regime | v2_regime | N | wins | WR | EV_pip | PF | Wilson_lo | Kelly |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| TRENDING | moderate_trend | 98 | 59 | 0.602041 | 0.042813 | 1.04833 | 0.503048 | 0.027756 |
-| TRENDING | no_go | 1070 | 663 | 0.619626 | 0.268257 | 1.38867 | 0.590158 | 0.173424 |
-| RANGING | moderate_trend | 226 | 125 | 0.553097 | -0.076805 | 0.911703 | 0.487928 | -0.053567 |
-| RANGING | no_go | 934 | 555 | 0.594218 | 0.139989 | 1.18782 | 0.562403 | 0.093959 |
-| CHOP | moderate_trend | 481 | 270 | 0.561331 | -0.004808 | 0.994157 | 0.516671 | -0.003299 |
-| CHOP | no_go | 2808 | 1693 | 0.60292 | 0.173538 | 1.23478 | 0.584694 | 0.114638 |
+| TRENDING | moderate_trend | 104 | 60 | 0.576923 | -0.051362 | 0.94377 | 0.480896 | -0.034373 |
+| TRENDING | no_go | 1064 | 662 | 0.62218 | 0.278734 | 1.40608 | 0.592657 | 0.179688 |
+| RANGING | moderate_trend | 232 | 137 | 0.590517 | 0.023542 | 1.02867 | 0.526266 | 0.016457 |
+| RANGING | no_go | 928 | 543 | 0.585129 | 0.116304 | 1.1537 | 0.553141 | 0.077954 |
+| CHOP | moderate_trend | 485 | 280 | 0.57732 | 0.030478 | 1.03809 | 0.532917 | 0.021185 |
+| CHOP | no_go | 2804 | 1683 | 0.600214 | 0.167689 | 1.22569 | 0.581957 | 0.110521 |
 
 ## Prediction Power
 
 | model | features | N | brier_score | log_loss |
 | --- | --- | --- | --- | --- |
-| v2_only | v2_regime | 5617 | 0.240151 | 0.673315 |
+| v2_only | v2_regime | 5617 | 0.2403 | 0.673625 |
 | dow_only | dow_regime | 5617 | 0.240328 | 0.673684 |
-| composite | dow_regime+v2_regime | 5617 | 0.240401 | 0.673833 |
+| composite | dow_regime+v2_regime | 5617 | 0.240512 | 0.674062 |
 
 ## Recommendation
 

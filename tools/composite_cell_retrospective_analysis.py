@@ -104,21 +104,22 @@ def _prepare_m15(pair: str) -> pd.DataFrame:
     df["adx"] = _wilder_adx(df, 14)
     df["ema21"] = close.ewm(span=21, adjust=False).mean()
     df["ema_slope"] = df["ema21"] - df["ema21"].shift(3)
-    df["hurst_64"] = close.rolling(64).apply(lambda x: hurst_rs(x.tolist()), raw=False)
     return df
 
 
 def _feature_at(cache: dict[str, pd.DataFrame], pair: str, ts: pd.Timestamp) -> dict | None:
     if pair not in cache:
         cache[pair] = _prepare_m15(pair)
-    window = cache[pair][cache[pair].index <= ts]
-    if window.empty:
+    df = cache[pair]
+    pos = int(df.index.searchsorted(ts, side="right") - 1)
+    if pos < 0:
         return None
-    row = window.iloc[-1]
+    row = df.iloc[pos]
+    close_window = df["close"].iloc[max(0, pos - 63):pos + 1].tolist()
     return {
         "adx": float(row.get("adx", 0.0) or 0.0),
         "ema_slope": float(row.get("ema_slope", 0.0) or 0.0),
-        "hurst_64": float(row.get("hurst_64", 0.5) or 0.5),
+        "hurst_64": float(hurst_rs(close_window) if len(close_window) >= 64 else 0.5),
     }
 
 
@@ -274,6 +275,7 @@ def write_bonferroni(by_strategy: pd.DataFrame) -> pd.DataFrame:
     rows: list[dict] = []
     for row in eligible.to_dict("records"):
         p_value = binomtest(int(row["wins"]), int(row["N"]), p=0.5, alternative="greater").pvalue
+        p_bonferroni = min(1.0, p_value * m_eff) if m_eff else 1.0
         rows.append(
             {
                 "entry_type": row["entry_type"],
@@ -289,7 +291,12 @@ def write_bonferroni(by_strategy: pd.DataFrame) -> pd.DataFrame:
                 "m_eff": m_eff,
                 "alpha_prime": alpha_prime,
                 "p_value": p_value,
-                "bonferroni_pass": bool(p_value <= alpha_prime and float(row["EV_pip"]) > 0),
+                "p_bonferroni": p_bonferroni,
+                "bonferroni_pass": bool(
+                    p_bonferroni <= ALPHA
+                    and float(row["Wilson_lo"]) > 0.5
+                    and float(row["EV_pip"]) > 0
+                ),
             }
         )
     out = pd.DataFrame(rows).sort_values(["bonferroni_pass", "p_value"], ascending=[False, True])
@@ -390,16 +397,21 @@ def write_markdown(
 
 VERDICT: {verdict}
 
+feedback_label_empirical_audit: {verdict}
+
 ## Scope
 
 - Source: `reports/regime_gate_phase_b2/trade_log_tagged.csv`
 - Trades evaluated: {len(tagged)}
 - Analysis type: retrospective observation only; not a Live promotion decision and not Shadow admission proof.
 - Classifier changes: none. Existing `modules.regime_classifier.classify_15m` was used with local MASSIVE 15m cache features.
+- Production guard: no production code, classifier threshold, DB, `.env`, OANDA, Render, or GitHub credential changes.
 
 ## Q1: 17 proposals are structurally decomposed?
 
-Yes, but this is still retrospective EDA. The 17 proposals expand into {total_prop_rows} proposal x v2 rows; {structured} rows have N>=30 after the composite split.
+Verdict: STRUCTURED_NO_GO_DOMINANT.
+
+The 17 proposals expand into {total_prop_rows} proposal x v2 rows; {structured} rows have N>=30 after the composite split. The actionable structure is mostly concentration inside `no_go`, not confirmation that `moderate_trend` improves the B2.5 proposals.
 
 Top proposal composite rows:
 
@@ -407,7 +419,7 @@ Top proposal composite rows:
 
 ## Q2: Bonferroni passing cells exist?
 
-Effective m = {int(bonf["m_eff"].iloc[0]) if len(bonf) else 0}; alpha' = {float(bonf["alpha_prime"].iloc[0]) if len(bonf) else 0:.8f}. Passing cells = {len(pass_cells)}.
+Effective m = {int(bonf["m_eff"].iloc[0]) if len(bonf) else 0}; alpha' = {float(bonf["alpha_prime"].iloc[0]) if len(bonf) else 0:.8f}. Passing cells = {len(pass_cells)}. Pass requires Bonferroni-adjusted p<=0.05, Wilson_lo>0.5, and EV_pip>0.
 
 {_markdown_table(pass_cells if len(pass_cells) else bonf.head(10), 10)}
 
@@ -430,6 +442,8 @@ Recommendation: {recommendation}
 
 VERDICT: {verdict}
 
+feedback_label_empirical_audit: {verdict}
+
 This is a retrospective hypothesis-forming analysis on the frozen Phase B2.5 BT trade log. It must not be reused as Live promotion evidence or as proof that a Shadow gate is production-safe.
 
 ## Main Results
@@ -439,6 +453,7 @@ This is a retrospective hypothesis-forming analysis on the frozen Phase B2.5 BT 
 - Bonferroni effective m: {int(bonf["m_eff"].iloc[0]) if len(bonf) else 0}
 - Bonferroni passing strategy composite cells: {len(pass_cells)}
 - Best prediction model by Brier score: `{best_model}`
+- Production guard: classifier thresholds, production code, DB, `.env`, and external credentials were not changed.
 
 ## Global Composite Crosstab
 
