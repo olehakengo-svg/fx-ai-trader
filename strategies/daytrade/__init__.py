@@ -57,6 +57,8 @@ from strategies.daytrade.tokyo_range_breakout import TokyoRangeBreakout
 from strategies.daytrade.sr_anti_hunt_bounce import SrAntiHuntBounce
 # v11 (2026-05-13): SR Weighted Bounce — heavy wall reversal with composite weight gate (Shadow-only)
 from strategies.daytrade.sr_weighted_bounce import SrWeightedBounce
+# v11 (2026-05-13): SR Weighted Break — heavy wall breakout retest with composite weight gate (Shadow-only, break family pair of sr_weighted_bounce)
+from strategies.daytrade.sr_weighted_break import SrWeightedBreak
 from strategies.daytrade.sr_liquidity_grab import SrLiquidityGrab
 from strategies.daytrade.pullback_to_liquidity_v1 import PullbackToLiquidityV1
 # v11 (2026-04-27): Phase 2-5 audit-driven edges
@@ -113,6 +115,7 @@ class DaytradeEngine:
             SrAntiHuntBounce(),            # SR Anti-Hunt Bounce: KDE+hunt-aware SL (5 majors Shadow 全走 2026-04-27)
             SrLiquidityGrab(),             # SR Liquidity Grab: SMC post-hunt reversal (5 majors Shadow 全走 2026-04-27)
             SrWeightedBounce(),            # SR Weighted Bounce v1: heavy wall + composite weight gate (Shadow-only 2026-05-13)
+            SrWeightedBreak(),             # SR Weighted Break v1: heavy wall breakout retest (Shadow-only 2026-05-13, break family pair)
             CpdDivergence(),               # Phase 2: EUR/GBP_USD cointegration breakdown convergence (Sentinel)
             VdrJpy(),                      # Phase 3: VWAP deviation reversion JPY-only (Sentinel)
             VsgJpyReversal(),              # Phase 4: EWMA vol surprise reversal EUR/GBP_JPY (Bonferroni 7 通過)
@@ -152,6 +155,9 @@ class DaytradeEngine:
             _enabled = strategy.enabled
             if (strategy.name == "sr_weighted_bounce"
                     and os.environ.get("SR_WEIGHTED_BOUNCE_ENABLE") == "1"):
+                _enabled = True
+            if (strategy.name == "sr_weighted_break"
+                    and os.environ.get("SR_WEIGHTED_BREAK_ENABLE") == "1"):
                 _enabled = True
             if not _enabled:
                 continue
@@ -342,6 +348,9 @@ class DaytradeEngine:
         if (os.environ.get("SR_WEIGHTED_BOUNCE_ENABLE") == "1"
                 and os.environ.get("SR_WEIGHTED_BOUNCE_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"sr_weighted_bounce"}
+        if (os.environ.get("SR_WEIGHTED_BREAK_ENABLE") == "1"
+                and os.environ.get("SR_WEIGHTED_BREAK_SHADOW_PROMOTE") == "1"):
+            _shadow_always = _shadow_always | {"sr_weighted_break"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]

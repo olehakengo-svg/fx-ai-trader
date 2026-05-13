@@ -1,70 +1,72 @@
-# feat(sr-redesign): pivot detector triangulation for weight-gate audit v2
+# feat(sr-redesign): sr_weighted_break shadow-only strategy (heavy wall breakout retest, break family pair)
 
 ## PR Description
 
-Adds a `--detector {kde,pivot}` switch to `tools/sr_weight_gate_audit_v2.py` and reruns the v2 fixed audit with the production-style pivot detector (`modules.indicators.find_sr_levels_weighted`). KDE remains the default path and existing KDE outputs were not overwritten.
+Adds `sr_weighted_break` as a Shadow-only daytrade strategy for the break family pair of `sr_weighted_bounce`.
+The strategy consumes `layer3.sr_weighted_levels`, applies the same composite weight formula as bounce
+(`own_touch:d1_touch:w1_touch:round_score:magnitude_score = 1:3:5:2:1.5`), and looks for heavy-wall
+breakout retests with ADX momentum confirmation, HTF contradiction blocking, role-reversal SL, and RR-gated TP.
 
-## 3-Way Verdict Table
+## Family Pair
 
-| Strategy | v1 buggy KDE verdict | v1 N | v2 fixed KDE verdict | v2 fixed KDE N | v2 fixed PIVOT verdict | v2 fixed PIVOT N | Triangulation |
-|---|---|---:|---|---:|---|---:|---|
-| sr_anti_hunt_bounce | DEAD | 1441 | DEAD | 335 | DEAD | 140 | OUT_OF_BAND |
-| sr_break_retest | DEAD | 294 | DEAD | 294 | DEAD | 222 | - |
-| sr_fib_confluence | DEAD | 4748 | DEAD | 2037 | DEAD | 2022 | - |
-| sr_liquidity_grab | DEAD | 6 | DEAD | 2 | DEAD | 0 | - |
-| sr_channel_reversal | DEAD | 2612 | DEAD | 1249 | DEAD | 1037 | - |
+- `sr_weighted_bounce`: bounce family, heavy wall rejection.
+- `sr_weighted_break`: break family, heavy wall breakout retest.
+- Existing SR strategies, including `sr_break_retest`, are left unchanged so shadow data can be compared later.
 
-## sr_anti_hunt_bounce Triangulation
+## Tier Promotion Gate
 
-- Phase 2 BT: N=594, triangulation band [416, 772].
-- v2 fixed KDE: N=335, OUT_OF_BAND, deviation -43.6%.
-- v2 fixed PIVOT: N=140, OUT_OF_BAND, deviation -76.4%.
-- Decision: detector mismatch is not sufficient to explain the Phase 2 BT N divergence.
-- Verdict reproducibility: pivot also returns all 5 DEAD, so the weight thesis remains falsified across detectors.
+- Tier 0 audit_only by default (`enabled = False` and env-gated).
+- Shadow activation path:
+  - `SR_WEIGHTED_BREAK_ENABLE=1`
+  - `SR_WEIGHTED_BREAK_SHADOW_PROMOTE=1`
+- Tier 0 to Tier 1 requires N>=30, Wilson_lo>=0.40 with Bonferroni m=2 for bounce/break family-wise testing, and no single-year WR>=90% concentration flag.
+- Tier 1 to Tier 2 requires N>=100, Bonferroni m=2 reproducibility, WF 3+ folds pos_ratio>=0.8, and Kelly>=0.20.
 
-## Outputs
+## Shadow Injection Path
 
-- `reports/sr_weight_gate_audit_v2_pivot_2026-05-12.md`
-- `raw/audits/sr_weight_gate_v2_pivot_2026-05-12.parquet`
+- `strategies/daytrade/__init__.py` imports and registers `SrWeightedBreak`.
+- `evaluate_all` enables it only when `SR_WEIGHTED_BREAK_ENABLE=1`.
+- `split_shadow_always` emits it through the shadow-always path only when both enable and promote env vars are set.
 
 ## Verification
 
 Commands run:
 
 ```text
-.venv/bin/python -m py_compile tools/sr_weight_gate_audit_v2.py
-.venv/bin/python tools/sr_weight_gate_audit_v2.py --unit-tests
-[unit] PASS (incl. bug 1+2 regression + pivot adapter)
+python3 -m pytest tests/test_sr_weighted_break.py tests/test_sr_weighted_break_integration.py -x -v
+/usr/bin/python3: No module named pytest
 
-.venv/bin/python tools/sr_weight_gate_audit_v2.py --integration-tests --detector pivot
-[integration] PASS (detector=pivot)
+./.venv/bin/python -m pytest tests/test_sr_weighted_break.py tests/test_sr_weighted_break_integration.py -x -v
+8 passed in 0.31s
 
-.venv/bin/python tools/sr_weight_gate_audit_v2.py --all --detector pivot
-[audit] wrote raw/audits/sr_weight_gate_v2_pivot_2026-05-12.parquet
-[audit] wrote reports/sr_weight_gate_audit_v2_pivot_2026-05-12.md
+. .venv/bin/activate && python3 -m pytest tests/test_sr_weighted_break.py tests/test_sr_weighted_break_integration.py -x -v
+8 passed in 0.31s
+
+python3 scripts/check.py
+✅ 全6チェック通過 — 整合性OK
 ```
 
-Post-run parquet check:
+`python3 scripts/check.py` emitted existing warnings for disabled strategy QUALIFIED_TYPES registration and KB drift, but exited 0.
 
-```text
-rows 3421
-sr_anti_hunt_bounce     140
-sr_break_retest         222
-sr_channel_reversal    1037
-sr_fib_confluence      2022
-```
-
-Existing KDE output diff check:
-
-```text
-git diff -- reports/sr_weight_gate_audit_v2_2026-05-12.md raw/audits/sr_weight_gate_v2_2026-05-12.parquet
-# no output
-```
-
-Final git verification performed after commit:
+Final git verification:
 
 ```text
 git log --oneline -5
+3d2ddba chore(codex): claim 20260513-2300-sr-weighted-break-shadow-strategy-new
+27288fe task(codex): queue sr_weighted_break shadow-only new strategy (break family pair) [rule:R1]
+25a1617 feat(codex): complete 20260513-2200-sr-weighted-bounce-shadow-strategy-new
+389ebe3 chore(codex): claim 20260513-2200-sr-weighted-bounce-shadow-strategy-new
+7404a93 task(codex): queue sr_weighted_bounce shadow-only new strategy [rule:R1]
+
 git stash list
+# no output
+
 git status --short
+ M final.md
+ M strategies/daytrade/__init__.py
+?? .ai/decisions/2026-05-13-sr-weighted-break-shadow-injection.md
+?? knowledge-base/wiki/strategies/sr-weighted-break.md
+?? strategies/daytrade/sr_weighted_break.py
+?? tests/test_sr_weighted_break.py
+?? tests/test_sr_weighted_break_integration.py
 ```

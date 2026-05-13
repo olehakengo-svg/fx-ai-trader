@@ -705,3 +705,27 @@ Shadow 投入後:
 3. cell_edge_audit で bounce / break family-wise 比較
 4. promote 候補 cell が出れば Tier 1 (shadow_active) 検討
 5. **family interaction 分析** (別タスク): 同一 heavy level で bounce と break が連続発火するパターンがあるか確認、あれば EV 相殺の有無を実測
+
+
+## Result (2026-05-13T05:58:35Z)
+
+exit=0 · 181s
+
+```
+Implemented `sr_weighted_break` shadow-only strategy and registered it in the daytrade engine.
+
+Changed:
+- Added `strategies/daytrade/sr_weighted_break.py`
+- Updated `strategies/daytrade/__init__.py`
+- Added wiki + decision docs
+- Added unit + integration tests
+- Updated `final.md` with PR title/description and verification output
+
+Verification:
+- `. .venv/bin/activate && python3 -m pytest tests/test_sr_weighted_break.py tests/test_sr_weighted_break_integration.py -x -v` → `8 passed`
+- `python3 scripts/check.py` → PASS / exit 0
+- `git stash list` → empty
+- `git diff --check` → clean
+
+Note: plain system `python3 -m pytest ...` failed because global `python3` has no `pytest`; the repo `.venv` path passes. `check.py` still emits existing KB/disabled-strategy warnings, but no errors.
+```
