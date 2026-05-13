@@ -186,3 +186,22 @@ ORDER BY EV_pip DESC;
 ```
 
 これらは本タスク完了後、N 蓄積した後 (~数週) に司令塔が実行する。
+
+
+## Result (2026-05-13T12:43:13Z)
+
+exit=0 · 91s
+
+```
+完了しました。`dow_regime` 実装は既存 commit `4c2aa8cc` に入っており、`final.md` を今回タスク用に更新して commit 済みです。
+
+検証:
+- `./.venv/bin/python -m pytest tests/test_dow_regime_tagging.py` → 4 passed
+- `./.venv/bin/python -m pytest tests/test_v2_regime_tagging.py tests/test_cross_pair_confluence.py` → 10 passed
+- `python3 -m pytest ...` は環境側に pytest がなく失敗、`.venv` で再実行済み
+
+最終 HEAD:
+- `ccb8f52d docs(codex): record dow_regime completion hash`
+
+作業ツリーは clean です。
+```
