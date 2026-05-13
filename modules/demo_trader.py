@@ -2906,6 +2906,15 @@ class DemoTrader:
                     f"[SHADOW_EMIT] {_se_entry_type} score={_se_score:.2f} "
                     f"(primary={sig.get('entry_type','?')} won)"
                 )
+                _se_dow_regime = self._compute_dow_regime(
+                    instrument, datetime.now(timezone.utc)
+                )
+                _se_v2_regime = self._compute_v2_regime(
+                    instrument, datetime.now(timezone.utc)
+                )
+                _se_confluence = self._compute_confluence_tag(
+                    instrument, _se_signal, datetime.now(timezone.utc)
+                )
                 self._db.open_trade(
                     direction=_se_signal,
                     entry_price=_se_entry,
@@ -2918,6 +2927,10 @@ class DemoTrader:
                     mode=mode,
                     instrument=instrument,
                     is_shadow=True,
+                    dow_regime=_se_dow_regime,
+                    v2_regime=_se_v2_regime,
+                    confluence_score=_se_confluence.get("score"),
+                    confluence_details=_se_confluence.get("details"),
                 )
         except Exception as _se_err:
             print(f"[DemoTrader/{mode}] shadow_emit error: {_se_err}", flush=True)
@@ -4545,6 +4558,10 @@ class DemoTrader:
                     f"{_spread_sl_ratio:.0%}>{_ssl_threshold:.0%} → 通過"
                 )
 
+        _entry_time = datetime.now(timezone.utc)
+        _dow_regime = self._compute_dow_regime(instrument, _entry_time)
+        _v2_regime = self._compute_v2_regime(instrument, _entry_time)
+        _confluence = self._compute_confluence_tag(instrument, signal, _entry_time)
         trade_id = self._db.open_trade(
             direction=signal,
             entry_price=current_price,
@@ -4566,6 +4583,10 @@ class DemoTrader:
             cooldown_elapsed=_cd_elapsed,
             is_shadow=_is_shadow,
             enforce_oanda_live_invariant=True,
+            dow_regime=_dow_regime,
+            v2_regime=_v2_regime,
+            confluence_score=_confluence.get("score"),
+            confluence_details=_confluence.get("details"),
             # v9.3: MTF regime monitor (cache した payload を使う — 二重 fetch 回避)
             mtf_regime=(self._mtf_cache.get(instrument, (None, {}))[1] or {}).get("regime", ""),
             mtf_d1_label=int((self._mtf_cache.get(instrument, (None, {}))[1] or {}).get("d1", 3)),
@@ -7036,6 +7057,50 @@ class DemoTrader:
         except Exception:
             pass
         print(f"[DemoTrader] {msg}")
+
+    def _compute_dow_regime(self, instrument: str, entry_time) -> str:
+        """Best-effort Dow-regime observation tag; never blocks entry."""
+        try:
+            import pandas as pd
+            from lib.regime_classifier import classify_regime
+
+            return classify_regime(instrument, pd.Timestamp(entry_time))
+        except Exception as exc:
+            self._add_log(f"[regime-tag] classify_regime failed: {exc}")
+            return None
+
+    def _compute_v2_regime(self, instrument: str, entry_time=None) -> str:
+        """Best-effort v2 M15 binary regime observation tag; never blocks entry."""
+        try:
+            from modules.htf_data_source import compute_mtf_features
+            from modules.regime_classifier import (
+                REGIME_MODERATE_TREND,
+                REGIME_NO_GO,
+                classify_15m,
+            )
+
+            payload = compute_mtf_features(instrument) or {}
+            features = payload.get("m15")
+            if not features:
+                return None
+            regime = classify_15m(features)
+            if regime in (REGIME_MODERATE_TREND, REGIME_NO_GO):
+                return regime
+            return None
+        except Exception as exc:
+            self._add_log(f"[regime-tag/v2] classify_15m failed: {exc}")
+            return None
+
+    def _compute_confluence_tag(self, instrument: str, direction: str, entry_time) -> dict:
+        """Best-effort cross-pair confluence observation tag; never blocks entry."""
+        try:
+            from tools.cross_pair_confluence import compute_confluence
+
+            result = compute_confluence(instrument, direction, entry_time)
+            return {"score": result.score, "details": result.details_json()}
+        except Exception as exc:
+            self._add_log(f"[confluence-tag] compute_confluence failed: {exc}")
+            return {"score": "NULL", "details": ""}
 
     # ══════════════════════════════════════════════════════════════
     # v9.2: Regime Guardrail (独立 labeler)
