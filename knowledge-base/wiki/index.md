@@ -58,6 +58,8 @@
 | [[mtf-reversal-confluence]] | no BT data | LOT_BOOST (not sentinel/elite) |
 | [[mtf-trend-follow-scalp]] | no BT data | SCALP_SENTINEL |
 | [[pd-eurjpy-h20-bbpb3-sell]] | no BT data | UNIVERSAL_SENTINEL |
+| [[sr-weighted-bounce]] | no BT data | UNIVERSAL_SENTINEL |
+| [[sr-weighted-break]] | no BT data | UNIVERSAL_SENTINEL |
 | [[streak-reversal]] | no BT data | shadow only |
 | [[tokyo-range-breakout-up]] | no BT data | LOT_BOOST (not sentinel/elite) |
 | [[turtle-soup]] | GBP_USD: EV=+0.386 WR=69.7% | LOT_BOOST (not sentinel/elite) |

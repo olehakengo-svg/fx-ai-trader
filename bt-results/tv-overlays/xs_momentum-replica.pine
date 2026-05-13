@@ -27,6 +27,16 @@ hour_from  = input.int(12,  "xs_momentum gate hour from (UTC)")
 hour_to    = input.int(18,  "xs_momentum gate hour to (UTC excl)")
 max_hold   = input.int(16,  "Max hold bars (time-stop)")
 
+// ── Phase 1 edge filter (H1 RSI directional agreement) ──
+// Phase 1 finding (USDJPY 15m, Jul 2025 - May 2026, N=501):
+//   AGREE H1 RSI direction (BUY rsi>=70 + SELL rsi<50) WR=47.9% (N=261)
+//   COUNTER direction (BUY rsi<70 + SELL rsi>=50)       WR=39.1% (N=238)
+//   z=1.98, p=0.047 — directionally significant, not Bonferroni-locked yet.
+// Toggle this to verify the segmented edge holds in-sample / out-of-sample.
+use_rsi_filter = input.bool(false, "Apply H1 RSI direction filter (Phase 1)")
+buy_rsi_min    = input.int(60, "BUY: H1 RSI min", minval=0, maxval=100)
+sell_rsi_max   = input.int(40, "SELL: H1 RSI max", minval=0, maxval=100)
+
 // ── Display toggles ──
 show_labels = input.bool(true, "Show entry labels")
 draw_lines  = input.bool(true, "Draw entry->exit lines")
@@ -75,8 +85,12 @@ ema_bear = ema9 < ema21
 conf_bull = close > open
 conf_bear = close < open
 
-buy_sig  = in_session and adxv >= adx_min and mom >  mom_thr and ema_bull and conf_bull
-sell_sig = in_session and adxv >= adx_min and mom < -mom_thr and ema_bear and conf_bear
+// H1 RSI direction-agreement gate (Phase 1 toggle)
+rsi_pass_buy  = not use_rsi_filter or rsi_h1 >= buy_rsi_min
+rsi_pass_sell = not use_rsi_filter or rsi_h1 <= sell_rsi_max
+
+buy_sig  = in_session and adxv >= adx_min and mom >  mom_thr and ema_bull and conf_bull and rsi_pass_buy
+sell_sig = in_session and adxv >= adx_min and mom < -mom_thr and ema_bear and conf_bear and rsi_pass_sell
 
 // ── SL/TP distances ──
 sl_dist = atrv * sl_mult
@@ -185,7 +199,7 @@ sess_label(id) =>
 
 // ── Summary table: TV Strategy Tester built-ins mirrored into chart ──
 if barstate.islast and show_tbl_summary
-    var table t_sum = table.new(position.top_left, 2, 10, frame_color=color.gray, frame_width=1, border_color=color.gray, border_width=1)
+    var table t_sum = table.new(position.top_left, 2, 11, frame_color=color.gray, frame_width=1, border_color=color.gray, border_width=1)
     table.cell(t_sum, 0, 0, "Metric (TV)",  bgcolor=color.new(color.gray, 60), text_color=color.white)
     table.cell(t_sum, 1, 0, "Value",        bgcolor=color.new(color.gray, 60), text_color=color.white)
     n_total = strategy.closedtrades
@@ -195,31 +209,36 @@ if barstate.islast and show_tbl_summary
     net     = strategy.netprofit
     gp      = strategy.grossprofit
     gl      = strategy.grossloss
-    pf      = gl < 0 ? gp / math.abs(gl) : (gp > 0 ? 999.0 : 0.0)
+    // strategy.grossloss returns a positive number in TV — use math.abs(gl) directly.
+    abs_gl  = math.abs(gl)
+    pf      = abs_gl > 0 ? gp / abs_gl : (gp > 0 ? 999.0 : 0.0)
     wr      = n_total > 0 ? 100.0 * n_win / n_total : 0.0
     mdd     = strategy.max_drawdown
     avg_t   = n_total > 0 ? net / n_total : 0.0
     init_c  = strategy.initial_capital
     ret_pct = init_c > 0 ? 100.0 * net / init_c : 0.0
     color sum_bg = net > 0 ? color.new(color.green, 85) : net < 0 ? color.new(color.red, 85) : color.new(color.gray, 85)
-    table.cell(t_sum, 0, 1, "Total trades", bgcolor=sum_bg, text_color=color.white)
-    table.cell(t_sum, 1, 1, str.tostring(n_total), bgcolor=sum_bg, text_color=color.white)
-    table.cell(t_sum, 0, 2, "Win / Loss / Even", bgcolor=sum_bg, text_color=color.white)
-    table.cell(t_sum, 1, 2, str.tostring(n_win) + " / " + str.tostring(n_loss) + " / " + str.tostring(n_even), bgcolor=sum_bg, text_color=color.white)
-    table.cell(t_sum, 0, 3, "Win rate %",   bgcolor=sum_bg, text_color=color.white)
-    table.cell(t_sum, 1, 3, str.tostring(wr, "0.00"), bgcolor=sum_bg, text_color=color.white)
-    table.cell(t_sum, 0, 4, "Profit factor", bgcolor=sum_bg, text_color=color.white)
-    table.cell(t_sum, 1, 4, str.tostring(pf, "0.00"), bgcolor=sum_bg, text_color=color.white)
-    table.cell(t_sum, 0, 5, "Net profit",    bgcolor=sum_bg, text_color=color.white)
-    table.cell(t_sum, 1, 5, str.tostring(net, "+0.00;-0.00"), bgcolor=sum_bg, text_color=color.white)
-    table.cell(t_sum, 0, 6, "Net %",         bgcolor=sum_bg, text_color=color.white)
-    table.cell(t_sum, 1, 6, str.tostring(ret_pct, "+0.00;-0.00") + "%", bgcolor=sum_bg, text_color=color.white)
-    table.cell(t_sum, 0, 7, "Gross profit/loss", bgcolor=sum_bg, text_color=color.white)
-    table.cell(t_sum, 1, 7, str.tostring(gp, "0.0") + " / " + str.tostring(gl, "0.0"), bgcolor=sum_bg, text_color=color.white)
-    table.cell(t_sum, 0, 8, "Max DD",        bgcolor=sum_bg, text_color=color.white)
-    table.cell(t_sum, 1, 8, str.tostring(mdd, "0.00"), bgcolor=sum_bg, text_color=color.white)
-    table.cell(t_sum, 0, 9, "Avg trade",     bgcolor=sum_bg, text_color=color.white)
-    table.cell(t_sum, 1, 9, str.tostring(avg_t, "+0.0000;-0.0000"), bgcolor=sum_bg, text_color=color.white)
+    string filter_tag = use_rsi_filter ? ("RSI-filt(B>=" + str.tostring(buy_rsi_min) + ", S<=" + str.tostring(sell_rsi_max) + ")") : "raw"
+    table.cell(t_sum, 0, 1, "Filter mode",   bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 1, filter_tag,      bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 0, 2, "Total trades",  bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 2, str.tostring(n_total), bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 0, 3, "Win / Loss / Even", bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 3, str.tostring(n_win) + " / " + str.tostring(n_loss) + " / " + str.tostring(n_even), bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 0, 4, "Win rate %",    bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 4, str.tostring(wr, "0.00"), bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 0, 5, "Profit factor", bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 5, str.tostring(pf, "0.00"), bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 0, 6, "Net profit",    bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 6, str.tostring(net, "+0.00;-0.00"), bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 0, 7, "Net %",         bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 7, str.tostring(ret_pct, "+0.00;-0.00") + "%", bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 0, 8, "Gross profit/loss", bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 8, str.tostring(gp, "0.0") + " / " + str.tostring(abs_gl, "0.0"), bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 0, 9, "Max DD",        bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 9, str.tostring(mdd, "0.00"), bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 0, 10, "Avg trade",    bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 10, str.tostring(avg_t, "+0.0000;-0.0000"), bgcolor=sum_bg, text_color=color.white)
 
 if barstate.islast and show_tbl_session
     var table t_sess = table.new(position.top_right, 5, 6, frame_color=color.gray, frame_width=1, border_color=color.gray, border_width=1)
