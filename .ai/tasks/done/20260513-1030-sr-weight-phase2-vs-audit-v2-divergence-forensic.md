@@ -221,3 +221,48 @@ forensic verdict 別 next action:
 - **Dominant H3/H4/H5**: 該当ロジックを audit v2 に移植 or 逆
 - **Multi-factor**: Phase 2 BT を canonical とし v2 audit を廃止、または逆
 - **None (説明不能)**: Phase 2 BT 自体に bug 仮説、再走 task で N reproducibility 確認
+
+
+## Result (2026-05-13T03:13:29Z)
+
+exit=0 · 426s
+
+```
+完了しました。pure-audit のみで、新規レポートを作成しています。
+
+Report:
+[reports/sr_phase2_vs_audit_v2_forensic_2026-05-13.md](/data/repo/fx-ai-trader/reports/sr_phase2_vs_audit_v2_forensic_2026-05-13.md)
+
+結論:
+- Dominant Cause Verdict: **single dominant なし。H1 + H2 dominant、H4 material の multi-factor**
+- Recommendation: **(c) 両方併走**
+- Phase 2 BT を canonical production-count verdict、v2 audit を exploratory SR-weight metadata として扱うべき、という判定です。
+- optional trade-level CSV は未生成です。既存 Phase 2 JSON に `trades` / `trade_log` 配列がなく、Phase 2 再走は禁止条件だったためです。
+
+補助計測中に生成された hunt event JSONL は削除済みで、作業ツリーは新規 report のみです。
+
+Verification:
+```text
+git log --oneline -5
+8c6da54 chore(codex): claim 20260513-1030-sr-weight-phase2-vs-audit-v2-divergence-forensic
+2dda137 task(codex): queue Phase 2 BT vs audit v2 methodology divergence forensic [rule:R1]
+cbe8735 docs(KB): R2 alert 2026-05-13T02:54Z
+2bf3bdf docs(KB): daily report 2026-05-13
+c9f7a0f docs(KB): monitor alert 2026-05-13
+```
+
+```text
+git stash list
+<empty>
+```
+
+```text
+git status --short
+?? reports/sr_phase2_vs_audit_v2_forensic_2026-05-13.md
+```
+
+PR title:
+`audit(sr-redesign): Phase 2 BT vs audit v2 methodology divergence forensic`
+
+PR description excerpt is included in the report.
+```
