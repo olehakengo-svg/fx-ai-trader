@@ -142,3 +142,39 @@ entry_type, dow_regime, v2_regime, N, WR, EV_pip, PF, Wilson_lo, Kelly
 - composite cell の閾値を post-hoc tune 禁止
 - 「composite で edge 強くなった」と言うため Cherry-pick 禁止 (全 cell の数字を出すこと)
 - Live 昇格判定への流用禁止 (本タスクは hypothesis 形成のみ)
+
+
+## Result (2026-05-13T12:53:13Z)
+
+exit=0 · 369s
+
+```
+完了しました。Production code / classifier 閾値 / DB / `.env` / secrets は触っていません。
+
+成果物:
+- [reports/composite_cell_analysis/SUMMARY.md](/data/repo/fx-ai-trader/reports/composite_cell_analysis/SUMMARY.md)
+- [reports/composite_cell_analysis/verdict.md](/data/repo/fx-ai-trader/reports/composite_cell_analysis/verdict.md)
+- [reports/composite_cell_analysis/final.md](/data/repo/fx-ai-trader/reports/composite_cell_analysis/final.md)
+- 指定 6 CSV も同ディレクトリに出力済み
+
+結論:
+`VERDICT: HOLD_GAP5_COMPOSITE`
+`feedback_label_empirical_audit: HOLD_GAP5_COMPOSITE`
+
+主要数値:
+- trades: `5617`
+- global composite cells: `6`
+- 17 proposals split: `34 rows`, N 合計一致
+- Bonferroni m_eff: `47`
+- Bonferroni pass cells: `10`
+- prediction power best: `v2_only`
+- Brier: `v2_only=0.240300289`, `dow_only=0.240327522`, `composite=0.240512178`
+
+推奨は D: composite は single classifier より prediction power が弱いため、Gap 5 / Phase E の composite 再定義は保留。
+
+Commits:
+- `3665db2c analysis(codex): composite cell retrospective sanity`
+- `0c30e859 docs(codex): record composite cell retrospective final`
+
+`git status` は clean、branch は `origin/main` より 2 commits ahead です。
+```
