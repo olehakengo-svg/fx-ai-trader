@@ -1,0 +1,267 @@
+//@version=5
+// xs_momentum strategy replica (Pine strategy + MTF + session segment analytics)
+//
+// Mirrors strategies/daytrade/xs_momentum.py (v8.9). All edge discovery completes in Pine — no Python BT required.
+//
+// Visualization layers:
+//   1. entry / exit / W-L connecting line (color = WIN green / LOSS red)
+//   2. MTF oscillators (1h RSI, H4 RSI) recorded at each entry bar
+//   3. Pine table: per-session (Tokyo / London / NY / Off) N, WR, PF, NetP
+//   4. Pine table: per-MTF-bin (H1 RSI bucket × direction) N, WR
+//
+strategy("xs_momentum replica (MTF + sessions)", overlay=true,
+         max_labels_count=500, max_lines_count=500, max_boxes_count=50,
+         initial_capital=10000, default_qty_type=strategy.percent_of_equity, default_qty_value=10,
+         pyramiding=0, process_orders_on_close=true, calc_on_every_tick=false,
+         commission_type=strategy.commission.cash_per_contract, commission_value=0)
+
+// ── Strategy inputs ──
+mom_lb     = input.int(20,  "Momentum lookback (bars)")
+mom_thr    = input.float(1.0, "Momentum threshold (ATR units)", step=0.1)
+disp_thr   = input.float(3.0, "Dispersion threshold (ATR units)", step=0.1)
+adx_min    = input.int(20,  "ADX min")
+atr_len    = input.int(14,  "ATR length")
+sl_mult    = input.float(1.5, "SL ATR mult", step=0.1)
+tp_mult    = input.float(2.0, "TP ATR mult", step=0.1)
+hour_from  = input.int(12,  "xs_momentum gate hour from (UTC)")
+hour_to    = input.int(18,  "xs_momentum gate hour to (UTC excl)")
+max_hold   = input.int(16,  "Max hold bars (time-stop)")
+
+// ── Display toggles ──
+show_labels = input.bool(true, "Show entry labels")
+draw_lines  = input.bool(true, "Draw entry->exit lines")
+draw_exits  = input.bool(true, "Draw exit markers (W/L)")
+show_tbl_summary = input.bool(true, "Show overall summary table (TV Strategy Tester mirror)")
+show_tbl_session = input.bool(true, "Show session breakdown table")
+show_tbl_rsi     = input.bool(true, "Show H1 RSI bin breakdown table")
+
+// ── Indicators (current TF) ──
+atrv  = ta.atr(atr_len)
+ema9  = ta.ema(close, 9)
+ema21 = ta.ema(close, 21)
+[diPlus, diMinus, adxv] = ta.dmi(14, 14)
+hi20  = ta.highest(high, mom_lb)
+lo20  = ta.lowest(low,  mom_lb)
+
+// ── MTF: 1h and H4 RSI (no look-ahead) ──
+rsi_h1 = request.security(syminfo.tickerid, "60",  ta.rsi(close, 14), lookahead=barmerge.lookahead_off)
+rsi_h4 = request.security(syminfo.tickerid, "240", ta.rsi(close, 14), lookahead=barmerge.lookahead_off)
+
+// ── Components ──
+mom  = atrv > 0 ? (close - close[mom_lb]) / atrv : 0.0
+disp = atrv > 0 ? (hi20 - lo20) / atrv : 0.0
+high_disp = disp > disp_thr
+
+// ── Time / sessions (UTC) ──
+h_utc = hour(time, "UTC")
+
+// Tokyo 0-8, London 7-16, NY 13-22 (overlap-aware: each trade tagged by primary session at entry)
+session_id(h) =>
+    // Priority: NY if 13-22 and not Tokyo, London if 7-16, Tokyo if 0-8, else Off
+    // To avoid double-count, classify by dominant session:
+    //   0-6   = Tokyo
+    //   7-12  = London (early)
+    //   13-16 = London-NY overlap (tag as NY for momentum bias)
+    //   17-21 = NY
+    //   22-23 = Off
+    h < 7  ? 0 : h < 13 ? 1 : h < 22 ? 2 : 3   // 0=Tokyo 1=London 2=NY 3=Off
+
+cur_sess = session_id(h_utc)
+in_session = h_utc >= hour_from and h_utc < hour_to  // xs_momentum's own filter
+
+// ── Direction ──
+ema_bull = ema9 > ema21
+ema_bear = ema9 < ema21
+conf_bull = close > open
+conf_bear = close < open
+
+buy_sig  = in_session and adxv >= adx_min and mom >  mom_thr and ema_bull and conf_bull
+sell_sig = in_session and adxv >= adx_min and mom < -mom_thr and ema_bear and conf_bear
+
+// ── SL/TP distances ──
+sl_dist = atrv * sl_mult
+tp_dist = atrv * tp_mult
+buy_sl  = close - sl_dist
+buy_tp  = close + tp_dist
+sell_sl = close + sl_dist
+sell_tp = close - tp_dist
+
+// ── Entries (record entry-bar context into arrays) ──
+var int[]   trade_session = array.new<int>()
+var float[] trade_rsi_h1  = array.new<float>()
+var float[] trade_rsi_h4  = array.new<float>()
+var int[]   trade_dir     = array.new<int>()  // 1 = BUY, -1 = SELL
+
+if buy_sig and strategy.position_size == 0
+    strategy.entry("L", strategy.long)
+    strategy.exit("LX", "L", stop=buy_sl, limit=buy_tp)
+    array.push(trade_session, cur_sess)
+    array.push(trade_rsi_h1, rsi_h1)
+    array.push(trade_rsi_h4, rsi_h4)
+    array.push(trade_dir, 1)
+
+if sell_sig and strategy.position_size == 0
+    strategy.entry("S", strategy.short)
+    strategy.exit("SX", "S", stop=sell_sl, limit=sell_tp)
+    array.push(trade_session, cur_sess)
+    array.push(trade_rsi_h1, rsi_h1)
+    array.push(trade_rsi_h4, rsi_h4)
+    array.push(trade_dir, -1)
+
+// ── Time-stop ──
+bars_in_trade = strategy.position_size != 0 ? bar_index - strategy.opentrades.entry_bar_index(strategy.opentrades - 1) : 0
+if strategy.position_size != 0 and bars_in_trade >= max_hold
+    strategy.close_all(comment="time-stop")
+
+// ── Entry-side labels ──
+disp_tag = high_disp ? " D" : ""
+if show_labels and buy_sig and strategy.position_size == 0
+    label.new(bar_index, low, text="BUY " + str.tostring(mom, "0.00") + "A" + disp_tag, color=color.new(color.lime, 20), style=label.style_label_up, textcolor=color.black, size=size.tiny)
+if show_labels and sell_sig and strategy.position_size == 0
+    label.new(bar_index, high, text="SELL " + str.tostring(mom, "0.00") + "A" + disp_tag, color=color.new(color.red, 20), style=label.style_label_down, textcolor=color.white, size=size.tiny)
+
+// ── Draw closed trades: entry→exit line + W/L marker ──
+var int last_drawn = 0
+if strategy.closedtrades > last_drawn
+    for i = last_drawn to strategy.closedtrades - 1
+        eb   = strategy.closedtrades.entry_bar_index(i)
+        xb   = strategy.closedtrades.exit_bar_index(i)
+        ep   = strategy.closedtrades.entry_price(i)
+        xp   = strategy.closedtrades.exit_price(i)
+        prof = strategy.closedtrades.profit(i)
+        is_win = prof > 0
+        col = is_win ? color.new(color.green, 0) : color.new(color.red, 0)
+        if draw_lines
+            line.new(eb, ep, xb, xp, color=col, width=2, style=line.style_solid)
+        if draw_exits
+            label.new(xb, xp, text=(is_win ? "W" : "L"), color=color.new(col, 30), textcolor=color.white, style=label.style_label_left, size=size.tiny)
+    last_drawn := strategy.closedtrades
+
+// ── Session tint (current xs_momentum gate window) ──
+bgcolor(in_session ? color.new(color.blue, 95) : na, title="xs_mom session window")
+
+// ── Aggregate at last bar: build tables ──
+// Per-session stats arrays (Tokyo, London, NY, Off)
+var int[]   sess_n     = array.from(0, 0, 0, 0)
+var int[]   sess_wins  = array.from(0, 0, 0, 0)
+var float[] sess_gross = array.from(0.0, 0.0, 0.0, 0.0)
+var float[] sess_loss  = array.from(0.0, 0.0, 0.0, 0.0)
+var float[] sess_net   = array.from(0.0, 0.0, 0.0, 0.0)
+
+// Per-H1-RSI-bucket × direction stats (BUY: bucket 0-4 = [0-30,30-50,50-70,70-100], SELL same)
+//   bucket index: rsi<30=0, 30<=rsi<50=1, 50<=rsi<70=2, rsi>=70=3
+//   matrix flattened: dir*4 + bucket; 0..3 = BUY, 4..7 = SELL
+var int[]   rsi_n    = array.from(0, 0, 0, 0, 0, 0, 0, 0)
+var int[]   rsi_wins = array.from(0, 0, 0, 0, 0, 0, 0, 0)
+
+var int agg_idx = 0
+n_closed = strategy.closedtrades
+if n_closed > agg_idx and array.size(trade_session) >= n_closed
+    for i = agg_idx to n_closed - 1
+        s_id = array.get(trade_session, i)
+        r1   = array.get(trade_rsi_h1, i)
+        d    = array.get(trade_dir, i)
+        prof = strategy.closedtrades.profit(i)
+        is_win = prof > 0
+        // session aggregate
+        array.set(sess_n,    s_id, array.get(sess_n, s_id) + 1)
+        if is_win
+            array.set(sess_wins, s_id, array.get(sess_wins, s_id) + 1)
+            array.set(sess_gross, s_id, array.get(sess_gross, s_id) + prof)
+        else
+            array.set(sess_loss,  s_id, array.get(sess_loss,  s_id) + math.abs(prof))
+        array.set(sess_net, s_id, array.get(sess_net, s_id) + prof)
+        // H1 RSI bucket aggregate
+        bucket = r1 < 30.0 ? 0 : r1 < 50.0 ? 1 : r1 < 70.0 ? 2 : 3
+        slot = (d == 1 ? 0 : 4) + bucket
+        array.set(rsi_n,    slot, array.get(rsi_n, slot) + 1)
+        if is_win
+            array.set(rsi_wins, slot, array.get(rsi_wins, slot) + 1)
+    agg_idx := n_closed
+
+// ── Tables (drawn on last bar only) ──
+sess_label(id) =>
+    id == 0 ? "Tokyo" : id == 1 ? "London" : id == 2 ? "NY" : "Off"
+
+// ── Summary table: TV Strategy Tester built-ins mirrored into chart ──
+if barstate.islast and show_tbl_summary
+    var table t_sum = table.new(position.top_left, 2, 10, frame_color=color.gray, frame_width=1, border_color=color.gray, border_width=1)
+    table.cell(t_sum, 0, 0, "Metric (TV)",  bgcolor=color.new(color.gray, 60), text_color=color.white)
+    table.cell(t_sum, 1, 0, "Value",        bgcolor=color.new(color.gray, 60), text_color=color.white)
+    n_total = strategy.closedtrades
+    n_win   = strategy.wintrades
+    n_loss  = strategy.losstrades
+    n_even  = strategy.eventrades
+    net     = strategy.netprofit
+    gp      = strategy.grossprofit
+    gl      = strategy.grossloss
+    pf      = gl < 0 ? gp / math.abs(gl) : (gp > 0 ? 999.0 : 0.0)
+    wr      = n_total > 0 ? 100.0 * n_win / n_total : 0.0
+    mdd     = strategy.max_drawdown
+    avg_t   = n_total > 0 ? net / n_total : 0.0
+    init_c  = strategy.initial_capital
+    ret_pct = init_c > 0 ? 100.0 * net / init_c : 0.0
+    color sum_bg = net > 0 ? color.new(color.green, 85) : net < 0 ? color.new(color.red, 85) : color.new(color.gray, 85)
+    table.cell(t_sum, 0, 1, "Total trades", bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 1, str.tostring(n_total), bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 0, 2, "Win / Loss / Even", bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 2, str.tostring(n_win) + " / " + str.tostring(n_loss) + " / " + str.tostring(n_even), bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 0, 3, "Win rate %",   bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 3, str.tostring(wr, "0.00"), bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 0, 4, "Profit factor", bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 4, str.tostring(pf, "0.00"), bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 0, 5, "Net profit",    bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 5, str.tostring(net, "+0.00;-0.00"), bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 0, 6, "Net %",         bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 6, str.tostring(ret_pct, "+0.00;-0.00") + "%", bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 0, 7, "Gross profit/loss", bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 7, str.tostring(gp, "0.0") + " / " + str.tostring(gl, "0.0"), bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 0, 8, "Max DD",        bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 8, str.tostring(mdd, "0.00"), bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 0, 9, "Avg trade",     bgcolor=sum_bg, text_color=color.white)
+    table.cell(t_sum, 1, 9, str.tostring(avg_t, "+0.0000;-0.0000"), bgcolor=sum_bg, text_color=color.white)
+
+if barstate.islast and show_tbl_session
+    var table t_sess = table.new(position.top_right, 5, 6, frame_color=color.gray, frame_width=1, border_color=color.gray, border_width=1)
+    table.cell(t_sess, 0, 0, "Session", bgcolor=color.new(color.gray, 70), text_color=color.white)
+    table.cell(t_sess, 1, 0, "N",       bgcolor=color.new(color.gray, 70), text_color=color.white)
+    table.cell(t_sess, 2, 0, "WR%",     bgcolor=color.new(color.gray, 70), text_color=color.white)
+    table.cell(t_sess, 3, 0, "PF",      bgcolor=color.new(color.gray, 70), text_color=color.white)
+    table.cell(t_sess, 4, 0, "NetP",    bgcolor=color.new(color.gray, 70), text_color=color.white)
+    for sid = 0 to 3
+        n  = array.get(sess_n, sid)
+        w  = array.get(sess_wins, sid)
+        gr = array.get(sess_gross, sid)
+        ls = array.get(sess_loss, sid)
+        np = array.get(sess_net, sid)
+        wr = n > 0 ? 100.0 * w / n : 0.0
+        pf = ls > 0 ? gr / ls : (gr > 0 ? 999.0 : 0.0)
+        row = sid + 1
+        row_bg = np > 0 ? color.new(color.green, 80) : np < 0 ? color.new(color.red, 80) : color.new(color.gray, 80)
+        table.cell(t_sess, 0, row, sess_label(sid), bgcolor=row_bg, text_color=color.white)
+        table.cell(t_sess, 1, row, str.tostring(n), bgcolor=row_bg, text_color=color.white)
+        table.cell(t_sess, 2, row, str.tostring(wr, "0.0"), bgcolor=row_bg, text_color=color.white)
+        table.cell(t_sess, 3, row, str.tostring(pf, "0.00"), bgcolor=row_bg, text_color=color.white)
+        table.cell(t_sess, 4, row, str.tostring(np, "+0.0;-0.0"), bgcolor=row_bg, text_color=color.white)
+
+bucket_label(b) =>
+    b == 0 ? "<30" : b == 1 ? "30-50" : b == 2 ? "50-70" : ">=70"
+
+if barstate.islast and show_tbl_rsi
+    var table t_rsi = table.new(position.bottom_right, 4, 9, frame_color=color.gray, frame_width=1, border_color=color.gray, border_width=1)
+    table.cell(t_rsi, 0, 0, "Dir",       bgcolor=color.new(color.gray, 70), text_color=color.white)
+    table.cell(t_rsi, 1, 0, "H1 RSI",    bgcolor=color.new(color.gray, 70), text_color=color.white)
+    table.cell(t_rsi, 2, 0, "N",         bgcolor=color.new(color.gray, 70), text_color=color.white)
+    table.cell(t_rsi, 3, 0, "WR%",       bgcolor=color.new(color.gray, 70), text_color=color.white)
+    for slot = 0 to 7
+        d = slot < 4 ? "BUY" : "SELL"
+        b = slot % 4
+        n = array.get(rsi_n, slot)
+        w = array.get(rsi_wins, slot)
+        wr = n > 0 ? 100.0 * w / n : 0.0
+        row = slot + 1
+        row_bg = n < 10 ? color.new(color.gray, 80) : wr >= 50.0 ? color.new(color.green, 80) : color.new(color.red, 80)
+        table.cell(t_rsi, 0, row, d,                       bgcolor=row_bg, text_color=color.white)
+        table.cell(t_rsi, 1, row, bucket_label(b),         bgcolor=row_bg, text_color=color.white)
+        table.cell(t_rsi, 2, row, str.tostring(n),         bgcolor=row_bg, text_color=color.white)
+        table.cell(t_rsi, 3, row, n > 0 ? str.tostring(wr, "0.0") : "-", bgcolor=row_bg, text_color=color.white)
