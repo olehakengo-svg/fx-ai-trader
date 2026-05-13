@@ -3582,6 +3582,7 @@ class DemoTrader:
             "london_fix_reversal",           # ロンドンFixリバーサル: Fix前→Fix後反転 (Krohn 2024)
             "vix_carry_unwind",              # VIXキャリー巻戻し: VIX急騰→JPY long (Brunnermeier 2009)
             "xs_momentum",                   # クロスセクション通貨モメンタム (Menkhoff 2012, Eriksen 2019)
+            "xs_momentum_rsi",               # XS Momentum + H1 RSI direction filter (USD_JPY Live, 2026-05-13)
             "hmm_regime_filter",             # HMMレジームフィルター: 防御オーバーレイ (Nystrup 2024)
             # v8.8: 生データアルファマイニング (2026-04-12)
             "vol_spike_mr",                  # Vol Spike MR: 3x range spike → fade (BT JPY PF=1.92)
@@ -6420,6 +6421,13 @@ class DemoTrader:
         # shadow全敗→TP縮小(3.0→2.0)+London-NY限定で改善済み。実弾でQH適用開始
         ("xs_momentum", "GBP_USD"),
         ("xs_momentum", "EUR_USD"),
+        # 2026-05-13: xs_momentum_rsi variant — H1 RSI direction filter (BUY rsi_h1>=60 / SELL rsi_h1<=40)
+        # TV Strategy Tester Phase 2 Config 3 (USD_JPY 15m, friction=0):
+        #   N=290 WR=46.55% PF=1.199 Net=+31.92 vs Baseline N=501 WR=43.51% PF=1.04 Net=+11.83
+        # Live promote (user override, Bonferroni 未到達): 月利100% 目標のため即時開始。
+        # _enabled_symbols=("USDJPY",) で他ペアは戦略本体側でブロック。
+        # 詳細: knowledge-base/wiki/decisions/xs-momentum-rsi-live-promote-override-2026-05-13.md
+        ("xs_momentum_rsi", "USD_JPY"),
         # 2026-05-07 P0 volume emergency:
         # Shadow 30d EV>0 / PF>=1.0 / N>=10 cells promoted to preserve
         # OANDA GOLD API tier. Wilson pre-reg is explicitly relaxed; R2

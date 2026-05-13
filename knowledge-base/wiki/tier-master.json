@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-13T13:23:55.638285+00:00",
+  "generated_at": "2026-05-13T14:44:12.536194+00:00",
   "elite_live": [
     "trendline_sweep"
   ],
@@ -122,6 +122,10 @@
     [
       "xs_momentum",
       "GBP_USD"
+    ],
+    [
+      "xs_momentum_rsi",
+      "USD_JPY"
     ]
   ],
   "pair_demoted": [

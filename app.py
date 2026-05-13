@@ -6497,6 +6497,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "london_fix_reversal",           # ロンドンFixリバーサル (Krohn 2024)
                 "vix_carry_unwind",              # VIXキャリー巻戻し (Brunnermeier 2009)
                 "xs_momentum",                   # クロスセクション通貨モメンタム (Eriksen 2019)
+                "xs_momentum_rsi",               # XS Momentum + H1 RSI direction filter (USD_JPY Live, 2026-05-13)
                 "hmm_regime_filter",             # HMMレジームフィルター (evaluate()→None, pre-commit整合性のため残留)
                 # v8.8: 生データアルファマイニング
                 "vol_spike_mr",                  # Vol Spike MR (BT JPY PF=1.92)
