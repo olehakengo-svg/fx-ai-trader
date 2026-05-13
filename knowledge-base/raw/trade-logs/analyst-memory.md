@@ -989,6 +989,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 ### 推奨戦略配分
 → `doji-breakout GBP_USD` — BT EV=+0.724は参考値として有望
 
+### 2026-05-13 (Post-London Report)
+| セッションPnL | **+14.9 pips** |
+| 平均PnL/トレード | +4.97 pips |
+| 戦略 | ペア | PnL | 件数 |
+- **成功要因**: GBP_USDがRANGINGレジーム（ATR%ile=53%、SMA傾斜+0.208と緩やかな上昇）にあり、S/R+Fib水準がレジスタンスとして機能したSELL2発が共にOANDA_SL_TP決済で完遂。
+- 特に1件目（+27.7 pips）はRR比が良好で、spread（1.3）対比でも十分なリターン。
+| 戦略 | ペア | PnL | 件数 |
+- **失敗要因**: RANGING環境（ATR%ile=53%）でモメンタム戦略を発動したが、方向性が持続せずSL_HIT。RANGINGレジームはモメンタム系にとって構造的不利環境であり、今回のSELL方向に対しGBP_USDのSMAは上向き（+0.208）—逆方向への偏りが原因。
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
