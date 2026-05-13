@@ -62,6 +62,8 @@ N<10 のセルはグレー表示（統計的に意味なしマーカー）。
 - `max_lines_count` / `max_labels_count` 上限 500 → 古いオブジェクトから LRU で消える前提
 - `ta.dmi(14, 14)` は tuple を返すので `request.security` に直接渡せない（必要なら ADX を本足 TF だけで使うか、別の構造で MTF 化）
 - `calc_on_every_tick=false` のとき realtime 最終バーで `barstate.islast` が false になることがある — テーブル描画はバー確定後
+- **`strategy.grossloss` は TV で正値を返す** — PF = `grossprofit / math.abs(grossloss)` で計算しないと `gl > 0 ? gp/gl : 999` のような分岐で常に 999 が出る（v1 xs_momentum-replica の既知バグ）
+- **post-save の on-chart instance は自動再コンパイルされない** — `pine_set_source` + `pine_smart_compile` (or Save) でライブラリ側は更新されるが、チャートに乗っている古いインスタンスは旧コードで動き続ける。MCP では現状 "Add to Chart" を確実に押す手段がない → ユーザに手動再追加を依頼するか、Indicator 設定→Remove → Indicator search → 再追加で対応
 
 ## Reference implementation
 - `bt-results/tv-overlays/xs_momentum-replica.pine` — xs_momentum (v8.9: London-NY gate, ADX≥20, mom>1.0 ATR, SL=1.5 ATR, TP=2.0 ATR)
