@@ -735,3 +735,54 @@ Shadow 投入後の流れ:
 3. cell_edge_audit / per-pair Wilson_lo + Bonferroni 評価 (司令塔別タスク)
 4. promote 候補 cell が出れば Tier 1 (shadow_active) 検討、Live 昇格は更に厳格 gate
 5. 並行で **break family (sr_weighted_break)** を後追い投入 (本タスク完了後)
+
+
+## Result (2026-05-13T05:27:13Z)
+
+exit=0 · 228s
+
+```
+実装完了です。既存 5 SR 戦略本体には触っていません。
+
+変更:
+- [sr_weighted_bounce.py](/data/repo/fx-ai-trader/strategies/daytrade/sr_weighted_bounce.py) 新規作成
+- [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py) に import / engine 登録 / env 有効化 / SHADOW_ALWAYS 追加
+- [sr-weighted-bounce.md](/data/repo/fx-ai-trader/knowledge-base/wiki/strategies/sr-weighted-bounce.md) 新規作成
+- [decision doc](/data/repo/fx-ai-trader/.ai/decisions/2026-05-13-sr-weighted-bounce-shadow-injection.md) 新規作成
+- [unit test](/data/repo/fx-ai-trader/tests/test_sr_weighted_bounce.py) / [integration test](/data/repo/fx-ai-trader/tests/test_sr_weighted_bounce_integration.py) 新規作成
+
+補足: `enabled = False` のままだと engine loop で `evaluate()` 前に落ちるため、`SR_WEIGHTED_BOUNCE_ENABLE=1` の時だけ `evaluate_all` 内で評価対象にする最小例外を追加しています。戦略内にも env gate を残しています。
+
+検証:
+```text
+. .venv/bin/activate && python3 -m pytest tests/test_sr_weighted_bounce.py tests/test_sr_weighted_bounce_integration.py -x -v
+=> 8 passed
+
+python3 scripts/check.py
+=> ✅ 全6チェック通過 — 整合性OK
+```
+
+verify 証跡:
+```text
+git log --oneline -5
+389ebe3 chore(codex): claim 20260513-2200-sr-weighted-bounce-shadow-strategy-new
+7404a93 task(codex): queue sr_weighted_bounce shadow-only new strategy [rule:R1]
+b6ac007 feat(codex): complete 20260513-1030-sr-weight-phase2-vs-audit-v2-divergence-forensic
+8c6da54 chore(codex): claim 20260513-1030-sr-weight-phase2-vs-audit-v2-divergence-forensic
+2dda137 task(codex): queue Phase 2 BT vs audit v2 methodology divergence forensic [rule:R1]
+
+git stash list
+=> empty
+
+git status --short
+ M strategies/daytrade/__init__.py
+?? .ai/decisions/2026-05-13-sr-weighted-bounce-shadow-injection.md
+?? knowledge-base/wiki/strategies/sr-weighted-bounce.md
+?? strategies/daytrade/sr_weighted_bounce.py
+?? tests/test_sr_weighted_bounce.py
+?? tests/test_sr_weighted_bounce_integration.py
+```
+
+PR title:
+`feat(sr-redesign): sr_weighted_bounce shadow-only strategy (heavy wall reversal with composite weight gate)
+…(truncated)
