@@ -979,6 +979,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 | xs_momentum | GBP_USD | 3 | 33.3% | **−5.63** | −16.9 | 🔴 EV深刻・BT乖離警報 |
 - 全戦略でN≥30未達。「判断可能」域に達した戦略はゼロ。
 
+### 2026-05-13 (Post-Tokyo Report)
+| PnL | 0.0 pips |
+- Fidelity Cutoff（2026-04-08）以降のCleanデータN=0（本日セッション）であり、統計的判断の基礎がない
+- ブロックは設計通りの防御動作であり、`VOLATILE`レジーム下では正常挙動
+- `xs_momentum GBP_USD` はLive N=3、`vix_carry_unwind USD_JPY` はLive N=4 — いずれもN<10のため「データなし」扱い（判断不可）
+- DD=28.01%のDD防御0.2xモード継続中 → リスクパラメータ触媒は禁止水域
+| ペア | 現在レジーム | ロンドン移行予測 | 注意点 |
+### 推奨戦略配分
+→ `doji-breakout GBP_USD` — BT EV=+0.724は参考値として有望
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
