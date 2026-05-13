@@ -94,13 +94,30 @@ PASS した cell について R2 watchdog 強化:
 - 各 cell について {n, wr, wilson_lb, ev, pf, pf_lower, PASS/FAIL} を console + JSON 両方に出力
 - pair 単位の trade_log 件数と elapsed を pair stats に保存
 
-## BT results (TBD — populated after run completes)
+## BT results (populated 2026-05-13 18 UTC — gate unchanged)
 
-> 以下は BT 完了後にのみ追記する。Gate のいずれも改変しない。
+Source: `knowledge-base/raw/bt-results/cell-promotion-2026-05-13.json` (runner: `tools/cell_promotion_bt_2026_05_13.py`, elapsed 2158s).
 
-```
-(TBD)
-```
+| # | Cell | N | WR | Wilson_LB | EV | PF | PF_LB | Gate | Verdict |
+|---|---|---|---|---|---|---|---|---|---|
+| C1 | mqe_gbpusd_fix × GBP_USD × Overlap | **8** | 50.0% | 21.5% | -0.10 | 0.83 | 0.31 | N✗ EV✗ W✗ PF✗ | 🔴 FAIL |
+| C2 | vix_carry_unwind × USD_JPY × London | **18** | 72.2% | 49.1% | +0.76 | 1.79 | 0.93 | N✗ EV✓ W✓ PF✗ | 🔴 FAIL |
+| C3 | sr_fib_confluence × GBP_USD × Overlap | 87 | 55.2% | 44.7% | -0.10 | 0.86 | 0.64 | N✓ EV✗ W✓ PF✗ | 🔴 FAIL |
+| C4 | dt_sr_channel_reversal × EUR_JPY × Overlap | 47 | 68.1% | 53.8% | +0.13 | 1.35 | 0.90 | N✓ EV✓ W✓ PF✗ | 🟢 **PASS** |
+
+### Verdict / closeout
+
+- **C1 mqe×GBP×Overlap (FAIL, N=8)**: BT N 未達 (8 vs 30要求)。production /api/demo/trades 確認で Live N=0 (87 trades 全 is_shadow=1, 期間 2026-04-29〜04-30 のみ)。root cause: month-end strategy specification (15-16 UTC month-end only) + PAIR_PROMOTED switch 2026-05-07 が 4月末窓直後 → 次の窓 2026-05-29-31 まで自然発火不可。**構造的待機**, no code change. 月末再観測後に再判断。
+- **C2 vix×USD_JPY×London (FAIL, N=18)**: BT London 単独 N<30。ただし Overlap session BT N=22 EV+1.30 + Live N=3 (3/3 wins) の triangulation で R2 exploration pilot として分離 → **[`vix-overlap-pilot-prereg-2026-05-13.md`](vix-overlap-pilot-prereg-2026-05-13.md)** へ移管。R1 再昇格は依然禁止 (2026-05-11 aggregate demote 規律維持)。
+- **C3 sr_fib×GBP×Overlap (FAIL, N=87)**: 統計的に clean な FAIL (N=87 で EV=-0.10, Wilson>BEV だが EV 負)。shadow 継続, no action.
+- **C4 dt_sr_channel_reversal×EUR_JPY×Overlap (PASS)**: 既に `_PAIR_PROMOTED` (demo_trader.py:6431)。pre-reg LOCK 適用済の状態で BT-validated → 現状維持。Session-window 制限の追加 (Overlap外 block) は次の判断ポイントへ繰り越し (本 doc は LOCK 後追加判断を禁じる)。
+
+### Tier integrity post-BT
+
+- vix_carry_unwind×USD_JPY: `_PAIR_DEMOTED` 維持 (R2 demote 5/11, aggregate Live N=11 EV-2.15)。Overlap-only pilot は別ドキュメント LOCK で R2 規律の探索として承認。
+- C1/C3/C4: 既存 tier 変更なし。
+
+> Original gate criteria were LOCKED 09 UTC; BT results published 18 UTC. 改変なし。
 
 ## Owners
 - 司令塔: Claude (pre-reg LOCK 制定、gate verdict、KB 更新)
