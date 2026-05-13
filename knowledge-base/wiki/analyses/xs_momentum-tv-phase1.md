@@ -108,10 +108,54 @@ KB 教訓と照らした残課題:
    - 両方: 上記両方 ON
 4. Strategy Tester で N / WR / PF / NetP を read、本ページ Phase 2 plan の期待値と照合
 
+## Phase 2 結果 (2026-05-13 取得, friction=0, USDJPY 15m 全期間)
+
+### 4 configurations
+| # | gate_tokyo | use_rsi_filter | N | WR | PF | Net (price) | Max DD% | 備考 |
+|---|---|---|---|---|---|---|---|---|
+| 1 (Baseline / Phase 1) | OFF | OFF | 501 | 43.51% | 1.04 | +11.83 | — | break-even |
+| 2 (Tokyo gate) | **ON** | OFF | 1,095 | 43.01% | 0.985 | **-9.52** | — | Tokyo 追加で degrade |
+| 3 (RSI filter) | OFF | **ON** | **290** | **46.55%** | **1.199** | +31.92 | 25.35 | Phase 1 仮説 確認 |
+| 4 (Both) | ON | ON | 576 | 46.53% | 1.186 | **+57.37** | 23.42 | RSI が Tokyo を救う |
+
+数値は TV Strategy Tester DOM (`[class*=report] [class*=value]`) から取得。Pine summary table の WR 計算 (`wins / total` incl. evens) と TV report の WR (`wins / (wins+losses)` evens除外) は数式が異なり、Pine 41.24% vs TV 43.01% (Config 2) のような ~2pp 差が出る。本表は **TV report 基準**で揃えた。
+
+### Pine Session table (Config 2 = Tokyo ON, RSI OFF, スクリーンショットから読取)
+| Session | N | WR | PF | Net |
+|---------|---|----|----|-----|
+| Tokyo (h<7) | 619 | 41.0% | 0.92 | -5.9 |
+| London (h=12 のみ、gate内) | 89 | 47.2% | 1.12 | +1.4 |
+| NY (h=13-17) | 388 | 41.0% | 0.84 | -12.4 |
+| Off | 0 | — | — | — |
+
+→ Tokyo は **N が最大 (619)** だが **WR=41% / PF=0.92** で破壊源。Gate追加が aggregate を死なせた直接原因。
+
+### 仮説検証結果
+1. **Phase 1 RSI 仮説 (AGREE 47.9% vs COUNTER 39.1%) は TV 再現で WR=46.55% / PF=1.199 → 期待値レンジ命中**
+2. **Tokyo 発火実験 (Config 2)** で「Tokyo セル N=0 = セグメント欠落」問題は解消、データ取得成功。だが **Tokyo は xs_momentum × USDJPY には edge 無し** が判明 (WR=41% / PF=0.92)。元の London-NY ゲートは正しかった。
+3. **Both ON (Config 4)** が Net P&L 最大 (+57.37)。RSI filter は **時間帯に依らず効く** (Tokyo を含めても WR 46.5% 維持)。N=576 は Config 3 (RSI only) の 2 倍で、絶対損益が大きい。
+
+### Bonferroni セーフティ
+- Config 3 vs Baseline: 二項検定で WR Δ=+3.04pp, z≈0.94 (両検定 not Bonferroni-safe at α=0.05/8)
+- Phase 1 で AGREE vs COUNTER z=1.98 (raw α=0.05 marginal, Bonferroni 未到達) と整合
+- **本番昇格 (`strategies/daytrade/`) には N 追加 + Bonferroni 通過必須**。現段階は ranking 用
+
+### Friction 反映 (未実施 — Phase 3 課題)
+- Config 4 の Net=+57.37 price units, N=576 → 平均 +0.0996 price/trade
+- USDJPY friction = 2.14pip RT = 0.0214 price unit → 平均 friction-after = +0.0782 price/trade
+- friction 後でもプラスを維持するが、PF は 1.186 → ~1.13 程度に下がる見込み
+- TV `commission_value=cash_per_contract` (in_27) + `slippage` (in_31) で再走 → 次セッション
+
+## Phase 3 plan
+1. TV Strategy properties で commission_value/slippage を USDJPY 摩擦に合わせ Config 4 再計測
+2. Python BT (`xs_momentum` × USDJPY, friction=2.14pip) を **TV と同期間** (2025-07-01〜2026-05-13) で走らせ、25pp WR gap が friction 由来か期間差由来か特定
+3. 結果が friction-after PF ≥ 1.15, N ≥ 100 維持なら Phase 1 RSI フィルタ (buy_rsi_min=60 / sell_rsi_max=40) を本番候補化
+4. 本番 `xs_momentum` 戦略コードに `MTF RSI direction filter` を **shadow-only toggle** で追加し、live N ≥ 30 を蓄積 → Bonferroni-safe を待って昇格
+
 ## Known limitation in this loop
 - Pine 編集後、MCP では on-chart instance を確実に再追加する手段がない（framework doc に追記済み）
-- TV Strategy Tester は default で commission/slippage=0 → live spread (USDJPY ≈ 0.7pip + 0.5pip slip = 2.14pip RT) を反映していない
-- 上記 2 つは framework doc / 本ページに記載し、Phase 2 で対処
+- TV Strategy Tester は default で commission/slippage=0 → live spread (USDJPY ≈ 0.7pip + 0.5pip slip = 2.14pip RT) を反映していない (Phase 3 で対処)
+- `data_get_strategy_results` / `data_get_pine_tables` MCP API は study_count=0 を返す既知バグ → DOM (`ui_evaluate` + `[class*=report] [class*=value]`) で取得、Pine table は capture_screenshot で目視
 
 ## Related
 - [tv-pine-edge-discovery-framework](tv-pine-edge-discovery-framework.md)
