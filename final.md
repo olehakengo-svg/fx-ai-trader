@@ -13,7 +13,7 @@
 
 Implementation commit: `4c2aa8cc feat(regime): universal dow_regime tagging + classifier consensus consultation [rule:R1]`
 
-Completion record commit: see final response.
+Completion record commit: `beda4a6f docs(codex): complete universal dow_regime tagging task`
 
 ## Verification
 
