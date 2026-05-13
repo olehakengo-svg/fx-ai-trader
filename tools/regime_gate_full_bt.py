@@ -16,10 +16,6 @@ from typing import Callable, Iterable
 
 import pandas as pd
 
-os.environ.setdefault("BT_MODE", "1")
-os.environ.setdefault("BT_REQUIRE_MASSIVE_CACHE", "1")
-os.environ.setdefault("NO_AUTOSTART", "1")
-
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
@@ -471,4 +467,11 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
+    # Script-only env setup: do not pollute env when imported as a library
+    # (pytest collection imports this module via tests/test_regime_gate_full_bt.py;
+    # leaking BT_MODE=1 here broke tests/test_bt_data_loader_parquet_fallback.py and
+    # tests/test_fetch_ohlcv_bt_mode.py which expect normal online-first ordering).
+    os.environ.setdefault("BT_MODE", "1")
+    os.environ.setdefault("BT_REQUIRE_MASSIVE_CACHE", "1")
+    os.environ.setdefault("NO_AUTOSTART", "1")
     raise SystemExit(main())
