@@ -12,14 +12,15 @@ This run does not authorize Live promotion or a universal confluence gate. It on
 - `composite_4axis_strategy_dow_v2_confluence.csv`
 - `bonferroni_by_strategy_confluence.csv`
 - `bonferroni_by_strategy_dow_v2_confluence.csv`
+- `proposals.csv`
+- `component_coverage.csv`
 
 ## Result
 
 | confluence_score | N | wins | WR | EV_pip | PF | Wilson_lo |
 | --- | --- | --- | --- | --- | --- | --- |
-| MIXED | 3392 | 1867 | 0.550413 | 0.00514 | 1.0064 | 0.533624 |
-| STRONG | 541 | 368 | 0.680222 | 0.345456 | 1.51312 | 0.639768 |
-| WEAK | 1684 | 1130 | 0.671021 | 0.406934 | 1.62309 | 0.648214 |
+| MIXED | 3684 | 2055 | 0.557818 | 0.0214 | 1.02694 | 0.541728 |
+| WEAK | 1933 | 1310 | 0.677703 | 0.419434 | 1.64193 | 0.656534 |
 
 ## Risk
 

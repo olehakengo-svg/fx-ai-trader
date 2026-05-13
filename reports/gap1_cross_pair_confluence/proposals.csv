@@ -1,0 +1,12 @@
+entry_type,dow_regime,v2_regime,confluence_score,N,wins,WR,EV_pip,PF,Wilson_lo,m_eff,alpha_prime,p_value,bonferroni_pass,proposal_action,proposal_scope
+session_time_bias,CHOP,no_go,WEAK,179,126,0.703911,0.34642,1.576871,0.633314,46,0.0010869565217391304,2.4341579195008318e-08,True,forward_shadow_only_no_live_promotion,cell_specific_no_universal_gate
+xs_momentum,CHOP,no_go,WEAK,262,172,0.656489,0.166228,1.257266,0.597097,46,0.0010869565217391304,2.2812474620769657e-07,True,forward_shadow_only_no_live_promotion,cell_specific_no_universal_gate
+streak_reversal,CHOP,no_go,MIXED,164,114,0.695122,0.874845,2.194592,0.620866,46,0.0010869565217391304,3.165800076934887e-07,True,forward_shadow_only_no_live_promotion,cell_specific_no_universal_gate
+xs_momentum,TRENDING,no_go,WEAK,217,141,0.64977,0.18571,1.30085,0.584193,46,0.0010869565217391304,6.060279476856086e-06,True,forward_shadow_only_no_live_promotion,cell_specific_no_universal_gate
+sr_fib_confluence,CHOP,no_go,WEAK,144,97,0.673611,0.192545,1.336082,0.593381,46,0.0010869565217391304,1.877854852104241e-05,True,forward_shadow_only_no_live_promotion,cell_specific_no_universal_gate
+streak_reversal,CHOP,no_go,WEAK,78,56,0.717949,1.15285,2.784582,0.609689,46,0.0010869565217391304,7.474076936188761e-05,True,forward_shadow_only_no_live_promotion,cell_specific_no_universal_gate
+streak_reversal,TRENDING,no_go,WEAK,34,28,0.823529,1.835018,6.136176,0.664859,46,0.0010869565217391304,9.756279177963734e-05,True,forward_shadow_only_no_live_promotion,cell_specific_no_universal_gate
+trendline_sweep,CHOP,no_go,MIXED,66,48,0.727273,0.796683,2.153156,0.609575,46,0.0010869565217391304,0.00014355922483082017,True,forward_shadow_only_no_live_promotion,cell_specific_no_universal_gate
+session_time_bias,TRENDING,no_go,MIXED,131,85,0.648855,0.219232,1.347259,0.563935,46,0.0010869565217391304,0.00041602104726908164,True,forward_shadow_only_no_live_promotion,cell_specific_no_universal_gate
+streak_reversal,TRENDING,no_go,MIXED,63,45,0.714286,1.030259,2.64351,0.59297,46,0.0010869565217391304,0.00044902358933401074,True,forward_shadow_only_no_live_promotion,cell_specific_no_universal_gate
+streak_reversal,RANGING,no_go,MIXED,50,37,0.74,1.013245,2.15227,0.604466,46,0.0010869565217391304,0.0004681114554259125,True,forward_shadow_only_no_live_promotion,cell_specific_no_universal_gate

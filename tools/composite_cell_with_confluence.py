@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import math
+import json
 import sys
 from pathlib import Path
 from typing import Iterable
@@ -146,6 +147,34 @@ def _markdown_table(df: pd.DataFrame, max_rows: int = 20) -> str:
     return "\n".join(lines)
 
 
+def _component_coverage(tagged: pd.DataFrame) -> pd.DataFrame:
+    rows: dict[str, dict] = {}
+    for raw in tagged.get("confluence_details", pd.Series(dtype=str)).fillna("").tolist():
+        try:
+            details = json.loads(raw)
+        except Exception:
+            continue
+        for component in details.get("components", []) or []:
+            name = str(component.get("component", "UNKNOWN"))
+            record = rows.setdefault(
+                name,
+                {"component": name, "N": 0, "confirmed": 0, "missing_or_error": 0, "flat": 0},
+            )
+            record["N"] += 1
+            if component.get("confirms") is True:
+                record["confirmed"] += 1
+            if component.get("observed") == "flat":
+                record["flat"] += 1
+            if component.get("observed") == "NULL" or component.get("error"):
+                record["missing_or_error"] += 1
+    out = pd.DataFrame(rows.values())
+    if out.empty:
+        return out
+    out["confirm_rate"] = (out["confirmed"] / out["N"]).round(6)
+    out["missing_error_rate"] = (out["missing_or_error"] / out["N"]).round(6)
+    return out.sort_values(["missing_or_error", "component"], ascending=[False, True])
+
+
 def write_outputs(tagged: pd.DataFrame) -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     tagged.to_csv(OUT_DIR / "trade_log_with_confluence.csv", index=False)
@@ -176,6 +205,15 @@ def write_outputs(tagged: pd.DataFrame) -> None:
 
     pass_confluence = bonf_confluence[bonf_confluence["bonferroni_pass"] == True] if not bonf_confluence.empty else bonf_confluence  # noqa: E712
     pass_composite = bonf_composite[bonf_composite["bonferroni_pass"] == True] if not bonf_composite.empty else bonf_composite  # noqa: E712
+    proposals = pass_composite.copy() if not pass_composite.empty else pass_confluence.copy()
+    if not proposals.empty:
+        proposals["proposal_action"] = "forward_shadow_only_no_live_promotion"
+        proposals["proposal_scope"] = "cell_specific_no_universal_gate"
+    proposals.to_csv(OUT_DIR / "proposals.csv", index=False)
+
+    coverage = _component_coverage(tagged)
+    coverage.to_csv(OUT_DIR / "component_coverage.csv", index=False)
+
     mixed = global_df[global_df["confluence_score"] == "MIXED"]
     strong = global_df[global_df["confluence_score"] == "STRONG"]
     weak = global_df[global_df["confluence_score"] == "WEAK"]
@@ -213,6 +251,12 @@ Top adjusted rows:
 
 {_markdown_table(bonf_composite if not bonf_composite.empty else bonf_confluence, 12)}
 
+## Component Coverage
+
+{_markdown_table(coverage, 12)}
+
+Missing/error components are not imputed and do not confirm confluence. The mapping remains literal; no post-hoc replacement is applied.
+
 ## Confluence Distribution
 
 - STRONG N: {int(strong.iloc[0]["N"]) if not strong.empty else 0}
@@ -237,6 +281,8 @@ This run does not authorize Live promotion or a universal confluence gate. It on
 - `composite_4axis_strategy_dow_v2_confluence.csv`
 - `bonferroni_by_strategy_confluence.csv`
 - `bonferroni_by_strategy_dow_v2_confluence.csv`
+- `proposals.csv`
+- `component_coverage.csv`
 
 ## Result
 
