@@ -189,3 +189,31 @@ DXY_proxy = weighted_avg({USD_JPY: 0.136, EUR_USD: -0.576, GBP_USD: -0.119,
 (literal weights、ICE DXY 公式式に近似)
 
 実 DXY parquet あれば優先使用。
+
+
+## Result (2026-05-13T12:58:03Z)
+
+exit=0 · 256s
+
+```
+完了しました。既存実装を確認し、現在の MASSIVE cache で retrospective artifact を再生成して commit 済みです。
+
+Commit: `4a370083 analysis(confluence): refresh Gap 1 artifacts with component coverage`
+
+実施内容:
+- `tools/composite_cell_with_confluence.py` に `component_coverage.csv` と `proposals.csv` 出力を追加
+- `reports/gap1_cross_pair_confluence/` を再生成
+- 現データでは `USD_CHF_1h.parquet` 欠損により `STRONG N=0`
+  - `component_coverage.csv` に `USD_CHF missing_or_error=5617` と明示
+  - mapping は literal 固定のまま、post-hoc tune なし
+- Verdict: `CONDITIONAL_EDA_CANDIDATE`
+- Universal gate / Live 昇格判定は未実施
+
+検証:
+- `.venv/bin/pytest tests/test_cross_pair_confluence.py -q` → `5 passed`
+- `.venv/bin/python tools/composite_cell_with_confluence.py` → artifact 生成成功
+- `git status --short` → clean
+- `.git/index.lock` block なし
+
+補足: `tools/confluence_backfill.py --db data/demo_trades.db` の直接 dry-run は、ローカル `data/demo_trades.db` 側に `confluence_score/confluence_details` カラムがまだ無く失敗しました。テスト内の migrated DB では dry-run-first 動作を確認済みです。
+```
