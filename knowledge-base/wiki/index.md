@@ -34,6 +34,7 @@
 | [[vsg-jpy-reversal]] | EUR_JPY | no BT data | PAIR_PROMOTED |
 | [[wick-imbalance-reversion]] | GBP_USD | no BT data | PAIR_PROMOTED |
 | [[xs-momentum]] | EUR_USD, GBP_USD | EUR_USD: EV=+0.225 WR=68.0%; USD_JPY: EV=+0.270 WR=68.7% | PAIR_PROMOTED |
+| [[xs-momentum-rsi]] | USD_JPY | no BT data | PAIR_PROMOTED |
 
 ### SHADOW (Data Collection)
 | Strategy | BT Data | Notes |

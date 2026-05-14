@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-05-13 13:23 UTC
+**最終更新**: 2026-05-13 14:44 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | 1 | trendline_sweep | — | +0.574 | +0.838 |
 
-### A-2. PAIR_PROMOTED（17エントリ — 指定ペアのみ通過）
+### A-2. PAIR_PROMOTED（18エントリ — 指定ペアのみ通過）
 
 | # | 戦略名 | ペア | 365d BT EV |
 |---|---|---|---|
@@ -35,6 +35,7 @@
 | 15 | wick_imbalance_reversion | GBP_USD | — |
 | 16 | xs_momentum | EUR_USD | +0.126 |
 | 17 | xs_momentum | GBP_USD | -0.013 |
+| 18 | xs_momentum_rsi | USD_JPY | — |
 
 ## B. Shadow戦略（OANDA非通過 — デモのみ記録）
 
