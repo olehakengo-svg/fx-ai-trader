@@ -2,7 +2,8 @@
 // macd_1m_scalp v3.1 Tokyo BUY-only variant
 //
 // USDJPY 1m TV verified (2026-05-14):
-//   N=24, WR=50.0%, PF=1.56, Net=+0.75, avg=+0.0314
+//   N=24, WR=50.0%, PF=1.565, Net=+4.86 JPY (+0.05%) @ qty=10% equity
+//   Max DD: 4.54 JPY (0.05%) — thin N, marginal
 //
 // Filter: Tokyo session (UTC 0-7) + BUY-only + H1 RSI < 70
 // Geometry: hist round-trip TP (±0.015 entry / ±0.005 TP), SL = 1×ATR, max_hold = 60
@@ -16,7 +17,7 @@
 //
 // Detail: knowledge-base/wiki/analyses/macd-1m-scalp-v3-session-variants-2026-05-14.md
 
-strategy("macd_1m_scalp_v3_TokyoBuy (BUY-only, H1<70)", overlay=true, default_qty_type=strategy.fixed, default_qty_value=1, initial_capital=10000, commission_type=strategy.commission.cash_per_contract, commission_value=0.0, calc_on_every_tick=false, process_orders_on_close=true)
+strategy("macd_1m_scalp_v3_TokyoBuy (BUY-only, H1<70)", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10, initial_capital=10000, pyramiding=0, calc_on_every_tick=false, process_orders_on_close=true)
 
 fast_len   = input.int(12,  "MACD fast")
 slow_len   = input.int(26,  "MACD slow")

@@ -2,7 +2,8 @@
 // macd_1m_scalp v3.1 NY variant — ATR-TP geometry (NOT hist-TP)
 //
 // USDJPY 1m TV verified (2026-05-14):
-//   ATR-TP 1:2: N=48, WR=41.67%, PF=1.33, Net=+0.47, avg=+0.0097
+//   ATR-TP 1:2: N=48, WR=41.67%, PF=1.33, Net=+2.98 JPY (+0.03%) @ qty=10% equity
+//   Max DD: 3.48 JPY (0.03%)
 //   (for comparison: hist-TP no-RSI: PF=1.04, hist-TP + SELL H1<50: PF=1.12)
 //
 // Filter: NY session (UTC 13-22) + dual-direction, no RSI filter
@@ -18,7 +19,7 @@
 //
 // Detail: knowledge-base/wiki/analyses/macd-1m-scalp-v3-session-variants-2026-05-14.md
 
-strategy("macd_1m_scalp_v3_NY (dual, ATR-TP 1:2)", overlay=true, default_qty_type=strategy.fixed, default_qty_value=1, initial_capital=10000, commission_type=strategy.commission.cash_per_contract, commission_value=0.0, calc_on_every_tick=false, process_orders_on_close=true)
+strategy("macd_1m_scalp_v3_NY (dual, ATR-TP 1:2)", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10, initial_capital=10000, pyramiding=0, calc_on_every_tick=false, process_orders_on_close=true)
 
 fast_len   = input.int(12,  "MACD fast")
 slow_len   = input.int(26,  "MACD slow")

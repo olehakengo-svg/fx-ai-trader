@@ -9,13 +9,13 @@
 
 ## Summary Table
 
-| Variant | Filter | Geometry | N | WR | PF | Net | Avg trade |
+| Variant | Filter | Geometry | N | WR | PF | Net (JPY) | Max DD (JPY) |
 |---|---|---|---|---|---|---|---|
-| **TokyoBuy** | Tokyo + BUY-only + H1<70 | hist-TP ±0.015/±0.005 | 24 | 50.0% | 1.56 | +0.75 | +0.0314 |
-| **London** ⭐ | London + dual + SELL-H1<50 | hist-TP ±0.015/±0.005 | 54 | 53.7% | **1.85** | +2.04 | +0.0378 |
-| **NY** | NY + dual + no RSI | ATR-TP 1:2 | 48 | 41.67% | 1.33 | +0.47 | +0.0097 |
+| **TokyoBuy** | Tokyo + BUY-only + H1<70 | hist-TP ±0.015/±0.005 | 24 | 50.0% | 1.565 | +4.86 (+0.05%) | 4.54 (0.05%) |
+| **London** ⭐ | London + dual + SELL-H1<50 | hist-TP ±0.015/±0.005 | 54 | 53.7% | **1.855** | +13.00 (+0.13%) | 6.13 (0.06%) |
+| **NY** | NY + dual + no RSI | ATR-TP 1:2 | 48 | 41.67% | 1.33 | +2.98 (+0.03%) | 3.48 (0.03%) |
 
-(`Net` and `Avg trade` are in TV's internal currency units with default_qty_value=1; relative comparison only.)
+(`Net` / `Max DD` at `default_qty_value=10 percent_of_equity`, initial_capital=10000 JPY. PF/WR/N are qty-invariant.)
 
 **Key takeaway**: One strategy family, three distinct session edge profiles. London is the
 strongest cell; Tokyo and NY each require a different geometry/filter to capture +EV.
