@@ -1019,6 +1019,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 ### 課題①：xs_momentum の負EV継続（最重要）
 | WR_Live | 25.0% |
 
+### 2026-05-14 (Post-Tokyo Report)
+| WR | 100.0%（参考値：N<5） |
+| PnL | **+1.9 pips** |
+| 戦略 | ペア | 方向 | PnL | 成功要因 |
+- **シグナル発生が極めて低調**：17モード稼働中（ONは12モード）で東京セッション成立トレードは1件のみ
+- **ブロック主因**（参考）：
+- `scalp_eur` / `scalp` / `scalp_5m`: `r2_shadow_demoted_cell`による大量ブロック（合計21件）
+- `hedge_block` 多発（daytrade系4戦略で31件合計）
+- `rnb_usdjpy`: `direction_filter`で7件全止め
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
