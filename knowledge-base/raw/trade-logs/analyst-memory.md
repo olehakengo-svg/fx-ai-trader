@@ -1009,6 +1009,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 - shadow_tracking(18件)がOANDA転送の主要抑制因：設計通り動作
 | 09:00〜11:00 | **東京セッション開幕**: USD/JPY・EUR/JPYのボラティリティスパイクに注意。ATR%ile高水準（78-83%）で既に拡張状態 |
 
+### 2026-05-14 (Pre-Tokyo Briefing)
+| PnL合計 | **+11.8 pips** |
+| 全体WR | **50.0%** |
+4件中2件の大勝（sr_fib_confluence GBP/USD、計+29.0）が全体を黒字に押し上げた。xs_momentumの-14.1損失が重しだが、sr_fib_confluenceが相殺を超えた日。実質的に**1戦略依存のPnL構造**。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| xs_momentum | GBP_USD | 4 | 25.0% | -7.75 | -31.0 | 🔴 BT乖離+EV負 |
+**ポートフォリオ合計: N=14, WR=50.0%, 累積PnL=+1.0**
+### 課題①：xs_momentum の負EV継続（最重要）
+| WR_Live | 25.0% |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
