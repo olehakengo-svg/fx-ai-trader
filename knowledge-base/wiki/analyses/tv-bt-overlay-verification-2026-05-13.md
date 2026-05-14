@@ -29,7 +29,7 @@
 5. 視覚異常があれば「fire 位置がランダム」「SL 設定が市場ノイズ域内」等を発見でき、その戦略のみ Pine 完全再現で深掘り
 
 ## 次のターゲット候補（scalp エッジ検証）
-- `xs_momentum × USD_JPY` (BT N=342 EV=+0.270) — 高頻度・短期、視覚で見やすい
+- `xs_momentum × USD_JPY` (旧 KB BT N=342 EV=+0.270 ※ 2026-04-14 古い数字、最新 2026-05-05 では N=608 EV=-0.007 break-even — [[python-bt-vs-tv-reconciliation-2026-05-14]] 参照) — 高頻度・短期、視覚で見やすい
 - `session_time_bias × USD_JPY` (BT N=157 EV=+0.580) — 時間帯依存ロジックの validate に最適
 - `gbp_deep_pullback × GBP_USD` (BT N=77 EV=+1.064) — RR高い戦略の SL/TP 妥当性確認
 

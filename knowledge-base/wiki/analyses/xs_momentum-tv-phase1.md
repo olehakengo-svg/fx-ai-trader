@@ -20,7 +20,8 @@
 → Aggregate ではほぼ break-even。生のままでは Live 化基準を満たさない。
 
 ### Python BT vs TV BT discrepancy（未解決）
-- **KB 既知**: xs_momentum × USD_JPY 365d Python BT — N=342, WR=69%, EV=+0.270, PF=1.43
+- **KB 既知 (旧, 2026-04-14 comprehensive-bt-scan)**: xs_momentum × USD_JPY 365d Python BT — N=342, WR=69%, EV=+0.270, PF=1.43
+- **⚠️ 最新 (2026-05-05 365d shadow-bt artifact)**: **N=608, WR=60.4%, EV=-0.007, PF=0.99, PnL=-4.0** — break-even。本ページの 25pp WR gap 議論は古い数字基準のため、整合ベースラインは [[python-bt-vs-tv-reconciliation-2026-05-14]] を参照
 - **TV 観測**: N=501, WR=43.5%, PF=1.04
 - WR 差 **約 25pp** / N 差 **+159** — 同じ戦略名でも Python と TV で別物
 - **可能な原因候補**（仮説、未検証）:
@@ -87,7 +88,8 @@ KB 教訓と照らした残課題:
    - 対処: Pine v2.2 に `gate_tokyo` input.bool 追加（default false で既存 baseline 挙動を保持）。Tokyo を opt-in で発火させて 4th セッションセルを観測可能化
 3. **friction=0 の TV BT で edge 判定しかけている**
    - 教訓「理論計算が実測と矛盾する場合 N が十分か確認してから実測を信じる」+「BT/本番統一原則はロジックだけでなく期間/ペアも含む」
-   - Python BT (friction=2.14pip RT) は WR=69% / PF=1.43、TV BT (friction=0) は WR=43.5% / PF=1.04 → 25pp gap の原因候補に friction 差が確実に入る
+   - 旧引用: Python BT (friction=2.14pip RT) は WR=69% / PF=1.43、TV BT (friction=0) は WR=43.5% / PF=1.04 → 25pp gap
+   - ⚠️ 最新基準では Python WR=60.4% / PF=0.99 → 実 gap は **17pp WR**、execution layer で説明可能 ([[python-bt-vs-tv-reconciliation-2026-05-14]])
    - 対処: Phase 2 で `commission_value` + `slippage` を OANDA USDJPY (0.7pip + 0.5pip) に合わせて再計測必須
 4. **session × RSI bucket × direction の 3D 分解が欠落**
    - 教訓「Aggregate label × WR だけでなく category × label × WR の 2D を常に見る」を 2D で止めていた

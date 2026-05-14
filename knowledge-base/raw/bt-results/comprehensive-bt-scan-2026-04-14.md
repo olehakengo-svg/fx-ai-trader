@@ -1,5 +1,13 @@
 # 包括的BT スキャン結果 — 全戦略×全ペア (2026-04-14)
 
+> ⚠️ **DEPRECATED — 1 ヶ月前 (2026-04-14) のスナップショット。引用前に最新 artifact で再確認すること。**
+>
+> - `xs_momentum × USD_JPY` の最新 (2026-05-05 shadow-bt 365d): **N=608 WR=60.4% EV=-0.007 PF=0.99 PnL=-4.0** (break-even, +0.270 は崩壊)
+> - 経緯と整合検証: [[../../wiki/analyses/python-bt-vs-tv-reconciliation-2026-05-14]]
+> - 他戦略も v8.x 改修 (TP 3.0→2.0 ATR, Quick Harvest 等) で edge が再分布した可能性が高い
+> - **本ファイルの TOP 5 をそのまま判断材料に使うのは禁止**。`raw/bt-results/*-shadow-bt-*.json` の最新ファイルを参照
+> - `scripts/hooks/session-start.sh:147` がこのファイルを TOP5 として hard-code 読込 → 構造修正は別判断 (R3 task #23)
+
 **データ**: Massive API 365日 15m足 (DT mode)
 **ペア**: USD_JPY, EUR_USD, GBP_USD, EUR_JPY, EUR_GBP
 **統計**: entry_type別 N/WR/EV/PF/PnL (摩擦込み)
@@ -57,12 +65,16 @@
 
 ## クオンツ判断
 
-### 精鋭候補 TOP 5 (N×EV×PF総合)
-1. **session_time_bias × USD_JPY** — N=157, WR=79%, EV=+0.580, PF=2.46, PnL=+91p ★★★★★
-2. **trendline_sweep × GBP_USD** — N=134, WR=73%, EV=+0.599, PF=1.68, PnL=+80p ★★★★
-3. **gbp_deep_pullback × GBP_USD** — N=77, WR=75%, EV=+1.064, PF=2.00, PnL=+82p ★★★★
-4. **session_time_bias × EUR_USD** — N=566, WR=70%, EV=+0.215, PF=1.34, PnL=+122p ★★★★
-5. **xs_momentum × USD_JPY** — N=342, WR=69%, EV=+0.270, PF=1.43, PnL=+92p ★★★
+⚠️ **以下の TOP 5 は 2026-04-14 時点のスナップショット。最新 BT で検証済みの行のみ採用すること。**
+- ✅ `xs_momentum × USD_JPY` (#5): **deprecate** — 2026-05-05 BT で N=608 WR=60.4% EV=-0.007 (break-even)
+- ⚠️ 他 4 戦略は最新 365d BT 未実施 (要再計測)
+
+### 精鋭候補 TOP 5 (N×EV×PF総合) — 旧スナップショット
+1. **session_time_bias × USD_JPY** — N=157, WR=79%, EV=+0.580, PF=2.46, PnL=+91p ★★★★★ ⚠️未再計測
+2. **trendline_sweep × GBP_USD** — N=134, WR=73%, EV=+0.599, PF=1.68, PnL=+80p ★★★★ ⚠️未再計測
+3. **gbp_deep_pullback × GBP_USD** — N=77, WR=75%, EV=+1.064, PF=2.00, PnL=+82p ★★★★ ⚠️未再計測
+4. **session_time_bias × EUR_USD** — N=566, WR=70%, EV=+0.215, PF=1.34, PnL=+122p ★★★★ ⚠️未再計測
+5. ~~**xs_momentum × USD_JPY** — N=342, WR=69%, EV=+0.270, PF=1.43, PnL=+92p ★★★~~ ❌ **DEPRECATED** (2026-05-05 N=608 WR=60% PF=0.99 break-even)
 
 ### 注意: london_fix_reversal × GBP_USD は BT負EV
 - ロードマップv2ではSENTINEL戦略だったが、365日BTでEV=-0.150
