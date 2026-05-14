@@ -1039,6 +1039,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 | WR | 100% (N=1) | N/A |
 ### 推奨戦略配分
 
+### 2026-05-14 (Pre-Tokyo Briefing)
+| PnL合計 | **+11.8 pips** |
+| 全体WR | **50.0%** (2勝2敗) |
+| Strategy | Pair | N | WR% | EV | PnL | 評価ステータス |
+- **Reason: SL_HIT**。スプレッド1.3pipsで入場し、モメンタムが機能しなかった。
+- GBP_USDのATR%ile=59%（中程度）で、RANGING環境下においてモメンタム戦略は不利なレジームにある。
+- **対処**：現時点では判断を留保（N=1）。RANGINGレジーム継続中は同戦略のシグナルを慎重に観察。
+### 課題②：dt_sr_channel_reversal（EUR_JPY）— SIGNAL_REVERSE -3.1 pips
+- **Reason: SIGNAL_REVERSE**（エントリー後にシグナルが逆転）。EUR_JPY ATR%ile=83%（高ボラ）かつRANGING分類という矛盾した環境。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
