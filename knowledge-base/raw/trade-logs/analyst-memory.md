@@ -1029,6 +1029,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 - `hedge_block` 多発（daytrade系4戦略で31件合計）
 - `rnb_usdjpy`: `direction_filter`で7件全止め
 
+### 2026-05-14 (Post-London Report)
+| PnL (pips) | **0** |
+| WR | **N/A** |
+- **hedge_block**が合計1,059件（266+265+176+175+107）を超えており、**ロンドン全体を通じてヘッジポジション判定が継続していた**と推定。open tradesが0であることと合わせると、ヘッジ判定が「残存しているが実ポジションがない」状態の可能性がある。
+- **max_open**系はscalp系で399件。仮にshadowトレードが内部で開いていればmax_openトリガーは説明可能。
+- **r2_shadow_demoted_cell**が合計295件。複数戦略でdemotionが進行中であり、シグナル生成セルの品質劣化が顕在化している。
+| PnL | +1.9 pips | 0 pips |
+| WR | 100% (N=1) | N/A |
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
