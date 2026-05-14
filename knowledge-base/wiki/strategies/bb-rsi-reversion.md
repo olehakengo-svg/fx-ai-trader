@@ -3,6 +3,12 @@
 ## Status: SCALP_SENTINEL + PAIR_DEMOTED (全ペア) + OANDA_TRIP (BB_RSI_OANDA_TRIP=1)
 **現行**: SCALP_SENTINEL (最小ロット shadow)。EUR_JPY / EUR_USD / GBP_USD / USD_JPY の 4 ペアすべて PAIR_DEMOTED — 実弾通過なし。
 
+## ★ 2026-05-14 TV friction cell audit — 全 cell -EV 確認
+USDJPY 5m × 1y, OANDA commission 0.0136% RT 込みで Strategy Tester:
+N=2,512, WR=30.65%, PF=0.605, Net=-3.13%, Max DD=3.13%.
+Session × Tier × H1 RSI × Direction の 16 cell 全てで NetP<0 → **PAIR_DEMOTED 維持決定**.
+詳細: [[../analyses/bb-rsi-tv-friction-cell-audit-2026-05-14]].
+
 ## ★ 2026-04-25 v11.1 RR floor 適用 (Asymmetric Agility Rule 3)
 
 ### 修正内容
