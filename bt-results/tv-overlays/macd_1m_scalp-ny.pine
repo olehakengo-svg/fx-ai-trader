@@ -1,0 +1,56 @@
+// @version=5
+// macd_1m_scalp v3.1 NY variant — ATR-TP geometry (NOT hist-TP)
+//
+// USDJPY 1m TV verified (2026-05-14):
+//   ATR-TP 1:2: N=48, WR=41.67%, PF=1.33, Net=+0.47, avg=+0.0097
+//   (for comparison: hist-TP no-RSI: PF=1.04, hist-TP + SELL H1<50: PF=1.12)
+//
+// Filter: NY session (UTC 13-22) + dual-direction, no RSI filter
+// Geometry: ATR-TP 1:2 (SL=1×ATR, TP=2×ATR), max_hold = 60
+//
+// Rationale: NY shows OPPOSITE cell pattern from London:
+//   - hist-TP works on London (mean-reversion in tight range)
+//   - NY has more directional moves → trend-following geometry (ATR-TP) wins
+//   - Both BUY and SELL strongest at H1 RSI <30 (extreme oversold → bounce/break)
+// PF 1.33 with BE_WR 33% achieved at WR 41.67% — solid +EV but thin per-trade (0.0097).
+//
+// Status: marginal +EV. Recommended for shadow with H1 RSI <30 filter exploration.
+//
+// Detail: knowledge-base/wiki/analyses/macd-1m-scalp-v3-session-variants-2026-05-14.md
+
+strategy("macd_1m_scalp_v3_NY (dual, ATR-TP 1:2)", overlay=true, default_qty_type=strategy.fixed, default_qty_value=1, initial_capital=10000, commission_type=strategy.commission.cash_per_contract, commission_value=0.0, calc_on_every_tick=false, process_orders_on_close=true)
+
+fast_len   = input.int(12,  "MACD fast")
+slow_len   = input.int(26,  "MACD slow")
+sig_len    = input.int(9,   "MACD signal")
+atr_len    = input.int(14,  "ATR length")
+sl_mult    = input.float(1.0, "SL × ATR", step=0.1)
+tp_mult    = input.float(2.0, "TP × ATR", step=0.1)
+max_hold   = input.int(60,  "Max hold (bars)")
+
+sell_entry_thr = input.float( 0.015, "SELL entry: hist[1] >= thr", step=0.005)
+buy_entry_thr  = input.float(-0.015, "BUY  entry: hist[1] <= thr", step=0.005)
+
+[macd_line, signal_line, hist] = ta.macd(close, fast_len, slow_len, sig_len)
+atr = ta.atr(atr_len)
+
+h_utc = hour(time, "UTC")
+cur_sess = h_utc < 7 ? 0 : h_utc < 13 ? 1 : h_utc < 22 ? 2 : 3
+session_pass = cur_sess == 2
+
+sell_sig = session_pass and not na(hist[1]) and hist[1] >= sell_entry_thr and hist < hist[1]
+buy_sig  = session_pass and not na(hist[1]) and hist[1] <= buy_entry_thr  and hist > hist[1]
+
+if sell_sig and strategy.position_size == 0
+    strategy.entry("S", strategy.short)
+if buy_sig and strategy.position_size == 0
+    strategy.entry("L", strategy.long)
+
+if strategy.position_size > 0
+    strategy.exit("X", "L", stop=strategy.position_avg_price - sl_mult * atr, limit=strategy.position_avg_price + tp_mult * atr)
+if strategy.position_size < 0
+    strategy.exit("X", "S", stop=strategy.position_avg_price + sl_mult * atr, limit=strategy.position_avg_price - tp_mult * atr)
+
+bars_in_trade = strategy.position_size != 0 ? bar_index - strategy.opentrades.entry_bar_index(0) : 0
+if strategy.position_size != 0 and bars_in_trade >= max_hold
+    strategy.close_all(comment="max_hold")

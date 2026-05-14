@@ -1,0 +1,64 @@
+// @version=5
+// macd_1m_scalp v3.1 London variant — STRONGEST variant
+//
+// USDJPY 1m TV verified (2026-05-14):
+//   N=54, WR=53.7%, PF=1.85, Net=+2.04, avg=+0.0378
+//
+// Filter: London session (UTC 7-13) + dual-direction + SELL × H1 RSI < 50
+// Geometry: hist round-trip TP (±0.015 entry / ±0.005 TP), SL = 1×ATR, max_hold = 60
+//
+// Rationale: London has strong mean-reversion in MACD hist. SELL × H1 50-70 was the
+// only -EV killer cell (counter-trend SELL during H1 rallies). Filtering it
+// boosts PF from 1.63 (Config H, no filter) to 1.85 (Config I, with filter).
+// London avg trade +0.0378 (TV units) — passes friction (1.2pip RT) with margin.
+//
+// Status: STRONGEST of 3 session variants. Recommended for shadow → promotion pipeline.
+//
+// Detail: knowledge-base/wiki/analyses/macd-1m-scalp-v3-session-variants-2026-05-14.md
+
+strategy("macd_1m_scalp_v3_London (dual, SELL H1<50)", overlay=true, default_qty_type=strategy.fixed, default_qty_value=1, initial_capital=10000, commission_type=strategy.commission.cash_per_contract, commission_value=0.0, calc_on_every_tick=false, process_orders_on_close=true)
+
+fast_len   = input.int(12,  "MACD fast")
+slow_len   = input.int(26,  "MACD slow")
+sig_len    = input.int(9,   "MACD signal")
+atr_len    = input.int(14,  "ATR length")
+sl_mult    = input.float(1.0, "SL × ATR", step=0.1)
+max_hold   = input.int(60,  "Max hold (bars)")
+
+sell_entry_thr = input.float( 0.015, "SELL entry: hist[1] >= thr", step=0.005)
+buy_entry_thr  = input.float(-0.015, "BUY  entry: hist[1] <= thr", step=0.005)
+sell_tp_thr    = input.float(-0.005, "SELL TP:    hist <= thr",   step=0.005)
+buy_tp_thr     = input.float( 0.005, "BUY  TP:    hist >= thr",   step=0.005)
+
+rsi_len      = input.int(14, "H1 RSI length")
+sell_rsi_max = input.float(50.0, "SELL only if H1 RSI <", step=1.0)
+
+[macd_line, signal_line, hist] = ta.macd(close, fast_len, slow_len, sig_len)
+atr = ta.atr(atr_len)
+h1_rsi = request.security(syminfo.tickerid, "60", ta.rsi(close, rsi_len), lookahead=barmerge.lookahead_off)
+
+h_utc = hour(time, "UTC")
+cur_sess = h_utc < 7 ? 0 : h_utc < 13 ? 1 : h_utc < 22 ? 2 : 3
+session_pass = cur_sess == 1
+
+sell_sig = session_pass and h1_rsi < sell_rsi_max and not na(hist[1]) and hist[1] >= sell_entry_thr and hist < hist[1]
+buy_sig  = session_pass                          and not na(hist[1]) and hist[1] <= buy_entry_thr  and hist > hist[1]
+
+if sell_sig and strategy.position_size == 0
+    strategy.entry("S", strategy.short)
+if buy_sig and strategy.position_size == 0
+    strategy.entry("L", strategy.long)
+
+if strategy.position_size > 0 and hist >= buy_tp_thr
+    strategy.close("L", comment="TP-hist")
+if strategy.position_size < 0 and hist <= sell_tp_thr
+    strategy.close("S", comment="TP-hist")
+
+if strategy.position_size > 0
+    strategy.exit("X", "L", stop=strategy.position_avg_price - sl_mult * atr)
+if strategy.position_size < 0
+    strategy.exit("X", "S", stop=strategy.position_avg_price + sl_mult * atr)
+
+bars_in_trade = strategy.position_size != 0 ? bar_index - strategy.opentrades.entry_bar_index(0) : 0
+if strategy.position_size != 0 and bars_in_trade >= max_hold
+    strategy.close_all(comment="max_hold")

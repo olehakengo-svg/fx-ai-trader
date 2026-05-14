@@ -1,0 +1,56 @@
+// @version=5
+// macd_1m_scalp v3.1 Tokyo BUY-only variant
+//
+// USDJPY 1m TV verified (2026-05-14):
+//   N=24, WR=50.0%, PF=1.56, Net=+0.75, avg=+0.0314
+//
+// Filter: Tokyo session (UTC 0-7) + BUY-only + H1 RSI < 70
+// Geometry: hist round-trip TP (±0.015 entry / ±0.005 TP), SL = 1×ATR, max_hold = 60
+//
+// Diagnostic finding: Tokyo SELL × H1 30-50 cell is killer -EV (PF 0.05, N=8, Net-2.9).
+// BUY × H1 30-50 is strongest cell (PF 3.88, N=8, Net+3.6). BUY-only filter
+// removes the killer SELL cell while preserving Tokyo's BUY edge.
+//
+// Status: marginal +EV after USDJPY 1.2pip RT friction. Thin signal density (N=24).
+// Recommendation: live shadow only — N too small for promotion without longer accumulation.
+//
+// Detail: knowledge-base/wiki/analyses/macd-1m-scalp-v3-session-variants-2026-05-14.md
+
+strategy("macd_1m_scalp_v3_TokyoBuy (BUY-only, H1<70)", overlay=true, default_qty_type=strategy.fixed, default_qty_value=1, initial_capital=10000, commission_type=strategy.commission.cash_per_contract, commission_value=0.0, calc_on_every_tick=false, process_orders_on_close=true)
+
+fast_len   = input.int(12,  "MACD fast")
+slow_len   = input.int(26,  "MACD slow")
+sig_len    = input.int(9,   "MACD signal")
+atr_len    = input.int(14,  "ATR length")
+sl_mult    = input.float(1.0, "SL × ATR", step=0.1)
+max_hold   = input.int(60,  "Max hold (bars)")
+
+buy_entry_thr = input.float(-0.015, "BUY entry: hist[1] <= thr", step=0.005)
+buy_tp_thr    = input.float( 0.005, "BUY TP:    hist >= thr",   step=0.005)
+
+rsi_len    = input.int(14, "H1 RSI length")
+rsi_max    = input.float(70.0, "BUY only if H1 RSI <", step=1.0)
+
+[macd_line, signal_line, hist] = ta.macd(close, fast_len, slow_len, sig_len)
+atr = ta.atr(atr_len)
+h1_rsi = request.security(syminfo.tickerid, "60", ta.rsi(close, rsi_len), lookahead=barmerge.lookahead_off)
+
+h_utc = hour(time, "UTC")
+cur_sess = h_utc < 7 ? 0 : h_utc < 13 ? 1 : h_utc < 22 ? 2 : 3
+session_pass = cur_sess == 0
+rsi_pass     = h1_rsi < rsi_max
+
+buy_sig = session_pass and rsi_pass and not na(hist[1]) and hist[1] <= buy_entry_thr and hist > hist[1]
+
+if buy_sig and strategy.position_size == 0
+    strategy.entry("L", strategy.long)
+
+if strategy.position_size > 0 and hist >= buy_tp_thr
+    strategy.close("L", comment="TP-hist")
+
+if strategy.position_size > 0
+    strategy.exit("X", "L", stop=strategy.position_avg_price - sl_mult * atr)
+
+bars_in_trade = strategy.position_size != 0 ? bar_index - strategy.opentrades.entry_bar_index(0) : 0
+if strategy.position_size != 0 and bars_in_trade >= max_hold
+    strategy.close_all(comment="max_hold")
