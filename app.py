@@ -6498,6 +6498,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "vix_carry_unwind",              # VIXキャリー巻戻し (Brunnermeier 2009)
                 "xs_momentum",                   # クロスセクション通貨モメンタム (Eriksen 2019)
                 "xs_momentum_rsi",               # XS Momentum + H1 RSI direction filter (USD_JPY Live, 2026-05-13)
+                "macd_rsi_pullback",             # MACD hist_dir + H1 RSI 60/40 pullback (USD_JPY 1H, TV 3.5y N=196 WR=39.29% PF=1.161, SCALP_SENTINEL 2026-05-14)
                 "hmm_regime_filter",             # HMMレジームフィルター (evaluate()→None, pre-commit整合性のため残留)
                 # v8.8: 生データアルファマイニング
                 "vol_spike_mr",                  # Vol Spike MR (BT JPY PF=1.92)

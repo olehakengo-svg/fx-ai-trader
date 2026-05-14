@@ -43,6 +43,7 @@ from strategies.daytrade.session_time_bias import SessionTimeBias
 from strategies.daytrade.gotobi_fix import GotobiFix
 from strategies.daytrade.xs_momentum import XsMomentum
 from strategies.daytrade.xs_momentum_rsi import XsMomentumRsi
+from strategies.daytrade.macd_rsi_pullback import MacdRsiPullback
 from strategies.daytrade.hmm_regime_filter import HmmRegimeFilter
 from strategies.daytrade.london_fix_reversal import LondonFixReversal
 from strategies.daytrade.vix_carry_unwind import VixCarryUnwind
@@ -105,6 +106,7 @@ class DaytradeEngine:
             GotobiFix(),                   # 五十日仲値: USD/JPY BUY専用 (Bessho 2023, Ito & Yamada 2017)
             XsMomentum(),                  # XS Momentum: 通貨ペア内正規化モメンタム順張り (Menkhoff 2012)
             XsMomentumRsi(),               # v11 (2026-05-13): xs_momentum_rsi — H1 RSI direction filter variant (USD_JPY Live, TV Phase 2 Config 3 edge)
+            MacdRsiPullback(),             # v11 (2026-05-14): macd_rsi_pullback — USD_JPY 1H MACD hist_dir + H1 RSI 60/40 gate trend-pullback (TV 3.5y BT canonical +EV, SCALP_SENTINEL shadow-first)
             HmmRegimeFilter(),             # HMM Regime: 防御オーバーレイ (Nystrup 2024, シグナル生成なし)
             LondonFixReversal(),           # LFR: London 4pm Fix後のUSD反転 (Krohn et al. 2024, Melvin & Prins 2015)
             VixCarryUnwind(),              # VCU: VIXスパイク時キャリートレード巻き戻し (Brunnermeier et al. 2009)

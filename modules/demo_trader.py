@@ -3583,6 +3583,7 @@ class DemoTrader:
             "vix_carry_unwind",              # VIXキャリー巻戻し: VIX急騰→JPY long (Brunnermeier 2009)
             "xs_momentum",                   # クロスセクション通貨モメンタム (Menkhoff 2012, Eriksen 2019)
             "xs_momentum_rsi",               # XS Momentum + H1 RSI direction filter (USD_JPY Live, 2026-05-13)
+            "macd_rsi_pullback",             # MACD hist_dir + H1 RSI 60/40 pullback (USD_JPY 1H, TV 3.5y +EV, SCALP_SENTINEL 2026-05-14)
             "hmm_regime_filter",             # HMMレジームフィルター: 防御オーバーレイ (Nystrup 2024)
             # v8.8: 生データアルファマイニング (2026-04-12)
             "vol_spike_mr",                  # Vol Spike MR: 3x range spike → fade (BT JPY PF=1.92)
@@ -6615,6 +6616,7 @@ class DemoTrader:
         "dt_sr_channel_reversal",      # DT SR/チャネル反発 — 未検証, Sentinel蓄積
         "sr_weighted_bounce",          # SR Weighted Bounce v1: heavy wall + composite weight gate (Shadow-only 2026-05-13)
         "sr_weighted_break",           # SR Weighted Break v1: heavy wall breakout retest (Shadow-only 2026-05-13, break family pair)
+        "macd_rsi_pullback",           # MACD hist_dir + H1 RSI 60/40 trend-pullback (USD_JPY 1H, TV 3.5y N=196 WR=39.29% PF=1.161 +EV, SCALP_SENTINEL shadow-first 2026-05-14, Live N>=30 で gate 再判定)
         # REMOVED 2026-04-22: ema200_trend_reversal → _FORCE_DEMOTED (H-2026-04-22-004 全ペア負EV)
         "post_news_vol",               # ニュース後ボラ — WR=42.4%, Sentinel再検証
         # 2026-04-28 Phase 8 Track A 3-way interaction discovery (Sentinel override)
