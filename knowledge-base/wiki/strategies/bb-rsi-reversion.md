@@ -9,6 +9,21 @@ N=2,512, WR=30.65%, PF=0.605, Net=-3.13%, Max DD=3.13%.
 Session × Tier × H1 RSI × Direction の 16 cell 全てで NetP<0 → **PAIR_DEMOTED 維持決定**.
 詳細: [[../analyses/bb-rsi-tv-friction-cell-audit-2026-05-14]].
 
+## ★ 2026-05-14 1m-MTF variant audit — hypothesis falsified
+1m MACD entry filter + 1m RSI exhaustion exit で entry/exit 精度を上げる仮説を Pine v5 で検証 (USDJPY 5m, OANDA friction):
+
+| Config | N | WR% | PF | Net |
+|---|---:|---:|---:|---:|
+| Parent (no 1m MTF) | 733 | 30.97 | 0.59 | -0.92% |
+| MACD hist_dir + 1m RSI exit | 619 | 32.15 | 0.55 | -0.86% |
+| MACD hist_cross + 1m RSI exit | 100 | 22.00 | 0.34 | -0.22% |
+| MACD hist_dir only | 616 | 30.84 | 0.56 | -0.85% |
+
+→ 全 config -EV、全 cell -EV (例外: SELL H1RSI≥70 N=4 NetP=+1.7 / 統計無意味).
+1m RSI 早期 TP は WR +1.3pp 上げるが PF は下がる (利幅縮小と zero-sum).
+hist_cross は worst (mean reversion against fresh momentum flip).
+**bb_rsi_reversion 系 variant 化を完全停止**. 詳細: [[../analyses/bb-rsi-1m-mtf-variant-audit-2026-05-14]].
+
 ## ★ 2026-04-25 v11.1 RR floor 適用 (Asymmetric Agility Rule 3)
 
 ### 修正内容
