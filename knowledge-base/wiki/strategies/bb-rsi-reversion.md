@@ -3,6 +3,12 @@
 ## Status: SCALP_SENTINEL + PAIR_DEMOTED (全ペア) + OANDA_TRIP (BB_RSI_OANDA_TRIP=1)
 **現行**: SCALP_SENTINEL (最小ロット shadow)。EUR_JPY / EUR_USD / GBP_USD / USD_JPY の 4 ペアすべて PAIR_DEMOTED — 実弾通過なし。
 
+## ★ 2026-05-14 後継: macd_rsi_pullback
+bb_rsi の mean-reversion 哲学を放棄し、trend-following pullback 戦略に再設計。
+USDJPY 1H × OANDA friction で +EV 確認 (N=196, WR=39.29%, PF=1.161, Net=+0.36%).
+詳細: [[../analyses/macd-rsi-pullback-h1-audit-2026-05-14]].
+bb_rsi 系 variant 化は引き続き停止。
+
 ## ★ 2026-05-14 TV friction cell audit — 全 cell -EV 確認
 USDJPY 5m × 1y, OANDA commission 0.0136% RT 込みで Strategy Tester:
 N=2,512, WR=30.65%, PF=0.605, Net=-3.13%, Max DD=3.13%.

@@ -1,0 +1,337 @@
+//@version=5
+// =====================================================================
+// macd_rsi_pullback — Trend-Following Pullback with H1 RSI bias
+//
+// REPLACES bb_rsi_reversion philosophy (mean-reversion FAILED).
+//
+// Canonical config (2026-05-14 TV BT, USDJPY, 3.5y, OANDA friction):
+//   - Base TF: **1H** (1H × H1 RSI = adjacent-bar momentum + bias)
+//   - H1 RSI gate: BUY ≥ 60 / SELL ≤ 40
+//   - 1H RSI pullback (prev bar): BUY 30-55 / SELL 45-70
+//   - MACD mode: hist_dir (state filter, not event)
+//   - Session: London + NY (UTC 7-22)
+//   - SL ATR×1.0, TP ATR×2.0 (RR=2.0)
+//   - OANDA friction: commission_percent 0.0068 per side (= 2.14p RT for USDJPY)
+//   - ADX floor OFF / pullback resumption ON
+//
+// Results (USDJPY 1H, 2023-01-02 → 2026-05-14):
+//   N=196, WR=39.29%, PF=1.161, Net=+0.36%, MaxDD=0.39%
+//
+// High-conviction subset (H1 RSI 65/35 tightened):
+//   N=58, WR=43.10%, PF=1.327, Net=+0.21%, MaxDD=0.18%
+//
+// Other pairs (65/35 + hist_dir, same friction setting):
+//   EUR_USD: N=199 WR=32.16% PF=0.761  ❌
+//   GBP_USD: N=178 WR=35.39% PF=0.974  ❌
+//   EUR_JPY: N=157 WR=29.94% PF=0.774  ❌
+//   → Edge is USD_JPY-specific.
+//
+// 15m base TF: all 3 configs -EV (friction:noise too large).
+//   line_cross + 55/45:  N=36  WR=30.56% PF=0.602
+//   hist_dir + 55/45:    N=242 WR=30.58% PF=0.619
+//   hist_dir + 60/40:    N=76  WR=27.63% PF=0.634
+//
+// 5 tables:
+//   Top-left:    Summary
+//   Top-right:   Session × overall
+//   Middle-right: H1 RSI × Direction
+//   Bottom-right: 1H RSI prev-bar × Direction (pullback bin)
+//   Bottom-left:  Exit-reason × Direction
+// =====================================================================
+
+strategy("macd_rsi_pullback (1H + H1 RSI bias, OANDA-friction)",
+     overlay=true,
+     initial_capital=10000,
+     default_qty_type=strategy.percent_of_equity,
+     default_qty_value=10,
+     pyramiding=0,
+     calc_on_every_tick=false,
+     process_orders_on_close=true,
+     commission_type=strategy.commission.percent,
+     commission_value=0.0068)
+
+// ───── Inputs ─────
+htf_rsi_buy   = input.int(60, "H1 RSI BUY min", group="HTF gate")
+htf_rsi_sell  = input.int(40, "H1 RSI SELL max", group="HTF gate")
+
+ltf_rsi_pb_buy_low   = input.int(30, "1H RSI pullback BUY low",  group="LTF pullback")
+ltf_rsi_pb_buy_high  = input.int(55, "1H RSI pullback BUY high", group="LTF pullback")
+ltf_rsi_pb_sell_low  = input.int(45, "1H RSI pullback SELL low", group="LTF pullback")
+ltf_rsi_pb_sell_high = input.int(70, "1H RSI pullback SELL high",group="LTF pullback")
+
+macd_fast   = input.int(12, "MACD fast", group="MACD")
+macd_slow   = input.int(26, "MACD slow", group="MACD")
+macd_signal = input.int(9,  "MACD signal", group="MACD")
+macd_mode   = input.string("hist_dir", "MACD mode",
+                           options=["line_cross", "hist_cross", "hist_dir"], group="MACD")
+
+sl_atr_mult = input.float(1.0, "SL ATR mult", group="Risk")
+tp_atr_mult = input.float(2.0, "TP ATR mult", group="Risk")
+atr_len     = input.int(14, "ATR length", group="Risk")
+
+sess_start  = input.int(7,  "Session start UTC hour", group="Session")
+sess_end    = input.int(22, "Session end UTC hour",   group="Session")
+
+use_adx_floor = input.bool(false, "Use ADX floor", group="Filters")
+adx_len       = input.int(14, "ADX length", group="Filters")
+adx_min       = input.float(18.0, "ADX min", group="Filters")
+
+require_pb_resumption = input.bool(true,
+   "Require rsi resumption (rsi>rsi_prev BUY, <prev SELL)", group="Filters")
+
+show_tables = input.bool(true, "Show analytic tables", group="UI")
+
+// ───── HTF data: H1 RSI ─────
+rsi_h1 = request.security(syminfo.tickerid, "60",
+     ta.rsi(close, 14), lookahead=barmerge.lookahead_off)
+
+in_bull = rsi_h1 >= htf_rsi_buy
+in_bear = rsi_h1 <= htf_rsi_sell
+
+// ───── LTF: MACD, RSI, ATR, ADX ─────
+[macd_line, signal_line, hist] = ta.macd(close, macd_fast, macd_slow, macd_signal)
+hist_prev = hist[1]
+rsi_15m  = ta.rsi(close, 14)
+rsi_prev = rsi_15m[1]
+atr_v    = ta.atr(atr_len)
+
+[diPlus, diMinus, adx] = ta.dmi(adx_len, adx_len)
+adx_ok = not use_adx_floor or adx >= adx_min
+
+macd_buy  = macd_mode == "line_cross" ? ta.crossover(macd_line, signal_line)
+            : macd_mode == "hist_cross" ? (hist > 0 and hist_prev <= 0)
+            : (hist > 0)
+macd_sell = macd_mode == "line_cross" ? ta.crossunder(macd_line, signal_line)
+            : macd_mode == "hist_cross" ? (hist < 0 and hist_prev >= 0)
+            : (hist < 0)
+
+buy_pullback  = rsi_prev >= ltf_rsi_pb_buy_low  and rsi_prev <= ltf_rsi_pb_buy_high
+sell_pullback = rsi_prev >= ltf_rsi_pb_sell_low and rsi_prev <= ltf_rsi_pb_sell_high
+
+rsi_resume_buy  = not require_pb_resumption or rsi_15m > rsi_prev
+rsi_resume_sell = not require_pb_resumption or rsi_15m < rsi_prev
+
+in_session = hour >= sess_start and hour < sess_end
+bull_bar = close > open
+bear_bar = close < open
+
+buy_sig  = in_bull and buy_pullback  and macd_buy  and rsi_resume_buy  and in_session and bull_bar and adx_ok
+sell_sig = in_bear and sell_pullback and macd_sell and rsi_resume_sell and in_session and bear_bar and adx_ok
+
+// SL/TP
+buy_sl  = close - atr_v * sl_atr_mult
+buy_tp  = close + atr_v * tp_atr_mult
+sell_sl = close + atr_v * sl_atr_mult
+sell_tp = close - atr_v * tp_atr_mult
+
+if buy_sig and strategy.position_size == 0
+    strategy.entry("BUY", strategy.long)
+    strategy.exit("BUY-x", from_entry="BUY", stop=buy_sl, limit=buy_tp, comment_loss="SL", comment_profit="TP")
+
+if sell_sig and strategy.position_size == 0
+    strategy.entry("SELL", strategy.short)
+    strategy.exit("SELL-x", from_entry="SELL", stop=sell_sl, limit=sell_tp, comment_loss="SL", comment_profit="TP")
+
+// ───── Trade metadata capture ─────
+var int[]   t_dir   = array.new_int()
+var float[] t_rsih1 = array.new_float()
+var float[] t_rsi15 = array.new_float()
+var int[]   t_sess  = array.new_int()
+
+f_sess() =>
+    int s = 3
+    if hour < 7
+        s := 0
+    else if hour < 13
+        s := 1
+    else if hour < 22
+        s := 2
+    s
+
+if buy_sig and strategy.position_size == 0
+    array.push(t_dir, 1)
+    array.push(t_rsih1, rsi_h1)
+    array.push(t_rsi15, rsi_prev)
+    array.push(t_sess, f_sess())
+
+if sell_sig and strategy.position_size == 0
+    array.push(t_dir, -1)
+    array.push(t_rsih1, rsi_h1)
+    array.push(t_rsi15, rsi_prev)
+    array.push(t_sess, f_sess())
+
+// ───── Aggregators ─────
+var int[]   s_n   = array.new_int(4, 0)
+var int[]   s_w   = array.new_int(4, 0)
+var float[] s_pnl = array.new_float(4, 0.0)
+var float[] s_gp  = array.new_float(4, 0.0)
+var float[] s_gl  = array.new_float(4, 0.0)
+var int[]   r_n   = array.new_int(8, 0)
+var int[]   r_w   = array.new_int(8, 0)
+var float[] r_pnl = array.new_float(8, 0.0)
+var int[]   p_n   = array.new_int(8, 0)
+var int[]   p_w   = array.new_int(8, 0)
+var float[] p_pnl = array.new_float(8, 0.0)
+var int[]   e_n   = array.new_int(4, 0)
+var int[]   e_w   = array.new_int(4, 0)
+var float[] e_pnl = array.new_float(4, 0.0)
+
+var int last_trade_count = 0
+cur_trade_count = strategy.closedtrades
+if cur_trade_count > last_trade_count
+    for i = last_trade_count to cur_trade_count - 1
+        if array.size(t_dir) > i
+            int dir = array.get(t_dir, i)
+            float r_h1 = array.get(t_rsih1, i)
+            float r_15 = array.get(t_rsi15, i)
+            int sess = array.get(t_sess, i)
+            float pnl_pts = strategy.closedtrades.profit(i)
+            int   is_win  = pnl_pts > 0 ? 1 : 0
+            string exit_cmt = strategy.closedtrades.exit_comment(i)
+            int exit_idx = exit_cmt == "TP" ? 1 : 0
+            array.set(s_n,   sess, array.get(s_n,   sess) + 1)
+            array.set(s_w,   sess, array.get(s_w,   sess) + is_win)
+            array.set(s_pnl, sess, array.get(s_pnl, sess) + pnl_pts)
+            if pnl_pts > 0
+                array.set(s_gp, sess, array.get(s_gp, sess) + pnl_pts)
+            else
+                array.set(s_gl, sess, array.get(s_gl, sess) + math.abs(pnl_pts))
+            int rbin = 0
+            if dir == 1
+                rbin := r_h1 < 60 ? 0 : (r_h1 < 65 ? 1 : (r_h1 < 75 ? 2 : 3))
+            else
+                rbin := r_h1 > 40 ? 0 : (r_h1 > 35 ? 1 : (r_h1 > 25 ? 2 : 3))
+            int r_idx = (dir == 1 ? 0 : 1) * 4 + rbin
+            array.set(r_n,   r_idx, array.get(r_n,   r_idx) + 1)
+            array.set(r_w,   r_idx, array.get(r_w,   r_idx) + is_win)
+            array.set(r_pnl, r_idx, array.get(r_pnl, r_idx) + pnl_pts)
+            int pbin = 0
+            if dir == 1
+                pbin := r_15 < 40 ? 0 : (r_15 < 45 ? 1 : (r_15 < 50 ? 2 : 3))
+            else
+                pbin := r_15 < 50 ? 0 : (r_15 < 55 ? 1 : (r_15 < 60 ? 2 : 3))
+            int p_idx = (dir == 1 ? 0 : 1) * 4 + pbin
+            array.set(p_n,   p_idx, array.get(p_n,   p_idx) + 1)
+            array.set(p_w,   p_idx, array.get(p_w,   p_idx) + is_win)
+            array.set(p_pnl, p_idx, array.get(p_pnl, p_idx) + pnl_pts)
+            int e_idx = (dir == 1 ? 0 : 1) * 2 + exit_idx
+            array.set(e_n,   e_idx, array.get(e_n,   e_idx) + 1)
+            array.set(e_w,   e_idx, array.get(e_w,   e_idx) + is_win)
+            array.set(e_pnl, e_idx, array.get(e_pnl, e_idx) + pnl_pts)
+    last_trade_count := cur_trade_count
+
+// ───── Tables ─────
+if barstate.islast and show_tables
+    var table tSum = table.new(position.top_left, 2, 12, border_width=1)
+    int N  = strategy.closedtrades
+    float winr = N > 0 ? strategy.wintrades / N * 100 : 0
+    float pf   = strategy.grossloss != 0 ? strategy.grossprofit / math.abs(strategy.grossloss) : 0
+    float netp = strategy.netprofit
+    float pct  = strategy.initial_capital > 0 ? netp / strategy.initial_capital * 100 : 0
+    table.cell(tSum, 0, 0, "Metric", bgcolor=color.new(color.gray, 30), text_color=color.white)
+    table.cell(tSum, 1, 0, "Value",  bgcolor=color.new(color.gray, 30), text_color=color.white)
+    table.cell(tSum, 0, 1, "Strategy")
+    table.cell(tSum, 1, 1, "macd_rsi_pullback 1H")
+    table.cell(tSum, 0, 2, "H1 RSI gate")
+    table.cell(tSum, 1, 2, str.format("BUY>={0} / SELL<={1}", htf_rsi_buy, htf_rsi_sell))
+    table.cell(tSum, 0, 3, "1H RSI pullback")
+    table.cell(tSum, 1, 3, str.format("BUY {0}-{1} / SELL {2}-{3}", ltf_rsi_pb_buy_low, ltf_rsi_pb_buy_high, ltf_rsi_pb_sell_low, ltf_rsi_pb_sell_high))
+    table.cell(tSum, 0, 4, "MACD mode")
+    table.cell(tSum, 1, 4, macd_mode)
+    table.cell(tSum, 0, 5, "RR")
+    table.cell(tSum, 1, 5, str.format("SL ATR*{0} / TP ATR*{1} / RR={2}", sl_atr_mult, tp_atr_mult, tp_atr_mult / sl_atr_mult))
+    table.cell(tSum, 0, 6, "Filters")
+    table.cell(tSum, 1, 6, str.format("ADX_floor={0} / pb_resume={1}", use_adx_floor, require_pb_resumption))
+    table.cell(tSum, 0, 7, "Friction (RT)")
+    table.cell(tSum, 1, 7, "0.0136% (2.14p USDJPY)")
+    table.cell(tSum, 0, 8, "Total trades")
+    table.cell(tSum, 1, 8, str.tostring(N))
+    table.cell(tSum, 0, 9, "Win rate %")
+    table.cell(tSum, 1, 9, str.format("{0,number,#.##}", winr))
+    table.cell(tSum, 0, 10, "Profit factor")
+    table.cell(tSum, 1, 10, str.format("{0,number,#.##}", pf))
+    table.cell(tSum, 0, 11, "Net profit")
+    table.cell(tSum, 1, 11, str.format("{0,number,#.##} ({1,number,#.##}%)", netp, pct))
+
+    var table tSess = table.new(position.top_right, 5, 5, border_width=1)
+    table.cell(tSess, 0, 0, "Session", bgcolor=color.new(color.gray, 30), text_color=color.white)
+    table.cell(tSess, 1, 0, "N",       bgcolor=color.new(color.gray, 30), text_color=color.white)
+    table.cell(tSess, 2, 0, "WR%",     bgcolor=color.new(color.gray, 30), text_color=color.white)
+    table.cell(tSess, 3, 0, "PF",      bgcolor=color.new(color.gray, 30), text_color=color.white)
+    table.cell(tSess, 4, 0, "NetP",    bgcolor=color.new(color.gray, 30), text_color=color.white)
+    sess_labels = array.from("Tokyo", "London", "NY", "Off")
+    for j = 0 to 3
+        int n  = array.get(s_n, j)
+        int w  = array.get(s_w, j)
+        float pl = array.get(s_pnl, j)
+        float gp = array.get(s_gp, j)
+        float gl = array.get(s_gl, j)
+        float wr_s = n > 0 ? w * 100.0 / n : 0
+        float pf_s = gl > 0 ? gp / gl : 0
+        table.cell(tSess, 0, j + 1, array.get(sess_labels, j))
+        table.cell(tSess, 1, j + 1, str.tostring(n))
+        table.cell(tSess, 2, j + 1, str.format("{0,number,#.#}", wr_s))
+        table.cell(tSess, 3, j + 1, str.format("{0,number,#.##}", pf_s))
+        table.cell(tSess, 4, j + 1, str.format("{0,number,#.#}", pl))
+
+    var table tRsi = table.new(position.middle_right, 5, 9, border_width=1)
+    table.cell(tRsi, 0, 0, "Dir",    bgcolor=color.new(color.gray, 30), text_color=color.white)
+    table.cell(tRsi, 1, 0, "H1 RSI", bgcolor=color.new(color.gray, 30), text_color=color.white)
+    table.cell(tRsi, 2, 0, "N",      bgcolor=color.new(color.gray, 30), text_color=color.white)
+    table.cell(tRsi, 3, 0, "WR%",    bgcolor=color.new(color.gray, 30), text_color=color.white)
+    table.cell(tRsi, 4, 0, "NetP",   bgcolor=color.new(color.gray, 30), text_color=color.white)
+    r_lbls_buy  = array.from("55-60", "60-65", "65-75", ">=75")
+    r_lbls_sell = array.from("45-40", "40-35", "35-25", "<25")
+    for k = 0 to 7
+        int n  = array.get(r_n, k)
+        int w  = array.get(r_w, k)
+        float pl = array.get(r_pnl, k)
+        float wr_s = n > 0 ? w * 100.0 / n : 0
+        string dlbl = k < 4 ? "BUY" : "SELL"
+        string rlbl = k < 4 ? array.get(r_lbls_buy, k) : array.get(r_lbls_sell, k - 4)
+        table.cell(tRsi, 0, k + 1, dlbl)
+        table.cell(tRsi, 1, k + 1, rlbl)
+        table.cell(tRsi, 2, k + 1, str.tostring(n))
+        table.cell(tRsi, 3, k + 1, str.format("{0,number,#.#}", wr_s))
+        table.cell(tRsi, 4, k + 1, str.format("{0,number,#.#}", pl))
+
+    var table tPb = table.new(position.bottom_right, 5, 9, border_width=1)
+    table.cell(tPb, 0, 0, "Dir",    bgcolor=color.new(color.gray, 30), text_color=color.white)
+    table.cell(tPb, 1, 0, "1H RSI prev", bgcolor=color.new(color.gray, 30), text_color=color.white)
+    table.cell(tPb, 2, 0, "N",      bgcolor=color.new(color.gray, 30), text_color=color.white)
+    table.cell(tPb, 3, 0, "WR%",    bgcolor=color.new(color.gray, 30), text_color=color.white)
+    table.cell(tPb, 4, 0, "NetP",   bgcolor=color.new(color.gray, 30), text_color=color.white)
+    p_lbls_buy  = array.from("30-40", "40-45", "45-50", "50-55")
+    p_lbls_sell = array.from("45-50", "50-55", "55-60", "60-70")
+    for k = 0 to 7
+        int n  = array.get(p_n, k)
+        int w  = array.get(p_w, k)
+        float pl = array.get(p_pnl, k)
+        float wr_s = n > 0 ? w * 100.0 / n : 0
+        string dlbl = k < 4 ? "BUY" : "SELL"
+        string plbl = k < 4 ? array.get(p_lbls_buy, k) : array.get(p_lbls_sell, k - 4)
+        table.cell(tPb, 0, k + 1, dlbl)
+        table.cell(tPb, 1, k + 1, plbl)
+        table.cell(tPb, 2, k + 1, str.tostring(n))
+        table.cell(tPb, 3, k + 1, str.format("{0,number,#.#}", wr_s))
+        table.cell(tPb, 4, k + 1, str.format("{0,number,#.#}", pl))
+
+    var table tEx = table.new(position.bottom_left, 5, 5, border_width=1)
+    table.cell(tEx, 0, 0, "Dir",   bgcolor=color.new(color.gray, 30), text_color=color.white)
+    table.cell(tEx, 1, 0, "Exit",  bgcolor=color.new(color.gray, 30), text_color=color.white)
+    table.cell(tEx, 2, 0, "N",     bgcolor=color.new(color.gray, 30), text_color=color.white)
+    table.cell(tEx, 3, 0, "WR%",   bgcolor=color.new(color.gray, 30), text_color=color.white)
+    table.cell(tEx, 4, 0, "NetP",  bgcolor=color.new(color.gray, 30), text_color=color.white)
+    ex_lbls = array.from("SL", "TP", "SL", "TP")
+    for k = 0 to 3
+        int n  = array.get(e_n, k)
+        int w  = array.get(e_w, k)
+        float pl = array.get(e_pnl, k)
+        float wr_s = n > 0 ? w * 100.0 / n : 0
+        string dlbl = k < 2 ? "BUY" : "SELL"
+        string elbl = array.get(ex_lbls, k)
+        table.cell(tEx, 0, k + 1, dlbl)
+        table.cell(tEx, 1, k + 1, elbl)
+        table.cell(tEx, 2, k + 1, str.tostring(n))
+        table.cell(tEx, 3, k + 1, str.format("{0,number,#.#}", wr_s))
+        table.cell(tEx, 4, k + 1, str.format("{0,number,#.#}", pl))
