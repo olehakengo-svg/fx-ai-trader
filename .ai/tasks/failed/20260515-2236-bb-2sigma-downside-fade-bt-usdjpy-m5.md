@@ -144,3 +144,10 @@ tests/test_bb_2sigma_fade.py
 - MA trend filter 追加禁止 (`feedback_ma_filter_breaks_mr`)
 - 本番 `.env` / OANDA / live DB 触らない
 - XAU 除外
+
+
+## Error (2026-05-15T15:35:56Z)
+
+```
+orphaned: container restarted while task was running
+```
