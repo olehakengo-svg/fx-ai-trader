@@ -216,3 +216,42 @@ for pair in pairs:
 
 - MASSIVE API quota: 28 fetch (1 fetch = ~2-3 chunk request) ≈ 60-100 API calls. 通常 rate limit 内
 - disk: H4 ~50KB × 13 + H1 ~400KB × 13 ≈ 6 MB 追加。問題なし
+
+
+## Result (2026-05-15T14:12:16Z)
+
+exit=0 · 2590s
+
+```
+完了しました。commit 済みで `git status --short` は clean です。
+
+Commit: `f7f9cd5e feat: backfill price shock reproduction grid`
+
+主要結果:
+- MASSIVE parquet: 13 pair × H4/H1 = 26 files 作成、audit 全 pass
+- audit: `start=2021-12-24`、Qiita 期間を全 pair/TF でカバー、最小 completeness `99.6328%`
+- BT generated cells: `3,744`
+- DB rows: `3,744`
+- `SHADOW_CANDIDATE`: `227`
+- `CONDITIONAL`: `15`
+- `REJECT`: `3,502`
+- H4 fallback used: `0`
+- Skips: `0`
+
+AUDJPY Qiita 主対象:
+- `AUD_JPY_H4_LONG_SHOCK_5_12_ALL`
+- 実測: `WR=60.00%`, `N=315`, `EV=0.2148%`, `Wilson=0.545`, `PF=1.55`, `p=0.008597`, `BH=0`
+- Verdict: `REJECT`
+- Qiita とは WR/EV は近いですが、N が `1369` ではなく `315`。report に rolling percentile / warmup / counting-method 差分として明記しました。
+
+検証:
+- `.venv/bin/python -m pytest tests/test_price_shock_reversion_bt.py` → `4 passed`
+- `tools/price_shock_reversion_bt.py ... --allow-h4-from-h1` → `generated_cells=3744`
+- cache audit script → `cache_audit_failures=0`
+
+更新済み:
+- [final.md](/data/repo/fx-ai-trader/final.md)
+- [SUMMARY.md](/data/repo/fx-ai-trader/reports/price_shock_reversion_grid/SUMMARY.md)
+- [grid_full.csv](/data/repo/fx-ai-trader/reports/price_shock_reversion_grid/grid_full.csv)
+- [price_shock_grid_cells.db](/data/repo/fx-ai-trader/data/price_shock_grid_cells.db)
+```
