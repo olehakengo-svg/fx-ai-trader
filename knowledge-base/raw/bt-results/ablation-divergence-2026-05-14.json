@@ -1,0 +1,231 @@
+{
+  "generated_at": "2026-05-14",
+  "symbol": "USDJPY=X",
+  "lookback_days": 318,
+  "interval": "15m",
+  "target_strategies": [
+    "xs_momentum",
+    "trendline_sweep",
+    "session_time_bias"
+  ],
+  "tv_reference": {
+    "xs_momentum_USD_JPY": {
+      "N": 501,
+      "WR_pct": 43.5,
+      "PF": 1.04,
+      "source": "python-bt-vs-tv-reconciliation-2026-05-14.md"
+    },
+    "trendline_sweep_USD_JPY": {
+      "N": null,
+      "WR_pct": null,
+      "note": "no USD_JPY TV row; EUR_USD N=184 WR=43.5%, GBP_USD N=243 WR=41.6%"
+    }
+  },
+  "variants": {
+    "baseline_all_layers": {
+      "elapsed_s": 591.7,
+      "total_trades": 0,
+      "win_rate": 63.0,
+      "ev": 0.352,
+      "pnl": null,
+      "target_breakdown": {
+        "xs_momentum": {
+          "wins": 99,
+          "total": 158,
+          "pnl": 13.264736536648106,
+          "win_rate": 62.7,
+          "ev": 0.084,
+          "promotion_candidate": false
+        },
+        "trendline_sweep": {},
+        "session_time_bias": {
+          "wins": 194,
+          "total": 301,
+          "pnl": 32.16005734312007,
+          "win_rate": 64.5,
+          "ev": 0.107,
+          "promotion_candidate": false
+        }
+      },
+      "env": {}
+    },
+    "no_cascade_cd": {
+      "elapsed_s": 505.1,
+      "total_trades": 0,
+      "win_rate": 63.0,
+      "ev": 0.352,
+      "pnl": null,
+      "target_breakdown": {
+        "xs_momentum": {
+          "wins": 99,
+          "total": 158,
+          "pnl": 13.264736536648106,
+          "win_rate": 62.7,
+          "ev": 0.084,
+          "promotion_candidate": false
+        },
+        "trendline_sweep": {},
+        "session_time_bias": {
+          "wins": 194,
+          "total": 301,
+          "pnl": 32.16005734312007,
+          "win_rate": 64.5,
+          "ev": 0.107,
+          "promotion_candidate": false
+        }
+      },
+      "env": {
+        "BT_ABLATE_CASCADE_CD": "1"
+      }
+    },
+    "no_post_sl_block": {
+      "elapsed_s": 497.7,
+      "total_trades": 0,
+      "win_rate": 62.8,
+      "ev": 0.354,
+      "pnl": null,
+      "target_breakdown": {
+        "xs_momentum": {
+          "wins": 94,
+          "total": 156,
+          "pnl": 5.455727093721001,
+          "win_rate": 60.3,
+          "ev": 0.035,
+          "promotion_candidate": false
+        },
+        "trendline_sweep": {},
+        "session_time_bias": {
+          "wins": 193,
+          "total": 298,
+          "pnl": 34.020381904523525,
+          "win_rate": 64.8,
+          "ev": 0.114,
+          "promotion_candidate": false
+        }
+      },
+      "env": {
+        "BT_ABLATE_POST_SL_BLOCK": "1"
+      }
+    },
+    "no_cascade_and_post_sl": {
+      "elapsed_s": 509.9,
+      "total_trades": 0,
+      "win_rate": 62.8,
+      "ev": 0.354,
+      "pnl": null,
+      "target_breakdown": {
+        "xs_momentum": {
+          "wins": 94,
+          "total": 156,
+          "pnl": 5.455727093721001,
+          "win_rate": 60.3,
+          "ev": 0.035,
+          "promotion_candidate": false
+        },
+        "trendline_sweep": {},
+        "session_time_bias": {
+          "wins": 193,
+          "total": 298,
+          "pnl": 34.020381904523525,
+          "win_rate": 64.8,
+          "ev": 0.114,
+          "promotion_candidate": false
+        }
+      },
+      "env": {
+        "BT_ABLATE_CASCADE_CD": "1",
+        "BT_ABLATE_POST_SL_BLOCK": "1"
+      }
+    },
+    "no_quick_harvest": {
+      "elapsed_s": 456.9,
+      "total_trades": 0,
+      "win_rate": 62.7,
+      "ev": 0.428,
+      "pnl": null,
+      "target_breakdown": {
+        "xs_momentum": {
+          "wins": 94,
+          "total": 158,
+          "pnl": 13.645167167762448,
+          "win_rate": 59.5,
+          "ev": 0.086,
+          "promotion_candidate": false
+        },
+        "trendline_sweep": {},
+        "session_time_bias": {
+          "wins": 149,
+          "total": 199,
+          "pnl": 94.57374628529529,
+          "win_rate": 74.9,
+          "ev": 0.475,
+          "promotion_candidate": false
+        }
+      },
+      "env": {
+        "BT_ABLATE_QUICK_HARVEST": "1"
+      }
+    },
+    "no_be_trail": {
+      "elapsed_s": 911.5,
+      "total_trades": 0,
+      "win_rate": 36.1,
+      "ev": -0.907,
+      "pnl": null,
+      "target_breakdown": {
+        "xs_momentum": {
+          "wins": 47,
+          "total": 118,
+          "pnl": -61.48736577410108,
+          "win_rate": 39.8,
+          "ev": -0.521,
+          "promotion_candidate": false
+        },
+        "trendline_sweep": {},
+        "session_time_bias": {
+          "wins": 102,
+          "total": 264,
+          "pnl": -141.53129055578543,
+          "win_rate": 38.6,
+          "ev": -0.536,
+          "promotion_candidate": false
+        }
+      },
+      "env": {
+        "BT_ABLATE_BE_TRAIL": "1"
+      }
+    },
+    "all_off": {
+      "elapsed_s": 1173.0,
+      "total_trades": 0,
+      "win_rate": 32.4,
+      "ev": -1.028,
+      "pnl": null,
+      "target_breakdown": {
+        "xs_momentum": {
+          "wins": 34,
+          "total": 108,
+          "pnl": -73.83102769013266,
+          "win_rate": 31.5,
+          "ev": -0.684,
+          "promotion_candidate": false
+        },
+        "trendline_sweep": {},
+        "session_time_bias": {
+          "wins": 71,
+          "total": 162,
+          "pnl": -41.29339077529805,
+          "win_rate": 43.8,
+          "ev": -0.255,
+          "promotion_candidate": false
+        }
+      },
+      "env": {
+        "BT_ABLATE_CASCADE_CD": "1",
+        "BT_ABLATE_POST_SL_BLOCK": "1",
+        "BT_ABLATE_QUICK_HARVEST": "1",
+        "BT_ABLATE_BE_TRAIL": "1"
+      }
+    }
+  }
+}
