@@ -1049,6 +1049,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 ### 課題②：dt_sr_channel_reversal（EUR_JPY）— SIGNAL_REVERSE -3.1 pips
 - **Reason: SIGNAL_REVERSE**（エントリー後にシグナルが逆転）。EUR_JPY ATR%ile=83%（高ボラ）かつRANGING分類という矛盾した環境。
 
+### 2026-05-15 (Pre-Tokyo Briefing)
+| PnL合計 (2026-05-14) | **+1.9 pips** |
+| 全体WR | **100%** (N=1, 統計的意味なし) |
+> N=6, 全体WR=50.0%, 累計PnL=+14.2pips ※N<10は「データなし」として解釈
+| Strategy | Pair | N | WR% | EV | PnL | 評価 |
+| xs_momentum | GBP_USD | 1 | 0.0% | -14.10 | -14.1 | 📊 データなし（大損注意） |
+- `direction_filter`（91件）と `r2_shadow_demoted_cell`（計129件）の2本柱がシステム全体の機会を圧迫。
+- GBPペア系の `gbp_asia_flash_crash` ガード（計74件）が本日アジア時間にも継続する可能性大。ATR%ile: GBP/JPY=84%, EUR/JPY=83% と高ボラティリティ環境が継続しており、フラッシュクラッシュ保護が引き続き発動しやすい地合い。
+- `r2_shadow_demoted_cell` ブロックが累積129件に達している。シャドウ降格セルの内容を確認し、過剰に広くなっていないか監視を続ける（コード変更なし）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
