@@ -108,3 +108,26 @@ memory `feedback_tv_edge_discovery_loop` の階層 (Live > TV > Python BT) は *
 1. **N 乖離調査**: TV Pine replica の signal filter と Python BT の `DT_QUALIFIED` / session×pair filter を 1 行ずつ突き合わせ。TV が N=501 で Python が N=158 になる削減段を特定
 2. **他戦略への展開**: trendline_sweep × EUR_USD/GBP_USD (ELITE_LIVE) も `no_BE_trail` で TV と整合するか確認
 3. **Live cell audit**: Live trades の `oanda_trade_id ≠ ''` 集計で xs_momentum WR が baseline 62.7% 寄りか no_BE_trail 39.8% 寄りかを確認 (本番の BE/Trail logic が BT と同じなら baseline 寄りのはず)
+
+## 2026-05-15 追記: BT default を TV-aligned に反転
+
+ユーザー指示「基本BTが楽観すぎることが課題なのでtvbtと合わせてください」を受け、`run_daytrade_backtest` の default を反転:
+
+- **新 default**: BE/Trail を off (`_BT_ABLATE_BE_TRAIL = True`), QH は keep (TV Pine 側に近い挙動あり)
+- **旧 (inflated) 挙動**: `BT_OPTIMISTIC=1` 環境変数で復元可能 (transition 期間用)
+- 実装: app.py L6351-6362, L6800-6803, cache_key L6287 に `_opt{0|1}` segment 追加
+
+新 default 検証 (USD_JPY × 318d × 15m):
+
+| metric | xs_momentum | sess_time_bias | total |
+|---|---:|---:|---:|
+| N | 118 | 264 | — |
+| WR | **39.8%** | 38.6% | 36.1% |
+| EV | -0.521 | -0.536 | -0.907 |
+
+xs_momentum WR=39.8% は TV BT 43.5% と sampling noise 範囲内で整合 ✓
+`BT_OPTIMISTIC=1` で legacy run: xs_momentum N=156 WR=60.3% EV=+0.035 (旧 baseline N=158 WR=62.7% と微差 < 3pp; cache 切替時の indicator 計算順序差)
+
+**KB 上の既存 BT WR/EV は legacy 値**: `comprehensive-bt-scan-2026-05-14.json`, `tier-master.md`, 各 strategy page の `EV=+0.xxx WR=xx.x%` は全て `BT_OPTIMISTIC=1` 相当の inflated 値。新規 promote 判定では legacy 値を rough upper bound、新 default 値を core decision base として併用すること。
+
+**全 ablation tool の baseline 列も legacy 値**: `tools/bt_divergence_ablation_2026-05-14.py` の `baseline_all_layers` variant は旧 default で測定。新 tool 走行時は `BT_OPTIMISTIC=1` を立てて再現要。

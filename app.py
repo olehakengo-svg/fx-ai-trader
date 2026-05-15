@@ -6284,6 +6284,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         f"_trbV2{_trb_v2_cache_flag}_tsV2{_ts_v2_cache_flag}"
         f"_vdrV2{_vdr_v2_cache_flag}_vsgV2{_vsg_v2_cache_flag}"
         f"_vmrV2{_vmr_v2_cache_flag}_wirV2{_wir_v2_cache_flag}"
+        f"_abl{os.environ.get('BT_ABLATE_CASCADE_CD','0')}{os.environ.get('BT_ABLATE_POST_SL_BLOCK','0')}{os.environ.get('BT_ABLATE_QUICK_HARVEST','0')}{os.environ.get('BT_ABLATE_BE_TRAIL','0')}_opt{os.environ.get('BT_OPTIMISTIC','0')}"
     )
     now = datetime.now()
     cached = _dt_bt_cache.get(cache_key)
@@ -6337,13 +6338,29 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         # 15m: 180s cascade = 12bars, 600s post-SL = 40bars
         _CASCADE_CD_DT = max(1, 180 // (60 * (15 if interval == "15m" else 30 if interval == "30m" else 60)))
         _POST_SL_BLOCK_DT = max(1, 600 // (60 * (15 if interval == "15m" else 30 if interval == "30m" else 60)))
+        # BT_ABLATE hooks (default: no-op). For divergence root-cause investigation only.
+        if os.environ.get("BT_ABLATE_CASCADE_CD") == "1":
+            _CASCADE_CD_DT = 0
+        if os.environ.get("BT_ABLATE_POST_SL_BLOCK") == "1":
+            _POST_SL_BLOCK_DT = 0
         _exit_reason_dt = None
 
         # ── Phase A: スリッページ係数 ──
         _slip_dt = _bt_get_slippage(symbol)
 
-        # ── v8.8 Phase D: Quick-Harvest toggle & exempt set (Live同期) ──
-        _BT_QUICK_HARVEST = True  # Toggle: False で QH 無効化
+        # ── BT default = TV-aligned (2026-05-15) ──
+        # divergence-ablation で BE/Trail が xs_momentum × USDJPY で WR を +22.9pp
+        # inflate と判明 (主因, `wiki/analyses/divergence-ablation-2026-05-14.md`)。
+        # BE activated 後の SL touch を outcome="WIN" with 0.6×tp_dist としてカウント
+        # する logic (L6893-6896) が架空の WIN を生む。default で off にして TV Pine
+        # replica (fixed SL, no BE) と整合させる: xs_mom WR 62.7% → 39.8% ≈ TV 43.5%。
+        # QH は marginal (+3.2pp WR) かつ TV 側にも近い挙動があるため default keep。
+        # 旧 (inflated) 挙動は `BT_OPTIMISTIC=1` で復元可能 (transition 期間用)。
+        _BT_OPTIMISTIC = os.environ.get("BT_OPTIMISTIC") == "1"
+        _BT_QUICK_HARVEST = True  # default ON (TV-aligned)
+        if os.environ.get("BT_ABLATE_QUICK_HARVEST") == "1":
+            _BT_QUICK_HARVEST = False
+        _BT_ABLATE_BE_TRAIL = (not _BT_OPTIMISTIC) or (os.environ.get("BT_ABLATE_BE_TRAIL") == "1")
         _sym_core_dt = symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
         _bt_oanda_pair_dt = _sym_core_dt[:3] + "_" + _sym_core_dt[3:]
         _BT_QH_EXEMPT_DT = frozenset({
@@ -6788,6 +6805,10 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             _dt_be_thr = atr * 0.8
             _dt_ts_thr = atr * 1.5
             _dt_ts_trail = atr * 0.5
+            if _BT_ABLATE_BE_TRAIL:
+                # ablation: make BE/Trail thresholds effectively unreachable
+                _dt_be_thr = float("inf")
+                _dt_ts_thr = float("inf")
             _be_offset = 0.002 if _is_jpy_scale(symbol) else 0.00002
             _trade_max_hold = MAX_HOLD
             if isinstance(_strategy_max_hold, int) and _strategy_max_hold > 0:

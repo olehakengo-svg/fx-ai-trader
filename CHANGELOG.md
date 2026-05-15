@@ -1,5 +1,33 @@
 # FX AI Trader - Changelog
 
+## 2026-05-15 — fix: BT default を TV-aligned に反転 (BE/Trail off) [rule:R3 — 算数破綻]
+
+### 動機
+
+ユーザー指示「基本BTが楽観すぎることが課題なのでtvbtと合わせてください」を受け、Python BT が TV BT (Pine `strategy()` replica) より systematic に WR を inflate していた問題を修正。
+
+### 根本原因
+
+`run_daytrade_backtest` の BE/Trail 機構 (app.py L6788-6898) が、BE activated 後の SL touch を `outcome="WIN"` with `tp_m_actual = 0.6 × tp_dist` としてカウントしていた。実際の BE close は ~0pip 利益で、これは「架空の WIN」。ablation BT (`wiki/analyses/divergence-ablation-2026-05-14.md`) で xs_momentum × USD_JPY × 318d × 15m で `no_BE_trail` variant が WR 62.7% → 39.8% (−22.9pp) を測定、TV BT WR 43.5% と sampling noise 範囲内で整合することを確認。
+
+### 変更内容
+
+- **app.py L6351-6362** — BT default を反転: `_BT_ABLATE_BE_TRAIL = True` (default off)。`BT_OPTIMISTIC=1` 環境変数で旧 (inflated) 挙動を復元可能 (transition 期間用)。Quick Harvest は TV Pine 側にも近い挙動があり、`no_QH` で TV より低くなるため default keep。
+- **app.py L6287** — cache key に `_opt{BT_OPTIMISTIC}` segment 追加 (旧 cache を invalidate)
+- **knowledge-base/wiki/analyses/divergence-ablation-2026-05-14.md** — 「2026-05-15 追記」セクションで反転実装と検証結果を記録、KB 上の既存 BT 値が legacy (inflated) であることを明示
+
+### 検証
+
+- xs_momentum × USD_JPY × 318d × 15m 新 default: N=118 WR=**39.8%** EV=-0.521 (TV BT 43.5% と sampling noise 範囲内 ✓)
+- `BT_OPTIMISTIC=1` で legacy 復元: N=156 WR=60.3% EV=+0.035 (旧 baseline N=158 WR=62.7% と微差 < 3pp)
+- `python3 scripts/check.py` 全6チェック通過
+
+### 既存への影響
+
+- production paths (`backtest_mode=False`): **不変** — BE/Trail logic は production 実行 path に存在せず、本変更は BT simulation の outcome 計上ロジックのみに影響
+- 既存 BT 結果 (`comprehensive-bt-scan-2026-05-14.json`, `tier-master.md` の EV/WR): 全て legacy (inflated) 値。新規 promote 判定の core base は新 default 値を使う必要あり (rough upper bound として legacy 値を併用)
+- ablation tool `tools/bt_divergence_ablation_2026-05-14.py` の baseline 列: 旧 default 値。再現には `BT_OPTIMISTIC=1` を設定
+
 ## 2026-05-11 — fix: _rt_patch クロスペア価格汚染 (USD/JPY スカラを全ペアに適用していた) [rule:R3 — 構造バグ]
 
 ### 動機
