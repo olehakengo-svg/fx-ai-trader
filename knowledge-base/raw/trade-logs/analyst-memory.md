@@ -1079,6 +1079,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 | ○ | `session-time-bias` | EUR_USD | NY時間帯はBT EV+0.215、条件合致なら有効 |
 | 累計PnL | **¥0 / 0 pips** |
 
+### 2026-05-15 (Post-NY Report)
+| PnL | +0.0 |
+| WR | — |
+### セッション別PnL比較
+| Session | N | WR% | PnL | 評価 |
+- **本日合計PnL**: ±0
+- **本日合計トレード数**: 0
+- **本日WR**: 定義不能
+- **最も成績が良かったセッション**: 該当なし（全セッション同一）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
