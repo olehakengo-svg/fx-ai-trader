@@ -1,0 +1,13 @@
+{
+  "completeness_pct": 100.0,
+  "completeness_pct_naive": 74.8077,
+  "days_requested": 1600,
+  "end": "2026-05-15T12:00:00+00:00",
+  "gap_count": 295,
+  "pair": "USD_JPY",
+  "rows": 7198,
+  "source": "MASSIVE",
+  "start": "2021-12-24T00:00:00+00:00",
+  "tf": "4h",
+  "trading_days": 1146
+}

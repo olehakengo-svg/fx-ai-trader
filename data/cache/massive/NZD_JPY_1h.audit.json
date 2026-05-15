@@ -1,0 +1,13 @@
+{
+  "completeness_pct": 100.0,
+  "completeness_pct_naive": 82.7578,
+  "days_requested": 1600,
+  "end": "2026-05-15T14:00:00+00:00",
+  "gap_count": 197,
+  "pair": "NZD_JPY",
+  "rows": 31851,
+  "source": "MASSIVE",
+  "start": "2021-12-24T00:00:00+00:00",
+  "tf": "1h",
+  "trading_days": 1146
+}

@@ -1,0 +1,13 @@
+{
+  "completeness_pct": 100.0,
+  "completeness_pct_naive": 71.9594,
+  "days_requested": 1600,
+  "end": "2026-05-15T14:00:00+00:00",
+  "gap_count": 402,
+  "pair": "EUR_AUD",
+  "rows": 27695,
+  "source": "MASSIVE",
+  "start": "2021-12-24T00:00:00+00:00",
+  "tf": "1h",
+  "trading_days": 1146
+}

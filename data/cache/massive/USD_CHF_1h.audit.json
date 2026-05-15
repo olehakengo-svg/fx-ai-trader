@@ -1,0 +1,13 @@
+{
+  "completeness_pct": 100.0,
+  "completeness_pct_naive": 78.2181,
+  "days_requested": 1600,
+  "end": "2026-05-15T13:00:00+00:00",
+  "gap_count": 321,
+  "pair": "USD_CHF",
+  "rows": 30103,
+  "source": "MASSIVE",
+  "start": "2021-12-24T00:00:00+00:00",
+  "tf": "1h",
+  "trading_days": 1146
+}

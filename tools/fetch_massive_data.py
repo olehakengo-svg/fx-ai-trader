@@ -28,7 +28,7 @@ def _normalize_index(df: pd.DataFrame) -> pd.DataFrame:
 
 def audit_frame(df: pd.DataFrame, tf: str) -> dict:
     data = _normalize_index(df)
-    minutes = {"5m": 5, "1h": 60}.get(tf)
+    minutes = {"5m": 5, "1h": 60, "4h": 240}.get(tf)
     if data.empty or minutes is None:
         return {
             "rows": int(len(data)),
@@ -67,7 +67,7 @@ def audit_frame(df: pd.DataFrame, tf: str) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--pair", required=True)
-    parser.add_argument("--tf", required=True, choices=["5m", "1h"])
+    parser.add_argument("--tf", required=True, choices=["5m", "1h", "4h"])
     parser.add_argument("--days", type=int, default=395)
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
@@ -91,4 +91,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

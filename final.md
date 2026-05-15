@@ -1,44 +1,37 @@
 # final.md
 
-Generated: 2026-05-15T08:24:34.034053+00:00
+Generated: 2026-05-15T14:10:09.806044+00:00
 
-投入 cell 数: 864
-SHADOW_CANDIDATE 数: 0
-CONDITIONAL 数: 0
-REJECT 数: 864
+投入 cell 数: 3744
+SHADOW_CANDIDATE 数: 227
+CONDITIONAL 数: 15
+REJECT 数: 3502
+AUDJPY H4 下位5% 48H 実測: WR=60.00% N=315 EV=0.2148% Wilson=0.545 PF=1.55 p=0.008597 BH=0 Verdict=REJECT
+
+## Qiita Reproduction Verification
+| Cell | Spec | Qiita Reported | Our BT | Match? |
+|---|---|---|---|---|
+| AUD_JPY_H4_LONG_SHOCK_5_12_ALL | 下位5% 48H | WR=60.06% N=1369 EV=+0.2024% | WR=60.00% N=315 EV=0.2148% Wilson=0.545 PF=1.55 p=0.008597 BH=0 Verdict=REJECT | fail |
+| AUD_JPY_H4_LONG_SHOCK_1_12_ALL | 下位1% 48H | WR=62.32% N=69 EV=+0.3856% | WR=67.21% N=61 EV=0.3011% Wilson=0.547 PF=1.84 p=0.055229 BH=0 Verdict=REJECT | fail |
+| USD_JPY_H4_LONG_SHOCK_5_12_ALL | 下位5% 48H | Qiita: 反発弱い | WR=52.96% N=270 EV=0.0474% Wilson=0.470 PF=1.11 p=0.224375 BH=0 Verdict=REJECT | - |
+| EUR_USD_H4_LONG_SHOCK_5_12_ALL | 下位5% 48H | Qiita: 値幅小 | WR=49.00% N=249 EV=0.0152% Wilson=0.428 PF=1.05 p=0.362775 BH=0 Verdict=REJECT | - |
+
+## Qiita Reproduction Notes
+- AUD_JPY H4 lower-5% 48H has WR/EV close to Qiita (WR 60.00% vs 60.06%, EV 0.2148% vs 0.2024%), but N is 315 vs 1369 (23.0%).
+- The N gap is consistent with this BT's pre-registered rolling percentile design: H4 uses a 1512-bar warmup and then selects roughly 5% of eligible bars. Qiita likely used a different thresholding/counting method such as fixed/global percentile or overlapping sample construction.
+- AUD_JPY H4 lower-5% 48H is REJECT here because BH-FDR fails (p=0.008597, BH=0) despite passing WR/PF/cost/year-flip gates.
 
 ## Top 10 Survivors / Evidence
-No SHADOW_CANDIDATE cells. Top 10 raw evidence rows are listed for audit context:
-- EUR_JPY_H1_LONG_SHOCK_1_12_Q2: N=2 WR=1.000 Wilson=0.342 PF=inf EV=62.85pip/0.3650% p=0.130498 flips=0 BH=0 Bonf=0
-- USD_JPY_H1_LONG_SHOCK_1_12_Q2: N=3 WR=0.667 Wilson=0.208 PF=2.21 EV=27.87pip/0.1660% p=0.329610 flips=1 BH=0 Bonf=0
-- EUR_USD_H1_SHORT_SHOCK_2p5_12_Q1: N=1 WR=1.000 Wilson=0.207 PF=inf EV=27.20pip/0.2315% p=1.000000 flips=0 BH=0 Bonf=0
-- EUR_USD_H1_SHORT_SHOCK_2p5_6_Q1: N=1 WR=1.000 Wilson=0.207 PF=inf EV=24.00pip/0.2042% p=1.000000 flips=0 BH=0 Bonf=0
-- GBP_JPY_H1_LONG_SHOCK_1_12_Q4: N=15 WR=0.733 Wilson=0.480 PF=3.19 EV=22.82pip/0.1105% p=0.056206 flips=0 BH=0 Bonf=0
-- USD_JPY_H1_LONG_SHOCK_1_1_Q2: N=3 WR=1.000 Wilson=0.439 PF=inf EV=22.03pip/0.1463% p=0.031496 flips=0 BH=0 Bonf=0
-- GBP_JPY_H1_LONG_SHOCK_1_6_Q4: N=15 WR=0.733 Wilson=0.480 PF=7.03 EV=20.83pip/0.0999% p=0.006430 flips=0 BH=0 Bonf=0
-- GBP_JPY_H1_LONG_SHOCK_1_12_Q2: N=3 WR=0.667 Wilson=0.208 PF=2.18 EV=20.73pip/0.1033% p=0.312750 flips=1 BH=0 Bonf=0
-- EUR_USD_H1_LONG_SHOCK_1_3_Q1: N=1 WR=1.000 Wilson=0.207 PF=inf EV=20.00pip/0.1704% p=1.000000 flips=0 BH=0 Bonf=0
-- EUR_USD_H1_SHORT_SHOCK_1_12_Q4: N=18 WR=0.667 Wilson=0.437 PF=6.15 EV=18.53pip/0.1582% p=0.009374 flips=0 BH=0 Bonf=0
+- EUR_GBP_H1_LONG_SHOCK_1_12_Q5: N=239 WR=0.690 Wilson=0.629 PF=11.43 EV=60.74pip/0.7721% p=0.000003 flips=1 BH=1 Bonf=1
+- EUR_GBP_H1_LONG_SHOCK_1_6_Q5: N=239 WR=0.724 Wilson=0.664 PF=12.85 EV=60.41pip/0.7699% p=0.000005 flips=1 BH=1 Bonf=1
+- NZD_JPY_H1_LONG_SHOCK_1_12_Q5: N=303 WR=0.640 Wilson=0.585 PF=5.02 EV=58.88pip/0.7193% p=0.000000 flips=1 BH=1 Bonf=1
+- EUR_AUD_H1_LONG_SHOCK_1_12_Q5: N=262 WR=0.676 Wilson=0.617 PF=4.05 EV=58.77pip/0.3790% p=0.000000 flips=0 BH=1 Bonf=1
+- EUR_GBP_H1_LONG_SHOCK_1_3_Q5: N=239 WR=0.728 Wilson=0.668 PF=14.75 EV=55.81pip/0.7032% p=0.000002 flips=0 BH=1 Bonf=1
+- NZD_JPY_H1_LONG_SHOCK_1_6_Q5: N=303 WR=0.620 Wilson=0.565 PF=5.73 EV=55.12pip/0.6738% p=0.000000 flips=0 BH=1 Bonf=1
+- NZD_JPY_H1_LONG_SHOCK_1_3_Q5: N=303 WR=0.611 Wilson=0.555 PF=5.28 EV=50.92pip/0.6240% p=0.000000 flips=0 BH=1 Bonf=1
+- EUR_JPY_H4_LONG_SHOCK_1_12_ALL: N=67 WR=0.627 Wilson=0.507 PF=2.54 EV=49.68pip/0.3344% p=0.002813 flips=0 BH=1 Bonf=0
+- EUR_AUD_H1_LONG_SHOCK_1_6_Q5: N=262 WR=0.603 Wilson=0.543 PF=4.33 EV=49.39pip/0.3173% p=0.000000 flips=1 BH=1 Bonf=1
+- EUR_AUD_H4_LONG_SHOCK_5_12_Q3: N=48 WR=0.646 Wilson=0.504 PF=3.43 EV=48.69pip/0.2966% p=0.002305 flips=1 BH=1 Bonf=0
 
 ## Skips
-- GBP_JPY DUPLICATE_SPEC_ENTRY: pair list contains duplicate GBP_JPY; deduped to preserve DDL primary key cell_id
-- USD_JPY H4: missing /data/repo/fx-ai-trader/data/cache/massive/USD_JPY_4h.parquet
-- EUR_USD H4: missing /data/repo/fx-ai-trader/data/cache/massive/EUR_USD_4h.parquet
-- GBP_USD H4: missing /data/repo/fx-ai-trader/data/cache/massive/GBP_USD_4h.parquet
-- AUD_USD H4: missing /data/repo/fx-ai-trader/data/cache/massive/AUD_USD_4h.parquet
-- AUD_USD H1: missing /data/repo/fx-ai-trader/data/cache/massive/AUD_USD_1h.parquet
-- NZD_USD H4: missing /data/repo/fx-ai-trader/data/cache/massive/NZD_USD_4h.parquet
-- NZD_USD H1: missing /data/repo/fx-ai-trader/data/cache/massive/NZD_USD_1h.parquet
-- USD_CAD H4: missing /data/repo/fx-ai-trader/data/cache/massive/USD_CAD_4h.parquet
-- USD_CAD H1: missing /data/repo/fx-ai-trader/data/cache/massive/USD_CAD_1h.parquet
-- USD_CHF H4: missing /data/repo/fx-ai-trader/data/cache/massive/USD_CHF_4h.parquet
-- USD_CHF H1: missing /data/repo/fx-ai-trader/data/cache/massive/USD_CHF_1h.parquet
-- EUR_JPY H4: missing /data/repo/fx-ai-trader/data/cache/massive/EUR_JPY_4h.parquet
-- GBP_JPY H4: missing /data/repo/fx-ai-trader/data/cache/massive/GBP_JPY_4h.parquet
-- AUD_JPY H4: missing /data/repo/fx-ai-trader/data/cache/massive/AUD_JPY_4h.parquet
-- AUD_JPY H1: missing /data/repo/fx-ai-trader/data/cache/massive/AUD_JPY_1h.parquet
-- NZD_JPY H4: missing /data/repo/fx-ai-trader/data/cache/massive/NZD_JPY_4h.parquet
-- NZD_JPY H1: missing /data/repo/fx-ai-trader/data/cache/massive/NZD_JPY_1h.parquet
-- EUR_GBP H4: missing /data/repo/fx-ai-trader/data/cache/massive/EUR_GBP_4h.parquet
-- EUR_AUD H4: missing /data/repo/fx-ai-trader/data/cache/massive/EUR_AUD_4h.parquet
-- EUR_AUD H1: missing /data/repo/fx-ai-trader/data/cache/massive/EUR_AUD_1h.parquet
+- none
