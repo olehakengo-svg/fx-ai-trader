@@ -157,3 +157,10 @@ ORDER BY EV_pip DESC;
 ```
 
 実行は本タスク完了後、N 蓄積した後 (~数週) に司令塔別 task で実施。
+
+
+## Error (2026-05-15T15:05:04Z)
+
+```
+orphaned: container restarted while task was running
+```
