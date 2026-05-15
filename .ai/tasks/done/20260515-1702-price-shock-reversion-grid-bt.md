@@ -211,3 +211,40 @@ CREATE INDEX IF NOT EXISTS idx_psg_pair_tf ON price_shock_grid_cells(pair, tf);
 - 14 pair × 2 TF × 4032 cell 実行: 1-2 時間 (parquet read + vectorized numpy)
 - 報告物生成: 30 分
 - **総計**: 4-6 時間 (1 セッション完結を目標)
+
+
+## Result (2026-05-15T08:25:27Z)
+
+exit=0 · 312s
+
+```
+完了しました。commit 済みです。
+
+Commit: `63c7cf18 feat(bt): add price shock reversion grid`
+
+実装:
+- [tools/price_shock_reversion_bt.py](/data/repo/fx-ai-trader/tools/price_shock_reversion_bt.py)
+- [modules/price_shock_grid_db.py](/data/repo/fx-ai-trader/modules/price_shock_grid_db.py)
+- [tests/test_price_shock_reversion_bt.py](/data/repo/fx-ai-trader/tests/test_price_shock_reversion_bt.py)
+- Reports: [reports/price_shock_reversion_grid/SUMMARY.md](/data/repo/fx-ai-trader/reports/price_shock_reversion_grid/SUMMARY.md)
+- DB: [data/price_shock_grid_cells.db](/data/repo/fx-ai-trader/data/price_shock_grid_cells.db)
+- Completion: [final.md](/data/repo/fx-ai-trader/final.md)
+
+結果:
+- 投入 cell 数: `864`
+- `SHADOW_CANDIDATE`: `0`
+- `CONDITIONAL`: `0`
+- `REJECT`: `864`
+- DB rows: `864`
+- Verdict: `NO-GO / hypothesis kill pending commander review`
+
+重要な制約:
+- Yahoo fallback は使っていません。MASSIVE parquet のみです。
+- ローカルに `*_4h.parquet` が存在せず、指定14 pairのうちH1も6 pair分のみだったため、欠損pair/TFはskipとして `final.md` と `null_summary.md` に明記しています。
+- `GBP_JPY` はspec内で重複していたため、DDLの `cell_id` primary key衝突を避けるためdedupeし、skip noteに記録しました。
+
+検証:
+- `.venv/bin/pytest -q tests/test_price_shock_reversion_bt.py`
+- `4 passed in 4.65s`
+- `git status`: clean, `main` is ahead by 1 commit.
+```
