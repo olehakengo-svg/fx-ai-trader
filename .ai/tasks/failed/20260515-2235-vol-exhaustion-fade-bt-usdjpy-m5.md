@@ -164,3 +164,10 @@ verdict は queue file 末尾の Result section に追記:
 - live SQLite (`data/fx_ai_trader.db`) への shadow 登録は別 task で人手 review 後
 - XAU 含めない (feedback_exclude_xau)
 - 既存 `v_reversal.py` の編集禁止 (ablation 比較のため現行版を不変前提)
+
+
+## Error (2026-05-15T15:34:01Z)
+
+```
+orphaned: container restarted while task was running
+```
