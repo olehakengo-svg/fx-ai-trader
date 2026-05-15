@@ -1,14 +1,16 @@
-# final.md
+# Price Shock Reversion Verdict
 
 Generated: 2026-05-15T08:24:34.034053+00:00
 
-投入 cell 数: 864
-SHADOW_CANDIDATE 数: 0
-CONDITIONAL 数: 0
-REJECT 数: 864
+Overall: NO-GO
+SHADOW_CANDIDATE: 0
+CONDITIONAL: 0
+REJECT: 864
 
-## Top 10 Survivors / Evidence
-No SHADOW_CANDIDATE cells. Top 10 raw evidence rows are listed for audit context:
+## Shadow Promote Recommendations
+- none
+
+## Top 10 Evidence
 - EUR_JPY_H1_LONG_SHOCK_1_12_Q2: N=2 WR=1.000 Wilson=0.342 PF=inf EV=62.85pip/0.3650% p=0.130498 flips=0 BH=0 Bonf=0
 - USD_JPY_H1_LONG_SHOCK_1_12_Q2: N=3 WR=0.667 Wilson=0.208 PF=2.21 EV=27.87pip/0.1660% p=0.329610 flips=1 BH=0 Bonf=0
 - EUR_USD_H1_SHORT_SHOCK_2p5_12_Q1: N=1 WR=1.000 Wilson=0.207 PF=inf EV=27.20pip/0.2315% p=1.000000 flips=0 BH=0 Bonf=0
@@ -20,7 +22,7 @@ No SHADOW_CANDIDATE cells. Top 10 raw evidence rows are listed for audit context
 - EUR_USD_H1_LONG_SHOCK_1_3_Q1: N=1 WR=1.000 Wilson=0.207 PF=inf EV=20.00pip/0.1704% p=1.000000 flips=0 BH=0 Bonf=0
 - EUR_USD_H1_SHORT_SHOCK_1_12_Q4: N=18 WR=0.667 Wilson=0.437 PF=6.15 EV=18.53pip/0.1582% p=0.009374 flips=0 BH=0 Bonf=0
 
-## Skips
+## Skip Notes
 - GBP_JPY DUPLICATE_SPEC_ENTRY: pair list contains duplicate GBP_JPY; deduped to preserve DDL primary key cell_id
 - USD_JPY H4: missing /data/repo/fx-ai-trader/data/cache/massive/USD_JPY_4h.parquet
 - EUR_USD H4: missing /data/repo/fx-ai-trader/data/cache/massive/EUR_USD_4h.parquet
