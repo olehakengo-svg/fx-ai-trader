@@ -43,6 +43,22 @@ Scalp-timeframe trend following using EMA alignment. Enters in the direction of 
 - PAIR_PROMOTED: none
 - Previously: PAIR_DEMOTED×USD_JPY removed in v8.9 (SELL PB境界バグ修正→再蓄積) → v9.5 再追加 (v9.2 FORCE_DEMOTE 以降 "再蓄積" 方針は無効化)
 
+## 2026-05-15 redesign audit — `aligned × BUY × GBP_USD` cell 発見
+
+Live shadow DB (N=75 decided) を harness にした cell ablation で **`mtf_alignment='aligned' AND direction='BUY' AND instrument='GBP_USD'`** に N=10, WR=50%, EV=+2.16 pips の +EV cell を発見。
+
+| Cell | N | WR | EV | NetP |
+|---|---|---|---|---|
+| aligned × BUY × GBP_USD | 10 | 50.0% | **+2.16** | **+21.6** |
+| その他 全 cell 合計 | 65 | 20.0% | −1.94 | −126.0 |
+
+- 3-axis 乖離: Python BT 365d WR=53-62% / TV WR=35.8% / Live WR=24% — Live が canonical
+- N=10 は promotion gate 未到達 (要 N≥30〜50)
+- Pre-reg LOCK: [[ema-trend-scalp-redesign-prereg-2026-05-15]] / audit: [[ema-trend-scalp-redesign-2026-05-14]]
+- 次セッション punch list: `ETS_REDESIGN_V3` env flag 実装 + cell-conditional 180d BT + Sentinel shadow 累積 → N=30 で再 audit
+
 ## Related
 - [[index]] — Tier classification
 - [[roadmap-v2.1]] — Portfolio strategy
+- [[ema-trend-scalp-redesign-2026-05-14]] — 本 redesign audit
+- [[ema-trend-scalp-redesign-prereg-2026-05-15]] — Pre-reg LOCK (本 audit の hash 固定)

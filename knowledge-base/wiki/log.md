@@ -1,5 +1,18 @@
 # Knowledge Base Change Log
 
+## 2026-05-15 (wiki-lint): ema_trend_scalp redesign audit pages 追加 + 整合性確認
+- **新規 page (2)**:
+  - `analyses/ema-trend-scalp-redesign-2026-05-14.md` — Phase 0-5 audit (TV harness regression / Live shadow N=75 cell breakdown / `aligned×BUY×GBP_USD` N=10 WR=50% EV=+2.16 発見)
+  - `analyses/ema-trend-scalp-redesign-prereg-2026-05-15.md` — Pre-reg LOCK (gate spec hash 固定、Bonferroni 補正、Recovery Path sequence)
+- **戦略カード更新**: `strategies/ema-trend-scalp.md` — 新 audit セクション追加 (Status / Active Pairs / Lot Boost / PAIR_DEMOTED は変更なし、operational 変更なし、documentation のみ)
+- **整合性チェック** (passed):
+  - tier 分類: `index.md` line 79 (FORCE_DEMOTED) と `strategies/ema-trend-scalp.md` line 7 (FORCE_DEMOTED v9.2) 一致
+  - wikilink 全て resolve: [[ema-trend-scalp-redesign-2026-05-14]], [[ema-trend-scalp-redesign-prereg-2026-05-15]], [[lesson-cell-audit-bt-required-2026-04-27]], [[sell-bias-forensics-2026-04-17]], [[ema-tr-live-breakdown-2026-04-20]], [[tv-bt-overlay-verification-2026-05-13]], [[trendline-sweep-tv-replica-2026-05-14]], [[ema-trend-scalp]], [[roadmap-v2.1]], [[index]]
+  - 旧 v9.5 pair-level 実測 (戦略カード上段、pre-cutoff Live 39件) と新 Live shadow N=75 (post-cutoff) は時系列で並列、矛盾なし
+- **新 TV MCP regression (cumulative)**: `data_get_pine_labels` / `data_get_pine_tables` / `data_get_trades` がすべて strategy script で blind (study_count=0 / "No strategy found")。screenshot だけが working な data 取得経路 — `trendline-sweep-tv-replica-2026-05-14.md` に precedent あり、本 redesign で 3 件追加
+- **Pivot 記録**: Python BT 17h cell ablation 計画 → 30-40pp optimistic bias 発見 → Live shadow DB primary harness に切替。本日の発見は memory `feedback_tv_edge_discovery_loop` ("Live > TV > Python BT") を実証
+- **stale 候補なし**: 戦略カード上段 (v9.2 FORCE_DEMOTE / v9.5 Live pair breakdown) は historical record として保持価値あり、新 audit セクションと並列共存
+
 ## 2026-05-07 (wiki-daily-update): 自動スケジュールタスク
 - **Daily trade log**: `raw/trade-logs/2026-05-07.md` 作成 — post-cutoff total N=530 (gross incl shadow), WR=38.5%, PnL=-414.2pip
 - **wiki/index.md**: System State更新 — DD 40.65%→**42.21%** ⚠️⚠️ (422.1pip), risk API PnL=-414.2, N=530 (gross), ruin **1.88%→2.08%** ↑, Kelly edge -17.06%, last_updated→2026-05-07; Session History + Trade Logs セクション追加
