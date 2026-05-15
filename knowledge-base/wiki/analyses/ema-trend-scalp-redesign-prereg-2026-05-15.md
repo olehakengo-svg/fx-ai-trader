@@ -51,6 +51,23 @@ $ shasum -a 256 knowledge-base/wiki/analyses/ema-trend-scalp-redesign-2026-05-14
 6. **Recovery Path lot 引上げ** — shadow strict → 0.25x → 0.5x → 1.0x。各段階で +30 trades clean をクリア
 7. **3 軸独立確認** — TV Strategy Tester / 180d Python BT / Live shadow の 3 軸で +EV 一致 → OANDA 転送開始
 
+### 実装ステータス (2026-05-15)
+
+| Step | Status | 備考 |
+|---|---|---|
+| 1. Pre-reg LOCK commit | ✅ 完了 | 本 page commit 済 |
+| 2. env flag 実装 | ✅ 完了 | `strategies/scalp/ema_trend_scalp.py:86-94,116-119,212-214`. default OFF, production 無変更. tests 7件 pass / 全 1465 tests green / check.py OK |
+| 3. 180d Python BT (`ETS_REDESIGN_V3=1`) | ⏳ 未着手 | 次セッション。`BT_MODE=1 ETS_REDESIGN_V3=1 python3 tools/ema_ts_phase1_breakdown.py` で GBP_USD のみ 180d 走らせる |
+| 4. Shadow accumulation | ⏳ 進行中 | 現 Live N=10 → N≥30 待機 (目安 6-10 週) |
+| 5. N≥30 再 audit | ⏳ | |
+| 6. Recovery Path lot | ⏳ | Phase 6 deploy — user 承認後 deploy エージェント経由のみ |
+| 7. 3 軸一致確認 | ⏳ | |
+
+**env flag 仕様 (現実装)**:
+- strategy 層で deterministic に enforce: `instrument == "GBPUSD"` (normalized) AND `signal == "BUY"`
+- mtf_alignment は `demo_trader._mtf_gate_action` の post-hoc routing で適用 (既存 mechanism 流用)
+- flag OFF (default) のときは v9.5 までの legacy 挙動を完全保持
+
 ## What this LOCK forbids
 
 - 本 cell 以外で「あとから cell tuning して +EV cell を発見」した変種を **本 redesign の延長として** promote すること

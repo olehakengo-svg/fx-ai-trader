@@ -56,6 +56,12 @@ Live shadow DB (N=75 decided) を harness にした cell ablation で **`mtf_ali
 - N=10 は promotion gate 未到達 (要 N≥30〜50)
 - Pre-reg LOCK: [[ema-trend-scalp-redesign-prereg-2026-05-15]] / audit: [[ema-trend-scalp-redesign-2026-05-14]]
 - 次セッション punch list: `ETS_REDESIGN_V3` env flag 実装 + cell-conditional 180d BT + Sentinel shadow 累積 → N=30 で再 audit
+- **2026-05-15 punch list 進捗**:
+  - ✅ `ETS_REDESIGN_V3` env flag を `strategies/scalp/ema_trend_scalp.py:86-94,116-119,212-214` に実装 (default OFF, production 無変更)
+  - ✅ tests/test_ema_trend_scalp_redesign_v3.py 追加 (7件 pass) / 全 1465 tests green / check.py 整合性 OK
+  - ⏳ Cell-conditional 180d Python BT (`ETS_REDESIGN_V3=1` で実行) — 次セッション
+  - ⏳ Sentinel `("ema_trend_scalp", "GBP_JPY")` 追加 — 次セッション
+  - ⏳ Live shadow N≥30 待機 (現 N=10 → +20)
 
 ## Related
 - [[index]] — Tier classification
