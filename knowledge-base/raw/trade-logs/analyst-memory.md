@@ -1069,6 +1069,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 | GBP_JPY | RANGING | **84%** | 同上。JPYクロスは高ATR%ile帯にあり、ブレイクアウト方向次第でスラッページ拡大に注意 |
 | GBP_USD | RANGING | **59%** | 中程度のボラティリティ。SMA20 Slope +0.00033（微弱上向き）でレンジ上限テスト注意 |
 
+### 2026-05-15 (Post-London Report)
+| PnL | **0 pips / ¥0** |
+| 勝率 (WR) | **N/A** |
+| PnL | ¥0 | ¥0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+> **⚠️ NO ACTION推奨 — 17:22–19:00 UTC**
+| ○ | `session-time-bias` | EUR_USD | NY時間帯はBT EV+0.215、条件合致なら有効 |
+| 累計PnL | **¥0 / 0 pips** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
