@@ -341,3 +341,42 @@ Codex は完了時に以下を Discord 経由で返す:
 - BT 結果の cherry-pick (5 pair 全結果を `raw/bt-results/` に保存、verdict は LOCKED 基準のみで判定)
 - `--no-verify` `--no-gpg-sign` 等の hook bypass
 - 機微情報 (`OANDA_API_KEY=`, `sk-`, `rnd_`, `ghp_`, `OPENAI_API_KEY=`) のコミット
+
+
+## Result (2026-05-18T06:15:25Z)
+
+exit=0 · 519s
+
+```
+Implemented and committed.
+
+BT verdict: **FAIL** (locked pre-reg criteria; all pairs missed `N >= 200`)
+
+| Pair | N | WR | Wilson_lo | EV | PF |
+|---|---:|---:|---:|---:|---:|
+| USD_JPY | 132 | 50.00% | 0.4159 | +6.5408 | 1.4083 |
+| EUR_USD | 120 | 48.33% | 0.3958 | +0.5452 | 1.0436 |
+| GBP_USD | 130 | 36.92% | 0.2911 | -3.0732 | 0.8178 |
+| EUR_JPY | 141 | 51.06% | 0.4289 | +4.8384 | 1.2600 |
+| GBP_JPY | 149 | 47.65% | 0.3979 | +2.2341 | 1.0902 |
+
+Resulting state:
+- `ob_retest_h1` remains registered in `HourlyEngine`, but `enabled = False` per FAIL rollback.
+- M5 `ob_retest` is now in `DemoTrader._FORCE_DEMOTED`.
+- KB index / tier-master regenerated.
+- Strategy card drift fixed for `ob_retest_h1` plus the 5 price-shock H1 cards so full tests pass.
+
+Verification:
+- `python3 tools/tier_integrity_check.py --check`: exit 0, **ERROR=0 / WARN=1** (`ob_retest` is legacy inline with no strategy file)
+- `.venv/bin/python -m pytest tests/test_ob_retest_h1.py -x -v`: **6 passed**
+- `.venv/bin/python -m pytest tests/ -x -q`: **1510 passed, 1 skipped, 1 xfailed**
+- `.venv/bin/python tools/strategies_drift_check.py`: all 92 pages clean
+
+Commit:
+- Branch: `main`
+- Commit: `472b6ede feat(strategy): ob_retest_h1 + M5 ob_retest demote — pre-reg LOCK + R2 demote`
+- `git log --oneline -1`: confirmed
+- `git diff HEAD~1 -- strategies/hourly/ob_retest.py`: confirmed actual diff
+- `git stash list`: empty
+- Worktree: clean, branch ahead of `origin/main` by 1 commit.
+```
