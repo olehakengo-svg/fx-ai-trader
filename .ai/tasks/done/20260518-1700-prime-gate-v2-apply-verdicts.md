@@ -145,3 +145,25 @@ python3 scripts/check.py                                    # KB consistency
 - [feedback_codex_schema_hallucination](memory/feedback_codex_schema_hallucination.md): `research/prime_gate_v2_proposal.py` を必ず実ファイル参照、推測禁止。EDGES 数値は研究 artifact からそのままコピー
 - Tier C entries は LIVE 昇格しないが、shadow trade として記録される (これは設計通り、削除しない)
 - 5 entries 「DEMOTE」は **削除ではなく Tier C 化** (将来の v3 で復活可能性を保つため structural preservation)
+
+
+## Result (2026-05-18T09:08:43Z)
+
+exit=0 · 557s
+
+```
+完了しました。`modules/prime_gate.py` に P1 の EDGES と全6 entry Tier C / `lot_multiplier=0.0` を反映し、KB更新・テスト追加・dry-runのv2全C期待値対応まで single commit で push 済みです。
+
+Commit: `5e9bc0be` (`Apply PRIME v2 re-evaluation verdicts`)  
+Push確認: `git log -1 origin/main -- modules/prime_gate.py` で同commitを確認済み。作業ツリーは clean です。
+
+検証結果:
+
+- `.venv/bin/python -m pytest tests/test_prime_gate_v2_apply.py -v` → 4 passed
+- `.venv/bin/python -m pytest tests/test_prime_gate_order.py -v` → 7 passed
+- `.venv/bin/python -m pytest tests/ -x -q` → 1530 passed, 1 skipped, 1 xfailed
+- `python3 scripts/check.py` → 全6チェック通過 / ERROR=0
+- `python3 tools/prime_gate_order_dry_run.py` → `Total PRIME A/B LIVE fires (est): 0`
+
+補足: `scripts/check.py` は既存KB警告を出していますが、ERROR=0で整合性チェック自体は通過しています。
+```
