@@ -270,3 +270,39 @@ methodology audit:
 - Test 作成: 15 分
 - Report 生成 + commit: 15 分
 - **総計**: 1 時間以内
+
+
+## Result (2026-05-18T04:19:32Z)
+
+exit=0 · 185s
+
+```
+完了しました。commit は `f4883a92 Add price shock family dedup analysis` です。
+
+生成物:
+- [tools/price_shock_dedup_analysis.py](/data/repo/fx-ai-trader/tools/price_shock_dedup_analysis.py)
+- [dedup_families.csv](/data/repo/fx-ai-trader/reports/price_shock_reversion_grid/dedup_families.csv)
+- [shadow_promote_shortlist.md](/data/repo/fx-ai-trader/reports/price_shock_reversion_grid/shadow_promote_shortlist.md)
+- [dedup_audit.md](/data/repo/fx-ai-trader/reports/price_shock_reversion_grid/dedup_audit.md)
+- [tests/test_price_shock_dedup_analysis.py](/data/repo/fx-ai-trader/tests/test_price_shock_dedup_analysis.py)
+- [final.md](/data/repo/fx-ai-trader/final.md)
+
+実測 Tier:
+- Tier 1: 5 family
+- Tier 2: 0 family
+- Tier 3: 5 family
+- Tier 4: 13 family
+
+Tier 1 上位 3:
+1. `EUR_GBP`, `H1`, `LONG_SHOCK`
+2. `EUR_AUD`, `H1`, `LONG_SHOCK`
+3. `USD_CAD`, `H1`, `LONG_SHOCK`
+
+検証:
+- `python3 tools/price_shock_dedup_analysis.py` passed
+- `python3 -m py_compile ...` passed
+- pytest は環境に未インストールで実行不可
+- 代替として、追加した test 関数 3 件を real DB で直接実行して passed
+
+注意点: `git status` は clean ではありません。task 開始前から存在していた未追跡ファイル群が残っていますが、今回の対象ファイルはすべて commit 済みで、未追跡ファイルは触っていません。
+```
