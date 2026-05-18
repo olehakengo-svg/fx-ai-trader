@@ -13,6 +13,21 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 @pytest.fixture(autouse=True)
+def _reset_bt_mode_env():
+    """Pop BT_MODE before every test.
+
+    70+ tools/*_shadow_bt.py scripts do `os.environ.setdefault("BT_MODE", "1")`
+    at module top level. When pytest collects test files that top-level-import
+    those scripts (e.g. `from tools import bb_2sigma_fade_bt as bt`), BT_MODE=1
+    leaks into the entire pytest process and corrupts later tests that exercise
+    `modules.data.fetch_ohlcv` (which short-circuits to parquet under BT_MODE).
+    Tests that genuinely need BT_MODE=1 set it explicitly via
+    `monkeypatch.setenv("BT_MODE", "1")` and monkeypatch reverts on teardown."""
+    os.environ.pop("BT_MODE", None)
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _bypass_seed_exclusion(monkeypatch):
     """Tests use db.open_trade()→db.close_trade() with no delay, producing
     hold<5s rows that look like seed/replay artifacts to the production
