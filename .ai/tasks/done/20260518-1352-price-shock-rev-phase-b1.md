@@ -608,3 +608,35 @@ git status   # clean を確認 (stash leak 防止)
 # 5. 期待実行時間
 
 2-4 時間 (5 戦略実装 + 共通基盤 + test + KB + commit)。
+
+
+## Result (2026-05-18T05:43:58Z)
+
+exit=0 · 581s
+
+```
+Implemented and committed Price-Shock Reversion Phase B-1.
+
+Commit: `35961351 feat(price_shock_rev): Tier 1 family 5 戦略を Phase B-1 Shadow 投入 (rule:R1)`
+
+What changed:
+- Added 5 H1 strategies under `strategies/hourly/` plus shared base.
+- Registered them in `HourlyEngine`.
+- Integrated Shadow-only routing in `demo_trader`, including FORCE_DEMOTED, EUR_GBP/EUR_AUD shared lock, horizon exits, and `sl_2atr` exits.
+- Added MASSIVE parquet tests verifying BT runner bar-by-bar signal equivalence across all 5 pairs.
+- Added KB strategy cards, promote criteria, changelog entries, and regenerated tier/index files.
+- Wrote final report: `.ai/tasks/queue/20260518-1352-price-shock-rev-phase-b1-final.md`.
+
+Verification:
+- `PATH=.venv/bin:$PATH python3 -m pytest tests/test_price_shock_rev_strategies.py -v` → `7 passed`
+- `PATH=.venv/bin:$PATH python3 tools/tier_integrity_check.py --check` → passed / ERROR=0
+- Full suite `tests/ -x -q` stops on existing unrelated `test_bt_data_loader_parquet_fallback` failure.
+
+Stash check: `git stash list` is empty.
+
+Note: `git status` is not fully clean because unrelated untracked prime-gate files were already present and I left them untouched:
+- `knowledge-base/wiki/decisions/prime-gate-promotion-path-bug-2026-05-18.md`
+- `knowledge-base/wiki/lessons/lesson-prime-gate-order-bug-2026-05-18.md`
+- `tests/test_prime_gate_order.py`
+- `tools/prime_gate_order_dry_run.py`
+```
