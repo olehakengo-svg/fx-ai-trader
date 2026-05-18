@@ -4417,6 +4417,7 @@ def compute_hourly_signal(df: pd.DataFrame, tf: str = "1h",
             "reasons": list(cand.reasons or []),
             "score": round(float(cand.score), 3),
             "atr": _rp(atr, symbol),
+            "sr_meta": getattr(cand, "sr_meta", None),
         })
 
     return {
@@ -4430,6 +4431,7 @@ def compute_hourly_signal(df: pd.DataFrame, tf: str = "1h",
         "score": round(best.score, 3),
         "atr": atr,
         "mode": "hourly",
+        "sr_meta": getattr(best, "sr_meta", None),
         "shadow_emit_signals": shadow_emit_payload,
         "indicators": {
             "ema9": round(float(row.get("ema9", entry)), 3),
@@ -10896,6 +10898,7 @@ _HMM_INSTRUMENT_TO_YF = {
     "GBP_JPY": "GBPJPY=X",
     "GBP_USD": "GBPUSD=X",
     "EUR_GBP": "EURGBP=X",
+    "USD_CAD": "USDCAD=X",
     "AUD_JPY": "AUDJPY=X",
     "NZD_JPY": "NZDJPY=X",
     "AUD_USD": "AUDUSD=X",
@@ -12055,6 +12058,10 @@ _PIPELINE_INSTRUMENT_MAP = {
     "GBP_JPY": "GBPJPY=X",
     "GBP_USD": "GBPUSD=X",
     "EUR_GBP": "EURGBP=X",
+    "USD_CAD": "USDCAD=X",
+    "AUD_JPY": "AUDJPY=X",
+    "NZD_JPY": "NZDJPY=X",
+    "EUR_AUD": "EURAUD=X",
 }
 
 # Default friction-based breakeven WR per pair/mode (conservative estimates)
@@ -12069,6 +12076,8 @@ _DEFAULT_BEV_WR = {
     ("GBP_USD", "scalp"): 52.0,
     ("GBP_USD", "daytrade"): 42.0,
     ("GBP_USD", "1h"): 36.0,
+    ("EUR_GBP", "1h"): 30.0,
+    ("USD_CAD", "1h"): 34.0,
     ("AUD_JPY", "1h"): 38.0,
     ("NZD_JPY", "1h"): 40.0,
     ("AUD_USD", "1h"): 35.0,
@@ -13922,7 +13931,7 @@ def api_oanda_live():
 
     # Current prices (multi-instrument)
     _instruments = [
-        "USD_JPY", "EUR_USD", "EUR_JPY", "GBP_JPY", "GBP_USD", "EUR_GBP",
+        "USD_JPY", "EUR_USD", "EUR_JPY", "GBP_JPY", "GBP_USD", "EUR_GBP", "USD_CAD",
         "AUD_JPY", "NZD_JPY", "AUD_USD", "NZD_USD", "EUR_AUD",
     ]
     result["prices"] = {}

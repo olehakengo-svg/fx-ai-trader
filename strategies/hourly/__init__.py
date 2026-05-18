@@ -15,6 +15,11 @@ logger = logging.getLogger("hourly_engine")
 
 from strategies.hourly.keltner_squeeze_breakout import KeltnerSqueezeBreakout
 from strategies.hourly.donchian_momentum_breakout import DonchianMomentumBreakout
+from strategies.hourly.price_shock_rev_eur_gbp_h1_long import PriceShockRevEurGbpH1Long
+from strategies.hourly.price_shock_rev_eur_aud_h1_long import PriceShockRevEurAudH1Long
+from strategies.hourly.price_shock_rev_usd_cad_h1_long import PriceShockRevUsdCadH1Long
+from strategies.hourly.price_shock_rev_nzd_jpy_h1_long import PriceShockRevNzdJpyH1Long
+from strategies.hourly.price_shock_rev_aud_jpy_h1_long import PriceShockRevAudJpyH1Long
 
 
 class HourlyEngine:
@@ -24,6 +29,11 @@ class HourlyEngine:
         self.strategies: list[StrategyBase] = [
             KeltnerSqueezeBreakout(),       # KSB: ケルトナースクイーズブレイクアウト (EUR専用)
             DonchianMomentumBreakout(),     # DMB: ドンチアンモメンタムブレイクアウト
+            PriceShockRevEurGbpH1Long(),    # Phase B-1 Shadow: EUR_GBP H1 1%-shock LONG
+            PriceShockRevEurAudH1Long(),    # Phase B-1 Shadow: EUR_AUD H1 1%-shock LONG
+            PriceShockRevUsdCadH1Long(),    # Phase B-1 Shadow: USD_CAD H1 1%-shock LONG
+            PriceShockRevNzdJpyH1Long(),    # Phase B-1 Shadow: NZD_JPY H1 1%-shock LONG
+            PriceShockRevAudJpyH1Long(),    # Phase B-1 Shadow: AUD_JPY H1 1%-shock LONG
         ]
 
     def get_strategy(self, name: str) -> Optional[StrategyBase]:
@@ -82,7 +92,13 @@ class HourlyEngine:
         """Opt-in shadow emit list for hourly redesign variants."""
         if not candidates:
             return []
-        _shadow_always = frozenset()
+        _shadow_always = frozenset({
+            "price_shock_rev_eur_gbp_h1_long",
+            "price_shock_rev_eur_aud_h1_long",
+            "price_shock_rev_usd_cad_h1_long",
+            "price_shock_rev_nzd_jpy_h1_long",
+            "price_shock_rev_aud_jpy_h1_long",
+        })
         if (os.environ.get("DONCHIAN_MOMENTUM_BREAKOUT_REDESIGN_V2") == "1"
                 and os.environ.get("DONCHIAN_MOMENTUM_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"donchian_momentum_breakout"}

@@ -49,6 +49,14 @@ AUD_NZD_SURFACE_PAIRS = (
     "EUR_AUD",
 )
 
+PRICE_SHOCK_REV_TIER1_TYPES = frozenset({
+    "price_shock_rev_eur_gbp_h1_long",
+    "price_shock_rev_eur_aud_h1_long",
+    "price_shock_rev_usd_cad_h1_long",
+    "price_shock_rev_nzd_jpy_h1_long",
+    "price_shock_rev_aud_jpy_h1_long",
+})
+
 
 def _resolve_shadow_audit_block_reason(is_shadow: bool, reason: str) -> str:
     if not is_shadow:
@@ -261,9 +269,33 @@ MODE_CONFIG = {
         "auto_start": True,
         "base_sl_pips": 15,
     },
+    "daytrade_1h_eurgbp": {
+        "interval_sec": 60,
+        "tf": "1h",
+        "period": "60d",
+        "signal_fn": "compute_hourly_signal",
+        "label": "1H PriceShock EUR/GBP",
+        "icon": "🕐🇪🇺🇬🇧",
+        "symbol": "EURGBP=X",
+        "instrument": "EUR_GBP",
+        "auto_start": False,
+        "base_sl_pips": 30,
+    },
     # ── Price-Shock Reversion Phase B-1 surface slots ──
     # Shadow ramp candidates only. auto_start=False prevents accidental live/demo
     # activation; Phase B-1 owns strategy wiring and promotion decisions.
+    "daytrade_1h_usdcad": {
+        "interval_sec": 60,
+        "tf": "1h",
+        "period": "60d",
+        "signal_fn": "compute_hourly_signal",
+        "label": "1H PriceShock USD/CAD",
+        "icon": "🕐🇺🇸🇨🇦",
+        "symbol": "USDCAD=X",
+        "instrument": "USD_CAD",
+        "auto_start": False,
+        "base_sl_pips": 30,
+    },
     "daytrade_1h_audjpy": {
         "interval_sec": 60,
         "tf": "1h",
@@ -377,7 +409,7 @@ MODE_CONFIG = {
 # ── ベースモード抽出ヘルパー ──
 # scalp_eur -> scalp, scalp_eurjpy -> scalp, lcr_gbpjpy -> lcr, daytrade_1h_eur -> daytrade_1h
 def _get_base_mode(mode: str) -> str:
-    for suffix in ("_usdjpy", "_gbpjpy", "_eurjpy", "_gbpusd", "_eurgbp",
+    for suffix in ("_usdjpy", "_gbpjpy", "_eurjpy", "_gbpusd", "_eurgbp", "_usdcad",
                    "_audjpy", "_nzdjpy", "_audusd", "_nzdusd", "_euraud",
                    "_eur", "_xau"):  # longest first
         if mode.endswith(suffix):
@@ -825,6 +857,7 @@ class DemoTrader:
         "GBP_JPY": "GBPJPY=X",
         "GBP_USD": "GBPUSD=X",
         "EUR_GBP": "EURGBP=X",
+        "USD_CAD": "USDCAD=X",
         "AUD_JPY": "AUDJPY=X",
         "NZD_JPY": "NZDJPY=X",
         "AUD_USD": "AUDUSD=X",
@@ -1813,6 +1846,11 @@ class DemoTrader:
         # v2.1: per-entry_type MAX_HOLD override (BT validated optimal hold periods)
         _ENTRY_TYPE_MAX_HOLD = {
             "vwap_mean_reversion": 14400,  # 4h = 16bars@15m (BT: 8-16bar optimal, EV peaks at 16bar)
+            "price_shock_rev_eur_gbp_h1_long": 3 * 3600,
+            "price_shock_rev_usd_cad_h1_long": 3 * 3600,
+            "price_shock_rev_eur_aud_h1_long": 12 * 3600,
+            "price_shock_rev_nzd_jpy_h1_long": 12 * 3600,
+            "price_shock_rev_aud_jpy_h1_long": 12 * 3600,
         }
 
         for trade in open_trades:
@@ -2203,11 +2241,12 @@ class DemoTrader:
                         f"🎯 Climax Exit: {trade_id} トレンド疲弊検出 → 利確"
                     )
 
+            _is_price_shock_rev = trade.get("entry_type", "") in PRICE_SHOCK_REV_TIER1_TYPES
             if not close_reason and not _should_extend_tp:
                 if direction == "BUY":
                     if price <= sl:
-                        close_reason = "SL_HIT"
-                    elif price >= tp:
+                        close_reason = "sl_2atr" if _is_price_shock_rev else "SL_HIT"
+                    elif not _is_price_shock_rev and price >= tp:
                         close_reason = "TP_HIT"
                 else:
                     if price >= sl:
@@ -2231,15 +2270,18 @@ class DemoTrader:
                     # v2.1: per-entry_type override (VWAP MR: 4h hold BT validated)
                     _et_hold = trade.get("entry_type", "")
                     if _et_hold in _ENTRY_TYPE_MAX_HOLD:
-                        max_hold = max(max_hold, _ENTRY_TYPE_MAX_HOLD[_et_hold])
+                        if _et_hold in PRICE_SHOCK_REV_TIER1_TYPES:
+                            max_hold = _ENTRY_TYPE_MAX_HOLD[_et_hold]
+                        else:
+                            max_hold = max(max_hold, _ENTRY_TYPE_MAX_HOLD[_et_hold])
                     if hold_sec > max_hold:
-                        close_reason = "MAX_HOLD_TIME"
+                        close_reason = "horizon" if _et_hold in PRICE_SHOCK_REV_TIER1_TYPES else "MAX_HOLD_TIME"
                 except Exception:
                     pass
 
             # ── SL狩り対策C1: 時間ベース撤退 ──
             # 保持時間50%経過で含み損 → SL到達前に早期損切り（損失額を削減）
-            if not close_reason:
+            if not close_reason and trade.get("entry_type", "") not in PRICE_SHOCK_REV_TIER1_TYPES:
                 try:
                     entry_time_c1 = datetime.fromisoformat(trade.get("entry_time", ""))
                     if entry_time_c1.tzinfo is None:
@@ -2250,7 +2292,10 @@ class DemoTrader:
                     # v2.1: per-entry_type override for C1 consistency
                     _et_c1 = trade.get("entry_type", "")
                     if _et_c1 in _ENTRY_TYPE_MAX_HOLD:
-                        _max_c1 = max(_max_c1, _ENTRY_TYPE_MAX_HOLD[_et_c1])
+                        if _et_c1 in PRICE_SHOCK_REV_TIER1_TYPES:
+                            _max_c1 = _ENTRY_TYPE_MAX_HOLD[_et_c1]
+                        else:
+                            _max_c1 = max(_max_c1, _ENTRY_TYPE_MAX_HOLD[_et_c1])
                     _half_hold = _max_c1 * 0.5
                     if _hold_c1 > _half_hold:
                         _in_loss = (direction == "BUY" and price < entry_price) or \
@@ -3712,6 +3757,12 @@ class DemoTrader:
             # "dual_sr_breakout",    # 廃止: 未評価
 
             # ═══ 1H Breakout — HourlyEngine (v5.0) ═══
+            # 2026-05-18 Phase B-1: Price-Shock Reversion Tier 1 (Shadow-only, rule:R1)
+            "price_shock_rev_eur_gbp_h1_long",   # EUR_GBP H1 1%-shock LONG horizon=3 Q5 (BT N=239 WR=72.8%)
+            "price_shock_rev_eur_aud_h1_long",   # EUR_AUD H1 1%-shock LONG horizon=12 Q5 (BT N=262 WR=67.6%)
+            "price_shock_rev_usd_cad_h1_long",   # USD_CAD H1 1%-shock LONG horizon=3 Q5 (BT N=247 WR=66.4%)
+            "price_shock_rev_nzd_jpy_h1_long",   # NZD_JPY H1 1%-shock LONG horizon=12 Q5 (BT N=303 WR=64.0%)
+            "price_shock_rev_aud_jpy_h1_long",   # AUD_JPY H1 1%-shock LONG horizon=12 ALL (BT N=426 WR=63.8%)
             "keltner_squeeze_breakout",      # KSB: EUR専用, WR=50% RR=2.0
             "donchian_momentum_breakout",    # DMB: 両ペア, EUR WR=50% / JPY WR=35%
         }
@@ -3763,6 +3814,15 @@ class DemoTrader:
                             return
                     except Exception:
                         pass
+
+        # 2026-05-18 Phase B-1: EUR base shock 戦略間の同時ポジション 1 個までに制限
+        _eur_base_shock_excl = {"price_shock_rev_eur_gbp_h1_long", "price_shock_rev_eur_aud_h1_long"}
+        if entry_type in _eur_base_shock_excl:
+            _others = _eur_base_shock_excl - {entry_type}
+            for _ot in open_trades:
+                if _ot.get("entry_type") in _others and str(_ot.get("status", "")).lower() == "open":
+                    _block(f"eur_base_shock_lock({entry_type}_vs_{_ot.get('entry_type')})")
+                    return
 
         if entry_type not in QUALIFIED_TYPES and entry_type not in CONDITIONAL_TYPES:
             _block(f"unknown_type:{entry_type}"); return
@@ -3833,7 +3893,7 @@ class DemoTrader:
         # ══════════════════════════════════════════════════════════════
         _utc_hour = datetime.now(timezone.utc).hour
         # v6.7: eurgbp_daily_mr は日足MR戦略 → EUR_GBP全停止をバイパス (Sentinel)
-        _EURGBP_DAILY_MR_WHITELIST = {"eurgbp_daily_mr"}
+        _EURGBP_DAILY_MR_WHITELIST = {"eurgbp_daily_mr", "price_shock_rev_eur_gbp_h1_long"}
         if instrument == "EUR_GBP" and entry_type not in _EURGBP_DAILY_MR_WHITELIST:
             _block(f"session_pair(EUR_GBP全停止,WR=11%)")
             return
@@ -4220,7 +4280,10 @@ class DemoTrader:
         # 技術的に意味のある位置にSLを置くことでノイズ耐性向上。
         # ── 例外: 1H Breakout (KSB/DMB) は戦略SL/TPを完全保存 ──
         # ══════════════════════════════════════════════════════════════
-        _1H_PRESERVE_SLTP = {"keltner_squeeze_breakout", "donchian_momentum_breakout", "rnb_support_bounce"}
+        _1H_PRESERVE_SLTP = {
+            "keltner_squeeze_breakout", "donchian_momentum_breakout", "rnb_support_bounce",
+            *PRICE_SHOCK_REV_TIER1_TYPES,
+        }
 
         tp = sig.get("tp", 0)  # シグナル関数が算出した技術的ターゲット（固定）
 
@@ -6337,6 +6400,13 @@ class DemoTrader:
         "vwap_mean_reversion",          # Live N=10 WR=40% PnL=-47.7p (IS→OOS 95.3% degrade)
         "donchian_momentum_breakout",   # Live N=3 WR=33.3% PnL=-32.1p
         "v_reversal",                   # Live N=3 WR=0% PnL=-10.1p
+        # 2026-05-18 Phase B-1: Price-Shock Reversion Tier 1 is Shadow-only until
+        # pre-registered promote criteria are met.
+        "price_shock_rev_eur_gbp_h1_long",
+        "price_shock_rev_eur_aud_h1_long",
+        "price_shock_rev_usd_cad_h1_long",
+        "price_shock_rev_nzd_jpy_h1_long",
+        "price_shock_rev_aud_jpy_h1_long",
         # REMOVED 2026-05-07 volume emergency: trend_rebound×USD_JPY PAIR_PROMOTED
         # under EV/PF shadow exception; R2 live N>=10 EV<0 auto-demote guard applies.
     }

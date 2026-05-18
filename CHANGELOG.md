@@ -1,5 +1,20 @@
 # FX AI Trader - Changelog
 
+## 2026-05-18 — feat: Price-Shock Reversion Tier 1 を Phase B-1 Shadow 投入
+
+### 変更内容
+
+- `strategies/hourly/price_shock_reversion_base.py` と 5 wrapper を追加。BT runner と同じ `shift(1)` / `rolling(..., min_periods=252)` / vol quintile ロジックで H1 negative shock LONG を評価。
+- `HourlyEngine` と `demo_trader` に 5 戦略を登録し、`_FORCE_DEMOTED` で Shadow-only を強制。EUR_GBP/EUR_AUD の shared lock と horizon/SL exit handling を追加。
+- MASSIVE parquet を読む unit test で 5 ペア全 bar の BT runner 一致と catastrophic SL distance を検証。
+- KB 戦略カード 5 件と Shadow -> Live promote pre-reg criteria を追加し、tier-master/index を再生成。
+
+### 検証
+
+- `PATH=.venv/bin:$PATH python3 -m pytest tests/test_price_shock_rev_strategies.py -v` — 7 passed
+- `PATH=.venv/bin:$PATH python3 tools/tier_integrity_check.py --check` — ERROR=0
+- `PATH=.venv/bin:$PATH python3 -m pytest tests/ -x -q` — pre-existing `tests/test_bt_data_loader_parquet_fallback.py::test_fetch_ohlcv_uses_parquet_after_online_failures` で停止
+
 ## 2026-05-15 — fix: BT default を TV-aligned に反転 (BE/Trail off) [rule:R3 — 算数破綻]
 
 ### 動機

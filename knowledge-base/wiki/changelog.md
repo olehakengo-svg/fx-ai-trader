@@ -4,6 +4,13 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-05-18 — Price-Shock Reversion Tier 1 Phase B-1 Shadow
+
+- H1 negative shock LONG 5 戦略を `strategies/hourly/` に追加。
+- BT runner と `shift(1)` / rolling 252 / vol quintile を bar-by-bar 一致。
+- `demo_trader` で Shadow-only 強制、EUR_GBP/EUR_AUD shared lock を追加。
+- Live promote は `decisions/price-shock-rev-promote-criteria-2026-05-18.md` で別判定。
+
 ## Fidelity Cutoff Timeline
 
 ```
