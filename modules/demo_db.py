@@ -2163,7 +2163,7 @@ class DemoDB:
             return [dict(r) for r in rows]
 
     def get_oanda_stats(self, date_from: str = None, date_to: str = None,
-                        instrument: str = None) -> dict:
+                        instrument: str = None, exclude_xau: bool = True) -> dict:
         """Compute aggregate stats from closed OANDA trades."""
         query = ("SELECT direction, realized_pl, pnl_pips, financing, close_reason "
                  "FROM oanda_trades WHERE state='CLOSED'")
@@ -2177,6 +2177,8 @@ class DemoDB:
         if instrument:
             query += " AND instrument = ?"
             params.append(instrument)
+        if exclude_xau:
+            query += " AND instrument != 'XAU_USD'"
         with self._safe_conn() as conn:
             rows = conn.execute(query, params).fetchall()
 
@@ -2233,7 +2235,8 @@ class DemoDB:
         }
 
     def get_oanda_equity_curve(self, date_from: str = None,
-                               date_to: str = None, instrument: str = None) -> list:
+                               date_to: str = None, instrument: str = None,
+                               exclude_xau: bool = True) -> list:
         """Return chronological closed trades with cumulative P/L."""
         query = ("SELECT oanda_trade_id, close_time, realized_pl, pnl_pips, "
                  "direction, instrument, open_price, close_price "
@@ -2248,6 +2251,8 @@ class DemoDB:
         if instrument:
             query += " AND instrument = ?"
             params.append(instrument)
+        if exclude_xau:
+            query += " AND instrument != 'XAU_USD'"
         query += " ORDER BY close_time ASC"
         with self._safe_conn() as conn:
             rows = conn.execute(query, params).fetchall()

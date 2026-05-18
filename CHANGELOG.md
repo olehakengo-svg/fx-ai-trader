@@ -1,5 +1,11 @@
 # FX AI Trader - Changelog
 
+## 2026-05-18 — fix: /api/oanda/stats の range 無視を修正
+
+- `/api/oanda/stats` で `range=today|7d|30d|all`、`rolling_days`、`all_time`、`date_from/date_to` を解釈し、既定 30d + fidelity cutoff の window に統一。
+- OANDA stats/equity の既定集計から `XAU_USD` を除外し、`exclude_xau=0` で明示的に含められるように変更。
+- `_filters` と `_db_path` を返却し、UI 表示と backend 集計条件の不一致を検査可能にした。
+
 ## 2026-05-18 — feat: Price-Shock Rev Tier 1 5戦略 Live activation v2 MIN lot (rule:R1)
 
 ### 変更内容

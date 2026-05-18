@@ -13853,11 +13853,53 @@ def api_oanda_trades():
 @app.route("/api/oanda/stats")
 def api_oanda_stats():
     """OANDA取引統計"""
-    date_from = request.args.get("date_from")
+    _FIDELITY_CUTOFF = "2026-04-08T00:00:00"
+    range_arg = request.args.get("range")
+    all_time = request.args.get("all_time", "0") == "1"
+    rolling_days_arg = request.args.get("rolling_days", type=int)
+    date_from_arg = request.args.get("date_from")
     date_to = request.args.get("date_to")
     instrument = request.args.get("instrument")
-    stats = _demo_db.get_oanda_stats(date_from=date_from, date_to=date_to,
-                                      instrument=instrument)
+    exclude_xau = request.args.get("exclude_xau", "1") != "0"
+
+    rolling_days = rolling_days_arg
+    if range_arg:
+        if range_arg == "today":
+            rolling_days = 0
+        elif range_arg == "7d":
+            rolling_days = 7
+        elif range_arg == "30d":
+            rolling_days = 30
+        elif range_arg == "all":
+            all_time = True
+
+    if all_time:
+        effective_date_from = _FIDELITY_CUTOFF
+    elif date_from_arg:
+        effective_date_from = date_from_arg
+    else:
+        rolling_days = rolling_days if rolling_days is not None else 30
+        from datetime import timedelta as _td
+        if rolling_days == 0:
+            effective_date_from = datetime.now(timezone.utc).strftime("%Y-%m-%dT00:00:00")
+        else:
+            rolling_cutoff = (datetime.now(timezone.utc)
+                              - _td(days=rolling_days)
+                              ).strftime("%Y-%m-%dT%H:%M:%S")
+            effective_date_from = max(_FIDELITY_CUTOFF, rolling_cutoff)
+
+    stats = _demo_db.get_oanda_stats(
+        date_from=effective_date_from, date_to=date_to,
+        instrument=instrument, exclude_xau=exclude_xau)
+    stats["_db_path"] = _db_path
+    stats["_filters"] = {
+        "instrument": instrument,
+        "date_from": date_from_arg, "date_to": date_to,
+        "effective_date_from": effective_date_from,
+        "all_time": all_time,
+        "rolling_days": rolling_days if rolling_days is not None else (None if all_time or date_from_arg else 30),
+        "exclude_xau": exclude_xau,
+    }
     return jsonify(stats)
 
 
@@ -13867,8 +13909,10 @@ def api_oanda_equity():
     date_from = request.args.get("date_from")
     date_to = request.args.get("date_to")
     instrument = request.args.get("instrument")
+    exclude_xau = request.args.get("exclude_xau", "1") != "0"
     curve = _demo_db.get_oanda_equity_curve(date_from=date_from, date_to=date_to,
-                                             instrument=instrument)
+                                             instrument=instrument,
+                                             exclude_xau=exclude_xau)
     total_jpy = curve[-1]["cum_jpy"] if curve else 0
     total_pips = curve[-1]["cum_pips"] if curve else 0
     return jsonify({

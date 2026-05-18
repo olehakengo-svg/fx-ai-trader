@@ -4,6 +4,12 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-05-18 — /api/oanda/stats range window 修正
+
+- OANDA stats endpoint が frontend の `range=today|7d|30d|all` を無視して全期間集計していた問題を修正。
+- 既定 window を demo stats と同じ 30d + `2026-04-08T00:00:00` floor にし、`range=all` も fidelity cutoff 以降のみ集計。
+- `_filters` / `_db_path` を返し、stats 系 endpoint の表示条件を監査可能にした。
+
 ## 2026-05-18 — HourlyEngine Shadow Ramp Activation
 
 - 全 10 `daytrade_1h*` modes を `auto_start=True` に変更し、HourlyEngine dormant 状態を解除。
