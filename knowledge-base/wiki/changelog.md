@@ -4,6 +4,12 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-05-18 — HourlyEngine Shadow Ramp Activation
+
+- 全 10 `daytrade_1h*` modes を `auto_start=True` に変更し、HourlyEngine dormant 状態を解除。
+- `_shadow_always` に KSB+DMB+5 PriceShockRev を frozenset 固定し、H1 alpha source を一括 Shadow-only にした。
+- XAU modes と 15m/scalp Live 経路は変更なし。Decision: `decisions/hourly-engine-shadow-ramp-2026-05-18.md`。
+
 ## 2026-05-18 — Price-Shock Reversion Tier 1 Phase B-1 Shadow
 
 - H1 negative shock LONG 5 戦略を `strategies/hourly/` に追加。

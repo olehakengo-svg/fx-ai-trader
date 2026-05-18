@@ -145,14 +145,14 @@ def test_v2_dedups_same_symbol_signal_bar(monkeypatch):
     assert second is None
 
 
-def test_v2_shadow_worker_registration_is_opt_in(monkeypatch):
+def test_v2_shadow_worker_registration_is_idempotent_after_h1_shadow_ramp(monkeypatch):
     engine = HourlyEngine()
     best = Candidate("BUY", 60, 1.0, 1.2, ["best"], "keltner_squeeze_breakout", 5.5)
     dmb = Candidate("BUY", 60, 1.0, 1.2, ["dmb"], "donchian_momentum_breakout", 5.0)
 
     monkeypatch.delenv("DONCHIAN_MOMENTUM_BREAKOUT_REDESIGN_V2", raising=False)
     monkeypatch.delenv("DONCHIAN_MOMENTUM_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE", raising=False)
-    assert engine.split_shadow_always([best, dmb], best) == []
+    assert engine.split_shadow_always([best, dmb], best) == [dmb]
 
     monkeypatch.setenv("DONCHIAN_MOMENTUM_BREAKOUT_REDESIGN_V2", "1")
     monkeypatch.setenv("DONCHIAN_MOMENTUM_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE", "1")

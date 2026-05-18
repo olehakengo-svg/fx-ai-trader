@@ -1,5 +1,21 @@
 # FX AI Trader - Changelog
 
+## 2026-05-18 — feat: HourlyEngine Shadow ramp activation
+
+### 変更内容
+
+- 全 10 `daytrade_1h*` modes を `auto_start=True` に変更し、HourlyEngine の H1 bar 評価を起動。
+- `HourlyEngine._shadow_always` に KSB+DMB+5 PriceShockRev を frozenset 固定し、H1 戦略を Shadow-only ramp に統一。
+- XAU modes と既存 scalp / 15m daytrade Live 経路は変更なし。
+- Decision を `knowledge-base/wiki/decisions/hourly-engine-shadow-ramp-2026-05-18.md` に追加。
+
+### 検証
+
+- `pytest tests/test_hourly_engine_shadow_ramp.py -v`
+- `pytest tests/test_price_shock_rev_strategies.py -v`
+- `pytest tests/test_aud_nzd_pair_surface.py -v`
+- `python3 tools/tier_integrity_check.py --check`
+
 ## 2026-05-18 — feat: ob_retest_h1 1095d re-test pre-reg 2nd attempt FAIL
 
 ### 変更内容

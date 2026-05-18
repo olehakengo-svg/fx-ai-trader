@@ -26,6 +26,19 @@ from strategies.hourly.price_shock_rev_aud_jpy_h1_long import PriceShockRevAudJp
 class HourlyEngine:
     """1H足戦略群を統括するエンジン。"""
 
+    _shadow_always = frozenset({
+        # Phase B-1 Price-Shock Reversion Tier 1 (commit 35961351)
+        "price_shock_rev_eur_gbp_h1_long",
+        "price_shock_rev_eur_aud_h1_long",
+        "price_shock_rev_usd_cad_h1_long",
+        "price_shock_rev_nzd_jpy_h1_long",
+        "price_shock_rev_aud_jpy_h1_long",
+        # KSB+DMB Shadow ramp 2026-05-18: v2.1 alpha absence reevaluation.
+        # decisions/hourly-engine-shadow-ramp-2026-05-18.md
+        "keltner_squeeze_breakout",
+        "donchian_momentum_breakout",
+    })
+
     def __init__(self):
         self.strategies: list[StrategyBase] = [
             KeltnerSqueezeBreakout(),       # KSB: ケルトナースクイーズブレイクアウト (EUR専用)
@@ -94,13 +107,7 @@ class HourlyEngine:
         """Opt-in shadow emit list for hourly redesign variants."""
         if not candidates:
             return []
-        _shadow_always = frozenset({
-            "price_shock_rev_eur_gbp_h1_long",
-            "price_shock_rev_eur_aud_h1_long",
-            "price_shock_rev_usd_cad_h1_long",
-            "price_shock_rev_nzd_jpy_h1_long",
-            "price_shock_rev_aud_jpy_h1_long",
-        })
+        _shadow_always = self._shadow_always
         if (os.environ.get("DONCHIAN_MOMENTUM_BREAKOUT_REDESIGN_V2") == "1"
                 and os.environ.get("DONCHIAN_MOMENTUM_BREAKOUT_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"donchian_momentum_breakout"}

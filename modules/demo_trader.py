@@ -120,7 +120,7 @@ MODE_CONFIG = {
         "icon": "🕐",
         "symbol": "USDJPY=X",
         "instrument": "USD_JPY",
-        "auto_start": False,   # v2.1: 500日BT全戦略AVOID → α不在確定、停止
+        "auto_start": True,    # 2026-05-18: HourlyEngine Shadow ramp activation。v2.1 α 不在判定を _shadow_always 多層防御で再評価。decisions/hourly-engine-shadow-ramp-2026-05-18.md
         "base_sl_pips": 30,
     },
     # ── EUR/USD modes ──
@@ -158,7 +158,7 @@ MODE_CONFIG = {
         "icon": "🕐🇪🇺",
         "symbol": "EURUSD=X",
         "instrument": "EUR_USD",
-        "auto_start": False,   # v2.1: 500日BT全戦略AVOID → α不在確定、停止
+        "auto_start": True,    # 2026-05-18: HourlyEngine Shadow ramp activation。v2.1 α 不在判定を _shadow_always 多層防御で再評価。decisions/hourly-engine-shadow-ramp-2026-05-18.md
         "base_sl_pips": 30,
     },
     "scalp_eurjpy": {
@@ -283,12 +283,12 @@ MODE_CONFIG = {
         "icon": "🕐🇪🇺🇬🇧",
         "symbol": "EURGBP=X",
         "instrument": "EUR_GBP",
-        "auto_start": False,
+        "auto_start": True,    # 2026-05-18: HourlyEngine Shadow ramp activation。v2.1 α 不在判定を _shadow_always 多層防御で再評価。decisions/hourly-engine-shadow-ramp-2026-05-18.md
         "base_sl_pips": 30,
     },
     # ── Price-Shock Reversion Phase B-1 surface slots ──
-    # Shadow ramp candidates only. auto_start=False prevents accidental live/demo
-    # activation; Phase B-1 owns strategy wiring and promotion decisions.
+    # Shadow ramp candidates only. auto_start=True activates HourlyEngine;
+    # _shadow_always owns live/demo separation and promotion decisions.
     "daytrade_1h_usdcad": {
         "interval_sec": 60,
         "tf": "1h",
@@ -298,7 +298,7 @@ MODE_CONFIG = {
         "icon": "🕐🇺🇸🇨🇦",
         "symbol": "USDCAD=X",
         "instrument": "USD_CAD",
-        "auto_start": False,
+        "auto_start": True,    # 2026-05-18: HourlyEngine Shadow ramp activation。v2.1 α 不在判定を _shadow_always 多層防御で再評価。decisions/hourly-engine-shadow-ramp-2026-05-18.md
         "base_sl_pips": 30,
     },
     "daytrade_1h_usdchf": {
@@ -310,7 +310,7 @@ MODE_CONFIG = {
         "icon": "🕐🇺🇸🇨🇭",
         "symbol": "USDCHF=X",
         "instrument": "USD_CHF",
-        "auto_start": False,
+        "auto_start": True,    # 2026-05-18: HourlyEngine Shadow ramp activation。v2.1 α 不在判定を _shadow_always 多層防御で再評価。decisions/hourly-engine-shadow-ramp-2026-05-18.md
         "base_sl_pips": 30,
     },
     "daytrade_1h_audjpy": {
@@ -322,7 +322,7 @@ MODE_CONFIG = {
         "icon": "🕐🇦🇺",
         "symbol": "AUDJPY=X",
         "instrument": "AUD_JPY",
-        "auto_start": False,
+        "auto_start": True,    # 2026-05-18: HourlyEngine Shadow ramp activation。v2.1 α 不在判定を _shadow_always 多層防御で再評価。decisions/hourly-engine-shadow-ramp-2026-05-18.md
         "base_sl_pips": 30,
     },
     "daytrade_1h_nzdjpy": {
@@ -334,7 +334,7 @@ MODE_CONFIG = {
         "icon": "🕐🇳🇿",
         "symbol": "NZDJPY=X",
         "instrument": "NZD_JPY",
-        "auto_start": False,
+        "auto_start": True,    # 2026-05-18: HourlyEngine Shadow ramp activation。v2.1 α 不在判定を _shadow_always 多層防御で再評価。decisions/hourly-engine-shadow-ramp-2026-05-18.md
         "base_sl_pips": 30,
     },
     "daytrade_1h_audusd": {
@@ -346,7 +346,7 @@ MODE_CONFIG = {
         "icon": "🕐🇦🇺",
         "symbol": "AUDUSD=X",
         "instrument": "AUD_USD",
-        "auto_start": False,
+        "auto_start": True,    # 2026-05-18: HourlyEngine Shadow ramp activation。v2.1 α 不在判定を _shadow_always 多層防御で再評価。decisions/hourly-engine-shadow-ramp-2026-05-18.md
         "base_sl_pips": 30,
     },
     "daytrade_1h_nzdusd": {
@@ -358,7 +358,7 @@ MODE_CONFIG = {
         "icon": "🕐🇳🇿",
         "symbol": "NZDUSD=X",
         "instrument": "NZD_USD",
-        "auto_start": False,
+        "auto_start": True,    # 2026-05-18: HourlyEngine Shadow ramp activation。v2.1 α 不在判定を _shadow_always 多層防御で再評価。decisions/hourly-engine-shadow-ramp-2026-05-18.md
         "base_sl_pips": 30,
     },
     "daytrade_1h_euraud": {
@@ -370,7 +370,7 @@ MODE_CONFIG = {
         "icon": "🕐🇪🇺🇦🇺",
         "symbol": "EURAUD=X",
         "instrument": "EUR_AUD",
-        "auto_start": False,
+        "auto_start": True,    # 2026-05-18: HourlyEngine Shadow ramp activation。v2.1 α 不在判定を _shadow_always 多層防御で再評価。decisions/hourly-engine-shadow-ramp-2026-05-18.md
         "base_sl_pips": 30,
     },
     # ── XAU/USD Scalp (1m) — gold_pips_hunter + vol_momentum + ema_ribbon ──

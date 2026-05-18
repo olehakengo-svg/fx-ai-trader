@@ -103,6 +103,7 @@
 
 ## System State (v9.5 / v2.1)
 - Defensive mode: **0.2x** (DD=**42.21%** / 422.1pip ⚠️⚠️, defensive mode — Render API 2026-05-07 wiki-daily-update)
+- HourlyEngine: **Activated 2026-05-18** — all H1 strategies (KSB+DMB+5 PriceShockRev) are Shadow-only via `_shadow_always`.
 - XAU: **Stopped** (v8.4) -- post-cutoff XAU loss = -2,280pip (102% of total loss)
 - FX-only post-cutoff (2026-04-08〜) — **2026-05-07 wiki-daily-update** (risk API gross, includes shadow):
   - Total N=530, WR=38.5%, EV=-0.78, PnL=-414.2pip (gross: shadow + live combined)

@@ -29,8 +29,8 @@ def test_demo_trader_mode_config_contains_usd_cad_usd_chf_pairs():
     assert REGRESSION_PAIRS <= configured
 
     for mode, cfg in MODE_CONFIG.items():
-        if cfg.get("instrument") in USD_CAD_USD_CHF_PAIRS:
-            assert cfg.get("auto_start") is False, mode
+        if mode.startswith("daytrade_1h_") and cfg.get("instrument") in USD_CAD_USD_CHF_PAIRS:
+            assert cfg.get("auto_start") is True, mode
 
 
 def test_oanda_bridge_resolves_usd_cad_usd_chf_instrument_mapping():
