@@ -200,3 +200,27 @@ python3 -m pytest tests/ -x -q   # 既存 PASS 確認 (regression なし)
 - [feedback_spread_basis_for_mafe](memory/feedback_spread_basis_for_mafe.md): MAFE 計算は **entry_price 基準** (signal_price でない、spread 1.0p 分の擬陰性回避)
 - [feedback_codex_schema_hallucination](memory/feedback_codex_schema_hallucination.md): 戦略 code は実ファイル参照、推測禁止
 - redesign 案は **最大 3 / 戦略** (多重検定 inflation 回避)
+
+
+## Result (2026-05-18T10:58:47Z)
+
+exit=0 · 454s
+
+```
+完了しました。commit/push 済みです。
+
+Commit:
+`172d0fd8 docs: add design broken redesign proposal`
+
+作成・更新:
+- [research/design_broken_redesign_proposal.md](/data/repo/fx-ai-trader/research/design_broken_redesign_proposal.md)
+- [knowledge-base/wiki/sessions/design-broken-diagnose-2026-05-18.md](/data/repo/fx-ai-trader/knowledge-base/wiki/sessions/design-broken-diagnose-2026-05-18.md)
+- [knowledge-base/wiki/decisions/prime-gate-promotion-path-bug-2026-05-18.md](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/prime-gate-promotion-path-bug-2026-05-18.md)
+
+Verification:
+- `python3 -m pytest tests/ -x -q` failed because `/usr/bin/python3` has no `pytest`.
+- `.venv/bin/python -m pytest tests/ -x -q` passed: `1565 passed, 1 skipped, 1 xfailed`.
+
+Note:
+- `knowledge-base/raw/hunt_events/2026-05-18.jsonl` remains modified but was not part of my commit. It appears to be generated runtime/test data.
+```
