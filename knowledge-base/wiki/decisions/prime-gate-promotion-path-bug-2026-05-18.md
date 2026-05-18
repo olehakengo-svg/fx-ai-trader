@@ -48,11 +48,11 @@ must respect that lock:
 
 2026-05-18 full PRIME re-evaluation completed with `tools/prime_reeval_sanity.py`.
 
-- Render API rows fetched: 6448 (shadow=5636, WIN/LOSS shadow non-XAU=5109)
+- Render API rows fetched: 6449 (shadow=5637, WIN/LOSS shadow non-XAU=5115)
 - Observed API coverage: 2026-04-02 to 2026-05-18
 - Task A verdicts: stoch_trend_pullback_PRIME=DEMOTE, stoch_trend_pullback_LONDON_LOWVOL=DEMOTE, fib_reversal_PRIME=DEMOTE, bb_rsi_reversion_NY_ATRQ2=DEMOTE, engulfing_bb_TOKYO_EARLY=KEEP, sr_fib_confluence_GBP_ADXQ2=DEMOTE
 - Task B grid: 4608 cells tested; selected new PRIME cells=0; FDR q=0.10 pass cells=0
-- Hot-fix dry-run replay: 73 PRIME A/B LIVE fires; proposed v2 verdict replay: 0
+- Hot-fix dry-run replay: 71 PRIME A/B LIVE fires; proposed v2 verdict replay: 0
 - Draft proposal: `research/prime_gate_v2_proposal.py`
 - Session report: `knowledge-base/wiki/sessions/prime-reeval-2026-05-18.md`
 - Full Task B cell table: `research/prime_reeval_task_b_cells.csv`

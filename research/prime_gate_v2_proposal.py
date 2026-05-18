@@ -17,19 +17,19 @@ EDGES: Dict[str, List[float]] = {
         71.0
     ],
     "rj_adx": [
-        18.527279,
+        18.525844,
         24.084449,
         31.282508
     ],
     "rj_atr_ratio": [
         0.926959,
         0.983332,
-        1.091298
+        1.091413
     ],
     "rj_close_vs_ema200": [
-        -0.282292,
+        -0.281692,
         -0.00188,
-        0.009321
+        0.009222
     ]
 }
 
@@ -145,7 +145,7 @@ _PRIMES: List[Tuple[str, str, str, float, Any]] = [
         'C', 0.0,
         lambda f: (f["_atr_q"] == "Q1" and f["session"] == "london"),
     ),
-    # Pre-reg LOCK 2026-05-18: N=28 WR=42.9% Wlo=26.5% Bonf_p=2.84e-01
+    # Pre-reg LOCK 2026-05-18: N=28 WR=42.9% Wlo=26.5% Bonf_p=2.83e-01
     # Verdict: DEMOTE from current Tier A
     (
         'fib_reversal_PRIME',
@@ -169,7 +169,7 @@ _PRIMES: List[Tuple[str, str, str, float, Any]] = [
         'C', 0.0,
         lambda f: (f["session"] == "tokyo" and f["hour"] in (0, 1, 2, 3)),
     ),
-    # Pre-reg LOCK 2026-05-18: N=19 WR=42.1% Wlo=23.1% Bonf_p=6.44e-01
+    # Pre-reg LOCK 2026-05-18: N=19 WR=42.1% Wlo=23.1% Bonf_p=6.42e-01
     # Verdict: DEMOTE from current Tier B
     (
         'sr_fib_confluence_GBP_ADXQ2',

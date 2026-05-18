@@ -3,10 +3,10 @@
 ## Data
 
 - Source: `https://fx-ai-trader.onrender.com/api/demo/trades?limit=10000`
-- Fetched rows: 6448; shadow rows: 5636; WIN/LOSS shadow non-XAU rows: 5109
-- API coverage observed: 2026-04-02 08:17:17 UTC to 2026-05-18 07:18:48 UTC
-- MASSIVE feature joins: 5109 / 5109
-- Baseline WR: 1366/5109 = 26.7%
+- Fetched rows: 6449; shadow rows: 5637; WIN/LOSS shadow non-XAU rows: 5115
+- API coverage observed: 2026-04-02 08:17:17 UTC to 2026-05-18 07:24:20 UTC
+- MASSIVE feature joins: 5115 / 5115
+- Baseline WR: 1367/5115 = 26.7%
 
 ## Recomputed EDGES
 
@@ -18,19 +18,19 @@ EDGES = {
         71.0
     ],
     "rj_adx": [
-        18.527279,
+        18.525844,
         24.084449,
         31.282508
     ],
     "rj_atr_ratio": [
         0.926959,
         0.983332,
-        1.091298
+        1.091413
     ],
     "rj_close_vs_ema200": [
-        -0.282292,
+        -0.281692,
         -0.00188,
-        0.009321
+        0.009222
     ]
 }
 ```
@@ -40,11 +40,11 @@ EDGES = {
 | name | tier current | N | WR | Wlo | Fisher p | Bonf p x6 | WF | Kelly | spread-adj EV | verdict |
 |---|:---:|---:|---:|---:|---:|---:|---|---:|---:|:---:|
 | stoch_trend_pullback_PRIME | A | 22 | 31.8% | 0.164 | 0.37 | 1 | 2/3 | 0.000 | -1.13 | DEMOTE |
-| stoch_trend_pullback_LONDON_LOWVOL | B | 18 | 27.8% | 0.125 | 0.55 | 1 | 1/3 | 0.000 | -1.82 | DEMOTE |
-| fib_reversal_PRIME | A | 28 | 42.9% | 0.265 | 0.0473 | 0.284 | 1/3 | 0.000 | -1.53 | DEMOTE |
+| stoch_trend_pullback_LONDON_LOWVOL | B | 18 | 27.8% | 0.125 | 0.549 | 1 | 1/3 | 0.000 | -1.82 | DEMOTE |
+| fib_reversal_PRIME | A | 28 | 42.9% | 0.265 | 0.0472 | 0.283 | 1/3 | 0.000 | -1.53 | DEMOTE |
 | bb_rsi_reversion_NY_ATRQ2 | B | 48 | 33.3% | 0.217 | 0.189 | 1 | 0/3 | 0.000 | -2.96 | DEMOTE |
 | engulfing_bb_TOKYO_EARLY | C | 23 | 30.4% | 0.156 | 0.42 | 1 | 1/3 | 0.000 | -2.53 | KEEP |
-| sr_fib_confluence_GBP_ADXQ2 | B | 19 | 42.1% | 0.231 | 0.107 | 0.644 | 2/3 | 0.003 | +0.12 | DEMOTE |
+| sr_fib_confluence_GBP_ADXQ2 | B | 19 | 42.1% | 0.231 | 0.107 | 0.642 | 2/3 | 0.003 | +0.12 | DEMOTE |
 
 ## Sanity Drift
 
@@ -76,8 +76,8 @@ Top N>=20 cells by Fisher p; all failed the locked Bonferroni alpha when no sele
 ## Replay
 
 - Current hot-fix dry-run URL: `https://fx-ai-trader.onrender.com/api/demo/trades?limit=3000`
-- Current hot-fix dry-run 30d PRIME A/B LIVE fires: 73 (new from shadow=68, rows=3014)
-- Integer comparison with `tools/prime_gate_order_dry_run.py`: MATCH (73)
+- Current hot-fix dry-run 30d PRIME A/B LIVE fires: 71 (new from shadow=66, rows=3009)
+- Integer comparison with `tools/prime_gate_order_dry_run.py`: MATCH (71)
 - If Task A v2 verdicts were applied to the same dry-run rows: 0 PRIME A/B LIVE fires
 - Evaluation-fetch current-gate replay, for reference only: 100 fires on the 10,000-row API fetch
 
