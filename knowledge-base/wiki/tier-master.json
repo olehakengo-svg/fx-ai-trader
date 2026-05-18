@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-18T10:28:55.211030+00:00",
+  "generated_at": "2026-05-18T10:40:03.744492+00:00",
   "elite_live": [
     "trendline_sweep"
   ],
@@ -22,6 +22,7 @@
     "sr_break_retest",
     "sr_channel_reversal",
     "stoch_trend_pullback",
+    "trend_rebound",
     "v_reversal",
     "vwap_mean_reversion"
   ],
@@ -117,10 +118,6 @@
     [
       "sr_fib_confluence",
       "GBP_USD"
-    ],
-    [
-      "trend_rebound",
-      "USD_JPY"
     ],
     [
       "vix_carry_unwind",
@@ -247,10 +244,6 @@
     [
       "streak_reversal",
       "USD_JPY"
-    ],
-    [
-      "trend_rebound",
-      "EUR_USD"
     ],
     [
       "v_reversal",

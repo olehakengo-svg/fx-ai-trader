@@ -6455,6 +6455,11 @@ class DemoTrader:
         # と矛盾するため、本ブロックを優先 (FORCE_DEMOTED は PAIR_PROMOTED より優先評価).
         # 詳細: reports/deployment-wave-analysis-2026-04-27.md §4
         "post_news_vol",
+        # 2026-05-18 (rule:R2): trend_rebound C audit verdict THESIS_INVALID.
+        # 21d shadow N=60 WR=33.3% EV=-1.29p PF=0.66 WF=0/3 (Walk-Forward 全 fold EV+ 0).
+        # 直近 emit 6 日無 (engine 内 dead)。設計が時間軸 reproducibility ゼロ、redesign 不可。
+        # Ref: knowledge-base/wiki/sessions/prime-v2-shadow-audit-2026-05-18.md §trend_rebound
+        "trend_rebound",
         # ──────────────────────────────────────────────────────────────
         # 2026-05-01 audit P0-8 phase 1 (Pillar 6.2):
         # Render Live で deeply-negative EV を蓄積している戦略を一斉に
@@ -6573,7 +6578,6 @@ class DemoTrader:
         ("ema_trend_scalp", "USD_JPY"),
         ("ema_trend_scalp", "EUR_USD"),     # N=8 WR=25.0% EV=-0.94 Kelly=-16.3%
         ("engulfing_bb", "EUR_USD"),        # N=9 WR=11.1% EV=-1.42 Kelly=-28.4%
-        ("trend_rebound", "EUR_USD"),       # N=6 WR=16.7% EV=-1.85 Kelly=-43.0%
         # v8.9: alpha scan #2 2026-04-14 — 追加毒性セル
         ("dt_bb_rsi_mr", "EUR_USD"),         # N=8 WR=25.0% EV=-2.83 Kelly=-50.0%
         ("bb_rsi_reversion", "EUR_USD"),     # N=21 WR=33.3% EV=-0.76 Kelly=-20.2%
@@ -6690,7 +6694,6 @@ class DemoTrader:
         ("sr_fib_confluence", "GBP_USD"),      # shadow N=39 EV=+1.35 PF=1.29
         ("session_time_bias", "EUR_USD"),      # shadow N=23 EV=+0.63 PF=1.15
         ("vsg_jpy_reversal", "EUR_JPY"),       # shadow N=20 EV=+1.82 PF=1.30
-        ("trend_rebound", "USD_JPY"),          # shadow N=17 EV=+1.14 PF=1.52
         ("bb_squeeze_breakout", "EUR_USD"),    # shadow N=14 EV=+0.01 PF=1.00
         ("dt_sr_channel_reversal", "EUR_JPY"), # shadow N=12 EV=+14.28 PF=3.61
         ("dt_bb_rsi_mr", "USD_JPY"),           # shadow N=10 EV=+8.51 PF=4.38

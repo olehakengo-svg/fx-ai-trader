@@ -10,6 +10,14 @@
 - 既定 window を demo stats と同じ 30d + `2026-04-08T00:00:00` floor にし、`range=all` も fidelity cutoff 以降のみ集計。
 - `_filters` / `_db_path` を返し、stats 系 endpoint の表示条件を監査可能にした。
 
+## 2026-05-18 — trend_rebound THESIS_INVALID FORCE_DEMOTED
+
+- C audit verdict により `trend_rebound` を FORCE_DEMOTED に固定。
+- 21d shadow N=60 WR=33.3% EV=-1.29p PF=0.66 Kelly=0.000 WF=0/3。
+- `trend_rebound` x USD_JPY の PAIR_PROMOTED と EUR_USD の PAIR_DEMOTED を撤去し、
+  FORCE_DEMOTED 一括管理へ統合。
+- Decision: `decisions/trend-rebound-thesis-invalid-2026-05-18.md`。
+
 ## 2026-05-18 — HourlyEngine Shadow Ramp Activation
 
 - 全 10 `daytrade_1h*` modes を `auto_start=True` に変更し、HourlyEngine dormant 状態を解除。

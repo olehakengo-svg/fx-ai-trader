@@ -14,13 +14,15 @@ from tools import volume_live_promotion_watchdog as watchdog
 # - vix_carry_unwind × USD_JPY (Live N=11 EV=-2.15 Wilson_BF_lo=0.190)
 #   R2 watchdog rule satisfied (Live N>=10, EV<0). → PAIR_DEMOTED.
 #   See modules/demo_trader.py 2026-05-11 audit comment block.
+# REMOVED 2026-05-18 C audit:
+# - trend_rebound × USD_JPY (21d shadow N=60 WR=33.3% EV=-1.29p PF=0.66,
+#   WF=0/3) → FORCE_DEMOTED (THESIS_INVALID).
 VOLUME_CELLS = [
     ("mqe_gbpusd_fix", "GBP_USD"),
     ("sr_fib_confluence", "GBP_USD"),
     ("xs_momentum", "GBP_USD"),
     ("session_time_bias", "EUR_USD"),
     ("vsg_jpy_reversal", "EUR_JPY"),
-    ("trend_rebound", "USD_JPY"),
     ("bb_squeeze_breakout", "EUR_USD"),
     ("dt_sr_channel_reversal", "EUR_JPY"),
     ("dt_bb_rsi_mr", "USD_JPY"),

@@ -4,21 +4,37 @@
 - **Entry Type**: `trend_rebound`
 - **Category**: MR (Mean Reversion)
 - **Timeframe**: DT 15m
-- **Status**: PAIR_PROMOTED × USD_JPY (2026-05-07 volume emergency promote — shadow N=17 EV=+1.14 PF=1.52, EV/PF shadow exception)
-- **Active Pairs**: USD_JPY (PROMOTED); EUR_USD (PAIR_DEMOTED)
-- **Auto-demote guard**: R2 live N>=10 EV<0 で自動降格
+- **Status**: FORCE_DEMOTED (THESIS_INVALID, 2026-05-18)
+- **Stage**: FORCE_DEMOTED (THESIS_INVALID, 2026-05-18)
+- **Active Pairs**: none (OANDA Live 全ペア停止; Shadow 観測は継続)
+- **Auto-demote guard**: FORCE_DEMOTED が pair-level 指定より優先
 
 ## Previously
 - 〜2026-04-26: UNIVERSAL_SENTINEL; EUR_USD PAIR_DEMOTED
 - 2026-04-27: tier-master.json で FORCE_DEMOTED に変更 (前セッションでの整理)
 - 2026-05-01 audit P0-8: FORCE_DEMOTED 確定 (Live N=17 WR=23.5% PnL=-26.0p)
 - 2026-05-07 volume emergency: USD_JPY のみ PAIR_PROMOTED として復帰 (shadow exception)
+- 2026-05-18 C audit: 21d shadow N=60 WR=33.3% EV=-1.29p PF=0.66 WF=0/3、
+  直近 emit 2026-05-12 14:14。設計核の edge 不在により THESIS_INVALID。
 
 ## BT Performance (365d, 15m)
 BT data not available for this entry_type
 
 ## Live Performance (post-cutoff)
-Live data accumulating. EUR_USD: N=6 WR=16.7% EV=-1.85 Kelly=-43.0% (PAIR_DEMOTED basis).
+Live data accumulating. EUR_USD の pair-level demote は FORCE_DEMOTED 一括化により撤去。
+
+**C audit verdict (2026-05-18, 21d shadow)** — [[../sessions/prime-v2-shadow-audit-2026-05-18]]:
+
+| Axis | Value | Verdict |
+|---|---:|---|
+| Shadow N (21d) | 60 | PASS N |
+| WR | 33.3% | FAIL |
+| spread-adj EV | -1.29p | FAIL |
+| PF | 0.66 | FAIL |
+| Kelly | 0.000 | FAIL |
+| WF (3-fold) | 0/3 | FAIL |
+| best cell (ATRQ2) | N=12 WR=50% EV=+0.05p | no edge |
+| last emit | 2026-05-12 14:14 | 6d no fire |
 
 **v9.5 Live pair-level 実測 (2026-04-20)** — [[ema-tr-live-breakdown-2026-04-20]]:
 
@@ -39,8 +55,9 @@ Counter-trend rebound in strong trending conditions. Enters against the prevaili
 - Lot Boost: default (1.0x)
 - PAIR_DEMOTED: (FORCE_DEMOTED 一括化により撤去)
 - PAIR_PROMOTED: none
-- Status: **FORCE_DEMOTED** (OANDA 送信全ペア停止、Shadow 蓄積継続)
+- Status: **FORCE_DEMOTED (THESIS_INVALID, 2026-05-18)** (OANDA 送信全ペア停止、Shadow 蓄積継続)
 
 ## Related
 - [[index]] — Tier classification
+- [[../decisions/trend-rebound-thesis-invalid-2026-05-18]] — FORCE_DEMOTED 判決
 - [[roadmap-v2.1]] — Portfolio strategy

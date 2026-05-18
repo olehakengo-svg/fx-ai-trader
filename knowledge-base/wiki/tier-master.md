@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-05-18 10:28 UTC
+**最終更新**: 2026-05-18 10:40 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | 1 | trendline_sweep | — | +0.574 | +0.838 |
 
-### A-2. PAIR_PROMOTED（23エントリ — 指定ペアのみ通過）
+### A-2. PAIR_PROMOTED（22エントリ — 指定ペアのみ通過）
 
 | # | 戦略名 | ペア | 365d BT EV |
 |---|---|---|---|
@@ -33,18 +33,17 @@
 | 13 | session_time_bias | EUR_USD | +0.251 |
 | 14 | squeeze_release_momentum | EUR_USD | — |
 | 15 | sr_fib_confluence | GBP_USD | — |
-| 16 | trend_rebound | USD_JPY | — |
-| 17 | vix_carry_unwind | USD_JPY | +0.506 |
-| 18 | vol_momentum_scalp | EUR_JPY | — |
-| 19 | vsg_jpy_reversal | EUR_JPY | — |
-| 20 | wick_imbalance_reversion | GBP_USD | — |
-| 21 | xs_momentum | EUR_USD | +0.126 |
-| 22 | xs_momentum | GBP_USD | -0.013 |
-| 23 | xs_momentum_rsi | USD_JPY | — |
+| 16 | vix_carry_unwind | USD_JPY | +0.506 |
+| 17 | vol_momentum_scalp | EUR_JPY | — |
+| 18 | vsg_jpy_reversal | EUR_JPY | — |
+| 19 | wick_imbalance_reversion | GBP_USD | — |
+| 20 | xs_momentum | EUR_USD | +0.126 |
+| 21 | xs_momentum | GBP_USD | -0.013 |
+| 22 | xs_momentum_rsi | USD_JPY | — |
 
 ## B. Shadow戦略（OANDA非通過 — デモのみ記録）
 
-### B-1. FORCE_DEMOTED（20戦略 — 全ペア強制Shadow）
+### B-1. FORCE_DEMOTED（21戦略 — 全ペア強制Shadow）
 
 | # | 戦略名 | 365d BT JPY EV | EUR EV | GBP EV |
 |---|---|---|---|---|
@@ -66,8 +65,9 @@
 | 16 | sr_break_retest | — | — | — |
 | 17 | sr_channel_reversal | — | — | — |
 | 18 | stoch_trend_pullback | — | — | — |
-| 19 | v_reversal | — | — | — |
-| 20 | vwap_mean_reversion | +1.155 | +0.827 | +1.087 |
+| 19 | trend_rebound | — | — | — |
+| 20 | v_reversal | — | — | — |
+| 21 | vwap_mean_reversion | +1.155 | +0.827 | +1.087 |
 
 ### B-2. SCALP_SENTINEL（10戦略 — Scalp最小ロットShadow）
 
@@ -107,7 +107,7 @@
 | 17 | vix_carry_unwind | USD_JPY |
 | 18 | vol_spike_mr | なし |
 
-### B-4. PAIR_DEMOTED（30エントリ — 特定ペアのみ強制Shadow）
+### B-4. PAIR_DEMOTED（29エントリ — 特定ペアのみ強制Shadow）
 
 | # | 戦略名 | ペア |
 |---|---|---|
@@ -135,12 +135,11 @@
 | 22 | sr_channel_reversal | USD_JPY |
 | 23 | stoch_trend_pullback | USD_JPY |
 | 24 | streak_reversal | USD_JPY |
-| 25 | trend_rebound | EUR_USD |
-| 26 | v_reversal | USD_JPY |
-| 27 | vol_surge_detector | EUR_JPY |
-| 28 | vol_surge_detector | USD_JPY |
-| 29 | vwap_mean_reversion | GBP_USD |
-| 30 | xs_momentum | USD_JPY |
+| 25 | v_reversal | USD_JPY |
+| 26 | vol_surge_detector | EUR_JPY |
+| 27 | vol_surge_detector | USD_JPY |
+| 28 | vwap_mean_reversion | GBP_USD |
+| 29 | xs_momentum | USD_JPY |
 
 ### B-5. Phase B-1 Shadow candidate pairs
 

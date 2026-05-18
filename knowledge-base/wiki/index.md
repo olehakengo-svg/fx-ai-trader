@@ -33,7 +33,6 @@
 | [[session-time-bias]] | EUR_USD | EUR_USD: EV=+0.215 WR=69.6%; GBP_USD: EV=+0.113 WR=67.1%; USD_JPY: EV=+0.580 WR=79.0% | PAIR_PROMOTED |
 | [[squeeze-release-momentum]] | EUR_USD | EUR_USD: EV=+0.656 WR=73.3% | PAIR_PROMOTED |
 | [[sr-fib-confluence]] | GBP_USD | EUR_USD: EV=+0.103 WR=64.9%; USD_JPY: EV=+0.252 WR=67.7% | PAIR_PROMOTED |
-| [[trend-rebound]] | USD_JPY | no BT data | PAIR_PROMOTED |
 | [[vix-carry-unwind]] | USD_JPY | USD_JPY: EV=+0.212 WR=67.3% | PAIR_PROMOTED |
 | [[vol-momentum-scalp]] | EUR_JPY | no BT data | PAIR_PROMOTED |
 | [[vsg-jpy-reversal]] | EUR_JPY | no BT data | PAIR_PROMOTED |
@@ -96,6 +95,7 @@
 | [[sr-break-retest]] | no BT data | FORCE_DEMOTED |
 | [[sr-channel-reversal]] | no BT data | FORCE_DEMOTED |
 | [[stoch-trend-pullback]] | no BT data | FORCE_DEMOTED |
+| [[trend-rebound]] | no BT data | FORCE_DEMOTED |
 | [[v-reversal]] | no BT data | FORCE_DEMOTED |
 | [[vwap-mean-reversion]] | no BT data | FORCE_DEMOTED |
 
