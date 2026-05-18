@@ -166,3 +166,21 @@ aud-nzd task が触ったファイル群と同一を想定:
 - memory `feedback_codex_stash_leak`
 - memory `feedback_exclude_xau`
 - memory `feedback_live_shadow_separation`
+
+## Result (2026-05-18T05:53:00Z)
+
+exit=0
+
+Verdict: ACCEPT
+
+- Precedent confirmed: `9a865564 Add AUD/NZD pair surface slots`; completion task present in `done/`.
+- Implemented `USD_CAD` and `USD_CHF` surface slots across demo trader, OANDA bridge, app/API, data mapping, dashboard template, tier-master, KB, and audit report.
+- Added `tests/test_usd_cad_usd_chf_pair_surface.py`.
+- Verified `pip_multiplier("USD_CAD") == 10000.0` and `pip_multiplier("USD_CHF") == 10000.0`.
+- MASSIVE parquet confirmed for `USD_CAD_1h`, `USD_CHF_1h`, `USD_CAD_4h`, and `USD_CHF_4h`.
+- OANDA production `list_instruments()` tradability: `USD_CAD=True`, `USD_CHF=True`.
+- Manual server check: system `python3 app.py` failed because Flask is unavailable; `.venv/bin/python app.py` succeeded and `/api/demo/status` returned both pair slots.
+- Tests: `.venv/bin/python -m pytest -q tests/test_usd_cad_usd_chf_pair_surface.py tests/test_aud_nzd_pair_surface.py tests/test_risk_analytics_mc_lot_multiplier.py tests/test_edge_activation_review_fixes.py` -> `24 passed`.
+- Commits pushed:
+  - `7b91b386 Add USD/CAD and USD/CHF pair surface slots`
+  - `31ac2630 Update USD/CAD USD/CHF surface final report`
