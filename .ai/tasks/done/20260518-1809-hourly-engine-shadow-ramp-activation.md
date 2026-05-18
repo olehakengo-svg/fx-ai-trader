@@ -217,3 +217,33 @@ _shadow_always = frozenset({
 - memory `feedback_codex_mock_test_trap` (real instance test 必須)
 - memory `feedback_codex_stash_leak`
 - memory `project_w4_eda_complete_2026_05_05` (91% 戦略は思想正/設計誤、KSB/DMB 再評価の含意)
+
+
+## Result (2026-05-18T09:31:11Z)
+
+exit=0 · 260s
+
+```
+完了しました。`main` に push 済みです。
+
+- Final commit: `7437f294`
+- Implementation commit: `e6fe60ea`
+- Report: [final.md](/data/repo/fx-ai-trader/final.md)
+
+主な変更:
+- `daytrade_1h*` 全 10 mode を `auto_start=True` 化
+- `HourlyEngine._shadow_always` に KSB+DMB+5 PriceShockRev を固定
+- XAU / scalp / 15m daytrade の auto_start は未変更
+- KB decision / changelog / index 更新、`sync_kb_index.py --write` 実行済み
+- 新規 real-data テスト `tests/test_hourly_engine_shadow_ramp.py` 追加
+
+検証:
+- `tests/test_hourly_engine_shadow_ramp.py -v` — 5 passed
+- `tests/test_price_shock_rev_strategies.py -v` — 7 passed
+- `tests/test_aud_nzd_pair_surface.py -v` — 7 passed
+- `tests/test_usd_cad_usd_chf_pair_surface.py -v` — 8 passed
+- KSB/DMB shadow redesign tests — 12 passed
+- `tools/tier_integrity_check.py --check` — ERROR=0, WARN=1 existing `ob_retest` legacy inline warning
+
+`git status` clean、`git stash list` 空です。
+```
