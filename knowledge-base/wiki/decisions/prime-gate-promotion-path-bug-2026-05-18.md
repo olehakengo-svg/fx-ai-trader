@@ -65,3 +65,15 @@ must respect that lock:
 - 5 entries demoted to Tier C with `lot_multiplier=0.0`: `stoch_trend_pullback_PRIME`, `stoch_trend_pullback_LONDON_LOWVOL`, `fib_reversal_PRIME`, `bb_rsi_reversion_NY_ATRQ2`, `sr_fib_confluence_GBP_ADXQ2`.
 - `engulfing_bb_TOKYO_EARLY` remains Tier C with `lot_multiplier=0.0`.
 - PRIME A/B live-lock structure remains intact for future v3 candidates, but current v2 PRIME matches remain Shadow-only.
+
+## v2 Shadow Audit Complete ✓
+
+2026-05-18 design-driven PRIME v2 shadow audit completed with `tools/prime_v2_shadow_audit.py`.
+
+- Hypothesis space: m_total=9 (<=30), Bonferroni alpha=0.005556
+- Render rows fetched: 6456 (shadow=5644, WIN/LOSS shadow non-XAU=5121)
+- Target strategy rows: 307 across 6 locked strategies
+- Selected PRIME v2 candidates: 0
+- Report: `research/prime_v2_audit_2026_05_18.md`
+- Cells CSV: `research/prime_v2_audit_cells.csv`
+- KB session: `knowledge-base/wiki/sessions/prime-v2-shadow-audit-2026-05-18.md`
