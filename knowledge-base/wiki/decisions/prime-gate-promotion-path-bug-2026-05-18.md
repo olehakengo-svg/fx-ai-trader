@@ -66,6 +66,18 @@ must respect that lock:
 - `engulfing_bb_TOKYO_EARLY` remains Tier C with `lot_multiplier=0.0`.
 - PRIME A/B live-lock structure remains intact for future v3 candidates, but current v2 PRIME matches remain Shadow-only.
 
+## B' Forward-Fix Complete ✓
+
+2026-05-18 forward-fix B' corrected the grade mismatch in the v2 apply.
+
+- LIVE promotion grade remains strict (`Wilson_lo>=0.40`, `WF>=2/3`).
+- Micro LIVE exploration grade is separate: `Wilson_lo>=0.20`, `WF>=1/3`, and `lot_multiplier=0.05`.
+- Revived 2 entries for measurement only: `fib_reversal_PRIME` and `sr_fib_confluence_GBP_ADXQ2`.
+- Kept 4 entries Tier C: `stoch_trend_pullback_PRIME`, `stoch_trend_pullback_LONDON_LOWVOL`, `bb_rsi_reversion_NY_ATRQ2`, `engulfing_bb_TOKYO_EARLY`.
+- Rationale: shadow EV includes signal-price vs entry-price spread-basis bias; Micro LIVE fill data is needed before treating EV as ground truth.
+- Existing R2 safety net remains binding: `tools/volume_live_promotion_watchdog.py` auto-demotes at Live `N>=10` and `EV<0`.
+- Lesson recorded: [[lesson-prime-b-grade-mismatch-2026-05-18]].
+
 ## v2 Shadow Audit Complete ✓
 
 2026-05-18 design-driven PRIME v2 shadow audit completed with `tools/prime_v2_shadow_audit.py`.

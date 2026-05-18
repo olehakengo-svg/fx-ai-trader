@@ -5,12 +5,21 @@ from datetime import datetime, timezone
 from modules.prime_gate import EDGES, _PRIMES, classify_prime
 
 
-def test_all_primes_are_tier_c():
-    assert all(p[2] == "C" for p in _PRIMES)
+def test_4_primes_are_tier_c():
+    tier_c = [p for p in _PRIMES if p[2] == "C"]
+    assert len(tier_c) == 4
 
 
-def test_all_lot_multipliers_zero():
-    assert all(p[3] == 0.0 for p in _PRIMES)
+def test_2_primes_revived_at_tier_b_005x():
+    revived = [p for p in _PRIMES if p[2] == "B" and p[3] == 0.05]
+    assert len(revived) == 2
+    names = {p[0] for p in revived}
+    assert names == {"fib_reversal_PRIME", "sr_fib_confluence_GBP_ADXQ2"}
+
+
+def test_no_tier_a_entries():
+    # Until v3 candidates land, no Tier A.
+    assert all(p[2] != "A" for p in _PRIMES)
 
 
 def test_classify_prime_returns_tier_c_when_predicate_matches():

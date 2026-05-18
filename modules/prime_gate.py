@@ -161,6 +161,15 @@ def _feature_bundle(
 # - bb_rsi_reversion_NY_ATRQ2: DEMOTE from Tier B to Tier C
 # - engulfing_bb_TOKYO_EARLY: KEEP at Tier C
 # - sr_fib_confluence_GBP_ADXQ2: DEMOTE from Tier B to Tier C
+#
+# ## 2026-05-18 forward-fix (B'):
+# Revive 2 entries at Tier B 0.05x for Micro LIVE exploration:
+# - fib_reversal_PRIME: Tier C 0.0 -> Tier B 0.05 (Wlo=0.265 >= 0.20 exploration gate, WF 1/3 >= 1/3)
+# - sr_fib_confluence_GBP_ADXQ2: Tier C 0.0 -> Tier B 0.05 (Wlo=0.231 >= 0.20, WF 2/3 >= 1/3)
+# Rationale: shadow EV is biased by entry vs signal price (feedback_spread_basis_for_mafe);
+# Micro LIVE at 0.05x lot is a measurement tool, not a profit driver. Auto-demoted by
+# tools/volume_live_promotion_watchdog.py at Live N>=10 EV<0 (existing R2 safety net).
+# Other 4 entries remain Tier C (insufficient Wlo or WF for exploration grade).
 _PRIMES: List[Tuple[str, str, str, float, Any]] = [
     # Pre-reg LOCK 2026-05-18: N=22 WR=31.8% Wlo=16.4% Bonf_p=1.00e+00
     # Verdict: DEMOTE from current Tier A
@@ -178,12 +187,13 @@ _PRIMES: List[Tuple[str, str, str, float, Any]] = [
         'C', 0.0,
         lambda f: (f["_atr_q"] == "Q1" and f["session"] == "london"),
     ),
-    # Pre-reg LOCK 2026-05-18: N=28 WR=42.9% Wlo=26.5% Bonf_p=2.83e-01
-    # Verdict: DEMOTE from current Tier A
+    # Pre-reg LOCK 2026-05-18 forward-fix: revived at exploration grade.
+    # Original 2026-04-21: Tier A. Re-eval 2026-05-18: N=28 WR=42.9% Wlo=0.265 WF=1/3.
+    # Exploration grade gate (Wlo>=0.20 + WF>=1/3) PASS. Lot=0.05x (data collection).
     (
         'fib_reversal_PRIME',
         'fib_reversal',
-        'C', 0.0,
+        'B', 0.05,
         lambda f: (f["_conf_q"] == "Q3" and f["_cvema_q"] == "Q3"),
     ),
     # Pre-reg LOCK 2026-05-18: N=48 WR=33.3% Wlo=21.7% Bonf_p=1.00e+00
@@ -202,12 +212,13 @@ _PRIMES: List[Tuple[str, str, str, float, Any]] = [
         'C', 0.0,
         lambda f: (f["session"] == "tokyo" and f["hour"] in (0, 1, 2, 3)),
     ),
-    # Pre-reg LOCK 2026-05-18: N=19 WR=42.1% Wlo=23.1% Bonf_p=6.42e-01
-    # Verdict: DEMOTE from current Tier B
+    # Pre-reg LOCK 2026-05-18 forward-fix: revived at exploration grade.
+    # Original 2026-04-21: Tier B. Re-eval 2026-05-18: N=19 WR=42.1% Wlo=0.231 WF=2/3.
+    # Exploration grade gate (Wlo>=0.20 + WF>=1/3) PASS. Lot=0.05x (data collection).
     (
         'sr_fib_confluence_GBP_ADXQ2',
         'sr_fib_confluence',
-        'C', 0.0,
+        'B', 0.05,
         lambda f: (f["instrument"] == "GBP_USD" and f["_adx_q"] == "Q2"),
     ),
 ]

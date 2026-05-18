@@ -23,6 +23,13 @@
 - EDGES replaced with the 2026-05-18 Render shadow non-XAU recomputation.
 - All current PRIME matches remain Shadow-only; A/B live-lock structure preserved for future candidates.
 
+## 2026-05-18 — PRIME B' Micro LIVE Forward-Fix
+
+- Corrected the grade mismatch between LIVE promotion and Micro LIVE exploration.
+- Revived `fib_reversal_PRIME` and `sr_fib_confluence_GBP_ADXQ2` as Tier B `0.05x` measurement cells.
+- Kept the other 4 PRIME entries at Tier C `0.0`; no Tier A entries active.
+- Existing watchdog safety net remains unchanged: auto-demote at Live `N>=10` and `EV<0`.
+
 ## Fidelity Cutoff Timeline
 
 ```
