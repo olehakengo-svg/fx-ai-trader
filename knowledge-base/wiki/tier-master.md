@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-05-13 14:44 UTC
+**最終更新**: 2026-05-18 05:06 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -78,7 +78,7 @@
 | 9 | mtf_trend_follow_scalp |
 | 10 | vol_surge_detector |
 
-### B-3. UNIVERSAL_SENTINEL（16戦略 — 全モードSentinel）
+### B-3. UNIVERSAL_SENTINEL（18戦略 — 全モードSentinel）
 
 | # | 戦略名 | PP経由OANDA通過ペア |
 |---|---|---|
@@ -90,14 +90,16 @@
 | 6 | liquidity_sweep | なし |
 | 7 | london_close_reversal | なし |
 | 8 | london_close_reversal_v2 | なし |
-| 9 | pd_eurjpy_h20_bbpb3_sell | なし |
-| 10 | post_news_vol | なし |
-| 11 | session_time_bias | EUR_USD |
-| 12 | squeeze_release_momentum | EUR_USD |
-| 13 | sr_weighted_bounce | なし |
-| 14 | sr_weighted_break | なし |
-| 15 | vix_carry_unwind | USD_JPY |
-| 16 | vol_spike_mr | なし |
+| 9 | macd_rsi_pullback | なし |
+| 10 | pd_eurjpy_h20_bbpb3_sell | なし |
+| 11 | post_news_vol | なし |
+| 12 | price_shock_reversion | なし |
+| 13 | session_time_bias | EUR_USD |
+| 14 | squeeze_release_momentum | EUR_USD |
+| 15 | sr_weighted_bounce | なし |
+| 16 | sr_weighted_break | なし |
+| 17 | vix_carry_unwind | USD_JPY |
+| 18 | vol_spike_mr | なし |
 
 ### B-4. PAIR_DEMOTED（30エントリ — 特定ペアのみ強制Shadow）
 
@@ -133,6 +135,16 @@
 | 28 | vol_surge_detector | USD_JPY |
 | 29 | vwap_mean_reversion | GBP_USD |
 | 30 | xs_momentum | USD_JPY |
+
+### B-5. Phase B-1 Shadow candidate pairs
+
+| # | 戦略名 | ペア | 制約 |
+|---|---|---|---|
+| 1 | price_shock_reversion | AUD_JPY | Shadow candidate; Live promotion disabled in this task |
+| 2 | price_shock_reversion | NZD_JPY | Shadow candidate; Live promotion disabled in this task |
+| 3 | price_shock_reversion | AUD_USD | Shadow candidate; Live promotion disabled in this task |
+| 4 | price_shock_reversion | NZD_USD | Shadow candidate; Live promotion disabled in this task |
+| 5 | price_shock_reversion | EUR_AUD | Shadow candidate; Live promotion disabled in this task |
 
 ### B-5. Phase0 Shadow Gate（31戦略 — 自動Shadow）
 

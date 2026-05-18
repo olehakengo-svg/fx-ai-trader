@@ -70,6 +70,15 @@ LEGACY_DEAD_INLINE = {
 }
 
 APP_PY = os.path.join(_PROJECT_ROOT, "app.py")
+PHASE_B1_SHADOW_CANDIDATES = {
+    "price_shock_reversion": [
+        "AUD_JPY",
+        "NZD_JPY",
+        "AUD_USD",
+        "NZD_USD",
+        "EUR_AUD",
+    ],
+}
 
 
 # ══════════════════════════════════════════════════════════════
@@ -472,6 +481,20 @@ def generate_tier_master(sets: dict, strat_files: dict, issues: list) -> str:
         lines.append(f"| {i} | {strat} | {pair} |")
     lines.append(f"")
 
+    # B-5. Phase B-1 shadow candidates
+    lines.append(f"### B-5. Phase B-1 Shadow candidate pairs")
+    lines.append(f"")
+    lines.append(f"| # | 戦略名 | ペア | 制約 |")
+    lines.append(f"|---|---|---|---|")
+    row_no = 1
+    for strat, pairs in sorted(PHASE_B1_SHADOW_CANDIDATES.items()):
+        for pair in pairs:
+            lines.append(
+                f"| {row_no} | {strat} | {pair} | Shadow candidate; Live promotion disabled in this task |"
+            )
+            row_no += 1
+    lines.append(f"")
+
     # B-5. Phase0 Shadow Gate (everything else)
     all_classified = set()
     all_classified |= sets["elite_live"]
@@ -552,6 +575,7 @@ def generate_snapshot(sets: dict) -> dict:
         "pe_dt_eligible": sorted(sets["pe_dt_eligible"]),
         "pe_50pct_eligible": sorted(sets["pe_50pct_eligible"]),
         "quick_harvest_exempt": sorted([list(t) for t in sets["quick_harvest_exempt"]]),
+        "phase_b1_shadow_candidates": PHASE_B1_SHADOW_CANDIDATES,
     }
 
 

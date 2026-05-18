@@ -17,6 +17,36 @@ from modules.oanda_client import OandaClient
 
 logger = logging.getLogger(__name__)
 
+SUPPORTED_INSTRUMENTS = {
+    "USD_JPY": "USD_JPY",
+    "EUR_USD": "EUR_USD",
+    "EUR_JPY": "EUR_JPY",
+    "GBP_JPY": "GBP_JPY",
+    "GBP_USD": "GBP_USD",
+    "EUR_GBP": "EUR_GBP",
+    "XAU_USD": "XAU_USD",
+    "AUD_JPY": "AUD_JPY",
+    "NZD_JPY": "NZD_JPY",
+    "AUD_USD": "AUD_USD",
+    "NZD_USD": "NZD_USD",
+    "EUR_AUD": "EUR_AUD",
+}
+
+OANDA_EXECUTION_ENABLED = {
+    "AUD_JPY": True,
+    "NZD_JPY": True,
+    "AUD_USD": True,
+    "NZD_USD": True,
+    "EUR_AUD": True,
+}
+
+
+def resolve_instrument(instrument: str) -> str:
+    """Return the OANDA v20 instrument code for a supported FX pair."""
+    if instrument not in SUPPORTED_INSTRUMENTS:
+        raise KeyError(f"Unsupported OANDA instrument: {instrument}")
+    return SUPPORTED_INSTRUMENTS[instrument]
+
 
 class OandaBridge:
     def __init__(self, db=None):
@@ -75,6 +105,8 @@ class OandaBridge:
     # v9.0: is_mode_allowed()は常にTrue。_ALL_MODESはUI状態表示のみに使用
     _ALL_MODES = {"scalp", "daytrade", "daytrade_1h", "scalp_eur", "daytrade_eur", "daytrade_1h_eur", "scalp_eurjpy",
                    "scalp_xau", "rnb_usdjpy", "daytrade_gbpusd", "daytrade_eurgbp", "daytrade_xau",
+                   "daytrade_1h_audjpy", "daytrade_1h_nzdjpy", "daytrade_1h_audusd",
+                   "daytrade_1h_nzdusd", "daytrade_1h_euraud",
                    "scalp_5m", "scalp_5m_eur", "scalp_5m_gbp",
                    "daytrade_eurjpy", "daytrade_gbpjpy"}  # v9.0: 全モード追加
 
@@ -462,6 +494,13 @@ class OandaBridge:
         lot_label: display label for lot multiplier (e.g. "🚀1.3x").
         """
         if not self.active:
+            return
+        try:
+            instrument = resolve_instrument(instrument)
+        except KeyError as e:
+            logger.error(f"[OandaBridge] {e}")
+            if log_callback:
+                log_callback(f"🔗 OANDA: [BLOCKED] unsupported instrument — {instrument}")
             return
         if not self.is_mode_allowed(mode):
             logger.debug(f"[OandaBridge] mode={mode} not in allowed_modes, skip")

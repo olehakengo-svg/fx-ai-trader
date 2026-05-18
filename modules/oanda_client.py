@@ -24,12 +24,20 @@ logger = logging.getLogger(__name__)
 
 # OANDA v20 API base URL (本番環境)
 BASE_URL = "https://api-fxtrade.oanda.com"
+PRACTICE_BASE_URL = "https://api-fxpractice.oanda.com"
 
 
 class OandaClient:
-    def __init__(self, token: str = None, account_id: str = None):
-        self._token = token or os.environ.get("OANDA_TOKEN", "")
+    def __init__(self, token: str = None, account_id: str = None,
+                 base_url: str = None):
+        self._token = (
+            token
+            or os.environ.get("OANDA_TOKEN", "")
+            or os.environ.get("OANDA_API_TOKEN", "")
+            or os.environ.get("OANDA_API_KEY", "")
+        )
         self._account_id = account_id or os.environ.get("OANDA_ACCOUNT_ID", "")
+        self._base_url = base_url or os.environ.get("OANDA_BASE_URL", BASE_URL)
         self._rate_limit_until = 0  # 429レートリミット backoff timestamp
         # ── HTTP Session pooling (2026-04-05 perf) ──
         if _HAS_REQUESTS:
@@ -65,7 +73,7 @@ class OandaClient:
             _wait = self._rate_limit_until - _time.time()
             return False, {"error": 429, "message": f"Rate limited, retry in {_wait:.0f}s"}
 
-        url = f"{BASE_URL}{path}"
+        url = f"{self._base_url}{path}"
 
         # ── requests.Session 使用 (Keep-Alive) ──
         if self._session is not None:
@@ -213,6 +221,11 @@ class OandaClient:
         # Fallback to summary
         path_summary = f"/v3/accounts/{self._account_id}/summary"
         return self._request("GET", path_summary)
+
+    def list_instruments(self) -> tuple:
+        """List instruments tradable by the configured account."""
+        path = f"/v3/accounts/{self._account_id}/instruments"
+        return self._request("GET", path, timeout=30)
 
     # ── Get Current Price (v20) ───────────────────────
 

@@ -465,6 +465,56 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
     </div>
   </div>
 
+  <!-- AUD/JPY -->
+  <div class="pair-group">
+    <div class="pair-header" data-pair="AUD_JPY" onclick="selectPair('AUD_JPY')">
+      <span class="pair-flag">🇦🇺🇯🇵</span> AUD/JPY
+    </div>
+    <div class="mode-list">
+      <div class="mode-row"><button id="m-daytrade_1h_audjpy" class="mode-btn" onclick="toggleDemo('daytrade_1h_audjpy')">🕐1H <span class="lamp off"></span></button><button id="o-daytrade_1h_audjpy" class="oa-btn" onclick="toggleOandaMode('daytrade_1h_audjpy')">OA</button></div>
+    </div>
+  </div>
+
+  <!-- NZD/JPY -->
+  <div class="pair-group">
+    <div class="pair-header" data-pair="NZD_JPY" onclick="selectPair('NZD_JPY')">
+      <span class="pair-flag">🇳🇿🇯🇵</span> NZD/JPY
+    </div>
+    <div class="mode-list">
+      <div class="mode-row"><button id="m-daytrade_1h_nzdjpy" class="mode-btn" onclick="toggleDemo('daytrade_1h_nzdjpy')">🕐1H <span class="lamp off"></span></button><button id="o-daytrade_1h_nzdjpy" class="oa-btn" onclick="toggleOandaMode('daytrade_1h_nzdjpy')">OA</button></div>
+    </div>
+  </div>
+
+  <!-- AUD/USD -->
+  <div class="pair-group">
+    <div class="pair-header" data-pair="AUD_USD" onclick="selectPair('AUD_USD')">
+      <span class="pair-flag">🇦🇺🇺🇸</span> AUD/USD
+    </div>
+    <div class="mode-list">
+      <div class="mode-row"><button id="m-daytrade_1h_audusd" class="mode-btn" onclick="toggleDemo('daytrade_1h_audusd')">🕐1H <span class="lamp off"></span></button><button id="o-daytrade_1h_audusd" class="oa-btn" onclick="toggleOandaMode('daytrade_1h_audusd')">OA</button></div>
+    </div>
+  </div>
+
+  <!-- NZD/USD -->
+  <div class="pair-group">
+    <div class="pair-header" data-pair="NZD_USD" onclick="selectPair('NZD_USD')">
+      <span class="pair-flag">🇳🇿🇺🇸</span> NZD/USD
+    </div>
+    <div class="mode-list">
+      <div class="mode-row"><button id="m-daytrade_1h_nzdusd" class="mode-btn" onclick="toggleDemo('daytrade_1h_nzdusd')">🕐1H <span class="lamp off"></span></button><button id="o-daytrade_1h_nzdusd" class="oa-btn" onclick="toggleOandaMode('daytrade_1h_nzdusd')">OA</button></div>
+    </div>
+  </div>
+
+  <!-- EUR/AUD -->
+  <div class="pair-group">
+    <div class="pair-header" data-pair="EUR_AUD" onclick="selectPair('EUR_AUD')">
+      <span class="pair-flag">🇪🇺🇦🇺</span> EUR/AUD
+    </div>
+    <div class="mode-list">
+      <div class="mode-row"><button id="m-daytrade_1h_euraud" class="mode-btn" onclick="toggleDemo('daytrade_1h_euraud')">🕐1H <span class="lamp off"></span></button><button id="o-daytrade_1h_euraud" class="oa-btn" onclick="toggleOandaMode('daytrade_1h_euraud')">OA</button></div>
+    </div>
+  </div>
+
   <!-- XAU/USD -->
   <div class="pair-group">
     <div class="pair-header" data-pair="XAU_USD" onclick="selectPair('XAU_USD')">
@@ -513,6 +563,11 @@ body{background:var(--bg);color:var(--t1);font-family:-apple-system,BlinkMacSyst
         <option value="scalp_eur,daytrade_eur,daytrade_1h_eur">💶 EUR/USD</option>
         <option value="scalp_gbpusd,daytrade_gbpusd">💷 GBP/USD</option>
         <option value="daytrade_eurgbp">🇪🇺🇬🇧 EUR/GBP</option>
+        <option value="daytrade_1h_audjpy">🇦🇺🇯🇵 AUD/JPY</option>
+        <option value="daytrade_1h_nzdjpy">🇳🇿🇯🇵 NZD/JPY</option>
+        <option value="daytrade_1h_audusd">🇦🇺🇺🇸 AUD/USD</option>
+        <option value="daytrade_1h_nzdusd">🇳🇿🇺🇸 NZD/USD</option>
+        <option value="daytrade_1h_euraud">🇪🇺🇦🇺 EUR/AUD</option>
         <option value="scalp_xau,daytrade_xau">🥇 XAU/USD</option>
         <option value="scalp_eurjpy,daytrade_eurjpy">💶💴 EUR/JPY</option>
         <option value="daytrade_gbpjpy">🇬🇧🇯🇵 GBP/JPY</option>
@@ -619,6 +674,16 @@ const PAIRS={
     modes:['daytrade_gbpusd','scalp_gbpusd']},
   EUR_GBP:{symbol:'EURGBP=X',label:'EUR/GBP',flag:'🇪🇺🇬🇧',precision:5,
     modes:['daytrade_eurgbp']},
+  AUD_JPY:{symbol:'AUDJPY=X',label:'AUD/JPY',flag:'🇦🇺🇯🇵',precision:3,
+    modes:['daytrade_1h_audjpy']},
+  NZD_JPY:{symbol:'NZDJPY=X',label:'NZD/JPY',flag:'🇳🇿🇯🇵',precision:3,
+    modes:['daytrade_1h_nzdjpy']},
+  AUD_USD:{symbol:'AUDUSD=X',label:'AUD/USD',flag:'🇦🇺🇺🇸',precision:5,
+    modes:['daytrade_1h_audusd']},
+  NZD_USD:{symbol:'NZDUSD=X',label:'NZD/USD',flag:'🇳🇿🇺🇸',precision:5,
+    modes:['daytrade_1h_nzdusd']},
+  EUR_AUD:{symbol:'EURAUD=X',label:'EUR/AUD',flag:'🇪🇺🇦🇺',precision:5,
+    modes:['daytrade_1h_euraud']},
   XAU_USD:{symbol:'XAUUSD=X',label:'XAU/USD',flag:'🥇',precision:2,
     modes:['scalp_xau','daytrade_xau']},
 };
@@ -630,13 +695,16 @@ const MODE_DEFS={
   daytrade_eurjpy:{icon:'📊',label:'DT'},daytrade_gbpjpy:{icon:'📊',label:'DT'},
   daytrade_gbpusd:{icon:'📊',label:'DT'},daytrade_eurgbp:{icon:'📊',label:'DT'},
   scalp_gbpusd:{icon:'⚡',label:'SC'},
+  daytrade_1h_audjpy:{icon:'🕐',label:'1H'},daytrade_1h_nzdjpy:{icon:'🕐',label:'1H'},
+  daytrade_1h_audusd:{icon:'🕐',label:'1H'},daytrade_1h_nzdusd:{icon:'🕐',label:'1H'},
+  daytrade_1h_euraud:{icon:'🕐',label:'1H'},
   scalp_xau:{icon:'⚡',label:'SC'},daytrade_xau:{icon:'📊',label:'DT'},
 };
 // ── MAX_HOLD: mirrors Python MAX_HOLD_SEC (seconds) ──
 const MAX_HOLD_BASE={scalp:1800,daytrade:28800,daytrade_1h:64800,swing:259200,rnb_usdjpy:7200};
 function _getMaxHold(mode){
   if(MAX_HOLD_BASE[mode])return MAX_HOLD_BASE[mode];
-  const sfx=['_usdjpy','_gbpjpy','_eurjpy','_gbpusd','_eurgbp','_eur','_xau'];
+  const sfx=['_usdjpy','_gbpjpy','_eurjpy','_gbpusd','_eurgbp','_audjpy','_nzdjpy','_audusd','_nzdusd','_euraud','_eur','_xau'];
   for(const s of sfx){if(mode.endsWith(s)){const b=mode.slice(0,-s.length);if(MAX_HOLD_BASE[b])return MAX_HOLD_BASE[b]}}
   return 28800;
 }
@@ -1092,6 +1160,9 @@ async function loadTradeLog(){
     if(cnt){const nv=String(latestLen);if(cnt.textContent!==nv)cnt.textContent=nv}
     const PI={'USD_JPY':{i:'💴',n:'USD/JPY'},'EUR_USD':{i:'💶',n:'EUR/USD'},
               'GBP_USD':{i:'💷',n:'GBP/USD'},'EUR_GBP':{i:'🇪🇺🇬🇧',n:'EUR/GBP'},
+              'AUD_JPY':{i:'🇦🇺🇯🇵',n:'AUD/JPY'},'NZD_JPY':{i:'🇳🇿🇯🇵',n:'NZD/JPY'},
+              'AUD_USD':{i:'🇦🇺🇺🇸',n:'AUD/USD'},'NZD_USD':{i:'🇳🇿🇺🇸',n:'NZD/USD'},
+              'EUR_AUD':{i:'🇪🇺🇦🇺',n:'EUR/AUD'},
               'XAU_USD':{i:'🥇',n:'XAU/USD'},'EUR_JPY':{i:'💶💴',n:'EUR/JPY'},
               'GBP_JPY':{i:'💷💴',n:'GBP/JPY'}};
     el.innerHTML=trades.map(t=>{
@@ -1193,11 +1264,13 @@ function updateStatusText(){
 const OANDA_UNITS=10000; // 0.1 lot = 10000 units
 const PIP_VALUE={
   USD_JPY:100, EUR_JPY:100, GBP_JPY:100,          // 1pip = ¥100 per 10k units
-  EUR_USD:1.0, GBP_USD:1.0, EUR_GBP:1.0, XAU_USD:1.0 // 1pip = $1.0 per 10k units
+  AUD_JPY:100, NZD_JPY:100,
+  EUR_USD:1.0, GBP_USD:1.0, EUR_GBP:1.0,
+  AUD_USD:1.0, NZD_USD:1.0, EUR_AUD:1.0, XAU_USD:1.0 // 1pip = $1.0 per 10k units
 };
 const PIP_CCY={
-  USD_JPY:'¥', EUR_JPY:'¥', GBP_JPY:'¥',
-  EUR_USD:'$', GBP_USD:'$', EUR_GBP:'$', XAU_USD:'$'
+  USD_JPY:'¥', EUR_JPY:'¥', GBP_JPY:'¥', AUD_JPY:'¥', NZD_JPY:'¥',
+  EUR_USD:'$', GBP_USD:'$', EUR_GBP:'$', AUD_USD:'$', NZD_USD:'$', EUR_AUD:'$', XAU_USD:'$'
 };
 
 function updatePositions(trades){
@@ -1215,6 +1288,9 @@ function updatePositions(trades){
   el.style.display='block';
   const PI_POS={'USD_JPY':{f:'🇺🇸🇯🇵',n:'USD/JPY'},'EUR_USD':{f:'🇪🇺🇺🇸',n:'EUR/USD'},
     'GBP_USD':{f:'🇬🇧🇺🇸',n:'GBP/USD'},'EUR_GBP':{f:'🇪🇺🇬🇧',n:'EUR/GBP'},
+    'AUD_JPY':{f:'🇦🇺🇯🇵',n:'AUD/JPY'},'NZD_JPY':{f:'🇳🇿🇯🇵',n:'NZD/JPY'},
+    'AUD_USD':{f:'🇦🇺🇺🇸',n:'AUD/USD'},'NZD_USD':{f:'🇳🇿🇺🇸',n:'NZD/USD'},
+    'EUR_AUD':{f:'🇪🇺🇦🇺',n:'EUR/AUD'},
     'XAU_USD':{f:'🥇',n:'XAU/USD'},'EUR_JPY':{f:'🇪🇺🇯🇵',n:'EUR/JPY'},
     'GBP_JPY':{f:'🇬🇧🇯🇵',n:'GBP/JPY'}};
 

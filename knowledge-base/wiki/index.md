@@ -9,7 +9,7 @@
 - **最優先: クリーンデータ蓄積 → Kelly Half到達**
 
 <!-- KB_PORTFOLIO_START -->
-## Current Portfolio (auto-synced, 2026-05-14)
+## Current Portfolio (auto-synced, 2026-05-18)
 
 ### ELITE_LIVE (never shadowed)
 | Strategy | BT Data | Status |
@@ -54,12 +54,14 @@
 | [[ma-mr-hybrid]] | no BT data | SCALP_SENTINEL |
 | [[ma-regime-switch]] | no BT data | SCALP_SENTINEL |
 | [[ma-trend-perfect]] | no BT data | SCALP_SENTINEL |
+| [[macd-rsi-pullback]] | no BT data | UNIVERSAL_SENTINEL |
 | [[mtf-counter-trend-scalp]] | no BT data | SCALP_SENTINEL |
 | [[mtf-regime-range-cascade-scalp]] | no BT data | SCALP_SENTINEL |
 | [[mtf-regime-trend-cascade-scalp]] | no BT data | SCALP_SENTINEL |
 | [[mtf-reversal-confluence]] | no BT data | LOT_BOOST (not sentinel/elite) |
 | [[mtf-trend-follow-scalp]] | no BT data | SCALP_SENTINEL |
 | [[pd-eurjpy-h20-bbpb3-sell]] | no BT data | UNIVERSAL_SENTINEL |
+| [[price-shock-reversion]] | no BT data | UNIVERSAL_SENTINEL |
 | [[sr-weighted-bounce]] | no BT data | UNIVERSAL_SENTINEL |
 | [[sr-weighted-break]] | no BT data | UNIVERSAL_SENTINEL |
 | [[streak-reversal]] | no BT data | shadow only |
@@ -109,6 +111,7 @@
 - scalp_eurjpy: **Stopped** (v8.6) -- friction/ATR=43.6%, 構造的不可能
 - scalp_5m_eur / scalp_5m_gbp: **Active** (v8.6) -- 5m摩擦改善モード
 - New modes (v9.0): **daytrade_eurjpy**, **daytrade_gbpjpy**, **[[rnb-usdjpy]]** (all auto_start)
+- Phase B-1 Shadow candidate pair slots: **AUD_JPY**, **NZD_JPY**, **AUD_USD**, **NZD_USD**, **EUR_AUD** (`price_shock_reversion`, surface-only; Live promotion disabled in this task)
 - ELITE_LIVE tier: **trendline_sweep** only (per tier-master.md 2026-05-07; session_time_bias=PAIR_PROMOTED EUR_USD, gbp_deep_pullback=PAIR_DEMOTED GBP_USD)
 - SHADOW_MODE: **active** (env SHADOW_MODE=true)
 - Massive API: **primary data source** (全6ペア×全TF)

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-13T14:44:12.536194+00:00",
+  "generated_at": "2026-05-18T05:06:35.664061+00:00",
   "elite_live": [
     "trendline_sweep"
   ],
@@ -45,8 +45,10 @@
     "liquidity_sweep",
     "london_close_reversal",
     "london_close_reversal_v2",
+    "macd_rsi_pullback",
     "pd_eurjpy_h20_bbpb3_sell",
     "post_news_vol",
+    "price_shock_reversion",
     "session_time_bias",
     "squeeze_release_momentum",
     "sr_weighted_bounce",
@@ -284,5 +286,14 @@
     "vol_spike_mr",
     "xs_momentum"
   ],
-  "quick_harvest_exempt": []
+  "quick_harvest_exempt": [],
+  "phase_b1_shadow_candidates": {
+    "price_shock_reversion": [
+      "AUD_JPY",
+      "NZD_JPY",
+      "AUD_USD",
+      "NZD_USD",
+      "EUR_AUD"
+    ]
+  }
 }

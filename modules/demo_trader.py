@@ -41,6 +41,14 @@ SHADOW_AUDIT_REASONS = {
     "post_gate_late_oanda_shield": "post_gate_late_oanda_shield_shadow",
 }
 
+AUD_NZD_SURFACE_PAIRS = (
+    "AUD_JPY",
+    "NZD_JPY",
+    "AUD_USD",
+    "NZD_USD",
+    "EUR_AUD",
+)
+
 
 def _resolve_shadow_audit_block_reason(is_shadow: bool, reason: str) -> str:
     if not is_shadow:
@@ -253,6 +261,69 @@ MODE_CONFIG = {
         "auto_start": True,
         "base_sl_pips": 15,
     },
+    # ── Price-Shock Reversion Phase B-1 surface slots ──
+    # Shadow ramp candidates only. auto_start=False prevents accidental live/demo
+    # activation; Phase B-1 owns strategy wiring and promotion decisions.
+    "daytrade_1h_audjpy": {
+        "interval_sec": 60,
+        "tf": "1h",
+        "period": "60d",
+        "signal_fn": "compute_hourly_signal",
+        "label": "1H PriceShock AUD/JPY",
+        "icon": "🕐🇦🇺",
+        "symbol": "AUDJPY=X",
+        "instrument": "AUD_JPY",
+        "auto_start": False,
+        "base_sl_pips": 30,
+    },
+    "daytrade_1h_nzdjpy": {
+        "interval_sec": 60,
+        "tf": "1h",
+        "period": "60d",
+        "signal_fn": "compute_hourly_signal",
+        "label": "1H PriceShock NZD/JPY",
+        "icon": "🕐🇳🇿",
+        "symbol": "NZDJPY=X",
+        "instrument": "NZD_JPY",
+        "auto_start": False,
+        "base_sl_pips": 30,
+    },
+    "daytrade_1h_audusd": {
+        "interval_sec": 60,
+        "tf": "1h",
+        "period": "60d",
+        "signal_fn": "compute_hourly_signal",
+        "label": "1H PriceShock AUD/USD",
+        "icon": "🕐🇦🇺",
+        "symbol": "AUDUSD=X",
+        "instrument": "AUD_USD",
+        "auto_start": False,
+        "base_sl_pips": 30,
+    },
+    "daytrade_1h_nzdusd": {
+        "interval_sec": 60,
+        "tf": "1h",
+        "period": "60d",
+        "signal_fn": "compute_hourly_signal",
+        "label": "1H PriceShock NZD/USD",
+        "icon": "🕐🇳🇿",
+        "symbol": "NZDUSD=X",
+        "instrument": "NZD_USD",
+        "auto_start": False,
+        "base_sl_pips": 30,
+    },
+    "daytrade_1h_euraud": {
+        "interval_sec": 60,
+        "tf": "1h",
+        "period": "60d",
+        "signal_fn": "compute_hourly_signal",
+        "label": "1H PriceShock EUR/AUD",
+        "icon": "🕐🇪🇺🇦🇺",
+        "symbol": "EURAUD=X",
+        "instrument": "EUR_AUD",
+        "auto_start": False,
+        "base_sl_pips": 30,
+    },
     # ── XAU/USD Scalp (1m) — gold_pips_hunter + vol_momentum + ema_ribbon ──
     # pip=0.01 (JPYスケール), OANDA XAU_USD
     # 稼働時間: UTC 0-12 (Tokyo+London, gold_pips_hunter のセッションフィルター準拠)
@@ -306,7 +377,9 @@ MODE_CONFIG = {
 # ── ベースモード抽出ヘルパー ──
 # scalp_eur -> scalp, scalp_eurjpy -> scalp, lcr_gbpjpy -> lcr, daytrade_1h_eur -> daytrade_1h
 def _get_base_mode(mode: str) -> str:
-    for suffix in ("_usdjpy", "_gbpjpy", "_eurjpy", "_gbpusd", "_eurgbp", "_eur", "_xau"):  # longest first
+    for suffix in ("_usdjpy", "_gbpjpy", "_eurjpy", "_gbpusd", "_eurgbp",
+                   "_audjpy", "_nzdjpy", "_audusd", "_nzdusd", "_euraud",
+                   "_eur", "_xau"):  # longest first
         if mode.endswith(suffix):
             return mode[:-len(suffix)]
     return mode
@@ -752,6 +825,11 @@ class DemoTrader:
         "GBP_JPY": "GBPJPY=X",
         "GBP_USD": "GBPUSD=X",
         "EUR_GBP": "EURGBP=X",
+        "AUD_JPY": "AUDJPY=X",
+        "NZD_JPY": "NZDJPY=X",
+        "AUD_USD": "AUDUSD=X",
+        "NZD_USD": "NZDUSD=X",
+        "EUR_AUD": "EURAUD=X",
     }
 
     def _auto_fit_hmm(self):
@@ -1087,6 +1165,11 @@ class DemoTrader:
                 "symbol": cfg.get("symbol", "USDJPY=X"),
                 "last_signal": self._last_signals.get(m),
             }
+        pairs_status = {}
+        for mode_name, mode_status in modes_status.items():
+            inst = mode_status.get("instrument", "USD_JPY")
+            slot = pairs_status.setdefault(inst, {"instrument": inst, "modes": []})
+            slot["modes"].append(mode_name)
 
         # ── オープンポジションに現在価格・含み損益を付与 ──
         _status_price_cache = {}
@@ -1128,6 +1211,7 @@ class DemoTrader:
         return {
             "running": self.is_running(),
             "modes": modes_status,
+            "pairs": pairs_status,
             "open_trades": open_trades,
             "log_count": getattr(self, '_log_count_cache', 0),
             "oanda": self._oanda.status,
@@ -3584,6 +3668,7 @@ class DemoTrader:
             "xs_momentum",                   # クロスセクション通貨モメンタム (Menkhoff 2012, Eriksen 2019)
             "xs_momentum_rsi",               # XS Momentum + H1 RSI direction filter (USD_JPY Live, 2026-05-13)
             "macd_rsi_pullback",             # MACD hist_dir + H1 RSI 60/40 pullback (USD_JPY 1H, TV 3.5y +EV, SCALP_SENTINEL 2026-05-14)
+            "price_shock_reversion",         # Price-Shock Reversion Phase B-1 shadow candidates (AUD/NZD surface)
             "hmm_regime_filter",             # HMMレジームフィルター: 防御オーバーレイ (Nystrup 2024)
             # v8.8: 生データアルファマイニング (2026-04-12)
             "vol_spike_mr",                  # Vol Spike MR: 3x range spike → fade (BT JPY PF=1.92)
@@ -3998,6 +4083,11 @@ class DemoTrader:
                 "EUR_USD": 1.2,
                 "GBP_USD": 1.5,     # v7.0: 1.2→1.5 (OANDA実測0.8-1.8pip)
                 "EUR_GBP": 1.5,     # v7.0: 1.2→1.5
+                "AUD_USD": 1.5,
+                "NZD_USD": 1.7,
+                "EUR_AUD": 2.0,
+                "AUD_JPY": 2.5,
+                "NZD_JPY": 3.0,
                 "EUR_JPY": 2.5,     # v7.0: 1.2→2.5 (OANDA実測1.5-2.5pip常態)
                 "GBP_JPY": 3.0,     # v2.1: OANDA GBP/JPY spread 2.0-3.5pip
                 "XAU_USD": 6.0,     # v6.4: 4.0→6.0 (OANDA実測4-5pip、Asia 5pip常態)
@@ -6617,6 +6707,7 @@ class DemoTrader:
         "sr_weighted_bounce",          # SR Weighted Bounce v1: heavy wall + composite weight gate (Shadow-only 2026-05-13)
         "sr_weighted_break",           # SR Weighted Break v1: heavy wall breakout retest (Shadow-only 2026-05-13, break family pair)
         "macd_rsi_pullback",           # MACD hist_dir + H1 RSI 60/40 trend-pullback (USD_JPY 1H, TV 3.5y N=196 WR=39.29% PF=1.161 +EV, SCALP_SENTINEL shadow-first 2026-05-14, Live N>=30 で gate 再判定)
+        "price_shock_reversion",       # Price-Shock Reversion Phase B-1 shadow candidates: AUD_JPY/NZD_JPY/AUD_USD/NZD_USD/EUR_AUD
         # REMOVED 2026-04-22: ema200_trend_reversal → _FORCE_DEMOTED (H-2026-04-22-004 全ペア負EV)
         "post_news_vol",               # ニュース後ボラ — WR=42.4%, Sentinel再検証
         # 2026-04-28 Phase 8 Track A 3-way interaction discovery (Sentinel override)

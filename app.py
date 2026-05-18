@@ -6516,6 +6516,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "xs_momentum",                   # クロスセクション通貨モメンタム (Eriksen 2019)
                 "xs_momentum_rsi",               # XS Momentum + H1 RSI direction filter (USD_JPY Live, 2026-05-13)
                 "macd_rsi_pullback",             # MACD hist_dir + H1 RSI 60/40 pullback (USD_JPY 1H, TV 3.5y N=196 WR=39.29% PF=1.161, SCALP_SENTINEL 2026-05-14)
+                "price_shock_reversion",         # Price-Shock Reversion Phase B-1 shadow candidates
                 "hmm_regime_filter",             # HMMレジームフィルター (evaluate()→None, pre-commit整合性のため残留)
                 # v8.8: 生データアルファマイニング
                 "vol_spike_mr",                  # Vol Spike MR (BT JPY PF=1.92)
@@ -10895,6 +10896,11 @@ _HMM_INSTRUMENT_TO_YF = {
     "GBP_JPY": "GBPJPY=X",
     "GBP_USD": "GBPUSD=X",
     "EUR_GBP": "EURGBP=X",
+    "AUD_JPY": "AUDJPY=X",
+    "NZD_JPY": "NZDJPY=X",
+    "AUD_USD": "AUDUSD=X",
+    "NZD_USD": "NZDUSD=X",
+    "EUR_AUD": "EURAUD=X",
 }
 
 
@@ -12063,6 +12069,11 @@ _DEFAULT_BEV_WR = {
     ("GBP_USD", "scalp"): 52.0,
     ("GBP_USD", "daytrade"): 42.0,
     ("GBP_USD", "1h"): 36.0,
+    ("AUD_JPY", "1h"): 38.0,
+    ("NZD_JPY", "1h"): 40.0,
+    ("AUD_USD", "1h"): 35.0,
+    ("NZD_USD", "1h"): 36.0,
+    ("EUR_AUD", "1h"): 38.0,
 }
 _BEV_WR_FALLBACK = 50.0  # conservative default
 
@@ -13556,6 +13567,7 @@ def _build_strategy_status_map():
         "dual_sr_bounce", "london_ny_swing", "jpy_basket_trend",
         "gold_vol_break", "tokyo_range_breakout_up",
         "sr_weighted_bounce", "sr_weighted_break",  # Shadow-only 2026-05-13
+        "price_shock_reversion",  # Phase B-1 AUD/NZD shadow surface
         # ═══ 1H ═══
         "keltner_squeeze_breakout", "donchian_momentum_breakout",
         "h1_breakout_retest", "h1_fib_reversal", "h1_ema200_trend_reversal",
@@ -13909,7 +13921,10 @@ def api_oanda_live():
         result["error"] = str(data)
 
     # Current prices (multi-instrument)
-    _instruments = ["USD_JPY", "EUR_USD", "EUR_JPY", "GBP_JPY", "GBP_USD", "EUR_GBP"]
+    _instruments = [
+        "USD_JPY", "EUR_USD", "EUR_JPY", "GBP_JPY", "GBP_USD", "EUR_GBP",
+        "AUD_JPY", "NZD_JPY", "AUD_USD", "NZD_USD", "EUR_AUD",
+    ]
     result["prices"] = {}
     for _inst in _instruments:
         ok2, price_data = client.get_price(_inst)

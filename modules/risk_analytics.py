@@ -430,9 +430,14 @@ def compute_risk_dashboard(trades: List[dict],
 
     # Group PnL by strategy
     strategy_pnls = {}
+    instrument_pnls = {}
     for t in trades:
         et = t.get("entry_type", "unknown") or "unknown"
+        inst = t.get("instrument", "unknown") or "unknown"
         strategy_pnls.setdefault(et, []).append(
+            float(t.get("pnl_pips", 0) or 0)
+        )
+        instrument_pnls.setdefault(inst, []).append(
             float(t.get("pnl_pips", 0) or 0)
         )
 
@@ -500,6 +505,15 @@ def compute_risk_dashboard(trades: List[dict],
         ),
         "correlation": strategy_correlation(strategy_pnls),
         "attribution": pnl_attribution(trades),
+        "by_instrument": {
+            inst: {
+                "n": len(vals),
+                "pnl": round(float(sum(vals)), 2),
+                "mean_pnl": round(float(np.mean(vals)), 2) if vals else 0.0,
+                "var_cvar": calculate_var_cvar(vals),
+            }
+            for inst, vals in sorted(instrument_pnls.items())
+        },
         "n_total_trades": len(trades),
     }
 
