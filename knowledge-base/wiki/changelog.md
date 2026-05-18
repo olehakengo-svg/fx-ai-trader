@@ -11,6 +11,12 @@
 - `demo_trader` で Shadow-only 強制、EUR_GBP/EUR_AUD shared lock を追加。
 - Live promote は `decisions/price-shock-rev-promote-criteria-2026-05-18.md` で別判定。
 
+## 2026-05-18 — PRIME v2 Apply
+
+- PRIME v2 apply: 5 entries demoted to Tier C per P1 re-eval verdicts.
+- EDGES replaced with the 2026-05-18 Render shadow non-XAU recomputation.
+- All current PRIME matches remain Shadow-only; A/B live-lock structure preserved for future candidates.
+
 ## Fidelity Cutoff Timeline
 
 ```

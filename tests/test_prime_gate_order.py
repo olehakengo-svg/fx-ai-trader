@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from datetime import datetime, timezone
 
 from modules.confidence_q4_gate import should_shadow as q4_should_shadow
@@ -20,6 +21,24 @@ def _sig(signal="BUY", confidence=65, atr_ratio=0.98, close_vs_ema200=0.01, adx=
 
 def _dt(hour: int) -> datetime:
     return datetime(2026, 5, 18, hour, tzinfo=timezone.utc)
+
+
+def _fake_prime(tier="A", lot_multiplier=0.3):
+    return {
+        "name": f"fake_prime_{tier}",
+        "base": "fake_entry",
+        "tier": tier,
+        "lot_multiplier": lot_multiplier,
+        "features": {},
+    }
+
+
+def _use_fake_prime(monkeypatch, tier="A", lot_multiplier=0.3):
+    monkeypatch.setattr(
+        sys.modules[__name__],
+        "classify_prime",
+        lambda entry_type, instrument, sig, entry_dt: _fake_prime(tier, lot_multiplier),
+    )
 
 
 def _replay_gate(entry_type, instrument, sig, entry_dt, *, base_promoted=False, env_enabled=True):
@@ -57,7 +76,9 @@ def _replay_gate(entry_type, instrument, sig, entry_dt, *, base_promoted=False, 
     }
 
 
-def test_prime_a_bypasses_q4():
+def test_prime_a_bypasses_q4(monkeypatch):
+    _use_fake_prime(monkeypatch, "A", 0.3)
+
     result = _replay_gate(
         "fib_reversal",
         "EUR_USD",
@@ -65,13 +86,14 @@ def test_prime_a_bypasses_q4():
         _dt(10),
     )
 
-    assert result["prime"]["name"] == "fib_reversal_PRIME"
     assert result["prime"]["tier"] == "A"
     assert result["is_promoted"] is True
     assert result["is_shadow"] is False
 
 
-def test_prime_b_bypasses_bb_rsi_trip():
+def test_prime_b_bypasses_bb_rsi_trip(monkeypatch):
+    _use_fake_prime(monkeypatch, "B", 0.1)
+
     result = _replay_gate(
         "bb_rsi_reversion",
         "USD_JPY",
@@ -79,13 +101,14 @@ def test_prime_b_bypasses_bb_rsi_trip():
         _dt(13),
     )
 
-    assert result["prime"]["name"] == "bb_rsi_reversion_NY_ATRQ2"
     assert result["prime"]["tier"] == "B"
     assert result["is_promoted"] is True
     assert result["is_shadow"] is False
 
 
-def test_prime_b_bypasses_q4():
+def test_prime_b_bypasses_q4(monkeypatch):
+    _use_fake_prime(monkeypatch, "B", 0.1)
+
     result = _replay_gate(
         "bb_rsi_reversion",
         "USD_JPY",
@@ -93,7 +116,6 @@ def test_prime_b_bypasses_q4():
         _dt(14),
     )
 
-    assert result["prime"]["name"] == "bb_rsi_reversion_NY_ATRQ2"
     assert result["prime"]["tier"] == "B"
     assert result["is_promoted"] is True
     assert result["is_shadow"] is False
@@ -141,7 +163,9 @@ def test_non_prime_bb_rsi_still_tripped():
     assert result["is_shadow"] is True
 
 
-def test_prime_override_disabled_env():
+def test_prime_override_disabled_env(monkeypatch):
+    _use_fake_prime(monkeypatch, "B", 0.1)
+
     result = _replay_gate(
         "bb_rsi_reversion",
         "USD_JPY",

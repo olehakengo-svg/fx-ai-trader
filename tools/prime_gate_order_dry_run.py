@@ -24,7 +24,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from modules.confidence_q4_gate import should_shadow as q4_should_shadow  # noqa: E402
-from modules.prime_gate import classify_prime  # noqa: E402
+from modules.prime_gate import _PRIMES, classify_prime  # noqa: E402
 
 
 API_URL = "https://fx-ai-trader.onrender.com/api/demo/trades?limit=3000"
@@ -36,6 +36,7 @@ PRIME_ORDER = [
     "sr_fib_confluence_GBP_ADXQ2",
     "engulfing_bb_TOKYO_EARLY",
 ]
+EXPECTED_MIN_AB_FIRES = 6 if any(row[2] in ("A", "B") for row in _PRIMES) else 0
 
 
 def _parse_dt(value: Any) -> Optional[datetime]:
@@ -242,8 +243,11 @@ def main() -> int:
     print(f"Spread/slippage adjusted PnL est: {total_pnl:+.1f}p")
     print(f"Wilson_lo est: {wlo:.3f} (closed={total_closed}, wins={total_wins})")
 
-    if total_fires < 6:
-        print("WARNING: PRIME A/B LIVE fire estimate below pre-reg expectation (>=6/30d)")
+    if total_fires < EXPECTED_MIN_AB_FIRES:
+        print(
+            "WARNING: PRIME A/B LIVE fire estimate below pre-reg expectation "
+            f"(>={EXPECTED_MIN_AB_FIRES}/30d)"
+        )
         return 1
     return 0
 

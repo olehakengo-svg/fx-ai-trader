@@ -8,15 +8,19 @@ Evidence Tier (A/B/C) and initial lot multiplier.
 
 The binding pre-registration governs this module:
   knowledge-base/wiki/sessions/prereg-6-prime-strategies-2026-04-21.md
-All thresholds, edges, lot multipliers and Tier classifications are frozen
-until the 2026-05-15 re-evaluation checkpoint. Do NOT edit any constant in
-this file before that date except for bug fixes.
+All thresholds, edges, lot multipliers and Tier classifications were
+re-evaluated 2026-05-18; see
+knowledge-base/wiki/sessions/prime-reeval-2026-05-18.md.
 
 Integration: demo_trader.py calls ``classify_prime(entry_type, instrument,
 sig, entry_dt_utc)`` during the OANDA gate decision. If the return is not
 None and tier is "A" or "B", the PRIME trade is promoted to LIVE with the
 specified ``lot_multiplier`` applied. Tier "C" never promotes (Shadow-only
-continuation until 2026-05-15 re-evaluation).
+continuation).
+
+Post-re-eval 2026-05-18 verdict: 5/6 entries failed keep thresholds and
+were demoted to Tier C (lot=0.0). engulfing_bb_TOKYO_EARLY remains Tier C
+as before. Awaiting v2 candidates from `20260518-XXXX-prime-v2-shadow-audit`.
 """
 
 from __future__ import annotations
@@ -27,16 +31,15 @@ from typing import Any, Dict, List, Optional, Tuple
 
 
 # ══════════════════════════════════════════════════════════════
-# ── Binding quartile edges (DO NOT EDIT before 2026-05-15) ──
+# ── Binding quartile edges ──
 # ══════════════════════════════════════════════════════════════
-# Source: knowledge-base/wiki/sessions/task1-win-dna-2026-04-21.py
-# Filter: is_shadow=1 AND outcome IN (WIN,LOSS) AND instrument != XAU_USD
-# N=1711 (WIN=474, LOSS=1237), Cutoff=2026-04-16
+# Source: research/prime_gate_v2_proposal.py
+# Filter: Render API 2026-04-02 -> 2026-05-18, shadow WIN/LOSS non-XAU rows.
 EDGES: Dict[str, List[float]] = {
-    "confidence":        [53.0, 61.0, 69.0],     # Q1/Q2/Q3/Q4 boundaries
-    "rj_adx":            [20.3, 25.3, 31.7],
-    "rj_atr_ratio":      [0.95, 1.01, 1.09],
-    "rj_close_vs_ema200": [-0.019, 0.001, 0.034],
+    "confidence":         [54.0, 64.0, 71.0],
+    "rj_adx":             [18.525844, 24.084449, 31.282508],
+    "rj_atr_ratio":       [0.926959, 0.983332, 1.091413],
+    "rj_close_vs_ema200": [-0.281692, -0.00188, 0.009222],
 }
 
 
@@ -149,53 +152,62 @@ def _feature_bundle(
 # Tier C: N<10 or raw p>0.10 → stays Shadow, never promotes
 #
 # Source: prereg-6-prime-strategies-2026-04-21.md sections 2 & 3.
+#
+# ## 2026-05-18 Re-evaluation outcome
+#
+# - stoch_trend_pullback_PRIME: DEMOTE from Tier A to Tier C
+# - stoch_trend_pullback_LONDON_LOWVOL: DEMOTE from Tier B to Tier C
+# - fib_reversal_PRIME: DEMOTE from Tier A to Tier C
+# - bb_rsi_reversion_NY_ATRQ2: DEMOTE from Tier B to Tier C
+# - engulfing_bb_TOKYO_EARLY: KEEP at Tier C
+# - sr_fib_confluence_GBP_ADXQ2: DEMOTE from Tier B to Tier C
 _PRIMES: List[Tuple[str, str, str, float, Any]] = [
-    # (1) stoch_trend_pullback_PRIME — Tier A
-    # Shadow: N=24 WR=58.3% PF=2.10 EV=+1.51p, Fisher p=0.0010 (Bonf ✓)
+    # Pre-reg LOCK 2026-05-18: N=22 WR=31.8% Wlo=16.4% Bonf_p=1.00e+00
+    # Verdict: DEMOTE from current Tier A
     (
-        "stoch_trend_pullback_PRIME",
-        "stoch_trend_pullback",
-        "A", 0.3,
+        'stoch_trend_pullback_PRIME',
+        'stoch_trend_pullback',
+        'C', 0.0,
         lambda f: (f["_atr_q"] == "Q1" and f["direction"] == "BUY"),
     ),
-    # (2) stoch_trend_pullback_LONDON_LOWVOL — Tier B
-    # Shadow: N=11 WR=63.6% PF=2.43 EV=+2.06p, Fisher p=0.0138
+    # Pre-reg LOCK 2026-05-18: N=18 WR=27.8% Wlo=12.5% Bonf_p=1.00e+00
+    # Verdict: DEMOTE from current Tier B
     (
-        "stoch_trend_pullback_LONDON_LOWVOL",
-        "stoch_trend_pullback",
-        "B", 0.1,
+        'stoch_trend_pullback_LONDON_LOWVOL',
+        'stoch_trend_pullback',
+        'C', 0.0,
         lambda f: (f["_atr_q"] == "Q1" and f["session"] == "london"),
     ),
-    # (3) fib_reversal_PRIME — Tier A
-    # Shadow: N=12 WR=75.0% PF=4.99 EV=+2.96p, Fisher p=0.0046 (Bonf ✓)
+    # Pre-reg LOCK 2026-05-18: N=28 WR=42.9% Wlo=26.5% Bonf_p=2.83e-01
+    # Verdict: DEMOTE from current Tier A
     (
-        "fib_reversal_PRIME",
-        "fib_reversal",
-        "A", 0.3,
+        'fib_reversal_PRIME',
+        'fib_reversal',
+        'C', 0.0,
         lambda f: (f["_conf_q"] == "Q3" and f["_cvema_q"] == "Q3"),
     ),
-    # (4) bb_rsi_reversion_NY_ATRQ2 — Tier B
-    # Shadow: N=18 WR=55.6% PF=1.30 EV=+0.82p, Fisher p=0.0113
+    # Pre-reg LOCK 2026-05-18: N=48 WR=33.3% Wlo=21.7% Bonf_p=1.00e+00
+    # Verdict: DEMOTE from current Tier B
     (
-        "bb_rsi_reversion_NY_ATRQ2",
-        "bb_rsi_reversion",
-        "B", 0.1,
+        'bb_rsi_reversion_NY_ATRQ2',
+        'bb_rsi_reversion',
+        'C', 0.0,
         lambda f: (f["hour"] in (12, 13, 14, 15) and f["_atr_q"] == "Q2"),
     ),
-    # (5) engulfing_bb_TOKYO_EARLY — Tier C (shadow-only, not promoted)
-    # Shadow: N=9 WR=55.6% PF=2.73 EV=+2.18p, Fisher p=0.1374 (no sig)
+    # Pre-reg LOCK 2026-05-18: N=23 WR=30.4% Wlo=15.6% Bonf_p=1.00e+00
+    # Verdict: KEEP from current Tier C
     (
-        "engulfing_bb_TOKYO_EARLY",
-        "engulfing_bb",
-        "C", 0.0,  # 0.0 => never promoted
+        'engulfing_bb_TOKYO_EARLY',
+        'engulfing_bb',
+        'C', 0.0,
         lambda f: (f["session"] == "tokyo" and f["hour"] in (0, 1, 2, 3)),
     ),
-    # (6) sr_fib_confluence_GBP_ADXQ2 — Tier B
-    # Shadow: N=13 WR=53.8% PF=1.46 EV=+1.75p, Fisher p=0.0148
+    # Pre-reg LOCK 2026-05-18: N=19 WR=42.1% Wlo=23.1% Bonf_p=6.42e-01
+    # Verdict: DEMOTE from current Tier B
     (
-        "sr_fib_confluence_GBP_ADXQ2",
-        "sr_fib_confluence",
-        "B", 0.1,
+        'sr_fib_confluence_GBP_ADXQ2',
+        'sr_fib_confluence',
+        'C', 0.0,
         lambda f: (f["instrument"] == "GBP_USD" and f["_adx_q"] == "Q2"),
     ),
 ]

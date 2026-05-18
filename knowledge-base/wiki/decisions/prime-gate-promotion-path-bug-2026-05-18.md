@@ -56,3 +56,12 @@ must respect that lock:
 - Draft proposal: `research/prime_gate_v2_proposal.py`
 - Session report: `knowledge-base/wiki/sessions/prime-reeval-2026-05-18.md`
 - Full Task B cell table: `research/prime_reeval_task_b_cells.csv`
+
+## PRIME v2 Apply Complete ✓
+
+2026-05-18 v2 verdicts applied to `modules/prime_gate.py`.
+
+- EDGES replaced with the P1 recomputation from `research/prime_gate_v2_proposal.py`.
+- 5 entries demoted to Tier C with `lot_multiplier=0.0`: `stoch_trend_pullback_PRIME`, `stoch_trend_pullback_LONDON_LOWVOL`, `fib_reversal_PRIME`, `bb_rsi_reversion_NY_ATRQ2`, `sr_fib_confluence_GBP_ADXQ2`.
+- `engulfing_bb_TOKYO_EARLY` remains Tier C with `lot_multiplier=0.0`.
+- PRIME A/B live-lock structure remains intact for future v3 candidates, but current v2 PRIME matches remain Shadow-only.
