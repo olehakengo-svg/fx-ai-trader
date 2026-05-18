@@ -233,3 +233,10 @@ All clear (N too low for demote evaluation).
 - memory `feedback_codex_mock_test_trap` (E2E test 必須)
 - memory `feedback_codex_stash_leak` (stash 確認必須)
 - memory `project_w3_1_h1_gate_done_2026_05_03` (H1 Gate 30/0.40/0.0 数値の参照値)
+
+
+## Error (2026-05-18T06:05:53Z)
+
+```
+orphaned: container restarted while task was running
+```
