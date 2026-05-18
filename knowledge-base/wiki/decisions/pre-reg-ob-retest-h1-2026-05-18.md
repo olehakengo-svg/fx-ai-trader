@@ -165,3 +165,23 @@ Output: `raw/bt-results/ob_retest_h1_365d_2026_05_18.json`
 | GBP_JPY | 149 | 47.65% | 0.3979 | 0.3736 | +2.2341 | 1.0902 | FAIL |
 
 **Pre-reg verdict**: FAIL. No pair reached N≥200, so the locked PASS condition is not satisfied even where WR/EV looked promising. Per rollback rule, `ObRetestH1.enabled = False` while HourlyEngine registration is retained.
+
+## 4. 1095d Re-Test Evidence Appended 2026-05-18
+
+Decision: [[pre-reg-ob-retest-h1-1095d-2026-05-18]]
+
+The 2nd attempt extended only the data budget to 2023-05-15 13:00 UTC → 2026-05-15 13:00 UTC. Parameters, pair set, friction model, Bonferroni m=5, and PASS/FAIL criteria were unchanged.
+
+Output: `raw/bt-results/ob_retest_h1_1095d_2026_05_18.json`
+
+| Pair | N | WR | Wilson_lo | Wilson_bf_lo | EV pips | PF | WF EV h1/h2/h3 | Verdict |
+|---|---:|---:|---:|---:|---:|---:|---|---|
+| USD_JPY | 414 | 45.65% | 0.4092 | 0.3946 | +2.8951 | 1.1553 | -1.8146 / +3.5031 / +6.9309 | FAIL (WF h1<0) |
+| EUR_USD | 432 | 42.36% | 0.3779 | 0.3640 | -0.9552 | 0.9289 | +0.9074 / -3.6705 / -0.0215 | FAIL |
+| GBP_USD | 415 | 37.35% | 0.3283 | 0.3148 | -6.6765 | 0.6671 | -6.2136 / -11.1539 / -2.8529 | FAIL |
+| EUR_JPY | 431 | 41.76% | 0.3720 | 0.3581 | -8.1947 | 0.7230 | -19.5619 / -10.1784 / +4.2653 | FAIL |
+| GBP_JPY | 447 | 41.61% | 0.3713 | 0.3577 | -8.7883 | 0.7562 | -21.7919 / -7.6656 / +2.3618 | FAIL |
+
+**2nd pre-reg verdict**: FAIL. USD_JPY passed the aggregate N/WR/Wilson_lo/EV/PF thresholds but failed the locked WF requirement because h1 EV<0. No pair satisfies all PASS criteria.
+
+`ObRetestH1.enabled = False` remains. With enough 3y N now available, the OB retest family is recorded as retired as a promotion candidate. M5 `ob_retest` remains FORCE_DEMOTED.

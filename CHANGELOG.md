@@ -1,5 +1,22 @@
 # FX AI Trader - Changelog
 
+## 2026-05-18 — feat: ob_retest_h1 1095d re-test pre-reg 2nd attempt FAIL
+
+### 変更内容
+
+- `tools/ob_retest_h1_1095d_bt.py` を追加し、2023-05-15 13:00 UTC → 2026-05-15 13:00 UTC の 1095d MASSIVE H1 BT を実行。
+- 5 pair 全てを同一 LOCKED parameter / friction / PASS criteria で評価し、結果を `raw/bt-results/ob_retest_h1_1095d_2026_05_18.json` に保存。
+- Verdict は FAIL。USD_JPY は aggregate N/WR/Wilson_lo/EV/PF を満たしたが、WF h1 EV=-1.8146 のため locked PASS 不成立。
+- `ObRetestH1.enabled = False` を維持し、M5/H1 OB retest 系統を promotion candidate として退役記録。
+- 2nd pre-reg decision、1st LOCK 追記、strategy card の 365d vs 1095d 比較表を更新。
+
+### 検証
+
+- `.venv/bin/python tools/ob_retest_h1_1095d_bt.py` — verdict=FAIL
+- `.venv/bin/python -m pytest tests/test_ob_retest_h1.py -x -v` — 6 passed
+- `.venv/bin/python -m pytest tests/ -x -q` — 1517 passed, 1 skipped, 1 xfailed
+- `.venv/bin/python tools/tier_integrity_check.py --check` — ERROR=0, WARN=1 (`ob_retest` legacy inline label has no strategy file)
+
 ## 2026-05-18 — feat: ob_retest_h1 pre-reg FAIL + M5 ob_retest R2 demote
 
 ### 変更内容
