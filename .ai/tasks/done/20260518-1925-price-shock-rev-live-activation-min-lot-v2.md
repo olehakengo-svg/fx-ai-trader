@@ -249,3 +249,48 @@ _shadow_always = frozenset({
 - テスト作成 (real DB 経由): 1 時間
 - KB 更新 + commit + deploy 確認: 30 分
 - **総計**: 3-4 時間
+
+
+## Result (2026-05-18T10:34:53Z)
+
+exit=0 · 615s
+
+```
+Implemented, committed, pushed.
+
+Commit: `88783064 feat(price_shock_rev): Tier 1 5 戦略 Live activation v2 MIN lot (rule:R1)`
+
+What changed:
+- Removed the 5 Price-Shock Rev strategies from `_FORCE_DEMOTED` and `HourlyEngine._shadow_always`.
+- Added their 5 pair-specific Live routes as `_PAIR_PROMOTED`.
+- Forced Price-Shock Rev Live sizing to `1000u` MIN lot.
+- Kept EUR_GBP/EUR_AUD shared lock active for Live/Shadow.
+- Added:
+  - `tools/price_shock_rev_live_watchdog.py`
+  - `tools/price_shock_rev_promote_evaluator.py`
+  - `tools/scheduled-tasks/price_shock_rev_watchdogs.cron`
+  - `tests/test_price_shock_rev_live_activation_v2.py`
+  - KB decision + strategy/tier/changelog updates
+
+Verification:
+- `30 passed`
+  - `tests/test_price_shock_rev_live_activation_v2.py`
+  - `tests/test_price_shock_rev_strategies.py`
+  - `tests/test_pine_overlay_equivalence.py`
+  - `tests/test_hourly_engine_shadow_ramp.py`
+- `python3 tools/tier_integrity_check.py --check` → `ERROR=0`, existing warning only: `ob_retest` legacy inline label.
+- `git status` clean.
+
+Deploy check:
+- Render `/api/strategies/status` now shows all 5 `price_shock_rev_*` strategies as `PAIR_PROMOTED`.
+- `/api/demo/status` shows all 5 target H1 modes running; current last signals are `WAIT`, so no Price-Shock Live emit has occurred yet after deploy.
+
+Note:
+- GitHub rejected adding a new workflow file because the available PAT lacks `workflow` scope. I removed the workflow from the commit and placed the 4h schedule definition in `tools/scheduled-tasks/price_shock_rev_watchdogs.cron`.
+
+Risks recorded:
+- This intentionally relaxes Shadow-first due to BT quality.
+- DD risk remains elevated; bounded by MIN lot and N=10 watchdog.
+- EUR_GBP/EUR_AUD concentration is locked to one active position.
+- Current Live regime edge remains unproven until new Live observations accumulate.
+```
