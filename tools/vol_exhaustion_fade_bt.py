@@ -39,6 +39,7 @@ FAMILY_A = "pure_vol_exhaustion_fade"
 FAMILY_B = "v_reversal_current"
 DATA_SOURCE = "MASSIVE_parquet"
 DEFAULT_END_DATE = "2026-05-14"
+TASK_FILE = ROOT / ".ai" / "tasks" / "queue" / "20260515-2235-vol-exhaustion-fade-bt-usdjpy-m5.md"
 
 
 @dataclass(frozen=True)
@@ -531,7 +532,7 @@ def write_reports(
     (out_dir / "summary.md").write_text(summary, encoding="utf-8")
     (out_dir / "null_summary.md").write_text(null_summary, encoding="utf-8")
     (out_dir / "ablation.md").write_text(ablation, encoding="utf-8")
-    append_result_section(ROOT / "final.md", rows_a, rows_b, generated_at)
+    append_result_section(TASK_FILE, rows_a, rows_b, generated_at)
 
     shadow_a = [r for r in rows_a if r["verdict"] == "SHADOW_CANDIDATE"]
     if shadow_a:
@@ -540,6 +541,12 @@ def write_reports(
 
 
 def build_summary(rows_a: list[dict], rows_b: list[dict], generated_at: str) -> str:
+    ref_rows = rows_a or rows_b
+    period_start = ref_rows[0]["period_start"] if ref_rows else "unknown"
+    period_end = ref_rows[0]["period_end"] if ref_rows else "unknown"
+    caveat = ""
+    if ref_rows and pd.Timestamp(period_end) < pd.Timestamp(DEFAULT_END_DATE, tz="UTC"):
+        caveat = f"Data caveat: local cache ends before target {DEFAULT_END_DATE}; backfill required for exact target-window rerun."
     shadow = [r for r in rows_a if r["verdict"] == "SHADOW_CANDIDATE"]
     needs = [r for r in rows_a if r["verdict"] == "NEEDS_MORE_EVIDENCE"]
     reject = [r for r in rows_a if r["verdict"] == "REJECT"]
@@ -550,6 +557,8 @@ def build_summary(rows_a: list[dict], rows_b: list[dict], generated_at: str) -> 
         "",
         f"Generated: {generated_at}",
         f"Data: {DATA_SOURCE} USD_JPY M5, spread={SPREAD_PIP} pip per side",
+        f"Period: {period_start} .. {period_end}",
+        caveat,
         f"Pre-reg m: {M_TESTS}, Bonferroni alpha: {BONF_ALPHA:.8f}",
         "",
         "## Verdict Matrix",
@@ -652,6 +661,12 @@ def build_ablation(rows_a: list[dict], rows_b: list[dict], generated_at: str) ->
 
 
 def append_result_section(path: Path, rows_a: list[dict], rows_b: list[dict], generated_at: str) -> None:
+    ref_rows = rows_a or rows_b
+    period_start = ref_rows[0]["period_start"] if ref_rows else "unknown"
+    period_end = ref_rows[0]["period_end"] if ref_rows else "unknown"
+    caveat = ""
+    if ref_rows and pd.Timestamp(period_end) < pd.Timestamp(DEFAULT_END_DATE, tz="UTC"):
+        caveat = f"Data caveat: local MASSIVE cache ends before target {DEFAULT_END_DATE}; backfill/rerun required for exact target-window evidence."
     shadow = [r for r in rows_a if r["verdict"] == "SHADOW_CANDIDATE"]
     needs = [r for r in rows_a if r["verdict"] == "NEEDS_MORE_EVIDENCE"]
     reject = [r for r in rows_a if r["verdict"] == "REJECT"]
@@ -662,6 +677,8 @@ def append_result_section(path: Path, rows_a: list[dict], rows_b: list[dict], ge
         "## Result: Vol Exhaustion Fade BT",
         "",
         f"Generated: {generated_at}",
+        f"Data period: {period_start} .. {period_end}",
+        caveat,
         f"投入 cell 数: {len(rows_a)}",
         f"SHADOW_CANDIDATE: {len(shadow)}",
         f"NEEDS_MORE_EVIDENCE: {len(needs)}",

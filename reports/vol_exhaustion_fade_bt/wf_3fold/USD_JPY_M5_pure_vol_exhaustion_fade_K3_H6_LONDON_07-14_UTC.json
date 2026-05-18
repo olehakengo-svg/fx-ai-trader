@@ -1,0 +1,24 @@
+{
+  "cell_id": "USD_JPY_M5_pure_vol_exhaustion_fade_K3_H6_LONDON_07-14_UTC",
+  "family": "pure_vol_exhaustion_fade",
+  "wf": [
+    {
+      "ev_pip": -2.7893548382165676,
+      "fold": 1,
+      "n": 3834,
+      "pass_ev_gt_0": false
+    },
+    {
+      "ev_pip": -2.501907451728958,
+      "fold": 2,
+      "n": 3834,
+      "pass_ev_gt_0": false
+    },
+    {
+      "ev_pip": -2.968645525685193,
+      "fold": 3,
+      "n": 3833,
+      "pass_ev_gt_0": false
+    }
+  ]
+}

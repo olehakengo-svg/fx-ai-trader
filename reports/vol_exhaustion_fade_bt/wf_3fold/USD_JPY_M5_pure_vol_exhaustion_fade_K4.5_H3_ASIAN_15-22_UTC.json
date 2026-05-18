@@ -1,0 +1,24 @@
+{
+  "cell_id": "USD_JPY_M5_pure_vol_exhaustion_fade_K4.5_H3_ASIAN_15-22_UTC",
+  "family": "pure_vol_exhaustion_fade",
+  "wf": [
+    {
+      "ev_pip": -2.341629121195553,
+      "fold": 1,
+      "n": 1009,
+      "pass_ev_gt_0": false
+    },
+    {
+      "ev_pip": -1.95297218499915,
+      "fold": 2,
+      "n": 1008,
+      "pass_ev_gt_0": false
+    },
+    {
+      "ev_pip": -1.6705039098383299,
+      "fold": 3,
+      "n": 1008,
+      "pass_ev_gt_0": false
+    }
+  ]
+}

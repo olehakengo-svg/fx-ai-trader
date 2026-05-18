@@ -1,0 +1,24 @@
+{
+  "cell_id": "USD_JPY_M5_v_reversal_current_K3_H12_LONDON_07-14_UTC",
+  "family": "v_reversal_current",
+  "wf": [
+    {
+      "ev_pip": -3.8262852417786655,
+      "fold": 1,
+      "n": 217,
+      "pass_ev_gt_0": false
+    },
+    {
+      "ev_pip": -2.493437906260697,
+      "fold": 2,
+      "n": 216,
+      "pass_ev_gt_0": false
+    },
+    {
+      "ev_pip": -5.396911253243509,
+      "fold": 3,
+      "n": 216,
+      "pass_ev_gt_0": false
+    }
+  ]
+}

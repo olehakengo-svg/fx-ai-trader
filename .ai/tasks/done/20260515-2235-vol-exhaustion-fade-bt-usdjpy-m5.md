@@ -165,9 +165,21 @@ verdict は queue file 末尾の Result section に追記:
 - XAU 含めない (feedback_exclude_xau)
 - 既存 `v_reversal.py` の編集禁止 (ablation 比較のため現行版を不変前提)
 
+<!-- vol_exhaustion_fade_bt_result -->
+## Result: Vol Exhaustion Fade BT
 
-## Error (2026-05-18T04:25:36Z)
+Generated: 2026-05-18T04:51:39.746731+00:00
+Data period: 2014-01-02T04:55:00+00:00 .. 2026-04-30T23:55:00+00:00
+Data caveat: local MASSIVE cache ends before target 2026-05-14; backfill/rerun required for exact target-window evidence.
+投入 cell 数: 48
+SHADOW_CANDIDATE: 0
+NEEDS_MORE_EVIDENCE: 0
+REJECT: 48
 
-```
-orphaned: container restarted while task was running
-```
+Top 3 cell:
+- K=4.5, H=3, session=ASIAN_15-22_UTC, N=3025, WR=0.447, Wilson_lo=0.430, EV=-1.99, PF=0.41, p_BH=1.000000
+- K=4.5, H=6, session=ASIAN_15-22_UTC, N=3025, WR=0.491, Wilson_lo=0.473, EV=-2.05, PF=0.42, p_BH=1.000000
+- K=4, H=3, session=ASIAN_15-22_UTC, N=4201, WR=0.418, Wilson_lo=0.403, EV=-2.06, PF=0.38, p_BH=1.000000
+
+Ablation major diff: Family A uses body/SMA20 exhaustion fade; current v_reversal uses 10-bar pip shock plus RSI/BB%B/Stoch reversal confirmation. Family B has no native K parameter, so K is retained only as a grid label.
+Next task: Phase B cross-pair OOS and cooldown sweep without adding MA trend filters.
