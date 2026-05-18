@@ -211,3 +211,34 @@ fire ~0.2-0.6/day per design — 24h+ window needed for first signal).
 
 This retry re-executes the full Task A/B/C spec. Nothing was committed
 previously, so no idempotency concerns.
+
+
+## Result (2026-05-18T07:22:45Z)
+
+exit=0 · 550s
+
+```
+完了しました。`origin/main` へ push 済みです。
+
+Commit: `9024289f Add PRIME re-evaluation report`
+
+主な結果:
+- Task A: 既存 A/B PRIME 5件は `DEMOTE`、Tier C `engulfing_bb_TOKYO_EARLY` は `KEEP`
+- Task B: 6戦略 × 768 = 4,608 cell 探索完了。Bonferroni 採用 0、FDR q=0.10 pass 0
+- Task C: [research/prime_gate_v2_proposal.py](/data/repo/fx-ai-trader/research/prime_gate_v2_proposal.py) 作成
+- Full cell table: [research/prime_reeval_task_b_cells.csv](/data/repo/fx-ai-trader/research/prime_reeval_task_b_cells.csv)
+- Session report: [knowledge-base/wiki/sessions/prime-reeval-2026-05-18.md](/data/repo/fx-ai-trader/knowledge-base/wiki/sessions/prime-reeval-2026-05-18.md)
+- Decision doc に Codex re-eval 完了セクション追記
+
+重要な caveat:
+- Render API は期待の 2026-03-01 からではなく、実測で `2026-04-02` 以降のみ返しました。
+- `fib_reversal_PRIME` sanity は freeze から乖離し、`PRIME drift detected` です。
+- hot-fix dry-run replay は `73` fires で `tools/prime_gate_order_dry_run.py` と整数一致。Task A v2 verdict 適用後は A/B PRIME fire `0` 想定です。
+
+Verification:
+- `.venv/bin/python -m py_compile tools/prime_reeval_sanity.py research/prime_gate_v2_proposal.py`
+- `.venv/bin/python -m pytest tests/test_prime_gate_order.py -q` → 7 passed
+- `.venv/bin/python scripts/check.py` → 全6チェック通過
+- `git diff origin/main..HEAD` → 差分なし
+- `HEAD == origin/main == 9024289f83981533c91228dc4f902d07a55f4951`
+```
