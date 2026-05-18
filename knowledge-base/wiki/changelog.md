@@ -10,6 +10,13 @@
 - `_shadow_always` に KSB+DMB+5 PriceShockRev を frozenset 固定し、H1 alpha source を一括 Shadow-only にした。
 - XAU modes と 15m/scalp Live 経路は変更なし。Decision: `decisions/hourly-engine-shadow-ramp-2026-05-18.md`。
 
+## 2026-05-18 — Price-Shock Rev Live Activation v2 MIN Lot (rule:R1)
+
+- 5 Price-Shock Rev H1 戦略を Tier 2 Live MIN lot に移行。
+- `_shadow_always` から Price-Shock Rev を削除し、KSB/DMB は Shadow-only 維持。
+- Live lot は 1000u 固定。lot ramp は N>=30 pre-reg evaluator の提案のみで自動変更しない。
+- N>=10 watchdog は EV<0 または Wilson_lower<0.40 で auto-demote state を記録。Decision: `decisions/price-shock-rev-live-activation-2026-05-18.md`。
+
 ## 2026-05-18 — Price-Shock Reversion Tier 1 Phase B-1 Shadow
 
 - H1 negative shock LONG 5 戦略を `strategies/hourly/` に追加。

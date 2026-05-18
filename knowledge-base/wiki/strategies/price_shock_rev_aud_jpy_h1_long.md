@@ -1,6 +1,6 @@
 # price_shock_rev_aud_jpy_h1_long
 
-- **Status**: FORCE_DEMOTED / Phase B-1 Shadow-only (2026-05-18)
+- **Status**: Tier 2 (Live MIN lot) / Live activation 2026-05-18
 
 ## 概要
 H1 AUD_JPY で 252-bar log return 1%-tile 以下の negative shock が発生した場合に、vol bucket を無視して 12 bars 保有の LONG mean reversion。
@@ -23,8 +23,9 @@ Qiita「予測を捨て、分布を読め」(tikeda123) の方法論。
 - または -2 x ATR近似 SL hit (catastrophic stop)
 
 ## Tier 状態
-- 2026-05-18 から Phase B-1 Shadow (is_shadow=True 固定)
-- Live promote 基準: `wiki/decisions/price-shock-rev-promote-criteria-2026-05-18.md`
+- 2026-05-18 から Tier 2 (Live MIN lot, 1000 units)
+- Live activation: `wiki/decisions/price-shock-rev-live-activation-2026-05-18.md`
+- Lot ramp proposal criteria: `wiki/decisions/price-shock-rev-promote-criteria-2026-05-18.md`
 
 ## 関連
 - BT runner: tools/price_shock_reversion_bt.py

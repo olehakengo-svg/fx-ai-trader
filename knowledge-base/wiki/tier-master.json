@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-18T10:22:22.942098+00:00",
+  "generated_at": "2026-05-18T10:28:55.211030+00:00",
   "elite_live": [
     "trendline_sweep"
   ],
@@ -19,11 +19,6 @@
     "ob_retest",
     "orb_trap",
     "post_news_vol",
-    "price_shock_rev_aud_jpy_h1_long",
-    "price_shock_rev_eur_aud_h1_long",
-    "price_shock_rev_eur_gbp_h1_long",
-    "price_shock_rev_nzd_jpy_h1_long",
-    "price_shock_rev_usd_cad_h1_long",
     "sr_break_retest",
     "sr_channel_reversal",
     "stoch_trend_pullback",
@@ -90,6 +85,26 @@
     [
       "mqe_gbpusd_fix",
       "GBP_USD"
+    ],
+    [
+      "price_shock_rev_aud_jpy_h1_long",
+      "AUD_JPY"
+    ],
+    [
+      "price_shock_rev_eur_aud_h1_long",
+      "EUR_AUD"
+    ],
+    [
+      "price_shock_rev_eur_gbp_h1_long",
+      "EUR_GBP"
+    ],
+    [
+      "price_shock_rev_nzd_jpy_h1_long",
+      "NZD_JPY"
+    ],
+    [
+      "price_shock_rev_usd_cad_h1_long",
+      "USD_CAD"
     ],
     [
       "session_time_bias",

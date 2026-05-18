@@ -1,5 +1,19 @@
 # FX AI Trader - Changelog
 
+## 2026-05-18 — feat: Price-Shock Rev Tier 1 5戦略 Live activation v2 MIN lot (rule:R1)
+
+### 変更内容
+
+- 5 Price-Shock Rev H1 戦略を `_FORCE_DEMOTED` / `_shadow_always` から外し、該当 5 pair を Tier 2 Live MIN lot に移行。
+- Live lot は 1000u 固定。Kelly / DD / lot multiplier による ramp は bypass し、lot ramp は N>=30 evaluator の提案のみ。
+- EUR_GBP/EUR_AUD shared lock を Live でも維持し、同時 active position 1 個までに制限。
+- `price_shock_rev_live_watchdog.py` と `price_shock_rev_promote_evaluator.py` を追加し、N>=10 auto-demote と N>=30 lot-ramp 提案を分離。
+- Decision: `knowledge-base/wiki/decisions/price-shock-rev-live-activation-2026-05-18.md`。
+
+### 検証
+
+- `.venv/bin/python -m pytest tests/test_price_shock_rev_live_activation_v2.py tests/test_hourly_engine_shadow_ramp.py tests/test_force_demoted_leak_backfill.py::test_force_demoted_final_gate_overrides_late_live_bypass -q`
+
 ## 2026-05-18 — feat: HourlyEngine Shadow ramp activation
 
 ### 変更内容

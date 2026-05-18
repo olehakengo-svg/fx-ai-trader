@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-05-18 10:22 UTC
+**最終更新**: 2026-05-18 10:28 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | 1 | trendline_sweep | — | +0.574 | +0.838 |
 
-### A-2. PAIR_PROMOTED（18エントリ — 指定ペアのみ通過）
+### A-2. PAIR_PROMOTED（23エントリ — 指定ペアのみ通過）
 
 | # | 戦略名 | ペア | 365d BT EV |
 |---|---|---|---|
@@ -25,21 +25,26 @@
 | 5 | dt_sr_channel_reversal | EUR_JPY | — |
 | 6 | ema200_trend_reversal | USD_JPY | — |
 | 7 | mqe_gbpusd_fix | GBP_USD | — |
-| 8 | session_time_bias | EUR_USD | +0.251 |
-| 9 | squeeze_release_momentum | EUR_USD | — |
-| 10 | sr_fib_confluence | GBP_USD | — |
-| 11 | trend_rebound | USD_JPY | — |
-| 12 | vix_carry_unwind | USD_JPY | +0.506 |
-| 13 | vol_momentum_scalp | EUR_JPY | — |
-| 14 | vsg_jpy_reversal | EUR_JPY | — |
-| 15 | wick_imbalance_reversion | GBP_USD | — |
-| 16 | xs_momentum | EUR_USD | +0.126 |
-| 17 | xs_momentum | GBP_USD | -0.013 |
-| 18 | xs_momentum_rsi | USD_JPY | — |
+| 8 | price_shock_rev_aud_jpy_h1_long | AUD_JPY | — |
+| 9 | price_shock_rev_eur_aud_h1_long | EUR_AUD | — |
+| 10 | price_shock_rev_eur_gbp_h1_long | EUR_GBP | — |
+| 11 | price_shock_rev_nzd_jpy_h1_long | NZD_JPY | — |
+| 12 | price_shock_rev_usd_cad_h1_long | USD_CAD | — |
+| 13 | session_time_bias | EUR_USD | +0.251 |
+| 14 | squeeze_release_momentum | EUR_USD | — |
+| 15 | sr_fib_confluence | GBP_USD | — |
+| 16 | trend_rebound | USD_JPY | — |
+| 17 | vix_carry_unwind | USD_JPY | +0.506 |
+| 18 | vol_momentum_scalp | EUR_JPY | — |
+| 19 | vsg_jpy_reversal | EUR_JPY | — |
+| 20 | wick_imbalance_reversion | GBP_USD | — |
+| 21 | xs_momentum | EUR_USD | +0.126 |
+| 22 | xs_momentum | GBP_USD | -0.013 |
+| 23 | xs_momentum_rsi | USD_JPY | — |
 
 ## B. Shadow戦略（OANDA非通過 — デモのみ記録）
 
-### B-1. FORCE_DEMOTED（25戦略 — 全ペア強制Shadow）
+### B-1. FORCE_DEMOTED（20戦略 — 全ペア強制Shadow）
 
 | # | 戦略名 | 365d BT JPY EV | EUR EV | GBP EV |
 |---|---|---|---|---|
@@ -58,16 +63,11 @@
 | 13 | ob_retest | — | — | — |
 | 14 | orb_trap | — | — | — |
 | 15 | post_news_vol | +1.119 | +0.844 | +1.302 |
-| 16 | price_shock_rev_aud_jpy_h1_long | — | — | — |
-| 17 | price_shock_rev_eur_aud_h1_long | — | — | — |
-| 18 | price_shock_rev_eur_gbp_h1_long | — | — | — |
-| 19 | price_shock_rev_nzd_jpy_h1_long | — | — | — |
-| 20 | price_shock_rev_usd_cad_h1_long | — | — | — |
-| 21 | sr_break_retest | — | — | — |
-| 22 | sr_channel_reversal | — | — | — |
-| 23 | stoch_trend_pullback | — | — | — |
-| 24 | v_reversal | — | — | — |
-| 25 | vwap_mean_reversion | +1.155 | +0.827 | +1.087 |
+| 16 | sr_break_retest | — | — | — |
+| 17 | sr_channel_reversal | — | — | — |
+| 18 | stoch_trend_pullback | — | — | — |
+| 19 | v_reversal | — | — | — |
+| 20 | vwap_mean_reversion | +1.155 | +0.827 | +1.087 |
 
 ### B-2. SCALP_SENTINEL（10戦略 — Scalp最小ロットShadow）
 

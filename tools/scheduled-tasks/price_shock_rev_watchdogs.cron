@@ -1,0 +1,3 @@
+# Price-Shock Rev Live activation v2 watchdogs
+# Every 4h UTC. Run from repo root with DISCORD_WEBHOOK_URL available.
+17 */4 * * * cd /data/repo/fx-ai-trader && python3 tools/price_shock_rev_live_watchdog.py --apply --to-discord && python3 tools/price_shock_rev_promote_evaluator.py --to-discord

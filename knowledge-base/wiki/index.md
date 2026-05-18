@@ -25,6 +25,11 @@
 | [[dt-sr-channel-reversal]] | EUR_JPY | EUR_JPY: EV=+0.178 WR=63.8% | PAIR_PROMOTED |
 | [[ema200-trend-reversal]] | USD_JPY | EUR_USD: EV=+0.410 WR=75.0%; USD_JPY: EV=-0.183 WR=56.2% | PAIR_PROMOTED |
 | [[mqe-gbpusd-fix]] | GBP_USD | no BT data | PAIR_PROMOTED |
+| [[price-shock-rev-aud-jpy-h1-long]] | AUD_JPY | no BT data | PAIR_PROMOTED |
+| [[price-shock-rev-eur-aud-h1-long]] | EUR_AUD | no BT data | PAIR_PROMOTED |
+| [[price-shock-rev-eur-gbp-h1-long]] | EUR_GBP | no BT data | PAIR_PROMOTED |
+| [[price-shock-rev-nzd-jpy-h1-long]] | NZD_JPY | no BT data | PAIR_PROMOTED |
+| [[price-shock-rev-usd-cad-h1-long]] | USD_CAD | no BT data | PAIR_PROMOTED |
 | [[session-time-bias]] | EUR_USD | EUR_USD: EV=+0.215 WR=69.6%; GBP_USD: EV=+0.113 WR=67.1%; USD_JPY: EV=+0.580 WR=79.0% | PAIR_PROMOTED |
 | [[squeeze-release-momentum]] | EUR_USD | EUR_USD: EV=+0.656 WR=73.3% | PAIR_PROMOTED |
 | [[sr-fib-confluence]] | GBP_USD | EUR_USD: EV=+0.103 WR=64.9%; USD_JPY: EV=+0.252 WR=67.7% | PAIR_PROMOTED |
@@ -88,11 +93,6 @@
 | [[ob-retest]] | no BT data | FORCE_DEMOTED |
 | [[orb-trap]] | USD_JPY: EV=+0.866 WR=84.2% | FORCE_DEMOTED |
 | [[post-news-vol]] | EUR_USD: EV=+0.817 WR=71.4%; GBP_USD: EV=+1.762 WR=88.5% | FORCE_DEMOTED |
-| [[price-shock-rev-aud-jpy-h1-long]] | no BT data | FORCE_DEMOTED |
-| [[price-shock-rev-eur-aud-h1-long]] | no BT data | FORCE_DEMOTED |
-| [[price-shock-rev-eur-gbp-h1-long]] | no BT data | FORCE_DEMOTED |
-| [[price-shock-rev-nzd-jpy-h1-long]] | no BT data | FORCE_DEMOTED |
-| [[price-shock-rev-usd-cad-h1-long]] | no BT data | FORCE_DEMOTED |
 | [[sr-break-retest]] | no BT data | FORCE_DEMOTED |
 | [[sr-channel-reversal]] | no BT data | FORCE_DEMOTED |
 | [[stoch-trend-pullback]] | no BT data | FORCE_DEMOTED |

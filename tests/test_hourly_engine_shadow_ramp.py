@@ -8,11 +8,6 @@ import pandas as pd
 MASSIVE = Path("data/cache/massive")
 
 H1_SHADOW_STRATEGIES = frozenset({
-    "price_shock_rev_eur_gbp_h1_long",
-    "price_shock_rev_eur_aud_h1_long",
-    "price_shock_rev_usd_cad_h1_long",
-    "price_shock_rev_nzd_jpy_h1_long",
-    "price_shock_rev_aud_jpy_h1_long",
     "keltner_squeeze_breakout",
     "donchian_momentum_breakout",
 })
@@ -76,9 +71,11 @@ def _first_price_shock_context(pair: str, strategy_cls):
 
 def test_hourly_engine_shadow_always_contains_all_h1_shadow_ramp_strategies():
     from strategies.hourly import HourlyEngine
+    from modules.demo_trader import PRICE_SHOCK_REV_TIER1_TYPES
 
     assert isinstance(HourlyEngine._shadow_always, frozenset)
     assert H1_SHADOW_STRATEGIES <= HourlyEngine._shadow_always
+    assert PRICE_SHOCK_REV_TIER1_TYPES.isdisjoint(HourlyEngine._shadow_always)
 
 
 def test_hourly_modes_auto_start_enabled_without_touching_xau_modes():
@@ -93,7 +90,7 @@ def test_hourly_modes_auto_start_enabled_without_touching_xau_modes():
     assert MODE_CONFIG["daytrade_xau"]["auto_start"] is False
 
 
-def test_real_price_shock_candidate_is_structurally_shadow_only():
+def test_real_price_shock_candidate_uses_single_best_live_emit_path():
     from strategies.hourly import HourlyEngine
     from strategies.hourly.price_shock_rev_aud_jpy_h1_long import PriceShockRevAudJpyH1Long
 
@@ -105,15 +102,9 @@ def test_real_price_shock_candidate_is_structurally_shadow_only():
 
     assert candidates
     assert best is not None
-    assert {c.entry_type for c in candidates} <= engine._shadow_always
-    assert {c.entry_type for c in candidates} == (
-        {best.entry_type} | {c.entry_type for c in shadow_emits}
-    )
-    assert all(
-        c.entry_type in engine._shadow_always
-        or bool((c.sr_meta or {}).get("is_shadow"))
-        for c in candidates
-    )
+    assert best.entry_type.startswith("price_shock_rev_")
+    assert best.entry_type not in engine._shadow_always
+    assert best.entry_type not in {c.entry_type for c in shadow_emits}
 
 
 def test_aud_jpy_pair_filtering_observed_on_real_h1_data():

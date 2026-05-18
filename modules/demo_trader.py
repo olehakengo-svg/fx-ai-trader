@@ -11,6 +11,7 @@ import time
 import json
 import os as _os
 import sys
+from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
 from modules.demo_db import DemoDB
@@ -61,6 +62,16 @@ PRICE_SHOCK_REV_TIER1_TYPES = frozenset({
     "price_shock_rev_nzd_jpy_h1_long",
     "price_shock_rev_aud_jpy_h1_long",
 })
+
+PRICE_SHOCK_REV_TIER1_PAIRS = frozenset({
+    ("price_shock_rev_eur_gbp_h1_long", "EUR_GBP"),
+    ("price_shock_rev_eur_aud_h1_long", "EUR_AUD"),
+    ("price_shock_rev_usd_cad_h1_long", "USD_CAD"),
+    ("price_shock_rev_nzd_jpy_h1_long", "NZD_JPY"),
+    ("price_shock_rev_aud_jpy_h1_long", "AUD_JPY"),
+})
+
+PRICE_SHOCK_REV_MIN_UNITS = 1000
 
 
 def _resolve_shadow_audit_block_reason(is_shadow: bool, reason: str) -> str:
@@ -803,7 +814,7 @@ class DemoTrader:
                                         is_promoted: bool,
                                         shadow_at_open: bool):
         """Last OANDA-send guard: FORCE_DEMOTED strategies cannot be live."""
-        if entry_type in self._FORCE_DEMOTED and not is_shadow:
+        if self._is_force_demoted_entry(entry_type) and not is_shadow:
             is_shadow = True
             is_promoted = False
             shadow_at_open = True
@@ -842,7 +853,7 @@ class DemoTrader:
                         pass
                 instrument = t.get("instrument", "USD_JPY")
                 entry_type = t.get("entry_type", "")
-                if entry_type in self._FORCE_DEMOTED:
+                if self._is_force_demoted_entry(entry_type):
                     skipped += 1
                     self._add_log(
                         f"[FORCE_DEMOTED_GATE] resend skipped: {entry_type} "
@@ -3175,6 +3186,24 @@ class DemoTrader:
                 pass
         return None
 
+    @staticmethod
+    def _eur_base_shock_lock_reason(entry_type: str, open_trades: list[dict]) -> str | None:
+        """Shared EUR_GBP/EUR_AUD Price-Shock lock, applied to Live and Shadow."""
+        eur_base_shock = {
+            "price_shock_rev_eur_gbp_h1_long",
+            "price_shock_rev_eur_aud_h1_long",
+        }
+        if entry_type not in eur_base_shock:
+            return None
+        others = eur_base_shock - {entry_type}
+        for trade in open_trades:
+            if (
+                trade.get("entry_type") in others
+                and str(trade.get("status", "")).lower() == "open"
+            ):
+                return f"eur_base_shock_lock({entry_type}_vs_{trade.get('entry_type')})"
+        return None
+
     def _tick_entry(self, mode: str, cfg: dict, sig: dict,
                     tf: str, instrument: str):
         """_tickの後半: エントリー判定・実行。例外は呼び出し元でキャッチ。"""
@@ -3347,7 +3376,7 @@ class DemoTrader:
         #     → スロットが空いていればnormal(OANDA送信可)、埋まっていればshadowで入る
         # ══════════════════════════════════════════════════════════════
         _is_shadow_eligible_full = (
-            entry_type in self._FORCE_DEMOTED
+            self._is_force_demoted_entry(entry_type)
             or entry_type in self._SCALP_SENTINEL
             or entry_type in self._UNIVERSAL_SENTINEL
             or self._is_trendline_sweep_v2_shadow_pair(entry_type, instrument)
@@ -3833,14 +3862,12 @@ class DemoTrader:
                     except Exception:
                         pass
 
-        # 2026-05-18 Phase B-1: EUR base shock 戦略間の同時ポジション 1 個までに制限
-        _eur_base_shock_excl = {"price_shock_rev_eur_gbp_h1_long", "price_shock_rev_eur_aud_h1_long"}
-        if entry_type in _eur_base_shock_excl:
-            _others = _eur_base_shock_excl - {entry_type}
-            for _ot in open_trades:
-                if _ot.get("entry_type") in _others and str(_ot.get("status", "")).lower() == "open":
-                    _block(f"eur_base_shock_lock({entry_type}_vs_{_ot.get('entry_type')})")
-                    return
+        # 2026-05-18: EUR base shock 戦略間の同時ポジション 1 個までに制限。
+        # Live activation v2 後も Live/Shadow を問わず同じ lock を適用する。
+        _eur_base_lock = self._eur_base_shock_lock_reason(entry_type, open_trades)
+        if _eur_base_lock:
+            _block(_eur_base_lock)
+            return
 
         if entry_type not in QUALIFIED_TYPES and entry_type not in CONDITIONAL_TYPES:
             _block(f"unknown_type:{entry_type}"); return
@@ -4966,6 +4993,10 @@ class DemoTrader:
 
         _base_units = int(_os.environ.get("OANDA_UNITS", "10000"))
         _adjusted_units = int(_base_units * _lot_ratio)
+        if entry_type in PRICE_SHOCK_REV_TIER1_TYPES:
+            _lot_ratio = PRICE_SHOCK_REV_MIN_UNITS / max(_base_units, 1)
+            _adjusted_units = PRICE_SHOCK_REV_MIN_UNITS
+            _sentinel_reason = "PRICE_SHOCK_REV_MIN_LOT"
         if _is_sentinel:
             # v7.6: XAU専用Sentinel単位数 — 1unit=1troy oz≈$4800
             # FX 0.01lot=1000u相当をXAUに適用すると 1000oz×$4800=$4.8M → margin拒絶
@@ -5354,7 +5385,7 @@ class DemoTrader:
                 _block_reason = f"shield_mode_blocked({mode})"
             elif (entry_type, instrument) in self._PAIR_DEMOTED:
                 _block_reason = f"pair_demoted({instrument})"
-            elif entry_type in self._FORCE_DEMOTED:
+            elif self._is_force_demoted_entry(entry_type):
                 _block_reason = "force_demoted"
             elif _promo_status == "demoted":
                 _block_reason = f"auto_demoted(N={_promo_n},EV={_promo.get('ev', 0):+.2f})"
@@ -6438,13 +6469,8 @@ class DemoTrader:
         "vwap_mean_reversion",          # Live N=10 WR=40% PnL=-47.7p (IS→OOS 95.3% degrade)
         "donchian_momentum_breakout",   # Live N=3 WR=33.3% PnL=-32.1p
         "v_reversal",                   # Live N=3 WR=0% PnL=-10.1p
-        # 2026-05-18 Phase B-1: Price-Shock Reversion Tier 1 is Shadow-only until
-        # pre-registered promote criteria are met.
-        "price_shock_rev_eur_gbp_h1_long",
-        "price_shock_rev_eur_aud_h1_long",
-        "price_shock_rev_usd_cad_h1_long",
-        "price_shock_rev_nzd_jpy_h1_long",
-        "price_shock_rev_aud_jpy_h1_long",
+        # REMOVED 2026-05-18 Live activation v2: Price-Shock Rev 5 strategies
+        # moved to pair-level Live MIN lot with watchdog auto-demote.
         # 2026-05-18 (rule:R2): M5 ob_retest demote
         # TV Pine BT USDJPY M5 N=733 WR=38.74% EV<0
         # Filter A/B sweep で Bonferroni m=3 全 null (|z|<0.30).
@@ -6612,6 +6638,15 @@ class DemoTrader:
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
     # v6.8: sr_fib_confluence PAIR_PROMOTED全削除 (本番N=40 WR=28.9% -92.8pip, BT乖離確定)
     _PAIR_PROMOTED = {
+        # 2026-05-18 Price-Shock Rev Live activation v2 (rule:R1):
+        # BT Wilson_lo>=0.58 for all 5 families, Bonf-passing cells=9-28/family,
+        # 12.3y MASSIVE + BH-FDR m=3744. Live starts at 1000u MIN lot only;
+        # lot ramp remains commander-approved after Live N>=30 pre-reg gates.
+        ("price_shock_rev_eur_gbp_h1_long", "EUR_GBP"),
+        ("price_shock_rev_eur_aud_h1_long", "EUR_AUD"),
+        ("price_shock_rev_usd_cad_h1_long", "USD_CAD"),
+        ("price_shock_rev_nzd_jpy_h1_long", "NZD_JPY"),
+        ("price_shock_rev_aud_jpy_h1_long", "AUD_JPY"),
         # REMOVED: bb_rsi_reversion×USD_JPY → PAIR_DEMOTED (v8.9: Post-cut N=76 WR=38.2% EV=-0.28 Kelly=-5.5%)
         # REMOVED v9.1: orb_trap PAIR_PROMOTED削除 — 365d BT全ペア負EV (JPY=-0.854, EUR=-0.488, GBP=-0.258)
         # 旧BT(60d): WR=79%/71%/64% → 365d: WR=42%/37%/56% — 劇的悪化、FORCE_DEMOTED
@@ -6782,7 +6817,57 @@ class DemoTrader:
             return 0.1
         if configured_pair_boost is not None and configured_pair_boost < 0.3:
             return max(float(configured_pair_boost), 0.01)
+        if entry_type in PRICE_SHOCK_REV_TIER1_TYPES:
+            return PRICE_SHOCK_REV_MIN_UNITS / max(int(_os.environ.get("OANDA_UNITS", "10000")), 1)
         return 0.3
+
+    @staticmethod
+    def _price_shock_rev_min_units(entry_type: str, instrument: str) -> int | None:
+        if (entry_type, instrument) in PRICE_SHOCK_REV_TIER1_PAIRS:
+            return PRICE_SHOCK_REV_MIN_UNITS
+        return None
+
+    @staticmethod
+    def _price_shock_rev_demotion_state_path() -> Path:
+        return Path(
+            _os.environ.get(
+                "PRICE_SHOCK_REV_DEMOTION_STATE",
+                "data/price_shock_rev_auto_demotions.json",
+            )
+        )
+
+    @classmethod
+    def _read_price_shock_rev_auto_demotions(cls) -> set[tuple[str, str]]:
+        path = cls._price_shock_rev_demotion_state_path()
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return set()
+        except Exception:
+            return set()
+        rows = payload.get("demotions", []) if isinstance(payload, dict) else []
+        demotions: set[tuple[str, str]] = set()
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            entry_type = str(row.get("entry_type") or "")
+            instrument = str(row.get("instrument") or "")
+            if (entry_type, instrument) in PRICE_SHOCK_REV_TIER1_PAIRS:
+                demotions.add((entry_type, instrument))
+        return demotions
+
+    @classmethod
+    def _is_price_shock_rev_auto_demoted(cls, entry_type: str, instrument: str = "") -> bool:
+        if entry_type not in PRICE_SHOCK_REV_TIER1_TYPES:
+            return False
+        demotions = cls._read_price_shock_rev_auto_demotions()
+        return (entry_type, instrument) in demotions or (entry_type, "") in demotions
+
+    @classmethod
+    def _is_force_demoted_entry(cls, entry_type: str, instrument: str = "") -> bool:
+        return entry_type in cls._FORCE_DEMOTED or cls._is_price_shock_rev_auto_demoted(
+            entry_type, instrument
+        )
 
     # 全モードSentinel: scalp以外にも適用される戦略Sentinel
     _UNIVERSAL_SENTINEL = {
@@ -6901,7 +6986,7 @@ class DemoTrader:
             return "PAIR_PROMOTED"
         if self._is_elite_live(entry_type, instrument):
             return "ELITE_LIVE"
-        if entry_type in self._FORCE_DEMOTED:
+        if self._is_force_demoted_entry(entry_type):
             return "FORCE_DEMOTED"
         if _get_base_mode(mode) == "scalp" and entry_type in self._SCALP_SENTINEL:
             return "SCALP_SENTINEL"
@@ -7028,6 +7113,9 @@ class DemoTrader:
         if _mode == "off":
             return False  # 手動停止
 
+        if self._is_price_shock_rev_auto_demoted(entry_type, instrument):
+            return False
+
         # V2 audit scope: keep EUR_GBP/XAU_USD as shadow-only evidence cells.
         if self._is_trendline_sweep_v2_shadow_pair(entry_type, instrument):
             return False
@@ -7064,7 +7152,7 @@ class DemoTrader:
             return True  # ペア限定昇格
 
         # ── _FORCE_DEMOTED: 明示的モード指定がない場合はブロック ──
-        if entry_type in self._FORCE_DEMOTED:
+        if self._is_force_demoted_entry(entry_type):
             return False  # デモ継続・OANDA停止
 
         # ── 自動降格判定で demoted になった戦略もブロック ──

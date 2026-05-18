@@ -27,17 +27,13 @@ class HourlyEngine:
     """1H足戦略群を統括するエンジン。"""
 
     _shadow_always = frozenset({
-        # Phase B-1 Price-Shock Reversion Tier 1 (commit 35961351)
-        "price_shock_rev_eur_gbp_h1_long",
-        "price_shock_rev_eur_aud_h1_long",
-        "price_shock_rev_usd_cad_h1_long",
-        "price_shock_rev_nzd_jpy_h1_long",
-        "price_shock_rev_aud_jpy_h1_long",
         # KSB+DMB Shadow ramp 2026-05-18: v2.1 alpha absence reevaluation.
         # decisions/hourly-engine-shadow-ramp-2026-05-18.md
         "keltner_squeeze_breakout",
         "donchian_momentum_breakout",
     })
+    # Price-Shock Rev 5 strategies: Live activation v2 on 2026-05-18.
+    # They now use normal single-best emit and DemoTrader MIN-lot live routing.
 
     def __init__(self):
         self.strategies: list[StrategyBase] = [
