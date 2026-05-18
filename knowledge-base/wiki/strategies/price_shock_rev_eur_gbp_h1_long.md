@@ -30,3 +30,4 @@ EUR_GBP は range-bound major で reversion 効きが強い。
 ## 関連
 - BT runner: tools/price_shock_reversion_bt.py
 - Grid report: reports/price_shock_reversion_grid/shadow_promote_shortlist.md
+- TradingView Pine overlay: `bt-results/tv-overlays/price_shock_rev_eur_gbp_h1_long.pine` (Pine v6; signal-equivalent to BT runner via `tests/test_pine_overlay_equivalence.py`)

@@ -4,6 +4,7 @@ import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Optional
 
 import pytest
 
@@ -34,7 +35,7 @@ def _insert_trade(
     status: str = "CLOSED",
     close_reason: str = "horizon",
     days_ago: int = 1,
-    trade_id: str | None = None,
+    trade_id: Optional[str] = None,
 ):
     opened = datetime.now(timezone.utc) - timedelta(days=days_ago)
     with sqlite3.connect(db_path) as conn:

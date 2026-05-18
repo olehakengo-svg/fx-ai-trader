@@ -29,3 +29,4 @@ Qiita「予測を捨て、分布を読め」(tikeda123) の方法論。
 ## 関連
 - BT runner: tools/price_shock_reversion_bt.py
 - Grid report: reports/price_shock_reversion_grid/shadow_promote_shortlist.md
+- TradingView Pine overlay: `bt-results/tv-overlays/price_shock_rev_usd_cad_h1_long.pine` (Pine v6; signal-equivalent to BT runner via `tests/test_pine_overlay_equivalence.py`)
