@@ -214,3 +214,34 @@ Sanity test (`tests/test_prime_v2_audit_invariants.py`):
 - [feedback_shadow_first_quant_architecture](memory/feedback_shadow_first_quant_architecture.md): BT による「絶対 Kelly>=0.40」要求は禁止。shadow が estimator
 - [feedback_codex_schema_hallucination](memory/feedback_codex_schema_hallucination.md): EDGES 再計算するなら必ず実 shadow data から、推測禁止
 - 各戦略の **思想 (thesis)** は戦略本体のコメントから引用 (推測禁止)。判明しない場合は `THESIS_UNKNOWN` でマーク
+
+
+## Result (2026-05-18T09:17:12Z)
+
+exit=0 · 475s
+
+```
+完了しました。Commit `6f245338` を `main` に push 済みです。
+
+実装・生成物:
+- [tools/prime_v2_shadow_audit.py](/data/repo/fx-ai-trader/tools/prime_v2_shadow_audit.py): Render fetch、6 strategy × ≤5 cell lock、8-axis audit、Bonferroni/FDR、report/CSV/KB 出力
+- [tests/test_prime_v2_audit_invariants.py](/data/repo/fx-ai-trader/tests/test_prime_v2_audit_invariants.py): sanity 3 件
+- [research/prime_v2_audit_2026_05_18.md](/data/repo/fx-ai-trader/research/prime_v2_audit_2026_05_18.md)
+- [research/prime_v2_audit_cells.csv](/data/repo/fx-ai-trader/research/prime_v2_audit_cells.csv)
+- [knowledge-base/wiki/sessions/prime-v2-shadow-audit-2026-05-18.md](/data/repo/fx-ai-trader/knowledge-base/wiki/sessions/prime-v2-shadow-audit-2026-05-18.md)
+- [knowledge-base/wiki/decisions/prime-gate-promotion-path-bug-2026-05-18.md](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/prime-gate-promotion-path-bug-2026-05-18.md): `v2 Shadow Audit Complete ✓` 追記
+
+結果:
+- Hypothesis space: `m_total=9`、Bonferroni α=`0.005556`
+- Render rows: `6456` fetched、shadow WIN/LOSS non-XAU `5121`
+- Target 6 strategy rows: `307`
+- PRIME v2 SELECT: `0`
+- Near misses: `ob_retest_OVERLAP_BUY`, `wick_imbalance_reversion_ALL`, `ob_retest_ALL`, `dt_sr_channel_reversal_ADXQ2`
+- 推奨: NULL 報告として保持、`shadow N+30d` で同じ design-driven lock による再評価
+
+検証:
+- `python3 -m pytest ...` はこの環境の system `python3` に `pytest` が無く実行不可。
+- `.venv/bin/python -m pytest tests/test_prime_v2_audit_invariants.py -q`: `3 passed`
+- `.venv/bin/python -m pytest tests/ -x -q`: `1533 passed, 1 skipped, 1 xfailed`
+- `python3 -m py_compile tools/prime_v2_shadow_audit.py`: OK
+```
