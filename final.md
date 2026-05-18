@@ -70,7 +70,7 @@ Manual server check:
 
 ## Commit
 
-Commit SHA: `a24cb75e`
+Commit SHA: `7b91b386` (implementation commit; this final report correction is a follow-up metadata commit)
 
 Changed files:
 
