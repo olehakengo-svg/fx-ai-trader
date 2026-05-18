@@ -261,3 +261,44 @@ The remaining write target is small (1 file: `modules/demo_trader.py`). Codex
 must verify the demo_trader change is actually committed (not stashed) before
 marking complete — `git log -1 origin/main -- modules/demo_trader.py` must show
 the new commit.
+
+
+## Result (2026-05-18T05:59:27Z)
+
+exit=0 · 182s
+
+```
+完了しました。commit/push 済みです。
+
+Commit: `f98b2acd fix: restore PRIME gate promotion path`
+
+実装内容:
+- `modules/demo_trader.py`
+  - PRIME 判定を `open_trade` 前へ移動
+  - `_prime_live_lock` 追加
+  - `PRIME_OVERRIDE_ENABLED=0` kill-switch 追加
+  - emergency trip / Q4 / fallback / Phase0 / late shield を `_prime_live_lock` 尊重に変更
+  - `alpha_snapshot.prime` persistence 追加
+- decision doc に実装完了と検証結果を追記
+- `tools/tier_integrity_check.py --write` 実行に伴う tier master timestamp 更新
+
+検証:
+- `.venv/bin/python -m pytest tests/test_prime_gate_order.py -v`  
+  `7 passed`
+- `python3 tools/prime_gate_order_dry_run.py`  
+  `Total PRIME A/B LIVE fires (est): 75`  
+  `Total NEW LIVE fires (est): 70`  
+  `Spread/slippage adjusted PnL est: +5.6p`  
+  `Wilson_lo est: 0.333`
+- `.venv/bin/python scripts/check.py`  
+  ERROR=0 / 全6チェック通過
+- `.venv/bin/python -m pytest tests/ -x -q`  
+  `634 passed, 1 skipped` 後、PRIME 無関係の既存 failure:
+  `tests/test_ob_retest_h1.py::test_hourly_engine_includes_ob_retest_h1`
+
+git verify:
+- `git status --short --branch`: clean, `main...origin/main`
+- `git log --oneline -5 origin/main..HEAD`: empty
+- `git log -1 origin/main -- modules/demo_trader.py`: `f98b2acd fix: restore PRIME gate promotion path`
+- `git stash list`: empty
+```
