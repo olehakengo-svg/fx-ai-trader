@@ -89,3 +89,12 @@ must respect that lock:
 - Report: `research/prime_v2_audit_2026_05_18.md`
 - Cells CSV: `research/prime_v2_audit_cells.csv`
 - KB session: `knowledge-base/wiki/sessions/prime-v2-shadow-audit-2026-05-18.md`
+
+## DESIGN_BROKEN Diagnose Complete ✓
+
+2026-05-18 `dt_sr_channel_reversal` and `wick_imbalance_reversion` DESIGN_BROKEN diagnosis completed.
+
+- Formal proposal: `research/design_broken_redesign_proposal.md`
+- KB session: `knowledge-base/wiki/sessions/design-broken-diagnose-2026-05-18.md`
+- Source: Render `/api/demo/trades?limit=10000`, clean shadow WIN/LOSS rows, MAFE/MFE on `entry_price` basis.
+- Result: no implementation changes; generated draft BT specs only.
