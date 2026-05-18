@@ -82,6 +82,14 @@ class EmaTrendScalp(StrategyBase):
     def redesign_v2_enabled() -> bool:
         return os.environ.get("EMA_TREND_SCALP_REDESIGN_V2") == "1"
 
+    @staticmethod
+    def redesign_v3_enabled() -> bool:
+        # ETS_REDESIGN_V3 — Pre-reg LOCK
+        # (knowledge-base/wiki/analyses/ema-trend-scalp-redesign-prereg-2026-05-15.md)
+        # Restricts emissions to GBP_USD BUY only; default-OFF is byte-identical
+        # to legacy v9.5 behaviour.
+        return os.environ.get("ETS_REDESIGN_V3") == "1"
+
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         """
         EMA21プルバック順張りシグナル評価。
@@ -100,6 +108,9 @@ class EmaTrendScalp(StrategyBase):
         # ═══════════════════════════════════════════
         _sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
         if _sym in self._DISABLED_SYMBOLS:
+            return None
+        # Pre-reg LOCK v3: pair gate (GBPUSD only) — default-OFF byte-identical.
+        if self.redesign_v3_enabled() and _sym != "GBPUSD":
             return None
 
         # ═══════════════════════════════════════════
@@ -158,6 +169,10 @@ class EmaTrendScalp(StrategyBase):
                 tp = ctx.entry + _tp_dist
 
         # ── SELL: EMA9 < EMA21 + 価格がEMA21付近に戻り ──
+        # Pre-reg LOCK v3 direction gate: SELL is structurally dead per audit
+        # (knowledge-base/wiki/analyses/ema-trend-scalp-redesign-2026-05-14.md).
+        if signal is None and self.redesign_v3_enabled():
+            return None
         if signal is None and ctx.ema9 < ctx.ema21:
             _upper = ctx.ema21 + _atr * self.PB_ABOVE_MULT
             _lower = ctx.ema21 - _atr * self.PB_BELOW_MULT
