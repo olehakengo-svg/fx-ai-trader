@@ -235,3 +235,42 @@ All clear (N too low for demote evaluation).
 - memory `project_w3_1_h1_gate_done_2026_05_03` (H1 Gate 30/0.40/0.0 数値の参照値)
 
 
+
+
+## Result (2026-05-18T07:44:05Z)
+
+exit=0 · 367s
+
+```
+実装、テスト、commit/push まで完了しました。
+
+Commit: `e97e6ce7 feat: add price shock live shadow monitor`
+
+主な変更:
+- [tools/price_shock_live_shadow_monitor.py](/data/repo/fx-ai-trader/tools/price_shock_live_shadow_monitor.py)
+  - `is_shadow = 1` をSQL WHERE句に固定
+  - table / JSON 出力
+  - Wilson、PF、Kelly、raw/binomial p、Bonferroni p、SL/horizon ratio、週次EV cohort、shared lock監査
+  - Promote/Demote status 判定のみ。promotion自動変更なし
+- [tests/test_price_shock_live_shadow_monitor.py](/data/repo/fx-ai-trader/tests/test_price_shock_live_shadow_monitor.py)
+  - mockなし、SQLite demo DB + synthetic insert で指定ケース検証
+- [README.md](/data/repo/fx-ai-trader/README.md)
+  - Render shell 実行手順追記
+- [knowledge-base/wiki/index.md](/data/repo/fx-ai-trader/knowledge-base/wiki/index.md)
+  - System State に monitor 所在を1行追記
+- [.ai/tasks/queue/20260518-1457-price-shock-live-shadow-monitor-final.md](/data/repo/fx-ai-trader/.ai/tasks/queue/20260518-1457-price-shock-live-shadow-monitor-final.md)
+  - 実装ファイル、diff stat、pytest結果、サンプル出力、Known limitations を記録
+
+検証:
+```text
+PATH="$PWD/.venv/bin:$PATH" python3 -m pytest tests/test_price_shock_live_shadow_monitor.py -v
+9 passed in 2.71s
+```
+
+追加確認:
+- `python3 -m py_compile tools/price_shock_live_shadow_monitor.py` 成功
+- `git diff --stat HEAD~1` は final.md 記載と一致
+- `git status --short` clean
+- `git stash list` clean
+- `git push` 完了済み main -> main
+```
