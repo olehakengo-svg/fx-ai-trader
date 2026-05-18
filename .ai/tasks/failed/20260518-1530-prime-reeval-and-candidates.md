@@ -187,3 +187,10 @@ hot-fix task (`20260518-1500-prime-gate-order-hotfix`) の dry-run 結果と int
 - [feedback_label_empirical_audit](memory/feedback_label_empirical_audit.md): 「ロジック問題ない?」演繹禁止、shadow data × cell 実測クエリで答える
 - [feedback_codex_schema_hallucination](memory/feedback_codex_schema_hallucination.md): `prime_gate.py` の EDGES 構造を必ず実ファイル参照
 - [feedback_success_until_achieved](memory/feedback_success_until_achieved.md): NULL 結果 (新候補 0 件) でも別 angle で深掘りを試みること (Wave 6 風 pivot)
+
+
+## Error (2026-05-18T06:00:26Z)
+
+```
+orphaned: container restarted while task was running
+```
