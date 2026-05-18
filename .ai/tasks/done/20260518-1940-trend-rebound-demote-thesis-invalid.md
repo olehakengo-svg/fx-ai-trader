@@ -126,3 +126,37 @@ python3 tools/tier_integrity_check.py --check   # FORCE_DEMOTED ∩ PAIR_PROMOTE
 - [feedback_codex_stash_leak](memory/feedback_codex_stash_leak.md): final.md ACCEPT で完了させない、`git log/diff` で実 verify
 - 削除する 2 行 (PAIR_PROMOTED, PAIR_DEMOTED) を **コメントアウトではなく完全削除** (dead code 残置 = tier_integrity_check ノイズ源)
 - FORCE_DEMOTED 追加位置は alphabetical 順序を尊重 (`post_news_vol` の前後どちらでも可)
+
+
+## Result (2026-05-18T10:50:39Z)
+
+exit=0 · 701s
+
+```
+完了しました。`main` に single commit push 済みです。
+
+Commit:
+`545f6b5e Demote trend_rebound thesis invalid`
+
+実施内容:
+- `modules/demo_trader.py`
+  - `_FORCE_DEMOTED` に `trend_rebound` 追加
+  - `_PAIR_PROMOTED` から `trend_rebound × USD_JPY` 削除
+  - `_PAIR_DEMOTED` から `trend_rebound × EUR_USD` 削除
+- `tests/test_trend_rebound_demote.py` 追加
+- staleだった `tests/test_volume_live_promote_routing.py` の volume promote 期待値から `trend_rebound × USD_JPY` を除外
+- KB更新:
+  - `knowledge-base/wiki/strategies/trend-rebound.md`
+  - `knowledge-base/wiki/changelog.md`
+  - `knowledge-base/wiki/decisions/trend-rebound-thesis-invalid-2026-05-18.md`
+  - `sync_kb_index.py --write` / `tier_integrity_check.py --write` 生成物反映
+
+検証:
+- `.venv/bin/python -m pytest tests/test_trend_rebound_demote.py -q` → `3 passed`
+- `.venv/bin/python -m pytest tests/ -x -q` → `1565 passed, 1 skipped, 1 xfailed`
+- `python3 scripts/check.py` → ERROR=0 / 全6チェック通過
+- `python3 tools/tier_integrity_check.py --check` → exit 0、重複なし
+- `git log -1 origin/main -- modules/demo_trader.py` → `545f6b5e Demote trend_rebound thesis invalid`
+
+補足: この環境のシステム `python3` には `pytest` が入っていなかったため、pytestだけは repo の `.venv/bin/python` で実行しました。
+```
