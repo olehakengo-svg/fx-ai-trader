@@ -229,3 +229,10 @@ Spread/slippage adjusted PnL est: ±X.Xp
 - [feedback_codex_stash_leak](memory/feedback_codex_stash_leak.md): final.md `ACCEPT` だけで終わらせない。`git log --oneline -5 origin/main..HEAD` と `git stash list` を verify 出力に必ず含める
 - [feedback_codex_mock_test_trap](memory/feedback_codex_mock_test_trap.md): unit mock PASS だけで終わらせない。Render API dry-run 必須
 - Tier C (engulfing_bb_TOKYO_EARLY) は **never promote** の binding。誤って LIVE 復活させないこと
+
+
+## Error (2026-05-18T05:24:46Z)
+
+```
+orphaned: container restarted while task was running
+```
