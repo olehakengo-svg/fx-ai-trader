@@ -1099,6 +1099,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 - `sr_fib_confluence (GBP_USD)` — レンジATR60%はSR反発環境として適切。現在唯一のEV+傾向戦略。
 - `dt_sr_channel_reversal (EUR_JPY)` — RANGING+ATR84%はチャネル反転に構造的に合致。
 
+### 2026-05-18 (Pre-Tokyo Briefing)
+- **2026-05-17（前日）**: トレード **0件**、PnL **¥0**、WR **N/A**
+- Cutoff後（2026-04-08以降）累計: **N=6、WR=50.0%、PnL=+14.2 pips**
+- モード全25戦略中、稼働ON=23、OFF=2（daytrade_xau / scalp_xau / scalp_eurjpy）
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- recent_emit 過多は「シグナル品質の問題」ではなく「抑制ロジックの感度設定の問題」として切り分けて観察継続
+- hedge_blockはEUR_JPY集中ポジションリスクを示唆→ EUR_JPY系の方向確認を朝一で実施
+- spread_gate作動（scalp系）は昨日のスプレッド環境を反映→ 本日のスプレッド状況を東京時間開始時に確認
+- dt_sr_channel_reversal (EUR_JPY) : レンジ→チャネル反転に理論上適合
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
