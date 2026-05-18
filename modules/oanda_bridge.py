@@ -25,6 +25,8 @@ SUPPORTED_INSTRUMENTS = {
     "GBP_USD": "GBP_USD",
     "EUR_GBP": "EUR_GBP",
     "XAU_USD": "XAU_USD",
+    "USD_CAD": "USD_CAD",
+    "USD_CHF": "USD_CHF",
     "AUD_JPY": "AUD_JPY",
     "NZD_JPY": "NZD_JPY",
     "AUD_USD": "AUD_USD",
@@ -33,6 +35,8 @@ SUPPORTED_INSTRUMENTS = {
 }
 
 OANDA_EXECUTION_ENABLED = {
+    "USD_CAD": True,
+    "USD_CHF": True,
     "AUD_JPY": True,
     "NZD_JPY": True,
     "AUD_USD": True,
@@ -105,6 +109,7 @@ class OandaBridge:
     # v9.0: is_mode_allowed()は常にTrue。_ALL_MODESはUI状態表示のみに使用
     _ALL_MODES = {"scalp", "daytrade", "daytrade_1h", "scalp_eur", "daytrade_eur", "daytrade_1h_eur", "scalp_eurjpy",
                    "scalp_xau", "rnb_usdjpy", "daytrade_gbpusd", "daytrade_eurgbp", "daytrade_xau",
+                   "daytrade_1h_usdcad", "daytrade_1h_usdchf",
                    "daytrade_1h_audjpy", "daytrade_1h_nzdjpy", "daytrade_1h_audusd",
                    "daytrade_1h_nzdusd", "daytrade_1h_euraud",
                    "scalp_5m", "scalp_5m_eur", "scalp_5m_gbp",

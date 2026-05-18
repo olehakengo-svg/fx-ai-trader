@@ -72,12 +72,19 @@ LEGACY_DEAD_INLINE = {
 APP_PY = os.path.join(_PROJECT_ROOT, "app.py")
 PHASE_B1_SHADOW_CANDIDATES = {
     "price_shock_reversion": [
+        "USD_CAD",
+        "USD_CHF",
         "AUD_JPY",
         "NZD_JPY",
         "AUD_USD",
         "NZD_USD",
         "EUR_AUD",
     ],
+}
+
+PHASE_B1_SHADOW_CONSTRAINTS = {
+    "USD_CAD": "Tier 1 #3; Phase B Wave 1 candidate; Live promotion disabled in this task",
+    "USD_CHF": "Tier 3 WATCH; Phase B Wave 1 candidate; Live promotion disabled in this task",
 }
 
 
@@ -489,8 +496,12 @@ def generate_tier_master(sets: dict, strat_files: dict, issues: list) -> str:
     row_no = 1
     for strat, pairs in sorted(PHASE_B1_SHADOW_CANDIDATES.items()):
         for pair in pairs:
+            constraint = PHASE_B1_SHADOW_CONSTRAINTS.get(
+                pair,
+                "Shadow candidate; Live promotion disabled in this task",
+            )
             lines.append(
-                f"| {row_no} | {strat} | {pair} | Shadow candidate; Live promotion disabled in this task |"
+                f"| {row_no} | {strat} | {pair} | {constraint} |"
             )
             row_no += 1
     lines.append(f"")

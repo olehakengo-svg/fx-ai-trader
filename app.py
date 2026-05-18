@@ -10899,6 +10899,7 @@ _HMM_INSTRUMENT_TO_YF = {
     "GBP_USD": "GBPUSD=X",
     "EUR_GBP": "EURGBP=X",
     "USD_CAD": "USDCAD=X",
+    "USD_CHF": "USDCHF=X",
     "AUD_JPY": "AUDJPY=X",
     "NZD_JPY": "NZDJPY=X",
     "AUD_USD": "AUDUSD=X",
@@ -12059,6 +12060,7 @@ _PIPELINE_INSTRUMENT_MAP = {
     "GBP_USD": "GBPUSD=X",
     "EUR_GBP": "EURGBP=X",
     "USD_CAD": "USDCAD=X",
+    "USD_CHF": "USDCHF=X",
     "AUD_JPY": "AUDJPY=X",
     "NZD_JPY": "NZDJPY=X",
     "EUR_AUD": "EURAUD=X",
@@ -12078,6 +12080,7 @@ _DEFAULT_BEV_WR = {
     ("GBP_USD", "1h"): 36.0,
     ("EUR_GBP", "1h"): 30.0,
     ("USD_CAD", "1h"): 34.0,
+    ("USD_CHF", "1h"): 35.0,
     ("AUD_JPY", "1h"): 38.0,
     ("NZD_JPY", "1h"): 40.0,
     ("AUD_USD", "1h"): 35.0,
@@ -13931,7 +13934,7 @@ def api_oanda_live():
 
     # Current prices (multi-instrument)
     _instruments = [
-        "USD_JPY", "EUR_USD", "EUR_JPY", "GBP_JPY", "GBP_USD", "EUR_GBP", "USD_CAD",
+        "USD_JPY", "EUR_USD", "EUR_JPY", "GBP_JPY", "GBP_USD", "EUR_GBP", "USD_CAD", "USD_CHF",
         "AUD_JPY", "NZD_JPY", "AUD_USD", "NZD_USD", "EUR_AUD",
     ]
     result["prices"] = {}

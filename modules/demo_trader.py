@@ -49,6 +49,11 @@ AUD_NZD_SURFACE_PAIRS = (
     "EUR_AUD",
 )
 
+USD_CAD_USD_CHF_SURFACE_PAIRS = (
+    "USD_CAD",
+    "USD_CHF",
+)
+
 PRICE_SHOCK_REV_TIER1_TYPES = frozenset({
     "price_shock_rev_eur_gbp_h1_long",
     "price_shock_rev_eur_aud_h1_long",
@@ -293,6 +298,18 @@ MODE_CONFIG = {
         "icon": "🕐🇺🇸🇨🇦",
         "symbol": "USDCAD=X",
         "instrument": "USD_CAD",
+        "auto_start": False,
+        "base_sl_pips": 30,
+    },
+    "daytrade_1h_usdchf": {
+        "interval_sec": 60,
+        "tf": "1h",
+        "period": "60d",
+        "signal_fn": "compute_hourly_signal",
+        "label": "1H PriceShock USD/CHF",
+        "icon": "🕐🇺🇸🇨🇭",
+        "symbol": "USDCHF=X",
+        "instrument": "USD_CHF",
         "auto_start": False,
         "base_sl_pips": 30,
     },
@@ -858,6 +875,7 @@ class DemoTrader:
         "GBP_USD": "GBPUSD=X",
         "EUR_GBP": "EURGBP=X",
         "USD_CAD": "USDCAD=X",
+        "USD_CHF": "USDCHF=X",
         "AUD_JPY": "AUDJPY=X",
         "NZD_JPY": "NZDJPY=X",
         "AUD_USD": "AUDUSD=X",
@@ -4143,6 +4161,8 @@ class DemoTrader:
                 "EUR_USD": 1.2,
                 "GBP_USD": 1.5,     # v7.0: 1.2→1.5 (OANDA実測0.8-1.8pip)
                 "EUR_GBP": 1.5,     # v7.0: 1.2→1.5
+                "USD_CAD": 1.5,
+                "USD_CHF": 1.5,
                 "AUD_USD": 1.5,
                 "NZD_USD": 1.7,
                 "EUR_AUD": 2.0,
@@ -6777,7 +6797,7 @@ class DemoTrader:
         "sr_weighted_bounce",          # SR Weighted Bounce v1: heavy wall + composite weight gate (Shadow-only 2026-05-13)
         "sr_weighted_break",           # SR Weighted Break v1: heavy wall breakout retest (Shadow-only 2026-05-13, break family pair)
         "macd_rsi_pullback",           # MACD hist_dir + H1 RSI 60/40 trend-pullback (USD_JPY 1H, TV 3.5y N=196 WR=39.29% PF=1.161 +EV, SCALP_SENTINEL shadow-first 2026-05-14, Live N>=30 で gate 再判定)
-        "price_shock_reversion",       # Price-Shock Reversion Phase B-1 shadow candidates: AUD_JPY/NZD_JPY/AUD_USD/NZD_USD/EUR_AUD
+        "price_shock_reversion",       # Price-Shock Reversion Phase B-1 shadow candidates: AUD/NZD + USD_CAD/USD_CHF surface slots
         # REMOVED 2026-04-22: ema200_trend_reversal → _FORCE_DEMOTED (H-2026-04-22-004 全ペア負EV)
         "post_news_vol",               # ニュース後ボラ — WR=42.4%, Sentinel再検証
         # 2026-04-28 Phase 8 Track A 3-way interaction discovery (Sentinel override)

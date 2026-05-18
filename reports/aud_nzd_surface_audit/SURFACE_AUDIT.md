@@ -65,3 +65,38 @@ Note: plain `python3 app.py` failed in this container because the system Python 
 - Practice account: not verified. This environment has no `OANDA_PRACTICE_TOKEN` / `OANDA_PRACTICE_ACCOUNT_ID`; attempting the practice base URL with available credentials returned 401 insufficient authorization.
 
 No target pair was marked `Shadow only / OANDA execution disabled` because Live tradability passed and Practice could not be assessed with valid practice credentials.
+
+---
+
+# USD/CAD + USD/CHF Surface Addendum
+
+Date: 2026-05-18
+
+Target pairs: `USD_CAD`, `USD_CHF`
+
+## Summary
+
+| layer | file | 2 pair support | downstream impact |
+|---|---|---:|---|
+| demo_trader pair list | `modules/demo_trader.py` | 対応済 | `daytrade_1h_usdcad` and `daytrade_1h_usdchf` expose shadow-only 1h surface slots with `auto_start=False`. |
+| OANDA bridge instrument | `modules/oanda_bridge.py` | 対応済 | `SUPPORTED_INSTRUMENTS` resolves both pairs; `OANDA_EXECUTION_ENABLED` is populated only after tradability verification. |
+| UI dashboard | `templates/demo_analysis.html` | 対応済 | Sidebar, filter, JS `PAIRS`, `MODE_DEFS`, trade log labels, position labels, and pip-value maps include both pairs. |
+| API endpoints | `app.py`, `modules/demo_trader.py` | 対応済 | `/api/demo/status` returns both pair slots; OANDA live price polling includes both pairs. |
+| Risk analytics | `modules/risk_analytics.py` | 対応済 | `compute_risk_dashboard()` remains pair-agnostic and aggregates both synthetic position sets under `by_instrument`. |
+| tier-master | `knowledge-base/wiki/tier-master.json`, `knowledge-base/wiki/tier-master.md`, `tools/tier_integrity_check.py` | 対応済 | `USD_CAD` is documented as Tier 1 #3 / Phase B Wave 1 candidate; `USD_CHF` as Tier 3 WATCH / Phase B Wave 1 candidate. |
+| KB index | `knowledge-base/wiki/index.md` | 対応済 | Phase B-1 candidate list includes both pairs. |
+| MASSIVE parquet | `data/cache/massive` | 対応済 | `USD_CAD_1h.parquet`, `USD_CHF_1h.parquet`, `USD_CAD_4h.parquet`, and `USD_CHF_4h.parquet` exist. |
+
+## Repro Commands
+
+```bash
+git log --oneline -20
+git show --stat 9a865564
+grep -RInE "USD_CAD|USD_CHF|AUD_JPY|NZD_JPY|AUD_USD|NZD_USD|EUR_AUD|SUPPORTED_INSTRUMENTS|PHASE_B1_SHADOW_CANDIDATES" modules app.py templates knowledge-base tests tools
+find data/cache/massive -maxdepth 1 -type f \( -name 'USD_CAD*' -o -name 'USD_CHF*' \) | sort
+python3 tools/sync_kb_index.py --write
+python3 tools/tier_integrity_check.py --write
+.venv/bin/python -m pytest -q tests/test_usd_cad_usd_chf_pair_surface.py tests/test_aud_nzd_pair_surface.py
+NO_AUTOSTART=1 PORT=5020 .venv/bin/python app.py
+curl -sS http://127.0.0.1:5020/api/demo/status
+```

@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-05-18 05:39 UTC
+**最終更新**: 2026-05-18 05:47 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -145,11 +145,13 @@
 
 | # | 戦略名 | ペア | 制約 |
 |---|---|---|---|
-| 1 | price_shock_reversion | AUD_JPY | Shadow candidate; Live promotion disabled in this task |
-| 2 | price_shock_reversion | NZD_JPY | Shadow candidate; Live promotion disabled in this task |
-| 3 | price_shock_reversion | AUD_USD | Shadow candidate; Live promotion disabled in this task |
-| 4 | price_shock_reversion | NZD_USD | Shadow candidate; Live promotion disabled in this task |
-| 5 | price_shock_reversion | EUR_AUD | Shadow candidate; Live promotion disabled in this task |
+| 1 | price_shock_reversion | USD_CAD | Tier 1 #3; Phase B Wave 1 candidate; Live promotion disabled in this task |
+| 2 | price_shock_reversion | USD_CHF | Tier 3 WATCH; Phase B Wave 1 candidate; Live promotion disabled in this task |
+| 3 | price_shock_reversion | AUD_JPY | Shadow candidate; Live promotion disabled in this task |
+| 4 | price_shock_reversion | NZD_JPY | Shadow candidate; Live promotion disabled in this task |
+| 5 | price_shock_reversion | AUD_USD | Shadow candidate; Live promotion disabled in this task |
+| 6 | price_shock_reversion | NZD_USD | Shadow candidate; Live promotion disabled in this task |
+| 7 | price_shock_reversion | EUR_AUD | Shadow candidate; Live promotion disabled in this task |
 
 ### B-5. Phase0 Shadow Gate（32戦略 — 自動Shadow）
 

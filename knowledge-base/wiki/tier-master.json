@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-18T05:39:50.144248+00:00",
+  "generated_at": "2026-05-18T05:47:00.600374+00:00",
   "elite_live": [
     "trendline_sweep"
   ],
@@ -294,6 +294,8 @@
   "quick_harvest_exempt": [],
   "phase_b1_shadow_candidates": {
     "price_shock_reversion": [
+      "USD_CAD",
+      "USD_CHF",
       "AUD_JPY",
       "NZD_JPY",
       "AUD_USD",
