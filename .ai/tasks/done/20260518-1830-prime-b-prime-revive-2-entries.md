@@ -224,3 +224,33 @@ python3 scripts/check.py                               # KB consistency
 - [feedback_codex_schema_hallucination](memory/feedback_codex_schema_hallucination.md): `modules/prime_gate.py` 現状を必ず実ファイル参照、推測禁止
 - 復活 2 entries 以外は **DO NOT TOUCH** (post-hoc bias 回避)
 - `bb_rsi_reversion_NY_ATRQ2` (Wlo=0.217 で gate 通過に見える) を誤って revive しないこと: WF=0/3 が決定的 fail
+
+
+## Result (2026-05-18T10:24:05Z)
+
+exit=0 · 167s
+
+```
+完了しました。commit/push 済みです。
+
+- Commit: `32c97f11 fix(prime): revive micro live B prime cells`
+- Push確認: `git log -1 origin/main -- modules/prime_gate.py` で `32c97f11` を確認
+- Worktree: clean
+
+変更内容:
+- [modules/prime_gate.py](/data/repo/fx-ai-trader/modules/prime_gate.py): `fib_reversal_PRIME` / `sr_fib_confluence_GBP_ADXQ2` を Tier B `0.05` に復活
+- [tests/test_prime_gate_v2_apply.py](/data/repo/fx-ai-trader/tests/test_prime_gate_v2_apply.py): 全 Tier C 前提を B' 前提へ更新
+- [tests/test_prime_b_prime_revive.py](/data/repo/fx-ai-trader/tests/test_prime_b_prime_revive.py): 4 sanity tests 追加
+- KB decision / lesson / changelog / tier-master 更新
+
+検証:
+- `.venv/bin/python -m pytest tests/test_prime_gate_v2_apply.py tests/test_prime_b_prime_revive.py -v`: 9 passed
+- `.venv/bin/python -m pytest tests/test_prime_gate_order.py -v`: 7 passed
+- `.venv/bin/python -m pytest tests/test_volume_live_promote_routing.py -v`: 5 passed
+- `python3 scripts/check.py`: 全6チェック通過 / ERROR=0
+- `python3 tools/prime_gate_order_dry_run.py`: PRIME B fires `35` total (`fib=19`, `sr_fib=16`), PRIME A active entriesなし
+
+未達:
+- `.venv/bin/python -m pytest tests/ -x -q` は今回差分外の既存 failure で停止しました。
+  `tests/test_api_oanda_stats_range.py::test_oanda_stats_range_filters_and_excludes_xau_by_default` が `today["total"] == 1` 期待に対して `5` を返しています。現状の [app.py](/data/repo/fx-ai-trader/app.py:13853) の `/api/oanda/stats` route が `range` / `exclude_xau` を処理していないためで、今回 locked scope 外なので修正していません。
+```
