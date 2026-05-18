@@ -163,3 +163,72 @@ python3 tools/tier_integrity_check.py --write
 - memory `feedback_shadow_first_quant_architecture`
 - memory `feedback_codex_mock_test_trap`
 - memory `feedback_codex_stash_leak`
+
+
+## Result (2026-05-18T05:11:39Z)
+
+exit=0 · 605s
+
+```
+**Verdict: PARTIAL vs strict DoD**
+
+実装・テスト・commit/push は完了しました。Strict DoD では以下 2 点だけ未達です。
+
+- Practice OANDA tradability: practice 用 env がなく、practice base URL は 401 で未検証。
+- `git status` clean: 作業前から存在した OB retest 系 untracked files が残っています。今回分は commit 済み、stash は空です。
+
+Commit pushed:
+
+```text
+9a86556452ad19434ecc8a73ad51d17ba65167f7 Add AUD/NZD pair surface slots
+```
+
+実装内容:
+
+- `AUD_JPY / NZD_JPY / AUD_USD / NZD_USD / EUR_AUD` を demo/API/OANDA/UI/risk/KB に surface 追加
+- 追加 mode は `daytrade_1h_*`、すべて `auto_start=False`
+- `price_shock_reversion` は `UNIVERSAL_SENTINEL` として登録。Live promotion flag は変更なし
+- Audit report: `reports/aud_nzd_surface_audit/SURFACE_AUDIT.md`
+- Test: `tests/test_aud_nzd_pair_surface.py`
+
+検証:
+
+```text
+python3 -m py_compile ... -> PASS
+.venv/bin/python -m pytest tests/test_aud_nzd_pair_surface.py tests/test_risk_analytics_mc_lot_multiplier.py tests/test_edge_activation_review_fixes.py
+16 passed
+```
+
+OANDA tradability:
+
+```text
+Live: AUD_JPY=True, NZD_JPY=True, AUD_USD=True, NZD_USD=True, EUR_AUD=True
+Practice: not verified, missing practice credentials; request returned 401
+```
+
+手動起動検証:
+
+- `python3 app.py`: system Python に Flask がなく失敗
+- `NO_AUTOSTART=1 PORT=5018 .venv/bin/python app.py`: 起動成功
+- `curl http://127.0.0.1:5018/api/demo/status` snippet:
+
+```json
+{
+  "pairs": {
+    "AUD_JPY": {"instrument": "AUD_JPY", "modes": ["daytrade_1h_audjpy"]},
+    "NZD_JPY": {"instrument": "NZD_JPY", "modes": ["daytrade_1h_nzdjpy"]},
+    "AUD_USD": {"instrument": "AUD_USD", "modes": ["daytrade_1h_audusd"]},
+    "NZD_USD": {"instrument": "NZD_USD", "modes": ["daytrade_1h_nzdusd"]},
+    "EUR_AUD": {"instrument": "EUR_AUD", "modes": ["daytrade_1h_euraud"]}
+  }
+}
+```
+
+Final checks:
+
+```text
+git stash list: empty
+server on :5018: stopped
+git status: only pre-existing OB retest untracked files remain
+```
+```
