@@ -336,3 +336,10 @@ Codex は完了時に以下を Discord 経由で返す:
 - BT 結果の cherry-pick (5 pair 全結果を `raw/bt-results/` に保存、verdict は LOCKED 基準のみで判定)
 - `--no-verify` `--no-gpg-sign` 等の hook bypass
 - 機微情報 (`OANDA_API_KEY=`, `sk-`, `rnd_`, `ghp_`, `OPENAI_API_KEY=`) のコミット
+
+
+## Error (2026-05-18T05:00:48Z)
+
+```
+orphaned: container restarted while task was running
+```
