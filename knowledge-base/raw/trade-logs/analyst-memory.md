@@ -1109,6 +1109,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 - spread_gate作動（scalp系）は昨日のスプレッド環境を反映→ 本日のスプレッド状況を東京時間開始時に確認
 - dt_sr_channel_reversal (EUR_JPY) : レンジ→チャネル反転に理論上適合
 
+### 2026-05-18 (Post-London Report)
+| 勝率 (WR) | 100.0% |
+| 総PnL | **+13.3 pips** |
+| 平均EV/トレード | +13.30 |
+| 戦略 | ペア | PnL | Dir | 成功要因 |
+- スプレッド1.3pips（scalp閾値30%基準では許容範囲内）
+- GBP_USDはATR%ile 60%・RANGING レジームながら、momentumシグナルが単発で有効に機能
+| WR | — | 100% |
+| PnL | 0 | +13.3 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
