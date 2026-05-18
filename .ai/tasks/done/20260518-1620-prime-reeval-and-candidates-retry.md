@@ -189,3 +189,36 @@ hot-fix task (`20260518-1500-prime-gate-order-hotfix`) の dry-run 結果と int
 - [feedback_success_until_achieved](memory/feedback_success_until_achieved.md): NULL 結果 (新候補 0 件) でも別 angle で深掘りを試みること (Wave 6 風 pivot)
 
 
+
+
+## Result (2026-05-18T07:37:24Z)
+
+exit=0 · 83s
+
+```
+完了しました。`origin/main` へ push 済みです。
+
+Commit: `7ee6920d chore(codex): refresh prime reeval artifacts`
+
+主要結果:
+- Task A: 既存 PRIME 6件は `engulfing_bb_TOKYO_EARLY` の Tier C KEEP 以外、A/B 全て DEMOTE 判定
+- Task B: 6戦略 × 768 cell = 4608 hypotheses 探索完了
+- Bonferroni 採用 cell: `0`
+- FDR BH q=0.10 pass cell: `0`
+- v2 提案作成: [research/prime_gate_v2_proposal.py](/data/repo/fx-ai-trader/research/prime_gate_v2_proposal.py)
+- セッション報告: [knowledge-base/wiki/sessions/prime-reeval-2026-05-18.md](/data/repo/fx-ai-trader/knowledge-base/wiki/sessions/prime-reeval-2026-05-18.md)
+- Task B 全 cell CSV: [research/prime_reeval_task_b_cells.csv](/data/repo/fx-ai-trader/research/prime_reeval_task_b_cells.csv)
+- 新候補 0 件のため `prereg-prime-v2-2026-05-18.md` は作成していません
+- `modules/prime_gate.py` 本体は未変更
+
+検証:
+- `.venv/bin/python tools/prime_reeval_sanity.py --write-artifacts`
+  - drift 検出のため終了コード `2`。これは `PRIME drift detected` を返す設計通りです。
+- `.venv/bin/python tools/prime_gate_order_dry_run.py`
+  - hot-fix dry-run 30d PRIME A/B LIVE fires: `71`
+  - re-eval report 側も `MATCH (71)`
+- `.venv/bin/python -m py_compile tools/prime_reeval_sanity.py research/prime_gate_v2_proposal.py`
+  - OK
+- `git diff --stat origin/main..HEAD`
+  - 空、push 後の `HEAD == origin/main` を確認済み。
+```
