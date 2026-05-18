@@ -43,6 +43,12 @@ python app.py
 pytest tests/ -v
 ```
 
+### Render shell: Price-Shock Live Shadow Monitor
+
+```bash
+python3 tools/price_shock_live_shadow_monitor.py --weeks 6
+```
+
 ## 開発フロー
 
 ### ブランチ戦略

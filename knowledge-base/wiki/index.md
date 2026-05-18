@@ -133,6 +133,7 @@
 - **Strategy-aware MTF alignment**: **active** (v9.3 P0) — 4 family (TF/MR/BO/SE) × regime
 - **REGIME_ADAPTIVE_FAMILY**: **active** (v9.3 P2) — bb_rsi/fib の regime 別 family override
 - **A/B Gate Routing**: **active** (v9.3 Phase D) — hash-based 50/50 (mtf_gated / label_only)
+- Price-Shock Live Shadow Monitor: `tools/price_shock_live_shadow_monitor.py` (Phase B-1 promote/demote evidence, Shadow-only `is_shadow=1`)
   - Group A conflict → LIVE→SHADOW downgrade (soft gate)
   - 5-7日で N≥500/group, 30日で p<0.05 検出想定
 
