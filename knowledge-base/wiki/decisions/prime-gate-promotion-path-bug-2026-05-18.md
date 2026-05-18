@@ -37,5 +37,9 @@ must respect that lock:
 
 ## Verification Notes
 
-Unit verification passes locally. Render API dry-run is required before deploy;
-if the API returns 502, rerun `tools/prime_gate_order_dry_run.py` when Render is healthy.
+2026-05-18 Codex retry verification:
+
+- `.venv/bin/python -m pytest tests/test_prime_gate_order.py -v`: 7 passed.
+- `python3 tools/prime_gate_order_dry_run.py`: PRIME A/B LIVE fires est=75, NEW LIVE fires est=70, adjusted PnL est=+5.6p, Wilson_lo est=0.333.
+- `.venv/bin/python scripts/check.py`: ERROR=0 / all 6 checks passed.
+- `.venv/bin/python -m pytest tests/ -x -q`: stopped on pre-existing unrelated registration failure `tests/test_ob_retest_h1.py::test_hourly_engine_includes_ob_retest_h1` after 634 passed, 1 skipped.

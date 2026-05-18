@@ -4737,6 +4737,25 @@ class DemoTrader:
         _dow_regime = self._compute_dow_regime(instrument, _entry_time)
         _v2_regime = self._compute_v2_regime(instrument, _entry_time)
         _confluence = self._compute_confluence_tag(instrument, signal, _entry_time)
+
+        # ══════════════════════════════════════════════════════
+        # ── v9.4 PRIME gate (binding: prereg-6-prime-strategies-2026-04-21)
+        # PRIME A/B live-lock must be decided before downstream shadow gates.
+        # Tier C (engulfing_bb_TOKYO_EARLY) remains Shadow-only.
+        # ══════════════════════════════════════════════════════
+        _prime_match = classify_prime(entry_type, instrument, sig, _entry_time)
+        _prime_lot_mult = 0.0
+        _prime_tier = None
+        if _prime_match:
+            _prime_tier = _prime_match["tier"]
+            _prime_lot_mult = _prime_match["lot_multiplier"]
+            self._add_log(f"🎯 {prime_fingerprint(_prime_match)}")
+
+        _prime_live_lock = bool(_prime_match and _prime_match.get("tier") in ("A", "B"))
+        if _prime_live_lock and _os.environ.get("PRIME_OVERRIDE_ENABLED", "1") != "1":
+            _prime_live_lock = False
+            self._add_log("[PRIME] override disabled via env (PRIME_OVERRIDE_ENABLED=0)")
+
         trade_id = self._db.open_trade(
             direction=signal,
             entry_price=current_price,
@@ -4782,6 +4801,13 @@ class DemoTrader:
                 from tools.alpha_factor_snapshot import snapshot_at
                 _snap = snapshot_at(instrument, tf="15m")
                 if _snap and "error" not in _snap:
+                    if _prime_match:
+                        _snap = dict(_snap)
+                        _snap["prime"] = {
+                            "name": _prime_match["name"],
+                            "tier": _prime_tier,
+                            "lot_mult": _prime_lot_mult,
+                        }
                     _snap_json = json.dumps(_snap, default=str)
                     with self._db._safe_conn() as _conn:
                         _conn.execute(
@@ -4807,22 +4833,6 @@ class DemoTrader:
         self._dd_phase_at_entry[trade_id] = self._defensive_mode
         # NOTE: ExposureManager への登録は shadow safety-net (L4252/4272/Q4 gate) を
         # 通過した後の最終 _is_shadow 値で行う必要があるため、後続ブロックで実施する。
-
-        # ══════════════════════════════════════════════════════
-        # ── v9.4 PRIME gate (binding: prereg-6-prime-strategies-2026-04-21)
-        # Path A filter: signal 関数は不変。entry context が 6 PRIME 条件の
-        # いずれかに該当したら Tier A/B は LIVE 昇格 (_SHADOW_MODE bypass)
-        # + small-lot 適用。Tier C (engulfing_bb_TOKYO_EARLY) は Shadow 継続
-        # のみ。2026-05-15 再評価まで thresholds/lot 変更禁止。
-        # ══════════════════════════════════════════════════════
-        _prime_match = classify_prime(entry_type, instrument, sig,
-                                      datetime.now(timezone.utc))
-        _prime_lot_mult = 0.0
-        _prime_tier = None
-        if _prime_match:
-            _prime_tier = _prime_match["tier"]
-            _prime_lot_mult = _prime_match["lot_multiplier"]
-            self._add_log(f"🎯 {prime_fingerprint(_prime_match)}")
 
         # ══════════════════════════════════════════════════════
         # ── 動的ロットサイジング v6.2: 3-Factor Model ──────
@@ -4992,7 +5002,7 @@ class DemoTrader:
         # Kill-switch: env var VWAP_MR_OANDA_TRIP (default=1); "0" で解除.
         # 解除条件: v2 sublimation logic が Shadow で N≥20 正 EV を実証.
         _VWAP_MR_OANDA_TRIP = _os.environ.get("VWAP_MR_OANDA_TRIP", "1") == "1"
-        if _VWAP_MR_OANDA_TRIP and entry_type == "vwap_mean_reversion":
+        if _VWAP_MR_OANDA_TRIP and entry_type == "vwap_mean_reversion" and not _prime_live_lock:
             if not _is_shadow:
                 _is_shadow = True
                 _is_promoted = False
@@ -5010,7 +5020,7 @@ class DemoTrader:
         # Kill-switch: env var BB_RSI_OANDA_TRIP (default=1); "0" で解除.
         # 解除条件: RR 1.5 拡張版が BT 365日で EV+ 実証 (pre-reg 別途).
         _BB_RSI_OANDA_TRIP = _os.environ.get("BB_RSI_OANDA_TRIP", "1") == "1"
-        if _BB_RSI_OANDA_TRIP and entry_type == "bb_rsi_reversion":
+        if _BB_RSI_OANDA_TRIP and entry_type == "bb_rsi_reversion" and not _prime_live_lock:
             if not _is_shadow:
                 _is_shadow = True
                 _is_promoted = False
@@ -5035,7 +5045,9 @@ class DemoTrader:
         #   — Q4 rule (Kelly<0 AND Wilson_hi<BEV AND N>=15) は 4 戦略の
         #   confidence_v2 transition を目的とした net で、DT幹の ELITE は
         #   別 pre-reg で BT STRONG 確認済み. 混在で LIVE が封じ込まれていた.
-        if not self._is_elite_live(entry_type, instrument) and _q4_should_shadow(entry_type, _q4_conf_val):
+        if (not self._is_elite_live(entry_type, instrument)
+                and not _prime_live_lock
+                and _q4_should_shadow(entry_type, _q4_conf_val)):
             if not _is_shadow:
                 _q4_reason = _q4_gate_reason(entry_type, _q4_conf_val) or "Q4_GATE"
                 self._add_log(f"🛡️ {_q4_reason}")
@@ -5044,17 +5056,23 @@ class DemoTrader:
         # ── v8.9: FORCE_DEMOTED/PAIR_DEMOTED がフィルターを全通過した場合も
         #    is_shadow=True にする。OANDAに送信されないトレードはshadowとしてマーク
         #    → エクイティ曲線から除外、統計から除外される
-        # v9.4: PRIME A/B は pre-registered override — shadow 強制から除外
-        if not _is_promoted and not _is_shadow and _prime_tier not in ("A", "B"):
-            _is_shadow = True
-        # PRIME A/B で _is_promoted=False の場合 (base が _FORCE_DEMOTED 等) は
-        # pre-reg override で昇格再有効化。
-        if _prime_tier in ("A", "B") and not _is_promoted and not _is_shadow:
+        # PRIME A/B fast-path (pre-reg override)
+        if _prime_live_lock:
+            if _is_shadow:
+                self._add_log(
+                    f"[PRIME] WARN: _is_shadow=True under PRIME lock — "
+                    f"reverting (tier {_prime_tier} {_prime_match['name']})"
+                )
+            _is_shadow = False
             _is_promoted = True
+            _shadow_at_open = False
             self._add_log(
-                f"[PRIME] Pre-reg override: {entry_type} {instrument} "
+                f"[PRIME] Live promote: {entry_type} {instrument} "
                 f"→ LIVE (tier {_prime_tier}, lot {_prime_lot_mult:.2f}x)"
             )
+        # ── v8.9: existing fallback; non-promoted/non-shadow trades are shadow.
+        if not _is_promoted and not _is_shadow:
+            _is_shadow = True
         # ── v9.0 Phase 0: Three-tier SHADOW gate ──
         # Non-ELITE, non-SENTINEL strategies are forced to shadow when _SHADOW_MODE is active.
         # This runs ON TOP of existing logic: even if _is_promoted=True, shadow overrides it
@@ -5065,7 +5083,7 @@ class DemoTrader:
                 and not _is_shadow
                 and not self._is_elite_live(entry_type, instrument)
                 and (entry_type, instrument) not in self._PAIR_PROMOTED
-                and _prime_tier not in ("A", "B")):
+                and not _prime_live_lock):
             _is_shadow = True
             _is_promoted = False
             self._add_log(
@@ -5240,7 +5258,7 @@ class DemoTrader:
         # Shadow として確定させる。未送信 (oanda_trade_id=NULL) かつ is_shadow=0 のまま
         # DB に残ると、5 分以内の Render 再起動で _resend_pending_oanda_trades() が
         # gate を迂回して resend してしまうため。
-        if not _is_promoted and not _is_shadow and _prime_tier not in ("A", "B"):
+        if not _is_promoted and not _is_shadow and not _prime_live_lock:
             _is_shadow = True
             self._db.update_shadow_status(trade_id, True)
             # ExposureManager の状態も同期 (既に登録済みのレコードを Shadow に更新)
