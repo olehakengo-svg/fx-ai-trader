@@ -23,7 +23,8 @@ class _OrderBlock:
 class ObRetestH1(StrategyBase):
     name = "ob_retest_h1"
     mode = "hourly"
-    # Pre-reg 365d BT on 2026-05-18 failed LOCK criteria (all pairs N<200).
+    # rule:R1 rollback: pre-reg 365d BT on 2026-05-18 failed LOCK criteria
+    # (all pairs N<200).
     # Keep registered for future review, but do not emit live/shadow candidates.
     enabled = False
 

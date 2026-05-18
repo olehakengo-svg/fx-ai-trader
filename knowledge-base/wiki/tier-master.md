@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-05-18 05:58 UTC
+**最終更新**: 2026-05-18 06:07 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -39,7 +39,7 @@
 
 ## B. Shadow戦略（OANDA非通過 — デモのみ記録）
 
-### B-1. FORCE_DEMOTED（24戦略 — 全ペア強制Shadow）
+### B-1. FORCE_DEMOTED（25戦略 — 全ペア強制Shadow）
 
 | # | 戦略名 | 365d BT JPY EV | EUR EV | GBP EV |
 |---|---|---|---|---|
@@ -55,18 +55,19 @@
 | 10 | intraday_seasonality | — | — | — |
 | 11 | lin_reg_channel | — | — | — |
 | 12 | macdh_reversal | — | — | — |
-| 13 | orb_trap | — | — | — |
-| 14 | post_news_vol | +1.119 | +0.844 | +1.302 |
-| 15 | price_shock_rev_aud_jpy_h1_long | — | — | — |
-| 16 | price_shock_rev_eur_aud_h1_long | — | — | — |
-| 17 | price_shock_rev_eur_gbp_h1_long | — | — | — |
-| 18 | price_shock_rev_nzd_jpy_h1_long | — | — | — |
-| 19 | price_shock_rev_usd_cad_h1_long | — | — | — |
-| 20 | sr_break_retest | — | — | — |
-| 21 | sr_channel_reversal | — | — | — |
-| 22 | stoch_trend_pullback | — | — | — |
-| 23 | v_reversal | — | — | — |
-| 24 | vwap_mean_reversion | +1.155 | +0.827 | +1.087 |
+| 13 | ob_retest | — | — | — |
+| 14 | orb_trap | — | — | — |
+| 15 | post_news_vol | +1.119 | +0.844 | +1.302 |
+| 16 | price_shock_rev_aud_jpy_h1_long | — | — | — |
+| 17 | price_shock_rev_eur_aud_h1_long | — | — | — |
+| 18 | price_shock_rev_eur_gbp_h1_long | — | — | — |
+| 19 | price_shock_rev_nzd_jpy_h1_long | — | — | — |
+| 20 | price_shock_rev_usd_cad_h1_long | — | — | — |
+| 21 | sr_break_retest | — | — | — |
+| 22 | sr_channel_reversal | — | — | — |
+| 23 | stoch_trend_pullback | — | — | — |
+| 24 | v_reversal | — | — | — |
+| 25 | vwap_mean_reversion | +1.155 | +0.827 | +1.087 |
 
 ### B-2. SCALP_SENTINEL（10戦略 — Scalp最小ロットShadow）
 
@@ -192,7 +193,9 @@
 
 ## C. 整合性チェック結果
 
-✅ **全チェックパス** — FORCE_DEMOTED残存なし、矛盾なし
+### ⚠️ WARN（1件）
+- No strategy file found for 'ob_retest'
+
 ### ℹ️ INFO（14件）
 - Legacy dead inline 'bb_bounce' assigned in app.py — no production firing in 30+ days. Candidate for removal.
 - Legacy dead inline 'divergence' assigned in app.py — no production firing in 30+ days. Candidate for removal.

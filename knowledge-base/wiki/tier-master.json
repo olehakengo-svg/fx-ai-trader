@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-18T05:58:49.551960+00:00",
+  "generated_at": "2026-05-18T06:07:47.697713+00:00",
   "elite_live": [
     "trendline_sweep"
   ],
@@ -16,6 +16,7 @@
     "intraday_seasonality",
     "lin_reg_channel",
     "macdh_reversal",
+    "ob_retest",
     "orb_trap",
     "post_news_vol",
     "price_shock_rev_aud_jpy_h1_long",

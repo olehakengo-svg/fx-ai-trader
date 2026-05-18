@@ -1,6 +1,6 @@
 # ob_retest_h1
 
-**Status**: Disabled after pre-reg FAIL (2026-05-18)
+- **Status**: Disabled after pre-reg FAIL (2026-05-18)
 **Mode**: hourly
 **Class**: `strategies.hourly.ob_retest.ObRetestH1`
 **Entry Type**: `ob_retest_h1`

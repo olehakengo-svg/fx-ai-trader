@@ -85,6 +85,7 @@
 | [[intraday-seasonality]] | no BT data | FORCE_DEMOTED |
 | [[lin-reg-channel]] | no BT data | FORCE_DEMOTED |
 | [[macdh-reversal]] | no BT data | FORCE_DEMOTED |
+| [[ob-retest]] | no BT data | FORCE_DEMOTED |
 | [[orb-trap]] | USD_JPY: EV=+0.866 WR=84.2% | FORCE_DEMOTED |
 | [[post-news-vol]] | EUR_USD: EV=+0.817 WR=71.4%; GBP_USD: EV=+1.762 WR=88.5% | FORCE_DEMOTED |
 | [[price-shock-rev-aud-jpy-h1-long]] | no BT data | FORCE_DEMOTED |

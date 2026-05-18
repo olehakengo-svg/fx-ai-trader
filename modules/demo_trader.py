@@ -6445,6 +6445,13 @@ class DemoTrader:
         "price_shock_rev_usd_cad_h1_long",
         "price_shock_rev_nzd_jpy_h1_long",
         "price_shock_rev_aud_jpy_h1_long",
+        # 2026-05-18 (rule:R2): M5 ob_retest demote
+        # TV Pine BT USDJPY M5 N=733 WR=38.74% EV<0
+        # Filter A/B sweep で Bonferroni m=3 全 null (|z|<0.30).
+        # Shadow N=36 WR 47.2% は M5 long-run mean からの 1.04σ noise.
+        # OB 思想は ob_retest_h1 (R1 pre-reg) へ移行。
+        # 詳細: knowledge-base/wiki/decisions/pre-reg-ob-retest-h1-2026-05-18.md
+        "ob_retest",
         # REMOVED 2026-05-07 volume emergency: trend_rebound×USD_JPY PAIR_PROMOTED
         # under EV/PF shadow exception; R2 live N>=10 EV<0 auto-demote guard applies.
     }

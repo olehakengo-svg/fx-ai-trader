@@ -1,5 +1,21 @@
 # FX AI Trader - Changelog
 
+## 2026-05-18 — feat: ob_retest_h1 pre-reg FAIL + M5 ob_retest R2 demote
+
+### 変更内容
+
+- `strategies/hourly/ob_retest.py` に H1 Order Block Retest を追加し、LOCKED parameter で `HourlyEngine` に登録。
+- 365d MASSIVE 5 pair BT を保存し、pre-reg 判定は全 pair N<200 のため FAIL。ロールバック規律どおり `ObRetestH1.enabled = False` を維持。
+- M5 `ob_retest` を `_FORCE_DEMOTED` に追加し、OB 系統の評価対象を H1 pre-reg に移行。
+- pre-reg LOCK と戦略カードを追加し、KB index / tier-master を同期。
+
+### 検証
+
+- `.venv/bin/python -m pytest tests/test_ob_retest_h1.py -x -v` — 6 passed
+- `python3 tools/tier_integrity_check.py --check` — ERROR=0, WARN=1 (`ob_retest` legacy inline label has no strategy file)
+- `.venv/bin/python tools/strategies_drift_check.py` — all 92 pages integrity-clean
+- `.venv/bin/python -m pytest tests/ -x -q` — 1510 passed, 1 skipped, 1 xfailed
+
 ## 2026-05-18 — feat: Price-Shock Reversion Tier 1 を Phase B-1 Shadow 投入
 
 ### 変更内容

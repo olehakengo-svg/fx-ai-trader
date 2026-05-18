@@ -15,6 +15,7 @@ logger = logging.getLogger("hourly_engine")
 
 from strategies.hourly.keltner_squeeze_breakout import KeltnerSqueezeBreakout
 from strategies.hourly.donchian_momentum_breakout import DonchianMomentumBreakout
+from strategies.hourly.ob_retest import ObRetestH1
 from strategies.hourly.price_shock_rev_eur_gbp_h1_long import PriceShockRevEurGbpH1Long
 from strategies.hourly.price_shock_rev_eur_aud_h1_long import PriceShockRevEurAudH1Long
 from strategies.hourly.price_shock_rev_usd_cad_h1_long import PriceShockRevUsdCadH1Long
@@ -29,6 +30,7 @@ class HourlyEngine:
         self.strategies: list[StrategyBase] = [
             KeltnerSqueezeBreakout(),       # KSB: ケルトナースクイーズブレイクアウト (EUR専用)
             DonchianMomentumBreakout(),     # DMB: ドンチアンモメンタムブレイクアウト
+            ObRetestH1(),                   # OB Retest H1: pre-reg FAIL, registered disabled for reevaluation
             PriceShockRevEurGbpH1Long(),    # Phase B-1 Shadow: EUR_GBP H1 1%-shock LONG
             PriceShockRevEurAudH1Long(),    # Phase B-1 Shadow: EUR_AUD H1 1%-shock LONG
             PriceShockRevUsdCadH1Long(),    # Phase B-1 Shadow: USD_CAD H1 1%-shock LONG

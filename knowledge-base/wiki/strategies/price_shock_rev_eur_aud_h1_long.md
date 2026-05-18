@@ -1,5 +1,7 @@
 # price_shock_rev_eur_aud_h1_long
 
+- **Status**: FORCE_DEMOTED / Phase B-1 Shadow-only (2026-05-18)
+
 ## 概要
 H1 EUR_AUD で 252-bar log return 1%-tile 以下の negative shock が発生し、vol20 が top quintile (Q5) の場合に 12 bars 保有の LONG mean reversion。
 
