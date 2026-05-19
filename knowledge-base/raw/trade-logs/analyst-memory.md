@@ -1129,6 +1129,15 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 - OANDA転送の主因「shadow_tracking（17件）」の実態——どの戦略がシャドウ期間中なのかを把握する
 - OFFモードの3戦略について、意図的な停止かシステム異常かを確認する
 
+### 2026-05-19 (Pre-Tokyo Briefing)
+| 前日PnL合計 | **+14.6 pip** |
+| 全体WR | **100.0%** |
+| Strategy | Pair | N | WR% | EV | PnL |
+> **全体（Cutoff後）**: N=8、WR=62.5%、PnL=+28.8 pips
+⚠️ **統計的注意**: 全戦略でN<10。現時点では「傾向」すら読めない段階。EVの正負は参考値に留める。
+| **09:00-11:00** | 東京セッション開始。USD_JPY・EUR_JPYでのATR急変に注意（現在81-86%ile＝既に高水準） |
+`sr_fib_confluence` GBP_USDのEV=+14.50は表面上驚異的だが、N=2の数値は統計的にゼロ情報。`dt_sr_channel_reversal` EUR_JPYのEV=-3.10も同様にN=1で意味をなさない。現時点で昇格・降格を議論できる戦略
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
