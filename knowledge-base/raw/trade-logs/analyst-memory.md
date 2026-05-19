@@ -1148,6 +1148,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 | GBP_USD | RANGING | 62% | -0.00178 | 中程度ボラ×レンジ: `doji_breakout`(BT EV=+0.724)・`trendline_sweep`(ELITE_LIVE BT EV=+0.599)は動作しやすい環境 |
 | USD_JPY | RANGING | 81% | -0.00089 | 高ボラ×レンジ: `doji_breakout`(USD_JPY, BT EV=+0.338)は機能するが、hedge_blockの影響次第 |
 
+### 2026-05-19 (Post-London Report)
+| 勝率（WR） | 100.0%（1/1） |
+| PnL | **+1.3 pips** |
+| 戦略 | ペア | 方向 | PnL | 成功要因 |
+> **注記**: `Reason: SL_HIT`はシステム上「相手のSLに到達 → WIN」を意味するWIN判定。スプレッド1.3pipに対してネットPnL+1.3pipはギリギリ正の摩擦調整EVを確保。
+ただし本日累計（N=2, WR=50%, PnL=**-0.9 pips**）との差分から、**東京セッションに1件のLOSSトレード（推定 -2.2 pips）が存在**。ロンドン+1.3で部分挽回した形。
+| WR | 0%（推定） | 100% |
+| PnL | 約 -2.2 pips（推定） | +1.3 pips |
+- **レジーム変化なし**: 全ペアRANGINGが維持された。EUR_JPY・GBP_JPYはATR86%ile（高ボラ気味）だが、SMA Slopeが全ペアマイナスでドリフトなし → レンジ内上下動が支配的。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
