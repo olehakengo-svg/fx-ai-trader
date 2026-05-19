@@ -108,6 +108,23 @@ services:
       - key: API_BASE
         value: https://fx-ai-trader.onrender.com
 
+  # Price-Shock Reversion Phase B-1 Live activation v2 watchdog (4h)
+  # Live N>=10 で EV<0 or Wilson<0.40 なら auto demote state file 書込 → DemoTrader 次起動で反映
+  # Live N>=30 で Bonferroni m=5 p<0.01 + 6 週 EV>0 なら lot ramp 提案 (Discord 通知のみ)
+  # 関連: knowledge-base/wiki/decisions/price-shock-rev-live-activation-2026-05-18.md
+  - type: cron
+    name: fx-ai-price-shock-rev-watchdog
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    schedule: "17 */4 * * *"  # UTC every 4h at :17 (JST :17 every 4h)
+    startCommand: python3 tools/price_shock_rev_live_watchdog.py --apply --to-discord && python3 tools/price_shock_rev_promote_evaluator.py --to-discord
+    plan: starter
+    envVars:
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
+      - key: API_BASE
+        value: https://fx-ai-trader.onrender.com
+
   # ===== Phase 3 (DISABLED): Tier B-weekly =====
   # Tier B-daily に正常な pass 候補が蓄積されてから有効化する。
   # 現状 pass は生まれない (dry-run かつ BT skeleton) のでコメントアウト維持。
