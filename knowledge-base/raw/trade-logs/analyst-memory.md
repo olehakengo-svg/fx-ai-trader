@@ -1138,6 +1138,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 | **09:00-11:00** | 東京セッション開始。USD_JPY・EUR_JPYでのATR急変に注意（現在81-86%ile＝既に高水準） |
 `sr_fib_confluence` GBP_USDのEV=+14.50は表面上驚異的だが、N=2の数値は統計的にゼロ情報。`dt_sr_channel_reversal` EUR_JPYのEV=-3.10も同様にN=1で意味をなさない。現時点で昇格・降格を議論できる戦略
 
+### 2026-05-19 (Pre-Tokyo Briefing)
+前日（2026-05-18）は **2件のトレード、WR 100%、PnL +14.6 pips** で着地。
+> **総計: N=8, WR=62.5%, PnL=+26.1**
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**注目点：** `sr_fib_confluence` の EV=+27.70 は1件のみ。大勝ち1件として記録するが、統計的意味はゼロ。KBでのBT EV(EUR_USD=+0.103)と大きく乖離しており、アウトライヤーとして扱う。
+| **xs_momentum の累積EV負** | N=2 で EV=-0.40 だが、前日単体では +13.3 と大勝ち → サンプルの非一貫性 | N=30 到達まで判断保留。昨日の大勝ちがサンプルを歪める可能性あり |
+| EUR_JPY | RANGING | 86% | -0.00314 | **高ボラ×レンジ**: `dt_sr_channel_reversal`(BT EV=+0.178)は理論上有利だが、実績EV=-3.10(N=1)は警戒。hedge_blockで実質停止中 |
+| GBP_USD | RANGING | 62% | -0.00178 | 中程度ボラ×レンジ: `doji_breakout`(BT EV=+0.724)・`trendline_sweep`(ELITE_LIVE BT EV=+0.599)は動作しやすい環境 |
+| USD_JPY | RANGING | 81% | -0.00089 | 高ボラ×レンジ: `doji_breakout`(USD_JPY, BT EV=+0.338)は機能するが、hedge_blockの影響次第 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
