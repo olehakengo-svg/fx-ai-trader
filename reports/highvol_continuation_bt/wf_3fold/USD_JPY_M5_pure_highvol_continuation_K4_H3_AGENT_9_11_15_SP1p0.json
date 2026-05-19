@@ -1,0 +1,24 @@
+{
+  "cell_id": "USD_JPY_M5_pure_highvol_continuation_K4_H3_AGENT_9_11_15_SP1p0",
+  "family": "pure_highvol_continuation",
+  "wf": [
+    {
+      "ev_pip": -0.34545187165775876,
+      "fold": 1,
+      "n": 374,
+      "pass_ev_gt_0": false
+    },
+    {
+      "ev_pip": -1.0532085561497093,
+      "fold": 2,
+      "n": 374,
+      "pass_ev_gt_0": false
+    },
+    {
+      "ev_pip": -0.0010723860589776672,
+      "fold": 3,
+      "n": 373,
+      "pass_ev_gt_0": false
+    }
+  ]
+}

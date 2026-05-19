@@ -1,0 +1,73 @@
+{
+  "H_bar": 6,
+  "K": 3.0,
+  "bonf_alpha": 0.00013333333333333334,
+  "breakeven_spread_pip_round_trip": -0.1488819315388807,
+  "broker_survival": {
+    "GMO_DMM_0p2": false,
+    "OANDA_Japan_0p5": false,
+    "OANDA_USA_1p3": false
+  },
+  "bt_data_source": "MASSIVE_parquet",
+  "cell_id": "USD_JPY_M5_pure_highvol_continuation_K3_H6_ALL_SP1p3",
+  "direction_null": {
+    "long_ev_pip": -1.4517081716931584,
+    "long_n": 15982,
+    "pass_symmetric_positive": false,
+    "short_ev_pip": -1.4462830264672084,
+    "short_n": 17380
+  },
+  "ev_pip": -1.4488819315388808,
+  "family": "pure_highvol_continuation",
+  "g4_bh_bonf_pass": false,
+  "gates": {
+    "G1_N": true,
+    "G2_Wilson": false,
+    "G3_EV": false,
+    "G4_Bonf_BH": false,
+    "G5_PF": false,
+    "G6_Kelly": false,
+    "G7_WF": false,
+    "G8_Direction_Null": false
+  },
+  "generated_at": "2026-05-18T10:36:29.788173+00:00",
+  "gross_ev_pip": -0.1488819315388807,
+  "hourset": "ALL",
+  "kelly": -0.17930834279915614,
+  "n": 33362,
+  "p_bh": 1.0,
+  "p_value": 1.0,
+  "pair": "USD_JPY",
+  "period_end": "2026-04-30T23:55:00+00:00",
+  "period_start": "2014-01-02T04:55:00+00:00",
+  "pf": 0.682565244258476,
+  "source_path": "data/cache/massive/USD_JPY_5m_2014_2026.parquet",
+  "spread_pip_round_trip": 1.3,
+  "tf": "M5",
+  "total_pip": -48337.59900000014,
+  "verdict": "REJECT",
+  "wf": [
+    {
+      "ev_pip": -1.5223899829152117,
+      "fold": 1,
+      "n": 11121,
+      "pass_ev_gt_0": false
+    },
+    {
+      "ev_pip": -1.4099631328117914,
+      "fold": 2,
+      "n": 11121,
+      "pass_ev_gt_0": false
+    },
+    {
+      "ev_pip": -1.4142895683453358,
+      "fold": 3,
+      "n": 11120,
+      "pass_ev_gt_0": false
+    }
+  ],
+  "wf_all_ev_gt_0": false,
+  "wilson_lo": 0.38034903091495564,
+  "wins": 12863,
+  "wr": 0.38555841975900723
+}
