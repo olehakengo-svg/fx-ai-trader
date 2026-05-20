@@ -80,3 +80,34 @@ E   TypeError: unsupported operand type(s) for |: 'type' and 'NoneType'
 - §2.2 regression test: 20 分
 - §2.3 検証: 10 分
 - **総計**: 45 分以内
+
+
+## Result (2026-05-20T04:24:42Z)
+
+exit=0 · 175s
+
+```
+完了しました。commit 済みです。
+
+Commit: `104c635e Fix demo_trader py39 annotations guard`
+
+変更内容:
+- [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:9) に `from __future__ import annotations` を追加
+- [tools/check_no_pep604_until_py310.py](/data/repo/fx-ai-trader/tools/check_no_pep604_until_py310.py:1) を追加
+- [tests/test_no_pep604_in_class_body.py](/data/repo/fx-ai-trader/tests/test_no_pep604_in_class_body.py:1) を追加
+- [.pre-commit-config.yaml](/data/repo/fx-ai-trader/.pre-commit-config.yaml:10) に local hook を追加
+
+検証:
+- `.venv/bin/pytest tests/test_api_oanda_stats_range.py` → `1 passed`
+- `.venv/bin/pytest tests/test_no_pep604_in_class_body.py -q` → `1 passed`
+- `.venv/bin/pytest tests/ -x -q --co` → `1575 tests collected`
+- `.venv/bin/pre-commit run` → existing hook + new hook both `Passed`
+- `git commit` 時の pre-commit hook → `Passed`
+- `git status --short` → clean
+
+補足:
+- この環境では `python3.9` binary は見つからず、`.venv` は Python 3.11.2 でした。
+- 指定 class grep count は `204`。
+- `modules/ strategies/ tools/ app.py` の py3.9-unsafe PEP 604 スキャンは、future import 済み・quoted annotation を除外した結果、追加修正が必要な別ファイルはありませんでした。
+- `.venv/bin/pre-commit run --all-files` は既存の `hip1-holdout-manifest` が all-files 入力を拒否しましたが、通常の staged-file pre-commit と commit hook は pass しています。
+```
