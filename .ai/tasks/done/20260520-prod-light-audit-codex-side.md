@@ -124,3 +124,22 @@ final.md は `.ai/tasks/done/20260520-prod-light-audit-codex-side.md` に **Resu
 - `project_oanda_stats_range_ignored_2026_05_18` — /api/oanda/stats range バグ
 - `project_rsk_gbpjpy_bar_close_gate_pending` — R3 rsk dedup pending
 - `project_price_shock_phase_b1_done_2026_05_18` — Price-Shock Phase B-1
+
+
+## Result (2026-05-20T05:47:21Z)
+
+exit=0 · 196s
+
+```
+監査結果を [20260520-prod-light-audit-codex-side.md](/data/repo/fx-ai-trader/.ai/tasks/done/20260520-prod-light-audit-codex-side.md) に作成しました。実装変更・修正コミットは入れていません。現在の `git status` はこの監査レポート1ファイルが untracked になっているだけです。
+
+主要な実測ポイント:
+- `oanda_audit` 実スキーマに `is_shadow` 列はなく、`is_live` のみ。`oanda_audit` / `oanda_trades` はどちらも 0 rows。
+- `demo_trades` の `is_shadow` 分布は `0:12`, `1:6`。
+- `/api/oanda/stats?range=today|7d|30d|all` はローカル実DBでは全て `total=0`、ただし `_filters.effective_date_from` は range ごとに変化。既存の range 回帰テストは `1 passed`。
+- 指定の新規2テストは、この checkout にファイルが存在せず pytest は `file or directory not found`。
+- `.venv/bin/pre-commit run --all-files` は HIP-1 holdout manifest guard で fail、PEP604 guard は pass。
+- `data/cache/massive/*.parquet` は存在し、Price-Shock BT runner は MASSIVE-only / no Yahoo fallback を明記。
+
+制約どおり、キュー cleanup や hygiene fix はしていません。
+```
