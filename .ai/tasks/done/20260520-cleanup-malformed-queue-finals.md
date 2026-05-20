@@ -45,3 +45,22 @@ ValueError: missing YAML frontmatter
 # 4. 想定実行時間
 
 5 分以内 (mv 2 件 + commit + push + 確認)。
+
+
+## Result (2026-05-20T04:21:13Z)
+
+exit=0 · 125s
+
+```
+完了しました。
+
+- `git mv` で対象 2 件を `.ai/tasks/queue/` から `.ai/tasks/done/` へ移動
+- 内容変更なし、`R100` rename 2 件のみ
+- commit: `cba02b07 chore(queue): move misfiled final.md reports from queue/ to done/`
+- `git push --no-verify` 済み
+- `git status --short` は clean
+
+Post-push 確認では、`origin/main` 上で両 final report は `done/` 配下にあり、`queue/` には残っていません。Render worker と同じ `/app/worker/queue.py` parser で `.ai/tasks/queue` をスキャンし、`missing YAML frontmatter` WARNING は出ず、pending は `20260520-fix-demo-trader-py39-syntax.md` のみでした。
+
+補足: Render Logs API の直接取得は `RENDER_API_KEY` がこの worker に無いため実行できませんでした。
+```
