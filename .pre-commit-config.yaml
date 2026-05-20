@@ -7,3 +7,9 @@ repos:
         language: system
         pass_filenames: true
         always_run: true
+      - id: demo-trader-pep604-py39-guard
+        name: demo_trader PEP 604 Python 3.9 guard
+        entry: python3 tools/check_no_pep604_until_py310.py modules/demo_trader.py
+        language: system
+        pass_filenames: false
+        always_run: true
