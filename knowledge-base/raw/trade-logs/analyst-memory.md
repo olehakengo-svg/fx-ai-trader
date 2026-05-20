@@ -1168,6 +1168,15 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 - 多数のモードが「ON だが取引0」という状態が継続している。
 - 前日の全収益は GBP_USD BUY 2件に依存。方向性（BUY）と通貨の集中が顕在化。
 
+### 2026-05-20 (Pre-Tokyo Briefing)
+| PnL合計（前日） | **-0.9 pips** |
+| 全体WR | **50.0%** |
+| Strategy | Pair | N | WR% | EV | 判定 |
+**統計判断**: 全戦略がN<10。**「データなし」区分**。いかなるEV値も意思決定に使用不可。Cutoff後累計N=5は深刻なサンプル不足。
+### 課題②: trendline_sweep の SIGNAL_REVERSE LOSS
+前日LOSS (-2.2) の理由が `SIGNAL_REVERSE`。これはポジション保有中にシグナルが反転したケースで、RANGING相場での典型的なフェイク。BT想定EV +0.599（GBP_USD）との乖離は現状N=2では判断不能。
+- リスクフィルター（hedge_block, spread_guard, r2_shadow_demoted_cell）が正常機能しており、
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
