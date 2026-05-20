@@ -1177,6 +1177,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 前日LOSS (-2.2) の理由が `SIGNAL_REVERSE`。これはポジション保有中にシグナルが反転したケースで、RANGING相場での典型的なフェイク。BT想定EV +0.599（GBP_USD）との乖離は現状N=2では判断不能。
 - リスクフィルター（hedge_block, spread_guard, r2_shadow_demoted_cell）が正常機能しており、
 
+### 2026-05-20 (Pre-Tokyo Briefing)
+- **PnL**: −0.9 pips（WIN +1.3 / LOSS −2.2）
+- **トレード数**: 2件（前日 2026-05-19）
+- **全体WR**: 50.0%（1勝1敗）— 極小サンプルにつき統計的意味なし
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> ⚠️ **全戦略 N<10**。Fidelity Cutoff後の有効サンプルが著しく少なく、EV・WRは参考値に過ぎない。統計的判断可能水準（N≥30）まで遠い。
+### 課題①: trendline_sweep GBP_USD — SIGNAL_REVERSE Loss
+| 負けトレード | BUY → SIGNAL_REVERSE → −2.2 pips |
+| 構造的問題 | Spread 1.3pip / EV −0.45 → 摩擦調整後EVが既に負域に近い |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
