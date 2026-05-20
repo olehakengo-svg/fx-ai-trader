@@ -3870,6 +3870,10 @@ class DemoTrader:
             "mqe_gbpusd_fix",                # MQE GBP_USD: month-end fix reversal (Bonferroni 3通過, WR 69.8%)
             # 2026-04-28 Phase 8 Track A 3-way interaction discovery (Sentinel override)
             "pd_eurjpy_h20_bbpb3_sell",      # EUR_JPY hour=20 bbpb=3 SELL (training Wilson_lo=0.521, holdout EV=+2.14p, override)
+            # 2026-05-20 Kalman D7 3-spec trend-follow portfolio (USDJPY M15, regime-bound)
+            "kalman_d7_po_dn_flip",          # v17: PF=3.866 BT, max winner ride
+            "kalman_d7_ema75_break",         # v18f: PF=2.087 BT, balanced
+            "kalman_d7_trail_atr",           # v18e: PF=1.181 BT, high WR + tight trail
             # DISABLED (FXアナリストレビュー):
             # "ihs_neckbreak",       # 廃止: 2t EV≒0, 低頻度
             # "dual_sr_breakout",    # 廃止: 未評価
@@ -6986,6 +6990,10 @@ class DemoTrader:
         "post_news_vol",               # ニュース後ボラ — WR=42.4%, Sentinel再検証
         # 2026-04-28 Phase 8 Track A 3-way interaction discovery (Sentinel override)
         "pd_eurjpy_h20_bbpb3_sell",    # EUR_JPY hour=20 bbpb=3 SELL (training Wilson_lo=0.521, holdout EV=+2.14p, override)
+        # 2026-05-20 Kalman D7 3-spec (USDJPY M15)
+        "kalman_d7_po_dn_flip",
+        "kalman_d7_ema75_break",
+        "kalman_d7_trail_atr",
     }
 
     # ══════════════════════════════════════════════════════════════

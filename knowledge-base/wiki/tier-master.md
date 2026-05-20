@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-05-18 10:40 UTC
+**最終更新**: 2026-05-20 17:53 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -84,7 +84,7 @@
 | 9 | mtf_trend_follow_scalp |
 | 10 | vol_surge_detector |
 
-### B-3. UNIVERSAL_SENTINEL（18戦略 — 全モードSentinel）
+### B-3. UNIVERSAL_SENTINEL（21戦略 — 全モードSentinel）
 
 | # | 戦略名 | PP経由OANDA通過ペア |
 |---|---|---|
@@ -93,19 +93,22 @@
 | 3 | dt_sr_channel_reversal | EUR_JPY |
 | 4 | eurgbp_daily_mr | なし |
 | 5 | gotobi_fix | なし |
-| 6 | liquidity_sweep | なし |
-| 7 | london_close_reversal | なし |
-| 8 | london_close_reversal_v2 | なし |
-| 9 | macd_rsi_pullback | なし |
-| 10 | pd_eurjpy_h20_bbpb3_sell | なし |
-| 11 | post_news_vol | なし |
-| 12 | price_shock_reversion | なし |
-| 13 | session_time_bias | EUR_USD |
-| 14 | squeeze_release_momentum | EUR_USD |
-| 15 | sr_weighted_bounce | なし |
-| 16 | sr_weighted_break | なし |
-| 17 | vix_carry_unwind | USD_JPY |
-| 18 | vol_spike_mr | なし |
+| 6 | kalman_d7_ema75_break | なし |
+| 7 | kalman_d7_po_dn_flip | なし |
+| 8 | kalman_d7_trail_atr | なし |
+| 9 | liquidity_sweep | なし |
+| 10 | london_close_reversal | なし |
+| 11 | london_close_reversal_v2 | なし |
+| 12 | macd_rsi_pullback | なし |
+| 13 | pd_eurjpy_h20_bbpb3_sell | なし |
+| 14 | post_news_vol | なし |
+| 15 | price_shock_reversion | なし |
+| 16 | session_time_bias | EUR_USD |
+| 17 | squeeze_release_momentum | EUR_USD |
+| 18 | sr_weighted_bounce | なし |
+| 19 | sr_weighted_break | なし |
+| 20 | vix_carry_unwind | USD_JPY |
+| 21 | vol_spike_mr | なし |
 
 ### B-4. PAIR_DEMOTED（29エントリ — 特定ペアのみ強制Shadow）
 

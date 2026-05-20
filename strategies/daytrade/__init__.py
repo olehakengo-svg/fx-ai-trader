@@ -71,6 +71,14 @@ from strategies.daytrade.rsk_gbpjpy_reversion import RskGbpjpyReversion
 from strategies.daytrade.mqe_gbpusd_fix import MqeGbpusdFix
 # Phase 8 (2026-04-28): Track A 3-way interaction discovery (Sentinel override)
 from strategies.daytrade.pd_eurjpy_h20_bbpb3_sell import PdEurJpyH20Bbpb3Sell
+# 2026-05-20: Kalman D7 3-spec trend-follow portfolio (USDJPY M15)
+# Reference: knowledge-base/wiki/strategies/kalman_d7_*.md
+# Shadow-first quant の意図的例外 (user判断): regime-bound discretionary edge
+from strategies.daytrade.kalman_d7_trend import (
+    KalmanD7PODNFlip,
+    KalmanD7EMA75Break,
+    KalmanD7TrailATR,
+)
 
 
 class DaytradeEngine:
@@ -129,6 +137,12 @@ class DaytradeEngine:
             DtFibReversal(),
             DtSrChannelReversal(),
             Ema200TrendReversal(),
+            # 2026-05-20: Kalman D7 3-spec trend-follow portfolio (USDJPY M15)
+            # Pre-reg LOCK: SPEC at knowledge-base/wiki/strategies/kalman_d7_*.md
+            # BT 10.5mo: PF 3.866 / 2.087 / 1.181 — regime-bound (USDJPY uptrend期間)
+            KalmanD7PODNFlip(),    # v17: SL 1.5×ATR, TP 5.0×ATR (PO-DN flip approx, max winner ride)
+            KalmanD7EMA75Break(),  # v18f: SL 2.5×ATR, TP 2.5×ATR (mid winners)
+            KalmanD7TrailATR(),    # v18e: SL 2.0×ATR, TP 1.5×ATR (small winners + broker trail recommended)
         ]
         if os.environ.get("PULLBACK_TO_LIQUIDITY_V1_REDESIGN_V2") == "1":
             self.strategies.append(PullbackToLiquidityV1())

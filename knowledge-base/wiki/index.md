@@ -2,14 +2,14 @@
 
 ## 🎯 最重要目標: 月利100% → 年利1,200%
 **全施策の判断基準。これに寄与しない施策は後回し。**
-- 現在: **DD防御0.2x** (DD=**28.01%**, defensive mode) → 月利47%（BT推定、クリーンデータ蓄積中）
+- 現在: **DD防御0.2x** (DD=**65.07%**, defensive mode — 2026-05-20) → 月利47%（BT推定、クリーンデータ蓄積中）
 - Phase 3 (Kelly Half): 月利594%
 - 詳細: **[[roadmap-v2.1]]** (DT幹+Scalp枝統合、v2.1)
 - 旧: [[roadmap-v2]] (v2.0) / [[roadmap-to-100pct]] (v1)
 - **最優先: クリーンデータ蓄積 → Kelly Half到達**
 
 <!-- KB_PORTFOLIO_START -->
-## Current Portfolio (auto-synced, 2026-05-18)
+## Current Portfolio (auto-synced, 2026-05-21)
 
 ### ELITE_LIVE (never shadowed)
 | Strategy | BT Data | Status |
@@ -50,6 +50,9 @@
 | [[gbp-deep-pullback]] | GBP_USD: EV=+1.064 WR=75.3% | LOT_BOOST (not sentinel/elite) |
 | [[gotobi-fix]] | no BT data | UNIVERSAL_SENTINEL |
 | [[htf-false-breakout]] | EUR_USD: EV=+0.352 WR=80.0%; GBP_USD: EV=+0.552 WR=75.0%; USD_JPY: EV=+0.660 WR=80.0% | LOT_BOOST (not sentinel/elite) |
+| [[kalman-d7-ema75-break]] | no BT data | UNIVERSAL_SENTINEL |
+| [[kalman-d7-po-dn-flip]] | no BT data | UNIVERSAL_SENTINEL |
+| [[kalman-d7-trail-atr]] | no BT data | UNIVERSAL_SENTINEL |
 | [[liquidity-sweep]] | no BT data | UNIVERSAL_SENTINEL |
 | [[london-close-reversal]] | no BT data | UNIVERSAL_SENTINEL |
 | [[london-close-reversal-v2]] | no BT data | UNIVERSAL_SENTINEL |
@@ -102,19 +105,20 @@
 <!-- KB_PORTFOLIO_END -->
 
 ## System State (v9.5 / v2.1)
-- Defensive mode: **0.2x** (DD=**42.21%** / 422.1pip ⚠️⚠️, defensive mode — Render API 2026-05-07 wiki-daily-update)
+- Defensive mode: **0.2x** (DD=**65.07%** / 650.7pip ⚠️⚠️⚠️ NEW HIGH, defensive mode — Render API 2026-05-20 wiki-daily-update; 30d N=79, PnL=-104.3pip)
 - HourlyEngine: **Activated 2026-05-18** — all H1 strategies (KSB+DMB+5 PriceShockRev) are Shadow-only via `_shadow_always`.
 - XAU: **Stopped** (v8.4) -- post-cutoff XAU loss = -2,280pip (102% of total loss)
-- FX-only post-cutoff (2026-04-08〜) — **2026-05-07 wiki-daily-update** (risk API gross, includes shadow):
-  - Total N=530, WR=38.5%, EV=-0.78, PnL=-414.2pip (gross: shadow + live combined)
+- FX-only post-cutoff (2026-04-08〜) — **2026-05-20 wiki-daily-update** (demo/stats live only, is_shadow=false):
+  - Live only (is_shadow=0): **N=404**, WR=41.8%, EV=-0.62, PnL=**-250.3pip**, shadow_count=5,598 (no new live fills 2026-05-20)
+  - 30d rolling (risk API, N=79): gross_pnl=**-104.3pip** ⚠️, Kelly edge=**-15.05%** (was -8.29% on 2026-05-19 — 30d window drift), avg_friction=4.05pip
   - **TRUE_LIVE** (`is_shadow=0 AND oanda_trade_id != ''`) SSOT — 2026-05-03 実測: **N=371** (incl BE) / **346** (WIN/LOSS), WR=39.89%, EV=-0.686, PnL=-254.6pip (see [[aggregate-kelly-decomposition-2026-05-03-corrigendum]])
   - FLAG_DRIFT (`is_shadow=0` だが OANDA未送信): N=140, WR=32.86%, PnL=-132.4pip (`raw/audits/oanda-passthrough-gap-2026-05-03.md` 由来 write-path bug)
-  - SHADOW (`is_shadow=1`): N=3,819, WR=23.72%, PnL=-4,985.6pip — **Live 判断には混入禁止** (memory `feedback_live_vs_shadow_strict_separation`)
+  - SHADOW (`is_shadow=1`): N=5,598 (as of 2026-05-19) — **Live 判断には混入禁止** (memory `feedback_live_vs_shadow_strict_separation`)
   - 旧記載 "N=29 (`oanda_trade_id != ''`)" は **誤り** — 実態は `mode='daytrade'` only サブセット、SUPERSEDED by [[aggregate-kelly-decomposition-2026-05-03-corrigendum]]
-- Ruin probability: **2.08%** ⚠️ (MC 5,000 sims, N=300 forward — Render API 2026-05-07; was 1.88% on 2026-05-03)
-- Aggregate Kelly: **0.0** (raw edge=-17.06%; TRUE_LIVE SSOT: N=371 raw=-0.69) — Bonferroni-powered cell-level demote が実行可能、N=371 で Gate 1 unlock 経路が再開
+- Ruin probability: **0.0%** ✅ (MC 5,000 sims, N=300 forward — Render API 2026-05-19; was 2.08% on 2026-05-07 — improvement due to 0.2x lot)
+- Aggregate Kelly: **0.0** (raw edge=-8.29% 30d; TRUE_LIVE SSOT: N=371 raw=-0.69) — Bonferroni-powered cell-level demote が実行可能、N=371 で Gate 1 unlock 経路が再開
 - Aggregate Kelly decomposition 2026-05-03: 旧 doc は SUPERSEDED。新 SSOT: [[aggregate-kelly-decomposition-2026-05-03-corrigendum]] (TRUE_LIVE Strategy × Pair 出血ランキング、ELITE_LIVE `session_time_bias × GBP_USD` 出血特定)
-- Last updated: 2026-05-07 (wiki-daily-update auto); prev: 2026-05-03 (Render API direct)
+- Last updated: 2026-05-20 (wiki-daily-update auto); prev: 2026-05-19
 - scalp_eurjpy: **Stopped** (v8.6) -- friction/ATR=43.6%, 構造的不可能
 - scalp_5m_eur / scalp_5m_gbp: **Active** (v8.6) -- 5m摩擦改善モード
 - New modes (v9.0): **daytrade_eurjpy**, **daytrade_gbpjpy**, **[[rnb-usdjpy]]** (all auto_start)
