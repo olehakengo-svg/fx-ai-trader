@@ -301,3 +301,32 @@ loader は `pair_schema_map = {"USD_JPY": "lower", "GBP_JPY": "lower", ...}` で
 - 2 pair × 384 cell primary + 7 pair × 112 secondary 実行: 1-2 時間 (vectorized numpy + parquet read cache)
 - 報告物生成 (8 ファイル): 30 分
 - **総計**: 4-6 時間 (1 セッション完結目標)
+
+
+## Result (2026-05-20T04:18:03Z)
+
+exit=0 · 366s
+
+```
+実装、全BT実行、DB永続化、レポート生成、コミットまで完了しました。
+
+結果は **全 NULL / NO-GO** です。`primary=384`, `secondary=112`, total `496` cell を投入し、`SHADOW_CANDIDATE=0`, `CONDITIONAL=0`, `REJECT=496`。G7 delta incremental は `248` cell で pass していますが、BH-FDR を通った cell がなく、最終 survivor はありません。
+
+主な生成物:
+- [tools/bigbeluga_displacement_delta_bt.py](/data/repo/fx-ai-trader/tools/bigbeluga_displacement_delta_bt.py)
+- [modules/bigbeluga_grid_db.py](/data/repo/fx-ai-trader/modules/bigbeluga_grid_db.py)
+- [tests/test_bigbeluga_displacement_delta_bt.py](/data/repo/fx-ai-trader/tests/test_bigbeluga_displacement_delta_bt.py)
+- [reports/bigbeluga_displacement_delta/SUMMARY.md](/data/repo/fx-ai-trader/reports/bigbeluga_displacement_delta/SUMMARY.md)
+- [final.md](/data/repo/fx-ai-trader/final.md)
+- `data/bigbeluga_grid_cells.db`
+
+Verification:
+- `.venv/bin/python -m pytest tests/test_bigbeluga_displacement_delta_bt.py tests/test_price_shock_reversion_bt.py -q` → 9 passed
+- Final rerun after wording fix: `.venv/bin/python -m pytest tests/test_bigbeluga_displacement_delta_bt.py -q` → 5 passed
+- DB row count confirmed: 496
+
+Commit:
+- `cf909804 Add Bigbeluga displacement delta grid BT`
+
+`git status` is clean, with `main` ahead of `origin/main` by 1 commit.
+```
