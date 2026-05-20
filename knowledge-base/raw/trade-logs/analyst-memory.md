@@ -1197,6 +1197,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 | **WR** | データなし | 75.0% |
 | **PnL牽引** | 不明 | vix_carry_unwind単発が全体を牽引 |
 
+### 2026-05-20 (Pre-Tokyo Briefing)
+PnL合計 **−0.9 pips**、WR **50%**、EV **−0.45**。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> 昇格基準（N≥30 & EV≥1.0）まで最大残り **29件**。
+| # | Dir | Outcome | PnL | Reason | Spread |
+| 2 | BUY | LOSS | −2.2 | SIGNAL_REVERSE | 1.3 |
+- `SIGNAL_REVERSE`による−2.2は典型的なRANGINGレジームでの「だまし」パターン。GBP_USDはATR%ile=59%・SMA20 Slope=−0.00223（緩やかな下落傾向）でトレンドの方向性が曖昧。
+- スプレッド1.3に対してWINが+1.3（RR比≈1:1未満）は摩擦調整後のEVがほぼゼロ。Scalp閾値30%との対比ではspread_guardが機能しているか要確認。
+- RANGING継続中はtrendline_sweepのシグナル精度が低下しやすい。N蓄積を優先しつつ、EV推移を注視する。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
