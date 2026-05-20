@@ -224,6 +224,32 @@ class DaytradeEngine:
         # moved to PAIR_PROMOTED cells, so they must not also emit through
         # the shadow-always side path.
         "rsk_gbpjpy_reversion",   # Phase 5 (Bonferroni 13 通過, 2026-04-29 g2)
+        # 2026-05-19 G2 follow-up (rule:R3): xs_momentum_rsi + macd_rsi_pullback
+        # were registered 2026-05-13/14 with PAIR_PROMOTED (xs_momentum_rsi) /
+        # SCALP_SENTINEL (macd_rsi_pullback) tiers, but neither was added to
+        # the SHADOW_ALWAYS path. Production audit 5/14-5/19 (4 LDN-NY sessions,
+        # base xs_momentum 5 USD_JPY shadow fires on 5/14) shows 0 prod fires
+        # for both: select_best max-score bottleneck silently drops their
+        # candidates. Safety-net path here ensures N shadow accumulation; the
+        # Live-capable path is handled by LIVE_PROMOTE_LOSERS below.
+        "xs_momentum_rsi",
+        "macd_rsi_pullback",
+    })
+
+    # 2026-05-19 (rule:R3): PAIR_PROMOTED / SCALP_SENTINEL strategies that
+    # were intended to fire as Live (PAIR_PROMOTED for xs_momentum_rsi USD_JPY,
+    # shadow-first Live N>=30 path for macd_rsi_pullback) but lose select_best
+    # competition to higher-score primaries (session_time_bias / london_fix_reversal
+    # / vix_carry_unwind typically 6.0-6.5 vs xs_momentum_rsi ~5.6).
+    #
+    # Unlike SHADOW_ALWAYS_STRATEGIES (which force is_shadow=True via direct
+    # open_trade), LIVE_PROMOTE_LOSERS emits go through demo_trader._tick_entry
+    # so the PAIR_PROMOTED / Sentinel tier gates can decide Live vs Shadow
+    # naturally. If demo_trader's slot/hedge/dedup constraints block the live
+    # path, the trade still falls through to shadow recording.
+    LIVE_PROMOTE_LOSERS = frozenset({
+        "xs_momentum_rsi",       # PAIR_PROMOTED USD_JPY (user override 2026-05-13)
+        "macd_rsi_pullback",     # SCALP_SENTINEL shadow-first (2026-05-14)
     })
 
     def select_best(self, candidates: list[Candidate]) -> Optional[Candidate]:
@@ -358,3 +384,21 @@ class DaytradeEngine:
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]
+
+    def split_live_promote_emits(self, candidates: list[Candidate],
+                                  best: Optional[Candidate]) -> list[Candidate]:
+        """LIVE_PROMOTE_LOSERS に該当する候補で best 以外のものを返す。
+
+        2026-05-19 (rule:R3): PAIR_PROMOTED / SCALP_SENTINEL の Live 発火意図を
+        持つ戦略 (xs_momentum_rsi USD_JPY, macd_rsi_pullback) が select_best
+        max-score 競争で他 primary に負けて prod 0-fire になる構造バグを修正する
+        ためのサイドチャネル。consumer (demo_trader) は通常の _tick_entry 経由で
+        処理するため、PAIR_PROMOTED / Sentinel tier の live/shadow 判定が自然に
+        効く。SHADOW_ALWAYS と二重 emit にならないよう、両 set を持つ戦略では
+        consumer 側で 60s dedup が key 空間共有で抑止する。
+        """
+        if not candidates:
+            return []
+        return [c for c in candidates
+                if c is not best
+                and c.entry_type in self.LIVE_PROMOTE_LOSERS]

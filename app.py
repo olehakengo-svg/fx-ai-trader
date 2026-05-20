@@ -3512,6 +3512,34 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         # _dt_shadow_emits 未定義パス (DTE skip 等) — 安全に空
         pass
 
+    # 2026-05-19 (rule:R3): live_promote_emit_signals — LIVE_PROMOTE_LOSERS
+    # に該当する敗北候補を Live-capable side path で demo_trader._tick_entry
+    # に渡す。shadow_emit_signals (is_shadow=True 強制) と違い、_tick_entry
+    # 経由で PAIR_PROMOTED / Sentinel tier の live/shadow 判定を自然に通す。
+    _live_promote_emit_payload = []
+    try:
+        _dt_live_promote_emits = _dt_engine.split_live_promote_emits(
+            _dt_candidates, _dt_best)
+        for _c in (_dt_live_promote_emits or []):
+            _lp_signal = _c.signal
+            _lp_conf = int(getattr(_c, "confidence", 50) or 50)
+            _lp_sl = float(_c.sl)
+            _lp_tp = float(_c.tp)
+            _live_promote_emit_payload.append({
+                "signal": _lp_signal,
+                "entry": _rp(entry, symbol),
+                "confidence": _lp_conf,
+                "sl": _lp_sl, "tp": _lp_tp,
+                "entry_type": _c.entry_type,
+                "reasons": list(_c.reasons or []),
+                "score": round(float(_c.score), 3),
+                "atr": _rp(atr, symbol),
+                "max_hold_bars": getattr(_c, "max_hold_bars", None),
+                "sr_meta": getattr(_c, "sr_meta", None),
+            })
+    except (NameError, AttributeError):
+        pass
+
     _sr_meta = None
     try:
         from strategies.base import Candidate as _SrMetaCandidate
@@ -3533,6 +3561,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         "sr_meta": _sr_meta,
         "max_hold_bars": getattr(_dt_best, "max_hold_bars", None) if _dt_best is not None else None,
         "shadow_emit_signals": _shadow_emit_payload,
+        "live_promote_emit_signals": _live_promote_emit_payload,
         "dual_scenarios": dual_scenarios,
         "sr_entry_map": sr_entry_map,
         "score": round(score, 3),

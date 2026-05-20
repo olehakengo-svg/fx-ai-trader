@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Auto Demo Trader — Background threads that monitor daytrade/scalp signals
 and execute virtual trades with full IN/OUT recording.
@@ -870,6 +872,7 @@ class DemoTrader:
                     mode=mode,
                     instrument=instrument,
                     callback=lambda tid, oid: self._db.set_oanda_trade_id(tid, oid),
+                    entry_type=entry_type or "resend_pending",
                 )
                 sent += 1
             if sent or skipped:
@@ -2130,6 +2133,10 @@ class DemoTrader:
                     (direction == "SELL" and price <= entry_price - _pyr_atr)
                 )
                 if _pyr_favorable and self._is_promoted(_entry_type_pe, _inst):
+                    with self._tracker_lock:
+                        if trade_id in self._pyramided_trades:
+                            continue
+                        self._pyramided_trades.add(trade_id)
                     # SL → BE for original trade (同期版: 成功確認後のみpyramid)
                     _pyr_spread = _ba_rt["ask"] - _ba_rt["bid"] if _ba_rt else (
                         0.008 if "JPY" in _inst else 0.00008
@@ -2151,7 +2158,6 @@ class DemoTrader:
                             f"⚠️ [PYRAMID] SL→BE変更失敗、ピラミッド中止 "
                             f"({trade_id})"
                         )
-                        self._pyramided_trades.add(trade_id)  # 再試行防止
                     else:
                         self._db.update_sl_tp(trade_id, sl, tp)
                         # Open pyramid OANDA position
@@ -2159,6 +2165,7 @@ class DemoTrader:
                         _pyr_units = min(10000, self._OANDA_LOT_CAP)
                         _pyr_tp = tp
                         _pyr_sl_price = entry_price  # risk-free: SL at original entry
+                        _pyr_entry_type = _entry_type_pe or trade.get("entry_type", "")
                         self._oanda.open_trade(
                             demo_trade_id=_pyr_id,
                             direction=direction,
@@ -2168,8 +2175,8 @@ class DemoTrader:
                             units=_pyr_units,
                             log_callback=self._add_log,
                             lot_label="(🔺PYR)",
+                            entry_type=_pyr_entry_type,
                         )
-                        self._pyramided_trades.add(trade_id)
                         self._add_log(
                             f"🔺 [PYRAMID] {trade_id}: +{_pyr_units}u {direction} "
                             f"SL=BE({_be_sl:.{_pip_decimals}f}) "
@@ -3018,6 +3025,69 @@ class DemoTrader:
         except Exception as _entry_err:
             print(f"[DemoTrader/{mode}] _tick_entry error: {_entry_err}", flush=True)
             import traceback; traceback.print_exc()
+
+        # ══════════════════════════════════════════════════════════════
+        # 2026-05-19 (rule:R3): LIVE_PROMOTE_LOSERS side-channel
+        # ──────────────────────────────────────────────────────────────
+        # PAIR_PROMOTED (xs_momentum_rsi USD_JPY) / SCALP_SENTINEL
+        # (macd_rsi_pullback) として Live 発火意図を持つ戦略が select_best
+        # max-score 競争で他 primary に負けて prod 0-fire になる構造バグの修正。
+        #
+        # shadow_emit_signals ループと違い、こちらは _tick_entry を再呼び出し
+        # することで PAIR_PROMOTED / Sentinel tier の live/shadow 判定を自然に
+        # 通す。slot/hedge/dedup で詰まれば _tick_entry 内で shadow 降格、
+        # spread/SL gate も PAIR_PROMOTED 免除が効く。
+        #
+        # 60s dedup は primary と key 空間共有 (_maybe_reserve_signal_emit) で
+        # 同一 (entry_type,instrument,signal) の二重発火を抑止する。
+        # ══════════════════════════════════════════════════════════════
+        try:
+            _lp_emits = sig.get("live_promote_emit_signals") or []
+            for _lp in _lp_emits:
+                if not isinstance(_lp, dict):
+                    continue
+                _lp_signal = _lp.get("signal")
+                if _lp_signal not in ("BUY", "SELL"):
+                    continue
+                _lp_entry_type = _lp.get("entry_type") or ""
+                if not _lp_entry_type:
+                    continue
+                _lp_entry = float(_lp.get("entry") or sig.get("entry") or 0)
+                if _lp_entry <= 0:
+                    continue
+                _lp_sl = float(_lp.get("sl") or 0)
+                _lp_tp = float(_lp.get("tp") or 0)
+                if _lp_sl <= 0 or _lp_tp <= 0:
+                    continue
+                # 各 emit に対して primary 同形の sig dict を組み立て、
+                # _tick_entry を再呼び出し。元 sig の reasons/score 等は
+                # primary が既に消費済みなので emit 側のものに置換する。
+                _lp_sig = dict(sig)  # shallow copy
+                _lp_sig["signal"] = _lp_signal
+                _lp_sig["entry"] = _lp_entry
+                _lp_sig["sl"] = _lp_sl
+                _lp_sig["tp"] = _lp_tp
+                _lp_sig["entry_type"] = _lp_entry_type
+                _lp_sig["confidence"] = int(_lp.get("confidence") or 50)
+                _lp_sig["score"] = float(_lp.get("score") or 0)
+                _lp_sig["reasons"] = list(_lp.get("reasons") or []) + [
+                    f"[LIVE_PROMOTE_EMIT] {_lp_entry_type} "
+                    f"score={_lp_sig['score']:.2f} "
+                    f"(primary={sig.get('entry_type','?')} won)"
+                ]
+                # primary 側 emit を二重処理しないようクリア
+                _lp_sig["live_promote_emit_signals"] = []
+                _lp_sig["shadow_emit_signals"] = []
+                _lp_sig["sr_meta"] = _lp.get("sr_meta")
+                _lp_sig["max_hold_bars"] = _lp.get("max_hold_bars")
+                try:
+                    self._tick_entry(mode, cfg, _lp_sig, tf, instrument)
+                except Exception as _lp_err:
+                    print(f"[DemoTrader/{mode}] live_promote_emit error "
+                          f"({_lp_entry_type}): {_lp_err}", flush=True)
+        except Exception as _lp_outer_err:
+            print(f"[DemoTrader/{mode}] live_promote_emit outer error: "
+                  f"{_lp_outer_err}", flush=True)
 
         # 2026-04-28 (sr-strategies-signal-track): SHADOW_ALWAYS strategies の
         # 並行 Shadow trade 記録。primary 競争で敗北した SR 系 candidate を
