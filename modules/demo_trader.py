@@ -8,7 +8,6 @@ Supports simultaneous daytrade + scalp mode operation.
 v2: SL/TP判定をリアルタイム価格で高頻度チェック（2秒間隔）
     シグナル計算とは分離し、判定遅延を解消
 """
-from __future__ import annotations
 
 import threading
 import time
