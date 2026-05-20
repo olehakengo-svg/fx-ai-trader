@@ -1187,6 +1187,16 @@ Cutoff後（2026-04-08〜）の累積データ：N=29, WR=51.7%, PnL=**−72.3**
 | 負けトレード | BUY → SIGNAL_REVERSE → −2.2 pips |
 | 構造的問題 | Spread 1.3pip / EV −0.45 → 摩擦調整後EVが既に負域に近い |
 
+### 2026-05-20 (Post-London Report)
+| **セッションPnL** | **+38.8 pips** |
+| 戦略 | ペア | 方向 | PnL | 成功要因 |
+**本日のPnL牽引役は`vix_carry_unwind`の単発+30.1pipsが全体の77.6%を占める。**
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+| **xs_momentum** | GBP_USD | BUY | **-0.6 pips** | SIGNAL_REVERSEで決済 — GBP_USDがRANGING（SMA20スロープ-0.00211、下向き）の中でBUYモメンタムが失速し、シグナルが短期で反転。損失は軽微（-0.6pips）でリスク管理は機能 |
+> **注記**: GBP_USDはスプレッド1.3pips環境。EV=-0.60はスプレッドコストほぼイコールで、実質シグナル価値ゼロに近い。
+| **WR** | データなし | 75.0% |
+| **PnL牽引** | 不明 | vix_carry_unwind単発が全体を牽引 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
