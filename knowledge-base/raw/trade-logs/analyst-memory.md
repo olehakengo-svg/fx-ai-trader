@@ -1207,6 +1207,16 @@ PnL合計 **−0.9 pips**、WR **50%**、EV **−0.45**。
 - スプレッド1.3に対してWINが+1.3（RR比≈1:1未満）は摩擦調整後のEVがほぼゼロ。Scalp閾値30%との対比ではspread_guardが機能しているか要確認。
 - RANGING継続中はtrendline_sweepのシグナル精度が低下しやすい。N蓄積を優先しつつ、EV推移を注視する。
 
+### 2026-05-21 (Pre-Tokyo Briefing)
+| PnL合計 | **+38.8 pips** |
+| 全体WR | **75.0%** |
+前日はトレード数が極めて少ないながらも、`vix_carry_unwind` の+30.1という大型勝ちトレードに牽引されてPnLはプラス。実質的には3勝1敗で、全体EVは1件あたり+9.7pip。ただし本数が4件という水準ではノイズと信号を区別できない。
+| Strategy | Pair | N | WR% | EV | PnL |
+- `trendline_sweep`（ELITE_LIVE）: Cutoff後N=2、EV=-0.45。BT実績（EUR_USD EV=+0.927）と比較して懸念があるが、N不足で断言不可
+- `vix_carry_unwind` の+30.1は単発の大勝利。平均回帰を考慮するとこの水準の期待値維持は過信禁物
+- 累計N=8件。**昇格基準（N≥30）まで残り22件以上**が必要な状態が全戦略で継続
+| EUR_JPY | RANGING | 74% | -0.00303（下落傾向） | `vsg_jpy_reversal`・`dt-sr-channel-reversal`は逆張り適性あり。ただしSlope負でトレンドのバイアスに注意 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
