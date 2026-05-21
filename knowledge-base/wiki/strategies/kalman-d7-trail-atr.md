@@ -4,7 +4,7 @@
 - **Entry Type**: `kalman_d7_trail_atr`
 - **Category**: TF (Trend Following)
 - **Timeframe**: DT 15m
-- **Status**: SHADOW (new strategy, 2026-05-20 deployment)
+- **Status**: SHADOW by default; LIVE via `KALMAN_D7_LIVE_ENABLE=1` env var (rule:R1 例外, 2026-05-20)
 - **Active Pairs**: USDJPY only
 
 ## BT Performance (TV Pine, 10.5mo M15)

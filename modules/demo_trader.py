@@ -5177,24 +5177,37 @@ class DemoTrader:
                 f"→ LIVE (tier {_prime_tier}, lot {_prime_lot_mult:.2f}x)"
             )
         # ── v8.9: existing fallback; non-promoted/non-shadow trades are shadow.
-        if not _is_promoted and not _is_shadow:
+        # 2026-05-20 Kalman D7 LIVE override: env enabled な kalman entries は fallback を bypass
+        _kalman_live_pre = self._kalman_d7_live_eligible(entry_type, instrument)
+        if not _is_promoted and not _is_shadow and not _kalman_live_pre:
             _is_shadow = True
+        elif _kalman_live_pre and not _is_shadow:
+            _is_promoted = True  # KALMAN_D7_LIVE: 強制 promote
         # ── v9.0 Phase 0: Three-tier SHADOW gate ──
         # Non-ELITE, non-SENTINEL strategies are forced to shadow when _SHADOW_MODE is active.
         # This runs ON TOP of existing logic: even if _is_promoted=True, shadow overrides it
         # unless the strategy is elite or has a PAIR_PROMOTED entry for this instrument.
         # v9.4: PRIME A/B も Phase0 gate から免除 (binding pre-reg)
+        # 2026-05-20 Kalman D7 LIVE override: bypass Phase0 SHADOW gate
+        _kalman_live = self._kalman_d7_live_eligible(entry_type, instrument)
         if (self._SHADOW_MODE
                 and _is_promoted
                 and not _is_shadow
                 and not self._is_elite_live(entry_type, instrument)
                 and (entry_type, instrument) not in self._PAIR_PROMOTED
-                and not _prime_live_lock):
+                and not _prime_live_lock
+                and not _kalman_live):
             _is_shadow = True
             _is_promoted = False
             self._add_log(
                 f"[SHADOW] Phase0 tier gate: {entry_type} {instrument} "
                 f"→ shadow (not in ELITE_LIVE/PAIR_PROMOTED/PRIME)"
+            )
+        elif _kalman_live and not _is_shadow:
+            # 明示 LIVE 化: _is_promoted を True に強制 (line 5180 fallback の shadow 化を防ぐ)
+            _is_promoted = True
+            self._add_log(
+                f"[KALMAN_D7_LIVE] {entry_type} {instrument} → LIVE (env override, 0.1× lot)"
             )
 
         # ── v2.1.1 Grail Sentinel Bypass (2026-04-25) ──
@@ -7047,6 +7060,31 @@ class DemoTrader:
     # Override via environment variable SHADOW_MODE (default: "true")
     _SHADOW_MODE = _os.environ.get("SHADOW_MODE", "true").lower() in ("true", "1", "yes")
 
+    # 2026-05-20 Kalman D7 regime-bound LIVE override (rule:R1 例外)
+    # Memory: project_kalman_d7_regime_bound_live_2026_05_20
+    # BT 10.5mo USDJPY M15: v17 PF=3.866 / v18f PF=2.087 / v18e PF=1.181
+    # Risk: regime-bound (USDJPY uptrend期間限定), post-hoc selection, 3 spec correlated
+    # 設定: env KALMAN_D7_LIVE_ENABLE=1 で LIVE 発火, default=0 (Shadow)
+    # ロット: UNIVERSAL_SENTINEL 維持で 0.1× lot 自動制限
+    _KALMAN_D7_LIVE_OVERRIDE = frozenset({
+        "kalman_d7_po_dn_flip",
+        "kalman_d7_ema75_break",
+        "kalman_d7_trail_atr",
+    })
+    _KALMAN_D7_LIVE_ENABLE = _os.environ.get("KALMAN_D7_LIVE_ENABLE", "0") == "1"
+    _KALMAN_D7_LIVE_INSTRUMENT = "USD_JPY"
+
+    @classmethod
+    def _kalman_d7_live_eligible(cls, entry_type: str, instrument: str = "") -> bool:
+        """Return True if Kalman D7 LIVE override applies — bypass SHADOW_MODE gate."""
+        if not cls._KALMAN_D7_LIVE_ENABLE:
+            return False
+        if entry_type not in cls._KALMAN_D7_LIVE_OVERRIDE:
+            return False
+        if instrument and instrument != cls._KALMAN_D7_LIVE_INSTRUMENT:
+            return False
+        return True
+
     _TRENDLINE_SWEEP_REDESIGN_V2_LIVE_PAIRS = frozenset({"EUR_USD", "GBP_USD"})
     _TRENDLINE_SWEEP_REDESIGN_V2_SHADOW_PAIRS = frozenset({"EUR_GBP", "XAU_USD"})
 
@@ -7072,6 +7110,10 @@ class DemoTrader:
             return "PAIR_DEMOTED"
         if instrument and (entry_type, instrument) in self._PAIR_PROMOTED:
             return "PAIR_PROMOTED"
+        # 2026-05-20 Kalman D7 regime-bound LIVE override (rule:R1 例外)
+        # env KALMAN_D7_LIVE_ENABLE=1 で UNIVERSAL_SENTINEL より優先して PAIR_PROMOTED 相当に
+        if self._kalman_d7_live_eligible(entry_type, instrument):
+            return "KALMAN_D7_LIVE"
         if self._is_elite_live(entry_type, instrument):
             return "ELITE_LIVE"
         if self._is_force_demoted_entry(entry_type):
@@ -7102,6 +7144,7 @@ class DemoTrader:
             "PHASE0_SHADOW",
         }:
             return True
+        # KALMAN_D7_LIVE: PAIR_PROMOTED 相当 — OANDA fill 確認のみで LIVE 判定
         return not (bridge_status == "filled" and bool(oanda_trade_id))
 
     # ペア別SR感度: SAR高ペアに早逃げ余地
