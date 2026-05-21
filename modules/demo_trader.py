@@ -812,6 +812,51 @@ class DemoTrader:
             sr_meta=sr_meta,
         )
 
+    @staticmethod
+    def _should_audit_shadow_emit(entry_type: str) -> bool:
+        """Return True for shadow-emit SR-family rows that need OANDA audit visibility."""
+        return str(entry_type or "").startswith("sr_")
+
+    def _open_shadow_emit_trade(self, *, direction: str, entry_price: float,
+                                sl: float, tp: float, entry_type: str,
+                                confidence: int, tf: str, reasons: list,
+                                score: float, mode: str, instrument: str,
+                                dow_regime: str = None, v2_regime: str = None,
+                                confluence_score: str = None,
+                                confluence_details: str = None,
+                                sr_meta=None) -> str:
+        """Persist a shadow-emit trade and audit SR-family OANDA skip visibility."""
+        trade_id = self._db.open_trade(
+            direction=direction,
+            entry_price=entry_price,
+            sl=sl, tp=tp,
+            entry_type=entry_type,
+            confidence=confidence,
+            tf=tf,
+            reasons=reasons,
+            score=score,
+            mode=mode,
+            instrument=instrument,
+            is_shadow=True,
+            dow_regime=dow_regime,
+            v2_regime=v2_regime,
+            confluence_score=confluence_score,
+            confluence_details=confluence_details,
+        )
+        if self._should_audit_shadow_emit(entry_type):
+            self._add_oanda_audit(
+                trade_id=trade_id,
+                entry_type=entry_type,
+                is_live=False,
+                bridge_status="skipped",
+                block_reason=SHADOW_TRACKING_BLOCK_REASON,
+                direction=direction,
+                instrument=instrument,
+                units=0,
+                sr_meta=sr_meta,
+            )
+        return trade_id
+
     def _apply_force_demoted_final_gate(self, *, entry_type: str,
                                         is_shadow: bool,
                                         is_promoted: bool,
@@ -3144,7 +3189,7 @@ class DemoTrader:
                 _se_confluence = self._compute_confluence_tag(
                     instrument, _se_signal, datetime.now(timezone.utc)
                 )
-                self._db.open_trade(
+                self._open_shadow_emit_trade(
                     direction=_se_signal,
                     entry_price=_se_entry,
                     sl=_se_sl, tp=_se_tp,
@@ -3155,11 +3200,11 @@ class DemoTrader:
                     score=_se_score,
                     mode=mode,
                     instrument=instrument,
-                    is_shadow=True,
                     dow_regime=_se_dow_regime,
                     v2_regime=_se_v2_regime,
                     confluence_score=_se_confluence.get("score"),
                     confluence_details=_se_confluence.get("details"),
+                    sr_meta=_se.get("sr_meta"),
                 )
         except Exception as _se_err:
             print(f"[DemoTrader/{mode}] shadow_emit error: {_se_err}", flush=True)

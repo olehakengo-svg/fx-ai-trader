@@ -4,6 +4,12 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-05-21 — SR-family shadow_emit OANDA audit restoration
+
+- `shadow_emit_signals` が `_tick_entry` を経由せず `demo_trades` に直接 Shadow row を書くため、SR-family の OANDA audit skip row が欠落していた問題を修正。
+- `sr_*` shadow emit は `demo_trades` 記録後に `oanda_audit` へ `bridge_status=skipped` / `block_reason=shadow_tracking` を永続化する。
+- 対象は監視可視性の復旧のみ。OANDA 発注、Live/Shadow 判定、lot sizing は変更しない。
+
 ## 2026-05-18 — /api/oanda/stats range window 修正
 
 - OANDA stats endpoint が frontend の `range=today|7d|30d|all` を無視して全期間集計していた問題を修正。
