@@ -1217,6 +1217,16 @@ PnL合計 **−0.9 pips**、WR **50%**、EV **−0.45**。
 - 累計N=8件。**昇格基準（N≥30）まで残り22件以上**が必要な状態が全戦略で継続
 | EUR_JPY | RANGING | 74% | -0.00303（下落傾向） | `vsg_jpy_reversal`・`dt-sr-channel-reversal`は逆張り適性あり。ただしSlope負でトレンドのバイアスに注意 |
 
+### 2026-05-21 (Pre-Tokyo Briefing)
+| PnL合計 | **+38.8 pips** |
+| 全体WR | **75.0% (3/4)** |
+前日は少数精鋭ながら高品質なエントリー。`vix_carry_unwind` の+30.1が全体PnLを牽引。唯一の損失は`xs_momentum`のSIGNAL_REVERSE（−0.6、軽微）。
+> **N=8, WR=75.0%, 累計PnL=+52.5**（Shadow除外、XAU別枠）
+| Strategy | Pair | N | WR% | EV | 判定 |
+### 課題①：xs_momentum の損失（SIGNAL_REVERSE）
+- BUYエントリー直後にシグナル反転 → −0.6 pips（損失は軽微）
+- **GBP_USDはRANGING / SMA20下向き(-0.00223)**：トレンドフォロー系には逆風レジーム
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
