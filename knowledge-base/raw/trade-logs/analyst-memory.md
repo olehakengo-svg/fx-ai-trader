@@ -1227,6 +1227,16 @@ PnL合計 **−0.9 pips**、WR **50%**、EV **−0.45**。
 - BUYエントリー直後にシグナル反転 → −0.6 pips（損失は軽微）
 - **GBP_USDはRANGING / SMA20下向き(-0.00223)**：トレンドフォロー系には逆風レジーム
 
+### 2026-05-21 (Post-London Report)
+| PnL | **0 pips / 0円** |
+| 勝率 (WR) | **N/A** |
+- 全ペアの **SMA20 Slope が負（下降傾向）** → トレンドフォロー系フィルターがブロック
+- EUR_JPY / GBP_JPY の **ATR%ile=74%** → スプレッド乖離によりspread_guard発動の可能性
+- **RANGING判定が全5ペアで共通** → モメンタム系戦略の入口条件を満たせず
+- daytrade_xau / scalp_xau / scalp_eurjpy が **OFF状態** → カバレッジ縮小
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
