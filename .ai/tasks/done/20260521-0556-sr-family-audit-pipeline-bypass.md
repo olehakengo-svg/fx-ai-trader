@@ -118,3 +118,36 @@ grep -rn "_add_oanda_audit\|_add_audit\|save_oanda_audit" modules/ | grep -v tes
 - [SR-weight Phase 2 ACCEPT 2026-05-11](knowledge-base/wiki/decisions/sr-weight-phase2-accept-2026-05-11.md)
 - 2026-05-21 audit conversation (Claude session, Q1-Q3 audit + vix_carry deploy)
 - /api/oanda/stats range bug (memory 2026-05-18) — 別件だが関連する observability gap
+
+
+## Result (2026-05-21T06:03:12Z)
+
+exit=0 · 169s
+
+```
+**Verdict: ACCEPT**
+
+Root cause: H1 confirmed. In [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:3136), `shadow_emit_signals` is explicitly documented as not going through `_tick_entry`; the pre-fix path directly called `self._db.open_trade(...)`, so SR shadow emits reached `demo_trades` but bypassed `_add_oanda_audit()` and therefore `OandaBridge._add_audit()` at [modules/oanda_bridge.py](/data/repo/fx-ai-trader/modules/oanda_bridge.py:239).
+
+Fix committed on branch `feature/sr-audit-pipeline-fix-20260521`:
+
+`e8e707f4 fix(audit): restore SR shadow emit OANDA audit rows [rule:R3]`
+
+What changed:
+- Added `_open_shadow_emit_trade()` in [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:820).
+- SR-family shadow emits now still write `demo_trades`, then write `oanda_audit` with `bridge_status="skipped"` and `block_reason="shadow_tracking"` at [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:846).
+- Replaced the direct shadow emit DB write with that helper at [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:3192).
+- Added changelog entry in [knowledge-base/wiki/changelog.md](/data/repo/fx-ai-trader/knowledge-base/wiki/changelog.md:7).
+
+Regression coverage:
+- Added [tests/test_sr_audit_pipeline.py](/data/repo/fx-ai-trader/tests/test_sr_audit_pipeline.py:48).
+- Covers `sr_anti_hunt_bounce × USD_JPY` shadow emit audit persistence.
+- Covers `sr_fib_confluence × GBP_USD` shadow emit audit persistence.
+
+Verification:
+- `./.venv/bin/pytest -q tests/test_sr_audit_pipeline.py tests/test_sr_weight_audit_logging_phase1.py tests/test_shadow_emit_skip_demoted.py`
+- Result: `11 passed in 1.31s`
+- `git status` is clean after commit.
+
+H2/H3/H4 were not the root cause: the OandaBridge/DB audit path works locally with SR columns, schema migration is nullable/idempotent, and the failure mode matches only the direct `shadow_emit_signals` write path. Read-only pr
+…(truncated)
