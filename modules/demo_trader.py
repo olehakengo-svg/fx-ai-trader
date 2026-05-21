@@ -6874,10 +6874,16 @@ class DemoTrader:
         # bb_squeeze_breakout×USD_JPY moved to _PAIR_DEMOTED, so no pair-level
         # live lot override remains.
         # ("bb_squeeze_breakout", "USD_JPY"): 0.01,
-        # 2026-05-13 (rule:R2 pilot): C2 Overlap-only pilot defensive minimum.
-        # 0.05x = sub-floor (below standard 0.3 floor in _lot_floor_ratio_for).
-        # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
-        ("vix_carry_unwind", "USD_JPY"): 0.05,
+        # 2026-05-21 (rule:R1-EXCEPTION): user judgment, Kalman D7 型 intentional exception.
+        # 0.05x → 1.0x (20倍). Rule 1 (Live N≥30 + Bonferroni + Pre-reg LOCK) は未充足:
+        #   - Live N=12 (<30), Wilson_lo=0.208 (BF_lo=0.165, gate 0.40 未満),
+        #     WF h2=-2.58 degradation 兆候あり, unique_days=13 (independence 疑義).
+        # 動機: PAIR_PROMOTED で実エッジ判定済み (30d Shadow avg+7.0pip / 30d Live WR=70%
+        #       N=10 PnL=+37.3) + session_filter Overlap (UTC12-16) 維持 + watchdog 既存
+        #       (tools/volume_live_promotion_watchdog.py, Live N≥10 EV<0 で自動 demote).
+        # 旧 0.05x pre-reg: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
+        # 新 1.0x pre-reg:  knowledge-base/wiki/decisions/vix-1x-intentional-exception-2026-05-21.md
+        ("vix_carry_unwind", "USD_JPY"): 1.0,
     }
 
     @staticmethod
