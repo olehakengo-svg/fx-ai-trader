@@ -75,3 +75,6 @@ raw/bt-results/**/trades.json
 
 # ── ML model artifacts (app.py:5332-5333 writes to cwd; should never be tracked) ──
 *.pkl
+
+# Worktrees (superpowers)
+.worktrees/
