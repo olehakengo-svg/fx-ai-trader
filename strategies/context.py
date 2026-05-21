@@ -67,6 +67,13 @@ class SignalContext:
     ema200_bull: bool = False       # price > EMA200
     ema200_proximity: bool = False  # |dist| < 0.3
 
+    # ── Perfect Order regime (M15, EMA 25/75/200) ──
+    # modules.regime_classifier.classify_regime / is_regime_start で populate.
+    # Kalman D7 trend / future regime-gated 戦略の共有 input.
+    regime_po: str = "RANGE"           # "UP" / "DN" / "RANGE"
+    regime_po_start_up: bool = False   # 当バー UP regime 開始
+    regime_po_start_dn: bool = False   # 当バー DN regime 開始
+
     # ── レイヤー情報 ──
     layer0: dict = field(default_factory=dict)
     layer1: dict = field(default_factory=dict)

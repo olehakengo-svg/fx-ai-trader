@@ -44,7 +44,10 @@ from strategies.context import SignalContext
 
 
 def _kalman_d7_indicators(ctx: SignalContext) -> Optional[dict]:
-    """Compute EMA25, EMA75, ATR Q gate, perfect order, transition.
+    """Compute EMA25/75/200 levels (for DIST/GAP) + ATR Q gate.
+
+    Perfect Order UP / transition は ctx.regime_po / ctx.regime_po_start_up
+    (modules.regime_classifier) を信頼する。本関数は EMA 数値と ATR Q だけを返す。
 
     Returns None when ctx.df is unusable.
     """
@@ -64,53 +67,30 @@ def _kalman_d7_indicators(ctx: SignalContext) -> Optional[dict]:
     ema75 = close_s.ewm(span=75, adjust=False).mean()
     ema200_s = close_s.ewm(span=200, adjust=False).mean()
 
-    last = ema25.iloc[-1]
-    last_mid = ema75.iloc[-1]
-    last_slow = ema200_s.iloc[-1]
-    prev_fast = ema25.iloc[-2]
-    prev_mid = ema75.iloc[-2]
-    prev_slow = ema200_s.iloc[-2]
-    last_close = float(close_s.iloc[-1])
-    prev_close = float(close_s.iloc[-2])
-
-    # Perfect Order UP (with close-above-EMA25 strict close)
-    po_up_now = (last > last_mid) and (last_mid > last_slow) and (last_close > last)
-    po_up_prev = (prev_fast > prev_mid) and (prev_mid > prev_slow) and (prev_close > prev_fast)
-    po_up_start = po_up_now and not po_up_prev
+    last = float(ema25.iloc[-1])
+    last_mid = float(ema75.iloc[-1])
+    last_slow = float(ema200_s.iloc[-1])
 
     # ATR percentile gate (Q2-Q4, P20 <= atr < P80) using ctx.atr if available
     atr_val = float(ctx.atr) if ctx.atr else 0.0
+    tr = pd.concat([
+        high_s - low_s,
+        (high_s - close_s.shift()).abs(),
+        (low_s - close_s.shift()).abs(),
+    ], axis=1).max(axis=1)
+    atr_series = tr.ewm(alpha=1/14, adjust=False).mean()
     if atr_val <= 0:
-        # Fallback: compute simple TR ATR(14)
-        tr = pd.concat([
-            high_s - low_s,
-            (high_s - close_s.shift()).abs(),
-            (low_s - close_s.shift()).abs(),
-        ], axis=1).max(axis=1)
-        atr_series = tr.ewm(alpha=1/14, adjust=False).mean()
         atr_val = float(atr_series.iloc[-1])
-        atr_p20 = float(atr_series.tail(200).quantile(0.20))
-        atr_p80 = float(atr_series.tail(200).quantile(0.80))
-    else:
-        # Use TR-based recalc for percentile reference
-        tr = pd.concat([
-            high_s - low_s,
-            (high_s - close_s.shift()).abs(),
-            (low_s - close_s.shift()).abs(),
-        ], axis=1).max(axis=1)
-        atr_series = tr.ewm(alpha=1/14, adjust=False).mean()
-        atr_p20 = float(atr_series.tail(200).quantile(0.20))
-        atr_p80 = float(atr_series.tail(200).quantile(0.80))
+    atr_p20 = float(atr_series.tail(200).quantile(0.20))
+    atr_p80 = float(atr_series.tail(200).quantile(0.80))
 
     if atr_val <= 0:
         return None
 
     return {
-        "ema25": float(last),
-        "ema75": float(last_mid),
-        "ema200": float(last_slow),
-        "po_up_now": bool(po_up_now),
-        "po_up_start": bool(po_up_start),
+        "ema25": last,
+        "ema75": last_mid,
+        "ema200": last_slow,
         "atr": atr_val,
         "atr_p20": atr_p20,
         "atr_p80": atr_p80,
@@ -120,8 +100,9 @@ def _kalman_d7_indicators(ctx: SignalContext) -> Optional[dict]:
 def _kalman_d7_passes_filters(ctx: SignalContext, ind: dict) -> tuple[bool, list]:
     """Apply entry filters. Returns (pass, reason_list)."""
     reasons = []
-    if not ind["po_up_start"]:
-        return False, ["⛔ Perfect Order UP not started this bar"]
+    # Perfect Order UP の transition は共有 regime_classifier に委譲
+    if not (ctx.regime_po == "UP" and ctx.regime_po_start_up):
+        return False, ["⛔ Perfect Order UP not started this bar (ctx.regime_po)"]
 
     dist_atr = (ctx.entry - ind["ema200"]) / ind["atr"]
     if not (0 < dist_atr < 3.0):

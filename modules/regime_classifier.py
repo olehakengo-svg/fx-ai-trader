@@ -21,8 +21,10 @@
   Wilson_lo は全 cell <40% で BEV floor 未達だが、「方向性は明確」.
 """
 from __future__ import annotations
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Literal
 import math
+
+import pandas as pd
 
 
 # ─── Regime labels (v2: binary) ──────────────────────────────────────
@@ -205,3 +207,80 @@ def hurst_rs(series: Iterable[float], min_window: int = 8) -> float:
     if h != h or h < 0 or h > 1:
         return 0.5
     return float(h)
+
+
+# ─── Perfect Order EMA Regime (2026-05-21) ──────────────────────────
+# Kalman D7 trend forensic (2026-05-20) で USDJPY M15 用に発見した
+# Perfect Order(EMA fast>mid>slow + close strict) を共有モジュール化。
+# v2 binary classify_15m (上記) と直交する 3-state UP/DN/RANGE 分類。
+#
+# Memory:
+#   - project_kalman_d7_regime_bound_live_2026_05_20
+RegimeType = Literal["UP", "DN", "RANGE"]
+
+REGIME_UP = "UP"
+REGIME_DN = "DN"
+REGIME_PO_RANGE = "RANGE"
+
+
+def _resolve_close(df: pd.DataFrame) -> Optional[pd.Series]:
+    if df is None:
+        return None
+    if "close" in df.columns:
+        return df["close"]
+    if "Close" in df.columns:
+        return df["Close"]
+    return None
+
+
+def classify_regime(df: pd.DataFrame, fast: int = 25, mid: int = 75, slow: int = 200,
+                    strict_close: bool = True) -> RegimeType:
+    """Perfect Order EMA regime classifier.
+
+    Returns
+    -------
+    "UP"    : EMA fast > mid > slow (and close > EMA fast when strict_close)
+    "DN"    : EMA slow > mid > fast (Perfect Order Down)
+    "RANGE" : neither / insufficient data
+
+    Parameters
+    ----------
+    df : DataFrame with 'close' or 'Close' column.
+    fast, mid, slow : EMA spans (default 25/75/200).
+    strict_close : when True, require last_close > EMA fast for UP.
+    """
+    if df is None or len(df) < slow + 10:
+        return REGIME_PO_RANGE
+    s = _resolve_close(df)
+    if s is None or len(s) < slow + 10:
+        return REGIME_PO_RANGE
+
+    ema_f = s.ewm(span=fast, adjust=False).mean().iloc[-1]
+    ema_m = s.ewm(span=mid, adjust=False).mean().iloc[-1]
+    ema_s = s.ewm(span=slow, adjust=False).mean().iloc[-1]
+    last_close = float(s.iloc[-1])
+
+    if ema_f > ema_m > ema_s:
+        if not strict_close or last_close > ema_f:
+            return REGIME_UP
+    if ema_s > ema_m > ema_f:
+        return REGIME_DN
+    return REGIME_PO_RANGE
+
+
+def is_regime_start(df: pd.DataFrame, target: RegimeType,
+                    fast: int = 25, mid: int = 75, slow: int = 200,
+                    strict_close: bool = True) -> bool:
+    """Detect transition into ``target`` regime at the current bar.
+
+    Returns True iff:
+      - regime(df) == target
+      - regime(df[:-1]) != target
+    """
+    if df is None or len(df) < slow + 11:
+        return False
+    now = classify_regime(df, fast, mid, slow, strict_close)
+    if now != target:
+        return False
+    prev = classify_regime(df.iloc[:-1], fast, mid, slow, strict_close)
+    return prev != target

@@ -2538,12 +2538,26 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # 新: 常に評価し、DTE候補のスコアが既存シグナルを上回れば上書き
     from strategies.context import SignalContext as _DtCtx
     from strategies.daytrade import DaytradeEngine as _DtEngine
+    from modules.regime_classifier import (
+        classify_regime as _classify_po_regime,
+        is_regime_start as _is_po_regime_start,
+    )
 
     # DT用SignalContext構築（ema_score + 蓄積reasonsを渡す）
     # bar_time からセッション情報を導出（TNM/LSB等の時間帯フィルター用）
     _dt_hour_utc = bar_time.hour if bar_time and hasattr(bar_time, 'hour') else 12
     _dt_is_friday = bar_time.weekday() == 4 if bar_time and hasattr(bar_time, 'weekday') else False
     _dt_prev_row = df.iloc[-2] if len(df) >= 2 else row
+
+    # Perfect Order regime (M15 限定 — Kalman D7 etc).
+    if tf in ("15m", "M15"):
+        _dt_regime_po = _classify_po_regime(df)
+        _dt_regime_po_start_up = _is_po_regime_start(df, "UP")
+        _dt_regime_po_start_dn = _is_po_regime_start(df, "DN")
+    else:
+        _dt_regime_po = "RANGE"
+        _dt_regime_po_start_up = False
+        _dt_regime_po_start_dn = False
     _dt_ctx = _DtCtx(
         entry=entry, open_price=float(row["Open"]),
         atr=atr, atr7=float(row["atr7"]) if "atr7" in row.index else atr,
@@ -2576,6 +2590,9 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 "sr_weighted_levels": _dt_sr_weighted},  # 蓄積reasonsを渡す
         htf=htf_dt,
         backtest_mode=backtest_mode, bar_time=bar_time,
+        regime_po=_dt_regime_po,
+        regime_po_start_up=_dt_regime_po_start_up,
+        regime_po_start_dn=_dt_regime_po_start_dn,
     )
     _dt_engine = _DtEngine()
     _dt_candidates = _dt_engine.evaluate_all(_dt_ctx)
