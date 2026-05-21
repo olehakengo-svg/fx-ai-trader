@@ -1237,6 +1237,16 @@ PnL合計 **−0.9 pips**、WR **50%**、EV **−0.45**。
 | PnL | 0 | 0 |
 | WR | N/A | N/A |
 
+### 2026-05-21 (Pre-Tokyo Briefing)
+データ取得失敗により、前日PnL・トレード数・WRの確定値は算出不可。
+> ⚠️ 以下はバックテスト値またはKB記録値。Cutoff後のライブN/WR/EVは今回取得不可。
+| Strategy | Pair | BT EV | BT WR | Live Status |
+| Strategy | Pair | BT EV | BT WR | Live N | 判定 |
+- **API障害の確認が最優先**: Renderサービスの再起動・ヘルスチェックログを直接確認する
+- **DD防御継続**: APIが復旧してもDD=65%超は異常水準。サイズ0.2x維持を確認
+- **BT陰転戦略**: Live N≥30データが取得可能になり次第、降格判断を即時実施
+- DD防御0.2xモード中: 多数のシグナルがsize=0でSKIPされている可能性
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
