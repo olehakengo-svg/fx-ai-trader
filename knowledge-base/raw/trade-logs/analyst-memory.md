@@ -1247,6 +1247,16 @@ PnL合計 **−0.9 pips**、WR **50%**、EV **−0.45**。
 - **BT陰転戦略**: Live N≥30データが取得可能になり次第、降格判断を即時実施
 - DD防御0.2xモード中: 多数のシグナルがsize=0でSKIPされている可能性
 
+### 2026-05-22 (Pre-Tokyo Briefing)
+- PnL合計: ±0.0 | トレード数: 0 | WR: N/A
+- Cutoff後累計（全期間）: N=5 / WR=80.0% / PnL=+40.1
+- 前日はBlock機構とShadow Trackingが全トレードを抑制。実質的なブランクデイ。
+| Strategy | Pair | N | WR% | EV | PnL | 統計判定 |
+> **全戦略 N=1。統計的有意性ゼロ。** 昇格基準（N≥30 & EV≥1.0）まで最短でも29件の追加蓄積が必要。
+- **hedge_block（計234件）が最大抑制要因。** daytrade_eur / daytrade_gbpusd / daytrade の3系統で集中発生。全通貨ペアが同方向（USD弱・円高傾向）に傾いており、ヘッジ判定が連鎖トリガーされている可能性が高い。
+- **r2_shadow_demoted_cell（計149件）が第2要因。** scalp系全般でシャドウセルが降格済みのため、シグナル生成自体が止まっている。
+- **direction_filter（102件）：** rnb_usdjpyはトレンドに逆らうレンジ戦略のため、USD_JPYの現在のレジームでフィルター多発は合理的。ただしカウント規模が異常に大きく、連続拒否状態。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
