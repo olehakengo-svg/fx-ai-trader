@@ -1267,6 +1267,16 @@ Cutoff後の累積実績は **N=5、WR=60.0%、PnL=+38.3pip相当** にとどま
 - **前日ゼロ発火**: 市場条件の問題（レンジ継続）であり、システム障害ではないと判断。
 - **shadow_tracking 100%** がスキップ原因 → システム設計通りの動作
 
+### 2026-05-22 (Post-London Report)
+| 勝率 (WR) | 0.0% |
+| 総PnL | **-0.5 pips** |
+| EV（単純） | -0.50 |
+唯一のトレードが BREAKEVEN (-0.5 pips) であり、「成功」に分類できるエントリーはゼロ。
+| 戦略 | ペア | PnL | 失敗要因 |
+| `trendline_sweep` | GBP_USD | **-0.5 pips** | `SIGNAL_REVERSE`（エントリー直後に方向転換）＋ spread 1.3 pips で実質コスト超過 |
+- Outcome = `BREAKEVEN` だが、PnL = -0.5 は **spread摩擦の直接コスト**を示す。エントリーした優位性が即座に否定されたケース。
+- GBP_USD のレジームは `RANGING`（ATR%ile=57%、SMA20 Slope=-0.00190）。`trendline_sweep` はトレンド追随系であり、**RANGINGレジームでの構造的不利**が顕在化。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
