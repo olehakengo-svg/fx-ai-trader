@@ -1297,6 +1297,16 @@ Cutoff後の累積実績は **N=5、WR=60.0%、PnL=+38.3pip相当** にとどま
 - **トレンドフォロー系（trendline_sweep・xs_momentum）には不利なレジーム**。GBP_USDの trendline_sweep EV=-0.50はレジームと整合的。
 - EUR_USDのATR%ile=31%は特に低い。Scalp系のスプレッド対EV比が悪化しており、`scalp_eur`が`r2_shadow_demoted_cell`で多数ブロックされているのと符合する。
 
+### 2026-05-25 (Pre-Tokyo Briefing)
+| PnL | **±0** |
+| WR | **N/A** |
+> **注意**: 全戦略N<10 — 統計的には「データなし」フェーズ。EVは参考値として記載。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- **Sentinel N蓄積進捗**: 全戦略N=1。昇格基準（N≥30）まで残り**29件以上**。現時点で昇格・降格判断は不可。
+- **累計50トレード中、Cutoff後有効分はわずか5件（10%）** — クリーンデータの蓄積が極めて限定的。
+- **hedge_block多発**は「既存ポジションがある」ことを示唆するが、現在Open Trades=0。**昨日以前に蓄積されたブロック履歴**がカウントに残っている可能性が高い。本日はポジションゼロから再スタートのため、hedge_blockは解消方向へ。
+- **direction_filter × 7**（rnb_usdjpy）はUSD/JPYのレンジ相場（ATR%ile=45%、SMA20 Slope≒-0.0006）との整合性あり。強い方向性なし → フィルターが機能している正常動作と判断。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
