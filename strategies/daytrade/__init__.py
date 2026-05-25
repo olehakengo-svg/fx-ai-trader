@@ -264,6 +264,19 @@ class DaytradeEngine:
     LIVE_PROMOTE_LOSERS = frozenset({
         "xs_momentum_rsi",       # PAIR_PROMOTED USD_JPY (user override 2026-05-13)
         "macd_rsi_pullback",     # SCALP_SENTINEL shadow-first (2026-05-14)
+        # 2026-05-22 (rule:R3): same 2026-05-19 G2 bug recurrence — Kalman D7
+        # trio was deployed 2026-05-20 (commit 1972bd8b) with intended LIVE
+        # via KALMAN_D7_LIVE_ENABLE env (c7b4ab52, 2026-05-21) but never
+        # registered in the side-channel. Score range 4.0-4.8 (base 4.0 +
+        # ema200_bull 0.3 + adx25 0.3 + macdh 0.2) loses every select_best
+        # competition to session_time_bias / london_fix_reversal /
+        # vix_carry_unwind (typically 6.0-6.5). Result: prod audit
+        # 2026-05-14..05-22 shows 0 kalman shadow fires despite 35 UP
+        # transitions on USDJPY M15 (filter audit confirmed passing).
+        # Memory: project_kalman_d7_regime_bound_live_2026_05_20
+        "kalman_d7_po_dn_flip",     # v17 PF=3.866 BT (max winner ride)
+        "kalman_d7_ema75_break",    # v18f PF=2.087 BT (balanced)
+        "kalman_d7_trail_atr",      # v18e PF=1.181 BT (tight trail)
     })
 
     def select_best(self, candidates: list[Candidate]) -> Optional[Candidate]:
