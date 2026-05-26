@@ -296,3 +296,31 @@ Add a new "Stage-3 Edge Cells" section listing E1-E12 with current stage, link t
 - Wilson_lo per cell (Live trades after deploy) re-computed at W1, W2, W4.
 - account DD baseline at LOCK time: report this in final.md (read from `/api/risk/dashboard`).
 - N target by W4: union N ≥ 60 (currently 156 shadow, expect ~30% fire rate in live = 47 → conservative 60 over 4 weeks).
+
+
+## Result (2026-05-26T12:02:58Z)
+
+exit=0 · 487s
+
+```
+Implemented and pushed `feat/edge-cells-stage3-2026-05-26`.
+
+What changed:
+- Added edge-cell matcher/lot ladder: [modules/edge_cell_promote.py](/data/repo/fx-ai-trader/modules/edge_cell_promote.py)
+- Patched `DemoTrader` force-live routing with `edge_cell_id` persistence.
+- Added DB migration and `DemoDB` schema support.
+- Added dry-run-default watchdog and Render cron.
+- Added 16 targeted tests including `_tick_entry` E2E OANDA-boundary force-fire.
+- Updated KB index/tier master and wrote [final.md](/data/repo/fx-ai-trader/final.md).
+
+Verification:
+- `.venv/bin/pytest tests/test_edge_cell_promote.py -x` -> `16 passed`
+- `python3 scripts/check.py` -> passed all 6 checks
+- `tools/edge_cell_watchdog.py --dry-run` -> exited 0, no state changes, no Discord/apply
+- `git status` -> clean and tracking `origin/feat/edge-cells-stage3-2026-05-26`
+
+Note: the container does not have the `sqlite3` CLI installed, so I verified the migration using Python’s sqlite module and recorded that in `final.md`.
+
+Branch URL:
+https://github.com/olehakengo-svg/fx-ai-trader/tree/feat/edge-cells-stage3-2026-05-26
+```
