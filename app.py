@@ -13831,6 +13831,78 @@ def api_oanda_audit():
     })
 
 
+@app.route("/api/admin/pyr-backfill-dry-run-20260526", methods=["POST"])
+def api_admin_pyr_backfill_dry_run_20260526():
+    """Temporary one-shot PYR strategy attribution dry-run endpoint."""
+    import hashlib as _hashlib
+    import hmac as _hmac
+    import json as _json
+    import subprocess as _subprocess
+
+    provided = request.headers.get("X-PYR-Backfill-Token-SHA256", "").strip().lower()
+    env_secret_names = (
+        "PYR_BACKFILL_DRY_RUN_TOKEN",
+        "ADMIN_API_TOKEN",
+        "API_AUTH_TOKEN",
+        "CRON_SECRET",
+        "DISCORD_WEBHOOK_URL",
+    )
+    authorized = False
+    configured = []
+    for name in env_secret_names:
+        value = os.environ.get(name, "")
+        if not value:
+            continue
+        configured.append(name)
+        digest = _hashlib.sha256(value.encode("utf-8")).hexdigest()
+        if _hmac.compare_digest(provided, digest):
+            authorized = True
+            break
+    if not authorized:
+        status = 401 if configured else 503
+        return jsonify({"error": "unauthorized", "configured_secret_names": configured}), status
+
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    db_path = "/var/data/demo_trades.db"
+    env = dict(os.environ)
+    env["DEMO_DB_PATH"] = db_path
+    try:
+        proc = _subprocess.run(
+            [
+                "python3",
+                os.path.join("tools", "backfill_oanda_strategy_2026_05_19.py"),
+                "--dry-run",
+                "--db",
+                db_path,
+            ],
+            cwd=project_root,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+    except Exception as e:
+        return jsonify({"error": str(e), "type": type(e).__name__}), 500
+
+    if proc.returncode != 0:
+        return jsonify({
+            "error": "dry-run failed",
+            "returncode": proc.returncode,
+            "stdout": proc.stdout,
+            "stderr": proc.stderr,
+        }), 500
+    try:
+        payload = _json.loads(proc.stdout)
+    except Exception as e:
+        return jsonify({
+            "error": f"JSON parse failed: {e}",
+            "stdout": proc.stdout,
+            "stderr": proc.stderr,
+        }), 500
+    return jsonify(payload)
+
+
 # ══════════════════════════════════════════════════════
 #  OANDA Real Trade Data Endpoints
 # ══════════════════════════════════════════════════════
