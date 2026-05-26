@@ -15262,9 +15262,11 @@ def api_admin_edge_cell_state_get():
     lock_nav_raw = _demo_db.get_system_kv("edge_cell_lock_nav_jpy", "")
     if not lock_nav_raw:
         try:
-            from modules.oanda_client import OandaClient
-            _oc = OandaClient()
-            acct = _oc.get_account_summary() or {}
+            _oa = _demo_trader._oanda
+            raw = _oa.get_account_info() or {}
+            acct = raw.get("account") if isinstance(raw, dict) else None
+            if not isinstance(acct, dict):
+                acct = raw if isinstance(raw, dict) else {}
             nav = float(acct.get("NAV") or acct.get("balance") or 0.0)
             if nav > 0:
                 _demo_db.set_system_kv("edge_cell_lock_nav_jpy", str(nav))
@@ -15282,9 +15284,11 @@ def api_admin_edge_cell_state_get():
     # Current NAV for DD calculation
     current_nav = None
     try:
-        from modules.oanda_client import OandaClient
-        _oc = OandaClient()
-        acct = _oc.get_account_summary() or {}
+        _oa = _demo_trader._oanda
+        raw = _oa.get_account_info() or {}
+        acct = raw.get("account") if isinstance(raw, dict) else None
+        if not isinstance(acct, dict):
+            acct = raw if isinstance(raw, dict) else {}
         current_nav = float(acct.get("NAV") or acct.get("balance") or 0.0)
     except Exception:
         current_nav = None
