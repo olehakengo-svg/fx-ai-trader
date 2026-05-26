@@ -15228,6 +15228,110 @@ else:
         _why = "no RENDER/FORCE_AUTOSTART"
     print(f"[autostart] skipped — {_why}. Set FORCE_AUTOSTART=1 locally if needed.", flush=True)
 
+# ════════════════════════════════════════════════════════════
+# Edge-cell admin endpoints (hot-fix 2026-05-26)
+# Spec: knowledge-base/wiki/decisions/edge-cells-stage3-live-promote-2026-05-26.md
+# Reason: cron watchdog cannot access /var/data SQLite directly.
+# All state read/write goes through these endpoints with token auth.
+# ════════════════════════════════════════════════════════════
+def _edge_cell_token_ok(req) -> bool:
+    expected = os.environ.get("EDGE_CELL_ADMIN_TOKEN", "")
+    if not expected:
+        return False
+    return req.headers.get("X-Admin-Token", "") == expected
+
+
+_EDGE_CELL_IDS = [f"E{i}" for i in range(1, 13)]
+
+
+@app.route("/api/admin/edge_cell/state", methods=["GET"])
+def api_admin_edge_cell_state_get():
+    if not _edge_cell_token_ok(request):
+        return jsonify({"error": "unauthorized"}), 401
+    stages = {}
+    changed_at = {}
+    reasons = {}
+    for cid in _EDGE_CELL_IDS:
+        try:
+            stages[cid] = int(_demo_db.get_system_kv(f"edge_cell_stage:{cid}", "1"))
+        except (TypeError, ValueError):
+            stages[cid] = 1
+        changed_at[cid] = _demo_db.get_system_kv(f"edge_cell_stage_changed_at:{cid}", "")
+        reasons[cid] = _demo_db.get_system_kv(f"edge_cell_disabled_reason:{cid}", "")
+    # Lock NAV snapshot — seed on first read if not set
+    lock_nav_raw = _demo_db.get_system_kv("edge_cell_lock_nav_jpy", "")
+    if not lock_nav_raw:
+        try:
+            from modules.oanda_client import OandaClient
+            _oc = OandaClient()
+            acct = _oc.get_account_summary() or {}
+            nav = float(acct.get("NAV") or acct.get("balance") or 0.0)
+            if nav > 0:
+                _demo_db.set_system_kv("edge_cell_lock_nav_jpy", str(nav))
+                _demo_db.set_system_kv(
+                    "edge_cell_lock_nav_set_at",
+                    datetime.now(timezone.utc).isoformat(),
+                )
+                lock_nav_raw = str(nav)
+        except Exception as exc:
+            return jsonify({"error": f"NAV snapshot failed: {exc}"}), 500
+    try:
+        lock_nav_jpy = float(lock_nav_raw or 0.0)
+    except (TypeError, ValueError):
+        lock_nav_jpy = 0.0
+    # Current NAV for DD calculation
+    current_nav = None
+    try:
+        from modules.oanda_client import OandaClient
+        _oc = OandaClient()
+        acct = _oc.get_account_summary() or {}
+        current_nav = float(acct.get("NAV") or acct.get("balance") or 0.0)
+    except Exception:
+        current_nav = None
+    global_disabled = os.environ.get("EDGE_CELLS_GLOBAL_DISABLED", "0") == "1"
+    return jsonify({
+        "stages": stages,
+        "changed_at": changed_at,
+        "reasons": reasons,
+        "lock_nav_jpy": lock_nav_jpy,
+        "current_nav_jpy": current_nav,
+        "global_disabled": global_disabled,
+    })
+
+
+@app.route("/api/admin/edge_cell/state", methods=["POST"])
+def api_admin_edge_cell_state_post():
+    if not _edge_cell_token_ok(request):
+        return jsonify({"error": "unauthorized"}), 401
+    payload = request.get_json(silent=True) or {}
+    actions = payload.get("actions") or []
+    if not isinstance(actions, list):
+        return jsonify({"error": "actions must be a list"}), 400
+    applied = []
+    ts = datetime.now(timezone.utc).isoformat()
+    for act in actions:
+        cid = str(act.get("cell_id") or "").strip()
+        if cid not in _EDGE_CELL_IDS:
+            continue
+        try:
+            new_stage = int(act.get("new_stage"))
+        except (TypeError, ValueError):
+            continue
+        if new_stage not in (0, 1, 2, 3):
+            continue
+        reason = str(act.get("reason") or "")[:200]
+        old_stage = int(_demo_db.get_system_kv(f"edge_cell_stage:{cid}", "1") or "1")
+        if old_stage == new_stage:
+            applied.append({"cell_id": cid, "old_stage": old_stage, "new_stage": new_stage, "changed": False})
+            continue
+        _demo_db.set_system_kv(f"edge_cell_stage:{cid}", str(new_stage))
+        _demo_db.set_system_kv(f"edge_cell_stage_changed_at:{cid}", ts)
+        if reason:
+            _demo_db.set_system_kv(f"edge_cell_disabled_reason:{cid}", reason)
+        applied.append({"cell_id": cid, "old_stage": old_stage, "new_stage": new_stage, "changed": True, "reason": reason})
+    return jsonify({"applied": applied, "ts": ts})
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print("=" * 55)

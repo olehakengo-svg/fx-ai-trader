@@ -16,6 +16,10 @@ services:
         value: /var/data/demo_trades.db
       - key: CRON_SECRET
         sync: false
+      - key: EDGE_CELL_ADMIN_TOKEN
+        sync: false
+      - key: EDGE_CELLS_GLOBAL_DISABLED
+        sync: false
 
   - type: worker
     name: fx-ai-discord-bot
@@ -64,8 +68,8 @@ services:
         sync: false
       - key: API_BASE
         value: https://fx-ai-trader.onrender.com
-      - key: DB_PATH
-        value: /var/data/demo_trades.db
+      - key: EDGE_CELL_ADMIN_TOKEN
+        sync: false
 
   # Tier A: quant gate status + α予算 要約 (1日1回 UTC 00:20)
   # daily_report.py の直前に実行 → gate状態を analyst に認識させる

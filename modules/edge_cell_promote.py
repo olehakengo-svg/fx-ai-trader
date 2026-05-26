@@ -4,6 +4,7 @@ Spec: knowledge-base/wiki/decisions/edge-cells-stage3-live-promote-2026-05-26.md
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
@@ -73,7 +74,13 @@ def match(
 
 
 def get_cell_lot(cell_id: str, demo_db) -> int:
-    """Read ladder stage from system_kv and return units. 0 means disabled."""
+    """Read ladder stage from system_kv and return units. 0 means disabled.
+
+    Global kill-switch: EDGE_CELLS_GLOBAL_DISABLED=1 forces units=0 for all cells.
+    Used as the emergency stop while the watchdog is being fixed (hot-fix 2026-05-26).
+    """
+    if os.environ.get("EDGE_CELLS_GLOBAL_DISABLED", "0") == "1":
+        return 0
     key = f"edge_cell_stage:{cell_id}"
     getter = getattr(demo_db, "kv_get", None) or getattr(demo_db, "get_system_kv")
     raw = getter(key, default="1")
