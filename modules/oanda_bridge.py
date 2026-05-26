@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 OANDA Bridge — Business logic layer between demo trader and OANDA API.
 Fire-and-forget: OANDA failures never block demo trading logic.
@@ -491,7 +493,8 @@ class OandaBridge:
                    units: int = 0,
                    log_callback=None,
                    lot_label: str = "",
-                   signal_price: float = 0.0):
+                   signal_price: float = 0.0,
+                   entry_type: str | None = None):
         """Place OANDA market order mirroring a demo trade.
         callback(demo_trade_id, oanda_trade_id) called on success for DB persistence.
         units: override lot size (0 = use default self._units).
@@ -510,6 +513,7 @@ class OandaBridge:
         if not self.is_mode_allowed(mode):
             logger.debug(f"[OandaBridge] mode={mode} not in allowed_modes, skip")
             return
+        _audit_entry_type = entry_type if entry_type is not None else mode
 
         # Daily loss gate (audit 2026-05-01 P0-2). Transmit-only halt: the
         # demo trade is still recorded by the caller; we only refuse to
@@ -527,7 +531,7 @@ class OandaBridge:
                            f"demo={demo_trade_id} mode={mode} {direction} {instrument}")
             try:
                 self._add_audit(
-                    demo_trade_id=demo_trade_id, entry_type=mode,
+                    demo_trade_id=demo_trade_id, entry_type=_audit_entry_type,
                     is_live=False, bridge_status="blocked",
                     block_reason=_reason,
                     direction=direction, instrument=instrument,
@@ -538,6 +542,18 @@ class OandaBridge:
             if log_callback:
                 log_callback(f"🔗 OANDA: [HALT] {_reason} — {direction} {instrument} not transmitted")
             return
+
+        if entry_type is not None:
+            try:
+                self._add_audit(
+                    demo_trade_id=demo_trade_id, entry_type=_audit_entry_type,
+                    is_live=True, bridge_status="sent",
+                    block_reason="",
+                    direction=direction, instrument=instrument,
+                    units=(units if units > 0 else self._units),
+                )
+            except Exception as e:
+                logger.warning(f"[OandaBridge] audit write failed during send: {e}")
 
         # Persist a pending row BEFORE the broker call (audit P0-6).
         # The row stays 'pending' until either pending_op_mark_done or

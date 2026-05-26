@@ -357,6 +357,7 @@ class DemoDB:
                     oanda_trade_id  TEXT UNIQUE,
                     instrument      TEXT DEFAULT 'USD_JPY',
                     state           TEXT,
+                    strategy        TEXT,
                     direction       TEXT,
                     initial_units   REAL,
                     current_units   REAL,
@@ -379,9 +380,11 @@ class DemoDB:
                     created_at      TEXT DEFAULT (datetime('now'))
                 );
                 CREATE INDEX IF NOT EXISTS idx_oanda_state ON oanda_trades(state);
+                CREATE INDEX IF NOT EXISTS idx_oanda_strategy ON oanda_trades(strategy);
                 CREATE INDEX IF NOT EXISTS idx_oanda_open_time ON oanda_trades(open_time);
                 CREATE INDEX IF NOT EXISTS idx_oanda_close_time ON oanda_trades(close_time);
             """)
+            self._ensure_oanda_trade_strategy_column(conn)
 
             # ── OANDA実行監査ログ永続化テーブル ──
             conn.executescript("""
@@ -562,6 +565,17 @@ class DemoDB:
         ]:
             if col not in existing:
                 conn.execute(f"ALTER TABLE oanda_audit ADD COLUMN {col} {col_type}")  # nosem
+
+    @staticmethod
+    def _ensure_oanda_trade_strategy_column(conn):
+        """Idempotently add persisted strategy attribution to OANDA trade rows."""
+        existing = {
+            row["name"] if isinstance(row, sqlite3.Row) else row[1]
+            for row in conn.execute("PRAGMA table_info(oanda_trades)")
+        }
+        if "strategy" not in existing:
+            conn.execute("ALTER TABLE oanda_trades ADD COLUMN strategy TEXT")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_oanda_strategy ON oanda_trades(strategy)")
 
     # ── 2026-04-30 (rule:R3): Pre-fix shadow contamination backfill ──
     # Phase 10 G2 で SHADOW_ALWAYS に投入された vsg_jpy_reversal /
@@ -1482,6 +1496,73 @@ class DemoDB:
             row = conn.execute("SELECT COUNT(*) as cnt FROM oanda_audit").fetchone()
             return row["cnt"] if row else 0
 
+    @staticmethod
+    def _normalize_oanda_ts(ts: str) -> str:
+        """Normalize ISO timestamps for SQLite julianday comparisons."""
+        if not ts:
+            return ""
+        return str(ts).replace("Z", "+00:00")
+
+    @staticmethod
+    def _is_strategy_label(label: str) -> bool:
+        """Return True for audit `sent` labels that look like strategy ids."""
+        if not label:
+            return False
+        mode_labels = {
+            "scalp", "scalp_5m", "daytrade", "daytrade_1h", "swing",
+            "daytrade_gbpusd", "daytrade_gbpjpy", "daytrade_eur",
+            "daytrade_eurjpy", "daytrade_eurgbp", "daytrade_xau",
+            "scalp_eur", "scalp_eurjpy", "scalp_xau",
+        }
+        return label not in mode_labels
+
+    def resolve_oanda_strategy_from_audit(
+        self,
+        *,
+        instrument: str,
+        direction: str,
+        open_time: str,
+        window_minutes: int = 5,
+        conn=None,
+    ) -> str:
+        """Resolve OANDA strategy from nearest `sent` audit row."""
+        if not instrument or not direction or not open_time:
+            return ""
+        owns_conn = conn is None
+        if owns_conn:
+            conn_ctx = self._safe_conn()
+            conn = conn_ctx.__enter__()
+        try:
+            rows = conn.execute(
+                """
+                SELECT entry_type,
+                       ABS((julianday(?) - julianday(timestamp)) * 1440.0) AS delta_min
+                FROM oanda_audit
+                WHERE bridge_status='sent'
+                  AND instrument=?
+                  AND direction=?
+                  AND timestamp IS NOT NULL
+                  AND ABS((julianday(?) - julianday(timestamp)) * 1440.0) <= ?
+                ORDER BY delta_min ASC, id DESC
+                LIMIT 5
+                """,
+                (
+                    self._normalize_oanda_ts(open_time),
+                    instrument,
+                    direction,
+                    self._normalize_oanda_ts(open_time),
+                    float(window_minutes),
+                ),
+            ).fetchall()
+            for row in rows:
+                label = row["entry_type"] if isinstance(row, sqlite3.Row) else row[0]
+                if self._is_strategy_label(label):
+                    return label
+            return ""
+        finally:
+            if owns_conn:
+                conn_ctx.__exit__(None, None, None)
+
     # ── Pending OANDA Ops (audit 2026-05-01 P0-6) ─────
     # OandaBridge fire-and-forget mode silently drops failures after 3
     # retries; demo_trades stays CLOSED while OANDA may still be OPEN.
@@ -2087,16 +2168,28 @@ class DemoDB:
 
         with self._lock:
             with self._safe_conn() as conn:
+                strategy = self.resolve_oanda_strategy_from_audit(
+                    instrument=instrument,
+                    direction=direction,
+                    open_time=open_time,
+                    conn=conn,
+                )
+                existing = conn.execute(
+                    "SELECT strategy FROM oanda_trades WHERE oanda_trade_id=?",
+                    (tid,),
+                ).fetchone()
+                if not strategy and existing:
+                    strategy = existing["strategy"] or ""
                 conn.execute("""
                     INSERT OR REPLACE INTO oanda_trades
-                        (oanda_trade_id, instrument, state, direction,
+                        (oanda_trade_id, instrument, state, strategy, direction,
                          initial_units, current_units, open_price, close_price,
                          open_time, close_time, realized_pl, unrealized_pl,
                          financing, commission, stop_loss, take_profit,
                          trailing_sl, pnl_pips, close_reason, margin_used,
                          raw_json, synced_at)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
-                """, (tid, instrument, state, direction,
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
+                """, (tid, instrument, state, strategy, direction,
                       initial_units, current_units, open_price, close_price,
                       open_time, close_time, realized_pl, unrealized_pl,
                       financing, commission, stop_loss, take_profit,
@@ -2126,7 +2219,7 @@ class DemoDB:
             tests/test_oanda_audit_join_invariant.py.
         """
         query = ("SELECT t.*, "
-                 "COALESCE(d.entry_type, a.entry_type) AS strategy "
+                 "COALESCE(d.entry_type, a.entry_type, t.strategy) AS strategy_resolved "
                  "FROM oanda_trades t "
                  "LEFT JOIN demo_trades d "
                  "ON t.oanda_trade_id = d.oanda_trade_id AND d.oanda_trade_id IS NOT NULL AND d.oanda_trade_id != '' "
@@ -2152,7 +2245,79 @@ class DemoDB:
         params.extend([limit, offset])
         with self._safe_conn() as conn:
             rows = conn.execute(query, params).fetchall()
-            return [dict(r) for r in rows]
+            result = []
+            for r in rows:
+                d = dict(r)
+                resolved = d.pop("strategy_resolved", None)
+                if resolved:
+                    d["strategy"] = resolved
+                result.append(d)
+            return result
+
+    def backfill_oanda_trade_strategy_from_audit(self, *, apply: bool = False,
+                                                 window_minutes: int = 5) -> dict:
+        """Backfill missing OANDA strategy labels from nearest `sent` audit rows."""
+        with self._lock:
+            with self._safe_conn() as conn:
+                rows = conn.execute(
+                    """
+                    SELECT oanda_trade_id, instrument, direction, open_time,
+                           realized_pl, strategy
+                    FROM oanda_trades
+                    WHERE state='CLOSED'
+                      AND (strategy IS NULL OR strategy='')
+                    ORDER BY open_time ASC
+                    """
+                ).fetchall()
+                updates = []
+                by_strategy = {}
+                for row in rows:
+                    strategy = self.resolve_oanda_strategy_from_audit(
+                        instrument=row["instrument"] or "",
+                        direction=row["direction"] or "",
+                        open_time=row["open_time"] or "",
+                        window_minutes=window_minutes,
+                        conn=conn,
+                    )
+                    if not strategy:
+                        continue
+                    pnl = float(row["realized_pl"] or 0.0)
+                    updates.append({
+                        "oanda_trade_id": row["oanda_trade_id"],
+                        "strategy": strategy,
+                        "realized_pl": pnl,
+                    })
+                    agg = by_strategy.setdefault(strategy, {
+                        "count": 0,
+                        "realized_pl": 0.0,
+                    })
+                    agg["count"] += 1
+                    agg["realized_pl"] += pnl
+                if apply and updates:
+                    conn.executemany(
+                        "UPDATE oanda_trades SET strategy=? WHERE oanda_trade_id=?",
+                        [(u["strategy"], u["oanda_trade_id"]) for u in updates],
+                    )
+                    conn.commit()
+                return {
+                    "apply": bool(apply),
+                    "window_minutes": window_minutes,
+                    "scanned_missing": len(rows),
+                    "updated_count": len(updates) if apply else 0,
+                    "would_update_count": len(updates),
+                    "distinct_strategies": len(by_strategy),
+                    "total_realized_pl_reattributed": round(
+                        sum(u["realized_pl"] for u in updates), 6
+                    ),
+                    "by_strategy": {
+                        k: {
+                            "count": v["count"],
+                            "realized_pl": round(v["realized_pl"], 6),
+                        }
+                        for k, v in sorted(by_strategy.items())
+                    },
+                    "updates": updates,
+                }
 
     def get_oanda_open_trades(self) -> list:
         """Return all OPEN OANDA trades."""
