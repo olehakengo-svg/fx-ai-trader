@@ -104,3 +104,18 @@ Define the next step based on dry-run output:
 - Direction of sign flip on the two most-impacted strategies (vix_carry_unwind, trendline_sweep).
 - Cohort safety: confirm 30-day window matches the audit cohort (2026-04-19 → 2026-05-19) before
   proposing apply.
+
+
+## Result (2026-05-26T09:59:59Z)
+
+exit=0 · 1256s
+
+```
+Completed and documented in [final.md](/data/repo/fx-ai-trader/final.md).
+
+Key outcome: `--apply` was not run. The captured dry-run result shows `would_update_count=316`, `updated_count=0`, `distinct_strategies=36`, total reattributed PnL `-8286.3381` JPY. Target table includes `trendline_sweep` moving to `13` rows / `-95.508838` EV and `vix_carry_unwind` to `16` rows / `+21.8125` EV.
+
+Verdict recorded as `ERROR`, not `APPLY_RECOMMENDED`, because the first official subprocess dry-run path emitted migration/backfill side-effect messages before JSON despite `--dry-run`, and Render deploy status could not be verified through Render API from this worker (`401`, no API key). I switched to the already-initialized production `_demo_db` for the successful `apply=False` capture, then reverted the temporary route. The route is gone: final GET check returned `404`.
+
+Discord summary was posted successfully on retry (`204`). The report commit is pushed at `1ceb9d69`.
+```
