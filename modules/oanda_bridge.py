@@ -13,8 +13,10 @@ Strategy-level transfer control:
 import os
 import json
 import logging
+import math
 import threading
 import time as _time
+from decimal import Decimal
 from modules.oanda_client import OandaClient
 
 logger = logging.getLogger(__name__)
@@ -238,6 +240,27 @@ class OandaBridge:
 
     # ── Execution Audit ───────────────────────────────
 
+    @staticmethod
+    def _audit_json_safe(value):
+        """Normalize audit values so Flask jsonify cannot fail on SQLite drift."""
+        if isinstance(value, dict):
+            return {str(k): OandaBridge._audit_json_safe(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [OandaBridge._audit_json_safe(v) for v in value]
+        if isinstance(value, tuple):
+            return [OandaBridge._audit_json_safe(v) for v in value]
+        if isinstance(value, bytes):
+            return value.decode("utf-8", errors="replace")
+        if isinstance(value, Decimal):
+            return float(value) if value.is_finite() else None
+        if isinstance(value, float) and not math.isfinite(value):
+            return None
+        return value
+
+    @classmethod
+    def _normalize_audit_rows(cls, rows):
+        return [cls._audit_json_safe(dict(row)) for row in (rows or [])]
+
     def _add_audit(self, demo_trade_id: str, entry_type: str,
                    is_live: bool, bridge_status: str, block_reason: str,
                    direction: str = "", instrument: str = "",
@@ -282,10 +305,10 @@ class OandaBridge:
         """直近の実行監査記録を返す (DB優先、フォールバック: インメモリ)."""
         if self._db:
             try:
-                return self._db.get_oanda_audit(limit=limit)
+                return self._normalize_audit_rows(self._db.get_oanda_audit(limit=limit))
             except Exception as e:
                 logger.warning(f"[OandaBridge] Audit DB read failed: {e}")
-        return self._execution_audit[-limit:]
+        return self._normalize_audit_rows(self._execution_audit[-limit:])
 
     def get_execution_audit_count(self) -> int:
         """監査記録の総件数を返す (DB優先)."""
