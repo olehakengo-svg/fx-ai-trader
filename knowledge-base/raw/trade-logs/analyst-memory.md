@@ -1347,6 +1347,16 @@ Cutoff後の累積実績は **N=5、WR=60.0%、PnL=+38.3pip相当** にとどま
 - OANDA接続の NAV=None を監視継続
 | 16:00〜18:00 | ロンドンオープン。EUR_USD・GBP_USDのレンジブレイク試行に注意 |
 
+### 2026-05-26 (Post-London Report)
+| セッション内PnL | **0 pips** |
+| セッション内WR | **N/A** |
+| WR | 0.0% (1件・損失) | N/A |
+| PnL | -7.1 pips | 0 pips |
+- **レジーム変化なし**：全5通貨ペアが揃って`RANGING`を維持。SMAスロープは全ペアでマイナス（弱下降バイアス）。ATR%ileはGBP_JPY 64%・GBP_USD 57%・EUR_JPY 57%と中程度。レンジの「深さ」は浅くなく、ブレイクアウト戦略には依然として厳しい地合い。
+- 東京→ロンドンで**WRが改善する材料なし**。本日は東京の1件損失のみで、ロンドンは完全沈黙。
+- `rnb_usdjpy:direction_filter`の94件は、USD/JPY（ATR%ile 45%・RANGING）がRNB戦略の発火条件を一切満たせない状態を端的に示す。
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
