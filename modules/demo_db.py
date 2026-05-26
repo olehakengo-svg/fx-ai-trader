@@ -380,10 +380,16 @@ class DemoDB:
                     created_at      TEXT DEFAULT (datetime('now'))
                 );
                 CREATE INDEX IF NOT EXISTS idx_oanda_state ON oanda_trades(state);
-                CREATE INDEX IF NOT EXISTS idx_oanda_strategy ON oanda_trades(strategy);
                 CREATE INDEX IF NOT EXISTS idx_oanda_open_time ON oanda_trades(open_time);
                 CREATE INDEX IF NOT EXISTS idx_oanda_close_time ON oanda_trades(close_time);
             """)
+            # 2026-05-26 fix: idx_oanda_strategy was previously in the executescript
+            # above, which fails on a pre-existing oanda_trades table that lacks the
+            # `strategy` column (CREATE TABLE IF NOT EXISTS is a no-op, but the
+            # following CREATE INDEX hits the missing column). _ensure_oanda_trade_strategy_column
+            # adds the column AND the index idempotently, so the order is:
+            # 1) base table + non-strategy indexes (executescript above)
+            # 2) ALTER TABLE ADD COLUMN strategy + CREATE INDEX idx_oanda_strategy (below)
             self._ensure_oanda_trade_strategy_column(conn)
 
             # ── OANDA実行監査ログ永続化テーブル ──
