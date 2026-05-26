@@ -28,6 +28,7 @@ from modules.hmm_regime import HMMRegime
 from modules.prime_gate import classify_prime, prime_fingerprint
 from modules.confidence_q4_gate import should_shadow as _q4_should_shadow, gate_reason as _q4_gate_reason
 from modules.shadow_demote_registry import is_shadow_demoted
+from modules import edge_cell_promote
 import numpy as np
 
 SHADOW_TRACKING_BLOCK_REASON = "shadow_tracking"
@@ -4907,6 +4908,27 @@ class DemoTrader:
             _prime_live_lock = False
             self._add_log("[PRIME] override disabled via env (PRIME_OVERRIDE_ENABLED=0)")
 
+        _edge_cell_id = ""
+        _edge_cell_lot = 0
+        _edge_cell_force_live = False
+        _edge_cell_mtf_shadow = bool(_is_shadow and _mtf_gate_action == "downgraded")
+        try:
+            _edge_cell = edge_cell_promote.match(
+                strategy=entry_type,
+                symbol=instrument,
+                entry_time=_entry_time,
+                direction=signal,
+                v2_regime=_v2_regime or "",
+                mtf_gate_action=_mtf_gate_action or "",
+            )
+            if _edge_cell is not None:
+                _edge_cell_lot = edge_cell_promote.get_cell_lot(_edge_cell.cell_id, self._db)
+                if _edge_cell_lot > 0:
+                    _edge_cell_id = _edge_cell.cell_id
+                    _edge_cell_force_live = True
+        except Exception as _edge_exc:
+            self._add_log(f"[EDGE_CELL] match failed: {_edge_exc}")
+
         trade_id = self._db.open_trade(
             direction=signal,
             entry_price=current_price,
@@ -4930,6 +4952,7 @@ class DemoTrader:
             enforce_oanda_live_invariant=True,
             dow_regime=_dow_regime,
             v2_regime=_v2_regime,
+            edge_cell_id=_edge_cell_id,
             confluence_score=_confluence.get("score"),
             confluence_details=_confluence.get("details"),
             # v9.3: MTF regime monitor (cache した payload を使う — 二重 fetch 回避)
@@ -5147,6 +5170,11 @@ class DemoTrader:
         # ── OANDA連携: 昇格済み戦略のみミラーリング + 実行監査 + 🔗ラベルログ ──
         _shadow_at_open = _is_shadow  # v9.x: DB書込み時点の値を保存 (persistence fix)
         _is_promoted = self._is_promoted(entry_type, instrument)
+        if _edge_cell_force_live and _edge_cell_mtf_shadow:
+            _is_shadow = False
+            self._add_log(
+                f"[EDGE_CELL] {_edge_cell_id} MTF downgrade bypassed before tier routing"
+            )
         # ── v7.0: Shadow Tracking — OANDAには絶対に送信しない ──
         if _is_shadow:
             _is_promoted = False
@@ -5327,6 +5355,16 @@ class DemoTrader:
             shadow_at_open=_shadow_at_open,
         )
 
+        if _edge_cell_force_live:
+            if _is_shadow:
+                self._add_log(
+                    f"[EDGE_CELL] {_edge_cell_id} force-live override: "
+                    f"{entry_type} {instrument} -> LIVE {_edge_cell_lot}u"
+                )
+            _is_shadow = False
+            _is_promoted = True
+            _adjusted_units = _edge_cell_lot
+
         # ── v9.x: Shadow persistence fix ──
         # Bug: open_trade()はL3890の_is_shadowで書込み。その後の安全ネット
         # (L4049: not promoted→shadow, L4055: Phase0 gate)でis_shadowが変更されても
@@ -5343,7 +5381,8 @@ class DemoTrader:
         # 早期登録すると Q4 gate / Phase0 gate / FORCE_DEMOTED 経由で Shadow 化された
         # トレードが LIVE として計上されてしまい、後続の LIVE を exposure cap で block する。
         self._exposure_mgr.add_position(trade_id, instrument, signal,
-                                        int(_os.environ.get("OANDA_UNITS", "10000")),
+                                        _edge_cell_lot if _edge_cell_force_live
+                                        else int(_os.environ.get("OANDA_UNITS", "10000")),
                                         is_shadow=bool(_is_shadow))
 
         # ── v6.4 SHIELD: EUR_USD DT/1H OANDA遮断 (scalp継続) ──
@@ -5375,6 +5414,9 @@ class DemoTrader:
             # v7.6: XAU=1unit(1oz), FX=1000u(0.01lot) — 同上
             _adjusted_units = 1 if _is_xau_inst else 1000
             _lot_tag = "(🔬SEN/CMD)"
+        if _edge_cell_force_live:
+            _adjusted_units = _edge_cell_lot
+            _lot_tag = f"(EDGE-{_edge_cell_id})"
 
         # ── v6.4 SHIELD: OANDA lot hard cap ──
         if _adjusted_units > self._OANDA_LOT_CAP:

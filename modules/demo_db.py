@@ -124,6 +124,7 @@ class DemoDB:
                     regime          TEXT,
                     dow_regime      TEXT,
                     v2_regime       TEXT,
+                    edge_cell_id     TEXT DEFAULT '',
                     confluence_score TEXT,
                     confluence_details TEXT,
                     layer1_dir      TEXT,
@@ -301,6 +302,16 @@ class DemoDB:
             # and intentionally separate from regime(JSON), mtf_regime, and dow_regime.
             try:
                 conn.execute("ALTER TABLE demo_trades ADD COLUMN v2_regime TEXT")
+            except Exception:
+                pass
+
+            # ── 2026-05-26: Stage-3 edge-cell direct LIVE promotion tag ──
+            try:
+                conn.execute("ALTER TABLE demo_trades ADD COLUMN edge_cell_id TEXT DEFAULT ''")
+            except Exception:
+                pass
+            try:
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_trades_edge_cell ON demo_trades(edge_cell_id)")
             except Exception:
                 pass
 
@@ -1023,6 +1034,7 @@ class DemoDB:
                    enforce_oanda_live_invariant: bool = False,
                    dow_regime: str = None,
                    v2_regime: str = None,
+                   edge_cell_id: str = "",
                    confluence_score: str = None,
                    confluence_details: str = None,
                    mtf_regime: str = "", mtf_d1_label: int = 3,
@@ -1051,10 +1063,10 @@ class DemoDB:
                          layer1_dir, score, ema_conf, sr_basis, mode, instrument,
                          signal_price, spread_at_entry, slippage_pips, cooldown_elapsed,
                          is_shadow, oanda_trade_id, dow_regime, v2_regime,
-                         confluence_score, confluence_details,
+                         edge_cell_id, confluence_score, confluence_details,
                          mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state,
                          gate_group, mtf_alignment, mtf_gate_action)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (trade_id, "OPEN", direction, entry_price, now_str,
                       sl, tp, entry_type, confidence, tf,
                       json.dumps(reasons or [], ensure_ascii=False),
@@ -1063,7 +1075,7 @@ class DemoDB:
                       signal_price, spread_at_entry, slippage_pips, cooldown_elapsed,
                       1 if persisted_is_shadow else 0,
                       oanda_trade_id, dow_regime, v2_regime,
-                      confluence_score, confluence_details,
+                      edge_cell_id or "", confluence_score, confluence_details,
                       mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state,
                       gate_group, mtf_alignment, mtf_gate_action))
                 conn.commit()

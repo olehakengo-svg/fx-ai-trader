@@ -1,0 +1,252 @@
+{
+  "actions": [],
+  "cells": {
+    "E1": {
+      "metrics": {
+        "ev_pips": 0.0,
+        "losses": 0,
+        "n": 0,
+        "pnl_jpy_today": 0,
+        "pnl_pips_sum": 0,
+        "profit_factor": null,
+        "rolling_5d_dd_jpy": 0.0,
+        "rolling_5d_dd_pct": 0.0,
+        "wins": 0,
+        "wr": 0.0,
+        "zero_fill_7d": true
+      },
+      "reasons": [
+        "ZERO_FILL_7D_ALERT_ONLY"
+      ],
+      "stage": 1,
+      "verdict": "HOLD"
+    },
+    "E10": {
+      "metrics": {
+        "ev_pips": 0.0,
+        "losses": 0,
+        "n": 0,
+        "pnl_jpy_today": 0,
+        "pnl_pips_sum": 0,
+        "profit_factor": null,
+        "rolling_5d_dd_jpy": 0.0,
+        "rolling_5d_dd_pct": 0.0,
+        "wins": 0,
+        "wr": 0.0,
+        "zero_fill_7d": true
+      },
+      "reasons": [
+        "ZERO_FILL_7D_ALERT_ONLY"
+      ],
+      "stage": 1,
+      "verdict": "HOLD"
+    },
+    "E11": {
+      "metrics": {
+        "ev_pips": 0.0,
+        "losses": 0,
+        "n": 0,
+        "pnl_jpy_today": 0,
+        "pnl_pips_sum": 0,
+        "profit_factor": null,
+        "rolling_5d_dd_jpy": 0.0,
+        "rolling_5d_dd_pct": 0.0,
+        "wins": 0,
+        "wr": 0.0,
+        "zero_fill_7d": true
+      },
+      "reasons": [
+        "ZERO_FILL_7D_ALERT_ONLY"
+      ],
+      "stage": 1,
+      "verdict": "HOLD"
+    },
+    "E12": {
+      "metrics": {
+        "ev_pips": 0.0,
+        "losses": 0,
+        "n": 0,
+        "pnl_jpy_today": 0,
+        "pnl_pips_sum": 0,
+        "profit_factor": null,
+        "rolling_5d_dd_jpy": 0.0,
+        "rolling_5d_dd_pct": 0.0,
+        "wins": 0,
+        "wr": 0.0,
+        "zero_fill_7d": true
+      },
+      "reasons": [
+        "ZERO_FILL_7D_ALERT_ONLY"
+      ],
+      "stage": 1,
+      "verdict": "HOLD"
+    },
+    "E2": {
+      "metrics": {
+        "ev_pips": 0.0,
+        "losses": 0,
+        "n": 0,
+        "pnl_jpy_today": 0,
+        "pnl_pips_sum": 0,
+        "profit_factor": null,
+        "rolling_5d_dd_jpy": 0.0,
+        "rolling_5d_dd_pct": 0.0,
+        "wins": 0,
+        "wr": 0.0,
+        "zero_fill_7d": true
+      },
+      "reasons": [
+        "ZERO_FILL_7D_ALERT_ONLY"
+      ],
+      "stage": 1,
+      "verdict": "HOLD"
+    },
+    "E3": {
+      "metrics": {
+        "ev_pips": 0.0,
+        "losses": 0,
+        "n": 0,
+        "pnl_jpy_today": 0,
+        "pnl_pips_sum": 0,
+        "profit_factor": null,
+        "rolling_5d_dd_jpy": 0.0,
+        "rolling_5d_dd_pct": 0.0,
+        "wins": 0,
+        "wr": 0.0,
+        "zero_fill_7d": true
+      },
+      "reasons": [
+        "ZERO_FILL_7D_ALERT_ONLY"
+      ],
+      "stage": 1,
+      "verdict": "HOLD"
+    },
+    "E4": {
+      "metrics": {
+        "ev_pips": 0.0,
+        "losses": 0,
+        "n": 0,
+        "pnl_jpy_today": 0,
+        "pnl_pips_sum": 0,
+        "profit_factor": null,
+        "rolling_5d_dd_jpy": 0.0,
+        "rolling_5d_dd_pct": 0.0,
+        "wins": 0,
+        "wr": 0.0,
+        "zero_fill_7d": true
+      },
+      "reasons": [
+        "ZERO_FILL_7D_ALERT_ONLY"
+      ],
+      "stage": 1,
+      "verdict": "HOLD"
+    },
+    "E5": {
+      "metrics": {
+        "ev_pips": 0.0,
+        "losses": 0,
+        "n": 0,
+        "pnl_jpy_today": 0,
+        "pnl_pips_sum": 0,
+        "profit_factor": null,
+        "rolling_5d_dd_jpy": 0.0,
+        "rolling_5d_dd_pct": 0.0,
+        "wins": 0,
+        "wr": 0.0,
+        "zero_fill_7d": true
+      },
+      "reasons": [
+        "ZERO_FILL_7D_ALERT_ONLY"
+      ],
+      "stage": 1,
+      "verdict": "HOLD"
+    },
+    "E6": {
+      "metrics": {
+        "ev_pips": 0.0,
+        "losses": 0,
+        "n": 0,
+        "pnl_jpy_today": 0,
+        "pnl_pips_sum": 0,
+        "profit_factor": null,
+        "rolling_5d_dd_jpy": 0.0,
+        "rolling_5d_dd_pct": 0.0,
+        "wins": 0,
+        "wr": 0.0,
+        "zero_fill_7d": true
+      },
+      "reasons": [
+        "ZERO_FILL_7D_ALERT_ONLY"
+      ],
+      "stage": 1,
+      "verdict": "HOLD"
+    },
+    "E7": {
+      "metrics": {
+        "ev_pips": 0.0,
+        "losses": 0,
+        "n": 0,
+        "pnl_jpy_today": 0,
+        "pnl_pips_sum": 0,
+        "profit_factor": null,
+        "rolling_5d_dd_jpy": 0.0,
+        "rolling_5d_dd_pct": 0.0,
+        "wins": 0,
+        "wr": 0.0,
+        "zero_fill_7d": true
+      },
+      "reasons": [
+        "ZERO_FILL_7D_ALERT_ONLY"
+      ],
+      "stage": 1,
+      "verdict": "HOLD"
+    },
+    "E8": {
+      "metrics": {
+        "ev_pips": 0.0,
+        "losses": 0,
+        "n": 0,
+        "pnl_jpy_today": 0,
+        "pnl_pips_sum": 0,
+        "profit_factor": null,
+        "rolling_5d_dd_jpy": 0.0,
+        "rolling_5d_dd_pct": 0.0,
+        "wins": 0,
+        "wr": 0.0,
+        "zero_fill_7d": true
+      },
+      "reasons": [
+        "ZERO_FILL_7D_ALERT_ONLY"
+      ],
+      "stage": 1,
+      "verdict": "HOLD"
+    },
+    "E9": {
+      "metrics": {
+        "ev_pips": 0.0,
+        "losses": 0,
+        "n": 0,
+        "pnl_jpy_today": 0,
+        "pnl_pips_sum": 0,
+        "profit_factor": null,
+        "rolling_5d_dd_jpy": 0.0,
+        "rolling_5d_dd_pct": 0.0,
+        "wins": 0,
+        "wr": 0.0,
+        "zero_fill_7d": true
+      },
+      "reasons": [
+        "ZERO_FILL_7D_ALERT_ONLY"
+      ],
+      "stage": 1,
+      "verdict": "HOLD"
+    }
+  },
+  "dry_run": true,
+  "generated_at": "2026-05-26T12:00:09.555934+00:00",
+  "global": {
+    "account_30d_dd_pct": 0.0
+  },
+  "lock_date": "2026-05-26",
+  "state_changes": []
+}

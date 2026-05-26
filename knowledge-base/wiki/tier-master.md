@@ -42,6 +42,25 @@
 | 22 | xs_momentum | GBP_USD | -0.013 |
 | 23 | xs_momentum_rsi | USD_JPY | — |
 
+### A-3. Stage-3 Edge Cells（12セル — direct LIVE exception）
+
+LOCK: [[edge-cells-stage3-live-promote-2026-05-26]]
+
+| # | Cell | 戦略名 | ペア/条件 | Stage |
+|---|---|---|---|---|
+| 1 | E1 | dt_bb_rsi_mr | session=ASN, direction=SELL | S1 |
+| 2 | E2 | session_time_bias | EUR_USD, session=LDN, mtf_gate_action=live_tier_exempt | S1 |
+| 3 | E3 | dt_bb_rsi_mr | EUR_USD, direction=SELL | S1 |
+| 4 | E4 | bb_rsi_reversion | session=NY, direction=SELL | S1 |
+| 5 | E5 | dt_bb_rsi_mr | GBP_USD, direction=SELL | S1 |
+| 6 | E6 | rsk_gbpjpy_reversion | GBP_JPY, direction=BUY | S1 |
+| 7 | E7 | dt_bb_rsi_mr | GBP_USD, session=ASN | S1 |
+| 8 | E8 | session_time_bias | EUR_USD, session=LDN | S1 |
+| 9 | E9 | orb_trap | GBP_USD, direction=SELL | S1 |
+| 10 | E10 | wick_imbalance_reversion | GBP_USD, v2_regime=no_go | S1 |
+| 11 | E11 | dt_bb_rsi_mr | session=NY, direction=SELL | S1 |
+| 12 | E12 | sr_anti_hunt_bounce | EUR_JPY | S1 |
+
 ## B. Shadow戦略（OANDA非通過 — デモのみ記録）
 
 ### B-1. FORCE_DEMOTED（21戦略 — 全ペア強制Shadow）

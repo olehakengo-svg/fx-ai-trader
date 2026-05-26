@@ -41,6 +41,24 @@
 | [[xs-momentum]] | EUR_USD, GBP_USD | EUR_USD: EV=+0.225 WR=68.0%; USD_JPY: EV=+0.270 WR=68.7% | PAIR_PROMOTED |
 | [[xs-momentum-rsi]] | USD_JPY | no BT data | PAIR_PROMOTED |
 
+### Stage-3 Edge Cells (direct LIVE exception)
+LOCK: [[edge-cells-stage3-live-promote-2026-05-26]] — all cells start at S1 (5,000 units); watchdog controls S1/S2/S3/OFF via `system_kv`.
+
+| Cell | Filter | Stage |
+|------|--------|-------|
+| E1 | `dt_bb_rsi_mr` / ASN / SELL | S1 |
+| E2 | `session_time_bias` / EUR_USD / LDN / `mtf_gate_action=live_tier_exempt` | S1 |
+| E3 | `dt_bb_rsi_mr` / EUR_USD / SELL | S1 |
+| E4 | `bb_rsi_reversion` / NY / SELL | S1 |
+| E5 | `dt_bb_rsi_mr` / GBP_USD / SELL | S1 |
+| E6 | `rsk_gbpjpy_reversion` / GBP_JPY / BUY | S1 |
+| E7 | `dt_bb_rsi_mr` / GBP_USD / ASN | S1 |
+| E8 | `session_time_bias` / EUR_USD / LDN | S1 |
+| E9 | `orb_trap` / GBP_USD / SELL | S1 |
+| E10 | `wick_imbalance_reversion` / GBP_USD / `v2_regime=no_go` | S1 |
+| E11 | `dt_bb_rsi_mr` / NY / SELL | S1 |
+| E12 | `sr_anti_hunt_bounce` / EUR_JPY | S1 |
+
 ### SHADOW (Data Collection)
 | Strategy | BT Data | Notes |
 |----------|---------|-------|

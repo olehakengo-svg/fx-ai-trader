@@ -50,6 +50,23 @@ services:
       - key: API_BASE
         value: https://fx-ai-trader.onrender.com
 
+  # Stage-3 Edge Cells: 15-min live withdrawal watchdog (offset from */15 crons)
+  # LOCK: knowledge-base/wiki/decisions/edge-cells-stage3-live-promote-2026-05-26.md
+  - type: cron
+    name: fx-ai-edge-cell-watchdog
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python3 tools/edge_cell_watchdog.py --apply --to-discord
+    schedule: "3,18,33,48 * * * *"
+    plan: starter
+    envVars:
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
+      - key: API_BASE
+        value: https://fx-ai-trader.onrender.com
+      - key: DB_PATH
+        value: /var/data/demo_trades.db
+
   # Tier A: quant gate status + α予算 要約 (1日1回 UTC 00:20)
   # daily_report.py の直前に実行 → gate状態を analyst に認識させる
   - type: cron
