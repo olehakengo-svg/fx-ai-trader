@@ -815,8 +815,12 @@ class DemoTrader:
 
     @staticmethod
     def _should_audit_shadow_emit(entry_type: str) -> bool:
-        """Return True for shadow-emit SR-family rows that need OANDA audit visibility."""
-        return str(entry_type or "").startswith("sr_")
+        """Return True for all shadow-emit rows that need OANDA audit visibility.
+
+        The previous sr_-only gate undercounted SENTINEL / Phase B-1 /
+        FORCE_DEMOTED shadow_emit rows in /api/strategies/status shadow.n.
+        """
+        return True
 
     def _open_shadow_emit_trade(self, *, direction: str, entry_price: float,
                                 sl: float, tp: float, entry_type: str,
