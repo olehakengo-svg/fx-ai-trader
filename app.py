@@ -13831,7 +13831,7 @@ def api_oanda_audit():
     })
 
 
-@app.route("/api/admin/pyr-backfill-dry-run-20260526", methods=["POST"])
+@app.route("/api/internal/pyr-backfill-dry-run-20260526", methods=["POST"])
 def api_admin_pyr_backfill_dry_run_20260526():
     """Temporary one-shot PYR strategy attribution dry-run endpoint."""
     import hashlib as _hashlib
