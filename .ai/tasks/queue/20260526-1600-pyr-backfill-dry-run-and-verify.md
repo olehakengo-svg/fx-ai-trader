@@ -1,3 +1,16 @@
+---
+id: 20260526-1600-pyr-backfill-dry-run-and-verify
+title: PYR backfill dry-run and verify against production demo_trades.db
+status: queued
+priority: P0
+rule: R3
+gate: N/A
+created: 2026-05-26
+owner: codex-cloud
+type: production-audit
+estimated_minutes: 45
+---
+
 # PYR backfill dry-run and verify
 
 priority: P0
