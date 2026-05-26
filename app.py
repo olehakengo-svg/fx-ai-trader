@@ -13837,7 +13837,10 @@ def api_admin_pyr_backfill_dry_run_20260526():
     import hashlib as _hashlib
     import hmac as _hmac
     import json as _json
-    import subprocess as _subprocess
+    from tools.backfill_oanda_strategy_2026_05_19 import (
+        _comparison as _pyr_comparison,
+        _stored_strategy_stats as _pyr_stored_strategy_stats,
+    )
 
     provided = request.headers.get("X-PYR-Backfill-Token-SHA256", "").strip().lower()
     env_secret_names = (
@@ -13862,44 +13865,27 @@ def api_admin_pyr_backfill_dry_run_20260526():
         status = 401 if configured else 503
         return jsonify({"error": "unauthorized", "configured_secret_names": configured}), status
 
-    project_root = os.path.dirname(os.path.abspath(__file__))
     db_path = "/var/data/demo_trades.db"
-    env = dict(os.environ)
-    env["DEMO_DB_PATH"] = db_path
     try:
-        proc = _subprocess.run(
-            [
-                "python3",
-                os.path.join("tools", "backfill_oanda_strategy_2026_05_19.py"),
-                "--dry-run",
-                "--db",
-                db_path,
-            ],
-            cwd=project_root,
-            env=env,
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=False,
+        before = _pyr_stored_strategy_stats(_demo_db)
+        result = _demo_db.backfill_oanda_trade_strategy_from_audit(
+            apply=False,
+            window_minutes=5,
         )
+        projected = _json.loads(_json.dumps(before))
+        for strategy, agg in result["by_strategy"].items():
+            cur = projected.setdefault(strategy, {"n": 0, "ev": 0.0, "pnl": 0.0})
+            cur["n"] += int(agg["count"])
+            cur["pnl"] += float(agg["realized_pl"])
+            cur["ev"] = cur["pnl"] / cur["n"] if cur["n"] else 0.0
+        payload = {
+            "db": db_path,
+            "mode": "dry-run",
+            "summary": result,
+            "strategy_old_vs_new": _pyr_comparison(before, projected),
+        }
     except Exception as e:
         return jsonify({"error": str(e), "type": type(e).__name__}), 500
-
-    if proc.returncode != 0:
-        return jsonify({
-            "error": "dry-run failed",
-            "returncode": proc.returncode,
-            "stdout": proc.stdout,
-            "stderr": proc.stderr,
-        }), 500
-    try:
-        payload = _json.loads(proc.stdout)
-    except Exception as e:
-        return jsonify({
-            "error": f"JSON parse failed: {e}",
-            "stdout": proc.stdout,
-            "stderr": proc.stderr,
-        }), 500
     return jsonify(payload)
 
 
