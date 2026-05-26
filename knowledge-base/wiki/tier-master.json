@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-20T17:53:34.484185+00:00",
+  "generated_at": "2026-05-26T08:39:34.277543+00:00",
   "elite_live": [
     "trendline_sweep"
   ],
@@ -89,6 +89,10 @@
     [
       "mqe_gbpusd_fix",
       "GBP_USD"
+    ],
+    [
+      "pivot_detector_v2_5",
+      "EUR_USD"
     ],
     [
       "price_shock_rev_aud_jpy_h1_long",

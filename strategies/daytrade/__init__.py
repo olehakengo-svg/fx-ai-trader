@@ -79,6 +79,10 @@ from strategies.daytrade.kalman_d7_trend import (
     KalmanD7EMA75Break,
     KalmanD7TrailATR,
 )
+# 2026-05-26: Pivot Detector v2.5 — EUR_USD M15 Long-Only MR (TV OOS PF 1.544, WR 64.29%, N=28)
+# LIVE intentional exception (Path B, user judgment) — Rule 1 override, pre-reg LOCK
+# Reference: knowledge-base/wiki/decisions/pivot_detector_v2_5_live_exception_2026_05_26.md
+from strategies.daytrade.pivot_detector_v2_5 import PivotDetectorV25
 
 
 class DaytradeEngine:
@@ -143,6 +147,13 @@ class DaytradeEngine:
             KalmanD7PODNFlip(),    # v17: SL 1.5×ATR, TP 5.0×ATR (PO-DN flip approx, max winner ride)
             KalmanD7EMA75Break(),  # v18f: SL 2.5×ATR, TP 2.5×ATR (mid winners)
             KalmanD7TrailATR(),    # v18e: SL 2.0×ATR, TP 1.5×ATR (small winners + broker trail recommended)
+            # 2026-05-26: Pivot Detector v2.5 — EUR_USD M15 Long-Only Mean-Reversion
+            # LIVE intentional exception (Path B / Rule 1 override per user judgment)
+            # TV OOS (Feb-May 2026): PF 1.544, WR 64.29%, N=28, Wilson_lo ≈ 0.46
+            # Pre-reg withdrawal: N=30 WR<35% or PF<1.0 demote / Max DD>8% emergency stop
+            # Score ~4.0-5.0 (mid-tier) — needs LIVE_PROMOTE_LOSERS side-channel
+            # Memory: project_pivot_detector_v2_5_live_exception_2026_05_26
+            PivotDetectorV25(),
         ]
         if os.environ.get("PULLBACK_TO_LIQUIDITY_V1_REDESIGN_V2") == "1":
             self.strategies.append(PullbackToLiquidityV1())
@@ -277,6 +288,13 @@ class DaytradeEngine:
         "kalman_d7_po_dn_flip",     # v17 PF=3.866 BT (max winner ride)
         "kalman_d7_ema75_break",    # v18f PF=2.087 BT (balanced)
         "kalman_d7_trail_atr",      # v18e PF=1.181 BT (tight trail)
+        # 2026-05-26 (rule:R1 EXCEPTION): Pivot Detector v2.5 — EUR_USD M15 Long-Only MR.
+        # Same pattern as Kalman D7 trio: base score ~4.0-5.0 loses select_best to
+        # session_time_bias / london_fix_reversal / vix_carry_unwind (~6.0-6.5).
+        # Without LIVE_PROMOTE_LOSERS side-channel, prod fires=0 (silently dropped).
+        # PAIR_PROMOTED EUR_USD with 1000u lot; demote path via watchdog.
+        # Memory: project_pivot_detector_v2_5_live_exception_2026_05_26.
+        "pivot_detector_v2_5",
     })
 
     def select_best(self, candidates: list[Candidate]) -> Optional[Candidate]:

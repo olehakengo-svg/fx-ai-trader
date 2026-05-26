@@ -3919,6 +3919,10 @@ class DemoTrader:
             "kalman_d7_po_dn_flip",          # v17: PF=3.866 BT, max winner ride
             "kalman_d7_ema75_break",         # v18f: PF=2.087 BT, balanced
             "kalman_d7_trail_atr",           # v18e: PF=1.181 BT, high WR + tight trail
+            # 2026-05-26: Pivot Detector v2.5 — EUR_USD M15 Long-Only Mean-Reversion
+            # LIVE intentional exception (Path B, Rule 1 override per user judgment)
+            # TV OOS PF 1.544, WR 64.29%, N=28, Wilson_lo ≈ 0.46
+            "pivot_detector_v2_5",
             # DISABLED (FXアナリストレビュー):
             # "ihs_neckbreak",       # 廃止: 2t EV≒0, 低頻度
             # "dual_sr_breakout",    # 廃止: 未評価
@@ -6860,6 +6864,21 @@ class DemoTrader:
         # REMOVED v9.1: stoch_trend_pullback×GBP_JPY — FORCE_DEMOTED (死コード)
         # vol_momentum×EUR_JPY 5m: EV=+0.608 N=34 STRONG
         ("vol_momentum_scalp", "EUR_JPY"),
+        # 2026-05-26 (rule:R1 EXCEPTION, user judgment Path B):
+        # Pivot Detector v2.5 — EUR_USD M15 Long-Only Mean-Reversion.
+        # TV in-house validation only (MASSIVE multi-pair BT 未実施):
+        #   IS  (Aug 2025 - Jan 2026, 6mo): PF 2.30,  WR 76.67%, N=30, DD 0.03%
+        #   OOS (Feb-May 2026, 4mo):        PF 1.544, WR 64.29%, N=28, DD 0.04%
+        #   Wilson lower 95% (OOS) ≈ 0.46 (FAIL ≥0.50 strict Rule 1 threshold).
+        # Pre-reg withdrawal LOCK:
+        #   N=30 で WR<35% or PF<1.0 → Shadow demote (volume_live_promotion_watchdog).
+        #   N=50 で PF<1.1 → Manual review.
+        #   Max DD>8% account → Emergency stop.
+        #   Consecutive 15 losses → Pause 24h.
+        # Lot: 1000u default (no PAIR_LOT_BOOST). Single-pair start; portfolio expansion
+        # gated on N>=30 Live PF>=1.3 on EUR_USD.
+        # Decision doc: knowledge-base/wiki/decisions/pivot_detector_v2_5_live_exception_2026_05_26.md
+        ("pivot_detector_v2_5", "EUR_USD"),
         # REMOVED v9.1: bb_squeeze_breakout×EUR_JPY — FORCE_DEMOTED (死コード)
         # REMOVED v9.1: macdh_reversal×EUR_JPY/GBP_JPY — FORCE_DEMOTED (死コード)
         # v2.1 SHADOW→PROMOTE: 365日BT正EV確認済み

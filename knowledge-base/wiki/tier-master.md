@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-05-20 17:53 UTC
+**最終更新**: 2026-05-26 08:39 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | 1 | trendline_sweep | — | +0.574 | +0.838 |
 
-### A-2. PAIR_PROMOTED（22エントリ — 指定ペアのみ通過）
+### A-2. PAIR_PROMOTED（23エントリ — 指定ペアのみ通過）
 
 | # | 戦略名 | ペア | 365d BT EV |
 |---|---|---|---|
@@ -25,21 +25,22 @@
 | 5 | dt_sr_channel_reversal | EUR_JPY | — |
 | 6 | ema200_trend_reversal | USD_JPY | — |
 | 7 | mqe_gbpusd_fix | GBP_USD | — |
-| 8 | price_shock_rev_aud_jpy_h1_long | AUD_JPY | — |
-| 9 | price_shock_rev_eur_aud_h1_long | EUR_AUD | — |
-| 10 | price_shock_rev_eur_gbp_h1_long | EUR_GBP | — |
-| 11 | price_shock_rev_nzd_jpy_h1_long | NZD_JPY | — |
-| 12 | price_shock_rev_usd_cad_h1_long | USD_CAD | — |
-| 13 | session_time_bias | EUR_USD | +0.251 |
-| 14 | squeeze_release_momentum | EUR_USD | — |
-| 15 | sr_fib_confluence | GBP_USD | — |
-| 16 | vix_carry_unwind | USD_JPY | +0.506 |
-| 17 | vol_momentum_scalp | EUR_JPY | — |
-| 18 | vsg_jpy_reversal | EUR_JPY | — |
-| 19 | wick_imbalance_reversion | GBP_USD | — |
-| 20 | xs_momentum | EUR_USD | +0.126 |
-| 21 | xs_momentum | GBP_USD | -0.013 |
-| 22 | xs_momentum_rsi | USD_JPY | — |
+| 8 | pivot_detector_v2_5 | EUR_USD | — |
+| 9 | price_shock_rev_aud_jpy_h1_long | AUD_JPY | — |
+| 10 | price_shock_rev_eur_aud_h1_long | EUR_AUD | — |
+| 11 | price_shock_rev_eur_gbp_h1_long | EUR_GBP | — |
+| 12 | price_shock_rev_nzd_jpy_h1_long | NZD_JPY | — |
+| 13 | price_shock_rev_usd_cad_h1_long | USD_CAD | — |
+| 14 | session_time_bias | EUR_USD | +0.251 |
+| 15 | squeeze_release_momentum | EUR_USD | — |
+| 16 | sr_fib_confluence | GBP_USD | — |
+| 17 | vix_carry_unwind | USD_JPY | +0.506 |
+| 18 | vol_momentum_scalp | EUR_JPY | — |
+| 19 | vsg_jpy_reversal | EUR_JPY | — |
+| 20 | wick_imbalance_reversion | GBP_USD | — |
+| 21 | xs_momentum | EUR_USD | +0.126 |
+| 22 | xs_momentum | GBP_USD | -0.013 |
+| 23 | xs_momentum_rsi | USD_JPY | — |
 
 ## B. Shadow戦略（OANDA非通過 — デモのみ記録）
 

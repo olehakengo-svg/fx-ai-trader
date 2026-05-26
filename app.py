@@ -6605,6 +6605,10 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "kalman_d7_po_dn_flip",          # v17: PF=3.866 BT (max winner ride)
                 "kalman_d7_ema75_break",         # v18f: PF=2.087 BT (balanced)
                 "kalman_d7_trail_atr",           # v18e: PF=1.181 BT (high WR + tight trail)
+                # 2026-05-26: Pivot Detector v2.5 — EUR_USD M15 Long-Only MR
+                # LIVE intentional exception (Path B, Rule 1 override per user judgment)
+                # TV OOS PF 1.544, WR 64.29%, N=28; Pre-reg LOCK in wiki/decisions/
+                "pivot_detector_v2_5",
                 "bb_rsi_ema_aligned",            # BT-only strategy-filter path for scalp shadow redesign
                 "bb_squeeze_breakout",            # BT-only strategy-filter path for scalp shadow redesign
                 "engulfing_bb",                  # BT-only strategy-filter path for scalp shadow redesign
