@@ -1,8 +1,17 @@
+---
+id: 20260527-1435-shadow-dedup-gate-runtime-bypass
+priority: P0
+gate: R3
+rule: R3
+status: queued
+created: 2026-05-27
+owner: claude
+---
+
 # Fix shadow dedup gate runtime bypass — `_maybe_reserve_signal_emit` never called
 
-priority: P0
-rule: R3 (immediate — Shadow KPI 二重カウント、promotion gate 統計が systematically biased)
-gate: N/A (correctness fix, validated by post-fix `/api/admin/dedup_status` counters)
+**rule**: R3 (immediate — Shadow KPI 二重カウント、promotion gate 統計が systematically biased)
+**gate**: N/A (correctness fix, validated by post-fix `/api/admin/dedup_status` counters)
 
 ## Why this is P0
 
