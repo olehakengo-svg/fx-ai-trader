@@ -1386,6 +1386,16 @@ Cutoff後の累積実績は **N=5、WR=60.0%、PnL=+38.3pip相当** にとどま
 - 前日唯一のトレードが `TIME_DECAY_EXIT`（時間切れ決済）で終了。
 - ポジション方向（SELL）はRANGING レジーム下のUSD_JPY。SMA20 Slope = -0.00071（ほぼフラット）であり、トレンドフォロー系戦略が不利な局面。
 
+### 2026-05-27 (Post-London Report)
+| セッション内PnL | **0.0 pips** |
+| セッション内WR | **N/A** |
+- 全25モード中、稼働中23モード（daytrade_xau・scalp_xau・scalp_eurjpyはOFF）がフル稼働したにもかかわらず、いずれも発火せず
+- 本日唯一のトレード（N=1、PnL=-6.8pips、WR=0%）はセッション**外**（UTC 07:00以前）の発生と推定される
+| PnL | -6.8pips | 0.0pips |
+| WR | 0% | N/A |
+- **EUR/USD（ATR%ile 24%）**: ロンドン不発後のNYは値幅圧縮が継続しやすい。ブレイクアウト系の誤発火リスクが高い状態
+- **GBP/JPY（ATR%ile 60%）**: 相対的に動きやすい唯一のペア。ただしSMAスロープがマイナス（-0.00184）で方向性は下向き弱い
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
