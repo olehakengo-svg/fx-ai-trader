@@ -146,3 +146,59 @@ Codex returns:
 - new test file at `tests/test_api_oanda_audit_endpoint.py` with 3+ assertions
 - proof of local reproduction and fix (pytest run output)
 - pre-flight deploy plan with rollback procedure (single function edit, should be trivial)
+
+
+## Result (2026-05-27T04:55:01Z)
+
+exit=0 · 80s
+
+```
+Fixed state is already present in this checkout and deployed.
+
+**Root Cause**
+`/api/oanda/audit` passed raw audit rows directly into `jsonify()`. Production audit rows contained JSON-unsafe values from SQLite/type drift, specifically cases like `bytes`/BLOB, non-finite floats (`NaN`/`inf`), and possible `Decimal` values from fallback/in-memory rows. Flask serialization could raise during response encoding, surfacing as Render 502.
+
+**Fix**
+Implemented in `modules/oanda_bridge.py` commit `6c48ae07`:
+
+```diff
++import math
++from decimal import Decimal
+...
++    @staticmethod
++    def _audit_json_safe(value):
++        if isinstance(value, dict):
++            return {str(k): OandaBridge._audit_json_safe(v) for k, v in value.items()}
++        if isinstance(value, list):
++            return [OandaBridge._audit_json_safe(v) for v in value]
++        if isinstance(value, tuple):
++            return [OandaBridge._audit_json_safe(v) for v in value]
++        if isinstance(value, bytes):
++            return value.decode("utf-8", errors="replace")
++        if isinstance(value, Decimal):
++            return float(value) if value.is_finite() else None
++        if isinstance(value, float) and not math.isfinite(value):
++            return None
++        return value
++
++    @classmethod
++    def _normalize_audit_rows(cls, rows):
++        return [cls._audit_json_safe(dict(row)) for row in (rows or [])]
+...
+-                return self._db.get_oanda_audit(limit=limit)
++                return self._normalize_audit_rows(self._db.get_oanda_audit(limit=limit))
+...
+-        return self._execution_audit[-limit:]
++        return self._normalize_audit_rows(self._execution_audit[-limit:])
+```
+
+**Tests**
+`tests/test_api_oanda_audit_endpoint.py` exists and covers:
+
+- `limit=20` returns `200` with `audit` and `total`
+- `limit=200` serializes BLOB/invalid UTF-8 and `NaN`
+- in-memory fallback serializes `Decimal`
+- empty table returns `{"audit": [], "total": 0}`
+
+Lo
+…(truncated)
