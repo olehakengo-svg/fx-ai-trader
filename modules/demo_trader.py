@@ -817,8 +817,10 @@ class DemoTrader:
     def _should_audit_shadow_emit(entry_type: str) -> bool:
         """Return True for all shadow-emit rows that need OANDA audit visibility.
 
-        The previous sr_-only gate undercounted SENTINEL / Phase B-1 /
-        FORCE_DEMOTED shadow_emit rows in /api/strategies/status shadow.n.
+        Pre-fix behavior (sr_-only) created a systematic shadow.n undercount for
+        SENTINEL / Phase B-1 / FORCE_DEMOTED strategies via the
+        shadow_emit_signals loop. See decision doc 2026-05-27 + ai/tasks queue
+        entry of this date.
         """
         return True
 
@@ -830,7 +832,7 @@ class DemoTrader:
                                 confluence_score: str = None,
                                 confluence_details: str = None,
                                 sr_meta=None) -> str:
-        """Persist a shadow-emit trade and audit SR-family OANDA skip visibility."""
+        """Persist a shadow-emit trade and audit OANDA skip visibility."""
         trade_id = self._db.open_trade(
             direction=direction,
             entry_price=entry_price,

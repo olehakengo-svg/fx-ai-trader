@@ -179,3 +179,50 @@ Codex returns:
 - baseline pytest failure list vs post-fix failure list (no NEW failures)
 - recommendation on backfill (NO, per above)
 - pre-reg validation plan with KPI thresholds
+
+
+## Result (2026-05-27T04:53:07Z)
+
+exit=0 · 505s
+
+```
+Implemented/verified. The behavior fix was already present in `b8833bd3`; I corrected the remaining stale SR-only docstring in [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:817).
+
+Current relevant diff:
+
+```diff
+ def _should_audit_shadow_emit(entry_type: str) -> bool:
+     """Return True for all shadow-emit rows that need OANDA audit visibility.
+ 
+-    The previous sr_-only gate undercounted SENTINEL / Phase B-1 /
+-    FORCE_DEMOTED shadow_emit rows in /api/strategies/status shadow.n.
++    Pre-fix behavior (sr_-only) created a systematic shadow.n undercount for
++    SENTINEL / Phase B-1 / FORCE_DEMOTED strategies via the
++    shadow_emit_signals loop. See decision doc 2026-05-27 + ai/tasks queue
++    entry of this date.
+     """
+     return True
+```
+
+Regression coverage exists in [tests/test_shadow_emit_audit_all_strategies.py](/data/repo/fx-ai-trader/tests/test_shadow_emit_audit_all_strategies.py:48):
+- `eurgbp_daily_mr` writes `oanda_audit`
+- `price_shock_rev_usd_cad_h1_long` writes `oanda_audit`
+- `sr_break_retest` preserves `sr_meta`
+
+Validation:
+- Focused: `.venv/bin/pytest -q tests/test_shadow_emit_audit_all_strategies.py tests/test_sr_audit_pipeline.py` -> `5 passed`
+- Broader focused set -> `20 passed`
+- Current full pytest: `9 failed, 1779 passed, 2 skipped, 1 xfailed`
+- Pre-fix baseline at `b8833bd3^`: `9 failed, 1772 passed, 2 skipped, 1 xfailed`
+- New failures: none. The same 9 failures are all missing local MASSIVE parquet cache files.
+
+Pre-commit:
+- `demo_trader PEP 604 Python 3.9 guard` passed
+- `HIP-1 holdout manifest guard` failed because it rejects holdout manifest file arguments unless run with `--allow-holdout-edit`; I did not bypass it because this task does not touch holdout files.
+
+Backfill recommendation: **NO**. Keep pre-reg purity; shadow counting should start from the deploy timestamp.
+
+Post-deploy KPI plan:
+- Within 72h, `eurgbp_daily_mr` should reach `shadow.n >= 50`.
+- Wit
+…(truncated)
