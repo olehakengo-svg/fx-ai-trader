@@ -1305,7 +1305,7 @@ class DemoTrader:
                 t["current_price"] = _cp
                 _ep = t.get("entry_price", 0) or 0
                 if _cp and _ep:
-                    _pip_mult = 100 if (_inst in ("USD_JPY", "EUR_JPY", "GBP_JPY") or "XAU" in _inst) else 10000
+                    _pip_mult = 100 if (_inst.endswith("_JPY") or "XAU" in _inst) else 10000
                     if t.get("direction") == "BUY":
                         t["unrealized_pips"] = round((_cp - _ep) * _pip_mult, 1)
                     else:
