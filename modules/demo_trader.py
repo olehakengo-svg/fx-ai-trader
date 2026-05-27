@@ -615,27 +615,23 @@ class DemoTrader:
         # 2026-04-30 diagnostics: count dedup outcomes per emit path so we can
         # tell from /api/admin/dedup_status whether the gate is actually being
         # called and whether it's blocking or passing.
-        self._dedup_stats = {
-            "primary_called": 0, "primary_blocked": 0, "primary_passed": 0,
-            "shadow_called": 0, "shadow_blocked": 0, "shadow_passed": 0,
-            "shadow_pass_log": [],  # last 20 events for forensic
-            "hydrated_from_db": 0,  # rows hydrated at startup (set below)
-        }
+        self._dedup_stats = self._new_dedup_stats()
         # 2026-04-30 (rule:R3): Restart-resilient state recovery — dedup gate
         # is in-memory only, so each gunicorn restart loses the 60s history.
         # During active development with multiple deploys/hour, this lets
         # clusters slip through (observed: 19 leak rows during 17min deploy
-        # storm @07:57-08:14 UTC). Hydrate the dict from the last 120s of DB
+        # storm @07:57-08:14 UTC). Hydrate the dict from recent DB
         # rows so the gate keeps blocking even immediately post-restart.
+        # Look back one hour because tf-aware dedup windows can be 1h.
         try:
-            hydrated = self._db.get_recent_signal_emits(window_sec=120) or {}
+            hydrated = self._db.get_recent_signal_emits(window_sec=3600) or {}
             for key, ts in hydrated.items():
                 self._recent_signal_emits[key] = ts
             self._dedup_stats["hydrated_from_db"] = len(hydrated)
             if hydrated:
                 print(
                     f"[startup/dedup_hydrate] restored {len(hydrated)} keys "
-                    f"from last 120s DB rows",
+                    f"from last 3600s DB rows",
                     flush=True,
                 )
         except Exception as _he:
@@ -824,6 +820,23 @@ class DemoTrader:
         """
         return True
 
+    @staticmethod
+    def _new_dedup_stats() -> dict:
+        return {
+            "primary_called": 0, "primary_blocked": 0, "primary_passed": 0,
+            "shadow_called": 0, "shadow_blocked": 0, "shadow_passed": 0,
+            "shadow_pass_log": [],  # last 20 events for forensic
+            "hydrated_from_db": 0,  # rows hydrated at startup (set below)
+        }
+
+    def _ensure_dedup_path_stats(self, path: str) -> None:
+        if not isinstance(getattr(self, "_dedup_stats", None), dict):
+            self._dedup_stats = self._new_dedup_stats()
+        for suffix in ("called", "blocked", "passed"):
+            self._dedup_stats.setdefault(f"{path}_{suffix}", 0)
+        self._dedup_stats.setdefault("shadow_pass_log", [])
+        self._dedup_stats.setdefault("hydrated_from_db", 0)
+
     def _open_shadow_emit_trade(self, *, direction: str, entry_price: float,
                                 sl: float, tp: float, entry_type: str,
                                 confidence: int, tf: str, reasons: list,
@@ -831,8 +844,26 @@ class DemoTrader:
                                 dow_regime: str = None, v2_regime: str = None,
                                 confluence_score: str = None,
                                 confluence_details: str = None,
-                                sr_meta=None) -> str:
+                                sr_meta=None,
+                                dedup_already_reserved: bool = False,
+                                dedup_path: str = "shadow",
+                                dedup_window_sec: int | None = None) -> str | None:
         """Persist a shadow-emit trade and audit OANDA skip visibility."""
+        if not dedup_already_reserved:
+            window_sec = dedup_window_sec or self._tf_to_window_sec(tf)
+            dedup_age = self._maybe_reserve_signal_emit(
+                entry_type,
+                instrument,
+                direction,
+                window_sec=window_sec,
+                _path=dedup_path,
+            )
+            if dedup_age is not None:
+                self._add_log(
+                    f"[SHADOW_EMIT_DEDUP] blocked {entry_type} {instrument} "
+                    f"{direction}: {int(dedup_age)}s<{window_sec}s"
+                )
+                return None
         trade_id = self._db.open_trade(
             direction=direction,
             entry_price=entry_price,
@@ -3173,13 +3204,6 @@ class DemoTrader:
                 _se_tp = float(_se.get("tp") or 0)
                 if _se_sl <= 0 or _se_tp <= 0:
                     continue
-                # Per-bar dedup gate, TF-aware (primary と key 空間共有 — _maybe_reserve_signal_emit)
-                # rule:R3 (2026-05-03): window_sec was hardcoded 60s; 15m/5m bars
-                # leaked through. Use bar duration from caller's tf.
-                _shadow_window = self._tf_to_window_sec(tf)
-                if self._maybe_reserve_signal_emit(_se_entry_type, instrument, _se_signal,
-                                                    window_sec=_shadow_window, _path="shadow") is not None:
-                    continue
                 _se_conf = int(_se.get("confidence") or 50)
                 _se_score = float(_se.get("score") or 0)
                 _se_reasons = list(_se.get("reasons") or [])
@@ -3212,6 +3236,7 @@ class DemoTrader:
                     confluence_score=_se_confluence.get("score"),
                     confluence_details=_se_confluence.get("details"),
                     sr_meta=_se.get("sr_meta"),
+                    dedup_path="shadow",
                 )
         except Exception as _se_err:
             print(f"[DemoTrader/{mode}] shadow_emit error: {_se_err}", flush=True)
@@ -3272,41 +3297,34 @@ class DemoTrader:
         now = datetime.now(timezone.utc)
         window = timedelta(seconds=window_sec)
         with self._lock:
-            try:
-                self._dedup_stats[f"{_path}_called"] += 1
-            except Exception:
-                pass
+            self._ensure_dedup_path_stats(_path)
+            self._dedup_stats[f"{_path}_called"] += 1
             last = self._recent_signal_emits.get(key)
             if last and (now - last) < window:
                 age_sec = (now - last).total_seconds()
-                try:
-                    self._dedup_stats[f"{_path}_blocked"] += 1
-                except Exception:
-                    pass
+                self._dedup_stats[f"{_path}_blocked"] += 1
                 return age_sec
             self._recent_signal_emits[key] = now
-            # 古いエントリ掃除 (メモリ保護) — window の 2 倍を保持
-            stale_cutoff = now - timedelta(seconds=2 * window_sec)
+            # 古いエントリ掃除 (メモリ保護) — long-TF keys must survive
+            # short-TF calls, so cleanup keeps at least two hours.
+            stale_cutoff = now - timedelta(seconds=max(7200, 2 * window_sec))
             self._recent_signal_emits = {
                 k: v for k, v in self._recent_signal_emits.items() if v > stale_cutoff
             }
-            try:
-                self._dedup_stats[f"{_path}_passed"] += 1
-                if _path == "shadow":
-                    age_to_last = (now - last).total_seconds() if last else None
-                    log = self._dedup_stats.get("shadow_pass_log") or []
-                    log.append({
-                        "ts": now.isoformat(),
-                        "entry_type": entry_type,
-                        "instrument": instrument,
-                        "signal": signal,
-                        "age_to_last": age_to_last,
-                        "had_prior": last is not None,
-                        "dict_size": len(self._recent_signal_emits),
-                    })
-                    self._dedup_stats["shadow_pass_log"] = log[-20:]
-            except Exception:
-                pass
+            self._dedup_stats[f"{_path}_passed"] += 1
+            if _path == "shadow":
+                age_to_last = (now - last).total_seconds() if last else None
+                log = self._dedup_stats.get("shadow_pass_log") or []
+                log.append({
+                    "ts": now.isoformat(),
+                    "entry_type": entry_type,
+                    "instrument": instrument,
+                    "signal": signal,
+                    "age_to_last": age_to_last,
+                    "had_prior": last is not None,
+                    "dict_size": len(self._recent_signal_emits),
+                })
+                self._dedup_stats["shadow_pass_log"] = log[-20:]
         return None
 
     @staticmethod

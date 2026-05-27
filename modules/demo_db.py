@@ -649,15 +649,49 @@ class DemoDB:
                        GROUP BY entry_type, instrument, direction""",
                     (cutoff,),
                 ).fetchall()
+                parse_errors = 0
                 for r in rows:
                     try:
                         dt = datetime.fromisoformat(r["et"])
                     except Exception:
+                        parse_errors += 1
                         continue
                     result[(r["entry_type"], r["instrument"], r["direction"])] = dt
-        except Exception:
+                if parse_errors:
+                    print(
+                        f"[startup/dedup_hydrate] parse_errors={parse_errors} "
+                        f"window_sec={window_sec}",
+                        flush=True,
+                    )
+        except Exception as _e:
+            print(
+                f"[startup/dedup_hydrate] db query failed: "
+                f"{type(_e).__name__}: {_e}",
+                flush=True,
+            )
             return {}
         return result
+
+    def _get_dynamic_dedup_targets(self, conn) -> tuple:
+        """Return all currently observed shadow strategy names for dedup audit.
+
+        The original backfill/status path hard-coded the three SHADOW_ALWAYS
+        strategies that existed when the gate was added. Shadow emit coverage
+        has since expanded, so the audit target set must follow the DB.
+        """
+        rows = conn.execute(
+            """SELECT DISTINCT entry_type
+               FROM demo_trades
+               WHERE is_shadow = 1
+                 AND entry_type IS NOT NULL
+                 AND entry_type != ''
+               ORDER BY entry_type"""
+        ).fetchall()
+        targets = [r["entry_type"] for r in rows]
+        for target in self._DEDUP_BACKFILL_TARGETS:
+            if target not in targets:
+                targets.append(target)
+        return tuple(targets)
 
     def _backfill_dedup_violation_impl(self) -> dict:
         """Internal implementation; returns dict with detailed stats for logging.
@@ -672,25 +706,23 @@ class DemoDB:
         dynamic_cutoff = datetime.now(timezone.utc).isoformat()
         try:
             with self._lock, self._safe_conn() as conn:
-                # IN 句をハードコード化 — 対象 entry_type はクラス定数 _DEDUP_BACKFILL_TARGETS
-                # と同一の 3 戦略のみで、ユーザー入力は通らない。SQL は完全に static literal。
-                # 値は parameterized bind (?) で渡す。
+                targets = self._get_dynamic_dedup_targets(conn)
+                if not targets:
+                    return {"status": "no_targets", "rows_examined": 0}
+                placeholders = ",".join("?" for _ in targets)
                 rows = conn.execute(
-                    """SELECT trade_id, entry_type, instrument, direction, entry_time
+                    f"""SELECT trade_id, entry_type, instrument, direction, entry_time
                        FROM demo_trades
                        WHERE is_shadow = 1
                          AND dedup_violation = 0
                          AND entry_time < ?
-                         AND entry_type IN (?, ?, ?)
+                         AND entry_type IN ({placeholders})
                        ORDER BY entry_type, instrument, direction, entry_time""",
-                    (dynamic_cutoff, *self._DEDUP_BACKFILL_TARGETS),
+                    (dynamic_cutoff, *targets),
                 ).fetchall()
-                # Defensive: if class constant size changed without query update, abort.
-                if len(self._DEDUP_BACKFILL_TARGETS) != 3:
-                    return {"status": "abort_target_mismatch",
-                            "target_count": len(self._DEDUP_BACKFILL_TARGETS)}
                 if not rows:
-                    return {"status": "no_candidates", "rows_examined": 0}
+                    return {"status": "no_candidates", "rows_examined": 0,
+                            "targets": list(targets)}
                 last_seen: dict = {}
                 flag_ids: list = []
                 parse_errors = 0
@@ -710,7 +742,8 @@ class DemoDB:
                 if not flag_ids:
                     return {"status": "no_flags", "rows_examined": len(rows),
                             "parse_errors": parse_errors,
-                            "unique_keys": len(last_seen)}
+                            "unique_keys": len(last_seen),
+                            "targets": list(targets)}
                 conn.executemany(
                     "UPDATE demo_trades SET dedup_violation = 1 WHERE trade_id = ?",
                     [(tid,) for tid in flag_ids],
@@ -721,6 +754,7 @@ class DemoDB:
                         "rows_examined": len(rows),
                         "parse_errors": parse_errors,
                         "unique_keys": len(last_seen),
+                        "targets": list(targets),
                         "cutoff": dynamic_cutoff}
         except Exception as _e:
             # Backfill failure must not block startup — return error info for logging.
@@ -735,13 +769,15 @@ class DemoDB:
         Used by /api/admin/dedup_status to verify backfill ran correctly.
         """
         with self._safe_conn() as conn:
+            targets = self._get_dynamic_dedup_targets(conn)
+            placeholders = ",".join("?" for _ in targets) if targets else "NULL"
             rows = conn.execute(
-                """SELECT entry_type, is_shadow, dedup_violation, COUNT(*) AS n
+                f"""SELECT entry_type, is_shadow, dedup_violation, COUNT(*) AS n
                    FROM demo_trades
-                   WHERE entry_type IN (?, ?, ?)
+                   WHERE entry_type IN ({placeholders})
                    GROUP BY entry_type, is_shadow, dedup_violation
                    ORDER BY entry_type, is_shadow, dedup_violation""",
-                tuple(self._DEDUP_BACKFILL_TARGETS),
+                tuple(targets),
             ).fetchall()
             total = conn.execute(
                 "SELECT COUNT(*) AS n FROM demo_trades WHERE dedup_violation = 1"
@@ -750,18 +786,18 @@ class DemoDB:
             # (cutoff = NOW so this counts all unflagged target shadows)
             now_iso = datetime.now(timezone.utc).isoformat()
             cand = conn.execute(
-                """SELECT COUNT(*) AS n FROM demo_trades
+                f"""SELECT COUNT(*) AS n FROM demo_trades
                    WHERE is_shadow = 1 AND dedup_violation = 0
                      AND entry_time < ?
-                     AND entry_type IN (?, ?, ?)""",
-                (now_iso, *self._DEDUP_BACKFILL_TARGETS),
+                     AND entry_type IN ({placeholders})""",
+                (now_iso, *targets),
             ).fetchone()
         return {
             "by_target": [dict(r) for r in rows],
             "total_flagged": total["n"] if total else 0,
             "candidates_remaining": cand["n"] if cand else 0,
             "cutoff": now_iso,  # dynamic — reflects what backfill uses now
-            "targets": list(self._DEDUP_BACKFILL_TARGETS),
+            "targets": list(targets),
             "last_startup_backfill_result": self._last_backfill_result,
         }
 

@@ -177,3 +177,33 @@ Final report MUST include:
 - emit path 監査 table (path / dedup gate 呼び有無 / 修正後の状態)
 - 修正前後の `runtime_dedup_stats` 比較（ローカル simulator or unit test 出力）
 - 6 ペア重複再現テストの結果（修正後ブロックされること）
+
+
+## Result (2026-05-27T05:46:10Z)
+
+exit=0 · 213s
+
+```
+Implemented the dedup runtime bypass fix.
+
+Changed:
+- [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:840): `_open_shadow_emit_trade()` now enforces `_maybe_reserve_signal_emit()` itself before writing `demo_trades`.
+- [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:627): startup hydration now looks back `3600s` so 1h TF windows survive restarts.
+- [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:3300): dedup counters now initialize dynamically per `_path`, so new paths do not silently fail counter updates.
+- [modules/demo_db.py](/data/repo/fx-ai-trader/modules/demo_db.py:628): hydration DB failures and parse failures now log instead of returning `{}` silently.
+- [modules/demo_db.py](/data/repo/fx-ai-trader/modules/demo_db.py:675): `/api/admin/dedup_status` targets now come from all observed `is_shadow=1` strategies in `demo_trades`, not the old 3-strategy fixed list.
+- Added [tests/test_dedup_gate_all_paths.py](/data/repo/fx-ai-trader/tests/test_dedup_gate_all_paths.py:1).
+
+**Emit Path Audit**
+| Path | Line | Dedup Before | Fixed State |
+|---|---:|---|---|
+| primary `_tick_entry` → `self._db.open_trade` | `modules/demo_trader.py:4938` | Yes | Still gated via `_maybe_reserve_signal_emit(..., _path="primary")` |
+| `shadow_emit_signals` loop → `_open_shadow_emit_trade` | `modules/demo_trader.py:3223` | Caller-side only | Boundary helper now gates with `_path="shadow"` before DB insert |
+| direct `_open_shadow_emit_trade` calls | `modules/demo_trader.py:840` | No | Now gated before DB insert |
+| OANDA resend pending | `modules/demo_trader.py:918` | N/A | No `demo_trades` insert; no signal emit |
+| pyramid OANDA add-on | `modules/demo_trader.py:2220` | N/A | OANDA-only; out of scope per PYR exclusion |
+| promoted live OANDA send | `modules/demo_trader.py:5515` | N/A | Uses already-created demo trade from gated primary path |
+
+**Runtime Stats Evidence**
+Before, l
+…(truncated)
