@@ -1,3 +1,13 @@
+---
+id: 20260526-1540-shadow-emit-audit-gap-fix
+priority: P0
+gate: R3
+rule: R3
+status: queued
+created: 2026-05-26
+owner: claude
+---
+
 # Fix shadow_emit audit gap (sr_-only restriction blocks N counting for ~20 strategies)
 
 priority: P0

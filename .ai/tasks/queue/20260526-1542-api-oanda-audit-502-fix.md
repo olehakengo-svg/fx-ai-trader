@@ -1,3 +1,13 @@
+---
+id: 20260526-1542-api-oanda-audit-502-fix
+priority: P0
+gate: R3
+rule: R3
+status: queued
+created: 2026-05-26
+owner: claude
+---
+
 # Fix /api/oanda/audit 502 (all limit values fail)
 
 priority: P0
