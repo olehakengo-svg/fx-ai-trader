@@ -244,3 +244,18 @@ Codex が `done/` に出力する Result section に以下が含まれること:
 2. 各 PRE-REG_LOCKED 候補に対する Live ramp plan (env var or config 変更点を file:line で示す)
 3. False discovery rate のサニティチェック (q=0.10 で見つかった K_stage2 が K_stage1 × 0.10 以下であることの確認)
 4. 候補ゼロの場合、その意味の議論 ("76 戦略どの shadow にも pre-reg 可能な sub-cell が存在しない → 戦略設計の根本見直しが必要")
+
+
+## Result (2026-05-27T05:49:02Z)
+
+exit=0 · 138s
+
+```
+Created the report at [done/20260527-all-strategies-sub-cell-shadow-scan.md](/data/repo/fx-ai-trader/done/20260527-all-strategies-sub-cell-shadow-scan.md).
+
+Key result: **0 PRE-REG_LOCKED_SHADOW_PROMOTE_CANDIDATEs** in the scanned DB snapshot.
+
+Important caveat: `/var/data/demo_trades.db` was not present in this workspace, so I scanned the only non-empty available DB, `/data/repo/fx-ai-trader/demo_trades.db`, read-only. That DB has **0 post-fix eligible rows** for `is_shadow=1 AND status='CLOSED' AND created_at >= '2026-05-27 04:53'`, so all stages are zero and all 81 current registry strategies are marked `INSUFFICIENT_N`, not rejected.
+
+The report includes Sections 1-5, FDR sanity check, per-strategy summary, zero-candidate interpretation, and future ramp implementation references with file/line pointers.
+```
