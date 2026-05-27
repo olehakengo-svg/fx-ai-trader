@@ -1396,6 +1396,16 @@ Cutoff後の累積実績は **N=5、WR=60.0%、PnL=+38.3pip相当** にとどま
 - **EUR/USD（ATR%ile 24%）**: ロンドン不発後のNYは値幅圧縮が継続しやすい。ブレイクアウト系の誤発火リスクが高い状態
 - **GBP/JPY（ATR%ile 60%）**: 相対的に動きやすい唯一のペア。ただしSMAスロープがマイナス（-0.00184）で方向性は下向き弱い
 
+### 2026-05-27 (Pre-Tokyo Briefing)
+- **PnL合計**: -7.1 pips | **トレード数**: 1件 | **全体WR**: 0.0%
+- 唯一のトレードは `ema200_trend_reversal / USD_JPY SELL` が `TIME_DECAY_EXIT` で損切り（-7.1 pips）
+- 活動はほぼ停止状態。Cutoff後累積N=2、累積PnL=-13.9 pips
+| Strategy | Pair | N | WR% | EV | PnL |
+> ⚠️ **統計的判断不能域**: N=2はデータとして扱わない。EVは参考値に留める。
+- **全5ペアがRANGING**。Slope全マイナスでトレンドなし。
+- **ATR%ile最大=GBP_JPY 60%**——唯一の相対高ボラペア。Scalp系の機会軸。
+- **EUR_USD 22%ile**は要注意。スプレッドコストが相対的に大きくなる水準。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
