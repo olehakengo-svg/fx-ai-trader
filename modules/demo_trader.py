@@ -3444,10 +3444,24 @@ class DemoTrader:
         # ── エントリーフィルター（ブロック理由カウント付き） ──
         if not hasattr(self, '_block_counts'):
             self._block_counts = {}
+        if not hasattr(self, '_block_counts_per_strategy'):
+            self._block_counts_per_strategy = {}
         def _block(reason):
             # 動的値(秒数,pip数等)を除去してキー爆発を防止 (2026-04-05 audit fix)
-            k = f"{mode}:{reason.split('(')[0]}"
+            _reason_key = reason.split('(')[0]
+            k = f"{mode}:{_reason_key}"
             self._block_counts[k] = self._block_counts.get(k, 0) + 1
+            # SENTINEL silent-block diagnosis (2026-05-27): preserve strategy attribution
+            # without changing gate behavior.
+            k_strat = f"{entry_type}:{_reason_key}"
+            self._block_counts_per_strategy[k_strat] = (
+                self._block_counts_per_strategy.get(k_strat, 0) + 1
+            )
+            if (
+                entry_type in self._UNIVERSAL_SENTINEL
+                or entry_type in self._SCALP_SENTINEL
+            ):
+                self._add_log(f"[SENTINEL_BLOCK_DIAG] {entry_type} blocked at: {reason}")
             return
 
         # ── 方向フィルター (RNB BUY-only等) ── (2026-04-05 audit fix)

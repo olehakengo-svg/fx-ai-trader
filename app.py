@@ -13262,6 +13262,27 @@ def api_demo_status():
         })
 
 
+@app.route("/api/demo/block-counts")
+def api_demo_block_counts():
+    """Read-only _tick_entry block counters for gate diagnostics."""
+    counts = dict(getattr(_demo_trader, "_block_counts", {}) or {})
+    per_strategy = dict(getattr(_demo_trader, "_block_counts_per_strategy", {}) or {})
+    strategy = request.args.get("strategy", "").strip()
+    if strategy:
+        prefix = f"{strategy}:"
+        per_strategy = {
+            key: value for key, value in per_strategy.items()
+            if key.startswith(prefix)
+        }
+    return jsonify({
+        "counts": counts,
+        "per_strategy_counts": per_strategy,
+        "strategy": strategy or None,
+        "total": sum(counts.values()),
+        "per_strategy_total": sum(per_strategy.values()),
+    })
+
+
 @app.route("/api/demo/logs")
 def api_demo_logs():
     """全ログ履歴を返す（過去セッション含む）"""
