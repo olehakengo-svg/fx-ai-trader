@@ -1376,6 +1376,16 @@ Cutoff後の累積実績は **N=5、WR=60.0%、PnL=+38.3pip相当** にとどま
 - **全ペアRANGING継続中**。ATR%ile が GBP_JPY 60%を除いて24〜47%と低位。EUR_USD 24%は特に注意——スプレッドに対するペイオフが薄く、scalp系の誤発火時のダメージが相対的に大きい。
 - **daytrade_eurgbp:regime_squeeze_mr が40件**。EUR_GBPがスクイーズ状態にあることを示す。ブレイクアウトが来れば方向が出やすいが、それまでは誤シグナル多発帯。
 
+### 2026-05-27 (Pre-Tokyo Briefing)
+前日（2026-05-26）のトレードは**1件のみ**。`ema200_trend_reversal / USD_JPY / SELL` が `TIME_DECAY_EXIT` で決済され、**PnL = -7.1pip**（損失）。WR = 0%。システム全体はほぼ停止状態に近く、実質的にトレードが機能していない日であった。NAV = **¥301,073** は前回比ほぼ横ばい。
+| Strategy | Pair | N | WR% | EV | PnL |
+**⚠️ 統計的判断不能**: 全戦略 N=1。バックテスト上の ELITE_LIVE（trendline_sweep）も本番では N=1、EV=-0.50 と振るわないが、これは**完全にサンプル不足**であり評価不能。
+- 25モードが稼働中にもかかわらず、実際のトレードは1件。
+- Block Countsが高水準（TOP1: `daytrade_eur:hedge_block=35`、`rnb_usdjpy:direction_filter=33`、`daytrade_eurjpy:recent_emit=32`）であり、エントリー候補はあるが**内部フィルターで全て遮断**されている。
+- `recent_emit` ブロックが複数戦略で発生（eurjpy=32, eurgbp=22, nzdusd=14, gbpusd=14）→ **同一方向シグナルの短期集中による連続発火抑制**が主因と見られる。
+- 前日唯一のトレードが `TIME_DECAY_EXIT`（時間切れ決済）で終了。
+- ポジション方向（SELL）はRANGING レジーム下のUSD_JPY。SMA20 Slope = -0.00071（ほぼフラット）であり、トレンドフォロー系戦略が不利な局面。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
