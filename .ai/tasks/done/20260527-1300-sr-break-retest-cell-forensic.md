@@ -315,3 +315,16 @@ ORDER BY dt.entry_time;
 - [SR-weight Phase 2 ACCEPT](project_sr_weight_phase2_accept_2026_05_11.md) — sr_break_retest は survivor ではない
 - [監査=設計の正誤、N不足は別問題](feedback_audit_purpose_design_not_n.md)
 - [部分的クオンツの罠](feedback_partial_quant_trap.md)
+
+
+## Result (2026-05-27T04:31:59Z)
+
+exit=0 · 302s
+
+```
+Wrote the audit result to [.ai/tasks/done/20260527-sr-break-retest-cell-forensic-audit.md](/data/repo/fx-ai-trader/.ai/tasks/done/20260527-sr-break-retest-cell-forensic-audit.md).
+
+Key outcome: the requested USD_JPY/SELL profitable live cohort is not present in the current production DB API view. Current data shows `sr_break_retest` `demo_trades` as `N=262`, with `is_shadow=255` and live `is_shadow=0` only `N=7`; USD_JPY/SELL live is `N=1`, `WR=0%`, `EV=-20.4p`. So Rule 1 is `REJECT`, Rule 2 keeps strategy-wide `FORCE_DEMOTED`, and Rule 3 simulator divergence is not confirmed.
+
+Also noted in the report: current `/api/oanda/stats` code does not consume a `strategy` query parameter, so `/api/oanda/stats?strategy=sr_break_retest` is not strategy-filtered in this code path.
+```
