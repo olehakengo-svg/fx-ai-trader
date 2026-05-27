@@ -1367,6 +1367,15 @@ Cutoff後の累積実績は **N=5、WR=60.0%、PnL=+38.3pip相当** にとどま
 - **SKIP=100%の原因特定**: block_reasonが `shadow_tracking` のみ — これは全トレードがシャドーモード判定されていることを意味する。本番フラグの設定を確認すべき
 - **エントリーゼロ**: レジーム・フィルター状況から自然抑制の可能性があるが、ゼロが2日以上継続している場合、パラメータが過剰に保守的になっている可能性を疑うべき
 
+### 2026-05-27 (Pre-Tokyo Briefing)
+| PnL合計（前日） | **-7.1 pips** |
+| 全体WR | **0.0%** (1/1 LOSS) |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+`ema200_trend_reversal`はBTデータでもUSD_JPY EV=-0.183と元々マイナスEV。KB上でPAIR_PROMOTED扱いだが、本番では唯一の発火がロスで終了。本番N=1のため判断不能だが、BT数値自体が悪い点は要警戒。
+| 時間（JST） | セッション | 注意点 |
+- **全ペアRANGING継続中**。ATR%ile が GBP_JPY 60%を除いて24〜47%と低位。EUR_USD 24%は特に注意——スプレッドに対するペイオフが薄く、scalp系の誤発火時のダメージが相対的に大きい。
+- **daytrade_eurgbp:regime_squeeze_mr が40件**。EUR_GBPがスクイーズ状態にあることを示す。ブレイクアウトが来れば方向が出やすいが、それまでは誤シグナル多発帯。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
