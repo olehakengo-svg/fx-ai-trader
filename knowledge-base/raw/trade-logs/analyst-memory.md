@@ -1436,6 +1436,16 @@ Cutoff後累計でも **N=2, WR=0%, PnL=-13.9 pips**。実質的に統計的判�
 - **GBP_JPY（ATR%ile=60%）** が唯一相対的に高ボラ水準。NYでのリスクオフ/オン転換に最も敏感な通貨として要注意。
 ### 推奨戦略配分
 
+### 2026-05-28 (Pre-Tokyo Briefing)
+- **PnL合計**: -6.8 pips | **トレード数**: 1件 | **全体WR**: 0.0%
+- 前日（2026-05-27）はEUR/JPY `sr_anti_hunt_bounce` の単発トレードのみ。SL_HITで終了。
+- Spread 1.8は閾値（DT=20%ルール）に対し許容範囲内だが、シグナル自体の精度が問題。
+| Strategy | Pair | N | WR% | EV | PnL |
+> ⚠️ **全戦略N=1。統計的判断は一切不可能。** 全て「データなし」カテゴリ（N<10）。EV・WR数値の解釈は行わない。
+- EUR/JPYは引き続きRANGING（ATR%ile=41%）かつSMA20下向き。BUY系逆張り戦略の発動には慎重な見方が必要。
+- `sr_anti_hunt_bounce`はCutoff後N=1（全期間でも判断不可）。昇格基準（N≥30）まで実績蓄積が最優先。
+| 時間帯 (JST) | セッション | 注意点 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
