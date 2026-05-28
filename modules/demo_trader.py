@@ -4006,6 +4006,12 @@ class DemoTrader:
             # LIVE intentional exception (Path B, Rule 1 override per user judgment)
             # TV OOS PF 1.544, WR 64.29%, N=28, Wilson_lo ≈ 0.46
             "pivot_detector_v2_5",
+            # 2026-05-28: ZZ Pivot v60 + SizeReduce — EUR_USD M15 MR at Trend Extreme
+            # LIVE intentional exception (Path B / Rule 1 override per user judgment)
+            # Dual entry_type for SizeReduce: zz_pivot_v60_sr (1.0x) / zz_pivot_v60_sr_lo (0.5x)
+            # TV 1y OOS PF 1.294 (SizeReduce), WFO 3/3 directional wins (p=0.125 not sig.)
+            "zz_pivot_v60_sr",
+            "zz_pivot_v60_sr_lo",
             # DISABLED (FXアナリストレビュー):
             # "ihs_neckbreak",       # 廃止: 2t EV≒0, 低頻度
             # "dual_sr_breakout",    # 廃止: 未評価
@@ -7149,6 +7155,18 @@ class DemoTrader:
         ("kalman_d7_po_dn_flip", "USD_JPY"): 0.5,
         ("kalman_d7_ema75_break", "USD_JPY"): 0.5,
         ("kalman_d7_trail_atr",  "USD_JPY"): 0.5,
+        # 2026-05-28 (rule:R1-EXCEPTION): ZZ Pivot v60 + SizeReduce — EUR_USD M15
+        # User judgment, 3 stacked intentional exceptions (Shadow skip + Live 1.0x + manual review).
+        # TV 1y OOS: baseline PF 1.222 → SizeReduce PF 1.294 (+5.9%) / PnL +12.8% / WFO 3/3 directional wins.
+        # Dual entry_type for SizeReduce (loser zone half-lot, no demo_trader.py modification needed):
+        #   zz_pivot_v60_sr:    1.0x  (normal zone — RSI≥30 ∩ MACD≥0 ∩ ATR_ratio<1.6)
+        #   zz_pivot_v60_sr_lo: 0.5x  (loser zone — RSI<30 ∩ MACD<0  OR  ATR_ratio≥1.6)
+        # Rule 1 状態: Wilson_lo 0.434 FAIL, WFO sign test p=0.125 not significant, Kelly/Bonferroni 未.
+        # 動機: User explicit override per memory feedback_size_lever_beats_skip_filter (SIZE lever > SKIP filter).
+        # Pre-reg withdrawal (manual review): N=30 WR<35% or PF<1.0 demote / MaxDD>1% / 14日連敗.
+        # Memory: project_zz_pivot_v60_sr_live_queue_2026_05_28.
+        ("zz_pivot_v60_sr",    "EUR_USD"): 1.0,
+        ("zz_pivot_v60_sr_lo", "EUR_USD"): 0.5,
     }
 
     @staticmethod

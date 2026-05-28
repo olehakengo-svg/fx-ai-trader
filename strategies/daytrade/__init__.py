@@ -83,6 +83,13 @@ from strategies.daytrade.kalman_d7_trend import (
 # LIVE intentional exception (Path B, user judgment) — Rule 1 override, pre-reg LOCK
 # Reference: knowledge-base/wiki/decisions/pivot_detector_v2_5_live_exception_2026_05_26.md
 from strategies.daytrade.pivot_detector_v2_5 import PivotDetectorV25
+# 2026-05-28: ZZ Pivot v60 + SizeReduce — EUR_USD M15 MR at Trend Extreme (peak/trough)
+# LIVE intentional exception (Path B / Rule 1 override) — 3 stacked exceptions per user judgment:
+# (1) Shadow skip → Live 1.0x direct, (2) WFO 3/3 directional only (p=0.125 not sig.), (3) manual review
+# TV 1y OOS: PF 1.222 (baseline) → 1.294 (SizeReduce), WFO 3-fold ΔPF +24.9%/+4.0%/+7.6%
+# Dual entry_type for SizeReduce: zz_pivot_v60_sr (1.0x lot) / zz_pivot_v60_sr_lo (0.5x lot)
+# Memory: project_zz_pivot_v60_sr_live_queue_2026_05_28 / feedback_size_lever_beats_skip_filter
+from strategies.daytrade.zz_pivot_v60_sr import ZzPivotV60Sr
 
 
 class DaytradeEngine:
@@ -154,6 +161,11 @@ class DaytradeEngine:
             # Score ~4.0-5.0 (mid-tier) — needs LIVE_PROMOTE_LOSERS side-channel
             # Memory: project_pivot_detector_v2_5_live_exception_2026_05_26
             PivotDetectorV25(),
+            # 2026-05-28: ZZ Pivot v60 + SizeReduce (EUR_USD M15 MR at Trend Extreme)
+            # Dual entry_type: zz_pivot_v60_sr (1.0x normal) / zz_pivot_v60_sr_lo (0.5x loser zone)
+            # Pre-reg withdrawal: N=30 WR<35% or PF<1.0 demote / MaxDD>1% emergency / 14日連敗停止
+            # Memory: project_zz_pivot_v60_sr_live_queue_2026_05_28
+            ZzPivotV60Sr(),
         ]
         if os.environ.get("PULLBACK_TO_LIQUIDITY_V1_REDESIGN_V2") == "1":
             self.strategies.append(PullbackToLiquidityV1())

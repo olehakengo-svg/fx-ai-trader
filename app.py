@@ -6609,6 +6609,12 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 # LIVE intentional exception (Path B, Rule 1 override per user judgment)
                 # TV OOS PF 1.544, WR 64.29%, N=28; Pre-reg LOCK in wiki/decisions/
                 "pivot_detector_v2_5",
+                # 2026-05-28: ZZ Pivot v60 + SizeReduce — EUR_USD M15 MR at Trend Extreme
+                # LIVE intentional exception (Path B / Rule 1 override per user judgment)
+                # Dual entry_type for SizeReduce: zz_pivot_v60_sr (1.0x) / zz_pivot_v60_sr_lo (0.5x)
+                # TV 1y OOS PF 1.294 (SizeReduce), WFO 3/3 directional wins (p=0.125 not sig.)
+                "zz_pivot_v60_sr",
+                "zz_pivot_v60_sr_lo",
                 "bb_rsi_ema_aligned",            # BT-only strategy-filter path for scalp shadow redesign
                 "bb_squeeze_breakout",            # BT-only strategy-filter path for scalp shadow redesign
                 "engulfing_bb",                  # BT-only strategy-filter path for scalp shadow redesign
