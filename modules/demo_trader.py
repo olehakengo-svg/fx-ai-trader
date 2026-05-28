@@ -7102,6 +7102,18 @@ class DemoTrader:
         # 旧 0.05x pre-reg: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
         # 新 1.0x pre-reg:  knowledge-base/wiki/decisions/vix-1x-intentional-exception-2026-05-21.md
         ("vix_carry_unwind", "USD_JPY"): 1.0,
+        # 2026-05-28 (rule:R1-EXCEPTION): user judgment, Kalman D7 trio mid-tier sizing.
+        # 0.1x (UNIVERSAL_SENTINEL default) → 0.5x. Live N=0 (8 日 silent drop 修正後).
+        # 3 variant 同時発火: 1 PO-UP transition で v17/v18f/v18e 全部発注 → 合計 1.5× exposure.
+        # Rule 1 (Live N≥30 + Bonferroni + Pre-reg LOCK) は未充足、BT 10.5mo PF=3.866/2.087/1.181 のみ。
+        # 動機: shadow-first 例外として LIVE 投入決定済 (project_kalman_d7_regime_bound_live_2026_05_20.md)、
+        #       29ec95cb で silent drop 修正済、KALMAN_D7_LIVE_ENABLE=1 投入済 (2026-05-28 17:46 JST)。
+        #       0.1x trial サイズは過小と user 判断、vix_carry 1.0x との中間 sizing で開始。
+        # Pre-reg: knowledge-base/wiki/decisions/pre-reg-kalman-d7-shadow-fire-recovery-2026-05-28.md
+        # Watchdog: regime-bound (USDJPY uptrend continuation), user-monitored manual review.
+        ("kalman_d7_po_dn_flip", "USD_JPY"): 0.5,
+        ("kalman_d7_ema75_break", "USD_JPY"): 0.5,
+        ("kalman_d7_trail_atr",  "USD_JPY"): 0.5,
     }
 
     @staticmethod
