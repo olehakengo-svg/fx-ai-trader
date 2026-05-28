@@ -3815,8 +3815,15 @@ class DemoTrader:
             window_sec=_primary_window, _path="primary",
         )
         if _dedup_age is not None:
-            _block(f"recent_emit({entry_type},{int(_dedup_age)}s<{_primary_window}s)")
-            return
+            if _is_shadow_eligible_full:
+                _is_shadow = True
+                self._add_log(
+                    f"[SHADOW] recent_emit bypass: {entry_type} "
+                    f"({int(_dedup_age)}s<{_primary_window}s → shadow)"
+                )
+            else:
+                _block(f"recent_emit({entry_type},{int(_dedup_age)}s<{_primary_window}s)")
+                return
         # (A) 同価格帯ブロック（モード別: scalp=1.0pip, DT=5pip, other=3pip）
         # scalp: 1.5→1.0pip (エントリー機会増), DT: 1.5→5pip (マシンガン防止)
         _is_jpy = "JPY" in instrument
@@ -4103,15 +4110,36 @@ class DemoTrader:
         # v6.7: eurgbp_daily_mr は日足MR戦略 → EUR_GBP全停止をバイパス (Sentinel)
         _EURGBP_DAILY_MR_WHITELIST = {"eurgbp_daily_mr", "price_shock_rev_eur_gbp_h1_long"}
         if instrument == "EUR_GBP" and entry_type not in _EURGBP_DAILY_MR_WHITELIST:
-            _block(f"session_pair(EUR_GBP全停止,WR=11%)")
-            return
+            if _is_shadow_eligible_full:
+                _is_shadow = True
+                self._add_log(
+                    f"[SHADOW] session_pair bypass: {entry_type} "
+                    f"(EUR_GBP全停止 WR=11% → shadow)"
+                )
+            else:
+                _block(f"session_pair(EUR_GBP全停止,WR=11%)")
+                return
         if instrument == "EUR_USD":
             if _utc_hour < 7:  # Tokyo
-                _block(f"session_pair(EUR_USD_Tokyo,WR=20%)")
-                return
+                if _is_shadow_eligible_full:
+                    _is_shadow = True
+                    self._add_log(
+                        f"[SHADOW] session_pair bypass: {entry_type} "
+                        f"(EUR_USD_Tokyo WR=20% → shadow)"
+                    )
+                else:
+                    _block(f"session_pair(EUR_USD_Tokyo,WR=20%)")
+                    return
             if _utc_hour >= 17:  # Late NY
-                _block(f"session_pair(EUR_USD_Late_NY,WR=10%)")
-                return
+                if _is_shadow_eligible_full:
+                    _is_shadow = True
+                    self._add_log(
+                        f"[SHADOW] session_pair bypass: {entry_type} "
+                        f"(EUR_USD_Late_NY WR=10% → shadow)"
+                    )
+                else:
+                    _block(f"session_pair(EUR_USD_Late_NY,WR=10%)")
+                    return
             # v8.9: EUR_USD SELL全面ブロック — Alpha Scan N=43 WR=11.6% EV=-2.714 PnL=-116.7pip
             # 最大のアルファ破壊源。BUYのみ許可。
             if signal == "SELL" and not _is_live_tier_exempt:
@@ -4388,8 +4416,16 @@ class DemoTrader:
                 if "XAU" in instrument:
                     _sg_threshold = 0.40 if _base_mode_sg in ("daytrade", "daytrade_1h") else 0.45
                 if _spread_cost_ratio > _sg_threshold:
-                    _block(f"spread_guard(cost={_spread_pips*2:.1f}pip/profit={_expected_profit_pips:.1f}pip={_spread_cost_ratio:.0%}>{_sg_threshold:.0%})")
-                    return
+                    if _is_shadow_eligible_full:
+                        _is_shadow = True
+                        self._add_log(
+                            f"[SHADOW] spread_guard bypass: {entry_type} "
+                            f"(cost={_spread_pips*2:.1f}pip/profit={_expected_profit_pips:.1f}pip="
+                            f"{_spread_cost_ratio:.0%}>{_sg_threshold:.0%} → shadow)"
+                        )
+                    else:
+                        _block(f"spread_guard(cost={_spread_pips*2:.1f}pip/profit={_expected_profit_pips:.1f}pip={_spread_cost_ratio:.0%}>{_sg_threshold:.0%})")
+                        return
 
         # ══════════════════════════════════════════════════════════════
         # ── SL狩り対策A1: 価格スパイク検出 ──
@@ -4405,10 +4441,17 @@ class DemoTrader:
             _spike_range = max(_spike_prices) - min(_spike_prices)
             # v7.2: XAU 1.0→2.0 (gold moves 1ATR/min routinely, 2ATR is genuine spike)
             _spike_mult = 2.0 if "XAU" in instrument else 1.0
-            if _spike_range > _atr_spike * _spike_mult and not _is_shadow_eligible:
+            if _spike_range > _atr_spike * _spike_mult:
                 _spike_m = 100 if (_is_jpy or "XAU" in instrument) else 10000
-                _block(f"spike({_spike_range*_spike_m:.1f}pip/60s)")
-                return
+                if _is_shadow_eligible_full:
+                    _is_shadow = True
+                    self._add_log(
+                        f"[SHADOW] spike bypass: {entry_type} "
+                        f"({_spike_range*_spike_m:.1f}pip/60s → shadow)"
+                    )
+                else:
+                    _block(f"spike({_spike_range*_spike_m:.1f}pip/60s)")
+                    return
 
         # ══════════════════════════════════════════════════════════════
         # ── ベロシティフィルター ──
@@ -4431,9 +4474,23 @@ class DemoTrader:
             _move_pips = abs(_price_move) * _pip_m
             if _move_pips >= _vel_threshold_pip:
                 if _price_move > 0 and signal == "SELL":
-                    _block(f"velocity_up({_move_pips:.0f}pip)_vs_SELL"); return
+                    if _is_shadow_eligible_full:
+                        _is_shadow = True
+                        self._add_log(
+                            f"[SHADOW] velocity_up bypass: {entry_type} "
+                            f"({_move_pips:.0f}pip vs SELL → shadow)"
+                        )
+                    else:
+                        _block(f"velocity_up({_move_pips:.0f}pip)_vs_SELL"); return
                 if _price_move < 0 and signal == "BUY":
-                    _block(f"velocity_down({_move_pips:.0f}pip)_vs_BUY"); return
+                    if _is_shadow_eligible_full:
+                        _is_shadow = True
+                        self._add_log(
+                            f"[SHADOW] velocity_down bypass: {entry_type} "
+                            f"({_move_pips:.0f}pip vs BUY → shadow)"
+                        )
+                    else:
+                        _block(f"velocity_down({_move_pips:.0f}pip)_vs_BUY"); return
 
         layer_status = sig.get("layer_status", {})
         if not layer_status.get("trade_ok", True):

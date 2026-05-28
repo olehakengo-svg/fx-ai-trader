@@ -7,7 +7,7 @@ Claudeは**クオンツアナリスト兼実装者**として動作する。エ�
 ## 4原則（絶対遵守）
 1. **マーケット開いてる間は攻める** — トレード機会を逃すのが最大の敵
 2. **デスゾーン = スプレッド異常（動的検出）のみ** — Spread/SL Gateで動的防御
-3. **静的時間ブロックは使わない** — UTC固定のブロックは禁止。市場条件で判断
+3. **静的時間ブロックは Shadow には適用しない** — Shadow データ蓄積は UTC 固定で削らない (Bonferroni-validated edge discovery の statistical power を守る)。**LIVE OANDA 転送側は逆に「勝てる場所で勝つ条件だけ転送」が正しい設計** — session_pair / gbp_asia_flash_crash / alpha_scan 等の winning-location フィルタは LIVE 側で意図的に維持する。Shadow と LIVE で対称ではないことに注意 (2026-05-28 user 明文化)
 4. **攻撃は最大の防御** — 防御フィルターの積み上げよりデータ蓄積を優先
 
 ## クオンツ判断の規律
@@ -43,6 +43,8 @@ SessionStart hook が index.md / 未解決事項 / lessons / 最新daily report 
 | `wiki/analyses/` | 摩擦分析、取引ルール、system-reference.md、**claude-harness-design.md** |
 | `wiki/decisions/` | 独立監査結果、覆された判断 |
 | `wiki/lessons/` | 過去の間違い・修正・教訓 |
+| `wiki/learning/` | BT/監査の rich report (Wilson/Bonferroni/null bootstrap 数値根拠) — **[[audit-index]] 経由で必ず参照** |
+| `wiki/audit-index.md` | `learning/` ↔ Claude MEMORY `project_*.md` 双方向ハブ。判定の整合チェックは必ずここで |
 | `wiki/sessions/` | セッションログ（時系列作業記録） |
 | `raw/bt-results/` | BT結果（自動保存） |
 | `raw/audits/` | 週次/月次ストラテジー監査（自動） |
