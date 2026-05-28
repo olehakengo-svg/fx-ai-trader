@@ -211,3 +211,26 @@ Codex completes if:
 - [edge-cells-stage3-live-promote-2026-05-26.md](../../knowledge-base/wiki/decisions/edge-cells-stage3-live-promote-2026-05-26.md) — spec doc
 - [feedback_codex_schema_hallucination](feedback_codex_schema_hallucination.md) — schema は直貼り
 - [監査=設計の正誤、N不足は別問題](feedback_audit_purpose_design_not_n.md) — 監査の本質
+
+
+## Result (2026-05-28T09:08:12Z)
+
+exit=0 · 295s
+
+```
+監査レポートを作成しました。
+
+[.ai/tasks/done/20260528-0905-comprehensive-oanda-forwarding-audit.md](/data/repo/fx-ai-trader/.ai/tasks/done/20260528-0905-comprehensive-oanda-forwarding-audit.md)
+
+主な結果:
+- `_block()` は 51 call site、`_is_shadow=True` は 34 assignment site + `open_trade(is_shadow=True)` 1 path を列挙済み。
+- 現在測れた edge-cell pre-match blocker は A1/A2 の 2 系統:
+  - `r2_shadow_demoted_cell` -> `bb_rsi_reversion`
+  - `same_price_0pip` -> `session_time_bias`
+- ただし、より重要な P0 所見として、直近24hの production `demo_trades` に `edge_cell_id=E2/E8` が付いている `session_time_bias EUR_USD` が 5 件あるのに、全て `is_shadow=1` / `oanda_trade_id=""` / `oanda_audit=shadow_tracking skipped` でした。つまり「edge cell match に到達しているのに OANDA forward されていない」経路があります。
+- `oanda_audit` 24h は 116 rows、`skipped=114`, `sent=1`, `filled=1`。edge-cell strategy の `bridge_status != skipped` は 0 件。
+
+制約:
+- この環境には Render MCP が無いため、Render raw log の完全24h取得は未実施です。代替として production API と現在の app log/block-count snapshot、既存 checked-in Render evidence を使いました。
+- コード変更・commit・push はしていません。追加したのは監査 markdown のみです。
+```
