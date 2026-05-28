@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-26T08:39:34.277543+00:00",
+  "generated_at": "2026-05-28T09:33:39.844012+00:00",
   "elite_live": [
     "trendline_sweep"
   ],
@@ -153,6 +153,14 @@
     [
       "xs_momentum_rsi",
       "USD_JPY"
+    ],
+    [
+      "zz_pivot_v60_sr",
+      "EUR_USD"
+    ],
+    [
+      "zz_pivot_v60_sr_lo",
+      "EUR_USD"
     ]
   ],
   "pair_demoted": [

@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-05-26 08:39 UTC
+**最終更新**: 2026-05-28 09:33 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | 1 | trendline_sweep | — | +0.574 | +0.838 |
 
-### A-2. PAIR_PROMOTED（23エントリ — 指定ペアのみ通過）
+### A-2. PAIR_PROMOTED（25エントリ — 指定ペアのみ通過）
 
 | # | 戦略名 | ペア | 365d BT EV |
 |---|---|---|---|
@@ -41,25 +41,8 @@
 | 21 | xs_momentum | EUR_USD | +0.126 |
 | 22 | xs_momentum | GBP_USD | -0.013 |
 | 23 | xs_momentum_rsi | USD_JPY | — |
-
-### A-3. Stage-3 Edge Cells（12セル — direct LIVE exception）
-
-LOCK: [[edge-cells-stage3-live-promote-2026-05-26]]
-
-| # | Cell | 戦略名 | ペア/条件 | Stage |
-|---|---|---|---|---|
-| 1 | E1 | dt_bb_rsi_mr | session=ASN, direction=SELL | S1 |
-| 2 | E2 | session_time_bias | EUR_USD, session=LDN, mtf_gate_action=live_tier_exempt | S1 |
-| 3 | E3 | dt_bb_rsi_mr | EUR_USD, direction=SELL | S1 |
-| 4 | E4 | bb_rsi_reversion | session=NY, direction=SELL | S1 |
-| 5 | E5 | dt_bb_rsi_mr | GBP_USD, direction=SELL | S1 |
-| 6 | E6 | rsk_gbpjpy_reversion | GBP_JPY, direction=BUY | S1 |
-| 7 | E7 | dt_bb_rsi_mr | GBP_USD, session=ASN | S1 |
-| 8 | E8 | session_time_bias | EUR_USD, session=LDN | S1 |
-| 9 | E9 | orb_trap | GBP_USD, direction=SELL | S1 |
-| 10 | E10 | wick_imbalance_reversion | GBP_USD, v2_regime=no_go | S1 |
-| 11 | E11 | dt_bb_rsi_mr | session=NY, direction=SELL | S1 |
-| 12 | E12 | sr_anti_hunt_bounce | EUR_JPY | S1 |
+| 24 | zz_pivot_v60_sr | EUR_USD | — |
+| 25 | zz_pivot_v60_sr_lo | EUR_USD | — |
 
 ## B. Shadow戦略（OANDA非通過 — デモのみ記録）
 
@@ -215,7 +198,8 @@ LOCK: [[edge-cells-stage3-live-promote-2026-05-26]]
 
 ## C. 整合性チェック結果
 
-### ⚠️ WARN（1件）
+### ⚠️ WARN（2件）
+- No strategy file found for 'zz_pivot_v60_sr_lo'
 - No strategy file found for 'ob_retest'
 
 ### ℹ️ INFO（14件）

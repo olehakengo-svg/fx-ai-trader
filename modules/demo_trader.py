@@ -7061,6 +7061,24 @@ class DemoTrader:
         # gated on N>=30 Live PF>=1.3 on EUR_USD.
         # Decision doc: knowledge-base/wiki/decisions/pivot_detector_v2_5_live_exception_2026_05_26.md
         ("pivot_detector_v2_5", "EUR_USD"),
+        # 2026-05-28 (rule:R1-EXCEPTION, user judgment Path B):
+        # ZZ Pivot v60 + SizeReduce — EUR_USD M15 MR at Trend Extreme.
+        # 3 stacked intentional exceptions: Shadow skip + Live 1.0x + manual review.
+        # TV 1y OOS validation:
+        #   Baseline:   PF 1.222, PnL +$57.73, WR 48.31%, N=207, MaxDD 0.22%
+        #   SizeReduce: PF 1.294 (+5.9%), PnL +$65.10 (+12.8%), MaxDD 0.24%
+        # WFO 3-fold: 3/3 directional wins (sign test p=0.125 NOT significant at α=0.05).
+        # Wilson_lo (N=207, WR=0.483) ≈ 0.434 (FAIL ≥0.50).
+        # Pre-reg withdrawal (manual review per user):
+        #   N=30 で WR<35% or PF<1.0 → manual demote
+        #   30d MaxDD>1% → manual emergency stop
+        #   14日 consecutive PnL loss → manual pause
+        # Dual entry_type for SizeReduce (no demo_trader.py core hook):
+        #   zz_pivot_v60_sr (1.0x normal) / zz_pivot_v60_sr_lo (0.5x loser zone)
+        # Memory: project_zz_pivot_v60_sr_live_queue_2026_05_28,
+        #         feedback_size_lever_beats_skip_filter.
+        ("zz_pivot_v60_sr",    "EUR_USD"),
+        ("zz_pivot_v60_sr_lo", "EUR_USD"),
         # REMOVED v9.1: bb_squeeze_breakout×EUR_JPY — FORCE_DEMOTED (死コード)
         # REMOVED v9.1: macdh_reversal×EUR_JPY/GBP_JPY — FORCE_DEMOTED (死コード)
         # v2.1 SHADOW→PROMOTE: 365日BT正EV確認済み
