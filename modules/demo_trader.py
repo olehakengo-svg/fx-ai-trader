@@ -5265,10 +5265,14 @@ class DemoTrader:
         # ── OANDA連携: 昇格済み戦略のみミラーリング + 実行監査 + 🔗ラベルログ ──
         _shadow_at_open = _is_shadow  # v9.x: DB書込み時点の値を保存 (persistence fix)
         _is_promoted = self._is_promoted(entry_type, instrument)
-        if _edge_cell_force_live and _edge_cell_mtf_shadow:
+        if _edge_cell_force_live and _is_shadow:
             _is_shadow = False
+            _shadow_reason_label = (
+                "MTF_DOWNGRADE" if _edge_cell_mtf_shadow else "OTHER_UPSTREAM"
+            )
             self._add_log(
-                f"[EDGE_CELL] {_edge_cell_id} MTF downgrade bypassed before tier routing"
+                f"[EDGE_CELL] {_edge_cell_id} shadow→live force override "
+                f"(was shadow due to: {_shadow_reason_label})"
             )
         # ── v7.0: Shadow Tracking — OANDAには絶対に送信しない ──
         if _is_shadow:

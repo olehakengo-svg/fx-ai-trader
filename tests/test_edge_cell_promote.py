@@ -66,6 +66,15 @@ def test_get_cell_lot_ladder(tmp_path):
     assert get_cell_lot("E3", db) == 0
 
 
+def test_all_12_cells_default_to_stage1_lot(tmp_path):
+    db = DemoDB(str(tmp_path / "edge-lot-all.db"))
+
+    assert len(EDGE_CELLS) == 12
+    assert {cell.cell_id: get_cell_lot(cell.cell_id, db) for cell in EDGE_CELLS} == {
+        f"E{i}": 5000 for i in range(1, 13)
+    }
+
+
 class _OandaMock:
     active = True
 
@@ -80,6 +89,9 @@ class _OandaMock:
 
     def open_trade(self, **kwargs):
         self.calls.append(kwargs)
+        callback = kwargs.get("callback")
+        if callback:
+            callback(kwargs["demo_trade_id"], f"test-oanda-{len(self.calls)}")
 
 
 class _ExposureMock:

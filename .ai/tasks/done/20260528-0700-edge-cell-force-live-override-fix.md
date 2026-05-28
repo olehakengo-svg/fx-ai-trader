@@ -213,3 +213,33 @@ Codex completes if:
 - [LIVE/Shadow 分離必須](feedback_live_shadow_separation.md) — flip 後も shadow tracking ロジックを破壊しない
 - [監査=設計の正誤、N不足は別問題](feedback_audit_purpose_design_not_n.md) — N=56 で promote 判断する根拠
 - [shadow-first quant architecture](feedback_shadow_first_quant_architecture.md) — 例外として明示
+
+
+## Result (2026-05-28T05:01:00Z)
+
+exit=0 · 499s
+
+```
+Implemented the edge-cell force-live override.
+
+Changed [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:5211):
+- Replaced `if _edge_cell_force_live and _edge_cell_mtf_shadow:` with `if _edge_cell_force_live and _is_shadow:`
+- Kept `_edge_cell_mtf_shadow` for source labeling.
+- New log shape:
+  `[EDGE_CELL] E8 shadow→live force override (was shadow due to: OTHER_UPSTREAM)`
+
+Added/updated tests:
+- [tests/test_edge_cell_force_live_override.py](/data/repo/fx-ai-trader/tests/test_edge_cell_force_live_override.py:195)
+- [tests/test_edge_cell_e2e_force_fire.py](/data/repo/fx-ai-trader/tests/test_edge_cell_e2e_force_fire.py:12)
+- [tests/test_edge_cell_promote.py](/data/repo/fx-ai-trader/tests/test_edge_cell_promote.py:69)
+- [tests/edge_cell_test_helpers.py](/data/repo/fx-ai-trader/tests/edge_cell_test_helpers.py:1)
+
+Verification:
+- Targeted tests: `22 passed`
+- E2E E8 force-fire: before expected `0/5` live fills under upstream shadow; after test confirms `5/5` rows are `is_shadow=0`, `edge_cell_id='E8'`, `oanda_trade_id` set, `5000u`.
+- Watchdog dry-run evaluator fixture: `E8 verdict=HOLD`, `n=12`, `WR=0.50`, `EV=+3.00p`, `actions=[]`.
+
+Full pytest:
+- `1794 passed, 2 skipped, 1 xfailed`
+- `9 failed`, all existing local data-cache failures due missing MASSIVE parquet files under `data/cache/massive`, not from this patch.
+```
