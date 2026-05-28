@@ -3543,13 +3543,30 @@ class DemoTrader:
         _is_live_tier_exempt = (
             self._is_elite_live(entry_type, instrument) or _is_pair_promoted_live
         )
+        _entry_time = datetime.now(timezone.utc)
+        _v2_regime = self._compute_v2_regime(instrument, _entry_time)
         if is_shadow_demoted(entry_type, instrument) and not _is_live_tier_exempt:
-            self._add_log(
-                f"[R2_SHADOW_DEMOTE] blocked shadow-tracking cell "
-                f"{entry_type} x {instrument}"
+            _ec_eligible, _ec_id = self._edge_cell_eligible_at_pre_block(
+                entry_type=entry_type,
+                instrument=instrument,
+                direction=signal,
+                entry_time=_entry_time,
+                v2_regime=_v2_regime or "",
+                mtf_gate_action="",
             )
-            _block("r2_shadow_demoted_cell")
-            return
+            if _ec_eligible:
+                _is_shadow = True
+                self._add_log(
+                    f"[R2_SHADOW_DEMOTE] edge cell {_ec_id} bypass: "
+                    f"{entry_type} x {instrument} marked shadow, will flip live"
+                )
+            else:
+                self._add_log(
+                    f"[R2_SHADOW_DEMOTE] blocked shadow-tracking cell "
+                    f"{entry_type} x {instrument}"
+                )
+                _block("r2_shadow_demoted_cell")
+                return
 
         # ── 通貨ペア×モードクラス別ポジション制限 ──
         # scalp/DT/1H/swingが独立してポジションを持てる
@@ -3832,9 +3849,29 @@ class DemoTrader:
             _same_price_dist = {"scalp": 0.010, "daytrade": 0.050}.get(_base_mode, 0.03)
         else:
             _same_price_dist = {"scalp": 0.00010, "daytrade": 0.00050}.get(_base_mode, 0.00030)
+        _blocked_same_price = False
         for t in mode_trades:
             if abs(t["entry_price"] - current_price) < _same_price_dist:
-                _block(f"same_price_{_same_price_dist*100:.0f}pip"); return
+                _blocked_same_price = True
+                break
+        if _blocked_same_price:
+            _ec_eligible, _ec_id = self._edge_cell_eligible_at_pre_block(
+                entry_type=entry_type,
+                instrument=instrument,
+                direction=signal,
+                entry_time=_entry_time,
+                v2_regime=_v2_regime or "",
+                mtf_gate_action="",
+            )
+            if _ec_eligible:
+                _is_shadow = True
+                self._add_log(
+                    f"[SAME_PRICE] edge cell {_ec_id} bypass: "
+                    f"{entry_type} x {instrument} marked shadow, will flip live"
+                )
+            else:
+                _block(f"same_price_{_same_price_dist*100:.0f}pip")
+                return
         # (B) 同方向ポジション上限 — モードクラス×通貨ペア別制限で暗黙制御
         # scalp:2本/DT:1本なので、同価格帯チェックで十分
 
@@ -4980,9 +5017,7 @@ class DemoTrader:
                     f"{_spread_sl_ratio:.0%}>{_ssl_threshold:.0%} → 通過"
                 )
 
-        _entry_time = datetime.now(timezone.utc)
         _dow_regime = self._compute_dow_regime(instrument, _entry_time)
-        _v2_regime = self._compute_v2_regime(instrument, _entry_time)
         _confluence = self._compute_confluence_tag(instrument, signal, _entry_time)
 
         # ══════════════════════════════════════════════════════
@@ -7443,6 +7478,33 @@ class DemoTrader:
         "vix_carry_unwind",          # キャリー巻戻し — イベント駆動で大幅延伸が有効
         "xs_momentum",               # モメンタム — トレンド継続時の利益最大化
     })
+
+    def _edge_cell_eligible_at_pre_block(
+        self,
+        *,
+        entry_type: str,
+        instrument: str,
+        direction: str,
+        entry_time: datetime,
+        v2_regime: str = "",
+        mtf_gate_action: str = "",
+    ) -> tuple[bool, str]:
+        """Return whether a pre-blocked signal matches an active EdgeCell."""
+        try:
+            cell = edge_cell_promote.match(
+                strategy=entry_type,
+                symbol=instrument,
+                entry_time=entry_time,
+                direction=direction,
+                v2_regime=v2_regime or "",
+                mtf_gate_action=mtf_gate_action or "",
+            )
+            if cell is None:
+                return False, ""
+            lot = edge_cell_promote.get_cell_lot(cell.cell_id, self._db)
+            return lot > 0, cell.cell_id
+        except Exception:
+            return False, ""
 
     def _is_promoted(self, entry_type: str, instrument: str = "") -> bool:
         """戦略がOANDA実行可能か判定 (v6.2: ペア別ライフサイクル + N<10安全策)

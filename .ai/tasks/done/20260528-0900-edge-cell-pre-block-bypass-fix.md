@@ -295,3 +295,39 @@ Codex completes if:
 - 関連: commit 29ec95cb (shadow-eligible bypass for recent_emit/spread_guard) — 別 P0 で同じパターン適用済
 - [Kalman D7 3-spec LIVE](project_kalman_d7_regime_bound_live_2026_05_20.md) — R1-EXCEPTION 前例
 - [feedback_codex_stash_leak](feedback_codex_stash_leak.md) — push 後 git log で verify 必須
+
+
+## Result (2026-05-28T09:02:41Z)
+
+exit=0 · 571s
+
+```
+Implemented the pre-block edge-cell bypass.
+
+Changed:
+- [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:3546)
+  - Adds early `_entry_time` / `_v2_regime`.
+  - Bypasses `r2_shadow_demoted_cell` when an active edge cell matches.
+  - Bypasses `same_price_0pip` when an active edge cell matches.
+  - Adds `_edge_cell_eligible_at_pre_block()` at [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:7467).
+- Added unit tests:
+  - [tests/test_edge_cell_pre_block_bypass.py](/data/repo/fx-ai-trader/tests/test_edge_cell_pre_block_bypass.py:65)
+- Added E2E real block-path test:
+  - [tests/test_edge_cell_e2e_real_block_paths.py](/data/repo/fx-ai-trader/tests/test_edge_cell_e2e_real_block_paths.py:53)
+
+Verification:
+- `6 passed` for new tests.
+- `22 passed` for existing edge-cell tests.
+- Full suite: `1805 passed, 9 failed, 2 skipped, 1 xfailed`.
+  - The 9 failures are all missing local MASSIVE parquet cache files under `data/cache/massive`, not edge-cell regressions.
+
+E2E log samples confirmed:
+```text
+[R2_SHADOW_DEMOTE] edge cell E4 bypass: bb_rsi_reversion x EUR_USD marked shadow, will flip live
+[EDGE_CELL] E4 shadow→live force override (was shadow due to: OTHER_UPSTREAM)
+[SAME_PRICE] edge cell E8 bypass: session_time_bias x EUR_USD marked shadow, will flip live
+[EDGE_CELL] E8 shadow→live force override (was shadow due to: OTHER_UPSTREAM)
+```
+
+Worktree is clean except for the intended modified/new files.
+```
