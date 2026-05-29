@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FX AI Trader — OANDA Live Analysis</title>
-<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js" integrity="sha384-JZigAjwiaZtkUbA44CWkPaT3iBb/mU5pO6QOANp+OqHd4q+1+7MG1kzp2OOP9ZfP" crossorigin="anonymous"></script>
 <style>
 :root{--bg:#0d1117;--bg1:#161b22;--bg2:#1c2128;--bg3:#21262d;--border:#30363d;
 --t1:#e6edf3;--t2:#8b949e;--t3:#6e7681;
@@ -353,6 +353,9 @@ tr.new-row{animation:row-enter .3s ease}
   <div class="card full">
     <div class="card-title">
       📋 実行監査ログ (Execution Audit)
+      <span style="margin-left:8px;font-size:9px;color:var(--t3);font-weight:400;text-transform:none;letter-spacing:0">
+        — Units は <span data-tip="3-Factor 動的サイジング: Risk × Edge × Boost。各 trade の SL距離・ATR/Spread・戦略ブースト・DD防御で決定。1000u=0.01lot, 10000u=0.10lot (base)" style="text-decoration:underline dotted;cursor:help">動的サイジング</span> 結果（戦略・市場状態で 1000〜30000u に変動、バグではない仕様）
+      </span>
       <button class="btn" style="margin-left:auto;font-size:9px" onclick="loadAudit()">♻️</button>
     </div>
     <div class="table-wrap">

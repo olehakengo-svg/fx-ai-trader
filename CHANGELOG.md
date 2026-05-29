@@ -1,5 +1,35 @@
 # FX AI Trader - Changelog
 
+## 2026-05-29 — feat: oanda_trades.strategy chain-resolver backfill + /oanda-analysis UX (rule:R3)
+
+### 変更内容 (B: 歴史的孤児 backfill)
+
+- `tools/backfill_oanda_strategy_2026_05_19.py` を two-phase resolver に拡張:
+  1. **Chain via `oanda_trade_id → demo_trade_id → sent row`** (時間 window 不要)。`PYR_<parent>` prefix の demo_trade_id を持つ filled 行は親の sent 行へ直接 chain。pre-fix (commits a7b18453 / 4cd44956 in 2026-05-20/05-26) で sent 行を書かなかった PYR 孤児の唯一の確実な経路。
+  2. **Nearest-sent time-window fallback** (既存 `DemoDB.resolve_oanda_strategy_from_audit`、5min default)。
+- 全クエリは `?` parameterized (`modules/demo_db.py` は不変、Semgrep false-positive pre-existing patterns に触らない方針)。
+- 新規テスト `tests/test_oanda_strategy_chain_resolution.py` (7 件):
+  - direct demo_trade_id chain / PYR parent chain / mode-label rejection / unknown trade / empty input / dry-run-no-write + apply-writes 2-phase E2E
+- 監査: prod の 13 件 (units=10000 / 2026-04-14〜2026-05-19) のうち、PYR pattern (同分秒 dup pairs 6 件) は parent chain で resolve 可能と推定。残り signal-less 7 件は coverage 外 (legacy として保持)。
+- 実行コマンド (Render shell):
+  ```
+  python3 tools/backfill_oanda_strategy_2026_05_19.py --dry-run
+  python3 tools/backfill_oanda_strategy_2026_05_19.py --apply
+  ```
+
+### 変更内容 (C: /oanda-analysis UX)
+
+- `templates/oanda_analysis.html` 監査ログ card の card-title に「動的サイジング」tooltip 注記を追加。
+- Tooltip 内容: 「3-Factor 動的サイジング: Risk × Edge × Boost。各 trade の SL距離・ATR/Spread・戦略ブースト・DD防御で決定。1000u=0.01lot, 10000u=0.10lot (base)」
+- 「バグではない仕様」と明示し、1000〜30000u の units variance が user 質問源にならないように。
+- 副次: `<script src="https://unpkg.com/lightweight-charts...">` に SRI `integrity` + `crossorigin` 属性を追加 (Semgrep CWE-353 警告解消)。
+
+### 検証
+
+- `python3 -m pytest tests/test_oanda_strategy_chain_resolution.py tests/test_pyr_attribution.py tests/test_oanda_audit_join_invariant.py -v` → 13/13 PASS
+- `python3 -m pytest tests/ -q` → 1674 passed (1667 + 7 新規) / 1 skipped / 1 xfailed
+- `python3 scripts/check.py` → 6/6 PASS
+
 ## 2026-05-29 — fix: oanda_audit filled 行が MODE 名で記録される UX バグ修正 (rule:R3)
 
 ### 変更内容
