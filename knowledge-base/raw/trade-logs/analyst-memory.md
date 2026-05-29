@@ -1446,6 +1446,16 @@ Cutoff後累計でも **N=2, WR=0%, PnL=-13.9 pips**。実質的に統計的判�
 - `sr_anti_hunt_bounce`はCutoff後N=1（全期間でも判断不可）。昇格基準（N≥30）まで実績蓄積が最優先。
 | 時間帯 (JST) | セッション | 注意点 |
 
+### 2026-05-29 (Pre-Tokyo Briefing)
+- **前日（2026-05-28）**: 3トレード、PnL **+14.0**、WR **66.7%**
+- 内訳：bb_rsi_reversion (EUR/USD WIN +3.8, USD/JPY LOSS -3.0)、dt_sr_channel_reversal (EUR/JPY WIN +13.2)
+- Cutoff後累計: **N=5、WR=40.0%、PnL=+0.1**（有意判断不可レベル）
+| Strategy | Pair | N | WR% | EV | 判断 |
+| EUR_USD | RANGING | 22% | -0.00174（下向き） | ATR%ile低水準＝**スプレッド負荷が相対的に大きい**。bb_rsi_reversionのEV棄損リスク |
+**全5ペアがRANGING**。トレンドフォロー系戦略（ema200_trend_reversal、session_time_bias等）には**構造的不利**な環境。リバーサル系（bb_rsi_reversion、dt_sr_channel_reversal）が相対的に適合するが、ATR%ile低水準ペアではR/Rが圧縮されている点に注意。
+| 時間帯（JST） | 注意点 |
+| **レジーム遷移リスク** | ATR%ile 22%（EUR_USD）は底値圏。経済指標等でブレイクアウト発生時、scalp系のspread_guard発動に注意（閾値30%） |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
