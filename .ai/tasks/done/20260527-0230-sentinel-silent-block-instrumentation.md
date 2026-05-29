@@ -191,3 +191,41 @@ Codex returns:
   `eurgbp_daily_mr` + 2 other Cluster A strategies
 - Follow-up P0-4 task spec draft to actually FIX the identified gate (handle by Sentinel
   bypass path)
+
+
+## Result (2026-05-29T07:55:54Z)
+
+exit=0 · 313s
+
+```
+Implemented state: the requested instrumentation is already present in commit `57d1570d`; I added the requested current report to [final.md](/data/repo/fx-ai-trader/final.md:1).
+
+Key locations:
+- Endpoint: [app.py](/data/repo/fx-ai-trader/app.py:13271)
+- `_block()` per-strategy + SENTINEL log instrumentation: [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:3444)
+- Rollback doc: [sentinel-block-diag-instrumentation-2026-05-27.md](/data/repo/fx-ai-trader/knowledge-base/wiki/analyses/sentinel-block-diag-instrumentation-2026-05-27.md:1)
+- Tests: [test_sentinel_block_instrumentation.py](/data/repo/fx-ai-trader/tests/test_sentinel_block_instrumentation.py:1)
+
+Validation:
+```text
+.venv/bin/pytest tests/test_sentinel_block_instrumentation.py -q
+2 passed in 1.17s
+```
+
+Full suite:
+```text
+.venv/bin/pytest -q
+9 failed, 1822 passed, 2 skipped, 1 xfailed, 2 warnings in 193.78s
+```
+The 9 failures are all missing local MASSIVE parquet cache files under `data/cache/massive`, not the SENTINEL instrumentation path.
+
+Production probes:
+```text
+/api/demo/block-counts -> total=15, per_strategy_total=15
+/api/demo/block-counts?strategy=eurgbp_daily_mr -> total=15, per_strategy_total=0
+```
+
+I could not complete the 30-60 minute Render log diagnosis from this environment: no `render` CLI is installed, no Render API token is exposed, and `/api/demo/logs` currently has no `[SENTINEL_BLOCK_DIAG]` entries. The monitoring protocol and P0-4 follow-up draft are in `final.md`.
+
+Working tree note: I only changed `final.md`. There are pre-existing/unrelated dirty files: `data/cache/massive/EUR_USD_15m.parquet`, `data/cache/massive/GBP_USD_15m.parquet`, and untracked `knowledge-base/raw/hunt_events/2026-05-29.jsonl`.
+```
