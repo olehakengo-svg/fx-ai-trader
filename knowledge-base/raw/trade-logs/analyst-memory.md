@@ -1456,6 +1456,16 @@ Cutoff後累計でも **N=2, WR=0%, PnL=-13.9 pips**。実質的に統計的判�
 | 時間帯（JST） | 注意点 |
 | **レジーム遷移リスク** | ATR%ile 22%（EUR_USD）は底値圏。経済指標等でブレイクアウト発生時、scalp系のspread_guard発動に注意（閾値30%） |
 
+### 2026-05-29 (Pre-Tokyo Briefing)
+- **2026-05-28 成績**: トレード数 N=3、PnL **+14.0 pips**、WR **66.7%**
+- 勝ちトレード: bb_rsi_reversion/EUR_USD (+3.8)、dt_sr_channel_reversal/EUR_JPY (+13.2)
+- 負けトレード: bb_rsi_reversion/USD_JPY (-3.0)
+- 全体として小幅プラスで着地。EUR_JPYの大勝ちが全体牽引。
+> **注意: 全期間 N=4、前日 N=3。統計的判断には到底不足（全戦略「データなし」水準）。数値は参考値のみ。**
+| Strategy | Pair | N | WR% | EV | PnL | 判断水準 |
+**集計サマリー（Cutoff後）**: N=4 / WR=50.0% / PnL=+7.2
+> N=1 per cell。WR・EVは完全にノイズ。昇格・降格判断はいずれも不可。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
