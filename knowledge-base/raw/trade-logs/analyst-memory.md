@@ -1466,6 +1466,16 @@ Cutoff後累計でも **N=2, WR=0%, PnL=-13.9 pips**。実質的に統計的判�
 **集計サマリー（Cutoff後）**: N=4 / WR=50.0% / PnL=+7.2
 > N=1 per cell。WR・EVは完全にノイズ。昇格・降格判断はいずれも不可。
 
+### 2026-05-29 (Post-London Report)
+| PnL | **データなし** |
+| WR | **データなし** |
+**所見:** Renderのスリープ復帰失敗、またはOANDA接続断の可能性が高い。DD=65.07%による **0.2x防御モード**が継続中であれば、ポジションサイズが大幅抑制されており、仮にトレードが発生していてもPnLインパクトは軽微。
+| 有利戦略（BT根拠） | session-time-bias(USD_JPY EV+0.580)、doji-breakout | trendline-sweep(EUR_USD EV+0.927)、squeeze-release |
+> ロンドン時間はATR拡大により **trendline-sweep / squeeze-release-momentum** がBT上最も高EVを示す帯域。ただし現在DD防御モード下では恩恵が0.2xに圧縮される。
+- ロンドン・クローズ（UTC 16:00）通過後は **ATR縮小フェーズ**へ移行が通常パターン
+- NY Mid（18:00-21:00 UTC）は経済指標次第で急騰・急落リスク。2026-05-29時点のイベントカレンダーは確認不能だが、月末フロー（5月末）による **USD需給変動** に注意
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
