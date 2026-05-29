@@ -239,3 +239,49 @@ Codex returns:
   signals flow through, then plateaus once shadow.n picks them up; or stays steady if
   recent_emit bypass also disables the dedup increment — Codex must verify)
 - recommendation on P0-5 follow-up (instrumentation cleanup decision)
+
+
+## Result (2026-05-29T08:01:06Z)
+
+exit=0 · 275s
+
+```
+Implemented already in this checkout as commit `29ec95cb`:
+
+`fix(gates): shadow-eligible bypass for recent_emit/spread_guard/session_pair/velocity/spike [rule:R3]`
+
+Current worktree is clean. The diff adds the requested bypass pattern in [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py) for:
+
+- `recent_emit`
+- `session_pair` (`EUR_GBP`, `EUR_USD_Tokyo`, `EUR_USD_Late_NY`)
+- `spread_guard`
+- `spike`
+- `velocity_up` / `velocity_down`
+
+It also adds [tests/test_sentinel_shadow_bypass_gates.py](/data/repo/fx-ai-trader/tests/test_sentinel_shadow_bypass_gates.py) with focused coverage for the requested gates, including non-SENTINEL `recent_emit` still blocking.
+
+Verification:
+
+- Focused test: `.venv/bin/pytest tests/test_sentinel_shadow_bypass_gates.py -q`
+  - `5 passed`
+- Implementation commit recorded baseline/post-fix:
+  - baseline: `1797 passed`
+  - post-fix: `1802 passed`
+  - no new failures vs baseline
+- Current full suite:
+  - `1822 passed, 9 failed, 2 skipped, 1 xfailed`
+  - all 9 failures are missing local MASSIVE parquet cache files under `data/cache/massive`, not this gate change.
+
+Production probes:
+
+- `/api/demo/block-counts?strategy=eurgbp_daily_mr`
+  - first snapshot: `total=15`, `per_strategy_total=0`
+  - later snapshot: `total=28`, `per_strategy_total=0`
+  - no `eurgbp_daily_mr:recent_emit` / `spread_guard` strategy-attributed blocks are currently showing.
+- `/api/strategies/status`
+  - `eurgbp_daily_mr`: `shadow.n=3`
+  - `session_time_bias`: `shadow.n=248`
+  - `vol_surge_detector`: `shadow.n=58`
+
+Recommendation for P0-5: keep `[SENTINEL_BLOCK_DIAG]` and `_block_counts_per_strategy` for now. Do not clean up yet, because `eurgbp_daily_mr shadow.n=3` is still far below the stated `>=50` 24h pre-reg target if the fix has truly been deployed for a full active window. The next investigation should check whether `_open_shadow_emit_trade()` is reached for `eurgbp_daily_mr`, or whether another post-bypa
+…(truncated)
