@@ -1,3 +1,13 @@
+---
+id: 20260528-0335-shadow-bypass-for-recent-emit-and-friction-gates
+priority: P0
+gate: R3
+rule: R3
+status: queued
+created: 2026-05-28
+owner: claude
+---
+
 # Shadow bypass for recent_emit / spread_guard / session_pair / velocity / spike gates
 
 priority: P0

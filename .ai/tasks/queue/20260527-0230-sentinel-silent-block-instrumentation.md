@@ -1,3 +1,13 @@
+---
+id: 20260527-0230-sentinel-silent-block-instrumentation
+priority: P0
+gate: R3
+rule: R3
+status: queued
+created: 2026-05-27
+owner: claude
+---
+
 # Identify SENTINEL silent _block between Sentinel bypass (L3479) and MTF_MONITOR (L4196)
 
 priority: P0
