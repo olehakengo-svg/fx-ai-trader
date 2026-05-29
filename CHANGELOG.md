@@ -1,5 +1,33 @@
 # FX AI Trader - Changelog
 
+## 2026-05-29 — fix: oanda_audit filled 行が MODE 名で記録される UX バグ修正 (rule:R3)
+
+### 変更内容
+
+- `modules/oanda_bridge.py::open_trade` の filled 監査行の `entry_type` を `mode` ハードコードから `_audit_entry_type` (caller が `entry_type` を渡せばその戦略名、未指定なら mode にフォールバック) に変更。
+- `open_trade` に `skip_sent_audit: bool = False` パラメータを追加。demo_trader メインエントリパスが自前で sr_meta 付きの sent 行を書く場合に bridge 側の sent 重複書込みを抑止する。
+- `modules/demo_trader.py` メインエントリパス (L5649) が `entry_type=entry_type, skip_sent_audit=True` を渡すように変更。これにより `/oanda-analysis` の監査ログで filled 行に戦略名が表示される (従来は `scalp`/`daytrade`/`daytrade_eurjpy` 等の MODE 名のみ表示)。
+- 影響範囲:
+  - JOIN invariant (`DemoDB.get_oanda_trades` の `a.bridge_status='sent'` フィルタ) は不変、Kelly/WR 集計に影響なし。
+  - `oanda_trades.strategy` の backfill resolver は `bridge_status='sent'` のみ参照するため、新規 fire は引き続き正しく resolve される。
+  - PYR / resend 経路は既存挙動 (`entry_type` を渡し、`skip_sent_audit` は False) なので bridge 側で sent + filled の両方に戦略名が書かれる。
+- 残課題: 過去 13 件の `oanda_trades.strategy=NULL` 孤児 (units=10000 / 2026-04-14 〜 2026-05-19) は別 issue。queued task `20260519-1832-fix-pyr-strategy-attribution-and-dedup.md` (Group B 同時刻 dup fire / Group C signal-less fire) で対応予定。
+
+### 根本原因
+
+`oanda_audit.entry_type` 列は dual-purpose (sent=戦略名 / filled=mode 名) で memory `reference_oanda_audit_twin_meaning.md` に既載。UI が同列を生表示しているため、filled 行が戦略名未記載に見えていた。Live 5 件 (2026-05-26 〜 2026-05-28) の実測でこの schema 二義性の UX 影響を確認。
+
+### 検証
+
+- `python3 -m pytest tests/test_pyr_attribution.py tests/test_oanda_audit_join_invariant.py -v` (6/6 PASS、新規 2 件含む)
+- `python3 -m pytest tests/ -q` (1667 passed, 1 skipped, 1 xfailed)
+
+### 新規テスト
+
+- `test_main_entry_path_skip_sent_audit_no_duplicate_sent_rows`: メインパス (skip_sent_audit=True) が重複 sent 行を書かず、filled 行が戦略名を持つことを保証。
+- `test_filled_row_falls_back_to_mode_when_no_entry_type`: caller が entry_type を渡さない場合の mode フォールバックを documentation。
+- `test_oanda_bridge_writes_sent_audit_with_strategy_before_market_order` の filled-row assertion を更新 (`""` → strategy 名)。
+
 ## 2026-05-18 — fix: /api/oanda/stats の range 無視を修正
 
 - `/api/oanda/stats` で `range=today|7d|30d|all`、`rolling_days`、`all_time`、`date_from/date_to` を解釈し、既定 30d + fidelity cutoff の window に統一。

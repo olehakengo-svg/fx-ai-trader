@@ -105,4 +105,101 @@ def test_oanda_bridge_writes_sent_audit_with_strategy_before_market_order(tmp_pa
     sent = [r for r in rows if r["bridge_status"] == "sent"]
     filled = [r for r in rows if r["bridge_status"] == "filled"]
     assert sent and sent[0]["entry_type"] == "vix_carry_unwind"
-    assert filled and filled[0]["entry_type"] == ""
+    # Fix (2026-05-29): the filled row used to be stamped with `mode` (empty
+    # string in this test, generic mode names like "scalp"/"daytrade" in
+    # production). It now inherits the resolved label (strategy name when the
+    # caller passed entry_type, else falls back to mode). The JOIN invariant in
+    # DemoDB.get_oanda_trades still filters on bridge_status='sent', so this
+    # only improves the filled row's self-describing label without affecting
+    # downstream strategy resolution.
+    assert filled and filled[0]["entry_type"] == "vix_carry_unwind"
+
+
+def test_main_entry_path_skip_sent_audit_no_duplicate_sent_rows(tmp_path, monkeypatch):
+    """Main-entry path passes entry_type + skip_sent_audit=True.
+
+    Regression for 2026-05-29 visibility fix: the demo_trader main entry path
+    writes the 'sent' audit row itself (with sr_meta), so it sets
+    skip_sent_audit=True when calling bridge.open_trade. The bridge must:
+      1. NOT write a duplicate 'sent' row (skip_sent_audit honored)
+      2. Stamp the 'filled' row with the strategy name (not the mode)
+    """
+    db = DemoDB(str(tmp_path / "bridge_main.db"))
+    bridge = OandaBridge(db=db)
+    monkeypatch.setattr(type(bridge), "active", property(lambda self: True))
+    bridge._allowed_modes = {"scalp"}
+    bridge._check_daily_loss_gate = lambda: (False, 0.0)
+    bridge._fire = lambda fn, *args, **kwargs: fn(*args, **kwargs)
+    bridge._client.market_order = MagicMock(
+        return_value=(True, {"orderFillTransaction": {
+            "tradeOpened": {"tradeID": "OANDA-MAIN-1"},
+            "price": "150.10",
+        }})
+    )
+
+    bridge.open_trade(
+        demo_trade_id="demo-main-1",
+        direction="SELL",
+        sl=150.50,
+        tp=149.00,
+        mode="scalp",
+        instrument="USD_JPY",
+        units=5000,
+        entry_type="bb_rsi_reversion",
+        skip_sent_audit=True,
+    )
+
+    rows = db.get_oanda_audit(limit=10)
+    sent = [r for r in rows if r["bridge_status"] == "sent"]
+    filled = [r for r in rows if r["bridge_status"] == "filled"]
+    # Bridge must NOT write a 'sent' row when skip_sent_audit=True
+    # (the caller has already written it with sr_meta).
+    assert not sent, (
+        f"skip_sent_audit=True should suppress bridge-side sent write; got {sent!r}"
+    )
+    # The filled row must carry the strategy name, not the mode.
+    assert filled and filled[0]["entry_type"] == "bb_rsi_reversion", (
+        f"filled row should inherit strategy label 'bb_rsi_reversion'; got "
+        f"{filled[0]['entry_type']!r}"
+    )
+
+
+def test_filled_row_falls_back_to_mode_when_no_entry_type(tmp_path, monkeypatch):
+    """Backward compatibility: when caller does NOT pass entry_type,
+    the filled row still labels itself with the mode (legacy behavior).
+
+    This documents the fallback path so future refactors don't accidentally
+    require entry_type as mandatory.
+    """
+    db = DemoDB(str(tmp_path / "bridge_fallback.db"))
+    bridge = OandaBridge(db=db)
+    monkeypatch.setattr(type(bridge), "active", property(lambda self: True))
+    bridge._allowed_modes = {"swing"}
+    bridge._check_daily_loss_gate = lambda: (False, 0.0)
+    bridge._fire = lambda fn, *args, **kwargs: fn(*args, **kwargs)
+    bridge._client.market_order = MagicMock(
+        return_value=(True, {"orderFillTransaction": {
+            "tradeOpened": {"tradeID": "OANDA-FB-1"},
+            "price": "1.1010",
+        }})
+    )
+
+    bridge.open_trade(
+        demo_trade_id="demo-fallback-1",
+        direction="BUY",
+        sl=1.1000,
+        tp=1.3000,
+        mode="swing",
+        instrument="EUR_USD",
+        units=3000,
+        # entry_type intentionally omitted
+    )
+
+    rows = db.get_oanda_audit(limit=10)
+    sent = [r for r in rows if r["bridge_status"] == "sent"]
+    filled = [r for r in rows if r["bridge_status"] == "filled"]
+    assert not sent, "no sent row expected when caller did not pass entry_type"
+    assert filled and filled[0]["entry_type"] == "swing", (
+        f"filled row should fall back to mode label 'swing'; got "
+        f"{filled[0]['entry_type']!r}"
+    )

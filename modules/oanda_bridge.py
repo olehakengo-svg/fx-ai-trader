@@ -517,12 +517,17 @@ class OandaBridge:
                    log_callback=None,
                    lot_label: str = "",
                    signal_price: float = 0.0,
-                   entry_type: str | None = None):
+                   entry_type: str | None = None,
+                   skip_sent_audit: bool = False):
         """Place OANDA market order mirroring a demo trade.
         callback(demo_trade_id, oanda_trade_id) called on success for DB persistence.
         units: override lot size (0 = use default self._units).
         log_callback: fn(msg) for 🔗 OANDA log output (runs in background thread).
         lot_label: display label for lot multiplier (e.g. "🚀1.3x").
+        skip_sent_audit: when True, do NOT write the 'sent' audit row here
+            (caller has already written it with full sr_meta). Used by the
+            demo_trader main-entry path so the filled row still inherits the
+            strategy name without producing a duplicate 'sent' row.
         """
         if not self.active:
             return
@@ -566,7 +571,7 @@ class OandaBridge:
                 log_callback(f"🔗 OANDA: [HALT] {_reason} — {direction} {instrument} not transmitted")
             return
 
-        if entry_type is not None:
+        if entry_type is not None and not skip_sent_audit:
             try:
                 self._add_audit(
                     demo_trade_id=demo_trade_id, entry_type=_audit_entry_type,
@@ -659,9 +664,16 @@ class OandaBridge:
                             pass
                     elif log_callback:
                         log_callback(f"[TELEMETRY] latency={_latency_ms}ms")
-                    # Update audit with OrderID
+                    # Update audit with OrderID.
+                    # Use the resolved label (strategy name when caller passed
+                    # entry_type, else falls back to mode). Previously hard-coded
+                    # to `mode`, which made the filled row look like the strategy
+                    # name was missing (UI / oanda_trades.strategy backfill gap).
+                    # The JOIN invariant in DemoDB.get_oanda_trades still filters
+                    # on `bridge_status='sent'`, so this only improves the filled
+                    # row's self-describing label.
                     self._add_audit(
-                        demo_trade_id=demo_trade_id, entry_type=mode,
+                        demo_trade_id=demo_trade_id, entry_type=_audit_entry_type,
                         is_live=True, bridge_status="filled",
                         block_reason="",
                         direction=direction, instrument=instrument,

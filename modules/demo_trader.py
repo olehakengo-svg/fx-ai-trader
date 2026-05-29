@@ -5646,6 +5646,11 @@ class DemoTrader:
                     f"{_lot_disp_sent} {_lot_tag} "
                     f"SL={sl:.{_price_dec}f} TP={_tp_oanda:.{_price_dec}f}"
                 )
+                # Pass entry_type so the bridge stamps the filled audit row
+                # with the strategy name (not the mode). skip_sent_audit=True
+                # tells the bridge NOT to write its own 'sent' row — the
+                # caller-side `_add_oanda_audit` below writes the 'sent' row
+                # with full sr_meta intact (single source of truth).
                 self._oanda.open_trade(
                     demo_trade_id=trade_id,
                     direction=signal,
@@ -5657,6 +5662,8 @@ class DemoTrader:
                     log_callback=self._add_log,
                     lot_label=_lot_tag,
                     signal_price=_signal_price,
+                    entry_type=entry_type,
+                    skip_sent_audit=True,
                 )
                 self._add_oanda_audit(
                     trade_id=trade_id, entry_type=entry_type,
