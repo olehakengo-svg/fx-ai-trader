@@ -739,6 +739,7 @@ class DemoTrader:
         self._mss_tracker = {}        # {trade_id: {"choch": dict|None, "msb": bool, "adx": float, "updated": datetime}}
         self._profit_extended = set() # Set of trade_ids that have been profit-extended (TP延伸済み)
         self._pyramided_trades = set()  # v6.4: 追加ポジション済みtrade_ids
+        self._pyramid_inflight = set()  # trade_ids reserved before PYR broker calls
         self._entry_adx = {}            # v6.4: {trade_id: adx at entry}
         # ── v6.5: Cross-pair Exposure Manager ──
         self._exposure_mgr = ExposureManager()
@@ -2216,54 +2217,67 @@ class DemoTrader:
                 )
                 if _pyr_favorable and self._is_promoted(_entry_type_pe, _inst):
                     with self._tracker_lock:
-                        if trade_id in self._pyramided_trades:
+                        _pyr_inflight = getattr(self, "_pyramid_inflight", None)
+                        if _pyr_inflight is None:
+                            self._pyramid_inflight = set()
+                            _pyr_inflight = self._pyramid_inflight
+                        if (trade_id in self._pyramided_trades
+                                or trade_id in _pyr_inflight):
                             continue
+                        _pyr_inflight.add(trade_id)
                         self._pyramided_trades.add(trade_id)
                     # SL → BE for original trade (同期版: 成功確認後のみpyramid)
-                    _pyr_spread = _ba_rt["ask"] - _ba_rt["bid"] if _ba_rt else (
-                        0.008 if "JPY" in _inst else 0.00008
-                    )
-                    if direction == "BUY":
-                        _be_sl = round(entry_price + _pyr_spread, _pip_decimals)
-                        if _be_sl > sl:
-                            sl = _be_sl
-                    else:
-                        _be_sl = round(entry_price - _pyr_spread, _pip_decimals)
-                        if _be_sl < sl:
-                            sl = _be_sl
-                    # 同期SL変更: 失敗時はpyramid中止 (2.0lotフルリスク防止)
-                    _sl_ok = self._oanda.modify_sl_sync(
-                        trade_id, sl, instrument=_inst
-                    )
-                    if not _sl_ok:
-                        self._add_log(
-                            f"⚠️ [PYRAMID] SL→BE変更失敗、ピラミッド中止 "
-                            f"({trade_id})"
+                    try:
+                        _pyr_spread = _ba_rt["ask"] - _ba_rt["bid"] if _ba_rt else (
+                            0.008 if "JPY" in _inst else 0.00008
                         )
-                    else:
-                        self._db.update_sl_tp(trade_id, sl, tp)
-                        # Open pyramid OANDA position
-                        _pyr_id = f"PYR_{trade_id}"
-                        _pyr_units = min(10000, self._OANDA_LOT_CAP)
-                        _pyr_tp = tp
-                        _pyr_sl_price = entry_price  # risk-free: SL at original entry
-                        _pyr_entry_type = _entry_type_pe or trade.get("entry_type", "")
-                        self._oanda.open_trade(
-                            demo_trade_id=_pyr_id,
-                            direction=direction,
-                            sl=_pyr_sl_price, tp=_pyr_tp,
-                            mode=mode,
-                            instrument=_inst,
-                            units=_pyr_units,
-                            log_callback=self._add_log,
-                            lot_label="(🔺PYR)",
-                            entry_type=_pyr_entry_type,
+                        if direction == "BUY":
+                            _be_sl = round(entry_price + _pyr_spread, _pip_decimals)
+                            if _be_sl > sl:
+                                sl = _be_sl
+                        else:
+                            _be_sl = round(entry_price - _pyr_spread, _pip_decimals)
+                            if _be_sl < sl:
+                                sl = _be_sl
+                        # 同期SL変更: 失敗時はpyramid中止 (2.0lotフルリスク防止)
+                        _sl_ok = self._oanda.modify_sl_sync(
+                            trade_id, sl, instrument=_inst
                         )
-                        self._add_log(
-                            f"🔺 [PYRAMID] {trade_id}: +{_pyr_units}u {direction} "
-                            f"SL=BE({_be_sl:.{_pip_decimals}f}) "
-                            f"TP={_pyr_tp:.{_pip_decimals}f}"
-                        )
+                        if not _sl_ok:
+                            with self._tracker_lock:
+                                self._pyramided_trades.discard(trade_id)
+                                self._pyramid_inflight.discard(trade_id)
+                            self._add_log(
+                                f"⚠️ [PYRAMID] SL→BE変更失敗、ピラミッド中止 "
+                                f"({trade_id})"
+                            )
+                        else:
+                            self._db.update_sl_tp(trade_id, sl, tp)
+                            # Open pyramid OANDA position
+                            _pyr_id = f"PYR_{trade_id}"
+                            _pyr_units = min(10000, self._OANDA_LOT_CAP)
+                            _pyr_tp = tp
+                            _pyr_sl_price = entry_price  # risk-free: SL at original entry
+                            _pyr_entry_type = _entry_type_pe or trade.get("entry_type", "")
+                            self._oanda.open_trade(
+                                demo_trade_id=_pyr_id,
+                                direction=direction,
+                                sl=_pyr_sl_price, tp=_pyr_tp,
+                                mode=mode,
+                                instrument=_inst,
+                                units=_pyr_units,
+                                log_callback=self._add_log,
+                                lot_label="(🔺PYR)",
+                                entry_type=_pyr_entry_type,
+                            )
+                            self._add_log(
+                                f"🔺 [PYRAMID] {trade_id}: +{_pyr_units}u {direction} "
+                                f"SL=BE({_be_sl:.{_pip_decimals}f}) "
+                                f"TP={_pyr_tp:.{_pip_decimals}f}"
+                            )
+                    finally:
+                        with self._tracker_lock:
+                            self._pyramid_inflight.discard(trade_id)
 
             # ── Profit Extender (Confluence Scalp v2 + DT) ──
             # TP到達時にMSS継続+ADX>30なら → TP延伸+トレイリング
@@ -5646,8 +5660,8 @@ class DemoTrader:
                     f"{_lot_disp_sent} {_lot_tag} "
                     f"SL={sl:.{_price_dec}f} TP={_tp_oanda:.{_price_dec}f}"
                 )
-                # Pass entry_type so the bridge stamps the filled audit row
-                # with the strategy name (not the mode). skip_sent_audit=True
+                # Pass entry_type so the bridge can stamp a strategy-name
+                # 'sent' audit row when it owns that write. skip_sent_audit=True
                 # tells the bridge NOT to write its own 'sent' row — the
                 # caller-side `_add_oanda_audit` below writes the 'sent' row
                 # with full sr_meta intact (single source of truth).

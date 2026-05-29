@@ -209,3 +209,32 @@ git status
 
 All must pass. Final.md MUST include the **strategy old-vs-new comparison table**
 (acceptance criterion 7) — that is the quant proof the fix worked.
+
+
+## Result (2026-05-29T08:26:15Z)
+
+exit=0 · 230s
+
+```
+Implemented the PYR attribution/dedup correction.
+
+Changes:
+- [modules/oanda_bridge.py](/data/repo/fx-ai-trader/modules/oanda_bridge.py:511): `open_trade()` accepts `entry_type` for strategy-labeled `sent` audit rows before broker execution.
+- [modules/oanda_bridge.py](/data/repo/fx-ai-trader/modules/oanda_bridge.py:667): `filled` rows now preserve the OANDA mode label, keeping the audit twin-meaning invariant intact.
+- [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:741): added `_pyramid_inflight`.
+- [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:2218): PYR now reserves `_pyramid_inflight` and `_pyramided_trades` under lock before SL move / broker open, blocking same-second double-fire.
+- [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:2261): PYR child passes parent `entry_type` to bridge.
+- [tests/test_pyr_attribution.py](/data/repo/fx-ai-trader/tests/test_pyr_attribution.py:36): tests now assert PYR child attribution, in-flight marker timing, dedup, and audit twin meaning.
+
+C-group path check:
+- `_oanda.open_trade()` call sites are main entry, resend pending, and PYR.
+- ExposureManager restart sync at line ~752 does not open OANDA trades; it only restores exposure state.
+- Main entry writes its own `sent` audit row with strategy and calls bridge with `skip_sent_audit=True`.
+- Resend pending now passes `entry_type` or `resend_pending`.
+- PYR now passes parent strategy.
+
+Verification:
+- `.venv/bin/python -m pytest tests/test_pyr_attribution.py tests/test_oanda_strategy_nearest_sent_resolution.py -v`: 5 passed.
+- `.venv/bin/python -m pytest tests/test_oanda_strategy_chain_resolution.py tests/test_oanda_audit_join_invariant.py tests/test_pyr_attribution.py tests/test_oanda_strategy_nearest_sent_resolution.py -q`: 14 passed.
+- `.venv/bin/python -m pytest tests/ -x -q`: stopped on missing fixture `data/cache/massive/USD_JPY_5m.parquet`; 88 passed, 1 skipped b
+…(truncated)

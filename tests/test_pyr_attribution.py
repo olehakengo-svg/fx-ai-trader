@@ -30,6 +30,7 @@ class _FakeOanda:
 
     def open_trade(self, **kwargs):
         assert self.trader._pyramided_trades == {"parent-1"}
+        assert self.trader._pyramid_inflight == {"parent-1"}
         self.open_calls.append(kwargs)
 
 
@@ -52,6 +53,7 @@ def test_pyr_child_uses_parent_strategy_and_marks_inflight_before_open(monkeypat
     trader._entry_atr = {"parent-1": 0.0005}
     trader._entry_adx = {}
     trader._pyramided_trades = set()
+    trader._pyramid_inflight = set()
     trader._profit_extended = set()
     trader._dd_phase_at_entry = {}
     trader._OANDA_LOT_CAP = 10000
@@ -74,13 +76,15 @@ def test_pyr_child_uses_parent_strategy_and_marks_inflight_before_open(monkeypat
     assert call["demo_trade_id"] == "PYR_parent-1"
     assert call["entry_type"] == "vix_carry_unwind"
     assert call["units"] == 10000
+    assert trader._pyramided_trades == {"parent-1"}
+    assert trader._pyramid_inflight == set()
 
 
 def test_oanda_bridge_writes_sent_audit_with_strategy_before_market_order(tmp_path, monkeypatch):
     db = DemoDB(str(tmp_path / "bridge.db"))
     bridge = OandaBridge(db=db)
     monkeypatch.setattr(type(bridge), "active", property(lambda self: True))
-    bridge._allowed_modes = {""}
+    bridge._allowed_modes = {"scalp"}
     bridge._check_daily_loss_gate = lambda: (False, 0.0)
     bridge._fire = lambda fn, *args, **kwargs: fn(*args, **kwargs)
     bridge._client.market_order = MagicMock(
@@ -89,13 +93,25 @@ def test_oanda_bridge_writes_sent_audit_with_strategy_before_market_order(tmp_pa
             "price": "1.1010",
         }})
     )
+    db.save_oanda_audit({
+        "timestamp": "2026-05-19T11:55:00+00:00",
+        "demo_trade_id": "parent-1",
+        "entry_type": "vix_carry_unwind",
+        "direction": "BUY",
+        "instrument": "EUR_USD",
+        "units": 1000,
+        "is_live": True,
+        "bridge_status": "sent",
+        "block_reason": "",
+        "oanda_trade_id": "",
+    })
 
     bridge.open_trade(
         demo_trade_id="PYR_parent-1",
         direction="BUY",
         sl=1.1000,
         tp=1.3000,
-        mode="",
+        mode="scalp",
         instrument="EUR_USD",
         units=10000,
         entry_type="vix_carry_unwind",
@@ -104,15 +120,10 @@ def test_oanda_bridge_writes_sent_audit_with_strategy_before_market_order(tmp_pa
     rows = db.get_oanda_audit(limit=10)
     sent = [r for r in rows if r["bridge_status"] == "sent"]
     filled = [r for r in rows if r["bridge_status"] == "filled"]
-    assert sent and sent[0]["entry_type"] == "vix_carry_unwind"
-    # Fix (2026-05-29): the filled row used to be stamped with `mode` (empty
-    # string in this test, generic mode names like "scalp"/"daytrade" in
-    # production). It now inherits the resolved label (strategy name when the
-    # caller passed entry_type, else falls back to mode). The JOIN invariant in
-    # DemoDB.get_oanda_trades still filters on bridge_status='sent', so this
-    # only improves the filled row's self-describing label without affecting
-    # downstream strategy resolution.
-    assert filled and filled[0]["entry_type"] == "vix_carry_unwind"
+    assert len(sent) == 2
+    assert {r["demo_trade_id"] for r in sent} == {"parent-1", "PYR_parent-1"}
+    assert {r["entry_type"] for r in sent} == {"vix_carry_unwind"}
+    assert filled and filled[0]["entry_type"] == "scalp"
 
 
 def test_main_entry_path_skip_sent_audit_no_duplicate_sent_rows(tmp_path, monkeypatch):
@@ -122,7 +133,7 @@ def test_main_entry_path_skip_sent_audit_no_duplicate_sent_rows(tmp_path, monkey
     writes the 'sent' audit row itself (with sr_meta), so it sets
     skip_sent_audit=True when calling bridge.open_trade. The bridge must:
       1. NOT write a duplicate 'sent' row (skip_sent_audit honored)
-      2. Stamp the 'filled' row with the strategy name (not the mode)
+      2. Keep the 'filled' row stamped with the mode label.
     """
     db = DemoDB(str(tmp_path / "bridge_main.db"))
     bridge = OandaBridge(db=db)
@@ -157,9 +168,9 @@ def test_main_entry_path_skip_sent_audit_no_duplicate_sent_rows(tmp_path, monkey
     assert not sent, (
         f"skip_sent_audit=True should suppress bridge-side sent write; got {sent!r}"
     )
-    # The filled row must carry the strategy name, not the mode.
-    assert filled and filled[0]["entry_type"] == "bb_rsi_reversion", (
-        f"filled row should inherit strategy label 'bb_rsi_reversion'; got "
+    # The filled row must carry the mode label; strategy lives on 'sent'.
+    assert filled and filled[0]["entry_type"] == "scalp", (
+        f"filled row should keep mode label 'scalp'; got "
         f"{filled[0]['entry_type']!r}"
     )
 
