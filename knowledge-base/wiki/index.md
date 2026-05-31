@@ -2,14 +2,17 @@
 
 ## 🎯 最重要目標: 月利100% → 年利1,200%
 **全施策の判断基準。これに寄与しない施策は後回し。**
-- 現在: **DD防御0.2x** (DD=**65.07%**, defensive mode — 2026-05-21) → 月利47%（BT推定、クリーンデータ蓄積中）
+- 現在: **DD防御0.2x** (DD=**66.46%**, defensive mode — 2026-05-27) → 月利47%（BT推定、クリーンデータ蓄積中）
 - Phase 3 (Kelly Half): 月利594%
 - 詳細: **[[roadmap-v2.1]]** (DT幹+Scalp枝統合、v2.1)
 - 旧: [[roadmap-v2]] (v2.0) / [[roadmap-to-100pct]] (v1)
 - **最優先: クリーンデータ蓄積 → Kelly Half到達**
 
+## 🔗 Cross-KB Navigation
+- **[[audit-index]]** — `learning/` 18 audit ノード + MEMORY `project_*.md` 双方向マップ（次セッション Claude 必読、KB↔MEMORY 棲み分けルール記載）
+
 <!-- KB_PORTFOLIO_START -->
-## Current Portfolio (auto-synced, 2026-05-26)
+## Current Portfolio (auto-synced, 2026-05-28)
 
 ### ELITE_LIVE (never shadowed)
 | Strategy | BT Data | Status |
@@ -40,24 +43,6 @@
 | [[wick-imbalance-reversion]] | GBP_USD | no BT data | PAIR_PROMOTED |
 | [[xs-momentum]] | EUR_USD, GBP_USD | EUR_USD: EV=+0.225 WR=68.0%; USD_JPY: EV=+0.270 WR=68.7% | PAIR_PROMOTED |
 | [[xs-momentum-rsi]] | USD_JPY | no BT data | PAIR_PROMOTED |
-
-### Stage-3 Edge Cells (direct LIVE exception)
-LOCK: [[edge-cells-stage3-live-promote-2026-05-26]] — all cells start at S1 (5,000 units); watchdog controls S1/S2/S3/OFF via `system_kv`.
-
-| Cell | Filter | Stage |
-|------|--------|-------|
-| E1 | `dt_bb_rsi_mr` / ASN / SELL | S1 |
-| E2 | `session_time_bias` / EUR_USD / LDN / `mtf_gate_action=live_tier_exempt` | S1 |
-| E3 | `dt_bb_rsi_mr` / EUR_USD / SELL | S1 |
-| E4 | `bb_rsi_reversion` / NY / SELL | S1 |
-| E5 | `dt_bb_rsi_mr` / GBP_USD / SELL | S1 |
-| E6 | `rsk_gbpjpy_reversion` / GBP_JPY / BUY | S1 |
-| E7 | `dt_bb_rsi_mr` / GBP_USD / ASN | S1 |
-| E8 | `session_time_bias` / EUR_USD / LDN | S1 |
-| E9 | `orb_trap` / GBP_USD / SELL | S1 |
-| E10 | `wick_imbalance_reversion` / GBP_USD / `v2_regime=no_go` | S1 |
-| E11 | `dt_bb_rsi_mr` / NY / SELL | S1 |
-| E12 | `sr_anti_hunt_bounce` / EUR_JPY | S1 |
 
 ### SHADOW (Data Collection)
 | Strategy | BT Data | Notes |
@@ -124,20 +109,21 @@ LOCK: [[edge-cells-stage3-live-promote-2026-05-26]] — all cells start at S1 (5
 <!-- KB_PORTFOLIO_END -->
 
 ## System State (v9.5 / v2.1)
-- Defensive mode: **0.2x** (DD=**65.07%** / 650.7pip ⚠️⚠️⚠️, defensive mode — Render API 2026-05-21 wiki-daily-update; 30d N=82, PnL=-66.8pip ✅)
+- Defensive mode: **0.2x** (DD=**66.46%** / 664.6pip ⚠️⚠️⚠️, defensive mode — Render API 2026-05-27 wiki-daily-update; 30d Kelly=0.0% ⚠️)
 - HourlyEngine: **Activated 2026-05-18** — all H1 strategies (KSB+DMB+5 PriceShockRev) are Shadow-only via `_shadow_always`.
 - XAU: **Stopped** (v8.4) -- post-cutoff XAU loss = -2,280pip (102% of total loss)
-- FX-only post-cutoff (2026-04-08〜) — **2026-05-21 wiki-daily-update** (demo/stats live only, is_shadow=false):
-  - Live only (is_shadow=0): **N=408**, WR=42.2%, EV=-0.52, PnL=**-211.5pip** ✅ (+38.8pip vs 2026-05-20), shadow_count=5,857 (+4 new live fills 2026-05-21)
-  - 30d rolling (risk API, N=82): gross_pnl=**-66.8pip** ✅ (was -104.3pip on 2026-05-20 — +37.5pip improvement), Kelly=0.0 (EV<0), avg_friction=4.03pip
+- FX-only post-cutoff (2026-04-08〜) — **2026-05-27 wiki-daily-update** (demo/stats live only, is_shadow=false):
+  - Live only (is_shadow=0): **N=411**, WR=41.8%, EV=-0.55, PnL=**-225.9pip** ⚠️ (-6.8pip vs 2026-05-26), +1 new live fill since 2026-05-26
+  - 30d rolling (risk API): Kelly=**0.0%** ⚠️, WR=**55.88%**, Odds=0.7873 (regressed — brief +0.8% on 2026-05-26 was transient window effect)
   - **TRUE_LIVE** (`is_shadow=0 AND oanda_trade_id != ''`) SSOT — 2026-05-03 実測: **N=371** (incl BE) / **346** (WIN/LOSS), WR=39.89%, EV=-0.686, PnL=-254.6pip (see [[aggregate-kelly-decomposition-2026-05-03-corrigendum]])
   - FLAG_DRIFT (`is_shadow=0` だが OANDA未送信): N=140, WR=32.86%, PnL=-132.4pip (`raw/audits/oanda-passthrough-gap-2026-05-03.md` 由来 write-path bug)
-  - SHADOW (`is_shadow=1`): N=5,857 (as of 2026-05-21) — **Live 判断には混入禁止** (memory `feedback_live_vs_shadow_strict_separation`)
+  - SHADOW (`is_shadow=1`): N≈5,857+ (last confirmed 2026-05-21) — **Live 判断には混入禁止** (memory `feedback_live_vs_shadow_strict_separation`)
   - 旧記載 "N=29 (`oanda_trade_id != ''`)" は **誤り** — 実態は `mode='daytrade'` only サブセット、SUPERSEDED by [[aggregate-kelly-decomposition-2026-05-03-corrigendum]]
-- Ruin probability: **0.0%** ✅ (MC 5,000 sims, N=300 forward — Render API 2026-05-19; was 2.08% on 2026-05-07 — improvement due to 0.2x lot)
-- Aggregate Kelly: **0.0** (raw edge=-8.29% 30d; TRUE_LIVE SSOT: N=371 raw=-0.69) — Bonferroni-powered cell-level demote が実行可能、N=371 で Gate 1 unlock 経路が再開
+- Ruin probability: **0.0%** ✅ (MC 5,000 sims — Render API 2026-05-27; was 2.08% on 2026-05-07 — improvement due to 0.2x lot)
+- Aggregate Kelly: **0.0%** ⚠️ (30d WR=55.88%, Odds=0.7873, Full Kelly=0.0% — reverted from brief 0.8% on 2026-05-26; TRUE_LIVE SSOT: N=371 raw=-0.69)
 - Aggregate Kelly decomposition 2026-05-03: 旧 doc は SUPERSEDED。新 SSOT: [[aggregate-kelly-decomposition-2026-05-03-corrigendum]] (TRUE_LIVE Strategy × Pair 出血ランキング、ELITE_LIVE `session_time_bias × GBP_USD` 出血特定)
-- Last updated: 2026-05-21 (wiki-daily-update auto); prev: 2026-05-20
+- ⚠️ Portfolio warnings: session_time_bias Sharpe=-0.77, streak_reversal Sharpe=-0.51, trendline_sweep Sharpe=-0.05. DSR=0.0279 (sig threshold not met).
+- Last updated: 2026-05-27 (wiki-daily-update auto); prev: 2026-05-26
 - scalp_eurjpy: **Stopped** (v8.6) -- friction/ATR=43.6%, 構造的不可能
 - scalp_5m_eur / scalp_5m_gbp: **Active** (v8.6) -- 5m摩擦改善モード
 - New modes (v9.0): **daytrade_eurjpy**, **daytrade_gbpjpy**, **[[rnb-usdjpy]]** (all auto_start)
@@ -178,6 +164,8 @@ LOCK: [[edge-cells-stage3-live-promote-2026-05-26]] — all cells start at S1 (5
 - [[negative-strategy-stopping-rule]] -- Shadow 止血ルール Level A/B/C（Bayesian 基準）
 
 ## Session History
+- **2026-05-27 wiki-daily-update** — N=411 (+1 live fill, losing), WR=41.8%, EV=-0.55, PnL=-225.9pip ⚠️ (-6.8pip), DD=66.46% (+0.68pp ⚠️ new high), ruin=0.0% ✅. 30d Kelly=0.0% ⚠️ (regressed from brief 0.8% yesterday — WR 56.72%→55.88%, window effect reversed). USD_JPY 30d +39.6pip (anchor). GBP_USD 30d -27.8pip (drag). OANDA audit: 0 live fills (27 shadow signals).
+- **2026-05-26 wiki-daily-update** — N=410 (+2 new live fills ✅), WR=42.0%, EV=-0.53, PnL=-219.1pip ⚠️ (-7.6pip), DD=65.78% (+0.71pp ⚠️), ruin=0.0% ✅. 30d Kelly turned positive: Half-Kelly=0.8%, WR=56.72%, Edge=+1.25% ✅ (window shift). OANDA audit: 0 live fills today (28 shadow signals). trendline_sweep Sharpe=-0.05 (monitor). session_time_bias Sharpe=-0.77.
 - **2026-05-21 wiki-daily-update** — N=408 (+4 new live fills ✅), WR=42.2%, EV=-0.52, PnL=-211.5pip ✅ (+38.8pip), DD=65.07% (unchanged), ruin=0.0%, 30d=-66.8pip ✅ (was -104.3pip). vix_carry_unwind 1.0x lot exception active (edge=0.2743). shadow_count=5,857. 30d Sharpe=-0.080. USD_JPY +61.1pip (30d anchor), GBP_USD -73.1pip (main drag).
 - **2026-05-07 wiki-daily-update** — N=530 total (shadow+live, post-2026-04-08), WR=38.5%, PnL=-414.2pip (gross), DD=42.21%⚠️ (+1.56pp from 2026-05-03), ruin=2.08%, live fills=4 (GBP_USD×3 + USD_JPY×1 daytrade, OANDA#383016-383039), total system=5,295. bb_rsi N=187 -52.7pip, session_time_bias N=9 WR=22.2% -43.4pip⚠️, vix_carry_unwind N=8 -41.5pip⚠️
 - **2026-04-30 session** — Regime Cascade v2.1 実装+commit (binary moderate_trend, L3 slim, SL floor). direction_cells API 追加. B1/B3 監査訂正. 2コミット push
@@ -240,6 +228,8 @@ LOCK: [[edge-cells-stage3-live-promote-2026-05-26]] — all cells start at S1 (5
 - [[bt-live-divergence-scan-2026-04-22]] / [[bt-live-divergence-v3-full-stack-2026-04-22]] — 365d JPY DT + 180d Scalp fresh BT
 
 ### Trade Logs
+- [[2026-05-27]] — daily summary (auto-generated 2026-05-27)
+- [[2026-05-26]] — daily summary (auto-generated 2026-05-26)
 - [[2026-05-21]] — daily summary (auto-generated 2026-05-21)
 - [[2026-05-07]] — daily summary (auto-generated 2026-05-07)
 - [[2026-04-29]] — daily summary (auto-generated 2026-04-29)

@@ -1,5 +1,6 @@
 {
   "actions": [],
+  "applied": [],
   "cells": {
     "E1": {
       "metrics": {
@@ -242,11 +243,13 @@
       "verdict": "HOLD"
     }
   },
-  "dry_run": true,
-  "generated_at": "2026-05-26T12:01:16.636283+00:00",
+  "generated_at": "2026-05-26T13:37:39.245864+00:00",
   "global": {
-    "account_30d_dd_pct": 0.0
+    "account_dd_pct_from_lock": 0.0,
+    "current_nav_jpy": 301413.8365,
+    "global_disable": false,
+    "lock_nav_jpy": 301413.8365,
+    "watchdog_kv_global_disable": true
   },
-  "lock_date": "2026-05-26",
-  "state_changes": []
+  "lock_date": "2026-05-26"
 }

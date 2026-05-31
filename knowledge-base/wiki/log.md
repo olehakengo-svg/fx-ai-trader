@@ -1,5 +1,45 @@
 # Knowledge Base Change Log
 
+## 2026-05-27 (wiki-daily-update): 自動スケジュールタスク
+- **Daily trade log**: `raw/trade-logs/2026-05-27.md` 作成 — post-cutoff live N=411 (+1 fill), WR=41.8%, EV=-0.55, PnL=-225.9pip ⚠️ (-6.8pip vs 2026-05-26)
+- **wiki/index.md**: System State更新 — live N=410→**411** (+1 fill), WR=42.0→**41.8%**, EV=-0.53→**-0.55**, PnL=-219.1→**-225.9pip** ⚠️; DD=65.78%→**66.46%** (+0.68pp ⚠️ 新高値); 30d Kelly=Half-Kelly 0.8%→**0.0%** ⚠️ (WR 56.72%→55.88%で逆転); last_updated→2026-05-27
+- **Strategy pages**: 更新なし (tier変更なし、今日のaudit全件shadow_tracking)
+- **OANDA audit**: 今日の27件全件 bridge_status=skipped, block_reason=shadow_tracking。live fills=0。DB total=6,617。主要instruments: USD_CHF/EUR_USD/GBP_USD/USD_JPY/EUR_JPY。entry strategies: ema_trend_scalp, london_breakout, sr_break_retest
+- **Risk state**: DD=66.46% (+0.68pp 連続新高値), lot=0.2x, 30d Kelly=0.0% ⚠️ (Full Kelly fraction=0.0%), MC ruin=0.0%, eq_current=-647.7. USD_JPY 30d +39.6pip (唯一のプラス), GBP_USD 30d -27.8pip (最大損失源)
+- **Learning API**: scalp EV=-0.15 WR=40.5% N=378 (変化なし)。daytrade EV=-2.0 WR=42.3% N=71 (変化なし)。最終自動調整=2026-05-18 変化なし
+- **主要観察**: ⚠️ PnL -225.9pip (-6.8pip悪化); ⚠️ DD 66.46% 3日連続新高値 (65.07%→65.78%→66.46%); ⚠️ 30d Kelly 0.8%→0.0%に逆戻り (昨日の改善はwindow効果の一時的揺り戻しと確認); ✅ ruin=0.0%維持; ⚠️ SR-family audit gap継続 (Codex c47e943e pending); ⚠️ live fill rate依然低迷 (1 fill/day程度)
+- **Lint**: wikilink問題なし。DD 3連続日悪化 (合計+1.39pp/3日)。0.2x防御で破産確率0%は維持。30d windowの揺らぎはpost-cutoff EV=-0.55という真の指標を隠蔽している点に注意。陳腐化なし
+
+## 2026-05-26 (wiki-daily-update): 自動スケジュールタスク
+- **Daily trade log**: `raw/trade-logs/2026-05-26.md` 作成 — post-cutoff live N=410 (+2 fills), WR=42.0%, EV=-0.53, PnL=-219.1pip ⚠️ (-7.6pip vs 2026-05-21)
+- **wiki/index.md**: System State更新 — live N=408→**410** (+2 fills), WR=42.2→**42.0%**, EV=-0.52→**-0.53**, PnL=-211.5→**-219.1pip** ⚠️; DD=65.07%→**65.78%** (+0.71pp ⚠️); 30d Kelly=0.0→**Half-Kelly 0.8%** ✅ (Edge +1.25%, WR 56.72% — window improvement); portfolio warnings追加; last_updated→2026-05-26
+- **Strategy pages**: 更新なし (tier変更なし、今日のaudit全件shadow_tracking)
+- **OANDA audit**: 今日の28件全件 bridge_status=skipped, block_reason=shadow_tracking。live fills=0。USD_CHF 12件・EUR_USD 11件・GBP_USD 2件・USD_JPY 1件。SR-family data gap (~60%でsr_strength欠損)
+- **Risk state**: DD=65.78% (+0.71pp), lot=0.2x, 30d Kelly=Half-Kelly 0.8% ✅ (Edge+1.25%, WR 56.72%), MC ruin=0.0%, eq_current=-640.9
+- **Learning API**: scalp EV=-0.15 WR=40.5% N=378 (変化なし)。daytrade EV=-2.0 WR=42.3% N=71 (微悪化: EV -1.93→-2.0)。最終自動調整=2026-05-18 変化なし
+- **主要観察**: ⚠️ PnL -219.1pip (-7.6pip悪化); ⚠️ DD 65.78% (+0.71pp新高値); ✅ 30d Kelly半ケリー0.8%に初回転換 (window shift、overall post-cutoff EV依然負); ⚠️ trendline_sweep ELITE_LIVE Sharpe=-0.05 (要監視); ⚠️ session_time_bias Sharpe=-0.77; ✅ ruin=0.0%維持; ⚠️ SR-family audit gap継続 (Codex c47e943e pending)
+- **Lint**: wikilink問題なし。DD継続悪化中だが0.2x防御で破産確率0%維持。30d窓效果による改善は実態EV悪化と乖離しており要注意。陳腐化なし
+
+## 2026-05-21 (wiki-daily-update): 自動スケジュールタスク
+- **Daily trade log**: `raw/trade-logs/2026-05-21.md` 作成 — post-cutoff live N=408 (+4 new fills ✅), WR=42.2%, EV=-0.52, PnL=-211.5pip ✅ (+38.8pip)
+- **wiki/index.md**: System State更新 — live N=404→**408** ✅, WR=41.8→**42.2%**, EV=-0.62→**-0.52**, PnL=-250.3→**-211.5pip** ✅; 30d N=79→**82**, PnL=-104.3→**-66.8pip** ✅; shadow_count=5,598→**5,857**; last_updated→2026-05-21
+- **Strategy pages**: 更新なし (tier変更なし、今日のaudit上位strategyはshadow_trackingのみ)
+- **OANDA audit**: 最新30件全件 bridge_status=skipped, block_reason=shadow_tracking。live fills 4件は早い時間帯/Kalman D7 LIVEによる可能性高い
+- **Risk state**: DD=65.07% (変化なし), lot=0.2x, Kelly=0.0 (EV<0), MC ruin=0.0%, eq_current=-633.8 (変化なし)
+- **Learning API**: scalp EV=-0.15 WR=40.5% N=378 (変化なし)。daytrade EV=-1.93 WR=42.9% N=70 ✅ (改善 from -2.54/41.2%/68)。最終自動調整=2026-05-18 (sr_channel_reversal blacklist)
+- **主要観察**: ✅ N=408 (+4 live fills) — 取引実行確認。✅ PnL -211.5pip (前日-250.3からの+38.8pip改善)。✅ 30d -66.8pip (前日-104.3pip から+37.5pip回復)。✅ USD_JPY 30d +61.1pip が引き続きシステム唯一の正PnL通貨ペア。⚠️ GBP_USD 30d -73.1pip が最大損失源継続。⚠️ vix_carry_unwind 1.0x lot例外 (edge=+0.2743, watchdog active)。⚠️ SR-family audit gap (codex c47e943e pending)。✅ Ruin=0.0% 維持
+- **Lint**: wikilink問題なし。DD unchanged (equity peak未達)。live fills 4件とaudit last-30 records不一致 (timing offset — Kalman D7 LIVEによる可能性)。陳腐化なし
+
+## 2026-05-20 (wiki-daily-update): 自動スケジュールタスク
+- **Daily trade log**: `raw/trade-logs/2026-05-20.md` 作成 — post-cutoff live N=404 (変化なし), WR=41.8%, PnL=-250.3pip, OANDA live fills=0
+- **wiki/index.md**: System State更新 — 30d rolling N=91→**79** (window shift), PnL=-63.1→**-104.3pip** ⚠️, Kelly edge=-8.29%→**-15.05%** ⚠️, avg_friction=4.05pip; last_updated→2026-05-20
+- **Strategy pages**: 更新なし (新規live fillsゼロ、数値変動なし)
+- **OANDA今日**: live fills=0, shadow=32 (全件shadow_tracking), 全戦略シグナル=shadow_onlyモード継続
+- **Risk state**: DD=65.07% (変化なし), lot=0.2x, Kelly=0.0 (edge=-15.05%), MC ruin=0.0%, eq_current=-633.8
+- **Learning API**: scalp EV=-0.15 WR=40.5% N=378, daytrade EV=-2.54 WR=41.2% N=68 (変化なし)。最終自動調整=2026-05-18 (sr_channel_reversal blacklist)
+- **主要観察**: ✅ N=404 live total 変化なし (new fills=0). ⚠️ 30d rolling window drift — profitable old trades fell out, Kelly edge -8.29%→-15.05%は構造的悪化ではなく窓効果。⚠️ GBP_USD 30d -71.2pip が引き続き最大損失源。✅ USD_JPY +23.2pip 唯一の正PnL通貨ペア (30d). 📋 Kalman D7 v17/v18f/v18e LIVE投入後初の観測日 (memory: project_kalman_d7)
+- **Lint**: wikilink問題なし. 30d rolling数値は窓シフト起因の正常変動（live total N=404変化なしで確認）. 陳腐化なし
+
 ## 2026-05-15 (wiki-lint): ema_trend_scalp redesign audit pages 追加 + 整合性確認
 - **新規 page (2)**:
   - `analyses/ema-trend-scalp-redesign-2026-05-14.md` — Phase 0-5 audit (TV harness regression / Live shadow N=75 cell breakdown / `aligned×BUY×GBP_USD` N=10 WR=50% EV=+2.16 発見)
