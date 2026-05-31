@@ -125,6 +125,46 @@ for r in cur.fetchall(): print(\" \", dict(r))
 
 本 pre-reg は **fix の効果検証** のみ。Kalman D7 自体の edge 検証 (PF/WR/Wilson 等) は対象外 (deploy 時点で BT 10.5mo の証跡あり、shadow N 蓄積後に別途 Phase 2 で再評価)。
 
+## 6.5. 判定結果 (2026-05-29 17:46 JST = deploy + 24h) — INCONCLUSIVE
+
+実測:
+| Metric | Value |
+|---|---|
+| oanda_audit kalman_d7* | 0 |
+| evaluated_candidates kalman_d7* | 0 (probe 3 行を除く) |
+| USD_JPY M15 evaluated_candidates (any strategy) | 1,224 → scheduler 健全 |
+| USD_JPY oanda_audit (any strategy, 24h) | 35 (うち LIVE 2 = bb_rsi_reversion / scalp) |
+| 24h 中の PO-UP transition | 2 件 (04:15 / 05:15 UTC) |
+| Filter PASS した transition | **0 件** |
+
+両 transition とも **DIST filter で fail**:
+- 2026-05-28 04:15 UTC: DIST = 4.34 ATR (上限 3.0)
+- 2026-05-28 05:15 UTC: DIST = 4.37 ATR (上限 3.0)
+
+→ **Kalman 設計対象外局面 = USDJPY が EMA200 から離れすぎた延長相場**。0 fire は silent-drop の再発ではなく filter design の正常拒否。
+
+判定: **INCONCLUSIVE (FAIL ではない)**、観測継続。
+
+### 改訂版 pre-reg (next judgement)
+
+旧 (24h fire COUNT) → 新 (24h qualifying bar COUNT):
+```
+SUCCESS:
+  24h 内に Kalman filter chain (PO-UP transition + DIST<3 + GAP<3 + ATR_Q2-4 + RSI<70 + session OK) PASS する bar が 1+ 件
+  AND oanda_audit kalman_d7* LIVE COUNT >= 1
+  → 設計通り発火、Kalman 復活確定
+
+INCONCLUSIVE (規制対象外局面):
+  24h 中の qualifying bar 0
+  AND scheduler 健全 (USD_JPY M15 evaluated_candidates > 500)
+  → market が Kalman の設計対象外。48-168h 延長
+
+FAIL (Kalman 固有問題):
+  qualifying bar >= 1
+  AND oanda_audit kalman_d7* COUNT == 0
+  → P0-5 (LIVE override / lot boost / shadow path のいずれかが詰まっている)
+```
+
 ## 7. References
 
 - 親 commit: [`29ec95cb`](../../../) `fix(gates): shadow-eligible bypass for recent_emit/spread_guard/session_pair/velocity/spike [rule:R3]` (2026-05-28 04:55 JST)
