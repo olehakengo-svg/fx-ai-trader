@@ -5547,6 +5547,14 @@ class DemoTrader:
                     f"[SHIELD] EUR DT whitelist bypass: {entry_type} mode={mode} "
                     f"(N<10→Sentinel自動適用)"
                 )
+            elif _edge_cell_force_live:
+                # Edge cell pre-reg LOCK 2026-05-26: cell-specific force-live
+                # overrides the broad mode kill-switch while preserving it for
+                # non-edge-cell strategies.
+                self._add_log(
+                    f"[SHIELD] EDGE_CELL bypass: {_edge_cell_id} {entry_type} "
+                    f"mode={mode} → keep _is_promoted=True for force-live"
+                )
             else:
                 self._add_log(f"[SHIELD] OANDA blocked: mode={mode}")
                 _is_promoted = False
@@ -5582,7 +5590,7 @@ class DemoTrader:
         if _is_promoted:
             # ── v9.0 SHIELD: Aggregate Kelly Gate ──
             # aggregate Kelly < 0 のとき SENTINEL以外のOANDA転送をブロック
-            if _strat_mode != "sentinel" and not _is_sentinel:
+            if _strat_mode != "sentinel" and not _is_sentinel and not _edge_cell_force_live:
                 _agg_kelly = self._get_aggregate_kelly()
                 if _agg_kelly is not None and _agg_kelly < 0:
                     self._add_log(
@@ -5598,6 +5606,11 @@ class DemoTrader:
                         sr_meta=_sr_meta,
                     )
                     _is_promoted = False  # fall through to non-OANDA path
+            elif _edge_cell_force_live:
+                self._add_log(
+                    f"[SHIELD] EDGE_CELL Kelly bypass: {_edge_cell_id} {entry_type} "
+                    f"(per-cell Kelly Half pre-reg LOCK)"
+                )
 
             # ── v9.1 SHIELD: Monte Carlo Ruin Gate ──
             # ruin_probability > 70% のとき SENTINEL以外のOANDA転送をブロック

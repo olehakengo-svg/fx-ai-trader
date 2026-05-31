@@ -293,3 +293,33 @@ Refs: ai/tasks queue 20260529-0000
 - [edge-cells-stage3-live-promote-2026-05-26.md](../../knowledge-base/wiki/decisions/edge-cells-stage3-live-promote-2026-05-26.md) — pre-reg spec
 - [Kalman D7 LIVE 0.5x](project_kalman_d7_silent_drop_recovery_2026_05_28.md) — 同型の SHIELD bypass パターン
 - [feedback_codex_stash_leak](feedback_codex_stash_leak.md) — push 後 git log verify 必須
+
+
+## Result (2026-05-31T04:23:32Z)
+
+exit=0 · 561s
+
+```
+Implemented the edge-cell SHIELD exemptions.
+
+Changed [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:5547):
+- `_edge_cell_force_live` now bypasses `_OANDA_MODE_BLOCKED` while preserving the kill-switch for non-edge-cell trades.
+- Aggregate Kelly `< 0` gate now skips only for `_edge_cell_force_live`, with explicit `[SHIELD] EDGE_CELL Kelly bypass` logging.
+
+Added tests:
+- [tests/test_edge_cell_shield_oanda_mode_bypass.py](/data/repo/fx-ai-trader/tests/test_edge_cell_shield_oanda_mode_bypass.py:1)
+- [tests/test_edge_cell_e2e_shield_bypass.py](/data/repo/fx-ai-trader/tests/test_edge_cell_e2e_shield_bypass.py:1)
+
+Verification:
+- New tests: `6 passed`
+- Adjacent edge-cell regression suite: `34 passed`
+- Full suite: `1828 passed, 9 failed, 2 skipped, 1 xfailed`
+- The 9 full-suite failures are missing local MASSIVE parquet cache files under `data/cache/massive`, not edge-cell regressions.
+- `git diff --check` passed.
+- Stash list is empty; test-generated cache/jsonl artifacts were cleaned. Current worktree only has the intended `demo_trader.py` change plus the two new test files.
+
+E2E log assertions cover:
+- `[EDGE_CELL] E8/E3 shadow→live force override`
+- `[SHIELD] EDGE_CELL bypass: E8/E3 ... mode=daytrade_eur`
+- `[SHIELD] EDGE_CELL Kelly bypass: E8/E3 ...`
+```
