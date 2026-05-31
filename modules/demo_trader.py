@@ -6825,7 +6825,10 @@ class DemoTrader:
         # 更新は別 PR)。
         # 紐付け: ~/.claude/plans/ok-spawn-ok-kind-metcalfe.md
         "vwap_mean_reversion",          # Live N=10 WR=40% PnL=-47.7p (IS→OOS 95.3% degrade)
-        "donchian_momentum_breakout",   # Live N=3 WR=33.3% PnL=-32.1p
+        # REMOVED 2026-05-27 (rule:R1-EXCEPTION user judgment):
+        # donchian × NZD pair revival, NZD 2pair PROMOTED + 他6pair DEMOTED, 1.0x lot.
+        # 詳細: knowledge-base/wiki/decisions/donchian-nzd-live-exception-2026-05-27.md
+        # "donchian_momentum_breakout",
         "v_reversal",                   # Live N=3 WR=0% PnL=-10.1p
         # REMOVED 2026-05-18 Live activation v2: Price-Shock Rev 5 strategies
         # moved to pair-level Live MIN lot with watchdog auto-demote.
@@ -6990,6 +6993,16 @@ class DemoTrader:
         # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
         # ("vix_carry_unwind", "USD_JPY"),
         ("streak_reversal", "USD_JPY"),
+        # 2026-05-27 (rule:R2 + R1-EXCEPTION pair): donchian × NZD revival に伴い
+        # 漏れ出る他 pair を個別遮断 (Shadow 蓄積継続)。Shadow EV<-3p or N<5:
+        # AUD_JPY -12.18p / USD_CAD -9.05p / EUR_USD -13.10p / USD_JPY/AUD_USD N=3 /
+        # EUR_AUD N=9 弱プラスだが N<10。NZD_JPY/NZD_USD のみ _PAIR_PROMOTED。
+        ("donchian_momentum_breakout", "AUD_JPY"),
+        ("donchian_momentum_breakout", "USD_CAD"),
+        ("donchian_momentum_breakout", "EUR_USD"),
+        ("donchian_momentum_breakout", "USD_JPY"),
+        ("donchian_momentum_breakout", "AUD_USD"),
+        ("donchian_momentum_breakout", "EUR_AUD"),
     }
 
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
@@ -7157,6 +7170,12 @@ class DemoTrader:
         #   ガードレール: Live N=15 で EV_cost<-0.5p → 自動 FORCE_DEMOTED 戻し
         #   詳細: wiki/analyses/shadow-subcell-analysis-2026-04-23.md
         ("ema200_trend_reversal", "USD_JPY"),
+        # 2026-05-27 (rule:R1-EXCEPTION user judgment): donchian × NZD revival.
+        # Shadow since 2026-04-01: NZD_JPY N=14 EV=+20.49p / NZD_USD N=16 EV=+15.52p
+        # (Wlo95≈0.45, BFlo≈0.39). 1.0x lot. Watchdog auto-demote Live N>=10 EV<0.
+        # Pre-reg LOCK: knowledge-base/wiki/decisions/donchian-nzd-live-exception-2026-05-27.md
+        ("donchian_momentum_breakout", "NZD_JPY"),
+        ("donchian_momentum_breakout", "NZD_USD"),
     }
 
     # Cell-conditional session filter for PAIR_PROMOTED entries.
@@ -7219,6 +7238,13 @@ class DemoTrader:
         # Memory: project_zz_pivot_v60_sr_live_queue_2026_05_28.
         ("zz_pivot_v60_sr",    "EUR_USD"): 1.0,
         ("zz_pivot_v60_sr_lo", "EUR_USD"): 0.5,
+        # 2026-05-27 (rule:R1-EXCEPTION): donchian × NZD pair revival, 1.0x full size.
+        # User judgment (vix_carry 1.0x / Kalman D7 0.5x 前例と同系)。
+        # Rule 1 未充足項目: N<30, BFlo<0.50, 365d BT 未実施 → discretionary edge override.
+        # Watchdog: Live N≥10 EV<0 で自動 demote (volume_live_promotion_watchdog.py).
+        # Pre-reg LOCK: knowledge-base/wiki/decisions/donchian-nzd-live-exception-2026-05-27.md
+        ("donchian_momentum_breakout", "NZD_JPY"): 1.0,
+        ("donchian_momentum_breakout", "NZD_USD"): 1.0,
     }
 
     @staticmethod
