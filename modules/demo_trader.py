@@ -6863,7 +6863,17 @@ class DemoTrader:
         "vix_carry_unwind": 1.5,          # v2.1: 180日BT N=103 EV=+0.521 (N倍増、EV2.5倍改善)
         # REMOVED v9.0: ema_trend_scalp — Live N=39 WR=23.1% edge=-35.3%, demoted済み
         # v8.6: 学術リサーチ新エッジ — BT正EV確認済み
-        "session_time_bias": 1.3,          # v8.6: 全3ペアBT正EV (JPY+0.427, EUR+0.650, GBP+0.266) — Breedon 2013
+        # 2026-05-29 (rule:R2 cell forensic): 1.3x → 1.0x.
+        # Shadow cell decomposition (post-2026-05-19 strategy backfill) showed BT
+        # aggregate basis is misleading — EUR_USD edge concentrates in London cell
+        # (N=58 Wlo=0.327 EV=+1.44 PF=1.41) while EUR_USD Overlap/NY and the entire
+        # GBP_USD pair are toxic. 1.3x lot boost was cell-blind and amplified the
+        # losing cells. Pair-level filter remains: GBP_USD already PAIR_DEMOTED
+        # (2026-05-03 R2 LOCK), EUR_USD now cell-conditional via
+        # _PAIR_SESSION_FILTER → {"London"}. Boost reinstatement awaits Live
+        # N≥30 + Wilson_lo>0.40 confirmation on the London cell only.
+        # 詳細: knowledge-base/wiki/decisions/session-time-bias-cell-forensic-2026-05-29.md
+        "session_time_bias": 1.0,          # was 1.3 (v8.6); cell-conditional via _PAIR_SESSION_FILTER
         # v9.1: london_fix_reversal 1.3→1.0 — 365d BT GBP EV=-0.239, EUR EV=-0.103
         "london_fix_reversal": 1.0,
         # REMOVED: stoch_trend_pullback → _UNIVERSAL_SENTINEL降格 (全ペアEVマイナス)
@@ -6916,6 +6926,14 @@ class DemoTrader:
         # v8.6: BT負EVペアの明示的降格
         ("london_fix_reversal", "USD_JPY"),  # v8.6: BT WR=28.6% EV=-0.752 — Fix効果がJPYで弱い
         ("xs_momentum", "USD_JPY"),          # v8.6: BT EV=-0.129 — 単一ペアモメンタムはJPYで機能せず
+        # 2026-05-29 (rule:R2 cell forensic): xs_momentum × EUR/GBP demote.
+        # Post-backfill Shadow cell decomposition: aggregate EV<0 across all
+        # pair × direction cells (Wilson_lo never crosses 0.30). current cohort
+        # (post 2026-05-21) catastrophic: Shadow N=91 WR=14.3% EV=-5.15.
+        # Removed from _PAIR_PROMOTED in same commit (was lines ~7030-7034).
+        # 詳細: knowledge-base/wiki/decisions/xs-momentum-pair-demote-2026-05-29.md
+        ("xs_momentum", "EUR_USD"),
+        ("xs_momentum", "GBP_USD"),
         ("post_news_vol", "USD_JPY"),        # v8.8: 120d BT WR=0% EV=-3.706 — JPYで壊滅的
         # REMOVED 2026-04-23: ema200_trend_reversal×USD_JPY → PAIR_PROMOTED
         # Shadow post-cutoff N=13 WR=61.5% EV=+5.39p (v8.8時点BTと反転)
@@ -7027,11 +7045,18 @@ class DemoTrader:
         # ("london_fix_reversal", "GBP_USD"),
         # REMOVED v9.1: ema_pullback×JPY — ema_pullbackはFORCE_DEMOTED、PAIR_PROMOTED無効(死コード)
         # (was: Post-cut N=14 WR=42.9% EV=+1.09)
-        # v8.9: xs_momentum×GBP/EUR — リアルタイム含み益+48.9pip (London-NY GBP BUY)
-        # JPYはPAIR_DEMOTED。GBP/EURはBT正EV (GBP +0.134, EUR +0.192)
-        # shadow全敗→TP縮小(3.0→2.0)+London-NY限定で改善済み。実弾でQH適用開始
-        ("xs_momentum", "GBP_USD"),
-        ("xs_momentum", "EUR_USD"),
+        # REMOVED 2026-05-29 (rule:R2 cell forensic):
+        # xs_momentum × GBP_USD / EUR_USD entries demoted to _PAIR_DEMOTED.
+        # Post-backfill Shadow cell forensic:
+        #   GBP_USD Shadow: N=81 EV=-1.40 PF=0.79 (BUY EV=-2.25 / SELL EV=+0.21)
+        #   EUR_USD Shadow: N=85 EV=-4.41 PF=0.37 (BUY EV=-3.41 / SELL EV=-5.47)
+        #   current cohort (post 2026-05-21): Shadow N=91 WR=14.3% EV=-5.15 ← 崩壊
+        # No Wilson_lo>0.30 cell remains. Live N=7 EV=+0.56 was noise (pre-H1gate
+        # single +22p win drove the mean). Pair-level demote since no winning cell
+        # survives Bonferroni m=6.
+        # 詳細: knowledge-base/wiki/decisions/xs-momentum-pair-demote-2026-05-29.md
+        # ("xs_momentum", "GBP_USD"),
+        # ("xs_momentum", "EUR_USD"),
         # 2026-05-13: xs_momentum_rsi variant — H1 RSI direction filter (BUY rsi_h1>=60 / SELL rsi_h1<=40)
         # TV Strategy Tester Phase 2 Config 3 (USD_JPY 15m, friction=0):
         #   N=290 WR=46.55% PF=1.199 Net=+31.92 vs Baseline N=501 WR=43.51% PF=1.04 Net=+11.83
@@ -7185,6 +7210,16 @@ class DemoTrader:
     # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
     _PAIR_SESSION_FILTER = {
         ("vix_carry_unwind", "USD_JPY"): {"Overlap"},  # 12 <= UTC hour < 16
+        # 2026-05-29 (rule:R2 cell forensic):
+        # session_time_bias × EUR_USD now cell-conditional. Shadow cells:
+        #   London   N=58 WR=44.8% Wlo=0.327 EV=+1.44 PF=1.41 ✅ edge
+        #   Overlap  N=34 WR=26.5% Wlo=0.146 EV=-1.88 PF=0.63 🔴
+        #   NY       N=5  WR=20.0% Wlo=0.036 EV=-0.12 PF=0.97 (small)
+        # Lot boost 1.3x → 1.0x in _STRATEGY_LOT_BOOST (cell-blind boost
+        # amplified losing cells). Boost reinstatement awaits Live N≥30 on
+        # the London cell with Wilson_lo>0.40 confirmation.
+        # 詳細: knowledge-base/wiki/decisions/session-time-bias-cell-forensic-2026-05-29.md
+        ("session_time_bias", "EUR_USD"): {"London"},  # 7 <= UTC hour < 12
     }
     _SESSION_BOUNDS_UTC = (
         ("Asia",    0,  7),
@@ -7536,6 +7571,14 @@ class DemoTrader:
     # v9.1: orb_trap/dt_bb_rsi_mr削除 — FORCE_DEMOTED (365d BT全ペア負EV)
     _SHIELD_EUR_DT_WHITELIST = frozenset({
         "htf_false_breakout",        # 1H SR False Breakout Fade (MR, MTFフィルター)
+        # 2026-05-31 (rule:R3): zz_pivot_v60_sr LIVE intentional exception silent block fix.
+        # PAIR_PROMOTED 登録のみでは _OANDA_MODE_BLOCKED("daytrade_eur") を bypass できない。
+        # Memory: project_kalman_d7_silent_drop_recovery_2026_05_28 と同種の "5 gate silent drop"。
+        # 実測 1 trade / 70h (2026-05-28 12:08:46 UTC EUR_USD SELL det=E) → SHADOW_FIX
+        # escalation で OANDA SKIP され bridge_status="skipped"、user 期待の LIVE 動作なし.
+        # MR 戦略の dual entry_type を両方 whitelist で bypass.
+        "zz_pivot_v60_sr",           # ZZ Pivot v60 SR normal zone (1.0x lot)
+        "zz_pivot_v60_sr_lo",        # ZZ Pivot v60 SR loser zone (0.5x lot)
     })
     _QUICK_HARVEST_MULT = 0.85      # v6.8: 0.70→0.85 (DT WIN 7件の19.2pip利益漏出修復)
     _QUICK_HARVEST_EXEMPT = frozenset({

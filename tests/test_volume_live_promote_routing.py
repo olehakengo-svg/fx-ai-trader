@@ -17,10 +17,21 @@ from tools import volume_live_promotion_watchdog as watchdog
 # REMOVED 2026-05-18 C audit:
 # - trend_rebound × USD_JPY (21d shadow N=60 WR=33.3% EV=-1.29p PF=0.66,
 #   WF=0/3) → FORCE_DEMOTED (THESIS_INVALID).
+# REMOVED 2026-05-29 (rule:R2 cell forensic):
+# - xs_momentum × GBP_USD: Shadow N=81 (BUY EV=-2.25 / SELL EV=+0.21),
+#   no Wilson_lo>0.30 cell; current cohort (post 2026-05-21) Shadow N=91
+#   WR=14.3% EV=-5.15 → catastrophic regime degradation. Moved to
+#   _PAIR_DEMOTED. EUR_USD pair likewise demoted (not in this list).
+#   See knowledge-base/wiki/decisions/xs-momentum-pair-demote-2026-05-29.md.
+# CELL-CONDITIONAL 2026-05-29 (rule:R2 cell forensic):
+# - session_time_bias × EUR_USD remains PAIR_PROMOTED but is now narrowed
+#   via _PAIR_SESSION_FILTER to {"London"} (Shadow N=58 Wlo=0.327
+#   EV=+1.44 PF=1.41). Aggregate-cell entry still in VOLUME_CELLS — the
+#   filter narrows Live, not the promote tier.
+#   See decisions/session-time-bias-cell-forensic-2026-05-29.md.
 VOLUME_CELLS = [
     ("mqe_gbpusd_fix", "GBP_USD"),
     ("sr_fib_confluence", "GBP_USD"),
-    ("xs_momentum", "GBP_USD"),
     ("session_time_bias", "EUR_USD"),
     ("vsg_jpy_reversal", "EUR_JPY"),
     ("bb_squeeze_breakout", "EUR_USD"),
@@ -48,7 +59,18 @@ def test_volume_cells_are_pair_promoted_without_static_demote_conflicts():
     for strategy, instrument in VOLUME_CELLS:
         assert (strategy, instrument) in DemoTrader._PAIR_PROMOTED
         assert (strategy, instrument) not in DemoTrader._PAIR_DEMOTED
-        assert trader._is_promoted(strategy, instrument) is True
+        # Cell-conditional cells gate `_is_promoted` on the current UTC
+        # session window (`_PAIR_SESSION_FILTER`). Asserting the bare
+        # boolean here would be time-of-day dependent, so for those cells
+        # we only verify the tier membership + the session-filter entry.
+        if (strategy, instrument) in DemoTrader._PAIR_SESSION_FILTER:
+            sessions = DemoTrader._PAIR_SESSION_FILTER[(strategy, instrument)]
+            assert sessions, (
+                f"{(strategy, instrument)} has an empty _PAIR_SESSION_FILTER "
+                f"entry — should either be removed or list >=1 session."
+            )
+        else:
+            assert trader._is_promoted(strategy, instrument) is True
 
     promoted_strategies = {strategy for strategy, _instrument in VOLUME_CELLS}
     assert promoted_strategies.isdisjoint(DemoTrader._FORCE_DEMOTED)

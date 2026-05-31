@@ -1,5 +1,65 @@
 # FX AI Trader - Changelog
 
+## 2026-05-29 — feat: cell-forensic Tier reorg for xs_momentum / session_time_bias (rule:R2)
+
+### 背景
+
+2026-05-29 backfill (commit d0284435) で `oanda_trades.strategy` を chain resolver 経由で再帰属。Live EV/N の精度が向上した結果、user 指摘「集計じゃなく cell で見るべき」を受け、Shadow デモトレード ~5,000 行を pair × session × direction × cohort で分解。
+
+### 変更内容
+
+#### A. `xs_momentum` — 戦略全体 Shadow-only に降格
+
+`modules/demo_trader.py`:
+- `_PAIR_PROMOTED` から `("xs_momentum", "GBP_USD")` / `("xs_momentum", "EUR_USD")` を削除 (元 lines 7014-7018, v8.9 根拠)
+- `_PAIR_DEMOTED` に `("xs_momentum", "EUR_USD")` / `("xs_momentum", "GBP_USD")` を追加 (USD_JPY は既存 v8.6)
+
+**根拠 (Shadow cell forensic)**:
+- 6 cell (pair × direction) 全てで Wilson_lo<0.30 → Bonferroni m=6 で全棄却
+- `current` cohort (post 2026-05-21) Shadow N=91 WR=14.3% EV=-5.15pip → 完全崩壊
+- Live N=7 EV=+0.56 は pre-H1gate 単発 +22p outlier に押された noise
+
+#### B. `session_time_bias` — Cell-conditional Live + Lot Boost 解除
+
+`modules/demo_trader.py`:
+- L6850: `_STRATEGY_LOT_BOOST["session_time_bias"]` を **1.3 → 1.0** (cell-blind boost 解除)
+- L7208 `_PAIR_SESSION_FILTER` に `("session_time_bias", "EUR_USD"): {"London"}` 追加
+- `("session_time_bias", "GBP_USD")` PAIR_DEMOTED は維持 (2026-05-03 R2 LOCK)
+- `("session_time_bias", "EUR_USD")` PAIR_PROMOTED は維持、London session 限定で Live 発火
+
+**根拠 (Shadow cell map)**:
+| cell | N | Wilson_lo | EV (pip) | PF | 判定 |
+|---|---|---|---|---|---|
+| EUR_USD London | 58 | **0.327** | **+1.44** | **1.41** | ✅ edge |
+| EUR_USD Overlap | 34 | 0.146 | -1.88 | 0.63 | 🔴 |
+| GBP_USD Asia | 47 | 0.012 | -6.10 | 0.06 | 🔴 toxic |
+| GBP_USD NY | 15 | 0.012 | -7.03 | 0.18 | 🔴 toxic |
+
+Cell-blind 1.3× boost は EUR_USD London を +1.87 EV に強化する一方、Overlap/NY/GBP_USD の毒 cell も同倍率で被弾するため非対称リスク。
+
+#### Decision docs
+
+- `knowledge-base/wiki/decisions/xs-momentum-pair-demote-2026-05-29.md`
+- `knowledge-base/wiki/decisions/session-time-bias-cell-forensic-2026-05-29.md`
+
+#### Tests
+
+- 新規: `tests/test_cell_forensic_2026_05_29_pin.py` (9 件) — Tier config を regression pin
+- 更新: `tests/test_volume_live_promote_routing.py` — `VOLUME_CELLS` から `("xs_momentum", "GBP_USD")` 削除、cell-conditional cell の `_is_promoted` 時刻依存を考慮した assertion へ修正
+
+### 検証
+
+- `python3 -m pytest tests/test_cell_forensic_2026_05_29_pin.py tests/test_volume_live_promote_routing.py -v` → 14/14 PASS
+- `python3 -m pytest tests/ -q` → **1683 passed**, 1 skipped, 1 xfailed
+- `python3 scripts/check.py` → 6/6 通過
+
+### 再復活条件 (Pre-reg LOCK)
+
+両戦略とも以下を満たすまで現状維持:
+- 該当 cell で Live N≥30 + Wilson_lo>0.40 + EV>+1.0 pip
+- Bonferroni-corrected p<0.05 (m=4-6 cells)
+- 3 cohort 連続で同一 cell が edge 維持
+
 ## 2026-05-29 — feat: oanda_trades.strategy chain-resolver backfill + /oanda-analysis UX (rule:R3)
 
 ### 変更内容 (B: 歴史的孤児 backfill)
