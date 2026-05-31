@@ -86,6 +86,35 @@ CLAUDE.md Rule 1 (pair promote + lot↑) は以下を要求するが、本変更
 
 C-1 (推奨): Codex に **365 日 BT** タスク投入 → BT side でも edge 確認、Bonferroni 通過なら本 LIVE の根拠強化。Live N=10 到達 (~5-10 日) までに BT 結果到着すれば、撤退/継続判断の補強材料になる。
 
+## Post-BT verdict (2026-05-31)
+
+Codex 365d MASSIVE 15m BT: `raw/bt-results/2026-05-31-donchian-nzd-365d.md`
+
+Runner:
+
+- `tools/donchian_nzd_365d_bt.py`
+- Data source: `data/cache/massive/{NZD_JPY,NZD_USD,AUD_JPY,USD_CAD}_15m.parquet`
+- Signal path: production `DonchianMomentumBreakout.evaluate(..., backtest_mode=True)`
+- Bonferroni: m=9, alpha=0.00556, z=2.539
+
+Overall result:
+
+| Pair | Role | BT N | WR | EV | Total PnL | BFlo | WF | Bootstrap EV 95% CI | Verdict |
+|---|---|---:|---:|---:|---:|---:|---:|---:|:---|
+| NZD_JPY | LIVE target | 136 | 33.1% | -4.64p | -630.68p | 0.238 | 0/3 | [-7.65, -1.49] | 🔴 PRE_REG_FAIL |
+| NZD_USD | LIVE target | 236 | 29.2% | -3.95p | -932.04p | 0.224 | 0/3 | [-5.78, -2.05] | 🔴 PRE_REG_FAIL |
+| AUD_JPY | control | 195 | 35.9% | -2.76p | -539.01p | 0.278 | 0/3 | [-5.51, 0.12] | 🔴 control fail |
+| USD_CAD | control | 306 | 27.5% | -3.58p | -1094.28p | 0.215 | 0/3 | [-5.22, -1.87] | 🔴 control fail |
+
+Shadow → BT degradation:
+
+| Pair | Shadow N | Shadow EV | BT N | BT EV | EV delta |
+|---|---:|---:|---:|---:|---:|
+| NZD_JPY | 14 | +20.49p | 136 | -4.64p | -25.13p |
+| NZD_USD | 16 | +15.52p | 236 | -3.95p | -19.47p |
+
+Interpretation: the 365d BT does **not** reinforce the R1-EXCEPTION. Both LIVE target pairs fail all pre-registered confirmation gates: BFlo < 0.40, WF 0/3 positive, and bootstrap EV CI fully below zero. This is a post-BT risk warning, not an automatic code change; `_PAIR_PROMOTED` / `_PAIR_LOT_BOOST` remain unchanged pending user judgment. Recommended action from BT evidence: immediate demote proposal to 0.05x or, at minimum, keep the Live N=10 withdrawal trigger strict.
+
 ## Memory references
 
 - `project_vix_carry_1x_intentional_exception_2026_05_21` — 同 1.0x 例外の判例

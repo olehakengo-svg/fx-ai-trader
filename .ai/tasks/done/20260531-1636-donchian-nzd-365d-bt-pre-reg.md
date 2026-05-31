@@ -142,3 +142,40 @@ Final.md MUST include:
 - 対照群 (AUD_JPY/USD_CAD) 比較 table
 - Verdict per pair (4 cell: NZD_JPY overall / NZD_JPY best-cell / NZD_USD overall / NZD_USD best-cell)
 - Shadow vs BT degradation 評価
+
+
+## Result (2026-05-31T08:11:13Z)
+
+exit=0 · 1834s
+
+```
+Implemented the Donchian NZD 365d BT package and report.
+
+Key files:
+- [tools/donchian_nzd_365d_bt.py](/data/repo/fx-ai-trader/tools/donchian_nzd_365d_bt.py)
+- [tests/test_donchian_nzd_bt_regression.py](/data/repo/fx-ai-trader/tests/test_donchian_nzd_bt_regression.py)
+- [raw/bt-results/2026-05-31-donchian-nzd-365d.md](/data/repo/fx-ai-trader/raw/bt-results/2026-05-31-donchian-nzd-365d.md)
+- [knowledge-base/wiki/decisions/donchian-nzd-live-exception-2026-05-27.md](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/donchian-nzd-live-exception-2026-05-27.md)
+
+BT verdict is unfavorable:
+
+| Pair | BT N | WR | EV | BFlo | WF | Bootstrap EV CI | Verdict |
+|---|---:|---:|---:|---:|---:|---|---|
+| NZD_JPY | 136 | 33.1% | -4.64p | 0.238 | 0/3 | [-7.65, -1.49] | PRE_REG_FAIL |
+| NZD_USD | 236 | 29.2% | -3.95p | 0.224 | 0/3 | [-5.78, -2.05] | PRE_REG_FAIL |
+
+Shadow → BT degradation:
+- NZD_JPY: Shadow N=14 EV +20.49p → BT N=136 EV -4.64p, delta -25.13p.
+- NZD_USD: Shadow N=16 EV +15.52p → BT N=236 EV -3.95p, delta -19.47p.
+
+The report includes the full direction/session cell table, Wilson/BFlo, Kelly, MaxDD, bootstrap CI, 3-fold WF, controls AUD_JPY/USD_CAD, final verdict cells, and action proposal. I did not modify `_FORCE_DEMOTED`, `_PAIR_PROMOTED`, `_PAIR_DEMOTED`, or `_PAIR_LOT_BOOST`.
+
+Verification:
+- `python3 -m pytest tests/test_donchian_nzd_bt_regression.py -v`: blocked because system `python3` has no pytest.
+- `./.venv/bin/python -m pytest tests/test_donchian_nzd_bt_regression.py -v`: 2 passed.
+- `./.venv/bin/python -m pytest tests/ -x -q --ignore=tests/test_cell_forensic_2026_05_29_pin.py`: 1682 passed, 1 skipped, 1 xfailed.
+- `python3 scripts/check.py`: 6/6 passed.
+- `git stash list`: empty.
+
+Note: to satisfy existing unrelated integration tests during the full-suite run, I populated ignored MASSIVE cache prerequisites for USD_JPY/GBP_JPY M5 data.
+```
