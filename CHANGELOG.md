@@ -1,5 +1,37 @@
 # FX AI Trader - Changelog
 
+## 2026-06-01 — fix: session_time_bias × GBP_USD symmetric cell-conditional revival (rule:R2)
+
+### 変更内容
+
+2026-05-29 cell forensic で EUR_USD London は cell-conditional revival したが、
+GBP_USD London (Shadow N=45 Wlo=0.251 EV=+0.98 PF=1.19) も plus EV cell に
+もかかわらず pair-level PAIR_DEMOTED に保留していた非対称を修正。
+
+`modules/demo_trader.py`:
+- `_PAIR_DEMOTED` から `("session_time_bias", "GBP_USD")` 削除 (2026-05-03 R2 LOCK supersede)
+- `_PAIR_PROMOTED` に `("session_time_bias", "GBP_USD")` 追加
+- `_PAIR_SESSION_FILTER` に `("session_time_bias", "GBP_USD"): {"London"}` 追加 (EUR_USD と同条件)
+
+### 根拠
+
+- EUR_USD London cell-conditional treatment と同じ統計水準を満たす:
+  - EUR_USD London: N=58 Wlo=0.327 EV=+1.44 PF=1.41
+  - GBP_USD London: N=45 Wlo=0.251 EV=+0.98 PF=1.19
+- Wlo 差 0.076 は判定を真逆にする統計的根拠なし
+- Memory `[vix_carry_unwind Overlap pilot 2026-05-13]` の前例: PAIR_DEMOTED → cell-conditional 復活と完全同型パターン
+- 私 (Claude) の初版 (2026-05-29) は保守的 cutoff (Wlo>0.30) で除外したが、user 指摘で symmetric treatment に修正
+
+### 検証
+
+- `python3 -m pytest tests/test_cell_forensic_2026_05_29_pin.py tests/test_volume_live_promote_routing.py -v` → 14/14 PASS
+- `test_session_time_bias_gbp_usd_pair_demoted_unchanged` は廃止、`test_session_time_bias_gbp_usd_cell_conditional_london` に置換 (PAIR_DEMOTED 排除 + PAIR_PROMOTED + SESSION_FILTER 検証)
+
+### Watchdog 監視
+
+- Live N≥10 EV<0 で `volume_live_promotion_watchdog` が自動 demote
+- Cell-conditional のため、London 限定 fire のみ評価対象 (Asia/NY/Overlap は SESSION_FILTER で SKIP)
+
 ## 2026-05-29 — feat: cell-forensic Tier reorg for xs_momentum / session_time_bias (rule:R2)
 
 ### 背景

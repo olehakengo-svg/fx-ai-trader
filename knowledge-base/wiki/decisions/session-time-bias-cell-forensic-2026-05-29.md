@@ -8,8 +8,28 @@
 
 1. `_STRATEGY_LOT_BOOST["session_time_bias"]`: **1.3 → 1.0** (cell-blind boost 解除)
 2. `_PAIR_SESSION_FILTER` に `("session_time_bias", "EUR_USD"): {"London"}` 追加 (cell-conditional Live)
-3. GBP_USD は既存 `_PAIR_DEMOTED` 維持 (2026-05-03 R2 LOCK)
+3. **2026-06-01 amendment (user 指摘)**: GBP_USD も symmetric cell-conditional revival:
+   - `_PAIR_DEMOTED` から `("session_time_bias", "GBP_USD")` 削除 (2026-05-03 R2 LOCK supersede)
+   - `_PAIR_PROMOTED` に追加
+   - `_PAIR_SESSION_FILTER` に `("session_time_bias", "GBP_USD"): {"London"}` 追加
+   - 1.0× lot (EUR_USD と完全同条件)
 4. USD_JPY は Shadow N=0、戦略本体 signal 上 fire していない (status quo)
+
+## 2026-06-01 Amendment — GBP_USD 非対称扱いの修正
+
+初版 (2026-05-29) は GBP_USD を pair 全体 PAIR_DEMOTED に保留したが、user の指摘
+「GBP_USD London は plus EV なのに入れないのは何故?」を受けて再評価。
+
+私の保留理由 (3 つ):
+1. Wilson_lo=0.251 が 私の保守的 cutoff 0.30 を下回る → borderline 判定
+2. GBP_USD aggregate (N=160 EV=-3.12) が Asia/NY/Overlap 毒で支配的
+3. 既存 2026-05-03 R2 LOCK の慣性 (pair-level demote の上書きを避けたい)
+
+しかし以下の理由で **非対称扱いは不整合**:
+- EUR_USD で適用したロジック (「aggregate 負でも cell に edge があれば cell-conditional 維持」) と矛盾
+- Memory `[vix_carry_unwind Overlap pilot 2026-05-13]` の前例: 同パターンで PAIR_DEMOTED → PAIR_PROMOTED + SESSION_FILTER に転換
+- Wlo 0.251 vs 0.327 の差 0.076 は判定を真逆にする統計的根拠なし
+- EV=+0.98 / PF=1.19 / N=45 は positive cell として承認すべき水準
 
 ## Context
 

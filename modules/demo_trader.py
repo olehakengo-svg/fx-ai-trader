@@ -6977,7 +6977,18 @@ class DemoTrader:
         # r2-strategy-instrument-counterfactual-2026-05-03.
         ("bb_rsi_reversion", "USD_JPY"),
         ("bb_squeeze_breakout", "USD_JPY"),
-        ("session_time_bias", "GBP_USD"),
+        # REMOVED 2026-06-01 (rule:R2 cell forensic, supersedes 2026-05-03 R2 LOCK):
+        # session_time_bias × GBP_USD moved to _PAIR_PROMOTED + _PAIR_SESSION_FILTER
+        # {"London"} (vix_carry Overlap pilot 同型)。Shadow cell:
+        #   London   N=45 WR=37.8% Wlo=0.251 EV=+0.98 PF=1.19 ✅ edge cell
+        #   Asia     N=47 WR=4.3%  Wlo=0.012 EV=-6.10 🔴 toxic (filter で除外)
+        #   Overlap  N=53 WR=24.5% Wlo=0.149 EV=-2.86 🔴 (filter で除外)
+        #   NY       N=15 WR=6.7%  Wlo=0.012 EV=-7.03 🔴 (filter で除外)
+        # 2026-05-03 R2 LOCK は aggregate ベースで Asia/NY/Overlap 毒に駆動された
+        # 妥当な demote だったが、cell-conditional ロジック (EUR_USD London と同じ)
+        # で London edge を rescue 可能。Symmetric treatment vs EUR_USD London.
+        # 詳細: knowledge-base/wiki/decisions/session-time-bias-cell-forensic-2026-05-29.md
+        # ("session_time_bias", "GBP_USD"),
         ("sr_channel_reversal", "EUR_USD"),
         ("sr_channel_reversal", "USD_JPY"),
         # REMOVED 2026-05-07 volume emergency: trend_rebound×USD_JPY
@@ -7083,7 +7094,8 @@ class DemoTrader:
         ("vix_carry_unwind", "USD_JPY"),       # Overlap-only pilot, 0.05x lot
         ("mqe_gbpusd_fix", "GBP_USD"),         # shadow N=87 EV=+1.81 PF=1.30
         ("sr_fib_confluence", "GBP_USD"),      # shadow N=39 EV=+1.35 PF=1.29
-        ("session_time_bias", "EUR_USD"),      # shadow N=23 EV=+0.63 PF=1.15
+        ("session_time_bias", "EUR_USD"),      # shadow N=23 EV=+0.63 PF=1.15 (cell-conditional {"London"})
+        ("session_time_bias", "GBP_USD"),      # 2026-06-01 cell-conditional, Shadow N=45 Wlo=0.251 EV=+0.98 PF=1.19 ({"London"})
         ("vsg_jpy_reversal", "EUR_JPY"),       # shadow N=20 EV=+1.82 PF=1.30
         ("bb_squeeze_breakout", "EUR_USD"),    # shadow N=14 EV=+0.01 PF=1.00
         ("dt_sr_channel_reversal", "EUR_JPY"), # shadow N=12 EV=+14.28 PF=3.61
@@ -7220,6 +7232,12 @@ class DemoTrader:
         # the London cell with Wilson_lo>0.40 confirmation.
         # 詳細: knowledge-base/wiki/decisions/session-time-bias-cell-forensic-2026-05-29.md
         ("session_time_bias", "EUR_USD"): {"London"},  # 7 <= UTC hour < 12
+        # 2026-06-01 (rule:R2 cell forensic): symmetric to EUR_USD London.
+        # GBP_USD London: Shadow N=45 WR=37.8% Wlo=0.251 EV=+0.98 PF=1.19 edge cell.
+        # Other GBP_USD sessions (Asia/NY/Overlap, aggregate EV=-4.74) auto-blocked.
+        # Supersedes 2026-05-03 R2 LOCK PAIR_DEMOTED (now cell-conditional revival).
+        # 詳細: knowledge-base/wiki/decisions/session-time-bias-cell-forensic-2026-05-29.md
+        ("session_time_bias", "GBP_USD"): {"London"},  # 7 <= UTC hour < 12
     }
     _SESSION_BOUNDS_UTC = (
         ("Asia",    0,  7),

@@ -92,13 +92,33 @@ def test_session_time_bias_eur_usd_still_pair_promoted():
     )
 
 
-def test_session_time_bias_gbp_usd_pair_demoted_unchanged():
-    """GBP_USD demote (2026-05-03 R2 LOCK) must remain.
+def test_session_time_bias_gbp_usd_cell_conditional_london():
+    """GBP_USD cell-conditional (2026-06-01 R2 cell forensic revival).
 
-    Cell forensic re-confirmed: Asia/NY/Overlap all toxic, only London
-    borderline (Wlo=0.251). Full pair demote until N expands.
+    Supersedes 2026-05-03 R2 LOCK PAIR_DEMOTED with symmetric treatment
+    to EUR_USD London (vix_carry Overlap pilot pattern).
+    Shadow London: N=45 WR=37.8% Wlo=0.251 EV=+0.98 PF=1.19 edge cell.
+    Other sessions (Asia/NY/Overlap, EV=-4.74 aggregate) auto-blocked.
     """
-    assert ("session_time_bias", "GBP_USD") in DemoTrader._PAIR_DEMOTED
+    # Removed from PAIR_DEMOTED in 2026-06-01 revival.
+    assert ("session_time_bias", "GBP_USD") not in DemoTrader._PAIR_DEMOTED, (
+        "session_time_bias×GBP_USD must NOT be in PAIR_DEMOTED — superseded "
+        "by 2026-06-01 cell forensic revival (cell-conditional London)."
+    )
+    # Now in PAIR_PROMOTED.
+    assert ("session_time_bias", "GBP_USD") in DemoTrader._PAIR_PROMOTED, (
+        "session_time_bias×GBP_USD must be PAIR_PROMOTED after 2026-06-01 "
+        "cell forensic revival."
+    )
+    # Cell-conditional: London only.
+    sessions = DemoTrader._PAIR_SESSION_FILTER.get(
+        ("session_time_bias", "GBP_USD")
+    )
+    assert sessions == {"London"}, (
+        f"session_time_bias×GBP_USD must be cell-conditional to "
+        f"{{'London'}} (got {sessions!r}). Shadow London N=45 Wlo=0.251 "
+        f"EV=+0.98 PF=1.19."
+    )
 
 
 # ── Session filter mechanics sanity ───────────────────────────────
