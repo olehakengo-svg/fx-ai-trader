@@ -1496,6 +1496,16 @@ Cutoff後累計でも **N=2, WR=0%, PnL=-13.9 pips**。実質的に統計的判�
 - `r2_shadow_demoted_cell`ブロック多数 → Scalp系はSentinel N蓄積がほぼ止まっている状態
 - **全ペアRANGING**。ATR%ile が26〜52%という狭いレンジ内に集中しており、**ボラティリティ圧縮局面**が継続。
 
+### 2026-06-01 (Pre-Tokyo Briefing)
+| 本日累積PnL（Cutoff後全期間） | **+10.8 pips** |
+| 全体WR | **57.1%** |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**全戦略合計N=7**。昇格基準（N≥30 & EV≥1.0）・降格基準（N≥30 & EV<-0.5）に達する戦略は現時点でゼロ。統計的判断は不可能な段階。
+- **Trend-following系戦略に不利**: Scalp系のブレイクアウト戦略が機能しにくい
+- **Reversion系に理論上有利だが**: EUR_USD・GBP_USDの下落slope（-0.0015前後）は「緩やかなトレンド内レンジ」を示唆。純粋なRANGINGではなく方向感が薄い下落ドリフト
+- **rnb_usdjpy**: USD_JPYのみ微上Slopeでdirection_filterがやや緩和される可能性。ただしATR31%は低水準でScalp利幅も限定的
+- Live Rate 32%は低いが、主因は **shadow_tracking（6件）** — Sentinel審査中の戦略がデモ止まりになっている正常動作
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
