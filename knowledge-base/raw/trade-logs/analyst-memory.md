@@ -1506,6 +1506,16 @@ Cutoff後累計でも **N=2, WR=0%, PnL=-13.9 pips**。実質的に統計的判�
 - **rnb_usdjpy**: USD_JPYのみ微上Slopeでdirection_filterがやや緩和される可能性。ただしATR31%は低水準でScalp利幅も限定的
 - Live Rate 32%は低いが、主因は **shadow_tracking（6件）** — Sentinel審査中の戦略がデモ止まりになっている正常動作
 
+### 2026-06-01 (Post-NY Report)
+| 勝率 WR | 33.3% |
+| PnL | **−8.3 pips** |
+| 戦略 | ペア | 方向 | PnL | 成功要因 |
+- EUR/JPYはSMA20 Slope = −0.00051と下落バイアスが弱く、レンジ内での反発余地があった点が奏功。
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+- Spread 0.8pipsは許容範囲内（Scalp閾値30%に対し問題なし）だが、EV = −5.10/トレードは構造的に深刻。
+- 2連続同一ペア・同一方向（SELL）は通貨リスク集中の典型パターン。
+### セッション別 PnL 比較
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
