@@ -1516,6 +1516,16 @@ Cutoff後累計でも **N=2, WR=0%, PnL=-13.9 pips**。実質的に統計的判�
 - 2連続同一ペア・同一方向（SELL）は通貨リスク集中の典型パターン。
 ### セッション別 PnL 比較
 
+### 2026-06-01 (Pre-Tokyo Briefing)
+Cutoff後累計: N=19, WR=57.9%, PnL=+26.5pip（累計黒字維持）
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **全戦略でN<30。判断可能領域に到達した戦略はゼロ。現時点でのEV値は参考値に過ぎない。**
+- モード別ステータス表でRunning=ON のモードが多数稼働中にもかかわらず執行ゼロ
+- Block Countsに `rnb_usdjpy:direction_filter` が12件 → フィルタが厳格に機能し、シグナル自体はあったが全てブロック
+- レジーム：全ペアRANGING（ATR%ile: USD_JPY=21%, EUR_USD=26%）→ トレンド系戦略がシグナルを生成しにくい環境
+- レンジ環境での執行能力を持つ戦略（session_time_bias, bb_rsi_reversion）のシグナル頻度を注視する
+- direction_filterの12件blockはシステムが正常に機能している証拠でもあるが、過剰フィルタリングの可能性も排除できない
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
