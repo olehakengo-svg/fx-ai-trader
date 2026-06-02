@@ -1,7 +1,16 @@
+---
+id: 20260602-1650-kalman-d7-zz-pivot-zero-fire-root-cause
+priority: P0
+gate: R3
+rule: R3
+status: queued
+created: 2026-06-02
+owner: claude
+---
+
 # Kalman D7 / ZZ Pivot v60 SR — Zero-Fire Root Cause Investigation
 
-priority: P0
-rule: R3 (immediate — silent zero-fire suspected on two LIVE-promoted intentional exceptions, 5 days post-deploy)
+**Rule classification**: R3 (Immediate — silent zero-fire suspected on two LIVE-promoted intentional exceptions, 5 days post-deploy)
 
 ## Why this task
 
