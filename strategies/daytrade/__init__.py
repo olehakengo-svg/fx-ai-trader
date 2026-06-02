@@ -307,6 +307,29 @@ class DaytradeEngine:
         # PAIR_PROMOTED EUR_USD with 1000u lot; demote path via watchdog.
         # Memory: project_pivot_detector_v2_5_live_exception_2026_05_26.
         "pivot_detector_v2_5",
+        # 2026-06-02 (rule:R3): same select_best max-score bottleneck — third
+        # recurrence of 2026-05-19 / 2026-05-22 / 2026-05-26 bug pattern. ZZ
+        # Pivot v60 SR was deployed 2026-05-28 (commit 068cc0db) as LIVE
+        # intentional exception (PAIR_PROMOTED EUR_USD 1.0x / _lo 0.5x via
+        # _PAIR_LOT_BOOST) but never registered in this side-channel. Score
+        # base 4.0 (MR strategy, see strategies/daytrade/zz_pivot_v60_sr.py)
+        # loses every select_best competition to session_time_bias /
+        # vol_surge_detector (~5.0-6.0+) at the same M15 EUR_USD bar.
+        #
+        # Production evidence (knowledge-base/raw/audits/kalman-zz-zero-fire-
+        # 2026-06-02.md): 6 filter-pass bars 2026-05-28..06-02, only 1 audit
+        # row (2026-05-28 12:08 SELL), and that row was bridge_status=skipped
+        # / shadow_tracking — the other 5 silently dropped at select_best
+        # because session_time_bias / vol_surge_detector won by score.
+        # Render log confirms: 06-02 12:31 [MTF_MONITOR] entry=session_time_bias,
+        # 06-01 13:15 [MTF_MONITOR] entry=vol_surge_detector — never zz_pivot.
+        #
+        # Dual entry_type included: _sr (1.0x normal zone) + _sr_lo (0.5x
+        # loser zone) match _PAIR_LOT_BOOST and _SHIELD_EUR_DT_WHITELIST.
+        # Memory: project_zz_pivot_v60_sr_live_queue_2026_05_28,
+        # feedback_label_empirical_audit, project_kalman_d7_silent_drop_recovery_2026_05_28.
+        "zz_pivot_v60_sr",
+        "zz_pivot_v60_sr_lo",
     })
 
     def select_best(self, candidates: list[Candidate]) -> Optional[Candidate]:

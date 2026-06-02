@@ -173,3 +173,59 @@ def test_split_live_promote_emits_excludes_kalman_winner():
     emit_types = {e.entry_type for e in emits}
     assert "kalman_d7_po_dn_flip" not in emit_types
     assert emit_types == {"kalman_d7_ema75_break"}
+
+
+# ──────────────────────────────────────────────────────────────────────
+# D) ZZ Pivot v60 SR (2026-06-02): third recurrence of 2026-05-19 G2
+#   bug pattern. Deployed 2026-05-28 (commit 068cc0db) as LIVE 1.0x /
+#   0.5x intentional exception via _PAIR_PROMOTED + _PAIR_LOT_BOOST +
+#   _SHIELD_EUR_DT_WHITELIST. Score base 4.0 (MR strategy) loses every
+#   select_best competition to session_time_bias (~6.5) / vol_surge_
+#   detector (~5-6) on EUR_USD M15. Production audit confirms 6 filter-
+#   pass bars 2026-05-28..06-02 but only 1 audit row (and that one
+#   bridge_status=skipped/shadow_tracking) — the other 5 silently
+#   dropped at select_best. Render log evidence:
+#     - 06-02 12:31 [MTF_MONITOR] entry=session_time_bias (zz_pivot pB SELL bar)
+#     - 06-01 13:15 [MTF_MONITOR] entry=vol_surge_detector (zz_pivot tD BUY bar)
+#   Ref: knowledge-base/raw/audits/kalman-zz-zero-fire-2026-06-02.md
+# ──────────────────────────────────────────────────────────────────────
+
+
+def test_live_promote_losers_includes_zz_pivot_v60_sr_pair():
+    """LIVE_PROMOTE_LOSERS must contain both ZZ Pivot v60 SR entry_types
+    (normal + loser-zone) so the side-channel reaches demo_trader._tick_entry
+    despite session_time_bias / vol_surge_detector winning select_best.
+    """
+    assert "zz_pivot_v60_sr" in DaytradeEngine.LIVE_PROMOTE_LOSERS
+    assert "zz_pivot_v60_sr_lo" in DaytradeEngine.LIVE_PROMOTE_LOSERS
+
+
+def test_split_live_promote_emits_returns_zz_pivot_when_losing():
+    """Realistic 2026-06-02 12:31 EUR_USD M15 bar: zz_pivot v60 pB SELL
+    (score ~4.0) loses to session_time_bias SELL (score 6.5). Verify zz
+    candidate surfaces in the live_promote_emit list.
+    """
+    engine = DaytradeEngine()
+    winner = _cand("session_time_bias", score=6.5)
+    zz_sr = _cand("zz_pivot_v60_sr", score=4.0)
+    other = _cand("trendline_sweep", score=5.0)
+
+    emits = engine.split_live_promote_emits(
+        [winner, zz_sr, other], winner
+    )
+    emit_types = {e.entry_type for e in emits}
+    assert emit_types == {"zz_pivot_v60_sr"}
+
+
+def test_split_live_promote_emits_returns_zz_pivot_lo_when_losing():
+    """Loser-zone variant (RSI<30 ∩ MACD<0 OR ATR_ratio>=1.6) must also
+    survive select_best loss. Realistic 2026-06-01 13:15 bar: zz tD BUY
+    score ~4.0 vs vol_surge_detector BUY score ~5.5.
+    """
+    engine = DaytradeEngine()
+    winner = _cand("vol_surge_detector", score=5.5)
+    zz_lo = _cand("zz_pivot_v60_sr_lo", score=4.0)
+
+    emits = engine.split_live_promote_emits([winner, zz_lo], winner)
+    emit_types = {e.entry_type for e in emits}
+    assert emit_types == {"zz_pivot_v60_sr_lo"}
