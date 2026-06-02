@@ -3608,7 +3608,16 @@ class DemoTrader:
                              and _get_base_mode(t.get("mode", "")) == _base_mode
                              and t.get("is_shadow", False)]
         if len(_mode_inst_live) >= _mode_limit:
-            if _is_slot_shadow_eligible and len(_mode_inst_shadow) < _shadow_per_cell_limit:
+            if entry_type in self._COUNT_GATE_BYPASS_LIVE_EXCEPTIONS:
+                # 2026-06-02 (rule:R3): LIVE intentional exception bypasses
+                # mode/pair slot cap. User-declared LIVE intent overrides the
+                # standard slot guard. See _COUNT_GATE_BYPASS_LIVE_EXCEPTIONS.
+                self._add_log(
+                    f"[LIVE_EXCEPTION_BYPASS] {entry_type} max_per_mode_pair "
+                    f"bypass ({_base_mode}/{instrument}: "
+                    f"live={len(_mode_inst_live)}/{_mode_limit}) → LIVE allowed"
+                )
+            elif _is_slot_shadow_eligible and len(_mode_inst_shadow) < _shadow_per_cell_limit:
                 _is_shadow = True
                 self._add_log(
                     f"[SHADOW] Slot bypass: {entry_type} {mode}/{instrument} "
@@ -3628,8 +3637,22 @@ class DemoTrader:
         # 二重記録すると score-max selection で「負けた方の戦略」も shadow に入り、
         # 戦略間ランキング情報を破壊する。dedup 60s で shadow 経路は十分守られる。
         # ヘッジは Live/Shadow 問わず常に block する。
+        # 2026-06-02 (rule:R3): LIVE intentional exception bypass (user judgment).
+        # Spread double-consumption explicitly accepted for the small set of
+        # user-declared LIVE 1.0x / 0.5x intentional exceptions.
+        _hedge_opposing = None
         for _ot in _mode_inst_live + _mode_inst_shadow:
             if _ot.get("direction") and _ot["direction"] != signal:
+                _hedge_opposing = _ot.get("direction")
+                break
+        if _hedge_opposing is not None:
+            if entry_type in self._COUNT_GATE_BYPASS_LIVE_EXCEPTIONS:
+                self._add_log(
+                    f"[LIVE_EXCEPTION_BYPASS] {entry_type} hedge bypass "
+                    f"({_base_mode}/{instrument}: existing {_hedge_opposing} "
+                    f"vs new {signal}) → LIVE allowed (spread x2 accepted)"
+                )
+            else:
                 _block(f"hedge_block({_base_mode}/{instrument}:{signal})")
                 return
         # グローバル安全上限（全通貨ペア・全モード合計）
@@ -3638,7 +3661,15 @@ class DemoTrader:
         _shadow_max = _max_open + 8
         _n_open = len(open_trades)
         if _n_open >= _max_open:
-            if _is_slot_shadow_eligible and _n_open < _shadow_max:
+            if entry_type in self._COUNT_GATE_BYPASS_LIVE_EXCEPTIONS:
+                # 2026-06-02 (rule:R3): LIVE intentional exception bypass.
+                # Global open cap of 8 may be exceeded for user-declared LIVE
+                # intentional exceptions. See _COUNT_GATE_BYPASS_LIVE_EXCEPTIONS.
+                self._add_log(
+                    f"[LIVE_EXCEPTION_BYPASS] {entry_type} max_open bypass "
+                    f"({_n_open}/{_max_open}) → LIVE allowed"
+                )
+            elif _is_slot_shadow_eligible and _n_open < _shadow_max:
                 _is_shadow = True
             else:
                 _block(f"max_open({_n_open}/{_max_open})"); return
@@ -3847,7 +3878,16 @@ class DemoTrader:
             window_sec=_primary_window, _path="primary",
         )
         if _dedup_age is not None:
-            if _is_shadow_eligible_full:
+            if entry_type in self._COUNT_GATE_BYPASS_LIVE_EXCEPTIONS:
+                # 2026-06-02 (rule:R3): LIVE intentional exception bypass.
+                # Same entry_type can re-fire within the dedup window for
+                # user-declared LIVE intentional exceptions. M15 cadence makes
+                # this rare in practice. See _COUNT_GATE_BYPASS_LIVE_EXCEPTIONS.
+                self._add_log(
+                    f"[LIVE_EXCEPTION_BYPASS] {entry_type} recent_emit bypass "
+                    f"({int(_dedup_age)}s<{_primary_window}s) → LIVE allowed"
+                )
+            elif _is_shadow_eligible_full:
                 _is_shadow = True
                 self._add_log(
                     f"[SHADOW] recent_emit bypass: {entry_type} "
@@ -7529,6 +7569,37 @@ class DemoTrader:
         "zz_pivot_v60_sr",
         "zz_pivot_v60_sr_lo",
     })
+
+    # 2026-06-02 (rule:R3): Count-gate bypass for LIVE intentional exceptions.
+    # User judgment 2026-06-02 (post zero-fire audit): bypass max_per_mode_pair
+    # / max_open / recent_emit / hedge gates for the small set of strategies
+    # user explicitly declared LIVE 1.0x / 0.5x intentional exceptions.
+    # Rationale: these strategies have rare fire rate (<= ~1/day per pair),
+    # so count limits rarely block them — but when they do (e.g. session_time_
+    # bias already filled the daytrade_eur slot, or holds an opposite-direction
+    # trade on the same instrument), the user-declared LIVE intent is silently
+    # negated and we observe the zero-fire pattern that triggered this audit.
+    #
+    # Tradeoffs explicitly accepted by user:
+    #   - hedge bypass: same-instrument opposite-direction trades allowed
+    #     (spread double-consumption on the rare bar where ZZ Pivot SELL fires
+    #     while session_time_bias BUY is open, or vice versa).
+    #   - max_open bypass: global open-trade safety cap of 8 can be exceeded.
+    #   - recent_emit bypass: same entry_type can re-fire within 60s.
+    #   - max_per_mode_pair bypass: daytrade_eur × EUR_USD can hold ZZ Pivot
+    #     simultaneously with session_time_bias.
+    # All bypasses emit [LIVE_EXCEPTION_BYPASS] log lines for audit.
+    #
+    # Subset of LIVE_PROMOTE_LOSERS (strategies/daytrade/__init__.py:287) —
+    # excludes xs_momentum_rsi / macd_rsi_pullback which remain shadow-first
+    # by design intent (not user-declared LIVE intentional exceptions).
+    # Memory: project_kalman_d7_regime_bound_live_2026_05_20,
+    # project_zz_pivot_v60_sr_live_queue_2026_05_28,
+    # project_pivot_detector_v2_5_live_exception_2026_05_26.
+    _COUNT_GATE_BYPASS_LIVE_EXCEPTIONS = _SILENT_DROP_DIAG_TYPES | frozenset({
+        "pivot_detector_v2_5",
+    })
+
     _KALMAN_D7_LIVE_ENABLE = _os.environ.get("KALMAN_D7_LIVE_ENABLE", "0") == "1"
     _KALMAN_D7_LIVE_INSTRUMENT = "USD_JPY"
 
