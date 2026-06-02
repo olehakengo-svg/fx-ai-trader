@@ -4,19 +4,20 @@ from tools.tier_integrity_check import parse_all
 
 
 # R2 demote-lock cells. Started as a 14-cell lock at the original R2 audit;
-# two cells were intentionally re-promoted on 2026-05-07 under the volume-
-# emergency programme (vix_carry_unwind×USD_JPY shadow N=58 EV=+9.54 PF=1.65;
-# trend_rebound×USD_JPY shadow N=17 EV=+1.14 PF=1.52). Both rides have a
-# live N>=10 EV<0 auto-demote guard so the lock can re-engage if the shadow
-# evidence inverts in production. The fixture below tracks the *current*
-# locked set; growing it requires the R2 audit gate documented in
-# wiki/decisions/. See modules/demo_trader.py lines 6263/6266 for the
-# explicit "REMOVED 2026-05-07 volume emergency" markers.
+# cells have been intentionally revived under specific programmes:
+#  - 2026-05-07 volume emergency: vix_carry_unwind×USD_JPY (shadow N=58 EV=+9.54
+#    PF=1.65), trend_rebound×USD_JPY (shadow N=17 EV=+1.14 PF=1.52)
+#  - 2026-06-01 (commit 088b3ccf, rule:R2): session_time_bias×GBP_USD London
+#    cell-conditional revival (Shadow N=45 Wlo=0.251 EV=+0.98 PF=1.19, symmetric
+#    to EUR_USD London revival)
+# All revivals have a live N>=10 EV<0 auto-demote guard so the lock can re-
+# engage if the shadow evidence inverts in production. The fixture below
+# tracks the *current* locked set; growing it requires the R2 audit gate
+# documented in wiki/decisions/.
 DEMOTE_LOCK_12 = {
     ("vwap_mean_reversion", "GBP_USD"),
     ("sr_channel_reversal", "USD_JPY"),
     ("bb_rsi_reversion", "USD_JPY"),
-    ("session_time_bias", "GBP_USD"),
     ("bb_squeeze_breakout", "USD_JPY"),
     ("bb_rsi_reversion", "EUR_USD"),
     ("vol_surge_detector", "USD_JPY"),

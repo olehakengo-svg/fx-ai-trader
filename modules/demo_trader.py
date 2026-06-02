@@ -5306,6 +5306,38 @@ class DemoTrader:
         else:
             _adjusted_units = max(1000, (_adjusted_units // 1000) * 1000)
 
+        # ── Flat-unit override (2026-06-02, rule:R2 lot↓ & σ↓) ──
+        # 高WR/低PnL の原因解析 (Live N=148, avgU loss/win = 1.62x bias) を受け
+        # LIVE FX fill を env で一律サイズ化。保護機構は温存:
+        #   - XAU (1oz)        : bypass
+        #   - Sentinel (N<10)  : bypass (validation lot 維持)
+        #   - PRICE_SHOCK_REV  : bypass (専用 min lot)
+        #   - PRIME-A/B        : bypass (small-lot 検証)
+        # ロールバック: env を unset するのみで元の lot_ratio cascade に復帰
+        _flat_units_env = _os.environ.get("OANDA_FORCE_FLAT_UNITS", "").strip()
+        if (
+            _flat_units_env
+            and not _is_xau_inst
+            and not _is_sentinel
+            and entry_type not in PRICE_SHOCK_REV_TIER1_TYPES
+            and _prime_tier not in ("A", "B")
+        ):
+            try:
+                _flat_target = int(_flat_units_env)
+                if _flat_target >= 1000 and _flat_target % 1000 == 0:
+                    if _flat_target != _adjusted_units:
+                        self._add_log(
+                            f"[FLAT_UNITS] {entry_type} {instrument} "
+                            f"{_adjusted_units}u → {_flat_target}u "
+                            f"(OANDA_FORCE_FLAT_UNITS, original lot_ratio={_lot_ratio:.3f})"
+                        )
+                    _adjusted_units = _flat_target
+                    _sentinel_reason = (
+                        f"{_sentinel_reason}|FLAT" if _sentinel_reason else "FLAT"
+                    )
+            except (ValueError, TypeError):
+                pass  # invalid env value → silently keep original
+
         # ── v7.0 LOT内訳ログ (透明化 + Kelly cap) ──
         _lot_breakdown = (
             f"📐 {_risk_factor:.2f}R×{_edge_factor:.1f}E×{_boost_factor:.2f}B"
