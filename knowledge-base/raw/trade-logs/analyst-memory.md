@@ -1536,6 +1536,16 @@ Cutoff後累計: N=19, WR=57.9%, PnL=+26.5pip（累計黒字維持）
 - N=1、Spread=1.3。EV=-6.80は最悪ケース1件が直撃している状態。
 - GBP/USDはRANGING（ATR%ile 43%、SMA20 slope -0.00176 ↓）。下降バイアスある中でBUYエントリーはレジーム逆張り。
 
+### 2026-06-02 (Pre-Tokyo Briefing)
+| PnL合計 | **+16.5 pips** |
+| 全体WR | **61.5%** (8/13) |
+収益の大部分は `session_time_bias / EUR_USD` の2本の大型勝ちトレード（+15.9, +15.3）が牽引。これを除くと残り11件のPnLは **-14.7 pips** となり、実態は `session_time_bias` 依存の構造が鮮明。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **昇格基準**: N≥30 & EV≥+1.0 → 未達戦略なし（全戦略N<10）
+### 課題①：`bb_rsi_reversion` のEV劣化
+- EUR_USD: 4件中WIN1件、連続SL_HIT 2件（-5.2, -5.0）が重症
+- USD_JPY: 前日1件WIN（+2.4）だが、全期間EV=-0.92は深刻
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
