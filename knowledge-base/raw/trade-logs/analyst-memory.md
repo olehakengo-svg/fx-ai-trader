@@ -1546,6 +1546,16 @@ Cutoff後累計: N=19, WR=57.9%, PnL=+26.5pip（累計黒字維持）
 - EUR_USD: 4件中WIN1件、連続SL_HIT 2件（-5.2, -5.0）が重症
 - USD_JPY: 前日1件WIN（+2.4）だが、全期間EV=-0.92は深刻
 
+### 2026-06-02 (Pre-Tokyo Briefing)
+- PnL: **+16.5** / トレード数: **13件** / WR: **61.5%**
+- session_time_biasのEUR/USD SELL集中（5件）が収益の大部分を牽引。+15.9と+15.3の大型勝ちトレードが全体を支えた。
+- wick_imbalance_reversion（-6.8）とbb_rsi_reversion（合計-6.0相当）が足を引っ張るも、session_time_biasの超過収益でカバー。
+| Strategy | Pair | N | WR% | EV | 判定 |
+**N=28合計（Cutoff後）**: WR 42.9%, PnL +16.1
+> ⚠️ 全戦略において **N<30**。昇格基準（N≥30 & EV≥1.0）到達まで、最先着のsession_time_biasで **残り21件**。現時点でいかなる戦略も「判断可能」水準に達していない。
+| # | Pair | Dir | PnL | Exit |
+EUR_USDはATR%ile=26%（RANGINGの低ボラ帯）+ SMA20 Slope=-0.00142（微下向き）。逆張り系のbb_rsi_reversionが2連続SLを食らったのは、このレジームでシグナルが十分なブレイクアウト幅を持てないためと解釈できる。EVは累計-1.52（N=4）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
