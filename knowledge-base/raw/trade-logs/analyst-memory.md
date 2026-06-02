@@ -1556,6 +1556,16 @@ Cutoff後累計: N=19, WR=57.9%, PnL=+26.5pip（累計黒字維持）
 | # | Pair | Dir | PnL | Exit |
 EUR_USDはATR%ile=26%（RANGINGの低ボラ帯）+ SMA20 Slope=-0.00142（微下向き）。逆張り系のbb_rsi_reversionが2連続SLを食らったのは、このレジームでシグナルが十分なブレイクアウト幅を持てないためと解釈できる。EVは累計-1.52（N=4）。
 
+### 2026-06-02 (Pre-Tokyo Briefing)
+**2026-06-01（全セッション）**：PnL **+16.5pip**、トレード数 **13件**、WR **61.5%**
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- EUR_USDでSL_HIT×2（-5.2, -5.0）→ RANGING相場（ATR%ile=28%）でbounce戦略がノイズに食われている構図
+- USD_CHFはCutoff後N=8でWR=25%、EV=-1.38が最悪値。RANGING環境下でのfalse signal頻発と推定
+- **今日の対処**：bb_rsi_reversionの新規エントリーは積極視しない。特にEUR_USD・USD_CHFのエントリーはspread_guardが機能しているか確認を優先
+- N=1でEV=-6.80は一件あたりの損失としては最大級。SL設定とポジションサイズの妥当性要確認
+- RANGING相場（GBP_USD ATR%ile=38%）ではwick playは方向感なく刈られやすい
+- **今日の対処**：RANGING継続中は同戦略の新規エントリーに慎重姿勢
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
