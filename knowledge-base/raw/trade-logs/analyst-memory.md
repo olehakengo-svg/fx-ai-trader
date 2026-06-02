@@ -1526,6 +1526,16 @@ Cutoff後累計: N=19, WR=57.9%, PnL=+26.5pip（累計黒字維持）
 - レンジ環境での執行能力を持つ戦略（session_time_bias, bb_rsi_reversion）のシグナル頻度を注視する
 - direction_filterの12件blockはシステムが正常に機能している証拠でもあるが、過剰フィルタリングの可能性も排除できない
 
+### 2026-06-02 (Pre-Tokyo Briefing)
+前日（2026-06-01）は **13トレード、WR 61.5%、PnL +16.5**。session_time_biasのEUR/USDが5トレードで+23.8を叩き出し、全体を牽引。bb_rsi_reversionとwick_imbalance_reversionが足を引っ張る展開。OANDA転送率は全期間通算で8%（50件中4件SENT）と依然低水準。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**Cutoff後全体**: N=19 / WR=57.9% / PnL=+26.5
+- 前日4トレード中3件がSL_HITまたはBREAKEVEN。方向バイアスはSELL一辺倒。
+- EUR/USDはRANGING（ATR%ile 26%、SMA20 slope -0.00142）。低ボラティリティ環境でのBB平均回帰は機能しやすいはずだが、SELLのみの偏りが示唆するのは**シグナル生成ロジックが現在のレンジ上限でなく下限付近でエントリーしている可能性**。
+- **対処**: 本日はbb_rsi_reversionのエントリー方向と、RANGINGレジーム内の価格位置（上半・下半）の整合性を目視確認する。N=5では降格判断保留、ただし要警戒。
+- N=1、Spread=1.3。EV=-6.80は最悪ケース1件が直撃している状態。
+- GBP/USDはRANGING（ATR%ile 43%、SMA20 slope -0.00176 ↓）。下降バイアスある中でBUYエントリーはレジーム逆張り。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
