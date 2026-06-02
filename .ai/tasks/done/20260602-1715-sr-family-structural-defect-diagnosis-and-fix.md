@@ -379,3 +379,40 @@ markdown table per strategy.
 - Shadow-first architecture memory: `feedback_shadow_first_quant_architecture`.
 - SR audit gap memory (now disputed by current data):
   `project_sr_family_audit_gap_2026_05_21` — this task is the resolution.
+
+
+## Result (2026-06-02T18:10:28Z)
+
+exit=0 · 716s
+
+```
+Implemented and committed on branch `fix/sr-family-structural-2026-06-02`.
+
+Commit: `70c43bae fix(sr): instrument structural audit gaps`
+
+What changed:
+- Fixed `sr_break_retest` candidate metadata wiring so `sr_meta` is emitted via `Candidate.sr_meta_from_price(...)`.
+- Added unit coverage verifying `sr_strength`/touch/span/strong/distance metadata.
+- Added gated diagnostics for:
+  - `sr_liquidity_grab`
+  - `sr_weighted_bounce`
+  - `sr_weighted_break`
+- Added audit/decision artifacts:
+  - [SR structural audit](/data/repo/fx-ai-trader/raw/audits/sr-family-structural-audit-2026-06-02.md)
+  - [Render env audit](/data/repo/fx-ai-trader/knowledge-base/wiki/decisions/sr-family-render-env-audit-2026-06-02.md)
+  - [.ai decisions](/data/repo/fx-ai-trader/.ai/decisions/2026-06-02-sr-break-retest-sr-meta-r3.md)
+  - [diagnostics note](/data/repo/fx-ai-trader/knowledge-base/wiki/learning/sr-family-diagnostics-instrumentation-2026-06-02.md)
+
+Verdicts:
+- `sr_liquidity_grab`: `NEEDS_MORE_DATA_SIGNAL_PATH`
+- `sr_weighted_bounce/break`: `NEEDS_MORE_DATA_DETECTOR_GATE`
+- `sr_break_retest`: `CONFIRMED_STRATEGY_METADATA_WIRING_FIXED`
+
+Verification:
+- Targeted SR/audit tests: `28 passed`
+- `py_compile` on touched strategy modules: passed
+- Full suite: `3 failed, 1866 passed, 2 skipped, 1 xfailed`
+  - The 3 failures reproduce in isolation and are edge-cell shield logging tests, outside the SR files touched here.
+
+Run verdict: `NEEDS_MORE_EVIDENCE`, because this container lacked `ssh`/`sqlite3`, so direct production DB `evaluated_candidates` SQL and the requested replay-count run could not be completed here. No push to `main` was performed.
+```
