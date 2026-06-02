@@ -169,3 +169,36 @@ instrumentation [rule:R3]`.
 - [[project_zz_pivot_v60_sr_live_queue_2026_05_28]]
 - [[feedback_label_empirical_audit]] — code 演繹禁止、ラベル×WR 実測必須
 - [[feedback_codex_stash_leak]] — final.md ACCEPT は信用しない、必ず repo persist 検証
+
+
+## Result (2026-06-02T15:20:57Z)
+
+exit=0 · 435s
+
+```
+完了しました。commit は `d723fecb` です。
+
+Verdict:
+- `kalman_d7_*`: `MARKET_WAIT`
+  - 2026-05-28以降のプローブで filter pass `0/347`
+  - 主因は `po_up_not_started` 331件、次に EMA200 から遠すぎる `dist_out_of_range` 12件
+- `zz_pivot_v60_sr*`: `SILENT_DROP_V3`
+  - 2026-05-28以降のプローブで candidate pass `6/347`
+  - production audit は `zz_pivot_v60_sr` が1件のみ、しかも `skipped / shadow_tracking`
+  - `sent/filled` は0件
+
+変更:
+- [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py): Kalman/ZZ の post-filter block / shadow downgrade に `[SENTINEL_BLOCK_DIAG]` ログ追加
+- [tools/kalman_zz_zero_fire_probe.py](/data/repo/fx-ai-trader/tools/kalman_zz_zero_fire_probe.py): 実MASSIVEデータ用プローブ追加
+- [knowledge-base/raw/audits/kalman-zz-zero-fire-2026-06-02.md](/data/repo/fx-ai-trader/knowledge-base/raw/audits/kalman-zz-zero-fire-2026-06-02.md): 監査レポート
+- [knowledge-base/wiki/audit-index.md](/data/repo/fx-ai-trader/knowledge-base/wiki/audit-index.md): pointer追加
+
+Verification:
+- `py_compile` pass
+- probe rerun: Kalman `0` pass since 2026-05-28, ZZ `6` pass since 2026-05-28
+- commit hook pass: HIP-1 guard / Python 3.9 guard
+
+制約:
+- この runner には `ssh` がなく、web service の `/var/data/*.db` へ直接SQLite実行はできませんでした。代替で `/api/oanda/audit?limit=10000` から全7283 audit rowsを取得して集計しました。
+- Discord投稿は `DISCORD_WEBHOOK_URL` で試行しましたが HTTP 403 で失敗しました。
+```
