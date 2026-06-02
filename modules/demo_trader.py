@@ -3474,6 +3474,7 @@ class DemoTrader:
             if (
                 entry_type in self._UNIVERSAL_SENTINEL
                 or entry_type in self._SCALP_SENTINEL
+                or entry_type in self._SILENT_DROP_DIAG_TYPES
             ):
                 self._add_log(f"[SENTINEL_BLOCK_DIAG] {entry_type} blocked at: {reason}")
             return
@@ -5352,6 +5353,14 @@ class DemoTrader:
         # ── OANDA連携: 昇格済み戦略のみミラーリング + 実行監査 + 🔗ラベルログ ──
         _shadow_at_open = _is_shadow  # v9.x: DB書込み時点の値を保存 (persistence fix)
         _is_promoted = self._is_promoted(entry_type, instrument)
+        _diag_live_intent = (
+            entry_type in self._SILENT_DROP_DIAG_TYPES
+            and (
+                _is_promoted
+                or (entry_type, instrument) in self._PAIR_PROMOTED
+                or self._kalman_d7_live_eligible(entry_type, instrument)
+            )
+        )
         if _edge_cell_force_live and _is_shadow:
             _is_shadow = False
             _shadow_reason_label = (
@@ -5363,6 +5372,12 @@ class DemoTrader:
             )
         # ── v7.0: Shadow Tracking — OANDAには絶対に送信しない ──
         if _is_shadow:
+            if _diag_live_intent:
+                self._add_log(
+                    f"[SENTINEL_BLOCK_DIAG] {entry_type} candidate built but "
+                    f"shadow-downgraded before OANDA promotion "
+                    f"(mode={mode}, instrument={instrument})"
+                )
             _is_promoted = False
 
         # ── v2.1 Emergency Trip (2026-04-24): vwap_mean_reversion OANDA 送信停止 ──
@@ -5785,6 +5800,12 @@ class DemoTrader:
                 units=_adjusted_units,
                 sr_meta=_sr_meta,
             )
+            if _diag_live_intent:
+                self._add_log(
+                    f"[SENTINEL_BLOCK_DIAG] {entry_type} OANDA skipped after "
+                    f"candidate build: {_block_reason} "
+                    f"(mode={mode}, instrument={instrument}, shadow={_is_shadow})"
+                )
             self._add_log(
                 f"🔗 OANDA: [SKIP] {entry_type} — Reason: {_block_reason}"
             )
@@ -7503,6 +7524,10 @@ class DemoTrader:
         "kalman_d7_po_dn_flip",
         "kalman_d7_ema75_break",
         "kalman_d7_trail_atr",
+    })
+    _SILENT_DROP_DIAG_TYPES = _KALMAN_D7_LIVE_OVERRIDE | frozenset({
+        "zz_pivot_v60_sr",
+        "zz_pivot_v60_sr_lo",
     })
     _KALMAN_D7_LIVE_ENABLE = _os.environ.get("KALMAN_D7_LIVE_ENABLE", "0") == "1"
     _KALMAN_D7_LIVE_INSTRUMENT = "USD_JPY"
