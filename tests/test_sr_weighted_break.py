@@ -47,6 +47,26 @@ def test_heavy_weighted_levels_empty():
     assert s._heavy_weighted_levels([]) == []
 
 
+def test_heavy_weighted_levels_reports_abs_reject():
+    s = SrWeightedBreak()
+    levels = [{"price": 110.573, "own_touch": 1, "round_score": 0.0}]
+
+    heavy, reason = s._heavy_weighted_levels_with_reason(levels)
+
+    assert heavy == []
+    assert reason == "weight_abs_reject"
+
+
+def test_heavy_weighted_levels_reports_pass():
+    s = SrWeightedBreak()
+    levels = [{"price": 110.50, "own_touch": 10}]
+
+    heavy, reason = s._heavy_weighted_levels_with_reason(levels)
+
+    assert len(heavy) == 1
+    assert reason == "weight_gate_pass"
+
+
 def test_evaluate_returns_none_when_env_disabled():
     _disable()
     s = SrWeightedBreak()

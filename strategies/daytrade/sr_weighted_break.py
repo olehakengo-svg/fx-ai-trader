@@ -29,6 +29,7 @@ composite_weight 計算は sr_weighted_bounce と同式 (Wave 1 固定):
 """
 from __future__ import annotations
 from typing import Optional
+import logging
 import os
 
 from strategies.base import StrategyBase, Candidate
@@ -36,6 +37,8 @@ from strategies.context import SignalContext
 from modules.round_number import (
     expand_sl_for_round, shift_tp_inside, is_near_round,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class SrWeightedBreak(StrategyBase):
@@ -72,10 +75,35 @@ class SrWeightedBreak(StrategyBase):
 
     MAX_HOLD_BARS = 12
     _v2_seen_closed_bar_keys: set[tuple[str, str, str, str, str]] = set()
+    _diag_counts: dict[tuple[str, str], int] = {}
+    _diag_last_logged: set[tuple[str, str, str]] = set()
 
     @classmethod
     def reset_dedup_state(cls):
         cls._v2_seen_closed_bar_keys.clear()
+
+    @classmethod
+    def reset_diagnostics(cls):
+        cls._diag_counts.clear()
+        cls._diag_last_logged.clear()
+
+    @classmethod
+    def diagnostics_snapshot(cls) -> dict[str, int]:
+        return {f"{sym}:{state}": n for (sym, state), n in sorted(cls._diag_counts.items())}
+
+    def _diag(self, ctx: SignalContext, state: str, bar_time=None) -> None:
+        sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+        self._diag_counts[(sym, state)] = self._diag_counts.get((sym, state), 0) + 1
+        if os.environ.get("SR_WEIGHTED_BREAK_DIAG_LOG") != "1":
+            return
+        key = (sym, str(bar_time), state)
+        if key in self._diag_last_logged:
+            return
+        self._diag_last_logged.add(key)
+        logger.info(
+            "[SR_WEIGHTED_BREAK_DIAG] symbol=%s bar_time=%s state=%s count=%s",
+            sym, bar_time, state, self._diag_counts[(sym, state)],
+        )
 
     def _env_enabled(self) -> bool:
         return os.environ.get("SR_WEIGHTED_BREAK_ENABLE") == "1"
@@ -97,8 +125,12 @@ class SrWeightedBreak(StrategyBase):
 
     def _heavy_weighted_levels(self, weighted_levels: list) -> list[tuple[float, dict]]:
         """gate 通過 (weight>=K AND 上位 percentile) levels を (weight, dict) で返す。"""
+        heavy, _reason = self._heavy_weighted_levels_with_reason(weighted_levels)
+        return heavy
+
+    def _heavy_weighted_levels_with_reason(self, weighted_levels: list) -> tuple[list[tuple[float, dict]], str]:
         if not weighted_levels:
-            return []
+            return [], "weighted_levels_empty"
         enriched = []
         for lv in weighted_levels:
             if not isinstance(lv, dict):
@@ -106,14 +138,17 @@ class SrWeightedBreak(StrategyBase):
             w = self._compute_composite_weight(lv)
             enriched.append((w, lv))
         if not enriched:
-            return []
+            return [], "weighted_levels_invalid"
         enriched.sort(key=lambda x: -x[0])
         n_top = max(1, int(len(enriched) * self.WEIGHT_PERCENTILE_TOP))
         cutoff_weight = enriched[n_top - 1][0]
-        return [
-            (w, lv) for (w, lv) in enriched
-            if w >= self.K_ABS_THRESHOLD and w >= cutoff_weight
-        ]
+        abs_pass = [(w, lv) for (w, lv) in enriched if w >= self.K_ABS_THRESHOLD]
+        if not abs_pass:
+            return [], "weight_abs_reject"
+        percentile_pass = [(w, lv) for (w, lv) in abs_pass if w >= cutoff_weight]
+        if not percentile_pass:
+            return [], "weight_percentile_reject"
+        return percentile_pass, "weight_gate_pass"
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         if not self._env_enabled():
@@ -139,11 +174,14 @@ class SrWeightedBreak(StrategyBase):
         signal_ema9 = float(signal_bar.get("ema9", ctx.ema9))
 
         if signal_adx < self.ADX_MIN:
+            self._diag(ctx, "reject_adx", signal_bar_time)
             return None
 
         # ── Weight gate: heavy weighted levels の集合 ──
+        self._diag(ctx, "weight_gate_seen", signal_bar_time)
         weighted_levels = (ctx.layer3 or {}).get("sr_weighted_levels", [])
-        heavy_levels = self._heavy_weighted_levels(weighted_levels)
+        heavy_levels, gate_reason = self._heavy_weighted_levels_with_reason(weighted_levels)
+        self._diag(ctx, gate_reason, signal_bar_time)
         if not heavy_levels:
             return None
 
@@ -207,6 +245,7 @@ class SrWeightedBreak(StrategyBase):
                     break
 
         if _best_signal is None:
+            self._diag(ctx, "post_weight_reject_break_retest", signal_bar_time)
             return None
 
         signal, sr_level, composite_w, break_offset, level_meta = _best_signal
@@ -215,8 +254,10 @@ class SrWeightedBreak(StrategyBase):
         _htf = ctx.htf or {}
         _agreement = _htf.get("agreement", "mixed")
         if signal == "BUY" and _agreement == "bear":
+            self._diag(ctx, "post_weight_reject_htf", signal_bar_time)
             return None
         if signal == "SELL" and _agreement == "bull":
+            self._diag(ctx, "post_weight_reject_htf", signal_bar_time)
             return None
 
         # Per-bar dedup
@@ -224,6 +265,7 @@ class SrWeightedBreak(StrategyBase):
             _sr_bucket = f"{round(sr_level / max(signal_atr, 1e-9), 2):.2f}"
             dedup_key = (sym, self.name, signal, str(signal_bar_time), _sr_bucket)
             if dedup_key in self._v2_seen_closed_bar_keys:
+                self._diag(ctx, "post_weight_reject_dedup", signal_bar_time)
                 return None
             self._v2_seen_closed_bar_keys.add(dedup_key)
 
@@ -266,9 +308,11 @@ class SrWeightedBreak(StrategyBase):
             risk = sl - ctx.entry
             reward = ctx.entry - tp
         if risk <= 0 or reward <= 0:
+            self._diag(ctx, "post_weight_reject_bad_risk_reward", signal_bar_time)
             return None
         rr = reward / risk
         if rr < self.MIN_RR:
+            self._diag(ctx, "post_weight_reject_rr", signal_bar_time)
             return None
 
         score = 3.0 + min(2.0, composite_w / 10.0)
@@ -283,6 +327,7 @@ class SrWeightedBreak(StrategyBase):
             f"✅ SR_WEIGHTED_BREAK v1",
         ]
 
+        self._diag(ctx, "candidate", signal_bar_time)
         return Candidate(
             signal=signal,
             confidence=min(85, int(50 + score * 4)),

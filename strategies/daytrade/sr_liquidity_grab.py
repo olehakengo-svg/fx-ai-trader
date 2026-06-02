@@ -5,11 +5,14 @@ Shadow 5 majors 全走 — 30 trade 蓄積で per-pair edge 実測判定
 """
 from __future__ import annotations
 from typing import Optional
+import logging
 import os
 
 from strategies.base import StrategyBase, Candidate
 from strategies.context import SignalContext
 from modules.round_number import shift_tp_inside, round_confluence_boost, is_near_round
+
+logger = logging.getLogger(__name__)
 
 
 class SrLiquidityGrab(StrategyBase):
@@ -29,6 +32,32 @@ class SrLiquidityGrab(StrategyBase):
     TARGET_RR = 1.5
     MAX_HOLD_BARS = 8
     _v2_seen_closed_bar_keys: set[tuple[str, str, str, str]] = set()
+    _diag_counts: dict[tuple[str, str], int] = {}
+    _diag_last_logged: set[tuple[str, str, str]] = set()
+
+    @classmethod
+    def reset_diagnostics(cls):
+        cls._diag_counts.clear()
+        cls._diag_last_logged.clear()
+
+    @classmethod
+    def diagnostics_snapshot(cls) -> dict[str, int]:
+        return {f"{sym}:{state}": n for (sym, state), n in sorted(cls._diag_counts.items())}
+
+    def _diag(self, ctx: SignalContext, state: str,
+              bar_time=None, *, emit_once_per_bar: bool = True) -> None:
+        sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+        self._diag_counts[(sym, state)] = self._diag_counts.get((sym, state), 0) + 1
+        if os.environ.get("SR_LIQUIDITY_GRAB_DIAG_LOG") != "1":
+            return
+        key = (sym, str(bar_time), state)
+        if emit_once_per_bar and key in self._diag_last_logged:
+            return
+        self._diag_last_logged.add(key)
+        logger.info(
+            "[SR_LIQUIDITY_GRAB_DIAG] symbol=%s bar_time=%s state=%s count=%s",
+            sym, bar_time, state, self._diag_counts[(sym, state)],
+        )
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         if os.environ.get("SR_LIQUIDITY_GRAB_REDESIGN_V2") == "1":
@@ -159,21 +188,26 @@ class SrLiquidityGrab(StrategyBase):
     def _evaluate_redesign_v2(self, ctx: SignalContext) -> Optional[Candidate]:
         sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
         if sym not in self._ALLOWED_SYMBOLS:
+            self._diag(ctx, "reject_symbol", getattr(ctx, "bar_time", None))
             return None
         if not ctx.sr_levels:
+            self._diag(ctx, "reject_no_sr_levels", getattr(ctx, "bar_time", None))
             return None
         if ctx.df is None or len(ctx.df) < self.HUNT_LOOKBACK + 3:
+            self._diag(ctx, "reject_short_df", getattr(ctx, "bar_time", None))
             return None
 
         signal_bar_pos = len(ctx.df) - 2
         signal_bar = ctx.df.iloc[signal_bar_pos]
         signal_bar_time = getattr(signal_bar, "name", None)
+        self._diag(ctx, "called", signal_bar_time)
         signal_close = float(signal_bar["Close"])
         signal_open = float(signal_bar["Open"])
         signal_atr = max(float(signal_bar.get("atr", ctx.atr)), 1e-9)
         signal_adx = float(signal_bar.get("adx", ctx.adx))
 
         if signal_adx >= self.ADX_MAX:
+            self._diag(ctx, "reject_adx", signal_bar_time)
             return None
 
         nearest_level = None
@@ -185,22 +219,26 @@ class SrLiquidityGrab(StrategyBase):
                 nearest_dist = d
                 nearest_level = price
         if nearest_level is None or nearest_dist > self.SR_PROXIMITY_ATR * signal_atr:
+            self._diag(ctx, "reject_sr_proximity", signal_bar_time)
             return None
 
         hunt_event = self._find_recent_hunt(
             ctx, nearest_level, signal_atr, reference_pos=signal_bar_pos
         )
         if hunt_event is None:
+            self._diag(ctx, "reject_no_hunt", signal_bar_time)
             return None
 
         side = hunt_event["side"]
         if side == "resistance":
             if signal_close >= signal_open or signal_close >= nearest_level:
+                self._diag(ctx, "reject_resistance_reversal", signal_bar_time)
                 return None
             signal = "SELL"
             sl = hunt_event["extreme"] + self.SL_BUFFER_ATR * signal_atr
         else:
             if signal_close <= signal_open or signal_close <= nearest_level:
+                self._diag(ctx, "reject_support_reversal", signal_bar_time)
                 return None
             signal = "BUY"
             sl = hunt_event["extreme"] - self.SL_BUFFER_ATR * signal_atr
@@ -236,14 +274,17 @@ class SrLiquidityGrab(StrategyBase):
             risk = sl - ctx.entry
             reward = ctx.entry - tp
         if risk <= 0 or reward <= 0:
+            self._diag(ctx, "reject_bad_risk_reward", signal_bar_time)
             return None
         rr = reward / risk
         if rr < self.TARGET_RR * 0.9:
+            self._diag(ctx, "reject_rr", signal_bar_time)
             return None
 
         if not ctx.backtest_mode:
             dedup_key = (sym, self.name, str(signal_bar_time), signal)
             if dedup_key in self._v2_seen_closed_bar_keys:
+                self._diag(ctx, "reject_dedup", signal_bar_time)
                 return None
             self._v2_seen_closed_bar_keys.add(dedup_key)
 
@@ -263,6 +304,7 @@ class SrLiquidityGrab(StrategyBase):
             f"✅ SR_LIQUIDITY_GRAB_REDESIGN_V2: closed_bar_time={signal_bar_time} で確定し次バー約定",
         ]
 
+        self._diag(ctx, "candidate", signal_bar_time, emit_once_per_bar=False)
         return Candidate(
             signal=signal,
             confidence=min(100, int(score * 20)),

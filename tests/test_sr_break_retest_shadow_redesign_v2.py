@@ -79,7 +79,8 @@ def _df(*, closed_signal: bool, current_signal: bool) -> pd.DataFrame:
     )
 
 
-def _ctx(df: pd.DataFrame, *, backtest_mode: bool = True) -> SignalContext:
+def _ctx(df: pd.DataFrame, *, backtest_mode: bool = True,
+         weighted_levels: list | None = None) -> SignalContext:
     row = df.iloc[-1]
     prev = df.iloc[-2]
     return SignalContext(
@@ -108,6 +109,7 @@ def _ctx(df: pd.DataFrame, *, backtest_mode: bool = True) -> SignalContext:
         pip_mult=100,
         df=df,
         htf={"agreement": "mixed"},
+        layer3={"sr_weighted_levels": weighted_levels or []},
         backtest_mode=backtest_mode,
         bar_time=df.index[-1],
         hour_utc=df.index[-1].hour,
@@ -134,6 +136,34 @@ def test_v2_uses_closed_signal_bar_and_ignores_current_bar(monkeypatch):
     assert cand.sl < SR < cand.tp
     assert any("signal_bar=2026-05-05 07:00:00+00:00" in reason for reason in cand.reasons)
     assert any("次バー以降で約定" in reason for reason in cand.reasons)
+
+
+def test_v2_populates_sr_meta_from_weighted_level(monkeypatch):
+    monkeypatch.setenv("SR_BREAK_RETEST_REDESIGN_V2", "1")
+
+    cand = SrBreakRetest().evaluate(
+        _ctx(
+            _df(closed_signal=True, current_signal=False),
+            weighted_levels=[
+                {
+                    "price": SR,
+                    "strength": 0.91,
+                    "touches": 7,
+                    "days_span": 4.0,
+                    "is_strong": True,
+                }
+            ],
+        )
+    )
+
+    assert cand is not None
+    assert cand.sr_meta == {
+        "strength": 0.91,
+        "touches": 7,
+        "days_span": 4.0,
+        "is_strong": True,
+        "distance_atr": 0.35,
+    }
 
 
 def test_v2_rejects_if_closed_bar_has_no_retest_even_when_current_bar_does(monkeypatch):

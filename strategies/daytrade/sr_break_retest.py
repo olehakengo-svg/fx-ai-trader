@@ -408,5 +408,11 @@ class SrBreakRetest(StrategyBase):
         conf = apply_penalty(_legacy_conf, self.strategy_type, ctx.adx, conf_max=85)
         return Candidate(
             signal=signal, confidence=conf, sl=sl, tp=tp,
-            reasons=reasons, entry_type=self.name, score=score
+            reasons=reasons, entry_type=self.name, score=score,
+            sr_meta=Candidate.sr_meta_from_price(
+                (ctx.layer3 or {}).get("sr_weighted_levels", []),
+                sr_level,
+                signal_close,
+                ctx.atr,
+            ),
         )

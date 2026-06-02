@@ -28,6 +28,7 @@ composite_weight = 1.0 × own_touch + 3.0 × d1_touch + 5.0 × w1_touch +
 """
 from __future__ import annotations
 from typing import Optional
+import logging
 import os
 
 from strategies.base import StrategyBase, Candidate
@@ -35,6 +36,8 @@ from strategies.context import SignalContext
 from modules.round_number import (
     expand_sl_for_round, shift_tp_inside, is_near_round,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class SrWeightedBounce(StrategyBase):
@@ -79,10 +82,35 @@ class SrWeightedBounce(StrategyBase):
 
     MAX_HOLD_BARS = 12
     _v2_seen_closed_bar_keys: set[tuple[str, str, str, str]] = set()
+    _diag_counts: dict[tuple[str, str], int] = {}
+    _diag_last_logged: set[tuple[str, str, str]] = set()
 
     @classmethod
     def reset_dedup_state(cls):
         cls._v2_seen_closed_bar_keys.clear()
+
+    @classmethod
+    def reset_diagnostics(cls):
+        cls._diag_counts.clear()
+        cls._diag_last_logged.clear()
+
+    @classmethod
+    def diagnostics_snapshot(cls) -> dict[str, int]:
+        return {f"{sym}:{state}": n for (sym, state), n in sorted(cls._diag_counts.items())}
+
+    def _diag(self, ctx: SignalContext, state: str, bar_time=None) -> None:
+        sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
+        self._diag_counts[(sym, state)] = self._diag_counts.get((sym, state), 0) + 1
+        if os.environ.get("SR_WEIGHTED_BOUNCE_DIAG_LOG") != "1":
+            return
+        key = (sym, str(bar_time), state)
+        if key in self._diag_last_logged:
+            return
+        self._diag_last_logged.add(key)
+        logger.info(
+            "[SR_WEIGHTED_BOUNCE_DIAG] symbol=%s bar_time=%s state=%s count=%s",
+            sym, bar_time, state, self._diag_counts[(sym, state)],
+        )
 
     def _compute_composite_weight(self, level_meta: dict) -> float:
         """sr_weighted_levels の 1 level dict から composite_weight を計算。
@@ -119,9 +147,14 @@ class SrWeightedBounce(StrategyBase):
           (b) level が現在 levels の上位 WEIGHT_PERCENTILE_TOP に入る
           (c) |signal_price - level.price| < SR_PROXIMITY_ATR * atr
         """
+        heavy, _reason = self._select_heavy_level_with_reason(weighted_levels, signal_price, atr)
+        return heavy
+
+    def _select_heavy_level_with_reason(self, weighted_levels: list,
+                                        signal_price: float,
+                                        atr: float) -> tuple[Optional[dict], str]:
         if not weighted_levels:
-            return None
-        # 全 level の composite_weight 計算
+            return None, "weighted_levels_empty"
         enriched = []
         for lv in weighted_levels:
             if not isinstance(lv, dict):
@@ -129,26 +162,27 @@ class SrWeightedBounce(StrategyBase):
             w = self._compute_composite_weight(lv)
             enriched.append((w, lv))
         if not enriched:
-            return None
-        # 上位 30% の cutoff weight 算出
+            return None, "weighted_levels_invalid"
         enriched.sort(key=lambda x: -x[0])
         n_top = max(1, int(len(enriched) * self.WEIGHT_PERCENTILE_TOP))
         cutoff_weight = enriched[n_top - 1][0]
-        # gate 通過 candidates
+        abs_pass = [(w, lv) for (w, lv) in enriched if w >= self.K_ABS_THRESHOLD]
+        if not abs_pass:
+            return None, "weight_abs_reject"
+        percentile_pass = [(w, lv) for (w, lv) in abs_pass if w >= cutoff_weight]
+        if not percentile_pass:
+            return None, "weight_percentile_reject"
         proximity = self.SR_PROXIMITY_ATR * atr
         candidates = [
-            (w, lv) for (w, lv) in enriched
-            if w >= self.K_ABS_THRESHOLD
-            and w >= cutoff_weight
-            and abs(signal_price - float(lv["price"])) < proximity
+            (w, lv) for (w, lv) in percentile_pass
+            if abs(signal_price - float(lv["price"])) < proximity
         ]
         if not candidates:
-            return None
-        # nearest
+            return None, "weight_proximity_reject"
         best = min(candidates, key=lambda x: abs(signal_price - float(x[1]["price"])))
         out = dict(best[1])
         out["__composite_weight__"] = best[0]
-        return out
+        return out, "weight_gate_pass"
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         if os.environ.get("SR_WEIGHTED_BOUNCE_ENABLE") != "1":
@@ -170,13 +204,19 @@ class SrWeightedBounce(StrategyBase):
         signal_bbpb = float(signal_bar.get("bb_pband", ctx.bbpb))
 
         if signal_adx >= self.ADX_MAX:
+            self._diag(ctx, "reject_adx", signal_bar_time)
             return None
 
         # ── Weight gate: layer3.sr_weighted_levels から heavy level 選択 ──
+        self._diag(ctx, "weight_gate_seen", signal_bar_time)
         weighted_levels = (ctx.layer3 or {}).get("sr_weighted_levels", [])
         if not weighted_levels:
+            self._diag(ctx, "weighted_levels_empty", signal_bar_time)
             return None
-        heavy = self._select_heavy_level(ctx, weighted_levels, signal_close, signal_atr)
+        heavy, gate_reason = self._select_heavy_level_with_reason(
+            weighted_levels, signal_close, signal_atr
+        )
+        self._diag(ctx, gate_reason, signal_bar_time)
         if heavy is None:
             return None
 
@@ -193,19 +233,23 @@ class SrWeightedBounce(StrategyBase):
 
         # 反転足確認
         if signal == "BUY" and signal_close <= signal_open:
+            self._diag(ctx, "post_weight_reject_reversal_bar", signal_bar_time)
             return None
         if signal == "SELL" and signal_close >= signal_open:
+            self._diag(ctx, "post_weight_reject_reversal_bar", signal_bar_time)
             return None
 
         # 直近 2 本に hunt-style wick が無いことを確認
         if not self._confirmed_no_recent_hunt(ctx, nearest_level, side, end_iloc=-1,
                                               atr_override=signal_atr):
+            self._diag(ctx, "post_weight_reject_confirmation", signal_bar_time)
             return None
 
         # SL/TP 計算 (sr_anti_hunt_bounce 流用)
         sl, tp = self._compute_sl_tp(ctx, nearest_level, signal, sym,
                                      atr_override=signal_atr)
         if sl is None or tp is None:
+            self._diag(ctx, "post_weight_reject_sltp", signal_bar_time)
             return None
 
         if signal == "BUY":
@@ -215,15 +259,18 @@ class SrWeightedBounce(StrategyBase):
             risk = sl - ctx.entry
             reward = ctx.entry - tp
         if risk <= 0 or reward <= 0:
+            self._diag(ctx, "post_weight_reject_bad_risk_reward", signal_bar_time)
             return None
         rr = reward / risk
         if rr < self.MIN_RR:
+            self._diag(ctx, "post_weight_reject_rr", signal_bar_time)
             return None
 
         # Per-bar dedup (v2 redesign パターン)
         if not ctx.backtest_mode:
             dedup_key = (sym, self.name, str(signal_bar_time), signal)
             if dedup_key in self._v2_seen_closed_bar_keys:
+                self._diag(ctx, "post_weight_reject_dedup", signal_bar_time)
                 return None
             self._v2_seen_closed_bar_keys.add(dedup_key)
 
@@ -243,6 +290,7 @@ class SrWeightedBounce(StrategyBase):
             score += 0.5
             reasons.append(f"✅ BB上限一致(closed BB%B={signal_bbpb:.2f})")
 
+        self._diag(ctx, "candidate", signal_bar_time)
         return Candidate(
             signal=signal,
             confidence=min(100, int(score * 20)),

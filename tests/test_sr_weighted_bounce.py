@@ -68,6 +68,30 @@ def test_select_heavy_level_gate_reject_below_abs():
     assert out is None
 
 
+def test_select_heavy_level_reports_abs_reject():
+    s = SrWeightedBounce()
+    levels = [{"price": 110.573, "own_touch": 1, "round_score": 0.0}]
+
+    heavy, reason = s._select_heavy_level_with_reason(
+        levels, signal_price=110.50, atr=0.1
+    )
+
+    assert heavy is None
+    assert reason == "weight_abs_reject"
+
+
+def test_select_heavy_level_reports_proximity_reject_after_gate_pass():
+    s = SrWeightedBounce()
+    levels = [{"price": 111.50, "own_touch": 10}]
+
+    heavy, reason = s._select_heavy_level_with_reason(
+        levels, signal_price=110.50, atr=0.1
+    )
+
+    assert heavy is None
+    assert reason == "weight_proximity_reject"
+
+
 def test_evaluate_returns_none_when_env_disabled():
     _disable()
     s = SrWeightedBounce()
