@@ -1576,6 +1576,16 @@ EUR_USDはATR%ile=26%（RANGINGの低ボラ帯）+ SMA20 Slope=-0.00142（微下
 **今日の対処**: N=9という段階では判断できないが、WR乖離は拡大傾向。N=15通過時点で再評価が必要。
 1件目BUY → LOSS(-18.4) → 2件目BUY → WIN(+25.7) と同日同方向で結果が真逆。EUR_JPYはRANGINGながらATRパーセンタイル36%と相対的に高め。大振れ戦略のため1勝1敗でもPnLはプラスになる構造。N=2では評価不能。
 
+### 2026-06-03 (Pre-Tokyo Briefing)
+| PnL合計 (2026-06-02) | **-12.0 pip** |
+| 全体WR | **31.2%** (5勝11敗) |
+前日はbb_rsi_reversion/USD_CHFの連続LOSS（TIME_DECAY_EXIT 6件）が主因となりPnL悪化。sr_anti_hunt_bounce/EUR_JPYが+25.7pip（MAX_HOLD_TIME）で一時的に損失を緩和したが、全体として赤字で終了した。
+**⚠ 全N=42、全体WR=42.9%、PnL=-33.3pip**
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| 件数 | 8件中6件がTIME_DECAY_EXIT（LOSS/BREAKEVEN） |
+| WR | 25.0%（期待最低水準を大幅下回る） |
+| EV | -1.38（摩擦込みで明確なマイナス） |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
