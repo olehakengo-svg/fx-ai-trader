@@ -1596,6 +1596,16 @@ EUR_USDはATR%ile=26%（RANGINGの低ボラ帯）+ SMA20 Slope=-0.00142（微下
 > ⚠️ **N/WR/EV（ライブCutoff後）は本日取得不可。上記はBT参照値であり実績ではない。**
 - STATUS / TRADES / OANDA の3エンドポイントが同時に取得不可
 
+### 2026-06-03 (Pre-Tokyo Briefing)
+| 総PnL | **−12.0** |
+| 全体WR | **31.2%** |
+前日は全3セッション通じてネガティブ。`bb_rsi_reversion/USD_CHF` の連続SL（8戦2勝）と `session_time_bias/EUR_USD` の低WRが主因。唯一の救いは `sr_anti_hunt_bounce/EUR_JPY` の +25.7pips（逆に−18.4の損失も同戦略から発生）。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**全体合計: N=32, WR=37.5%, PnL=−47.6**
+| WR=25%、EV=−1.38はN=8ながら一貫してネガティブ |
+### 課題②：`session_time_bias/EUR_USD` — BT乖離 ΔWR=+54.2pp（最大級アラート）
+| BT WR | Live WR | ΔWR |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
