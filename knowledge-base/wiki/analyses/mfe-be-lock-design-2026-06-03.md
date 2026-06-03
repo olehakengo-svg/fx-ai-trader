@@ -161,6 +161,26 @@ and stored in-memory at `DemoTrader._be_lock_fired[trade_id]` (popped on close).
    not Rule-1-gated, but **Live promotion of the BE-lock setting** requires
    Rule-1 evidence (per-strategy N≥30 + Bonferroni).
 
+## 5b. Post-deploy bug & fix (2026-06-03, ~02:55 UTC)
+
+After env activation, live verification showed 2 group-B trades with
+unrealized_pips ≥ trigger but unchanged SL. Root cause: the shared SL
+mirror block at line ~2416 of demo_trader.py was rolling back ALL SL
+modifications for shadow trades because `OandaBridge.modify_sl_sync`
+returns False when no `oanda_trade_id` mapping exists. Affected EVERY
+SL-modifying logic on shadow stream (BE-lock, ATR-BE, ATR-trail, SMC-BE,
+v6.4 TP extender) — not just this commit.
+
+Fix: branch on `trade["is_shadow"]`. Shadow path persists the new SL via
+`self._db.update_sl_tp(trade_id, sl, tp)` (no OANDA mirror needed). LIVE
+path unchanged. Details: `wiki/lessons/lesson-shadow-sl-rollback-bug-2026-06-03.md`.
+
+Implication for the audit baseline: pre-fix shadow had **no** SL
+protection at all (despite the code). Post-fix group A inherits the
+existing ATR-based BE/trail. The marginal A vs B effect we measure is
+the BE-lock contribution **on top of** existing trail/BE — which is the
+correct quantity for the promotion decision.
+
 ## 6. Known caveats
 
 - **Idealized simulation**. Counterfactual assumes the post-lock SL is

@@ -2412,10 +2412,28 @@ class DemoTrader:
                             if new_sl < sl:
                                 sl = new_sl
 
-            # ── OANDA連携: トレーリングSL変更をミラー ──
+            # ── OANDA連携 / Shadow Persist: トレーリングSL変更を反映 ──
+            # 2026-06-03 BE-lock A/B 配信後、shadow trade で BE-lock が無効化
+            # されていることが発覚。shadow trade は OANDA mapping を持たないため
+            # modify_sl_sync が False を返し、ここで sl が原 SL に rollback される
+            # 構造的バグ。以後:
+            #   - LIVE trade: 既存通り OANDA mirror + 失敗時 rollback (動作保全)
+            #   - Shadow trade: OANDA 不要 → DB に直接 persist し SL_HIT 判定で
+            #     新 SL が有効になるようにする
+            # 副次効果: 既存 ATR-BE / SMC-BE / ATR-trail も shadow で動作開始する
+            # (本来の design intent だが、これまで実行されていなかった)。
             if sl != _original_sl:
-                if not self._oanda.modify_sl_sync(trade_id, sl, instrument=_inst):
-                    sl = _original_sl  # OANDA失敗時はSLを元に戻す
+                _is_shadow_t = trade.get("is_shadow", 0) == 1
+                if _is_shadow_t:
+                    # shadow: persist locally; next iteration will read the new SL
+                    try:
+                        self._db.update_sl_tp(trade_id, sl, tp)
+                    except Exception:
+                        pass  # best-effort — never crash the SL loop
+                else:
+                    # LIVE: mirror to OANDA; rollback on failure (preserves contract)
+                    if not self._oanda.modify_sl_sync(trade_id, sl, instrument=_inst):
+                        sl = _original_sl  # OANDA失敗時はSLを元に戻す
 
             # ── v8.9: 含み益リアルタイム検知 (0.5秒ループ内) ──
             # 大幅含み益のDiscord通知 + Shadow含み益警告
