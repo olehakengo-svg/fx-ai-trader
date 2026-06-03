@@ -985,9 +985,26 @@ class DemoTrader:
                                 sl: float, tp: float, entry_type: str,
                                 confidence: int, tf: str, reasons: list,
                                 score: float, mode: str, instrument: str,
+                                sr_entry_map: dict | None = None,
+                                signal_price: float = 0.0,
+                                spread_at_entry: float = 0.0,
+                                slippage_pips: float = 0.0,
+                                cooldown_elapsed: float = 0.0,
+                                regime: dict | None = None,
+                                layer1_dir: str = "",
+                                ema_conf: int | None = None,
+                                edge_cell_id: str | None = None,
                                 dow_regime: str = None, v2_regime: str = None,
                                 confluence_score: str = None,
                                 confluence_details: str = None,
+                                mtf_regime: str | None = None,
+                                mtf_d1_label: int | None = None,
+                                mtf_h4_label: int | None = None,
+                                mtf_vol_state: str | None = None,
+                                gate_group: str = "",
+                                mtf_alignment: str = "",
+                                mtf_gate_action: str = "",
+                                alpha_snapshot=None,
                                 sr_meta=None,
                                 dedup_already_reserved: bool = False,
                                 dedup_path: str = "shadow",
@@ -1008,6 +1025,58 @@ class DemoTrader:
                     f"{direction}: {int(dedup_age)}s<{window_sec}s"
                 )
                 return None
+        sr_map = sr_entry_map or {}
+        rec = sr_map.get("recommended", {}) if isinstance(sr_map, dict) else {}
+        if ema_conf is None:
+            ema_conf = int(rec.get("ema_confidence", confidence) if rec else confidence)
+        sr_basis = float(rec.get("sr_basis", 0) if rec else 0)
+
+        _entry_time = datetime.now(timezone.utc)
+        _edge_cell_id = edge_cell_id or ""
+        if not _edge_cell_id:
+            try:
+                from modules import edge_cell_promote
+                _edge_cell = edge_cell_promote.match(
+                    strategy=entry_type,
+                    symbol=instrument,
+                    entry_time=_entry_time,
+                    direction=direction,
+                    v2_regime=v2_regime or "",
+                    mtf_gate_action=mtf_gate_action or "",
+                )
+                if _edge_cell is not None:
+                    _edge_cell_id = _edge_cell.cell_id
+            except Exception as _edge_exc:
+                self._add_log(f"[EDGE_CELL] shadow_emit match failed: {_edge_exc}")
+
+        _pip_m = 100 if ("JPY" in instrument or "XAU" in instrument) else 10000
+        _spread_entry = float(spread_at_entry or 0.0)
+        if _spread_entry <= 0:
+            try:
+                from modules.data import fetch_oanda_bid_ask
+                _ba = fetch_oanda_bid_ask(instrument)
+                if _ba:
+                    _spread_entry = round((_ba["ask"] - _ba["bid"]) * _pip_m, 2)
+            except Exception:
+                _spread_entry = 0.0
+
+        _mtf_payload = None
+        if any(v is None for v in (mtf_regime, mtf_d1_label, mtf_h4_label, mtf_vol_state)):
+            try:
+                _mtf_payload = self._get_mtf_regime(instrument) or {}
+            except Exception:
+                _mtf_payload = {}
+        else:
+            _mtf_payload = {}
+        if mtf_regime is None:
+            mtf_regime = str(_mtf_payload.get("regime", ""))
+        if mtf_d1_label is None:
+            mtf_d1_label = int(_mtf_payload.get("d1", 3) or 3)
+        if mtf_h4_label is None:
+            mtf_h4_label = int(_mtf_payload.get("h4", 3) or 3)
+        if mtf_vol_state is None:
+            mtf_vol_state = str(_mtf_payload.get("vol", ""))
+
         trade_id = self._db.open_trade(
             direction=direction,
             entry_price=entry_price,
@@ -1016,15 +1085,51 @@ class DemoTrader:
             confidence=confidence,
             tf=tf,
             reasons=reasons,
+            regime=regime or {},
+            layer1_dir=layer1_dir,
             score=score,
+            ema_conf=ema_conf,
+            sr_basis=sr_basis,
             mode=mode,
             instrument=instrument,
+            signal_price=signal_price,
+            spread_at_entry=_spread_entry,
+            slippage_pips=slippage_pips,
+            cooldown_elapsed=cooldown_elapsed,
             is_shadow=True,
             dow_regime=dow_regime,
             v2_regime=v2_regime,
+            edge_cell_id=_edge_cell_id,
             confluence_score=confluence_score,
             confluence_details=confluence_details,
+            mtf_regime=mtf_regime,
+            mtf_d1_label=int(mtf_d1_label),
+            mtf_h4_label=int(mtf_h4_label),
+            mtf_vol_state=mtf_vol_state,
+            gate_group=gate_group,
+            mtf_alignment=mtf_alignment,
+            mtf_gate_action=mtf_gate_action,
         )
+        if trade_id and tf == "15m":
+            try:
+                _snap = alpha_snapshot
+                if _snap is None:
+                    from tools.alpha_factor_snapshot import snapshot_at
+                    _snap = snapshot_at(instrument, tf="15m")
+                if _snap and not (isinstance(_snap, dict) and "error" in _snap):
+                    _snap_json = json.dumps(_snap, default=str)
+                    with self._db._safe_conn() as _conn:
+                        _cols = {
+                            r[1] for r in _conn.execute("PRAGMA table_info(demo_trades)").fetchall()
+                        }
+                        if "alpha_snapshot" in _cols:
+                            _conn.execute(
+                                "UPDATE demo_trades SET alpha_snapshot = ? WHERE trade_id = ?",
+                                (_snap_json, trade_id),
+                            )
+                            _conn.commit()
+            except Exception as _snap_err:
+                print(f"[alpha_snapshot] shadow_emit skip tid={trade_id}: {_snap_err}", flush=True)
         if self._should_audit_shadow_emit(entry_type):
             self._add_oanda_audit(
                 trade_id=trade_id,
@@ -3462,6 +3567,13 @@ class DemoTrader:
                     score=_se_score,
                     mode=mode,
                     instrument=instrument,
+                    sr_entry_map=_se.get("sr_entry_map") or sig.get("sr_entry_map"),
+                    signal_price=float(_se.get("entry") or sig.get("entry") or 0),
+                    regime=sig.get("regime") if isinstance(sig.get("regime"), dict) else {},
+                    layer1_dir=(
+                        (sig.get("layer_status", {}).get("layer1", {}) or {}).get("direction", "")
+                        if isinstance(sig.get("layer_status"), dict) else ""
+                    ),
                     dow_regime=_se_dow_regime,
                     v2_regime=_se_v2_regime,
                     confluence_score=_se_confluence.get("score"),
@@ -5392,11 +5504,15 @@ class DemoTrader:
                         }
                     _snap_json = json.dumps(_snap, default=str)
                     with self._db._safe_conn() as _conn:
-                        _conn.execute(
-                            "UPDATE demo_trades SET alpha_snapshot = ? WHERE id = ?",
-                            (_snap_json, trade_id),
-                        )
-                        _conn.commit()
+                        _cols = {
+                            r[1] for r in _conn.execute("PRAGMA table_info(demo_trades)").fetchall()
+                        }
+                        if "alpha_snapshot" in _cols:
+                            _conn.execute(
+                                "UPDATE demo_trades SET alpha_snapshot = ? WHERE trade_id = ?",
+                                (_snap_json, trade_id),
+                            )
+                            _conn.commit()
             except Exception as _snap_err:
                 print(f"[alpha_snapshot] skip tid={trade_id}: {_snap_err}", flush=True)
 

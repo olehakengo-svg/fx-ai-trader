@@ -3524,6 +3524,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 "atr": _rp(atr, symbol),
                 "max_hold_bars": getattr(_c, "max_hold_bars", None),
                 "sr_meta": getattr(_c, "sr_meta", None),
+                "sr_entry_map": sr_entry_map,
             })
     except NameError:
         # _dt_shadow_emits 未定義パス (DTE skip 等) — 安全に空

@@ -193,3 +193,30 @@ INSERT carries: sr_basis, edge_cell_id, mode, instrument, ...
 - [[project_sr_family_audit_gap_2026_05_21]] (前回の SR family bypass 修正 task)
 - [[project_sr_weight_phase2_accept_2026_05_11]] (BT で edge 検出した promotion 元データ)
 - [[feedback_shadow_first_quant_architecture]] (BT は sanity filter、Shadow が真の estimator)
+
+
+## Result (2026-06-03T03:04:48Z)
+
+exit=0 · 371s
+
+```
+実装しました。主因は `e8e707f4` で追加された SR shadow emit direct path が `_tick_entry()` の enrichment を迂回していたことです。`sr_entry_map` producer 自体は [app.py](/data/repo/fx-ai-trader/app.py:3174) に残っていましたが、shadow emit payload にコピーされず、[modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:984) の `_open_shadow_emit_trade()` も `sr_basis/cell/spread/MTF/alpha` を書いていませんでした。
+
+変更内容:
+- [app.py](/data/repo/fx-ai-trader/app.py:3516): `shadow_emit_signals[]` に `sr_entry_map` を追加。
+- [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:984): shadow emit INSERT に `sr_basis`, `edge_cell_id`, spread, regime/layer, MTF, alpha snapshot を配線。
+- [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:5489): primary path の alpha UPDATE を `WHERE id` から `WHERE trade_id` に修正。
+- [requirements.txt](/data/repo/fx-ai-trader/requirements.txt:5): `pyarrow>=15.0.0` を追加。
+- [tests/test_sr_shadow_emit_metadata.py](/data/repo/fx-ai-trader/tests/test_sr_shadow_emit_metadata.py:1): 実 SQLite INSERT + SELECT の regression test を追加。
+- [wiki/lessons/2026-06-03-sr-meta-loss-forensic.md](/data/repo/fx-ai-trader/wiki/lessons/2026-06-03-sr-meta-loss-forensic.md:1): forensic report 追加。
+
+検証:
+- failing-first: 新規 test は修正前に `unexpected keyword argument 'sr_entry_map'` で失敗確認済み。
+- PASS: `.venv/bin/python -m pytest tests/test_sr_shadow_emit_metadata.py tests/test_shadow_emit_audit_all_strategies.py -q` → `4 passed`
+- PASS: local SQL emulate → `sr_basis=170.04`, `edge_cell_id=E12`, `alpha_snapshot` non-empty, `spread_at_entry=1.2`, `mtf_alignment=aligned`
+- PASS: `.venv/bin/python scripts/check.py`
+- PASS: `pyarrow` import。指定の `data/cache/massive/USDJPY_M15.parquet` はこの checkout に無かったため、fixture parquet で `pd.read_parquet()` smoke 済み `(6095, 5)`。
+
+未完了:
+- `python -m pytest tests/ -x -q` は 267 passed 後、`tests/test_edge_cell_e2e_shield_bypass.py::test_e2e_edge_cells_bypass_shield_mode_and_aggregate_kelly` で停止しました。内容は `session_time_bias × EUR_USD` の hour=14 
+…(truncated)
