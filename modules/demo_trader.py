@@ -78,6 +78,149 @@ PRICE_SHOCK_REV_TIER1_PAIRS = frozenset({
 PRICE_SHOCK_REV_MIN_UNITS = 1000
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# MFE-pip-based Break-Even Lock (含み益ロック)
+# ──────────────────────────────────────────────────────────────────────────────
+# 2026-06-03 giveback audit: 7,311 closed shadow trades, avg MFE peak +4.90p,
+# avg final -1.49p → avg giveback **6.39 pips/trade**. 47.5% reached MFE≥+2p,
+# 50.9% of those still closed at LOSS. Existing ATR-based BE (ATR*0.8 = typical
+# 8-15 pip) fires too late for the +2-3 pip MFE class that dominates losers.
+#
+# Counterfactual simulation (max(real_pnl, lock_floor) where MFE ≥ trigger):
+#   trigger +2 / floor +1 → mean PnL -1.49 → +0.06 / sumP -10,896 → +468 /
+#                            WR 23.7% → 48.0% / PF 0.675 → 1.020
+#   trigger +2 / floor +2 → sumP +2,285 / PF 1.095
+#
+# Per-strategy ΔEV (top cells): vix_carry_unwind/USD_JPY/SELL +9.26p,
+# mqe_gbpusd_fix/GBP_USD/SELL +3.11p, sr_anti_hunt_bounce/EUR_JPY/BUY +2.32p.
+# donchian_momentum_breakout: ΔEV=0 (already exits well → keep trigger high).
+#
+# A/B framework: SHADOW_BE_LOCK_AB_FRACTION (default 0.5) splits trades 50/50
+# via deterministic hash(trade_id). Group 'A' = baseline (no MFE BE-lock),
+# 'B' = MFE BE-lock active. Group is tagged into trade.reasons as
+# __BE_LOCK_GROUP__:{A|B} when the SL loop first touches the trade.
+#
+# Rule classification: R3 (算数破綻). Existing closes give back 6.4 pips/trade
+# on average — this is structural, not statistical, so 365d BT skipped per
+# CLAUDE.md Rule 3. Validation = 30-day live A/B in shadow stream.
+# Audit: knowledge-base/wiki/analyses/mfe-be-lock-design-2026-06-03.md
+# ══════════════════════════════════════════════════════════════════════════════
+
+MFE_BE_LOCK_DEFAULT_TRIGGER_PIPS = 2.0
+MFE_BE_LOCK_DEFAULT_FLOOR_PIPS = 1.0
+
+# Per-strategy trigger override.
+# 0.0 disables BE-lock for this strategy (e.g. donchian — already exits well).
+# Larger value = wait for bigger MFE before locking (preserves trend runs).
+MFE_BE_LOCK_STRATEGY_TRIGGERS = {
+    # Tight (+2): default — applies to all unless overridden below
+    # Wider (+3): high-EV trends/contrarians where +2 lock would clip winners
+    "vix_carry_unwind": 3.0,
+    "mqe_gbpusd_fix": 3.0,
+    "dt_bb_rsi_mr": 3.0,
+    "sr_anti_hunt_bounce": 3.0,
+    "orb_trap": 3.0,
+    "wick_imbalance_reversion": 3.0,
+    # OFF: strategies whose simulation showed ΔEV≈0 (already optimal exits)
+    "donchian_momentum_breakout": 0.0,
+}
+
+
+def _mfe_be_lock_trigger_for(entry_type: str, default_trigger: float) -> float:
+    """Return MFE BE-lock trigger (in pips) for the given entry_type.
+
+    Returns 0.0 to disable. Returns default_trigger when no override exists.
+    """
+    if not entry_type:
+        return default_trigger
+    if entry_type in MFE_BE_LOCK_STRATEGY_TRIGGERS:
+        return MFE_BE_LOCK_STRATEGY_TRIGGERS[entry_type]
+    return default_trigger
+
+
+def _mfe_be_lock_group(trade_id: str, ab_fraction: float) -> str:
+    """Deterministic A/B group assignment based on trade_id.
+
+    ab_fraction = fraction of trades assigned to group 'B' (BE-lock active).
+    0.0 → all 'A' (baseline), 1.0 → all 'B', 0.5 → 50/50 split.
+
+    Uses stable hash of trade_id so the same trade is always in the same group
+    across restarts. Hash is locale-independent (uses zlib.crc32).
+    """
+    if ab_fraction <= 0:
+        return "A"
+    if ab_fraction >= 1:
+        return "B"
+    import zlib as _zlib
+    h = _zlib.crc32((trade_id or "").encode("utf-8")) & 0xFFFFFFFF
+    return "B" if (h % 1000) < int(ab_fraction * 1000) else "A"
+
+
+def _compute_mfe_be_lock_sl(
+    direction: str,
+    entry_price: float,
+    current_sl: float,
+    mfe_favorable_price: float,
+    instrument: str,
+    spread_amt: float,
+    trigger_pips: float,
+    floor_pips: float,
+) -> tuple[float | None, bool]:
+    """Compute the new SL if MFE-pip BE-lock should fire.
+
+    Returns (new_sl, fired):
+      - new_sl: the proposed SL (rounded), or None if no change
+      - fired: True iff MFE has crossed trigger AND new SL is tighter than current
+
+    The function is pure (no DB/OANDA side effects), so it can be unit-tested.
+
+    Args:
+        direction: 'BUY' or 'SELL'
+        entry_price: entry fill price (raw price units)
+        current_sl: current stop-loss price
+        mfe_favorable_price: the peak favorable price (max_high for BUY,
+            min_low for SELL) tracked by the MAFE tracker
+        instrument: e.g. 'EUR_USD', 'USD_JPY' (determines pip size + decimals)
+        spread_amt: ask-bid amount in raw price units (added to lock floor to
+            ensure the locked exit clears the round-trip spread)
+        trigger_pips: MFE threshold in pips to fire the lock
+        floor_pips: distance from entry where SL is locked (positive = profit)
+
+    Returns:
+        (new_sl, fired) tuple. new_sl is None when no change needed.
+    """
+    if trigger_pips <= 0:
+        return (None, False)
+    is_jpy_or_xau = ("JPY" in instrument) or ("XAU" in instrument)
+    pip_size = 0.01 if is_jpy_or_xau else 0.0001
+    pip_decimals = 3 if is_jpy_or_xau else 5
+
+    # Convert MFE (peak favorable price) to pips. Round to 1 decimal to match
+    # the precision used elsewhere in the codebase (mafe_favorable_pips column)
+    # and to avoid FP epsilon misses at exact trigger threshold.
+    if direction == "BUY":
+        mfe_pips = round((mfe_favorable_price - entry_price) / pip_size, 1)
+    elif direction == "SELL":
+        mfe_pips = round((entry_price - mfe_favorable_price) / pip_size, 1)
+    else:
+        return (None, False)
+
+    if mfe_pips < trigger_pips:
+        return (None, False)
+
+    # Lock SL at entry ± (spread + floor pips). Spread cushion ensures the
+    # round-trip cost is covered before profit is "locked in".
+    lock_offset = spread_amt + (floor_pips * pip_size)
+    if direction == "BUY":
+        new_sl = round(entry_price + lock_offset, pip_decimals)
+        fired = new_sl > current_sl
+    else:
+        new_sl = round(entry_price - lock_offset, pip_decimals)
+        fired = new_sl < current_sl
+
+    return (new_sl, fired)
+
+
 def _resolve_shadow_audit_block_reason(is_shadow: bool, reason: str) -> str:
     if not is_shadow:
         return ""
@@ -1808,6 +1951,8 @@ class DemoTrader:
                         self._entry_adx.pop(trade_id, None)
                     self._pyramided_trades.discard(trade_id)
                     self._dd_phase_at_entry.pop(trade_id, None)
+                    if hasattr(self, "_be_lock_fired"):
+                        self._be_lock_fired.pop(trade_id, None)
                     self._exposure_mgr.remove_position(trade_id)
                     if _mt_oa and _ep_oa:
                         if _dir_oa == "BUY":
@@ -2037,6 +2182,75 @@ class DemoTrader:
 
             _is_jpy_or_xau_be = "JPY" in _inst or "XAU" in _inst
             _pip_val_be = 0.01 if _is_jpy_or_xau_be else 0.0001
+
+            # ══════════════════════════════════════════════════════════════
+            # ── v9.x: MFE-pip Break-Even Lock (含み益ロック) ──
+            # See module-level audit comment (2026-06-03 giveback audit).
+            # Fires before the ATR-based BE so the +2 pip class of MFE that
+            # ATR*0.8 misses gets locked in. Existing BE/trail guarded by
+            # `if new_sl > sl: sl = new_sl` so this composes cleanly.
+            # ══════════════════════════════════════════════════════════════
+            _be_lock_enable = _os.environ.get("SHADOW_BE_LOCK_ENABLE", "0") == "1"
+            if _be_lock_enable:
+                try:
+                    _be_ab_frac = float(_os.environ.get("SHADOW_BE_LOCK_AB_FRACTION", "0.5"))
+                except (TypeError, ValueError):
+                    _be_ab_frac = 0.5
+                _be_group = _mfe_be_lock_group(trade_id, _be_ab_frac)
+                if _be_group == "B":
+                    try:
+                        _be_trig_default = float(_os.environ.get(
+                            "SHADOW_BE_LOCK_TRIGGER_PIPS",
+                            str(MFE_BE_LOCK_DEFAULT_TRIGGER_PIPS),
+                        ))
+                    except (TypeError, ValueError):
+                        _be_trig_default = MFE_BE_LOCK_DEFAULT_TRIGGER_PIPS
+                    try:
+                        _be_floor_pips = float(_os.environ.get(
+                            "SHADOW_BE_LOCK_FLOOR_PIPS",
+                            str(MFE_BE_LOCK_DEFAULT_FLOOR_PIPS),
+                        ))
+                    except (TypeError, ValueError):
+                        _be_floor_pips = MFE_BE_LOCK_DEFAULT_FLOOR_PIPS
+                    _be_trig = _mfe_be_lock_trigger_for(_entry_type_t, _be_trig_default)
+                    if _be_trig > 0:
+                        with self._tracker_lock:
+                            _mt_be = self._mafe_tracker.get(trade_id)
+                        if _mt_be:
+                            _mfe_price = (_mt_be["max_high"] if direction == "BUY"
+                                          else _mt_be["min_low"])
+                            _new_sl, _be_fired = _compute_mfe_be_lock_sl(
+                                direction=direction,
+                                entry_price=entry_price,
+                                current_sl=sl,
+                                mfe_favorable_price=_mfe_price,
+                                instrument=_inst,
+                                spread_amt=_spread_amt,
+                                trigger_pips=_be_trig,
+                                floor_pips=_be_floor_pips,
+                            )
+                            if _be_fired and _new_sl is not None:
+                                sl = _new_sl
+                                # Telemetry: first-fire log per trade
+                                if not hasattr(self, "_be_lock_fired"):
+                                    self._be_lock_fired = {}
+                                if trade_id not in self._be_lock_fired:
+                                    _mfe_pip_now = (
+                                        (_mfe_price - entry_price) / _pip_val_be
+                                        if direction == "BUY"
+                                        else (entry_price - _mfe_price) / _pip_val_be
+                                    )
+                                    self._be_lock_fired[trade_id] = {
+                                        "mfe_pips_at_fire": round(_mfe_pip_now, 2),
+                                        "new_sl": _new_sl,
+                                        "trigger": _be_trig,
+                                        "floor": _be_floor_pips,
+                                    }
+                                    self._add_log(
+                                        f"🔒 [BE_LOCK_B] {_entry_type_t}×{_inst} "
+                                        f"MFE={_mfe_pip_now:.1f}p≥trig{_be_trig:.1f} → "
+                                        f"SL→entry+{_be_floor_pips:.1f}p (id={trade_id[:8]})"
+                                    )
 
             if favorable_move > 0 and tp_dist > 0:
                 # ── 共通建値ガード: ATR*0.8 到達で SL→建値 ──
@@ -2462,6 +2676,9 @@ class DemoTrader:
                     self._entry_adx.pop(trade_id, None)
                 self._pyramided_trades.discard(trade_id)
                 self._dd_phase_at_entry.pop(trade_id, None)
+                # MFE BE-lock telemetry cleanup
+                if hasattr(self, "_be_lock_fired"):
+                    self._be_lock_fired.pop(trade_id, None)
                 if _mt:
                     if direction == "BUY":
                         _mafe_adverse = round((entry_price - _mt["min_low"]) * _pip_m_exit, 1)
