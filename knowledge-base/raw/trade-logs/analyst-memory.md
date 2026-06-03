@@ -1586,6 +1586,16 @@ EUR_USDはATR%ile=26%（RANGINGの低ボラ帯）+ SMA20 Slope=-0.00142（微下
 | WR | 25.0%（期待最低水準を大幅下回る） |
 | EV | -1.38（摩擦込みで明確なマイナス） |
 
+### 2026-06-03 (Pre-Tokyo Briefing)
+定量分析（N/WR/EV更新、OANDA転送率、block_counts）は実施不可能。
+> **PnL / トレード数 / WR: データ取得不可（API全エンドポイント失敗）**
+ライブN/WR/EVは取得不可のため、**KBに格納されたBTベースライン**を参照。
+| 戦略 | ペア | BT EV | BT WR | ライブN | ライブEV | ステータス |
+| 戦略 | ペア | BT EV | BT WR | 昇格判断基準 | 備考 |
+| dt-bb-rsi-mr | USD/JPY | -0.023 | 54.2% | 降格検討圏 | EV≈0 |
+> ⚠️ **N/WR/EV（ライブCutoff後）は本日取得不可。上記はBT参照値であり実績ではない。**
+- STATUS / TRADES / OANDA の3エンドポイントが同時に取得不可
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
