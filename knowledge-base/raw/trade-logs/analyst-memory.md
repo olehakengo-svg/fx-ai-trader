@@ -1566,6 +1566,16 @@ EUR_USDはATR%ile=26%（RANGINGの低ボラ帯）+ SMA20 Slope=-0.00142（微下
 - RANGING相場（GBP_USD ATR%ile=38%）ではwick playは方向感なく刈られやすい
 - **今日の対処**：RANGING継続中は同戦略の新規エントリーに慎重姿勢
 
+### 2026-06-03 (Pre-Tokyo Briefing)
+前日（2026-06-02）は **16トレード、WR 31.2%、PnL -12.0** と明確なマイナスセッション。bb_rsi_reversion/USD_CHFの連敗（8件中6敗）がドローダウンの主因。sr_anti_hunt_bounce/EUR_JPYの+25.7が損失を一部相殺したが焼け石に水。全体的に方向性のないRANGINGレジーム下でのトレンドフォロー系戦略の失敗が顕著。
+| Strategy | Pair | N | WR% | EV | PnL | 評価 |
+**重要注記**: 全戦略N<30。現時点では**全戦略「傾向把握」段階**であり、昇格基準（N≥30 & EV≥1.0）を満たす戦略はゼロ。降格基準（N≥30 & EV<-0.5）も形式上は未到達だが、bb_rsi_reversionの軌道は警戒に値する。
+前日8件のうちWIN=2、LOSS=5、BREAKEVEN=1
+### 課題②：session_time_bias/EUR_USD のBT乖離（WR_BT=87.5% → WR_Live=55.6%、ΔWR=▲31.9pp）🔴
+前日は4件中WIN=1（WR=25%）と更に低下。SIGNAL_REVERSEによるEXITが3件で、シグナルそのものが不安定。BT期間（ウォークフォワード）のレジームと現在のRANGINGレジームが乖離している可能性が高い。
+**今日の対処**: N=9という段階では判断できないが、WR乖離は拡大傾向。N=15通過時点で再評価が必要。
+1件目BUY → LOSS(-18.4) → 2件目BUY → WIN(+25.7) と同日同方向で結果が真逆。EUR_JPYはRANGINGながらATRパーセンタイル36%と相対的に高め。大振れ戦略のため1勝1敗でもPnLはプラスになる構造。N=2では評価不能。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
