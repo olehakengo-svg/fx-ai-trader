@@ -1,13 +1,13 @@
 # Phase 1b OANDA Retail-Contrarian Sentiment BT
 
 ## Header
-- Run timestamp UTC: 2026-06-02T21:35:20.068977+00:00
+- Run timestamp UTC: 2026-06-03T21:35:16.025776+00:00
 - Pair set (14): EUR_USD, USD_JPY, GBP_USD, AUD_USD, USD_CAD, USD_CHF, NZD_USD, EUR_JPY, GBP_JPY, AUD_JPY, EUR_AUD, EUR_GBP, EUR_CHF, GBP_CHF
 - Cell grid: 14 pairs x 12 thresholds x 4 holdings = 672
 - m_used (N >= 20): 48
 - alpha_cell: 0.00007440
-- Sentiment source: `history:data/sentiment/oanda_labs_h4_history.parquet` (rows used: 9758)
-- Window: last 116 days from now
+- Sentiment source: `history:data/sentiment/oanda_labs_h4_history.parquet` (rows used: 9842)
+- Window: last 117 days from now
 
 ## Top-Level Verdict
 **NULL**
