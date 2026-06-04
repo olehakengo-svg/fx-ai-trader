@@ -1626,6 +1626,16 @@ EUR_USDはATR%ile=26%（RANGINGの低ボラ帯）+ SMA20 Slope=-0.00142（微下
 - `session_time_bias / EUR_USD`: **N=13 → あと17件**で降格判定閾値到達
 | 方向 | 勝利時PnL | 敗北時PnL |
 
+### 2026-06-04 (Post-London Report)
+| 勝率 (WR) | 20.0% |
+| 合計PnL | **−25.4 pips** |
+| 平均EV/トレード | −5.07 pips |
+| 戦略 | ペア | PnL | 成功要因 |
+> **実質的な「成功」は存在しない。** 唯一の勝ちトレードもEV寄与は+0.7 pipsに過ぎず、方向性バイアス（全SELL）の中で偶然生き残った1件。
+| 戦略 | ペア | PnL | 失敗要因 |
+| WR | — | 20.0% | 低 |
+| PnL | ~+1.0（本日累計6件でN=6, WR=33.3%, −24.4pipsから逆算） | −25.4 | 大幅悪化 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
