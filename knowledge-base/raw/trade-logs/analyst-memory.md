@@ -1616,6 +1616,16 @@ EUR_USDはATR%ile=26%（RANGINGの低ボラ帯）+ SMA20 Slope=-0.00142（微下
 ### 課題①：`session_time_bias` の構造的負EV
 - **前日EV = -3.39（EUR_USD）、-3.35（GBP_USD）**。勝ち時の平均 +1.56pip に対し、負け時の平均 -6.76pip。RR比は 1:4.3 の逆転状態
 
+### 2026-06-04 (Pre-Tokyo Briefing)
+| PnL合計 | **-33.8** |
+| 全体WR | **40.0%** |
+前日（2026-06-03）は `session_time_bias` が EUR_USD × 8件・GBP_USD × 2件を独占。10件中4件勝利（WR 40%）で大幅なマイナス。**リスクリワード比の非対称性（損失6-9 pip vs 利益1-3 pip）**が直接的な損失原因。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **全体**: N=28、WR=39.3%、PnL=-44.1
+- **N=30達成戦略**: なし（最大N=13、不足17件）
+- `session_time_bias / EUR_USD`: **N=13 → あと17件**で降格判定閾値到達
+| 方向 | 勝利時PnL | 敗北時PnL |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
