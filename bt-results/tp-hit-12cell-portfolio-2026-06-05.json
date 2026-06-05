@@ -1,0 +1,1213 @@
+{
+  "cell_stats": [
+    {
+      "avg_loss_pips": 5.1,
+      "avg_win_pips": 9.03,
+      "bonferroni_survives": false,
+      "bootstrap_ev_95ci": {
+        "high": 4.863158,
+        "low": 0.005263
+      },
+      "cell": "dt_bb_rsi_mr|EUR_USD|SELL",
+      "cohorts": {
+        "before_2026_05_16": {
+          "ev": -3.425,
+          "n": 4,
+          "wins": 0,
+          "wr": 0.0
+        },
+        "from_2026_05_16": {
+          "ev": 3.164706,
+          "n": 34,
+          "wins": 20,
+          "wr": 0.588235
+        }
+      },
+      "direction": "SELL",
+      "entry_type": "dt_bb_rsi_mr",
+      "ev_pips": 2.471053,
+      "h1_gate": {
+        "checks": {
+          "ev_ge_0": true,
+          "n_ge_30": true,
+          "wilson_lo_ge_0_40": false
+        },
+        "pass": false
+      },
+      "instrument": "EUR_USD",
+      "kelly_fraction": 0.258787,
+      "n": 38,
+      "profit_factor": 2.083045,
+      "rr": 1.770588,
+      "tp_wins": 17,
+      "walk_forward": {
+        "fold_count": 3,
+        "folds": [
+          {
+            "ev": 4.058333,
+            "fold": 1,
+            "n": 12,
+            "positive_ev": true
+          },
+          {
+            "ev": 0.046154,
+            "fold": 2,
+            "n": 13,
+            "positive_ev": true
+          },
+          {
+            "ev": 3.430769,
+            "fold": 3,
+            "n": 13,
+            "positive_ev": true
+          }
+        ],
+        "positive_ev_folds": 3,
+        "sign_consistent": true,
+        "sign_test_p": 0.125
+      },
+      "wilson_95_lower": 0.372587,
+      "wilson_bonferroni_lower_m116": 0.272169,
+      "wins": 20,
+      "wr": 0.526316
+    },
+    {
+      "avg_loss_pips": 5.315385,
+      "avg_win_pips": 9.227273,
+      "bonferroni_survives": false,
+      "bootstrap_ev_95ci": {
+        "high": 4.804167,
+        "low": -1.991667
+      },
+      "cell": "dt_sr_channel_reversal|USD_JPY|BUY",
+      "cohorts": {
+        "before_2026_05_16": {
+          "ev": -0.025,
+          "n": 16,
+          "wins": 6,
+          "wr": 0.375
+        },
+        "from_2026_05_16": {
+          "ev": 4.1,
+          "n": 8,
+          "wins": 5,
+          "wr": 0.625
+        }
+      },
+      "direction": "BUY",
+      "entry_type": "dt_sr_channel_reversal",
+      "ev_pips": 1.35,
+      "h1_gate": {
+        "checks": {
+          "ev_ge_0": true,
+          "n_ge_30": false,
+          "wilson_lo_ge_0_40": false
+        },
+        "pass": false
+      },
+      "instrument": "USD_JPY",
+      "kelly_fraction": 0.146305,
+      "n": 24,
+      "profit_factor": 1.468886,
+      "rr": 1.735956,
+      "tp_wins": 8,
+      "walk_forward": {
+        "fold_count": 3,
+        "folds": [
+          {
+            "ev": -1.8375,
+            "fold": 1,
+            "n": 8,
+            "positive_ev": false
+          },
+          {
+            "ev": 1.7875,
+            "fold": 2,
+            "n": 8,
+            "positive_ev": true
+          },
+          {
+            "ev": 4.1,
+            "fold": 3,
+            "n": 8,
+            "positive_ev": true
+          }
+        ],
+        "positive_ev_folds": 2,
+        "sign_consistent": false,
+        "sign_test_p": 0.5
+      },
+      "wilson_95_lower": 0.278911,
+      "wilson_bonferroni_lower_m116": 0.181433,
+      "wins": 11,
+      "wr": 0.458333
+    },
+    {
+      "avg_loss_pips": 6.55,
+      "avg_win_pips": 8.581818,
+      "bonferroni_survives": false,
+      "bootstrap_ev_95ci": {
+        "high": 4.878947,
+        "low": -0.463158
+      },
+      "cell": "dt_bb_rsi_mr|GBP_USD|SELL",
+      "cohorts": {
+        "before_2026_05_16": {
+          "ev": -3.83,
+          "n": 10,
+          "wins": 2,
+          "wr": 0.2
+        },
+        "from_2026_05_16": {
+          "ev": 4.367857,
+          "n": 28,
+          "wins": 20,
+          "wr": 0.714286
+        }
+      },
+      "direction": "SELL",
+      "entry_type": "dt_bb_rsi_mr",
+      "ev_pips": 2.210526,
+      "h1_gate": {
+        "checks": {
+          "ev_ge_0": true,
+          "n_ge_30": true,
+          "wilson_lo_ge_0_40": true
+        },
+        "pass": true
+      },
+      "instrument": "GBP_USD",
+      "kelly_fraction": 0.257583,
+      "n": 38,
+      "profit_factor": 1.801527,
+      "rr": 1.310201,
+      "tp_wins": 16,
+      "walk_forward": {
+        "fold_count": 3,
+        "folds": [
+          {
+            "ev": -1.975,
+            "fold": 1,
+            "n": 12,
+            "positive_ev": false
+          },
+          {
+            "ev": 7.807692,
+            "fold": 2,
+            "n": 13,
+            "positive_ev": true
+          },
+          {
+            "ev": 0.476923,
+            "fold": 3,
+            "n": 13,
+            "positive_ev": true
+          }
+        ],
+        "positive_ev_folds": 2,
+        "sign_consistent": false,
+        "sign_test_p": 0.5
+      },
+      "wilson_95_lower": 0.421921,
+      "wilson_bonferroni_lower_m116": 0.313941,
+      "wins": 22,
+      "wr": 0.578947
+    },
+    {
+      "avg_loss_pips": 3.85,
+      "avg_win_pips": 11.045161,
+      "bonferroni_survives": false,
+      "bootstrap_ev_95ci": {
+        "high": 5.842188,
+        "low": 1.096875
+      },
+      "cell": "wick_imbalance_reversion|EUR_USD|BUY",
+      "cohorts": {
+        "before_2026_05_16": {
+          "ev": -6.025,
+          "n": 8,
+          "wins": 1,
+          "wr": 0.125
+        },
+        "from_2026_05_16": {
+          "ev": 4.775,
+          "n": 56,
+          "wins": 30,
+          "wr": 0.535714
+        }
+      },
+      "direction": "BUY",
+      "entry_type": "wick_imbalance_reversion",
+      "ev_pips": 3.425,
+      "h1_gate": {
+        "checks": {
+          "ev_ge_0": true,
+          "n_ge_30": true,
+          "wilson_lo_ge_0_40": false
+        },
+        "pass": false
+      },
+      "instrument": "EUR_USD",
+      "kelly_fraction": 0.304644,
+      "n": 64,
+      "profit_factor": 2.779221,
+      "rr": 2.868873,
+      "tp_wins": 19,
+      "walk_forward": {
+        "fold_count": 3,
+        "folds": [
+          {
+            "ev": -1.809524,
+            "fold": 1,
+            "n": 21,
+            "positive_ev": false
+          },
+          {
+            "ev": 0.004762,
+            "fold": 2,
+            "n": 21,
+            "positive_ev": true
+          },
+          {
+            "ev": 11.686364,
+            "fold": 3,
+            "n": 22,
+            "positive_ev": true
+          }
+        ],
+        "positive_ev_folds": 2,
+        "sign_consistent": false,
+        "sign_test_p": 0.5
+      },
+      "wilson_95_lower": 0.366333,
+      "wilson_bonferroni_lower_m116": 0.285622,
+      "wins": 31,
+      "wr": 0.484375
+    },
+    {
+      "avg_loss_pips": 5.4,
+      "avg_win_pips": 10.882759,
+      "bonferroni_survives": false,
+      "bootstrap_ev_95ci": {
+        "high": 2.919481,
+        "low": -1.428571
+      },
+      "cell": "sr_fib_confluence|EUR_USD|BUY",
+      "cohorts": {
+        "before_2026_05_16": {
+          "ev": -1.178,
+          "n": 50,
+          "wins": 14,
+          "wr": 0.28
+        },
+        "from_2026_05_16": {
+          "ev": 4.27037,
+          "n": 27,
+          "wins": 15,
+          "wr": 0.555556
+        }
+      },
+      "direction": "BUY",
+      "entry_type": "sr_fib_confluence",
+      "ev_pips": 0.732468,
+      "h1_gate": {
+        "checks": {
+          "ev_ge_0": true,
+          "n_ge_30": true,
+          "wilson_lo_ge_0_40": false
+        },
+        "pass": false
+      },
+      "instrument": "EUR_USD",
+      "kelly_fraction": 0.067305,
+      "n": 77,
+      "profit_factor": 1.217593,
+      "rr": 2.015326,
+      "tp_wins": 20,
+      "walk_forward": {
+        "fold_count": 3,
+        "folds": [
+          {
+            "ev": -1.308,
+            "fold": 1,
+            "n": 25,
+            "positive_ev": false
+          },
+          {
+            "ev": -1.061538,
+            "fold": 2,
+            "n": 26,
+            "positive_ev": false
+          },
+          {
+            "ev": 4.488462,
+            "fold": 3,
+            "n": 26,
+            "positive_ev": true
+          }
+        ],
+        "positive_ev_folds": 1,
+        "sign_consistent": false,
+        "sign_test_p": 0.875
+      },
+      "wilson_95_lower": 0.276698,
+      "wilson_bonferroni_lower_m116": 0.21252,
+      "wins": 29,
+      "wr": 0.376623
+    },
+    {
+      "avg_loss_pips": 3.46,
+      "avg_win_pips": 13.038889,
+      "bonferroni_survives": true,
+      "bootstrap_ev_95ci": {
+        "high": 13.343478,
+        "low": 5.356522
+      },
+      "cell": "orb_trap|GBP_USD|SELL",
+      "cohorts": {
+        "before_2026_05_16": {
+          "ev": 6.678571,
+          "n": 14,
+          "wins": 9,
+          "wr": 0.642857
+        },
+        "from_2026_05_16": {
+          "ev": 13.766667,
+          "n": 9,
+          "wins": 9,
+          "wr": 1.0
+        }
+      },
+      "direction": "SELL",
+      "entry_type": "orb_trap",
+      "ev_pips": 9.452174,
+      "h1_gate": {
+        "checks": {
+          "ev_ge_0": true,
+          "n_ge_30": false,
+          "wilson_lo_ge_0_40": true
+        },
+        "pass": false
+      },
+      "instrument": "GBP_USD",
+      "kelly_fraction": 0.724922,
+      "n": 23,
+      "profit_factor": 13.566474,
+      "rr": 3.768465,
+      "tp_wins": 14,
+      "walk_forward": {
+        "fold_count": 3,
+        "folds": [
+          {
+            "ev": 7.771429,
+            "fold": 1,
+            "n": 7,
+            "positive_ev": true
+          },
+          {
+            "ev": 8.0125,
+            "fold": 2,
+            "n": 8,
+            "positive_ev": true
+          },
+          {
+            "ev": 12.3625,
+            "fold": 3,
+            "n": 8,
+            "positive_ev": true
+          }
+        ],
+        "positive_ev_folds": 3,
+        "sign_consistent": true,
+        "sign_test_p": 0.125
+      },
+      "wilson_95_lower": 0.580961,
+      "wilson_bonferroni_lower_m116": 0.420314,
+      "wins": 18,
+      "wr": 0.782609
+    },
+    {
+      "avg_loss_pips": 5.102857,
+      "avg_win_pips": 12.430769,
+      "bonferroni_survives": false,
+      "bootstrap_ev_95ci": {
+        "high": 5.02459,
+        "low": -0.231148
+      },
+      "cell": "wick_imbalance_reversion|GBP_USD|BUY",
+      "cohorts": {
+        "before_2026_05_16": {
+          "ev": 3.658333,
+          "n": 12,
+          "wins": 5,
+          "wr": 0.416667
+        },
+        "from_2026_05_16": {
+          "ev": 2.055102,
+          "n": 49,
+          "wins": 21,
+          "wr": 0.428571
+        }
+      },
+      "direction": "BUY",
+      "entry_type": "wick_imbalance_reversion",
+      "ev_pips": 2.370492,
+      "h1_gate": {
+        "checks": {
+          "ev_ge_0": true,
+          "n_ge_30": true,
+          "wilson_lo_ge_0_40": false
+        },
+        "pass": false
+      },
+      "instrument": "GBP_USD",
+      "kelly_fraction": 0.190696,
+      "n": 61,
+      "profit_factor": 1.80963,
+      "rr": 2.436041,
+      "tp_wins": 16,
+      "walk_forward": {
+        "fold_count": 3,
+        "folds": [
+          {
+            "ev": 5.335,
+            "fold": 1,
+            "n": 20,
+            "positive_ev": true
+          },
+          {
+            "ev": -0.955,
+            "fold": 2,
+            "n": 20,
+            "positive_ev": false
+          },
+          {
+            "ev": 2.714286,
+            "fold": 3,
+            "n": 21,
+            "positive_ev": true
+          }
+        ],
+        "positive_ev_folds": 2,
+        "sign_consistent": false,
+        "sign_test_p": 0.5
+      },
+      "wilson_95_lower": 0.31015,
+      "wilson_bonferroni_lower_m116": 0.235107,
+      "wins": 26,
+      "wr": 0.42623
+    },
+    {
+      "avg_loss_pips": 6.368182,
+      "avg_win_pips": 14.583333,
+      "bonferroni_survives": false,
+      "bootstrap_ev_95ci": {
+        "high": 4.908824,
+        "low": -2.729412
+      },
+      "cell": "trendline_sweep|EUR_USD|SELL",
+      "cohorts": {
+        "before_2026_05_16": {
+          "ev": -0.233333,
+          "n": 9,
+          "wins": 2,
+          "wr": 0.222222
+        },
+        "from_2026_05_16": {
+          "ev": 1.48,
+          "n": 25,
+          "wins": 10,
+          "wr": 0.4
+        }
+      },
+      "direction": "SELL",
+      "entry_type": "trendline_sweep",
+      "ev_pips": 1.026471,
+      "h1_gate": {
+        "checks": {
+          "ev_ge_0": true,
+          "n_ge_30": true,
+          "wilson_lo_ge_0_40": false
+        },
+        "pass": false
+      },
+      "instrument": "EUR_USD",
+      "kelly_fraction": 0.070387,
+      "n": 34,
+      "profit_factor": 1.249108,
+      "rr": 2.290031,
+      "tp_wins": 10,
+      "walk_forward": {
+        "fold_count": 3,
+        "folds": [
+          {
+            "ev": 2.772727,
+            "fold": 1,
+            "n": 11,
+            "positive_ev": true
+          },
+          {
+            "ev": -3.445455,
+            "fold": 2,
+            "n": 11,
+            "positive_ev": false
+          },
+          {
+            "ev": 3.525,
+            "fold": 3,
+            "n": 12,
+            "positive_ev": true
+          }
+        ],
+        "positive_ev_folds": 2,
+        "sign_consistent": false,
+        "sign_test_p": 0.5
+      },
+      "wilson_95_lower": 0.214877,
+      "wilson_bonferroni_lower_m116": 0.142141,
+      "wins": 12,
+      "wr": 0.352941
+    },
+    {
+      "avg_loss_pips": 7.406667,
+      "avg_win_pips": 9.116667,
+      "bonferroni_survives": false,
+      "bootstrap_ev_95ci": {
+        "high": 5.1,
+        "low": -4.355556
+      },
+      "cell": "dual_sr_bounce|EUR_JPY|SELL",
+      "cohorts": {
+        "before_2026_05_16": {
+          "ev": -7.177778,
+          "n": 9,
+          "wins": 0,
+          "wr": 0.0
+        },
+        "from_2026_05_16": {
+          "ev": 3.494444,
+          "n": 18,
+          "wins": 12,
+          "wr": 0.666667
+        }
+      },
+      "direction": "SELL",
+      "entry_type": "dual_sr_bounce",
+      "ev_pips": -0.062963,
+      "h1_gate": {
+        "checks": {
+          "ev_ge_0": false,
+          "n_ge_30": false,
+          "wilson_lo_ge_0_40": false
+        },
+        "pass": false
+      },
+      "instrument": "EUR_JPY",
+      "kelly_fraction": -0.006906,
+      "n": 27,
+      "profit_factor": 0.984698,
+      "rr": 1.230873,
+      "tp_wins": 2,
+      "walk_forward": {
+        "fold_count": 3,
+        "folds": [
+          {
+            "ev": -7.177778,
+            "fold": 1,
+            "n": 9,
+            "positive_ev": false
+          },
+          {
+            "ev": 7.522222,
+            "fold": 2,
+            "n": 9,
+            "positive_ev": true
+          },
+          {
+            "ev": -0.533333,
+            "fold": 3,
+            "n": 9,
+            "positive_ev": false
+          }
+        ],
+        "positive_ev_folds": 1,
+        "sign_consistent": false,
+        "sign_test_p": 0.875
+      },
+      "wilson_95_lower": 0.275856,
+      "wilson_bonferroni_lower_m116": 0.182683,
+      "wins": 12,
+      "wr": 0.444444
+    },
+    {
+      "avg_loss_pips": 9.2,
+      "avg_win_pips": 23.493333,
+      "bonferroni_survives": false,
+      "bootstrap_ev_95ci": {
+        "high": 20.87619,
+        "low": 6.752381
+      },
+      "cell": "sr_anti_hunt_bounce|EUR_JPY|BUY",
+      "cohorts": {
+        "before_2026_05_16": {
+          "ev": -8.54,
+          "n": 5,
+          "wins": 1,
+          "wr": 0.2
+        },
+        "from_2026_05_16": {
+          "ev": 21.24375,
+          "n": 16,
+          "wins": 14,
+          "wr": 0.875
+        }
+      },
+      "direction": "BUY",
+      "entry_type": "sr_anti_hunt_bounce",
+      "ev_pips": 14.152381,
+      "h1_gate": {
+        "checks": {
+          "ev_ge_0": true,
+          "n_ge_30": false,
+          "wilson_lo_ge_0_40": true
+        },
+        "pass": false
+      },
+      "instrument": "EUR_JPY",
+      "kelly_fraction": 0.6024,
+      "n": 21,
+      "profit_factor": 6.384058,
+      "rr": 2.553623,
+      "tp_wins": 0,
+      "walk_forward": {
+        "fold_count": 3,
+        "folds": [
+          {
+            "ev": -0.171429,
+            "fold": 1,
+            "n": 7,
+            "positive_ev": false
+          },
+          {
+            "ev": 13.157143,
+            "fold": 2,
+            "n": 7,
+            "positive_ev": true
+          },
+          {
+            "ev": 29.471429,
+            "fold": 3,
+            "n": 7,
+            "positive_ev": true
+          }
+        ],
+        "positive_ev_folds": 2,
+        "sign_consistent": false,
+        "sign_test_p": 0.5
+      },
+      "wilson_95_lower": 0.500432,
+      "wilson_bonferroni_lower_m116": 0.348321,
+      "wins": 15,
+      "wr": 0.714286
+    },
+    {
+      "avg_loss_pips": 8.994118,
+      "avg_win_pips": 20.727273,
+      "bonferroni_survives": false,
+      "bootstrap_ev_95ci": {
+        "high": 9.735714,
+        "low": -3.617857
+      },
+      "cell": "dt_sr_channel_reversal|EUR_JPY|BUY",
+      "cohorts": {
+        "before_2026_05_16": {
+          "ev": 1.81,
+          "n": 20,
+          "wins": 6,
+          "wr": 0.3
+        },
+        "from_2026_05_16": {
+          "ev": 4.8625,
+          "n": 8,
+          "wins": 5,
+          "wr": 0.625
+        }
+      },
+      "direction": "BUY",
+      "entry_type": "dt_sr_channel_reversal",
+      "ev_pips": 2.682143,
+      "h1_gate": {
+        "checks": {
+          "ev_ge_0": true,
+          "n_ge_30": false,
+          "wilson_lo_ge_0_40": false
+        },
+        "pass": false
+      },
+      "instrument": "EUR_JPY",
+      "kelly_fraction": 0.129402,
+      "n": 28,
+      "profit_factor": 1.491171,
+      "rr": 2.304537,
+      "tp_wins": 6,
+      "walk_forward": {
+        "fold_count": 3,
+        "folds": [
+          {
+            "ev": -6.911111,
+            "fold": 1,
+            "n": 9,
+            "positive_ev": false
+          },
+          {
+            "ev": 7.8,
+            "fold": 2,
+            "n": 9,
+            "positive_ev": true
+          },
+          {
+            "ev": 6.71,
+            "fold": 3,
+            "n": 10,
+            "positive_ev": true
+          }
+        ],
+        "positive_ev_folds": 2,
+        "sign_consistent": false,
+        "sign_test_p": 0.5
+      },
+      "wilson_95_lower": 0.235655,
+      "wilson_bonferroni_lower_m116": 0.153236,
+      "wins": 11,
+      "wr": 0.392857
+    },
+    {
+      "avg_loss_pips": 22.47619,
+      "avg_win_pips": 32.942857,
+      "bonferroni_survives": false,
+      "bootstrap_ev_95ci": {
+        "high": 9.385714,
+        "low": -9.682857
+      },
+      "cell": "rsk_gbpjpy_reversion|GBP_JPY|BUY",
+      "cohorts": {
+        "before_2026_05_16": {
+          "ev": -0.184,
+          "n": 25,
+          "wins": 10,
+          "wr": 0.4
+        },
+        "from_2026_05_16": {
+          "ev": -0.62,
+          "n": 10,
+          "wins": 4,
+          "wr": 0.4
+        }
+      },
+      "direction": "BUY",
+      "entry_type": "rsk_gbpjpy_reversion",
+      "ev_pips": -0.308571,
+      "h1_gate": {
+        "checks": {
+          "ev_ge_0": false,
+          "n_ge_30": true,
+          "wilson_lo_ge_0_40": false
+        },
+        "pass": false
+      },
+      "instrument": "GBP_JPY",
+      "kelly_fraction": -0.009367,
+      "n": 35,
+      "profit_factor": 0.977119,
+      "rr": 1.465678,
+      "tp_wins": 14,
+      "walk_forward": {
+        "fold_count": 3,
+        "folds": [
+          {
+            "ev": -24.790909,
+            "fold": 1,
+            "n": 11,
+            "positive_ev": false
+          },
+          {
+            "ev": 18.083333,
+            "fold": 2,
+            "n": 12,
+            "positive_ev": true
+          },
+          {
+            "ev": 3.741667,
+            "fold": 3,
+            "n": 12,
+            "positive_ev": true
+          }
+        ],
+        "positive_ev_folds": 2,
+        "sign_consistent": false,
+        "sign_test_p": 0.5
+      },
+      "wilson_95_lower": 0.255505,
+      "wilson_bonferroni_lower_m116": 0.174287,
+      "wins": 14,
+      "wr": 0.4
+    }
+  ],
+  "frozen_cells": [
+    "dt_bb_rsi_mr|EUR_USD|SELL",
+    "dt_sr_channel_reversal|USD_JPY|BUY",
+    "dt_bb_rsi_mr|GBP_USD|SELL",
+    "wick_imbalance_reversion|EUR_USD|BUY",
+    "sr_fib_confluence|EUR_USD|BUY",
+    "orb_trap|GBP_USD|SELL",
+    "wick_imbalance_reversion|GBP_USD|BUY",
+    "trendline_sweep|EUR_USD|SELL",
+    "dual_sr_bounce|EUR_JPY|SELL",
+    "sr_anti_hunt_bounce|EUR_JPY|BUY",
+    "dt_sr_channel_reversal|EUR_JPY|BUY",
+    "rsk_gbpjpy_reversion|GBP_JPY|BUY"
+  ],
+  "generated_at": "2026-06-05T04:41:23Z",
+  "portfolio": {
+    "calmar": 38.202788,
+    "cells": 12,
+    "daily_correlation": {
+      "dt_bb_rsi_mr|EUR_USD|SELL": {
+        "dt_bb_rsi_mr|EUR_USD|SELL": 1.0,
+        "dt_bb_rsi_mr|GBP_USD|SELL": 0.422666,
+        "dt_sr_channel_reversal|EUR_JPY|BUY": -0.04551,
+        "dt_sr_channel_reversal|USD_JPY|BUY": 0.008687,
+        "dual_sr_bounce|EUR_JPY|SELL": 0.321902,
+        "orb_trap|GBP_USD|SELL": 0.121865,
+        "rsk_gbpjpy_reversion|GBP_JPY|BUY": 0.017016,
+        "sr_anti_hunt_bounce|EUR_JPY|BUY": -0.116376,
+        "sr_fib_confluence|EUR_USD|BUY": -0.18727,
+        "trendline_sweep|EUR_USD|SELL": -0.25255,
+        "wick_imbalance_reversion|EUR_USD|BUY": 0.267637,
+        "wick_imbalance_reversion|GBP_USD|BUY": -0.004506
+      },
+      "dt_bb_rsi_mr|GBP_USD|SELL": {
+        "dt_bb_rsi_mr|EUR_USD|SELL": 0.422666,
+        "dt_bb_rsi_mr|GBP_USD|SELL": 1.0,
+        "dt_sr_channel_reversal|EUR_JPY|BUY": -0.038432,
+        "dt_sr_channel_reversal|USD_JPY|BUY": -0.084409,
+        "dual_sr_bounce|EUR_JPY|SELL": -0.026143,
+        "orb_trap|GBP_USD|SELL": 0.476498,
+        "rsk_gbpjpy_reversion|GBP_JPY|BUY": 0.038305,
+        "sr_anti_hunt_bounce|EUR_JPY|BUY": 0.014074,
+        "sr_fib_confluence|EUR_USD|BUY": -0.011949,
+        "trendline_sweep|EUR_USD|SELL": -0.167541,
+        "wick_imbalance_reversion|EUR_USD|BUY": -0.124823,
+        "wick_imbalance_reversion|GBP_USD|BUY": -0.101155
+      },
+      "dt_sr_channel_reversal|EUR_JPY|BUY": {
+        "dt_bb_rsi_mr|EUR_USD|SELL": -0.04551,
+        "dt_bb_rsi_mr|GBP_USD|SELL": -0.038432,
+        "dt_sr_channel_reversal|EUR_JPY|BUY": 1.0,
+        "dt_sr_channel_reversal|USD_JPY|BUY": 0.056673,
+        "dual_sr_bounce|EUR_JPY|SELL": 0.013291,
+        "orb_trap|GBP_USD|SELL": -0.091549,
+        "rsk_gbpjpy_reversion|GBP_JPY|BUY": -0.644531,
+        "sr_anti_hunt_bounce|EUR_JPY|BUY": -0.172404,
+        "sr_fib_confluence|EUR_USD|BUY": 0.411915,
+        "trendline_sweep|EUR_USD|SELL": -0.086895,
+        "wick_imbalance_reversion|EUR_USD|BUY": 0.012517,
+        "wick_imbalance_reversion|GBP_USD|BUY": -0.014199
+      },
+      "dt_sr_channel_reversal|USD_JPY|BUY": {
+        "dt_bb_rsi_mr|EUR_USD|SELL": 0.008687,
+        "dt_bb_rsi_mr|GBP_USD|SELL": -0.084409,
+        "dt_sr_channel_reversal|EUR_JPY|BUY": 0.056673,
+        "dt_sr_channel_reversal|USD_JPY|BUY": 1.0,
+        "dual_sr_bounce|EUR_JPY|SELL": 0.324702,
+        "orb_trap|GBP_USD|SELL": -0.183194,
+        "rsk_gbpjpy_reversion|GBP_JPY|BUY": -0.167869,
+        "sr_anti_hunt_bounce|EUR_JPY|BUY": -0.051678,
+        "sr_fib_confluence|EUR_USD|BUY": -0.109654,
+        "trendline_sweep|EUR_USD|SELL": 0.388208,
+        "wick_imbalance_reversion|EUR_USD|BUY": -0.022772,
+        "wick_imbalance_reversion|GBP_USD|BUY": -0.070551
+      },
+      "dual_sr_bounce|EUR_JPY|SELL": {
+        "dt_bb_rsi_mr|EUR_USD|SELL": 0.321902,
+        "dt_bb_rsi_mr|GBP_USD|SELL": -0.026143,
+        "dt_sr_channel_reversal|EUR_JPY|BUY": 0.013291,
+        "dt_sr_channel_reversal|USD_JPY|BUY": 0.324702,
+        "dual_sr_bounce|EUR_JPY|SELL": 1.0,
+        "orb_trap|GBP_USD|SELL": -0.102518,
+        "rsk_gbpjpy_reversion|GBP_JPY|BUY": -0.054073,
+        "sr_anti_hunt_bounce|EUR_JPY|BUY": 0.00686,
+        "sr_fib_confluence|EUR_USD|BUY": 0.073371,
+        "trendline_sweep|EUR_USD|SELL": -0.093528,
+        "wick_imbalance_reversion|EUR_USD|BUY": 0.022764,
+        "wick_imbalance_reversion|GBP_USD|BUY": -0.025714
+      },
+      "orb_trap|GBP_USD|SELL": {
+        "dt_bb_rsi_mr|EUR_USD|SELL": 0.121865,
+        "dt_bb_rsi_mr|GBP_USD|SELL": 0.476498,
+        "dt_sr_channel_reversal|EUR_JPY|BUY": -0.091549,
+        "dt_sr_channel_reversal|USD_JPY|BUY": -0.183194,
+        "dual_sr_bounce|EUR_JPY|SELL": -0.102518,
+        "orb_trap|GBP_USD|SELL": 1.0,
+        "rsk_gbpjpy_reversion|GBP_JPY|BUY": 0.024861,
+        "sr_anti_hunt_bounce|EUR_JPY|BUY": -0.04376,
+        "sr_fib_confluence|EUR_USD|BUY": -0.061912,
+        "trendline_sweep|EUR_USD|SELL": 0.067133,
+        "wick_imbalance_reversion|EUR_USD|BUY": -0.012736,
+        "wick_imbalance_reversion|GBP_USD|BUY": -0.110979
+      },
+      "rsk_gbpjpy_reversion|GBP_JPY|BUY": {
+        "dt_bb_rsi_mr|EUR_USD|SELL": 0.017016,
+        "dt_bb_rsi_mr|GBP_USD|SELL": 0.038305,
+        "dt_sr_channel_reversal|EUR_JPY|BUY": -0.644531,
+        "dt_sr_channel_reversal|USD_JPY|BUY": -0.167869,
+        "dual_sr_bounce|EUR_JPY|SELL": -0.054073,
+        "orb_trap|GBP_USD|SELL": 0.024861,
+        "rsk_gbpjpy_reversion|GBP_JPY|BUY": 1.0,
+        "sr_anti_hunt_bounce|EUR_JPY|BUY": 0.142518,
+        "sr_fib_confluence|EUR_USD|BUY": -0.234677,
+        "trendline_sweep|EUR_USD|SELL": -0.025366,
+        "wick_imbalance_reversion|EUR_USD|BUY": -0.025149,
+        "wick_imbalance_reversion|GBP_USD|BUY": 0.006399
+      },
+      "sr_anti_hunt_bounce|EUR_JPY|BUY": {
+        "dt_bb_rsi_mr|EUR_USD|SELL": -0.116376,
+        "dt_bb_rsi_mr|GBP_USD|SELL": 0.014074,
+        "dt_sr_channel_reversal|EUR_JPY|BUY": -0.172404,
+        "dt_sr_channel_reversal|USD_JPY|BUY": -0.051678,
+        "dual_sr_bounce|EUR_JPY|SELL": 0.00686,
+        "orb_trap|GBP_USD|SELL": -0.04376,
+        "rsk_gbpjpy_reversion|GBP_JPY|BUY": 0.142518,
+        "sr_anti_hunt_bounce|EUR_JPY|BUY": 1.0,
+        "sr_fib_confluence|EUR_USD|BUY": -0.067912,
+        "trendline_sweep|EUR_USD|SELL": -0.054557,
+        "wick_imbalance_reversion|EUR_USD|BUY": -0.068071,
+        "wick_imbalance_reversion|GBP_USD|BUY": -0.034364
+      },
+      "sr_fib_confluence|EUR_USD|BUY": {
+        "dt_bb_rsi_mr|EUR_USD|SELL": -0.18727,
+        "dt_bb_rsi_mr|GBP_USD|SELL": -0.011949,
+        "dt_sr_channel_reversal|EUR_JPY|BUY": 0.411915,
+        "dt_sr_channel_reversal|USD_JPY|BUY": -0.109654,
+        "dual_sr_bounce|EUR_JPY|SELL": 0.073371,
+        "orb_trap|GBP_USD|SELL": -0.061912,
+        "rsk_gbpjpy_reversion|GBP_JPY|BUY": -0.234677,
+        "sr_anti_hunt_bounce|EUR_JPY|BUY": -0.067912,
+        "sr_fib_confluence|EUR_USD|BUY": 1.0,
+        "trendline_sweep|EUR_USD|SELL": -0.013548,
+        "wick_imbalance_reversion|EUR_USD|BUY": -0.020399,
+        "wick_imbalance_reversion|GBP_USD|BUY": -0.116515
+      },
+      "trendline_sweep|EUR_USD|SELL": {
+        "dt_bb_rsi_mr|EUR_USD|SELL": -0.25255,
+        "dt_bb_rsi_mr|GBP_USD|SELL": -0.167541,
+        "dt_sr_channel_reversal|EUR_JPY|BUY": -0.086895,
+        "dt_sr_channel_reversal|USD_JPY|BUY": 0.388208,
+        "dual_sr_bounce|EUR_JPY|SELL": -0.093528,
+        "orb_trap|GBP_USD|SELL": 0.067133,
+        "rsk_gbpjpy_reversion|GBP_JPY|BUY": -0.025366,
+        "sr_anti_hunt_bounce|EUR_JPY|BUY": -0.054557,
+        "sr_fib_confluence|EUR_USD|BUY": -0.013548,
+        "trendline_sweep|EUR_USD|SELL": 1.0,
+        "wick_imbalance_reversion|EUR_USD|BUY": -0.212629,
+        "wick_imbalance_reversion|GBP_USD|BUY": -0.170552
+      },
+      "wick_imbalance_reversion|EUR_USD|BUY": {
+        "dt_bb_rsi_mr|EUR_USD|SELL": 0.267637,
+        "dt_bb_rsi_mr|GBP_USD|SELL": -0.124823,
+        "dt_sr_channel_reversal|EUR_JPY|BUY": 0.012517,
+        "dt_sr_channel_reversal|USD_JPY|BUY": -0.022772,
+        "dual_sr_bounce|EUR_JPY|SELL": 0.022764,
+        "orb_trap|GBP_USD|SELL": -0.012736,
+        "rsk_gbpjpy_reversion|GBP_JPY|BUY": -0.025149,
+        "sr_anti_hunt_bounce|EUR_JPY|BUY": -0.068071,
+        "sr_fib_confluence|EUR_USD|BUY": -0.020399,
+        "trendline_sweep|EUR_USD|SELL": -0.212629,
+        "wick_imbalance_reversion|EUR_USD|BUY": 1.0,
+        "wick_imbalance_reversion|GBP_USD|BUY": 0.584889
+      },
+      "wick_imbalance_reversion|GBP_USD|BUY": {
+        "dt_bb_rsi_mr|EUR_USD|SELL": -0.004506,
+        "dt_bb_rsi_mr|GBP_USD|SELL": -0.101155,
+        "dt_sr_channel_reversal|EUR_JPY|BUY": -0.014199,
+        "dt_sr_channel_reversal|USD_JPY|BUY": -0.070551,
+        "dual_sr_bounce|EUR_JPY|SELL": -0.025714,
+        "orb_trap|GBP_USD|SELL": -0.110979,
+        "rsk_gbpjpy_reversion|GBP_JPY|BUY": 0.006399,
+        "sr_anti_hunt_bounce|EUR_JPY|BUY": -0.034364,
+        "sr_fib_confluence|EUR_USD|BUY": -0.116515,
+        "trendline_sweep|EUR_USD|SELL": -0.170552,
+        "wick_imbalance_reversion|EUR_USD|BUY": 0.584889,
+        "wick_imbalance_reversion|GBP_USD|BUY": 1.0
+      }
+    },
+    "daily_pnl": {
+      "2026-04-03": -0.177197,
+      "2026-04-07": -0.011432,
+      "2026-04-09": -0.030496,
+      "2026-04-14": -4.948549,
+      "2026-04-15": 0.465654,
+      "2026-04-16": -0.012991,
+      "2026-04-17": 0.271666,
+      "2026-04-20": -0.052233,
+      "2026-04-21": -0.823108,
+      "2026-04-22": -4.535826,
+      "2026-04-23": -4.073886,
+      "2026-04-24": 1.943565,
+      "2026-04-27": 1.063603,
+      "2026-04-28": 0.269425,
+      "2026-04-29": -1.05328,
+      "2026-04-30": 2.542476,
+      "2026-05-01": 4.629156,
+      "2026-05-04": -2.171028,
+      "2026-05-05": -0.602002,
+      "2026-05-06": -0.377258,
+      "2026-05-07": -4.861486,
+      "2026-05-08": -0.168881,
+      "2026-05-11": -0.015998,
+      "2026-05-12": 5.46116,
+      "2026-05-13": -6.664715,
+      "2026-05-14": 1.897229,
+      "2026-05-15": 5.624795,
+      "2026-05-18": 4.747519,
+      "2026-05-19": 13.916325,
+      "2026-05-20": 12.667245,
+      "2026-05-21": 8.529726,
+      "2026-05-22": 7.594742,
+      "2026-05-25": 1.445002,
+      "2026-05-26": 7.815444,
+      "2026-05-27": 6.386887,
+      "2026-05-28": 5.205752,
+      "2026-05-29": 13.830993,
+      "2026-06-01": 1.523918,
+      "2026-06-02": 0.386236,
+      "2026-06-03": 7.865682,
+      "2026-06-04": 1.101299
+    },
+    "days": 41,
+    "dd20_sizing_monthly_return_expectancy": {
+      "bonferroni_conservative_0_5_pips": 22.179363,
+      "raw_pips": 44.358726
+    },
+    "max_drawdown_pips": 13.933661,
+    "monthly_sharpe": 2.472281,
+    "status": "OK",
+    "weights": {
+      "dt_bb_rsi_mr|EUR_USD|SELL": 0.13150808,
+      "dt_bb_rsi_mr|GBP_USD|SELL": 0.09141857,
+      "dt_sr_channel_reversal|EUR_JPY|BUY": 0.08701885,
+      "dt_sr_channel_reversal|USD_JPY|BUY": 0.15709433,
+      "dual_sr_bounce|EUR_JPY|SELL": 0.12990843,
+      "orb_trap|GBP_USD|SELL": 0.08755285,
+      "rsk_gbpjpy_reversion|GBP_JPY|BUY": 0.02554049,
+      "sr_anti_hunt_bounce|EUR_JPY|BUY": 0.03934353,
+      "sr_fib_confluence|EUR_USD|BUY": 0.05716031,
+      "trendline_sweep|EUR_USD|SELL": 0.08439778,
+      "wick_imbalance_reversion|EUR_USD|BUY": 0.03730899,
+      "wick_imbalance_reversion|GBP_USD|BUY": 0.07174779
+    }
+  },
+  "promotion_recommended_cells": [],
+  "rejected_cells": [
+    {
+      "cell": "dt_bb_rsi_mr|EUR_USD|SELL",
+      "reasons": [
+        "Wilson95 lower <0.40",
+        "Bonferroni Wilson lower <0.40"
+      ]
+    },
+    {
+      "cell": "dt_sr_channel_reversal|USD_JPY|BUY",
+      "reasons": [
+        "N<30",
+        "Wilson95 lower <0.40",
+        "WF 3-fold sign not all positive",
+        "Bonferroni Wilson lower <0.40"
+      ]
+    },
+    {
+      "cell": "dt_bb_rsi_mr|GBP_USD|SELL",
+      "reasons": [
+        "WF 3-fold sign not all positive",
+        "Bonferroni Wilson lower <0.40"
+      ]
+    },
+    {
+      "cell": "wick_imbalance_reversion|EUR_USD|BUY",
+      "reasons": [
+        "Wilson95 lower <0.40",
+        "WF 3-fold sign not all positive",
+        "Bonferroni Wilson lower <0.40"
+      ]
+    },
+    {
+      "cell": "sr_fib_confluence|EUR_USD|BUY",
+      "reasons": [
+        "Wilson95 lower <0.40",
+        "WF 3-fold sign not all positive",
+        "Bonferroni Wilson lower <0.40"
+      ]
+    },
+    {
+      "cell": "orb_trap|GBP_USD|SELL",
+      "reasons": [
+        "N<30"
+      ]
+    },
+    {
+      "cell": "wick_imbalance_reversion|GBP_USD|BUY",
+      "reasons": [
+        "Wilson95 lower <0.40",
+        "WF 3-fold sign not all positive",
+        "Bonferroni Wilson lower <0.40"
+      ]
+    },
+    {
+      "cell": "trendline_sweep|EUR_USD|SELL",
+      "reasons": [
+        "Wilson95 lower <0.40",
+        "WF 3-fold sign not all positive",
+        "Bonferroni Wilson lower <0.40"
+      ]
+    },
+    {
+      "cell": "dual_sr_bounce|EUR_JPY|SELL",
+      "reasons": [
+        "N<30",
+        "Wilson95 lower <0.40",
+        "EV<0",
+        "WF 3-fold sign not all positive",
+        "Bonferroni Wilson lower <0.40"
+      ]
+    },
+    {
+      "cell": "sr_anti_hunt_bounce|EUR_JPY|BUY",
+      "reasons": [
+        "N<30",
+        "WF 3-fold sign not all positive",
+        "Bonferroni Wilson lower <0.40"
+      ]
+    },
+    {
+      "cell": "dt_sr_channel_reversal|EUR_JPY|BUY",
+      "reasons": [
+        "N<30",
+        "Wilson95 lower <0.40",
+        "WF 3-fold sign not all positive",
+        "Bonferroni Wilson lower <0.40"
+      ]
+    },
+    {
+      "cell": "rsk_gbpjpy_reversion|GBP_JPY|BUY",
+      "reasons": [
+        "Wilson95 lower <0.40",
+        "EV<0",
+        "WF 3-fold sign not all positive",
+        "Bonferroni Wilson lower <0.40"
+      ]
+    }
+  ],
+  "source": "Render Production demo_trades.db shadow CLOSED rows",
+  "task_id": "20260605-tp-hit-12cell-portfolio-validation",
+  "tp_definition": "close_reason='TP_HIT' OR (close_reason='OANDA_SL_TP' AND outcome='WIN')"
+}
