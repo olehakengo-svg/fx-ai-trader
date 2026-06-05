@@ -1676,6 +1676,16 @@ session_time_bias EUR_USDのΔWRは54.2pp。これはバックテストで想定
 - USD_JPYのATR%ile=16%は特に低水準で、ロンドンフィックス前後でも方向性が出なかった
 - レジーム面の変化：東京→ロンドンで**改善なし**——全5ペアがRANGINGを継続
 
+### 2026-06-05 (Pre-Tokyo Briefing)
+| PnL合計 | **-24.4 pips** |
+| 全体WR | **33.3%** (2/6) |
+前日は全6件中4件がSL_HIT。唯一の戦略内正収益はvsg_jpy_reversal (+1.0pip)のみ。session_time_biasがPnLの大半を毀損した。
+| Strategy | Pair | N | WR% | EV | 判定 |
+| session_time_bias | EUR_USD | 3 | 33.3% | -4.07 | ⚠️ N不足・EV負 |
+> Cutoff後合計: N=8, WR=25.0%, PnL=-43.7pips
+| WR (EUR_USD) | **87.5%** | **33.3%** |
+| ΔWR | | **▼54.2pp 🔴** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
