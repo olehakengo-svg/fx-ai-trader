@@ -59,6 +59,58 @@ def _df(*, closed_bull: bool = True, current_bull: bool = True) -> pd.DataFrame:
     )
 
 
+def _v3_df(*, up_impulse: bool = True, adx: float = 25.0) -> pd.DataFrame:
+    n = 120
+    idx = pd.date_range(end="2026-06-03 12:15", periods=n, freq="15min", tz="UTC")
+    open_ = np.full(n, 1.1050)
+    high = np.full(n, 1.1060)
+    low = np.full(n, 1.1040)
+    close = np.full(n, 1.1050)
+    if up_impulse:
+        low[20] = 1.1000
+        high[100] = 1.1100
+        close[-1] = 1.10618
+    else:
+        high[20] = 1.1100
+        low[100] = 1.1000
+        close[-1] = 1.10382
+    open_[-1] = close[-1] - 0.0001
+    high[-1] = max(high[-1], close[-1] + 0.0002)
+    low[-1] = min(low[-1], close[-1] - 0.0002)
+
+    return pd.DataFrame(
+        {
+            "Open": open_,
+            "High": high,
+            "Low": low,
+            "Close": close,
+            "Volume": np.full(n, 1000.0),
+            "atr": np.full(n, 0.0010),
+            "atr7": np.full(n, 0.0010),
+            "ema9": np.full(n, 1.1000),
+            "ema21": np.full(n, 1.1010),
+            "ema50": np.full(n, 1.1000),
+            "ema200": np.full(n, 1.1000),
+            "adx": np.full(n, adx),
+            "adx_pos": np.full(n, 26.0),
+            "adx_neg": np.full(n, 18.0),
+            "rsi": np.full(n, 50.0),
+            "rsi5": np.full(n, 50.0),
+            "rsi9": np.full(n, 50.0),
+            "stoch_k": np.full(n, 50.0),
+            "stoch_d": np.full(n, 50.0),
+            "macd": np.zeros(n),
+            "macd_sig": np.zeros(n),
+            "macd_hist": np.zeros(n),
+            "bb_upper": np.full(n, 1.1100),
+            "bb_mid": np.full(n, 1.1050),
+            "bb_lower": np.full(n, 1.1000),
+            "bb_pband": np.full(n, 0.50),
+        },
+        index=idx,
+    )
+
+
 def _ctx(
     df: pd.DataFrame,
     *,
@@ -195,3 +247,50 @@ def test_v2_shadow_worker_registration_is_double_flagged(monkeypatch):
 
     monkeypatch.setenv("SR_FIB_CONFLUENCE_REDESIGN_V2_SHADOW_PROMOTE", "1")
     assert engine.split_shadow_always([best, sr_fib, ob], best) == [sr_fib, ob]
+
+
+def test_v3_takes_precedence_over_v2_and_uses_impulse_not_ema(monkeypatch):
+    monkeypatch.setenv("SR_FIB_CONFLUENCE_REDESIGN_V2", "1")
+    monkeypatch.setenv("SR_FIB_CONFLUENCE_REDESIGN_V3", "1")
+    SrFibConfluence.reset_dedup_state()
+    strategy = SrFibConfluence()
+    ctx = _ctx(_v3_df(up_impulse=True), layer3={}, ema_score=-10.0)
+
+    cand = strategy.evaluate(ctx)
+    duplicate = strategy.evaluate(ctx)
+
+    assert cand is not None
+    assert cand.signal == "BUY"
+    assert cand.entry_type == "sr_fib_confluence"
+    assert any("fib_classical_v3" in reason for reason in cand.reasons)
+    assert duplicate is None
+
+
+def test_v3_down_impulse_sells(monkeypatch):
+    monkeypatch.setenv("SR_FIB_CONFLUENCE_REDESIGN_V3", "1")
+    SrFibConfluence.reset_dedup_state()
+    ctx = _ctx(_v3_df(up_impulse=False), layer3={}, ema_score=10.0)
+
+    cand = SrFibConfluence().evaluate(ctx)
+
+    assert cand is not None
+    assert cand.signal == "SELL"
+
+
+def test_v3_rejects_adx_above_chop_band(monkeypatch):
+    monkeypatch.setenv("SR_FIB_CONFLUENCE_REDESIGN_V3", "1")
+    SrFibConfluence.reset_dedup_state()
+    ctx = _ctx(_v3_df(up_impulse=True, adx=31.0), layer3={})
+
+    assert SrFibConfluence().evaluate(ctx) is None
+
+
+def test_reset_dedup_state_clears_v2_and_v3(monkeypatch):
+    monkeypatch.setenv("SR_FIB_CONFLUENCE_REDESIGN_V3", "1")
+    SrFibConfluence._v2_seen_signal_keys.add(("v2",))
+    SrFibConfluence._v3_seen_signal_keys.add(("v3",))
+
+    SrFibConfluence.reset_dedup_state()
+
+    assert SrFibConfluence._v2_seen_signal_keys == set()
+    assert SrFibConfluence._v3_seen_signal_keys == set()

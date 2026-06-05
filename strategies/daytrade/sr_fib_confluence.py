@@ -17,15 +17,22 @@ class SrFibConfluence(StrategyBase):
     structured_proximity_atr = 0.35
 
     _v2_seen_signal_keys: set = set()
+    _v3_seen_signal_keys: set = set()
 
     @classmethod
     def reset_dedup_state(cls):
         cls._v2_seen_signal_keys.clear()
+        cls._v3_seen_signal_keys.clear()
 
     def _redesign_v2_enabled(self) -> bool:
         return os.environ.get("SR_FIB_CONFLUENCE_REDESIGN_V2") == "1"
 
+    def _redesign_v3_enabled(self) -> bool:
+        return os.environ.get("SR_FIB_CONFLUENCE_REDESIGN_V3") == "1"
+
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
+        if self._redesign_v3_enabled():
+            return self._evaluate_redesign_v3(ctx)
         if self._redesign_v2_enabled():
             return self._evaluate_redesign_v2(ctx)
         return self._evaluate_legacy(ctx)
@@ -251,3 +258,110 @@ class SrFibConfluence(StrategyBase):
                              if confluence["entry_type"] == "sr_fib_confluence"
                              else None
                          ))
+
+    def _evaluate_redesign_v3(self, ctx: SignalContext) -> Optional[Candidate]:
+        signal_df = ctx.df
+        if signal_df is None or len(signal_df) < 100:
+            return None
+        if not ctx.backtest_mode:
+            signal_df = signal_df.iloc[:-1]
+            if len(signal_df) < 100:
+                return None
+
+        swing_lb = 100
+        window = signal_df.tail(swing_lb)
+        signal_row = signal_df.iloc[-1]
+        signal_bar_time = getattr(signal_row, "name", None)
+        signal_entry = float(signal_row.get("Close", ctx.entry))
+        signal_atr = float(signal_row.get("atr", ctx.atr))
+        signal_atr7 = float(signal_row.get("atr7", signal_atr))
+        signal_adx = float(signal_row.get("adx", ctx.adx))
+
+        if signal_atr <= 0 or not (20.0 <= signal_adx <= 30.0):
+            return None
+
+        swing_high = float(window["High"].max())
+        swing_low = float(window["Low"].min())
+        swing_range = swing_high - swing_low
+        if swing_range <= 2.0 * signal_atr:
+            return None
+
+        highs = window["High"].to_numpy()
+        lows = window["Low"].to_numpy()
+        high_age = None
+        low_age = None
+        last_pos = len(window) - 1
+        for pos in range(last_pos, -1, -1):
+            if high_age is None and float(highs[pos]) >= swing_high:
+                high_age = last_pos - pos
+            if low_age is None and float(lows[pos]) <= swing_low:
+                low_age = last_pos - pos
+            if high_age is not None and low_age is not None:
+                break
+        if high_age is None or low_age is None or high_age == low_age:
+            return None
+
+        fib_levels = [
+            swing_high - swing_range * 0.382,
+            swing_high - swing_range * 0.618,
+        ]
+        best_lv = min(fib_levels, key=lambda lv: abs(signal_entry - lv))
+        best_dist = abs(signal_entry - best_lv)
+        if best_dist > 0.35 * signal_atr:
+            return None
+
+        if high_age < low_age:
+            signal = "BUY"
+            tp = signal_entry + signal_atr7 * 2.0
+            sl = signal_entry - signal_atr7 * 1.0
+        else:
+            signal = "SELL"
+            tp = signal_entry - signal_atr7 * 2.0
+            sl = signal_entry + signal_atr7 * 1.0
+
+        dedup_key = (
+            ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", ""),
+            self.name,
+            signal,
+            str(signal_bar_time),
+            "fib_classical_v3",
+        )
+        if dedup_key in self._v3_seen_signal_keys:
+            return None
+
+        score = 3.0
+        reasons = [
+            "✅ fib_classical_v3 impulse-aware Fib 38.2/61.8 confluence",
+            f"✅ impulse={'up' if signal == 'BUY' else 'down'} high_age={high_age} low_age={low_age}",
+            f"✅ ADX chop band {signal_adx:.1f} in [20, 30]",
+            f"✅ Fib level={best_lv:.5f} distance={best_dist / max(signal_atr, 1e-8):.2f}ATR",
+            f"✅ closed_signal_bar={signal_bar_time}",
+        ]
+
+        pip = 0.01 if "JPY" in ctx.symbol.upper() else 0.0001
+        tp = shift_tp_inside(tp, signal, pip=pip, shift_pips=3.0)
+        if is_near_round(signal_entry, pip=pip, threshold_pips=3.0):
+            score += 0.3
+            reasons.append("✅ Round number 近傍コンフルエンス")
+            if signal == "BUY":
+                sl -= 0.3 * signal_atr7
+            else:
+                sl += 0.3 * signal_atr7
+
+        self._v3_seen_signal_keys.add(dedup_key)
+        conf = int(min(80, 45 + score * 4))
+        return Candidate(
+            signal=signal,
+            confidence=conf,
+            sl=sl,
+            tp=tp,
+            reasons=reasons,
+            entry_type="sr_fib_confluence",
+            score=score,
+            sr_meta=Candidate.sr_meta_from_price(
+                (ctx.layer3 or {}).get("sr_weighted_levels", []),
+                best_lv,
+                signal_entry,
+                signal_atr,
+            ),
+        )
