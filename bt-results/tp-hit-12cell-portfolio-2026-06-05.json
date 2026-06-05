@@ -1,4 +1,72 @@
 {
+  "bt_sanity": {
+    "all_required_pair_tf_available": false,
+    "files": {
+      "EUR_JPY_15m": {
+        "bytes": 6540183,
+        "path": "data/cache/massive/EUR_JPY_15m.parquet"
+      },
+      "EUR_JPY_1h": {
+        "bytes": 1121270,
+        "path": "data/cache/massive/EUR_JPY_1h.parquet"
+      },
+      "EUR_USD_15m": {
+        "bytes": 6622904,
+        "path": "data/cache/massive/EUR_USD_15m.parquet"
+      },
+      "EUR_USD_1h": {
+        "bytes": 891898,
+        "path": "data/cache/massive/EUR_USD_1h.parquet"
+      },
+      "GBP_JPY_15m": {
+        "bytes": 206641,
+        "path": "data/cache/massive/GBP_JPY_15m.parquet"
+      },
+      "GBP_JPY_1h": {
+        "bytes": 1154546,
+        "path": "data/cache/massive/GBP_JPY_1h.parquet"
+      },
+      "GBP_JPY_5m": {
+        "bytes": 22264204,
+        "path": "data/cache/massive/GBP_JPY_5m.parquet"
+      },
+      "GBP_USD_15m": {
+        "bytes": 7194692,
+        "path": "data/cache/massive/GBP_USD_15m.parquet"
+      },
+      "GBP_USD_1h": {
+        "bytes": 953482,
+        "path": "data/cache/massive/GBP_USD_1h.parquet"
+      },
+      "USD_JPY_1h": {
+        "bytes": 1076338,
+        "path": "data/cache/massive/USD_JPY_1h.parquet"
+      },
+      "USD_JPY_5m": {
+        "bytes": 19794436,
+        "path": "data/cache/massive/USD_JPY_5m.parquet"
+      }
+    },
+    "missing": [
+      "data/cache/massive/EUR_JPY_5m.parquet",
+      "data/cache/massive/EUR_USD_5m.parquet",
+      "data/cache/massive/GBP_USD_5m.parquet",
+      "data/cache/massive/USD_JPY_15m.parquet"
+    ],
+    "required_pairs": [
+      "EUR_JPY",
+      "EUR_USD",
+      "GBP_JPY",
+      "GBP_USD",
+      "USD_JPY"
+    ],
+    "role": "BT sanity data availability only; exact per-strategy BT is substituted by shadow realized daily PnL when no unified frozen-cell runner exists.",
+    "timeframes_checked": [
+      "5m",
+      "15m",
+      "1h"
+    ]
+  },
   "cell_stats": [
     {
       "avg_loss_pips": 5.1,
@@ -1207,6 +1275,7 @@
       ]
     }
   ],
+  "rerun_access_note": "2026-06-05 current container could not re-fetch Production: ssh binary/key unavailable and /api/demo/trades returned HTTP 502; this file preserves the existing same-day Production shadow result generated at 2026-06-05T04:41:23Z.",
   "source": "Render Production demo_trades.db shadow CLOSED rows",
   "task_id": "20260605-tp-hit-12cell-portfolio-validation",
   "tp_definition": "close_reason='TP_HIT' OR (close_reason='OANDA_SL_TP' AND outcome='WIN')"

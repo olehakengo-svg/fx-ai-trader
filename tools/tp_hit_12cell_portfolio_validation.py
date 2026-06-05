@@ -12,9 +12,12 @@ import csv
 import json
 import math
 import random
+import shutil
 import statistics
 import subprocess
 import sys
+import urllib.parse
+import urllib.request
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -37,11 +40,11 @@ FROZEN_CELLS: Tuple[Tuple[str, str, str], ...] = (
 )
 
 DEFAULT_JSON = Path("bt-results/tp-hit-12cell-portfolio-2026-06-05.json")
-DEFAULT_RUN_REPORT = Path(
-    ".ai/runs/20260605-133234-20260605-tp-hit-12cell-portfolio-validation/final.md"
-)
+DEFAULT_RUN_REPORT = Path("final.md")
 COHORT_CUT = "2026-05-16"
 BONFERRONI_Z = 3.52
+PROD_API = "https://fx-ai-trader.onrender.com/api/demo/trades"
+MASSIVE_TFS = ("5m", "15m", "1h")
 
 
 def cell_id(entry_type: str, instrument: str, direction: str) -> str:
@@ -294,6 +297,8 @@ def load_rows_csv(path: Path) -> List[Dict[str, object]]:
 
 
 def fetch_rows_via_ssh() -> List[Dict[str, object]]:
+    if shutil.which("ssh") is None:
+        raise RuntimeError("ssh binary not found in PATH")
     where_cells = " OR ".join(
         f"(entry_type='{e}' AND instrument='{i}' AND direction='{d}')"
         for e, i, d in FROZEN_CELLS
@@ -328,7 +333,72 @@ ORDER BY exit_time, id;
     return list(csv.DictReader(proc.stdout.splitlines()))
 
 
-def build_result(rows: Sequence[Mapping[str, object]], n_boot: int, seed: int) -> Dict[str, object]:
+def fetch_rows_via_api(limit: int = 10000) -> List[Dict[str, object]]:
+    query = urllib.parse.urlencode({"status": "closed", "limit": int(limit)})
+    url = f"{PROD_API}?{query}"
+    with urllib.request.urlopen(url, timeout=60) as resp:
+        payload = json.loads(resp.read().decode("utf-8"))
+    rows = payload.get("trades", []) if isinstance(payload, dict) else payload
+    frozen = set(FROZEN_CELLS)
+    out = []
+    for row in rows:
+        key = (
+            str(row.get("entry_type")),
+            str(row.get("instrument")),
+            str(row.get("direction")),
+        )
+        if key not in frozen:
+            continue
+        if str(row.get("status", "")).upper() != "CLOSED":
+            continue
+        if str(row.get("instrument")) == "XAU_USD":
+            continue
+        if int(row.get("is_shadow") or 0) != 1:
+            continue
+        out.append(row)
+    return out
+
+
+def fetch_rows_production() -> tuple[List[Dict[str, object]], str]:
+    try:
+        return fetch_rows_via_ssh(), "Render Production demo_trades.db via SSH sqlite"
+    except Exception as ssh_exc:
+        try:
+            rows = fetch_rows_via_api()
+            return rows, f"Render Production /api/demo/trades fallback; SSH unavailable: {ssh_exc}"
+        except Exception as api_exc:
+            raise RuntimeError(f"SSH failed ({ssh_exc}); API fallback failed ({api_exc})") from api_exc
+
+
+def massive_cache_manifest() -> Dict[str, object]:
+    pairs = sorted({instrument for _entry_type, instrument, _direction in FROZEN_CELLS})
+    base = Path("data/cache/massive")
+    files = {}
+    missing = []
+    for pair in pairs:
+        for tf in MASSIVE_TFS:
+            path = base / f"{pair}_{tf}.parquet"
+            key = f"{pair}_{tf}"
+            if path.exists():
+                files[key] = {"path": str(path), "bytes": path.stat().st_size}
+            else:
+                missing.append(str(path))
+    return {
+        "role": "BT sanity data availability only; exact per-strategy BT is substituted by shadow realized daily PnL when no unified frozen-cell runner exists.",
+        "required_pairs": pairs,
+        "timeframes_checked": list(MASSIVE_TFS),
+        "files": files,
+        "missing": missing,
+        "all_required_pair_tf_available": not missing,
+    }
+
+
+def build_result(
+    rows: Sequence[Mapping[str, object]],
+    n_boot: int,
+    seed: int,
+    source: str = "Render Production demo_trades.db shadow CLOSED rows",
+) -> Dict[str, object]:
     grouped: Dict[str, List[Mapping[str, object]]] = {cell_id(*c): [] for c in FROZEN_CELLS}
     daily_by_cell: Dict[str, Dict[str, float]] = {cell_id(*c): defaultdict(float) for c in FROZEN_CELLS}
     for row in rows:
@@ -359,11 +429,12 @@ def build_result(rows: Sequence[Mapping[str, object]], n_boot: int, seed: int) -
     return {
         "task_id": "20260605-tp-hit-12cell-portfolio-validation",
         "generated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
-        "source": "Render Production demo_trades.db shadow CLOSED rows",
+        "source": source,
         "tp_definition": "close_reason='TP_HIT' OR (close_reason='OANDA_SL_TP' AND outcome='WIN')",
         "frozen_cells": [cell_id(*c) for c in FROZEN_CELLS],
         "cell_stats": cell_stats,
         "portfolio": compute_portfolio_stats(daily_by_cell),
+        "bt_sanity": massive_cache_manifest(),
         "promotion_recommended_cells": promote,
         "rejected_cells": rejected,
     }
@@ -390,6 +461,7 @@ def write_markdown(result: Mapping[str, object], path: Path) -> None:
     rows = result.get("cell_stats", [])
     promote = result.get("promotion_recommended_cells", [])
     portfolio = result.get("portfolio", {})
+    bt_sanity = result.get("bt_sanity", {})
     lines = [
         "# TP-HIT 12-cell portfolio validation",
         "",
@@ -397,17 +469,28 @@ def write_markdown(result: Mapping[str, object], path: Path) -> None:
         f"- source: {result.get('source')}",
         f"- generated_at: {result.get('generated_at')}",
         f"- promote_recommended: {', '.join(promote) if promote else 'none'}",
-        "",
-        "## Gate table",
-        "",
-        "| cell | N | WR | PF | Wilson95 lo | Bonf lo | EV | Kelly | WF +folds | H1 | verdict |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
     ]
+    if result.get("rerun_access_note"):
+        lines.append(f"- rerun_access_note: {result.get('rerun_access_note')}")
+    if bt_sanity:
+        lines.append(f"- bt_sanity_role: {bt_sanity.get('role')}")
+        lines.append(f"- massive_all_required_pair_tf_available: {bt_sanity.get('all_required_pair_tf_available')}")
+        if bt_sanity.get("missing"):
+            lines.append(f"- massive_missing: {', '.join(bt_sanity.get('missing', []))}")
+    lines.extend(
+        [
+            "",
+            "## Gate table",
+            "",
+            "| cell | N | WR | PF | Wilson95 lo | Bonf lo | EV | Kelly | WF +folds | H1 | verdict |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
+        ]
+    )
     for s in rows:
         verdict = "PROMOTE" if s["cell"] in promote else "REJECT"
         lines.append(
             "| {cell} | {n} | {wr:.3f} | {pf} | {wlo:.3f} | {bf:.3f} | {ev:.3f} | {kelly:.3f} | {wf}/3 | {h1} | {verdict} |".format(
-                cell=s["cell"],
+                cell=str(s["cell"]).replace("|", r"\|"),
                 n=s["n"],
                 wr=s["wr"],
                 pf=s["profit_factor"],
@@ -439,7 +522,7 @@ def write_markdown(result: Mapping[str, object], path: Path) -> None:
         ]
     )
     for item in result.get("rejected_cells", []):
-        lines.append(f"- {item['cell']}: {', '.join(item['reasons'])}")
+        lines.append(f"- `{item['cell']}`: {', '.join(item['reasons'])}")
     path.write_text("\n".join(lines) + "\n")
 
 
@@ -497,8 +580,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--write-blocked-report", action="store_true")
     args = parser.parse_args(argv)
     try:
-        rows = load_rows_csv(args.input_csv) if args.input_csv else fetch_rows_via_ssh()
-        result = build_result(rows, n_boot=args.n_boot, seed=args.seed)
+        if args.input_csv:
+            rows = load_rows_csv(args.input_csv)
+            source = f"pre-exported Render CSV: {args.input_csv}"
+        else:
+            rows, source = fetch_rows_production()
+        result = build_result(rows, n_boot=args.n_boot, seed=args.seed, source=source)
         args.output_json.parent.mkdir(parents=True, exist_ok=True)
         args.output_json.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
         write_markdown(result, args.run_report)
