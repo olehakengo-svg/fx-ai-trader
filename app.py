@@ -6729,6 +6729,12 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 _DT_PRESERVE_SLTP = _DT_PRESERVE_SLTP | {"rsk_gbpjpy_reversion"}
             if _vsg_v2_geometry:
                 _DT_PRESERVE_SLTP = _DT_PRESERVE_SLTP | {"vsg_jpy_reversal"}
+            # V3: impulse-aware Fib 戦略は明示的に RR 2:1 を返すため、prod path の
+            # MIN_RR=1.2 強制を bypass して strategy SL を保存する。
+            # (TV BT で PF 1.19 取得済、prod RR 強制で 0.64 まで低下していた)
+            if (entry_type == "sr_fib_confluence"
+                    and os.environ.get("SR_FIB_CONFLUENCE_REDESIGN_V3") == "1"):
+                _DT_PRESERVE_SLTP = _DT_PRESERVE_SLTP | {"sr_fib_confluence"}
             tp_dist_dt = abs(tp - ep)
             if entry_type in _DT_PRESERVE_SLTP:
                 # 戦略SL保存: swing H/L ± ATR buffer で精密計算済み
