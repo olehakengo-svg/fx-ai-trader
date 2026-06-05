@@ -96,3 +96,33 @@ memory `BT は MASSIVE 必須`: データソースは `data/cache/massive/*.parq
 - XAU 除外 (memory `feedback_exclude_xau`)
 - mock-only テストで PASS 報告禁止、実 API/実 DB E2E 必須 (memory `Codex mock-only テストの罠`)
 - LIVE/Shadow 分離 (is_shadow=0/1)、混入禁止 (memory `LIVE/Shadow 分離必須`)
+
+
+## Result (2026-06-05T04:48:49Z)
+
+exit=0 · 280s
+
+```
+完了しました。Commit `ca6ecefd` を `origin/main` にpush済みです。
+
+成果物:
+- [bt-results/tp-hit-12cell-portfolio-2026-06-05.json](/data/repo/fx-ai-trader/bt-results/tp-hit-12cell-portfolio-2026-06-05.json)
+- [final.md](/data/repo/fx-ai-trader/final.md)
+- [tools/tp_hit_12cell_portfolio_validation.py](/data/repo/fx-ai-trader/tools/tp_hit_12cell_portfolio_validation.py)
+
+結論:
+- **promote推奨 cell: 0**
+- `orb_trap|GBP_USD|SELL` は WR/PF/WF/Bonferroni は強いですが、**N=23 < 30** でH1 Gate落ち。
+- 合成 shadow実測 portfolio: `maxDD=13.933661 pips`, `Calmar=38.202788`, `monthly_sharpe=2.472281`
+- DD20 sizing月次期待値: raw `44.358726 pips`, Bonferroni保守0.5 `22.179363 pips`
+
+注意点:
+- この環境では現在の再取得がブロックされました。`ssh` バイナリ/鍵なし、`/api/demo/trades` はHTTP 502でした。
+- そのため、同日生成済みのProduction shadow結果JSONを保持し、再取得ブロック注記をJSON/finalに記録しました。
+- MASSIVE parquetカバレッジもJSON/finalに記録しました。一部不足: `EUR_JPY_5m`, `EUR_USD_5m`, `GBP_USD_5m`, `USD_JPY_15m`。
+
+検証:
+- `.venv/bin/python -m pytest tests/test_tp_hit_12cell_portfolio_validation.py` → 3 passed
+- `.venv/bin/python -m py_compile tools/tp_hit_12cell_portfolio_validation.py` → passed
+- git status clean: `main...origin/main`
+```
