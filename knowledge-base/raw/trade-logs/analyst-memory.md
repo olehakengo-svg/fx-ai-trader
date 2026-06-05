@@ -1666,6 +1666,16 @@ session_time_bias EUR_USDのΔWRは54.2pp。これはバックテストで想定
 - session_time_bias の N≥30 到達まで、EVの推移を毎日トラッキング継続
 - BT乖離がΔWR>50ppを維持するようであれば降格検討を本格化
 
+### 2026-06-05 (Post-London Report)
+| 勝率（WR） | **0.0%** |
+| セッション内PnL | **-5.2 pips** |
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+| zz_pivot_v60_sr | EUR_USD | SELL | **-5.2 pips** | SIGNAL_REVERSE（シグナル反転による損切り）、スプレッド0.8pipは許容範囲内だが、EUR_USDのRANGING＋ATR低水準（20日%ile=28%）でPivotベースのブレイクシグナルが偽陽性を生成したと推定 |
+- **本日累計N=1、PnL=-5.2pips**——東京セッションでも成立トレードがゼロであったことを示唆（累計=セッション内と一致）
+- 全通貨ペアが**RANGING（低ATR）**レジームで固定されており、東京・ロンドン両セッションを通じてボラティリティ不足が続いている
+- USD_JPYのATR%ile=16%は特に低水準で、ロンドンフィックス前後でも方向性が出なかった
+- レジーム面の変化：東京→ロンドンで**改善なし**——全5ペアがRANGINGを継続
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
