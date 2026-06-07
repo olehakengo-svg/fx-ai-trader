@@ -140,3 +140,30 @@ Codex BT が TV と ±20% 以内一致なら成功と判定。
 - 先行タスク run dir: `.ai/runs/20260603-163807-20260603-1635-sr-fib-confluence-v3-redesign-bt/`
 - memory: `[feedback_shadow_first_quant_architecture]`, `[feedback_bt_must_use_massive]`,
   `[feedback_codex_stash_leak]`
+
+
+## Result (2026-06-07T06:33:35Z)
+
+exit=0 · 219s
+
+```
+Implemented, ran, committed, and pushed.
+
+Commit: `14491b79 data(bt): sr_fib_confluence V3 USD_JPY check`
+
+Changed:
+- Added `SR_FIB_CONFLUENCE_BT_OUTFILE` override to `tools/sr_fib_confluence_redesign_v3_bt.py`
+- Generated `bt-results/sr_fib_confluence-redesign-v3-usdjpy-2026-06-03.json`
+- Added run report: `.ai/runs/20260607-063200-sr-fib-confluence-v3-usdjpy-bt/final.md`
+
+BT result:
+- current legacy: `N=74`, `WR=41.89%`, `PF=0.6835`, `PnL=-25.1123`
+- proposed V3: `N=101`, `WR=34.65%`, `PF=0.6463`, `PnL=-31.4131`
+- R3 catastrophic gate: `PASS`
+- TV edge replication: `FAIL` because Codex prod BT did not reproduce positive PF/PnL, and current MASSIVE cache only yielded `6025` fetched bars.
+
+Verification:
+- `.venv/bin/python -m py_compile tools/sr_fib_confluence_redesign_v3_bt.py`
+- BT ran with `BT_REQUIRE_MASSIVE_CACHE=1`
+- Push completed to `main`
+```
