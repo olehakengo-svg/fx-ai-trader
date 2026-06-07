@@ -1,7 +1,19 @@
+# Edge-Cell Stage-3 Direct LIVE Promotion (2026-05-26) [SUPERSEDED 2026-06-07]
+
+## ⚠️ SUPERSEDED 2026-06-07
+
+本 LOCK は [edge-cells-stage3-wilson-lo-restoration-2026-06-07.md](./edge-cells-stage3-wilson-lo-restoration-2026-06-07.md) で **supersede** されました。
+
+理由: Wilson_lo 0.30 緩和 + watchdog 撤退条件で吸収という仮説が、12 日 LIVE で実証否決。5/12 cell (42%) が disable、watchdog Bearer auth bug で自動執行 1 ヶ月 silent、累積 -38,215 JPY。Wilson_lo は **Bonferroni-correct 0.55** に復帰。新規 Stage-3 promotion は本 doc ではなく restoration doc を参照。
+
+以下は履歴参照用に残しています。
+
+---
+
 # Edge-Cell Stage-3 Direct LIVE Promotion (2026-05-26)
 
 ## Status
-**rule:R1-EXCEPTION (intentional shadow-first exception, user judgment)**
+**rule:R1-EXCEPTION (intentional shadow-first exception, user judgment)** — **SUPERSEDED 2026-06-07**
 LOCK timestamp: 2026-05-26 11 UTC (drafted; awaiting user sign-off before merge).
 Same pattern as [Kalman D7 3-spec LIVE](../strategies/kalman_d7_3spec.md) and [vix_carry 1.0x intentional exception](./vix-carry-1x-exception-2026-05-21.md).
 

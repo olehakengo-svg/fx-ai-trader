@@ -1,6 +1,9 @@
 """Edge cell matching for Stage-3 direct LIVE promotion.
 
 Spec: knowledge-base/wiki/decisions/edge-cells-stage3-live-promote-2026-05-26.md
+SUPERSEDED 2026-06-07 by:
+  knowledge-base/wiki/decisions/edge-cells-stage3-wilson-lo-restoration-2026-06-07.md
+  (Wilson_lo threshold restored to Bonferroni-correct 0.55)
 """
 from __future__ import annotations
 
@@ -8,6 +11,17 @@ import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
+
+
+# Wilson_lo promotion threshold (Bonferroni-correct for m≈480, α=1.04e-4).
+# Restored 2026-06-07 from interim relaxed 0.30 after 5/12 cells (42%) were
+# disabled within 12 trading days under the relaxed gate. New Stage-3
+# promotions must satisfy Wilson_lo >= 0.55 in Shadow accumulation before
+# promote. Currently-listed EDGE_CELLS below were grandfathered under the
+# 0.30 gate; their continuation is governed by per-cell stage state in
+# Render KV (system_kv `edge_cell_stage:E*`), not by this constant.
+# See edge-cells-stage3-wilson-lo-restoration-2026-06-07.md for evidence.
+WILSON_LO_THRESHOLD: float = 0.55
 
 
 def session_of(ts: datetime) -> str:
