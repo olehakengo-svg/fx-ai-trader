@@ -3,9 +3,11 @@ id: 20260605-tp-hit-12cell-portfolio-validation
 priority: P1
 gate: R3
 rule: R3
-status: queued
+status: closed_by_claude
 created: 2026-06-05
+closed: 2026-06-05
 owner: claude
+closure_reason: Codex sandbox SSH DNS 不可で BLOCKED、司令塔 (Claude) が CSV export で実行完了。memory project_tp_hit_12cell_portfolio_2026_06_05 + commit 0688b333 push 済。結果 promote=none、全 12 cell が H1∧WF3-fold∧Bonferroni(m=116) 同時未充足で REJECT。orb_trap|GBP_USD|SELL のみ N<30 障害 (WR.783/PF13.6/Wilson.581/Bonf.420/Kelly.725/WF3-3) →shadow継続で N≥30 待ち。queue cleanup (2026-06-05 新方針 Codex=review/rescue 層) で done に移動。
 ---
 
 # TP-HIT 12-cell Pre-Registered Portfolio — 正式検証 (PF/Kelly/WF/Bonferroni)
