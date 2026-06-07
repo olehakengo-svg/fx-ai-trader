@@ -1,5 +1,35 @@
 # Knowledge Base Change Log
 
+## 2026-06-06 (wiki-daily-update): 自動スケジュールタスク
+- **Daily trade log**: `raw/trade-logs/2026-06-06.md` 作成 — post-cutoff live N=464 (+2 fills), WR=41.8%, EV=-0.62, PnL=-288.9pip ⚠️ (-19.3pip vs 2026-06-05)
+- **wiki/index.md**: System State更新 — live N=462→**464** (+2 fills), WR=42.0→**41.8%**, EV=-0.58→**-0.62**, PnL=-269.6→**-288.9pip** ⚠️; DD=74.82%→**76.23%** (+1.41pp ⚠️ 新高値); 30d Kelly edge **further deteriorated**: -1.32%→**-6.61%** ⚠️⚠️⚠️ (odds_ratio 0.9736→0.9123, WR 50%→48.84%); shadow_count 6,889→**7,090**; EUR_JPY 30d +$8.9→**-$5.2** (LIVE fill reversal); last_updated→2026-06-06
+- **Strategy pages**: 更新なし (tier変更なし)
+- **OANDA audit**: 最新30件 — 28件shadow_tracking skipped, 2件LIVE (IDs 8026/8027): dt_sr_channel_reversal EUR_JPY BUY → daytrade_eurjpy filled (OANDA#504420, 5000u, 17:21 UTC 2026-06-05)。DB total=8,030 (2026-06-05比+242件)。xs_momentum/dt_sr_channel_reversal/wick_imbalance_reversion/htf_false_breakout がshadow主流
+- **Risk state**: DD=76.23% (+1.41pp 新高値), lot=0.2x, 30d Kelly edge=-6.61% (⚠️⚠️⚠️ -6.61%に急悪化), odds_ratio=0.9123 (0.9736から大幅悪化), WR(30d)=48.84% (50%割れ), MC ruin=0.0%, eq_current=-$745.4 (-$14.1). USD_JPY 30d +$46.1 (弱化 from +$52.3), EUR_JPY 30d -$5.2 (⚠️ reversal from +$8.9), EUR_USD 30d -$42.6 (継続悪化)
+- **Learning API**: scalp EV=-0.16 WR=40.5% N=383 (変化なし)。daytrade EV=-2.0 WR=42.3% N=71 (変化なし)。daytrade high-conf EV=+0.83 WR=47.6% N=21 ✅。最終自動調整=2026-06-01 変化なし
+- **主要観察**: ⚠️⚠️⚠️ DD 76.23% — 新高値 (+1.41pp); ⚠️⚠️⚠️ 30d Kelly edge -6.61%に急悪化 (odds_ratio 0.9736→0.9123 — 最も深刻な単日変化); ⚠️ EUR_JPY 30d +$8.9→-$5.2 (LIVE fill dt_sr_channel_reversal loss); ⚠️ USD_JPY 30d +$52.3→+$46.1 (唯一の正ペアも弱化); ✅ ruin=0.0%維持 (0.2x lot); ✅ CB recovery 2026-06-04継続確認 (LIVE fill後もshading_tracking比率高); ⚠️ EDGE_CELL_ADMIN_TOKEN Bearer bug未修正; ⚠️ All DSR=0.0 (haircut 100%)
+- **Lint**: wikilink問題なし。DD 76.23%は過去最高。odds_ratio 0.9123は悪化トレンドで過去最低水準。30d WR 48.84%が50%割れは心理的節目。EUR_JPY LIVE fillが貢献度を測る今後の観察ポイント。陳腐化なし
+
+## 2026-06-05 (wiki-daily-update): 自動スケジュールタスク
+- **Daily trade log**: `raw/trade-logs/2026-06-05.md` 作成 — post-cutoff live N=462 (+6 fills, all losing), WR=42.0%, EV=-0.58, PnL=-269.6pip ⚠️ (-24.4pip vs 2026-06-03)
+- **wiki/index.md**: System State更新 — live N=456→**462** (+6 fills), WR=42.1→**42.0%**, EV=-0.54→**-0.58**, PnL=-245.2→**-269.6pip** ⚠️; DD=72.57%→**74.82%** (+2.25pp ⚠️ 新高値); 30d Kelly edge **turned negative**: +1.75%→**-1.32%** ⚠️⚠️ (fraction 0.0%); CB recovery 2026-06-04記録; shadow_count 6,645→**6,889**; last_updated→2026-06-05
+- **Strategy pages**: 更新なし (tier変更なし)
+- **OANDA audit**: 最新30件 — 全件shadow_tracking skipped (block_reason=shadow_tracking, 2026-06-04 11:46–13:54 UTC)。DB total=7,788 (2026-06-03比+309件)。post-CB recovery後の全シグナルがshadow_trackingで正常動作確認
+- **Risk state**: DD=74.82% (+2.25pp 新高値), lot=0.2x, 30d Kelly edge=-1.32% (負転換 ⚠️⚠️), odds_ratio=0.9736, MC ruin=0.0%, eq_current=-$731.3 (-$22.5). USD_JPY 30d +$52.3 (anchor), EUR_USD 30d -$37.4 (最大損失源、更に悪化)
+- **Learning API**: scalp EV=-0.16 WR=40.5% N=383 (変化なし)。daytrade EV=-2.0 WR=42.3% N=71 (変化なし)。最終自動調整=2026-06-01変化なし
+- **主要観察**: ⚠️⚠️⚠️ DD 74.82% — 新高値 (+2.25pp); ⚠️⚠️ 30d Kelly edge マイナス転換 (-1.32% / fraction 0.0% — 最も深刻なシグナル); ⚠️ PnL -24.4pip regression; ✅ CB recovery 2026-06-04 確認 (E1/E4/E8 stage=0 disable); ✅ post-CB 全シグナルshadow_tracking (設計通り); ✅ ruin=0.0%維持 (0.2x lot); ⚠️ session_time_bias が単独最大損失源に (N=30, -67.8pip); ⚠️ EDGE_CELL_ADMIN_TOKEN Bearer bug未修正
+- **Lint**: wikilink問題なし。DD 74.82%は過去最高。30d Kelly edge負転換は2026-04-08以降初。EUR_USD 30d -$37.4が主要損失源。CB recovery後の全shadow_trackingは設計通りの正常動作。陳腐化なし
+
+## 2026-06-03 (wiki-daily-update): 自動スケジュールタスク
+- **Daily trade log**: `raw/trade-logs/2026-06-03.md` 作成 — post-cutoff live N=456 (+23 fills, all losing), WR=42.1%, EV=-0.54, PnL=-245.2pip ⚠️ (-34.1pip vs 2026-06-02 evening)
+- **wiki/index.md**: System State更新 — live N=433→**456** (+23 fills), WR=42.3→**42.1%**, EV=-0.49→**-0.54**, PnL=-211.1→**-245.2pip** ⚠️; DD=67.95%→**72.57%** (+4.62pp ⚠️⚠️ 最大単日増加 / 新高値); 30d Kelly=6.71%→**Half-Kelly 0.91%** ⚠️ (WR 61.02%→51.81%、大幅退行); daily_loss_limit alert追加; EDGE_CELL_ADMIN_TOKEN gap記録; last_updated→2026-06-03
+- **Strategy pages**: 更新なし (tier変更なし)
+- **OANDA audit**: 最新27件 — 17件shadow_tracking skipped, 6件sent/filled (EUR_USD+GBP_USD SELL、5,000units), 4件blocked (daily_loss_limit ⚠️)。DB total=7,479。時間帯09:20–11:17 UTC。IDs 7454/7457/7465/7471/7479
+- **Risk state**: DD=72.57% (+4.62pp 単日最大増加 / 新高値), lot=0.2x, 30d Kelly=Half-Kelly 0.91% ⚠️ (WR=51.81%, Edge=+1.75%), MC ruin=0.0%, eq_current=-$708.80 (-$46.2). USD_JPY 30d +$53.10 (anchor), EUR_USD 30d -$20.10 (反転 — 昨日+$16.5から), GBP_USD 30d -$22.00
+- **Learning API**: scalp EV=-0.16 WR=40.5% N=383 (変化なし)。daytrade EV=-2.0 WR=42.3% N=71 (変化なし)。最終自動調整=2026-06-01 (sr_channel_reversal blacklist 3回目)。mtf_reversal_confluence WR=66.7% EV=2.33 (N=6小)
+- **主要観察**: ⚠️⚠️⚠️ DD 72.57% — 単日+4.62pp 最大増加 (新高値); ⚠️ daily_loss_limit circuit breaker TRIGGERED (4 signals blocked, -20.0pip threshold); ⚠️ PnL -34.1pip regression; ⚠️ 30d Kelly 6.71%→0.91%に崩壊 (先週の改善が全消); ⚠️ EUR_USD SELL 30d +$16.5→-$20.10 (directional exposure集中が裏目); ⚠️ E2/E4/E8 loss surge — 7d損失の87%がbb_rsi_reversion+session_time_biasに集中; ⚠️ EDGE_CELL_ADMIN_TOKEN未設定でwatchdog safety net silent; ✅ ruin=0.0%維持 (0.2x lot有効)
+- **Lint**: wikilink問題なし。DD 72.57%は過去最高。daily_loss_limit初トリガー記録。30d Kelly崩壊はwindow効果でなく実質的な直近損失による。陳腐化なし。Phase 4.5 architectural signal (13+ bypass/revival commits in 2 weeks) を記録
+
 ## 2026-05-27 (wiki-daily-update): 自動スケジュールタスク
 - **Daily trade log**: `raw/trade-logs/2026-05-27.md` 作成 — post-cutoff live N=411 (+1 fill), WR=41.8%, EV=-0.55, PnL=-225.9pip ⚠️ (-6.8pip vs 2026-05-26)
 - **wiki/index.md**: System State更新 — live N=410→**411** (+1 fill), WR=42.0→**41.8%**, EV=-0.53→**-0.55**, PnL=-219.1→**-225.9pip** ⚠️; DD=65.78%→**66.46%** (+0.68pp ⚠️ 新高値); 30d Kelly=Half-Kelly 0.8%→**0.0%** ⚠️ (WR 56.72%→55.88%で逆転); last_updated→2026-05-27

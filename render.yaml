@@ -70,6 +70,14 @@ services:
         value: https://fx-ai-trader.onrender.com
       - key: EDGE_CELL_ADMIN_TOKEN
         sync: false
+      # 2026-06-07 fix: POST /api/admin/edge_cell/state requires Bearer auth
+      # (app.before_request middleware). Without API_AUTH_TOKEN, the watchdog
+      # got silently 401-rejected on every auto-demote attempt since 2026-05-26
+      # Stage-3 LIVE Promote launch — contributing to E1/E4/E8 having to be
+      # disabled manually on 2026-06-04 (oanda_loss_surge_2026_06_03) and
+      # E2/E3 again on 2026-06-07 (edge_cell_stage3_recovery_phase2).
+      - key: API_AUTH_TOKEN
+        sync: false
 
   # Tier A: quant gate status + α予算 要約 (1日1回 UTC 00:20)
   # daily_report.py の直前に実行 → gate状態を analyst に認識させる

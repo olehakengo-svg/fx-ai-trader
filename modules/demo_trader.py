@@ -7349,10 +7349,14 @@ class DemoTrader:
         # 2026-04-30: MA-Generic Family v1 — ema_trend_scalp 置換実験 (rule:R1)
         # USD_JPY 限定。WF 3-fold + Bonferroni + Wilson95下限>0.1 + Kelly>0.1 + N≥30 で
         # Shadow→LIVE 昇格判定。詳細: knowledge-base/wiki/strategies/ma_generic_family_v1.md
-        "ma_mr_hybrid",                    # v1a: H1 EMA200 整合 × M5 過熱 MR
+        #
+        # 2026-06-05 (rule:R3): ma_mr_hybrid (v1a) / bb_rsi_ema_aligned (v1d) を
+        # 本 set から除外。両戦略は strategies/scalp/__init__.py で REDESIGN_PENDING
+        # としてエンジン登録から外れており (v1a 閾値厳しすぎ N=66 不足 /
+        # v1d EMA200 整合が MR エッジ破壊)、SCALP_SENTINEL に残っていても fire しない
+        # 「見かけ上の Shadow=0」を生むため。再設計完了後に再投入する。
         "ma_trend_perfect",                # v1b: H1+M15 大循環 + M5 EMA21 再ブレイク
         "ma_regime_switch",                # v1c: Trend/Range レジーム切替
-        "bb_rsi_ema_aligned",              # v1d: bb_rsi + H1 EMA200 整合 (LIVE 既存エッジ拡張)
     }
 
     # ══════════════════════════════════════════════════════════════
@@ -7539,7 +7543,15 @@ class DemoTrader:
         ("mqe_gbpusd_fix", "GBP_USD"),         # shadow N=87 EV=+1.81 PF=1.30
         ("sr_fib_confluence", "GBP_USD"),      # shadow N=39 EV=+1.35 PF=1.29
         ("session_time_bias", "EUR_USD"),      # shadow N=23 EV=+0.63 PF=1.15 (cell-conditional {"London"})
-        ("session_time_bias", "GBP_USD"),      # 2026-06-01 cell-conditional, Shadow N=45 Wlo=0.251 EV=+0.98 PF=1.19 ({"London"})
+        # REMOVED 2026-06-07 (rule:R2) Claude session emergency loss containment:
+        # ("session_time_bias", "GBP_USD") — 2026-06-04 11:31 UTC live fire SL -7.9p
+        # confirms cell still active despite E8 disable. Original promote 2026-06-01
+        # rested on Wlo=0.251 (<<Bonferroni-correct 0.55, fails H1 Gate 0.40).
+        # 7d LIVE: 5 fills all SELL, WR=0% direction-net, contributing -1,090 JPY
+        # to MR-in-trend bleed alongside EUR_USD cells. See memory:
+        # [project_edge_cell_stage3_recovery_phase2_2026_06_07].
+        # Re-promote requires Shadow N>=30 + Bonferroni-corrected Wilson_lo>=0.55.
+        # ("session_time_bias", "GBP_USD"),    # 2026-06-01 cell-conditional, REMOVED 2026-06-07
         ("vsg_jpy_reversal", "EUR_JPY"),       # shadow N=20 EV=+1.82 PF=1.30
         ("bb_squeeze_breakout", "EUR_USD"),    # shadow N=14 EV=+0.01 PF=1.00
         ("dt_sr_channel_reversal", "EUR_JPY"), # shadow N=12 EV=+14.28 PF=3.61
@@ -7676,12 +7688,11 @@ class DemoTrader:
         # the London cell with Wilson_lo>0.40 confirmation.
         # 詳細: knowledge-base/wiki/decisions/session-time-bias-cell-forensic-2026-05-29.md
         ("session_time_bias", "EUR_USD"): {"London"},  # 7 <= UTC hour < 12
-        # 2026-06-01 (rule:R2 cell forensic): symmetric to EUR_USD London.
-        # GBP_USD London: Shadow N=45 WR=37.8% Wlo=0.251 EV=+0.98 PF=1.19 edge cell.
-        # Other GBP_USD sessions (Asia/NY/Overlap, aggregate EV=-4.74) auto-blocked.
-        # Supersedes 2026-05-03 R2 LOCK PAIR_DEMOTED (now cell-conditional revival).
-        # 詳細: knowledge-base/wiki/decisions/session-time-bias-cell-forensic-2026-05-29.md
-        ("session_time_bias", "GBP_USD"): {"London"},  # 7 <= UTC hour < 12
+        # REMOVED 2026-06-07 (rule:R2): paired with _PAIR_PROMOTED removal above.
+        # GBP_USD London Live confirmed losing (06-04 11:31 -7.9p SL during disable window).
+        # Original promote Wlo=0.251 < Bonferroni 0.55. session filter inert without
+        # PAIR_PROMOTED but kept removed for code consistency.
+        # ("session_time_bias", "GBP_USD"): {"London"},  # REMOVED 2026-06-07
     }
     _SESSION_BOUNDS_UTC = (
         ("Asia",    0,  7),

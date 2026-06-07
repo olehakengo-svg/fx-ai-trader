@@ -60,14 +60,22 @@ def extract_set(filepath: Path, var_name: str) -> tuple[set, str | None]:
 
 
 def check_imports(init_file: Path, strategy_dir: Path) -> list[str]:
-    """__init__.py の from ... import X が実ファイルとして存在するか確認。"""
+    """__init__.py の from ... import X が実ファイルとして存在するか確認。
+
+    Cross-directory imports (e.g. strategies.intraday.X imported from
+    strategies.daytrade.__init__.py) are resolved using the captured subdir,
+    not the strategy_dir passed in. 2026-06-07 fix for false positive on
+    kalman_d7_v18e_jpy_cross imported across daytrade/intraday boundary.
+    """
     text = init_file.read_text(encoding="utf-8")
-    pattern = r'from\s+strategies\.\w+\.(\w+)\s+import\s+(\w+)'
+    # Capture both subdir and module name: "strategies.<subdir>.<module>"
+    pattern = r'from\s+strategies\.(\w+)\.(\w+)\s+import\s+(\w+)'
     errors = []
-    for module_name, class_name in re.findall(pattern, text):
-        filepath = strategy_dir / f"{module_name}.py"
+    strategies_root = strategy_dir.parent
+    for subdir, module_name, class_name in re.findall(pattern, text):
+        filepath = strategies_root / subdir / f"{module_name}.py"
         if not filepath.exists():
-            errors.append(f"  ❌ 未存在: {strategy_dir.name}/{module_name}.py  (import {class_name} in __init__.py)")
+            errors.append(f"  ❌ 未存在: {subdir}/{module_name}.py  (import {class_name} in {init_file.parent.name}/__init__.py)")
     return errors
 
 

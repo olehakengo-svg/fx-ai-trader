@@ -92,32 +92,29 @@ def test_session_time_bias_eur_usd_still_pair_promoted():
     )
 
 
-def test_session_time_bias_gbp_usd_cell_conditional_london():
-    """GBP_USD cell-conditional (2026-06-01 R2 cell forensic revival).
+def test_session_time_bias_gbp_usd_removed_2026_06_07():
+    """GBP_USD revival REMOVED 2026-06-07 (rule:R2) emergency loss containment.
 
-    Supersedes 2026-05-03 R2 LOCK PAIR_DEMOTED with symmetric treatment
-    to EUR_USD London (vix_carry Overlap pilot pattern).
-    Shadow London: N=45 WR=37.8% Wlo=0.251 EV=+0.98 PF=1.19 edge cell.
-    Other sessions (Asia/NY/Overlap, EV=-4.74 aggregate) auto-blocked.
+    Supersedes 2026-06-01 R2 cell forensic revival.
+    Reason: 2026-06-04 11:31 UTC live fire SELL -7.9p SL confirmed MR-in-trend
+    bleed continued despite E8 disable (session_time_bias was firing via this
+    PAIR_PROMOTED path, not edge_cell). Original Wlo=0.251 < Bonferroni 0.55 /
+    H1 Gate 0.40 was insufficient evidence. 7d LIVE: 5 fills all SELL, net
+    -1,090 JPY contribution to family bleed.
+
+    Re-promote requires Shadow N>=30 + Bonferroni-corrected Wilson_lo>=0.55.
+    Memory: project_edge_cell_stage3_recovery_phase2_2026_06_07.
     """
-    # Removed from PAIR_DEMOTED in 2026-06-01 revival.
-    assert ("session_time_bias", "GBP_USD") not in DemoTrader._PAIR_DEMOTED, (
-        "session_time_bias×GBP_USD must NOT be in PAIR_DEMOTED — superseded "
-        "by 2026-06-01 cell forensic revival (cell-conditional London)."
+    # Removed from PAIR_PROMOTED in 2026-06-07 R2 emergency loss containment.
+    assert ("session_time_bias", "GBP_USD") not in DemoTrader._PAIR_PROMOTED, (
+        "session_time_bias×GBP_USD must NOT be in PAIR_PROMOTED — removed "
+        "2026-06-07 R2 emergency loss containment (06-04 live -7.9p SL, "
+        "MR-in-trend, original Wlo=0.251 insufficient evidence)."
     )
-    # Now in PAIR_PROMOTED.
-    assert ("session_time_bias", "GBP_USD") in DemoTrader._PAIR_PROMOTED, (
-        "session_time_bias×GBP_USD must be PAIR_PROMOTED after 2026-06-01 "
-        "cell forensic revival."
-    )
-    # Cell-conditional: London only.
-    sessions = DemoTrader._PAIR_SESSION_FILTER.get(
-        ("session_time_bias", "GBP_USD")
-    )
-    assert sessions == {"London"}, (
-        f"session_time_bias×GBP_USD must be cell-conditional to "
-        f"{{'London'}} (got {sessions!r}). Shadow London N=45 Wlo=0.251 "
-        f"EV=+0.98 PF=1.19."
+    # Also removed from session filter (inert without PAIR_PROMOTED, removed for consistency).
+    assert ("session_time_bias", "GBP_USD") not in DemoTrader._PAIR_SESSION_FILTER, (
+        "session_time_bias×GBP_USD must NOT have _PAIR_SESSION_FILTER entry "
+        "after 2026-06-07 R2 removal — code consistency."
     )
 
 

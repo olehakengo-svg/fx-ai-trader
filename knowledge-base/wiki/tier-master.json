@@ -1,11 +1,10 @@
 {
-  "generated_at": "2026-05-28T09:33:39.844012+00:00",
+  "generated_at": "2026-06-05T04:40:11.398608+00:00",
   "elite_live": [
     "trendline_sweep"
   ],
   "force_demoted": [
     "atr_regime_break",
-    "donchian_momentum_breakout",
     "ema_cross",
     "ema_pullback",
     "ema_ribbon_ride",
@@ -27,9 +26,7 @@
     "vwap_mean_reversion"
   ],
   "scalp_sentinel": [
-    "bb_rsi_ema_aligned",
     "bb_rsi_reversion",
-    "ma_mr_hybrid",
     "ma_regime_switch",
     "ma_trend_perfect",
     "mtf_counter_trend_scalp",
@@ -73,6 +70,14 @@
     [
       "doji_breakout",
       "USD_JPY"
+    ],
+    [
+      "donchian_momentum_breakout",
+      "NZD_JPY"
+    ],
+    [
+      "donchian_momentum_breakout",
+      "NZD_USD"
     ],
     [
       "dt_bb_rsi_mr",
@@ -119,6 +124,10 @@
       "EUR_USD"
     ],
     [
+      "session_time_bias",
+      "GBP_USD"
+    ],
+    [
       "squeeze_release_momentum",
       "EUR_USD"
     ],
@@ -140,14 +149,6 @@
     ],
     [
       "wick_imbalance_reversion",
-      "GBP_USD"
-    ],
-    [
-      "xs_momentum",
-      "EUR_USD"
-    ],
-    [
-      "xs_momentum",
       "GBP_USD"
     ],
     [
@@ -201,6 +202,30 @@
       "USD_JPY"
     ],
     [
+      "donchian_momentum_breakout",
+      "AUD_JPY"
+    ],
+    [
+      "donchian_momentum_breakout",
+      "AUD_USD"
+    ],
+    [
+      "donchian_momentum_breakout",
+      "EUR_AUD"
+    ],
+    [
+      "donchian_momentum_breakout",
+      "EUR_USD"
+    ],
+    [
+      "donchian_momentum_breakout",
+      "USD_CAD"
+    ],
+    [
+      "donchian_momentum_breakout",
+      "USD_JPY"
+    ],
+    [
       "dt_bb_rsi_mr",
       "EUR_USD"
     ],
@@ -241,10 +266,6 @@
       "USD_JPY"
     ],
     [
-      "session_time_bias",
-      "GBP_USD"
-    ],
-    [
       "sr_channel_reversal",
       "EUR_USD"
     ],
@@ -278,6 +299,14 @@
     ],
     [
       "xs_momentum",
+      "EUR_USD"
+    ],
+    [
+      "xs_momentum",
+      "GBP_USD"
+    ],
+    [
+      "xs_momentum",
       "USD_JPY"
     ]
   ],
@@ -294,7 +323,9 @@
     "vol_momentum_scalp"
   ],
   "shield_eur_dt_whitelist": [
-    "htf_false_breakout"
+    "htf_false_breakout",
+    "zz_pivot_v60_sr",
+    "zz_pivot_v60_sr_lo"
   ],
   "pe_dt_eligible": [
     "london_ny_swing"

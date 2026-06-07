@@ -95,13 +95,29 @@ def fetch_state(api: str, token: str) -> dict[str, Any]:
     )
 
 
-def post_state(api: str, token: str, actions: list[dict[str, Any]]) -> dict[str, Any]:
-    """Batch-update per-cell stages via admin endpoint."""
+def post_state(
+    api: str,
+    token: str,
+    actions: list[dict[str, Any]],
+    api_auth_token: str = "",
+) -> dict[str, Any]:
+    """Batch-update per-cell stages via admin endpoint.
+
+    POST requires BOTH X-Admin-Token (endpoint check) AND Authorization: Bearer
+    (Flask app.before_request middleware). GET only needs X-Admin-Token.
+    Sending Bearer-only silently 401-rejected all auto-demote attempts
+    between 2026-05-26 (Stage-3 LIVE Promote) and 2026-06-07 (fix).
+    See memory: project_oanda_loss_surge_2026_06_03,
+    project_edge_cell_stage3_recovery_phase2_2026_06_07.
+    """
     body = json.dumps({"actions": actions}).encode("utf-8")
+    headers = {"X-Admin-Token": token, "Content-Type": "application/json"}
+    if api_auth_token:
+        headers["Authorization"] = f"Bearer {api_auth_token}"
     return fetch_json(
         f"{api.rstrip('/')}/api/admin/edge_cell/state",
         "edge-cell-watchdog/2.0",
-        headers={"X-Admin-Token": token, "Content-Type": "application/json"},
+        headers=headers,
         method="POST",
         body=body,
     )
@@ -373,6 +389,16 @@ def main() -> int:
     if not token:
         print("ERROR: EDGE_CELL_ADMIN_TOKEN env var not set", file=sys.stderr)
         return 2
+    api_auth_token = os.environ.get("API_AUTH_TOKEN", "")
+    if apply and not api_auth_token:
+        # POST requires Bearer (Flask middleware); --apply without it = no-op 401.
+        # Don't silently no-op; fail loudly so cron logs surface the gap.
+        print(
+            "ERROR: --apply requires API_AUTH_TOKEN env var "
+            "(post_state needs Authorization: Bearer for app.before_request)",
+            file=sys.stderr,
+        )
+        return 2
 
     try:
         state = fetch_state(args.api, token)
@@ -391,7 +417,9 @@ def main() -> int:
     applied: list[dict[str, Any]] = []
     if apply and payload["actions"]:
         try:
-            resp = post_state(args.api, token, payload["actions"])
+            resp = post_state(
+                args.api, token, payload["actions"], api_auth_token=api_auth_token
+            )
             applied = resp.get("applied", []) or []
         except Exception as exc:
             print(f"ERROR: state post failed: {type(exc).__name__}: {exc}", file=sys.stderr)
