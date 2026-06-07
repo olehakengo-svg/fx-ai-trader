@@ -126,3 +126,32 @@ Memory に Pre-reg 条件 LOCK (本タスク commit message に明記):
 - `wiki/lessons/lesson-tv-bt-cache-stale-port-bug-2026-06-03.md` — TV cache + port 学び
 - [feedback_shadow_first_quant_architecture] — Shadow tier 経由 promote 規律
 - [feedback_codex_mock_test_trap] — Codex 単独 PASS で実 API 失敗、本件で再現
+
+
+## Result (2026-06-07T06:29:21Z)
+
+exit=0 · 580s
+
+```
+Implemented and committed as `5d78c28d`:
+
+`feat(kalman_d7): AUDJPY/EURJPY M15 shadow tier port [rule:R1]`
+
+Changes:
+- Added [kalman_d7_v18e_jpy_cross.py](/data/repo/fx-ai-trader/strategies/intraday/kalman_d7_v18e_jpy_cross.py:1) with env-gated AUD_JPY/EUR_JPY M15 long-only shadow signal logic.
+- Wired [strategies/daytrade/__init__.py](/data/repo/fx-ai-trader/strategies/daytrade/__init__.py:82) to register `kalman_d7_v18e` only when `KALMAN_D7_V18E_AUDJPY_SHADOW=1` or `KALMAN_D7_V18E_EURJPY_SHADOW=1`.
+- Added [test_kalman_d7_v18e_jpy_cross_shadow.py](/data/repo/fx-ai-trader/tests/test_kalman_d7_v18e_jpy_cross_shadow.py:1), including default-off, shadow registration, live-override exclusion, MASSIVE parity, and `oanda_audit` shadow_tracking coverage.
+- Added USDJPY 365d golden fixture and [strategy card](/data/repo/fx-ai-trader/wiki/strategies/kalman_d7_v18e_jpy_cross.md:1).
+
+Verification:
+- `.venv/bin/pytest -q tests/test_kalman_d7_v18e_jpy_cross_shadow.py` passed: `6 passed`.
+- Existing targeted tests passed:
+  - `tests/test_kalman_d7_regime_refactor.py`: `6 passed`
+  - `tests/test_shadow_emit_audit_all_strategies.py tests/test_sr_shadow_emit_metadata.py`: `4 passed`
+- Full suite was attempted: `1902 passed, 2 skipped, 1 xfailed, 3 failed`. The 3 failures reproduce in isolation and are in existing shield-log tests:
+  - `tests/test_edge_cell_e2e_shield_bypass.py::test_e2e_edge_cells_bypass_shield_mode_and_aggregate_kelly`
+  - `tests/test_edge_cell_shield_oanda_mode_bypass.py::test_shield_oanda_mode_block_fires_when_no_edge_cell`
+  - `tests/test_edge_cell_shield_oanda_mode_bypass.py::test_aggregate_kelly_gate_fires_when_no_edge_cell`
+
+Worktree is clean after commit.
+```
