@@ -1,0 +1,32 @@
+{
+  "strategy": "kalman_d7_v18e",
+  "source": "TradingView Pine v18e 05ATR trail; Python port corrected for next_open exit semantics, tick quantization, first-bar handling, and commission accounting",
+  "pair": "USDJPY",
+  "timeframe": "M15",
+  "window": "365d",
+  "summary": {
+    "pf": 1.101,
+    "n": 72,
+    "wr": 0.5417,
+    "net_pct": 0.054,
+    "max_dd_pct": -0.109
+  },
+  "entry_rules": {
+    "ema": [25, 75, 200],
+    "atr_len": 14,
+    "rsi_len": 14,
+    "atr_percentile_window": 200,
+    "atr_percentile_gate": "P20 <= ATR < P80",
+    "dist_atr_max": 3.0,
+    "gap_atr_max": 3.0,
+    "rsi_max": 70,
+    "sessions_utc": ["00:00-06:59", "07:00-11:59", "16:00-20:59"]
+  },
+  "exit_rules": {
+    "stop_atr": 2.0,
+    "trail_points_atr": 1.0,
+    "trail_offset_atr": 0.5,
+    "mintick": 0.001
+  }
+}
+

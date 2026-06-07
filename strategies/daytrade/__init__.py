@@ -79,6 +79,7 @@ from strategies.daytrade.kalman_d7_trend import (
     KalmanD7EMA75Break,
     KalmanD7TrailATR,
 )
+from strategies.intraday.kalman_d7_v18e_jpy_cross import KalmanD7V18eJpyCross
 # 2026-05-26: Pivot Detector v2.5 — EUR_USD M15 Long-Only MR (TV OOS PF 1.544, WR 64.29%, N=28)
 # LIVE intentional exception (Path B, user judgment) — Rule 1 override, pre-reg LOCK
 # Reference: knowledge-base/wiki/decisions/pivot_detector_v2_5_live_exception_2026_05_26.md
@@ -167,6 +168,9 @@ class DaytradeEngine:
             # Memory: project_zz_pivot_v60_sr_live_queue_2026_05_28
             ZzPivotV60Sr(),
         ]
+        if (os.environ.get("KALMAN_D7_V18E_AUDJPY_SHADOW") == "1"
+                or os.environ.get("KALMAN_D7_V18E_EURJPY_SHADOW") == "1"):
+            self.strategies.append(KalmanD7V18eJpyCross())
         if os.environ.get("PULLBACK_TO_LIQUIDITY_V1_REDESIGN_V2") == "1":
             self.strategies.append(PullbackToLiquidityV1())
 
@@ -461,6 +465,9 @@ class DaytradeEngine:
         if (os.environ.get("SR_WEIGHTED_BREAK_ENABLE") == "1"
                 and os.environ.get("SR_WEIGHTED_BREAK_SHADOW_PROMOTE") == "1"):
             _shadow_always = _shadow_always | {"sr_weighted_break"}
+        if (os.environ.get("KALMAN_D7_V18E_AUDJPY_SHADOW") == "1"
+                or os.environ.get("KALMAN_D7_V18E_EURJPY_SHADOW") == "1"):
+            _shadow_always = _shadow_always | {"kalman_d7_v18e"}
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in _shadow_always]
