@@ -41,6 +41,8 @@ ALT_ENTRY_TYPES = {"sr_fib_confluence", "ob_retest"}
 FLAG = "SR_FIB_CONFLUENCE_REDESIGN_V3"
 SHADOW_PROMOTE_FLAG = "SR_FIB_CONFLUENCE_REDESIGN_V3_SHADOW_PROMOTE"
 OUTFILE = ROOT / "bt-results" / "sr_fib_confluence-redesign-v3-2026-06-04.json"
+if os.environ.get("SR_FIB_CONFLUENCE_BT_OUTFILE"):
+    OUTFILE = ROOT / os.environ["SR_FIB_CONFLUENCE_BT_OUTFILE"]
 
 
 def _cache_path(pair: str) -> Path:
