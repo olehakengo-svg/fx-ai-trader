@@ -154,3 +154,32 @@ Required sections:
   MASSIVE parquet 必須
 - Memory: `feedback_codex_schema_hallucination.md` — Codex 外部 DB tool 注意、
   本タスクは MASSIVE parquet read のみで Render Postgres 触らない
+
+
+## Result (2026-06-07T06:19:07Z)
+
+exit=0 · 366s
+
+```
+Implemented and ran the Kalman D7 v18e JPY cross-pair MASSIVE BT.
+
+Created:
+- [tools/kalman_d7_v18e_python_port.py](/data/repo/fx-ai-trader/tools/kalman_d7_v18e_python_port.py)
+- [tools/kalman_d7_v18e_cross_pair_bt.py](/data/repo/fx-ai-trader/tools/kalman_d7_v18e_cross_pair_bt.py)
+- [raw/bt-results/kalman-d7-v18e-jpy-cross-pair-12y-bt-2026-06-07.md](/data/repo/fx-ai-trader/raw/bt-results/kalman-d7-v18e-jpy-cross-pair-12y-bt-2026-06-07.md)
+- [raw/bt-results/kalman-d7-v18e-jpy-cross-pair-12y-bt-2026-06-07.json](/data/repo/fx-ai-trader/raw/bt-results/kalman-d7-v18e-jpy-cross-pair-12y-bt-2026-06-07.json)
+
+Result summary:
+- `USDJPY`: REJECT, PF `0.861`, Net `-601.96`, used MASSIVE 5m resampled to M15 because native/requested M15 was missing.
+- `EURJPY`: REJECT, PF `0.792`, Net `-1609.21`, used repo-native `EUR_JPY_15m` MASSIVE alias with 12.33y coverage.
+- `GBPJPY`: REJECT, PF `0.732`, Net `-2296.70`, used MASSIVE 5m resampled to M15 for 12.32y coverage.
+- `AUDJPY`: REJECT, PF `0.675`, Net `-321.81`, only ~1.00y native M15 MASSIVE coverage available, so coverage gate fails.
+
+All WFO folds failed the all-fold `PF > 1.0` requirement except isolated AUDJPY fold 1. Max daily PnL correlation was `0.204`, so Bonferroni `m=4` remained in force with `alpha_eff=0.0125`.
+
+Validation run:
+- `.venv/bin/python -m py_compile tools/kalman_d7_v18e_python_port.py tools/kalman_d7_v18e_cross_pair_bt.py`
+- Fixture smoke: `fixture_bars 6095 signals 24 trades 19`
+
+Important caveat: the canonical Pine file and TV trade export were not present in this container, so the report documents Pine/TV replication discrepancies and could not perform the requested `>90%` trade timestamp match check.
+```
