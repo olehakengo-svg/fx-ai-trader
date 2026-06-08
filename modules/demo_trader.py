@@ -6032,24 +6032,16 @@ class DemoTrader:
         # Reads from sig dict key "lot_multiplier" (set by strategy via Candidate).
         # Skipped for sentinel (1000u validation lot) and edge_cell force-live paths
         # to avoid double-application. Hard cap re-applied after.
-        if (
-            not _is_sentinel
-            and not _edge_cell_force_live
-            and sig.get("lot_multiplier", 1.0) != 1.0
-        ):
-            _units_before_mult = _adjusted_units
-            _adjusted_units = self._apply_candidate_lot_multiplier(_adjusted_units, sig)
-            # Re-apply hard cap after multiplier
-            _adjusted_units = min(_adjusted_units, self._OANDA_LOT_CAP)
-            # FX: minimum 1000u, 1000u rounding (preserve XAU 1-unit granularity)
-            if not _is_xau_inst and _adjusted_units > 0:
-                _adjusted_units = max(1000, (_adjusted_units // 1000) * 1000)
-            if _adjusted_units != _units_before_mult:
-                self._add_log(
-                    f"[LOT_MULT] {entry_type} {instrument}: "
-                    f"{_units_before_mult} → {_adjusted_units} "
-                    f"(mult={sig.get('lot_multiplier', 1.0):.2f})"
-                )
+        _adjusted_units_after = self._resolve_units_with_multiplier(
+            _adjusted_units, sig, _is_sentinel, _edge_cell_force_live, _is_xau_inst
+        )
+        if _adjusted_units_after != _adjusted_units:
+            self._add_log(
+                f"[LOT_MULT] {entry_type} {instrument}: "
+                f"{_adjusted_units} → {_adjusted_units_after} "
+                f"(mult={sig.get('lot_multiplier', 1.0):.2f})"
+            )
+        _adjusted_units = _adjusted_units_after
 
         if _is_promoted:
             # ── v9.0 SHIELD: Aggregate Kelly Gate ──
@@ -7824,6 +7816,40 @@ class DemoTrader:
         if mult < 0:
             return 0
         return int(base_lot * mult)
+
+    def _resolve_units_with_multiplier(
+        self,
+        base_units: int,
+        sig: dict,
+        is_sentinel: bool,
+        edge_cell_force_live: bool,
+        is_xau_inst: bool,
+    ) -> int:
+        """Apply Candidate.lot_multiplier from sig dict, respecting all guards.
+
+        This method encapsulates the entire lot_multiplier hook that lives inside
+        _tick_entry, making it unit-testable in isolation.
+
+        Guards (returns base_units unchanged):
+        - is_sentinel: sentinel 1000u validation lot must not be multiplied
+        - edge_cell_force_live: pre-registered edge-cell lot must not be multiplied
+        - sig.get("lot_multiplier") == 1.0 (no-op multiplier)
+
+        Post-multiplication corrections:
+        - _OANDA_LOT_CAP hard cap re-applied
+        - FX: 1000u rounding floor (XAU exempt)
+        """
+        if is_sentinel or edge_cell_force_live:
+            return base_units
+        if sig.get("lot_multiplier", 1.0) == 1.0:
+            return base_units
+        result = self._apply_candidate_lot_multiplier(base_units, sig)
+        # Re-apply hard cap after multiplier
+        result = min(result, self._OANDA_LOT_CAP)
+        # FX: minimum 1000u, 1000u rounding (preserve XAU 1-unit granularity)
+        if not is_xau_inst and result > 0:
+            result = max(1000, (result // 1000) * 1000)
+        return result
 
     @staticmethod
     def _price_shock_rev_min_units(entry_type: str, instrument: str) -> int | None:
