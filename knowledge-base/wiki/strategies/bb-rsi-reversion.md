@@ -152,3 +152,23 @@ Group B (`label_only`) では従来通り LIVE 実行 → 並走で gate 効果�
 - [[mfe-zero-analysis]]
 - [[independent-audit-2026-04-10]]
 - [[mtf-regime-validation-2026-04-17]] §C (P0 forensics) / §E (REGIME_ADAPTIVE)
+
+## 2026-06-08 Pair Whitelist Redesign
+
+**Status**: implemented per `docs/superpowers/specs/2026-06-08-session-time-bias-bb-rsi-edge-cell-redesign-design.md`
+
+**Filter**:
+- ON pairs: USD_JPY only
+- KILL pairs (absolute block): USD_CHF, GBP_USD
+- Other pairs: skip (insufficient evidence)
+
+**SIZE lever**:
+- USD_JPY × LDN/NY (UTC 07-21): 1.0x
+- USD_JPY × ASN (UTC 00-07): 0.5x defensive
+
+**Empirical baseline (40-day shadow data, N=239)**:
+- baseline (no filter): WR 30.1%, mean -0.77p, sum -184p
+- proposed (USD_JPY only): in-sample N=96, WR 43.8%, mean +0.10p, sum +9p
+- killing USD_CHF removes -120p single-strategy bleed; GBP_USD removes -60p
+
+**Rollback**: `BB_RSI_REVERSION_PAIR_WHITELIST_V1=0`.

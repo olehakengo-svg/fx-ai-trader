@@ -64,3 +64,26 @@ Data source: /api/demo/stats?date_from=2026-04-08 (2026-04-20)
 ## Related
 - [[session-effects]]
 - [[research/index]]
+
+## 2026-06-08 Edge Cell Filter Redesign
+
+**Status**: implemented per `docs/superpowers/specs/2026-06-08-session-time-bias-bb-rsi-edge-cell-redesign-design.md`
+
+**Filter** (applied at evaluate() entry):
+- ON: LDN session (UTC 07-13) × ADX[15,30] × dist_EMA200<0.5%
+- OFF: ASN/NY/LATE, ADX outside [15,30], price >0.5% from EMA200
+
+**SIZE lever (Candidate.lot_multiplier)**:
+- CORE 1.5x: + ADX[25,30] OR regime=RANGE
+- EDGE 1.0x: otherwise (when filter passes)
+
+**Empirical baseline (40-day shadow data, N=396)**:
+- baseline (no filter): WR 30.1%, mean -2.06p, sum -816p
+- proposed (filter applied): in-sample N=126, WR 45.2%, mean +0.93p, sum +117p
+- swing: +933p (in-sample)
+
+**OOS expectation**: probability-weighted EV +¥30-50k/月 (5k unit baseline lot).
+
+**Rollback**: `SESSION_TIME_BIAS_CELL_FILTER_V1=0` env flag bypasses filter.
+
+**30-day reconciliation target (2026-07-08)**: N>=60, mean>=+0.3p, Wilson_lo>=0.35.
