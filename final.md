@@ -1,53 +1,31 @@
-# TP-HIT 12-cell portfolio validation
+# Edge Cell Filter MASSIVE 12y BT - Stage B
 
-- status: OK
-- source: Render Production demo_trades.db shadow CLOSED rows
-- generated_at: 2026-06-05T04:41:23Z
-- promote_recommended: none
-- rerun_access_note: 2026-06-05 current container could not re-fetch Production: ssh binary/key unavailable and /api/demo/trades returned HTTP 502; this file preserves the existing same-day Production shadow result generated at 2026-06-05T04:41:23Z.
-- bt_sanity_role: BT sanity data availability only; exact per-strategy BT is substituted by shadow realized daily PnL when no unified frozen-cell runner exists.
-- massive_all_required_pair_tf_available: False
-- massive_missing: data/cache/massive/EUR_JPY_5m.parquet, data/cache/massive/EUR_USD_5m.parquet, data/cache/massive/GBP_USD_5m.parquet, data/cache/massive/USD_JPY_15m.parquet
+Generated: 2026-06-08T12:52:10.369494+00:00
 
-## Gate table
+BT guards: `BT_REQUIRE_MASSIVE_CACHE=1`, native MASSIVE parquets only, no resample, no Yahoo fallback.
+Gate: `PROMOTE_SHADOW` requires PF>=1.05, WFO>=2/3 PF>1, Bonferroni m=12 Wilson_lo>=0.30. PF<1.0 is `REJECT`.
 
-| cell | N | WR | PF | Wilson95 lo | Bonf lo | EV | Kelly | WF +folds | H1 | verdict |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---|---|
-| dt_bb_rsi_mr\|EUR_USD\|SELL | 38 | 0.526 | 2.083045 | 0.373 | 0.272 | 2.471 | 0.259 | 3/3 | FAIL | REJECT |
-| dt_sr_channel_reversal\|USD_JPY\|BUY | 24 | 0.458 | 1.468886 | 0.279 | 0.181 | 1.350 | 0.146 | 2/3 | FAIL | REJECT |
-| dt_bb_rsi_mr\|GBP_USD\|SELL | 38 | 0.579 | 1.801527 | 0.422 | 0.314 | 2.211 | 0.258 | 2/3 | PASS | REJECT |
-| wick_imbalance_reversion\|EUR_USD\|BUY | 64 | 0.484 | 2.779221 | 0.366 | 0.286 | 3.425 | 0.305 | 2/3 | FAIL | REJECT |
-| sr_fib_confluence\|EUR_USD\|BUY | 77 | 0.377 | 1.217593 | 0.277 | 0.213 | 0.732 | 0.067 | 1/3 | FAIL | REJECT |
-| orb_trap\|GBP_USD\|SELL | 23 | 0.783 | 13.566474 | 0.581 | 0.420 | 9.452 | 0.725 | 3/3 | FAIL | REJECT |
-| wick_imbalance_reversion\|GBP_USD\|BUY | 61 | 0.426 | 1.80963 | 0.310 | 0.235 | 2.370 | 0.191 | 2/3 | FAIL | REJECT |
-| trendline_sweep\|EUR_USD\|SELL | 34 | 0.353 | 1.249108 | 0.215 | 0.142 | 1.026 | 0.070 | 2/3 | FAIL | REJECT |
-| dual_sr_bounce\|EUR_JPY\|SELL | 27 | 0.444 | 0.984698 | 0.276 | 0.183 | -0.063 | -0.007 | 1/3 | FAIL | REJECT |
-| sr_anti_hunt_bounce\|EUR_JPY\|BUY | 21 | 0.714 | 6.384058 | 0.500 | 0.348 | 14.152 | 0.602 | 2/3 | FAIL | REJECT |
-| dt_sr_channel_reversal\|EUR_JPY\|BUY | 28 | 0.393 | 1.491171 | 0.236 | 0.153 | 2.682 | 0.129 | 2/3 | FAIL | REJECT |
-| rsk_gbpjpy_reversion\|GBP_JPY\|BUY | 35 | 0.400 | 0.977119 | 0.256 | 0.174 | -0.309 | -0.009 | 2/3 | FAIL | REJECT |
+## Verdicts
 
-## Portfolio
+| Strategy | Pair | TF | Baseline N | Baseline PF | Baseline mean | Proposed N | Proposed PF | Proposed mean | Wilson_lo Bonf m12 | WFO PF>1 | Verdict |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|
+| session_time_bias | EUR_USD | 15m | 7939 | 0.936286 | -0.468 | 5152 | 0.939658 | -0.545 | 0.422 | 0/3 | REJECT |
+| session_time_bias | GBP_USD | 15m | 8165 | 0.850175 | -1.550 | 5174 | 0.852125 | -1.865 | 0.407 | 0/3 | REJECT |
+| session_time_bias | USD_JPY | 5m | 11700 | 0.700119 | -1.582 | 0 | 0.0 | 0.000 | 0.000 | 0/3 | REJECT |
+| bb_rsi_reversion | USD_JPY | 5m | 27585 | 0.652176 | -1.426 | 27585 | 0.655804 | -1.142 | 0.284 | 0/3 | REJECT |
+| bb_rsi_reversion | EUR_USD | 15m | 8662 | 0.725841 | -1.230 | 0 | 0.0 | 0.000 | 0.000 | 0/3 | REJECT |
+| bb_rsi_reversion | GBP_USD | 15m | 8374 | 0.769979 | -1.316 | 0 | 0.0 | 0.000 | 0.000 | 0/3 | REJECT |
+| bb_rsi_reversion | USD_CHF | 1h | 543 | 0.71202 | -2.226 | 0 | 0.0 | 0.000 | 0.000 | 0/3 | REJECT |
+| bb_rsi_reversion | EUR_JPY | 15m | 8846 | 0.708821 | -2.181 | 0 | 0.0 | 0.000 | 0.000 | 0/3 | REJECT |
+| bb_rsi_reversion | USD_CAD | 1h | 517 | 0.848459 | -1.424 | 0 | 0.0 | 0.000 | 0.000 | 0/3 | REJECT |
 
-- status: OK
-- cells: 12
-- days: 41
-- maxDD_pips: 13.933661
-- calmar: 38.202788
-- monthly_sharpe: 2.472281
-- dd20_monthly_expectancy_raw_pips: 44.358726
-- dd20_monthly_expectancy_bonf_0_5_pips: 22.179363
+## Decision
 
-## Rejections
+- `session_time_bias`: REJECT all tested pairs. Proposed PF remains <1 on EUR_USD and GBP_USD; USD_JPY has zero proposed trades because the LDN filter is incompatible with the Tokyo-only STB USD_JPY bias.
+- `bb_rsi_reversion`: REJECT all tested pairs. USD_JPY did not verify as positive on 12y native 5m (PF=0.655804, WFO 0/3); GBP_USD and USD_CHF baseline checks are catastrophic and are correctly killed by the proposed whitelist.
+- Coverage caveat: USD_JPY 12y native coverage is available only as native 5m. USD_CHF and USD_CAD have no native 15m 12y cache and are included with native H1 coverage failure rather than synthetic data.
 
-- `dt_bb_rsi_mr|EUR_USD|SELL`: Wilson95 lower <0.40, Bonferroni Wilson lower <0.40
-- `dt_sr_channel_reversal|USD_JPY|BUY`: N<30, Wilson95 lower <0.40, WF 3-fold sign not all positive, Bonferroni Wilson lower <0.40
-- `dt_bb_rsi_mr|GBP_USD|SELL`: WF 3-fold sign not all positive, Bonferroni Wilson lower <0.40
-- `wick_imbalance_reversion|EUR_USD|BUY`: Wilson95 lower <0.40, WF 3-fold sign not all positive, Bonferroni Wilson lower <0.40
-- `sr_fib_confluence|EUR_USD|BUY`: Wilson95 lower <0.40, WF 3-fold sign not all positive, Bonferroni Wilson lower <0.40
-- `orb_trap|GBP_USD|SELL`: N<30
-- `wick_imbalance_reversion|GBP_USD|BUY`: Wilson95 lower <0.40, WF 3-fold sign not all positive, Bonferroni Wilson lower <0.40
-- `trendline_sweep|EUR_USD|SELL`: Wilson95 lower <0.40, WF 3-fold sign not all positive, Bonferroni Wilson lower <0.40
-- `dual_sr_bounce|EUR_JPY|SELL`: N<30, Wilson95 lower <0.40, EV<0, WF 3-fold sign not all positive, Bonferroni Wilson lower <0.40
-- `sr_anti_hunt_bounce|EUR_JPY|BUY`: N<30, WF 3-fold sign not all positive, Bonferroni Wilson lower <0.40
-- `dt_sr_channel_reversal|EUR_JPY|BUY`: N<30, Wilson95 lower <0.40, WF 3-fold sign not all positive, Bonferroni Wilson lower <0.40
-- `rsk_gbpjpy_reversion|GBP_JPY|BUY`: Wilson95 lower <0.40, EV<0, WF 3-fold sign not all positive, Bonferroni Wilson lower <0.40
+## 40-day Production Comparison
+
+- `session_time_bias` production baseline: N=396, WR=30.1%, mean=-2.06p, PF=0.601. Proposed in-sample cell: N=126, WR=45.2%, mean=+0.93p.
+- `bb_rsi_reversion` production baseline: N=239, WR=30.1%, mean=-0.77p, PF=0.688. Proposed in-sample USD_JPY: N=96, WR=43.8%, mean=+0.10p, PF=1.04.

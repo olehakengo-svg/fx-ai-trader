@@ -1,0 +1,1654 @@
+{
+  "generated_at": "2026-06-08T12:52:10.362411+00:00",
+  "runner": "tools/edge_cell_filter_massive_12y_bt.py",
+  "bt_mode": "1",
+  "bt_require_massive_cache": "1",
+  "target_years": 12.0,
+  "bonferroni_m": 12,
+  "alpha_family": 0.05,
+  "no_resample": true,
+  "no_yahoo_fallback": true,
+  "spread_pip_model": {
+    "EUR_USD": 0.8,
+    "GBP_USD": 1.2,
+    "USD_JPY": 1.3,
+    "USD_CHF": 1.2,
+    "EUR_JPY": 1.6,
+    "USD_CAD": 1.3
+  },
+  "elapsed_s": 911.4,
+  "strategy": "session_time_bias",
+  "flag": "SESSION_TIME_BIAS_CELL_FILTER_V1",
+  "filter": "LDN x ADX[15,30] x dist_EMA200<0.5%",
+  "pairs": {
+    "EUR_USD": {
+      "baseline_no_filter": {
+        "source": {
+          "pair": "EUR_USD",
+          "timeframe": "15m",
+          "path": "data/cache/massive/EUR_USD_15m.parquet",
+          "rows": 307488,
+          "start": "2014-01-05T22:00:00+00:00",
+          "end": "2026-06-05T20:45:00+00:00",
+          "years": 12.410677618069816,
+          "coverage_pass_10y8": true,
+          "native_only": true,
+          "resampled": false,
+          "checked": [
+            "data/cache/massive/EUR_USD_15m.parquet"
+          ]
+        },
+        "stats": {
+          "n": 7939,
+          "wins": 3512,
+          "wr": 0.442373,
+          "mean_pip": -0.467817,
+          "mean_sized_pip": -0.467817,
+          "sum_pip": -3713.9991,
+          "sum_sized_pip": -3713.9991,
+          "pf": 0.936286,
+          "wilson_lo_95": 0.431478,
+          "wilson_lo_bonf_m12": 0.426469,
+          "directions": {
+            "BUY": {
+              "n": 0,
+              "wins": 0,
+              "wr": 0.0,
+              "mean_pip": 0.0,
+              "sum_pip": 0.0,
+              "pf": 0.0,
+              "wilson_lo_95": 0.0,
+              "wilson_lo_bonf_m12": 0.0,
+              "directions": {}
+            },
+            "SELL": {
+              "n": 7939,
+              "wins": 3512,
+              "wr": 0.442373,
+              "mean_pip": -0.467817,
+              "mean_sized_pip": -0.467817,
+              "sum_pip": -3713.9991,
+              "sum_sized_pip": -3713.9991,
+              "pf": 0.936286,
+              "wilson_lo_95": 0.431478,
+              "wilson_lo_bonf_m12": 0.426469,
+              "directions": {}
+            }
+          }
+        },
+        "wfo": {
+          "folds": [
+            {
+              "fold": 1,
+              "period_start": "2014-01-07T23:45:00+00:00",
+              "period_end": "2018-02-21T16:45:00+00:00",
+              "stats": {
+                "n": 2805,
+                "wins": 1247,
+                "wr": 0.444563,
+                "mean_pip": -0.430087,
+                "mean_sized_pip": -0.430087,
+                "sum_pip": -1206.3939,
+                "sum_sized_pip": -1206.3939,
+                "pf": 0.942913,
+                "wilson_lo_95": 0.426262,
+                "wilson_lo_bonf_m12": 0.417881,
+                "directions": {
+                  "BUY": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  },
+                  "SELL": {
+                    "n": 2805,
+                    "wins": 1247,
+                    "wr": 0.444563,
+                    "mean_pip": -0.430087,
+                    "mean_sized_pip": -0.430087,
+                    "sum_pip": -1206.3939,
+                    "sum_sized_pip": -1206.3939,
+                    "pf": 0.942913,
+                    "wilson_lo_95": 0.426262,
+                    "wilson_lo_bonf_m12": 0.417881,
+                    "directions": {}
+                  }
+                }
+              },
+              "pass_pf_gt_1": false
+            },
+            {
+              "fold": 2,
+              "period_start": "2018-02-21T17:00:00+00:00",
+              "period_end": "2022-04-27T20:45:00+00:00",
+              "stats": {
+                "n": 2673,
+                "wins": 1201,
+                "wr": 0.449308,
+                "mean_pip": -0.195626,
+                "mean_sized_pip": -0.195626,
+                "sum_pip": -522.9078,
+                "sum_sized_pip": -522.9078,
+                "pf": 0.969728,
+                "wilson_lo_95": 0.430537,
+                "wilson_lo_bonf_m12": 0.421938,
+                "directions": {
+                  "BUY": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  },
+                  "SELL": {
+                    "n": 2673,
+                    "wins": 1201,
+                    "wr": 0.449308,
+                    "mean_pip": -0.195626,
+                    "mean_sized_pip": -0.195626,
+                    "sum_pip": -522.9078,
+                    "sum_sized_pip": -522.9078,
+                    "pf": 0.969728,
+                    "wilson_lo_95": 0.430537,
+                    "wilson_lo_bonf_m12": 0.421938,
+                    "directions": {}
+                  }
+                }
+              },
+              "pass_pf_gt_1": false
+            },
+            {
+              "fold": 3,
+              "period_start": "2022-04-27T21:00:00+00:00",
+              "period_end": "2026-06-05T20:45:00+00:00",
+              "stats": {
+                "n": 2461,
+                "wins": 1064,
+                "wr": 0.432345,
+                "mean_pip": -0.80646,
+                "mean_sized_pip": -0.80646,
+                "sum_pip": -1984.6975,
+                "sum_sized_pip": -1984.6975,
+                "pf": 0.900195,
+                "wilson_lo_95": 0.412892,
+                "wilson_lo_bonf_m12": 0.404003,
+                "directions": {
+                  "BUY": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  },
+                  "SELL": {
+                    "n": 2461,
+                    "wins": 1064,
+                    "wr": 0.432345,
+                    "mean_pip": -0.80646,
+                    "mean_sized_pip": -0.80646,
+                    "sum_pip": -1984.6975,
+                    "sum_sized_pip": -1984.6975,
+                    "pf": 0.900195,
+                    "wilson_lo_95": 0.412892,
+                    "wilson_lo_bonf_m12": 0.404003,
+                    "directions": {}
+                  }
+                }
+              },
+              "pass_pf_gt_1": false
+            }
+          ],
+          "pass_folds_pf_gt_1": 0,
+          "required": ">=2/3 PF>1"
+        },
+        "trades_sample": [
+          {
+            "entry_ts": "2014-01-10T08:30:00+00:00",
+            "exit_ts": "2014-01-10T09:45:00+00:00",
+            "entry_i": 227,
+            "exit_i": 232,
+            "pair": "EUR_USD",
+            "direction": "SELL",
+            "entry": 1.36055,
+            "exit": 1.3595435423627256,
+            "tp": 1.3595435423627256,
+            "sl": 1.3613048432279558,
+            "outcome": "TP",
+            "net_pip": 9.264576372743605,
+            "sized_pip": 9.264576372743605,
+            "lot_multiplier": 1.0,
+            "hold_bars": 5
+          },
+          {
+            "entry_ts": "2014-01-10T10:00:00+00:00",
+            "exit_ts": "2014-01-10T13:15:00+00:00",
+            "entry_i": 233,
+            "exit_i": 246,
+            "pair": "EUR_USD",
+            "direction": "SELL",
+            "entry": 1.35917,
+            "exit": 1.3579846995881666,
+            "tp": 1.3579846995881666,
+            "sl": 1.360058975308875,
+            "outcome": "TP",
+            "net_pip": 11.053004118334009,
+            "sized_pip": 11.053004118334009,
+            "lot_multiplier": 1.0,
+            "hold_bars": 13
+          },
+          {
+            "entry_ts": "2014-01-13T07:30:00+00:00",
+            "exit_ts": "2014-01-13T08:00:00+00:00",
+            "entry_i": 319,
+            "exit_i": 321,
+            "pair": "EUR_USD",
+            "direction": "SELL",
+            "entry": 1.36716,
+            "exit": 1.3679217785238786,
+            "tp": 1.366144295301495,
+            "sl": 1.3679217785238786,
+            "outcome": "SL",
+            "net_pip": -8.41778523878709,
+            "sized_pip": -8.41778523878709,
+            "lot_multiplier": 1.0,
+            "hold_bars": 2
+          },
+          {
+            "entry_ts": "2014-01-13T08:15:00+00:00",
+            "exit_ts": "2014-01-13T08:45:00+00:00",
+            "entry_i": 322,
+            "exit_i": 324,
+            "pair": "EUR_USD",
+            "direction": "SELL",
+            "entry": 1.36708,
+            "exit": 1.366030990079222,
+            "tp": 1.366030990079222,
+            "sl": 1.3678667574405836,
+            "outcome": "TP",
+            "net_pip": 9.690099207780545,
+            "sized_pip": 9.690099207780545,
+            "lot_multiplier": 1.0,
+            "hold_bars": 2
+          },
+          {
+            "entry_ts": "2014-01-13T09:00:00+00:00",
+            "exit_ts": "2014-01-13T13:15:00+00:00",
+            "entry_i": 325,
+            "exit_i": 342,
+            "pair": "EUR_USD",
+            "direction": "SELL",
+            "entry": 1.36625,
+            "exit": 1.3650942657449163,
+            "tp": 1.3650942657449163,
+            "sl": 1.3671168006913126,
+            "outcome": "TP",
+            "net_pip": 10.757342550836402,
+            "sized_pip": 10.757342550836402,
+            "lot_multiplier": 1.0,
+            "hold_bars": 17
+          }
+        ]
+      },
+      "proposed_filter": {
+        "source": {
+          "pair": "EUR_USD",
+          "timeframe": "15m",
+          "path": "data/cache/massive/EUR_USD_15m.parquet",
+          "rows": 307488,
+          "start": "2014-01-05T22:00:00+00:00",
+          "end": "2026-06-05T20:45:00+00:00",
+          "years": 12.410677618069816,
+          "coverage_pass_10y8": true,
+          "native_only": true,
+          "resampled": false,
+          "checked": [
+            "data/cache/massive/EUR_USD_15m.parquet"
+          ]
+        },
+        "stats": {
+          "n": 5152,
+          "wins": 2277,
+          "wr": 0.441964,
+          "mean_pip": -0.434548,
+          "mean_sized_pip": -0.545481,
+          "sum_pip": -2238.7934,
+          "sum_sized_pip": -2810.3204,
+          "pf": 0.939658,
+          "wilson_lo_95": 0.428452,
+          "wilson_lo_bonf_m12": 0.422248,
+          "directions": {
+            "BUY": {
+              "n": 0,
+              "wins": 0,
+              "wr": 0.0,
+              "mean_pip": 0.0,
+              "sum_pip": 0.0,
+              "pf": 0.0,
+              "wilson_lo_95": 0.0,
+              "wilson_lo_bonf_m12": 0.0,
+              "directions": {}
+            },
+            "SELL": {
+              "n": 5152,
+              "wins": 2277,
+              "wr": 0.441964,
+              "mean_pip": -0.434548,
+              "mean_sized_pip": -0.545481,
+              "sum_pip": -2238.7934,
+              "sum_sized_pip": -2810.3204,
+              "pf": 0.939658,
+              "wilson_lo_95": 0.428452,
+              "wilson_lo_bonf_m12": 0.422248,
+              "directions": {}
+            }
+          }
+        },
+        "wfo": {
+          "folds": [
+            {
+              "fold": 1,
+              "period_start": "2014-01-07T23:45:00+00:00",
+              "period_end": "2018-02-21T16:45:00+00:00",
+              "stats": {
+                "n": 1841,
+                "wins": 825,
+                "wr": 0.448126,
+                "mean_pip": -0.326293,
+                "mean_sized_pip": -0.377791,
+                "sum_pip": -600.7047,
+                "sum_sized_pip": -695.5125,
+                "pf": 0.958811,
+                "wilson_lo_95": 0.425541,
+                "wilson_lo_bonf_m12": 0.41522,
+                "directions": {
+                  "BUY": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  },
+                  "SELL": {
+                    "n": 1841,
+                    "wins": 825,
+                    "wr": 0.448126,
+                    "mean_pip": -0.326293,
+                    "mean_sized_pip": -0.377791,
+                    "sum_pip": -600.7047,
+                    "sum_sized_pip": -695.5125,
+                    "pf": 0.958811,
+                    "wilson_lo_95": 0.425541,
+                    "wilson_lo_bonf_m12": 0.41522,
+                    "directions": {}
+                  }
+                }
+              },
+              "pass_pf_gt_1": false
+            },
+            {
+              "fold": 2,
+              "period_start": "2018-02-21T17:00:00+00:00",
+              "period_end": "2022-04-27T20:45:00+00:00",
+              "stats": {
+                "n": 1754,
+                "wins": 771,
+                "wr": 0.439567,
+                "mean_pip": -0.469038,
+                "mean_sized_pip": -0.598674,
+                "sum_pip": -822.6931,
+                "sum_sized_pip": -1050.0737,
+                "pf": 0.926722,
+                "wilson_lo_95": 0.416496,
+                "wilson_lo_bonf_m12": 0.40597,
+                "directions": {
+                  "BUY": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  },
+                  "SELL": {
+                    "n": 1754,
+                    "wins": 771,
+                    "wr": 0.439567,
+                    "mean_pip": -0.469038,
+                    "mean_sized_pip": -0.598674,
+                    "sum_pip": -822.6931,
+                    "sum_sized_pip": -1050.0737,
+                    "pf": 0.926722,
+                    "wilson_lo_95": 0.416496,
+                    "wilson_lo_bonf_m12": 0.40597,
+                    "directions": {}
+                  }
+                }
+              },
+              "pass_pf_gt_1": false
+            },
+            {
+              "fold": 3,
+              "period_start": "2022-04-27T21:00:00+00:00",
+              "period_end": "2026-06-05T20:45:00+00:00",
+              "stats": {
+                "n": 1557,
+                "wins": 681,
+                "wr": 0.43738,
+                "mean_pip": -0.523697,
+                "mean_sized_pip": -0.683837,
+                "sum_pip": -815.3956,
+                "sum_sized_pip": -1064.7342,
+                "pf": 0.930668,
+                "wilson_lo_95": 0.412924,
+                "wilson_lo_bonf_m12": 0.40178,
+                "directions": {
+                  "BUY": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  },
+                  "SELL": {
+                    "n": 1557,
+                    "wins": 681,
+                    "wr": 0.43738,
+                    "mean_pip": -0.523697,
+                    "mean_sized_pip": -0.683837,
+                    "sum_pip": -815.3956,
+                    "sum_sized_pip": -1064.7342,
+                    "pf": 0.930668,
+                    "wilson_lo_95": 0.412924,
+                    "wilson_lo_bonf_m12": 0.40178,
+                    "directions": {}
+                  }
+                }
+              },
+              "pass_pf_gt_1": false
+            }
+          ],
+          "pass_folds_pf_gt_1": 0,
+          "required": ">=2/3 PF>1"
+        },
+        "trades_sample": [
+          {
+            "entry_ts": "2014-01-10T08:30:00+00:00",
+            "exit_ts": "2014-01-10T09:45:00+00:00",
+            "entry_i": 227,
+            "exit_i": 232,
+            "pair": "EUR_USD",
+            "direction": "SELL",
+            "entry": 1.36055,
+            "exit": 1.3595435423627256,
+            "tp": 1.3595435423627256,
+            "sl": 1.3613048432279558,
+            "outcome": "TP",
+            "net_pip": 9.264576372743605,
+            "sized_pip": 13.896864559115407,
+            "lot_multiplier": 1.5,
+            "hold_bars": 5
+          },
+          {
+            "entry_ts": "2014-01-10T10:00:00+00:00",
+            "exit_ts": "2014-01-10T13:15:00+00:00",
+            "entry_i": 233,
+            "exit_i": 246,
+            "pair": "EUR_USD",
+            "direction": "SELL",
+            "entry": 1.35917,
+            "exit": 1.3579846995881666,
+            "tp": 1.3579846995881666,
+            "sl": 1.360058975308875,
+            "outcome": "TP",
+            "net_pip": 11.053004118334009,
+            "sized_pip": 11.053004118334009,
+            "lot_multiplier": 1.0,
+            "hold_bars": 13
+          },
+          {
+            "entry_ts": "2014-01-13T07:30:00+00:00",
+            "exit_ts": "2014-01-13T08:00:00+00:00",
+            "entry_i": 319,
+            "exit_i": 321,
+            "pair": "EUR_USD",
+            "direction": "SELL",
+            "entry": 1.36716,
+            "exit": 1.3679217785238786,
+            "tp": 1.366144295301495,
+            "sl": 1.3679217785238786,
+            "outcome": "SL",
+            "net_pip": -8.41778523878709,
+            "sized_pip": -8.41778523878709,
+            "lot_multiplier": 1.0,
+            "hold_bars": 2
+          },
+          {
+            "entry_ts": "2014-01-13T08:15:00+00:00",
+            "exit_ts": "2014-01-13T08:45:00+00:00",
+            "entry_i": 322,
+            "exit_i": 324,
+            "pair": "EUR_USD",
+            "direction": "SELL",
+            "entry": 1.36708,
+            "exit": 1.366030990079222,
+            "tp": 1.366030990079222,
+            "sl": 1.3678667574405836,
+            "outcome": "TP",
+            "net_pip": 9.690099207780545,
+            "sized_pip": 9.690099207780545,
+            "lot_multiplier": 1.0,
+            "hold_bars": 2
+          },
+          {
+            "entry_ts": "2014-01-13T09:00:00+00:00",
+            "exit_ts": "2014-01-13T13:15:00+00:00",
+            "entry_i": 325,
+            "exit_i": 342,
+            "pair": "EUR_USD",
+            "direction": "SELL",
+            "entry": 1.36625,
+            "exit": 1.3650942657449163,
+            "tp": 1.3650942657449163,
+            "sl": 1.3671168006913126,
+            "outcome": "TP",
+            "net_pip": 10.757342550836402,
+            "sized_pip": 10.757342550836402,
+            "lot_multiplier": 1.0,
+            "hold_bars": 17
+          }
+        ]
+      },
+      "verdict": "REJECT",
+      "coverage_warning": null
+    },
+    "GBP_USD": {
+      "baseline_no_filter": {
+        "source": {
+          "pair": "GBP_USD",
+          "timeframe": "15m",
+          "path": "data/cache/massive/GBP_USD_15m.parquet",
+          "rows": 306899,
+          "start": "2014-01-05T22:00:00+00:00",
+          "end": "2026-06-05T20:45:00+00:00",
+          "years": 12.410677618069816,
+          "coverage_pass_10y8": true,
+          "native_only": true,
+          "resampled": false,
+          "checked": [
+            "data/cache/massive/GBP_USD_15m.parquet"
+          ]
+        },
+        "stats": {
+          "n": 8165,
+          "wins": 3478,
+          "wr": 0.425964,
+          "mean_pip": -1.549948,
+          "mean_sized_pip": -1.549948,
+          "sum_pip": -12655.3238,
+          "sum_sized_pip": -12655.3238,
+          "pf": 0.850175,
+          "wilson_lo_95": 0.415276,
+          "wilson_lo_bonf_m12": 0.410367,
+          "directions": {
+            "BUY": {
+              "n": 0,
+              "wins": 0,
+              "wr": 0.0,
+              "mean_pip": 0.0,
+              "sum_pip": 0.0,
+              "pf": 0.0,
+              "wilson_lo_95": 0.0,
+              "wilson_lo_bonf_m12": 0.0,
+              "directions": {}
+            },
+            "SELL": {
+              "n": 8165,
+              "wins": 3478,
+              "wr": 0.425964,
+              "mean_pip": -1.549948,
+              "mean_sized_pip": -1.549948,
+              "sum_pip": -12655.3238,
+              "sum_sized_pip": -12655.3238,
+              "pf": 0.850175,
+              "wilson_lo_95": 0.415276,
+              "wilson_lo_bonf_m12": 0.410367,
+              "directions": {}
+            }
+          }
+        },
+        "wfo": {
+          "folds": [
+            {
+              "fold": 1,
+              "period_start": "2014-01-07T23:45:00+00:00",
+              "period_end": "2018-02-18T22:45:00+00:00",
+              "stats": {
+                "n": 2895,
+                "wins": 1263,
+                "wr": 0.436269,
+                "mean_pip": -1.021108,
+                "mean_sized_pip": -1.021108,
+                "sum_pip": -2956.1066,
+                "sum_sized_pip": -2956.1066,
+                "pf": 0.898431,
+                "wilson_lo_95": 0.418301,
+                "wilson_lo_bonf_m12": 0.410077,
+                "directions": {
+                  "BUY": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  },
+                  "SELL": {
+                    "n": 2895,
+                    "wins": 1263,
+                    "wr": 0.436269,
+                    "mean_pip": -1.021108,
+                    "mean_sized_pip": -1.021108,
+                    "sum_pip": -2956.1066,
+                    "sum_sized_pip": -2956.1066,
+                    "pf": 0.898431,
+                    "wilson_lo_95": 0.418301,
+                    "wilson_lo_bonf_m12": 0.410077,
+                    "directions": {}
+                  }
+                }
+              },
+              "pass_pf_gt_1": false
+            },
+            {
+              "fold": 2,
+              "period_start": "2018-02-18T23:00:00+00:00",
+              "period_end": "2022-04-22T00:30:00+00:00",
+              "stats": {
+                "n": 2758,
+                "wins": 1178,
+                "wr": 0.427121,
+                "mean_pip": -1.395139,
+                "mean_sized_pip": -1.395139,
+                "sum_pip": -3847.7935,
+                "sum_sized_pip": -3847.7935,
+                "pf": 0.860109,
+                "wilson_lo_95": 0.408774,
+                "wilson_lo_bonf_m12": 0.400388,
+                "directions": {
+                  "BUY": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  },
+                  "SELL": {
+                    "n": 2758,
+                    "wins": 1178,
+                    "wr": 0.427121,
+                    "mean_pip": -1.395139,
+                    "mean_sized_pip": -1.395139,
+                    "sum_pip": -3847.7935,
+                    "sum_sized_pip": -3847.7935,
+                    "pf": 0.860109,
+                    "wilson_lo_95": 0.408774,
+                    "wilson_lo_bonf_m12": 0.400388,
+                    "directions": {}
+                  }
+                }
+              },
+              "pass_pf_gt_1": false
+            },
+            {
+              "fold": 3,
+              "period_start": "2022-04-22T00:45:00+00:00",
+              "period_end": "2026-06-05T20:45:00+00:00",
+              "stats": {
+                "n": 2512,
+                "wins": 1037,
+                "wr": 0.412818,
+                "mean_pip": -2.329388,
+                "mean_sized_pip": -2.329388,
+                "sum_pip": -5851.4237,
+                "sum_sized_pip": -5851.4237,
+                "pf": 0.789951,
+                "wilson_lo_95": 0.393713,
+                "wilson_lo_bonf_m12": 0.385001,
+                "directions": {
+                  "BUY": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  },
+                  "SELL": {
+                    "n": 2512,
+                    "wins": 1037,
+                    "wr": 0.412818,
+                    "mean_pip": -2.329388,
+                    "mean_sized_pip": -2.329388,
+                    "sum_pip": -5851.4237,
+                    "sum_sized_pip": -5851.4237,
+                    "pf": 0.789951,
+                    "wilson_lo_95": 0.393713,
+                    "wilson_lo_bonf_m12": 0.385001,
+                    "directions": {}
+                  }
+                }
+              },
+              "pass_pf_gt_1": false
+            }
+          ],
+          "pass_folds_pf_gt_1": 0,
+          "required": ">=2/3 PF>1"
+        },
+        "trades_sample": [
+          {
+            "entry_ts": "2014-01-10T07:30:00+00:00",
+            "exit_ts": "2014-01-10T07:45:00+00:00",
+            "entry_i": 223,
+            "exit_i": 224,
+            "pair": "GBP_USD",
+            "direction": "SELL",
+            "entry": 1.64675,
+            "exit": 1.6473334259291526,
+            "tp": 1.6459720987611297,
+            "sl": 1.6473334259291526,
+            "outcome": "SL",
+            "net_pip": -7.034259291526145,
+            "sized_pip": -7.034259291526145,
+            "lot_multiplier": 1.0,
+            "hold_bars": 1
+          },
+          {
+            "entry_ts": "2014-01-10T08:00:00+00:00",
+            "exit_ts": "2014-01-10T08:45:00+00:00",
+            "entry_i": 225,
+            "exit_i": 228,
+            "pair": "GBP_USD",
+            "direction": "SELL",
+            "entry": 1.64684,
+            "exit": 1.645957932095056,
+            "tp": 1.645957932095056,
+            "sl": 1.6475015509287083,
+            "outcome": "TP",
+            "net_pip": 7.620679049441615,
+            "sized_pip": 7.620679049441615,
+            "lot_multiplier": 1.0,
+            "hold_bars": 3
+          },
+          {
+            "entry_ts": "2014-01-10T09:00:00+00:00",
+            "exit_ts": "2014-01-10T09:30:00+00:00",
+            "entry_i": 229,
+            "exit_i": 231,
+            "pair": "GBP_USD",
+            "direction": "SELL",
+            "entry": 1.64498,
+            "exit": 1.6438692336153398,
+            "tp": 1.6438692336153398,
+            "sl": 1.6458130747884954,
+            "outcome": "TP",
+            "net_pip": 9.907663846603445,
+            "sized_pip": 9.907663846603445,
+            "lot_multiplier": 1.0,
+            "hold_bars": 2
+          },
+          {
+            "entry_ts": "2014-01-13T07:30:00+00:00",
+            "exit_ts": "2014-01-13T08:15:00+00:00",
+            "entry_i": 319,
+            "exit_i": 322,
+            "pair": "GBP_USD",
+            "direction": "SELL",
+            "entry": 1.64864,
+            "exit": 1.6476181889406032,
+            "tp": 1.6476181889406032,
+            "sl": 1.6494063582945477,
+            "outcome": "TP",
+            "net_pip": 9.018110593969155,
+            "sized_pip": 9.018110593969155,
+            "lot_multiplier": 1.0,
+            "hold_bars": 3
+          },
+          {
+            "entry_ts": "2014-01-13T08:30:00+00:00",
+            "exit_ts": "2014-01-13T09:15:00+00:00",
+            "entry_i": 323,
+            "exit_i": 326,
+            "pair": "GBP_USD",
+            "direction": "SELL",
+            "entry": 1.64305,
+            "exit": 1.6443692098149358,
+            "tp": 1.6412910535800855,
+            "sl": 1.6443692098149358,
+            "outcome": "SL",
+            "net_pip": -14.392098149359398,
+            "sized_pip": -14.392098149359398,
+            "lot_multiplier": 1.0,
+            "hold_bars": 3
+          }
+        ]
+      },
+      "proposed_filter": {
+        "source": {
+          "pair": "GBP_USD",
+          "timeframe": "15m",
+          "path": "data/cache/massive/GBP_USD_15m.parquet",
+          "rows": 306899,
+          "start": "2014-01-05T22:00:00+00:00",
+          "end": "2026-06-05T20:45:00+00:00",
+          "years": 12.410677618069816,
+          "coverage_pass_10y8": true,
+          "native_only": true,
+          "resampled": false,
+          "checked": [
+            "data/cache/massive/GBP_USD_15m.parquet"
+          ]
+        },
+        "stats": {
+          "n": 5174,
+          "wins": 2205,
+          "wr": 0.426169,
+          "mean_pip": -1.396544,
+          "mean_sized_pip": -1.864979,
+          "sum_pip": -7225.7184,
+          "sum_sized_pip": -9649.4034,
+          "pf": 0.852125,
+          "wilson_lo_95": 0.412754,
+          "wilson_lo_bonf_m12": 0.406603,
+          "directions": {
+            "BUY": {
+              "n": 0,
+              "wins": 0,
+              "wr": 0.0,
+              "mean_pip": 0.0,
+              "sum_pip": 0.0,
+              "pf": 0.0,
+              "wilson_lo_95": 0.0,
+              "wilson_lo_bonf_m12": 0.0,
+              "directions": {}
+            },
+            "SELL": {
+              "n": 5174,
+              "wins": 2205,
+              "wr": 0.426169,
+              "mean_pip": -1.396544,
+              "mean_sized_pip": -1.864979,
+              "sum_pip": -7225.7184,
+              "sum_sized_pip": -9649.4034,
+              "pf": 0.852125,
+              "wilson_lo_95": 0.412754,
+              "wilson_lo_bonf_m12": 0.406603,
+              "directions": {}
+            }
+          }
+        },
+        "wfo": {
+          "folds": [
+            {
+              "fold": 1,
+              "period_start": "2014-01-07T23:45:00+00:00",
+              "period_end": "2018-02-18T22:45:00+00:00",
+              "stats": {
+                "n": 1855,
+                "wins": 812,
+                "wr": 0.437736,
+                "mean_pip": -1.087555,
+                "mean_sized_pip": -1.579979,
+                "sum_pip": -2017.4146,
+                "sum_sized_pip": -2930.8608,
+                "pf": 0.873145,
+                "wilson_lo_95": 0.415311,
+                "wilson_lo_bonf_m12": 0.405078,
+                "directions": {
+                  "BUY": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  },
+                  "SELL": {
+                    "n": 1855,
+                    "wins": 812,
+                    "wr": 0.437736,
+                    "mean_pip": -1.087555,
+                    "mean_sized_pip": -1.579979,
+                    "sum_pip": -2017.4146,
+                    "sum_sized_pip": -2930.8608,
+                    "pf": 0.873145,
+                    "wilson_lo_95": 0.415311,
+                    "wilson_lo_bonf_m12": 0.405078,
+                    "directions": {}
+                  }
+                }
+              },
+              "pass_pf_gt_1": false
+            },
+            {
+              "fold": 2,
+              "period_start": "2018-02-18T23:00:00+00:00",
+              "period_end": "2022-04-22T00:30:00+00:00",
+              "stats": {
+                "n": 1760,
+                "wins": 752,
+                "wr": 0.427273,
+                "mean_pip": -1.408632,
+                "mean_sized_pip": -1.787676,
+                "sum_pip": -2479.1929,
+                "sum_sized_pip": -3146.3092,
+                "pf": 0.855829,
+                "wilson_lo_95": 0.404345,
+                "wilson_lo_bonf_m12": 0.393901,
+                "directions": {
+                  "BUY": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  },
+                  "SELL": {
+                    "n": 1760,
+                    "wins": 752,
+                    "wr": 0.427273,
+                    "mean_pip": -1.408632,
+                    "mean_sized_pip": -1.787676,
+                    "sum_pip": -2479.1929,
+                    "sum_sized_pip": -3146.3092,
+                    "pf": 0.855829,
+                    "wilson_lo_95": 0.404345,
+                    "wilson_lo_bonf_m12": 0.393901,
+                    "directions": {}
+                  }
+                }
+              },
+              "pass_pf_gt_1": false
+            },
+            {
+              "fold": 3,
+              "period_start": "2022-04-22T00:45:00+00:00",
+              "period_end": "2026-06-05T20:45:00+00:00",
+              "stats": {
+                "n": 1559,
+                "wins": 641,
+                "wr": 0.411161,
+                "mean_pip": -1.750552,
+                "mean_sized_pip": -2.291362,
+                "sum_pip": -2729.111,
+                "sum_sized_pip": -3572.2334,
+                "pf": 0.824258,
+                "wilson_lo_95": 0.386984,
+                "wilson_lo_bonf_m12": 0.376011,
+                "directions": {
+                  "BUY": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  },
+                  "SELL": {
+                    "n": 1559,
+                    "wins": 641,
+                    "wr": 0.411161,
+                    "mean_pip": -1.750552,
+                    "mean_sized_pip": -2.291362,
+                    "sum_pip": -2729.111,
+                    "sum_sized_pip": -3572.2334,
+                    "pf": 0.824258,
+                    "wilson_lo_95": 0.386984,
+                    "wilson_lo_bonf_m12": 0.376011,
+                    "directions": {}
+                  }
+                }
+              },
+              "pass_pf_gt_1": false
+            }
+          ],
+          "pass_folds_pf_gt_1": 0,
+          "required": ">=2/3 PF>1"
+        },
+        "trades_sample": [
+          {
+            "entry_ts": "2014-01-10T07:30:00+00:00",
+            "exit_ts": "2014-01-10T07:45:00+00:00",
+            "entry_i": 223,
+            "exit_i": 224,
+            "pair": "GBP_USD",
+            "direction": "SELL",
+            "entry": 1.64675,
+            "exit": 1.6473334259291526,
+            "tp": 1.6459720987611297,
+            "sl": 1.6473334259291526,
+            "outcome": "SL",
+            "net_pip": -7.034259291526145,
+            "sized_pip": -10.551388937289218,
+            "lot_multiplier": 1.5,
+            "hold_bars": 1
+          },
+          {
+            "entry_ts": "2014-01-10T08:00:00+00:00",
+            "exit_ts": "2014-01-10T08:45:00+00:00",
+            "entry_i": 225,
+            "exit_i": 228,
+            "pair": "GBP_USD",
+            "direction": "SELL",
+            "entry": 1.64684,
+            "exit": 1.645957932095056,
+            "tp": 1.645957932095056,
+            "sl": 1.6475015509287083,
+            "outcome": "TP",
+            "net_pip": 7.620679049441615,
+            "sized_pip": 7.620679049441615,
+            "lot_multiplier": 1.0,
+            "hold_bars": 3
+          },
+          {
+            "entry_ts": "2014-01-10T09:00:00+00:00",
+            "exit_ts": "2014-01-10T09:30:00+00:00",
+            "entry_i": 229,
+            "exit_i": 231,
+            "pair": "GBP_USD",
+            "direction": "SELL",
+            "entry": 1.64498,
+            "exit": 1.6438692336153398,
+            "tp": 1.6438692336153398,
+            "sl": 1.6458130747884954,
+            "outcome": "TP",
+            "net_pip": 9.907663846603445,
+            "sized_pip": 14.861495769905167,
+            "lot_multiplier": 1.5,
+            "hold_bars": 2
+          },
+          {
+            "entry_ts": "2014-01-13T07:30:00+00:00",
+            "exit_ts": "2014-01-13T08:15:00+00:00",
+            "entry_i": 319,
+            "exit_i": 322,
+            "pair": "GBP_USD",
+            "direction": "SELL",
+            "entry": 1.64864,
+            "exit": 1.6476181889406032,
+            "tp": 1.6476181889406032,
+            "sl": 1.6494063582945477,
+            "outcome": "TP",
+            "net_pip": 9.018110593969155,
+            "sized_pip": 13.527165890953732,
+            "lot_multiplier": 1.5,
+            "hold_bars": 3
+          },
+          {
+            "entry_ts": "2014-01-14T09:00:00+00:00",
+            "exit_ts": "2014-01-14T09:15:00+00:00",
+            "entry_i": 421,
+            "exit_i": 422,
+            "pair": "GBP_USD",
+            "direction": "SELL",
+            "entry": 1.64207,
+            "exit": 1.643463606945124,
+            "tp": 1.640211857406501,
+            "sl": 1.643463606945124,
+            "outcome": "SL",
+            "net_pip": -15.136069451241372,
+            "sized_pip": -15.136069451241372,
+            "lot_multiplier": 1.0,
+            "hold_bars": 1
+          }
+        ]
+      },
+      "verdict": "REJECT",
+      "coverage_warning": null
+    },
+    "USD_JPY": {
+      "baseline_no_filter": {
+        "source": {
+          "pair": "USD_JPY",
+          "timeframe": "5m",
+          "path": "data/cache/massive/USD_JPY_5m_2014_2026.parquet",
+          "rows": 903536,
+          "start": "2014-01-31T00:00:00+00:00",
+          "end": "2026-05-29T20:55:00+00:00",
+          "years": 12.323066392881588,
+          "coverage_pass_10y8": true,
+          "native_only": true,
+          "resampled": false,
+          "checked": [
+            "data/cache/massive/USD_JPY_15m.parquet",
+            "data/cache/massive/USD_JPY_5m_2014_2026.parquet"
+          ]
+        },
+        "stats": {
+          "n": 11700,
+          "wins": 4836,
+          "wr": 0.413333,
+          "mean_pip": -1.582334,
+          "mean_sized_pip": -1.582334,
+          "sum_pip": -18513.3113,
+          "sum_sized_pip": -18513.3113,
+          "pf": 0.700119,
+          "wilson_lo_95": 0.40444,
+          "wilson_lo_bonf_m12": 0.400354,
+          "directions": {
+            "BUY": {
+              "n": 11700,
+              "wins": 4836,
+              "wr": 0.413333,
+              "mean_pip": -1.582334,
+              "mean_sized_pip": -1.582334,
+              "sum_pip": -18513.3113,
+              "sum_sized_pip": -18513.3113,
+              "pf": 0.700119,
+              "wilson_lo_95": 0.40444,
+              "wilson_lo_bonf_m12": 0.400354,
+              "directions": {}
+            },
+            "SELL": {
+              "n": 0,
+              "wins": 0,
+              "wr": 0.0,
+              "mean_pip": 0.0,
+              "sum_pip": 0.0,
+              "pf": 0.0,
+              "wilson_lo_95": 0.0,
+              "wilson_lo_bonf_m12": 0.0,
+              "directions": {}
+            }
+          }
+        },
+        "wfo": {
+          "folds": [
+            {
+              "fold": 1,
+              "period_start": "2014-01-31T16:35:00+00:00",
+              "period_end": "2018-02-20T11:10:00+00:00",
+              "stats": {
+                "n": 4021,
+                "wins": 1664,
+                "wr": 0.413827,
+                "mean_pip": -1.53448,
+                "mean_sized_pip": -1.53448,
+                "sum_pip": -6170.1445,
+                "sum_sized_pip": -6170.1445,
+                "pf": 0.678931,
+                "wilson_lo_95": 0.398694,
+                "wilson_lo_bonf_m12": 0.39177,
+                "directions": {
+                  "BUY": {
+                    "n": 4021,
+                    "wins": 1664,
+                    "wr": 0.413827,
+                    "mean_pip": -1.53448,
+                    "mean_sized_pip": -1.53448,
+                    "sum_pip": -6170.1445,
+                    "sum_sized_pip": -6170.1445,
+                    "pf": 0.678931,
+                    "wilson_lo_95": 0.398694,
+                    "wilson_lo_bonf_m12": 0.39177,
+                    "directions": {}
+                  },
+                  "SELL": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  }
+                }
+              },
+              "pass_pf_gt_1": false
+            },
+            {
+              "fold": 2,
+              "period_start": "2018-02-20T11:15:00+00:00",
+              "period_end": "2022-05-04T21:00:00+00:00",
+              "stats": {
+                "n": 3703,
+                "wins": 1463,
+                "wr": 0.395085,
+                "mean_pip": -1.887187,
+                "mean_sized_pip": -1.887187,
+                "sum_pip": -6988.2529,
+                "sum_sized_pip": -6988.2529,
+                "pf": 0.553427,
+                "wilson_lo_95": 0.379456,
+                "wilson_lo_bonf_m12": 0.372323,
+                "directions": {
+                  "BUY": {
+                    "n": 3703,
+                    "wins": 1463,
+                    "wr": 0.395085,
+                    "mean_pip": -1.887187,
+                    "mean_sized_pip": -1.887187,
+                    "sum_pip": -6988.2529,
+                    "sum_sized_pip": -6988.2529,
+                    "pf": 0.553427,
+                    "wilson_lo_95": 0.379456,
+                    "wilson_lo_bonf_m12": 0.372323,
+                    "directions": {}
+                  },
+                  "SELL": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  }
+                }
+              },
+              "pass_pf_gt_1": false
+            },
+            {
+              "fold": 3,
+              "period_start": "2022-05-04T21:05:00+00:00",
+              "period_end": "2026-05-29T20:55:00+00:00",
+              "stats": {
+                "n": 3976,
+                "wins": 1709,
+                "wr": 0.429829,
+                "mean_pip": -1.346809,
+                "mean_sized_pip": -1.346809,
+                "sum_pip": -5354.9139,
+                "sum_sized_pip": -5354.9139,
+                "pf": 0.800706,
+                "wilson_lo_95": 0.414516,
+                "wilson_lo_bonf_m12": 0.407501,
+                "directions": {
+                  "BUY": {
+                    "n": 3976,
+                    "wins": 1709,
+                    "wr": 0.429829,
+                    "mean_pip": -1.346809,
+                    "mean_sized_pip": -1.346809,
+                    "sum_pip": -5354.9139,
+                    "sum_sized_pip": -5354.9139,
+                    "pf": 0.800706,
+                    "wilson_lo_95": 0.414516,
+                    "wilson_lo_bonf_m12": 0.407501,
+                    "directions": {}
+                  },
+                  "SELL": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  }
+                }
+              },
+              "pass_pf_gt_1": false
+            }
+          ],
+          "pass_folds_pf_gt_1": 0,
+          "required": ">=2/3 PF>1"
+        },
+        "trades_sample": [
+          {
+            "entry_ts": "2014-02-04T00:30:00+00:00",
+            "exit_ts": "2014-02-04T01:30:00+00:00",
+            "entry_i": 383,
+            "exit_i": 395,
+            "pair": "USD_JPY",
+            "direction": "BUY",
+            "entry": 101.172,
+            "exit": 101.09388892480624,
+            "tp": 101.27614810025834,
+            "sl": 101.09388892480624,
+            "outcome": "SL",
+            "net_pip": -9.111107519376038,
+            "sized_pip": -9.111107519376038,
+            "lot_multiplier": 1.0,
+            "hold_bars": 12
+          },
+          {
+            "entry_ts": "2014-02-04T01:45:00+00:00",
+            "exit_ts": "2014-02-04T02:00:00+00:00",
+            "entry_i": 398,
+            "exit_i": 401,
+            "pair": "USD_JPY",
+            "direction": "BUY",
+            "entry": 101.19600000000001,
+            "exit": 101.30586977900074,
+            "tp": 101.30586977900074,
+            "sl": 101.11359766574947,
+            "outcome": "TP",
+            "net_pip": 9.686977900073213,
+            "sized_pip": 9.686977900073213,
+            "lot_multiplier": 1.0,
+            "hold_bars": 3
+          },
+          {
+            "entry_ts": "2014-02-04T02:05:00+00:00",
+            "exit_ts": "2014-02-04T02:40:00+00:00",
+            "entry_i": 402,
+            "exit_i": 409,
+            "pair": "USD_JPY",
+            "direction": "BUY",
+            "entry": 101.31400000000001,
+            "exit": 101.22731668917822,
+            "tp": 101.4295777477624,
+            "sl": 101.22731668917822,
+            "outcome": "SL",
+            "net_pip": -9.968331082178327,
+            "sized_pip": -9.968331082178327,
+            "lot_multiplier": 1.0,
+            "hold_bars": 7
+          },
+          {
+            "entry_ts": "2014-02-04T02:45:00+00:00",
+            "exit_ts": "2014-02-04T03:40:00+00:00",
+            "entry_i": 410,
+            "exit_i": 421,
+            "pair": "USD_JPY",
+            "direction": "BUY",
+            "entry": 101.247,
+            "exit": 101.1729767530094,
+            "tp": 101.34569766265415,
+            "sl": 101.1729767530094,
+            "outcome": "SL",
+            "net_pip": -8.702324699060615,
+            "sized_pip": -8.702324699060615,
+            "lot_multiplier": 1.0,
+            "hold_bars": 11
+          },
+          {
+            "entry_ts": "2014-02-04T04:20:00+00:00",
+            "exit_ts": "2014-02-04T04:40:00+00:00",
+            "entry_i": 429,
+            "exit_i": 433,
+            "pair": "USD_JPY",
+            "direction": "BUY",
+            "entry": 101.272,
+            "exit": 101.1828293587176,
+            "tp": 101.39089418837654,
+            "sl": 101.1828293587176,
+            "outcome": "SL",
+            "net_pip": -10.217064128240782,
+            "sized_pip": -10.217064128240782,
+            "lot_multiplier": 1.0,
+            "hold_bars": 4
+          }
+        ]
+      },
+      "proposed_filter": {
+        "source": {
+          "pair": "USD_JPY",
+          "timeframe": "5m",
+          "path": "data/cache/massive/USD_JPY_5m_2014_2026.parquet",
+          "rows": 903536,
+          "start": "2014-01-31T00:00:00+00:00",
+          "end": "2026-05-29T20:55:00+00:00",
+          "years": 12.323066392881588,
+          "coverage_pass_10y8": true,
+          "native_only": true,
+          "resampled": false,
+          "checked": [
+            "data/cache/massive/USD_JPY_15m.parquet",
+            "data/cache/massive/USD_JPY_5m_2014_2026.parquet"
+          ]
+        },
+        "stats": {
+          "n": 0,
+          "wins": 0,
+          "wr": 0.0,
+          "mean_pip": 0.0,
+          "mean_sized_pip": 0.0,
+          "sum_pip": 0.0,
+          "sum_sized_pip": 0.0,
+          "pf": 0.0,
+          "wilson_lo_95": 0.0,
+          "wilson_lo_bonf_m12": 0.0,
+          "directions": {
+            "BUY": {
+              "n": 0,
+              "wins": 0,
+              "wr": 0.0,
+              "mean_pip": 0.0,
+              "sum_pip": 0.0,
+              "pf": 0.0,
+              "wilson_lo_95": 0.0,
+              "wilson_lo_bonf_m12": 0.0,
+              "directions": {}
+            },
+            "SELL": {
+              "n": 0,
+              "wins": 0,
+              "wr": 0.0,
+              "mean_pip": 0.0,
+              "sum_pip": 0.0,
+              "pf": 0.0,
+              "wilson_lo_95": 0.0,
+              "wilson_lo_bonf_m12": 0.0,
+              "directions": {}
+            }
+          }
+        },
+        "wfo": {
+          "folds": [
+            {
+              "fold": 1,
+              "period_start": "2014-01-31T16:35:00+00:00",
+              "period_end": "2018-02-20T11:10:00+00:00",
+              "stats": {
+                "n": 0,
+                "wins": 0,
+                "wr": 0.0,
+                "mean_pip": 0.0,
+                "mean_sized_pip": 0.0,
+                "sum_pip": 0.0,
+                "sum_sized_pip": 0.0,
+                "pf": 0.0,
+                "wilson_lo_95": 0.0,
+                "wilson_lo_bonf_m12": 0.0,
+                "directions": {
+                  "BUY": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  },
+                  "SELL": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  }
+                }
+              },
+              "pass_pf_gt_1": false
+            },
+            {
+              "fold": 2,
+              "period_start": "2018-02-20T11:15:00+00:00",
+              "period_end": "2022-05-04T21:00:00+00:00",
+              "stats": {
+                "n": 0,
+                "wins": 0,
+                "wr": 0.0,
+                "mean_pip": 0.0,
+                "mean_sized_pip": 0.0,
+                "sum_pip": 0.0,
+                "sum_sized_pip": 0.0,
+                "pf": 0.0,
+                "wilson_lo_95": 0.0,
+                "wilson_lo_bonf_m12": 0.0,
+                "directions": {
+                  "BUY": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  },
+                  "SELL": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  }
+                }
+              },
+              "pass_pf_gt_1": false
+            },
+            {
+              "fold": 3,
+              "period_start": "2022-05-04T21:05:00+00:00",
+              "period_end": "2026-05-29T20:55:00+00:00",
+              "stats": {
+                "n": 0,
+                "wins": 0,
+                "wr": 0.0,
+                "mean_pip": 0.0,
+                "mean_sized_pip": 0.0,
+                "sum_pip": 0.0,
+                "sum_sized_pip": 0.0,
+                "pf": 0.0,
+                "wilson_lo_95": 0.0,
+                "wilson_lo_bonf_m12": 0.0,
+                "directions": {
+                  "BUY": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  },
+                  "SELL": {
+                    "n": 0,
+                    "wins": 0,
+                    "wr": 0.0,
+                    "mean_pip": 0.0,
+                    "sum_pip": 0.0,
+                    "pf": 0.0,
+                    "wilson_lo_95": 0.0,
+                    "wilson_lo_bonf_m12": 0.0,
+                    "directions": {}
+                  }
+                }
+              },
+              "pass_pf_gt_1": false
+            }
+          ],
+          "pass_folds_pf_gt_1": 0,
+          "required": ">=2/3 PF>1"
+        },
+        "trades_sample": []
+      },
+      "verdict": "REJECT",
+      "coverage_warning": null
+    }
+  },
+  "aggregate": {
+    "note": "aggregate PF omitted because deliverable is pair-gated; see per-pair baseline/proposed stats",
+    "pair_count": 3,
+    "promote_shadow": [],
+    "reject": [
+      "EUR_USD",
+      "GBP_USD",
+      "USD_JPY"
+    ],
+    "key": "session_time_bias"
+  },
+  "production_40d_comparison": {
+    "baseline": {
+      "n": 396,
+      "wr": 0.301,
+      "mean_pip": -2.06,
+      "pf": 0.601,
+      "wilson_lo": 0.257,
+      "sum_pip": -816
+    },
+    "proposed": {
+      "cell": "LDN x ADX[15,30]",
+      "n": 126,
+      "wr": 0.452,
+      "mean_pip": 0.93,
+      "sum_pip": 117
+    },
+    "source": "docs/superpowers/specs/2026-06-08-session-time-bias-bb-rsi-edge-cell-redesign-design.md §2.2-2.3"
+  }
+}
