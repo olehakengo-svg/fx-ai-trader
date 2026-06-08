@@ -78,6 +78,11 @@ def test_v2_bypasses_mr_penalty_only_for_jpy_high_adx_tail(monkeypatch):
 
 def test_v2_non_jpy_range_mr_keeps_existing_penalty_path(monkeypatch):
     monkeypatch.setenv("BB_RSI_REDESIGN_V2", "1")
+    # 2026-06-08 edge cell redesign: BB_RSI_REVERSION_PAIR_WHITELIST_V1 blocks
+    # all non-USDJPY pairs by default (Task 4). This test verifies the v2
+    # redesign penalty path which is ORTHOGONAL to the pair whitelist —
+    # disable the whitelist so the v2 code path is reachable for EURUSD.
+    monkeypatch.setenv("BB_RSI_REVERSION_PAIR_WHITELIST_V1", "0")
 
     cand = BBRsiReversion().evaluate(_ctx(symbol="EURUSD=X", adx=20.0))
 
