@@ -2,7 +2,6 @@
 
 Added 2026-06-08 per docs/superpowers/specs/2026-06-08-session-time-bias-bb-rsi-edge-cell-redesign-design.md
 """
-import pytest
 from strategies.base import Candidate
 
 
