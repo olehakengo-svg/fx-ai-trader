@@ -1696,6 +1696,16 @@ session_time_bias EUR_USDのΔWRは54.2pp。これはバックテストで想定
 - BreakoutおよびMomentum系戦略（donchian、doji-breakout等）は**構造的に不利**なレジーム
 - Reversal・SR系戦略（dt_sr_channel_reversal、vsg_jpy_reversal）は**相対的に有利**だが、現状ブロックで機能していない
 
+### 2026-06-08 (Pre-Tokyo Briefing)
+- 前日（06-07）のトレード実行数：**0件**
+- 全セッション（東京・ロンドン・NY）を通じて実質的なエントリーなし
+- Cutoff後累計（全期間）：N=9、WR=22.2%、PnL=**-51.2**
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **注記**: 全戦略でN<10。「データなし」水準。統計的判断はいずれも不可。EVの絶対値の大きさは小ロットでの損失幅を反映。
+- 前日0件。本日も現時点で全モードのTrades=0。
+- 稼働モードは25個あるが、実質エントリーを生成できていない。
+- Shadow降格セルの累積ブロックが減少に転じるか（降格→昇格待ち）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
