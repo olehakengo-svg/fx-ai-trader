@@ -16,6 +16,17 @@ from strategies.daytrade.session_time_bias import SessionTimeBias
 from strategies.context import SignalContext
 
 
+@pytest.fixture(autouse=True)
+def _clear_filter_env(monkeypatch):
+    """Prevent shell-level SESSION_TIME_BIAS_CELL_FILTER_V1 from contaminating tests.
+
+    Without this, a developer with the flag set =0 in their shell sees 11/16
+    tests fail spuriously (bypass mode returns (True, 1.0) for every input).
+    The rollback test that needs the flag set uses monkeypatch.setenv itself.
+    """
+    monkeypatch.delenv("SESSION_TIME_BIAS_CELL_FILTER_V1", raising=False)
+
+
 def _make_ctx(*, hour_utc: int, adx: float, entry_px: float = 1.1000,
               ema200: float = 1.1000, regime_label: Optional[str] = "RANGE",
               symbol: str = "EUR_USD"):
