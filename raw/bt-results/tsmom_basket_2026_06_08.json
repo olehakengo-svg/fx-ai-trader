@@ -1,0 +1,271 @@
+{
+  "strategy": "d1_tsmom_basket",
+  "pre_reg": ".ai/plans/claude/20260608-2040-d1-tsmom-basket-pre-reg-bt.md",
+  "data_span": "2016-04-18 \u2192 2026-06-08 (3310 bars, 8 pairs)",
+  "pairs": [
+    "EUR_USD",
+    "USD_JPY",
+    "GBP_USD",
+    "AUD_USD",
+    "USD_CAD",
+    "USD_CHF",
+    "NZD_USD",
+    "EUR_JPY"
+  ],
+  "primary_lookback": "12m",
+  "bonferroni_m": 4,
+  "bonferroni_alpha": 0.05,
+  "friction_per_turnover": 0.0001,
+  "results": {
+    "1m": {
+      "lookback_days": 21,
+      "gross": {
+        "label": "1m_gross",
+        "days": 3310,
+        "sharpe": -0.362,
+        "ann_return": -0.0168,
+        "max_dd": -0.2248,
+        "calmar": -0.075,
+        "t_stat": -1.313,
+        "p_raw": 0.1890580586827204,
+        "p_bonferroni": 0.7562322347308816,
+        "months": 123,
+        "monthly_wr": 0.439,
+        "monthly_wr_wilson_lo": 0.3545,
+        "profit_factor": 0.695,
+        "kelly_proxy": -8.2055
+      },
+      "net": {
+        "label": "1m_net",
+        "days": 3310,
+        "sharpe": -0.385,
+        "ann_return": -0.0178,
+        "max_dd": -0.2327,
+        "calmar": -0.077,
+        "t_stat": -1.396,
+        "p_raw": 0.16272788441455255,
+        "p_bonferroni": 0.6509115376582102,
+        "months": 123,
+        "monthly_wr": 0.4309,
+        "monthly_wr_wilson_lo": 0.3468,
+        "profit_factor": 0.68,
+        "kelly_proxy": -8.7222
+      },
+      "avg_daily_turnover": 0.0399,
+      "walk_forward_net": [
+        {
+          "fold": 1,
+          "start": "2016-04-18",
+          "end": "2019-11-01",
+          "sharpe": -0.187,
+          "total_return": -0.029,
+          "sign": "-"
+        },
+        {
+          "fold": 2,
+          "start": "2019-11-03",
+          "end": "2023-01-21",
+          "sharpe": -0.654,
+          "total_return": -0.137,
+          "sign": "-"
+        },
+        {
+          "fold": 3,
+          "start": "2023-01-22",
+          "end": "2026-06-08",
+          "sharpe": -0.259,
+          "total_return": -0.0577,
+          "sign": "-"
+        }
+      ]
+    },
+    "3m": {
+      "lookback_days": 63,
+      "gross": {
+        "label": "3m_gross",
+        "days": 3310,
+        "sharpe": -0.166,
+        "ann_return": -0.0086,
+        "max_dd": -0.1883,
+        "calmar": -0.046,
+        "t_stat": -0.602,
+        "p_raw": 0.5469336240542364,
+        "p_bonferroni": 1.0,
+        "months": 123,
+        "monthly_wr": 0.4309,
+        "monthly_wr_wilson_lo": 0.3468,
+        "profit_factor": 0.843,
+        "kelly_proxy": -3.6213
+      },
+      "net": {
+        "label": "3m_net",
+        "days": 3310,
+        "sharpe": -0.18,
+        "ann_return": -0.0093,
+        "max_dd": -0.1936,
+        "calmar": -0.048,
+        "t_stat": -0.652,
+        "p_raw": 0.514694126661781,
+        "p_bonferroni": 1.0,
+        "months": 123,
+        "monthly_wr": 0.4309,
+        "monthly_wr_wilson_lo": 0.3468,
+        "profit_factor": 0.832,
+        "kelly_proxy": -3.9166
+      },
+      "avg_daily_turnover": 0.0247,
+      "walk_forward_net": [
+        {
+          "fold": 1,
+          "start": "2016-04-18",
+          "end": "2019-11-01",
+          "sharpe": -0.281,
+          "total_return": -0.0429,
+          "sign": "-"
+        },
+        {
+          "fold": 2,
+          "start": "2019-11-03",
+          "end": "2023-01-21",
+          "sharpe": -0.008,
+          "total_return": -0.0079,
+          "sign": "-"
+        },
+        {
+          "fold": 3,
+          "start": "2023-01-22",
+          "end": "2026-06-08",
+          "sharpe": -0.302,
+          "total_return": -0.0681,
+          "sign": "-"
+        }
+      ]
+    },
+    "6m": {
+      "lookback_days": 126,
+      "gross": {
+        "label": "6m_gross",
+        "days": 3310,
+        "sharpe": -0.517,
+        "ann_return": -0.024,
+        "max_dd": -0.312,
+        "calmar": -0.077,
+        "t_stat": -1.875,
+        "p_raw": 0.06078852341920982,
+        "p_bonferroni": 0.24315409367683927,
+        "months": 123,
+        "monthly_wr": 0.4065,
+        "monthly_wr_wilson_lo": 0.3238,
+        "profit_factor": 0.597,
+        "kelly_proxy": -11.4764
+      },
+      "net": {
+        "label": "6m_net",
+        "days": 3310,
+        "sharpe": -0.528,
+        "ann_return": -0.0245,
+        "max_dd": -0.3156,
+        "calmar": -0.078,
+        "t_stat": -1.914,
+        "p_raw": 0.05567169900776592,
+        "p_bonferroni": 0.22268679603106367,
+        "months": 123,
+        "monthly_wr": 0.3984,
+        "monthly_wr_wilson_lo": 0.3162,
+        "profit_factor": 0.591,
+        "kelly_proxy": -11.7098
+      },
+      "avg_daily_turnover": 0.0192,
+      "walk_forward_net": [
+        {
+          "fold": 1,
+          "start": "2016-04-18",
+          "end": "2019-11-01",
+          "sharpe": -0.559,
+          "total_return": -0.0842,
+          "sign": "-"
+        },
+        {
+          "fold": 2,
+          "start": "2019-11-03",
+          "end": "2023-01-21",
+          "sharpe": -0.007,
+          "total_return": -0.0074,
+          "sign": "-"
+        },
+        {
+          "fold": 3,
+          "start": "2023-01-22",
+          "end": "2026-06-08",
+          "sharpe": -1.09,
+          "total_return": -0.2061,
+          "sign": "-"
+        }
+      ]
+    },
+    "12m": {
+      "lookback_days": 252,
+      "gross": {
+        "label": "12m_gross",
+        "days": 3310,
+        "sharpe": -0.011,
+        "ann_return": -0.0015,
+        "max_dd": -0.1077,
+        "calmar": -0.014,
+        "t_stat": -0.039,
+        "p_raw": 0.9686970440495744,
+        "p_bonferroni": 1.0,
+        "months": 123,
+        "monthly_wr": 0.4715,
+        "monthly_wr_wilson_lo": 0.3855,
+        "profit_factor": 0.982,
+        "kelly_proxy": -0.2448
+      },
+      "net": {
+        "label": "12m_net",
+        "days": 3310,
+        "sharpe": -0.019,
+        "ann_return": -0.0018,
+        "max_dd": -0.1085,
+        "calmar": -0.017,
+        "t_stat": -0.071,
+        "p_raw": 0.9437861034890922,
+        "p_bonferroni": 1.0,
+        "months": 123,
+        "monthly_wr": 0.4634,
+        "monthly_wr_wilson_lo": 0.3777,
+        "profit_factor": 0.973,
+        "kelly_proxy": -0.4398
+      },
+      "avg_daily_turnover": 0.0151,
+      "walk_forward_net": [
+        {
+          "fold": 1,
+          "start": "2016-04-18",
+          "end": "2019-11-01",
+          "sharpe": -0.478,
+          "total_return": -0.0669,
+          "sign": "-"
+        },
+        {
+          "fold": 2,
+          "start": "2019-11-03",
+          "end": "2023-01-21",
+          "sharpe": 0.115,
+          "total_return": 0.0208,
+          "sign": "+"
+        },
+        {
+          "fold": 3,
+          "start": "2023-01-22",
+          "end": "2026-06-08",
+          "sharpe": 0.147,
+          "total_return": 0.0248,
+          "sign": "+"
+        }
+      ]
+    }
+  },
+  "primary_net_verdict": "NULL",
+  "wf_all_positive": false
+}
