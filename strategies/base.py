@@ -21,6 +21,10 @@ class Candidate:
     score: float         # スコア（候補選択に使用）
     max_hold_bars: Optional[int] = None  # Optional strategy-specific BT time stop
     sr_meta: Optional[dict] = None
+    # SIZE lever — Edge cell redesign 2026-06-08 (docs/superpowers/specs/2026-06-08-...).
+    # Strategy can boost (1.5x) / reduce (0.5x) / pass (1.0x) per per-cell evidence.
+    # demo_trader._resolve_lot honors this. Clamped to [0, base_lot_cap] downstream.
+    lot_multiplier: float = 1.0
 
     def as_tuple(self) -> tuple:
         """旧形式の candidates タプルに変換（後方互換）。"""
