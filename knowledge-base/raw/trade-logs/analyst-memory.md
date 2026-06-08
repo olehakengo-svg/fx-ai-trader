@@ -1706,6 +1706,16 @@ session_time_bias EUR_USDのΔWRは54.2pp。これはバックテストで想定
 - 稼働モードは25個あるが、実質エントリーを生成できていない。
 - Shadow降格セルの累積ブロックが減少に転じるか（降格→昇格待ち）
 
+### 2026-06-08 (Post-London Report)
+| 勝率 (WR) | 0.0% |
+| PnL | **-38.1 pips** |
+| 戦略 | ペア | PnL | 失敗要因 |
+| WR | — | 0.0% |
+| PnL | 0 | -38.1 pips |
+- **EUR_USD / GBP_USD**: ロンドン勢の手仕舞いで一時的スパイク後、再びRANGING収束の可能性が高い
+- **USD_JPY**: ATR%ile 19%（最低）、本日の動意は極めて限定的と判断
+- EUR_JPY / GBP_JPYはRANGINGだがATR%ile 40-45%とやや高め、NY初動で動く可能性はある
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
