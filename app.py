@@ -3578,6 +3578,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         "entry_type": _dt_entry_type,
         "sr_meta": _sr_meta,
         "max_hold_bars": getattr(_dt_best, "max_hold_bars", None) if _dt_best is not None else None,
+        "lot_multiplier": getattr(_dt_best, "lot_multiplier", 1.0) if _dt_best is not None else 1.0,
         "shadow_emit_signals": _shadow_emit_payload,
         "live_promote_emit_signals": _live_promote_emit_payload,
         "dual_scenarios": dual_scenarios,
@@ -4479,6 +4480,7 @@ def compute_hourly_signal(df: pd.DataFrame, tf: str = "1h",
         "atr": atr,
         "mode": "hourly",
         "sr_meta": getattr(best, "sr_meta", None),
+        "lot_multiplier": getattr(best, "lot_multiplier", 1.0),
         "shadow_emit_signals": shadow_emit_payload,
         "indicators": {
             "ema9": round(float(row.get("ema9", entry)), 3),
@@ -8914,7 +8916,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
     # WAIT用テンプレート生成関数
     # ──────────────────────────────────────────────────────────
     def _make_result(sig, conf, sl_v, tp_v, rr_v, reasons_list, entry_type,
-                     score_v=0.0, shadow_emits=None, sr_meta=None):
+                     score_v=0.0, shadow_emits=None, sr_meta=None, lot_multiplier=1.0):
         # ── U20 fix (2026-04-27): R2-A Suppress gate を Scalp path にも適用 ──
         # Wave 1 R2-A 5 cells のうち全戦略が scalp mode のため、DT path の
         # gate (compute_daytrade_signal) では構造的に通過しなかった (Phase γ
@@ -8957,6 +8959,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             "reasons": reasons_list, "mode": "scalp",
             "entry_type": entry_type,
             "sr_meta": sr_meta,
+            "lot_multiplier": lot_multiplier,
             "layer_status": {
                 "layer0": layer0, "layer1": layer1,
                 "master_bias": layer1.get("label", "—"),
@@ -9128,7 +9131,8 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
             reasons.append("⚠️ RR不足 → TP最小RR1.8に拡張")
         rr = round(tp_dist / max(sl_dist, 1e-6), 2)
         return _make_result(signal, conf, sl, tp, rr, reasons, entry_type, score,
-                            sr_meta=getattr(_best_obj, "sr_meta", None))
+                            sr_meta=getattr(_best_obj, "sr_meta", None),
+                            lot_multiplier=getattr(_best_obj, "lot_multiplier", 1.0))
 
     # ── EMA200 近接回避ゾーン ──
     # 200EMA付近は攻防ラインでウィップソーが多い → 軽度抑制（緩和済み）
@@ -9365,7 +9369,8 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
 
     rr = round(tp_dist / max(sl_dist, 1e-6), 2)
     return _make_result(signal, conf, sl, tp, rr, reasons, entry_type, score,
-                        sr_meta=getattr(_best_obj, "sr_meta", None))
+                        sr_meta=getattr(_best_obj, "sr_meta", None),
+                        lot_multiplier=getattr(_best_obj, "lot_multiplier", 1.0))
 
 
 def _compute_scalp_signal_v1_legacy(df: pd.DataFrame, tf: str, sr_levels: list,
