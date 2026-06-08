@@ -6025,6 +6025,32 @@ class DemoTrader:
             )
             _adjusted_units = self._OANDA_LOT_CAP
 
+        # ── Edge cell SIZE lever — Candidate.lot_multiplier (added 2026-06-08) ──
+        # Applied AFTER Kelly/PRIME/N-cap/DD/sentinel clamping so strategy intent
+        # can BOOST a cell that was N-capped to defensive. Multiplier of 0 = skip.
+        # See docs/superpowers/specs/2026-06-08-session-time-bias-bb-rsi-edge-cell-redesign-design.md
+        # Reads from sig dict key "lot_multiplier" (set by strategy via Candidate).
+        # Skipped for sentinel (1000u validation lot) and edge_cell force-live paths
+        # to avoid double-application. Hard cap re-applied after.
+        if (
+            not _is_sentinel
+            and not _edge_cell_force_live
+            and sig.get("lot_multiplier", 1.0) != 1.0
+        ):
+            _units_before_mult = _adjusted_units
+            _adjusted_units = self._apply_candidate_lot_multiplier(_adjusted_units, sig)
+            # Re-apply hard cap after multiplier
+            _adjusted_units = min(_adjusted_units, self._OANDA_LOT_CAP)
+            # FX: minimum 1000u, 1000u rounding (preserve XAU 1-unit granularity)
+            if not _is_xau_inst and _adjusted_units > 0:
+                _adjusted_units = max(1000, (_adjusted_units // 1000) * 1000)
+            if _adjusted_units != _units_before_mult:
+                self._add_log(
+                    f"[LOT_MULT] {entry_type} {instrument}: "
+                    f"{_units_before_mult} → {_adjusted_units} "
+                    f"(mult={sig.get('lot_multiplier', 1.0):.2f})"
+                )
+
         if _is_promoted:
             # ── v9.0 SHIELD: Aggregate Kelly Gate ──
             # aggregate Kelly < 0 のとき SENTINEL以外のOANDA転送をブロック
@@ -7773,6 +7799,31 @@ class DemoTrader:
         if entry_type in PRICE_SHOCK_REV_TIER1_TYPES:
             return PRICE_SHOCK_REV_MIN_UNITS / max(int(_os.environ.get("OANDA_UNITS", "10000")), 1)
         return 0.3
+
+    def _apply_candidate_lot_multiplier(self, base_lot: int, candidate) -> int:
+        """Honor Candidate.lot_multiplier for edge cell SIZE lever.
+
+        Added 2026-06-08 (docs/superpowers/specs/2026-06-08-session-time-bias-bb-rsi-
+        edge-cell-redesign-design.md).
+        Negative values clamped to 0 (= skip). Returns int (OANDA units).
+
+        Accepts either a Candidate object (lot_multiplier attribute) or a sig dict
+        (lot_multiplier key), or None (returns base_lot unchanged).
+        """
+        if candidate is None:
+            return int(base_lot)
+        # Support both Candidate objects and sig dicts
+        if isinstance(candidate, dict):
+            mult = candidate.get("lot_multiplier", 1.0)
+        else:
+            mult = getattr(candidate, "lot_multiplier", 1.0)
+        try:
+            mult = float(mult)
+        except (TypeError, ValueError):
+            mult = 1.0
+        if mult < 0:
+            return 0
+        return int(base_lot * mult)
 
     @staticmethod
     def _price_shock_rev_min_units(entry_type: str, instrument: str) -> int | None:
