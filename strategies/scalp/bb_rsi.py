@@ -69,14 +69,64 @@ class BBRsiReversion(StrategyBase):
     # EUR/GBP: 全セッション壊滅 (Tokyo PF=0.29, NY Overlap PF=0.53) → 完全無効化
     _disabled_symbols = frozenset({"EURGBP"})
 
+    # ── Edge cell pair whitelist (added 2026-06-08) ──
+    # Source: production data 2026-04-29..06-08, N=239.
+    # See docs/superpowers/specs/2026-06-08-session-time-bias-bb-rsi-edge-cell-redesign-design.md
+    EDGE_PAIRS = frozenset({"USD_JPY"})
+    KILL_PAIRS = frozenset({"USD_CHF", "GBP_USD"})
+
     @staticmethod
     def _redesign_v2_enabled() -> bool:
         return os.environ.get("BB_RSI_REDESIGN_V2", "0").lower() in ("1", "true", "yes")
+
+    def _edge_cell(self, ctx) -> tuple[bool, float]:
+        """Pair-based edge filter. Returns (edge_on, lot_multiplier).
+
+        Env BB_RSI_REVERSION_PAIR_WHITELIST_V1=0 bypasses filter.
+        """
+        if os.environ.get("BB_RSI_REVERSION_PAIR_WHITELIST_V1", "1") == "0":
+            return True, 1.0  # bypass
+
+        sym = getattr(ctx, "symbol", "") or ""
+        norm = sym.upper().replace("=X", "").replace("/", "").replace("_", "")
+        # normalize to underscore form: USDJPY -> USD_JPY (first 6 chars)
+        if len(norm) >= 6:
+            norm = f"{norm[:3]}_{norm[3:6]}"
+        if not norm:
+            return False, 0.0
+
+        if norm in self.KILL_PAIRS:
+            return False, 0.0
+        if norm not in self.EDGE_PAIRS:
+            return False, 0.0  # insufficient evidence → safe side
+
+        # USD_JPY only beyond this point — session split
+        entry_time = getattr(ctx, "entry_time_utc", None)
+        if entry_time is None:
+            try:
+                entry_time = ctx.df.index[-1]
+                if hasattr(entry_time, "to_pydatetime"):
+                    entry_time = entry_time.to_pydatetime()
+            except (AttributeError, IndexError, TypeError):
+                return False, 0.0
+        try:
+            h = entry_time.hour
+        except AttributeError:
+            return False, 0.0
+
+        if 7 <= h < 21:  # LDN/NY/Overlap
+            return True, 1.0
+        return True, 0.5  # ASN (defensive)
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         # ── EUR/GBP無効化: 全セッションPF<0.7 ──
         _sym = ctx.symbol.upper().replace("=X", "").replace("_", "")
         if _sym in self._disabled_symbols:
+            return None
+
+        # ── Edge cell pair whitelist (added 2026-06-08) ──
+        edge_on, lot_mult = self._edge_cell(ctx)
+        if not edge_on:
             return None
 
         # ── ペア別ADXフィルター (Option C) ──
@@ -269,4 +319,5 @@ class BBRsiReversion(StrategyBase):
         except Exception:
             pass
         return Candidate(signal=signal, confidence=conf, sl=sl, tp=tp,
-                         reasons=reasons, entry_type=self.name, score=score)
+                         reasons=reasons, entry_type=self.name, score=score,
+                         lot_multiplier=lot_mult)  # NEW
