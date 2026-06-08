@@ -93,6 +93,65 @@ class SessionTimeBias(StrategyBase):
             return -1
         return ctx.hour_utc * 60 + _minute
 
+    # ── Edge cell filter (added 2026-06-08, see docs/superpowers/specs/) ──
+    # Source: production shadow trades 2026-04-29..06-08, N=396.
+    # EDGE: LDN × ADX[15,30] × dist_EMA200<0.5% → 1.0x (mean +0.93p, WR 45.2%)
+    # CORE: +ADX[25,30] OR regime=RANGE         → 1.5x (mean +1.19-2.17p)
+    def _edge_cell(self, ctx) -> tuple:
+        """Return (edge_on, lot_multiplier). False/0.0 = skip.
+
+        Env flag SESSION_TIME_BIAS_CELL_FILTER_V1=0 bypasses filter
+        (returns (True, 1.0) for rollback).
+        """
+        import os as _os
+        if _os.environ.get("SESSION_TIME_BIAS_CELL_FILTER_V1", "1") == "0":
+            return True, 1.0  # bypass
+
+        # Hour (UTC) — strategies/context.py provides ctx.entry_time_utc OR
+        # we derive from ctx.df.index. Tests set ctx.entry_time_utc directly.
+        entry_time = getattr(ctx, "entry_time_utc", None)
+        if entry_time is None:
+            # Fallback: try ctx.df last bar index
+            try:
+                entry_time = ctx.df.index[-1]
+                if hasattr(entry_time, "to_pydatetime"):
+                    entry_time = entry_time.to_pydatetime()
+            except (AttributeError, IndexError, TypeError):
+                return False, 0.0
+        try:
+            h = entry_time.hour
+        except AttributeError:
+            return False, 0.0
+
+        if not (7 <= h < 13):  # LDN session only
+            return False, 0.0
+
+        adx = getattr(ctx, "adx", None)
+        if adx is None:
+            return False, 0.0
+        try:
+            adx = float(adx)
+        except (TypeError, ValueError):
+            return False, 0.0
+        if not (15.0 <= adx <= 30.0):
+            return False, 0.0
+
+        # Distance from EMA200 as raw fraction (not ATR-normalized).
+        ema200 = getattr(ctx, "ema200", 0.0) or 0.0
+        entry_px = getattr(ctx, "entry", 0.0) or 0.0
+        if ema200 <= 0 or entry_px <= 0:
+            return False, 0.0
+        dist_pct = abs(entry_px - ema200) / ema200
+        if dist_pct >= 0.005:  # >= 0.5% → not in range vicinity
+            return False, 0.0
+
+        # Core boost trigger
+        regime_label = None
+        if isinstance(getattr(ctx, "regime", None), dict):
+            regime_label = ctx.regime.get("regime")
+        is_core = (adx >= 25.0) or (regime_label == "RANGE")
+        return True, (1.5 if is_core else 1.0)
+
     # ──────────────────────────────────────────────────
     # メインロジック
     # ──────────────────────────────────────────────────
@@ -126,6 +185,11 @@ class SessionTimeBias(StrategyBase):
 
         # v8.6: 金曜フィルター撤去 — Breedon & Ranaldo (2013): セッションバイアスは全営業日
         # 保有4-6hで週末前のNYクローズまでにエグジット
+
+        # ── Edge cell filter (added 2026-06-08) ──
+        edge_on, lot_mult = self._edge_cell(ctx)
+        if not edge_on:
+            return None
 
         # ── ADXフィルター: 極端トレンド排除 ──
         if ctx.adx >= self.ADX_MAX:
@@ -230,5 +294,6 @@ class SessionTimeBias(StrategyBase):
         conf = int(min(85, 50 + score * 4))
         return Candidate(
             signal=signal, confidence=conf, sl=sl, tp=tp,
-            reasons=reasons, entry_type=self.name, score=score
+            reasons=reasons, entry_type=self.name, score=score,
+            lot_multiplier=lot_mult,   # edge cell SIZE lever (added 2026-06-08)
         )
