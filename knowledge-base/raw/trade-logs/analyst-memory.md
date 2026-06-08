@@ -1686,6 +1686,16 @@ session_time_bias EUR_USDのΔWRは54.2pp。これはバックテストで想定
 | WR (EUR_USD) | **87.5%** | **33.3%** |
 | ΔWR | | **▼54.2pp 🔴** |
 
+### 2026-06-08 (Pre-Tokyo Briefing)
+- **2026-06-07（前日）**: **トレードゼロ** — 全セッション（東京・ロンドン・NY）を通じて約定なし
+- **Cutoff後累計（全期間）**: N=8、WR=25.0%、PnL=**-43.7 pips**
+- 前日の非活動は単発事象ではなく、後述するブロック構造の集積によるもの
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- `r2_shadow_demoted_cell`ブロックが常態化しているscalpセルの格付けを確認すること
+- `same_price_0pip`が69件発生しているdaytrade_eurのデータフィードを確認すること
+- BreakoutおよびMomentum系戦略（donchian、doji-breakout等）は**構造的に不利**なレジーム
+- Reversal・SR系戦略（dt_sr_channel_reversal、vsg_jpy_reversal）は**相対的に有利**だが、現状ブロックで機能していない
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
