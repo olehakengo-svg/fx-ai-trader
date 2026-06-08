@@ -646,6 +646,44 @@ def load_kb_context() -> str:
     return "\n\n".join(sections)[:2000] if sections else ""
 
 
+def load_planning_guardrails() -> str:
+    """作戦立案ループ防止コンテキストを構築する。
+
+    (1) wiki/planning-guardrails.md（棄却済みパターン・既存shadow在庫・配管優先）
+    (2) 直近 pre_tokyo レポートの作戦候補タイトル（再提案防止の履歴）
+
+    生成器は毎回前日コンテキストのみで動くため記憶を持たない。これを注入することで
+    「過去に何十回出して実行しなかった／実測棄却済みの案」の再生産ループを断ち切る。
+    """
+    sections: list[str] = []
+
+    guard_path = ROOT / "knowledge-base" / "wiki" / "planning-guardrails.md"
+    if guard_path.exists():
+        text = guard_path.read_text(encoding="utf-8").strip()
+        sections.append(text[:4000])
+
+    # 直近 pre_tokyo の作戦候補タイトル（最大6営業日分）= 再提案検知用
+    trade_logs = ROOT / "knowledge-base" / "raw" / "trade-logs"
+    if trade_logs.exists():
+        import re
+        recent = sorted(trade_logs.glob("20*-pre_tokyo.md"), reverse=True)[1:7]
+        history: list[str] = []
+        for f in recent:
+            date = f.name[:10]
+            titles = re.findall(r"【作戦候補[^】]*】.*", f.read_text(encoding="utf-8"))
+            for t in titles:
+                clean = t.replace("**", "").strip()
+                history.append(f"- {date}: {clean[:80]}")
+        if history:
+            sections.append(
+                "## D. 直近の作戦候補履歴（同じ案の再提案を避けること）\n"
+                "下記は過去数日に既に提案済み。同型を再提案する場合は『前回と何が変わったか』を明示できること。\n"
+                + "\n".join(history[:24])
+            )
+
+    return "\n\n".join(sections) if sections else ""
+
+
 # ── エラー通知・自己診断 ──────────────────────────────
 
 def send_error_notification(message: str) -> None:
@@ -819,14 +857,22 @@ STRATEGY_PLANNING_SUFFIX = """
 def run_strategy_planner(analyst_report: str) -> str:
     system = load_agent_prompt("strategy-dev") + STRATEGY_PLANNING_SUFFIX
 
+    guardrails = load_planning_guardrails()
+    guard_section = (
+        f"\n\n### 作戦立案ガードレール（必読・厳守）\n{guardrails}\n"
+        if guardrails else ""
+    )
+
     user_msg = f"""以下はアナリストが生成した本日の運用レポートです。
 このデータ・見解をもとに、次に試すべき戦略の作戦を立案してください。
-
+{guard_section}
 ---
 {analyst_report}
 ---
 
-コードは不要です。「試す価値があるか」の判断材料だけを提示してください。"""
+コードは不要です。「試す価値があるか」の判断材料だけを提示してください。
+**上記ガードレールの A（棄却済みパターン）に該当する案は出さないこと。**
+B（既存shadow在庫）の消化を新規発明より優先し、C（配管バグ）が未解決なら配管修復を高優先で提案すること。"""
 
     return call_claude(system, [{"role": "user", "content": user_msg}])
 
