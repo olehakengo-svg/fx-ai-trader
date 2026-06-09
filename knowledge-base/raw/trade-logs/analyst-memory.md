@@ -1746,6 +1746,16 @@ session_time_bias EUR_USDのΔWRは54.2pp。これはバックテストで想定
 - Trendline_sweep・dt_sr_channel_reversal・sr_anti_hunt_bounceはいずれも**ブレイクアウト系またはモメンタム依存型**
 - RANGINGレジームではファルスブレイクが多発し、これらの戦略はレジーム的逆風を受けていた可能性が高い
 
+### 2026-06-09 (Post-London Report)
+| PnL | **+10.6 pips** |
+| PnL | **+18.1 pips** |
+| PnL | **-7.5 pips** |
+| WR | — | 50.0% | — |
+| PnL | — | +10.6 | — |
+| USD_JPY | RANGING | **17%** | 極低ボラ。NY時間の米系指標でスパイク注意 |
+### 推奨戦略配分
+⚠️ NO ACTION推奨: scalp系全般
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
