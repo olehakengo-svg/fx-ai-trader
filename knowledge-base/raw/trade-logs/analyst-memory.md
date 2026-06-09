@@ -1726,6 +1726,16 @@ session_time_bias EUR_USDのΔWRは54.2pp。これはバックテストで想定
 - 低頻度自体を問題視する前に、「不要なトレードをしない」ことの方が重要。ただしN=30到達まで昇格・降格判断は一切保留。
 | EUR_JPY | RANGING | 40% | +0.00128（微弱上昇） | `dt_sr_channel_reversal`・`sr_anti_hunt_bounce`：レンジ環境は逆張り系に一見有利だが、ATR低位でpip幅が取れずEV圧迫リスク |
 
+### 2026-06-09 (Pre-Tokyo Briefing)
+- **前日（2026-06-08）PnL: -38.1 pips | トレード数: 4件 | WR: 0.0%**
+- 全4トレードがSL_HIT。方向は3 SELL / 1 BUY、ペアはEUR_JPY×2・EUR_USD・GBP_USD。
+- スプレッドは0.8〜1.8pipsと許容範囲内であり、ブロック問題ではなくシグナル品質の問題。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **全体**: N=6, WR=0.0%, 累積PnL=-57.4 pips
+- **trendline_sweep / zz_pivot_v60_sr**: RANGINGフェーズでのシグナル頻度と損失集中を注視。N≥10到達後にEV傾向を再評価する。
+- **dt_sr_channel_reversal（EUR_JPY）**: KBではBT EV=+0.178 / WR=63.8%と記録があるが、実トレード2件いずれも損失。これはN=2のノイズとして許容範囲内だが、次のEUR_JPYトレードは特に記録を要する。
+- **sr_anti_hunt_bounce**: N=1のため判断留保。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
