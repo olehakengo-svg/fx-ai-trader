@@ -1756,6 +1756,16 @@ session_time_bias EUR_USDのΔWRは54.2pp。これはバックテストで想定
 ### 推奨戦略配分
 ⚠️ NO ACTION推奨: scalp系全般
 
+### 2026-06-09 (Pre-Tokyo Briefing)
+Cutoff後トレードデータが取得できないため、前日PnL・トレード数・WRの実測値を提示できません。APIの連続失敗は、Renderのスリープ復帰遅延またはOANDA接続障害のいずれかが疑われます。
+リアルタイムN/WR/EVは取得不可のため、**KBに記録されたBTデータ**をベースラインとして参照します。
+| Strategy | Pair | BT EV | BT WR | ライブ判定可否 |
+| Strategy | Pair | BT EV | BT WR | 備考 |
+| dt-sr-channel-reversal | EUR_JPY | +0.178 | 63.8% | EV低め・N蓄積優先 |
+| dt-bb-rsi-mr | EUR_USD | -0.077 | 52.0% | **BT EV負** |
+| dt-bb-rsi-mr | GBP_USD | -0.135 | 51.3% | **BT EV負（最悪）** |
+| ema200-trend-reversal | USD_JPY | -0.183 | 56.2% | **BT EV負** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
