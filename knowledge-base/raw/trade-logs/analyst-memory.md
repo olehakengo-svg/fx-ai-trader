@@ -1736,6 +1736,16 @@ session_time_bias EUR_USDのΔWRは54.2pp。これはバックテストで想定
 - **dt_sr_channel_reversal（EUR_JPY）**: KBではBT EV=+0.178 / WR=63.8%と記録があるが、実トレード2件いずれも損失。これはN=2のノイズとして許容範囲内だが、次のEUR_JPYトレードは特に記録を要する。
 - **sr_anti_hunt_bounce**: N=1のため判断留保。
 
+### 2026-06-09 (Pre-Tokyo Briefing)
+| PnL合計（前日） | **−38.1 pips** |
+| 全体WR | **0.0%（4戦0勝）** |
+全トレードがSL_HITで終了。単日として見れば壊滅的だが、N=4は統計的に「ノイズ」の範囲。Cutoff後累計N=7・WR=0%・PnL=−64.9も同様に判断不能な水準。
+| Strategy | Pair | N | WR% | EV | PnL |
+### 課題①：全4トレードがSL_HIT（WR=0%）
+- EUR_JPY・EUR_USD・GBP_USD全てがRANGINGレジーム（ATR%ile: 17〜43%）
+- Trendline_sweep・dt_sr_channel_reversal・sr_anti_hunt_bounceはいずれも**ブレイクアウト系またはモメンタム依存型**
+- RANGINGレジームではファルスブレイクが多発し、これらの戦略はレジーム的逆風を受けていた可能性が高い
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
