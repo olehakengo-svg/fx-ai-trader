@@ -21,6 +21,7 @@ from strategies.hourly.price_shock_rev_eur_aud_h1_long import PriceShockRevEurAu
 from strategies.hourly.price_shock_rev_usd_cad_h1_long import PriceShockRevUsdCadH1Long
 from strategies.hourly.price_shock_rev_nzd_jpy_h1_long import PriceShockRevNzdJpyH1Long
 from strategies.hourly.price_shock_rev_aud_jpy_h1_long import PriceShockRevAudJpyH1Long
+from strategies.hourly.usdjpy_carry_dip_accumulator import UsdjpyCarryDipAccumulator
 
 
 class HourlyEngine:
@@ -34,6 +35,13 @@ class HourlyEngine:
     })
     # Price-Shock Rev 5 strategies: Live activation v2 on 2026-05-18.
     # They now use normal single-best emit and DemoTrader MIN-lot live routing.
+    #
+    # usdjpy_carry_dip_accumulator (2026-06-08): LIVE-capable, NOT in _shadow_always so the
+    # runtime OANDA override can promote it to live (mirrors Price-Shock activation). Forced
+    # MIN lot (1000u) in demo_trader. This is a Rule-1 INTENTIONAL EXCEPTION (N<30, single
+    # 4-month regime, TV H4 BT 90.9%WR/PF4.35 sanity-only) — User judgment 2026-06-08, same
+    # class as Kalman D7 / vix_carry / ZZ v60. Card: strategies/usdjpy_carry_dip_accumulator.
+    # Retreat: BOJ hawkish reversal / oil de-escalation / cumulative DD (watchdog).
 
     def __init__(self):
         self.strategies: list[StrategyBase] = [
@@ -45,6 +53,7 @@ class HourlyEngine:
             PriceShockRevUsdCadH1Long(),    # Phase B-1 Shadow: USD_CAD H1 1%-shock LONG
             PriceShockRevNzdJpyH1Long(),    # Phase B-1 Shadow: NZD_JPY H1 1%-shock LONG
             PriceShockRevAudJpyH1Long(),    # Phase B-1 Shadow: AUD_JPY H1 1%-shock LONG
+            UsdjpyCarryDipAccumulator(),    # 2026-06-08 SHADOW: USDJPY carry+cost-push dip-buy (Rule-1 LIVE exception pending)
         ]
 
     def get_strategy(self, name: str) -> Optional[StrategyBase]:

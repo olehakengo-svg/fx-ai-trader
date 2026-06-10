@@ -4427,6 +4427,10 @@ class DemoTrader:
             "price_shock_rev_aud_jpy_h1_long",   # AUD_JPY H1 1%-shock LONG horizon=12 ALL (BT N=426 WR=63.8%)
             "keltner_squeeze_breakout",      # KSB: EUR専用, WR=50% RR=2.0
             "donchian_momentum_breakout",    # DMB: 両ペア, EUR WR=50% / JPY WR=35%
+            # 2026-06-08 SHADOW (rule:R1, LIVE は意図的例外 pending): USDJPY carry+cost-push
+            # dip-buy。現レジーム(155-160介入天井+上ドリフト)順張り。TV H4 BT 90.9%WR/PF4.35/
+            # tail-cap-2円。N<30 単一レジーム=sanity止まり。card: strategies/usdjpy_carry_dip_accumulator
+            "usdjpy_carry_dip_accumulator",  # USD_JPY H1 dip-buy LONG, ceiling 159.5, SL-1.5/TP+0.8円
         }
 
         # 弱い理由のエントリータイプ（追加条件が必要）
@@ -5686,6 +5690,13 @@ class DemoTrader:
             _lot_ratio = PRICE_SHOCK_REV_MIN_UNITS / max(_base_units, 1)
             _adjusted_units = PRICE_SHOCK_REV_MIN_UNITS
             _sentinel_reason = "PRICE_SHOCK_REV_MIN_LOT"
+        if entry_type == "usdjpy_carry_dip_accumulator":
+            # Rule-1 LIVE 意図的例外 (2026-06-08): N<30 単一レジーム=sanity 止まりのエッジ。
+            # cascade に関係なく実資金リスクを MIN lot に固定 (price_shock と同じ 1000u)。
+            # NOTE: TP-skip を持つ PRICE_SHOCK_REV_TIER1_TYPES には入れない (本戦略は TP 使用)。
+            _lot_ratio = PRICE_SHOCK_REV_MIN_UNITS / max(_base_units, 1)
+            _adjusted_units = PRICE_SHOCK_REV_MIN_UNITS
+            _sentinel_reason = "USDJPY_CARRY_DIP_MIN_LOT"
         if _is_sentinel:
             # v7.6: XAU専用Sentinel単位数 — 1unit=1troy oz≈$4800
             # FX 0.01lot=1000u相当をXAUに適用すると 1000oz×$4800=$4.8M → margin拒絶
