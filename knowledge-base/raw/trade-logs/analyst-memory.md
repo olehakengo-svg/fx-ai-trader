@@ -1776,6 +1776,16 @@ Cutoff後トレードデータが取得できないため、前日PnL・トレ�
 | EUR_JPY | **VOLATILE** | 43% | +0.00092 | 唯一のVOLATILE。dt_sr_channel_reversalの主戦場。スプレッド拡大注意 |
 - **EUR_JPY**：VOLATILE継続なら dt_sr_channel_reversal にシグナル増加期待。ただしATR43%は中程度で、急落すればRANGING移行も
 
+### 2026-06-10 (Pre-Tokyo Briefing)
+| 前日PnL | **+10.6 pips** |
+| 全体WR | **50.0%** (1W/1L) |
+| Strategy | Pair | N | WR% | EV | PnL | 評価 |
+> ※前日分（dt_sr_channel_reversal EUR_JPY +18.1）を全期間に統合すると、dt_sr_channel_reversal EUR_JPY N=4、PnL=+14.5推定。全戦略合計N=8。
+- 全モード25個が稼働中にもかかわらず、前日実行トレードは**わずか2件**
+- Block Countsを見ると、hedge_block（scalp_5m_gbp:22、daytrade_eurgbp:21、daytrade_eur:14）とdirection_filter（rnb_usdjpy:21）が主要阻害要因
+- **hedge_blockの集中**: GBP系・EUR系で相互ヘッジブロックが連鎖しており、同方向シグナル発生時に機会損失が構造的に発生
+- scalp_eur:18件、scalp_5m:2件がシャドウデモート済みセルにブロック
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
