@@ -1766,6 +1766,16 @@ Cutoff後トレードデータが取得できないため、前日PnL・トレ�
 | dt-bb-rsi-mr | GBP_USD | -0.135 | 51.3% | **BT EV負（最悪）** |
 | ema200-trend-reversal | USD_JPY | -0.183 | 56.2% | **BT EV負** |
 
+### 2026-06-10 (Pre-Tokyo Briefing)
+| 前日PnL合計 | **+10.6 pips** |
+| 前日WR | **50.0%** (1勝1敗) |
+| Strategy | Pair | N | WR% | EV | PnL | 評価 |
+**全体**: N=8 / WR=12.5% / PnL=**-46.8 pips**
+- direction_filterのブロック傾向を注視（USD_JPY TRENDING_UP環境での機会損失 vs. リスク管理のトレードオフを把握）
+- GBP関連戦略の活動時間帯を意識してモニタリング
+| EUR_JPY | **VOLATILE** | 43% | +0.00092 | 唯一のVOLATILE。dt_sr_channel_reversalの主戦場。スプレッド拡大注意 |
+- **EUR_JPY**：VOLATILE継続なら dt_sr_channel_reversal にシグナル増加期待。ただしATR43%は中程度で、急落すればRANGING移行も
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
