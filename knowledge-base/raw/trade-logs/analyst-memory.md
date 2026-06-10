@@ -1786,6 +1786,16 @@ Cutoff後トレードデータが取得できないため、前日PnL・トレ�
 - **hedge_blockの集中**: GBP系・EUR系で相互ヘッジブロックが連鎖しており、同方向シグナル発生時に機会損失が構造的に発生
 - scalp_eur:18件、scalp_5m:2件がシャドウデモート済みセルにブロック
 
+### 2026-06-10 (Post-London Report)
+| PnL | **N/A**（データ取得不可） |
+| WR | **N/A** |
+- `trendline-sweep (EUR_USD)` — EV=+0.927、ロンドン高流動性帯でブレイク確度が上がる傾向
+- `doji-breakout (GBP_USD)` — EV=+0.724、GBP方向性がロンドン開始後に確定しやすい
+- `dt-bb-rsi-mr` 系は全ペアでBT EV<0 — ロンドンの高ATR環境ではMR戦略は逆風
+- `ema200-trend-reversal (USD_JPY)` EV=-0.183 — ロンドン後半の方向転換期に誤シグナルリスク大
+- ロンドン→NY移行（UTC 16:00-17:00）はしばしば**偽ブレイク・リバーサル**が多発
+- 現在UTC 18:24は**NY序盤**に該当。EUR/USD方向性がロンドン引け水準に対してリトレースするか判断が必要
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
