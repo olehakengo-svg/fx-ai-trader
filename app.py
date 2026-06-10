@@ -13676,6 +13676,7 @@ def _build_strategy_status_map():
         # ═══ 1H ═══
         "keltner_squeeze_breakout", "donchian_momentum_breakout",
         "h1_breakout_retest", "h1_fib_reversal", "h1_ema200_trend_reversal",
+        "usdjpy_carry_dip_accumulator",  # 2026-06-08 USDJPY carry dip-buy (LIVE via env override)
         # ═══ D1 (Shadow only) ═══
         # Turtle System 2 — 55-day Donchian breakout, USDJPY long-only.
         # Wave 1 BT verdict: B (Shadow-promote). Live promotion blocked until

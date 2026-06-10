@@ -5858,18 +5858,20 @@ class DemoTrader:
             )
         # ── v8.9: existing fallback; non-promoted/non-shadow trades are shadow.
         # 2026-05-20 Kalman D7 LIVE override: env enabled な kalman entries は fallback を bypass
-        _kalman_live_pre = self._kalman_d7_live_eligible(entry_type, instrument)
+        _kalman_live_pre = (self._kalman_d7_live_eligible(entry_type, instrument)
+                            or self._usdjpy_carry_dip_live_eligible(entry_type, instrument))
         if not _is_promoted and not _is_shadow and not _kalman_live_pre:
             _is_shadow = True
         elif _kalman_live_pre and not _is_shadow:
-            _is_promoted = True  # KALMAN_D7_LIVE: 強制 promote
+            _is_promoted = True  # env LIVE override: 強制 promote
         # ── v9.0 Phase 0: Three-tier SHADOW gate ──
         # Non-ELITE, non-SENTINEL strategies are forced to shadow when _SHADOW_MODE is active.
         # This runs ON TOP of existing logic: even if _is_promoted=True, shadow overrides it
         # unless the strategy is elite or has a PAIR_PROMOTED entry for this instrument.
         # v9.4: PRIME A/B も Phase0 gate から免除 (binding pre-reg)
         # 2026-05-20 Kalman D7 LIVE override: bypass Phase0 SHADOW gate
-        _kalman_live = self._kalman_d7_live_eligible(entry_type, instrument)
+        _kalman_live = (self._kalman_d7_live_eligible(entry_type, instrument)
+                        or self._usdjpy_carry_dip_live_eligible(entry_type, instrument))
         if (self._SHADOW_MODE
                 and _is_promoted
                 and not _is_shadow
@@ -8064,6 +8066,23 @@ class DemoTrader:
             return False
         return True
 
+    # 2026-06-08 USDJPY Carry Dip-Accumulator LIVE override (rule:R1 意図的例外)。
+    # Kalman D7 と同型: env flag が立つ時だけ、この1戦略に限り SHADOW_MODE/Phase0 gate を bypass。
+    # グローバル SHADOW_MODE は触らない (全戦略 live 化の暴発防止)。MIN lot(1000u) 固定済。
+    _USDJPY_CARRY_DIP_LIVE_ENABLE = _os.environ.get("USDJPY_CARRY_DIP_LIVE_ENABLE", "0") == "1"
+    _USDJPY_CARRY_DIP_LIVE_INSTRUMENT = "USD_JPY"
+
+    @classmethod
+    def _usdjpy_carry_dip_live_eligible(cls, entry_type: str, instrument: str = "") -> bool:
+        """True if the USDJPY Carry Dip-Accumulator LIVE env override applies."""
+        if not cls._USDJPY_CARRY_DIP_LIVE_ENABLE:
+            return False
+        if entry_type != "usdjpy_carry_dip_accumulator":
+            return False
+        if instrument and instrument != cls._USDJPY_CARRY_DIP_LIVE_INSTRUMENT:
+            return False
+        return True
+
     _TRENDLINE_SWEEP_REDESIGN_V2_LIVE_PAIRS = frozenset({"EUR_USD", "GBP_USD"})
     _TRENDLINE_SWEEP_REDESIGN_V2_SHADOW_PAIRS = frozenset({"EUR_GBP", "XAU_USD"})
 
@@ -8093,6 +8112,10 @@ class DemoTrader:
         # env KALMAN_D7_LIVE_ENABLE=1 で UNIVERSAL_SENTINEL より優先して PAIR_PROMOTED 相当に
         if self._kalman_d7_live_eligible(entry_type, instrument):
             return "KALMAN_D7_LIVE"
+        # 2026-06-08 USDJPY Carry Dip-Accumulator LIVE override (rule:R1 例外)。
+        # env で有効時のみ PHASE0_SHADOW を回避し live 判定 (OANDA fill 確認で確定)。
+        if self._usdjpy_carry_dip_live_eligible(entry_type, instrument):
+            return "USDJPY_CARRY_DIP_LIVE"
         if self._is_elite_live(entry_type, instrument):
             return "ELITE_LIVE"
         if self._is_force_demoted_entry(entry_type):
