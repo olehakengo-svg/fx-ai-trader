@@ -59,6 +59,10 @@ def filter_closed_shadow_rows(payload: Any) -> list[dict]:
     for row in _trade_rows(payload):
         if not _as_bool(row.get("is_shadow", False)):
             continue
+        # dedup_violation=1 は per-bar dedup gate leak の二重記録 → 統計から除外
+        # (2026-06-08 Claude 検証、shadow_promote_r2_alert と整合)
+        if int(row.get("dedup_violation", 0) or 0) == 1:
+            continue
         clone = dict(row)
         clone["is_shadow"] = 0
         rows.extend(filter_closed_live_trades({"trades": [clone]}))

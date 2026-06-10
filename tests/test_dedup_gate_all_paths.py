@@ -3,6 +3,8 @@ from __future__ import annotations
 import concurrent.futures as cf
 import inspect
 import threading
+import uuid
+from datetime import datetime, timedelta, timezone
 
 from modules.demo_db import DemoDB
 from modules.demo_trader import DemoTrader
@@ -136,6 +138,48 @@ def test_multi_thread_same_key_reservation_has_single_winner(tmp_path):
     assert trader._dedup_stats["shadow_called"] == 2
     assert trader._dedup_stats["shadow_passed"] == 1
     assert trader._dedup_stats["shadow_blocked"] == 1
+
+
+def test_tf_window_sec_mapping():
+    assert DemoDB._tf_window_sec("15m") == 900
+    assert DemoDB._tf_window_sec("4h") == 14400
+    assert DemoDB._tf_window_sec("1m") == 60
+    # unknown / empty falls back to the legacy 60s window
+    assert DemoDB._tf_window_sec(None) == 60
+    assert DemoDB._tf_window_sec("") == 60
+
+
+def test_backfill_flags_same_15m_bar_reemit_beyond_60s(tmp_path):
+    """rule:R3 (2026-06-08): backfill window must be TF-aware.
+
+    A 15m strategy re-emitting 120s later is still the same 900s bar — a
+    per-bar duplicate. The old fixed-60s window missed these, leaving
+    dedup_violation=0 so they contaminated the R2 shadow audit (Claude 検証:
+    282 same-bar dupes escaped the flag across 5m/15m/1h strategies).
+    """
+    db = DemoDB(db_path=str(tmp_path / "tf-backfill.db"))
+    base = datetime(2026, 5, 1, 0, 0, tzinfo=timezone.utc)
+    cols = (
+        "trade_id,entry_type,instrument,direction,entry_price,sl,tp,"
+        "confidence,tf,mode,is_shadow,dedup_violation,entry_time,status"
+    )
+    with db._safe_conn() as conn:
+        for off in (0, 120):  # 120s apart, same 15m bar
+            conn.execute(
+                f"INSERT INTO demo_trades ({cols}) VALUES "
+                "(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    str(uuid.uuid4()), "dt_bb_rsi_mr", "EUR_USD", "BUY",
+                    1.1, 1.09, 1.12, 60, "15m", "daytrade", 1, 0,
+                    (base + timedelta(seconds=off)).isoformat(), "OPEN",
+                ),
+            )
+        conn.commit()
+
+    result = db._backfill_dedup_violation_impl()
+    assert result["status"] == "flagged"
+    # the 2nd emit (120s > 60s but < 900s 15m bar) is flagged
+    assert result["flagged"] == 1
 
 
 def test_dynamic_dedup_status_targets_include_all_shadow_strategies(tmp_path):

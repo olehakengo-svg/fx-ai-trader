@@ -607,7 +607,22 @@ class DemoDB:
         "rsk_gbpjpy_reversion",
         "mqe_gbpusd_fix",
     )
-    _DEDUP_BACKFILL_WINDOW_SEC = 60
+    _DEDUP_BACKFILL_WINDOW_SEC = 60  # fallback when tf is unknown/empty
+
+    # TF-aware dedup window (bar duration). Mirrors demo_trader._tf_to_window_sec.
+    # rule:R3 (2026-06-08): the fixed 60s window under-flagged per-bar re-emits on
+    # 5m/15m/1h/4h strategies — the emit gate routes same-bar duplicates to shadow
+    # (TF-aware window up to 14400s) but the backfill only flagged sub-60s ones,
+    # so 15m/4h same-bar dupes stayed dedup_violation=0 and contaminated the R2
+    # audit (Claude 検証: 293 same-bar shadow dupes escaped the flag).
+    _TF_WINDOW_SEC = {
+        "1m": 60, "5m": 300, "15m": 900,
+        "30m": 1800, "1h": 3600, "4h": 14400,
+    }
+
+    @classmethod
+    def _tf_window_sec(cls, tf) -> int:
+        return cls._TF_WINDOW_SEC.get((tf or "").strip(), cls._DEDUP_BACKFILL_WINDOW_SEC)
 
     def _backfill_dedup_violation(self):
         """One-shot post-hoc flag for contaminated SHADOW_ALWAYS rows.
@@ -711,7 +726,7 @@ class DemoDB:
                     return {"status": "no_targets", "rows_examined": 0}
                 placeholders = ",".join("?" for _ in targets)
                 rows = conn.execute(
-                    f"""SELECT trade_id, entry_type, instrument, direction, entry_time
+                    f"""SELECT trade_id, entry_type, instrument, direction, entry_time, tf
                        FROM demo_trades
                        WHERE is_shadow = 1
                          AND dedup_violation = 0
@@ -726,7 +741,8 @@ class DemoDB:
                 last_seen: dict = {}
                 flag_ids: list = []
                 parse_errors = 0
-                window = timedelta(seconds=self._DEDUP_BACKFILL_WINDOW_SEC)
+                row_keys = rows[0].keys() if rows else ()
+                has_tf = "tf" in row_keys
                 for r in rows:
                     key = (r["entry_type"], r["instrument"], r["direction"])
                     try:
@@ -734,6 +750,10 @@ class DemoDB:
                     except Exception:
                         parse_errors += 1
                         continue
+                    # TF-aware window: a 15m re-emit within the same 900s bar is a
+                    # per-bar duplicate even when >60s apart (rule:R3 2026-06-08).
+                    tf_val = r["tf"] if has_tf else None
+                    window = timedelta(seconds=self._tf_window_sec(tf_val))
                     last = last_seen.get(key)
                     if last is not None and (et - last) < window:
                         flag_ids.append(r["trade_id"])

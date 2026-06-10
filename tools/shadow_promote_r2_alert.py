@@ -214,6 +214,11 @@ def filter_shadow_trades(
             continue
         if pnl is None:
             continue
+        # dedup_violation=1 は per-bar dedup gate leak による二重記録。
+        # 含めると N が約16%水増しされ昇格閾値 N>=30 が幻の重複で達成される
+        # (2026-06-08 Claude 検証: 317/1943=16%, wick_imbalance EUR_USD N48->27)。
+        if int(trade.get("dedup_violation", 0) or 0) == 1:
+            continue
         if ts is None or ts < since or ts > now:
             continue
         row = dict(trade)
@@ -346,7 +351,7 @@ def render_markdown(result: dict[str, Any]) -> str:
     lines.append("")
     lines.append(f"- Source: `{result['source_url']}`")
     lines.append(f"- Lookback: `{result['lookback_days']}d`")
-    lines.append("- Filters: `is_shadow=1`, `pnl_pips IS NOT NULL`, XAU instruments excluded")
+    lines.append("- Filters: `is_shadow=1`, `pnl_pips IS NOT NULL`, `dedup_violation != 1`, XAU instruments excluded")
     lines.append("- Gate: `N >= 10 and EV < 0` -> WARN; `N >= 30 and EV < 0` -> CRITICAL")
     lines.append("- Mode: read-only; no env vars, strategy code, tier-master, or DB writes")
     lines.append("")

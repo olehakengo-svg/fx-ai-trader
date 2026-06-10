@@ -169,3 +169,31 @@ def test_xau_and_live_rows_are_excluded(tmp_path):
     assert only_cell["n"] == 0
     assert only_cell["severity"] == "OK"
     assert exit_code == 0
+
+
+def test_dedup_violation_rows_are_excluded(tmp_path):
+    """dedup_violation=1 (per-bar dedup gate leak の二重記録) は N から除外する。
+
+    含めると N が水増しされ昇格閾値 N>=30 が幻の重複で達成される
+    (2026-06-08 Claude 検証: 全 shadow の 16% が dedup duplicate)。
+    """
+    clean = _trades("dedup_cell", 12, -2.0)
+    dupes = _trades("dedup_cell", 30, -2.0)
+    for d in dupes:
+        d["dedup_violation"] = 1
+
+    result, exit_code = spr2.run(
+        clean + dupes,
+        _promoted("dedup_cell"),
+        now=NOW,
+        report_dir=tmp_path,
+        write_md=False,
+    )
+
+    cell = _cell(result, "dedup_cell")
+    # 12 clean のみ残る → N=12 WARN。dedup を含めれば N=42 CRITICAL になるはずが、
+    # 除外により誤った CRITICAL 昇格判定を回避できる。
+    assert cell["n"] == 12
+    assert cell["severity"] == "WARN"
+    assert result["summary"]["critical_count"] == 0
+    assert exit_code == 0
