@@ -1806,6 +1806,16 @@ Cutoff後トレードデータが取得できないため、前日PnL・トレ�
 LOSS: -10.9 pips（SIGNAL_REVERSE）
 同一セッションで同一方向（GBP_USD BUY ×2）でエントリー。SIGNAL_REVERSE で大幅ロス後、即座に同方向再エントリーして小幅勝ちというパターン。**相関リスクが顕在化**しており、同一ペア・同一方向の連続エントリー管理が重要。
 
+### 2026-06-11 (Pre-Tokyo Briefing)
+- **前日（2026-06-10）**: PnL **+3.0** / トレード **5件** / WR **60.0%**
+- `dt_sr_channel_reversal / EUR_JPY` の大勝（+10.3）が全体を牽引。`wick_imbalance_reversion` の1件大敗（-10.9）で相殺される構造。
+- OANDA転送率 **8%**（4 SENT / 46 SKIP）— 本番資金への貢献は依然限定的。
+| Strategy | Pair | N | WR% | EV | 判定 |
+> **全体**: N=11 / WR=45.5% / PnL=-10.3
+> ⚠️ **全戦略でN<10**（統計的判断不可）。EVの符号は傾向として参照するにとどめる。
+| 件 | Dir | Outcome | PnL |
+| 1 | BUY | LOSS | **-10.9** (SIGNAL_REVERSE) |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
