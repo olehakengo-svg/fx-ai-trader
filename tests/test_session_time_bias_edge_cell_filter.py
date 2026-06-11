@@ -65,21 +65,23 @@ def test_ldn_adx_24_range_dist_04pct_returns_edge_1x():
     assert mult == 1.0
 
 
-# ── CORE BOOST 1.5x cells ───────────────────────────────────────
-def test_ldn_adx_27_returns_core_boost_1_5x():
-    """ADX in [25,30] triggers core boost regardless of regime label."""
+# ── SIZE boost NEUTRALIZED 2026-06-11 (12y MASSIVE: core cells REJECT) ──
+# Core cells (ADX[25,30] / regime=RANGE) now return 1.0x, not 1.5x.
+# 12y proved the 40d "core" edge was selection bias; boost removed.
+def test_ldn_adx_27_no_longer_boosts_after_12y_reject():
+    """ADX[25,30] used to boost 1.5x; 12y REJECT → now 1.0x (defensive only)."""
     ctx = _make_ctx(hour_utc=10, adx=27, ema200=1.1000, entry_px=1.1020, regime_label="CHOP")
     edge, mult = _filter(ctx)
     assert edge is True
-    assert mult == 1.5
+    assert mult == 1.0
 
 
-def test_ldn_adx_18_range_label_returns_core_boost_1_5x():
-    """regime=RANGE triggers core boost even at lower ADX."""
+def test_ldn_adx_18_range_label_no_longer_boosts_after_12y_reject():
+    """regime=RANGE used to boost 1.5x; 12y REJECT → now 1.0x."""
     ctx = _make_ctx(hour_utc=8, adx=18, ema200=1.1000, entry_px=1.1020, regime_label="RANGE")
     edge, mult = _filter(ctx)
     assert edge is True
-    assert mult == 1.5
+    assert mult == 1.0
 
 
 # ── KILL cells (skip) ───────────────────────────────────────────

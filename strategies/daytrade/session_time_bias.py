@@ -95,8 +95,16 @@ class SessionTimeBias(StrategyBase):
 
     # ── Edge cell filter (added 2026-06-08, see docs/superpowers/specs/) ──
     # Source: production shadow trades 2026-04-29..06-08, N=396.
-    # EDGE: LDN × ADX[15,30] × dist_EMA200<0.5% → 1.0x (mean +0.93p, WR 45.2%)
-    # CORE: +ADX[25,30] OR regime=RANGE         → 1.5x (mean +1.19-2.17p)
+    # EDGE: LDN × ADX[15,30] × dist_EMA200<0.5% → 1.0x (40d mean +0.93p, WR 45.2%)
+    #
+    # ⚠️ 2026-06-11 SIZE-BOOST NEUTRALIZED (1.5x → 1.0x):
+    #   12y MASSIVE BT (bt-results/session-time-bias-cell-filter-12y.json) verdict:
+    #   ALL pairs REJECT. EUR_USD proposed PF=0.94 / mean -0.44p, GBP_USD PF=0.85.
+    #   The "core" cells (ADX[25,30] / regime=RANGE) are NOT edge over 12y — the
+    #   40d in-sample +1.19-2.17p was selection bias (cells data-mined from same 40d).
+    #   The 1.5x boost amplified non-edge cells → removed. Filter retained as
+    #   DEFENSIVE fire-reducer only (skips kill cells); NO LIVE promotion.
+    #   See memory project_session_time_bias_bb_rsi_12y_reject_2026_06_11.
     def _edge_cell(self, ctx) -> tuple:
         """Return (edge_on, lot_multiplier). False/0.0 = skip.
 
@@ -145,12 +153,9 @@ class SessionTimeBias(StrategyBase):
         if dist_pct >= 0.005:  # >= 0.5% → not in range vicinity
             return False, 0.0
 
-        # Core boost trigger
-        regime_label = None
-        if isinstance(getattr(ctx, "regime", None), dict):
-            regime_label = ctx.regime.get("regime")
-        is_core = (adx >= 25.0) or (regime_label == "RANGE")
-        return True, (1.5 if is_core else 1.0)
+        # SIZE boost NEUTRALIZED 2026-06-11 — 12y MASSIVE proved core cells
+        # are not edge (all REJECT). Filter passes at 1.0x (defensive only).
+        return True, 1.0
 
     # ──────────────────────────────────────────────────
     # メインロジック
