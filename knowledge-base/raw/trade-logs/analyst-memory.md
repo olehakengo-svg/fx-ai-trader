@@ -1796,6 +1796,16 @@ Cutoff後トレードデータが取得できないため、前日PnL・トレ�
 - ロンドン→NY移行（UTC 16:00-17:00）はしばしば**偽ブレイク・リバーサル**が多発
 - 現在UTC 18:24は**NY序盤**に該当。EUR/USD方向性がロンドン引け水準に対してリトレースするか判断が必要
 
+### 2026-06-11 (Pre-Tokyo Briefing)
+| PnL合計（前日） | **+3.0 pips** |
+| 全体WR | **60.0%** (3W/1L/1BE) |
+前日は小幅プラスで着地。dt_sr_channel_reversal が +10.3 pips の大幅勝ちでPnLを牽引。一方 wick_imbalance_reversion が -10.9 pips の大幅ロスを出し、全体利益の大部分を相殺した。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **全体（Cutoff後）**: N=10, WR=40.0%, EV=−1.7, PnL=−17.0
+> ⚠️ **統計的注記**: 最大N=3。全戦略が「データ不足（N<10）」ゾーン。EV・WRの解釈は傾向参照にとどめる。
+LOSS: -10.9 pips（SIGNAL_REVERSE）
+同一セッションで同一方向（GBP_USD BUY ×2）でエントリー。SIGNAL_REVERSE で大幅ロス後、即座に同方向再エントリーして小幅勝ちというパターン。**相関リスクが顕在化**しており、同一ペア・同一方向の連続エントリー管理が重要。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
