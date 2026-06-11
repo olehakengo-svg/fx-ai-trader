@@ -1826,6 +1826,16 @@ LOSS: -10.9 pips（SIGNAL_REVERSE）
 > 東京セッション推定: 1件 WIN +1.4 pips（累計4件-3件=1件、PnL: -2.2-(-3.6)=+1.4pips）
 ### 推奨戦略配分
 
+### 2026-06-11 (Pre-Tokyo Briefing)
+**2026-06-10（前日）**: PnL **+3.0** / トレード数 **5件** / 全体WR **60.0%**
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **注**: 全戦略N<10。「判断可能」な戦略はゼロ。EVの正負はすべて「傾向」レベル。
+> 全体合計: N=10 / WR=70.0% / PnL=**+18.9**（dt_sr_channel_reversalの高EVが全体を引き上げ）
+BUY/LOSS: -10.9  (SIGNAL_REVERSE — エントリー後に方向反転)
+EV前日: -4.80（Cutoff後累計も-3.75）
+**観察**: GBP_USDはRANGINGレジーム(ATR%ile 40%)。Spreadは1.3pipsで許容範囲だが、SIGNAL_REVERSEでの-10.9は「エントリー後に逆走→TP未到達でSL拡大」を示唆。WR50%かつEV<0という組み合わせはレンジ環境でのシグナル品質劣化を示す。
+**本日対処**: GBP_USDのwick_imbalance_reversionシグナルは「N=4・EV=-3.75」で降格基準（N≥30 & EV<-0.5）には未到達だが、**現在のレンジ環境では信頼度が特に低い**。この戦略からのシグナルは要注視。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
