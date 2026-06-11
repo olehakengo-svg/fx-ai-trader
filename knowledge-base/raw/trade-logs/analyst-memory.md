@@ -1816,6 +1816,16 @@ LOSS: -10.9 pips（SIGNAL_REVERSE）
 | 件 | Dir | Outcome | PnL |
 | 1 | BUY | LOSS | **-10.9** (SIGNAL_REVERSE) |
 
+### 2026-06-11 (Post-London Report)
+| PnL | **-3.6 pips** |
+> ⚠️ **WR66.7%でもPnLがマイナス**: GBPUSD SL_HIT (-7.7) の損失が2勝の合計利益 (+4.1) を上回るペイオフ非対称。
+| 戦略 | ペア | PnL | 成功要因 |
+| 戦略 | ペア | PnL | 失敗要因 |
+| 本日累計WR | 75.0% | セッション単体66.7% |
+| 本日累計PnL | -2.2 pips | セッション単体 -3.6 pips |
+> 東京セッション推定: 1件 WIN +1.4 pips（累計4件-3件=1件、PnL: -2.2-(-3.6)=+1.4pips）
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
