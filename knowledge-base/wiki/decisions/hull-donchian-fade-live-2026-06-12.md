@@ -45,4 +45,27 @@
 
 - Claude 直接実装、Codex はレビューのみ ([[feedback_codex_as_review_layer_2026_06_05]])
 - 並行セッション (sweep_reversion 42ba3fe3) と同日衝突 → commit 順序調整で解決
-- E2E: tests/test_hull_donchian_fade.py 8 tests (発火/意味論/dedup/env gate/tier/whitelist/登録)
+- E2E: tests/test_hull_donchian_fade.py 19 tests (発火/意味論/dedup/env gate/tier/whitelist/登録/契約pin)
+
+## 契約保存レイヤ (2026-06-12, 32c65bc6 + b5b637cf)
+
+共有 DT 経路には凍結スペックを書き換える変換ゲートが多数あり、全て監査して
+免除/登録した。**初回 env flip 直後に sweep の Codex レビュー (c3b9f06e) で同型 gate の
+存在が判明 → env を即 OFF に戻しリスク窓ゼロで修正** (発火前に検出)。
+
+| Gate | 影響 (未対応時) | 対応 |
+|---|---|---|
+| SL/TP SR-ATR 再計算 | SL=4xATR → ~1xATR (MR 破壊) | _1H_PRESERVE_SLTP 登録 |
+| RR≥1.2 / 0.8 床 | RR~0.25 契約が全 block | 本戦略のみ免除 (C-1) |
+| **app.py RR1.3 TP リライト** | **TP=basis → 7.2xATR (別戦略化)** | _dte_preserve_sltp guard (I-1) |
+| C1 半分時点早期損切り | basis 回帰前 loser を実損化 | 免除 |
+| MAX_HOLD 8h (mode default) | p90=11.5h の尾を切断 | 24h 登録 |
+| Quick-Harvest TP x0.85 | TP 意味論改変 | EXEMPT 登録 |
+| MTF x1.3 TP 拡大 | TP=basis 改変 | 中和 |
+| select_best 敗北 (score 3-5) | prod fires=0 (4回再発した既知バグ) | LIVE_PROMOTE_LOSERS 登録 (I-3) |
+| OANDA_FORCE_FLAT_UNITS | MIN lot 上書き | bypass (I-4) |
+| SL ワイドニング系 | SL が遠くなる方向のみ | **受容** (テール限定、締める方向ではない) |
+| RANGE MR BB_mid TP | TP=basis → BB_mid | 非加入 pin (_RANGE_MR_STRATEGIES) |
+
+教訓: **LIVE 例外戦略の本体実装より、共有経路の契約監査の方が工数も リスクも大きい**。
+新規 LIVE 例外時はこの表をチェックリストとして使うこと。
