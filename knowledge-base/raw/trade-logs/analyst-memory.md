@@ -1836,6 +1836,16 @@ EV前日: -4.80（Cutoff後累計も-3.75）
 **観察**: GBP_USDはRANGINGレジーム(ATR%ile 40%)。Spreadは1.3pipsで許容範囲だが、SIGNAL_REVERSEでの-10.9は「エントリー後に逆走→TP未到達でSL拡大」を示唆。WR50%かつEV<0という組み合わせはレンジ環境でのシグナル品質劣化を示す。
 **本日対処**: GBP_USDのwick_imbalance_reversionシグナルは「N=4・EV=-3.75」で降格基準（N≥30 & EV<-0.5）には未到達だが、**現在のレンジ環境では信頼度が特に低い**。この戦略からのシグナルは要注視。
 
+### 2026-06-12 (Pre-Tokyo Briefing)
+| PnL合計 | **-2.2 pips** |
+| 全体WR | **75.0%** (3勝1敗) |
+WR75%にもかかわらずPnL赤字。`wick_imbalance_reversion` の1敗（-7.7pips）が3勝分の利益（+5.5pips）を上回るペイオフ非対称が原因。件数は依然として低水準（N=4/日）。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| `wick_imbalance_reversion` | GBP_USD | 4 | 50.0% | **-3.75** | -15.0 | 🔴 EV負・要監視 |
+- 全戦略 N<10 → 現時点では「データなし」扱いが厳密
+- `dt_sr_channel_reversal` のEV+14.20はN=2のため信頼区間が極めて広大（外れ値リスク大）
+- `wick_imbalance_reversion` はN=4でEV-3.75。全期間で最も懸念材料
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
