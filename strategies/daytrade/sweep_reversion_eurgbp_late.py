@@ -114,7 +114,6 @@ class SweepReversionEurgbpLate(StrategyBase):
 
         # ── sweep 検出 (research と同一定義) ──
         # swing_lo = closed bar を除く直近 L bars の min(Low)
-        end = closed_idx if closed_idx == -1 else closed_idx  # window は closed の手前まで
         window_lo = low_s.iloc[closed_idx - self.SWING_LOOKBACK: closed_idx]
         if len(window_lo) < self.SWING_LOOKBACK:
             return None

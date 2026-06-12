@@ -1,8 +1,8 @@
 # sweep_reversion_eurgbp_late
 
-**Status**: LIVE (rule:R1 意図的例外, user 判断 2026-06-12, env `SWEEP_REVERSION_EURGBP_LIVE_ENABLE=1`)
-**Mode**: daytrade_eurgbp (15m) / **Pair**: EUR_GBP only / **Direction**: BUY only
-**Lot**: 1000u 固定 (MIN lot)
+- **Status**: LIVE (rule:R1 意図的例外, user 判断 2026-06-12, env `SWEEP_REVERSION_EURGBP_LIVE_ENABLE=1`)
+- **Mode**: daytrade_eurgbp (15m) / **Pair**: EUR_GBP only / **Direction**: BUY only
+- **Lot**: 1000u 固定 (MIN lot)
 
 ## Thesis
 

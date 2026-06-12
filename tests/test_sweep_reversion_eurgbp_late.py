@@ -153,3 +153,46 @@ def test_resolve_tier_env_on(monkeypatch):
     tier = DemoTrader._resolve_tier(
         DemoTrader.__new__(DemoTrader), "sweep_reversion_eurgbp_late", "EUR_GBP")
     assert tier == "SWEEP_REVERSION_EURGBP_LIVE"
+
+
+# ── Codex review 2026-06-12 pin tests (gate constants are function-locals) ──
+def _demo_trader_source():
+    import inspect
+    import modules.demo_trader as dt
+    return inspect.getsource(dt)
+
+
+def test_pin_eurgbp_allstop_whitelist():
+    """Codex Critical#1: EUR_GBP 全停止 gate の whitelist に本戦略が居ること。
+    外れると env LIVE override に到達する前に return し、一切発火しなくなる。"""
+    src = _demo_trader_source()
+    import re
+    m = re.search(r"_EURGBP_DAILY_MR_WHITELIST = \{[^}]+\}", src)
+    assert m, "_EURGBP_DAILY_MR_WHITELIST not found"
+    assert "sweep_reversion_eurgbp_late" in m.group(0)
+
+
+def test_pin_sltp_preserve_set():
+    """Codex Critical#2: SL=4×ATR/TP=6×ATR は research 分布保存の契約。
+    _1H_PRESERVE_SLTP から外れると共有 DT 経路が ~1×ATR に上書きする。"""
+    src = _demo_trader_source()
+    import re
+    m = re.search(r"_1H_PRESERVE_SLTP = \{[^}]+\}", src)
+    assert m, "_1H_PRESERVE_SLTP not found"
+    assert "sweep_reversion_eurgbp_late" in m.group(0)
+
+
+def test_pin_c1_early_exit_exemption():
+    """Codex Important#3: C1 (保持時間50%で含み損→早期損切り) 免除。
+    research は 48-bar close-to-close 計測で、6-12h 回復 loser が WR に寄与する。"""
+    src = _demo_trader_source()
+    idx = src.find('!= "sweep_reversion_eurgbp_late"')
+    assert idx > 0, "C1 exemption for sweep_reversion_eurgbp_late missing"
+    # 免除が C1 ブロックの条件部に居ること (TIME_DECAY_EXIT の手前、実測距離 1346 chars)
+    assert "TIME_DECAY_EXIT" in src[idx:idx + 2000]
+
+
+def test_pin_max_hold_12h():
+    """_ENTRY_TYPE_MAX_HOLD に 12h (43200s) が登録されていること。"""
+    src = _demo_trader_source()
+    assert '"sweep_reversion_eurgbp_late": 12 * 3600' in src
