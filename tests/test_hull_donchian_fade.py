@@ -201,3 +201,34 @@ class TestContractPreservation:
         import re
         m = re.search(r"_RANGE_MR_STRATEGIES = \{(.*?)\}", src, re.S)
         assert m and "hull_donchian_fade" not in m.group(1)
+
+
+class TestCodexReviewPins:
+    """Codex review (2026-06-12, agent a550feb6) C-1/I-1/I-3/I-4 の再発防止 pin。"""
+
+    def test_c1_final_rr_floor_exemption(self):
+        import inspect
+        import modules.demo_trader as dt
+        src = inspect.getsource(dt)
+        assert 'entry_type != "hull_donchian_fade" and tp_dist < sl_dist * _final_rr_floor' in src, \
+            "C-1: 0.8 最終 RR 床が全 trade を block する"
+
+    def test_i1_app_level_dt_transforms_guarded(self):
+        with open(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                               "app.py")) as f:
+            src = f.read()
+        assert '_dte_preserve_sltp' in src, "I-1: app.py DT 変換 guard 不在"
+        assert 'and not _dte_preserve_sltp:\n        tp = round(entry + sl_d * 1.8 * dir_s, _pd)' in src, \
+            "I-1: RR1.3 TP リライト (TP=basis → 7.2xATR) が guard されていない"
+
+    def test_i3_live_promote_losers_membership(self):
+        from strategies.daytrade import DaytradeEngine
+        assert "hull_donchian_fade" in DaytradeEngine.LIVE_PROMOTE_LOSERS, \
+            "I-3: select_best 敗北で prod fires=0 (Kalman/pivot/ZZ/sweep の再発)"
+
+    def test_i4_flat_units_override_bypassed(self):
+        import inspect
+        import modules.demo_trader as dt
+        src = inspect.getsource(dt)
+        assert 'and entry_type != "hull_donchian_fade"\n            and _prime_tier not in ("A", "B")' in src, \
+            "I-4: OANDA_FORCE_FLAT_UNITS が MIN lot 1000u 契約を上書きする"

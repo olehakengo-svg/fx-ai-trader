@@ -5292,7 +5292,9 @@ class DemoTrader:
         # v7.0: 全戦略0.8統一 — bb_rsi SELL等がSL調整後RR不足で死亡していた
         # Sentinel(0.01lot)のリスク << データ価値。RR 0.8でも収集価値あり
         _final_rr_floor = 0.8
-        if tp_dist < sl_dist * _final_rr_floor:
+        # 2026-06-12 Codex review C-1: hull_donchian_fade は高WR/低RR 契約 (RR~0.25) のため
+        # 1.2 床と同様にこの最終床も免除 (widened sl_dist でさらに比率が下がる)。
+        if entry_type != "hull_donchian_fade" and tp_dist < sl_dist * _final_rr_floor:
             _block(f"rr_floor({tp_dist/sl_dist:.2f}<{_final_rr_floor},{entry_type})"); return
 
         # SR推奨情報
@@ -5774,6 +5776,8 @@ class DemoTrader:
             and not _is_xau_inst
             and not _is_sentinel
             and entry_type not in PRICE_SHOCK_REV_TIER1_TYPES
+            # 2026-06-12 Codex review I-4: hull_donchian_fade は MIN lot 1000u 契約 — flat 上書き不可
+            and entry_type != "hull_donchian_fade"
             and _prime_tier not in ("A", "B")
         ):
             try:

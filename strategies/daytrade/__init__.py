@@ -322,6 +322,11 @@ class DaytradeEngine:
         # PAIR_PROMOTED EUR_USD with 1000u lot; demote path via watchdog.
         # Memory: project_pivot_detector_v2_5_live_exception_2026_05_26.
         "pivot_detector_v2_5",
+        # 2026-06-12 (rule:R1 EXCEPTION): hull_donchian_fade — 同 select_best ボトルネック
+        # の 5 回目回避 (Kalman/pivot/ZZ/sweep と同パターン)。score 3.0-5.0 は
+        # session_time_bias 等 (~6.0-6.5) に敗北し side-channel 不在だと prod fires=0。
+        # Codex review I-3 (2026-06-12)。
+        "hull_donchian_fade",
         # 2026-06-02 (rule:R3): same select_best max-score bottleneck — third
         # recurrence of 2026-05-19 / 2026-05-22 / 2026-05-26 bug pattern. ZZ
         # Pivot v60 SR was deployed 2026-05-28 (commit 068cc0db) as LIVE

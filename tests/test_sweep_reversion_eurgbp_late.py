@@ -186,9 +186,11 @@ def test_pin_c1_early_exit_exemption():
     """Codex Important#3: C1 (保持時間50%で含み損→早期損切り) 免除。
     research は 48-bar close-to-close 計測で、6-12h 回復 loser が WR に寄与する。"""
     src = _demo_trader_source()
-    idx = src.find('!= "sweep_reversion_eurgbp_late"')
+    # 2026-06-12: hull_donchian_fade も同免除に合流し、!= 単項からタプル not in に一般化
+    # (4360ec99 系列)。sweep の免除が維持されていることを新形式で pin。
+    idx = src.find('"sweep_reversion_eurgbp_late", "hull_donchian_fade")')
     assert idx > 0, "C1 exemption for sweep_reversion_eurgbp_late missing"
-    # 免除が C1 ブロックの条件部に居ること (TIME_DECAY_EXIT の手前、実測距離 1346 chars)
+    # 免除が C1 ブロックの条件部に居ること (TIME_DECAY_EXIT の手前)
     assert "TIME_DECAY_EXIT" in src[idx:idx + 2000]
 
 

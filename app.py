@@ -2970,15 +2970,24 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         sl   = round(entry - atr * SL_MULT * dir_s, _pd)
         tp   = round(entry + atr * TP_MULT * dir_s, _pd)
 
+    # 2026-06-12 Codex review I-1 (hull_donchian_fade): 戦略 SL/TP は凍結契約
+    # (TP=Donchian basis / SL=4xATR、holdout 忠実度BT WR78% net+1.342p)。
+    # 下の min-SL / SR snap / RR1.3 リライトは TP=basis(<1xATR) を 1.8x sl_d(=7.2xATR) に
+    # 書き換え、検証済み分布を完全破壊するため、本戦略のみ全変換をスキップ。
+    _dte_preserve_sltp = (_dt_best is not None
+                          and getattr(_dt_best, "entry_type", "") == "hull_donchian_fade")
+
     # 最低SL距離保証: 5.0pips（DT用 — スプレッド+ノイズ余裕）
     DT_MIN_SL_PIPS = 0.050 if _is_jpy_scale(symbol) else 0.00050
     _dt_sl_dist = abs(entry - sl)
-    if _dt_sl_dist < DT_MIN_SL_PIPS:
+    if _dt_sl_dist < DT_MIN_SL_PIPS and not _dte_preserve_sltp:
         sl = round(entry - DT_MIN_SL_PIPS * dir_s, _pd)
 
     # SR-aware TP snap
     _sr_offset = 0.005 if _is_jpy_scale(symbol) else 0.00005
-    if act_s == "BUY":
+    if _dte_preserve_sltp:
+        pass  # TP=basis 固定 (SR snap 不適用)
+    elif act_s == "BUY":
         tp_cands = [l for l in _sr_price_levels if entry + atr*0.3 < l < entry + atr*TP_MULT*1.5]
         if tp_cands:
             tp = round(min(tp_cands) - _sr_offset, _pd)
@@ -2988,7 +2997,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             tp = round(max(tp_cands) + _sr_offset, _pd)
 
     sl_d = abs(entry - sl)
-    if abs(tp - entry) < sl_d * 1.3:
+    if abs(tp - entry) < sl_d * 1.3 and not _dte_preserve_sltp:
         tp = round(entry + sl_d * 1.8 * dir_s, _pd)
     rr = round(abs(tp - entry) / max(sl_d, 1e-6), 2)
 
