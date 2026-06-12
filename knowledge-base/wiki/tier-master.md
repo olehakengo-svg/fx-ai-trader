@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-06-12 06:42 UTC
+**最終更新**: 2026-06-12 06:49 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---

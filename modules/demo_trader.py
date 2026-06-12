@@ -2754,7 +2754,11 @@ class DemoTrader:
 
             # ── SL狩り対策C1: 時間ベース撤退 ──
             # 保持時間50%経過で含み損 → SL到達前に早期損切り（損失額を削減）
-            if not close_reason and trade.get("entry_type", "") not in PRICE_SHOCK_REV_TIER1_TYPES:
+            # 2026-06-12 Codex review Important#3: sweep_reversion_eurgbp_late は C1 免除。
+            # research は 48-bar close-to-close 計測 (6-12h で回復する loser が WR59.7% に
+            # 寄与している)。半分時点の損切りは測定済み分布を破壊する。
+            if not close_reason and trade.get("entry_type", "") not in PRICE_SHOCK_REV_TIER1_TYPES \
+                    and trade.get("entry_type", "") != "sweep_reversion_eurgbp_late":
                 try:
                     entry_time_c1 = datetime.fromisoformat(trade.get("entry_time", ""))
                     if entry_time_c1.tzinfo is None:
@@ -4439,6 +4443,11 @@ class DemoTrader:
             # MIN lot 1000u + env SWEEP_REVERSION_EURGBP_LIVE_ENABLE 制御 + pre-reg LOCK。
             # card: strategies/sweep_reversion_eurgbp_late / decision: sweep-reversion-eurgbp-late-live-2026-06-12
             "sweep_reversion_eurgbp_late",   # EUR_GBP 15m LATE(21-24UTC) low-sweep reclaim BUY, 12h time-stop
+            # 2026-06-12 Hull x Donchian FADE (rule:R1 LIVE 意図的例外, user判断 — Claude直接実装/Codexレビューのみ)。
+            # EUR_USD M15 圧縮ゲート二重確認フェード。holdout 2022-2026 忠実度BT: N=1833
+            # WR78.0% net+1.342p PF1.191 p=0.0005 (spread0.6p込, L/S両side正)。
+            # card: strategies/hull_donchian_fade / memory: project_hull_donchian_fade_15m_2026_06_12
+            "hull_donchian_fade",            # EUR_USD M15 fade, TP=basis/SL=4xATR/hold<=96bar
         }
 
         # 弱い理由のエントリータイプ（追加条件が必要）
@@ -4565,7 +4574,11 @@ class DemoTrader:
         # ══════════════════════════════════════════════════════════════
         _utc_hour = datetime.now(timezone.utc).hour
         # v6.7: eurgbp_daily_mr は日足MR戦略 → EUR_GBP全停止をバイパス (Sentinel)
-        _EURGBP_DAILY_MR_WHITELIST = {"eurgbp_daily_mr", "price_shock_rev_eur_gbp_h1_long"}
+        # 2026-06-12 Codex review Critical#1: sweep_reversion_eurgbp_late を追加。
+        # 未追加だと EUR_GBP 全停止 gate が env LIVE override より先に return し、
+        # 戦略が一切発火しない (live どころか shadow にも届かない経路があった)。
+        _EURGBP_DAILY_MR_WHITELIST = {"eurgbp_daily_mr", "price_shock_rev_eur_gbp_h1_long",
+                                      "sweep_reversion_eurgbp_late"}
         if instrument == "EUR_GBP" and entry_type not in _EURGBP_DAILY_MR_WHITELIST:
             if _is_shadow_eligible_full:
                 _is_shadow = True
@@ -5007,6 +5020,10 @@ class DemoTrader:
         _1H_PRESERVE_SLTP = {
             "keltner_squeeze_breakout", "donchian_momentum_breakout", "rnb_support_bounce",
             *PRICE_SHOCK_REV_TIER1_TYPES,
+            # 2026-06-12 Codex review Critical#2: sweep_reversion_eurgbp_late の
+            # SL=4×ATR/TP=6×ATR tail-cap は research 分布保存のための契約。共有 DT 経路の
+            # SR/ATR 再計算 (~1×ATR) に上書きさせない。
+            "sweep_reversion_eurgbp_late",
         }
 
         tp = sig.get("tp", 0)  # シグナル関数が算出した技術的ターゲット（固定）
@@ -5711,6 +5728,12 @@ class DemoTrader:
             _lot_ratio = PRICE_SHOCK_REV_MIN_UNITS / max(_base_units, 1)
             _adjusted_units = PRICE_SHOCK_REV_MIN_UNITS
             _sentinel_reason = "SWEEP_REVERSION_EURGBP_MIN_LOT"
+        if entry_type == "hull_donchian_fade":
+            # Rule-1 LIVE 意図的例外 (2026-06-12): holdout confirm 済みだが live 実証 N=0。
+            # cascade に関係なく実資金リスクを MIN lot (1000u) に固定 (carry dip / sweep と同型)。
+            _lot_ratio = PRICE_SHOCK_REV_MIN_UNITS / max(_base_units, 1)
+            _adjusted_units = PRICE_SHOCK_REV_MIN_UNITS
+            _sentinel_reason = "HULL_DONCHIAN_FADE_MIN_LOT"
         if _is_sentinel:
             # v7.6: XAU専用Sentinel単位数 — 1unit=1troy oz≈$4800
             # FX 0.01lot=1000u相当をXAUに適用すると 1000oz×$4800=$4.8M → margin拒絶
@@ -5874,7 +5897,8 @@ class DemoTrader:
         # 2026-05-20 Kalman D7 LIVE override: env enabled な kalman entries は fallback を bypass
         _kalman_live_pre = (self._kalman_d7_live_eligible(entry_type, instrument)
                             or self._usdjpy_carry_dip_live_eligible(entry_type, instrument)
-                            or self._sweep_reversion_eurgbp_live_eligible(entry_type, instrument))
+                            or self._sweep_reversion_eurgbp_live_eligible(entry_type, instrument)
+                            or self._hull_donchian_fade_live_eligible(entry_type, instrument))
         if not _is_promoted and not _is_shadow and not _kalman_live_pre:
             _is_shadow = True
         elif _kalman_live_pre and not _is_shadow:
@@ -5887,7 +5911,8 @@ class DemoTrader:
         # 2026-05-20 Kalman D7 LIVE override: bypass Phase0 SHADOW gate
         _kalman_live = (self._kalman_d7_live_eligible(entry_type, instrument)
                         or self._usdjpy_carry_dip_live_eligible(entry_type, instrument)
-                        or self._sweep_reversion_eurgbp_live_eligible(entry_type, instrument))
+                        or self._sweep_reversion_eurgbp_live_eligible(entry_type, instrument)
+                        or self._hull_donchian_fade_live_eligible(entry_type, instrument))
         if (self._SHADOW_MODE
                 and _is_promoted
                 and not _is_shadow
@@ -8106,6 +8131,24 @@ class DemoTrader:
             return False
         return True
 
+    # 2026-06-12 Hull x Donchian FADE LIVE override (rule:R1 意図的例外, user判断)。
+    # carry_dip / sweep_reversion と同型: env flag が立つ時だけ、この1戦略×EUR_USD に限り
+    # SHADOW_MODE/Phase0 gate を bypass。グローバル SHADOW_MODE は触らない。MIN lot 1000u 固定済。
+    # Pre-reg 撤退: LiveN>=10 EV<0 / N>=30 WR<55% or PF<1.0 → demote。
+    _HULL_DONCHIAN_FADE_LIVE_ENABLE = _os.environ.get("HULL_DONCHIAN_FADE_LIVE_ENABLE", "0") == "1"
+    _HULL_DONCHIAN_FADE_LIVE_INSTRUMENT = "EUR_USD"
+
+    @classmethod
+    def _hull_donchian_fade_live_eligible(cls, entry_type: str, instrument: str = "") -> bool:
+        """True if the Hull x Donchian FADE LIVE env override applies."""
+        if not cls._HULL_DONCHIAN_FADE_LIVE_ENABLE:
+            return False
+        if entry_type != "hull_donchian_fade":
+            return False
+        if instrument and instrument != cls._HULL_DONCHIAN_FADE_LIVE_INSTRUMENT:
+            return False
+        return True
+
     # 2026-06-12 Sweep-Reversion EUR_GBP LATE LIVE override (rule:R1 意図的例外, user判断)。
     # carry dip と同型: env flag が立つ時だけ、この1戦略・EUR_GBP 限定で
     # SHADOW_MODE/Phase0/_OANDA_MODE_BLOCKED(daytrade_eurgbp) を bypass。
@@ -8159,6 +8202,9 @@ class DemoTrader:
         # env で有効時のみ PHASE0_SHADOW を回避し live 判定 (OANDA fill 確認で確定)。
         if self._usdjpy_carry_dip_live_eligible(entry_type, instrument):
             return "USDJPY_CARRY_DIP_LIVE"
+        # 2026-06-12 Hull x Donchian FADE LIVE override (rule:R1 例外)。
+        if self._hull_donchian_fade_live_eligible(entry_type, instrument):
+            return "HULL_DONCHIAN_FADE_LIVE"
         # 2026-06-12 Sweep-Reversion EUR_GBP LATE LIVE override (rule:R1 例外)。
         if self._sweep_reversion_eurgbp_live_eligible(entry_type, instrument):
             return "SWEEP_REVERSION_EURGBP_LIVE"
@@ -8244,6 +8290,9 @@ class DemoTrader:
         # MR 戦略の dual entry_type を両方 whitelist で bypass.
         "zz_pivot_v60_sr",           # ZZ Pivot v60 SR normal zone (1.0x lot)
         "zz_pivot_v60_sr_lo",        # ZZ Pivot v60 SR loser zone (0.5x lot)
+        # 2026-06-12 (rule:R1): hull_donchian_fade LIVE 意図的例外。daytrade_eur は
+        # _OANDA_MODE_BLOCKED のため whitelist 不在だと silent drop (ZZ v60 事故 2026-05-31 と同型)。
+        "hull_donchian_fade",        # Hull x Donchian FADE EUR_USD M15 (MIN lot 1000u, env gate)
     })
     _QUICK_HARVEST_MULT = 0.85      # v6.8: 0.70→0.85 (DT WIN 7件の19.2pip利益漏出修復)
     _QUICK_HARVEST_EXEMPT = frozenset({

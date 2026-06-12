@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-12T06:42:57.826241+00:00",
+  "generated_at": "2026-06-12T06:49:54.399923+00:00",
   "elite_live": [
     "trendline_sweep"
   ],
@@ -320,6 +320,7 @@
   ],
   "shield_eur_dt_whitelist": [
     "htf_false_breakout",
+    "hull_donchian_fade",
     "zz_pivot_v60_sr",
     "zz_pivot_v60_sr_lo"
   ],

@@ -92,6 +92,11 @@ from strategies.daytrade.pivot_detector_v2_5 import PivotDetectorV25
 # Dual entry_type for SizeReduce: zz_pivot_v60_sr (1.0x lot) / zz_pivot_v60_sr_lo (0.5x lot)
 # Memory: project_zz_pivot_v60_sr_live_queue_2026_05_28 / feedback_size_lever_beats_skip_filter
 from strategies.daytrade.zz_pivot_v60_sr import ZzPivotV60Sr
+# 2026-06-12: Hull x Donchian FADE — EUR_USD M15 compression-gated dual-confirmation fade
+# LIVE intentional exception (user judgment) — Kalman D7 / carry_dip / ZZ v60 と同型。
+# Holdout 2022-2026 (untouched): WR 78% / net+1.34p / PF 1.19 (忠実度BT, spread 0.6p込)。
+# env HULL_DONCHIAN_FADE_LIVE_ENABLE=1 + MIN lot 1000u。card: wiki/strategies/hull_donchian_fade.md
+from strategies.daytrade.hull_donchian_fade import HullDonchianFade
 
 
 class DaytradeEngine:
@@ -169,6 +174,10 @@ class DaytradeEngine:
             # Pre-reg withdrawal: N=30 WR<35% or PF<1.0 demote / MaxDD>1% emergency / 14日連敗停止
             # Memory: project_zz_pivot_v60_sr_live_queue_2026_05_28
             ZzPivotV60Sr(),
+            # 2026-06-12: Hull x Donchian FADE (EUR_USD M15 compression-gated fade)
+            # Pre-reg 撤退: LiveN>=10 EV<0 demote / N>=30 WR<55% or PF<1.0 demote
+            # SHORTxmacro-UP cell N>=30 EV<-0.5p → SHORT lot 0.5x (SIZE lever)
+            HullDonchianFade(),
         ]
         if (os.environ.get("KALMAN_D7_V18E_AUDJPY_SHADOW") == "1"
                 or os.environ.get("KALMAN_D7_V18E_EURJPY_SHADOW") == "1"):
