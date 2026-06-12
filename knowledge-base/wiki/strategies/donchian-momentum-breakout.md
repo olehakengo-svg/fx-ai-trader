@@ -4,8 +4,9 @@
 - **Entry Type**: `donchian_momentum_breakout`
 - **Category**: Breakout / TF
 - **Timeframe**: DT 15m
-- **Status**: FORCE_DEMOTED (2026-05-01 audit P0-8; Live N=3 WR=33.3% PnL=-32.1p)
-- **Active Pairs**: None (FORCE_DEMOTED; Shadow accumulation only)
+- **Status**: SHADOW (HourlyEngine `_shadow_always` ramp 2026-05-18 — decisions/hourly-engine-shadow-ramp-2026-05-18.md)
+- **Active Pairs**: None (Shadow accumulation only)
+- **History**: 2026-05-01 audit P0-8 で旧 FD 入り (Live N=3 WR=33.3% PnL=-32.1p) → 2026-05-18 Shadow ramp で FD 解除・shadow-always 移行 (v2.1 alpha absence reevaluation)
 
 ## BT Performance (365d, 15m)
 BT data not available for this entry_type
