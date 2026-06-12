@@ -1,5 +1,34 @@
 # FX AI Trader - Changelog
 
+## 2026-06-12 — fix: ema_trend_scalp 恒久退役 — SHADOW_RETIRED_STRATEGIES 新設 (rule:R2)
+
+### 変更内容
+
+Edge Factor Audit #1 (clean N=1,117) で ema_trend_scalp の KILL を確定。
+per-cell registry (2026-05-08) では EUR/GBP/JPY しか止まらず、Phase B-1
+HourlyEngine slot `daytrade_1h_usdchf` から USD_CHF が漏れ続けていた
+(直近 30d N=55, WR 3.6%, PF 0.03 — 全データ中最悪セル)。
+
+`modules/shadow_demote_registry.py`:
+- `SHADOW_RETIRED_STRATEGIES` frozenset 新設 — 戦略単位の全ペア恒久退役。
+  将来 mode/pair が追加されても閉じる
+- `is_shadow_demoted()` が retirement を per-cell より先に評価
+- `ema_trend_scalp` を登録
+
+`tests/test_shadow_demote_registry.py`: retirement 検証 3 ケース追加 (USD_CHF /
+未知ペア / 他戦略の per-cell 挙動維持)。
+
+### 根拠 (詳細: wiki/learning/edge-factor-audit-2026-06-12-ema-trend-scalp.md)
+
+- 全 8 pair×dir セル均一負け (PF 0.03〜0.77) — SIZE lever 適用対象なし
+- BE-WR 33.1% (TP/SL=2.03) vs 実測 WR 19.2%
+- 敗者 MAFE favorable 中央値 0.5p — エントリーに予測力なし、反転も gross EV≈0 で不成立
+- 月次 WR 20.8% → 16.1% → 6.5% の加速劣化
+- 2026-05-15 redesign スレッド (aligned×BUY×GBP_USD N=10) は post-hoc selection としてクローズ
+
+LIVE 側は v9.2 FORCE_DEMOTED 済みのため変更なし。Shadow のみの挙動変更。
+
+
 ## 2026-06-01 — fix: session_time_bias × GBP_USD symmetric cell-conditional revival (rule:R2)
 
 ### 変更内容

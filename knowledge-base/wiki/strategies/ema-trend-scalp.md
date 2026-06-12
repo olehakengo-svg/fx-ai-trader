@@ -4,8 +4,8 @@
 - **Entry Type**: `ema_trend_scalp`
 - **Category**: TF (Trend Following)
 - **Timeframe**: Scalp 1m/5m
-- **Status**: FORCE_DEMOTED (v9.2, 2026-04-17) — 全ペア強制Shadow
-- **Active Pairs**: 全ペアShadow のみ (OANDA 転送なし、データ蓄積継続)
+- **Status**: FORCE_DEMOTED (v9.2, live 遮断) + 🔴 RETIRED (2026-06-12, rule:R2) — Shadow 含め全ペア恒久退役 (`SHADOW_RETIRED_STRATEGIES`)。詳細: [[edge-factor-audit-2026-06-12-ema-trend-scalp]]
+- **Active Pairs**: なし (2026-06-12 退役。最終発火源 USD_CHF×daytrade_1h_usdchf も封鎖)
 
 ## BT Performance (365d, 15m)
 BT data not available for this entry_type in comprehensive scan.
@@ -62,6 +62,20 @@ Live shadow DB (N=75 decided) を harness にした cell ablation で **`mtf_ali
   - ⏳ Cell-conditional 180d Python BT (`ETS_REDESIGN_V3=1` で実行) — 次セッション
   - ⏳ Sentinel `("ema_trend_scalp", "GBP_JPY")` 追加 — 次セッション
   - ⏳ Live shadow N≥30 待機 (現 N=10 → +20)
+
+## 2026-06-12 Edge Factor Audit — 🔴 KILL 確定 (恒久退役)
+
+clean N=1,117 (dedup_violation 19% 除外後) の要因解析で退役確定。
+詳細: [[edge-factor-audit-2026-06-12-ema-trend-scalp]]
+
+- **全 8 pair×dir セル均一負け** (PF 0.03〜0.77)。SIZE lever 適用対象なし
+- TP/SL=2.03 の BE-WR 33.1% vs 実測 WR 19.2%
+- 敗者 MAFE favorable 中央値 **0.5p** — エントリーに予測力なし、TP 短縮でも救済不可
+- 反転も不成立 (gross EV ≈ 0 = friction bleed)。1m/5m で friction 1.75p = SL の 44% が構造敗因
+- 月次 WR 20.8%→16.1%→6.5% で加速劣化。直近 30d の発火は USD_CHF (HourlyEngine 漏れ) のみ — WR 3.6% / PF 0.03
+- **2026-05-15 redesign スレッド (aligned×BUY×GBP_USD N=10) は post-hoc selection と判定しクローズ**
+  (GBP_USD shadow は 05-08 registry で蓄積停止済み、母集団 GBP_USD BUY N=131 WR 18.3%)
+- 実装: `modules/shadow_demote_registry.py` に `SHADOW_RETIRED_STRATEGIES` 新設
 
 ## Related
 - [[index]] — Tier classification

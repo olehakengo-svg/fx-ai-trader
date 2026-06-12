@@ -18,12 +18,16 @@ def _clear_env_flags(monkeypatch):
     monkeypatch.delenv("BB_RSI_REVERSION_PAIR_WHITELIST_V1", raising=False)
 
 
-def test_session_time_bias_core_emits_lot_multiplier_1_5():
-    """At LDN × ADX 27 × range, strategy must emit Candidate with mult=1.5."""
+def test_session_time_bias_core_emits_lot_multiplier_1_0():
+    """At LDN × ADX 27 × range, edge cell passes but SIZE boost stays 1.0x.
+
+    2026-06-11 (417e17f4): 12y MASSIVE BT REJECT neutralized the 1.5x boost;
+    the cell filter is retained as defence only.
+    """
     strat = SessionTimeBias()
     edge, mult = strat._edge_cell(_ctx(hour_utc=10, adx=27, ema_dist_pct=0.002,
                                        regime="CHOP", symbol="EUR_USD"))
-    assert (edge, mult) == (True, 1.5)
+    assert (edge, mult) == (True, 1.0)
 
 
 def test_bb_rsi_usdjpy_ldn_emits_lot_multiplier_1_0():
