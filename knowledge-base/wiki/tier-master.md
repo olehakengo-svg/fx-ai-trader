@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-06-12 06:49 UTC
+**最終更新**: 2026-06-12 08:30 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -208,9 +208,10 @@
 
 ## C. 整合性チェック結果
 
-### ⚠️ WARN（2件）
-- No strategy file found for 'zz_pivot_v60_sr_lo'
+### ⚠️ WARN（3件）
+- QUICK_HARVEST_EXEMPT (hull_donchian_fade, EUR_USD) not in ELITE/PAIR_PROMOTED
 - No strategy file found for 'ob_retest'
+- No strategy file found for 'zz_pivot_v60_sr_lo'
 
 ### ℹ️ INFO（14件）
 - Legacy dead inline 'bb_bounce' assigned in app.py — no production firing in 30+ days. Candidate for removal.
