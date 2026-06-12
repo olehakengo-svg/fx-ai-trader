@@ -6542,6 +6542,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "sr_break_retest",           # SBR: SR Break & Retest (Edwards & Magee 1948)
                 "lin_reg_channel",           # LRC: Linear Regression Channel
                 "orb_trap",                      # ORB Trap: Opening Range Fakeout Reversal
+                "sweep_reversion_eurgbp_late",   # 2026-06-12 EUR_GBP LATE sweep BUY (12y grid survivor, LIVE via env)
                 "london_close_reversal",         # LCR: London Close Wick Reversal (DISABLED)
                 "london_close_reversal_v2",      # LCR v2 H-2026-04-22-005: UTC 20:30-21:00 push+RSI極値 (Sentinel)
                 "gbp_deep_pullback",             # GBP Deep PB: BB-2σ/EMA50 deep pullback
@@ -13677,6 +13678,7 @@ def _build_strategy_status_map():
         "keltner_squeeze_breakout", "donchian_momentum_breakout",
         "h1_breakout_retest", "h1_fib_reversal", "h1_ema200_trend_reversal",
         "usdjpy_carry_dip_accumulator",  # 2026-06-08 USDJPY carry dip-buy (LIVE via env override)
+        "sweep_reversion_eurgbp_late",   # 2026-06-12 EUR_GBP LATE sweep BUY (LIVE via env override)
         # ═══ D1 (Shadow only) ═══
         # Turtle System 2 — 55-day Donchian breakout, USDJPY long-only.
         # Wave 1 BT verdict: B (Shadow-promote). Live promotion blocked until

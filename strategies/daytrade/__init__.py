@@ -37,6 +37,7 @@ from strategies.daytrade.gold_trend_momentum import GoldTrendMomentum
 from strategies.daytrade.jpy_basket_trend import JpyBasketTrend
 from strategies.daytrade.squeeze_release_momentum import SqueezeReleaseMomentum
 from strategies.daytrade.eurgbp_daily_mr import EurgbpDailyMR
+from strategies.daytrade.sweep_reversion_eurgbp_late import SweepReversionEurgbpLate
 from strategies.daytrade.dt_bb_rsi_mr import DtBbRsiMR
 from strategies.daytrade.liquidity_sweep import LiquiditySweep
 from strategies.daytrade.session_time_bias import SessionTimeBias
@@ -120,6 +121,7 @@ class DaytradeEngine:
             JpyBasketTrend(),              # JPYバスケットPO順張り (USD/EUR JPY専用)
             SqueezeReleaseMomentum(),      # SRM: Squeeze Release Momentum v3 (2段フィルター, EUR/GBP限定)
             EurgbpDailyMR(),               # EUR/GBP Daily MR: 20日レンジ極値フェード (日足MR)
+            SweepReversionEurgbpLate(),    # EUR/GBP LATE sweep戻りBUY: 12y grid唯一のBonferroni生存 (2026-06-12 LIVE例外)
             DtBbRsiMR(),                   # DT BB RSI MR: 15m BB%B+RSI14+Stoch 平均回帰 (Bollinger 1992)
             LiquiditySweep(),              # Liquidity Sweep: Wick構造ストップ狩りリバーサル (Osler 2003, Kyle 1985)
             SessionTimeBias(),             # STB: セッション時間帯通貨減価バイアス (Breedon & Ranaldo 2013)

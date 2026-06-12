@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-05T04:40:11.398608+00:00",
+  "generated_at": "2026-06-12T06:42:57.826241+00:00",
   "elite_live": [
     "trendline_sweep"
   ],
@@ -122,10 +122,6 @@
     [
       "session_time_bias",
       "EUR_USD"
-    ],
-    [
-      "session_time_bias",
-      "GBP_USD"
     ],
     [
       "squeeze_release_momentum",

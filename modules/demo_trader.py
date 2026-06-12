@@ -2218,6 +2218,8 @@ class DemoTrader:
             "price_shock_rev_eur_aud_h1_long": 12 * 3600,
             "price_shock_rev_nzd_jpy_h1_long": 12 * 3600,
             "price_shock_rev_aud_jpy_h1_long": 12 * 3600,
+            # 2026-06-12: 12y survivor cell H=48bars@15m。mode default 8h を 12h に延長。
+            "sweep_reversion_eurgbp_late": 12 * 3600,
         }
 
         for trade in open_trades:
@@ -4431,6 +4433,12 @@ class DemoTrader:
             # dip-buy。現レジーム(155-160介入天井+上ドリフト)順張り。TV H4 BT 90.9%WR/PF4.35/
             # tail-cap-2円。N<30 単一レジーム=sanity止まり。card: strategies/usdjpy_carry_dip_accumulator
             "usdjpy_carry_dip_accumulator",  # USD_JPY H1 dip-buy LONG, ceiling 159.5, SL-1.5/TP+0.8円
+            # 2026-06-12 LIVE (rule:R1 意図的例外, user判断): EUR_GBP LATE thin-session
+            # stop-hunt 戻り BUY。12y-first grid scan (m=1728) 唯一の Bonferroni 生存
+            # (N=543 WR=59.7% +6.22p t=4.46, WFO全fold正, 年次11/13)。反証3/3通過。
+            # MIN lot 1000u + env SWEEP_REVERSION_EURGBP_LIVE_ENABLE 制御 + pre-reg LOCK。
+            # card: strategies/sweep_reversion_eurgbp_late / decision: sweep-reversion-eurgbp-late-live-2026-06-12
+            "sweep_reversion_eurgbp_late",   # EUR_GBP 15m LATE(21-24UTC) low-sweep reclaim BUY, 12h time-stop
         }
 
         # 弱い理由のエントリータイプ（追加条件が必要）
@@ -5697,6 +5705,12 @@ class DemoTrader:
             _lot_ratio = PRICE_SHOCK_REV_MIN_UNITS / max(_base_units, 1)
             _adjusted_units = PRICE_SHOCK_REV_MIN_UNITS
             _sentinel_reason = "USDJPY_CARRY_DIP_MIN_LOT"
+        if entry_type == "sweep_reversion_eurgbp_late":
+            # Rule-1 LIVE 意図的例外 (2026-06-12): 12y grid survivor だが live 実証は N=0。
+            # cascade に関係なく実資金リスクを MIN lot (1000u) に固定 (carry dip と同型)。
+            _lot_ratio = PRICE_SHOCK_REV_MIN_UNITS / max(_base_units, 1)
+            _adjusted_units = PRICE_SHOCK_REV_MIN_UNITS
+            _sentinel_reason = "SWEEP_REVERSION_EURGBP_MIN_LOT"
         if _is_sentinel:
             # v7.6: XAU専用Sentinel単位数 — 1unit=1troy oz≈$4800
             # FX 0.01lot=1000u相当をXAUに適用すると 1000oz×$4800=$4.8M → margin拒絶
@@ -5859,7 +5873,8 @@ class DemoTrader:
         # ── v8.9: existing fallback; non-promoted/non-shadow trades are shadow.
         # 2026-05-20 Kalman D7 LIVE override: env enabled な kalman entries は fallback を bypass
         _kalman_live_pre = (self._kalman_d7_live_eligible(entry_type, instrument)
-                            or self._usdjpy_carry_dip_live_eligible(entry_type, instrument))
+                            or self._usdjpy_carry_dip_live_eligible(entry_type, instrument)
+                            or self._sweep_reversion_eurgbp_live_eligible(entry_type, instrument))
         if not _is_promoted and not _is_shadow and not _kalman_live_pre:
             _is_shadow = True
         elif _kalman_live_pre and not _is_shadow:
@@ -5871,7 +5886,8 @@ class DemoTrader:
         # v9.4: PRIME A/B も Phase0 gate から免除 (binding pre-reg)
         # 2026-05-20 Kalman D7 LIVE override: bypass Phase0 SHADOW gate
         _kalman_live = (self._kalman_d7_live_eligible(entry_type, instrument)
-                        or self._usdjpy_carry_dip_live_eligible(entry_type, instrument))
+                        or self._usdjpy_carry_dip_live_eligible(entry_type, instrument)
+                        or self._sweep_reversion_eurgbp_live_eligible(entry_type, instrument))
         if (self._SHADOW_MODE
                 and _is_promoted
                 and not _is_shadow
@@ -6005,6 +6021,13 @@ class DemoTrader:
                 self._add_log(
                     f"[SHIELD] EDGE_CELL bypass: {_edge_cell_id} {entry_type} "
                     f"mode={mode} → keep _is_promoted=True for force-live"
+                )
+            elif self._sweep_reversion_eurgbp_live_eligible(entry_type, instrument):
+                # 2026-06-12 rule:R1 意図的例外: daytrade_eurgbp は mode ごと OANDA 遮断だが、
+                # sweep_reversion_eurgbp_late のみ env 有効時に bypass (MIN lot 1000u 固定済)。
+                self._add_log(
+                    f"[SHIELD] SWEEP_REVERSION_EURGBP bypass: {entry_type} "
+                    f"mode={mode} → keep _is_promoted=True (env LIVE override)"
                 )
             else:
                 self._add_log(f"[SHIELD] OANDA blocked: mode={mode}")
@@ -8083,6 +8106,26 @@ class DemoTrader:
             return False
         return True
 
+    # 2026-06-12 Sweep-Reversion EUR_GBP LATE LIVE override (rule:R1 意図的例外, user判断)。
+    # carry dip と同型: env flag が立つ時だけ、この1戦略・EUR_GBP 限定で
+    # SHADOW_MODE/Phase0/_OANDA_MODE_BLOCKED(daytrade_eurgbp) を bypass。
+    # 12y grid 唯一の Bonferroni 生存 cell (N=543 t=4.46)。MIN lot 1000u 固定済。
+    # pre-reg LOCK: knowledge-base/wiki/decisions/sweep-reversion-eurgbp-late-live-2026-06-12.md
+    _SWEEP_REVERSION_EURGBP_LIVE_ENABLE = _os.environ.get(
+        "SWEEP_REVERSION_EURGBP_LIVE_ENABLE", "0") == "1"
+    _SWEEP_REVERSION_EURGBP_INSTRUMENT = "EUR_GBP"
+
+    @classmethod
+    def _sweep_reversion_eurgbp_live_eligible(cls, entry_type: str, instrument: str = "") -> bool:
+        """True if the Sweep-Reversion EUR_GBP LATE LIVE env override applies."""
+        if not cls._SWEEP_REVERSION_EURGBP_LIVE_ENABLE:
+            return False
+        if entry_type != "sweep_reversion_eurgbp_late":
+            return False
+        if instrument and instrument != cls._SWEEP_REVERSION_EURGBP_INSTRUMENT:
+            return False
+        return True
+
     _TRENDLINE_SWEEP_REDESIGN_V2_LIVE_PAIRS = frozenset({"EUR_USD", "GBP_USD"})
     _TRENDLINE_SWEEP_REDESIGN_V2_SHADOW_PAIRS = frozenset({"EUR_GBP", "XAU_USD"})
 
@@ -8116,6 +8159,9 @@ class DemoTrader:
         # env で有効時のみ PHASE0_SHADOW を回避し live 判定 (OANDA fill 確認で確定)。
         if self._usdjpy_carry_dip_live_eligible(entry_type, instrument):
             return "USDJPY_CARRY_DIP_LIVE"
+        # 2026-06-12 Sweep-Reversion EUR_GBP LATE LIVE override (rule:R1 例外)。
+        if self._sweep_reversion_eurgbp_live_eligible(entry_type, instrument):
+            return "SWEEP_REVERSION_EURGBP_LIVE"
         if self._is_elite_live(entry_type, instrument):
             return "ELITE_LIVE"
         if self._is_force_demoted_entry(entry_type):
