@@ -1,6 +1,6 @@
 # fib_reversal
 
-## Status: FORCE_DEMOTED (Recovery Path Active — 全ペア強制 Shadow) — v9.1 PAIR_PROMOTED 死コード削除; v9.x (2026-04-20) demo_db legacy override 削除
+## Status: FORCE_DEMOTED + 🔴 RETIRED (2026-06-12, rule:R2 — `SHADOW_RETIRED_STRATEGIES` で Shadow 含め全ペア恒久停止、Recovery Path 失効) — v9.1 PAIR_PROMOTED 死コード削除; v9.x (2026-04-20) demo_db legacy override 削除
 **Dramatic improvement post-cutoff: WR 25.6% → 55.0% (v6.3 parameter effect confirmed)**
 **2026-04-20 Priority 2 監査: 180d Scalp BT で 60d EV=+0.271 → 180d EV=-0.147 符号反転** (lesson-orb-trap-bt-divergence 再現例)
 
@@ -91,3 +91,14 @@ Gate1 (EV≥+0.2) 不通過 + Gate4 (60d/365d sign) 失敗 → demo_db legacy ov
 - [[independent-audit-2026-04-10]] — Statistical validation
 - [[mtf-regime-validation-2026-04-17]] §C (P0 forensics) / §E (REGIME_ADAPTIVE)
 - [[pair-promoted-candidates-2026-04-20]] — Priority 2 監査
+
+## 2026-06-12 Edge Factor Audit #3 — 🔴 KILL 確定 (恒久退役)
+
+clean N=638 の要因解析で退役確定。詳細: [[edge-factor-audit-2026-06-12-fib-reversal]]
+
+- friction 1.49p = TP 5.1p の **29.2%**、BE-WR 41.7% vs 実測 29.5% で算数的に不成立
+- **全 7 pair×dir セル net 負け (LIVE 含む)**、SIZE lever 対象なし
+- 敗者 MAFE favorable 中央値 0.2p — エントリーに予測力なし
+- 直近 30d は N=251 / −321.7p で**現役最大の Shadow 出血源**だった
+- 統合先なし: DT 版 [[sr-fib-confluence]] は gross −1.18 でさらに悪い (シリーズ #5 監査予定)
+- v8.2 Recovery Path (Post-cut N=20 WR55%) は small-sample と確定、失効

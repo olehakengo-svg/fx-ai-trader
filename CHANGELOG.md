@@ -1,5 +1,20 @@
 # FX AI Trader - Changelog
 
+## 2026-06-12 — fix: fib_reversal 恒久退役 — Edge Factor Audit #3 (rule:R2)
+
+### 変更内容
+
+`SHADOW_RETIRED_STRATEGIES` に `fib_reversal` を追加 (Shadow 含め全ペア恒久停止)。
+LIVE 側は v6.8 FORCE_DEMOTED 済みのため変更なし。カードの v8.2 Recovery Path は失効。
+
+### 根拠 (詳細: wiki/learning/edge-factor-audit-2026-06-12-fib-reversal.md)
+
+- clean N=638。friction 1.49p = median TP 5.1p の 29.2%、BE-WR 41.7% vs 実測 29.5%
+- 全 7 pair×dir セル net 負け (LIVE 全ペア含む)、敗者 MAFE favorable 中央値 0.2p
+- 直近 30d N=251 / −321.7p — 現役最大の Shadow 出血源
+- 統合先なし: 同思想 DT 版 sr_fib_confluence は gross −1.18 (パターン B、#5 で監査予定)
+
+
 ## 2026-06-12 — fix: bb_rsi_reversion 統合退役 — Edge Factor Audit #2 (rule:R2)
 
 ### 変更内容

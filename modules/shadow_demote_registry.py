@@ -24,6 +24,16 @@ SHADOW_RETIRED_STRATEGIES = frozenset({
     # this entry closes it structurally.
     # Ref: wiki/learning/edge-factor-audit-2026-06-12-bb-rsi-reversion.md
     "bb_rsi_reversion",
+    # 2026-06-12 (rule:R2): edge-factor audit #3, clean N=638. Scalp
+    # friction arithmetic again: gross EV +0.59 vs friction 1.49p (29.2%
+    # of the 5.1p median TP), BE-WR 41.7% vs actual 29.5%, loser MAFE
+    # favorable median 0.2p. ALL 7 pair x dir cells net-negative (LIVE
+    # included), monthly net deteriorating, and it was the single
+    # biggest active shadow bleeder (30d N=251, -321.7p). Unlike #2
+    # there is no surviving sibling to consolidate into — the same
+    # thesis at DT geometry (sr_fib_confluence) is gross-NEGATIVE.
+    # Ref: wiki/learning/edge-factor-audit-2026-06-12-fib-reversal.md
+    "fib_reversal",
 })
 
 

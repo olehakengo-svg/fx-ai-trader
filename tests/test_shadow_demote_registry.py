@@ -35,11 +35,15 @@ def test_shadow_demote_registry_pair_specific_examples():
 
 
 def test_retired_strategies_block_all_instruments():
-    # 2026-06-12 edge-factor audits #1/#2: permanent retirements.
+    # 2026-06-12 edge-factor audits #1/#2/#3: permanent retirements.
     assert SHADOW_RETIRED_STRATEGIES == frozenset({
         "ema_trend_scalp",
         "bb_rsi_reversion",
+        "fib_reversal",
     })
+    # #3 fib_reversal: was the biggest active shadow bleeder (30d N=251).
+    assert is_shadow_demoted("fib_reversal", "EUR_USD")
+    assert is_shadow_demoted("fib_reversal", "USD_CHF")
     # USD_CHF was the live leak via daytrade_1h_usdchf (55 trades in 30d,
     # WR 3.6%, PF 0.03) — not covered by the per-cell entries.
     assert is_shadow_demoted("ema_trend_scalp", "USD_CHF")
