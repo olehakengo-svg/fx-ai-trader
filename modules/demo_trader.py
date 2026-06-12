@@ -3734,6 +3734,17 @@ class DemoTrader:
                 return f"eur_base_shock_lock({entry_type}_vs_{trade.get('entry_type')})"
         return None
 
+    @staticmethod
+    def _rebase_tp_to_current_price(*, signal: str, current_price: float,
+                                    signal_price: float, tp: float) -> float:
+        """Preserve strategy TP distance when a closed-bar signal is executed later."""
+        if signal not in ("BUY", "SELL") or current_price <= 0 or signal_price <= 0 or tp <= 0:
+            return tp
+        tp_dist = abs(float(tp) - float(signal_price))
+        if tp_dist <= 0:
+            return tp
+        return float(current_price) + tp_dist if signal == "BUY" else float(current_price) - tp_dist
+
     def _tick_entry(self, mode: str, cfg: dict, sig: dict,
                     tf: str, instrument: str):
         """_tickの後半: エントリー判定・実行。例外は呼び出し元でキャッチ。"""
@@ -5061,6 +5072,14 @@ class DemoTrader:
 
         tp = sig.get("tp", 0)  # シグナル関数が算出した技術的ターゲット（固定）
 
+        if sig.get("rebase_tp_to_current_price"):
+            tp = self._rebase_tp_to_current_price(
+                signal=signal,
+                current_price=current_price,
+                signal_price=float(sig.get("entry") or 0.0),
+                tp=float(tp or 0.0),
+            )
+
         # 2026-06-12 hull_donchian_fade: TP=basis は凍結契約 — MTF 拡大 (×1.3) を適用しない
         if entry_type == "hull_donchian_fade":
             _mtf_tp_bonus = 1.0
@@ -5416,7 +5435,10 @@ class DemoTrader:
         # ══════════════════════════════════════════════════════════════
         # ── P0監視: スリッページ・スプレッド・COOLDOWN記録 ──
         # ══════════════════════════════════════════════════════════════
-        _signal_price = sig.get("entry", 0)  # シグナル関数のmid価格
+        if sig.get("slippage_signal_price_basis") == "entry_fill":
+            _signal_price = current_price
+        else:
+            _signal_price = sig.get("entry", 0)  # シグナル関数のmid価格
         _sr_meta = sig.get("sr_meta")
         _pip_m_mon = 100 if (_is_jpy or "XAU" in instrument) else 10000
         _slippage = round((current_price - _signal_price) * _pip_m_mon, 2) if _signal_price else 0

@@ -3539,6 +3539,14 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 "max_hold_bars": getattr(_c, "max_hold_bars", None),
                 "sr_meta": getattr(_c, "sr_meta", None),
                 "sr_entry_map": sr_entry_map,
+                "slippage_signal_price_basis": (
+                    "entry_fill"
+                    if _c.entry_type == "wick_imbalance_reversion" and _awi_v2_enabled
+                    else "signal_entry"
+                ),
+                "rebase_tp_to_current_price": (
+                    _c.entry_type == "wick_imbalance_reversion" and _awi_v2_enabled
+                ),
             })
     except NameError:
         # _dt_shadow_emits 未定義パス (DTE skip 等) — 安全に空
@@ -3568,6 +3576,14 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                 "atr": _rp(atr, symbol),
                 "max_hold_bars": getattr(_c, "max_hold_bars", None),
                 "sr_meta": getattr(_c, "sr_meta", None),
+                "slippage_signal_price_basis": (
+                    "entry_fill"
+                    if _c.entry_type == "wick_imbalance_reversion" and _awi_v2_enabled
+                    else "signal_entry"
+                ),
+                "rebase_tp_to_current_price": (
+                    _c.entry_type == "wick_imbalance_reversion" and _awi_v2_enabled
+                ),
             })
     except (NameError, AttributeError):
         pass
@@ -3583,6 +3599,12 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     except Exception:
         _sr_meta = None
 
+    _rebase_to_fill = bool(
+        _dt_best is not None
+        and getattr(_dt_best, "entry_type", "") == "wick_imbalance_reversion"
+        and _awi_v2_enabled
+    )
+
     return {
         "timestamp": ts_str, "symbol": (symbol.replace("=X","")[:3] + "/" + symbol.replace("=X","")[3:]) if symbol else "USD/JPY", "tf": tf,
         "entry": _rp(entry, symbol), "signal": signal, "confidence": conf,
@@ -3593,6 +3615,8 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         "sr_meta": _sr_meta,
         "max_hold_bars": getattr(_dt_best, "max_hold_bars", None) if _dt_best is not None else None,
         "lot_multiplier": getattr(_dt_best, "lot_multiplier", 1.0) if _dt_best is not None else 1.0,
+        "slippage_signal_price_basis": "entry_fill" if _rebase_to_fill else "signal_entry",
+        "rebase_tp_to_current_price": _rebase_to_fill,
         "shadow_emit_signals": _shadow_emit_payload,
         "live_promote_emit_signals": _live_promote_emit_payload,
         "dual_scenarios": dual_scenarios,
