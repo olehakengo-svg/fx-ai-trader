@@ -1475,7 +1475,7 @@ class DemoDB:
         """OANDAに未連携のOPENトレードを返す（デプロイ補完用）."""
         with self._safe_conn() as conn:
             rows = conn.execute(
-                "SELECT trade_id, direction, sl, tp, mode, instrument, entry_time "
+                "SELECT trade_id, direction, sl, tp, mode, instrument, entry_time, entry_type "
                 "FROM demo_trades "
                 "WHERE status='OPEN' AND is_shadow=0 AND (oanda_trade_id IS NULL OR oanda_trade_id = '')"
             ).fetchall()

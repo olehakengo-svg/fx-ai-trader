@@ -38,3 +38,38 @@ owner: codex
 
 - 修正 PR は `pytest tests/ -x -q` 全通過 + `scripts/check.py` 通過
 - final.md は git log/diff で実 verify (stash leak 教訓 2026-05-11)
+
+
+## Result (2026-06-12T07:55:20Z)
+
+exit=0 · 608s
+
+```
+実装完了。判定は **バグ** として修正しました。
+
+主な変更:
+- [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py:3932)
+  - `_is_live_tier_exempt` から `PAIR_DEMOTED` / `FORCE_DEMOTED` を明示除外。
+  - `_is_pair_demoted_entry()` を追加し、tier 解決・promote 判定・送信直前 gate に再利用。
+  - OANDA 送信直前と pending resend で `PAIR_DEMOTED` を shadow 強制。
+- [modules/demo_db.py](/data/repo/fx-ai-trader/modules/demo_db.py:1478)
+  - pending resend 用 row に `entry_type` を追加。
+- [scripts/check_force_demoted_leak_safety.py](/data/repo/fx-ai-trader/scripts/check_force_demoted_leak_safety.py:138)
+  - 既存 `force_demoted_live_leak` の盲点として、`q5_pair_demoted_live` 検出を追加。
+- [tests/test_force_demoted_leak_backfill.py](/data/repo/fx-ai-trader/tests/test_force_demoted_leak_backfill.py:117)
+  - `PAIR_DEMOTED` live 漏れ検出、final gate、resend row の回帰テストを追加。
+- [final.md](/data/repo/fx-ai-trader/final.md:1)
+  - code derivation、Render 90d 実測表、検知器盲点、検証結果を記載。
+
+Render `/api/demo/trades?limit=100000` 実測では、`live_tier_exempt AND is_shadow=0` の invalid 行は `xs_momentum × GBP_USD` が `PAIR_DEMOTED` で 5 件、edge 経由なしでした。`force_demoted_live_leak=0` だった理由は、既存検知器が FORCE_DEMOTED strategy 名だけを対象にしていたためです。
+
+検証:
+- `.venv/bin/pytest tests/ -x -q`
+  - `1845 passed, 1 skipped, 1 xfailed`
+- `.venv/bin/python scripts/check.py`
+  - exit 0, 全6チェック通過
+- `git diff --check`
+  - OK
+
+作業ツリーの変更は今回対象の 5 ファイルのみです。
+```

@@ -117,6 +117,34 @@ def test_check_force_demoted_leak_safety_reports_safe_and_unsafe(tmp_path):
     assert unsafe["q4"]["unsafe_post_rule_fill_count"] == 1
 
 
+def test_check_demoted_leak_safety_reports_pair_demoted_live(tmp_path):
+    db_path = tmp_path / "pair-demoted-live.db"
+    db = DemoDB(str(db_path))
+    with db._safe_conn() as conn:
+        _insert_trade(
+            conn,
+            "pair-leak",
+            entry_type="xs_momentum",
+            instrument="GBP_USD",
+            entry_time="2026-05-13T00:00:00+00:00",
+            pnl=-1.4,
+        )
+        conn.commit()
+
+    result = analyze_db(str(db_path))
+
+    assert result["verdict"] == "UNSAFE"
+    assert result["q1"]["n"] == 0
+    assert result["q5_pair_demoted_live"] == [{
+        "entry_type": "xs_momentum",
+        "instrument": "GBP_USD",
+        "n": 1,
+        "pnl_total": -1.4,
+        "earliest": "2026-05-13T00:00:00+00:00",
+        "latest": "2026-05-13T00:00:00+00:00",
+    }]
+
+
 def test_force_demoted_final_gate_overrides_late_live_bypass():
     trader = DemoTrader.__new__(DemoTrader)
     logs = []
@@ -133,3 +161,50 @@ def test_force_demoted_final_gate_overrides_late_live_bypass():
     assert is_promoted is False
     assert shadow_at_open is True
     assert any("[FORCE_DEMOTED_GATE] vwap_mean_reversion forced to shadow" in msg for msg in logs)
+
+
+def test_pair_demoted_final_gate_overrides_late_live_bypass():
+    trader = DemoTrader.__new__(DemoTrader)
+    logs = []
+    trader._add_log = logs.append
+
+    is_shadow, is_promoted, shadow_at_open = trader._apply_force_demoted_final_gate(
+        entry_type="xs_momentum",
+        instrument="GBP_USD",
+        is_shadow=False,
+        is_promoted=True,
+        shadow_at_open=False,
+    )
+
+    assert is_shadow is True
+    assert is_promoted is False
+    assert shadow_at_open is True
+    assert any("[PAIR_DEMOTED_GATE] xs_momentum GBP_USD forced to shadow" in msg for msg in logs)
+
+
+def test_pending_oanda_resend_rows_include_entry_type(tmp_path):
+    db = DemoDB(str(tmp_path / "pending-resend.db"))
+    trade_id = db.open_trade(
+        "BUY",
+        1.25,
+        1.24,
+        1.27,
+        "xs_momentum",
+        80,
+        mode="daytrade",
+        instrument="GBP_USD",
+        is_shadow=False,
+    )
+
+    rows = db.get_open_trades_without_oanda()
+
+    assert rows == [{
+        "trade_id": trade_id,
+        "direction": "BUY",
+        "sl": 1.24,
+        "tp": 1.27,
+        "mode": "daytrade",
+        "instrument": "GBP_USD",
+        "entry_time": rows[0]["entry_time"],
+        "entry_type": "xs_momentum",
+    }]

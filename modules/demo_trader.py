@@ -1145,16 +1145,25 @@ class DemoTrader:
         return trade_id
 
     def _apply_force_demoted_final_gate(self, *, entry_type: str,
+                                        instrument: str = "",
                                         is_shadow: bool,
                                         is_promoted: bool,
                                         shadow_at_open: bool):
-        """Last OANDA-send guard: FORCE_DEMOTED strategies cannot be live."""
-        if self._is_force_demoted_entry(entry_type) and not is_shadow:
+        """Last OANDA-send guard: demoted tiers cannot be live."""
+        if self._is_force_demoted_entry(entry_type, instrument) and not is_shadow:
             is_shadow = True
             is_promoted = False
             shadow_at_open = True
             self._add_log(
                 f"[FORCE_DEMOTED_GATE] {entry_type} forced to shadow "
+                "(downstream gate, depth-in-defense)"
+            )
+        elif self._is_pair_demoted_entry(entry_type, instrument) and not is_shadow:
+            is_shadow = True
+            is_promoted = False
+            shadow_at_open = True
+            self._add_log(
+                f"[PAIR_DEMOTED_GATE] {entry_type} {instrument} forced to shadow "
                 "(downstream gate, depth-in-defense)"
             )
         return is_shadow, is_promoted, shadow_at_open
@@ -1188,10 +1197,17 @@ class DemoTrader:
                         pass
                 instrument = t.get("instrument", "USD_JPY")
                 entry_type = t.get("entry_type", "")
-                if self._is_force_demoted_entry(entry_type):
+                if self._is_force_demoted_entry(entry_type, instrument):
                     skipped += 1
                     self._add_log(
                         f"[FORCE_DEMOTED_GATE] resend skipped: {entry_type} "
+                        f"{instrument} trade={t['trade_id']}"
+                    )
+                    continue
+                if self._is_pair_demoted_entry(entry_type, instrument):
+                    skipped += 1
+                    self._add_log(
+                        f"[PAIR_DEMOTED_GATE] resend skipped: {entry_type} "
                         f"{instrument} trade={t['trade_id']}"
                     )
                     continue
@@ -3913,9 +3929,17 @@ class DemoTrader:
         _is_shadow_eligible = _is_shadow_eligible_full  # 後方互換 (他のbypassはこれを参照)
         _is_slot_shadow_eligible = True  # v8.9: 全戦略がスロットbypass可能
         _is_shadow = False  # 実際にフィルターをバイパスした場合にTrueになる
-        _is_pair_promoted_live = (entry_type, instrument) in self._PAIR_PROMOTED
+        _is_demoted_tier = (
+            self._is_force_demoted_entry(entry_type, instrument)
+            or self._is_pair_demoted_entry(entry_type, instrument)
+        )
+        _is_pair_promoted_live = (
+            (entry_type, instrument) in self._PAIR_PROMOTED
+            and not _is_demoted_tier
+        )
         _is_live_tier_exempt = (
-            self._is_elite_live(entry_type, instrument) or _is_pair_promoted_live
+            not _is_demoted_tier
+            and (self._is_elite_live(entry_type, instrument) or _is_pair_promoted_live)
         )
         _entry_time = datetime.now(timezone.utc)
         _v2_regime = self._compute_v2_regime(instrument, _entry_time)
@@ -6016,6 +6040,7 @@ class DemoTrader:
 
         _is_shadow, _is_promoted, _shadow_at_open = self._apply_force_demoted_final_gate(
             entry_type=entry_type,
+            instrument=instrument,
             is_shadow=_is_shadow,
             is_promoted=_is_promoted,
             shadow_at_open=_shadow_at_open,
@@ -7980,6 +8005,16 @@ class DemoTrader:
             entry_type, instrument
         )
 
+    def _is_pair_demoted_entry(self, entry_type: str, instrument: str = "") -> bool:
+        """Return True when the concrete strategy-pair tier is PAIR_DEMOTED."""
+        if not instrument:
+            return False
+        pair_key = (entry_type, instrument)
+        if pair_key in self._PAIR_DEMOTED:
+            return True
+        runtime_pair_demoted = getattr(self, "_runtime_pair_demoted", set())
+        return pair_key in runtime_pair_demoted
+
     # 全モードSentinel: scalp以外にも適用される戦略Sentinel
     _UNIVERSAL_SENTINEL = {
         # REMOVED: stoch_trend_pullback → FORCE_DEMOTED (v8.9: Post-cut N=19 WR=31.6% EV=-0.97)
@@ -8210,7 +8245,7 @@ class DemoTrader:
 
     def _resolve_tier(self, entry_type: str, instrument: str = "", mode: str = "") -> str:
         """Resolve the static tier used by write-path shadow safeguards."""
-        if instrument and (entry_type, instrument) in self._PAIR_DEMOTED:
+        if self._is_pair_demoted_entry(entry_type, instrument):
             return "PAIR_DEMOTED"
         if instrument and (entry_type, instrument) in self._PAIR_PROMOTED:
             return "PAIR_PROMOTED"
@@ -8411,12 +8446,8 @@ class DemoTrader:
             return True  # 全降格を上書き
 
         # ── ペア別降格: 特定ペアでのみEVマイナスの組み合わせ ──
-        if instrument and (entry_type, instrument) in self._PAIR_DEMOTED:
+        if self._is_pair_demoted_entry(entry_type, instrument):
             return False  # ペア限定降格 (静的)
-        # v8.9: ランタイム自動ペア降格 (_evaluate_promotions で動的追加)
-        _rt_pd = getattr(self, '_runtime_pair_demoted', set())
-        if instrument and (entry_type, instrument) in _rt_pd:
-            return False  # ペア限定降格 (動的)
 
         # ── ペア別復活: FORCE_DEMOTEDでもペア限定で復活 ──
         if instrument and (entry_type, instrument) in self._PAIR_PROMOTED:

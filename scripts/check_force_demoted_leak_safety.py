@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from modules.demo_db import DemoDB
+from modules.demo_trader import DemoTrader
 
 
 CUTOFF = "2026-04-08T00:00:00"
@@ -44,6 +45,7 @@ def analyze_db(db_path: str) -> dict:
 
     force_demoted = DemoDB._force_demoted_entry_types()
     placeholders = ",".join(["?"] * len(force_demoted))
+    pair_demoted = sorted(DemoTrader._PAIR_DEMOTED)
     with _connect(str(path)) as conn:
         audit_present = _table_exists(conn, "oanda_audit")
         marker_present = _column_exists(conn, "demo_trades", "force_demoted_live_leak")
@@ -133,6 +135,31 @@ def analyze_db(db_path: str) -> dict:
             params,
         ).fetchall()
 
+        pair_demoted_rows = []
+        if pair_demoted:
+            pair_terms = " OR ".join(
+                ["(entry_type = ? AND instrument = ?)"] * len(pair_demoted)
+            )
+            pair_params = []
+            for entry_type, instrument in pair_demoted:
+                pair_params.extend([entry_type, instrument])
+            pair_demoted_rows = conn.execute(
+                f"""SELECT entry_type,
+                           instrument,
+                           COUNT(*) AS n,
+                           ROUND(COALESCE(SUM(pnl_pips), 0), 4) AS pnl_total,
+                           MIN(entry_time) AS earliest,
+                           MAX(entry_time) AS latest
+                    FROM demo_trades
+                    WHERE entry_time >= ?
+                      AND instrument != 'XAU_USD'
+                      AND is_shadow = 0
+                      AND ({pair_terms})
+                    GROUP BY entry_type, instrument
+                    ORDER BY entry_type, instrument""",
+                (CUTOFF, *pair_params),
+            ).fetchall()
+
         return {
             "db_path": str(path),
             "cutoff": CUTOFF,
@@ -147,7 +174,8 @@ def analyze_db(db_path: str) -> dict:
                 "oanda_id_distribution": [dict(row) for row in q4_rows],
                 "unsafe_post_rule_fill_count": int(unsafe_count),
             },
-            "verdict": "UNSAFE" if unsafe_count > 0 else "SAFE",
+            "q5_pair_demoted_live": [dict(row) for row in pair_demoted_rows],
+            "verdict": "UNSAFE" if unsafe_count > 0 or pair_demoted_rows else "SAFE",
         }
 
 
