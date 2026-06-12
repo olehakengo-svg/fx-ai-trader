@@ -1866,6 +1866,16 @@ WR75%にもかかわらずPnL赤字。`wick_imbalance_reversion` の1敗（-7.7p
 | **ema200_trend_reversal / USD_JPY** | USD_JPY | **-5.6 pips（1件）** | USD_JPY ATR29%ile（低ボラ）でのSELL→SL_HIT。EV=-5.60は単発でも構造的に危険な水準。BTデータでUSD_JPY EV=-0.183と既に負のシグナルあり。|
 > ※本日累計17件・PnL -15.2pipsに対してロンドン16件・-9.6pipsであることから、**東京セッションは約1件・-5.6pips**と推定される。
 
+### 2026-06-12 (Pre-Tokyo Briefing)
+前日（2026-06-11）: **N=4、WR=75.0%、PnL=−2.2**
+Cutoff後累計: **N=26、WR=69.2%、PnL=−14.4**（全体EV赤字継続）。
+| Strategy | Pair | N | WR% | EV | 判定 |
+| ema200_trend_reversal | USD_JPY | 2 | 0.0% | **−5.60** | ⚠️ データ不足・EV極端な負 |
+| trendline_sweep | GBP_USD | 7 | 71.4% | **−0.81** | ⚠️ WRは高いが損大/勝小 |
+| vix_carry_unwind | USD_JPY | 7 | 71.4% | **−0.19** | ⚠️ ほぼゼロEV、摩擦で実質赤字 |
+- **損失が7.7pip規模**に拡大しているのに対し、勝ち時は2.3pipと小さい。
+- SL配置がwidすぎるか、エントリー精度が低くRRが機能していない。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
