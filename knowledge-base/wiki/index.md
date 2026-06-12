@@ -4,7 +4,7 @@
 **全施策の判断基準。これに寄与しない施策は後回し。**
 - 現在: **DD防御0.2x** (DD=**80.03%**, defensive mode — 2026-06-10) → 月利47%（BT推定、クリーンデータ蓄積中）
 - Phase 3 (Kelly Half): 月利594%
-- 詳細: **[[roadmap-v2.1]]** (DT幹+Scalp枝統合、v2.1)
+- 詳細: **[[roadmap-v2.2-win-conversion]]** (LIVE負け→勝ち転換、2026-06-12) / 旧: [[roadmap-v2.1]]
 - 旧: [[roadmap-v2]] (v2.0) / [[roadmap-to-100pct]] (v1)
 - **最優先: クリーンデータ蓄積 → Kelly Half到達**
 
