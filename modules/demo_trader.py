@@ -8480,8 +8480,9 @@ class DemoTrader:
             # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
             _sess_filter = self._PAIR_SESSION_FILTER.get((entry_type, instrument))
             if _sess_filter is not None:
-                from datetime import datetime as _dt, timezone as _tz
-                _hour_utc = _dt.now(_tz.utc).hour
+                # module-level datetime (not a local import) so test fixtures
+                # patching demo_trader.datetime control this clock
+                _hour_utc = datetime.now(timezone.utc).hour
                 _curr_sess = next(
                     (name for name, lo, hi in self._SESSION_BOUNDS_UTC if lo <= _hour_utc < hi),
                     None,
