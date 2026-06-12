@@ -1137,6 +1137,35 @@ class DemoDB:
                 conn.commit()
         return trade_id
 
+    def append_trade_reason(self, trade_id: str, reason: str) -> bool:
+        """Append an audit reason to demo_trades.reasons if it is not present."""
+        if not trade_id or not reason:
+            return False
+        with self._lock:
+            with self._safe_conn() as conn:
+                row = conn.execute(
+                    "SELECT reasons FROM demo_trades WHERE trade_id=?",
+                    (trade_id,),
+                ).fetchone()
+                if not row:
+                    return False
+                raw = row["reasons"]
+                try:
+                    reasons = json.loads(raw) if raw else []
+                except Exception:
+                    reasons = []
+                if not isinstance(reasons, list):
+                    reasons = [str(reasons)]
+                if reason in reasons:
+                    return False
+                reasons.append(reason)
+                conn.execute(
+                    "UPDATE demo_trades SET reasons=? WHERE trade_id=?",
+                    (json.dumps(reasons, ensure_ascii=False), trade_id),
+                )
+                conn.commit()
+                return True
+
     def close_trade(self, trade_id: str, exit_price: float,
                     close_reason: str = "TP_HIT",
                     spread_at_exit: float = 0.0,

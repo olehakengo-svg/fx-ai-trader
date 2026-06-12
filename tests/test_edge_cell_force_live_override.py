@@ -232,7 +232,8 @@ def test_edge_cell_force_live_overrides_shadow_sources(
     assert row["is_shadow"] == 0, case_name
     assert row["oanda_trade_id"], case_name
     assert trader._oanda.calls, case_name
-    assert trader._oanda.calls[-1]["units"] == 5000
+    expected_units = 2500 if expected_cell == "E5" else 5000
+    assert trader._oanda.calls[-1]["units"] == expected_units
     assert any(
         f"[EDGE_CELL] {expected_cell} shadow→live force override "
         f"(was shadow due to: {expected_source})" in log

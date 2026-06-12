@@ -43,3 +43,37 @@ owner: codex
 - `pytest tests/ -x -q` 全通過 + `scripts/check.py` 通過
 - final.md は git log/diff で実 verify
 - E9/E6/E11 など対象外セルの挙動に diff が無いことを明記
+
+
+## Result (2026-06-12T08:46:52Z)
+
+exit=0 · 597s
+
+```
+実装完了しました。
+
+変更点は [modules/demo_trader.py](/data/repo/fx-ai-trader/modules/demo_trader.py) に LIVE-only の `LDN_MORNING_SIZE_LEVER` 判定と OANDA 送信直前の 0.5x 適用、[modules/demo_db.py](/data/repo/fx-ai-trader/modules/demo_db.py) に `demo_trades.reasons` 監査タグ追記 helper を追加しました。適用時は `ldn_morning_size_lever_0.5x` を記録します。Shadow 経路は変更していません。
+
+lot 合成順は `final.md` に明記済みです。今回の lever は `_PAIR_LOT_BOOST` / edge-cell stage lot / `Candidate.lot_multiplier` / final gates の後、実 OANDA send path だけに最後に掛けます。E9/E6/E11 など対象外セルにはロジックを追加しておらず、E9 UTC08 unchanged はテストで固定しました。
+
+検証済み:
+
+```text
+.venv/bin/pytest tests/test_ldn_morning_size_lever.py -q
+7 passed
+
+.venv/bin/pytest tests/test_edge_cell_force_live_override.py tests/test_edge_cell_e2e_force_fire.py tests/test_demo_trader_lot_multiplier_integration.py -q
+16 passed
+
+.venv/bin/pytest tests/ -x -q
+1855 passed, 1 skipped, 1 xfailed in 274.88s
+
+.venv/bin/python scripts/check.py
+全6チェック通過
+
+git diff --check
+clean
+```
+
+`scripts/check.py` は既存 KB 警告を表示しましたが、checker verdict は OK です。`final.md` も今回の git log/diff/verification 内容で更新済みです。
+```

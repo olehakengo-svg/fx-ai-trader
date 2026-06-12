@@ -76,6 +76,9 @@ PRICE_SHOCK_REV_TIER1_PAIRS = frozenset({
 })
 
 PRICE_SHOCK_REV_MIN_UNITS = 1000
+LDN_MORNING_SIZE_LEVER_REASON = "ldn_morning_size_lever_0.5x"
+LDN_MORNING_SIZE_LEVER_CELLS = frozenset({"E5", "E7", "E10"})
+LDN_MORNING_SIZE_LEVER_HOURS_UTC = frozenset({7, 8, 9})
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -6229,6 +6232,27 @@ class DemoTrader:
                 f"→ shadow (OANDA gate blocked, excluded from resend)"
             )
 
+        _ldn_live_send = bool(_is_promoted and not _is_shadow and _bridge_active and _mode_allowed)
+        _ldn_units, _ldn_lever_applied = (
+            self._resolve_ldn_morning_size_lever(
+                _adjusted_units,
+                _edge_cell_id,
+                _entry_time,
+                is_shadow=False,
+            )
+            if _ldn_live_send
+            else (_adjusted_units, False)
+        )
+        if _ldn_lever_applied:
+            self._add_log(
+                f"[LDN_MORNING_SIZE] {_edge_cell_id} {entry_type} {instrument} "
+                f"hour={_entry_time.astimezone(timezone.utc).hour:02d} "
+                f"{_adjusted_units}u -> {_ldn_units}u (0.5x LIVE-only)"
+            )
+            _adjusted_units = _ldn_units
+            _lot_tag = f"{_lot_tag}(LDN0.5x)" if _lot_tag else "(LDN0.5x)"
+            self._db.append_trade_reason(trade_id, LDN_MORNING_SIZE_LEVER_REASON)
+
         if _is_promoted:
             if _bridge_active and _mode_allowed:
                 # ── v6.4 SHIELD: Quick-Harvest TP (OANDA専用) ──
@@ -7978,6 +8002,42 @@ class DemoTrader:
         if not is_xau_inst and result > 0:
             result = max(1000, (result // 1000) * 1000)
         return result
+
+    @staticmethod
+    def _ldn_morning_size_lever_enabled() -> bool:
+        return _os.environ.get("LDN_MORNING_SIZE_LEVER", "1").strip() != "0"
+
+    def _resolve_ldn_morning_size_lever(
+        self,
+        base_units: int,
+        edge_cell_id: str,
+        entry_time: datetime,
+        is_shadow: bool,
+    ) -> tuple[int, bool]:
+        """Apply the LDN morning LIVE-only size lever.
+
+        Derivation order in _tick_entry:
+          normal lot chain (_PAIR_LOT_BOOST / strategy boost / N cap / DD /
+          aggregate Kelly / Kelly cap / PRIME cap) -> special fixed lots ->
+          sentinel/FX rounding -> OANDA_FORCE_FLAT_UNITS -> hard cap ->
+          Candidate.lot_multiplier -> final OANDA gates -> this 0.5x lever.
+
+        This is deliberately last and LIVE-only, so it cannot double-apply with
+        the existing cell-stage lot override and cannot alter shadow records.
+        """
+        if is_shadow:
+            return int(base_units), False
+        if not self._ldn_morning_size_lever_enabled():
+            return int(base_units), False
+        if edge_cell_id not in LDN_MORNING_SIZE_LEVER_CELLS:
+            return int(base_units), False
+        try:
+            hour_utc = entry_time.astimezone(timezone.utc).hour
+        except Exception:
+            return int(base_units), False
+        if hour_utc not in LDN_MORNING_SIZE_LEVER_HOURS_UTC:
+            return int(base_units), False
+        return max(1, int(base_units * 0.5)), True
 
     @staticmethod
     def _price_shock_rev_min_units(entry_type: str, instrument: str) -> int | None:
