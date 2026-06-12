@@ -34,10 +34,10 @@
 | # | 項目 | Rule | 状態 | 採用/棄却条件 |
 |---|---|---|---|---|
 | T1 | **E12 sr_anti_hunt_bounce EUR_JPY stage=0** | R2 | ✅ **実行済 2026-06-12 07:36 UTC** (stage 1→0) | 根拠: 20260608 forensic「設計が誤」確定 + Live N=4 WR25% -7.0p。復帰条件: TP/hold 再設計 + 12y BT 通過のみ (R1) |
-| T2 | **live_tier_exempt リーク監査** — PAIR_DEMOTED の xs_momentum が `mtf_gate_action=live_tier_exempt` で live 発火 (30d N=3 -1.4p)。demoted 戦略に exempt 経路が開く設計意図の code derivation → 封鎖 or 明示 allowlist | R3 | Codex queue 投入 (P1) | exempt 経路の demoted 通過が設計なら allowlist 文書化、バグなら封鎖 + 回帰テスト |
-| T3 | **wick_imbalance slippage -40p×2 forensic** (6/10 17:46/18:41 GBP_USD、記録バグ疑い) | R3 | Codex queue 投入 (P2) | oanda_audit×demo_trades 突合。実損なら E10 即停止判定 (R2)、記録バグなら修正+backfill |
-| T4 | **LDN朝 (UTC07-09) counter-USD MR の SIZE lever 0.5x** — 対象 E5/E7/E10。30d 実測: 当該時間帯 -71.8p | R2 | 🔶 **user 決裁待ち** | SKIP でなく SIZE (lesson: SIZE lever > SKIP filter 2026-05-28)。USD一方向レジーム終了 (DXY 反転 or Fed pivot) で解除 |
-| T5 | **JPYレジーム撤退 pre-reg** — JPY系勝ち (+44p) は 160 介入キャップ依存。キャップ消滅 (D1 close > 160.8 or BOJ利上げ実施) で vsg/dt_sr_channel/vix_carry/ema200 lot 0.5x | R1 pre-reg | 🔶 **user 決裁待ち** | pre-reg LOCK をこの文書でなく decisions/ に切って commit |
+| T2 | **live_tier_exempt リーク監査** | R3 | ✅ **完了 2026-06-12** (Codex 9b16ebb5): バグ確定 → PAIR_DEMOTED/FORCE_DEMOTED を exempt 経路から除外 + 送信直前 gate + 検知器盲点 (q5) 修正 + 回帰テスト | — |
+| T3 | **wick_imbalance slippage -40p×2 forensic** | R3 | ✅ **完了 2026-06-12** (Codex af41f52a): **記録バグ確定** (stale signal_price 基準、実約定正常・PnL影響なし) → E10 停止不要。修正+backfillスクリプト済、**本番 backfill 適用が残作業** | 全期間 \|slip\|>10p は76件、live×wick は当該2件のみ |
+| T4 | **LDN朝 (UTC07-09) counter-USD MR の SIZE lever 0.5x** — 対象 E5/E7/E10 | R2 | ✅ user 承認 2026-06-12 → Codex queue `20260612-1715-ldn-morning-size-lever` (P1) | env kill switch 付き。USD一方向レジーム終了で解除 |
+| T5 | **JPYレジーム撤退 pre-reg** — D1 close > 160.8 or BOJ利上げ → JPY系4戦略 lot 0.5x | R1 pre-reg | ✅ **LOCK済 2026-06-12**: [[jpy-cap-exit-prereg-2026-06-12]] | 復帰条件も pre-reg 済 |
 
 ## WS2: 勝ち集中・N蓄積 (Rule 1 正順)
 
@@ -55,7 +55,7 @@
 
 ## WS4: 目標再キャリブレーション
 
-- T12: 🔶 **user 決裁待ち** — v2.1 Gate 2 の「月利100%」を数学的上限 (~21.6%/月、Bonferroni 後) ベースに再設定。Gate 1 (aggregate Kelly>0) は KPI M1 とほぼ等価なので存置
+- T12: ✅ **決裁済 2026-06-12** — 目標を月利21.6% (数学的上限) 基準に再設定。CLAUDE.md / index.md 反映済み。Gate 1 (aggregate Kelly>0) は KPI M1 とほぼ等価なので存置
 
 ## 棄却済み (このロードマップで追わない)
 

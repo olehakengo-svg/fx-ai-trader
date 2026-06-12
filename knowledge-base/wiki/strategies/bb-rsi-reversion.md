@@ -1,6 +1,6 @@
 # bb_rsi_reversion
 
-## Status: SCALP_SENTINEL + PAIR_DEMOTED (全ペア) + OANDA_TRIP (BB_RSI_OANDA_TRIP=1)
+## Status: SCALP_SENTINEL + PAIR_DEMOTED (全ペア) + OANDA_TRIP (BB_RSI_OANDA_TRIP=1) + 🟠 RETIRED (2026-06-12, rule:R2 — `SHADOW_RETIRED_STRATEGIES` で Shadow 含め全ペア恒久停止)
 **現行**: SCALP_SENTINEL (最小ロット shadow)。EUR_JPY / EUR_USD / GBP_USD / USD_JPY の 4 ペアすべて PAIR_DEMOTED — 実弾通過なし。
 
 ## ★ 2026-05-14 後継: macd_rsi_pullback
@@ -172,3 +172,13 @@ Group B (`label_only`) では従来通り LIVE 実行 → 並走で gate 効果�
 - killing USD_CHF removes -120p single-strategy bleed; GBP_USD removes -60p
 
 **Rollback**: `BB_RSI_REVERSION_PAIR_WHITELIST_V1=0`.
+
+## 2026-06-12 Edge Factor Audit #2 — 🟠 統合退役 (恒久退役、思想は dt_bb_rsi_mr が継承)
+
+clean N=780 の要因解析で確定。詳細: [[edge-factor-audit-2026-06-12-bb-rsi-reversion]]
+
+- gross EV +0.50〜+0.61 で**思想は生きている**が、friction 1.2-1.5p が TP 5.2p の 24.7% を占め算数で詰み (BE-WR 40.9% vs 実測 35.4%)
+- 同思想 DT 版 [[dt-bb-rsi-mr]] は friction 10.8%/TP で net +1.72 / PF 1.61 — 修理形が既存のため scalp 版の存続理由なし
+- 12y MASSIVE BT REJECT (2026-06-11, USD_JPY PF 0.66) と整合
+- E4 disable → USD_CHF hourly 漏れ (22件) → env バイパス可能な whitelist、と封じ込め 3 段が漏れ続けたため registry で不可逆化
+- 既存防御 (whitelist / per-cell registry / OANDA_TRIP) は残置

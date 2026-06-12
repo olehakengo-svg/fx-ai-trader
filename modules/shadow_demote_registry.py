@@ -13,6 +13,17 @@ SHADOW_RETIRED_STRATEGIES = frozenset({
     # monthly WR 20.8% -> 16.1% -> 6.5%. No salvageable cell, no SIZE
     # lever target. Ref: wiki/learning/edge-factor-audit-2026-06-12-ema-trend-scalp.md
     "ema_trend_scalp",
+    # 2026-06-12 (rule:R2): edge-factor audit #2, clean N=780. Thesis is
+    # alive but the scalp geometry is arithmetically dead: gross EV
+    # +0.5~+0.6p vs friction 1.2-1.5p (24.7% of the 5.2p median TP),
+    # BE-WR 40.9% vs actual 35.4%. The same thesis survives at DT
+    # geometry as dt_bb_rsi_mr (friction 10.8% of TP, net +1.72, PF
+    # 1.61, N=105) which remains the family representative. 12y MASSIVE
+    # BT rejected the USD_JPY redesign (PF 0.66, 2026-06-11). Containment
+    # kept leaking (E4 -> USD_CHF hourly -> env-bypassable whitelist);
+    # this entry closes it structurally.
+    # Ref: wiki/learning/edge-factor-audit-2026-06-12-bb-rsi-reversion.md
+    "bb_rsi_reversion",
 })
 
 

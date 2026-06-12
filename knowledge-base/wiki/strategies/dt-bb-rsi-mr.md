@@ -33,3 +33,13 @@ Bollinger Band + RSI mean reversion for daytrade timeframe. Enters when price to
 ## Related
 - [[index]] — Tier classification
 - [[roadmap-v2.1]] — Portfolio strategy
+
+## 2026-06-12 — bb_rsi family 代表に指名 + promotion pre-reg LOCK
+
+[[edge-factor-audit-2026-06-12-bb-rsi-reversion]] で scalp 版 bb_rsi_reversion が退役、
+本戦略が BB+RSI MR 思想の唯一の継承者となった。
+
+**Pre-reg LOCK (昇格審査トリガー)**: Shadow clean pooled **N≥165 かつ Wilson_lo≥0.40**
+(現 N=105 / 0.383、30d ペース N=56 で 1〜1.5 ヶ月)。審査時は full battery +
+loser cell (GBP_USD BUY / 08-11 UTC) へ **SIZE 0.5x** (SKIP 禁止)。
+直近 30d EV>0 必須。詳細条件は audit ファイル §pre-reg 参照。

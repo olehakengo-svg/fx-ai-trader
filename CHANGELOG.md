@@ -1,5 +1,22 @@
 # FX AI Trader - Changelog
 
+## 2026-06-12 — fix: bb_rsi_reversion 統合退役 — Edge Factor Audit #2 (rule:R2)
+
+### 変更内容
+
+`modules/shadow_demote_registry.py` の `SHADOW_RETIRED_STRATEGIES` に
+`bb_rsi_reversion` を追加 (Shadow 含め全ペア恒久停止)。既存防御
+(pair whitelist / per-cell registry / OANDA_TRIP) は残置し最終層を不可逆化。
+
+### 根拠 (詳細: wiki/learning/edge-factor-audit-2026-06-12-bb-rsi-reversion.md)
+
+- clean N=780。gross EV +0.50〜+0.61 で思想は正、だが friction 1.2-1.5p が
+  median TP 5.2p の 24.7% を占め BE-WR 40.9% vs 実測 WR 35.4% で算数的に不成立
+- 同思想 DT 版 dt_bb_rsi_mr (friction 10.8%/TP) は net +1.72 / PF 1.61 / N=105 で生存
+  → 家族代表に指名、promotion pre-reg LOCK (N≥165 ∧ Wilson_lo≥0.40) を学習レポートに固定
+- 12y MASSIVE BT REJECT (2026-06-11) / MA フィルタ罠の当事者 / 封じ込め 3 段漏れ
+
+
 ## 2026-06-12 — fix: ema_trend_scalp 恒久退役 — SHADOW_RETIRED_STRATEGIES 新設 (rule:R2)
 
 ### 変更内容
