@@ -9,9 +9,20 @@ Safety mechanisms that MUST bypass the override:
   - Sentinel (N<10 validation lot)
   - PRICE_SHOCK_REV (dedicated min-lot)
   - PRIME-A/B (pre-registered small-lot validation)
+  - Fixed-lot contract strategies (Rule-1 intentional exceptions, pre-reg LOCK):
+    usdjpy_carry_dip_accumulator / sweep_reversion_eurgbp_late (MIN 1000u),
+    hull_donchian_fade (fixed 5000u) — added 2026-06-12 rule:R3 after Codex
+    review I-4 covered only hull and missed the two MIN-lot strategies
 """
 import os
 import pytest
+
+# Entry types whose lot is a pre-registered contract; FLAT must never rewrite.
+_FIXED_LOT_CONTRACT_TYPES = (
+    "usdjpy_carry_dip_accumulator",
+    "sweep_reversion_eurgbp_late",
+    "hull_donchian_fade",
+)
 
 
 def _apply_flat_override(
@@ -22,6 +33,7 @@ def _apply_flat_override(
     is_price_shock: bool = False,
     prime_tier: str = "",
     flat_env: str = "",
+    entry_type: str = "",
 ) -> int:
     """Replicates the override logic from modules/demo_trader.py.
 
@@ -33,6 +45,7 @@ def _apply_flat_override(
         and not is_xau
         and not is_sentinel
         and not is_price_shock
+        and entry_type not in _FIXED_LOT_CONTRACT_TYPES
         and prime_tier not in ("A", "B")
     ):
         try:
@@ -95,6 +108,40 @@ class TestFlatUnitsOverride:
         """Future tier-aware: env=4000 (active tier) also valid."""
         assert _apply_flat_override(7000, flat_env="4000") == 4000
 
+    def test_carry_dip_min_lot_contract_bypasses(self):
+        """usdjpy_carry_dip_accumulator: Rule-1 MIN lot 1000u contract (pre-reg LOCK).
+
+        Live N>=10 で Sentinel が外れた後も FLAT は 1000u を 5000u に
+        上書きしてはならない (5x risk, 2026-06-12 rule:R3)。
+        """
+        assert _apply_flat_override(
+            1000, entry_type="usdjpy_carry_dip_accumulator",
+            is_sentinel=False, flat_env="5000",
+        ) == 1000
+
+    def test_sweep_reversion_min_lot_contract_bypasses(self):
+        """sweep_reversion_eurgbp_late: Rule-1 MIN lot 1000u contract (pre-reg LOCK).
+
+        Same shape as carry dip — post-Sentinel FLAT rewrite is forbidden.
+        """
+        assert _apply_flat_override(
+            1000, entry_type="sweep_reversion_eurgbp_late",
+            is_sentinel=False, flat_env="5000",
+        ) == 1000
+
+    def test_hull_donchian_fade_fixed_lot_bypasses(self):
+        """hull_donchian_fade: fixed 5000u contract (Codex review I-4)."""
+        assert _apply_flat_override(
+            5000, entry_type="hull_donchian_fade",
+            is_sentinel=False, flat_env="10000",
+        ) == 5000
+
+    def test_unrelated_entry_type_still_flattened(self):
+        """Contract bypass is per-entry_type; other strategies still flatten."""
+        assert _apply_flat_override(
+            7000, entry_type="orb_trap", flat_env="5000",
+        ) == 5000
+
 
 class TestProductionPatchAlignment:
     """Ensures the helper matches the production patch in demo_trader.py.
@@ -126,3 +173,22 @@ class TestProductionPatchAlignment:
         assert "_is_sentinel" in window, "Sentinel bypass missing in patch"
         assert "PRICE_SHOCK_REV_TIER1_TYPES" in window, "PRICE_SHOCK bypass missing"
         assert "_prime_tier" in window, "PRIME bypass missing"
+
+    def test_fixed_lot_contract_bypasses_present(self):
+        """2026-06-12 rule:R3: MIN-lot contract strategies must bypass FLAT.
+
+        Codex review I-4 added only hull_donchian_fade; carry dip / sweep
+        reversion were silently exposed once Live N>=10 drops the Sentinel.
+        """
+        from pathlib import Path
+        src = Path(__file__).parent.parent / "modules" / "demo_trader.py"
+        text = src.read_text()
+        idx = text.find("OANDA_FORCE_FLAT_UNITS")
+        assert idx > 0
+        window = text[idx:idx + 1200]
+        assert 'and entry_type != "usdjpy_carry_dip_accumulator"' in window, \
+            "carry dip MIN lot 1000u contract not bypassed in FLAT override"
+        assert 'and entry_type != "sweep_reversion_eurgbp_late"' in window, \
+            "sweep reversion MIN lot 1000u contract not bypassed in FLAT override"
+        assert 'and entry_type != "hull_donchian_fade"' in window, \
+            "hull donchian fixed-lot contract not bypassed in FLAT override"

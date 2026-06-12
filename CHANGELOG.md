@@ -1,5 +1,33 @@
 # FX AI Trader - Changelog
 
+## 2026-06-12 — fix: FLAT override が MIN lot 1000u 契約 2戦略を上書きする潜在バグ (rule:R3)
+
+### 変更内容
+
+`modules/demo_trader.py` の `OANDA_FORCE_FLAT_UNITS` bypass 条件に
+`usdjpy_carry_dip_accumulator` / `sweep_reversion_eurgbp_late` を追加
+(既存の `hull_donchian_fade` 除外と同型)。
+
+### 根拠 (構造バグ、Rule 3 — 365日BT 不要)
+
+- 両戦略は Rule-1 意図的例外として **MIN lot 1000u 固定契約 (pre-reg LOCK)**
+  だが、Render 本番で有効な `OANDA_FORCE_FLAT_UNITS=5000` の bypass リスト
+  (XAU / Sentinel / PRICE_SHOCK_REV / hull_donchian_fade / PRIME A/B) に不在
+- 現在は Live N<10 の Sentinel 判定で偶然 1000u に保護されているが、
+  **N≥10 到達後は Sentinel が外れ、1000u 契約が FLAT で 5000u (5倍リスク) に
+  静かに上書きされる** 時限バグ
+- 2026-06-12 Codex review I-4 は hull_donchian_fade のみ除外を追加し
+  この2戦略を見落とした (hull はその後 user 指示で固定 5000u に変更され
+  除外は実質 moot だが、同型の漏れとして残存していた)
+
+### テスト
+
+`tests/test_flat_units_override.py`: ヘルパーに `entry_type` 追加、
+契約3戦略の bypass + 非契約戦略の flatten 維持 + 本番コード source pin
+(`test_fixed_lot_contract_bypasses_present`) の 5 ケース追加。
+hull の既存 I-4 pin (`test_i4_flat_units_override_bypassed`) は隣接行を
+assert するため、新 bypass は hull 行の前に挿入し pin を維持。
+
 ## 2026-06-12 — fix: fib_reversal 恒久退役 — Edge Factor Audit #3 (rule:R2)
 
 ### 変更内容

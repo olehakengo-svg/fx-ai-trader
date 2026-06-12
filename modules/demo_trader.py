@@ -5827,6 +5827,11 @@ class DemoTrader:
             and not _is_xau_inst
             and not _is_sentinel
             and entry_type not in PRICE_SHOCK_REV_TIER1_TYPES
+            # 2026-06-12 rule:R3: Rule-1 意図的例外 2戦略は MIN lot 1000u 契約 (pre-reg LOCK)。
+            # Live N<10 の間は Sentinel bypass で偶然保護されるが、N>=10 到達後に
+            # FLAT が 1000u→5000u (5倍リスク) へ静かに上書きするため明示 bypass 必須
+            and entry_type != "usdjpy_carry_dip_accumulator"
+            and entry_type != "sweep_reversion_eurgbp_late"
             # 2026-06-12 Codex review I-4: hull_donchian_fade は MIN lot 1000u 契約 — flat 上書き不可
             and entry_type != "hull_donchian_fade"
             and _prime_tier not in ("A", "B")
