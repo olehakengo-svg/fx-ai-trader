@@ -5746,10 +5746,12 @@ class DemoTrader:
             _sentinel_reason = "SWEEP_REVERSION_EURGBP_MIN_LOT"
         if entry_type == "hull_donchian_fade":
             # Rule-1 LIVE 意図的例外 (2026-06-12): holdout confirm 済みだが live 実証 N=0。
-            # cascade に関係なく実資金リスクを MIN lot (1000u) に固定 (carry dip / sweep と同型)。
-            _lot_ratio = PRICE_SHOCK_REV_MIN_UNITS / max(_base_units, 1)
-            _adjusted_units = PRICE_SHOCK_REV_MIN_UNITS
-            _sentinel_reason = "HULL_DONCHIAN_FADE_MIN_LOT"
+            # cascade に関係なく実資金リスクを固定 lot に強制 (carry dip / sweep と同型)。
+            # 2026-06-12 user 指示で 1000u → 5000u 統一 (EUR_USD ≈ $0.5/pip)。
+            _HULL_DONCHIAN_FADE_UNITS = 5000
+            _lot_ratio = _HULL_DONCHIAN_FADE_UNITS / max(_base_units, 1)
+            _adjusted_units = _HULL_DONCHIAN_FADE_UNITS
+            _sentinel_reason = "HULL_DONCHIAN_FADE_FIXED_LOT_5000"
         if _is_sentinel:
             # v7.6: XAU専用Sentinel単位数 — 1unit=1troy oz≈$4800
             # FX 0.01lot=1000u相当をXAUに適用すると 1000oz×$4800=$4.8M → margin拒絶

@@ -1,6 +1,6 @@
 # hull_donchian_fade — EUR_USD M15 圧縮ゲート二重確認フェード
 
-- **Status**: LIVE 意図的例外 (env gate, MIN lot 1000u) — 2026-06-12 投入
+- **Status**: LIVE 意図的例外 (env gate, 固定 5000u lot) — 2026-06-12 投入
 - **Mode**: daytrade_eur (EUR_USD 15m)
 - **Type**: MR (compression-gated breakout fade)
 - **起源セッション**: TV「Hull Suite + Donchian Trend Ribbon を1mで勝てる方法」(2026-06-10..12)
@@ -54,7 +54,7 @@ Kalman D7 / carry_dip / ZZ v60 と同型。**Codex はレビューのみ、実�
 ([[feedback_codex_as_review_layer_2026_06_05]])。
 
 - env `HULL_DONCHIAN_FADE_LIVE_ENABLE=1` でのみ LIVE 転送 (default OFF = shadow-safe)
-- MIN lot 1000u 強制 (cascade 非依存、carry_dip と同型)
+- 固定 5000u lot 強制 (cascade 非依存; 2026-06-12 user 指示で 1000→5000)
 - `_SHIELD_EUR_DT_WHITELIST` 登録 (daytrade_eur は `_OANDA_MODE_BLOCKED` — ZZ v60 silent-drop 事故の再発防止)
 
 ### Pre-reg 撤退条件 (どれか成立 → 即実行、後出し変更禁止)
@@ -67,5 +67,5 @@ Kalman D7 / carry_dip / ZZ v60 と同型。**Codex はレビューのみ、実�
 
 ### 期待値 (boots from holdout ledger)
 
-- 発火 ~40 trades/月 (フル稼働時) — MIN lot では月次 PnL は小さい (実 fill 分布の蓄積が目的)
+- 発火 ~40 trades/月 (フル稼働時) — 5000u (≈$0.5/pip) では月次 PnL は小さい (実 fill 分布の蓄積が目的)
 - sizing 拡大は Live N≥30 通過後に別途判断 (0.25x Kelly ≈ 月利 1.8% / maxDD 22% が参考点)

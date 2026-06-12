@@ -30,7 +30,7 @@
 | 項目 | 値 |
 |---|---|
 | LIVE gate | env `HULL_DONCHIAN_FADE_LIVE_ENABLE=1` (default OFF) |
-| lot | MIN 1000u 強制 (cascade 非依存) |
+| lot | 固定 5000u 強制 (cascade 非依存、2026-06-12 user 指示) |
 | mode 遮断 bypass | `_SHIELD_EUR_DT_WHITELIST` 登録 (silent-drop 対策) |
 | CB | 既存 日次 -30pip / DD ゲート優先 |
 

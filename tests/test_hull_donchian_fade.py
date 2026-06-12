@@ -232,3 +232,11 @@ class TestCodexReviewPins:
         src = inspect.getsource(dt)
         assert 'and entry_type != "hull_donchian_fade"\n            and _prime_tier not in ("A", "B")' in src, \
             "I-4: OANDA_FORCE_FLAT_UNITS が MIN lot 1000u 契約を上書きする"
+
+    def test_fixed_lot_5000(self):
+        """2026-06-12 user 指示: lot は 5000u 統一 (cascade/flat-units 非依存)。"""
+        import inspect
+        import modules.demo_trader as dt
+        src = inspect.getsource(dt)
+        assert "_HULL_DONCHIAN_FADE_UNITS = 5000" in src
+        assert '"HULL_DONCHIAN_FADE_FIXED_LOT_5000"' in src
