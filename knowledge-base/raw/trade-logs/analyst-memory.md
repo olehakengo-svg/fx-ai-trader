@@ -1846,6 +1846,16 @@ WR75%にもかかわらずPnL赤字。`wick_imbalance_reversion` の1敗（-7.7p
 - `dt_sr_channel_reversal` のEV+14.20はN=2のため信頼区間が極めて広大（外れ値リスク大）
 - `wick_imbalance_reversion` はN=4でEV-3.75。全期間で最も懸念材料
 
+### 2026-06-12 (Pre-Tokyo Briefing)
+前日（2026-06-11）は **4トレード、WR=75.0%、PnL=−2.2pips** で終了。勝率は良好だが、`wick_imbalance_reversion / GBP_USD` の1件（−7.7pips）が全体を赤字に引き込んだ。勝ち3件の合計（+5.5pips）をSL-HIT1件が単独で上回る非対称な損益構造が露呈。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| vix_carry_unwind | USD_JPY | 6 | 66.7% | −0.35 | −2.1 | ⚠️ EV負・継続監視 |
+| wick_imbalance_reversion | GBP_USD | 5 | 60.0% | −2.54 | −12.7 | 🔴 **EV大幅マイナス** |
+| dt_sr_channel_reversal | EUR_JPY | 1 | 100.0% | +10.30 | +10.3 | データ不足（外れ値注意） |
+| ema200_trend_reversal | USD_JPY | 2 | 0.0% | −5.60 | −11.2 | 🔴 **EV極端マイナス（N=2）** |
+> **全体（N=21）**: WR=66.7%、PnL=−5.3pips
+### 🔴 課題①：`wick_imbalance_reversion / GBP_USD` のEV=−2.54
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
