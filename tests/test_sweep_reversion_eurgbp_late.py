@@ -198,3 +198,18 @@ def test_pin_max_hold_12h():
     """_ENTRY_TYPE_MAX_HOLD に 12h (43200s) が登録されていること。"""
     src = _demo_trader_source()
     assert '"sweep_reversion_eurgbp_late": 12 * 3600' in src
+
+
+def test_pin_live_promote_losers_membership():
+    """select_best 敗北時の silent drop 防止 (Kalman/pivot/ZZ/hull に続く既知パターン)。
+    LIVE_PROMOTE_LOSERS 未登録だと score 競合に負けた bar で発火ゼロになる。"""
+    from strategies.daytrade import DaytradeEngine
+    assert "sweep_reversion_eurgbp_late" in DaytradeEngine.LIVE_PROMOTE_LOSERS
+
+
+def test_pin_dte_preserve_sltp_in_app():
+    """app.py compute_daytrade_signal の min-SL/RRリライトから SL/TP 契約を保護。"""
+    src = open("app.py").read()
+    i = src.find("_dte_preserve_sltp = ")
+    assert i > 0
+    assert "sweep_reversion_eurgbp_late" in src[i:i + 600]

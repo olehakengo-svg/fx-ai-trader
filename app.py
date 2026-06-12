@@ -2975,7 +2975,12 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # 下の min-SL / SR snap / RR1.3 リライトは TP=basis(<1xATR) を 1.8x sl_d(=7.2xATR) に
     # 書き換え、検証済み分布を完全破壊するため、本戦略のみ全変換をスキップ。
     _dte_preserve_sltp = (_dt_best is not None
-                          and getattr(_dt_best, "entry_type", "") == "hull_donchian_fade")
+                          and getattr(_dt_best, "entry_type", "") in (
+                              "hull_donchian_fade",
+                              # 2026-06-12: sweep は RR1.5 で現行リライト非発動だが、
+                              # LATE 薄商い ATR 縮小時の min-SL 介入を防ぐ契約保存
+                              "sweep_reversion_eurgbp_late",
+                          ))
 
     # 最低SL距離保証: 5.0pips（DT用 — スプレッド+ノイズ余裕）
     DT_MIN_SL_PIPS = 0.050 if _is_jpy_scale(symbol) else 0.00050

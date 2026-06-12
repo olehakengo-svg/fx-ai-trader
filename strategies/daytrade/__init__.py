@@ -327,6 +327,13 @@ class DaytradeEngine:
         # session_time_bias 等 (~6.0-6.5) に敗北し side-channel 不在だと prod fires=0。
         # Codex review I-3 (2026-06-12)。
         "hull_donchian_fade",
+        # 2026-06-12 (rule:R1 EXCEPTION): sweep_reversion_eurgbp_late — 同 select_best
+        # ボトルネックの 6 回目回避。score 3.0-5.0 (sweep depth 依存) は同 bar の
+        # 他候補に敗北し得る。hull の Codex review I-3 が「sweep も同パターン」と
+        # 指摘 → side-channel 登録漏れを是正 (LIVE 投入同日)。
+        # 12y grid survivor (N=543 t=4.46)、発火 3-4回/月、取り逃しは N 蓄積に致命的。
+        # Memory: project_sweep_reversion_grid_survivor_2026_06_12.
+        "sweep_reversion_eurgbp_late",
         # 2026-06-02 (rule:R3): same select_best max-score bottleneck — third
         # recurrence of 2026-05-19 / 2026-05-22 / 2026-05-26 bug pattern. ZZ
         # Pivot v60 SR was deployed 2026-05-28 (commit 068cc0db) as LIVE
