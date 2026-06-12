@@ -105,6 +105,13 @@ def test_shield_oanda_mode_block_fires_when_no_edge_cell(monkeypatch, tmp_path):
     trader._SHADOW_MODE = False
     trader._OANDA_MODE_BLOCKED = frozenset({"daytrade_eur"})
     trader._strategy_n_cache = {"session_time_bias": 20}
+    # 800e09f7 (2026-06-01) gated session_time_bias×EUR_USD behind
+    # _PAIR_SESSION_FILTER {"London"}; the gate reads the REAL clock
+    # (_is_promoted does a local `from datetime import datetime`), so the
+    # fixture's patched hour never reaches it. Pin promotion at instance
+    # level so the trade reaches the SHIELD branch deterministically.
+    trader._PAIR_PROMOTED = frozenset({("session_time_bias", "EUR_USD")})
+    trader._PAIR_SESSION_FILTER = {}
 
     trader._tick_entry(
         "daytrade_eur",
@@ -151,6 +158,10 @@ def test_aggregate_kelly_gate_fires_when_no_edge_cell(monkeypatch, tmp_path):
     _persist_audit(trader)
     trader._SHADOW_MODE = False
     trader._strategy_n_cache = {"session_time_bias": 20}
+    # See test_shield_oanda_mode_block_fires_when_no_edge_cell — same
+    # deterministic-promotion pin (800e09f7 session filter reads real clock).
+    trader._PAIR_PROMOTED = frozenset({("session_time_bias", "EUR_USD")})
+    trader._PAIR_SESSION_FILTER = {}
     trader._get_aggregate_kelly = lambda: -0.25
 
     trader._tick_entry(

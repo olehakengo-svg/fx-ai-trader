@@ -143,6 +143,13 @@ def test_e2e_edge_cells_bypass_shield_mode_and_aggregate_kelly(monkeypatch, tmp_
     blocked_trader._SHADOW_MODE = False
     blocked_trader._OANDA_MODE_BLOCKED = frozenset({"daytrade_eur"})
     blocked_trader._strategy_n_cache = {"session_time_bias": 20}
+    # 800e09f7 (2026-06-01) gated session_time_bias×EUR_USD behind
+    # _PAIR_SESSION_FILTER {"London"}; the gate reads the REAL clock
+    # (_is_promoted does a local `from datetime import datetime`), so the
+    # fixture's patched hour never reaches it. Pin promotion at instance
+    # level so the trade reaches the SHIELD branch deterministically.
+    blocked_trader._PAIR_PROMOTED = frozenset({("session_time_bias", "EUR_USD")})
+    blocked_trader._PAIR_SESSION_FILTER = {}
     blocked_trader._get_aggregate_kelly = lambda: -0.25
 
     for price in [1.1200, 1.12025, 1.12050]:

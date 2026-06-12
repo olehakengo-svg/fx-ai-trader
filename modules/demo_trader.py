@@ -2220,6 +2220,9 @@ class DemoTrader:
             "price_shock_rev_aud_jpy_h1_long": 12 * 3600,
             # 2026-06-12: 12y survivor cell H=48bars@15m。mode default 8h を 12h に延長。
             "sweep_reversion_eurgbp_late": 12 * 3600,
+            # 2026-06-12: hull_donchian_fade hold<=96bar@15m=24h (holdout p90=11.5h、8h cap は
+            # 検証分布の尾を切る)。
+            "hull_donchian_fade": 24 * 3600,
         }
 
         for trade in open_trades:
@@ -2757,8 +2760,11 @@ class DemoTrader:
             # 2026-06-12 Codex review Important#3: sweep_reversion_eurgbp_late は C1 免除。
             # research は 48-bar close-to-close 計測 (6-12h で回復する loser が WR59.7% に
             # 寄与している)。半分時点の損切りは測定済み分布を破壊する。
+            # 2026-06-12 hull_donchian_fade も C1 免除: basis 回帰前の含み損 loser が WR78% に
+            # 寄与 (MFE/MAE 構造)。半分時点損切りは holdout 分布を破壊 (ATR2 stop と同型)。
             if not close_reason and trade.get("entry_type", "") not in PRICE_SHOCK_REV_TIER1_TYPES \
-                    and trade.get("entry_type", "") != "sweep_reversion_eurgbp_late":
+                    and trade.get("entry_type", "") not in (
+                        "sweep_reversion_eurgbp_late", "hull_donchian_fade"):
                 try:
                     entry_time_c1 = datetime.fromisoformat(trade.get("entry_time", ""))
                     if entry_time_c1.tzinfo is None:
@@ -5024,10 +5030,16 @@ class DemoTrader:
             # SL=4×ATR/TP=6×ATR tail-cap は research 分布保存のための契約。共有 DT 経路の
             # SR/ATR 再計算 (~1×ATR) に上書きさせない。
             "sweep_reversion_eurgbp_late",
+            # 2026-06-12 hull_donchian_fade: TP=Donchian basis / SL=4×ATR は holdout 忠実度BT
+            # (WR78% net+1.342p) の契約。タイト ATR 再計算は train で MR EV を破壊する実測あり。
+            "hull_donchian_fade",
         }
 
         tp = sig.get("tp", 0)  # シグナル関数が算出した技術的ターゲット（固定）
 
+        # 2026-06-12 hull_donchian_fade: TP=basis は凍結契約 — MTF 拡大 (×1.3) を適用しない
+        if entry_type == "hull_donchian_fade":
+            _mtf_tp_bonus = 1.0
         tp_dist = abs(tp - current_price) * _mtf_tp_bonus  # MTF順方向時にTP拡大
         if tp_dist <= 0:
             _block(f"tp_invalid(tp={tp},price={current_price},{entry_type})"); return
@@ -5092,7 +5104,9 @@ class DemoTrader:
                 if sl_dist <= 0:
                     _block(f"1h_sl_invalid(sl={sl},price={current_price},{entry_type})"); return
                 # RR検証
-                if tp_dist / sl_dist < 1.2:
+                # 2026-06-12 hull_donchian_fade 免除: 高WR/低RR 設計 (WR78%, TP=basis 近接 /
+                # SL=4×ATR 災害遠置 → RR≈0.25)。一律 RR 床は全 trade block になり contract 違反。
+                if entry_type != "hull_donchian_fade" and tp_dist / sl_dist < 1.2:
                     _block(f"1h_rr_low({tp_dist/sl_dist:.2f}<1.2,{entry_type})"); return
                 # SL狩り対策は適用（セッション遷移ワイドニング等）
                 # → 下の SL狩り対策②セクションに進む
@@ -8296,6 +8310,9 @@ class DemoTrader:
     })
     _QUICK_HARVEST_MULT = 0.85      # v6.8: 0.70→0.85 (DT WIN 7件の19.2pip利益漏出修復)
     _QUICK_HARVEST_EXEMPT = frozenset({
+        # 2026-06-12 hull_donchian_fade: TP=Donchian basis は凍結契約 (holdout 忠実度BT)。
+        # ×0.85 短縮は TP 意味論を改変するため免除。
+        ("hull_donchian_fade", "EUR_USD"),
         # 2026-05-04 R2 Tier 1 extension (rule:R2): gbp_deep_pullback × GBP_USD
         # exemption removed. tier downgrade ELITE_LIVE→PAIR_DEMOTED で
         # quick-harvest TP 短縮を適用する側に戻す。

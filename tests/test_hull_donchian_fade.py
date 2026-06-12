@@ -148,3 +148,56 @@ class TestLiveWiring:
         from strategies.daytrade import DaytradeEngine
         eng = DaytradeEngine()
         assert eng.get_strategy("hull_donchian_fade") is not None
+
+
+class TestContractPreservation:
+    """共有 DT 経路の変換ゲートから凍結スペック (TP=basis/SL=4xATR/hold96/C1なし) を守る pin。
+
+    2026-06-12 Codex review (sweep_reversion c3b9f06e) で発覚した gate 群の hull 版。
+    gate 定数が関数ローカルのため source-inspection pin (sweep の pin と同方式)。
+    """
+
+    def _source(self):
+        import inspect
+        import modules.demo_trader as dt
+        return inspect.getsource(dt)
+
+    def test_preserve_sltp_membership(self):
+        src = self._source()
+        import re
+        m = re.search(r"_1H_PRESERVE_SLTP = \{(.*?)\}", src, re.S)
+        assert m and '"hull_donchian_fade"' in m.group(1), \
+            "SL=4xATR が ~1xATR に再計算上書きされる (Critical#2 同型)"
+
+    def test_rr_floor_exemption(self):
+        src = self._source()
+        assert 'entry_type != "hull_donchian_fade" and tp_dist / sl_dist < 1.2' in src, \
+            "RR>=1.2 床で高WR/低RR 設計が全 block される"
+
+    def test_c1_early_cut_exemption(self):
+        src = self._source()
+        import re
+        m = re.search(r"C1[^\n]*\n(?:.*\n){0,8}?.*not in \(\n?\s*\"sweep_reversion_eurgbp_late\", \"hull_donchian_fade\"\)", src)
+        assert m, "C1 半分時点損切りが basis 回帰前 loser を実損化する (Important#3 同型)"
+
+    def test_max_hold_24h_registered(self):
+        src = self._source()
+        assert '"hull_donchian_fade": 24 * 3600' in src, \
+            "mode default 8h cap が holdout p90=11.5h の尾を切る"
+
+    def test_quick_harvest_exempt(self):
+        from modules.demo_trader import DemoTrader
+        assert ("hull_donchian_fade", "EUR_USD") in DemoTrader._QUICK_HARVEST_EXEMPT, \
+            "TP x0.85 短縮が TP=basis 契約を改変する"
+
+    def test_mtf_tp_bonus_neutralized(self):
+        src = self._source()
+        assert 'if entry_type == "hull_donchian_fade":\n            _mtf_tp_bonus = 1.0' in src, \
+            "MTF x1.3 TP 拡大が TP=basis 契約を改変する"
+
+    def test_not_in_range_mr_strategies(self):
+        """RANGE regime の BB_mid TP 上書き対象に入れない (入ると TP=basis が BB_mid に化ける)。"""
+        src = self._source()
+        import re
+        m = re.search(r"_RANGE_MR_STRATEGIES = \{(.*?)\}", src, re.S)
+        assert m and "hull_donchian_fade" not in m.group(1)
