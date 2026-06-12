@@ -1856,6 +1856,16 @@ WR75%にもかかわらずPnL赤字。`wick_imbalance_reversion` の1敗（-7.7p
 > **全体（N=21）**: WR=66.7%、PnL=−5.3pips
 ### 🔴 課題①：`wick_imbalance_reversion / GBP_USD` のEV=−2.54
 
+### 2026-06-12 (Post-London Report)
+| **PnL** | **-9.6 pips** |
+**概評**: 勝率75%にもかかわらずPnLがマイナスという典型的な「非対称損失」セッション。少数の大損失（-15.4, -7.4, -5.6）が多数の小勝利を食い潰している。
+| 戦略 | ペア | PnL | 成功要因 |
+| **wick_imbalance_reversion** | GBP_USD | +2.3 pips (1件) | RANGING環境下での価格行動パターンが機能、スプレッド1.3pipsを吸収しEV+2.30。|
+| 戦略 | ペア | PnL | 失敗要因 |
+| **trendline_sweep / GBP_USD** | GBP_USD | **-11.7 pips（4件合計）** | 1件の-15.4pips SL_HITが致命的。GBP_USDがRANGING（ATR40%ile）にもかかわらずトレンドライン突破を狙う戦略を展開→レジームミスマッチ。EV=-2.35。|
+| **ema200_trend_reversal / USD_JPY** | USD_JPY | **-5.6 pips（1件）** | USD_JPY ATR29%ile（低ボラ）でのSELL→SL_HIT。EV=-5.60は単発でも構造的に危険な水準。BTデータでUSD_JPY EV=-0.183と既に負のシグナルあり。|
+> ※本日累計17件・PnL -15.2pipsに対してロンドン16件・-9.6pipsであることから、**東京セッションは約1件・-5.6pips**と推定される。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
