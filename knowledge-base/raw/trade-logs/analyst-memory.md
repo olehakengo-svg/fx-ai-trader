@@ -1906,6 +1906,16 @@ N=2で0勝2敗。1トレード平均-5.6pips相当の損失は数値として深
 - APIが回復した場合、**Fidelity Cutoff以降の累積N値を最優先で確認**
 - DD=80.03%の水準が改善していない場合、0.2xポジションサイズを維持継続
 
+### 2026-06-15 (Pre-Tokyo Briefing)
+**2026-06-14（日曜日）はトレードゼロ。** 全モードON状態にもかかわらずエントリーなし。週明け月曜Tokyo開場前の静寂として正常範囲内。Cutoff後累積はN=25、WR=72.0%、PnL=**-20.7pip**。高勝率にもかかわらずPnLがマイナスという「勝率/EV乖離」が引き続き最重要課題。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| vix_carry_unwind | USD_JPY | 7 | 71.4% | **-0.19** | -1.3 | N不足・EV警戒 |
+| trendline_sweep | GBP_USD | 6 | 83.3% | **-1.13** | -6.8 | 🔴 高WR/負EV乖離 |
+| wick_imbalance_reversion | GBP_USD | 3 | 66.7% | **-1.03** | -3.1 | N不足・EV警戒 |
+| ema200_trend_reversal | USD_JPY | 2 | 0.0% | **-5.60** | -11.2 | 🔴 最悪EV |
+**全体: N=25 / WR=72.0% / PnL=-20.7**
+### 課題①：ema200_trend_reversal（USD_JPY）— EV=-5.60が全体PnLを破壊
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
