@@ -1876,6 +1876,16 @@ Cutoff後累計: **N=26、WR=69.2%、PnL=−14.4**（全体EV赤字継続）。
 - **損失が7.7pip規模**に拡大しているのに対し、勝ち時は2.3pipと小さい。
 - SL配置がwidすぎるか、エントリー精度が低くRRが機能していない。
 
+### 2026-06-15 (Pre-Tokyo Briefing)
+全セッション（東京・ロンドン・NY）を通じてエグゼキューションなし。PnL=0、N=0、WR=N/A。
+前日サマリーとしての数値評価対象なし。Cutoff後累積（N=23、WR=69.6%、PnL=**-27.0**）が現在の参照基準。
+| Strategy | Pair | N | WR% | EV | 判定 |
+| vix_carry_unwind | USD_JPY | 7 | 71.4% | **-0.19** | 傾向（EV負・要監視） |
+| trendline_sweep | GBP_USD | 5 | 80.0% | **-1.60** | データ不足・EV深刻 |
+| wick_imbalance_reversion | GBP_USD | 5 | 60.0% | **-2.54** | データ不足・EV最悪 |
+| ema200_trend_reversal | USD_JPY | 2 | 0.0% | **-5.60** | データなし・EV崩壊 |
+**全体: N=23（判断基準N≥30未達）、WR=69.6%は表面上良好だが、EV計算ではPnL=-27.0と損失。WR≠EVの乖離が最大の構造問題。**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
