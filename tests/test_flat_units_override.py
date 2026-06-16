@@ -9,10 +9,13 @@ Safety mechanisms that MUST bypass the override:
   - Sentinel (N<10 validation lot)
   - PRICE_SHOCK_REV (dedicated min-lot)
   - PRIME-A/B (pre-registered small-lot validation)
-  - Fixed-lot contract strategies (Rule-1 intentional exceptions, pre-reg LOCK):
+  - Fixed-lot contract strategies (Rule-1/2 intentional exceptions, pre-reg LOCK):
     usdjpy_carry_dip_accumulator / sweep_reversion_eurgbp_late (MIN 1000u),
     hull_donchian_fade (fixed 5000u) — added 2026-06-12 rule:R3 after Codex
-    review I-4 covered only hull and missed the two MIN-lot strategies
+    review I-4 covered only hull and missed the two MIN-lot strategies;
+    vix_carry_unwind (MIN 1000u) — added 2026-06-15 rule:R2 (user 決裁) to pin
+    the Overlap pilot at 1000u; FLAT had silently inflated the 5/21 "1.0x"
+    exception to 5000u (FLAT postdates that exception)
 """
 import os
 import pytest
@@ -22,6 +25,7 @@ _FIXED_LOT_CONTRACT_TYPES = (
     "usdjpy_carry_dip_accumulator",
     "sweep_reversion_eurgbp_late",
     "hull_donchian_fade",
+    "vix_carry_unwind",
 )
 
 
@@ -136,6 +140,17 @@ class TestFlatUnitsOverride:
             is_sentinel=False, flat_env="10000",
         ) == 5000
 
+    def test_vix_carry_min_lot_contract_bypasses(self):
+        """vix_carry_unwind: MIN lot 1000u contract (2026-06-15 rule:R2, user 決裁).
+
+        The Overlap pilot must stay at 1000u; FLAT must not inflate it to 5000u.
+        Pre-FLAT (6/2) the 5/21 1.0x exception was never meant to be 5000u.
+        """
+        assert _apply_flat_override(
+            1000, entry_type="vix_carry_unwind",
+            is_sentinel=False, flat_env="5000",
+        ) == 1000
+
     def test_unrelated_entry_type_still_flattened(self):
         """Contract bypass is per-entry_type; other strategies still flatten."""
         assert _apply_flat_override(
@@ -167,8 +182,10 @@ class TestProductionPatchAlignment:
         # Locate the patch block
         idx = text.find("OANDA_FORCE_FLAT_UNITS")
         assert idx > 0
-        # Window of ~600 chars around the patch
-        window = text[idx:idx + 800]
+        # Window must span the whole if-condition; widened 2026-06-15 as each
+        # fixed-lot contract bypass + comment grows the block (now reaches
+        # _prime_tier past the original 800-char window).
+        window = text[idx:idx + 1600]
         assert "_is_xau_inst" in window, "XAU bypass missing in patch"
         assert "_is_sentinel" in window, "Sentinel bypass missing in patch"
         assert "PRICE_SHOCK_REV_TIER1_TYPES" in window, "PRICE_SHOCK bypass missing"
@@ -192,3 +209,5 @@ class TestProductionPatchAlignment:
             "sweep reversion MIN lot 1000u contract not bypassed in FLAT override"
         assert 'and entry_type != "hull_donchian_fade"' in window, \
             "hull donchian fixed-lot contract not bypassed in FLAT override"
+        assert 'and entry_type != "vix_carry_unwind"' in window, \
+            "vix_carry MIN lot 1000u contract not bypassed in FLAT override"

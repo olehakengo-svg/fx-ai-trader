@@ -1,5 +1,33 @@
 # FX AI Trader - Changelog
 
+## 2026-06-15 — fix: vix_carry_unwind GRAIL London 経路撤去 + Overlap pilot 1000u 固定 (rule:R2)
+
+### 変更内容 (user 決裁)
+
+`modules/demo_trader.py`:
+1. `_GRAIL_CANDIDATES` から `vix_carry_unwind` を除外 (`_check_grail_filter` の
+   Grail #2 ブロックも撤去) — London×squeeze 経路の LIVE 発火を完全停止
+2. 明示 fixed-lot ブロック `VIX_CARRY_MIN_LOT` (1000u) を追加 (carry_dip / sweep と同型)
+3. `OANDA_FORCE_FLAT_UNITS` bypass に `vix_carry_unwind` を追加 — FLAT の 1000u→5000u
+   膨張を遮断 (Overlap pilot を 1000u 固定)
+
+### 根拠 (詳細: wiki/decisions/vix-carry-grail-removal-overlap-1000u-2026-06-15.md)
+
+- vix は session ごとに 2 経路で発火していた: Overlap pilot (公式, 5000u via FLAT) と
+  旧 GRAIL (London, 1000u forced)。user が見た 1000u は GRAIL 経路
+- **GRAIL が 5/13 pilot の判断を黙って延命**: pilot は London を負けセル (0/2) として
+  demote し Overlap-only に制限したが、GRAIL が session_filter を bypass して
+  London×squeeze で発火継続。2026-06-15 の London 実測 +1.3/+1.6/**−9.0p** が整合
+- 5/21「1.0x 例外」は FLAT (6/2) 導入前の判断で 5000u を意図せず。FLAT が黙って
+  Overlap を 5000u に膨張。Live 累計 N=5 (Rule1 N≥30 未達) のため観測済み 1000u に固定
+- 5000u 昇格は Overlap Live N≥30 ∧ EV>0 で別途 pre-reg
+
+### テスト
+
+`tests/test_flat_units_override.py`: `_FIXED_LOT_CONTRACT_TYPES` に `vix_carry_unwind`
+追加、bypass ケース `test_vix_carry_min_lot_contract_bypasses` + source pin assert 追加。
+fixed-lot 契約増加で if-block が伸びたため `test_safety_bypasses_present` の窓を 800→1600 に拡大。
+
 ## 2026-06-12 — fix: sr_channel_reversal 恒久退役 — Edge Factor Audit #4 (rule:R2)
 
 ### 変更内容
