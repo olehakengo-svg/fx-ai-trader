@@ -34,6 +34,20 @@ SHADOW_RETIRED_STRATEGIES = frozenset({
     # thesis at DT geometry (sr_fib_confluence) is gross-NEGATIVE.
     # Ref: wiki/learning/edge-factor-audit-2026-06-12-fib-reversal.md
     "fib_reversal",
+    # 2026-06-12 (rule:R2): edge-factor audit #4, clean N=584. Scalp
+    # friction arithmetic once more: gross EV +0.58 vs friction 1.71p
+    # (23.7% of the 7.2p median TP), BE-WR 35.7% vs actual 25.0%, loser
+    # MAFE favorable median 0.2p, SL_HIT 56.2%. ALL 8 pair x dir cells
+    # net-negative (USD_CHF BUY +0.35 is N=12 Wilson 0.138 noise). No
+    # consolidation target: the SR-weight redesign survivor is the
+    # DIFFERENT anti-hunt thesis (sr_anti_hunt_bounce, 30d +0.40), and
+    # the DT channel-reversal (dt_sr_channel_reversal) is itself net
+    # -1.07 (gross +2.25 friction-killed at 3.32p — a separate
+    # pair-restriction hypothesis, not a current survivor). Still
+    # leaking GBP_USD/USD_CHF via the per-cell registry gap (only
+    # EUR_USD/USD_JPY were listed).
+    # Ref: wiki/learning/edge-factor-audit-2026-06-12-sr-channel-reversal.md
+    "sr_channel_reversal",
 })
 
 

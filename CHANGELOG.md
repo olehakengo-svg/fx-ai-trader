@@ -1,5 +1,22 @@
 # FX AI Trader - Changelog
 
+## 2026-06-12 — fix: sr_channel_reversal 恒久退役 — Edge Factor Audit #4 (rule:R2)
+
+### 変更内容
+
+`SHADOW_RETIRED_STRATEGIES` に `sr_channel_reversal` を追加 (Shadow 含め全ペア恒久停止)。
+per-cell registry は EUR_USD/USD_JPY のみ列挙していたため GBP_USD/USD_CHF が漏れ
+(直近 30d N=159) ていたのを strategy-level で封鎖。LIVE 側は FORCE_DEMOTED 済み。
+
+### 根拠 (詳細: wiki/learning/edge-factor-audit-2026-06-12-sr-channel-reversal.md)
+
+- clean N=584。friction 1.71p = median TP 7.2p の 23.7%、BE-WR 35.7% vs 実測 25.0%、SL_HIT 56.2%
+- 全 8 pair×dir セル net 負け (USD_CHF BUY +0.35 は N=12 Wilson 0.138 のノイズ)
+- 敗者 MAFE favorable 中央値 0.2p、統合先なし (SR survivor sr_anti_hunt_bounce は別思想)
+- SR family 横断: 8 戦略中 6 が gross 負 or friction-killed、生存は anti-hunt のみ
+- 🟠 副次発見: dt_sr_channel_reversal は gross +2.25 が friction 3.32p に食われ net 負け → tight-spread pair 限定の follow-up 仮説 (別件)
+
+
 ## 2026-06-12 — fix: FLAT override が MIN lot 1000u 契約 2戦略を上書きする潜在バグ (rule:R3)
 
 ### 変更内容
