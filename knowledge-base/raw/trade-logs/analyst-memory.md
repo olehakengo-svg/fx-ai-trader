@@ -1936,6 +1936,16 @@ N=2で0勝2敗。1トレード平均-5.6pips相当の損失は数値として深
 ### 課題①：`doji_breakout/GBP_USD` の異常損失（▲8.1、EV=▲8.10）
 - SL_HIT により単発▲8.1。BT上のEV=+0.724（WR=78.3%）と実績の乖離が顕著。
 
+### 2026-06-16 (Pre-Tokyo Briefing)
+| 前日 PnL | **-3.3 pip** |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| trendline_sweep | GBP_USD | 6 | 83.3% | -1.13 | -6.8 | 🟠 高WR・負EV（要精査） |
+> **重要注記**: 全戦略でN<30。統計的判断可能な戦略は現時点で0。EVの符号は「傾向の方向」として参照するに留める。
+差:                    -3.3 pip（最終PnL）
+`doji_breakout`のSL幅が他戦略比で著しく大きい。BT上のEV=+0.724（GBP_USD）に対し、ライブ初弾が-8.1 pipというのは**SL設計またはエントリータイミングの問題**を示唆。
+### 課題②：trendline_sweep の高WR・負EV構造
+| WR | 83.3%（6件中5勝） |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
