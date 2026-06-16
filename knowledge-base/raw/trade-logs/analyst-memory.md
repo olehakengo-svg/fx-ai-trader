@@ -1926,6 +1926,16 @@ N=2で0勝2敗。1トレード平均-5.6pips相当の損失は数値として深
 - `trendline_sweep / GBP_USD`: 残り24件
 - `zz_pivot_v60_sr / EUR_USD`: 残り27件
 
+### 2026-06-16 (Pre-Tokyo Briefing)
+前日（2026-06-15）は **4トレード、WR=75.0%、PnL=▲3.3**。
+全期間累計（N=26、WR=73.1%）でもPnL=▲15.4と赤字継続中。勝率は高いが**損益非対称（負けが大きすぎる）**構造が鮮明。
+| Strategy | Pair | N | WR% | EV | 判定 |
+| vix_carry_unwind | USD_JPY | 7 | 71.4% | **▲0.19** | 🟡 EV微負（N蓄積中） |
+| trendline_sweep | GBP_USD | 7 | 85.7% | **▲0.77** | 🔴 高WRだが損益逆転 |
+**N≥30達成戦略：ゼロ。**全戦略がまだSentinel蓄積フェーズ。最高でN=7（`trendline_sweep` / `vix_carry_unwind`）。昇格基準（N≥30 & EV≥1.0）到達まで、最速の戦略でも残り**23件**。
+### 課題①：`doji_breakout/GBP_USD` の異常損失（▲8.1、EV=▲8.10）
+- SL_HIT により単発▲8.1。BT上のEV=+0.724（WR=78.3%）と実績の乖離が顕著。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
