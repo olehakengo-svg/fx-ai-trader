@@ -1916,6 +1916,16 @@ N=2で0勝2敗。1トレード平均-5.6pips相当の損失は数値として深
 **全体: N=25 / WR=72.0% / PnL=-20.7**
 ### 課題①：ema200_trend_reversal（USD_JPY）— EV=-5.60が全体PnLを破壊
 
+### 2026-06-16 (Pre-Tokyo Briefing)
+前日（2026-06-15）は **4件のトレード、WR=75.0%、PnL=-3.3pip** で着地。勝率は良好だが、`doji_breakout / GBP_USD` の単発LOSS（-8.1pip）がPnLを大きく削り、3勝1敗でもネット赤字という典型的な「非対称損益」を記録。Cutoff後累計は **N=23、WR=73.9%、PnL=-15.3pip** と、高勝率に反してEVがマイナス圏のセルが支配的な構造的問題が継続している。
+| Strategy | Pair | N | WR% | EV | 判定 |
+| vix_carry_unwind | USD_JPY | 7 | 71.4% | -0.19 | ⚠️ N蓄積中・EV微負 |
+| trendline_sweep | GBP_USD | 6 | 83.3% | -1.13 | 🚨 高WRなのにEV負（損益非対称）|
+| ema200_trend_reversal | USD_JPY | 2 | 0.0% | -5.60 | ⛔ N=2で壊滅的EV |
+- `vix_carry_unwind / USD_JPY`: 残り23件
+- `trendline_sweep / GBP_USD`: 残り24件
+- `zz_pivot_v60_sr / EUR_USD`: 残り27件
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
