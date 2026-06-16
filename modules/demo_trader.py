@@ -5793,6 +5793,19 @@ class DemoTrader:
             _lot_ratio = PRICE_SHOCK_REV_MIN_UNITS / max(_base_units, 1)
             _adjusted_units = PRICE_SHOCK_REV_MIN_UNITS
             _sentinel_reason = "SWEEP_REVERSION_EURGBP_MIN_LOT"
+        if entry_type == "vix_carry_unwind":
+            # Rule-2 LIVE 意図的固定 (2026-06-15, user 決裁): vix は Overlap pilot
+            # (_PAIR_PROMOTED + session_filter={"Overlap"}, 5/21 1.0x 例外) のみで
+            # LIVE 発火させる。5/21 の "1.0x" は FLAT (6/2) 導入前の判断で 5000u を
+            # 意図したものではなく、FLAT が黙って 5000u に膨らませていた。Live 累計
+            # N=5 (Rule1 N>=30 未達) のため cascade/FLAT に関係なく MIN lot (1000u)
+            # に固定。5000u 昇格は Live N>=30 ∧ EV>0 で別途 pre-reg。
+            # 併せて London×squeeze の GRAIL 経路を撤去 (下記 _GRAIL_CANDIDATES) —
+            # 5/13 pilot が負けセルとして demote した London を GRAIL が黙って
+            # 延命していた構造矛盾の解消 (carry dip / sweep と同型の fixed-lot 契約)。
+            _lot_ratio = PRICE_SHOCK_REV_MIN_UNITS / max(_base_units, 1)
+            _adjusted_units = PRICE_SHOCK_REV_MIN_UNITS
+            _sentinel_reason = "VIX_CARRY_MIN_LOT"
         if entry_type == "hull_donchian_fade":
             # Rule-1 LIVE 意図的例外 (2026-06-12): holdout confirm 済みだが live 実証 N=0。
             # cascade に関係なく実資金リスクを固定 lot に強制 (carry dip / sweep と同型)。
@@ -5832,6 +5845,9 @@ class DemoTrader:
             # FLAT が 1000u→5000u (5倍リスク) へ静かに上書きするため明示 bypass 必須
             and entry_type != "usdjpy_carry_dip_accumulator"
             and entry_type != "sweep_reversion_eurgbp_late"
+            # 2026-06-15 rule:R2 (user 決裁): vix_carry_unwind も MIN lot 1000u 契約。
+            # FLAT が 1000u→5000u に膨らませる挙動を遮断 (Overlap pilot を 1000u 固定)
+            and entry_type != "vix_carry_unwind"
             # 2026-06-12 Codex review I-4: hull_donchian_fade は MIN lot 1000u 契約 — flat 上書き不可
             and entry_type != "hull_donchian_fade"
             and _prime_tier not in ("A", "B")
@@ -8179,7 +8195,12 @@ class DemoTrader:
     _GRAIL_CANDIDATES = {
         "ema200_trend_reversal",  # USD_JPY × NY × RANGE: N=8 Wlo=40.9% EV=+9.40 PF=19.80
         "vol_surge_detector",     # USD_JPY × London × TREND_BEAR: N=7 Wlo=25% EV=+9.51 PF=6.05
-        "vix_carry_unwind",       # USD_JPY × London × TREND_BEAR: N=4 Wlo=15% EV=+11.12 PF=2.99
+        # REMOVED 2026-06-15 (rule:R2, user 決裁): vix_carry_unwind × London×squeeze。
+        # この GRAIL 経路 (hour 7-11) は 5/13 Overlap pilot が「London 0/2 = 負けセル」
+        # として明示 demote した局面を黙って延命していた (session_filter={"Overlap"} を
+        # bypass)。Live London 実証は損 (2026-06-15: +1.3/+1.6/-9.0p)。vix は
+        # _PAIR_PROMOTED の Overlap pilot のみで発火させる (1000u 固定、上記 fixed-lot)。
+        # "vix_carry_unwind",     # was: USD_JPY × London × TREND_BEAR N=4 Wlo=15%
         "ny_close_reversal",      # USD_JPY × NY × RANGE: N=4 Wlo=51% EV=+2.15 PF=4.58
     }
 
@@ -8941,13 +8962,11 @@ class DemoTrader:
                 and mtf_vol == "squeeze"
                 and d1 == 0):
             return True
-        # Grail #2: vix_carry_unwind × London × TREND_BEAR
-        # 観測 N=4 TP=2 Wlo=15.0% EV=+11.12 PF=2.99 (小N — 慎重昇格)
-        if (entry_type == "vix_carry_unwind"
-                and 7 <= hour_utc <= 11
-                and mtf_regime == "range_tight"
-                and mtf_vol == "squeeze"):
-            return True
+        # Grail #2 (REMOVED 2026-06-15 rule:R2): vix_carry_unwind × London×squeeze。
+        # _GRAIL_CANDIDATES から除外済 — entry_type not in 判定 (L8914) で既に
+        # 到達不能だが、5/13 Overlap pilot の demote した負けセルを延命する経路を
+        # 残さないため filter からも撤去。vix は Overlap pilot (1000u) のみ。
+        #   was: hour 7-11 ∧ range_tight ∧ squeeze → True (観測 N=4 Wlo=15%)
         # Grail #19: ny_close_reversal × NY後半 × RANGE
         # 観測 N=4 TP=4 Wlo=51% EV=+2.15 PF=4.58 (TP-rate 100%, 小利)
         if (entry_type == "ny_close_reversal"
