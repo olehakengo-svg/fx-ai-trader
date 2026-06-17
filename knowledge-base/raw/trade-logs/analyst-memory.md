@@ -1956,6 +1956,16 @@ N=2で0勝2敗。1トレード平均-5.6pips相当の損失は数値として深
 | 戦略 | ペア | BT EV | BT WR | ライブN | 昇格基準達成 |
 > **注意**: 上記はBTデータ。Fidelity Cutoff後のライブNが揃わない限り、昇格/降格判断は保留が原則。
 
+### 2026-06-17 (Pre-Tokyo Briefing)
+前日（2026-06-16）は **5トレード、WR 40.0%、PnL -26.0 pip** と明確な損失セッション。全5件中GBP_USD集中が4件で、sr_fib_confluenceとwick_imbalance_reversionの2戦略が損失の大半を牽引。日次損失が-26.0pipに達し、**daily_loss_limit（-20pip閾値）をオーバー**してOANDA Bridgeがブロック発動した。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| vix_carry_unwind | USD_JPY | 7 | 71.4% | **-0.19** | -1.3 | N不足・EV負 |
+| trendline_sweep | GBP_USD | 6 | 83.3% | **-1.13** | -6.8 | ⚠️ WR高・EV負の逆説 |
+**全期間合計**: N=26, WR=65.4%, PnL=**-44.5 pip**
+> ⚠️ **全戦略がN<30**。現時点では「判断可能」な戦略はゼロ。ただしEVの方向性は参照可能。
+→ **今日の対処**: 本日はリセット後の1日目。序盤の損失管理が最重要。累積が-15pipに近づいた時点で手動での状況確認を推奨。
+### 課題③：trendline_sweep の WR-EV 逆説
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
