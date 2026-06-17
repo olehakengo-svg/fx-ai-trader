@@ -1966,6 +1966,16 @@ N=2で0勝2敗。1トレード平均-5.6pips相当の損失は数値として深
 → **今日の対処**: 本日はリセット後の1日目。序盤の損失管理が最重要。累積が-15pipに近づいた時点で手動での状況確認を推奨。
 ### 課題③：trendline_sweep の WR-EV 逆説
 
+### 2026-06-17 (Pre-Tokyo Briefing)
+- **2026-06-16 PnL: -26.0 pips / 5トレード / WR 40.0%**
+- GBP_USD集中（4/5件）で大型損失が連続。sr_fib_confluenceが-13.1、wick_imbalance_reversionが-10.5と、2戦略だけで-23.6を叩き出した。
+- 唯一のプラスはtrendline_sweep GBP_USD +1.4のみ。損小利大の逆パターン（損失平均 -8.1、利益平均 +1.85）が前日の構造問題。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| trendline_sweep | GBP_USD | 6 | 83.3% | **-1.13** | -6.8 | 🟡 **WR高いがEV負** |
+| vix_carry_unwind | USD_JPY | 9 | 55.6% | **-0.72** | -6.5 | 🟡 EV要注意 |
+| wick_imbalance_reversion | GBP_USD | 2 | 50.0% | -4.10 | -8.2 | 🔴 N不足+EV深刻 |
+| sr_fib_confluence | GBP_USD | 2 | 50.0% | -6.55 | -13.1 | 🔴 N不足+EV深刻 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
