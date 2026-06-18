@@ -1,5 +1,22 @@
 # FX AI Trader - Changelog
 
+## 2026-06-12 — fix: sr_fib_confluence 恒久退役 — Edge Factor Audit #5 (rule:R2)
+
+### 変更内容
+
+`SHADOW_RETIRED_STRATEGIES` に `sr_fib_confluence` を追加。per-cell registry は JPY 3
+クロスのみ列挙していたため majors (EUR_USD/GBP_USD/EUR_GBP) が発火継続 (30d N=157) して
+いたのを strategy-level で封鎖。LIVE 側は FORCE_DEMOTED 済み。
+
+### 根拠 (詳細: wiki/learning/edge-factor-audit-2026-06-12-sr-fib-confluence.md)
+
+- clean N=453、シリーズ初の aggregate gross 負 (−0.86) だが均一 friction 死ではない
+- 出血の 96% は JPY 4 セル (gross −4〜−7.5p + friction 4-5p)、既に 2026-05-08 停止済 (漏れなし)
+- major pair は BUY/SELL 非対称: BUY gross +1.8〜2.0 / SELL gross 負 (逆シグナル)
+- promotable cell ゼロ (EUR_USD BUY Wilson 0.285 < BE-WR 0.324)、反転も net −1.42、MAFE 0.0p
+- 🟠 follow-up: 「BUY × major × 15m」限定 redesign 仮説 (friction 比 8.7% で survival line 内、別件)
+
+
 ## 2026-06-15 — fix: vix_carry_unwind GRAIL London 経路撤去 + Overlap pilot 1000u 固定 (rule:R2)
 
 ### 変更内容 (user 決裁)

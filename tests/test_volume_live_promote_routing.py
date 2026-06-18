@@ -31,7 +31,10 @@ from tools import volume_live_promotion_watchdog as watchdog
 #   See decisions/session-time-bias-cell-forensic-2026-05-29.md.
 VOLUME_CELLS = [
     ("mqe_gbpusd_fix", "GBP_USD"),
-    ("sr_fib_confluence", "GBP_USD"),
+    # REMOVED 2026-06-12 (rule:R2) Edge Factor Audit #5: sr_fib_confluence
+    # GBP_USD promotion basis (shadow N=39 +1.35) overturned at N=132 (-1.66);
+    # LIVE breakeven (N=19 -0.07). Fully demoted + SHADOW_RETIRED_STRATEGIES.
+    # ("sr_fib_confluence", "GBP_USD"),
     ("session_time_bias", "EUR_USD"),
     ("vsg_jpy_reversal", "EUR_JPY"),
     ("bb_squeeze_breakout", "EUR_USD"),

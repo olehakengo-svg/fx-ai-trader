@@ -29,19 +29,25 @@ def test_shadow_demote_registry_pair_specific_examples():
     # 2026-06-12 audit #2: bb_rsi_reversion is strategy-level retired, so
     # pairs outside the per-cell list are blocked too.
     assert is_shadow_demoted("bb_rsi_reversion", "EUR_JPY")
-    assert not is_shadow_demoted("sr_fib_confluence", "GBP_USD")
+    # 2026-06-12 audit #5: sr_fib_confluence is now strategy-level retired,
+    # so GBP_USD (not in the per-cell JPY list) is blocked too.
+    assert is_shadow_demoted("sr_fib_confluence", "GBP_USD")
     assert is_shadow_demoted("sr_fib_confluence", "EUR_JPY")
     assert is_shadow_demoted("ema_trend_scalp", "usd_jpy")
 
 
 def test_retired_strategies_block_all_instruments():
-    # 2026-06-12 edge-factor audits #1-#4: permanent retirements.
+    # 2026-06-12 edge-factor audits #1-#5: permanent retirements.
     assert SHADOW_RETIRED_STRATEGIES == frozenset({
         "ema_trend_scalp",
         "bb_rsi_reversion",
         "fib_reversal",
         "sr_channel_reversal",
+        "sr_fib_confluence",
     })
+    # #5 sr_fib_confluence: per-cell registry only listed the 3 JPY crosses;
+    # majors (EUR_USD/GBP_USD/EUR_GBP) kept firing. Strategy-level closes it.
+    assert is_shadow_demoted("sr_fib_confluence", "EUR_GBP")
     # #3 fib_reversal: was the biggest active shadow bleeder (30d N=251).
     assert is_shadow_demoted("fib_reversal", "EUR_USD")
     assert is_shadow_demoted("fib_reversal", "USD_CHF")

@@ -23,10 +23,13 @@ def test_non_demoted_pair_still_emits():
     assert _filter_shadow_emits(emits, "EUR_USD") == emits
 
 
-def test_pair_promoted_sr_fib_gbpusd_is_not_shadow_demoted():
+def test_retired_sr_fib_gbpusd_is_shadow_demoted():
+    # 2026-06-12 Edge Factor Audit #5: sr_fib_confluence fully retired
+    # (SHADOW_RETIRED_STRATEGIES) and demoted from _PAIR_PROMOTED. The cell
+    # that was previously promotion-exempt on GBP_USD is now blocked.
     emits = [{"entry_type": "sr_fib_confluence", "signal": "BUY"}]
 
-    assert _filter_shadow_emits(emits, "GBP_USD") == emits
+    assert _filter_shadow_emits(emits, "GBP_USD") == []
 
 
 def test_demo_trader_shadow_emit_path_calls_demote_registry():

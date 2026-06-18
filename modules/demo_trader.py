@@ -7732,7 +7732,12 @@ class DemoTrader:
         # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
         ("vix_carry_unwind", "USD_JPY"),       # Overlap-only pilot, 0.05x lot
         ("mqe_gbpusd_fix", "GBP_USD"),         # shadow N=87 EV=+1.81 PF=1.30
-        ("sr_fib_confluence", "GBP_USD"),      # shadow N=39 EV=+1.35 PF=1.29
+        # REMOVED 2026-06-12 (rule:R2) Edge Factor Audit #5: promotion basis
+        # (shadow N=39 EV=+1.35) overturned at N=132 → EV=-1.66. LIVE GBP_USD
+        # breakeven (N=19 EV=-0.07), SELL side bleeding (N=7 -2.77). Full demote
+        # + SHADOW_RETIRED_STRATEGIES. BUY-major (N=12 +1.51) preserved as a
+        # documented redesign hypothesis only.
+        # ("sr_fib_confluence", "GBP_USD"),    # shadow N=39 EV=+1.35 PF=1.29
         ("session_time_bias", "EUR_USD"),      # shadow N=23 EV=+0.63 PF=1.15 (cell-conditional {"London"})
         # REMOVED 2026-06-07 (rule:R2) Claude session emergency loss containment:
         # ("session_time_bias", "GBP_USD") — 2026-06-04 11:31 UTC live fire SL -7.9p

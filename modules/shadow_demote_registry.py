@@ -48,6 +48,21 @@ SHADOW_RETIRED_STRATEGIES = frozenset({
     # EUR_USD/USD_JPY were listed).
     # Ref: wiki/learning/edge-factor-audit-2026-06-12-sr-channel-reversal.md
     "sr_channel_reversal",
+    # 2026-06-12 (rule:R2): edge-factor audit #5, clean N=453. First
+    # gross-NEGATIVE aggregate of the series (-0.86p), but decomposition
+    # shows it is not uniform: 96% of the -1354p shadow bleed is 4 JPY
+    # cells (GBP_JPY/USD_JPY/EUR_JPY SELL+BUY, gross -4~-7.5p with 4-5p
+    # cross friction) which the per-cell registry ALREADY stopped on
+    # 2026-05-06/08 (confirmed not leaking). Post-JPY-stop the major-pair
+    # remainder is near-breakeven but still 30d gross-negative (-0.50);
+    # no cell clears Wilson_lo > BE-WR 0.324 (best EUR_USD BUY +0.54
+    # Wilson 0.285). Inverse fails (inverse net -1.42). BUY-major shows
+    # gross +1.85 (EUR_USD/GBP_USD BUY) friction-compressed to ~breakeven
+    # at 15m (friction 8.7% of TP) — logged as a "fib-confluence
+    # BUY-major-only" redesign hypothesis, NOT promotable now. Different
+    # thesis from the SR survivor sr_anti_hunt_bounce.
+    # Ref: wiki/learning/edge-factor-audit-2026-06-12-sr-fib-confluence.md
+    "sr_fib_confluence",
 })
 
 
