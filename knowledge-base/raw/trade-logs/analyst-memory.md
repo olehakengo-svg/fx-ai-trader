@@ -2026,6 +2026,16 @@ N=2で0勝2敗。1トレード平均-5.6pips相当の損失は数値として深
 - USD_JPYのATR%ile=40%はやや低め → Scalp系には不利、DT系のブレイクアウト待ち
 - EUR_JPYのSMA20 slope=+0.00095という微小上向きは、NY引き継ぎで円安バイアスがわずかに継続する可能性あり → SELL系リバーサル（vsg_jpy_reversalのSELL方向）は引き続き地合い逆行リスク
 
+### 2026-06-18 (Pre-Tokyo Briefing)
+| PnL合計 | **-25.0 pip** |
+| 全体WR | **0.0%** (0勝4敗、BEは除外換算) |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| vix_carry_unwind | USD_JPY | 3 | 0.0% | -5.90 | -17.7 | 🔴 要注意 |
+| vsg_jpy_reversal | EUR_JPY | 2 | 0.0% | -12.20 | -24.4 | 🔴 最悪EV |
+| trendline_sweep | GBP_USD | 1 | 100.0% | +1.40 | +1.4 | ✅ 唯一正EV |
+**全体: N=11, WR=18.2%, PnL=-75.4 pip**
+> **注記:** 全戦略N<10。統計的に「データなし」フェーズ。trendline_sweepの+1.40EVは1件のみで判断不可。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
