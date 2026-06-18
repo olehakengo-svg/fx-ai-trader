@@ -78,3 +78,7 @@ raw/bt-results/**/trades.json
 
 # Worktrees (superpowers)
 .worktrees/
+
+# de-tracked rolling data cache (cleanup 2026-06-18)
+data/sentiment/*.parquet
+agents/cma/ids.env
