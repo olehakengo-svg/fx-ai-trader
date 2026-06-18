@@ -1,5 +1,18 @@
 # Month-End WMR Fix Drift/Reversion — pre-reg LOCK (2026-06-18)
 
+> ## ⛔ VERDICT: NULL — REJECT both legs (2026-06-18, post-BT)
+> Neither leg survives the locked gate stack. **Do NOT promote — not even shadow** (promotion policy: shadow only IF survives). Closed; no post-hoc rescue.
+> | Leg | N | WR | Wilson_lo | net pip | gross pip | bootstrap p | WF | both-legs net+ | BH-FDR(m=2) |
+> |---|---|---|---|---|---|---|---|---|---|
+> | **H1 drift** | 144 | 53.5% | 0.453 | **−566.8** | −278.8 | 0.867 | 1/4 | ✗ (L −421 / S −146) | ✗ |
+> | **H2 reversion** | 142 | 61.3% | 0.531 | +141.7 | +425.7 | 0.378 | 3/4 | ✗ (L −316 / S +458) | ✗ |
+>
+> - **H1**: net-negative even GROSS, p=0.87, WF 1/4, both signed legs negative. The hedge-rebalancing *drift* as specified does not exist (or is reversed) in EUR_USD 2014-2026.
+> - **H2**: the only leg with a pulse (WF 3/4, mean +1.0 pip) but **fails gate 4** (bootstrap p=0.378 ≫ BH-FDR threshold 0.05) and **fails gate 5** — its entire PnL is a one-sided SHORT-EUR artifact (LONG leg −316 pip). Exactly the directional-bias trap the both-legs gate exists to catch. Not a symmetric, tradable edge.
+> - **R3 bug fix mid-BT (documented for integrity):** first run silently dropped 44% of month-ends because FX H1 data stamps the Sunday-evening session-open (22:00-23:00 UTC) on a Sunday date, leaking Sundays into the "business day" set (no 16:00 fix bar → drop). Fixed to weekdays-only (`monthend_fix_bt.py` business-day filter). **The fix made the result MORE null** (H2 bootstrap p 0.19→0.38; both-legs flipped true→false) — i.e. the drop was spuriously *inflating* H2. This is a faithful-implementation bug fix of the locked spec ("business day"), not a hypothesis change.
+> - **Independent adversarial review (default-to-reject): PASSED** — byte-identical reproduction, no look-ahead (signal & ATR strictly causal), DST/bar-close convention correct, side-sanity gate fired 0×, code faithful to locked spec. The NULL is real, not an artifact.
+> - Result JSON: `raw/bt-results/monthend_fix_2026_06_18.json`. BT: `tools/monthend_fix_bt.py`.
+
 **Status: LOCKED — committed BEFORE any backtest.** Post-hoc parameter tuning voids this pre-reg.
 **Rule**: R1 (new strategy / new edge). **Campaign**: m=2 hypotheses, BH-FDR q=0.10.
 **Source agent**: CMA research agent proposal 2026-06-18 ([[project_cma_fxai_autoimprove_2026_06_16]]).

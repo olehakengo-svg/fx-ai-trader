@@ -1,5 +1,13 @@
 # Knowledge Base Change Log
 
+## 2026-06-18: Month-End WMR Fix pre-reg → VERDICT NULL (REJECT 両脚)
+- **対象**: CMA research agent 提案 (Melvin & Prins 2015, 月末 16:00 London WMR fix への hedge-rebalancing flow)。[[monthend-fix-pre-reg-2026-06-18]] に H1 drift / H2 reversion を **BT前に LOCK** (commit 5a151229, m=2 BH-FDR q=0.10, rule:R1)
+- **Phase 0 データ**: EUR_USD H1/D1 12y を MASSIVE で取得 (既存 H1 cache は 4.4y のみ→12y拡張)、^GSPC/^STOXX50E daily を yfinance で取得 (146mo, 0 NA)。`tools/monthend_fix_fetch.py`
+- **結果 (N=144/142, 12.05y)**: H1 net **−566.8pip** (gross も負) p=0.867 WF1/4 both-legs負; H2 net +141.7pip だが p=**0.378** (BH-FDR 0.05 を大幅未達) かつ **both-legs net+ = False** (SHORT脚 +458 / LONG脚 −316 の片側 artifact)。両脚とも複数 gate fail → **REJECT, shadow も不可**
+- **R3 bug fix (mid-BT, 整合性のため記録)**: 初回 run は FX H1 の Sunday-session bar (22:00-23:00 UTC) が "business day" に混入し月末の44%を silent drop。weekday-only に修正 → 修正で結果は**より null 化** (H2 p 0.19→0.38) = drop が H2 を偽陽性方向に膨らませていた。locked spec ("business day") への忠実化であり仮説変更ではない
+- **独立 adversarial review (default-to-reject): PASS** — byte一致再現/look-ahead無/DST正/side-sanity 0発火/spec忠実。NULL は本物
+- **教訓**: silent な非ランダム drop は edge を偽陽性方向に膨らませ得る。正脚を信じる前に N を理論最大に reconcile せよ。[[d1-tsmom-basket-pre-reg-2026-06-08]] と同じく risk-premia でなく flow 仮説でも単サンプルでは出ず
+
 ## 2026-06-17 (wiki-daily-update 🌙 evening re-run): 同日2回目の自動スケジュールタスク
 - **背景**: 本日2回目の wiki-daily 実行 (夜 ~21:00 JST)。朝の実行 (N=505 / -360.1pip / DD 84.82%) 以降、当日データが進行。以下 delta は **朝のキャプチャ比**。
 - **Daily trade log**: `raw/trade-logs/2026-06-17.md` に「🌙 Evening Re-run」セクション追記 (朝の LIVE send 詳細は保全 — 既に audit window から脱落したため) — live N=505→**508** (+3 intraday: **0W/2L/1BE** 勝ちなし), WR=43.2→**42.9%** (-0.3pp), decided 46.0→45.8%, EV=-0.71→**-0.74** (-0.03 ⚠️), PnL=-360.1→**-377.8pip** (-17.7pip intraday / -43.7pip vs 06-16 ⚠️⚠️), Wilson lower=41.6→41.4%
