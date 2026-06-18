@@ -1996,6 +1996,16 @@ N=2で0勝2敗。1トレード平均-5.6pips相当の損失は数値として深
 > ただしEVの方向性（特に`sr_fib_confluence`, `vix_carry_unwind`のEV<-5.0）は統計的閾値以前に構造問題を示唆。
 | 前日平均勝ちPnL | +1.85 pips |
 
+### 2026-06-18 (Pre-Tokyo Briefing)
+| PnL合計 | **-25.0 pips** |
+| 全体WR | **0.0%** (4戦0勝) |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| trendline_sweep | GBP_USD | 4 | 75.0% | **-2.85** | -11.4 | ⚠️ EV要注意 |
+| sr_fib_confluence | GBP_USD | 3 | 33.3% | -6.80 | -20.4 | 🔴 EV深刻 |
+| vix_carry_unwind | USD_JPY | 3 | 0.0% | -5.90 | -17.7 | 🔴 EV深刻 |
+> **注記**: 全戦略 N<10。統計的判断には不十分だが、EV方向性として `sr_fib_confluence`・`vix_carry_unwind`・`wick_imbalance_reversion` の3戦略で深刻なマイナスEVが観測されている。
+- **問題の構造**: BT vs Live 乖離が最大。BT WR=100%（N=0）に対し Live WR=0.0%（N=3）、ΔWR=**+100pp** の完全乖離 🔴
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
