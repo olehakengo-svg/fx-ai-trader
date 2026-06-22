@@ -2106,6 +2106,16 @@ Cutoff後累積でN=9、PnL=-79.9pip相当と、実質的に稼働不能に近�
 | 時間帯 | 注意点 |
 | **東京セッション（09:00-12:00 JST）** | JPY系ペアのRANGING継続の可能性高い。USD/JPYが161.3付近の高値圏。BOJ関連ニュースフローに注意 |
 
+### 2026-06-22 (Pre-Tokyo Briefing)
+2026-06-21（前日）：**トレードゼロ**。エントリー条件を満たしたシグナルなし、またはすべてシャドウ追跡段階で吸収。PnL = ¥0、WR = N/A。週次累計も含め、実運用に寄与するトレードは発生していない。
+| Strategy | Pair | N | WR% | EV | PnL |
+**統計的判定**：全戦略でN<10。「データなし」ステータス。EVの数値（特に`vsg_jpy_reversal`の−12.20、`wick_imbalance_reversion`の−10.00）は警戒値だが、N=2では統計的結論不可。`dt_bb_rsi_mr`のEV+1.30はN=1のノイズ。
+- Cutoff後の累計N=6（全戦略合計）。本番稼働中モードが22本あるにもかかわらず、エントリー数が著しく少ない。
+- **シグナル発火率の低下**：spread_guard・regime filter・shadow追跡の複合フィルタが過剰に機能している可能性が高い。
+- 対処の方向性（判断）：どの段階でシグナルが消滅しているか（生成→spread_guard→regime filter→shadow→OANDA）のロス率確認が必要。**今日のログ監視でblock_countの内訳に注目**。
+- 50件中50件がSKIP（Live Rate = 0%）。全件がデモ専用として処理されている。
+- Bridge StatusのSKIP理由はすべて`shadow_tracking`（20件）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
