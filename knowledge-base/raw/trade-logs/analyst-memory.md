@@ -2076,6 +2076,16 @@ N=2で0勝2敗。1トレード平均-5.6pips相当の損失は数値として深
 - これはリスク管理として正常動作だが、1日2件のトレードで上限到達という事実は、1件あたりのロスサイズが大きいことを示す。
 - VOLATILEレジームでのリバーサル系戦略（vsg_jpy_reversal 等）のシグナルは警戒を要する。
 
+### 2026-06-22 (Pre-Tokyo Briefing)
+前日（2026-06-21）はトレード**ゼロ**。PnL = ¥0、WR = N/A。
+Cutoff後累積でN=9、PnL=-79.9pip相当と、実質的に稼働不能に近い低稼働状態が継続している。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **補足**: 全戦略でWR=0%、EV<-5.9。ただしN<10のため統計的判断は不可。「傾向として極めて悪い」止まり。
+- **原因**: hedge_block（eurjpy:128、gbpusd:114、daytrade:49、scalp_5m_eur:44）が支配的
+- hedge_blockの累積数がトップ3を占めており、ヘッジ検知ロジックが事実上の「発火ストッパー」として機能している
+- rnb_usdjpy:direction_filterが126件と第2位——rnb戦略はほぼ方向性フィルターで全滅
+- 累積50件中、SENT=3、SKIP=47
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
