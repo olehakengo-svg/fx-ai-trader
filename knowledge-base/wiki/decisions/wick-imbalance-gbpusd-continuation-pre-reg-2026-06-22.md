@@ -67,3 +67,17 @@ A leg failing any gate -> that leg REJECT. Both legs may pass/fail independently
 ## Constraints honored
 XAU excluded · Render API = live-stat primary · is_shadow separation strict · not a re-propose of any killed item ·
 both-legs gate enforced · 12y WF on registered history · friction-aware TP.
+
+## VERDICT (2026-06-22): **REJECT** — killed
+12y GBP_USD H1 MASSIVE backtest (BT commit `8c4e2a93`, [PR #28](https://github.com/olehakengo-svg/fx-ai-trader/pull/28)) of the **frozen** spec (no tuning, production WIR trigger reused):
+
+| gate | COMBINED | LONG | SHORT | pass? |
+|---|---|---|---|---|
+| G1 net EV/trade > 0 | −5.33 | −3.42 | −7.27 | ❌ |
+| G4 Wilson_lo ≥ 0.40 | 0.298 | 0.268 | 0.287 | ❌ |
+| G2 bootstrap / BH-FDR (m=2, q=0.10) | p=0.955 | fail | fail | ❌ |
+| G3 WF ≥ 3/4 folds | 0/4 | 0/4 | 1/4 | ❌ |
+| G6 both-legs net+ | False | — | — | ❌ |
+| G5 friction ≤ 10% TP | 3.5% | — | — | ✅ |
+
+N=285 (WR 35.1%), total net −1517.9 pip. **Decisively negative across the full gate stack.** The D1-trend-alignment "continuation" re-angle does **not** recover the losing E10 cell — the original `wick_imbalance_reversion × GBP_USD` live bleed is confirmed as a structural negative, not a fixable direction error. Killed in `prereg_ledger.jsonl` (verdict=REJECT). No post-hoc rescue; any new angle is a NEW pre-reg. Recommend the live cell be demoted/stopped per existing R2 watchdog (separate action).
