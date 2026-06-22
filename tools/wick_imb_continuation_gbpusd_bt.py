@@ -63,7 +63,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 # REDESIGN_V2 closed-bar convention MUST be enabled before importing/strategy use.
-os.environ.setdefault("WICK_IMBALANCE_REVERSION_REDESIGN_V2", "1")
+# Force it ON (not setdefault): a pre-exported "0" would survive setdefault and
+# silently select the legacy look-ahead path (confirm bar = df.iloc[-1], which in
+# this BT window consumes the entry bar's c+1 future OHLC), breaking the locked
+# causal spec and the committed results. Force "1" and fail fast if anything resets it.
+os.environ["WICK_IMBALANCE_REVERSION_REDESIGN_V2"] = "1"
+if os.environ["WICK_IMBALANCE_REVERSION_REDESIGN_V2"] != "1":
+    raise RuntimeError("WICK_IMBALANCE_REVERSION_REDESIGN_V2 must be '1' (closed-bar causal path)")
 
 from modules.indicators import add_indicators  # noqa: E402
 from strategies.context import SignalContext  # noqa: E402
