@@ -2116,6 +2116,16 @@ Cutoff後累積でN=9、PnL=-79.9pip相当と、実質的に稼働不能に近�
 - 50件中50件がSKIP（Live Rate = 0%）。全件がデモ専用として処理されている。
 - Bridge StatusのSKIP理由はすべて`shadow_tracking`（20件）。
 
+### 2026-06-23 (Pre-Tokyo Briefing)
+| PnL合計 | **+1.3 pips** |
+| 全体WR | **100%（1/1）** |
+| Strategy | Pair | N | WR% | EV | PnL | 判定ステータス |
+**全体合計: N=5, WR=20.0%, EV=−8.62平均, PnL=−43.1**
+> **重要**: N<10のため全戦略が「データなし」扱い。EVの正負は傾向に過ぎず、統計的判断は保留。ただし`wick_imbalance_reversion`と`vsg_jpy_reversal`のEV=−10〜−12台は、たとえN=2でも損失規模として看過できない。
+- `hedge_block`が**242件**で最大要因。ヘッジポジションが長時間解消されず、新規エントリーをほぼ全面封鎖している状態。これは相場のレンジ化・方向感のなさとも整合。
+- `r2_shadow_demoted_cell`の**132件**は、ShadowセルがR2評価で降格済みのシグナルを大量に弾いていることを意味する。Signal品質のフィルタリングが機能しているが、同時にトレード機会を大幅に削減している。
+- `direction_filter(rnb_usdjpy: 95件)`はレンジ相場でのRNBエントリー抑制が機能している正常な挙動。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
