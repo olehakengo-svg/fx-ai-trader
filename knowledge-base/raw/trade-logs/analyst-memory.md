@@ -2135,6 +2135,16 @@ Cutoff後累積でN=9、PnL=-79.9pip相当と、実質的に稼働不能に近�
 - EUR_USD、GBP_USDのSMA20がともに**下向き**（USD高トレンド継続の示唆）。VOLATILEからTRENDINGへの遷移が起きると、MR系戦略（dt_bb_rsi_mr等）のパフォーマンスが更に低下する懸念あり。
 - USD_JPYのRANGINGは比較的安定。SMA20が若干上向きのため、上方ブレイクアウト発生時にRANGING→VOLATILEへの転換に注意。
 
+### 2026-06-23 (Post-London Report)
+| PnL (pips) | **0.0** |
+| WR | **N/A** |
+| WR | 100% (N=1) | N/A |
+| PnL | +2.3 pips | 0 pips |
+| EUR/JPY | VOLATILE | 69% | 継続 VOLATILE、リスクオフ波及に注意 |
+### 推奨戦略配合
+- `daytrade_eur:hedge_block` **224件**
+- `daytrade_gbpusd:hedge_block` **184件**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
