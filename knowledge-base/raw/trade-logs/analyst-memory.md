@@ -2126,6 +2126,15 @@ Cutoff後累積でN=9、PnL=-79.9pip相当と、実質的に稼働不能に近�
 - `r2_shadow_demoted_cell`の**132件**は、ShadowセルがR2評価で降格済みのシグナルを大量に弾いていることを意味する。Signal品質のフィルタリングが機能しているが、同時にトレード機会を大幅に削減している。
 - `direction_filter(rnb_usdjpy: 95件)`はレンジ相場でのRNBエントリー抑制が機能している正常な挙動。
 
+### 2026-06-23 (Pre-Tokyo Briefing)
+前日（2026-06-22）は **1トレード、WR 100%、PnL +1.3pips** と極めて低活動。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**総計: N=6、WR=33.3%、PnL=-40.8**
+| GBP_JPY | **VOLATILE** | 69% | +0.028(↑) | ウィック系戦略には有利環境だが、wick_imbalance_reversalのEVは現状マイナス |
+| 時間帯 | イベント | 注意点 |
+- EUR_USD、GBP_USDのSMA20がともに**下向き**（USD高トレンド継続の示唆）。VOLATILEからTRENDINGへの遷移が起きると、MR系戦略（dt_bb_rsi_mr等）のパフォーマンスが更に低下する懸念あり。
+- USD_JPYのRANGINGは比較的安定。SMA20が若干上向きのため、上方ブレイクアウト発生時にRANGING→VOLATILEへの転換に注意。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
