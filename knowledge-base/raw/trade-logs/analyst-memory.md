@@ -2145,6 +2145,16 @@ Cutoff後累積でN=9、PnL=-79.9pip相当と、実質的に稼働不能に近�
 - `daytrade_eur:hedge_block` **224件**
 - `daytrade_gbpusd:hedge_block` **184件**
 
+### 2026-06-23 (Pre-Tokyo Briefing)
+| PnL合計 | **+1.3 pips** |
+| 全体WR | **100%** (N=1) |
+- 前日は `dt_bb_rsi_mr / GBP_USD / SELL` の1件のみが約定・勝利（OANDA_SL_TP決済）。
+- 実質「トレードなし」に等しい稼働水準。N=1のWR=100%はノイズとして扱う。
+| Strategy | Pair | N | WR% | EV | PnL | 評価 |
+**全戦略合算（Cutoff後）:** N=5、WR=40.0%、PnL=**-30.5**
+> ⚠️ **全戦略でN<10**。統計的判断は不可能。EVの正負はノイズの範囲内だが、`wick_imbalance_reversion`のEV=-5.90と`vsg_jpy_reversal`のEV=-14.10は**1件あたりの損失規模**として要注視。
+- Cutoff後N=5（期間不明だが複数週にわたると推察）で合計5件は、事実上のシステム停止水準。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
