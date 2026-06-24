@@ -2185,6 +2185,16 @@ Cutoff後累積でN=9、PnL=-79.9pip相当と、実質的に稼働不能に近�
 - **EUR系・GBP系（VOLATILE継続）**: ATR%ile 62–72%圏でロンドン終値を引き継ぐため、NYオープン（UTC 13:00–）でボラティリティ縮小局面に入るリスクあり。ただし米指標（週次ベース）次第でスパイクあり。
 - **USD_JPY（RANGING）**: SMA20 Slope +0.00350と上向きバイアスあり。RANGING継続ならブレイクアウト系は不利。
 
+### 2026-06-24 (Pre-Tokyo Briefing)
+- **前日（2026-06-23）**: トレード数 **N=1**、PnL **+2.3 pips**、WR **100%**
+- 唯一のトレードは `wick_imbalance_reversion / GBP_USD / BUY / WIN`（OANDA_SL_TP決済、スプレッド1.3）
+- Cutoff後累計: **N=6、WR=66.7%、PnL=-12.0 pips**（wick_imbalance_reversionがN=3で-17.7pipと足を引っ張っている）
+| Strategy | Pair | N | WR% | EV | 判定 |
+| `wick_imbalance_reversion` の累積損失 | N=3でEV=-5.90、PnL=-17.7。1勝2敗パターン |
+- `wick_imbalance_reversion` はEV=-5.90と深刻だが**N=3のため統計的根拠なし**。ただし損失方向への集中を警戒しつつN蓄積を継続監視する
+- トレード数が1日1件ペースでは**N=30到達に約1ヶ月**を要する計算。シグナル発生の構造的問題の有無を確認する必要がある
+- OANDA NAV/Balanceが`None`のままなので接続状態の検証を優先する
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
