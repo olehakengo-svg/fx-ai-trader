@@ -2155,6 +2155,16 @@ Cutoff後累積でN=9、PnL=-79.9pip相当と、実質的に稼働不能に近�
 > ⚠️ **全戦略でN<10**。統計的判断は不可能。EVの正負はノイズの範囲内だが、`wick_imbalance_reversion`のEV=-5.90と`vsg_jpy_reversal`のEV=-14.10は**1件あたりの損失規模**として要注視。
 - Cutoff後N=5（期間不明だが複数週にわたると推察）で合計5件は、事実上のシステム停止水準。
 
+### 2026-06-24 (Pre-Tokyo Briefing)
+前日（2026-06-23）は**1トレードのみ**が成立。`wick_imbalance_reversion / GBP_USD` のBUYが +2.3 pips（OANDA_SL_TP決済）で勝利。WR=100%、PnL=+2.3 pip。システムは稼働中だが**事実上の不稼働日**に近い超低頻度。
+| Strategy | Pair | N | WR% | EV | PnL | 評価 |
+| wick_imbalance_reversion | GBP_USD | 3 | 33.3% | -5.90 | -17.7 | ⚠️ EV深刻 |
+**全体合計（Cutoff後）: N=5, WR=40.0%, EV=-6.7（平均）, PnL=-30.5**
+> ⚠️ **統計的注記**: N=5は「データなし」水準。昇格・降格判断の対象外。ただし `wick_imbalance_reversion` のEV=-5.90は数値として懸念要因として記録。
+- `r2_shadow_demoted_cell` のブロックが**169件**（全体の最大勢力）。これはShadow期間中に降格されたセルが本番稼働を全面封鎖している構造的問題。Shadow解除 or セル再評価の判断が必要かを注視。
+- `direction_filter` 99件は相場がレンジ/方向不明瞭な状況を正しく認識している可能性もあり、USD_JPY = **RANGING** レジームと整合的。現時点では正常機能と判断。
+- `gbp_asia_flash_crash` 29件は東京時間のGBP系に対する保護。本日東京時間も継続する可能性が高い。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
