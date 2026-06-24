@@ -2165,6 +2165,16 @@ Cutoff後累積でN=9、PnL=-79.9pip相当と、実質的に稼働不能に近�
 - `direction_filter` 99件は相場がレンジ/方向不明瞭な状況を正しく認識している可能性もあり、USD_JPY = **RANGING** レジームと整合的。現時点では正常機能と判断。
 - `gbp_asia_flash_crash` 29件は東京時間のGBP系に対する保護。本日東京時間も継続する可能性が高い。
 
+### 2026-06-24 (Pre-Tokyo Briefing)
+| PnL合計（前日） | **+2.3 pips** |
+| 全体WR | **100.0%**（N=1、統計的意味なし） |
+| Strategy | Pair | N | WR% | EV | PnL | 統計ステータス |
+**Cutoff後 合計**: N=5、WR=60.0%、PnL=**-14.0 pips**
+注目点: `wick_imbalance_reversion / GBP_USD` はEV=-5.90と極めて低調だが、N=3のため降格判断の閾値（N≥30）には遠く、データ蓄積段階。
+- 25モードが稼働中にもかかわらず前日の執行は**1件のみ**
+- Block Counts上位が示す通り、複数のフィルターが連続作動している
+- `shadow_tracking`ブロック18件が主因
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
