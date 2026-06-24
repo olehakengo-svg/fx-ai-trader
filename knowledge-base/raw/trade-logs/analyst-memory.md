@@ -2175,6 +2175,16 @@ Cutoff後累積でN=9、PnL=-79.9pip相当と、実質的に稼働不能に近�
 - Block Counts上位が示す通り、複数のフィルターが連続作動している
 - `shadow_tracking`ブロック18件が主因
 
+### 2026-06-24 (Post-London Report)
+| 勝率 (WR) | **100.0%** |
+| セッションPnL | **+2.4 pips** |
+| 戦略 | ペア | 方向 | Outcome | PnL | Spread |
+**成功要因**: EUR/JPYがVOLATILE（ATR%ile 67%、SMA20 Slope −0.00032の緩やかな下方傾斜）の環境下でSELLシグナルが機能し、スプレッド1.5pipsを差し引いても正EV実現。OANDA_SL_TPによる規律ある決済が奏功。
+| WR | — | 100% |
+| PnL | +0.0 | +2.4 pips |
+- **EUR系・GBP系（VOLATILE継続）**: ATR%ile 62–72%圏でロンドン終値を引き継ぐため、NYオープン（UTC 13:00–）でボラティリティ縮小局面に入るリスクあり。ただし米指標（週次ベース）次第でスパイクあり。
+- **USD_JPY（RANGING）**: SMA20 Slope +0.00350と上向きバイアスあり。RANGING継続ならブレイクアウト系は不利。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
