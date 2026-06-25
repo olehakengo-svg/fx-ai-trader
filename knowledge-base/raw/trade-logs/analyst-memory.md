@@ -2195,6 +2195,16 @@ Cutoff後累積でN=9、PnL=-79.9pip相当と、実質的に稼働不能に近�
 - トレード数が1日1件ペースでは**N=30到達に約1ヶ月**を要する計算。シグナル発生の構造的問題の有無を確認する必要がある
 - OANDA NAV/Balanceが`None`のままなので接続状態の検証を優先する
 
+### 2026-06-25 (Pre-Tokyo Briefing)
+前日（2026-06-24）は **2トレード、PnL +4.4pip、WR 100%** で完結。trendline_sweep（GBP_USD SELL +2.0）および vsg_jpy_reversal（EUR_JPY SELL +2.4）が共にOANDA_SL_TP / SL_HIT決済で勝利。スプレッドは1.3〜1.5pip圏で正常範囲内。ただしトレード数は極端に少なく、戦略の稼働ポテンシャルと比較して著しく未稼働の状態が続いている。
+> ⚠️ **統計的注意**: 全戦略N=1。「傾向」「判断可能」水準（N≥10）に全く達していない。数値は参考記録に過ぎない。
+| Strategy | Pair | N | WR% | EV | 統計ステータス |
+**全体合計（Cutoff後）**: N=4、WR=100%、PnL=+8.0pip
+- Sentinel昇格基準（N≥30）まで全戦略で **残り29件以上** 必要
+- OANDA昇格基準（N≥30 & EV≥1.0）の判断は現時点で不可能
+- rnb_usdjpy:direction_filterの69件は断然トップ。USD_JPYがRANGINGでSMAスロープ+0.00366と弱いながら上向きの中、方向フィルタが機能していることは**むしろ正常なシステム動作**と見なす
+- rr_floor 30件はRANGINGレジームでの構造的問題。ATR%ile 59〜72%はそれほど低くないが、SMAスロープが全ペアで小さく、方向性プレミアムが薄い
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
