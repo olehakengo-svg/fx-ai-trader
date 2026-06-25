@@ -2205,6 +2205,16 @@ Cutoff後累積でN=9、PnL=-79.9pip相当と、実質的に稼働不能に近�
 - rnb_usdjpy:direction_filterの69件は断然トップ。USD_JPYがRANGINGでSMAスロープ+0.00366と弱いながら上向きの中、方向フィルタが機能していることは**むしろ正常なシステム動作**と見なす
 - rr_floor 30件はRANGINGレジームでの構造的問題。ATR%ile 59〜72%はそれほど低くないが、SMAスロープが全ペアで小さく、方向性プレミアムが薄い
 
+### 2026-06-25 (Pre-Tokyo Briefing)
+前日（2026-06-24）は**2トレード、全勝（WR=100%）、PnL=+4.4pips**。`trendline_sweep/GBP_USD`と`vsg_jpy_reversal/EUR_JPY`がそれぞれSELL方向でWIN。件数は少ないが質は高い結果。システム全体の発火頻度の低さが依然として最大の制約。
+**⚠️ 警告: 全戦略N<10。統計的判断不可能。以下は「記録」であり「評価」ではない。**
+| Strategy | Pair | N | WR% | EV | 統計ステータス |
+**全体合計: N=6、WR=83.3%、PnL=+3.2pips**
+唯一懸念すべきは`dt_sr_channel_reversal/EUR_JPY`のEV=-2.40だが、N=2では統計的ノイズの域を出ない。ただしBT期待値（EV=+0.178）との乖離は記録しておく価値あり。
+- 全モード25のうち、前日発火は実質**2戦略・2件のみ**
+- Block Counts TOP15を見ると、**hedge_block・same_price_0pip・recent_emit・r2_shadow_demoted_cell**の4類型が支配的
+- **hedge_block（53件）**: レンジ相場でのヘッジポジション衝突。全ペアがRANGINGのため構造的に発生しやすい状態
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
