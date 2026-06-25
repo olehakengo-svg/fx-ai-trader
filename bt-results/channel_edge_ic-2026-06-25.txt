@@ -1,0 +1,464 @@
+CHANNEL IC  pairs=['EUR_USD', 'GBP_USD', 'USD_JPY', 'AUD_USD', 'USD_CAD', 'EUR_JPY']  horizons=[4, 12, 48]
+共通窓 2022-01-01〜2026-05-15, train=60%
+[EUR_USD] train: 2022-01-02〜2024-08-05 (15m=65346)  [holdout >= 2024-08-05 未使用]
+凍結param: fractal_n=2 lookback_swings=8 reg_lookback=50
+
+==============================================================================
+# EUR_USD — チャネル(平行線/回帰) Stage-1 IC
+==============================================================================
+イベント N = 58729  検定数 = 48  Bonferroni α = 0.00104 (★=p<α, ·=p<0.05)
+
+── Spearman IC (horizon 4本 = 1.0h) [|IC|降順] ──
+feature           target         IC           p       N  sig
+reg_width_atr     abs       -0.0783    1.79e-80   58729  ★
+par_width_atr     abs        0.0743    9.20e-73   58729  ★
+par_dev_sigma     abs       -0.0227    3.97e-08   58729  ★
+par_pos           abs       -0.0227    3.97e-08   58729  ★
+reg_slope_atr     raw       -0.0158    1.26e-04   58729  ★
+par_slope_atr     raw       -0.0138    8.38e-04   58729  ★
+reg_dev_sigma     raw       -0.0133    1.25e-03   58729  ·
+reg_pos           raw       -0.0132    1.33e-03   58729  ·
+reg_pos           abs       -0.0128    1.93e-03   58729  ·
+reg_dev_sigma     abs       -0.0125    2.40e-03   58729  ·
+par_dev_sigma     raw       -0.0103    1.24e-02   58729  ·
+par_pos           raw       -0.0103    1.24e-02   58729  ·
+par_width_atr     raw       -0.0095    2.08e-02   58729  ·
+reg_slope_atr     abs        0.0032    4.43e-01   58729  
+reg_width_atr     raw        0.0017    6.76e-01   58729  
+par_slope_atr     abs       -0.0016    7.06e-01   58729  
+
+── Spearman IC (horizon 12本 = 3.0h) [|IC|降順] ──
+feature           target         IC           p       N  sig
+reg_width_atr     abs       -0.1037   4.18e-140   58729  ★
+par_width_atr     abs        0.0608    2.84e-49   58729  ★
+reg_slope_atr     raw       -0.0213    2.57e-07   58729  ★
+par_slope_atr     raw       -0.0209    3.86e-07   58729  ★
+par_width_atr     raw       -0.0173    2.90e-05   58729  ★
+par_dev_sigma     abs       -0.0095    2.13e-02   58729  ·
+par_pos           abs       -0.0095    2.13e-02   58729  ·
+reg_slope_atr     abs        0.0036    3.79e-01   58729  
+reg_dev_sigma     raw       -0.0020    6.28e-01   58729  
+reg_pos           raw       -0.0019    6.54e-01   58729  
+reg_pos           abs       -0.0018    6.56e-01   58729  
+reg_dev_sigma     abs       -0.0015    7.09e-01   58729  
+par_slope_atr     abs        0.0015    7.15e-01   58729  
+reg_width_atr     raw       -0.0012    7.68e-01   58729  
+par_dev_sigma     raw       -0.0010    8.06e-01   58729  
+par_pos           raw       -0.0010    8.06e-01   58729  
+
+── Spearman IC (horizon 48本 = 12.0h) [|IC|降順] ──
+feature           target         IC           p       N  sig
+reg_width_atr     abs       -0.0410    2.93e-23   58729  ★
+par_width_atr     abs       -0.0379    3.90e-20   58729  ★
+reg_slope_atr     raw       -0.0334    5.85e-16   58729  ★
+par_slope_atr     raw       -0.0272    4.59e-11   58729  ★
+par_width_atr     raw       -0.0217    1.37e-07   58729  ★
+reg_width_atr     raw       -0.0171    3.34e-05   58729  ★
+reg_slope_atr     abs       -0.0151    2.55e-04   58729  ★
+par_dev_sigma     abs       -0.0118    4.32e-03   58729  ·
+par_pos           abs       -0.0118    4.32e-03   58729  ·
+par_slope_atr     abs       -0.0098    1.78e-02   58729  ·
+reg_pos           abs       -0.0064    1.22e-01   58729  
+reg_dev_sigma     abs       -0.0062    1.31e-01   58729  
+reg_pos           raw       -0.0026    5.26e-01   58729  
+reg_dev_sigma     raw       -0.0026    5.28e-01   58729  
+par_dev_sigma     raw       -0.0014    7.42e-01   58729  
+par_pos           raw       -0.0014    7.42e-01   58729  
+
+── skip ──
+  - par channel needs 2 highs + 2 lows: 6518
+[GBP_USD] train: 2022-01-02〜2024-08-09 (15m=64992)  [holdout >= 2024-08-09 未使用]
+凍結param: fractal_n=2 lookback_swings=8 reg_lookback=50
+
+==============================================================================
+# GBP_USD — チャネル(平行線/回帰) Stage-1 IC
+==============================================================================
+イベント N = 59486  検定数 = 48  Bonferroni α = 0.00104 (★=p<α, ·=p<0.05)
+
+── Spearman IC (horizon 4本 = 1.0h) [|IC|降順] ──
+feature           target         IC           p       N  sig
+reg_width_atr     abs       -0.0975   1.60e-125   59486  ★
+par_width_atr     abs        0.0766    3.66e-78   59486  ★
+reg_slope_atr     abs       -0.0226    3.69e-08   59486  ★
+par_dev_sigma     raw       -0.0206    5.10e-07   59486  ★
+par_pos           raw       -0.0206    5.10e-07   59486  ★
+reg_dev_sigma     raw       -0.0184    7.10e-06   59486  ★
+reg_pos           raw       -0.0182    8.69e-06   59486  ★
+par_dev_sigma     abs       -0.0169    3.81e-05   59486  ★
+par_pos           abs       -0.0169    3.81e-05   59486  ★
+reg_dev_sigma     abs       -0.0168    4.30e-05   59486  ★
+reg_pos           abs       -0.0168    4.40e-05   59486  ★
+par_slope_atr     abs       -0.0166    5.36e-05   59486  ★
+reg_slope_atr     raw       -0.0140    6.59e-04   59486  ★
+par_slope_atr     raw       -0.0092    2.55e-02   59486  ·
+par_width_atr     raw        0.0060    1.41e-01   59486  
+reg_width_atr     raw        0.0016    7.00e-01   59486  
+
+── Spearman IC (horizon 12本 = 3.0h) [|IC|降順] ──
+feature           target         IC           p       N  sig
+reg_width_atr     abs       -0.1259   1.13e-208   59486  ★
+par_width_atr     abs        0.0622    4.48e-52   59486  ★
+reg_slope_atr     raw       -0.0247    1.74e-09   59486  ★
+par_slope_atr     raw       -0.0191    3.23e-06   59486  ★
+reg_pos           abs       -0.0115    5.11e-03   59486  ·
+reg_dev_sigma     abs       -0.0115    5.17e-03   59486  ·
+reg_slope_atr     abs       -0.0109    7.94e-03   59486  ·
+par_dev_sigma     abs       -0.0104    1.10e-02   59486  ·
+par_pos           abs       -0.0104    1.10e-02   59486  ·
+reg_dev_sigma     raw       -0.0091    2.63e-02   59486  ·
+reg_pos           raw       -0.0089    3.08e-02   59486  ·
+par_slope_atr     abs       -0.0089    3.08e-02   59486  ·
+par_dev_sigma     raw       -0.0085    3.80e-02   59486  ·
+par_pos           raw       -0.0085    3.80e-02   59486  ·
+reg_width_atr     raw       -0.0038    3.49e-01   59486  
+par_width_atr     raw       -0.0031    4.43e-01   59486  
+
+── Spearman IC (horizon 48本 = 12.0h) [|IC|降順] ──
+feature           target         IC           p       N  sig
+reg_width_atr     abs       -0.0433    4.61e-26   59486  ★
+par_width_atr     abs       -0.0284    4.42e-12   59486  ★
+reg_slope_atr     abs       -0.0252    7.57e-10   59486  ★
+reg_slope_atr     raw       -0.0243    2.89e-09   59486  ★
+par_slope_atr     raw       -0.0212    2.32e-07   59486  ★
+reg_pos           raw       -0.0179    1.23e-05   59486  ★
+reg_dev_sigma     raw       -0.0179    1.32e-05   59486  ★
+par_dev_sigma     raw       -0.0149    2.84e-04   59486  ★
+par_pos           raw       -0.0149    2.84e-04   59486  ★
+par_slope_atr     abs       -0.0137    8.43e-04   59486  ★
+reg_width_atr     raw       -0.0104    1.09e-02   59486  ·
+par_width_atr     raw       -0.0054    1.85e-01   59486  
+reg_dev_sigma     abs       -0.0049    2.31e-01   59486  
+reg_pos           abs       -0.0047    2.55e-01   59486  
+par_dev_sigma     abs       -0.0044    2.81e-01   59486  
+par_pos           abs       -0.0044    2.81e-01   59486  
+
+── skip ──
+  - par channel needs 2 highs + 2 lows: 5407
+[USD_JPY] train: 2025-04-11〜2025-12-04 (15m=16141)  [holdout >= 2025-12-04 未使用]
+凍結param: fractal_n=2 lookback_swings=8 reg_lookback=50
+
+==============================================================================
+# USD_JPY — チャネル(平行線/回帰) Stage-1 IC
+==============================================================================
+イベント N = 15082  検定数 = 48  Bonferroni α = 0.00104 (★=p<α, ·=p<0.05)
+
+── Spearman IC (horizon 4本 = 1.0h) [|IC|降順] ──
+feature           target         IC           p       N  sig
+reg_slope_atr     abs       -0.0238    3.51e-03   15082  ·
+par_slope_atr     abs       -0.0217    7.71e-03   15082  ·
+par_width_atr     abs        0.0200    1.39e-02   15082  ·
+reg_width_atr     raw        0.0158    5.16e-02   15082  
+reg_slope_atr     raw        0.0156    5.50e-02   15082  
+par_slope_atr     raw        0.0137    9.35e-02   15082  
+reg_pos           raw       -0.0116    1.54e-01   15082  
+par_dev_sigma     abs       -0.0116    1.56e-01   15082  
+par_pos           abs       -0.0116    1.56e-01   15082  
+reg_dev_sigma     raw       -0.0115    1.56e-01   15082  
+par_dev_sigma     raw       -0.0111    1.74e-01   15082  
+par_pos           raw       -0.0111    1.74e-01   15082  
+reg_dev_sigma     abs       -0.0108    1.85e-01   15082  
+reg_pos           abs       -0.0106    1.92e-01   15082  
+par_width_atr     raw        0.0102    2.11e-01   15082  
+reg_width_atr     abs       -0.0069    3.97e-01   15082  
+
+── Spearman IC (horizon 12本 = 3.0h) [|IC|降順] ──
+feature           target         IC           p       N  sig
+reg_slope_atr     raw        0.0316    1.03e-04   15082  ★
+reg_width_atr     raw        0.0308    1.55e-04   15082  ★
+par_slope_atr     raw        0.0231    4.60e-03   15082  ·
+par_width_atr     raw        0.0185    2.33e-02   15082  ·
+par_width_atr     abs        0.0172    3.46e-02   15082  ·
+par_dev_sigma     abs       -0.0098    2.29e-01   15082  
+par_pos           abs       -0.0098    2.29e-01   15082  
+par_slope_atr     abs        0.0085    2.99e-01   15082  
+reg_width_atr     abs       -0.0081    3.23e-01   15082  
+par_dev_sigma     raw       -0.0063    4.43e-01   15082  
+par_pos           raw       -0.0063    4.43e-01   15082  
+reg_pos           abs       -0.0053    5.17e-01   15082  
+reg_dev_sigma     abs       -0.0053    5.19e-01   15082  
+reg_pos           raw       -0.0051    5.28e-01   15082  
+reg_dev_sigma     raw       -0.0050    5.43e-01   15082  
+reg_slope_atr     abs       -0.0017    8.39e-01   15082  
+
+── Spearman IC (horizon 48本 = 12.0h) [|IC|降順] ──
+feature           target         IC           p       N  sig
+reg_width_atr     raw        0.0498    9.67e-10   15082  ★
+par_width_atr     raw        0.0261    1.34e-03   15082  ·
+par_dev_sigma     raw        0.0235    3.86e-03   15082  ·
+par_pos           raw        0.0235    3.86e-03   15082  ·
+reg_pos           raw        0.0195    1.64e-02   15082  ·
+reg_dev_sigma     raw        0.0192    1.82e-02   15082  ·
+par_dev_sigma     abs       -0.0175    3.19e-02   15082  ·
+par_pos           abs       -0.0175    3.19e-02   15082  ·
+reg_slope_atr     raw        0.0149    6.72e-02   15082  
+reg_width_atr     abs       -0.0107    1.90e-01   15082  
+par_width_atr     abs        0.0096    2.37e-01   15082  
+par_slope_atr     raw        0.0090    2.70e-01   15082  
+reg_slope_atr     abs       -0.0075    3.58e-01   15082  
+par_slope_atr     abs        0.0052    5.23e-01   15082  
+reg_dev_sigma     abs       -0.0012    8.82e-01   15082  
+reg_pos           abs       -0.0012    8.87e-01   15082  
+
+── skip ──
+  - par channel needs 2 highs + 2 lows: 960
+[AUD_USD] train: 2022-01-02〜2024-07-25 (15m=64825)  [holdout >= 2024-07-25 未使用]
+凍結param: fractal_n=2 lookback_swings=8 reg_lookback=50
+
+==============================================================================
+# AUD_USD — チャネル(平行線/回帰) Stage-1 IC
+==============================================================================
+イベント N = 58665  検定数 = 48  Bonferroni α = 0.00104 (★=p<α, ·=p<0.05)
+
+── Spearman IC (horizon 4本 = 1.0h) [|IC|降順] ──
+feature           target         IC           p       N  sig
+par_dev_sigma     abs       -0.0331    1.10e-15   58665  ★
+par_pos           abs       -0.0331    1.10e-15   58665  ★
+reg_dev_sigma     abs       -0.0242    4.67e-09   58665  ★
+reg_dev_sigma     raw       -0.0239    6.72e-09   58665  ★
+reg_pos           abs       -0.0238    7.64e-09   58665  ★
+reg_pos           raw       -0.0237    9.70e-09   58665  ★
+par_pos           raw       -0.0161    9.91e-05   58665  ★
+par_dev_sigma     raw       -0.0161    9.91e-05   58665  ★
+par_width_atr     abs        0.0143    5.50e-04   58665  ★
+reg_width_atr     raw       -0.0140    6.93e-04   58665  ★
+reg_width_atr     abs        0.0125    2.51e-03   58665  ·
+reg_slope_atr     abs       -0.0067    1.05e-01   58665  
+par_slope_atr     abs       -0.0065    1.13e-01   58665  
+reg_slope_atr     raw       -0.0061    1.42e-01   58665  
+par_width_atr     raw       -0.0046    2.68e-01   58665  
+par_slope_atr     raw       -0.0041    3.20e-01   58665  
+
+── Spearman IC (horizon 12本 = 3.0h) [|IC|降順] ──
+feature           target         IC           p       N  sig
+reg_dev_sigma     abs       -0.0201    1.16e-06   58665  ★
+reg_pos           abs       -0.0198    1.56e-06   58665  ★
+par_pos           abs       -0.0187    6.03e-06   58665  ★
+par_dev_sigma     abs       -0.0187    6.03e-06   58665  ★
+reg_width_atr     raw       -0.0148    3.25e-04   58665  ★
+reg_dev_sigma     raw       -0.0132    1.44e-03   58665  ·
+reg_pos           raw       -0.0130    1.68e-03   58665  ·
+par_width_atr     abs        0.0127    2.09e-03   58665  ·
+reg_slope_atr     raw       -0.0118    4.26e-03   58665  ·
+reg_width_atr     abs        0.0108    8.86e-03   58665  ·
+par_slope_atr     raw       -0.0100    1.54e-02   58665  ·
+reg_slope_atr     abs       -0.0082    4.75e-02   58665  ·
+par_slope_atr     abs       -0.0070    9.19e-02   58665  
+par_pos           raw       -0.0051    2.18e-01   58665  
+par_dev_sigma     raw       -0.0051    2.18e-01   58665  
+par_width_atr     raw       -0.0039    3.50e-01   58665  
+
+── Spearman IC (horizon 48本 = 12.0h) [|IC|降順] ──
+feature           target         IC           p       N  sig
+reg_dev_sigma     abs       -0.0365    9.48e-19   58665  ★
+reg_pos           abs       -0.0362    1.96e-18   58665  ★
+reg_width_atr     abs        0.0215    1.86e-07   58665  ★
+par_pos           abs       -0.0210    3.72e-07   58665  ★
+par_dev_sigma     abs       -0.0210    3.72e-07   58665  ★
+par_slope_atr     abs       -0.0178    1.67e-05   58665  ★
+reg_slope_atr     raw       -0.0160    1.04e-04   58665  ★
+reg_dev_sigma     raw       -0.0123    2.80e-03   58665  ·
+reg_pos           raw       -0.0123    2.82e-03   58665  ·
+par_width_atr     abs        0.0117    4.44e-03   58665  ·
+par_slope_atr     raw       -0.0093    2.38e-02   58665  ·
+par_pos           raw       -0.0086    3.83e-02   58665  ·
+par_dev_sigma     raw       -0.0086    3.83e-02   58665  ·
+reg_slope_atr     abs       -0.0079    5.52e-02   58665  
+reg_width_atr     raw       -0.0054    1.88e-01   58665  
+par_width_atr     raw        0.0035    3.99e-01   58665  
+
+── skip ──
+  - par channel needs 2 highs + 2 lows: 6061
+[USD_CAD] train: 2025-04-29〜2025-12-10 (15m=15525)  [holdout >= 2025-12-10 未使用]
+凍結param: fractal_n=2 lookback_swings=8 reg_lookback=50
+
+==============================================================================
+# USD_CAD — チャネル(平行線/回帰) Stage-1 IC
+==============================================================================
+イベント N = 14069  検定数 = 48  Bonferroni α = 0.00104 (★=p<α, ·=p<0.05)
+
+── Spearman IC (horizon 4本 = 1.0h) [|IC|降順] ──
+feature           target         IC           p       N  sig
+par_width_atr     abs        0.0408    1.32e-06   14069  ★
+reg_width_atr     abs       -0.0379    6.71e-06   14069  ★
+reg_pos           raw       -0.0338    6.07e-05   14069  ★
+reg_width_atr     raw       -0.0334    7.36e-05   14069  ★
+reg_dev_sigma     raw       -0.0334    7.59e-05   14069  ★
+par_dev_sigma     raw       -0.0219    9.46e-03   14069  ·
+par_pos           raw       -0.0219    9.46e-03   14069  ·
+par_slope_atr     abs       -0.0145    8.65e-02   14069  
+par_slope_atr     raw       -0.0124    1.41e-01   14069  
+par_dev_sigma     abs        0.0083    3.27e-01   14069  
+par_pos           abs        0.0083    3.27e-01   14069  
+par_width_atr     raw       -0.0068    4.22e-01   14069  
+reg_dev_sigma     abs       -0.0041    6.29e-01   14069  
+reg_pos           abs       -0.0039    6.41e-01   14069  
+reg_slope_atr     raw       -0.0031    7.10e-01   14069  
+reg_slope_atr     abs        0.0026    7.60e-01   14069  
+
+── Spearman IC (horizon 12本 = 3.0h) [|IC|降順] ──
+feature           target         IC           p       N  sig
+reg_width_atr     abs       -0.0892    2.78e-26   14069  ★
+reg_width_atr     raw       -0.0482    1.04e-08   14069  ★
+par_width_atr     abs        0.0472    2.13e-08   14069  ★
+par_slope_atr     abs       -0.0290    5.89e-04   14069  ★
+par_dev_sigma     raw       -0.0218    9.61e-03   14069  ·
+par_pos           raw       -0.0218    9.61e-03   14069  ·
+par_dev_sigma     abs        0.0187    2.68e-02   14069  ·
+par_pos           abs        0.0187    2.68e-02   14069  ·
+reg_pos           raw       -0.0138    1.02e-01   14069  
+reg_dev_sigma     raw       -0.0133    1.15e-01   14069  
+reg_slope_atr     raw       -0.0105    2.11e-01   14069  
+par_slope_atr     raw       -0.0104    2.16e-01   14069  
+par_width_atr     raw       -0.0072    3.90e-01   14069  
+reg_slope_atr     abs       -0.0062    4.65e-01   14069  
+reg_dev_sigma     abs       -0.0024    7.77e-01   14069  
+reg_pos           abs       -0.0020    8.16e-01   14069  
+
+── Spearman IC (horizon 48本 = 12.0h) [|IC|降順] ──
+feature           target         IC           p       N  sig
+reg_width_atr     abs       -0.1323    5.91e-56   14069  ★
+par_dev_sigma     raw       -0.0325    1.18e-04   14069  ★
+par_pos           raw       -0.0325    1.18e-04   14069  ★
+par_width_atr     abs       -0.0314    1.97e-04   14069  ★
+par_slope_atr     abs       -0.0262    1.90e-03   14069  ·
+reg_pos           raw       -0.0223    8.04e-03   14069  ·
+reg_dev_sigma     raw       -0.0220    8.96e-03   14069  ·
+reg_dev_sigma     abs       -0.0168    4.60e-02   14069  ·
+par_width_atr     raw       -0.0167    4.70e-02   14069  ·
+reg_pos           abs       -0.0164    5.21e-02   14069  
+par_dev_sigma     abs       -0.0114    1.75e-01   14069  
+par_pos           abs       -0.0114    1.75e-01   14069  
+reg_slope_atr     abs       -0.0068    4.18e-01   14069  
+reg_slope_atr     raw       -0.0063    4.55e-01   14069  
+par_slope_atr     raw        0.0029    7.32e-01   14069  
+reg_width_atr     raw       -0.0020    8.08e-01   14069  
+
+── skip ──
+  - par channel needs 2 highs + 2 lows: 1357
+[EUR_JPY] train: 2022-01-02〜2024-06-11 (15m=69368)  [holdout >= 2024-06-11 未使用]
+凍結param: fractal_n=2 lookback_swings=8 reg_lookback=50
+
+==============================================================================
+# EUR_JPY — チャネル(平行線/回帰) Stage-1 IC
+==============================================================================
+イベント N = 62051  検定数 = 48  Bonferroni α = 0.00104 (★=p<α, ·=p<0.05)
+
+── Spearman IC (horizon 4本 = 1.0h) [|IC|降順] ──
+feature           target         IC           p       N  sig
+par_width_atr     abs       -0.0871   1.10e-104   62051  ★
+reg_slope_atr     abs       -0.0668    3.24e-62   62051  ★
+par_dev_sigma     abs       -0.0608    7.47e-52   62051  ★
+par_pos           abs       -0.0608    7.47e-52   62051  ★
+reg_width_atr     abs        0.0200    6.26e-07   62051  ★
+reg_dev_sigma     raw       -0.0191    1.95e-06   62051  ★
+reg_pos           raw       -0.0190    2.16e-06   62051  ★
+reg_dev_sigma     abs       -0.0091    2.30e-02   62051  ·
+par_slope_atr     abs       -0.0091    2.30e-02   62051  ·
+reg_pos           abs       -0.0090    2.48e-02   62051  ·
+par_width_atr     raw       -0.0089    2.73e-02   62051  ·
+par_slope_atr     raw       -0.0088    2.77e-02   62051  ·
+reg_width_atr     raw        0.0058    1.52e-01   62051  
+par_dev_sigma     raw       -0.0049    2.25e-01   62051  
+par_pos           raw       -0.0049    2.25e-01   62051  
+reg_slope_atr     raw        0.0013    7.46e-01   62051  
+
+── Spearman IC (horizon 12本 = 3.0h) [|IC|降順] ──
+feature           target         IC           p       N  sig
+par_width_atr     abs       -0.0674    2.60e-63   62051  ★
+reg_slope_atr     abs       -0.0663    2.14e-61   62051  ★
+par_dev_sigma     abs       -0.0542    1.29e-41   62051  ★
+par_pos           abs       -0.0542    1.29e-41   62051  ★
+reg_dev_sigma     raw       -0.0163    4.84e-05   62051  ★
+reg_pos           raw       -0.0163    5.03e-05   62051  ★
+par_slope_atr     raw       -0.0162    5.50e-05   62051  ★
+reg_width_atr     raw        0.0142    4.01e-04   62051  ★
+reg_width_atr     abs       -0.0085    3.43e-02   62051  ·
+reg_pos           abs        0.0082    4.03e-02   62051  ·
+reg_dev_sigma     abs        0.0081    4.40e-02   62051  ·
+reg_slope_atr     raw        0.0062    1.22e-01   62051  
+par_slope_atr     abs       -0.0057    1.58e-01   62051  
+par_width_atr     raw       -0.0034    3.98e-01   62051  
+par_dev_sigma     raw       -0.0020    6.16e-01   62051  
+par_pos           raw       -0.0020    6.16e-01   62051  
+
+── Spearman IC (horizon 48本 = 12.0h) [|IC|降順] ──
+feature           target         IC           p       N  sig
+reg_slope_atr     abs       -0.0744    6.57e-77   62051  ★
+par_width_atr     abs       -0.0404    7.16e-24   62051  ★
+par_dev_sigma     abs       -0.0287    7.96e-13   62051  ★
+par_pos           abs       -0.0287    7.96e-13   62051  ★
+reg_width_atr     abs       -0.0252    3.20e-10   62051  ★
+reg_pos           abs        0.0251    4.20e-10   62051  ★
+reg_dev_sigma     abs        0.0248    6.66e-10   62051  ★
+reg_width_atr     raw        0.0191    2.02e-06   62051  ★
+reg_slope_atr     raw        0.0167    3.14e-05   62051  ★
+par_width_atr     raw       -0.0124    2.02e-03   62051  ·
+par_slope_atr     abs       -0.0087    3.10e-02   62051  ·
+reg_dev_sigma     raw        0.0059    1.41e-01   62051  
+reg_pos           raw        0.0057    1.57e-01   62051  
+par_slope_atr     raw        0.0048    2.30e-01   62051  
+par_dev_sigma     raw       -0.0044    2.76e-01   62051  
+par_pos           raw       -0.0044    2.76e-01   62051  
+
+── skip ──
+  - par channel needs 2 highs + 2 lows: 6385
+  - reg channel degenerate: 833
+
+##############################################################################
+# CROSS-PAIR 再現性 — falsification 判定
+# 基準: |IC|>=0.05 かつ p<Bonferroni かつ 6ペア中 >=4 ペアで同符号
+##############################################################################
+
+feature           target   hz   meanIC    +/-  ≥.05&★  verdict
+par_dev_sigma     abs       4  -0.0228    1/5       1  ✗null
+par_dev_sigma     raw       4  -0.0141    0/6       0  ✗null
+par_pos           abs       4  -0.0228    1/5       1  ✗null
+par_pos           raw       4  -0.0141    0/6       0  ✗null
+par_slope_atr     abs       4  -0.0117    0/6       0  ✗null
+par_slope_atr     raw       4  -0.0058    1/5       0  ✗null
+par_width_atr     abs       4   0.0232    5/1       2  ✗null
+par_width_atr     raw       4  -0.0023    2/4       0  ✗null
+reg_dev_sigma     abs       4  -0.0129    0/6       0  ✗null
+reg_dev_sigma     raw       4  -0.0199    0/6       0  ✗null
+reg_pos           abs       4  -0.0128    0/6       0  ✗null
+reg_pos           raw       4  -0.0199    0/6       0  ✗null
+reg_slope_atr     abs       4  -0.0190    2/4       1  ✗null
+reg_slope_atr     raw       4  -0.0037    2/4       0  ✗null
+reg_width_atr     abs       4  -0.0314    2/4       2  ✗null
+reg_width_atr     raw       4  -0.0038    4/2       0  ✗null
+par_dev_sigma     abs      12  -0.0140    1/5       1  ✗null
+par_dev_sigma     raw      12  -0.0075    0/6       0  ✗null
+par_pos           abs      12  -0.0140    1/5       1  ✗null
+par_pos           raw      12  -0.0075    0/6       0  ✗null
+par_slope_atr     abs      12  -0.0067    2/4       0  ✗null
+par_slope_atr     raw      12  -0.0089    1/5       0  ✗null
+par_width_atr     abs      12   0.0221    5/1       2  ✗null
+par_width_atr     raw      12  -0.0027    1/5       0  ✗null
+reg_dev_sigma     abs      12  -0.0054    1/5       0  ✗null
+reg_dev_sigma     raw      12  -0.0098    0/6       0  ✗null
+reg_pos           abs      12  -0.0054    1/5       0  ✗null
+reg_pos           raw      12  -0.0098    0/6       0  ✗null
+reg_slope_atr     abs      12  -0.0149    1/5       1  ✗null
+reg_slope_atr     raw      12  -0.0051    2/4       0  ✗null
+reg_width_atr     abs      12  -0.0541    1/5       3  ✗null
+reg_width_atr     raw      12  -0.0039    2/4       0  ✗null
+par_dev_sigma     abs      48  -0.0158    0/6       0  ✗null
+par_dev_sigma     raw      48  -0.0063    1/5       0  ✗null
+par_pos           abs      48  -0.0158    0/6       0  ✗null
+par_pos           raw      48  -0.0063    1/5       0  ✗null
+par_slope_atr     abs      48  -0.0118    1/5       0  ✗null
+par_slope_atr     raw      48  -0.0068    3/3       0  ✗null
+par_width_atr     abs      48  -0.0195    2/4       0  ✗null
+par_width_atr     raw      48  -0.0045    2/4       0  ✗null
+reg_dev_sigma     abs      48  -0.0068    1/5       0  ✗null
+reg_dev_sigma     raw      48  -0.0050    2/4       0  ✗null
+reg_pos           abs      48  -0.0066    1/5       0  ✗null
+reg_pos           raw      48  -0.0050    2/4       0  ✗null
+reg_slope_atr     abs      48  -0.0228    0/6       1  ✗null
+reg_slope_atr     raw      48  -0.0081    2/4       0  ✗null
+reg_width_atr     abs      48  -0.0385    1/5       1  ✗null
+reg_width_atr     raw      48   0.0056    2/4       0  ✗null
+
+------------------------------------------------------------
+✗ 生存ゼロ — チャネル方向エッジ falsify 確定。実装せず。
+  (H4 水平線 falsification と同じ結論。decision doc へ記録。)
