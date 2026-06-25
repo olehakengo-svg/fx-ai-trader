@@ -2215,6 +2215,16 @@ Cutoff後累積でN=9、PnL=-79.9pip相当と、実質的に稼働不能に近�
 - Block Counts TOP15を見ると、**hedge_block・same_price_0pip・recent_emit・r2_shadow_demoted_cell**の4類型が支配的
 - **hedge_block（53件）**: レンジ相場でのヘッジポジション衝突。全ペアがRANGINGのため構造的に発生しやすい状態
 
+### 2026-06-25 (Post-London Report)
+| セッション PnL | **-12.6 pips** |
+| EV（/trade） | **-6.30 pips** |
+| 戦略 | ペア | 方向 | PnL | Spread | Reason |
+- **成功要因（1文）**: SELL方向がEUR_JPYの短期下押しレジームに適合し、1.5pipsの小利確を実現したが、spread 1.8pipsに対して純利益は実質微益（摩擦後EV≈0）。
+| 戦略 | ペア | 方向 | PnL | Spread | Reason |
+- **失敗要因（1文）**: EUR_JPYはRANGING（ATR%ile=67%、SMA20 Slope=-0.00078）でありながら瞬間的な方向性バイアスが強く、SRチャネルの反発想定が外れてSLヒット（-14.1pipsは標準的なSL幅に相当）。
+| セッション PnL | 本日累計-26.4 / N=4より差分: **-13.8 pips** | **-12.6 pips** |
+**総評**: 東京セッションはWR=0%（推定）と完敗、ロンドンセッションは50%に改善したが依然として負のEV。1日を通じてdt_sr_channel_reversalのEUR_JPYが唯一のシグナル源であり、戦略集中度が極端に高い。ロンドン時間帯でRANGINGが継続しており、レジーム変化は確認されなかった。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
