@@ -2265,6 +2265,16 @@ Cutoff後累積でN=9、PnL=-79.9pip相当と、実質的に稼働不能に近�
 | 戦略 | ペア | 方向 | PnL | 失敗要因 |
 | **zz_pivot_v60_sr** | EUR_USD | SELL | **-10.5 pips** | RANGING環境でピボット反転期待が外れSL直行、スプレッド0.8pipsと低水準ながらEV=-10.5 |
 
+### 2026-06-26 (Pre-Tokyo Briefing)
+| PnL合計 | **-26.4 pip** |
+| 全体WR | **25.0%** (1勝3敗) |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| dt_sr_channel_reversal | EUR_JPY | **5** | 20.0% | **-7.94** | -39.7 | ⚠️ N不足・EV深刻 |
+> **凡例**: N≥30 & EV≥1.0 → 昇格候補 ｜ N≥30 & EV<-0.5 → 降格検討 ｜ N<10 → データなし扱い
+**Cutoff後全期間合計**: N=10, WR=40.0%, PnL=-51.2pip
+| トレード | 方向 | PnL | 終了理由 |
+3件全てSELL。EUR/JPYのレジームは**RANGING（SMA20 Slope=-0.00177）**であり、下落トレンドを前提としたSELLポジションが機能しにくい地合い。SR-Channelリバーサル系はレンジ相場では誤シグナルが増加しやすい。BT上のEV=+0.178（EUR_JPY）は「弱い正」であり、スプレッド・スリッページ込みの実運用では容易にマイナス転化する水準。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
