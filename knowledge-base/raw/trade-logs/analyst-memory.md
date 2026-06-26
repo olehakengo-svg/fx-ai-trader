@@ -2245,6 +2245,16 @@ Cutoff後累積でN=9、PnL=-79.9pip相当と、実質的に稼働不能に近�
 - **ロンドンオープン（16:00〜17:00 JST）**: GBP/USDのSMA Slope=−0.00454。ロンドン勢の売り持続なら wick_imbalance_reversion のBUYシグナルは逆張りリスクが高い。
 - **NYセッション（22:00〜 JST）**: EUR/USD 66%ile ATRで荒い値動きの可能性。
 
+### 2026-06-26 (Pre-Tokyo Briefing)
+前日（2026-06-25）は **4件執行、WR 25.0%、PnL -26.4pips**。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **全戦略N<10のため統計的判断不可。** `dt_sr_channel_reversal / EUR_JPY` のみN=4で「傾向値」として観察可能だが、EVの著しい悪化（BT時EV=+0.178 vs LIVE EV=-7.48）は要追跡。
+- BT想定EV=+0.178はWR≈63.8%を前提とするが、直近LIVE WR=25%（3戦1勝）と大きく乖離
+- EUR_JPYレジームが **RANGING（SMA20 Slope=-0.00126、ATR%ile 62%）** であり、チャネル・SR反転系は「方向が定まらない中での逆張り」が刺さりにくい局面と整合
+- N=1のため断定不可。ただしGBP_USDも **RANGING（ATR%ile 59%、Slope=-0.00454下落基調）** で、GBP全体がソフト地合い
+- 上記2戦略の新規シグナルに対しては「N蓄積期間中の観察継続」として現行ブロック設定の効果を確認する
+- 大負けの主因となっている **SL設定とR:R比の非対称性** については、パラメータ検討の材料として記録
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
