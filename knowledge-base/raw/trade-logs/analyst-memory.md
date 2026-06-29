@@ -2275,6 +2275,16 @@ Cutoff後累積でN=9、PnL=-79.9pip相当と、実質的に稼働不能に近�
 | トレード | 方向 | PnL | 終了理由 |
 3件全てSELL。EUR/JPYのレジームは**RANGING（SMA20 Slope=-0.00177）**であり、下落トレンドを前提としたSELLポジションが機能しにくい地合い。SR-Channelリバーサル系はレンジ相場では誤シグナルが増加しやすい。BT上のEV=+0.178（EUR_JPY）は「弱い正」であり、スプレッド・スリッページ込みの実運用では容易にマイナス転化する水準。
 
+### 2026-06-29 (Pre-Tokyo Briefing)
+| PnL合計 | 0.0 |
+| 全体WR | N/A |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| N合計 | WR | PnL合計 |
+- 前日（06-28）は全セッション無発火。
+- Block Count上位を見ると、**rnb_usdjpy:direction_filter（135件）**、**daytrade:hedge_block（127件）**、**daytrade_eur:hedge_block（113件）** が支配的。
+- これは「市場の方向性とシステムのフィルター条件が一致しない」状態が継続していることを示す。
+- 全50シグナルのうちLIVE送信はわずか3件（6%）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
