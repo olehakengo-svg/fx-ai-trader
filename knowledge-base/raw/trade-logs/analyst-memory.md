@@ -2315,6 +2315,16 @@ Cutoff後累積でN=9、PnL=-79.9pip相当と、実質的に稼働不能に近�
 - `zz_pivot_v60_sr/EUR_USD` はKB未記載戦略と思われる（PAIR_PROMOTEDリストにない）。N=5でEV=-2.96は要注意。
 | GBP_USD | **RANGING** | 62% | -0.00455 (緩やかな下落) | trendline_sweep（実績WR100%）は引き続き注視 |
 
+### 2026-06-30 (Pre-Tokyo Briefing)
+前日（2026-06-29）は **N=10、WR=80.0%、PnL=+4.9pip** と表面上は強い勝率を記録。ただしzz_pivot_v60_srの1発の大負け（-8.5pip）が足を引っ張り、**EV加重での収益性は抑制的**。オープンポジションなし、OANDA残高は**283,543 JPY相当、Latency=87.6ms**で接続は安定。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| zz_pivot_v60_sr | EUR_USD | 5 | 60.0% | **-2.96** | -14.8 | 🔴 EV懸念 |
+| dt_sr_channel_reversal | EUR_JPY | 6 | 33.3% | **-6.27** | -37.6 | 🔴 最悪EV |
+**全体（Cutoff後）: N=19、WR=57.9%、PnL=-48.7pip**
+| WR | 75.0%（3勝1負） |
+| 日次PnL | **-4.3pip** |
+- **3勝しても1敗で赤字**という損益比の非対称性が明確。WR75%でもEV=-1.07は、リスクリワード比が構造的に不利（≒1:0.5前後）である可能性を示唆。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
