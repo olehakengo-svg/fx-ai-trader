@@ -2365,6 +2365,16 @@ N=3でEV=-6.23。前日は+2.1で勝利したものの、全期間では3戦1勝
 > **全体**: N=17、WR=52.9%、PnL=**−49.9**
 > ⚠️ 昇格基準（N≥30 & EV≥1.0）を満たす戦略は**ゼロ**。降格基準（N≥30 & EV<−0.5）も判定不能（N不足）。全戦略がSentinel段階。
 
+### 2026-07-01 (Pre-Tokyo Briefing)
+前日（2026-06-30）は **3トレード、WR 0.0%、PnL -25.6** と完全にゼロ勝の日。trendline_sweep（GBP_USD）が2連続SL_HIT+SIGNAL_REVERSEで-12.8、xs_momentum_rsi（USD_JPY）が-12.8。全セッションを通じて単一方向（BUY）のみで損失が集中した。
+| Strategy | Pair | N | WR% | EV | 判定 |
+| trendline_sweep | GBP_USD | 7 | 57.1% | **-1.81** | 負EV（N不足）|
+| zz_pivot_v60_sr | EUR_USD | 5 | 60.0% | **-2.96** | 負EV（N不足）|
+| dt_sr_channel_reversal | EUR_JPY | 3 | 33.3% | **-6.23** | 負EV（N不足）|
+**全体**: N=20、WR=55.0%、PnL=-53.2
+- GBP_USDは現在**RANGING（ATR%ile 62%）**、SMA20スロープ -0.00440と下向き。BUYバイアスが構造的に不利なレジームに当たった。
+- SIGNAL_REVERSEでの損失（-5.9）は、エントリー後すぐに方向が反転していることを示す。RANGING相場でのトレンドフォロー型エントリーが機能していない典型。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
