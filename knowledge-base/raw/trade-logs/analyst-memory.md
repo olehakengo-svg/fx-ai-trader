@@ -2385,6 +2385,16 @@ WR        : N/A
 ### 推奨戦略配分
 | **NO ACTION推奨（暫定）** | リアルタイムデータが一切取得できない状態での新規判断は禁忌。ポジション管理の根拠がない |
 
+### 2026-07-01 (Pre-Tokyo Briefing)
+| 総PnL | **-25.6 pip** |
+| Strategy | Pair | N | WR% | EV | 判定 |
+| 2 | BUY | LOSS -5.9pip | SIGNAL_REVERSE | 1.3 |
+- 両件ともBUY方向。GBP_USDは現在RANGING（ATR%ile 60%、SMAスロープ-0.00396で微弱下向き）
+- SIGNAL_REVERSEによるロスは、シグナル自体がエントリー後すぐに反転を示していることを意味する。Ranging相場でのトレンドライン系戦略は構造的に不利
+- spread 1.3はDT閾値20%に対して問題ないが、EV=-4.09はスプレッドだけでは説明できない。損益構造（SLサイズ vs TPサイズ）に本質的な問題がある可能性
+- N=1のため統計的判断不能
+- ただし-12.8pipという損失幅は突出して大きい。SLサイズが他戦略比で過大の可能性
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
