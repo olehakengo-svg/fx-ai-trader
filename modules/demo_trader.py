@@ -6295,19 +6295,16 @@ class DemoTrader:
                         f"BB_mid TP preserved ×1.0 | TP={tp:.{_price_dec}f}"
                     )
                 # ── 実弾実行パス ──
-                _lot_disp_sent = (f"{_adjusted_units}oz" if _is_xau_inst
-                                  else f"{_adjusted_units}u({_adjusted_units/10000:.2f}lot)")
-                self._add_log(
-                    f"🔗 OANDA: [SENT] {signal} {instrument} "
-                    f"{_lot_disp_sent} {_lot_tag} "
-                    f"SL={sl:.{_price_dec}f} TP={_tp_oanda:.{_price_dec}f}"
-                )
                 # Pass entry_type so the bridge can stamp a strategy-name
                 # 'sent' audit row when it owns that write. skip_sent_audit=True
                 # tells the bridge NOT to write its own 'sent' row — the
                 # caller-side `_add_oanda_audit` below writes the 'sent' row
                 # with full sr_meta intact (single source of truth).
-                self._oanda.open_trade(
+                # The bridge gate verdict (return value) decides whether the
+                # 'sent' row may be written at all: bridge-internal gates
+                # (daily-loss halt etc.) write their own 'blocked' row and
+                # return False (2026-07-02 gate-asymmetry fix, rule:R3).
+                _send_accepted = self._oanda.open_trade(
                     demo_trade_id=trade_id,
                     direction=signal,
                     sl=sl, tp=_tp_oanda,
@@ -6321,19 +6318,43 @@ class DemoTrader:
                     entry_type=entry_type,
                     skip_sent_audit=True,
                 )
-                self._add_oanda_audit(
-                    trade_id=trade_id, entry_type=entry_type,
-                    is_live=True, bridge_status="sent",
-                    block_reason="",
-                    direction=signal, instrument=instrument,
-                    units=_adjusted_units,
-                    sr_meta=_sr_meta,
-                )
-                # v9.4: PRIME trade tag for 2026-05-15 re-evaluation
-                if _prime_match:
+                if _send_accepted:
+                    _lot_disp_sent = (f"{_adjusted_units}oz" if _is_xau_inst
+                                      else f"{_adjusted_units}u({_adjusted_units/10000:.2f}lot)")
                     self._add_log(
-                        f"🏷️ PRIME_TAG: {_prime_match['name']} "
-                        f"tier={_prime_tier} trade={trade_id}"
+                        f"🔗 OANDA: [SENT] {signal} {instrument} "
+                        f"{_lot_disp_sent} {_lot_tag} "
+                        f"SL={sl:.{_price_dec}f} TP={_tp_oanda:.{_price_dec}f}"
+                    )
+                    self._add_oanda_audit(
+                        trade_id=trade_id, entry_type=entry_type,
+                        is_live=True, bridge_status="sent",
+                        block_reason="",
+                        direction=signal, instrument=instrument,
+                        units=_adjusted_units,
+                        sr_meta=_sr_meta,
+                    )
+                    # v9.4: PRIME trade tag for 2026-05-15 re-evaluation
+                    if _prime_match:
+                        self._add_log(
+                            f"🏷️ PRIME_TAG: {_prime_match['name']} "
+                            f"tier={_prime_tier} trade={trade_id}"
+                        )
+                else:
+                    # Bridge refused transmission (daily-loss halt / inactive /
+                    # mode excluded / bad instrument). The bridge owns the
+                    # 'blocked' audit row for its own gates — never write a
+                    # 'sent' row here. Escalate to shadow so the un-sent trade
+                    # (oanda_trade_id=NULL) neither contaminates clean-live
+                    # aggregates (FLAG_DRIFT) nor gets picked up by
+                    # _resend_pending_oanda_trades() after a restart.
+                    _is_shadow = True
+                    self._db.update_shadow_status(trade_id, True)
+                    self._exposure_mgr.set_shadow_status(trade_id, True)
+                    self._add_log(
+                        f"[SHADOW_FIX] Bridge refused transmission: {entry_type} "
+                        f"{instrument} trade={trade_id} → shadow "
+                        f"(no 'sent' audit, excluded from clean-live and resend)"
                     )
             else:
                 # ── Bridge非アクティブまたはモード除外 ──
@@ -7738,7 +7759,17 @@ class DemoTrader:
         # + SHADOW_RETIRED_STRATEGIES. BUY-major (N=12 +1.51) preserved as a
         # documented redesign hypothesis only.
         # ("sr_fib_confluence", "GBP_USD"),    # shadow N=39 EV=+1.35 PF=1.29
-        ("session_time_bias", "EUR_USD"),      # shadow N=23 EV=+0.63 PF=1.15 (cell-conditional {"London"})
+        # REMOVED 2026-07-02 (rule:R2) LIVE residual-path closure:
+        # ("session_time_bias", "EUR_USD") — strategy REJECTED all pairs by
+        # 12y MASSIVE BT (2026-06-11, audit-index) and edge cells E2/E8
+        # stage=0, yet PAIR_PROMOTED kept a live path open: 30d clean live
+        # N=18 WR=33.3% PnL=-63.6pip (#1 strategy drag, risk dashboard
+        # 2026-07-02). PAIR_PROMOTED overrides _UNIVERSAL_SENTINEL shadow
+        # eligibility (L3950-3957) and is regime-gate exempt, so the tier
+        # entry itself was the leak. Shadow accumulation continues via
+        # _UNIVERSAL_SENTINEL (principle 3). Re-promote condition: R1 only
+        # (12y BT pass + Bonferroni + pre-reg LOCK).
+        # ("session_time_bias", "EUR_USD"),    # (was: shadow N=23 EV=+0.63 PF=1.15, cell-conditional {"London"})
         # REMOVED 2026-06-07 (rule:R2) Claude session emergency loss containment:
         # ("session_time_bias", "GBP_USD") — 2026-06-04 11:31 UTC live fire SL -7.9p
         # confirms cell still active despite E8 disable. Original promote 2026-06-01
@@ -7883,7 +7914,12 @@ class DemoTrader:
         # amplified losing cells). Boost reinstatement awaits Live N≥30 on
         # the London cell with Wilson_lo>0.40 confirmation.
         # 詳細: knowledge-base/wiki/decisions/session-time-bias-cell-forensic-2026-05-29.md
-        ("session_time_bias", "EUR_USD"): {"London"},  # 7 <= UTC hour < 12
+        # REMOVED 2026-07-02 (rule:R2): paired with _PAIR_PROMOTED removal above.
+        # 12y MASSIVE BT REJECT (2026-06-11) + 30d clean live N=18 WR=33.3%
+        # -63.6pip (#1 strategy drag) — the London cell filter did not stop
+        # the bleed. Filter inert without PAIR_PROMOTED but removed for
+        # code consistency (same as GBP_USD 2026-06-07).
+        # ("session_time_bias", "EUR_USD"): {"London"},  # REMOVED 2026-07-02
         # REMOVED 2026-06-07 (rule:R2): paired with _PAIR_PROMOTED removal above.
         # GBP_USD London Live confirmed losing (06-04 11:31 -7.9p SL during disable window).
         # Original promote Wlo=0.251 < Bonferroni 0.55. session filter inert without

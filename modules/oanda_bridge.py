@@ -528,19 +528,27 @@ class OandaBridge:
         skip_sent_audit: when True, do NOT write the 'sent' audit row here
             (caller has already written it with full sr_meta). Used by the
             demo_trader main-entry path to avoid duplicate 'sent' rows.
+
+        Returns True when the order passed all bridge gates and the
+        background send was fired; False when transmission was refused
+        (inactive bridge / unsupported instrument / mode excluded /
+        daily-loss halt). Callers that own the 'sent' audit row
+        (skip_sent_audit=True) MUST NOT write it unless this returns True
+        — the bridge gate verdict is the single source of truth
+        (2026-07-02 gate-asymmetry fix, rule:R3).
         """
         if not self.active:
-            return
+            return False
         try:
             instrument = resolve_instrument(instrument)
         except KeyError as e:
             logger.error(f"[OandaBridge] {e}")
             if log_callback:
                 log_callback(f"🔗 OANDA: [BLOCKED] unsupported instrument — {instrument}")
-            return
+            return False
         if not self.is_mode_allowed(mode):
             logger.debug(f"[OandaBridge] mode={mode} not in allowed_modes, skip")
-            return
+            return False
         _audit_entry_type = entry_type if entry_type is not None else mode
 
         # Daily loss gate (audit 2026-05-01 P0-2). Transmit-only halt: the
@@ -569,7 +577,7 @@ class OandaBridge:
                 logger.warning(f"[OandaBridge] audit write failed during daily-loss block: {e}")
             if log_callback:
                 log_callback(f"🔗 OANDA: [HALT] {_reason} — {direction} {instrument} not transmitted")
-            return
+            return False
 
         if entry_type is not None and not skip_sent_audit:
             try:
@@ -712,6 +720,7 @@ class OandaBridge:
                         logger.warning(f"[OandaBridge] pending_op_mark_failed failed: {e}")
 
         self._fire(_do)
+        return True
 
     # ── Close Trade ───────────────────────────────────
 

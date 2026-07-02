@@ -72,23 +72,38 @@ def test_session_time_bias_lot_boost_is_neutral():
     )
 
 
-def test_session_time_bias_eur_usd_is_london_only():
-    """EUR_USD now cell-conditional: London cell only (Wilson_lo=0.327)."""
-    sessions = DemoTrader._PAIR_SESSION_FILTER.get(
-        ("session_time_bias", "EUR_USD")
+def test_session_time_bias_eur_usd_removed_2026_07_02():
+    """EUR_USD removed from PAIR_PROMOTED 2026-07-02 (rule:R2).
+
+    Supersedes the 2026-05-29 London-only cell-conditional pin.
+    Reason: strategy REJECTED on all pairs by 12y MASSIVE BT (2026-06-11,
+    audit-index) and edge cells E2/E8 stage=0, yet the PAIR_PROMOTED entry
+    kept a live path open (overrides _UNIVERSAL_SENTINEL shadow eligibility
+    and is regime-gate exempt). 30d clean live: N=18 WR=33.3% -63.6pip
+    (#1 strategy drag, risk dashboard 2026-07-02) — the London cell filter
+    did not stop the bleed.
+
+    Shadow accumulation continues via _UNIVERSAL_SENTINEL (principle 3).
+    Re-promote requires R1: 12y BT pass + Bonferroni + pre-reg LOCK.
+    """
+    assert ("session_time_bias", "EUR_USD") not in DemoTrader._PAIR_PROMOTED, (
+        "session_time_bias×EUR_USD must NOT be in PAIR_PROMOTED — removed "
+        "2026-07-02 R2 residual-path closure (12y BT REJECT + 30d live "
+        "N=18 WR=33.3% -63.6pip)."
     )
-    assert sessions == {"London"}, (
-        f"session_time_bias×EUR_USD must be cell-conditional to "
-        f"{{'London'}} (got {sessions!r}). Shadow London N=58 Wlo=0.327 "
-        f"EV=+1.44 PF=1.41 is the only edge cell."
+    # Session filter entry removed alongside (inert without PAIR_PROMOTED,
+    # removed for code consistency — same as GBP_USD 2026-06-07).
+    assert ("session_time_bias", "EUR_USD") not in DemoTrader._PAIR_SESSION_FILTER, (
+        "session_time_bias×EUR_USD must NOT have a _PAIR_SESSION_FILTER "
+        "entry after the 2026-07-02 R2 removal."
     )
 
 
-def test_session_time_bias_eur_usd_still_pair_promoted():
-    """EUR_USD PAIR_PROMOTED stays — only the session filter narrows Live."""
-    assert ("session_time_bias", "EUR_USD") in DemoTrader._PAIR_PROMOTED, (
-        "session_time_bias×EUR_USD must stay PAIR_PROMOTED — the cell "
-        "filter narrows Live to London only, not full removal."
+def test_session_time_bias_stays_universal_sentinel():
+    """Principle 3: shadow accumulation must survive the live demotion."""
+    assert "session_time_bias" in DemoTrader._UNIVERSAL_SENTINEL, (
+        "session_time_bias must remain in _UNIVERSAL_SENTINEL so shadow "
+        "N accumulation continues after the 2026-07-02 live-path closure."
     )
 
 

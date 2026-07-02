@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-06-12T08:30:25.495267+00:00",
+  "generated_at": "2026-07-02T07:17:46.008032+00:00",
   "elite_live": [
     "trendline_sweep"
   ],
@@ -118,10 +118,6 @@
     [
       "price_shock_rev_usd_cad_h1_long",
       "USD_CAD"
-    ],
-    [
-      "session_time_bias",
-      "EUR_USD"
     ],
     [
       "squeeze_release_momentum",

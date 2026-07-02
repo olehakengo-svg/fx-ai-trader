@@ -23,19 +23,20 @@ from tools import volume_live_promotion_watchdog as watchdog
 #   WR=14.3% EV=-5.15 → catastrophic regime degradation. Moved to
 #   _PAIR_DEMOTED. EUR_USD pair likewise demoted (not in this list).
 #   See knowledge-base/wiki/decisions/xs-momentum-pair-demote-2026-05-29.md.
-# CELL-CONDITIONAL 2026-05-29 (rule:R2 cell forensic):
-# - session_time_bias × EUR_USD remains PAIR_PROMOTED but is now narrowed
-#   via _PAIR_SESSION_FILTER to {"London"} (Shadow N=58 Wlo=0.327
-#   EV=+1.44 PF=1.41). Aggregate-cell entry still in VOLUME_CELLS — the
-#   filter narrows Live, not the promote tier.
-#   See decisions/session-time-bias-cell-forensic-2026-05-29.md.
+# REMOVED 2026-07-02 (rule:R2 residual-path closure):
+# - session_time_bias × EUR_USD: strategy REJECTED all pairs by 12y
+#   MASSIVE BT (2026-06-11) + E2/E8 stage=0, yet PAIR_PROMOTED kept a
+#   live path open. 30d clean live N=18 WR=33.3% -63.6pip (#1 strategy
+#   drag). The 2026-05-29 London cell filter did not stop the bleed.
+#   Shadow continues via _UNIVERSAL_SENTINEL. Re-promote: R1 only.
+#   See tests/test_cell_forensic_2026_05_29_pin.py +
+#   decisions/claude-codex-division-of-labor-2026-07-02.md session.
 VOLUME_CELLS = [
     ("mqe_gbpusd_fix", "GBP_USD"),
     # REMOVED 2026-06-12 (rule:R2) Edge Factor Audit #5: sr_fib_confluence
     # GBP_USD promotion basis (shadow N=39 +1.35) overturned at N=132 (-1.66);
     # LIVE breakeven (N=19 -0.07). Fully demoted + SHADOW_RETIRED_STRATEGIES.
     # ("sr_fib_confluence", "GBP_USD"),
-    ("session_time_bias", "EUR_USD"),
     ("vsg_jpy_reversal", "EUR_JPY"),
     ("bb_squeeze_breakout", "EUR_USD"),
     ("dt_sr_channel_reversal", "EUR_JPY"),

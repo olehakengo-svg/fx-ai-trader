@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-06-12 08:30 UTC
+**最終更新**: 2026-07-02 07:17 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | 1 | trendline_sweep | — | +0.574 | +0.838 |
 
-### A-2. PAIR_PROMOTED（25エントリ — 指定ペアのみ通過）
+### A-2. PAIR_PROMOTED（24エントリ — 指定ペアのみ通過）
 
 | # | 戦略名 | ペア | 365d BT EV |
 |---|---|---|---|
@@ -33,16 +33,15 @@
 | 13 | price_shock_rev_eur_gbp_h1_long | EUR_GBP | — |
 | 14 | price_shock_rev_nzd_jpy_h1_long | NZD_JPY | — |
 | 15 | price_shock_rev_usd_cad_h1_long | USD_CAD | — |
-| 16 | session_time_bias | EUR_USD | +0.251 |
-| 17 | squeeze_release_momentum | EUR_USD | — |
-| 18 | sr_fib_confluence | GBP_USD | — |
-| 19 | vix_carry_unwind | USD_JPY | +0.506 |
-| 20 | vol_momentum_scalp | EUR_JPY | — |
-| 21 | vsg_jpy_reversal | EUR_JPY | — |
-| 22 | wick_imbalance_reversion | GBP_USD | — |
-| 23 | xs_momentum_rsi | USD_JPY | — |
-| 24 | zz_pivot_v60_sr | EUR_USD | — |
-| 25 | zz_pivot_v60_sr_lo | EUR_USD | — |
+| 16 | squeeze_release_momentum | EUR_USD | — |
+| 17 | sr_fib_confluence | GBP_USD | — |
+| 18 | vix_carry_unwind | USD_JPY | +0.506 |
+| 19 | vol_momentum_scalp | EUR_JPY | — |
+| 20 | vsg_jpy_reversal | EUR_JPY | — |
+| 21 | wick_imbalance_reversion | GBP_USD | — |
+| 22 | xs_momentum_rsi | USD_JPY | — |
+| 23 | zz_pivot_v60_sr | EUR_USD | — |
+| 24 | zz_pivot_v60_sr_lo | EUR_USD | — |
 
 ## B. Shadow戦略（OANDA非通過 — デモのみ記録）
 
@@ -103,7 +102,7 @@
 | 13 | pd_eurjpy_h20_bbpb3_sell | なし |
 | 14 | post_news_vol | なし |
 | 15 | price_shock_reversion | なし |
-| 16 | session_time_bias | EUR_USD |
+| 16 | session_time_bias | なし |
 | 17 | squeeze_release_momentum | EUR_USD |
 | 18 | sr_weighted_bounce | なし |
 | 19 | sr_weighted_break | なし |
@@ -210,8 +209,8 @@
 
 ### ⚠️ WARN（3件）
 - QUICK_HARVEST_EXEMPT (hull_donchian_fade, EUR_USD) not in ELITE/PAIR_PROMOTED
-- No strategy file found for 'ob_retest'
 - No strategy file found for 'zz_pivot_v60_sr_lo'
+- No strategy file found for 'ob_retest'
 
 ### ℹ️ INFO（14件）
 - Legacy dead inline 'bb_bounce' assigned in app.py — no production firing in 30+ days. Candidate for removal.

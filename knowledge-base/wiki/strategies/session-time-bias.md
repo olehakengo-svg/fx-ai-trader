@@ -87,3 +87,17 @@ Data source: /api/demo/stats?date_from=2026-04-08 (2026-04-20)
 **Rollback**: `SESSION_TIME_BIAS_CELL_FILTER_V1=0` env flag bypasses filter.
 
 **30-day reconciliation target (2026-07-08)**: N>=60, mean>=+0.3p, Wilson_lo>=0.35.
+
+## 2026-07-02 LIVE残存経路封鎖 (rule:R2)
+
+**判断**: `("session_time_bias", "EUR_USD")` を `_PAIR_PROMOTED` から除去 + `_PAIR_SESSION_FILTER` の London エントリも整合性除去（GBP_USD 2026-06-07 と同型）。
+
+**根拠**:
+- 12y MASSIVE BT 全ペア REJECT (2026-06-11, audit-index) — E2/E8 stage=0 の根拠と同一
+- それにも関わらず 30d clean live N=18 WR=33.3% **-63.6pip（戦略別ワースト1位**, risk dashboard 2026-07-02, wilson_bf_lower=10.0)
+- リーク機構: PAIR_PROMOTED は `_UNIVERSAL_SENTINEL` の shadow 適格性を上書き (demo_trader L3950-3957) + regime gate 全免除 → cell 停止では閉じない
+- 2026-05-29 の London cell-conditional では止血できなかった（実測で反証）
+
+**Shadow は継続** (`_UNIVERSAL_SENTINEL` 残置、原則3)。**再昇格条件は R1 のみ**: 12y BT 通過 + Bonferroni + Pre-reg LOCK。
+
+回帰固定: `tests/test_cell_forensic_2026_05_29_pin.py::test_session_time_bias_eur_usd_removed_2026_07_02`
