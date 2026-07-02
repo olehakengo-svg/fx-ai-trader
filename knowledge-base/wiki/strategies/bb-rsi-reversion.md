@@ -182,3 +182,6 @@ clean N=780 の要因解析で確定。詳細: [[edge-factor-audit-2026-06-12-bb
 - 12y MASSIVE BT REJECT (2026-06-11, USD_JPY PF 0.66) と整合
 - E4 disable → USD_CHF hourly 漏れ (22件) → env バイパス可能な whitelist、と封じ込め 3 段が漏れ続けたため registry で不可逆化
 - 既存防御 (whitelist / per-cell registry / OANDA_TRIP) は残置
+
+## 2026-07-02 T10 判定: KILL (redesign不能)
+清浄shadow N=495 の因子分解 + 敵対検証で生存セルゼロ。構造的死因 = friction>edge (楽観上限マスクでも BE 天井)。**再試行禁止** (セル分割/フィルタ追加での再生禁止)。Shadow 収集は継続、LIVE 候補・redesign 工数はゼロ固定。詳細: [[bb-rsi-t10-kill-2026-07-02]]
