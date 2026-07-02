@@ -78,7 +78,17 @@ DISABLED_STAGE = 0
 #     KV stage=0 since 2026-06-04; this pins it against the default="1" reset.
 #     E2 (live_tier_exempt subset, Live EV≒+0.26) は据え置き。
 #     ref: knowledge-base/wiki/decisions/edge-cell-e8-demote-2026-06-25.md
-DISABLED_CELLS: frozenset[str] = frozenset({"E8"})
+#   E10 (wick_imbalance_reversion GBP_USD): disabled 2026-07-02 (rule:R2) —
+#     30d Live via E10 force-live: N=9 WR=22.2% (2W/7L) -52.5pip (prod trades
+#     API 2026-07-02). Pre-reg forensic 2026-06-22 independently identified
+#     E10 as the single dominant live loser (n=9 -50.0p; 9/9 losers fired at
+#     d1_label in {0,-1} = knife-catching). The edge-cell watchdog would have
+#     auto-demoted this (Live N>=10 EV<0) had it not been dead on the
+#     API_AUTH_TOKEN gap. Non-cell PAIR_PROMOTED wick fills stay live
+#     (30d n=3 +5.6p). Successor: D1-gated continuation variant via its own
+#     R1 pipeline (wick-imbalance-gbpusd-continuation-pre-reg-2026-06-22).
+#     ref: knowledge-base/wiki/decisions/live-bleeder-demotions-2026-07-02.md
+DISABLED_CELLS: frozenset[str] = frozenset({"E8", "E10"})
 
 
 def match(

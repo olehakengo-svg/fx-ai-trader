@@ -26,7 +26,6 @@
 | [[doji-breakout]] | GBP_USD, USD_JPY | GBP_USD: EV=+0.724 WR=78.3%; USD_JPY: EV=+0.338 WR=61.9% | PAIR_PROMOTED |
 | [[donchian-momentum-breakout]] | NZD_JPY, NZD_USD | no BT data | PAIR_PROMOTED |
 | [[dt-bb-rsi-mr]] | USD_JPY | EUR_USD: EV=-0.077 WR=52.0%; GBP_USD: EV=-0.135 WR=51.3%; USD_JPY: EV=-0.023 WR=54.2% | PAIR_PROMOTED |
-| [[dt-sr-channel-reversal]] | EUR_JPY | EUR_JPY: EV=+0.178 WR=63.8% | PAIR_PROMOTED |
 | [[ema200-trend-reversal]] | USD_JPY | EUR_USD: EV=+0.410 WR=75.0%; USD_JPY: EV=-0.183 WR=56.2% | PAIR_PROMOTED |
 | [[mqe-gbpusd-fix]] | GBP_USD | no BT data | PAIR_PROMOTED |
 | [[pivot-detector-v2-5]] | EUR_USD | no BT data | PAIR_PROMOTED |
@@ -43,14 +42,13 @@
 | [[vsg-jpy-reversal]] | EUR_JPY | no BT data | PAIR_PROMOTED |
 | [[wick-imbalance-reversion]] | GBP_USD | no BT data | PAIR_PROMOTED |
 | [[xs-momentum-rsi]] | USD_JPY | no BT data | PAIR_PROMOTED |
-| [[zz-pivot-v60-sr]] | EUR_USD | no BT data | PAIR_PROMOTED |
-| [[zz-pivot-v60-sr-lo]] | EUR_USD | no BT data | PAIR_PROMOTED |
 
 ### SHADOW (Data Collection)
 | Strategy | BT Data | Notes |
 |----------|---------|-------|
 | [[bb-rsi-reversion]] | no BT data | SCALP_SENTINEL |
 | [[dt-fib-reversal]] | EUR_JPY: EV=-0.199 WR=54.3%; EUR_USD: EV=+0.407 WR=80.0%; GBP_USD: EV=+0.374 WR=76.2% | UNIVERSAL_SENTINEL |
+| [[dt-sr-channel-reversal]] | EUR_JPY: EV=+0.178 WR=63.8% | UNIVERSAL_SENTINEL |
 | [[eurgbp-daily-mr]] | no BT data | UNIVERSAL_SENTINEL |
 | [[gbp-deep-pullback]] | GBP_USD: EV=+1.064 WR=75.3% | LOT_BOOST (not sentinel/elite) |
 | [[gotobi-fix]] | no BT data | UNIVERSAL_SENTINEL |

@@ -7786,7 +7786,13 @@ class DemoTrader:
         # ("session_time_bias", "GBP_USD"),    # 2026-06-01 cell-conditional, REMOVED 2026-06-07
         ("vsg_jpy_reversal", "EUR_JPY"),       # shadow N=20 EV=+1.82 PF=1.30
         ("bb_squeeze_breakout", "EUR_USD"),    # shadow N=14 EV=+0.01 PF=1.00
-        ("dt_sr_channel_reversal", "EUR_JPY"), # shadow N=12 EV=+14.28 PF=3.61
+        # REMOVED 2026-07-02 (rule:R2) live-bleeder demotion:
+        # ("dt_sr_channel_reversal", "EUR_JPY") — 30d clean live N=10 WR=40%
+        # -30.9pip (prod stats 2026-07-02). Promote basis was shadow N=12
+        # EV=+14.28 (small-N) + BT EV=+0.178 (marginal); live falsified it.
+        # Shadow continues via _UNIVERSAL_SENTINEL. Re-promote: R1 only.
+        # ref: knowledge-base/wiki/decisions/live-bleeder-demotions-2026-07-02.md
+        # ("dt_sr_channel_reversal", "EUR_JPY"),
         ("dt_bb_rsi_mr", "USD_JPY"),           # shadow N=10 EV=+8.51 PF=4.38
         # REMOVED v9.0: trendline_sweep → ELITE_LIVE (PAIR_PROMOTED redundant)
         # (was: EUR EV=+0.927 N=73 WR=80.8% PF=2.52 / GBP EV=+0.599 N=134 WR=73.1% PF=1.68)
@@ -7849,8 +7855,17 @@ class DemoTrader:
         #   zz_pivot_v60_sr (1.0x normal) / zz_pivot_v60_sr_lo (0.5x loser zone)
         # Memory: project_zz_pivot_v60_sr_live_queue_2026_05_28,
         #         feedback_size_lever_beats_skip_filter.
-        ("zz_pivot_v60_sr",    "EUR_USD"),
-        ("zz_pivot_v60_sr_lo", "EUR_USD"),
+        # REMOVED 2026-07-02 (rule:R2) live-bleeder demotion — supersedes the
+        # 2026-05-28 Path-B pre-reg withdrawal schedule (N=30 manual review)
+        # under Rule 2 (損失停止は N=10 で即断可) + user 2026-07-02 直接指示:
+        # 30d clean live N=11 WR=54.5% -30.5pip, mean -2.77 (prod stats
+        # 2026-07-02) — 損大利小 (losses -12.1/-10.5/-8.5 vs wins ~+1.8),
+        # original promote had NO MASSIVE BT (TV-only, Wilson_lo 0.434 FAIL).
+        # _lo variant demoted as the same-strategy unit (0 live fills 30d).
+        # Re-promote: R1 only (12y BT + Bonferroni + pre-reg LOCK).
+        # ref: knowledge-base/wiki/decisions/live-bleeder-demotions-2026-07-02.md
+        # ("zz_pivot_v60_sr",    "EUR_USD"),
+        # ("zz_pivot_v60_sr_lo", "EUR_USD"),
         # REMOVED v9.1: bb_squeeze_breakout×EUR_JPY — FORCE_DEMOTED (死コード)
         # REMOVED v9.1: macdh_reversal×EUR_JPY/GBP_JPY — FORCE_DEMOTED (死コード)
         # v2.1 SHADOW→PROMOTE: 365日BT正EV確認済み
@@ -7981,8 +7996,10 @@ class DemoTrader:
         # 動機: User explicit override per memory feedback_size_lever_beats_skip_filter (SIZE lever > SKIP filter).
         # Pre-reg withdrawal (manual review): N=30 WR<35% or PF<1.0 demote / MaxDD>1% / 14日連敗.
         # Memory: project_zz_pivot_v60_sr_live_queue_2026_05_28.
-        ("zz_pivot_v60_sr",    "EUR_USD"): 1.0,
-        ("zz_pivot_v60_sr_lo", "EUR_USD"): 0.5,
+        # REMOVED 2026-07-02 (rule:R2): paired with _PAIR_PROMOTED removal
+        # (inert without promotion, removed for code consistency).
+        # ("zz_pivot_v60_sr",    "EUR_USD"): 1.0,
+        # ("zz_pivot_v60_sr_lo", "EUR_USD"): 0.5,
         # 2026-05-27 (rule:R1-EXCEPTION): donchian × NZD pair revival, 1.0x full size.
         # User judgment (vix_carry 1.0x / Kalman D7 0.5x 前例と同系)。
         # Rule 1 未充足項目: N<30, BFlo<0.50, 365d BT 未実施 → discretionary edge override.

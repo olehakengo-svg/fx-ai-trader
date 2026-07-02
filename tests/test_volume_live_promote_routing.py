@@ -31,6 +31,9 @@ from tools import volume_live_promotion_watchdog as watchdog
 #   Shadow continues via _UNIVERSAL_SENTINEL. Re-promote: R1 only.
 #   See tests/test_cell_forensic_2026_05_29_pin.py +
 #   decisions/claude-codex-division-of-labor-2026-07-02.md session.
+# REMOVED 2026-07-02 (rule:R2 live-bleeder demotion):
+# - dt_sr_channel_reversal × EUR_JPY: 30d clean live N=10 WR=40% -30.9pip
+#   (prod stats 2026-07-02). See decisions/live-bleeder-demotions-2026-07-02.md.
 VOLUME_CELLS = [
     ("mqe_gbpusd_fix", "GBP_USD"),
     # REMOVED 2026-06-12 (rule:R2) Edge Factor Audit #5: sr_fib_confluence
@@ -39,7 +42,6 @@ VOLUME_CELLS = [
     # ("sr_fib_confluence", "GBP_USD"),
     ("vsg_jpy_reversal", "EUR_JPY"),
     ("bb_squeeze_breakout", "EUR_USD"),
-    ("dt_sr_channel_reversal", "EUR_JPY"),
     ("dt_bb_rsi_mr", "USD_JPY"),
 ]
 
