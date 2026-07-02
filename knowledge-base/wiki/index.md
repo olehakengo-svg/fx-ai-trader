@@ -2,7 +2,7 @@
 
 ## 🎯 最重要目標: 月利21.6% (数学的上限) への段階接近 — 2026-06-12 再設定
 **全施策の判断基準。これに寄与しない施策は後回し。**
-- 現在: **DD防御0.2x** (DD=**90.55%** NEW HIGH再開, defensive mode — 2026-06-25 evening) → 月利47%（BT推定、クリーンデータ蓄積中）
+- 現在: **DD防御0.2x** (DD=**98.2%** ⚠️⚠️⚠️ NEW HIGH — 100%接近, defensive mode — 2026-07-02) → 月利47%（BT推定、クリーンデータ蓄積中）
 - 旧目標「月利100%」「Phase 3 月利594%」は TP-HIT 12-cell 検証で数学的不可能と確定、user 承認で再設定 (roadmap v2.2 T12)
 - 詳細: **[[roadmap-v2.2-win-conversion]]** (LIVE負け→勝ち転換、2026-06-12) / 旧: [[roadmap-v2.1]]
 - 旧: [[roadmap-v2]] (v2.0) / [[roadmap-to-100pct]] (v1)
@@ -12,7 +12,7 @@
 - **[[audit-index]]** — `learning/` 18 audit ノード + MEMORY `project_*.md` 双方向マップ（次セッション Claude 必読、KB↔MEMORY 棲み分けルール記載）
 
 <!-- KB_PORTFOLIO_START -->
-## Current Portfolio (auto-synced, 2026-06-12)
+## Current Portfolio (auto-synced, 2026-07-02)
 
 ### ELITE_LIVE (never shadowed)
 | Strategy | BT Data | Status |
@@ -35,7 +35,6 @@
 | [[price-shock-rev-eur-gbp-h1-long]] | EUR_GBP | no BT data | PAIR_PROMOTED |
 | [[price-shock-rev-nzd-jpy-h1-long]] | NZD_JPY | no BT data | PAIR_PROMOTED |
 | [[price-shock-rev-usd-cad-h1-long]] | USD_CAD | no BT data | PAIR_PROMOTED |
-| [[session-time-bias]] | EUR_USD | EUR_USD: EV=+0.215 WR=69.6%; GBP_USD: EV=+0.113 WR=67.1%; USD_JPY: EV=+0.580 WR=79.0% | PAIR_PROMOTED |
 | [[squeeze-release-momentum]] | EUR_USD | EUR_USD: EV=+0.656 WR=73.3% | PAIR_PROMOTED |
 | [[sr-fib-confluence]] | GBP_USD | EUR_USD: EV=+0.103 WR=64.9%; USD_JPY: EV=+0.252 WR=67.7% | PAIR_PROMOTED |
 | [[vix-carry-unwind]] | USD_JPY | USD_JPY: EV=+0.212 WR=67.3% | PAIR_PROMOTED |
@@ -73,6 +72,7 @@
 | [[mtf-trend-follow-scalp]] | no BT data | SCALP_SENTINEL |
 | [[pd-eurjpy-h20-bbpb3-sell]] | no BT data | UNIVERSAL_SENTINEL |
 | [[price-shock-reversion]] | no BT data | UNIVERSAL_SENTINEL |
+| [[session-time-bias]] | EUR_USD: EV=+0.215 WR=69.6%; GBP_USD: EV=+0.113 WR=67.1%; USD_JPY: EV=+0.580 WR=79.0% | UNIVERSAL_SENTINEL |
 | [[sr-weighted-bounce]] | no BT data | UNIVERSAL_SENTINEL |
 | [[sr-weighted-break]] | no BT data | UNIVERSAL_SENTINEL |
 | [[streak-reversal]] | no BT data | shadow only |
@@ -109,26 +109,26 @@
 <!-- KB_PORTFOLIO_END -->
 
 ## System State (v9.5 / v2.1)
-- Defensive mode: **0.2x** (DD=**90.55%** / 905.5pip — ⚠️ **NEW HIGH resumed** (+0.43pp vs morning's 90.12% flat), eq_current=−$888.6 — Render API 2026-06-25 wiki-daily-update **evening re-run**; 30d Kelly=0.0% edge=**-27.77%** (eased +1.05pp from morning's -28.82% as window rolled forward; still ⚠️ vs 06-19 -24.75%); prev snapshot 06-19 DD 90.12% / edge -24.75%)
-- **CB RECOVERY 2026-06-04**: CB auto-triggered at 04:34 UTC (-30.4pip daily loss) → E1/E4/E8 (bb_rsi_reversion + session_time_bias cells) disabled (stage=0) + modes restarted at 06:24 UTC. Post-recovery: all signals shadow_tracking (confirmed). EDGE_CELL_ADMIN_TOKEN watchdog Bearer bug still pending Codex fix.
+- Defensive mode: **0.2x** (DD=**98.2%** / 982.0pip — ⚠️⚠️⚠️ **NEW HIGH — 100%接近** (+7.65pp vs 06-25 evening's 90.55%), eq_current=−$965.1 — Render API 2026-07-02 wiki-daily-update; 30d Kelly=0.0% edge=**-37.03%** (⚠️⚠️⚠️ -9.26pp worse, 7th straight deteriorating window); prev snapshot 06-25 evening DD 90.55% / edge -27.77%)
+- **CB RECOVERY 2026-06-04**: CB auto-triggered at 04:34 UTC (-30.4pip daily loss) → E1/E4/E8 (bb_rsi_reversion + session_time_bias cells) disabled (stage=0) + modes restarted at 06:24 UTC. Post-recovery: all signals shadow_tracking (confirmed). watchdog不作動の根本原因は 2026-07-02 に API_AUTH_TOKEN 値未投入と確定（下記 warning 行参照、user 設定待ち）.
 - HourlyEngine: **Activated 2026-05-18** — all H1 strategies (KSB+DMB+5 PriceShockRev) are Shadow-only via `_shadow_always`.
 - XAU: **Stopped** (v8.4) -- post-cutoff XAU loss = -2,280pip (102% of total loss)
-- FX-only post-cutoff (2026-04-08〜) — **2026-06-25 wiki-daily-update (evening re-run)** (demo/stats live only, is_shadow=false):
-  - Live only (is_shadow=0): **N=519** (+3 intraday vs morning's N=516: **2W/1L/0BE**), WR=43.0% (decided 45.8%), EV=-0.82, PnL=**-426.3pip** (−2.8pip intraday; **+3.2pip vs 2026-06-19**, ~6-day window — 06-20/21 weekend, no log 06-22/23/24); Wilson lower=41.4%, BF lower=38.5%
-  - 🟢 **1 LIVE filled 2026-06-24 17:27 UTC** (trendline_sweep → daytrade_gbpusd GBP_USD SELL 5000u, **oanda#541666** — first *confirmed* fill since 06-16/17/19 awaiting-fill sends; ELITE_LIVE pipeline executed). Evening audit window (09:38→11:47 UTC) = **0 LIVE, all 30 shadow_tracking** (#541666 aged out)
-  - 30d rolling (risk API): Kelly=**0.0%** ⚠️⚠️ (edge=**-27.77%** NEGATIVE, WR=48.62%, odds 0.485 — eased +1.05pp from morning's -28.82% as window rolled forward; still worse than 06-19 -24.75%); 30d attribution: **gross=net=-207.2pip** (n=109, friction 408.4pip/3.75 per-trade) — eased +4.3pip from morning's -211.5 as window advanced; directional edge still dominant. **Every 30d instrument negative — GBP_USD #1 drag -106.7 (mean -3.23); USD_JPY eased -39.3→-32.2 (#2 drag)**. MC tail eased: worst DD99 172.62→**170.42%**, median max DD(MC) 122.13→**118.30%**
+- FX-only post-cutoff (2026-04-08〜) — **2026-07-02 wiki-daily-update** (demo/stats live only, is_shadow=false):
+  - Live only (is_shadow=0): **N=542** (+23 fills vs 06-25 evening N=519: **11W/11L/1BE**, ~7-day window — no log 06-26〜07-01), WR=43.2% (+0.2pp, decided 46.0%), EV=**-0.96** (−0.14 ⚠️), PnL=**-521.1pip** (**−94.8pip ⚠️⚠️⚠️ steepest single-window drop in log** — even 11W/11L split but sized losses dominate); Wilson lower=41.7%, BF lower=38.9%
+  - 🔴 **2026-07-01 20:16 UTC "1 LIVE sent" は偽記録と判明（2026-07-02 forensic, rule:R3 修正済み）**: wick_imbalance_reversion GBP_USD BUY 5000u の `bridge_status=sent` 行は、bridge 内 daily_loss gate (−23.3pip) が**正しくブロックした後に呼び出し側 (demo_trader L6324) が無条件で書いた偽 'sent'**。実弾は出ていない（oanda_trade_id empty はそのため）。「sent+blocked twin」(06-16/17/19 同型) はこの二重書込みが正体。修正: open_trade() が受理/拒否を返す契約に変更、拒否時は 'sent' を書かず shadow へ降格（FLAG_DRIFT 汚染と gate-bypass resend を遮断）。tests/test_bridge_send_accept_contract.py で回帰固定。Audit window (07-01 18:12→07-02 05:02 UTC) = 偽sent 1 + blocked 1 + **28 shadow_tracking skipped**
+  - 30d rolling (risk API, n=112): Kelly=**0.0%** ⚠️⚠️⚠️ (edge=**-37.03%** NEGATIVE, WR=47.32%, odds 0.331 — −9.26pp worse, **7th straight deteriorating window**); 30d attribution: **gross=net=-321.7pip** (n=112, friction 462.3pip/4.13 per-trade) — **−114.5pip, steepest single-window gross drop**; directional edge dominant, friction also rose. **All 5 instruments negative & all worsened — GBP_USD #1 drag -139.9 (mean -3.33, n=42); EUR_USD #2 -84.4; EUR_JPY blew out -9.2→-46.0**. MC tail blew out: worst DD99 170.42→**227.92%**, median max DD(MC) 118.30→**175.08%**
   - **TRUE_LIVE** (`is_shadow=0 AND oanda_trade_id != ''`) SSOT — 2026-05-03 実測: **N=371** (incl BE) / **346** (WIN/LOSS), WR=39.89%, EV=-0.686, PnL=-254.6pip (see [[aggregate-kelly-decomposition-2026-05-03-corrigendum]])
   - FLAG_DRIFT (`is_shadow=0` だが OANDA未送信): N=140, WR=32.86%, PnL=-132.4pip (`raw/audits/oanda-passthrough-gap-2026-05-03.md` 由来 write-path bug)
-  - SHADOW (`is_shadow=1`): N≈7,935 (2026-06-25 evening demo/stats; prev 7,861 morning, +~74) — **Live 判断には混入禁止** (memory `feedback_live_vs_shadow_strict_separation`)
+  - SHADOW (`is_shadow=1`): N≈8,482 (2026-07-02 demo/stats; prev 7,935 06-25 evening, +~547) — **Live 判断には混入禁止** (memory `feedback_live_vs_shadow_strict_separation`)
   - 旧記載 "N=29 (`oanda_trade_id != ''`)" は **誤り** — 実態は `mode='daytrade'` only サブセット、SUPERSEDED by [[aggregate-kelly-decomposition-2026-05-03-corrigendum]]
-- Ruin probability: **0.0%** ✅ (MC sims — Render API 2026-06-25; ⚠️ median max DD(MC)=**122.13%** (>100%) from 103.74%, worst-case DD99=**172.62%** from 161.02% — MC tail kept widening; median final eq=881.0/init 1000)
-- Aggregate Kelly: **0.0%** ⚠️⚠️ (30d edge=-28.82%, WR=47.66% — ⚠️⚠️⚠️ deteriorating 6th window; TRUE_LIVE SSOT: N=371 raw=-0.69)
+- Ruin probability: **0.0%** ✅ (MC sims — Render API 2026-07-02; ⚠️⚠️ median max DD(MC)=**175.08%** (>100%) from 118.30%, worst-case DD99=**227.92%** from 170.42% — MC tail blew out; median final eq=826.82/init 1000)
+- Aggregate Kelly: **0.0%** ⚠️⚠️⚠️ (30d edge=-37.03%, WR=47.32%, odds 0.331 — deteriorating 7th window; DSR=0.0/haircut 100%/Sharpe -0.429/trials 15/n=112; TRUE_LIVE SSOT: N=371 raw=-0.69)
 - Aggregate Kelly decomposition 2026-05-03: 旧 doc は SUPERSEDED。新 SSOT: [[aggregate-kelly-decomposition-2026-05-03-corrigendum]] (TRUE_LIVE Strategy × Pair 出血ランキング、ELITE_LIVE `session_time_bias × GBP_USD` 出血特定)
 - ⚠️ Portfolio warnings: session_time_bias #1 PnL drag (N=30, WR=40%, -67.8pip); vwap_mean_reversion (N=11, WR=36.4%, -63.1pip ⚠️ high per-trade loss); bb_rsi_reversion (N=97, WR=38.1%, -43.5pip). All DSR 0.0 (haircut 100%).
 - ⚠️ Monitor anomaly 2026-06-11 02:13 UTC: rnb_usdjpy direction_filter=300 + daytrade hedge_block=209 + spike bypass 16049.8pip (price data artifact) — see `raw/trade-logs/2026-06-11-monitor.md`
-- ⚠️ EDGE_CELL_ADMIN_TOKEN unset on watchdog cron — Bearer bug, safety net silently inactive (Codex task pending)
+- ⚠️ watchdog safety net inactive — **root cause確定 2026-07-02**: コード/render.yamlは2026-06-07修正済みだが、cron `fx-ai-edge-cell-watchdog` に `API_AUTH_TOKEN` **値が未投入**（sync:false=dashboard手動入力の漏れ）。15分毎に exit 2 で全回失敗をRenderログで実測確認。EDGE_CELL_ADMIN_TOKEN 自体は設定済み。**残作業=user が Render dashboard で API_AUTH_TOKEN を設定**（ローカル.env値=本番一致をプローブ検証済み）。旧記載『Codex修正待ち』は幽霊タスクだった（queueに実体なし）→ scripts/check.py に幽霊pending検出を追加済み (2026-07-02)
 - ⚠️ sr_anti_hunt_bounce shadow data corruption: 100% null alpha_snapshot/edge_cell_id, 85% null sr_basis, pyarrow ImportError at 61% (regression 05-22→05-25)
-- Last updated: 2026-06-25 (wiki-daily-update auto — **evening re-run**, N=519/DD 90.55%; morning capture N=516/DD 90.12%); prev: 2026-06-19
+- Last updated: 2026-07-02 (wiki-daily-update auto, N=542/DD 98.2% ⚠️⚠️⚠️ NEW HIGH; ~7-day window, no log 06-26〜07-01); prev: 2026-06-25 evening
 - scalp_eurjpy: **Stopped** (v8.6) -- friction/ATR=43.6%, 構造的不可能
 - scalp_5m_eur / scalp_5m_gbp: **Active** (v8.6) -- 5m摩擦改善モード
 - New modes (v9.0): **daytrade_eurjpy**, **daytrade_gbpjpy**, **[[rnb-usdjpy]]** (all auto_start)
@@ -169,6 +169,7 @@
 - [[negative-strategy-stopping-rule]] -- Shadow 止血ルール Level A/B/C（Bayesian 基準）
 
 ## Session History
+- **2026-07-02 wiki-daily-update** — N=**542** (+23 fills vs 06-25 evening: **11W/11L/1BE** even split; ~7-day window, no log 06-26〜07-01), WR=43.2% (+0.2pp), decided 46.0%, EV=**-0.96** (−0.14 ⚠️), PnL=**-521.1pip** (**−94.8pip ⚠️⚠️⚠️ steepest single-window drop in log** — even W/L but sized losses dominate), DD=**98.2%** (+7.65pp ⚠️⚠️⚠️ **NEW HIGH — 100%接近**, eq=-$965.1 vs peak +$16.9), ruin=0.0% ✅. 30d Kelly edge **-37.03%** (from -27.77%, −9.26pp — **7th straight deteriorating window**, WR=47.32%, odds 0.331). **30d gross=net=-321.7pip** (from -207.2, **−114.5 steepest single-window gross drop**; n=112, friction 462.3pip/4.13, friction also rose). **All 5 instruments negative & all worsened**: GBP_USD #1 drag -139.9 (mean -3.33, n=42); EUR_USD #2 -84.4; EUR_JPY blew out -9.2→-46.0; USD_JPY -40.4; USD_CHF -11.0 flat. MC tail blew out: worst-case DD99=**227.92%**, median max DD(MC)=**175.08%**. 🔴 **1 LIVE sent (awaiting-fill) 07-01 20:16 UTC**: wick_imbalance_reversion GBP_USD BUY 5000u (`bridge_status=sent`, oanda_trade_id empty — demo twin blocked by daily_loss_limit −23.3pip, live bridge fired anyway). Landed on #1 drag pair via #3 cumulative-loser strategy (wick_imbalance -63.0pip WR35.7%). Audit (07-01 18:12→07-02 05:02) = 1 LIVE sent + 1 blocked + 28 shadow_tracking; strategies sr_break_retest(8)/squeeze_release_momentum(7) dominate shadow firing. Learning: 2 new adjustments id=90(06-30)/id=91(07-01) re-affirming sr_channel_reversal scalp blacklist (WR25%/EV-0.98). strategy_kelly: no positive-edge strategy. shadow_count≈8,482 (+547). EDGE_CELL_ADMIN_TOKEN Bearer bug + sr_anti_hunt_bounce corruption still unresolved.
 - **2026-06-25 wiki-daily-update (EOD / evening re-run)** — N=**519** (+3 intraday: **2W/1L/0BE**; +6 vs 06-19), WR=43.0% (+0.2pp), decided 45.8%, EV=-0.82, PnL=**-426.3pip** (−2.8pip vs morning's N=516 capture; **+3.2pip vs 06-19**), DD=**90.55%** (+0.43pp ⚠️ **NEW HIGH resumed** — morning's flat pause was one-window-only, eq=-$888.6), ruin=0.0% ✅. 30d Kelly edge **-27.77%** (eased +1.05pp from morning's -28.82%, WR=48.62%, odds 0.485 — window rolled past worse stretch; still worse than 06-19 -24.75%). **30d gross=net=-207.2pip** (n=109, friction 408.4pip/3.75; eased +4.3 from morning's -211.5). By-instrument 30d: GBP_USD #1 drag -106.7 (mean -3.23); USD_JPY eased -39.3→-32.2 (#2). MC tail eased: worst DD99=**170.42%**, median max DD(MC)=**118.30%**. Evening audit (09:38→11:47 UTC) = **0 LIVE, all 30 shadow_tracking** (#541666 aged out); session_time_bias dominates shadow firing 14/30 despite being #1 cumulative loser (-67.8). strategy_kelly: no positive-edge strategy. Morning capture (same day): N=516/-423.5pip/DD 90.12% flat/edge -28.82%; 1 LIVE filled 06-24 (trendline_sweep #541666). shadow_count≈7,935.
 - **2026-06-25 wiki-daily-update** — N=**516** (+3 fills: **3W/0L/0BE — all winners, breaks the 5-loss run**; ~6-day window vs 06-19, 06-20/21 weekend + no log 06-22/23/24), WR=42.8% (+0.3pp ✅), decided 45.7%, EV=-0.82 (+0.02 ✅), PnL=**-423.5pip** (**+6.0pip ✅ first cumulative improvement in recent log**), DD=**90.12%** (flat — **first non-NEW-HIGH in 5 snapshots** ✅, eq=-$884.3 unchanged), ruin=0.0% ✅. 30d Kelly edge **-28.82%** ⚠️⚠️⚠️ (from -24.75% — 6th straight deteriorating window, WR=47.66%, odds 0.493). **30d gross PnL -211.5pip** (-42.7→-70.1→-96.1→-113.8→-179.2→-211.5 over 6 windows) — gross/directional edge dominant, friction flat-to-down (397.7pip). ⚠️⚠️ **USD_JPY 30d blew out -1.4→-39.3pip** (#2 drag); GBP_USD eased -113.4→-108.7 but stays #1 (mean -3.40); all 5 instruments negative. 🟢 **1 LIVE filled 06-24 17:27 UTC**: trendline_sweep → daytrade_gbpusd GBP_USD SELL 5000u **oanda#541666** (first *confirmed* fill since the 06-16/17/19 awaiting-fill sends). MC tail kept widening: worst-case DD99=**172.62%**, median max DD(MC)=**122.13%**. The +3 wins landed on recovering losers (trendline_sweep -19.0→-17.0, wick_imbalance -59.3→-57.0, vsg_jpy_reversal -18.2→-15.8); strategy_kelly shows no positive-edge strategy this window (vix_carry_unwind dropped off). No new Learning adjustment since id=89 (06-19). shadow_count=7,861 (+346).
 - **2026-06-19 wiki-daily-update** — N=**513** (+5 fills: 0W/5L/0BE — all losing; 2-day window vs 06-17 evening, 06-18 was Month-End-fix pre-reg/REJECT), WR=42.5% (−0.4pp), decided 45.3%, EV=-0.84, PnL=**-429.5pip** (−51.7pip ⚠️⚠️ steepest cumulative drop in recent log), DD=**90.12%** (+3.48pp ⚠️⚠️ NEW HIGH — **90% barrier breached**, eq=-$884.3), ruin=0.0% ✅. 30d Kelly edge **-24.75%** ⚠️⚠️⚠️ (from -16.95% — 5th straight deteriorating window, WR=46.79%, odds 0.608). **30d gross PnL -179.2pip** (-42.7→-70.1→-96.1→-113.8→-179.2 over 5 windows, -65.4 steepest single-window drop) — gross/directional edge dominant & accelerating, friction now flat. ⚠️⚠️ **Every 30d instrument negative**: JPY crosses flipped (EUR_JPY +19.1→-5.3, USD_JPY +16.3→-1.4) — book's only positive anchors gone; GBP_USD blew out to **-113.4pip** (#1 drag, mean -3.54). MC tail blew out: worst-case DD99=**161.02%**, median max DD(MC)=**103.74%** (>100%). 🔴 3 LIVE sent 06-19 (dt_sr_channel_reversal EUR_JPY SELL 5000u + zz_pivot_v60_sr EUR_USD SELL 5000u ×2; demo gate blocked, live bridge sent). vix_carry_unwind +5.1→-12.6 & vsg_jpy_reversal +6.2→-18.2 flipped to losers; wick_imbalance -39.3→-59.3. Learning id=89 (06-19): sr_channel_reversal promoted to top-level blacklist. shadow_count=7,515 (+313).
@@ -193,6 +194,7 @@
 - [[sessions/handover-2026-04-22]] — **🎯 次セッション引き継ぎ** 2026-04-22 総括: TP-hit 分析 + Scalp vwap_mr バグ修正 + Exposure/Resend fix + OSS 横断調査/qlib/pybroker 転用
 - [[sessions/handover-tp-hit-quant-analysis-2026-04-21]] — **🎯 次セッション引き継ぎ #2** TP-hit 698件 quant 分析 (family-wise noise 結論、3副次発見: score 予測力ゼロ / confidence 負相関 / spread edge 有意)
 - [[sessions/2026-04-22-session]] — TP-hit quant 分析 (research only, 実装なし) + KB ドキュメンテーション強化
+- [[vwap-mr-live-analysis-2026-04-22]] — vwap_mr Live 分析 (Scalp vwap_mr バグ修正・kill-switch 判断の根拠データ)
 - [[sessions/handover-shadow-deep-analysis-2026-04-21]] — **🎯 次セッション引き継ぎ** Shadow 全戦略 TP/SL 分析 + 戦略分割
 - [[sessions/2026-04-21-session]] — Attack A (bb_squeeze×USD_JPY PAIR_PROMOTED) + Attack B (negative戦略止血条件) + Tier1 BT validation + Quant深部検証
 - [[sessions/2026-04-20-session]] — Sentinel score_gate bypass (P1) + N measurement fix (P3) + KB drift fix (P4) + shadow baseline analysis + resend-shadow-leak fix
@@ -245,6 +247,7 @@
 - [[bt-live-divergence-scan-2026-04-22]] / [[bt-live-divergence-v3-full-stack-2026-04-22]] — 365d JPY DT + 180d Scalp fresh BT
 
 ### Trade Logs
+- [[2026-07-02]] — daily summary (auto-generated 2026-07-02) — ⚠️⚠️⚠️ DD 98.2% NEW HIGH, PnL −94.8pip steepest drop
 - [[2026-06-25]] — daily summary (auto-generated 2026-06-25)
 - [[2026-06-19]] — daily summary (auto-generated 2026-06-19)
 - [[2026-06-17]] — daily summary (auto-generated 2026-06-17)

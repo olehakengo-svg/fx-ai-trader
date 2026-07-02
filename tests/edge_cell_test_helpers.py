@@ -23,6 +23,8 @@ class OandaMock:
         callback = kwargs.get("callback")
         if callback:
             callback(kwargs["demo_trade_id"], f"edge-e2e-{len(self.calls)}")
+        # 2026-07-02 send-accept contract: True = gates passed, send fired.
+        return True
 
 
 class ExposureMock:
