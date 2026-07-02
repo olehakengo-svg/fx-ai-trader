@@ -29,3 +29,6 @@ Support/resistance channel reversal for daytrade timeframe. Identifies horizonta
 ## Related
 - [[index]] — Tier classification
 - [[roadmap-v2.1]] — Portfolio strategy
+
+## 2026-07-02 LIVE demote (rule:R2)
+`(dt_sr_channel_reversal, EUR_JPY)` を `_PAIR_PROMOTED` から除去。30d clean live N=10 WR=40% -30.9pip (Wlo=16.8 BFlo=9.5, 本番実測 2026-07-02)。昇格根拠 (shadow N=12 EV=+14.28 small-N / BT EV=+0.178 marginal) を live が反証。Shadow 継続。再昇格は R1 のみ。詳細: [[live-bleeder-demotions-2026-07-02]]
