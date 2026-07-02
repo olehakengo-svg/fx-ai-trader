@@ -19,6 +19,8 @@ def test_detector_schema_reused_without_mutating_detector_module():
 
 def test_gbpjpy_parquet_exists_and_loads_real_bars():
     path = Path("data/cache/massive/GBP_JPY_5m.parquet")
+    from tests.conftest import require_data_file
+    require_data_file(path, "MASSIVE 5m integration")
     assert path.exists()
     df = pd.read_parquet(path)
     assert len(df) > 900_000
@@ -28,6 +30,8 @@ def test_gbpjpy_parquet_exists_and_loads_real_bars():
 
 
 def test_detector_generates_signal_from_real_gbpjpy_slice():
+    from tests.conftest import require_data_file
+    require_data_file("data/cache/massive/GBP_JPY_5m.parquet", "MASSIVE 5m integration")
     df = pd.read_parquet("data/cache/massive/GBP_JPY_5m.parquet").iloc[:80_000]
     signals = detector.detect_chart_patterns(df, pair="GBP_JPY", timeframe="M5")
     assert signals

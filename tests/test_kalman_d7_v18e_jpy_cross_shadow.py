@@ -66,8 +66,10 @@ def test_usdjpy_365d_golden_fixture_is_locked():
 
 
 def test_massive_recent_100_bars_entry_signal_matches_reference_port():
+    from tests.conftest import require_data_file
     for pair in ("AUD_JPY", "EUR_JPY"):
         path = ROOT / f"data/cache/massive/{pair}_15m.parquet"
+        require_data_file(path, "MASSIVE 15m integration")
         df = pd.read_parquet(path).tail(320)
 
         expected = add_v18e_indicators(df).tail(100)["entry_signal"].reset_index(drop=True)
@@ -80,6 +82,8 @@ def test_strategy_default_env_off_does_not_fire(monkeypatch):
     monkeypatch.delenv("KALMAN_D7_V18E_AUDJPY_SHADOW", raising=False)
     monkeypatch.delenv("KALMAN_D7_V18E_EURJPY_SHADOW", raising=False)
 
+    from tests.conftest import require_data_file
+    require_data_file(ROOT / "data/cache/massive/AUD_JPY_15m.parquet", "MASSIVE 15m integration")
     df = pd.read_parquet(ROOT / "data/cache/massive/AUD_JPY_15m.parquet").tail(320)
     enriched = add_kalman_d7_v18e_indicators(df)
     ctx = _ctx_from_data("AUD_JPY", enriched)
