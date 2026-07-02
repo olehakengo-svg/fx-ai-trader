@@ -105,6 +105,38 @@ def test_r2_shadow_demote_still_blocks_when_no_edge_cell(monkeypatch, tmp_path):
 
 
 def test_same_price_bypassed_when_edge_cell_matches(monkeypatch, tmp_path):
+    # 元々 E8 (session_time_bias EUR_USD LDN) で検証していたが、E8 は 2026-06-25
+    # (rule:R2) で code-level DISABLED (edge-cell-e8-demote-2026-06-25.md)。
+    # SAME_PRICE bypass 経路は active cell E4 (bb_rsi_reversion NY SELL) で維持。
+    _patch_price(monkeypatch, 1.1000)
+    trader, logs = make_trader(tmp_path, monkeypatch, hour=14)
+    _seed_same_price_shadow(
+        trader,
+        entry_type="seed_shadow",
+        instrument="EUR_USD",
+        price=1.1000,
+    )
+
+    trader._tick_entry(
+        "daytrade",
+        edge_cfg(),
+        _sell_sig("bb_rsi_reversion"),
+        "15m",
+        "EUR_USD",
+    )
+
+    row = _latest_trade(trader._db)
+    assert row["edge_cell_id"] == "E4"
+    assert row["is_shadow"] == 0
+    assert row["oanda_trade_id"]
+    assert not any("same_price_0pip" in key for key in trader._block_counts)
+    assert any("[SAME_PRICE] edge cell E4 bypass" in log for log in logs)
+    assert any("[EDGE_CELL] E4 shadow→live force override" in log for log in logs)
+
+
+def test_same_price_blocks_when_matched_cell_disabled(monkeypatch, tmp_path):
+    """E8 は match するが DISABLED (lot=0) のため pre-block eligibility を失い、
+    SAME_PRICE ブロックが通常どおり効く (rule:R2 止血, 2026-06-25)。"""
     _patch_price(monkeypatch, 1.1000)
     trader, logs = make_trader(tmp_path, monkeypatch, hour=8)
     _seed_same_price_shadow(
@@ -122,13 +154,11 @@ def test_same_price_bypassed_when_edge_cell_matches(monkeypatch, tmp_path):
         "EUR_USD",
     )
 
-    row = _latest_trade(trader._db)
-    assert row["edge_cell_id"] == "E8"
-    assert row["is_shadow"] == 0
-    assert row["oanda_trade_id"]
-    assert not any("same_price_0pip" in key for key in trader._block_counts)
-    assert any("[SAME_PRICE] edge cell E8 bypass" in log for log in logs)
-    assert any("[EDGE_CELL] E8 shadow→live force override" in log for log in logs)
+    rows = trader._db.get_open_trades()
+    assert len(rows) == 1
+    assert rows[0]["entry_type"] == "seed_shadow"
+    assert trader._block_counts["daytrade:same_price_0pip"] == 1
+    assert not any("[SAME_PRICE] edge cell E8 bypass" in log for log in logs)
 
 
 def test_same_price_still_blocks_when_no_edge_cell(monkeypatch, tmp_path):

@@ -1,5 +1,10 @@
 # Knowledge Base Change Log
 
+## 2026-07-02 (Edge Cell E8 code-level DISABLE 完結, rule:R2)
+- **新規**: [[edge-cell-e8-demote-2026-06-25]] (decisions/) — E8 (session_time_bias EUR_USD LDN broad) の code-level kill-switch `DISABLED_CELLS`。判断 2026-06-25 (Live N=8 EV=-3.51p / Shadow N=10 EV=-2.10p 両負) → fable5 audit P1-4 の指摘 (無タグ化 / doc 不在 / テスト7件 red) を反映してコミット完結
+- **コード**: `edge_cell_promote.py` DISABLED_CELLS (KV default="1" 再武装の遮断) + `demo_trader.py` edge_cell_id タグを match 適格性基準に変更 (watchdog 可視性 + shadow N 蓄積回復)。E2 は据え置き
+- **テスト**: E8 依存 bypass 検証 7 件を active cell (E3/E4) へ付け替え + E8 disabled 挙動の固定テスト 4 件追加。[[session-time-bias]] 戦略カード更新。監査 Phase A-1 完了
+
 ## 2026-07-02 (Fable5 大規模監査 + wiki-lint)
 - **新規**: [[fable5-system-audit-2026-07-02]] (decisions/) — 全システム監査 P0×2/P1×8/P2×9/P3×6 + Phase A/B/C 改善ロードマップ。session log Phase 2 に要約記録
 - **Lint 修正**: index.md Session History に [[vwap-mr-live-analysis-2026-04-22]] リンク追加 (check.py 警告解消)

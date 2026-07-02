@@ -79,6 +79,33 @@ def _persist_audit(trader):
 
 
 def test_shield_oanda_mode_block_bypassed_by_edge_cell(monkeypatch, tmp_path):
+    # 元々 E8 (session_time_bias EUR_USD LDN) で検証していたが、E8 は 2026-06-25
+    # (rule:R2) で code-level DISABLED (edge-cell-e8-demote-2026-06-25.md)。
+    # SHIELD mode-block bypass 経路は active cell E3 (dt_bb_rsi_mr EUR_USD SELL)
+    # で維持。E8 側は test_e8_disabled_cell_does_not_bypass_shield が固定。
+    _patch_price(monkeypatch, 1.1000)
+    trader, logs = make_trader(tmp_path, monkeypatch, hour=8)
+    trader._OANDA_MODE_BLOCKED = frozenset({"daytrade_eur"})
+
+    trader._tick_entry(
+        "daytrade_eur",
+        edge_cfg(),
+        _sell_sig("dt_bb_rsi_mr"),
+        "15m",
+        "EUR_USD",
+    )
+
+    row = _latest_trade(trader._db)
+    assert row["edge_cell_id"] == "E3"
+    assert row["is_shadow"] == 0
+    assert row["oanda_trade_id"]
+    assert trader._oanda.calls
+    assert any("[SHIELD] EDGE_CELL bypass: E3 dt_bb_rsi_mr mode=daytrade_eur" in log for log in logs)
+
+
+def test_e8_disabled_cell_does_not_bypass_shield(monkeypatch, tmp_path):
+    """E8 は match するが DISABLED (lot=0) — SHIELD bypass せず shadow に留まる。
+    edge_cell_id タグは match 適格性基準で残る (fable5 audit 2026-07-02 P1-4)。"""
     _patch_price(monkeypatch, 1.1000)
     trader, logs = make_trader(tmp_path, monkeypatch, hour=8)
     trader._OANDA_MODE_BLOCKED = frozenset({"daytrade_eur"})
@@ -93,10 +120,10 @@ def test_shield_oanda_mode_block_bypassed_by_edge_cell(monkeypatch, tmp_path):
 
     row = _latest_trade(trader._db)
     assert row["edge_cell_id"] == "E8"
-    assert row["is_shadow"] == 0
-    assert row["oanda_trade_id"]
-    assert trader._oanda.calls
-    assert any("[SHIELD] EDGE_CELL bypass: E8 session_time_bias mode=daytrade_eur" in log for log in logs)
+    assert row["is_shadow"] == 1
+    assert not row["oanda_trade_id"]
+    assert not trader._oanda.calls
+    assert not any("[SHIELD] EDGE_CELL bypass" in log for log in logs)
 
 
 def test_shield_oanda_mode_block_fires_when_no_edge_cell(monkeypatch, tmp_path):
@@ -130,25 +157,27 @@ def test_shield_oanda_mode_block_fires_when_no_edge_cell(monkeypatch, tmp_path):
 
 
 def test_aggregate_kelly_gate_bypassed_by_edge_cell(monkeypatch, tmp_path):
+    # E8 DISABLED (2026-06-25 rule:R2) につき active cell E3 で Kelly bypass
+    # 経路を維持 (edge-cell-e8-demote-2026-06-25.md)。
     _patch_price(monkeypatch, 1.1000)
     trader, logs = make_trader(tmp_path, monkeypatch, hour=8)
-    trader._strategy_n_cache = {"session_time_bias": 20}
+    trader._strategy_n_cache = {"dt_bb_rsi_mr": 20}
     trader._get_aggregate_kelly = lambda: -0.25
 
     trader._tick_entry(
         "daytrade",
         edge_cfg(),
-        session_time_bias_sell_sig(1.1000),
+        _sell_sig("dt_bb_rsi_mr"),
         "15m",
         "EUR_USD",
     )
 
     row = _latest_trade(trader._db)
-    assert row["edge_cell_id"] == "E8"
+    assert row["edge_cell_id"] == "E3"
     assert row["is_shadow"] == 0
     assert row["oanda_trade_id"]
     assert trader._oanda.calls
-    assert any("[SHIELD] EDGE_CELL Kelly bypass: E8 session_time_bias" in log for log in logs)
+    assert any("[SHIELD] EDGE_CELL Kelly bypass: E3 dt_bb_rsi_mr" in log for log in logs)
     assert not any("[SHIELD] Aggregate Kelly gate" in log for log in logs)
 
 

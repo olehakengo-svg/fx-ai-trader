@@ -5554,9 +5554,14 @@ class DemoTrader:
                 mtf_gate_action=_mtf_gate_action or "",
             )
             if _edge_cell is not None:
+                # Tag by match eligibility, NOT by lot>0: DISABLED_CELLS rows
+                # (lot=0, e.g. E8) must keep per-cell attribution so the
+                # watchdog (is_shadow=0 only) stays sighted and shadow N keeps
+                # accumulating for re-promotion judgement (fable5 audit
+                # 2026-07-02 P1-4). Only the force-live override is lot-gated.
+                _edge_cell_id = _edge_cell.cell_id
                 _edge_cell_lot = edge_cell_promote.get_cell_lot(_edge_cell.cell_id, self._db)
                 if _edge_cell_lot > 0:
-                    _edge_cell_id = _edge_cell.cell_id
                     _edge_cell_force_live = True
         except Exception as _edge_exc:
             self._add_log(f"[EDGE_CELL] match failed: {_edge_exc}")

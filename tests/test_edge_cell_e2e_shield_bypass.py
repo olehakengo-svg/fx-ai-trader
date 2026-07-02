@@ -101,15 +101,20 @@ def test_e2e_edge_cells_bypass_shield_mode_and_aggregate_kelly(monkeypatch, tmp_
             "EUR_USD",
         )
 
+    # E8 は 2026-06-25 (rule:R2) で code-level DISABLED — force-live override が
+    # 外れ、SHIELD mode block / Kelly gate の bypass も発生しない。シグナルは
+    # shadow に落ちる (E8 タグは match 適格性基準で残る、OANDA 送信ゼロ)。
+    # shadow slot 上限 2/mode/pair のため 3 連射のうち 2 件が row 化する。
+    # ref: knowledge-base/wiki/decisions/edge-cell-e8-demote-2026-06-25.md
     e8_rows = _rows(e8_trader._db)
-    assert len(e8_rows) == 3
+    assert len(e8_rows) == 2
     assert all(row["edge_cell_id"] == "E8" for row in e8_rows)
-    assert all(row["is_shadow"] == 0 for row in e8_rows)
-    assert all(row["oanda_trade_id"] for row in e8_rows)
-    assert len(e8_trader._oanda.calls) == 3
-    assert sum("[EDGE_CELL] E8 shadow→live force override" in log for log in e8_logs) == 3
-    assert sum("[SHIELD] EDGE_CELL bypass: E8 session_time_bias mode=daytrade_eur" in log for log in e8_logs) == 3
-    assert sum("[SHIELD] EDGE_CELL Kelly bypass: E8 session_time_bias" in log for log in e8_logs) == 3
+    assert all(row["is_shadow"] == 1 for row in e8_rows)
+    assert all(not row["oanda_trade_id"] for row in e8_rows)
+    assert not e8_trader._oanda.calls
+    assert not any("[EDGE_CELL] E8 shadow→live force override" in log for log in e8_logs)
+    assert not any("[SHIELD] EDGE_CELL bypass: E8" in log for log in e8_logs)
+    assert not any("[SHIELD] EDGE_CELL Kelly bypass: E8" in log for log in e8_logs)
 
     e3_dir = tmp_path / "e3"
     e3_dir.mkdir()
