@@ -1,5 +1,16 @@
 # Knowledge Base Change Log
 
+## 2026-06-25 (wiki-daily-update 🌙 evening re-run): 同日2回目の自動スケジュールタスク
+- **背景**: 本日2回目の wiki-daily 実行 (夜 ~20:46 JST / 11:46 UTC)。朝の実行 (N=516 / -423.5pip / DD 90.12% flat) 以降、当日データが進行。以下 delta は **朝のキャプチャ比**。
+- **Daily trade log**: `raw/trade-logs/2026-06-25.md` に「🌙 Evening Re-run」セクション追記 — live N=516→**519** (+3 intraday: **2W/1L/0BE**), WR=42.8→**43.0%** (+0.2pp), decided 45.7→45.8%, EV=-0.82 (flat), PnL=-423.5→**-426.3pip** (-2.8pip intraday / **+3.2pip vs 06-19**), Wilson lower=41.3→41.4%/BF=38.4→38.5%
+- **wiki/index.md**: System State + Session History (EOD化) — DD=90.12→**90.55%** ⚠️ (+0.43pp **NEW HIGH resumed** — 朝の flat pause は1窓限り, eq=-$884.3→**-$888.6** / -$4.3, peak +$16.90 不変); 30d Kelly edge=-28.82→**-27.77%** (window roll で +1.05pp eased, WR 48.62%, odds 0.485 — ただし 06-19 -24.75% よりは悪い); 30d gross=net=-211.5→**-207.2pip** (n=107→109, friction 397.7→408.4pip/3.75 per-trade, +4.3 eased); worst DD99=172.62→**170.42%**, median max DD(MC)=122.13→**118.30%** (共に eased); shadow≈7,861→**7,935** (+~74); last_updated に evening re-run 注記
+- **OANDA audit**: 最新30件 (2026-06-25 09:38 → 11:47 UTC) — **0 LIVE / 全件 bridge_status=skipped / block_reason=shadow_tracking**。朝の confirmed live fill (trendline_sweep #541666, 06-24 17:27 UTC) は latest-30 window から脱落。instruments: GBP_USD(11)/EUR_USD(10)/GBP_JPY(6)/EUR_JPY(1)/EUR_GBP(1)/USD_JPY(1)。strategies: **session_time_bias(14)**/dt_sr_channel_reversal(4)/trendline_sweep(3)/sr_break_retest(2)/engulfing_bb(2)+singles
+- **30d by-instrument**: GBP_USD **-106.7pip** (mean -3.23) #1 drag 継続; USD_JPY -39.3→**-32.2** (#2, window roll で eased); EUR_USD -48.1 / EUR_JPY -9.2 / USD_CHF -11.0。全5ペア negative 継続
+- **Learning API**: 朝と変化なし。最新自動調整=2026-06-19 (id=89) `sr_channel_reversal` top-level blacklist。新規調整なし
+- **Strategy pages**: 更新なし (tier 変更なし; top-mover 表は朝から ~flat)
+- **主要観察**: ⚠️ DD NEW HIGH 90.55% 再開 (朝の flat pause は崩れた、実現損失 process 再開); ⚠️ PnL -2.8pip intraday (+3 fills 2W/1L); ✅ 30d rolling-risk は window roll で全面 eased (edge/gross/MC tail); ✅ USD_JPY 30d -39.3→-32.2 eased; 🔴 0 LIVE this window, session_time_bias が shadow firing を支配 (14/30) も #1 cumulative loser; ⚠️ strategy_kelly positive-edge 戦略ゼロ継続; ✅ ruin 0.0%維持; ⚠️ EDGE_CELL_ADMIN_TOKEN Bearer bug + sr_anti_hunt_bounce shadow corruption 未修正
+- **Lint**: WR/PnL/DD は trade-log↔index↔log 間で EOD 値 (N=519/WR43.0%/PnL-426.3/DD90.55%) で一貫。朝の中間値 (N=516) は各所で「morning capture」と明示し区別。[[2026-06-25]] trade-log リンク=既存 (line 248)。oanda_audit twin-meaning 参照は plain text 化。データ当日取得 (2026-06-25 夜)、陳腐化なし。live N=519 は demo/stats live_count、TRUE_LIVE SSOT (N=371) とは別系統 (既存注記の通り)
+
 ## 2026-06-25 (wiki-daily-update): 自動スケジュールタスク
 - **Daily trade log**: `raw/trade-logs/2026-06-25.md` 作成 — 06-19 以来初のフル日次ログ (06-20/21 週末、06-22/23/24 ログなし、~6日窓)。post-cutoff live N=**516** (+3 fills: **3W/0L/0BE — 全勝、5連敗 run を解消** ✅), WR=42.8% (+0.3pp ✅, decided 45.7%), EV=-0.82 (+0.02 ✅), PnL=**-423.5pip** (**+6.0pip ✅ recent log 初の累積改善**), Wilson lower=41.3%/BF=38.4% (+0.4pp)
 - **🟢 1 LIVE filled (06-24 17:27 UTC)**: `trendline_sweep`→daytrade_gbpusd GBP_USD SELL 5000u, **oanda#541666** (`bridge_status=filled`, oanda_trade_id 非空) — 06-16/17/19 の awaiting-fill sends 以来初の *確定* live fill。ELITE_LIVE pipeline 実執行。GBP_USD (book 最悪 30d drag pair) に着弾
