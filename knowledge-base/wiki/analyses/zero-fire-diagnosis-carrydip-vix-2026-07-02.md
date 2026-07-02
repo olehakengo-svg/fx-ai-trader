@@ -116,7 +116,7 @@ Overlap 窓内シグナル 4 件の帰結:
 |---|---|---|---|
 | P-V1 | **pilot 判定タイムラインの明文化**: 期待レート月 ~2 件 → demote gate (Cell-Live N≥10) 到達に **~5 ヶ月**。この速度を許容するか、pre-reg 修正 (窓拡張 or 判定 N 引下げ) を出すかの user 決裁 | R2 判断は user | 窓拡張は「負けセル London を再導入しない」制約付き (06-15 決裁と矛盾しないこと) |
 | P-V2 | Kelly gate クリップバグ修正 (`kelly_criterion` に raw 値を追加 or gate 側で raw 計算) + **pilot との interplay を同一 pre-reg で決裁** | R3 (バグ) + R2 (interplay) | §2.4。単独 fix 禁止 |
-| P-V3 | `_is_promoted` の mode=live/sentinel 早期 return が session filter を bypass する構造に guard + 回帰テスト。**→ 実装済み (2026-07-02, rule:R3)**: `_promotion_allows_live()` を method として抽出 (pre-reg 文書の呼称をそのまま実装) し、手動昇格経路にも適用。filter 未登録戦略の手動昇格は従来どおり無条件。現本番は mode=auto のため当日挙動デルタなし | R3 | §2.1 ⚠️。tests/test_session_filter_promotion_guard.py 13 cases |
+| P-V3 | `_is_promoted` の mode=live/sentinel 早期 return が session filter を bypass する構造に guard + 回帰テスト。**→ 実装済み (2026-07-02, rule:R3)**: `_promotion_allows_live()` を method として抽出 (pre-reg 文書の呼称をそのまま実装) し、手動昇格経路にも適用。filter 未登録戦略の手動昇格は従来どおり無条件。現本番は mode=auto のため当日挙動デルタなし | R3 | §2.1 ⚠️。tests/test_session_filter_promotion_guard.py 17 cases (誤帰属防止 _is_promoted_ex 4 cases 含む) |
 | P-V4 | session filter 窓外 block の観測性。**→ 実装済み (2026-07-02, rule:R3)**: audit `block_reason="shadow_tracking(session_filter_out)"` (prefix 互換) + `_block_counts` に `{mode}:session_filter_live_block` 増分 + drift guard を startswith 対応 | R3 | 05-29 型の「窓内 shadow 原因不明」を今後は即答可能に |
 
 ---
