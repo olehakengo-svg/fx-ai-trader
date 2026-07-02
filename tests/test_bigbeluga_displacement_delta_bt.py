@@ -92,7 +92,8 @@ def test_stats_entry_is_next_h1_open_and_exit_is_t_plus_one_plus_horizon():
 def test_bigbeluga_integration_uses_real_massive_m5_parquet():
     cache_dir = Path("data/cache/massive")
     parquet = cache_dir / "USD_JPY_5m.parquet"
-    assert parquet.exists(), "real MASSIVE M5 parquet is required; mock-only test is forbidden"
+    from tests.conftest import require_data_file
+    require_data_file(parquet, "MASSIVE M5 integration; mock-only forbidden")
     loaded = bt.load_m5(cache_dir, "USD_JPY")
     assert loaded.source_path == parquet
     assert loaded.schema == "lower"

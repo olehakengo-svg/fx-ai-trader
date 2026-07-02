@@ -119,11 +119,19 @@ def test_engine_registers_strategy():
     assert "zz_pivot_v60_sr" in names
 
 
-def test_pair_lot_boost_registration():
-    """SizeReduce mechanism: dual entry_type with 1.0x / 0.5x multipliers."""
+def test_pair_lot_boost_removed_2026_07_02():
+    """LIVE demote 2026-07-02 (rule:R2): 30d clean live N=11 WR=54.5% -30.5pip.
+
+    _PAIR_PROMOTED and the paired lot-boost entries were removed (supersedes
+    the 2026-05-28 Path-B pre-reg N=30 withdrawal schedule under Rule 2 +
+    user 2026-07-02 direction). Shadow continues; re-promote is R1-only.
+    See decisions/live-bleeder-demotions-2026-07-02.md.
+    """
     from modules.demo_trader import DemoTrader
-    assert DemoTrader._PAIR_LOT_BOOST.get(("zz_pivot_v60_sr", "EUR_USD")) == 1.0
-    assert DemoTrader._PAIR_LOT_BOOST.get(("zz_pivot_v60_sr_lo", "EUR_USD")) == 0.5
+    assert ("zz_pivot_v60_sr", "EUR_USD") not in DemoTrader._PAIR_PROMOTED
+    assert ("zz_pivot_v60_sr_lo", "EUR_USD") not in DemoTrader._PAIR_PROMOTED
+    assert ("zz_pivot_v60_sr", "EUR_USD") not in DemoTrader._PAIR_LOT_BOOST
+    assert ("zz_pivot_v60_sr_lo", "EUR_USD") not in DemoTrader._PAIR_LOT_BOOST
 
 
 def test_rci_computation():

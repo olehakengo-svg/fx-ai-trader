@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-06-12 08:30 UTC
+**最終更新**: 2026-07-02 09:00 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | 1 | trendline_sweep | — | +0.574 | +0.838 |
 
-### A-2. PAIR_PROMOTED（25エントリ — 指定ペアのみ通過）
+### A-2. PAIR_PROMOTED（21エントリ — 指定ペアのみ通過）
 
 | # | 戦略名 | ペア | 365d BT EV |
 |---|---|---|---|
@@ -24,25 +24,21 @@
 | 4 | donchian_momentum_breakout | NZD_JPY | — |
 | 5 | donchian_momentum_breakout | NZD_USD | — |
 | 6 | dt_bb_rsi_mr | USD_JPY | — |
-| 7 | dt_sr_channel_reversal | EUR_JPY | — |
-| 8 | ema200_trend_reversal | USD_JPY | — |
-| 9 | mqe_gbpusd_fix | GBP_USD | — |
-| 10 | pivot_detector_v2_5 | EUR_USD | — |
-| 11 | price_shock_rev_aud_jpy_h1_long | AUD_JPY | — |
-| 12 | price_shock_rev_eur_aud_h1_long | EUR_AUD | — |
-| 13 | price_shock_rev_eur_gbp_h1_long | EUR_GBP | — |
-| 14 | price_shock_rev_nzd_jpy_h1_long | NZD_JPY | — |
-| 15 | price_shock_rev_usd_cad_h1_long | USD_CAD | — |
-| 16 | session_time_bias | EUR_USD | +0.251 |
-| 17 | squeeze_release_momentum | EUR_USD | — |
-| 18 | sr_fib_confluence | GBP_USD | — |
-| 19 | vix_carry_unwind | USD_JPY | +0.506 |
-| 20 | vol_momentum_scalp | EUR_JPY | — |
-| 21 | vsg_jpy_reversal | EUR_JPY | — |
-| 22 | wick_imbalance_reversion | GBP_USD | — |
-| 23 | xs_momentum_rsi | USD_JPY | — |
-| 24 | zz_pivot_v60_sr | EUR_USD | — |
-| 25 | zz_pivot_v60_sr_lo | EUR_USD | — |
+| 7 | ema200_trend_reversal | USD_JPY | — |
+| 8 | mqe_gbpusd_fix | GBP_USD | — |
+| 9 | pivot_detector_v2_5 | EUR_USD | — |
+| 10 | price_shock_rev_aud_jpy_h1_long | AUD_JPY | — |
+| 11 | price_shock_rev_eur_aud_h1_long | EUR_AUD | — |
+| 12 | price_shock_rev_eur_gbp_h1_long | EUR_GBP | — |
+| 13 | price_shock_rev_nzd_jpy_h1_long | NZD_JPY | — |
+| 14 | price_shock_rev_usd_cad_h1_long | USD_CAD | — |
+| 15 | squeeze_release_momentum | EUR_USD | — |
+| 16 | sr_fib_confluence | GBP_USD | — |
+| 17 | vix_carry_unwind | USD_JPY | +0.506 |
+| 18 | vol_momentum_scalp | EUR_JPY | — |
+| 19 | vsg_jpy_reversal | EUR_JPY | — |
+| 20 | wick_imbalance_reversion | GBP_USD | — |
+| 21 | xs_momentum_rsi | USD_JPY | — |
 
 ## B. Shadow戦略（OANDA非通過 — デモのみ記録）
 
@@ -90,7 +86,7 @@
 |---|---|---|
 | 1 | doji_breakout | GBP_USD, USD_JPY |
 | 2 | dt_fib_reversal | なし |
-| 3 | dt_sr_channel_reversal | EUR_JPY |
+| 3 | dt_sr_channel_reversal | なし |
 | 4 | eurgbp_daily_mr | なし |
 | 5 | gotobi_fix | なし |
 | 6 | kalman_d7_ema75_break | なし |
@@ -103,7 +99,7 @@
 | 13 | pd_eurjpy_h20_bbpb3_sell | なし |
 | 14 | post_news_vol | なし |
 | 15 | price_shock_reversion | なし |
-| 16 | session_time_bias | EUR_USD |
+| 16 | session_time_bias | なし |
 | 17 | squeeze_release_momentum | EUR_USD |
 | 18 | sr_weighted_bounce | なし |
 | 19 | sr_weighted_break | なし |
@@ -163,7 +159,7 @@
 | 6 | price_shock_reversion | NZD_USD | Shadow candidate; Live promotion disabled in this task |
 | 7 | price_shock_reversion | EUR_AUD | Shadow candidate; Live promotion disabled in this task |
 
-### B-5. Phase0 Shadow Gate（38戦略 — 自動Shadow）
+### B-5. Phase0 Shadow Gate（39戦略 — 自動Shadow）
 
 | # | 戦略名 | mode | 理由 |
 |---|---|---|---|
@@ -205,13 +201,13 @@
 | 36 | usdjpy_carry_dip_accumulator | hourly | PP/EL未指定 → 自動Shadow |
 | 37 | vdr_jpy | daytrade | PP/EL未指定 → 自動Shadow |
 | 38 | xs_momentum | daytrade | PAIR_DEMOTED: EUR_USD, GBP_USD, USD_JPY |
+| 39 | zz_pivot_v60_sr | daytrade | PP/EL未指定 → 自動Shadow |
 
 ## C. 整合性チェック結果
 
-### ⚠️ WARN（3件）
+### ⚠️ WARN（2件）
 - QUICK_HARVEST_EXEMPT (hull_donchian_fade, EUR_USD) not in ELITE/PAIR_PROMOTED
 - No strategy file found for 'ob_retest'
-- No strategy file found for 'zz_pivot_v60_sr_lo'
 
 ### ℹ️ INFO（14件）
 - Legacy dead inline 'bb_bounce' assigned in app.py — no production firing in 30+ days. Candidate for removal.
