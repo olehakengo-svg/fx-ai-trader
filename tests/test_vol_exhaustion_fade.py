@@ -59,7 +59,8 @@ def test_stats_gates_and_wf_shape_for_synthetic_cell():
 def test_integration_uses_real_massive_usdjpy_m5_parquet():
     cache_dir = Path("data/cache/massive")
     parquet = cache_dir / "USD_JPY_5m.parquet"
-    assert parquet.exists(), "real MASSIVE parquet is required; mock-only test is forbidden"
+    from tests.conftest import require_data_file
+    require_data_file(parquet, "MASSIVE M5 integration; mock-only forbidden")
     df, source_path = bt.load_usdjpy_m5(cache_dir)
     assert source_path == parquet
     assert len(df) > 100_000

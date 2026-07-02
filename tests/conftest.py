@@ -80,3 +80,25 @@ def flask_client():
     app.config["TESTING"] = True
     with app.test_client() as client:
         yield client
+
+
+def require_data_file(path, reason="integration data"):
+    """Skip (not fail) when a large untracked data file is absent.
+
+    The MASSIVE *_5m* parquets (~20MB+) are intentionally untracked, so they
+    exist on dev machines but not in CI checkouts. Before 2026-07-02 these
+    tests hard-asserted existence, which kept main's CI red since ~06-12 and
+    silently disabled the CI merge gate. Skipping keeps the "mock-only test
+    is forbidden" intent (the test never runs against fakes) while letting
+    data-less environments pass. Set FX_REQUIRE_DATA=1 (dev machines / data
+    CI) to turn a missing file back into a hard failure.
+    """
+    import os
+    from pathlib import Path as _Path
+    import pytest as _pytest
+    p = _Path(path)
+    if not p.exists():
+        if os.environ.get("FX_REQUIRE_DATA", "0") == "1":
+            _pytest.fail(f"required data file missing: {p} ({reason})")
+        _pytest.skip(f"data file not available in this environment: {p} ({reason})")
+    return p

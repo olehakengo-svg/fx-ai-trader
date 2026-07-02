@@ -61,7 +61,8 @@ def test_stats_gates_include_direction_null():
 
 def test_integration_uses_real_massive_usdjpy_m5_parquet():
     parquet = Path("data/cache/massive/USD_JPY_5m_2014_2026.parquet")
-    assert parquet.exists(), "real MASSIVE parquet is required; mock-only test is forbidden"
+    from tests.conftest import require_data_file
+    require_data_file(parquet, "MASSIVE M5 integration; mock-only forbidden")
     df, source_path = bt.load_usdjpy_m5(parquet)
     assert source_path == parquet
     assert len(df) > 900_000
