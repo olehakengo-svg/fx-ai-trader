@@ -2624,6 +2624,20 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                          ) or not (hasattr(c, 'signal') and c.signal == _blocked_dir)]
         _htf_blocked_count = len(_dt_candidates) - len(_htf_filtered)
         if _htf_blocked_count > 0:
+            # 2026-07-02 zero-fire 診断: logging.info は Render ログに出ない
+            # (print のみ可視) ため、sweep_reversion_eurgbp_late の 4 emit が
+            # ここで消えていたことが 20 日間観測不能だった。blocked candidate
+            # の entry_type を print で明示し、grep "HTF_HARD_BLOCK" で
+            # silent drop を事後追跡可能にする (counter/DB は別提案 P-S2)。
+            _htf_blocked_names = [
+                getattr(c, "entry_type", "?") for c in _dt_candidates
+                if c not in _htf_filtered
+            ]
+            print(
+                f"[DTE] HTF_HARD_BLOCK {symbol} htf={htf_agreement}: "
+                f"{_htf_blocked_count} blocked -> {','.join(_htf_blocked_names)}",
+                flush=True,
+            )
             import logging as _dte_htf_log
             _dte_htf_log.getLogger(__name__).info(
                 "[DTE] HTF Hard Block: %d candidates blocked (htf=%s, pair=%s)",

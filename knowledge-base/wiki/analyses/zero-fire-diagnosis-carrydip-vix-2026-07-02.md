@@ -14,6 +14,7 @@
 | vix Overlap pilot live fill 0 (06-18〜) | **Overlap 窓 (UTC12-16) にシグナル自体が来ていない**。50 日間で Overlap シグナル 4/54 件 (7.4%)、06-18 以降は 0 件 (期待値 ~1.1 件、Poisson 整合 P≈0.33) | バグではない。**設計上の starvation** |
 | (副次) `_promotion_allows_live` 未実装疑い | **解消**。その名の関数は存在せず (コメント内の呼称のみ)、実体は `_is_promoted` 内 (demo_trader.py:8561-8578) で**実行時に評価されている**。本番挙動でも確認済み | 疑い晴れ |
 | (副次・新発見 P1) Aggregate Kelly Gate | `kelly_criterion` が `full_kelly=max(0,·)` でクリップ (stats_utils.py:206) するため、gate 条件 `_agg_kelly < 0` (demo_trader.py:6203) は**構造的に発火不可能な死にゲート**。現在 aggregate edge=-0.36 でも素通し | **バグ (eligible vs effective 型)** |
+| sweep_reversion_eurgbp_late 発火 0 (全期間) — §3 (2026-07-02 午後追加) | 戦略は本番同一フィードで **4 回 emit していた**が、**v9.1 HTF Hard Block (htf=bear→BUY 全排除) が記録経路より前に削除**。逆張り BUY は発火瞬間が構造的に bear = kill 率 ~100% | **構造バグ (BT/本番統一違反 + 4原則#3 違反)** |
 
 ---
 
@@ -59,7 +60,7 @@
 
 | # | 提案 | Rule | 備考 |
 |---|---|---|---|
-| P-C1 | **thesis 再検証タスク**: 現水準 (161-162.8) での介入壁仮説・up-drift 因果の再評価。結論に応じて (a) ceiling 再設定 + pre-reg、(b) 戦略 retire、のいずれかを user 決裁 | R1 (新パラメータ = 実質新戦略) | ceiling は「介入壁の位置」という**外生変数**であり、BT フィットでなく政策情報で決めるべき |
+| P-C1 | **thesis 再検証タスク**: 現水準での介入壁仮説・up-drift 因果の再評価。結論に応じて (a) ceiling 再設定 + pre-reg、(b) 戦略 retire、のいずれかを user 決裁。**→ 決裁用データ整備済み (2026-07-02): [[carry-dip-ceiling-reeval-2026-07-02]] (推奨: hold + MOF/BOJ 証拠待ちで pre-reg)** | R1 (新パラメータ = 実質新戦略) | ceiling は「介入壁の位置」という**外生変数**であり、BT フィットでなく政策情報で決めるべき |
 | P-C2 | 静的価格レベル参照 param (CEILING 型) に **staleness monitor** を追加: 直近 N 日 close が全て level 超過ならアラート | R3 | 教訓「固定値はマルチTF/レジームで必ず壊れる」の一般化。lesson 化候補 |
 | P-C3 | HourlyEngine `_shadow_always` に carry_dip を追加し、score 競合時の silent drop を防ぐ | R3 | 現状 `select_best` に負けると記録ゼロ (carry_dip score ≤5.0 vs 他戦略)。原則 3 (Shadow 蓄積) と整合 |
 
@@ -115,19 +116,61 @@ Overlap 窓内シグナル 4 件の帰結:
 |---|---|---|---|
 | P-V1 | **pilot 判定タイムラインの明文化**: 期待レート月 ~2 件 → demote gate (Cell-Live N≥10) 到達に **~5 ヶ月**。この速度を許容するか、pre-reg 修正 (窓拡張 or 判定 N 引下げ) を出すかの user 決裁 | R2 判断は user | 窓拡張は「負けセル London を再導入しない」制約付き (06-15 決裁と矛盾しないこと) |
 | P-V2 | Kelly gate クリップバグ修正 (`kelly_criterion` に raw 値を追加 or gate 側で raw 計算) + **pilot との interplay を同一 pre-reg で決裁** | R3 (バグ) + R2 (interplay) | §2.4。単独 fix 禁止 |
-| P-V3 | `_is_promoted` の mode=live/sentinel 早期 return が session filter を bypass する構造に guard または明示コメント + 回帰テスト | R3 | §2.1 ⚠️。手動操作 1 回で pre-reg 制約が外れる罠 |
-| P-V4 | Overlap 窓内シグナル発生時の判定を audit に明示 (`block_reason` に `session_filter_pass` 等) — 「窓内→live」経路の次回実証を観測可能にする | R3 | 現状 `shadow_tracking` だけでは窓内 shadow 化の原因が事後特定不能 (05-29 事例) |
+| P-V3 | `_is_promoted` の mode=live/sentinel 早期 return が session filter を bypass する構造に guard + 回帰テスト。**→ 実装済み (2026-07-02, rule:R3)**: `_promotion_allows_live()` を method として抽出 (pre-reg 文書の呼称をそのまま実装) し、手動昇格経路にも適用。filter 未登録戦略の手動昇格は従来どおり無条件。現本番は mode=auto のため当日挙動デルタなし | R3 | §2.1 ⚠️。tests/test_session_filter_promotion_guard.py 13 cases |
+| P-V4 | session filter 窓外 block の観測性。**→ 実装済み (2026-07-02, rule:R3)**: audit `block_reason="shadow_tracking(session_filter_out)"` (prefix 互換) + `_block_counts` に `{mode}:session_filter_live_block` 増分 + drift guard を startswith 対応 | R3 | 05-29 型の「窓内 shadow 原因不明」を今後は即答可能に |
 
 ---
 
-## 3. 検証手段 (再現用)
+## 3. sweep_reversion_eurgbp_late (スコープ追加 2026-07-02 午後、cross-session 依頼)
+
+### 3.1 観測事実
+
+- 本番 DB: **全期間 (06-12 登録以降) で shadow 含め 0 行**。daytrade_eurgbp thread は稼働中 (mode 内 06-01 以降 110 trades、eurgbp_daily_mr 35 / trendline_sweep 34 ほか)。
+- 本番データフィードは **Massive 15m** (Render ログ `[Massive/15m] EURGBP=X 4174本取得` 毎tick) — research と同源で、LATE 窓 (21-24 UTC) のバーも forming bar 込みで供給されている。
+
+### 3.2 再現実験 (本番同一コード + 本番同一フィード)
+
+**(a) strategy 単体**: `fetch_ohlcv_massive("EURGBP=X","15m",60)` + 本番 `SweepReversionEurgbpLate.evaluate()` のバー毎リプレイ (closed_idx=-2 semantics) → **06-12 以降 4 回 emit**: 06-15 21:15 / 06-25 21:00 / 06-30 21:00 / 07-01 21:00 (score 3.48-5.00)。**戦略は無罪** (research 期待 3-4回/月とも整合)。
+
+**(b) pipeline 全体**: 同スナップショットで `compute_daytrade_signal()` を直接実行 →
+
+```
+[DaytradeEngine] 1候補: sweep_reversion_eurgbp_late    ← engine は正しく候補化
+[DTE] HTF Hard Block: 1 candidates blocked (htf=bear)  ← ここで消滅
+live_promote_emits: []                                  ← side-channel にも入らない
+```
+
+### 3.3 根本原因: v9.1 HTF Hard Block が逆張り BUY を構造的に全滅させる
+
+- app.py:2609-2633 の HTF Hard Block は htf_agreement=bear のとき **BUY 候補を候補リスト段階で除外**する。除外は select_best・`split_live_promote_emits`・shadow_emit **全ての記録経路より前** → trade row も counter も残らない完全 silent drop。
+- 本戦略は「96 bar 安値の sweep を買う」**逆張り**なので、**発火する瞬間はほぼ定義上 HTF が bear** — kill 率は構造的に ~100%。
+- 裏取り: H4/D1 EMA9-21 は 06-25 / 06-30 / 07-01 の 3 時点で**両方 BEAR** (block 確実)。06-15 のみ H4 BULL / D1 BEAR (mixed — 歴史時点の htf_agreement は再現不能のため断定せず)。
+- **観測不能だった理由**: HTF Hard Block のログは `logging.info` で、Render に届くのは print 系のみ → 20 日間誰にも見えなかった。**本コミットで print 化 + blocked entry_type 明示** (`grep HTF_HARD_BLOCK` で追跡可能に)。
+
+### 3.4 クオンツ的含意 (3 つの原則違反)
+
+1. **BT/本番統一違反**: 12y grid pre-reg (m=1,728 唯一の Bonferroni 生存 cell、z_bonf=4.02, N=543) は **HTF gate なし**で検証された。本番だけが追加 filter を適用 = 検証済みエッジと別物を運用し、production N を 0 に固定。
+2. **4原則#3 違反**: HTF Hard Block は shadow 記録より前で殺すため、**Shadow データ蓄積まで遮断** — 「静的時間ブロックは Shadow に適用しない」思想の HTF 版逸脱。
+3. **「中央 gate が登録済み LIVE 例外を黙って無効化」の 7 例目** (select_best bottleneck ×6 → HTF hard block)。06-02 対策 (`_COUNT_GATE_BYPASS_LIVE_EXCEPTIONS`) は当時の戦略のみで、06-12 世代 (sweep/hull/carry_dip) は `_SILENT_DROP_DIAG_TYPES` にも未登録 = silent drop 診断の網からも漏れていた (今回は count-gate 無罪だったが同族の網羅漏れ)。
+
+補足: carry_dip (hourly 経路) には HTF hard block 相当は**存在しない** (compute_hourly_signal 確認済み) — ceiling が唯一の遮断で確定。hull_donchian_fade は shadow 5 件発火あり = HTF block を通過するバーが存在 (EUR_USD fade は bear 限定でない)、live 0 は env 未設定説 (cross-session 情報) と整合。
+
+### 3.5 Fix 提案 (提案のみ — live 挙動変更は user 決裁)
+
+| # | 提案 | Rule | 備考 |
+|---|---|---|---|
+| P-S1 | **HTF Hard Block からの exemption or shadow 退避** — (a) v2-redesign 方式の exemption リストに sweep を追加 (live 発火再開 = pre-reg 通りの挙動に復元)、または (b) blocked 候補を `shadow_emit_signals` に退避 (shadow N 蓄積のみ再開、live は塞いだまま user 判断待ち)。**(b) が 4原則#3 と整合し低リスク、推奨** | (a)=R2 / (b)=R3 寄り | (a) は「bear 局面で逆張り BUY を実弾発火」の是非 = リスク判断。pre-reg (12y 検証は HTF なし) は (a) を支持するが、MIN lot 1000u でも user 決裁必須 |
+| P-S2 | HTF Hard Block の観測性: **print 化 + blocked entry_type 明示 (本コミット実装済み)**。counter (_block_counts 相当) / evaluated_candidates への記録は別途 | R3 | 実装済み分は挙動変更なし (ログのみ) |
+| P-S3 | `_SILENT_DROP_DIAG_TYPES` / `_COUNT_GATE_BYPASS_LIVE_EXCEPTIONS` に 06-12 世代 LIVE 例外 3 戦略 (sweep/hull/carry_dip) を追加する棚卸し | R3 | 06-02 対策の網羅漏れ。新 LIVE 例外登録時のチェックリスト化も検討 |
+
+## 4. 検証手段 (再現用)
 
 - 本番 trades: `GET /api/demo/trades?mode={daytrade,daytrade_1h}&date_from=...&status=all` → entry_type filter
 - 本番 audit: `GET /api/oanda/audit?limit=12000` → `block_reason`
 - 本番 risk: `GET /api/risk/dashboard` → kelly.edge / monte_carlo.ruin_probability
 - carry_dip 発火期待値: yfinance USDJPY=X 1h + 戦略同一の `_wilder_rsi` (本レポート §1.2 のスクリプト、以後は QUALBAR log で代替可)
 
-## 4. 関連
+## 5. 関連
 
 - [[vix-overlap-pilot-prereg-2026-05-13]] / [[vix-carry-grail-removal-overlap-1000u-2026-06-15]] / [[vix-1x-intentional-exception-2026-05-21]]
 - [[usdjpy_carry_dip_accumulator]] / [[vix-carry-unwind]] (strategy cards — 本診断へのポインタ追記済み)

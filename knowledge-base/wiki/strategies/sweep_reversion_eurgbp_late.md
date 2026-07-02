@@ -4,6 +4,10 @@
 - **Mode**: daytrade_eurgbp (15m) / **Pair**: EUR_GBP only / **Direction**: BUY only
 - **Lot**: 1000u 固定 (MIN lot)
 
+> ⚠️ **2026-07-02 zero-fire 診断**: 登録 (06-12) 以降 shadow 含め発火 0 の根本原因は **v9.1 HTF Hard Block (app.py:2609)**。本番同一フィード (Massive 15m) + 本番 evaluate() で 06-12 以降 4 回 emit していたが (06-15/06-25/06-30/07-01 いずれも 21:00-21:15 UTC)、逆張り BUY は発火瞬間が構造的に htf=bear のため候補リスト段階で全排除され、shadow 記録・side-channel より前に silent drop。12y grid pre-reg は HTF gate なしで検証されており BT/本番統一違反。fix は user 決裁待ち (推奨: shadow 退避 P-S1(b))。
+> 詳細: [[zero-fire-diagnosis-carrydip-vix-2026-07-02]] §3
+
+
 ## Thesis
 
 21-24 UTC (LATE) は EUR_GBP の最薄商い時間。直近 96 bars の swing low を一瞬割って
