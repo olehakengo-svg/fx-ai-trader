@@ -1,5 +1,26 @@
 # FX AI Trader - Changelog
 
+## 2026-07-02 — fix: daytrade_1h_usdchf 残存4セル Shadow demote (rule:R2)
+
+### 変更内容
+
+`SHADOW_DEMOTED_CELLS` に london_breakout / vol_surge_detector / three_bar_reversal /
+engulfing_bb × USD_CHF の4セルを追加。daytrade_1h_usdchf モード (Phase B-1 USD_CHF
+hourly surface) は all-time clean N=169 WR=16.6% -416.3p で、06-12 退役4戦略 (N=110,
+-263.1p) を除いた残存 bleeder 4セル (N=59, WR=23.7%, Wilson_lo=14.7%, -153.2p) を
+per-cell 封鎖。london_breakout / vol_surge_detector は当日 (07-02) も emit 継続中だった。
+
+### 判定のポイント
+
+- **モード停止ではなく per-cell demote**: price_shock_reversion × USD_CHF (Tier 3 WATCH,
+  Phase B Wave 1 candidate) の surface slot は維持 (原則3: Shadow 蓄積を削らない)
+- **LIVE 転送 8件 (2026-06-02, oanda_trade_id 496674〜496722, net -11.0p) の経路特定**:
+  全て bb_rsi_reversion × USD_CHF — 06-12 の戦略退役で構造閉鎖済み、追加アクション不要。
+  live-bleeder-demotions-2026-07-02 の未解決項目「bb_rsi live経路未特定」を解消
+- 4セル全て BUY/SELL 両方向負 → 方向反転仮説も不成立。再昇格は R1 のみ
+- Decision: `wiki/decisions/usdchf-1h-cell-demotions-2026-07-02.md`
+
+
 ## 2026-06-12 — fix: sr_fib_confluence 恒久退役 — Edge Factor Audit #5 (rule:R2)
 
 ### 変更内容
