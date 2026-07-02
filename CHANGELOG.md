@@ -1,5 +1,23 @@
 # FX AI Trader - Changelog
 
+## 2026-07-02 — feat(diag): carry_dip QUALBAR logging + zero-fire 診断レポート (rule:R3)
+
+### 変更内容 (roadmap v2.2 T7)
+
+`strategies/hourly/usdjpy_carry_dip_accumulator.py`:
+- RSI cross 成立バー (発火期待値の分母) ごとに ceiling/blackout/dedup/cooldown の
+  pass/fail と emit 判定を `QUALBAR` 1 行 INFO log (同一 bar 重複なし、~1行/日)
+- 重複していた `_last_emit_ts` 二重代入を削除 (挙動変更なし)
+- tests: `tests/test_carry_dip_qualbar_logging.py` 4 cases (TDD)
+
+### 診断結果 (詳細: wiki/analyses/zero-fire-diagnosis-carrydip-vix-2026-07-02.md)
+- carry_dip live fill 0 = CEILING=159.5 が市場 (161-162.8) に取り残され、06-03 以降の
+  RSI dip cross 22 回を全遮断 (バグではなくレジーム前提失効)
+- vix Overlap pilot fill 0 = Overlap 窓シグナル自体が 7.4% (4/54) しかなく 06-18 以降 0 件
+  (Poisson 整合)。session filter は実行時評価で正常動作を本番実証
+- P1 新発見: Aggregate Kelly Gate は kelly_criterion の max(0,·) クリップで発火不可能な死にゲート
+- tier/lot/param 変更なし (fix は提案のみ、user 決裁待ち)
+
 ## 2026-06-12 — fix: sr_fib_confluence 恒久退役 — Edge Factor Audit #5 (rule:R2)
 
 ### 変更内容

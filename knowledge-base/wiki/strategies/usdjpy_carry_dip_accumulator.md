@@ -3,6 +3,9 @@
 - **Status**: SHADOW (2026-06-08 登録) / LIVE は **Rule-1 意図的例外 pending**（要 user 最終承認 + lot 確定）
 - **Mode**: hourly (H1) / **Pair**: USD_JPY only / **Direction**: LONG only
 
+> ⚠️ **2026-07-02 zero-fire 診断**: 06-12 LIVE enable 以降 fill 0 の根本原因は **CEILING=159.5 が市場 (161-162.8) に取り残されたこと**。06-03 以降の RSI dip cross 22 回が全て ceiling block、emit 自体ゼロ。thesis の「155-160.7 レンジ」仮定が失効 (旧介入壁 160.7 を上抜け定着)。QUALBAR logging (T7) 実装済み。ceiling 再設定 or retire は user 決裁待ち。
+> 詳細: [[zero-fire-diagnosis-carrydip-vix-2026-07-02]]
+
 ## 概要
 現レジーム固有の順張りロング dip-buy。USD_JPY H1 で RSI(14) が 45 を**下抜けた瞬間**（押し目入口）に、close が天井 159.5 未満なら LONG。SL = entry-1.5円（介入ギャップ前提の per-trade テールキャップ）、TP = entry+0.8円、hold ≤ 24 H1。同一押し目クラスタは 12h cooldown で1エントリーに畳む。
 
