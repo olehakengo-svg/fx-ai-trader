@@ -1,0 +1,194 @@
+{
+  "run_date": "2026-07-02",
+  "tool": "ad-hoc deepdive (cell_deepdive_audit.py absent; cell_edge_audit.py v2/v3 methodology re-implemented against Render PROD API)",
+  "data_source": "https://fx-ai-trader.onrender.com/api/demo/trades (PROD) \u2014 LOCAL demo_trades.db is STALE",
+  "window": "365d (data span 2026-04-02 -> 2026-07-02)",
+  "scope": "Live + Shadow (160/173 clean rows are shadow)",
+  "filters": {
+    "exclude_xau": true,
+    "exclude_dedup_violation": true,
+    "outcome_in": [
+      "WIN",
+      "LOSS"
+    ]
+  },
+  "meta": {
+    "prod_trades_fetched": 11904,
+    "target_rows_raw": 505,
+    "dedup_violation_excluded": 314,
+    "non_winloss_excluded": 18,
+    "clean_N": 173,
+    "min_n": 20,
+    "m_global_v2": 2,
+    "m_global_v3": 0,
+    "candidates": 0
+  },
+  "candidates": [],
+  "eligible_cells_v2": [
+    {
+      "level": "v2",
+      "cell": [
+        "sr_anti_hunt_bounce",
+        "EUR_JPY",
+        "BUY"
+      ],
+      "n": 24,
+      "wr": 0.625,
+      "wilson_lo": 0.427,
+      "ev_net": 5.85,
+      "pf": 2.33,
+      "p_raw": 0.2207,
+      "p_bonf": 0.4413,
+      "kelly": 0.357,
+      "wf_stable": true,
+      "promoted": false
+    },
+    {
+      "level": "v2",
+      "cell": [
+        "sr_anti_hunt_bounce",
+        "GBP_JPY",
+        "BUY"
+      ],
+      "n": 24,
+      "wr": 0.542,
+      "wilson_lo": 0.351,
+      "ev_net": -1.83,
+      "pf": 0.67,
+      "p_raw": 0.6831,
+      "p_bonf": 1.0,
+      "kelly": 0.0,
+      "wf_stable": false,
+      "promoted": false
+    }
+  ],
+  "eligible_cells_v3": [],
+  "near_miss_positive_v2": [
+    {
+      "level": "v2_all",
+      "cell": [
+        "vdr_jpy",
+        "USD_JPY",
+        "BUY"
+      ],
+      "n": 7,
+      "wr": 0.857,
+      "wilson_lo": 0.487,
+      "ev_net": 18.89,
+      "pf": 13.47,
+      "p_raw": 0.0588,
+      "p_bonf": 0.1176,
+      "kelly": 0.794,
+      "wf_stable": null,
+      "promoted": false
+    },
+    {
+      "level": "v2_all",
+      "cell": [
+        "sr_anti_hunt_bounce",
+        "EUR_JPY",
+        "BUY"
+      ],
+      "n": 24,
+      "wr": 0.625,
+      "wilson_lo": 0.427,
+      "ev_net": 5.85,
+      "pf": 2.33,
+      "p_raw": 0.2207,
+      "p_bonf": 0.4413,
+      "kelly": 0.357,
+      "wf_stable": true,
+      "promoted": false
+    },
+    {
+      "level": "v2_all",
+      "cell": [
+        "vsg_jpy_reversal",
+        "EUR_JPY",
+        "SELL"
+      ],
+      "n": 13,
+      "wr": 0.692,
+      "wilson_lo": 0.424,
+      "ev_net": 1.62,
+      "pf": 1.52,
+      "p_raw": 0.1655,
+      "p_bonf": 0.331,
+      "kelly": 0.236,
+      "wf_stable": false,
+      "promoted": false
+    },
+    {
+      "level": "v2_all",
+      "cell": [
+        "vsg_jpy_reversal",
+        "EUR_JPY",
+        "BUY"
+      ],
+      "n": 10,
+      "wr": 0.7,
+      "wilson_lo": 0.397,
+      "ev_net": 0.16,
+      "pf": 1.04,
+      "p_raw": 0.2059,
+      "p_bonf": 0.4118,
+      "kelly": 0.027,
+      "wf_stable": false,
+      "promoted": false
+    }
+  ],
+  "target_strategies": {
+    "sr_anti_hunt_bounce": {
+      "raw": 237,
+      "clean_N": 111,
+      "WR": 0.468,
+      "wilson_lo": 0.378,
+      "EV_net_pips": -2.04,
+      "PF": 0.66
+    },
+    "sr_liquidity_grab": {
+      "raw": 2,
+      "clean_N": 1,
+      "WR": 1.0,
+      "wilson_lo": 0.207,
+      "EV_net_pips": 2.2,
+      "PF": null
+    },
+    "cpd_divergence": {
+      "raw": 0,
+      "clean_N": 0
+    },
+    "vdr_jpy": {
+      "raw": 14,
+      "clean_N": 10,
+      "WR": 0.8,
+      "wilson_lo": 0.49,
+      "EV_net_pips": 12.76,
+      "PF": 7.72
+    },
+    "vsg_jpy_reversal": {
+      "raw": 59,
+      "clean_N": 30,
+      "WR": 0.7,
+      "wilson_lo": 0.521,
+      "EV_net_pips": 2.77,
+      "PF": 1.65
+    },
+    "rsk_gbpjpy_reversion": {
+      "raw": 106,
+      "clean_N": 16,
+      "WR": 0.312,
+      "wilson_lo": 0.142,
+      "EV_net_pips": -6.67,
+      "PF": 0.39
+    },
+    "mqe_gbpusd_fix": {
+      "raw": 87,
+      "clean_N": 5,
+      "WR": 0.6,
+      "wilson_lo": 0.231,
+      "EV_net_pips": 6.76,
+      "PF": 2.48
+    }
+  }
+}

@@ -33,7 +33,9 @@
 ## 運用ループへの反映
 
 - 日次ループ: Codex 非依存で構築（guard 監査 / R2 止血評価 / N 進捗 / 整合チェック）
-- 週次ループ: エッジ解析シリーズ・R1 BT のみ Codex に委譲（queue 再稼働後）
+  - ✅ **実装済 2026-07-02**: scheduled task `fx-daily-quant-loop`（毎朝 07:06 JST、報告専用・資本アクション禁止）。手順: ハートビート → 本番スナップショット比較 → ゲート非対称監査 → watchdog 死活 → R2 止血候補 → M3 進捗 (`tools/clean_n_tracker.py`) → `scripts/check.py` 整合。定義: `~/.claude/scheduled-tasks/fx-daily-quant-loop/SKILL.md`
+  - ⚠️ 制約: scheduled task はローカルアプリ起動中のみ実行（`wiki-daily-update` の 06-26〜07-01 6日欠落と同じ機構的弱点）。欠落はハートビート手順で翌回に検出される
+- 週次ループ: エッジ解析シリーズ・R1 BT のみ Codex に委譲（queue 再稼働後）。既存 `cell-deepdive-7strategies-weekly`（日曜）は継続
 - queue 再稼働は「幽霊タスク検出 + レビューゲート」整備後に別途 user 決裁
 
 ## 関連
