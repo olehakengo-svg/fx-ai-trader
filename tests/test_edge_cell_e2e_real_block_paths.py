@@ -110,9 +110,15 @@ def test_e2e_edge_cells_bypass_real_r2_and_same_price_blocks(monkeypatch, tmp_pa
             "EUR_USD",
         )
 
+    # E8 は 2026-06-25 (rule:R2) で code-level DISABLED — pre-block eligibility
+    # (lot>0) を失い、SAME_PRICE ブロックが通常どおり効く (bypass ログなし)。
+    # seed(1.1000) から 7.5pip 離れた 1.10075 の 1 tick だけが閾値(~5pip)を
+    # 抜けて shadow row になる (E8 タグは match 適格性基準で残る、OANDA 送信なし)。
+    # ref: knowledge-base/wiki/decisions/edge-cell-e8-demote-2026-06-25.md
     e8_rows = _edge_rows(e8_trader._db, "E8")
-    assert len(e8_rows) == 5
-    assert all(row["is_shadow"] == 0 for row in e8_rows)
-    assert all(row["oanda_trade_id"] for row in e8_rows)
-    assert sum("[SAME_PRICE] edge cell E8 bypass" in log for log in e8_logs) == 5
-    assert sum("[EDGE_CELL] E8 shadow→live force override" in log for log in e8_logs) == 5
+    assert len(e8_rows) == 1
+    assert e8_rows[0]["is_shadow"] == 1
+    assert not e8_rows[0]["oanda_trade_id"]
+    assert e8_trader._block_counts["daytrade:same_price_0pip"] == 4
+    assert not any("[SAME_PRICE] edge cell E8 bypass" in log for log in e8_logs)
+    assert not any("[EDGE_CELL] E8 shadow→live force override" in log for log in e8_logs)

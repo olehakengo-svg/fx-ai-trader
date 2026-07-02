@@ -61,6 +61,25 @@ EDGE_CELLS: list[EdgeCell] = [
 LADDER_LOTS = {1: 5000, 2: 7500, 3: 10000}
 DISABLED_STAGE = 0
 
+# Code-level kill-switch for individual cells (rule:R2 止血). Cells listed here
+# return lot=0 regardless of their Render KV `edge_cell_stage:E*` value — the KV
+# getter defaults to stage "1" when the key is missing, so a lost/reset KV would
+# silently re-arm a cell at 5000u; this constant pins the OFF state in code.
+# lot=0 removes the force-live override only: the trade falls through to its
+# normal tier resolution (for session_time_bias EUR_USD that is
+# _UNIVERSAL_SENTINEL → is_shadow=True enforced, post 9e508ee2 A2 PAIR_PROMOTED
+# removal — no OANDA transmission). Cells remain in EDGE_CELLS and demo_trader
+# tags edge_cell_id by match eligibility (not lot>0), so shadow observations
+# stay attributed (data継続, watchdog visibility) and the cell stays in the
+# registry for future re-promotion. Re-enable only after Shadow
+# Wilson_lo >= 0.55 (see WILSON_LO_THRESHOLD) + pre-reg LOCK (R1).
+#   E8 (session_time_bias EUR_USD LDN broad): disabled 2026-06-25 —
+#     Live N=8 WR38% EV=-3.51p (tot -28p) / shadow N=10 EV=-2.10p, both negative.
+#     KV stage=0 since 2026-06-04; this pins it against the default="1" reset.
+#     E2 (live_tier_exempt subset, Live EV≒+0.26) は据え置き。
+#     ref: knowledge-base/wiki/decisions/edge-cell-e8-demote-2026-06-25.md
+DISABLED_CELLS: frozenset[str] = frozenset({"E8"})
+
 
 def match(
     *,
@@ -94,6 +113,8 @@ def get_cell_lot(cell_id: str, demo_db) -> int:
     Used as the emergency stop while the watchdog is being fixed (hot-fix 2026-05-26).
     """
     if os.environ.get("EDGE_CELLS_GLOBAL_DISABLED", "0") == "1":
+        return 0
+    if cell_id in DISABLED_CELLS:
         return 0
     key = f"edge_cell_stage:{cell_id}"
     getter = getattr(demo_db, "kv_get", None) or getattr(demo_db, "get_system_kv")

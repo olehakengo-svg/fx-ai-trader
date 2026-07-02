@@ -156,13 +156,18 @@ def _latest_trade(db: DemoDB):
 @pytest.mark.parametrize(
     "case_name,hour,instrument,sig,setup,expected_cell,expected_source",
     [
+        # slot_bypass は元々 E8 (session_time_bias EUR_USD LDN) で検証していたが、
+        # E8 は 2026-06-25 (rule:R2) で code-level DISABLED (edge-cell-e8-demote-
+        # 2026-06-25.md)。同じ slot-occupied→shadow→force-live 経路を active cell
+        # E4 (bb_rsi_reversion NY SELL) で維持する。E8 側の disabled 挙動は
+        # test_e8_disabled_cell_no_force_live_override が固定する。
         (
             "slot_bypass",
-            8,
+            14,
             "EUR_USD",
-            _sell_sig("session_time_bias"),
+            _sell_sig("bb_rsi_reversion"),
             "seed_live_slot",
-            "E8",
+            "E4",
             "OTHER_UPSTREAM",
         ),
         (
@@ -241,3 +246,37 @@ def test_edge_cell_force_live_overrides_shadow_sources(
         f"(was shadow due to: {expected_source})" in log
         for log in logs
     ), logs
+
+
+def test_e8_disabled_cell_no_force_live_override(monkeypatch, tmp_path):
+    """E8 (session_time_bias EUR_USD LDN) は 2026-06-25 (rule:R2) で code-level
+    DISABLED — match しても force-live override は発生せず shadow に留まる。
+    edge_cell_id タグは match 適格性基準で残る (watchdog 可視性 + shadow N 蓄積,
+    fable5 audit 2026-07-02 P1-4)。KV stage を上げても DISABLED_CELLS が優先。
+    ref: knowledge-base/wiki/decisions/edge-cell-e8-demote-2026-06-25.md
+    """
+    trader, logs = _make_trader(tmp_path, monkeypatch, hour=8)
+    trader._db.set_system_kv("edge_cell_stage:E8", "3")
+    trader._db.open_trade(
+        direction="SELL",
+        entry_price=1.2000,
+        sl=1.2015,
+        tp=1.1985,
+        entry_type="seed_live",
+        confidence=99,
+        tf="15m",
+        reasons=["seed live slot"],
+        mode="daytrade",
+        instrument="EUR_USD",
+        is_shadow=False,
+        oanda_trade_id="seed-oanda",
+    )
+
+    trader._tick_entry("daytrade", _cfg(), _sell_sig("session_time_bias"), "15m", "EUR_USD")
+
+    row = _latest_trade(trader._db)
+    assert row["edge_cell_id"] == "E8"
+    assert row["is_shadow"] == 1
+    assert not row["oanda_trade_id"]
+    assert not trader._oanda.calls
+    assert not any("[EDGE_CELL] E8 shadow→live force override" in log for log in logs), logs

@@ -69,10 +69,24 @@ def test_get_cell_lot_ladder(tmp_path):
 def test_all_12_cells_default_to_stage1_lot(tmp_path):
     db = DemoDB(str(tmp_path / "edge-lot-all.db"))
 
+    # E8 (session_time_bias EUR_USD LDN broad) は 2026-06-25 (rule:R2) で code-level
+    # DISABLED — Live N=8 EV=-3.51p / shadow N=10 EV=-2.10p の止血。registry には残すが
+    # lot=0 で live 昇格停止 (→ base tier=shadow)。E2 (live_tier_exempt subset, ≒トントン
+    # Live EV+0.26) は据え置き。ref: edge-cell-e8-demote-2026-06-25.md
+    expected = {f"E{i}": 5000 for i in range(1, 13)}
+    expected["E8"] = 0
     assert len(EDGE_CELLS) == 12
-    assert {cell.cell_id: get_cell_lot(cell.cell_id, db) for cell in EDGE_CELLS} == {
-        f"E{i}": 5000 for i in range(1, 13)
-    }
+    assert {cell.cell_id: get_cell_lot(cell.cell_id, db) for cell in EDGE_CELLS} == expected
+
+
+def test_e8_disabled_e2_active(tmp_path):
+    """E8 は code-level DISABLED で lot=0、E2 は stage1 で 5000 を維持 (rule:R2 止血)。"""
+    db = DemoDB(str(tmp_path / "edge-e8-demote.db"))
+    assert get_cell_lot("E8", db) == 0
+    assert get_cell_lot("E2", db) == 5000
+    # stage を上げても E8 は DISABLED が優先され 0 のまま
+    db.set_system_kv("edge_cell_stage:E8", "3")
+    assert get_cell_lot("E8", db) == 0
 
 
 class _OandaMock:
