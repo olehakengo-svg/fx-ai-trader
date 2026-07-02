@@ -2425,6 +2425,16 @@ WR        : N/A
 - Spread=0.8で安定しているためspread_guardの問題ではなく、**方向選択とSL/TP非対称が主因**
 本日累計N=11に対しセッション内N=8であることから、**東京セッションはN=3、PnL=−14.4 pips**と推計される。
 
+### 2026-07-02 (Pre-Tokyo Briefing)
+前日（2026-07-01）は**4トレード、WR 50.0%、PnL -23.3**という結果。全件が`trendline_sweep / GBP_USD`に集中。2勝はいずれも+2.0止まりだが、1敗は-20.0と非対称なペイオフが全体を引きずり、EV -5.83という深刻な水準。損益構造は「小さく勝って大きく負ける」典型パターン。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **全体**: N=19, WR=57.9%, PnL **-49.8**
+| Dir | Outcome | PnL |
+- WIN時のペイオフ上限が+2.0に張り付いている一方、LOSS時は-20.0まで伸びる。
+- 全件`Reason: SL_HIT`であり、TPが近すぎる / SLが遠すぎるRR設定が疑われる。
+- Spread 1.3pipsはGBP/USDとして許容範囲内（Scalp閾値30%以下）であり、スプレッドは主因ではない。
+### 課題②：xs_momentum_rsi の壊滅的EV
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
