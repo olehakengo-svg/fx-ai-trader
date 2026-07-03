@@ -2455,6 +2455,16 @@ bb_rsi_reversionが9/11で勝利しPnL+9.0を稼いだが、xs_momentum_rsiの�
 ### 課題②：trendline_sweepの累積ドローダウン（N=5, EV=-6.04, PnL=-30.2）
 - Cutoff後N=5で最大の損失源。勝率40%・EV-6.04は**小サンプルながら構造的に悪い数字**
 
+### 2026-07-03 (Post-London Report)
+| セッション内PnL | **0 pips / 0円** |
+| 勝率（WR） | **N/A（取引なし）** |
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+**🔴 NO ACTION推奨**
+- 米国独立記念日（7/4）により、NYセッションは流動性枯渇・スプレッド異常拡大の高リスク環境
+- spread_guard閾値（DT=20%、Scalp=30%）が機能する前提は通常流動性。本日はその前提が崩れる可能性大
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
