@@ -36,7 +36,7 @@ E4 が唯一の現行該当だが、「stage=0 + 歴史的 N≥10 PF<1」を満�
 ## 判明した KB 上の不整合 (記録)
 
 - **T10 拘束事項2「Shadow 収集は継続」は現行実装と不一致**: bb_rsi_reversion は 2026-06-12 の `SHADOW_RETIRED_STRATEGIES` (shadow_demote_registry.py) で shadow row も全ペア停止済み (最終 shadow row は 2026-06-04 USD_CHF)。本タスクは挙動変更なし原則により復活させない。復活には registry 解除の別判断 (T10 再評価トリガー: スプレッド構造の恒常的低下 or regime 転換のみ) が必要。→ [[bb-rsi-t10-kill-2026-07-02]] に補記済み。
-- bb_rsi.py の env レバー (`BB_RSI_REVERSION_PAIR_WHITELIST_V1` / `BB_RSI_REDESIGN_V2(_SHADOW_PROMOTE)`) は調査の結果 **撤去せず残置**: whitelist は封じ込め現役 (E4→USD_CHF 漏れの教訓)、REDESIGN_V2 は default-off だが本番 env の設定状態を外部から検証できず (Render env 読取ツールなし)、撤去は「挙動変更なし」を証明できない。SHADOW_PROMOTE 経路は retirement により consumer (`[R2_SHADOW_DEMOTE] skipped shadow_emit`) で不達なことをコード確認済み。撤去は本番 env 目視確認とセットの別タスク。
+- bb_rsi.py の env レバー (`BB_RSI_REVERSION_PAIR_WHITELIST_V1` / `BB_RSI_REDESIGN_V2(_SHADOW_PROMOTE)`) は調査の結果 **撤去せず残置**: whitelist は封じ込め現役 (E4→USD_CHF 漏れの教訓)、REDESIGN_V2 は default-off だが本番 env の設定状態を外部から検証できず (Render env 読取ツールなし)、撤去は「挙動変更なし」を証明できない。SHADOW_PROMOTE 経路は retirement により consumer (`[R2_SHADOW_DEMOTE] skipped shadow_emit`) で不達なことをコード確認済み。撤去は本番 env 目視確認とセットの別タスク。→ **2026-07-03 検証完了: 本番 runtime に `BB_RSI_REDESIGN_V2=1` が設定済みと判明 (`render ssh` + printenv で検証可能 — 「読取ツールなし」は誤りだった)。撤去は BLOCKED、env 削除が先行条件。詳細: [[bb-rsi-redesign-v2-lever-removal-blocked-2026-07-03]]**
 
 ## bb_rsi_reversion の最終状態 (本コミット後)
 
