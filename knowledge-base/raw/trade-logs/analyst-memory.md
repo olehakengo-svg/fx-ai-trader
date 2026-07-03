@@ -2435,6 +2435,16 @@ WR        : N/A
 - Spread 1.3pipsはGBP/USDとして許容範囲内（Scalp閾値30%以下）であり、スプレッドは主因ではない。
 ### 課題②：xs_momentum_rsi の壊滅的EV
 
+### 2026-07-03 (Pre-Tokyo Briefing)
+**前日（2026-07-02）**: 13トレード、WR 69.2%、PnL **-6.8 pips**
+| Strategy | Pair | N | WR% | EV | PnL | 判定ステータス |
+| trendline_sweep | GBP_USD | 5 | 40.0% | **-6.04** | -30.2 | 🔴 要注視（N不足+EV負） |
+| xs_momentum_rsi | USD_JPY | 2 | 0.0% | **-15.40** | -30.8 | 🔴 危険水域（N不足+EV深負） |
+- **昇格基準（N≥30 & EV≥1.0）到達戦略: ゼロ** — 全戦略がN<30の「判断不可」段階
+- bb_rsi_reversionはN=11で最も蓄積が進んでいるが、EV=+0.82は昇格閾値（EV≥1.0）未到達
+- xs_momentum_rsi・trendline_sweepはN<10につきデータなし扱いが妥当だが、方向性は極めて悪い
+- **SL_HITで-18.0pips**は前日bb_rsi_reversionの全利益（+9.0pips）の2倍を吹き飛ばす規模
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
