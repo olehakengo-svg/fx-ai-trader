@@ -512,3 +512,35 @@ class DaytradeEngine:
         return [c for c in candidates
                 if c is not best
                 and c.entry_type in self.LIVE_PROMOTE_LOSERS]
+
+    # 2026-07-03 (rule:R3, P-S1(b)): HTF Hard Block shadow 退避対象。
+    # v9.1 HTF Hard Block は候補リスト段階で除外するため、shadow/side-channel
+    # の全記録経路より前に silent drop する。逆張り (MR) 戦略は発火瞬間が構造的
+    # に counter-HTF なので kill 率 ~100% になり、4原則#3 (Shadow データ蓄積は
+    # 削らない、2026-05-28 user 明文化) に違反する。ここに登録された戦略の
+    # blocked 候補は shadow_emit_signals (is_shadow=1 強制) へ退避し、live 送信
+    # はゼロのまま N 蓄積のみ復元する。live exemption (P-S1(a)) は別途 user 決裁。
+    # 詳細: knowledge-base/wiki/analyses/zero-fire-diagnosis-carrydip-vix-2026-07-02.md §3
+    HTF_BLOCK_SHADOW_RESCUE = frozenset({
+        "sweep_reversion_eurgbp_late",  # 12y grid survivor, HTF gate なしで pre-reg 検証済み
+    })
+
+    def split_htf_block_shadow_rescue(self, blocked: list[Candidate],
+                                      htf_agreement: str = "") -> list[Candidate]:
+        """HTF Hard Block で除外された候補のうち shadow 退避対象を返す。
+
+        戻り値の候補には [HTF_BLOCK_SHADOW_RESCUE] タグを付与し、通常 shadow と
+        区別可能にする (P-S1(a) live exemption 決裁用のセグメント分離)。
+        """
+        if not blocked:
+            return []
+        rescued = []
+        for c in blocked:
+            if c.entry_type not in self.HTF_BLOCK_SHADOW_RESCUE:
+                continue
+            c.reasons = list(c.reasons or []) + [
+                f"[HTF_BLOCK_SHADOW_RESCUE] htf={htf_agreement or '?'} — "
+                f"live 経路は HTF Hard Block、shadow のみ記録 (4原則#3)"
+            ]
+            rescued.append(c)
+        return rescued

@@ -159,7 +159,8 @@ def analyze(audit_rows: list[dict[str, Any]], trade_rows: list[dict[str, Any]], 
 
     for row in audit_rows:
         status = str(row.get("bridge_status") or "").lower()
-        if status != "skipped" or str(row.get("block_reason") or "") != "shadow_tracking":
+        # 2026-07-02 P-V4: "shadow_tracking(session_filter_out)" 等の原因付き variant も対象
+        if status != "skipped" or not str(row.get("block_reason") or "").startswith("shadow_tracking"):
             continue
         key = cell(row)
         trade = trade_by_id.get(str(row.get("demo_trade_id") or ""))
