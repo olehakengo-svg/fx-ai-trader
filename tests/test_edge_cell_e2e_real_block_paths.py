@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from modules import data as data_mod
+from modules.shadow_demote_registry import is_shadow_demoted as is_shadow_demoted_real
 
 sys.path.append(str(Path(__file__).resolve().parent))
 from edge_cell_test_helpers import edge_cfg, make_trader, session_time_bias_sell_sig
@@ -53,6 +54,8 @@ def _edge_rows(db, cell_id: str):
 def test_e2e_edge_cells_bypass_real_r2_and_same_price_blocks(monkeypatch, tmp_path):
     import hashlib
 
+    import modules.demo_trader as demo_trader_mod
+
     class _FakeMD5:
         def hexdigest(self):
             return "00000001"
@@ -62,24 +65,42 @@ def test_e2e_edge_cells_bypass_real_r2_and_same_price_blocks(monkeypatch, tmp_pa
     current = {"price": 1.1000}
     _set_price_feed(monkeypatch, current)
 
-    e4_trader, e4_logs = make_trader(tmp_path, monkeypatch, hour=14)
-    e4_prices = [1.1000, 1.1007, 1.1014, 1.1021, 1.1028]
-    for price in e4_prices:
+    # R2 bypass 経路は元々 E4 (bb_rsi_reversion NY SELL) で検証していたが、E4 は
+    # 2026-07-02 (rule:R2) で code-level DISABLED (edge-cell-e1-e4-code-disable-
+    # 2026-07-02.md)。現行 registry には「shadow demoted かつ active cell」の実在
+    # 組合せが無いため、registry を合成して active cell E3 (dt_bb_rsi_mr EUR_USD
+    # SELL) で 5-tick 実ブロック経路を維持する。
+    e3_trader, e3_logs = make_trader(tmp_path, monkeypatch, hour=8)
+    monkeypatch.setattr(
+        demo_trader_mod,
+        "is_shadow_demoted",
+        lambda strategy, instrument: (strategy, instrument) == ("dt_bb_rsi_mr", "EUR_USD"),
+    )
+    e3_prices = [1.1000, 1.1007, 1.1014, 1.1021, 1.1028]
+    for price in e3_prices:
         current["price"] = price
-        e4_trader._tick_entry(
+        # spike/velocity ガードの入力をリセット: same-price と両立する 5 連発
+        # (>5pip 間隔 ×5 = 28pip レンジ) は 60s spike (>10pip) / velocity
+        # (>15pip) を必ず踏む。bb_rsi (sentinel-eligible) は shadow bypass で
+        # 抜けていたが dt_bb_rsi_mr は hard block されるため、検証対象の
+        # R2/SAME_PRICE 経路だけを通す。
+        e3_trader._price_history.clear()
+        e3_trader._tick_entry(
             "daytrade",
             edge_cfg(),
-            _sell_sig("bb_rsi_reversion", entry=price),
+            _sell_sig("dt_bb_rsi_mr", entry=price),
             "15m",
             "EUR_USD",
         )
 
-    e4_rows = _edge_rows(e4_trader._db, "E4")
-    assert len(e4_rows) == 5
-    assert all(row["is_shadow"] == 0 for row in e4_rows)
-    assert all(row["oanda_trade_id"] for row in e4_rows)
-    assert sum("[R2_SHADOW_DEMOTE] edge cell E4 bypass" in log for log in e4_logs) == 5
-    assert sum("[EDGE_CELL] E4 shadow→live force override" in log for log in e4_logs) == 5
+    e3_rows = _edge_rows(e3_trader._db, "E3")
+    assert len(e3_rows) == 5
+    assert all(row["is_shadow"] == 0 for row in e3_rows)
+    assert all(row["oanda_trade_id"] for row in e3_rows)
+    assert sum("[R2_SHADOW_DEMOTE] edge cell E3 bypass" in log for log in e3_logs) == 5
+    assert sum("[EDGE_CELL] E3 shadow→live force override" in log for log in e3_logs) == 5
+    # 合成 registry を実 registry に戻す (後半の E8 セクションは実 registry 前提)
+    monkeypatch.setattr(demo_trader_mod, "is_shadow_demoted", is_shadow_demoted_real)
 
     e8_dir = tmp_path / "e8"
     e8_dir.mkdir()

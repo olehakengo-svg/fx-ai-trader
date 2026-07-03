@@ -43,3 +43,14 @@ Bollinger Band + RSI mean reversion for daytrade timeframe. Enters when price to
 (現 N=105 / 0.383、30d ペース N=56 で 1〜1.5 ヶ月)。審査時は full battery +
 loser cell (GBP_USD BUY / 08-11 UTC) へ **SIZE 0.5x** (SKIP 禁止)。
 直近 30d EV>0 必須。詳細条件は audit ファイル §pre-reg 参照。
+
+## 2026-07-02 — Edge cell E1 (ASN SELL) code-level DISABLE (rule:R2)
+
+E1 (dt_bb_rsi_mr ASN SELL, symbol 制約なしのクロスペア force-live) を
+`DISABLED_CELLS` に pin。KV stage=0 (2026-06-04 CB) のままだったが、E4 zombie
+再武装 incident (watchdog DECREMENT 床バグ) と同じ再武装クラスに属するため
+bb_rsi family 掃除 ([[bb-rsi-t10-kill-2026-07-02]] 拘束事項3) の一環で不可逆化。
+LOCK (05-26) 以降 E1 経由の live は N=0 — 挙動変更なしの予防 pin。
+**通常 tier 経路 (PAIR_PROMOTED / shadow) には影響なし**。再有効化は R1
+(Wilson_lo≥0.55 + pre-reg LOCK + DISABLED_CELLS 明示除去)。
+詳細: [[edge-cell-e1-e4-code-disable-2026-07-02]]
