@@ -2445,6 +2445,16 @@ WR        : N/A
 - xs_momentum_rsi・trendline_sweepはN<10につきデータなし扱いが妥当だが、方向性は極めて悪い
 - **SL_HITで-18.0pips**は前日bb_rsi_reversionの全利益（+9.0pips）の2倍を吹き飛ばす規模
 
+### 2026-07-03 (Pre-Tokyo Briefing)
+**2026-07-02 前日実績**: トレード数 **N=13**、勝率 **69.2%**、PnL **-6.8 pips**
+bb_rsi_reversionが9/11で勝利しPnL+9.0を稼いだが、xs_momentum_rsiの単発大敗（-18.0）が全体を押し下げた。Cutoff後累計はN=18、WR=61.1%、PnL=-37.0と引き続き赤字圏。
+| Strategy | Pair | N | WR% | EV | 判定 |
+- N=1、SL_HITで全額消失。EV=-18.00は統計的には無意味だが、リスク管理の観点では**一撃でbb_rsi_reversionの累積利益（+9.0）の2倍を消す構造**は看過できない
+- 前日の全体赤字（-6.8）の主因が100%このトレード1件に起因
+- **今日の対処**: xs_momentum_rsiのポジションサイジングが適正かを本番Kellyログで確認。`agg_kelly=-0.326<0`ブロックが発動していたことは確認済みだが、それ以前のエントリー制御を注視
+### 課題②：trendline_sweepの累積ドローダウン（N=5, EV=-6.04, PnL=-30.2）
+- Cutoff後N=5で最大の損失源。勝率40%・EV-6.04は**小サンプルながら構造的に悪い数字**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
