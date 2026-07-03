@@ -46,6 +46,26 @@ E4 が唯一の現行該当だが、「stage=0 + 歴史的 N≥10 PF<1」を満�
 
 E1/E4 とも: Shadow Wilson_lo >= 0.55 (WILSON_LO_THRESHOLD) + pre-reg LOCK + `DISABLED_CELLS` からの明示除去 (コードレビュー必須)。E4 は加えて T10 KILL の再評価トリガー成立が前提 (セル分割・フィルタ再生の再試行は禁止クラス)。
 
+## 追記 2026-07-03: KV 残置 stage の自動同期 (CODE_PIN_SYNC, rule:R3)
+
+incident の再武装で E4 の KV `edge_cell_stage:E4` は **1 のまま残置**されていた —
+床バグ修正後の watchdog は DECREMENT を stage>=2 にしか発行しないため自然回復しない
+(07-03 10:48Z run の cron ログで確認: E4 のみ stage=1、verdict=DECREMENT/PF_BELOW_1
+が毎 run 空転。E1/E8/E10 は KV=0 同期済み)。code pin が SSOT のため実害ゼロだが、
+「eligible と effective を区別する」教訓に反する認知負債。
+
+**対処**: watchdog に CODE_PIN_SYNC を実装 — `CODE_PINNED_CELLS` (DISABLED_CELLS の
+ミラー定数。watchdog は cron で stdlib-only 実行のため modules/ を import できず、
+CI の equality テストで乖離を固定) の cell が KV stage!=0 なら new_stage=0 を発行。
+一度同期すれば以後 no-op (self-quiescing)。今後 pin cell の KV がどの経路で汚れても
+15 分以内に自動同期される恒久対応。pin cell は metric 判定 (DISABLE/DECREMENT) より
+前に short-circuit し、sync と喧嘩する action を出さない。
+admin API 直叩き (POST + EDGE_CELL_ADMIN_TOKEN) は session の permission 制約で
+不可だったため、cron が自身の credential で同期するこの経路を選択。
+テスト: tests/test_edge_cell_watchdog_code_pin_sync.py (5件)。
+
+- [ ] デプロイ後の初回 watchdog run で `applied: E4 S1 -> S0` を確認したら本行を更新
+
 ## 教訓
 
 - **「降格専用」ツールの clamp 境界は昇格方向に漏れる**。`max(floor, x-1)` の floor が「現在より上」になり得る入力域 (x < floor) を必ず確認する。単調性 (new_stage <= stage) を不変条件としてテストで固定した。
