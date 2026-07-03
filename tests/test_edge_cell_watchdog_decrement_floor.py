@@ -41,10 +41,14 @@ def _state(stages: dict[str, int]) -> dict:
 
 
 def test_decrement_never_rearms_stage0_cell():
-    """stage=0 + DECREMENT ポケット → action ゼロ (0→1 再武装の禁止)。"""
-    trades = _decrement_pocket_trades("E4")
-    payload = evaluate(trades, _state({"E4": 0}), cell_ids=["E4"])
-    assert payload["cells"]["E4"]["verdict"] == "DECREMENT"
+    """stage=0 + DECREMENT ポケット → action ゼロ (0→1 再武装の禁止)。
+
+    incident cell E4 は 2026-07-03 の CODE_PIN_SYNC で metric 判定より前に
+    short-circuit するようになった (test_edge_cell_watchdog_code_pin_sync.py
+    で固定) ため、この性質は非 pin セル E5 で検証する — バグは cell 非依存。"""
+    trades = _decrement_pocket_trades("E5")
+    payload = evaluate(trades, _state({"E5": 0}), cell_ids=["E5"])
+    assert payload["cells"]["E5"]["verdict"] == "DECREMENT"
     assert payload["actions"] == []
 
 
