@@ -1,5 +1,82 @@
 # FX AI Trader - Changelog
 
+## 2026-07-03 — fix(shadow): HTF Hard Block shadow 退避 (P-S1b) + 診断/bypass 集合分離 (P-S3) (rule:R3)
+
+### P-S1(b) — HTF_BLOCK_SHADOW_RESCUE (live 送信ゼロ、shadow 蓄積のみ復元)
+- `strategies/daytrade/__init__.py`: `HTF_BLOCK_SHADOW_RESCUE = {sweep_reversion_eurgbp_late}`
+  + `split_htf_block_shadow_rescue()` — HTF Hard Block で除外された登録戦略の候補に
+  `[HTF_BLOCK_SHADOW_RESCUE]` タグを付与して返す
+- `app.py`: blocked 候補を `shadow_emit_signals` (is_shadow=1 強制) へ合流。消費側の
+  is_shadow_demoted gate (R2 demote) + 60s dedup は既設
+- E2E 検証: 07-01 21:16 スナップショット (従来 記録ゼロ) で shadow emit 復元を確認
+- 4原則#3 (Shadow データ蓄積は削らない、2026-05-28 user 明文化) 準拠の復元。
+  live exemption (P-S1(a)) は user 決裁待ち — 蓄積 shadow N が判断材料
+
+### P-S3 — 診断セットと live gate bypass の分離
+- `_COUNT_GATE_BYPASS_LIVE_EXCEPTIONS`: `_SILENT_DROP_DIAG_TYPES` からの派生をやめ
+  user 決裁済み 6 戦略の明示列挙に (メンバーシップ不変、pin テスト固定)
+- `_SILENT_DROP_DIAG_TYPES`: 06-12 世代 3 戦略 (sweep/hull/carry_dip) を追加 —
+  SENTINEL_BLOCK_DIAG ログのみ、live gate 挙動不変
+- tests: `tests/test_htf_block_shadow_rescue.py` 6 cases (TDD)
+
+## 2026-07-02 — diag(sweep): zero-fire 根本原因 = v9.1 HTF Hard Block + 観測性 print 化 (rule:R3)
+
+### 診断 (詳細: wiki/analyses/zero-fire-diagnosis-carrydip-vix-2026-07-02.md §3)
+- sweep_reversion_eurgbp_late 全期間発火 0 の根本原因: 本番同一フィード+本番 evaluate() で
+  06-12 以降 4 回 emit していたが、**HTF Hard Block (app.py:2609, htf=bear→BUY 全排除) が
+  shadow/side-channel 記録より前に候補ごと削除** — 逆張り BUY は発火瞬間が構造的に bear。
+  12y grid pre-reg は HTF gate なしで検証 = BT/本番統一違反 + 4原則#3 (shadow蓄積) 違反
+- `app.py`: HTF Hard Block を print 化 (`HTF_HARD_BLOCK` + blocked entry_type 明示) —
+  logging.info が Render 不可視で 20 日間観測不能だったため。挙動変更なし (ログのみ)
+- exemption or shadow 退避 (P-S1) は user 決裁待ち — tier/lot/live 挙動変更なし
+
+### レビュー反映 (P-V3/P-V4 diff, adversarial 3-lens)
+- `_is_promoted_ex()`: (allowed, cause) を返す内部実体に分離 — session_filter 誤帰属防止
+  (mode_off/pair_demoted 等の上流 block を session filter のせいにしない)
+- block counter reason を `session_filter_live_downgrade` に改名 (drop でなく downgrade)
+- `tools/tier1_shadow_tracking_breakdown.py` / `counterfactual.py` も prefix 一致対応
+- tests: 誤帰属防止 4 cases 追加 + DemoTrader stub 汚染からの絶縁 (計 17 cases)
+
+## 2026-07-02 — fix(gates): session filter pre-reg LOCK を手動 mode 経路にも強制 + 窓外 block 観測性 (rule:R3)
+
+### 変更内容 (zero-fire 診断 P-V3/P-V4)
+
+`modules/demo_trader.py`:
+- `_promotion_allows_live(entry_type, instrument)` を method として抽出 (pre-reg 文書
+  vix-overlap-pilot-prereg-2026-05-13 の呼称をそのまま実装)
+- `_is_promoted` の mode=live/sentinel 手動昇格でも `_PAIR_SESSION_FILTER` を尊重
+  (operator の mode 操作 1 回で Overlap-only LOCK が黙って外れる罠を封鎖)。
+  filter 未登録戦略の手動昇格は従来どおり無条件。現本番は mode=auto のため挙動デルタなし
+- session filter 窓外 block の観測性: audit `block_reason="shadow_tracking(session_filter_out)"`
+  + `_block_counts` に `{mode}:session_filter_live_block`
+
+`tools/tier1_shadow_tracking_drift_guard.py`: block_reason prefix 一致 (startswith) 対応
+
+tests: `tests/test_session_filter_promotion_guard.py` 13 cases (TDD)
+
+### P-C1 決裁用データ (コード変更なし)
+- `wiki/analyses/carry-dip-ceiling-reeval-2026-07-02.md` — ceiling 感度 (160.5-162.0 は
+  ノイズ差、構造対比は 160.0 vs ≥161.5 のみ) + 壁構造 (ATH 162.84) + ⚠️ 07-01 up-drift
+  一旦破れ。推奨: hold + MOF/BOJ 外生証拠待ちで pre-reg
+
+## 2026-07-02 — feat(diag): carry_dip QUALBAR logging + zero-fire 診断レポート (rule:R3)
+
+### 変更内容 (roadmap v2.2 T7)
+
+`strategies/hourly/usdjpy_carry_dip_accumulator.py`:
+- RSI cross 成立バー (発火期待値の分母) ごとに ceiling/blackout/dedup/cooldown の
+  pass/fail と emit 判定を `QUALBAR` 1 行 INFO log (同一 bar 重複なし、~1行/日)
+- 重複していた `_last_emit_ts` 二重代入を削除 (挙動変更なし)
+- tests: `tests/test_carry_dip_qualbar_logging.py` 4 cases (TDD)
+
+### 診断結果 (詳細: wiki/analyses/zero-fire-diagnosis-carrydip-vix-2026-07-02.md)
+- carry_dip live fill 0 = CEILING=159.5 が市場 (161-162.8) に取り残され、06-03 以降の
+  RSI dip cross 22 回を全遮断 (バグではなくレジーム前提失効)
+- vix Overlap pilot fill 0 = Overlap 窓シグナル自体が 7.4% (4/54) しかなく 06-18 以降 0 件
+  (Poisson 整合)。session filter は実行時評価で正常動作を本番実証
+- P1 新発見: Aggregate Kelly Gate は kelly_criterion の max(0,·) クリップで発火不可能な死にゲート
+- tier/lot/param 変更なし (fix は提案のみ、user 決裁待ち)
+
 ## 2026-07-02 — fix: daytrade_1h_usdchf 残存4セル Shadow demote (rule:R2)
 
 ### 変更内容
@@ -19,7 +96,6 @@ per-cell 封鎖。london_breakout / vol_surge_detector は当日 (07-02) も emi
   live-bleeder-demotions-2026-07-02 の未解決項目「bb_rsi live経路未特定」を解消
 - 4セル全て BUY/SELL 両方向負 → 方向反転仮説も不成立。再昇格は R1 のみ
 - Decision: `wiki/decisions/usdchf-1h-cell-demotions-2026-07-02.md`
-
 
 ## 2026-06-12 — fix: sr_fib_confluence 恒久退役 — Edge Factor Audit #5 (rule:R2)
 

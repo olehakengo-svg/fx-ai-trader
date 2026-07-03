@@ -14,7 +14,7 @@ v9.0 SHIELD「Aggregate Kelly Gate」(demo_trader.py `_tick_entry` 内) は
 返しており、そこで **`max(0, full_kelly)` にクリップ済み** → 戻り値は負になり得ず、
 **gate は導入以来一度も発火できなかった** (構造的死にゲート)。
 
-- 発見: [[zero-fire-diagnosis-carrydip-vix-2026-07-02]] §2.4 (commit 5b205ce7)
+- 発見: [[zero-fire-diagnosis-carrydip-vix-2026-07-02]] §2.4 (commit ba2f6b68 — 旧記載 5b205ce7 は rebase 前の同一内容 commit)
 - 2026-07-02 時点の本番 aggregate edge=**-0.3617**, WR=48.2% (`/api/risk/dashboard`)
   — 設計意図どおりなら発火すべき状態で素通しだった
 - 既存 edge-cell SHIELD bypass テスト群は `_get_aggregate_kelly → -0.25` をモック
