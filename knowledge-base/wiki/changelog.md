@@ -11,6 +11,20 @@
 - watchdog `max(1, stage-1)` 床バグ修正 (rule:R3) — stage=0 セルの 0→1 再武装 (zombie) を根絶。**2026-07-02 10:18Z〜デプロイまでの間、E4 の KV disable は 15 分毎に無効化されていた**点に注意 (該当 live 4 件は分析時に E4 force-live として扱う)。
 - 詳細: [[edge-cell-e1-e4-code-disable-2026-07-02]]
 
+## 2026-07-02 — Aggregate Kelly Gate raw-fix + 1000u 契約 min-lot bypass (rule:R3+R2)
+
+- P1 死にゲート修正: `kelly_criterion` の `max(0,·)` クリップにより v9.0 SHIELD
+  Aggregate Kelly Gate (`< 0` 判定) が構造的に発火不能だった。`full_kelly_raw`
+  (非クリップ) を追加し `_get_aggregate_kelly` を raw 化。
+- interplay (user 決裁): 1000u 固定契約 3 戦略 (vix_carry_unwind /
+  usdjpy_carry_dip_accumulator / sweep_reversion_eurgbp_late) は
+  allowlist AND 実効 units<=1000 AND 非XAU の二重ガードで gate bypass。
+  hull_donchian_fade (5000u) は対象外。
+- 影響: aggregate raw Kelly<0 (2026-07-02 時点 edge=-0.3617) の間、promoted
+  非 sentinel/非 edge-cell/非 1000u契約 の OANDA 転送が初めて実ブロックされる。
+  tier/lot 変更なし。TDD 10 cases。
+- Decision: `decisions/agg-kelly-gate-raw-fix-minlot-bypass-2026-07-02.md`
+
 ## 2026-05-21 — SR-family shadow_emit OANDA audit restoration
 
 - `shadow_emit_signals` が `_tick_entry` を経由せず `demo_trades` に直接 Shadow row を書くため、SR-family の OANDA audit skip row が欠落していた問題を修正。

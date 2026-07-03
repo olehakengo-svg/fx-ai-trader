@@ -6203,22 +6203,32 @@ class DemoTrader:
         if _is_promoted:
             # ── v9.0 SHIELD: Aggregate Kelly Gate ──
             # aggregate Kelly < 0 のとき SENTINEL以外のOANDA転送をブロック
+            # (P1 fix 2026-07-02: _get_aggregate_kelly は raw 値を返すようになり
+            #  本 gate が初めて実効化。1000u 固定契約戦略は min-lot bypass — 下記)
             if _strat_mode != "sentinel" and not _is_sentinel and not _edge_cell_force_live:
                 _agg_kelly = self._get_aggregate_kelly()
                 if _agg_kelly is not None and _agg_kelly < 0:
-                    self._add_log(
-                        f"[SHIELD] Aggregate Kelly gate: {_agg_kelly:.3f} < 0 → "
-                        f"OANDA blocked for {entry_type} {instrument} (SENTINEL still allowed)"
-                    )
-                    self._add_oanda_audit(
-                        trade_id=trade_id, entry_type=entry_type,
-                        is_live=False, bridge_status="blocked",
-                        block_reason=f"agg_kelly={_agg_kelly:.3f}<0",
-                        direction=signal, instrument=instrument,
-                        units=_adjusted_units,
-                        sr_meta=_sr_meta,
-                    )
-                    _is_promoted = False  # fall through to non-OANDA path
+                    if self._agg_kelly_gate_minlot_bypass(
+                            entry_type, _adjusted_units, _is_xau_inst):
+                        self._add_log(
+                            f"[SHIELD] Aggregate Kelly gate BYPASS (min-lot pre-reg "
+                            f"contract {_adjusted_units}u): {_agg_kelly:.3f} < 0 but "
+                            f"{entry_type} {instrument} kept live"
+                        )
+                    else:
+                        self._add_log(
+                            f"[SHIELD] Aggregate Kelly gate: {_agg_kelly:.3f} < 0 → "
+                            f"OANDA blocked for {entry_type} {instrument} (SENTINEL still allowed)"
+                        )
+                        self._add_oanda_audit(
+                            trade_id=trade_id, entry_type=entry_type,
+                            is_live=False, bridge_status="blocked",
+                            block_reason=f"agg_kelly={_agg_kelly:.3f}<0",
+                            direction=signal, instrument=instrument,
+                            units=_adjusted_units,
+                            sr_meta=_sr_meta,
+                        )
+                        _is_promoted = False  # fall through to non-OANDA path
             elif _edge_cell_force_live:
                 self._add_log(
                     f"[SHIELD] EDGE_CELL Kelly bypass: {_edge_cell_id} {entry_type} "
@@ -8699,8 +8709,12 @@ class DemoTrader:
 
     def _get_aggregate_kelly(self) -> float:
         """Compute aggregate Kelly criterion across all clean post-cutoff trades.
-        Returns full_kelly float or None if insufficient data.
-        Used as a safety gate to block OANDA forwarding when aggregate edge is negative.
+        Returns UNCLIPPED full_kelly float (negative-capable) or None if
+        insufficient data.
+        Used as a safety gate to block OANDA forwarding when aggregate edge is
+        negative — kelly_criterion's `full_kelly` is clipped to max(0,·) for
+        lot sizing, which made the `< 0` gate structurally unfireable
+        (P1 fix 2026-07-02, rule:R3). Reads `full_kelly_raw` instead.
         Cached for 60 seconds to avoid repeated DB queries.
         """
         now = time.time()
@@ -8730,12 +8744,33 @@ class DemoTrader:
             avg_win = sum(wins) / len(wins)
             avg_loss = abs(sum(losses) / len(losses))
             result = kelly_criterion(wr, avg_win, avg_loss)
-            k = result.get("full_kelly", 0.0)
+            k = result.get("full_kelly_raw", 0.0)
             self._agg_kelly_cache = k
             self._agg_kelly_cache_ts = now
             return k
         except Exception:
             return None
+
+    # ── Aggregate Kelly Gate: 1000u 固定契約 pre-reg bypass (2026-07-02 user 決裁) ──
+    # gate が既に許可している sentinel 1000u と同一リスク水準の「検証 fill」のみ免除。
+    # allowlist (eligible) と実効 units (effective) の両方が成立して初めて bypass —
+    # 将来 lot が 5000u 等へ昇格したら bypass は自動失効する (eligible vs effective 教訓)。
+    # hull_donchian_fade は 5000u 契約 (5x リスク) のため意図的に対象外。
+    # 詳細: knowledge-base/wiki/decisions/agg-kelly-gate-raw-fix-minlot-bypass-2026-07-02.md
+    _AGG_KELLY_GATE_MINLOT_BYPASS_TYPES = frozenset({
+        "vix_carry_unwind",              # Overlap pilot 1000u 固定 (2026-06-15)
+        "usdjpy_carry_dip_accumulator",  # MIN lot 1000u 契約 (2026-06-12)
+        "sweep_reversion_eurgbp_late",   # MIN lot 1000u 契約 (2026-06-12)
+    })
+    _AGG_KELLY_GATE_MINLOT_MAX_UNITS = 1000
+
+    def _agg_kelly_gate_minlot_bypass(self, entry_type: str, units: int,
+                                      is_xau: bool) -> bool:
+        return (
+            entry_type in self._AGG_KELLY_GATE_MINLOT_BYPASS_TYPES
+            and not is_xau
+            and 0 < abs(units) <= self._AGG_KELLY_GATE_MINLOT_MAX_UNITS
+        )
 
     def _get_strategy_kelly(self, entry_type: str, instrument: str) -> float:
         """
