@@ -159,9 +159,9 @@ live_promote_emits: []                                  ← side-channel にも�
 
 | # | 提案 | Rule | 備考 |
 |---|---|---|---|
-| P-S1 | **HTF Hard Block からの exemption or shadow 退避** — (a) v2-redesign 方式の exemption リストに sweep を追加 (live 発火再開 = pre-reg 通りの挙動に復元)、または (b) blocked 候補を `shadow_emit_signals` に退避 (shadow N 蓄積のみ再開、live は塞いだまま user 判断待ち)。**(b) が 4原則#3 と整合し低リスク、推奨** | (a)=R2 / (b)=R3 寄り | (a) は「bear 局面で逆張り BUY を実弾発火」の是非 = リスク判断。pre-reg (12y 検証は HTF なし) は (a) を支持するが、MIN lot 1000u でも user 決裁必須 |
+| P-S1 | (b) **shadow 退避 → 実装済み (2026-07-03, rule:R3)**: `HTF_BLOCK_SHADOW_RESCUE` 登録戦略 (sweep のみ) の blocked 候補を `shadow_emit_signals` (is_shadow=1) へ退避、`[HTF_BLOCK_SHADOW_RESCUE]` タグでセグメント分離。E2E 検証: 07-01 21:16 スナップショットで shadow emit 復元を確認。**(a) live exemption は引き続き user 決裁待ち** — 蓄積される shadow N がその判断材料になる | (b)=R3 実装済 / (a)=R2 未決 | (a) は「bear 局面で逆張り BUY を実弾発火」の是非 = リスク判断。pre-reg (12y 検証は HTF なし) は (a) を支持するが、MIN lot 1000u でも user 決裁必須 |
 | P-S2 | HTF Hard Block の観測性: **print 化 + blocked entry_type 明示 (本コミット実装済み)**。counter (_block_counts 相当) / evaluated_candidates への記録は別途 | R3 | 実装済み分は挙動変更なし (ログのみ) |
-| P-S3 | `_SILENT_DROP_DIAG_TYPES` / `_COUNT_GATE_BYPASS_LIVE_EXCEPTIONS` に 06-12 世代 LIVE 例外 3 戦略 (sweep/hull/carry_dip) を追加する棚卸し | R3 | 06-02 対策の網羅漏れ。新 LIVE 例外登録時のチェックリスト化も検討 |
+| P-S3 | **診断側実装済み (2026-07-03, rule:R3)**: `_COUNT_GATE_BYPASS_LIVE_EXCEPTIONS` を診断セットからの派生をやめ user 決裁済み 6 戦略の明示列挙に分離 (メンバーシップ不変、pin テストで固定)。`_SILENT_DROP_DIAG_TYPES` に 06-12 世代 3 戦略を追加 (SENTINEL_BLOCK_DIAG ログのみ、live gate 挙動不変)。count-gate bypass への追加は user 決裁 + pre-reg 必須のまま | R3 | 06-02 対策の網羅漏れ是正。新 LIVE 例外登録時のチェックリスト化は別途 |
 
 ## 4. 検証手段 (再現用)
 

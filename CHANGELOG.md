@@ -1,5 +1,24 @@
 # FX AI Trader - Changelog
 
+## 2026-07-03 — fix(shadow): HTF Hard Block shadow 退避 (P-S1b) + 診断/bypass 集合分離 (P-S3) (rule:R3)
+
+### P-S1(b) — HTF_BLOCK_SHADOW_RESCUE (live 送信ゼロ、shadow 蓄積のみ復元)
+- `strategies/daytrade/__init__.py`: `HTF_BLOCK_SHADOW_RESCUE = {sweep_reversion_eurgbp_late}`
+  + `split_htf_block_shadow_rescue()` — HTF Hard Block で除外された登録戦略の候補に
+  `[HTF_BLOCK_SHADOW_RESCUE]` タグを付与して返す
+- `app.py`: blocked 候補を `shadow_emit_signals` (is_shadow=1 強制) へ合流。消費側の
+  is_shadow_demoted gate (R2 demote) + 60s dedup は既設
+- E2E 検証: 07-01 21:16 スナップショット (従来 記録ゼロ) で shadow emit 復元を確認
+- 4原則#3 (Shadow データ蓄積は削らない、2026-05-28 user 明文化) 準拠の復元。
+  live exemption (P-S1(a)) は user 決裁待ち — 蓄積 shadow N が判断材料
+
+### P-S3 — 診断セットと live gate bypass の分離
+- `_COUNT_GATE_BYPASS_LIVE_EXCEPTIONS`: `_SILENT_DROP_DIAG_TYPES` からの派生をやめ
+  user 決裁済み 6 戦略の明示列挙に (メンバーシップ不変、pin テスト固定)
+- `_SILENT_DROP_DIAG_TYPES`: 06-12 世代 3 戦略 (sweep/hull/carry_dip) を追加 —
+  SENTINEL_BLOCK_DIAG ログのみ、live gate 挙動不変
+- tests: `tests/test_htf_block_shadow_rescue.py` 6 cases (TDD)
+
 ## 2026-07-02 — diag(sweep): zero-fire 根本原因 = v9.1 HTF Hard Block + 観測性 print 化 (rule:R3)
 
 ### 診断 (詳細: wiki/analyses/zero-fire-diagnosis-carrydip-vix-2026-07-02.md §3)

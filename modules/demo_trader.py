@@ -8305,9 +8305,20 @@ class DemoTrader:
         "kalman_d7_ema75_break",
         "kalman_d7_trail_atr",
     })
+    # 2026-07-03 (rule:R3, P-S3): 診断 (ログのみ) と live gate bypass を分離。
+    # 旧構造は _COUNT_GATE_BYPASS_LIVE_EXCEPTIONS が本集合から派生していたため、
+    # 診断対象を増やすと hedge/max_open 等の live gate bypass まで黙って付与
+    # される罠があった。06-12 世代の LIVE 意図的例外 3 戦略 (sweep/hull/carry_dip)
+    # は SENTINEL_BLOCK_DIAG ログの対象にのみ追加 — live gate 挙動は不変。
+    # (sweep の zero-fire が 20 日間観測不能だった網羅漏れの是正。
+    #  詳細: analyses/zero-fire-diagnosis-carrydip-vix-2026-07-02 §3.4)
     _SILENT_DROP_DIAG_TYPES = _KALMAN_D7_LIVE_OVERRIDE | frozenset({
         "zz_pivot_v60_sr",
         "zz_pivot_v60_sr_lo",
+        # 06-12 世代 LIVE 意図的例外 (診断のみ、count-gate bypass ではない):
+        "sweep_reversion_eurgbp_late",
+        "hull_donchian_fade",
+        "usdjpy_carry_dip_accumulator",
     })
 
     # 2026-06-02 (rule:R3): Count-gate bypass for LIVE intentional exceptions.
@@ -8336,7 +8347,21 @@ class DemoTrader:
     # Memory: project_kalman_d7_regime_bound_live_2026_05_20,
     # project_zz_pivot_v60_sr_live_queue_2026_05_28,
     # project_pivot_detector_v2_5_live_exception_2026_05_26.
-    _COUNT_GATE_BYPASS_LIVE_EXCEPTIONS = _SILENT_DROP_DIAG_TYPES | frozenset({
+    #
+    # 2026-07-03 (rule:R3, P-S3): _SILENT_DROP_DIAG_TYPES からの派生をやめ、
+    # user 決裁済みメンバーの明示列挙に変更。診断セット (ログのみ) への追加が
+    # live gate bypass に黙って波及しないようにする。メンバーシップは
+    # 2026-07-02 時点と同一 (挙動変更なし)。追加は user 決裁 + pre-reg 必須。
+    # Pin: tests/test_htf_block_shadow_rescue.py::TestSilentDropDiagSeparationPin
+    _COUNT_GATE_BYPASS_LIVE_EXCEPTIONS = frozenset({
+        # Kalman D7 3-spec (2026-05-20 user 決裁, 0.5x)
+        "kalman_d7_po_dn_flip",
+        "kalman_d7_ema75_break",
+        "kalman_d7_trail_atr",
+        # ZZ Pivot v60 (2026-05-28 user 決裁, 1.0x/0.5x)
+        "zz_pivot_v60_sr",
+        "zz_pivot_v60_sr_lo",
+        # pivot detector (2026-05-26 user 決裁)
         "pivot_detector_v2_5",
     })
 
