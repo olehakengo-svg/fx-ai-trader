@@ -4,6 +4,21 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-03 — _price_history 0価格ガード (spike/velocity gate 誤発火修正, rule:R3)
+
+- P1 データ整合性バグ修正: fetch 全滅時の `current_price=0/None` が `_price_history`
+  に混入し、spike gate が range=価格そのもの (07-02 12:31 UTC 実例: 16153.1pip/60s =
+  USDJPY 161.53) で誤発火 → 当該 instrument **全戦略**の live 送信を 60s〜30min 封鎖
+  (shadow-eligible は shadow 化、それ以外は drop) していた。
+- 3層ガード: L1 append 前 `price>0` 検証 + `[PRICE_HISTORY_GUARD]` 検出ログ /
+  L2 spike 計算側 `p>0` フィルタ / L3 velocity 計算側 `p>0` + current_price 有効時のみ評価。
+- **影響トレード**: データソース障害と同期した spike/velocity の shadow 化・drop が本デプロイ
+  以降消滅。07-02 12:31-13:42 の vix_carry_unwind 窓内 14/14 shadow はこのバグ起因
+  (清浄データでの窓内 live 実証は依然 N=1)。正常 tick での spike/velocity 発火は不変。
+  tier/lot 変更なし。
+- TDD 8 cases: `tests/test_price_history_zero_price_guard.py`。
+  詳細: [[zero-fire-diagnosis-carrydip-vix-2026-07-02]] §2.6
+
 ## 2026-07-02 — Edge cell E1/E4 code-level DISABLE + watchdog DECREMENT 床バグ修正
 
 - `DISABLED_CELLS` に E1 (dt_bb_rsi_mr ASN SELL) / E4 (bb_rsi_reversion NY SELL) を追加 (rule:R2)。T10 KILL ([[bb-rsi-t10-kill-2026-07-02]]) 拘束事項3 の実施。
