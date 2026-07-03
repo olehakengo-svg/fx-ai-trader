@@ -86,10 +86,6 @@ class BBRsiReversion(StrategyBase):
     EDGE_PAIRS = frozenset({"USD_JPY"})
     KILL_PAIRS = frozenset({"USD_CHF", "GBP_USD"})
 
-    @staticmethod
-    def _redesign_v2_enabled() -> bool:
-        return os.environ.get("BB_RSI_REDESIGN_V2", "0").lower() in ("1", "true", "yes")
-
     def _edge_cell(self, ctx) -> tuple[bool, float]:
         """Pair-based edge filter. Returns (edge_on, lot_multiplier).
 
@@ -292,22 +288,9 @@ class BBRsiReversion(StrategyBase):
         # v10: Confidence v2 — MR anti-trend penalty (ADX>25 reduces conf)
         # Root-cause: strong trend features are inverse-edge for MR. Legacy formula
         # pushed MR entries to Q4 when they should be deprioritized.
-        #
-        # v2 redesign (2026-05-05): Axis 4 split. JPY ADX>=30 is explicitly
-        # treated above as a trend-BB-reversion tail, so do not also apply the
-        # generic MR anti-trend penalty to the same tail when the redesign flag
-        # is enabled. Default OFF preserves live behavior.
         from modules.confidence_v2 import apply_penalty
         _legacy_conf = int(min(85, 50 + score * 4))
-        _v2_jpy_high_adx_tail = self._redesign_v2_enabled() and ctx.is_jpy and ctx.adx >= 30
-        if _v2_jpy_high_adx_tail:
-            conf = _legacy_conf
-            reasons.append(
-                f"✅ [BB_RSI_REDESIGN_V2] JPY high-ADX tail: "
-                f"ADX={ctx.adx:.1f}>=30 → MR anti-trend penalty bypass"
-            )
-        else:
-            conf = apply_penalty(_legacy_conf, self.strategy_type, ctx.adx, conf_max=85)
+        conf = apply_penalty(_legacy_conf, self.strategy_type, ctx.adx, conf_max=85)
         if conf != _legacy_conf:
             reasons.append(
                 f"🔧 [v2] MR anti-trend: ADX={ctx.adx:.1f}>25 → conf {_legacy_conf}→{conf}"

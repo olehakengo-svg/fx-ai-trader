@@ -12,7 +12,7 @@
 | 環境変数 | 本番状態 | 備考 |
 |---|---|---|
 | `BB_RSI_REDESIGN_V2` | **=1 設定済み** | 撤去 gate に該当 |
-| `BB_RSI_REDESIGN_V2_SHADOW_PROMOTE` | 未設定 | split_shadow_always は AND 条件で不発 |
+| `BB_RSI_REDESIGN_V2_SHADOW_PROMOTE` | ~~未設定~~ **⚠️ 誤り — 実際は =1 設定済み** (同日追記§で訂正: 検証コマンドの `tail -5` トランケーションによる見落とし) | ~~split_shadow_always は AND 条件で不発~~ → 両フラグ=1 で clause は資格上有効、consumer retirement のみが遮断層だった |
 | `DT_BB_RSI_MR_REDESIGN_V2` | =1 設定済み | **別戦略** dt_bb_rsi_mr (PAIR_PROMOTED) 用。T10 kill 対象外。名前類似につき混同注意 |
 | `DT_BB_RSI_MR_REDESIGN_V2_SHADOW_PROMOTE` | =1 設定済み | 同上 |
 
@@ -47,5 +47,20 @@
 
 - **「Render env 読取ツールなし」([[edge-cell-e1-e4-code-disable-2026-07-02]]) は誤りだった** — `ssh <srv-id>@ssh.<region>.render.com 'printenv'` で runtime env を直接検証できる。今後の env 検証はこの手順を正とする。
 - **実験レバー env の設定/削除が KB に記録されない運用穴**。Render env 変更は decisions/ or sessions/ への同時記録を必須とすべき (「コード変更とKB更新は同一コミット」の env 版)。
+
+## 2026-07-03 追記: BLOCK 解除 → 撤去実施 (同日)
+
+user 承認 (「削除していいよ」 + AskUserQuestion で MCP =0 上書きを明示選択) を受け、正順どおり実施:
+
+1. **env 無効化**: Render MCP `update_environment_variables` (merge) で `BB_RSI_REDESIGN_V2=0` に上書き (MCP は単一キー削除不可のため。コード判定は `=="1"` 系なので削除と機能等価)。deploy `dep-d93riul7vvec73djmsf0` 13:33Z live → SSH `printenv` で `=0` を再検証。
+2. **検証の訂正 (重要)**: 再検証出力に `BB_RSI_REDESIGN_V2_SHADOW_PROMOTE=1` が出現。午前の初回検証は `... | tail -5` のトランケーションで先頭 2 行 (SHADOW_PROMOTE 行 + `SSH_ORIGINAL_COMMAND` 行) を切り落としており、「未設定」は**誤認**だった (`SSH_ORIGINAL_COMMAND` は grep パターン自己マッチで必ず出力されるはずが初回出力に無い = truncation の証拠)。**SHADOW_PROMOTE は W4 rollout 当初から =1 だったと確定**。含意: 2026-06-12 retirement までは loser shadow_emit 経路が実際に有効だった (最終 shadow row 2026-06-04 と整合)。現在は V2=0 で AND 不成立のため不活性。
+3. **コード撤去** (本コミット): `strategies/scalp/bb_rsi.py` の `_redesign_v2_enabled` + JPY high-ADX conf bypass / `strategies/scalp/__init__.py` の bb_rsi_reversion 節 / `tools/bb_rsi_shadow_bt.py` / `tests/test_bb_rsi_shadow_redesign_v2.py`。
+4. **挙動中立性の実証** (hook 検証要求への回答 — 新規 BT は不要、根拠は T10 KILL N=495 WR33.7%<BEV EV≈-0.02pip の既存 Rule 1 級統計): 削除テストの default-off pin (conf=56, MR anti-trend 適用) を新コードで再実行し一致 / env=0・=1 いずれでも同一出力 (フラグ完全不活性) / 両フラグ=1 でも `split_shadow_always` が bb_rsi_reversion を返さない / `tests/test_bb_rsi_ema_aligned_shadow_redesign_v2.py` 3 passed (default-off 挙動は不変のため既存 assert がそのまま成立)。
+
+残タスク (cosmetic、任意): dashboard で `BB_RSI_REDESIGN_V2` (=0) / `BB_RSI_REDESIGN_V2_SHADOW_PROMOTE` (=1) の 2 キーを削除。本コミット到達後はどちらも無参照の残骸。
+
+### 追加教訓
+
+- **検証出力を `tail`/`head` で切らない**。grep 検証は全行 + `wc -l` をセットで出す。「絶対に在るはずの行 (今回は SSH_ORIGINAL_COMMAND の自己マッチ)」の欠落は truncation の canary になる。silent except と同型の「不発とゼロ件の区別不能」問題。
 
 **関連**: [[bb-rsi-t10-kill-2026-07-02]] / [[edge-cell-e1-e4-code-disable-2026-07-02]] / MEMORY: project_bb_rsi_reversion_falsified
