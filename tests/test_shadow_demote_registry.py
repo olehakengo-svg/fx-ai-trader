@@ -19,9 +19,29 @@ def test_r2_critical_cells_are_demoted():
         ("sr_fib_confluence", "EUR_JPY"),
         ("sr_fib_confluence", "GBP_JPY"),
         ("sr_fib_confluence", "USD_JPY"),
+        ("engulfing_bb", "USD_CHF"),
+        ("london_breakout", "USD_CHF"),
+        ("three_bar_reversal", "USD_CHF"),
+        ("vol_surge_detector", "USD_CHF"),
     }
 
     assert expected == SHADOW_DEMOTED_CELLS
+
+
+def test_usdchf_hourly_bleeder_cells_demoted():
+    # 2026-07-02 (rule:R2): daytrade_1h_usdchf mode audit — the four
+    # still-emitting bleeder cells on the USD_CHF hourly surface
+    # (remainder after the 2026-06-12 strategy retirements).
+    assert is_shadow_demoted("london_breakout", "USD_CHF")
+    assert is_shadow_demoted("vol_surge_detector", "USD_CHF")
+    assert is_shadow_demoted("three_bar_reversal", "USD_CHF")
+    assert is_shadow_demoted("engulfing_bb", "USD_CHF")
+    # Per-cell stop, not a strategy retirement: the same strategies stay
+    # alive on their other pairs (vol_surge_detector is SCALP_SENTINEL
+    # live on USD_JPY).
+    assert not is_shadow_demoted("london_breakout", "GBP_USD")
+    assert not is_shadow_demoted("vol_surge_detector", "USD_JPY")
+    assert not is_shadow_demoted("three_bar_reversal", "EUR_USD")
 
 
 def test_shadow_demote_registry_pair_specific_examples():
