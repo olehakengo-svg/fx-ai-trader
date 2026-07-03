@@ -88,7 +88,23 @@ DISABLED_STAGE = 0
 #     (30d n=3 +5.6p). Successor: D1-gated continuation variant via its own
 #     R1 pipeline (wick-imbalance-gbpusd-continuation-pre-reg-2026-06-22).
 #     ref: knowledge-base/wiki/decisions/live-bleeder-demotions-2026-07-02.md
-DISABLED_CELLS: frozenset[str] = frozenset({"E8", "E10"})
+#   E4 (bb_rsi_reversion NY SELL, symbol-unconstrained): disabled 2026-07-02
+#     (rule:R2) — strategy T10-KILLED the same day (friction>edge, N=495,
+#     retry forbidden; bb-rsi-t10-kill-2026-07-02.md 拘束事項3). KV stage=0
+#     since the 2026-06-04 CB, but the watchdog DECREMENT floor bug
+#     (max(1, stage-1)) re-armed it 0→1 on 2026-07-02 ~10:18Z as soon as
+#     API_AUTH_TOKEN was provisioned → 11 live fires 13:08-19:55 UTC from a
+#     killed strategy. Cell metrics (N=23 PF=0.68, WR 39%>28%, EV -0.50>-1.0)
+#     sit exactly in the DECREMENT pocket that escapes both DISABLE gates,
+#     so KV alone can never hold this cell down. Pinned in code.
+#   E1 (dt_bb_rsi_mr ASN SELL, symbol-unconstrained): disabled 2026-07-02
+#     (rule:R2) — same bb_rsi-family cleanup (T10 拘束事項3). KV stage=0
+#     since the 2026-06-04 CB, live N=0 since LOCK; pinned against the same
+#     default="1" / re-arm class. dt_bb_rsi_mr keeps its normal PAIR_PROMOTED
+#     USD_JPY live path — only the cross-pair ASN force-live override is dead.
+#     Re-enable is R1-only (Shadow Wilson_lo >= 0.55 + pre-reg LOCK).
+#     ref: knowledge-base/wiki/decisions/edge-cell-e1-e4-code-disable-2026-07-02.md
+DISABLED_CELLS: frozenset[str] = frozenset({"E1", "E4", "E8", "E10"})
 
 
 def match(

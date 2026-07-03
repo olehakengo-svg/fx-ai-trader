@@ -1,6 +1,17 @@
 """
 BB + RSI Mean Reversion — ペア別最適化 (Bollinger 2001 + Wilder 1978)
 
+⚠️ T10 判定 2026-07-02: KILL (redesign 不能, 再試行禁止)
+  清浄 shadow N=495 の因子分解 + 敵対検証で生存セルゼロ、friction>edge 構造。
+  現行経路: SHADOW_RETIRED_STRATEGIES (2026-06-12, shadow_demote_registry.py)
+  により shadow row も全ペア停止済み (最終 shadow row 2026-06-04)。edge cell
+  E4 は DISABLED_CELLS で code-level pin (edge_cell_promote.py) — force-live
+  経路なし。本クラスは候補生成 (score race 参加) のみ残る。
+  下の pair whitelist / KILL_PAIRS / REDESIGN_V2 env は封じ込め・凍結された
+  実験レバーとして意図的に残置 (撤去判断は別タスク、挙動変更なし原則)。
+  ref: knowledge-base/wiki/decisions/bb-rsi-t10-kill-2026-07-02.md /
+       edge-cell-e1-e4-code-disable-2026-07-02.md
+
 Option C 統合改修 (2026-04-04 USD/JPY解剖レポート):
   EUR/USD: ADX<25 レンジ環境限定（従来通り）
   USD/JPY: ADX制限撤廃 + Death Valleyブロック + Gold Hoursボーナス

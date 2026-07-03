@@ -156,18 +156,20 @@ def _latest_trade(db: DemoDB):
 @pytest.mark.parametrize(
     "case_name,hour,instrument,sig,setup,expected_cell,expected_source",
     [
-        # slot_bypass は元々 E8 (session_time_bias EUR_USD LDN) で検証していたが、
-        # E8 は 2026-06-25 (rule:R2) で code-level DISABLED (edge-cell-e8-demote-
-        # 2026-06-25.md)。同じ slot-occupied→shadow→force-live 経路を active cell
-        # E4 (bb_rsi_reversion NY SELL) で維持する。E8 側の disabled 挙動は
-        # test_e8_disabled_cell_no_force_live_override が固定する。
+        # slot_bypass は元々 E8 (session_time_bias EUR_USD LDN) → E4
+        # (bb_rsi_reversion NY SELL) で検証していたが、E8 は 2026-06-25、E4 は
+        # 2026-07-02 (rule:R2) で code-level DISABLED。同じ slot-occupied→shadow→
+        # force-live 経路を active cell E3 (dt_bb_rsi_mr EUR_USD SELL) で維持する。
+        # disabled 側の挙動は test_e8_disabled_cell_no_force_live_override /
+        # test_e1_disabled_cell_no_force_live_override が固定する。
+        # ref: edge-cell-e1-e4-code-disable-2026-07-02.md
         (
             "slot_bypass",
-            14,
+            8,
             "EUR_USD",
-            _sell_sig("bb_rsi_reversion"),
+            _sell_sig("dt_bb_rsi_mr"),
             "seed_live_slot",
-            "E4",
+            "E3",
             "OTHER_UPSTREAM",
         ),
         (
@@ -280,3 +282,26 @@ def test_e8_disabled_cell_no_force_live_override(monkeypatch, tmp_path):
     assert not row["oanda_trade_id"]
     assert not trader._oanda.calls
     assert not any("[EDGE_CELL] E8 shadow→live force override" in log for log in logs), logs
+
+
+def test_e1_disabled_cell_no_force_live_override(monkeypatch, tmp_path):
+    """E1 (dt_bb_rsi_mr ASN SELL) は 2026-07-02 (rule:R2) で code-level DISABLED —
+    match しても force-live override は発生せず shadow に留まる (dt_bb_rsi_mr は
+    SHADOW_RETIRED ではないため row 自体は shadow で記録され、edge_cell_id タグは
+    match 適格性基準で残る)。KV stage を上げても DISABLED_CELLS が優先。
+    ref: knowledge-base/wiki/decisions/edge-cell-e1-e4-code-disable-2026-07-02.md
+    """
+    # AUD_USD を使う: GBP_USD は gbp_asia_flash_crash、EUR_USD は session_pair
+    # (Tokyo) の LIVE 側 winning-location フィルタが ASN で hard block するため。
+    # AUD_USD は PAIR_PROMOTED でもないので Phase0 tier gate で shadow に落ちる。
+    trader, logs = _make_trader(tmp_path, monkeypatch, hour=1)
+    trader._db.set_system_kv("edge_cell_stage:E1", "3")
+
+    trader._tick_entry("daytrade", _cfg(), _sell_sig("dt_bb_rsi_mr"), "15m", "AUD_USD")
+
+    row = _latest_trade(trader._db)
+    assert row["edge_cell_id"] == "E1"
+    assert row["is_shadow"] == 1
+    assert not row["oanda_trade_id"]
+    assert not trader._oanda.calls
+    assert not any("[EDGE_CELL] E1 shadow→live force override" in log for log in logs), logs
