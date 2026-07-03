@@ -1926,6 +1926,535 @@ N=2で0勝2敗。1トレード平均-5.6pips相当の損失は数値として深
 - `trendline_sweep / GBP_USD`: 残り24件
 - `zz_pivot_v60_sr / EUR_USD`: 残り27件
 
+### 2026-06-16 (Pre-Tokyo Briefing)
+前日（2026-06-15）は **4トレード、WR=75.0%、PnL=▲3.3**。
+全期間累計（N=26、WR=73.1%）でもPnL=▲15.4と赤字継続中。勝率は高いが**損益非対称（負けが大きすぎる）**構造が鮮明。
+| Strategy | Pair | N | WR% | EV | 判定 |
+| vix_carry_unwind | USD_JPY | 7 | 71.4% | **▲0.19** | 🟡 EV微負（N蓄積中） |
+| trendline_sweep | GBP_USD | 7 | 85.7% | **▲0.77** | 🔴 高WRだが損益逆転 |
+**N≥30達成戦略：ゼロ。**全戦略がまだSentinel蓄積フェーズ。最高でN=7（`trendline_sweep` / `vix_carry_unwind`）。昇格基準（N≥30 & EV≥1.0）到達まで、最速の戦略でも残り**23件**。
+### 課題①：`doji_breakout/GBP_USD` の異常損失（▲8.1、EV=▲8.10）
+- SL_HIT により単発▲8.1。BT上のEV=+0.724（WR=78.3%）と実績の乖離が顕著。
+
+### 2026-06-16 (Pre-Tokyo Briefing)
+| 前日 PnL | **-3.3 pip** |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| trendline_sweep | GBP_USD | 6 | 83.3% | -1.13 | -6.8 | 🟠 高WR・負EV（要精査） |
+> **重要注記**: 全戦略でN<30。統計的判断可能な戦略は現時点で0。EVの符号は「傾向の方向」として参照するに留める。
+差:                    -3.3 pip（最終PnL）
+`doji_breakout`のSL幅が他戦略比で著しく大きい。BT上のEV=+0.724（GBP_USD）に対し、ライブ初弾が-8.1 pipというのは**SL設計またはエントリータイミングの問題**を示唆。
+### 課題②：trendline_sweep の高WR・負EV構造
+| WR | 83.3%（6件中5勝） |
+
+### 2026-06-16 (Pre-Tokyo Briefing)
+## ⚠️ データ可用性警告
+以下のブリーフィングは「KBベースの構造分析」として位置づけます。定量的なN/WR/EVテーブルはリアルタイムデータ欠損のため生成不可。
+| PnL合計 | **取得不可** |
+| 全体WR | **取得不可** |
+## 2. 戦略別パフォーマンス（KBベース — リアルタイムN/WR/EV欠損）
+| 戦略 | ペア | BT EV | BT WR | ライブN | ライブEV | 状態 |
+| 戦略 | ペア | BT EV | BT WR | ライブN | 昇格基準達成 |
+> **注意**: 上記はBTデータ。Fidelity Cutoff後のライブNが揃わない限り、昇格/降格判断は保留が原則。
+
+### 2026-06-17 (Pre-Tokyo Briefing)
+前日（2026-06-16）は **5トレード、WR 40.0%、PnL -26.0 pip** と明確な損失セッション。全5件中GBP_USD集中が4件で、sr_fib_confluenceとwick_imbalance_reversionの2戦略が損失の大半を牽引。日次損失が-26.0pipに達し、**daily_loss_limit（-20pip閾値）をオーバー**してOANDA Bridgeがブロック発動した。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| vix_carry_unwind | USD_JPY | 7 | 71.4% | **-0.19** | -1.3 | N不足・EV負 |
+| trendline_sweep | GBP_USD | 6 | 83.3% | **-1.13** | -6.8 | ⚠️ WR高・EV負の逆説 |
+**全期間合計**: N=26, WR=65.4%, PnL=**-44.5 pip**
+> ⚠️ **全戦略がN<30**。現時点では「判断可能」な戦略はゼロ。ただしEVの方向性は参照可能。
+→ **今日の対処**: 本日はリセット後の1日目。序盤の損失管理が最重要。累積が-15pipに近づいた時点で手動での状況確認を推奨。
+### 課題③：trendline_sweep の WR-EV 逆説
+
+### 2026-06-17 (Pre-Tokyo Briefing)
+- **2026-06-16 PnL: -26.0 pips / 5トレード / WR 40.0%**
+- GBP_USD集中（4/5件）で大型損失が連続。sr_fib_confluenceが-13.1、wick_imbalance_reversionが-10.5と、2戦略だけで-23.6を叩き出した。
+- 唯一のプラスはtrendline_sweep GBP_USD +1.4のみ。損小利大の逆パターン（損失平均 -8.1、利益平均 +1.85）が前日の構造問題。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| trendline_sweep | GBP_USD | 6 | 83.3% | **-1.13** | -6.8 | 🟡 **WR高いがEV負** |
+| vix_carry_unwind | USD_JPY | 9 | 55.6% | **-0.72** | -6.5 | 🟡 EV要注意 |
+| wick_imbalance_reversion | GBP_USD | 2 | 50.0% | -4.10 | -8.2 | 🔴 N不足+EV深刻 |
+| sr_fib_confluence | GBP_USD | 2 | 50.0% | -6.55 | -13.1 | 🔴 N不足+EV深刻 |
+
+### 2026-06-17 (Post-London Report)
+| **WR（勝率）** | 0.0%（0勝4敗） |
+| **PnL（pips）** | **-25.0** |
+| **平均PnL/トレード** | -6.25 pips |
+`vix_carry_unwind / USD_JPY / +0.5pip` のBREAKEVENが唯一のプラス着地だが、「成功」とは分類しない。1件のBreakevenはスプレッド（0.8pip）を考慮すると実質コスト負担。
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+- `vix_carry_unwind / USD_JPY` は本日N=3でWR=0%、BT WR=100%（N_BT=0、ゼロサンプルのBT）との乖離アラート🔴が出ている。BTのN=0はバックテストとして実質「無効」であり、このアラート自体が「根拠なき昇格」を示唆。
+- 全4件すべてSELL方向。USD_JPYのSMAスロープ+0.00269・GBP_USDの横ばいという環境で売り戦略に集中したことが損失を構造化。
+データ上、東京セッション（UTC 00:00–07:00）の独立カウントは提供されていないため直接比較は不可。ただし**本日累計N=4（WR=0%、-25.0pip）**がそのままロンドン分に相当していることから、**東京セッションはトレードゼロ**だった可能性が高い。
+
+### 2026-06-17 (Pre-Tokyo Briefing)
+- PnL合計: **-26.0 pips**（5トレード）
+- 全体WR: **40.0%**（2勝3敗）
+- 勝利トレードは小幅（+1.4, +2.3）、敗北トレードが大幅（-10.5, -15.4, -3.8）と **ペイオフ比が著しく非対称（損大・益小）**。勝っても取り返せない構造が前日も継続。
+| Strategy | Pair | N | WR% | EV | 判定 |
+| trendline_sweep | GBP_USD | 5 | 80.0% | -1.82 | ⚠️ 高WRだがEV負 |
+> **全体N=16、全体WR=43.8%、PnL=-66.0 pips**
+> ただしEVの方向性（特に`sr_fib_confluence`, `vix_carry_unwind`のEV<-5.0）は統計的閾値以前に構造問題を示唆。
+| 前日平均勝ちPnL | +1.85 pips |
+
+### 2026-06-18 (Pre-Tokyo Briefing)
+| PnL合計 | **-25.0 pips** |
+| 全体WR | **0.0%** (4戦0勝) |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| trendline_sweep | GBP_USD | 4 | 75.0% | **-2.85** | -11.4 | ⚠️ EV要注意 |
+| sr_fib_confluence | GBP_USD | 3 | 33.3% | -6.80 | -20.4 | 🔴 EV深刻 |
+| vix_carry_unwind | USD_JPY | 3 | 0.0% | -5.90 | -17.7 | 🔴 EV深刻 |
+> **注記**: 全戦略 N<10。統計的判断には不十分だが、EV方向性として `sr_fib_confluence`・`vix_carry_unwind`・`wick_imbalance_reversion` の3戦略で深刻なマイナスEVが観測されている。
+- **問題の構造**: BT vs Live 乖離が最大。BT WR=100%（N=0）に対し Live WR=0.0%（N=3）、ΔWR=**+100pp** の完全乖離 🔴
+
+### 2026-06-18 (Pre-Tokyo Briefing)
+| 前日PnL合計 | **-25.0** |
+| 前日WR | **0.0%** (0勝4負) |
+昨日（2026-06-17）は4トレード全敗。`vix_carry_unwind`がUSD/JPYで3連続SELL失敗（-17.7）、`sr_fib_confluence`がGBP/USDで損切り（-7.3）。BREAKEVENが1件（+0.5）あるが実質的損益は圧倒的マイナス。
+**全体: N=14, WR=35.7%, PnL=-64.6**
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **N≥30達成: 0戦略。** 全戦略が統計的判断不能域（N<10）または傾向域（N<30）にある。EVがマイナスの戦略でも降格基準（N≥30 & EV<-0.5）に達していない点に注意。
+| WR | 100.0%（想定） | 0.0% |
+| ΔWR | **+100pp** 🔴 |
+
+### 2026-06-18 (Post-London Report)
+| 勝率 (WR) | 0.0% |
+| PnL | **-14.1 pips** |
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+| WR | 0.0%（累計WR 0.0%から逆算） | 0.0% | 変化なし |
+| PnL | 約 -10.3 pips | -14.1 pips | ロンドンでさらに悪化 |
+- 全ペアATR%ile 40–64%のRANGING継続が基本シナリオ。NY市場開幕（UTC 13:00以降）のモメンタムインジェクションは既にロンドンフィックス（UTC 16:00）で一段落している
+- USD_JPYのATR%ile=40%はやや低め → Scalp系には不利、DT系のブレイクアウト待ち
+- EUR_JPYのSMA20 slope=+0.00095という微小上向きは、NY引き継ぎで円安バイアスがわずかに継続する可能性あり → SELL系リバーサル（vsg_jpy_reversalのSELL方向）は引き続き地合い逆行リスク
+
+### 2026-06-18 (Pre-Tokyo Briefing)
+| PnL合計 | **-25.0 pip** |
+| 全体WR | **0.0%** (0勝4敗、BEは除外換算) |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| vix_carry_unwind | USD_JPY | 3 | 0.0% | -5.90 | -17.7 | 🔴 要注意 |
+| vsg_jpy_reversal | EUR_JPY | 2 | 0.0% | -12.20 | -24.4 | 🔴 最悪EV |
+| trendline_sweep | GBP_USD | 1 | 100.0% | +1.40 | +1.4 | ✅ 唯一正EV |
+**全体: N=11, WR=18.2%, PnL=-75.4 pip**
+> **注記:** 全戦略N<10。統計的に「データなし」フェーズ。trendline_sweepの+1.40EVは1件のみで判断不可。
+
+### 2026-06-19 (Post-Tokyo Report)
+| PnL | 0 |
+| WR | N/A |
+- 東京セッションN=0は「失敗」ではなく「フィルタ正常稼働」として解釈が妥当
+- block_countsを見ると最大要因は `rnb_usdjpy:direction_filter(137)` および各ペアの `hedge_block`（合計330件超）であり、これはリスク管理機能の正常動作
+- `r2_shadow_demoted_cell` によるscalpブロック（計116件）も適正。シャドウトラッキング段階の戦略がライブエントリーを控えているのは仕様通り
+- **DDが80.03%のDD防御0.2x発動中** — この状況でのパラメータ緩和は禁忌
+| EUR_JPY | RANGING | 64% | ボラティリティ拡大余地あり、ブレイク試行に注意 |
+### 推奨戦略配分
+
+### 2026-06-19 (Pre-Tokyo Briefing)
+- **前日（2026-06-18）PnL: -24.4 pip、トレード数: 2件、WR: 0.0%**
+- 全発動トレードは `vsg_jpy_reversal / EUR_JPY` の連続SELL → 2本ともSL_HIT
+- Cutoff後累計: N=13、WR=15.4%、PnL=-95.4 pip。本番環境は依然として構造的赤字継続中
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **統計的判断**: 全戦略 N<10。「データなし」扱い。傾向値としてEVが全戦略で大幅マイナス推移中。N=30到達前に構造的判断を下すことは統計的に不適切だが、EV水準（-5〜-12）は許容できる「外れ値」の範囲を大きく超えている点を記録する。
+- EUR_JPY SELL × 2本、両者ともSL_HIT
+- EV=-12.20は**異常値水準**（正常なSL構造なら-2〜-3が上限）
+- スプレッド1.6は基準内（DT閾値20%以内と思われる）だが、**方向判定そのものが誤っている可能性**が高い
+
+### 2026-06-19 (Post-London Report)
+| PnL (pips) | **0.0** |
+| WR | **N/A** |
+**なし** — ただし「何も起きなかった」は無害ではない。本日累計 N=2、WR=0%、PnL=**-20.0 pips** という状態でロンドンセッション全体が無活動で終了した。損失はロンドン以前（東京セッション相当）に既に確定済み。
+| WR | 0% (0/2) | N/A |
+| PnL | -20.0 pips | 0.0 pips |
+- 現在全ペアRANGING（EUR/JPY 64%、GBP/JPY 67%、GBP/USD 53%）
+- NYオープン（UTC 13:00過ぎ）の時間帯は既に経過しているが、**daily_loss_limitリセット後（翌UTC 00:00）まで本日のOANDA本番発注は制限継続**と推察される
+- レジーム変化の触媒（米経済指標発表等）がない限り、RANGING継続の可能性が高い
+
+### 2026-06-19 (Pre-Tokyo Briefing)
+前日（2026-06-18）は **vsg_jpy_reversal / EUR_JPY** の2トレードのみが実行された。PnL合計 **-24.4pip**、WR **0%**（2/2敗北）。両トレードとも SL_HIT による損切りで、当日のシステムは日次損失リミット（-20.0pip）到達後にブロックされた。全体的にトレード機会は極めて少なく、システムは実質的に休止状態に近かった。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> ⚠️ **全戦略 N<10**。統計的判断材料としては「データなし」扱い。EV・WRの数値は参考値に留める。
+- **SELL方向2連敗**（EUR/JPY）。EUR/JPY のレジームは **VOLATILE（ATR%ile 64%）** であり、リバーサル系戦略にとって逆風の環境。
+- EV = **-12.20**（N=2）は統計的意味を持たないが、VOLATILEレジームでのリバーサル戦略の相性の悪さとは一致している。
+- `daily_loss_limit(-20.0pip<=-20.0pip)` が1件発動。前日後半のトレード機会はゼロとなった。
+- これはリスク管理として正常動作だが、1日2件のトレードで上限到達という事実は、1件あたりのロスサイズが大きいことを示す。
+- VOLATILEレジームでのリバーサル系戦略（vsg_jpy_reversal 等）のシグナルは警戒を要する。
+
+### 2026-06-22 (Pre-Tokyo Briefing)
+前日（2026-06-21）はトレード**ゼロ**。PnL = ¥0、WR = N/A。
+Cutoff後累積でN=9、PnL=-79.9pip相当と、実質的に稼働不能に近い低稼働状態が継続している。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **補足**: 全戦略でWR=0%、EV<-5.9。ただしN<10のため統計的判断は不可。「傾向として極めて悪い」止まり。
+- **原因**: hedge_block（eurjpy:128、gbpusd:114、daytrade:49、scalp_5m_eur:44）が支配的
+- hedge_blockの累積数がトップ3を占めており、ヘッジ検知ロジックが事実上の「発火ストッパー」として機能している
+- rnb_usdjpy:direction_filterが126件と第2位——rnb戦略はほぼ方向性フィルターで全滅
+- 累積50件中、SENT=3、SKIP=47
+
+### 2026-06-22 (Pre-Tokyo Briefing)
+**2026-06-21（前日）はトレードゼロ**。シグナル自体は複数のブロック理由が記録されているため、エンジンは稼働していたが、約定に至るシグナルが一切生成されなかった。累計（Cutoff後全期間）のPnLは **-68.1 pips / N=9 / WR=11.1%** と依然として深刻な赤字水準。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| vsg_jpy_reversal | EUR_JPY | 2 | 0.0% | -12.20 | -24.4 | データ不足（傾向：最悪EV） |
+> **注記**: 全戦略がN<10（うち4戦略N≤2）。統計的有意性なし。ただし **EV水準は構造的懸念を示唆**。vsg_jpy_reversalのEV=-12.20は単純な損失深さを示しており、SL設定の妥当性を要確認。
+| Strategy | WR_BT | WR_Live | ΔWR | 評価 |
+> N_BT=0のウォークフォワードファイル（walkforward-w90-2026-04-22.md）がWR=100%と記録されている点が矛盾。**BT自体のデータ品質に疑義あり**。Live N=3でWR=0%は統計的判断に足りないが、方向性の乖離として要監視。
+- 前日は全モードでトレード数=0。hedge_block・direction_filterが上位を占めるブロック理由から、**相場環境がシグナル発火条件を満たさなかった**と推定。
+- 対処（本日）：レジーム確認（下記§5）を踏まえ、VOLATILEペアでの発火可能性を注視。
+
+### 2026-06-22 (Pre-Tokyo Briefing)
+前日（2026-06-21）トレードゼロ。当日（06-22 19:18 UTC時点）も実質的な新規約定なし。Cutoff後の有効トレードはN=7、合計PnL=**-62.9pip**、全体WR=**14.3%**。システムは稼働中だが、約定に繋がるシグナルをほぼ全量ブロックしている状態が継続している。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **統計的判断**: 全戦略 N<10。現時点では「データなし」扱い。EV・WRは傾向参考値にすぎず、昇格・降格判断の根拠にはならない。
+- **hedge_block祭り**は複数モードが同一通貨エクスポージャーを監視し合っている可能性が高い。EUR/GBP/JPY方向の合意が取れるまでは構造的ブロックが継続する見込み。本日も約定は期待薄と認識してモニタリングに徹する。
+- **scalp系demoted_cell**はセルのWR/EV改善を待つしかない。人為的介入は不可。
+- rnb_usdjpyはUSD/JPYがRANGINGを脱するレジーム遷移待ち。
+| 時間帯 | 注意点 |
+| **東京セッション（09:00-12:00 JST）** | JPY系ペアのRANGING継続の可能性高い。USD/JPYが161.3付近の高値圏。BOJ関連ニュースフローに注意 |
+
+### 2026-06-22 (Pre-Tokyo Briefing)
+2026-06-21（前日）：**トレードゼロ**。エントリー条件を満たしたシグナルなし、またはすべてシャドウ追跡段階で吸収。PnL = ¥0、WR = N/A。週次累計も含め、実運用に寄与するトレードは発生していない。
+| Strategy | Pair | N | WR% | EV | PnL |
+**統計的判定**：全戦略でN<10。「データなし」ステータス。EVの数値（特に`vsg_jpy_reversal`の−12.20、`wick_imbalance_reversion`の−10.00）は警戒値だが、N=2では統計的結論不可。`dt_bb_rsi_mr`のEV+1.30はN=1のノイズ。
+- Cutoff後の累計N=6（全戦略合計）。本番稼働中モードが22本あるにもかかわらず、エントリー数が著しく少ない。
+- **シグナル発火率の低下**：spread_guard・regime filter・shadow追跡の複合フィルタが過剰に機能している可能性が高い。
+- 対処の方向性（判断）：どの段階でシグナルが消滅しているか（生成→spread_guard→regime filter→shadow→OANDA）のロス率確認が必要。**今日のログ監視でblock_countの内訳に注目**。
+- 50件中50件がSKIP（Live Rate = 0%）。全件がデモ専用として処理されている。
+- Bridge StatusのSKIP理由はすべて`shadow_tracking`（20件）。
+
+### 2026-06-23 (Pre-Tokyo Briefing)
+| PnL合計 | **+1.3 pips** |
+| 全体WR | **100%（1/1）** |
+| Strategy | Pair | N | WR% | EV | PnL | 判定ステータス |
+**全体合計: N=5, WR=20.0%, EV=−8.62平均, PnL=−43.1**
+> **重要**: N<10のため全戦略が「データなし」扱い。EVの正負は傾向に過ぎず、統計的判断は保留。ただし`wick_imbalance_reversion`と`vsg_jpy_reversal`のEV=−10〜−12台は、たとえN=2でも損失規模として看過できない。
+- `hedge_block`が**242件**で最大要因。ヘッジポジションが長時間解消されず、新規エントリーをほぼ全面封鎖している状態。これは相場のレンジ化・方向感のなさとも整合。
+- `r2_shadow_demoted_cell`の**132件**は、ShadowセルがR2評価で降格済みのシグナルを大量に弾いていることを意味する。Signal品質のフィルタリングが機能しているが、同時にトレード機会を大幅に削減している。
+- `direction_filter(rnb_usdjpy: 95件)`はレンジ相場でのRNBエントリー抑制が機能している正常な挙動。
+
+### 2026-06-23 (Pre-Tokyo Briefing)
+前日（2026-06-22）は **1トレード、WR 100%、PnL +1.3pips** と極めて低活動。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**総計: N=6、WR=33.3%、PnL=-40.8**
+| GBP_JPY | **VOLATILE** | 69% | +0.028(↑) | ウィック系戦略には有利環境だが、wick_imbalance_reversalのEVは現状マイナス |
+| 時間帯 | イベント | 注意点 |
+- EUR_USD、GBP_USDのSMA20がともに**下向き**（USD高トレンド継続の示唆）。VOLATILEからTRENDINGへの遷移が起きると、MR系戦略（dt_bb_rsi_mr等）のパフォーマンスが更に低下する懸念あり。
+- USD_JPYのRANGINGは比較的安定。SMA20が若干上向きのため、上方ブレイクアウト発生時にRANGING→VOLATILEへの転換に注意。
+
+### 2026-06-23 (Post-London Report)
+| PnL (pips) | **0.0** |
+| WR | **N/A** |
+| WR | 100% (N=1) | N/A |
+| PnL | +2.3 pips | 0 pips |
+| EUR/JPY | VOLATILE | 69% | 継続 VOLATILE、リスクオフ波及に注意 |
+### 推奨戦略配合
+- `daytrade_eur:hedge_block` **224件**
+- `daytrade_gbpusd:hedge_block` **184件**
+
+### 2026-06-23 (Pre-Tokyo Briefing)
+| PnL合計 | **+1.3 pips** |
+| 全体WR | **100%** (N=1) |
+- 前日は `dt_bb_rsi_mr / GBP_USD / SELL` の1件のみが約定・勝利（OANDA_SL_TP決済）。
+- 実質「トレードなし」に等しい稼働水準。N=1のWR=100%はノイズとして扱う。
+| Strategy | Pair | N | WR% | EV | PnL | 評価 |
+**全戦略合算（Cutoff後）:** N=5、WR=40.0%、PnL=**-30.5**
+> ⚠️ **全戦略でN<10**。統計的判断は不可能。EVの正負はノイズの範囲内だが、`wick_imbalance_reversion`のEV=-5.90と`vsg_jpy_reversal`のEV=-14.10は**1件あたりの損失規模**として要注視。
+- Cutoff後N=5（期間不明だが複数週にわたると推察）で合計5件は、事実上のシステム停止水準。
+
+### 2026-06-24 (Pre-Tokyo Briefing)
+前日（2026-06-23）は**1トレードのみ**が成立。`wick_imbalance_reversion / GBP_USD` のBUYが +2.3 pips（OANDA_SL_TP決済）で勝利。WR=100%、PnL=+2.3 pip。システムは稼働中だが**事実上の不稼働日**に近い超低頻度。
+| Strategy | Pair | N | WR% | EV | PnL | 評価 |
+| wick_imbalance_reversion | GBP_USD | 3 | 33.3% | -5.90 | -17.7 | ⚠️ EV深刻 |
+**全体合計（Cutoff後）: N=5, WR=40.0%, EV=-6.7（平均）, PnL=-30.5**
+> ⚠️ **統計的注記**: N=5は「データなし」水準。昇格・降格判断の対象外。ただし `wick_imbalance_reversion` のEV=-5.90は数値として懸念要因として記録。
+- `r2_shadow_demoted_cell` のブロックが**169件**（全体の最大勢力）。これはShadow期間中に降格されたセルが本番稼働を全面封鎖している構造的問題。Shadow解除 or セル再評価の判断が必要かを注視。
+- `direction_filter` 99件は相場がレンジ/方向不明瞭な状況を正しく認識している可能性もあり、USD_JPY = **RANGING** レジームと整合的。現時点では正常機能と判断。
+- `gbp_asia_flash_crash` 29件は東京時間のGBP系に対する保護。本日東京時間も継続する可能性が高い。
+
+### 2026-06-24 (Pre-Tokyo Briefing)
+| PnL合計（前日） | **+2.3 pips** |
+| 全体WR | **100.0%**（N=1、統計的意味なし） |
+| Strategy | Pair | N | WR% | EV | PnL | 統計ステータス |
+**Cutoff後 合計**: N=5、WR=60.0%、PnL=**-14.0 pips**
+注目点: `wick_imbalance_reversion / GBP_USD` はEV=-5.90と極めて低調だが、N=3のため降格判断の閾値（N≥30）には遠く、データ蓄積段階。
+- 25モードが稼働中にもかかわらず前日の執行は**1件のみ**
+- Block Counts上位が示す通り、複数のフィルターが連続作動している
+- `shadow_tracking`ブロック18件が主因
+
+### 2026-06-24 (Post-London Report)
+| 勝率 (WR) | **100.0%** |
+| セッションPnL | **+2.4 pips** |
+| 戦略 | ペア | 方向 | Outcome | PnL | Spread |
+**成功要因**: EUR/JPYがVOLATILE（ATR%ile 67%、SMA20 Slope −0.00032の緩やかな下方傾斜）の環境下でSELLシグナルが機能し、スプレッド1.5pipsを差し引いても正EV実現。OANDA_SL_TPによる規律ある決済が奏功。
+| WR | — | 100% |
+| PnL | +0.0 | +2.4 pips |
+- **EUR系・GBP系（VOLATILE継続）**: ATR%ile 62–72%圏でロンドン終値を引き継ぐため、NYオープン（UTC 13:00–）でボラティリティ縮小局面に入るリスクあり。ただし米指標（週次ベース）次第でスパイクあり。
+- **USD_JPY（RANGING）**: SMA20 Slope +0.00350と上向きバイアスあり。RANGING継続ならブレイクアウト系は不利。
+
+### 2026-06-24 (Pre-Tokyo Briefing)
+- **前日（2026-06-23）**: トレード数 **N=1**、PnL **+2.3 pips**、WR **100%**
+- 唯一のトレードは `wick_imbalance_reversion / GBP_USD / BUY / WIN`（OANDA_SL_TP決済、スプレッド1.3）
+- Cutoff後累計: **N=6、WR=66.7%、PnL=-12.0 pips**（wick_imbalance_reversionがN=3で-17.7pipと足を引っ張っている）
+| Strategy | Pair | N | WR% | EV | 判定 |
+| `wick_imbalance_reversion` の累積損失 | N=3でEV=-5.90、PnL=-17.7。1勝2敗パターン |
+- `wick_imbalance_reversion` はEV=-5.90と深刻だが**N=3のため統計的根拠なし**。ただし損失方向への集中を警戒しつつN蓄積を継続監視する
+- トレード数が1日1件ペースでは**N=30到達に約1ヶ月**を要する計算。シグナル発生の構造的問題の有無を確認する必要がある
+- OANDA NAV/Balanceが`None`のままなので接続状態の検証を優先する
+
+### 2026-06-25 (Pre-Tokyo Briefing)
+前日（2026-06-24）は **2トレード、PnL +4.4pip、WR 100%** で完結。trendline_sweep（GBP_USD SELL +2.0）および vsg_jpy_reversal（EUR_JPY SELL +2.4）が共にOANDA_SL_TP / SL_HIT決済で勝利。スプレッドは1.3〜1.5pip圏で正常範囲内。ただしトレード数は極端に少なく、戦略の稼働ポテンシャルと比較して著しく未稼働の状態が続いている。
+> ⚠️ **統計的注意**: 全戦略N=1。「傾向」「判断可能」水準（N≥10）に全く達していない。数値は参考記録に過ぎない。
+| Strategy | Pair | N | WR% | EV | 統計ステータス |
+**全体合計（Cutoff後）**: N=4、WR=100%、PnL=+8.0pip
+- Sentinel昇格基準（N≥30）まで全戦略で **残り29件以上** 必要
+- OANDA昇格基準（N≥30 & EV≥1.0）の判断は現時点で不可能
+- rnb_usdjpy:direction_filterの69件は断然トップ。USD_JPYがRANGINGでSMAスロープ+0.00366と弱いながら上向きの中、方向フィルタが機能していることは**むしろ正常なシステム動作**と見なす
+- rr_floor 30件はRANGINGレジームでの構造的問題。ATR%ile 59〜72%はそれほど低くないが、SMAスロープが全ペアで小さく、方向性プレミアムが薄い
+
+### 2026-06-25 (Pre-Tokyo Briefing)
+前日（2026-06-24）は**2トレード、全勝（WR=100%）、PnL=+4.4pips**。`trendline_sweep/GBP_USD`と`vsg_jpy_reversal/EUR_JPY`がそれぞれSELL方向でWIN。件数は少ないが質は高い結果。システム全体の発火頻度の低さが依然として最大の制約。
+**⚠️ 警告: 全戦略N<10。統計的判断不可能。以下は「記録」であり「評価」ではない。**
+| Strategy | Pair | N | WR% | EV | 統計ステータス |
+**全体合計: N=6、WR=83.3%、PnL=+3.2pips**
+唯一懸念すべきは`dt_sr_channel_reversal/EUR_JPY`のEV=-2.40だが、N=2では統計的ノイズの域を出ない。ただしBT期待値（EV=+0.178）との乖離は記録しておく価値あり。
+- 全モード25のうち、前日発火は実質**2戦略・2件のみ**
+- Block Counts TOP15を見ると、**hedge_block・same_price_0pip・recent_emit・r2_shadow_demoted_cell**の4類型が支配的
+- **hedge_block（53件）**: レンジ相場でのヘッジポジション衝突。全ペアがRANGINGのため構造的に発生しやすい状態
+
+### 2026-06-25 (Post-London Report)
+| セッション PnL | **-12.6 pips** |
+| EV（/trade） | **-6.30 pips** |
+| 戦略 | ペア | 方向 | PnL | Spread | Reason |
+- **成功要因（1文）**: SELL方向がEUR_JPYの短期下押しレジームに適合し、1.5pipsの小利確を実現したが、spread 1.8pipsに対して純利益は実質微益（摩擦後EV≈0）。
+| 戦略 | ペア | 方向 | PnL | Spread | Reason |
+- **失敗要因（1文）**: EUR_JPYはRANGING（ATR%ile=67%、SMA20 Slope=-0.00078）でありながら瞬間的な方向性バイアスが強く、SRチャネルの反発想定が外れてSLヒット（-14.1pipsは標準的なSL幅に相当）。
+| セッション PnL | 本日累計-26.4 / N=4より差分: **-13.8 pips** | **-12.6 pips** |
+**総評**: 東京セッションはWR=0%（推定）と完敗、ロンドンセッションは50%に改善したが依然として負のEV。1日を通じてdt_sr_channel_reversalのEUR_JPYが唯一のシグナル源であり、戦略集中度が極端に高い。ロンドン時間帯でRANGINGが継続しており、レジーム変化は確認されなかった。
+
+### 2026-06-25 (Pre-Tokyo Briefing)
+前日（2026-06-24）は **2トレード、WR 100%、PnL +4.4pip** と小規模ながらクリーンな結果。`trendline_sweep / GBP_USD (+2.0)` および `vsg_jpy_reversal / EUR_JPY (+2.4)` の2件がいずれもWINで完結。両トレードともスプレッド1.3-1.5pipと正常範囲内。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> ⚠️ **全戦略 N<10**。統計的判断は不可能な段階。EVの絶対値より「傾向の方向」として読む。
+- **昇格基準 N=30** に対し、最大 N=3（dt_sr_channel_reversal）
+- 最速到達候補でも残り **27件**。現在の約定ペース（2件/日）で換算すると **約13-14営業日後**
+- 全戦略が実質「観察前期」。本日以降の積み上げが最優先課題
+- **稼働モード25種** に対し前日約定2件は著しく低い
+- daytrade_1h系（9モード稼働）・scalp_5m系（3モード稼働）の全てでゼロ約定
+
+### 2026-06-26 (Pre-Tokyo Briefing)
+前日（2026-06-25）は**4トレード、WR=25.0%、PnL=−26.4pip**。3連敗（内2件はOANDA_SL_TP、1件はSL_HIT）が収益を圧迫。Cutoff後の全期間累計でも**N=7、WR=57.1%、PnL=−19.7pip**と損失圏にある。本番稼働ながら生成される実トレードは極めて限定的。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **注記**: 全戦略ともN<10。判断基準上は「データなし」扱い。EV・WRの数値は傾向の参考に留める。昇格/降格判断は時期尚早。
+前日3トレード中2敗（WR33.3%、EV=−6.30）。特に1件の−14.1pip（OANDA_SL_TP）が致命傷。EUR/JPYはRANGINGレジーム（ATR%ile=62%）かつSMA20 Slope=−0.00126（緩やかな下向き）。チャネルリバーサル系は方向感が出にくいRANGING中でも機能し得るが、**SL幅に対してリターンが小さい非対称な損益構造**が顕在化している。
+| EUR_USD | RANGING | 66% | −0.00496 | ボラ高め。trendline_sweep/bb_squeeze系はブレイク方向への追従が必要。下向きSlopeに注意 |
+- **東京セッション（09:00〜15:00 JST）**: USD/JPYはSMA上向き（+0.00370）で東京時間の円安方向の動きに注目。rnb_usdjpy の方向フィルターが緩む条件が揃うか監視。
+- **ロンドンオープン（16:00〜17:00 JST）**: GBP/USDのSMA Slope=−0.00454。ロンドン勢の売り持続なら wick_imbalance_reversion のBUYシグナルは逆張りリスクが高い。
+- **NYセッション（22:00〜 JST）**: EUR/USD 66%ile ATRで荒い値動きの可能性。
+
+### 2026-06-26 (Pre-Tokyo Briefing)
+前日（2026-06-25）は **4件執行、WR 25.0%、PnL -26.4pips**。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **全戦略N<10のため統計的判断不可。** `dt_sr_channel_reversal / EUR_JPY` のみN=4で「傾向値」として観察可能だが、EVの著しい悪化（BT時EV=+0.178 vs LIVE EV=-7.48）は要追跡。
+- BT想定EV=+0.178はWR≈63.8%を前提とするが、直近LIVE WR=25%（3戦1勝）と大きく乖離
+- EUR_JPYレジームが **RANGING（SMA20 Slope=-0.00126、ATR%ile 62%）** であり、チャネル・SR反転系は「方向が定まらない中での逆張り」が刺さりにくい局面と整合
+- N=1のため断定不可。ただしGBP_USDも **RANGING（ATR%ile 59%、Slope=-0.00454下落基調）** で、GBP全体がソフト地合い
+- 上記2戦略の新規シグナルに対しては「N蓄積期間中の観察継続」として現行ブロック設定の効果を確認する
+- 大負けの主因となっている **SL設定とR:R比の非対称性** については、パラメータ検討の材料として記録
+
+### 2026-06-26 (Post-London Report)
+| 勝率 (WR) | 25.0% |
+| 総PnL | **-29.2 pips** |
+| 平均PnL/trade | -7.3 pips |
+ロンドンセッションは全4件中3件がSL_HIT。EV水準はマイナスで終了。
+| 戦略 | ペア | 方向 | PnL | 成功要因 |
+| **vsg_jpy_reversal** | EUR_JPY | SELL | **+2.1 pips** | 逆張りシグナルが短期下押しをキャプチャ、スプレッド(1.6)対比で辛うじてポジティブEVを確保 |
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+| **zz_pivot_v60_sr** | EUR_USD | SELL | **-10.5 pips** | RANGING環境でピボット反転期待が外れSL直行、スプレッド0.8pipsと低水準ながらEV=-10.5 |
+
+### 2026-06-26 (Pre-Tokyo Briefing)
+| PnL合計 | **-26.4 pip** |
+| 全体WR | **25.0%** (1勝3敗) |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| dt_sr_channel_reversal | EUR_JPY | **5** | 20.0% | **-7.94** | -39.7 | ⚠️ N不足・EV深刻 |
+> **凡例**: N≥30 & EV≥1.0 → 昇格候補 ｜ N≥30 & EV<-0.5 → 降格検討 ｜ N<10 → データなし扱い
+**Cutoff後全期間合計**: N=10, WR=40.0%, PnL=-51.2pip
+| トレード | 方向 | PnL | 終了理由 |
+3件全てSELL。EUR/JPYのレジームは**RANGING（SMA20 Slope=-0.00177）**であり、下落トレンドを前提としたSELLポジションが機能しにくい地合い。SR-Channelリバーサル系はレンジ相場では誤シグナルが増加しやすい。BT上のEV=+0.178（EUR_JPY）は「弱い正」であり、スプレッド・スリッページ込みの実運用では容易にマイナス転化する水準。
+
+### 2026-06-29 (Pre-Tokyo Briefing)
+| PnL合計 | 0.0 |
+| 全体WR | N/A |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| N合計 | WR | PnL合計 |
+- 前日（06-28）は全セッション無発火。
+- Block Count上位を見ると、**rnb_usdjpy:direction_filter（135件）**、**daytrade:hedge_block（127件）**、**daytrade_eur:hedge_block（113件）** が支配的。
+- これは「市場の方向性とシステムのフィルター条件が一致しない」状態が継続していることを示す。
+- 全50シグナルのうちLIVE送信はわずか3件（6%）。
+
+### 2026-06-29 (Pre-Tokyo Briefing)
+**2026-06-28: トレードゼロ日**。前日は全セッション（東京・ロンドン・NY）を通じてシステムがシグナルを発生させず、PnL=0、N=0、WR=N/A。直近の執行実績はCutoff後累積N=12に留まる。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**累計: N=12、WR=50.0%、PnL=-46.9**
+> ⚠️ **全戦略がN<10水準**。統計的判断基準上、現時点では全て「データなし」扱い。EVの正負は傾向として参照するに留める。
+- `recent_emit`ブロックが優勢（GBP_JPY:15件、daytrade:14件、GBP_USD:14件）— シグナルは発生しているが連続発火を抑制中
+- `rnb_usdjpy:direction_filter`が15件 — レンジ環境下でのRnB戦略の方向性フィルタが強く機能
+- `eurgbp:same_price_0pip`が10件 — エントリー条件の価格判定で弾かれ続けている
+- `recent_emit`連発はシステムが意図的に自己抑制している状態。過去シグナルの消化待ちであり、東京時間オープン後にフレッシュなシグナルが発生するか注視
+
+### 2026-06-29 (Post-London Report)
+| 勝率（WR） | 87.5% (7W/1L) |
+| 総PnL | **+3.3 pips** |
+| 平均EV/トレード | +0.41 pips |
+> ⚠️ WRは優秀（87.5%）だが、**単一LOSS（-8.5 pips）が7勝の+11.8 pipsを食いつぶし**、セッション利益を圧縮。リスク非対称性に注意。
+| 戦略 | ペア | PnL | 成功要因 |
+| 戦略 | ペア | PnL | 失敗要因 |
+**EVの矛盾**: セッション内のzz_pivot_v60_srはN=4でEV=-1.07だが、同戦略が3勝しながら単一の-8.5 pips LOSSで全体EVを引き下げる「逆サイズ問題」が見える。TP/SL非対称がセッション単位で顕在化。
+> ※東京セッションデータが本データセットに明示されていないため、本日累計（N=9, WR=88.9%, PnL=+5.4）とセッション内（N=8, WR=87.5%, PnL=+3.3）の差分から推定。
+
+### 2026-06-29 (Pre-Tokyo Briefing)
+前日（2026-06-28）は**トレードゼロ**。本日06:29 UTCまでの累積でもCutoff後N=19、PnL=**-48.7**（WR 57.9%だがEVは全体的に低調）。前日はエントリー条件を満たすシグナルが生成されなかった、または全シグナルがブロックされた可能性が高い。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- **トレードゼロ（前日）**: エントリー条件未充足またはブロック。RANGING相場が支配的な中、DT系シグナルの閾値をクリアできなかった可能性。
+- **EV構造の悪化**: 最大Nを持つ`dt_sr_channel_reversal/EUR_JPY`（N=6）がEV=-6.27と深刻。WRが33.3%であり、勝ちトレードが損失をカバーできていない（損小利大の逆構造）。
+- **PnL集中リスク**: 全損失の77%が`dt_sr_channel_reversal/EUR_JPY`の単一戦略ペアから発生。
+- `dt_sr_channel_reversal/EUR_JPY` はN=6で既に危険シグナル。KB記載のBTデータ（EV=+0.178）との乖離が拡大中。**N=10到達時に改めてEV確認し、乖離継続なら降格検討**を優先議題に乗せる。
+- `zz_pivot_v60_sr/EUR_USD` はKB未記載戦略と思われる（PAIR_PROMOTEDリストにない）。N=5でEV=-2.96は要注意。
+| GBP_USD | **RANGING** | 62% | -0.00455 (緩やかな下落) | trendline_sweep（実績WR100%）は引き続き注視 |
+
+### 2026-06-30 (Pre-Tokyo Briefing)
+前日（2026-06-29）は **N=10、WR=80.0%、PnL=+4.9pip** と表面上は強い勝率を記録。ただしzz_pivot_v60_srの1発の大負け（-8.5pip）が足を引っ張り、**EV加重での収益性は抑制的**。オープンポジションなし、OANDA残高は**283,543 JPY相当、Latency=87.6ms**で接続は安定。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| zz_pivot_v60_sr | EUR_USD | 5 | 60.0% | **-2.96** | -14.8 | 🔴 EV懸念 |
+| dt_sr_channel_reversal | EUR_JPY | 6 | 33.3% | **-6.27** | -37.6 | 🔴 最悪EV |
+**全体（Cutoff後）: N=19、WR=57.9%、PnL=-48.7pip**
+| WR | 75.0%（3勝1負） |
+| 日次PnL | **-4.3pip** |
+- **3勝しても1敗で赤字**という損益比の非対称性が明確。WR75%でもEV=-1.07は、リスクリワード比が構造的に不利（≒1:0.5前後）である可能性を示唆。
+
+### 2026-06-30 (Pre-Tokyo Briefing)
+前日（2026-06-29）は **N=10、WR=80.0%、PnL=+4.9pips** と表面上好調。ただし `zz_pivot_v60_sr` が1件の大損（-8.5）を出しており、8勝1敗1BEの結果としては期待値が歪んでいる点に注意。ポジションはすべてクローズ済み（Open Trades=0）。
+### 全期間サマリー（N=19, WR=52.6%, PnL=−56.6）
+| Strategy | Pair | N | WR% | EV | 評価 |
+> **全戦略N<30のため「判断可能」水準未達。ただし傾向として全5戦略がEV負値、唯一の例外はvsg_jpy_reversalのみ（N=2）。**
+| Strategy | Pair | N | WR% | EV | コメント |
+- 前日4件中3勝1敗だが、敗1件が **−8.5pip**（他3勝の合計 +4.2pip を吸収し日次EV=−1.07）
+- 全期間EV=**−2.96**（N=5）は「傾向」として悪い。SL幅対TP幅の非対称（RR<1:1疑い）が構造的問題と考えられる
+- **対策判断**：N=30到達を待ちつつ、追加のサンプル蓄積を最優先。現時点では降格の根拠として扱えないが、EV悪化が続けばN=15前後で要再評価
+
+### 2026-06-30 (Post-London Report)
+| 勝率 (WR) | **0.0%** (0勝2敗) |
+| 総PnL | **-18.7 pips** |
+| 平均PnL/Trade | -9.35 pips |
+| 戦略 | ペア | PnL | 失敗要因 |
+| `trendline_sweep` | GBP/USD | **-5.9 pips** | BUY後にSIGNAL_REVERSE — GBP/USDはRANGINGレジーム（ATR%ile 62%）でレンジ内の偽ブレイク。スプレッド1.3pipsも摩擦コストとして寄与。 |
+| WR | — | 0.0% |
+| PnL | — | -18.7 pips |
+本日累計N=2・PnL=-18.7pipsは全てロンドンセッション分。東京セッション（UTC 00:00-07:00）に記録されたトレードは**0件**であり、ロンドンが唯一の執行ウィンドウだった。ロンドン特有の流動性向上局面でもエントリー確保は困難で、フィルター強度が機会を過度に制限した可能性がある。
+
+### 2026-06-30 (Pre-Tokyo Briefing)
+前日（2026-06-29）は **N=10 / WR=80.0% / PnL=+4.9pip** と勝率面では良好。ただし大型損失（zz_pivot: -8.5pip SL_HIT）が1件あり、勝利の積み上げを相殺。全体PnLは軽微なプラスにとどまった。Cutoff後の全期間累計では **N=18 / WR=50.0% / PnL=-57.4pip** と構造的損失が継続している点に注意が必要。
+| Strategy | Pair | N | WR% | EV | 判定 |
+| dt_sr_channel_reversal | EUR_JPY | 3 | 33.3% | **-6.23** | 🔴 最悪EV |
+> **統計的留保**: 最大N=5。全戦略が「データ不足（N<10）」フェーズ。EVの正負は傾向としてのみ解釈。判断可能水準（N≥30）まで最低25件以上の蓄積が必要。
+前日4件中、WIN×3（+1.7/+1.7/+0.8）に対し LOSS×1（**-8.5**）。ペイオフ比が非対称で、1回の大損が3勝を吹き飛ばす構造。全期間EV=-2.96はこの非対称性を反映している。
+**対処方針**: SL設定の適切性を確認。勝ちPnLの分布（+0.8〜+1.7）に対しSLが-8.5まで許容されている場合、RR比が根本的に歪んでいる可能性を認識しておく。
+### 課題②：dt_sr_channel_reversal の EV最悪値
+N=3でEV=-6.23。前日は+2.1で勝利したものの、全期間では3戦1勝（-18.7pip累計）。直近1勝で回復した印象があるが、構造的に劣位な可能性がある。
+
+### 2026-07-01 (Pre-Tokyo Briefing)
+**2026-06-30**: トレード数 **N=3**、PnL **−25.6**、WR **0.0%**
+全3件がSL_HIT/SIGNAL_REVERSEによる損切り。trendline_sweep (GBP_USD) が2連敗、xs_momentum_rsi (USD_JPY) が単発大幅損失（−12.8）。直近の損失集中が顕著。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| zz_pivot_v60_sr | EUR_USD | 5 | 60.0% | −2.96 | −14.8 | ⚠️ N不足・EV負 |
+| trendline_sweep | GBP_USD | 4 | 50.0% | −2.35 | −9.4 | ⚠️ N不足・EV負 |
+| dt_sr_channel_reversal | EUR_JPY | 3 | 33.3% | −6.23 | −18.7 | ⚠️ N不足・EV大幅負 |
+> **全体**: N=17、WR=52.9%、PnL=**−49.9**
+> ⚠️ 昇格基準（N≥30 & EV≥1.0）を満たす戦略は**ゼロ**。降格基準（N≥30 & EV<−0.5）も判定不能（N不足）。全戦略がSentinel段階。
+
+### 2026-07-01 (Pre-Tokyo Briefing)
+前日（2026-06-30）は **3トレード、WR 0.0%、PnL -25.6** と完全にゼロ勝の日。trendline_sweep（GBP_USD）が2連続SL_HIT+SIGNAL_REVERSEで-12.8、xs_momentum_rsi（USD_JPY）が-12.8。全セッションを通じて単一方向（BUY）のみで損失が集中した。
+| Strategy | Pair | N | WR% | EV | 判定 |
+| trendline_sweep | GBP_USD | 7 | 57.1% | **-1.81** | 負EV（N不足）|
+| zz_pivot_v60_sr | EUR_USD | 5 | 60.0% | **-2.96** | 負EV（N不足）|
+| dt_sr_channel_reversal | EUR_JPY | 3 | 33.3% | **-6.23** | 負EV（N不足）|
+**全体**: N=20、WR=55.0%、PnL=-53.2
+- GBP_USDは現在**RANGING（ATR%ile 62%）**、SMA20スロープ -0.00440と下向き。BUYバイアスが構造的に不利なレジームに当たった。
+- SIGNAL_REVERSEでの損失（-5.9）は、エントリー後すぐに方向が反転していることを示す。RANGING相場でのトレンドフォロー型エントリーが機能していない典型。
+
+### 2026-07-01 (Post-London Report)
+PnL       : N/A
+WR        : N/A
+レジーム・WR・PnL比較は実施不可
+- ロンドン→NY移行は通常、**USD主導のボラティリティ再拡張フェーズ**
+- 本日が月初（2026-07-01）であることから、**月初ISM/PMIリリース**の影響を想定すべき
+- 月初1日目のNYは統計的に**方向性が出やすい**がフェイクブレイクも多い
+### 推奨戦略配分
+| **NO ACTION推奨（暫定）** | リアルタイムデータが一切取得できない状態での新規判断は禁忌。ポジション管理の根拠がない |
+
+### 2026-07-01 (Pre-Tokyo Briefing)
+| 総PnL | **-25.6 pip** |
+| Strategy | Pair | N | WR% | EV | 判定 |
+| 2 | BUY | LOSS -5.9pip | SIGNAL_REVERSE | 1.3 |
+- 両件ともBUY方向。GBP_USDは現在RANGING（ATR%ile 60%、SMAスロープ-0.00396で微弱下向き）
+- SIGNAL_REVERSEによるロスは、シグナル自体がエントリー後すぐに反転を示していることを意味する。Ranging相場でのトレンドライン系戦略は構造的に不利
+- spread 1.3はDT閾値20%に対して問題ないが、EV=-4.09はスプレッドだけでは説明できない。損益構造（SLサイズ vs TPサイズ）に本質的な問題がある可能性
+- N=1のため統計的判断不能
+- ただし-12.8pipという損失幅は突出して大きい。SLサイズが他戦略比で過大の可能性
+
+### 2026-07-02 (Pre-Tokyo Briefing)
+| 前日PnL | **-23.3 pip** |
+| 全体WR | **50.0%** |
+前日は trendline_sweep (GBP_USD) が4件エントリー。勝ち2件合計 +4.0pip に対し、負け2件合計 -27.3pip という**非対称な損益構造**が確認された。EV -5.83はサンプル数が少なく統計的ノイズだが、1件目の-20.0pip大損が全体を支配している点は注視。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+| trendline_sweep | GBP_USD | 8 | 50.0% | -4.09 | -32.7 | ⚠️ N不足・EV負 |
+**昇格基準（N≥30 & EV≥1.0）達成戦略：なし**
+**降格基準（N≥30 & EV<-0.5）該当戦略：なし（全戦略N<30）**
+- WIN 2件: +2.0pip × 2 = +4.0pip（RR極めて小）
+
+### 2026-07-02 (Pre-Tokyo Briefing)
+- **2026-07-01**: N=4、WR=50.0%、**PnL = -23.3 pips**
+- 全4件が `trendline_sweep / GBP_USD` に集中。勝ちトレード2件の利益合計+4.0に対し、負けトレード2件の損失合計-27.3と **ペイオフ比が著しく歪**
+- 現在オープンポジション0件。OANDA転送は全50件スキップ（Live Rate 0%）
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **全体集計**: N=15, WR=53.3%, PnL=-48.3
+> ※ N≥30の戦略なし。全戦略が「判断前」ステータス。降格基準（N≥30 & EV<-0.5）には未到達だが `trendline_sweep/GBP_USD` は傾向として警戒域。
+| 件 | 結果 | PnL | 備考 |
+- 勝ちPnL平均: **+2.0**、負けPnL平均: **-13.65**
+
+### 2026-07-02 (Post-London Report)
+| PnL | **−0.6 pips** |
+勝率62.5%に対してPnLが−0.6という結果は、**損益の非対称性（ペイオフ比の悪化）** を端的に示している。
+| 戦略 | ペア | 代表PnL | 成功要因 |
+| bb_rsi_reversion | USD_JPY | −3.9 pips | 同上：短期上昇圧力下でのSHORT積み重ねがEV=−0.40の主因 |
+- 7件すべてが**SELL方向**に集中 → 方向バイアスの固着
+- 勝ちトレード平均: +3.2 pips、負けトレード平均: **−5.2 pips** → ペイオフ比=0.62（1.0を大きく下回る）
+- Spread=0.8で安定しているためspread_guardの問題ではなく、**方向選択とSL/TP非対称が主因**
+本日累計N=11に対しセッション内N=8であることから、**東京セッションはN=3、PnL=−14.4 pips**と推計される。
+
+### 2026-07-02 (Pre-Tokyo Briefing)
+前日（2026-07-01）は**4トレード、WR 50.0%、PnL -23.3**という結果。全件が`trendline_sweep / GBP_USD`に集中。2勝はいずれも+2.0止まりだが、1敗は-20.0と非対称なペイオフが全体を引きずり、EV -5.83という深刻な水準。損益構造は「小さく勝って大きく負ける」典型パターン。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **全体**: N=19, WR=57.9%, PnL **-49.8**
+| Dir | Outcome | PnL |
+- WIN時のペイオフ上限が+2.0に張り付いている一方、LOSS時は-20.0まで伸びる。
+- 全件`Reason: SL_HIT`であり、TPが近すぎる / SLが遠すぎるRR設定が疑われる。
+- Spread 1.3pipsはGBP/USDとして許容範囲内（Scalp閾値30%以下）であり、スプレッドは主因ではない。
+### 課題②：xs_momentum_rsi の壊滅的EV
+
+### 2026-07-03 (Pre-Tokyo Briefing)
+**前日（2026-07-02）**: 13トレード、WR 69.2%、PnL **-6.8 pips**
+| Strategy | Pair | N | WR% | EV | PnL | 判定ステータス |
+| trendline_sweep | GBP_USD | 5 | 40.0% | **-6.04** | -30.2 | 🔴 要注視（N不足+EV負） |
+| xs_momentum_rsi | USD_JPY | 2 | 0.0% | **-15.40** | -30.8 | 🔴 危険水域（N不足+EV深負） |
+- **昇格基準（N≥30 & EV≥1.0）到達戦略: ゼロ** — 全戦略がN<30の「判断不可」段階
+- bb_rsi_reversionはN=11で最も蓄積が進んでいるが、EV=+0.82は昇格閾値（EV≥1.0）未到達
+- xs_momentum_rsi・trendline_sweepはN<10につきデータなし扱いが妥当だが、方向性は極めて悪い
+- **SL_HITで-18.0pips**は前日bb_rsi_reversionの全利益（+9.0pips）の2倍を吹き飛ばす規模
+
+### 2026-07-03 (Pre-Tokyo Briefing)
+**2026-07-02 前日実績**: トレード数 **N=13**、勝率 **69.2%**、PnL **-6.8 pips**
+bb_rsi_reversionが9/11で勝利しPnL+9.0を稼いだが、xs_momentum_rsiの単発大敗（-18.0）が全体を押し下げた。Cutoff後累計はN=18、WR=61.1%、PnL=-37.0と引き続き赤字圏。
+| Strategy | Pair | N | WR% | EV | 判定 |
+- N=1、SL_HITで全額消失。EV=-18.00は統計的には無意味だが、リスク管理の観点では**一撃でbb_rsi_reversionの累積利益（+9.0）の2倍を消す構造**は看過できない
+- 前日の全体赤字（-6.8）の主因が100%このトレード1件に起因
+- **今日の対処**: xs_momentum_rsiのポジションサイジングが適正かを本番Kellyログで確認。`agg_kelly=-0.326<0`ブロックが発動していたことは確認済みだが、それ以前のエントリー制御を注視
+### 課題②：trendline_sweepの累積ドローダウン（N=5, EV=-6.04, PnL=-30.2）
+- Cutoff後N=5で最大の損失源。勝率40%・EV-6.04は**小サンプルながら構造的に悪い数字**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象

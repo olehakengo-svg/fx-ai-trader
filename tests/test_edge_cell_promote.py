@@ -69,10 +69,61 @@ def test_get_cell_lot_ladder(tmp_path):
 def test_all_12_cells_default_to_stage1_lot(tmp_path):
     db = DemoDB(str(tmp_path / "edge-lot-all.db"))
 
+    # E8 (session_time_bias EUR_USD LDN broad) は 2026-06-25 (rule:R2) で code-level
+    # DISABLED — Live N=8 EV=-3.51p / shadow N=10 EV=-2.10p の止血。registry には残すが
+    # lot=0 で live 昇格停止 (→ base tier=shadow)。E2 (live_tier_exempt subset, ≒トントン
+    # Live EV+0.26) は据え置き。ref: edge-cell-e8-demote-2026-06-25.md
+    # E10 (wick_imbalance_reversion GBP_USD) は 2026-07-02 (rule:R2) で code-level
+    # DISABLED — 30d Live via E10: N=9 WR=22.2% -52.5pip。pre-reg forensic
+    # 2026-06-22 が同セルを dominant live loser と特定済み (9/9 losers knife-catch)。
+    # ref: live-bleeder-demotions-2026-07-02.md
+    # E4 (bb_rsi_reversion NY SELL) / E1 (dt_bb_rsi_mr ASN SELL) は 2026-07-02
+    # (rule:R2) で code-level DISABLED — bb_rsi T10 KILL 拘束事項3 の掃除 +
+    # watchdog DECREMENT 床バグによる E4 zombie 再武装 (KV 0→1, live 11発) の pin。
+    # ref: edge-cell-e1-e4-code-disable-2026-07-02.md / bb-rsi-t10-kill-2026-07-02.md
+    expected = {f"E{i}": 5000 for i in range(1, 13)}
+    expected["E1"] = 0
+    expected["E4"] = 0
+    expected["E8"] = 0
+    expected["E10"] = 0
     assert len(EDGE_CELLS) == 12
-    assert {cell.cell_id: get_cell_lot(cell.cell_id, db) for cell in EDGE_CELLS} == {
-        f"E{i}": 5000 for i in range(1, 13)
-    }
+    assert {cell.cell_id: get_cell_lot(cell.cell_id, db) for cell in EDGE_CELLS} == expected
+
+
+def test_e8_disabled_e2_active(tmp_path):
+    """E8 は code-level DISABLED で lot=0、E2 は stage1 で 5000 を維持 (rule:R2 止血)。"""
+    db = DemoDB(str(tmp_path / "edge-e8-demote.db"))
+    assert get_cell_lot("E8", db) == 0
+    assert get_cell_lot("E2", db) == 5000
+    # stage を上げても E8 は DISABLED が優先され 0 のまま
+    db.set_system_kv("edge_cell_stage:E8", "3")
+    assert get_cell_lot("E8", db) == 0
+
+
+def test_e10_disabled_pinned_against_stage_bump(tmp_path):
+    """E10 (wick_imbalance GBP_USD) code-level DISABLE (rule:R2 2026-07-02)。"""
+    db = DemoDB(str(tmp_path / "edge-e10-demote.db"))
+    assert get_cell_lot("E10", db) == 0
+    # stage を上げても DISABLED が優先され 0 のまま
+    db.set_system_kv("edge_cell_stage:E10", "3")
+    assert get_cell_lot("E10", db) == 0
+
+
+def test_e1_e4_disabled_pinned_against_stage_bump(tmp_path):
+    """E1/E4 (bb_rsi 系セル) code-level DISABLE (rule:R2 2026-07-02)。
+
+    E4 は watchdog DECREMENT 床バグで KV stage が 0→1 に再武装され、T10 KILL
+    済み戦略が live 発火した実績あり (2026-07-02 13:08-14:32 UTC, 4件)。KV を
+    どの値にされても code pin が優先されることを固定する。
+    ref: edge-cell-e1-e4-code-disable-2026-07-02.md
+    """
+    db = DemoDB(str(tmp_path / "edge-e1-e4-demote.db"))
+    for cid in ("E1", "E4"):
+        assert get_cell_lot(cid, db) == 0
+        # watchdog / admin API がどの stage を書いても 0 のまま
+        for stage in ("1", "2", "3"):
+            db.set_system_kv(f"edge_cell_stage:{cid}", stage)
+            assert get_cell_lot(cid, db) == 0, (cid, stage)
 
 
 class _OandaMock:
@@ -92,6 +143,8 @@ class _OandaMock:
         callback = kwargs.get("callback")
         if callback:
             callback(kwargs["demo_trade_id"], f"test-oanda-{len(self.calls)}")
+        # 2026-07-02 send-accept contract: True = gates passed, send fired.
+        return True
 
 
 class _ExposureMock:

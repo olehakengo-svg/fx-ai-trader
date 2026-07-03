@@ -5554,9 +5554,14 @@ class DemoTrader:
                 mtf_gate_action=_mtf_gate_action or "",
             )
             if _edge_cell is not None:
+                # Tag by match eligibility, NOT by lot>0: DISABLED_CELLS rows
+                # (lot=0, e.g. E8) must keep per-cell attribution so the
+                # watchdog (is_shadow=0 only) stays sighted and shadow N keeps
+                # accumulating for re-promotion judgement (fable5 audit
+                # 2026-07-02 P1-4). Only the force-live override is lot-gated.
+                _edge_cell_id = _edge_cell.cell_id
                 _edge_cell_lot = edge_cell_promote.get_cell_lot(_edge_cell.cell_id, self._db)
                 if _edge_cell_lot > 0:
-                    _edge_cell_id = _edge_cell.cell_id
                     _edge_cell_force_live = True
         except Exception as _edge_exc:
             self._add_log(f"[EDGE_CELL] match failed: {_edge_exc}")
@@ -6198,22 +6203,32 @@ class DemoTrader:
         if _is_promoted:
             # ── v9.0 SHIELD: Aggregate Kelly Gate ──
             # aggregate Kelly < 0 のとき SENTINEL以外のOANDA転送をブロック
+            # (P1 fix 2026-07-02: _get_aggregate_kelly は raw 値を返すようになり
+            #  本 gate が初めて実効化。1000u 固定契約戦略は min-lot bypass — 下記)
             if _strat_mode != "sentinel" and not _is_sentinel and not _edge_cell_force_live:
                 _agg_kelly = self._get_aggregate_kelly()
                 if _agg_kelly is not None and _agg_kelly < 0:
-                    self._add_log(
-                        f"[SHIELD] Aggregate Kelly gate: {_agg_kelly:.3f} < 0 → "
-                        f"OANDA blocked for {entry_type} {instrument} (SENTINEL still allowed)"
-                    )
-                    self._add_oanda_audit(
-                        trade_id=trade_id, entry_type=entry_type,
-                        is_live=False, bridge_status="blocked",
-                        block_reason=f"agg_kelly={_agg_kelly:.3f}<0",
-                        direction=signal, instrument=instrument,
-                        units=_adjusted_units,
-                        sr_meta=_sr_meta,
-                    )
-                    _is_promoted = False  # fall through to non-OANDA path
+                    if self._agg_kelly_gate_minlot_bypass(
+                            entry_type, _adjusted_units, _is_xau_inst):
+                        self._add_log(
+                            f"[SHIELD] Aggregate Kelly gate BYPASS (min-lot pre-reg "
+                            f"contract {_adjusted_units}u): {_agg_kelly:.3f} < 0 but "
+                            f"{entry_type} {instrument} kept live"
+                        )
+                    else:
+                        self._add_log(
+                            f"[SHIELD] Aggregate Kelly gate: {_agg_kelly:.3f} < 0 → "
+                            f"OANDA blocked for {entry_type} {instrument} (SENTINEL still allowed)"
+                        )
+                        self._add_oanda_audit(
+                            trade_id=trade_id, entry_type=entry_type,
+                            is_live=False, bridge_status="blocked",
+                            block_reason=f"agg_kelly={_agg_kelly:.3f}<0",
+                            direction=signal, instrument=instrument,
+                            units=_adjusted_units,
+                            sr_meta=_sr_meta,
+                        )
+                        _is_promoted = False  # fall through to non-OANDA path
             elif _edge_cell_force_live:
                 self._add_log(
                     f"[SHIELD] EDGE_CELL Kelly bypass: {_edge_cell_id} {entry_type} "
@@ -6295,19 +6310,16 @@ class DemoTrader:
                         f"BB_mid TP preserved ×1.0 | TP={tp:.{_price_dec}f}"
                     )
                 # ── 実弾実行パス ──
-                _lot_disp_sent = (f"{_adjusted_units}oz" if _is_xau_inst
-                                  else f"{_adjusted_units}u({_adjusted_units/10000:.2f}lot)")
-                self._add_log(
-                    f"🔗 OANDA: [SENT] {signal} {instrument} "
-                    f"{_lot_disp_sent} {_lot_tag} "
-                    f"SL={sl:.{_price_dec}f} TP={_tp_oanda:.{_price_dec}f}"
-                )
                 # Pass entry_type so the bridge can stamp a strategy-name
                 # 'sent' audit row when it owns that write. skip_sent_audit=True
                 # tells the bridge NOT to write its own 'sent' row — the
                 # caller-side `_add_oanda_audit` below writes the 'sent' row
                 # with full sr_meta intact (single source of truth).
-                self._oanda.open_trade(
+                # The bridge gate verdict (return value) decides whether the
+                # 'sent' row may be written at all: bridge-internal gates
+                # (daily-loss halt etc.) write their own 'blocked' row and
+                # return False (2026-07-02 gate-asymmetry fix, rule:R3).
+                _send_accepted = self._oanda.open_trade(
                     demo_trade_id=trade_id,
                     direction=signal,
                     sl=sl, tp=_tp_oanda,
@@ -6321,19 +6333,43 @@ class DemoTrader:
                     entry_type=entry_type,
                     skip_sent_audit=True,
                 )
-                self._add_oanda_audit(
-                    trade_id=trade_id, entry_type=entry_type,
-                    is_live=True, bridge_status="sent",
-                    block_reason="",
-                    direction=signal, instrument=instrument,
-                    units=_adjusted_units,
-                    sr_meta=_sr_meta,
-                )
-                # v9.4: PRIME trade tag for 2026-05-15 re-evaluation
-                if _prime_match:
+                if _send_accepted:
+                    _lot_disp_sent = (f"{_adjusted_units}oz" if _is_xau_inst
+                                      else f"{_adjusted_units}u({_adjusted_units/10000:.2f}lot)")
                     self._add_log(
-                        f"🏷️ PRIME_TAG: {_prime_match['name']} "
-                        f"tier={_prime_tier} trade={trade_id}"
+                        f"🔗 OANDA: [SENT] {signal} {instrument} "
+                        f"{_lot_disp_sent} {_lot_tag} "
+                        f"SL={sl:.{_price_dec}f} TP={_tp_oanda:.{_price_dec}f}"
+                    )
+                    self._add_oanda_audit(
+                        trade_id=trade_id, entry_type=entry_type,
+                        is_live=True, bridge_status="sent",
+                        block_reason="",
+                        direction=signal, instrument=instrument,
+                        units=_adjusted_units,
+                        sr_meta=_sr_meta,
+                    )
+                    # v9.4: PRIME trade tag for 2026-05-15 re-evaluation
+                    if _prime_match:
+                        self._add_log(
+                            f"🏷️ PRIME_TAG: {_prime_match['name']} "
+                            f"tier={_prime_tier} trade={trade_id}"
+                        )
+                else:
+                    # Bridge refused transmission (daily-loss halt / inactive /
+                    # mode excluded / bad instrument). The bridge owns the
+                    # 'blocked' audit row for its own gates — never write a
+                    # 'sent' row here. Escalate to shadow so the un-sent trade
+                    # (oanda_trade_id=NULL) neither contaminates clean-live
+                    # aggregates (FLAG_DRIFT) nor gets picked up by
+                    # _resend_pending_oanda_trades() after a restart.
+                    _is_shadow = True
+                    self._db.update_shadow_status(trade_id, True)
+                    self._exposure_mgr.set_shadow_status(trade_id, True)
+                    self._add_log(
+                        f"[SHADOW_FIX] Bridge refused transmission: {entry_type} "
+                        f"{instrument} trade={trade_id} → shadow "
+                        f"(no 'sent' audit, excluded from clean-live and resend)"
                     )
             else:
                 # ── Bridge非アクティブまたはモード除外 ──
@@ -7732,8 +7768,23 @@ class DemoTrader:
         # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
         ("vix_carry_unwind", "USD_JPY"),       # Overlap-only pilot, 0.05x lot
         ("mqe_gbpusd_fix", "GBP_USD"),         # shadow N=87 EV=+1.81 PF=1.30
-        ("sr_fib_confluence", "GBP_USD"),      # shadow N=39 EV=+1.35 PF=1.29
-        ("session_time_bias", "EUR_USD"),      # shadow N=23 EV=+0.63 PF=1.15 (cell-conditional {"London"})
+        # REMOVED 2026-06-12 (rule:R2) Edge Factor Audit #5: promotion basis
+        # (shadow N=39 EV=+1.35) overturned at N=132 → EV=-1.66. LIVE GBP_USD
+        # breakeven (N=19 EV=-0.07), SELL side bleeding (N=7 -2.77). Full demote
+        # + SHADOW_RETIRED_STRATEGIES. BUY-major (N=12 +1.51) preserved as a
+        # documented redesign hypothesis only.
+        # ("sr_fib_confluence", "GBP_USD"),    # shadow N=39 EV=+1.35 PF=1.29
+        # REMOVED 2026-07-02 (rule:R2) LIVE residual-path closure:
+        # ("session_time_bias", "EUR_USD") — strategy REJECTED all pairs by
+        # 12y MASSIVE BT (2026-06-11, audit-index) and edge cells E2/E8
+        # stage=0, yet PAIR_PROMOTED kept a live path open: 30d clean live
+        # N=18 WR=33.3% PnL=-63.6pip (#1 strategy drag, risk dashboard
+        # 2026-07-02). PAIR_PROMOTED overrides _UNIVERSAL_SENTINEL shadow
+        # eligibility (L3950-3957) and is regime-gate exempt, so the tier
+        # entry itself was the leak. Shadow accumulation continues via
+        # _UNIVERSAL_SENTINEL (principle 3). Re-promote condition: R1 only
+        # (12y BT pass + Bonferroni + pre-reg LOCK).
+        # ("session_time_bias", "EUR_USD"),    # (was: shadow N=23 EV=+0.63 PF=1.15, cell-conditional {"London"})
         # REMOVED 2026-06-07 (rule:R2) Claude session emergency loss containment:
         # ("session_time_bias", "GBP_USD") — 2026-06-04 11:31 UTC live fire SL -7.9p
         # confirms cell still active despite E8 disable. Original promote 2026-06-01
@@ -7745,7 +7796,13 @@ class DemoTrader:
         # ("session_time_bias", "GBP_USD"),    # 2026-06-01 cell-conditional, REMOVED 2026-06-07
         ("vsg_jpy_reversal", "EUR_JPY"),       # shadow N=20 EV=+1.82 PF=1.30
         ("bb_squeeze_breakout", "EUR_USD"),    # shadow N=14 EV=+0.01 PF=1.00
-        ("dt_sr_channel_reversal", "EUR_JPY"), # shadow N=12 EV=+14.28 PF=3.61
+        # REMOVED 2026-07-02 (rule:R2) live-bleeder demotion:
+        # ("dt_sr_channel_reversal", "EUR_JPY") — 30d clean live N=10 WR=40%
+        # -30.9pip (prod stats 2026-07-02). Promote basis was shadow N=12
+        # EV=+14.28 (small-N) + BT EV=+0.178 (marginal); live falsified it.
+        # Shadow continues via _UNIVERSAL_SENTINEL. Re-promote: R1 only.
+        # ref: knowledge-base/wiki/decisions/live-bleeder-demotions-2026-07-02.md
+        # ("dt_sr_channel_reversal", "EUR_JPY"),
         ("dt_bb_rsi_mr", "USD_JPY"),           # shadow N=10 EV=+8.51 PF=4.38
         # REMOVED v9.0: trendline_sweep → ELITE_LIVE (PAIR_PROMOTED redundant)
         # (was: EUR EV=+0.927 N=73 WR=80.8% PF=2.52 / GBP EV=+0.599 N=134 WR=73.1% PF=1.68)
@@ -7808,8 +7865,17 @@ class DemoTrader:
         #   zz_pivot_v60_sr (1.0x normal) / zz_pivot_v60_sr_lo (0.5x loser zone)
         # Memory: project_zz_pivot_v60_sr_live_queue_2026_05_28,
         #         feedback_size_lever_beats_skip_filter.
-        ("zz_pivot_v60_sr",    "EUR_USD"),
-        ("zz_pivot_v60_sr_lo", "EUR_USD"),
+        # REMOVED 2026-07-02 (rule:R2) live-bleeder demotion — supersedes the
+        # 2026-05-28 Path-B pre-reg withdrawal schedule (N=30 manual review)
+        # under Rule 2 (損失停止は N=10 で即断可) + user 2026-07-02 直接指示:
+        # 30d clean live N=11 WR=54.5% -30.5pip, mean -2.77 (prod stats
+        # 2026-07-02) — 損大利小 (losses -12.1/-10.5/-8.5 vs wins ~+1.8),
+        # original promote had NO MASSIVE BT (TV-only, Wilson_lo 0.434 FAIL).
+        # _lo variant demoted as the same-strategy unit (0 live fills 30d).
+        # Re-promote: R1 only (12y BT + Bonferroni + pre-reg LOCK).
+        # ref: knowledge-base/wiki/decisions/live-bleeder-demotions-2026-07-02.md
+        # ("zz_pivot_v60_sr",    "EUR_USD"),
+        # ("zz_pivot_v60_sr_lo", "EUR_USD"),
         # REMOVED v9.1: bb_squeeze_breakout×EUR_JPY — FORCE_DEMOTED (死コード)
         # REMOVED v9.1: macdh_reversal×EUR_JPY/GBP_JPY — FORCE_DEMOTED (死コード)
         # v2.1 SHADOW→PROMOTE: 365日BT正EV確認済み
@@ -7878,7 +7944,12 @@ class DemoTrader:
         # amplified losing cells). Boost reinstatement awaits Live N≥30 on
         # the London cell with Wilson_lo>0.40 confirmation.
         # 詳細: knowledge-base/wiki/decisions/session-time-bias-cell-forensic-2026-05-29.md
-        ("session_time_bias", "EUR_USD"): {"London"},  # 7 <= UTC hour < 12
+        # REMOVED 2026-07-02 (rule:R2): paired with _PAIR_PROMOTED removal above.
+        # 12y MASSIVE BT REJECT (2026-06-11) + 30d clean live N=18 WR=33.3%
+        # -63.6pip (#1 strategy drag) — the London cell filter did not stop
+        # the bleed. Filter inert without PAIR_PROMOTED but removed for
+        # code consistency (same as GBP_USD 2026-06-07).
+        # ("session_time_bias", "EUR_USD"): {"London"},  # REMOVED 2026-07-02
         # REMOVED 2026-06-07 (rule:R2): paired with _PAIR_PROMOTED removal above.
         # GBP_USD London Live confirmed losing (06-04 11:31 -7.9p SL during disable window).
         # Original promote Wlo=0.251 < Bonferroni 0.55. session filter inert without
@@ -7935,8 +8006,10 @@ class DemoTrader:
         # 動機: User explicit override per memory feedback_size_lever_beats_skip_filter (SIZE lever > SKIP filter).
         # Pre-reg withdrawal (manual review): N=30 WR<35% or PF<1.0 demote / MaxDD>1% / 14日連敗.
         # Memory: project_zz_pivot_v60_sr_live_queue_2026_05_28.
-        ("zz_pivot_v60_sr",    "EUR_USD"): 1.0,
-        ("zz_pivot_v60_sr_lo", "EUR_USD"): 0.5,
+        # REMOVED 2026-07-02 (rule:R2): paired with _PAIR_PROMOTED removal
+        # (inert without promotion, removed for code consistency).
+        # ("zz_pivot_v60_sr",    "EUR_USD"): 1.0,
+        # ("zz_pivot_v60_sr_lo", "EUR_USD"): 0.5,
         # 2026-05-27 (rule:R1-EXCEPTION): donchian × NZD pair revival, 1.0x full size.
         # User judgment (vix_carry 1.0x / Kalman D7 0.5x 前例と同系)。
         # Rule 1 未充足項目: N<30, BFlo<0.50, 365d BT 未実施 → discretionary edge override.
@@ -8636,8 +8709,12 @@ class DemoTrader:
 
     def _get_aggregate_kelly(self) -> float:
         """Compute aggregate Kelly criterion across all clean post-cutoff trades.
-        Returns full_kelly float or None if insufficient data.
-        Used as a safety gate to block OANDA forwarding when aggregate edge is negative.
+        Returns UNCLIPPED full_kelly float (negative-capable) or None if
+        insufficient data.
+        Used as a safety gate to block OANDA forwarding when aggregate edge is
+        negative — kelly_criterion's `full_kelly` is clipped to max(0,·) for
+        lot sizing, which made the `< 0` gate structurally unfireable
+        (P1 fix 2026-07-02, rule:R3). Reads `full_kelly_raw` instead.
         Cached for 60 seconds to avoid repeated DB queries.
         """
         now = time.time()
@@ -8667,12 +8744,33 @@ class DemoTrader:
             avg_win = sum(wins) / len(wins)
             avg_loss = abs(sum(losses) / len(losses))
             result = kelly_criterion(wr, avg_win, avg_loss)
-            k = result.get("full_kelly", 0.0)
+            k = result.get("full_kelly_raw", 0.0)
             self._agg_kelly_cache = k
             self._agg_kelly_cache_ts = now
             return k
         except Exception:
             return None
+
+    # ── Aggregate Kelly Gate: 1000u 固定契約 pre-reg bypass (2026-07-02 user 決裁) ──
+    # gate が既に許可している sentinel 1000u と同一リスク水準の「検証 fill」のみ免除。
+    # allowlist (eligible) と実効 units (effective) の両方が成立して初めて bypass —
+    # 将来 lot が 5000u 等へ昇格したら bypass は自動失効する (eligible vs effective 教訓)。
+    # hull_donchian_fade は 5000u 契約 (5x リスク) のため意図的に対象外。
+    # 詳細: knowledge-base/wiki/decisions/agg-kelly-gate-raw-fix-minlot-bypass-2026-07-02.md
+    _AGG_KELLY_GATE_MINLOT_BYPASS_TYPES = frozenset({
+        "vix_carry_unwind",              # Overlap pilot 1000u 固定 (2026-06-15)
+        "usdjpy_carry_dip_accumulator",  # MIN lot 1000u 契約 (2026-06-12)
+        "sweep_reversion_eurgbp_late",   # MIN lot 1000u 契約 (2026-06-12)
+    })
+    _AGG_KELLY_GATE_MINLOT_MAX_UNITS = 1000
+
+    def _agg_kelly_gate_minlot_bypass(self, entry_type: str, units: int,
+                                      is_xau: bool) -> bool:
+        return (
+            entry_type in self._AGG_KELLY_GATE_MINLOT_BYPASS_TYPES
+            and not is_xau
+            and 0 < abs(units) <= self._AGG_KELLY_GATE_MINLOT_MAX_UNITS
+        )
 
     def _get_strategy_kelly(self, entry_type: str, instrument: str) -> float:
         """

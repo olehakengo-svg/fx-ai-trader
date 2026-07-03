@@ -43,3 +43,4 @@ Data source: /api/demo/stats?date_from=2026-04-08 (2026-04-20)
 ## Related
 - [[research/index]]
 - [[vol-momentum-scalp]]
+- [[agg-kelly-gate-raw-fix-minlot-bypass-2026-07-02]] — Overlap pilot (1000u 固定) は Aggregate Kelly Gate の min-lot bypass 対象 (2026-07-02 user 決裁)。lot が 1000u を超えたら bypass 自動失効

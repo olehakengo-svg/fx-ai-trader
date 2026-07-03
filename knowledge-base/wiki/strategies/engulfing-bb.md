@@ -4,7 +4,7 @@
 - **Entry Type**: `engulfing_bb`
 - **Category**: **TF** (Trend-Follow) — v9.3 P0 で MR → TF に再分類
 - **Timeframe**: Scalp 1m/5m, DT 15m
-- **Status**: FORCE_DEMOTED (v8.0: WR=14.3% PnL=-$353.5); EUR_USD / USD_JPY も PAIR_DEMOTED
+- **Status**: FORCE_DEMOTED (v8.0: WR=14.3% PnL=-$353.5); EUR_USD / USD_JPY も PAIR_DEMOTED; **USD_CHF は Shadow セル demote (2026-07-02, rule:R2)**
 - **Active Pairs**: None (FORCE_DEMOTED — PAIR_PROMOTED 全削除 v9.1)
 
 ## BT Performance (365d, 15m)
@@ -21,6 +21,7 @@ Engulfing candle pattern at Bollinger Band extremes. Enters reversal when a bull
 ## Current Configuration
 - Lot Boost: default (1.0x) — FORCE_DEMOTED globally
 - PAIR_DEMOTED: USD_JPY (v8.9: N=14 WR=28.6% Kelly=-14.7%), EUR_USD (v8.9: N=9 WR=11.1% EV=-1.42)
+- SHADOW_DEMOTED_CELLS: USD_JPY (既存), USD_CHF (2026-07-02, rule:R2 — daytrade_1h_usdchf 監査 clean N=6 W=0 -12.0p。詳細: [[usdchf-1h-cell-demotions-2026-07-02]])
 - PAIR_PROMOTED: none (v9.1 removed — FORCE_DEMOTED 下で PP 指定は死コード。Historical: EUR_USD 4/14 analysis WR=67% +33pip / BT 1m EV=+0.163 N=47 — 別 timeframe でも v9.1 clean-slate で整理)
 
 ## v9.3 P0: Family Reclassification (2026-04-17)

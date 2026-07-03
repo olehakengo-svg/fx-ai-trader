@@ -303,10 +303,19 @@ def evaluate(
                 "new_stage": 0,
                 "reason": reasons[0] if reasons else "DISABLE",
             })
-        elif verdict == "DECREMENT":
+        elif verdict == "DECREMENT" and stage >= 2:
+            # DECREMENT lowers the ladder (3→2→1) and must never RAISE a stage.
+            # The previous max(1, stage - 1) had a floor of 1, so any stage-0
+            # (disabled) cell whose historical live metrics sit in the DECREMENT
+            # pocket (N>=10, PF<1, but WR>=28% and EV>=-1.0) was re-armed 0→1
+            # on every run — a manual/CB disable could not survive 15 minutes.
+            # Incident: E4 zombie re-arm 2026-07-02 (11 live fires from a
+            # T10-KILLED strategy). rule:R3 structural fix; stage<=1 emits no
+            # action (stage 1 was already a no-op, stage 0 must stay 0).
+            # ref: knowledge-base/wiki/decisions/edge-cell-e1-e4-code-disable-2026-07-02.md
             actions.append({
                 "cell_id": cid,
-                "new_stage": max(1, stage - 1),
+                "new_stage": stage - 1,
                 "reason": reasons[0] if reasons else "DECREMENT",
             })
 

@@ -5,6 +5,14 @@
 **Tier**: SCALP_SENTINEL | **現役ペア**: USD_JPY (sentinel lot), EUR_USD (PAIR_LOT_BOOST 1.8x)
 
 現行: Scalp 最小ロット LIVE。EUR_JPY のみ PAIR_DEMOTED (v7.0)。
+**USD_CHF は Shadow セル demote (2026-07-02, rule:R2)** — USD_JPY/EUR_USD の LIVE 現役には非影響。
+
+## 2026-07-02 R2: USD_CHF セル Shadow demote
+
+daytrade_1h_usdchf モード監査 (本番API実測): clean N=12 W=3 WR=25.0% Wilson_lo=8.9%
+sum=-36.0p (BUY -17.8p / SELL -18.2p — 両方向負)。R2 alert の直近 window n=4 +0.9p は
+Wilson noise と判定 (促進判定も逆校正判定も同じ統計厳格さで)。
+再昇格は R1 のみ。詳細: [[usdchf-1h-cell-demotions-2026-07-02]]
 
 ## 2026-04-21 深部クオンツ分析 (USD_JPY 復活判断)
 

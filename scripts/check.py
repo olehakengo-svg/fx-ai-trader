@@ -297,6 +297,96 @@ def check_kb_consistency() -> tuple[list[str], list[str]]:
     return errors, warns
 
 
+AI_TASKS = ROOT / ".ai" / "tasks"
+AI_RUNS = ROOT / ".ai" / "runs"
+
+# Codexタスクのレビューゲート強制開始日 (decisions/claude-codex-division-of-labor-2026-07-02.md)
+# これ以前の done 278 件は grandfather (エラーにしない)。
+REVIEW_GATE_CUTOFF = "20260702"
+# queue 内 R3/止血タスクの SLA (日)。超過で WARN → Claude 直接実行フォールバック。
+QUEUE_SLA_DAYS = 3
+
+
+def check_ai_task_governance() -> tuple[list[str], list[str]]:
+    """Codexタスク運用の機械的整合チェック (rule:R3, 2026-07-02)。
+
+    幽霊タスク事故の再発防止:
+      watchdog Bearer 修正が KB 上「Codex pending」のまま queue に実体が
+      無く ~1ヶ月放置 → DD 81%→98% 悪化に寄与。「記録上やったことに
+      なっている」と「実際にやった」の整合を CI で固定する。
+
+    1. done レビューゲート: REVIEW_GATE_CUTOFF 以降の done タスクは
+       .ai/runs/<run>/review.md または task md 内 `## Claude Review`
+       セクション (verdict + git diff 実 verify) を必須とする → ERROR
+    2. queue SLA: queue 直下のタスクがファイル名日付で QUEUE_SLA_DAYS
+       日超え滞留 → WARN (Claude 直接実行にフォールバックすべき)
+    3. 幽霊 pending: KB index.md が Codex pending に言及しているのに
+       queue にアクティブタスクが 1 件も無い → WARN
+    """
+    errors: list[str] = []
+    warns: list[str] = []
+
+    done_dir = AI_TASKS / "done"
+    queue_dir = AI_TASKS / "queue"
+
+    # ── 1. done レビューゲート (cutoff 以降のみ強制) ──
+    if done_dir.exists():
+        run_dirs = [d.name for d in AI_RUNS.iterdir() if d.is_dir()] if AI_RUNS.exists() else []
+        for task_file in sorted(done_dir.glob("*.md")):
+            stem = task_file.stem
+            date_m = re.match(r"(\d{8})", stem)
+            if not date_m or date_m.group(1) < REVIEW_GATE_CUTOFF:
+                continue  # grandfathered
+            has_inline = "## Claude Review" in task_file.read_text(encoding="utf-8")
+            has_run_review = any(
+                stem in rd and (AI_RUNS / rd / "review.md").exists()
+                for rd in run_dirs
+            )
+            if not (has_inline or has_run_review):
+                errors.append(
+                    f"  ❌ done/{task_file.name}: Claude レビュー記録なし "
+                    f"(review.md か '## Claude Review' 必須 — "
+                    f"decisions/claude-codex-division-of-labor-2026-07-02.md)"
+                )
+
+    # ── 2. queue SLA 滞留検出 ──
+    if queue_dir.exists():
+        today = date.today().strftime("%Y%m%d")
+        for task_file in sorted(queue_dir.glob("*.md")):
+            date_m = re.match(r"(\d{8})", task_file.stem)
+            if not date_m:
+                continue
+            age_days = (
+                date.fromisoformat(f"{today[:4]}-{today[4:6]}-{today[6:]}")
+                - date.fromisoformat(
+                    f"{date_m.group(1)[:4]}-{date_m.group(1)[4:6]}-{date_m.group(1)[6:]}"
+                )
+            ).days
+            if age_days > QUEUE_SLA_DAYS:
+                warns.append(
+                    f"  ⚠️  queue/{task_file.name}: {age_days}日滞留 "
+                    f"(SLA {QUEUE_SLA_DAYS}日超 — Claude 直接実行フォールバック検討)"
+                )
+
+    # ── 3. 幽霊 pending 検出 ──
+    index = KB_WIKI / "index.md"
+    if index.exists() and queue_dir.exists():
+        idx_text = index.read_text(encoding="utf-8")
+        pending_lines = [
+            ln.strip()[:100] for ln in idx_text.splitlines()
+            if re.search(r"Codex.{0,40}pending|pending.{0,40}Codex", ln, re.IGNORECASE)
+        ]
+        active_queue = list(queue_dir.glob("*.md"))
+        if pending_lines and not active_queue:
+            for ln in pending_lines[:5]:
+                warns.append(
+                    f"  ⚠️  幽霊タスク疑い: index.md「{ln}…」— queue にアクティブタスク 0 件 "
+                    f"(実体を queue に作るか、記述を解消すること)"
+                )
+
+    return errors, warns
+
+
 def fix_kb_drift() -> list[str]:
     """機械的に修正可能なKBドリフトを自動修正。修正内容のリストを返す。"""
     fixed: list[str] = []
@@ -468,6 +558,15 @@ def main() -> int:
     warnings.extend(kb_warns)
     if not kb_errors:
         ok("KB整合性OK")
+        ok_count += 1
+
+    # ── 7. AIタスク・ガバナンス (レビューゲート + 幽霊タスク) ──
+    section("AIタスク・ガバナンス (Codex review gate / queue SLA / 幽霊 pending)")
+    gov_errors, gov_warns = check_ai_task_governance()
+    errors.extend(gov_errors)
+    warnings.extend(gov_warns)
+    if not gov_errors:
+        ok("AIタスク・ガバナンスOK")
         ok_count += 1
 
     # ── Summary ──

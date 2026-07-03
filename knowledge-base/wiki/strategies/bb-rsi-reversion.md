@@ -182,3 +182,9 @@ clean N=780 の要因解析で確定。詳細: [[edge-factor-audit-2026-06-12-bb
 - 12y MASSIVE BT REJECT (2026-06-11, USD_JPY PF 0.66) と整合
 - E4 disable → USD_CHF hourly 漏れ (22件) → env バイパス可能な whitelist、と封じ込め 3 段が漏れ続けたため registry で不可逆化
 - 既存防御 (whitelist / per-cell registry / OANDA_TRIP) は残置
+
+## 2026-07-02 T10 判定: KILL (redesign不能)
+清浄shadow N=495 の因子分解 + 敵対検証で生存セルゼロ。構造的死因 = friction>edge (楽観上限マスクでも BE 天井)。**再試行禁止** (セル分割/フィルタ追加での再生禁止)。Shadow 収集は継続、LIVE 候補・redesign 工数はゼロ固定。詳細: [[bb-rsi-t10-kill-2026-07-02]]
+
+## 2026-07-02 E4 zombie 再武装 incident → code-level pin (rule:R2)
+T10 KILL と同日、watchdog DECREMENT 床バグ (`max(1, stage-1)`) が KV `edge_cell_stage:E4` を 0→1 に再武装し (API_AUTH_TOKEN 投入 10:18Z 直後)、**KILL 済み戦略が E4 force-live で 13:08-19:55 UTC に live 11 発** (net +9.0p 7W4L — 結果オーライに過ぎない)。E4/E1 を `DISABLED_CELLS` に pin + 床バグ修正で恒久止血。**現状の row 経路ゼロ**: live=E4 pin / shadow=2026-06-12 SHADOW_RETIRED (最終 shadow row 06-04) / loser emit=同 — T10 記載の「Shadow 収集は継続」は実態と不一致だった (訂正済み)。詳細: [[edge-cell-e1-e4-code-disable-2026-07-02]]

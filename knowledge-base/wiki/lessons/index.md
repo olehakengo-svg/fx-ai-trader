@@ -243,6 +243,13 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 - 修正: FORCE_DEMOTE + PAIR_PROMOTED削除 + LOT_BOOST削除
 - 教訓: **短期BT(60d)のWR/EVを365d BTで必ず検証すべき。特にN<30の戦略は短期BTの分散が大きく、カーブフィッティングと区別がつかない**
 
+### [[lesson-kb-ssot-unmerged-branch-2026-07-02]]
+**発見日**: 2026-07-03 | **修正**: origin/main へ cherry-pick 復旧 (同日)
+- 問題: MEMORY が SSOT 指定する KB doc 2件 (fable5-system-audit / bb-rsi-t10-kill) が worktree ブランチに滞留し main 未到達。hotfix PR #29 に防御コミットのみ選択的 cherry-pick し、残りの行き先未決のままセッション終了
+- 症状: 次セッションの SSOT 参照が dangling — 監査25件バックログの不可視化リスク。MEMORY の hash 参照も branch-local で main と不一致
+- 原因: [[lesson-kb-drift-on-context-limit]] の変種。「同一コミット」ルールは守られたが「main 到達」が担保されず。worktree 運用下では commit ≠ 永続化
+- 教訓: **KB doc は main 到達で初めて永続化。MEMORY に SSOT を書く条件は「同セッション中に main 反映を確認したこと」。選択的 cherry-pick 時は選択しなかった commit の行き先を同時に決める**
+
 ### [[lesson-preregistration-gate-mechanism-mismatch]]
 **発見日**: 2026-04-24 | **修正**: 次 pre-reg 設計から反映
 - 問題: MAFE 動的 exit BT (N=14,185) で 16 cells が ΔEV +0.54p (Welch/Fisher p=0, WF 同符号) を達成したが、Wilson WR lower > 53% の単一ゲートで SURVIVOR=0

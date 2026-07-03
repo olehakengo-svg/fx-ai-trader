@@ -66,3 +66,6 @@ GBP_USD は BH-FDR を通過 — 本BTスキャン9セル中で唯一の生存�
 - [[fib-reversal]] — MR系、instant-death比較
 - [[bb-rsi-reversion]]
 - [[tier-master]]
+
+## 2026-07-02 E10 code-level DISABLE (rule:R2)
+Edge cell E10 (GBP_USD force-live) を `DISABLED_CELLS` に追加。30d live via E10: N=9 WR=22.2% **-52.5pip**。pre-reg forensic 2026-06-22 が同セルを dominant loser と特定済み (9/9負けが d1∈{0,-1} = knife-catch)。非セルの PAIR_PROMOTED fill (30d n=3 +5.6p) は維持。後継は D1-gated continuation 変種 ([[wick-imbalance-gbpusd-continuation-pre-reg-2026-06-22]]) が R1 パイプラインで別途。詳細: [[live-bleeder-demotions-2026-07-02]]

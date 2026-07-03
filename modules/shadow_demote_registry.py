@@ -48,6 +48,21 @@ SHADOW_RETIRED_STRATEGIES = frozenset({
     # EUR_USD/USD_JPY were listed).
     # Ref: wiki/learning/edge-factor-audit-2026-06-12-sr-channel-reversal.md
     "sr_channel_reversal",
+    # 2026-06-12 (rule:R2): edge-factor audit #5, clean N=453. First
+    # gross-NEGATIVE aggregate of the series (-0.86p), but decomposition
+    # shows it is not uniform: 96% of the -1354p shadow bleed is 4 JPY
+    # cells (GBP_JPY/USD_JPY/EUR_JPY SELL+BUY, gross -4~-7.5p with 4-5p
+    # cross friction) which the per-cell registry ALREADY stopped on
+    # 2026-05-06/08 (confirmed not leaking). Post-JPY-stop the major-pair
+    # remainder is near-breakeven but still 30d gross-negative (-0.50);
+    # no cell clears Wilson_lo > BE-WR 0.324 (best EUR_USD BUY +0.54
+    # Wilson 0.285). Inverse fails (inverse net -1.42). BUY-major shows
+    # gross +1.85 (EUR_USD/GBP_USD BUY) friction-compressed to ~breakeven
+    # at 15m (friction 8.7% of TP) — logged as a "fib-confluence
+    # BUY-major-only" redesign hypothesis, NOT promotable now. Different
+    # thesis from the SR survivor sr_anti_hunt_bounce.
+    # Ref: wiki/learning/edge-factor-audit-2026-06-12-sr-fib-confluence.md
+    "sr_fib_confluence",
 })
 
 
@@ -64,6 +79,26 @@ SHADOW_DEMOTED_CELLS = frozenset({
     ("sr_fib_confluence", "EUR_JPY"),
     ("sr_fib_confluence", "GBP_JPY"),
     ("sr_fib_confluence", "USD_JPY"),
+    # 2026-07-02 (rule:R2): daytrade_1h_usdchf mode audit. The Phase B-1
+    # USD_CHF hourly surface bled -416.3p clean all-time (N=169, WR 16.6%,
+    # production API re-verified 2026-07-02). 110/169 rows were the
+    # 2026-06-12 retired strategies (already blocked above); these four
+    # cells are the still-emitting remainder: N=59, WR 23.7%,
+    # Wilson_lo 14.7%, -153.2p — below every BEV_WR in the friction table,
+    # both directions negative for all four. Per-cell stats:
+    #   london_breakout    N=37 WR 29.7% Wilson_lo 17.5% -88.6p (emitting daily)
+    #   vol_surge_detector N=12 WR 25.0% Wilson_lo  8.9% -36.0p
+    #   three_bar_reversal N=4  WR  0.0%                 -16.6p
+    #   engulfing_bb       N=6  WR  0.0%                 -12.0p
+    # The mode slot itself stays alive (auto_start unchanged) as the
+    # price_shock_reversion Phase B surface — this is a per-cell stop,
+    # not a mode stop, so Shadow accumulation for other strategies on
+    # USD_CHF continues (principle 3). Re-promotion is R1-only.
+    # Ref: wiki/decisions/usdchf-1h-cell-demotions-2026-07-02.md
+    ("engulfing_bb", "USD_CHF"),
+    ("london_breakout", "USD_CHF"),
+    ("three_bar_reversal", "USD_CHF"),
+    ("vol_surge_detector", "USD_CHF"),
 })
 
 

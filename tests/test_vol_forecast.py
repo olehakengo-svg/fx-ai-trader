@@ -42,6 +42,8 @@ def test_closed_bar_guard_rejects_future_history():
 
 
 def test_floor_ceiling_clip_with_real_cache_data():
+    from tests.conftest import require_data_file
+    require_data_file("data/cache/massive/USD_JPY_5m.parquet", "MASSIVE M5 integration")
     clear_vol_forecast_cache()
     asof = datetime(2026, 4, 30, 23, 55, tzinfo=timezone.utc)
 
@@ -69,6 +71,8 @@ def test_floor_ceiling_clip_with_real_cache_data():
 
 
 def test_cache_deterministic_hit_count_with_real_cache_data():
+    from tests.conftest import require_data_file
+    require_data_file("data/cache/massive/USD_JPY_5m.parquet", "MASSIVE M5 integration")
     clear_vol_forecast_cache()
     asof = datetime(2026, 4, 30, 23, 55, tzinfo=timezone.utc)
 

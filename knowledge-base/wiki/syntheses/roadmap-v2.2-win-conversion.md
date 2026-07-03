@@ -50,7 +50,7 @@
 
 ## WS3: エッジ要因解析シリーズ継続 (司令塔直轄)
 
-- T10: **#2 bb_rsi_reversion N=780** (シリーズ次番、キュー済) → kill/redesign 判定。SCALP_SENTINEL 残置の妥当性も判定
+- T10: ✅ **CLOSED 2026-07-02 = KILL** — 清浄shadow N=495 因子分解+敵対検証で生存セルゼロ、friction>edge 構造 (楽観上限=BE天井)。再試行禁止。SCALP_SENTINEL は shadow 収集のみ継続 (LIVE候補ゼロ固定)。詳細: [[bb-rsi-t10-kill-2026-07-02]]
 - T11: **新仮説「LDN朝×counter-USD MR」クラス禁止** — 30d 実測 (UTC07-09 -71.8p) から一般化できるか 12y MASSIVE grid で検証 (R1)。通過すれば戦略横断の構造フィルタ (SIZE lever) に昇格
 
 ## WS4: 目標再キャリブレーション
