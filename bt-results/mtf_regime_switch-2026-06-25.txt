@@ -1,0 +1,170 @@
+### mtf_regime_switch Python multi-year cross-check (2026-06-25)
+
+== Pass1 friction=0 (TV再現) ==
+==============================================================================
+# mtf_regime_switch Python BT — EUR_USD
+==============================================================================
+共通窓 2022-01-02〜2026-05-15  15m=108910 1h=27475 4h=7168
+friction = 0.0 pip/trade  (TV 再現 (friction0))
+div_mode=proxy  exit_mode=fixed  max_hold=24
+
+split: train < 2024-08-05 (N=1218) | holdout >= 2024-08-05 (N=772)
+
+── 全期間 (4.4年) ──
+  全体: N=1990 WR=40.6% (Wilson 38-43) PF=1.01 EV=+0.07pip sum=+143pip
+  Regime          N    WR%      Wilson     PF      EV      sum
+  RANGE BUY     226   43.4       37-50   0.91   -0.59     -133
+  RANGE SELL    227   48.5       42-55   1.28   +1.55     +351
+  TREND BUY     756   36.9       34-40   0.92   -0.61     -462
+  TREND SELL    781   41.1       38-45   1.07   +0.50     +387
+  方向対称性: BUY  N=982 PF=0.92 EV=-0.61 | SELL N=1008 PF=1.11 EV=+0.73
+  Session       N    WR%     PF      EV
+  Tokyo       501   38.5   0.98   -0.10
+  London      669   39.8   1.01   +0.11
+  NY          724   43.9   1.06   +0.48
+  Off          96   32.3   0.64   -2.30
+
+── TRAIN 前半60% (2022-01-03〜2024-08-05) ──
+  全体: N=1218 WR=40.0% (Wilson 37-43) PF=0.97 EV=-0.21pip sum=-259pip
+  Regime          N    WR%      Wilson     PF      EV      sum
+  RANGE BUY     127   44.1       36-53   0.90   -0.69      -87
+  RANGE SELL    147   43.5       36-52   1.10   +0.64      +95
+  TREND BUY     462   38.1       34-43   0.94   -0.44     -204
+  TREND SELL    482   39.6       35-44   0.98   -0.13      -63
+  方向対称性: BUY  N=589 PF=0.93 EV=-0.49 | SELL N=629 PF=1.01 EV=+0.05
+  Session       N    WR%     PF      EV
+  Tokyo       317   39.4   1.01   +0.06
+  London      402   37.3   0.93   -0.58
+  NY          442   43.2   1.01   +0.04
+  Off          57   36.8   0.80   -1.19
+
+── HOLDOUT 後半40% (2024-08-05〜2026-05-13) ──
+  全体: N=772 WR=41.6% (Wilson 38-45) PF=1.08 EV=+0.52pip sum=+402pip
+  Regime          N    WR%      Wilson     PF      EV      sum
+  RANGE BUY      99   42.4       33-52   0.92   -0.46      -45
+  RANGE SELL     80   57.5       47-68   1.73   +3.20     +256 ·
+  TREND BUY     294   35.0       30-41   0.89   -0.88     -258
+  TREND SELL    299   43.5       38-49   1.24   +1.50     +449
+  方向対称性: BUY  N=393 PF=0.90 EV=-0.77 | SELL N=379 PF=1.31 EV=+1.86
+  Session       N    WR%     PF      EV
+  Tokyo       184   37.0   0.94   -0.40
+  London      267   43.4   1.16   +1.14
+  NY          282   45.0   1.17   +1.15
+  Off          39   25.6   0.45   -3.93
+
+── exit 内訳 ──
+  sl:1078 / tp:648 / timestop:264
+
+── skip ──
+  (skip 0 件)
+
+== Pass2 friction=2.0 + diagnose ==
+==============================================================================
+# mtf_regime_switch Python BT — EUR_USD
+==============================================================================
+共通窓 2022-01-02〜2026-05-15  15m=108910 1h=27475 4h=7168
+friction = 2.0 pip/trade  (EV 判定モード)
+div_mode=proxy  exit_mode=fixed  max_hold=24
+
+split: train < 2024-08-05 (N=1218) | holdout >= 2024-08-05 (N=772)
+
+── 全期間 (4.4年) ──
+  全体: N=1990 WR=39.4% (Wilson 37-42) PF=0.77 EV=-1.93pip sum=-3837pip
+  Regime          N    WR%      Wilson     PF      EV      sum
+  RANGE BUY     226   42.9       37-49   0.67   -2.59     -585
+  RANGE SELL    227   47.6       41-54   0.93   -0.45     -103
+  TREND BUY     756   35.8       33-39   0.71   -2.61    -1974
+  TREND SELL    781   39.4       36-43   0.82   -1.50    -1175
+  方向対称性: BUY  N=982 PF=0.70 EV=-2.61 | SELL N=1008 PF=0.84 EV=-1.27
+  Session       N    WR%     PF      EV
+  Tokyo       501   37.5   0.72   -2.10
+  London      669   39.6   0.79   -1.89
+  NY          724   41.6   0.82   -1.52
+  Off          96   31.2   0.45   -4.30
+
+── TRAIN 前半60% (2022-01-03〜2024-08-05) ──
+  全体: N=1218 WR=38.8% (Wilson 36-42) PF=0.74 EV=-2.21pip sum=-2695pip
+  Regime          N    WR%      Wilson     PF      EV      sum
+  RANGE BUY     127   43.3       35-52   0.67   -2.69     -341
+  RANGE SELL    147   42.9       35-51   0.81   -1.36     -199
+  TREND BUY     462   37.0       33-42   0.73   -2.44    -1128
+  TREND SELL    482   38.0       34-42   0.76   -2.13    -1027
+  方向対称性: BUY  N=589 PF=0.72 EV=-2.49 | SELL N=629 PF=0.77 EV=-1.95
+  Session       N    WR%     PF      EV
+  Tokyo       317   38.5   0.74   -1.94
+  London      402   37.1   0.73   -2.58
+  NY          442   41.0   0.78   -1.96
+  Off          57   35.1   0.56   -3.19
+
+── HOLDOUT 後半40% (2024-08-05〜2026-05-13) ──
+  全体: N=772 WR=40.4% (Wilson 37-44) PF=0.81 EV=-1.48pip sum=-1142pip
+  Regime          N    WR%      Wilson     PF      EV      sum
+  RANGE BUY      99   42.4       33-52   0.66   -2.46     -243
+  RANGE SELL     80   56.2       45-67   1.23   +1.20      +96 ·
+  TREND BUY     294   34.0       29-40   0.69   -2.88     -846
+  TREND SELL    299   41.8       36-47   0.93   -0.50     -149
+  方向対称性: BUY  N=393 PF=0.69 EV=-2.77 | SELL N=379 PF=0.98 EV=-0.14
+  Session       N    WR%     PF      EV
+  Tokyo       184   35.9   0.68   -2.40
+  London      267   43.4   0.89   -0.86
+  NY          282   42.6   0.89   -0.85
+  Off          39   25.6   0.31   -5.93
+
+── exit 内訳 ──
+  sl:1078 / tp:648 / timestop:264
+
+── skip ──
+  (skip 0 件)
+
+==============================================================================
+# 診断: なぜ勝てないか
+==============================================================================
+
+── (1) エントリーの生の予測力 (exit機構を外した forward-return) ──
+   ※ これが ~0 なら「エントリーに予測力なし」= exit/friction 以前の問題
+  Regime           N    fwd4(pip)   hit%   fwd12(pip)   hit%   fwd48(pip)   hit%
+  RANGE BUY      620        0.163   50.6       -1.168   49.4       -0.391   48.9
+  RANGE SELL     631        0.822   55.5        1.850   54.7        4.890   55.9
+  TREND BUY     2180       -0.028   47.0        0.190   47.9       -0.245   49.6
+  TREND SELL    2422        0.548   49.8        0.735   49.3        0.782   48.8
+   参考: |fwd12| の全 bar 平均規模 = 12.89 pip (シグナルの fwd がこれに対し有意に偏るか)
+
+── (2) R:R 算術: break-even WR に実 WR が届いているか ──
+  RANGE (R:R=1.25): TP≈12.1pip SL≈9.7pip | BEV_WR(friction0)=44.4% BEV_WR(f=2.0)=53.6% | 実WR=45.3% → gap=-8.4pp ❌届かず
+  TREND (R:R=1.67): TP≈20.1pip SL≈12.1pip | BEV_WR(friction0)=37.5% BEV_WR(f=2.0)=43.7% | 実WR=37.7% → gap=-6.0pp ❌届かず
+
+── (3) MACD divergence は MR にエッジを足しているか (forward-return) ──
+  RANGE BUY div有: N= 620 fwd12=-1.168pip hit=49.4%
+  RANGE BUY div無: N=1907 fwd12=+1.560pip hit=53.0%
+  RANGE SELL div有: N= 631 fwd12=+1.850pip hit=54.7%
+  RANGE SELL div無: N=1988 fwd12=+0.494pip hit=51.8%
+
+── (4) SL/TP 感度 (friction0 全体EV) — SLを広げると改善するか ──
+  SL_mr/TP_mr/SL_tr/TP_tr        N    WR%     PF   EV(pip)
+  1.2/1.5/1.5/2.5             1990   40.6   1.01    +0.072
+  2.0/2.0/2.0/3.0             1727   46.0   1.04    +0.337
+  2.5/2.5/3.0/4.0             1574   50.0   1.08    +0.765
+  3.0/1.5/3.0/2.0             1701   58.0   1.08    +0.630
+
+== drift test (無条件 fwd12) ==
+全期間      無条件fwd12 BUY=+0.033 SELL=-0.033pip 価格 1.1357->1.1660
+TRAIN    無条件fwd12 BUY=-0.076 SELL=+0.076pip 価格 1.1357->1.0955
+HOLDOUT  無条件fwd12 BUY=+0.196 SELL=-0.196pip 価格 1.0954->1.1660
+
+== slow-edge rescue 試行 (friction2.0; RANGE SELL train/holdout) ==
+-- --max-hold 48 --
+   RANGE SELL    227   47.6       41-54   0.91   -0.64     -146
+TRAIN   RANGE SELL    147   43.5       36-52   0.82   -1.41     -208
+HOLDOUT   RANGE SELL     80   55.0       44-65   1.13   +0.77      +61 ·
+-- --exit trail --trail-mult 2.0 --
+   RANGE SELL    228   35.5       30-42   1.04   +0.30      +67
+TRAIN   RANGE SELL    147   33.3       26-41   1.02   +0.13      +19
+HOLDOUT   RANGE SELL     81   39.5       30-50   1.11   +0.60      +49
+-- --exit trail --trail-mult 2.0 --max-hold 48 --
+   RANGE SELL    224   34.4       28-41   1.03   +0.21      +47
+TRAIN   RANGE SELL    143   33.6       26-42   1.05   +0.38      +55
+HOLDOUT   RANGE SELL     81   35.8       26-47   0.98   -0.10       -8
+-- --exit trail --trail-mult 3.0 --max-hold 96 --
+   RANGE SELL    212   28.8       23-35   0.97   -0.23      -50
+TRAIN   RANGE SELL    137   31.4       24-40   1.17   +1.50     +206
+HOLDOUT   RANGE SELL     75   24.0       16-35   0.61   -3.41     -256
