@@ -1,5 +1,38 @@
 # Knowledge Base Change Log
 
+## 2026-07-02 (wiki-daily-update 🌙 evening re-run): 同日2回目の自動スケジュールタスク
+- **背景**: 本日2回目の wiki-daily 実行 (夕方 ~UTC 11–12 窓)。朝の実行以降、当日データは進行せず (**新規 fill 0件**)。以下 delta は **朝キャプチャ比** (同日)。2つ変化: ① 朝の「1 LIVE sent」は **forensic で偽 `sent` と確定** (実弾未送信) → その framing を trade-log / index line 170 に伝播訂正 (line 116 は既訂正済); ② 30d rolling window が数時間ロール (n=112→109) で rolling 指標が微減 (window-roll ease、真のエッジ改善ではない)
+- **Daily trade log**: `raw/trade-logs/2026-07-02.md` に「🌙 EOD / Evening Re-run」セクション追記 + 偽sent framing を3箇所訂正 (OANDA Audit / Strategy Movers / Key Observations)。cumulative は flat (N=**542** 不変, WR 43.2%, EV -0.96, PnL -521.1pip), shadow 8,482→**8,530** (+48, shadow only)
+- **30d rolling (risk API, n=112→109)**: Kelly edge -37.03→**-35.72%** (+1.31pp eased, WR 47.32→48.62%, odds 0.322); gross=net -321.7→**-310.0pip** (friction 462.3→456.3pip/4.19); worst DD99 227.92→**224.82%**, median max DD(MC) 175.08→**172.26%** (共に roll で微減、still >100%)。by-instrument: GBP_USD -139.9 (n42, **#1 drag flat**) / **EUR_USD -84.4→-72.7** (3 trades rolled out) / EUR_JPY -46.0 / USD_JPY -40.4 / USD_CHF -11.0
+- **DD state**: **98.2% / eq -$965.1 / peak +$16.90 / ruin 0.0% — 全て朝と flat** (realized、rolling ではない)。roll-ease は rolling 30d 指標に限定、realized equity trough は不変
+- **OANDA audit** (fresh 07-02 07:52→11:12 UTC): **0 LIVE / 全30件 shadow_tracking skipped** (朝の偽sent行は latest-30 window から脱落)。instruments USD_JPY(9)/GBP_JPY(9)/GBP_USD(6)/USD_CHF(3)/EUR_USD(3); strategies **dt_sr_channel_reversal(16)**/vix_carry_unwind(4)/london_breakout(3)/htf_false_breakout(2)/ma_regime_switch(2)+singles; dir SELL16/BUY14
+- **Learning API**: 変化なし (最新 id=91 のまま)。**Strategy pages**: 更新なし (新規データ・tier 変更なし)
+- **Lint**: WR/PnL/DD は trade-log↔index↔log 間で一貫 (N=542/WR43.2%/PnL-521.1/DD98.2%; 30d rolling は evening 値 n=109/edge-35.72%/gross-310.0 で統一、morning n=112 値は「morning」明示で区別)。**✅ 偽sent 不整合を解消**: trade-log + index line 170 の旧「live bridge fired anyway」を line 116 の forensic 結論 (偽sent・実弾未送信) に整合。⚠️ 既存の破損 wikilink ~182件は本 run で件数不変 (新規破損なし)、別タスク継続。⚠️ london-fix-reversal Edge Stage 不整合・watchdog API_AUTH_TOKEN gap は未解決継続。データ当日取得、陳腐化なし
+- **主要観察**: ✅ 新規 fill 0件・実弾 0件 (唯一の live "event" だった偽sent は logging artifact、訂正済); ✅ 30d rolling は window-roll で微減 (真の改善ではない、realized DD 98.2% 不変); 🔴 GBP_USD 依然 #1 drag (-139.9 n42 flat)
+
+## 2026-07-02 (Edge Cell E8 code-level DISABLE 完結, rule:R2)
+- **新規**: [[edge-cell-e8-demote-2026-06-25]] (decisions/) — E8 (session_time_bias EUR_USD LDN broad) の code-level kill-switch `DISABLED_CELLS`。判断 2026-06-25 (Live N=8 EV=-3.51p / Shadow N=10 EV=-2.10p 両負) → fable5 audit P1-4 の指摘 (無タグ化 / doc 不在 / テスト7件 red) を反映してコミット完結
+- **コード**: `edge_cell_promote.py` DISABLED_CELLS (KV default="1" 再武装の遮断) + `demo_trader.py` edge_cell_id タグを match 適格性基準に変更 (watchdog 可視性 + shadow N 蓄積回復)。E2 は据え置き
+- **テスト**: E8 依存 bypass 検証 7 件を active cell (E3/E4) へ付け替え + E8 disabled 挙動の固定テスト 4 件追加。[[session-time-bias]] 戦略カード更新。監査 Phase A-1 完了
+
+## 2026-07-02 (Fable5 大規模監査 + wiki-lint)
+- **新規**: [[fable5-system-audit-2026-07-02]] (decisions/) — 全システム監査 P0×2/P1×8/P2×9/P3×6 + Phase A/B/C 改善ロードマップ。session log Phase 2 に要約記録
+- **Lint 修正**: index.md Session History に [[vwap-mr-live-analysis-2026-04-22]] リンク追加 (check.py 警告解消)
+- ⚠️ **Lint 未修正 (フラグのみ)**: ① 破損 wikilink 182件 (大半が log.md 内の歴史的参照 `zz-pivot-v60-sr` 等 — ページ未作成が原因、一括修正は別タスク) ② Edge Stage 不整合 1件 (london-fix-reversal: file=PHASE0 SHADOW GATE vs pipeline=PROMOTED — tier 判断が必要なため保留) ③ `sync_kb_index --check`: index.md が demo_trader.py 戦略セットと drift (app.py の dead inline 4戦略 reg_channel/sr_bounce/strong_sr_breakout/tokyo_bb 含む — 監査 P3 と合わせて要整理)
+- ⚠️ **監査で確認された既知未解決との重複**: EDGE_CELL_ADMIN_TOKEN Bearer bug / sr_anti_hunt_bounce shadow corruption は監査スコープ外の既知バグとして継続 (daily log で追跡中)
+
+## 2026-07-02 (wiki-daily-update): 自動スケジュールタスク — ⚠️⚠️⚠️ DD 98.2% NEW HIGH (100%接近)
+- **背景**: 06-25 evening 以来初のフル日次ログ。06-26〜07-01 はログなし (06-27/28 週末 + gap)、**~7日窓**。以下 delta は **06-25 evening キャプチャ比** (N=519 / -426.3pip / DD 90.55% / edge -27.77% / gross -207.2)。OANDA audit window = 2026-07-01 18:12 → 2026-07-02 05:02 UTC。
+- **Daily trade log**: `raw/trade-logs/2026-07-02.md` 作成 — post-cutoff live N=519→**542** (+23 fills: **11W/11L/1BE** even split), WR=43.0→**43.2%** (+0.2pp), decided 45.8→**46.0%**, EV=-0.82→**-0.96** (-0.14 ⚠️), PnL=-426.3→**-521.1pip** (**−94.8pip ⚠️⚠️⚠️ recent log 最大の単窓ドロップ** — even W/L だが sized losses が支配), Wilson lower=41.4→41.7%/BF=38.5→38.9%
+- **🟡 [訂正済 2026-07-02 evening/forensic] この「1 LIVE sent」は偽 `sent` (実弾未送信)**: `wick_imbalance_reversion` GBP_USD **BUY 5000u** 行は `bridge_status=sent` / oanda_trade_id 空。同日 forensic (rule:R3) で、bridge の daily_loss gate (−23.3pip) が**正しくブロックした後に呼び出し側が無条件で書いた偽 'sent'** と確定 — **実弾は出ていない**。「send/block twin」(06-16/17/19 同型) はこの二重書込み artifact であって gate bypass ではない (修正: accept/reject 契約, `tests/test_bridge_send_accept_contract.py`)。以下の朝キャプチャ記述 (line 29/33 の「1 LIVE sent」「live bridge 発火」) はこの訂正が優先。#1 drag pair GBP_USD × #3 cumulative loser (wick_imbalance_reversion -63.0pip/WR35.7%)
+- **wiki/index.md**: System State + Session History 更新 — DD=90.55→**98.2%** ⚠️⚠️⚠️ (+7.65pp **NEW HIGH — 100%接近**, eq=-$888.6→**-$965.1** / -$76.5, peak +$16.90 不変, log 最大の単窓 DD ジャンプ); 30d Kelly edge=-27.77→**-37.03%** (⚠️⚠️⚠️ -9.26pp, **7窓連続悪化**, WR 47.32%, odds 0.331); 30d gross=net=-207.2→**-321.7pip** (**−114.5 単窓最大の gross ドロップ**, n=112, friction 408.4→462.3pip/4.13 per-trade — friction も上昇); worst DD99=170.42→**227.92%**, median max DD(MC)=118.30→**175.08%** (共に blew out); shadow≈7,935→**8,482** (+~547); last_updated→2026-07-02。header (line 5) DD も更新。Trade Logs index に 07-02 リンク追加
+- **OANDA audit**: 最新30件 — **1 LIVE sent / 1 blocked / 28 shadow_tracking skipped**。instruments: USD_JPY(10)/GBP_USD(9)/GBP_JPY(5)/EUR_USD(4)/EUR_JPY(2)。strategies: **sr_break_retest(8)**/**squeeze_release_momentum(7)**/ma_regime_switch(3)/vol_spike_mr(3)/dual_sr_bounce(2)/wick_imbalance_reversion(2)/engulfing_bb(2)/sr_anti_hunt_bounce(2)+single。directions BUY 21/SELL 9。daily_loss_limit CB が in-window で発火 (−20pip gate active)
+- **30d by-instrument**: **全5ペア negative & 全ペア悪化**。GBP_USD **-139.9pip** (mean -3.33, n=42) #1 drag 継続; EUR_USD -48.1→**-84.4** #2; **EUR_JPY blew out -9.2→-46.0** (最後の near-flat JPY cross も出血入り); USD_JPY -32.2→**-40.4**; USD_CHF -11.0 flat。gross 悪化 (-114.5) は broad-based
+- **Learning API**: **2件の新規自動調整** id=90 (2026-06-30 12:29) / id=91 (2026-07-01 12:47) — 共に `sr_channel_reversal` scalp blacklist 再確認 (WR25.0%/EV-0.98/N=185)。id=89(06-19)と同理由、learner が毎サイクル同じ除外を再追加。current_params 不変 (conf_threshold=30, max_consec_losses=3, max_open=8)。by_mode: daytrade 全 conf bucket negative (high EV-0.33/mid -3.61/low -2.18)
+- **Strategy pages**: 更新なし (tier 変更なし)。⚠️ LIVE 発火した wick_imbalance_reversion は #3 cumulative loser、confirmed fill でない (awaiting-fill) ため戦略ページ Live 数値は未更新、fill 確定後に反映
+- **主要観察**: 🔴🔴🔴 DD 98.2% 過去最悪 (100%接近, eq -$965.1 は -$1000 まで ~$35); 🔴🔴🔴 PnL -94.8pip 単窓最大ドロップ (even 11W/11L だが sized losses 支配); 🔴🔴🔴 30d edge -37.03% + gross -321.7pip 7窓連続悪化 & broad-based; ⚠️ MC tail blew out (worst DD99 227.92%); 🔴 1 LIVE sent (未約定) が #1 drag pair × #3 loser strategy; ⚠️ daily_loss_limit CB 発火中; ✅ ruin 0.0%維持, 0.2× lot holding; ⚠️ EDGE_CELL_ADMIN_TOKEN Bearer bug + sr_anti_hunt_bounce shadow corruption 未修正
+- **Lint**: WR/PnL/DD は trade-log↔index↔log 間で一貫 (N=542/WR43.2%/PnL-521.1/DD98.2%/edge-37.03%/gross-321.7)。[[2026-07-02]] trade-log リンク=作成済ファイルに解決。⚠️ **stale gap**: 前回更新 06-25 → 今回 07-02 = 7日 (>3日閾値超過だが週末+ログ無日のため window は連続)。データ当日取得 (2026-07-02)、陳腐化なし。live N=542 は demo/stats live_count、TRUE_LIVE SSOT (N=371) とは別系統 (既存注記の通り)。oanda_audit twin-meaning 参照は plain text 化
+
 ## 2026-06-25 (wiki-daily-update 🌙 evening re-run): 同日2回目の自動スケジュールタスク
 - **背景**: 本日2回目の wiki-daily 実行 (夜 ~20:46 JST / 11:46 UTC)。朝の実行 (N=516 / -423.5pip / DD 90.12% flat) 以降、当日データが進行。以下 delta は **朝のキャプチャ比**。
 - **Daily trade log**: `raw/trade-logs/2026-06-25.md` に「🌙 Evening Re-run」セクション追記 — live N=516→**519** (+3 intraday: **2W/1L/0BE**), WR=42.8→**43.0%** (+0.2pp), decided 45.7→45.8%, EV=-0.82 (flat), PnL=-423.5→**-426.3pip** (-2.8pip intraday / **+3.2pip vs 06-19**), Wilson lower=41.3→41.4%/BF=38.4→38.5%
@@ -411,3 +444,10 @@
 - [x] raw/ にBT結果JSONを保存 → raw/bt-results/ に9ファイル格納済み (md形式)
 - [ ] Version history (v7.0 - v8.4) as separate pages — 優先度低
 - [ ] /wiki-quant-eval の初回実行でベースライン確立
+
+## 2026-07-02 wiki-lint (session: 止血+ガバナンス)
+- ✅ 本日の変更整合確認: session_time_bias EUR_USD demote が code (_PAIR_PROMOTED) / tier-master (auto-regen) / index.md portfolio / strategies/session-time-bias.md / pin tests の5点で一致
+- ✅ decisions/claude-codex-division-of-labor-2026-07-02.md の wikilink ([[claude-harness-design]], [[audit-completion-protocol]], [[sessions/2026-07-02-session]]) 全て解決
+- ✅ index.md 07-01 インシデント記述を forensic 結果で訂正（偽sent、実弾未送信）— 旧記述「live bridge fired anyway」は誤り
+- ⚠️ 既存: 破損wikilink 182件（本日編集前後で件数不変=新規破損なし、大半は log.md の [[zz-pivot-v60-sr]] 系と自動生成リンク）— 別タスクで一括修正候補
+- ⚠️ 既存: Edge Stage不整合 1件 (london-fix-reversal: file=PAIR_DEMOTED vs pipeline=PROMOTED) — 未解決のまま

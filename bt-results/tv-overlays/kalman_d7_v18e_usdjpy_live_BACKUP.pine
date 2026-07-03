@@ -1,0 +1,61 @@
+// BACKUP: Kalman D7 v18e LIVE (0.5xATR trail) — USDJPY M15
+// Retrieved from TV slot USER;66bd93e0ac9d458194d7541fc2ea9a37 via pine_get_source on 2026-05-21
+// before EUR_USD forensic work accidentally overwrote slot. Re-deploy if needed.
+// Source-of-truth: this file + memory project_kalman_d7_regime_bound_live_2026_05_20.md
+
+//@version=6
+strategy("Kalman D7 v18e LIVE (0.5xATR trail)",
+     overlay=true,
+     initial_capital=100000,
+     default_qty_type=strategy.percent_of_equity,
+     default_qty_value=10,
+     pyramiding=0,
+     commission_type=strategy.commission.percent,
+     commission_value=0.002,
+     slippage=1,
+     calc_on_every_tick=false,
+     process_orders_on_close=true,
+     max_labels_count=500)
+
+dist_max = input.float(3.0, "DIST max")
+gap_max  = input.float(3.0, "GAP max")
+sl_atr_mul = input.float(2.0, "Init SL × ATR")
+trail_mul = input.float(0.5, "Trail × ATR")
+
+pip = syminfo.mintick * 10
+ema_fast = ta.ema(close, 25)
+ema_mid  = ta.ema(close, 75)
+ema_slow = ta.ema(close, 200)
+atr_val  = ta.atr(14)
+rsi_val  = ta.rsi(close, 14)
+
+perfect_up = ema_fast > ema_mid and ema_mid > ema_slow and close > ema_fast
+perfect_dn = ema_slow > ema_mid and ema_mid > ema_fast
+po_up_start = perfect_up and not perfect_up[1]
+
+dist_atr = (close - ema_slow) / atr_val
+gap_atr  = (ema_fast - ema_slow) / atr_val
+atr_p20 = ta.percentile_linear_interpolation(atr_val, 200, 20)
+atr_p80 = ta.percentile_linear_interpolation(atr_val, 200, 80)
+atr_ok = atr_val >= atr_p20 and atr_val < atr_p80
+
+h = hour(time, "UTC")
+sess_ok = (h < 7) or (h >= 7 and h < 12) or (h >= 16 and h < 21)
+
+entry_long = po_up_start and dist_atr < dist_max and gap_atr < gap_max and atr_ok and rsi_val < 70 and sess_ok
+
+if entry_long and strategy.position_size == 0
+    strategy.entry("L", strategy.long)
+
+if strategy.position_size > 0
+    entry_px = strategy.position_avg_price
+    init_sl = entry_px - sl_atr_mul * atr_val
+    trail_act_ticks = math.round((1.0 * atr_val) / syminfo.mintick)
+    trail_off_ticks = math.round((trail_mul * atr_val) / syminfo.mintick)
+    strategy.exit("X", from_entry="L", stop=init_sl, trail_points=trail_act_ticks, trail_offset=trail_off_ticks)
+
+plot(ema_fast, "EMA 25",  color=color.yellow, linewidth=1)
+plot(ema_mid,  "EMA 75",  color=color.orange, linewidth=2)
+plot(ema_slow, "EMA 200", color=color.red,    linewidth=2)
+plotshape(entry_long, "LONG", style=shape.triangleup, location=location.belowbar, color=color.lime, size=size.normal)
+bgcolor(perfect_up ? color.new(color.green, 88) : perfect_dn ? color.new(color.red, 88) : color.new(color.gray, 95))
