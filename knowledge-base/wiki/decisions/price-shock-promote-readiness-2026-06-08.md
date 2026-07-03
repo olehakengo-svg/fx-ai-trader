@@ -43,4 +43,4 @@ BT rep cell は N=239〜426 (≈12年 H1) = **bar の ~0.33% でしか発火し�
 段階的に「blocker だ」と早期結論を3回出し、3回とも検証で覆った。**production 監査は実コード+実 API で1つずつ潰すまで verdict を出さない** ([[feedback_success_until_achieved]] / [[feedback_label_empirical_audit]])。
 
 ## 関連
-- [[project_price_shock_phase_b1_done_2026_05_18]] / [[project_risk_premia_pivot_2026_06_08]]
+- `project_price_shock_phase_b1_done_2026_05_18` / [[project_risk_premia_pivot_2026_06_08]]
