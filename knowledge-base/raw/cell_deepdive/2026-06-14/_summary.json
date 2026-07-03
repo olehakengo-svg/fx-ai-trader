@@ -1,0 +1,31 @@
+{
+  "run_date": "2026-06-14",
+  "tool": "ad-hoc deepdive (cell_deepdive_audit.py absent; cell_edge_audit.py methodology re-implemented against Render PROD API)",
+  "data_source": "https://fx-ai-trader.onrender.com/api/demo/trades (PROD /var/data/demo_trades.db) — LOCAL demo_trades.db is STALE (frozen 2026-04-30, 475 rows)",
+  "window": "365d (data span 2026-04-02 -> 2026-06-12)",
+  "scope": "Live + Shadow (414/422 target rows are shadow)",
+  "filters": {"exclude_xau": true, "exclude_dedup_violation": true, "outcome_in": ["WIN", "LOSS"]},
+  "meta": {
+    "prod_closed_trades_fetched": 9915,
+    "target_rows_raw": 422,
+    "target_rows_after_dedup_and_outcome_filter": 114,
+    "dedup_violation_excluded": 292,
+    "breakeven_excluded": 38,
+    "min_n": 20,
+    "m_global_v2": 0,
+    "m_global_v3": 0,
+    "candidates": 0
+  },
+  "headline_change_vs_2026_05_31": "PRODUCTION FREEZE RESOLVED. Prior weekly runs read the stale LOCAL db (frozen 2026-04-30) and reported 0 trades for all 7 strategies. PROD demo_trades is now actively accumulating (9915 closed vs 475 local). 5 of 7 target strategies now have shadow data.",
+  "dedup_contamination_finding": "292/422 (69%) of target-strategy rows carry dedup_violation=1 and were excluded per R2-audit-dedup rule. mqe 82/87, rsk 89/103, sr_anti_hunt 90/174, vsg 28/47, vdr 3/11. Clean N is far below MIN_N once contamination is stripped.",
+  "candidates": [],
+  "target_strategies": {
+    "sr_anti_hunt_bounce": {"raw": 174, "clean_N": 69, "WR": 0.391, "wilson_lo": 0.285, "EV_net_pips": -1.33, "PF": 0.80, "verdict": "NET-NEGATIVE (losing). Best sub-cell EUR_JPY/BUY N=16 WR0.62 EV+10.4p but N<20."},
+    "sr_liquidity_grab": {"raw": 0, "clean_N": 0, "verdict": "NO TRADES — not firing into demo_trades (eval_candidates only)."},
+    "cpd_divergence": {"raw": 0, "clean_N": 0, "verdict": "NO TRADES — strategy not evaluating/firing."},
+    "vdr_jpy": {"raw": 11, "clean_N": 8, "WR": 0.750, "wilson_lo": 0.409, "EV_net_pips": 13.46, "PF": 6.67, "verdict": "POSITIVE but tiny N (8). USD_JPY/BUY N=5 WR0.80 +22.5p. Keep accumulating."},
+    "vsg_jpy_reversal": {"raw": 47, "clean_N": 18, "WR": 0.667, "wilson_lo": 0.437, "EV_net_pips": 5.43, "PF": 2.05, "verdict": "POSITIVE, N=18 just below MIN_N=20. Closest to qualifying. EUR_JPY/SELL N=5 WR0.80."},
+    "rsk_gbpjpy_reversion": {"raw": 103, "clean_N": 14, "WR": 0.286, "wilson_lo": 0.117, "EV_net_pips": -5.74, "PF": 0.45, "verdict": "NET-NEGATIVE (losing). GBP_JPY/SELL N=6 WR0.00."},
+    "mqe_gbpusd_fix": {"raw": 87, "clean_N": 5, "WR": 0.600, "wilson_lo": 0.231, "EV_net_pips": 6.76, "PF": 2.48, "verdict": "POSITIVE but N=5 (82/87 dedup-excluded). Insufficient."}
+  }
+}

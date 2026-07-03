@@ -57,7 +57,8 @@ def route_base(audit_rows: list[dict[str, Any]]) -> dict[tuple[str, str], dict[s
             out[key]["filled"] += 1
         elif status in {"blocked", "skipped"}:
             out[key]["blocked"] += 1
-            if str(row.get("block_reason") or "") == "shadow_tracking":
+            # 2026-07-02 P-V4: 原因付き variant ("shadow_tracking(...)") も prefix 一致で計上
+            if str(row.get("block_reason") or "").startswith("shadow_tracking"):
                 out[key]["shadow_tracking"] += 1
     return out
 

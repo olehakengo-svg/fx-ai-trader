@@ -14,7 +14,9 @@
 | GBP_USD | 134 | 73.1% | +0.599 | 1.68 | +80.3p |
 
 ## Live Performance (post-cutoff)
-Live N=2 WR=0% PnL=-29.8pip (basis for original FORCE_DEMOTION). BT 365d recovery path confirmed positive EV on EUR/GBP.
+- **2026-06-25**: Live N=24, WR=66.7%, PnL=-17.0pip (demo/stats, is_shadow=false). WR tracks the BT (73-81%) but cumulative PnL still net-negative — losses sized larger than the high-WR offsets on the current regime.
+- 🟢 **Confirmed LIVE fill 2026-06-24 17:27 UTC**: daytrade_gbpusd GBP_USD SELL 5000u, **oanda#541666** (`bridge_status=filled`, non-empty trade id). First confirmed live fill for the ELITE_LIVE pipeline since the 06-16/17/19 awaiting-fill sends. Landed on GBP_USD — the book's #1 30d drag pair. Outcome of #541666 not yet in the closed-trade aggregate.
+- Original FORCE_DEMOTION basis: Live N=2 WR=0% PnL=-29.8pip. BT 365d recovery path confirmed positive EV on EUR/GBP → ELITE_LIVE promotion (v9.0).
 
 ## Signal Logic
 Trendline liquidity sweep strategy. Identifies trendlines where stop losses accumulate, enters after price sweeps beyond the trendline (triggering stops) then reverses back inside. Combines SMC stop-hunt logic with trendline-based entry zones.

@@ -1,0 +1,51 @@
+{
+  "run_date": "2026-05-31",
+  "meta": {
+    "total_trades": 475,
+    "live_trades": 11,
+    "shadow_trades": 464,
+    "trades_365d_non_xau": 426,
+    "last_db_entry": "2026-04-30",
+    "qualified_cells_v2": 7,
+    "qualified_cells_v3": 1,
+    "m_global_v2": 7
+  },
+  "system_state": {
+    "defensive_mode": true,
+    "eq_peak": 11.4,
+    "eq_current": -48.9,
+    "dd_lot_mult": 0.4,
+    "trades_frozen_since": "2026-04-30",
+    "blocker": "demo_trades inserts halted — signals in evaluated_candidates not persisted"
+  },
+  "candidates": [
+    {
+      "entry_type": "fib_reversal",
+      "session": "Tokyo",
+      "pair": "USD_JPY",
+      "direction": "SELL",
+      "mode": "Scalp",
+      "N": 20,
+      "N_live": 0,
+      "N_shadow": 20,
+      "WR": 0.90,
+      "wilson_lo": 0.699,
+      "wilson_hi": 0.972,
+      "EV_net": 12.56,
+      "PF": 20.94,
+      "p_bonf": 0.0003,
+      "kelly": null,
+      "wf_stable": "n/a",
+      "recommendation": "Pre-reg LOCK + Rule 1 (Slow & Strict) promotion at 0.25 lot"
+    }
+  ],
+  "target_strategies": {
+    "sr_anti_hunt_bounce": {"N_trades_365d": 0, "eval_candidates": 18633, "last_signal": "2026-05-28"},
+    "sr_liquidity_grab": {"N_trades_365d": 0, "eval_candidates": 276, "last_signal": "2026-05-11"},
+    "cpd_divergence": {"N_trades_365d": 0, "eval_candidates": 0, "last_signal": null},
+    "vdr_jpy": {"N_trades_365d": 0, "eval_candidates": 0, "last_signal": null},
+    "vsg_jpy_reversal": {"N_trades_365d": 0, "eval_candidates": 2061, "last_signal": "2026-05-04"},
+    "rsk_gbpjpy_reversion": {"N_trades_365d": 0, "eval_candidates": 644, "last_signal": "2026-04-30"},
+    "mqe_gbpusd_fix": {"N_trades_365d": 0, "eval_candidates": 346, "last_signal": "2026-04-30"}
+  }
+}
