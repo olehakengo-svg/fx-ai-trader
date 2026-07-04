@@ -15,6 +15,7 @@
 | (副次) `_promotion_allows_live` 未実装疑い | **解消**。その名の関数は存在せず (コメント内の呼称のみ)、実体は `_is_promoted` 内 (demo_trader.py:8561-8578) で**実行時に評価されている**。本番挙動でも確認済み | 疑い晴れ |
 | (副次・新発見 P1) Aggregate Kelly Gate | `kelly_criterion` が `full_kelly=max(0,·)` でクリップ (stats_utils.py:206) するため、gate 条件 `_agg_kelly < 0` (demo_trader.py:6203) は**構造的に発火不可能な死にゲート**。現在 aggregate edge=-0.36 でも素通し | **バグ (eligible vs effective 型)** |
 | sweep_reversion_eurgbp_late 発火 0 (全期間) — §3 (2026-07-02 午後追加) | 戦略は本番同一フィードで **4 回 emit していた**が、**v9.1 HTF Hard Block (htf=bear→BUY 全排除) が記録経路より前に削除**。逆張り BUY は発火瞬間が構造的に bear = kill 率 ~100% | **構造バグ (BT/本番統一違反 + 4原則#3 違反)** |
+| (追記 07-03) vix 窓内シグナル 14/14 shadow (07-02 12:31-13:42) — §2.6 | `_price_history` に fetch 全滅時の 0 価格が混入 → spike gate が range=価格そのもの (16153.1pip/60s) で誤発火 | **バグ (data integrity)。fix 実施済み (rule:R3, 3層ガード + 回帰テスト 8 cases)** |
 
 ---
 
@@ -118,6 +119,29 @@ Overlap 窓内シグナル 4 件の帰結:
 | P-V2 | Kelly gate クリップバグ修正 (`kelly_criterion` に raw 値を追加 or gate 側で raw 計算) + **pilot との interplay を同一 pre-reg で決裁** | R3 (バグ) + R2 (interplay) | §2.4。単独 fix 禁止 |
 | P-V3 | `_is_promoted` の mode=live/sentinel 早期 return が session filter を bypass する構造に guard + 回帰テスト。**→ 実装済み (2026-07-02, rule:R3)**: `_promotion_allows_live()` を method として抽出 (pre-reg 文書の呼称をそのまま実装) し、手動昇格経路にも適用。filter 未登録戦略の手動昇格は従来どおり無条件。現本番は mode=auto のため当日挙動デルタなし | R3 | §2.1 ⚠️。tests/test_session_filter_promotion_guard.py 17 cases (誤帰属防止 _is_promoted_ex 4 cases 含む) |
 | P-V4 | session filter 窓外 block の観測性。**→ 実装済み (2026-07-02, rule:R3)**: audit `block_reason="shadow_tracking(session_filter_out)"` (prefix 互換) + `_block_counts` に `{mode}:session_filter_live_block` 増分 + drift guard を startswith 対応 | R3 | 05-29 型の「窓内 shadow 原因不明」を今後は即答可能に |
+
+### 2.6 (追記 2026-07-03) P1 実バグ: `_price_history` 0価格汚染 → spike gate 誤発火で窓内シグナル 14/14 shadow 化 — **fix 実施済み**
+
+§2.3 の「次の Overlap シグナル発生時が事実上の本番テスト」は **07-02 当日 (12:31-13:42 UTC) に窓内シグナル 14 件として発生していた**が、別の P1 バグに全滅させられていた。
+
+**観測事実 (Render 本番ログ 2026-07-02 12:31:34 UTC)**:
+- `[SHADOW] spike bypass: vix_carry_unwind (16153.1pip/60s → shadow)` — 16153.1 pip = USDJPY 価格 161.53 そのもの = `_price_history` 内の min ≈ 0 が range 計算に混入した証拠
+- 同時刻に `[FUND/*] All data sources failed` の嵐 (データソース障害と同期)
+- 窓内 14 シグナルが **14/14 shadow** — pilot 初の本番窓内テスト機会が消失
+
+**根本原因**: `_tick_entry` の価格ヒストリー記録に price>0 バリデーションが無く、fetch 全滅時の `current_price=0` (WAIT sig の entry=0 は append まで素通し) が `_price_history` に混入。spike gate は `max(_spike_prices)-min(_spike_prices) > ATR×mult` で range=価格そのものとなり誤発火。velocity gate も oldest=0 / current=0 で同型の誤発火経路。誤発火は当該 instrument の**全戦略**の live 送信を 60s〜30min 封鎖する (shadow-eligible は shadow 化、それ以外は drop)。
+
+**Fix (rule:R3 データ整合性, 2026-07-03, 本コミット)** — 教訓「セーフティネットは単一レイヤーに依存しない」に従い 3 層:
+
+| Layer | 内容 |
+|---|---|
+| L1 | append 前に `current_price and current_price > 0` ガード。汚染 tick は記録せず `[PRICE_HISTORY_GUARD]` print 1 行で検出可能化 |
+| L2 | spike gate 計算側で `p > 0` フィルタ (L1 導入前の残留汚染 / 未知の別経路への安全網) |
+| L3 | velocity gate 計算側で `p > 0` フィルタ + `current_price` 無効時は評価スキップ |
+
+- 回帰テスト: `tests/test_price_history_zero_price_guard.py` 8 cases — 「0/None 混入時に誤発火しない」×「正常 tick では従来どおり発火する」の対で固定 (RED→GREEN 検証済み)
+- **§2.2 への含意 (慎重に)**: 窓内 14 件/71min は §2.2 の「Overlap シグナル砂漠」レートと大きく乖離するが、**burst 自体がデータソース障害と同期**しており、vol-spike プロキシ (ATR 5/20 比) が汚染データで水増しされた artifact の可能性がある。§2.2 のレート結論を覆すには清浄データでの窓内シグナルを待つこと。**pilot の live 実証は依然 N=1 (05-20) のまま** — fix 後の次の窓内シグナルが改めて本番テストになる
+- tier/lot/param 変更なし
 
 ---
 

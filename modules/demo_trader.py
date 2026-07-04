@@ -3800,15 +3800,22 @@ class DemoTrader:
                     }
 
         # ── 価格ヒストリー記録（ベロシティ計算用・通貨ペア別）──
+        # rule:R3 0価格ガード: fetch全滅時の 0/None が混入すると spike/velocity gate
+        # が range=価格そのもの で誤発火し当該ペアの live 送信を封鎖する
+        # (2026-07-02 vix Overlap pilot 14/14 shadow 事故, KB zero-fire-diagnosis §2.6)
         _now_rec = datetime.now(timezone.utc)
         _inst = instrument
-        with self._lock:
-            if _inst not in self._price_history:
-                self._price_history[_inst] = []
-            self._price_history[_inst].append((_now_rec, current_price))
-            # 古いデータを削除（最大4時間保持）
-            _cutoff = _now_rec - timedelta(hours=4)
-            self._price_history[_inst] = [(t, p) for t, p in self._price_history[_inst] if t > _cutoff]
+        if current_price and current_price > 0:
+            with self._lock:
+                if _inst not in self._price_history:
+                    self._price_history[_inst] = []
+                self._price_history[_inst].append((_now_rec, current_price))
+                # 古いデータを削除（最大4時間保持）
+                _cutoff = _now_rec - timedelta(hours=4)
+                self._price_history[_inst] = [(t, p) for t, p in self._price_history[_inst] if t > _cutoff]
+        else:
+            print(f"[PRICE_HISTORY_GUARD] drop contaminated tick: {_inst} "
+                  f"price={current_price!r} mode={mode}", flush=True)
         confidence = sig.get("confidence", 0)
         entry_type = sig.get("entry_type", "unknown")
 
@@ -4950,7 +4957,8 @@ class DemoTrader:
         _atr_spike = sig.get("atr", 0.07 if (_is_jpy or "XAU" in instrument) else 0.00070)
         _spike_cutoff = datetime.now(timezone.utc) - timedelta(seconds=60)
         _inst_history = self._price_history.get(instrument, [])
-        _spike_prices = [p for t, p in _inst_history if t > _spike_cutoff]
+        # rule:R3: 0/None 除外 — append ガードと二層 (安全網は単一レイヤーに依存しない)
+        _spike_prices = [p for t, p in _inst_history if t > _spike_cutoff and p and p > 0]
         if len(_spike_prices) >= 3:
             _spike_range = max(_spike_prices) - min(_spike_prices)
             # v7.2: XAU 1.0→2.0 (gold moves 1ATR/min routinely, 2ATR is genuine spike)
@@ -4979,8 +4987,10 @@ class DemoTrader:
         else:
             _vel_threshold_pip = {"scalp": 15.0, "daytrade": 15.0, "daytrade_1h": 20.0}.get(_base_mode, 8.0)  # scalp: 8→15pip（調整局面のカウンタートレード許可）
         _vel_cutoff = _now_vel - timedelta(minutes=_vel_window_min)
-        _recent_prices = [(t, p) for t, p in self._price_history.get(instrument, []) if t > _vel_cutoff]
-        if len(_recent_prices) >= 2:
+        # rule:R3: 0/None 除外 + current_price 無効時スキップ (spike gate と同じ二層防御)
+        _recent_prices = [(t, p) for t, p in self._price_history.get(instrument, [])
+                          if t > _vel_cutoff and p and p > 0]
+        if len(_recent_prices) >= 2 and current_price and current_price > 0:
             _oldest_price = _recent_prices[0][1]
             _price_move = current_price - _oldest_price
             from modules.demo_db import pip_multiplier as _pip_mult_fn
