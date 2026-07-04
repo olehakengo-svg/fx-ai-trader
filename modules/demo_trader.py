@@ -2117,9 +2117,18 @@ class DemoTrader:
             import logging
             logging.getLogger(__name__).debug(f"oanda sync check error: {e}")
 
+    # P0-2 (fable5 audit 2026-07-03, rule:R3): 孤児クローズの最小年齢。
+    # fire-and-forget fill → DB write-back 完了前の再起動/デプロイで、正規 live
+    # ポジションが一時的に「孤児」に見える競合窓 (Render deploy ~数分) を覆う。
+    _ORPHAN_MIN_AGE_SEC = 600
+
     def _sync_demo_to_oanda(self):
         """デモ側でクローズ済みだがOANDA側でまだオープンのトレードを強制クローズ。
         デモを正として、OANDA孤児ポジションを解消する。
+
+        P0-2: openTime が _ORPHAN_MIN_AGE_SEC 未満 (または読めない) trade は
+        誤クローズ防止でスキップし次周期に再判定する (fail-safe)。真の孤児は
+        最大 ~10 分遅れでクローズされる (許容コスト)。
         """
         if not self._oanda.active:
             return
@@ -2149,6 +2158,28 @@ class DemoTrader:
             for ot in oanda_open:
                 oid = str(ot.get("id", ""))
                 if oid and oid not in demo_oanda_ids:
+                    # P0-2: openTime 年齢ガード — OANDA v20 はナノ秒精度 RFC3339
+                    # ("2026-07-03T13:08:45.123456789Z") で fromisoformat 非対応の
+                    # ため秒精度で切って UTC 比較。parse 不能も fail-safe skip。
+                    _age_sec = None
+                    try:
+                        _ot_raw = str(ot.get("openTime", ""))[:19]
+                        _ot_dt = datetime.strptime(
+                            _ot_raw, "%Y-%m-%dT%H:%M:%S"
+                        ).replace(tzinfo=timezone.utc)
+                        _age_sec = (
+                            datetime.now(timezone.utc) - _ot_dt
+                        ).total_seconds()
+                    except Exception:
+                        _age_sec = None
+                    if _age_sec is None or _age_sec < self._ORPHAN_MIN_AGE_SEC:
+                        print(
+                            f"[DemoToOanda] Orphan candidate #{oid} skipped "
+                            f"(age={_age_sec}s < {self._ORPHAN_MIN_AGE_SEC}s "
+                            f"or unknown openTime)",
+                            flush=True,
+                        )
+                        continue
                     # デモ側にマッピングがない → 孤児ポジション → クローズ
                     _inst = ot.get("instrument", "?")
                     _units = ot.get("currentUnits", "?")
@@ -6107,14 +6138,21 @@ class DemoTrader:
         )
 
         if _edge_cell_force_live:
+            # P0-1 (fable5 audit, user 決裁 2026-07-03, rule:R2): pre-reg LOCK の
+            # 固定 lot にも DD defensive multiplier を適用する。固定サイズの統計的
+            # 純度より口座防御を優先し、min 1000u floor でクリーン N 蓄積は継続。
+            # ref: knowledge-base/wiki/decisions/fable5-phase-a-p0-fixes-2026-07-03.md
+            _edge_cell_units = max(
+                1000, int(_edge_cell_lot * float(self._dd_lot_mult or 1.0))
+            )
             if _is_shadow:
                 self._add_log(
                     f"[EDGE_CELL] {_edge_cell_id} force-live override: "
-                    f"{entry_type} {instrument} -> LIVE {_edge_cell_lot}u"
+                    f"{entry_type} {instrument} -> LIVE {_edge_cell_units}u"
                 )
             _is_shadow = False
             _is_promoted = True
-            _adjusted_units = _edge_cell_lot
+            _adjusted_units = _edge_cell_units
 
         # ── v9.x: Shadow persistence fix ──
         # Bug: open_trade()はL3890の_is_shadowで書込み。その後の安全ネット
@@ -6132,7 +6170,7 @@ class DemoTrader:
         # 早期登録すると Q4 gate / Phase0 gate / FORCE_DEMOTED 経由で Shadow 化された
         # トレードが LIVE として計上されてしまい、後続の LIVE を exposure cap で block する。
         self._exposure_mgr.add_position(trade_id, instrument, signal,
-                                        _edge_cell_lot if _edge_cell_force_live
+                                        _edge_cell_units if _edge_cell_force_live
                                         else int(_os.environ.get("OANDA_UNITS", "10000")),
                                         is_shadow=bool(_is_shadow))
 
@@ -6181,8 +6219,15 @@ class DemoTrader:
             _adjusted_units = 1 if _is_xau_inst else 1000
             _lot_tag = "(🔬SEN/CMD)"
         if _edge_cell_force_live:
-            _adjusted_units = _edge_cell_lot
+            _adjusted_units = _edge_cell_units
             _lot_tag = f"(EDGE-{_edge_cell_id})"
+            if _edge_cell_units != _edge_cell_lot:
+                _lot_tag = f"(EDGE-{_edge_cell_id} 🛡️DD{self._dd_lot_mult:.0%})"
+                self._add_log(
+                    f"[EDGE_CELL] {_edge_cell_id} DD defensive sizing: "
+                    f"pre-reg {_edge_cell_lot}u × {self._dd_lot_mult:.2f} "
+                    f"→ {_edge_cell_units}u (floor 1000u)"
+                )
 
         # ── v6.4 SHIELD: OANDA lot hard cap ──
         if _adjusted_units > self._OANDA_LOT_CAP:
@@ -8848,28 +8893,16 @@ class DemoTrader:
         Query learning engine stats for the strategy's Kelly fraction.
         Returns full_kelly value or None if insufficient data.
         v7.0: Used for Kelly-based lot cap in 3-Factor Model.
+
+        P1-1 (fable5 audit, 2026-07-03 rule:R3): _get_strategy_kelly_clean へ
+        委譲 — FIDELITY_CUTOFF / XAU / is_shadow フィルタを実弾サイジング経路
+        (dynamic boost :5701 / half-Kelly cap :5726 / shadow promotion :7235)
+        に適用する。旧実装は all-time 無フィルタで、T10 KILL 済み
+        bb_rsi_reversion に pre-cutoff データ由来の Kelly 0.134 が推奨される
+        汚染を本番 API で実測確認済み。instrument 引数は呼び出し互換のため
+        残置 (旧実装でもフィルタに未使用だった)。
         """
-        try:
-            from modules.stats_utils import kelly_criterion
-            # Fetch closed trades for this strategy
-            closed = self._db.get_all_closed()
-            strat_trades = [t for t in closed
-                            if t.get("entry_type") == entry_type
-                            and t.get("status") == "CLOSED"]
-            if len(strat_trades) < 10:
-                return None
-            pnls = [float(t.get("pnl_pips", 0) or 0) for t in strat_trades]
-            wins = [p for p in pnls if p > 0]
-            losses = [p for p in pnls if p < 0]
-            if not wins or not losses:
-                return None
-            wr = len(wins) / len(pnls)
-            avg_win = sum(wins) / len(wins)
-            avg_loss = abs(sum(losses) / len(losses))
-            result = kelly_criterion(wr, avg_win, avg_loss)
-            return result.get("full_kelly", 0.0)
-        except Exception:
-            return None
+        return self._get_strategy_kelly_clean(entry_type)
 
     def _get_strategy_kelly_clean(self, entry_type: str):
         """Per-strategy Kelly using the same filter as _get_aggregate_kelly.
