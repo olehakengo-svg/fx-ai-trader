@@ -64,7 +64,7 @@ admin API 直叩き (POST + EDGE_CELL_ADMIN_TOKEN) は session の permission �
 不可だったため、cron が自身の credential で同期するこの経路を選択。
 テスト: tests/test_edge_cell_watchdog_code_pin_sync.py (5件)。
 
-- [ ] デプロイ後の初回 watchdog run で `applied: E4 S1 -> S0` を確認したら本行を更新
+- [x] **検証完了 (2026-07-03)**: PR #36 merge (13:50:58Z, abd285b2) → deploy live (13:52) → 初回 run 14:03:22Z で `applied: E4 old_stage=1 → new_stage=0, reason="code-pin sync (zombie incident 2026-07-02)"` を Render cron ログで確認。次回 run 14:18:23Z は sync action ゼロ + `CODE_PINNED` reason が E1/E4/E8/E10 の 4 件 = 全 pin cell KV=0 同期・self-quiescing 動作を実測確認。**E4 KV 残置は解消、eligible/effective 一致。**
 
 ## 教訓
 
