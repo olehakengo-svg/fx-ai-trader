@@ -19,6 +19,13 @@
 - TDD 8 cases: `tests/test_price_history_zero_price_guard.py`。
   詳細: [[zero-fire-diagnosis-carrydip-vix-2026-07-02]] §2.6
 
+## 2026-07-03 — Watchdog CODE_PIN_SYNC: code pin と KV stage の自動同期
+
+- watchdog に `CODE_PINNED_CELLS` (modules/edge_cell_promote.DISABLED_CELLS のミラー、CI equality テストで乖離固定) を追加。pin cell の KV stage!=0 を検出したら new_stage=0 を発行して同期 (rule:R3 整合性修正)。
+- 動機: 2026-07-02 zombie incident で E4 KV が 1 に残置 (DECREMENT stage>=2 ガードのため自然回復しない)。「eligible と effective を区別する」教訓の恒久対応。
+- **影響トレード**: なし。lot 決定は従来どおり code pin (`DISABLED_CELLS`) が支配し、本変更は KV 表示状態のみ同期する。
+- 詳細: [[edge-cell-e1-e4-code-disable-2026-07-02]] 追記 2026-07-03
+
 ## 2026-07-02 — Edge cell E1/E4 code-level DISABLE + watchdog DECREMENT 床バグ修正
 
 - `DISABLED_CELLS` に E1 (dt_bb_rsi_mr ASN SELL) / E4 (bb_rsi_reversion NY SELL) を追加 (rule:R2)。T10 KILL ([[bb-rsi-t10-kill-2026-07-02]]) 拘束事項3 の実施。
