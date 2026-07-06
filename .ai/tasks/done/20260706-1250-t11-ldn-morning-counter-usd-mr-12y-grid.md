@@ -49,3 +49,10 @@ H1: 「USD 一方向レジーム下の LDN 朝 (UTC07-09) に USD に逆らう M
 - **同日 Claude 敵対的検証で REJECT**: ①EUR_JPY は USD ネットエクスポージャ 0 (メカニズム不成立、USD 3ペア pooled p=0.33) ②擬似反復補正で aggregate p≈0.15 ③TREND 閾値 in-sample median リーク (walk-forward ×16=0.089)。2026 YTD 効果逆転 (+12.6p)
 - 適用分岐 = §3 FAIL: 30d 観測はレジーム一過性。戦略横断 SIZE lever は起案せず、T4 解除条件監視のみ継続
 - 成果物: knowledge-base/wiki/learning/t11-ldn-morning-counter-usd-mr-12y-2026-07-06.md (敵対的検証セクション含む) / bt-results/t11-*.{json,md} / tools/t11_ldn_morning_counter_usd_mr_12y_grid.py
+
+## Claude Review (2026-07-06)
+
+- **実装品質**: 合格 — look-ahead なし (next-bar open entry / closed-bar indicators)、dedup 水増しなし (0 duplicates 実証)、摩擦は friction-analysis.md と完全一致、JSON 決定論的再現 0 diff
+- **推論品質**: 不合格 — 敵対的検証で 3 つの独立した致命的欠陥 (メカニズム反証 / 擬似反復 / in-sample 閾値リーク)。詳細は learning report の敵対的検証セクション
+- **最終判定**: Codex PASS を **REJECT に覆す**。pre-reg §3 の FAIL 分岐を適用 (レジーム一過性、lever 起案なし)
+- **教訓**: aggregate p=0.0497 のようなナイフエッジ pass は必ず (a) メカニズム整合 (b) クラスタ補正 (c) 閾値 OOS 化 の 3 点検査にかける。既存教訓「促進判定も逆校正判定も同じ統計厳格さで」と整合
