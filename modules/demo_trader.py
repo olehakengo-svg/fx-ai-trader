@@ -775,6 +775,10 @@ class DemoTrader:
         # 60秒以内の同一キーをブロック (DB commit を待たない即時判定で
         # 並行モードスレッドの open_trades fetch race を回避)
         self._recent_signal_emits = {}
+        # Closed-bar order-layer dedup. Keyed by
+        # (entry_type, instrument, direction, closed_bar_ts), shared by primary
+        # and shadow emit paths because strategy instances are rebuilt per poll.
+        self._order_bar_signal_emits = {}
         # 2026-04-30 diagnostics: count dedup outcomes per emit path so we can
         # tell from /api/admin/dedup_status whether the gate is actually being
         # called and whether it's blocking or passing.
@@ -1001,6 +1005,91 @@ class DemoTrader:
         self._dedup_stats.setdefault("shadow_pass_log", [])
         self._dedup_stats.setdefault("hydrated_from_db", 0)
 
+    @staticmethod
+    def _normalize_order_bar_ts(bar_ts):
+        """Normalize closed-bar timestamps for order-layer per-bar dedup keys."""
+        if bar_ts is None or bar_ts == "":
+            return None
+        try:
+            if hasattr(bar_ts, "to_pydatetime"):
+                bar_ts = bar_ts.to_pydatetime()
+            elif isinstance(bar_ts, str):
+                bar_ts = datetime.fromisoformat(bar_ts.replace("Z", "+00:00"))
+            if isinstance(bar_ts, datetime):
+                if bar_ts.tzinfo is None:
+                    bar_ts = bar_ts.replace(tzinfo=timezone.utc)
+                else:
+                    bar_ts = bar_ts.astimezone(timezone.utc)
+                return bar_ts.replace(microsecond=0).isoformat()
+        except Exception:
+            return str(bar_ts)
+        return str(bar_ts)
+
+    @classmethod
+    def _closed_bar_ts_from_df(cls, df):
+        """Return the timestamp of the latest closed bar used by signal compute."""
+        try:
+            if df is None or len(df) == 0:
+                return None
+            idx = getattr(df, "index", None)
+            if idx is None or len(idx) == 0:
+                return None
+            return cls._normalize_order_bar_ts(idx[-1])
+        except Exception:
+            return None
+
+    def _record_order_bar_dedup_block(self, *, mode: str, entry_type: str) -> None:
+        if not hasattr(self, "_block_counts") or not isinstance(self._block_counts, dict):
+            self._block_counts = {}
+        if (
+            not hasattr(self, "_block_counts_per_strategy")
+            or not isinstance(self._block_counts_per_strategy, dict)
+        ):
+            self._block_counts_per_strategy = {}
+        reason_key = "order_bar_dedup"
+        mode_key = f"{mode}:{reason_key}"
+        strat_key = f"{entry_type}:{reason_key}"
+        self._block_counts[mode_key] = self._block_counts.get(mode_key, 0) + 1
+        self._block_counts_per_strategy[strat_key] = (
+            self._block_counts_per_strategy.get(strat_key, 0) + 1
+        )
+
+    def _maybe_reserve_order_bar_emit(
+        self,
+        entry_type: str,
+        instrument: str,
+        signal: str,
+        bar_ts,
+        *,
+        tf: str,
+        mode: str,
+        _path: str,
+    ):
+        """Reserve one order-layer emit per closed bar.
+
+        Key space is shared by primary and shadow emit paths. The key does not
+        include mode or is_shadow so parallel mode threads and SHADOW_ALWAYS
+        bypass rows cannot duplicate the same bar-level observation.
+        """
+        norm_bar_ts = self._normalize_order_bar_ts(bar_ts)
+        if not norm_bar_ts:
+            return None
+        key = (entry_type, instrument, signal, norm_bar_ts)
+        now = datetime.now(timezone.utc)
+        window_sec = self._tf_to_window_sec(tf)
+        with self._lock:
+            if not isinstance(getattr(self, "_order_bar_signal_emits", None), dict):
+                self._order_bar_signal_emits = {}
+            if key in self._order_bar_signal_emits:
+                self._record_order_bar_dedup_block(mode=mode, entry_type=entry_type)
+                return key
+            self._order_bar_signal_emits[key] = now
+            stale_cutoff = now - timedelta(seconds=max(7200, 2 * window_sec))
+            self._order_bar_signal_emits = {
+                k: v for k, v in self._order_bar_signal_emits.items() if v > stale_cutoff
+            }
+        return None
+
     def _open_shadow_emit_trade(self, *, direction: str, entry_price: float,
                                 sl: float, tp: float, entry_type: str,
                                 confidence: int, tf: str, reasons: list,
@@ -1028,9 +1117,25 @@ class DemoTrader:
                                 sr_meta=None,
                                 dedup_already_reserved: bool = False,
                                 dedup_path: str = "shadow",
-                                dedup_window_sec: int | None = None) -> str | None:
+                                dedup_window_sec: int | None = None,
+                                signal_bar_ts=None) -> str | None:
         """Persist a shadow-emit trade and audit OANDA skip visibility."""
         if not dedup_already_reserved:
+            bar_key = self._maybe_reserve_order_bar_emit(
+                entry_type,
+                instrument,
+                direction,
+                signal_bar_ts,
+                tf=tf,
+                mode=mode,
+                _path=dedup_path,
+            )
+            if bar_key is not None:
+                self._add_log(
+                    f"[ORDER_BAR_DEDUP] blocked shadow {entry_type} {instrument} "
+                    f"{direction}: bar_ts={bar_key[3]}"
+                )
+                return None
             window_sec = dedup_window_sec or self._tf_to_window_sec(tf)
             dedup_age = self._maybe_reserve_signal_emit(
                 entry_type,
@@ -3349,6 +3454,7 @@ class DemoTrader:
                         sig_5m = compute_fn(df_5m, "5m", sr_5m, symbol)
                         if (sig_5m.get("signal") != "WAIT"
                                 and sig_5m.get("entry_type") in _5M_ONLY_STRATEGIES):
+                            sig_5m["_closed_bar_ts"] = self._closed_bar_ts_from_df(df_5m)
                             sig = sig_5m
                             sig["_tf_override"] = "5m"
                             print(f"[DemoTrader/scalp] 5m補完: {sig_5m.get('entry_type')} {sig_5m.get('signal')}")
@@ -3374,6 +3480,9 @@ class DemoTrader:
                     sig["entry_type"] = _variant
             except Exception as _ve:
                 print(f"[DemoTrader/{mode}] variant routing error: {_ve}")
+
+            if sig.get("_closed_bar_ts") is None:
+                sig["_closed_bar_ts"] = self._closed_bar_ts_from_df(df)
 
         except Exception as e:
             self._add_log(f"⚠️ [{cfg['label']}] シグナル取得失敗: {e}")
@@ -3676,6 +3785,11 @@ class DemoTrader:
                     confluence_score=_se_confluence.get("score"),
                     confluence_details=_se_confluence.get("details"),
                     sr_meta=_se.get("sr_meta"),
+                    signal_bar_ts=(
+                        _se.get("bar_ts")
+                        or _se.get("_closed_bar_ts")
+                        or sig.get("_closed_bar_ts")
+                    ),
                     dedup_path="shadow",
                 )
         except Exception as _se_err:
@@ -4324,7 +4438,27 @@ class DemoTrader:
         # _maybe_reserve_signal_emit() に集約。詳細: lesson-shadow-emit-dedup-2026-04-30
         # rule:R3 (2026-05-03): TF-aware window — 60s default leaked 15m/5m bar
         # re-emits (audit found 318 violations across 28 combos pre-fix).
+        # rule:R3 (2026-07-06): order-layer per-bar dedup. DaytradeEngine /
+        # HourlyEngine are rebuilt every poll, so strategy instance guards are
+        # live-dead. This guard keys on closed bar identity and is shared by
+        # primary and shadow emit paths; shadow bypasses do not bypass it.
         _primary_window = self._tf_to_window_sec(tf)
+        _signal_bar_ts = sig.get("_closed_bar_ts") or sig.get("bar_ts")
+        _bar_dedup_key = self._maybe_reserve_order_bar_emit(
+            entry_type,
+            instrument,
+            signal,
+            _signal_bar_ts,
+            tf=tf,
+            mode=mode,
+            _path="primary",
+        )
+        if _bar_dedup_key is not None:
+            self._add_log(
+                f"[ORDER_BAR_DEDUP] blocked {entry_type} {instrument} "
+                f"{signal}: bar_ts={_bar_dedup_key[3]}"
+            )
+            return
         _dedup_age = self._maybe_reserve_signal_emit(
             entry_type, instrument, signal,
             window_sec=_primary_window, _path="primary",

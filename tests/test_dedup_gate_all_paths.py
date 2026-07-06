@@ -29,6 +29,7 @@ def _open_shadow(
     direction: str = "SELL",
     entry: float = 1.16372,
     tf: str = "15m",
+    signal_bar_ts=None,
 ):
     return trader._open_shadow_emit_trade(
         direction=direction,
@@ -42,6 +43,7 @@ def _open_shadow(
         score=1.2,
         mode="daytrade",
         instrument=instrument,
+        signal_bar_ts=signal_bar_ts,
     )
 
 
@@ -138,6 +140,67 @@ def test_multi_thread_same_key_reservation_has_single_winner(tmp_path):
     assert trader._dedup_stats["shadow_called"] == 2
     assert trader._dedup_stats["shadow_passed"] == 1
     assert trader._dedup_stats["shadow_blocked"] == 1
+
+
+def test_order_bar_dedup_blocks_same_bar_across_mode_threads(tmp_path):
+    db = DemoDB(str(tmp_path / "order-bar-race.db"))
+    trader = _light_trader(db)
+    bar_ts = datetime(2026, 7, 6, 2, 0, tzinfo=timezone.utc)
+
+    def reserve(mode):
+        return trader._maybe_reserve_order_bar_emit(
+            "hull_donchian_fade",
+            "EUR_USD",
+            "BUY",
+            bar_ts,
+            tf="15m",
+            mode=mode,
+            _path="primary",
+        )
+
+    with cf.ThreadPoolExecutor(max_workers=2) as ex:
+        results = [f.result() for f in [ex.submit(reserve, "daytrade"), ex.submit(reserve, "daytrade_eur")]]
+
+    assert sum(result is None for result in results) == 1
+    assert sum(result is not None for result in results) == 1
+    assert (
+        trader._block_counts.get("daytrade_eur:order_bar_dedup", 0)
+        + trader._block_counts.get("daytrade:order_bar_dedup", 0)
+    ) == 1
+
+
+def test_order_bar_dedup_allows_new_bar_and_opposite_signal(tmp_path):
+    db = DemoDB(str(tmp_path / "order-bar-independent.db"))
+    trader = _light_trader(db)
+    first_bar = datetime(2026, 7, 6, 2, 0, tzinfo=timezone.utc)
+    next_bar = datetime(2026, 7, 6, 2, 15, tzinfo=timezone.utc)
+
+    assert trader._maybe_reserve_order_bar_emit(
+        "hull_donchian_fade", "EUR_USD", "BUY", first_bar, tf="15m", mode="daytrade", _path="primary"
+    ) is None
+    assert trader._maybe_reserve_order_bar_emit(
+        "hull_donchian_fade", "EUR_USD", "BUY", next_bar, tf="15m", mode="daytrade", _path="primary"
+    ) is None
+    assert trader._maybe_reserve_order_bar_emit(
+        "hull_donchian_fade", "EUR_USD", "SELL", first_bar, tf="15m", mode="daytrade", _path="primary"
+    ) is None
+
+
+def test_shadow_order_bar_dedup_blocks_same_bar_duplicate_insert(tmp_path):
+    db = DemoDB(str(tmp_path / "shadow-order-bar.db"))
+    trader = _light_trader(db)
+    bar_ts = datetime(2026, 7, 6, 2, 0, tzinfo=timezone.utc)
+
+    first = _open_shadow(trader, entry=1.16372, signal_bar_ts=bar_ts)
+    # Simulate old recent_emit state expiry while the signal still belongs to the same closed bar.
+    trader._recent_signal_emits.clear()
+    second = _open_shadow(trader, entry=1.16370, signal_bar_ts=bar_ts)
+
+    assert first
+    assert second is None
+    assert _open_count(db) == 1
+    assert trader._block_counts["daytrade:order_bar_dedup"] == 1
+    assert trader._block_counts_per_strategy["dt_bb_rsi_mr:order_bar_dedup"] == 1
 
 
 def test_tf_window_sec_mapping():
