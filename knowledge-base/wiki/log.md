@@ -1,5 +1,8 @@
 # Knowledge Base Change Log
 
+## 2026-07-06 (T7 クローズ + T8 forensic #2: engine 再構築による live dedup 無効の発見)
+- **T7 CLOSED**: carry dip 0-fire は ceiling 159.50 のレジーム前提崩壊による dormant-by-design (バグ非ず)。QUALBAR print telemetry 本番稼働。[[zero-fire-diagnosis-carrydip-vix-2026-07-02]] §6
+- **T8 forensic #2 = 共通挙動**: hull は guard 実装済みだが `compute_daytrade_signal`/`compute_hourly_signal` が **poll 毎に Engine を再構築**するため全戦略の instance-state dedup/cooldown が live で無効。live の dedup 層は recent_emit のみ。order 層 per-bar dedup タスクを queue 投入、ゲート④ order 層補正 + 再 LOCK は user R1 決裁待ち。[[t8-week1-gate-breach-2026-07-06]]
 ## 2026-07-06 (pre-reg トリガー監視自動化, rule:R3)
 - T5 の 18 日執行ギャップ再発防止: prereg_trigger_watch.py + registry + Tier A cron 統合 + check.py env gate 宣言整合チェック。新規 pre-reg LOCK 時は registry への監視エントリ追加が必須運用に
 ## 2026-07-06 (T5 pre-reg 発動執行: JPYキャップ撤退 SIZE lever 0.5x, rule:R2)

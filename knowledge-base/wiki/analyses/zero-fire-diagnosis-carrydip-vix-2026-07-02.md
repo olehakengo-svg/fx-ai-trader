@@ -210,3 +210,15 @@ live_promote_emits: []                                  ← side-channel にも�
 - [[usdjpy_carry_dip_accumulator]] / [[vix-carry-unwind]] (strategy cards — 本診断へのポインタ追記済み)
 - [[roadmap-v2.2-win-conversion]] T7
 - 教訓: [[lesson-asymmetric-agility-2026-04-25]] (Rule 判定) / eligible vs effective (Kelly gate)
+
+
+---
+
+## 6. 2026-07-06 追記: T7 クローズ (E2E 検証完了)
+
+- **QUALBAR telemetry 本番稼働**: PR #42 (logger.info→print 化) が 2026-07-06 05:37 UTC デプロイ live 確定。以後 RSI cross-below-45 バー毎に `[usdjpy_carry_dip_accumulator] QUALBAR bar=.. rsi=.. close=.. ceiling_pass=.. blackout_pass=.. dedup_pass=.. cooldown_pass=.. emit=..` が Render app log に出る — T7 の「qualifying-bar ベース発火期待値 logging」要件は充足
+- **block-counts 実測 (07-06)**: `per_strategy_total=0` — gate で止まる以前に Candidate 生成前 (ceiling filter) で消滅していることと整合。§1.2 の結論 (28 クロス中 22 が ceiling block、06-03 以降市場が恒常的に 159.50 超) を再確認
+- **結論**: 0-fire はバグではなく **ceiling=159.50 のレジーム前提 (150-160.7 レンジ + 160 介入壁) が崩壊した dormant-by-design**。USDJPY が 159.50 を割れば自動的に再稼働する。ceiling 再パラメータ化は新パラメータ = R1 (12y BT + pre-reg) 要件のため、現時点では起案しない (reactive change 禁止)
+- **残リスク 2 点**:
+  1. `USDJPY_CARRY_DIP_LIVE_ENABLE` は render.yaml 未宣言 (§3.4 既知の provisioning gap クラス)。発火再開時に PHASE0_SHADOW 直行の可能性 — user が Render dashboard で実値確認要
+  2. per-bar dedup (#8) / 12h cooldown (#9) は strategy instance 状態依存だが、**HourlyEngine が poll 毎に再構築されるため live では実質無効** ([[t8-week1-gate-breach-2026-07-06]] forensic #2 で確定した全戦略共通の構造問題)。ceiling 通過が再開した際は recent_emit(3600s) だけが dedup 層 — order 層 dedup 実装 (queue 済みタスク) が先行すべき
