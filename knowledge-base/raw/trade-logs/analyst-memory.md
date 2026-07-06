@@ -2495,6 +2495,15 @@ bb_rsi_reversionが9/11で勝利しPnL+9.0を稼いだが、xs_momentum_rsiの�
 - `daytrade_eurgbp:hedge_block` 9件 → EURGBPで相反ポジション検知。本日もEUR/GBP通貨交差に注意。
 **総評:** USD_JPYのみが方向性×ボラティリティの組み合わせで戦略適合域。EUR/GBP系はRANGING支配で摩擦コストに対しEVが薄い。
 
+### 2026-07-06 (Post-London Report)
+| PnL | **0 pips** |
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+> **⚠️ NO ACTION 推奨 — NY序盤（UTC 16:00–17:00）は様子見**
+| 累計PnL | **0 pips** |
+**推奨判断（実装方法ではなく方向性）**: OANDA Live転送がゼロのまま23モードが稼働し続ける現状は「データ生産コスト（サーバー稼働）に見合う情報を産出していない」状態。NYセッション終了後、Live転送が依然0%のままであれば、shadow_tracking解除の優先度を経営判断レベルで再検討すべき局面に入っている。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
