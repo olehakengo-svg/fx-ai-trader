@@ -1,0 +1,265 @@
+{
+  "id": "20260706-1250-t11-ldn-morning-counter-usd-mr-12y-grid",
+  "generated_at": "2026-07-06T05:59:25.112592+00:00",
+  "verdict": "PASS",
+  "verdict_reason": "LDN morning x counter-USD MR has Bonferroni-significant negative EV cells.",
+  "design": {
+    "interval": "15m",
+    "pairs": [
+      "USD_JPY",
+      "EUR_USD",
+      "GBP_USD",
+      "EUR_JPY"
+    ],
+    "time_bucket": "LDN_UTC07_09 means entry signal timestamp hour in {7,8,9} UTC",
+    "usd_proxy": "equal-weight USD log-return proxy from USD_JPY, inverse EUR_USD, inverse GBP_USD",
+    "usd_trend": "20d rolling log-return sign; TREND when abs(20d log-return) >= sample median",
+    "mr_class": "deduped same-bar/side union of BB20 2sigma, RSI14 30/70, EMA20 +/-0.75 ATR pullback",
+    "entry_exit": "next-bar open entry, 48-bar/12h close exit, per-pair round-trip friction subtracted",
+    "friction_pips": {
+      "USD_JPY": 2.14,
+      "EUR_USD": 2.0,
+      "GBP_USD": 4.53,
+      "EUR_JPY": 2.5
+    },
+    "bonferroni_m": 16
+  },
+  "data_sources": {
+    "USD_JPY": {
+      "path": "/Users/jg-n-012/test/fx-ai-trader/data/cache/massive/USD_JPY_15m_2014_2026.parquet",
+      "source": "parent_checkout_readonly"
+    },
+    "EUR_USD": {
+      "path": "/Users/jg-n-012/test/fx-ai-trader/.worktrees/t11-ldn-grid/data/cache/massive/EUR_USD_15m.parquet",
+      "source": "worktree"
+    },
+    "GBP_USD": {
+      "path": "/Users/jg-n-012/test/fx-ai-trader/.worktrees/t11-ldn-grid/data/cache/massive/GBP_USD_15m.parquet",
+      "source": "worktree"
+    },
+    "EUR_JPY": {
+      "path": "/Users/jg-n-012/test/fx-ai-trader/.worktrees/t11-ldn-grid/data/cache/massive/EUR_JPY_15m.parquet",
+      "source": "worktree"
+    }
+  },
+  "data_window": {
+    "start": "2014-02-03T02:30:00+00:00",
+    "end": "2026-06-05T00:00:00+00:00",
+    "trade_count": 266055,
+    "usd_trend_abs_median_threshold": 0.011718
+  },
+  "target": {
+    "N": 20290,
+    "wins": 9307,
+    "WR": 0.458699,
+    "Wilson95_lower": 0.451851,
+    "EV_pips": -3.998378,
+    "PnL_pips": -81127.08715,
+    "PF": 0.832639,
+    "p_vs_other_time_one_sided": 0.003109,
+    "bonferroni_p": 0.049738,
+    "bonferroni_negative_ev": true
+  },
+  "cells": {
+    "USD_JPY|TREND|LDN_UTC07_09": {
+      "N": 4888,
+      "wins": 2211,
+      "WR": 0.452332,
+      "Wilson95_lower": 0.438422,
+      "EV_pips": -4.345115,
+      "PnL_pips": -21238.92,
+      "PF": 0.808493,
+      "p_vs_other_time_one_sided": 0.622211,
+      "bonferroni_p": 1.0,
+      "bonferroni_negative_ev": false
+    },
+    "USD_JPY|TREND|OTHER": {
+      "N": 32568,
+      "wins": 15137,
+      "WR": 0.464781,
+      "Wilson95_lower": 0.459369,
+      "EV_pips": -4.626327,
+      "PnL_pips": -150670.22,
+      "PF": 0.795244,
+      "p_vs_other_time_one_sided": null,
+      "bonferroni_p": null,
+      "bonferroni_negative_ev": false
+    },
+    "USD_JPY|RANGE|LDN_UTC07_09": {
+      "N": 4876,
+      "wins": 2229,
+      "WR": 0.457137,
+      "Wilson95_lower": 0.443194,
+      "EV_pips": -4.690532,
+      "PnL_pips": -22871.035,
+      "PF": 0.741791,
+      "p_vs_other_time_one_sided": 0.004608,
+      "bonferroni_p": 0.073727,
+      "bonferroni_negative_ev": false
+    },
+    "USD_JPY|RANGE|OTHER": {
+      "N": 28977,
+      "wins": 13587,
+      "WR": 0.468889,
+      "Wilson95_lower": 0.463148,
+      "EV_pips": -2.799043,
+      "PnL_pips": -81107.877,
+      "PF": 0.828294,
+      "p_vs_other_time_one_sided": null,
+      "bonferroni_p": null,
+      "bonferroni_negative_ev": false
+    },
+    "EUR_USD|TREND|LDN_UTC07_09": {
+      "N": 5186,
+      "wins": 2369,
+      "WR": 0.456807,
+      "Wilson95_lower": 0.443286,
+      "EV_pips": -2.236174,
+      "PnL_pips": -11596.8,
+      "PF": 0.886482,
+      "p_vs_other_time_one_sided": 0.162457,
+      "bonferroni_p": 1.0,
+      "bonferroni_negative_ev": false
+    },
+    "EUR_USD|TREND|OTHER": {
+      "N": 29868,
+      "wins": 14393,
+      "WR": 0.481887,
+      "Wilson95_lower": 0.476223,
+      "EV_pips": -1.482272,
+      "PnL_pips": -44272.5,
+      "PF": 0.904569,
+      "p_vs_other_time_one_sided": null,
+      "bonferroni_p": null,
+      "bonferroni_negative_ev": false
+    },
+    "EUR_USD|RANGE|LDN_UTC07_09": {
+      "N": 5336,
+      "wins": 2503,
+      "WR": 0.469078,
+      "Wilson95_lower": 0.455715,
+      "EV_pips": -1.762931,
+      "PnL_pips": -9407.0,
+      "PF": 0.892286,
+      "p_vs_other_time_one_sided": 0.03468,
+      "bonferroni_p": 0.554874,
+      "bonferroni_negative_ev": false
+    },
+    "EUR_USD|RANGE|OTHER": {
+      "N": 27181,
+      "wins": 13191,
+      "WR": 0.485302,
+      "Wilson95_lower": 0.479363,
+      "EV_pips": -0.643898,
+      "PnL_pips": -17501.8,
+      "PF": 0.951047,
+      "p_vs_other_time_one_sided": null,
+      "bonferroni_p": null,
+      "bonferroni_negative_ev": false
+    },
+    "GBP_USD|TREND|LDN_UTC07_09": {
+      "N": 5596,
+      "wins": 2606,
+      "WR": 0.46569,
+      "Wilson95_lower": 0.452648,
+      "EV_pips": -4.057716,
+      "PnL_pips": -22706.98,
+      "PF": 0.84653,
+      "p_vs_other_time_one_sided": 0.366524,
+      "bonferroni_p": 1.0,
+      "bonferroni_negative_ev": false
+    },
+    "GBP_USD|TREND|OTHER": {
+      "N": 29856,
+      "wins": 13771,
+      "WR": 0.461247,
+      "Wilson95_lower": 0.455598,
+      "EV_pips": -3.724554,
+      "PnL_pips": -111200.28,
+      "PF": 0.825511,
+      "p_vs_other_time_one_sided": null,
+      "bonferroni_p": null,
+      "bonferroni_negative_ev": false
+    },
+    "GBP_USD|RANGE|LDN_UTC07_09": {
+      "N": 5460,
+      "wins": 2518,
+      "WR": 0.461172,
+      "Wilson95_lower": 0.447982,
+      "EV_pips": -5.303956,
+      "PnL_pips": -28959.6,
+      "PF": 0.787944,
+      "p_vs_other_time_one_sided": 0.120385,
+      "bonferroni_p": 1.0,
+      "bonferroni_negative_ev": false
+    },
+    "GBP_USD|RANGE|OTHER": {
+      "N": 26807,
+      "wins": 12377,
+      "WR": 0.461708,
+      "Wilson95_lower": 0.455746,
+      "EV_pips": -4.258922,
+      "PnL_pips": -114168.91,
+      "PF": 0.77923,
+      "p_vs_other_time_one_sided": null,
+      "bonferroni_p": null,
+      "bonferroni_negative_ev": false
+    },
+    "EUR_JPY|TREND|LDN_UTC07_09": {
+      "N": 4620,
+      "wins": 2121,
+      "WR": 0.459091,
+      "Wilson95_lower": 0.444761,
+      "EV_pips": -5.537746,
+      "PnL_pips": -25584.38715,
+      "PF": 0.793211,
+      "p_vs_other_time_one_sided": 1e-06,
+      "bonferroni_p": 1.8e-05,
+      "bonferroni_negative_ev": true
+    },
+    "EUR_JPY|TREND|OTHER": {
+      "N": 25317,
+      "wins": 12374,
+      "WR": 0.488762,
+      "Wilson95_lower": 0.482607,
+      "EV_pips": -0.591831,
+      "PnL_pips": -14983.381309,
+      "PF": 0.972208,
+      "p_vs_other_time_one_sided": null,
+      "bonferroni_p": null,
+      "bonferroni_negative_ev": false
+    },
+    "EUR_JPY|RANGE|LDN_UTC07_09": {
+      "N": 4539,
+      "wins": 2261,
+      "WR": 0.498127,
+      "Wilson95_lower": 0.483589,
+      "EV_pips": -1.270252,
+      "PnL_pips": -5765.672971,
+      "PF": 0.935582,
+      "p_vs_other_time_one_sided": 0.046215,
+      "bonferroni_p": 0.739438,
+      "bonferroni_negative_ev": false
+    },
+    "EUR_JPY|RANGE|OTHER": {
+      "N": 24980,
+      "wins": 12309,
+      "WR": 0.492754,
+      "Wilson95_lower": 0.486556,
+      "EV_pips": 0.163266,
+      "PnL_pips": 4078.388309,
+      "PF": 1.009315,
+      "p_vs_other_time_one_sided": null,
+      "bonferroni_p": null,
+      "bonferroni_negative_ev": false
+    }
+  },
+  "family_counts": {
+    "bb20_2sigma": 79906,
+    "rsi14_extreme": 61756,
+    "ema20_atr_pullback": 257903
+  },
+  "pass_cells": [
+    "EUR_JPY|TREND|LDN_UTC07_09"
+  ]
+}

@@ -75,6 +75,22 @@ def summarize_candidate_queue(days: int = 7) -> dict[str, Any]:
     return {"total": total, "pass": passed, "shadow_only": shadow, "recent_names": names[:10]}
 
 
+def run_prereg_trigger_watch() -> str:
+    """tools/prereg_trigger_watch.py の Markdown を subprocess で取得。
+
+    pre-reg トリガーの監視主体 (2026-07-06 導入 — T5 の 18 日執行ギャップ再発防止)。
+    失敗しても daily レポート全体は落とさない。
+    """
+    try:
+        r = subprocess.run(
+            ["python3", str(ROOT / "tools" / "prereg_trigger_watch.py")],
+            capture_output=True, text=True, timeout=90,
+        )
+        return r.stdout or r.stderr or "(no output)"
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        return f"(prereg_trigger_watch.py error: {e})"
+
+
 def build_report() -> dict[str, Any]:
     alpha = load_state()
     return {
@@ -82,6 +98,7 @@ def build_report() -> dict[str, Any]:
         "quant_readiness": run_quant_readiness(),
         "alpha_budget": alpha,
         "candidate_queue_7d": summarize_candidate_queue(7),
+        "prereg_trigger_watch": run_prereg_trigger_watch(),
     }
 
 
@@ -103,6 +120,8 @@ def to_markdown(report: dict[str, Any]) -> str:
     lines.append(f"- shadow_only: {q['shadow_only']}")
     if q["recent_names"]:
         lines.append(f"- recent pass names: {', '.join(q['recent_names'])}")
+    lines.append("")
+    lines.append(report.get("prereg_trigger_watch", "").strip())
     return "\n".join(lines)
 
 
