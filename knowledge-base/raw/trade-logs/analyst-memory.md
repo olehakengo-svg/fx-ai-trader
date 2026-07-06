@@ -2504,6 +2504,16 @@ bb_rsi_reversionが9/11で勝利しPnL+9.0を稼いだが、xs_momentum_rsiの�
 | 累計PnL | **0 pips** |
 **推奨判断（実装方法ではなく方向性）**: OANDA Live転送がゼロのまま23モードが稼働し続ける現状は「データ生産コスト（サーバー稼働）に見合う情報を産出していない」状態。NYセッション終了後、Live転送が依然0%のままであれば、shadow_tracking解除の優先度を経営判断レベルで再検討すべき局面に入っている。
 
+### 2026-07-06 (Pre-Tokyo Briefing)
+**2026-07-05（前日）はトレードゼロ**。Cutoff後累計はN=15、全体WR=60.0%、累計PnL=**-12.8p**。
+勝率は表面上60%だが、EVが+0.82の`bb_rsi_reversion`以外は全て負EVという構造。総PnLはシステム全体がまだ損失域。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- **`bb_rsi_reversion` USD_JPY**: 現状最も信頼できるシグナル。N=30到達（残19件）を最優先モニタリング
+- **`xs_momentum_rsi`**: N=1・EV=-18.0は「データなし」扱いが統計的に正しいが、損失規模に注意継続
+- トレードゼロ日が続くなら、モード設定とエントリー条件の感度確認が必要（実装判断は別途）
+- **全ペアがRANGING/VOLATILEでトレンドなし** — トレンドフォロー系（`xs_momentum_rsi`等）には構造的逆風
+- **USD_JPY VOLATILEはbb_rsi_reversionに両刃** — 平均回帰は機能しやすいが、オーバーシュート時の損失も大きくなる
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
