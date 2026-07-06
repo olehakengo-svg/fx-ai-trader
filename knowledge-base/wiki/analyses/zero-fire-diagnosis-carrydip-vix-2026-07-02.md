@@ -145,6 +145,16 @@ Overlap 窓内シグナル 4 件の帰結:
 
 ---
 
+
+### 2.6 (2026-07-03 追記) 窓内本番テストが発生し FAILED — 新 P1: price_history 0-tick 汚染
+
+- **07-02 12:31-13:42 UTC (Overlap 窓) に vix シグナル 14 件が発生** (大 vol イベント日 — §2.2 の期待 ~1.1件/14d を 1 日で超過)。§2.3 の「窓内→live が通るか」の本番テストが起きたが、**14/14 全て shadow、live fill 0**。
+- 初弾 12:31:34 の Render ログ: `[SHADOW] spike bypass: vix_carry_unwind (16153.1pip/60s → shadow)` — 16153.1 pip = **161.53円そのもの** = 直近 60 秒の price history の min ≈ 0。
+- 根本原因 (新 P1): `_price_history` append (demo_trader.py:3808) に **price>0 バリデーションが無く**、fetch 失敗時の 0/None tick が混入すると spike gate (`max-min > ATR`) と velocity gate が誤発火し、その instrument の**全戦略**の live を 60s〜30min 封鎖する。同時刻に `[FUND/*] All data sources failed` の嵐 = データソース障害と同期。
+- **構造的含意**: vix はイベント駆動 = データソースが荒れる瞬間に発火する戦略なので、この汚染と相関して直撃する (sweep×HTF block と同族の「中央 gate が counter-typical 戦略を殺す」5〜8例目)。
+- **P-V1 への影響**: イベント日は 1 日で 14 シグナル出る — starvation の律速は「窓のシグナル数」ではなく **spike gate 汚染との相互作用**。タイムライン ~5 ヶ月の見積りは保守的すぎた可能性 (イベント日 1 回で Cell-Live N≥10 に届き得る)。
+- fix (P-V5): append 時に `current_price > 0` guard + 汚染検出ログ。別タスクとして切り出し済み。
+
 ## 3. sweep_reversion_eurgbp_late (スコープ追加 2026-07-02 午後、cross-session 依頼)
 
 ### 3.1 観測事実
