@@ -48,7 +48,7 @@ env 2 キーは無参照化 (dashboard 削除は cosmetic、BB_RSI 2 キーと�
 - しかし `compute_daytrade_signal` が **poll 毎 (30秒毎) に `DaytradeEngine()` を再構築** (app.py L2597 相当) するため、strategy instance の dedup 状態は毎 tick 消滅 → per-bar dedup は live で一度も効かない。**HourlyEngine も同型** (app.py:4520) — carry dip の 12h cooldown も live 無効
 - つまり **全 daytrade/hourly 戦略の instance-state ベース guard (per-bar dedup / multi-bar cooldown) は live でデッドコード**。live の dedup 層は recent_emit (tf-aware 900s/3600s) のみ。07-06 02:01-02:16Z の hull ~55 行 (2 mode スレッド × 30 秒 poll) はこれで完全に説明がつく
 - **BT 側との突合は未了** (forensic #3 と統合): BT ハーネスが engine を bar 跨ぎで永続させる場合、BT は cooldown/dedup を執行し live は執行しない = BT/Live 構造乖離 (EV/頻度両方に影響)。sweep の 12-bar cooldown が 12y grid BT で効いていたかは要確認
-- **pre-reg ゲート④ の帰結**: 「共通なら order 層に補正して再 LOCK」の分岐を適用。**order 層 per-bar dedup (key=entry_type×instrument×signal×bar_ts) の実装タスクを queue 投入済み** (`.ai/tasks/queue/20260706-1600-order-layer-bar-dedup.md`, R3 構造 fix)。ゲート④ 定義の order 層への補正 + 再 LOCK は **user R1 決裁待ち**
+- **pre-reg ゲート④ の帰結**: 「共通なら order 層に補正して再 LOCK」の分岐を適用。**order 層 per-bar dedup (key=entry_type×instrument×signal×bar_ts) は実装済み** (PR #49 fix/order-layer-bar-dedup-20260706、task 記録 = `.ai/tasks/done/20260706-1600-order-layer-bar-dedup.md`, R3 構造 fix)。ゲート④ 定義の order 層への補正 + 再 LOCK は **user R1 決裁待ち**
 
 
 ---
