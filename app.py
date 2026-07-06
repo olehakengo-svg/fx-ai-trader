@@ -4322,6 +4322,9 @@ def compute_rnb_signal(df: pd.DataFrame, tf: str = "15m",
     if len(df) < _LB + 20:
         return _WAIT
 
+    # WAIT でも実 Close を返す (entry=0 は _price_history を汚染し spike/velocity gate を誤発火させる)
+    _WAIT["entry"] = float(df.iloc[-1]["Close"])
+
     # ── UTC filter (7-20) ──
     row = df.iloc[-1]
     if hasattr(row.name, 'hour'):

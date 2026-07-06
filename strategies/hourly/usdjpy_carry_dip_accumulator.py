@@ -142,11 +142,14 @@ class UsdjpyCarryDipAccumulator(StrategyBase):
         # QUALBAR log: 同一 closed bar への再 poll では重複させない
         if self._last_qualbar_logged != bar_id:
             self._last_qualbar_logged = bar_id
-            logger.info(
+            # print() 必須: 本番 (gunicorn) は logging handler 未設定で INFO が破棄される
+            # (app.py 2026-07-02 コメント参照。logger.info 時代は T7 E2E 検証が構造的に不可能だった)
+            print(
                 "[%s] QUALBAR bar=%s rsi=%.1f close=%.3f ceiling_pass=%s "
-                "blackout_pass=%s dedup_pass=%s cooldown_pass=%s emit=%s",
-                self.name, bar_id, rsi_closed, closed_close, ceiling_pass,
-                blackout_pass, dedup_pass, cooldown_pass, emit_expected,
+                "blackout_pass=%s dedup_pass=%s cooldown_pass=%s emit=%s"
+                % (self.name, bar_id, rsi_closed, closed_close, ceiling_pass,
+                   blackout_pass, dedup_pass, cooldown_pass, emit_expected),
+                flush=True,
             )
 
         if not emit_expected:

@@ -52,50 +52,49 @@ def _make_ctx(last_closed_close: float, start: str = "2026-07-20T00:00:00Z"):
     )
 
 
-def _qualbar_records(caplog):
-    return [r for r in caplog.records if "QUALBAR" in r.getMessage()]
+def _qualbar_lines(capsys):
+    # 本番 (gunicorn) は logging handler 未設定で INFO が破棄されるため
+    # QUALBAR は print(flush=True) で emit される。テストも stdout を検証する。
+    return [l for l in capsys.readouterr().out.splitlines() if "QUALBAR" in l]
 
 
 class TestCarryDipQualbarLogging:
 
-    def test_ceiling_block_logs_qualbar_with_breakdown(self, caplog):
+    def test_ceiling_block_logs_qualbar_with_breakdown(self, capsys):
         """RSI cross 成立 + close >= CEILING → emit しないが QUALBAR log は残る。"""
         strat = UsdjpyCarryDipAccumulator()
         ctx = _make_ctx(last_closed_close=161.20)  # >= 159.5 → ceiling block
-        with caplog.at_level(logging.INFO):
-            result = strat.evaluate(ctx)
+        result = strat.evaluate(ctx)
         assert result is None
-        recs = _qualbar_records(caplog)
+        recs = _qualbar_lines(capsys)
         assert len(recs) == 1
-        msg = recs[0].getMessage()
+        msg = recs[0]
         assert "ceiling_pass=False" in msg
         assert "emit=False" in msg
 
-    def test_qualbar_logged_once_per_closed_bar(self, caplog):
+    def test_qualbar_logged_once_per_closed_bar(self, capsys):
         """同一 closed bar への再 evaluate (60s polling) では log を重複させない。"""
         strat = UsdjpyCarryDipAccumulator()
         ctx = _make_ctx(last_closed_close=161.20)
-        with caplog.at_level(logging.INFO):
-            strat.evaluate(ctx)
-            strat.evaluate(ctx)
-            strat.evaluate(ctx)
-        assert len(_qualbar_records(caplog)) == 1
+        strat.evaluate(ctx)
+        strat.evaluate(ctx)
+        strat.evaluate(ctx)
+        assert len(_qualbar_lines(capsys)) == 1
 
-    def test_qualifying_bar_emits_and_logs_emit_true(self, caplog):
+    def test_qualifying_bar_emits_and_logs_emit_true(self, capsys):
         """全 filter PASS → Candidate 返却 + QUALBAR emit=True。"""
         strat = UsdjpyCarryDipAccumulator()
         ctx = _make_ctx(last_closed_close=158.80)  # < 159.5 → qualify
-        with caplog.at_level(logging.INFO):
-            result = strat.evaluate(ctx)
+        result = strat.evaluate(ctx)
         assert result is not None
         assert result.signal == "BUY"
-        recs = _qualbar_records(caplog)
+        recs = _qualbar_lines(capsys)
         assert len(recs) == 1
-        msg = recs[0].getMessage()
+        msg = recs[0]
         assert "ceiling_pass=True" in msg
         assert "emit=True" in msg
 
-    def test_no_qualbar_log_without_rsi_cross(self, caplog):
+    def test_no_qualbar_log_without_rsi_cross(self, capsys):
         """トリガー (RSI cross) 無しのバーでは log しない (スパム防止)。"""
         strat = UsdjpyCarryDipAccumulator()
         # 単調上昇のみ: RSI は高止まりで cross しない
@@ -105,7 +104,6 @@ class TestCarryDipQualbarLogging:
         df = pd.DataFrame({"Close": closes}, index=idx)
         ctx = SignalContext(entry=float(df["Close"].iloc[-1]), df=df,
                             symbol="USDJPY=X", backtest_mode=False)
-        with caplog.at_level(logging.INFO):
-            result = strat.evaluate(ctx)
+        result = strat.evaluate(ctx)
         assert result is None
-        assert _qualbar_records(caplog) == []
+        assert _qualbar_lines(capsys) == []
