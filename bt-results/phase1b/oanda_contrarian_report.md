@@ -1,13 +1,13 @@
 # Phase 1b OANDA Retail-Contrarian Sentiment BT
 
 ## Header
-- Run timestamp UTC: 2026-07-04T23:16:11.914474+00:00
+- Run timestamp UTC: 2026-07-06T21:43:14.845787+00:00
 - Pair set (14): EUR_USD, USD_JPY, GBP_USD, AUD_USD, USD_CAD, USD_CHF, NZD_USD, EUR_JPY, GBP_JPY, AUD_JPY, EUR_AUD, EUR_GBP, EUR_CHF, GBP_CHF
 - Cell grid: 14 pairs x 12 thresholds x 4 holdings = 672
 - m_used (N >= 20): 48
 - alpha_cell: 0.00007440
-- Sentiment source: `history:data/sentiment/oanda_labs_h4_history.parquet` (rows used: 12424)
-- Window: last 148 days from now
+- Sentiment source: `history:data/sentiment/oanda_labs_h4_history.parquet` (rows used: 12600)
+- Window: last 150 days from now
 
 ## Top-Level Verdict
 **NULL**
@@ -39,8 +39,8 @@ Joined rows by pair:
 - AUD_JPY: 0
 - EUR_AUD: 0
 - EUR_GBP: 0
-- EUR_CHF: 394
-- GBP_CHF: 394
+- EUR_CHF: 395
+- GBP_CHF: 395
 
 ## Survivor Table
 No cells passed all survivor gates.
@@ -60,8 +60,8 @@ No cells passed all survivor gates.
 | AUD_JPY | LONG | 65 | 1 | 0 | 0.000 | 0.000 | 0.00 | 0.00 | NO |
 | EUR_AUD | LONG | 65 | 1 | 0 | 0.000 | 0.000 | 0.00 | 0.00 | NO |
 | EUR_GBP | LONG | 65 | 1 | 0 | 0.000 | 0.000 | 0.00 | 0.00 | NO |
-| EUR_CHF | SHORT | 10 | 4 | 227 | 0.463 | 0.399 | -1.50 | 0.82 | NO |
-| GBP_CHF | SHORT | 35 | 12 | 382 | 0.442 | 0.393 | -5.07 | 0.71 | NO |
+| EUR_CHF | SHORT | 10 | 4 | 228 | 0.465 | 0.401 | -1.44 | 0.83 | NO |
+| GBP_CHF | SHORT | 35 | 12 | 383 | 0.444 | 0.395 | -4.86 | 0.72 | NO |
 
 ## Failure Mode Analysis
 - Median Wilson_lo across all cells: 0.000
@@ -69,7 +69,7 @@ No cells passed all survivor gates.
 - Direction-correct cells (EV>0 and PF>1.0): 0 / 672
 - Direction-correct but underpowered cells (N<20): 0 / 0
 - Powered cells counted in Bonferroni denominator: 48
-- Regime split counts: {'<=1/3 noise': 661, '2/3 weak': 11}
+- Regime split counts: {'<=1/3 noise': 662, '2/3 weak': 10}
 - Interpretation: rejection is direction-led in this 90d slice; the raw contrarian sign is not consistently positive.
 
 ## Where To Look Next
