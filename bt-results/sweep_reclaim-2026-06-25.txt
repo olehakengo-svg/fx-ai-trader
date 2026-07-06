@@ -1,0 +1,74 @@
+### sweep_reclaim EUR_USD イベント単体 + フィルタ ablation + cross-pair (2026-06-25)
+
+== EUR_USD 単体 ==
+==============================================================================
+# sweep_reclaim — EUR_USD 15m (HTF=1h)  filters=(なし=イベント単体)
+==============================================================================
+窓 2022-01-02〜2026-05-15 bars=108910  friction=2.0pip  entry=market
+split: train<2024-08-05 N=3897 | holdout N=2559
+
+── 全期間 ──
+  全体: N=6456 WR=46.9% (Wilson 46-48) PF=0.79 EV=-1.92pip sum=-12408pip
+  BUY   N=1937 WR=48.5% PF=0.75 EV=-2.54
+  SELL  N=4519 WR=46.3% PF=0.82 EV=-1.66
+    Tokyo   N=1682 WR=45.8% PF=0.75 EV=-1.85
+    London  N=2419 WR=50.7% PF=0.85 EV=-1.41
+    NY      N=2147 WR=43.9% PF=0.76 EV=-2.60
+    Off     N= 208 WR=43.8% PF=0.83 EV=-1.42
+
+── TRAIN ──
+  全体: N=3897 WR=47.1% (Wilson 45-49) PF=0.79 EV=-2.00pip sum=-7808pip
+  BUY   N=1163 WR=49.2% PF=0.74 EV=-2.72
+  SELL  N=2734 WR=46.2% PF=0.81 EV=-1.70
+    Tokyo   N=1025 WR=44.8% PF=0.72 EV=-2.16
+    London  N=1509 WR=51.0% PF=0.84 EV=-1.58
+    NY      N=1254 WR=44.5% PF=0.78 EV=-2.40
+    Off     N= 109 WR=44.0% PF=0.78 EV=-1.77
+
+── HOLDOUT ──
+  全体: N=2559 WR=46.8% (Wilson 45-49) PF=0.80 EV=-1.80pip sum=-4600pip
+  BUY   N= 774 WR=47.5% PF=0.77 EV=-2.26
+  SELL  N=1785 WR=46.4% PF=0.82 EV=-1.60
+    Tokyo   N= 657 WR=47.3% PF=0.81 EV=-1.38
+    London  N= 910 WR=50.3% PF=0.87 EV=-1.13
+    NY      N= 893 WR=43.1% PF=0.73 EV=-2.87
+    Off     N=  99 WR=43.4% PF=0.88 EV=-1.02
+
+ exit: sl:2997 / tp:2867 / timestop:592
+ 平均R:R = 1.27
+
+ skip:
+  (skip 0 件)
+
+== filter ablation (TRAIN/HOLDOUT 全体行) ==
+-- filt=session --
+  全体: N=3151 WR=47.9% (Wilson 46-50) PF=0.81 EV=-1.91pip sum=-6018pip
+  全体: N=2080 WR=48.0% (Wilson 46-50) PF=0.82 EV=-1.69pip sum=-3507pip
+-- filt=session,htf --
+  全体: N=2429 WR=44.1% (Wilson 42-46) PF=0.75 EV=-2.51pip sum=-6098pip
+  全体: N=1614 WR=45.6% (Wilson 43-48) PF=0.76 EV=-2.27pip sum=-3671pip
+-- filt=session,htf,adx --
+  全体: N=2228 WR=45.0% (Wilson 43-47) PF=0.76 EV=-2.48pip sum=-5535pip
+  全体: N=1488 WR=45.8% (Wilson 43-48) PF=0.77 EV=-2.15pip sum=-3201pip
+-- filt=session,htf,adx,rsi --
+  全体: N=1724 WR=39.0% (Wilson 37-41) PF=0.75 EV=-2.19pip sum=-3769pip
+  全体: N=1166 WR=40.7% (Wilson 38-43) PF=0.82 EV=-1.44pip sum=-1674pip
+
+== strict modes ==
+-- --strict-reclaim --
+  全体: N=3773 WR=48.1% (Wilson 47-50) PF=0.83 EV=-1.64pip sum=-6206pip
+  全体: N=2507 WR=46.7% (Wilson 45-49) PF=0.78 EV=-2.02pip sum=-5063pip
+-- --strict-depth 0.5 --
+  全体: N=3408 WR=51.0% (Wilson 49-53) PF=0.84 EV=-1.56pip sum=-5325pip
+  全体: N=2248 WR=49.8% (Wilson 48-52) PF=0.84 EV=-1.54pip sum=-3453pip
+-- --strict-reclaim --strict-depth 0.5 --filt session --
+  全体: N=2666 WR=51.4% (Wilson 49-53) PF=0.88 EV=-1.25pip sum=-3342pip
+  全体: N=1821 WR=48.4% (Wilson 46-51) PF=0.77 EV=-2.39pip sum=-4350pip
+
+== cross-pair HOLDOUT イベント単体 ==
+EUR_USD    全体: N=2559 WR=46.8% (Wilson 45-49) PF=0.80 EV=-1.80pip sum=-4600pip
+GBP_USD    全体: N=2653 WR=46.2% (Wilson 44-48) PF=0.74 EV=-2.97pip sum=-7869pip
+USD_JPY    全体: N=667 WR=46.2% (Wilson 42-50) PF=0.76 EV=-3.06pip sum=-2041pip
+AUD_USD    全体: N=2328 WR=47.8% (Wilson 46-50) PF=0.94 EV=-0.48pip sum=-1106pip
+USD_CAD    全体: N=610 WR=44.1% (Wilson 40-48) PF=0.74 EV=-2.44pip sum=-1490pip
+EUR_JPY    全体: N=2703 WR=45.5% (Wilson 44-47) PF=0.86 EV=-2.24pip sum=-6054pip

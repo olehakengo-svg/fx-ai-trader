@@ -3800,15 +3800,22 @@ class DemoTrader:
                     }
 
         # ── 価格ヒストリー記録（ベロシティ計算用・通貨ペア別）──
+        # rule:R3 0価格ガード: fetch全滅時の 0/None が混入すると spike/velocity gate
+        # が range=価格そのもの で誤発火し当該ペアの live 送信を封鎖する
+        # (2026-07-02 vix Overlap pilot 14/14 shadow 事故, KB zero-fire-diagnosis §2.6)
         _now_rec = datetime.now(timezone.utc)
         _inst = instrument
-        with self._lock:
-            if _inst not in self._price_history:
-                self._price_history[_inst] = []
-            self._price_history[_inst].append((_now_rec, current_price))
-            # 古いデータを削除（最大4時間保持）
-            _cutoff = _now_rec - timedelta(hours=4)
-            self._price_history[_inst] = [(t, p) for t, p in self._price_history[_inst] if t > _cutoff]
+        if current_price and current_price > 0:
+            with self._lock:
+                if _inst not in self._price_history:
+                    self._price_history[_inst] = []
+                self._price_history[_inst].append((_now_rec, current_price))
+                # 古いデータを削除（最大4時間保持）
+                _cutoff = _now_rec - timedelta(hours=4)
+                self._price_history[_inst] = [(t, p) for t, p in self._price_history[_inst] if t > _cutoff]
+        else:
+            print(f"[PRICE_HISTORY_GUARD] drop contaminated tick: {_inst} "
+                  f"price={current_price!r} mode={mode}", flush=True)
         confidence = sig.get("confidence", 0)
         entry_type = sig.get("entry_type", "unknown")
 
@@ -4950,7 +4957,8 @@ class DemoTrader:
         _atr_spike = sig.get("atr", 0.07 if (_is_jpy or "XAU" in instrument) else 0.00070)
         _spike_cutoff = datetime.now(timezone.utc) - timedelta(seconds=60)
         _inst_history = self._price_history.get(instrument, [])
-        _spike_prices = [p for t, p in _inst_history if t > _spike_cutoff]
+        # rule:R3: 0/None 除外 — append ガードと二層 (安全網は単一レイヤーに依存しない)
+        _spike_prices = [p for t, p in _inst_history if t > _spike_cutoff and p and p > 0]
         if len(_spike_prices) >= 3:
             _spike_range = max(_spike_prices) - min(_spike_prices)
             # v7.2: XAU 1.0→2.0 (gold moves 1ATR/min routinely, 2ATR is genuine spike)
@@ -4979,8 +4987,10 @@ class DemoTrader:
         else:
             _vel_threshold_pip = {"scalp": 15.0, "daytrade": 15.0, "daytrade_1h": 20.0}.get(_base_mode, 8.0)  # scalp: 8→15pip（調整局面のカウンタートレード許可）
         _vel_cutoff = _now_vel - timedelta(minutes=_vel_window_min)
-        _recent_prices = [(t, p) for t, p in self._price_history.get(instrument, []) if t > _vel_cutoff]
-        if len(_recent_prices) >= 2:
+        # rule:R3: 0/None 除外 + current_price 無効時スキップ (spike gate と同じ二層防御)
+        _recent_prices = [(t, p) for t, p in self._price_history.get(instrument, [])
+                          if t > _vel_cutoff and p and p > 0]
+        if len(_recent_prices) >= 2 and current_price and current_price > 0:
             _oldest_price = _recent_prices[0][1]
             _price_move = current_price - _oldest_price
             from modules.demo_db import pip_multiplier as _pip_mult_fn
@@ -5886,7 +5896,16 @@ class DemoTrader:
 
         # ── OANDA連携: 昇格済み戦略のみミラーリング + 実行監査 + 🔗ラベルログ ──
         _shadow_at_open = _is_shadow  # v9.x: DB書込み時点の値を保存 (persistence fix)
-        _is_promoted = self._is_promoted(entry_type, instrument)
+        # ── P-V4 (2026-07-02): session filter 窓外 block の観測性 ──
+        # _is_promoted_ex が「deciding factor」の cause タグを返すので、
+        # mode_off / pair_demoted 等の上流 block を session filter に誤帰属
+        # させない。判定はここで 1 回だけ (audit 時点の再評価は UTC hour 跨ぎで
+        # 食い違い得るため)。counter 増分するがトレード自体は shadow として
+        # 継続する (他の _block 呼び出しと違い drop ではなく downgrade)。
+        _is_promoted, _promo_block_cause = self._is_promoted_ex(entry_type, instrument)
+        _session_gate_blocked = _promo_block_cause == "session_filter"
+        if _session_gate_blocked:
+            _block("session_filter_live_downgrade")
         _diag_live_intent = (
             entry_type in self._SILENT_DROP_DIAG_TYPES
             and (
@@ -6393,9 +6412,14 @@ class DemoTrader:
             _promo_status = _promo.get("status", "pending")
             _block_reason = ""
             if _is_shadow:
+                # P-V4 (2026-07-02): session filter 窓外 block は原因を明示。
+                # "(" 以降は _block_counts の切り詰め規約と同じで、prefix
+                # "shadow_tracking" は既存 grep/tool 互換 (drift guard は
+                # startswith 対応済み)。
                 _block_reason = _resolve_shadow_audit_block_reason(
                     _is_shadow,
-                    SHADOW_TRACKING_BLOCK_REASON,
+                    ("shadow_tracking(session_filter_out)"
+                     if _session_gate_blocked else SHADOW_TRACKING_BLOCK_REASON),
                 )
             elif _strat_mode == "off":
                 _block_reason = "手動停止"
@@ -8301,9 +8325,20 @@ class DemoTrader:
         "kalman_d7_ema75_break",
         "kalman_d7_trail_atr",
     })
+    # 2026-07-03 (rule:R3, P-S3): 診断 (ログのみ) と live gate bypass を分離。
+    # 旧構造は _COUNT_GATE_BYPASS_LIVE_EXCEPTIONS が本集合から派生していたため、
+    # 診断対象を増やすと hedge/max_open 等の live gate bypass まで黙って付与
+    # される罠があった。06-12 世代の LIVE 意図的例外 3 戦略 (sweep/hull/carry_dip)
+    # は SENTINEL_BLOCK_DIAG ログの対象にのみ追加 — live gate 挙動は不変。
+    # (sweep の zero-fire が 20 日間観測不能だった網羅漏れの是正。
+    #  詳細: analyses/zero-fire-diagnosis-carrydip-vix-2026-07-02 §3.4)
     _SILENT_DROP_DIAG_TYPES = _KALMAN_D7_LIVE_OVERRIDE | frozenset({
         "zz_pivot_v60_sr",
         "zz_pivot_v60_sr_lo",
+        # 06-12 世代 LIVE 意図的例外 (診断のみ、count-gate bypass ではない):
+        "sweep_reversion_eurgbp_late",
+        "hull_donchian_fade",
+        "usdjpy_carry_dip_accumulator",
     })
 
     # 2026-06-02 (rule:R3): Count-gate bypass for LIVE intentional exceptions.
@@ -8332,7 +8367,21 @@ class DemoTrader:
     # Memory: project_kalman_d7_regime_bound_live_2026_05_20,
     # project_zz_pivot_v60_sr_live_queue_2026_05_28,
     # project_pivot_detector_v2_5_live_exception_2026_05_26.
-    _COUNT_GATE_BYPASS_LIVE_EXCEPTIONS = _SILENT_DROP_DIAG_TYPES | frozenset({
+    #
+    # 2026-07-03 (rule:R3, P-S3): _SILENT_DROP_DIAG_TYPES からの派生をやめ、
+    # user 決裁済みメンバーの明示列挙に変更。診断セット (ログのみ) への追加が
+    # live gate bypass に黙って波及しないようにする。メンバーシップは
+    # 2026-07-02 時点と同一 (挙動変更なし)。追加は user 決裁 + pre-reg 必須。
+    # Pin: tests/test_htf_block_shadow_rescue.py::TestSilentDropDiagSeparationPin
+    _COUNT_GATE_BYPASS_LIVE_EXCEPTIONS = frozenset({
+        # Kalman D7 3-spec (2026-05-20 user 決裁, 0.5x)
+        "kalman_d7_po_dn_flip",
+        "kalman_d7_ema75_break",
+        "kalman_d7_trail_atr",
+        # ZZ Pivot v60 (2026-05-28 user 決裁, 1.0x/0.5x)
+        "zz_pivot_v60_sr",
+        "zz_pivot_v60_sr_lo",
+        # pivot detector (2026-05-26 user 決裁)
         "pivot_detector_v2_5",
     })
 
@@ -8598,37 +8647,78 @@ class DemoTrader:
         except Exception:
             return False, ""
 
+    def _promotion_allows_live(self, entry_type: str, instrument: str = "") -> bool:
+        """_PAIR_SESSION_FILTER の pre-reg LOCK 窓ゲート (P-V3, 2026-07-02).
+
+        _PAIR_SESSION_FILTER 未登録の (strategy, pair) は常に True。
+        登録済みなら現 UTC session が許可窓内のときだけ True。
+
+        pre-reg 文書 (vix-overlap-pilot-prereg-2026-05-13) はこの名前で仕様を
+        書いたが実装は _is_promoted 内にインライン化されていた。2026-07-02
+        zero-fire 診断で「mode=live/sentinel の手動昇格が filter より先に
+        return して LOCK が黙って外れる」構造を確認し、method として抽出のうえ
+        手動昇格経路にも適用 (詳細: analyses/zero-fire-diagnosis-carrydip-vix-2026-07-02)。
+        """
+        _sess_filter = self._PAIR_SESSION_FILTER.get((entry_type, instrument))
+        if _sess_filter is None:
+            return True
+        # module-level datetime (not a local import) so test fixtures
+        # patching demo_trader.datetime control this clock
+        _hour_utc = datetime.now(timezone.utc).hour
+        _curr_sess = next(
+            (name for name, lo, hi in self._SESSION_BOUNDS_UTC if lo <= _hour_utc < hi),
+            None,
+        )
+        return _curr_sess in _sess_filter
+
     def _is_promoted(self, entry_type: str, instrument: str = "") -> bool:
         """戦略がOANDA実行可能か判定 (v6.2: ペア別ライフサイクル + N<10安全策)
 
         優先順位:
         1. Bridge戦略モード: "off"でブロック、"live"/"sentinel"で手動昇格
+           (ただし _PAIR_SESSION_FILTER の pre-reg LOCK 窓は手動昇格でも外れない)
         2. _PAIR_DEMOTED: 特定ペアでのみ降格（ピンポイント敗兵淘汰）
         3. _PAIR_PROMOTED: 特定ペアで復活（グローバルFORCE_DEMOTED解除）
         4. _FORCE_DEMOTED: グローバル降格（手動モードで昇格可能）
         5. 自動降格判定: demoted ステータスでブロック
         6. デフォルト: OANDA送信許可（ただしN<10はSentinel lotで保護 → ロット計算側で実施）
         """
+        return self._is_promoted_ex(entry_type, instrument)[0]
+
+    def _is_promoted_ex(self, entry_type: str, instrument: str = ""):
+        """(allowed, block_cause) を返す _is_promoted の内部実体。
+
+        block_cause は「どの gate が deciding factor だったか」の機械可読タグ
+        (P-V4, 2026-07-02)。session filter 起因の shadow 化を audit で誤帰属
+        させないため、呼び出し側は cause == "session_filter" で判定する
+        (単に not allowed ∧ 窓外 で判定すると mode_off / pair_demoted 等の
+        上流 block を session filter のせいにしてしまう)。
+        """
         _mode = self._oanda.get_strategy_mode(entry_type)
 
         # ── 明示的にOFFなら強制ブロック ──
         if _mode == "off":
-            return False  # 手動停止
+            return False, "mode_off"  # 手動停止
 
         if self._is_price_shock_rev_auto_demoted(entry_type, instrument):
-            return False
+            return False, "price_shock_rev_auto_demoted"
 
         # V2 audit scope: keep EUR_GBP/XAU_USD as shadow-only evidence cells.
         if self._is_trendline_sweep_v2_shadow_pair(entry_type, instrument):
-            return False
+            return False, "tls_v2_shadow_pair"
 
         # ── LIVE/SENTINELの明示指定: 手動昇格パス ──
         if _mode in ("live", "sentinel"):
-            return True  # 全降格を上書き
+            # 全降格を上書き。ただし session filter (pre-reg LOCK) だけは
+            # 手動昇格でも尊重する — operator の mode 操作 1 回で Overlap-only
+            # 等の窓制約が黙って外れる罠を封鎖 (P-V3, 2026-07-02)。
+            if not self._promotion_allows_live(entry_type, instrument):
+                return False, "session_filter"
+            return True, ""
 
         # ── ペア別降格: 特定ペアでのみEVマイナスの組み合わせ ──
         if self._is_pair_demoted_entry(entry_type, instrument):
-            return False  # ペア限定降格 (静的)
+            return False, "pair_demoted"  # ペア限定降格 (静的 + watchdog runtime)
 
         # ── ペア別復活: FORCE_DEMOTEDでもペア限定で復活 ──
         if instrument and (entry_type, instrument) in self._PAIR_PROMOTED:
@@ -8637,27 +8727,18 @@ class DemoTrader:
             # session 内でのみ Live emit。それ以外は False を返し shadow に
             # 落ちる (PAIR_PROMOTED の通過権限を session で狭める).
             # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
-            _sess_filter = self._PAIR_SESSION_FILTER.get((entry_type, instrument))
-            if _sess_filter is not None:
-                # module-level datetime (not a local import) so test fixtures
-                # patching demo_trader.datetime control this clock
-                _hour_utc = datetime.now(timezone.utc).hour
-                _curr_sess = next(
-                    (name for name, lo, hi in self._SESSION_BOUNDS_UTC if lo <= _hour_utc < hi),
-                    None,
-                )
-                if _curr_sess not in _sess_filter:
-                    return False  # cell-conditional gate: outside allowed window
-            return True  # ペア限定昇格
+            if not self._promotion_allows_live(entry_type, instrument):
+                return False, "session_filter"  # outside allowed window
+            return True, ""  # ペア限定昇格
 
         # ── _FORCE_DEMOTED: 明示的モード指定がない場合はブロック ──
         if self._is_force_demoted_entry(entry_type):
-            return False  # デモ継続・OANDA停止
+            return False, "force_demoted"  # デモ継続・OANDA停止
 
         # ── 自動降格判定で demoted になった戦略もブロック ──
         info = self._promoted_types.get(entry_type)
         if info and info.get("status") == "demoted":
-            return False
+            return False, "auto_demoted"
 
         # ── Cell-aware routing (EDGE.md, 2026-04-26) ──
         # (strategy, cell3d) で BLOCK 認定された場合のみブロック.
@@ -8672,14 +8753,14 @@ class DemoTrader:
             try:
                 from modules.cell_routing import get_routing
                 if get_routing(entry_type, instrument, cell3d) == "BLOCK":
-                    return False
+                    return False, "cell_routing_block"
                 # KELLY_HALF/FULL は lot 計算側で適用 (本 phase では未配線)
             except Exception:
                 pass  # fail-open
 
         # v6.2: OANDA送信は許可。N<10の未検証戦略はSentinel lotで保護
         # (ロット計算側の _is_sentinel 判定で 0.01lot 化される)
-        return True
+        return True, ""
 
     def _get_current_cell3d(self, instrument: str):
         """Return current v6 cell3d "{regime}__{vol}__{session}" or None.

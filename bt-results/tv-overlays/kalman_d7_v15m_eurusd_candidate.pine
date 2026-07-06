@@ -1,0 +1,83 @@
+//@version=6
+strategy("Kalman D7 v15m EURUSD (primary rsi65 + secondary red-to-green)",
+     overlay=true,
+     initial_capital=100000,
+     default_qty_type=strategy.percent_of_equity,
+     default_qty_value=10,
+     pyramiding=0,
+     commission_type=strategy.commission.percent,
+     commission_value=0.002,
+     slippage=1,
+     calc_on_every_tick=false,
+     process_orders_on_close=true,
+     max_labels_count=500)
+
+max_gap     = input.int(10,  "Max neutral gap bars to bridge", minval=1, maxval=60)
+rsi_min     = input.float(65.0, "Primary: Min RSI at entry")
+pdn_window  = input.int(50, "Secondary: rolling window for perfect_dn count")
+pdn_min     = input.int(30, "Secondary: min perfect_dn count in window")
+rsi_window  = input.int(30, "Primary exit: RSI rolling-max window")
+rsi_drop    = input.float(3.0, "Primary exit: RSI drop from max → exit")
+rsi_ob_floor = input.float(68.0, "Primary exit: min rolling-max RSI")
+min_hold    = input.int(40, "Primary exit: min bars hold")
+
+ema_fast = ta.ema(close, 25)
+ema_mid  = ta.ema(close, 75)
+ema_slow = ta.ema(close, 200)
+atr_val  = ta.atr(14)
+rsi_val  = ta.rsi(close, 14)
+
+perfect_up = ema_fast > ema_mid and ema_mid > ema_slow and close > ema_fast
+perfect_dn = ema_slow > ema_mid and ema_mid > ema_fast
+neutral    = not perfect_up and not perfect_dn
+
+pdn_count_window = math.sum(perfect_dn ? 1 : 0, pdn_window)
+
+var int bars_since_pu = 9999
+if perfect_up
+    bars_since_pu := 0
+else if perfect_dn
+    bars_since_pu := 9999
+else
+    bars_since_pu := bars_since_pu + 1
+persistent_up = perfect_up or (neutral and bars_since_pu <= max_gap)
+pup_start = persistent_up and not persistent_up[1]
+pup_end   = not persistent_up
+
+is_primary   = pup_start and rsi_val >= rsi_min
+is_secondary = pup_start and rsi_val < rsi_min and pdn_count_window >= pdn_min
+entry_any    = is_primary or is_secondary
+
+bgcolor(perfect_up ? color.new(color.green, 75) :
+        (persistent_up ? color.new(color.lime, 88) :
+        (perfect_dn ? color.new(color.red, 80) : color.new(color.gray, 92))))
+
+var int   ent_bar = na
+var float ent_atr_snap = na
+var bool  ent_is_secondary = false
+
+if entry_any and strategy.position_size == 0
+    strategy.entry("L", strategy.long)
+    ent_bar := bar_index
+    ent_atr_snap := atr_val
+    ent_is_secondary := is_secondary
+
+held = strategy.position_size > 0 ? bar_index - ent_bar : 0
+rsi_rolling_max = ta.highest(rsi_val, rsi_window)
+primary_peak_exit = (not ent_is_secondary) and held >= min_hold and rsi_rolling_max >= rsi_ob_floor and rsi_val <= rsi_rolling_max - rsi_drop
+
+if strategy.position_size > 0
+    if primary_peak_exit
+        strategy.close("L", comment="PEAK_RSI")
+    else if pup_end
+        strategy.close("L", comment=ent_is_secondary ? "PUP_END_SEC" : "PUP_END_FB")
+
+plotshape(pup_start and not entry_any, "REJECTED",      style=shape.xcross,      location=location.belowbar, color=color.gray,    size=size.tiny)
+plotshape(is_primary,                  "ENTRY_PRIMARY", style=shape.triangleup,  location=location.belowbar, color=color.lime,    size=size.normal)
+plotshape(is_secondary,                "ENTRY_SECONDARY", style=shape.triangleup, location=location.belowbar, color=color.aqua,   size=size.normal)
+plotshape(strategy.position_size > 0 and primary_peak_exit and primary_peak_exit[1] == false, "PEAK_EXIT", style=shape.diamond, location=location.abovebar, color=color.orange, size=size.normal)
+plotshape(pup_end and pup_end[1] == false, "PUP_END_BAR",  style=shape.square,     location=location.abovebar, color=color.fuchsia, size=size.tiny)
+
+plot(ema_fast, "EMA 25",  color=color.yellow, linewidth=1)
+plot(ema_mid,  "EMA 75",  color=color.orange, linewidth=2)
+plot(ema_slow, "EMA 200", color=color.red,    linewidth=2)

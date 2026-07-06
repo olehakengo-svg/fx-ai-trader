@@ -2455,6 +2455,36 @@ bb_rsi_reversionが9/11で勝利しPnL+9.0を稼いだが、xs_momentum_rsiの�
 ### 課題②：trendline_sweepの累積ドローダウン（N=5, EV=-6.04, PnL=-30.2）
 - Cutoff後N=5で最大の損失源。勝率40%・EV-6.04は**小サンプルながら構造的に悪い数字**
 
+### 2026-07-03 (Post-London Report)
+| セッション内PnL | **0 pips / 0円** |
+| 勝率（WR） | **N/A（取引なし）** |
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+**🔴 NO ACTION推奨**
+- 米国独立記念日（7/4）により、NYセッションは流動性枯渇・スプレッド異常拡大の高リスク環境
+- spread_guard閾値（DT=20%、Scalp=30%）が機能する前提は通常流動性。本日はその前提が崩れる可能性大
+
+### 2026-07-03 (Pre-Tokyo Briefing)
+前日（2026-07-02）トレード数 **N=13**、全体WR **69.2%**、PnL **-6.8**。
+`bb_rsi_reversion` 単独では +9.0（WR 72.7%）と堅調。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **全体集計（Cutoff後）**: N=18, WR=61.1%, PnL=-33.7
+- N=1、EV=-18.0。統計的には「事故」でなく「損失確定の1件」として記録。
+- **SL_HIT** で終了しているため、リスク管理機構自体は機能している。
+- ただし損益比率が著しく非対称（`bb_rsi_reversion` の平均TP +1.8〜+7.4 に対し、SL -18.0）。ロットサイジングかSL設定の問題が示唆される。
+- **今日の対処**: N=1のため判断保留。ただし本日も発動した場合は **損失構造が戦略設計に起因する可能性**を認識しながら監視。
+
+### 2026-07-06 (Pre-Tokyo Briefing)
+**2026-07-05: トレードゼロ日**。前日（7/5）は全セッションを通じてエントリーなし。PnL = ¥0、N = 0、WR = N/A。システムは稼働中だが、フィルター群（hedge_block、r2_shadow_demoted_cell、direction_filter）が全シグナルを遮断した形となった。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+**全体集計**: N=18、WR=61.1%、PnL=−33.7
+- `direction_filter`の93件はrnb_usdjpyが方向を確立できていない状態の継続を示す → **USD/JPY のトレンド方向が固まるまでrnb戦略のシグナルは出ない**と認識して待機
+- `hedge_block`はポジションゼロ状態でも発動しているか確認が必要だが、介入不可のため観察継続
+- `r2_shadow_demoted_cell`の累積186件：shadow降格済みセルがシグナルを出し続けているのは正常動作。問題はその戦略が本番トレードに貢献できない点 → **Sentinel N蓄積の機会損失が継続中**
+| GBP_USD | **RANGING** | 64% | −0.00227 | レンジ内下落。trendline_sweepには逆風（N=4でEV=−5.83と一致） |
+**レジーム総評**: USD/JPYのVOLATILE+上昇バイアスは`bb_rsi_reversion`にとって理想的な地合い。一方、GBP/USDのRANGING環境が`trendline_sweep`のEV悪化（−5.83）と整合しており、現環境でのGBP/USD戦略は構造的に不利。EUR/USDも高ATRレンジで偽ブレイクリスク高。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
