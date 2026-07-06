@@ -307,6 +307,30 @@ REVIEW_GATE_CUTOFF = "20260702"
 QUEUE_SLA_DAYS = 3
 
 
+def check_env_gate_declarations() -> tuple[list[str], list[str]]:
+    """LIVE 例外 env gate の render.yaml 宣言整合 (rule:R3, 2026-07-06)。
+
+    「決定はしたが provisioning されず誰も気づかない」クラスの再発防止:
+      watchdog API_AUTH_TOKEN / carry dip env gate / T5 トリガー未執行の 3 例。
+    modules/demo_trader.py が読む *_LIVE_ENABLE 系 env キーは render.yaml の
+    envVars に宣言されていなければ WARN (値は dashboard 管理で可、宣言が必須)。
+    """
+    errors: list[str] = []
+    warns: list[str] = []
+    demo = ROOT / "modules" / "demo_trader.py"
+    render_yaml = ROOT / "render.yaml"
+    if not demo.exists() or not render_yaml.exists():
+        return errors, ["  ⚠️  env gate check: 対象ファイル欠落 (skip)"]
+    used = set(re.findall(
+        r'environ\.get\(\s*"([A-Z0-9_]+_LIVE_ENABLE)"', demo.read_text()))
+    declared = set(re.findall(r'-\s*key:\s*([A-Z0-9_]+)', render_yaml.read_text()))
+    for key in sorted(used - declared):
+        warns.append(
+            f"  ⚠️  env gate '{key}' は demo_trader.py が読むが render.yaml 未宣言 "
+            f"(decision-without-provisioning リスク — envVars に sync:false で宣言せよ)")
+    return errors, warns
+
+
 def check_ai_task_governance() -> tuple[list[str], list[str]]:
     """Codexタスク運用の機械的整合チェック (rule:R3, 2026-07-02)。
 
@@ -567,6 +591,15 @@ def main() -> int:
     warnings.extend(gov_warns)
     if not gov_errors:
         ok("AIタスク・ガバナンスOK")
+        ok_count += 1
+
+    # ── 8. env gate 宣言整合 (decision-without-provisioning 防止) ──
+    section("env gate ⇄ render.yaml 宣言整合 (*_LIVE_ENABLE)")
+    env_errors, env_warns = check_env_gate_declarations()
+    errors.extend(env_errors)
+    warnings.extend(env_warns)
+    if not env_errors:
+        ok("env gate 宣言OK")
         ok_count += 1
 
     # ── Summary ──

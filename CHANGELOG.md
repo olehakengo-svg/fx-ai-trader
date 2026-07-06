@@ -1,5 +1,15 @@
 # FX AI Trader - Changelog
 
+## 2026-07-06 — fix(order): order-layer per-bar dedup for rebuilt engines (rule:R3)
+
+- `modules/demo_trader.py`: primary `_tick_entry` and direct `shadow_emit` DB insert path now share
+  `(entry_type, instrument, signal, closed_bar_ts)` reservation state, so repeated polls of the same
+  closed M15/H1 bar are blocked before DB insert even when strategy instances are rebuilt.
+- Existing `recent_emit` remains in place as a second defense; `SHADOW_ALWAYS` / shadow bypass rows share
+  the same per-bar guard and increment `order_bar_dedup` in block counters on duplicate bars.
+- tests: `tests/test_dedup_gate_all_paths.py` covers cross-mode thread collision, new-bar passage,
+  opposite-direction independence, and shadow duplicate-row suppression.
+
 ## 2026-07-03 — fix(shadow): HTF Hard Block shadow 退避 (P-S1b) + 診断/bypass 集合分離 (P-S3) (rule:R3)
 
 ### P-S1(b) — HTF_BLOCK_SHADOW_RESCUE (live 送信ゼロ、shadow 蓄積のみ復元)

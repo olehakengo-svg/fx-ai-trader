@@ -80,6 +80,23 @@ LDN_MORNING_SIZE_LEVER_REASON = "ldn_morning_size_lever_0.5x"
 LDN_MORNING_SIZE_LEVER_CELLS = frozenset({"E5", "E7", "E10"})
 LDN_MORNING_SIZE_LEVER_HOURS_UTC = frozenset({7, 8, 9})
 
+# 2026-07-06 T5 pre-reg 執行 (rule:R2, 裁量禁止条項):
+# トリガー「USD_JPY D1 close > 160.80」が 2026-06-18 に成立 (MASSIVE D1 close=161.295、
+# 以降 07-03 まで 14 営業日連続 160.80 超、max 162.631)。発動アクションは pre-reg 規定の
+# 機械執行 = JPY 系 4 戦略の LIVE lot 0.5x SIZE lever (Shadow は原則3で無変更)。
+# 根拠: knowledge-base/wiki/decisions/jpy-cap-exit-prereg-2026-06-12.md
+# 解除 = 復帰条件 (D1 close<159.50 回帰+介入再確認 / BOJ 後は clean N>=10 EV>0) を KB に
+# 記録した上で本定数を False にする PR のみ。env/KV 経路は意図的に作らない
+# (lesson: KV disable は pin にならない、不可逆化は code で)。
+JPY_CAP_EXIT_SIZE_LEVER_ACTIVE = True
+JPY_CAP_EXIT_SIZE_LEVER_REASON = "jpy_cap_exit_size_lever_0.5x"
+JPY_CAP_EXIT_SIZE_LEVER_STRATEGIES = frozenset({
+    "vsg_jpy_reversal",
+    "dt_sr_channel_reversal",
+    "vix_carry_unwind",
+    "ema200_trend_reversal",
+})
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MFE-pip-based Break-Even Lock (含み益ロック)
@@ -758,6 +775,10 @@ class DemoTrader:
         # 60秒以内の同一キーをブロック (DB commit を待たない即時判定で
         # 並行モードスレッドの open_trades fetch race を回避)
         self._recent_signal_emits = {}
+        # Closed-bar order-layer dedup. Keyed by
+        # (entry_type, instrument, direction, closed_bar_ts), shared by primary
+        # and shadow emit paths because strategy instances are rebuilt per poll.
+        self._order_bar_signal_emits = {}
         # 2026-04-30 diagnostics: count dedup outcomes per emit path so we can
         # tell from /api/admin/dedup_status whether the gate is actually being
         # called and whether it's blocking or passing.
@@ -984,6 +1005,91 @@ class DemoTrader:
         self._dedup_stats.setdefault("shadow_pass_log", [])
         self._dedup_stats.setdefault("hydrated_from_db", 0)
 
+    @staticmethod
+    def _normalize_order_bar_ts(bar_ts):
+        """Normalize closed-bar timestamps for order-layer per-bar dedup keys."""
+        if bar_ts is None or bar_ts == "":
+            return None
+        try:
+            if hasattr(bar_ts, "to_pydatetime"):
+                bar_ts = bar_ts.to_pydatetime()
+            elif isinstance(bar_ts, str):
+                bar_ts = datetime.fromisoformat(bar_ts.replace("Z", "+00:00"))
+            if isinstance(bar_ts, datetime):
+                if bar_ts.tzinfo is None:
+                    bar_ts = bar_ts.replace(tzinfo=timezone.utc)
+                else:
+                    bar_ts = bar_ts.astimezone(timezone.utc)
+                return bar_ts.replace(microsecond=0).isoformat()
+        except Exception:
+            return str(bar_ts)
+        return str(bar_ts)
+
+    @classmethod
+    def _closed_bar_ts_from_df(cls, df):
+        """Return the timestamp of the latest closed bar used by signal compute."""
+        try:
+            if df is None or len(df) == 0:
+                return None
+            idx = getattr(df, "index", None)
+            if idx is None or len(idx) == 0:
+                return None
+            return cls._normalize_order_bar_ts(idx[-1])
+        except Exception:
+            return None
+
+    def _record_order_bar_dedup_block(self, *, mode: str, entry_type: str) -> None:
+        if not hasattr(self, "_block_counts") or not isinstance(self._block_counts, dict):
+            self._block_counts = {}
+        if (
+            not hasattr(self, "_block_counts_per_strategy")
+            or not isinstance(self._block_counts_per_strategy, dict)
+        ):
+            self._block_counts_per_strategy = {}
+        reason_key = "order_bar_dedup"
+        mode_key = f"{mode}:{reason_key}"
+        strat_key = f"{entry_type}:{reason_key}"
+        self._block_counts[mode_key] = self._block_counts.get(mode_key, 0) + 1
+        self._block_counts_per_strategy[strat_key] = (
+            self._block_counts_per_strategy.get(strat_key, 0) + 1
+        )
+
+    def _maybe_reserve_order_bar_emit(
+        self,
+        entry_type: str,
+        instrument: str,
+        signal: str,
+        bar_ts,
+        *,
+        tf: str,
+        mode: str,
+        _path: str,
+    ):
+        """Reserve one order-layer emit per closed bar.
+
+        Key space is shared by primary and shadow emit paths. The key does not
+        include mode or is_shadow so parallel mode threads and SHADOW_ALWAYS
+        bypass rows cannot duplicate the same bar-level observation.
+        """
+        norm_bar_ts = self._normalize_order_bar_ts(bar_ts)
+        if not norm_bar_ts:
+            return None
+        key = (entry_type, instrument, signal, norm_bar_ts)
+        now = datetime.now(timezone.utc)
+        window_sec = self._tf_to_window_sec(tf)
+        with self._lock:
+            if not isinstance(getattr(self, "_order_bar_signal_emits", None), dict):
+                self._order_bar_signal_emits = {}
+            if key in self._order_bar_signal_emits:
+                self._record_order_bar_dedup_block(mode=mode, entry_type=entry_type)
+                return key
+            self._order_bar_signal_emits[key] = now
+            stale_cutoff = now - timedelta(seconds=max(7200, 2 * window_sec))
+            self._order_bar_signal_emits = {
+                k: v for k, v in self._order_bar_signal_emits.items() if v > stale_cutoff
+            }
+        return None
+
     def _open_shadow_emit_trade(self, *, direction: str, entry_price: float,
                                 sl: float, tp: float, entry_type: str,
                                 confidence: int, tf: str, reasons: list,
@@ -1011,9 +1117,25 @@ class DemoTrader:
                                 sr_meta=None,
                                 dedup_already_reserved: bool = False,
                                 dedup_path: str = "shadow",
-                                dedup_window_sec: int | None = None) -> str | None:
+                                dedup_window_sec: int | None = None,
+                                signal_bar_ts=None) -> str | None:
         """Persist a shadow-emit trade and audit OANDA skip visibility."""
         if not dedup_already_reserved:
+            bar_key = self._maybe_reserve_order_bar_emit(
+                entry_type,
+                instrument,
+                direction,
+                signal_bar_ts,
+                tf=tf,
+                mode=mode,
+                _path=dedup_path,
+            )
+            if bar_key is not None:
+                self._add_log(
+                    f"[ORDER_BAR_DEDUP] blocked shadow {entry_type} {instrument} "
+                    f"{direction}: bar_ts={bar_key[3]}"
+                )
+                return None
             window_sec = dedup_window_sec or self._tf_to_window_sec(tf)
             dedup_age = self._maybe_reserve_signal_emit(
                 entry_type,
@@ -3332,6 +3454,7 @@ class DemoTrader:
                         sig_5m = compute_fn(df_5m, "5m", sr_5m, symbol)
                         if (sig_5m.get("signal") != "WAIT"
                                 and sig_5m.get("entry_type") in _5M_ONLY_STRATEGIES):
+                            sig_5m["_closed_bar_ts"] = self._closed_bar_ts_from_df(df_5m)
                             sig = sig_5m
                             sig["_tf_override"] = "5m"
                             print(f"[DemoTrader/scalp] 5m補完: {sig_5m.get('entry_type')} {sig_5m.get('signal')}")
@@ -3357,6 +3480,9 @@ class DemoTrader:
                     sig["entry_type"] = _variant
             except Exception as _ve:
                 print(f"[DemoTrader/{mode}] variant routing error: {_ve}")
+
+            if sig.get("_closed_bar_ts") is None:
+                sig["_closed_bar_ts"] = self._closed_bar_ts_from_df(df)
 
         except Exception as e:
             self._add_log(f"⚠️ [{cfg['label']}] シグナル取得失敗: {e}")
@@ -3659,6 +3785,11 @@ class DemoTrader:
                     confluence_score=_se_confluence.get("score"),
                     confluence_details=_se_confluence.get("details"),
                     sr_meta=_se.get("sr_meta"),
+                    signal_bar_ts=(
+                        _se.get("bar_ts")
+                        or _se.get("_closed_bar_ts")
+                        or sig.get("_closed_bar_ts")
+                    ),
                     dedup_path="shadow",
                 )
         except Exception as _se_err:
@@ -4307,7 +4438,27 @@ class DemoTrader:
         # _maybe_reserve_signal_emit() に集約。詳細: lesson-shadow-emit-dedup-2026-04-30
         # rule:R3 (2026-05-03): TF-aware window — 60s default leaked 15m/5m bar
         # re-emits (audit found 318 violations across 28 combos pre-fix).
+        # rule:R3 (2026-07-06): order-layer per-bar dedup. DaytradeEngine /
+        # HourlyEngine are rebuilt every poll, so strategy instance guards are
+        # live-dead. This guard keys on closed bar identity and is shared by
+        # primary and shadow emit paths; shadow bypasses do not bypass it.
         _primary_window = self._tf_to_window_sec(tf)
+        _signal_bar_ts = sig.get("_closed_bar_ts") or sig.get("bar_ts")
+        _bar_dedup_key = self._maybe_reserve_order_bar_emit(
+            entry_type,
+            instrument,
+            signal,
+            _signal_bar_ts,
+            tf=tf,
+            mode=mode,
+            _path="primary",
+        )
+        if _bar_dedup_key is not None:
+            self._add_log(
+                f"[ORDER_BAR_DEDUP] blocked {entry_type} {instrument} "
+                f"{signal}: bar_ts={_bar_dedup_key[3]}"
+            )
+            return
         _dedup_age = self._maybe_reserve_signal_emit(
             entry_type, instrument, signal,
             window_sec=_primary_window, _path="primary",
@@ -6353,6 +6504,26 @@ class DemoTrader:
             _lot_tag = f"{_lot_tag}(LDN0.5x)" if _lot_tag else "(LDN0.5x)"
             self._db.append_trade_reason(trade_id, LDN_MORNING_SIZE_LEVER_REASON)
 
+        # T5 pre-reg (JPYキャップ撤退) SIZE lever — LDN lever と同じ最後段・LIVE-only
+        _jpy_cap_units, _jpy_cap_lever_applied = (
+            self._resolve_jpy_cap_exit_size_lever(
+                _adjusted_units,
+                entry_type,
+                is_shadow=False,
+            )
+            if _ldn_live_send
+            else (_adjusted_units, False)
+        )
+        if _jpy_cap_lever_applied:
+            self._add_log(
+                f"[JPY_CAP_EXIT_SIZE] {entry_type} {instrument} "
+                f"{_adjusted_units}u -> {_jpy_cap_units}u "
+                f"(0.5x LIVE-only, pre-reg T5 発動 2026-06-18)"
+            )
+            _adjusted_units = _jpy_cap_units
+            _lot_tag = f"{_lot_tag}(JPYCAP0.5x)" if _lot_tag else "(JPYCAP0.5x)"
+            self._db.append_trade_reason(trade_id, JPY_CAP_EXIT_SIZE_LEVER_REASON)
+
         if _is_promoted:
             if _bridge_active and _mode_allowed:
                 # ── v6.4 SHIELD: Quick-Harvest TP (OANDA専用) ──
@@ -8201,6 +8372,38 @@ class DemoTrader:
         if hour_utc not in LDN_MORNING_SIZE_LEVER_HOURS_UTC:
             return int(base_units), False
         return max(1, int(base_units * 0.5)), True
+
+    def _resolve_jpy_cap_exit_size_lever(
+        self,
+        base_units: int,
+        entry_type: str,
+        is_shadow: bool,
+    ) -> tuple[int, bool]:
+        """Apply the JPY-cap-exit LIVE-only size lever (pre-reg T5, 発動 2026-06-18).
+
+        _resolve_ldn_morning_size_lever と同型: lot チェーンの最後段・LIVE-only。
+        Shadow 記録は変更しない (原則3)。cell-stage lot override とは軸が異なる
+        (strategy 単位の regime lever) ため二重適用にならない。LDN lever と両方
+        該当した場合は合成 (0.25x) — 独立な pre-reg 2 本が同時成立している状態
+        であり、意図通り。
+
+        Floor 1000u (FX 検証ロット規約): vix Overlap pilot 等の「1000u 固定契約」
+        pre-reg (vix-carry-grail-removal-overlap-1000u-2026-06-15) と衝突する場合、
+        より特定的な固定ロット契約を優先する。1000u は agg-Kelly gate bypass の
+        正当性根拠 (validation lot) なので、それ未満への減額は契約違反になる。
+        floor により変化しない場合は applied=False (減額していないのにタグを
+        付けない)。
+        """
+        if is_shadow:
+            return int(base_units), False
+        if not JPY_CAP_EXIT_SIZE_LEVER_ACTIVE:
+            return int(base_units), False
+        if entry_type not in JPY_CAP_EXIT_SIZE_LEVER_STRATEGIES:
+            return int(base_units), False
+        halved = max(1000, int(base_units * 0.5))
+        if halved >= int(base_units):
+            return int(base_units), False
+        return halved, True
 
     @staticmethod
     def _price_shock_rev_min_units(entry_type: str, instrument: str) -> int | None:
