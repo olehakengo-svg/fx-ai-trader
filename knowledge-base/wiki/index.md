@@ -108,7 +108,7 @@
 
 ## System State (v9.5 / v2.1)
 - Defensive mode: **0.2x** (DD=**79.56%** / 795.6pip, eq_current=−$778.70 — Render API 2026-06-11 wiki-daily-update; 30d Kelly=0.0% edge=-8.4% ⚠️ slight improvement from -10.18%)
-- **CB RECOVERY 2026-06-04**: CB auto-triggered at 04:34 UTC (-30.4pip daily loss) → E1/E4/E8 (bb_rsi_reversion + session_time_bias cells) disabled (stage=0) + modes restarted at 06:24 UTC. Post-recovery: all signals shadow_tracking (confirmed). EDGE_CELL_ADMIN_TOKEN watchdog Bearer bug still pending Codex fix.
+- **CB RECOVERY 2026-06-04**: CB auto-triggered at 04:34 UTC (-30.4pip daily loss) → E1/E4/E8 (bb_rsi_reversion + session_time_bias cells) disabled (stage=0) + modes restarted at 06:24 UTC. Post-recovery: all signals shadow_tracking (confirmed). watchdog は 2026-07-06 稼働確認済み (下記)。
 - HourlyEngine: **Activated 2026-05-18** — all H1 strategies (KSB+DMB+5 PriceShockRev) are Shadow-only via `_shadow_always`.
 - XAU: **Stopped** (v8.4) -- post-cutoff XAU loss = -2,280pip (102% of total loss)
 - FX-only post-cutoff (2026-04-08〜) — **2026-06-11 wiki-daily-update** (demo/stats live only, is_shadow=false):
@@ -123,7 +123,8 @@
 - Aggregate Kelly decomposition 2026-05-03: 旧 doc は SUPERSEDED。新 SSOT: [[aggregate-kelly-decomposition-2026-05-03-corrigendum]] (TRUE_LIVE Strategy × Pair 出血ランキング、ELITE_LIVE `session_time_bias × GBP_USD` 出血特定)
 - ⚠️ Portfolio warnings: session_time_bias #1 PnL drag (N=30, WR=40%, -67.8pip); vwap_mean_reversion (N=11, WR=36.4%, -63.1pip ⚠️ high per-trade loss); bb_rsi_reversion (N=97, WR=38.1%, -43.5pip). All DSR 0.0 (haircut 100%).
 - ⚠️ Monitor anomaly 2026-06-11 02:13 UTC: rnb_usdjpy direction_filter=300 + daytrade hedge_block=209 + spike bypass 16049.8pip (price data artifact) — see `raw/trade-logs/2026-06-11-monitor.md`
-- ⚠️ EDGE_CELL_ADMIN_TOKEN unset on watchdog cron — Bearer bug, safety net silently inactive (Codex task pending)
+- ✅ watchdog safety net **稼働確認 2026-07-06**: cron `fx-ai-edge-cell-watchdog` が 02:18 UTC に SUCCESS、実出力 (E1/E4 CODE_PINNED, E9 HOLD, re-arm ゼロ) をログ実測。API_AUTH_TOKEN 投入済み。旧記載 (Bearer bug / 値未投入) は解消済み
+- ⚠️ rnb_usdjpy 構造バグ特定 2026-07-06: `compute_rnb_signal` の WAIT dict が `entry: 0` を返す設計 (2026-04-05 db5e3e4c 起源) → USD_JPY `_price_history` を 30秒周期で 0 汚染。2026-07-04 以降は PRICE_HISTORY_GUARD (PR #38) が drop 中 (~2,880件/日) だが、04-05〜07-04 の間 spike/velocity gate は汚染下で動作。07-02 vix Overlap 14/14 shadow 事故の支配的原因の可能性大。修正 = WAIT に実 Close を埋める最小 diff (fix PR 提出)
 - ⚠️ sr_anti_hunt_bounce shadow data corruption: 100% null alpha_snapshot/edge_cell_id, 85% null sr_basis, pyarrow ImportError at 61% (regression 05-22→05-25)
 - Last updated: 2026-06-11 (wiki-daily-update auto); prev: 2026-06-10
 - scalp_eurjpy: **Stopped** (v8.6) -- friction/ATR=43.6%, 構造的不可能
