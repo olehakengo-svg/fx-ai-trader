@@ -63,6 +63,7 @@ env 2 キーは無参照化 (dashboard 削除は cosmetic、BB_RSI 2 キーと�
   1. HTF-rescued shadow N≥10 到達 → その EV/WR/PF で exemption (EV>0) or retire (EV≤0) を判定 (R1、user 決裁)
   2. **2026-09-30 までに shadow N<5** → 発火頻度が 12y 検証時 band を持続的に割っている = live 翻訳失敗として **retire** (R2)
 - 監視主体: pre-reg trigger monitor (2026-07-06 導入、tools/prereg_trigger_watch 参照) に登録
+- **復帰の追加前提 (forensic #3, 2026-07-06)**: N≥10 EV>0 でも、再有効化には **order 層での 12-bar min-spacing 実装が必須** — 検証済み N=543 は grid ハーネスが 12-bar dedup を一括執行した estimand であり、本番経路はこれを執行しない (per-bar dedup PR #49 では不足)。spacing なしの再有効化 = 検証と別物の運用
 
 ### ゲート④ 再定義 (再 LOCK 案 — 発効条件付き)
 
@@ -73,3 +74,14 @@ Forensic #2 の verdict (共通挙動、instance-state guard は live 無効) �
 - **発効条件**: order 層 per-bar dedup (`20260706-1600-order-layer-bar-dedup`) が main に到達し、`order_bar_dedup` block counter が観測可能になった時点
 - **承認記録**: user 指示 2026-07-06「全て進めてください」。発効時に本セクションを LOCKED に更新し、hull 復帰判断の前提とする
 - hull の復帰: ゲート④(改) 発効後、hull は「order 層 dedup 下で 1 バー 1 emit」が構造保証されるため、ゲート④抵触は解消扱い。ただし復帰自体はゲート① (発火頻度 band、shadow 実測 1.5/週 vs 期待 13.3/週で既に下側割れ見込み) の再評価が別途必要 — 頻度 band 割れが確定した場合は sweep と同じ retire 経路
+
+
+---
+
+## Forensic #3 結果 (2026-07-06 同日): BT 側 cooldown 執行の突合
+
+- **汎用 BT (app.py backtest_daytrade) は live と対称**: BT ループ (app.py L6527) も bar 毎に `compute_daytrade_signal` → `DaytradeEngine()` 再構築 (L2597)。instance-state cooldown は **BT でも執行されない** → 「BT だけ cooldown が効き live で効かない」仮説は棄却 (forensic #2 の未確定事項を解消)
+- **真の estimand 不一致 = 検証ハーネス vs 本番経路 (sweep)**: N=543 を出した 12y grid (`tools/research_sweep_reversion_grid_12y.py` L140-173) は strategy class を使わず inline 実装で、`dedup_indices(ev, DEDUP_GAP=12)` を bar 配列全体に一括適用 — **12-bar spacing は検証済みエッジの定義の一部**。本番経路 (live / 汎用 BT とも) はこれを執行しない。sweep を spacing なしで再有効化すると、ゲート① (HTF gate 未検証) と同型の「検証と運用の estimand 不一致」を別軸で再演することになる
+- **hull**: inter-bar cooldown なしの設計 (per-bar dedup のみ)。検証 (外部 1m validation、holdout N=1,833/4y ≈ 8.8/週) と本番で spacing 前提の不一致なし。頻度 band 割れ (shadow 実測 1.5/週) は独立の問題として残存
+- その他の既知乖離源: `closed_idx` BT=-1 vs live=-2 の 1-bar タイミングシフト / BT ループ内 session filter (EUR_GBP 全停止・EUR_USD 時間帯 gate)
+- **帰結**: (1) sweep 復帰条件に 12-bar min-spacing 実装を追加 (上記 DEFER 裁定に反映済み)。(2) multi-bar cooldown の order 層実装は「sweep を復帰させる場合のみ」必要 — 現状 code pin OFF のため新規実装は保留。(3) emit→fill 変換率の実測突合は shadow N 蓄積待ち (現状 N=0 で比較不能)
