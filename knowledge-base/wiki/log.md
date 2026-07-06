@@ -1,5 +1,9 @@
 # Knowledge Base Change Log
 
+## 2026-07-06 (T7 クローズ + T8 forensic #2: engine 再構築による live dedup 無効の発見)
+- **T7 CLOSED**: carry dip 0-fire は ceiling 159.50 のレジーム前提崩壊による dormant-by-design (バグ非ず)。QUALBAR print telemetry 本番稼働。[[zero-fire-diagnosis-carrydip-vix-2026-07-02]] §6
+- **T8 forensic #2 = 共通挙動**: hull は guard 実装済みだが `compute_daytrade_signal`/`compute_hourly_signal` が **poll 毎に Engine を再構築**するため全戦略の instance-state dedup/cooldown が live で無効。live の dedup 層は recent_emit のみ。order 層 per-bar dedup タスクを queue 投入、ゲート④ order 層補正 + 再 LOCK は user R1 決裁待ち。[[t8-week1-gate-breach-2026-07-06]]
+
 ## 2026-07-02 (wiki-daily-update 🌙 evening re-run): 同日2回目の自動スケジュールタスク
 - **背景**: 本日2回目の wiki-daily 実行 (夕方 ~UTC 11–12 窓)。朝の実行以降、当日データは進行せず (**新規 fill 0件**)。以下 delta は **朝キャプチャ比** (同日)。2つ変化: ① 朝の「1 LIVE sent」は **forensic で偽 `sent` と確定** (実弾未送信) → その framing を trade-log / index line 170 に伝播訂正 (line 116 は既訂正済); ② 30d rolling window が数時間ロール (n=112→109) で rolling 指標が微減 (window-roll ease、真のエッジ改善ではない)
 - **Daily trade log**: `raw/trade-logs/2026-07-02.md` に「🌙 EOD / Evening Re-run」セクション追記 + 偽sent framing を3箇所訂正 (OANDA Audit / Strategy Movers / Key Observations)。cumulative は flat (N=**542** 不変, WR 43.2%, EV -0.96, PnL -521.1pip), shadow 8,482→**8,530** (+48, shadow only)

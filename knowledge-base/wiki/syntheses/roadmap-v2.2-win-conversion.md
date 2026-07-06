@@ -44,7 +44,7 @@
 | # | 項目 | 統計条件 | 状態 |
 |---|---|---|---|
 | T6 | **orb_trap GBP_USD SELL (E9) N蓄積** | clean N≥30 → H1 ∧ WF 3-fold ∧ Bonferroni(m=116) 再評価。N 以外は通過済 (WR.783/PF13.6/Wilson.581/Kelly.725/WF3-3) | E9 継続稼働。触らない |
-| T7 | **Carry Dip v3 発火 E2E 検証** — `USDJPY_CARRY_DIP_LIVE_ENABLE=1` 確認済みだが live fill 0 | qualifying-bar (全 filter PASS) ベースの発火期待値 logging。7d 0-fire なら filter 診断 | Claude 次タスク |
+| T7 | **Carry Dip v3 発火 E2E 検証** | ✅ **CLOSED 2026-07-06** — 0-fire 根因 = ceiling 159.50 のレジーム前提崩壊 (06-03 以降 RSI クロス 28 中 22 が ceiling block、**dormant-by-design**)。QUALBAR print telemetry 本番稼働 (07-06 deploy)。ceiling 再パラメータ化は R1 要件のため起案せず。残リスク: env gate render.yaml 未宣言 + live 側 dedup/cooldown 無効 (engine 再構築問題)。詳細: [[zero-fire-diagnosis-carrydip-vix-2026-07-02]] §6 | 159.50 割れで自動再稼働 |
 | T8 | **本日 LIVE 投入 2 戦略の初週監視 pre-reg** — sweep_reversion_eurgbp_late (12y survivor, N=543/+6.22p/t=4.46) + hull_donchian_fade (C1-C4 通過, net+0.66p/PF1.07) | 発火頻度乖離 >3× or sweep 実測 spread >3.5p (検証時仮定 1.5p) で R2 停止。EUR_GBP エッジの 2021-2026 集中 caveat 監視 | Claude 次タスク (pre-reg を decisions/ に) |
 | T9 | **Kalman D7 pre-reg を qualifying-bar 基準に書換え** (0 fire が設計通りか判定可能に) | qualifying bar 数 vs 発火数の整合 | Claude (低優先) |
 
