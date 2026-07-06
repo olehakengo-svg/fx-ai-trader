@@ -51,7 +51,7 @@
 ## WS3: エッジ要因解析シリーズ継続 (司令塔直轄)
 
 - T10: ✅ **CLOSED 2026-07-02 = KILL** — 清浄shadow N=495 因子分解+敵対検証で生存セルゼロ、friction>edge 構造 (楽観上限=BE天井)。再試行禁止。SCALP_SENTINEL は shadow 収集のみ継続 (LIVE候補ゼロ固定)。詳細: [[bb-rsi-t10-kill-2026-07-02]]
-- T11: **新仮説「LDN朝×counter-USD MR」クラス禁止** — 30d 実測 (UTC07-09 -71.8p) から一般化できるか 12y MASSIVE grid で検証 (R1)。通過すれば戦略横断の構造フィルタ (SIZE lever) に昇格
+- T11: ❌ **CLOSED 2026-07-06 = REJECT (R1)** — 「LDN朝×counter-USD MR」クラス禁止仮説は 12y MASSIVE grid で Codex 初回 PASS (aggregate Bonferroni p=0.0497) → **同日敵対的検証で棄却**: ①唯一の pass cell EUR_JPY は USD ネットエクスポージャ 0 で「counter-USD」メカニズム不成立 (USD 3ペア pooled gap -0.23p p=0.33)、②48-bar 重複ホールドの擬似反復 (lag-1 ρ=0.76) を日次クラスタ補正すると aggregate p≈0.15 で raw でも非有意、③TREND 閾値が in-sample median リーク (walk-forward で ×16=0.089 FAIL)。2026 YTD は効果逆転 (+12.6p)。**30d 実測はレジーム一過性と結論** — 戦略横断 lever は起案せず、T4 既存 lever の解除条件監視のみ継続。詳細: [[t11-ldn-morning-counter-usd-mr-12y-2026-07-06]]
 
 ## WS4: 目標再キャリブレーション
 
