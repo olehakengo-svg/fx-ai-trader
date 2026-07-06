@@ -100,7 +100,17 @@ def fetch_latest_daily_close(symbol: str) -> float | None:
         return None
 
 
-def fetch_shadow_count(entry_type: str, since: str, app_base: str) -> int | None:
+def count_matching(trades: list, entry_type: str, prefix: bool = False) -> int:
+    """entry_type の一致件数。prefix=True で前方一致 (multi-variant 戦略用、
+    例: kalman_d7_* 3 variant 合算)。"""
+    if prefix:
+        return sum(1 for t in trades
+                   if str(t.get("entry_type") or "").startswith(entry_type))
+    return sum(1 for t in trades if t.get("entry_type") == entry_type)
+
+
+def fetch_shadow_count(entry_type: str, since: str, app_base: str,
+                       prefix: bool = False) -> int | None:
     try:
         import requests
         r = requests.get(
@@ -111,7 +121,7 @@ def fetch_shadow_count(entry_type: str, since: str, app_base: str) -> int | None
         r.raise_for_status()
         d = r.json()
         trades = d if isinstance(d, list) else d.get("trades", [])
-        return sum(1 for t in trades if t.get("entry_type") == entry_type)
+        return count_matching(trades, entry_type, prefix)
     except Exception:
         return None
 
@@ -130,11 +140,13 @@ def evaluate_trigger(trig: dict[str, Any], *, today: str, app_base: str) -> dict
             fetch_latest_daily_close(trig["symbol"]), float(trig["threshold"]))
     elif ttype == "shadow_count_decision":
         res = evaluate_shadow_count_decision(
-            fetch_shadow_count(trig["entry_type"], trig["since"], app_base),
+            fetch_shadow_count(trig["entry_type"], trig["since"], app_base,
+                               prefix=trig.get("match") == "prefix"),
             int(trig["n_decide"]), int(trig["n_floor"]), trig["deadline"], today)
     elif ttype == "shadow_count_info":
         res = evaluate_shadow_count_info(
-            fetch_shadow_count(trig["entry_type"], trig["since"], app_base),
+            fetch_shadow_count(trig["entry_type"], trig["since"], app_base,
+                               prefix=trig.get("match") == "prefix"),
             trig["since"], float(trig["expected_per_week"]), today)
     else:
         res = {"state": STATE_UNAVAILABLE, "detail": f"unknown type: {ttype}"}

@@ -64,3 +64,17 @@ def test_markdown_renders_all_states():
     }
     md = to_markdown(report)
     assert "TRIGGERED" in md and "watching" in md and "unavailable" in md
+
+
+def test_count_matching_prefix_for_multivariant():
+    from tools.prereg_trigger_watch import count_matching
+    trades = [
+        {"entry_type": "kalman_d7_po_dn_flip"},
+        {"entry_type": "kalman_d7_ema75_break"},
+        {"entry_type": "kalman_d7_trail_atr"},
+        {"entry_type": "vix_carry_unwind"},
+        {"entry_type": None},
+    ]
+    assert count_matching(trades, "kalman_d7", prefix=True) == 3
+    assert count_matching(trades, "kalman_d7", prefix=False) == 0
+    assert count_matching(trades, "vix_carry_unwind") == 1
