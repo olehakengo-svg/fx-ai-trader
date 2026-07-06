@@ -10,6 +10,13 @@
 - **scripts/check.py チェック8** (新規): demo_trader.py が読む `*_LIVE_ENABLE` env が render.yaml 未宣言なら WARN — decision-without-provisioning クラス (watchdog token / carry dip gate / T5 未執行の 3 例) の構造防止
 - **render.yaml**: `KALMAN_D7_LIVE_ENABLE` / `USDJPY_CARRY_DIP_LIVE_ENABLE` を sync:false で宣言 (dashboard 値は不変更)
 - 影響トレード: なし (監視・観測性のみ)。背景: T5 トリガーが監視主体不在で 18 日間未執行だった事故
+## 2026-07-06 — T5 pre-reg 発動執行: JPYキャップ撤退 SIZE lever 0.5x (rule:R2)
+
+- [[jpy-cap-exit-prereg-2026-06-12]] トリガー1「USD_JPY D1 close > 160.80」が **2026-06-18 に成立済み** (161.295、以降14営業日連続、max 162.631) と本日検出。18日の執行ギャップ (監視機構不在) — pre-reg 文書に発動記録+教訓を追記。
+- 執行: `_resolve_jpy_cap_exit_size_lever` — 対象4戦略 (vsg_jpy_reversal / dt_sr_channel_reversal / vix_carry_unwind / ema200_trend_reversal) の **LIVE lot 0.5x** (SIZE lever、lot チェーン最後段)。Shadow 無変更 (原則3)。code pin (`JPY_CAP_EXIT_SIZE_LEVER_ACTIVE`、env/KV 経路なし) + 回帰テスト 5 件。
+- **Floor 1000u**: vix Overlap pilot の 1000u 固定検証ロット契約 ([[vix-carry-grail-removal-overlap-1000u-2026-06-15]], agg-Kelly bypass の正当性根拠) と衝突するため `max(1000, 0.5x)` で適用 — 1000u 検証ロットは no-op、1000u 超のみ半減。
+- 影響トレード: 以後の対象4戦略 LIVE 送信 lot が半減 (`(JPYCAP0.5x)` lot tag + trade_reason で識別可)。Shadow/BT 系列は不変。
+- 復帰 = 復帰条件 (D1<159.50 回帰+介入再確認 / BOJ 後 clean N≥10 EV>0) の KB 記録 + テスト変更を伴う PR のみ。
 
 ## 2026-07-06 — T8 初週 R2 STOP: hull/sweep LIVE 転送を code pin で停止 (rule:R2)
 

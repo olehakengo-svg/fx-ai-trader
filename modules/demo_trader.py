@@ -80,6 +80,23 @@ LDN_MORNING_SIZE_LEVER_REASON = "ldn_morning_size_lever_0.5x"
 LDN_MORNING_SIZE_LEVER_CELLS = frozenset({"E5", "E7", "E10"})
 LDN_MORNING_SIZE_LEVER_HOURS_UTC = frozenset({7, 8, 9})
 
+# 2026-07-06 T5 pre-reg 執行 (rule:R2, 裁量禁止条項):
+# トリガー「USD_JPY D1 close > 160.80」が 2026-06-18 に成立 (MASSIVE D1 close=161.295、
+# 以降 07-03 まで 14 営業日連続 160.80 超、max 162.631)。発動アクションは pre-reg 規定の
+# 機械執行 = JPY 系 4 戦略の LIVE lot 0.5x SIZE lever (Shadow は原則3で無変更)。
+# 根拠: knowledge-base/wiki/decisions/jpy-cap-exit-prereg-2026-06-12.md
+# 解除 = 復帰条件 (D1 close<159.50 回帰+介入再確認 / BOJ 後は clean N>=10 EV>0) を KB に
+# 記録した上で本定数を False にする PR のみ。env/KV 経路は意図的に作らない
+# (lesson: KV disable は pin にならない、不可逆化は code で)。
+JPY_CAP_EXIT_SIZE_LEVER_ACTIVE = True
+JPY_CAP_EXIT_SIZE_LEVER_REASON = "jpy_cap_exit_size_lever_0.5x"
+JPY_CAP_EXIT_SIZE_LEVER_STRATEGIES = frozenset({
+    "vsg_jpy_reversal",
+    "dt_sr_channel_reversal",
+    "vix_carry_unwind",
+    "ema200_trend_reversal",
+})
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MFE-pip-based Break-Even Lock (含み益ロック)
@@ -6353,6 +6370,26 @@ class DemoTrader:
             _lot_tag = f"{_lot_tag}(LDN0.5x)" if _lot_tag else "(LDN0.5x)"
             self._db.append_trade_reason(trade_id, LDN_MORNING_SIZE_LEVER_REASON)
 
+        # T5 pre-reg (JPYキャップ撤退) SIZE lever — LDN lever と同じ最後段・LIVE-only
+        _jpy_cap_units, _jpy_cap_lever_applied = (
+            self._resolve_jpy_cap_exit_size_lever(
+                _adjusted_units,
+                entry_type,
+                is_shadow=False,
+            )
+            if _ldn_live_send
+            else (_adjusted_units, False)
+        )
+        if _jpy_cap_lever_applied:
+            self._add_log(
+                f"[JPY_CAP_EXIT_SIZE] {entry_type} {instrument} "
+                f"{_adjusted_units}u -> {_jpy_cap_units}u "
+                f"(0.5x LIVE-only, pre-reg T5 発動 2026-06-18)"
+            )
+            _adjusted_units = _jpy_cap_units
+            _lot_tag = f"{_lot_tag}(JPYCAP0.5x)" if _lot_tag else "(JPYCAP0.5x)"
+            self._db.append_trade_reason(trade_id, JPY_CAP_EXIT_SIZE_LEVER_REASON)
+
         if _is_promoted:
             if _bridge_active and _mode_allowed:
                 # ── v6.4 SHIELD: Quick-Harvest TP (OANDA専用) ──
@@ -8201,6 +8238,38 @@ class DemoTrader:
         if hour_utc not in LDN_MORNING_SIZE_LEVER_HOURS_UTC:
             return int(base_units), False
         return max(1, int(base_units * 0.5)), True
+
+    def _resolve_jpy_cap_exit_size_lever(
+        self,
+        base_units: int,
+        entry_type: str,
+        is_shadow: bool,
+    ) -> tuple[int, bool]:
+        """Apply the JPY-cap-exit LIVE-only size lever (pre-reg T5, 発動 2026-06-18).
+
+        _resolve_ldn_morning_size_lever と同型: lot チェーンの最後段・LIVE-only。
+        Shadow 記録は変更しない (原則3)。cell-stage lot override とは軸が異なる
+        (strategy 単位の regime lever) ため二重適用にならない。LDN lever と両方
+        該当した場合は合成 (0.25x) — 独立な pre-reg 2 本が同時成立している状態
+        であり、意図通り。
+
+        Floor 1000u (FX 検証ロット規約): vix Overlap pilot 等の「1000u 固定契約」
+        pre-reg (vix-carry-grail-removal-overlap-1000u-2026-06-15) と衝突する場合、
+        より特定的な固定ロット契約を優先する。1000u は agg-Kelly gate bypass の
+        正当性根拠 (validation lot) なので、それ未満への減額は契約違反になる。
+        floor により変化しない場合は applied=False (減額していないのにタグを
+        付けない)。
+        """
+        if is_shadow:
+            return int(base_units), False
+        if not JPY_CAP_EXIT_SIZE_LEVER_ACTIVE:
+            return int(base_units), False
+        if entry_type not in JPY_CAP_EXIT_SIZE_LEVER_STRATEGIES:
+            return int(base_units), False
+        halved = max(1000, int(base_units * 0.5))
+        if halved >= int(base_units):
+            return int(base_units), False
+        return halved, True
 
     @staticmethod
     def _price_shock_rev_min_units(entry_type: str, instrument: str) -> int | None:
