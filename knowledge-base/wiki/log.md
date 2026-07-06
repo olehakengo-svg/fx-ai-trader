@@ -464,3 +464,15 @@
 - Tier 変更なし → portfolio auto-sync / strategy pages 編集不要（良性窓、閾値クロスなし）
 - **Lint**: (1) WR/PnL/DD/edge 数値は index.md 全6箇所 (header/System State/ruin/kelly/last-updated/session-history/trade-log link) で 98.97%/-527.9/N=555/-32.3% 一致 ✅ (2) [[2026-07-03]] リンク解決 ✅、新規破損リンク 0件 (top-level 未解決14件は既存) (3) stale なし — データ 07-03 当日
 - ⚠️ 未解決（継続）: `API_AUTH_TOKEN` watchdog gap (user が Render dashboard で値投入待ち) / sr_anti_hunt_bounce shadow data corruption
+
+## 2026-07-06 wiki-daily-update (scheduled task)
+- ✅ APIフェッチ完了 (demo/stats date_from=2026-04-08, demo/learning, risk/dashboard, oanda/audit limit=30) — 全て Render 本番一次ソース
+- ✅ Trade log 作成: `raw/trade-logs/2026-07-06.md`
+- **本日のスナップショット (is_shadow=false)**: N=**556** (+1 fill vs 07-03。**07-04/05 は週末で市場クローズ** → 実質1-fill窓)。その1件は **orb_trap に完全一致** (N=3→4, PnL +26.8→+23.2, WR 66.7%→50% = **−3.6pip の負け 1本**, 0W/1L) — book の全変動量。WR=43.7% (−0.1pp), decided 46.5% (−0.1pp), EV=-0.96 (−0.01), PnL=**-531.5pip** (−3.6pip)。orb_trap は #1 LIVE昇格候補のため小N記録に傷 (aggregate は WR50% N4)
+- **リスク**: DD=**99.33%** (+0.36pp ⚠️⚠️⚠️ **NEW HIGH — −$1000/100%まで<$24**、eq=−$976.4、spike ではなく slow grind — わずか1本の負けでも high-water DD が更新されるほど book trough が100%線に接近)、ruin=0.0% ✅、defensive 0.2× 維持。MC tail は微減 (worst DD99 226.36→**212.58**、median final eq 829→**841**)
+- **30d / overall edge**: risk dashboard の overall edge=**-29.63%** (07-03 の 30d -32.3% から window-roll で ease — 6月上旬 trade が窓外へ、real edge gain ではない)。net=**-242.6pip** (+40.1 eased)、friction 3.98/trade、Sharpe -0.398、DSR 0.0/haircut 100%。by-instrument 内訳は今回の fetch (risk dashboard summary) には非露出 → 前窓の read を定性的に継承 (GBP_USD #1 drag)
+- OANDA audit (06:37→12:01 UTC): **0 LIVE / 30 shadow_tracking skipped / 0 blocked / 0 sent** — 偽sent なし (07-02 accept/reject contract fix 持続)、今窓は agg-kelly gate に到達した signal なし (07-03 は1件ブロック)。firing: session_time_bias(6) / vol_momentum_scalp(6) / trendline_sweep(5) / sr_break_retest(4)
+- Learning: daytrade WR42.5%/EV-2.3/n87, scalp WR40.7%/EV-0.15/n388。sr_channel_reversal scalp blacklist 再確認 (WR25%/EV-0.98/n20)。current_params 不変、新規構造変更なし
+- Tier 変更なし → portfolio auto-sync / strategy pages 編集不要（良性窓、閾値クロスなし）
+- **Lint**: (1) 現状態の数値は index.md 全5箇所 (header/System State/last-updated/session-history/trade-log link) で 99.33%/-531.5/N=556/-29.63% 一致 ✅ (残る 98.97/-527.9/555 参照は line171/251 の 07-03 履歴記述=正) (2) [[2026-07-06]] リンク解決 ✅、新規破損リンク 0件 (3) stale なし — データ 07-06 当日 (run は 07-07 JST 早朝)
+- ⚠️ 未解決（継続）: `API_AUTH_TOKEN` watchdog gap (user が Render dashboard で値投入待ち、agg-kelly gate が現行の稼働中セーフティネット) / sr_anti_hunt_bounce shadow data corruption
