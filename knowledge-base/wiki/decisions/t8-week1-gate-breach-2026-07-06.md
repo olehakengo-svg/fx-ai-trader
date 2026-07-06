@@ -31,6 +31,7 @@ env 2 キーは無参照化 (dashboard 削除は cosmetic、BB_RSI 2 キーと�
 
 1. sweep: HTF hard gate live exemption (P-S1(a)) を認めるか、retire するか — **R1 user 決裁** (live 経路の filter 変更のため)
 2. hull: 同一バー再 emit が「hull 固有の closed-bar/dedup 欠如」か「全戦略共通の poll 挙動」かの層別突合 → 固有なら strategy 内 dedup 追加 (R3)、共通なら pre-reg ゲート④の定義を order 層に補正して再 LOCK
+   - **実装完了 2026-07-06 (R3)**: 共通 poll 挙動として order 層に per-bar dedup を追加。primary `_tick_entry` と `shadow_emit` DB insert path が `(entry_type, instrument, signal, closed_bar_ts)` を共有し、block_counts は `order_bar_dedup` で観測可能。`recent_emit` は併存。
 3. 12y BT 同条件突合 (発火ログ × BT bar): 次セッション以降、両戦略とも emit→fill 変換率を BT 側と比較
 
 ## 関連発見 (同日)
