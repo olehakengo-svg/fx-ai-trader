@@ -2,7 +2,7 @@
 id: 20260706-1250-t11-ldn-morning-counter-usd-mr-12y-grid
 title: "[T11/WS3] LDN朝(UTC07-09)×counter-USD MR クラス禁止仮説 — 12y MASSIVE grid 検証 (R1)"
 owner: codex
-status: queued
+status: done
 priority: P1
 created_at: 2026-07-06T12:50:00+0900
 roadmap_gate: "roadmap-v2.2 WS3 T11 — 通過すれば戦略横断 SIZE lever に昇格"
@@ -41,3 +41,11 @@ H1: 「USD 一方向レジーム下の LDN 朝 (UTC07-09) に USD に逆らう M
 
 - knowledge-base/wiki/learning/t11-ldn-morning-counter-usd-mr-12y-{date}.md (rich report: N/EV/PF/Wilson/Bonferroni 全数値)
 - verdict を roadmap-v2.2 T11 行に反映
+
+
+## Result (2026-07-06T06:40:00Z)
+
+- Codex companion job task-mr8sv8dq-1874n6 (11m35s): 初回判定 PASS (aggregate Bonferroni p=0.0497, pass cell EUR_JPY|TREND|LDN)
+- **同日 Claude 敵対的検証で REJECT**: ①EUR_JPY は USD ネットエクスポージャ 0 (メカニズム不成立、USD 3ペア pooled p=0.33) ②擬似反復補正で aggregate p≈0.15 ③TREND 閾値 in-sample median リーク (walk-forward ×16=0.089)。2026 YTD 効果逆転 (+12.6p)
+- 適用分岐 = §3 FAIL: 30d 観測はレジーム一過性。戦略横断 SIZE lever は起案せず、T4 解除条件監視のみ継続
+- 成果物: knowledge-base/wiki/learning/t11-ldn-morning-counter-usd-mr-12y-2026-07-06.md (敵対的検証セクション含む) / bt-results/t11-*.{json,md} / tools/t11_ldn_morning_counter_usd_mr_12y_grid.py
