@@ -4,6 +4,12 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-06 — pre-reg トリガー監視の自動化 + env gate 宣言整合チェック (rule:R3)
+
+- **tools/prereg_trigger_watch.py** (新規): 機械判定可能な pre-reg トリガー/決定点を registry (decisions/prereg-trigger-registry.json) で管理し毎日評価。Tier A daily cron (quant_gate_status.py) の Discord レポートに統合。初期登録 3 件: T5 復帰条件 (D1<159.50) / sweep P-S1(a) DEFER 決定点 (N≥10 or 09-30 N<5) / hull 頻度 band
+- **scripts/check.py チェック8** (新規): demo_trader.py が読む `*_LIVE_ENABLE` env が render.yaml 未宣言なら WARN — decision-without-provisioning クラス (watchdog token / carry dip gate / T5 未執行の 3 例) の構造防止
+- **render.yaml**: `KALMAN_D7_LIVE_ENABLE` / `USDJPY_CARRY_DIP_LIVE_ENABLE` を sync:false で宣言 (dashboard 値は不変更)
+- 影響トレード: なし (監視・観測性のみ)。背景: T5 トリガーが監視主体不在で 18 日間未執行だった事故
 ## 2026-07-06 — T5 pre-reg 発動執行: JPYキャップ撤退 SIZE lever 0.5x (rule:R2)
 
 - [[jpy-cap-exit-prereg-2026-06-12]] トリガー1「USD_JPY D1 close > 160.80」が **2026-06-18 に成立済み** (161.295、以降14営業日連続、max 162.631) と本日検出。18日の執行ギャップ (監視機構不在) — pre-reg 文書に発動記録+教訓を追記。

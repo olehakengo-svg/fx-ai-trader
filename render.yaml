@@ -20,6 +20,13 @@ services:
         sync: false
       - key: EDGE_CELLS_GLOBAL_DISABLED
         sync: false
+      # LIVE 例外の env gate は必ずここに宣言する (decision-without-provisioning 防止,
+      # 2026-07-06)。値は dashboard 管理 (sync: false) — 決定 doc: kalman-d7 (2026-05-20) /
+      # usdjpy-carry-dip (2026-06-08)。hull/sweep は T8 R2 停止で code pin 化済み・無参照。
+      - key: KALMAN_D7_LIVE_ENABLE
+        sync: false
+      - key: USDJPY_CARRY_DIP_LIVE_ENABLE
+        sync: false
 
   - type: worker
     name: fx-ai-discord-bot

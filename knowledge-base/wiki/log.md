@@ -1,5 +1,7 @@
 # Knowledge Base Change Log
 
+## 2026-07-06 (pre-reg トリガー監視自動化, rule:R3)
+- T5 の 18 日執行ギャップ再発防止: prereg_trigger_watch.py + registry + Tier A cron 統合 + check.py env gate 宣言整合チェック。新規 pre-reg LOCK 時は registry への監視エントリ追加が必須運用に
 ## 2026-07-06 (T5 pre-reg 発動執行: JPYキャップ撤退 SIZE lever 0.5x, rule:R2)
 - **発動**: [[jpy-cap-exit-prereg-2026-06-12]] トリガー1「USD_JPY D1 close > 160.80」が **2026-06-18 成立** (161.295、以降14営業日連続超え・max 162.631)。検出は本日 = **18日の執行ギャップ** (監視機構不在が原因、pre-reg 文書に教訓追記)
 - **執行**: `_resolve_jpy_cap_exit_size_lever` (demo_trader.py、LDN lever 同型・lot チェーン最後段・LIVE-only) で対象4戦略 (vsg_jpy_reversal / dt_sr_channel_reversal / vix_carry_unwind / ema200_trend_reversal) の LIVE lot **0.5x**。Shadow 無変更 (原則3)。code pin + 回帰テスト5件
