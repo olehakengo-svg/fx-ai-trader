@@ -2485,6 +2485,16 @@ bb_rsi_reversionが9/11で勝利しPnL+9.0を稼いだが、xs_momentum_rsiの�
 | GBP_USD | **RANGING** | 64% | −0.00227 | レンジ内下落。trendline_sweepには逆風（N=4でEV=−5.83と一致） |
 **レジーム総評**: USD/JPYのVOLATILE+上昇バイアスは`bb_rsi_reversion`にとって理想的な地合い。一方、GBP/USDのRANGING環境が`trendline_sweep`のEV悪化（−5.83）と整合しており、現環境でのGBP/USD戦略は構造的に不利。EUR/USDも高ATRレンジで偽ブレイクリスク高。
 
+### 2026-07-06 (Pre-Tokyo Briefing)
+**2026-07-05（前日）: トレードゼロ。PnL = 0.0、N = 0、WR = N/A。**
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **全体: N=15, WR=60.0%, PnL=-30.4（EV加重では負）**
+> trendline_sweepはKBでELITE_LIVE指定（GBP_USD: BT EV=+0.599）だが、ライブ1件で-20.0。サンプル数1のため統計的判断不能だが要注視。
+- `r2_shadow_demoted_cell`が98件と支配的 → Scalp系セルのデモーション状態が慢性化。これはコード変更ではなく、**当該セルのパフォーマンス回復を待つしかない構造的停滞**。本日も同条件継続を前提に計画する。
+- `daytrade_1h_audjpy:order_bar_dedup` 20件 → AUDJPYで1時間足単位のシグナル連打が発生中。実際の約定には至っておらず問題なし。
+- `daytrade_eurgbp:hedge_block` 9件 → EURGBPで相反ポジション検知。本日もEUR/GBP通貨交差に注意。
+**総評:** USD_JPYのみが方向性×ボラティリティの組み合わせで戦略適合域。EUR/GBP系はRANGING支配で摩擦コストに対しEVが薄い。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
