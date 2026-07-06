@@ -37,7 +37,7 @@
 | T2 | **live_tier_exempt リーク監査** | R3 | ✅ **完了 2026-06-12** (Codex 9b16ebb5): バグ確定 → PAIR_DEMOTED/FORCE_DEMOTED を exempt 経路から除外 + 送信直前 gate + 検知器盲点 (q5) 修正 + 回帰テスト | — |
 | T3 | **wick_imbalance slippage -40p×2 forensic** | R3 | ✅ **完了 2026-06-12** (Codex af41f52a): **記録バグ確定** (stale signal_price 基準、実約定正常・PnL影響なし) → E10 停止不要。修正+backfillスクリプト済、**本番 backfill 適用が残作業** | 全期間 \|slip\|>10p は76件、live×wick は当該2件のみ |
 | T4 | **LDN朝 (UTC07-09) counter-USD MR の SIZE lever 0.5x** — 対象 E5/E7/E10 | R2 | ✅ user 承認 2026-06-12 → Codex queue `20260612-1715-ldn-morning-size-lever` (P1) | env kill switch 付き。USD一方向レジーム終了で解除 |
-| T5 | **JPYレジーム撤退 pre-reg** — D1 close > 160.8 or BOJ利上げ → JPY系4戦略 lot 0.5x | R1 pre-reg | ✅ **LOCK済 2026-06-12**: [[jpy-cap-exit-prereg-2026-06-12]] | 復帰条件も pre-reg 済 |
+| T5 | **JPYレジーム撤退 pre-reg** — D1 close > 160.8 or BOJ利上げ → JPY系4戦略 lot 0.5x | R1 pre-reg | 🔴 **発動 2026-06-18 (D1 161.295) → 執行 2026-07-06** (18日ギャップ、監視機構不在)。code lever `_resolve_jpy_cap_exit_size_lever` + 回帰テスト: [[jpy-cap-exit-prereg-2026-06-12]] 発動記録 | 復帰 = 復帰条件 KB 記録 + テスト変更 PR のみ |
 
 ## WS2: 勝ち集中・N蓄積 (Rule 1 正順)
 
