@@ -21,14 +21,14 @@
 
 ## P0 — 資金直結 (即時判断が必要)
 
-### P0-1: Edge cell force-live 経路が DD defensive 0.2x を完全バイパス 【CONFIRMED / rule:R3 候補】
+### P0-1: Edge cell force-live 経路が DD defensive 0.2x を完全バイパス 【✅ FIXED 2026-07-04 — user 決裁①: DD mult + 1000u floor (rule:R2)。詳細 [[fable5-phase-a-p0-fixes-2026-07-03]]】
 - **場所**: `modules/demo_trader.py:6103, 6170`
 - **証拠**: 通常経路は `_eq_mult = self._dd_lot_mult` → `_boost_factor` → `_lot_ratio` で DD 係数が乗算されるが、`_edge_cell_force_live` 時は `_adjusted_units = _edge_cell_lot` の生値代入 (LADDER_LOTS 5000/7500/10000)。以降 `_dd_lot_mult` の再乗算なし (grep 確認済)。後段は SHIELD `_OANDA_LOT_CAP` のみ。
 - **影響**: DD=98.2% の現況でも E1〜E12 マッチトレードは 5000〜10000u をフルサイズ送信。**最も資金が枯渇している局面で最大ロットが飛ぶ**。
 - **備考**: SHIELD mode / aggregate Kelly gate のバイパスはテスト (`test_edge_cell_shield_oanda_mode_bypass.py` 等) で設計として固定されている。DD 係数バイパスが同じ「設計」なのか漏れなのかの判断が必要。テストは `trader._dd_lot_mult = 1.0` を明示セットしており defensive 時の挙動を検証していない。
 - **修正案**: `_adjusted_units = int(_edge_cell_lot * self._dd_lot_mult)` (最低単位丸め維持) + defensive mode 時 units のテスト追加。
 
-### P0-2: `_sync_demo_to_oanda` 孤児クローズに年齢/猶予チェックなし 【CONFIRMED】
+### P0-2: `_sync_demo_to_oanda` 孤児クローズに年齢/猶予チェックなし 【✅ FIXED 2026-07-04 — openTime 600s 年齢ガード + fail-safe skip (rule:R3)。詳細 [[fable5-phase-a-p0-fixes-2026-07-03]]】
 - **場所**: `modules/demo_trader.py:2120-2166` (5秒毎に `_sltp_loop` から実行、起動ウォームアップなし)
 - **証拠**: OANDA 側 open trade のうち `demo_trades.oanda_trade_id` + in-memory `_trade_map` に無いものを即 `close_trade()`。`openTime` チェックなし。
 - **影響**: fire-and-forget の fill→DB write-back 完了前に**プロセス再起動/デプロイ**が挟まると、正規の live ポジションを再起動後 ~5 秒で強制クローズ。`pending_oanda_ops` の復旧機構がこの判定に伝播していない。テストカバレッジゼロ (裏取り済)。
@@ -38,7 +38,7 @@
 
 ## P1 — 統計判断・データ汚染
 
-### P1-1: `_get_strategy_kelly` に FIDELITY_CUTOFF / XAU 除外がない 【CONFIRMED】
+### P1-1: `_get_strategy_kelly` に FIDELITY_CUTOFF / XAU 除外がない 【✅ FIXED 2026-07-04 — clean 版へ委譲 (rule:R3)。本番実害 (T10 KILL 済み bb_rsi に Kelly 0.134 推奨) を実測後に修正。詳細 [[fable5-phase-a-p0-fixes-2026-07-03]]】
 - **場所**: `modules/demo_trader.py:8677-8703`。呼び出し: line 5696 (Kelly 動的 boost) / 5721 (half-Kelly lot cap) — **実弾サイジングの中核2経路**。
 - **証拠**: 姉妹関数 `_get_aggregate_kelly` / `_get_strategy_kelly_clean` は cutoff + XAU 除外あり。この関数だけ漏れ。CLAUDE.md「all-time data を Kelly に使わない」に直接抵触。
 - **修正案**: 呼び出し元を `_get_strategy_kelly_clean` に差し替え (instrument 引数の扱い要確認) or 同一フィルタ追加。
