@@ -66,14 +66,15 @@ env 2 キーは無参照化 (dashboard 削除は cosmetic、BB_RSI 2 キーと�
 - 監視主体: pre-reg trigger monitor (2026-07-06 導入、tools/prereg_trigger_watch 参照) に登録
 - **復帰の追加前提 (forensic #3, 2026-07-06)**: N≥10 EV>0 でも、再有効化には **order 層での 12-bar min-spacing 実装が必須** — 検証済み N=543 は grid ハーネスが 12-bar dedup を一括執行した estimand であり、本番経路はこれを執行しない (per-bar dedup PR #49 では不足)。spacing なしの再有効化 = 検証と別物の運用
 
-### ゲート④ 再定義 (再 LOCK 案 — 発効条件付き)
+### ゲート④ 再定義 (🔒 LOCKED — 2026-07-06 発効)
 
-Forensic #2 の verdict (共通挙動、instance-state guard は live 無効) を受け、pre-reg ゲート④を以下に補正する:
+Forensic #2 の verdict (共通挙動、instance-state guard は live 無効) を受け、pre-reg ゲート④を以下に補正した:
 
 > **ゲート④ (改)**: 「order 層 (demo_trader signal 受理点) で同一 (entry_type, instrument, signal, bar_ts) の DB insert が 2 件以上検出された場合 — 即停止 + forensic」。strategy 内部の re-emit は監視対象から除外 (engine 再構築による全戦略共通挙動であり、多層防御の内側で吸収される限り異常ではない)。
 
-- **発効条件**: order 層 per-bar dedup (`20260706-1600-order-layer-bar-dedup`) が main に到達し、`order_bar_dedup` block counter が観測可能になった時点
-- **承認記録**: user 指示 2026-07-06「全て進めてください」。発効時に本セクションを LOCKED に更新し、hull 復帰判断の前提とする
+- **発効条件 (成立済み)**: order 層 per-bar dedup (`20260706-1600-order-layer-bar-dedup`) が main に到達し、`order_bar_dedup` block counter が観測可能になった時点
+- **発効判定 (2026-07-06)**: PR #49 (`fix/order-layer-bar-dedup-20260706`) が **commit dc17eb64 で main 到達**、本番デプロイで order dedup 08:14 UTC live 確認済み ([[2026-07-06-session]] Phase 4)。→ **発効条件成立、本セクションを 🔒 LOCKED に確定** (発動 = R2 即時・裁量禁止、解除はこのセクションの変更を伴う PR = レビュー必須)
+- **承認記録**: user 指示 2026-07-06「全て進めてください」→ ゲート④(改) 定義を承認。発効化は handoff タスク (`fx-roadmap-v23-handoff`, 2026-07-06) で執行
 - hull の復帰: ゲート④(改) 発効後、hull は「order 層 dedup 下で 1 バー 1 emit」が構造保証されるため、ゲート④抵触は解消扱い。ただし復帰自体はゲート① (発火頻度 band、shadow 実測 1.5/週 vs 期待 13.3/週で既に下側割れ見込み) の再評価が別途必要 — 頻度 band 割れが確定した場合は sweep と同じ retire 経路
 
 
