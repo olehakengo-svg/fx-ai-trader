@@ -476,3 +476,9 @@
 - Tier 変更なし → portfolio auto-sync / strategy pages 編集不要（良性窓、閾値クロスなし）
 - **Lint**: (1) 現状態の数値は index.md 全5箇所 (header/System State/last-updated/session-history/trade-log link) で 99.33%/-531.5/N=556/-29.63% 一致 ✅ (残る 98.97/-527.9/555 参照は line171/251 の 07-03 履歴記述=正) (2) [[2026-07-06]] リンク解決 ✅、新規破損リンク 0件 (3) stale なし — データ 07-06 当日 (run は 07-07 JST 早朝)
 - ⚠️ 未解決（継続）: `API_AUTH_TOKEN` watchdog gap (user が Render dashboard で値投入待ち、agg-kelly gate が現行の稼働中セーフティネット) / sr_anti_hunt_bounce shadow data corruption
+
+## 2026-07-07 fx-roadmap-v23-handoff 完遂 + lint
+- ✅ ゲート④(改) LOCKED 化 = PR #51 マージ (main 0cf4e01a) / roadmap v2.3 DRAFT 起案 = PR #52 マージ (main 5212b5c7、[[roadmap-v2.3-payoff-friction-repair]] + index.md/CLAUDE.md 参照更新 + 検証ログ節)
+- ✅ 独立再計測 (snapshot 12,325行): clean live 30d N=92/−242.6p/WR55.4%/payoff 0.27 完全再現。draft の shadow N=2,466 は dedup キー未照合 (raw 3,281) — v2.3 T4 着手時に estimand 確定要
+- ✅ Lint: v2.3 draft の wikilink 4/4 解決 (main 上)。ローカル (research/h4-level-edge) の index.md/CLAUDE.md 参照も v2.3 へ同期、draft ファイルをローカルへ複製
+- ⚠️ **main の index.md DD 行が stale (80.03%/2026-06-10)** — monitor 系の index 更新が research/h4-level-edge 側にのみ蓄積 (53 commits 未 push 乖離の症状、MEMORY project_main_divergence_resolved 参照)。v2.3 は表示 DD% を監視 KPI から除外し実 NAV(JPY) 基準へ統一予定のため、main 側 DD 行の単発修正はせず乖離解消 (別件) に委ねる
