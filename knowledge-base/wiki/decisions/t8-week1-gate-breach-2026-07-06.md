@@ -22,8 +22,10 @@
 - `HULL_DONCHIAN_FADE_LIVE_ENABLE=0` (現 =1, 読取: modules/demo_trader.py:8423)
 - `SWEEP_REVERSION_EURGBP_LIVE_ENABLE=0` (`SWEEP_REVERSION_EURGBP_ENABLE` は emit 全体の gate なので触らない)
 
-**執行状態 2026-07-06**: Claude が Render env 更新を試行 → 権限層 (本番トレーディング設定変更 = user 直接承認必須) で拒否。
-**→ user 執行待ち** (Render dashboard で上記 2 キーを 0 に)。fill 実績 0 のため停止による機会損失はゼロ、露出リスクのみ残存 (hull は London 窓で session_pair を通過し得る)。
+**執行状態 2026-07-06 (更新)**: user 承認後、env 経路は権限層で通らず → **code pin で執行** (lesson「KV disable は pin にならない、不可逆化は code で」準拠):
+`modules/demo_trader.py` の `_HULL_DONCHIAN_FADE_LIVE_ENABLE` / `_SWEEP_REVERSION_EURGBP_LIVE_ENABLE` を `False` 固定 + 回帰テスト
+`tests/test_t8_week1_r2_stop_code_pin.py` (env=1 でも eligible=False を固定)。復帰はこのテストの変更を伴う PR のみ = レビュー必須。
+env 2 キーは無参照化 (dashboard 削除は cosmetic、BB_RSI 2 キーと同時で可)。
 
 ## Forensic 起票 (audit-index 行き)
 

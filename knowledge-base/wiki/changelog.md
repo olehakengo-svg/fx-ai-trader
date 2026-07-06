@@ -4,6 +4,13 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-06 — T8 初週 R2 STOP: hull/sweep LIVE 転送を code pin で停止 (rule:R2)
+
+- pre-reg [[sweep-hull-live-week1-prereg-2026-06-12]] 拘束ゲート抵触 (sweep=ゲート① 24日 fill 0 / hull=ゲート④ 同一バー再emit) → 裁量禁止条項に従い LIVE 転送停止。
+- env フラグでなく `_*_LIVE_ENABLE = False` の code pin (lesson: KV disable は pin にならない)。Shadow は原則3で継続。
+- 影響トレード: なし (両戦略とも live fill 実績 0)。復帰 = forensic 完了 + 再 LOCK PR のみ。
+- 詳細: [[t8-week1-gate-breach-2026-07-06]]
+
 ## 2026-07-06 — rnb WAIT entry=0 恒常汚染の根絶 + QUALBAR print 化 (観測性 R3 バッチ)
 
 - **rnb_usdjpy**: `compute_rnb_signal` WAIT dict の `entry: 0` (2026-04-05 起源) が PRICE_HISTORY_GUARD 発火 ~2,880件/日 の唯一の発生源と特定 → WAIT に実 Close を埋める 1 行修正。ガードの残発火が真の fetch 障害シグナルに戻る。

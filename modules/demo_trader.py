@@ -8465,7 +8465,10 @@ class DemoTrader:
     # carry_dip / sweep_reversion と同型: env flag が立つ時だけ、この1戦略×EUR_USD に限り
     # SHADOW_MODE/Phase0 gate を bypass。グローバル SHADOW_MODE は触らない。MIN lot 1000u 固定済。
     # Pre-reg 撤退: LiveN>=10 EV<0 / N>=30 WR<55% or PF<1.0 → demote。
-    _HULL_DONCHIAN_FADE_LIVE_ENABLE = _os.environ.get("HULL_DONCHIAN_FADE_LIVE_ENABLE", "0") == "1"
+    # 2026-07-06 T8 R2 STOP (code pin): 初週 pre-reg ゲート④抵触 (同一M15バー内30秒毎再emit)。
+    # env では再武装可能なため code で固定 (lesson: KV disable は pin にならない)。
+    # 復帰 = forensic 完了 + 再 LOCK の PR のみ。decisions/t8-week1-gate-breach-2026-07-06.md
+    _HULL_DONCHIAN_FADE_LIVE_ENABLE = False  # was: env HULL_DONCHIAN_FADE_LIVE_ENABLE
     _HULL_DONCHIAN_FADE_LIVE_INSTRUMENT = "EUR_USD"
 
     @classmethod
@@ -8484,8 +8487,10 @@ class DemoTrader:
     # SHADOW_MODE/Phase0/_OANDA_MODE_BLOCKED(daytrade_eurgbp) を bypass。
     # 12y grid 唯一の Bonferroni 生存 cell (N=543 t=4.46)。MIN lot 1000u 固定済。
     # pre-reg LOCK: knowledge-base/wiki/decisions/sweep-reversion-eurgbp-late-live-2026-06-12.md
-    _SWEEP_REVERSION_EURGBP_LIVE_ENABLE = _os.environ.get(
-        "SWEEP_REVERSION_EURGBP_LIVE_ENABLE", "0") == "1"
+    # 2026-07-06 T8 R2 STOP (code pin): 初週 pre-reg ゲート①抵触 (24日 live fill 0、
+    # HTF hard gate が emit を 100% silent drop)。復帰 = P-S1(a) HTF exemption の R1 user
+    # 決裁 or retire 判断後の PR のみ。decisions/t8-week1-gate-breach-2026-07-06.md
+    _SWEEP_REVERSION_EURGBP_LIVE_ENABLE = False  # was: env SWEEP_REVERSION_EURGBP_LIVE_ENABLE
     _SWEEP_REVERSION_EURGBP_INSTRUMENT = "EUR_GBP"
 
     @classmethod
