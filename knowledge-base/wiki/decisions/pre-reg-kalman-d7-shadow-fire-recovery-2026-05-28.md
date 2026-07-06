@@ -172,3 +172,29 @@ FAIL (Kalman 固有問題):
 - 親 pre-reg (Cluster A SENTINEL 全体): 29ec95cb commit message 内
 - Kalman D7 LIVE 投入経緯: [project_kalman_d7_regime_bound_live_2026_05_20](../../../memory/project_kalman_d7_regime_bound_live_2026_05_20.md)
 - 2026-05-28 セッション pipeline probe ログ: チャット履歴 (compute_daytrade_signal manual call @ bar 2026-05-27 05:00 UTC → 3 emit confirmed)
+
+
+---
+
+## 追補 2026-07-06 (roadmap T9): qualifying-bar 基準への書換え
+
+**原 LOCK の判定基準・結果は変更しない** (HARKing 防止条項の対象は §3 の当時判定)。本追補は以後の 0-fire 判定に**分母**を与える観測基盤の追加である。
+
+### 問題 (T9 の動機)
+原 pre-reg の基準は「24h 以内に fire するはず」という分母なし仮説で、0-fire が
+(a) PO-UP transition 自体が起きていない (市場条件、設計通りの dormant)
+(b) transition は起きたが後段 filter (DIST/GAP/ATR-Q/RSI/session) で落ちた
+(c) 経路ブロック (silent drop 等の構造バグ)
+のどれかを production から判別できなかった。carry dip T7 と同型の観測性欠陥。
+
+### 新基準 (qualifying-bar basis)
+- **qualifying bar** = PO-UP transition バー (`ctx.regime_po=="UP" and regime_po_start_up`、USDJPY M15)
+- telemetry: `[kalman_d7] QUALBAR bar=.. dist_pass=.. gap_pass=.. atrq_pass=.. rsi_pass=.. session_pass=.. emit=..` を qualifying bar 毎に 1 行 print (class 属性 dedup で 3 variant × 30s 再 poll でも 1 行。engine-reconstruction 耐性)
+- **判定表**:
+  | QUALBAR 数 | 発火数 | 結論 |
+  |---|---|---|
+  | 0 | 0 | (a) 設計通り dormant — 異常なし |
+  | >0, 全 emit=False | 0 | (b) filter 落ち — breakdown 列で原因特定、パラメータ議論は R1 |
+  | >0, emit=True あり | 0 | (c) **経路ブロック — R3 forensic 即時起票** |
+- 分子の監視: prereg-trigger-registry `t9-kalman-d7-fire-info` (3 variant 前方一致、BT 期待 3.9/週) が Tier A daily cron で毎日報告
+- 分母の確認: Render app ログ `grep '\[kalman_d7\] QUALBAR'`

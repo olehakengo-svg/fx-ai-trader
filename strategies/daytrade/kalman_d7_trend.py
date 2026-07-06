@@ -145,13 +145,72 @@ class KalmanD7Base(StrategyBase):
     _enabled_symbols = frozenset({"USDJPY"})
     _dedup_state: dict = {}
 
+    # QUALBAR telemetry (roadmap T9, carry dip QUALBAR と同型):
+    # PO-UP transition バー (= qualifying bar) 毎に後段 filter の breakdown を
+    # 1 行 print する。0-fire が「トリガー不成立」か「filter で落ちた」かを
+    # production ログで判定可能にする。
+    # class 属性なのは意図的 — instance 属性は poll 毎の Engine 再構築で消える
+    # (engine-reconstruction 教訓 2026-07-06)。class object は process 内で持続
+    # するため、3 variant × 30s 再 poll でも同一バー 1 行に抑えられる。
+    _qualbar_logged: dict = {}
+    _QUALBAR_STATE_MAX = 64
+
     @classmethod
     def reset_dedup_state(cls):
         cls._dedup_state.clear()
+        KalmanD7Base._qualbar_logged.clear()
 
     def _env_disabled(self) -> bool:
         flag = f"KALMAN_D7_DISABLED"  # global kill-switch
         return os.environ.get(flag) == "1"
+
+    @staticmethod
+    def _qualbar_bar_id(ctx: SignalContext):
+        bar_time = getattr(ctx, "bar_time", None)
+        if bar_time is not None:
+            return bar_time
+        try:
+            if ctx.df is not None and len(ctx.df.index):
+                return ctx.df.index[-1]
+        except Exception:
+            pass
+        return None
+
+    @classmethod
+    def _log_qualbar(cls, ctx: SignalContext, ind: dict) -> None:
+        """PO-UP transition バーでのみ呼ばれる。filter breakdown を 1 行 print。"""
+        bar_id = cls._qualbar_bar_id(ctx)
+        if bar_id is None:
+            return
+        key = (str(ctx.symbol), str(bar_id))
+        state = KalmanD7Base._qualbar_logged
+        if key in state:
+            return
+        state[key] = True
+        if len(state) > KalmanD7Base._QUALBAR_STATE_MAX:
+            for k in list(state)[: KalmanD7Base._QUALBAR_STATE_MAX // 2]:
+                state.pop(k, None)
+
+        atr = ind["atr"]
+        dist_atr = (ctx.entry - ind["ema200"]) / atr if atr else float("nan")
+        gap_atr = (ind["ema25"] - ind["ema200"]) / atr if atr else float("nan")
+        dist_pass = 0 < dist_atr < 3.0
+        gap_pass = gap_atr < 3.0
+        atrq_pass = ind["atr_p20"] <= atr < ind["atr_p80"]
+        rsi_pass = ctx.rsi < 70
+        h = int(ctx.hour_utc) if ctx.hour_utc is not None else 12
+        session_pass = (h < 7) or (7 <= h < 12) or (16 <= h < 21)
+        emit_expected = (dist_pass and gap_pass and atrq_pass
+                         and rsi_pass and session_pass)
+        # print() 必須: 本番 (gunicorn) は logging handler 未設定で INFO が破棄される
+        # (carry dip QUALBAR / rnb-wait-entry-zero-forensic-2026-07-06 と同根拠)
+        print(
+            "[kalman_d7] QUALBAR bar=%s dist_pass=%s gap_pass=%s atrq_pass=%s "
+            "rsi_pass=%s session_pass=%s emit=%s dist=%.2f gap=%.2f rsi=%.1f hour=%02d"
+            % (bar_id, dist_pass, gap_pass, atrq_pass, rsi_pass, session_pass,
+               emit_expected, dist_atr, gap_atr, ctx.rsi, h),
+            flush=True,
+        )
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         if self._env_disabled():
@@ -167,6 +226,10 @@ class KalmanD7Base(StrategyBase):
         ind = _kalman_d7_indicators(ctx)
         if ind is None:
             return None
+
+        # qualifying bar (PO-UP transition) なら filter 通過前に telemetry を出す
+        if ctx.regime_po == "UP" and ctx.regime_po_start_up:
+            self._log_qualbar(ctx, ind)
 
         ok, reasons = _kalman_d7_passes_filters(ctx, ind)
         if not ok:

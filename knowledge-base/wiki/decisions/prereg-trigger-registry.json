@@ -6,7 +6,7 @@
       "active": true,
       "type": "price_below",
       "symbol": "USDJPY=X",
-      "threshold": 159.50,
+      "threshold": 159.5,
       "doc": "knowledge-base/wiki/decisions/jpy-cap-exit-prereg-2026-06-12.md",
       "message": "T5 復帰条件の第1要件 (D1 close<159.50) 成立 — 介入再確認と合わせ user 判断 (lot 1.0x 復帰は KB 記録 + テスト変更 PR 必須)"
     },
@@ -31,6 +31,17 @@
       "expected_per_week": 13.3,
       "doc": "knowledge-base/wiki/decisions/t8-week1-gate-breach-2026-07-06.md",
       "message": "hull 発火頻度 band 監視 (ゲート① 再評価用、復帰判断の材料)"
+    },
+    {
+      "id": "t9-kalman-d7-fire-info",
+      "active": true,
+      "type": "shadow_count_info",
+      "entry_type": "kalman_d7",
+      "match": "prefix",
+      "since": "2026-07-06",
+      "expected_per_week": 3.9,
+      "doc": "knowledge-base/wiki/decisions/pre-reg-kalman-d7-shadow-fire-recovery-2026-05-28.md",
+      "message": "kalman D7 発火数 (3 variant 前方一致合算) vs BT 期待 3.9/週。分子ゼロが続く場合は Render ログの [kalman_d7] QUALBAR 行 (分母) と突合して 0-fire の原因を判定"
     }
   ]
 }
