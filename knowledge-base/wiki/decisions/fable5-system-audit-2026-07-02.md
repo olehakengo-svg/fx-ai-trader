@@ -50,7 +50,7 @@
 - **修正案**: 3エンジンに同じ ablation ガードを適用 (診断済み・修正実績ありのため R3 扱いで即修正可)。
 - **付随 (P2)**: 同一バー TP+SL 同時ヒットの tie-break が `fut_close` 基準 (保守的 SL 優先でない) — 全エンジン共通の副次的楽観バイアス。
 
-### P1-3: stale な v9.x SHADOW_MIGRATION が restart 毎に is_shadow を再汚染 【CONFIRMED】
+### P1-3: stale な v9.x SHADOW_MIGRATION が restart 毎に is_shadow を再汚染 【✅ FIXED 2026-07-07 — ブロック削除 (rule:R3)。回帰テスト `tests/test_shadow_migration_block_removed.py`。区別ケース=fill callback 喪失行 (audit=filled ∧ oanda_trade_id 欠落): 旧ブロックは無条件 shadow 固定、後継 FLAG_DRIFT backfill は UNSAFE 検知で live 保持】
 - **場所**: `modules/demo_db.py:473-533`
 - **証拠**: `_init_tables()` 内で毎起動、ハードコード `_force_demoted` 集合 (**現役の `dt_bb_rsi_mr`=edge cell E1/E3/E5/E7/E11、`bb_squeeze_breakout`=PAIR_PROMOTED を含む**) に対し `is_shadow=0→1` を一括 UPDATE。冪等マーカーなし、`oanda_trade_id` 安全チェックなし、全体が `except Exception: pass`。後続の drift backfill が `oanda_trade_id` 保持行を復元するため大半は自己修復するが、fill callback 喪失行は shadow に固定され Kelly/WR 集計から消える。
 - **修正案**: 後継の `_backfill_force_demoted_leak_impl` (動的リスト+冪等+安全チェック) が存在するため、このブロックは削除。
@@ -78,6 +78,12 @@
 ### P1-8: scalp BT の QUALIFIED_TYPES 同期に機械的保証なし
 - **証拠**: `mtf_trend_follow_scalp` / `mtf_counter_trend_scalp` / `mtf_regime_trend_cascade_scalp` は本番 enabled だが `run_scalp_backtest` 内 inline set (app.py:5865-5902) に不在 (vec harness 必須のため意図的の可能性が高いが未文書化)。`scripts/check.py` はこの inline set を検査しない。
 - **修正案**: 意図的除外の文書化 + check.py に drift 検査追加 (DT_QUALIFIED の step 4 と同型)。
+
+### P1-9: `_get_strategy_kelly_clean` が clip 済み full_kelly を返し負値判定が構造的不発 【✅ FIXED 2026-07-07 — raw フラグ追加 (rule:R3)】
+- **場所**: `modules/demo_trader.py` `_get_strategy_kelly_clean` (return `full_kelly`)、参照 `:7219` (P0#3 promote guard) / `:7461-7466`→`_shadow_promotion_decision` (`kelly_blocked = kelly_f < 0`)
+- **証拠**: P1-1 で `_get_strategy_kelly` を clean 版へ委譲した際、clean 版が `kelly_criterion(...).get("full_kelly")` = **max(0,·) クリップ値**を返すことが残存。負エッジ検出を意図した 2 経路 (strategy promote guard `_kelly_block`、shadow promote `kelly_blocked`) はいずれも `< 0` を評価するため、クリップにより**構造的に発火不能**だった (`_get_aggregate_kelly` が P1-1 で `full_kelly_raw` 化されたのと同型の残債)。
+- **修正**: `_get_strategy_kelly_clean(entry_type, raw=False)` に `raw` 引数を追加。`raw=True` は `full_kelly_raw` (非クリップ、負値可) を返す。負値検出 2 経路 (`:7219` は `raw=True`、shadow promote は `_get_strategy_kelly_clean(et, raw=True)` を直接呼ぶよう変更) のみ raw を使用。**実弾サイジング経路** (`_get_strategy_kelly`→dynamic boost / half-Kelly cap) は default `raw=False` のクリップ値を維持 (挙動不変)。
+- **回帰テスト**: `tests/test_strategy_kelly_clean_delegation.py` (raw が負値返却 / lot 経路はクリップ維持 / `_shadow_promotion_decision` の `kelly_blocked` が raw 負値で発火・clip 0.0 で不発)。
 
 ---
 
@@ -130,7 +136,7 @@
 
 **Phase B — 今週中 (統計インフラ)**
 6. BE/Trail ablation を scalp/1H×2 エンジンへ展開 (P1-2, R3)
-7. stale SHADOW_MIGRATION ブロック削除 (P1-3)
+7. ✅ stale SHADOW_MIGRATION ブロック削除 (P1-3、2026-07-07 完了) + ✅ strategy Kelly raw 化 (P1-9、2026-07-07 完了)
 8. CI: hip1 job 追加 + paths filter 撤廃 + dev.agent.yaml 訂正 (P1-7)
 9. 再送ガード共通化 (P1-6) / scalp QUALIFIED_TYPES check (P1-8)
 
