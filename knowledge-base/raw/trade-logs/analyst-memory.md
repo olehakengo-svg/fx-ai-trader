@@ -2544,6 +2544,16 @@ bb_rsi_reversionが9/11で勝利しPnL+9.0を稼いだが、xs_momentum_rsiの�
 - 現在UTC 17:52 — NYオープン（UTC 13:00）は既に4時間50分経過
 - 現時点のレジーム: EUR/JPY・EUR/USD・GBP/JPY・GBP/USD → **RANGING**、USD/JPY → **VOLATILE**（ATR%ile 66%）
 
+### 2026-07-07 (Pre-Tokyo Briefing)
+| PnL合計（前日） | **-2.4p** |
+| 全体WR | **0.0%** (N=1) |
+前日は `ny_close_reversal / USD_JPY` のSELL1件のみ。SIGNAL_REVERSEで決済、-2.4pの損失。活動量は極小。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+※前日分のN=1のEV=-2.40。全期間集計ではN=2として扱う
+| ① | `ny_close_reversal` がSIGNAL_REVERSEで強制決済 → exit執行の崩壊パターン（KB v2.3確認済みの構造的問題と一致） |
+- `ny_close_reversal` はN=2・WR=0%。本日も同戦略がファイアした場合、**統計的にノイズ域**であることを念頭に置く
+- シグナル頻度の低さはモード数（24）に対してトレード数が極端に少ないことを示す → **ルール通り蓄積継続、介入不要**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
