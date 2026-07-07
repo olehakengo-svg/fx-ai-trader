@@ -1,5 +1,16 @@
 # FX AI Trader - Changelog
 
+## 2026-07-07 — feat(obs): LIVE 例外レバー観測エンドポイント + BB_RSI env-gated デッドコード撤去 (rule:R3)
+
+- `app.py`: `/api/demo/live-enable-flags` (read-only) 新設 — USDJPY_CARRY_DIP / KALMAN_D7 の
+  effective (import 時 class attr) と env_now (現在値) を突合し drift を報告。hull/sweep の
+  code pin (False) も報告。Render dashboard の env 実値が外部から読めない問題
+  (2026-07-06 未解決事項) の恒久解決 — `order_bar_dedup` counter と同じ観測可能性パターン
+- `app.py`: `BB_RSI_EMA_ALIGNED_REDESIGN_V2(+_SHADOW_PROMOTE)` env-gated shadow-emit ブロックを撤去 —
+  T10 KILL (再試行禁止) 済み戦略の再武装可能デッドコード。PR #41 (strategy 側撤去) と同枠。
+  これで BB_RSI 2 キーは完全無参照化 = Render dashboard からの削除は純粋 cosmetic
+- tests: `tests/test_live_enable_flags_endpoint.py` (契約固定 + BB_RSI レバー復活防止 pin)
+
 ## 2026-07-06 — fix(order): order-layer per-bar dedup for rebuilt engines (rule:R3)
 
 - `modules/demo_trader.py`: primary `_tick_entry` and direct `shadow_emit` DB insert path now share
