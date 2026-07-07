@@ -2534,6 +2534,16 @@ bb_rsi_reversionが9/11で勝利しPnL+9.0を稼いだが、xs_momentum_rsiの�
 - `r2_shadow_demoted_cell`（scalp_5m_gbp: 7件、scalp_5m_eur: 4件等）= デモ評価中のセルがシャドウに降格され本番未送信。
 - hedge_blockの主因ペア（daytrade, daytrade_gbpjpy）は両建て検出が連続発動中。ヘッジポジション解消まで当該ペアの約定数は回復しない。現状維持で観察。
 
+### 2026-07-07 (Post-London Report)
+| WR | **0.0%** (0/1) |
+| PnL | **−6.8 pips** |
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+| `dt_bb_rsi_mr` | GBP_USD | BUY | **−6.8p** | SL_HIT — BT上EV陰性（GBP_USD: EV=−0.135）の戦略が逆張りエントリーし、スプレッド1.3pipsの摩擦下でSLまで押し切られた |
+**構造的問題**: `dt_bb_rsi_mr` はKBで **GBP_USDのBT EV=−0.135**（USD_JPYもEV=−0.023）と記録されており、今セッションの失敗はノイズではなく **BT期待値の現実化**と解釈すべき。
+| PnL | — | −6.8p |
+- 現在UTC 17:52 — NYオープン（UTC 13:00）は既に4時間50分経過
+- 現時点のレジーム: EUR/JPY・EUR/USD・GBP/JPY・GBP/USD → **RANGING**、USD/JPY → **VOLATILE**（ATR%ile 66%）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
