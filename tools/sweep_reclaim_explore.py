@@ -395,20 +395,6 @@ def run_pair(pair, friction_pip, filters, strict_bar=0.0, strict_depth=0.0, stri
     _block("全期間", trades)
     _block("TRAIN", tr)
     _block("HOLDOUT", ho)
-
-    # 時間安定性: 年次 + 四半期 EV (符号が出入りするなら非定常 = Live不可)
-    tt = trades.copy()
-    tt["year"] = tt["time"].dt.year
-    tt["q"] = tt["time"].dt.year.astype(str) + "Q" + tt["time"].dt.quarter.astype(str)
-    print(f"\n── 年次 EV (friction={friction_pip}) ── 符号が年で反転するなら非定常")
-    print(f"  {'year':<7}{'N':>6}{'WR%':>7}{'PF':>7}{'EV':>9}{'sum':>9}")
-    for y, sub in tt.groupby("year"):
-        a = _agg(sub)
-        flag = "" if a["EV"] > 0 else "  ←負"
-        print(f"  {y:<7}{a['N']:>6}{a['WR']:>7.1f}{a['PF']:>7.2f}{a['EV']:>+9.2f}{a['sum']:>+9.0f}{flag}")
-    pos_q = sum(1 for _, s in tt.groupby("q") if _agg(s)["EV"] > 0)
-    n_q = tt["q"].nunique()
-    print(f"  四半期: 正EV {pos_q}/{n_q} ({100*pos_q/n_q:.0f}%)  ※安定エッジなら大半が正")
     print(f"\n exit: " + " / ".join(f"{r}:{c}" for r, c in trades['reason'].value_counts().items()))
     print(f" 平均R:R = {trades['rr'].mean():.2f}")
     print(f"\n skip:\n{skips.report()}")

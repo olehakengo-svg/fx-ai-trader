@@ -63,8 +63,50 @@ def _seed_same_price_shadow(trader, *, entry_type: str, instrument: str, price: 
 
 
 def test_r2_shadow_demote_bypassed_when_edge_cell_matches(monkeypatch, tmp_path):
+    # 元々 E4 (bb_rsi_reversion NY SELL) で検証していたが、E4 は 2026-07-02
+    # (rule:R2) で code-level DISABLED (edge-cell-e1-e4-code-disable-2026-07-02.md)。
+    # 現行 registry では「shadow demoted かつ active cell を持つ」実在の組合せが
+    # 存在しないため、bypass 機構そのものは registry を合成して active cell E3
+    # (dt_bb_rsi_mr EUR_USD SELL) で維持する。
+    import modules.demo_trader as demo_trader_mod
+
+    _patch_price(monkeypatch, 1.1000)
+    trader, logs = make_trader(tmp_path, monkeypatch, hour=8)
+    monkeypatch.setattr(
+        demo_trader_mod,
+        "is_shadow_demoted",
+        lambda strategy, instrument: (strategy, instrument) == ("dt_bb_rsi_mr", "EUR_USD"),
+    )
+
+    trader._tick_entry(
+        "daytrade",
+        edge_cfg(),
+        _sell_sig("dt_bb_rsi_mr"),
+        "15m",
+        "EUR_USD",
+    )
+
+    row = _latest_trade(trader._db)
+    assert row["edge_cell_id"] == "E3"
+    assert row["is_shadow"] == 0
+    assert row["oanda_trade_id"]
+    assert not any("r2_shadow_demoted_cell" in key for key in trader._block_counts)
+    assert any("[R2_SHADOW_DEMOTE] edge cell E3 bypass" in log for log in logs)
+    assert any("[EDGE_CELL] E3 shadow→live force override" in log for log in logs)
+
+
+def test_r2_shadow_demote_blocks_when_e4_disabled(monkeypatch, tmp_path):
+    """E4 は match するが DISABLED (lot=0) のため pre-block eligibility を失い、
+    R2_SHADOW_DEMOTE ブロックが通常どおり効く (rule:R2 止血, 2026-07-02)。
+
+    T10 KILL 済み bb_rsi_reversion の NY SELL が二度と OANDA に到達しない
+    ことを固定する回帰テスト (E4 zombie 再武装 incident の再発防止 pin)。
+    KV stage をどの値にしても DISABLED_CELLS が優先。
+    ref: edge-cell-e1-e4-code-disable-2026-07-02.md
+    """
     _patch_price(monkeypatch, 1.1000)
     trader, logs = make_trader(tmp_path, monkeypatch, hour=14)
+    trader._db.set_system_kv("edge_cell_stage:E4", "1")  # zombie 再武装を再現
 
     trader._tick_entry(
         "daytrade",
@@ -74,13 +116,11 @@ def test_r2_shadow_demote_bypassed_when_edge_cell_matches(monkeypatch, tmp_path)
         "EUR_USD",
     )
 
-    row = _latest_trade(trader._db)
-    assert row["edge_cell_id"] == "E4"
-    assert row["is_shadow"] == 0
-    assert row["oanda_trade_id"]
-    assert not any("r2_shadow_demoted_cell" in key for key in trader._block_counts)
-    assert any("[R2_SHADOW_DEMOTE] edge cell E4 bypass" in log for log in logs)
-    assert any("[EDGE_CELL] E4 shadow→live force override" in log for log in logs)
+    assert _latest_trade(trader._db) is None
+    assert not trader._oanda.calls
+    assert trader._block_counts["daytrade:r2_shadow_demoted_cell"] == 1
+    assert not any("[R2_SHADOW_DEMOTE] edge cell E4 bypass" in log for log in logs)
+    assert not any("[EDGE_CELL] E4 shadow→live force override" in log for log in logs)
 
 
 def test_r2_shadow_demote_still_blocks_when_no_edge_cell(monkeypatch, tmp_path):
@@ -105,11 +145,12 @@ def test_r2_shadow_demote_still_blocks_when_no_edge_cell(monkeypatch, tmp_path):
 
 
 def test_same_price_bypassed_when_edge_cell_matches(monkeypatch, tmp_path):
-    # 元々 E8 (session_time_bias EUR_USD LDN) で検証していたが、E8 は 2026-06-25
-    # (rule:R2) で code-level DISABLED (edge-cell-e8-demote-2026-06-25.md)。
-    # SAME_PRICE bypass 経路は active cell E4 (bb_rsi_reversion NY SELL) で維持。
+    # 元々 E8 (session_time_bias EUR_USD LDN) → E4 (bb_rsi_reversion NY SELL) で
+    # 検証していたが、E8 は 2026-06-25、E4 は 2026-07-02 (rule:R2) で code-level
+    # DISABLED。SAME_PRICE bypass 経路は active cell E3 (dt_bb_rsi_mr EUR_USD
+    # SELL) で維持。ref: edge-cell-e1-e4-code-disable-2026-07-02.md
     _patch_price(monkeypatch, 1.1000)
-    trader, logs = make_trader(tmp_path, monkeypatch, hour=14)
+    trader, logs = make_trader(tmp_path, monkeypatch, hour=8)
     _seed_same_price_shadow(
         trader,
         entry_type="seed_shadow",
@@ -120,18 +161,18 @@ def test_same_price_bypassed_when_edge_cell_matches(monkeypatch, tmp_path):
     trader._tick_entry(
         "daytrade",
         edge_cfg(),
-        _sell_sig("bb_rsi_reversion"),
+        _sell_sig("dt_bb_rsi_mr"),
         "15m",
         "EUR_USD",
     )
 
     row = _latest_trade(trader._db)
-    assert row["edge_cell_id"] == "E4"
+    assert row["edge_cell_id"] == "E3"
     assert row["is_shadow"] == 0
     assert row["oanda_trade_id"]
     assert not any("same_price_0pip" in key for key in trader._block_counts)
-    assert any("[SAME_PRICE] edge cell E4 bypass" in log for log in logs)
-    assert any("[EDGE_CELL] E4 shadow→live force override" in log for log in logs)
+    assert any("[SAME_PRICE] edge cell E3 bypass" in log for log in logs)
+    assert any("[EDGE_CELL] E3 shadow→live force override" in log for log in logs)
 
 
 def test_same_price_blocks_when_matched_cell_disabled(monkeypatch, tmp_path):

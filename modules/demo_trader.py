@@ -80,6 +80,23 @@ LDN_MORNING_SIZE_LEVER_REASON = "ldn_morning_size_lever_0.5x"
 LDN_MORNING_SIZE_LEVER_CELLS = frozenset({"E5", "E7", "E10"})
 LDN_MORNING_SIZE_LEVER_HOURS_UTC = frozenset({7, 8, 9})
 
+# 2026-07-06 T5 pre-reg 執行 (rule:R2, 裁量禁止条項):
+# トリガー「USD_JPY D1 close > 160.80」が 2026-06-18 に成立 (MASSIVE D1 close=161.295、
+# 以降 07-03 まで 14 営業日連続 160.80 超、max 162.631)。発動アクションは pre-reg 規定の
+# 機械執行 = JPY 系 4 戦略の LIVE lot 0.5x SIZE lever (Shadow は原則3で無変更)。
+# 根拠: knowledge-base/wiki/decisions/jpy-cap-exit-prereg-2026-06-12.md
+# 解除 = 復帰条件 (D1 close<159.50 回帰+介入再確認 / BOJ 後は clean N>=10 EV>0) を KB に
+# 記録した上で本定数を False にする PR のみ。env/KV 経路は意図的に作らない
+# (lesson: KV disable は pin にならない、不可逆化は code で)。
+JPY_CAP_EXIT_SIZE_LEVER_ACTIVE = True
+JPY_CAP_EXIT_SIZE_LEVER_REASON = "jpy_cap_exit_size_lever_0.5x"
+JPY_CAP_EXIT_SIZE_LEVER_STRATEGIES = frozenset({
+    "vsg_jpy_reversal",
+    "dt_sr_channel_reversal",
+    "vix_carry_unwind",
+    "ema200_trend_reversal",
+})
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MFE-pip-based Break-Even Lock (含み益ロック)
@@ -758,6 +775,10 @@ class DemoTrader:
         # 60秒以内の同一キーをブロック (DB commit を待たない即時判定で
         # 並行モードスレッドの open_trades fetch race を回避)
         self._recent_signal_emits = {}
+        # Closed-bar order-layer dedup. Keyed by
+        # (entry_type, instrument, direction, closed_bar_ts), shared by primary
+        # and shadow emit paths because strategy instances are rebuilt per poll.
+        self._order_bar_signal_emits = {}
         # 2026-04-30 diagnostics: count dedup outcomes per emit path so we can
         # tell from /api/admin/dedup_status whether the gate is actually being
         # called and whether it's blocking or passing.
@@ -984,6 +1005,91 @@ class DemoTrader:
         self._dedup_stats.setdefault("shadow_pass_log", [])
         self._dedup_stats.setdefault("hydrated_from_db", 0)
 
+    @staticmethod
+    def _normalize_order_bar_ts(bar_ts):
+        """Normalize closed-bar timestamps for order-layer per-bar dedup keys."""
+        if bar_ts is None or bar_ts == "":
+            return None
+        try:
+            if hasattr(bar_ts, "to_pydatetime"):
+                bar_ts = bar_ts.to_pydatetime()
+            elif isinstance(bar_ts, str):
+                bar_ts = datetime.fromisoformat(bar_ts.replace("Z", "+00:00"))
+            if isinstance(bar_ts, datetime):
+                if bar_ts.tzinfo is None:
+                    bar_ts = bar_ts.replace(tzinfo=timezone.utc)
+                else:
+                    bar_ts = bar_ts.astimezone(timezone.utc)
+                return bar_ts.replace(microsecond=0).isoformat()
+        except Exception:
+            return str(bar_ts)
+        return str(bar_ts)
+
+    @classmethod
+    def _closed_bar_ts_from_df(cls, df):
+        """Return the timestamp of the latest closed bar used by signal compute."""
+        try:
+            if df is None or len(df) == 0:
+                return None
+            idx = getattr(df, "index", None)
+            if idx is None or len(idx) == 0:
+                return None
+            return cls._normalize_order_bar_ts(idx[-1])
+        except Exception:
+            return None
+
+    def _record_order_bar_dedup_block(self, *, mode: str, entry_type: str) -> None:
+        if not hasattr(self, "_block_counts") or not isinstance(self._block_counts, dict):
+            self._block_counts = {}
+        if (
+            not hasattr(self, "_block_counts_per_strategy")
+            or not isinstance(self._block_counts_per_strategy, dict)
+        ):
+            self._block_counts_per_strategy = {}
+        reason_key = "order_bar_dedup"
+        mode_key = f"{mode}:{reason_key}"
+        strat_key = f"{entry_type}:{reason_key}"
+        self._block_counts[mode_key] = self._block_counts.get(mode_key, 0) + 1
+        self._block_counts_per_strategy[strat_key] = (
+            self._block_counts_per_strategy.get(strat_key, 0) + 1
+        )
+
+    def _maybe_reserve_order_bar_emit(
+        self,
+        entry_type: str,
+        instrument: str,
+        signal: str,
+        bar_ts,
+        *,
+        tf: str,
+        mode: str,
+        _path: str,
+    ):
+        """Reserve one order-layer emit per closed bar.
+
+        Key space is shared by primary and shadow emit paths. The key does not
+        include mode or is_shadow so parallel mode threads and SHADOW_ALWAYS
+        bypass rows cannot duplicate the same bar-level observation.
+        """
+        norm_bar_ts = self._normalize_order_bar_ts(bar_ts)
+        if not norm_bar_ts:
+            return None
+        key = (entry_type, instrument, signal, norm_bar_ts)
+        now = datetime.now(timezone.utc)
+        window_sec = self._tf_to_window_sec(tf)
+        with self._lock:
+            if not isinstance(getattr(self, "_order_bar_signal_emits", None), dict):
+                self._order_bar_signal_emits = {}
+            if key in self._order_bar_signal_emits:
+                self._record_order_bar_dedup_block(mode=mode, entry_type=entry_type)
+                return key
+            self._order_bar_signal_emits[key] = now
+            stale_cutoff = now - timedelta(seconds=max(7200, 2 * window_sec))
+            self._order_bar_signal_emits = {
+                k: v for k, v in self._order_bar_signal_emits.items() if v > stale_cutoff
+            }
+        return None
+
     def _open_shadow_emit_trade(self, *, direction: str, entry_price: float,
                                 sl: float, tp: float, entry_type: str,
                                 confidence: int, tf: str, reasons: list,
@@ -1011,9 +1117,25 @@ class DemoTrader:
                                 sr_meta=None,
                                 dedup_already_reserved: bool = False,
                                 dedup_path: str = "shadow",
-                                dedup_window_sec: int | None = None) -> str | None:
+                                dedup_window_sec: int | None = None,
+                                signal_bar_ts=None) -> str | None:
         """Persist a shadow-emit trade and audit OANDA skip visibility."""
         if not dedup_already_reserved:
+            bar_key = self._maybe_reserve_order_bar_emit(
+                entry_type,
+                instrument,
+                direction,
+                signal_bar_ts,
+                tf=tf,
+                mode=mode,
+                _path=dedup_path,
+            )
+            if bar_key is not None:
+                self._add_log(
+                    f"[ORDER_BAR_DEDUP] blocked shadow {entry_type} {instrument} "
+                    f"{direction}: bar_ts={bar_key[3]}"
+                )
+                return None
             window_sec = dedup_window_sec or self._tf_to_window_sec(tf)
             dedup_age = self._maybe_reserve_signal_emit(
                 entry_type,
@@ -2117,9 +2239,18 @@ class DemoTrader:
             import logging
             logging.getLogger(__name__).debug(f"oanda sync check error: {e}")
 
+    # P0-2 (fable5 audit 2026-07-03, rule:R3): 孤児クローズの最小年齢。
+    # fire-and-forget fill → DB write-back 完了前の再起動/デプロイで、正規 live
+    # ポジションが一時的に「孤児」に見える競合窓 (Render deploy ~数分) を覆う。
+    _ORPHAN_MIN_AGE_SEC = 600
+
     def _sync_demo_to_oanda(self):
         """デモ側でクローズ済みだがOANDA側でまだオープンのトレードを強制クローズ。
         デモを正として、OANDA孤児ポジションを解消する。
+
+        P0-2: openTime が _ORPHAN_MIN_AGE_SEC 未満 (または読めない) trade は
+        誤クローズ防止でスキップし次周期に再判定する (fail-safe)。真の孤児は
+        最大 ~10 分遅れでクローズされる (許容コスト)。
         """
         if not self._oanda.active:
             return
@@ -2149,6 +2280,28 @@ class DemoTrader:
             for ot in oanda_open:
                 oid = str(ot.get("id", ""))
                 if oid and oid not in demo_oanda_ids:
+                    # P0-2: openTime 年齢ガード — OANDA v20 はナノ秒精度 RFC3339
+                    # ("2026-07-03T13:08:45.123456789Z") で fromisoformat 非対応の
+                    # ため秒精度で切って UTC 比較。parse 不能も fail-safe skip。
+                    _age_sec = None
+                    try:
+                        _ot_raw = str(ot.get("openTime", ""))[:19]
+                        _ot_dt = datetime.strptime(
+                            _ot_raw, "%Y-%m-%dT%H:%M:%S"
+                        ).replace(tzinfo=timezone.utc)
+                        _age_sec = (
+                            datetime.now(timezone.utc) - _ot_dt
+                        ).total_seconds()
+                    except Exception:
+                        _age_sec = None
+                    if _age_sec is None or _age_sec < self._ORPHAN_MIN_AGE_SEC:
+                        print(
+                            f"[DemoToOanda] Orphan candidate #{oid} skipped "
+                            f"(age={_age_sec}s < {self._ORPHAN_MIN_AGE_SEC}s "
+                            f"or unknown openTime)",
+                            flush=True,
+                        )
+                        continue
                     # デモ側にマッピングがない → 孤児ポジション → クローズ
                     _inst = ot.get("instrument", "?")
                     _units = ot.get("currentUnits", "?")
@@ -3301,6 +3454,7 @@ class DemoTrader:
                         sig_5m = compute_fn(df_5m, "5m", sr_5m, symbol)
                         if (sig_5m.get("signal") != "WAIT"
                                 and sig_5m.get("entry_type") in _5M_ONLY_STRATEGIES):
+                            sig_5m["_closed_bar_ts"] = self._closed_bar_ts_from_df(df_5m)
                             sig = sig_5m
                             sig["_tf_override"] = "5m"
                             print(f"[DemoTrader/scalp] 5m補完: {sig_5m.get('entry_type')} {sig_5m.get('signal')}")
@@ -3326,6 +3480,9 @@ class DemoTrader:
                     sig["entry_type"] = _variant
             except Exception as _ve:
                 print(f"[DemoTrader/{mode}] variant routing error: {_ve}")
+
+            if sig.get("_closed_bar_ts") is None:
+                sig["_closed_bar_ts"] = self._closed_bar_ts_from_df(df)
 
         except Exception as e:
             self._add_log(f"⚠️ [{cfg['label']}] シグナル取得失敗: {e}")
@@ -3628,6 +3785,11 @@ class DemoTrader:
                     confluence_score=_se_confluence.get("score"),
                     confluence_details=_se_confluence.get("details"),
                     sr_meta=_se.get("sr_meta"),
+                    signal_bar_ts=(
+                        _se.get("bar_ts")
+                        or _se.get("_closed_bar_ts")
+                        or sig.get("_closed_bar_ts")
+                    ),
                     dedup_path="shadow",
                 )
         except Exception as _se_err:
@@ -3800,15 +3962,22 @@ class DemoTrader:
                     }
 
         # ── 価格ヒストリー記録（ベロシティ計算用・通貨ペア別）──
+        # rule:R3 0価格ガード: fetch全滅時の 0/None が混入すると spike/velocity gate
+        # が range=価格そのもの で誤発火し当該ペアの live 送信を封鎖する
+        # (2026-07-02 vix Overlap pilot 14/14 shadow 事故, KB zero-fire-diagnosis §2.6)
         _now_rec = datetime.now(timezone.utc)
         _inst = instrument
-        with self._lock:
-            if _inst not in self._price_history:
-                self._price_history[_inst] = []
-            self._price_history[_inst].append((_now_rec, current_price))
-            # 古いデータを削除（最大4時間保持）
-            _cutoff = _now_rec - timedelta(hours=4)
-            self._price_history[_inst] = [(t, p) for t, p in self._price_history[_inst] if t > _cutoff]
+        if current_price and current_price > 0:
+            with self._lock:
+                if _inst not in self._price_history:
+                    self._price_history[_inst] = []
+                self._price_history[_inst].append((_now_rec, current_price))
+                # 古いデータを削除（最大4時間保持）
+                _cutoff = _now_rec - timedelta(hours=4)
+                self._price_history[_inst] = [(t, p) for t, p in self._price_history[_inst] if t > _cutoff]
+        else:
+            print(f"[PRICE_HISTORY_GUARD] drop contaminated tick: {_inst} "
+                  f"price={current_price!r} mode={mode}", flush=True)
         confidence = sig.get("confidence", 0)
         entry_type = sig.get("entry_type", "unknown")
 
@@ -4269,7 +4438,27 @@ class DemoTrader:
         # _maybe_reserve_signal_emit() に集約。詳細: lesson-shadow-emit-dedup-2026-04-30
         # rule:R3 (2026-05-03): TF-aware window — 60s default leaked 15m/5m bar
         # re-emits (audit found 318 violations across 28 combos pre-fix).
+        # rule:R3 (2026-07-06): order-layer per-bar dedup. DaytradeEngine /
+        # HourlyEngine are rebuilt every poll, so strategy instance guards are
+        # live-dead. This guard keys on closed bar identity and is shared by
+        # primary and shadow emit paths; shadow bypasses do not bypass it.
         _primary_window = self._tf_to_window_sec(tf)
+        _signal_bar_ts = sig.get("_closed_bar_ts") or sig.get("bar_ts")
+        _bar_dedup_key = self._maybe_reserve_order_bar_emit(
+            entry_type,
+            instrument,
+            signal,
+            _signal_bar_ts,
+            tf=tf,
+            mode=mode,
+            _path="primary",
+        )
+        if _bar_dedup_key is not None:
+            self._add_log(
+                f"[ORDER_BAR_DEDUP] blocked {entry_type} {instrument} "
+                f"{signal}: bar_ts={_bar_dedup_key[3]}"
+            )
+            return
         _dedup_age = self._maybe_reserve_signal_emit(
             entry_type, instrument, signal,
             window_sec=_primary_window, _path="primary",
@@ -4950,7 +5139,8 @@ class DemoTrader:
         _atr_spike = sig.get("atr", 0.07 if (_is_jpy or "XAU" in instrument) else 0.00070)
         _spike_cutoff = datetime.now(timezone.utc) - timedelta(seconds=60)
         _inst_history = self._price_history.get(instrument, [])
-        _spike_prices = [p for t, p in _inst_history if t > _spike_cutoff]
+        # rule:R3: 0/None 除外 — append ガードと二層 (安全網は単一レイヤーに依存しない)
+        _spike_prices = [p for t, p in _inst_history if t > _spike_cutoff and p and p > 0]
         if len(_spike_prices) >= 3:
             _spike_range = max(_spike_prices) - min(_spike_prices)
             # v7.2: XAU 1.0→2.0 (gold moves 1ATR/min routinely, 2ATR is genuine spike)
@@ -4979,8 +5169,10 @@ class DemoTrader:
         else:
             _vel_threshold_pip = {"scalp": 15.0, "daytrade": 15.0, "daytrade_1h": 20.0}.get(_base_mode, 8.0)  # scalp: 8→15pip（調整局面のカウンタートレード許可）
         _vel_cutoff = _now_vel - timedelta(minutes=_vel_window_min)
-        _recent_prices = [(t, p) for t, p in self._price_history.get(instrument, []) if t > _vel_cutoff]
-        if len(_recent_prices) >= 2:
+        # rule:R3: 0/None 除外 + current_price 無効時スキップ (spike gate と同じ二層防御)
+        _recent_prices = [(t, p) for t, p in self._price_history.get(instrument, [])
+                          if t > _vel_cutoff and p and p > 0]
+        if len(_recent_prices) >= 2 and current_price and current_price > 0:
             _oldest_price = _recent_prices[0][1]
             _price_move = current_price - _oldest_price
             from modules.demo_db import pip_multiplier as _pip_mult_fn
@@ -5886,7 +6078,16 @@ class DemoTrader:
 
         # ── OANDA連携: 昇格済み戦略のみミラーリング + 実行監査 + 🔗ラベルログ ──
         _shadow_at_open = _is_shadow  # v9.x: DB書込み時点の値を保存 (persistence fix)
-        _is_promoted = self._is_promoted(entry_type, instrument)
+        # ── P-V4 (2026-07-02): session filter 窓外 block の観測性 ──
+        # _is_promoted_ex が「deciding factor」の cause タグを返すので、
+        # mode_off / pair_demoted 等の上流 block を session filter に誤帰属
+        # させない。判定はここで 1 回だけ (audit 時点の再評価は UTC hour 跨ぎで
+        # 食い違い得るため)。counter 増分するがトレード自体は shadow として
+        # 継続する (他の _block 呼び出しと違い drop ではなく downgrade)。
+        _is_promoted, _promo_block_cause = self._is_promoted_ex(entry_type, instrument)
+        _session_gate_blocked = _promo_block_cause == "session_filter"
+        if _session_gate_blocked:
+            _block("session_filter_live_downgrade")
         _diag_live_intent = (
             entry_type in self._SILENT_DROP_DIAG_TYPES
             and (
@@ -6098,14 +6299,21 @@ class DemoTrader:
         )
 
         if _edge_cell_force_live:
+            # P0-1 (fable5 audit, user 決裁 2026-07-03, rule:R2): pre-reg LOCK の
+            # 固定 lot にも DD defensive multiplier を適用する。固定サイズの統計的
+            # 純度より口座防御を優先し、min 1000u floor でクリーン N 蓄積は継続。
+            # ref: knowledge-base/wiki/decisions/fable5-phase-a-p0-fixes-2026-07-03.md
+            _edge_cell_units = max(
+                1000, int(_edge_cell_lot * float(self._dd_lot_mult or 1.0))
+            )
             if _is_shadow:
                 self._add_log(
                     f"[EDGE_CELL] {_edge_cell_id} force-live override: "
-                    f"{entry_type} {instrument} -> LIVE {_edge_cell_lot}u"
+                    f"{entry_type} {instrument} -> LIVE {_edge_cell_units}u"
                 )
             _is_shadow = False
             _is_promoted = True
-            _adjusted_units = _edge_cell_lot
+            _adjusted_units = _edge_cell_units
 
         # ── v9.x: Shadow persistence fix ──
         # Bug: open_trade()はL3890の_is_shadowで書込み。その後の安全ネット
@@ -6123,7 +6331,7 @@ class DemoTrader:
         # 早期登録すると Q4 gate / Phase0 gate / FORCE_DEMOTED 経由で Shadow 化された
         # トレードが LIVE として計上されてしまい、後続の LIVE を exposure cap で block する。
         self._exposure_mgr.add_position(trade_id, instrument, signal,
-                                        _edge_cell_lot if _edge_cell_force_live
+                                        _edge_cell_units if _edge_cell_force_live
                                         else int(_os.environ.get("OANDA_UNITS", "10000")),
                                         is_shadow=bool(_is_shadow))
 
@@ -6172,8 +6380,15 @@ class DemoTrader:
             _adjusted_units = 1 if _is_xau_inst else 1000
             _lot_tag = "(🔬SEN/CMD)"
         if _edge_cell_force_live:
-            _adjusted_units = _edge_cell_lot
+            _adjusted_units = _edge_cell_units
             _lot_tag = f"(EDGE-{_edge_cell_id})"
+            if _edge_cell_units != _edge_cell_lot:
+                _lot_tag = f"(EDGE-{_edge_cell_id} 🛡️DD{self._dd_lot_mult:.0%})"
+                self._add_log(
+                    f"[EDGE_CELL] {_edge_cell_id} DD defensive sizing: "
+                    f"pre-reg {_edge_cell_lot}u × {self._dd_lot_mult:.2f} "
+                    f"→ {_edge_cell_units}u (floor 1000u)"
+                )
 
         # ── v6.4 SHIELD: OANDA lot hard cap ──
         if _adjusted_units > self._OANDA_LOT_CAP:
@@ -6203,22 +6418,32 @@ class DemoTrader:
         if _is_promoted:
             # ── v9.0 SHIELD: Aggregate Kelly Gate ──
             # aggregate Kelly < 0 のとき SENTINEL以外のOANDA転送をブロック
+            # (P1 fix 2026-07-02: _get_aggregate_kelly は raw 値を返すようになり
+            #  本 gate が初めて実効化。1000u 固定契約戦略は min-lot bypass — 下記)
             if _strat_mode != "sentinel" and not _is_sentinel and not _edge_cell_force_live:
                 _agg_kelly = self._get_aggregate_kelly()
                 if _agg_kelly is not None and _agg_kelly < 0:
-                    self._add_log(
-                        f"[SHIELD] Aggregate Kelly gate: {_agg_kelly:.3f} < 0 → "
-                        f"OANDA blocked for {entry_type} {instrument} (SENTINEL still allowed)"
-                    )
-                    self._add_oanda_audit(
-                        trade_id=trade_id, entry_type=entry_type,
-                        is_live=False, bridge_status="blocked",
-                        block_reason=f"agg_kelly={_agg_kelly:.3f}<0",
-                        direction=signal, instrument=instrument,
-                        units=_adjusted_units,
-                        sr_meta=_sr_meta,
-                    )
-                    _is_promoted = False  # fall through to non-OANDA path
+                    if self._agg_kelly_gate_minlot_bypass(
+                            entry_type, _adjusted_units, _is_xau_inst):
+                        self._add_log(
+                            f"[SHIELD] Aggregate Kelly gate BYPASS (min-lot pre-reg "
+                            f"contract {_adjusted_units}u): {_agg_kelly:.3f} < 0 but "
+                            f"{entry_type} {instrument} kept live"
+                        )
+                    else:
+                        self._add_log(
+                            f"[SHIELD] Aggregate Kelly gate: {_agg_kelly:.3f} < 0 → "
+                            f"OANDA blocked for {entry_type} {instrument} (SENTINEL still allowed)"
+                        )
+                        self._add_oanda_audit(
+                            trade_id=trade_id, entry_type=entry_type,
+                            is_live=False, bridge_status="blocked",
+                            block_reason=f"agg_kelly={_agg_kelly:.3f}<0",
+                            direction=signal, instrument=instrument,
+                            units=_adjusted_units,
+                            sr_meta=_sr_meta,
+                        )
+                        _is_promoted = False  # fall through to non-OANDA path
             elif _edge_cell_force_live:
                 self._add_log(
                     f"[SHIELD] EDGE_CELL Kelly bypass: {_edge_cell_id} {entry_type} "
@@ -6278,6 +6503,26 @@ class DemoTrader:
             _adjusted_units = _ldn_units
             _lot_tag = f"{_lot_tag}(LDN0.5x)" if _lot_tag else "(LDN0.5x)"
             self._db.append_trade_reason(trade_id, LDN_MORNING_SIZE_LEVER_REASON)
+
+        # T5 pre-reg (JPYキャップ撤退) SIZE lever — LDN lever と同じ最後段・LIVE-only
+        _jpy_cap_units, _jpy_cap_lever_applied = (
+            self._resolve_jpy_cap_exit_size_lever(
+                _adjusted_units,
+                entry_type,
+                is_shadow=False,
+            )
+            if _ldn_live_send
+            else (_adjusted_units, False)
+        )
+        if _jpy_cap_lever_applied:
+            self._add_log(
+                f"[JPY_CAP_EXIT_SIZE] {entry_type} {instrument} "
+                f"{_adjusted_units}u -> {_jpy_cap_units}u "
+                f"(0.5x LIVE-only, pre-reg T5 発動 2026-06-18)"
+            )
+            _adjusted_units = _jpy_cap_units
+            _lot_tag = f"{_lot_tag}(JPYCAP0.5x)" if _lot_tag else "(JPYCAP0.5x)"
+            self._db.append_trade_reason(trade_id, JPY_CAP_EXIT_SIZE_LEVER_REASON)
 
         if _is_promoted:
             if _bridge_active and _mode_allowed:
@@ -6383,9 +6628,14 @@ class DemoTrader:
             _promo_status = _promo.get("status", "pending")
             _block_reason = ""
             if _is_shadow:
+                # P-V4 (2026-07-02): session filter 窓外 block は原因を明示。
+                # "(" 以降は _block_counts の切り詰め規約と同じで、prefix
+                # "shadow_tracking" は既存 grep/tool 互換 (drift guard は
+                # startswith 対応済み)。
                 _block_reason = _resolve_shadow_audit_block_reason(
                     _is_shadow,
-                    SHADOW_TRACKING_BLOCK_REASON,
+                    ("shadow_tracking(session_filter_out)"
+                     if _session_gate_blocked else SHADOW_TRACKING_BLOCK_REASON),
                 )
             elif _strat_mode == "off":
                 _block_reason = "手動停止"
@@ -7758,7 +8008,12 @@ class DemoTrader:
         # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
         ("vix_carry_unwind", "USD_JPY"),       # Overlap-only pilot, 0.05x lot
         ("mqe_gbpusd_fix", "GBP_USD"),         # shadow N=87 EV=+1.81 PF=1.30
-        ("sr_fib_confluence", "GBP_USD"),      # shadow N=39 EV=+1.35 PF=1.29
+        # REMOVED 2026-06-12 (rule:R2) Edge Factor Audit #5: promotion basis
+        # (shadow N=39 EV=+1.35) overturned at N=132 → EV=-1.66. LIVE GBP_USD
+        # breakeven (N=19 EV=-0.07), SELL side bleeding (N=7 -2.77). Full demote
+        # + SHADOW_RETIRED_STRATEGIES. BUY-major (N=12 +1.51) preserved as a
+        # documented redesign hypothesis only.
+        # ("sr_fib_confluence", "GBP_USD"),    # shadow N=39 EV=+1.35 PF=1.29
         # REMOVED 2026-07-02 (rule:R2) LIVE residual-path closure:
         # ("session_time_bias", "EUR_USD") — strategy REJECTED all pairs by
         # 12y MASSIVE BT (2026-06-11, audit-index) and edge cells E2/E8
@@ -8118,6 +8373,38 @@ class DemoTrader:
             return int(base_units), False
         return max(1, int(base_units * 0.5)), True
 
+    def _resolve_jpy_cap_exit_size_lever(
+        self,
+        base_units: int,
+        entry_type: str,
+        is_shadow: bool,
+    ) -> tuple[int, bool]:
+        """Apply the JPY-cap-exit LIVE-only size lever (pre-reg T5, 発動 2026-06-18).
+
+        _resolve_ldn_morning_size_lever と同型: lot チェーンの最後段・LIVE-only。
+        Shadow 記録は変更しない (原則3)。cell-stage lot override とは軸が異なる
+        (strategy 単位の regime lever) ため二重適用にならない。LDN lever と両方
+        該当した場合は合成 (0.25x) — 独立な pre-reg 2 本が同時成立している状態
+        であり、意図通り。
+
+        Floor 1000u (FX 検証ロット規約): vix Overlap pilot 等の「1000u 固定契約」
+        pre-reg (vix-carry-grail-removal-overlap-1000u-2026-06-15) と衝突する場合、
+        より特定的な固定ロット契約を優先する。1000u は agg-Kelly gate bypass の
+        正当性根拠 (validation lot) なので、それ未満への減額は契約違反になる。
+        floor により変化しない場合は applied=False (減額していないのにタグを
+        付けない)。
+        """
+        if is_shadow:
+            return int(base_units), False
+        if not JPY_CAP_EXIT_SIZE_LEVER_ACTIVE:
+            return int(base_units), False
+        if entry_type not in JPY_CAP_EXIT_SIZE_LEVER_STRATEGIES:
+            return int(base_units), False
+        halved = max(1000, int(base_units * 0.5))
+        if halved >= int(base_units):
+            return int(base_units), False
+        return halved, True
+
     @staticmethod
     def _price_shock_rev_min_units(entry_type: str, instrument: str) -> int | None:
         if (entry_type, instrument) in PRICE_SHOCK_REV_TIER1_PAIRS:
@@ -8286,9 +8573,20 @@ class DemoTrader:
         "kalman_d7_ema75_break",
         "kalman_d7_trail_atr",
     })
+    # 2026-07-03 (rule:R3, P-S3): 診断 (ログのみ) と live gate bypass を分離。
+    # 旧構造は _COUNT_GATE_BYPASS_LIVE_EXCEPTIONS が本集合から派生していたため、
+    # 診断対象を増やすと hedge/max_open 等の live gate bypass まで黙って付与
+    # される罠があった。06-12 世代の LIVE 意図的例外 3 戦略 (sweep/hull/carry_dip)
+    # は SENTINEL_BLOCK_DIAG ログの対象にのみ追加 — live gate 挙動は不変。
+    # (sweep の zero-fire が 20 日間観測不能だった網羅漏れの是正。
+    #  詳細: analyses/zero-fire-diagnosis-carrydip-vix-2026-07-02 §3.4)
     _SILENT_DROP_DIAG_TYPES = _KALMAN_D7_LIVE_OVERRIDE | frozenset({
         "zz_pivot_v60_sr",
         "zz_pivot_v60_sr_lo",
+        # 06-12 世代 LIVE 意図的例外 (診断のみ、count-gate bypass ではない):
+        "sweep_reversion_eurgbp_late",
+        "hull_donchian_fade",
+        "usdjpy_carry_dip_accumulator",
     })
 
     # 2026-06-02 (rule:R3): Count-gate bypass for LIVE intentional exceptions.
@@ -8317,7 +8615,21 @@ class DemoTrader:
     # Memory: project_kalman_d7_regime_bound_live_2026_05_20,
     # project_zz_pivot_v60_sr_live_queue_2026_05_28,
     # project_pivot_detector_v2_5_live_exception_2026_05_26.
-    _COUNT_GATE_BYPASS_LIVE_EXCEPTIONS = _SILENT_DROP_DIAG_TYPES | frozenset({
+    #
+    # 2026-07-03 (rule:R3, P-S3): _SILENT_DROP_DIAG_TYPES からの派生をやめ、
+    # user 決裁済みメンバーの明示列挙に変更。診断セット (ログのみ) への追加が
+    # live gate bypass に黙って波及しないようにする。メンバーシップは
+    # 2026-07-02 時点と同一 (挙動変更なし)。追加は user 決裁 + pre-reg 必須。
+    # Pin: tests/test_htf_block_shadow_rescue.py::TestSilentDropDiagSeparationPin
+    _COUNT_GATE_BYPASS_LIVE_EXCEPTIONS = frozenset({
+        # Kalman D7 3-spec (2026-05-20 user 決裁, 0.5x)
+        "kalman_d7_po_dn_flip",
+        "kalman_d7_ema75_break",
+        "kalman_d7_trail_atr",
+        # ZZ Pivot v60 (2026-05-28 user 決裁, 1.0x/0.5x)
+        "zz_pivot_v60_sr",
+        "zz_pivot_v60_sr_lo",
+        # pivot detector (2026-05-26 user 決裁)
         "pivot_detector_v2_5",
     })
 
@@ -8356,7 +8668,10 @@ class DemoTrader:
     # carry_dip / sweep_reversion と同型: env flag が立つ時だけ、この1戦略×EUR_USD に限り
     # SHADOW_MODE/Phase0 gate を bypass。グローバル SHADOW_MODE は触らない。MIN lot 1000u 固定済。
     # Pre-reg 撤退: LiveN>=10 EV<0 / N>=30 WR<55% or PF<1.0 → demote。
-    _HULL_DONCHIAN_FADE_LIVE_ENABLE = _os.environ.get("HULL_DONCHIAN_FADE_LIVE_ENABLE", "0") == "1"
+    # 2026-07-06 T8 R2 STOP (code pin): 初週 pre-reg ゲート④抵触 (同一M15バー内30秒毎再emit)。
+    # env では再武装可能なため code で固定 (lesson: KV disable は pin にならない)。
+    # 復帰 = forensic 完了 + 再 LOCK の PR のみ。decisions/t8-week1-gate-breach-2026-07-06.md
+    _HULL_DONCHIAN_FADE_LIVE_ENABLE = False  # was: env HULL_DONCHIAN_FADE_LIVE_ENABLE
     _HULL_DONCHIAN_FADE_LIVE_INSTRUMENT = "EUR_USD"
 
     @classmethod
@@ -8375,8 +8690,10 @@ class DemoTrader:
     # SHADOW_MODE/Phase0/_OANDA_MODE_BLOCKED(daytrade_eurgbp) を bypass。
     # 12y grid 唯一の Bonferroni 生存 cell (N=543 t=4.46)。MIN lot 1000u 固定済。
     # pre-reg LOCK: knowledge-base/wiki/decisions/sweep-reversion-eurgbp-late-live-2026-06-12.md
-    _SWEEP_REVERSION_EURGBP_LIVE_ENABLE = _os.environ.get(
-        "SWEEP_REVERSION_EURGBP_LIVE_ENABLE", "0") == "1"
+    # 2026-07-06 T8 R2 STOP (code pin): 初週 pre-reg ゲート①抵触 (24日 live fill 0、
+    # HTF hard gate が emit を 100% silent drop)。復帰 = P-S1(a) HTF exemption の R1 user
+    # 決裁 or retire 判断後の PR のみ。decisions/t8-week1-gate-breach-2026-07-06.md
+    _SWEEP_REVERSION_EURGBP_LIVE_ENABLE = False  # was: env SWEEP_REVERSION_EURGBP_LIVE_ENABLE
     _SWEEP_REVERSION_EURGBP_INSTRUMENT = "EUR_GBP"
 
     @classmethod
@@ -8583,37 +8900,78 @@ class DemoTrader:
         except Exception:
             return False, ""
 
+    def _promotion_allows_live(self, entry_type: str, instrument: str = "") -> bool:
+        """_PAIR_SESSION_FILTER の pre-reg LOCK 窓ゲート (P-V3, 2026-07-02).
+
+        _PAIR_SESSION_FILTER 未登録の (strategy, pair) は常に True。
+        登録済みなら現 UTC session が許可窓内のときだけ True。
+
+        pre-reg 文書 (vix-overlap-pilot-prereg-2026-05-13) はこの名前で仕様を
+        書いたが実装は _is_promoted 内にインライン化されていた。2026-07-02
+        zero-fire 診断で「mode=live/sentinel の手動昇格が filter より先に
+        return して LOCK が黙って外れる」構造を確認し、method として抽出のうえ
+        手動昇格経路にも適用 (詳細: analyses/zero-fire-diagnosis-carrydip-vix-2026-07-02)。
+        """
+        _sess_filter = self._PAIR_SESSION_FILTER.get((entry_type, instrument))
+        if _sess_filter is None:
+            return True
+        # module-level datetime (not a local import) so test fixtures
+        # patching demo_trader.datetime control this clock
+        _hour_utc = datetime.now(timezone.utc).hour
+        _curr_sess = next(
+            (name for name, lo, hi in self._SESSION_BOUNDS_UTC if lo <= _hour_utc < hi),
+            None,
+        )
+        return _curr_sess in _sess_filter
+
     def _is_promoted(self, entry_type: str, instrument: str = "") -> bool:
         """戦略がOANDA実行可能か判定 (v6.2: ペア別ライフサイクル + N<10安全策)
 
         優先順位:
         1. Bridge戦略モード: "off"でブロック、"live"/"sentinel"で手動昇格
+           (ただし _PAIR_SESSION_FILTER の pre-reg LOCK 窓は手動昇格でも外れない)
         2. _PAIR_DEMOTED: 特定ペアでのみ降格（ピンポイント敗兵淘汰）
         3. _PAIR_PROMOTED: 特定ペアで復活（グローバルFORCE_DEMOTED解除）
         4. _FORCE_DEMOTED: グローバル降格（手動モードで昇格可能）
         5. 自動降格判定: demoted ステータスでブロック
         6. デフォルト: OANDA送信許可（ただしN<10はSentinel lotで保護 → ロット計算側で実施）
         """
+        return self._is_promoted_ex(entry_type, instrument)[0]
+
+    def _is_promoted_ex(self, entry_type: str, instrument: str = ""):
+        """(allowed, block_cause) を返す _is_promoted の内部実体。
+
+        block_cause は「どの gate が deciding factor だったか」の機械可読タグ
+        (P-V4, 2026-07-02)。session filter 起因の shadow 化を audit で誤帰属
+        させないため、呼び出し側は cause == "session_filter" で判定する
+        (単に not allowed ∧ 窓外 で判定すると mode_off / pair_demoted 等の
+        上流 block を session filter のせいにしてしまう)。
+        """
         _mode = self._oanda.get_strategy_mode(entry_type)
 
         # ── 明示的にOFFなら強制ブロック ──
         if _mode == "off":
-            return False  # 手動停止
+            return False, "mode_off"  # 手動停止
 
         if self._is_price_shock_rev_auto_demoted(entry_type, instrument):
-            return False
+            return False, "price_shock_rev_auto_demoted"
 
         # V2 audit scope: keep EUR_GBP/XAU_USD as shadow-only evidence cells.
         if self._is_trendline_sweep_v2_shadow_pair(entry_type, instrument):
-            return False
+            return False, "tls_v2_shadow_pair"
 
         # ── LIVE/SENTINELの明示指定: 手動昇格パス ──
         if _mode in ("live", "sentinel"):
-            return True  # 全降格を上書き
+            # 全降格を上書き。ただし session filter (pre-reg LOCK) だけは
+            # 手動昇格でも尊重する — operator の mode 操作 1 回で Overlap-only
+            # 等の窓制約が黙って外れる罠を封鎖 (P-V3, 2026-07-02)。
+            if not self._promotion_allows_live(entry_type, instrument):
+                return False, "session_filter"
+            return True, ""
 
         # ── ペア別降格: 特定ペアでのみEVマイナスの組み合わせ ──
         if self._is_pair_demoted_entry(entry_type, instrument):
-            return False  # ペア限定降格 (静的)
+            return False, "pair_demoted"  # ペア限定降格 (静的 + watchdog runtime)
 
         # ── ペア別復活: FORCE_DEMOTEDでもペア限定で復活 ──
         if instrument and (entry_type, instrument) in self._PAIR_PROMOTED:
@@ -8622,27 +8980,18 @@ class DemoTrader:
             # session 内でのみ Live emit。それ以外は False を返し shadow に
             # 落ちる (PAIR_PROMOTED の通過権限を session で狭める).
             # 詳細: knowledge-base/wiki/decisions/vix-overlap-pilot-prereg-2026-05-13.md
-            _sess_filter = self._PAIR_SESSION_FILTER.get((entry_type, instrument))
-            if _sess_filter is not None:
-                # module-level datetime (not a local import) so test fixtures
-                # patching demo_trader.datetime control this clock
-                _hour_utc = datetime.now(timezone.utc).hour
-                _curr_sess = next(
-                    (name for name, lo, hi in self._SESSION_BOUNDS_UTC if lo <= _hour_utc < hi),
-                    None,
-                )
-                if _curr_sess not in _sess_filter:
-                    return False  # cell-conditional gate: outside allowed window
-            return True  # ペア限定昇格
+            if not self._promotion_allows_live(entry_type, instrument):
+                return False, "session_filter"  # outside allowed window
+            return True, ""  # ペア限定昇格
 
         # ── _FORCE_DEMOTED: 明示的モード指定がない場合はブロック ──
         if self._is_force_demoted_entry(entry_type):
-            return False  # デモ継続・OANDA停止
+            return False, "force_demoted"  # デモ継続・OANDA停止
 
         # ── 自動降格判定で demoted になった戦略もブロック ──
         info = self._promoted_types.get(entry_type)
         if info and info.get("status") == "demoted":
-            return False
+            return False, "auto_demoted"
 
         # ── Cell-aware routing (EDGE.md, 2026-04-26) ──
         # (strategy, cell3d) で BLOCK 認定された場合のみブロック.
@@ -8657,14 +9006,14 @@ class DemoTrader:
             try:
                 from modules.cell_routing import get_routing
                 if get_routing(entry_type, instrument, cell3d) == "BLOCK":
-                    return False
+                    return False, "cell_routing_block"
                 # KELLY_HALF/FULL は lot 計算側で適用 (本 phase では未配線)
             except Exception:
                 pass  # fail-open
 
         # v6.2: OANDA送信は許可。N<10の未検証戦略はSentinel lotで保護
         # (ロット計算側の _is_sentinel 判定で 0.01lot 化される)
-        return True
+        return True, ""
 
     def _get_current_cell3d(self, instrument: str):
         """Return current v6 cell3d "{regime}__{vol}__{session}" or None.
@@ -8694,8 +9043,12 @@ class DemoTrader:
 
     def _get_aggregate_kelly(self) -> float:
         """Compute aggregate Kelly criterion across all clean post-cutoff trades.
-        Returns full_kelly float or None if insufficient data.
-        Used as a safety gate to block OANDA forwarding when aggregate edge is negative.
+        Returns UNCLIPPED full_kelly float (negative-capable) or None if
+        insufficient data.
+        Used as a safety gate to block OANDA forwarding when aggregate edge is
+        negative — kelly_criterion's `full_kelly` is clipped to max(0,·) for
+        lot sizing, which made the `< 0` gate structurally unfireable
+        (P1 fix 2026-07-02, rule:R3). Reads `full_kelly_raw` instead.
         Cached for 60 seconds to avoid repeated DB queries.
         """
         now = time.time()
@@ -8725,40 +9078,49 @@ class DemoTrader:
             avg_win = sum(wins) / len(wins)
             avg_loss = abs(sum(losses) / len(losses))
             result = kelly_criterion(wr, avg_win, avg_loss)
-            k = result.get("full_kelly", 0.0)
+            k = result.get("full_kelly_raw", 0.0)
             self._agg_kelly_cache = k
             self._agg_kelly_cache_ts = now
             return k
         except Exception:
             return None
 
+    # ── Aggregate Kelly Gate: 1000u 固定契約 pre-reg bypass (2026-07-02 user 決裁) ──
+    # gate が既に許可している sentinel 1000u と同一リスク水準の「検証 fill」のみ免除。
+    # allowlist (eligible) と実効 units (effective) の両方が成立して初めて bypass —
+    # 将来 lot が 5000u 等へ昇格したら bypass は自動失効する (eligible vs effective 教訓)。
+    # hull_donchian_fade は 5000u 契約 (5x リスク) のため意図的に対象外。
+    # 詳細: knowledge-base/wiki/decisions/agg-kelly-gate-raw-fix-minlot-bypass-2026-07-02.md
+    _AGG_KELLY_GATE_MINLOT_BYPASS_TYPES = frozenset({
+        "vix_carry_unwind",              # Overlap pilot 1000u 固定 (2026-06-15)
+        "usdjpy_carry_dip_accumulator",  # MIN lot 1000u 契約 (2026-06-12)
+        "sweep_reversion_eurgbp_late",   # MIN lot 1000u 契約 (2026-06-12)
+    })
+    _AGG_KELLY_GATE_MINLOT_MAX_UNITS = 1000
+
+    def _agg_kelly_gate_minlot_bypass(self, entry_type: str, units: int,
+                                      is_xau: bool) -> bool:
+        return (
+            entry_type in self._AGG_KELLY_GATE_MINLOT_BYPASS_TYPES
+            and not is_xau
+            and 0 < abs(units) <= self._AGG_KELLY_GATE_MINLOT_MAX_UNITS
+        )
+
     def _get_strategy_kelly(self, entry_type: str, instrument: str) -> float:
         """
         Query learning engine stats for the strategy's Kelly fraction.
         Returns full_kelly value or None if insufficient data.
         v7.0: Used for Kelly-based lot cap in 3-Factor Model.
+
+        P1-1 (fable5 audit, 2026-07-03 rule:R3): _get_strategy_kelly_clean へ
+        委譲 — FIDELITY_CUTOFF / XAU / is_shadow フィルタを実弾サイジング経路
+        (dynamic boost :5701 / half-Kelly cap :5726 / shadow promotion :7235)
+        に適用する。旧実装は all-time 無フィルタで、T10 KILL 済み
+        bb_rsi_reversion に pre-cutoff データ由来の Kelly 0.134 が推奨される
+        汚染を本番 API で実測確認済み。instrument 引数は呼び出し互換のため
+        残置 (旧実装でもフィルタに未使用だった)。
         """
-        try:
-            from modules.stats_utils import kelly_criterion
-            # Fetch closed trades for this strategy
-            closed = self._db.get_all_closed()
-            strat_trades = [t for t in closed
-                            if t.get("entry_type") == entry_type
-                            and t.get("status") == "CLOSED"]
-            if len(strat_trades) < 10:
-                return None
-            pnls = [float(t.get("pnl_pips", 0) or 0) for t in strat_trades]
-            wins = [p for p in pnls if p > 0]
-            losses = [p for p in pnls if p < 0]
-            if not wins or not losses:
-                return None
-            wr = len(wins) / len(pnls)
-            avg_win = sum(wins) / len(wins)
-            avg_loss = abs(sum(losses) / len(losses))
-            result = kelly_criterion(wr, avg_win, avg_loss)
-            return result.get("full_kelly", 0.0)
-        except Exception:
-            return None
+        return self._get_strategy_kelly_clean(entry_type)
 
     def _get_strategy_kelly_clean(self, entry_type: str):
         """Per-strategy Kelly using the same filter as _get_aggregate_kelly.

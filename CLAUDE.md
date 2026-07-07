@@ -94,5 +94,9 @@ Sub-scope: `services/discord_bot/CLAUDE.md` (Discord bot 固有規律)
 ## コードレビュー
 - **作業完了後、Codexが出力をレビューする** — Codexプラグイン(codex@openai-codex)による自動レビュー
 
+## 自走原則 (2026-07-06 user 承認)
+- **タスクを user に返さない** — 実行可能なものは全て Claude が完遂する。返す前に allow ルール / settings / IaC / 自動化の経路を必ず探す。不可能なもののみ理由 + 代替案付きで報告
+- **PR マージは Claude が自走** — CI green 確認後 `gh pr merge N --merge --admin` を**単独コマンド形で**実行 (複合コマンドは classifier 拒否)。hot file conflict は union 解決。詳細: MEMORY `project_pr_merge_race_parallel_sessions`
+
 ## Changelog
 Full change history: [CHANGELOG.md](CHANGELOG.md)

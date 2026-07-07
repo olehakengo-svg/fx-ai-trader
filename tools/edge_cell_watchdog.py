@@ -33,6 +33,13 @@ ACCOUNT_DD_TRIGGER_PCT = 0.08
 DAILY_CELL_DISABLE_JPY = -6_822.0
 ROLLING_5D_DD_TRIGGER_PCT = 0.05
 
+# Mirror of modules.edge_cell_promote.DISABLED_CELLS (code-pin SSOT). This
+# script is deliberately stdlib-only — Render cron runs it as
+# `python3 tools/edge_cell_watchdog.py`, so the repo root is not on sys.path
+# and modules/ is not importable without path hacks. CI pins the mirror:
+# tests/test_edge_cell_watchdog_code_pin_sync.py::test_mirror_matches_code_pin_ssot
+CODE_PINNED_CELLS: frozenset[str] = frozenset({"E1", "E4", "E8", "E10"})
+
 _SSL_CTX = ssl.create_default_context()
 _SAFE_OPENER = urllib.request.build_opener(
     urllib.request.HTTPHandler(),
@@ -274,6 +281,34 @@ def evaluate(
         verdict = "HOLD"
         reasons: list[str] = []
 
+        if cid in CODE_PINNED_CELLS:
+            # Code pin is the SSOT: get_cell_lot() returns 0 regardless of KV,
+            # so a nonzero KV stage is display-only debt — "eligible" diverging
+            # from "effective". E4 stayed KV=1 after the 2026-07-02 zombie
+            # incident because DECREMENT only touches stage>=2 cells, so the
+            # mismatch never self-heals. Reconcile KV to 0; once synced this
+            # branch emits nothing. Metric verdicts must not run for pinned
+            # cells (a DECREMENT/DISABLE action would fight the sync).
+            if stage != 0:
+                verdict = "CODE_PIN_SYNC"
+                reasons.append("CODE_PIN_KV_MISMATCH")
+                if not global_disable:
+                    # global_disable already queued new_stage=0 above.
+                    actions.append({
+                        "cell_id": cid,
+                        "new_stage": 0,
+                        "reason": "code-pin sync (zombie incident 2026-07-02)",
+                    })
+            else:
+                reasons.append("CODE_PINNED")
+            cells[cid] = {
+                "stage": stage,
+                "metrics": m,
+                "verdict": verdict,
+                "reasons": reasons,
+            }
+            continue
+
         if global_disable:
             verdict = "DISABLE"
             reasons.append(f"ACCOUNT_DD_GT_8_FROM_LOCK_{account_dd_pct*100:.1f}%")
@@ -303,10 +338,19 @@ def evaluate(
                 "new_stage": 0,
                 "reason": reasons[0] if reasons else "DISABLE",
             })
-        elif verdict == "DECREMENT":
+        elif verdict == "DECREMENT" and stage >= 2:
+            # DECREMENT lowers the ladder (3→2→1) and must never RAISE a stage.
+            # The previous max(1, stage - 1) had a floor of 1, so any stage-0
+            # (disabled) cell whose historical live metrics sit in the DECREMENT
+            # pocket (N>=10, PF<1, but WR>=28% and EV>=-1.0) was re-armed 0→1
+            # on every run — a manual/CB disable could not survive 15 minutes.
+            # Incident: E4 zombie re-arm 2026-07-02 (11 live fires from a
+            # T10-KILLED strategy). rule:R3 structural fix; stage<=1 emits no
+            # action (stage 1 was already a no-op, stage 0 must stay 0).
+            # ref: knowledge-base/wiki/decisions/edge-cell-e1-e4-code-disable-2026-07-02.md
             actions.append({
                 "cell_id": cid,
-                "new_stage": max(1, stage - 1),
+                "new_stage": stage - 1,
                 "reason": reasons[0] if reasons else "DECREMENT",
             })
 

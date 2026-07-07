@@ -35,6 +35,7 @@ LIVE 例外 (User 判断 2026-06-08):
 """
 from __future__ import annotations
 
+import logging
 import os
 from typing import Optional
 
@@ -43,6 +44,8 @@ import pandas as pd
 from strategies.base import Candidate, StrategyBase
 from strategies.context import SignalContext
 from modules.round_number import shift_tp_inside
+
+logger = logging.getLogger("usdjpy_carry_dip_accumulator")
 
 
 class UsdjpyCarryDipAccumulator(StrategyBase):
@@ -71,6 +74,7 @@ class UsdjpyCarryDipAccumulator(StrategyBase):
         super().__init__(*args, **kwargs)
         self._last_emit_bar_ts: dict = {}
         self._last_emit_ts = None  # re-entry cooldown anchor
+        self._last_qualbar_logged = None  # QUALBAR log per-bar dedup (T7 telemetry)
 
     def evaluate(self, ctx: SignalContext) -> Optional[Candidate]:
         sym = ctx.symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
@@ -101,30 +105,55 @@ class UsdjpyCarryDipAccumulator(StrategyBase):
         #  test 2026-06-08 で 49 emits/月 を観測し修正。「押し目1回」の cadence に戻す)
         if not (rsi_prev >= self.RSI_BUY and rsi_closed < self.RSI_BUY):
             return None
-        if closed_close >= self.CEILING:        # 壁直下回避
-            return None
 
-        # ── イベント遮断 (BOJ/Fed 窓) ──
+        # ── ここから下は「トリガー成立バー」= 発火期待値の分母 (roadmap T7) ──
+        # 後段 filter の pass/fail を QUALBAR 1行に集約して log し、
+        # 「シグナルは出たが filter で落ちた」を production ログで観測可能にする。
+        # (2026-07-02 診断: CEILING 静的壁が dip cross 22 回を silent drop していた)
         bar_id = None
+        bar_ts = None
         try:
             bar_id = ctx.df.index[closed_idx]
             bar_ts = pd.Timestamp(bar_id)
             if bar_ts.tzinfo is None:
                 bar_ts = bar_ts.tz_localize("UTC")
-            if self._BLACKOUT_START <= bar_ts < self._BLACKOUT_END:
-                return None
         except Exception:
             bar_ts = None
 
-        # ── per-bar dedup (30s polling × in-progress bar の runaway 防止: R3) ──
+        ceiling_pass = closed_close < self.CEILING          # 壁直下回避
+        blackout_pass = not (
+            bar_ts is not None
+            and self._BLACKOUT_START <= bar_ts < self._BLACKOUT_END
+        )
+        # per-bar dedup (30s polling × in-progress bar の runaway 防止: R3)
         dedup_key = (ctx.symbol, "BUY")
-        if bar_id is not None and self._last_emit_bar_ts.get(dedup_key) == bar_id:
-            return None
+        dedup_pass = not (
+            bar_id is not None
+            and self._last_emit_bar_ts.get(dedup_key) == bar_id
+        )
+        # re-entry cooldown: 同一押し目クラスタを1エントリーに畳む
+        cooldown_pass = not (
+            bar_ts is not None
+            and self._last_emit_ts is not None
+            and (bar_ts - self._last_emit_ts) < pd.Timedelta(hours=self.COOLDOWN_BARS)
+        )
+        emit_expected = ceiling_pass and blackout_pass and dedup_pass and cooldown_pass
 
-        # ── re-entry cooldown: 同一押し目クラスタを1エントリーに畳む ──
-        if bar_ts is not None and self._last_emit_ts is not None:
-            if (bar_ts - self._last_emit_ts) < pd.Timedelta(hours=self.COOLDOWN_BARS):
-                return None
+        # QUALBAR log: 同一 closed bar への再 poll では重複させない
+        if self._last_qualbar_logged != bar_id:
+            self._last_qualbar_logged = bar_id
+            # print() 必須: 本番 (gunicorn) は logging handler 未設定で INFO が破棄される
+            # (app.py 2026-07-02 コメント参照。logger.info 時代は T7 E2E 検証が構造的に不可能だった)
+            print(
+                "[%s] QUALBAR bar=%s rsi=%.1f close=%.3f ceiling_pass=%s "
+                "blackout_pass=%s dedup_pass=%s cooldown_pass=%s emit=%s"
+                % (self.name, bar_id, rsi_closed, closed_close, ceiling_pass,
+                   blackout_pass, dedup_pass, cooldown_pass, emit_expected),
+                flush=True,
+            )
+
+        if not emit_expected:
+            return None
 
         entry = float(ctx.entry) if getattr(ctx, "entry", 0) else closed_close
         sl = entry - self.SL_YEN
@@ -136,8 +165,6 @@ class UsdjpyCarryDipAccumulator(StrategyBase):
         score = 3.0 + min(2.0, (self.RSI_BUY - rsi_closed) / 10.0)
         if bar_id is not None:
             self._last_emit_bar_ts[dedup_key] = bar_id
-        if bar_ts is not None:
-            self._last_emit_ts = bar_ts
         if bar_ts is not None:
             self._last_emit_ts = bar_ts
 

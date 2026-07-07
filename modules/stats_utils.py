@@ -191,9 +191,11 @@ def kelly_criterion(win_rate: float, avg_win: float,
     p=WR, q=1-p, b=avg_win/avg_loss
 
     Returns: full_kelly, half_kelly, edge, odds_ratio
+    full_kelly/half_kelly はロットサイジング用に max(0,·) クリップ。
+    full_kelly_raw は非クリップ — 負エッジ判定 (SHIELD gate 等) はこちらを使う。
     """
     if avg_loss == 0 or win_rate <= 0 or win_rate >= 1:
-        return {"full_kelly": 0.0, "half_kelly": 0.0,
+        return {"full_kelly": 0.0, "half_kelly": 0.0, "full_kelly_raw": 0.0,
                 "edge": 0.0, "odds_ratio": 0.0, "win_rate": win_rate}
 
     b = avg_win / avg_loss
@@ -205,6 +207,7 @@ def kelly_criterion(win_rate: float, avg_win: float,
     return {
         "full_kelly": round(max(0, full_kelly), 4),
         "half_kelly": round(max(0, full_kelly / 2), 4),
+        "full_kelly_raw": round(full_kelly, 4),
         "edge": round(edge, 4),
         "odds_ratio": round(b, 4),
         "win_rate": round(p, 4),

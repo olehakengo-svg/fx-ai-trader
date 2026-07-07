@@ -4,6 +4,9 @@ from tools import donchian_nzd_365d_bt as bt
 
 
 def test_massive_15m_cache_loads_and_pip_mult_is_pair_correct():
+    from tests.conftest import require_data_file
+    require_data_file(bt.cache_path("NZD_JPY"), "MASSIVE 15m integration")
+    require_data_file(bt.cache_path("NZD_USD"), "MASSIVE 15m integration")
     nzd_jpy = bt.load_massive_15m("NZD_JPY")
     nzd_usd = bt.load_massive_15m("NZD_USD")
 
@@ -15,6 +18,8 @@ def test_massive_15m_cache_loads_and_pip_mult_is_pair_correct():
 
 
 def test_real_bt_function_calls_production_signal_and_generates_trades():
+    from tests.conftest import require_data_file
+    require_data_file(bt.cache_path("NZD_JPY"), "MASSIVE 15m integration")
     result = bt.run_pair_bt("NZD_JPY")
     stats = bt.stats_for(result["trades"])
 

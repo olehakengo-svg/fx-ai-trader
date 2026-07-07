@@ -2606,6 +2606,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         or os.environ.get("ALPHA_WICK_IMBALANCE_REDESIGN_V2", "0") == "1"
     )
     _tnm_v2_enabled = os.environ.get("TOKYO_NAKANE_MOMENTUM_REDESIGN_V2", "0") == "1"
+    _htf_rescue_emits = []  # P-S1(b): HTF block → shadow 退避 (下流で shadow_emits に合流)
     if htf_agreement in ("bull", "bear"):
         _blocked_dir = "SELL" if htf_agreement == "bull" else "BUY"
         _htf_filtered = [c for c in _dt_candidates
@@ -2624,6 +2625,35 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                          ) or not (hasattr(c, 'signal') and c.signal == _blocked_dir)]
         _htf_blocked_count = len(_dt_candidates) - len(_htf_filtered)
         if _htf_blocked_count > 0:
+            # 2026-07-02 zero-fire 診断: logging.info は Render ログに出ない
+            # (print のみ可視) ため、sweep_reversion_eurgbp_late の 4 emit が
+            # ここで消えていたことが 20 日間観測不能だった。blocked candidate
+            # の entry_type を print で明示し、grep "HTF_HARD_BLOCK" で
+            # silent drop を事後追跡可能にする (counter/DB は別提案 P-S2)。
+            _htf_blocked_cands = [
+                c for c in _dt_candidates if c not in _htf_filtered
+            ]
+            _htf_blocked_names = [
+                getattr(c, "entry_type", "?") for c in _htf_blocked_cands
+            ]
+            print(
+                f"[DTE] HTF_HARD_BLOCK {symbol} htf={htf_agreement}: "
+                f"{_htf_blocked_count} blocked -> {','.join(_htf_blocked_names)}",
+                flush=True,
+            )
+            # 2026-07-03 (rule:R3, P-S1(b)): HTF_BLOCK_SHADOW_RESCUE 登録戦略の
+            # blocked 候補は shadow_emit_signals へ退避 (is_shadow=1 強制、live
+            # 送信ゼロ)。4原則#3 (Shadow 蓄積は削らない) 準拠の復元。
+            # 消費側 (demo_trader shadow_emit loop) の is_shadow_demoted gate +
+            # 60s dedup が既設で効く。live exemption (P-S1(a)) は user 決裁待ち。
+            _htf_rescue_emits = _dt_engine.split_htf_block_shadow_rescue(
+                _htf_blocked_cands, htf_agreement=htf_agreement)
+            if _htf_rescue_emits:
+                print(
+                    f"[DTE] HTF_BLOCK_SHADOW_RESCUE {symbol}: "
+                    f"{','.join(c.entry_type for c in _htf_rescue_emits)} → shadow emit",
+                    flush=True,
+                )
             import logging as _dte_htf_log
             _dte_htf_log.getLogger(__name__).info(
                 "[DTE] HTF Hard Block: %d candidates blocked (htf=%s, pair=%s)",
@@ -2649,6 +2679,10 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     # demo_trader が sig["shadow_emit_signals"] を読み取り is_shadow=1 で
     # open_trade を呼ぶ。
     _dt_shadow_emits = _dt_engine.split_shadow_always(_dt_candidates, _dt_best)
+    # 2026-07-03 (rule:R3, P-S1(b)): HTF Hard Block で除外された shadow 退避
+    # 対象を合流。payload builder がそのまま is_shadow=1 で永続化する。
+    if _htf_rescue_emits:
+        _dt_shadow_emits = list(_dt_shadow_emits) + _htf_rescue_emits
     if _dt_best:
         # DTE候補のスコア（符号付き: BUY=+, SELL=-）
         _dte_score = _dt_best.score * 0.5 if _dt_best.signal == "BUY" else -(_dt_best.score * 0.5)
@@ -4287,6 +4321,9 @@ def compute_rnb_signal(df: pd.DataFrame, tf: str = "15m",
 
     if len(df) < _LB + 20:
         return _WAIT
+
+    # WAIT でも実 Close を返す (entry=0 は _price_history を汚染し spike/velocity gate を誤発火させる)
+    _WAIT["entry"] = float(df.iloc[-1]["Close"])
 
     # ── UTC filter (7-20) ──
     row = df.iloc[-1]

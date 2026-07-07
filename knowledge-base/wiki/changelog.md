@@ -4,6 +4,100 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-06 — order 層 per-bar dedup — engine 再構築で無効化された strategy 内 guard の構造代替 (rule:R3)
+
+- T8 forensic #2 帰結: DaytradeEngine/HourlyEngine が poll 毎に再構築され strategy instance の per-bar dedup/cooldown が live デッドコードだった問題に対し、order 層 (demo_trader) に `(entry_type, instrument, signal, closed_bar_ts)` の per-bar dedup を追加。
+- primary `_tick_entry` と shadow emit DB insert が同一 key 空間を共有 (SHADOW_ALWAYS も bypass 不可)。recent_emit は第2防御として併存。block は `order_bar_dedup` counter で観測可能。
+- 影響トレード: 同一バー内の重複 emit (live/shadow とも) が DB insert 前に遮断される。1バー1シグナルの BT 前提に live を整合させる方向の変更。multi-bar cooldown の代替は forensic #3 (BT 突合) 後に判断。
+- 回帰: tests/test_dedup_gate_all_paths.py (12 cases)。詳細: [[t8-week1-gate-breach-2026-07-06]]
+## 2026-07-06 — T9: Kalman D7 qualifying-bar telemetry + pre-reg 分母付き基準へ追補 (rule:R3)
+
+- roadmap v2.2 T9 (最後の未完了項目)。kalman_d7 に QUALBAR print telemetry を追加 — PO-UP transition バー毎に DIST/GAP/ATR-Q/RSI/session の pass/fail と emit 判定を 1 行出力。0-fire の原因 (dormant / filter落ち / 経路ブロック) が production ログで判別可能に。
+- class 属性 dedup により engine 毎tick再構築でも同一バー 1 行 (3 variant 共有)。
+- pre-reg 2026-05-28 に追補: 判定を「QUALBAR 数 (分母) vs 発火数 (分子)」の表に書換え。emit=True で発火ゼロなら R3 即時 forensic。
+- prereg-trigger-registry に `t9-kalman-d7-fire-info` 追加 (prefix マッチ対応を watch tool に実装、BT 期待 3.9/週)。
+- 影響トレード: なし (観測性のみ、シグナル判定・lot 不変更)。回帰: tests/test_kalman_d7_qualbar_logging.py (5) + prefix マッチ 1 件。
+
+## 2026-07-06 — pre-reg トリガー監視の自動化 + env gate 宣言整合チェック (rule:R3)
+
+- **tools/prereg_trigger_watch.py** (新規): 機械判定可能な pre-reg トリガー/決定点を registry (decisions/prereg-trigger-registry.json) で管理し毎日評価。Tier A daily cron (quant_gate_status.py) の Discord レポートに統合。初期登録 3 件: T5 復帰条件 (D1<159.50) / sweep P-S1(a) DEFER 決定点 (N≥10 or 09-30 N<5) / hull 頻度 band
+- **scripts/check.py チェック8** (新規): demo_trader.py が読む `*_LIVE_ENABLE` env が render.yaml 未宣言なら WARN — decision-without-provisioning クラス (watchdog token / carry dip gate / T5 未執行の 3 例) の構造防止
+- **render.yaml**: `KALMAN_D7_LIVE_ENABLE` / `USDJPY_CARRY_DIP_LIVE_ENABLE` を sync:false で宣言 (dashboard 値は不変更)
+- 影響トレード: なし (監視・観測性のみ)。背景: T5 トリガーが監視主体不在で 18 日間未執行だった事故
+## 2026-07-06 — T5 pre-reg 発動執行: JPYキャップ撤退 SIZE lever 0.5x (rule:R2)
+
+- [[jpy-cap-exit-prereg-2026-06-12]] トリガー1「USD_JPY D1 close > 160.80」が **2026-06-18 に成立済み** (161.295、以降14営業日連続、max 162.631) と本日検出。18日の執行ギャップ (監視機構不在) — pre-reg 文書に発動記録+教訓を追記。
+- 執行: `_resolve_jpy_cap_exit_size_lever` — 対象4戦略 (vsg_jpy_reversal / dt_sr_channel_reversal / vix_carry_unwind / ema200_trend_reversal) の **LIVE lot 0.5x** (SIZE lever、lot チェーン最後段)。Shadow 無変更 (原則3)。code pin (`JPY_CAP_EXIT_SIZE_LEVER_ACTIVE`、env/KV 経路なし) + 回帰テスト 5 件。
+- **Floor 1000u**: vix Overlap pilot の 1000u 固定検証ロット契約 ([[vix-carry-grail-removal-overlap-1000u-2026-06-15]], agg-Kelly bypass の正当性根拠) と衝突するため `max(1000, 0.5x)` で適用 — 1000u 検証ロットは no-op、1000u 超のみ半減。
+- 影響トレード: 以後の対象4戦略 LIVE 送信 lot が半減 (`(JPYCAP0.5x)` lot tag + trade_reason で識別可)。Shadow/BT 系列は不変。
+- 復帰 = 復帰条件 (D1<159.50 回帰+介入再確認 / BOJ 後 clean N≥10 EV>0) の KB 記録 + テスト変更を伴う PR のみ。
+
+## 2026-07-06 — T8 初週 R2 STOP: hull/sweep LIVE 転送を code pin で停止 (rule:R2)
+
+- pre-reg [[sweep-hull-live-week1-prereg-2026-06-12]] 拘束ゲート抵触 (sweep=ゲート① 24日 fill 0 / hull=ゲート④ 同一バー再emit) → 裁量禁止条項に従い LIVE 転送停止。
+- env フラグでなく `_*_LIVE_ENABLE = False` の code pin (lesson: KV disable は pin にならない)。Shadow は原則3で継続。
+- 影響トレード: なし (両戦略とも live fill 実績 0)。復帰 = forensic 完了 + 再 LOCK PR のみ。
+- 詳細: [[t8-week1-gate-breach-2026-07-06]]
+
+## 2026-07-06 — rnb WAIT entry=0 恒常汚染の根絶 + QUALBAR print 化 (観測性 R3 バッチ)
+
+- **rnb_usdjpy**: `compute_rnb_signal` WAIT dict の `entry: 0` (2026-04-05 起源) が PRICE_HISTORY_GUARD 発火 ~2,880件/日 の唯一の発生源と特定 → WAIT に実 Close を埋める 1 行修正。ガードの残発火が真の fetch 障害シグナルに戻る。
+- **usdjpy_carry_dip QUALBAR**: `logger.info` は本番 handler 未設定で破棄されており T7 E2E 検証が構造的に不可能だった → `print(flush=True)` 化。
+- 回帰: tests/test_rnb_wait_entry_price.py (3 cases)。影響トレードなし (シグナル判定・tier/lot 不変更、観測性のみ)。
+- 詳細: [[rnb-wait-entry-zero-forensic-2026-07-06]]
+
+## 2026-07-04 — Fable5 監査 Phase A バッチ: edge-cell DD mult / 孤児クローズ年齢ガード / strategy Kelly 汚染除去 (rule:R2+R3)
+
+- **P0-1 (user 決裁)**: edge cell force-live の固定 lot に `max(1000, int(lot × _dd_lot_mult))` を適用。DD defensive 0.2x 下で stage3=10000u フル送信だったバイパスを封鎖、1000u floor でクリーン N 蓄積は継続。
+- **P0-2**: `_sync_demo_to_oanda` 孤児クローズに `_ORPHAN_MIN_AGE_SEC=600` の openTime 年齢ガード (parse 不能も fail-safe skip)。再起動直後の正規 live ポジション誤クローズ競合窓を封鎖。
+- **P1-1**: `_get_strategy_kelly` を `_get_strategy_kelly_clean` へ委譲 — 実弾サイジング 2 経路 (dynamic boost / half-Kelly cap) + shadow promotion の all-time 汚染 (pre-cutoff/XAU/shadow 混入) を除去。
+- **影響トレード**: DD defensive 継続中の E2/E9 マッチが縮小サイズ (5000→1000u 等) で送信される。per-cell EV 評価は pips ベースのため非影響。Kelly boost/cap はクリーン N<10 戦略で不発化 (誤 boost の停止)。
+- 回帰テスト 16 本を同コミットで追加。
+- 詳細: [[fable5-phase-a-p0-fixes-2026-07-03]] / 監査 SSOT: [[fable5-system-audit-2026-07-02]]
+
+## 2026-07-03 — _price_history 0価格ガード (spike/velocity gate 誤発火修正, rule:R3)
+
+- P1 データ整合性バグ修正: fetch 全滅時の `current_price=0/None` が `_price_history`
+  に混入し、spike gate が range=価格そのもの (07-02 12:31 UTC 実例: 16153.1pip/60s =
+  USDJPY 161.53) で誤発火 → 当該 instrument **全戦略**の live 送信を 60s〜30min 封鎖
+  (shadow-eligible は shadow 化、それ以外は drop) していた。
+- 3層ガード: L1 append 前 `price>0` 検証 + `[PRICE_HISTORY_GUARD]` 検出ログ /
+  L2 spike 計算側 `p>0` フィルタ / L3 velocity 計算側 `p>0` + current_price 有効時のみ評価。
+- **影響トレード**: データソース障害と同期した spike/velocity の shadow 化・drop が本デプロイ
+  以降消滅。07-02 12:31-13:42 の vix_carry_unwind 窓内 14/14 shadow はこのバグ起因
+  (清浄データでの窓内 live 実証は依然 N=1)。正常 tick での spike/velocity 発火は不変。
+  tier/lot 変更なし。
+- TDD 8 cases: `tests/test_price_history_zero_price_guard.py`。
+  詳細: [[zero-fire-diagnosis-carrydip-vix-2026-07-02]] §2.6
+
+## 2026-07-03 — Watchdog CODE_PIN_SYNC: code pin と KV stage の自動同期
+
+- watchdog に `CODE_PINNED_CELLS` (modules/edge_cell_promote.DISABLED_CELLS のミラー、CI equality テストで乖離固定) を追加。pin cell の KV stage!=0 を検出したら new_stage=0 を発行して同期 (rule:R3 整合性修正)。
+- 動機: 2026-07-02 zombie incident で E4 KV が 1 に残置 (DECREMENT stage>=2 ガードのため自然回復しない)。「eligible と effective を区別する」教訓の恒久対応。
+- **影響トレード**: なし。lot 決定は従来どおり code pin (`DISABLED_CELLS`) が支配し、本変更は KV 表示状態のみ同期する。
+- 詳細: [[edge-cell-e1-e4-code-disable-2026-07-02]] 追記 2026-07-03
+
+## 2026-07-02 — Edge cell E1/E4 code-level DISABLE + watchdog DECREMENT 床バグ修正
+
+- `DISABLED_CELLS` に E1 (dt_bb_rsi_mr ASN SELL) / E4 (bb_rsi_reversion NY SELL) を追加 (rule:R2)。T10 KILL ([[bb-rsi-t10-kill-2026-07-02]]) 拘束事項3 の実施。
+- **影響トレード**: E4 経由の bb_rsi_reversion live 発火 (2026-07-02 13:08-19:55 UTC の 11 件が最後) は本デプロイ以降ゼロ。E1 は LOCK 以降 live N=0 で実挙動不変。dt_bb_rsi_mr の通常 PAIR_PROMOTED 経路は不変。
+- watchdog `max(1, stage-1)` 床バグ修正 (rule:R3) — stage=0 セルの 0→1 再武装 (zombie) を根絶。**2026-07-02 10:18Z〜デプロイまでの間、E4 の KV disable は 15 分毎に無効化されていた**点に注意 (該当 live 4 件は分析時に E4 force-live として扱う)。
+- 詳細: [[edge-cell-e1-e4-code-disable-2026-07-02]]
+
+## 2026-07-02 — Aggregate Kelly Gate raw-fix + 1000u 契約 min-lot bypass (rule:R3+R2)
+
+- P1 死にゲート修正: `kelly_criterion` の `max(0,·)` クリップにより v9.0 SHIELD
+  Aggregate Kelly Gate (`< 0` 判定) が構造的に発火不能だった。`full_kelly_raw`
+  (非クリップ) を追加し `_get_aggregate_kelly` を raw 化。
+- interplay (user 決裁): 1000u 固定契約 3 戦略 (vix_carry_unwind /
+  usdjpy_carry_dip_accumulator / sweep_reversion_eurgbp_late) は
+  allowlist AND 実効 units<=1000 AND 非XAU の二重ガードで gate bypass。
+  hull_donchian_fade (5000u) は対象外。
+- 影響: aggregate raw Kelly<0 (2026-07-02 時点 edge=-0.3617) の間、promoted
+  非 sentinel/非 edge-cell/非 1000u契約 の OANDA 転送が初めて実ブロックされる。
+  tier/lot 変更なし。TDD 10 cases。
+- Decision: `decisions/agg-kelly-gate-raw-fix-minlot-bypass-2026-07-02.md`
+
 ## 2026-05-21 — SR-family shadow_emit OANDA audit restoration
 
 - `shadow_emit_signals` が `_tick_entry` を経由せず `demo_trades` に直接 Shadow row を書くため、SR-family の OANDA audit skip row が欠落していた問題を修正。

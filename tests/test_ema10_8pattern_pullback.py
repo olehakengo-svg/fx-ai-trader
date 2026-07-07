@@ -17,6 +17,15 @@ FIXTURE = Path("tests/fixtures/usd_jpy_m15_2024q1.parquet")
 REAL_M5 = Path("data/cache/massive/USD_JPY_5m.parquet")
 
 
+import pytest as _pytest
+
+
+@_pytest.fixture(autouse=True)
+def _require_real_m5():
+    from tests.conftest import require_data_file
+    require_data_file(REAL_M5, "MASSIVE M5 integration; mock-only forbidden")
+
+
 def test_real_fixture_triggers_all_four_long_patterns_and_symmetric_shorts():
     df = filter_weekend_bars(pd.read_parquet(FIXTURE))
     trades, diagnostics = run_backtest(df)

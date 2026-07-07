@@ -31,5 +31,5 @@
 ## 未処理・関連
 
 - vix_carry Overlap pilot 0-fire 診断（T7 carry dip 0-fire と同類の発火診断）
-- bb_rsi_reversion の live 経路特定（未検証）
+- ~~bb_rsi_reversion の live 経路特定（未検証）~~ → **解消 (2026-07-02 同日)**: 経路は `mode=daytrade_1h_usdchf`（8件 2026-06-02, oanda_trade_id 496674〜496722, net -11.0p）+ scalp系 8件、計16件 -6.1p。全経路とも 06-12 の bb_rsi 戦略退役（SHADOW_RETIRED）で構造閉鎖済み、追加アクション不要。詳細: [[usdchf-1h-cell-demotions-2026-07-02]]
 - 本決定は **main へのデプロイで初めて有効**（[[claude-codex-division-of-labor-2026-07-02]] セッションの hotfix 参照）

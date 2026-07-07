@@ -2,6 +2,9 @@
 
 ## Stage: SENTINEL (v8.5, 低頻度 年2-5回)
 
+> ⚠️ **2026-07-02 zero-fire 診断 (Overlap pilot)**: 06-18 GRAIL 撤去以降 Overlap live fill 0 の原因は **Overlap 窓にシグナル自体が来ていない**こと (05-13〜07-02 で Overlap 4/54 件 = 7.4%、シグナルは London 63% / NY 26% にクラスタ)。session filter は `_is_promoted` 内で実行時評価され正常動作 (窓外→shadow を本番実証済み)。ただし「窓内→live」の現行コード実証は N=0 (旧コードで 05-20 の 1 件のみ)。期待レート月 ~2 件 → demote gate (N≥10) 到達に ~5 ヶ月。副次発見: Aggregate Kelly Gate は max(0,·) クリップで死にゲート (P1)。
+> 詳細: [[zero-fire-diagnosis-carrydip-vix-2026-07-02]]
+
 ## Hypothesis
 VIX急騰（90pctile超）時にキャリートレード巻き戻しが加速し、JPY急騰が発生。初動1週間が最も急速（Brunnermeier 2009, IMF 2019）。
 
@@ -43,3 +46,4 @@ Data source: /api/demo/stats?date_from=2026-04-08 (2026-04-20)
 ## Related
 - [[research/index]]
 - [[vol-momentum-scalp]]
+- [[agg-kelly-gate-raw-fix-minlot-bypass-2026-07-02]] — Overlap pilot (1000u 固定) は Aggregate Kelly Gate の min-lot bypass 対象 (2026-07-02 user 決裁)。lot が 1000u を超えたら bypass 自動失効

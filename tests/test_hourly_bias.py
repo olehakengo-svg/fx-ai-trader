@@ -43,6 +43,8 @@ def test_family_a_stats_for_synthetic_hour_cell():
 
 
 def test_real_massive_usdjpy_m5_loads():
+    from tests.conftest import require_data_file
+    require_data_file("data/cache/massive/USD_JPY_5m.parquet", "MASSIVE M5 integration")
     df, source = bt.load_frame()
     assert source in bt.DATA_CANDIDATES
     assert Path(source).exists()

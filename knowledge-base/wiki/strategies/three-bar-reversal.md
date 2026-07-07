@@ -4,7 +4,7 @@
 - **Entry Type**: `three_bar_reversal`
 - **Category**: MR (Mean Reversion)
 - **Timeframe**: DT 15m
-- **Status**: Phase0 Shadow Gate (PP/EL 未指定 → 自動 Shadow, BT未検証)
+- **Status**: Phase0 Shadow Gate (PP/EL 未指定 → 自動 Shadow, BT未検証); **USD_CHF セルは R2 shadow demote (2026-07-02)**
 - **Active Pairs**: None (全ペア自動 Shadow)
 - **履歴**: Previously labeled UNIVERSAL_SENTINEL in strategy page; tier-master 実態は Phase0 Shadow Gate (scalp mode, PP/EL 指定なし)
 
@@ -21,6 +21,12 @@ Classic three-bar reversal pattern. Identifies a three-candle reversal formation
 - Lot Boost: default (1.0x)
 - PAIR_DEMOTED: none
 - PAIR_PROMOTED: none
+- SHADOW_DEMOTED_CELLS: USD_CHF (2026-07-02, rule:R2)
+
+## 2026-07-02 R2: USD_CHF セル Shadow demote
+
+daytrade_1h_usdchf モード監査 (本番API実測): clean N=4 W=0 sum=-16.6p (mean -4.15p)。
+R2「数トレードで即断可」適用。詳細: [[usdchf-1h-cell-demotions-2026-07-02]]
 
 ## Related
 - [[index]] — Tier classification

@@ -44,7 +44,9 @@ def is_drift_row_for_replay(
         "blocked",
     }:
         return False
-    if audit_row.get("block_reason") != "shadow_tracking":
+    # 2026-07-02 P-V4: block_reason は "shadow_tracking(session_filter_out)" 等の
+    # 原因付き variant を持つ — prefix 一致で shadow_tracking 系として扱う
+    if not str(audit_row.get("block_reason") or "").startswith("shadow_tracking"):
         return False
     if trade_row is None:
         return False
@@ -71,7 +73,7 @@ def enumerate_drift_rows(
         status = str(audit_row.get("bridge_status") or audit_row.get("status") or "").lower()
         if status not in {"skipped", "blocked"}:
             continue
-        if audit_row.get("block_reason") != "shadow_tracking":
+        if not str(audit_row.get("block_reason") or "").startswith("shadow_tracking"):
             continue
         shadow_candidates += 1
         trade_row = trades_by_id.get(row_id(audit_row))
