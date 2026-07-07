@@ -2514,6 +2514,16 @@ bb_rsi_reversionが9/11で勝利しPnL+9.0を稼いだが、xs_momentum_rsiの�
 - **全ペアがRANGING/VOLATILEでトレンドなし** — トレンドフォロー系（`xs_momentum_rsi`等）には構造的逆風
 - **USD_JPY VOLATILEはbb_rsi_reversionに両刃** — 平均回帰は機能しやすいが、オーバーシュート時の損失も大きくなる
 
+### 2026-07-07 (Pre-Tokyo Briefing)
+- **前日（2026-07-06）PnL: −2.4p　トレード数: 1件　WR: 0.0%**
+- `ny_close_reversal / USD_JPY / SELL` が `SIGNAL_REVERSE` で損切り（スプレッド0.8）
+- 実質的に「ほぼ無活動」の一日。累積Cutoff後全体でもN=15に留まる
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **全体合計**: N=15 / WR=60.0% / PnL=−12.8p
+### 課題①: ny_close_reversal の SIGNAL_REVERSE 損切り
+- NYクローズ付近でSELLエントリーしたが、シグナルが反転して損切り
+- USD_JPY はCurrentレジーム「VOLATILE」＋ATR%ile 66%。反転系には不向きなレジーム
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
