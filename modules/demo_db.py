@@ -465,72 +465,17 @@ class DemoDB:
             except Exception:
                 pass
 
-            # ── v9.x: Shadow persistence migration ──
-            # Bug: FORCE_DEMOTED/non-promoted trades were written with is_shadow=0
-            # because the safety net (is_shadow=True) ran AFTER DB write.
-            # Fix: Mark FORCE_DEMOTED trades as shadow, EXCEPT those with
-            # (entry_type, instrument) in PAIR_PROMOTED (which override FORCE_DEMOTED).
-            _force_demoted = {
-                "sr_fib_confluence", "ema_cross", "inducement_ob",
-                "ema_ribbon_ride",
-                "ema_pullback", "lin_reg_channel",
-                "fib_reversal", "macdh_reversal", "sr_break_retest",
-                "engulfing_bb", "bb_squeeze_breakout", "sr_channel_reversal",
-                "stoch_trend_pullback", "dt_bb_rsi_mr",
-                "orb_trap",  # v9.1: 365d BT全ペア負EV
-                # v9.5 (2026-04-20): SSOT drift fix — demo_trader._FORCE_DEMOTED
-                # には登録済だが migration set から欠落していた 3 戦略を追加。
-                # Live is_shadow=0 残留 trades (ema_trend_scalp Live N=39 等) が
-                # shadow pool に migration されず Kelly を汚していた bug を解消。
-                # 詳細: wiki/analyses/ema-tr-live-breakdown-2026-04-20.md
-                "ema_trend_scalp",       # v9.2 FORCE_DEMOTE (sell-bias-forensics)
-                "intraday_seasonality",  # v9.1 BT 365d 微弱負EV
-                "atr_regime_break",      # v9.1 BT 365d N≈0
-            }
-            # PAIR_PROMOTED overrides: these (entry_type, instrument) combos
-            # are promoted despite being in FORCE_DEMOTED.
-            #
-            # v9.x (2026-04-20): Priority 2 audit — all 5 legacy overrides
-            # (ema_pullback×USD_JPY, fib_reversal×EUR_USD,
-            # bb_squeeze_breakout×{USD_JPY,EUR_USD}, sr_channel_reversal×EUR_USD)
-            # were removed from demo_trader._PAIR_PROMOTED in v9.1.
-            # 365d BT + Live gate re-evaluation (Live N<10 non-shadow for all
-            # combos; fib×EUR 180d EV=-0.147 符号反転; bb_squeeze 180d N<100)
-            # shows none of the 5 combos pass the revival gates
-            # (EV>=+0.2 ATR & N>=100 & 60d/365d sign consistency).
-            # Keeping the set empty aligns shadow-migration accounting with
-            # demo_trader's Source of Truth. See
-            # wiki/analyses/pair-promoted-candidates-2026-04-20.md
-            _pair_promoted_overrides = set()  # type: ignore[var-annotated]
-            try:
-                _total_fixed = 0
-                for _et in _force_demoted:
-                    # Find instruments that are PAIR_PROMOTED for this entry_type
-                    _exempt_instruments = [
-                        inst for (et, inst) in _pair_promoted_overrides if et == _et
-                    ]
-                    if _exempt_instruments:
-                        _inst_ph = ",".join(["?"] * len(_exempt_instruments))
-                        _cur = conn.execute(
-                            f"UPDATE demo_trades SET is_shadow=1 "
-                            f"WHERE entry_type=? AND is_shadow=0 "
-                            f"AND instrument NOT IN ({_inst_ph})",
-                            [_et] + _exempt_instruments
-                        )
-                    else:
-                        _cur = conn.execute(
-                            "UPDATE demo_trades SET is_shadow=1 "
-                            "WHERE entry_type=? AND is_shadow=0",
-                            (_et,)
-                        )
-                    _total_fixed += _cur.rowcount
-                if _total_fixed > 0:
-                    import logging
-                    logging.getLogger(__name__).warning(
-                        f"[SHADOW_MIGRATION] Fixed {_total_fixed} FORCE_DEMOTED trades: is_shadow=0→1"
-                    )
-            except Exception:
-                pass
+            # ── v9.x SHADOW_MIGRATION removed (P1-3, fable5 audit 2026-07-07, rule:R3) ──
+            # The old block ran a hardcoded FORCE_DEMOTED set through an
+            # unconditional `is_shadow=0→1` UPDATE on every startup, with no
+            # idempotency marker and no oanda_trade_id safety check. Its static
+            # set had gone stale and now included CURRENTLY-ACTIVE cells
+            # (dt_bb_rsi_mr edge cells E1/E3/E5/E7/E11, bb_squeeze_breakout
+            # PAIR_PROMOTED), re-contaminating live rows' is_shadow flag at each
+            # restart. Superseded by _backfill_force_demoted_leak_impl below
+            # (dynamic FORCE_DEMOTED list + cutoff + oanda-fill safety check),
+            # so the block is deleted rather than patched.
+            # See knowledge-base/wiki/decisions/fable5-system-audit-2026-07-02.md P1-3
 
             # ── 2026-05-03 (rule:R3): OANDA-fill is_shadow drift backfill ──
             # Audit (2026-05-03 01:46 GMT+9): in a 2000-trade window, 13 of

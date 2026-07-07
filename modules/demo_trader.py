@@ -7216,7 +7216,9 @@ class DemoTrader:
                 # P0#3 (2026-04-27 audit): Kelly<0 promotion guard
                 # Block promote if measured Kelly is negative (positive evidence of -EV).
                 # None means insufficient data (<10 closed) — do not block.
-                _kelly_f = self._get_strategy_kelly_clean(et)
+                # P1-9 (2026-07-07): raw=True — clipped full_kelly is >=0 so the
+                # <0 guard was structurally dead; use the unclipped value.
+                _kelly_f = self._get_strategy_kelly_clean(et, raw=True)
                 _kelly_block = (_kelly_f is not None and _kelly_f < 0)
                 # 2026-04-28 STRATEGY_PROFILES wiring: mode-aware promote gate.
                 # Demote / recovery gates remain unchanged.
@@ -7457,11 +7459,15 @@ class DemoTrader:
             except Exception:
                 friction_pip = self._BT_COST_PER_TRADE
 
+            # P1-9 (2026-07-07): shadow promotion's Kelly<0 guard needs the
+            # UNCLIPPED value (clipped full_kelly is >=0 → kelly_blocked was
+            # structurally dead). Call _get_strategy_kelly_clean(raw=True)
+            # directly rather than the lot-sizing delegate _get_strategy_kelly.
             kelly_f = None
-            kelly_fn = getattr(self, "_get_strategy_kelly", None)
+            kelly_fn = getattr(self, "_get_strategy_kelly_clean", None)
             if callable(kelly_fn):
                 try:
-                    kelly_f = kelly_fn(et, "")
+                    kelly_f = kelly_fn(et, raw=True)
                 except Exception:
                     kelly_f = None
 
@@ -9129,13 +9135,21 @@ class DemoTrader:
         """
         return self._get_strategy_kelly_clean(entry_type)
 
-    def _get_strategy_kelly_clean(self, entry_type: str):
+    def _get_strategy_kelly_clean(self, entry_type: str, raw: bool = False):
         """Per-strategy Kelly using the same filter as _get_aggregate_kelly.
 
         Mirrors aggregate Kelly's trade base (CLOSED, is_shadow==0, XAU
         excluded, exit_time >= FIDELITY_CUTOFF) but scoped to a single
         entry_type. Returns full_kelly float, or None if N<10 or one side
         of the win/loss split is empty.
+
+        P1-9 (fable5 audit, 2026-07-07 rule:R3): kelly_criterion's `full_kelly`
+        is clipped to max(0,·) for lot sizing. Negative-edge detection
+        (shadow/strategy promotion Kelly<0 guards) needs the UNCLIPPED value,
+        so callers doing `< 0` checks must pass raw=True. Lot-sizing callers
+        (dynamic boost / half-Kelly cap via _get_strategy_kelly) keep the
+        clipped default and are unaffected. Mirrors _get_aggregate_kelly's
+        full_kelly_raw read (P1-1, 2026-07-02).
         """
         try:
             from modules.stats_utils import kelly_criterion
@@ -9158,6 +9172,8 @@ class DemoTrader:
             avg_win = sum(wins) / len(wins)
             avg_loss = abs(sum(losses) / len(losses))
             result = kelly_criterion(wr, avg_win, avg_loss)
+            if raw:
+                return result.get("full_kelly_raw", result.get("full_kelly", 0.0))
             return result.get("full_kelly", 0.0)
         except Exception:
             return None
