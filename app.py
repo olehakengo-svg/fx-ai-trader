@@ -6418,8 +6418,22 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             or os.environ.get("ALPHA_WICK_IMBALANCE_REDESIGN_V2", "0") == "1"
         ) else "0"
     )
+    # ── Exit-Repair grid mode (pre-reg LOCK 2026-07-07, rule:R1) ──
+    # Research-only, env-gated. When EXIT_REPAIR_MODE=1: (1) scale the final
+    # production TP/SL distances by ratio levers, (2) force BE/Trail + time-decay
+    # BE off (ablation), (3) exit at raw prices with zero embedded friction and
+    # record per-trade gross geometry so the harness deducts per-pair theoretical
+    # RT friction externally. Default path (flag unset) is byte-identical.
+    # See knowledge-base/wiki/decisions/exit-repair-tp-sl-prereg-2026-07-07.md
+    _EXIT_REPAIR = os.environ.get("EXIT_REPAIR_MODE") == "1"
+    try:
+        _ER_TP_SCALE = float(os.environ.get("EXIT_REPAIR_TP_SCALE", "1.0") or "1.0")
+        _ER_SL_SCALE = float(os.environ.get("EXIT_REPAIR_SL_SCALE", "1.0") or "1.0")
+    except ValueError:
+        _ER_TP_SCALE = _ER_SL_SCALE = 1.0
     cache_key = (
         f"{symbol}_{interval}_{lookback_days}_jitter{exec_lag_jitter:.4f}"
+        f"_er{int(_EXIT_REPAIR)}t{_ER_TP_SCALE:.2f}s{_ER_SL_SCALE:.2f}"
         f"_bt{int(bool(backtest_mode))}_gtmV2{_gtm_v2_cache_flag}"
         f"_gvbV2{_gvb_v2_cache_flag}_hfbV2{_hfb_v2_cache_flag}"
         f"_iobV2{_iob_v2_cache_flag}_jbtV2{_jbt_v2_cache_flag}"
@@ -6510,6 +6524,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         if os.environ.get("BT_ABLATE_QUICK_HARVEST") == "1":
             _BT_QUICK_HARVEST = False
         _BT_ABLATE_BE_TRAIL = (not _BT_OPTIMISTIC) or (os.environ.get("BT_ABLATE_BE_TRAIL") == "1")
+        if _EXIT_REPAIR:
+            _BT_ABLATE_BE_TRAIL = True  # pre-reg: BE/Trail OFF fixed (ablation)
         _sym_core_dt = symbol.upper().replace("=X", "").replace("/", "").replace("_", "")
         _bt_oanda_pair_dt = _sym_core_dt[:3] + "_" + _sym_core_dt[3:]
         _BT_QH_EXEMPT_DT = frozenset({
@@ -6765,7 +6781,11 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 ep = float(_entry_bar_dt["Open"])
             _spread = _bt_spread(bar_time, symbol)
             # Phase A: spread + slippage at entry
-            ep = ep + (_spread / 2 + _slip_dt) if sig == "BUY" else ep - (_spread / 2 + _slip_dt)
+            # Exit-repair: enter at raw next-bar open; per-pair theoretical RT
+            # friction is deducted externally by the grid harness (pip-based),
+            # so embedded engine friction is zeroed to avoid double-counting.
+            if not _EXIT_REPAIR:
+                ep = ep + (_spread / 2 + _slip_dt) if sig == "BUY" else ep - (_spread / 2 + _slip_dt)
 
             # TP固定: シグナルのTPターゲットを維持（エントリー価格シフト分のみ調整）
             # ATR×1.5をフロアとして保証（シグナルTPが小さすぎる場合に補正）
@@ -6775,7 +6795,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             tp = tp + ep_shift
 
             # Phase A: 決済時摩擦
-            _exit_friction_dt = _spread / 2 + _slip_dt
+            _exit_friction_dt = 0.0 if _EXIT_REPAIR else (_spread / 2 + _slip_dt)
             _exit_friction_m_dt = _exit_friction_dt / max(atr, 1e-6)
 
             # ATR-based TP floor: 最低 ATR×1.5 を保証
@@ -6962,6 +6982,18 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             if tp_dist_dt < sl_dist_dt and not (_dt_sr_channel_v2_geometry or _rsk_v2_geometry or _vsg_v2_geometry):
                 continue
 
+            # ── Exit-Repair: scale final production TP/SL by ratio levers ──
+            # Applied AFTER the production RR gate so we only rescale entries the
+            # live engine would actually take. TP_mult/SL_mult are relative to the
+            # post-floor/RANGE/QH "現行設計" distances (matches diagnosis 設計TPd/SLd).
+            if _EXIT_REPAIR:
+                _er_tp_d = abs(tp - ep) * _ER_TP_SCALE
+                _er_sl_d = abs(sl - ep) * _ER_SL_SCALE
+                tp = ep + _er_tp_d if sig == "BUY" else ep - _er_tp_d
+                sl = ep - _er_sl_d if sig == "BUY" else ep + _er_sl_d
+                tp_dist_dt = _er_tp_d
+                sl_dist_dt = _er_sl_d
+
             sl_m = abs(ep - sl) / max(atr, 1e-6)
             tp_m_actual = abs(tp - ep) / max(atr, 1e-6)
 
@@ -7011,7 +7043,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                         _dt_be_activated = True
 
                 # ── Time-decay SL tightening: MAX_HOLD×50%経過後 ──
-                if j >= int(MAX_HOLD * 0.5):  # 60%→50% (早期利確保護)
+                # Exit-repair: OFF — moving SL to breakeven is a BE-family
+                # mechanism, ablated together with BE/Trail per pre-reg.
+                if (not _EXIT_REPAIR) and j >= int(MAX_HOLD * 0.5):  # 60%→50% (早期利確保護)
                     if sig == "BUY" and fut_close > ep:
                         _dt_current_sl = max(_dt_current_sl, ep)
                     elif sig == "SELL" and fut_close < ep:
@@ -7128,6 +7162,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                                 "exit_friction_m": round(_exit_friction_m_dt, 4),
                                 "exit_reason": _exit_reason_dt,
                                 "exec_lag_jitter": _exec_lag_jitter,
+                                "atr": round(atr, 6), "pair": _bt_oanda_pair_dt,
                                 "_is_range_tp_override": _is_range_tp_override}
                 if outcome == "LOSS" and _exit_reason_dt != "signal_reverse":
                     if sig == "BUY" and fut_close < sl:
@@ -7144,7 +7179,13 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             else:
                 return -(t.get("actual_sl_m", t.get("sl_m", SL_MULT)) + _ef)
 
-        if len(trades) < 20:
+        if _EXIT_REPAIR:
+            # Grid harness needs the raw trade_log even for thin per-cell N;
+            # pooling + FDR happens downstream, so skip the <20 aggregate gate.
+            result = {"trades": len(trades), "trade_log": trades,
+                      "mode": "daytrade", "exit_repair": True,
+                      "er_tp_scale": _ER_TP_SCALE, "er_sl_scale": _ER_SL_SCALE}
+        elif len(trades) < 20:
             result = {"error": f"サンプル数不足（20トレード未満）",
                       "trades": len(trades), "mode": "daytrade"}
         else:
