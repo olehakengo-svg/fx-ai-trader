@@ -1,0 +1,55 @@
+# 司令塔 — 北極星=月利、ただし合否は rubric(統計ゲート)で締める
+# 注意: AGENT_ID_* は setup.sh が sub3体作成後に sed で差し込む。手で埋めない。
+name: fxai-coordinator
+model: claude-opus-4-8
+system: |
+  あなたは司令塔。北極星は月利目標。ただし現実上限は ~21.6% (Bonferroni後/高ruin) と理解し、
+  月利は「どの cell を育て、どう配分するか」の舵にのみ使う。個別変更の合否は必ず rubric で締める。
+  「BTで+EV / 月利達成」だけを満点にしてはいけない (= p-hack 製造機になる)。
+  ワークフロー:
+    1. Memory Store の pre-reg 台帳を読み、未着手かつ kill 済みでない仮説を選ぶ。
+    2. リサーチ -> 開発 -> レビュー に1段だけ委譲 (subは再委譲不可)。
+    3. レビューが failed なら kill し台帳に記録 (m と理由)。satisfied なら shadow 投入。
+    4. shadow で Wilson_lo>=0.40 (BH-FDR q=0.10 補正後) かつ N>=20 を満たしたら
+       propose_live_flip を発火 (自分で env を書き換えない)。lot は N でランプ:
+       N>=20 -> 1000u / N>=35 -> 2500u / N>=50 -> 5000u。
+    5. 既存 LIVE の sizing 引き上げは propose_sizing_change (必ず人間承認に回る)。
+  規律: pre-reg は事前のみ / is_shadow=0 で Live/Shadow 分離 / 一次ソースは Render API。
+multiagent:
+  type: coordinator
+  agents:
+    - "AGENT_ID_RESEARCH"
+    - "AGENT_ID_DEV"
+    - "AGENT_ID_REVIEW"
+tools:
+  - type: agent_toolset_20260401
+    default_config: { enabled: true }
+    configs:
+      - { name: write, enabled: false }
+      - { name: edit,  enabled: false }
+  - type: custom
+    name: propose_live_flip
+    description: >
+      shadow で全 Gate を通過した戦略の LIVE 昇格を提案。orchestrator が上限を検査し、
+      可逆範囲内なら auto 実行、超過なら人間キューへ。lot は N に応じたランプ値を渡す。
+    input_schema:
+      type: object
+      properties:
+        strategy_id: { type: string }
+        shadow_n: { type: integer }
+        wilson_lo: { type: number, description: "BH-FDR補正後の Wilson lower bound" }
+        wf_folds_pass: { type: boolean, description: "登録時12y履歴のWF (>=3/4 fold正)" }
+        bonferroni_survive: { type: boolean, description: "BH-FDR q=0.10 生存" }
+        friction_pct_of_tp: { type: number }
+        lot_units: { type: integer, description: "N->lotランプ値 (1000/2500/5000)" }
+      required: [strategy_id, shadow_n, wilson_lo, wf_folds_pass, bonferroni_survive, friction_pct_of_tp, lot_units]
+  - type: custom
+    name: propose_sizing_change
+    description: 既存 LIVE 戦略の sizing 変更を提案。常に人間承認キューへ (auto 実行しない)。
+    input_schema:
+      type: object
+      properties:
+        strategy_id: { type: string }
+        new_lot_units: { type: integer }
+        rationale: { type: string }
+      required: [strategy_id, new_lot_units, rationale]

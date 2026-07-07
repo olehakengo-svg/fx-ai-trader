@@ -461,3 +461,34 @@
 - ✅ index.md 07-01 インシデント記述を forensic 結果で訂正（偽sent、実弾未送信）— 旧記述「live bridge fired anyway」は誤り
 - ⚠️ 既存: 破損wikilink 182件（本日編集前後で件数不変=新規破損なし、大半は log.md の [[zz-pivot-v60-sr]] 系と自動生成リンク）— 別タスクで一括修正候補
 - ⚠️ 既存: Edge Stage不整合 1件 (london-fix-reversal: file=PAIR_DEMOTED vs pipeline=PROMOTED) — 未解決のまま
+
+## 2026-07-03 wiki-daily-update (scheduled task)
+- ✅ APIフェッチ完了 (demo/stats date_from=2026-04-08, demo/learning, risk/dashboard, oanda/audit limit=30) — 全て Render 本番一次ソース
+- ✅ Trade log 作成: `raw/trade-logs/2026-07-03.md`
+- **本日のスナップショット (is_shadow=false)**: N=**555** (+13 fills vs 07-02: **9W/4L/0BE ≈69% decided WR** — 直近ログで最良のW/Lミックス、07-02ブローアウトを打ち切り)、WR=43.8% (+0.6pp ✅)、EV=-0.95 (+0.01 ✅)、PnL=**-527.9pip** (−6.8pip — 直近リカバリ以降で最も穏やかな単一窓変化。9-4勝ちでも net ほぼ横ばい=sized-loss 非対称が残存)
+- **リスク**: DD=**98.97%** (+0.77pp ⚠️⚠️⚠️ **NEW HIGH — −$1000/100%まで<$28**、eq=−$972.8、spike ではなく slow grind)、ruin=0.0% ✅、defensive 0.2× 維持。MC tail ≈flat (worst DD99 226.36% / median max DD 172.3%)
+- **30d rolling**: edge=**-32.3%** (07-02 evening -35.72% から +3.42pp — **window-roll のみ** n 109→99、USD_CHF + 6月上旬 trade が窓から脱落、real edge gain ではない)。gross=net=-282.7pip (+27.3 eased)、friction 388.8/3.93。4ペア全て負: **GBP_USD #1 drag -134.4 (mean -3.54, n=38)** / EUR_JPY -51.1 / USD_JPY -49.4 / EUR_USD -47.8 (roll で eased)
+- 🟢 **Aggregate Kelly ゲートが LIVE 1件を正しくブロック** (`agg_kelly=-0.326<0`) — watchdog cron が silent の間、現行の稼働中セーフティネットが機能していることを実証
+- OANDA audit (07:38→11:38 UTC): **0 LIVE / 29 shadow_tracking skipped / 1 blocked(agg-kelly) / 0 sent** — 偽sent なし (07-02 の accept/reject contract fix が持続)。firing: dt_sr_channel_reversal(8) / session_time_bias(7) / sr_break_retest(5)
+- Learning: id=91 (07-01 sr_channel_reversal blacklist) 以降 新規調整なし。current_params 不変
+- Tier 変更なし → portfolio auto-sync / strategy pages 編集不要（良性窓、閾値クロスなし）
+- **Lint**: (1) WR/PnL/DD/edge 数値は index.md 全6箇所 (header/System State/ruin/kelly/last-updated/session-history/trade-log link) で 98.97%/-527.9/N=555/-32.3% 一致 ✅ (2) [[2026-07-03]] リンク解決 ✅、新規破損リンク 0件 (top-level 未解決14件は既存) (3) stale なし — データ 07-03 当日
+- ⚠️ 未解決（継続）: `API_AUTH_TOKEN` watchdog gap (user が Render dashboard で値投入待ち) / sr_anti_hunt_bounce shadow data corruption
+
+## 2026-07-06 wiki-daily-update (scheduled task)
+- ✅ APIフェッチ完了 (demo/stats date_from=2026-04-08, demo/learning, risk/dashboard, oanda/audit limit=30) — 全て Render 本番一次ソース
+- ✅ Trade log 作成: `raw/trade-logs/2026-07-06.md`
+- **本日のスナップショット (is_shadow=false)**: N=**556** (+1 fill vs 07-03。**07-04/05 は週末で市場クローズ** → 実質1-fill窓)。その1件は **orb_trap に完全一致** (N=3→4, PnL +26.8→+23.2, WR 66.7%→50% = **−3.6pip の負け 1本**, 0W/1L) — book の全変動量。WR=43.7% (−0.1pp), decided 46.5% (−0.1pp), EV=-0.96 (−0.01), PnL=**-531.5pip** (−3.6pip)。orb_trap は #1 LIVE昇格候補のため小N記録に傷 (aggregate は WR50% N4)
+- **リスク**: DD=**99.33%** (+0.36pp ⚠️⚠️⚠️ **NEW HIGH — −$1000/100%まで<$24**、eq=−$976.4、spike ではなく slow grind — わずか1本の負けでも high-water DD が更新されるほど book trough が100%線に接近)、ruin=0.0% ✅、defensive 0.2× 維持。MC tail は微減 (worst DD99 226.36→**212.58**、median final eq 829→**841**)
+- **30d / overall edge**: risk dashboard の overall edge=**-29.63%** (07-03 の 30d -32.3% から window-roll で ease — 6月上旬 trade が窓外へ、real edge gain ではない)。net=**-242.6pip** (+40.1 eased)、friction 3.98/trade、Sharpe -0.398、DSR 0.0/haircut 100%。by-instrument 内訳は今回の fetch (risk dashboard summary) には非露出 → 前窓の read を定性的に継承 (GBP_USD #1 drag)
+- OANDA audit (06:37→12:01 UTC): **0 LIVE / 30 shadow_tracking skipped / 0 blocked / 0 sent** — 偽sent なし (07-02 accept/reject contract fix 持続)、今窓は agg-kelly gate に到達した signal なし (07-03 は1件ブロック)。firing: session_time_bias(6) / vol_momentum_scalp(6) / trendline_sweep(5) / sr_break_retest(4)
+- Learning: daytrade WR42.5%/EV-2.3/n87, scalp WR40.7%/EV-0.15/n388。sr_channel_reversal scalp blacklist 再確認 (WR25%/EV-0.98/n20)。current_params 不変、新規構造変更なし
+- Tier 変更なし → portfolio auto-sync / strategy pages 編集不要（良性窓、閾値クロスなし）
+- **Lint**: (1) 現状態の数値は index.md 全5箇所 (header/System State/last-updated/session-history/trade-log link) で 99.33%/-531.5/N=556/-29.63% 一致 ✅ (残る 98.97/-527.9/555 参照は line171/251 の 07-03 履歴記述=正) (2) [[2026-07-06]] リンク解決 ✅、新規破損リンク 0件 (3) stale なし — データ 07-06 当日 (run は 07-07 JST 早朝)
+- ⚠️ 未解決（継続）: `API_AUTH_TOKEN` watchdog gap (user が Render dashboard で値投入待ち、agg-kelly gate が現行の稼働中セーフティネット) / sr_anti_hunt_bounce shadow data corruption
+
+## 2026-07-07 fx-roadmap-v23-handoff 完遂 + lint
+- ✅ ゲート④(改) LOCKED 化 = PR #51 マージ (main 0cf4e01a) / roadmap v2.3 DRAFT 起案 = PR #52 マージ (main 5212b5c7、[[roadmap-v2.3-payoff-friction-repair]] + index.md/CLAUDE.md 参照更新 + 検証ログ節)
+- ✅ 独立再計測 (snapshot 12,325行): clean live 30d N=92/−242.6p/WR55.4%/payoff 0.27 完全再現。draft の shadow N=2,466 は dedup キー未照合 (raw 3,281) — v2.3 T4 着手時に estimand 確定要
+- ✅ Lint: v2.3 draft の wikilink 4/4 解決 (main 上)。ローカル (research/h4-level-edge) の index.md/CLAUDE.md 参照も v2.3 へ同期、draft ファイルをローカルへ複製
+- ⚠️ **main の index.md DD 行が stale (80.03%/2026-06-10)** — monitor 系の index 更新が research/h4-level-edge 側にのみ蓄積 (53 commits 未 push 乖離の症状、MEMORY project_main_divergence_resolved 参照)。v2.3 は表示 DD% を監視 KPI から除外し実 NAV(JPY) 基準へ統一予定のため、main 側 DD 行の単発修正はせず乖離解消 (別件) に委ねる

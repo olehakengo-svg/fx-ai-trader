@@ -174,6 +174,52 @@ def test_v2_rejects_if_closed_bar_has_no_retest_even_when_current_bar_does(monke
     assert cand is None
 
 
+def test_v2_emits_sr_meta_from_layer3_weighted_levels(monkeypatch):
+    """SR_BREAK_RETEST_REDESIGN_V2 候補は ctx.layer3.sr_weighted_levels の
+    nearest level を sr_meta に持ち出して oanda_audit の sr_strength を
+    populate できる必要がある (2026-06-02 fix: Defect #3 sr_strength 0.4%
+    populate gap)."""
+    monkeypatch.setenv("SR_BREAK_RETEST_REDESIGN_V2", "1")
+
+    ctx = _ctx(_df(closed_signal=True, current_signal=False))
+    # Inject heavy weighted level near the SR cluster (SR = 100.0)
+    ctx.layer3 = {"sr_weighted_levels": [
+        {"price": SR, "strength": 0.82, "touches": 9,
+         "days_span": 12.0, "is_strong": True},
+    ]}
+
+    cand = SrBreakRetest().evaluate(ctx)
+
+    assert cand is not None
+    assert cand.sr_meta is not None, (
+        "Candidate.sr_meta must be populated so oanda_bridge.record_audit "
+        "can persist sr_strength/sr_touches/sr_is_strong"
+    )
+    assert cand.sr_meta["strength"] == 0.82
+    assert cand.sr_meta["touches"] == 9
+    assert cand.sr_meta["is_strong"] is True
+    assert cand.sr_meta["days_span"] == 12.0
+    assert cand.sr_meta["distance_atr"] is not None
+
+
+def test_v2_emits_sr_meta_fallback_when_layer3_levels_empty(monkeypatch):
+    """ctx.layer3.sr_weighted_levels が空でも sr_meta_from_price は
+    sr_meta_from_level fallback で dict を返す (strength=None など) ので、
+    Candidate.sr_meta が完全に欠落することは無い。"""
+    monkeypatch.setenv("SR_BREAK_RETEST_REDESIGN_V2", "1")
+
+    cand = SrBreakRetest().evaluate(_ctx(_df(closed_signal=True, current_signal=False)))
+
+    assert cand is not None
+    assert cand.sr_meta is not None
+    # Empty levels → strength/touches/is_strong None, but distance_atr computable
+    assert cand.sr_meta["strength"] is None
+    assert cand.sr_meta["touches"] is None
+    assert cand.sr_meta["is_strong"] is None
+    # distance_atr should still be computable from sr_level vs signal_close
+    assert cand.sr_meta["distance_atr"] is not None
+
+
 def test_v2_live_dedups_same_symbol_side_closed_bar_sr_bucket(monkeypatch):
     monkeypatch.setenv("SR_BREAK_RETEST_REDESIGN_V2", "1")
     SrBreakRetest.reset_dedup_state()
