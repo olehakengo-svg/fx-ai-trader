@@ -62,7 +62,7 @@ payoff 0.27 は v2.3 の最重要問題。**診断は R3 (analyses/ に数値根
 | # | 項目 | Rule | 状態 |
 |---|---|---|---|
 | T3 | **payoff 0.27 の要因分解** | R3 (診断) | ✅ **CLOSED 2026-07-07** — [[payoff-asymmetry-diagnosis-2026-07-07]] (9-agent workflow、4サブ分析敵対的検証済)。(a) 早利確 = 主因 (log share 103.7%、2層: TP 5倍過大 + trail 返上 142.5p) / (b) SL 遠置き・負け引っ張り = **棄却** / (c) slippage 非対称 = **棄却** (7%) / (d) close_reason = (a) の機構的実体。WR 54.8% は BE/trail アーティファクト (BT +20pp 水増しの live 鏡像)。counterfactual: 両レバー完璧でも −77.6p |
-| T4 | **摩擦調整 EV マップ** — 稼働 20 entry_type × pair × dir を gross EV − per-pair friction (friction-analysis.md) で再評価し、摩擦調整後に正の候補が存在するか網羅。M6 の母集団確定。**着手時に shadow dedup キーを forensic #3 の estimand 定義と揃えて確定させること** (raw 3,281 vs draft 2,466 の未照合、T3 検証ログ参照)。初期候補 = shadow 正EV 3本 (vix_carry_unwind +0.96 N=60 / sr_fib_confluence +1.44 N=49 / vol_spike_mr +1.31 N=31) | R3 | autopilot 実行可 (次の主要 R3) |
+| T4 | **摩擦調整 EV マップ** ✅ **完了 2026-07-07** ([[friction-adjusted-ev-map-2026-07-07]]) — 稼働 39 entry_type × pair × dir を gross EV − per-pair friction で網羅。estimand = deduped (bar_ts key、再emit inflation ~19% 除去、「3,281 vs 2,466」= 診断窓 slice と確定)。**結果: net+ は 1/39 type・3/89 cell のみ (楽観 shadow ですら)。唯一の net+ = vix_carry_unwind×USD_JPY×SELL は live 負 (−1.22〜−1.90p) — BE/Trail 水増しで shadow net+ は live に伝わらない。** draft の「shadow 正EV 3本」は小N/窓依存で、全母集団 deduped では sr_fib_confluence が深赤 (−3.00, N=411) に訂正。現行母集団に live viable な正セル不在を確定 | R3 | ✅ 完了 |
 
 ## WS2: 昇格候補 N蓄積・繰越 (v2.2 繰越, Rule 1 正順)
 
@@ -90,8 +90,8 @@ Edge Factor Audit #1-#6 (2026-06-12) + T10 bb_rsi KILL (2026-07-02) で高N shad
 
 | # | 項目 | Rule | 寄与 |
 |---|---|---|---|
-| T12 | **P1-3: stale SHADOW_MIGRATION ブロック削除** — `demo_db.py:473-533` が restart 毎に現役セル (dt_bb_rsi_mr E1/E3/E5/E7/E11, bb_squeeze_breakout) を is_shadow=0→1 再汚染。後継 backfill が存在するため削除で対応 | R3 | **clean live/shadow 分離を直接汚染**。最優先 |
-| T13 | **P1-9: 死にゲート `_kelly_block` 修正** — `_get_strategy_kelly_clean` が clip 済み full_kelly を返し `_shadow_promotion_decision` の負値判定が構造的不発 (60652ac1 と同型)。`full_kelly_raw` 化 | R3 | **昇格経路そのものが機能不全**。正EVセル出現時に昇格できない |
+| T12 | **P1-3: stale SHADOW_MIGRATION ブロック削除** ✅ **完了 2026-07-07 (PR #59)** — `demo_db.py` restart 毎の現役セル (dt_bb_rsi_mr, bb_squeeze_breakout) 再汚染を削除。後継 backfill + FLAG_DRIFT (UNSAFE 検知) が正しい後継。回帰テスト同梱 | R3 | ✅ 完了 |
+| T13 | **P1-9: 死にゲート `_kelly_block` 修正** ✅ **完了 2026-07-07 (PR #59)** — `_get_strategy_kelly_clean(raw=True)` 追加で負値判定 2 経路が発火。実弾サイジングは clip 維持で不変。回帰テスト同梱 | R3 | ✅ 完了 |
 | T14 | **P1-2/2b: BE/Trail ablation を scalp/1H×2 へ展開 + fut_close tie-break** — daytrade のみ ablation guard 済、他3エンジンに +20pp 水増し残存。fut_close tie-break は4エンジン全部 | R3 | **昇格判断が使う EV/WR の水増し源**。WS-Diag の payoff 実測とも直結 |
 | T15 | **P1-7/P1-8/P1-6 (低優先)** — CI paths filter 撤廃 + hip1 job 化 + dev.agent.yaml 訂正 / scalp QUALIFIED_TYPES drift 検査 / 再送ガード共通化 | R3 | 品質ゲート穴。順次 |
 
@@ -109,8 +109,8 @@ Edge Factor Audit #1-#6 (2026-06-12) + T10 bb_rsi KILL (2026-07-02) で高N shad
 
 したがって寄与度の優先順位 (T3 確定後の現在地):
 1. **決済非対称の是正** (WS-Diag T2 = TP/SL 実走距離整合 R1 パイプライン) — 診断は完了、pre-reg LOCK 済み・BT 実行待ち。全滅なら WS3 シグナル張り替えへ全振り
-2. **clean-N 整合性の回復** (WS4 = Fable5 Phase B P1-3/P1-9/P1-2) — 正EVセルが出現したとき昇格経路が機能する前提条件、R3。**autopilot の次の主戦場**
-3. **摩擦調整 EV マップ** (WS-Diag T4) — M6 母集団確定、R3
+2. **clean-N 整合性の回復** (WS4 = Fable5 Phase B) — **P1-3/P1-9 ✅ 完了 (PR #59, 2026-07-07)**。残 = P1-2 (BE/Trail ablation を scalp/1H×2 へ展開)。R3
+3. **摩擦調整 EV マップ** (WS-Diag T4) — ✅ **完了 (2026-07-07, [[friction-adjusted-ev-map-2026-07-07]])**。net+ セル不在を確定 (楽観 shadow ですら 1/39 type、唯一候補は live 負)
 4. **エッジ要因解析継続** (WS3) — 高WR×負EV 群 (gbp_deep_pullback / sr_anti_hunt_bounce)
 
 **正式版 (2026-07-07)。** autopilot は R2/R3 項目を実行可。R1 項目は個別に Rule 1 手続き + user 最終承認。
@@ -122,5 +122,5 @@ Edge Factor Audit #1-#6 (2026-06-12) + T10 bb_rsi KILL (2026-07-02) で高N shad
 commit 前に別セッションが production API から新規スナップショット (12,325 行、`tools/render_trades_snapshot.py`) を取得し再導出:
 
 - **clean live 30d (06-06〜07-06)**: N=92 / −242.6p / WR 55.4% / EV −2.64 / avg_win +2.40 / avg_loss −8.90 (payoff 0.27) — **本 draft の中核数値を完全再現** ✅
-- **shadow 30d raw**: N=3,281 (稼働上位 ~22 entry_type が N≥30) — 本文の N=2,466 は dedup 後系の値とみられ集計キー未照合 (raw/dedup いずれでも「飽和・一様に負」の結論は不変)。T4 着手時に dedup キーを [[t8-week1-gate-breach-2026-07-06]] forensic #3 の estimand 定義と揃えて確定させること
-- **shadow 戦略集計で正 EV は 3 本のみ**: vix_carry_unwind (+0.96, N=60) / sr_fib_confluence (+1.44, N=49) / vol_spike_mr (+1.31, N=31) — いずれも T4 摩擦調整 EV マップの最優先評価対象 (M6 母集団の初期候補)
+- **shadow 30d raw**: N=3,281 (稼働上位 ~22 entry_type が N≥30)。**estimand 確定 (T4, 2026-07-07)**: 「3,281 vs 2,466」= 診断窓 shadow の再emit inflation (~19%)。dedup key = `(entry_type, instrument, direction, bar_ts)` ([[t8-week1-gate-breach-2026-07-06]] forensic #3 の order 層 estimand と整合) で診断窓 3,332→2,686。全母集団 (all post-cutoff) は 10,648→8,667 (−18.6%)。raw/dedup いずれでも「飽和・一様に負」の結論は不変
+- **~~shadow 正 EV 3 本~~ → 訂正 (T4, [[friction-adjusted-ev-map-2026-07-07]])**: draft の 3 本 (vix_carry/sr_fib/vol_spike) は小N/窓依存。全母集団 deduped + friction 控除では **net+ は vix_carry_unwind のみ (1/39)**、sr_fib_confluence は −3.00 (N=411) と深赤に反転。しかも vix_carry の net+ は **shadow 限定で live は負** (BE/Trail 水増し) — live viable な正セルは母集団に不在
