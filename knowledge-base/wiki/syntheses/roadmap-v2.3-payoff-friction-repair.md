@@ -1,10 +1,10 @@
 # ロードマップ v2.3: 決済非対称と摩擦の是正 — 負エッジ確定局面からの構造回復
 
-> **⚠️ DRAFT — user レビューで正式化。** それまで autopilot は本 draft の **R2/R3 項目のみ実行可**、**R1 項目は user 承認後**。目標 (月利21.6% 数学的上限への段階接近、user 承認 2026-06-12) は不変 — 本 draft が変えるのは作業計画のみ。
+> **✅ 正式版 (user 承認 2026-07-07「進めていいよ」)。** autopilot は R2/R3 項目を実行可。**R1 項目は個別に Rule 1 手続き (365d BT + Bonferroni + Pre-reg LOCK + user 最終承認) を経て執行** — ロードマップ正式化は計画の承認であり、個別 R1 レバーの包括承認ではない。目標 (月利21.6% 数学的上限への段階接近、user 承認 2026-06-12) は不変。
 
-**作成日**: 2026-07-06 (handoff タスク `fx-roadmap-v23-handoff` タスク2)
+**作成日**: 2026-07-06 (handoff タスク `fx-roadmap-v23-handoff` タスク2) / **正式化**: 2026-07-07 (T3 診断確定の訂正込み)
 **旧版**: [[roadmap-v2.2-win-conversion]] (2026-06-12、全12項目クローズ済み PR #44-#50)
-**根拠**: 2026-07-06 本番実測 (Render production API、clean live `oanda_trade_id != ''` N=92 / clean shadow N=2,466 / risk dashboard / OANDA status)
+**根拠**: 2026-07-06 本番実測 (Render production API、clean live `oanda_trade_id != ''` N=92 / clean shadow N=2,466 / risk dashboard / OANDA status) + **2026-07-07 T3 要因分解 [[payoff-asymmetry-diagnosis-2026-07-07]] (敵対的検証済)**
 
 ---
 
@@ -13,10 +13,10 @@
 v2.2 は全12項目をクローズした (止血セル停止・T5 JPYキャップ執行・T8 forensic・T10/T11 KILL・pre-reg 監視自動化・autopilot 稼働)。しかし **30d clean live は改善せず悪化**した。以下は 2026-07-06 実測 (全12,290件取得、30d 窓 = 06-06〜07-06、XAU除外・dedup除外):
 
 1. **clean live 30d = N=92 / −242.6 pip / WR 55.4% / EV −2.64/t** — v2.2 起点 (N=84 / −37.9p) から **6.4×悪化**。W23 以降 (6月後半) に再悪化、W20-21 の一時プラス転換は持続せず。
-2. **負けの真因が特定変更された = 決済非対称 (payoff 0.27) + 摩擦**:
-   - avg_win **+2.40p** / avg_loss **−8.90p** → **payoff ratio 0.27**。勝ちを早利確し負けを引っ張る非対称。close_reason は 92 件中 83 件が SL_HIT / OANDA_SL_TP。
-   - 摩擦 **366.2 pip (3.98/t)**。摩擦除去後の gross は **+123.6p** = 摩擦が符号を反転させている。avg_win +2.4p は摩擦 3.98p に食われて即マイナス。
-   - **どの entry_type も「摩擦調整後 EV が正」にならない限り live 転送に耐えない**、が定量的結論。
+2. **負けの真因が特定変更された = 決済非対称 (payoff 0.27) + 摩擦** — ⚠️ **2026-07-07 T3 診断で以下のとおり訂正・精密化** ([[payoff-asymmetry-diagnosis-2026-07-07]]):
+   - avg_win **+2.40p** / avg_loss **−8.75p** → **payoff ratio 0.274**。恒等式 **0.274 = 設計 R:R 2.667 × 勝ち側 capture 0.0944 ÷ 負け側 realize 0.9185** — 非対称は設計でなく **100% 勝ち側 exit 執行**で発生。①設計 TP (25.4p) が実走 MFE (5.2p) の約5倍 = TP 到達 3/93 ②trail/BE 返上 142.5p/30d。**「負けを引っ張る」は棄却** (loss realize 0.92 = 設計比むしろ改善方向)。
+   - 摩擦: draft 当初の **366.2p は dashboard 合成値で実測比 3.06 倍過大**。実測 friction ∈ **[120.6 (実測フロア), 294.6 (per-pair 理論)] p/30d**、gross の符号反転はモデル依存 (フロアでは gross も −124.4p)。**摩擦非対称 (「負けだけ滑る」) は棄却** (17.7p = net 損失の 7%)。ただし対称摩擦の水準効果は大 (スクラッチ勝ち med +1.8p ≈ spread 1.30p)。
+   - **どの entry_type も「摩擦調整後 EV が正」にならない限り live 転送に耐えない**、の定量的結論は全摩擦モデルで不変。exit 微調整では黒字化不能 (両レバー完璧でも −77.6p) — 修理は「TP/SL を実走距離 (MFE 帯 4-6p) に整合させる」か「20p 走るシグナルへ張り替える」かの構造選択 (→ WS-Diag T2 の pre-reg)。
 3. **統計的に有意な負エッジが確定 (Rule 2 該当)** — Kelly edge=−0.296 / rec_fraction=0.0、DSR haircut=100% (n_trials=14 で有意性なし)、defensive_mode 発動・lot 0.2x。「傾向」でなく「確定した現状評価」。
 4. **shadow N は飽和、しかし一様に負** — clean shadow 30d N=2,466、稼働 20 entry_type が **全て N≥30 到達済み**、かつ閉足 EV はほぼ全戦略 **< −0.5** (降格候補域)。
    - → **v2.2 のボトルネック定義「クリーン N の蓄積速度」は superseded**。現局面は「データ不足」ではなく「**蓄積したデータが一様に負を示し、正EVセルが不在**」。蓄積速度はもはや律速でない (KB更新提案 — 下記「ボトルネック」参照)。
@@ -51,8 +51,9 @@ v2.2 は全12項目をクローズした (止血セル停止・T5 JPYキャッ�
 
 | # | 項目 | Rule | 状態 | 採用/棄却条件 |
 |---|---|---|---|---|
-| T1 | **GBP_USD live 出血セルの forensic + R2 demote** — GBP_USD live は N=38 / mean −3.42 / **−129.9p (全損の 53%)**。ただし instrument 集計 = 複数戦略混在。cell (戦略×dir) 粒度で分解し、N≥10 ∧ EV<0 ∧ Wilson_lo<BEV のセルを `SHADOW_DEMOTED_CELLS` へ (code pin) | R2 | **draft: autopilot 実行可 (R2)** | cell 単位 EV≥0 or N<10 なら据置。ELITE_LIVE [[trendline-sweep]] GBP_USD が該当する場合は BT (EV+0.599) との live 乖離を先に forensic |
-| T2 | **live 決済非対称の緊急 mitigation 評価** — payoff 0.27 の即効 lever があるか (例: OANDA 側 SL/TP 幅の摩擦調整、trailing 無効化) を診断。**パラメータ変更は R1 なので draft では診断のみ、実装は user 承認後** | R1 (実装) / R3 (診断) | draft: 診断のみ autopilot 可 | WS-Diag T3 の結論待ち |
+| T1 | **GBP_USD live 出血セルの forensic + R2 demote** | R2 | ✅ **執行済 2026-07-07 (PR #56)**: wick_imbalance_reversion×GBP_USD を `_PAIR_DEMOTED` へ (N=12 EV−3.91 −46.9p、Wilson_lo 19.3%<BEV 37.9%、pin 3 tests)。**vix_carry_unwind×USD_JPY×SELL (N=10 EV−1.90) は R2 基準該当だが user 承認済み Overlap pilot 契約と衝突 → pilot 継続裁定 (2026-07-07 user「進めていいよ」)** — 再評価 checkpoint = live N≥20 or 2026-08-31 (registry `vix-sell-pilot-recheck`)。trendline_sweep は WR 68.4% BT 整合 / payoff 0.15 → demote 保留・MTF ゲート異常の別調査へ ([[payoff-asymmetry-diagnosis-2026-07-07]] §7) | 完了 (forensic 継続分は T-MTF) |
+| T2 | **live 決済非対称の是正 — TP/SL 実走距離整合の R1 パイプライン** — T3 の結論 (trail 無効化は解でない、TP 5倍過大が主因) を受け、緊急 mitigation でなく構造是正へ。**pre-reg LOCK 済み: [[exit-repair-tp-sl-prereg-2026-07-07]]** (grid 9 combos、BE/Trail ablation、診断窓除外、BH-FDR q=0.10)。BT 執行は Codex queue、verdict はナイフエッジ3点検査必須 | R1 | 🔒 pre-reg LOCK (2026-07-07)、BT 実行待ち | PASS → user 最終承認で実装 / 全滅 → WS3 シグナル張り替えへ全振り |
+| T-MTF | **(新規) MTF 抑制タグ付き live 発注の構造調査** — trendline_sweep 大負け4発が「4H+1D 不一致→抑制中」タグ付きで OANDA 発注。MTF ゲートの LIVE 転送 block 可否を engine 側で特定 | R3 | 🔄 調査中 (別セッション、spawn_task 2026-07-07) | バイパス確定なら R3 構造 fix |
 
 ## WS-Diag: 決済非対称の構造診断 (Rule 3 診断 → Rule 1 実装、v2.3 中核)
 
@@ -60,8 +61,8 @@ payoff 0.27 は v2.3 の最重要問題。**診断は R3 (analyses/ に数値根
 
 | # | 項目 | Rule | 状態 |
 |---|---|---|---|
-| T3 | **payoff 0.27 の要因分解** — 勝ち +2.4 / 負け −8.9 の非対称を (a) TP 早利確 (b) SL 遠置き (c) slippage 非対称 (d) close_reason 分布 (SL_HIT 83/92) に分離。clean live N=92 + 対応 shadow で MFE/MAE 分布を実測。**「なぜ realized R:R が戦略 target R:R を大きく下回るか」** を確定 | R3 (診断) | draft: autopilot 可 |
-| T4 | **摩擦調整 EV マップ** — 稼働 20 entry_type × pair × dir を gross EV − per-pair friction (friction-analysis.md) で再評価し、摩擦調整後に正の候補が存在するか網羅。M6 の母集団確定 | R3 | draft: autopilot 可 |
+| T3 | **payoff 0.27 の要因分解** | R3 (診断) | ✅ **CLOSED 2026-07-07** — [[payoff-asymmetry-diagnosis-2026-07-07]] (9-agent workflow、4サブ分析敵対的検証済)。(a) 早利確 = 主因 (log share 103.7%、2層: TP 5倍過大 + trail 返上 142.5p) / (b) SL 遠置き・負け引っ張り = **棄却** / (c) slippage 非対称 = **棄却** (7%) / (d) close_reason = (a) の機構的実体。WR 54.8% は BE/trail アーティファクト (BT +20pp 水増しの live 鏡像)。counterfactual: 両レバー完璧でも −77.6p |
+| T4 | **摩擦調整 EV マップ** — 稼働 20 entry_type × pair × dir を gross EV − per-pair friction (friction-analysis.md) で再評価し、摩擦調整後に正の候補が存在するか網羅。M6 の母集団確定。**着手時に shadow dedup キーを forensic #3 の estimand 定義と揃えて確定させること** (raw 3,281 vs draft 2,466 の未照合、T3 検証ログ参照)。初期候補 = shadow 正EV 3本 (vix_carry_unwind +0.96 N=60 / sr_fib_confluence +1.44 N=49 / vol_spike_mr +1.31 N=31) | R3 | autopilot 実行可 (次の主要 R3) |
 
 ## WS2: 昇格候補 N蓄積・繰越 (v2.2 繰越, Rule 1 正順)
 
@@ -104,15 +105,15 @@ Edge Factor Audit #1-#6 (2026-06-12) + T10 bb_rsi KILL (2026-07-02) で高N shad
 
 ## ボトルネック (v2.2 から更新提案)
 
-**v2.2 の「クリーン N の蓄積速度」は superseded。** shadow N は飽和 (20 entry_type 全 N≥30) し、律速ではなくなった。**v2.3 の真のボトルネック = 「正の摩擦調整 EV を持つセルの不在」** — 蓄積したデータが一様に負を示し (payoff 0.27 / 摩擦 366.2p が gross を反転)、昇格母集団が存在しない。
+**v2.2 の「クリーン N の蓄積速度」は superseded (2026-07-07 正式化で確定)。** shadow N は飽和 (20 entry_type 全 N≥30) し、律速ではなくなった。**v2.3 の真のボトルネック = 「正の摩擦調整 EV を持つセルの不在」** — 蓄積したデータが一様に負を示し (payoff 0.27、主因 = 勝ち側 exit 執行の崩壊 + 対称摩擦 [120.6, 294.6]p の水準効果)、昇格母集団が存在しない。
 
-したがって寄与度の優先順位は:
-1. **決済非対称の診断 → 是正** (WS-Diag / WS1 T2) — payoff 0.27 が全 KPI の律速。ただし実装は R1 (BT水増し ablation + TV canon + pre-reg)
-2. **負け live の細粒度止血** (WS1 T1) — NAV 実損の即時抑制、R2
-3. **clean-N 整合性の回復** (WS4) — 正EVセルが出現したとき昇格経路が機能する前提条件、R3
-4. **エッジ要因解析継続** (WS3) — 高WR×負EV 群から payoff 改善余地を探索
+したがって寄与度の優先順位 (T3 確定後の現在地):
+1. **決済非対称の是正** (WS-Diag T2 = TP/SL 実走距離整合 R1 パイプライン) — 診断は完了、pre-reg LOCK 済み・BT 実行待ち。全滅なら WS3 シグナル張り替えへ全振り
+2. **clean-N 整合性の回復** (WS4 = Fable5 Phase B P1-3/P1-9/P1-2) — 正EVセルが出現したとき昇格経路が機能する前提条件、R3。**autopilot の次の主戦場**
+3. **摩擦調整 EV マップ** (WS-Diag T4) — M6 母集団確定、R3
+4. **エッジ要因解析継続** (WS3) — 高WR×負EV 群 (gbp_deep_pullback / sr_anti_hunt_bounce)
 
-**この draft は user レビュー後に正式化。** それまで autopilot は R2/R3 項目 (WS1 T1, WS-Diag, WS4 全, WS2 監視系) を実行してよい。R1 項目 (WS1 T2 実装, WS-Diag T3 由来のパラメータ変更, WS3 の促進) は user 承認後。
+**正式版 (2026-07-07)。** autopilot は R2/R3 項目を実行可。R1 項目は個別に Rule 1 手続き + user 最終承認。
 
 ---
 

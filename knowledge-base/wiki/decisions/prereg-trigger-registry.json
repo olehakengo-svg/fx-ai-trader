@@ -2,6 +2,27 @@
   "_comment": "機械判定可能な pre-reg トリガー/決定点の registry。tools/prereg_trigger_watch.py が毎日評価 (Tier A cron 経由)。新規 pre-reg LOCK 時は必ずここに監視エントリを追加すること (lesson: T5 の 18 日執行ギャップ、2026-07-06)。",
   "triggers": [
     {
+      "id": "vix-sell-pilot-recheck",
+      "active": true,
+      "type": "live_count_decision",
+      "entry_type": "vix_carry_unwind",
+      "instrument": "USD_JPY",
+      "direction": "SELL",
+      "since": "2026-06-07",
+      "n_decide": 20,
+      "deadline": "2026-08-31",
+      "doc": "knowledge-base/wiki/syntheses/roadmap-v2.3-payoff-friction-repair.md",
+      "message": "vix Overlap pilot SELL 再評価 checkpoint (2026-07-07 pilot 継続裁定) — live N>=20 or 期日で EV/Wilson_lo/BEV を再判定。R2 demote 実行は user 決裁事項 (pilot 契約は user R1 例外)"
+    },
+    {
+      "id": "exit-repair-bt-deadline",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-07-21",
+      "doc": "knowledge-base/wiki/decisions/exit-repair-tp-sl-prereg-2026-07-07.md",
+      "message": "exit-repair TP/SL grid BT (pre-reg LOCK 済) の verdict 期日 — queue 20260707-1640-exit-repair-tp-sl-grid が未完なら stale (T5 型の実行ギャップ防止)"
+    },
+    {
       "id": "t5-jpy-cap-restore-price",
       "active": true,
       "type": "price_below",
