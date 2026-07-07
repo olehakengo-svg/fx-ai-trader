@@ -71,6 +71,36 @@ def evaluate_shadow_count_decision(
             "detail": f"shadow N={count}/{n_decide} (retire 判定: {deadline} に N<{n_floor})"}
 
 
+def evaluate_live_count_decision(
+    count: int | None,
+    n_decide: int,
+    deadline: str,
+    today: str,
+) -> dict[str, Any]:
+    """live N 蓄積 checkpoint: N>=n_decide または deadline 到達で再評価を実施。
+
+    shadow_count_decision と異なり retire 期日を持たない (pilot 等の
+    「継続裁定 + 再評価点」用)。判定自体は R1/R2 手続きで別途行う。"""
+    if count is None:
+        return {"state": STATE_UNAVAILABLE, "detail": "trade API unavailable"}
+    if count >= n_decide:
+        return {"state": STATE_TRIGGERED,
+                "detail": f"live N={count} >= {n_decide} — 再評価を実施せよ"}
+    if today >= deadline:
+        return {"state": STATE_TRIGGERED,
+                "detail": f"deadline {deadline} 到達 (live N={count}) — 再評価を実施せよ"}
+    return {"state": STATE_WATCHING,
+            "detail": f"live N={count}/{n_decide} (期日: {deadline})"}
+
+
+def evaluate_deadline_info(deadline: str, today: str) -> dict[str, Any]:
+    """純期日監視: 期日超過で stale アラート (BT verdict 未着等の実行ギャップ検出)。"""
+    if today > deadline:
+        return {"state": STATE_TRIGGERED,
+                "detail": f"期日 {deadline} 超過 — 未完了なら stale、状況確認せよ"}
+    return {"state": STATE_WATCHING, "detail": f"期日 {deadline} まで監視"}
+
+
 def evaluate_shadow_count_info(
     count: int | None, since: str, expected_per_week: float, today: str,
 ) -> dict[str, Any]:
@@ -107,6 +137,44 @@ def count_matching(trades: list, entry_type: str, prefix: bool = False) -> int:
         return sum(1 for t in trades
                    if str(t.get("entry_type") or "").startswith(entry_type))
     return sum(1 for t in trades if t.get("entry_type") == entry_type)
+
+
+def count_live_matching(trades: list, entry_type: str, instrument: str,
+                        direction: str) -> int:
+    """clean live 件数: oanda_trade_id 非空 ∧ dedup_violation != 1 ∧ セル一致。"""
+    n = 0
+    for t in trades:
+        if t.get("entry_type") != entry_type:
+            continue
+        if instrument and t.get("instrument") != instrument:
+            continue
+        if direction and t.get("direction") != direction:
+            continue
+        if not (t.get("oanda_trade_id") or ""):
+            continue
+        if (t.get("dedup_violation") or 0) == 1:
+            continue
+        n += 1
+    return n
+
+
+def fetch_live_count(entry_type: str, instrument: str, direction: str,
+                     since: str, app_base: str) -> int | None:
+    # limit=800 は shadow 大量 emit 下で ~7 日分しか遡れず月次窓を過小計上する
+    # (2026-07-07 実測)。live 行は希少なので月次窓全量が要る → 8000。
+    try:
+        import requests
+        r = requests.get(
+            f"{app_base}/api/demo/trades",
+            params={"date_from": since, "limit": 8000, "status": "all"},
+            timeout=60,
+        )
+        r.raise_for_status()
+        d = r.json()
+        trades = d if isinstance(d, list) else d.get("trades", [])
+        return count_live_matching(trades, entry_type, instrument, direction)
+    except Exception:
+        return None
 
 
 def fetch_shadow_count(entry_type: str, since: str, app_base: str,
@@ -148,6 +216,13 @@ def evaluate_trigger(trig: dict[str, Any], *, today: str, app_base: str) -> dict
             fetch_shadow_count(trig["entry_type"], trig["since"], app_base,
                                prefix=trig.get("match") == "prefix"),
             trig["since"], float(trig["expected_per_week"]), today)
+    elif ttype == "live_count_decision":
+        res = evaluate_live_count_decision(
+            fetch_live_count(trig["entry_type"], trig.get("instrument", ""),
+                             trig.get("direction", ""), trig["since"], app_base),
+            int(trig["n_decide"]), trig["deadline"], today)
+    elif ttype == "deadline_info":
+        res = evaluate_deadline_info(trig["deadline"], today)
     else:
         res = {"state": STATE_UNAVAILABLE, "detail": f"unknown type: {ttype}"}
     return {"id": trig["id"], "doc": trig.get("doc", ""),

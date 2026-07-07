@@ -47,3 +47,12 @@ Data source: /api/demo/stats?date_from=2026-04-08 (2026-04-20)
 - [[research/index]]
 - [[vol-momentum-scalp]]
 - [[agg-kelly-gate-raw-fix-minlot-bypass-2026-07-02]] — Overlap pilot (1000u 固定) は Aggregate Kelly Gate の min-lot bypass 対象 (2026-07-02 user 決裁)。lot が 1000u を超えたら bypass 自動失効
+
+## 2026-07-07 USD_JPY SELL セルの R2 基準抵触 → pilot 継続裁定 (user 承認)
+30d clean live SELL: N=10 WR=60% EV=−1.90 −19.0p、Wilson_lo 31.3% < BEV 34.4% = **R2 demote 基準に形式的に該当**。しかし以下の理由で **demote せず Overlap pilot 継続** (user「進めていいよ」2026-07-07):
+1. pilot は user 承認済み R1 例外 (live N 蓄積が目的) — 薄い R2 統計 (Wilson 差 3.1pp、N=10 最小値) で user の R1 決裁を覆さない
+2. T3 診断 ([[payoff-asymmetry-diagnosis-2026-07-07]]) により負 EV の主因は **exit 執行 (capture ~14% = 全戦略最悪、未捕獲 MFE 41.8p)** であり entry thesis の死ではない — exit-repair ([[exit-repair-tp-sl-prereg-2026-07-07]]) の対象セル
+3. shadow 集計は +0.96 (N=60) で全戦略中の正 EV 3本の一角 (M6 母集団の初期候補)
+4. 1000u floor でのコストは −19p/30d ≈ 実損軽微、live N 蓄積の情報価値が上回る
+
+**再評価 checkpoint**: live SELL N≥20 or 2026-08-31 (registry `vix-sell-pilot-recheck`、live_count_decision で毎日監視)。再評価時に EV/Wilson_lo/BEV を再判定し、demote する場合は user 決裁。

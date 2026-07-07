@@ -78,3 +78,45 @@ def test_count_matching_prefix_for_multivariant():
     assert count_matching(trades, "kalman_d7", prefix=True) == 3
     assert count_matching(trades, "kalman_d7", prefix=False) == 0
     assert count_matching(trades, "vix_carry_unwind") == 1
+
+def test_live_count_decision_states():
+    from tools.prereg_trigger_watch import evaluate_live_count_decision
+    # N 到達 → 再評価期日
+    r = evaluate_live_count_decision(20, 20, "2026-08-31", "2026-07-20")
+    assert r["state"] == "TRIGGERED" and "再評価" in r["detail"]
+    # deadline 到達 (N 未達でも) → 再評価期日
+    r = evaluate_live_count_decision(12, 20, "2026-08-31", "2026-08-31")
+    assert r["state"] == "TRIGGERED"
+    # どちらも未達 → watching
+    r = evaluate_live_count_decision(12, 20, "2026-08-31", "2026-07-20")
+    assert r["state"] == "WATCHING"
+    assert evaluate_live_count_decision(None, 20, "2026-08-31", "2026-07-20")[
+        "state"] == "DATA_UNAVAILABLE"
+
+
+def test_deadline_info_states():
+    from tools.prereg_trigger_watch import evaluate_deadline_info
+    assert evaluate_deadline_info("2026-07-21", "2026-07-22")["state"] == "TRIGGERED"
+    assert evaluate_deadline_info("2026-07-21", "2026-07-21")["state"] == "WATCHING"
+    assert evaluate_deadline_info("2026-07-21", "2026-07-07")["state"] == "WATCHING"
+
+
+def test_count_live_matching_filters_cell_and_dedup():
+    from tools.prereg_trigger_watch import count_live_matching
+    trades = [
+        {"entry_type": "vix_carry_unwind", "instrument": "USD_JPY",
+         "direction": "SELL", "oanda_trade_id": "1", "dedup_violation": 0},
+        # shadow (oanda_trade_id 空) は数えない
+        {"entry_type": "vix_carry_unwind", "instrument": "USD_JPY",
+         "direction": "SELL", "oanda_trade_id": "", "dedup_violation": 0},
+        # dedup 汚染行は数えない
+        {"entry_type": "vix_carry_unwind", "instrument": "USD_JPY",
+         "direction": "SELL", "oanda_trade_id": "2", "dedup_violation": 1},
+        # 方向違いは数えない
+        {"entry_type": "vix_carry_unwind", "instrument": "USD_JPY",
+         "direction": "BUY", "oanda_trade_id": "3", "dedup_violation": 0},
+        # pair 違いは数えない
+        {"entry_type": "vix_carry_unwind", "instrument": "EUR_USD",
+         "direction": "SELL", "oanda_trade_id": "4", "dedup_violation": 0},
+    ]
+    assert count_live_matching(trades, "vix_carry_unwind", "USD_JPY", "SELL") == 1
