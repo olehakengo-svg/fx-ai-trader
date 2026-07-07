@@ -23,6 +23,14 @@ async def main() -> None:
             environment_id=os.environ["ANTHROPIC_ENVIRONMENT_ID"],
             environment_key=key,
             workdir=WORKDIR,
+            # The file tools (read/write/edit/glob) confine to workdir and
+            # REJECT absolute paths when unrestricted_paths=False (the default).
+            # Agents emit absolute paths by convention, so every Write/Edit was
+            # rejected and the dev agent fell back to bash heredocs. bash here is
+            # already unrestricted and workdir is this repo on the user's own
+            # machine, so confining only the file tools adds no real safety —
+            # enable absolute paths so read/write/edit work natively.
+            unrestricted_paths=True,
         ).run()
 
 
