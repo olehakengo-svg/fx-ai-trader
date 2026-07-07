@@ -1,5 +1,18 @@
 # FX AI Trader - Changelog
 
+## 2026-07-07 — docs(KB): roadmap v2.3 正式化 + exit-repair pre-reg LOCK + vix pilot 継続裁定 (rule:R1 起点/R3)
+
+- **v2.3 正式化** (user 承認「進めていいよ」): DRAFT 解除。T3 診断確定の訂正を反映 —
+  摩擦 366.2p (dashboard 合成) → 実測 [120.6, 294.6]p、非対称の主因 = 勝ち側 exit 執行崩壊。
+  WS1 T1 執行済み / WS-Diag T3 CLOSED / ボトルネック「正の摩擦調整 EV セル不在」確定
+- **exit-repair pre-reg LOCK** (`decisions/exit-repair-tp-sl-prereg-2026-07-07.md`): TP/SL 実走距離
+  整合 grid (9 構成、BE/Trail ablation、診断窓除外、BH-FDR q=0.10)。BT 実行は Codex queue
+  `20260707-1640-exit-repair-tp-sl-grid`、verdict 期日 07-21 を registry 監視。live 変更は PASS 後 user 承認
+- **vix_carry×USD_JPY×SELL pilot 継続裁定**: R2 基準に形式該当するが user R1 例外 (Overlap pilot) を
+  薄い統計で覆さない。再評価 checkpoint = live N≥20 or 08-31 (registry `vix-sell-pilot-recheck`)
+- `tools/prereg_trigger_watch.py`: `live_count_decision` / `deadline_info` type 追加 (+ tests 3本) —
+  live セル checkpoint と verdict 期日の機械監視を可能に
+
 ## 2026-07-07 — fix(tier): wick_imbalance_reversion×GBP_USD R2 demote + T3 payoff 診断確定 (rule:R2/R3)
 
 - **T3 診断確定** (`analyses/payoff-asymmetry-diagnosis-2026-07-07.md`, 4サブ分析 敵対的検証済):
