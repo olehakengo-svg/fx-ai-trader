@@ -12,7 +12,7 @@
 - **[[audit-index]]** — `learning/` 18 audit ノード + MEMORY `project_*.md` 双方向マップ（次セッション Claude 必読、KB↔MEMORY 棲み分けルール記載）
 
 <!-- KB_PORTFOLIO_START -->
-## Current Portfolio (auto-synced, 2026-07-02)
+## Current Portfolio (auto-synced, 2026-07-07)
 
 ### ELITE_LIVE (never shadowed)
 | Strategy | BT Data | Status |
@@ -35,11 +35,9 @@
 | [[price-shock-rev-nzd-jpy-h1-long]] | NZD_JPY | no BT data | PAIR_PROMOTED |
 | [[price-shock-rev-usd-cad-h1-long]] | USD_CAD | no BT data | PAIR_PROMOTED |
 | [[squeeze-release-momentum]] | EUR_USD | EUR_USD: EV=+0.656 WR=73.3% | PAIR_PROMOTED |
-| [[sr-fib-confluence]] | GBP_USD | EUR_USD: EV=+0.103 WR=64.9%; USD_JPY: EV=+0.252 WR=67.7% | PAIR_PROMOTED |
 | [[vix-carry-unwind]] | USD_JPY | USD_JPY: EV=+0.212 WR=67.3% | PAIR_PROMOTED |
 | [[vol-momentum-scalp]] | EUR_JPY | no BT data | PAIR_PROMOTED |
 | [[vsg-jpy-reversal]] | EUR_JPY | no BT data | PAIR_PROMOTED |
-| [[wick-imbalance-reversion]] | GBP_USD | no BT data | PAIR_PROMOTED |
 | [[xs-momentum-rsi]] | USD_JPY | no BT data | PAIR_PROMOTED |
 
 ### SHADOW (Data Collection)
@@ -78,6 +76,7 @@
 | [[turtle-soup]] | GBP_USD: EV=+0.386 WR=69.7% | LOT_BOOST (not sentinel/elite) |
 | [[vol-spike-mr]] | USD_JPY: EV=+0.148 WR=64.6% | UNIVERSAL_SENTINEL |
 | [[vol-surge-detector]] | no BT data | SCALP_SENTINEL |
+| [[wick-imbalance-reversion]] | no BT data | shadow only |
 | [[xs-momentum]] | EUR_USD: EV=+0.225 WR=68.0%; USD_JPY: EV=+0.270 WR=68.7% | shadow only |
 
 ### FORCE_DEMOTED (stopped)

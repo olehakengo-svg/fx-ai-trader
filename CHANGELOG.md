@@ -1,5 +1,19 @@
 # FX AI Trader - Changelog
 
+## 2026-07-07 — fix(tier): wick_imbalance_reversion×GBP_USD R2 demote + T3 payoff 診断確定 (rule:R2/R3)
+
+- **T3 診断確定** (`analyses/payoff-asymmetry-diagnosis-2026-07-07.md`, 4サブ分析 敵対的検証済):
+  payoff 0.274 は設計非対称でなく **100% 勝ち側 exit 執行の崩壊** — 設計 TP (25.4p) が実走 MFE
+  (5.2p) の5倍遠く TP 到達 3/93、trail/BE 返上 142.5p/30d。負け引っ張り・摩擦非対称は棄却。
+  draft の摩擦 366.2p は dashboard 合成値で実測比 3.06 倍過大 (実測 friction ∈ [120.6, 294.6]p)
+- **R2 demote**: `(wick_imbalance_reversion, GBP_USD)` を `_PAIR_PROMOTED` → `_PAIR_DEMOTED`。
+  30d clean live N=12 WR=41.7% EV=-3.91 -46.9pip (Wilson_lo 19.3% < BEV 37.9%)。Shadow 継続。
+  pin: `tests/test_t1_wick_gbpusd_demote_pin.py`
+- **DEFER**: vix_carry_unwind×USD_JPY×SELL (N=10 EV=-1.90) は R2 基準該当だが user 承認済み
+  Overlap pilot 契約 (live N 蓄積目的) と衝突するため user 決裁待ち
+- **新規異常 (別調査)**: trendline_sweep 大負け4発が「4H+1D 不一致→シグナル抑制中」タグ付きで
+  live 発注 — MTF ゲートの LIVE 転送 block 可否を engine 側で要調査
+
 ## 2026-07-07 — feat(obs): LIVE 例外レバー観測エンドポイント + BB_RSI env-gated デッドコード撤去 (rule:R3)
 
 - `app.py`: `/api/demo/live-enable-flags` (read-only) 新設 — USDJPY_CARRY_DIP / KALMAN_D7 の

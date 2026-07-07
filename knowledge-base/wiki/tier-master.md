@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-07-02 09:00 UTC
+**最終更新**: 2026-07-07 06:53 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -14,7 +14,7 @@
 |---|---|---|---|---|
 | 1 | trendline_sweep | — | +0.574 | +0.838 |
 
-### A-2. PAIR_PROMOTED（21エントリ — 指定ペアのみ通過）
+### A-2. PAIR_PROMOTED（19エントリ — 指定ペアのみ通過）
 
 | # | 戦略名 | ペア | 365d BT EV |
 |---|---|---|---|
@@ -33,12 +33,10 @@
 | 13 | price_shock_rev_nzd_jpy_h1_long | NZD_JPY | — |
 | 14 | price_shock_rev_usd_cad_h1_long | USD_CAD | — |
 | 15 | squeeze_release_momentum | EUR_USD | — |
-| 16 | sr_fib_confluence | GBP_USD | — |
-| 17 | vix_carry_unwind | USD_JPY | +0.506 |
-| 18 | vol_momentum_scalp | EUR_JPY | — |
-| 19 | vsg_jpy_reversal | EUR_JPY | — |
-| 20 | wick_imbalance_reversion | GBP_USD | — |
-| 21 | xs_momentum_rsi | USD_JPY | — |
+| 16 | vix_carry_unwind | USD_JPY | +0.506 |
+| 17 | vol_momentum_scalp | EUR_JPY | — |
+| 18 | vsg_jpy_reversal | EUR_JPY | — |
+| 19 | xs_momentum_rsi | USD_JPY | — |
 
 ## B. Shadow戦略（OANDA非通過 — デモのみ記録）
 
@@ -106,7 +104,7 @@
 | 20 | vix_carry_unwind | USD_JPY |
 | 21 | vol_spike_mr | なし |
 
-### B-4. PAIR_DEMOTED（36エントリ — 特定ペアのみ強制Shadow）
+### B-4. PAIR_DEMOTED（37エントリ — 特定ペアのみ強制Shadow）
 
 | # | 戦略名 | ペア |
 |---|---|---|
@@ -143,9 +141,10 @@
 | 31 | vol_surge_detector | EUR_JPY |
 | 32 | vol_surge_detector | USD_JPY |
 | 33 | vwap_mean_reversion | GBP_USD |
-| 34 | xs_momentum | EUR_USD |
-| 35 | xs_momentum | GBP_USD |
-| 36 | xs_momentum | USD_JPY |
+| 34 | wick_imbalance_reversion | GBP_USD |
+| 35 | xs_momentum | EUR_USD |
+| 36 | xs_momentum | GBP_USD |
+| 37 | xs_momentum | USD_JPY |
 
 ### B-5. Phase B-1 Shadow candidate pairs
 
@@ -159,7 +158,7 @@
 | 6 | price_shock_reversion | NZD_USD | Shadow candidate; Live promotion disabled in this task |
 | 7 | price_shock_reversion | EUR_AUD | Shadow candidate; Live promotion disabled in this task |
 
-### B-5. Phase0 Shadow Gate（39戦略 — 自動Shadow）
+### B-5. Phase0 Shadow Gate（41戦略 — 自動Shadow）
 
 | # | 戦略名 | mode | 理由 |
 |---|---|---|---|
@@ -191,17 +190,19 @@
 | 26 | rsk_gbpjpy_reversion | daytrade | PP/EL未指定 → 自動Shadow |
 | 27 | session_vol_expansion | scalp | PP/EL未指定 → 自動Shadow |
 | 28 | sr_anti_hunt_bounce | daytrade | PP/EL未指定 → 自動Shadow |
-| 29 | sr_liquidity_grab | daytrade | PP/EL未指定 → 自動Shadow |
-| 30 | streak_reversal | inline | PAIR_DEMOTED: USD_JPY |
-| 31 | sweep_reversion_eurgbp_late | daytrade | PP/EL未指定 → 自動Shadow |
-| 32 | three_bar_reversal | scalp | PP/EL未指定 → 自動Shadow |
-| 33 | tokyo_nakane_momentum | daytrade | PP/EL未指定 → 自動Shadow |
-| 34 | tokyo_range_breakout_up | daytrade | PP/EL未指定 → 自動Shadow |
-| 35 | turtle_soup | daytrade | PP/EL未指定 → 自動Shadow |
-| 36 | usdjpy_carry_dip_accumulator | hourly | PP/EL未指定 → 自動Shadow |
-| 37 | vdr_jpy | daytrade | PP/EL未指定 → 自動Shadow |
-| 38 | xs_momentum | daytrade | PAIR_DEMOTED: EUR_USD, GBP_USD, USD_JPY |
-| 39 | zz_pivot_v60_sr | daytrade | PP/EL未指定 → 自動Shadow |
+| 29 | sr_fib_confluence | daytrade | PP/EL未指定 → 自動Shadow |
+| 30 | sr_liquidity_grab | daytrade | PP/EL未指定 → 自動Shadow |
+| 31 | streak_reversal | inline | PAIR_DEMOTED: USD_JPY |
+| 32 | sweep_reversion_eurgbp_late | daytrade | PP/EL未指定 → 自動Shadow |
+| 33 | three_bar_reversal | scalp | PP/EL未指定 → 自動Shadow |
+| 34 | tokyo_nakane_momentum | daytrade | PP/EL未指定 → 自動Shadow |
+| 35 | tokyo_range_breakout_up | daytrade | PP/EL未指定 → 自動Shadow |
+| 36 | turtle_soup | daytrade | PP/EL未指定 → 自動Shadow |
+| 37 | usdjpy_carry_dip_accumulator | hourly | PP/EL未指定 → 自動Shadow |
+| 38 | vdr_jpy | daytrade | PP/EL未指定 → 自動Shadow |
+| 39 | wick_imbalance_reversion | daytrade | PAIR_DEMOTED: GBP_USD |
+| 40 | xs_momentum | daytrade | PAIR_DEMOTED: EUR_USD, GBP_USD, USD_JPY |
+| 41 | zz_pivot_v60_sr | daytrade | PP/EL未指定 → 自動Shadow |
 
 ## C. 整合性チェック結果
 
