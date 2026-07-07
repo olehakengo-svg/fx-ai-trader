@@ -9143,21 +9143,7 @@ def _compute_scalp_signal_v2(df: pd.DataFrame, tf: str, sr_levels: list,
                 "atr": _rp(atr, symbol),
                 "sr_meta": getattr(_c, "sr_meta", None),
             })
-        if (os.environ.get("BB_RSI_EMA_ALIGNED_REDESIGN_V2") == "1"
-                and os.environ.get("BB_RSI_EMA_ALIGNED_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
-            from strategies.scalp.bb_rsi_ema_aligned import BbRsiEmaAligned
-            _bb_aligned = BbRsiEmaAligned().evaluate(_ctx)
-            if _bb_aligned is not None and _bb_aligned.entry_type != getattr(_sc_winner_obj, "entry_type", None):
-                _sc_shadow_emit_payload.append({
-                    "signal": _bb_aligned.signal,
-                    "entry": _rp(entry, symbol),
-                    "confidence": int(getattr(_bb_aligned, "confidence", 50) or 50),
-                    "sl": float(_bb_aligned.sl), "tp": float(_bb_aligned.tp),
-                    "entry_type": _bb_aligned.entry_type,
-                    "reasons": list(_bb_aligned.reasons or []),
-                    "score": round(float(_bb_aligned.score), 3),
-                    "atr": _rp(atr, symbol),
-                })
+        # BB_RSI_EMA_ALIGNED_REDESIGN_V2 shadow-emit は撤去済み (T10 KILL 再試行禁止、2026-07-07)。再追加禁止。
         if (os.environ.get("MTF_REGIME_TREND_CASCADE_SCALP_REDESIGN_V2") == "1"
                 and os.environ.get("MTF_REGIME_TREND_CASCADE_SCALP_REDESIGN_V2_SHADOW_PROMOTE") == "1"):
             from strategies.scalp.mtf_regime_trend_cascade_scalp import MtfRegimeTrendCascadeScalp
@@ -13375,6 +13361,44 @@ def api_demo_block_counts():
         "strategy": strategy or None,
         "total": sum(counts.values()),
         "per_strategy_total": sum(per_strategy.values()),
+    })
+
+
+@app.route("/api/demo/live-enable-flags")
+def api_demo_live_enable_flags():
+    """Read-only LIVE 例外レバーの実効値 (import 時 class attr) と現行 env の突合。
+
+    Render dashboard の env 実値が外部から読めない問題の恒久解決
+    (order_bar_dedup counter と同じ観測可能性パターン)。
+    effective = import 時に確定した実効値 / env_now = 現在の環境変数生値。
+    両者が食い違う場合は「env 変更後に再起動していない」ドリフトを意味する。
+    """
+    def _flag(env_key, effective):
+        raw = os.environ.get(env_key)
+        return {
+            "effective": effective,
+            "env_now": raw,
+            "drift": (raw == "1") != bool(effective),
+        }
+    return jsonify({
+        "env_levers": {
+            "USDJPY_CARRY_DIP_LIVE_ENABLE": _flag(
+                "USDJPY_CARRY_DIP_LIVE_ENABLE",
+                bool(getattr(_demo_trader, "_USDJPY_CARRY_DIP_LIVE_ENABLE", False))),
+            "KALMAN_D7_LIVE_ENABLE": _flag(
+                "KALMAN_D7_LIVE_ENABLE",
+                bool(getattr(_demo_trader, "_KALMAN_D7_LIVE_ENABLE", False))),
+        },
+        "code_pins": {
+            "HULL_DONCHIAN_FADE_LIVE_ENABLE": bool(
+                getattr(_demo_trader, "_HULL_DONCHIAN_FADE_LIVE_ENABLE", False)),
+            "SWEEP_REVERSION_EURGBP_LIVE_ENABLE": bool(
+                getattr(_demo_trader, "_SWEEP_REVERSION_EURGBP_LIVE_ENABLE", False)),
+        },
+        "removed_levers": [
+            "BB_RSI_EMA_ALIGNED_REDESIGN_V2",
+            "BB_RSI_EMA_ALIGNED_REDESIGN_V2_SHADOW_PROMOTE",
+        ],
     })
 
 

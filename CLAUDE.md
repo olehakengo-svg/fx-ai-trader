@@ -20,7 +20,7 @@ Claudeは**クオンツアナリスト兼実装者**として動作する。エ�
 ## 最重要目標（全施策の判断基準）
 **月利21.6%（数学的上限、Bonferroni補正後）への段階接近**
 - 旧目標「月利100%」は TP-HIT 12-cell 検証 (2026-06-05, commit 0688b333) で数学的に不可能と確定 (証拠金4×NAV + ruin 63%)。user 承認で 2026-06-12 再設定 (roadmap v2.2 T12)
-- ロードマップ: `knowledge-base/wiki/syntheses/roadmap-v2.3-payoff-friction-repair.md` (⚠️ DRAFT — user レビューで正式化。それまで autopilot は R2/R3 項目のみ実行可) / 前版 (クローズ済): `roadmap-v2.2-win-conversion.md`
+- ロードマップ: `knowledge-base/wiki/syntheses/roadmap-v2.3-payoff-friction-repair.md` (✅ 正式版 2026-07-07 — autopilot は R2/R3 実行可、R1 は個別 Rule 1 手続き + user 最終承認) / 前版 (クローズ済): `roadmap-v2.2-win-conversion.md`
 - **全ての施策提案はこの目標への寄与度で優先順位を判断すること**
 - **クリーンデータ蓄積が最優先** — Kelly Half到達の前提条件
 

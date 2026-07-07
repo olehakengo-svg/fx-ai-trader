@@ -4,8 +4,9 @@
 - **Entry Type**: `sr_fib_confluence`
 - **Category**: MR (Mean Reversion)
 - **Timeframe**: DT 15m
-- **Status**: 🔴 RETIRED (2026-06-12, rule:R2 — `SHADOW_RETIRED_STRATEGIES` + `_PAIR_PROMOTED`×GBP_USD 削除)。旧 PAIR_PROMOTED×GBP_USD (shadow N=39 EV+1.35) は N=132 で −1.66 に反転、LIVE breakeven (N=19 −0.07) で完全 demote
-- **Active Pairs**: GBP_USD (PROMOTED)
+- **Status**: 🔴 RETIRED (2026-06-12, rule:R2 — `SHADOW_RETIRED_STRATEGIES` 登録 + GBP_USD の pair 昇格削除)
+- 履歴: previously PAIR_PROMOTED×GBP_USD — 昇格根拠 (shadow N=39 EV+1.35) が N=132 で −1.66 に反転、LIVE breakeven (N=19 −0.07) で完全 demote
+- **Active Pairs**: なし (2026-06-12 RETIRED — live/shadow とも停止。旧: GBP_USD PROMOTED)
 
 ## Previously
 - ~2026-05-06: FORCE_DEMOTED (v6.8 PAIR_PROMOTED 全削除: 本番 N=40 WR=28.9% -92.8pip, BT 乖離確定)

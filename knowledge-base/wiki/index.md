@@ -4,15 +4,15 @@
 **全施策の判断基準。これに寄与しない施策は後回し。**
 - 現在: **DD防御0.2x** (DD=**99.33%** ⚠️⚠️⚠️ NEW HIGH — 100%接近 (<$24), defensive mode — 2026-07-06) → 月利47%（BT推定、クリーンデータ蓄積中）
 - 旧目標「月利100%」「Phase 3 月利594%」は TP-HIT 12-cell 検証で数学的不可能と確定、user 承認で再設定 (roadmap v2.2 T12)
-- 詳細: **[[roadmap-v2.3-payoff-friction-repair]]** (⚠️ DRAFT 2026-07-06、user レビュー待ち — 決済非対称/摩擦の是正) / 前版: [[roadmap-v2.2-win-conversion]] (全12項目クローズ済) / 旧: [[roadmap-v2.1]]
+- 詳細: **[[roadmap-v2.3-payoff-friction-repair]]** (✅ 正式版 2026-07-07 — 決済非対称/摩擦の是正。T3 診断確定 [[payoff-asymmetry-diagnosis-2026-07-07]]) / 前版: [[roadmap-v2.2-win-conversion]] (全12項目クローズ済) / 旧: [[roadmap-v2.1]]
 - 旧: [[roadmap-v2]] (v2.0) / [[roadmap-to-100pct]] (v1)
-- **v2.3 起案の再計測 (2026-07-06)**: clean live 30d N=92/−242.6p/payoff 0.27、shadow N 飽和 (20 entry_type 全 N≥30) だが一様に負。ボトルネックは「N 蓄積速度」→「正の摩擦調整 EV セルの不在」へ更新提案 (v2.3 正式化で確定)
+- **v2.3 確定 (2026-07-07)**: clean live 30d N=93/−245.0p/payoff 0.274。ボトルネック =「正の摩擦調整 EV セルの不在」(確定)。主因 = 勝ち側 exit 執行の崩壊 (設計TP が実走 MFE の5倍 + trail 返上 142.5p/30d)。exit-repair pre-reg LOCK 済み ([[exit-repair-tp-sl-prereg-2026-07-07]]、BT verdict 期日 07-21)
 
 ## 🔗 Cross-KB Navigation
 - **[[audit-index]]** — `learning/` 18 audit ノード + MEMORY `project_*.md` 双方向マップ（次セッション Claude 必読、KB↔MEMORY 棲み分けルール記載）
 
 <!-- KB_PORTFOLIO_START -->
-## Current Portfolio (auto-synced, 2026-07-02)
+## Current Portfolio (auto-synced, 2026-07-07)
 
 ### ELITE_LIVE (never shadowed)
 | Strategy | BT Data | Status |
@@ -35,11 +35,9 @@
 | [[price-shock-rev-nzd-jpy-h1-long]] | NZD_JPY | no BT data | PAIR_PROMOTED |
 | [[price-shock-rev-usd-cad-h1-long]] | USD_CAD | no BT data | PAIR_PROMOTED |
 | [[squeeze-release-momentum]] | EUR_USD | EUR_USD: EV=+0.656 WR=73.3% | PAIR_PROMOTED |
-| [[sr-fib-confluence]] | GBP_USD | EUR_USD: EV=+0.103 WR=64.9%; USD_JPY: EV=+0.252 WR=67.7% | PAIR_PROMOTED |
 | [[vix-carry-unwind]] | USD_JPY | USD_JPY: EV=+0.212 WR=67.3% | PAIR_PROMOTED |
 | [[vol-momentum-scalp]] | EUR_JPY | no BT data | PAIR_PROMOTED |
 | [[vsg-jpy-reversal]] | EUR_JPY | no BT data | PAIR_PROMOTED |
-| [[wick-imbalance-reversion]] | GBP_USD | no BT data | PAIR_PROMOTED |
 | [[xs-momentum-rsi]] | USD_JPY | no BT data | PAIR_PROMOTED |
 
 ### SHADOW (Data Collection)
@@ -78,6 +76,7 @@
 | [[turtle-soup]] | GBP_USD: EV=+0.386 WR=69.7% | LOT_BOOST (not sentinel/elite) |
 | [[vol-spike-mr]] | USD_JPY: EV=+0.148 WR=64.6% | UNIVERSAL_SENTINEL |
 | [[vol-surge-detector]] | no BT data | SCALP_SENTINEL |
+| [[wick-imbalance-reversion]] | no BT data | shadow only |
 | [[xs-momentum]] | EUR_USD: EV=+0.225 WR=68.0%; USD_JPY: EV=+0.270 WR=68.7% | shadow only |
 
 ### FORCE_DEMOTED (stopped)

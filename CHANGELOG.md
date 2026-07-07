@@ -1,5 +1,43 @@
 # FX AI Trader - Changelog
 
+## 2026-07-07 — docs(KB): roadmap v2.3 正式化 + exit-repair pre-reg LOCK + vix pilot 継続裁定 (rule:R1 起点/R3)
+
+- **v2.3 正式化** (user 承認「進めていいよ」): DRAFT 解除。T3 診断確定の訂正を反映 —
+  摩擦 366.2p (dashboard 合成) → 実測 [120.6, 294.6]p、非対称の主因 = 勝ち側 exit 執行崩壊。
+  WS1 T1 執行済み / WS-Diag T3 CLOSED / ボトルネック「正の摩擦調整 EV セル不在」確定
+- **exit-repair pre-reg LOCK** (`decisions/exit-repair-tp-sl-prereg-2026-07-07.md`): TP/SL 実走距離
+  整合 grid (9 構成、BE/Trail ablation、診断窓除外、BH-FDR q=0.10)。BT 実行は Codex queue
+  `20260707-1640-exit-repair-tp-sl-grid`、verdict 期日 07-21 を registry 監視。live 変更は PASS 後 user 承認
+- **vix_carry×USD_JPY×SELL pilot 継続裁定**: R2 基準に形式該当するが user R1 例外 (Overlap pilot) を
+  薄い統計で覆さない。再評価 checkpoint = live N≥20 or 08-31 (registry `vix-sell-pilot-recheck`)
+- `tools/prereg_trigger_watch.py`: `live_count_decision` / `deadline_info` type 追加 (+ tests 3本) —
+  live セル checkpoint と verdict 期日の機械監視を可能に
+
+## 2026-07-07 — fix(tier): wick_imbalance_reversion×GBP_USD R2 demote + T3 payoff 診断確定 (rule:R2/R3)
+
+- **T3 診断確定** (`analyses/payoff-asymmetry-diagnosis-2026-07-07.md`, 4サブ分析 敵対的検証済):
+  payoff 0.274 は設計非対称でなく **100% 勝ち側 exit 執行の崩壊** — 設計 TP (25.4p) が実走 MFE
+  (5.2p) の5倍遠く TP 到達 3/93、trail/BE 返上 142.5p/30d。負け引っ張り・摩擦非対称は棄却。
+  draft の摩擦 366.2p は dashboard 合成値で実測比 3.06 倍過大 (実測 friction ∈ [120.6, 294.6]p)
+- **R2 demote**: `(wick_imbalance_reversion, GBP_USD)` を `_PAIR_PROMOTED` → `_PAIR_DEMOTED`。
+  30d clean live N=12 WR=41.7% EV=-3.91 -46.9pip (Wilson_lo 19.3% < BEV 37.9%)。Shadow 継続。
+  pin: `tests/test_t1_wick_gbpusd_demote_pin.py`
+- **DEFER**: vix_carry_unwind×USD_JPY×SELL (N=10 EV=-1.90) は R2 基準該当だが user 承認済み
+  Overlap pilot 契約 (live N 蓄積目的) と衝突するため user 決裁待ち
+- **新規異常 (別調査)**: trendline_sweep 大負け4発が「4H+1D 不一致→シグナル抑制中」タグ付きで
+  live 発注 — MTF ゲートの LIVE 転送 block 可否を engine 側で要調査
+
+## 2026-07-07 — feat(obs): LIVE 例外レバー観測エンドポイント + BB_RSI env-gated デッドコード撤去 (rule:R3)
+
+- `app.py`: `/api/demo/live-enable-flags` (read-only) 新設 — USDJPY_CARRY_DIP / KALMAN_D7 の
+  effective (import 時 class attr) と env_now (現在値) を突合し drift を報告。hull/sweep の
+  code pin (False) も報告。Render dashboard の env 実値が外部から読めない問題
+  (2026-07-06 未解決事項) の恒久解決 — `order_bar_dedup` counter と同じ観測可能性パターン
+- `app.py`: `BB_RSI_EMA_ALIGNED_REDESIGN_V2(+_SHADOW_PROMOTE)` env-gated shadow-emit ブロックを撤去 —
+  T10 KILL (再試行禁止) 済み戦略の再武装可能デッドコード。PR #41 (strategy 側撤去) と同枠。
+  これで BB_RSI 2 キーは完全無参照化 = Render dashboard からの削除は純粋 cosmetic
+- tests: `tests/test_live_enable_flags_endpoint.py` (契約固定 + BB_RSI レバー復活防止 pin)
+
 ## 2026-07-06 — fix(order): order-layer per-bar dedup for rebuilt engines (rule:R3)
 
 - `modules/demo_trader.py`: primary `_tick_entry` and direct `shadow_emit` DB insert path now share

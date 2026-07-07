@@ -7947,6 +7947,11 @@ class DemoTrader:
         ("donchian_momentum_breakout", "USD_JPY"),
         ("donchian_momentum_breakout", "AUD_USD"),
         ("donchian_momentum_breakout", "EUR_AUD"),
+        # 2026-07-07 (rule:R2 v2.3 WS1 T1): 30d clean live N=12 WR=41.7% EV=-3.91 -46.9pip、
+        # Wilson_lo 19.3% < BEV 37.9%。昇格根拠 365d BT (N=40 WR=70% EV=+0.123) を live が反証。
+        # live 発火は全期間 100% BUY = BUY セル閉鎖と等価。Shadow 継続 (原則3)。
+        # 再昇格は R1 のみ。詳細: analyses/payoff-asymmetry-diagnosis-2026-07-07.md §7
+        ("wick_imbalance_reversion", "GBP_USD"),
     }
 
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
@@ -8132,9 +8137,11 @@ class DemoTrader:
         # LIVE 側は N=0 (promotion 後未発火) のため安全弁として撤回
         # UNIVERSAL_SENTINEL (shadow) へ戻す
         # ("dt_fib_reversal", "GBP_USD"),
-        # v9.1: Alpha#2 wick_imbalance_reversion×GBP_USD — 365d BT N=40 WR=70.0% EV=+0.123 PF=1.44
-        # WR=70%でBinomial p<0.02 (z=2.53)。JPY/EURは負EV → GBP_USDのみSentinel蓄積
-        ("wick_imbalance_reversion", "GBP_USD"),
+        # REMOVED 2026-07-07 (rule:R2 v2.3 WS1 T1): wick_imbalance_reversion×GBP_USD → _PAIR_DEMOTED。
+        # 30d clean live N=12 WR=41.7% EV=-3.91 -46.9pip (Wilson_lo 19.3% < BEV 37.9%)、
+        # live 発火は全期間 100% BUY = BUY セル閉鎖と等価。E10 disable (07-02) 後も
+        # PAIR_PROMOTED 経路の出血が継続していた。詳細: analyses/payoff-asymmetry-diagnosis-2026-07-07.md §7
+        # ("wick_imbalance_reversion", "GBP_USD"),
         # 2026-04-22 Roadmap-acceleration synthesis: 二重 WF で pos_ratio=1.00 の確定stable
         # streak_reversal×USD_JPY:
         #   P2 15m 365d × 20d WF: N=466 EV=+1.362 pos=1.00 CV=0.65 ✅stable
