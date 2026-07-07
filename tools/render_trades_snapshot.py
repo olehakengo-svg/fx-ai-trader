@@ -38,6 +38,9 @@ CREATE TABLE demo_trades (
     sl REAL,
     tp REAL,
     spread_at_entry REAL,
+    spread_at_exit REAL,
+    slippage_pips REAL,
+    signal_price REAL,
     pnl_pips REAL,
     pnl_r REAL,
     outcome TEXT,
@@ -74,7 +77,9 @@ CREATE TABLE demo_trades (
 
 KEPT_FIELDS = [
     "id", "trade_id", "status", "direction", "entry_price", "entry_time",
-    "exit_price", "exit_time", "sl", "tp", "spread_at_entry", "pnl_pips", "pnl_r", "outcome",
+    "exit_price", "exit_time", "sl", "tp", "spread_at_entry",
+    "spread_at_exit", "slippage_pips", "signal_price",
+    "pnl_pips", "pnl_r", "outcome",
     "entry_type", "confidence", "tf", "reasons", "regime", "layer1_dir",
     "score", "close_reason", "ema_conf", "sr_basis", "created_at", "mode",
     "instrument", "is_shadow", "oanda_trade_id", "mtf_regime", "mtf_alignment",
