@@ -1,4 +1,4 @@
-"""Kelly<=0 promotion-gate regression tests (P0#3, 2026-04-27 audit).
+"""Kelly<0 promotion-gate regression tests (P0#3, 2026-04-27 audit).
 
 Validates two pieces of behaviour:
 
@@ -6,8 +6,12 @@ Validates two pieces of behaviour:
    filter (CLOSED, ``is_shadow == 0``, XAU excluded, ``exit_time >=
    FIDELITY_CUTOFF``) but scoped to a single ``entry_type``.
 2. The promotion-gate decision built from that helper blocks promotion when
-   Kelly is non-positive, lets it through when Kelly is positive, and does
-   not block when there is too little data to estimate Kelly.
+   Kelly is negative, lets it through when Kelly is positive or exactly zero
+   (measured-zero is not positive evidence of -EV; EV/friction and Wilson
+   gates carry that case), and does not block on insufficient data.
+   (P1-9 2026-07-07: production feeds the gate ``raw=True`` unclipped values;
+   the pre-P1-9 mirror here used ``<= 0`` because negatives surfaced as
+   clipped 0.0 — that made the mirror diverge from the production ``< 0``.)
 
 Tests use a minimal harness (mirroring ``test_signal_dedup.py``) so we don't
 need to spin up a full ``DemoTrader`` with DB / OANDA / threads.
@@ -128,17 +132,24 @@ def test_kelly_clean_scoped_to_entry_type():
 # =====================================================================
 
 def _gate_block(kelly_f):
-    """Mirror the promotion-gate predicate from _evaluate_promotions L5189-5196."""
-    return kelly_f is not None and kelly_f <= 0
+    """Mirror the production predicate: `_kelly_block` in the promotion loop
+    (demo_trader.py `_evaluate_promotions`, fed by
+    `_get_strategy_kelly_clean(et, raw=True)`) and `kelly_blocked` in
+    `_shadow_promotion_decision` — both strict `< 0`."""
+    return kelly_f is not None and kelly_f < 0
 
 
 def test_gate_blocks_when_kelly_negative():
     assert _gate_block(-0.05) is True
 
 
-def test_gate_blocks_when_kelly_zero():
-    """Spec: 'Kelly が負またはゼロの戦略は promoted に昇格させない'."""
-    assert _gate_block(0.0) is True
+def test_gate_passes_when_kelly_zero():
+    """Spec: block only on NEGATIVE Kelly (positive evidence of -EV).
+    Measured-zero (incl. -0.0 from full_kelly_raw's 4dp rounding) passes by
+    convention — the escape window is statistically empty and the
+    EV>friction / Wilson gates cover it (P1-9 adversarial review 2026-07-07)."""
+    assert _gate_block(0.0) is False
+    assert _gate_block(-0.0) is False
 
 
 def test_gate_allows_when_kelly_positive():
@@ -155,12 +166,14 @@ def test_gate_allows_when_kelly_none():
 # =====================================================================
 
 def test_losing_strategy_gate_blocks_promotion():
-    """Wire the helper into the gate predicate exactly as production does."""
+    """Wire the helper into the gate predicate exactly as production does —
+    the promotion loop feeds the gate raw=True (P1-9)."""
     trades = [_trade("loser", 1.0) for _ in range(3)] + [
         _trade("loser", -3.0) for _ in range(7)
     ]
     h = _KellyHarness(trades)
-    k = h._get_strategy_kelly_clean("loser")
+    k = h._get_strategy_kelly_clean("loser", raw=True)
+    assert k is not None and k < 0
     assert _gate_block(k) is True
 
 

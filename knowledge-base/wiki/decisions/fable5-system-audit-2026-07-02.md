@@ -51,6 +51,7 @@
 - **付随 (P2)**: 同一バー TP+SL 同時ヒットの tie-break が `fut_close` 基準 (保守的 SL 優先でない) — 全エンジン共通の副次的楽観バイアス。
 
 ### P1-3: stale な v9.x SHADOW_MIGRATION が restart 毎に is_shadow を再汚染 【✅ FIXED 2026-07-07 — ブロック削除 (rule:R3)。回帰テスト `tests/test_shadow_migration_block_removed.py`。区別ケース=fill callback 喪失行 (audit=filled ∧ oanda_trade_id 欠落): 旧ブロックは無条件 shadow 固定、後継 FLAG_DRIFT backfill は UNSAFE 検知で live 保持】
+- **follow-up FIXED (同日、PR #59 の敵対的レビュー起点)**: 後継 leak backfill が shadow 化した pre-RULE_TS の OANDA-filled リーク行を、SHADOW_DRIFT_BACKFILL (2026-05-03) が次の restart で無条件に live へ巻き戻し、冪等マーカーが再修復を恒久ブロックする **oscillation** を空 DB 4-init で再現 (init#2 shadow → init#3 以降 live 固定、status 上は remaining にカウントされず不可視)。修正 = drift rollback の WHERE に `COALESCE(force_demoted_live_leak,0)=0` を追加 — leak backfill の分類が restart を越えて安定。回帰 = `tests/test_ws4_phase_b_followup.py` (oscillation / marker 経路帰属 / 通常 drift 復元の非退行 / fill-callback 喪失行保護)。
 - **場所**: `modules/demo_db.py:473-533`
 - **証拠**: `_init_tables()` 内で毎起動、ハードコード `_force_demoted` 集合 (**現役の `dt_bb_rsi_mr`=edge cell E1/E3/E5/E7/E11、`bb_squeeze_breakout`=PAIR_PROMOTED を含む**) に対し `is_shadow=0→1` を一括 UPDATE。冪等マーカーなし、`oanda_trade_id` 安全チェックなし、全体が `except Exception: pass`。後続の drift backfill が `oanda_trade_id` 保持行を復元するため大半は自己修復するが、fill callback 喪失行は shadow に固定され Kelly/WR 集計から消える。
 - **修正案**: 後継の `_backfill_force_demoted_leak_impl` (動的リスト+冪等+安全チェック) が存在するため、このブロックは削除。
@@ -93,7 +94,9 @@
 |---|---|---|---|
 | P2-1 | `risk_analytics.py:391-406` | DD_LOT_TIERS が DD≥8% で一律 0.20x、DD 100% 超でもフルストップなし (`_check_drawdown` 側の別ゲート未検証) | DD≥閾値で lot=0 tier 追加を検討 |
 | P2-2 | `demo_trader.py:8604` | cell_routing BLOCK 判定が silent fail-open — routing 破損時 BLOCK セルが無音発火 | fail-open 維持でも初回 WARN 必須 |
-| P2-3 | `demo_db.py:532,558` | SHADOW_MIGRATION/DRIFT_BACKFILL の失敗が silent — Live/Shadow 分離修復の故障が検知不能 | WARN ログ追加 (P1-3 の削除で 532 は消滅) |
+| P2-3 | `demo_db.py` | ~~修復系 backfill の失敗が silent~~ → **部分 FIXED 2026-07-07**: leak/flag_drift backfill の unsafe/exception 停止を `[SHADOW_REPAIR_PAUSED]` WARN で毎 restart 表面化 (SHADOW_MIGRATION 側は P1-3 削除で消滅済み)。drift rollback 自体の except silent は残 | 残: drift except の WARN 化 |
+| P2-10 | 本番 `/api/admin/force_demoted_leak_status` | **本番で leak backfill が status=unsafe で停止中と実測確認 (2026-07-07 敵対的レビュー)** — post-RULE_TS の filled-audit 候補行が存在し、修復層全体が inert (unsafe は per-row skip でなく whole-abort 設計)。当該行の oanda_trade_id 修復まで全候補が未修復のまま | oanda_trade_id 修復 + 日次 quant loop に status 監視 (WARN は P2-3 部分 fix で導入済み)。task chip 化済 |
+| P2-11 | `demo_trader.py` `_evaluate_shadow_promotions` | production call site ゼロの dead code (`git log --all -S` でも配線履歴なし — lesson-sentinel-n-measurement-bug の意図した配線が存在しない)。仮に配線しても source-less `_promoted_types` エントリの skip と kelly の live-行 estimand ミスマッチで大半 no-op。P1-9 の効果は live promotion loop の `_kelly_block` に限定される点に注意 | 配線 (skip 条件 + estimand 整理込み) or 削除を R3 で裁定。task chip 化済 |
 | P2-4 | `demo_trader.py:3770,6614` | entry/close の bid/ask 取得失敗が silent でステール価格へ | WARN + 摩擦忠実性カウンタ |
 | P2-5 | tools/ 77ファイル/215箇所 | モジュールトップ `os.environ` 代入 (明文化ルール違反)。conftest の autouse fixture が対症療法中 | `tools/bt_common.py` へ集約 + check.py に lint |
 | P2-6 | `agents/cma/worker.py:33` | `unrestricted_paths=True` が6/18から未コミット稼働 (リスク評価自体は妥当) | rationale 付きコミット |

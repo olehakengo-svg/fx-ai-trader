@@ -483,16 +483,22 @@ class DemoDB:
             # is_shadow=0` aggregates were silently dropping live PnL.
             # Root cause: set_oanda_trade_id only updated oanda_trade_id,
             # not is_shadow. Forward path now flips is_shadow=0 atomically;
-            # this migration corrects historical rows. Must run AFTER the
-            # v9.x FORCE_DEMOTED migration so OANDA fills override the
-            # blanket shadow flip (a trade that actually executed at OANDA
-            # is by definition live, regardless of FORCE_DEMOTED status).
+            # this migration corrects historical rows.
+            # 2026-07-07 (P1-3 follow-up, rule:R3): exclude rows the
+            # FORCE_DEMOTED leak backfill deliberately shadowed
+            # (force_demoted_live_leak=1) — without this, a pre-RULE_TS
+            # OANDA-filled leak row oscillates (leak backfill shadows it on
+            # one restart, this rollback un-shadows it on the next) and the
+            # idempotency marker then blocks re-repair forever, silently
+            # re-polluting live Kelly aggregates (reproduced 4-init cycle,
+            # adversarial review of PR #59).
             try:
                 _drift_cur = conn.execute(
                     "UPDATE demo_trades SET is_shadow=0 "
                     "WHERE is_shadow=1 "
                     "  AND oanda_trade_id IS NOT NULL "
-                    "  AND oanda_trade_id != ''"
+                    "  AND oanda_trade_id != '' "
+                    "  AND COALESCE(force_demoted_live_leak, 0) = 0"
                 )
                 if _drift_cur.rowcount > 0:
                     import logging
@@ -508,6 +514,22 @@ class DemoDB:
             )
 
             self._last_flag_drift_backfill_result = self._backfill_flag_drift_impl(conn)
+
+            # P2-3 partial (2026-07-07, rule:R3): the two repair backfills
+            # whole-abort on unsafe/exception with no signal anywhere —
+            # production was observed paused (status=unsafe) with zero
+            # visibility. Surface pauses in Render logs on every restart.
+            import logging as _bf_logging
+            for _bf_name, _bf_res in (
+                ("FORCE_DEMOTED_LEAK", self._last_force_demoted_leak_backfill_result),
+                ("FLAG_DRIFT", self._last_flag_drift_backfill_result),
+            ):
+                if (_bf_res or {}).get("status") in ("unsafe", "exception"):
+                    _bf_logging.getLogger(__name__).warning(
+                        f"[SHADOW_REPAIR_PAUSED] {_bf_name} backfill status="
+                        f"{_bf_res.get('status')} — repair layer inert until "
+                        f"resolved: {_bf_res}"
+                    )
 
             conn.commit()
 

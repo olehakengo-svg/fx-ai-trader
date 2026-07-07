@@ -68,3 +68,10 @@ friction = per-pair 理論 RT ([[friction-analysis]]: USD_JPY 2.14 / EUR_USD 2.0
 3. dedup は bar_ts floor による近似 (tf 列依存)。tf 欠損行は 15m 扱い。
 4. N≥30 足切りで小 N セルは非掲載 (方向性示唆のみで有意性主張なし、Bonferroni 未補正)。
 5. shadow に対称摩擦 (spread) は未負担のため、gross は真の「摩擦ゼロ」paper 値。net は理論 friction 一律控除であり、セル別の実 spread 差は無視。
+
+## 7. Addendum (2026-07-07 引き継ぎセッション — 独立再集計との突合)
+
+引き継ぎセッションが新規 snapshot (12,415 行、07-07T12:43Z fetch) で独立に同型マップを再導出し、以下 2 点を追補する (結論 §1/§5 は完全一致 — 診断窓セル粒度でも理論摩擦後 EV≥0 は vol_spike_mr×USD_JPY×BUY の +0.001 ただ 1 つ = break-even):
+
+1. **estimand は bar_ts dedup 単独より `dedup_violation=0 ∪ bar_ts dedup` が強い**。診断窓 (06-07〜07-08) の実測: raw 3,371 のうち `dedup_violation=1` は 798 行で、これを除外した 2,573 行に bar_ts dedup を追加適用しても**追加除去ゼロ** — すなわち診断窓では bar_ts 重複 ⊆ flag 済み行であり、flag は bar_ts が取れない cross-bar runaway (~150 行) も捕捉している。§2 の bar_ts 単独 estimand (2,686) はこの ~150 行の既知汚染を母集団に残す。全 post-cutoff では逆に flag が poll 再emit を取りこぼす (§2 のとおり) ため、**以後の shadow 集計は両者の union 除外を標準とする**。
+2. **実測摩擦列の初回集計** (PR #53 輸出後初、clean live 30d N=94): spread_at_entry 平均 1.16p / spread_at_exit 平均 1.47p / slippage_pips 平均 0.56p。exit spread > entry spread は server 側クローズの流動性劣化と整合。実測フロア 1.30/t ([[payoff-asymmetry-diagnosis-2026-07-07]] §5) は保守側で妥当 — [[exit-repair-tp-sl-prereg-2026-07-07]] §7 の感度分析はこの列で更新可能 (エンドポイント不変)。
