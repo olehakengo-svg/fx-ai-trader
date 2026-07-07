@@ -1,6 +1,6 @@
 # wick_imbalance_reversion
 
-## Status: PAIR_PROMOTED (GBP_USD) / Shadow on other pairs
+## Status: PAIR_DEMOTED (GBP_USD, 2026-07-07 rule:R2) / Shadow 継続 (全ペア)
 
 直近N本のヒゲ長不均衡が極端な場合、流動性プール枯渇側への反発を取る平均回帰戦略。確認バーのbody符号で反転方向を検証してからエントリーする。
 
@@ -69,3 +69,6 @@ GBP_USD は BH-FDR を通過 — 本BTスキャン9セル中で唯一の生存�
 
 ## 2026-07-02 E10 code-level DISABLE (rule:R2)
 Edge cell E10 (GBP_USD force-live) を `DISABLED_CELLS` に追加。30d live via E10: N=9 WR=22.2% **-52.5pip**。pre-reg forensic 2026-06-22 が同セルを dominant loser と特定済み (9/9負けが d1∈{0,-1} = knife-catch)。非セルの PAIR_PROMOTED fill (30d n=3 +5.6p) は維持。後継は D1-gated continuation 変種 ([[wick-imbalance-gbpusd-continuation-pre-reg-2026-06-22]]) が R1 パイプラインで別途。詳細: [[live-bleeder-demotions-2026-07-02]]
+
+## 2026-07-07 GBP_USD PAIR_PROMOTED 除去 → _PAIR_DEMOTED (rule:R2, v2.3 WS1 T1)
+`(wick_imbalance_reversion, GBP_USD)` を `_PAIR_PROMOTED` から除去し `_PAIR_DEMOTED` へ。30d clean live **N=12 WR=41.7% EV=-3.91 -46.9pip** (Wilson_lo 19.3% < BEV 37.9%、all-time live N=14 -63.0p)。07-02 の E10 DISABLE 時点で維持した非セル PAIR_PROMOTED 経路 (当時 n=3 +5.6p) がその後 -46.9p まで出血拡大。live 発火は全期間 100% BUY のため pair 粒度 demote = BUY セル閉鎖と等価。負け 7 件中 6 件が MFE≈0 の premise 即死型。昇格根拠 365d BT (N=40 WR=70.0% EV=+0.123) を live が反証 — [[bt-live-divergence]] 型。Shadow 継続 (原則3)。再昇格は R1 のみ。詳細: [[payoff-asymmetry-diagnosis-2026-07-07]] §7、pin: `tests/test_t1_wick_gbpusd_demote_pin.py`

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-02T09:00:04.866451+00:00",
+  "generated_at": "2026-07-07T06:53:24.804402+00:00",
   "elite_live": [
     "trendline_sweep"
   ],
@@ -120,10 +120,6 @@
       "EUR_USD"
     ],
     [
-      "sr_fib_confluence",
-      "GBP_USD"
-    ],
-    [
       "vix_carry_unwind",
       "USD_JPY"
     ],
@@ -134,10 +130,6 @@
     [
       "vsg_jpy_reversal",
       "EUR_JPY"
-    ],
-    [
-      "wick_imbalance_reversion",
-      "GBP_USD"
     ],
     [
       "xs_momentum_rsi",
@@ -275,6 +267,10 @@
     ],
     [
       "vwap_mean_reversion",
+      "GBP_USD"
+    ],
+    [
+      "wick_imbalance_reversion",
       "GBP_USD"
     ],
     [
