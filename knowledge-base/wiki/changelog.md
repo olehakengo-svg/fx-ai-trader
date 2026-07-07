@@ -4,6 +4,14 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-07 — HTF mixed cell stop: trendline_sweep×GBP_USD live 転送停止 + mixed 診断タグ是正 (rule:R2/R3)
+
+- T1 forensic §7 の異常 (30d 大負け4発 −53.6p 全てに「⚖️ 4H+1D 不一致 → シグナル抑制中」タグ付き LIVE 発注) の根本原因を特定: **タグは診断のみで、v9.1 HTF Hard Block は bull/bear 限定 — mixed は DTE 候補フィルタ no-op**。trendline_sweep は self-contained HTF guard も持たず、demo_trader v9.3 regime gate も ELITE_LIVE 免除で第2層不在。
+- R2 執行: `DaytradeEngine.HTF_MIXED_LIVE_STOP_CELLS = {(trendline_sweep, GBP_USD)}` — mixed 時に候補除外 + shadow 退避 (`[HTF_MIXED_LIVE_STOP]` タグ、is_shadow=1)。根拠 = clean live (06-03..07-03) mixed N=15 EV=−3.38p/−50.7p vs aligned N=4 +1.5p、shadow mixed N=7 EV=−7.20p corroborate。
+- R3 執行: reasons の mixed 文言を実状態記述へ是正 (「4H+1D 不一致」substring は query 互換維持)。
+- 影響トレード: trendline_sweep×GBP_USD の HTF mixed 状態エントリーが以後 live に乗らない (shadow は継続)。aligned (bull/bear) 状態は不変。BT は `compute_daytrade_signal` 内適用のため自動同期。
+- 回帰: tests/test_htf_mixed_live_stop.py (6 cases)。再 live 化は R1 のみ。詳細: [[mtf-mixed-gate-noop-forensic-2026-07-07]]
+
 ## 2026-07-06 — order 層 per-bar dedup — engine 再構築で無効化された strategy 内 guard の構造代替 (rule:R3)
 
 - T8 forensic #2 帰結: DaytradeEngine/HourlyEngine が poll 毎に再構築され strategy instance の per-bar dedup/cooldown が live デッドコードだった問題に対し、order 層 (demo_trader) に `(entry_type, instrument, signal, closed_bar_ts)` の per-bar dedup を追加。

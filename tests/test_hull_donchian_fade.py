@@ -70,7 +70,9 @@ class TestFiring:
     def test_fires_on_historical_data_with_valid_shape(self, m15):
         strat = HullDonchianFade()
         # 2024 区間 20 営業日ぶん (~2000 bars) スキャン — holdout 期間内で発火実績あり
-        start = len(m15) - 96 * 400
+        # parquet はローカルキャッシュ (git-ignored) で rolling 短窓に置き換わる
+        # ことがあるため start は warmup (window=200) で clamp (2026-07-07)
+        start = max(200, len(m15) - 96 * 400)
         fires = _scan_fires(m15, strat, start=start, n_bars=96 * 20)
         assert len(fires) >= 1, "20日スキャンで1件も発火しない = silent-drop 兆候"
         for _, c in fires:
@@ -86,7 +88,7 @@ class TestFiring:
     def test_sell_means_fading_upside_break(self, m15):
         """SELL 発火バーは『前バー Donchian 上限を上抜け』していること (fade 意味論)。"""
         strat = HullDonchianFade()
-        start = len(m15) - 96 * 400
+        start = max(200, len(m15) - 96 * 400)
         fires = _scan_fires(m15, strat, start=start, n_bars=96 * 40)
         sells = [(ts, c) for ts, c in fires if c.signal == "SELL"]
         if not sells:
@@ -99,7 +101,7 @@ class TestFiring:
 
     def test_per_bar_dedup(self, m15):
         scan = HullDonchianFade()
-        start = len(m15) - 96 * 400
+        start = max(200, len(m15) - 96 * 400)
         fires = _scan_fires(m15, scan, start=start, n_bars=96 * 40)
         if not fires:
             pytest.skip("no fire in window")
