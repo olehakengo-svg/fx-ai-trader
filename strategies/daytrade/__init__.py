@@ -544,3 +544,42 @@ class DaytradeEngine:
             ]
             rescued.append(c)
         return rescued
+
+    # 2026-07-07 (rule:R2): HTF mixed (4H+1D 不一致) 時に live 転送を停止する
+    # 戦略×ペア セル。close_analysis タグ「⚖️ 4H+1D 不一致 → シグナル抑制中」は
+    # 診断のみで、v9.1 HTF Hard Block は bull/bear 時しか候補を除外しない
+    # (mixed = 候補フィルタ no-op)。本番 clean live (oanda_trade_id != '',
+    # 2026-06-03..07-03): trendline_sweep×GBP_USD mixed N=15 EV=-3.38p/-50.7p
+    # vs aligned N=4 +1.5p。shadow mixed N=7 EV=-7.20p が corroborate。
+    # 30d 大負け4発 -53.6p (T1 forensic §7) は全て mixed タグ付き live。
+    # blocked 候補は shadow 退避 (is_shadow=1) で N 蓄積継続 (4原則#3)。
+    # 再 live 化は R1 (365d BT or clean live N>=30 + Bonferroni) のみ。
+    # Ref: knowledge-base/wiki/analyses/mtf-mixed-gate-noop-forensic-2026-07-07.md
+    HTF_MIXED_LIVE_STOP_CELLS = frozenset({
+        ("trendline_sweep", "GBP_USD"),
+    })
+
+    def split_htf_mixed_live_stop(
+            self, candidates: list[Candidate], symbol: str,
+            htf_agreement: str = "") -> tuple[list[Candidate], list[Candidate]]:
+        """HTF mixed 時に live 停止セルの候補を (残候補, shadow退避) に分割する。
+
+        mixed 以外の agreement では無変換で返す (bull/bear は既存 v9.1
+        Hard Block の責務)。停止候補には [HTF_MIXED_LIVE_STOP] タグを付与し、
+        HTF_BLOCK_SHADOW_RESCUE 由来の shadow とセグメント分離可能にする。
+        """
+        if htf_agreement != "mixed" or not candidates:
+            return list(candidates or []), []
+        kept: list[Candidate] = []
+        stopped: list[Candidate] = []
+        for c in candidates:
+            cell = (getattr(c, "entry_type", ""), symbol)
+            if cell in self.HTF_MIXED_LIVE_STOP_CELLS:
+                c.reasons = list(c.reasons or []) + [
+                    "[HTF_MIXED_LIVE_STOP] htf=mixed — live 転送停止 "
+                    "(rule:R2 clean live N=15 EV=-3.38p)、shadow のみ記録 (4原則#3)"
+                ]
+                stopped.append(c)
+            else:
+                kept.append(c)
+        return kept, stopped
