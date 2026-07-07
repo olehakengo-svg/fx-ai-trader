@@ -34,8 +34,10 @@ def _fake_trades() -> list[dict]:
         "entry_time": "2026-06-01T09:00:00+00:00",
         "entry_price": 1.27, "sl": 1.275, "tp": 1.26, "pnl_pips": 5.0,
     }
-    t1 = {**base, "trade_id": "t1", "spread_at_entry": 1.4}
+    t1 = {**base, "trade_id": "t1", "spread_at_entry": 1.4,
+          "spread_at_exit": 1.1, "slippage_pips": 0.3, "signal_price": 1.2705}
     t2 = {**base, "trade_id": "t2", "spread_at_entry": 1.6,
+          "spread_at_exit": 1.9, "slippage_pips": 0.7, "signal_price": 1.2698,
           "outcome": "LOSS", "pnl_pips": -3.0}
     return [t1, t2]
 
@@ -57,6 +59,34 @@ def test_audit_runs_against_fresh_snapshot(tmp_path):
     assert len(rows) == 2
     spreads = sorted(r["spread_at_entry"] for r in rows)
     assert spreads == [1.4, 1.6]
+
+
+def test_snapshot_preserves_friction_diagnostics(tmp_path):
+    """slippage_pips / spread_at_exit / signal_price must survive the
+    snapshot round-trip. They are the raw inputs risk_analytics
+    pnl_attribution uses to measure friction, so a snapshot dropping them
+    makes external friction verification impossible (they are diagnostic
+    metadata only — never re-subtracted from pnl_pips)."""
+    for col in ("slippage_pips", "spread_at_exit", "signal_price"):
+        assert col in snapshot.SCHEMA
+        assert col in snapshot.KEPT_FIELDS
+
+    import sqlite3
+
+    db = tmp_path / "snap.db"
+    snapshot.write(db, _fake_trades())
+    conn = sqlite3.connect(str(db))
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT trade_id, slippage_pips, spread_at_exit, signal_price"
+        " FROM demo_trades ORDER BY trade_id").fetchall()
+    conn.close()
+    assert [dict(r) for r in rows] == [
+        {"trade_id": "t1", "slippage_pips": 0.3,
+         "spread_at_exit": 1.1, "signal_price": 1.2705},
+        {"trade_id": "t2", "slippage_pips": 0.7,
+         "spread_at_exit": 1.9, "signal_price": 1.2698},
+    ]
 
 
 def test_v3_stats_independent_of_spread(tmp_path):
