@@ -4,6 +4,15 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-08 — T2 exit-repair grid BT verdict: ❌ FAIL / H0 採択 → WS3 全振り (rule:R1)
+
+- pre-reg LOCK ([[exit-repair-tp-sl-prereg-2026-07-07]]) の機械的実行。executor は Codex queue → claude 直接実行に変更 (user 運用委任、期日 07-21 の 13 日前倒し)。
+- **結果: 全 9 構成 FAIL** — BH-FDR q=0.10 全構成 p=1.0 (日次ブロックブートストラップ B=10,000、208 取引日) / WF 3-fold 全構成 0/3 / 摩擦調整 EV 全構成負 (最良 tp0.4×sl0.6 で −2.96 p/t、baseline −6.64 から +3.67 改善もレバー不足)。
+- ナイフエッジ3点検査: メカニズムは診断通り作動 (TP-hit 0.215→0.44、EV 両軸厳密単調) した上での**構造的 FAIL**。lag-1 ρ ≈ ±0.06 で自己相関影響なし。感度 run (pre-#58 code、mixed 込み) も同結論 FAIL 0/9。
+- 実装: `tools/exit_repair_tp_sl_grid_bt.py` (spawn 分離 grid runner) + `app.py` BT 専用 env hook (`BT_TP_MULT`/`BT_SL_MULT`、env 未設定で完全 no-op)。EUR_JPY 15m parquet の 2ヶ月 stale (silent window 罠) を差分修復。
+- **影響トレード: なし (純研究、live パラメータ不変更)**。変わるのは roadmap の主戦線 — §4 固定分岐により **WS3 シグナル張り替え (MFE 分布ベースの entry 再設計) が v2.3 の主戦線**に。exit 側レバーの再試行は禁止。
+- 成果物: `raw/bt-results/exit_repair_tp_sl_grid_2026_07.{json,md}` + 感度版。registry `exit-repair-bt-deadline` inactive。verdict 詳細: [[exit-repair-tp-sl-prereg-2026-07-07]] §8
+
 ## 2026-07-07 — WS4 Phase B follow-up: shadow 修復層の oscillation 封鎖 + 停止可視化 (PR #59 敵対的レビュー起点, rule:R3)
 
 - PR #59 (P1-3 stale SHADOW_MIGRATION 削除 + P1-9 Kelly raw 化) / PR #60 (T4 摩擦調整 EV マップ) のマージ後、10-agent 敵対的検証 workflow が confirmed した欠陥への追修:

@@ -52,7 +52,7 @@ v2.2 は全12項目をクローズした (止血セル停止・T5 JPYキャッ�
 | # | 項目 | Rule | 状態 | 採用/棄却条件 |
 |---|---|---|---|---|
 | T1 | **GBP_USD live 出血セルの forensic + R2 demote** | R2 | ✅ **執行済 2026-07-07 (PR #56)**: wick_imbalance_reversion×GBP_USD を `_PAIR_DEMOTED` へ (N=12 EV−3.91 −46.9p、Wilson_lo 19.3%<BEV 37.9%、pin 3 tests)。**vix_carry_unwind×USD_JPY×SELL (N=10 EV−1.90) は R2 基準該当だが user 承認済み Overlap pilot 契約と衝突 → pilot 継続裁定 (2026-07-07 user「進めていいよ」)** — 再評価 checkpoint = live N≥20 or 2026-08-31 (registry `vix-sell-pilot-recheck`)。trendline_sweep は WR 68.4% BT 整合 / payoff 0.15 → demote 保留・MTF ゲート異常の別調査へ ([[payoff-asymmetry-diagnosis-2026-07-07]] §7) | 完了 (forensic 継続分は T-MTF) |
-| T2 | **live 決済非対称の是正 — TP/SL 実走距離整合の R1 パイプライン** — T3 の結論 (trail 無効化は解でない、TP 5倍過大が主因) を受け、緊急 mitigation でなく構造是正へ。**pre-reg LOCK 済み: [[exit-repair-tp-sl-prereg-2026-07-07]]** (grid 9 combos、BE/Trail ablation、診断窓除外、BH-FDR q=0.10)。BT 執行は Codex queue、verdict はナイフエッジ3点検査必須 | R1 | 🔒 pre-reg LOCK (2026-07-07)、BT 実行待ち | PASS → user 最終承認で実装 / 全滅 → WS3 シグナル張り替えへ全振り |
+| T2 | **live 決済非対称の是正 — TP/SL 実走距離整合の R1 パイプライン** — pre-reg LOCK: [[exit-repair-tp-sl-prereg-2026-07-07]] (grid 9 combos、BE/Trail ablation、診断窓除外、BH-FDR q=0.10) | R1 | ❌ **FAIL クローズ 2026-07-08 (H0 採択、期日 07-21 の 13 日前倒し)** — 全 9 構成 p=1.0 / WF 0/3 / EV 負 (最良 tp0.4×sl0.6 で −2.96 p/t、baseline −6.64 から +3.67 改善もレバー不足)。ナイフエッジ3点検査済 (メカニズムは診断通り作動 = 構造的 FAIL)。感度 run (pre-#58 code) も同結論。詳細 = pre-reg §8 verdict | **FAIL 確定 → §4 規定分岐により WS3 シグナル張り替えへ全振り (下記 WS3 改訂)** |
 | T-MTF | **(新規) MTF 抑制タグ付き live 発注の構造調査** — trendline_sweep 大負け4発が「4H+1D 不一致→抑制中」タグ付きで OANDA 発注。MTF ゲートの LIVE 転送 block 可否を engine 側で特定 | R3 | 🔄 調査中 (別セッション、spawn_task 2026-07-07) | バイパス確定なら R3 構造 fix |
 
 ## WS-Diag: 決済非対称の構造診断 (Rule 3 診断 → Rule 1 実装、v2.3 中核)
@@ -74,9 +74,16 @@ payoff 0.27 は v2.3 の最重要問題。**診断は R3 (analyses/ に数値根
 | T8 | **carry dip v3 dormant 監視** (v2.2 T7 繰越) | ceiling 159.50 レジーム前提崩壊の dormant-by-design。復帰 = D1 close<159.50 (registry `t5-jpy-cap-restore-price` に相乗り) | 監視のみ。QUALBAR telemetry 本番稼働済 |
 | T9 | **kalman_d7 発火監視** (v2.2 T9 繰越) | 3 variant 合算 vs BT 期待 3.9/週。分子ゼロ継続なら Render ログ QUALBAR (分母) と突合 | pre-reg 監視済 (registry `t9-kalman-d7-fire-info`) |
 
-## WS3: エッジ要因解析シリーズ継続 (司令塔直轄)
+## WS3: シグナル張り替え — v2.3 の主戦線 (2026-07-08 T2 FAIL により全振り確定、司令塔直轄)
 
-Edge Factor Audit #1-#6 (2026-06-12) + T10 bb_rsi KILL (2026-07-02) で高N shadow 戦略は一巡。**次候補は N 単純降順でなく「高WR × 負EV」群を優先** — エントリーは効いているが決済/摩擦で殺されている典型で、WS-Diag の payoff 改善が最も効く母集団。falsified 済みシリーズ (H4 level / channel / sweep&reclaim horizontal / mtf SELL / bb_rsi / T11 counter-USD) の再試行禁止。
+**T2 exit-repair FAIL (pre-reg §8) により、pre-reg §4 の固定分岐が発動: 「5p しか走らない場所で exit を直す」経路は棄却され、「20p 走る場所へ entry を張り替える」ことが黒字化の唯一の経路。** T4 マップ ([[friction-adjusted-ev-map-2026-07-07]]) も現行母集団に live viable な正セル不在を確定済みで、両輪の結論が一致。
+
+WS3 の設計原則 (grid BT の学習を反映):
+- **選抜基準は「entry 後の MFE 分布」** — 診断確定の機構 (winners MFE 帯 4-6p vs 摩擦 2-4.5p ではマージンが構造的に不足) から、摩擦の 4-8 倍走る (≳15-20p) シグナルのみが候補資格を持つ
+- 優先母集団: ①「高 gross WR × 深 net−」群 (gbp_deep_pullback WR54/net−6.6、sr_anti_hunt_bounce、trendline_sweep WR48/net−6.5 = entry は効くが走らない群の MFE 延伸条件の特定) ②grid 近接セル dt_sr_channel_reversal×EUR_JPY (EV_floor +0.41、事後選択につき次期 pre-reg の探索仮説扱い)
+- 手続き: R3 診断 (MFE 分布・IC) → 有望仮説のみ R1 pre-reg (TV Pine canon、365d、Bonferroni) — カーブフィッティング禁止・falsified 6系統の再試行禁止は不変
+
+Edge Factor Audit #1-#6 (2026-06-12) + T10 bb_rsi KILL (2026-07-02) で高N shadow 戦略は一巡。**次候補は N 単純降順でなく「高WR × 負EV」群を優先** — エントリーは効いているが決済/摩擦で殺されている典型。falsified 済みシリーズ (H4 level / channel / sweep&reclaim horizontal / mtf SELL / bb_rsi / T11 counter-USD) の再試行禁止。
 
 | # | 候補 | clean shadow 実測 | 分析主眼 | Rule |
 |---|---|---|---|---|
@@ -107,13 +114,13 @@ Edge Factor Audit #1-#6 (2026-06-12) + T10 bb_rsi KILL (2026-07-02) で高N shad
 
 **v2.2 の「クリーン N の蓄積速度」は superseded (2026-07-07 正式化で確定)。** shadow N は飽和 (20 entry_type 全 N≥30) し、律速ではなくなった。**v2.3 の真のボトルネック = 「正の摩擦調整 EV を持つセルの不在」** — 蓄積したデータが一様に負を示し (payoff 0.27、主因 = 勝ち側 exit 執行の崩壊 + 対称摩擦 [120.6, 294.6]p の水準効果)、昇格母集団が存在しない。
 
-したがって寄与度の優先順位 (T3 確定後の現在地):
-1. **決済非対称の是正** (WS-Diag T2 = TP/SL 実走距離整合 R1 パイプライン) — 診断は完了、pre-reg LOCK 済み・BT 実行待ち。全滅なら WS3 シグナル張り替えへ全振り
+したがって寄与度の優先順位 (**2026-07-08 T2 verdict 後の現在地**):
+1. **WS3 シグナル張り替え** — v2.3 の主戦線に昇格 (T2 FAIL の §4 固定分岐)。MFE 分布ベースの R3 診断から開始 (WS3 節の設計原則参照)
 2. **clean-N 整合性の回復** (WS4 = Fable5 Phase B) — **P1-3/P1-9 ✅ 完了 (PR #59, 2026-07-07)**。残 = P1-2 (BE/Trail ablation を scalp/1H×2 へ展開)。R3
-3. **摩擦調整 EV マップ** (WS-Diag T4) — ✅ **完了 (2026-07-07, [[friction-adjusted-ev-map-2026-07-07]])**。net+ セル不在を確定 (楽観 shadow ですら 1/39 type、唯一候補は live 負)
-4. **エッジ要因解析継続** (WS3) — 高WR×負EV 群 (gbp_deep_pullback / sr_anti_hunt_bounce)
+3. ~~決済非対称の是正 (WS-Diag T2)~~ — ❌ **FAIL クローズ 2026-07-08** (pre-reg §8。exit 側レバーは仮説空間ごと閉鎖 — 再試行禁止)
+4. ~~摩擦調整 EV マップ (WS-Diag T4)~~ — ✅ 完了 (2026-07-07)。net+ セル不在を確定
 
-**正式版 (2026-07-07)。** autopilot は R2/R3 項目を実行可。R1 項目は個別に Rule 1 手続き + user 最終承認。
+**正式版 (2026-07-07 / T2 verdict 反映 2026-07-08)。** autopilot は R2/R3 項目を実行可。R1 項目は個別に Rule 1 手続き + user 最終承認。
 
 ---
 

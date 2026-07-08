@@ -6,7 +6,8 @@
 - 旧目標「月利100%」「Phase 3 月利594%」は TP-HIT 12-cell 検証で数学的不可能と確定、user 承認で再設定 (roadmap v2.2 T12)
 - 詳細: **[[roadmap-v2.3-payoff-friction-repair]]** (✅ 正式版 2026-07-07 — 決済非対称/摩擦の是正。T3 診断確定 [[payoff-asymmetry-diagnosis-2026-07-07]]) / 前版: [[roadmap-v2.2-win-conversion]] (全12項目クローズ済) / 旧: [[roadmap-v2.1]]
 - 旧: [[roadmap-v2]] (v2.0) / [[roadmap-to-100pct]] (v1)
-- **v2.3 確定 (2026-07-07)**: clean live 30d N=93/−245.0p/payoff 0.274。ボトルネック =「正の摩擦調整 EV セルの不在」(確定)。主因 = 勝ち側 exit 執行の崩壊 (設計TP が実走 MFE の5倍 + trail 返上 142.5p/30d)。exit-repair pre-reg LOCK 済み ([[exit-repair-tp-sl-prereg-2026-07-07]]、BT verdict 期日 07-21)
+- **v2.3 確定 (2026-07-07)**: clean live 30d N=93/−245.0p/payoff 0.274。ボトルネック =「正の摩擦調整 EV セルの不在」(確定)。主因 = 勝ち側 exit 執行の崩壊 (設計TP が実走 MFE の5倍 + trail 返上 142.5p/30d)
+- **T2 exit-repair verdict: ❌ FAIL / H0 採択 (2026-07-08、期日 07-21 の13日前倒し)** — grid 9構成全て BH-FDR 不通過 (p=1.0) / WF 0/3 / 摩擦調整EV負 (最良 tp0.4×sl0.6 で −2.96 p/t)。メカニズムは診断通り作動した上での構造的 FAIL (ナイフエッジ3点検査済、感度 run も同結論)。**§4 固定分岐発動 → v2.3 の主戦線は WS3 シグナル張り替え (20p 走る場所への entry 再設計)**。詳細: [[exit-repair-tp-sl-prereg-2026-07-07]] §8
 
 ## 🔗 Cross-KB Navigation
 - **[[audit-index]]** — `learning/` 18 audit ノード + MEMORY `project_*.md` 双方向マップ（次セッション Claude 必読、KB↔MEMORY 棲み分けルール記載）

@@ -16,11 +16,13 @@
     },
     {
       "id": "exit-repair-bt-deadline",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-07-21",
       "doc": "knowledge-base/wiki/decisions/exit-repair-tp-sl-prereg-2026-07-07.md",
-      "message": "exit-repair TP/SL grid BT (pre-reg LOCK 済) の verdict 期日 — queue 20260707-1640-exit-repair-tp-sl-grid が未完なら stale (T5 型の実行ギャップ防止)"
+      "message": "exit-repair TP/SL grid BT (pre-reg LOCK 済) の verdict 期日 — queue 20260707-1640-exit-repair-tp-sl-grid が未完なら stale (T5 型の実行ギャップ防止)",
+      "resolved": "2026-07-08",
+      "resolution": "verdict FAIL (H0 採択) — claude 直接実行で期日13日前倒し完了。全9構成 BH-FDR 不通過 (p=1.0)、WF 0/3、EV_theory 最良 -2.96 p/t。WS3 全振りへ (pre-reg §4 規定分岐)"
     },
     {
       "id": "t5-jpy-cap-restore-price",
