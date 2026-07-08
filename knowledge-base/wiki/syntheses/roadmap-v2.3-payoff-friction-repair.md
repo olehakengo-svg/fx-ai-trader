@@ -78,10 +78,10 @@ payoff 0.27 は v2.3 の最重要問題。**診断は R3 (analyses/ に数値根
 
 **T2 exit-repair FAIL (pre-reg §8) により、pre-reg §4 の固定分岐が発動: 「5p しか走らない場所で exit を直す」経路は棄却され、「20p 走る場所へ entry を張り替える」ことが黒字化の唯一の経路。** T4 マップ ([[friction-adjusted-ev-map-2026-07-07]]) も現行母集団に live viable な正セル不在を確定済みで、両輪の結論が一致。
 
-WS3 の設計原則 (grid BT の学習を反映):
-- **選抜基準は「entry 後の MFE 分布」** — 診断確定の機構 (winners MFE 帯 4-6p vs 摩擦 2-4.5p ではマージンが構造的に不足) から、摩擦の 4-8 倍走る (≳15-20p) シグナルのみが候補資格を持つ
-- 優先母集団: ①「高 gross WR × 深 net−」群 (gbp_deep_pullback WR54/net−6.6、sr_anti_hunt_bounce、trendline_sweep WR48/net−6.5 = entry は効くが走らない群の MFE 延伸条件の特定) ②grid 近接セル dt_sr_channel_reversal×EUR_JPY (EV_floor +0.41、事後選択につき次期 pre-reg の探索仮説扱い)
-- 手続き: R3 診断 (MFE 分布・IC) → 有望仮説のみ R1 pre-reg (TV Pine canon、365d、Bonferroni) — カーブフィッティング禁止・falsified 6系統の再試行禁止は不変
+WS3 の設計原則 (**2026-07-08 MFE 分布診断 [[ws3-mfe-distribution-2026-07-08]] で改訂**):
+- **選抜基準 = 「MFE/MAE 方向性非対称 + horizon 持続性」** — MFE 絶対量は豊富 (h24 で p50 15-30p、live 診断の「5p」は exit 打ち切りアーティファクトと確定) だが、母集団の MFE/MAE 比は中央値 0.88 = 方向性なし。**希少資源は非対称 (ratio≥1.3 は 7/79 cells のみ)** であり、「20p 走る場所」でなく「シグナル方向に偏って走る場所」を探す
+- 候補テール (探索標本由来、promote 禁止・次期 pre-reg の検証対象): 減衰型 = htf_false_breakout×EUR_JPY (1.81) / trendline_sweep×EUR_USD (1.65) / dt_sr_channel×EUR_USD (1.55) 等、**持続型 (h96 で増幅) = lin_reg_channel×EUR_USD (1.38→1.94) / dt_fib_reversal×USD_JPY (1.29→2.05)**。保有設計は2型で逆
+- 手続き: 次の R1 pre-reg で (a) TV Pine canon 再現 (b) 診断窓と重ならない期間の OOS ratio 再計測 (c) 多重性補正 (d) barrier 設計 — カーブフィッティング禁止・falsified 6系統の再試行禁止は不変。dt_sr_channel×EUR_JPY (grid 近接セル) は ratio 1.13 で単独候補としては弱いと判定材料更新
 
 Edge Factor Audit #1-#6 (2026-06-12) + T10 bb_rsi KILL (2026-07-02) で高N shadow 戦略は一巡。**次候補は N 単純降順でなく「高WR × 負EV」群を優先** — エントリーは効いているが決済/摩擦で殺されている典型。falsified 済みシリーズ (H4 level / channel / sweep&reclaim horizontal / mtf SELL / bb_rsi / T11 counter-USD) の再試行禁止。
 

@@ -4,6 +4,13 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-09 — WS3 MFE 分布診断: 選抜基準を「MFE 絶対量」→「MFE/MAE 方向性非対称」へ改訂 (rule:R3)
+
+- T2 FAIL 後の WS3 初手 ([[ws3-mfe-distribution-2026-07-08]])。365d baseline 6 pair、N=6,995 entries / 104 cells の forward MFE/MAE (H∈{6..96} bars) を exit 非依存で計測 (`tools/ws3_mfe_scan.py`)。
+- **発見1**: MFE 絶対量は豊富 (h24 p50 15-30p) — live 診断の「winners MFE 5.18p」は exit 打ち切りアーティファクトと確定。
+- **発見2**: MFE/MAE 比の母集団中央値 0.88 = **価格は走るがシグナル方向に走らない**。希少資源は方向性非対称 (ratio≥1.3 = 7/79 cells)。horizon 持続型 2 cells (lin_reg_channel×EUR_USD 1.38→1.94 / dt_fib_reversal×USD_JPY 1.29→2.05) を次期 pre-reg の検証対象に固定。
+- 影響トレード: なし (R3 純診断)。roadmap WS3 節の選抜基準を改訂。事後選択セルの promote 禁止を明記。
+
 ## 2026-07-08 — T2 exit-repair grid BT verdict: ❌ FAIL / H0 採択 → WS3 全振り (rule:R1)
 
 - pre-reg LOCK ([[exit-repair-tp-sl-prereg-2026-07-07]]) の機械的実行。executor は Codex queue → claude 直接実行に変更 (user 運用委任、期日 07-21 の 13 日前倒し)。
