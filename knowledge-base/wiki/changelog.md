@@ -4,6 +4,23 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-07 — WS4 Phase B follow-up: shadow 修復層の oscillation 封鎖 + 停止可視化 (PR #59 敵対的レビュー起点, rule:R3)
+
+- PR #59 (P1-3 stale SHADOW_MIGRATION 削除 + P1-9 Kelly raw 化) / PR #60 (T4 摩擦調整 EV マップ) のマージ後、10-agent 敵対的検証 workflow が confirmed した欠陥への追修:
+- **oscillation 封鎖**: SHADOW_DRIFT_BACKFILL (2026-05-03) が leak backfill の shadow 分類 (pre-RULE_TS の OANDA-filled リーク行) を次 restart で無条件に live へ巻き戻し、冪等マーカーが再修復を恒久ブロックしていた (空 DB 4-init で再現)。drift rollback の WHERE に `force_demoted_live_leak=0` 除外を追加。
+- **修復層停止の可視化 (P2-3 部分)**: leak/flag_drift backfill の unsafe/exception 停止を `[SHADOW_REPAIR_PAUSED]` WARN で毎 restart 表面化。**本番は現在 leak 側 status=unsafe で停止中と実測** (P2-10 新設、修復 chip 化済)。
+- **P1-9 スコープ訂正**: `_evaluate_shadow_promotions` は production call site ゼロの dead code — P1-9 で武装されるのは live promotion loop の `_kelly_block` のみ (P2-11 新設)。ゼロ境界は `< 0` が仕様と裁定 (`<= 0` 化は正エッジ誤 block の対称害で不採用)、mirror テストを production 述語に整合。
+- 影響トレード: なし (シグナル判定・lot 不変更)。変わるのは修復層の分類安定性と観測性のみ。
+- 回帰: tests/test_ws4_phase_b_followup.py (5 cases、oscillation は main で red 確認済み) + test_kelly_promotion_gate.py 整合。詳細: [[fable5-system-audit-2026-07-02]] P1-3 follow-up / P2-3 / P2-10 / P2-11
+
+## 2026-07-07 — HTF mixed cell stop: trendline_sweep×GBP_USD live 転送停止 + mixed 診断タグ是正 (rule:R2/R3)
+
+- T1 forensic §7 の異常 (30d 大負け4発 −53.6p 全てに「⚖️ 4H+1D 不一致 → シグナル抑制中」タグ付き LIVE 発注) の根本原因を特定: **タグは診断のみで、v9.1 HTF Hard Block は bull/bear 限定 — mixed は DTE 候補フィルタ no-op**。trendline_sweep は self-contained HTF guard も持たず、demo_trader v9.3 regime gate も ELITE_LIVE 免除で第2層不在。
+- R2 執行: `DaytradeEngine.HTF_MIXED_LIVE_STOP_CELLS = {(trendline_sweep, GBP_USD)}` — mixed 時に候補除外 + shadow 退避 (`[HTF_MIXED_LIVE_STOP]` タグ、is_shadow=1)。根拠 = clean live (06-03..07-03) mixed N=15 EV=−3.38p/−50.7p vs aligned N=4 +1.5p、shadow mixed N=7 EV=−7.20p corroborate。
+- R3 執行: reasons の mixed 文言を実状態記述へ是正 (「4H+1D 不一致」substring は query 互換維持)。
+- 影響トレード: trendline_sweep×GBP_USD の HTF mixed 状態エントリーが以後 live に乗らない (shadow は継続)。aligned (bull/bear) 状態は不変。BT は `compute_daytrade_signal` 内適用のため自動同期。
+- 回帰: tests/test_htf_mixed_live_stop.py (6 cases)。再 live 化は R1 のみ。詳細: [[mtf-mixed-gate-noop-forensic-2026-07-07]]
+
 ## 2026-07-06 — order 層 per-bar dedup — engine 再構築で無効化された strategy 内 guard の構造代替 (rule:R3)
 
 - T8 forensic #2 帰結: DaytradeEngine/HourlyEngine が poll 毎に再構築され strategy instance の per-bar dedup/cooldown が live デッドコードだった問題に対し、order 層 (demo_trader) に `(entry_type, instrument, signal, closed_bar_ts)` の per-bar dedup を追加。

@@ -16,6 +16,9 @@ class _NoCandidateDaytradeEngine:
     def split_shadow_always(self, _candidates, _best):
         return []
 
+    def split_htf_mixed_live_stop(self, candidates, _symbol, htf_agreement=""):
+        return list(candidates or []), []
+
 
 def _streak_df(direction: str) -> pd.DataFrame:
     n = 90

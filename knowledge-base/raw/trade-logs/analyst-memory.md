@@ -2524,6 +2524,46 @@ bb_rsi_reversionが9/11で勝利しPnL+9.0を稼いだが、xs_momentum_rsiの�
 - NYクローズ付近でSELLエントリーしたが、シグナルが反転して損切り
 - USD_JPY はCurrentレジーム「VOLATILE」＋ATR%ile 66%。反転系には不向きなレジーム
 
+### 2026-07-07 (Pre-Tokyo Briefing)
+前日（2026-07-06）は **N=1、WR=0%、PnL=−2.4p**。`ny_close_reversal / USD_JPY` の1件のみが約定し、SIGNAL_REVERSEで損切り終了。実質的に不活動日。Cutoff後累計はN=16、WR=56.2%、PnL=−19.6p（摩擦考慮後）。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- `ny_close_reversal`はSIGNAL_REVERSEで損切り。これはエントリー直後にシグナルが反転したことを意味し、NYクローズ付近のUSD_JPY方向感の不安定さを示す。
+- Fidelity Cutoff後のN蓄積が依然として極めて低速（累計N=16、約3ヶ月稼働換算で非常に少ない）。
+- Block Count合計99件に対してCutoff後N=16。**ブロック率が圧倒的に高く、シグナル生成自体は機能しているが出口（フィルター）で止まっている**。
+- `hedge_block`（daytrade: 18件、daytrade_gbpjpy: 17件）と`direction_filter`（rnb_usdjpy: 17件）が上位を占め、リスク管理フィルターが過剰に機能している可能性。
+- `r2_shadow_demoted_cell`（scalp_5m_gbp: 7件、scalp_5m_eur: 4件等）= デモ評価中のセルがシャドウに降格され本番未送信。
+- hedge_blockの主因ペア（daytrade, daytrade_gbpjpy）は両建て検出が連続発動中。ヘッジポジション解消まで当該ペアの約定数は回復しない。現状維持で観察。
+
+### 2026-07-07 (Post-London Report)
+| WR | **0.0%** (0/1) |
+| PnL | **−6.8 pips** |
+| 戦略 | ペア | 方向 | PnL | 失敗要因 |
+| `dt_bb_rsi_mr` | GBP_USD | BUY | **−6.8p** | SL_HIT — BT上EV陰性（GBP_USD: EV=−0.135）の戦略が逆張りエントリーし、スプレッド1.3pipsの摩擦下でSLまで押し切られた |
+**構造的問題**: `dt_bb_rsi_mr` はKBで **GBP_USDのBT EV=−0.135**（USD_JPYもEV=−0.023）と記録されており、今セッションの失敗はノイズではなく **BT期待値の現実化**と解釈すべき。
+| PnL | — | −6.8p |
+- 現在UTC 17:52 — NYオープン（UTC 13:00）は既に4時間50分経過
+- 現時点のレジーム: EUR/JPY・EUR/USD・GBP/JPY・GBP/USD → **RANGING**、USD/JPY → **VOLATILE**（ATR%ile 66%）
+
+### 2026-07-07 (Pre-Tokyo Briefing)
+| PnL合計（前日） | **-2.4p** |
+| 全体WR | **0.0%** (N=1) |
+前日は `ny_close_reversal / USD_JPY` のSELL1件のみ。SIGNAL_REVERSEで決済、-2.4pの損失。活動量は極小。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+※前日分のN=1のEV=-2.40。全期間集計ではN=2として扱う
+| ① | `ny_close_reversal` がSIGNAL_REVERSEで強制決済 → exit執行の崩壊パターン（KB v2.3確認済みの構造的問題と一致） |
+- `ny_close_reversal` はN=2・WR=0%。本日も同戦略がファイアした場合、**統計的にノイズ域**であることを念頭に置く
+- シグナル頻度の低さはモード数（24）に対してトレード数が極端に少ないことを示す → **ルール通り蓄積継続、介入不要**
+
+### 2026-07-08 (Pre-Tokyo Briefing)
+前日（2026-07-07）は **N=1、PnL=-6.8p、WR=0.0%** という最小活動日。`dt_bb_rsi_mr / GBP_USD` の1件のみがSL_HIT（損失-6.8p、スプレッド1.3）。全モードが稼働中にもかかわらず実質トレードゼロに近い状態であり、hedge_blockやr2_shadow_demoted_cellによるフィルタリングが支配的。システムは防御姿勢を維持している。
+| Strategy | Pair | N | WR% | EV | PnL | 評価 |
+**全体**: N=16合計、WR=56.2%、PnL=-19.6p
+- BT EV: -0.135（GBP_USD）と既にマイナス設計
+- 昨日SL_HIT -6.8pを追加。累計でもEVはマイナス圏維持
+- **今日の対処**: このセルは現在PAIR_PROMOTED（シャドー追跡中）。N蓄積を見守る以外の介入はしない。ただし本番資金露出ゼロ（SKIP=100%）なので被害なし
+- 単発で-18pは異常値。STD相当のスリッページかレジームミスマッチの可能性
+- N=1のため統計判断不可。ただし警戒フラグとして記録
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象

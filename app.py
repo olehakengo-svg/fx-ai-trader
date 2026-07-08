@@ -2178,7 +2178,11 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
     elif htf_agreement == "bear":
         reasons.append(f"📉 {htf_dt.get('label','4H+1D 下降一致')} → SELLバイアス")
     else:
-        reasons.append(f"⚖️ {htf_dt.get('label','4H+1D 不一致')} → シグナル抑制")
+        # 2026-07-07 (rule:R3): 旧文言「→ シグナル抑制」は実装と乖離していた
+        # (mixed の実効果は legacy score×0.70 減衰のみ。DTE 候補は
+        # HTF_MIXED_LIVE_STOP_CELLS 登録セルを除き非抑制)。診断タグは実状態を
+        # 記述する。「4H+1D 不一致」substring は forensic query 互換のため維持。
+        reasons.append("⚖️ 4H+1D 不一致 (mixed) — legacy score減衰のみ、DTE候補は cell stop 登録分を除き非抑制")
 
     # ① ADX レジームフィルター (Wilder 1978) ── 緩和版: 取引頻度重視
     if adx >= 25:
@@ -2661,6 +2665,25 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
             )
             reasons.append(f"🚫 [DTE] HTF Hard Block: {_htf_blocked_count}候補ブロック (htf={htf_agreement})")
         _dt_candidates = _htf_filtered
+    # 2026-07-07 (rule:R2): HTF mixed cell stop — タグ「⚖️ 4H+1D 不一致 →
+    # シグナル抑制中」は診断のみで、mixed 時は上の Hard Block が発動しない
+    # (bull/bear 限定) ため DTE 候補は無抑制で live 転送されていた
+    # (T1 forensic §7: trendline_sweep×GBP_USD 30d 大負け4発 -53.6p 全て
+    # mixed タグ付き live)。登録セルのみ live 停止 + shadow 退避 (4原則#3)。
+    # 数値根拠・登録セルは DaytradeEngine.HTF_MIXED_LIVE_STOP_CELLS 参照。
+    _dt_candidates, _htf_mixed_stopped = _dt_engine.split_htf_mixed_live_stop(
+        _dt_candidates, symbol, htf_agreement=htf_agreement)
+    if _htf_mixed_stopped:
+        print(
+            f"[DTE] HTF_MIXED_LIVE_STOP {symbol}: "
+            f"{','.join(getattr(c, 'entry_type', '?') for c in _htf_mixed_stopped)}"
+            f" → shadow emit (live stop)",
+            flush=True,
+        )
+        _htf_rescue_emits = list(_htf_rescue_emits) + _htf_mixed_stopped
+        reasons.append(
+            f"🚫 [DTE] HTF mixed cell stop: "
+            f"{len(_htf_mixed_stopped)}候補 live停止→shadow (htf=mixed)")
     _dt_best = _dt_engine.select_best(_dt_candidates)
     # 2026-04-28 Phase 10 C1: per-candidate audit logging (best-effort).
     # Records every candidate produced by evaluate_all() — including losers
