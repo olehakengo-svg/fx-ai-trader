@@ -6411,6 +6411,8 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
         f"_vdrV2{_vdr_v2_cache_flag}_vsgV2{_vsg_v2_cache_flag}"
         f"_vmrV2{_vmr_v2_cache_flag}_wirV2{_wir_v2_cache_flag}"
         f"_abl{os.environ.get('BT_ABLATE_CASCADE_CD','0')}{os.environ.get('BT_ABLATE_POST_SL_BLOCK','0')}{os.environ.get('BT_ABLATE_QUICK_HARVEST','0')}{os.environ.get('BT_ABLATE_BE_TRAIL','0')}_opt{os.environ.get('BT_OPTIMISTIC','0')}"
+        f"_tpm{os.environ.get('BT_TP_MULT','1')}_slm{os.environ.get('BT_SL_MULT','1')}"
+        f"_tpst{os.environ.get('BT_TPSL_MULT_TYPES','')}"
     )
     now = datetime.now()
     cached = _dt_bt_cache.get(cache_key)
@@ -6497,6 +6499,21 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             ("london_fix_reversal", "GBP_USD"),
             ("vix_carry_unwind", "USD_JPY"),
         })
+
+        # ── exit-repair grid BT hook (pre-reg 2026-07-07 LOCK, rule:R1) ──
+        # BT専用: exit距離 (TP/SL) のみ倍率スケール。env 未設定なら完全 no-op。
+        # 適用位置は Spread/SL Gate + RR check の後 (エントリー母集団を構成間で固定)。
+        try:
+            _BT_TP_MULT_DT = float(os.environ.get("BT_TP_MULT", "1") or "1")
+        except ValueError:
+            _BT_TP_MULT_DT = 1.0
+        try:
+            _BT_SL_MULT_DT = float(os.environ.get("BT_SL_MULT", "1") or "1")
+        except ValueError:
+            _BT_SL_MULT_DT = 1.0
+        _BT_TPSL_MULT_TYPES_DT = frozenset(
+            s.strip() for s in os.environ.get("BT_TPSL_MULT_TYPES", "").split(",")
+            if s.strip())
 
         # ── HTF bias: BT用動的計算（ルックアヘッドなし）──
         # bar_idx までのデータをリサンプルして4H+1D方向を推定
@@ -6939,6 +6956,17 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
             if tp_dist_dt < sl_dist_dt and not (_dt_sr_channel_v2_geometry or _rsk_v2_geometry or _vsg_v2_geometry):
                 continue
 
+            # ── exit-repair grid hook: exit距離のみ倍率適用 (entry母集団は不変) ──
+            if ((_BT_TP_MULT_DT != 1.0 or _BT_SL_MULT_DT != 1.0)
+                    and (not _BT_TPSL_MULT_TYPES_DT
+                         or entry_type in _BT_TPSL_MULT_TYPES_DT)):
+                if _BT_TP_MULT_DT != 1.0:
+                    tp = ep + (tp - ep) * _BT_TP_MULT_DT
+                    tp_dist_dt = abs(tp - ep)
+                if _BT_SL_MULT_DT != 1.0:
+                    sl_dist_dt = sl_dist_dt * _BT_SL_MULT_DT
+                    sl = ep - sl_dist_dt if sig == "BUY" else ep + sl_dist_dt
+
             sl_m = abs(ep - sl) / max(atr, 1e-6)
             tp_m_actual = abs(tp - ep) / max(atr, 1e-6)
 
@@ -7105,6 +7133,9 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                                 "exit_friction_m": round(_exit_friction_m_dt, 4),
                                 "exit_reason": _exit_reason_dt,
                                 "exec_lag_jitter": _exec_lag_jitter,
+                                "atr": round(atr, 6),
+                                "entry_friction": round(_spread / 2 + _slip_dt, 6),
+                                "exit_friction": round(_exit_friction_dt, 6),
                                 "_is_range_tp_override": _is_range_tp_override}
                 if outcome == "LOSS" and _exit_reason_dt != "signal_reverse":
                     if sig == "BUY" and fut_close < sl:

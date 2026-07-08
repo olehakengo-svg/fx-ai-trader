@@ -1,8 +1,9 @@
 ---
 id: 20260707-1640-exit-repair-tp-sl-grid
 title: "[v2.3 WS-Diag T2/R1] exit-repair TP/SL 実走距離整合 grid BT — pre-reg LOCK 済み検証"
-owner: codex
-status: queued
+owner: claude
+status: in_progress
+executor_note: "2026-07-08 executor 変更 codex→claude (Fable5)。user 承認済 (運用委任)。理由: 期日リスク (T5 18日ギャップ前歴、.ai/runs 06-08 以降停止) + MCP/repo 直接アクセス。pre-reg LOCK 対象 (§2-§4) は不変。PASS 構成が出た場合のみ Codex 独立再現を追加"
 priority: P1
 created_at: 2026-07-07T16:40:00+0900
 roadmap_gate: "v2.3 WS-Diag T2 (正式版 2026-07-07)。実装は verdict PASS 後の user 最終承認が別途必要"

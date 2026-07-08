@@ -1,0 +1,251 @@
+{
+ "task": "20260707-1640-exit-repair-tp-sl-grid",
+ "prereg": "knowledge-base/wiki/decisions/exit-repair-tp-sl-prereg-2026-07-07.md",
+ "rule": "R1",
+ "generated_utc": "2026-07-08T08:46:03.013425+00:00",
+ "engine": "app.run_daytrade_backtest backtest_mode=True",
+ "interval": "15m",
+ "lookback_days": 365,
+ "diag_window_excluded_from": "2026-06-07",
+ "cells": {
+  "trendline_sweep__GBP_USD": 19,
+  "wick_imbalance_reversion__GBP_USD": 12,
+  "zz_pivot_v60_sr__EUR_USD": 10,
+  "vix_carry_unwind__USD_JPY": 10,
+  "dt_sr_channel_reversal__EUR_JPY": 9,
+  "vsg_jpy_reversal__EUR_JPY": 7
+ },
+ "friction": {
+  "theory_rt_pips": {
+   "USD_JPY": 2.14,
+   "EUR_USD": 2.0,
+   "GBP_USD": 4.53,
+   "EUR_JPY": 2.5
+  },
+  "floor_sensitivity_pips": 1.3,
+  "method": "BT内部摩擦を算術足し戻し→gross→理論RT控除 (保守側)"
+ },
+ "env": {
+  "BT_MODE": "1",
+  "NO_AUTOSTART": "1",
+  "BT_REQUIRE_MASSIVE_CACHE": "1",
+  "BT_ABLATE_BE_TRAIL": "1",
+  "WICK_IMBALANCE_REVERSION_REDESIGN_V2": "1",
+  "DT_SR_CHANNEL_REDESIGN_V2": "1",
+  "VSG_JPY_REVERSAL_REDESIGN_V2": "1",
+  "BT_TPSL_MULT_TYPES": "dt_sr_channel_reversal,trendline_sweep,vix_carry_unwind,vsg_jpy_reversal,wick_imbalance_reversion,zz_pivot_v60_sr"
+ },
+ "n_boot": 10000,
+ "seed": 20260708,
+ "fdr_q": 0.1,
+ "mechanical_verdict": "FAIL",
+ "passing_configs": [],
+ "bh_fdr": {
+  "tp0.4_sl0.6": {
+   "p": 1.0,
+   "rank": 1,
+   "bh_threshold": 0.01111,
+   "survive": false
+  },
+  "tp0.4_sl0.8": {
+   "p": 1.0,
+   "rank": 2,
+   "bh_threshold": 0.02222,
+   "survive": false
+  },
+  "tp0.4_sl1.0": {
+   "p": 1.0,
+   "rank": 3,
+   "bh_threshold": 0.03333,
+   "survive": false
+  },
+  "tp0.6_sl0.6": {
+   "p": 1.0,
+   "rank": 4,
+   "bh_threshold": 0.04444,
+   "survive": false
+  },
+  "tp0.6_sl0.8": {
+   "p": 1.0,
+   "rank": 5,
+   "bh_threshold": 0.05556,
+   "survive": false
+  },
+  "tp0.6_sl1.0": {
+   "p": 1.0,
+   "rank": 6,
+   "bh_threshold": 0.06667,
+   "survive": false
+  },
+  "tp0.8_sl0.6": {
+   "p": 1.0,
+   "rank": 7,
+   "bh_threshold": 0.07778,
+   "survive": false
+  },
+  "tp0.8_sl0.8": {
+   "p": 1.0,
+   "rank": 8,
+   "bh_threshold": 0.08889,
+   "survive": false
+  },
+  "tp0.8_sl1.0": {
+   "p": 1.0,
+   "rank": 9,
+   "bh_threshold": 0.1,
+   "survive": false
+  }
+ },
+ "configs": {
+  "tp0.4_sl0.6": {
+   "tp_mult": 0.4,
+   "sl_mult": 0.6,
+   "in_grid": true,
+   "n_eval": 634,
+   "n_diag_excluded": 48,
+   "summary": {
+    "pooled": {
+     "n": 634,
+     "wr_pct": 48.1,
+     "ev_bt_pips": -2.5188,
+     "ev_gross_pips": -0.211,
+     "ev_theory_pips": -3.1074,
+     "ev_floor_pips": -1.511,
+     "payoff": 0.675,
+     "tp_hit_ratio": 0.397,
+     "avg_bars_held": 3.1,
+     "exit_reasons": {
+      "signal_reverse": 72,
+      "time_exit_24bar": 1,
+      "time_exit_2bar": 92,
+      "tp_sl": 469
+     }
+    },
+    "cells": {
+     "trendline_sweep__GBP_USD": {
+      "n": 95,
+      "wr_pct": 49.5,
+      "ev_bt_pips": -5.4769,
+      "ev_gross_pips": -2.5609,
+      "ev_theory_pips": -7.0909,
+      "ev_floor_pips": -3.8609,
+      "payoff": 0.389,
+      "tp_hit_ratio": 0.474,
+      "avg_bars_held": 4.1,
+      "exit_reasons": {
+       "signal_reverse": 11,
+       "tp_sl": 84
+      }
+     },
+     "wick_imbalance_reversion__GBP_USD": {
+      "n": 50,
+      "wr_pct": 48.0,
+      "ev_bt_pips": -2.9451,
+      "ev_gross_pips": 0.2837,
+      "ev_theory_pips": -4.2463,
+      "ev_floor_pips": -1.0163,
+      "payoff": 0.369,
+      "tp_hit_ratio": 0.46,
+      "avg_bars_held": 2.8,
+      "exit_reasons": {
+       "signal_reverse": 3,
+       "tp_sl": 47
+      }
+     },
+     "zz_pivot_v60_sr__EUR_USD": {
+      "n": 17,
+      "wr_pct": 23.5,
+      "ev_bt_pips": -9.5543,
+      "ev_gross_pips": -8.2708,
+      "ev_theory_pips": -10.2708,
+      "ev_floor_pips": -9.5708,
+      "payoff": 0.88,
+      "tp_hit_ratio": 0.235,
+      "avg_bars_held": 8.1,
+      "exit_reasons": {
+       "signal_reverse": 7,
+       "time_exit_24bar": 1,
+       "tp_sl": 9
+      }
+     },
+     "vix_carry_unwind__USD_JPY": {
+      "n": 96,
+      "wr_pct": 50.0,
+      "ev_bt_pips": -3.7315,
+      "ev_gross_pips": -1.6843,
+      "ev_theory_pips": -3.8243,
+      "ev_floor_pips": -2.9843,
+      "payoff": 0.724,
+      "tp_hit_ratio": 0.49,
+      "avg_bars_held": 6.2,
+      "exit_reasons": {
+       "signal_reverse": 11,
+       "tp_sl": 85
+      }
+     },
+     "dt_sr_channel_reversal__EUR_JPY": {
+      "n": 176,
+      "wr_pct": 54.5,
+      "ev_bt_pips": -0.2937,
+      "ev_gross_pips": 1.7131,
+      "ev_theory_pips": -0.7869,
+      "ev_floor_pips": 0.4131,
+      "payoff": 0.698,
+      "tp_hit_ratio": 0.551,
+      "avg_bars_held": 2.3,
+      "exit_reasons": {
+       "signal_reverse": 24,
+       "tp_sl": 152
+      }
+     },
+     "vsg_jpy_reversal__EUR_JPY": {
+      "n": 200,
+      "wr_pct": 43.0,
+      "ev_bt_pips": -1.785,
+      "ev_gross_pips": 0.4806,
+      "ev_theory_pips": -2.0194,
+      "ev_floor_pips": -0.8194,
+      "payoff": 0.951,
+      "tp_hit_ratio": 0.18,
+      "avg_bars_held": 1.6,
+      "exit_reasons": {
+       "signal_reverse": 16,
+       "time_exit_2bar": 92,
+       "tp_sl": 92
+      }
+     }
+    }
+   },
+   "bootstrap": {
+    "p": 1.0,
+    "se": 0.6277,
+    "n_days": 208
+   },
+   "walk_forward": {
+    "folds": [
+     {
+      "fold": 1,
+      "n": 252,
+      "ev": -3.8046,
+      "positive": false
+     },
+     {
+      "fold": 2,
+      "n": 211,
+      "ev": -2.6306,
+      "positive": false
+     },
+     {
+      "fold": 3,
+      "n": 171,
+      "ev": -2.6681,
+      "positive": false
+     }
+    ],
+    "pos_ratio": 0.0
+   },
+   "errors": {},
+   "gates": {
+    "a_fdr": false,
+    "b_wf": false,
+    "c_ev": 
