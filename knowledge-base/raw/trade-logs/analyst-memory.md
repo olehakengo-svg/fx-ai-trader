@@ -2574,6 +2574,14 @@ bb_rsi_reversionが9/11で勝利しPnL+9.0を稼いだが、xs_momentum_rsiの�
 ### 推奨戦略配分
 **NO ACTION推奨（実質）**
 
+### 2026-07-08 (Post-London Report)
+| PnL | **0.0 pips** |
+| 勝率 (WR) | **N/A** |
+| `daytrade:hedge_block` | 46 | 反対方向ポジション干渉。オープントレード0件なのにブロック継続は要注意 |
+| PnL | 0.0p | 0.0p |
+### 推奨戦略配分
+| **NO ACTION推奨** | DD=100%超の防御モード下では新規エントリーのリスク/リワードが著しく悪化。NYセッションのVOLATILEレジーム拡大は、ドローダウン深化リスクと隣合わせ |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
