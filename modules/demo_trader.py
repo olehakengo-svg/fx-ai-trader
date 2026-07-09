@@ -1293,6 +1293,54 @@ class DemoTrader:
             )
         return is_shadow, is_promoted, shadow_at_open
 
+    def _resend_promote_gate_block_reason(self, entry_type: str,
+                                          instrument: str, mode: str,
+                                          confidence: float = 0.0):
+        """P1-6 (fable5 audit 2026-07-02, rule:R3): 再送前 promote gate の共通再実行.
+
+        旧 resend 経路は FORCE/PAIR demotion しか再チェックせず、
+        Q4/aggregate Kelly/MC-ruin/SHIELD mode を素通しだった。insert 時の
+        `enforce_oanda_live_invariant` + post-gate shadow escalation が一次防御
+        だが、is_shadow 反転バグ 1 つで gate 迂回の直通経路になる
+        (defense-in-depth 欠如)。本 helper は主経路 (v9.x SHIELD 群) と同じ
+        判定を resend 直前に再実行し、block 理由タグ (str) か None を返す。
+
+        主経路との意図的差分 (fail-closed 側に倒す):
+        - PRIME lock / edge-cell force-live の bypass は再現しない (per-signal
+          コンテキストが resend 時に存在しないため。5 分窓の補完送信を
+          落とすだけで実害なし)
+        - agg Kelly min-lot bypass は units 不明のため、1000u 固定契約
+          (_AGG_KELLY_GATE_MINLOT_BYPASS_TYPES) の定義値
+          _AGG_KELLY_GATE_MINLOT_MAX_UNITS で評価する
+        """
+        if self._is_force_demoted_entry(entry_type, instrument):
+            return "FORCE_DEMOTED_GATE"
+        if self._is_pair_demoted_entry(entry_type, instrument):
+            return "PAIR_DEMOTED_GATE"
+        # v10 Q4 GATE (ELITE は主経路同様に免除)
+        if (not self._is_elite_live(entry_type, instrument)
+                and _q4_should_shadow(entry_type, float(confidence or 0))):
+            return "Q4_GATE"
+        # v6.4 SHIELD: OANDA mode block (whitelist / env LIVE override は主経路同様に免除)
+        if (mode in self._OANDA_MODE_BLOCKED
+                and entry_type not in self._SHIELD_EUR_DT_WHITELIST
+                and not self._sweep_reversion_eurgbp_live_eligible(entry_type, instrument)):
+            return "SHIELD_MODE_GATE"
+        _strat_mode = self._oanda.get_strategy_mode(entry_type)
+        _is_xau = "XAU" in (instrument or "")
+        if _strat_mode != "sentinel":
+            # v9.0 SHIELD: Aggregate Kelly Gate
+            _agg_kelly = self._get_aggregate_kelly()
+            if (_agg_kelly is not None and _agg_kelly < 0
+                    and not self._agg_kelly_gate_minlot_bypass(
+                        entry_type, self._AGG_KELLY_GATE_MINLOT_MAX_UNITS, _is_xau)):
+                return "AGG_KELLY_GATE"
+            # v9.1 SHIELD: Monte Carlo Ruin Gate
+            _ruin_prob = self._get_ruin_probability()
+            if _ruin_prob is not None and _ruin_prob > 0.7:
+                return "MC_RUIN_GATE"
+        return None
+
     def _resend_pending_oanda_trades(self):
         """デプロイ中にOANDA未連携だったOPENトレードを補完送信.
         5分以上前のトレードはスキップ（価格乖離が大きいため）."""
@@ -1322,17 +1370,15 @@ class DemoTrader:
                         pass
                 instrument = t.get("instrument", "USD_JPY")
                 entry_type = t.get("entry_type", "")
-                if self._is_force_demoted_entry(entry_type, instrument):
+                # P1-6: promote gate 共通ヘルパーを再送直前に再実行 (defense-in-depth)
+                _block = self._resend_promote_gate_block_reason(
+                    entry_type, instrument, mode,
+                    confidence=t.get("confidence") or 0,
+                )
+                if _block:
                     skipped += 1
                     self._add_log(
-                        f"[FORCE_DEMOTED_GATE] resend skipped: {entry_type} "
-                        f"{instrument} trade={t['trade_id']}"
-                    )
-                    continue
-                if self._is_pair_demoted_entry(entry_type, instrument):
-                    skipped += 1
-                    self._add_log(
-                        f"[PAIR_DEMOTED_GATE] resend skipped: {entry_type} "
+                        f"[{_block}] resend skipped: {entry_type} "
                         f"{instrument} trade={t['trade_id']}"
                     )
                     continue

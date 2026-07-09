@@ -4,6 +4,13 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-09 — WS4 T15: CI paths filter 撤廃 + QUALIFIED_TYPES drift 検査 + 再送ガード共通化 (rule:R3, audit P1-6/7/8)
+
+- **P1-7 (CI 品質ゲート穴)**: ① `ci.yml` push trigger の paths filter を撤廃 — 旧 filter (`*.py`/`strategies/`/`modules/` のみ) は tests/tools/agents/knowledge-base/scripts 変更の直接 push で CI が一切走らない盲点だった。② hip1-holdout-manifest ガードを CI job 化 (`hip1-holdout-guard`) — .git/hooks/pre-commit はカスタムスクリプト symlink のため pre-commit フレームワークの hook はローカルで一度も実行されていなかった。event diff に対して実行、正規編集は commit message の `HOLDOUT-APPROVED` / `HOLDOUT-VALIDATION-APPROVED` マーカーで通過。③ `agents/cma/dev.agent.yaml` の `--no-verify` 根拠誤記 (「hip1 が full pytest を走らせる」→ 実際はカスタム hook 側) を訂正。actions は full SHA pin 化 (supply-chain)。
+- **P1-8 (scalp BT QUALIFIED_TYPES drift)**: `run_scalp_backtest` の inline set を `SCALP_BT_QUALIFIED` に改名 (挙動不変) + 意図的除外 `SCALP_BT_EXCLUDED_TYPES` (mtf_trend_follow / mtf_counter_trend / mtf_regime_trend_cascade = vec harness 専用) を文書化。`scripts/check.py` step 5b が「enabled scalp ⊆ QUALIFIED ∪ EXCLUDED」を機械検査 (drift = ERROR、矛盾登録 = ERROR、stale 除外 = WARN)。意図的 drift で red になることを確認後 green 化。
+- **P1-6 (再送ガード共通化)**: `_resend_pending_oanda_trades` は FORCE/PAIR demotion しか再チェックせず Q4/aggregate Kelly/MC-ruin/SHIELD mode を素通しだった (is_shadow 反転バグ 1 つで gate 迂回の直通経路)。共通 helper `_resend_promote_gate_block_reason` が主経路の v9.x SHIELD 群と同判定を resend 直前に再実行。ELITE Q4 免除 / SHIELD whitelist / 1000u min-lot bypass / SENTINEL 免除は主経路と同じに保ち、PRIME lock・edge-cell bypass は per-signal コンテキスト不在のため fail-closed 側へ (5分窓の補完送信のみに影響)。`get_open_trades_without_oanda` に confidence 追加 (Q4 再チェック用)。
+- **影響トレード: なし** (live シグナル判定・サイジング不変。resend の fail-closed 化と BT/CI/検査系のみ)。回帰: `tests/test_t15_quality_gates.py` (20 cases)。詳細: [[fable5-system-audit-2026-07-02]]。
+
 ## 2026-07-09 — P1-2b 検証クローズ: fut_close tie-break は4エンジン既装 + 回帰 pin 移植 (rule:R3, T14 補完)
 
 - **二重実装レース記録**: T14 (P1-2) は autopilot が PR #65 で実装・マージ、並行セッションの PR #64 (同一実装 + 追加テスト 20 cases) と衝突 → #64 close で解決 (07-07 handoff インシデントと同型)。両実装の意味的差分ゼロを精査確認: (a) 3エンジン cache 無効化 (b) 1H系 BE/Trail guard (block-wrap ⇔ 閾値inf は等価) (c) flag semantics 完全一致。

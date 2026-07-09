@@ -1,22 +1,24 @@
 name: CI
 
+# P1-7 (fable5 audit 2026-07-02, rule:R3): push trigger の paths filter を撤廃。
+# 旧 filter は tests/ tools/ agents/ knowledge-base/ scripts/ 等の変更で CI が
+# 一切走らないテスト盲点を作っていた (PR は無条件だが直接 push は素通り)。
+# CI 変更は「今まで走らなかった経路で走るようになる」方向のみ許可 — paths
+# filter の再導入は tests/test_t15_quality_gates.py が封鎖する。
 on:
   push:
     branches: [main]
-    paths:
-      - "*.py"
-      - "strategies/**"
-      - "modules/**"
   pull_request:
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # supply-chain: mutable tag ではなく full SHA pin (semgrep gate)
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       - name: Set up Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.11"
 
@@ -28,3 +30,52 @@ jobs:
 
       - name: Run consistency check
         run: python3 scripts/check.py
+
+  # P1-7 (fable5 audit): HIP-1 holdout 改変ガードの CI job 化。
+  # .pre-commit-config.yaml の hip1-holdout-manifest hook は .git/hooks/pre-commit
+  # がカスタムスクリプト symlink のためローカルでは実行されていなかった
+  # (pre-commit フレームワーク未インストール)。holdout 検証の統計的独立性を
+  # 監査可能にするため、event diff に対して同じガードを CI で強制する。
+  # 数秒で完了 (full pytest は上の test job 側)。
+  # 正規の手続き済み編集は commit message に HOLDOUT-APPROVED /
+  # HOLDOUT-VALIDATION-APPROVED マーカーを含めることで通過できる
+  # (ローカル --allow-holdout-edit / --allow-validation-mode 相当)。
+  hip1-holdout-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: "3.11"
+
+      - name: HIP-1 holdout manifest guard
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE="${{ github.event.before }}"
+            HEAD="${{ github.sha }}"
+            # new branch / force push: before が zero-SHA のときは直前 commit 比較に fallback
+            if [ -z "$BASE" ] || ! git cat-file -e "$BASE" 2>/dev/null; then
+              BASE="$(git rev-parse "$HEAD~1" 2>/dev/null || echo "$HEAD")"
+            fi
+          fi
+          echo "diff range: $BASE..$HEAD"
+          CHANGED="$(git diff --name-only "$BASE" "$HEAD" -- || true)"
+          echo "changed files:"; echo "$CHANGED"
+          FLAGS=""
+          MSGS="$(git log --format=%B "$BASE".."$HEAD" -- || true)"
+          if echo "$MSGS" | grep -q "HOLDOUT-APPROVED"; then
+            FLAGS="$FLAGS --allow-holdout-edit"
+          fi
+          if echo "$MSGS" | grep -q "HOLDOUT-VALIDATION-APPROVED"; then
+            FLAGS="$FLAGS --allow-validation-mode"
+          fi
+          # shellcheck disable=SC2086
+          python3 tools/precommit/check_holdout_manifest.py $FLAGS $CHANGED

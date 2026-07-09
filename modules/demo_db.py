@@ -1468,10 +1468,14 @@ class DemoDB:
             return [(r["trade_id"], r["oanda_trade_id"]) for r in rows]
 
     def get_open_trades_without_oanda(self) -> list:
-        """OANDAに未連携のOPENトレードを返す（デプロイ補完用）."""
+        """OANDAに未連携のOPENトレードを返す（デプロイ補完用）.
+
+        P1-6 (fable5 audit, 2026-07-09): confidence を追加 — resend 側の
+        Q4 gate 再チェック (_resend_promote_gate_block_reason) が参照する。
+        """
         with self._safe_conn() as conn:
             rows = conn.execute(
-                "SELECT trade_id, direction, sl, tp, mode, instrument, entry_time, entry_type "
+                "SELECT trade_id, direction, sl, tp, mode, instrument, entry_time, entry_type, confidence "
                 "FROM demo_trades "
                 "WHERE status='OPEN' AND is_shadow=0 AND (oanda_trade_id IS NULL OR oanda_trade_id = '')"
             ).fetchall()

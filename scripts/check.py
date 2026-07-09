@@ -10,6 +10,7 @@ FX AI Trader 開発ハーネス — 整合性チェッカー v1.0
   3. 全DT戦略ファイルの name → QUALIFIED_TYPES (demo_trader.py) 同期
   4. 全DT戦略ファイルの name → DT_QUALIFIED (app.py) 同期
   5. 全Scalp戦略ファイルの name → QUALIFIED_TYPES 同期
+  5b. 全Scalp戦略ファイルの name → app.py SCALP_BT_QUALIFIED ∪ SCALP_BT_EXCLUDED_TYPES 同期 (P1-8)
 
 新しい戦略を追加したら以下の4箇所を必ず更新すること:
   1. strategies/daytrade/__init__.py  (import + DaytradeEngine.strategies)
@@ -97,6 +98,56 @@ def get_strategy_attrs(strategy_dir: Path) -> list[dict]:
             "enabled": enabled,
         })
     return results
+
+
+def check_scalp_bt_qualified_sync() -> tuple[list[str], list[str]]:
+    """P1-8 (fable5 audit 2026-07-02, rule:R3): scalp BT QUALIFIED_TYPES drift 検査。
+
+    run_scalp_backtest (app.py) の inline SCALP_BT_QUALIFIED は本番
+    QUALIFIED_TYPES との同期が CLAUDE.md 必須要件だが、機械的保証が無かった
+    (mtf_*_scalp 3 戦略が本番 enabled なのに BT set 不在 — 意図的除外だが
+    未文書化)。本検査は DT_QUALIFIED (step 4) と同型:
+
+      本番 enabled scalp 戦略 ⊆ SCALP_BT_QUALIFIED ∪ SCALP_BT_EXCLUDED_TYPES
+
+    - 両集合いずれにも無い enabled 戦略 → ERROR (BT 同期漏れ)
+    - 両集合に重複登録 → ERROR (矛盾: 除外かつ qualified)
+    - EXCLUDED に実在しない戦略名 → WARN (stale 除外)
+    """
+    errors: list[str] = []
+    warns: list[str] = []
+
+    bt_set, bt_err = extract_set(APP_PY, "SCALP_BT_QUALIFIED")
+    if bt_err:
+        errors.append(f"  ❌ {bt_err} (P1-8 drift 検査不能 — run_scalp_backtest の inline set 改名を確認)")
+        return errors, warns
+    excluded, exc_err = extract_set(APP_PY, "SCALP_BT_EXCLUDED_TYPES")
+    if exc_err:
+        errors.append(f"  ❌ {exc_err} (P1-8: 意図的除外リストが必須 — app.py run_scalp_backtest 参照)")
+        return errors, warns
+
+    overlap = bt_set & excluded
+    for name in sorted(overlap):
+        errors.append(
+            f"  ❌ '{name}' が SCALP_BT_QUALIFIED と SCALP_BT_EXCLUDED_TYPES の両方に登録 (矛盾)"
+        )
+
+    scalp_attrs = get_strategy_attrs(SCALP_DIR)
+    all_names = {a["name"] for a in scalp_attrs}
+    for attr in scalp_attrs:
+        if not attr["enabled"]:
+            continue
+        if attr["name"] not in bt_set and attr["name"] not in excluded:
+            errors.append(
+                f"  ❌ '{attr['name']}' ({attr['file']}) → SCALP_BT_QUALIFIED 未登録 "
+                f"(enabled=True — BT 同期するか、理由コメント付きで "
+                f"SCALP_BT_EXCLUDED_TYPES へ)"
+            )
+    for name in sorted(excluded - all_names):
+        warns.append(
+            f"  ⚠️  SCALP_BT_EXCLUDED_TYPES の '{name}' は scalp 戦略ファイルに実在しない (stale 除外)"
+        )
+    return errors, warns
 
 
 KB_WIKI = ROOT / "knowledge-base" / "wiki"
@@ -570,6 +621,15 @@ def main() -> int:
         else:
             ok(f"{len(scalp_attrs)} Scalp戦略 全て登録済み")
             ok_count += 1
+
+    # ── 5b. Scalp戦略名 → app.py SCALP_BT_QUALIFIED (P1-8 BT同期) ──
+    section("Scalp戦略名 → app.py SCALP_BT_QUALIFIED (BT同期, P1-8)")
+    sbt_errors, sbt_warns = check_scalp_bt_qualified_sync()
+    errors.extend(sbt_errors)
+    warnings.extend(sbt_warns)
+    if not sbt_errors:
+        ok("scalp BT set ∪ 除外リストが全有効戦略を包含")
+        ok_count += 1
 
     # ── 6. KB整合性チェック ──
     section("KB整合性チェック")
