@@ -4,6 +4,13 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-09 — P1-2: BE/Trail ablation を全 BT エンジンへ展開 (rule:R3, WS4 T14)
+
+- MEMORY 確定事実 `project_be_trail_inflates_python_bt_wr` の水増し源が daytrade 以外の 3 エンジン (`run_backtest` 1H / `run_scalp_backtest` / `run_1h_backtest`) に残存していた (Fable5 監査 P1-2)。daytrade と同じ `_BT_ABLATE_BE_TRAIL` (default ablated、`BT_OPTIMISTIC=1` で旧挙動復元) guard を展開。
+- **行動証拠** (scalp fixture `_df_override`): ablated(default) N=84 WR=46.4% vs optimistic N=102 WR=56.9% → **+10.5pp inflation を default で排除**。
+- BT cache key を flag-aware 化 (A/B で stale 防止)。AST 構造回帰テスト `tests/test_be_trail_ablation_all_engines.py` 同梱 (4 エンジン guard を pin)。
+- **影響トレード: なし** (BT 評価ロジックのみ、live signal/OANDA 転送は不変)。過去 scalp/1H verdict は水増し込みのため再解釈対象。詳細: [[be-trail-ablation-all-engines-2026-07-09]]。残 = P1-2b (fut_close tie-break、副次)。
+
 ## 2026-07-09 — WS3 MFE 分布診断: 選抜基準を「MFE 絶対量」→「MFE/MAE 方向性非対称」へ改訂 (rule:R3)
 
 - T2 FAIL 後の WS3 初手 ([[ws3-mfe-distribution-2026-07-08]])。365d baseline 6 pair、N=6,995 entries / 104 cells の forward MFE/MAE (H∈{6..96} bars) を exit 非依存で計測 (`tools/ws3_mfe_scan.py`)。
