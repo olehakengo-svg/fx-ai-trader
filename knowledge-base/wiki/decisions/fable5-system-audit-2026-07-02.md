@@ -43,12 +43,12 @@
 - **証拠**: 姉妹関数 `_get_aggregate_kelly` / `_get_strategy_kelly_clean` は cutoff + XAU 除外あり。この関数だけ漏れ。CLAUDE.md「all-time data を Kelly に使わない」に直接抵触。
 - **修正案**: 呼び出し元を `_get_strategy_kelly_clean` に差し替え (instrument 引数の扱い要確認) or 同一フィルタ追加。
 
-### P1-2: BE/Trail 同一バー楽観バイアス修正が daytrade エンジンのみ。scalp/1H×2 に残存 【R3】
+### P1-2: BE/Trail 同一バー楽観バイアス修正が daytrade エンジンのみ。scalp/1H×2 に残存 【✅ FIXED 2026-07-09 — PR #65 で ablation guard (default ablated、`BT_OPTIMISTIC=1` 復元) を 3 エンジンへ展開 + cache key flag-aware 化 (rule:R3, v2.3 T14)。行動証拠 = scalp ablated 46.4% vs optimistic 56.9%。回帰 `tests/test_be_trail_ablation_all_engines.py` + `tests/test_bt_tie_break_regression_pins.py` (superseded PR #64 から移植)。詳細 [[be-trail-ablation-all-engines-2026-07-09]]】
 - **場所**: `app.py:6019-6134` (`run_scalp_backtest`), `app.py:5443-5489` (`run_backtest` 1H), `app.py:7405-7449+` (`run_1h_backtest`)
 - **証拠**: `run_daytrade_backtest` には `_BT_ABLATE_BE_TRAIL` (デフォルト off, 「+22.9pp inflate」コメント付) が実装済 (app.py:6440-6452)。同一構造のコードが上記3エンジンでは無ガードで稼働。同一バー内で favorable→adverse の順序を常に仮定 (BE 発動後に同バーの逆行 SL を tightened stop で判定 → 本来 LOSS のバーが WIN 化)。
 - **影響**: MEMORY 確定事実「BE/Trail が Python BT WR を TV 比 +20pp 水増し」の発生源が3エンジンに残存。これら由来の EV/WR を昇格判断に使うと誤判定。
 - **修正案**: 3エンジンに同じ ablation ガードを適用 (診断済み・修正実績ありのため R3 扱いで即修正可)。
-- **付随 (P2)**: 同一バー TP+SL 同時ヒットの tie-break が `fut_close` 基準 (保守的 SL 優先でない) — 全エンジン共通の副次的楽観バイアス。
+- **付随 (P2) / P1-2b**: 同一バー TP+SL 同時ヒットの tie-break が `fut_close` 基準 (保守的 SL 優先でない) — 全エンジン共通の副次的楽観バイアス。**2026-07-09 検証クローズ**: fut_close tie-break は 4 エンジン全てに既装 (未実装エンジンなし)、swing は保守的 SL 優先 (両ヒット=LOSS) — 現状を `tests/test_bt_tie_break_regression_pins.py` で pin (無条件 TP 優先への退行を封鎖)。fut_close→SL 優先への厳格化は BT 全体の再較正を伴うため P2 のまま据置。
 
 ### P1-3: stale な v9.x SHADOW_MIGRATION が restart 毎に is_shadow を再汚染 【✅ FIXED 2026-07-07 — ブロック削除 (rule:R3)。回帰テスト `tests/test_shadow_migration_block_removed.py`。区別ケース=fill callback 喪失行 (audit=filled ∧ oanda_trade_id 欠落): 旧ブロックは無条件 shadow 固定、後継 FLAG_DRIFT backfill は UNSAFE 検知で live 保持】
 - **follow-up FIXED (同日、PR #59 の敵対的レビュー起点)**: 後継 leak backfill が shadow 化した pre-RULE_TS の OANDA-filled リーク行を、SHADOW_DRIFT_BACKFILL (2026-05-03) が次の restart で無条件に live へ巻き戻し、冪等マーカーが再修復を恒久ブロックする **oscillation** を空 DB 4-init で再現 (init#2 shadow → init#3 以降 live 固定、status 上は remaining にカウントされず不可視)。修正 = drift rollback の WHERE に `COALESCE(force_demoted_live_leak,0)=0` を追加 — leak backfill の分類が restart を越えて安定。回帰 = `tests/test_ws4_phase_b_followup.py` (oscillation / marker 経路帰属 / 通常 drift 復元の非退行 / fill-callback 喪失行保護)。
@@ -66,17 +66,17 @@
 - **影響**: 本番 env が 1000 以外なら、**表示上の DD=98.2% と実際に lot 縮小を駆動している DD% が別物**。defensive mode の妥当性判断自体が誤った数値に基づく可能性。→ Render env の `OANDA_EQ_BASE_PIPS` 実値確認が先決。
 - **修正案**: 分母を共有ヘルパーに統一。
 
-### P1-6: `_resend_pending_oanda_trades` の再送ガードが FORCE/PAIR_DEMOTED のみ
+### P1-6: `_resend_pending_oanda_trades` の再送ガードが FORCE/PAIR_DEMOTED のみ 【✅ FIXED 2026-07-09 — 共通 helper `_resend_promote_gate_block_reason` (rule:R3, v2.3 T15)。Q4 (ELITE 免除)/SHIELD mode (whitelist 免除)/agg Kelly (min-lot bypass)/MC-ruin (SENTINEL 免除) を resend 直前に再実行。PRIME/edge-cell bypass は per-signal コンテキスト不在のため fail-closed。`get_open_trades_without_oanda` に confidence 追加。回帰 `tests/test_t15_quality_gates.py`】
 - **場所**: `modules/demo_trader.py:1174-1232`
 - **影響**: Q4/Kelly/MC-ruin/SHIELD を再チェックせず再送。現状は insert 時 `enforce_oanda_live_invariant` で守られているが、`is_shadow` 反転バグ1つで直通する defense-in-depth 欠如。
 - **修正案**: 再送前に promote gate 共通ヘルパーを再実行。
 
-### P1-7: 品質ゲートの構造的穴 — CI path filter / hip1 holdout ガード未実行 / `--no-verify` 常用
+### P1-7: 品質ゲートの構造的穴 — CI path filter / hip1 holdout ガード未実行 / `--no-verify` 常用 【✅ FIXED 2026-07-09 — paths filter 撤廃 + `hip1-holdout-guard` CI job (event diff 対象、`HOLDOUT-APPROVED` マーカーで正規編集通過) + dev.agent.yaml 誤記訂正 (rule:R3, v2.3 T15)。paths filter 再導入は `tests/test_t15_quality_gates.py` が封鎖】
 - **証拠**: ① `ci.yml` push trigger の `paths` が `tests/`, `tools/`, `agents/`, `knowledge-base/` を除外 (PR は無条件)。② `.git/hooks/pre-commit` はカスタムスクリプト symlink で pre-commit フレームワーク (`hip1-holdout-manifest`) を**どこも実行していない** — HIP-1 holdout 改変ガードが実質ゼロ。③ `agents/cma/dev.agent.yaml` の `--no-verify` 必須ルールの根拠「hip1 が full pytest を走らせる」は**誤認** (full pytest はカスタムスクリプト側、hip1 自体は数秒)。
 - **影響**: holdout 検証の統計的独立性主張が監査不能。CMA agent + 直接 push でテスト変更が無検証で main に入る経路。
 - **修正案**: hip1 チェックを CI job 化 (数秒) / paths filter 撤廃 / dev.agent.yaml の記述訂正。
 
-### P1-8: scalp BT の QUALIFIED_TYPES 同期に機械的保証なし
+### P1-8: scalp BT の QUALIFIED_TYPES 同期に機械的保証なし 【✅ FIXED 2026-07-09 — inline set を `SCALP_BT_QUALIFIED` へ改名 + `SCALP_BT_EXCLUDED_TYPES` (mtf_*_scalp 3 戦略 = vec harness 専用、意図的除外を文書化) + check.py step 5b drift 検査 (rule:R3, v2.3 T15)。意図的 drift で red を確認後 green 化、回帰 `tests/test_t15_quality_gates.py`】
 - **証拠**: `mtf_trend_follow_scalp` / `mtf_counter_trend_scalp` / `mtf_regime_trend_cascade_scalp` は本番 enabled だが `run_scalp_backtest` 内 inline set (app.py:5865-5902) に不在 (vec harness 必須のため意図的の可能性が高いが未文書化)。`scripts/check.py` はこの inline set を検査しない。
 - **修正案**: 意図的除外の文書化 + check.py に drift 検査追加 (DT_QUALIFIED の step 4 と同型)。
 
@@ -138,10 +138,10 @@
 5. `OANDA_EQ_BASE_PIPS` 本番実値確認 → DD 98.2% の真偽確定 (P1-5)
 
 **Phase B — 今週中 (統計インフラ)**
-6. BE/Trail ablation を scalp/1H×2 エンジンへ展開 (P1-2, R3)
+6. ✅ BE/Trail ablation を scalp/1H×2 エンジンへ展開 (P1-2, R3、2026-07-09 PR #65 完了 + P1-2b 検証クローズ)
 7. ✅ stale SHADOW_MIGRATION ブロック削除 (P1-3、2026-07-07 完了) + ✅ strategy Kelly raw 化 (P1-9、2026-07-07 完了)
-8. CI: hip1 job 追加 + paths filter 撤廃 + dev.agent.yaml 訂正 (P1-7)
-9. 再送ガード共通化 (P1-6) / scalp QUALIFIED_TYPES check (P1-8)
+8. ✅ CI: hip1 job 追加 + paths filter 撤廃 + dev.agent.yaml 訂正 (P1-7、2026-07-09 完了 v2.3 T15)
+9. ✅ 再送ガード共通化 (P1-6) / scalp QUALIFIED_TYPES check (P1-8) — 2026-07-09 完了 (v2.3 T15)
 
 **Phase C — 順次 (衛生)**
 10. 資金経路 silent except 4箇所に WARN (P2-2/3/4)

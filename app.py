@@ -5946,7 +5946,13 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                     continue  # EUR_USD Tokyo/Late_NY停止
 
             # ── エントリー理由の品質ゲート（本番と統一）──
-            QUALIFIED_TYPES = {
+            # P1-8 (fable5 audit 2026-07-02, rule:R3): この inline set は本番
+            # QUALIFIED_TYPES (modules/demo_trader.py) との同期が CLAUDE.md 必須
+            # 要件だが機械的保証が無かった。scripts/check.py step 5b が
+            # 「本番 enabled scalp 戦略 ⊆ SCALP_BT_QUALIFIED ∪ SCALP_BT_EXCLUDED_TYPES」
+            # を検査する (drift = ERROR)。変数名は extract_set() で一意に抽出
+            # できるよう QUALIFIED_TYPES → SCALP_BT_QUALIFIED に改名 (挙動不変)。
+            SCALP_BT_QUALIFIED = {
                 # 2026-04-03 FXアナリストレビュー統廃合 + シグナル頻度改善
                 "bb_rsi_reversion", "bb_squeeze_breakout",
                 "london_breakout", "stoch_trend_pullback",
@@ -5984,13 +5990,25 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
                 "ma_regime_switch",       # v1c-rev: ATR percentile regime classifier
                 "bb_rsi_ema_aligned",     # v1d-rev: bb_rsi + ADX>=30 + Gold Hours
             }
+            # P1-8: 本番 enabled だが run_scalp_backtest では意図的に評価しない
+            # 戦略の明示的除外リスト (監査指摘の「意図的の可能性が高いが未文書化」
+            # を文書化)。mtf_* cascade 系は専用 vec harness (tools/ 系 MTF BT) が
+            # 必須で、compute_scalp_signal 経由の inline BT では評価不能のため除外。
+            # 除外を追加する場合は理由コメント必須 — scripts/check.py step 5b が
+            # SCALP_BT_QUALIFIED ∪ SCALP_BT_EXCLUDED_TYPES で drift を機械検査する。
+            SCALP_BT_EXCLUDED_TYPES = {
+                "mtf_trend_follow_scalp",          # vec harness 専用 (MTF regime BT)
+                "mtf_counter_trend_scalp",         # vec harness 専用 (MTF regime BT)
+                "mtf_regime_trend_cascade_scalp",  # vec harness 専用 (MTF regime BT)
+            }
+            _ = SCALP_BT_EXCLUDED_TYPES  # documentation + check.py 抽出用 (BT では未使用)
             BLOCKED_TYPES = {"unknown", "momentum", "wait"}
 
             if entry_type in BLOCKED_TYPES:
                 continue
             _reasons = sig_result.get("reasons", [])
             _confirmed = sum(1 for r in _reasons if "✅" in r)
-            if entry_type in QUALIFIED_TYPES:
+            if entry_type in SCALP_BT_QUALIFIED:
                 if _confirmed < 1:
                     continue
             elif entry_type == "ema_cross":

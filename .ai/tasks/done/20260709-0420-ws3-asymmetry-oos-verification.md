@@ -26,3 +26,11 @@ related:
 4. **verdict**: pre-reg §4 の分岐 — PASS≥1 → stage-2 pre-reg 起案 / PASS=0 → 新シグナル系統探索へ
    roadmap 反映。出力 = `raw/bt-results/ws3_asymmetry_oos_2026_07.{json,md}` + pre-reg 追記
 5. **期日**: 2026-07-16
+
+# Claude Review (2026-07-09)
+
+## Claude Review
+
+- **執行検証**: OOS 窓 2024-07-07〜2025-07-07 は切詰め parquet worktree で look-ahead 遮断を確認。USD_JPY/AUD_JPY は Massive 遡及取得で完全窓 (短縮 OOS 条項 不使用)。N=4,980 entries、判定器 tools/ws3_oos_verdict.py は pre-reg §4 をそのまま実装 (B=10,000 日次ブロック、BH-FDR q=0.10 m=8、seed 固定)
+- **verdict: ✅ PASS 2/8** — london_fix_reversal×EUR_USD (1.43, p=0.0115, CI5% 1.14) + htf_false_breakout×AUD_JPY (1.82, p=0.0118, CI5% 1.20)。ナイフエッジ3点全通過 (メカニズム同型 / lag-1 ρ 補正済 / horizon 単調)。選択バイアス組の崩壊 (1.81→0.99 等) も確認 = スクリーンが機能
+- **規律**: 結果を見た後の設計変更なし。PASS を promote 根拠にしない (stage-2 = barrier/EV pre-reg + TV canon + user 承認が必須)。詳細 = pre-reg §8
