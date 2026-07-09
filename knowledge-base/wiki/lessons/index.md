@@ -29,6 +29,14 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 
 ## バグ・設計ミスの教訓
 
+### [[lesson-post-commit-verify-silent-misfire-2026-07-09]]
+**発見日**: 2026-07-09 | **修正**: rule:R3 (同コミット)
+- 問題: post-commit-verify check #3 (tier set 整合検証) が bash double-quoted `python3 -c "..."` 内の f-string `"` でコード截断され、導入 (2026-04-14) 以来一度も実行完了していなかった
+- 症状: 毎回 SyntaxError → `|| echo "SKIP"` が吸収 → 健全時ですら OK 到達不能。さらに修復後、旧 assertion (PP/FD∩SENTINEL) は sentinel 優先時代の遺物で、現行設計の意図的共存 4 件を誤検出する stale 状態だった
+- 原因: inline python の bash クォート衝突 + SKIP への縮退 + 不発期間中の assertion 陳腐化
+- 修正: quoted heredoc 化 (クォート衝突クラス消滅) / 空出力・import 失敗の FAIL 可視化 / assertion を現行 invariant (PP∩PD, ELITE∩FD) へ張替え / テストシームで red→green 実証
+- 教訓: **検証スクリプトの python は quoted heredoc で渡す (inline `python3 -c "..."` は `"` 1文字で silent 不発化)。不発だった検証の修復時は「動くか」と「assertion が現行設計と今も整合するか」の両方を再検証する**
+
 ### [[lesson-import-time-env-pollution-2026-05-13]]
 **発見日**: 2026-05-13 | **修正**: rule:R3 commit `8dc7502e`
 - 問題: `tools/regime_gate_full_bt.py` がモジュールトップで `os.environ.setdefault("BT_MODE", "1")` を実行
