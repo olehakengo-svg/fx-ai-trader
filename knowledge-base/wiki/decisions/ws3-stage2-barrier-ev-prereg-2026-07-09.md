@@ -1,7 +1,7 @@
-# Pre-registration DRAFT: WS3 stage-2 — barrier/EV 設計 + TV Pine canon 再現 (rule:R1 stage-2)
+# Pre-registration LOCK: WS3 stage-2 — barrier/EV 設計 + TV Pine canon 再現 (rule:R1 stage-2)
 
 **起案日**: 2026-07-09 (grid BT / TV 検証の実行前に設計固定 — カーブフィッティング禁止の遵守)。敵対的レビュー 3 レンズ (リーク/統計/KB整合) 済み — 18 findings を反映した改訂版
-**Status**: 📝 **DRAFT — user 最終承認待ち**。承認で 🔒 LOCKED 化。**LOCK 前の grid BT / barrier シミュレーション / TV 検証の実行は禁止** (結果を見た後の設計変更を構造的に排除するため)。承認後の本文書の変更はレビュー必須 PR のみ
+**Status**: 🔒 **LOCKED (2026-07-09 user 承認「進めて」— DRAFT PR #71 の決裁要求への直接応答、ミッション委任 `feedback_mission_monthly_21_6pct` に基づく)**。本文書の変更はレビュー必須 PR のみ。結果を見た後のエンドポイント/grid/セル/窓の変更は禁止。**verdict 期日: 2026-07-19 (LOCK+10d、registry `ws3-stage2-verdict-deadline` が毎日監視)**
 **起点**: [[ws3-asymmetry-oos-prereg-2026-07-09]] §8 (stage-1 verdict: ✅ PASS 2/8、2026-07-09) / [[roadmap-v2.3-payoff-friction-repair]] WS3
 **承認**: 本 DRAFT の LOCK 化に user 承認が必要 (stage-1 §8.3 の固定分岐)。さらに **stage-2 PASS でも live/shadow 実装は別途 user 最終承認** — 本 pre-reg は評価のみで live パラメータを一切変更しない
 **タスク票**: `.ai/tasks/queue/20260709-1610-ws3-stage2-barrier-ev-prereg.md` (排他 claim 済み)

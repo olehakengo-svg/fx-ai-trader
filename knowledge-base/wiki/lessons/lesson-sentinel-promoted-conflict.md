@@ -13,7 +13,7 @@
   - post-commit-verify.shにPAIR_PROMOTED×SENTINEL重複チェックを追加
 - 教訓: **PAIR_PROMOTEDに追加したら、同じ戦略がUNIVERSAL_SENTINEL/SCALP_SENTINEL/FORCE_DEMOTEDに残っていないか必ず確認する。自動検出がなければ人間が3回同じ間違いをする**
 - 対策: post-commit-verifyで自動検出済み。今後は同じ矛盾がコミット時に即座にフラグされる
-- **2026-07-09 追記 (rule:R3)**: FORCE_DEMOTED∩PAIR_PROMOTED は `tests/test_pair_promoted_force_demoted_precedence.py` で CI 固定化。`_is_promoted_ex` の旧「PP が FD を解除」precedence も FD 先勝ちに統一 (正準: [[system-reference]] Tier Precedence)。**注意**: PP∩UNIVERSAL_SENTINEL は現行設計では合法 (PP が SENTINEL shadow eligibility を override) — 本 lesson 当時 (v8.9) の「SENTINEL から削除」対処は不要になった。post-commit-verify check#3 の pp_sentinel チェックは premise が stale (quoting バグ修正時に再監査要、chip task_84ce5e08)
+- **2026-07-09 追記 (rule:R3)**: FORCE_DEMOTED∩PAIR_PROMOTED は `tests/test_pair_promoted_force_demoted_precedence.py` で CI 固定化。`_is_promoted_ex` の旧「PP が FD を解除」precedence も FD 先勝ちに統一 (正準: [[system-reference]] Tier Precedence)。**注意**: PP∩UNIVERSAL_SENTINEL は現行設計では合法 (PP が SENTINEL shadow eligibility を override) — 本 lesson 当時 (v8.9) の「SENTINEL から削除」対処は不要になった。post-commit-verify check#3 の stale premise は並行修正 (f292ccb1) が assertion を現行 invariant へ張替え済み ([[lesson-post-commit-verify-silent-misfire-2026-07-09]])。2 セッションが独立に同一結論 = 相互裏付け
 
 ## Related
 - [[lesson-say-do-gap]] — 「実装した」と言って検証しないパターンの一形態

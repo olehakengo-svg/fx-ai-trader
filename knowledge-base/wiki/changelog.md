@@ -16,12 +16,21 @@
 - **CI 固定**: `tests/test_pair_promoted_force_demoted_precedence.py` (5 tests) で
   FD∩PP=∅ / PP∩PD=∅ 不変量 + precedence pin。正準文書 = [[system-reference]] Tier
   Precedence セクション (経路別 derivation 表)
-- **副次発見 (未修正・chip 済み task_84ce5e08 向け情報)**: post-commit-verify.sh
-  check#3 の `pp_sentinel` チェック前提は stale — PP∩UNIVERSAL_SENTINEL は
-  {vix_carry_unwind, doji_breakout, squeeze_release_momentum} で非空かつ**設計上合法**
-  (PP が SENTINEL shadow eligibility を override、demo_trader.py L8079 コメント)。
-  quoting バグを単純修正すると全 commit で誤検知になるため、chip 側で premise 再監査必須
+- **副次発見の相互裏付け**: post-commit-verify.sh check#3 の `pp_sentinel` premise
+  stale (PP∩UNIVERSAL_SENTINEL = {vix_carry_unwind, doji_breakout,
+  squeeze_release_momentum} は設計上合法) を本調査でも独立に確認 — 並行セッションの
+  check#3 修正 (下記 f292ccb1、マージで合流) と同一結論
 - **影響トレード: なし**
+
+## 2026-07-09 — WS3 stage-2 pre-reg LOCKED — user 承認 (rule:R1)
+
+- [[ws3-stage2-barrier-ev-prereg-2026-07-09]] を user 承認「進めて」で 📝 DRAFT → 🔒 LOCKED (決裁期日 07-16 の 7 日前倒し)。verdict 期日 2026-07-19 (LOCK+10d、registry `ws3-stage2-verdict-deadline` 監視)
+- **影響トレード: なし** (live パラメータ不変。grid BT / TV 検証の実行解禁のみ)
+## 2026-07-09 — post-commit-verify check#3 silent 不発修正 + assertion 現行設計へ張替え (rule:R3 構造バグ)
+
+- **不発の実証と修正** ([[lesson-post-commit-verify-silent-misfire-2026-07-09]]): check #3 (demo_trader tier set 整合検証) は bash double-quoted `python3 -c "..."` 内の f-string `"` によるコード截断で導入 (2026-04-14) 以来一度も実行完了せず、SyntaxError が `|| echo "SKIP"` に吸収される silent 検証ギャップだった。quoted heredoc 化 (check #1 も予防的に同化、check #2 は inline python 非使用で対象外) + 空出力/import 失敗の FAIL 可視化 + `POST_COMMIT_VERIFY_CHANGED` テストシームで red→green 実証
+- **stale assertion 発見**: 修復後の初実行が検出した 4 overlap (FD∩SENT=post_news_vol / PP-strat∩SENT=doji_breakout, squeeze_release_momentum, vix_carry_unwind) は全て現行設計の意図的共存 (demote = live 遮断 + shadow 蓄積継続、PAIR_PROMOTED は `_is_promoted_ex`/`_resolve_tier` 両 gate で SENTINEL より先勝ち)。assertion を現行 invariant (`PAIR_PROMOTED∩PAIR_DEMOTED` 同一セル / `ELITE_LIVE∩FORCE_DEMOTED`) へ張替え — 両者とも現状空集合 = 本番 tier 状態は健全
+- **影響トレード: なし** (ローカル post-commit hook のみ、live シグナル判定・サイジング不変)
 
 ## 2026-07-09 — WS3 stage-2 pre-reg DRAFT 起案 + KB stale 棚卸し (rule:R1 起案 / R3 doc-sync)
 
