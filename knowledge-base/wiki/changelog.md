@@ -4,6 +4,12 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-09 — WS3 stage-2 pre-reg DRAFT 起案 + KB stale 棚卸し (rule:R1 起案 / R3 doc-sync)
+
+- **stage-2 barrier/EV pre-reg DRAFT** ([[ws3-stage2-barrier-ev-prereg-2026-07-09]]): PASS 2 セル限定 h24 barrier grid (m=18)。評価 = 第3窓 OOS-2 (2022-07〜2024-07、2年) で winner's curse 遮断、Westfall–Young max-T セル検定 (FWER 0.10)、TV Pine canon trade-level 突合ゲート、3 分岐 verdict (PASS/UNDERPOWERED/REJECT)。敵対的レビュー 3 レンズ 18 findings 反映 (tie-break 帰属訂正 = SL 優先は swing 規約で fut_close pin より保守側、検定力分析による 2 年窓化、timeout ドリフト PASS の排除等)。**DRAFT — user 決裁期日 2026-07-16 (registry `ws3-stage2-lock-decision-stale` 監視)、LOCK 前の grid BT 実行禁止**
+- **KB stale 訂正 (R3 doc-sync、tier 実状態の変更なし)**: london_fix_reversal×GBP の PROMOTED/PAIR_PROMOTED 残存 2 箇所 (`wiki/edge-pipeline.md` / `wiki/strategies/edge-pipeline.md` Stage 6 表) を v9.1 実状態 (Phase0 Shadow + PAIR_DEMOTED×USD_JPY、365d BT GBP EV=−0.239 で demote 済み) に同期 — check.py Edge Stage warn の解消
+- **影響トレード: なし** (DRAFT 起案 + doc 同期のみ)
+
 ## 2026-07-09 — WS3 stage-1 verdict: ✅ PASS 2/8 — 方向性非対称の OOS 再現 (rule:R1 stage-1)
 
 - pre-reg LOCK ([[ws3-asymmetry-oos-prereg-2026-07-09]]) の機械的実行 (claude 直接、期日 07-16 の7日前倒し)。OOS 窓 2024-07-07〜2025-07-07 (切詰め parquet worktree で look-ahead 遮断、USD_JPY/AUD_JPY は Massive 15m を 2024-05 まで遡及取得)、N=4,980 entries。
