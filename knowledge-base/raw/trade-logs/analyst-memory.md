@@ -2612,6 +2612,16 @@ bb_rsi_reversionが9/11で勝利しPnL+9.0を稼いだが、xs_momentum_rsiの�
 - ただしN=2のため「戦略の問題」と断定する根拠なし。レジームとの相性として記録にとどめる
 - **USD_JPYのVOLATILEレジームが継続中** → ny_close_reversalの逆張り系シグナルが出た場合、レジームとの整合性を意識した観察を続ける（判断はN蓄積後）
 
+### 2026-07-09 (Post-London Report)
+| PnL | **0.0p** |
+| 勝率(WR) | **N/A** |
+- **hedge_block集中** — EUR/GBP系の複数戦略で同時にヘッジ判定。ロンドン時間帯の方向感なき値動き（全ペアRANGING）がポジション相殺を誘発
+- **r2_shadow_demoted_cell** — scalp系は既に降格判定済みセルが大量存在し、シグナルが出ても実行に至らない
+- **OANDA転送率0%** — 全50件がSKIPで、Live実行ゼロを追認。shadow_trackingブロックが全案件を吸収
+| PnL | 0.0p | 0.0p |
+| WR | N/A | N/A |
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
