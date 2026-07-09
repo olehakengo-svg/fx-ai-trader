@@ -4,6 +4,10 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-09 — WS3 stage-2 pre-reg LOCKED — user 承認 (rule:R1)
+
+- [[ws3-stage2-barrier-ev-prereg-2026-07-09]] を user 承認「進めて」で 📝 DRAFT → 🔒 LOCKED (決裁期日 07-16 の 7 日前倒し)。verdict 期日 2026-07-19 (LOCK+10d、registry `ws3-stage2-verdict-deadline` 監視)
+- **影響トレード: なし** (live パラメータ不変。grid BT / TV 検証の実行解禁のみ)
 ## 2026-07-09 — post-commit-verify check#3 silent 不発修正 + assertion 現行設計へ張替え (rule:R3 構造バグ)
 
 - **不発の実証と修正** ([[lesson-post-commit-verify-silent-misfire-2026-07-09]]): check #3 (demo_trader tier set 整合検証) は bash double-quoted `python3 -c "..."` 内の f-string `"` によるコード截断で導入 (2026-04-14) 以来一度も実行完了せず、SyntaxError が `|| echo "SKIP"` に吸収される silent 検証ギャップだった。quoted heredoc 化 (check #1 も予防的に同化、check #2 は inline python 非使用で対象外) + 空出力/import 失敗の FAIL 可視化 + `POST_COMMIT_VERIFY_CHANGED` テストシームで red→green 実証
