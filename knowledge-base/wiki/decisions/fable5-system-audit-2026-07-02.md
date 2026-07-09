@@ -43,12 +43,12 @@
 - **証拠**: 姉妹関数 `_get_aggregate_kelly` / `_get_strategy_kelly_clean` は cutoff + XAU 除外あり。この関数だけ漏れ。CLAUDE.md「all-time data を Kelly に使わない」に直接抵触。
 - **修正案**: 呼び出し元を `_get_strategy_kelly_clean` に差し替え (instrument 引数の扱い要確認) or 同一フィルタ追加。
 
-### P1-2: BE/Trail 同一バー楽観バイアス修正が daytrade エンジンのみ。scalp/1H×2 に残存 【R3】
+### P1-2: BE/Trail 同一バー楽観バイアス修正が daytrade エンジンのみ。scalp/1H×2 に残存 【✅ FIXED 2026-07-09 — PR #65 で ablation guard (default ablated、`BT_OPTIMISTIC=1` 復元) を 3 エンジンへ展開 + cache key flag-aware 化 (rule:R3, v2.3 T14)。行動証拠 = scalp ablated 46.4% vs optimistic 56.9%。回帰 `tests/test_be_trail_ablation_all_engines.py` + `tests/test_bt_tie_break_regression_pins.py` (superseded PR #64 から移植)。詳細 [[be-trail-ablation-all-engines-2026-07-09]]】
 - **場所**: `app.py:6019-6134` (`run_scalp_backtest`), `app.py:5443-5489` (`run_backtest` 1H), `app.py:7405-7449+` (`run_1h_backtest`)
 - **証拠**: `run_daytrade_backtest` には `_BT_ABLATE_BE_TRAIL` (デフォルト off, 「+22.9pp inflate」コメント付) が実装済 (app.py:6440-6452)。同一構造のコードが上記3エンジンでは無ガードで稼働。同一バー内で favorable→adverse の順序を常に仮定 (BE 発動後に同バーの逆行 SL を tightened stop で判定 → 本来 LOSS のバーが WIN 化)。
 - **影響**: MEMORY 確定事実「BE/Trail が Python BT WR を TV 比 +20pp 水増し」の発生源が3エンジンに残存。これら由来の EV/WR を昇格判断に使うと誤判定。
 - **修正案**: 3エンジンに同じ ablation ガードを適用 (診断済み・修正実績ありのため R3 扱いで即修正可)。
-- **付随 (P2)**: 同一バー TP+SL 同時ヒットの tie-break が `fut_close` 基準 (保守的 SL 優先でない) — 全エンジン共通の副次的楽観バイアス。
+- **付随 (P2) / P1-2b**: 同一バー TP+SL 同時ヒットの tie-break が `fut_close` 基準 (保守的 SL 優先でない) — 全エンジン共通の副次的楽観バイアス。**2026-07-09 検証クローズ**: fut_close tie-break は 4 エンジン全てに既装 (未実装エンジンなし)、swing は保守的 SL 優先 (両ヒット=LOSS) — 現状を `tests/test_bt_tie_break_regression_pins.py` で pin (無条件 TP 優先への退行を封鎖)。fut_close→SL 優先への厳格化は BT 全体の再較正を伴うため P2 のまま据置。
 
 ### P1-3: stale な v9.x SHADOW_MIGRATION が restart 毎に is_shadow を再汚染 【✅ FIXED 2026-07-07 — ブロック削除 (rule:R3)。回帰テスト `tests/test_shadow_migration_block_removed.py`。区別ケース=fill callback 喪失行 (audit=filled ∧ oanda_trade_id 欠落): 旧ブロックは無条件 shadow 固定、後継 FLAG_DRIFT backfill は UNSAFE 検知で live 保持】
 - **follow-up FIXED (同日、PR #59 の敵対的レビュー起点)**: 後継 leak backfill が shadow 化した pre-RULE_TS の OANDA-filled リーク行を、SHADOW_DRIFT_BACKFILL (2026-05-03) が次の restart で無条件に live へ巻き戻し、冪等マーカーが再修復を恒久ブロックする **oscillation** を空 DB 4-init で再現 (init#2 shadow → init#3 以降 live 固定、status 上は remaining にカウントされず不可視)。修正 = drift rollback の WHERE に `COALESCE(force_demoted_live_leak,0)=0` を追加 — leak backfill の分類が restart を越えて安定。回帰 = `tests/test_ws4_phase_b_followup.py` (oscillation / marker 経路帰属 / 通常 drift 復元の非退行 / fill-callback 喪失行保護)。
@@ -138,7 +138,7 @@
 5. `OANDA_EQ_BASE_PIPS` 本番実値確認 → DD 98.2% の真偽確定 (P1-5)
 
 **Phase B — 今週中 (統計インフラ)**
-6. BE/Trail ablation を scalp/1H×2 エンジンへ展開 (P1-2, R3)
+6. ✅ BE/Trail ablation を scalp/1H×2 エンジンへ展開 (P1-2, R3、2026-07-09 PR #65 完了 + P1-2b 検証クローズ)
 7. ✅ stale SHADOW_MIGRATION ブロック削除 (P1-3、2026-07-07 完了) + ✅ strategy Kelly raw 化 (P1-9、2026-07-07 完了)
 8. CI: hip1 job 追加 + paths filter 撤廃 + dev.agent.yaml 訂正 (P1-7)
 9. 再送ガード共通化 (P1-6) / scalp QUALIFIED_TYPES check (P1-8)
