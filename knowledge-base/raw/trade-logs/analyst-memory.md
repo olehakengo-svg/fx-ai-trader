@@ -2622,6 +2622,16 @@ bb_rsi_reversionが9/11で勝利しPnL+9.0を稼いだが、xs_momentum_rsiの�
 | WR | N/A | N/A |
 ### 推奨戦略配分
 
+### 2026-07-09 (Pre-Tokyo Briefing)
+| PnL合計（前日） | **−7.9p** |
+| 全体WR（前日） | **0.0%** |
+| Strategy | Pair | N | WR% | EV | PnL |
+- N=2、WR=0.0%、EV=−5.15
+- 前日もSL_HIT（Spread=0.8p）
+- ただしN<10のため**「損失傾向」すら統計的に確定不能**。平均回帰の範囲内として扱う
+- 25モードが稼働中であるにもかかわらず、Cutoff後の有効トレード総数はわずか**N=4**
+- これはエントリー条件の厳格化（spread_guard、レジームフィルター等）が原因と推定される
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
