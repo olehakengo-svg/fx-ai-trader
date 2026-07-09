@@ -1,0 +1,261 @@
+{
+ "task": "20260709-0420-ws3-asymmetry-oos-verification",
+ "prereg": "knowledge-base/wiki/decisions/ws3-asymmetry-oos-prereg-2026-07-09.md",
+ "rule": "R1 stage-1",
+ "generated_utc": "2026-07-09T06:42:57.656319+00:00",
+ "oos_window": "2024-07-07..2025-07-07 (truncated-parquet worktree, lookback 365d)",
+ "n_boot": 10000,
+ "seed": 20260709,
+ "fdr_q": 0.1,
+ "ratio_floor": 1.2,
+ "min_n": 30,
+ "mechanical_verdict": "PASS",
+ "passing_cells": [
+  "london_fix_reversal__EUR_USD",
+  "htf_false_breakout__AUD_JPY"
+ ],
+ "bh_fdr": {
+  "london_fix_reversal__EUR_USD": {
+   "p": 0.011499,
+   "rank": 1,
+   "bh_threshold": 0.0125,
+   "survive": true
+  },
+  "htf_false_breakout__AUD_JPY": {
+   "p": 0.011799,
+   "rank": 2,
+   "bh_threshold": 0.025,
+   "survive": true
+  },
+  "trendline_sweep__EUR_USD": {
+   "p": 0.116488,
+   "rank": 3,
+   "bh_threshold": 0.0375,
+   "survive": false
+  },
+  "dt_fib_reversal__USD_JPY": {
+   "p": 0.275372,
+   "rank": 4,
+   "bh_threshold": 0.05,
+   "survive": false
+  },
+  "lin_reg_channel__EUR_USD": {
+   "p": 0.363064,
+   "rank": 5,
+   "bh_threshold": 0.0625,
+   "survive": false
+  },
+  "hull_donchian_fade__EUR_USD": {
+   "p": 0.406059,
+   "rank": 6,
+   "bh_threshold": 0.075,
+   "survive": false
+  },
+  "htf_false_breakout__EUR_JPY": {
+   "p": 0.442456,
+   "rank": 7,
+   "bh_threshold": 0.0875,
+   "survive": false
+  },
+  "dt_sr_channel_reversal__EUR_USD": {
+   "p": 0.833017,
+   "rank": 8,
+   "bh_threshold": 0.1,
+   "survive": false
+  }
+ },
+ "cells": {
+  "htf_false_breakout__EUR_JPY": {
+   "n": 32,
+   "n_days": 30,
+   "mfe_p50": 34.7,
+   "mae_p50": 35.05,
+   "ratio": 0.99,
+   "boot_p": 0.442456,
+   "boot_ci_lo": 0.661,
+   "lag1_rho": 0.0621,
+   "primary_h": 24,
+   "adjacent_ratios": {
+    "h12": 1.037,
+    "h24": 0.99,
+    "h48": 0.956,
+    "h96": 1.28
+   },
+   "exploration_ratio": 1.81,
+   "gates": {
+    "a_fdr": false,
+    "b_ratio_floor": false,
+    "c_min_n": true,
+    "pass": false
+   }
+  },
+  "trendline_sweep__EUR_USD": {
+   "n": 44,
+   "n_days": 38,
+   "mfe_p50": 25.85,
+   "mae_p50": 15.25,
+   "ratio": 1.6951,
+   "boot_p": 0.116488,
+   "boot_ci_lo": 0.853,
+   "lag1_rho": 0.1199,
+   "primary_h": 24,
+   "adjacent_ratios": {
+    "h12": 1.229,
+    "h24": 1.695,
+    "h48": 1.462,
+    "h96": 1.455
+   },
+   "exploration_ratio": 1.65,
+   "gates": {
+    "a_fdr": false,
+    "b_ratio_floor": true,
+    "c_min_n": true,
+    "pass": false
+   }
+  },
+  "dt_sr_channel_reversal__EUR_USD": {
+   "n": 34,
+   "n_days": 33,
+   "mfe_p50": 14.55,
+   "mae_p50": 23.5,
+   "ratio": 0.6191,
+   "boot_p": 0.833017,
+   "boot_ci_lo": 0.287,
+   "lag1_rho": 0.2194,
+   "primary_h": 24,
+   "adjacent_ratios": {
+    "h12": 0.762,
+    "h24": 0.619,
+    "h48": 0.701,
+    "h96": 0.569
+   },
+   "exploration_ratio": 1.55,
+   "gates": {
+    "a_fdr": false,
+    "b_ratio_floor": false,
+    "c_min_n": true,
+    "pass": false
+   }
+  },
+  "london_fix_reversal__EUR_USD": {
+   "n": 41,
+   "n_days": 39,
+   "mfe_p50": 18.0,
+   "mae_p50": 12.6,
+   "ratio": 1.4286,
+   "boot_p": 0.011499,
+   "boot_ci_lo": 1.14,
+   "lag1_rho": -0.3713,
+   "primary_h": 24,
+   "adjacent_ratios": {
+    "h12": 1.379,
+    "h24": 1.429,
+    "h48": 1.396,
+    "h96": 1.848
+   },
+   "exploration_ratio": 1.51,
+   "gates": {
+    "a_fdr": true,
+    "b_ratio_floor": true,
+    "c_min_n": true,
+    "pass": true
+   }
+  },
+  "htf_false_breakout__AUD_JPY": {
+   "n": 39,
+   "n_days": 35,
+   "mfe_p50": 40.5,
+   "mae_p50": 22.2,
+   "ratio": 1.8243,
+   "boot_p": 0.011799,
+   "boot_ci_lo": 1.2,
+   "lag1_rho": 0.1135,
+   "primary_h": 24,
+   "adjacent_ratios": {
+    "h12": 1.212,
+    "h24": 1.824,
+    "h48": 2.207,
+    "h96": 2.127
+   },
+   "exploration_ratio": 1.39,
+   "gates": {
+    "a_fdr": true,
+    "b_ratio_floor": true,
+    "c_min_n": true,
+    "pass": true
+   }
+  },
+  "lin_reg_channel__EUR_USD": {
+   "n": 26,
+   "n_days": 24,
+   "mfe_p50": 40.7,
+   "mae_p50": 36.05,
+   "ratio": 1.129,
+   "boot_p": 0.363064,
+   "boot_ci_lo": 0.707,
+   "lag1_rho": -0.0668,
+   "primary_h": 96,
+   "adjacent_ratios": {
+    "h12": 0.632,
+    "h24": 0.823,
+    "h48": 0.91,
+    "h96": 1.129
+   },
+   "exploration_ratio": 1.94,
+   "gates": {
+    "a_fdr": false,
+    "b_ratio_floor": false,
+    "c_min_n": false,
+    "pass": false
+   }
+  },
+  "hull_donchian_fade__EUR_USD": {
+   "n": 46,
+   "n_days": 42,
+   "mfe_p50": 19.4,
+   "mae_p50": 17.4,
+   "ratio": 1.1149,
+   "boot_p": 0.406059,
+   "boot_ci_lo": 0.623,
+   "lag1_rho": 0.0098,
+   "primary_h": 24,
+   "adjacent_ratios": {
+    "h12": 0.98,
+    "h24": 1.115,
+    "h48": 0.914,
+    "h96": 0.855
+   },
+   "exploration_ratio": 1.3,
+   "gates": {
+    "a_fdr": false,
+    "b_ratio_floor": false,
+    "c_min_n": true,
+    "pass": false
+   }
+  },
+  "dt_fib_reversal__USD_JPY": {
+   "n": 20,
+   "n_days": 19,
+   "mfe_p50": 84.2,
+   "mae_p50": 67.35,
+   "ratio": 1.2502,
+   "boot_p": 0.275372,
+   "boot_ci_lo": 0.472,
+   "lag1_rho": -0.1784,
+   "primary_h": 96,
+   "adjacent_ratios": {
+    "h12": 0.454,
+    "h24": 0.477,
+    "h48": 0.782,
+    "h96": 1.25
+   },
+   "exploration_ratio": 2.05,
+   "gates": {
+    "a_fdr": false,
+    "b_ratio_floor": true,
+    "c_min_n": false,
+    "pass": false
+   }
+  }
+ }
+}

@@ -4,6 +4,12 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-09 — WS3 stage-1 verdict: ✅ PASS 2/8 — 方向性非対称の OOS 再現 (rule:R1 stage-1)
+
+- pre-reg LOCK ([[ws3-asymmetry-oos-prereg-2026-07-09]]) の機械的実行 (claude 直接、期日 07-16 の7日前倒し)。OOS 窓 2024-07-07〜2025-07-07 (切詰め parquet worktree で look-ahead 遮断、USD_JPY/AUD_JPY は Massive 15m を 2024-05 まで遡及取得)、N=4,980 entries。
+- **PASS**: london_fix_reversal×EUR_USD (OOS ratio 1.43 vs 探索 1.51、p=0.0115、CI5% 1.14) / htf_false_breakout×AUD_JPY (1.82 vs 1.39、p=0.0118、CI5% 1.20)。BH-FDR q=0.10 (m=8) + ratio≥1.2 + N≥30 + ナイフエッジ3点全通過。
+- 選択バイアス組の崩壊 (htf_fb×EUR_JPY 1.81→0.99 / dt_sr_channel×EUR_USD 1.55→0.62) を確認 = 2段スクリーン設計が機能。持続型 2 セル (lin_reg_channel / dt_fib) は不再現でクローズ。
+- **影響トレード: なし (純研究 stage-1)**。次 = stage-2 (PASS 2セル限定 barrier/EV pre-reg + TV Pine canon + user 最終承認)。判定器 `tools/ws3_oos_verdict.py` / スキャン `tools/ws3_mfe_scan.py` (--pairs/--out-suffix 追加)。
 ## 2026-07-09 — WS4 T15: CI paths filter 撤廃 + QUALIFIED_TYPES drift 検査 + 再送ガード共通化 (rule:R3, audit P1-6/7/8)
 
 - **P1-7 (CI 品質ゲート穴)**: ① `ci.yml` push trigger の paths filter を撤廃 — 旧 filter (`*.py`/`strategies/`/`modules/` のみ) は tests/tools/agents/knowledge-base/scripts 変更の直接 push で CI が一切走らない盲点だった。② hip1-holdout-manifest ガードを CI job 化 (`hip1-holdout-guard`) — .git/hooks/pre-commit はカスタムスクリプト symlink のため pre-commit フレームワークの hook はローカルで一度も実行されていなかった。event diff に対して実行、正規編集は commit message の `HOLDOUT-APPROVED` / `HOLDOUT-VALIDATION-APPROVED` マーカーで通過。③ `agents/cma/dev.agent.yaml` の `--no-verify` 根拠誤記 (「hip1 が full pytest を走らせる」→ 実際はカスタム hook 側) を訂正。actions は full SHA pin 化 (supply-chain)。

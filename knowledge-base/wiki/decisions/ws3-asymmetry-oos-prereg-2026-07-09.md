@@ -59,3 +59,34 @@ H0: 全候補セルの OOS ratio ≤ 1 (探索の非対称は m=79 事後選択�
 - 非対称の OOS 再現 ≠ 正 EV。EV 化は stage-2 (barrier 設計 + 摩擦控除 + TV canon) の責務 — stage-1 PASS を promote 根拠にしない
 - MFE/MAE はバー粒度。2024-25 の市場レジーム差 (ボラ水準) は ratio (比) 指標により一次近似で中立化されるが、レジーム依存性は verdict に記述
 - 探索標本での閾値 (1.3)・型分類を OOS で調整することは禁止
+
+---
+
+## 8. VERDICT (2026-07-09): ✅ **PASS — 2/8 セルが OOS 再現** (機械判定 + ナイフエッジ3点検査済)
+
+**執行記録**: claude 直接実行、期日 07-16 の 7 日前倒し。OOS スキャン = 切詰め parquet (末尾 2025-07-07) の隔離 worktree で `tools/ws3_mfe_scan.py --pairs EUR_USD,EUR_JPY,USD_JPY,AUD_JPY --out-suffix _oos_2024_2025` (N=4,980 entries)。USD_JPY/AUD_JPY は Massive 15m を 2024-05 まで遡及取得して充足 (§3 の短縮 OOS 条項は不使用)。判定 = `tools/ws3_oos_verdict.py` (§4 実装、B=10,000, seed 固定)。
+
+### 8.1 機械判定 (§4)
+
+| cell | H | N | OOS ratio | 探索 | p | FDR | CI5% | 判定 |
+|---|---|---|---|---|---|---|---|---|
+| **london_fix_reversal×EUR_USD** | h24 | 41 | **1.429** | 1.51 | 0.0115 | ✓ | 1.14 | **PASS** |
+| **htf_false_breakout×AUD_JPY** | h24 | 39 | **1.824** | 1.39 | 0.0118 | ✓ | 1.20 | **PASS** |
+| trendline_sweep×EUR_USD | h24 | 44 | 1.695 | 1.65 | 0.116 | ✗ | 0.85 | fail (点推定は再現、分散で不通過) |
+| htf_false_breakout×EUR_JPY | h24 | 32 | 0.99 | 1.81 | 0.44 | ✗ | — | fail (崩壊 = 選択バイアス) |
+| dt_sr_channel_reversal×EUR_USD | h24 | 34 | 0.62 | 1.55 | 0.83 | ✗ | — | fail (崩壊) |
+| lin_reg_channel×EUR_USD | h96 | 26 | 1.13 | 1.94 | 0.36 | ✗ | — | fail (持続型不再現、N<30) |
+| hull_donchian_fade×EUR_USD | h24 | 46 | 1.11 | 1.30 | 0.41 | ✗ | — | fail |
+| dt_fib_reversal×USD_JPY | h96 | 20 | 1.25 | 2.05 | 0.28 | ✗ | — | fail (持続型不再現、N<30) |
+
+### 8.2 ナイフエッジ3点検査 (§5) — 全通過
+
+1. **メカニズム整合 ✅**: 両 PASS セルとも構成が探索と同型 (MFE 優位、MAE 崩壊による見かけの比でない)。london_fix 14.3/9.5→18.0/12.6 (ボラ水準スケールで比保存)、htf_fb×AUD_JPY は MFE p50 40.5p (摩擦 ~3p の 13倍) と絶対量も充分
+2. **擬似反復 ✅**: lag-1 ρ = −0.37 / +0.11 (日次ブロックで補正済、負値は保守方向)。n_days 39/35
+3. **horizon 隣接整合 ✅**: london_fix 1.38/1.43/1.40/1.85、htf_fb 1.21/1.82/2.21/2.13 — 孤立格子点なし、htf_fb は単調増加 (持続性の示唆)
+
+### 8.3 帰結 (§4 の固定分岐)
+
+**PASS ≥1 → stage-2 へ**: PASS 2 セル限定の barrier/EV 設計 pre-reg + TV Pine canon 再現 + **user 最終承認** (live 実装はそこまで禁止)。「探索→OOS」2 段スクリーンを生き残った初のシグナル候補。注意: (a) 探索・OOS とも Python BT エントリー母集団 — TV canon 再現が stage-2 の必須ゲート (b) london_fix_reversal×GBP_USD の BT負EV 前歴 (EV −0.150) は**別セル** — EUR_USD への横展開禁止 (c) trendline_sweep×EUR_USD (点推定再現・FDR 落ち) は stage-2 には入れず、live N 蓄積で再評価 (ELITE_LIVE 稼働中のため自然に N が増える)
+
+**成果物**: `raw/bt-results/ws3_asymmetry_oos_2026_07.{json,md}` + `_entries.json` (trade-level) + `ws3_mfe_scan_2026_07_oos_2024_2025.{json,md}`。判定器 = `tools/ws3_oos_verdict.py`

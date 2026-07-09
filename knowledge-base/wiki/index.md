@@ -8,6 +8,7 @@
 - 旧: [[roadmap-v2]] (v2.0) / [[roadmap-to-100pct]] (v1)
 - **v2.3 確定 (2026-07-07)**: clean live 30d N=93/−245.0p/payoff 0.274。ボトルネック =「正の摩擦調整 EV セルの不在」(確定)。主因 = 勝ち側 exit 執行の崩壊 (設計TP が実走 MFE の5倍 + trail 返上 142.5p/30d)
 - **T2 exit-repair verdict: ❌ FAIL / H0 採択 (2026-07-08、期日 07-21 の13日前倒し)** — grid 9構成全て BH-FDR 不通過 (p=1.0) / WF 0/3 / 摩擦調整EV負 (最良 tp0.4×sl0.6 で −2.96 p/t)。メカニズムは診断通り作動した上での構造的 FAIL (ナイフエッジ3点検査済、感度 run も同結論)。**§4 固定分岐発動 → v2.3 の主戦線は WS3 シグナル張り替え (20p 走る場所への entry 再設計)**。詳細: [[exit-repair-tp-sl-prereg-2026-07-07]] §8
+- **WS3 stage-1 verdict: ✅ PASS 2/8 (2026-07-09、期日 07-16 の7日前倒し)** — 方向性非対称の OOS 検証 ([[ws3-asymmetry-oos-prereg-2026-07-09]] §8) で **london_fix_reversal×EUR_USD (ratio 1.43, p=0.0115)** + **htf_false_breakout×AUD_JPY (1.82, p=0.0118)** が BH-FDR 通過 + ナイフエッジ3点全通過。「探索→OOS」2段スクリーン survivor は本プロジェクト初。**次 = stage-2 (barrier/EV 設計 pre-reg + TV Pine canon 再現 + user 最終承認) — live 実装はそこまで禁止**
 
 ## 🔗 Cross-KB Navigation
 - **[[audit-index]]** — `learning/` 18 audit ノード + MEMORY `project_*.md` 双方向マップ（次セッション Claude 必読、KB↔MEMORY 棲み分けルール記載）
