@@ -4,6 +4,13 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-09 — WS3 stage-1 verdict: ✅ PASS 2/8 — 方向性非対称の OOS 再現 (rule:R1 stage-1)
+
+- pre-reg LOCK ([[ws3-asymmetry-oos-prereg-2026-07-09]]) の機械的実行 (claude 直接、期日 07-16 の7日前倒し)。OOS 窓 2024-07-07〜2025-07-07 (切詰め parquet worktree で look-ahead 遮断、USD_JPY/AUD_JPY は Massive 15m を 2024-05 まで遡及取得)、N=4,980 entries。
+- **PASS**: london_fix_reversal×EUR_USD (OOS ratio 1.43 vs 探索 1.51、p=0.0115、CI5% 1.14) / htf_false_breakout×AUD_JPY (1.82 vs 1.39、p=0.0118、CI5% 1.20)。BH-FDR q=0.10 (m=8) + ratio≥1.2 + N≥30 + ナイフエッジ3点全通過。
+- 選択バイアス組の崩壊 (htf_fb×EUR_JPY 1.81→0.99 / dt_sr_channel×EUR_USD 1.55→0.62) を確認 = 2段スクリーン設計が機能。持続型 2 セル (lin_reg_channel / dt_fib) は不再現でクローズ。
+- **影響トレード: なし (純研究 stage-1)**。次 = stage-2 (PASS 2セル限定 barrier/EV pre-reg + TV Pine canon + user 最終承認)。判定器 `tools/ws3_oos_verdict.py` / スキャン `tools/ws3_mfe_scan.py` (--pairs/--out-suffix 追加)。
+
 ## 2026-07-09 — P1-2: BE/Trail ablation を全 BT エンジンへ展開 (rule:R3, WS4 T14)
 
 - MEMORY 確定事実 `project_be_trail_inflates_python_bt_wr` の水増し源が daytrade 以外の 3 エンジン (`run_backtest` 1H / `run_scalp_backtest` / `run_1h_backtest`) に残存していた (Fable5 監査 P1-2)。daytrade と同じ `_BT_ABLATE_BE_TRAIL` (default ablated、`BT_OPTIMISTIC=1` で旧挙動復元) guard を展開。
