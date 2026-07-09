@@ -24,7 +24,7 @@
 | Edge | Promoted Pairs | N(live) | WR | Notes |
 |------|---------------|---------|----|-|
 | orb_trap | JPY,EUR,GBP | 2 | 50% | BT WR=79% (v8.2), N<10 Sentinel免除 |
-| london_fix_reversal | GBP | 0 | — | Krohn 2024, PAIR_PROMOTED×GBP_USD |
+| london_fix_reversal | — | 0 | — | Krohn 2024。**stale 訂正 (2026-07-09)**: v9.1 で GBP PAIR_PROMOTED 削除 (365d BT GBP EV=−0.239) → 現況 Phase0 Shadow + PAIR_DEMOTED×USD_JPY。WS3 stage-2 で EUR_USD セルの barrier/EV 検証中 ([[ws3-stage2-barrier-ev-prereg-2026-07-09]]) |
 | vol_momentum_scalp | EUR_JPY | 12 | 66.7% | EV=+1.28, PAIR_PROMOTED (EUR_JPY 5m EV=+0.608) |
 | xs_momentum | GBP,EUR | 0 | — | Eriksen 2019, PAIR_PROMOTED×GBP/EUR (JPY PAIR_DEMOTED) |
 | ema_pullback | USD_JPY | 14 | 42.9% | EV=+1.09, FORCE_DEMOTED+PAIR_PROMOTED×JPY復活 |

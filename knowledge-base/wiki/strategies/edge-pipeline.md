@@ -38,8 +38,6 @@ Stage 7: ELITE_LIVE   — 全ペア自動通過、ELITE_LIVE核戦略
 |------|----------|-------|-------|
 | BB extreme MR × USD_JPY | [[bb-rsi-reversion]] | Lo & MacKinlay 1988 | ~0% (thin edge) |
 | ORB fakeout reversal | [[orb-trap]] | Bulkowski 2005 | insuff (N=2) |
-| London fix reversal × GBP | [[london-fix-reversal]] | Krohn 2024 | insuff (N蓄積中) |
-
 ### Stage 4: SENTINEL
 | Edge | Strategy | Paper | Status |
 |------|----------|-------|--------|

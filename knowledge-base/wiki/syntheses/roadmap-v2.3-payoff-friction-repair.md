@@ -77,6 +77,8 @@ payoff 0.27 は v2.3 の最重要問題。**診断は R3 (analyses/ に数値根
 ## WS3: シグナル張り替え — v2.3 の主戦線 (2026-07-08 T2 FAIL により全振り確定、司令塔直轄)
 
 > **✅ stage-1 verdict PASS (2026-07-09、[[ws3-asymmetry-oos-prereg-2026-07-09]] §8)**: OOS 検証で 2/8 セルが非対称を再現 — **london_fix_reversal×EUR_USD (1.43, p=0.0115)** / **htf_false_breakout×AUD_JPY (1.82, p=0.0118、horizon 単調増加)**。選択バイアス組は崩壊しスクリーンが機能。**次 = stage-2: PASS 2 セル限定の barrier/EV 設計 pre-reg + TV Pine canon 再現 + user 最終承認** (live 実装はそこまで禁止)。trendline_sweep×EUR_USD は点推定再現 (1.70)・FDR 落ち — live N 蓄積で再評価。持続型 2 セルは不再現でクローズ。
+>
+> **📝 stage-2 pre-reg DRAFT 起案済み (2026-07-09、[[ws3-stage2-barrier-ev-prereg-2026-07-09]]) — user 決裁待ち (期日 2026-07-16、registry `ws3-stage2-lock-decision-stale` が監視)**: PASS 2 セル限定の h24 barrier grid (m=18、探索+stage-1 OOS 分位点アンカー)、評価は第3窓 OOS-2 (2022-07〜2024-07 の 2 年、winner's curse 遮断)、Westfall–Young max-T セル検定 + TV Pine canon trade-level 突合ゲート。敵対的レビュー 3 レンズ (リーク/統計/KB整合、18 findings) 反映済み。**LOCK 前の grid BT 実行禁止**。
 
 **T2 exit-repair FAIL (pre-reg §8) により、pre-reg §4 の固定分岐が発動: 「5p しか走らない場所で exit を直す」経路は棄却され、「20p 走る場所へ entry を張り替える」ことが黒字化の唯一の経路。** T4 マップ ([[friction-adjusted-ev-map-2026-07-07]]) も現行母集団に live viable な正セル不在を確定済みで、両輪の結論が一致。
 
