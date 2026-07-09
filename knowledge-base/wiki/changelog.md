@@ -4,6 +4,13 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-09 — P1-2b 検証クローズ: fut_close tie-break は4エンジン既装 + 回帰 pin 移植 (rule:R3, T14 補完)
+
+- **二重実装レース記録**: T14 (P1-2) は autopilot が PR #65 で実装・マージ、並行セッションの PR #64 (同一実装 + 追加テスト 20 cases) と衝突 → #64 close で解決 (07-07 handoff インシデントと同型)。両実装の意味的差分ゼロを精査確認: (a) 3エンジン cache 無効化 (b) 1H系 BE/Trail guard (block-wrap ⇔ 閾値inf は等価) (c) flag semantics 完全一致。
+- **P1-2b (fut_close tie-break) 検証結果: 追加実装不要** — 同一バー TP+SL 同時ヒットの fut_close tie-break は 4 エンジン (run_backtest/scalp/daytrade/1h) 全てに既装、swing はより厳格な保守的 SL 優先 (両ヒット=LOSS)。fut_close→SL 優先への厳格化は BT 全体再較正を伴うため監査どおり P2 据置。
+- **#64 由来のテスト delta を移植**: `tests/test_bt_tie_break_regression_pins.py` (13 cases) — ① inline flag 式の canonical AST pin (真偽逆転・env typo 検出、main の既存 pin は参照有無のみ) ② cache key/フラグ照合 pin (stale cache = A/B 汚染防止) ③ P1-2b tie-break pin (TP優先への退行封鎖 + swing SL優先維持)。
+- 影響トレード: なし (テスト + KB のみ、app.py 不変更)。
+
 ## 2026-07-09 — P1-2: BE/Trail ablation を全 BT エンジンへ展開 (rule:R3, WS4 T14)
 
 - MEMORY 確定事実 `project_be_trail_inflates_python_bt_wr` の水増し源が daytrade 以外の 3 エンジン (`run_backtest` 1H / `run_scalp_backtest` / `run_1h_backtest`) に残存していた (Fable5 監査 P1-2)。daytrade と同じ `_BT_ABLATE_BE_TRAIL` (default ablated、`BT_OPTIMISTIC=1` で旧挙動復元) guard を展開。
