@@ -2602,6 +2602,16 @@ bb_rsi_reversionが9/11で勝利しPnL+9.0を稼いだが、xs_momentum_rsiの�
 - 25モード中24モードONだが、有効シグナルは前日1件のみ。
 - Block countsを見るとhedge_block・direction_filter・r2_shadow_demoted_cellが圧倒的多数を占め、シグナルが存在しても多段フィルターで消滅している構図。
 
+### 2026-07-09 (Pre-Tokyo Briefing)
+前日（2026-07-08）のトレード数は**1件**、戦略は`ny_close_reversal / USD_JPY`のSELL。結果はSL_HIT、PnL = **-7.9p**、WR = **0.0%**。Cutoff後累計でもN=4、PnL=-20.7p、WR=0.0%と、有効サンプルは著しく少なく、現時点では統計的判断に耐えない水準。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+昇格基準（N≥30 & EV≥1.0）に到達している戦略：**ゼロ**
+降格基準（N≥30 & EV<-0.5）に到達している戦略：**ゼロ**（N不足）
+- **USD_JPYのレジームはVOLATILE（ATR%ile 66%、SMA20 slope +0.00245で上昇バイアス）**
+- SELLエントリーに対し、レジームが逆風だった可能性が高い
+- ただしN=2のため「戦略の問題」と断定する根拠なし。レジームとの相性として記録にとどめる
+- **USD_JPYのVOLATILEレジームが継続中** → ny_close_reversalの逆張り系シグナルが出た場合、レジームとの整合性を意識した観察を続ける（判断はN蓄積後）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
