@@ -100,7 +100,7 @@ Edge Factor Audit #1-#6 (2026-06-12) + T10 bb_rsi KILL (2026-07-02) で高N shad
 | T12 | **P1-3: stale SHADOW_MIGRATION ブロック削除** ✅ **完了 2026-07-07 (PR #59)** — `demo_db.py` restart 毎の現役セル (dt_bb_rsi_mr, bb_squeeze_breakout) 再汚染を削除。後継 backfill + FLAG_DRIFT (UNSAFE 検知) が正しい後継。回帰テスト同梱 | R3 | ✅ 完了 |
 | T13 | **P1-9: 死にゲート `_kelly_block` 修正** ✅ **完了 2026-07-07 (PR #59)** — `_get_strategy_kelly_clean(raw=True)` 追加で負値判定 2 経路が発火。実弾サイジングは clip 維持で不変。回帰テスト同梱 | R3 | ✅ 完了 |
 | T14 | **P1-2: BE/Trail ablation を scalp/1H×2 へ展開** ✅ **完了 2026-07-09** ([[be-trail-ablation-all-engines-2026-07-09]]) — `run_backtest`(1H)/`run_scalp_backtest`/`run_1h_backtest` に daytrade と同じ `_BT_ABLATE_BE_TRAIL` (default ablated) guard を展開。行動証拠 = scalp fixture で ablated 46.4% vs optimistic 56.9% (+10.5pp inflation 排除)。cache key も flag-aware 化。AST 回帰テスト同梱。**P1-2b (fut_close tie-break) は 2026-07-09 検証クローズ — 4 エンジン既装 (追加実装不要)、swing は SL 優先。回帰 pin `tests/test_bt_tie_break_regression_pins.py` (superseded PR #64 から移植)** | R3 | ✅ **昇格判断が使う EV/WR の水増し源を除去**。WS3 barrier/EV 評価に直結 |
-| T15 | **P1-7/P1-8/P1-6 (低優先)** — CI paths filter 撤廃 + hip1 job 化 + dev.agent.yaml 訂正 / scalp QUALIFIED_TYPES drift 検査 / 再送ガード共通化 | R3 | 品質ゲート穴。順次 |
+| T15 | **P1-7/P1-8/P1-6 (低優先)** ✅ **完了 2026-07-09** — CI paths filter 撤廃 + hip1 holdout guard CI job 化 + dev.agent.yaml 訂正 (P1-7) / scalp `SCALP_BT_QUALIFIED` drift 検査を check.py step 5b へ + 意図的除外 3 戦略の文書化 (P1-8) / resend promote gate 共通化 `_resend_promote_gate_block_reason` — Q4/Kelly/MC-ruin/SHIELD を再送直前に再実行 (P1-6)。回帰 `tests/test_t15_quality_gates.py`。live パラメータ不変更 | R3 | ✅ 品質ゲート穴 3 件を封鎖 (WS4 クローズ) |
 
 ## 棄却・据置 (このロードマップで追わない)
 

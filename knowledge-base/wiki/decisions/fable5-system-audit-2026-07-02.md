@@ -66,17 +66,17 @@
 - **影響**: 本番 env が 1000 以外なら、**表示上の DD=98.2% と実際に lot 縮小を駆動している DD% が別物**。defensive mode の妥当性判断自体が誤った数値に基づく可能性。→ Render env の `OANDA_EQ_BASE_PIPS` 実値確認が先決。
 - **修正案**: 分母を共有ヘルパーに統一。
 
-### P1-6: `_resend_pending_oanda_trades` の再送ガードが FORCE/PAIR_DEMOTED のみ
+### P1-6: `_resend_pending_oanda_trades` の再送ガードが FORCE/PAIR_DEMOTED のみ 【✅ FIXED 2026-07-09 — 共通 helper `_resend_promote_gate_block_reason` (rule:R3, v2.3 T15)。Q4 (ELITE 免除)/SHIELD mode (whitelist 免除)/agg Kelly (min-lot bypass)/MC-ruin (SENTINEL 免除) を resend 直前に再実行。PRIME/edge-cell bypass は per-signal コンテキスト不在のため fail-closed。`get_open_trades_without_oanda` に confidence 追加。回帰 `tests/test_t15_quality_gates.py`】
 - **場所**: `modules/demo_trader.py:1174-1232`
 - **影響**: Q4/Kelly/MC-ruin/SHIELD を再チェックせず再送。現状は insert 時 `enforce_oanda_live_invariant` で守られているが、`is_shadow` 反転バグ1つで直通する defense-in-depth 欠如。
 - **修正案**: 再送前に promote gate 共通ヘルパーを再実行。
 
-### P1-7: 品質ゲートの構造的穴 — CI path filter / hip1 holdout ガード未実行 / `--no-verify` 常用
+### P1-7: 品質ゲートの構造的穴 — CI path filter / hip1 holdout ガード未実行 / `--no-verify` 常用 【✅ FIXED 2026-07-09 — paths filter 撤廃 + `hip1-holdout-guard` CI job (event diff 対象、`HOLDOUT-APPROVED` マーカーで正規編集通過) + dev.agent.yaml 誤記訂正 (rule:R3, v2.3 T15)。paths filter 再導入は `tests/test_t15_quality_gates.py` が封鎖】
 - **証拠**: ① `ci.yml` push trigger の `paths` が `tests/`, `tools/`, `agents/`, `knowledge-base/` を除外 (PR は無条件)。② `.git/hooks/pre-commit` はカスタムスクリプト symlink で pre-commit フレームワーク (`hip1-holdout-manifest`) を**どこも実行していない** — HIP-1 holdout 改変ガードが実質ゼロ。③ `agents/cma/dev.agent.yaml` の `--no-verify` 必須ルールの根拠「hip1 が full pytest を走らせる」は**誤認** (full pytest はカスタムスクリプト側、hip1 自体は数秒)。
 - **影響**: holdout 検証の統計的独立性主張が監査不能。CMA agent + 直接 push でテスト変更が無検証で main に入る経路。
 - **修正案**: hip1 チェックを CI job 化 (数秒) / paths filter 撤廃 / dev.agent.yaml の記述訂正。
 
-### P1-8: scalp BT の QUALIFIED_TYPES 同期に機械的保証なし
+### P1-8: scalp BT の QUALIFIED_TYPES 同期に機械的保証なし 【✅ FIXED 2026-07-09 — inline set を `SCALP_BT_QUALIFIED` へ改名 + `SCALP_BT_EXCLUDED_TYPES` (mtf_*_scalp 3 戦略 = vec harness 専用、意図的除外を文書化) + check.py step 5b drift 検査 (rule:R3, v2.3 T15)。意図的 drift で red を確認後 green 化、回帰 `tests/test_t15_quality_gates.py`】
 - **証拠**: `mtf_trend_follow_scalp` / `mtf_counter_trend_scalp` / `mtf_regime_trend_cascade_scalp` は本番 enabled だが `run_scalp_backtest` 内 inline set (app.py:5865-5902) に不在 (vec harness 必須のため意図的の可能性が高いが未文書化)。`scripts/check.py` はこの inline set を検査しない。
 - **修正案**: 意図的除外の文書化 + check.py に drift 検査追加 (DT_QUALIFIED の step 4 と同型)。
 
@@ -140,8 +140,8 @@
 **Phase B — 今週中 (統計インフラ)**
 6. ✅ BE/Trail ablation を scalp/1H×2 エンジンへ展開 (P1-2, R3、2026-07-09 PR #65 完了 + P1-2b 検証クローズ)
 7. ✅ stale SHADOW_MIGRATION ブロック削除 (P1-3、2026-07-07 完了) + ✅ strategy Kelly raw 化 (P1-9、2026-07-07 完了)
-8. CI: hip1 job 追加 + paths filter 撤廃 + dev.agent.yaml 訂正 (P1-7)
-9. 再送ガード共通化 (P1-6) / scalp QUALIFIED_TYPES check (P1-8)
+8. ✅ CI: hip1 job 追加 + paths filter 撤廃 + dev.agent.yaml 訂正 (P1-7、2026-07-09 完了 v2.3 T15)
+9. ✅ 再送ガード共通化 (P1-6) / scalp QUALIFIED_TYPES check (P1-8) — 2026-07-09 完了 (v2.3 T15)
 
 **Phase C — 順次 (衛生)**
 10. 資金経路 silent except 4箇所に WARN (P2-2/3/4)

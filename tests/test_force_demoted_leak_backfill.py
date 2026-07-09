@@ -207,4 +207,6 @@ def test_pending_oanda_resend_rows_include_entry_type(tmp_path):
         "instrument": "GBP_USD",
         "entry_time": rows[0]["entry_time"],
         "entry_type": "xs_momentum",
+        # P1-6: resend 側 Q4 gate 再チェック用に confidence を含む
+        "confidence": 80,
     }]
