@@ -5311,7 +5311,11 @@ def run_backtest(symbol: str = "USDJPY=X",
     """
     global _bt_cache
     now = datetime.now()
-    if _bt_cache.get("ts") and (now - _bt_cache["ts"]).total_seconds() < BT_CACHE_TTL:
+    # P1-2: BE/Trail ablation フラグ変更時は cache を無効化 (A/B 比較で stale 防止)
+    _abl_flag = f"{os.environ.get('BT_OPTIMISTIC','0')}{os.environ.get('BT_ABLATE_BE_TRAIL','0')}"
+    if (_bt_cache.get("ts")
+            and _bt_cache.get("abl") == _abl_flag
+            and (now - _bt_cache["ts"]).total_seconds() < BT_CACHE_TTL):
         return _bt_cache["result"]
 
     try:
@@ -5328,6 +5332,14 @@ def run_backtest(symbol: str = "USDJPY=X",
 
         trades = []
         last_bar = -99
+
+        # ── P1-2: BE/Trail ablation (TV-aligned default, 2026-07-09, rule:R3) ──
+        # daytrade エンジンと同期。BE/Trail 発動後の SL touch を fake-WIN 化する
+        # 楽観バイアス (Python BT WR を TV 比 +20pp inflate、MEMORY
+        # project_be_trail_inflates_python_bt_wr) を default で排除。
+        # 旧 (inflated) 挙動は BT_OPTIMISTIC=1 で復元可 (transition 用)。
+        _BT_OPTIMISTIC = os.environ.get("BT_OPTIMISTIC") == "1"
+        _BT_ABLATE_BE_TRAIL = (not _BT_OPTIMISTIC) or (os.environ.get("BT_ABLATE_BE_TRAIL") == "1")
 
         # SR/OBプリコンピュテーション（1H足: 24本/日）
         STD_SR_RECALC = 50
@@ -5512,12 +5524,13 @@ def run_backtest(symbol: str = "USDJPY=X",
 
                 # Partial TP trailing
                 _tp_dist = abs(tp - ep)
-                if sig == "BUY" and hi - ep >= _tp_dist * 0.6:
-                    _be_activated = True
-                    _current_sl = max(_current_sl, ep)
-                elif sig == "SELL" and ep - lo >= _tp_dist * 0.6:
-                    _be_activated = True
-                    _current_sl = min(_current_sl, ep)
+                if not _BT_ABLATE_BE_TRAIL:  # P1-2: default ablated (TV-aligned)
+                    if sig == "BUY" and hi - ep >= _tp_dist * 0.6:
+                        _be_activated = True
+                        _current_sl = max(_current_sl, ep)
+                    elif sig == "SELL" and ep - lo >= _tp_dist * 0.6:
+                        _be_activated = True
+                        _current_sl = min(_current_sl, ep)
 
                 _genuine = atr * 0.3
                 if sig == "BUY":
@@ -5646,6 +5659,7 @@ def run_backtest(symbol: str = "USDJPY=X",
 
         _bt_cache["result"] = result
         _bt_cache["ts"]     = now
+        _bt_cache["abl"]    = _abl_flag  # P1-2: ablation フラグ tag
         return result
     except Exception as e:
         import traceback
@@ -5734,7 +5748,9 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         os.environ.get("VOL_MOMENTUM_REDESIGN_V2") == "1"
         or os.environ.get("VOL_MOMENTUM_SCALP_REDESIGN_V2") == "1"
     ) else "0"
-    cache_key = f"{symbol}_{interval}_{lookback_days}_vmV2{_vm_v2_cache_flag}"
+    # P1-2: BE/Trail ablation フラグを cache key に含める (A/B 比較で stale 防止)
+    _abl_flag = f"{os.environ.get('BT_OPTIMISTIC','0')}{os.environ.get('BT_ABLATE_BE_TRAIL','0')}"
+    cache_key = f"{symbol}_{interval}_{lookback_days}_vmV2{_vm_v2_cache_flag}_abl{_abl_flag}"
     now = datetime.now()
     if _df_override is None:
         cached = _scalp_bt_cache.get(cache_key)
@@ -5765,6 +5781,14 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
         trades = []
         last_trade_bar = -99
+
+        # ── P1-2: BE/Trail ablation (TV-aligned default, 2026-07-09, rule:R3) ──
+        # daytrade エンジンと同期。BE/Trail 発動後の SL touch を fake-WIN 化する
+        # 楽観バイアス (Python BT WR を TV 比 +20pp inflate、MEMORY
+        # project_be_trail_inflates_python_bt_wr) を default で排除。
+        # 旧 (inflated) 挙動は BT_OPTIMISTIC=1 で復元可 (transition 用)。
+        _BT_OPTIMISTIC = os.environ.get("BT_OPTIMISTIC") == "1"
+        _BT_ABLATE_BE_TRAIL = (not _BT_OPTIMISTIC) or (os.environ.get("BT_ABLATE_BE_TRAIL") == "1")
 
         # ── Phase D: カスケードCD + Post-SLブロック (461t監査) ──
         _last_sl_bar_sc = -9999
@@ -6084,6 +6108,9 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             _bt_be_thr = atr7 * 0.8    # Tier1: BE threshold
             _bt_ts_thr = atr7 * 1.5    # Tier2: Trailing Stop threshold
             _bt_ts_trail = atr7 * 0.5  # Tier2: trail width
+            if _BT_ABLATE_BE_TRAIL:  # P1-2: default ablated (TV-aligned)
+                _bt_be_thr = float("inf")
+                _bt_ts_thr = float("inf")
             tp_dist_total = abs(tp - ep)  # BE win時のTP距離参照用
             for j in range(1, MAX_HOLD + 1):
                 if i + 1 + j >= len(df): break
@@ -7304,7 +7331,9 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
     ゾーン内リバーサルシグナルでエントリー。
     """
     global _1h_bt_cache
-    cache_key = f"{symbol}_{interval}_{lookback_days}"
+    # P1-2: BE/Trail ablation フラグを cache key に含める (A/B 比較で stale 防止)
+    _abl_flag = f"{os.environ.get('BT_OPTIMISTIC','0')}{os.environ.get('BT_ABLATE_BE_TRAIL','0')}"
+    cache_key = f"{symbol}_{interval}_{lookback_days}_abl{_abl_flag}"
     now = datetime.now()
     cached = _1h_bt_cache.get(cache_key)
     if cached and (now - cached["ts"]).total_seconds() < _1H_BT_TTL:
@@ -7376,6 +7405,14 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
 
         trades   = []
         last_bar = -99
+
+        # ── P1-2: BE/Trail ablation (TV-aligned default, 2026-07-09, rule:R3) ──
+        # daytrade エンジンと同期。BE/Trail 発動後の SL touch を fake-WIN 化する
+        # 楽観バイアス (Python BT WR を TV 比 +20pp inflate、MEMORY
+        # project_be_trail_inflates_python_bt_wr) を default で排除。
+        # 旧 (inflated) 挙動は BT_OPTIMISTIC=1 で復元可 (transition 用)。
+        _BT_OPTIMISTIC = os.environ.get("BT_OPTIMISTIC") == "1"
+        _BT_ABLATE_BE_TRAIL = (not _BT_OPTIMISTIC) or (os.environ.get("BT_ABLATE_BE_TRAIL") == "1")
 
         for i in range(50, len(df) - MAX_HOLD - 1):
             if i - last_bar < COOLDOWN:
@@ -7520,24 +7557,25 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
                 # 1H足ブレイクアウトは利益を伸ばすため、BE発動を遅らせトレール幅拡大
                 _tp_dist_total = abs(tp - ep)
                 _trail_atr = atr * 1.2  # トレーリング幅: 1.2 ATR（0.8→拡大）
-                if sig == "BUY":
-                    _progress = hi - ep
-                    # 70%到達でBE (50%→70%: 利確を急がない)
-                    if _progress >= _tp_dist_total * 0.7:
-                        _be_activated = True
-                        _current_sl = max(_current_sl, ep + _tp_dist_total * 0.3)  # BE+30%利益確保
-                    # トレーリングストップ: 最高値 - 1.2ATR
-                    if _be_activated:
-                        _trail_sl = hi - _trail_atr
-                        _current_sl = max(_current_sl, _trail_sl)
-                else:
-                    _progress = ep - lo
-                    if _progress >= _tp_dist_total * 0.7:
-                        _be_activated = True
-                        _current_sl = min(_current_sl, ep - _tp_dist_total * 0.3)
-                    if _be_activated:
-                        _trail_sl = lo + _trail_atr
-                        _current_sl = min(_current_sl, _trail_sl)
+                if not _BT_ABLATE_BE_TRAIL:  # P1-2: default ablated (TV-aligned)
+                    if sig == "BUY":
+                        _progress = hi - ep
+                        # 70%到達でBE (50%→70%: 利確を急がない)
+                        if _progress >= _tp_dist_total * 0.7:
+                            _be_activated = True
+                            _current_sl = max(_current_sl, ep + _tp_dist_total * 0.3)  # BE+30%利益確保
+                        # トレーリングストップ: 最高値 - 1.2ATR
+                        if _be_activated:
+                            _trail_sl = hi - _trail_atr
+                            _current_sl = max(_current_sl, _trail_sl)
+                    else:
+                        _progress = ep - lo
+                        if _progress >= _tp_dist_total * 0.7:
+                            _be_activated = True
+                            _current_sl = min(_current_sl, ep - _tp_dist_total * 0.3)
+                        if _be_activated:
+                            _trail_sl = lo + _trail_atr
+                            _current_sl = min(_current_sl, _trail_sl)
 
                 # ── Time-decay SL tightening after 60% MAX_HOLD ──
                 if j >= int(MAX_HOLD * 0.6):
