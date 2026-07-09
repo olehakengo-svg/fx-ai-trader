@@ -4,6 +4,15 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-09 — T14: BE/Trail ablation default を全 BT エンジンへ展開 (rule:R3, audit P1-2/P1-2b)
+
+- daytrade エンジンのみだった「default = TV-aligned (BE/Trail OFF、`BT_OPTIMISTIC=1` で旧挙動復元)」ガードを残り 3 エンジンへ展開: `run_backtest` (1H standard) / `run_scalp_backtest` / `run_1h_backtest`。共有 helper `_bt_exit_optimism_flags()` で規約統一 (`BT_ABLATE_BE_TRAIL=1` は `BT_OPTIMISTIC` より優先)。
+- 根拠: BE/Trail シミュレーションは同一バー内 favorable→adverse 順序を常に仮定し Python BT WR を TV 比 ~+20pp 水増し (MEMORY `project_be_trail_inflates_python_bt_wr`、divergence-ablation 2026-05-14 実証)。この水増し EV/WR が昇格判断を汚染していた。
+- stale cache 防止: scalp/1h の cache_key に `_abl…_opt…` suffix を付与、keyless の `_bt_cache` (standard) は flags 照合を追加。
+- P1-2b (fut_close tie-break): 検証の結果、同一バー TP+SL 同時ヒットの fut_close tie-break は **4 エンジン全てに既装** (未実装エンジンなし)。swing は保守的 SL 優先 (両ヒット=LOSS) でさらに厳格 — いずれも回帰テストで pin し退行を封鎖。
+- **影響トレード: なし (BT シミュレーション側のみ、live シグナル判定・パラメータ不変更)**。⚠️ 3 エンジンの BT WR/EV は default で低下方向に変わるため、**既存の BT 結果 JSON (`raw/bt-results/`) と非互換 — 比較には再計測が必要**。旧数値の再現は `BT_OPTIMISTIC=1`。
+- 回帰: `tests/test_bt_be_trail_ablation_all_engines.py` (20 cases)。詳細: [[fable5-system-audit-2026-07-02]] P1-2
+
 ## 2026-07-09 — WS3 MFE 分布診断: 選抜基準を「MFE 絶対量」→「MFE/MAE 方向性非対称」へ改訂 (rule:R3)
 
 - T2 FAIL 後の WS3 初手 ([[ws3-mfe-distribution-2026-07-08]])。365d baseline 6 pair、N=6,995 entries / 104 cells の forward MFE/MAE (H∈{6..96} bars) を exit 非依存で計測 (`tools/ws3_mfe_scan.py`)。

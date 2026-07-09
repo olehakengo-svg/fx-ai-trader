@@ -99,7 +99,7 @@ Edge Factor Audit #1-#6 (2026-06-12) + T10 bb_rsi KILL (2026-07-02) で高N shad
 |---|---|---|---|
 | T12 | **P1-3: stale SHADOW_MIGRATION ブロック削除** ✅ **完了 2026-07-07 (PR #59)** — `demo_db.py` restart 毎の現役セル (dt_bb_rsi_mr, bb_squeeze_breakout) 再汚染を削除。後継 backfill + FLAG_DRIFT (UNSAFE 検知) が正しい後継。回帰テスト同梱 | R3 | ✅ 完了 |
 | T13 | **P1-9: 死にゲート `_kelly_block` 修正** ✅ **完了 2026-07-07 (PR #59)** — `_get_strategy_kelly_clean(raw=True)` 追加で負値判定 2 経路が発火。実弾サイジングは clip 維持で不変。回帰テスト同梱 | R3 | ✅ 完了 |
-| T14 | **P1-2/2b: BE/Trail ablation を scalp/1H×2 へ展開 + fut_close tie-break** — daytrade のみ ablation guard 済、他3エンジンに +20pp 水増し残存。fut_close tie-break は4エンジン全部 | R3 | **昇格判断が使う EV/WR の水増し源**。WS-Diag の payoff 実測とも直結 |
+| T14 | **P1-2/2b: BE/Trail ablation を scalp/1H×2 へ展開 + fut_close tie-break** ✅ **完了 2026-07-09 (branch fix/t14-be-trail-ablation-all-engines)** — ablation default (TV-aligned OFF、`BT_OPTIMISTIC=1` で復元) を `run_backtest`/`run_scalp_backtest`/`run_1h_backtest` へ展開 + cache key 反映。fut_close tie-break は検証の結果 4 エンジン既装 (swing は保守的 SL 優先) — 回帰テストで pin。⚠️ 3 エンジンの旧 BT 結果 JSON は非互換 (再計測要)。回帰テスト同梱 | R3 | ✅ 完了 |
 | T15 | **P1-7/P1-8/P1-6 (低優先)** — CI paths filter 撤廃 + hip1 job 化 + dev.agent.yaml 訂正 / scalp QUALIFIED_TYPES drift 検査 / 再送ガード共通化 | R3 | 品質ゲート穴。順次 |
 
 ## 棄却・据置 (このロードマップで追わない)

@@ -5295,6 +5295,37 @@ def _bt_get_slippage(symbol: str) -> float:
     return 0.00004
 
 
+def _bt_exit_optimism_flags():
+    """BT exit-sim 楽観バイアス toggle (audit P1-2, roadmap v2.3 T14).
+
+    Returns (bt_optimistic, ablate_be_trail).
+
+    BE/Trail シミュレーションは同一バー内で favorable→adverse の順序を常に
+    仮定するため、Python BT の WR を TV Pine 比 ~+20pp 水増しする既知の乖離源
+    (MEMORY project_be_trail_inflates_python_bt_wr、divergence-ablation
+    2026-05-14 で実証)。daytrade エンジンは 2026-05-15 にガード済み。
+    この helper は同じ規約を全 BT エンジンで共有する:
+      - default          → ablate=True  (TV-aligned: BE/Trail OFF)
+      - BT_OPTIMISTIC=1  → ablate=False (旧・楽観挙動を復元, transition 用)
+      - BT_ABLATE_BE_TRAIL=1 は BT_OPTIMISTIC より優先して ablation を維持
+    """
+    bt_optimistic = os.environ.get("BT_OPTIMISTIC") == "1"
+    ablate_be_trail = (not bt_optimistic) or (
+        os.environ.get("BT_ABLATE_BE_TRAIL") == "1")
+    return bt_optimistic, ablate_be_trail
+
+
+def _bt_exit_optimism_cache_suffix() -> str:
+    """BT cache key に BE/Trail ablation フラグを反映 (stale cache 防止)。
+
+    daytrade エンジンの `_abl…_opt…` パターン踏襲 (app.py cache_key 参照)。
+    """
+    return (
+        f"_abl{os.environ.get('BT_ABLATE_BE_TRAIL', '0')}"
+        f"_opt{os.environ.get('BT_OPTIMISTIC', '0')}"
+    )
+
+
 # ═══════════════════════════════════════════════════════
 #  バックテスト（1H / 90日・勝率・期待値算出）
 # ═══════════════════════════════════════════════════════
@@ -5311,7 +5342,10 @@ def run_backtest(symbol: str = "USDJPY=X",
     """
     global _bt_cache
     now = datetime.now()
-    if _bt_cache.get("ts") and (now - _bt_cache["ts"]).total_seconds() < BT_CACHE_TTL:
+    # stale-cache 防止: BE/Trail ablation フラグが変わったら cache を無効化
+    _bt_flags = _bt_exit_optimism_cache_suffix()
+    if (_bt_cache.get("ts") and _bt_cache.get("flags") == _bt_flags
+            and (now - _bt_cache["ts"]).total_seconds() < BT_CACHE_TTL):
         return _bt_cache["result"]
 
     try:
@@ -5325,6 +5359,10 @@ def run_backtest(symbol: str = "USDJPY=X",
         TP_MULT  = 2.5     # default ATR mult
         MAX_HOLD = 24      # bars (24 hours)
         COOLDOWN = 1
+
+        # ── BT default = TV-aligned: BE/Trail OFF (P1-2, v2.3 T14) ──
+        # BT_OPTIMISTIC=1 で旧 (楽観) 挙動復元 — daytrade エンジンと同一規約
+        _BT_OPTIMISTIC, _BT_ABLATE_BE_TRAIL = _bt_exit_optimism_flags()
 
         trades = []
         last_bar = -99
@@ -5504,6 +5542,11 @@ def run_backtest(symbol: str = "USDJPY=X",
             outcome = None; bars_held = 0
             _be_activated = False
             _current_sl = sl
+            _tp_dist = abs(tp - ep)
+            _std_be_thr = _tp_dist * 0.6
+            if _BT_ABLATE_BE_TRAIL:
+                # ablation: make BE threshold effectively unreachable
+                _std_be_thr = float("inf")
             for j in range(1, MAX_HOLD + 1):
                 if i + 1 + j >= len(df): break
                 fut = df.iloc[i + 1 + j]
@@ -5511,11 +5554,10 @@ def run_backtest(symbol: str = "USDJPY=X",
                 fut_close = float(fut["Close"])
 
                 # Partial TP trailing
-                _tp_dist = abs(tp - ep)
-                if sig == "BUY" and hi - ep >= _tp_dist * 0.6:
+                if sig == "BUY" and hi - ep >= _std_be_thr:
                     _be_activated = True
                     _current_sl = max(_current_sl, ep)
-                elif sig == "SELL" and ep - lo >= _tp_dist * 0.6:
+                elif sig == "SELL" and ep - lo >= _std_be_thr:
                     _be_activated = True
                     _current_sl = min(_current_sl, ep)
 
@@ -5646,6 +5688,7 @@ def run_backtest(symbol: str = "USDJPY=X",
 
         _bt_cache["result"] = result
         _bt_cache["ts"]     = now
+        _bt_cache["flags"]  = _bt_flags
         return result
     except Exception as e:
         import traceback
@@ -5734,7 +5777,10 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
         os.environ.get("VOL_MOMENTUM_REDESIGN_V2") == "1"
         or os.environ.get("VOL_MOMENTUM_SCALP_REDESIGN_V2") == "1"
     ) else "0"
-    cache_key = f"{symbol}_{interval}_{lookback_days}_vmV2{_vm_v2_cache_flag}"
+    cache_key = (
+        f"{symbol}_{interval}_{lookback_days}_vmV2{_vm_v2_cache_flag}"
+        f"{_bt_exit_optimism_cache_suffix()}"
+    )
     now = datetime.now()
     if _df_override is None:
         cached = _scalp_bt_cache.get(cache_key)
@@ -5775,6 +5821,10 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
 
         # ── Phase A: スリッページ係数 ──
         _slip_sc = _bt_get_slippage(symbol)
+
+        # ── BT default = TV-aligned: BE/Trail OFF (P1-2, v2.3 T14) ──
+        # BT_OPTIMISTIC=1 で旧 (楽観) 挙動復元 — daytrade エンジンと同一規約
+        _BT_OPTIMISTIC, _BT_ABLATE_BE_TRAIL = _bt_exit_optimism_flags()
 
         # ── v8.8 Phase D: Quick-Harvest toggle & exempt set (Live同期) ──
         _BT_QUICK_HARVEST = True  # Toggle: False で QH 無効化
@@ -6084,6 +6134,10 @@ def run_scalp_backtest(symbol: str = "USDJPY=X",
             _bt_be_thr = atr7 * 0.8    # Tier1: BE threshold
             _bt_ts_thr = atr7 * 1.5    # Tier2: Trailing Stop threshold
             _bt_ts_trail = atr7 * 0.5  # Tier2: trail width
+            if _BT_ABLATE_BE_TRAIL:
+                # ablation: make BE/Trail thresholds effectively unreachable
+                _bt_be_thr = float("inf")
+                _bt_ts_thr = float("inf")
             tp_dist_total = abs(tp - ep)  # BE win時のTP距離参照用
             for j in range(1, MAX_HOLD + 1):
                 if i + 1 + j >= len(df): break
@@ -7304,7 +7358,10 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
     ゾーン内リバーサルシグナルでエントリー。
     """
     global _1h_bt_cache
-    cache_key = f"{symbol}_{interval}_{lookback_days}"
+    cache_key = (
+        f"{symbol}_{interval}_{lookback_days}"
+        f"{_bt_exit_optimism_cache_suffix()}"
+    )
     now = datetime.now()
     cached = _1h_bt_cache.get(cache_key)
     if cached and (now - cached["ts"]).total_seconds() < _1H_BT_TTL:
@@ -7320,6 +7377,10 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
         MAX_HOLD = 30      # 30 bars = 30 hours（ブレイクアウト到達に十分な時間）
         COOLDOWN = 1
         MIN_RR   = 1.2
+
+        # ── BT default = TV-aligned: BE/Trail OFF (P1-2, v2.3 T14) ──
+        # BT_OPTIMISTIC=1 で旧 (楽観) 挙動復元 — daytrade エンジンと同一規約
+        _BT_OPTIMISTIC, _BT_ABLATE_BE_TRAIL = _bt_exit_optimism_flags()
 
         # ── 日次OHLC集計 & ゾーンプリコンピュテーション ──
         # Group 1h bars by date to get daily OHLC
@@ -7497,6 +7558,11 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
             bars_held = 0
             _be_activated = False
             _current_sl = sl
+            _1h_be_thr = abs(tp - ep) * 0.7
+            if _BT_ABLATE_BE_TRAIL:
+                # ablation: make BE/Trail threshold effectively unreachable
+                # (_be_activated が立たないため trail 経路も同時に無効化)
+                _1h_be_thr = float("inf")
             for j in range(1, MAX_HOLD + 1):
                 if i + 1 + j >= len(df):
                     break
@@ -7523,7 +7589,7 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
                 if sig == "BUY":
                     _progress = hi - ep
                     # 70%到達でBE (50%→70%: 利確を急がない)
-                    if _progress >= _tp_dist_total * 0.7:
+                    if _progress >= _1h_be_thr:
                         _be_activated = True
                         _current_sl = max(_current_sl, ep + _tp_dist_total * 0.3)  # BE+30%利益確保
                     # トレーリングストップ: 最高値 - 1.2ATR
@@ -7532,7 +7598,7 @@ def run_1h_backtest(symbol: str = "USDJPY=X",
                         _current_sl = max(_current_sl, _trail_sl)
                 else:
                     _progress = ep - lo
-                    if _progress >= _tp_dist_total * 0.7:
+                    if _progress >= _1h_be_thr:
                         _be_activated = True
                         _current_sl = min(_current_sl, ep - _tp_dist_total * 0.3)
                     if _be_activated:
