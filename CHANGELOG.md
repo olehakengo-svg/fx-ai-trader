@@ -1,5 +1,25 @@
 # FX AI Trader - Changelog
 
+## 2026-07-09 — fix(tier): FORCE_DEMOTED > PAIR_PROMOTED precedence を全経路統一 (rule:R3, latent/実害ゼロ)
+
+- **latent 疑義の確定**: `_is_promoted_ex` (live gate 本体) だけが PP 先勝ち
+  (旧 docstring「PP がグローバル FD を解除」) で、シグナル経路 `_is_live_tier_exempt`
+  (2026-06-12 9b16ebb5 fail-closed) / 送信直前 `_apply_force_demoted_final_gate` /
+  再送 gate と precedence が逆だった。final gate が PP 例外なしに shadow 強制するため
+  **live 漏れは構造的に不可能** (実害ゼロ)。実害候補 = docstring 通りの「PP ペア復活」が
+  silent 死コード化 (ema_pullback×JPY 前例) + audit block_cause 誤帰属
+- **修正**: `_is_promoted_ex` の FD チェックを PP より先に移動 (FD∩PP=∅ が
+  tier_integrity_check check#1 ERROR で強制されているため到達可能入力で挙動不変 =
+  no-op 証明済み、BT 不要の R3)。docstring を正準 precedence に更新、inline 側にも
+  明文化コメント
+- **不変量の CI 固定**: `tests/test_pair_promoted_force_demoted_precedence.py` —
+  FD∩PP=∅ / PP∩PD=∅ / FD∩PP 仮想セル (post_news_vol×GBP_USD) の
+  `_is_promoted_ex`=force_demoted block + final gate shadow 強制 pin (5 tests)。
+  tier_integrity_check は手動運用のみだったため CI 層を追加
+- **正準文書**: `wiki/analyses/system-reference.md` に Tier Precedence セクション
+  (経路別 derivation 表 + ペア限定復活の正規手順)
+- **影響トレード: なし** (全到達可能入力で挙動不変)
+
 ## 2026-07-07 — docs(KB): roadmap v2.3 正式化 + exit-repair pre-reg LOCK + vix pilot 継続裁定 (rule:R1 起点/R3)
 
 - **v2.3 正式化** (user 承認「進めていいよ」): DRAFT 解除。T3 診断確定の訂正を反映 —

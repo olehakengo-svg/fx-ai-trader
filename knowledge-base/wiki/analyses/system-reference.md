@@ -56,6 +56,38 @@
 - **Equity Curve Protector**: DD_LOT_TIERS (DD 2%=0.80x / 4%=0.60x / 6%=0.40x / 8%=0.20x)
 - **v8.9 Equity Reset**: v8.4以降FX-only非Shadowデータで再計算済み → DD=12.39%, lot_mult=0.2x (defensive mode)
 
+## Tier Precedence (正準) — FORCE_DEMOTED > PAIR_PROMOTED (2026-07-09, rule:R3)
+
+**正準ルール**: demote 系 tier (FORCE_DEMOTED / PAIR_DEMOTED、静的 + runtime) は
+PAIR_PROMOTED に**常に先勝ち** (fail-closed)。旧 `_is_promoted` docstring の
+「PAIR_PROMOTED がグローバル FORCE_DEMOTED を解除」は 2026-04-27 以前の設計で、廃止済み。
+
+- **不変量**: `FORCE_DEMOTED ∩ {s for (s,p) in PAIR_PROMOTED} = ∅` (禁止構成)。
+  執行点: `tools/tier_integrity_check.py` check#1 (ERROR) +
+  `tests/test_pair_promoted_force_demoted_precedence.py` (CI)
+- **ペア限定復活の正規手順**: FORCE_DEMOTED から戦略を外す → 勝ちペアを
+  PAIR_PROMOTED、負けペアを PAIR_DEMOTED に登録 (bb_squeeze 2026-04-21 /
+  donchian×NZD 2026-05-27 前例)。PP 追加だけでは復活しない
+  (ema_pullback×JPY 死コード前例、v9.1 で撤去)
+- **経緯**: 2026-04-27 rule:R2 (post_news_vol FD∩PP 矛盾解消) で FD 優先評価規律を確立
+  → 2026-06-12 rule:R3 live-tier-exempt-leak-audit (9b16ebb5) がシグナル経路
+  `_is_live_tier_exempt` を fail-closed 化 → 2026-07-09 rule:R3 で最後まで旧順序だった
+  `_is_promoted_ex` を FD 先勝ちに統一 (FD∩PP=∅ のため到達可能入力で挙動不変 = no-op 証明済み)
+
+### FD∩PP 仮想セルの経路別挙動 (2026-07-09 derivation、統一後は全経路 fail-closed)
+| 経路 (demo_trader.py) | 統一前 | 統一後 |
+|---|---|---|
+| `_is_promoted_ex` (live gate 本体) | **PP 先勝ち → live 資格あり** | FD 先勝ち → `force_demoted` block |
+| `_is_live_tier_exempt` (シグナル経路 alpha_scan/MTF/R2 免除) | FD 先勝ち (9b16ebb5) | 同左 (変更なし) |
+| `_apply_force_demoted_final_gate` (送信直前) | FD 強制 shadow (PP 例外なし) | 同左 (決定層) |
+| `_resend_promote_gate_block_reason` (再送) | FD block | 同左 |
+| `_resolve_tier` → `_resolve_is_shadow_for_write` (write-path) | PP 先勝ちだが OANDA fill 確認必須で shadow 固定 | 同左 (fill 確認が防御) |
+| regime/spread/Phase0 gate 免除 (raw PP membership 参照) | PP 先勝ち (免除) | 同左 — demote セルは最終 gate で shadow 化されるため免除は shadow 観測の拡大にのみ作用 (原則3 整合) |
+
+統一前も final gate により **live 漏れは構造的に不可能**だった (latent、実害ゼロ)。
+実害候補は (a) docstring 通り「PP でペア復活」を試みると silent 死コード化、
+(b) audit の block_cause 誤帰属 — 両方とも本統一で解消。
+
 ## Active Trading Rules & Constraints
 
 ### COOLDOWN (Re-entry Throttle)

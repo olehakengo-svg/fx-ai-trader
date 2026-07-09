@@ -4,6 +4,25 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-09 — fix(tier): FORCE_DEMOTED > PAIR_PROMOTED precedence 全経路統一 (rule:R3)
+
+- **latent 疑義の確定**: `_is_promoted_ex` のみ PP 先勝ちで、シグナル経路
+  `_is_live_tier_exempt` (9b16ebb5 fail-closed) / `_apply_force_demoted_final_gate` /
+  再送 gate と逆。final gate が PP 例外なしに shadow 強制するため live 漏れは構造的に
+  不可能 = **実害ゼロ (latent)**。実害候補は「PP でペア復活」の silent 死コード化
+  (ema_pullback×JPY 前例) と audit block_cause 誤帰属のみ
+- **修正**: `_is_promoted_ex` を FD 先勝ちに統一 + docstring 正準化。FD∩PP=∅
+  (tier_integrity_check check#1) のため到達可能入力で挙動不変 (no-op 証明、BT 不要 R3)
+- **CI 固定**: `tests/test_pair_promoted_force_demoted_precedence.py` (5 tests) で
+  FD∩PP=∅ / PP∩PD=∅ 不変量 + precedence pin。正準文書 = [[system-reference]] Tier
+  Precedence セクション (経路別 derivation 表)
+- **副次発見 (未修正・chip 済み task_84ce5e08 向け情報)**: post-commit-verify.sh
+  check#3 の `pp_sentinel` チェック前提は stale — PP∩UNIVERSAL_SENTINEL は
+  {vix_carry_unwind, doji_breakout, squeeze_release_momentum} で非空かつ**設計上合法**
+  (PP が SENTINEL shadow eligibility を override、demo_trader.py L8079 コメント)。
+  quoting バグを単純修正すると全 commit で誤検知になるため、chip 側で premise 再監査必須
+- **影響トレード: なし**
+
 ## 2026-07-09 — WS3 stage-2 pre-reg DRAFT 起案 + KB stale 棚卸し (rule:R1 起案 / R3 doc-sync)
 
 - **stage-2 barrier/EV pre-reg DRAFT** ([[ws3-stage2-barrier-ev-prereg-2026-07-09]]): PASS 2 セル限定 h24 barrier grid (m=18)。評価 = 第3窓 OOS-2 (2022-07〜2024-07、2年) で winner's curse 遮断、Westfall–Young max-T セル検定 (FWER 0.10)、TV Pine canon trade-level 突合ゲート、3 分岐 verdict (PASS/UNDERPOWERED/REJECT)。敵対的レビュー 3 レンズ 18 findings 反映 (tie-break 帰属訂正 = SL 優先は swing 規約で fut_close pin より保守側、検定力分析による 2 年窓化、timeout ドリフト PASS の排除等)。**DRAFT — user 決裁期日 2026-07-16 (registry `ws3-stage2-lock-decision-stale` 監視)、LOCK 前の grid BT 実行禁止**
