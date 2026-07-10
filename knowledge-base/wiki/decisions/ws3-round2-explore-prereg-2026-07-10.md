@@ -1,6 +1,6 @@
-# Pre-registration DRAFT: WS3 探索2周目 — 方向性非対称の新軸探索 (rule:R1 stage-1 型、純研究)
+# Pre-registration LOCK: WS3 探索2周目 — 方向性非対称の新軸探索 (rule:R1 stage-1 型、純研究)
 
-**起案日**: 2026-07-10。**Status**: 📝 **DRAFT — 候補セル未確定 (§2 の診断実行後に列挙・固定して self-LOCK)**
+**起案日**: 2026-07-10。**Status**: 🔒 **LOCKED (2026-07-10 self-LOCK — §2 診断 + §2(ii) EV スクリーン完了、候補 m=5 を §2b に凍結。純研究・live/shadow 変更なし、user 通知済み決裁パッケージ [[shortest-path-decision-memo-2026-07-10]] 準拠)**。以後の候補/grid/窓/エンドポイント変更禁止、本文書の変更はレビュー必須 PR のみ。**OOS verdict 期日: 2026-07-17 (registry `ws3-round2-oos-verdict-deadline` が毎日監視)**
 **位置づけ**: [[shortest-path-decision-memo-2026-07-10]] トラックB (供給ライン)。stage-2 ([[ws3-stage2-barrier-ev-prereg-2026-07-09]]) の結果に依存せず常時運転する。**純研究 — live/shadow 変更なし**。self-LOCK 根拠 = stage-1 前例 ([[ws3-asymmetry-oos-prereg-2026-07-09]] の承認欄) + user 通知済み・異議なし (2026-07-09 提案 → 07-10「進めて」)
 **タスク票**: `.ai/tasks/queue/20260710-ws3-round2-explore.md` (排他 claim)
 
@@ -22,6 +22,28 @@ round-1 で探索した軸 (entry_type×pair プール方向、h24 主表) の�
   - **上限 m=10** (超過時は探索窓 EV 降順で切る — 今宣言)
 - 診断結果 (候補列挙 + 各候補の探索窓 EV) を本文書 §2b に追記して **self-LOCK (Status 🔒)** → 以後の候補変更禁止
 - **注意**: 探索窓 EV は選抜にのみ使用 (探索標本の消費)。OOS 判定 (§3) では ratio と **OOS first-touch EV の両方**を評価し、確認的根拠は OOS 側のみ
+
+## 2b. 候補セット (診断 + §2(ii) EV スクリーン 2026-07-10 実行済み、m=5 — LOCK 対象、以後変更禁止)
+
+- 1次スクリーン (§2(i)): `raw/bt-results/ws3_round2_scan_2026_07.{json,md}` — 8 セル (選抜規則 N≥30 ∧ (ratio_h24≥1.3 ∪ 持続型)、除外機械適用済み。round-1 checkpoint との窓同一性 0 mismatch 検証済み)
+- 2次スクリーン (§2(ii)): `raw/bt-results/ws3_round2_ev_screen_2026_07.{json,md}` — 探索窓 first-touch EV (stage-2 sim 同形 first_touch 移植、SL 優先 tie-break、per-pair 摩擦控除、ep 復元 616/616 一致検証) で **5/8 通過**。脱落 = turtle_soup×GBP_USD (best +2.24 だが孤立格子点 0/2) / dt_sr_channel_reversal×GBP_USD×SELL (best +0.60、孤立格子点 0/2) / sr_fib_confluence×AUD_JPY×SELL (best EV −1.05 < 0)
+
+| # | cell | 型 (固定) | 探索 ratio (h24→h96) | N | Primary H | 凍結 grid TP/SL | best (探索窓 EV) | 隣接正 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | sr_fib_confluence×GBP_USD×SELL | 持続 | 1.18→1.66 | 95 | h96 | [47,76,111]/[28,62,81] | tp111_sl62 (+8.88) | 3/3 |
+| 2 | vol_spike_mr×USD_JPY×BUY | 減衰 | 1.49→1.38 | 39 | h24 | [29,43,71]/[20,32,63] | tp71_sl63 (+4.30) | 2/2 |
+| 3 | sr_fib_confluence×EUR_USD×SELL | 持続 | 1.36→1.49 | 99 | h96 | [34,53,70]/[23,42,74] | tp53_sl42 (+6.63) | 4/4 |
+| 4 | vsg_jpy_reversal×GBP_JPY×SELL | 減衰 | 1.48→1.23 | 106 | h24 | [35,57,86]/[24,43,64] | tp35_sl64 (+1.17) | 2/2 |
+| 5 | dt_sr_channel_reversal×GBP_JPY×BUY | 持続 | 0.97→1.33 | 77 | h96 | [67,105,127]/[51,83,132] | tp67_sl83 (+13.26) | 3/3 |
+
+- 型・primary horizon・**grid は探索標本で凍結** — OOS での horizon 選び直し・再アンカー禁止 (§3(B))
+- 摩擦 (往復、判定値、凍結): EUR_USD 2.00 / USD_JPY 2.14 / GBP_USD 4.53 / AUD_JPY 3.125 / **GBP_JPY 4.53** (理論テーブル不在のため GBP_USD 同値の保守採用 — a priori 宣言)
+- 探索窓 EV は選抜にのみ使用 (選択バイアス込み — 確認的根拠は OOS §3(B) のみ)
+- **相関クラスタ記録**: sr_fib_confluence×SELL が 2/5 (GBP_USD/EUR_USD)。共通 USD 方向レジームの可能性は OOS で判別。stage-2 移行時は同一戦略クラスタとして barrier 設計を共通化
+- **裁定記録 (親セッション 2026-07-10、EV スクリーン実行前)**: turtle_soup×GBP_USD は falsified 非該当 (探索ハーネス仮説の再試行禁止と既存 entry_type の非対称計測は estimand 相違 — stage-1 の lin_reg_channel 前例と同型) として §2(ii) に投入されたが、EV スクリーンで機械的脱落 — OOS には進まない。dt_bb_rsi_mr 系統の保守的全除外は親承認済み
+- 軸(b) EUR_GBP は BT 最小サンプルガード (<20 trades/365d) で候補到達不能 (診断 md §(i)、構造的必然として記録)
+- OOS 判定 = §3 の 2 レグ (A: ratio BH-FDR **m=5** / B: 凍結 grid の OOS first-touch EV、best 3×3 近傍平均 ≥ +0.5 p/t ∧ 隣接過半 EV>0) + ナイフエッジ3点検査。OOS-1 窓 (2024-07-07〜2025-07-07) の再利用 = 2 回目 (per-cell 未使用のため有効)
+- **薄い通過の事前認識**: vsg_jpy_reversal×GBP_JPY×SELL は best +1.17p vs 摩擦 4.53p で余裕が小さく best が grid 端 (SL=p90)。持続型 3 セルは timeout 率 34-64% と高い — OOS ナイフエッジの EV' (timeout→0) 検査が機構整合を担保する
 
 ## 3. OOS 検証 (LOCK 後)
 

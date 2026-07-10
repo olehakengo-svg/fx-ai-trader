@@ -4,6 +4,13 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-10 — docs(kb): WS3 探索2周目 pre-reg LOCK — 候補 m=5 凍結 (rule:R1 stage-1 型、純研究)
+
+- **診断** (`raw/bt-results/ws3_round2_scan_2026_07`): 方向分割 196 セル + EUR_GBP (entries=0 構造的) + h96 → 1次候補 8 セル。round-1 checkpoint 窓同一性 0 mismatch
+- **§2(ii) 探索窓 first-touch EV スクリーン** (`ws3_round2_ev_screen_2026_07`): **5/8 通過**。脱落 = turtle_soup×GBP_USD / dt_sr_channel×GBP_USD×SELL (孤立格子点) / sr_fib×AUD_JPY×SELL (EV<0)。stage-2 verdict の教訓「非対称 ≠ 固定 barrier で EV 化可能」をスクリーン結果観測前に pre-reg へ反映した a priori 改訂が機能
+- **LOCK**: [[ws3-round2-explore-prereg-2026-07-10]] §2b に m=5 + 凍結 grid + 摩擦判定値を固定。registry `ws3-round2-oos-verdict-deadline` (2026-07-17) 追加
+- **評価への影響**: なし (純研究、live/shadow 変更なし)
+
 ## 2026-07-10 — feat(mode): 15m AUD_JPY shadow-only モード `daytrade_audjpy` 新設 (user 承認 D2)
 
 - **目的**: WS3 stage-2 対象セル htf_false_breakout×AUD_JPY の estimand は **15m** だが、本番 AUD_JPY は 1h モード (`daytrade_1h_audjpy`) のみで 15m shadow 発火ゼロだった。stage-2 PASS 時に shadow parity 検証を即開始できる状態 + AUD_JPY 実測摩擦 (spread/slippage) の取得。決裁メモ: [[shortest-path-decision-memo-2026-07-10]] / pre-reg: [[ws3-stage2-barrier-ev-prereg-2026-07-09]]

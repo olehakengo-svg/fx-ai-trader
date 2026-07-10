@@ -98,6 +98,14 @@
       "expected_per_week": 3.9,
       "doc": "knowledge-base/wiki/decisions/pre-reg-kalman-d7-shadow-fire-recovery-2026-05-28.md",
       "message": "kalman D7 発火数 (3 variant 前方一致合算) vs BT 期待 3.9/週。分子ゼロが続く場合は Render ログの [kalman_d7] QUALBAR 行 (分母) と突合して 0-fire の原因を判定"
+    },
+    {
+      "id": "ws3-round2-oos-verdict-deadline",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-07-17",
+      "doc": "knowledge-base/wiki/decisions/ws3-round2-explore-prereg-2026-07-10.md",
+      "message": "WS3 探索2周目 OOS verdict 期日 (LOCK 2026-07-10、候補 m=5 凍結済み)。期日までに verdict §追記が無ければ stale アラート (T5 型ギャップ防止)"
     }
   ]
 }
