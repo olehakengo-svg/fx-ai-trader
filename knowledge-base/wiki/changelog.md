@@ -4,6 +4,24 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-09 — fix(tier): FORCE_DEMOTED > PAIR_PROMOTED precedence 全経路統一 (rule:R3)
+
+- **latent 疑義の確定**: `_is_promoted_ex` のみ PP 先勝ちで、シグナル経路
+  `_is_live_tier_exempt` (9b16ebb5 fail-closed) / `_apply_force_demoted_final_gate` /
+  再送 gate と逆。final gate が PP 例外なしに shadow 強制するため live 漏れは構造的に
+  不可能 = **実害ゼロ (latent)**。実害候補は「PP でペア復活」の silent 死コード化
+  (ema_pullback×JPY 前例) と audit block_cause 誤帰属のみ
+- **修正**: `_is_promoted_ex` を FD 先勝ちに統一 + docstring 正準化。FD∩PP=∅
+  (tier_integrity_check check#1) のため到達可能入力で挙動不変 (no-op 証明、BT 不要 R3)
+- **CI 固定**: `tests/test_pair_promoted_force_demoted_precedence.py` (5 tests) で
+  FD∩PP=∅ / PP∩PD=∅ 不変量 + precedence pin。正準文書 = [[system-reference]] Tier
+  Precedence セクション (経路別 derivation 表)
+- **副次発見の相互裏付け**: post-commit-verify.sh check#3 の `pp_sentinel` premise
+  stale (PP∩UNIVERSAL_SENTINEL = {vix_carry_unwind, doji_breakout,
+  squeeze_release_momentum} は設計上合法) を本調査でも独立に確認 — 並行セッションの
+  check#3 修正 (下記 f292ccb1、マージで合流) と同一結論
+- **影響トレード: なし**
+
 ## 2026-07-09 — WS3 stage-2 pre-reg LOCKED — user 承認 (rule:R1)
 
 - [[ws3-stage2-barrier-ev-prereg-2026-07-09]] を user 承認「進めて」で 📝 DRAFT → 🔒 LOCKED (決裁期日 07-16 の 7 日前倒し)。verdict 期日 2026-07-19 (LOCK+10d、registry `ws3-stage2-verdict-deadline` 監視)
