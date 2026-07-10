@@ -49,7 +49,7 @@
 
 | 担当 | 領域 |
 |---|---|
-| zen-mahavira セッション (排他 claim `20260709-1610-ws3-stage2-barrier-ev-prereg`) | stage-2 執行: barrier sim / TV canon / verdict (期日 07-19、registry 監視) |
+| zen-mahavira セッション (排他 claim `20260709-1610-ws3-stage2-barrier-ev-prereg`) | stage-2 執行 → **verdict 確定 2026-07-10 (PR #75、9日前倒し): ❌ PASS ゼロ / UNDERPOWERED** — lfr×EUR_USD クローズ、htf_fb×AUD_JPY は shadow N≥100 で1回限り再判定 (registry `ws3-stage2-underpowered-recheck`)。詳細 = [[ws3-stage2-barrier-ev-prereg-2026-07-09]] §8 |
 | 本セッション | 決裁メモ (本文書) / D5 目標段階化 / D2 15m AUD_JPY shadow モード / 探索2周目 pre-reg 起案 |
 | 別セッション (継続) | T-MTF 構造調査 (task_566c4c4d) / slippage 列 API 輸出 (task_d932525c) |
 
@@ -63,3 +63,10 @@
 ```
 
 **正直なタイムライン**: 統計確認済み月次プラス (M1) = 最短 2026 Q4 末、現実的 2027 前半 (stage-2 PASS + 決裁順調の条件付き)。月次符号は 2026 Q4 にも揺らぎで出得るがノイズと区別しない。
+
+## 6. 追記 (2026-07-10 同日): stage-2 verdict 着地によるトラック更新
+
+- **stage-2 verdict = ❌ PASS ゼロ / UNDERPOWERED** ([[ws3-stage2-barrier-ev-prereg-2026-07-09]] §8、期日 9 日前倒し)。「MFE/MAE 非対称 ≠ 固定 barrier で EV 化可能」が実証され (lfr は SL 先着率 44-75% で全構成深負)、T2 exit-repair と合わせ **現行シグナル母集団の exit 側改善は完全否定**
+- **トラックA は縮退**: 残るのは (i) htf_fb×AUD_JPY の shadow N≥100 再判定 (発火 ~2.5-3.3件/月では長期 — **D2 の 15m AUD_JPY shadow モードが到達の前提条件**) (ii) trendline_sweep×EUR_USD の live N 蓄積再評価
+- **主戦線はトラックB (供給ライン) へ移行**: 探索2周目 ([[ws3-round2-explore-prereg-2026-07-10]]) は verdict の教訓を **LOCK 前・スキャン結果観測前に反映済み** — 選抜と OOS 判定の両方に first-touch EV レグを追加 (ratio 単独スクリーンの failure mode を構造的に排除)。加えて roadmap WS3 の T10 (gbp_deep_pullback) / T11 (sr_anti_hunt_bounce) 診断、および外部仮説 (学術/TV 由来) が既定候補
+- **M1 タイムラインへの影響**: 「stage-2 PASS → 8月 live pilot」の最短分岐は消滅。M1 は供給ラインからの新 survivor (EV レグ込み) が前提となり、**最短でも 2027 前半、現実的には 2027 央** に後ろ倒し。トラックC (carve-out / 防御解除ラダー) の設計は survivor 到達時に即使えるよう D4 で維持

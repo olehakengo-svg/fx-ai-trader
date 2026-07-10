@@ -16,13 +16,20 @@ round-1 で探索した軸 (entry_type×pair プール方向、h24 主表) の�
   - (b) **未走査ペア** — round-1 h24 表に現れなかった production shadow 母集団のペア (機械的に列挙し診断 md に記録)
   - (c) **h96 主軸の持続型** — round-1 で h24 主表から漏れた持続型増幅セル
 - **除外 (再試行禁止)**: stage-1 判定済み 8 セル**とその方向分割サブセル** (多重性ロンダリング防止) / falsified 6 系統 (H4 level / channel / 水平sweep&reclaim / mtf SELL / bb_rsi / T11 counter-USD) / trendline_sweep×EUR_USD (stage-1 §8.3(c) により live N 蓄積経路限定)
-- **選抜規則** (round-1 と同一): 探索窓 ratio≥1.3 (h24) ∪ 持続型 (h96 で増幅) ∧ 探索窓 N≥30。**上限 m=10** (超過時は ratio 降順で切る — 今宣言)
-- 診断結果 (候補列挙) を本文書 §2b に追記して **self-LOCK (Status 🔒)** → 以後の候補変更禁止
+- **選抜規則 (2026-07-10 改訂 — stage-2 verdict 反映、round-2 スキャン結果の観測前)**:
+  - (i) 探索窓 ratio≥1.3 (h24) ∪ 持続型 (h96 で増幅) ∧ 探索窓 N≥30 — round-1 と同一の1次スクリーン
+  - (ii) **【新設】探索窓 first-touch EV スクリーン**: 1次通過セルに対し、探索窓で first-touch barrier sim (`tools/ws3_stage2_barrier_sim.py` 流用、TP/SL = 当該セル探索窓 MFE/MAE 分位点アンカー 3×3 grid、SL 優先 tie-break、per-pair 摩擦控除) を実行し、**best 構成の摩擦調整 EV > 0 ∧ 隣接構成の過半が EV > 0** (孤立格子点除外) を要求。根拠 = stage-2 verdict ([[ws3-stage2-barrier-ev-prereg-2026-07-09]] §8): 「MFE/MAE 非対称 ≠ 固定 barrier で EV 化可能」— sequencing (SL 先着) で ratio survivor が全滅した failure mode を探索段で先に落とす。**本改訂は round-2 スキャン結果・OOS の観測前 (2026-07-10) に行った a priori 変更である**
+  - **上限 m=10** (超過時は探索窓 EV 降順で切る — 今宣言)
+- 診断結果 (候補列挙 + 各候補の探索窓 EV) を本文書 §2b に追記して **self-LOCK (Status 🔒)** → 以後の候補変更禁止
+- **注意**: 探索窓 EV は選抜にのみ使用 (探索標本の消費)。OOS 判定 (§3) では ratio と **OOS first-touch EV の両方**を評価し、確認的根拠は OOS 側のみ
 
 ## 3. OOS 検証 (LOCK 後)
 
 - **OOS 窓**: 2024-07-07〜2025-07-07 — 候補は全て未判定セルなので本窓は per-cell 未使用 = 有効な OOS。窓の再利用回数を verdict に明記 (3周目以降の独立窓枯渇管理)
-- **判定** (round-1 と同一): median-ratio 日次ブロックブートストラップ (B=10,000、seed 固定) → BH-FDR q=0.10 (m=候補数) ∧ point ratio≥1.2 ∧ OOS N≥30、型別 primary horizon 固定。ナイフエッジ3点検査
+- **判定 (2レグ、両方充足で PASS — 2026-07-10 改訂、スキャン結果観測前)**:
+  - **(A) ratio レグ** (round-1 と同一): median-ratio 日次ブロックブートストラップ (B=10,000、seed 固定) → BH-FDR q=0.10 (m=候補数) ∧ point ratio≥1.2 ∧ OOS N≥30、型別 primary horizon 固定
+  - **(B) EV レグ (新設)**: §2(ii) で **LOCK 時に凍結した grid** (探索窓分位点アンカー — OOS で再アンカーしない) の OOS first-touch 摩擦調整 EV について、**best 構成の 3×3 近傍平均 EV ≥ +0.5 p/t ∧ 隣接構成の過半が EV > 0** (stage-2 §4(b)/§5.3 と同基準)。lfr 型の「ratio は再現するが EV 化不能」を OOS 段で機械的に落とす
+  - ナイフエッジ3点検査 (擬似反復 / 孤立格子点 / fold 集中 — stage-2 §5 準拠、LOFO 含む)
 - **分岐 (事前固定)**: PASS≥1 → stage-2 型 barrier/EV pre-reg 起案 (**その段から user LOCK 承認**) / PASS=0 → 本番 shadow 母集団内の軸は枯渇と判定し、**外部仮説 (新シグナル系統 — 学術/TV 由来、falsified 6 系統除外) の探索へ転進** — survivor 確率は保証しない (round-1 の 25%/セルは上澄み候補での値、round-2 はそれ以下が自然)
 
 ## 4. 期日・監視
