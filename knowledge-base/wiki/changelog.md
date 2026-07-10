@@ -4,6 +4,13 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-10 — docs(kb): 最短経路決裁 (user 承認「進めて」) + 月利目標の段階化 (rule:R3 導出)
+
+- **決裁メモ**: [[shortest-path-decision-memo-2026-07-10]] — 8-agent workflow + 敵対的レビュー3レンズによるゼロベース再検討。**agg-Kelly gate 恒久閉鎖の確定** (固定 cutoff 2026-04-16 累積 −0.2758 → per-cell carve-out なしで正セルも live 発火不能)、D3 決裁 SLA 48h、D4 実装 pre-reg 必須項目 (carve-out + R2 自動降格 + セル単位判定 + parity)
+- **目標段階化 (D5)**: [[monthly-target-rederivation-2026-07-10]] — 21.6% の導出考古学 (12-cell 母体 1〜2/12 残存、二重楽観バイアス、pips→%変換消失)。現行制約下天井 = 2セルで +0.15〜2.4%/月。**段階目標 M1 (月次符号転換) → M2 (+0.5%/月) → M3 (+2〜3%/月) へ移行、21.6% は aspirational anchor** — CLAUDE.md / index / roadmap v2.3 反映
+- **トラックB 起動**: [[ws3-round2-explore-prereg-2026-07-10]] DRAFT (探索2周目: 方向分割×未走査ペア×h96、判定済み8セル+falsified 6系統除外、queue `20260710-ws3-round2-explore` 排他 claim)
+- **評価への影響**: なし (live パラメータ変更なし。D2 15m AUD_JPY shadow-only モードは別 PR)
+## 2026-07-09 — fix(tier): FORCE_DEMOTED > PAIR_PROMOTED precedence 全経路統一 (rule:R3)
 ## 2026-07-10 — WS3 stage-2 verdict: ❌ PASS ゼロ / UNDERPOWERED — barrier EV 化は不成立 (rule:R1)
 
 - pre-reg LOCK ([[ws3-stage2-barrier-ev-prereg-2026-07-09]]) の機械的実行 (期日 07-19 の 9 日前倒し)。OOS-2 = 2022-07-07〜2024-07-06 (第3窓、切詰め worktree)。§3 執行順序遵守 (エントリー抽出 → N 凍結 59/46 → sim)。独立実装の再計算で符号一致検証

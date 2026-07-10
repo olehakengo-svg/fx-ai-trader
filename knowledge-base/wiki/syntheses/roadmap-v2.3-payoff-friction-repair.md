@@ -1,6 +1,7 @@
 # ロードマップ v2.3: 決済非対称と摩擦の是正 — 負エッジ確定局面からの構造回復
 
 > **✅ 正式版 (user 承認 2026-07-07「進めていいよ」)。** autopilot は R2/R3 項目を実行可。**R1 項目は個別に Rule 1 手続き (365d BT + Bonferroni + Pre-reg LOCK + user 最終承認) を経て執行** — ロードマップ正式化は計画の承認であり、個別 R1 レバーの包括承認ではない。目標 (月利21.6% 数学的上限への段階接近、user 承認 2026-06-12) は不変。
+> **📌 目標更新 (2026-07-10 user 承認)**: 目標は段階目標 M1→M2→M3 へ移行、21.6% は aspirational anchor に格下げ ([[monthly-target-rederivation-2026-07-10]] / [[shortest-path-decision-memo-2026-07-10]])。本ロードマップの WS 構成は不変 — 最短経路はトラックA (stage-2 → 07-10 verdict で縮退: htf_fb recheck + trendline live N のみ) / B (探索供給ライン = [[ws3-round2-explore-prereg-2026-07-10]]、**主戦線**) / C (資本配管: agg-Kelly carve-out + 防御解除ラダー) の3並行。
 
 **作成日**: 2026-07-06 (handoff タスク `fx-roadmap-v23-handoff` タスク2) / **正式化**: 2026-07-07 (T3 診断確定の訂正込み)
 **旧版**: [[roadmap-v2.2-win-conversion]] (2026-06-12、全12項目クローズ済み PR #44-#50)
