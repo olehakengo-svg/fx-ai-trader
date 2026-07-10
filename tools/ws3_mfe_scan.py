@@ -64,6 +64,10 @@ def main() -> None:
                     help="カンマ区切り pair リスト (default: 全6)")
     ap.add_argument("--out-suffix", default="",
                     help="出力ファイル名 suffix (OOS run 等の区別用)")
+    ap.add_argument("--split-direction", action="store_true",
+                    help="BUY/SELL 方向分割セル (entry_type×pair×sig) を JSON "
+                         "`cells_by_direction` と md 追加表に出力 (round-2 新軸)。"
+                         "デフォルト OFF — 既存出力 (pooled cells) は不変")
     args = ap.parse_args()
     pairs = [p.strip() for p in args.pairs.split(",") if p.strip()]
     out_json = OUT_JSON.replace(".json", f"{args.out_suffix}.json")
@@ -85,7 +89,8 @@ def main() -> None:
     t0 = time.time()
     for pair in pairs:
         app._dt_bt_cache.clear()
-        res = app.run_daytrade_backtest(SYMBOLS[pair], lookback_days=LOOKBACK_DAYS,
+        symbol = SYMBOLS.get(pair, pair.replace("_", "") + "=X")
+        res = app.run_daytrade_backtest(symbol, lookback_days=LOOKBACK_DAYS,
                                         interval="15m")
         if "error" in res:
             print(f"[mfe] {pair}: BT error {res['error']}", file=sys.stderr, flush=True)
@@ -141,22 +146,34 @@ def main() -> None:
     def q(vals, p):
         return round(float(np.percentile(vals, p)), 2) if len(vals) else None
 
+    def _aggregate(groups):
+        agg = {}
+        for key, rs in sorted(groups.items()):
+            s = {"n": len(rs)}
+            for h in HORIZONS:
+                m = np.array([r[f"mfe_{h}"] for r in rs], dtype=float)
+                a = np.array([r[f"mae_{h}"] for r in rs], dtype=float)
+                s[f"h{h}"] = {
+                    "mfe_p50": q(m, 50), "mfe_p75": q(m, 75), "mfe_p90": q(m, 90),
+                    "p_mfe_ge15": round(float((m >= 15).mean()), 3),
+                    "p_mfe_ge20": round(float((m >= 20).mean()), 3),
+                    "mae_p50": q(a, 50),
+                }
+            agg[key] = s
+        return agg
+
     cells = {}
     for r in entries:
-        cells.setdefault((r["entry_type"], r["pair"]), []).append(r)
-    summary = {}
-    for (et, pair), rs in sorted(cells.items()):
-        s = {"n": len(rs)}
-        for h in HORIZONS:
-            m = np.array([r[f"mfe_{h}"] for r in rs], dtype=float)
-            a = np.array([r[f"mae_{h}"] for r in rs], dtype=float)
-            s[f"h{h}"] = {
-                "mfe_p50": q(m, 50), "mfe_p75": q(m, 75), "mfe_p90": q(m, 90),
-                "p_mfe_ge15": round(float((m >= 15).mean()), 3),
-                "p_mfe_ge20": round(float((m >= 20).mean()), 3),
-                "mae_p50": q(a, 50),
-            }
-        summary[f"{et}__{pair}"] = s
+        cells.setdefault(f"{r['entry_type']}__{r['pair']}", []).append(r)
+    summary = _aggregate(cells)
+
+    summary_dir = None
+    if args.split_direction:
+        cells_dir = {}
+        for r in entries:
+            cells_dir.setdefault(
+                f"{r['entry_type']}__{r['pair']}__{r['sig']}", []).append(r)
+        summary_dir = _aggregate(cells_dir)
 
     out = {
         "task": "20260708-1130-ws3-mfe-distribution-diagnosis",
@@ -168,6 +185,7 @@ def main() -> None:
         "pairs": pairs, "env": {**BASE_ENV, **PARITY_ENV},
         "n_entries": len(entries),
         "cells": summary,
+        **({"cells_by_direction": summary_dir} if summary_dir is not None else {}),
         "caveats": [
             "MFE はバー粒度 (tick 未満不可視)。live 実測 (payoff-asymmetry §1) と比較時に明記",
             "ep は摩擦込み fill 価格 — MFE は実質 net 方向の走り",
@@ -197,6 +215,21 @@ def main() -> None:
                      f"| {h['mfe_p90']} | {h['p_mfe_ge15']} | {h['p_mfe_ge20']} "
                      f"| {h['mae_p50']} |")
     lines += ["", f"N<{MIN_N} セルと他 horizon は JSON 参照。", ""]
+    if summary_dir is not None:
+        lines += [
+            "## 方向分割セル (entry_type × pair × sig, h24)",
+            "",
+            "| cell | N | MFE p50 | p75 | p90 | P(≥15p) | P(≥20p) | MAE p50 |",
+            "|---|---|---|---|---|---|---|---|",
+        ]
+        rows_d = [(k, v) for k, v in summary_dir.items() if v["n"] >= MIN_N]
+        rows_d.sort(key=lambda kv: -(kv[1]["h24"]["p_mfe_ge20"] or 0))
+        for k, v in rows_d:
+            h = v["h24"]
+            lines.append(f"| {k} | {v['n']} | {h['mfe_p50']} | {h['mfe_p75']} "
+                         f"| {h['mfe_p90']} | {h['p_mfe_ge15']} "
+                         f"| {h['p_mfe_ge20']} | {h['mae_p50']} |")
+        lines.append("")
     with open(out_md, "w") as f:
         f.write("\n".join(lines))
     print(f"[mfe] saved {out_md}", file=sys.stderr, flush=True)

@@ -1,0 +1,34 @@
+{
+ "task": "20260708-1130-ws3-mfe-distribution-diagnosis",
+ "rule": "R3",
+ "generated_utc": "2026-07-10T06:34:54.494307+00:00",
+ "engine": "app.run_daytrade_backtest baseline (倍率なし) + parquet forward scan",
+ "lookback_days": 365,
+ "horizons_bars": [
+  6,
+  12,
+  24,
+  48,
+  96
+ ],
+ "diag_window_excluded_from": "2026-06-07",
+ "pairs": [
+  "EUR_GBP"
+ ],
+ "env": {
+  "BT_MODE": "1",
+  "NO_AUTOSTART": "1",
+  "BT_REQUIRE_MASSIVE_CACHE": "1",
+  "WICK_IMBALANCE_REVERSION_REDESIGN_V2": "1",
+  "DT_SR_CHANNEL_REDESIGN_V2": "1",
+  "VSG_JPY_REVERSAL_REDESIGN_V2": "1"
+ },
+ "n_entries": 0,
+ "cells": {},
+ "cells_by_direction": {},
+ "caveats": [
+  "MFE はバー粒度 (tick 未満不可視)。live 実測 (payoff-asymmetry §1) と比較時に明記",
+  "ep は摩擦込み fill 価格 — MFE は実質 net 方向の走り",
+  "screen であり promote 判定ではない。閾値の事前固定は次の pre-reg で行う"
+ ]
+}
