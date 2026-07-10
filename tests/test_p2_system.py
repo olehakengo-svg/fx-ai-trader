@@ -356,7 +356,12 @@ class TestBtDivergenceParser:
         )
 
     def test_session_time_bias_in_bt_metrics(self):
-        """session_time_biasがBTメトリクスに含まれること（N蓄積の要）"""
+        """session_time_biasがBTメトリクスに含まれること（N蓄積の要）。
+
+        ファイル選択は preprocess_bt_divergence と同一 (all-pairs/full-audit
+        優先)。旧実装は「辞書順最後の .md」を盲目的に見ており、パーサが
+        使わない研究成果物 (ws3_stage2_* 等) の追加で誤 red になっていた
+        (2026-07-10 訂正 — テストがパーサ実装を反映していなかった)。"""
         import os, re
         bt_dir = os.path.join(os.path.dirname(__file__), "..", "knowledge-base", "raw", "bt-results")
         if not os.path.isdir(bt_dir):
@@ -364,8 +369,15 @@ class TestBtDivergenceParser:
         bt_files = sorted([f for f in os.listdir(bt_dir) if f.endswith(".md")], reverse=True)
         if not bt_files:
             pytest.skip("No BT files found")
-        bt_path = os.path.join(bt_dir, bt_files[0])
+        # preprocess_bt_divergence と同じ優先順位: all-pairs / full-audit → 辞書順最後
+        bt_path = None
+        for f in bt_files:
+            if "all-pairs" in f or "full-audit" in f:
+                bt_path = os.path.join(bt_dir, f)
+                break
+        if not bt_path:
+            bt_path = os.path.join(bt_dir, bt_files[0])
         with open(bt_path) as f:
             content = f.read()
         found = "session_time_bias" in content
-        assert found, "session_time_bias not found in latest BT file"
+        assert found, f"session_time_bias not found in BT file selected by parser logic: {bt_path}"

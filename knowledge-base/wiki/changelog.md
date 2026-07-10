@@ -4,6 +4,15 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-10 — WS3 stage-2 verdict: ❌ PASS ゼロ / UNDERPOWERED — barrier EV 化は不成立 (rule:R1)
+
+- pre-reg LOCK ([[ws3-stage2-barrier-ev-prereg-2026-07-09]]) の機械的実行 (期日 07-19 の 9 日前倒し)。OOS-2 = 2022-07-07〜2024-07-06 (第3窓、切詰め worktree)。§3 執行順序遵守 (エントリー抽出 → N 凍結 59/46 → sim)。独立実装の再計算で符号一致検証
+- **lfr×EUR_USD: 全 9 構成負 (best −6.51 p/t) → セルクローズ**。SL 先着率 44-75% — stage-1 の中央値非対称は first-touch sequencing で反転
+- **htf_fb×AUD_JPY: 1/9 構成のみ +1.15、p_cell 0.594** — fold 集中 (2022 円介入期 +10.8 / 直近 −10.9)・孤立格子点。UNDERPOWERED 分岐 = shadow N≥100 で同一 grid 1 回限り再判定 (registry `ws3-stage2-underpowered-recheck`)
+- **帰結: v2.3 WS3 は新シグナル系統 (外部仮説) の探索へ**。TV canon は PASS 候補不在で未評価 (moot)
+- **監視配線 (R3)**: `prereg_trigger_watch.py` の shadow_count_decision に instrument フィルタを追加 (無指定だと全ペア合算でセル判定を過大計上) + 回帰テスト。`test_session_time_bias_in_bt_metrics` をパーサ実装 (all-pairs/full-audit 優先) に整合 — 旧実装は辞書順最後の .md を盲目的に見ており研究成果物の追加で誤 red になっていた (テストバグ)
+- **影響トレード: なし** (純研究。live/tier 変更ゼロ)
+
 ## 2026-07-09 — WS3 stage-2 pre-reg LOCKED — user 承認 (rule:R1)
 
 - [[ws3-stage2-barrier-ev-prereg-2026-07-09]] を user 承認「進めて」で 📝 DRAFT → 🔒 LOCKED (決裁期日 07-16 の 7 日前倒し)。verdict 期日 2026-07-19 (LOCK+10d、registry `ws3-stage2-verdict-deadline` 監視)

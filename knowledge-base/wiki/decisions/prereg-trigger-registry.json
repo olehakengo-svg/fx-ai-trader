@@ -45,11 +45,26 @@
     },
     {
       "id": "ws3-stage2-verdict-deadline",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-07-19",
       "doc": "knowledge-base/wiki/decisions/ws3-stage2-barrier-ev-prereg-2026-07-09.md",
-      "message": "WS3 stage-2 barrier/EV grid の verdict 期日 (LOCK 2026-07-09 + 10d) — queue 20260709-1610-ws3-stage2-barrier-ev-prereg が未完なら stale (T5 型の実行ギャップ防止)"
+      "message": "WS3 stage-2 barrier/EV grid の verdict 期日 (LOCK 2026-07-09 + 10d) — queue 20260709-1610-ws3-stage2-barrier-ev-prereg が未完なら stale (T5 型の実行ギャップ防止)",
+      "resolved": "2026-07-10",
+      "resolution": "verdict PASS ゼロ / 全体 UNDERPOWERED (期日 9 日前倒し)。lfr×EUR_USD 全 9 構成負 (クローズ) / htf_fb×AUD_JPY 1 構成のみ正・検定不達 → 後継 ws3-stage2-underpowered-recheck"
+    },
+    {
+      "id": "ws3-stage2-underpowered-recheck",
+      "active": true,
+      "type": "shadow_count_decision",
+      "entry_type": "htf_false_breakout",
+      "instrument": "AUD_JPY",
+      "since": "2026-07-10",
+      "n_decide": 100,
+      "deadline": "2027-01-31",
+      "doc": "knowledge-base/wiki/decisions/ws3-stage2-barrier-ev-prereg-2026-07-09.md",
+      "message": "stage-2 UNDERPOWERED 分岐 (§8.2) — htf_fb×AUD_JPY shadow 累積 N>=100 で同一 grid・同一検定の 1 回限り再判定 (新探索自由度なし)。期日到達で N<100 なら stale レビュー",
+      "n_floor": 100
     },
     {
       "id": "t8-sweep-defer-decision",

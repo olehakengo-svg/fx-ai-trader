@@ -88,3 +88,45 @@ Python BT エントリー母集団への系統疑義 (MEMORY `feedback_tv_edge_d
 - AUD_JPY のエントリー母集団には v6.1 JPY 追加ゲート (RSI div / OB 接触) が適用済み — stage-1 と同一母集団なので整合。redesign_v2 フラグ (`HTF_FALSE_BREAKOUT_REDESIGN_V2`) は **OFF (legacy 経路)** で評価 (stage-1 と同一)
 - OOS-2 (2022-24) は探索窓 (2025-26)・stage-1 OOS (2024-25) と異なるレジーム (2022 は JPY 介入期を含む)。絶対 pips barrier の EV 評価であるためレジーム依存はそのまま結果に出る — それ自体が「絶対 barrier の頑健性」の検証であり、verdict に記述する
 - KB 整合の棚卸し (本 pre-reg と同 PR で対応): london_fix_reversal×GBP の stale PROMOTED 残存は **`wiki/strategies/edge-pipeline.md` Stage 6 表 + `wiki/edge-pipeline.md` の 2 箇所** — カード側 (Phase0 Shadow / PAIR_DEMOTED×USD_JPY) が真実 (check.py warn の原因)
+
+---
+
+## 8. VERDICT (2026-07-10): ❌ **PASS ゼロ — 全体分岐 = UNDERPOWERED** (機械判定 + ナイフエッジ検査 + 独立再計算検証済)
+
+**執行記録**: LOCK (2026-07-09 user 承認) → verdict 2026-07-10 (期日 07-19 の 9 日前倒し)。データ = AUD_JPY 15m を Massive から 2022-05-28 まで遡及取得 (既存キャッシュとの重複 52,931 行が byte 一致 — 同一ソース検証)、切詰め worktree tail 2024-07-05 金曜クローズ。**§3 執行順序遵守**: エントリー抽出のみ先行 → N 凍結 (`raw/bt-results/ws3_stage2_entries_oos2.json`: **lfr×EUR_USD N=59 / htf_fb×AUD_JPY N=46**、両セル §4(c) 充足) → その後に first-touch sim。エンジン = `tools/ws3_stage2_barrier_sim.py`。**独立実装での再計算が sim と完全一致** (−6.510 / +1.151)、ep は spread 込み fill として妥当 (シグナルバー close 乖離 p50 0.6-0.7p)。
+
+### 8.1 機械判定 (§4)
+
+| cell | N | p_cell (WY max-T) | best 構成 | best EV | 近傍平均 | 隣接正 | gates |
+|---|---|---|---|---|---|---|---|
+| london_fix_reversal×EUR_USD | 59 | **1.000** | tp18_sl10 | **−6.51** | −7.09 | 0/3 | (a)✗ (b)✗ (c)✓ (e)— |
+| htf_false_breakout×AUD_JPY | 46 | **0.594** | tp36_sl30 | **+1.15** | −1.08 | 0/2 | (a)✗ (b)✗ (c)✓ (e)✓ |
+
+- **lfr×EUR_USD: 全 9 構成が深い負** (−6.5〜−8.3 p/t、fold 3/3 全負 [−4.5/−8.8/−6.3])。SL 先着率 44-75% vs TP 先着率 8.5-24% — stage-1 の中央値非対称は first-touch sequencing で完全に反転する。摩擦フロア 1.30 でも全構成負 (best −5.81)
+- **htf_fb×AUD_JPY: 9 構成中 1 つ (tp36_sl30) のみ +1.15**、残り 8 構成は負。stress 4.0 でも +0.28 と符号は保つが、p_cell 0.594 で統計的支持なし
+
+### 8.2 §4 固定 3 分岐の適用
+
+- PASS: 該当なし (両セル (a)(b) 不達)
+- REJECT (両セルとも全 9 構成 EV ≤ 0): **不成立** — htf_fb の 1 構成が正
+- → **UNDERPOWERED を採択** (点推定 EV > 0 の構成が存在するが検定不達)。**セル別の実態**: lfr×EUR_USD は方向的にも全否定 (セル単位では REJECT 相当 — 再判定枠の対象外とする根拠は 8.3)。htf_fb×AUD_JPY のみ pre-declared 再判定枠が生きる: **shadow 累積 N ≥ 100 到達時に本 grid・本検定を変更せず 1 回限り再判定** (registry `ws3-stage2-underpowered-recheck` が監視)
+
+### 8.3 ナイフエッジ検査の記録 (§5 — PASS 判定には未使用、再判定の判断材料)
+
+1. **fold 集中 (§5.4)**: htf_fb tp36_sl30 の fold EV = **[+10.8, +2.9, −10.9]** (約 8 ヶ月毎)。正 EV は 2022 後半〜2023 前半 (円介入・高ボラ期) に集中し、**直近 fold (2023-11〜2024-07) は −10.9**。LOFO (最良 fold 除外) = **−4.0**。時系列的に減衰する単一レジーム由来の正値
+2. **孤立格子点 (§5.3)**: 隣接構成 0/2 が正、近傍平均 −1.08 — grid 端 (tp36_sl30 = 最大 TP × 最大 SL) の孤立点
+3. **メカニズム (§5.1)**: EV' (timeout 除去) = +0.53 で knife_1 は通過 — barrier 成分自体は正。ただし上記 1/2 により、これは「レジーム限定の barrier エッジ」の可能性が高い
+4. lfr×EUR_USD は全項目で否定的 (EV' −6.8、隣接正 0/3、LOFO −7.6) — ナイフエッジ以前
+
+### 8.4 TV Pine canon ゲート (§3b/(d)): 未評価
+
+PASS 候補が (a)(b) 段階で不在のため moot — TV canon は PASS の必須条件であり、非 PASS verdict を覆す力を持たない (pre-reg 設計)。htf_fb の再判定 (N≥100) が (a)(b) を通過した場合に初めて §3b を実行する。
+
+### 8.5 帰結 (§4 固定分岐の執行)
+
+- **london_fix_reversal×EUR_USD: クローズ** — 「h24 幾何 barrier への exit 張り替え」でも EV 化不能 (ネイティブ exit 負 EV 前歴と合わせ、このセルの exit 側改善余地は尽きた)
+- **htf_false_breakout×AUD_JPY: UNDERPOWERED 残置** — shadow N≥100 で 1 回限り再判定 (新たな探索自由度なし)。それまで live/tier 変更なし
+- **v2.3 WS3 の主戦線は「新シグナル系統 (外部仮説) の探索」へ** — stage-1 で非対称は実在すると確認されたが、stage-2 で「非対称 ≠ 固定 barrier で EV 化可能」が実証された (§1 の懸念 = sequencing + 摩擦の壁、が現実化)。stage-1 §8.3 (c) の trendline_sweep×EUR_USD live N 蓄積再評価は本 verdict の影響を受けず継続
+- **解釈上の注意 (2 読み併記)**: (i) 非対称は実在するが first-touch 変換が不能、(ii) 非対称自体が 2024-25 レジーム限定 (OOS-2 = 2022-24 では lfr の中央値非対称も不成立の可能性)。stage-1 と stage-2 は estimand が異なるため両読みとも棄却できない — いずれでも帰結 (新系統探索) は同じ
+
+**成果物**: `raw/bt-results/ws3_stage2_entries_oos2.json` (N 凍結) / `ws3_stage2_barrier_sim_oos2.{json,md}` (全構成・全統計) / 判定器 `tools/ws3_stage2_barrier_sim.py`
