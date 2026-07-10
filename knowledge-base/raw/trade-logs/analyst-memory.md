@@ -2652,6 +2652,16 @@ Kelly値がマイナスということは、現在のポートフォリオEVが�
 - レジーム条件（全ペアRANGING）がエントリーフィルターをほぼ通過させていない可能性
 - spread_guard が厳格に機能しており、市場条件が閾値外にある可能性
 
+### 2026-07-10 (Post-London Report)
+| WR | — |
+| PnL (pips) | **0.0** |
+- 全ペアRANGING継続が基本シナリオ。USD_JPY ATR66%pileはやや高め → NY序盤（米指標前後）で一時的なブレイクアウト可能性は排除できないが、SMA20 Slope水準（最大+0.00309）はトレンド転換の証拠なし
+- **USD_JPY（162.396）とGBP_JPY（217.75）のSlope上昇**はJPY売り継続示唆 → 円安方向のバイアス微弱あり
+### 推奨戦略配分
+| rnb_usdjpy | USD_JPY | **NO ACTION** | direction_filter 292件は方向性不確定を意味する |
+### **→ NY全体: NO ACTION推奨**
+| 累計PnL | **-7.8 pips** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
