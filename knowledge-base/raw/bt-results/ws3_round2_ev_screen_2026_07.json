@@ -1,0 +1,684 @@
+{
+ "task": "20260710-ws3-round2-explore §2(ii) first-touch EV screen",
+ "rule": "R3",
+ "prereg": "ws3-round2-explore-prereg-2026-07-10.md §2(ii) (origin/main, 2026-07-10 改訂 = round-2 スキャン結果観測前の a priori 変更)",
+ "generated_utc": "2026-07-10T06:52:58.488694+00:00",
+ "engine": "tools/ws3_stage2_barrier_sim.py first_touch() 同形移植 (SL 優先 tie-break / timeout=最終バー close / BE・Trail なし)。stage-2 の結果数値は不参照 (ツールのみ流用)",
+ "window": "探索窓 2025-07-08〜2026-06-07 (round-1 checkpoint 母集団と同一)",
+ "oos_untouched": "2024-07-07〜2025-07-07 非接触",
+ "friction_table": {
+  "EUR_USD": 2.0,
+  "USD_JPY": 2.14,
+  "GBP_USD": 4.53,
+  "AUD_JPY": 3.125,
+  "GBP_JPY": 4.53
+ },
+ "grid_rule": "TP=round(pct(mfe_H,{50,75,90})) / SL=round(pct(mae_H,{50,75,90})) per-cell、H=primary horizon、np.percentile linear、SL 下限1pip",
+ "pass_rule": "best 摩擦調整 EV>0 ∧ 隣接 (Manhattan 距離1、存在分) の過半 EV>0",
+ "recon_fail_total": 0,
+ "cells": {
+  "sr_fib_confluence×GBP_USD×SELL": {
+   "entry_type": "sr_fib_confluence",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "type": "持続",
+   "primary_horizon": "h96",
+   "hold_bars": 96,
+   "n_sim": 95,
+   "recon_fail": 0,
+   "skipped_tail": 0,
+   "friction": 4.53,
+   "tp_grid": [
+    47,
+    76,
+    111
+   ],
+   "sl_grid": [
+    28,
+    62,
+    81
+   ],
+   "best_config": "tp111_sl62",
+   "best_ev_adj": 8.879,
+   "adjacent_positive": "3/3",
+   "pass": true,
+   "configs": {
+    "tp47_sl28": {
+     "ev_adj": 2.845,
+     "tp_rate": 0.4,
+     "sl_rate": 0.474,
+     "timeout_rate": 0.126
+    },
+    "tp47_sl62": {
+     "ev_adj": 4.593,
+     "tp_rate": 0.474,
+     "sl_rate": 0.221,
+     "timeout_rate": 0.305
+    },
+    "tp47_sl81": {
+     "ev_adj": 4.575,
+     "tp_rate": 0.474,
+     "sl_rate": 0.074,
+     "timeout_rate": 0.453
+    },
+    "tp76_sl28": {
+     "ev_adj": 5.846,
+     "tp_rate": 0.221,
+     "sl_rate": 0.495,
+     "timeout_rate": 0.284
+    },
+    "tp76_sl62": {
+     "ev_adj": 7.426,
+     "tp_rate": 0.242,
+     "sl_rate": 0.242,
+     "timeout_rate": 0.516
+    },
+    "tp76_sl81": {
+     "ev_adj": 7.008,
+     "tp_rate": 0.242,
+     "sl_rate": 0.095,
+     "timeout_rate": 0.663
+    },
+    "tp111_sl28": {
+     "ev_adj": 7.458,
+     "tp_rate": 0.095,
+     "sl_rate": 0.505,
+     "timeout_rate": 0.4
+    },
+    "tp111_sl62": {
+     "ev_adj": 8.879,
+     "tp_rate": 0.105,
+     "sl_rate": 0.253,
+     "timeout_rate": 0.642
+    },
+    "tp111_sl81": {
+     "ev_adj": 8.262,
+     "tp_rate": 0.105,
+     "sl_rate": 0.105,
+     "timeout_rate": 0.789
+    }
+   }
+  },
+  "vol_spike_mr×USD_JPY×BUY": {
+   "entry_type": "vol_spike_mr",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "type": "減衰",
+   "primary_horizon": "h24",
+   "hold_bars": 24,
+   "n_sim": 39,
+   "recon_fail": 0,
+   "skipped_tail": 0,
+   "friction": 2.14,
+   "tp_grid": [
+    29,
+    43,
+    71
+   ],
+   "sl_grid": [
+    20,
+    32,
+    63
+   ],
+   "best_config": "tp71_sl63",
+   "best_ev_adj": 4.296,
+   "adjacent_positive": "2/2",
+   "pass": true,
+   "configs": {
+    "tp29_sl20": {
+     "ev_adj": 0.798,
+     "tp_rate": 0.385,
+     "sl_rate": 0.462,
+     "timeout_rate": 0.154
+    },
+    "tp29_sl32": {
+     "ev_adj": 2.432,
+     "tp_rate": 0.462,
+     "sl_rate": 0.256,
+     "timeout_rate": 0.282
+    },
+    "tp29_sl63": {
+     "ev_adj": 2.442,
+     "tp_rate": 0.487,
+     "sl_rate": 0.103,
+     "timeout_rate": 0.41
+    },
+    "tp43_sl20": {
+     "ev_adj": 0.596,
+     "tp_rate": 0.179,
+     "sl_rate": 0.462,
+     "timeout_rate": 0.359
+    },
+    "tp43_sl32": {
+     "ev_adj": 2.681,
+     "tp_rate": 0.205,
+     "sl_rate": 0.256,
+     "timeout_rate": 0.538
+    },
+    "tp43_sl63": {
+     "ev_adj": 3.05,
+     "tp_rate": 0.231,
+     "sl_rate": 0.103,
+     "timeout_rate": 0.667
+    },
+    "tp71_sl20": {
+     "ev_adj": 1.101,
+     "tp_rate": 0.051,
+     "sl_rate": 0.462,
+     "timeout_rate": 0.487
+    },
+    "tp71_sl32": {
+     "ev_adj": 3.904,
+     "tp_rate": 0.077,
+     "sl_rate": 0.256,
+     "timeout_rate": 0.667
+    },
+    "tp71_sl63": {
+     "ev_adj": 4.296,
+     "tp_rate": 0.077,
+     "sl_rate": 0.103,
+     "timeout_rate": 0.821
+    }
+   }
+  },
+  "sr_fib_confluence×EUR_USD×SELL": {
+   "entry_type": "sr_fib_confluence",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "type": "持続",
+   "primary_horizon": "h96",
+   "hold_bars": 96,
+   "n_sim": 99,
+   "recon_fail": 0,
+   "skipped_tail": 0,
+   "friction": 2.0,
+   "tp_grid": [
+    34,
+    53,
+    70
+   ],
+   "sl_grid": [
+    23,
+    42,
+    74
+   ],
+   "best_config": "tp53_sl42",
+   "best_ev_adj": 6.631,
+   "adjacent_positive": "4/4",
+   "pass": true,
+   "configs": {
+    "tp34_sl23": {
+     "ev_adj": 3.131,
+     "tp_rate": 0.434,
+     "sl_rate": 0.444,
+     "timeout_rate": 0.121
+    },
+    "tp34_sl42": {
+     "ev_adj": 4.519,
+     "tp_rate": 0.485,
+     "sl_rate": 0.232,
+     "timeout_rate": 0.283
+    },
+    "tp34_sl74": {
+     "ev_adj": 3.248,
+     "tp_rate": 0.495,
+     "sl_rate": 0.071,
+     "timeout_rate": 0.434
+    },
+    "tp53_sl23": {
+     "ev_adj": 4.179,
+     "tp_rate": 0.192,
+     "sl_rate": 0.465,
+     "timeout_rate": 0.343
+    },
+    "tp53_sl42": {
+     "ev_adj": 6.631,
+     "tp_rate": 0.232,
+     "sl_rate": 0.232,
+     "timeout_rate": 0.535
+    },
+    "tp53_sl74": {
+     "ev_adj": 5.553,
+     "tp_rate": 0.242,
+     "sl_rate": 0.071,
+     "timeout_rate": 0.687
+    },
+    "tp70_sl23": {
+     "ev_adj": 3.895,
+     "tp_rate": 0.091,
+     "sl_rate": 0.475,
+     "timeout_rate": 0.434
+    },
+    "tp70_sl42": {
+     "ev_adj": 5.427,
+     "tp_rate": 0.101,
+     "sl_rate": 0.242,
+     "timeout_rate": 0.657
+    },
+    "tp70_sl74": {
+     "ev_adj": 3.6,
+     "tp_rate": 0.101,
+     "sl_rate": 0.081,
+     "timeout_rate": 0.818
+    }
+   }
+  },
+  "vsg_jpy_reversal×GBP_JPY×SELL": {
+   "entry_type": "vsg_jpy_reversal",
+   "pair": "GBP_JPY",
+   "sig": "SELL",
+   "type": "減衰",
+   "primary_horizon": "h24",
+   "hold_bars": 24,
+   "n_sim": 106,
+   "recon_fail": 0,
+   "skipped_tail": 0,
+   "friction": 4.53,
+   "tp_grid": [
+    35,
+    57,
+    86
+   ],
+   "sl_grid": [
+    24,
+    43,
+    64
+   ],
+   "best_config": "tp35_sl64",
+   "best_ev_adj": 1.167,
+   "adjacent_positive": "2/2",
+   "pass": true,
+   "configs": {
+    "tp35_sl24": {
+     "ev_adj": -1.021,
+     "tp_rate": 0.396,
+     "sl_rate": 0.462,
+     "timeout_rate": 0.142
+    },
+    "tp35_sl43": {
+     "ev_adj": 0.066,
+     "tp_rate": 0.453,
+     "sl_rate": 0.217,
+     "timeout_rate": 0.33
+    },
+    "tp35_sl64": {
+     "ev_adj": 1.167,
+     "tp_rate": 0.481,
+     "sl_rate": 0.094,
+     "timeout_rate": 0.425
+    },
+    "tp57_sl24": {
+     "ev_adj": -0.983,
+     "tp_rate": 0.226,
+     "sl_rate": 0.491,
+     "timeout_rate": 0.283
+    },
+    "tp57_sl43": {
+     "ev_adj": 0.013,
+     "tp_rate": 0.245,
+     "sl_rate": 0.226,
+     "timeout_rate": 0.528
+    },
+    "tp57_sl64": {
+     "ev_adj": 0.86,
+     "tp_rate": 0.255,
+     "sl_rate": 0.104,
+     "timeout_rate": 0.642
+    },
+    "tp86_sl24": {
+     "ev_adj": -3.014,
+     "tp_rate": 0.057,
+     "sl_rate": 0.491,
+     "timeout_rate": 0.453
+    },
+    "tp86_sl43": {
+     "ev_adj": -1.471,
+     "tp_rate": 0.075,
+     "sl_rate": 0.226,
+     "timeout_rate": 0.698
+    },
+    "tp86_sl64": {
+     "ev_adj": -0.351,
+     "tp_rate": 0.085,
+     "sl_rate": 0.104,
+     "timeout_rate": 0.811
+    }
+   }
+  },
+  "turtle_soup×GBP_USD": {
+   "entry_type": "turtle_soup",
+   "pair": "GBP_USD",
+   "sig": null,
+   "type": "持続",
+   "primary_horizon": "h96",
+   "hold_bars": 96,
+   "n_sim": 40,
+   "recon_fail": 0,
+   "skipped_tail": 0,
+   "friction": 4.53,
+   "tp_grid": [
+    44,
+    60,
+    94
+   ],
+   "sl_grid": [
+    31,
+    60,
+    83
+   ],
+   "best_config": "tp44_sl83",
+   "best_ev_adj": 2.24,
+   "adjacent_positive": "0/2",
+   "pass": false,
+   "configs": {
+    "tp44_sl31": {
+     "ev_adj": -0.227,
+     "tp_rate": 0.425,
+     "sl_rate": 0.4,
+     "timeout_rate": 0.175
+    },
+    "tp44_sl60": {
+     "ev_adj": -2.295,
+     "tp_rate": 0.475,
+     "sl_rate": 0.225,
+     "timeout_rate": 0.3
+    },
+    "tp44_sl83": {
+     "ev_adj": 2.24,
+     "tp_rate": 0.5,
+     "sl_rate": 0.05,
+     "timeout_rate": 0.45
+    },
+    "tp60_sl31": {
+     "ev_adj": -3.418,
+     "tp_rate": 0.225,
+     "sl_rate": 0.475,
+     "timeout_rate": 0.3
+    },
+    "tp60_sl60": {
+     "ev_adj": -4.863,
+     "tp_rate": 0.25,
+     "sl_rate": 0.25,
+     "timeout_rate": 0.5
+    },
+    "tp60_sl83": {
+     "ev_adj": -2.34,
+     "tp_rate": 0.25,
+     "sl_rate": 0.075,
+     "timeout_rate": 0.675
+    },
+    "tp94_sl31": {
+     "ev_adj": -2.395,
+     "tp_rate": 0.1,
+     "sl_rate": 0.5,
+     "timeout_rate": 0.4
+    },
+    "tp94_sl60": {
+     "ev_adj": -4.318,
+     "tp_rate": 0.1,
+     "sl_rate": 0.25,
+     "timeout_rate": 0.65
+    },
+    "tp94_sl83": {
+     "ev_adj": -1.795,
+     "tp_rate": 0.1,
+     "sl_rate": 0.075,
+     "timeout_rate": 0.825
+    }
+   }
+  },
+  "dt_sr_channel_reversal×GBP_USD×SELL": {
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "type": "持続",
+   "primary_horizon": "h96",
+   "hold_bars": 96,
+   "n_sim": 36,
+   "recon_fail": 0,
+   "skipped_tail": 0,
+   "friction": 4.53,
+   "tp_grid": [
+    46,
+    68,
+    77
+   ],
+   "sl_grid": [
+    33,
+    59,
+    79
+   ],
+   "best_config": "tp46_sl33",
+   "best_ev_adj": 0.598,
+   "adjacent_positive": "0/2",
+   "pass": false,
+   "configs": {
+    "tp46_sl33": {
+     "ev_adj": 0.598,
+     "tp_rate": 0.444,
+     "sl_rate": 0.444,
+     "timeout_rate": 0.111
+    },
+    "tp46_sl59": {
+     "ev_adj": -2.338,
+     "tp_rate": 0.472,
+     "sl_rate": 0.25,
+     "timeout_rate": 0.278
+    },
+    "tp46_sl79": {
+     "ev_adj": 0.542,
+     "tp_rate": 0.5,
+     "sl_rate": 0.111,
+     "timeout_rate": 0.389
+    },
+    "tp68_sl33": {
+     "ev_adj": -1.374,
+     "tp_rate": 0.194,
+     "sl_rate": 0.5,
+     "timeout_rate": 0.306
+    },
+    "tp68_sl59": {
+     "ev_adj": -4.327,
+     "tp_rate": 0.194,
+     "sl_rate": 0.25,
+     "timeout_rate": 0.556
+    },
+    "tp68_sl79": {
+     "ev_adj": -0.836,
+     "tp_rate": 0.222,
+     "sl_rate": 0.111,
+     "timeout_rate": 0.667
+    },
+    "tp77_sl33": {
+     "ev_adj": -2.499,
+     "tp_rate": 0.056,
+     "sl_rate": 0.5,
+     "timeout_rate": 0.444
+    },
+    "tp77_sl59": {
+     "ev_adj": -5.452,
+     "tp_rate": 0.056,
+     "sl_rate": 0.25,
+     "timeout_rate": 0.694
+    },
+    "tp77_sl79": {
+     "ev_adj": -2.33,
+     "tp_rate": 0.056,
+     "sl_rate": 0.111,
+     "timeout_rate": 0.833
+    }
+   }
+  },
+  "dt_sr_channel_reversal×GBP_JPY×BUY": {
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "GBP_JPY",
+   "sig": "BUY",
+   "type": "持続",
+   "primary_horizon": "h96",
+   "hold_bars": 96,
+   "n_sim": 77,
+   "recon_fail": 0,
+   "skipped_tail": 0,
+   "friction": 4.53,
+   "tp_grid": [
+    67,
+    105,
+    127
+   ],
+   "sl_grid": [
+    51,
+    83,
+    132
+   ],
+   "best_config": "tp67_sl83",
+   "best_ev_adj": 13.264,
+   "adjacent_positive": "3/3",
+   "pass": true,
+   "configs": {
+    "tp67_sl51": {
+     "ev_adj": 7.591,
+     "tp_rate": 0.468,
+     "sl_rate": 0.377,
+     "timeout_rate": 0.156
+    },
+    "tp67_sl83": {
+     "ev_adj": 13.264,
+     "tp_rate": 0.506,
+     "sl_rate": 0.156,
+     "timeout_rate": 0.338
+    },
+    "tp67_sl132": {
+     "ev_adj": 11.719,
+     "tp_rate": 0.506,
+     "sl_rate": 0.065,
+     "timeout_rate": 0.429
+    },
+    "tp105_sl51": {
+     "ev_adj": 3.502,
+     "tp_rate": 0.221,
+     "sl_rate": 0.455,
+     "timeout_rate": 0.325
+    },
+    "tp105_sl83": {
+     "ev_adj": 9.462,
+     "tp_rate": 0.247,
+     "sl_rate": 0.208,
+     "timeout_rate": 0.545
+    },
+    "tp105_sl132": {
+     "ev_adj": 6.664,
+     "tp_rate": 0.247,
+     "sl_rate": 0.091,
+     "timeout_rate": 0.662
+    },
+    "tp127_sl51": {
+     "ev_adj": 2.912,
+     "tp_rate": 0.078,
+     "sl_rate": 0.455,
+     "timeout_rate": 0.468
+    },
+    "tp127_sl83": {
+     "ev_adj": 9.443,
+     "tp_rate": 0.104,
+     "sl_rate": 0.208,
+     "timeout_rate": 0.688
+    },
+    "tp127_sl132": {
+     "ev_adj": 6.644,
+     "tp_rate": 0.104,
+     "sl_rate": 0.091,
+     "timeout_rate": 0.805
+    }
+   }
+  },
+  "sr_fib_confluence×AUD_JPY×SELL": {
+   "entry_type": "sr_fib_confluence",
+   "pair": "AUD_JPY",
+   "sig": "SELL",
+   "type": "減衰",
+   "primary_horizon": "h24",
+   "hold_bars": 24,
+   "n_sim": 119,
+   "recon_fail": 0,
+   "skipped_tail": 0,
+   "friction": 3.125,
+   "tp_grid": [
+    24,
+    43,
+    74
+   ],
+   "sl_grid": [
+    19,
+    34,
+    52
+   ],
+   "best_config": "tp24_sl19",
+   "best_ev_adj": -1.051,
+   "adjacent_positive": "0/2",
+   "pass": false,
+   "configs": {
+    "tp24_sl19": {
+     "ev_adj": -1.051,
+     "tp_rate": 0.429,
+     "sl_rate": 0.412,
+     "timeout_rate": 0.16
+    },
+    "tp24_sl34": {
+     "ev_adj": -1.622,
+     "tp_rate": 0.487,
+     "sl_rate": 0.218,
+     "timeout_rate": 0.294
+    },
+    "tp24_sl52": {
+     "ev_adj": -1.585,
+     "tp_rate": 0.504,
+     "sl_rate": 0.076,
+     "timeout_rate": 0.42
+    },
+    "tp43_sl19": {
+     "ev_adj": -1.675,
+     "tp_rate": 0.176,
+     "sl_rate": 0.445,
+     "timeout_rate": 0.378
+    },
+    "tp43_sl34": {
+     "ev_adj": -1.891,
+     "tp_rate": 0.218,
+     "sl_rate": 0.235,
+     "timeout_rate": 0.546
+    },
+    "tp43_sl52": {
+     "ev_adj": -1.484,
+     "tp_rate": 0.235,
+     "sl_rate": 0.076,
+     "timeout_rate": 0.689
+    },
+    "tp74_sl19": {
+     "ev_adj": -2.098,
+     "tp_rate": 0.067,
+     "sl_rate": 0.454,
+     "timeout_rate": 0.479
+    },
+    "tp74_sl34": {
+     "ev_adj": -2.992,
+     "tp_rate": 0.076,
+     "sl_rate": 0.235,
+     "timeout_rate": 0.689
+    },
+    "tp74_sl52": {
+     "ev_adj": -2.063,
+     "tp_rate": 0.092,
+     "sl_rate": 0.076,
+     "timeout_rate": 0.832
+    }
+   }
+  }
+ },
+ "survivors": [
+  "sr_fib_confluence×GBP_USD×SELL",
+  "vol_spike_mr×USD_JPY×BUY",
+  "sr_fib_confluence×EUR_USD×SELL",
+  "vsg_jpy_reversal×GBP_JPY×SELL",
+  "dt_sr_channel_reversal×GBP_JPY×BUY"
+ ]
+}

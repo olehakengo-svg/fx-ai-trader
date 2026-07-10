@@ -2,7 +2,7 @@
 id: 20260710-ws3-round2-explore
 title: "[v2.3 WS3/供給ライン] 探索2周目 — 方向分割×未走査ペア×h96 の新軸探索 (純研究)"
 owner: claude
-status: in_progress
+status: in_progress  # 診断+EVスクリーン+LOCK 完了 (2026-07-10)、残 = OOS verdict (期日 07-17)
 priority: P2
 created_at: 2026-07-10T15:00:00+0900
 roadmap_gate: "トラックB 供給ライン (decision memo 2026-07-10)。live/shadow 変更なし。stage-2 と独立、その結果に依存しない"
