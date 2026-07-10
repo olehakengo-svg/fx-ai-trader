@@ -58,6 +58,17 @@ def forward_mfe(df, pos: int, sig: str, ep: float, horizon: int):
 
 
 def main() -> None:
+    import argparse
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--pairs", default=",".join(PAIRS),
+                    help="カンマ区切り pair リスト (default: 全6)")
+    ap.add_argument("--out-suffix", default="",
+                    help="出力ファイル名 suffix (OOS run 等の区別用)")
+    args = ap.parse_args()
+    pairs = [p.strip() for p in args.pairs.split(",") if p.strip()]
+    out_json = OUT_JSON.replace(".json", f"{args.out_suffix}.json")
+    out_md = OUT_MD.replace(".md", f"{args.out_suffix}.md")
+
     os.environ.update(BASE_ENV)
     os.environ.update(PARITY_ENV)
     # baseline: 倍率 env は明示的に unset (安全)
@@ -72,7 +83,7 @@ def main() -> None:
 
     entries = []  # {entry_type, pair, sig, entry_time, ep, mfe_pips@H, mae_pips@H}
     t0 = time.time()
-    for pair in PAIRS:
+    for pair in pairs:
         app._dt_bt_cache.clear()
         res = app.run_daytrade_backtest(SYMBOLS[pair], lookback_days=LOOKBACK_DAYS,
                                         interval="15m")
@@ -122,7 +133,7 @@ def main() -> None:
               f"({time.time()-t0:.0f}s)", file=sys.stderr, flush=True)
         # per-pair checkpoint (kill 耐性)
         ck = os.path.join(REPO, "knowledge-base", "raw", "bt-results",
-                          ".ws3_mfe_scan_checkpoint.json")
+                          f".ws3_mfe_scan_checkpoint{args.out_suffix}.json")
         with open(ck, "w") as f:
             json.dump(entries, f)
 
@@ -154,7 +165,7 @@ def main() -> None:
         "engine": "app.run_daytrade_backtest baseline (倍率なし) + parquet forward scan",
         "lookback_days": LOOKBACK_DAYS, "horizons_bars": HORIZONS,
         "diag_window_excluded_from": DIAG_START_UTC,
-        "pairs": PAIRS, "env": {**BASE_ENV, **PARITY_ENV},
+        "pairs": pairs, "env": {**BASE_ENV, **PARITY_ENV},
         "n_entries": len(entries),
         "cells": summary,
         "caveats": [
@@ -163,10 +174,10 @@ def main() -> None:
             "screen であり promote 判定ではない。閾値の事前固定は次の pre-reg で行う",
         ],
     }
-    os.makedirs(os.path.dirname(OUT_JSON), exist_ok=True)
-    with open(OUT_JSON, "w") as f:
+    os.makedirs(os.path.dirname(out_json), exist_ok=True)
+    with open(out_json, "w") as f:
         json.dump(out, f, indent=1, ensure_ascii=False)
-    print(f"[mfe] saved {OUT_JSON}", file=sys.stderr, flush=True)
+    print(f"[mfe] saved {out_json}", file=sys.stderr, flush=True)
 
     # ── md: h24 (6時間) を代表 horizon として表化 ──
     lines = [
@@ -186,9 +197,9 @@ def main() -> None:
                      f"| {h['mfe_p90']} | {h['p_mfe_ge15']} | {h['p_mfe_ge20']} "
                      f"| {h['mae_p50']} |")
     lines += ["", f"N<{MIN_N} セルと他 horizon は JSON 参照。", ""]
-    with open(OUT_MD, "w") as f:
+    with open(out_md, "w") as f:
         f.write("\n".join(lines))
-    print(f"[mfe] saved {OUT_MD}", file=sys.stderr, flush=True)
+    print(f"[mfe] saved {out_md}", file=sys.stderr, flush=True)
     print(json.dumps({"n_entries": len(entries),
                       "n_cells": len(summary),
                       "elapsed_sec": round(time.time() - t0, 1)}))

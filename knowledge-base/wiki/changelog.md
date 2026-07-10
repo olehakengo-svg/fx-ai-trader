@@ -4,6 +4,40 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-09 — fix(tier): FORCE_DEMOTED > PAIR_PROMOTED precedence 全経路統一 (rule:R3)
+
+- **latent 疑義の確定**: `_is_promoted_ex` のみ PP 先勝ちで、シグナル経路
+  `_is_live_tier_exempt` (9b16ebb5 fail-closed) / `_apply_force_demoted_final_gate` /
+  再送 gate と逆。final gate が PP 例外なしに shadow 強制するため live 漏れは構造的に
+  不可能 = **実害ゼロ (latent)**。実害候補は「PP でペア復活」の silent 死コード化
+  (ema_pullback×JPY 前例) と audit block_cause 誤帰属のみ
+- **修正**: `_is_promoted_ex` を FD 先勝ちに統一 + docstring 正準化。FD∩PP=∅
+  (tier_integrity_check check#1) のため到達可能入力で挙動不変 (no-op 証明、BT 不要 R3)
+- **CI 固定**: `tests/test_pair_promoted_force_demoted_precedence.py` (5 tests) で
+  FD∩PP=∅ / PP∩PD=∅ 不変量 + precedence pin。正準文書 = [[system-reference]] Tier
+  Precedence セクション (経路別 derivation 表)
+- **副次発見の相互裏付け**: post-commit-verify.sh check#3 の `pp_sentinel` premise
+  stale (PP∩UNIVERSAL_SENTINEL = {vix_carry_unwind, doji_breakout,
+  squeeze_release_momentum} は設計上合法) を本調査でも独立に確認 — 並行セッションの
+  check#3 修正 (下記 f292ccb1、マージで合流) と同一結論
+- **影響トレード: なし**
+
+## 2026-07-09 — WS3 stage-2 pre-reg LOCKED — user 承認 (rule:R1)
+
+- [[ws3-stage2-barrier-ev-prereg-2026-07-09]] を user 承認「進めて」で 📝 DRAFT → 🔒 LOCKED (決裁期日 07-16 の 7 日前倒し)。verdict 期日 2026-07-19 (LOCK+10d、registry `ws3-stage2-verdict-deadline` 監視)
+- **影響トレード: なし** (live パラメータ不変。grid BT / TV 検証の実行解禁のみ)
+## 2026-07-09 — post-commit-verify check#3 silent 不発修正 + assertion 現行設計へ張替え (rule:R3 構造バグ)
+
+- **不発の実証と修正** ([[lesson-post-commit-verify-silent-misfire-2026-07-09]]): check #3 (demo_trader tier set 整合検証) は bash double-quoted `python3 -c "..."` 内の f-string `"` によるコード截断で導入 (2026-04-14) 以来一度も実行完了せず、SyntaxError が `|| echo "SKIP"` に吸収される silent 検証ギャップだった。quoted heredoc 化 (check #1 も予防的に同化、check #2 は inline python 非使用で対象外) + 空出力/import 失敗の FAIL 可視化 + `POST_COMMIT_VERIFY_CHANGED` テストシームで red→green 実証
+- **stale assertion 発見**: 修復後の初実行が検出した 4 overlap (FD∩SENT=post_news_vol / PP-strat∩SENT=doji_breakout, squeeze_release_momentum, vix_carry_unwind) は全て現行設計の意図的共存 (demote = live 遮断 + shadow 蓄積継続、PAIR_PROMOTED は `_is_promoted_ex`/`_resolve_tier` 両 gate で SENTINEL より先勝ち)。assertion を現行 invariant (`PAIR_PROMOTED∩PAIR_DEMOTED` 同一セル / `ELITE_LIVE∩FORCE_DEMOTED`) へ張替え — 両者とも現状空集合 = 本番 tier 状態は健全
+- **影響トレード: なし** (ローカル post-commit hook のみ、live シグナル判定・サイジング不変)
+
+## 2026-07-09 — WS3 stage-2 pre-reg DRAFT 起案 + KB stale 棚卸し (rule:R1 起案 / R3 doc-sync)
+
+- **stage-2 barrier/EV pre-reg DRAFT** ([[ws3-stage2-barrier-ev-prereg-2026-07-09]]): PASS 2 セル限定 h24 barrier grid (m=18)。評価 = 第3窓 OOS-2 (2022-07〜2024-07、2年) で winner's curse 遮断、Westfall–Young max-T セル検定 (FWER 0.10)、TV Pine canon trade-level 突合ゲート、3 分岐 verdict (PASS/UNDERPOWERED/REJECT)。敵対的レビュー 3 レンズ 18 findings 反映 (tie-break 帰属訂正 = SL 優先は swing 規約で fut_close pin より保守側、検定力分析による 2 年窓化、timeout ドリフト PASS の排除等)。**DRAFT — user 決裁期日 2026-07-16 (registry `ws3-stage2-lock-decision-stale` 監視)、LOCK 前の grid BT 実行禁止**
+- **KB stale 訂正 (R3 doc-sync、tier 実状態の変更なし)**: london_fix_reversal×GBP の PROMOTED/PAIR_PROMOTED 残存 2 箇所 (`wiki/edge-pipeline.md` / `wiki/strategies/edge-pipeline.md` Stage 6 表) を v9.1 実状態 (Phase0 Shadow + PAIR_DEMOTED×USD_JPY、365d BT GBP EV=−0.239 で demote 済み) に同期 — check.py Edge Stage warn の解消
+- **影響トレード: なし** (DRAFT 起案 + doc 同期のみ)
+
 ## 2026-07-09 — WS3 stage-1 verdict: ✅ PASS 2/8 — 方向性非対称の OOS 再現 (rule:R1 stage-1)
 
 - pre-reg LOCK ([[ws3-asymmetry-oos-prereg-2026-07-09]]) の機械的実行 (claude 直接、期日 07-16 の7日前倒し)。OOS 窓 2024-07-07〜2025-07-07 (切詰め parquet worktree で look-ahead 遮断、USD_JPY/AUD_JPY は Massive 15m を 2024-05 まで遡及取得)、N=4,980 entries。

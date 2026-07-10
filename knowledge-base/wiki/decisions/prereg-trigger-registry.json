@@ -34,6 +34,24 @@
       "message": "T5 復帰条件の第1要件 (D1 close<159.50) 成立 — 介入再確認と合わせ user 判断 (lot 1.0x 復帰は KB 記録 + テスト変更 PR 必須)"
     },
     {
+      "id": "ws3-stage2-lock-decision-stale",
+      "active": false,
+      "type": "deadline_info",
+      "deadline": "2026-07-16",
+      "doc": "knowledge-base/wiki/decisions/ws3-stage2-barrier-ev-prereg-2026-07-09.md",
+      "message": "WS3 stage-2 barrier/EV pre-reg DRAFT の user 決裁 (LOCK or 差し戻し) 期日 — 未決裁なら stale (T5 教訓の DRAFT 段階適用)。LOCK 時は本エントリを resolved 化し ws3-stage2-verdict-deadline (LOCK+10d) に置換",
+      "resolved": "2026-07-09",
+      "resolution": "user 承認「進めて」で LOCKED 化 (期日 7 日前倒し)。後継 = ws3-stage2-verdict-deadline"
+    },
+    {
+      "id": "ws3-stage2-verdict-deadline",
+      "active": true,
+      "type": "deadline_info",
+      "deadline": "2026-07-19",
+      "doc": "knowledge-base/wiki/decisions/ws3-stage2-barrier-ev-prereg-2026-07-09.md",
+      "message": "WS3 stage-2 barrier/EV grid の verdict 期日 (LOCK 2026-07-09 + 10d) — queue 20260709-1610-ws3-stage2-barrier-ev-prereg が未完なら stale (T5 型の実行ギャップ防止)"
+    },
+    {
       "id": "t8-sweep-defer-decision",
       "active": true,
       "type": "shadow_count_decision",
