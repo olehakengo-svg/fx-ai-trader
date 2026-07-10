@@ -1,7 +1,8 @@
 # FX AI Trader Knowledge Base
 
-## 🎯 最重要目標: 月利21.6% (数学的上限) への段階接近 — 2026-06-12 再設定
+## 🎯 最重要目標: 段階目標 M1→M2→M3 (月次符号転換 → +0.5%/月 → +2〜3%/月) — 2026-07-10 段階化 (user 承認)
 **全施策の判断基準。これに寄与しない施策は後回し。**
+- **21.6% は aspirational anchor に格下げ** — 導出母体 12-cell は live 経路残存 1〜2/12 でほぼ消滅、現行制約 (lot chain/agg-Kelly gate) 下で構造的到達不能。再導出: [[monthly-target-rederivation-2026-07-10]] / 決裁: [[shortest-path-decision-memo-2026-07-10]] (最短経路 = トラックA stage-2 / B 供給ライン / C 資本配管)
 - 現在: **DD防御0.2x** (DD=🔴🔴🔴**100.01%** — **100%バリア突破後 held (no new high)**, defensive mode — 2026-07-08) → 月利47%（BT推定、クリーンデータ蓄積中）
 - 旧目標「月利100%」「Phase 3 月利594%」は TP-HIT 12-cell 検証で数学的不可能と確定、user 承認で再設定 (roadmap v2.2 T12)
 - 詳細: **[[roadmap-v2.3-payoff-friction-repair]]** (✅ 正式版 2026-07-07 — 決済非対称/摩擦の是正。T3 診断確定 [[payoff-asymmetry-diagnosis-2026-07-07]]) / 前版: [[roadmap-v2.2-win-conversion]] (全12項目クローズ済) / 旧: [[roadmap-v2.1]]
