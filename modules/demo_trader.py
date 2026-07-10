@@ -4158,6 +4158,14 @@ class DemoTrader:
         _is_shadow_eligible = _is_shadow_eligible_full  # 後方互換 (他のbypassはこれを参照)
         _is_slot_shadow_eligible = True  # v8.9: 全戦略がスロットbypass可能
         _is_shadow = False  # 実際にフィルターをバイパスした場合にTrueになる
+        # demoted tier (FORCE_DEMOTED 静的 + price-shock runtime / PAIR_DEMOTED
+        # 静的 + watchdog runtime) は PAIR_PROMOTED より先勝ち (fail-closed)。
+        # 2026-06-12 rule:R3 live-tier-exempt-leak-audit (9b16ebb5) で意図的に
+        # 導入。_is_promoted_ex / _apply_force_demoted_final_gate と同じ
+        # precedence (2026-07-09 rule:R3 で全経路統一済み)。FD∩PP は禁止構成
+        # (tier_integrity_check.py check#1 + tests/
+        # test_pair_promoted_force_demoted_precedence.py) のため、このガードが
+        # 実際に効くのは runtime demotion (price-shock / watchdog) のみ。
         _is_demoted_tier = (
             self._is_force_demoted_entry(entry_type, instrument)
             or self._is_pair_demoted_entry(entry_type, instrument)
@@ -8986,12 +8994,19 @@ class DemoTrader:
     def _is_promoted(self, entry_type: str, instrument: str = "") -> bool:
         """戦略がOANDA実行可能か判定 (v6.2: ペア別ライフサイクル + N<10安全策)
 
-        優先順位:
+        優先順位 (2026-07-09 rule:R3 — 全経路で FORCE_DEMOTED > PAIR_PROMOTED に統一):
         1. Bridge戦略モード: "off"でブロック、"live"/"sentinel"で手動昇格
            (ただし _PAIR_SESSION_FILTER の pre-reg LOCK 窓は手動昇格でも外れない)
         2. _PAIR_DEMOTED: 特定ペアでのみ降格（ピンポイント敗兵淘汰）
-        3. _PAIR_PROMOTED: 特定ペアで復活（グローバルFORCE_DEMOTED解除）
-        4. _FORCE_DEMOTED: グローバル降格（手動モードで昇格可能）
+        3. _FORCE_DEMOTED: グローバル降格（手動モードでのみ昇格可能）。
+           _PAIR_PROMOTED では解除されない — FD∩PP は禁止構成
+           (tier_integrity_check.py check#1 ERROR +
+           tests/test_pair_promoted_force_demoted_precedence.py)。
+           ペア限定復活の正規手順 = FORCE_DEMOTED から戦略を外して
+           PAIR_PROMOTED + 負けペアを PAIR_DEMOTED に登録
+           (bb_squeeze 2026-04-21 / donchian 2026-05-27 前例)
+        4. _PAIR_PROMOTED: 特定ペアで Live 昇格 (Phase0 SHADOW / SENTINEL
+           shadow 化の免除)
         5. 自動降格判定: demoted ステータスでブロック
         6. デフォルト: OANDA送信許可（ただしN<10はSentinel lotで保護 → ロット計算側で実施）
         """
@@ -9032,7 +9047,19 @@ class DemoTrader:
         if self._is_pair_demoted_entry(entry_type, instrument):
             return False, "pair_demoted"  # ペア限定降格 (静的 + watchdog runtime)
 
-        # ── ペア別復活: FORCE_DEMOTEDでもペア限定で復活 ──
+        # ── _FORCE_DEMOTED: 明示的モード指定がない場合はブロック ──
+        # 2026-07-09 (rule:R3): PAIR_PROMOTED より先に評価する (FD 先勝ち)。
+        # 旧順序 (PP 先勝ち =「PP がグローバル FD を解除」) は 2026-04-27 以前の
+        # 設計残滓で、シグナル経路の _is_live_tier_exempt (9b16ebb5 fail-closed) /
+        # _apply_force_demoted_final_gate / _resend_promote_gate_block_reason と
+        # 逆だった。FD∩PP は禁止構成 (tier_integrity_check.py check#1 ERROR +
+        # tests/test_pair_promoted_force_demoted_precedence.py) のため本並べ替えは
+        # 到達可能入力で挙動不変。仮に交差が生まれても全経路が同じ向き
+        # (fail-closed) に落ち、audit の block_cause 帰属も正しくなる。
+        if self._is_force_demoted_entry(entry_type):
+            return False, "force_demoted"  # デモ継続・OANDA停止
+
+        # ── ペア別昇格: FD に居ない戦略の特定ペア Live 昇格 ──
         if instrument and (entry_type, instrument) in self._PAIR_PROMOTED:
             # 2026-05-13 (rule:R2 pilot): cell-conditional session filter.
             # _PAIR_SESSION_FILTER に登録された (strategy, pair) は指定 UTC
@@ -9042,10 +9069,6 @@ class DemoTrader:
             if not self._promotion_allows_live(entry_type, instrument):
                 return False, "session_filter"  # outside allowed window
             return True, ""  # ペア限定昇格
-
-        # ── _FORCE_DEMOTED: 明示的モード指定がない場合はブロック ──
-        if self._is_force_demoted_entry(entry_type):
-            return False, "force_demoted"  # デモ継続・OANDA停止
 
         # ── 自動降格判定で demoted になった戦略もブロック ──
         info = self._promoted_types.get(entry_type)
