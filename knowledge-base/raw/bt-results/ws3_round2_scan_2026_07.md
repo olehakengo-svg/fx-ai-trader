@@ -326,6 +326,8 @@
 
 ## (v) pre-reg DRAFT §2b への追記提案 (親セッション用 — 本文書は pre-reg を直接編集しない)
 
+> **⚠️ 2026-07-10 更新: 本節は pre-reg §2(ii) (first-touch EV スクリーン、スキャン結果観測前の a priori 改訂) の反映前の旧版。最終版の提案文は `ws3_round2_ev_screen_2026_07.md` §(v') を使用すること (通過 5/8、m=5、凍結 grid 込み)。以下は 1 次スクリーン時点の記録として保存。**
+
 以下をそのまま `ws3-round2-explore-prereg-2026-07-10.md` の §2b として追記し、Status を 🔒 self-LOCK に更新することを提案する:
 
 ```markdown
