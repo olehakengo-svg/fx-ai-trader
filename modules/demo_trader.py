@@ -437,6 +437,30 @@ MODE_CONFIG = {
         "auto_start": True,
         "base_sl_pips": 20,
     },
+    # ── AUD/JPY Daytrade (15m) — SHADOW-ONLY (2026-07-10 user 承認 D2) ──
+    # 目的: WS3 stage-2 (htf_false_breakout×AUD_JPY 15m, pre-reg 🔒LOCKED
+    # ws3-stage2-barrier-ev-prereg-2026-07-09) の shadow parity 検証準備 +
+    # AUD_JPY 実測摩擦 (spread/slippage) の取得。従来 AUD_JPY は 1h モード
+    # (daytrade_1h_audjpy) のみで 15m shadow 発火ゼロだった。
+    # shadow_only=True は mode レベルの構造ガード: _mode_is_shadow_only() が
+    # OANDA 送信ガード最終段 + resend gate + write-path で強制 shadow 化。
+    # sentinel (N<10 minlot) / _SHIELD_EUR_DT_WHITELIST bypass を含む全経路で
+    # OANDA 発注ゼロを保証する。live 転送資格は一切付与しない。
+    # base_sl_pips=15: 既存 JPY クロス (eurjpy=15, gbpjpy=20) と AUD_JPY の
+    # 中間ボラを踏まえ eurjpy 同値で開始。
+    "daytrade_audjpy": {
+        "interval_sec": 30,
+        "tf": "15m",
+        "period": "60d",
+        "signal_fn": "compute_daytrade_signal",
+        "label": "DT AUD/JPY (shadow)",
+        "icon": "📊🇦🇺",
+        "symbol": "AUDJPY=X",
+        "instrument": "AUD_JPY",
+        "auto_start": True,
+        "base_sl_pips": 15,
+        "shadow_only": True,  # 構造的 shadow-only 保証 — OANDA 送信全経路 block
+    },
     # ── EUR/GBP Daytrade (15m) — eurgbp_daily_mr 専用 ──
     # v6.6 全停止 → v6.7 日足MR戦略のみ再有効化 (Sentinel, 0.01lot)
     # 15m足で20日レンジ極値フェード (発火頻度: 2-4回/月)
@@ -610,6 +634,22 @@ def _get_base_mode(mode: str) -> str:
         if mode.endswith(suffix):
             return mode[:-len(suffix)]
     return mode
+
+
+def _mode_is_shadow_only(mode: str) -> bool:
+    """MODE_CONFIG で shadow_only=True のモードか (構造的 shadow-only 保証)。
+
+    2026-07-10 (user 承認 D2): shadow_only モード発のシグナルは「資格」
+    (tier/promote/whitelist/sentinel) に関係なく OANDA へ送信しない。
+    「資格」ではなく「実状態」の gate としてチェックする — 判定箇所:
+      1. _tick_entry の送信ガード最終段 (PRIME/GRAIL/C1/kalman/edge-cell の
+         全 force-live override より後、OANDA 送信判定より前)
+      2. _resend_promote_gate_block_reason (再送/補完送信 gate)
+      3. _resolve_is_shadow_for_write (write-path safeguard)
+    これにより N<10 sentinel minlot 経路・_SHIELD_EUR_DT_WHITELIST bypass を
+    含む全経路で live 発火しない。
+    """
+    return bool(MODE_CONFIG.get(mode, {}).get("shadow_only", False))
 
 # SL/TPチェック間隔（秒）— シグナル計算とは独立して高頻度実行
 # 旧2秒 → 0.5秒: スリッページ削減（本番で50%のSL_HITが0.5p超過していた）
@@ -1313,6 +1353,10 @@ class DemoTrader:
           (_AGG_KELLY_GATE_MINLOT_BYPASS_TYPES) の定義値
           _AGG_KELLY_GATE_MINLOT_MAX_UNITS で評価する
         """
+        # SHADOW-ONLY MODE (2026-07-10 user 承認 D2): mode 単位の構造 shadow
+        # ガードは再送/補完送信でも外れない (whitelist/env override 免除なし)。
+        if _mode_is_shadow_only(mode):
+            return "SHADOW_ONLY_MODE_GATE"
         if self._is_force_demoted_entry(entry_type, instrument):
             return "FORCE_DEMOTED_GATE"
         if self._is_pair_demoted_entry(entry_type, instrument):
@@ -6369,6 +6413,27 @@ class DemoTrader:
             _is_promoted = True
             _adjusted_units = _edge_cell_units
 
+        # ══════════════════════════════════════════════════════════════
+        # ── SHADOW-ONLY MODE GATE (2026-07-10, user 承認 D2) ──
+        # MODE_CONFIG shadow_only=True のモード (daytrade_audjpy 等) は
+        # ここで必ず shadow 化する。配置根拠:「資格」ではなく「実状態」の
+        # 最終段 — PRIME live-lock / GRAIL / C1-PROMOTE / Kalman D7 /
+        # edge-cell force-live の全 promote-raising override より後、
+        # OANDA 送信判定 (_is_promoted) より前。これ以降に _is_promoted を
+        # True に戻す経路は存在しない (SHIELD/agg-Kelly/MC-ruin は降格のみ)
+        # ため、N<10 sentinel minlot・_SHIELD_EUR_DT_WHITELIST bypass を
+        # 含む全経路で OANDA 発注ゼロを構造的に保証する。
+        # resend 経路は _resend_promote_gate_block_reason 側で同判定。
+        # ══════════════════════════════════════════════════════════════
+        if _mode_is_shadow_only(mode):
+            if _is_promoted or not _is_shadow:
+                self._add_log(
+                    f"[SHADOW_ONLY_MODE] {mode}: {entry_type} {instrument} "
+                    "→ shadow 強制 (mode-level structural guard, OANDA 送信なし)"
+                )
+            _is_shadow = True
+            _is_promoted = False
+
         # ── v9.x: Shadow persistence fix ──
         # Bug: open_trade()はL3890の_is_shadowで書込み。その後の安全ネット
         # (L4049: not promoted→shadow, L4055: Phase0 gate)でis_shadowが変更されても
@@ -8834,6 +8899,12 @@ class DemoTrader:
         A row is live only after OANDA fill confirmation. Any unsent, skipped,
         blocked, or still-sent row remains shadow to prevent FLAG_DRIFT metrics.
         """
+        # SHADOW-ONLY MODE (2026-07-10 user 承認 D2): mode 単位の構造 shadow
+        # ガード。fill 有無に関係なく shadow で永続化する (fail-closed —
+        # 送信ガード最終段 + resend gate が発注ゼロを保証するため、fill 付き
+        # row はそもそも到達不能)。
+        if _mode_is_shadow_only(mode):
+            return True
         tier = self._resolve_tier(entry_type, instrument, mode)
         if tier in {
             "SCALP_SENTINEL",

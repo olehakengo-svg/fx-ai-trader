@@ -4,6 +4,16 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-10 — feat(mode): 15m AUD_JPY shadow-only モード `daytrade_audjpy` 新設 (user 承認 D2)
+
+- **目的**: WS3 stage-2 対象セル htf_false_breakout×AUD_JPY の estimand は **15m** だが、本番 AUD_JPY は 1h モード (`daytrade_1h_audjpy`) のみで 15m shadow 発火ゼロだった。stage-2 PASS 時に shadow parity 検証を即開始できる状態 + AUD_JPY 実測摩擦 (spread/slippage) の取得。決裁メモ: [[shortest-path-decision-memo-2026-07-10]] / pre-reg: [[ws3-stage2-barrier-ev-prereg-2026-07-09]]
+- **MODE_CONFIG**: interval 30s / 15m / 60d / compute_daytrade_signal / AUD_JPY / auto_start=True / base_sl_pips=15 (JPY クロス既存値 eurjpy=15 準拠) / **`shadow_only: True`**
+- **shadow-only 構造保証 (新機構 `_mode_is_shadow_only`)**: 既存機構では塞げないことを確認の上で追加 — htf_false_breakout は `_SHIELD_EUR_DT_WHITELIST` 登録済みのため `_OANDA_MODE_BLOCKED` 方式は bypass され、N<10 sentinel は agg-Kelly gate も bypass して live minlot 発注される (テストの control ケースで実証: 同一入力×mode=daytrade は 1000u send に到達)。ガードは 3 経路: ①送信ガード最終段 (PRIME/GRAIL/C1/Kalman/edge-cell force-live の後・OANDA 判定の前で shadow 強制、以降 promote 復帰経路なし) ②`_resend_promote_gate_block_reason` に `SHADOW_ONLY_MODE_GATE` (補完送信) ③`_resolve_is_shadow_for_write` (write-path fail-closed)
+- **htf_false_breakout 発火経路**: `HTF_FALSE_BREAKOUT_REDESIGN_V2` OFF の legacy 経路のまま (コード変更なし、stage-1 と同一母集団)。v6.1 JPY 追加ゲート (RSI div / OB 接触) は本番仕様どおり適用。QUALIFIED_TYPES は既にグローバル登録済みで per-pair 追加不要、live 転送資格の付与は一切なし
+- **テスト**: `tests/test_daytrade_audjpy_shadow_only_mode.py` (9 tests) — 構造 pin / 最悪ケース (N<10 sentinel × strategy_mode=live × bridge active × SHADOW_MODE off) の send ゼロ / control 帰属証明 / resend・write-path gate
+- **影響トレード: なし** (live パラメータ不変・OANDA 発注ゼロ。AUD_JPY 15m shadow 行の新規蓄積が開始される)
+
+## 2026-07-09 — fix(tier): FORCE_DEMOTED > PAIR_PROMOTED precedence 全経路統一 (rule:R3)
 ## 2026-07-10 — docs(kb): 最短経路決裁 (user 承認「進めて」) + 月利目標の段階化 (rule:R3 導出)
 
 - **決裁メモ**: [[shortest-path-decision-memo-2026-07-10]] — 8-agent workflow + 敵対的レビュー3レンズによるゼロベース再検討。**agg-Kelly gate 恒久閉鎖の確定** (固定 cutoff 2026-04-16 累積 −0.2758 → per-cell carve-out なしで正セルも live 発火不能)、D3 決裁 SLA 48h、D4 実装 pre-reg 必須項目 (carve-out + R2 自動降格 + セル単位判定 + parity)
