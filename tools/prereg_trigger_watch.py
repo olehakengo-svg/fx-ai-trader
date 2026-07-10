@@ -130,9 +130,14 @@ def fetch_latest_daily_close(symbol: str) -> float | None:
         return None
 
 
-def count_matching(trades: list, entry_type: str, prefix: bool = False) -> int:
+def count_matching(trades: list, entry_type: str, prefix: bool = False,
+                   instrument: str = "") -> int:
     """entry_type の一致件数。prefix=True で前方一致 (multi-variant 戦略用、
-    例: kalman_d7_* 3 variant 合算)。"""
+    例: kalman_d7_* 3 variant 合算)。instrument 指定時はセル (戦略×ペア) 粒度
+    (ws3-stage2-underpowered-recheck 用 — ペア無指定だと全ペア合算になり
+    セル判定を過大計上する)。"""
+    if instrument:
+        trades = [t for t in trades if t.get("instrument") == instrument]
     if prefix:
         return sum(1 for t in trades
                    if str(t.get("entry_type") or "").startswith(entry_type))
@@ -178,7 +183,7 @@ def fetch_live_count(entry_type: str, instrument: str, direction: str,
 
 
 def fetch_shadow_count(entry_type: str, since: str, app_base: str,
-                       prefix: bool = False) -> int | None:
+                       prefix: bool = False, instrument: str = "") -> int | None:
     try:
         import requests
         r = requests.get(
@@ -189,7 +194,7 @@ def fetch_shadow_count(entry_type: str, since: str, app_base: str,
         r.raise_for_status()
         d = r.json()
         trades = d if isinstance(d, list) else d.get("trades", [])
-        return count_matching(trades, entry_type, prefix)
+        return count_matching(trades, entry_type, prefix, instrument=instrument)
     except Exception:
         return None
 
@@ -209,7 +214,8 @@ def evaluate_trigger(trig: dict[str, Any], *, today: str, app_base: str) -> dict
     elif ttype == "shadow_count_decision":
         res = evaluate_shadow_count_decision(
             fetch_shadow_count(trig["entry_type"], trig["since"], app_base,
-                               prefix=trig.get("match") == "prefix"),
+                               prefix=trig.get("match") == "prefix",
+                               instrument=trig.get("instrument", "")),
             int(trig["n_decide"]), int(trig["n_floor"]), trig["deadline"], today)
     elif ttype == "shadow_count_info":
         res = evaluate_shadow_count_info(
