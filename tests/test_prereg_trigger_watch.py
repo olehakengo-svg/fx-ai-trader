@@ -120,3 +120,18 @@ def test_count_live_matching_filters_cell_and_dedup():
          "direction": "SELL", "oanda_trade_id": "4", "dedup_violation": 0},
     ]
     assert count_live_matching(trades, "vix_carry_unwind", "USD_JPY", "SELL") == 1
+
+
+def test_count_matching_instrument_filter_for_cell_granularity():
+    """ws3-stage2-underpowered-recheck (2026-07-10): instrument 指定でセル
+    (戦略×ペア) 粒度に絞れること — 無指定だと全ペア合算で過大計上する。"""
+    from tools.prereg_trigger_watch import count_matching
+    trades = [
+        {"entry_type": "htf_false_breakout", "instrument": "AUD_JPY"},
+        {"entry_type": "htf_false_breakout", "instrument": "EUR_JPY"},
+        {"entry_type": "htf_false_breakout", "instrument": "AUD_JPY"},
+        {"entry_type": "london_fix_reversal", "instrument": "AUD_JPY"},
+    ]
+    assert count_matching(trades, "htf_false_breakout") == 3
+    assert count_matching(trades, "htf_false_breakout", instrument="AUD_JPY") == 2
+    assert count_matching(trades, "htf_false_breakout", instrument="USD_JPY") == 0

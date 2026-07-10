@@ -10,9 +10,16 @@
 - **目標段階化 (D5)**: [[monthly-target-rederivation-2026-07-10]] — 21.6% の導出考古学 (12-cell 母体 1〜2/12 残存、二重楽観バイアス、pips→%変換消失)。現行制約下天井 = 2セルで +0.15〜2.4%/月。**段階目標 M1 (月次符号転換) → M2 (+0.5%/月) → M3 (+2〜3%/月) へ移行、21.6% は aspirational anchor** — CLAUDE.md / index / roadmap v2.3 反映
 - **トラックB 起動**: [[ws3-round2-explore-prereg-2026-07-10]] DRAFT (探索2周目: 方向分割×未走査ペア×h96、判定済み8セル+falsified 6系統除外、queue `20260710-ws3-round2-explore` 排他 claim)
 - **評価への影響**: なし (live パラメータ変更なし。D2 15m AUD_JPY shadow-only モードは別 PR)
-
 ## 2026-07-09 — fix(tier): FORCE_DEMOTED > PAIR_PROMOTED precedence 全経路統一 (rule:R3)
+## 2026-07-10 — WS3 stage-2 verdict: ❌ PASS ゼロ / UNDERPOWERED — barrier EV 化は不成立 (rule:R1)
 
+- pre-reg LOCK ([[ws3-stage2-barrier-ev-prereg-2026-07-09]]) の機械的実行 (期日 07-19 の 9 日前倒し)。OOS-2 = 2022-07-07〜2024-07-06 (第3窓、切詰め worktree)。§3 執行順序遵守 (エントリー抽出 → N 凍結 59/46 → sim)。独立実装の再計算で符号一致検証
+- **lfr×EUR_USD: 全 9 構成負 (best −6.51 p/t) → セルクローズ**。SL 先着率 44-75% — stage-1 の中央値非対称は first-touch sequencing で反転
+- **htf_fb×AUD_JPY: 1/9 構成のみ +1.15、p_cell 0.594** — fold 集中 (2022 円介入期 +10.8 / 直近 −10.9)・孤立格子点。UNDERPOWERED 分岐 = shadow N≥100 で同一 grid 1 回限り再判定 (registry `ws3-stage2-underpowered-recheck`)
+- **帰結: v2.3 WS3 は新シグナル系統 (外部仮説) の探索へ**。TV canon は PASS 候補不在で未評価 (moot)
+- **監視配線 (R3)**: `prereg_trigger_watch.py` の shadow_count_decision に instrument フィルタを追加 (無指定だと全ペア合算でセル判定を過大計上) + 回帰テスト。`test_session_time_bias_in_bt_metrics` をパーサ実装 (all-pairs/full-audit 優先) に整合 — 旧実装は辞書順最後の .md を盲目的に見ており研究成果物の追加で誤 red になっていた (テストバグ)
+- **影響トレード: なし** (純研究。live/tier 変更ゼロ)
+## 2026-07-09 — fix(tier): FORCE_DEMOTED > PAIR_PROMOTED precedence 全経路統一 (rule:R3)
 - **latent 疑義の確定**: `_is_promoted_ex` のみ PP 先勝ちで、シグナル経路
   `_is_live_tier_exempt` (9b16ebb5 fail-closed) / `_apply_force_demoted_final_gate` /
   再送 gate と逆。final gate が PP 例外なしに shadow 強制するため live 漏れは構造的に

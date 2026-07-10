@@ -1,7 +1,7 @@
 # ロードマップ v2.3: 決済非対称と摩擦の是正 — 負エッジ確定局面からの構造回復
 
 > **✅ 正式版 (user 承認 2026-07-07「進めていいよ」)。** autopilot は R2/R3 項目を実行可。**R1 項目は個別に Rule 1 手続き (365d BT + Bonferroni + Pre-reg LOCK + user 最終承認) を経て執行** — ロードマップ正式化は計画の承認であり、個別 R1 レバーの包括承認ではない。目標 (月利21.6% 数学的上限への段階接近、user 承認 2026-06-12) は不変。
-> **📌 目標更新 (2026-07-10 user 承認)**: 目標は段階目標 M1→M2→M3 へ移行、21.6% は aspirational anchor に格下げ ([[monthly-target-rederivation-2026-07-10]] / [[shortest-path-decision-memo-2026-07-10]])。本ロードマップの WS 構成は不変 — 最短経路はトラックA (WS3 stage-2) / B (探索供給ライン = [[ws3-round2-explore-prereg-2026-07-10]]) / C (資本配管: agg-Kelly carve-out + 防御解除ラダー) の3並行。
+> **📌 目標更新 (2026-07-10 user 承認)**: 目標は段階目標 M1→M2→M3 へ移行、21.6% は aspirational anchor に格下げ ([[monthly-target-rederivation-2026-07-10]] / [[shortest-path-decision-memo-2026-07-10]])。本ロードマップの WS 構成は不変 — 最短経路はトラックA (stage-2 → 07-10 verdict で縮退: htf_fb recheck + trendline live N のみ) / B (探索供給ライン = [[ws3-round2-explore-prereg-2026-07-10]]、**主戦線**) / C (資本配管: agg-Kelly carve-out + 防御解除ラダー) の3並行。
 
 **作成日**: 2026-07-06 (handoff タスク `fx-roadmap-v23-handoff` タスク2) / **正式化**: 2026-07-07 (T3 診断確定の訂正込み)
 **旧版**: [[roadmap-v2.2-win-conversion]] (2026-06-12、全12項目クローズ済み PR #44-#50)
@@ -79,7 +79,7 @@ payoff 0.27 は v2.3 の最重要問題。**診断は R3 (analyses/ に数値根
 
 > **✅ stage-1 verdict PASS (2026-07-09、[[ws3-asymmetry-oos-prereg-2026-07-09]] §8)**: OOS 検証で 2/8 セルが非対称を再現 — **london_fix_reversal×EUR_USD (1.43, p=0.0115)** / **htf_false_breakout×AUD_JPY (1.82, p=0.0118、horizon 単調増加)**。選択バイアス組は崩壊しスクリーンが機能。**次 = stage-2: PASS 2 セル限定の barrier/EV 設計 pre-reg + TV Pine canon 再現 + user 最終承認** (live 実装はそこまで禁止)。trendline_sweep×EUR_USD は点推定再現 (1.70)・FDR 落ち — live N 蓄積で再評価。持続型 2 セルは不再現でクローズ。
 >
-> **🔒 stage-2 pre-reg LOCKED (2026-07-09 user 承認「進めて」、[[ws3-stage2-barrier-ev-prereg-2026-07-09]]) — 実行中、verdict 期日 2026-07-19 (registry `ws3-stage2-verdict-deadline` が監視)**: PASS 2 セル限定の h24 barrier grid (m=18、探索+stage-1 OOS 分位点アンカー)、評価は第3窓 OOS-2 (2022-07〜2024-07 の 2 年、winner's curse 遮断)、Westfall–Young max-T セル検定 + TV Pine canon trade-level 突合ゲート。敵対的レビュー 3 レンズ (リーク/統計/KB整合、18 findings) 反映済み。executor = claude (zen-mahavira、queue 票 20260709-1610 排他 claim)。
+> **❌ stage-2 verdict: PASS ゼロ / 全体 UNDERPOWERED (2026-07-10、期日 07-19 の 9 日前倒し — [[ws3-stage2-barrier-ev-prereg-2026-07-09]] §8)**: 第3窓 OOS-2 (2022-24、N=59/46) の h24 barrier grid で **lfr×EUR_USD は全 9 構成が深い負 (best −6.5 p/t、SL 先着率 44-75% — 中央値非対称が first-touch sequencing で反転) → セルクローズ**。htf_fb×AUD_JPY は 9 構成中 1 つのみ +1.15 だが p_cell 0.594・fold 集中 (+10.8/+2.9/−10.9 = 2022 円介入期由来・直近負)・孤立格子点 → **UNDERPOWERED 残置: shadow N≥100 で同一 grid 1 回限り再判定** (registry `ws3-stage2-underpowered-recheck`)。独立再計算で符号検証済み。**帰結 (§4 固定分岐): WS3 は「現行母集団の張り替え」を終了し、新シグナル系統 (外部仮説) の探索へ**。trendline_sweep×EUR_USD live N 蓄積再評価は継続。
 
 **T2 exit-repair FAIL (pre-reg §8) により、pre-reg §4 の固定分岐が発動: 「5p しか走らない場所で exit を直す」経路は棄却され、「20p 走る場所へ entry を張り替える」ことが黒字化の唯一の経路。** T4 マップ ([[friction-adjusted-ev-map-2026-07-07]]) も現行母集団に live viable な正セル不在を確定済みで、両輪の結論が一致。
 
