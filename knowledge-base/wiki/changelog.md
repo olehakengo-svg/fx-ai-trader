@@ -4,6 +4,14 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-10 — data(bt): WS3 探索2周目 OOS verdict — ❌ FAIL 0/5、外部仮説探索へ転進 (rule:R1)
+
+- **OOS 窓**: 2024-07-07〜2025-07-07 (再利用 2 回目)。切詰め parquet (末尾 2025-07-07T23:45Z) + **N 凍結→判定の順序執行** (`ws3_round2_oos_entries.json`)。GBP_JPY 15m は Massive 遡及取得で充足、EUR_USD/USD_JPY は stage-1 凍結資産再利用、ep 復元不一致 0/428
+- **判定** ([[ws3-round2-explore-prereg-2026-07-10]] §8): 2 レグ (ratio BH-FDR m=5 / §2b 凍結 grid first-touch EV) + ナイフエッジ (LOFO) — **全 5 セル FAIL**。vol_spike×USD_JPY N=27<30 機械 FAIL + ratio 崩壊 0.56 / vsg×GBP_JPY 0.88・dt_sr×GBP_JPY 0.90 崩壊 / sr_fib×GBP_USD 1.21 (p=0.13 n.s.) + EV 孤立格子点 / 最接近 sr_fib×EUR_USD 1.25 (p=0.19) + EV 隣接過半 fail
+- **一貫した結論**: round-1→stage-2→round-2 の 2 周で「現行エンジン母集団に OOS 再現の方向性非対称 × 固定 barrier EV の組は無い」。探索窓 EV スクリーン通過 5 セル中 4 セルが OOS で崩壊 = 探索窓 EV は選択バイアスの別表現
+- **分岐 (§3 事前固定)**: shadow 母集団内の軸は枯渇 → **外部仮説 (新シグナル系統 — 学術/TV 由来、falsified 6 系統除外) の探索へ転進** (v2.3 WS3 反映)。registry `ws3-round2-oos-verdict-deadline` resolved
+- **評価への影響**: なし (純研究、live/shadow 変更なし)
+
 ## 2026-07-10 — docs(kb): WS3 探索2周目 pre-reg LOCK — 候補 m=5 凍結 (rule:R1 stage-1 型、純研究)
 
 - **診断** (`raw/bt-results/ws3_round2_scan_2026_07`): 方向分割 196 セル + EUR_GBP (entries=0 構造的) + h96 → 1次候補 8 セル。round-1 checkpoint 窓同一性 0 mismatch
