@@ -90,10 +90,12 @@ WS3 の設計原則 (**2026-07-08 MFE 分布診断 [[ws3-mfe-distribution-2026-0
 
 Edge Factor Audit #1-#6 (2026-06-12) + T10 bb_rsi KILL (2026-07-02) で高N shadow 戦略は一巡。**次候補は N 単純降順でなく「高WR × 負EV」群を優先** — エントリーは効いているが決済/摩擦で殺されている典型。falsified 済みシリーズ (H4 level / channel / sweep&reclaim horizontal / mtf SELL / bb_rsi / T11 counter-USD) の再試行禁止。
 
+> **✅ T10/T11 診断クローズ (2026-07-11、[[ws3-t10-t11-entry-quality-diagnosis-2026-07-11]])**: 「高WR×負EV」群の内部残余候補 2 セルを exit 非依存の MFE/MAE 前方分布で診断。**T10 (gbp_deep_pullback×GBP_USD) は well-powered な null で entry 劣化確定 → CLOSE**。**T11 (sr_anti_hunt_bounce) は 5 ペア中 4 ペア close、×USD_JPY のみ順行非対称 (1.71) だが underpowered (N=19) → shadow N≥30 蓄積待ちの単一の細い糸として registry 監視のみ**。**帰結: 内部シグナル母集団の供給枯渇を三重確認 (本診断 + round-2 OOS FAIL 0/5 + T4 EV マップ)。主戦線は外部仮説 (学術/TV 由来の新シグナル系統) の探索へ全面移行。**
+
 | # | 候補 | clean shadow 実測 | 分析主眼 | Rule |
 |---|---|---|---|---|
-| T10 | **gbp_deep_pullback** | WR 72% / EV −1.39 | 高WR×負EV の筆頭。pullback エントリーのエッジ有無を IC で分離し、payoff/摩擦 kill か entry 劣化か判定 | R1 (促進時) / R3 (診断) |
-| T11 | **sr_anti_hunt_bounce** | WR 63% / EV −4.49 | SR family の唯一の survivor (anti-hunt thesis、他 SR は audit KILL 済)。EV −4.49 は payoff/摩擦か、それとも thesis 劣化か。斜めTL固有の liquidity-hunt エッジ (MEMORY `project_sweep_reclaim_horizontal_falsified`) との整合確認 | R1 / R3 |
+| T10 | **gbp_deep_pullback** | WR 72% / EV −1.39 | ✅ **診断 CLOSE 2026-07-11** ([[ws3-t10-t11-entry-quality-diagnosis-2026-07-11]]): ×GBP_USD の MFE/MAE ratio は 0.72→0.95→0.79 (N=56 well-powered, 全 horizon ≤0.95 = 母集団中央)。**順行エッジ無し = entry 劣化**。72% WR は BE/Trail 早利確アーティファクト。payoff/摩擦 kill でなく entry そのものが degraded → barrier 救済不能 | R3 (診断済) |
+| T11 | **sr_anti_hunt_bounce** | WR 63% / EV −4.49 | ✅ **診断 2026-07-11** ([[ws3-t10-t11-entry-quality-diagnosis-2026-07-11]]): 集計 −4.49 は 5 ペア混合 (平均が嘘)。GBP_USD/EUR_USD/GBP_JPY/EUR_JPY は entry 劣化で **close**。**×USD_JPY のみ順行非対称 1.71 (h24-48, 持続型・母集団上位2-3%) だが N=19<30 で underpowered + OOS 未検証** → shadow N≥30 蓄積 → OOS 再検証枠 (registry `ws3-t11-anti-hunt-usdjpy-recheck`)。即戦力 survivor ではない | R3 (診断済) → R1 (促進時) |
 | — | (flag) **trendline_sweep 乖離** | live/shadow WR 63% / EV −1.60 vs BT EV +0.599〜+0.927 | ELITE_LIVE 唯一戦略の live 実測が BT を大きく下回る。WS1 T1 と統合して forensic | — |
 
 ## WS4: clean-N 整合性・品質ゲート (Fable5 監査 Phase B, R3 構造fix)
