@@ -2702,6 +2702,16 @@ Kelly値がマイナスということは、現在のポートフォリオEVが�
 - USD_JPYに米指標（CPI・FOMCネタ等）が重なりATR急上昇した場合のみ、rnb_usdjpyのdirection_filter解除を確認してから評価
 - それ以外は静観が合理的
 
+### 2026-07-13 (Post-NY Report)
+| PnL | **データなし** |
+| WR | **データなし** |
+| WS3 stage-2 barrier/EV設計 | 2026-07-10 | ❌ FAIL（PR #75） |
+### セッション別PnL比較テーブル
+| セッション | PnL | トレード数 | WR |
+- **摩擦調整EV負のセルが全戦略に存在**（v2.3診断確定）
+- **勝ち側exit執行の崩壊**：設計TP実走MFEの5倍乖離、trail返上142.5p/30d
+- **M1目標（月次符号転換）すら達成できていない可能性**：DD=100.01%での防御モード継続中
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
