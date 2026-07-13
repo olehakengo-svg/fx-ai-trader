@@ -1,0 +1,66 @@
+{
+  "generated_kind": "feasibility_probe_rule_R3",
+  "note": "verdict ではない feasibility 診断。OOS 窓非消費。live/shadow 不変更",
+  "leadlag_internal": {
+    "n_bars": 20443,
+    "window": [
+      "2023-01-01 21:00:00+00:00",
+      "2026-05-15 13:00:00+00:00"
+    ],
+    "n_ordered_pairs": 156,
+    "bonferroni_rcrit": 0.02516299817271273,
+    "naive_max_abs_ic": 0.37308761263417195,
+    "naive_top": {
+      "lead": "EUR_GBP",
+      "follow": "AUD_JPY",
+      "ic": 0.37308761263417195
+    },
+    "naive_bonferroni_sig_count": 50,
+    "adversarial_top_liquid_destaled_ic": 0.004123178686082153,
+    "own_lag1_autocorr": {
+      "EUR_GBP": -0.40476309598680976,
+      "AUD_JPY": -0.32329341300722886
+    },
+    "liquid_majors_max_abs_ic": 0.02729317425291543,
+    "liquid_majors_top": [
+      {
+        "lead": "GBP_JPY",
+        "follow": "EUR_JPY",
+        "ic": 0.02729317425291543
+      },
+      {
+        "lead": "USD_JPY",
+        "follow": "GBP_USD",
+        "ic": 0.02135438272893732
+      },
+      {
+        "lead": "EUR_JPY",
+        "follow": "GBP_USD",
+        "ic": 0.019246962757195944
+      },
+      {
+        "lead": "EUR_USD",
+        "follow": "EUR_JPY",
+        "ic": -0.017739376562539096
+      },
+      {
+        "lead": "USD_JPY",
+        "follow": "GBP_JPY",
+        "ic": 0.016993540970966583
+      }
+    ],
+    "verdict": "NULL — naive lead-lag は非同期取引 (Lo-MacKinlay) artifact。liquid-hours+destale で IC 崩壊、liquid majors max|IC| は friction 未満"
+  },
+  "crossasset_zn_usdjpy": {
+    "available": true,
+    "zn_cache_range": [
+      "2026-03-27 10:30:00+00:00",
+      "2026-04-27 10:15:00+00:00"
+    ],
+    "n_bars": 438,
+    "contemporaneous_ic": -0.5847570311075013,
+    "lead_ic_zn_to_usdjpy": 0.007492290856829932,
+    "rev_ic_usdjpy_to_zn": 0.11554355672483317,
+    "verdict": "cross-asset linkage は contemporaneous で強い (IC~-0.58, 符号正) が lag-1 lead は ~0 → tradeable 先行なし。divergence-reversion 構成で要再評価"
+  }
+}
