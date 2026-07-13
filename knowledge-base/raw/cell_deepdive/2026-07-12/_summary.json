@@ -1,0 +1,176 @@
+{
+  "run_date": "2026-07-12",
+  "tool": "ad-hoc deepdive (cell_deepdive_audit.py absent; cell_edge_audit.py v2/v3 methodology re-implemented against Render PROD API)",
+  "data_source": "https://fx-ai-trader.onrender.com/api/demo/trades (PROD) \u2014 LOCAL demo_trades.db is STALE",
+  "window": "365d (data span 2026-04-02 -> 2026-07-10)",
+  "scope": "Live + Shadow (179/193 clean rows are shadow)",
+  "filters": {
+    "exclude_xau": true,
+    "exclude_dedup_violation": true,
+    "outcome_in": [
+      "WIN",
+      "LOSS"
+    ]
+  },
+  "meta": {
+    "prod_trades_fetched": 12860,
+    "target_rows_raw": 534,
+    "dedup_violation_excluded": 325,
+    "non_winloss_excluded": 16,
+    "clean_N": 193,
+    "min_n": 20,
+    "m_global_v2": 2,
+    "m_global_v3": 0,
+    "candidates": 0
+  },
+  "candidates": [],
+  "eligible_cells_v2": [
+    {
+      "level": "v2",
+      "cell": [
+        "sr_anti_hunt_bounce",
+        "EUR_JPY",
+        "BUY"
+      ],
+      "n": 26,
+      "wr": 0.654,
+      "wilson_lo": 0.462,
+      "ev_net": 5.58,
+      "pf": 2.37,
+      "p_raw": 0.1167,
+      "p_bonf": 0.2333,
+      "kelly": 0.378,
+      "wf_stable": true,
+      "promoted": false
+    },
+    {
+      "level": "v2",
+      "cell": [
+        "sr_anti_hunt_bounce",
+        "GBP_JPY",
+        "BUY"
+      ],
+      "n": 27,
+      "wr": 0.481,
+      "wilson_lo": 0.307,
+      "ev_net": -5.32,
+      "pf": 0.38,
+      "p_raw": 0.8474,
+      "p_bonf": 1.0,
+      "kelly": 0.0,
+      "wf_stable": false,
+      "promoted": false
+    }
+  ],
+  "eligible_cells_v3": [],
+  "near_miss_positive_v2": [
+    {
+      "level": "v2_all",
+      "cell": [
+        "vsg_jpy_reversal",
+        "EUR_JPY",
+        "SELL"
+      ],
+      "n": 15,
+      "wr": 0.733,
+      "wilson_lo": 0.48,
+      "ev_net": 1.69,
+      "pf": 1.62,
+      "p_raw": 0.0707,
+      "p_bonf": 0.1414,
+      "kelly": 0.28,
+      "wf_stable": true,
+      "promoted": false
+    },
+    {
+      "level": "v2_all",
+      "cell": [
+        "sr_anti_hunt_bounce",
+        "EUR_JPY",
+        "BUY"
+      ],
+      "n": 26,
+      "wr": 0.654,
+      "wilson_lo": 0.462,
+      "ev_net": 5.58,
+      "pf": 2.37,
+      "p_raw": 0.1167,
+      "p_bonf": 0.2333,
+      "kelly": 0.378,
+      "wf_stable": true,
+      "promoted": false
+    },
+    {
+      "level": "v2_all",
+      "cell": [
+        "vdr_jpy",
+        "USD_JPY",
+        "BUY"
+      ],
+      "n": 9,
+      "wr": 0.778,
+      "wilson_lo": 0.453,
+      "ev_net": 13.47,
+      "pf": 6.18,
+      "p_raw": 0.0956,
+      "p_bonf": 0.1912,
+      "kelly": 0.652,
+      "wf_stable": true,
+      "promoted": false
+    }
+  ],
+  "target_strategies": {
+    "sr_anti_hunt_bounce": {
+      "raw": 248,
+      "clean_N": 119,
+      "WR": 0.462,
+      "wilson_lo": 0.375,
+      "EV_net_pips": -2.83,
+      "PF": 0.57
+    },
+    "sr_liquidity_grab": {
+      "raw": 2,
+      "clean_N": 1,
+      "WR": 1.0,
+      "wilson_lo": 0.207,
+      "EV_net_pips": 2.2,
+      "PF": null
+    },
+    "cpd_divergence": {
+      "raw": 0,
+      "clean_N": 0
+    },
+    "vdr_jpy": {
+      "raw": 18,
+      "clean_N": 12,
+      "WR": 0.75,
+      "wilson_lo": 0.468,
+      "EV_net_pips": 9.72,
+      "PF": 4.67
+    },
+    "vsg_jpy_reversal": {
+      "raw": 64,
+      "clean_N": 35,
+      "WR": 0.686,
+      "wilson_lo": 0.52,
+      "EV_net_pips": 1.72,
+      "PF": 1.39
+    },
+    "rsk_gbpjpy_reversion": {
+      "raw": 115,
+      "clean_N": 21,
+      "WR": 0.381,
+      "wilson_lo": 0.208,
+      "EV_net_pips": -6.14,
+      "PF": 0.37
+    },
+    "mqe_gbpusd_fix": {
+      "raw": 87,
+      "clean_N": 5,
+      "WR": 0.6,
+      "wilson_lo": 0.231,
+      "EV_net_pips": 6.76,
+      "PF": 2.48
+    }
+  }
+}
