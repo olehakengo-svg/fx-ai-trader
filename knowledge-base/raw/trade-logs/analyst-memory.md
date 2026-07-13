@@ -2692,6 +2692,16 @@ Kelly値がマイナスということは、現在のポートフォリオEVが�
 - `r2_shadow_demoted_cell`が最大ブロック要因（40件）→ shadow tier評価でdemoteされたセルへのエントリーを全て排除している。シャドウ判定ロジックが現在のレジームで非常に厳しく機能している
 - `hedge_block`（21件）→ 逆方向ポジションとの干渉ブロック。ポジションなし（Open Trades=0）にもかかわらず発生しているのは、**前回エントリー方向の記憶が残存している可能性**
 
+### 2026-07-13 (Post-London Report)
+| セッション内PnL | **0 pips / 0円** |
+| 勝率（WR） | **N/A** |
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+> **⚠️ NO ACTION推奨（条件付き）**
+- USD_JPYに米指標（CPI・FOMCネタ等）が重なりATR急上昇した場合のみ、rnb_usdjpyのdirection_filter解除を確認してから評価
+- それ以外は静観が合理的
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
