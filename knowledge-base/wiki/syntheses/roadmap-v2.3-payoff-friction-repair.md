@@ -91,6 +91,8 @@ WS3 の設計原則 (**2026-07-08 MFE 分布診断 [[ws3-mfe-distribution-2026-0
 Edge Factor Audit #1-#6 (2026-06-12) + T10 bb_rsi KILL (2026-07-02) で高N shadow 戦略は一巡。**次候補は N 単純降順でなく「高WR × 負EV」群を優先** — エントリーは効いているが決済/摩擦で殺されている典型。falsified 済みシリーズ (H4 level / channel / sweep&reclaim horizontal / mtf SELL / bb_rsi / T11 counter-USD) の再試行禁止。
 
 > **✅ T10/T11 診断クローズ (2026-07-11、[[ws3-t10-t11-entry-quality-diagnosis-2026-07-11]])**: 「高WR×負EV」群の内部残余候補 2 セルを exit 非依存の MFE/MAE 前方分布で診断。**T10 (gbp_deep_pullback×GBP_USD) は well-powered な null で entry 劣化確定 → CLOSE**。**T11 (sr_anti_hunt_bounce) は 5 ペア中 4 ペア close、×USD_JPY のみ順行非対称 (1.71) だが underpowered (N=19) → shadow N≥30 蓄積待ちの単一の細い糸として registry 監視のみ**。**帰結: 内部シグナル母集団の供給枯渇を三重確認 (本診断 + round-2 OOS FAIL 0/5 + T4 EV マップ)。主戦線は外部仮説 (学術/TV 由来の新シグナル系統) の探索へ全面移行。**
+>
+> **✅ 外部仮説スクリーン + 価格 lead-lag 閉鎖 (2026-07-13、[[external-hypothesis-scan-2026-07-13]])**: 外部仮説転進の正式な入口。2024-26 文献リフレッシュ + 実証 probe ([[ws3_leadlag_ic_2026_07]])。**価格ベース lead-lag は OHLCV 内部でも cross-asset (ZN→USDJPY) でも ≥1h で裁定消滅を実証的に閉鎖** (naive の Bonferroni-sig 50 pairs は全て Lo-MacKinlay 非同期取引 artifact = liquid-hours+destale で IC 0.373→0.004 崩壊)。**外部の同型 falsification (Mesfin 2026, OHLCV 14 family 全滅) が内部 2 周 FAIL と独立に一致。** → **供給ラインの律速を「どの OHLCV パターン」から「データモダリティ」へ更新** (ボトルネック更新提案)。スクリーン survivor: **E3 cross-asset divergence-reversion (contemporaneous IC −0.585 の非先行利用) が唯一の自走可能候補 → round-3 pre-reg self-LOCK ([[ws3-round3-crossasset-divergence-prereg-2026-07-13]]、verdict 目標 07-24)**。E1 retail-positioning contrarian (2025 文献の最良エッジ) は positioning ingest 基盤の user 決裁待ち (scan §6)。
 
 | # | 候補 | clean shadow 実測 | 分析主眼 | Rule |
 |---|---|---|---|---|
