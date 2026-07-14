@@ -29,6 +29,13 @@ PreCompact hookがセッション中の以下のキーワードからlesson候�
 
 ## バグ・設計ミスの教訓
 
+### [[lesson-freeze-rule-topEV-selects-overfit-2026-07-14]]
+**発見日**: 2026-07-14 | **出典**: WS3 round-3 divergence-reversion verdict
+- 問題: 探索→OOS の候補凍結を「first-touch EV 降順 top-8」で行った結果、最も過学習したセル (GBP_JPY W120 z2.5、2024 円 carry-unwind regime で EV amplify) を優先的に凍結し、OOS で 8/8 反転。一方、凍結対象外だった EUR_USD/EUR_JPY は OOS 生存 (post-hoc・claimable 不可)。
+- 原因: 探索窓の raw EV は regime-amplified で凍結指標として脆弱。raw EV 最大 = 探索窓レジームに最適合 = 最過学習。
+- 修正/次から: freeze 規則を pre-reg 明記し、raw EV 単独ランクを避け pair/param 分散・fold 間 IC 安定性・exploration Sharpe を併用。
+- 教訓: **探索→OOS の候補凍結で raw EV 降順ランクだけに委ねると、最も過学習したセルを選び頑健なシグナルを取り逃す。**
+
 ### [[lesson-post-commit-verify-silent-misfire-2026-07-09]]
 **発見日**: 2026-07-09 | **修正**: rule:R3 (同コミット)
 - 問題: post-commit-verify check #3 (tier set 整合検証) が bash double-quoted `python3 -c "..."` 内の f-string `"` でコード截断され、導入 (2026-04-14) 以来一度も実行完了していなかった

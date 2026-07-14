@@ -124,11 +124,22 @@
     },
     {
       "id": "ws3-round3-crossasset-divergence-deadline",
-      "active": true,
+      "active": false,
       "type": "deadline_info",
       "deadline": "2026-07-24",
       "doc": "knowledge-base/wiki/decisions/ws3-round3-crossasset-divergence-prereg-2026-07-13.md",
-      "message": "WS3 round-3 (cross-asset divergence-reversion) discovery+LOCK 目標 07-20 / OOS verdict 07-24。queue 20260713-ws3-round3-crossasset-divergence が未着手なら stale (T5 型実行ギャップ防止)。外部仮説転進の第1候補、lead-lag は既に実証閉鎖済"
+      "message": "WS3 round-3 (cross-asset divergence-reversion) discovery+LOCK 目標 07-20 / OOS verdict 07-24。queue 20260713-ws3-round3-crossasset-divergence が未着手なら stale (T5 型実行ギャップ防止)。外部仮説転進の第1候補、lead-lag は既に実証閉鎖済",
+      "resolved": "2026-07-14",
+      "resolution": "VERDICT PASS=0 / H0 採択 (期日 07-24 の 10 日前倒し)。data-availability で窓 data-driven 再指定 (intraday rates フロア 2024-02、§2b AMENDMENT、結果観測前) → discovery 216 cells → top-8 凍結 → OOS 8/8 反転 (leg A 0/8 BH-FDR, leg B 0/8)。§4 固定分岐 = cross-asset 価格モダリティ枯渇 → E1 positioning 格上げ。WS3 price-based 探索は内部2周+外部1周=計3周 FAIL で一巡"
+    },
+    {
+      "id": "ws3-round4-eur-divergence-conditional",
+      "active": true,
+      "type": "conditional_info",
+      "deadline": "no-deadline",
+      "doc": "knowledge-base/wiki/decisions/ws3-round3-crossasset-divergence-prereg-2026-07-13.md",
+      "condition": "FX + rates (ZN=F 1h) cache が 2026-05-15 を 6ヶ月以上超えて延伸したら発火",
+      "message": "round-3 OOS で凍結外の EUR_USD/EUR_JPY divergence-reversion が post-hoc 生存 (claimable 不可、fresh OOS 無し)。cache が 2026-11-15+ まで延伸したら、pair 分散 freeze (EUR_USD/EUR_JPY を事前登録、top-by-EV 回避 — lesson-freeze-rule-topEV-selects-overfit-2026-07-14) で新 OOS 窓による round-4 を安価に再試行可。それまでは E1 positioning が主戦線"
     }
   ]
 }
