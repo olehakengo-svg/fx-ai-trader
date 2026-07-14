@@ -229,6 +229,13 @@ def evaluate_trigger(trig: dict[str, Any], *, today: str, app_base: str) -> dict
             int(trig["n_decide"]), trig["deadline"], today)
     elif ttype == "deadline_info":
         res = evaluate_deadline_info(trig["deadline"], today)
+    elif ttype in ("info", "conditional_info"):
+        # 手動判定/条件待ちの常時 watching エントリ (機械評価なし)。
+        # 2026-07-14: e1-positioning-ingest-freshness (info) 追加に合わせ、
+        # 既存 conditional_info と共に UNAVAILABLE (unknown type) 扱いだった
+        # ものを watching に分類 (daily report のノイズ解消)。
+        res = {"state": STATE_WATCHING,
+               "detail": trig.get("condition") or "info 監視 (手動判定)"}
     else:
         res = {"state": STATE_UNAVAILABLE, "detail": f"unknown type: {ttype}"}
     return {"id": trig["id"], "doc": trig.get("doc", ""),

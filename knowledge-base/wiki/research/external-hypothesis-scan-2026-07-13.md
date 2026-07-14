@@ -74,6 +74,8 @@
 - **リスク/コスト**: 低 (read-only snapshot、live 無関係)。net 到達は本環境で確認済 (Yahoo/OANDA REST)。
 - **決裁事項**: (a) ingest job 新設の GO/NO-GO (b) OANDA API の建玉比率エンドポイント可用性確認 (本番 token)。**Rule 1 昇格ではなくデータ基盤なので即 GO 可能だが、cron 新設 = 運用面で user 通知が筋。**
 
+> **✅ 決裁: user GO (2026-07-14)。実装済み** — [[e1-positioning-ingest-2026-07-14]] (background thread 型で実装、cron 不要。OANDA positionBook/orderBook × 6 instruments、SQLite `positioning_snapshots`、`/api/positioning/status` + registry `e1-positioning-ingest-freshness` 監視)。(b) のエンドポイント可用性は本番デプロイ後に status API で確認 (ローカル token 失効のため)。
+
 ---
 
 ## 参考文献 (本セッション取得)

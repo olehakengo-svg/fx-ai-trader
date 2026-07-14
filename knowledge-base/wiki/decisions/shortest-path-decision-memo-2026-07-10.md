@@ -70,3 +70,8 @@
 - **トラックA は縮退**: 残るのは (i) htf_fb×AUD_JPY の shadow N≥100 再判定 (発火 ~2.5-3.3件/月では長期 — **D2 の 15m AUD_JPY shadow モードが到達の前提条件**) (ii) trendline_sweep×EUR_USD の live N 蓄積再評価
 - **主戦線はトラックB (供給ライン) へ移行**: 探索2周目 ([[ws3-round2-explore-prereg-2026-07-10]]) は verdict の教訓を **LOCK 前・スキャン結果観測前に反映済み** — 選抜と OOS 判定の両方に first-touch EV レグを追加 (ratio 単独スクリーンの failure mode を構造的に排除)。加えて roadmap WS3 の T10 (gbp_deep_pullback) / T11 (sr_anti_hunt_bounce) 診断、および外部仮説 (学術/TV 由来) が既定候補
 - **M1 タイムラインへの影響**: 「stage-2 PASS → 8月 live pilot」の最短分岐は消滅。M1 は供給ラインからの新 survivor (EV レグ込み) が前提となり、**最短でも 2027 前半、現実的には 2027 央** に後ろ倒し。トラックC (carve-out / 防御解除ラダー) の設計は survivor 到達時に即使えるよう D4 で維持
+
+## 7. 追記 (2026-07-14): トラックB — price-modality 3周 FAIL → E1 positioning 基盤稼働
+
+- 探索は round-2 (内部 OOS 0/5) → round-3 cross-asset divergence-reversion (**OOS 8/8 反転**、[[ws3-round3-crossasset-divergence-prereg-2026-07-13]] §8) と続き、**price-modality は計 3 周 FAIL で枯渇確定**。round-3 §4 の固定分岐により **E1 retail-positioning (非価格モダリティ) が主戦線**
+- **E1 データ基盤は user GO (2026-07-14) で稼働開始** — [[e1-positioning-ingest-2026-07-14]] (OANDA positionBook/orderBook ingest、read-only)。positioning history は今から蓄積する以外に入手不可のため、トラックB の次回 pre-reg (E1) は蓄積 N 依存 (目安 2–3 ヶ月)。それまでの条件付き代替 = round-4 EUR divergence (registry `ws3-round4-eur-divergence-conditional`)

@@ -13512,6 +13512,67 @@ def api_demo_live_enable_flags():
     })
 
 
+# ═══════════════════════════════════════════════════════
+#  E1 positioning ingest — 検証 API (2026-07-14 user GO, read-only)
+#  設計: knowledge-base/wiki/analyses/e1-positioning-ingest-2026-07-14.md
+#  監視: prereg-trigger-registry.json `e1-positioning-ingest-freshness`
+#        (最終 snapshot が 2h 超 stale なら要調査)
+# ═══════════════════════════════════════════════════════
+@app.route("/api/positioning/status")
+def api_positioning_status():
+    """ingest worker と DB 蓄積状態の観測 (デプロイ後検証・鮮度監視用)。
+
+    worker 未起動 (POSITIONING_INGEST_ENABLE!=1 / 非 Render 起動 / 起動失敗)
+    でも DB 側の行数・最新 snapshot_time は返す — 「thread 死」と
+    「そもそも起動していない」を外部から区別できるようにする (fail-loud)。
+    """
+    from modules.positioning_ingest import get_worker, db_book_stats
+    worker = get_worker()
+    if worker is not None:
+        return jsonify(worker.status())
+    return jsonify({
+        "enabled": False,
+        "running": False,
+        "reason": ("worker not started — POSITIONING_INGEST_ENABLE!=1, "
+                   "non-Render startup, or startup failure (check logs "
+                   "for [positioning])"),
+        "env_flag": os.environ.get("POSITIONING_INGEST_ENABLE", "1"),
+        "books": db_book_stats(_db_path),
+    })
+
+
+@app.route("/api/positioning/export")
+def api_positioning_export():
+    """研究用 export — positioning_snapshots を JSON で返す (read-only)。
+
+    Query: instrument= (例 USD_JPY) / book= (position|order) /
+           from= (snapshot_time 下限, RFC3339 prefix 可) / limit= (<=20000)
+    """
+    from modules.positioning_ingest import export_snapshots
+    instrument = request.args.get("instrument", "")
+    book = request.args.get("book", "")
+    since = request.args.get("from", "")
+    if book and book not in ("position", "order"):
+        return jsonify({"error": f"invalid book: {book!r} "
+                                 "(expected 'position' or 'order')"}), 400
+    try:
+        limit = min(int(request.args.get("limit", 5000)), 20000)
+    except (TypeError, ValueError):
+        return jsonify({"error": "invalid limit (integer required)"}), 400
+    try:
+        rows = export_snapshots(_db_path, instrument=instrument,
+                                book_type=book, since=since, limit=limit)
+    except Exception as e:
+        # テーブル未作成/DB 障害は 500 で fail-loud (silent 空配列にしない)
+        return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
+    return jsonify({
+        "count": len(rows),
+        "filters": {"instrument": instrument, "book": book,
+                    "from": since, "limit": limit},
+        "rows": rows,
+    })
+
+
 @app.route("/api/demo/logs")
 def api_demo_logs():
     """全ログ履歴を返す（過去セッション含む）"""
@@ -15474,6 +15535,17 @@ _legacy_off = (
 if (_is_prod or _force_local) and not _legacy_off:
     _auto_start_thread = _threading_mod.Thread(target=_auto_start_trader, daemon=True)
     _auto_start_thread.start()
+    # ── E1 positioning ingest (2026-07-14 user GO): OANDA position/order book
+    #    の read-only snapshot 蓄積 thread。live 発注経路とは完全独立。
+    #    env flag POSITIONING_INGEST_ENABLE (default "1") で無効化可。
+    #    起動失敗は fail-loud に stdout へ (silent except 禁止) — 検証は
+    #    /api/positioning/status で行う。
+    try:
+        from modules.positioning_ingest import start_positioning_ingest
+        start_positioning_ingest(_db_path)
+    except Exception as _pos_start_err:
+        print(f"[positioning] ingest startup failed: {_pos_start_err}",
+              flush=True)
 else:
     if _legacy_off:
         _why = "BT_MODE/TESTING/NO_AUTOSTART"

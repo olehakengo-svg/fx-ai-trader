@@ -135,3 +135,31 @@ def test_count_matching_instrument_filter_for_cell_granularity():
     assert count_matching(trades, "htf_false_breakout") == 3
     assert count_matching(trades, "htf_false_breakout", instrument="AUD_JPY") == 2
     assert count_matching(trades, "htf_false_breakout", instrument="USD_JPY") == 0
+
+
+def test_info_and_conditional_info_are_watching_not_unavailable():
+    """e1-positioning-ingest-freshness (2026-07-14): type=info / conditional_info
+    は機械評価なしの常時 watching。unknown type (UNAVAILABLE) に落ちて daily
+    report のノイズにならないことを固定。"""
+    from tools.prereg_trigger_watch import evaluate_trigger, STATE_WATCHING
+
+    info = evaluate_trigger(
+        {"id": "e1-positioning-ingest-freshness", "type": "info",
+         "message": "2h 超 stale なら要調査", "doc": "kb/page.md"},
+        today="2026-07-14", app_base="http://unused.invalid")
+    assert info["state"] == STATE_WATCHING
+    assert info["id"] == "e1-positioning-ingest-freshness"
+
+    cond = evaluate_trigger(
+        {"id": "x-conditional", "type": "conditional_info",
+         "condition": "cache が 2026-11-15+ まで延伸したら発火",
+         "message": "m"}, today="2026-07-14", app_base="http://unused.invalid")
+    assert cond["state"] == STATE_WATCHING
+    assert "2026-11-15" in cond["detail"]
+
+
+def test_unknown_type_still_unavailable():
+    from tools.prereg_trigger_watch import evaluate_trigger, STATE_UNAVAILABLE
+    res = evaluate_trigger({"id": "z", "type": "no_such_type"},
+                           today="2026-07-14", app_base="http://unused.invalid")
+    assert res["state"] == STATE_UNAVAILABLE

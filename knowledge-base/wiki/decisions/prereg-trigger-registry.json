@@ -140,6 +140,14 @@
       "doc": "knowledge-base/wiki/decisions/ws3-round3-crossasset-divergence-prereg-2026-07-13.md",
       "condition": "FX + rates (ZN=F 1h) cache が 2026-05-15 を 6ヶ月以上超えて延伸したら発火",
       "message": "round-3 OOS で凍結外の EUR_USD/EUR_JPY divergence-reversion が post-hoc 生存 (claimable 不可、fresh OOS 無し)。cache が 2026-11-15+ まで延伸したら、pair 分散 freeze (EUR_USD/EUR_JPY を事前登録、top-by-EV 回避 — lesson-freeze-rule-topEV-selects-overfit-2026-07-14) で新 OOS 窓による round-4 を安価に再試行可。それまでは E1 positioning が主戦線"
+    },
+    {
+      "id": "e1-positioning-ingest-freshness",
+      "active": true,
+      "type": "info",
+      "deadline": "no-deadline",
+      "doc": "knowledge-base/wiki/analyses/e1-positioning-ingest-2026-07-14.md",
+      "message": "E1 positioning ingest 鮮度監視 — /api/positioning/status の最終 snapshot_time が 2h 超 stale なら要調査 (OANDA book 更新は約20分毎)。token 失効 / thread 死 / エンドポイント不可用は status の consecutive_failures と availability map で切り分け。user GO 2026-07-14"
     }
   ]
 }

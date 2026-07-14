@@ -4,6 +4,15 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-14 — feat(data): E1 positioning ingest — OANDA 建玉/注文比率の snapshot 蓄積基盤 (user GO 2026-07-14, rule:R3)
+
+- **何を**: OANDA v20 positionBook/orderBook (read-only) を 20 分毎 + jitter で snapshot し、既存 SQLite に `positioning_snapshots` (UNIQUE(instrument, book_type, snapshot_time)) として蓄積。buckets は mid ±3% trim + 集計列 (pct_long/short_total, near_imbalance)。対象 6 instruments (USD_JPY/EUR_USD/GBP_USD/EUR_JPY/GBP_JPY/AUD_JPY、env override 可)。dedup 3 層 (book.time メモリ / 再起動 DB seed / UNIQUE)
+- **なぜ**: WS3 price-modality 計 3 周 FAIL ([[ws3-round3-crossasset-divergence-prereg-2026-07-13]] §8) → E1 retail-positioning contrarian が主戦線。positioning history は今から蓄積する以外に入手不可 = 稼働開始が最優先。設計: [[e1-positioning-ingest-2026-07-14]]
+- **可観測性 (fail-loud)**: `/api/positioning/status` (行数/最新 snapshot_time/連続失敗/可用性マップ) + `/api/positioning/export` (研究用 JSON)。非対応 instrument は初回 4xx 記録→以後 skip。silent except ゼロ
+- **監視 (T5 教訓)**: registry `e1-positioning-ingest-freshness` (最終 snapshot 2h 超 stale = 要調査)。`prereg_trigger_watch.py` に info/conditional_info type 追加 (UNAVAILABLE ノイズ→watching)
+- **評価への影響: なし** — live 発注経路・戦略・Kelly・shadow 一切不変。read-only データ収集 thread の追加のみ。env `POSITIONING_INGEST_ENABLE=0` で無効化可
+- tests: `tests/test_positioning_ingest.py` (17) + prereg watch (+2)。本番検証手順は KB ページ §5 (ローカル token 失効のためデプロイ後検証)
+
 ## 2026-07-10 — data(bt): WS3 探索2周目 OOS verdict — ❌ FAIL 0/5、外部仮説探索へ転進 (rule:R1)
 
 - **OOS 窓**: 2024-07-07〜2025-07-07 (再利用 2 回目)。切詰め parquet (末尾 2025-07-07T23:45Z) + **N 凍結→判定の順序執行** (`ws3_round2_oos_entries.json`)。GBP_JPY 15m は Massive 遡及取得で充足、EUR_USD/USD_JPY は stage-1 凍結資産再利用、ep 復元不一致 0/428
