@@ -84,6 +84,12 @@ DDL 単一ソース: `modules/positioning_ingest.py` (`demo_db.py _init_tables` 
 
 **機械確認手段 (本 PR 追加)**: `GET /api/positioning/probe?run=1` — v3/accounts を統制 (発注系と同じ認証) にした read-only probe。本番 token で `accounts 200 + book 401` が出れば「token 有効なのに book だけ拒否」= 提供終了帰属が機械的に確定する。**token / 口座 ID はレスポンスに一切含めない契約 (テストで pin)**。
 
+**✅ 本番 probe 実行結果 (2026-07-14T10:48:19Z、PR #84 デプロイ後)** — 帰属確定:
+- `v3_accounts` = **200** (accounts=2、token 有効)
+- `v3_position_book` / `v3_order_book` = **401** `"Invalid authentication credentials"` — 有効 token でも book のみ拒否。no-token 時の generic 文言 (`Insufficient authorization...`) と異なる = 認証ヘッダは受理された上で**この資源への資格が無い** (entitlement 拒否)
+- `labs_v1_orderbook_data` = **403 HTML** (WAF、ルート消滅)
+- probe interpretation: 「token 有効 (v3/accounts 200) だが v20 book が 401 → OANDA の retail API book 提供終了 (2024-09-14) に合致」
+
 **含意**: **現行 ingest は auth 修理 (token 更新・区分変更) では直らない。データソース交換が必要** (§8c)。OANDA 側で bucket 級データが残る正規経路は有償 OANDA Data Services のみ (~$1,850/月・12ヶ月契約、伝聞。2024-05 以降のデータ品質劣化報告あり)。
 
 ### 8b. worker thread がプロセスライフサイクルで死ぬ → self-heal 実装
@@ -97,6 +103,8 @@ DDL 単一ソース: `modules/positioning_ingest.py` (`demo_db.py _init_tables` 
 2. `status()` 冒頭で StatusHeal — 観測経路そのものを復活経路にする
 3. app.py `before_request` heartbeat (60s throttle) — **Render health check を恒常 heal 経路化** (外部監視・cron に依存しない)
 4. 可観測性: status に `restarts` / `last_restart_at` を追加
+
+**✅ 本番実証 (2026-07-14T10:47Z、PR #84 デプロイ後)**: デプロイ直後の status で `running:true / restarts:1 / last_restart_at:10:47:21Z / poll_cycles:1` — heartbeat が即座に heal し、**serving process から 12/12 book の unavailable マップが初めて可視化** (PR #83 時代の「401 を記録した process と HTTP を返す process が別」の観測不整合も解消)。restarts が単調増加し続ける場合は thread が繰り返し死んでいるサイン (要再調査)。
 
 ### 8c. 代替ソース比較 (user 決裁用) — 2026-07-14 調査
 
