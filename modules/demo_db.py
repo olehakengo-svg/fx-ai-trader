@@ -458,6 +458,17 @@ class DemoDB:
                 CREATE INDEX IF NOT EXISTS idx_pending_demo   ON pending_oanda_ops(demo_trade_id);
             """)
 
+            # ── E1 positioning snapshots (2026-07-14 user GO, read-only ingest) ──
+            # OANDA positionBook/orderBook の定期 snapshot 蓄積テーブル。
+            # DDL は modules/positioning_ingest.py が単一ソース (drift 防止)。
+            # 失敗は fail-loud (print) — silent except 禁止 (lesson)。
+            try:
+                from modules.positioning_ingest import ensure_positioning_schema
+                ensure_positioning_schema(conn)
+            except Exception as _pos_exc:
+                print(f"[demo_db] positioning_snapshots schema init failed: "
+                      f"{_pos_exc}", flush=True)
+
             # ── 遅延インデックス作成: ALTER TABLE後のカラムに依存するインデックス ──
             # mode カラムは ALTER TABLE で追加されるため、executescript 外で作成
             try:
