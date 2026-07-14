@@ -4,6 +4,15 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-14 — fix(data): E1 positioning worker self-heal + 401 帰属確定 (OANDA book 提供終了) (rule:R3)
+
+- **本番実証 2 問題** ([[e1-positioning-ingest-2026-07-14]] §8): ①全 12 book が HTTP 401 ②worker thread が process ライフサイクルで死ぬ (started_at ありなのに running:false / poll_cycles:0)
+- **401 帰属確定 (§8a)**: 当初仮説「OANDA Japan 区分制限」を**棄却** — OANDA は **2024-09-14 に retail API での book 提供を終了** (公式告知 oanda.jp/info/1193 原文確認 + no-token でも同一 generic 401 の実測 + 非日本ユーザー同時遮断の傍証)。fxlabs `/labs/v1/orderbook_data` は 2020 年廃止 (403 HTML 実測)。**auth 修理では直らない → 代替ソース比較 §8c を user 決裁用に整備 (推奨 = Myfxbook aggregate 版転換)**
+- **self-heal (§8b)**: demo_trader StatusHeal パターン準拠 — `ensure_running()` (started_at あり × thread 死のみ heal、stop 後は復活せず) + `status()` 冒頭 heal + app.py `before_request` heartbeat (60s throttle、Render health check を恒常 heal 経路化)。status に `restarts`/`last_restart_at` 追加
+- **probe API**: `GET /api/positioning/probe?run=1` — v3/accounts 統制付き可用性 probe (read-only ×4)。token/口座 ID 非開示をテストで pin。instrument は whitelist 検証 (path injection 防止)
+- **registry**: `e1-positioning-ingest-freshness` → conditional_info 化 — 蓄積ゼロは既知状態、user 決裁まで stale 調査不要
+- **評価への影響: なし** — live 発注経路・戦略・Kelly・shadow 一切不変。tests: test_positioning_ingest.py 17→34
+
 ## 2026-07-14 — feat(data): E1 positioning ingest — OANDA 建玉/注文比率の snapshot 蓄積基盤 (user GO 2026-07-14, rule:R3)
 
 - **何を**: OANDA v20 positionBook/orderBook (read-only) を 20 分毎 + jitter で snapshot し、既存 SQLite に `positioning_snapshots` (UNIQUE(instrument, book_type, snapshot_time)) として蓄積。buckets は mid ±3% trim + 集計列 (pct_long/short_total, near_imbalance)。対象 6 instruments (USD_JPY/EUR_USD/GBP_USD/EUR_JPY/GBP_JPY/AUD_JPY、env override 可)。dedup 3 層 (book.time メモリ / 再起動 DB seed / UNIQUE)

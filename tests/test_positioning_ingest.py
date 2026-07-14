@@ -7,6 +7,11 @@
   (d) POSITIONING_INGEST_ENABLE=0 で thread 不起動
   (e) 4xx → unsupported マップ登録 + 以後 skip / 失敗カウント fail-loud
   (f) 検証 API の契約 (/api/positioning/status, /api/positioning/export)
+  (g) self-heal: start() 済み worker の thread 死 → is_alive 検知で再起動
+      (2026-07-14 本番実証: import 時起動 thread は request-serving process に
+       生き残らない。demo_trader StatusHeal パターン準拠、rule:R3)
+  (h) 可用性 probe: 本番 token での 401 帰属確定用 (/api/positioning/probe)
+      — token / 口座 ID をレスポンスに一切含めない契約を含む
 """
 import json
 import sqlite3
@@ -17,13 +22,16 @@ import pytest
 from modules.positioning_ingest import (
     BOOK_TYPES,
     DEFAULT_INSTRUMENTS,
+    PROBE_CHECKS,
     PositioningIngestWorker,
     THREAD_NAME,
     db_book_stats,
     ensure_positioning_schema,
+    ensure_worker_running,
     export_snapshots,
     extract_book_payload,
     parse_book,
+    probe_availability,
     save_snapshot,
     start_positioning_ingest,
 )
@@ -360,3 +368,269 @@ def test_api_positioning_export_contract(flask_client):
     assert bad.status_code == 400
     bad2 = flask_client.get("/api/positioning/export?limit=abc")
     assert bad2.status_code == 400
+
+
+# ── (g) self-heal: thread 死 → is_alive 検知で再起動 ─────────────────
+# 本番実証 (2026-07-14, Render srv-d6va1of5r7bs73en10vg): import 時に起動した
+# thread は request-serving process に生き残らない (started_at は fork copy で
+# 残るが is_alive=False / poll_cycles=0)。demo_trader StatusHeal パターン準拠。
+
+def _dead_thread():
+    """終了済み thread — fork 後の「started_at あり・thread 死」状態の再現用。"""
+    t = threading.Thread(target=lambda: None)
+    t.start()
+    t.join()
+    assert not t.is_alive()
+    return t
+
+
+def _fork_orphan_worker(db_path, client=None, **kw):
+    """start() 済みなのに thread が死んでいる worker (本番で観測した状態)。"""
+    w = PositioningIngestWorker(
+        db_path, client or FakeClient({}), instruments=["USD_JPY"],
+        book_types=("position",), **kw)
+    w._started_at = "2026-07-14T08:20:17Z"
+    w._thread = _dead_thread()
+    return w
+
+
+def _stop_and_join(w):
+    w.stop()
+    if w._thread is not None:
+        w._thread.join(timeout=5)
+        assert not w._thread.is_alive()
+
+
+def test_ensure_running_restarts_dead_thread(db_path):
+    w = _fork_orphan_worker(db_path)
+    try:
+        result = w.ensure_running()
+        assert result["healed"] is True
+        assert w._thread.is_alive()
+        assert w._thread.name == THREAD_NAME
+        assert w._restarts == 1
+        assert w._last_restart_at is not None
+    finally:
+        _stop_and_join(w)
+
+
+def test_ensure_running_noop_when_alive(db_path):
+    w = _fork_orphan_worker(db_path)
+    try:
+        w.ensure_running()
+        alive_thread = w._thread
+        result = w.ensure_running()
+        assert result["healed"] is False
+        assert result["reason"] == "alive"
+        assert w._thread is alive_thread  # 二重起動しない
+        assert w._restarts == 1
+    finally:
+        _stop_and_join(w)
+
+
+def test_ensure_running_respects_stop(db_path):
+    """明示 stop() 後は復活させない (demo_trader emergency-kill と同じ規律)。"""
+    w = _fork_orphan_worker(db_path)
+    w.stop()
+    result = w.ensure_running()
+    assert result["healed"] is False
+    assert result["reason"] == "stopped"
+    assert w._thread is None or not w._thread.is_alive()
+
+
+def test_ensure_running_never_started_is_noop(db_path):
+    """start() 前 (started_at なし) は heal 対象外 —
+    既存 unit テストの決定論性 (poll_once 手動駆動) を壊さない。"""
+    w = PositioningIngestWorker(db_path, FakeClient({}),
+                                instruments=["USD_JPY"],
+                                book_types=("position",))
+    result = w.ensure_running()
+    assert result["healed"] is False
+    assert result["reason"] == "never started"
+    assert w._thread is None
+
+
+def test_status_self_heals_dead_thread(db_path):
+    """status() 呼び出し (API 経由) が heal 経路になる — StatusHeal 準拠。"""
+    client = FakeClient({("position", "USD_JPY"):
+                         [(True, {"positionBook": make_book()})]})
+    w = _fork_orphan_worker(db_path, client=client)
+    try:
+        st = w.status()
+        assert st["running"] is True
+        assert st["restarts"] == 1
+        assert st["last_restart_at"] is not None
+        assert w._thread.is_alive()
+    finally:
+        _stop_and_join(w)
+
+
+def test_status_restart_observability_defaults(db_path):
+    """未 heal 時は restarts=0 / last_restart_at=None を露出する。"""
+    w = PositioningIngestWorker(db_path, FakeClient({}),
+                                instruments=["USD_JPY"],
+                                book_types=("position",))
+    st = w.status()
+    assert st["restarts"] == 0
+    assert st["last_restart_at"] is None
+    assert w._thread is None  # never-started は status() でも起動しない
+
+
+def test_ensure_worker_running_module_helper(db_path, monkeypatch):
+    monkeypatch.setattr(pi, "_worker", None)
+    assert ensure_worker_running() is None  # worker なしは no-op
+
+    w = _fork_orphan_worker(db_path)
+    monkeypatch.setattr(pi, "_worker", w)
+    try:
+        result = ensure_worker_running()
+        assert result["healed"] is True
+        assert w._thread.is_alive()
+    finally:
+        _stop_and_join(w)
+        monkeypatch.setattr(pi, "_worker", None)
+
+
+def test_before_request_heartbeat_heals_dead_worker(flask_client, db_path,
+                                                    monkeypatch):
+    """任意の request が throttled heartbeat 経由で worker を復活させる —
+    Render health check を外部監視に依存しない恒常 heal 経路にする設計。"""
+    import app as app_module
+    w = _fork_orphan_worker(db_path)
+    monkeypatch.setattr(pi, "_worker", w)
+    app_module._positioning_heartbeat_last[0] = 0.0  # throttle 窓を開ける
+    try:
+        flask_client.get("/api/positioning/export?limit=1")
+        assert w._thread.is_alive()
+        assert w._restarts == 1
+    finally:
+        _stop_and_join(w)
+        monkeypatch.setattr(pi, "_worker", None)
+
+
+# ── (h) 可用性 probe: 401 帰属確定 (token は一切レスポンスに出さない) ──
+
+class FakeProbeClient:
+    _token = "fake-secret-token-must-never-leak"
+
+    def __init__(self, accounts, position_book, order_book, labs):
+        self._responses = {
+            "accounts": accounts, "position": position_book,
+            "order": order_book, "labs": labs,
+        }
+        self.calls = []
+
+    def get_accounts(self):
+        self.calls.append("accounts")
+        return self._responses["accounts"]
+
+    def get_position_book(self, instrument):
+        self.calls.append(("position", instrument))
+        return self._responses["position"]
+
+    def get_order_book(self, instrument):
+        self.calls.append(("order", instrument))
+        return self._responses["order"]
+
+    def get_labs_orderbook_data(self, instrument="EUR_USD", period=3600):
+        self.calls.append(("labs", instrument, period))
+        return self._responses["labs"]
+
+
+_401 = (False, {"error": 401,
+                "message": "Insufficient authorization to perform request."})
+# labs は 2020 年廃止 — 現在は WAF の 403 HTML が返る (2026-07-14 実測)
+_403_HTML = (False, {"error": 403, "message": "<!DOCTYPE html>\n<html ..."})
+
+
+def test_probe_availability_retirement_attribution():
+    """accounts 200 + v20 book 401 → OANDA retail API の book 提供終了
+    (2024-09-14, oanda.jp/info/1193) と帰属する — token/区分の問題ではない。"""
+    client = FakeProbeClient(
+        accounts=(True, {"accounts": [{"id": "001-011-XXXX-001"}]}),
+        position_book=_401, order_book=_401, labs=_403_HTML)
+    report = probe_availability(client)
+    assert report["token_configured"] is True
+    assert set(report["checks"].keys()) == set(PROBE_CHECKS)
+    assert report["checks"]["v3_accounts"]["ok"] is True
+    assert report["checks"]["v3_accounts"]["message"] == "accounts=1"
+    assert report["checks"]["v3_position_book"]["http"] == 401
+    assert report["checks"]["labs_v1_orderbook_data"]["http"] == 403
+    assert "Insufficient authorization" in \
+        report["checks"]["v3_position_book"]["message"]
+    assert "提供終了" in report["interpretation"]
+
+    dumped = json.dumps(report, ensure_ascii=False)
+    assert FakeProbeClient._token not in dumped   # token を print しない契約
+    assert "001-011" not in dumped                # 口座 ID も返さない
+
+
+def test_probe_availability_token_invalid_attribution():
+    client = FakeProbeClient(accounts=_401, position_book=_401,
+                             order_book=_401, labs=_401)
+    report = probe_availability(client)
+    assert report["checks"]["v3_accounts"]["ok"] is False
+    assert "token" in report["interpretation"]
+
+
+def test_probe_availability_labs_fallback_attribution():
+    """v20 book のみ 401 で labs が取れるなら labs 代替可と報告する。"""
+    client = FakeProbeClient(
+        accounts=(True, {"accounts": []}),
+        position_book=_401, order_book=_401,
+        labs=(True, {"data": []}))
+    report = probe_availability(client)
+    assert report["checks"]["labs_v1_orderbook_data"]["ok"] is True
+    assert "labs" in report["interpretation"]
+
+
+def test_probe_availability_no_token_makes_no_calls():
+    client = FakeProbeClient(accounts=_401, position_book=_401,
+                             order_book=_401, labs=_401)
+    client._token = ""
+    report = probe_availability(client)
+    assert report["token_configured"] is False
+    assert client.calls == []
+
+
+def test_api_positioning_probe_dry_by_default(flask_client):
+    """?run=1 なしでは OANDA を叩かない (CI/誤操作でのネットワーク発火防止)。"""
+    resp = flask_client.get("/api/positioning/probe")
+    assert resp.status_code == 200
+    body = json.loads(resp.data)
+    assert body["run"] is False
+    assert set(body["checks"]) == set(PROBE_CHECKS)
+    assert "run=1" in body["hint"]
+
+
+def test_api_positioning_probe_run_uses_client(flask_client, monkeypatch):
+    import modules.oanda_client as oc
+    fake = FakeProbeClient(
+        accounts=(True, {"accounts": [{"id": "001-011-XXXX-001"}]}),
+        position_book=_401, order_book=_401, labs=_401)
+    monkeypatch.setattr(oc, "OandaClient", lambda: fake)
+    resp = flask_client.get("/api/positioning/probe?run=1")
+    assert resp.status_code == 200
+    body = json.loads(resp.data)
+    assert body["token_configured"] is True
+    assert body["checks"]["v3_position_book"]["http"] == 401
+    assert FakeProbeClient._token not in resp.data.decode("utf-8")
+
+
+def test_oanda_client_probe_paths():
+    """probe 用 read-only メソッドの path 契約 (network なし)。"""
+    from modules.oanda_client import OandaClient
+    client = OandaClient(token="t", account_id="a")
+    captured = []
+
+    def fake_request(method, path, data=None, timeout=10):
+        captured.append((method, path))
+        return True, {}
+
+    client._request = fake_request
+    client.get_accounts()
+    client.get_labs_orderbook_data("EUR_USD", 3600)
+    assert captured == [
+        ("GET", "/v3/accounts"),
+        ("GET", "/labs/v1/orderbook_data?instrument=EUR_USD&period=3600"),
+    ]

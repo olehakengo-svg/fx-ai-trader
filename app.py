@@ -13518,6 +13518,31 @@ def api_demo_live_enable_flags():
 #  監視: prereg-trigger-registry.json `e1-positioning-ingest-freshness`
 #        (最終 snapshot が 2h 超 stale なら要調査)
 # ═══════════════════════════════════════════════════════
+
+# ── worker heartbeat (2026-07-14 rule:R3 self-heal) ──
+# 本番実証: app.py import 時に起動した thread は gunicorn の process
+# ライフサイクルで request-serving process に生き残らない (started_at は
+# 残るが running:false / poll_cycles:0)。demo_trader が生きているのは
+# get_status() 内 StatusHeal のおかげ。positioning は Render health check
+# が常時届くこの before_request を恒常 heal 経路にする (外部監視非依存)。
+_positioning_heartbeat_last = [0.0]
+_POSITIONING_HEARTBEAT_SEC = 60
+
+
+@app.before_request
+def _positioning_heartbeat():
+    now = _time_mod.time()
+    if now - _positioning_heartbeat_last[0] < _POSITIONING_HEARTBEAT_SEC:
+        return
+    _positioning_heartbeat_last[0] = now
+    try:
+        from modules.positioning_ingest import ensure_worker_running
+        ensure_worker_running()
+    except Exception as e:  # heal 失敗で request を落とさない (fail-loud に記録)
+        print(f"[positioning] heartbeat self-heal failed: "
+              f"{type(e).__name__}: {e}", flush=True)
+
+
 @app.route("/api/positioning/status")
 def api_positioning_status():
     """ingest worker と DB 蓄積状態の観測 (デプロイ後検証・鮮度監視用)。
@@ -13539,6 +13564,31 @@ def api_positioning_status():
         "env_flag": os.environ.get("POSITIONING_INGEST_ENABLE", "1"),
         "books": db_book_stats(_db_path),
     })
+
+
+@app.route("/api/positioning/probe")
+def api_positioning_probe():
+    """OANDA book 可用性 probe (read-only 診断) — 401 の帰属を本番 token で確定。
+
+    デフォルトは dry (何も叩かない)。?run=1 で OANDA へ read-only GET 4 回
+    (v3/accounts 統制 + v20 book ×2 + legacy labs)。token / 口座 ID は
+    レスポンスに一切含めない (modules/positioning_ingest.probe_availability
+    の契約、テストで pin)。
+    """
+    import re as _re
+    from modules.positioning_ingest import PROBE_CHECKS, run_probe
+    if request.args.get("run") != "1":
+        return jsonify({
+            "run": False,
+            "checks": list(PROBE_CHECKS),
+            "hint": "?run=1 で実行 (OANDA へ read-only GET 4回。"
+                    "token はレスポンスに含まれない)",
+        })
+    instrument = request.args.get("instrument", "USD_JPY")
+    if not _re.fullmatch(r"[A-Z0-9]{3}_[A-Z0-9]{3}", instrument):
+        # path injection 防止 (instrument は URL path に埋め込まれる)
+        return jsonify({"error": f"invalid instrument: {instrument!r}"}), 400
+    return jsonify(run_probe(instrument=instrument))
 
 
 @app.route("/api/positioning/export")

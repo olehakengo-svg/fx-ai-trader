@@ -144,10 +144,11 @@
     {
       "id": "e1-positioning-ingest-freshness",
       "active": true,
-      "type": "info",
+      "type": "conditional_info",
       "deadline": "no-deadline",
       "doc": "knowledge-base/wiki/analyses/e1-positioning-ingest-2026-07-14.md",
-      "message": "E1 positioning ingest 鮮度監視 — /api/positioning/status の最終 snapshot_time が 2h 超 stale なら要調査 (OANDA book 更新は約20分毎)。token 失効 / thread 死 / エンドポイント不可用は status の consecutive_failures と availability map で切り分け。user GO 2026-07-14"
+      "condition": "E1 代替ソース user 決裁 (§8c: Myfxbook 転換 / practice 検証 / 有償 / 閉鎖) が下りたら鮮度監視を再開",
+      "message": "E1 positioning ingest 鮮度監視 — 2026-07-14 更新: OANDA が 2024-09-14 に retail API の book 提供を終了 (oanda.jp/info/1193、§8a) したため全 12 book が 401 = 蓄積ゼロは既知状態。user 決裁までは stale が正常で毎日の調査は不要。決裁後: /api/positioning/status の最終 snapshot_time が 2h 超 stale なら要調査。thread 死は self-heal 済み (restarts で観測、§8b)。user GO 2026-07-14"
     }
   ]
 }

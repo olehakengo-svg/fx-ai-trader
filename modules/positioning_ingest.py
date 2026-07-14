@@ -288,6 +288,9 @@ class PositioningIngestWorker:
         self._started_at: Optional[str] = None
         self._thread: Optional[threading.Thread] = None
         self._stop = threading.Event()
+        self._heal_lock = threading.Lock()
+        self._restarts = 0
+        self._last_restart_at: Optional[str] = None
 
     # -- lifecycle --
 
@@ -304,6 +307,38 @@ class PositioningIngestWorker:
 
     def stop(self) -> None:
         self._stop.set()
+
+    def ensure_running(self) -> Dict[str, Any]:
+        """thread 死を検知したら再起動する (demo_trader StatusHeal パターン)。
+
+        本番実証 (2026-07-14): app.py import 時に起動した thread は gunicorn
+        の process ライフサイクル (fork) で request-serving process に生き
+        残らない — started_at は copy されるが is_alive=False / poll_cycles=0。
+        request 駆動のここが serving process 側での唯一の復活経路。
+
+        heal 条件は「start() 済み (started_at あり) なのに thread が生きて
+        いない」に限定する — 未 start の worker (テスト/start_thread=False)
+        を勝手に起動しない。明示 stop() 後も復活させない。
+        """
+        if self._stop.is_set():
+            return {"healed": False, "reason": "stopped"}
+        if self._started_at is None:
+            return {"healed": False, "reason": "never started"}
+        if self._thread is not None and self._thread.is_alive():
+            return {"healed": False, "reason": "alive"}
+        with self._heal_lock:
+            if self._thread is not None and self._thread.is_alive():
+                return {"healed": False, "reason": "alive"}
+            ensure_positioning_schema(self._db_path)
+            self._seed_last_saved()  # fork copy のメモリ dedup を DB で温め直す
+            self._restarts += 1
+            self._last_restart_at = _utcnow_iso()
+            _log(f"SELF-HEAL: worker thread dead (process lifecycle) — "
+                 f"restarting (restarts={self._restarts})")
+            self._thread = threading.Thread(
+                target=self._run_forever, name=THREAD_NAME, daemon=True)
+            self._thread.start()
+        return {"healed": True, "restarts": self._restarts}
 
     def _seed_last_saved(self) -> None:
         """再起動時、DB の最新 snapshot_time でメモリ dedup を温める。"""
@@ -432,6 +467,9 @@ class PositioningIngestWorker:
     # -- observability --
 
     def status(self) -> Dict[str, Any]:
+        # StatusHeal (demo_trader 準拠): 観測経路そのものを復活経路にする。
+        # 未 start / 明示 stop はヘルパー側の条件で no-op。
+        self.ensure_running()
         db_stats = db_book_stats(self._db_path)
         books: Dict[str, Dict[str, Any]] = {}
         for instrument in self.instruments:
@@ -461,10 +499,96 @@ class PositioningIngestWorker:
             "dedup_skips": self._dedup_skips,
             "consecutive_cycle_failures": self._consec_cycle_all_fail,
             "last_error": self._last_error,
+            "restarts": self._restarts,
+            "last_restart_at": self._last_restart_at,
             "stale_alert_sec": STALE_ALERT_SEC,
             "db_error": db_stats.get("_error"),
             "books": books,
         }
+
+
+# ── 可用性 probe (401 帰属確定用、read-only) ─────────────────────────
+# 本番実証 (2026-07-14): 全 12 book が HTTP 401。調査で確定した帰属:
+# OANDA は 2024-09-14 に retail API での book 提供を終了 (公式告知
+# oanda.jp/info/1193、2024-08-30)。v20 book は no-token でも同一の generic
+# 401 を返すため、401 単体では token 有効性と判別できない — 本 probe は
+# v3/accounts (発注系と同じ認証) を統制にして帰属を機械確認する。
+# legacy labs (/labs/v1/orderbook_data) は 2020 年廃止 (現在 WAF の 403 HTML)。
+# レスポンスに token / 口座 ID を一切含めないこと (契約、テストで pin)。
+
+PROBE_CHECKS: Tuple[str, ...] = (
+    "v3_accounts",             # token 有効性 baseline (発注系と同じ認証)
+    "v3_position_book",        # 401 再現 (ingest が使う endpoint)
+    "v3_order_book",
+    "labs_v1_orderbook_data",  # legacy fxLabs — 区分制限の範囲確定
+)
+
+
+def probe_availability(client: Any, instrument: str = "USD_JPY",
+                       labs_instrument: str = "EUR_USD") -> Dict[str, Any]:
+    """OANDA book 可用性を本番 token で検証し、401 の帰属を返す。
+
+    返り値に secret を含めない: ok/http/message (OANDA エラー本文 300 字) のみ。
+    v3_accounts 成功時も口座 ID は返さず件数だけにする。
+    """
+    if not getattr(client, "_token", ""):
+        return {"token_configured": False, "checks": {},
+                "interpretation": "OANDA token 未設定 — probe 実行不可"}
+
+    def _entry(ok: bool, data: Dict[str, Any], ok_summary: str) -> Dict[str, Any]:
+        if ok:
+            return {"ok": True, "http": 200, "message": ok_summary}
+        return {"ok": False, "http": (data or {}).get("error"),
+                "message": str((data or {}).get("message", ""))[:300]}
+
+    checks: Dict[str, Dict[str, Any]] = {}
+    ok, data = client.get_accounts()
+    n_accounts = len((data or {}).get("accounts", [])) if ok else 0
+    checks["v3_accounts"] = _entry(ok, data, f"accounts={n_accounts}")
+    ok, data = client.get_position_book(instrument)
+    checks["v3_position_book"] = _entry(ok, data, "position book 取得可")
+    ok, data = client.get_order_book(instrument)
+    checks["v3_order_book"] = _entry(ok, data, "order book 取得可")
+    ok, data = client.get_labs_orderbook_data(labs_instrument, 3600)
+    checks["labs_v1_orderbook_data"] = _entry(
+        ok, data, f"labs orderbook 取得可 keys={sorted((data or {}).keys())[:5]}")
+
+    return {
+        "token_configured": True,
+        "instrument": instrument,
+        "labs_instrument": labs_instrument,
+        "checks": checks,
+        "interpretation": _interpret_probe(checks),
+        "probed_at": _utcnow_iso(),
+    }
+
+
+def _interpret_probe(checks: Dict[str, Dict[str, Any]]) -> str:
+    accounts_ok = checks["v3_accounts"]["ok"]
+    books_401 = all(checks[k]["http"] == 401
+                    for k in ("v3_position_book", "v3_order_book"))
+    labs = checks["labs_v1_orderbook_data"]
+    if not accounts_ok:
+        return (f"v3/accounts が {checks['v3_accounts']['http']} — "
+                "token 失効/無効の可能性。401 帰属は token 側")
+    if books_401 and labs["ok"]:
+        return ("token 有効 (v3/accounts 200)。v20 book のみ 401 で "
+                "labs は取得可 → labs 経由の代替取得が可能")
+    if books_401:
+        return ("token 有効 (v3/accounts 200) だが v20 book が 401 → "
+                "OANDA の retail API book 提供終了 (2024-09-14, "
+                "oanda.jp/info/1193) に合致。token/口座区分の問題ではなく "
+                f"データ製品自体が API から撤収済み (labs={labs['http']}, "
+                "2020 年廃止)")
+    return "v20 book 取得可 — 401 は解消している (提供終了の巻き戻し?)"
+
+
+def run_probe(instrument: str = "USD_JPY",
+              labs_instrument: str = "EUR_USD") -> Dict[str, Any]:
+    """env の本番 token で probe を実行 (app.py /api/positioning/probe 用)。"""
+    from modules.oanda_client import OandaClient
+    return probe_availability(OandaClient(), instrument=instrument,
+                              labs_instrument=labs_instrument)
 
 
 # ── module-level singleton (app.py 起動時に設定、API から参照) ──────────
@@ -474,6 +598,17 @@ _worker: Optional[PositioningIngestWorker] = None
 
 def get_worker() -> Optional[PositioningIngestWorker]:
     return _worker
+
+
+def ensure_worker_running() -> Optional[Dict[str, Any]]:
+    """singleton worker の self-heal (app.py before_request heartbeat 用)。
+
+    worker 未生成 (ENABLE=0 / 非 Render / 起動失敗) は None — ここで勝手に
+    生成はしない (起動判断は start_positioning_ingest の env gate に一元化)。
+    """
+    if _worker is None:
+        return None
+    return _worker.ensure_running()
 
 
 def start_positioning_ingest(db_path: str, client: Any = None,

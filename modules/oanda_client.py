@@ -299,6 +299,25 @@ class OandaClient:
         path = f"/v3/instruments/{instrument}/orderBook"
         return self._request("GET", path, timeout=30)
 
+    def get_accounts(self) -> tuple:
+        """List accounts accessible to the token. GET /v3/accounts (read-only).
+        Availability-probe baseline: 200 here + 401 on books isolates the
+        401 to book-data entitlement, not token validity. Callers must not
+        expose account IDs from the response.
+        """
+        return self._request("GET", "/v3/accounts", timeout=15)
+
+    def get_labs_orderbook_data(self, instrument: str = "EUR_USD",
+                                period: int = 3600) -> tuple:
+        """Legacy fxLabs orderbook endpoint (read-only).
+        GET /labs/v1/orderbook_data?instrument=&period=
+        Availability probe only — determines whether the book-data 401 is
+        v20-specific or division-wide (OANDA Japan entitlement).
+        """
+        path = (f"/labs/v1/orderbook_data?instrument={instrument}"
+                f"&period={int(period)}")
+        return self._request("GET", path, timeout=15)
+
     # ── Transactions (v20) ────────────────────────────
     # Authoritative server-side ledger. Used to detect is_shadow labelling
     # drift (demo_trades.is_shadow=1 yet ORDER_FILL exists) and to source
