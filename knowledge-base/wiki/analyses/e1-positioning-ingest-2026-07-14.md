@@ -43,6 +43,8 @@ DDL 単一ソース: `modules/positioning_ingest.py` (`demo_db.py _init_tables` 
 
 ## 5. 本番デプロイ後の検証手順
 
+> ⚠️ **2026-07-14 追記**: 本節 2. の「401 = token 失効を疑う」は §8 で棄却された (401 の真の帰属は OANDA の book 提供終了)。手順は歴史記録として残す。
+
 1. `https://fx-ai-trader.onrender.com/api/positioning/status` — `enabled:true / running:true` と、初回 poll 後に各 instrument×book の `latest_snapshot_time` が現在時刻 ±30 分内であること。
 2. `consecutive_failures` / `consecutive_cycle_failures` が 0 に収束すること。**401 が続く場合は本番 OANDA_TOKEN の失効を疑う** (ローカル .env token は失効確認済み — 本番でのみ実データ検証可能)。
 3. `available:false` の book があれば `unsupported.code` を確認 (OANDA が book を提供しない instrument の可能性 — 事実として KB に追記)。
@@ -62,3 +64,57 @@ DDL 単一ソース: `modules/positioning_ingest.py` (`demo_db.py _init_tables` 
 - `app.py` — status/export API + autostart gate 内 thread 起動
 - `tools/prereg_trigger_watch.py` — info/conditional_info type (+ registry エントリ)
 - tests: `tests/test_positioning_ingest.py` (17) + `tests/test_prereg_trigger_watch.py` (+2)
+
+## 8. 本番実証 (2026-07-14) — 2 問題の帰属確定と修正 (rule:R3)
+
+デプロイ後検証 (§5) で 2 問題を確認。いずれも当日中に帰属確定。
+
+### 8a. 全 12 book が HTTP 401 → 帰属 = **OANDA retail API の book 提供終了** (token/区分の問題ではない)
+
+**観測**: Render ログ (srv-d6va1of5r7bs73en10vg) 2026-07-14T08:03Z / 08:20Z の 2 デプロイとも、worker 起動直後に 6 ペア × position/order 全 12 book が `UNSUPPORTED http=401`。本番 token は発注では有効。
+
+**当初仮説「OANDA Japan 区分の book 提供制限」は棄却**。確定した事実:
+
+| 証拠 | 内容 |
+|---|---|
+| **公式告知 (一次ソース)** | OANDA Japan 2024-08-30 告知 ([oanda.jp/info/1193](https://www.oanda.jp/info/1193)): 「OANDA APIで提供しているオーダーブックの情報は、9月14日（土）を持ちましてサービス終了とさせていただきます。」= **2024-09-14 に API での book 提供自体が終了** (2026-07-14 原文を直接確認) |
+| **独立実測 (2026-07-14)** | v20 book は **no-token / garbage-token でも同一の generic 401** (`Insufficient authorization to perform request.` — /v3/accounts の garbage-token 応答と同一文言)。つまり 401 単体は認可ゲートの共通応答で、token 有効性を判別できない |
+| **fxlabs は既に廃止** | `/labs/v1/orderbook_data` は 2020-01 廃止 (公式回答: [oanda-api-v20#156](https://github.com/hootnot/oanda-api-v20/issues/156))。2026-07-14 実測で **403 HTML (WAF)** = ルート自体が消滅。practice host も同様 |
+| **platform-wide の傍証** | 非日本ユーザーも 2024-09 末に同時遮断 ([dekalogblog 2024-09-27](https://dekalogblog.blogspot.com/2024/09/discontinuation-of-oandas-orderbook-and.html)、OANDA 回答は「business decision」)。developer.oanda.com から Instrument endpoints ページ削除 (404)。「全区分」は推定 (公式文言は Japan 告知のみ) だが三角測量は強い |
+
+**機械確認手段 (本 PR 追加)**: `GET /api/positioning/probe?run=1` — v3/accounts を統制 (発注系と同じ認証) にした read-only probe。本番 token で `accounts 200 + book 401` が出れば「token 有効なのに book だけ拒否」= 提供終了帰属が機械的に確定する。**token / 口座 ID はレスポンスに一切含めない契約 (テストで pin)**。
+
+**含意**: **現行 ingest は auth 修理 (token 更新・区分変更) では直らない。データソース交換が必要** (§8c)。OANDA 側で bucket 級データが残る正規経路は有償 OANDA Data Services のみ (~$1,850/月・12ヶ月契約、伝聞。2024-05 以降のデータ品質劣化報告あり)。
+
+### 8b. worker thread がプロセスライフサイクルで死ぬ → self-heal 実装
+
+**観測**: status API が `started_at: 08:20:17Z` (worker start 時刻と一致) を返すのに `running:false / poll_cycles:0 / unsupported:null` で恒常不変 (応答 2039B 固定)。一方 Render ログには同時刻に UNSUPPORTED ×12 が出ている = **poll を実行した process の状態が、HTTP を返す process に存在しない** (fork copy のみ残存)。
+
+**帰属**: app.py import 時 (module-level autostart gate) に起動した thread は、gunicorn (`--workers 1 --threads 8 gthread`) の process ライフサイクルで request-serving process に生き残らない。**demo_trader が同条件で生きているのは `get_status()` 内 StatusHeal (request 駆動の is_alive→再起動) があるから** — positioning worker にはこの経路がなかった。
+
+**修正 (本 PR, rule:R3)** — demo_trader StatusHeal パターン準拠:
+1. `PositioningIngestWorker.ensure_running()` — 「start() 済み (started_at あり) なのに thread 死」のみ heal。明示 `stop()` 後・未 start は復活させない。`_heal_lock` で二重起動防止、`_seed_last_saved()` で dedup を DB から温め直す
+2. `status()` 冒頭で StatusHeal — 観測経路そのものを復活経路にする
+3. app.py `before_request` heartbeat (60s throttle) — **Render health check を恒常 heal 経路化** (外部監視・cron に依存しない)
+4. 可観測性: status に `restarts` / `last_restart_at` を追加
+
+### 8c. 代替ソース比較 (user 決裁用) — 2026-07-14 調査
+
+E1 の一次統計のうち **near_imbalance (現値近傍の偏り) は price-bucket 級データが必須**だが、無料の bucket 級ソースはもう存在しない。比較:
+
+| ソース | データ形状 | bucket級? | 取得 | 制約 | E1 適合 |
+|---|---|---|---|---|---|
+| **OANDA practice token** | (生きていれば) v20 book そのもの | ✅ | user が無料 practice account 作成 → token | **platform-wide 提供終了のためほぼ確実に死亡** (未実測)。検証 5 分 | 期待値低 |
+| **OANDA Data Services (有償)** | v20 book 相当 | ✅ | 有償契約 | ~$1,850/月・12ヶ月縛り (伝聞)。品質劣化報告 (2024-05〜) | M1 段階でコスト非対称 |
+| **Myfxbook Community Outlook** | long/short % + volume + positions + **avgLong/ShortPrice** (全 symbol 一括) | ❌ (avg 価格 1 点/side のみ) | 無料 account → login.json → get-community-outlook.json | **100 req/24h** (≈15分間隔、現行 20 分 poll と整合)。session が IP-bound (Render egress IP 変動に注意)。API 利用は無料ソフト限定 ToS (内部 quant 利用は可) | **推奨 fallback** — 全体 skew + avg 価格距離で E1 を aggregate 版に再設計 |
+| **IG client sentiment** | long/short % のみ | ❌ | IG account + API key | **IG証券 (日本) は retail API 提供なし** → 日本居住では実質不可 | 不可 |
+| **Dukascopy SWFX** | long/short % (30分更新) | ❌ | JForex (Java) Strategy API | Python stack と不整合、widget scrape は ToS-gray | 弱 |
+| その他 (FXCM SSI / FXSSI / aggregators) | aggregate | ❌ | 有償 or API なし or 低信頼 | — | 弱 |
+
+**決裁オプション (推奨順)**:
+- **A (推奨): Myfxbook で E1 を aggregate 版に転換** — near_imbalance は放棄し、全体 skew (`pct_long_total−pct_short_total` 相当) + 現値 vs avgLong/ShortPrice 距離を一次統計に再定義。user アクション: Myfxbook 無料 account 作成 + credentials を Render env へ。schema は `positioning_snapshots` を流用可能 (buckets_json 空、pct_long/short + avg 価格)
+- **B: practice account 5 分検証** — 期待値は低いが安価。A と並行可 (`/api/positioning/probe?run=1` を practice token で実行するだけ)
+- **C: OANDA Data Services 有償契約** — bucket 級が本当に必要になった段階 (E1 が aggregate 版で PASS した後) まで保留を推奨
+- **D: E1 閉鎖して別モダリティへ** — round-4 (EUR ペア価格系) は cache 延伸待ち。E1 を試さず閉鎖する積極的理由は現状ない
+
+**registry への影響**: `e1-positioning-ingest-freshness` は蓄積ゼロが**既知状態**になった (12/12 book 提供終了)。user 決裁までは stale が正常 — 毎日の調査は不要。決裁後に鮮度監視を再開する (registry message を本コミットで更新済み)。
