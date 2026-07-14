@@ -2722,6 +2722,16 @@ GBP系のフラッシュクラッシュガード発動。GBP_USDのATR%ile=34%�
 - **DaytradeとRNB**: RANGINGはtrendフォロー型には不利。hedge_blockとdirection_filterが継続して発動する環境。
 - **Scalp系**: レンジ環境はScalpに理論上有利だが、r2_shadow_demoted_cellによる自己ブロックが有効エントリーを消している。構造的な阻害要因がレジーム優位を打ち消している状態。
 
+### 2026-07-14 (Post-Tokyo Report)
+| PnL | — |
+| 勝率(WR) | — |
+- エントリーゼロの原因が「シグナル未発生（レジーム由来）」なのか「gate条件による抑制（agg-Kelly / spread_guard）」なのかは現データのみでは切り分け不可
+- 全ペアが **RANGING / ATR%ile 34–67%** という中程度ボラティリティ帯にあり、シグナル発生しにくい条件は説明可能
+- DD=100.01%（100%バリア突破後 held）の **DD防御0.2x モード発動中** — この状態でのパラメータ緩和は禁忌
+### 推奨戦略配分
+**→ NO ACTION 推奨（ただし条件付きで監視継続）**
+- UTC 07:00–08:00（ロンドン本格参入）以降、USD_JPY(ATR%ile=67%)でブレイクアウトが発生した場合、daytrade_eurjpy / rnb_usdjpy のシグナルが復活する可能性。ただし本番約定にはagg-Kelly解消が必要。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
