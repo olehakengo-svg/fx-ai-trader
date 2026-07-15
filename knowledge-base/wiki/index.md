@@ -16,12 +16,11 @@
 - **[[audit-index]]** — `learning/` 18 audit ノード + MEMORY `project_*.md` 双方向マップ（次セッション Claude 必読、KB↔MEMORY 棲み分けルール記載）
 
 <!-- KB_PORTFOLIO_START -->
-## Current Portfolio (auto-synced, 2026-07-14)
+## Current Portfolio (auto-synced, 2026-07-15)
 
 ### ELITE_LIVE (never shadowed)
 | Strategy | BT Data | Status |
 |----------|---------|--------|
-| [[trendline-sweep]] | EUR_USD: EV=+0.927 WR=80.8%; GBP_USD: EV=+0.599 WR=73.1% | ELITE_LIVE |
 
 ### PAIR_PROMOTED (SENTINEL)
 | Strategy | Pairs | BT Data | Status |
@@ -77,6 +76,7 @@
 | [[sr-weighted-break]] | no BT data | UNIVERSAL_SENTINEL |
 | [[streak-reversal]] | no BT data | shadow only |
 | [[tokyo-range-breakout-up]] | no BT data | LOT_BOOST (not sentinel/elite) |
+| [[trendline-sweep]] | EUR_USD: EV=+0.927 WR=80.8%; GBP_USD: EV=+0.599 WR=73.1% | shadow only |
 | [[turtle-soup]] | GBP_USD: EV=+0.386 WR=69.7% | LOT_BOOST (not sentinel/elite) |
 | [[vol-spike-mr]] | USD_JPY: EV=+0.148 WR=64.6% | UNIVERSAL_SENTINEL |
 | [[vol-surge-detector]] | no BT data | SCALP_SENTINEL |

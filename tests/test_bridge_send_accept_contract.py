@@ -179,6 +179,17 @@ def _fake_bridge(*, accept: bool) -> MagicMock:
 def _run_promoted_signal(tmp_path, monkeypatch, *, accept: bool):
     monkeypatch.setattr(data_mod, "fetch_oanda_bid_ask", lambda _inst: None)
     monkeypatch.setattr(demo_trader_mod, "datetime", _LondonDatetime)
+    # 2026-07-15 (rule:R2): trendline_sweep は全セル PAIR_DEMOTED 化され
+    # (pre-reg trendline_sweep_gbpusd_pairscope_2026-07-13)、production tier に
+    # ELITE_LIVE member が存在しなくなった。本テストの対象は bridge
+    # send-accept 契約 (caller 側 'sent' audit / shadow escalation) であって
+    # tier 構成の pin ではないため、ELITE 経路を synthetic に復元して
+    # 契約検証を継続する (tier 側の pin は test_flag_drift_writepath.py)。
+    monkeypatch.setattr(
+        DemoTrader, "_ELITE_LIVE", frozenset({"trendline_sweep"}))
+    monkeypatch.setattr(
+        DemoTrader, "_PAIR_DEMOTED",
+        {c for c in DemoTrader._PAIR_DEMOTED if c[0] != "trendline_sweep"})
     trader, logs = _make_trader(tmp_path, monkeypatch)
     fake = _fake_bridge(accept=accept)
     monkeypatch.setattr(trader, "_oanda", fake)

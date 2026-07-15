@@ -555,6 +555,13 @@ class DaytradeEngine:
     # blocked 候補は shadow 退避 (is_shadow=1) で N 蓄積継続 (4原則#3)。
     # 再 live 化は R1 (365d BT or clean live N>=30 + Bonferroni) のみ。
     # Ref: knowledge-base/wiki/analyses/mtf-mixed-gate-noop-forensic-2026-07-07.md
+    #
+    # 2026-07-15 (rule:R2): trendline_sweep は pre-reg
+    # trendline_sweep_gbpusd_pairscope_2026-07-13 の執行で全セル
+    # _PAIR_DEMOTED (demo_trader.py) へ demote 済み — 本 cell stop は
+    # その部分集合 (HTF mixed 時のみ) だが、defense-in-depth として残置。
+    # trendline_sweep×GBP_USD が将来 R1 で再LIVE化されても、この mixed
+    # cell stop は独立に R1 解除されるまで有効のまま (矛盾なし)。
     HTF_MIXED_LIVE_STOP_CELLS = frozenset({
         ("trendline_sweep", "GBP_USD"),
     })

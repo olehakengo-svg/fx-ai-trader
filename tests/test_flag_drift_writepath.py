@@ -93,22 +93,24 @@ def test_sentinel_and_demoted_cells_resolve_to_shadow_tier(trader):
     assert trader._resolve_tier("ema_cross", "GBP_USD", "daytrade") == "FORCE_DEMOTED"
 
 
-def test_live_tier_requires_fill_before_live_persistence(trader, tmp_path):
-    assert trader._resolve_tier("trendline_sweep", "EUR_USD", "daytrade") == "ELITE_LIVE"
-    assert trader._resolve_is_shadow_for_write(
-        "trendline_sweep",
-        "EUR_USD",
-        "daytrade",
-        bridge_status="sent",
-        oanda_trade_id="",
-    )
-    assert not trader._resolve_is_shadow_for_write(
-        "trendline_sweep",
-        "EUR_USD",
-        "daytrade",
-        bridge_status="filled",
-        oanda_trade_id="OANDA-123",
-    )
+def test_trendline_sweep_all_cells_demoted_pin_shadow_even_when_filled(trader):
+    # 2026-07-15 (rule:R2) pre-reg trendline_sweep_gbpusd_pairscope_2026-07-13
+    # 執行 pin: _ELITE_LIVE は空集合 (all-pairs bypass 廃止)、全 3 セルが
+    # _PAIR_DEMOTED。fill 済みでも write-path は shadow を強制する。
+    # (旧 test は trendline_sweep×EUR_USD を ELITE_LIVE の代表例として
+    # 「fill 前 shadow / fill 後 live」を pin していた — その意味論は
+    # test_pair_promoted_filled_can_be_live_but_blocked_remains_shadow が
+    # PAIR_PROMOTED セルで引き続きカバーする。)
+    assert DemoTrader._ELITE_LIVE == set()
+    for pair in ("EUR_USD", "GBP_USD", "EUR_GBP"):
+        assert trader._resolve_tier("trendline_sweep", pair, "daytrade") == "PAIR_DEMOTED"
+        assert trader._resolve_is_shadow_for_write(
+            "trendline_sweep",
+            pair,
+            "daytrade",
+            bridge_status="filled",
+            oanda_trade_id="OANDA-123",
+        )
 
 
 def test_pair_promoted_filled_can_be_live_but_blocked_remains_shadow(trader):
