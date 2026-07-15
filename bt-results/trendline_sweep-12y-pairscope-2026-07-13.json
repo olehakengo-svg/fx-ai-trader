@@ -1,0 +1,455 @@
+{
+  "generated_at": "2026-07-13T20:51:53.189379+00:00",
+  "strategy": "trendline_sweep",
+  "strategy_file": "strategies/daytrade/trendline_sweep.py (UNCHANGED)",
+  "test_type": "routing / pair-scope edge test (12y MASSIVE walk-forward, per cell = pair x direction)",
+  "prereg_ledger_id": "trendline_sweep_gbpusd_pairscope_2026-07-13",
+  "prereg_doc": "knowledge-base/wiki/learning/trendline-sweep-gbpusd-loss-conversion-prereg-2026-07-13.md",
+  "interval": "15m",
+  "bt_mode": "1",
+  "bt_require_massive_cache": "1",
+  "data_source": "MASSIVE parquet cache only (Yahoo forbidden)",
+  "data_windows": {
+    "EUR_USD": {
+      "cache_file": "data/cache/massive/EUR_USD_15m_2014_2026.parquet",
+      "start": "2014-01-02T11:15:00+00:00",
+      "end": "2026-07-02T14:45:00+00:00"
+    },
+    "GBP_USD": {
+      "cache_file": "data/cache/massive/GBP_USD_15m_2014_2026.parquet",
+      "start": "2014-01-02T11:15:00+00:00",
+      "end": "2026-07-02T14:45:00+00:00"
+    },
+    "EUR_GBP": {
+      "cache_file": "data/cache/massive/EUR_GBP_15m.parquet",
+      "start": "2014-01-07T23:45:00+00:00",
+      "end": "2026-05-05T06:00:00+00:00"
+    }
+  },
+  "row_counts": {
+    "EUR_USD": {
+      "raw_rows": 309612,
+      "post_indicator_rows": 309413
+    },
+    "GBP_USD": {
+      "raw_rows": 309035,
+      "post_indicator_rows": 308834
+    },
+    "EUR_GBP": {
+      "raw_rows": 305817,
+      "post_indicator_rows": 305610
+    }
+  },
+  "exit_model": {
+    "type": "fixed bracket (SL/TP/time-stop), TV-aligned (fixed SL, no BE)",
+    "max_hold_bars": 24,
+    "tie_break": "SL-first (conservative) when SL and TP both touched in a bar",
+    "position_model": "single open position per pair, non-overlapping trades",
+    "ctx_window_bars": 300,
+    "window_equivalence_note": "trendline_sweep only inspects the last ~100 bars for swings and the respect loop covers idx2+1..current; a 300-bar window yields IDENTICAL signals to production's 3500-bar window."
+  },
+  "friction_assumption": {
+    "model": "repo standard BT friction (app.py:_bt_spread + _bt_get_slippage), round-turn",
+    "formula_price": "(spread(entry_hour) + spread(exit_hour))/2 + 2*slippage_per_side",
+    "spread_model": "pair x hour base spread * friction_model_v2._SESSION_MULTIPLIER (verbatim from app.py:_bt_spread)",
+    "slippage_per_side_pips": {
+      "EUR_USD": 0.5,
+      "GBP_USD": 1.0,
+      "EUR_GBP": 0.5
+    },
+    "note": "Round-turn = spread + 2x per-side slippage. GBP_USD round-turn (~2.7-2.8p) is higher than the ~1.2-1.5p hint because the repo GBP_USD slippage is 1.0p/side (friction-analysis.md nominal, the largest upward correction). EUR_USD ~1.2-1.3p, EUR_GBP ~1.9-2.0p. This is the conservative production-faithful model; lighter friction would only make netEV MORE positive.",
+    "realized_avg_roundturn_pips_CONFIG_PROD": {
+      "EUR_USD": 1.428,
+      "GBP_USD": 3.026,
+      "EUR_GBP": 2.237
+    }
+  },
+  "gate_definitions": {
+    "m_tests": 3,
+    "G1": "netEV > 0 (post-friction, 12y)",
+    "G2": "BH-FDR q=0.10 survive (m=3 pair-level tests, one-sided t-test mean>0)",
+    "G3": "walk-forward >= 3/4 chronological folds net-positive",
+    "G4": "Wilson_lo (95%) >= 0.40",
+    "G5": "friction <= 10% of TP distance",
+    "G6": "both-legs BUY net >= 0 AND SELL net >= 0 (no single-side artifact; evaluated on CONFIG_RAW)",
+    "PASSES_ALL": "all of G1..G6",
+    "eval_population": "G1-G5 on CONFIG_PROD (unchanged strategy = actually-traded population); G6 on CONFIG_RAW both legs (SELL_ONLY lifted at runtime, file unchanged)"
+  },
+  "gates": {
+    "EUR_USD": {
+      "G1_netEV_gt0": false,
+      "G2_BHFDR_q10_survive": false,
+      "G3_WF_ge_3of4": false,
+      "G4_wilson_lo_ge_0.40": true,
+      "G5_friction_le_10pct_TP": true,
+      "G6_both_legs_net_ge0": false,
+      "PASSES_ALL": false,
+      "p_value_one_sided": 0.880779
+    },
+    "GBP_USD": {
+      "G1_netEV_gt0": false,
+      "G2_BHFDR_q10_survive": false,
+      "G3_WF_ge_3of4": false,
+      "G4_wilson_lo_ge_0.40": false,
+      "G5_friction_le_10pct_TP": true,
+      "G6_both_legs_net_ge0": false,
+      "PASSES_ALL": false,
+      "p_value_one_sided": 1.0
+    },
+    "EUR_GBP": {
+      "G1_netEV_gt0": false,
+      "G2_BHFDR_q10_survive": false,
+      "G3_WF_ge_3of4": false,
+      "G4_wilson_lo_ge_0.40": false,
+      "G5_friction_le_10pct_TP": true,
+      "G6_both_legs_net_ge0": false,
+      "PASSES_ALL": false,
+      "p_value_one_sided": 0.999997
+    }
+  },
+  "bh_fdr": {
+    "q": 0.1,
+    "p_values": {
+      "EUR_USD": 0.880779,
+      "GBP_USD": 1.0,
+      "EUR_GBP": 0.999997
+    },
+    "survive": {
+      "EUR_USD": false,
+      "GBP_USD": false,
+      "EUR_GBP": false
+    }
+  },
+  "pair_level_CONFIG_PROD": {
+    "EUR_USD": {
+      "N": 3036,
+      "wins": 1330,
+      "WR": 0.4381,
+      "netEV_pip": -0.483,
+      "netPnL_pip": -1466.35,
+      "PF": 0.9488,
+      "wilson_lo": 0.4205,
+      "avg_tp_pip": 34.03,
+      "avg_friction_pip": 1.428,
+      "friction_pct_of_tp": 0.042,
+      "outcomes": {
+        "TP": 796,
+        "SL": 1260,
+        "TIME": 980
+      },
+      "wf_positive_folds": 1,
+      "wf_fold_net_pip": [
+        -1171.09,
+        -129.79,
+        -679.93,
+        514.46
+      ],
+      "wf_fold_n": [
+        785,
+        744,
+        755,
+        752
+      ]
+    },
+    "GBP_USD": {
+      "N": 4884,
+      "wins": 2007,
+      "WR": 0.4109,
+      "netEV_pip": -3.1212,
+      "netPnL_pip": -15243.94,
+      "PF": 0.7788,
+      "wilson_lo": 0.3972,
+      "avg_tp_pip": 45.67,
+      "avg_friction_pip": 3.026,
+      "friction_pct_of_tp": 0.0663,
+      "outcomes": {
+        "TP": 1161,
+        "SL": 2134,
+        "TIME": 1589
+      },
+      "wf_positive_folds": 0,
+      "wf_fold_net_pip": [
+        -3124.99,
+        -3385.65,
+        -5222.07,
+        -3511.22
+      ],
+      "wf_fold_n": [
+        1355,
+        1285,
+        1139,
+        1105
+      ]
+    },
+    "EUR_GBP": {
+      "N": 2829,
+      "wins": 1175,
+      "WR": 0.4153,
+      "netEV_pip": -1.4493,
+      "netPnL_pip": -4100.21,
+      "PF": 0.8136,
+      "wilson_lo": 0.3973,
+      "avg_tp_pip": 25.83,
+      "avg_friction_pip": 2.237,
+      "friction_pct_of_tp": 0.0866,
+      "outcomes": {
+        "TP": 679,
+        "SL": 1200,
+        "TIME": 950
+      },
+      "wf_positive_folds": 0,
+      "wf_fold_net_pip": [
+        -594.46,
+        -1663.75,
+        -1068.45,
+        -773.55
+      ],
+      "wf_fold_n": [
+        734,
+        803,
+        722,
+        570
+      ]
+    }
+  },
+  "per_cell_CONFIG_PROD": {
+    "EUR_USD_BUY": {
+      "N": 0,
+      "wins": 0,
+      "WR": 0.0,
+      "netEV_pip": 0.0,
+      "netPnL_pip": 0,
+      "PF": 0.0,
+      "wilson_lo": 0.0,
+      "avg_tp_pip": 0.0,
+      "avg_friction_pip": 0.0,
+      "friction_pct_of_tp": null,
+      "outcomes": {
+        "TP": 0,
+        "SL": 0,
+        "TIME": 0
+      }
+    },
+    "EUR_USD_SELL": {
+      "N": 3036,
+      "wins": 1330,
+      "WR": 0.4381,
+      "netEV_pip": -0.483,
+      "netPnL_pip": -1466.35,
+      "PF": 0.9488,
+      "wilson_lo": 0.4205,
+      "avg_tp_pip": 34.03,
+      "avg_friction_pip": 1.428,
+      "friction_pct_of_tp": 0.042,
+      "outcomes": {
+        "TP": 796,
+        "SL": 1260,
+        "TIME": 980
+      }
+    },
+    "GBP_USD_BUY": {
+      "N": 2412,
+      "wins": 972,
+      "WR": 0.403,
+      "netEV_pip": -3.4601,
+      "netPnL_pip": -8345.75,
+      "PF": 0.758,
+      "wilson_lo": 0.3836,
+      "avg_tp_pip": 45.88,
+      "avg_friction_pip": 3.03,
+      "friction_pct_of_tp": 0.0661,
+      "outcomes": {
+        "TP": 557,
+        "SL": 1067,
+        "TIME": 788
+      }
+    },
+    "GBP_USD_SELL": {
+      "N": 2472,
+      "wins": 1035,
+      "WR": 0.4187,
+      "netEV_pip": -2.7905,
+      "netPnL_pip": -6898.19,
+      "PF": 0.7996,
+      "wilson_lo": 0.3994,
+      "avg_tp_pip": 45.46,
+      "avg_friction_pip": 3.021,
+      "friction_pct_of_tp": 0.0664,
+      "outcomes": {
+        "TP": 604,
+        "SL": 1067,
+        "TIME": 801
+      }
+    },
+    "EUR_GBP_BUY": {
+      "N": 0,
+      "wins": 0,
+      "WR": 0.0,
+      "netEV_pip": 0.0,
+      "netPnL_pip": 0,
+      "PF": 0.0,
+      "wilson_lo": 0.0,
+      "avg_tp_pip": 0.0,
+      "avg_friction_pip": 0.0,
+      "friction_pct_of_tp": null,
+      "outcomes": {
+        "TP": 0,
+        "SL": 0,
+        "TIME": 0
+      }
+    },
+    "EUR_GBP_SELL": {
+      "N": 2829,
+      "wins": 1175,
+      "WR": 0.4153,
+      "netEV_pip": -1.4493,
+      "netPnL_pip": -4100.21,
+      "PF": 0.8136,
+      "wilson_lo": 0.3973,
+      "avg_tp_pip": 25.83,
+      "avg_friction_pip": 2.237,
+      "friction_pct_of_tp": 0.0866,
+      "outcomes": {
+        "TP": 679,
+        "SL": 1200,
+        "TIME": 950
+      }
+    }
+  },
+  "per_cell_CONFIG_RAW": {
+    "EUR_USD_BUY": {
+      "N": 0,
+      "wins": 0,
+      "WR": 0.0,
+      "netEV_pip": 0.0,
+      "netPnL_pip": 0,
+      "PF": 0.0,
+      "wilson_lo": 0.0,
+      "avg_tp_pip": 0.0,
+      "avg_friction_pip": 0.0,
+      "friction_pct_of_tp": null,
+      "outcomes": {
+        "TP": 0,
+        "SL": 0,
+        "TIME": 0
+      }
+    },
+    "EUR_USD_SELL": {
+      "N": 3036,
+      "wins": 1330,
+      "WR": 0.4381,
+      "netEV_pip": -0.483,
+      "netPnL_pip": -1466.35,
+      "PF": 0.9488,
+      "wilson_lo": 0.4205,
+      "avg_tp_pip": 34.03,
+      "avg_friction_pip": 1.428,
+      "friction_pct_of_tp": 0.042,
+      "outcomes": {
+        "TP": 796,
+        "SL": 1260,
+        "TIME": 980
+      }
+    },
+    "GBP_USD_BUY": {
+      "N": 2412,
+      "wins": 972,
+      "WR": 0.403,
+      "netEV_pip": -3.4601,
+      "netPnL_pip": -8345.75,
+      "PF": 0.758,
+      "wilson_lo": 0.3836,
+      "avg_tp_pip": 45.88,
+      "avg_friction_pip": 3.03,
+      "friction_pct_of_tp": 0.0661,
+      "outcomes": {
+        "TP": 557,
+        "SL": 1067,
+        "TIME": 788
+      }
+    },
+    "GBP_USD_SELL": {
+      "N": 2472,
+      "wins": 1035,
+      "WR": 0.4187,
+      "netEV_pip": -2.7905,
+      "netPnL_pip": -6898.19,
+      "PF": 0.7996,
+      "wilson_lo": 0.3994,
+      "avg_tp_pip": 45.46,
+      "avg_friction_pip": 3.021,
+      "friction_pct_of_tp": 0.0664,
+      "outcomes": {
+        "TP": 604,
+        "SL": 1067,
+        "TIME": 801
+      }
+    },
+    "EUR_GBP_BUY": {
+      "N": 0,
+      "wins": 0,
+      "WR": 0.0,
+      "netEV_pip": 0.0,
+      "netPnL_pip": 0,
+      "PF": 0.0,
+      "wilson_lo": 0.0,
+      "avg_tp_pip": 0.0,
+      "avg_friction_pip": 0.0,
+      "friction_pct_of_tp": null,
+      "outcomes": {
+        "TP": 0,
+        "SL": 0,
+        "TIME": 0
+      }
+    },
+    "EUR_GBP_SELL": {
+      "N": 2829,
+      "wins": 1175,
+      "WR": 0.4153,
+      "netEV_pip": -1.4493,
+      "netPnL_pip": -4100.21,
+      "PF": 0.8136,
+      "wilson_lo": 0.3973,
+      "avg_tp_pip": 25.83,
+      "avg_friction_pip": 2.237,
+      "friction_pct_of_tp": 0.0866,
+      "outcomes": {
+        "TP": 679,
+        "SL": 1200,
+        "TIME": 950
+      }
+    }
+  },
+  "both_legs_CONFIG_RAW": {
+    "EUR_USD": {
+      "raw_BUY_net_pip": 0,
+      "raw_BUY_N": 0,
+      "raw_BUY_EV": null,
+      "raw_SELL_net_pip": -1466.35,
+      "raw_SELL_N": 3036,
+      "raw_SELL_EV": -0.483
+    },
+    "GBP_USD": {
+      "raw_BUY_net_pip": -8345.75,
+      "raw_BUY_N": 2412,
+      "raw_BUY_EV": -3.4601,
+      "raw_SELL_net_pip": -6898.19,
+      "raw_SELL_N": 2472,
+      "raw_SELL_EV": -2.7905
+    },
+    "EUR_GBP": {
+      "raw_BUY_net_pip": 0,
+      "raw_BUY_N": 0,
+      "raw_BUY_EV": null,
+      "raw_SELL_net_pip": -4100.21,
+      "raw_SELL_N": 2829,
+      "raw_SELL_EV": -1.4493
+    }
+  },
+  "prereg_prediction": {
+    "EUR_USD": "PASS",
+    "GBP_USD": "FAIL",
+    "EUR_GBP": "FAIL"
+  },
+  "elapsed_s": 1309.0
+}
