@@ -12,6 +12,14 @@
 - **user アクション (E1 稼働の唯一の依存点)**: Myfxbook 無料 account 作成 → Render env に `MYFXBOOK_EMAIL`/`MYFXBOOK_PASSWORD` 投入 (§9 手順)
 - **評価への影響: なし** — live 発注経路・戦略・Kelly・shadow 一切不変。read-only データ収集のソース交換のみ。tests: test_positioning_ingest.py 34→51
 
+## 2026-07-15 — fix(routing): trendline_sweep 全セル shadow-first demote — ELITE_LIVE all-pairs bypass 除去 (pre-reg 2026-07-13 執行, rule:R2)
+
+- **何を**: `_ELITE_LIVE` から trendline_sweep を除去 (最後の member → 空集合化) + `_PAIR_DEMOTED` に EUR_USD / GBP_USD / EUR_GBP の 3 セルを追加 (gbp_deep_pullback 2026-05-04 と同型)。`TRENDLINE_SWEEP_REDESIGN_V2=1` env の live 復活パスも PAIR_DEMOTED 先勝ちで無効化。`HTF_MIXED_LIVE_STOP_CELLS` の GBP_USD mixed cell stop は部分集合として残置
+- **なぜ**: pre-reg `trendline_sweep_gbpusd_pairscope_2026-07-13` (resolved / reviewer=SATISFIED) の terminal action 執行。12y MASSIVE per-cell WF (本番 trigger 無変更) で**全 3 セル FAIL** — netEV: EUR_USD −0.483 (N=3036, WF 1/4) / GBP_USD −3.121 (N=4884, grossEV=−0.095 = 摩擦以前に負) / EUR_GBP −1.449 (N=2829)。BH-FDR (q=0.10, m_eff=4) 生存ゼロ。ELITE_LIVE 根拠の 365d favorable BT (WR 73-81%) は WR 41-44% に崩壊し反証。forward LIVE GBP_USD netEV=−2.35p RR=0.15 が corroborate
+- **shadow 継続**: 3 セルとも emit は止めない — is_shadow=1 で記録継続 (4原則#3)。再LIVE化条件 (R1, cell 単位) = forward shadow N≥20 ∧ Wilson_lo≥0.40 (FDR) ∧ WR≥BE-WR@realized-payoff
+- **評価への影響**: あり — trendline_sweep の live 発火が全ペアで停止 (ELITE_LIVE 便乗 live はこれで消滅、`_ELITE_LIVE` は空集合)。clean live 集計から trendline_sweep の新規 live row が消える。shadow 統計は不変
+- 詳細: [[trendline-sweep]] 判断履歴 / BT: `bt-results/trendline_sweep-12y-pairscope-2026-07-13.json`
+
 ## 2026-07-14 — fix(data): E1 positioning worker self-heal + 401 帰属確定 (OANDA book 提供終了) (rule:R3)
 
 - **本番実証 2 問題** ([[e1-positioning-ingest-2026-07-14]] §8): ①全 12 book が HTTP 401 ②worker thread が process ライフサイクルで死ぬ (started_at ありなのに running:false / poll_cycles:0)

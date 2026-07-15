@@ -8077,6 +8077,33 @@ class DemoTrader:
         # live 発火は全期間 100% BUY = BUY セル閉鎖と等価。Shadow 継続 (原則3)。
         # 再昇格は R1 のみ。詳細: analyses/payoff-asymmetry-diagnosis-2026-07-07.md §7
         ("wick_imbalance_reversion", "GBP_USD"),
+        # 2026-07-15 (rule:R2 pre-reg 執行): trendline_sweep 全セル shadow-first demote。
+        # Pre-reg trendline_sweep_gbpusd_pairscope_2026-07-13 (status=resolved,
+        # reviewer=SATISFIED)。12y MASSIVE per-cell WF (本番 trigger 無変更):
+        #   EUR_USD N=3036 WR=43.8% netEV=-0.483 grossEV=+0.945 WF=1/4 p=0.881
+        #   GBP_USD N=4884 WR=41.1% netEV=-3.121 grossEV=-0.095 WF=0/4 (両 leg gross 負)
+        #   EUR_GBP N=2829 WR=41.5% netEV=-1.449 grossEV=+0.788 WF=0/4
+        # BH-FDR (q=0.10, m_eff=4) 生存ゼロ = 全ゲート FAIL。forward LIVE も
+        # GBP_USD netEV=-2.35p RR=0.15 で corroborate。同一コミットで
+        # _ELITE_LIVE から除去 (all-pairs bypass 廃止、空集合化)。
+        # demote 先の選択根拠: FORCE_DEMOTED (strategy-level) ではなく
+        # gbp_deep_pullback 2026-05-04 precedent と同じ _PAIR_DEMOTED。
+        # どちらも emit 自体は止めず shadow (is_shadow=1) で記録継続するが、
+        # per-cell demote は pre-reg の cell 単位 verdict と 1:1 対応し、
+        # 再LIVE化審査 (R1) も cell 単位で判定できる。再LIVE化条件 =
+        # forward shadow N>=20 AND Wilson_lo>=0.40 (FDR) AND
+        # WR>=BE-WR@realized-payoff。
+        # 残余ペア (XAU_USD 等) は非 ELITE 化により Phase0 SHADOW gate
+        # (_SHADOW_MODE default true) が遮断。TRENDLINE_SWEEP_REDESIGN_V2=1
+        # env の EUR_USD/GBP_USD live 復活パス (_is_elite_live 特例) も本 3 セルが
+        # 先勝ちで無効化 (_resolve_tier / _is_promoted_ex / _is_live_tier_exempt /
+        # _apply_force_demoted_final_gate 全経路で PAIR_DEMOTED 優先)。
+        # HTF_MIXED_LIVE_STOP_CELLS の trendline_sweep×GBP_USD mixed cell stop
+        # (strategies/daytrade/__init__.py, PR #58) は部分停止として残置 —
+        # 本 demote が superset だが矛盾なし (削除しない)。
+        ("trendline_sweep", "EUR_USD"),
+        ("trendline_sweep", "GBP_USD"),
+        ("trendline_sweep", "EUR_GBP"),
     }
 
     # ペア別復活: グローバルFORCE_DEMOTEDだが特定ペアではEV+の戦略を復活
@@ -8654,16 +8681,32 @@ class DemoTrader:
     # v2.1: Elite strategies — NEVER shadowed by _SHADOW_MODE
     # DT幹: BT 365日 STRONG確認済み
     # Scalp枝: _PAIR_PROMOTEDでSENTINEL通過（SHADOWされない）
-    _ELITE_LIVE = {
-        # 2026-05-01 audit P0-8 phase 1 — DO NOT add session_time_bias back
-        # without explicit re-promotion (Live WR 22.2%, PnL -43.4p, demoted
-        # to _UNIVERSAL_SENTINEL with QUICK_HARVEST_EXEMPT removed).
-        "trendline_sweep",       # DT: GBP EV=+0.60, EUR EV=+0.93
-        # 2026-05-04 R2 Tier 1 extension (rule:R2): gbp_deep_pullback removed.
-        # GBP_USD TRUE_LIVE N=3 EV=-4.43p (Kelly raw=-0.96), promoted to PAIR_DEMOTED.
-        # Ref: r2-tier1-hour-bucket-extension-2026-05-03.
-        # "gbp_deep_pullback",     # DT: GBP EV=+1.06 (BT) — Live で逆方向劣化
-    }
+    #
+    # 2026-05-01 audit P0-8 phase 1 — DO NOT add session_time_bias back
+    # without explicit re-promotion (Live WR 22.2%, PnL -43.4p, demoted
+    # to _UNIVERSAL_SENTINEL with QUICK_HARVEST_EXEMPT removed).
+    # 2026-05-04 R2 Tier 1 extension (rule:R2): gbp_deep_pullback removed.
+    # GBP_USD TRUE_LIVE N=3 EV=-4.43p (Kelly raw=-0.96), promoted to PAIR_DEMOTED.
+    # Ref: r2-tier1-hour-bucket-extension-2026-05-03.
+    # "gbp_deep_pullback",     # DT: GBP EV=+1.06 (BT) — Live で逆方向劣化
+    #
+    # 2026-07-15 (rule:R2): trendline_sweep removed — 最後の member 除去で空集合化。
+    # Pre-reg trendline_sweep_gbpusd_pairscope_2026-07-13 (status=resolved,
+    # reviewer=SATISFIED) の terminal action 執行: 12y MASSIVE per-cell WF
+    # (本番 trigger 無変更) で全3セル FAIL — netEV: EUR_USD -0.483 (N=3036,
+    # WF 1/4) / GBP_USD -3.121 (N=4884, grossEV=-0.095 = 摩擦以前に負) /
+    # EUR_GBP -1.449 (N=2829)。BH-FDR (q=0.10, m_eff=4) 生存ゼロ。
+    # ELITE_LIVE 根拠の 365d favorable BT (GBP +0.60 / EUR +0.93) は反証された。
+    # 全セル shadow-first demote → _PAIR_DEMOTED 3 cells (gbp_deep_pullback
+    # 2026-05-04 と同型)。再LIVE化条件 (R1) = forward shadow N>=20
+    # AND Wilson_lo>=0.40 (FDR) AND WR>=BE-WR@realized-payoff。
+    # "trendline_sweep",     # was DT: GBP EV=+0.60, EUR EV=+0.93 (12y WF で反証)
+    #
+    # NOTE: 空集合は set() リテラルで維持すること — `{}` は dict になり
+    # post-commit-verify.sh の `_ELITE_LIVE & _FORCE_DEMOTED` (set 演算) が
+    # TypeError で fail する。tools/sync_kb_index.py 等の regex parser は
+    # no-match → 空集合として整合。
+    _ELITE_LIVE = set()
 
     # v2.1.1 (2026-04-25): Grail Sentinel candidates — TP-hit deep-mining 抽出
     # Source: knowledge-base/wiki/analyses/tp-hit-deep-mining-grail-2026-04-25.md
