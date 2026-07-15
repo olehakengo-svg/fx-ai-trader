@@ -4,6 +4,14 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-15 — feat(data): E1 ソース転換 — Myfxbook Community Outlook aggregate 版 (オプション A 採択, rule:R3)
+
+- **決裁**: user 全面委任 (2026-07-15「最短がオーダーなので、やり方は任せる」) の下で §8c オプション A 採択。B (practice) は期待値低で保留、C (有償) はコスト非対称、D (閉鎖) は唯一の主戦線を閉じる理由なし。詳細: [[e1-positioning-ingest-2026-07-14]] §9
+- **何を**: `modules/myfxbook_client.py` (新規、login/session/re-login、secrets 非開示 pin) + `positioning_ingest.py` ソース抽象 (`POSITIONING_SOURCE` 明示 > MYFXBOOK_EMAIL/PASSWORD 自動検出 > oanda default)。book_type=`outlook`、near_imbalance=NULL (bucket 級放棄の明示)、raw payload を buckets_json に JSON object で温存、content-hash dedup (sha256、snapshot_time は fetch 時刻 μs 精度)、poll ≥900s clamp (rate limit 100 req/24h)
+- **受け入れ確認**: `/api/positioning/probe?run=1&source=myfxbook` (login+outlook 1回)。export API は book=outlook を受理
+- **user アクション (E1 稼働の唯一の依存点)**: Myfxbook 無料 account 作成 → Render env に `MYFXBOOK_EMAIL`/`MYFXBOOK_PASSWORD` 投入 (§9 手順)
+- **評価への影響: なし** — live 発注経路・戦略・Kelly・shadow 一切不変。read-only データ収集のソース交換のみ。tests: test_positioning_ingest.py 34→51
+
 ## 2026-07-15 — fix(routing): trendline_sweep 全セル shadow-first demote — ELITE_LIVE all-pairs bypass 除去 (pre-reg 2026-07-13 執行, rule:R2)
 
 - **何を**: `_ELITE_LIVE` から trendline_sweep を除去 (最後の member → 空集合化) + `_PAIR_DEMOTED` に EUR_USD / GBP_USD / EUR_GBP の 3 セルを追加 (gbp_deep_pullback 2026-05-04 と同型)。`TRENDLINE_SWEEP_REDESIGN_V2=1` env の live 復活パスも PAIR_DEMOTED 先勝ちで無効化。`HTF_MIXED_LIVE_STOP_CELLS` の GBP_USD mixed cell stop は部分集合として残置

@@ -126,3 +126,60 @@ E1 の一次統計のうち **near_imbalance (現値近傍の偏り) は price-b
 - **D: E1 閉鎖して別モダリティへ** — round-4 (EUR ペア価格系) は cache 延伸待ち。E1 を試さず閉鎖する積極的理由は現状ない
 
 **registry への影響**: `e1-positioning-ingest-freshness` は蓄積ゼロが**既知状態**になった (12/12 book 提供終了)。user 決裁までは stale が正常 — 毎日の調査は不要。決裁後に鮮度監視を再開する (registry message を本コミットで更新済み)。
+
+---
+
+## 9. 決裁と実装 — Myfxbook aggregate 転換 (2026-07-15、オプション A 採択)
+
+**決裁**: user は 2026-07-15 に「最短がオーダーなので、やり方は任せる」と全面委任
+(mission memory: 運用判断は Claude に全面委任、実行者選定含む — 2026-07-08)。
+§8c 推奨順に基づき **オプション A (Myfxbook Community Outlook への aggregate 転換)
+を採択** (rule:R3 — データ基盤の交換、エッジ主張ゼロ)。B (practice 検証) は期待値低で
+A と競合しないため保留、C (有償 $1,850/月) は M1 段階でコスト非対称、D (閉鎖) は
+price-modality 3周 FAIL 後の唯一の主戦線を閉じる積極的理由なし。
+
+### 実装 (PR: feat/e1-myfxbook-aggregate-2026-07-15)
+- **`modules/myfxbook_client.py` (新規)**: login.json → session、
+  get-community-outlook.json → 全 symbol 一括。session 失効 (IP-bound) は
+  1 回だけ自動 re-login。secrets (email/password/session) はレスポンス/ログ/
+  status に一切含めない (テストで pin)。requests 必須 (urllib fallback なし)
+- **`modules/positioning_ingest.py`**: ソース抽象 —
+  `POSITIONING_SOURCE` 明示 > `MYFXBOOK_EMAIL`/`MYFXBOOK_PASSWORD` 自動検出 >
+  oanda default。myfxbook 時は book_type=`"outlook"` (1 instrument = 1 book)、
+  poll ≥900s clamp (rate limit 100 req/24h → ≤96 req/日)
+- **schema 流用** (migration なし): `positioning_snapshots` に
+  book_type='outlook' 行。`pct_long_total`/`pct_short_total` =
+  longPercentage/shortPercentage、`near_imbalance` = **NULL (bucket 級放棄の明示)**、
+  `buckets_json` = raw payload の JSON **object** (avgLong/ShortPrice, volume,
+  positions を研究用に温存 — OANDA 行の JSON array と型で区別可能)
+- **dedup**: outlook は snapshot 時刻を持たない → content-hash (sha256) で
+  「内容が変わったら新規行」。再起動時は最新行の buckets_json から再計算 (seed)。
+  snapshot_time は fetch 時刻 (microsecond 精度 — 同一秒内の content 変化が
+  UNIQUE 制約で silent drop されるのを防ぐ)
+- **可観測性**: status に `source` + `myfxbook.{configured, waiting_for_credentials,
+  logged_in, logins_total, last_login_at, requests_total}`。credentials 未設定は
+  「E1 waiting for credentials」を毎 cycle loud に出す既知状態
+- **受け入れ確認**: `/api/positioning/probe?run=1&source=myfxbook` — login +
+  outlook 1 回で credentials を検証 (rate limit を消費するため常時監視には使わない)
+- self-heal (§8b) はソース非依存でそのまま有効
+
+### E1 一次統計の再定義 (aggregate 版)
+near_imbalance (bucket 級) は放棄。候補一次統計:
+1. **全体 skew**: `pct_long_total − pct_short_total` の水準/変化率 (contrarian)
+2. **avg 価格距離**: 現値 vs `avgLongPrice`/`avgShortPrice` (含み損側の偏り =
+   squeeze 圧力 proxy)
+3. orderBook vs positionBook 乖離は取得不能になったため**候補から除外**
+
+エッジ検証 gate は §6 の接続計画のまま: 蓄積 2–3 ヶ月 → discovery→凍結→clean OOS
+(BH-FDR + first-touch EV + ナイフエッジ 3 点検査) の pre-reg 起案。
+
+### user アクション (これだけで E1 が動き出す、~5 分)
+1. https://www.myfxbook.com で無料アカウント作成 (メール認証まで)
+2. Render web service `srv-d6va1of5r7bs73en10vg` の env に
+   `MYFXBOOK_EMAIL` / `MYFXBOOK_PASSWORD` を追加 (または credentials を
+   Claude に渡せば Render MCP で設定可)
+3. デプロイ後 `https://fx-ai-trader.onrender.com/api/positioning/probe?run=1&source=myfxbook`
+   で `outlook_ok:true` を確認 (Claude が実行可)
+
+**蓄積が始まらない限り M1 タイムラインが 1 日ずつ後ろにずれる** (history は
+今からしか貯まらない、§4) — 最短経路上の唯一の user 依存点。
