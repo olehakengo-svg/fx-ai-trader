@@ -634,3 +634,302 @@ def test_oanda_client_probe_paths():
         ("GET", "/v3/accounts"),
         ("GET", "/labs/v1/orderbook_data?instrument=EUR_USD&period=3600"),
     ]
+
+
+# ══════════════════════════════════════════════════════════════════
+# (i) Myfxbook aggregate source — 2026-07-15 ソース転換 (§8c オプション A)
+#     OANDA v20 book 提供終了 (2024-09-14) に伴う E1 データソース交換。
+# ══════════════════════════════════════════════════════════════════
+
+from modules.positioning_ingest import (
+    MYFXBOOK_MIN_POLL_SEC,
+    OUTLOOK_BOOK_TYPE,
+    myfxbook_symbol,
+    outlook_content_key,
+    parse_outlook_symbol,
+    run_probe_myfxbook,
+)
+from modules.myfxbook_client import MyfxbookClient
+
+
+def make_outlook_symbol(name="USDJPY", long_pct=55.0, short_pct=45.0, **extra):
+    sym = {
+        "name": name,
+        "longPercentage": long_pct,
+        "shortPercentage": short_pct,
+        "longVolume": 120.5, "shortVolume": 98.4,
+        "longPositions": 2100, "shortPositions": 1800,
+        "totalPositions": 3900,
+        "avgLongPrice": 150.123, "avgShortPrice": 149.876,
+    }
+    sym.update(extra)
+    return sym
+
+
+def make_outlook_response(symbols=None):
+    if symbols is None:
+        symbols = [make_outlook_symbol(myfxbook_symbol(i))
+                   for i in DEFAULT_INSTRUMENTS]
+    return {"error": False, "message": "", "symbols": symbols}
+
+
+class FakeMyfxbookClient:
+    """scripted (ok, data) を返す offline client。最後の要素を繰り返す。"""
+    logged_in = True
+    logins_total = 1
+    last_login_at = "2026-07-15T00:00:00Z"
+
+    def __init__(self, responses, configured=True):
+        self.responses = list(responses)
+        self.configured = configured
+        self.requests_total = 0
+
+    def get_community_outlook(self, auto_login=True):
+        self.requests_total += 1
+        if len(self.responses) > 1:
+            return self.responses.pop(0)
+        return self.responses[0]
+
+
+def make_myfx_worker(db_path, responses, instruments=None, configured=True):
+    client = FakeMyfxbookClient(responses, configured=configured)
+    w = PositioningIngestWorker(
+        db_path, client, instruments=list(instruments or DEFAULT_INSTRUMENTS),
+        source="myfxbook")
+    return w, client
+
+
+# ── parse ───────────────────────────────────────────────────────────
+
+def test_parse_outlook_symbol_contract():
+    sym = make_outlook_symbol("EURUSD", 61.2, 38.8)
+    parsed = parse_outlook_symbol(sym)
+    assert parsed["symbol"] == "EURUSD"
+    assert parsed["pct_long_total"] == pytest.approx(61.2)
+    assert parsed["pct_short_total"] == pytest.approx(38.8)
+    assert parsed["raw"] is sym
+    # content key は決定的 (dict 順序に依存しない)
+    reordered = dict(reversed(list(sym.items())))
+    assert parsed["content_key"] == outlook_content_key(reordered)
+
+
+def test_parse_outlook_symbol_missing_key_raises():
+    for missing in ("name", "longPercentage", "shortPercentage"):
+        sym = make_outlook_symbol()
+        del sym[missing]
+        with pytest.raises(ValueError):
+            parse_outlook_symbol(sym)
+    with pytest.raises(ValueError):
+        parse_outlook_symbol(["not", "a", "dict"])
+
+
+def test_myfxbook_symbol_mapping():
+    assert myfxbook_symbol("EUR_USD") == "EURUSD"
+    assert myfxbook_symbol("USD_JPY") == "USDJPY"
+
+
+# ── poll / 保存 / dedup ─────────────────────────────────────────────
+
+def test_myfxbook_poll_saves_outlook_rows(db_path):
+    w, client = make_myfx_worker(db_path, [(True, make_outlook_response())])
+    assert w.book_types == (OUTLOOK_BOOK_TYPE,)
+    counters = w.poll_once()
+    assert counters == {"saved": len(DEFAULT_INSTRUMENTS), "skipped": 0,
+                        "failed": 0}
+    rows = export_snapshots(db_path, instrument="USD_JPY",
+                            book_type=OUTLOOK_BOOK_TYPE)
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["book_type"] == OUTLOOK_BOOK_TYPE
+    assert row["pct_long_total"] == pytest.approx(55.0)
+    assert row["pct_short_total"] == pytest.approx(45.0)
+    assert row["near_imbalance"] is None      # bucket 級放棄を NULL で明示
+    assert row["price"] is None
+    # raw payload が JSON object のまま温存される (avg 価格を含む)
+    assert isinstance(row["buckets"], dict)
+    assert row["buckets"]["avgLongPrice"] == pytest.approx(150.123)
+
+
+def test_myfxbook_content_dedup_and_change(db_path):
+    resp1 = make_outlook_response()
+    changed = make_outlook_response(
+        [make_outlook_symbol(myfxbook_symbol(i),
+                             long_pct=60.0 if i == "USD_JPY" else 55.0)
+         for i in DEFAULT_INSTRUMENTS])
+    w, _ = make_myfx_worker(db_path, [(True, resp1), (True, resp1),
+                                      (True, changed)])
+    assert w.poll_once()["saved"] == len(DEFAULT_INSTRUMENTS)
+    second = w.poll_once()   # 内容同一 → 全 skip
+    assert second == {"saved": 0, "skipped": len(DEFAULT_INSTRUMENTS),
+                      "failed": 0}
+    third = w.poll_once()    # USD_JPY のみ変化 → 1 saved
+    assert third["saved"] == 1
+    assert third["skipped"] == len(DEFAULT_INSTRUMENTS) - 1
+
+
+def test_myfxbook_dedup_survives_restart(db_path):
+    resp = make_outlook_response()
+    w1, _ = make_myfx_worker(db_path, [(True, resp)])
+    assert w1.poll_once()["saved"] == len(DEFAULT_INSTRUMENTS)
+    # 再起動相当: 新 worker が DB の raw payload から content key を再計算
+    w2, _ = make_myfx_worker(db_path, [(True, resp)])
+    w2._seed_last_saved()
+    counters = w2.poll_once()
+    assert counters == {"saved": 0, "skipped": len(DEFAULT_INSTRUMENTS),
+                        "failed": 0}
+
+
+def test_myfxbook_missing_credentials_skips_cycle_loudly(db_path):
+    w, _ = make_myfx_worker(db_path, [(True, make_outlook_response())],
+                            configured=False)
+    counters = w.poll_once()
+    assert counters == {"saved": 0, "skipped": 0, "failed": 0}
+    assert w._poll_cycles == 1
+    assert "credentials" in w._last_error
+    assert w._consec_cycle_all_fail == 1
+    st = w.status()
+    assert st["myfxbook"]["waiting_for_credentials"] is True
+
+
+def test_myfxbook_fetch_failure_counts_then_reset(db_path):
+    w, _ = make_myfx_worker(
+        db_path,
+        [(False, {"error": "api", "message": "Invalid session"}),
+         (True, make_outlook_response())])
+    counters = w.poll_once()
+    assert counters["failed"] == len(DEFAULT_INSTRUMENTS)
+    assert w._consec_cycle_all_fail == 1
+    key = ("USD_JPY", OUTLOOK_BOOK_TYPE)
+    assert w._consec_fail[key] == 1
+    counters = w.poll_once()
+    assert counters["saved"] == len(DEFAULT_INSTRUMENTS)
+    assert w._consec_cycle_all_fail == 0
+    assert w._consec_fail[key] == 0
+
+
+def test_myfxbook_missing_symbol_counts_failure(db_path):
+    symbols = [make_outlook_symbol(myfxbook_symbol(i))
+               for i in DEFAULT_INSTRUMENTS if i != "AUD_JPY"]
+    w, _ = make_myfx_worker(db_path,
+                            [(True, make_outlook_response(symbols))])
+    counters = w.poll_once()
+    assert counters["saved"] == len(DEFAULT_INSTRUMENTS) - 1
+    assert counters["failed"] == 1
+    assert w._consec_fail[("AUD_JPY", OUTLOOK_BOOK_TYPE)] == 1
+
+
+def test_myfxbook_poll_sec_clamped_to_rate_limit(db_path):
+    w, _ = make_myfx_worker(db_path, [(True, make_outlook_response())])
+    assert w.poll_sec >= MYFXBOOK_MIN_POLL_SEC or w.poll_sec == 1200
+    w2 = PositioningIngestWorker(
+        db_path, FakeMyfxbookClient([(True, {})]), poll_sec=60,
+        source="myfxbook")
+    assert w2.poll_sec == MYFXBOOK_MIN_POLL_SEC
+
+
+# ── source 解決 ─────────────────────────────────────────────────────
+
+def test_resolve_source_autodetect_and_override(monkeypatch):
+    monkeypatch.delenv("POSITIONING_SOURCE", raising=False)
+    monkeypatch.delenv("MYFXBOOK_EMAIL", raising=False)
+    monkeypatch.delenv("MYFXBOOK_PASSWORD", raising=False)
+    assert pi._resolve_source() == "oanda"
+    monkeypatch.setenv("MYFXBOOK_EMAIL", "qa@example.com")
+    monkeypatch.setenv("MYFXBOOK_PASSWORD", "pw")
+    assert pi._resolve_source() == "myfxbook"
+    monkeypatch.setenv("POSITIONING_SOURCE", "oanda")   # 明示が勝つ
+    assert pi._resolve_source() == "oanda"
+    monkeypatch.setenv("POSITIONING_SOURCE", "bogus")   # 不正値は auto-detect
+    assert pi._resolve_source() == "myfxbook"
+
+
+def test_start_positioning_ingest_myfxbook_source(db_path, monkeypatch):
+    monkeypatch.delenv("POSITIONING_INGEST_ENABLE", raising=False)
+    monkeypatch.delenv("POSITIONING_SOURCE", raising=False)
+    monkeypatch.setenv("MYFXBOOK_EMAIL", "qa@example.com")
+    monkeypatch.setenv("MYFXBOOK_PASSWORD", "pw")
+    monkeypatch.setattr(pi, "_worker", None)
+    try:
+        w = start_positioning_ingest(db_path, start_thread=False)
+        assert w is not None
+        assert w.source == "myfxbook"
+        assert w.book_types == (OUTLOOK_BOOK_TYPE,)
+        assert isinstance(w._client, MyfxbookClient)
+    finally:
+        monkeypatch.setattr(pi, "_worker", None)
+
+
+# ── secrets 契約 ────────────────────────────────────────────────────
+
+def test_myfxbook_status_and_probe_contain_no_secrets(db_path, monkeypatch):
+    email = "secret-email@example.com"
+    password = "super-secret-pw"
+    monkeypatch.setenv("MYFXBOOK_EMAIL", email)
+    monkeypatch.setenv("MYFXBOOK_PASSWORD", password)
+    client = MyfxbookClient()
+    w = PositioningIngestWorker(db_path, client, source="myfxbook")
+    blob = json.dumps(w.status())
+    assert email not in blob
+    assert password not in blob
+    assert '"source": "myfxbook"' in blob
+
+    # probe (未 login 経路): login を偽装して secrets 非漏出を確認
+    fake = MyfxbookClient(email=email, password=password)
+
+    def fake_get(endpoint, params):
+        if endpoint == "login.json":
+            return True, {"error": False, "session": "SESSION123"}
+        return True, make_outlook_response()
+
+    monkeypatch.setattr(fake, "_get", fake_get)
+    result = run_probe_myfxbook(client=fake)
+    blob = json.dumps(result)
+    assert email not in blob and password not in blob
+    assert "SESSION123" not in blob
+    assert result["outlook_ok"] is True
+    assert result["instruments_missing"] == []
+
+
+def test_myfxbook_client_relogin_on_invalid_session(monkeypatch):
+    client = MyfxbookClient(email="a@example.com", password="pw")
+    calls = []
+
+    def fake_get(endpoint, params):
+        calls.append(endpoint)
+        if endpoint == "login.json":
+            return True, {"error": False, "session": f"S{len(calls)}"}
+        # 1 回目の outlook は session 失効、2 回目は成功
+        if calls.count("get-community-outlook.json") == 1:
+            return False, {"error": "api", "message": "Invalid session."}
+        return True, make_outlook_response()
+
+    monkeypatch.setattr(client, "_get", fake_get)
+    ok, data = client.get_community_outlook()
+    assert ok
+    assert client.logins_total == 2  # 初回 login + relogin
+    assert calls == ["login.json", "get-community-outlook.json",
+                     "login.json", "get-community-outlook.json"]
+
+
+def test_myfxbook_client_unconfigured_login_fails_loud():
+    client = MyfxbookClient(email="", password="")
+    ok, data = client.login()
+    assert not ok
+    assert "not configured" in data["message"]
+
+
+# ── API 契約 ────────────────────────────────────────────────────────
+
+def test_api_positioning_probe_myfxbook_dispatch(flask_client, monkeypatch):
+    monkeypatch.setattr(pi, "run_probe_myfxbook",
+                        lambda: {"configured": False, "marker": "mfb"})
+    resp = flask_client.get("/api/positioning/probe?run=1&source=myfxbook")
+    assert resp.status_code == 200
+    assert resp.get_json()["marker"] == "mfb"
+
+
+def test_api_positioning_export_accepts_outlook_book(flask_client):
+    resp = flask_client.get("/api/positioning/export?book=outlook")
+    assert resp.status_code == 200
+    resp = flask_client.get("/api/positioning/export?book=bogus")
+    assert resp.status_code == 400

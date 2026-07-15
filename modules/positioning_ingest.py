@@ -22,11 +22,21 @@ E1 positioning ingest — OANDA positionBook/orderBook 定期 snapshot 蓄積。
     (可用性マップを status に出す)。
   - モジュールトップ副作用禁止 — env 読み・client 生成は全て関数内。
 
+2026-07-15 ソース転換 (§8c オプション A、user 全面委任決裁):
+  OANDA v20 book は 2024-09-14 に retail API 全体で提供終了 (401 帰属確定済み)。
+  Myfxbook Community Outlook を aggregate ソースとして追加 —
+  POSITIONING_SOURCE 明示 or MYFXBOOK_EMAIL/PASSWORD 自動検出で切替。
+  book_type="outlook" (1 instrument = 1 book)、near_imbalance は NULL
+  (bucket 級放棄を明示)、raw payload を buckets_json に JSON object で温存。
+  dedup は content-hash (outlook は snapshot 時刻を持たないため)。
+  rate limit 100 req/24h → poll ≥900s に clamp (≤96 req/日)。
+
 検証 API (app.py): /api/positioning/status, /api/positioning/export
 テスト: tests/test_positioning_ingest.py (offline/deterministic)
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -43,6 +53,8 @@ DEFAULT_INSTRUMENTS: Tuple[str, ...] = (
     "USD_JPY", "EUR_USD", "GBP_USD", "EUR_JPY", "GBP_JPY", "AUD_JPY",
 )
 BOOK_TYPES: Tuple[str, ...] = ("position", "order")
+OUTLOOK_BOOK_TYPE = "outlook"     # Myfxbook aggregate (source="myfxbook")
+MYFXBOOK_MIN_POLL_SEC = 900       # 100 req/24h 制限 → ≥900s (≤96 req/日)
 DEFAULT_POLL_SEC = 1200        # 20 分 (OANDA book 更新間隔に整合)
 DEFAULT_JITTER_SEC = 120
 TRIM_PCT = 0.03                # buckets 保存帯: mid ±3%
@@ -158,6 +170,43 @@ def extract_book_payload(data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     return None
 
 
+# ── Myfxbook outlook parse (純関数 — テスト対象) ─────────────────────
+
+def myfxbook_symbol(instrument: str) -> str:
+    """OANDA instrument 表記 → Myfxbook symbol 表記 ("EUR_USD" → "EURUSD")。"""
+    return instrument.replace("_", "")
+
+
+def outlook_content_key(raw: Any) -> str:
+    """content dedup 用の決定的 key。Myfxbook outlook は snapshot 時刻を
+    持たないため「内容が変わったら新規行」で時系列化する。"""
+    blob = json.dumps(raw, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def parse_outlook_symbol(sym: Dict[str, Any]) -> Dict[str, Any]:
+    """Myfxbook community-outlook の 1 symbol → 保存用 dict。
+
+    aggregate 転換 (§8c オプション A): bucket 級データは存在しないため
+    near_imbalance は None (放棄を NULL で明示)。raw payload 全体を
+    buckets_json に JSON object で保存する (avgLong/ShortPrice, volume,
+    positions を研究用に温存 — OANDA 行の JSON array と型で区別可能)。
+    必須キー欠落は ValueError (fail-loud、呼び出し側が失敗カウント)。
+    """
+    if not isinstance(sym, dict):
+        raise ValueError(f"outlook symbol is not a dict: {type(sym).__name__}")
+    for key in ("name", "longPercentage", "shortPercentage"):
+        if key not in sym:
+            raise ValueError(f"outlook symbol missing required key: {key}")
+    return {
+        "symbol": str(sym["name"]),
+        "pct_long_total": round(float(sym["longPercentage"]), 4),
+        "pct_short_total": round(float(sym["shortPercentage"]), 4),
+        "raw": sym,
+        "content_key": outlook_content_key(sym),
+    }
+
+
 # ── 永続化 ──────────────────────────────────────────────────────────
 
 def save_snapshot(db_path: str, instrument: str, book_type: str,
@@ -221,6 +270,36 @@ def db_book_stats(db_path: str) -> Dict[str, Dict[str, Any]]:
     return out
 
 
+def _latest_outlook_content(db_path: str, instrument: str) -> Optional[str]:
+    """最新 outlook 行の raw payload から content key を再計算 (dedup seed 用)。
+
+    失敗は None を返すが必ず log する (dedup 不能 = 重複行リスクの可視化。
+    silent except 禁止 lesson 準拠)。
+    """
+    try:
+        conn = sqlite3.connect(db_path)
+        try:
+            row = conn.execute(
+                "SELECT buckets_json FROM positioning_snapshots"
+                " WHERE instrument = ? AND book_type = ?"
+                " ORDER BY snapshot_time DESC LIMIT 1",
+                (instrument, OUTLOOK_BOOK_TYPE)).fetchone()
+        finally:
+            conn.close()
+    except Exception as exc:
+        _log(f"seed outlook content failed ({instrument}): "
+             f"{type(exc).__name__}: {exc}")
+        return None
+    if not row or not row[0]:
+        return None
+    try:
+        return outlook_content_key(json.loads(row[0]))
+    except Exception as exc:
+        _log(f"seed outlook content parse failed ({instrument}): "
+             f"{type(exc).__name__}: {exc}")
+        return None
+
+
 def export_snapshots(db_path: str, instrument: str = "", book_type: str = "",
                      since: str = "", limit: int = 5000) -> List[Dict[str, Any]]:
     """研究用 export (JSON API バックエンド)。snapshot_time 昇順。"""
@@ -268,9 +347,18 @@ class PositioningIngestWorker:
                  instruments: Optional[List[str]] = None,
                  book_types: Tuple[str, ...] = BOOK_TYPES,
                  poll_sec: int = DEFAULT_POLL_SEC,
-                 jitter_sec: int = DEFAULT_JITTER_SEC):
+                 jitter_sec: int = DEFAULT_JITTER_SEC,
+                 source: str = "oanda"):
         self._db_path = db_path
         self._client = client
+        self.source = source
+        if source == "myfxbook":
+            # outlook は全 symbol 一括 1 リクエスト。book は outlook のみ。
+            book_types = (OUTLOOK_BOOK_TYPE,)
+            if int(poll_sec) < MYFXBOOK_MIN_POLL_SEC:
+                _log(f"poll_sec={poll_sec} < {MYFXBOOK_MIN_POLL_SEC}s は "
+                     "Myfxbook rate limit (100 req/24h) を破る — clamp")
+                poll_sec = MYFXBOOK_MIN_POLL_SEC
         self.instruments = list(instruments or DEFAULT_INSTRUMENTS)
         self.book_types = tuple(book_types)
         self.poll_sec = int(poll_sec)
@@ -341,14 +429,25 @@ class PositioningIngestWorker:
         return {"healed": True, "restarts": self._restarts}
 
     def _seed_last_saved(self) -> None:
-        """再起動時、DB の最新 snapshot_time でメモリ dedup を温める。"""
+        """再起動時、DB の最新 snapshot でメモリ dedup を温める。
+
+        oanda book: 最新 snapshot_time そのもの。
+        myfxbook outlook: snapshot_time は fetch 時刻なので dedup に使えない —
+        最新行の buckets_json (raw payload) から content key を再計算する。
+        """
         for key, stats in db_book_stats(self._db_path).items():
             if key == "_error":
                 _log(f"seed_last_saved: db_book_stats error: {stats}")
                 continue
             instrument, book_type = key.split(":", 1)
             latest = stats.get("latest_snapshot_time")
-            if latest:
+            if not latest:
+                continue
+            if book_type == OUTLOOK_BOOK_TYPE:
+                content = _latest_outlook_content(self._db_path, instrument)
+                if content is not None:
+                    self._last_saved[(instrument, book_type)] = content
+            else:
                 self._last_saved[(instrument, book_type)] = latest
 
     def _run_forever(self) -> None:
@@ -369,6 +468,125 @@ class PositioningIngestWorker:
         return self._client.get_order_book(instrument)
 
     def poll_once(self) -> Dict[str, int]:
+        """1 巡 poll (source で分岐)。counters を返す (テスト/診断用)。"""
+        if self.source == "myfxbook":
+            return self._poll_once_myfxbook()
+        return self._poll_once_oanda()
+
+    def _poll_once_myfxbook(self) -> Dict[str, int]:
+        """Myfxbook community outlook 1 リクエストで全 instrument 分を取得。
+
+        credentials 未設定は「E1 が user の env 投入待ち」の既知状態 —
+        毎 cycle 1 行だけ loud に出す (OANDA token 未設定と同じ扱い)。
+        """
+        saved = skipped = failed = 0
+        if not getattr(self._client, "configured", False):
+            self._last_error = (f"{_utcnow_iso()} MYFXBOOK_EMAIL/"
+                                "MYFXBOOK_PASSWORD not configured — "
+                                "E1 waiting for credentials")
+            self._consec_cycle_all_fail += 1
+            _log("SKIP CYCLE: myfxbook credentials not configured "
+                 f"(consecutive={self._consec_cycle_all_fail})")
+            self._poll_cycles += 1
+            self._last_cycle_at = _utcnow_iso()
+            return {"saved": 0, "skipped": 0, "failed": 0}
+
+        ok, data = self._client.get_community_outlook()
+        if not ok:
+            self._last_error = (f"{_utcnow_iso()} outlook: "
+                                f"{(data or {}).get('error')}: "
+                                f"{str((data or {}).get('message', ''))[:200]}")
+            self._consec_cycle_all_fail += 1
+            for instrument in self.instruments:
+                key = (instrument, OUTLOOK_BOOK_TYPE)
+                self._consec_fail[key] = self._consec_fail.get(key, 0) + 1
+            _log(f"FETCH FAILED community-outlook "
+                 f"(consecutive={self._consec_cycle_all_fail}): "
+                 f"{self._last_error}")
+            self._poll_cycles += 1
+            self._last_cycle_at = _utcnow_iso()
+            return {"saved": 0, "skipped": 0,
+                    "failed": len(self.instruments)}
+
+        symbols: Dict[str, Dict[str, Any]] = {}
+        for sym in (data.get("symbols") or []):
+            if isinstance(sym, dict) and "name" in sym:
+                symbols[str(sym["name"]).upper()] = sym
+
+        # microsecond 精度: 同一秒内の content 変化 (再起動直後の再取得等) が
+        # UNIQUE(instrument, book_type, snapshot_time) で silent drop されるのを防ぐ
+        fetched_at = _utcnow_iso_us()
+        for instrument in self.instruments:
+            key = (instrument, OUTLOOK_BOOK_TYPE)
+            sym = symbols.get(myfxbook_symbol(instrument))
+            if sym is None:
+                failed += 1
+                self._consec_fail[key] = self._consec_fail.get(key, 0) + 1
+                self._last_error = (f"{_utcnow_iso()} {instrument}: symbol "
+                                    f"{myfxbook_symbol(instrument)} not in "
+                                    f"outlook ({len(symbols)} symbols)")
+                _log(f"MISSING SYMBOL {instrument} "
+                     f"(consecutive={self._consec_fail[key]})")
+                continue
+            try:
+                parsed = parse_outlook_symbol(sym)
+            except Exception as exc:
+                failed += 1
+                self._consec_fail[key] = self._consec_fail.get(key, 0) + 1
+                self._last_error = (f"{_utcnow_iso()} {instrument}: outlook "
+                                    f"parse: {type(exc).__name__}: {exc}")
+                _log(f"PARSE FAILED {instrument} outlook: {exc} "
+                     f"(consecutive={self._consec_fail[key]})")
+                continue
+            if self._last_saved.get(key) == parsed["content_key"]:
+                # Myfxbook 側未更新 (内容同一) — 正常系 skip
+                skipped += 1
+                self._dedup_skips += 1
+                self._consec_fail[key] = 0
+                continue
+            row = {
+                # outlook は snapshot 時刻を持たない → fetch 時刻で時系列化
+                "snapshot_time": fetched_at,
+                "price": None,
+                "bucket_width": None,
+                "buckets": parsed["raw"],   # JSON object (array ではない)
+                "pct_long_total": parsed["pct_long_total"],
+                "pct_short_total": parsed["pct_short_total"],
+                "near_imbalance": None,     # bucket 級放棄 (§8c) を NULL で明示
+            }
+            try:
+                inserted = save_snapshot(self._db_path, instrument,
+                                         OUTLOOK_BOOK_TYPE, row)
+            except Exception as exc:
+                failed += 1
+                self._consec_fail[key] = self._consec_fail.get(key, 0) + 1
+                self._last_error = (f"{_utcnow_iso()} {instrument}: db: "
+                                    f"{type(exc).__name__}: {exc}")
+                _log(f"DB WRITE FAILED {instrument} outlook: {exc} "
+                     f"(consecutive={self._consec_fail[key]})")
+                continue
+            self._last_saved[key] = parsed["content_key"]
+            self._consec_fail[key] = 0
+            if inserted:
+                saved += 1
+                self._saved_total += 1
+            else:
+                skipped += 1
+                self._dedup_skips += 1
+
+        attempted = saved + skipped + failed
+        if attempted > 0 and failed == attempted:
+            self._consec_cycle_all_fail += 1
+        else:
+            self._consec_cycle_all_fail = 0
+        self._poll_cycles += 1
+        self._last_cycle_at = _utcnow_iso()
+        if saved or failed:
+            _log(f"cycle done (myfxbook): saved={saved} "
+                 f"dedup_skipped={skipped} failed={failed}")
+        return {"saved": saved, "skipped": skipped, "failed": failed}
+
+    def _poll_once_oanda(self) -> Dict[str, int]:
         """全 instrument×book を 1 巡。counters を返す (テスト/診断用)。"""
         saved = skipped = failed = 0
         if not getattr(self._client, "_token", ""):
@@ -485,8 +703,9 @@ class PositioningIngestWorker:
                     "available": key not in self._unsupported,
                     "unsupported": self._unsupported.get(key),
                 }
-        return {
+        out = {
             "enabled": True,
+            "source": self.source,
             "running": bool(self._thread and self._thread.is_alive()),
             "started_at": self._started_at,
             "instruments": self.instruments,
@@ -505,6 +724,18 @@ class PositioningIngestWorker:
             "db_error": db_stats.get("_error"),
             "books": books,
         }
+        if self.source == "myfxbook":
+            configured = bool(getattr(self._client, "configured", False))
+            # secrets (email/password/session) は一切含めない (テストで pin)
+            out["myfxbook"] = {
+                "configured": configured,
+                "waiting_for_credentials": not configured,
+                "logged_in": bool(getattr(self._client, "logged_in", False)),
+                "logins_total": getattr(self._client, "logins_total", 0),
+                "last_login_at": getattr(self._client, "last_login_at", None),
+                "requests_total": getattr(self._client, "requests_total", 0),
+            }
+        return out
 
 
 # ── 可用性 probe (401 帰属確定用、read-only) ─────────────────────────
@@ -591,6 +822,51 @@ def run_probe(instrument: str = "USD_JPY",
                               labs_instrument=labs_instrument)
 
 
+def run_probe_myfxbook(client: Any = None) -> Dict[str, Any]:
+    """Myfxbook credentials の受け入れ確認 (login + outlook 1 回)。
+
+    user が Render env へ credentials を投入した直後の検証用
+    (/api/positioning/probe?source=myfxbook)。rate limit を消費するため
+    常時監視には使わない。secrets (email/password/session) は返さない。
+    """
+    if client is None:
+        from modules.myfxbook_client import MyfxbookClient
+        client = MyfxbookClient()
+    if not client.configured:
+        return {"configured": False, "login_ok": None, "outlook_ok": None,
+                "interpretation": "MYFXBOOK_EMAIL/MYFXBOOK_PASSWORD 未設定 — "
+                                  "Render env へ投入後に再実行",
+                "probed_at": _utcnow_iso()}
+    ok, data = client.login()
+    if not ok:
+        return {"configured": True, "login_ok": False, "outlook_ok": None,
+                "error": str((data or {}).get("message", ""))[:200],
+                "interpretation": "login 失敗 — credentials / rate limit "
+                                  "(100 req/24h) を確認",
+                "probed_at": _utcnow_iso()}
+    ok, data = client.get_community_outlook(auto_login=False)
+    if not ok:
+        return {"configured": True, "login_ok": True, "outlook_ok": False,
+                "error": str((data or {}).get("message", ""))[:200],
+                "interpretation": "login 成功だが outlook 取得失敗",
+                "probed_at": _utcnow_iso()}
+    symbols = {str(s.get("name", "")).upper()
+               for s in (data.get("symbols") or []) if isinstance(s, dict)}
+    found = [i for i in DEFAULT_INSTRUMENTS if myfxbook_symbol(i) in symbols]
+    missing = [i for i in DEFAULT_INSTRUMENTS
+               if myfxbook_symbol(i) not in symbols]
+    return {
+        "configured": True, "login_ok": True, "outlook_ok": True,
+        "n_symbols": len(symbols),
+        "instruments_found": found,
+        "instruments_missing": missing,
+        "interpretation": ("全 instrument 取得可 — worker が次 cycle から"
+                           "蓄積開始" if not missing else
+                           f"一部 symbol が outlook に無い: {missing}"),
+        "probed_at": _utcnow_iso(),
+    }
+
+
 # ── module-level singleton (app.py 起動時に設定、API から参照) ──────────
 
 _worker: Optional[PositioningIngestWorker] = None
@@ -611,14 +887,40 @@ def ensure_worker_running() -> Optional[Dict[str, Any]]:
     return _worker.ensure_running()
 
 
+def _resolve_source() -> str:
+    """データソース解決: POSITIONING_SOURCE 明示 > credentials 自動判定。
+
+    OANDA v20 book は 2024-09-14 提供終了 (§8a) のため、MYFXBOOK_EMAIL/
+    MYFXBOOK_PASSWORD が設定されていれば myfxbook を自動選択する —
+    user アクションを「Render env に credentials 2 変数」だけに圧縮する設計。
+    判定理由は必ず loud に log する。
+    """
+    explicit = os.environ.get("POSITIONING_SOURCE", "").strip().lower()
+    if explicit in ("oanda", "myfxbook"):
+        _log(f"source={explicit} (POSITIONING_SOURCE explicit)")
+        return explicit
+    if explicit:
+        _log(f"invalid POSITIONING_SOURCE={explicit!r} — auto-detect に"
+             "フォールバック")
+    if (os.environ.get("MYFXBOOK_EMAIL", "")
+            and os.environ.get("MYFXBOOK_PASSWORD", "")):
+        _log("source=myfxbook (MYFXBOOK_EMAIL/PASSWORD detected)")
+        return "myfxbook"
+    _log("source=oanda (default) — v20 book は 2024-09-14 提供終了のため "
+         "401 継続。E1 稼働には MYFXBOOK_EMAIL/MYFXBOOK_PASSWORD を設定")
+    return "oanda"
+
+
 def start_positioning_ingest(db_path: str, client: Any = None,
                              start_thread: bool = True
                              ) -> Optional[PositioningIngestWorker]:
     """env を解決して worker を生成・開始する (app.py 起動フックから呼ぶ)。
 
     POSITIONING_INGEST_ENABLE   default "1" — "1" 以外で無効
+    POSITIONING_SOURCE          "oanda" | "myfxbook" (省略時は自動判定)
+    MYFXBOOK_EMAIL/PASSWORD     設定済みなら source 自動判定が myfxbook を選ぶ
     POSITIONING_INSTRUMENTS     カンマ区切り override (例 "USD_JPY,EUR_USD")
-    POSITIONING_POLL_SEC        poll 間隔 (default 1200)
+    POSITIONING_POLL_SEC        poll 間隔 (default 1200、myfxbook は ≥900 clamp)
     """
     global _worker
     if os.environ.get("POSITIONING_INGEST_ENABLE", "1") != "1":
@@ -638,12 +940,18 @@ def start_positioning_ingest(db_path: str, client: Any = None,
              f"{os.environ.get('POSITIONING_POLL_SEC')!r} — using default")
         poll_sec = DEFAULT_POLL_SEC
 
+    source = _resolve_source()
     if client is None:
-        from modules.oanda_client import OandaClient
-        client = OandaClient()
+        if source == "myfxbook":
+            from modules.myfxbook_client import MyfxbookClient
+            client = MyfxbookClient()
+        else:
+            from modules.oanda_client import OandaClient
+            client = OandaClient()
 
     worker = PositioningIngestWorker(
-        db_path, client, instruments=instruments, poll_sec=poll_sec)
+        db_path, client, instruments=instruments, poll_sec=poll_sec,
+        source=source)
     if start_thread:
         worker.start()
     else:
@@ -657,6 +965,11 @@ def start_positioning_ingest(db_path: str, client: Any = None,
 
 def _utcnow_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _utcnow_iso_us() -> str:
+    """microsecond 精度 (outlook snapshot_time 用)。lexicographic 順序は保持。"""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
 def _age_seconds(rfc3339: Optional[str]) -> Optional[int]:

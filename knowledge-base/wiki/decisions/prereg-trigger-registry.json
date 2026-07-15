@@ -147,8 +147,8 @@
       "type": "conditional_info",
       "deadline": "no-deadline",
       "doc": "knowledge-base/wiki/analyses/e1-positioning-ingest-2026-07-14.md",
-      "condition": "E1 代替ソース user 決裁 (§8c: Myfxbook 転換 / practice 検証 / 有償 / 閉鎖) が下りたら鮮度監視を再開",
-      "message": "E1 positioning ingest 鮮度監視 — 2026-07-14 更新: OANDA が 2024-09-14 に retail API の book 提供を終了 (oanda.jp/info/1193、§8a) したため全 12 book が 401 = 蓄積ゼロは既知状態。user 決裁までは stale が正常で毎日の調査は不要。決裁後: /api/positioning/status の最終 snapshot_time が 2h 超 stale なら要調査。thread 死は self-heal 済み (restarts で観測、§8b)。user GO 2026-07-14"
+      "condition": "MYFXBOOK_EMAIL/MYFXBOOK_PASSWORD が Render env に投入され source=myfxbook で蓄積開始したら鮮度監視を本格再開",
+      "message": "E1 positioning ingest 鮮度監視 — 2026-07-15 更新: オプション A 採択 (user 全面委任決裁) で Myfxbook Community Outlook へソース転換済み (§9)。credentials 投入までは status.myfxbook.waiting_for_credentials=true が既知状態 (調査不要)。投入後: /api/positioning/status の最終 snapshot_time が 2h 超 stale なら要調査 (poll ≥900s、rate limit 100req/24h)。401 帰属は §8a で確定済み (OANDA retail book 提供終了 2024-09-14)。thread 死は self-heal 済み (restarts で観測、§8b)"
     }
   ]
 }

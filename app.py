@@ -13576,14 +13576,20 @@ def api_positioning_probe():
     の契約、テストで pin)。
     """
     import re as _re
-    from modules.positioning_ingest import PROBE_CHECKS, run_probe
+    from modules.positioning_ingest import (PROBE_CHECKS, run_probe,
+                                            run_probe_myfxbook)
     if request.args.get("run") != "1":
         return jsonify({
             "run": False,
             "checks": list(PROBE_CHECKS),
             "hint": "?run=1 で実行 (OANDA へ read-only GET 4回。"
-                    "token はレスポンスに含まれない)",
+                    "token はレスポンスに含まれない)。"
+                    "?run=1&source=myfxbook で Myfxbook credentials 検証 "
+                    "(login + outlook 1回、rate limit 100req/24h を消費)",
         })
+    if request.args.get("source", "") == "myfxbook":
+        # E1 ソース転換 (2026-07-15): credentials 投入直後の受け入れ確認
+        return jsonify(run_probe_myfxbook())
     instrument = request.args.get("instrument", "USD_JPY")
     if not _re.fullmatch(r"[A-Z0-9]{3}_[A-Z0-9]{3}", instrument):
         # path injection 防止 (instrument は URL path に埋め込まれる)
@@ -13602,9 +13608,10 @@ def api_positioning_export():
     instrument = request.args.get("instrument", "")
     book = request.args.get("book", "")
     since = request.args.get("from", "")
-    if book and book not in ("position", "order"):
+    if book and book not in ("position", "order", "outlook"):
         return jsonify({"error": f"invalid book: {book!r} "
-                                 "(expected 'position' or 'order')"}), 400
+                                 "(expected 'position', 'order' or "
+                                 "'outlook')"}), 400
     try:
         limit = min(int(request.args.get("limit", 5000)), 20000)
     except (TypeError, ValueError):
