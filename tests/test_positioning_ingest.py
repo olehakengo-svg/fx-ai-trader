@@ -984,3 +984,37 @@ def test_myfxbook_http_session_rebuilt_on_pid_change():
     s2 = client._http_session()
     assert s2 is not s1                        # 作り直し
     assert client._http_session() is s2
+
+
+# ── (j) defer_thread — import 時に thread を起動しない fork-safety (§11) ──
+
+def test_defer_thread_arms_heal_without_spawning(db_path, monkeypatch):
+    """defer_thread=True: thread は起動しないが started_at が set され、
+    ensure_running (serving プロセス側の heal) が起動経路になる。"""
+    monkeypatch.delenv("POSITIONING_INGEST_ENABLE", raising=False)
+    monkeypatch.delenv("POSITIONING_SOURCE", raising=False)
+    monkeypatch.delenv("MYFXBOOK_EMAIL", raising=False)
+    monkeypatch.delenv("MYFXBOOK_PASSWORD", raising=False)
+    monkeypatch.setattr(pi, "_worker", None)
+    try:
+        w = start_positioning_ingest(db_path, defer_thread=True)
+        assert w is not None
+        assert w._thread is None                  # thread 未起動
+        assert w._started_at is not None          # heal は arm 済み
+        result = w.ensure_running()
+        assert result["healed"] is True           # 初回 heal が起動経路
+        assert w._thread is not None and w._thread.is_alive()
+        w.stop()
+    finally:
+        monkeypatch.setattr(pi, "_worker", None)
+
+
+def test_status_exposes_poll_phase(db_path):
+    """current_phase/phase_since が status に出る (ハング位置の特定用)。"""
+    w, _ = make_myfx_worker(db_path, [(True, make_outlook_response())])
+    st = w.status()
+    assert st["current_phase"] == "idle"
+    w.poll_once()
+    st = w.status()
+    assert st["current_phase"] == "idle"          # cycle 完了後は idle に戻る
+    assert st["phase_since"] is not None

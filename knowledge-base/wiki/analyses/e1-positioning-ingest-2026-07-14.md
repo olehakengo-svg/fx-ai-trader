@@ -214,3 +214,31 @@ volumes/positions/avgLong/ShortPrice (設計 §9 と一致)。
 — 発行値をそのまま echo する契約かを最初の統合テストで確認する。fork 問題は
 thread だけでなく **プロセス間で共有される全ての stateful オブジェクト**
 (HTTP Session/DB conn/lock) に及ぶ。
+
+---
+
+## 11. defer_thread — import 時 thread 起動の廃止 (2026-07-16 第2修正, rule:R3)
+
+**§10 デプロイ後の観測**: master (import 時) thread の初回 cycle は成功
+(saved=6, t0=2026-07-16T06:33:31Z) したが、serving プロセスの healed thread は
+2 リクエスト目で再びハング (poll_cycles=0 が 30 分不変、last_error 空)。
+§10(b) の pid 検知 Session 再生成では不十分だった。
+
+**帰属**: fork の瞬間に master の thread が HTTP 実行中だと、socket/ssl
+モジュール内部の lock が locked のまま子プロセスへ複製される (fork+threads の
+古典問題)。Session オブジェクトを作り直しても、モジュールレベルの複製済み
+lock 状態は直らない。
+
+**根治 (構造対策)**: **master では network thread を一切起動しない**。
+`start_positioning_ingest(defer_thread=True)` — schema/seed + started_at
+(heal の arm) のみ行い、thread 起動は serving プロセスの初回 heal
+(status()/before_request heartbeat、§8b で実装済み) に一本化。fork 時に
+実行中の HTTP が存在しなくなるため、lock 複製事故が構造的に起こらない。
+
+**可観測性**: status に `current_phase`/`phase_since` を追加 — 今後ハングが
+起きても「どの step で止まっているか」が status から直接読める
+(counter は fork コピーで信用できない教訓の適用)。
+
+**教訓**: pre-fork サーバでは「import 時に起動する network thread」自体が
+禁忌。§8b (self-heal) は復活経路として正しいが、fork 前に thread を走らせて
+良い理由にはならない — 起動経路は serving プロセス内に一本化する。

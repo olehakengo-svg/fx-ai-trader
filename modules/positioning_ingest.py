@@ -373,6 +373,8 @@ class PositioningIngestWorker:
         self._consec_cycle_all_fail = 0
         self._last_cycle_at: Optional[str] = None
         self._last_error = ""
+        self._phase = "idle"            # 現在の poll フェーズ (ハング位置の特定用)
+        self._phase_since: Optional[str] = None
         self._started_at: Optional[str] = None
         self._thread: Optional[threading.Thread] = None
         self._stop = threading.Event()
@@ -491,7 +493,9 @@ class PositioningIngestWorker:
             self._last_cycle_at = _utcnow_iso()
             return {"saved": 0, "skipped": 0, "failed": 0}
 
+        self._set_phase("fetch outlook")
         ok, data = self._client.get_community_outlook()
+        self._set_phase("process outlook")
         if not ok:
             self._last_error = (f"{_utcnow_iso()} outlook: "
                                 f"{(data or {}).get('error')}: "
@@ -584,7 +588,12 @@ class PositioningIngestWorker:
         if saved or failed:
             _log(f"cycle done (myfxbook): saved={saved} "
                  f"dedup_skipped={skipped} failed={failed}")
+        self._set_phase("idle")
         return {"saved": saved, "skipped": skipped, "failed": failed}
+
+    def _set_phase(self, phase: str) -> None:
+        self._phase = phase
+        self._phase_since = _utcnow_iso()
 
     def _poll_once_oanda(self) -> Dict[str, int]:
         """全 instrument×book を 1 巡。counters を返す (テスト/診断用)。"""
@@ -713,6 +722,8 @@ class PositioningIngestWorker:
             "poll_sec": self.poll_sec,
             "jitter_sec": self.jitter_sec,
             "poll_cycles": self._poll_cycles,
+            "current_phase": self._phase,
+            "phase_since": self._phase_since,
             "last_cycle_at": self._last_cycle_at,
             "saved_total": self._saved_total,
             "dedup_skips": self._dedup_skips,
@@ -912,7 +923,8 @@ def _resolve_source() -> str:
 
 
 def start_positioning_ingest(db_path: str, client: Any = None,
-                             start_thread: bool = True
+                             start_thread: bool = True,
+                             defer_thread: bool = False
                              ) -> Optional[PositioningIngestWorker]:
     """env を解決して worker を生成・開始する (app.py 起動フックから呼ぶ)。
 
@@ -921,6 +933,14 @@ def start_positioning_ingest(db_path: str, client: Any = None,
     MYFXBOOK_EMAIL/PASSWORD     設定済みなら source 自動判定が myfxbook を選ぶ
     POSITIONING_INSTRUMENTS     カンマ区切り override (例 "USD_JPY,EUR_USD")
     POSITIONING_POLL_SEC        poll 間隔 (default 1200、myfxbook は ≥900 clamp)
+
+    defer_thread=True: **thread をこのプロセスでは起動しない** (fork-safety)。
+    schema/seed と started_at (heal の arm) のみ行い、実際の thread 起動は
+    serving プロセス側の初回 heal (status()/before_request heartbeat) に委ねる。
+    根拠 (2026-07-16 本番実証 §11): gunicorn master の import 時に thread を
+    起動すると、その thread が HTTP 実行中に fork が起こり、socket/ssl 内部
+    lock が locked のまま子プロセスへ複製され healed thread が無期限ハングする。
+    master で network を一切動かさないことが唯一の構造的根治。
     """
     global _worker
     if os.environ.get("POSITIONING_INGEST_ENABLE", "1") != "1":
@@ -952,7 +972,14 @@ def start_positioning_ingest(db_path: str, client: Any = None,
     worker = PositioningIngestWorker(
         db_path, client, instruments=instruments, poll_sec=poll_sec,
         source=source)
-    if start_thread:
+    if defer_thread:
+        # heal を arm するが thread はこのプロセスでは起動しない (docstring 参照)
+        ensure_positioning_schema(db_path)
+        worker._seed_last_saved()
+        worker._started_at = _utcnow_iso()
+        _log("thread start DEFERRED to serving process "
+             "(fork-safety §11) — first heal via status/heartbeat will spawn")
+    elif start_thread:
         worker.start()
     else:
         ensure_positioning_schema(db_path)

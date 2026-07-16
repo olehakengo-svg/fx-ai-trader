@@ -15599,7 +15599,10 @@ if (_is_prod or _force_local) and not _legacy_off:
     #    /api/positioning/status で行う。
     try:
         from modules.positioning_ingest import start_positioning_ingest
-        start_positioning_ingest(_db_path)
+        # defer_thread: gunicorn master (import 時) では thread を起動しない。
+        # 起動は serving プロセスの初回 heal (status/heartbeat) — fork 中の
+        # HTTP 実行が socket/ssl lock を locked のまま複製する事故の根治 (§11)
+        start_positioning_ingest(_db_path, defer_thread=True)
     except Exception as _pos_start_err:
         print(f"[positioning] ingest startup failed: {_pos_start_err}",
               flush=True)
