@@ -2,7 +2,7 @@
 
 > **注意 (必読)**: このパネルは **校正・記述統計専用。確証検定への使用禁止**
 > (E1 pre-reg の設計入力)。Wayback スナップショットは採取タイミングが不規則で
-> survivorship/選択バイアスの統制が無く、live 環境の 5 分毎スナップショットとは
+> survivorship/選択バイアスの統制が無く、live 環境の 20 分毎スナップショットとは
 > 母集団が異なる。skew 閾値・持続性の事前分布の見積もりにのみ使う。
 
 - 生成: `tools/wayback_outlook_extract.py` (rule:R3, 記述統計のみ)
@@ -83,5 +83,5 @@ sign(skew) が一致した割合。ランダムなら ~0.5 (ゼロ skew は不�
 - **用途**: E1 positioning pre-reg の設計入力 (skew 閾値グリッドの校正、
   持続性の事前分布、コントラリアン仮説の分布レンジ確認) — 記述統計のみ。
 - **禁止**: このパネルでの仮説の確証検定・エッジ判定・tier 判断。
-  確証検定は live 蓄積した 5 分毎スナップショット (positioning_ingest) の
+  確証検定は live 蓄積した 20 分毎スナップショット (positioning_ingest) の
   out-of-sample データでのみ行う (Rule 1)。
