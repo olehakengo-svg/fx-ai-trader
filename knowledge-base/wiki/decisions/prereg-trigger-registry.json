@@ -1,154 +1,162 @@
 {
-  "_comment": "機械判定可能な pre-reg トリガー/決定点の registry。tools/prereg_trigger_watch.py が毎日評価 (Tier A cron 経由)。新規 pre-reg LOCK 時は必ずここに監視エントリを追加すること (lesson: T5 の 18 日執行ギャップ、2026-07-06)。",
-  "triggers": [
-    {
-      "id": "vix-sell-pilot-recheck",
-      "active": true,
-      "type": "live_count_decision",
-      "entry_type": "vix_carry_unwind",
-      "instrument": "USD_JPY",
-      "direction": "SELL",
-      "since": "2026-06-07",
-      "n_decide": 20,
-      "deadline": "2026-08-31",
-      "doc": "knowledge-base/wiki/syntheses/roadmap-v2.3-payoff-friction-repair.md",
-      "message": "vix Overlap pilot SELL 再評価 checkpoint (2026-07-07 pilot 継続裁定) — live N>=20 or 期日で EV/Wilson_lo/BEV を再判定。R2 demote 実行は user 決裁事項 (pilot 契約は user R1 例外)"
-    },
-    {
-      "id": "exit-repair-bt-deadline",
-      "active": false,
-      "type": "deadline_info",
-      "deadline": "2026-07-21",
-      "doc": "knowledge-base/wiki/decisions/exit-repair-tp-sl-prereg-2026-07-07.md",
-      "message": "exit-repair TP/SL grid BT (pre-reg LOCK 済) の verdict 期日 — queue 20260707-1640-exit-repair-tp-sl-grid が未完なら stale (T5 型の実行ギャップ防止)",
-      "resolved": "2026-07-08",
-      "resolution": "verdict FAIL (H0 採択) — claude 直接実行で期日13日前倒し完了。全9構成 BH-FDR 不通過 (p=1.0)、WF 0/3、EV_theory 最良 -2.96 p/t。WS3 全振りへ (pre-reg §4 規定分岐)"
-    },
-    {
-      "id": "t5-jpy-cap-restore-price",
-      "active": true,
-      "type": "price_below",
-      "symbol": "USDJPY=X",
-      "threshold": 159.5,
-      "doc": "knowledge-base/wiki/decisions/jpy-cap-exit-prereg-2026-06-12.md",
-      "message": "T5 復帰条件の第1要件 (D1 close<159.50) 成立 — 介入再確認と合わせ user 判断 (lot 1.0x 復帰は KB 記録 + テスト変更 PR 必須)"
-    },
-    {
-      "id": "ws3-stage2-lock-decision-stale",
-      "active": false,
-      "type": "deadline_info",
-      "deadline": "2026-07-16",
-      "doc": "knowledge-base/wiki/decisions/ws3-stage2-barrier-ev-prereg-2026-07-09.md",
-      "message": "WS3 stage-2 barrier/EV pre-reg DRAFT の user 決裁 (LOCK or 差し戻し) 期日 — 未決裁なら stale (T5 教訓の DRAFT 段階適用)。LOCK 時は本エントリを resolved 化し ws3-stage2-verdict-deadline (LOCK+10d) に置換",
-      "resolved": "2026-07-09",
-      "resolution": "user 承認「進めて」で LOCKED 化 (期日 7 日前倒し)。後継 = ws3-stage2-verdict-deadline"
-    },
-    {
-      "id": "ws3-stage2-verdict-deadline",
-      "active": false,
-      "type": "deadline_info",
-      "deadline": "2026-07-19",
-      "doc": "knowledge-base/wiki/decisions/ws3-stage2-barrier-ev-prereg-2026-07-09.md",
-      "message": "WS3 stage-2 barrier/EV grid の verdict 期日 (LOCK 2026-07-09 + 10d) — queue 20260709-1610-ws3-stage2-barrier-ev-prereg が未完なら stale (T5 型の実行ギャップ防止)",
-      "resolved": "2026-07-10",
-      "resolution": "verdict PASS ゼロ / 全体 UNDERPOWERED (期日 9 日前倒し)。lfr×EUR_USD 全 9 構成負 (クローズ) / htf_fb×AUD_JPY 1 構成のみ正・検定不達 → 後継 ws3-stage2-underpowered-recheck"
-    },
-    {
-      "id": "ws3-stage2-underpowered-recheck",
-      "active": true,
-      "type": "shadow_count_decision",
-      "entry_type": "htf_false_breakout",
-      "instrument": "AUD_JPY",
-      "since": "2026-07-10",
-      "n_decide": 100,
-      "deadline": "2027-01-31",
-      "doc": "knowledge-base/wiki/decisions/ws3-stage2-barrier-ev-prereg-2026-07-09.md",
-      "message": "stage-2 UNDERPOWERED 分岐 (§8.2) — htf_fb×AUD_JPY shadow 累積 N>=100 で同一 grid・同一検定の 1 回限り再判定 (新探索自由度なし)。期日到達で N<100 なら stale レビュー",
-      "n_floor": 100
-    },
-    {
-      "id": "ws3-t11-anti-hunt-usdjpy-recheck",
-      "active": true,
-      "type": "shadow_count_decision",
-      "entry_type": "sr_anti_hunt_bounce",
-      "instrument": "USD_JPY",
-      "since": "2026-07-11",
-      "n_decide": 30,
-      "n_floor": 30,
-      "deadline": "2027-01-31",
-      "doc": "knowledge-base/wiki/analyses/ws3-t10-t11-entry-quality-diagnosis-2026-07-11.md",
-      "message": "WS3 T11 診断 (2026-07-11): sr_anti_hunt_bounce×USD_JPY は探索窓で順行 MFE/MAE 非対称 1.71 (h24-48, 持続型・母集団上位2-3%) だが N=19<30 で underpowered。shadow 累積 N>=30 到達で round-1/round-2 と同一の OOS スクリーン (非診断窓 ratio 再計測 + block bootstrap + BH-FDR + first-touch EV レグ + ナイフエッジ3点) を1回限り実施。他4ペア + gbp_deep_pullback×GBP_USD は entry 劣化で close 済み。期日到達で N<30 なら stale レビュー"
-    },
-    {
-      "id": "t8-sweep-defer-decision",
-      "active": true,
-      "type": "shadow_count_decision",
-      "entry_type": "sweep_reversion_eurgbp_late",
-      "since": "2026-07-03",
-      "n_decide": 10,
-      "n_floor": 5,
-      "deadline": "2026-09-30",
-      "doc": "knowledge-base/wiki/decisions/t8-week1-gate-breach-2026-07-06.md",
-      "message": "sweep P-S1(a) DEFER 決定点 — N>=10 で EV 判定 (R1) / 2026-09-30 に N<5 なら retire (R2)"
-    },
-    {
-      "id": "t8-hull-shadow-freq",
-      "active": true,
-      "type": "shadow_count_info",
-      "entry_type": "hull_donchian_fade",
-      "since": "2026-07-03",
-      "expected_per_week": 13.3,
-      "doc": "knowledge-base/wiki/decisions/t8-week1-gate-breach-2026-07-06.md",
-      "message": "hull 発火頻度 band 監視 (ゲート① 再評価用、復帰判断の材料)"
-    },
-    {
-      "id": "t9-kalman-d7-fire-info",
-      "active": true,
-      "type": "shadow_count_info",
-      "entry_type": "kalman_d7",
-      "match": "prefix",
-      "since": "2026-07-06",
-      "expected_per_week": 3.9,
-      "doc": "knowledge-base/wiki/decisions/pre-reg-kalman-d7-shadow-fire-recovery-2026-05-28.md",
-      "message": "kalman D7 発火数 (3 variant 前方一致合算) vs BT 期待 3.9/週。分子ゼロが続く場合は Render ログの [kalman_d7] QUALBAR 行 (分母) と突合して 0-fire の原因を判定"
-    },
-    {
-      "id": "ws3-round2-oos-verdict-deadline",
-      "active": false,
-      "type": "deadline_info",
-      "deadline": "2026-07-17",
-      "doc": "knowledge-base/wiki/decisions/ws3-round2-explore-prereg-2026-07-10.md",
-      "message": "WS3 探索2周目 OOS verdict 期日 (LOCK 2026-07-10、候補 m=5 凍結済み)。期日までに verdict §追記が無ければ stale アラート (T5 型ギャップ防止)",
-      "resolved": "2026-07-10",
-      "resolution": "verdict ❌ FAIL 0/5 — 期日 7 日前倒しで完了 (pre-reg §8)。全セル BH-FDR 不通過、3 セル ratio 崩壊 (0.56-0.90)、EV レグも 孤立格子点/fold 集中で全滅。§3 固定分岐 = shadow 母集団内の軸は枯渇 → 外部仮説 (新シグナル系統、falsified 6 系統除外) の探索へ転進"
-    },
-    {
-      "id": "ws3-round3-crossasset-divergence-deadline",
-      "active": false,
-      "type": "deadline_info",
-      "deadline": "2026-07-24",
-      "doc": "knowledge-base/wiki/decisions/ws3-round3-crossasset-divergence-prereg-2026-07-13.md",
-      "message": "WS3 round-3 (cross-asset divergence-reversion) discovery+LOCK 目標 07-20 / OOS verdict 07-24。queue 20260713-ws3-round3-crossasset-divergence が未着手なら stale (T5 型実行ギャップ防止)。外部仮説転進の第1候補、lead-lag は既に実証閉鎖済",
-      "resolved": "2026-07-14",
-      "resolution": "VERDICT PASS=0 / H0 採択 (期日 07-24 の 10 日前倒し)。data-availability で窓 data-driven 再指定 (intraday rates フロア 2024-02、§2b AMENDMENT、結果観測前) → discovery 216 cells → top-8 凍結 → OOS 8/8 反転 (leg A 0/8 BH-FDR, leg B 0/8)。§4 固定分岐 = cross-asset 価格モダリティ枯渇 → E1 positioning 格上げ。WS3 price-based 探索は内部2周+外部1周=計3周 FAIL で一巡"
-    },
-    {
-      "id": "ws3-round4-eur-divergence-conditional",
-      "active": true,
-      "type": "conditional_info",
-      "deadline": "no-deadline",
-      "doc": "knowledge-base/wiki/decisions/ws3-round3-crossasset-divergence-prereg-2026-07-13.md",
-      "condition": "FX + rates (ZN=F 1h) cache が 2026-05-15 を 6ヶ月以上超えて延伸したら発火",
-      "message": "round-3 OOS で凍結外の EUR_USD/EUR_JPY divergence-reversion が post-hoc 生存 (claimable 不可、fresh OOS 無し)。cache が 2026-11-15+ まで延伸したら、pair 分散 freeze (EUR_USD/EUR_JPY を事前登録、top-by-EV 回避 — lesson-freeze-rule-topEV-selects-overfit-2026-07-14) で新 OOS 窓による round-4 を安価に再試行可。それまでは E1 positioning が主戦線"
-    },
-    {
-      "id": "e1-positioning-ingest-freshness",
-      "active": true,
-      "type": "conditional_info",
-      "deadline": "no-deadline",
-      "doc": "knowledge-base/wiki/analyses/e1-positioning-ingest-2026-07-14.md",
-      "condition": "MYFXBOOK_EMAIL/MYFXBOOK_PASSWORD が Render env に投入され source=myfxbook で蓄積開始したら鮮度監視を本格再開",
-      "message": "E1 positioning ingest 鮮度監視 — 2026-07-15 更新: オプション A 採択 (user 全面委任決裁) で Myfxbook Community Outlook へソース転換済み (§9)。credentials 投入までは status.myfxbook.waiting_for_credentials=true が既知状態 (調査不要)。投入後: /api/positioning/status の最終 snapshot_time が 2h 超 stale なら要調査 (poll ≥900s、rate limit 100req/24h)。401 帰属は §8a で確定済み (OANDA retail book 提供終了 2024-09-14)。thread 死は self-heal 済み (restarts で観測、§8b)"
-    }
-  ]
+ "_comment": "機械判定可能な pre-reg トリガー/決定点の registry。tools/prereg_trigger_watch.py が毎日評価 (Tier A cron 経由)。新規 pre-reg LOCK 時は必ずここに監視エントリを追加すること (lesson: T5 の 18 日執行ギャップ、2026-07-06)。",
+ "triggers": [
+  {
+   "id": "vix-sell-pilot-recheck",
+   "active": true,
+   "type": "live_count_decision",
+   "entry_type": "vix_carry_unwind",
+   "instrument": "USD_JPY",
+   "direction": "SELL",
+   "since": "2026-06-07",
+   "n_decide": 20,
+   "deadline": "2026-08-31",
+   "doc": "knowledge-base/wiki/syntheses/roadmap-v2.3-payoff-friction-repair.md",
+   "message": "vix Overlap pilot SELL 再評価 checkpoint (2026-07-07 pilot 継続裁定) — live N>=20 or 期日で EV/Wilson_lo/BEV を再判定。R2 demote 実行は user 決裁事項 (pilot 契約は user R1 例外)"
+  },
+  {
+   "id": "exit-repair-bt-deadline",
+   "active": false,
+   "type": "deadline_info",
+   "deadline": "2026-07-21",
+   "doc": "knowledge-base/wiki/decisions/exit-repair-tp-sl-prereg-2026-07-07.md",
+   "message": "exit-repair TP/SL grid BT (pre-reg LOCK 済) の verdict 期日 — queue 20260707-1640-exit-repair-tp-sl-grid が未完なら stale (T5 型の実行ギャップ防止)",
+   "resolved": "2026-07-08",
+   "resolution": "verdict FAIL (H0 採択) — claude 直接実行で期日13日前倒し完了。全9構成 BH-FDR 不通過 (p=1.0)、WF 0/3、EV_theory 最良 -2.96 p/t。WS3 全振りへ (pre-reg §4 規定分岐)"
+  },
+  {
+   "id": "t5-jpy-cap-restore-price",
+   "active": true,
+   "type": "price_below",
+   "symbol": "USDJPY=X",
+   "threshold": 159.5,
+   "doc": "knowledge-base/wiki/decisions/jpy-cap-exit-prereg-2026-06-12.md",
+   "message": "T5 復帰条件の第1要件 (D1 close<159.50) 成立 — 介入再確認と合わせ user 判断 (lot 1.0x 復帰は KB 記録 + テスト変更 PR 必須)"
+  },
+  {
+   "id": "ws3-stage2-lock-decision-stale",
+   "active": false,
+   "type": "deadline_info",
+   "deadline": "2026-07-16",
+   "doc": "knowledge-base/wiki/decisions/ws3-stage2-barrier-ev-prereg-2026-07-09.md",
+   "message": "WS3 stage-2 barrier/EV pre-reg DRAFT の user 決裁 (LOCK or 差し戻し) 期日 — 未決裁なら stale (T5 教訓の DRAFT 段階適用)。LOCK 時は本エントリを resolved 化し ws3-stage2-verdict-deadline (LOCK+10d) に置換",
+   "resolved": "2026-07-09",
+   "resolution": "user 承認「進めて」で LOCKED 化 (期日 7 日前倒し)。後継 = ws3-stage2-verdict-deadline"
+  },
+  {
+   "id": "ws3-stage2-verdict-deadline",
+   "active": false,
+   "type": "deadline_info",
+   "deadline": "2026-07-19",
+   "doc": "knowledge-base/wiki/decisions/ws3-stage2-barrier-ev-prereg-2026-07-09.md",
+   "message": "WS3 stage-2 barrier/EV grid の verdict 期日 (LOCK 2026-07-09 + 10d) — queue 20260709-1610-ws3-stage2-barrier-ev-prereg が未完なら stale (T5 型の実行ギャップ防止)",
+   "resolved": "2026-07-10",
+   "resolution": "verdict PASS ゼロ / 全体 UNDERPOWERED (期日 9 日前倒し)。lfr×EUR_USD 全 9 構成負 (クローズ) / htf_fb×AUD_JPY 1 構成のみ正・検定不達 → 後継 ws3-stage2-underpowered-recheck"
+  },
+  {
+   "id": "ws3-stage2-underpowered-recheck",
+   "active": true,
+   "type": "shadow_count_decision",
+   "entry_type": "htf_false_breakout",
+   "instrument": "AUD_JPY",
+   "since": "2026-07-10",
+   "n_decide": 100,
+   "deadline": "2027-01-31",
+   "doc": "knowledge-base/wiki/decisions/ws3-stage2-barrier-ev-prereg-2026-07-09.md",
+   "message": "stage-2 UNDERPOWERED 分岐 (§8.2) — htf_fb×AUD_JPY shadow 累積 N>=100 で同一 grid・同一検定の 1 回限り再判定 (新探索自由度なし)。期日到達で N<100 なら stale レビュー",
+   "n_floor": 100
+  },
+  {
+   "id": "ws3-t11-anti-hunt-usdjpy-recheck",
+   "active": true,
+   "type": "shadow_count_decision",
+   "entry_type": "sr_anti_hunt_bounce",
+   "instrument": "USD_JPY",
+   "since": "2026-07-11",
+   "n_decide": 30,
+   "n_floor": 30,
+   "deadline": "2027-01-31",
+   "doc": "knowledge-base/wiki/analyses/ws3-t10-t11-entry-quality-diagnosis-2026-07-11.md",
+   "message": "WS3 T11 診断 (2026-07-11): sr_anti_hunt_bounce×USD_JPY は探索窓で順行 MFE/MAE 非対称 1.71 (h24-48, 持続型・母集団上位2-3%) だが N=19<30 で underpowered。shadow 累積 N>=30 到達で round-1/round-2 と同一の OOS スクリーン (非診断窓 ratio 再計測 + block bootstrap + BH-FDR + first-touch EV レグ + ナイフエッジ3点) を1回限り実施。他4ペア + gbp_deep_pullback×GBP_USD は entry 劣化で close 済み。期日到達で N<30 なら stale レビュー"
+  },
+  {
+   "id": "t8-sweep-defer-decision",
+   "active": true,
+   "type": "shadow_count_decision",
+   "entry_type": "sweep_reversion_eurgbp_late",
+   "since": "2026-07-03",
+   "n_decide": 10,
+   "n_floor": 5,
+   "deadline": "2026-09-30",
+   "doc": "knowledge-base/wiki/decisions/t8-week1-gate-breach-2026-07-06.md",
+   "message": "sweep P-S1(a) DEFER 決定点 — N>=10 で EV 判定 (R1) / 2026-09-30 に N<5 なら retire (R2)"
+  },
+  {
+   "id": "t8-hull-shadow-freq",
+   "active": true,
+   "type": "shadow_count_info",
+   "entry_type": "hull_donchian_fade",
+   "since": "2026-07-03",
+   "expected_per_week": 13.3,
+   "doc": "knowledge-base/wiki/decisions/t8-week1-gate-breach-2026-07-06.md",
+   "message": "hull 発火頻度 band 監視 (ゲート① 再評価用、復帰判断の材料)"
+  },
+  {
+   "id": "t9-kalman-d7-fire-info",
+   "active": true,
+   "type": "shadow_count_info",
+   "entry_type": "kalman_d7",
+   "match": "prefix",
+   "since": "2026-07-06",
+   "expected_per_week": 3.9,
+   "doc": "knowledge-base/wiki/decisions/pre-reg-kalman-d7-shadow-fire-recovery-2026-05-28.md",
+   "message": "kalman D7 発火数 (3 variant 前方一致合算) vs BT 期待 3.9/週。分子ゼロが続く場合は Render ログの [kalman_d7] QUALBAR 行 (分母) と突合して 0-fire の原因を判定"
+  },
+  {
+   "id": "ws3-round2-oos-verdict-deadline",
+   "active": false,
+   "type": "deadline_info",
+   "deadline": "2026-07-17",
+   "doc": "knowledge-base/wiki/decisions/ws3-round2-explore-prereg-2026-07-10.md",
+   "message": "WS3 探索2周目 OOS verdict 期日 (LOCK 2026-07-10、候補 m=5 凍結済み)。期日までに verdict §追記が無ければ stale アラート (T5 型ギャップ防止)",
+   "resolved": "2026-07-10",
+   "resolution": "verdict ❌ FAIL 0/5 — 期日 7 日前倒しで完了 (pre-reg §8)。全セル BH-FDR 不通過、3 セル ratio 崩壊 (0.56-0.90)、EV レグも 孤立格子点/fold 集中で全滅。§3 固定分岐 = shadow 母集団内の軸は枯渇 → 外部仮説 (新シグナル系統、falsified 6 系統除外) の探索へ転進"
+  },
+  {
+   "id": "ws3-round3-crossasset-divergence-deadline",
+   "active": false,
+   "type": "deadline_info",
+   "deadline": "2026-07-24",
+   "doc": "knowledge-base/wiki/decisions/ws3-round3-crossasset-divergence-prereg-2026-07-13.md",
+   "message": "WS3 round-3 (cross-asset divergence-reversion) discovery+LOCK 目標 07-20 / OOS verdict 07-24。queue 20260713-ws3-round3-crossasset-divergence が未着手なら stale (T5 型実行ギャップ防止)。外部仮説転進の第1候補、lead-lag は既に実証閉鎖済",
+   "resolved": "2026-07-14",
+   "resolution": "VERDICT PASS=0 / H0 採択 (期日 07-24 の 10 日前倒し)。data-availability で窓 data-driven 再指定 (intraday rates フロア 2024-02、§2b AMENDMENT、結果観測前) → discovery 216 cells → top-8 凍結 → OOS 8/8 反転 (leg A 0/8 BH-FDR, leg B 0/8)。§4 固定分岐 = cross-asset 価格モダリティ枯渇 → E1 positioning 格上げ。WS3 price-based 探索は内部2周+外部1周=計3周 FAIL で一巡"
+  },
+  {
+   "id": "ws3-round4-eur-divergence-conditional",
+   "active": true,
+   "type": "conditional_info",
+   "deadline": "no-deadline",
+   "doc": "knowledge-base/wiki/decisions/ws3-round3-crossasset-divergence-prereg-2026-07-13.md",
+   "condition": "FX + rates (ZN=F 1h) cache が 2026-05-15 を 6ヶ月以上超えて延伸したら発火",
+   "message": "round-3 OOS で凍結外の EUR_USD/EUR_JPY divergence-reversion が post-hoc 生存 (claimable 不可、fresh OOS 無し)。cache が 2026-11-15+ まで延伸したら、pair 分散 freeze (EUR_USD/EUR_JPY を事前登録、top-by-EV 回避 — lesson-freeze-rule-topEV-selects-overfit-2026-07-14) で新 OOS 窓による round-4 を安価に再試行可。それまでは E1 positioning が主戦線"
+  },
+  {
+   "id": "e1-positioning-ingest-freshness",
+   "active": true,
+   "type": "conditional_info",
+   "deadline": "no-deadline",
+   "doc": "knowledge-base/wiki/analyses/e1-positioning-ingest-2026-07-14.md",
+   "condition": "MYFXBOOK_EMAIL/MYFXBOOK_PASSWORD が Render env に投入され source=myfxbook で蓄積開始したら鮮度監視を本格再開",
+   "message": "E1 positioning ingest 鮮度監視 — 2026-07-15 更新: オプション A 採択 (user 全面委任決裁) で Myfxbook Community Outlook へソース転換済み (§9)。credentials 投入までは status.myfxbook.waiting_for_credentials=true が既知状態 (調査不要)。投入後: /api/positioning/status の最終 snapshot_time が 2h 超 stale なら要調査 (poll ≥900s、rate limit 100req/24h)。401 帰属は §8a で確定済み (OANDA retail book 提供終了 2024-09-14)。thread 死は self-heal 済み (restarts で観測、§8b)"
+  },
+  {
+   "id": "e1-prereg-lock-decision-stale",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2026-07-17",
+   "doc": "knowledge-base/wiki/decisions/e1-positioning-contrarian-prereg-2026-07-16.md",
+   "message": "E1 positioning contrarian pre-reg (観測前・文献駆動) の LOCK 決裁待ち。蓄積が進むほど観測前性が減衰するため期限 2026-07-17。user 承認が第一経路、応答なしなら純研究 self-LOCK 前例 (round-2) に基づき self-LOCK を執行し session log 記録。LOCK 後は e1-prereg-verdict-deadline (first look verdict 2026-10-15) へ置換"
+  }
+ ]
 }

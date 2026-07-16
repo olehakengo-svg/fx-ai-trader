@@ -267,3 +267,23 @@ AUD_USD, NZD_USD, USD_CAD, USD_CHF, NZD_JPY, EUR_AUD, EUR_GBP
 
 **検証**: デプロイ後 `/api/positioning/status` の books に 13 instrument が
 現れ、rows が cycle 毎に増えること。symbol 欠落は fail-loud で status に出る。
+
+---
+
+## 13. positioning_health — per-instrument 検証成功時刻の永続化 (2026-07-16, rule:R3)
+
+**動機 (E1 pre-reg §2.2 必須インフラ)**: content-hash dedup は「行を書かない」ため、
+DB 行だけからは「content 不変 (正常)」と「fetch/parse 失敗 (欠測)」が識別できない。
+LOCF の有効性判定 (stale cap) を「最終**保存**からの経過」に鍵付けすると、
+静穏期間を系統的に NA 化する活動条件付けバイアスが分析側に混入する
+(敵対的レビュー M1)。
+
+**実装**: 新テーブル `positioning_health(key PRIMARY KEY, value)`。
+- `verified:{instrument}:outlook` = fetch+parse 成功 **かつ** content が永続化済み値と
+  一致 (dedup skip) or 新規永続化された時刻。DB 書込み失敗では更新しない
+- `last_cycle_at` = cycle heartbeat (credentials 待ち/fetch 失敗でも更新 = worker 生存証跡)
+- status API に `health` として露出 (fork コピーの counter と違い DB 永続で信頼可)
+- 書込み失敗は loud (`HEALTH WRITE FAILED` + last_error)、cycle は殺さない
+
+**接続**: [[e1-positioning-contrarian-prereg-2026-07-16]] §2.2 の stale cap 主モード
+(age = t − last_verified_at > 2h → NA) がこのテーブルに依存。
