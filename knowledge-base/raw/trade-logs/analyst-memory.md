@@ -2811,6 +2811,16 @@ KB記録にある「勝ち側exit崩壊・摩擦調整EV全負」という v2.3�
 | GBP_USD | VOLATILE / 59%ile | **最注意** — VOLATILE分類唯一のペア、ロンドン勢の建玉でトレンド発生の可能性 |
 ### 推奨戦略配分
 
+### 2026-07-16 (Post-London Report)
+| PnL | **0 pips / 0円** |
+| WR | **N/A** |
+- **OANDA転送率 0%**（50件SKIP、SENT=0）— ライブ到達がゼロ
+- **OANDA Blockの全件が `shadow_tracking`（20件）** — デモシャドウ追跡のみで実執行ゼロ
+- **`daytrade_xau`・`scalp_xau`・`scalp_eurjpy` がOFF継続** — XAU系は本日も非稼働
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
