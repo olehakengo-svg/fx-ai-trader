@@ -2821,6 +2821,16 @@ KB記録にある「勝ち側exit崩壊・摩擦調整EV全負」という v2.3�
 | WR | N/A | N/A |
 ### 推奨戦略配分
 
+### 2026-07-16 (Pre-Tokyo Briefing)
+前日（2026-07-15）は **トレード1件、WR 0.0%、PnL +0.1p** という極めて低活動な1日。ny_close_reversal / USD_JPY が BREAKEVEN（SIGNAL_REVERSE 決済）のみで、実質的なアルファは生成されなかった。
+| Strategy | Pair | N | WR% | EV | PnL |
+> **統計的地位**: 全戦略 N<10。「データなし」ゾーン。数値は参考値であり、判断の根拠にならない。vix_carry_unwind の WR 100% は N=2 によるノイズ。
+| ① | トレード数 = 1件（BREAKEVEN） | エントリーシグナル発火が極端に低頻度。レジーム全ペアがRANGING/VOLATILEで戦略条件を満たしにくい状態 |
+| ② | SIGNAL_REVERSE による早期決済 | エントリー直後に逆シグナルが発生 → NY クローズ付近のノイズ帯での誤発火の可能性 |
+| ③ | spread = 0.8（USD/JPY） | spread_guard 閾値（DT=20%）以内だが、BREAKEVENは摩擦費用を回収できていないことを示す |
+- SIGNAL_REVERSE BREAKEVENの頻度を蓄積観察する。単発では判断不可だが、繰り返し発生する場合は ny_close_reversal のエントリータイミング適合性を疑う根拠となる
+- N蓄積最優先。現状N=3では全ての戦略が評価不能帯にある
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
