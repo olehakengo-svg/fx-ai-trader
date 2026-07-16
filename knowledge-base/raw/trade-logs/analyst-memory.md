@@ -2791,6 +2791,16 @@ KB記録にある「勝ち側exit崩壊・摩擦調整EV全負」という v2.3�
 | Strategy | Pair | N | WR% | EV | PnL |
 | Strategy | N_BT | WR_BT | N_Live | WR_Live | ΔWR | Alert |
 
+### 2026-07-16 (Pre-Tokyo Briefing)
+前日（2026-07-15）トレード数 **N=1**、PnL **+0.1p**、WR **0%（BREAKEVENのため）**。
+唯一のトレードは `ny_close_reversal / USD_JPY / SELL` がシグナルリバーサルにより BREAKEVEN 決済。実質的にほぼノーアクションの一日。
+| Strategy | Pair | N | WR% | EV | 判定 |
+| vix_carry_unwind | USD_JPY | 3 | 66.7% | −1.40 | ⚠️ N不足・EV負 |
+> **統計的注記**: 全戦略 N<10。本基準では「データなし」扱い。WR・EVは参考値に過ぎず、判断の根拠として使用不可。
+- 26モードが起動中であるにもかかわらず、昨日のシグナル発火は **1件のみ**。
+- ほぼすべてのモードで `Trades=0` の状態が継続。システムは動いているが、エントリー機会を捕捉できていない。
+- **今日の注視点**: シグナル発火数のモニタリング。特に東京時間オープン（USD/JPY）でのスキャン稼働確認。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
