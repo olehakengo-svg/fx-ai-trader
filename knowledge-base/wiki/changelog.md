@@ -4,6 +4,13 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-16 — fix(data): E1 Myfxbook client 2バグ修正 — session 二重エンコード + fork-unsafe HTTP Session (rule:R3)
+
+- **背景**: user が credentials 投入 (05:54Z) → 初回稼働で "Invalid session." + healed thread ハングを実証
+- **(a)**: Myfxbook session は発行時点で URL-encoded 済み — params= 再エンコードが二重化。`_get` を組立済み query 方式へ (session は raw 付加)。**(b)**: fork 継承 requests.Session の pool lock が locked のまま複製されハング — pid 変化検知で lazy 再生成。詳細: [[e1-positioning-ingest-2026-07-14]] §10
+- 修正版で実 API 検証済み (186 symbols / 対象 6 ペア全取得)。tests 51→54 (回帰 pin 3)
+- **評価への影響: なし** — read-only データ収集の修正のみ
+
 ## 2026-07-15 — feat(data): E1 ソース転換 — Myfxbook Community Outlook aggregate 版 (オプション A 採択, rule:R3)
 
 - **決裁**: user 全面委任 (2026-07-15「最短がオーダーなので、やり方は任せる」) の下で §8c オプション A 採択。B (practice) は期待値低で保留、C (有償) はコスト非対称、D (閉鎖) は唯一の主戦線を閉じる理由なし。詳細: [[e1-positioning-ingest-2026-07-14]] §9

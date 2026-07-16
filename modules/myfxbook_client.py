@@ -20,6 +20,15 @@ API 契約 (https://www.myfxbook.com/api):
 
 Secrets 契約: email/password は env からのみ読み、レスポンス/ログ/status/例外
 メッセージに一切含めない (OandaClient と同じ pin をテストで固定)。
+
+2026-07-16 本番実証 2 バグ修正 (rule:R3):
+  (a) session は Myfxbook が発行時点で URL-encoded 済み ('%' を含む) —
+      params= 経由の再エンコードは二重化になり全 API が "Invalid session." を
+      返す。session は raw のまま query に付加する (_get は組立済み query を受ける)。
+  (b) requests.Session は fork-safe ではない — gunicorn master で作られた
+      Session の urllib3 pool lock が locked のまま子プロセスに複製され、
+      self-heal 後の thread が無期限ブロックした (timeout はソケット待ち専用で
+      lock 待ちには効かない)。pid 変化検知で Session を作り直す。
 All methods return (success: bool, data: dict) tuples (OandaClient 契約準拠)。
 モジュールトップ副作用禁止 — env 読みは __init__ 内で解決。
 """
@@ -58,10 +67,9 @@ class MyfxbookClient:
         self.logins_total = 0
         self.last_login_at = None
         self.requests_total = 0
-        if _HAS_REQUESTS:
-            self._http = _requests.Session()
-        else:
-            self._http = None
+        # HTTP Session は fork-safe でないため lazy + pid 追跡で生成 (docstring (b))
+        self._http = None
+        self._http_pid = None
 
     @property
     def configured(self) -> bool:
@@ -73,19 +81,37 @@ class MyfxbookClient:
 
     # ── transport ──────────────────────────────────────────────────
 
-    def _get(self, endpoint: str, params: dict) -> tuple:
-        """GET → (ok, data)。params は URL に載るため絶対にログへ出さない。"""
+    def _http_session(self):
+        """fork-safe な requests.Session を返す (pid 変化で作り直し)。
+
+        gunicorn master で生成した Session を fork 継承すると urllib3 pool
+        lock が locked のまま複製され、子プロセスの request が無期限ブロック
+        する (2026-07-16 本番実証、worker thread 死 §8b と同族の fork 問題)。
+        """
+        pid = os.getpid()
+        if self._http is None or self._http_pid != pid:
+            self._http = _requests.Session()
+            self._http_pid = pid
+        return self._http
+
+    def _get(self, endpoint: str, query: str) -> tuple:
+        """GET → (ok, data)。query は呼び出し側で組立済みの文字列。
+
+        session は Myfxbook が発行時点で URL-encoded 済みのため、dict params
+        経由の再エンコード (二重化) をしてはならない — "Invalid session." になる
+        (2026-07-16 本番実証)。query は URL に載るため絶対にログへ出さない。
+        """
         if not _HAS_REQUESTS:  # pragma: no cover
             return False, {"error": "transport",
                            "message": "requests library unavailable"}
-        url = f"{self._base_url}/{endpoint}"
+        url = f"{self._base_url}/{endpoint}?{query}"
         self.requests_total += 1
         try:
-            resp = self._http.get(url, params=params, timeout=_TIMEOUT_SEC)
+            resp = self._http_session().get(url, timeout=_TIMEOUT_SEC)
             status = resp.status_code
             body = resp.text
         except Exception as exc:
-            # URL/params を含めない (credentials 保護)
+            # URL/query を含めない (credentials 保護)
             return False, {"error": "transport",
                            "message": f"{endpoint}: {type(exc).__name__}"}
         if status != 200:
@@ -116,8 +142,10 @@ class MyfxbookClient:
             return False, {"error": "config",
                            "message": "MYFXBOOK_EMAIL/MYFXBOOK_PASSWORD "
                                       "not configured"}
+        from urllib.parse import urlencode
         ok, data = self._get("login.json",
-                             {"email": self._email, "password": self._password})
+                             urlencode({"email": self._email,
+                                        "password": self._password}))
         if not ok:
             self._session_id = ""
             return False, data
@@ -147,15 +175,16 @@ class MyfxbookClient:
             ok, data = self.login()
             if not ok:
                 return False, data
+        # session は再エンコード禁止 (発行時点で encoded 済み) — raw で付加
         ok, data = self._get("get-community-outlook.json",
-                             {"session": self._session_id})
+                             "session=" + self._session_id)
         if not ok and auto_login and _looks_like_invalid_session(data):
             self._session_id = ""
             ok2, login_data = self.login()
             if not ok2:
                 return False, login_data
             ok, data = self._get("get-community-outlook.json",
-                                 {"session": self._session_id})
+                                 "session=" + self._session_id)
         return ok, data
 
 
