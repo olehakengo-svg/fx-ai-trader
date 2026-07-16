@@ -49,8 +49,15 @@ from typing import Any, Dict, List, Optional, Tuple
 logger = logging.getLogger("positioning_ingest")
 
 # ── 定数 (env override は start_positioning_ingest 内で解決) ──
+# 2026-07-16 拡張 (6→13, rule:R3): outlook は全 symbol 一括 1 リクエストのため
+# instrument 追加の API 予算コストはゼロ。history は今から蓄積する以外に
+# 入手不可 (§8c) なので、将来セル候補になり得る全ペアの clock を今日始める。
+# 追加 7 ペア = engine モード/Phase B-1 slot が既存の取引可能ペア
+# (probe 2026-07-16: n_symbols=186、全 symbol 提供確認済み)。
 DEFAULT_INSTRUMENTS: Tuple[str, ...] = (
     "USD_JPY", "EUR_USD", "GBP_USD", "EUR_JPY", "GBP_JPY", "AUD_JPY",
+    "AUD_USD", "NZD_USD", "USD_CAD", "USD_CHF", "NZD_JPY", "EUR_AUD",
+    "EUR_GBP",
 )
 BOOK_TYPES: Tuple[str, ...] = ("position", "order")
 OUTLOOK_BOOK_TYPE = "outlook"     # Myfxbook aggregate (source="myfxbook")

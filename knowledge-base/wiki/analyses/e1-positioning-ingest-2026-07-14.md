@@ -242,3 +242,28 @@ lock 状態は直らない。
 **教訓**: pre-fork サーバでは「import 時に起動する network thread」自体が
 禁忌。§8b (self-heal) は復活経路として正しいが、fork 前に thread を走らせて
 良い理由にはならない — 起動経路は serving プロセス内に一本化する。
+
+---
+
+## 12. instrument 拡張 6→13 (2026-07-16, rule:R3)
+
+**動機 (最短経路)**: §8c で「history は今から蓄積する以外に入手不可」が確定して
+いる以上、**将来セル候補になり得るペアは今日 clock を始めた分だけ discovery が
+早く始まる**。outlook は全 symbol 一括 1 リクエスト (probe 2026-07-16:
+n_symbols=186) のため、instrument 追加の API 予算コストは**ゼロ**。増えるのは
+DB 行のみ (~13 rows/20min ≈ 940 rows/日、SQLite には無視できる規模)。
+
+**追加 7 ペア** (engine モード/Phase B-1 slot が既存 = 将来 live 化の配管が存在):
+AUD_USD, NZD_USD, USD_CAD, USD_CHF, NZD_JPY, EUR_AUD, EUR_GBP
+
+**選定規準と注記**:
+- EUR_GBP は live 摩擦が構造的不利 (BEV_WR 57.1%) だが、蓄積コストゼロ +
+  BEV_WR は対称 R:R 近似 (lesson: 高 R:R 戦略の正エッジ誤殺) のため**データは取る**。
+  live 化判断は将来の pre-reg 側で行う
+- 蓄積ペア数 ≠ 検定セル数。discovery/pre-reg 時にどのペアを検定するかは
+  その時点の設計が決める (多重性補正の負担はデータ保有ではなく仮説選択に付く)
+- 各ペアの t0 は蓄積開始日ベース: 初期 6 ペア = 2026-07-16T06:33Z、
+  追加 7 ペア = 本 PR デプロイ時刻。**pre-reg の窓設計はペア別 t0 を必ず参照**
+
+**検証**: デプロイ後 `/api/positioning/status` の books に 13 instrument が
+現れ、rows が cycle 毎に増えること。symbol 欠落は fail-loud で status に出る。
