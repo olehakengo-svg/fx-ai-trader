@@ -4,6 +4,12 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-16 — fix(data): E1 defer_thread — import 時 network thread 起動の廃止 (第2修正, rule:R3)
+
+- **背景**: §10 修正後も serving プロセスの healed thread がハング (master の cycle は成功 = t0 蓄積開始済み)。帰属 = fork 瞬間に master thread が HTTP 実行中 → socket/ssl 内部 lock が locked のまま複製 (Session 再生成では直らない)
+- **根治**: `start_positioning_ingest(defer_thread=True)` — master では thread を起動せず、serving プロセスの初回 heal (§8b) を唯一の起動経路に一本化。status に `current_phase`/`phase_since` 追加 (ハング位置の直接観測)。詳細: [[e1-positioning-ingest-2026-07-14]] §11
+- tests 54→56。**評価への影響: なし**
+
 ## 2026-07-16 — fix(data): E1 Myfxbook client 2バグ修正 — session 二重エンコード + fork-unsafe HTTP Session (rule:R3)
 
 - **背景**: user が credentials 投入 (05:54Z) → 初回稼働で "Invalid session." + healed thread ハングを実証
