@@ -1023,3 +1023,59 @@ def test_status_exposes_poll_phase(db_path):
     st = w.status()
     assert st["current_phase"] == "idle"          # cycle 完了後は idle に戻る
     assert st["phase_since"] is not None
+
+
+# ── positioning_health: per-instrument verified + cycle heartbeat ──────
+# E1 pre-reg §2.2 必須インフラ (2026-07-16): dedup skip は行を書かないため、
+# DB 行だけでは「content 不変」と「fetch/parse 失敗」が識別できない。
+# verified:{instrument}:{book} は「検証成功 (dedup skip 含む)」時刻の SSOT。
+
+def _health(db_path):
+    from modules.positioning_ingest import db_health
+    return db_health(db_path)
+
+
+def test_health_verified_on_save_and_dedup_skip(db_path):
+    resp = make_outlook_response()
+    w, _ = make_myfx_worker(db_path, [(True, resp), (True, resp)])
+    w.poll_once()                       # 全 instrument saved
+    h1 = _health(db_path)
+    key = f"verified:USD_JPY:{OUTLOOK_BOOK_TYPE}"
+    assert key in h1 and h1["last_cycle_at"]
+    for i in DEFAULT_INSTRUMENTS:
+        assert f"verified:{i}:{OUTLOOK_BOOK_TYPE}" in h1
+    w.poll_once()                       # 内容同一 → dedup skip でも verified 更新
+    h2 = _health(db_path)
+    assert h2[key] >= h1[key]
+    assert h2[key] != h1[key] or h2["last_cycle_at"] >= h1["last_cycle_at"]
+
+
+def test_health_not_verified_on_missing_symbol(db_path):
+    # EUR_USD だけ outlook から欠落 → verified が書かれない (失敗と無変化の識別)
+    symbols = [make_outlook_symbol(myfxbook_symbol(i))
+               for i in DEFAULT_INSTRUMENTS if i != "EUR_USD"]
+    w, _ = make_myfx_worker(db_path, [(True, make_outlook_response(symbols))])
+    counters = w.poll_once()
+    assert counters["failed"] == 1
+    h = _health(db_path)
+    assert f"verified:USD_JPY:{OUTLOOK_BOOK_TYPE}" in h
+    assert f"verified:EUR_USD:{OUTLOOK_BOOK_TYPE}" not in h
+    assert "last_cycle_at" in h
+
+
+def test_health_heartbeat_on_fetch_failure(db_path):
+    w, _ = make_myfx_worker(
+        db_path, [(False, {"error": True, "message": "boom"})])
+    w.poll_once()
+    h = _health(db_path)
+    assert "last_cycle_at" in h         # worker 生存の証跡は残る
+    assert not [k for k in h if k.startswith("verified:")]  # 検証成功は無い
+
+
+def test_status_exposes_health(db_path):
+    w, _ = make_myfx_worker(db_path, [(True, make_outlook_response())])
+    w.poll_once()
+    st = w.status()
+    assert isinstance(st["health"], dict)
+    assert f"verified:USD_JPY:{OUTLOOK_BOOK_TYPE}" in st["health"]
+    assert "last_cycle_at" in st["health"]

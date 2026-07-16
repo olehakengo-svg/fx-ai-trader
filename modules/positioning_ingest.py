@@ -71,6 +71,12 @@ STALE_ALERT_SEC = 2 * 3600     # 監視基準: 2h 超 stale で要調査 (regist
 THREAD_NAME = "positioning-ingest"
 
 # ── Schema (単一ソース — modules/demo_db.py の _init_tables からも呼ばれる) ──
+# positioning_health (2026-07-16, E1 pre-reg §2.2 必須インフラ):
+#   dedup skip は「行を書かない」ため、DB の行だけからは「content 不変」と
+#   「fetch/parse 失敗」が識別できない。per-instrument の最終検証成功時刻
+#   (verified:{instrument}:{book_type}) と cycle heartbeat (last_cycle_at) を
+#   1 行 upsert で永続化する — プロセス内 counter は fork コピーで信用できない
+#   教訓の適用。stale cap (LOCF 有効性判定) の主定義がこのテーブルに依存する。
 _TABLE_DDL = """
 CREATE TABLE IF NOT EXISTS positioning_snapshots (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -87,6 +93,10 @@ CREATE TABLE IF NOT EXISTS positioning_snapshots (
     UNIQUE(instrument, book_type, snapshot_time)
 );
 CREATE INDEX IF NOT EXISTS idx_pos_snap_time ON positioning_snapshots(snapshot_time);
+CREATE TABLE IF NOT EXISTS positioning_health (
+    key             TEXT PRIMARY KEY,       -- 'verified:{instrument}:{book}' | 'last_cycle_at'
+    value           TEXT NOT NULL           -- ISO8601 UTC
+);
 """
 
 
@@ -248,6 +258,44 @@ def save_snapshot(db_path: str, instrument: str, book_type: str,
         return cur.rowcount > 0
     finally:
         conn.close()
+
+
+def record_health(db_path: str, entries: Dict[str, str]) -> None:
+    """positioning_health への 1 トランザクション upsert。
+
+    entries: {'verified:{instrument}:{book}': iso_ts, 'last_cycle_at': iso_ts}
+    verified の意味論 (E1 pre-reg §2.2): 「fetch+parse が成功し、かつ content が
+    DB に永続化済みの値と一致している (dedup skip) か新規永続化された」時刻。
+    parse 成功でも DB 書込み失敗なら verified を更新しない — LOCF が古い値を
+    真値として供給する事故を防ぐため。失敗は呼び出し側で loud に処理する
+    (silent except 禁止)。
+    """
+    if not entries:
+        return
+    conn = sqlite3.connect(db_path)
+    try:
+        conn.executemany(
+            "INSERT INTO positioning_health (key, value) VALUES (?, ?)"
+            " ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            list(entries.items()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def db_health(db_path: str) -> Dict[str, Any]:
+    """positioning_health の全行 (status API 用)。fail-loud。"""
+    try:
+        conn = sqlite3.connect(db_path)
+        try:
+            rows = conn.execute(
+                "SELECT key, value FROM positioning_health").fetchall()
+        finally:
+            conn.close()
+    except Exception as exc:
+        return {"_error": f"{type(exc).__name__}: {exc}"}
+    return {k: v for k, v in rows}
 
 
 def db_book_stats(db_path: str) -> Dict[str, Dict[str, Any]]:
@@ -498,6 +546,7 @@ class PositioningIngestWorker:
                  f"(consecutive={self._consec_cycle_all_fail})")
             self._poll_cycles += 1
             self._last_cycle_at = _utcnow_iso()
+            self._record_health_safe({"last_cycle_at": self._last_cycle_at})
             return {"saved": 0, "skipped": 0, "failed": 0}
 
         self._set_phase("fetch outlook")
@@ -516,6 +565,7 @@ class PositioningIngestWorker:
                  f"{self._last_error}")
             self._poll_cycles += 1
             self._last_cycle_at = _utcnow_iso()
+            self._record_health_safe({"last_cycle_at": self._last_cycle_at})
             return {"saved": 0, "skipped": 0,
                     "failed": len(self.instruments)}
 
@@ -527,6 +577,9 @@ class PositioningIngestWorker:
         # microsecond 精度: 同一秒内の content 変化 (再起動直後の再取得等) が
         # UNIQUE(instrument, book_type, snapshot_time) で silent drop されるのを防ぐ
         fetched_at = _utcnow_iso_us()
+        # E1 pre-reg §2.2: 検証成功 (dedup skip 含む) を per-instrument で永続化
+        # する対象。DB 書込み失敗の instrument は含めない (LOCF 有効性の根拠)。
+        verified: Dict[str, str] = {}
         for instrument in self.instruments:
             key = (instrument, OUTLOOK_BOOK_TYPE)
             sym = symbols.get(myfxbook_symbol(instrument))
@@ -550,10 +603,12 @@ class PositioningIngestWorker:
                      f"(consecutive={self._consec_fail[key]})")
                 continue
             if self._last_saved.get(key) == parsed["content_key"]:
-                # Myfxbook 側未更新 (内容同一) — 正常系 skip
+                # Myfxbook 側未更新 (内容同一) — 正常系 skip。
+                # content が永続化済み値と一致 = 検証成功 (LOCF は正確な再構成)
                 skipped += 1
                 self._dedup_skips += 1
                 self._consec_fail[key] = 0
+                verified[f"verified:{instrument}:{OUTLOOK_BOOK_TYPE}"] = fetched_at
                 continue
             row = {
                 # outlook は snapshot 時刻を持たない → fetch 時刻で時系列化
@@ -578,6 +633,7 @@ class PositioningIngestWorker:
                 continue
             self._last_saved[key] = parsed["content_key"]
             self._consec_fail[key] = 0
+            verified[f"verified:{instrument}:{OUTLOOK_BOOK_TYPE}"] = fetched_at
             if inserted:
                 saved += 1
                 self._saved_total += 1
@@ -592,11 +648,23 @@ class PositioningIngestWorker:
             self._consec_cycle_all_fail = 0
         self._poll_cycles += 1
         self._last_cycle_at = _utcnow_iso()
+        verified["last_cycle_at"] = self._last_cycle_at
+        self._record_health_safe(verified)
         if saved or failed:
             _log(f"cycle done (myfxbook): saved={saved} "
                  f"dedup_skipped={skipped} failed={failed}")
         self._set_phase("idle")
         return {"saved": saved, "skipped": skipped, "failed": failed}
+
+    def _record_health_safe(self, entries: Dict[str, str]) -> None:
+        """record_health の loud ラッパ — health 書込み失敗で cycle は殺さないが
+        必ず last_error/log に残す (silent except 禁止)。"""
+        try:
+            record_health(self._db_path, entries)
+        except Exception as exc:
+            self._last_error = (f"{_utcnow_iso()} health: "
+                                f"{type(exc).__name__}: {exc}")
+            _log(f"HEALTH WRITE FAILED: {self._last_error}")
 
     def _set_phase(self, phase: str) -> None:
         self._phase = phase
@@ -694,6 +762,9 @@ class PositioningIngestWorker:
             self._consec_cycle_all_fail = 0
         self._poll_cycles += 1
         self._last_cycle_at = _utcnow_iso()
+        # oanda source は 2024-09-14 提供終了で dead path — heartbeat のみ永続化
+        # (per-instrument verified は myfxbook path 専用、E1 pre-reg §2.2)
+        self._record_health_safe({"last_cycle_at": self._last_cycle_at})
         if saved or failed:
             _log(f"cycle done: saved={saved} dedup_skipped={skipped} failed={failed}")
         return {"saved": saved, "skipped": skipped, "failed": failed}
@@ -741,6 +812,9 @@ class PositioningIngestWorker:
             "stale_alert_sec": STALE_ALERT_SEC,
             "db_error": db_stats.get("_error"),
             "books": books,
+            # E1 pre-reg §2.2: per-instrument 最終検証成功 (dedup skip 含む) と
+            # cycle heartbeat の DB 永続値 — fork コピーの counter と違い信頼可
+            "health": db_health(self._db_path),
         }
         if self.source == "myfxbook":
             configured = bool(getattr(self._client, "configured", False))

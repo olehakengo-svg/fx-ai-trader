@@ -4,6 +4,13 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-16 — feat(research): E1 positioning contrarian pre-reg DRAFT + positioning_health 永続化 + D4 テンプレート (rule:R3)
+
+- **[[e1-positioning-contrarian-prereg-2026-07-16]] (DRAFT)**: 文献駆動・**データ観測前** pre-reg — discovery 2 段階を省き、first look verdict を **2026-10-15** (cutoff = t0+12週) に固定。従来計画 (2-3ヶ月蓄積 → discovery → 凍結 → OOS) 比で **verdict を 1〜2 ヶ月前倒し**。設計 = 8-agent workflow (独立3案 → 統合 → 敵対的レビュー major 11 反映)。階層ゲートキーパー (pooled IC 二重検定 → 摩擦調整 EV conjunction、look 毎 BH q=0.05)、UNDERPOWERED second look (2027-01-06) 事前固定。LOCK 決裁期限 2026-07-17 (registry `e1-prereg-lock-decision-stale`)
+- **positioning_health テーブル (pre-reg §2.2 必須インフラ)**: per-instrument `verified:` 時刻 + `last_cycle_at` heartbeat を DB 永続化 — dedup skip (行を書かない) と fetch 失敗の識別を可能にし、LOCF stale cap の活動条件付けバイアスを排除。status API に `health` 露出。詳細: [[e1-positioning-ingest-2026-07-14]] §13
+- **[[d4-implementation-prereg-template-2026-07-16]]**: survivor 到達時に即起案できる D4 実装 pre-reg 雛形 (carve-out 2 択 / R2 自動降格 / セル単位判定 / parity / 防御解除ラダー) — 直列待ちの前倒し削減
+- tests 56→60。**評価への影響: なし** — read-only 計測基盤 + 文書のみ。live 発注経路・戦略・Kelly・shadow 一切不変
+
 ## 2026-07-16 — feat(data): E1 instrument 拡張 6→13 — 将来セル候補の蓄積 clock を前倒し開始 (rule:R3)
 
 - **動機 (最短経路)**: history は今から蓄積する以外に入手不可 (§8c 確定) → 将来ペアの clock は今日始めた分だけ discovery が早まる。outlook は全 symbol 一括 1 リクエスト (probe: n_symbols=186) のため **API 予算コストゼロ**、増分は DB ~940 rows/日のみ
