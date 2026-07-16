@@ -876,7 +876,7 @@ def test_myfxbook_status_and_probe_contain_no_secrets(db_path, monkeypatch):
     # probe (未 login 経路): login を偽装して secrets 非漏出を確認
     fake = MyfxbookClient(email=email, password=password)
 
-    def fake_get(endpoint, params):
+    def fake_get(endpoint, query):
         if endpoint == "login.json":
             return True, {"error": False, "session": "SESSION123"}
         return True, make_outlook_response()
@@ -894,7 +894,7 @@ def test_myfxbook_client_relogin_on_invalid_session(monkeypatch):
     client = MyfxbookClient(email="a@example.com", password="pw")
     calls = []
 
-    def fake_get(endpoint, params):
+    def fake_get(endpoint, query):
         calls.append(endpoint)
         if endpoint == "login.json":
             return True, {"error": False, "session": f"S{len(calls)}"}
@@ -933,3 +933,54 @@ def test_api_positioning_export_accepts_outlook_book(flask_client):
     assert resp.status_code == 200
     resp = flask_client.get("/api/positioning/export?book=bogus")
     assert resp.status_code == 400
+
+
+# ── 2026-07-16 本番実証 2 バグの回帰 pin ────────────────────────────
+
+def test_myfxbook_session_passed_raw_not_double_encoded(monkeypatch):
+    """session は Myfxbook 発行時点で URL-encoded 済み ('%' を含む)。
+    再エンコード (%→%25) すると全 API が Invalid session になる — raw 付加を pin。"""
+    client = MyfxbookClient(email="a@example.com", password="pw")
+    client._session_id = "AbC%2F123%3D%3D"  # '%' を含む encoded 済み session
+    seen = []
+
+    def fake_get(endpoint, query):
+        seen.append((endpoint, query))
+        return True, make_outlook_response()
+
+    monkeypatch.setattr(client, "_get", fake_get)
+    ok, _ = client.get_community_outlook(auto_login=False)
+    assert ok
+    assert seen == [("get-community-outlook.json",
+                     "session=AbC%2F123%3D%3D")]  # %25 への二重化がない
+
+
+def test_myfxbook_login_query_urlencodes_credentials(monkeypatch):
+    """login の email/password は raw 値なので通常の urlencode を通す
+    (特殊文字 '+ @ # .' を含む password が正しく %XX 化される)。"""
+    client = MyfxbookClient(email="a+b@example.com", password="X+@R#.pw")
+    seen = []
+
+    def fake_get(endpoint, query):
+        seen.append((endpoint, query))
+        return True, {"error": False, "session": "S1"}
+
+    monkeypatch.setattr(client, "_get", fake_get)
+    ok, _ = client.login()
+    assert ok
+    endpoint, query = seen[0]
+    assert endpoint == "login.json"
+    assert "password=X%2B%40R%23.pw" in query
+    assert "email=a%2Bb%40example.com" in query
+
+
+def test_myfxbook_http_session_rebuilt_on_pid_change():
+    """fork 継承した requests.Session は pool lock ごと複製されハングする —
+    pid 変化検知で作り直す契約を pin (§8b と同族の fork 問題)。"""
+    client = MyfxbookClient(email="a@example.com", password="pw")
+    s1 = client._http_session()
+    assert client._http_session() is s1        # 同一 pid では再利用
+    client._http_pid = client._http_pid - 1    # fork 相当 (pid 変化を偽装)
+    s2 = client._http_session()
+    assert s2 is not s1                        # 作り直し
+    assert client._http_session() is s2

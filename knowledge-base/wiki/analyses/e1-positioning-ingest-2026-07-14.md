@@ -183,3 +183,34 @@ near_imbalance (bucket 級) は放棄。候補一次統計:
 
 **蓄積が始まらない限り M1 タイムラインが 1 日ずつ後ろにずれる** (history は
 今からしか貯まらない、§4) — 最短経路上の唯一の user 依存点。
+
+---
+
+## 10. 本番実証 2 バグ修正 — session 二重エンコード + fork-unsafe HTTP Session (2026-07-16, rule:R3)
+
+credentials 投入 (2026-07-16T05:54Z) 後の初回稼働で 2 バグを実証・修正:
+
+**(a) session 二重エンコード → 全 API "Invalid session."**
+Myfxbook の session は**発行時点で URL-encoded 済み** (`%` を含む 94 文字)。
+requests の `params=` 経由で渡すと再エンコード (`%`→`%25`) され、outlook が
+"Invalid session." を返す。ローカル切り分けで確定: encoded 渡し=error /
+**raw 渡し=成功**。修正 = `_get` を組立済み query 文字列方式に変更 — login は
+urlencode (raw 値のため)、session は raw 付加。回帰 pin:
+`test_myfxbook_session_passed_raw_not_double_encoded`
+
+**(b) fork 継承 requests.Session → healed thread 無期限ハング**
+gunicorn master で生成した Session の urllib3 pool lock が locked のまま
+子プロセスへ複製され、self-heal 後の thread の request がブロックし続けた
+(本番観測: requests_total=2 / poll_cycles=0 / last_error="" が 15 分不変。
+timeout はソケット待ち専用で lock 待ちには効かない)。§8b (worker thread 死)
+と同族の fork 問題の HTTP 層残存。修正 = pid 変化検知で Session を lazy
+再生成 (`_http_session()`)。回帰 pin: `test_myfxbook_http_session_rebuilt_on_pid_change`
+
+**修正版の実 API 検証 (デプロイ前、ローカル)**: login 1 回 → outlook 成功、
+186 symbols、対象 6 instrument 全取得、payload keys = name/long%/short%/
+volumes/positions/avgLong/ShortPrice (設計 §9 と一致)。
+
+**教訓**: 外部 API の token/session を「再エンコードして良い raw 値」と仮定しない
+— 発行値をそのまま echo する契約かを最初の統合テストで確認する。fork 問題は
+thread だけでなく **プロセス間で共有される全ての stateful オブジェクト**
+(HTTP Session/DB conn/lock) に及ぶ。
