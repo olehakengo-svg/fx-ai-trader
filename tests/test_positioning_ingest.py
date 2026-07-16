@@ -233,8 +233,13 @@ def test_enable_flag_default_on_env_instruments_override(db_path, monkeypatch):
 
 
 def test_default_instruments_contract():
+    # 2026-07-16 拡張 (6→13): 追加 7 ペアは engine モード/Phase B-1 slot 既存の
+    # 取引可能ペア。outlook 一括取得のため instrument 数は API 予算に影響しない
     assert DEFAULT_INSTRUMENTS == ("USD_JPY", "EUR_USD", "GBP_USD",
-                                   "EUR_JPY", "GBP_JPY", "AUD_JPY")
+                                   "EUR_JPY", "GBP_JPY", "AUD_JPY",
+                                   "AUD_USD", "NZD_USD", "USD_CAD",
+                                   "USD_CHF", "NZD_JPY", "EUR_AUD",
+                                   "EUR_GBP")
 
 
 # ── (e) 失敗系: 4xx unsupported / 連続失敗カウント ───────────────────

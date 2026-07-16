@@ -4,6 +4,12 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-16 — feat(data): E1 instrument 拡張 6→13 — 将来セル候補の蓄積 clock を前倒し開始 (rule:R3)
+
+- **動機 (最短経路)**: history は今から蓄積する以外に入手不可 (§8c 確定) → 将来ペアの clock は今日始めた分だけ discovery が早まる。outlook は全 symbol 一括 1 リクエスト (probe: n_symbols=186) のため **API 予算コストゼロ**、増分は DB ~940 rows/日のみ
+- **追加 7 ペア**: AUD_USD / NZD_USD / USD_CAD / USD_CHF / NZD_JPY / EUR_AUD / EUR_GBP (engine モード/Phase B-1 slot 既存の取引可能ペア)。ペア別 t0 が異なる点を pre-reg 窓設計の必須参照事項として記録。詳細: [[e1-positioning-ingest-2026-07-14]] §12
+- **評価への影響: なし** — read-only データ収集の対象拡張のみ。live 発注経路・戦略・Kelly・shadow 一切不変
+
 ## 2026-07-16 — fix(data): E1 defer_thread — import 時 network thread 起動の廃止 (第2修正, rule:R3)
 
 - **背景**: §10 修正後も serving プロセスの healed thread がハング (master の cycle は成功 = t0 蓄積開始済み)。帰属 = fork 瞬間に master thread が HTTP 実行中 → socket/ssl 内部 lock が locked のまま複製 (Session 再生成では直らない)
