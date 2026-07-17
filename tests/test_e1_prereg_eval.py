@@ -10,7 +10,6 @@ canary leak test を tests/ に pin してから verdict データに触れる�
 """
 import json
 import math
-import os
 from datetime import date, datetime, timedelta, timezone
 
 import numpy as np
