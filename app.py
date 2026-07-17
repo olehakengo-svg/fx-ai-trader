@@ -13599,12 +13599,41 @@ def api_positioning_probe():
 
 @app.route("/api/positioning/export")
 def api_positioning_export():
-    """研究用 export — positioning_snapshots を JSON で返す (read-only)。
+    """研究用 export — positioning_snapshots / positioning_health_log を
+    JSON で返す (read-only)。
 
     Query: instrument= (例 USD_JPY) / book= (position|order) /
            from= (snapshot_time 下限, RFC3339 prefix 可) / limit= (<=20000)
+           table=health_log で positioning_health_log (E1 pre-reg §2.2 主モードの
+           per-instrument verified 時系列) を export。追加 Query:
+           key= (health key 完全一致) / since_id= (id 増分 export)
     """
     from modules.positioning_ingest import export_snapshots
+    table = request.args.get("table", "snapshots")
+    if table not in ("snapshots", "health_log"):
+        return jsonify({"error": f"invalid table: {table!r} "
+                                 "(expected 'snapshots' or 'health_log')"}), 400
+    if table == "health_log":
+        # E1 pre-reg §2.2: verified 時系列の凍結 export 経路 (read-only)
+        from modules.positioning_ingest import export_health_log
+        try:
+            limit = min(int(request.args.get("limit", 20000)), 20000)
+            since_id = int(request.args.get("since_id", 0))
+        except (TypeError, ValueError):
+            return jsonify({"error": "invalid limit/since_id "
+                                     "(integer required)"}), 400
+        try:
+            rows = export_health_log(_db_path, key=request.args.get("key", ""),
+                                     since_id=since_id, limit=limit)
+        except Exception as e:
+            # テーブル未作成/DB 障害は 500 で fail-loud (silent 空配列にしない)
+            return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
+        return jsonify({
+            "count": len(rows),
+            "filters": {"table": table, "key": request.args.get("key", ""),
+                        "since_id": since_id, "limit": limit},
+            "rows": rows,
+        })
     instrument = request.args.get("instrument", "")
     book = request.args.get("book", "")
     since = request.args.get("from", "")
