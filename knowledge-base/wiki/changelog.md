@@ -4,6 +4,13 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-17 — feat(research): E1 pre-reg 判定ハーネス実装 — LOCK 後成果物 (rule:R3)
+
+- **[[e1-positioning-contrarian-prereg-2026-07-16]] §7 成果物規定の実装**: 判定器 `tools/e1_positioning_prereg_eval.py` (2,250 行、LOCK 後実装・seed 固定 `SEED_DEFAULT=20261015`)。§7 の規定どおり **LOCF resampler / rank タイ規約 (mid-rank §3.1) / DST 跨ぎ週 (2026-11-01) / ATR (NY17 roll 完結 bar) / OHLCV join 契約 / canary leak test を `tests/test_e1_prereg_eval.py` (58 tests) に pin してから verdict データに触れる**体制を確立
+- 実装範囲 = §2.2 市場時間 (America/New_York DST 追随) + LOCF/stale cap (verified 基準)/cycle 証跡、§2.3 join/前方リターン/ATR14d/censoring、§2.5 品質 gate (coverage/stale gap/family postpone/sanity/jump detector 前方+24h)、§3 シグナル 3 本 × rank/hysteresis/金曜窓/年末窓、§4.1 Gate1 (営業日 MBB L=5 B=10k 全ペア同時 + Ibragimov–Müller df=7、p=max、BH q=0.05 m=6)、§4.2 Gate2 (day-block bootstrap、N<60 は点推定分類)、§4.4 C1〜C5 排他分類 + SIGN-FLIP/CONFOUNDED (partial IC)、§4.5 ナイフエッジ 4 点、§2.4 confirmatory 複製検査、§4.3 Stage B、§4.6 Secondary
+- **構造的強制 (§6-1/6-2)**: 入力 = 凍結 export artifact + parquet のみ (本番 API/DB 経路をコードに含めない)。synthetic 宣言のない artifact は `--verdict-run` フラグなしで拒否。family gate postpone 時は統計段を一切実行しない (look 非消費の機械化)。canary suite green が verdict 実行の前提条件
+- **実データ接触なし — テスト・dry-run は 100% 合成データ** (§6-2「実データへの初適用は verdict 期日 2026-10-15」遵守)。tests 60→118 (58 追加、全 offline/deterministic)。**評価への影響: なし** — 研究ツール + テストのみ、live 発注経路・戦略・Kelly・shadow 一切不変
+
 ## 2026-07-16 — feat(research): E1 positioning contrarian pre-reg DRAFT + positioning_health 永続化 + D4 テンプレート (rule:R3)
 
 - **[[e1-positioning-contrarian-prereg-2026-07-16]] (DRAFT)**: 文献駆動・**データ観測前** pre-reg — discovery 2 段階を省き、first look verdict を **2026-10-15** (cutoff = t0+12週) に固定。従来計画 (2-3ヶ月蓄積 → discovery → 凍結 → OOS) 比で **verdict を 1〜2 ヶ月前倒し**。設計 = 8-agent workflow (独立3案 → 統合 → 敵対的レビュー major 11 反映)。階層ゲートキーパー (pooled IC 二重検定 → 摩擦調整 EV conjunction、look 毎 BH q=0.05)、UNDERPOWERED second look (2027-01-06) 事前固定。LOCK 決裁期限 2026-07-17 (registry `e1-prereg-lock-decision-stale`)
