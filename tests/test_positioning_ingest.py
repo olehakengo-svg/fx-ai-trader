@@ -375,6 +375,23 @@ def test_api_positioning_export_contract(flask_client):
     assert bad2.status_code == 400
 
 
+def test_api_positioning_export_health_log_contract(flask_client):
+    """?table=health_log — E1 pre-reg §2.2 verified 時系列の read-only export
+    経路 (既存 export と同一の応答形式)。"""
+    resp = flask_client.get("/api/positioning/export?table=health_log&limit=5")
+    assert resp.status_code == 200
+    body = json.loads(resp.data)
+    assert set(body.keys()) == {"count", "filters", "rows"}
+    assert body["filters"]["table"] == "health_log"
+    assert isinstance(body["rows"], list)
+
+    bad = flask_client.get("/api/positioning/export?table=nonsense")
+    assert bad.status_code == 400
+    bad2 = flask_client.get(
+        "/api/positioning/export?table=health_log&since_id=abc")
+    assert bad2.status_code == 400
+
+
 # ── (g) self-heal: thread 死 → is_alive 検知で再起動 ─────────────────
 # 本番実証 (2026-07-14, Render srv-d6va1of5r7bs73en10vg): import 時に起動した
 # thread は request-serving process に生き残らない (started_at は fork copy で
@@ -1079,3 +1096,54 @@ def test_status_exposes_health(db_path):
     assert isinstance(st["health"], dict)
     assert f"verified:USD_JPY:{OUTLOOK_BOOK_TYPE}" in st["health"]
     assert "last_cycle_at" in st["health"]
+
+
+# ── positioning_health_log: verified 時系列の append (E1 pre-reg §2.2 主モード) ──
+# 敵対的レビュー fatal (2026-07-17): positioning_health は 1 行 upsert のため
+# per-instrument verified の**履歴**が cutoff 凍結 export から再構成不能だった。
+# record_health() が upsert と同一トランザクションで health_log に append する。
+
+def test_record_health_appends_to_health_log(db_path):
+    from modules.positioning_ingest import record_health, export_health_log
+    key = "verified:USD_JPY:outlook"
+    record_health(db_path, {key: "2026-07-17T10:00:00Z",
+                            "last_cycle_at": "2026-07-17T10:00:01Z"})
+    record_health(db_path, {key: "2026-07-17T10:20:00Z"})
+    # upsert 側は最新 1 行のみ (既存契約は不変)
+    h = _health(db_path)
+    assert h[key] == "2026-07-17T10:20:00Z"
+    # log 側は全観測が id 昇順で残る (時系列の SSOT)
+    log = export_health_log(db_path)
+    assert [(r["key"], r["value"]) for r in log] == [
+        (key, "2026-07-17T10:00:00Z"),
+        ("last_cycle_at", "2026-07-17T10:00:01Z"),
+        (key, "2026-07-17T10:20:00Z"),
+    ]
+    assert log[0]["id"] < log[1]["id"] < log[2]["id"]
+
+
+def test_export_health_log_filters(db_path):
+    from modules.positioning_ingest import record_health, export_health_log
+    record_health(db_path, {"verified:USD_JPY:outlook": "2026-07-17T10:00:00Z"})
+    record_health(db_path, {"verified:EUR_USD:outlook": "2026-07-17T10:00:05Z"})
+    record_health(db_path, {"verified:USD_JPY:outlook": "2026-07-17T10:20:00Z"})
+    by_key = export_health_log(db_path, key="verified:USD_JPY:outlook")
+    assert [r["value"] for r in by_key] == ["2026-07-17T10:00:00Z",
+                                            "2026-07-17T10:20:00Z"]
+    # since_id 増分 export (verdict 凍結の差分取得経路)
+    all_rows = export_health_log(db_path)
+    inc = export_health_log(db_path, since_id=all_rows[0]["id"])
+    assert len(inc) == len(all_rows) - 1
+    assert export_health_log(db_path, limit=1) == all_rows[:1]
+
+
+def test_worker_cycle_writes_health_log_series(db_path):
+    """poll cycle 2 周 (dedup skip 含む) で verified が log に 2 観測残る。"""
+    from modules.positioning_ingest import export_health_log
+    resp = make_outlook_response()
+    w, _ = make_myfx_worker(db_path, [(True, resp), (True, resp)])
+    w.poll_once()
+    w.poll_once()                       # 内容同一 → dedup skip でも verified 追記
+    key = f"verified:USD_JPY:{OUTLOOK_BOOK_TYPE}"
+    series = export_health_log(db_path, key=key)
+    assert len(series) == 2

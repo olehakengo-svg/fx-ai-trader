@@ -156,6 +156,37 @@ class TestLocfResampler:
         assert p["P"]["long"][0] == pytest.approx(62.0)
         assert ep_t - ep_v > 40 * 3600      # 壁時計では 2h を大きく超えている
 
+    def test_locf_across_dst_transition_week_2026_11_01(self):
+        """§2.2 M11: LOCF resampler の DST 跨ぎ週 (2026-11-01 EDT→EST) pin。
+
+        金曜 EDT close (21:00 UTC) 直前の verified → 日曜 EST open (22:00 UTC)
+        直後のスロット: 壁時計 ~50h でも市場時間 age は週末で凍結され、
+        1h シフトを跨いで正しく計測される。"""
+        # Fri 2026-10-30 16:30 EDT (= 20:30 UTC) verified、close まで 30 分
+        ver = utc("2026-10-30T20:30:00Z")
+        # Sun 2026-11-01 EST open (22:00 UTC) + 20 分のスロット
+        t_ok = utc("2026-11-01T22:20:00Z")
+        assert m.is_market_open(t_ok)
+        ep_v = ver.timestamp()
+        rows = simple_rows([(ep_v, 64.0)])
+        p = m.resample_locf({"P": rows}, {"P": [ep_v]}, [ep_v], [t_ok])
+        # age = Fri 30min + Sun 20min = 50min (市場時間) < 2h → LOCF 有効
+        assert p["P"]["valid"][0]
+        assert p["P"]["long"][0] == pytest.approx(64.0)
+        assert t_ok.timestamp() - ep_v > 40 * 3600      # 壁時計は 2h を大幅超過
+        # 対照: verified が Fri 13:30 EDT (17:30 UTC) → Fri 残 3.5h > 2h → NA
+        ver2 = utc("2026-10-30T17:30:00Z")
+        rows2 = simple_rows([(ver2.timestamp(), 64.0)])
+        p2 = m.resample_locf({"P": rows2}, {"P": [ver2.timestamp()]},
+                             [ep_v], [t_ok])
+        assert not p2["P"]["valid"][0]
+        assert p2["stats"]["P"]["na_stale"] == 1
+        # 遷移週の Sun open 側スロットちょうど (22:00 UTC = EST 17:00) も
+        # grid に存在し LOCF が効く (EDT 定義のままなら 21:00 と誤る)
+        t_open = utc("2026-11-01T22:00:00Z")
+        p3 = m.resample_locf({"P": rows}, {"P": [ep_v]}, [ep_v], [t_open])
+        assert p3["P"]["valid"][0]
+
     def test_cycle_evidence_window_half_open(self):
         """cycle 証跡 (t−90min, t]: 証跡なし → 全ペア NA。境界ちょうど
         90min は窓の外 (半開)。"""
@@ -407,6 +438,78 @@ class TestCanaryLeak:
         assert not res["checks"]["fwd_return_window"]["pass"]
         assert not res["pass"]
 
+    def test_detects_rank_window_future_leak(self):
+        """§6-4/§4.5-3: 中心窓 (未来半分を含む) rank 実装 → canary が検出。"""
+        def centered_rank(values, w_slots=100, min_coverage=0.7,
+                          expanding=False):
+            n = len(values)
+            out = np.full(n, np.nan)
+            half = w_slots // 2
+            for i in range(n):
+                v = values[i]
+                if math.isnan(v):
+                    continue
+                win = np.concatenate([values[max(0, i - half):i],
+                                      values[i + 1:i + 1 + half]])
+                finite = win[~np.isnan(win)]
+                if finite.size < min_coverage * w_slots:
+                    continue
+                out[i] = (np.sum(finite < v)
+                          + 0.5 * np.sum(finite == v)) / finite.size
+            return out
+        res = m.run_canary_suite(rank_impl=centered_rank)
+        assert not res["checks"]["rank_trailing_window"]["pass"]
+        assert not res["pass"]
+
+    def test_detects_rank_window_t_inclusion(self):
+        """§3.1: 窓に t 自身を含める rank 実装 (v(t) 極大化で r≠1.0) → 検出。"""
+        def inclusive_rank(values, w_slots=100, min_coverage=0.7,
+                           expanding=False):
+            n = len(values)
+            out = np.full(n, np.nan)
+            for i in range(n):
+                v = values[i]
+                if math.isnan(v):
+                    continue
+                lo = 0 if expanding else max(0, i - w_slots)
+                win = values[lo:i + 1]              # t 包含 (リーク規約)
+                finite = win[~np.isnan(win)]
+                if finite.size < min_coverage * w_slots:
+                    continue
+                out[i] = (np.sum(finite < v)
+                          + 0.5 * np.sum(finite == v)) / finite.size
+            return out
+        res = m.run_canary_suite(rank_impl=inclusive_rank)
+        assert not res["checks"]["rank_trailing_window"]["pass"]
+        assert not res["pass"]
+
+    def test_detects_mid_in_progress_bar_leak(self):
+        """§2.3: mid(t) に進行中 bar の close を使うリーク実装 → 検出。"""
+        def leaky_mid(bars, slot_ep):
+            pos = np.searchsorted(bars["ep"], slot_ep, side="right") - 1
+            out = np.full(len(slot_ep), np.nan)
+            ok = pos >= 0
+            out[ok] = bars["close"][pos[ok]]        # 進行中 bar (確定前)
+            return out
+        res = m.run_canary_suite(mid_impl=leaky_mid)
+        assert not res["checks"]["mid_completed_bar_only"]["pass"]
+        assert not res["pass"]
+
+    def test_passthrough_leak_detection_sensitivity(self):
+        """貫通型: signal := 前方リターンの合成 world で |pooled IC| ≈ 1 を
+        「リーク検出」できる感度が rank→score→IC 経路にあること。
+        経路を無害化する regression (定数 rank 等) は fail する。"""
+        res = m.run_canary_suite()
+        chk = res["checks"]["leak_passthrough_detection"]
+        assert chk["pass"], chk
+        def dead_rank(values, w_slots=100, min_coverage=0.7, expanding=False):
+            out = np.full(len(values), 0.5)         # 情報を伝えない rank
+            out[np.isnan(values)] = np.nan
+            return out
+        res2 = m.run_canary_suite(rank_impl=dead_rank)
+        assert not res2["checks"]["leak_passthrough_detection"]["pass"]
+        assert not res2["pass"]
+
 
 # ══════════════════════════════════════════════════════════════════════
 # events (§3.4 pin — 交差 / hysteresis / NA リセット / 金曜窓 / +1 slot 遅延)
@@ -616,6 +719,59 @@ class TestGate1Stats:
                            sens_boot=10)
         assert g1["p_mbb"] == g2["p_mbb"] and g1["im"] == g2["im"]
 
+    def test_im_se_zero_is_sign_aware(self):
+        """se=0 退化 (全 block IC 同値): 宣言符号なら p=0、逆符号なら p=1 —
+        符号盲目の「mean<0 でも p=0」を封鎖 (§4.1 片側 H1: IC > 0)。"""
+        def perfect_obs(sign):
+            rng = np.random.default_rng(3)
+            obs = {}
+            for p in range(2):
+                score = rng.normal(0, 1, 60)
+                obs[f"P{p}"] = {"score": score, "fwd": sign * score,
+                                "day": np.repeat(np.arange(1, 11), 6),
+                                "slot_i": np.arange(60)}
+            return obs
+        pos = m.im_test(perfect_obs(+1.0))          # 全 block IC = +1 → se=0
+        assert pos["p"] == pytest.approx(0.0)
+        assert math.isinf(pos["t"]) and pos["t"] > 0
+        neg = m.im_test(perfect_obs(-1.0))          # 全 block IC = −1 → se=0
+        assert neg["p"] == pytest.approx(1.0)       # 逆符号を最有意にしない
+        assert math.isinf(neg["t"]) and neg["t"] < 0
+
+    def test_mbb_joint_day_draw_across_pairs(self):
+        """§4.1「暦ブロックを**全ペア同時に** resample」の pin — draw 毎に
+        全ペアへ同一の sampled day 集合が適用される (per-pair 独立化 regression
+        は null のクロスペア相関を破壊し反保守 = 偽 PASS 側)。"""
+        obs = _make_obs(21, beta=0.0, n_days=30, per_day=4, n_pairs=2)
+        draws = []
+        def spy(sub):
+            if len(sub) == 2:
+                draws.append((np.sort(sub["P0"]["day"]).copy(),
+                              np.sort(sub["P1"]["day"]).copy()))
+            return 0.0
+        m.mbb_pvalue(obs, spy, n_boot=25, seed_key=(9, 9))
+        assert len(draws) >= 20                      # point 1 回 + boot draws
+        full = np.sort(obs["P0"]["day"])
+        resampled = 0
+        for d0, d1 in draws[1:]:                     # [0] は point 計算
+            # 両ペアの day multiset が完全一致 (per_day が同数なので直接比較可)
+            assert np.array_equal(d0, d1)
+            if not np.array_equal(d0, full):
+                resampled += 1
+        assert resampled > 0                         # 実際に resample されている
+
+    def test_day_block_draw_contiguous_index_blocks(self):
+        """block 構成の実装規約 pin: block = sorted unique 観測日列の
+        **index 上で連続する L 個** (観測日が疎なら暦間隔を跨ぐ — 宣言済み)。"""
+        days = np.array([1, 2, 10, 11, 20, 21, 30, 31, 40, 41])
+        rng = np.random.default_rng(0)
+        draw = m._day_blocks_draw(days, 5, rng)
+        assert len(draw) == len(days)
+        idx = {int(d): i for i, d in enumerate(days)}
+        for c in range(0, len(draw), 5):
+            chunk = [idx[int(d)] for d in draw[c:c + 5]]
+            assert chunk == list(range(chunk[0], chunk[0] + 5))
+
 
 class TestBhFdr:
     def test_bh_fdr_logic_pin(self):
@@ -729,6 +885,19 @@ class TestClassify:
         cls, _ = m.classify_combo(**{**self.BASE, "knife_pass": False})
         assert cls == "C3"
 
+    def test_confirmatory_untested_flag_only_on_c1(self):
+        """CONFIRMATORY_UNTESTED は PASS 候補 (C1) 限定 — C2〜C5 (検査適用外)
+        をフラグで汚さない (§2.4 [^4] の注記対象は PASS)。"""
+        for over in ({"gate1_survive": False, "gate2_p_ok": False,
+                      "knife_pass": None},                      # C3
+                     {"ev_first_touch": -0.5, "gate2_p_ok": False},  # C2
+                     {"ev_time_exit": -1.0, "ev_first_touch": -1.0,
+                      "gate2_p_ok": False}):                    # C4
+            cls, flags = m.classify_combo(
+                **{**self.BASE, "confirmatory_ok": None, **over})
+            assert cls != "C1"
+            assert "CONFIRMATORY_UNTESTED" not in flags, cls
+
     def test_overall_verdict_priority(self):
         ov = m.overall_verdict
         assert ov({"a": "C1", "b": "C3"}, False, False) == "PASS"
@@ -737,6 +906,22 @@ class TestClassify:
         assert ov({"a": "C2", "b": "C5"}, False, False) == "REJECT"
         assert ov({}, True, False) == "POSTPONE"
         assert ov({}, True, True) == "DEFERRED"                # 2 回目不達
+
+    def test_overall_verdict_look2_landing_set(self):
+        """§4.4 Step 2 / M8: look=2 の着地は PASS/REJECT-F/REJECT のみ —
+        C3 は REJECT へ畳まれ UNDERPOWERED は構造的に到達不能 (3 回目 look 封鎖)。"""
+        ov = m.overall_verdict
+        assert ov({"a": "C3"}, False, False, 2) == "REJECT"    # modal path pin
+        assert ov({"a": "C3", "b": "C4"}, False, False, 2) == "REJECT-F"
+        assert ov({"a": "C1", "b": "C3"}, False, False, 2) == "PASS"
+        assert ov({"a": "C2", "b": "C5"}, False, False, 2) == "REJECT"
+        # 品質 gate 経路は look=2 でも POSTPONE/DEFERRED (統計着地ではない)
+        assert ov({}, True, False, 2) == "POSTPONE"
+        assert ov({}, True, True, 2) == "DEFERRED"
+        # 統計着地の全域が制約集合に入る
+        for cls in ("C1", "C2", "C3", "C4", "C5"):
+            assert ov({"a": cls}, False, False, 2) in (
+                "PASS", "REJECT-F", "REJECT")
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -803,6 +988,251 @@ class TestJumpAndQuality:
 
 
 # ══════════════════════════════════════════════════════════════════════
+# 入力ガード (§2.2 health book 成分 / §2.3 cutoff クリップ)
+# ══════════════════════════════════════════════════════════════════════
+
+class TestInputGuards:
+    def test_extract_health_checks_book_component(self):
+        """verified key の book 成分検査: estimand は outlook のみ (§2.1) —
+        旧 OANDA book (position/order) の検証成功で staleness を更新しない。"""
+        health = [
+            {"key": "verified:USD_JPY:outlook", "value": "2026-07-15T12:00:00Z"},
+            {"key": "verified:USD_JPY:position", "value": "2026-07-15T13:00:00Z"},
+            {"key": "verified:EUR_USD:order", "value": "2026-07-15T13:00:00Z"},
+            {"key": "verified:EUR_USD", "value": "2026-07-15T13:00:00Z"},
+            {"key": "last_cycle_at", "value": "2026-07-15T13:30:00Z"},
+        ]
+        ver, cyc = m.extract_health_events(health, ["USD_JPY", "EUR_USD"])
+        assert len(ver["USD_JPY"]) == 1                # outlook のみ採用
+        assert ver["EUR_USD"] == []                    # order / book 欠落は不採用
+        assert len(cyc) == 1
+
+    def test_clip_bars_to_cutoff(self):
+        """§2.3: cutoff までに完結 (open+900s ≤ cutoff) した bar のみ —
+        フル版 parquet を渡しても境界スロットの前方リターンが cutoff 後の
+        価格を消費しない (切詰め規約非依存)。"""
+        cutoff = utc("2026-07-15T12:00:00Z")
+        ep0 = cutoff.timestamp()
+        eps = np.array([ep0 - 2700, ep0 - 1800, ep0 - 900, ep0, ep0 + 900])
+        vals = np.arange(5, dtype=float)
+        bars = m.bars_from_arrays(eps, vals, vals + 1, vals - 1, vals)
+        out, n_clip = m.clip_bars_to_cutoff(bars, cutoff)
+        assert n_clip == 2                             # open=cutoff (未完結) + 未来
+        assert out["ep"][-1] == pytest.approx(ep0 - 900)
+        out2, n2 = m.clip_bars_to_cutoff(out, cutoff)
+        assert n2 == 0 and out2 is out                 # 冪等 (切詰め済みは無変換)
+
+
+# ══════════════════════════════════════════════════════════════════════
+# compute_stat_series (§3.2 S2 lag / S3 pain 式の数値 pin)
+# ══════════════════════════════════════════════════════════════════════
+
+class TestStatSeries:
+    def _panel(self, n=80):
+        valid = np.ones(n, dtype=bool)
+        valid[5] = False
+        skew = np.linspace(-20.0, 20.0, n)
+        return {"slot_ep": np.arange(n) * 1200.0,
+                "X": {"valid": valid, "skew": skew,
+                      "long": np.full(n, 60.0), "short": np.full(n, 40.0),
+                      "avg_long": np.full(n, 151.0),
+                      "avg_short": np.full(n, 149.0)}}
+
+    def test_s2_is_72_slot_lag_difference(self):
+        panel = self._panel()
+        out = m.compute_stat_series(panel, "X", np.full(80, 150.0),
+                                    np.full(80, 2.0))
+        skew = out["S1"]
+        assert math.isnan(out["S2"][71])               # lag 端点未満は NA
+        assert out["S2"][72] == pytest.approx(skew[72] - skew[0])
+        assert out["S2"][79] == pytest.approx(skew[79] - skew[7])
+        # 端点が invalid (NA) なら S2 も NA (両端点有効時のみ)
+        assert math.isnan(out["S1"][5])
+        assert math.isnan(out["S2"][77])               # 77 − 72 = 5 (invalid)
+
+    def test_s3_pain_formula_sign_and_atr_denominator(self):
+        panel = self._panel()
+        out = m.compute_stat_series(panel, "X", np.full(80, 150.0),
+                                    np.full(80, 2.0))
+        # pain = [L/100·(avgL−mid) − S/100·(mid−avgS)] / ATR
+        #      = [0.6·(151−150) − 0.4·(150−149)] / 2.0 = 0.1
+        assert out["S3"][10] == pytest.approx(0.1)
+        # long 側が水没 (avgL > mid が深い) ほど pain は正に増える符号系
+        panel2 = self._panel()
+        panel2["X"]["avg_long"] = np.full(80, 154.0)
+        out2 = m.compute_stat_series(panel2, "X", np.full(80, 150.0),
+                                     np.full(80, 2.0))
+        assert out2["S3"][10] > out["S3"][10]
+        # ATR 未定義/非正は S3 NA (§2.3 分母)
+        atr_bad = np.full(80, 2.0)
+        atr_bad[20] = np.nan
+        atr_bad[21] = 0.0
+        out3 = m.compute_stat_series(panel, "X", np.full(80, 150.0), atr_bad)
+        assert math.isnan(out3["S3"][20]) and math.isnan(out3["S3"][21])
+        # invalid スロットは S1/S3 とも NA
+        assert math.isnan(out["S3"][5])
+
+
+# ══════════════════════════════════════════════════════════════════════
+# partial IC (§4.4 CONFOUNDED の実体 — momentum 統制の pin)
+# ══════════════════════════════════════════════════════════════════════
+
+class TestPartialIc:
+    def _obs(self, mode, n=900, seed=8):
+        rng = np.random.default_rng(seed)
+        mid = np.cumsum(rng.normal(0, 1.0, n)) + 100.0
+        slot_i = np.arange(400, n - 20)
+        c24 = mid[slot_i] - mid[slot_i - 72]
+        if mode == "confounded":                       # signal = momentum の写像
+            score = c24 + rng.normal(0, 0.1, len(slot_i))
+            fwd = c24 + rng.normal(0, 0.1, len(slot_i))
+        else:                                          # momentum と独立な直接効果
+            score = rng.normal(0, 1.0, len(slot_i))
+            fwd = score + rng.normal(0, 0.5, len(slot_i))
+        day = (slot_i // 72).astype(int)
+        obs = {"P": {"score": score, "fwd": fwd, "day": day, "slot_i": slot_i}}
+        return obs, {"P": mid}
+
+    def test_momentum_confound_is_removed(self):
+        obs, mid = self._obs("confounded")
+        plain = m.spearman(obs["P"]["score"], obs["P"]["fwd"])
+        res = m.partial_ic_combo(obs, mid)
+        assert plain > 0.9                             # 素の IC は強い
+        assert res["n"] > 100
+        assert abs(res["pooled_partial_ic"]) < 0.3     # 統制後はほぼ消える
+
+    def test_direct_signal_survives_control(self):
+        obs, mid = self._obs("direct")
+        res = m.partial_ic_combo(obs, mid)
+        assert res["pooled_partial_ic"] > 0.5          # 直接効果は残る
+
+    def test_insufficient_n_returns_none(self):
+        obs, mid = self._obs("direct")
+        o = obs["P"]
+        small = {"P": {k: o[k][:3] for k in o}}
+        res = m.partial_ic_combo(small, mid)
+        assert res["pooled_partial_ic"] is None
+        assert res["per_pair"]["P"]["partial_ic"] is None
+
+
+# ══════════════════════════════════════════════════════════════════════
+# confirmatory 複製検査 (§2.4 — ok True/False/None + 有意逆転の 4 分岐)
+# ══════════════════════════════════════════════════════════════════════
+
+class TestConfirmatory:
+    def _ctx(self, ev_mean, weeks=8.0, n_trades=40, ic_sign=0.0, seed=2):
+        rng = np.random.default_rng(seed)
+        score = rng.normal(0, 1, 300)
+        fwd = ic_sign * score + rng.normal(0, 0.2 if ic_sign else 1.0, 300)
+        obs = {"CP": {"score": score, "fwd": fwd,
+                      "day": np.repeat(np.arange(1, 31), 10),
+                      "slot_i": np.arange(300)}}
+        trades = [{"net_pips": float(rng.normal(ev_mean, 0.5)),
+                   "ft_net_pips": 0.0, "stress_net_pips": 0.0,
+                   "ftc_net_pips": 0.0, "norm_net": 0.0,
+                   "entry_day": (date(2026, 8, 3)
+                                 + timedelta(days=i % 20)).isoformat()}
+                  for i in range(n_trades)]
+        return {"ic_obs": {"S1x4h": obs}, "trades": {"S1x4h": trades},
+                "eval_span_weeks": weeks}
+
+    def test_no_data_defers(self):
+        res = m.confirmatory_check(None, "S1x4h", 100, 7, 0)
+        assert res["ok"] is None
+
+    def test_ineligible_defers_with_note(self):
+        for kw in ({"weeks": 4.0}, {"n_trades": 20}):
+            res = m.confirmatory_check(self._ctx(2.0, **kw), "S1x4h", 100, 7, 0)
+            assert res["ok"] is None
+            assert res["eligible"] is False
+            assert "未検査" in res["note"]
+
+    def test_positive_ev_passes(self):
+        res = m.confirmatory_check(self._ctx(2.0), "S1x4h", 100, 7, 0)
+        assert res["ok"] is True and res["eligible"] is True
+        assert res["point_net_ev"] > 0
+
+    def test_negative_ev_blocks(self):
+        res = m.confirmatory_check(self._ctx(-2.0), "S1x4h", 100, 7, 0)
+        assert res["ok"] is False
+        assert "EV" in res["note"]
+        assert "user_review_required" not in res
+
+    def test_significant_reversal_requires_user_review(self):
+        """pooled IC が宣言と逆符号で両側有意 → PASS 保留 + user 裁定 (§2.4)。"""
+        res = m.confirmatory_check(self._ctx(2.0, ic_sign=-1.0), "S1x4h",
+                                   300, 7, 0)
+        assert res["ok"] is False
+        assert res["user_review_required"] is True
+        assert res["reversal_two_sided_p"] < 0.05
+
+
+# ══════════════════════════════════════════════════════════════════════
+# knife_edge fail 側分岐 (データ不足 → 全 gate FAIL、限定 PASS なし)
+# ══════════════════════════════════════════════════════════════════════
+
+class TestKnifeEdgeFailBranches:
+    def test_empty_family_fails_all_gates(self):
+        ctx = {"ic_obs": {"S1x4h": {}}, "trades": {"S1x4h": []},
+               "pairs": [], "gate2": {}, "canary": {"pass": True}}
+        out = m.knife_edge_combo(ctx, "S1", "4h")
+        assert out["pass"] is False
+        assert out["fold"]["pass"] is False
+        assert "note" in out["fold"]                   # fold 構成不能
+        assert out["grid"]["pass"] is False
+        assert out["grid"]["adjacent_pos"] == 0        # 隣接 gate2 なし → 0
+        assert out["leak"]["pass"] is False            # delay EV なし
+        assert out["cross_pair"]["limited_pass"] is None
+
+    def test_canary_fail_blocks_leak_gate(self):
+        ctx = {"ic_obs": {"S1x4h": {}}, "trades": {"S1x4h": []},
+               "pairs": [], "gate2": {}, "canary": {"pass": False}}
+        out = m.knife_edge_combo(ctx, "S1", "4h")
+        assert out["leak"]["canary_pass"] is False
+        assert out["leak"]["pass"] is False
+
+
+# ══════════════════════════════════════════════════════════════════════
+# §2.2 fallback 必須診断 (NA 時間帯分布 + 閑散集中 → DEFERRED 機械判定)
+# ══════════════════════════════════════════════════════════════════════
+
+class TestFallbackDiagnostics:
+    def _grid_and_panel(self, quiet_frac):
+        grid = m.build_grid(utc("2026-07-13T00:00:00Z"),
+                            utc("2026-07-17T20:59:00Z"))     # Mon..Fri
+        ny = [t.astimezone(m._ny()).hour for t in grid]
+        quiet_idx = [i for i, h in enumerate(ny)
+                     if h in m.FALLBACK_QUIET_NY_HOURS]
+        busy_idx = [i for i, h in enumerate(ny)
+                    if h not in m.FALLBACK_QUIET_NY_HOURS]
+        n_quiet = int(80 * quiet_frac)
+        slots = quiet_idx[:n_quiet] + busy_idx[:80 - n_quiet]
+        panel = {"stats": {"P": {"na_stale_slots": slots}}}
+        return grid, panel
+
+    def test_quiet_concentration_detected(self):
+        grid, panel = self._grid_and_panel(quiet_frac=1.0)
+        diag = m.fallback_stale_diagnostics(panel, grid, ["P"])
+        assert diag["na_stale_total"] == 80
+        assert diag["quiet_na_share"] == pytest.approx(1.0)
+        assert diag["quiet_concentration"] is True
+
+    def test_uniform_distribution_not_concentrated(self):
+        grid, panel = self._grid_and_panel(quiet_frac=0.4)   # ≈ スロット比率並み
+        diag = m.fallback_stale_diagnostics(panel, grid, ["P"])
+        assert diag["quiet_concentration"] is False
+
+    def test_min_count_guard(self):
+        """総数 < 50 では集中判定しない (少数 NA での spurious DEFERRED 防止)。"""
+        grid, panel = self._grid_and_panel(quiet_frac=1.0)
+        panel["stats"]["P"]["na_stale_slots"] = \
+            panel["stats"]["P"]["na_stale_slots"][:30]
+        diag = m.fallback_stale_diagnostics(panel, grid, ["P"])
+        assert diag["na_stale_total"] == 30
+        assert diag["quiet_concentration"] is False
+
+
+# ══════════════════════════════════════════════════════════════════════
 # run_eval 統合 (合成 6 ペア世界での full dry-run — §6-2 準拠)
 # ══════════════════════════════════════════════════════════════════════
 
@@ -851,6 +1281,25 @@ class TestRunEvalIntegration:
         # 出力は JSON 直列化可能
         json.dumps(res, default=str)
 
+    def test_quality_diagnostics_recorded(self, smoke):
+        """量子化粒度 (ペア×統計毎、§2.5-7) + stale cap 診断の JSON 記録 pin。"""
+        _, _, _, res = smoke
+        for pair in res["surviving_pairs"]:
+            qz = res["quality_gates"]["pairs"][pair]["quantization"]
+            assert set(qz.keys()) == {"S1", "S2", "S3"}
+            assert qz["S1"] > 0 and qz["S2"] > 0        # sin+noise skew は多値
+        # smoke world は health 系列なし → fallback 記録 + 必須診断併記、
+        # ただし rows が 20 分毎に来るため na_stale ≈ 0 → 集中なし → 統計続行
+        assert res["stale_cap_mode"] == "fallback"
+        diag = res["quality_gates"]["stale_cap_fallback"]
+        assert diag["quiet_concentration"] is False
+        # cutoff (06:33:31Z) を跨ぐ進行中 bar (06:30 open) は機械クリップされ
+        # 件数が fail-loud 記録される (§2.3 切詰め規約非依存)
+        clip = res["inputs"]["bars_clipped_beyond_cutoff"]
+        assert set(clip.keys()) == set(m.PRIMARY)
+        assert all(v == 1 for v in clip.values())
+        assert res["missing_parquet"]["primary"] == []
+
     def test_deterministic_rerun(self, smoke):
         artifact, bars, cutoff, res = smoke
         res2 = m.run_eval(artifact, bars, cutoff, look=1,
@@ -890,6 +1339,217 @@ class TestRunEvalIntegration:
             m.run_eval(artifact, bars, cutoff, look=2, n_boot=10,
                        look2_combos=None)
 
+    def test_look2_landing_set_and_adjacent_gate2(self, smoke):
+        """F1 pin: look=2 の着地 ∈ {PASS,REJECT-F,REJECT,POSTPONE,DEFERRED}
+        (UNDERPOWERED 到達不能) + gate2 点推定は全 6 combo で常時計算
+        (knife #2(ii) の隣接参照が look=2 でも成立)。"""
+        artifact, bars, cutoff, _ = smoke
+        res = m.run_eval(artifact, bars, cutoff, look=2, seed=m.SEED_DEFAULT,
+                         n_boot=40, sens_boot=8, look2_combos=["S1x4h"])
+        assert res["verdict"]["overall"] in (
+            "PASS", "REJECT-F", "REJECT", "POSTPONE", "DEFERRED")
+        assert res["verdict"]["overall"] != "UNDERPOWERED"
+        assert list(res["combos"].keys()) == ["S1x4h"]  # 対象 combo のみ判定
+        all_combos = sorted(f"{s}x{h}" for s, h in m.COMBOS)
+        assert sorted(res["gate2_all_combos"].keys()) == all_combos
+        for c, g2 in res["gate2_all_combos"].items():
+            assert "ev_time_exit" in g2                 # 点推定は全 combo
+            if c != "S1x4h":
+                assert g2["p_ev"] is None               # 検定は対象 combo のみ
+
+    def test_stale_cap_mode_recorded(self):
+        """§2.2: stale_cap_mode は結果 JSON に必ず記録 — verified 系列があれば
+        primary、無ければ fallback (postpone 早期 return 経路でも)。"""
+        t0 = utc(m.T0_PRIMARY)
+        cutoff = utc("2026-07-24T06:33:31Z")
+        bars = {p: make_bars(t0 - timedelta(days=1), cutoff, seed=1)
+                for p in m.PRIMARY[:4]}
+        art_nohealth = {"snapshots": [], "health": [], "synthetic": True}
+        res = m.run_eval(art_nohealth, bars, cutoff, look=1, n_boot=10)
+        assert res["stale_cap_mode"] == "fallback"
+        health = [{"key": f"verified:{p}:outlook",
+                   "value": m._iso(t0)} for p in m.PRIMARY[:4]]
+        art_health = {"snapshots": [], "health": health, "synthetic": True}
+        res2 = m.run_eval(art_health, bars, cutoff, look=1, n_boot=10)
+        assert res2["stale_cap_mode"] == "primary"
+
+    def test_verdict_run_requires_primary_parquet(self):
+        """§2.5-1 fail-loud: primary parquet 1 個欠落での verdict 実行を拒否
+        (無言の family 縮小 = 品質 gate 迂回を封鎖)。"""
+        t0 = utc(m.T0_PRIMARY)
+        cutoff = utc("2026-07-24T06:33:31Z")
+        bars = {p: make_bars(t0 - timedelta(days=1), cutoff, seed=1)
+                for p in m.PRIMARY[:5]}                 # AUD_JPY 欠落
+        artifact = {"snapshots": [], "health": [], "synthetic": True}
+        with pytest.raises(RuntimeError, match="parquet 欠落"):
+            m.run_eval(artifact, bars, cutoff, look=1, n_boot=10,
+                       verdict_run=True)
+
+    def test_verdict_run_requires_verified_series_or_fallback_flag(self):
+        """§2.2 LOCK (主モード確定): verified 系列欠落の verdict 実行は
+        fail-loud — 明示 --fallback-mode でのみ続行可、mode は JSON に記録。"""
+        t0 = utc(m.T0_PRIMARY)
+        cutoff = utc("2026-07-24T06:33:31Z")
+        bars = {p: make_bars(t0 - timedelta(days=1), cutoff, seed=1)
+                for p in m.PRIMARY}
+        artifact = {"snapshots": [], "health": [], "synthetic": True}
+        with pytest.raises(RuntimeError, match="verified"):
+            m.run_eval(artifact, bars, cutoff, look=1, n_boot=10,
+                       verdict_run=True)
+        res = m.run_eval(artifact, bars, cutoff, look=1, n_boot=10,
+                         verdict_run=True, fallback_mode=True)
+        assert res["stale_cap_mode"] == "fallback"
+
+    def test_fallback_quiet_concentration_connects_to_deferred(self):
+        """§2.2 事前固定分岐の wiring: fallback モード + 2h-cap NA の閑散帯
+        (NY 17–03) 集中 → verdict = DEFERRED (統計段は実行しない)。"""
+        t0 = utc(m.T0_PRIMARY)
+        cutoff = utc("2026-08-07T06:33:31Z")
+        grid = m.build_grid(t0, cutoff)
+        bars = {}
+        snapshots = []
+        ny = m._ny()
+        for q, pair in enumerate(m.PRIMARY[:4]):
+            bars[pair] = make_bars(t0 - timedelta(days=1), cutoff,
+                                   base=150.0 + q, seed=30 + q)
+            for t in grid:
+                if pair == m.PRIMARY[0] and 18 <= t.astimezone(ny).hour < 22:
+                    continue                            # 閑散帯で更新停止
+                lp = 55.0
+                snapshots.append({
+                    "instrument": pair, "book_type": "outlook",
+                    "snapshot_time": m._iso(t - timedelta(seconds=300)),
+                    "pct_long_total": lp, "pct_short_total": 100.0 - lp})
+        artifact = {"snapshots": snapshots, "health": [], "synthetic": True}
+        res = m.run_eval(artifact, bars, cutoff, look=1, n_boot=10)
+        assert res["stale_cap_mode"] == "fallback"
+        diag = res["quality_gates"]["stale_cap_fallback"]
+        assert diag["na_stale_total"] >= m.FALLBACK_NA_MIN_COUNT
+        assert diag["quiet_concentration"] is True
+        assert res["verdict"]["overall"] == "DEFERRED"
+        assert "combos" not in res                      # 統計段は未実行
+
+
+# ══════════════════════════════════════════════════════════════════════
+# C1/PASS 経路の end-to-end pin (埋め込み強 contrarian シグナル合成世界)
+# — 偽 PASS コスト最大の経路を verdict データに触れる前に一度は通す (§7)
+# ══════════════════════════════════════════════════════════════════════
+
+def _strong_world(cutoff_iso="2026-10-08T06:33:31Z", period_slots=360,
+                  seed0=50):
+    """skew = sin 波 (周期 5 日) / 価格 drift = −skew に比例 (contrarian が
+    真に機能する世界)。摩擦 (2.0–4.5p) ≪ 4h drift (~70p) で C1 到達可能。"""
+    t0 = utc(m.T0_PRIMARY)
+    cutoff = utc(cutoff_iso)
+    grid = m.build_grid(t0, cutoff)
+    t0_ep = t0.timestamp()
+    period_sec = period_slots * 1200.0
+    bars_by_pair = {}
+    snapshots = []
+    health = []
+    for q, pair in enumerate(m.PRIMARY):
+        pip = m._pip(pair)
+        base = 150.0 if pair.endswith("_JPY") else 1.5
+        phase = q * 0.7
+        rng = np.random.default_rng(seed0 + q)
+
+        def skew_norm(ts_ep):
+            return math.sin(2 * math.pi * (ts_ep - t0_ep) / period_sec + phase)
+
+        for t in grid:
+            sk = 45.0 * skew_norm(t.timestamp()) + float(rng.normal(0, 1.0))
+            sk = max(-49.0, min(49.0, sk))
+            lp = 50.0 + sk / 2.0
+            snapshots.append({
+                "instrument": pair, "book_type": "outlook",
+                "snapshot_time": m._iso(t - timedelta(seconds=300)),
+                "pct_long_total": round(lp, 4),
+                "pct_short_total": round(100.0 - lp, 4)})
+        health.append({"key": f"verified:{pair}:outlook", "value": m._iso(t0)})
+
+        eps, o, h, l, c = [], [], [], [], []
+        px = base
+        t = (t0 - timedelta(days=1)).replace(minute=0, second=0, microsecond=0)
+        while t < cutoff:
+            if m.is_market_open(t):
+                drift = -5.0 * pip * skew_norm(t.timestamp())
+                op = px
+                cl = px + drift + float(rng.normal(0, 0.5 * pip))
+                eps.append(t.timestamp())
+                o.append(op)
+                h.append(max(op, cl) + 2 * pip)
+                l.append(min(op, cl) - 2 * pip)
+                c.append(cl)
+                px = cl
+            t += timedelta(seconds=900)
+        bars_by_pair[pair] = m.bars_from_arrays(
+            np.array(eps), np.array(o), np.array(h), np.array(l), np.array(c))
+    artifact = {"snapshots": snapshots, "health": health, "synthetic": True}
+    return artifact, bars_by_pair, cutoff
+
+
+class TestC1PassPath:
+    @pytest.fixture(scope="class")
+    def strong(self):
+        artifact, bars, cutoff = _strong_world()
+        # n_boot=150: p_min = 1/151 ≈ 0.0066 < BH rank-1 閾値 0.05/6 ≈ 0.0083
+        res = m.run_eval(artifact, bars, cutoff, look=1, seed=m.SEED_DEFAULT,
+                         n_boot=150, sens_boot=10, verdict_run=True)
+        return res
+
+    def test_overall_pass_with_c1(self, strong):
+        res = strong
+        assert res["stale_cap_mode"] == "primary"       # health 系列供給済み
+        assert res["quality_gates"]["postpone"] is False
+        assert res["verdict"]["classes"]["S1x4h"] == "C1"
+        assert res["verdict"]["overall"] == "PASS"
+        assert any("実装 pre-reg" in n for n in res["verdict"]["notes"])
+
+    def test_c1_gates_and_knife_four_points(self, strong):
+        c = strong["combos"]["S1x4h"]
+        # Gate 1: pooled IC 強正 + FDR 通過 (p = max(p_MBB, p_IM))
+        assert c["gate1"]["pooled_ic"] > 0.5
+        assert c["gate1_fdr"]["survive"] is True
+        # Gate 2: N≥60 ∧ p_ev ≤ 0.05 ∧ 3 点 EV 正 (time-exit/first-touch/stress)
+        g2 = c["gate2"]
+        assert g2["n"] >= m.MIN_TRADES_GATE2
+        assert g2["p_ev"] is not None and g2["p_ev"] <= 0.05
+        assert g2["ev_time_exit"] > 0 and g2["ev_first_touch"] > 0
+        assert g2["ev_stress"] > 0
+        assert "block_basis" in g2                       # 実装規約の宣言 (§4.2)
+        # ナイフエッジ 4 点 (§4.5): #1 fold / #2 grid / #3 leak+delay / #4 記録
+        ke = c["knife_edge"]
+        assert ke["pass"] is True
+        assert ke["fold"]["pass"] and ke["fold"]["rest_ic"] > 0
+        assert len(ke["fold"]["fold_ic"]) == 3
+        assert ke["grid"]["pass"]
+        assert set(ke["grid"]["threshold_evs"].keys()) == {"0.85", "0.95"}
+        assert ke["grid"]["adjacent_pos"] >= 1           # 隣接 combo 点 EV 参照
+        assert ke["grid"]["sens_ic"]["W10"] > 0
+        assert ke["grid"]["sens_ic"]["expanding"] > 0
+        assert ke["leak"]["pass"] and ke["leak"]["delay1_ev"] > 0
+        assert ke["cross_pair"]["limited_pass"] is None  # JPY/非JPY とも正
+
+    def test_c1_confirmatory_untested_and_stage_b(self, strong):
+        c = strong["combos"]["S1x4h"]
+        # confirmatory ペア無し → ok=None (未検査を明記、PASS は止めない §2.4)
+        assert c["confirmatory"]["ok"] is None
+        assert "CONFIRMATORY_UNTESTED" in c["flags"]
+        # Stage B (§4.3 記述のみ) は Gate1+2 通過 combo で出力される
+        assert "stage_b" in c
+        assert len(c["stage_b"]["per_pair"]) == len(m.PRIMARY)
+        for pair, d in c["stage_b"]["per_pair"].items():
+            assert d["ic"] is not None
+
+    def test_non_c1_combos_unpolluted(self, strong):
+        """S3 (avg 価格なし → 全 NA) は event 0 → C5、CONFIRMATORY_UNTESTED
+        フラグ無し (PASS 候補限定の注記、minor fix pin)。"""
+        for combo in ("S3x4h", "S3x24h"):
+            c = strong["combos"][combo]
+            assert c["class"] == "C5"
+            assert "CONFIRMATORY_UNTESTED" not in c["flags"]
+            assert c["gate2"]["n"] == 0
+
 
 class TestMainGuards:
     def test_refuses_real_data_without_verdict_flag(self, tmp_path, capsys):
@@ -900,6 +1560,23 @@ class TestMainGuards:
         assert rc == 2
         err = capsys.readouterr().err
         assert "verdict" in err and "§6-2" in err
+
+    def test_verdict_run_refuses_missing_parquet(self, tmp_path, capsys):
+        """§2.5-1 fail-loud: --verdict-run は 13 ペア parquet 完備必須 —
+        1 ファイル欠落でも欠落リストを表示して拒否 (無言の family 縮小封鎖)。"""
+        pd = pytest.importorskip("pandas")
+        idx = pd.date_range("2026-07-15", periods=8, freq="15min", tz="UTC")
+        df = pd.DataFrame({"Open": 1.0, "High": 1.1, "Low": 0.9, "Close": 1.0},
+                          index=idx)
+        df.to_parquet(tmp_path / "USD_JPY_15m.parquet")
+        art = tmp_path / "artifact.json"
+        art.write_text(json.dumps({"snapshots": [], "health": [],
+                                   "synthetic": True}))
+        rc = m.main(["--artifact", str(art), "--ohlcv-dir", str(tmp_path),
+                     "--verdict-run"])
+        assert rc == 2
+        err = capsys.readouterr().err
+        assert "parquet 欠落" in err and "EUR_USD" in err
 
     def test_self_check_mode(self, capsys):
         rc = m.main(["--self-check"])

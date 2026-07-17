@@ -128,6 +128,16 @@ YEAR_END_EXCL = ("2026-12-19T00:00:00Z", "2027-01-03T00:00:00Z")  # §7 second l
 
 FRIDAY_BLOCK_NY_HOUR = 15         # §3.4 NY Fri 15:00–17:00 新規 event 禁止
 
+# §2.2 fallback 必須診断 (stale cap 主モード不成立時のみ発動、観測前固定):
+#   「2h-cap 起因 NA の件数と時間帯分布を verdict に必須併記し、閑散時間帯への
+#   欠測集中が観測されたら DEFERRED に接続する (事前固定分岐)」の機械判定値。
+#   閑散帯 = NY 17:00–03:00 (rollover + Asia 序盤 = 静穏期間の系統的 NA 化が
+#   最も出やすい帯)。集中 = na_stale 総数 ≥ MIN_COUNT かつ閑散帯 na 比率が
+#   閑散帯スロット比率の CONC_MULT 倍超。verdict データ観測前 (2026-07-17) に固定。
+FALLBACK_QUIET_NY_HOURS = frozenset((17, 18, 19, 20, 21, 22, 23, 0, 1, 2))
+FALLBACK_NA_MIN_COUNT = 50
+FALLBACK_CONC_MULT = 2.0
+
 
 def _pip(pair: str) -> float:
     """§2.3 pip 定義: JPY クロス = 0.01、それ以外 = 0.0001 (EUR_GBP 含む)。"""
@@ -311,9 +321,12 @@ def load_artifact(path: str, health_path: str = "") -> Dict[str, Any]:
       - JSON list: snapshots のみ (health は --health で別ファイル指定)
       - CSV: export_snapshots 列 (buckets_json は JSON 文字列列)
     health 行: {"key": "verified:{inst}:{book}" | "last_cycle_at", "value": iso}
-    の**系列** (同一 key の複数観測可)。positioning_health テーブルは 1 行
-    upsert (最新のみ) のため、凍結 export は定期 export の追記系列であることを
-    想定する — 行 snapshot_time も検証成功の証跡として union する (§2.2)。
+    の**系列** (同一 key の複数観測可)。時系列ソース = 本番 append テーブル
+    `positioning_health_log` (`/api/positioning/export?table=health_log`、
+    record_health() が upsert と同一トランザクションで追記)。--health は
+    export レスポンス形 ({"rows": [...]}) / 生 list / dict のいずれも受理。
+    行 snapshot_time も検証成功の証跡として union する (§2.2)。verified 系列の
+    欠落は主モード不成立 = run_eval 側で fail-loud (--fallback-mode 必須)。
     """
     if path.endswith(".csv"):
         import pandas as pd
@@ -339,8 +352,12 @@ def load_artifact(path: str, health_path: str = "") -> Dict[str, Any]:
     if health_path:
         with open(health_path) as f:
             hraw = json.load(f)
-        rows = hraw if isinstance(hraw, list) else (
-            [{"key": k, "value": v} for k, v in hraw.items()])
+        if isinstance(hraw, list):
+            rows = hraw
+        elif isinstance(hraw, dict) and isinstance(hraw.get("rows"), list):
+            rows = hraw["rows"]           # /api/positioning/export 応答形
+        else:
+            rows = [{"key": k, "value": v} for k, v in hraw.items()]
         data["health"] = list(data.get("health", [])) + rows
     return data
 
@@ -478,6 +495,9 @@ def extract_health_events(health: List[Dict[str, Any]],
 
     §2.2: verified:{inst}:{book} = fetch+parse 成功 (dedup skip 含む) の時刻。
     last_cycle_at = poll cycle heartbeat (永続化後はこちらを正とする)。
+    estimand は book_type='outlook' のみ (§2.1) — 旧 OANDA book
+    (position/order) の検証成功で outlook の staleness をリフレッシュしない
+    (book 成分を必ず検査する)。
     """
     verified: Dict[str, List[float]] = {i: [] for i in instruments}
     cycles: List[float] = []
@@ -494,9 +514,26 @@ def extract_health_events(health: List[Dict[str, Any]],
             cycles.append(tep)
         elif key.startswith("verified:"):
             parts = key.split(":")
-            if len(parts) >= 3 and parts[1] in verified:
+            if (len(parts) >= 3 and parts[1] in verified
+                    and parts[2] == "outlook"):
                 verified[parts[1]].append(tep)
     return verified, cycles
+
+
+def clip_bars_to_cutoff(bars: Dict[str, np.ndarray],
+                        cutoff: datetime) -> Tuple[Dict[str, np.ndarray], int]:
+    """§2.3: cutoff までに**完結**した M15 bar のみ使用 (完結 = open + 900s ≤ cutoff)。
+
+    parquet の「cutoff 日切詰め」規約 (日単位/秒単位) に依存せず挙動を固定する
+    機械クリップ。クリップ件数を返す (result['inputs'] に fail-loud 記録)。
+    """
+    keep = bars["ep"] + 900.0 <= _ep(cutoff)
+    n_clip = int(len(keep) - int(keep.sum()))
+    if n_clip == 0:
+        return bars, 0
+    out = {k: (v[keep] if isinstance(v, np.ndarray) else v)
+           for k, v in bars.items()}
+    return out, n_clip
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -542,7 +579,8 @@ def resample_locf(rows_by_inst: Dict[str, Dict[str, np.ndarray]],
         valid = np.zeros(n, dtype=bool)
         ver = np.array(sorted(set(list(verified_by_inst.get(inst, []))
                                   + rows["ep"].tolist())), dtype=np.float64)
-        st = {"na_no_row": 0, "na_stale": 0, "na_cycle": 0, "valid": 0}
+        st: Dict[str, Any] = {"na_no_row": 0, "na_stale": 0, "na_cycle": 0,
+                              "valid": 0, "na_stale_slots": []}
         if len(rows["ep"]):
             locf_pos = np.searchsorted(rows["ep"], slot_ep - margin_sec,
                                        side="right") - 1
@@ -561,10 +599,12 @@ def resample_locf(rows_by_inst: Dict[str, Dict[str, np.ndarray]],
             vp = int(ver_pos[i])
             if vp < 0:
                 st["na_stale"] += 1
+                st["na_stale_slots"].append(i)
                 continue
             last_ver = datetime.fromtimestamp(float(ver[vp]), tz=timezone.utc)
             if market_age_exceeds(last_ver, t, stale_cap_sec):
                 st["na_stale"] += 1
+                st["na_stale_slots"].append(i)
                 continue
             vals["long"][i] = rows["long"][lp]
             vals["short"][i] = rows["short"][lp]
@@ -1059,6 +1099,13 @@ def mbb_pvalue(obs_by_pair: Dict[str, Dict[str, np.ndarray]],
     null、片側 p (宣言符号 H1: stat > 0)。両側 p (SIGN-FLIP 用) も併記。
 
     stat_fn(obs_by_pair_subset) → float。seed_key で決定論 (seed 引数必須)。
+
+    block 構成の実装規約 (宣言): days_all = **観測が存在する営業日** の sorted
+    unique、block = その配列 index 上で連続する L 個。Gate 1 の IC 観測は毎営業日
+    に存在するため暦 5 営業日と一致する。Gate 2 の trade entry 日は疎になり得る
+    ため block が暦間隔を跨ぐ (= 「観測日 index block」規約)。隣接**取引日**間の
+    系列依存は保持される。この乖離は gate2_combo の `block_basis` と KB
+    changelog に宣言済み事項として明記する (LOCK 仕様の字義 L=5 営業日との差)。
     """
     days_all = np.array(sorted(set(
         int(d) for o in obs_by_pair.values() for d in o["day"])), dtype=int)
@@ -1132,11 +1179,22 @@ def im_test(obs_by_pair: Dict[str, Dict[str, np.ndarray]],
                 "block_ics": [round(v, 5) for v in block_ics],
                 "dropped_days": len(days_all) % block_days}
     arr = np.array(block_ics)
+    mean = float(np.mean(arr))
     se = float(np.std(arr, ddof=1)) / math.sqrt(nb)
-    tval = float(np.mean(arr)) / se if se > 0 else float("inf")
     df = nb - 1
-    p = float(t_dist.sf(tval, df))
-    return {"p": round(p, 6), "t": round(tval, 5), "df": df, "n_blocks": nb,
+    if se > 0:
+        tval = mean / se
+        p: Optional[float] = float(t_dist.sf(tval, df))
+    elif mean > 0:
+        tval, p = float("inf"), 0.0        # 全 block 同値かつ宣言符号 → 最有意
+    elif mean < 0:
+        tval, p = float("-inf"), 1.0       # 宣言と逆符号の退化 → 有意にしない
+    else:
+        tval, p = float("nan"), None       # 全 block 0 — 検定不能 (符号盲目回避)
+    return {"p": None if p is None else round(p, 6),
+            "t": (None if math.isnan(tval)
+                  else (tval if math.isinf(tval) else round(tval, 5))),
+            "df": df, "n_blocks": nb,
             "block_ics": [round(v, 5) for v in block_ics],
             "dropped_days": len(days_all) % block_days}
 
@@ -1243,6 +1301,9 @@ def gate2_combo(trades: List[Dict[str, Any]], n_boot: int, seed: int,
     out["p_ev"] = mbb["p_one"]
     out["norm_net_mean"] = mbb["point"]
     out["ev_days"] = mbb["n_days"]
+    # 実装規約の宣言 (mbb_pvalue docstring 参照): trade entry 日が疎な場合、
+    # block は「観測日 index 上の連続 L 個」であり暦 5 営業日と乖離し得る
+    out["block_basis"] = "observed-entry-day index blocks (L=5; §4.2 実装規約)"
     return out
 
 
@@ -1338,7 +1399,9 @@ def classify_combo(gate1_survive: bool, ic_point: Optional[float],
     付帯フラグ: SIGN-FLIP (C5 + 両側有意逆符号)、CONFOUNDED (C1 + partial IC
     符号逆転 → PASS-with-flag、分類自体は変えない)。
     confirmatory_ok=None は「データ不揃い → 実装 pre-reg へ繰延」(C1 を止めない
-    が『confirmatory 未検査』を verdict に明記、§2.4 [^4])。
+    が『confirmatory 未検査』を verdict に明記、§2.4 [^4])。注記対象は PASS
+    候補のみ — CONFIRMATORY_UNTESTED フラグは cls=C1 の場合に限り付与する
+    (confirmatory 検査が適用外の C2〜C5 をフラグで汚さない)。
     """
     flags: List[str] = []
     ev_t = ev_time_exit if ev_time_exit is not None else float("nan")
@@ -1346,8 +1409,6 @@ def classify_combo(gate1_survive: bool, ic_point: Optional[float],
     ev_s = ev_stress if ev_stress is not None else float("nan")
     ic = ic_point if ic_point is not None else float("nan")
     conf_gate = confirmatory_ok is not False    # None (未検査) は止めない
-    if confirmatory_ok is None:
-        flags.append("CONFIRMATORY_UNTESTED")
     c1 = (gate1_survive and n_trades >= MIN_TRADES_GATE2 and gate2_p_ok
           and not math.isnan(ev_t) and ev_t > 0
           and not math.isnan(ev_f) and ev_f > 0
@@ -1355,6 +1416,8 @@ def classify_combo(gate1_survive: bool, ic_point: Optional[float],
           and bool(knife_pass) and conf_gate)
     if c1:
         cls = "C1"
+        if confirmatory_ok is None:
+            flags.append("CONFIRMATORY_UNTESTED")
         if (partial_ic_point is not None and not math.isnan(ic)
                 and partial_ic_point * ic < 0):
             flags.append("CONFOUNDED")          # PASS-with-flag、user 裁定
@@ -1377,14 +1440,27 @@ def classify_combo(gate1_survive: bool, ic_point: Optional[float],
 
 def overall_verdict(classes: Dict[str, str],
                     quality_postponed: bool,
-                    postponed_before: bool) -> str:
+                    postponed_before: bool,
+                    look: int = 1) -> str:
     """§4.4 Step 2: PASS > UNDERPOWERED > REJECT-F > REJECT の優先順位で一意。
-    品質 gate 不成立は POSTPONE (1 回限り) / 2 回目は DEFERRED (§2.5-3)。"""
+    品質 gate 不成立は POSTPONE (1 回限り) / 2 回目は DEFERRED (§2.5-3)。
+
+    look=2 (§4.4 Step 2 / §7 / M8): 「second look の着地は PASS / REJECT-F /
+    REJECT のみ (3 回目の look 禁止)」— C3 (点推定正 × 検定不達) も REJECT 側に
+    畳み、UNDERPOWERED を構造的に到達不能化する (α 会計 q₁+q₂≤0.10 の保証)。
+    C4 (Gate1 通過 ∧ EV≤0) は first look の C4 と同処置 = REJECT-F。
+    """
     if quality_postponed:
         return "DEFERRED" if postponed_before else "POSTPONE"
     vals = set(classes.values())
     if "C1" in vals:
         return "PASS"
+    if look == 2:
+        if "C4" in vals:
+            return "REJECT-F"
+        if vals:
+            return "REJECT"                     # C3/C2/C5 → REJECT (3 回目 look 封鎖)
+        return "DEFERRED"                       # 排他設計の外 = 設計違反を記録
     if "C3" in vals:
         return "UNDERPOWERED"
     if "C4" in vals:
@@ -1414,15 +1490,21 @@ def _canary_world() -> Dict[str, Any]:
     return {"bars": bars, "start": start}
 
 
-def run_canary_suite(locf_impl=None, atr_impl=None, fwd_impl=None) -> Dict[str, Any]:
+def run_canary_suite(locf_impl=None, atr_impl=None, fwd_impl=None,
+                     rank_impl=None, mid_impl=None) -> Dict[str, Any]:
     """§4.5-3(i): 未来情報を注入した合成データで「エンジンが使わない」ことを
     機械検証する。注入が結果を動かしたら FAIL (リーク検出)。
     注入対象に ATR 経路 (S3 分母・σ_h・Gate 2 正規化) を明示的に含める (§2.3)。
-    テストは locf_impl/atr_impl/fwd_impl に故意にリークする実装を渡し、
-    本 suite が検出 (fail) することを pin する。"""
+    §6-4 の「rolling 閾値 strictly trailing 限定」の機械検証委譲 (ナイフエッジ #3)
+    の実体として rank 窓 (trailing_rank) と mid 経路 (mid_at_slots) の注入点、
+    および rank→score→IC を貫通するリーク検出感度チェックを含める。
+    テストは locf_impl/atr_impl/fwd_impl/rank_impl/mid_impl に故意にリークする
+    実装を渡し、本 suite が検出 (fail) することを pin する。"""
     locf = locf_impl or resample_locf
     atrf = atr_impl or atr_at
     fwdf = fwd_impl or forward_returns
+    rankf = rank_impl or trailing_rank
+    midf = mid_impl or mid_at_slots
     checks: Dict[str, Dict[str, Any]] = {}
     w = _canary_world()
     bars = w["bars"]
@@ -1499,6 +1581,54 @@ def run_canary_suite(locf_impl=None, atr_impl=None, fwd_impl=None) -> Dict[str, 
     checks["signal_future_value_injection"] = {
         "pass": same,
         "detail": "future-timestamped snapshot must not move any slot value"}
+
+    # (5) rank 窓注入 (§6-4 → knife #3 委譲の実体): strictly trailing + t 非包含
+    #     (a) 未来値を系列末尾に注入しても r(t) 不変
+    #     (b) v(t) 自身を極大化すると r(t)=1.0 ちょうど (t 包含実装なら ≠1.0)
+    rng5 = np.random.default_rng(11)
+    rvals = np.round(rng5.uniform(0, 20, 400))
+    r_clean = rankf(rvals, w_slots=100, min_coverage=0.7)
+    rvals_fut = rvals.copy()
+    rvals_fut[351:] = 9999.0
+    r_fut = rankf(rvals_fut, w_slots=100, min_coverage=0.7)
+    future_ok = bool(np.isclose(r_clean[350], r_fut[350])
+                     and np.isclose(r_clean[300], r_fut[300]))
+    rvals_self = rvals.copy()
+    rvals_self[350] = 9999.0
+    r_self = rankf(rvals_self, w_slots=100, min_coverage=0.7)
+    self_ok = bool(np.isclose(r_self[350], 1.0))
+    checks["rank_trailing_window"] = {
+        "pass": bool(future_ok and self_ok),
+        "detail": (f"future_inject_ok={future_ok} "
+                   f"self_max_rank={r_self[350]} (expected 1.0)")}
+
+    # (6) mid 経路注入 (§2.3): mid(t) は t 以前に確定した bar の close のみ —
+    #     進行中/未来 bar の close を汚しても不変のはず
+    t_mid = _utc("2026-03-03T12:00:00Z")
+    sl_mid = np.array([_ep(t_mid)])
+    m0 = midf(bars, sl_mid)[0]
+    bars_p3 = {k: (v.copy() if isinstance(v, np.ndarray) else v)
+               for k, v in bars.items()}
+    mid_sel = bars_p3["ep"] > _ep(t_mid) - 900   # 進行中 bar + 未来 bar
+    bars_p3["close"][mid_sel] += 77.0
+    m1 = midf(bars_p3, sl_mid)[0]
+    checks["mid_completed_bar_only"] = {
+        "pass": bool(not math.isnan(m0) and np.isclose(m0, m1)),
+        "detail": f"clean={m0} in-progress-poisoned={m1}"}
+
+    # (7) 貫通型リーク検出感度: signal := 前方リターンそのもの → rank → score →
+    #     IC のパイプラインが |pooled IC| ≈ 1 として「リークを検出」できること
+    #     (rank→IC 経路が leak を透過しない regression = 検出器の空洞化を fail)
+    grid7 = build_grid(w["start"], w["start"] + timedelta(days=5))
+    slot_ep7 = np.array([_ep(t) for t in grid7])
+    fwd7 = fwdf(bars, slot_ep7, 16)
+    ranks7 = rankf(fwd7, w_slots=100, min_coverage=0.7)
+    score7 = -(ranks7 - 0.5)
+    ok7 = ~np.isnan(score7) & ~np.isnan(fwd7)
+    ic7 = spearman(score7[ok7], fwd7[ok7]) if int(ok7.sum()) >= 50 else float("nan")
+    checks["leak_passthrough_detection"] = {
+        "pass": bool(not math.isnan(ic7) and abs(ic7) >= 0.8),
+        "detail": f"pooled_ic={ic7} n={int(ok7.sum())} (|IC|>=0.8 required)"}
 
     all_pass = all(c["pass"] for c in checks.values())
     return {"pass": all_pass, "checks": checks}
@@ -1764,6 +1894,47 @@ def quality_gates(panel: Dict[str, Any], pairs: Sequence[str],
     return out
 
 
+def fallback_stale_diagnostics(panel: Dict[str, Any], grid: List[datetime],
+                               pairs: Sequence[str],
+                               quiet_hours: frozenset = FALLBACK_QUIET_NY_HOURS,
+                               min_count: int = FALLBACK_NA_MIN_COUNT,
+                               conc_mult: float = FALLBACK_CONC_MULT) -> Dict[str, Any]:
+    """§2.2 fallback 必須診断: 2h-cap 起因 NA (na_stale) の NY 時間帯分布と
+    閑散時間帯集中の機械判定。
+
+    fallback モード (verified 系列欠落 = stale cap が行 age に縮退) では静穏期間の
+    系統的 NA 化 (活動条件付けバイアス) が estimand に再流入する。§2.2 事前宣言:
+    「NA の件数と時間帯分布を verdict に必須併記し、閑散時間帯への欠測集中が
+    観測されたら DEFERRED に接続する (事前固定分岐)」。集中の機械判定 =
+    na_stale 総数 ≥ min_count ∧ 閑散帯 na 比率 > conc_mult × 閑散帯スロット比率。
+    """
+    ny = _ny()
+    hist = {h: 0 for h in range(24)}
+    total = 0
+    for inst in pairs:
+        for i in panel["stats"].get(inst, {}).get("na_stale_slots", []):
+            h = grid[int(i)].astimezone(ny).hour
+            hist[h] += 1
+            total += 1
+    slot_hist = {h: 0 for h in range(24)}
+    for t in grid:
+        slot_hist[t.astimezone(ny).hour] += 1
+    quiet_na = sum(hist[h] for h in quiet_hours)
+    quiet_slots = sum(slot_hist[h] for h in quiet_hours)
+    n_slots = len(grid)
+    quiet_na_share = (quiet_na / total) if total else 0.0
+    quiet_slot_share = (quiet_slots / n_slots) if n_slots else 0.0
+    concentrated = bool(total >= min_count and quiet_slot_share > 0
+                        and quiet_na_share > conc_mult * quiet_slot_share)
+    return {"na_stale_total": total,
+            "ny_hour_hist": {str(h): hist[h] for h in range(24) if hist[h]},
+            "quiet_ny_hours": sorted(quiet_hours),
+            "quiet_na_share": round(quiet_na_share, 4),
+            "quiet_slot_share": round(quiet_slot_share, 4),
+            "min_count": min_count, "conc_mult": conc_mult,
+            "quiet_concentration": concentrated}
+
+
 # ══════════════════════════════════════════════════════════════════════
 # 補助レポート (§4.3 Stage B / §4.6 Secondary / §2.4 confirmatory)
 # ══════════════════════════════════════════════════════════════════════
@@ -1942,12 +2113,19 @@ def run_eval(artifact: Dict[str, Any],
              postponed_before: bool = False,
              look2_combos: Optional[List[str]] = None,
              t0_overrides: Optional[Dict[str, str]] = None,
-             input_meta: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+             input_meta: Optional[Dict[str, Any]] = None,
+             verdict_run: bool = False,
+             fallback_mode: bool = False) -> Dict[str, Any]:
     """判定本体 (§4 全段)。artifact/bars は呼び出し側でロード済み (I/O 分離)。
 
     look=1: p = max(p_MBB, p_IM)、BH m=6。
     look=2: bootstrap 単独、対象 = look2_combos (first look C3 のみ、BH m=|C3|)、
-            年末窓 (§7) の新規 event 除外。
+            年末窓 (§7) の新規 event 除外。着地は PASS/REJECT-F/REJECT のみ
+            (overall_verdict の look 分岐、§4.4 Step 2)。
+    verdict_run: 実データ verdict 実行の宣言 — primary parquet 完備 (§2.5-1) と
+            stale cap 主モード (per-instrument verified 系列、§2.2) を fail-loud
+            で強制する。verified 系列欠落での続行は fallback_mode=True の明示
+            宣言が必須 (§2.2 fallback 必須診断 + 閑散集中 → DEFERRED 接続)。
     """
     # ── 引数契約: second look は first look C3 combo の明示指定必須 (§4.4) ──
     if look == 2 and not look2_combos:
@@ -1958,6 +2136,24 @@ def run_eval(artifact: Dict[str, Any],
     canary = run_canary_suite()
     if not canary["pass"]:
         raise RuntimeError(f"canary leak test FAILED — verdict 中止: {canary}")
+
+    # ── 0b. 入力ガード (§2.5-1 fail-loud): primary parquet 欠落の無言脱落禁止 ──
+    missing_primary = [p for p in PRIMARY if p not in bars_by_pair]
+    missing_conf = [p for p in CONFIRMATORY if p not in bars_by_pair]
+    if verdict_run and missing_primary:
+        raise RuntimeError(
+            f"primary OHLCV parquet 欠落 (fail-loud、§2.5-1 機械除外の外): "
+            f"{missing_primary} — family 縮小での verdict 実行を拒否")
+
+    # ── 0c. §2.3: cutoff までに完結した bar のみに機械クリップ (切詰め規約非依存) ──
+    clip_counts: Dict[str, int] = {}
+    clipped_bars: Dict[str, Dict[str, np.ndarray]] = {}
+    for pair, b in bars_by_pair.items():
+        cb, n_clip = clip_bars_to_cutoff(b, cutoff)
+        clipped_bars[pair] = cb
+        if n_clip:
+            clip_counts[pair] = n_clip
+    bars_by_pair = clipped_bars
 
     instruments = [p for p in list(PRIMARY) + list(CONFIRMATORY)
                    if p in bars_by_pair]
@@ -1973,6 +2169,19 @@ def run_eval(artifact: Dict[str, Any],
         artifact.get("snapshots", []), bars_by_pair, instruments)
     verified, cycles = extract_health_events(
         artifact.get("health", []), instruments)
+
+    # ── 1b. stale cap モード判定 (§2.2 — LOCK は主モード確定、fallback 不使用) ──
+    # per-instrument verified 系列が無い instrument は stale cap が「行 age」に
+    # 縮退する (= §2.2 が棄却した fallback)。verdict 実行では fail-loud。
+    no_verified = [p for p in instruments if not verified.get(p)]
+    stale_cap_mode = "primary" if not no_verified else "fallback"
+    if verdict_run and stale_cap_mode == "fallback" and not fallback_mode:
+        raise RuntimeError(
+            "stale cap 主モード不成立 (§2.2 LOCK: 主モード確定・fallback 不使用): "
+            f"per-instrument verified 系列欠落 {no_verified} — "
+            "positioning_health_log export を --health で供給するか、"
+            "--fallback-mode の明示宣言でのみ続行可 (fail-loud)")
+
     grid_start = min(t0_map.values())
     grid = build_grid(grid_start, cutoff)
     if not grid:
@@ -1988,20 +2197,47 @@ def run_eval(artifact: Dict[str, Any],
     quality = quality_gates(panel, primary_present, burnin, cutoff,
                             sanity_stats, censor_ok_by_h=censor_by_h)
     quality["jump_events"] = [_iso(grid[i]) for i in jump_idx]
-    quality["resample_na_stats"] = panel["stats"]
+    na_stats_slim: Dict[str, Any] = {}
+    for inst, s0 in panel["stats"].items():
+        s1 = dict(s0)
+        s1.pop("na_stale_slots", None)          # 生 index 列は JSON に出さない
+        na_stats_slim[inst] = s1
+    quality["resample_na_stats"] = na_stats_slim
+    inputs = dict(input_meta or {})
+    inputs["bars_clipped_beyond_cutoff"] = clip_counts
     result: Dict[str, Any] = {
         "prereg": ("knowledge-base/wiki/decisions/"
                    "e1-positioning-contrarian-prereg-2026-07-16.md (LOCKED)"),
         "harness": "tools/e1_positioning_prereg_eval.py (§7 成果物)",
         "generated_utc": _iso(datetime.now(timezone.utc)),
         "look": look, "cutoff": _iso(cutoff), "seed": seed, "n_boot": n_boot,
-        "inputs": input_meta or {}, "synthetic": bool(artifact.get("synthetic")),
+        "inputs": inputs, "synthetic": bool(artifact.get("synthetic")),
+        "stale_cap_mode": stale_cap_mode,       # §2.2 — 必ず記録 (主/縮退の明示)
+        "missing_parquet": {"primary": missing_primary,
+                            "confirmatory": missing_conf},
         "canary": canary, "quality_gates": quality,
     }
+
+    # ── 3b. §2.2 fallback 必須診断 (主モード不成立時のみ): NA 時間帯分布 +
+    #        閑散集中 → DEFERRED (事前固定分岐)。estimand の有効性検査であり
+    #        family postpone (窓スライド) より先に判定する — estimand が縮退した
+    #        まま窓をスライドしても解消しないため user 裁定 (DEFERRED) が先。
+    if stale_cap_mode == "fallback":
+        diag = fallback_stale_diagnostics(panel, grid, primary_present)
+        quality["stale_cap_fallback"] = diag
+        if diag["quiet_concentration"]:
+            result["verdict"] = {
+                "overall": "DEFERRED",
+                "reason": ("stale cap fallback モード + 2h-cap 起因 NA の"
+                           "閑散時間帯集中を機械検出 → DEFERRED "
+                           "(§2.2 事前固定分岐、活動条件付けバイアスの再流入)"),
+                "action": "user 裁定 — verified 系列インフラ復旧まで verdict 無効"}
+            return result
+
     if quality["postpone"]:
         # §2.5-3: 機械延期 — look を消費しない = 統計段を一切実行しない
         result["verdict"] = {
-            "overall": overall_verdict({}, True, postponed_before),
+            "overall": overall_verdict({}, True, postponed_before, look),
             "reason": (f"family gate 不成立 (残存 "
                        f"{len(quality['surviving_pairs'])} < {FAMILY_MIN_PAIRS})"),
             "action": ("cutoff・verdict 期日・評価窓終端を 4 週スライド "
@@ -2018,6 +2254,17 @@ def run_eval(artifact: Dict[str, Any],
     ctx = build_context(surviving, panel, bars_by_pair, burnin, cutoff,
                         jump_mask, year_end, canary)
 
+    # ── 4b. 量子化粒度 (§2.5-7/§3.1): ペア×統計毎に最終 W 窓の distinct 値数 ──
+    for pair in surviving:
+        qz: Dict[str, int] = {}
+        for s in STATS:
+            tail = ctx["raw_stats"][pair][s][-W_SLOTS:]
+            finite = tail[~np.isnan(tail)]
+            if s == "S3":                       # 連続値は有効桁丸め後 (§2.5-7)
+                finite = np.round(finite, 6)
+            qz[s] = int(len(np.unique(finite)))
+        quality["pairs"][pair]["quantization"] = qz
+
     # ── 5. Gate 1 (§4.1) ──
     target_combos = [f"{s}x{h}" for s, h in COMBOS]
     if look == 2:
@@ -2033,13 +2280,13 @@ def run_eval(artifact: Dict[str, Any],
     fdr1 = bh_fdr({c: gate1[c]["p_gate1"] for c in gate1}, GATE1_FDR_Q,
                   m=m_gate1)
 
-    # ── 6. Gate 2 (§4.2): 点推定は全 combo、検定は Gate1 通過 ∧ N≥60 のみ ──
+    # ── 6. Gate 2 (§4.2): 点推定は**全 6 combo で常時**計算 (look=2 でも) —
+    #    ナイフエッジ #2(ii) の隣接 combo 点 EV 参照 (§4.5) が look に依らず
+    #    成立するため。検定 (p_ev、look を消費) は Gate1 通過 combo のみ。
     gate2: Dict[str, Any] = {}
     g1_passers = [c for c in gate1 if fdr1[c]["survive"]]
     for k, (s, hname) in enumerate(COMBOS):
         combo = f"{s}x{hname}"
-        if combo not in target_combos:
-            continue
         trades = ctx["trades"][combo]
         if combo in g1_passers:
             gate2[combo] = gate2_combo(trades, n_boot, seed, k)
@@ -2112,13 +2359,16 @@ def run_eval(artifact: Dict[str, Any],
             "knife_edge": knife.get(combo), "confirmatory": confirmatory.get(combo),
             "secondary": secondary_descriptives(ctx, combo),
         }
-        if cls == "C1":
+        if c1_candidate:
+            # §4.3: Stage B の実行条件は Gate 1+2 通過 (= c1_candidate) —
+            # knife/confirmatory の成否と独立 (記述のみ、verdict 不使用)
             combos_out[combo]["stage_b"] = stage_b_localization(
                 ctx, combo, n_boot, seed, k)
 
-    # ── 9. Step 2 全体 verdict (§4.4) ──
-    verdict = overall_verdict(classes, False, postponed_before)
+    # ── 9. Step 2 全体 verdict (§4.4) — look=2 は着地 PASS/REJECT-F/REJECT のみ ──
+    verdict = overall_verdict(classes, False, postponed_before, look)
     result["combos"] = combos_out
+    result["gate2_all_combos"] = gate2          # knife #2(ii) 隣接参照の透明化
     result["bh_fdr_gate1"] = fdr1
     result["bh_fdr_gate2"] = fdr2
     result["verdict"] = {
@@ -2153,6 +2403,9 @@ def _verdict_notes(verdict: str, classes: Dict[str, str], look: int) -> List[str
     if look == 2:
         notes.append("second look の着地は PASS / REJECT-F / REJECT のみ "
                      "(3 回目の look 禁止、§4.4)")
+        if c3 and verdict in ("REJECT", "REJECT-F"):
+            notes.append(f"look=2 の C3 {c3} は検定不達のまま → REJECT 側に"
+                         "畳んだ (UNDERPOWERED 到達不能化、§4.4 Step 2/M8)")
     return notes
 
 
@@ -2189,7 +2442,13 @@ def main(argv: Optional[List[str]] = None) -> int:
                     help="§2.5-3 postpone 発動済み (2 回目不達 = DEFERRED)")
     ap.add_argument("--verdict-run", action="store_true",
                     help="実データ実行の明示宣言 (§6-2 — synthetic 宣言の無い "
-                         "artifact はこのフラグ無しでは拒否)")
+                         "artifact はこのフラグ無しでは拒否。13 ペア parquet "
+                         "完備 + stale cap 主モードを fail-loud で強制)")
+    ap.add_argument("--fallback-mode", action="store_true",
+                    help="§2.2 fallback stale cap での続行を明示宣言 (verified "
+                         "系列欠落時のみ意味を持つ)。必須診断 (2h-cap NA の "
+                         "NY 時間帯分布) を verdict に併記し、閑散集中は "
+                         "DEFERRED に機械接続")
     ap.add_argument("--self-check", action="store_true",
                     help="canary leak suite のみ実行して終了")
     args = ap.parse_args(argv)
@@ -2212,12 +2471,24 @@ def main(argv: Optional[List[str]] = None) -> int:
     cutoff = _utc(args.cutoff or (DEFAULT_CUTOFF_LOOK1 if args.look == 1
                                   else DEFAULT_CUTOFF_LOOK2))
     bars_by_pair: Dict[str, Dict[str, np.ndarray]] = {}
+    missing_files: List[str] = []
     for pair in list(PRIMARY) + list(CONFIRMATORY):
         fp = os.path.join(args.ohlcv_dir, f"{pair}_15m.parquet")
         if os.path.exists(fp):
             bars_by_pair[pair] = load_bars(args.ohlcv_dir, pair)
+        else:
+            missing_files.append(pair)
     if not bars_by_pair:
         ap.error(f"OHLCV parquet が {args.ohlcv_dir} に見つからない")
+    if missing_files:
+        # §2.5-1 fail-loud: 欠落を無言で母集団から落とさない
+        print(f"WARNING: OHLCV parquet 欠落 ({len(missing_files)}/13): "
+              f"{missing_files}", file=sys.stderr)
+        if args.verdict_run:
+            print("REFUSED: --verdict-run は primary+confirmatory 全 13 ペアの "
+                  "parquet 完備が必須 (§2.5-1 fail-loud — ファイル名/凍結手順を"
+                  "確認)。", file=sys.stderr)
+            return 2
 
     input_meta = {"artifact": args.artifact, "artifact_sha256":
                   _sha256(args.artifact),
@@ -2232,7 +2503,9 @@ def main(argv: Optional[List[str]] = None) -> int:
                       seed=args.seed, n_boot=args.n_boot,
                       sens_boot=args.sens_boot,
                       postponed_before=args.postponed_before,
-                      look2_combos=look2_combos, input_meta=input_meta)
+                      look2_combos=look2_combos, input_meta=input_meta,
+                      verdict_run=args.verdict_run,
+                      fallback_mode=args.fallback_mode)
     repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     out_path = args.out or os.path.join(
         repo, "knowledge-base", "raw", "bt-results",

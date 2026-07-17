@@ -4,6 +4,15 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-17 — fix(research): E1 ハーネス敵対的レビュー修正 — fatal 2 系統 (look-2 着地 / health 時系列) + major 6 + minor (rule:R3)
+
+- **[[e1-positioning-contrarian-prereg-2026-07-16]] 判定器への敵対的レビュー (spec/leak/stats 3 レンズ、fatal 3 [実質 2 系統] / major 6 / minor 10) を全件処置**。pre-reg 本文は不変更 (LOCK 遵守)
+- **F1 (look-2 着地違反)**: `overall_verdict()` が look を知らず second look で C3 → 禁止された `UNDERPOWERED` (= 第 3 look 示唆) を返していた → look=2 では **PASS / REJECT-F / REJECT のみ** に写像 (C3/C2/C5→REJECT、C4→REJECT-F、UNDERPOWERED 到達不能化 = α 会計 q₁+q₂≤0.10 の保証回復)。look=2 × C3 → REJECT / 着地集合の pin テスト追加
+- **F2 (health 時系列インフラ、§6-7「estimand を宣言どおりにする運用修理」)**: §2.2 stale cap 主モードが要求する per-instrument verified **時系列**が、本番 `positioning_health` の 1 行 upsert から構造的に得られなかった → (1) `positioning_health_log` append テーブル新設 + `record_health()` が**同一トランザクション**で追記 (~940 行/日)、(2) `/api/positioning/export?table=health_log` read-only export 経路、(3) ハーネス `--verdict-run` は verified 系列欠落で fail-loud 拒否 (明示 `--fallback-mode` でのみ続行)、結果 JSON に `stale_cap_mode: primary|fallback` を必ず記録、fallback 時は §2.2 必須診断 (2h-cap NA の NY 時間帯分布) を併記し**閑散帯集中 → DEFERRED を機械接続** (事前固定分岐、閑散帯 = NY 17:00–03:00 / 総数≥50 / 集中倍率 2.0 を観測前固定)
+- **major**: (a) gate2 点推定を全 6 combo 常時計算 — look=2 でナイフエッジ #2(ii) 隣接 combo 参照が機械 FAIL する偽 REJECT バイアスを修復 (`gate2_all_combos` で透明化)、(b) C1/PASS 経路の end-to-end pin — 埋め込み強 contrarian シグナル合成世界で **verdict=PASS/C1 に実到達**する統合テスト (knife 4 点 / confirmatory / Stage B / Gate1+2) + confirmatory 4 分岐・partial IC・S2 lag・S3 pain 式の単体 pin、(c) canary に rank 窓 (strictly trailing / t 非包含) + mid 経路 (確定 bar 限定) の注入点と rank→IC 貫通の検出感度チェックを追加 (リーク rank 実装が fail することを pin — §6-4 委譲の空洞化を修復)、(d) primary parquet 欠落の無言 family 縮小を封鎖 (`--verdict-run` で 13 ペア完備必須、欠落リスト表示で拒否)
+- **minor**: verified key の book 成分検査 (outlook 限定) / im_test se=0 の符号盲目 p=0 修正 (逆符号→p=1) / CONFIRMATORY_UNTESTED フラグを C1 限定化 (C2〜C5 汚染除去) / 量子化粒度をペア×統計毎 (S1/S2/S3) に記録 / Stage B 実行条件を c1_candidate (Gate1+2 通過) に拡張 / parquet cutoff 切詰めの機械クリップ + 件数記録 (切詰め規約非依存) / LOCF resampler の DST 跨ぎ週 (2026-11-01) unit test / MBB 全ペア同時 day-draw の pin / **day-block「観測日 index」規約の宣言** (Gate 2 の疎 trade 日で暦 5 営業日と乖離 — LOCK 字義の解釈変更を避け、実装ノートとして verdict JSON (`block_basis`) と本 changelog に宣言。変更でなく宣言で処置した唯一の項目)
+- tests 118→160 (E1 96 + ingest 64、全 offline/合成)。**評価への影響: なし** — 判定器 + read-only export 経路 + append テーブルのみ。live 発注経路・戦略・Kelly・shadow 一切不変。verdict 期日 (2026-10-15) の実データ初適用前に修正完了
+
 ## 2026-07-17 — feat(research): E1 pre-reg 判定ハーネス実装 — LOCK 後成果物 (rule:R3)
 
 - **[[e1-positioning-contrarian-prereg-2026-07-16]] §7 成果物規定の実装**: 判定器 `tools/e1_positioning_prereg_eval.py` (2,250 行、LOCK 後実装・seed 固定 `SEED_DEFAULT=20261015`)。§7 の規定どおり **LOCF resampler / rank タイ規約 (mid-rank §3.1) / DST 跨ぎ週 (2026-11-01) / ATR (NY17 roll 完結 bar) / OHLCV join 契約 / canary leak test を `tests/test_e1_prereg_eval.py` (58 tests) に pin してから verdict データに触れる**体制を確立

@@ -97,6 +97,19 @@ CREATE TABLE IF NOT EXISTS positioning_health (
     key             TEXT PRIMARY KEY,       -- 'verified:{instrument}:{book}' | 'last_cycle_at'
     value           TEXT NOT NULL           -- ISO8601 UTC
 );
+-- positioning_health_log (2026-07-17, E1 pre-reg §2.2 主モードの時系列インフラ):
+--   positioning_health は key 毎 1 行 upsert (最新のみ) のため、cutoff 時点の
+--   凍結 export から per-instrument verified の**履歴系列**が再構成できない —
+--   §2.2 stale cap 主モード (「検証成功からの age > 2h → NA」) が要求するのは
+--   時系列。record_health() が upsert と同一トランザクションで append する
+--   (~940 行/日 = 13 instrument × 72 cycle + heartbeat、SQLite に無害)。
+--   read-only export: /api/positioning/export?table=health_log。
+CREATE TABLE IF NOT EXISTS positioning_health_log (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    key             TEXT NOT NULL,          -- positioning_health と同一 key 空間
+    value           TEXT NOT NULL           -- ISO8601 UTC
+);
+CREATE INDEX IF NOT EXISTS idx_pos_health_log_key ON positioning_health_log(key, id);
 """
 
 
@@ -261,7 +274,7 @@ def save_snapshot(db_path: str, instrument: str, book_type: str,
 
 
 def record_health(db_path: str, entries: Dict[str, str]) -> None:
-    """positioning_health への 1 トランザクション upsert。
+    """positioning_health への 1 トランザクション upsert + health_log append。
 
     entries: {'verified:{instrument}:{book}': iso_ts, 'last_cycle_at': iso_ts}
     verified の意味論 (E1 pre-reg §2.2): 「fetch+parse が成功し、かつ content が
@@ -269,19 +282,53 @@ def record_health(db_path: str, entries: Dict[str, str]) -> None:
     parse 成功でも DB 書込み失敗なら verified を更新しない — LOCF が古い値を
     真値として供給する事故を防ぐため。失敗は呼び出し側で loud に処理する
     (silent except 禁止)。
+
+    positioning_health_log (§2.2 主モード時系列インフラ、§6-7 の「estimand を
+    宣言どおりにする運用修理」): upsert と**同一トランザクション**で append —
+    stale cap 主モードが要求する per-instrument verified の履歴系列を凍結
+    export 可能にする (upsert は最新 1 行しか残さない)。片方だけ成功する
+    分岐を持たない (commit は 1 回)。
     """
     if not entries:
         return
+    items = list(entries.items())
     conn = sqlite3.connect(db_path)
     try:
         conn.executemany(
             "INSERT INTO positioning_health (key, value) VALUES (?, ?)"
             " ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            list(entries.items()),
+            items,
+        )
+        conn.executemany(
+            "INSERT INTO positioning_health_log (key, value) VALUES (?, ?)",
+            items,
         )
         conn.commit()
     finally:
         conn.close()
+
+
+def export_health_log(db_path: str, key: str = "", since_id: int = 0,
+                      limit: int = 20000) -> List[Dict[str, Any]]:
+    """positioning_health_log の研究用 export (read-only、id 昇順)。
+
+    E1 pre-reg §2.2 主モード: verdict 時の凍結 artifact はこの系列を --health
+    として判定器に渡す (per-instrument verified の時系列)。since_id で増分
+    export 可 (id は AUTOINCREMENT 単調)。
+    """
+    sql = "SELECT id, key, value FROM positioning_health_log WHERE id > ?"
+    params: List[Any] = [int(since_id)]
+    if key:
+        sql += " AND key = ?"
+        params.append(key)
+    sql += " ORDER BY id ASC LIMIT ?"
+    params.append(max(1, int(limit)))
+    conn = sqlite3.connect(db_path)
+    try:
+        rows = conn.execute(sql, params).fetchall()
+    finally:
+        conn.close()
+    return [{"id": int(i), "key": k, "value": v} for i, k, v in rows]
 
 
 def db_health(db_path: str) -> Dict[str, Any]:
