@@ -2860,6 +2860,16 @@ Cutoff後累計は vix_carry_unwind(USDJPY) 2件 + ny_close_reversal(USDJPY) 1�
 - GBP_USD VOLATILE状態ではspread_gate発動継続の可能性が高く、scalp_5m_gbpは**NO ACTION推奨**
 - XAU系（daytrade_xau / scalp_xau / scalp_eurjpy）は**OFF状態**のためNYも対象外
 
+### 2026-07-17 (Post-NY Report)
+| PnL | **+0.0 pips** |
+| Session | N | WR% | PnL |
+| 本日合計PnL | +0.0 pips |
+- `shadow_tracking`とは、シャドウモード（`is_shadow=1`）として記録されたトレードが本番転送をスキップされている状態。
+- 本番転送率0%は「OANDAとの接続障害」ではなく、**システム設計上の意図的スキップ**（シャドウ検証フェーズ継続中）と判断。
+- ただしNAV/Balance=Noneはデータ取得の軽微な異常を示す。接続はActiveだが残高情報の取得に問題がある可能性。
+> **NO ACTION推奨**
+- **仮説A（良性）**: フィルタ群が市場のノイズ期間を正確に識別し、リスクを回避している
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
