@@ -2831,6 +2831,16 @@ KB記録にある「勝ち側exit崩壊・摩擦調整EV全負」という v2.3�
 - SIGNAL_REVERSE BREAKEVENの頻度を蓄積観察する。単発では判断不可だが、繰り返し発生する場合は ny_close_reversal のエントリータイミング適合性を疑う根拠となる
 - N蓄積最優先。現状N=3では全ての戦略が評価不能帯にある
 
+### 2026-07-17 (Pre-Tokyo Briefing)
+前日は東京・ロンドン・NY全セッションを通じてシグナル成立ゼロ。PnL=±0、WR=N/A。
+Cutoff後累計は vix_carry_unwind(USDJPY) 2件 + ny_close_reversal(USDJPY) 1件の計**N=3、PnL=+3.7p**のみ。
+| Strategy | Pair | N | WR% | EV | PnL | 判定ステータス |
+> ⚠️ **XAUモード（daytrade_xau / scalp_xau）はOFF**のため計上なし。昇格基準（N≥30 & EV≥1.0）・降格基準（N≥30 & EV<−0.5）ともに、現時点では対象戦略なし。
+- 前日は24時間で約定ゼロ。Block Countsを見ると**direction_filter（90件）**と**gbp_asia_flash_crash（71件）**が最大要因。
+- **direction_filter**（rnb_usdjpy）：USD_JPYはRANGING（ATR%ile 67%、SMA slope +0.00243）で方向感は存在するが、rnb系のフィルターが現レジームで過剰抑制している可能性。
+- **gbp_asia_flash_crash（71件）**：daytrade_eurgbpのGBP特有ガードが繰り返し発火。GBP_JPYはVOLATILE+RANGING移行帯（ATR%ile 62%）にあり、フラッシュクラッシュ判定閾値に頻繁に触れている。
+- daytrade_eur、daytrade、daytrade_1h_audjpyでhedge_blockが多発。複数モードが同一方向に競合エントリーしようとし、内部ヘッジ判定でキャンセルされている構造。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
