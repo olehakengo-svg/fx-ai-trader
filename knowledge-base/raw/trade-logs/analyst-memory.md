@@ -2850,6 +2850,16 @@ Cutoff後累計は vix_carry_unwind(USDJPY) 2件 + ny_close_reversal(USDJPY) 1�
 - daytrade_xau・scalp_xau・scalp_eurjpyはOFF継続 → 変更不要
 ### 推奨戦略配分
 
+### 2026-07-17 (Post-London Report)
+| PnL | **0.0 pips** |
+| 勝率（WR） | **N/A** |
+| PnL | 0.0p | 0.0p |
+### 推奨戦略配分
+### **重要警告**
+- `r2_shadow_demoted_cell`によるブロックはNYでも継続する見込み（セル状態はリアルタイム価格には依存しない構造的抑制）
+- GBP_USD VOLATILE状態ではspread_gate発動継続の可能性が高く、scalp_5m_gbpは**NO ACTION推奨**
+- XAU系（daytrade_xau / scalp_xau / scalp_eurjpy）は**OFF状態**のためNYも対象外
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
