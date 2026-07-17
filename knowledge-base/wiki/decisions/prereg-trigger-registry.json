@@ -152,11 +152,21 @@
   },
   {
    "id": "e1-prereg-lock-decision-stale",
-   "active": true,
+   "active": false,
    "type": "deadline_info",
    "deadline": "2026-07-17",
    "doc": "knowledge-base/wiki/decisions/e1-positioning-contrarian-prereg-2026-07-16.md",
-   "message": "E1 positioning contrarian pre-reg (観測前・文献駆動) の LOCK 決裁待ち。蓄積が進むほど観測前性が減衰するため期限 2026-07-17。user 承認が第一経路、応答なしなら純研究 self-LOCK 前例 (round-2) に基づき self-LOCK を執行し session log 記録。LOCK 後は e1-prereg-verdict-deadline (first look verdict 2026-10-15) へ置換"
+   "resolved": "2026-07-17",
+   "resolution": "LOCK 執行済み (self-LOCK 2026-07-17)。PR #92 で user 通知・異議なし → round-2 前例に基づき self-LOCK。stale cap 主モード確定 (positioning_health verified 本番稼働) + source=myfxbook 稼働確認。e1-prereg-verdict-deadline へ置換",
+   "message": "[RESOLVED 2026-07-17] E1 positioning contrarian pre-reg の LOCK 決裁 — self-LOCK 執行済み。監視は e1-prereg-verdict-deadline へ移管"
+  },
+  {
+   "id": "e1-prereg-verdict-deadline",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2026-10-15",
+   "doc": "knowledge-base/wiki/decisions/e1-positioning-contrarian-prereg-2026-07-16.md",
+   "message": "E1 positioning contrarian pre-reg (🔒 LOCKED 2026-07-17) の first look verdict 期日。データ cutoff #1 = 2026-10-08 (t0+12週)、burn-in 20営業日 (〜2026-08-12)、評価窓 08-13〜10-08。verdict 期日 2026-10-15 に §8 へ判定結果 (Gate1 pooled IC / Gate2 摩擦調整EV / combo 排他分類 C1-C5 / ナイフエッジ4点 / 全体 verdict PASS/UNDERPOWERED/REJECT-F/REJECT) を追記。UNDERPOWERED なら e1-prereg-second-look 登録 (cutoff #2 2026-12-30 / verdict 2027-01-06)。判定器 tools/e1_positioning_prereg_eval.py は LOCK 後実装 (unit test pin 先行)。中間 peeking 禁止 (§6)"
   }
  ]
 }

@@ -1,8 +1,10 @@
-# Pre-registration DRAFT: E1 retail-positioning contrarian — Myfxbook aggregate 版・文献駆動 観測前検証 (rule:R1 research-only)
+# Pre-registration 🔒 LOCKED: E1 retail-positioning contrarian — Myfxbook aggregate 版・文献駆動 観測前検証 (rule:R1 research-only)
 
+> **🔒 LOCK 執行 2026-07-17 (self-LOCK)**: LOCK 決裁期限 (2026-07-17) 到来時点で user 応答なし。PR #92 (merged 2026-07-16) で user 通知済み・異議なし → 純研究 pre-reg の self-LOCK 前例 (round-2、通知後異議なし) に基づき **self-LOCK を執行**。以後シグナル定義/窓/ペア/閾値/期日/市場時間定義の変更は禁止 (§6)。first look verdict 期日 = **2026-10-15** (registry `e1-prereg-lock-decision-stale` を `e1-prereg-verdict-deadline` へ置換済み)。
+> **LOCK 時確定事項 (§7)**: (1) **stale cap = 主モード確定** — per-instrument `verified:{instrument}:{book}` 永続化 (`positioning_health` テーブル、`record_health()`) が本番稼働。2026-07-17 status API で 13 instrument 全ての verified 時刻 + `last_cycle_at` heartbeat を確認。stale cap は「最終検証成功からの age > 2h → NA」の主定義で確定 (fallback 不使用)。(2) **ソース = myfxbook 稼働確認** — `source=myfxbook` / `configured=true` / `logged_in=true` / `waiting_for_credentials=false` (first login 2026-07-16T23:04:48Z)。M1 最短経路の user アクション依存 (Myfxbook credentials 投入) は解消。t0=06:33:31Z の primary snapshot の provenance (credentials 投入前後の source 連続性) は verdict 時 §2.5 品質 gate で検査する。(3) confirmatory 7 ペア t0 台帳 = 付録 A で先行確定済み。(4) `e1-positioning-ingest-freshness` の鮮度監視は credentials 投入条件成立で本格再開。
 > **設計来歴 (provenance)**: 2026-07-16、8-agent workflow で設計 — 独立 3 案 (power / microstructure / discipline レンズ) → 統合 → 敵対的レビュー 3 レンズ (major 11 項目) → 改訂。裁定原則 =「薄いデータで第一種過誤を優先制御」。
-> **LOCK 手続き**: user 承認 (D3 SLA 48h) を第一経路とする。純研究 pre-reg の self-LOCK 前例 (round-2、通知後異議なし) に基づき、**2026-07-17 までに user 応答がない場合は self-LOCK を執行し session log に記録する** (registry `e1-prereg-lock-decision-stale` が監視)。
-> **LOCK 前必須インフラの状態**: per-instrument `last_verified_at` 永続化 (§2.2 主モード) は**本 pre-reg と同一 PR で実装済み** — LOCK 時は主モードで確定見込み。
+> **LOCK 手続き (原設計、履歴保存)**: user 承認 (D3 SLA 48h) を第一経路とする。純研究 pre-reg の self-LOCK 前例 (round-2、通知後異議なし) に基づき、**2026-07-17 までに user 応答がない場合は self-LOCK を執行し session log に記録する** (registry `e1-prereg-lock-decision-stale` が監視)。→ **上記のとおり 2026-07-17 に self-LOCK 執行済み**。
+> **LOCK 前必須インフラの状態**: per-instrument `last_verified_at` 永続化 (§2.2 主モード) は**本 pre-reg と同一 PR で実装済み** — **LOCK 時に主モードで確定 (本番検証済み、上記 LOCK 時確定事項 (1))**。
 
 **起案日**: 2026-07-16 (t0 = 2026-07-16T06:33:31Z、蓄積 3 cycle 時点 = 実質データブラインド)
 **改訂**: 2026-07-16 敵対的レビュー (リーク/統計/KB 整合の 3 レンズ) 反映済み — major 13 件 (統合後 11 項目) + minor 6 件を反映。反映内容は §6 末尾「レビュー反映ログ」に固定。
@@ -13,7 +15,7 @@
 
 ## §0 Status とスコープ
 
-- **Status**: DRAFT (レビュー反映済み) → user 承認で 🔒 LOCK。**LOCK は本日中を推奨** — 本 pre-reg の統計的資産は「まだ誰もシグナル×リターンの結合統計を見ていない」ことであり、蓄積が進むほど観測前性の主張が減衰する。LOCK 後の変更はレビュー必須 PR のみ。結果観測後のシグナル定義/窓/ペア/閾値/期日の変更は禁止。
+- **Status**: 🔒 **LOCKED (self-LOCK 執行 2026-07-17)** — DRAFT (レビュー反映済み) から確定。本 pre-reg の統計的資産 =「まだ誰もシグナル×リターンの結合統計を見ていない」観測前性を LOCK で固定。LOCK 後の変更はレビュー必須 PR のみ。結果観測後のシグナル定義/窓/ペア/閾値/期日の変更は禁止。設計者ブラインド誓約 (§6) は verdict まで有効。
 - **方法論上の位置づけ**: round-1〜3 (歴史データの discovery→凍結→OOS) と異なり、**検証データの全量が LOCK 後に発生する純粋 prospective 検証**。discovery/holdout 分割が不要で、全サンプルが確認的。これが price-modality 3 周 FAIL 後の供給ラインで本設計を成立させる唯一の窓である。
 - **スコープ**: 純研究。live 発注・shadow パラメータ・Kelly・tier に一切触れない。**PASS でも実装は別途 D4 準拠の実装 pre-reg + user 最終承認** (本文書は実装内容を拘束しない。barrier 最適化・ペア選抜・lot 設計の自由度は意図的に実装 pre-reg 側へ温存する)。
 - **設計者ブラインドの宣言**: 本設計時点で inspect したのは ingest 健全性 (status API / 3 cycle の保存確認) のみ。シグナル×リターンの結合統計は一切計算していない。LOCK 前にこれを超える観測を行わない (§6-8 誓約)。

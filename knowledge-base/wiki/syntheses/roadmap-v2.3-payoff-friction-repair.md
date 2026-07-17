@@ -77,6 +77,8 @@ payoff 0.27 は v2.3 の最重要問題。**診断は R3 (analyses/ に数値根
 
 ## WS3: シグナル張り替え — v2.3 の主戦線 (2026-07-08 T2 FAIL により全振り確定、司令塔直轄)
 
+> **🔒 トラックB 供給ライン確定 (2026-07-17)**: price-modality 3 周 FAIL → 外部仮説転進で E1 (retail positioning contrarian, Myfxbook aggregate) が唯一の供給ライン。**観測前 pre-reg [[e1-positioning-contrarian-prereg-2026-07-16]] を self-LOCK 執行 (2026-07-17)** — first look verdict 2026-10-15 / UNDERPOWERED 時 second look 2027-01-06。同時に **E1 データソースが本番稼働** (source=myfxbook、credentials 投入で M1 の user アクション依存が解消)、13 ペア蓄積中・stale cap 主モード (positioning_health verified) 稼働。**modal 予想は UNDERPOWERED (§5)** — M1 は E1 依存で最短 ~6 ヶ月遅延。registry: `e1-prereg-verdict-deadline`。
+>
 > **✅ stage-1 verdict PASS (2026-07-09、[[ws3-asymmetry-oos-prereg-2026-07-09]] §8)**: OOS 検証で 2/8 セルが非対称を再現 — **london_fix_reversal×EUR_USD (1.43, p=0.0115)** / **htf_false_breakout×AUD_JPY (1.82, p=0.0118、horizon 単調増加)**。選択バイアス組は崩壊しスクリーンが機能。**次 = stage-2: PASS 2 セル限定の barrier/EV 設計 pre-reg + TV Pine canon 再現 + user 最終承認** (live 実装はそこまで禁止)。trendline_sweep×EUR_USD は点推定再現 (1.70)・FDR 落ち — live N 蓄積で再評価。持続型 2 セルは不再現でクローズ。
 >
 > **❌ stage-2 verdict: PASS ゼロ / 全体 UNDERPOWERED (2026-07-10、期日 07-19 の 9 日前倒し — [[ws3-stage2-barrier-ev-prereg-2026-07-09]] §8)**: 第3窓 OOS-2 (2022-24、N=59/46) の h24 barrier grid で **lfr×EUR_USD は全 9 構成が深い負 (best −6.5 p/t、SL 先着率 44-75% — 中央値非対称が first-touch sequencing で反転) → セルクローズ**。htf_fb×AUD_JPY は 9 構成中 1 つのみ +1.15 だが p_cell 0.594・fold 集中 (+10.8/+2.9/−10.9 = 2022 円介入期由来・直近負)・孤立格子点 → **UNDERPOWERED 残置: shadow N≥100 で同一 grid 1 回限り再判定** (registry `ws3-stage2-underpowered-recheck`)。独立再計算で符号検証済み。**帰結 (§4 固定分岐): WS3 は「現行母集団の張り替え」を終了し、新シグナル系統 (外部仮説) の探索へ**。trendline_sweep×EUR_USD live N 蓄積再評価は継続。
