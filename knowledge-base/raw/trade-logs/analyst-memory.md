@@ -2841,6 +2841,15 @@ Cutoff後累計は vix_carry_unwind(USDJPY) 2件 + ny_close_reversal(USDJPY) 1�
 - **gbp_asia_flash_crash（71件）**：daytrade_eurgbpのGBP特有ガードが繰り返し発火。GBP_JPYはVOLATILE+RANGING移行帯（ATR%ile 62%）にあり、フラッシュクラッシュ判定閾値に頻繁に触れている。
 - daytrade_eur、daytrade、daytrade_1h_audjpyでhedge_blockが多発。複数モードが同一方向に競合エントリーしようとし、内部ヘッジ判定でキャンセルされている構造。
 
+### 2026-07-17 (Post-Tokyo Report)
+| PnL | 0.0p |
+| 勝率（WR） | N/A |
+- 今日の非執行はすべてシステムの正常なリスク管理動作（`hedge_block`・`dedup`）
+- 本日Cutoff後有効トレードN=0につき、統計的判断材料なし
+- OANDA Live Rate 0%（50/50件がSKIP）は`shadow_tracking`が18件を占めるデモ追跡フェーズとして整合的
+- daytrade_xau・scalp_xau・scalp_eurjpyはOFF継続 → 変更不要
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
