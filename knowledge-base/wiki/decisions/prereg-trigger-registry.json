@@ -167,6 +167,14 @@
    "deadline": "2026-10-15",
    "doc": "knowledge-base/wiki/decisions/e1-positioning-contrarian-prereg-2026-07-16.md",
    "message": "E1 positioning contrarian pre-reg (🔒 LOCKED 2026-07-17) の first look verdict 期日。データ cutoff #1 = 2026-10-08 (t0+12週)、burn-in 20営業日 (〜2026-08-12)、評価窓 08-13〜10-08。verdict 期日 2026-10-15 に §8 へ判定結果 (Gate1 pooled IC / Gate2 摩擦調整EV / combo 排他分類 C1-C5 / ナイフエッジ4点 / 全体 verdict PASS/UNDERPOWERED/REJECT-F/REJECT) を追記。UNDERPOWERED なら e1-prereg-second-look 登録 (cutoff #2 2026-12-30 / verdict 2027-01-06)。判定器 tools/e1_positioning_prereg_eval.py は LOCK 後実装 (unit test pin 先行)。中間 peeking 禁止 (§6)"
+  },
+  {
+   "id": "edge-supply-scan-monthly",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2026-08-18",
+   "doc": "knowledge-base/wiki/syntheses/edge-development-pipeline-2026-07-18.md",
+   "message": "月次外部仮説スキャンの実行期日 (エッジ開発パイプライン §4)。実行したら本エントリの deadline を翌月に更新する。WIP 原則: S1-S4 の仮説が 2 本未満になったら期日を待たず臨時スキャン (R3)"
   }
  ]
 }
