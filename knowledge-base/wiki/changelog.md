@@ -4,6 +4,13 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-18 — feat(data): R3 market-data ingest — E7 FF カレンダー + E12 CME 1h volume の go-forward capture 開始 (rule:R3)
+
+- **[[market-data-ingest-2026-07-18]]**: [[external-hypothesis-scan-round2-2026-07-18]] infra_needed_now 3 件の実装裁定。(1) FF カレンダー = ✅ 実装 (faireconomy 公式 feed 6h capture + **翌期 previous 逆引き** actual 補完 + `tools/ff_calendar_import.py` gap 合流経路)、(2) CME FX 先物 1h volume = ✅ 実装 (yfinance 7 契約日次 capture、730d rolling 窓対策)、(3) CME settlement/OI scrape = ❌ **不実装 + round-2 前提訂正** (probe が「scraping は CME Data ToU で禁止」明示 403 / Databento は歴史保持 = 不可逆でない → E9/E10/E14 forward は Databento 一本化)
+- 実装 = `modules/market_data_ingest.py` (positioning_ingest パターン準拠: fail-loud / モジュールトップ副作用禁止 / defer_thread fork-safety / health 2 テーブル / content-hash + UNIQUE dedup)。**forecast 凍結を code 強制** (event_time 通過後は feed 側改変を反映しない — E7 surprise estimand の汚染防止)。**形成中 bar 非保存 + 初回 capture 値凍結** (BT 再現性)
+- 検証 API: `/api/marketdata/status` / `/api/marketdata/export?table=ff_events|cme_bars|health_log`。tests +38 (offline/deterministic)。smoke: CME 2 symbol × 155 bars 実 fetch→保存成功、FF は 429 rate-limit 実測 → poll 6h + retry 30 分に設計反映
+- **評価への影響: なし** — read-only 蓄積 + 検証 API + import ツールのみ。live 発注経路・戦略・Kelly・shadow・BT 関数いずれも不変
+
 ## 2026-07-18 — docs(analysis): r2_shadow_demoted_cell「構造的詰まり」診断 — analyst フラグ裁定 = 現状維持 (rule:R3)
 
 - **[[analyses/shadow-accumulation-blockage-diagnosis-2026-07-18]]**: analyst report (07-17 pre_tokyo 等) の「scalp 系全般で r2_shadow_demoted_cell が Sentinel N 蓄積を毎日足止め = 構造的詰まり」フラグをコード + 本番実測で裁定

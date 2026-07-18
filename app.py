@@ -13541,6 +13541,14 @@ def _positioning_heartbeat():
     except Exception as e:  # heal 失敗で request を落とさない (fail-loud に記録)
         print(f"[positioning] heartbeat self-heal failed: "
               f"{type(e).__name__}: {e}", flush=True)
+    # R3 market-data ingest (2026-07-18) も同じ heartbeat 経路で heal する
+    try:
+        from modules.market_data_ingest import (
+            ensure_worker_running as _mkt_ensure_running)
+        _mkt_ensure_running()
+    except Exception as e:
+        print(f"[market-ingest] heartbeat self-heal failed: "
+              f"{type(e).__name__}: {e}", flush=True)
 
 
 @app.route("/api/positioning/status")
@@ -13655,6 +13663,84 @@ def api_positioning_export():
         "count": len(rows),
         "filters": {"instrument": instrument, "book": book,
                     "from": since, "limit": limit},
+        "rows": rows,
+    })
+
+
+# ═══════════════════════════════════════════════════════
+#  R3 market-data ingest — 検証 API (2026-07-18, read-only)
+#  設計: knowledge-base/wiki/analyses/market-data-ingest-2026-07-18.md
+#  対象: ff_calendar_events (E7) / cme_fx_bars_1h (E12)
+# ═══════════════════════════════════════════════════════
+
+@app.route("/api/marketdata/status")
+def api_marketdata_status():
+    """market-data ingest worker と DB 蓄積状態の観測 (鮮度監視用)。
+
+    worker 未起動でも DB 側のテーブル統計は返す — 「thread 死」と
+    「そもそも起動していない」を外部から区別できるようにする (fail-loud)。
+    """
+    from modules.market_data_ingest import get_worker, db_market_stats
+    worker = get_worker()
+    if worker is not None:
+        return jsonify(worker.status())
+    return jsonify({
+        "enabled": False,
+        "running": False,
+        "reason": ("worker not started — MARKET_INGEST_ENABLE!=1, "
+                   "non-Render startup, or startup failure (check logs "
+                   "for [market-ingest])"),
+        "env_flag": os.environ.get("MARKET_INGEST_ENABLE", "1"),
+        "tables": db_market_stats(_db_path),
+    })
+
+
+@app.route("/api/marketdata/export")
+def api_marketdata_export():
+    """研究用 export (read-only) — ff_events / cme_bars / health_log。
+
+    Query: table=ff_events (default) | cme_bars | health_log
+      ff_events:  country= / impact= / from= / to= / limit= (<=20000)
+      cme_bars:   symbol= / from= / limit=
+      health_log: key= / since_id= / limit=
+    """
+    from modules.market_data_ingest import (export_cme_bars,
+                                            export_ff_events,
+                                            export_health_log)
+    table = request.args.get("table", "ff_events")
+    if table not in ("ff_events", "cme_bars", "health_log"):
+        return jsonify({"error": f"invalid table: {table!r} (expected "
+                                 "'ff_events', 'cme_bars' or "
+                                 "'health_log')"}), 400
+    try:
+        limit = min(int(request.args.get("limit", 20000)), 20000)
+        since_id = int(request.args.get("since_id", 0))
+    except (TypeError, ValueError):
+        return jsonify({"error": "invalid limit/since_id "
+                                 "(integer required)"}), 400
+    try:
+        if table == "cme_bars":
+            rows = export_cme_bars(_db_path,
+                                   symbol=request.args.get("symbol", ""),
+                                   since=request.args.get("from", ""),
+                                   limit=limit)
+        elif table == "health_log":
+            rows = export_health_log(_db_path,
+                                     key=request.args.get("key", ""),
+                                     since_id=since_id, limit=limit)
+        else:
+            rows = export_ff_events(_db_path,
+                                    country=request.args.get("country", ""),
+                                    impact=request.args.get("impact", ""),
+                                    since=request.args.get("from", ""),
+                                    until=request.args.get("to", ""),
+                                    limit=limit)
+    except Exception as e:
+        # テーブル未作成/DB 障害は 500 で fail-loud (silent 空配列にしない)
+        return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
+    return jsonify({
+        "count": len(rows),
+        "filters": {"table": table, "limit": limit},
         "rows": rows,
     })
 
@@ -15634,6 +15720,18 @@ if (_is_prod or _force_local) and not _legacy_off:
         start_positioning_ingest(_db_path, defer_thread=True)
     except Exception as _pos_start_err:
         print(f"[positioning] ingest startup failed: {_pos_start_err}",
+              flush=True)
+    # ── R3 market-data ingest (2026-07-18): FF カレンダー (E7) + CME FX
+    #    先物 1h volume (E12) の read-only capture。live 発注経路とは完全独立。
+    #    env flag MARKET_INGEST_ENABLE (default "1") で無効化可。
+    #    検証は /api/marketdata/status で行う (fail-loud)。
+    try:
+        from modules.market_data_ingest import start_market_data_ingest
+        # defer_thread: gunicorn master では thread を起動しない (fork-safety
+        # §11、positioning と同一根拠)。起動は serving プロセスの初回 heal。
+        start_market_data_ingest(_db_path, defer_thread=True)
+    except Exception as _mkt_start_err:
+        print(f"[market-ingest] ingest startup failed: {_mkt_start_err}",
               flush=True)
 else:
     if _legacy_off:

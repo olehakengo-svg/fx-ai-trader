@@ -469,6 +469,16 @@ class DemoDB:
                 print(f"[demo_db] positioning_snapshots schema init failed: "
                       f"{_pos_exc}", flush=True)
 
+            # ── R3 market-data ingest (2026-07-18, read-only) ──
+            # ff_calendar_events / cme_fx_bars_1h / market_ingest_health*。
+            # DDL は modules/market_data_ingest.py が単一ソース (drift 防止)。
+            try:
+                from modules.market_data_ingest import ensure_market_data_schema
+                ensure_market_data_schema(conn)
+            except Exception as _mkt_exc:
+                print(f"[demo_db] market-data ingest schema init failed: "
+                      f"{_mkt_exc}", flush=True)
+
             # ── 遅延インデックス作成: ALTER TABLE後のカラムに依存するインデックス ──
             # mode カラムは ALTER TABLE で追加されるため、executescript 外で作成
             try:
