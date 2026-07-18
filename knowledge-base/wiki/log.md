@@ -519,3 +519,9 @@
 - 📋 別ワークストリーム: **T2 exit-repair verdict FAIL / H0 採択** が 07-08 に着地 (grid 9/9 BH-FDR 不通過 p=1.0 / WF 0/3 / 摩擦調整EV負)。§4 固定分岐発動 → v2.3 主戦線は **WS3 シグナル張り替え** ([[exit-repair-tp-sl-prereg-2026-07-07]] §8)。これは daily book/tier イベントではないため context として記録のみ
 - **Lint**: (1) 現状態の数値は index.md 全 state 箇所 (header/System State/Ruin/Aggregate Kelly/last-updated/session-history/trade-log link) で 100.01%(held)/558(flat)/-540.7/-30.1%/net-244.3/0-fills-1-blocked 一致 ✅ (残る -30.79% 参照は全て "vs 07-07's" 比較文 + 07-07 履歴行=正) (2) [[2026-07-08]] → raw/trade-logs/2026-07-08.md 解決 ✅、[[exit-repair-tp-sl-prereg-2026-07-07]]/[[roadmap-v2.3-payoff-friction-repair]] 解決 ✅、新規破損リンク 0件 (3) stale なし — データ 07-08 当日 (Render API 一次ソース)
 - ⚠️ 未解決（継続）: `API_AUTH_TOKEN` watchdog gap (agg-kelly gate が現行の稼働中セーフティネット) / sr_anti_hunt_bounce shadow data corruption / main の index.md DD 行 stale (乖離解消は別件、v2.3 は実 NAV(JPY) 基準へ移行予定)
+
+## 2026-07-18 wiki-lint (E15+E7 pre-reg 起案セッション)
+
+- **Lint (本コミット変更ファイル限定)**: (1) [[e15-e7-event-modality-prereg-2026-07-18]] / changelog / session log / pipeline 状態表 / queue task の [[wikilink]] 全解決 ✅ (2) prereg-trigger-registry.json valid JSON、active 13 triggers (新規 2: e15-e7-event-prereg-phase{0,1}-verdict) ✅ (3) tier_integrity_check --check pass ✅
+- ⚠️ **`sync_kb_index.py --check` FAIL — index.md KB_PORTFOLIO ブロックが demo_trader.py strategy sets と drift** (最終 auto-sync 2026-07-15、本セッションの変更とは無関係の既存事象)。PAIR_PROMOTED/SHADOW の行数が大幅相違。scope 規律により本 PR に混載せず、別タスク chip (`Fix stale KB index portfolio sync`) として起票済み — `sync_kb_index.py --write` + `tier_integrity_check.py --write` の単独コミットで解消すること
+- ℹ 既知 (継続): app.py の legacy dead inline `strong_sr_breakout` / `tokyo_bb` (30d+ 発火なし、削除候補)

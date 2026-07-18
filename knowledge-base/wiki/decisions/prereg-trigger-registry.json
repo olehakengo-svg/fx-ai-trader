@@ -161,6 +161,22 @@
    "message": "[RESOLVED 2026-07-17] E1 positioning contrarian pre-reg の LOCK 決裁 — self-LOCK 執行済み。監視は e1-prereg-verdict-deadline へ移管"
   },
   {
+   "id": "e15-e7-event-prereg-phase0-verdict",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2026-07-31",
+   "doc": "knowledge-base/wiki/decisions/e15-e7-event-modality-prereg-2026-07-18.md",
+   "message": "E15+E7 イベントモダリティ family phase-0 (E15 FOMC/NFP/CPI イベント窓) — データ準備+discovery+候補凍結 2026-07-24 / OOS verdict 2026-07-31。queue 20260718-e15-e7-event-phase0 が未着手なら stale (T5 型実行ギャップ防止)。E1 first look (2026-10-15) より先の verdict が戦略的役割 (WIP 原則)"
+  },
+  {
+   "id": "e15-e7-event-prereg-phase1-verdict",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2026-08-28",
+   "doc": "knowledge-base/wiki/decisions/e15-e7-event-modality-prereg-2026-07-18.md",
+   "message": "E15+E7 family phase-1 (E7 指標サプライズ directional) — FF gap scrape + データ付録凍結 2026-08-14 / discovery+凍結 2026-08-21 / OOS verdict 2026-08-28。phase-0 の帰結に依存せず実行 (pre-reg §8 固定分岐)。EPSOFT 歴史パネル + 2023-04〜の gap 一括 scrape が前提"
+  },
+  {
    "id": "e1-prereg-verdict-deadline",
    "active": true,
    "type": "deadline_info",
