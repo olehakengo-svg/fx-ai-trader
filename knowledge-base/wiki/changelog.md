@@ -4,6 +4,15 @@
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-18 — docs(analysis): r2_shadow_demoted_cell「構造的詰まり」診断 — analyst フラグ裁定 = 現状維持 (rule:R3)
+
+- **[[analyses/shadow-accumulation-blockage-diagnosis-2026-07-18]]**: analyst report (07-17 pre_tokyo 等) の「scalp 系全般で r2_shadow_demoted_cell が Sentinel N 蓄積を毎日足止め = 構造的詰まり」フラグをコード + 本番実測で裁定
+- **コード実態 = (b)**: gate (`demo_trader.py` L4227-4248 / L3826) は OANDA 送信だけでなく **shadow row の DB 書込み (L5859 `open_trade`) まで完全遮断**。ただし対象は静的 registry (`shadow_demote_registry.py`) の**反証確定済みセルのみ** (retired 5 戦略 N=453〜1,117 + per-cell 5、全て R2 監査根拠つき)
+- **実測で「詰まり」を否定**: 30d shadow rows **3,239 件 (~108/日)、147 セル** 蓄積継続。SCALP_SENTINEL 現役 (vol_surge_detector 90 / ma_regime_switch 115 行) は無傷、gate 起因ゼロは bb_rsi_reversion (T10 KILL 済) のみ。registry セルは demotion commit 日 (06-12/06-18/07-02) 以降の流入が正確にゼロ (leak なし)、per-cell 粒度も機能 (engulfing_bb×EUR_USD 157 行 vs ×USD_JPY 0)
+- **block 件数は tick 再発火ノイズ**: Render logs 実測 37.4 分で 100 件 (ema_trend_scalp×GBP_USD 単独 ≈2.7/分)。in-memory カウンタは deploy 毎リセット — 「失われた N」の推定量にならない
+- **裁定 = 現状維持**: gate は [[lessons/lesson-shadow-always-emit-cleanup-2026-04-28]] が要求した R2 自動 demotion gate の実装そのもので、原則 3 (未解決仮説の検定力保護) と無矛盾。unblock は slot 侵食 (scalp shadow cap 4/pair) で現役セルの蓄積を毀損し統計力を**下げる**。「emit 継続 + 学習除外フラグ」分離案は汚染経路再導入で却下。観測性改善 3 点 (analyst report 注記 / _SCALP_SENTINEL cosmetic 除去 / ログ rate-limit) を別タスク提案
+- **評価への影響: なし** — 診断文書のみ、live/shadow 挙動・コード一切不変
+
 ## 2026-07-17 — fix(research): E1 ハーネス敵対的レビュー修正 — fatal 2 系統 (look-2 着地 / health 時系列) + major 6 + minor (rule:R3)
 
 - **[[e1-positioning-contrarian-prereg-2026-07-16]] 判定器への敵対的レビュー (spec/leak/stats 3 レンズ、fatal 3 [実質 2 系統] / major 6 / minor 10) を全件処置**。pre-reg 本文は不変更 (LOCK 遵守)
