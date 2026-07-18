@@ -57,10 +57,14 @@ Shadow は UTC 固定で削らない (原則 3) は全ステージ共通。
 | 仮説 | Stage | 期日/条件 | 備考 |
 |---|---|---|---|
 | **E1 positioning contrarian** | S4 待ち | first look **2026-10-15** / second look 2027-01-06 | 🔒 LOCKED、13 ペア蓄積中、判定器完備 |
-| E7+ (round-2 スキャン) | S1 実行中 | 2026-07-18 起動 | イベント/vol/flow/新文献の 4 レンズ — 結果は [[external-hypothesis-scan-round2-2026-07-18]] |
+| **E15+E7 イベントモダリティ** | **S1 通過 → S2/S3 起案待ち** | E15 は in-house 12y + 無料カレンダーで**即 BT 可 = E1 より先に verdict 可能** | round-2 裁定で採用 ([[external-hypothesis-scan-round2-2026-07-18]])。単一 pre-reg family (multiplicity 二重取り禁止) |
+| **E12 CME 先物 volume flow** | S1 通過 → インフラ先行 | **yfinance 1h は 730d rolling — capture 開始が 1 週遅れる毎に歴史が 1 週消える** | 第 2 モダリティ。週次 1h バー capture job が前提 |
+| E9 通貨 VRP | S1 条件付き | EVZCLS×EURUSD 無料 probe 先行 → 正なら Databento (クレジット 6 ヶ月失効、probe 後にサインアップ) | 第 3 線 |
 | round-4 EUR divergence | S0 (条件付き) | cache 2026-11-15+ 延伸で発火 | registry `ws3-round4-eur-divergence-conditional` |
 | htf_fb×AUD_JPY recheck | S4 待ち (non-load-bearing) | shadow N≥100 or 2027-01-31 stale | projected N 14-41 — 計画に算入しない |
 | shadow 蓄積詰まり診断 | S2 実行中 | 2026-07-18 起動 | 内部母集団の将来 discovery power に影響 — [[shadow-accumulation-blockage-diagnosis-2026-07-18]] |
+
+**WIP 原則の充足状態**: S1-S4 に E1 + イベントモダリティ + E12 の 3 系統 (モダリティ分散: 非価格 sentiment / イベント / 実約定フロー) — 原則充足 ✅
 
 ## 6. 責務
 

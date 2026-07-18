@@ -3,8 +3,11 @@
 ## 2026-07-18 — docs(process): エッジ開発パイプライン常設化 — 供給ラインの単発プッシュ→常設プロセス転換 (rule:R3)
 
 - **[[edge-development-pipeline-2026-07-18]]**: user 指摘 (07-18) を受け、暗黙だったエッジ開発手続きを S0〜S8 ステージ + **WIP 原則 (S1-S4 に常時 ≥2 仮説、モダリティ分散)** + 月次スキャン cadence として正式化。E1 単一ベット (modal=UNDERPOWERED) の後継不在リスクを構造的に解消する
-- registry: `edge-supply-scan-monthly` (次回 2026-08-18) 追加。併走: E7+ round-2 feasibility スキャン (イベント/vol/flow/新文献) + shadow 蓄積詰まり R3 診断を起動
-- **評価への影響: なし** — プロセス文書 + 監視エントリのみ
+- registry: `edge-supply-scan-monthly` (次回 2026-08-18) 追加
+- **[[external-hypothesis-scan-round2-2026-07-18]] (E7-E19 裁定)**: 採用 3 — **E15 (FOMC/NFP/CPI イベント窓、in-house 12y + 無料カレンダーで即 BT 可 = E1 first look より先に verdict 可能な唯一の候補)** / E7 (指標サプライズ、19y 分単位パネル実確認、E15 と単一 pre-reg family) / E12 (CME 先物 volume flow — **yfinance 1h は 730d rolling で capture 開始遅延 = 歴史の不可逆喪失**)。条件付き E9 (VRP、無料 probe 先行)。棄却 6。データ実在は全て一次確認 (5-agent workflow、敵対的検査込み)
+- 今から始めないと不可逆なインフラ 3 件を特定: FF Actual 補完 ingest / CME 1h volume 週次 capture / CME settlement・OI 日次 scrape (§infra 参照)
+- 併走: shadow 蓄積詰まり R3 診断 (別ブランチ)
+- **評価への影響: なし** — プロセス文書 + 研究裁定 + 監視エントリのみ
 
 ## なぜこのページが重要か
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
