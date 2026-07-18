@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-07-18 — docs(prereg): E15+E7 イベントモダリティ・プログラム 単一 family pre-reg 起案 — 🔓 DESIGN self-LOCK (rule:R1 手続き、純研究)
+
+- **[[e15-e7-event-modality-prereg-2026-07-18]]**: round-2 裁定 ([[external-hypothesis-scan-round2-2026-07-18]]) の統合推奨どおり、E15 (FOMC/NFP/CPI イベント窓プレミア/リバーサル、phase-0) + E7 (指標サプライズ directional、phase-1) を**単一 pre-reg family** で起案。方法論 = round-1/2/3 と同一 (discovery diagnostic → 候補固定凍結 → clean OOS、BH-FDR + first-touch EV レグ + ナイフエッジ)、[[edge-development-pipeline-2026-07-18]] S2/S3 統合・型 B
+- 設計の要点: (1) **α 会計 = phase 分割 q=0.05+0.05 ≤ 0.10** (E1 の look 分割と同型、multiplicity 二重取り禁止の実装)、(2) **primary = USD-leg 7 ペア block の combo pooled × event-block 推論** (bootstrap + Ibragimov–Müller 併設。T11「EUR_JPY は USD 露出ゼロ」反証の構造的排除)、(3) **凍結規則は raw EV 単独ランク禁止** — fold 安定性 → EV-per-vol → イベント種分散 ([[lesson-freeze-rule-topEV-selects-overfit-2026-07-14]] 反映)、(4) T11 / WMR fix REJECT / E8 棄却との区別を §2 に明示、発表前 entry は構造的にゼロ、(5) 窓 = discovery 〜2023-12-31 / OOS 2024-01〜2026-06-30 (Lee & Wang RAPS 2025 の post-sample = 文献 standing の検証を兼ねる)
+- 期日: **phase-0 verdict 2026-07-31** (E1 first look 10-15 より 2.5 ヶ月先行 — WIP 原則の戦略的役割) / phase-1 verdict 2026-08-28。registry `e15-e7-event-prereg-phase0-verdict` / `phase1-verdict` 追加、queue `20260718-e15-e7-event-phase0` 起票、pipeline 状態表 S3 反映
+- **評価への影響: なし** — 純研究 pre-reg + 監視エントリのみ。live/shadow/Kelly/tier 一切不変更。PASS でも実装は D4 実装 pre-reg + user 承認 (S5) が別途必要
+
 ## 2026-07-18 — docs(process): エッジ開発パイプライン常設化 — 供給ラインの単発プッシュ→常設プロセス転換 (rule:R3)
 
 - **[[edge-development-pipeline-2026-07-18]]**: user 指摘 (07-18) を受け、暗黙だったエッジ開発手続きを S0〜S8 ステージ + **WIP 原則 (S1-S4 に常時 ≥2 仮説、モダリティ分散)** + 月次スキャン cadence として正式化。E1 単一ベット (modal=UNDERPOWERED) の後継不在リスクを構造的に解消する
