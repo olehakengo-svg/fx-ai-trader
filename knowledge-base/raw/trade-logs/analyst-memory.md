@@ -2870,6 +2870,16 @@ Cutoff後累計は vix_carry_unwind(USDJPY) 2件 + ny_close_reversal(USDJPY) 1�
 > **NO ACTION推奨**
 - **仮説A（良性）**: フィルタ群が市場のノイズ期間を正確に識別し、リスクを回避している
 
+### 2026-07-20 (Pre-Tokyo Briefing)
+**2026-07-19（前日）: トレード数 = 0、PnL = 0、WR = N/A**
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **注記**: Cutoff後有効トレード総数 N=3。統計的有意性の閾値（N=10）に遠く及ばず、WR・EVはいずれも「参考値」にすぎない。昇格基準（N≥30 & EV≥1.0）・降格基準（N≥30 & EV<-0.5）ともに適用不能。
+- **`hedge_block`が合計237件**（全ブロックの約56%）: 現在オープンポジションがない（Open Trades=0）にもかかわらずhedge_blockが大量発生。これは同一方向への同時シグナルが複数戦略で連続発生し、内部ヘッジ判定が片側に集中する構造を示す。レジームがRANGINGに偏る中、方向性シグナルが均一に出ない状況がブロックを誘発している可能性。
+- **`r2_shadow_demoted_cell`が合計114件**（約27%）: USD/CHF、EUR Scalp、GBP 5m Scalp等の複数戦略で降格セルが多数存在。Shadow期間中のパフォーマンス悪化によりライブ実行経路が広範に閉塞されている。
+- **`direction_filter`が123件（最大）**: RNB USD/JPYはシグナルは出るが方向フィルターに全件遮断。USD/JPYのRANGING（ATR%ile 71%）かつSMA上昇傾向（+0.00231）のレジームが、RNBの逆張りロジックと構造的に相性不良の可能性。
+- **`gbp_asia_flash_crash`が26件**: GBP/JPY（RANGING、ATR%ile 60%）で防衛フィルターが稼働。GBP/JPYのSMAスロープ急傾斜（+0.00470）がフラッシュクラッシュ判定を誘発か。
+- `hedge_block`の多発は現レジーム下での構造的現象として**観察継続**。コード変更なし。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
