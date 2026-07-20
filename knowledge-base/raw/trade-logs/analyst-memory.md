@@ -2890,6 +2890,16 @@ Cutoff後累計は vix_carry_unwind(USDJPY) 2件 + ny_close_reversal(USDJPY) 1�
 - **Scalp系**: RANGING環境はスキャルプに**理論上は有利**（tight rangeでの反転狙い）。しかし`r2_shadow_demoted_cell`が63件と多く、稼働可能なセルが少ない状態
 - **RnB_USDJPY**: ATR71%pileは高めで値動きあり。しかし`direction_filter`41件が示すとおり、方向性判定がシグナルと噛み合っていない
 
+### 2026-07-20 (Post-London Report)
+| PnL | **0.0 pips / $0.00** |
+| 勝率 (WR) | **N/A** |
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+| 累計PnL | **0.0 pips / $0.00** |
+**推奨アクション（判断のみ）:**
+- NYセッションについては「NO ACTIONが最適」と位置付け、強制エントリー圧力をかけない
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
