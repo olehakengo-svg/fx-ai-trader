@@ -2900,6 +2900,16 @@ Cutoff後累計は vix_carry_unwind(USDJPY) 2件 + ny_close_reversal(USDJPY) 1�
 **推奨アクション（判断のみ）:**
 - NYセッションについては「NO ACTIONが最適」と位置付け、強制エントリー圧力をかけない
 
+### 2026-07-20 (Pre-Tokyo Briefing)
+前日（2026-07-19）はトレードゼロ。Cutoff後累積でN=2、PnL=+1.9p、WR=50.0%。システムは稼働中だが、実質的なシグナル生成が極めて限定的な状態が続いている。統計的判断に足るデータ蓄積は現時点で皆無に等しい（N=2）。
+| Strategy | Pair | N | WR% | EV | PnL | 判断ステータス |
+| 3 | N蓄積が進まずEV/WR評価が不能状態 | 🔴 高 |
+- **トレードゼロ**の原因がシグナル未発火なのか、フィルタで全弾ブロックされているのかを区別して監視する。ログ上の`block_counts`とシグナル候補数の比較が鍵。
+- **OANDA接続の`None`値**はデータ取得不全を示す可能性がある。本日のNY→東京引継ぎ時点でNAV/Balanceが依然`None`であれば、接続の実効性を疑うべき。
+- **shadow_tracking（20件）が全block原因**：これはシステム設計上の動作であり異常ではないが、デモ→本番昇格経路が完全に閉塞している現状の象徴でもある。
+- **現在の環境でシグナルが出やすい**: GBP_JPY（TRENDING_UP）> GBP_USD（VOLATILE）
+- **シグナルが出にくい/出ても勝ちにくい**: EUR_JPY/EUR_USD（RANGING、ATR低位）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
