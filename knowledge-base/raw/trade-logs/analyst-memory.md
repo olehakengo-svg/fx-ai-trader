@@ -2880,6 +2880,16 @@ Cutoff後累計は vix_carry_unwind(USDJPY) 2件 + ny_close_reversal(USDJPY) 1�
 - **`gbp_asia_flash_crash`が26件**: GBP/JPY（RANGING、ATR%ile 60%）で防衛フィルターが稼働。GBP/JPYのSMAスロープ急傾斜（+0.00470）がフラッシュクラッシュ判定を誘発か。
 - `hedge_block`の多発は現レジーム下での構造的現象として**観察継続**。コード変更なし。
 
+### 2026-07-20 (Pre-Tokyo Briefing)
+前日（2026-07-19）は全モードで約定ゼロ。Cutoff後累計はN=3、WR=66.7%、PnL=+3.7pと極めて小規模。本日時点でシステムは「信号を出せていない」状態が続いている。
+| Strategy | Pair | N | WR% | EV | PnL | 判定ステータス |
+- `hedge_block`（計113件：daytrade系合計）が最大勢力。これはエントリーシグナルが出ているにもかかわらず、反対方向のオープンポジション（またはその記録）が存在するために遮断されていることを示す
+- `r2_shadow_demoted_cell`（計63件：scalp系合計）は、Shadow検証で低評価となったセルへのシグナルが多数発生していることを示す。シグナル源そのものの品質問題を示唆
+- `direction_filter`（41件：rnb_usdjpy）はUSDJPYの方向性判定が頻繁にシグナルと乖離している
+- **Daytrade系（DT）**: 大半のペアがRANGING。DT戦略はトレンド/ブレイクアウトを前提とするケースが多く、現状レジームは**中立〜やや不利**。GBPJPYのATR60%・slope+0.47が唯一の好機候補だが、`daytrade_gbpjpy`のblock状況は不明（blockリストに出ていないため非活性か）
+- **Scalp系**: RANGING環境はスキャルプに**理論上は有利**（tight rangeでの反転狙い）。しかし`r2_shadow_demoted_cell`が63件と多く、稼働可能なセルが少ない状態
+- **RnB_USDJPY**: ATR71%pileは高めで値動きあり。しかし`direction_filter`41件が示すとおり、方向性判定がシグナルと噛み合っていない
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
