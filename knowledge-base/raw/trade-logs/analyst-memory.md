@@ -2930,6 +2930,16 @@ Cutoff後累計は vix_carry_unwind(USDJPY) 2件 + ny_close_reversal(USDJPY) 1�
 - **DD=100.01%のDD防御0.2x発動中** — この水準でのパラメータ緩和は禁止
 | USD_JPY | RANGING | 71% | ATR高水準なのにRANGING — レジーム分類とATRの乖離に注意 |
 
+### 2026-07-21 (Post-London Report)
+| PnL | **0.0 pips** |
+- GBP/JPYは`TRENDING_UP`（ATR%ile 60%）、GBP/USDは`VOLATILE`（ATR%ile 59%）と、ロンドン時間に適合するレジームが存在していた。
+- それにもかかわらず稼働中の全26モードでエントリーゼロという結果は、シグナル生成側かフィルタリング側での**構造的抑制**が機能していたことを示唆する。
+| PnL | 0.0p | 0.0p |
+| WR | N/A | N/A |
+| USD/JPY | RANGING (ATR 71%) | ATR%ile高いがSMAスロープ+0.00194と弱い上昇バイアス。レンジ内でのノイズ増大に注意。 |
+### 推奨戦略配分
+| 戦略 | ペア候補 | 推奨度 | 理由 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
