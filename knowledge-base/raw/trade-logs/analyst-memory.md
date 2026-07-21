@@ -2910,6 +2910,16 @@ Cutoff後累計は vix_carry_unwind(USDJPY) 2件 + ny_close_reversal(USDJPY) 1�
 - **現在の環境でシグナルが出やすい**: GBP_JPY（TRENDING_UP）> GBP_USD（VOLATILE）
 - **シグナルが出にくい/出ても勝ちにくい**: EUR_JPY/EUR_USD（RANGING、ATR低位）
 
+### 2026-07-21 (Pre-Tokyo Briefing)
+| 総PnL | ±0.0p |
+| 全体WR | N/A |
+| Strategy | Pair | N | WR% | EV | PnL | ステータス |
+- **hedge_block（96+53+28=177件）が最大ブロック群**。相対ポジションが既にヘッジ構成と判定され、新規エントリーを全面封鎖。月曜日の方向感の不在がヘッジ判定を多発させた可能性が高い。
+- **r2_shadow_demoted_cell（30+25+20+5=80件）**がスキャルプ系を壊滅。Shadowセルの降格状態が継続しており、スキャルプ戦略全体のシグナル供給が構造的に枯渇。
+- **rnb_usdjpy: direction_filter（92件）** はレンジ相場（USD_JPY RANGING 71%ile）での方向フィルターが意図通りに機能している正常動作。ただし結果としてエントリーゼロ。
+- hedge_blockの集中は「今日も継続リスク」として認識。EUR系・AUD_JPY系での新規エントリーは引き続き制限される見込み。
+- r2_shadow_demoted_cellの状況が改善しない限り、scalp系は本日もエントリー困難。この状態が何営業日継続しているか追跡要。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
