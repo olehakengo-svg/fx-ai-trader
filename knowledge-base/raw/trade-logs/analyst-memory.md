@@ -2940,6 +2940,16 @@ Cutoff後累計は vix_carry_unwind(USDJPY) 2件 + ny_close_reversal(USDJPY) 1�
 ### 推奨戦略配分
 | 戦略 | ペア候補 | 推奨度 | 理由 |
 
+### 2026-07-21 (Pre-Tokyo Briefing)
+| PnL合計 | ±0.0 |
+| 全体WR | N/A |
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **注意**: N=1は統計的に「データなし」として扱う。EV・WR・PnLのいずれも参考値にすらならない。現時点でCutoff後に判断可能な戦略×ペアの組み合わせは**ゼロ**である。
+**レジームサマリー**: 5ペア中3ペアがRANGING。現在の市場構造はDT系（トレンド追随）に対して構造的不利。RANGINGペアでのスプレッドコスト比率が上昇しており、EV圧迫要因となりうる。
+| 時間帯（JST） | 内容 | 注意点 |
+**レジーム遷移リスク**: USD/JPY（ATR%ile=71%×RANGING）は最も不安定な組み合わせ。高ATRがRANGING内で消費されている状態であり、方向ブレイクアウト時の瞬間的ボラ上昇に注意。
+shadow_trackingによる100% SKIPは、「本番に上げられるシグナルが1件も存在しない」ことを意味する。v2.3 roadmapで指摘されている「正の摩擦調整EV
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
