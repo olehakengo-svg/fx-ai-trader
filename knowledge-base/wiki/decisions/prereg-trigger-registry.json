@@ -161,12 +161,36 @@
    "message": "[RESOLVED 2026-07-17] E1 positioning contrarian pre-reg の LOCK 決裁 — self-LOCK 執行済み。監視は e1-prereg-verdict-deadline へ移管"
   },
   {
+   "id": "e15-e7-event-prereg-phase0-verdict",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2026-07-31",
+   "doc": "knowledge-base/wiki/decisions/e15-e7-event-modality-prereg-2026-07-18.md",
+   "message": "E15+E7 イベントモダリティ family phase-0 (E15 FOMC/NFP/CPI イベント窓) — データ準備+discovery+候補凍結 2026-07-24 / OOS verdict 2026-07-31。queue 20260718-e15-e7-event-phase0 が未着手なら stale (T5 型実行ギャップ防止)。E1 first look (2026-10-15) より先の verdict が戦略的役割 (WIP 原則)"
+  },
+  {
+   "id": "e15-e7-event-prereg-phase1-verdict",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2026-08-28",
+   "doc": "knowledge-base/wiki/decisions/e15-e7-event-modality-prereg-2026-07-18.md",
+   "message": "E15+E7 family phase-1 (E7 指標サプライズ directional) — FF gap scrape + データ付録凍結 2026-08-14 / discovery+凍結 2026-08-21 / OOS verdict 2026-08-28。phase-0 の帰結に依存せず実行 (pre-reg §8 固定分岐)。EPSOFT 歴史パネル + 2023-04〜の gap 一括 scrape が前提"
+  },
+  {
    "id": "e1-prereg-verdict-deadline",
    "active": true,
    "type": "deadline_info",
    "deadline": "2026-10-15",
    "doc": "knowledge-base/wiki/decisions/e1-positioning-contrarian-prereg-2026-07-16.md",
    "message": "E1 positioning contrarian pre-reg (🔒 LOCKED 2026-07-17) の first look verdict 期日。データ cutoff #1 = 2026-10-08 (t0+12週)、burn-in 20営業日 (〜2026-08-12)、評価窓 08-13〜10-08。verdict 期日 2026-10-15 に §8 へ判定結果 (Gate1 pooled IC / Gate2 摩擦調整EV / combo 排他分類 C1-C5 / ナイフエッジ4点 / 全体 verdict PASS/UNDERPOWERED/REJECT-F/REJECT) を追記。UNDERPOWERED なら e1-prereg-second-look 登録 (cutoff #2 2026-12-30 / verdict 2027-01-06)。判定器 tools/e1_positioning_prereg_eval.py は LOCK 後実装 (unit test pin 先行)。中間 peeking 禁止 (§6)"
+  },
+  {
+   "id": "edge-supply-scan-monthly",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2026-08-18",
+   "doc": "knowledge-base/wiki/syntheses/edge-development-pipeline-2026-07-18.md",
+   "message": "月次外部仮説スキャンの実行期日 (エッジ開発パイプライン §4)。実行したら本エントリの deadline を翌月に更新する。WIP 原則: S1-S4 の仮説が 2 本未満になったら期日を待たず臨時スキャン (R3)"
   }
  ]
 }

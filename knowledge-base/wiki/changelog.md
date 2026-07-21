@@ -1,5 +1,28 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-07-21 — feat(research): E15 phase-0 §3.1 価格データ + coverage 凍結 — MASSIVE ブロックは誤り (rule:R1 手続き、純研究)
+
+- **E15 phase-0 の data-run を前進** ([[e15-e7-event-modality-prereg-2026-07-18]] §3.1 執行、runbook `e15_phase0_execution_status.md`)。前回 (07-20) autopilot が「MASSIVE_API_KEY + FRED_API_KEY 双方 credential ブロック」と記録していたが、**MASSIVE 側は事実誤認** (`.env` に実在・稼働)。branch-stale (166 commit 遅れ) を検知し origin/main から再検証 → 自走原則で unblock。
+- **成果**: 13 ペア 15m フル歴史 (days=4650) を MASSIVE 取得 → parquet、explore 窓 (2014-01-01〜2023-12-31) coverage 凍結 → `raw/bt-results/e15_e7_pair_coverage.json`。**13/13 pass gate 0.90 (0.974〜1.000)、primary 7/7、EUR_AUD 1.000** → §3.1 縮小分岐 / §8 DEFERRED(primary<5) リスク解消。ハーネス (`_load_pair`→`event_trade`→`run_combo`) を実 parquet でスモーク検証済。
+- **残ブロッカー = FRED calendar (NFP/CPI) のみ**: `FRED_API_KEY` 不在・self-provision 不能 (FRED 公開ページ WebFetch 403/urllib timeout、firecrawl キー無)。FOMC は key-free だが歴史ページ書式が不統一 → NFP/CPI と同一 keyed パスで一括構築が正 (discovery は 54 combo family 全 event 揃うまで走らせない=§5b)。
+- **§10-1 遵守 (中間 peeking 禁止)**: coverage 件数 + 日付範囲の計上のみ。OOS 窓のイベント×リターン結合統計は一切未計算。**評価への影響なし** — 純研究、live/shadow/Kelly/tier 不変更。期日: 凍結 2026-07-24 / OOS verdict 2026-07-31 (registry `e15-e7-event-prereg-phase0-verdict` 継続監視)。
+
+## 2026-07-18 — docs(prereg): E15+E7 イベントモダリティ・プログラム 単一 family pre-reg 起案 — 🔓 DESIGN self-LOCK (rule:R1 手続き、純研究)
+
+- **[[e15-e7-event-modality-prereg-2026-07-18]]**: round-2 裁定 ([[external-hypothesis-scan-round2-2026-07-18]]) の統合推奨どおり、E15 (FOMC/NFP/CPI イベント窓プレミア/リバーサル、phase-0) + E7 (指標サプライズ directional、phase-1) を**単一 pre-reg family** で起案。方法論 = round-1/2/3 と同一 (discovery diagnostic → 候補固定凍結 → clean OOS、BH-FDR + first-touch EV レグ + ナイフエッジ)、[[edge-development-pipeline-2026-07-18]] S2/S3 統合・型 B
+- 設計の要点: (1) **α 会計 = phase 分割 q=0.05+0.05 ≤ 0.10** (E1 の look 分割と同型、multiplicity 二重取り禁止の実装)、(2) **primary = USD-leg 7 ペア block の combo pooled × event-block 推論** (bootstrap + Ibragimov–Müller 併設。T11「EUR_JPY は USD 露出ゼロ」反証の構造的排除)、(3) **凍結規則は raw EV 単独ランク禁止** — fold 安定性 → EV-per-vol → イベント種分散 ([[lesson-freeze-rule-topEV-selects-overfit-2026-07-14]] 反映)、(4) T11 / WMR fix REJECT / E8 棄却との区別を §2 に明示、発表前 entry は構造的にゼロ、(5) 窓 = discovery 〜2023-12-31 / OOS 2024-01〜2026-06-30 (Lee & Wang RAPS 2025 の post-sample = 文献 standing の検証を兼ねる)
+- 期日: **phase-0 verdict 2026-07-31** (E1 first look 10-15 より 2.5 ヶ月先行 — WIP 原則の戦略的役割) / phase-1 verdict 2026-08-28。registry `e15-e7-event-prereg-phase0-verdict` / `phase1-verdict` 追加、queue `20260718-e15-e7-event-phase0` 起票、pipeline 状態表 S3 反映
+- **評価への影響: なし** — 純研究 pre-reg + 監視エントリのみ。live/shadow/Kelly/tier 一切不変更。PASS でも実装は D4 実装 pre-reg + user 承認 (S5) が別途必要
+
+## 2026-07-18 — docs(process): エッジ開発パイプライン常設化 — 供給ラインの単発プッシュ→常設プロセス転換 (rule:R3)
+
+- **[[edge-development-pipeline-2026-07-18]]**: user 指摘 (07-18) を受け、暗黙だったエッジ開発手続きを S0〜S8 ステージ + **WIP 原則 (S1-S4 に常時 ≥2 仮説、モダリティ分散)** + 月次スキャン cadence として正式化。E1 単一ベット (modal=UNDERPOWERED) の後継不在リスクを構造的に解消する
+- registry: `edge-supply-scan-monthly` (次回 2026-08-18) 追加
+- **[[external-hypothesis-scan-round2-2026-07-18]] (E7-E19 裁定)**: 採用 3 — **E15 (FOMC/NFP/CPI イベント窓、in-house 12y + 無料カレンダーで即 BT 可 = E1 first look より先に verdict 可能な唯一の候補)** / E7 (指標サプライズ、19y 分単位パネル実確認、E15 と単一 pre-reg family) / E12 (CME 先物 volume flow — **yfinance 1h は 730d rolling で capture 開始遅延 = 歴史の不可逆喪失**)。条件付き E9 (VRP、無料 probe 先行)。棄却 6。データ実在は全て一次確認 (5-agent workflow、敵対的検査込み)
+- 今から始めないと不可逆なインフラ 3 件を特定: FF Actual 補完 ingest / CME 1h volume 週次 capture / CME settlement・OI 日次 scrape (§infra 参照)
+- 併走: shadow 蓄積詰まり R3 診断 (別ブランチ)
+- **評価への影響: なし** — プロセス文書 + 研究裁定 + 監視エントリのみ
+
 ## なぜこのページが重要か
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。

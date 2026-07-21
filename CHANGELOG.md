@@ -1,5 +1,24 @@
 # FX AI Trader - Changelog
 
+## 2026-07-20 — feat(e15): イベントモダリティ phase-0 estimand lib + discovery ハーネス + §10-6 契約 pin (rule:R1 手続き、純研究)
+
+- **E15+E7 phase-0 の機械層を先行実装** ([[e15-e7-event-modality-prereg-2026-07-18]] §3.5/§4/§5a の
+  「設計自由度ゼロ — 執行のみ」を関数化)。data-run が credential ブロック中のため、オフラインで
+  完遂可能な estimand SSOT + ハーネス + テストを納品し data-run を push-button 化
+- `tools/event_modality_lib.py` — estimand SSOT: ET→UTC per-date DST / USD-leg 方向変換 /
+  fade·follow·uncond / **first-touch SL 優先** (round-3 crossasset harness の TP 優先からの意図的
+  逸脱 = ハウス保守規約に忠実) / σ_h=ATR14d·√(h/24) / entry·terminal=open / censoring /
+  R0 look-ahead canary / coverage gate。import 副作用ゼロ
+- `tools/event_modality_explore.py` — §5a discovery ハーネス (54 combo × primary 7 pooled /
+  fold 3 分割 / §5b select_and_freeze)。`self-test` (合成 dry-run) green = 54→54 cell false-edge 0、
+  `discovery` は data 欠落時 fail-loud。`EXPLORE_END=2023-12-31` 構造強制で §10-1 peeking 防止
+- `tests/test_event_modality_lib.py` — §10-6 契約 pin 12 件 green (SL 優先 / DST / entry=open /
+  censoring / leak canary)。check.py 9/9 通過
+- **credential ブロック**: MASSIVE_API_KEY (12y 15m 価格) + FRED_API_KEY (NFP/CPI release date) とも
+  env 不在、sandbox が `.env` 遮断。key-free 代替 (BLS 403 / MASSIVE Economy に release-date なし) 全滅。
+  data-run runbook = `raw/bt-results/e15_phase0_execution_status.md`
+- **評価への影響: なし** — 純研究。live/shadow/Kelly/tier 一切不変更
+
 ## 2026-07-09 — fix(tier): FORCE_DEMOTED > PAIR_PROMOTED precedence を全経路統一 (rule:R3, latent/実害ゼロ)
 
 - **latent 疑義の確定**: `_is_promoted_ex` (live gate 本体) だけが PP 先勝ち

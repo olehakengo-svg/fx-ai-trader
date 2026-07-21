@@ -1,0 +1,126 @@
+{
+  "generated": "2026-07-21",
+  "days_fetched": 4650,
+  "explore_window": [
+    "2014-01-01",
+    "2023-12-31"
+  ],
+  "coverage_gate": 0.9,
+  "n_included_all": 13,
+  "n_included_primary": 7,
+  "primary_pairs": [
+    "USD_JPY",
+    "EUR_USD",
+    "GBP_USD",
+    "AUD_USD",
+    "NZD_USD",
+    "USD_CAD",
+    "USD_CHF"
+  ],
+  "ledger": {
+    "USD_JPY": {
+      "status": "OK",
+      "rows": 312458,
+      "first": "2013-10-24 00:00:00+00:00",
+      "last": "2026-07-21 04:45:00+00:00",
+      "explore_coverage": 0.9786,
+      "included": true
+    },
+    "EUR_USD": {
+      "status": "OK",
+      "rows": 315178,
+      "first": "2013-10-24 00:00:00+00:00",
+      "last": "2026-07-21 04:45:00+00:00",
+      "explore_coverage": 0.9902,
+      "included": true
+    },
+    "GBP_USD": {
+      "status": "OK",
+      "rows": 314600,
+      "first": "2013-10-24 00:00:00+00:00",
+      "last": "2026-07-21 04:45:00+00:00",
+      "explore_coverage": 0.9874,
+      "included": true
+    },
+    "AUD_USD": {
+      "status": "OK",
+      "rows": 314793,
+      "first": "2013-10-24 00:00:00+00:00",
+      "last": "2026-07-21 04:45:00+00:00",
+      "explore_coverage": 0.9972,
+      "included": true
+    },
+    "NZD_USD": {
+      "status": "OK",
+      "rows": 311244,
+      "first": "2013-10-24 00:00:00+00:00",
+      "last": "2026-07-21 04:45:00+00:00",
+      "explore_coverage": 0.9738,
+      "included": true
+    },
+    "USD_CAD": {
+      "status": "OK",
+      "rows": 313188,
+      "first": "2013-10-24 00:00:00+00:00",
+      "last": "2026-07-21 04:45:00+00:00",
+      "explore_coverage": 0.9813,
+      "included": true
+    },
+    "USD_CHF": {
+      "status": "OK",
+      "rows": 320136,
+      "first": "2013-10-24 00:00:00+00:00",
+      "last": "2026-07-21 05:00:00+00:00",
+      "explore_coverage": 1.0,
+      "included": true
+    },
+    "EUR_JPY": {
+      "status": "OK",
+      "rows": 325611,
+      "first": "2013-10-24 00:00:00+00:00",
+      "last": "2026-07-21 05:00:00+00:00",
+      "explore_coverage": 1.0,
+      "included": true
+    },
+    "GBP_JPY": {
+      "status": "OK",
+      "rows": 325020,
+      "first": "2013-10-24 00:00:00+00:00",
+      "last": "2026-07-21 05:00:00+00:00",
+      "explore_coverage": 1.0,
+      "included": true
+    },
+    "AUD_JPY": {
+      "status": "OK",
+      "rows": 327877,
+      "first": "2013-10-24 00:00:00+00:00",
+      "last": "2026-07-21 05:00:00+00:00",
+      "explore_coverage": 1.0,
+      "included": true
+    },
+    "NZD_JPY": {
+      "status": "OK",
+      "rows": 335999,
+      "first": "2013-10-24 00:00:00+00:00",
+      "last": "2026-07-21 05:00:00+00:00",
+      "explore_coverage": 1.0,
+      "included": true
+    },
+    "EUR_GBP": {
+      "status": "OK",
+      "rows": 315563,
+      "first": "2013-10-24 00:00:00+00:00",
+      "last": "2026-07-21 05:15:00+00:00",
+      "explore_coverage": 0.9912,
+      "included": true
+    },
+    "EUR_AUD": {
+      "status": "OK",
+      "rows": 318832,
+      "first": "2013-10-24 00:00:00+00:00",
+      "last": "2026-07-21 05:15:00+00:00",
+      "explore_coverage": 1.0,
+      "included": true
+    }
+  }
+}
