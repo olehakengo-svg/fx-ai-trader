@@ -65,10 +65,10 @@ round-2 は「CME 無料 settlement は ~7 日窓のみ → 今から貯める�
 
 ## 7. 監視と次アクション
 
-- **監視**: `/api/marketdata/status` — stale 基準 ff_calendar 24h / cme_bars 72h (週末市場閉鎖を跨いでも誤警報しない)。deploy 後に registry へ freshness watch を追加する (E1 `e1-positioning-ingest-freshness` と同型)
+- **監視**: `/api/marketdata/status` — stale 基準 ff_calendar 24h / cme_bars 72h (週末市場閉鎖を跨いでも誤警報しない)。✅ **registry へ freshness watch 追加済み (2026-07-21)**: `r3-market-data-ingest-freshness` — E1 `e1-positioning-ingest-freshness` と同型の ingest 鮮度 watch だが、こちらは**機械評価** (`tools/prereg_trigger_watch.py` の type=`ingest_freshness` が health の verified:* age を毎日判定)。キー欠落・7 契約未満 (min_keys) も fail-loud で TRIGGERED (worker 未稼働/thread 死の検出 — E1 thread 死教訓)。API 不達/health DB エラーは DATA_UNAVAILABLE (「stale 確定」と区別)。閾値/契約数は `STALE_ALERT_*_SEC` / `DEFAULT_CME_SYMBOLS` とテストで整合固定 (`tests/test_prereg_trigger_watch.py::test_ingest_freshness_registry_matches_module_constants`)
 - **次アクション**:
-  1. deploy 後検証: `/api/marketdata/status` で running/health を確認 (FF は初回 cycle が 429 を引いた場合 30 分 retry で自己回復するはず — verified:ff_calendar が 24h 以内に立つこと)
-  2. CME 1h の深い backfill: Render console で一度だけ `period="730d"` fetch (2024-02〜の 2y を確保)。go-forward は日次 job が維持
+  1. ~~deploy 後検証~~ → ✅ **2026-07-21 確認済み**: running=true、verified:ff_calendar=2026-07-21T10:55Z + cme 7 契約全 verified (同時刻)。初回の 6E=F yfinance empty (10:22Z) は retry で自己回復済み (restarts=1、last_error に痕跡)
+  2. CME 1h の深い backfill: Render console で一度だけ `period="730d"` fetch (2024-02〜の 2y を確保)。go-forward は日次 job が維持。**2026-07-21 実測: 6E=F のみ backfill 済み (first_bar 2024-02-27、13,723 rows)。残り 6 契約は first_bar 2026-07-13 (8d 窓のみ) — 未了**
   3. FF 歴史 gap: EPSOFT 延長入手 or 正規 dataset を裁定 → `tools/ff_calendar_import.py` で合流
   4. E7+E15 イベントモダリティ・プログラムの pre-reg 起案 (round-2 の次アクション (1)、本 doc の §3 限界 1〜3 を宣言に含める)
 

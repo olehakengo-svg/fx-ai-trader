@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-07-21 — feat(monitor): R3 market-data ingest 鮮度監視を prereg-trigger-registry に配線 (rule:R3)
+
+- **registry `r3-market-data-ingest-freshness` 追加** ([[market-data-ingest-2026-07-18]] §7 宣言の執行、E1 `e1-positioning-ingest-freshness` と同型): `/api/marketdata/status` の health を毎日機械評価 — `verified:ff_calendar` 24h 超 stale / `verified:cme_bars:*` (7 契約) いずれか 72h 超 stale (週末市場閉鎖 ~2.5d を跨いでも誤警報しない) / キー欠落・min_keys 未達 (worker 未稼働・thread 死の fail-loud 検出) で 🔴 TRIGGERED。API 不達/health DB エラーは DATA_UNAVAILABLE に分離
+- 実装 = `tools/prereg_trigger_watch.py` に type=`ingest_freshness` (純関数 `evaluate_ingest_freshness` + fetch 分離、既存パターン準拠)。tests +10 — registry 閾値/契約数がモジュール定数 `STALE_ALERT_*_SEC` / `DEFAULT_CME_SYMBOLS` と乖離したら fail する整合 pin 込み
+- deploy 後検証 (§7 次アクション 1) 完了: running=true、ff + cme 7 契約全 verified (2026-07-21T10:55Z)。CME 深 backfill は 6E=F のみ済 (残 6 契約、§7 次アクション 2 継続)
+- **評価への影響: なし** — 監視エントリ + watch ツール拡張のみ。live/shadow/Kelly/tier 不変
+
 ## 2026-07-21 — feat(research): E15 phase-0 §3.1 価格データ + coverage 凍結 — MASSIVE ブロックは誤り (rule:R1 手続き、純研究)
 
 - **E15 phase-0 の data-run を前進** ([[e15-e7-event-modality-prereg-2026-07-18]] §3.1 執行、runbook `e15_phase0_execution_status.md`)。前回 (07-20) autopilot が「MASSIVE_API_KEY + FRED_API_KEY 双方 credential ブロック」と記録していたが、**MASSIVE 側は事実誤認** (`.env` に実在・稼働)。branch-stale (166 commit 遅れ) を検知し origin/main から再検証 → 自走原則で unblock。
