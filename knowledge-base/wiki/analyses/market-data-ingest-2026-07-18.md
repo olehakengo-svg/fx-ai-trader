@@ -52,7 +52,7 @@ round-2 は「CME 無料 settlement は ~7 日窓のみ → 今から貯める�
 - 7 契約 (`6E=F 6J=F 6B=F 6A=F 6C=F 6S=F 6N=F`) = 13 ペア universe の対 USD base 通貨を網羅。追加コストは 1 req/契約/日
 - 日次 capture、`period=8d` overlap で週末/障害を跨いでも欠落しない。**形成中 bar は保存しない** (partial volume の凍結防止、`filter_closed_bars`)
 - `INSERT OR IGNORE` = **初回 capture 値を凍結**。yfinance の事後補正で歴史が動くと BT 再現性が壊れるため、first-capture 主義 (乖離が疑われたら export で再検証)
-- 730d rolling 窓の左端 (実測 2024-02-23) は毎日 1 日ずつ消える — capture 開始日 (2026-07-18) 以降、検証歴史は 2y から単調延伸する。**深い歴史 backfill (2024-02 までの 2y 分) は次回 deploy 後の初回 cycle が自動で取る訳ではない** (period=8d)。必要なら一度だけ `period=730d` の手動 backfill を Render console で実行する (次アクション §7)
+- 730d rolling 窓の左端 (実測 2024-02-23) は毎日 1 日ずつ消える — capture 開始日 (2026-07-18) 以降、検証歴史は 2y から単調延伸する。**深い歴史 backfill (2024-02 までの 2y 分) は次回 deploy 後の初回 cycle が自動で取る訳ではない** (period=8d)。必要なら一度だけ `period=730d` の手動 backfill を Render console で実行する (次アクション §7) → ✅ **実行済み 2026-07-21** (§7 (2) に結果記録)
 
 ## 6. 実装の構造 (positioning_ingest パターン準拠)
 
@@ -69,6 +69,7 @@ round-2 は「CME 無料 settlement は ~7 日窓のみ → 今から貯める�
 - **次アクション**:
   1. deploy 後検証: `/api/marketdata/status` で running/health を確認 (FF は初回 cycle が 429 を引いた場合 30 分 retry で自己回復するはず — verified:ff_calendar が 24h 以内に立つこと)
   2. CME 1h の深い backfill: Render console で一度だけ `period="730d"` fetch (2024-02〜の 2y を確保)。go-forward は日次 job が維持
+     → ✅ **完了 2026-07-21 11:10Z** (Render SSH で `yf_fetch_bars(sym, period="730d")` + `filter_closed_bars` + `save_bars` を 7 契約実行)。結果: 新規 **95,069 行** / dedup 1,008 (go-forward 既存 144 行/契約 × 7 は INSERT OR IGNORE で凍結維持) / 失敗 0。全 7 契約 **first_bar = 2024-02-27T05:00Z** (実行時点の yfinance 60m 左端) 〜 latest 2026-07-21T10:00Z、~13.7k bars/契約。`/api/marketdata/status` + `/api/marketdata/export?table=cme_bars` の両経路で検証済み。以後の歴史延伸は日次 job (period=8d) の単調 capture のみ — **再実行不要** (730d 窓はこれ以上左に伸びない)
   3. FF 歴史 gap: EPSOFT 延長入手 or 正規 dataset を裁定 → `tools/ff_calendar_import.py` で合流
   4. E7+E15 イベントモダリティ・プログラムの pre-reg 起案 (round-2 の次アクション (1)、本 doc の §3 限界 1〜3 を宣言に含める)
 
