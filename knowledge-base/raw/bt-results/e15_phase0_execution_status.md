@@ -1,9 +1,47 @@
-# E15 phase-0 execution status — price data + coverage FROZEN (MASSIVE unblocked), residual = FRED calendar only
+# E15 phase-0 execution status — calendar FROZEN + sanity >5% → §8 DEFERRED (user 裁定待ち)
 
-**日付**: 2026-07-20 machinery / **2026-07-21 price-data run (autopilot)**
-**pre-reg SSOT**: [[e15-e7-event-modality-prereg-2026-07-18]] (🔓 DESIGN self-LOCK)
+**日付**: 2026-07-20 machinery / 2026-07-21 price-data run (autopilot) / **2026-07-21 calendar run (本セッション)**
+**pre-reg SSOT**: [[e15-e7-event-modality-prereg-2026-07-18]] (🔓 DESIGN self-LOCK + §3.2b AMENDMENT 2026-07-21)
 **タスク票**: `.ai/tasks/queue/20260718-e15-e7-event-phase0.md`
 **期日**: 凍結 2026-07-24 / OOS verdict 2026-07-31 (registry `e15-e7-event-prereg-phase0-verdict`)
+
+## 🔄 2026-07-21 更新 (calendar run) — カレンダー凍結完了、sanity >5% 発火 → §8 DEFERRED、discovery は user 裁定待ち
+
+**FRED ブロッカーは §3.2b AMENDMENT (結果観測前 data-availability、round-3 前例) で解消**:
+NFP 行に pre-registered 済みの fallback「BLS 公式ページ」を発動 (CPI は「同上」の明確化)、
+アクセスは Wayback Machine snapshot 経由 (BLS 直接 403)。発表日は客観的事実でソース非依存。
+
+- **カレンダー構築完了** (`tools/event_calendar_build.py build`、politeness 2s/req):
+  **FOMC 99 / NFP 149 / CPI 149 件** (2014-01-01〜2026-06-30、ET→UTC per-date DST)。
+  - NFP/CPI = BLS News Release Archive の**アーカイブ発表ファイル名 = actual release date** (一次記録)。
+    snapshot: empsit 2026-07-13 / cpi 2026-06-12 (sha256 は JSON source ledger に凍結)。
+  - FOMC = federalreserve.gov 直接。fomccalendars.htm (2021-2026) + fomchistorical{2014-2020}。
+    **scheduled のみ**: unscheduled 4 (2014-03-04, 2019-10-04, 2020-03-02, 2020-03-15) /
+    cancelled 1 (2020-03-17,18) / notation vote 4 件を除外・記録 (計 9、JSON exclusion ledger)。
+    monetary20250822a (枠組み改定、非会合) は行内突合で構造排除。scheduled = 8/年 (2020 のみ 7+1 cancelled)、2026H1 = 4。
+  - **整合性検証 green (explore 窓)**: NFP 非金曜ゼロ (7月4日木曜 3 件のみ) / 12件/年 / 欠月ゼロ。
+    OOS 窓の 2025 shutdown 異常 (NFP 11/20 木曜・12/16 火曜、Oct 2025 欠月等) は**フラグ記録のみ・除外せず** (§10-3)。
+  - パーサ回帰 pin: `tests/test_event_calendar_build.py` (15 tests、オフライン fixture)。
+- **価格 re-fetch 再現**: 13/13 ペアの explore coverage が凍結台帳と**完全一致** (例: USD_JPY 0.9786、
+  EUR_AUD 1.0000) — 台帳の再現可能性を実証。
+- **⚠️ §3.2 sanity 検出器が発火**: フラグ率 **CPI 43.6% / NFP 6.8% / FOMC 2.5%** (>5%)
+  → §3.2 処方どおり **discovery 停止・カレンダー再検証を実施**:
+  - **verify-times (オフセットピーク検査、range のみ・explore 窓のみ)**: 全 3 イベント種で
+    range 比が **offset +0 で正確にピーク** (NFP 3.94× / CPI 2.92× / FOMC 7.95×) = **時刻は正しい**。
+  - フラグ年次分布: CPI は 2014-2020 に 49/51 集中 (2023 ゼロ) = **低インフレ期の低インパクト由来**。
+    NFP/FOMC フラグは COVID 期 (高ベースライン) 集中。**時刻破損行ゼロ → §3.2 後付け修正は不実施**。
+  - → 検出器は「時刻誤り」と「低インパクトイベント」を弁別できない仕様だが、
+    **pre-reg §8 は明文で「カレンダー sanity >5% — user 裁定 (勝手に解釈しない)」** →
+    **DEFERRED 分岐発動。discovery は user 裁定まで実行しない** (R1 規律、勝手な解釈で
+    LOCK を汚さない)。裁定材料は `e15_e7_event_calendar_build.md` に凍結済み。
+- **user 裁定後は push-button**: `python3 tools/event_modality_explore.py discovery` が
+  カレンダー + parquet を読んで §5a/§5b を機械実行 (凍結 artifact `e15_frozen_candidates.json`
+  も書き出す)。期日 07-24 まで残り 3 日 — 裁定が下り次第、数分で凍結可能。
+- **役割分離 (PR #102)**: 本カレンダー = 歴史 (BLS/Fed 一次、BT 判定用)。PR #102 の
+  `tools/ff_calendar_import.py` + `modules/market_data_ingest.py` = go-forward FF capture
+  (E7 Actual 補完)。ファイル・役割とも非重複。
+- **§10-1 遵守**: 本セッションで計算したのはカレンダー件数・整合性・event bar の **range** のみ。
+  イベント×リターンの結合統計 (探索窓含む) は一切未計算 — discovery 自体を実行していない。
 
 ## 🔄 2026-07-21 更新 (autopilot) — MASSIVE ブロックは誤り、§3.1 データ準備を完遂
 
