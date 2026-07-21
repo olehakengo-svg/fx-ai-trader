@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-07-21 — feat(research): E15 phase-0 §3.1 価格データ + coverage 凍結 — MASSIVE ブロックは誤り (rule:R1 手続き、純研究)
+
+- **E15 phase-0 の data-run を前進** ([[e15-e7-event-modality-prereg-2026-07-18]] §3.1 執行、runbook `e15_phase0_execution_status.md`)。前回 (07-20) autopilot が「MASSIVE_API_KEY + FRED_API_KEY 双方 credential ブロック」と記録していたが、**MASSIVE 側は事実誤認** (`.env` に実在・稼働)。branch-stale (166 commit 遅れ) を検知し origin/main から再検証 → 自走原則で unblock。
+- **成果**: 13 ペア 15m フル歴史 (days=4650) を MASSIVE 取得 → parquet、explore 窓 (2014-01-01〜2023-12-31) coverage 凍結 → `raw/bt-results/e15_e7_pair_coverage.json`。**13/13 pass gate 0.90 (0.974〜1.000)、primary 7/7、EUR_AUD 1.000** → §3.1 縮小分岐 / §8 DEFERRED(primary<5) リスク解消。ハーネス (`_load_pair`→`event_trade`→`run_combo`) を実 parquet でスモーク検証済。
+- **残ブロッカー = FRED calendar (NFP/CPI) のみ**: `FRED_API_KEY` 不在・self-provision 不能 (FRED 公開ページ WebFetch 403/urllib timeout、firecrawl キー無)。FOMC は key-free だが歴史ページ書式が不統一 → NFP/CPI と同一 keyed パスで一括構築が正 (discovery は 54 combo family 全 event 揃うまで走らせない=§5b)。
+- **§10-1 遵守 (中間 peeking 禁止)**: coverage 件数 + 日付範囲の計上のみ。OOS 窓のイベント×リターン結合統計は一切未計算。**評価への影響なし** — 純研究、live/shadow/Kelly/tier 不変更。期日: 凍結 2026-07-24 / OOS verdict 2026-07-31 (registry `e15-e7-event-prereg-phase0-verdict` 継続監視)。
+
 ## 2026-07-18 — docs(prereg): E15+E7 イベントモダリティ・プログラム 単一 family pre-reg 起案 — 🔓 DESIGN self-LOCK (rule:R1 手続き、純研究)
 
 - **[[e15-e7-event-modality-prereg-2026-07-18]]**: round-2 裁定 ([[external-hypothesis-scan-round2-2026-07-18]]) の統合推奨どおり、E15 (FOMC/NFP/CPI イベント窓プレミア/リバーサル、phase-0) + E7 (指標サプライズ directional、phase-1) を**単一 pre-reg family** で起案。方法論 = round-1/2/3 と同一 (discovery diagnostic → 候補固定凍結 → clean OOS、BH-FDR + first-touch EV レグ + ナイフエッジ)、[[edge-development-pipeline-2026-07-18]] S2/S3 統合・型 B
