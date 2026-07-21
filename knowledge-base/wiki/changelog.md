@@ -1,5 +1,13 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-07-21 — feat(research): E15 phase-0 イベントカレンダー凍結 + §3.2b AMENDMENT — sanity >5% 発火で §8 DEFERRED (rule:R1 手続き、純研究)
+
+- **§3.2b AMENDMENT (結果観測前 data-availability、round-3 前例)**: FRED キー self-provision 不能 → NFP 行に **pre-registered 済み fallback「BLS 公式ページ」を発動** (CPI は「同上」の明確化)。アクセスは Wayback snapshot 経由 (BLS 直接 403)。BLS News Release Archive の**アーカイブ発表ファイル名 = actual release date** を一次記録に格上げ。grid/判定規則は不変更、追記時点でイベント×リターン結合統計は未計算。
+- **カレンダー凍結**: `tools/event_calendar_build.py` (politeness 2s/req) → `raw/bt-results/e15_e7_event_calendar.json` + build log。**FOMC 99 / NFP 149 / CPI 149 件** (2014-01〜2026-06、ET→UTC per-date DST)。FOMC は scheduled のみ (unscheduled 4 / cancelled 1 / notation vote 4 除外・記録、monetary20250822a 型の非会合リリースは行内突合で構造排除)。整合性検証 green (explore 窓: NFP 金曜規則・12件/年・欠月ゼロ)、2025 shutdown 異常はフラグのみ (§10-3)。パーサ回帰 pin 15 tests (オフライン fixture)。価格 re-fetch で coverage 台帳 13/13 完全再現。
+- **⚠️ §3.2 sanity 発火 → §8 DEFERRED**: フラグ率 CPI 43.6% / NFP 6.8% / FOMC 2.5% (>5%)。処方どおり discovery 停止・再検証 → **verify-times (オフセットピーク検査) で全種 offset +0 ピーク = 時刻は正しい** (フラグは低インフレ期 CPI / COVID 期高ベースライン由来、破損行ゼロ)。しかし §8 明文「sanity >5% — **user 裁定 (勝手に解釈しない)**」に従い **discovery 未実行・user 裁定待ち**。裁定後は push-button (期日 07-24)。
+- **役割分離**: 本カレンダー = 歴史 (BLS/Fed 一次、BT 判定用) ⇔ PR #102 FF capture = go-forward ingest (E7 Actual 補完)。非重複。
+- **評価への影響なし** — 純研究、live/shadow/Kelly/tier 不変更。**§10-1 遵守: イベント×リターン結合統計は探索窓含め一切未計算** (計算したのはカレンダー件数・整合性・event bar range のみ)。
+
 ## 2026-07-21 — feat(research): E15 phase-0 §3.1 価格データ + coverage 凍結 — MASSIVE ブロックは誤り (rule:R1 手続き、純研究)
 
 - **E15 phase-0 の data-run を前進** ([[e15-e7-event-modality-prereg-2026-07-18]] §3.1 執行、runbook `e15_phase0_execution_status.md`)。前回 (07-20) autopilot が「MASSIVE_API_KEY + FRED_API_KEY 双方 credential ブロック」と記録していたが、**MASSIVE 側は事実誤認** (`.env` に実在・稼働)。branch-stale (166 commit 遅れ) を検知し origin/main から再検証 → 自走原則で unblock。

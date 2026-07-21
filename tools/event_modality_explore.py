@@ -202,6 +202,14 @@ def discovery() -> int:
            {"status": "OK", "n_combos": len(cells), "coverage": coverage,
             "cells": cells})
     frozen = select_and_freeze(cells)
+    # §5b 凍結 artifact (runbook 指定: raw/bt-results/e15_frozen_candidates.json)
+    _write("e15_frozen_candidates.json",
+           {"status": "FROZEN", "prereg": "e15-e7-event-modality-prereg-2026-07-18 §5b",
+            "explore_end": EXPLORE_END, "m0": len(frozen), "m_cap": 8,
+            "selection_rule": "(i) EV_te>0 (ii) EV_ft>0 (iii) N>=60 & blocks>=40 "
+                              "(iv) fold sign agreement >=2/3; freeze lexicographic: "
+                              "fold agreement desc -> EV-per-vol desc -> event<=3",
+            "candidates": frozen})
     print(f"discovery: {len(cells)}/54 combos computed, "
           f"{len(frozen)} pass selection+freeze")
     return 0
