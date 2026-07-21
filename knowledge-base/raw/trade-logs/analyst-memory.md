@@ -2920,6 +2920,16 @@ Cutoff後累計は vix_carry_unwind(USDJPY) 2件 + ny_close_reversal(USDJPY) 1�
 - hedge_blockの集中は「今日も継続リスク」として認識。EUR系・AUD_JPY系での新規エントリーは引き続き制限される見込み。
 - r2_shadow_demoted_cellの状況が改善しない限り、scalp系は本日もエントリー困難。この状態が何営業日継続しているか追跡要。
 
+### 2026-07-21 (Post-Tokyo Report)
+| PnL | 0.0p |
+| WR | N/A |
+- 東京セッションN=0は「フィルターが機能した結果」であり、「見逃し損失」の証拠がない
+- hedge_blockはポジション方向集中リスク回避の正常動作
+- order_bar_dedupはエントリー重複防止の正常動作
+- r2_shadow_demoted_cellはシグナル品質管理の正常動作
+- **DD=100.01%のDD防御0.2x発動中** — この水準でのパラメータ緩和は禁止
+| USD_JPY | RANGING | 71% | ATR高水準なのにRANGING — レジーム分類とATRの乖離に注意 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
