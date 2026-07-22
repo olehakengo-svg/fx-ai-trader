@@ -2970,6 +2970,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 ### 推奨戦略配分
 | `daytrade_gbpusd` | GBP/USD | 🟡 要監視 | VOLATILEレジームでspread_guard発動リスク。GBP/JPYと同方向リスク集中に注意 |
 
+### 2026-07-22 (Post-London Report)
+| PnL | 0.0 pips |
+- **OANDA転送率 0%**（50件中50件がSKIP）
+- **Block主因**: `shadow_tracking`（20件100%） — デモシャドー追跡状態が継続中であり、全シグナルがデモ専用として処理されている
+- **NAV/Balance = None** — OANDA口座情報が取得不能状態。接続はActive=Trueだが実質的な口座参照が機能していない
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+> **⚠️ NO ACTION推奨**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
