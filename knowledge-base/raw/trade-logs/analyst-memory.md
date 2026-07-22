@@ -2960,6 +2960,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 - `hedge_block`: オープンポジションがゼロ（OANDA Open Trades=0）にもかかわらずhedge_blockが発動している点は要注視。ポジション管理ロジックに何らかの残存フラグが疑われる。
 - `direction_filter`（87件）: RNB_USDJPYの方向フィルターが機能しすぎており、現状RANGINGレジームのUSDJPYでは事実上シグナルが出ない設計になっている可能性が高い。
 
+### 2026-07-22 (Post-Tokyo Report)
+| PnL | 0.0 pips |
+- 本日東京のN=0は「戦略の劣化」ではなく「設計通りのブロック作動」と解釈できる
+- `r2_shadow_demoted_cell`はshadow評価による自律降格メカニズムであり、正常機能
+- `hedge_block`はEUR系リスク集中防御として意図的設計
+- Fidelity Cutoff後の累積Nが十分に蓄積していない現状では、ブロック解除の根拠データが存在しない
+- **コード変更禁止原則に基づき、判断のみ**: 現時点でパラメータ介入は統計的根拠ゼロ
+### 推奨戦略配分
+| `daytrade_gbpusd` | GBP/USD | 🟡 要監視 | VOLATILEレジームでspread_guard発動リスク。GBP/JPYと同方向リスク集中に注意 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
