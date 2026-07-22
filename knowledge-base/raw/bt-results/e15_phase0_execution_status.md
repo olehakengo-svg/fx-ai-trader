@@ -145,3 +145,11 @@ python3 tools/event_modality_explore.py discovery
   二重定義リスクを排除 (round-3 で first-touch 定義が harness 内に閉じていた反省)。
 - data-run が別環境になっても、機械層 + tests が pin されているため「執行のみ」の pre-reg
   規律 (設計自由度ゼロ) を保てる。
+
+---
+
+## 🟢 2026-07-22 — §8 DEFERRED 裁定: user 承認 → discovery 実行
+
+- **裁定**: user「承認」(2026-07-22、本 session)。問 = 「sanity フラグ率 CPI 43.6% > 5% は時刻誤りではなく低インパクトイベント由来として discovery 続行を承認するか」
+- **裁定根拠 (観測前に凍結済みの材料のみ)**: verify-times 検査で全 3 イベント種が offset +0 に正確な変動ピーク (NFP 3.94× / CPI 2.92× / FOMC 7.95×)、破損行ゼロ。フラグは低インフレ期 (2014-2020) CPI の低インパクト由来 (49/51 が同期間、2023 ゼロ)。低インパクトイベントの包含は「正直な EV」側 — 除外する方が選択バイアス
+- **実行**: `python3 tools/event_modality_explore.py discovery` — 価格 parquet は coverage 台帳検証済みフルセット (calendar worktree からコピー、13/13)。凍結 artifact = `e15_frozen_candidates.json`、期日 2026-07-24 に対し 2 日前倒し
