@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-07-22 — data(research): E15 phase-0 discovery 実行 — §8 DEFERRED user 承認 → 6 候補凍結 (rule:R1 手続き)
+
+- **§8 DEFERRED 裁定 = user 承認 (2026-07-22)**: sanity フラグ (CPI 43.6%) は verify-times で時刻正常を立証済み・低インパクトイベント由来と裁定、discovery 続行
+- **discovery (探索窓 2014-2023 のみ): 54/54 combo 計算 → 選抜規則 (§5b 凍結 = fold→EV-per-vol→種分散) で 6 候補凍結** (FOMC 3 / CPI 3 / NFP 0) — `e15_frozen_candidates.json` + 全 combo 台帳 `e15_discovery.json`
+- 価格 parquet は coverage 台帳検証済みフルセット 13/13 を使用 (部分 parquet 罠回避)。OOS 窓 (2024-01-01〜) は未接触 — **次 = clean OOS 判定、verdict 期日 2026-07-31** (registry `e15-e7-event-prereg-phase0-verdict`)。凍結は期日 07-24 の 2 日前倒し
+- **評価への影響: なし** — 純研究、live 変更なし
+
 ## 2026-07-21 — feat(research): E15 phase-0 イベントカレンダー凍結 + §3.2b AMENDMENT — sanity >5% 発火で §8 DEFERRED (rule:R1 手続き、純研究)
 
 - **§3.2b AMENDMENT (結果観測前 data-availability、round-3 前例)**: FRED キー self-provision 不能 → NFP 行に **pre-registered 済み fallback「BLS 公式ページ」を発動** (CPI は「同上」の明確化)。アクセスは Wayback snapshot 経由 (BLS 直接 403)。BLS News Release Archive の**アーカイブ発表ファイル名 = actual release date** を一次記録に格上げ。grid/判定規則は不変更、追記時点でイベント×リターン結合統計は未計算。
