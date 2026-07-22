@@ -58,6 +58,18 @@
 - **カレンダー sanity (判定不使用の検出器)**: 各イベントについて event bar (t_e に開く M15 バー) の realized range が「直前 20 営業日の同時刻バー range 中央値」の 2 倍未満なら時刻誤り疑いフラグ (>5% で discovery 停止・カレンダー再検証)。時刻の後付け修正は**破損確認できた行のみ** (E1 jump detector と同じ規律)。
 - 同日複衝突 (例: CPI と FOMC が同日): 各イベントは独立に扱い、**collision フラグ**を記録 (horizon 窓内に他イベント発表を含むトレード)。除外しない (裁量トリム回避) — ナイフエッジ #4 で collision 除外 EV の符号を検査。
 
+#### §3.2b AMENDMENT (2026-07-21、結果観測前 data-availability — round-3 前例準拠)
+
+**種別**: データソースの取得経路代替のみ。**grid / 窓 / 判定規則 / 凍結規則 / イベント種 / 時刻規約は一切不変更**。本追記時点でイベント×リターンの結合統計は一切未計算 (§10-1 遵守下)。
+
+1. **FRED 経路の不能確定**: `FRED_API_KEY` は env 不在・self-provision 不能 (2026-07-20/21 runbook `e15_phase0_execution_status.md` に記録)。FRED 公開ページも本環境から 403。
+2. **NFP**: §3.2 表に **pre-registered 済みの fallback「BLS 公式スケジュールページ」を発動**する。**CPI**: 表の「同上」は「FRED release_id=10 + 同型 fallback (BLS 公式ページ)」と読む — 本 AMENDMENT で明確化。
+3. **アクセス経路**: BLS 直接アクセスは本環境から 403 のため、**Wayback Machine snapshot (web.archive.org、`id_` raw モード) 経由で BLS 一次ページを取得**する。使用 snapshot の URL・timestamp・sha256 はカレンダー JSON の source ledger に凍結する。
+4. **一次記録の格上げ**: BLS News Release Archive ページ (`bls.gov/bls/news-release/{empsit,cpi}.htm`) のアーカイブ済み発表ファイル名 `{empsit,cpi}_MMDDYYYY` は **actual release date の一次記録** (計画表ではなく発表実績) であり、アンカーテキストが reference month を与える。スケジュール計画ページより強い記録として主ソースに用いる。
+5. **ソース非依存性**: 発表日は客観的事実であり、FRED release/dates と BLS 一次ページは同一事実の別記録。ソース差はイベント×リターン統計に自由度を与えない。
+6. **FOMC**: 変更なし (federalreserve.gov 直接 HTTP 200)。歴史ページ (2014-2020) の年別書式は構造パース (panel 見出しの `(unscheduled)`/`(cancelled)`/`(notation vote)` マーカー分類 + statement URL 日付と会合日レンジの突合) で処理し、scheduled meeting のみ採用・除外は件数と日付を記録する (§3.2 本文どおり)。
+7. **カレンダー sanity の運用明確化**: §3.2 の range-based 検出器は discovery 時に **explore 窓イベントのみ**に対して実行する。OOS 窓イベントの sanity は verdict 実行時に行う (§10-1 の中間 peeking 禁止を優先する運用解釈であり、検出器の定義・閾値は不変)。
+
 ### 3.3 E7 サプライズデータ (phase-1)
 
 - **歴史パネル**: EPSOFT CSV 19y 分単位 (forecast/actual/previous、〜2023-03。列構成は round-2 スキャンで実取得確認済み)。
