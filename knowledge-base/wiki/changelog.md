@@ -1,5 +1,13 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-07-22 — docs(research): E20 金利差方向バイアス S1 feasibility — 条件付き採用 (S2 GO) (rule:R3)
+
+- **user 仮説 (2026-07-22)「金利差から計算した方向バイアス × テクニカル entry」を E20 としてパイプライン S1 (C1–C6) で裁定** → [[e20-rate-differential-feasibility-2026-07-22]]。判定 = **条件付き採用 (S2 GO)** — 第 4 モダリティ (rates)、蓄積待ちゼロで BT 即可
+- **falsified 台帳との区別を確定**: round-3 (intraday ZN divergence-reversion) とは データ/頻度/機構/役割 の 4 軸で別仮説。hull-donchian USD_CHF ratediff (FALSIFIED) は claim が逆 (fade ゲート ⇔ 継続バイアス)。D1 TSMOM は price-momentum で family 別 — 3 件の教訓ガード (単調性 / USD-neutrality / regime slice) を S2 必須化。E5 term-structure の C1 棄却は日次粒度で解消 (CIP proxy)
+- **データ実在を一次確認 (実 fetch 証跡付き)**: 政策金利 8/8 = BIS WS_CBPOL 日次 keyless 単一エンドポイント (1999 実取得、鮮度 07-09〜14)。2y 国債利回り = US (MASSIVE in-house 1962+) / EUR (ECB 2004+) / JPY (MOF 1974+) / GBP (BOE 1995+) / CAD (BoC 2001+) 現行、CHF (SNB 1988+) は **2025-07-31 で cube 凍結**、AUD/NZD は WAF 403 → Wayback 歴史のみ (go-forward gap)
+- 条件: claim = 継続バイアス限定 / variant 2 本凍結 / live 段階は AUD/NZD 制限 / 保有 1–10 日は帳簿上限外 (E9 同型 △)。S2 推奨 spec (`tools/rapid_edge_probe_e20.py`) を doc §7 に付す
+- **評価への影響: なし** — 純研究 S1、live/shadow/Kelly/tier 不変更
+
 ## 2026-07-22 — data(research): E15 phase-0 discovery 実行 — §8 DEFERRED user 承認 → 6 候補凍結 (rule:R1 手続き)
 
 - **§8 DEFERRED 裁定 = user 承認 (2026-07-22)**: sanity フラグ (CPI 43.6%) は verify-times で時刻正常を立証済み・低インパクトイベント由来と裁定、discovery 続行
