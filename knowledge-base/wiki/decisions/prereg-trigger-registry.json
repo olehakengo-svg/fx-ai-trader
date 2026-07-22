@@ -191,6 +191,18 @@
    "deadline": "2026-08-18",
    "doc": "knowledge-base/wiki/syntheses/edge-development-pipeline-2026-07-18.md",
    "message": "月次外部仮説スキャンの実行期日 (エッジ開発パイプライン §4)。実行したら本エントリの deadline を翌月に更新する。WIP 原則: S1-S4 の仮説が 2 本未満になったら期日を待たず臨時スキャン (R3)"
+  },
+  {
+   "id": "r3-market-data-ingest-freshness",
+   "active": true,
+   "type": "ingest_freshness",
+   "endpoint": "/api/marketdata/status",
+   "checks": [
+    {"key": "verified:ff_calendar", "max_age_hours": 24},
+    {"prefix": "verified:cme_bars:", "max_age_hours": 72, "min_keys": 7}
+   ],
+   "doc": "knowledge-base/wiki/analyses/market-data-ingest-2026-07-18.md",
+   "message": "R3 market-data ingest 鮮度監視 (PR #102、本番稼働 2026-07-21) — verified:ff_calendar が 24h 超 stale / verified:cme_bars:* (7 契約) のいずれかが 72h 超 stale・キー欠落で要調査 (§7 宣言基準。CME 72h は週末市場閉鎖 ~2.5d を跨いでも誤警報しない)。E1 e1-positioning-ingest-freshness と同型の ingest 鮮度 watch だがこちらは機械評価。閾値/契約数は modules/market_data_ingest.py の STALE_ALERT_*_SEC / DEFAULT_CME_SYMBOLS とテストで整合固定 (CME_BARS_SYMBOLS env 変更時は本エントリの min_keys も更新)。stale 時は Render ログ [market-ingest] と status API の last_error / consecutive_failures を確認"
   }
  ]
 }

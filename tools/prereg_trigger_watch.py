@@ -101,6 +101,75 @@ def evaluate_deadline_info(deadline: str, today: str) -> dict[str, Any]:
     return {"state": STATE_WATCHING, "detail": f"期日 {deadline} まで監視"}
 
 
+def _iso_age_hours(value: Any, now_iso: str) -> float | None:
+    """ISO timestamp (末尾 Z 可) の now からの経過時間 [h]。不正値は None。"""
+    if not value:
+        return None
+    try:
+        v = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        n = datetime.fromisoformat(now_iso.replace("Z", "+00:00"))
+        if v.tzinfo is None:
+            v = v.replace(tzinfo=timezone.utc)
+        if n.tzinfo is None:
+            n = n.replace(tzinfo=timezone.utc)
+        return (n - v).total_seconds() / 3600.0
+    except ValueError:
+        return None
+
+
+def evaluate_ingest_freshness(
+    health: dict[str, Any] | None,
+    checks: list[dict[str, Any]],
+    now_iso: str,
+) -> dict[str, Any]:
+    """ingest 鮮度監視: health の verified:* age が閾値超で要調査 TRIGGERED。
+
+    checks の各要素は {"key": ..., "max_age_hours": N} (単一キー) または
+    {"prefix": ..., "max_age_hours": N, "min_keys": M} (前方一致、M キー未満で
+    警報 — 契約単位の verified が 1 本だけ立たない欠落も拾う)。
+
+    キー欠落・prefix 一致ゼロは TRIGGERED (worker 未稼働/thread 死を fail-loud
+    に検出 — E1 positioning の thread 死教訓)。API 不達 (None) と health DB
+    エラー (_error) は「stale 確定」と区別して DATA_UNAVAILABLE。
+    """
+    if health is None:
+        return {"state": STATE_UNAVAILABLE, "detail": "status API unreachable"}
+    if "_error" in health:
+        return {"state": STATE_UNAVAILABLE,
+                "detail": f"health DB error: {health['_error']}"}
+    stale: list[str] = []
+    fresh: list[str] = []
+
+    def check_key(key: str, max_h: float) -> None:
+        age = _iso_age_hours(health.get(key), now_iso)
+        if age is None:
+            stale.append(f"{key} verified 記録なし (> {max_h:.0f}h 扱い)")
+        elif age > max_h:
+            stale.append(f"{key} age={age:.1f}h > {max_h:.0f}h")
+        else:
+            fresh.append(f"{key} {age:.1f}h")
+
+    for chk in checks:
+        max_h = float(chk["max_age_hours"])
+        prefix = chk.get("prefix")
+        if prefix:
+            keys = sorted(k for k in health if k.startswith(prefix))
+            min_keys = int(chk.get("min_keys", 1))
+            if len(keys) < min_keys:
+                stale.append(
+                    f"{prefix}* {len(keys)}/{min_keys} キー (min_keys 未達 — "
+                    "未 verified/worker 未稼働疑い)")
+            for k in keys:
+                check_key(k, max_h)
+        else:
+            check_key(chk["key"], max_h)
+
+    if stale:
+        return {"state": STATE_TRIGGERED, "detail": "stale: " + "; ".join(stale)}
+    return {"state": STATE_WATCHING,
+            "detail": f"fresh ({len(fresh)} keys): " + ", ".join(fresh)}
+
+
 def evaluate_shadow_count_info(
     count: int | None, since: str, expected_per_week: float, today: str,
 ) -> dict[str, Any]:
@@ -199,6 +268,21 @@ def fetch_shadow_count(entry_type: str, since: str, app_base: str,
         return None
 
 
+def fetch_ingest_health(app_base: str, endpoint: str) -> dict[str, Any] | None:
+    """ingest status API の health dict。API 不達は None (UNAVAILABLE)、
+    worker 未起動レスポンス (health キー欠落) は {} — 評価側で全キー欠落
+    として fail-loud TRIGGERED になる。"""
+    try:
+        import requests
+        r = requests.get(f"{app_base}{endpoint}", timeout=30)
+        r.raise_for_status()
+        d = r.json()
+        h = d.get("health") if isinstance(d, dict) else None
+        return h if isinstance(h, dict) else {}
+    except Exception:
+        return None
+
+
 # ── registry 評価 ────────────────────────────────────────────────────
 
 def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
@@ -229,6 +313,13 @@ def evaluate_trigger(trig: dict[str, Any], *, today: str, app_base: str) -> dict
             int(trig["n_decide"]), trig["deadline"], today)
     elif ttype == "deadline_info":
         res = evaluate_deadline_info(trig["deadline"], today)
+    elif ttype == "ingest_freshness":
+        # today (date 粒度) では時間単位の鮮度を測れないため実時刻を使う。
+        res = evaluate_ingest_freshness(
+            fetch_ingest_health(
+                app_base, trig.get("endpoint", "/api/marketdata/status")),
+            trig["checks"],
+            datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
     elif ttype in ("info", "conditional_info"):
         # 手動判定/条件待ちの常時 watching エントリ (機械評価なし)。
         # 2026-07-14: e1-positioning-ingest-freshness (info) 追加に合わせ、

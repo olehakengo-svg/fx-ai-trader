@@ -6,6 +6,12 @@
 - **discovery (探索窓 2014-2023 のみ): 54/54 combo 計算 → 選抜規則 (§5b 凍結 = fold→EV-per-vol→種分散) で 6 候補凍結** (FOMC 3 / CPI 3 / NFP 0) — `e15_frozen_candidates.json` + 全 combo 台帳 `e15_discovery.json`
 - 価格 parquet は coverage 台帳検証済みフルセット 13/13 を使用 (部分 parquet 罠回避)。OOS 窓 (2024-01-01〜) は未接触 — **次 = clean OOS 判定、verdict 期日 2026-07-31** (registry `e15-e7-event-prereg-phase0-verdict`)。凍結は期日 07-24 の 2 日前倒し
 - **評価への影響: なし** — 純研究、live 変更なし
+## 2026-07-21 — feat(monitor): R3 market-data ingest 鮮度監視を prereg-trigger-registry に配線 (rule:R3)
+
+- **registry `r3-market-data-ingest-freshness` 追加** ([[market-data-ingest-2026-07-18]] §7 宣言の執行、E1 `e1-positioning-ingest-freshness` と同型): `/api/marketdata/status` の health を毎日機械評価 — `verified:ff_calendar` 24h 超 stale / `verified:cme_bars:*` (7 契約) いずれか 72h 超 stale (週末市場閉鎖 ~2.5d を跨いでも誤警報しない) / キー欠落・min_keys 未達 (worker 未稼働・thread 死の fail-loud 検出) で 🔴 TRIGGERED。API 不達/health DB エラーは DATA_UNAVAILABLE に分離
+- 実装 = `tools/prereg_trigger_watch.py` に type=`ingest_freshness` (純関数 `evaluate_ingest_freshness` + fetch 分離、既存パターン準拠)。tests +10 — registry 閾値/契約数がモジュール定数 `STALE_ALERT_*_SEC` / `DEFAULT_CME_SYMBOLS` と乖離したら fail する整合 pin 込み
+- deploy 後検証 (§7 次アクション 1) 完了: running=true、ff + cme 7 契約全 verified (2026-07-21T10:55Z)。CME 深 backfill (§7 次アクション 2) は並行セッションが同日 11:10Z に全 7 契約完了済み (§7 に記録)
+- **評価への影響: なし** — 監視エントリ + watch ツール拡張のみ。live/shadow/Kelly/tier 不変
 
 ## 2026-07-21 — feat(research): E15 phase-0 イベントカレンダー凍結 + §3.2b AMENDMENT — sanity >5% 発火で §8 DEFERRED (rule:R1 手続き、純研究)
 

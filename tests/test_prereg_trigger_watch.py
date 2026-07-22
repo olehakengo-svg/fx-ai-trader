@@ -8,6 +8,7 @@ from pathlib import Path
 
 from tools.prereg_trigger_watch import (
     REGISTRY_PATH,
+    evaluate_ingest_freshness,
     evaluate_price_below,
     evaluate_shadow_count_decision,
     evaluate_shadow_count_info,
@@ -163,3 +164,138 @@ def test_unknown_type_still_unavailable():
     res = evaluate_trigger({"id": "z", "type": "no_such_type"},
                            today="2026-07-14", app_base="http://unused.invalid")
     assert res["state"] == STATE_UNAVAILABLE
+
+
+# ── ingest_freshness (r3-market-data-ingest-freshness, 2026-07-21) ──────
+# /api/marketdata/status の health verified:* を機械評価する。
+# 基準は market-data-ingest-2026-07-18.md §7 宣言: ff 24h / cme 72h
+# (週末市場閉鎖 ~2.5d を跨いでも誤警報しない)。
+
+_FRESHNESS_NOW = "2026-07-21T12:00:00Z"
+_FRESHNESS_CHECKS = [
+    {"key": "verified:ff_calendar", "max_age_hours": 24},
+    {"prefix": "verified:cme_bars:", "max_age_hours": 72, "min_keys": 2},
+]
+
+
+def _freshness_health(ff="2026-07-21T06:00:00Z",
+                      cme1="2026-07-20T12:00:00Z",
+                      cme2="2026-07-19T12:00:00Z"):
+    h = {"last_cycle_at": "2026-07-21T11:30:00Z"}
+    if ff is not None:
+        h["verified:ff_calendar"] = ff
+    if cme1 is not None:
+        h["verified:cme_bars:6E=F"] = cme1
+    if cme2 is not None:
+        h["verified:cme_bars:6J=F"] = cme2
+    return h
+
+
+def test_ingest_freshness_all_fresh_is_watching():
+    # ff 6h / cme 24h+48h — 全て閾値内
+    r = evaluate_ingest_freshness(
+        _freshness_health(), _FRESHNESS_CHECKS, _FRESHNESS_NOW)
+    assert r["state"] == "WATCHING"
+
+
+def test_ingest_freshness_ff_stale_over_24h_triggers():
+    r = evaluate_ingest_freshness(
+        _freshness_health(ff="2026-07-20T11:00:00Z"),  # 25h
+        _FRESHNESS_CHECKS, _FRESHNESS_NOW)
+    assert r["state"] == "TRIGGERED"
+    assert "verified:ff_calendar" in r["detail"]
+
+
+def test_ingest_freshness_any_cme_stale_over_72h_triggers():
+    r = evaluate_ingest_freshness(
+        _freshness_health(cme2="2026-07-18T11:00:00Z"),  # 73h
+        _FRESHNESS_CHECKS, _FRESHNESS_NOW)
+    assert r["state"] == "TRIGGERED"
+    assert "verified:cme_bars:6J=F" in r["detail"]
+
+
+def test_ingest_freshness_cme_weekend_gap_71h_not_stale():
+    # 週末市場閉鎖 (~2.5d=60h) を跨いだ直後でも 72h 以内なら誤警報しない
+    r = evaluate_ingest_freshness(
+        _freshness_health(cme2="2026-07-18T13:00:00Z"),  # 71h
+        _FRESHNESS_CHECKS, _FRESHNESS_NOW)
+    assert r["state"] == "WATCHING"
+
+
+def test_ingest_freshness_missing_key_triggers_fail_loud():
+    # verified 記録なし = worker 未稼働/thread 死の可能性 — silent pass 禁止
+    r = evaluate_ingest_freshness(
+        _freshness_health(ff=None), _FRESHNESS_CHECKS, _FRESHNESS_NOW)
+    assert r["state"] == "TRIGGERED"
+    assert "verified:ff_calendar" in r["detail"]
+
+
+def test_ingest_freshness_zero_prefix_keys_triggers():
+    r = evaluate_ingest_freshness(
+        _freshness_health(cme1=None, cme2=None),
+        _FRESHNESS_CHECKS, _FRESHNESS_NOW)
+    assert r["state"] == "TRIGGERED"
+    assert "verified:cme_bars:" in r["detail"]
+
+
+def test_ingest_freshness_min_keys_shortfall_triggers():
+    # 7 契約中 1 契約だけ verified が立たない類の欠落を fail-loud に拾う
+    r = evaluate_ingest_freshness(
+        _freshness_health(cme2=None), _FRESHNESS_CHECKS, _FRESHNESS_NOW)
+    assert r["state"] == "TRIGGERED"
+    assert "min_keys" in r["detail"] or "1/2" in r["detail"]
+
+
+def test_ingest_freshness_unavailable_states():
+    # API 不達 (None) と health DB エラー (_error) は TRIGGERED ではなく
+    # DATA_UNAVAILABLE (鮮度が「不明」なのと「stale 確定」は区別する)
+    r = evaluate_ingest_freshness(None, _FRESHNESS_CHECKS, _FRESHNESS_NOW)
+    assert r["state"] == "DATA_UNAVAILABLE"
+    r = evaluate_ingest_freshness({"_error": "OperationalError: locked"},
+                                  _FRESHNESS_CHECKS, _FRESHNESS_NOW)
+    assert r["state"] == "DATA_UNAVAILABLE"
+
+
+def test_ingest_freshness_registry_matches_module_constants():
+    """registry の閾値と modules/market_data_ingest.py の STALE_ALERT_*_SEC /
+    DEFAULT_CME_SYMBOLS が乖離したら fail する整合 pin (自動生成 KB と手書き KB の
+    機械的整合チェックと同じ ethos)。"""
+    from modules.market_data_ingest import (
+        DEFAULT_CME_SYMBOLS,
+        STALE_ALERT_CME_SEC,
+        STALE_ALERT_FF_SEC,
+    )
+    trig = next(t for t in load_registry()
+                if t["id"] == "r3-market-data-ingest-freshness")
+    assert trig["type"] == "ingest_freshness"
+    by_key = {c.get("key") or c.get("prefix"): c for c in trig["checks"]}
+    assert by_key["verified:ff_calendar"]["max_age_hours"] * 3600 == STALE_ALERT_FF_SEC
+    cme = by_key["verified:cme_bars:"]
+    assert cme["max_age_hours"] * 3600 == STALE_ALERT_CME_SEC
+    assert cme["min_keys"] == len(DEFAULT_CME_SYMBOLS)
+
+
+def test_ingest_freshness_trigger_wiring(monkeypatch):
+    """evaluate_trigger の配線: fetch を注入し、health が fresh なら WATCHING。"""
+    from datetime import datetime, timedelta, timezone
+
+    import tools.prereg_trigger_watch as w
+
+    now = datetime.now(timezone.utc)
+    fresh = {
+        "verified:ff_calendar": (now - timedelta(hours=1)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"),
+        "verified:cme_bars:6E=F": (now - timedelta(hours=2)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"),
+    }
+    monkeypatch.setattr(w, "fetch_ingest_health", lambda app_base, endpoint: fresh)
+    res = w.evaluate_trigger(
+        {"id": "r3-market-data-ingest-freshness", "type": "ingest_freshness",
+         "endpoint": "/api/marketdata/status",
+         "checks": [
+             {"key": "verified:ff_calendar", "max_age_hours": 24},
+             {"prefix": "verified:cme_bars:", "max_age_hours": 72, "min_keys": 1},
+         ],
+         "message": "m", "doc": "x.md"},
+        today="2026-07-21", app_base="http://unused.invalid")
+    assert res["state"] == w.STATE_WATCHING
