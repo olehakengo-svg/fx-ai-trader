@@ -2950,6 +2950,16 @@ Cutoff後累計は vix_carry_unwind(USDJPY) 2件 + ny_close_reversal(USDJPY) 1�
 **レジーム遷移リスク**: USD/JPY（ATR%ile=71%×RANGING）は最も不安定な組み合わせ。高ATRがRANGING内で消費されている状態であり、方向ブレイクアウト時の瞬間的ボラ上昇に注意。
 shadow_trackingによる100% SKIPは、「本番に上げられるシグナルが1件も存在しない」ことを意味する。v2.3 roadmapで指摘されている「正の摩擦調整EV
 
+### 2026-07-22 (Pre-Tokyo Briefing)
+- PnL合計: **±0** | トレード数: **0** | 全体WR: **N/A**
+- 前日は全セッション（東京・ロンドン・NY）を通じて約定ゼロ。システムは稼働しているが、シグナル生成→執行に至るパスが完全に枯渇した状態。
+- Cutoff後の累計では `ny_close_reversal × USD_JPY` のN=1（EV=+0.10、PnL=+0.1）のみ記録。**実質的にデータなし**の状態が継続中。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+> **補足**: N=1は「データなし」扱い（統計的有意性ゼロ）。全戦略において昇格基準（N≥30 & EV≥1.0）・降格基準（N≥30 & EV<-0.5）を判断できる戦略は現在皆無。Sentinel N蓄積進捗は **N=1/30**（29件不足）。
+- `r2_shadow_demoted_cell`: Shadow降格セルが多数存在＝シグナル品質の構造的問題。Scalp系は現状のセル構成では執行経路が事実上閉鎖されている。**N蓄積は待機継続で良いが、現状は蓄積すら不可能なことを認識すべき**。
+- `hedge_block`: オープンポジションがゼロ（OANDA Open Trades=0）にもかかわらずhedge_blockが発動している点は要注視。ポジション管理ロジックに何らかの残存フラグが疑われる。
+- `direction_filter`（87件）: RNB_USDJPYの方向フィルターが機能しすぎており、現状RANGINGレジームのUSDJPYでは事実上シグナルが出ない設計になっている可能性が高い。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
