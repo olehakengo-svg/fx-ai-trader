@@ -3010,6 +3010,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 ### 推奨戦略配分
 **NO ACTION推奨（本番エントリー見送り）**
 
+### 2026-07-23 (Post-London Report)
+| セッション内PnL | **0.0 pips** |
+| 勝率（WR） | **N/A** |
+| PnL | 0.0p | 0.0p |
+| WR | N/A | N/A |
+- **EUR/GBP主導ペアのボラティリティ低下**：ロンドンフィックス（UTC 16:00）通過済み。EUR_JPY・EUR_USDのATR%ile=33%は既にフラットを示唆。
+- **USD関連ペアの注目**：NY時間はUSD_JPY（ATR%ile=67%）が最も動きやすい環境だが、RANGING分類でありトレンド戦略の優位性は限定的。
+- **GBP_JPY唯一のTRENDING_UP**：NY序盤の継続性には懐疑的（ロンドン主導トレンドの惰性）。
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
