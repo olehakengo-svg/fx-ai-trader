@@ -3000,6 +3000,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 - **hedge_block多発ペア**（EURGBP, EUR, GBPUSD）の現在ポジション状況を確認→ネットポジションがゼロ（実際Open=0）にもかかわらずhedge_blockが発動しているなら、ポジション追跡ロジックの状態が問題
 - **scalp r2_shadow_demoted_cell**：現在のランクで降格セルが何件存在するかを把握し、自然回復を待つか構造的介入が必要かを判断する
 
+### 2026-07-23 (Post-Tokyo Report)
+| PnL | 0.0 pips |
+| WR | N/A |
+- Fidelity Cutoff後のOANDA転送実績 N=50、SENT=0（Live Rate 0%）の状況は継続中。これは `shadow_tracking` による意図的スキップであり、異常ではない
+- 東京セッションのゼロトレードは低ATRパーセンタイル（EUR/JPY・EUR/USD・GBP/USD いずれも33–55%台）によるシグナル品質不足と整合的
+- `r2_shadow_demoted_cell`（daytrade_1h_usdchf・scalp）によるブロックはShadow Tierの降格判定が正常に機能している証拠であり、介入不要
+- DD防御モード（0.2x）が継続中 — この制約下でのパラメータ変更は禁忌
+### 推奨戦略配分
+**NO ACTION推奨（本番エントリー見送り）**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
