@@ -400,12 +400,10 @@ def build() -> dict:
     }
 
 
-# ─── sanity (§3.2 range 検出器、explore 窓のみ — §3.2b-7) ─────────────────────
-def sanity() -> int:
-    with open(CALENDAR_JSON) as fh:
-        cal = json.load(fh)
+# ─── sanity (§3.2 range 検出器 — window 指定の共有 scan) ──────────────────────
+def load_primary_bars() -> dict:
+    """primary 7 ペアの 15m parquet を読む (sanity/verify-times/verdict 共有)。"""
     import pandas as pd  # 遅延 import (build は pandas 不要)
-
     bars = {}
     for pair in L.PRIMARY_PAIRS:
         f = os.path.join(MASSIVE, f"{pair}_15m.parquet")
@@ -415,39 +413,48 @@ def sanity() -> int:
         if m15.index.tz is None:
             m15.index = m15.index.tz_localize("UTC")
         bars[pair] = m15
-    if len(bars) < 5:
-        print(f"[BLOCKED] sanity requires >=5 primary parquets, got {len(bars)}",
-              file=sys.stderr)
-        return 3
+    return bars
 
-    explore_end = pd.Timestamp(cal["explore_end"], tz="UTC") + pd.Timedelta(days=1)
+
+def _range_baseline(m15, ev: str, t_e) -> list:
+    """直前 20 営業日の同 ET 時刻バー range (DST 追随 = event_time_utc per-date)。"""
+    base = []
+    d = t_e.tz_convert("America/New_York").date()
+    back = 1
+    while len(base) < 20 and back <= 40:
+        bd = d - timedelta(days=back)
+        back += 1
+        if bd.weekday() >= 5:
+            continue
+        bts = L.event_time_utc(ev, bd)
+        if bts in m15.index:
+            b = m15.loc[bts]
+            base.append(float(b["High"] - b["Low"]))
+    return base
+
+
+def range_sanity_scan(cal: dict, bars: dict, t_lo, t_hi) -> tuple:
+    """§3.2 range 検出器を [t_lo, t_hi] 窓で実行 (定義・閾値は §3.2 のまま不変)。
+
+    explore 窓 = `sanity` サブコマンド / OOS 窓 = verdict 実行時 (§3.2b-7)。
+    returns (results per event, worst_rate)。
+    """
+    import pandas as pd
     results = {}
     worst_rate = 0.0
     for ev, ts_list in cal["events"].items():
         flagged, checked, detail = 0, 0, []
         for iso in ts_list:
             t_e = pd.Timestamp(iso)
-            if t_e >= explore_end:
-                continue  # OOS 窓 sanity は verdict 実行時 (§3.2b-7)
+            if not (t_lo <= t_e <= t_hi):
+                continue
             votes_suspect, votes_total = 0, 0
             for pair, m15 in bars.items():
                 if t_e not in m15.index:
                     continue
                 row = m15.loc[t_e]
                 ev_range = float(row["High"] - row["Low"])
-                # 直前 20 営業日の同 ET 時刻バー (DST 追随 = event_time_utc per-date)
-                base = []
-                d = t_e.tz_convert("America/New_York").date()
-                back = 1
-                while len(base) < 20 and back <= 40:
-                    bd = d - timedelta(days=back)
-                    back += 1
-                    if bd.weekday() >= 5:
-                        continue
-                    bts = L.event_time_utc(ev, bd)
-                    if bts in m15.index:
-                        b = m15.loc[bts]
-                        base.append(float(b["High"] - b["Low"]))
+                base = _range_baseline(m15, ev, t_e)
                 if len(base) < 10:
                     continue  # 投票棄権 (baseline 不足)
                 votes_total += 1
@@ -465,6 +472,25 @@ def sanity() -> int:
         results[ev] = {"checked": checked, "flagged": flagged,
                        "rate": round(rate, 4), "flagged_events": detail}
         print(f"sanity {ev}: {flagged}/{checked} flagged ({rate:.1%})")
+    return results, worst_rate
+
+
+def sanity() -> int:
+    with open(CALENDAR_JSON) as fh:
+        cal = json.load(fh)
+    import pandas as pd
+
+    bars = load_primary_bars()
+    if len(bars) < 5:
+        print(f"[BLOCKED] sanity requires >=5 primary parquets, got {len(bars)}",
+              file=sys.stderr)
+        return 3
+
+    # explore 窓のみ — OOS 窓 sanity は verdict 実行時 (§3.2b-7)
+    t_lo = pd.Timestamp("2000-01-01", tz="UTC")
+    t_hi = pd.Timestamp(cal["explore_end"], tz="UTC") + pd.Timedelta(days=1) \
+        - pd.Timedelta(seconds=1)
+    results, worst_rate = range_sanity_scan(cal, bars, t_lo, t_hi)
 
     cal["meta"]["sanity"] = {"status": "OK" if worst_rate <= 0.05 else "FAIL",
                              "scope": "explore window only (§3.2b-7)",
@@ -481,33 +507,16 @@ def sanity() -> int:
 
 
 # ─── verify-times (§3.2 カレンダー再検証 — sanity >5% 発火時の処方) ─────────────
-def verify_times() -> int:
-    """オフセットピーク検査: event bar range / baseline 中央値 の比を offset −4..+8 で計測。
+def offset_peak_scan(cal: dict, bars: dict, t_lo, t_hi) -> tuple:
+    """オフセットピーク検査を [t_lo, t_hi] 窓で実行 (定義は §3.2 再検証のまま不変)。
 
-    時刻が正しければ比は offset +0 でピークする (時刻誤りならピークがずれる)。
-    range のみ・explore 窓のみ使用 (§10-1 非抵触 — リターン/方向は一切見ない)。
-    結果は calendar JSON meta.sanity.reverification に凍結。
+    時刻が正しければ range 比は offset +0 でピークする。range のみ使用
+    (§10-1 非抵触 — リターン/方向は一切見ない)。
+    returns (results per event, all_peak_zero)。
     """
     import numpy as np
     import pandas as pd
 
-    with open(CALENDAR_JSON) as fh:
-        cal = json.load(fh)
-    bars = {}
-    for pair in L.PRIMARY_PAIRS:
-        f = os.path.join(MASSIVE, f"{pair}_15m.parquet")
-        if not os.path.exists(f):
-            continue
-        m15 = pd.read_parquet(f)
-        if m15.index.tz is None:
-            m15.index = m15.index.tz_localize("UTC")
-        bars[pair] = m15
-    if len(bars) < 5:
-        print(f"[BLOCKED] verify-times requires >=5 primary parquets, got {len(bars)}",
-              file=sys.stderr)
-        return 3
-
-    explore_end = pd.Timestamp(cal["explore_end"], tz="UTC") + pd.Timedelta(days=1)
     offsets = list(range(-4, 9))
     out = {}
     all_peak_zero = True
@@ -515,24 +524,13 @@ def verify_times() -> int:
         ratio_by_off: dict[int, list] = {k: [] for k in offsets}
         for iso in ts_list:
             t_e = pd.Timestamp(iso)
-            if t_e >= explore_end:
+            if not (t_lo <= t_e <= t_hi):
                 continue
             for pair, m15 in bars.items():
                 if t_e not in m15.index:
                     continue
                 pos = int(m15.index.get_loc(t_e))
-                base = []
-                d = t_e.tz_convert("America/New_York").date()
-                back = 1
-                while len(base) < 20 and back <= 40:
-                    bd = d - timedelta(days=back)
-                    back += 1
-                    if bd.weekday() >= 5:
-                        continue
-                    bts = L.event_time_utc(ev, bd)
-                    if bts in m15.index:
-                        b = m15.loc[bts]
-                        base.append(float(b["High"] - b["Low"]))
+                base = _range_baseline(m15, ev, t_e)
                 if len(base) < 10:
                     continue
                 med = float(np.median(base))
@@ -545,11 +543,34 @@ def verify_times() -> int:
                         ratio_by_off[k].append(r / med)
         profile = {str(k): round(float(np.mean(v)), 3)
                    for k, v in ratio_by_off.items() if v}
+        if not profile:
+            out[ev] = {"peak_offset_bars": None, "ratio_profile": {}}
+            continue
         peak = max(profile, key=profile.get)
         out[ev] = {"peak_offset_bars": int(peak), "ratio_profile": profile}
         all_peak_zero &= (int(peak) == 0)
         print(f"verify-times {ev}: peak offset {int(peak):+d} bars "
               f"(ratio at 0 = {profile.get('0')})")
+    return out, all_peak_zero
+
+
+def verify_times() -> int:
+    """オフセットピーク検査 (explore 窓)。結果は calendar JSON
+    meta.sanity.reverification に凍結。OOS 窓は verdict 実行時 (§3.2b-7)。"""
+    import pandas as pd
+
+    with open(CALENDAR_JSON) as fh:
+        cal = json.load(fh)
+    bars = load_primary_bars()
+    if len(bars) < 5:
+        print(f"[BLOCKED] verify-times requires >=5 primary parquets, got {len(bars)}",
+              file=sys.stderr)
+        return 3
+
+    t_lo = pd.Timestamp("2000-01-01", tz="UTC")
+    t_hi = pd.Timestamp(cal["explore_end"], tz="UTC") + pd.Timedelta(days=1) \
+        - pd.Timedelta(seconds=1)
+    out, all_peak_zero = offset_peak_scan(cal, bars, t_lo, t_hi)
 
     cal["meta"]["sanity"]["reverification"] = {
         "method": "offset-peak test: mean(event-bar range / baseline median) at "

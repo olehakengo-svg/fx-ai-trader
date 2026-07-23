@@ -214,6 +214,7 @@ class TradeOutcome:
     entry_pos: int
     censored: bool
     weekend_span: bool
+    atr: float = float("nan")  # entry 時 ATR14d (price 単位) — §5c レグA の正規化用に露出
 
 
 def event_trade(
@@ -225,12 +226,15 @@ def event_trade(
     w0_min: int,
     horizon: str,
     friction: float | None = None,
+    entry_delay_bars: int = 0,
 ) -> TradeOutcome | None:
     """1 イベント × pair × rule × W0 × horizon の estimand (§3.5 執行契約)。
 
     entry = t_e+W0 の直後の M15 バー open。terminal = entry_pos + h_bars の open。
     first-touch: TP=SL=1.0σ_h、scan は entry バー〜terminal 直前バー、SL 優先。
     censoring: terminal が cache 末尾を超えるイベントは None (不算入)。
+    entry_delay_bars: §5c ナイフエッジ#3 (遅延 canary) 専用 — entry のみ +N バー遅延、
+    R0 の定義 (W0 窓) は不変。default 0 = estimand 本体 (挙動不変)。
     """
     if friction is None:
         friction = FRICTION[pair]
@@ -243,7 +247,8 @@ def event_trade(
         return None
 
     # entry バー = t_e+W0 に開くバー。uncond は W0=30m に固定 (§5a)。
-    entry_open_ts = pd.Timestamp(t_e) + pd.Timedelta(minutes=w0_min)
+    entry_open_ts = (pd.Timestamp(t_e)
+                     + pd.Timedelta(minutes=w0_min + 15 * entry_delay_bars))
     e = _bar_pos(idx, entry_open_ts)
     if e is None:
         return None
@@ -292,6 +297,7 @@ def event_trade(
         entry_pos=e,
         censored=False,
         weekend_span=weekend_span,
+        atr=atr,
     )
 
 
@@ -302,6 +308,7 @@ def leak_canary(m15: pd.DataFrame, daily: pd.DataFrame, t_e: pd.Timestamp,
 
     entry バー以降 (t_e+W0 以降) の bar を破壊しても R0/ATR/方向は不変であるべき
     (R0 は t_e..t_e+W0、ATR は entry 前 daily のみ参照)。変化したら look-ahead を疑う。
+    R0 経路と **ATR 経路の両方** を比較する (§5c-3 明文「R0 / ATR 経路」)。
     True = リークなし (canary OK)。
     """
     entry_open_ts = pd.Timestamp(t_e) + pd.Timedelta(minutes=w0_min)
@@ -315,18 +322,25 @@ def leak_canary(m15: pd.DataFrame, daily: pd.DataFrame, t_e: pd.Timestamp,
     if e is not None:
         for col in ("Open", "High", "Low", "Close"):
             poison.iloc[e:, poison.columns.get_loc(col)] = np.nan
-    r0_b = compute_r0(poison, t_e, w0_min)
-    atr_b = atr14d_before(build_daily_from_m15(poison.dropna()), entry_open_ts) if not poison.dropna().empty else atr_a
-    d_b = rule_direction(rule, pair, r0_b if rule in ("fade", "follow") else 0.0)
+    try:
+        r0_b = compute_r0(poison, t_e, w0_min)
+        atr_b = atr14d_before(build_daily_from_m15(poison.dropna()), entry_open_ts) if not poison.dropna().empty else atr_a
+        d_b = rule_direction(rule, pair, r0_b if rule in ("fade", "follow") else 0.0)
+    except (ValueError, TypeError):
+        # 破壊 frame で再計算が壊れる = 未来バー依存が確実 → リーク検出 (False)
+        return False
 
     def _eq(a, b):
         if a is None and b is None:
             return True
         if a is None or b is None:
             return False
-        return abs(a - b) < 1e-12
+        if isinstance(a, float) and isinstance(b, float) \
+                and math.isnan(a) and math.isnan(b):
+            return True  # 両方 NaN (履歴不足) = 同一状態
+        return abs(a - b) < 1e-9
 
-    return _eq(r0_a, r0_b) and d_a == d_b
+    return _eq(r0_a, r0_b) and d_a == d_b and _eq(float(atr_a), float(atr_b))
 
 
 # ─── §3.1 coverage gate ─────────────────────────────────────────────────────

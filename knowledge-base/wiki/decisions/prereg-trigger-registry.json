@@ -162,11 +162,13 @@
   },
   {
    "id": "e15-e7-event-prereg-phase0-verdict",
-   "active": true,
+   "active": false,
    "type": "deadline_info",
    "deadline": "2026-07-31",
    "doc": "knowledge-base/wiki/decisions/e15-e7-event-modality-prereg-2026-07-18.md",
-   "message": "E15+E7 イベントモダリティ family phase-0 (E15 FOMC/NFP/CPI イベント窓) — データ準備+discovery+候補凍結 2026-07-24 / OOS verdict 2026-07-31。queue 20260718-e15-e7-event-phase0 が未着手なら stale (T5 型実行ギャップ防止)。E1 first look (2026-10-15) より先の verdict が戦略的役割 (WIP 原則)"
+   "message": "[RESOLVED 2026-07-22] E15+E7 イベントモダリティ family phase-0 (E15 FOMC/NFP/CPI イベント窓) — データ準備+discovery+候補凍結 2026-07-24 / OOS verdict 2026-07-31。queue 20260718-e15-e7-event-phase0 が未着手なら stale (T5 型実行ギャップ防止)。E1 first look (2026-10-15) より先の verdict が戦略的役割 (WIP 原則)",
+   "resolved": "2026-07-22",
+   "resolution": "verdict ❌ FAIL 0/6 (全候補 C5) — 期日 07-31 の 9 日前倒しで完了 (pre-reg §12、artifact e15_phase0_oos_verdict.json)。レグ A 全滅: BH-FDR q=0.05 (m=6) 通過ゼロ、min p_combo=0.214 ≫ rank-1 閾値 0.0083。4/6 は点 EV 正 (te/ft 両正) だが event-block 推論で有意性なし。modal 予想 C3 (UNDERPOWERED) は B(d) 充足 (blocks 20-28 ≥ 15) で不成立 → C5。§8 固定分岐 = phase-1 (E7 サプライズ条件付き) は予定どおり実行 (phase1-verdict トリガー継続)。E15 無条件イベント窓は棄却"
   },
   {
    "id": "e15-e7-event-prereg-phase1-verdict",
@@ -198,8 +200,15 @@
    "type": "ingest_freshness",
    "endpoint": "/api/marketdata/status",
    "checks": [
-    {"key": "verified:ff_calendar", "max_age_hours": 24},
-    {"prefix": "verified:cme_bars:", "max_age_hours": 72, "min_keys": 7}
+    {
+     "key": "verified:ff_calendar",
+     "max_age_hours": 24
+    },
+    {
+     "prefix": "verified:cme_bars:",
+     "max_age_hours": 72,
+     "min_keys": 7
+    }
    ],
    "doc": "knowledge-base/wiki/analyses/market-data-ingest-2026-07-18.md",
    "message": "R3 market-data ingest 鮮度監視 (PR #102、本番稼働 2026-07-21) — verified:ff_calendar が 24h 超 stale / verified:cme_bars:* (7 契約) のいずれかが 72h 超 stale・キー欠落で要調査 (§7 宣言基準。CME 72h は週末市場閉鎖 ~2.5d を跨いでも誤警報しない)。E1 e1-positioning-ingest-freshness と同型の ingest 鮮度 watch だがこちらは機械評価。閾値/契約数は modules/market_data_ingest.py の STALE_ALERT_*_SEC / DEFAULT_CME_SYMBOLS とテストで整合固定 (CME_BARS_SYMBOLS env 変更時は本エントリの min_keys も更新)。stale 時は Render ログ [market-ingest] と status API の last_error / consecutive_failures を確認"
