@@ -3020,6 +3020,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 - **GBP_JPY唯一のTRENDING_UP**：NY序盤の継続性には懐疑的（ロンドン主導トレンドの惰性）。
 ### 推奨戦略配分
 
+### 2026-07-23 (Pre-Tokyo Briefing)
+| PnL合計 | **0.0p** |
+| 全体WR | **N/A** |
+| 戦略 | N | WR | EV | 判定 |
+**Cutoff後の有効トレードはゼロ件**。昇格基準（N≥30 & EV≥1.0）・降格基準（N≥30 & EV<-0.5）いずれの評価も不可能。Sentinel N蓄積進捗：**0/30**（全戦略）。
+- トレードゼロが継続する場合、**spread_guardの閾値抵触頻度**を確認すること（コード変更ではなく、現在のスプレッド実測値とガード閾値の乖離幅の把握）
+- NAV/Balance=Noneは**OANDA API認証またはアカウント接続の問題**の可能性があり、監視継続
+| USD_JPY | RANGING | 67%ile | +0.00217 | ATRは高水準だがRANGING。レンジ内ボラが高く、Scalp誤発シグナルに注意。 |
+- 唯一のTRENDING_UPはGBP_JPY（60%ile）。本日最も注目すべきペア。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
