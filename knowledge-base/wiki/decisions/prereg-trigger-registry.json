@@ -214,6 +214,50 @@
    ],
    "doc": "knowledge-base/wiki/analyses/market-data-ingest-2026-07-18.md",
    "message": "R3 market-data ingest 鮮度監視 (PR #102、本番稼働 2026-07-21) — verified:ff_calendar が 24h 超 stale / verified:cme_bars:* (7 契約) のいずれかが 72h 超 stale・キー欠落で要調査 (§7 宣言基準。CME 72h は週末市場閉鎖 ~2.5d を跨いでも誤警報しない)。E1 e1-positioning-ingest-freshness と同型の ingest 鮮度 watch だがこちらは機械評価。閾値/契約数は modules/market_data_ingest.py の STALE_ALERT_*_SEC / DEFAULT_CME_SYMBOLS とテストで整合固定 (CME_BARS_SYMBOLS env 変更時は本エントリの min_keys も更新)。stale 時は Render ログ [market-ingest] と status API の last_error / consecutive_failures を確認"
+  },
+  {
+   "id": "weekend-gap-oos-verdict-deadline",
+   "active": false,
+   "type": "deadline_info",
+   "deadline": "2026-07-31",
+   "doc": "knowledge-base/wiki/decisions/weekend-gap-oos-prereg-2026-07-24.md",
+   "message": "weekend_gap OOS confirm (pre-reg LOCK 2026-07-24、台帳 family #3) の verdict 期日 — dry-run (explore 窓再現必須) 通過後に OOS 単一実行。未実行なら stale (T5 型実行ギャップ防止)",
+   "resolved": "2026-07-24",
+   "resolution": "verdict 完了 (期日 7 日前倒し、単一 OOS 実行)。family #3 = PASS 候補 — arm B pooled exGBP 4h: N=177、gross +15.60p (p<1e-4)、stressed-net +9.04p、knife-edge 4/4 flip なし。arm A は BH 落ち (12h p=0.1189) でクローズ。次段 = §9 R1 手続き (日曜 spread ≥8 週末実測 → stage-2 執行 pre-reg → user 承認)。詳細: prereg §11 / reports/weekend_gap_oos_confirm-2026-07-24.md"
+  },
+  {
+   "id": "mof-forward-prereg-lock-deadline",
+   "active": false,
+   "type": "deadline_info",
+   "deadline": "2026-08-05",
+   "doc": "knowledge-base/wiki/decisions/mof-intervention-forward-prereg-2026-07-24.md",
+   "message": "MoF 介入 forward pre-reg (台帳 family #4) の LOCK 期限 — Q2-2026 四半期開示 (~2026-08、¥11.73兆エピソード日次内訳) の前に LOCK しないと genuine OOS 機会を喪失。LOCK 後は本エントリを resolved 化し mof-q2-2026-disclosure-verdict に置換",
+   "resolved": "2026-07-24",
+   "resolution": "LOCK 執行 (期限 08-05 の 12 日前倒し、敵対的レビュー必須3+任意5 全反映、file-drawer 窓閉鎖のため即日)。後継 = mof-q2-2026-disclosure-verdict"
+  },
+  {
+   "id": "mof-q2-2026-disclosure-verdict",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2026-09-30",
+   "doc": "knowledge-base/wiki/decisions/mof-intervention-forward-prereg-2026-07-24.md",
+   "message": "MoF forward pre-reg (🔒 LOCKED 2026-07-24、台帳 family #4) の verdict 監視 — Q2-2026 四半期日次開示 (~2026-08 推定) 着地から 10 日以内に verdict 実行。backstop 2026-09-30 で未着地なら stale レビュー (設計変更禁止)。P-10: 2026 candidate 日の forward net は開示前計算禁止"
+  },
+  {
+   "id": "weekend-gap-live-g1-slippage",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2026-08-31",
+   "doc": "knowledge-base/wiki/decisions/weekend-gap-stage2-execution-prereg-2026-07-24.md",
+   "message": "weekend_gap live G1 ゲート監視 — live fill の slippage rolling mean > +2.0p で R2 live 停止 (code gate が一次、本エントリは週次監査の見落とし防止)。user 承認 (b) 2026-07-24"
+  },
+  {
+   "id": "weekend-gap-live-g2-cumloss",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2026-12-31",
+   "doc": "knowledge-base/wiki/decisions/weekend-gap-stage2-execution-prereg-2026-07-24.md",
+   "message": "weekend_gap live G2 ゲート監視 — live N=12 到達時に cumulative < −60p なら R2 demote。N=30 で G3 判定 (mean net>0 + WR≥35%) → lot 増額は別 R1。頻度 ~3.3/月 → N=12 は ~2026-11 見込み"
   }
  ]
 }

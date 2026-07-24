@@ -1,6 +1,82 @@
 # Knowledge Base Change Log
 
-## 2026-07-06 (T7 クローズ + T8 forensic #2: engine 再構築による live dedup 無効の発見)
+## 2026-07-25 (weekend_gap_fade live 実装 — R1 step③ user 承認 (option b: 直接 live MIN lot) 執行, rule:R1)
+- **user 最終承認 2026-07-24 取得** → [[weekend-gap-stage2-execution-prereg-2026-07-24]] 🔒 LOCKED 化 (DRAFT 改名)。registry に G1/G2 監視 2 本追加
+- **実装** (workflow: implement → 敵対的レビュー 2 周 → fix → verify、blocker/major 残ゼロ): 新 entry_type `weekend_gap_fade` — [[weekend-gap-fade]] 戦略カード新設
+  - シグナル: strategies/daytrade/weekend_gap_fade.py (explore 定義完全複製、凍結 qualify 20.0/21.4/25.0p、BT/live 統一)
+  - 執行: Sunday runner (`_weekend_gap_tick`、市場 closed gate 前に 3 ペアのみ評価 → 通常 _tick_entry ガードチェーンに合流 = 別送信経路なし) + 新 MODE_CONFIG daytrade_audusd。成行 1 回 (bridge max_attempts=1 — 旧コードの timeout 3 回黙示リトライ = 二重約定リスクを封鎖)、spread cap 10.0p 超過/取得不能は fail-closed shadow ([WEEKEND_GAP_SPREAD_SKIP]、分母保存)
+  - exit: +4h horizon (exact override)、TP-hit 両方向 skip、BE/trail/C1/SIGNAL_REVERSE 全非適用、disaster SL 150p (stopLossOnFill)
+  - サイジング: 1000u 固定 sentinel (lot chain/LDN/JPY-cap/Kelly/DD lever 非乗算を検証済)
+  - dedup: system_kv per-pair per-weekend latch (fail-closed)。G1 (slippage rolling6 > +2.0p) / G2 (N=12 cum < −60p) = 恒久 kv flag WEEKEND_GAP_LIVE_STOPPED、再武装経路なし (watchdog 教訓)、AlertManager 通知付き。実 fill slippage を bridge → demo_trades.slippage_pips に記録 (G1 は broker 実測)
+  - 登録 4 点 + 補助 6 点 (SHIELD whitelist / QUICK_HARVEST 免除 / agg-Kelly min-lot bypass / MODE_CONFIG 等) を test pin で固定
+- **レビュー minor 2 件も修正済み**: app.py slippage basis (weekend_gap は entry_fill、TP rebase は非連動) / 早期 _ba None も fail-closed に拡張。tests/test_weekend_gap_fade.py 33 本 green、全 suite green、check.py 9/9
+- **初回 live イベント候補 = 2026-07-26 (日) 21:00 UTC**。PR → CI → main マージ → Render auto-deploy で執行
+
+## 2026-07-24 (gap R1 step② 完了: stage-2 執行 pre-reg DRAFT — user 最終承認待ち, rule:R1)
+- **新規**: [[weekend-gap-stage2-execution-prereg-2026-07-24]] (当時 DRAFT、07-25 承認後に LOCKED 改名) (decisions/) — 執行仕様凍結案 (Sunday open 初バー成行 1 回 + **spread cap 10.0p** 超過 skip / exit = +4h time-exit のみ、TP/BE/Trail 非適用で estimand 保存 / disaster SL 150p) + 全メカニズムに PRICE_SHOCK_REV 本番前例の実在確認済み
+- **要実装注意**: E1 スプレッドフィルター (L5134) が日曜 open を必ずブロック → 本 entry_type 限定の専用 cap 置換が必要 (全面バイパスではない、R2 gate 併設)。dedup = per-pair per-weekend latch (system_kv 永続)
+- **サイジング**: 1000u 固定 sentinel。月次期待 +22〜26p / σ≈63p (単月負確率 34%)。M1 寄与 ~11% と正直に明記 — 価値は初 OOS-PASS セルの live 検証 + lot ladder 土台
+- **前向きゲート**: G1 slippage>+2.0p→R2 停止 / G2 N=12<−60p→R2 demote / G3 N=30 で BT/live 乖離判定 → lot 増額は別 R1
+- **user 決裁オプション**: (a) shadow-first / (b) 直接 live MIN lot (起案推奨) / (c) 追加実測待ち / (d) 見送り — **R1 step③ = user 最終承認待ち、live 変更なし**
+
+## 2026-07-24 (gap R1 step① 完了: 日曜 open 実スプレッド遡及実測 12 週末 — PASS 方向保存, rule:R3=分析のみ)
+- **OANDA 歴史 BA candle で 12 週末 × 3 ペア = 36/36 遡及取得** (前向き蓄積不要、≥8 週末要件充足)。tools/sunday_open_spread_measure.py + bt-results/reports
+- **3× RT 仮定は一様に保守的ではなかった**: USD_JPY 初バー実測 RT p50 7.55p > 仮定 6.42p (10/12 週超過、OANDA 週明け cap 10p 張り付き)。EUR_USD/AUD_USD は概ね仮定内。ただし**実測 RT で arm B EV 再計算 → +7.90p (mean) / +3.26p (p90 tail) — PASS 方向保存** (verdict +9.04p 比 ~1.1p 劣化)
+- **執行設計の核心 (stage-2 入力)**: spread は減衰でなく **22:01 UTC (Sydney 開始) で段差崩落する二値構造** (初 1h 4-8p 高原 → 即 1.5-2p)。中間遅延は無価値。推奨 primary = 成行 @ 初バー + 発注時 spread cap (~10p) forward ルール、exit (+4h) は通常スプレッド域で stress 不要。AUD_USD 理論 RT 2.5p は保守的 (実測 1.8p)
+- 留保: 12 週末は平穏期 — news-weekend は p90 行 (+3.26p) を参照。slippage 0.5p は通常市場仮定
+
+## 2026-07-24 (COT extreme explore: ❌ 全滅 FAIL — healthy kill、pre-reg 起案せず, rule:R3=分析のみ)
+- **台帳 family #5 クローズ**: net_pct_oi 3y percentile 極値 × 週次ホライズン、release-lag +3営業日凍結、lookahead assert 全通過。**BH-FDR 生存 0/36 (primary) + 0/6 (pooled)**。pooled 1w reversion +22.0p は SNB 2015 単一イベントが 63% — 除外で median +0.9p。tercile 単調性 0/6、年次符号振動 = 点推定 incoherent (underpowered ではない)
+- **ban 範囲限定**: 「レベル極値×週次」のみ再試行禁止。Δnet/flow 系・commercial 側は別 estimand として新 family + pre-2022 explore からのみ可
+- 成果物: tools/cot_extreme_explore.py + bt-results/reports。OOS (2022+) の COT×価格ジョイント接触ゼロ (assert ×2)
+
+## 2026-07-24 (weekend_gap OOS verdict: ✅ family PASS 候補 — プロジェクト初の OOS 確定正セル候補, rule:R1 stage-1)
+- **verdict (期日 7 日前倒し、単一実行)**: [[weekend-gap-oos-prereg-2026-07-24]] §11 — **arm B (pooled exGBP 4h fade) 全ゲート PASS**: N=177/112wk、gross +15.60p (weekend-block p<1e-4)、**stressed-net (3×RT=6.56p) +9.04p**、headroom 24.8≥21.9p、knife-edge 4/4 反転なし (DST 再anchor N=197 +12.53/+5.97、8×/12×RT 摂動、spike-revert flag 2 件除外再計算 +15.20/+8.64)。❌ arm A (EUR_USD IUT 4h+12h) は 12h p=0.1189 で BH 落ち → arm クローズ (4h 単独再採点は禁止 rescue)
+- **shrinkage 予測と逆転**: 事前予測「現実的 PASS 経路 = arm A、arm B は FAIL 圏 (−2.10p)」→ 実際は arm B +75% 増幅・arm A 12h 53% 減衰。効果構成が USD_JPY/AUD_USD へシフト (§6 宣言済み構成シフト範囲内、estimand 不変)
+- **手続き**: 実装 → explore 窓 dry-run 再現 → 敵対的スクリプト監査 CLEAN → OOS 単一接触。完全性監査 232/234 週末、GBP 非ロード assert
+- **次段 (即 live 禁止)**: §9 R1 — (i) 日曜 open 実スプレッド ≥8 週末実測 (AUD_USD RT 2.5p 理論仮置きの置換必須) → (ii) stage-2 執行 pre-reg → (iii) user 最終承認。registry `weekend-gap-oos-verdict-deadline` resolved
+
+## 2026-07-24 (wiki-daily-update 自動実行 — flat book 4窓連続 + roll-worsen edge)
+- **Daily trade log**: `raw/trade-logs/2026-07-24.md` 生成。✅ **cadence 復帰** (07-23 Thu → 07-24 Fri、1-day window、gap なし)。realized book は **flat (0 closed fills、4窓連続 07-16=07-21=07-23=07-24)**。N=**563** 不変 (245W/284L/34BE、全 decided 指標が 07-16 と bit-for-bit 同一: WR 43.5%/decided 46.3%/EV −0.98/PnL −552.7/Wilson 42.1・BF 39.3/avg R 0.12)。shadow_count 10,226→**10,345 (+119、shadow のみ)**。
+- **Risk state**: 🔴🔴🔴 **DD 100.8% held** (07-13 breach からバリア超え継続、NEW HIGH なし・deepening なし、eq −$991.1/peak +$16.9 flat)。ruin 0.0% (0.2× lot cap のみによる)。30d overall edge (risk dash) **−31.7%→−33.03%** (⚠️ worse −1.3pp)。**window-roll のみ** — n 48→47 (effective_date_from → 2026-06-24)、0 new fills で **1件の slightly-positive EUR_JPY (≈+2.4) が窓から脱落** → net −126.8→**−129.2**、Sharpe −0.423→−0.4385、MC tail widened again (worst DD99 209.06→**215.72**、median final eq 841.18→**835.84**、median max DD 160.26→**165.52**)。**07-21/07-23 の mechanical roll の継続で新エッジ損失ではない**。
+- **30d by-instrument (n=47、全4 negative)**: GBP_USD **#1 abs drag −47.1** (mean −3.36, n=14) / USD_JPY −36.2 (n=19) / EUR_JPY −31.1 (n=9、**worst mean −3.46**) / EUR_USD −14.8 (n=5)。per-strategy Kelly は bb_rsi_reversion のみ +edge (+0.158/half-Kelly 0.134)。correlation flags: bb_rsi_reversion↔zz_pivot_v60_sr −0.795 / dt_sr_channel_reversal↔trendline_sweep +0.521。
+- **OANDA audit** (08:02→11:40 UTC): **0 LIVE / 30 shadow_tracking skipped / 0 blocked / 0 false-sent**。⚪ 0 blocks — 本 pull では gate に到達した signal なし (07-23 の 2 blocks と対照、07-13/07-16 の all-shadow パターンに復帰)。firing: session_time_bias(9)/london_breakout(5)/sr_break_retest(5)/wick_imbalance_reversion(3)。instruments: GBP_USD(12) most active/EUR_USD(9)/EUR_GBP(4)。
+- **Learning API**: 新規 adjustment なし (最新 id=92, 07-06 sr_channel_reversal scalp blacklist re-affirm)。current_params 不変。daytrade WR 41.9%/EV −2.31/N93 (RANGE のみ +0.4)、scalp WR 40.4%/EV −0.18/N388。
+- **Strategy pages**: 更新なし (0 fills、by_type table 不変、tier 変更なし)。
+- **index.md 更新**: 目標行 (4窓連続 flat)、System State block (DD/edge/ruin/agg-Kelly/Last-updated)、Session History に 07-24 narrative 追加、Trade Logs リンクに **07-21/07-23/07-24 を backfill** (既存ファイルが未リンクだった orphan を解消)。
+- **Lint**: ✅ WR/PnL/DD 数値は trade-log↔index↔log 間で一貫 (N=563/WR43.5%/PnL−552.7/DD100.8%/edge−33.03%/net−129.2/n47/shadow10,345)。✅ 本 run で追加した wikilink 全て解決 ([[2026-07-21]]/[[2026-07-23]]/[[2026-07-24]] + 2 pre-reg + 2 memo)。✅ データ当日取得、陳腐化なし。⚠️ 既存の破損 wikilink backlog (~170件) は本 run で件数不変 (新規破損なし)、別タスク継続。⚠️ API_AUTH_TOKEN watchdog gap (agg-kelly gate が active safety net)・sr_anti_hunt_bounce corruption・index.md DD-line divergence (v2.3 real-NAV JPY basis 移行) は未解決継続。
+
+## 2026-07-24 (MoF 介入 forward pre-reg 🔒 LOCK — 期限 12 日前倒し, rule:R1 stage-1)
+- **LOCK 執行**: [[mof-intervention-forward-prereg-2026-07-24]] — explore 実行 (7日/3エピソード、h*=10d SELL 6/7、band [−319.8,−43.6]p) + 識別 rule (X,Y)=(2.0, 0.25%) 裁量ゼロ校正 (git タイムラインで事前宣言を客観確認) → 敵対的レビュー (必須3+任意5、コア規律・算術は全検算一致) → 全反映 → **即日 LOCK (08-05 期限の 12 日前倒し — LOCK 任意期間の file-drawer 裁量窓を閉鎖)**
+- **凍結の要点**: candidate S={2026-04-30, 05-06} / M=21 / k_eff 規約 (= |D∩母集団|) / anchor はデータ存在営業日 roll / **P-10 attestation: 2026 candidate 日の forward net は誰も未計算、開示前計算禁止**。E-D 予測 (k∈[2,5]) 下の E-A PASS ≒「両候補日とも開示介入日」
+- **訂正 (レビュー)**: FP 除外版 36/717=5.02% (旧 5.06% 転記誤り)、「05-07 欠損は PASS に不利」主張を撤回 (方向不定)、エピソード規約 = gap≥30d で 3 (2022-09↔10 は 29 日差 knife-edge)
+- registry: `mof-forward-prereg-lock-deadline` resolved → `mof-q2-2026-disclosure-verdict` (backstop 09-30) に置換
+
+## 2026-07-24 (weekend_gap OOS pre-reg 🔒 LOCK, rule:R1 stage-1)
+- **LOCK 執行**: [[weekend-gap-oos-prereg-2026-07-24]] — 起案 → §10 4 論点 quant 裁定 (headroom=10×通常RT / N floor 25/60 / arm A IUT 維持 / DST 格下げ厳格側) → **敵対的レビュー 1 本 (リーク・設計破綻ゼロ、決定境界曖昧性 6 点)** → 必須 6 + 推奨 6 全反映 → LOCK
+- **重要訂正 (レビュー #1)**: arm B の explore 凍結値は GBP 込みプールの誤帰属だった → GBP 除外セット直接再計算 (explore 窓のみ) **+8.92p / weekend-block p<1e-4 / MFE p50 24.6p / N=169**。50% shrinkage 予測 → stressed-net −2.10p (§4.1 の保守的結論は不変)
+- **新規凍結規則**: BH step-up 完全決定表 / 混合アウトカム優先順位 (検定済み FAIL ≥1 → 永久 CLOSE) / feed-artifact flag → PASS arm 符号反転で knife-edge FAIL / dry-run 検証プロトコル (explore 再現必須) / 階層多重性宣言
+- registry 登録: `weekend-gap-oos-verdict-deadline` (07-31) + `mof-forward-prereg-lock-deadline` (08-05)。verdict 実行は LOCK コミット着地後に開始 (監査整合)
+
+## 2026-07-24 (wave-0 explore 完了 — 5線 verdict + pre-reg 起案 2 本, rule:R3=分析のみ)
+- **台帳更新** ([[hypothesis-catalog-2026-07-24]] §wave-0 実行記録): 5 線完了・敵対的レビュー INVALID ゼロ
+- **#1 sweep_reversion**: exit-free 12.4y で生存確定 (12h net med +5.10p p<1e-4、11/13 年正) — exit-artifact 説棄却、P-S1(a) 決裁パケットの中核証拠に
+- **#2 price_shock**: demotion flag 0/5 だが **MASSIVE feed artifact 発見** (土曜行+不良プリント、grid ev_pip 過大 USD_CAD 97.9→42.4p) + 3 席 regime watch (EUR_AUD/USD_CAD/AUD_JPY pre-2021 OOS 弱)
+- **#3 weekend_gap**: multiday 棄却、狭候補凍結 (≤12h fade EUR_USD/pooled) → OOS pre-reg DRAFT 起案中
+- **#4 MoF**: 383 events 正規化完了。**時限機会 = 2026 エピソード ¥11.73 兆の日次内訳が Q2 開示前 → LOCK 期限 2026-08-05 の forward pre-reg DRAFT 起案中**
+- **#5 COT**: panel 5,178 行完成 (分析は pre-reg 待ち)
+- chips: sweep P-S1(a) パケット準備 (exit-free 証拠込みに更新) / MASSIVE feed 品質ガード
+
+## 2026-07-24 (仮説カタログ + 探索最大化起動 — user 指示「爆速・複数本並列・網羅的に」)
+- **新規**: [[hypothesis-catalog-2026-07-24]] (syntheses/) — 7 レンズ × 87 本生成 → 再試行禁止フィルタ (BANNED 2) → triage。**台帳 m=12** (新規 7 ファミリ + 既登録 5)、並列アクティブ上限 3 本、凍結探索プロトコル (explore=2014-2021 / OOS=2022-2026 一発、exit-free h∈{4h..120h}、BH-FDR q=0.10)。Raw 全量: `raw/analysis/hypothesis-catalog-2026-07-24.json`
+- **wave-0 起動 (本日)**: sweep_reversion 再検証 (72) + price_shock 5席監査 (58) + weekend_gap explore (47、background)。**wave-1 fetch 発火**: MoF 介入リスト (66、S4 の data-block 解除) + COT panel (50、fetch のみ)
+- **棚卸し資産確認 (analyst 実測)**: sweep_reversion rescued shadow **unique N=8/10** (EV +2.48p、WR 75%) — P-S1(a) R1 決裁トリガまであと 2 イベント、決裁パケット準備 task 起票。htf_fb recheck は実測ペース 0.14 行/日で n_decide=100 に構造的到達不能 (2028 年) → 受動放置確定。**戦略カード Status stale 訂正** ([[sweep_reversion_eurgbp_late]]: 「LIVE env=1」→ R2 STOP code pin + shadow rescue 稼働中)
+- **横断発見**: 同一バー二重記録 (row 14 = unique 8) — shadow_count_decision 型トリガの N は **unique バー基準**で数える規律を標準化提案
+
+## 2026-07-24 (エッジ開発 postmortem — 全数検死 + 敵対的検証)
+- **新規**: [[edge-dev-postmortem-2026-07-24]] (syntheses/) — 失敗仮説 54 件 + 生存候補 21 件の全数棚卸し (13-agent workflow、根本原因 4 クレームを敵対的検証×2レンズ)。分析のみ、tier action なし
+- **主結論**: ①「勝てていた時期」は不存在 (Era-1 昇格は BT 測定器の幻影、検証済みサブセット内反転率 100%) ② 検証装置は完成済み (Era-3 以降 FP live 到達 0) ③ 真因は sourcing (OHLCV×intraday×リテール摩擦の空間は edge < 摩擦+認定閾値) ④ 実測フロア摩擦 1.30p/t、摩擦 binding は +1〜3p/t の狭帯のみ ⑤ 処方箋 = modality 単位期待値評価 + headroom≥10x 入場条件 + sweep_reversion_eurgbp/htf_fb recheck の棚卸し回収
+- **同セッション**: 金利差フェアバリュー仮説 (UIP/CIP/yield-spread) を口頭評価で REJECT/HOLD 低優先 (CIP=乖離<摩擦、UIP=anti-carry 負EV、[[hull-donchian-usdchf-ratediff-prereg-2026-06-15]] の falsification と整合)。edges/ ページ未作成 (実装提案なしのため)
 - **T7 CLOSED**: carry dip 0-fire は ceiling 159.50 のレジーム前提崩壊による dormant-by-design (バグ非ず)。QUALBAR print telemetry 本番稼働。[[zero-fire-diagnosis-carrydip-vix-2026-07-02]] §6
 - **T8 forensic #2 = 共通挙動**: hull は guard 実装済みだが `compute_daytrade_signal`/`compute_hourly_signal` が **poll 毎に Engine を再構築**するため全戦略の instance-state dedup/cooldown が live で無効。live の dedup 層は recent_emit のみ。order 層 per-bar dedup タスクを queue 投入、ゲート④ order 層補正 + 再 LOCK は user R1 決裁待ち。[[t8-week1-gate-breach-2026-07-06]]
 ## 2026-07-06 (pre-reg トリガー監視自動化, rule:R3)
@@ -520,6 +596,60 @@
 - **Lint**: (1) 現状態の数値は index.md 全 state 箇所 (header/System State/Ruin/Aggregate Kelly/last-updated/session-history/trade-log link) で 100.01%(held)/558(flat)/-540.7/-30.1%/net-244.3/0-fills-1-blocked 一致 ✅ (残る -30.79% 参照は全て "vs 07-07's" 比較文 + 07-07 履歴行=正) (2) [[2026-07-08]] → raw/trade-logs/2026-07-08.md 解決 ✅、[[exit-repair-tp-sl-prereg-2026-07-07]]/[[roadmap-v2.3-payoff-friction-repair]] 解決 ✅、新規破損リンク 0件 (3) stale なし — データ 07-08 当日 (Render API 一次ソース)
 - ⚠️ 未解決（継続）: `API_AUTH_TOKEN` watchdog gap (agg-kelly gate が現行の稼働中セーフティネット) / sr_anti_hunt_bounce shadow data corruption / main の index.md DD 行 stale (乖離解消は別件、v2.3 は実 NAV(JPY) 基準へ移行予定)
 
+## 2026-07-13 wiki-daily-update (scheduled task)
+- ✅ APIフェッチ完了 (demo/stats date_from=2026-04-08, demo/learning, risk/dashboard, oanda/audit limit=30) — 全て Render 本番一次ソース
+- ✅ Trade log 作成: `raw/trade-logs/2026-07-13.md`
+- ⚠️ **5日間の cadence gap (07-09→07-12 に scheduled run なし)** — 07-09/07-10 に analyst session log は存在するが daily YYYY-MM-DD.md / log.md エントリ無し。本日の全 delta は**5日累積**であり単一窓ではない。cadence は本日再開
+- **本日のスナップショット (is_shadow=false, 5日累積 vs 07-08)**: N=**560** (**+2 fills 0W/2L** = −15.7pip aggregate ≈−7.85pip each; wins 243 flat, losses 282→284, BE 33 flat)。WR=43.4% (−0.1pp), decided 46.1% (−0.2pp), EV=**-0.99** (−0.02), PnL=**-556.4pip** (−15.7pip), Wilson 41.9(BF 39.1), avg R 0.12。5日間で positive live fill ゼロ。shadow_count 8,970→**9,304 (+334)**
+- **リスク**: 🔴🔴🔴 **DD=100.8%** (1008.0pip, eq=−$991.1 vs peak +$16.9) — **07-08 に held していた 100% バリアを2損失で突破し NEW HIGH (+0.79pp)**。slow grind 継続、barrier はもはや天井ではない。realized ruin=0.0% は 0.2× lot cap のみによる。MC tail は**拡大** (worst DD99 213.16→**264.3**、median final eq 842.39→**788.65**) — 5日純損失累積で forward 分布が左シフト。defensive 0.2× 維持
+- **30d edge**: overall edge=**-40.0%** (⚠️ **WORSENED −9.9pp vs 07-08 の -30.1%**)。**window-roll easing ではない** — per-trade net が −2.63→**−3.52** に悪化、30d 窓が n 93→64 に縮小し古い good cohort が窓外へ・worse recent trades が支配。absolute net の easing (−244.3→**-225.6**) は分母縮小の artifact。friction 4.04/trade、Sharpe -0.553 (悪化)、DSR 0.0/haircut 100%/n_trials 13。**by-instrument (n=64, 全4負)**: **GBP_USD #1 drag -99.9 (mean -4.00, n=25)** / USD_JPY -55.8 (n=20) / EUR_JPY -53.1 (n=12) / EUR_USD -16.8 (n=7)
+- OANDA audit (07:50→11:46 UTC): **0 LIVE / 30 shadow_tracking skipped / 0 blocked / 0 false-sent** (is_live 全 false、filled 行なし、偽sent なし=07-02 contract fix 持続)。**今窓は agg-kelly gate に到達した signal なし** (07-08 の1件 block と対照) — 全て upstream で shadow_tracking skip。gate は稼働中セーフティネットのまま。firing: london_breakout(6) / engulfing_bb(4) / dt_sr_channel_reversal(4) / dual_sr_bounce(3) / gbp_deep_pullback(3) + singles。instruments: GBP_USD(13) 最活性 / EUR_USD(9) / USD_JPY(5) / EUR_GBP(2) / GBP_JPY(1)。audit table total=**12,116** 行 (+386 over gap)
+- Learning: **新規 adjustment なし** (latest 依然 id=92, 2026-07-06 = sr_channel_reversal scalp blacklist 再確認 WR25%/EV-0.98/n190)。current_params 不変 (confidence_threshold 30 / max_open_trades 8 / max_consecutive_losses 3 / learn_every_n 10 / runtime blacklist 空)。daytrade by_conf 全負 (high EV-0.33/n29 least-bad, mid EV-4.18/n38 worst)、by_regime 全負 (RANGE -1.62/TREND_BEAR -5.16/TREND_BULL -2.17)
+- Tier 変更なし → portfolio auto-sync / strategy pages 編集不要 (marginal 2損失累積、閾値クロス無し)。exact cell attribution は 07-08 by_type baseline 未キャッシュのため deferred (GBP_USD が live 最活性=少なくとも1損失の所在濃厚)
+- **Lint**: (1) 現状態の数値は index.md 全 state 箇所 (header/System State/Aggregate Kelly/last-updated/session-history/trade-log link) で 100.8%/560/-556.4/-40.0%/0-fills-0-blocked 一致 ✅ (残る 100.01% 参照は全て "vs 07-08's" 比較文 + 07-08/07-07 履歴行 + 07-08/07-07 trade-log link=履歴として正) (2) [[2026-07-13]] → raw/trade-logs/2026-07-13.md 解決 ✅、[[monthly-target-rederivation-2026-07-10]]/[[shortest-path-decision-memo-2026-07-10]]/[[exit-repair-tp-sl-prereg-2026-07-07]]/[[roadmap-v2.3-payoff-friction-repair]] 全て解決 ✅、新規破損リンク 0件 (3) stale なし — データ 07-13 当日 (Render API 一次ソース)。⚠️ ただし **5日 cadence gap** を検出・記録 (data staleness ではなく scheduler の run 欠落)
+- ⚠️ 未解決（継続）: `API_AUTH_TOKEN` watchdog gap (agg-kelly gate が現行の稼働中セーフティネット) / sr_anti_hunt_bounce shadow data corruption / main の index.md DD 行 stale (乖離解消は別件、v2.3 は実 NAV(JPY) 基準へ移行予定)
+
+## 2026-07-14 wiki-daily-update (scheduled task)
+- ✅ APIフェッチ完了 (demo/stats date_from=2026-04-08, demo/learning, risk/dashboard, oanda/audit limit=30) — 全て Render 本番一次ソース
+- ✅ Trade log 作成: `raw/trade-logs/2026-07-14.md`
+- ✅ **cadence 再開** — 07-09→07-12 の 5日 gap は 07-13 で回収済み。本日は正常な単一窓 (vs 07-13)
+- **本日のスナップショット (is_shadow=false, vs 07-13)**: N=**560** (**FLAT — 0 closed fills**)。243W/284L/33BE / WR 43.4% / decided 46.1% / EV **-0.99** / PnL **-556.4pip** / Wilson 41.9(BF 39.1) / avg R 0.12 は**全て 07-13 と bit-for-bit 同一**。実現 book 移動ゼロ (07-08 と同型のフラット窓)。shadow_count 9,304→**9,441 (+137)** — shadow 側 firing は継続、live/closed book のみ静止
+- **リスク**: 🔴🔴🔴 **DD=100.8%** (1008.0pip, eq=−$991.1 vs peak +$16.9) — **07-13 のバリア突破から held flat、NEW HIGH なし** (book が動かず deepening せず)。realized ruin=0.0% は 0.2× lot cap のみによる。MC tail は不変 (worst DD99 264.3、median final eq 788.65、median max DD 212.38)。defensive 0.2× 維持
+- **30d edge**: overall edge=**-40.0%** (flat vs 07-13)。per-trade net −3.52、net −225.6、n=64 (unchanged)、friction 4.04/trade、Sharpe -0.553、DSR 0.0/haircut 100%/n_trials 13。**by-instrument (n=64, 全4負, 07-13 と同一)**: **GBP_USD #1 drag -99.9 (mean -4.00, n=25)** / USD_JPY -55.8 (n=20) / EUR_JPY -53.1 (n=12) / EUR_USD -16.8 (n=7)
+- OANDA audit (07:32→11:32 UTC): **0 LIVE / 30 shadow_tracking skipped / 0 blocked / 0 false-sent** (is_live 全 false、filled 行なし、偽sent なし=07-02 contract fix 持続)。**今窓は agg-kelly gate に到達した signal なし** — 全て upstream で shadow_tracking skip。gate は稼働中セーフティネットのまま。firing: session_time_bias(4) / sr_break_retest(4) / vol_momentum_scalp(3) / dt_bb_rsi_mr(3) / dual_sr_bounce(3) / london_breakout(2) / trendline_sweep(2) / ema200_trend_reversal(2) / wick_imbalance_reversion(2) + singles。instruments: GBP_USD(10) 最活性 / USD_JPY(7) / EUR_USD(6) / AUD_JPY(3) / EUR_GBP(2) / EUR_JPY(2)。units: 1000u×20 / 5000u×4 (trendline_sweep EUR_GBP) / 0u×6。audit table total=**12,272** 行 (+156)
+- Learning: **新規 adjustment なし** (latest 依然 id=92, 2026-07-06 = sr_channel_reversal scalp blacklist 再確認 WR25%/EV-0.98/n190)。current_params 不変 (confidence_threshold 30 / max_open_trades 8 / max_consecutive_losses 3 / learn_every_n 10 / runtime blacklist 空)
+- Tier 変更なし → portfolio auto-sync / strategy pages 編集不要 (0 fills のフラット窓、閾値クロス無し)
+- **Lint**: (1) 現状態の数値は index.md 全 state 箇所 (header/System State/last-updated/session-history) で 100.8%(held flat)/560(flat)/-556.4/-40.0%/0-fills-0-blocked 一致 ✅ (残る 100.01%/-540.7 等の参照は全て "vs 07-08's" 比較文 + 履歴行 + trade-log link=履歴として正) (2) [[monthly-target-rederivation-2026-07-10]]/[[shortest-path-decision-memo-2026-07-10]]/[[exit-repair-tp-sl-prereg-2026-07-07]] 全て解決 ✅、新規破損リンク 0件。tier_integrity_check --check = ERROR 0 (既存 warn 2 / info 14 のみ、本編集と無関係) (3) stale なし — データ 07-14 当日 (Render API 一次ソース)、cadence 正常
+- ⚠️ 未解決（継続）: `API_AUTH_TOKEN` watchdog gap (agg-kelly gate が現行の稼働中セーフティネット) / sr_anti_hunt_bounce shadow data corruption / main の index.md DD 行 stale (乖離解消は別件、v2.3 は実 NAV(JPY) 基準へ移行予定)
+
+## 2026-07-16 wiki-daily-update (scheduled task)
+- ✅ APIフェッチ完了 (demo/stats date_from=2026-04-08, demo/learning, risk/dashboard, oanda/audit limit=30) — 全て Render 本番一次ソース
+- ✅ Trade log 作成: `raw/trade-logs/2026-07-16.md`
+- ⚠️ **1日 cadence gap (07-15 に scheduled run なし)** — `2026-07-15.md` / log.md エントリ不在。本日の delta は **2日累積 (07-15→07-16)**、単一窓ではない。cadence は本日再開。副次発見: **07-14 の trade-log link が index.md の daily-summary リストから欠落**していたため本編集で 07-14/07-16 を両方追補
+- **本日のスナップショット (is_shadow=false, 2日累積 vs 07-14)**: N=**563** (**+3 fills 2W/0L/1BE = +3.7pip**; wins 243→245, losses 284 flat, BE 33→34)。WR=43.5% (+0.1pp), decided 46.3% (+0.2pp), EV=**-0.98** (+0.01), PnL=**-552.7pip** (+3.7pip ✅)、Wilson 42.1(BF 39.3), avg R 0.12。**直近で初の net-positive 窓**だが 563-trade book に対し 2勝は marginal (aggregate −552.7pip はほぼ不動)。shadow_count 9,441→**9,656 (+215)**
+- **リスク**: 🔴🔴🔴 **DD=100.8%** (1008.0pip, eq=−$991.1 vs peak +$16.9) — **07-13 barrier 突破から held flat、NEW HIGH なし**。+3.7pip の book 微増は 1-dp 解像度で DD を動かさず (deepening も new-high も無し)。realized ruin=0.0% は 0.2× lot cap のみによる。**MC tail は僅かに拡大** (worst DD99 264.3→**272.36**、median final eq 788.65→**781.25**、median max DD 212.38→**219.75**) — realized book は改善したが 30d edge 悪化で forward 分布が左シフト。defensive 0.2× 維持
+- **30d edge**: overall edge=**-40.5%** (⚠️ **WORSE −0.5pp vs 07-14 の -40.0%**)。**window-roll easing に騙されない** — per-trade net が −3.52→**−3.64** に悪化、30d 窓は n 64→60 に roll (effective_date_from → 2026-06-16)、absolute net の easing (−225.6→**-218.5**) は分母縮小の artifact。friction 4.15/trade (+0.11)、Sharpe -0.562 (悪化)、DSR 0.0/haircut 100%/n_trials 12。**by-instrument (n=60, 全4負)**: **GBP_USD #1 drag -96.7 (mean -4.60, n=21)** / USD_JPY -53.9 (n=22) / EUR_JPY -53.1 (n=12) / EUR_USD -14.8 (n=5)。per-strategy Kelly は bb_rsi_reversion のみ +edge (+0.158/half-Kelly 0.134/n=11/WR 72.7%)、他は全て 0.0/insufficient
+- OANDA audit (07:25→11:30 UTC): **0 LIVE / 30 shadow_tracking skipped / 0 blocked / 0 false-sent** (is_live 全 false、filled 行なし、偽sent なし=07-02 contract fix 持続)。**今窓は agg-kelly gate に到達した signal なし** — 全て upstream で shadow_tracking skip。gate は稼働中セーフティネットのまま。firing: trendline_sweep(4) / sr_anti_hunt_bounce(4) / dt_bb_rsi_mr(3) / london_breakout(2) / vix_carry_unwind(2) / dual_sr_bounce(2) / three_bar_reversal(2) / vol_momentum_scalp(2) + singles。instruments: EUR_USD(9) 最活性 / USD_JPY(8) / GBP_USD(8) / EUR_GBP(3) / GBP_JPY(1) / AUD_JPY(1)。units: 1000u×20 / 5000u×4 (trendline_sweep EUR_GBP) / 0u×6。audit table total=**12,496** 行 (+224 over the 2-day span)
+- Learning: **新規 adjustment なし** (latest 依然 id=92, 2026-07-06 = sr_channel_reversal scalp blacklist 再確認 WR25%/EV-0.98/n190)。current_params 不変 (confidence_threshold 30 / max_open_trades 8 / max_consecutive_losses 3 / learn_every_n 10 / runtime blacklist 空)。scalp by_conf は low のみ +EV (+0.48/n127/WR46.5%)、mid -0.39(n207)/high -0.71(n54)。daytrade by_conf 全負、swing は n=0 not ready
+- Tier 変更なし → portfolio auto-sync / strategy pages 編集不要 (marginal +3-fill 窓、閾値クロス無し)。exact cell attribution は 07-14 by_type baseline 未キャッシュのため deferred (2勝は per-strategy Kelly の bb_rsi_reversion +edge と整合するが cell-level 未確認)
+- **Lint**: (1) 現状態の数値は index.md 全 state 箇所 (header/System State/Ruin/Aggregate Kelly/last-updated/session-history/trade-log link) で 100.8%(held)/563/-552.7/-40.5%/0-fills-0-blocked 一致 ✅ (残る 560/-556.4/-40.0% 参照は全て 07-14/07-13 履歴行 + "vs 07-14's" 比較文=履歴として正) (2) [[2026-07-16]]/[[2026-07-14]]/[[2026-07-13]] → raw/trade-logs/*.md 解決 ✅、[[monthly-target-rederivation-2026-07-10]]/[[shortest-path-decision-memo-2026-07-10]]/[[roadmap-v2.3-payoff-friction-repair]] 全て解決 ✅、新規破損リンク 0件。tier_integrity_check --check = ERROR 0 (既存 warn 2 / info 14 のみ、本編集と無関係) (3) stale なし — データ 07-16 当日 (Render API 一次ソース)。⚠️ ただし **1日 cadence gap (07-15)** を検出・記録
+- ⚠️ 未解決（継続）: `API_AUTH_TOKEN` watchdog gap (agg-kelly gate が現行の稼働中セーフティネット) / sr_anti_hunt_bounce shadow data corruption / main の index.md DD 行 stale (乖離解消は別件、v2.3 は実 NAV(JPY) 基準へ移行予定)
+
+## 2026-07-21 wiki-daily-update (scheduled task)
+- ✅ APIフェッチ完了 (demo/stats date_from=2026-04-08, demo/learning, risk/dashboard, oanda/audit limit=30) — 全て Render 本番一次ソース
+- ✅ Trade log 作成: `raw/trade-logs/2026-07-21.md`
+- ⚠️ **cadence gap** — 前回 scheduled run は 2026-07-16 (Thu)。07-17 (Fri) / 07-20 (Mon) に run なし (FX weekend 07-18/07-19)。本日の delta は 07-17→07-21 span 累積だが **realized book は flat (0 closed fills)** のため book 観点では損失なし。cadence は本日再開
+- **本日のスナップショット (is_shadow=false, vs 07-16)**: N=**563** (**FLAT — 0 closed fills**)。245W/284L/34BE / WR 43.5% / decided 46.3% / EV **-0.98** / PnL **-552.7pip** / Wilson 42.1(BF 39.3) / avg R 0.12 は**全て 07-16 と bit-for-bit 同一**。実現 book 移動ゼロ (07-08/07-14 と同型のフラット窓)。shadow_count 9,656→**9,932 (+276)** — shadow 側 firing は継続、live/closed book のみ静止
+- **リスク**: 🔴🔴🔴 **DD=100.8%** (1008.0pip, eq=−$991.1 vs peak +$16.9) — **07-13 barrier 突破から held flat、NEW HIGH なし・deepening なし** (0 fills で book 不動)。realized ruin=0.0% は 0.2× lot cap のみによる。**MC tail は改善** (worst DD99 272.36→**200.24**、median max DD 219.75→**149.17**、median final eq 781.25→**852.25**) — 30d edge の window-roll 改善が forward 分布に波及。defensive 0.2× 維持
+- **30d edge**: overall edge=**-29.6%** (🟢 eased +10.9pp vs 07-16 の -40.5%)。**ただし new-edge gain ではない** — closed fills 0 のまま 30d 窓が n 60→50 に roll (effective_date_from → 2026-06-21)、10件の悪い cohort (≈−9.53/trade) が窓外へ排出されたことによる。per-trade net は −3.64→**-2.46** に改善、absolute net −218.5→**-123.2**、Sharpe -0.562→**-0.399**。friction 4.18/trade、DSR 0.0/haircut 100%/n_trials 11。**by-instrument (n=50, 全4負)**: **GBP_USD #1 abs drag -43.5 (mean -2.72, n=16)** / USD_JPY -36.2 (mean -1.91, n=19) / EUR_JPY -28.7 (mean -2.87, n=10) / EUR_USD -14.8 (mean -2.96, n=5 = worst mean)。per-strategy Kelly は bb_rsi_reversion のみ +edge (+0.158/half-Kelly 0.134/n=11/WR 72.7%)、他は全て 0.0/insufficient
+- OANDA audit (07-20 16:31→07-21 04:02 UTC): **0 LIVE / 30 shadow_tracking skipped / 0 blocked / 0 false-sent** (is_shadow None、bridge_status=skipped 全行、filled 行なし、偽sent なし=07-02 contract fix 持続)。**今窓は agg-kelly gate に到達した signal なし** — 全て upstream で shadow_tracking skip。gate は稼働中セーフティネットのまま。firing: squeeze_release_momentum(5) / xs_momentum(4) / lin_reg_channel(4) / wick_imbalance_reversion(3) / dt_sr_channel_reversal(2) / streak_reversal(2) / dt_bb_rsi_mr(2) / engulfing_bb(2) + singles。instruments: GBP_USD(11) 最活性 / EUR_USD(9) / USD_JPY(5) / GBP_JPY(3) / EUR_JPY(1) / AUD_JPY(1)。audit table total=**12,799** 行 (+303 over the 5-day span)
+- Learning: **新規 adjustment なし** (latest 依然 id=92, 2026-07-06 = sr_channel_reversal scalp blacklist 再確認 WR25%/EV-0.98/n190)。current_params 不変 (confidence_threshold 30 / max_open_trades 8 / max_consecutive_losses 3 / learn_every_n 10 / entry_type_blacklist 空)。daytrade by_conf 全負 (high -0.19/n31, mid -4.07/n39, low -2.18/n23)、by_regime 全負 (RANGE -1.59/TREND_BEAR -4.50/TREND_BULL -2.17)
+- Tier 変更なし → portfolio auto-sync / strategy pages 編集不要 (0 fills のフラット窓、閾値クロス無し)
+- **Lint**: (1) 現状態の数値は index.md 全 state 箇所 (header/System State/Ruin/Aggregate Kelly/last-updated) で 100.8%(held flat)/563(flat)/-552.7/-29.6%/0-fills-0-blocked 一致 ✅ (残る -40.5%/-218.5/272.36 等の参照は全て "vs 07-16's" 比較文 + 07-16/07-14/07-13 履歴行 + trade-log link=履歴として正) (2) [[2026-07-21]] → raw/trade-logs/2026-07-21.md 解決 ✅、[[monthly-target-rederivation-2026-07-10]]/[[shortest-path-decision-memo-2026-07-10]] 全て解決 ✅、新規破損リンク 0件 (3) stale なし — データ 07-21 当日 (Render API 一次ソース)。⚠️ ただし **cadence gap (07-17/07-20)** を検出・記録 (realized book flat のため book 損失なし)
+- ⚠️ 未解決（継続）: `API_AUTH_TOKEN` watchdog gap (agg-kelly gate が現行の稼働中セーフティネット) / sr_anti_hunt_bounce shadow data corruption / main の index.md DD 行 stale (乖離解消は別件、v2.3 は実 NAV(JPY) 基準へ移行予定)
+## 2026-07-06 (T7 クローズ + T8 forensic #2: engine 再構築による live dedup 無効の発見)
+- **T7 CLOSED**: carry dip 0-fire は ceiling 159.50 のレジーム前提崩壊による dormant-by-design (バグ非ず)。QUALBAR print telemetry 本番稼働。[[zero-fire-diagnosis-carrydip-vix-2026-07-02]] §6
+- **T8 forensic #2 = 共通挙動**: hull は guard 実装済みだが `compute_daytrade_signal`/`compute_hourly_signal` が **poll 毎に Engine を再構築**するため全戦略の instance-state dedup/cooldown が live で無効。live の dedup 層は recent_emit のみ。order 層 per-bar dedup タスクを queue 投入、ゲート④ order 層補正 + 再 LOCK は user R1 決裁待ち。[[t8-week1-gate-breach-2026-07-06]]
 ## 2026-07-18 wiki-lint (E15+E7 pre-reg 起案セッション)
 
 - **Lint (本コミット変更ファイル限定)**: (1) [[e15-e7-event-modality-prereg-2026-07-18]] / changelog / session log / pipeline 状態表 / queue task の [[wikilink]] 全解決 ✅ (2) prereg-trigger-registry.json valid JSON、active 13 triggers (新規 2: e15-e7-event-prereg-phase{0,1}-verdict) ✅ (3) tier_integrity_check --check pass ✅

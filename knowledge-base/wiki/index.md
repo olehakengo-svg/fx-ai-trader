@@ -16,7 +16,7 @@
 - **[[audit-index]]** — `learning/` 18 audit ノード + MEMORY `project_*.md` 双方向マップ（次セッション Claude 必読、KB↔MEMORY 棲み分けルール記載）
 
 <!-- KB_PORTFOLIO_START -->
-## Current Portfolio (auto-synced, 2026-07-21)
+## Current Portfolio (auto-synced, 2026-07-25)
 
 ### ELITE_LIVE (never shadowed)
 | Strategy | BT Data | Status |
@@ -41,6 +41,7 @@
 | [[vix-carry-unwind]] | USD_JPY | USD_JPY: EV=+0.212 WR=67.3% | PAIR_PROMOTED |
 | [[vol-momentum-scalp]] | EUR_JPY | no BT data | PAIR_PROMOTED |
 | [[vsg-jpy-reversal]] | EUR_JPY | no BT data | PAIR_PROMOTED |
+| [[weekend-gap-fade]] | AUD_USD, EUR_USD, USD_JPY | no BT data | PAIR_PROMOTED |
 | [[xs-momentum-rsi]] | USD_JPY | no BT data | PAIR_PROMOTED |
 
 ### SHADOW (Data Collection)

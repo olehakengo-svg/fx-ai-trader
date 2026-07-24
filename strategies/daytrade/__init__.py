@@ -97,6 +97,13 @@ from strategies.daytrade.zz_pivot_v60_sr import ZzPivotV60Sr
 # Holdout 2022-2026 (untouched): WR 78% / net+1.34p / PF 1.19 (忠実度BT, spread 0.6p込)。
 # env HULL_DONCHIAN_FADE_LIVE_ENABLE=1 + MIN lot 1000u。card: wiki/strategies/hull_donchian_fade.md
 from strategies.daytrade.hull_donchian_fade import HullDonchianFade
+# 2026-07-24: weekend_gap_fade — 週末ギャップ・フェード (pre-reg LOCKED, rule:R1,
+# user 承認 option (b) 直接 live MIN lot 1000u)。3ペア {EUR_USD, USD_JPY, AUD_USD}
+# 限定、日曜 open 初バーのみ発火。primary 実行は demo_trader._weekend_gap_tick の
+# scoped runner (夏時間 21:0x は market-closed gate で通常 tick が来ないため)。
+# ここへの登録は冗長系 (冬 22:00+ の通常経路) — system_kv latch が二重発注を防ぐ。
+# Pre-reg: knowledge-base/wiki/decisions/weekend-gap-stage2-execution-prereg-2026-07-24.md
+from strategies.daytrade.weekend_gap_fade import WeekendGapFade
 
 
 class DaytradeEngine:
@@ -178,6 +185,9 @@ class DaytradeEngine:
             # Pre-reg 撤退: LiveN>=10 EV<0 demote / N>=30 WR<55% or PF<1.0 demote
             # SHORTxmacro-UP cell N>=30 EV<-0.5p → SHORT lot 0.5x (SIZE lever)
             HullDonchianFade(),
+            # 2026-07-24: weekend_gap_fade (pre-reg LOCKED, 1000u fixed sentinel)
+            # 冗長系 — primary は demo_trader scoped Sunday runner。latch dedup 前提。
+            WeekendGapFade(),
         ]
         if (os.environ.get("KALMAN_D7_V18E_AUDJPY_SHADOW") == "1"
                 or os.environ.get("KALMAN_D7_V18E_EURJPY_SHADOW") == "1"):
@@ -357,6 +367,13 @@ class DaytradeEngine:
         # feedback_label_empirical_audit, project_kalman_d7_silent_drop_recovery_2026_05_28.
         "zz_pivot_v60_sr",
         "zz_pivot_v60_sr_lo",
+        # 2026-07-24 (rule:R1 pre-reg LOCK): weekend_gap_fade — select_best
+        # max-score ボトルネックの回避 7 例目 (Kalman/pivot/ZZ/sweep/hull と同型)。
+        # 日曜 open 初バーの 1 発 (~3.3 イベント/月) を他候補との score 競争で
+        # 取り逃すと N 蓄積 (G2 N=12 / G3 N=30) が構造的に遅延する。
+        # side-channel は通常の _tick_entry を通るため guard chain は共有、
+        # system_kv latch が primary (scoped runner) との二重発注を防ぐ。
+        "weekend_gap_fade",
     })
 
     def select_best(self, candidates: list[Candidate]) -> Optional[Candidate]:

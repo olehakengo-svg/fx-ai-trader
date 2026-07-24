@@ -1,0 +1,2493 @@
+{
+ "task": "family #5 cot_spec_positioning_extreme_weekly EXPLORE",
+ "run_date": "2026-07-24",
+ "explore_window": {
+  "cot_signal": "2010-01-05 .. 2021-12-28 (2010-2012 burned as rolling-3y warmup)",
+  "price_events": "2014-01 .. 2021-11 (12y parquet starts 2013-12-30; 4w-forward completeness)"
+ },
+ "oos_lock": "COT report_date AND price index hard-filtered < 2022-01-01 + asserts; joint COT x price OOS contact forbidden",
+ "frozen_definitions": {
+  "signal": "net_pct_oi rolling 156w percentile (backward-looking, inclusive)",
+  "extreme_primary": "pct >= 0.9 (crowded long) / <= 0.1 (crowded short)",
+  "extreme_diagnostic": "pct >= 0.95 / <= 0.05 (labelled band, not in m)",
+  "episode": "consecutive in-zone weeks = 1 event; event = zone onset",
+  "release_lag": "publish = report_date + 3 business days (Fri 15:30 ET); entry = next Monday open strictly after publish; asserts entry>publish and entry-report>= 6d",
+  "horizons": {
+   "1w": "5 daily bars incl. entry bar",
+   "2w": "10 daily bars incl. entry bar",
+   "4w": "20 daily bars incl. entry bar"
+  },
+  "direction_convention": "net signed in REVERSION (fade-the-crowd) direction; continuation = mirror",
+  "swap_stress": "adverse 2.5%/yr x {'1w': 7, '2w': 14, '4w': 28} swap-days (multi-week clause)",
+  "bootstrap": "one-sided, B=10000, seed 20260724; per-ccy = episode bootstrap; pooled = entry-date block",
+  "bh_fdr": "q=0.1; primary family m=36 (6 ccy x 3 h x 2 dir); pooled family m=6",
+  "rt_note": "AUD_USD 2.5p / USD_CAD 3.0p / USD_CHF 3.0p are theoretical (not in KB friction table)"
+ },
+ "currencies": {
+  "EUR": {
+   "pair": "EUR_USD",
+   "base_sign": 1,
+   "rt_pips": 2.0,
+   "rt_theoretical": false,
+   "median_price": 1.13726,
+   "signal_weeks": 471,
+   "zone_weeks": 87,
+   "n_onsets": 10,
+   "n_measured": 9,
+   "skips": {
+    "pre_price_history": 1,
+    "no_entry_bar": 0,
+    "incomplete_4w": 0,
+    "span_guard": 0
+   },
+   "episode_weeks": {
+    "p25": 2.0,
+    "p50": 6.0,
+    "p75": 11.0
+   },
+   "inter_onset_spacing_days": {
+    "p25": 138.25,
+    "p50": 262.5,
+    "p75": 351.75
+   },
+   "events_per_year": 1.12,
+   "horizons": {
+    "1w": {
+     "n": 9,
+     "net_mean": 17.899999999999828,
+     "net_median": 44.10000000000025,
+     "net_sd": 93.68376326770807,
+     "mfe_rev": {
+      "p25": 23.699999999999832,
+      "p50": 91.39999999999925,
+      "p75": 129.60000000000082
+     },
+     "mae_rev": {
+      "p25": 58.100000000000925,
+      "p50": 81.99999999999984,
+      "p75": 89.89999999999831
+     },
+     "boot_p_reversion": 0.2753724627537246,
+     "boot_p_continuation": 0.7161283871612839,
+     "rt_pips": 2.0,
+     "swap_stress_pips": 5.452616438356165,
+     "stressed_net_rev": 10.447383561643663,
+     "stressed_net_cont": -25.352616438355994,
+     "headroom_rev": 45.699999999999626,
+     "headroom_cont": 40.99999999999992
+    },
+    "2w": {
+     "n": 9,
+     "net_mean": 45.1666666666665,
+     "net_median": 64.4,
+     "net_sd": 205.9868563768085,
+     "mfe_rev": {
+      "p25": 83.69999999999987,
+      "p50": 123.50000000000082,
+      "p75": 136.7000000000007
+     },
+     "mae_rev": {
+      "p25": 69.20000000000037,
+      "p50": 141.20000000000132,
+      "p75": 184.3000000000017
+     },
+     "boot_p_reversion": 0.23607639236076391,
+     "boot_p_continuation": 0.7553244675532447,
+     "rt_pips": 2.0,
+     "swap_stress_pips": 10.90523287671233,
+     "stressed_net_rev": 32.26143378995417,
+     "stressed_net_cont": -58.071899543378834,
+     "headroom_rev": 61.75000000000041,
+     "headroom_cont": 70.60000000000066
+    },
+    "4w": {
+     "n": 9,
+     "net_mean": -124.96666666666673,
+     "net_median": -54.30000000000046,
+     "net_sd": 201.3657431143638,
+     "mfe_rev": {
+      "p25": 83.69999999999987,
+      "p50": 132.69999999999894,
+      "p75": 173.20000000000002
+     },
+     "mae_rev": {
+      "p25": 163.20000000000113,
+      "p50": 230.10000000000196,
+      "p75": 305.10000000000036
+     },
+     "boot_p_reversion": 0.9837016298370163,
+     "boot_p_continuation": 0.016698330166983303,
+     "rt_pips": 2.0,
+     "swap_stress_pips": 21.81046575342466,
+     "stressed_net_rev": -148.7771324200914,
+     "stressed_net_cont": 101.15620091324206,
+     "headroom_rev": 66.34999999999947,
+     "headroom_cont": 115.05000000000098
+    }
+   },
+   "side_split": {
+    "crowded_long_fade": {
+     "1w": {
+      "n": 5,
+      "net_mean": -44.65999999999992,
+      "net_median": -53.600000000000314
+     },
+     "2w": {
+      "n": 5,
+      "net_mean": -60.88000000000004,
+      "net_median": -12.600000000000389
+     },
+     "4w": {
+      "n": 5,
+      "net_mean": -92.26000000000046,
+      "net_median": -54.30000000000046
+     }
+    },
+    "crowded_short_fade": {
+     "1w": {
+      "n": 4,
+      "net_mean": 96.09999999999951,
+      "net_median": 68.4499999999999
+     },
+     "2w": {
+      "n": 4,
+      "net_mean": 177.72499999999968,
+      "net_median": 103.90000000000009
+     },
+     "4w": {
+      "n": 4,
+      "net_mean": -165.8499999999996,
+      "net_median": -82.99999999999973
+     }
+    }
+   },
+   "extremity_terciles": {
+    "rows": [
+     {
+      "tercile": 1,
+      "n": 4,
+      "extremity_median": 0.9006410256410257,
+      "net2w_median": 60.14999999999992,
+      "net2w_mean": 2.525000000000439
+     },
+     {
+      "tercile": 2,
+      "n": 3,
+      "extremity_median": 0.907051282051282,
+      "net2w_median": 143.40000000000018,
+      "net2w_mean": 225.6666666666662
+     },
+     {
+      "tercile": 3,
+      "n": 2,
+      "extremity_median": 0.9455128205128205,
+      "net2w_median": -140.30000000000095,
+      "net2w_mean": -140.30000000000095
+     }
+    ],
+    "monotone_increasing": false,
+    "monotone_decreasing": false
+   },
+   "events": [
+    {
+     "report_date": "2014-03-18",
+     "publish_date": "2014-03-21",
+     "entry_date": "2014-03-24",
+     "zone": 1,
+     "pct": 0.9006410256410257,
+     "episode_weeks": 1,
+     "net_1w": 44.1,
+     "net_2w": 94.0,
+     "net_4w": -9.7
+    },
+    {
+     "report_date": "2015-02-03",
+     "publish_date": "2015-02-06",
+     "entry_date": "2015-02-09",
+     "zone": -1,
+     "pct": 0.09935897435897435,
+     "episode_weeks": 2,
+     "net_1w": 69.5,
+     "net_2w": 64.4,
+     "net_4w": -474.8
+    },
+    {
+     "report_date": "2015-03-17",
+     "publish_date": "2015-03-20",
+     "entry_date": "2015-03-23",
+     "zone": -1,
+     "pct": 0.09294871794871795,
+     "episode_weeks": 6,
+     "net_1w": 60.5,
+     "net_2w": 143.4,
+     "net_4w": -25.4
+    },
+    {
+     "report_date": "2015-12-29",
+     "publish_date": "2016-01-01",
+     "entry_date": "2016-01-04",
+     "zone": -1,
+     "pct": 0.09935897435897435,
+     "episode_weeks": 1,
+     "net_1w": 67.4,
+     "net_2w": 55.9,
+     "net_4w": -22.6
+    },
+    {
+     "report_date": "2017-03-14",
+     "publish_date": "2017-03-17",
+     "entry_date": "2017-03-20",
+     "zone": 1,
+     "pct": 0.907051282051282,
+     "episode_weeks": 33,
+     "net_1w": -53.6,
+     "net_2w": 86.4,
+     "net_4w": 140.2
+    },
+    {
+     "report_date": "2017-11-07",
+     "publish_date": "2017-11-10",
+     "entry_date": "2017-11-13",
+     "zone": 1,
+     "pct": 0.9391025641025641,
+     "episode_weeks": 6,
+     "net_1w": -126.4,
+     "net_2w": -268.0,
+     "net_4w": -108.4
+    },
+    {
+     "report_date": "2017-12-26",
+     "publish_date": "2017-12-29",
+     "entry_date": "2018-01-01",
+     "zone": 1,
+     "pct": 0.9006410256410257,
+     "episode_weeks": 19,
+     "net_1w": -28.2,
+     "net_2w": -204.2,
+     "net_4w": -429.1
+    },
+    {
+     "report_date": "2020-02-18",
+     "publish_date": "2020-02-21",
+     "entry_date": "2020-02-24",
+     "zone": -1,
+     "pct": 0.09294871794871795,
+     "episode_weeks": 2,
+     "net_1w": 187.0,
+     "net_2w": 447.2,
+     "net_4w": -140.6
+    },
+    {
+     "report_date": "2020-08-04",
+     "publish_date": "2020-08-07",
+     "entry_date": "2020-08-10",
+     "zone": 1,
+     "pct": 0.9519230769230769,
+     "episode_weeks": 11,
+     "net_1w": -59.2,
+     "net_2w": -12.6,
+     "net_4w": -54.3
+    }
+   ]
+  },
+  "GBP": {
+   "pair": "GBP_USD",
+   "base_sign": 1,
+   "rt_pips": 4.53,
+   "rt_theoretical": false,
+   "median_price": 1.33872,
+   "signal_weeks": 471,
+   "zone_weeks": 111,
+   "n_onsets": 21,
+   "n_measured": 17,
+   "skips": {
+    "pre_price_history": 4,
+    "no_entry_bar": 0,
+    "incomplete_4w": 0,
+    "span_guard": 0
+   },
+   "episode_weeks": {
+    "p25": 1.0,
+    "p50": 3.0,
+    "p75": 7.0
+   },
+   "inter_onset_spacing_days": {
+    "p25": 40.25,
+    "p50": 108.5,
+    "p75": 154.0
+   },
+   "events_per_year": 2.12,
+   "horizons": {
+    "1w": {
+     "n": 17,
+     "net_mean": 11.658823529411606,
+     "net_median": -8.399999999999519,
+     "net_sd": 171.45764075575434,
+     "mfe_rev": {
+      "p25": 55.899999999999835,
+      "p50": 96.00000000000053,
+      "p75": 147.6999999999995
+     },
+     "mae_rev": {
+      "p25": 49.000000000001265,
+      "p50": 93.700000000001,
+      "p75": 167.30000000000132
+     },
+     "boot_p_reversion": 0.39166083391660833,
+     "boot_p_continuation": 0.6040395960403959,
+     "rt_pips": 4.53,
+     "swap_stress_pips": 6.418520547945205,
+     "stressed_net_rev": 0.710302981466401,
+     "stressed_net_cont": -22.607344077356814,
+     "headroom_rev": 21.192052980132566,
+     "headroom_cont": 20.684326710816997
+    },
+    "2w": {
+     "n": 17,
+     "net_mean": -105.44117647058829,
+     "net_median": -82.59999999999934,
+     "net_sd": 201.29647928746633,
+     "mfe_rev": {
+      "p25": 55.899999999999835,
+      "p50": 96.00000000000053,
+      "p75": 225.80000000000044
+     },
+     "mae_rev": {
+      "p25": 101.39999999999816,
+      "p50": 174.49999999999966,
+      "p75": 301.2999999999999
+     },
+     "boot_p_reversion": 0.9906009399060094,
+     "boot_p_continuation": 0.007699230076992301,
+     "rt_pips": 4.53,
+     "swap_stress_pips": 12.83704109589041,
+     "stressed_net_rev": -122.8082175664787,
+     "stressed_net_cont": 88.07413537469787,
+     "headroom_rev": 21.192052980132566,
+     "headroom_cont": 38.52097130242818
+    },
+    "4w": {
+     "n": 17,
+     "net_mean": -14.788235294117733,
+     "net_median": -59.499999999999,
+     "net_sd": 516.9449775875006,
+     "mfe_rev": {
+      "p25": 90.20000000000027,
+      "p50": 141.10000000000068,
+      "p75": 366.5000000000007
+     },
+     "mae_rev": {
+      "p25": 170.99999999999892,
+      "p50": 274.4999999999997,
+      "p75": 353.0000000000011
+     },
+     "boot_p_reversion": 0.5496450354964504,
+     "boot_p_continuation": 0.43945605439456054,
+     "rt_pips": 4.53,
+     "swap_stress_pips": 25.67408219178082,
+     "stressed_net_rev": -44.99231748589855,
+     "stressed_net_cont": -15.415846897663087,
+     "headroom_rev": 31.14790286975732,
+     "headroom_cont": 60.59602649006616
+    }
+   },
+   "side_split": {
+    "crowded_long_fade": {
+     "1w": {
+      "n": 10,
+      "net_mean": 41.17999999999999,
+      "net_median": 15.049999999999786
+     },
+     "2w": {
+      "n": 10,
+      "net_mean": -60.1999999999998,
+      "net_median": -81.84999999999997
+     },
+     "4w": {
+      "n": 10,
+      "net_mean": 99.64000000000019,
+      "net_median": -53.14999999999959
+     }
+    },
+    "crowded_short_fade": {
+     "1w": {
+      "n": 7,
+      "net_mean": -30.514285714286093,
+      "net_median": -97.10000000000107
+     },
+     "2w": {
+      "n": 7,
+      "net_mean": -170.07142857142907,
+      "net_median": -139.1999999999993
+     },
+     "4w": {
+      "n": 7,
+      "net_mean": -178.25714285714326,
+      "net_median": -314.0000000000009
+     }
+    }
+   },
+   "extremity_terciles": {
+    "rows": [
+     {
+      "tercile": 1,
+      "n": 7,
+      "extremity_median": 0.9006410256410257,
+      "net2w_median": -82.59999999999934,
+      "net2w_mean": -122.0000000000002
+     },
+     {
+      "tercile": 2,
+      "n": 4,
+      "extremity_median": 0.9326923076923077,
+      "net2w_median": -30.850000000000044,
+      "net2w_mean": 20.800000000000267
+     },
+     {
+      "tercile": 3,
+      "n": 6,
+      "extremity_median": 0.9711538461538461,
+      "net2w_median": -138.5499999999995,
+      "net2w_mean": -170.28333333333345
+     }
+    ],
+    "monotone_increasing": false,
+    "monotone_decreasing": false
+   },
+   "events": [
+    {
+     "report_date": "2014-03-25",
+     "publish_date": "2014-03-28",
+     "entry_date": "2014-03-31",
+     "zone": 1,
+     "pct": 0.9006410256410257,
+     "episode_weeks": 7,
+     "net_1w": 73.2,
+     "net_2w": -81.1,
+     "net_4w": -150.5
+    },
+    {
+     "report_date": "2014-05-27",
+     "publish_date": "2014-05-30",
+     "entry_date": "2014-06-02",
+     "zone": 1,
+     "pct": 0.9006410256410257,
+     "episode_weeks": 1,
+     "net_1w": -40.2,
+     "net_2w": -208.0,
+     "net_4w": -274.2
+    },
+    {
+     "report_date": "2014-06-17",
+     "publish_date": "2014-06-20",
+     "entry_date": "2014-06-23",
+     "zone": 1,
+     "pct": 0.9903846153846154,
+     "episode_weeks": 4,
+     "net_1w": -8.4,
+     "net_2w": -137.9,
+     "net_4w": -59.5
+    },
+    {
+     "report_date": "2016-06-07",
+     "publish_date": "2016-06-10",
+     "entry_date": "2016-06-13",
+     "zone": -1,
+     "pct": 0.04807692307692308,
+     "episode_weeks": 1,
+     "net_1w": 159.3,
+     "net_2w": -527.4,
+     "net_4w": -1248.5
+    },
+    {
+     "report_date": "2016-06-21",
+     "publish_date": "2016-06-24",
+     "entry_date": "2016-06-27",
+     "zone": -1,
+     "pct": 0.041666666666666664,
+     "episode_weeks": 1,
+     "net_1w": -188.5,
+     "net_2w": -495.6,
+     "net_4w": -325.4
+    },
+    {
+     "report_date": "2016-07-12",
+     "publish_date": "2016-07-15",
+     "entry_date": "2016-07-18",
+     "zone": -1,
+     "pct": 0.060897435897435896,
+     "episode_weeks": 19,
+     "net_1w": -121.4,
+     "net_2w": -7.7,
+     "net_4w": -314.0
+    },
+    {
+     "report_date": "2016-11-29",
+     "publish_date": "2016-12-02",
+     "entry_date": "2016-12-05",
+     "zone": -1,
+     "pct": 0.09935897435897435,
+     "episode_weeks": 1,
+     "net_1w": -97.1,
+     "net_2w": -186.3,
+     "net_4w": -338.7
+    },
+    {
+     "report_date": "2017-03-14",
+     "publish_date": "2017-03-17",
+     "entry_date": "2017-03-20",
+     "zone": -1,
+     "pct": 0.003205128205128205,
+     "episode_weeks": 6,
+     "net_1w": 88.8,
+     "net_2w": 162.8,
+     "net_4w": 138.3
+    },
+    {
+     "report_date": "2017-09-26",
+     "publish_date": "2017-09-29",
+     "entry_date": "2017-10-02",
+     "zone": 1,
+     "pct": 0.9839743589743589,
+     "episode_weeks": 6,
+     "net_1w": 329.4,
+     "net_2w": 115.6,
+     "net_4w": 269.4
+    },
+    {
+     "report_date": "2017-11-14",
+     "publish_date": "2017-11-17",
+     "entry_date": "2017-11-20",
+     "zone": 1,
+     "pct": 0.907051282051282,
+     "episode_weeks": 16,
+     "net_1w": -139.4,
+     "net_2w": -273.2,
+     "net_4w": -118.4
+    },
+    {
+     "report_date": "2018-03-13",
+     "publish_date": "2018-03-16",
+     "entry_date": "2018-03-19",
+     "zone": 1,
+     "pct": 0.9006410256410257,
+     "episode_weeks": 8,
+     "net_1w": -187.4,
+     "net_2w": -82.6,
+     "net_4w": -292.5
+    },
+    {
+     "report_date": "2019-08-13",
+     "publish_date": "2019-08-16",
+     "entry_date": "2019-08-19",
+     "zone": -1,
+     "pct": 0.09294871794871795,
+     "episode_weeks": 1,
+     "net_1w": 130.9,
+     "net_2w": 2.9,
+     "net_4w": 336.3
+    },
+    {
+     "report_date": "2019-09-17",
+     "publish_date": "2019-09-20",
+     "entry_date": "2019-09-23",
+     "zone": -1,
+     "pct": 0.04807692307692308,
+     "episode_weeks": 2,
+     "net_1w": -185.6,
+     "net_2w": -139.2,
+     "net_4w": 504.2
+    },
+    {
+     "report_date": "2020-01-07",
+     "publish_date": "2020-01-10",
+     "entry_date": "2020-01-13",
+     "zone": 1,
+     "pct": 0.9006410256410257,
+     "episode_weeks": 3,
+     "net_1w": 38.5,
+     "net_2w": -25.7,
+     "net_4w": 160.1
+    },
+    {
+     "report_date": "2020-02-18",
+     "publish_date": "2020-02-21",
+     "entry_date": "2020-02-24",
+     "zone": 1,
+     "pct": 0.9326923076923077,
+     "episode_weeks": 3,
+     "net_1w": 138.4,
+     "net_2w": -93.6,
+     "net_4w": 1290.8
+    },
+    {
+     "report_date": "2021-02-09",
+     "publish_date": "2021-02-12",
+     "entry_date": "2021-02-15",
+     "zone": 1,
+     "pct": 0.9198717948717948,
+     "episode_weeks": 16,
+     "net_1w": -136.8,
+     "net_2w": -54.0,
+     "net_4w": -46.8
+    },
+    {
+     "report_date": "2021-06-08",
+     "publish_date": "2021-06-11",
+     "entry_date": "2021-06-14",
+     "zone": 1,
+     "pct": 0.9326923076923077,
+     "episode_weeks": 2,
+     "net_1w": 344.5,
+     "net_2w": 238.5,
+     "net_4w": 218.0
+    }
+   ]
+  },
+  "AUD": {
+   "pair": "AUD_USD",
+   "base_sign": 1,
+   "rt_pips": 2.5,
+   "rt_theoretical": true,
+   "median_price": 0.747,
+   "signal_weeks": 471,
+   "zone_weeks": 138,
+   "n_onsets": 26,
+   "n_measured": 22,
+   "skips": {
+    "pre_price_history": 4,
+    "no_entry_bar": 0,
+    "incomplete_4w": 0,
+    "span_guard": 0
+   },
+   "episode_weeks": {
+    "p25": 1.0,
+    "p50": 4.5,
+    "p75": 7.0
+   },
+   "inter_onset_spacing_days": {
+    "p25": 49.0,
+    "p50": 105.0,
+    "p75": 140.0
+   },
+   "events_per_year": 2.75,
+   "horizons": {
+    "1w": {
+     "n": 22,
+     "net_mean": -4.181818181818225,
+     "net_median": -18.750000000000156,
+     "net_sd": 105.91451465962723,
+     "mfe_rev": {
+      "p25": 33.54999999999997,
+      "p50": 59.69999999999975,
+      "p75": 103.32499999999995
+     },
+     "mae_rev": {
+      "p25": 37.149999999999956,
+      "p50": 83.39999999999958,
+      "p75": 134.5250000000006
+     },
+     "boot_p_reversion": 0.5878412158784122,
+     "boot_p_continuation": 0.42655734426557346,
+     "rt_pips": 2.5,
+     "swap_stress_pips": 3.5815068493150686,
+     "stressed_net_rev": -10.263325031133293,
+     "stressed_net_cont": -1.8996886674968434,
+     "headroom_rev": 23.8799999999999,
+     "headroom_cont": 33.35999999999983
+    },
+    "2w": {
+     "n": 22,
+     "net_mean": -35.17272727272728,
+     "net_median": -14.15000000000055,
+     "net_sd": 125.5671711032563,
+     "mfe_rev": {
+      "p25": 38.3,
+      "p50": 69.60000000000076,
+      "p75": 140.92500000000007
+     },
+     "mae_rev": {
+      "p25": 38.34999999999977,
+      "p50": 118.44999999999993,
+      "p75": 188.42500000000013
+     },
+     "boot_p_reversion": 0.9092090790920908,
+     "boot_p_continuation": 0.08909109089091091,
+     "rt_pips": 2.5,
+     "swap_stress_pips": 7.163013698630137,
+     "stressed_net_rev": -44.83574097135742,
+     "stressed_net_cont": 25.50971357409714,
+     "headroom_rev": 27.840000000000305,
+     "headroom_cont": 47.379999999999974
+    },
+    "4w": {
+     "n": 22,
+     "net_mean": -5.359090909091038,
+     "net_median": -32.49999999999975,
+     "net_sd": 154.1165040421752,
+     "mfe_rev": {
+      "p25": 53.67499999999997,
+      "p50": 117.24999999999984,
+      "p75": 188.37500000000006
+     },
+     "mae_rev": {
+      "p25": 40.97499999999948,
+      "p50": 133.20000000000056,
+      "p75": 226.7749999999999
+     },
+     "boot_p_reversion": 0.5557444255574443,
+     "boot_p_continuation": 0.4393560643935606,
+     "rt_pips": 2.5,
+     "swap_stress_pips": 14.326027397260274,
+     "stressed_net_rev": -22.185118306351313,
+     "stressed_net_cont": -11.466936488169235,
+     "headroom_rev": 46.899999999999935,
+     "headroom_cont": 53.28000000000022
+    }
+   },
+   "side_split": {
+    "crowded_long_fade": {
+     "1w": {
+      "n": 11,
+      "net_mean": 14.499999999999908,
+      "net_median": 15.199999999999658
+     },
+     "2w": {
+      "n": 11,
+      "net_mean": -19.818181818181856,
+      "net_median": -27.199999999999445
+     },
+     "4w": {
+      "n": 11,
+      "net_mean": 57.42727272727257,
+      "net_median": 98.8
+     }
+    },
+    "crowded_short_fade": {
+     "1w": {
+      "n": 11,
+      "net_mean": -22.863636363636363,
+      "net_median": -36.599999999999966
+     },
+     "2w": {
+      "n": 11,
+      "net_mean": -50.527272727272695,
+      "net_median": -11.400000000000299
+     },
+     "4w": {
+      "n": 11,
+      "net_mean": -68.14545454545467,
+      "net_median": -59.70000000000031
+     }
+    }
+   },
+   "extremity_terciles": {
+    "rows": [
+     {
+      "tercile": 1,
+      "n": 9,
+      "extremity_median": 0.9134615384615384,
+      "net2w_median": 34.2000000000009,
+      "net2w_mean": 12.155555555555503
+     },
+     {
+      "tercile": 2,
+      "n": 6,
+      "extremity_median": 0.9326923076923077,
+      "net2w_median": -113.14999999999964,
+      "net2w_mean": -135.11666666666662
+     },
+     {
+      "tercile": 3,
+      "n": 7,
+      "extremity_median": 0.9711538461538461,
+      "net2w_median": -11.400000000000299,
+      "net2w_mean": -10.35714285714282
+     }
+    ],
+    "monotone_increasing": false,
+    "monotone_decreasing": false
+   },
+   "events": [
+    {
+     "report_date": "2015-01-06",
+     "publish_date": "2015-01-09",
+     "entry_date": "2015-01-12",
+     "zone": -1,
+     "pct": 0.0673076923076923,
+     "episode_weeks": 1,
+     "net_1w": 0.7,
+     "net_2w": -324.4,
+     "net_4w": -439.6
+    },
+    {
+     "report_date": "2015-01-20",
+     "publish_date": "2015-01-23",
+     "entry_date": "2015-01-26",
+     "zone": -1,
+     "pct": 0.0673076923076923,
+     "episode_weeks": 7,
+     "net_1w": -120.0,
+     "net_2w": -93.4,
+     "net_4w": -32.4
+    },
+    {
+     "report_date": "2015-11-17",
+     "publish_date": "2015-11-20",
+     "entry_date": "2015-11-23",
+     "zone": -1,
+     "pct": 0.09935897435897435,
+     "episode_weeks": 1,
+     "net_1w": -36.6,
+     "net_2w": 104.7,
+     "net_4w": -59.7
+    },
+    {
+     "report_date": "2016-04-05",
+     "publish_date": "2016-04-08",
+     "entry_date": "2016-04-11",
+     "zone": 1,
+     "pct": 0.9006410256410257,
+     "episode_weeks": 6,
+     "net_1w": -157.8,
+     "net_2w": -141.4,
+     "net_4w": 201.9
+    },
+    {
+     "report_date": "2016-07-19",
+     "publish_date": "2016-07-22",
+     "entry_date": "2016-07-25",
+     "zone": 1,
+     "pct": 0.9262820512820513,
+     "episode_weeks": 8,
+     "net_1w": -122.9,
+     "net_2w": -141.5,
+     "net_4w": -150.9
+    },
+    {
+     "report_date": "2016-11-15",
+     "publish_date": "2016-11-18",
+     "entry_date": "2016-11-21",
+     "zone": 1,
+     "pct": 0.9455128205128205,
+     "episode_weeks": 1,
+     "net_1w": -114.8,
+     "net_2w": -129.8,
+     "net_4w": 23.8
+    },
+    {
+     "report_date": "2017-02-28",
+     "publish_date": "2017-03-03",
+     "entry_date": "2017-03-06",
+     "zone": 1,
+     "pct": 0.9326923076923077,
+     "episode_weeks": 1,
+     "net_1w": 59.9,
+     "net_2w": -107.6,
+     "net_4w": -32.9
+    },
+    {
+     "report_date": "2017-03-14",
+     "publish_date": "2017-03-17",
+     "entry_date": "2017-03-20",
+     "zone": 1,
+     "pct": 0.9711538461538461,
+     "episode_weeks": 1,
+     "net_1w": 84.6,
+     "net_2w": 79.2,
+     "net_4w": 132.2
+    },
+    {
+     "report_date": "2017-03-28",
+     "publish_date": "2017-03-31",
+     "entry_date": "2017-04-03",
+     "zone": 1,
+     "pct": 0.9903846153846154,
+     "episode_weeks": 6,
+     "net_1w": 128.3,
+     "net_2w": 54.9,
+     "net_4w": 143.5
+    },
+    {
+     "report_date": "2017-07-11",
+     "publish_date": "2017-07-14",
+     "entry_date": "2017-07-17",
+     "zone": 1,
+     "pct": 0.9391025641025641,
+     "episode_weeks": 9,
+     "net_1w": -88.2,
+     "net_2w": -161.9,
+     "net_4w": -67.7
+    },
+    {
+     "report_date": "2017-09-19",
+     "publish_date": "2017-09-22",
+     "entry_date": "2017-09-25",
+     "zone": 1,
+     "pct": 0.9967948717948718,
+     "episode_weeks": 7,
+     "net_1w": 133.5,
+     "net_2w": 189.1,
+     "net_4w": 148.4
+    },
+    {
+     "report_date": "2018-06-19",
+     "publish_date": "2018-06-22",
+     "entry_date": "2018-06-25",
+     "zone": -1,
+     "pct": 0.04807692307692308,
+     "episode_weeks": 2,
+     "net_1w": -37.2,
+     "net_2w": -11.4,
+     "net_4w": -22.1
+    },
+    {
+     "report_date": "2018-07-10",
+     "publish_date": "2018-07-13",
+     "entry_date": "2018-07-16",
+     "zone": -1,
+     "pct": 0.07371794871794872,
+     "episode_weeks": 8,
+     "net_1w": -0.9,
+     "net_2w": -16.9,
+     "net_4w": -117.2
+    },
+    {
+     "report_date": "2018-09-18",
+     "publish_date": "2018-09-21",
+     "entry_date": "2018-09-24",
+     "zone": -1,
+     "pct": 0.003205128205128205,
+     "episode_weeks": 12,
+     "net_1w": -53.8,
+     "net_2w": -227.3,
+     "net_4w": -157.4
+    },
+    {
+     "report_date": "2019-03-19",
+     "publish_date": "2019-03-22",
+     "entry_date": "2019-03-25",
+     "zone": -1,
+     "pct": 0.08653846153846154,
+     "episode_weeks": 4,
+     "net_1w": 15.1,
+     "net_2w": 22.6,
+     "net_4w": 69.5
+    },
+    {
+     "report_date": "2019-05-14",
+     "publish_date": "2019-05-17",
+     "entry_date": "2019-05-20",
+     "zone": -1,
+     "pct": 0.07371794871794872,
+     "episode_weeks": 1,
+     "net_1w": 24.0,
+     "net_2w": 34.2,
+     "net_4w": -32.6
+    },
+    {
+     "report_date": "2019-06-25",
+     "publish_date": "2019-06-28",
+     "entry_date": "2019-07-01",
+     "zone": -1,
+     "pct": 0.0673076923076923,
+     "episode_weeks": 1,
+     "net_1w": -44.9,
+     "net_2w": -4.7,
+     "net_4w": -112.3
+    },
+    {
+     "report_date": "2020-09-15",
+     "publish_date": "2020-09-18",
+     "entry_date": "2020-09-21",
+     "zone": 1,
+     "pct": 0.9134615384615384,
+     "episode_weeks": 2,
+     "net_1w": 269.9,
+     "net_2w": 132.2,
+     "net_4w": 217.6
+    },
+    {
+     "report_date": "2021-01-12",
+     "publish_date": "2021-01-15",
+     "entry_date": "2021-01-18",
+     "zone": 1,
+     "pct": 0.9006410256410257,
+     "episode_weeks": 2,
+     "net_1w": 15.2,
+     "net_2w": 36.0,
+     "net_4w": -83.0
+    },
+    {
+     "report_date": "2021-03-02",
+     "publish_date": "2021-03-05",
+     "entry_date": "2021-03-08",
+     "zone": 1,
+     "pct": 0.9455128205128205,
+     "episode_weeks": 6,
+     "net_1w": -48.2,
+     "net_2w": -27.2,
+     "net_4w": 98.8
+    },
+    {
+     "report_date": "2021-09-07",
+     "publish_date": "2021-09-10",
+     "entry_date": "2021-09-13",
+     "zone": -1,
+     "pct": 0.0673076923076923,
+     "episode_weeks": 10,
+     "net_1w": -124.9,
+     "net_2w": -118.7,
+     "net_4w": -61.3
+    },
+    {
+     "report_date": "2021-11-30",
+     "publish_date": "2021-12-03",
+     "entry_date": "2021-12-06",
+     "zone": -1,
+     "pct": 0.07371794871794872,
+     "episode_weeks": 5,
+     "net_1w": 127.0,
+     "net_2w": 79.5,
+     "net_4w": 215.5
+    }
+   ]
+  },
+  "JPY": {
+   "pair": "USD_JPY",
+   "base_sign": -1,
+   "rt_pips": 2.14,
+   "rt_theoretical": false,
+   "median_price": 109.8905,
+   "signal_weeks": 471,
+   "zone_weeks": 157,
+   "n_onsets": 33,
+   "n_measured": 26,
+   "skips": {
+    "pre_price_history": 7,
+    "no_entry_bar": 0,
+    "incomplete_4w": 0,
+    "span_guard": 0
+   },
+   "episode_weeks": {
+    "p25": 1.0,
+    "p50": 2.5,
+    "p75": 5.75
+   },
+   "inter_onset_spacing_days": {
+    "p25": 28.0,
+    "p50": 84.0,
+    "p75": 147.0
+   },
+   "events_per_year": 3.25,
+   "horizons": {
+    "1w": {
+     "n": 26,
+     "net_mean": 3.7269230769229975,
+     "net_median": 4.699999999999704,
+     "net_sd": 165.99374098487516,
+     "mfe_rev": {
+      "p25": 19.249999999999545,
+      "p50": 73.84999999999948,
+      "p75": 119.85000000000134
+     },
+     "mae_rev": {
+      "p25": 21.675000000000466,
+      "p50": 54.299999999999216,
+      "p75": 131.2500000000007
+     },
+     "boot_p_reversion": 0.44985501449855014,
+     "boot_p_continuation": 0.5402459754024598,
+     "rt_pips": 2.14,
+     "swap_stress_pips": 5.268722602739726,
+     "stressed_net_rev": -3.6817995258167286,
+     "stressed_net_cont": -11.135645679662723,
+     "headroom_rev": 34.50934579439228,
+     "headroom_cont": 25.373831775700566
+    },
+    "2w": {
+     "n": 26,
+     "net_mean": -32.70769230769221,
+     "net_median": -6.60000000000025,
+     "net_sd": 183.76256620558357,
+     "mfe_rev": {
+      "p25": 22.20000000000013,
+      "p50": 90.40000000000035,
+      "p75": 168.72499999999917
+     },
+     "mae_rev": {
+      "p25": 32.32500000000087,
+      "p50": 86.25000000000043,
+      "p75": 239.35000000000065
+     },
+     "boot_p_reversion": 0.8228177182281772,
+     "boot_p_continuation": 0.1733826617338266,
+     "rt_pips": 2.14,
+     "swap_stress_pips": 10.537445205479452,
+     "stressed_net_rev": -45.385137513171664,
+     "stressed_net_cont": 20.030247102212762,
+     "headroom_rev": 42.24299065420577,
+     "headroom_cont": 40.30373831775721
+    },
+    "4w": {
+     "n": 26,
+     "net_mean": -13.611538461538629,
+     "net_median": 7.399999999999807,
+     "net_sd": 243.83834698738073,
+     "mfe_rev": {
+      "p25": 37.85000000000167,
+      "p50": 119.70000000000098,
+      "p75": 234.12499999999915
+     },
+     "mae_rev": {
+      "p25": 80.12499999999925,
+      "p50": 144.50000000000003,
+      "p75": 269.87499999999864
+     },
+     "boot_p_reversion": 0.6054394560543945,
+     "boot_p_continuation": 0.39436056394360564,
+     "rt_pips": 2.14,
+     "swap_stress_pips": 21.074890410958904,
+     "stressed_net_rev": -36.82642887249753,
+     "stressed_net_cont": -9.603351949420276,
+     "headroom_rev": 55.93457943925279,
+     "headroom_cont": 67.52336448598132
+    }
+   },
+   "side_split": {
+    "crowded_long_fade": {
+     "1w": {
+      "n": 14,
+      "net_mean": -29.664285714285548,
+      "net_median": -34.59999999999965
+     },
+     "2w": {
+      "n": 14,
+      "net_mean": -84.89999999999976,
+      "net_median": -42.199999999998994
+     },
+     "4w": {
+      "n": 14,
+      "net_mean": -21.7571428571428,
+      "net_median": 7.399999999999807
+     }
+    },
+    "crowded_short_fade": {
+     "1w": {
+      "n": 12,
+      "net_mean": 42.683333333332975,
+      "net_median": 76.29999999999839
+     },
+     "2w": {
+      "n": 12,
+      "net_mean": 28.183333333333255,
+      "net_median": 49.449999999998795
+     },
+     "4w": {
+      "n": 12,
+      "net_mean": -4.108333333333765,
+      "net_median": 10.249999999999204
+     }
+    }
+   },
+   "extremity_terciles": {
+    "rows": [
+     {
+      "tercile": 1,
+      "n": 9,
+      "extremity_median": 0.9006410256410257,
+      "net2w_median": 33.80000000000081,
+      "net2w_mean": -8.98888888888886
+     },
+     {
+      "tercile": 2,
+      "n": 8,
+      "extremity_median": 0.9326923076923077,
+      "net2w_median": -96.94999999999965,
+      "net2w_mean": -95.57500000000002
+     },
+     {
+      "tercile": 3,
+      "n": 9,
+      "extremity_median": 0.9519230769230769,
+      "net2w_median": 8.29999999999984,
+      "net2w_mean": -0.5444444444442019
+     }
+    ],
+    "monotone_increasing": false,
+    "monotone_decreasing": false
+   },
+   "events": [
+    {
+     "report_date": "2014-04-01",
+     "publish_date": "2014-04-04",
+     "entry_date": "2014-04-07",
+     "zone": -1,
+     "pct": 0.09935897435897435,
+     "episode_weeks": 2,
+     "net_1w": 171.4,
+     "net_2w": 94.4,
+     "net_4w": 112.6
+    },
+    {
+     "report_date": "2014-08-05",
+     "publish_date": "2014-08-08",
+     "entry_date": "2014-08-11",
+     "zone": -1,
+     "pct": 0.08012820512820513,
+     "episode_weeks": 1,
+     "net_1w": -16.3,
+     "net_2w": -160.2,
+     "net_4w": -289.5
+    },
+    {
+     "report_date": "2014-09-02",
+     "publish_date": "2014-09-05",
+     "entry_date": "2014-09-08",
+     "zone": -1,
+     "pct": 0.0673076923076923,
+     "episode_weeks": 1,
+     "net_1w": -213.5,
+     "net_2w": -382.4,
+     "net_4w": -455.7
+    },
+    {
+     "report_date": "2014-09-30",
+     "publish_date": "2014-10-03",
+     "entry_date": "2014-10-06",
+     "zone": -1,
+     "pct": 0.07371794871794872,
+     "episode_weeks": 2,
+     "net_1w": 220.4,
+     "net_2w": 296.0,
+     "net_4w": -251.6
+    },
+    {
+     "report_date": "2015-08-25",
+     "publish_date": "2015-08-28",
+     "entry_date": "2015-08-31",
+     "zone": 1,
+     "pct": 0.9006410256410257,
+     "episode_weeks": 3,
+     "net_1w": -227.2,
+     "net_2w": -70.9,
+     "net_4w": -74.4
+    },
+    {
+     "report_date": "2015-09-22",
+     "publish_date": "2015-09-25",
+     "entry_date": "2015-09-28",
+     "zone": 1,
+     "pct": 0.9198717948717948,
+     "episode_weeks": 5,
+     "net_1w": -51.5,
+     "net_2w": -20.1,
+     "net_4w": 102.9
+    },
+    {
+     "report_date": "2015-12-15",
+     "publish_date": "2015-12-18",
+     "entry_date": "2015-12-21",
+     "zone": 1,
+     "pct": 0.907051282051282,
+     "episode_weeks": 1,
+     "net_1w": -94.2,
+     "net_2w": -217.3,
+     "net_4w": -371.8
+    },
+    {
+     "report_date": "2015-12-29",
+     "publish_date": "2016-01-01",
+     "entry_date": "2016-01-04",
+     "zone": 1,
+     "pct": 0.9583333333333334,
+     "episode_weeks": 21,
+     "net_1w": -311.5,
+     "net_2w": -334.7,
+     "net_4w": 80.0
+    },
+    {
+     "report_date": "2016-06-07",
+     "publish_date": "2016-06-10",
+     "entry_date": "2016-06-13",
+     "zone": 1,
+     "pct": 0.9326923076923077,
+     "episode_weeks": 7,
+     "net_1w": -243.5,
+     "net_2w": -430.5,
+     "net_4w": -593.5
+    },
+    {
+     "report_date": "2016-08-02",
+     "publish_date": "2016-08-05",
+     "entry_date": "2016-08-08",
+     "zone": 1,
+     "pct": 0.9006410256410257,
+     "episode_weeks": 6,
+     "net_1w": -78.2,
+     "net_2w": -187.6,
+     "net_4w": 182.4
+    },
+    {
+     "report_date": "2016-09-20",
+     "publish_date": "2016-09-23",
+     "entry_date": "2016-09-26",
+     "zone": 1,
+     "pct": 0.9903846153846154,
+     "episode_weeks": 3,
+     "net_1w": 36.7,
+     "net_2w": 198.4,
+     "net_4w": 291.0
+    },
+    {
+     "report_date": "2017-07-11",
+     "publish_date": "2017-07-14",
+     "entry_date": "2017-07-17",
+     "zone": -1,
+     "pct": 0.04807692307692308,
+     "episode_weeks": 5,
+     "net_1w": 129.6,
+     "net_2w": 172.1,
+     "net_4w": 324.5
+    },
+    {
+     "report_date": "2017-10-10",
+     "publish_date": "2017-10-13",
+     "entry_date": "2017-10-16",
+     "zone": -1,
+     "pct": 0.0673076923076923,
+     "episode_weeks": 16,
+     "net_1w": -163.0,
+     "net_2w": -175.7,
+     "net_4w": -163.1
+    },
+    {
+     "report_date": "2018-02-06",
+     "publish_date": "2018-02-09",
+     "entry_date": "2018-02-12",
+     "zone": -1,
+     "pct": 0.09935897435897435,
+     "episode_weeks": 1,
+     "net_1w": 253.1,
+     "net_2w": 194.5,
+     "net_4w": 198.9
+    },
+    {
+     "report_date": "2018-10-09",
+     "publish_date": "2018-10-12",
+     "entry_date": "2018-10-15",
+     "zone": -1,
+     "pct": 0.09294871794871795,
+     "episode_weeks": 2,
+     "net_1w": -29.3,
+     "net_2w": 33.8,
+     "net_4w": -158.7
+    },
+    {
+     "report_date": "2018-12-04",
+     "publish_date": "2018-12-07",
+     "entry_date": "2018-12-10",
+     "zone": -1,
+     "pct": 0.05448717948717949,
+     "episode_weeks": 3,
+     "net_1w": -85.5,
+     "net_2w": 131.8,
+     "net_4w": 376.9
+    },
+    {
+     "report_date": "2019-04-30",
+     "publish_date": "2019-05-03",
+     "entry_date": "2019-05-06",
+     "zone": -1,
+     "pct": 0.05448717948717949,
+     "episode_weeks": 1,
+     "net_1w": 70.1,
+     "net_2w": 58.3,
+     "net_4w": 235.9
+    },
+    {
+     "report_date": "2019-08-06",
+     "publish_date": "2019-08-09",
+     "entry_date": "2019-08-12",
+     "zone": 1,
+     "pct": 0.907051282051282,
+     "episode_weeks": 10,
+     "net_1w": 95.0,
+     "net_2w": -3.4,
+     "net_4w": 150.8
+    },
+    {
+     "report_date": "2020-03-10",
+     "publish_date": "2020-03-13",
+     "entry_date": "2020-03-16",
+     "zone": 1,
+     "pct": 0.9326923076923077,
+     "episode_weeks": 13,
+     "net_1w": 426.4,
+     "net_2w": 142.0,
+     "net_4w": 186.9
+    },
+    {
+     "report_date": "2020-06-23",
+     "publish_date": "2020-06-26",
+     "entry_date": "2020-06-29",
+     "zone": 1,
+     "pct": 0.9391025641025641,
+     "episode_weeks": 1,
+     "net_1w": 25.7,
+     "net_2w": -33.7,
+     "net_4w": -115.3
+    },
+    {
+     "report_date": "2020-08-04",
+     "publish_date": "2020-08-07",
+     "entry_date": "2020-08-10",
+     "zone": 1,
+     "pct": 0.9455128205128205,
+     "episode_weeks": 1,
+     "net_1w": 68.5,
+     "net_2w": -9.8,
+     "net_4w": 35.2
+    },
+    {
+     "report_date": "2020-09-01",
+     "publish_date": "2020-09-04",
+     "entry_date": "2020-09-07",
+     "zone": 1,
+     "pct": 0.9519230769230769,
+     "episode_weeks": 1,
+     "net_1w": -17.7,
+     "net_2w": -178.6,
+     "net_4w": -100.0
+    },
+    {
+     "report_date": "2020-11-10",
+     "publish_date": "2020-11-13",
+     "entry_date": "2020-11-16",
+     "zone": 1,
+     "pct": 0.9903846153846154,
+     "episode_weeks": 1,
+     "net_1w": -72.4,
+     "net_2w": -50.7,
+     "net_4w": -58.4
+    },
+    {
+     "report_date": "2020-11-24",
+     "publish_date": "2020-11-27",
+     "entry_date": "2020-11-30",
+     "zone": 1,
+     "pct": 0.9775641025641025,
+     "episode_weeks": 11,
+     "net_1w": 28.6,
+     "net_2w": 8.3,
+     "net_4w": -20.4
+    },
+    {
+     "report_date": "2021-10-26",
+     "publish_date": "2021-10-29",
+     "entry_date": "2021-11-01",
+     "zone": -1,
+     "pct": 0.09294871794871795,
+     "episode_weeks": 3,
+     "net_1w": 82.5,
+     "net_2w": 40.6,
+     "net_4w": 88.5
+    },
+    {
+     "report_date": "2021-11-23",
+     "publish_date": "2021-11-26",
+     "entry_date": "2021-11-29",
+     "zone": -1,
+     "pct": 0.09935897435897435,
+     "episode_weeks": 1,
+     "net_1w": 92.7,
+     "net_2w": 35.0,
+     "net_4w": -68.0
+    }
+   ]
+  },
+  "CAD": {
+   "pair": "USD_CAD",
+   "base_sign": -1,
+   "rt_pips": 3.0,
+   "rt_theoretical": true,
+   "median_price": 1.2986550000000001,
+   "signal_weeks": 471,
+   "zone_weeks": 108,
+   "n_onsets": 17,
+   "n_measured": 13,
+   "skips": {
+    "pre_price_history": 4,
+    "no_entry_bar": 0,
+    "incomplete_4w": 0,
+    "span_guard": 0
+   },
+   "episode_weeks": {
+    "p25": 2.0,
+    "p50": 4.0,
+    "p75": 7.0
+   },
+   "inter_onset_spacing_days": {
+    "p25": 82.25,
+    "p50": 94.5,
+    "p75": 175.0
+   },
+   "events_per_year": 1.62,
+   "horizons": {
+    "1w": {
+     "n": 13,
+     "net_mean": 8.461538461538039,
+     "net_median": 3.8999999999989043,
+     "net_sd": 99.45490216224914,
+     "mfe_rev": {
+      "p25": 46.500000000000426,
+      "p50": 90.39999999999937,
+      "p75": 131.59999999999837
+     },
+     "mae_rev": {
+      "p25": 34.800000000001496,
+      "p50": 50.200000000000244,
+      "p75": 139.69999999999814
+     },
+     "boot_p_reversion": 0.37716228377162286,
+     "boot_p_continuation": 0.6185381461853815,
+     "rt_pips": 3.0,
+     "swap_stress_pips": 6.226428082191782,
+     "stressed_net_rev": -0.7648896206537428,
+     "stressed_net_cont": -17.68796654372982,
+     "headroom_rev": 30.133333333333123,
+     "headroom_cont": 16.733333333333416
+    },
+    "2w": {
+     "n": 13,
+     "net_mean": 34.21538461538468,
+     "net_median": 28.200000000000447,
+     "net_sd": 163.43752040741165,
+     "mfe_rev": {
+      "p25": 87.2000000000006,
+      "p50": 131.59999999999837,
+      "p75": 195.29999999999825
+     },
+     "mae_rev": {
+      "p25": 46.70000000000174,
+      "p50": 106.39999999999982,
+      "p75": 182.19999999999902
+     },
+     "boot_p_reversion": 0.21247875212478753,
+     "boot_p_continuation": 0.7823217678232177,
+     "rt_pips": 3.0,
+     "swap_stress_pips": 12.452856164383563,
+     "stressed_net_rev": 18.762528451001117,
+     "stressed_net_cont": -49.66824077976824,
+     "headroom_rev": 43.86666666666613,
+     "headroom_cont": 35.466666666666605
+    },
+    "4w": {
+     "n": 13,
+     "net_mean": 49.16923076923058,
+     "net_median": 21.400000000000308,
+     "net_sd": 176.01606169426432,
+     "mfe_rev": {
+      "p25": 100.70000000000023,
+      "p50": 196.400000000001,
+      "p75": 231.79999999999978
+     },
+     "mae_rev": {
+      "p25": 106.39999999999982,
+      "p50": 139.69999999999814,
+      "p75": 193.90000000000018
+     },
+     "boot_p_reversion": 0.147985201479852,
+     "boot_p_continuation": 0.8578142185781422,
+     "rt_pips": 3.0,
+     "swap_stress_pips": 24.905712328767127,
+     "stressed_net_rev": 21.263518440463454,
+     "stressed_net_cont": -77.0749430979977,
+     "headroom_rev": 65.466666666667,
+     "headroom_cont": 46.566666666666045
+    }
+   },
+   "side_split": {
+    "crowded_long_fade": {
+     "1w": {
+      "n": 7,
+      "net_mean": -37.54285714285758,
+      "net_median": -12.099999999999334
+     },
+     "2w": {
+      "n": 7,
+      "net_mean": 3.742857142856922,
+      "net_median": 28.200000000000447
+     },
+     "4w": {
+      "n": 7,
+      "net_mean": 26.34285714285684,
+      "net_median": 21.400000000000308
+     }
+    },
+    "crowded_short_fade": {
+     "1w": {
+      "n": 6,
+      "net_mean": 62.13333333333292,
+      "net_median": 29.149999999998897
+     },
+     "2w": {
+      "n": 6,
+      "net_mean": 69.76666666666705,
+      "net_median": 10.349999999998971
+     },
+     "4w": {
+      "n": 6,
+      "net_mean": 75.79999999999994,
+      "net_median": 16.049999999999677
+     }
+    }
+   },
+   "extremity_terciles": {
+    "rows": [
+     {
+      "tercile": 1,
+      "n": 6,
+      "extremity_median": 0.9038461538461539,
+      "net2w_median": -2.100000000000433,
+      "net2w_mean": -39.616666666666774
+     },
+     {
+      "tercile": 2,
+      "n": 3,
+      "extremity_median": 0.9198717948717948,
+      "net2w_median": -38.09999999999869,
+      "net2w_mean": 62.13333333333329
+     },
+     {
+      "tercile": 3,
+      "n": 4,
+      "extremity_median": 0.9615384615384615,
+      "net2w_median": 141.90000000000035,
+      "net2w_mean": 124.02500000000038
+     }
+    ],
+    "monotone_increasing": false,
+    "monotone_decreasing": false
+   },
+   "events": [
+    {
+     "report_date": "2015-08-04",
+     "publish_date": "2015-08-07",
+     "entry_date": "2015-08-10",
+     "zone": -1,
+     "pct": 0.09935897435897435,
+     "episode_weeks": 3,
+     "net_1w": 52.3,
+     "net_2w": -32.4,
+     "net_4w": -130.1
+    },
+    {
+     "report_date": "2016-01-19",
+     "publish_date": "2016-01-22",
+     "entry_date": "2016-01-25",
+     "zone": -1,
+     "pct": 0.060897435897435896,
+     "episode_weeks": 2,
+     "net_1w": 174.6,
+     "net_2w": 230.7,
+     "net_4w": 377.7
+    },
+    {
+     "report_date": "2016-04-05",
+     "publish_date": "2016-04-08",
+     "entry_date": "2016-04-11",
+     "zone": 1,
+     "pct": 0.9006410256410257,
+     "episode_weeks": 11,
+     "net_1w": -164.2,
+     "net_2w": -312.9,
+     "net_4w": -72.8
+    },
+    {
+     "report_date": "2016-07-05",
+     "publish_date": "2016-07-08",
+     "entry_date": "2016-07-11",
+     "zone": 1,
+     "pct": 0.907051282051282,
+     "episode_weeks": 6,
+     "net_1w": -86.2,
+     "net_2w": 75.8,
+     "net_4w": 118.7
+    },
+    {
+     "report_date": "2016-08-23",
+     "publish_date": "2016-08-26",
+     "entry_date": "2016-08-29",
+     "zone": 1,
+     "pct": 0.9006410256410257,
+     "episode_weeks": 3,
+     "net_1w": -34.8,
+     "net_2w": 28.2,
+     "net_4w": 149.6
+    },
+    {
+     "report_date": "2017-02-14",
+     "publish_date": "2017-02-17",
+     "entry_date": "2017-02-20",
+     "zone": 1,
+     "pct": 0.9134615384615384,
+     "episode_weeks": 4,
+     "net_1w": 9.3,
+     "net_2w": 286.9,
+     "net_4w": 253.8
+    },
+    {
+     "report_date": "2017-05-09",
+     "publish_date": "2017-05-12",
+     "entry_date": "2017-05-15",
+     "zone": -1,
+     "pct": 0.022435897435897436,
+     "episode_weeks": 7,
+     "net_1w": 209.3,
+     "net_2w": 271.6,
+     "net_4w": 255.3
+    },
+    {
+     "report_date": "2017-08-01",
+     "publish_date": "2017-08-04",
+     "entry_date": "2017-08-07",
+     "zone": 1,
+     "pct": 0.9903846153846154,
+     "episode_weeks": 21,
+     "net_1w": 35.2,
+     "net_2w": -59.3,
+     "net_4w": -250.2
+    },
+    {
+     "report_date": "2019-01-08",
+     "publish_date": "2019-01-11",
+     "entry_date": "2019-01-14",
+     "zone": -1,
+     "pct": 0.05448717948717949,
+     "episode_weeks": 4,
+     "net_1w": 3.9,
+     "net_2w": 53.1,
+     "net_4w": -5.8
+    },
+    {
+     "report_date": "2019-04-16",
+     "publish_date": "2019-04-19",
+     "entry_date": "2019-04-22",
+     "zone": -1,
+     "pct": 0.08012820512820513,
+     "episode_weeks": 2,
+     "net_1w": -73.3,
+     "net_2w": -38.1,
+     "net_4w": -80.2
+    },
+    {
+     "report_date": "2019-05-14",
+     "publish_date": "2019-05-17",
+     "entry_date": "2019-05-20",
+     "zone": -1,
+     "pct": 0.09294871794871795,
+     "episode_weeks": 1,
+     "net_1w": 6.0,
+     "net_2w": -66.3,
+     "net_4w": 37.9
+    },
+    {
+     "report_date": "2019-11-05",
+     "publish_date": "2019-11-08",
+     "entry_date": "2019-11-11",
+     "zone": 1,
+     "pct": 0.907051282051282,
+     "episode_weeks": 1,
+     "net_1w": -10.0,
+     "net_2w": 69.9,
+     "net_4w": 21.4
+    },
+    {
+     "report_date": "2021-05-04",
+     "publish_date": "2021-05-07",
+     "entry_date": "2021-05-10",
+     "zone": 1,
+     "pct": 0.9262820512820513,
+     "episode_weeks": 10,
+     "net_1w": -12.1,
+     "net_2w": -62.4,
+     "net_4w": -36.1
+    }
+   ]
+  },
+  "CHF": {
+   "pair": "USD_CHF",
+   "base_sign": -1,
+   "rt_pips": 3.0,
+   "rt_theoretical": true,
+   "median_price": 0.96933,
+   "signal_weeks": 471,
+   "zone_weeks": 123,
+   "n_onsets": 30,
+   "n_measured": 26,
+   "skips": {
+    "pre_price_history": 3,
+    "no_entry_bar": 0,
+    "incomplete_4w": 0,
+    "span_guard": 1
+   },
+   "episode_weeks": {
+    "p25": 1.25,
+    "p50": 2.0,
+    "p75": 6.5
+   },
+   "inter_onset_spacing_days": {
+    "p25": 42.0,
+    "p50": 98.0,
+    "p75": 175.0
+   },
+   "events_per_year": 3.25,
+   "horizons": {
+    "1w": {
+     "n": 26,
+     "net_mean": 77.26842307692314,
+     "net_median": 5.049999999999777,
+     "net_sd": 320.2691334684843,
+     "mfe_rev": {
+      "p25": 40.999999999999645,
+      "p50": 79.75000000000009,
+      "p75": 116.6749999999997
+     },
+     "mae_rev": {
+      "p25": 34.7499999999995,
+      "p50": 74.04999999999939,
+      "p75": 96.52500000000009
+     },
+     "boot_p_reversion": 0.0756924307569243,
+     "boot_p_continuation": 0.9183081691830817,
+     "rt_pips": 3.0,
+     "swap_stress_pips": 4.647472602739726,
+     "stressed_net_rev": 69.62095047418342,
+     "stressed_net_cont": -84.91589567966287,
+     "headroom_rev": 26.58333333333336,
+     "headroom_cont": 24.683333333333128
+    },
+    "2w": {
+     "n": 26,
+     "net_mean": 50.214961538461594,
+     "net_median": -18.896500000000202,
+     "net_sd": 283.7065086340434,
+     "mfe_rev": {
+      "p25": 64.3249999999998,
+      "p50": 108.04999999999953,
+      "p75": 178.87500000000026
+     },
+     "mae_rev": {
+      "p25": 65.34999999999985,
+      "p50": 85.44999999999968,
+      "p75": 163.00000000000034
+     },
+     "boot_p_reversion": 0.18348165183481652,
+     "boot_p_continuation": 0.8123187681231877,
+     "rt_pips": 3.0,
+     "swap_stress_pips": 9.294945205479452,
+     "stressed_net_rev": 37.920016332982144,
+     "stressed_net_cont": -62.509906743941045,
+     "headroom_rev": 36.01666666666651,
+     "headroom_cont": 28.483333333333224
+    },
+    "4w": {
+     "n": 26,
+     "net_mean": 30.149923076923145,
+     "net_median": -0.700000000000145,
+     "net_sd": 228.07728348731675,
+     "mfe_rev": {
+      "p25": 79.37500000000013,
+      "p50": 184.59999999999974,
+      "p75": 252.9999999999999
+     },
+     "mae_rev": {
+      "p25": 78.27500000000043,
+      "p50": 117.75000000000034,
+      "p75": 220.45000000000064
+     },
+     "boot_p_reversion": 0.264973502649735,
+     "boot_p_continuation": 0.7451254874512548,
+     "rt_pips": 3.0,
+     "swap_stress_pips": 18.589890410958905,
+     "stressed_net_rev": 8.56003266596424,
+     "stressed_net_cont": -51.739813487882046,
+     "headroom_rev": 61.533333333333246,
+     "headroom_cont": 39.250000000000114
+    }
+   },
+   "side_split": {
+    "crowded_long_fade": {
+     "1w": {
+      "n": 11,
+      "net_mean": 53.20981818181816,
+      "net_median": 5.499999999999394
+     },
+     "2w": {
+      "n": 11,
+      "net_mean": 39.40809090909102,
+      "net_median": 44.899999999999935
+     },
+     "4w": {
+      "n": 11,
+      "net_mean": 49.55045454545453,
+      "net_median": 61.79999999999963
+     }
+    },
+    "crowded_short_fade": {
+     "1w": {
+      "n": 15,
+      "net_mean": 94.91140000000013,
+      "net_median": 4.6000000000001595
+     },
+     "2w": {
+      "n": 15,
+      "net_mean": 58.14,
+      "net_median": -49.20000000000035
+     },
+     "4w": {
+      "n": 15,
+      "net_mean": 15.922866666666804,
+      "net_median": -33.4000000000001
+     }
+    }
+   },
+   "extremity_terciles": {
+    "rows": [
+     {
+      "tercile": 1,
+      "n": 9,
+      "extremity_median": 0.907051282051282,
+      "net2w_median": 59.9000000000005,
+      "net2w_mean": 21.543222222222145
+     },
+     {
+      "tercile": 2,
+      "n": 9,
+      "extremity_median": 0.9262820512820513,
+      "net2w_median": -55.600000000000094,
+      "net2w_mean": 81.66666666666667
+     },
+     {
+      "tercile": 3,
+      "n": 8,
+      "extremity_median": 0.9807692307692307,
+      "net2w_median": 58.05000000000004,
+      "net2w_mean": 47.08750000000025
+     }
+    ],
+    "monotone_increasing": false,
+    "monotone_decreasing": false
+   },
+   "events": [
+    {
+     "report_date": "2014-03-18",
+     "publish_date": "2014-03-21",
+     "entry_date": "2014-03-24",
+     "zone": 1,
+     "pct": 0.9839743589743589,
+     "episode_weeks": 8,
+     "net_1w": 43.5,
+     "net_2w": 91.8,
+     "net_4w": 4.1
+    },
+    {
+     "report_date": "2014-11-11",
+     "publish_date": "2014-11-14",
+     "entry_date": "2014-11-17",
+     "zone": -1,
+     "pct": 0.07371794871794872,
+     "episode_weeks": 3,
+     "net_1w": -103.7,
+     "net_2w": -55.6,
+     "net_4w": -37.3
+    },
+    {
+     "report_date": "2015-01-06",
+     "publish_date": "2015-01-09",
+     "entry_date": "2015-01-12",
+     "zone": -1,
+     "pct": 0.07371794871794872,
+     "episode_weeks": 2,
+     "net_1w": 1538.3,
+     "net_2w": 1317.9,
+     "net_4w": 871.2
+    },
+    {
+     "report_date": "2015-05-12",
+     "publish_date": "2015-05-15",
+     "entry_date": "2015-05-18",
+     "zone": 1,
+     "pct": 0.9967948717948718,
+     "episode_weeks": 9,
+     "net_1w": 273.6,
+     "net_2w": 247.6,
+     "net_4w": 124.2
+    },
+    {
+     "report_date": "2015-08-25",
+     "publish_date": "2015-08-28",
+     "entry_date": "2015-08-31",
+     "zone": -1,
+     "pct": 0.07371794871794872,
+     "episode_weeks": 1,
+     "net_1w": -106.7,
+     "net_2w": -79.6,
+     "net_4w": -172.7
+    },
+    {
+     "report_date": "2015-12-01",
+     "publish_date": "2015-12-04",
+     "entry_date": "2015-12-07",
+     "zone": -1,
+     "pct": 0.09935897435897435,
+     "episode_weeks": 2,
+     "net_1w": 143.7,
+     "net_2w": 59.9,
+     "net_4w": -118.1
+    },
+    {
+     "report_date": "2016-06-28",
+     "publish_date": "2016-07-01",
+     "entry_date": "2016-07-04",
+     "zone": 1,
+     "pct": 0.9711538461538461,
+     "episode_weeks": 1,
+     "net_1w": 72.6,
+     "net_2w": 71.2,
+     "net_4w": -52.1
+    },
+    {
+     "report_date": "2016-11-01",
+     "publish_date": "2016-11-04",
+     "entry_date": "2016-11-07",
+     "zone": -1,
+     "pct": 0.05448717948717949,
+     "episode_weeks": 7,
+     "net_1w": -126.2,
+     "net_2w": -353.5,
+     "net_4w": -355.0
+    },
+    {
+     "report_date": "2017-01-31",
+     "publish_date": "2017-02-03",
+     "entry_date": "2017-02-06",
+     "zone": -1,
+     "pct": 0.08653846153846154,
+     "episode_weeks": 1,
+     "net_1w": -99.3,
+     "net_2w": -101.2,
+     "net_4w": -152.1
+    },
+    {
+     "report_date": "2017-03-28",
+     "publish_date": "2017-03-31",
+     "entry_date": "2017-04-03",
+     "zone": -1,
+     "pct": 0.028846153846153848,
+     "episode_weeks": 2,
+     "net_1w": -67.9,
+     "net_2w": -24.3,
+     "net_4w": 75.9
+    },
+    {
+     "report_date": "2017-04-25",
+     "publish_date": "2017-04-28",
+     "entry_date": "2017-05-01",
+     "zone": -1,
+     "pct": 0.0673076923076923,
+     "episode_weeks": 2,
+     "net_1w": 71.2,
+     "net_2w": -65.6,
+     "net_4w": 199.0
+    },
+    {
+     "report_date": "2017-05-16",
+     "publish_date": "2017-05-19",
+     "entry_date": "2017-05-22",
+     "zone": -1,
+     "pct": 0.009615384615384616,
+     "episode_weeks": 2,
+     "net_1w": -11.8,
+     "net_2w": 107.7,
+     "net_4w": -5.5
+    },
+    {
+     "report_date": "2017-11-21",
+     "publish_date": "2017-11-24",
+     "entry_date": "2017-11-27",
+     "zone": -1,
+     "pct": 0.09294871794871795,
+     "episode_weeks": 3,
+     "net_1w": 45.5,
+     "net_2w": -121.3,
+     "net_4w": -87.2
+    },
+    {
+     "report_date": "2018-05-15",
+     "publish_date": "2018-05-18",
+     "entry_date": "2018-05-21",
+     "zone": -1,
+     "pct": 0.09935897435897435,
+     "episode_weeks": 5,
+     "net_1w": 86.5,
+     "net_2w": 106.1,
+     "net_4w": 8.8
+    },
+    {
+     "report_date": "2018-06-26",
+     "publish_date": "2018-06-29",
+     "entry_date": "2018-07-02",
+     "zone": -1,
+     "pct": 0.016025641025641024,
+     "episode_weeks": 12,
+     "net_1w": 4.6,
+     "net_2w": -112.6,
+     "net_4w": -33.4
+    },
+    {
+     "report_date": "2019-05-14",
+     "publish_date": "2019-05-17",
+     "entry_date": "2019-05-20",
+     "zone": -1,
+     "pct": 0.08653846153846154,
+     "episode_weeks": 2,
+     "net_1w": 92.0,
+     "net_2w": 101.9,
+     "net_4w": 122.7
+    },
+    {
+     "report_date": "2019-06-04",
+     "publish_date": "2019-06-07",
+     "entry_date": "2019-06-10",
+     "zone": -1,
+     "pct": 0.07371794871794872,
+     "episode_weeks": 1,
+     "net_1w": -84.2,
+     "net_2w": 141.5,
+     "net_4w": -11.1
+    },
+    {
+     "report_date": "2020-01-14",
+     "publish_date": "2020-01-17",
+     "entry_date": "2020-01-20",
+     "zone": 1,
+     "pct": 0.9775641025641025,
+     "episode_weeks": 7,
+     "net_1w": 27.3,
+     "net_2w": -49.6,
+     "net_4w": 136.9
+    },
+    {
+     "report_date": "2020-03-10",
+     "publish_date": "2020-03-13",
+     "entry_date": "2020-03-16",
+     "zone": 1,
+     "pct": 0.9583333333333334,
+     "episode_weeks": 15,
+     "net_1w": 389.1,
+     "net_2w": 44.9,
+     "net_4w": 187.9
+    },
+    {
+     "report_date": "2020-06-30",
+     "publish_date": "2020-07-03",
+     "entry_date": "2020-07-06",
+     "zone": 1,
+     "pct": 0.9198717948717948,
+     "episode_weeks": 23,
+     "net_1w": -43.5,
+     "net_2w": -66.1,
+     "net_4w": -318.0
+    },
+    {
+     "report_date": "2020-12-29",
+     "publish_date": "2021-01-01",
+     "entry_date": "2021-01-04",
+     "zone": 1,
+     "pct": 0.9006410256410257,
+     "episode_weeks": 1,
+     "net_1w": 5.5,
+     "net_2w": 89.9,
+     "net_4w": 72.2
+    },
+    {
+     "report_date": "2021-01-12",
+     "publish_date": "2021-01-15",
+     "entry_date": "2021-01-18",
+     "zone": 1,
+     "pct": 0.9134615384615384,
+     "episode_weeks": 1,
+     "net_1w": -78.4,
+     "net_2w": -21.0,
+     "net_4w": 20.2
+    },
+    {
+     "report_date": "2021-02-02",
+     "publish_date": "2021-02-05",
+     "entry_date": "2021-02-08",
+     "zone": 1,
+     "pct": 0.9455128205128205,
+     "episode_weeks": 2,
+     "net_1w": -45.6,
+     "net_2w": -54.8,
+     "net_4w": 336.8
+    },
+    {
+     "report_date": "2021-03-09",
+     "publish_date": "2021-03-12",
+     "entry_date": "2021-03-15",
+     "zone": 1,
+     "pct": 0.907051282051282,
+     "episode_weeks": 1,
+     "net_1w": 1.2,
+     "net_2w": 96.4,
+     "net_4w": 61.8
+    },
+    {
+     "report_date": "2021-06-15",
+     "publish_date": "2021-06-18",
+     "entry_date": "2021-06-21",
+     "zone": 1,
+     "pct": 0.907051282051282,
+     "episode_weeks": 3,
+     "net_1w": -60.0,
+     "net_2w": -16.7,
+     "net_4w": -28.9
+    },
+    {
+     "report_date": "2021-10-26",
+     "publish_date": "2021-10-29",
+     "entry_date": "2021-11-01",
+     "zone": -1,
+     "pct": 0.08012820512820513,
+     "episode_weeks": 2,
+     "net_1w": 41.7,
+     "net_2w": -49.2,
+     "net_4w": -66.4
+    }
+   ]
+  }
+ },
+ "pooled": {
+  "n": 113,
+  "n_distinct_entry_dates": 96,
+  "horizons": {
+   "1w": {
+    "net_mean_pips": 21.97503539823,
+    "net_median_pips": 1.2000000000000899,
+    "net_mean_bp": 21.301022451090624,
+    "net_median_bp": 1.2911833695582968,
+    "boot_p_reversion_entrydate_block": 0.11858814118588142,
+    "boot_p_continuation_entrydate_block": 0.882011798820118
+   },
+   "2w": {
+    "net_mean_pips": -11.148769911504408,
+    "net_median_pips": -16.74800000000087,
+    "net_mean_bp": -8.868172268241405,
+    "net_median_bp": -16.695738848742224,
+    "boot_p_reversion_entrydate_block": 0.7255274472552745,
+    "boot_p_continuation_entrydate_block": 0.282971702829717
+   },
+   "4w": {
+    "net_mean_pips": -3.7593097345133617,
+    "net_median_pips": -22.599999999999287,
+    "net_mean_bp": -1.1328665532623905,
+    "net_median_bp": -23.465720647062508,
+    "boot_p_reversion_entrydate_block": 0.5537446255374463,
+    "boot_p_continuation_entrydate_block": 0.4467553244675532
+   }
+  }
+ },
+ "yearly_pooled_net2w": {
+  "2014": {
+   "n": 10,
+   "net2w_mean": -44.89999999999987
+  },
+  "2015": {
+   "n": 13,
+   "net2w_mean": 84.60000000000021
+  },
+  "2016": {
+   "n": 18,
+   "net2w_mean": -143.81666666666683
+  },
+  "2017": {
+   "n": 20,
+   "net2w_mean": 8.409999999999815
+  },
+  "2018": {
+   "n": 10,
+   "net2w_mean": -18.87999999999989
+  },
+  "2019": {
+   "n": 13,
+   "net2w_mean": 17.90000000000004
+  },
+  "2020": {
+   "n": 14,
+   "net2w_mean": 18.157142857143167
+  },
+  "2021": {
+   "n": 15,
+   "net2w_mean": 14.119266666666585
+  }
+ },
+ "bh_primary_family": {
+  "m": 36,
+  "q": 0.1,
+  "k_star": 0,
+  "survivors": [],
+  "min_p": 0.007699230076992301,
+  "min_cell": "GBP|2w|continuation"
+ },
+ "bh_pooled_family": {
+  "m": 6,
+  "q": 0.1,
+  "k_star": 0,
+  "survivors": [],
+  "min_p": 0.11858814118588142,
+  "min_cell": "pooled|1w|reversion"
+ },
+ "diagnostic_band_p5_p95": {
+  "EUR": {
+   "n": 10,
+   "horizons": {
+    "1w": {
+     "net_mean": -58.28000000000033,
+     "net_median": -22.30000000000065,
+     "boot_p_reversion": 0.919008099190081,
+     "boot_p_continuation": 0.0775922407759224
+    },
+    "2w": {
+     "net_mean": -84.26999999999961,
+     "net_median": -94.95000000000032,
+     "boot_p_reversion": 0.9664033596640336,
+     "boot_p_continuation": 0.0316968303169683
+    },
+    "4w": {
+     "net_mean": -129.62999999999968,
+     "net_median": -138.65000000000015,
+     "boot_p_reversion": 0.9584041595840416,
+     "boot_p_continuation": 0.0425957404259574
+    }
+   }
+  },
+  "GBP": {
+   "n": 19,
+   "horizons": {
+    "1w": {
+     "net_mean": -16.994736842105226,
+     "net_median": -8.399999999999519,
+     "boot_p_reversion": 0.664933506649335,
+     "boot_p_continuation": 0.34396560343965604
+    },
+    "2w": {
+     "net_mean": -77.21578947368438,
+     "net_median": -14.100000000001334,
+     "boot_p_reversion": 0.8832116788321168,
+     "boot_p_continuation": 0.10828917108289171
+    },
+    "4w": {
+     "net_mean": -67.24736842105271,
+     "net_median": -19.700000000000273,
+     "boot_p_reversion": 0.7682231776822318,
+     "boot_p_continuation": 0.2400759924007599
+    }
+   }
+  },
+  "AUD": {
+   "n": 15,
+   "horizons": {
+    "1w": {
+     "net_mean": 33.313333333333226,
+     "net_median": 1.8999999999991246,
+     "boot_p_reversion": 0.059494050594940506,
+     "boot_p_continuation": 0.9417058294170583
+    },
+    "2w": {
+     "net_mean": 17.713333333333175,
+     "net_median": -4.3999999999999595,
+     "boot_p_reversion": 0.31996800319968005,
+     "boot_p_continuation": 0.6785321467853215
+    },
+    "4w": {
+     "net_mean": 58.566666666666514,
+     "net_median": 99.29999999999994,
+     "boot_p_reversion": 0.05019498050194981,
+     "boot_p_continuation": 0.9538046195380462
+    }
+   }
+  },
+  "JPY": {
+   "n": 15,
+   "horizons": {
+    "1w": {
+     "net_mean": -58.47333333333334,
+     "net_median": -72.40000000000038,
+     "boot_p_reversion": 0.9419058094190581,
+     "boot_p_continuation": 0.05779422057794221
+    },
+    "2w": {
+     "net_mean": -29.360000000000074,
+     "net_median": -35.40000000000134,
+     "boot_p_reversion": 0.7512248775122488,
+     "boot_p_continuation": 0.2536746325367463
+    },
+    "4w": {
+     "net_mean": 19.41999999999988,
+     "net_median": -20.400000000000773,
+     "boot_p_reversion": 0.3511648835116488,
+     "boot_p_continuation": 0.6563343665633437
+    }
+   }
+  },
+  "CAD": {
+   "n": 11,
+   "horizons": {
+    "1w": {
+     "net_mean": 69.85454545454527,
+     "net_median": 48.299999999998896,
+     "boot_p_reversion": 0.0466953304669533,
+     "boot_p_continuation": 0.9574042595740426
+    },
+    "2w": {
+     "net_mean": 106.99999999999973,
+     "net_median": 31.799999999999606,
+     "boot_p_reversion": 0.015498450154984501,
+     "boot_p_continuation": 0.9827017298270173
+    },
+    "4w": {
+     "net_mean": 100.44545454545414,
+     "net_median": 127.69999999999948,
+     "boot_p_reversion": 0.0781921807819218,
+     "boot_p_continuation": 0.9205079492050795
+    }
+   }
+  },
+  "CHF": {
+   "n": 17,
+   "horizons": {
+    "1w": {
+     "net_mean": 9.591294117647072,
+     "net_median": -3.4000000000000696,
+     "boot_p_reversion": 0.39816018398160186,
+     "boot_p_continuation": 0.603039696030397
+    },
+    "2w": {
+     "net_mean": -3.650117647058574,
+     "net_median": -24.299999999999322,
+     "boot_p_reversion": 0.5542445755424458,
+     "boot_p_continuation": 0.4413558644135586
+    },
+    "4w": {
+     "net_mean": 41.6710588235293,
+     "net_median": 6.300000000001305,
+     "boot_p_reversion": 0.0756924307569243,
+     "boot_p_continuation": 0.9241075892410759
+    }
+   }
+  }
+ }
+}

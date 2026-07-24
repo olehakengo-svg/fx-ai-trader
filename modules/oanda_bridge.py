@@ -518,7 +518,9 @@ class OandaBridge:
                    lot_label: str = "",
                    signal_price: float = 0.0,
                    entry_type: str | None = None,
-                   skip_sent_audit: bool = False):
+                   skip_sent_audit: bool = False,
+                   max_attempts: int = 3,
+                   record_fill_slippage: bool = False):
         """Place OANDA market order mirroring a demo trade.
         callback(demo_trade_id, oanda_trade_id) called on success for DB persistence.
         units: override lot size (0 = use default self._units).
@@ -528,6 +530,14 @@ class OandaBridge:
         skip_sent_audit: when True, do NOT write the 'sent' audit row here
             (caller has already written it with full sr_meta). Used by the
             demo_trader main-entry path to avoid duplicate 'sent' rows.
+        max_attempts: total broker attempts for transient errors (429/503/
+            timeout/network). Default 3 preserves the historical behavior.
+            weekend_gap_fade passes 1 — pre-reg §2.2 forbids ANY retry
+            (a timeout retry can double-fill; single market attempt only).
+        record_fill_slippage: when True, persist the real fill-vs-signal_price
+            slippage (pips, adverse-positive) onto the demo trade row
+            (demo_trades.slippage_pips). Used by weekend_gap_fade whose G1
+            R2 gate consumes measured live slippage.
 
         Returns True when the order passed all bridge gates and the
         background send was fired; False when transmission was refused
@@ -615,7 +625,8 @@ class OandaBridge:
             _latency_ms = 0
             ok, data = None, {}
             _attempts_made = 0
-            for _attempt in range(3):
+            _max_att = max(1, int(max_attempts))
+            for _attempt in range(_max_att):
                 _attempts_made = _attempt + 1
                 _t0 = _time.monotonic()
                 ok, data = self._client.market_order(
@@ -628,11 +639,13 @@ class OandaBridge:
                 _latency_ms = round((_time.monotonic() - _t0) * 1000)
                 if ok:
                     break
-                # Transient errors: retry with backoff (max 2 retries)
+                # Transient errors: retry with backoff (max_attempts total;
+                # weekend_gap_fade passes max_attempts=1 = no retry, pre-reg §2.2)
                 _err_code = data.get("error")
-                if _err_code in (429, 503, "timeout", "network") and _attempt < 2:
+                if (_err_code in (429, 503, "timeout", "network")
+                        and _attempt < _max_att - 1):
                     _time.sleep(1 * (_attempt + 1))
-                    logger.warning(f"[OandaBridge] OPEN retry {_attempt+1}/2 "
+                    logger.warning(f"[OandaBridge] OPEN retry {_attempt+1}/{_max_att-1} "
                                    f"{side} {instrument} ({_err_code})")
                     continue
                 break  # Non-retryable error, stop immediately
@@ -672,6 +685,28 @@ class OandaBridge:
                             pass
                     elif log_callback:
                         log_callback(f"[TELEMETRY] latency={_latency_ms}ms")
+                    # ── Real fill slippage persistence (weekend_gap_fade G1 input) ──
+                    # Signed adverse-positive pips: BUY fill above signal / SELL
+                    # fill below signal = positive (worse). Overwrites the
+                    # demo-side quote-vs-mid estimate with the broker truth.
+                    if record_fill_slippage and signal_price and _price and self._db is not None:
+                        try:
+                            _fill_px_rs = float(_price)
+                            _pip_m_rs = 100 if ("JPY" in instrument or "XAU" in instrument) else 10000
+                            if side == "buy":
+                                _slip_rs = (_fill_px_rs - float(signal_price)) * _pip_m_rs
+                            else:
+                                _slip_rs = (float(signal_price) - _fill_px_rs) * _pip_m_rs
+                            self._db.update_trade_slippage(
+                                demo_trade_id, round(_slip_rs, 2))
+                            if log_callback:
+                                log_callback(
+                                    f"[WEEKEND_GAP] fill slippage persisted: "
+                                    f"{_slip_rs:+.2f}p (trade={demo_trade_id})")
+                        except Exception as _rs_err:
+                            logger.warning(
+                                f"[OandaBridge] fill-slippage persist failed "
+                                f"(demo={demo_trade_id}): {_rs_err}")
                     # Filled rows intentionally keep the OANDA-side mode label.
                     # `sent` rows carry the strategy name; downstream joins rely
                     # on that twin meaning to avoid counting PYR mode labels as

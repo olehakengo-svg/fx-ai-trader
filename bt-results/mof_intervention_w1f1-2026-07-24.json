@@ -1,0 +1,102 @@
+{
+  "task": "W1-F1 MoF intervention data fetch + design feasibility",
+  "run_date": "2026-07-24",
+  "source_csv": "https://www.mof.go.jp/policy/international_policy/reference/feio/foreign_exchange_intervention_operations.csv",
+  "output_csv": "/Users/jg-n-012/test/fx-ai-trader/data/external/mof_interventions.csv",
+  "n_daily_events_total": 383,
+  "date_span": [
+    "1991-05-13",
+    "2024-07-12"
+  ],
+  "n_daily_events_2010plus": 15,
+  "events_by_pair": {
+    "USD/JPY": 358,
+    "USD/DEM": 1,
+    "DEM/JPY": 1,
+    "USD/IDR": 5,
+    "EUR/JPY": 18
+  },
+  "events_by_direction": {
+    "sell_USD_buy_JPY": 39,
+    "sell_USD_buy_DEM": 1,
+    "sell_JPY_buy_USD": 319,
+    "sell_JPY_buy_DEM": 1,
+    "sell_USD_buy_IDR": 5,
+    "sell_JPY_buy_EUR": 18
+  },
+  "events_by_year": {
+    "1991": 4,
+    "1992": 23,
+    "1993": 50,
+    "1994": 55,
+    "1995": 43,
+    "1996": 5,
+    "1997": 8,
+    "1998": 3,
+    "1999": 15,
+    "2000": 6,
+    "2001": 10,
+    "2002": 8,
+    "2003": 91,
+    "2004": 47,
+    "2010": 1,
+    "2011": 7,
+    "2022": 3,
+    "2024": 4
+  },
+  "n_episodes_all_gap30d": 33,
+  "n_episodes_2010plus_gap30d": 7,
+  "episodes_2010plus": [
+    {
+      "start": "2010-09-15",
+      "end": "2010-09-15",
+      "n_days": 1
+    },
+    {
+      "start": "2011-03-18",
+      "end": "2011-03-18",
+      "n_days": 1
+    },
+    {
+      "start": "2011-08-04",
+      "end": "2011-08-04",
+      "n_days": 1
+    },
+    {
+      "start": "2011-10-31",
+      "end": "2011-11-04",
+      "n_days": 5
+    },
+    {
+      "start": "2022-09-22",
+      "end": "2022-10-24",
+      "n_days": 3
+    },
+    {
+      "start": "2024-04-29",
+      "end": "2024-05-01",
+      "n_days": 2
+    },
+    {
+      "start": "2024-07-11",
+      "end": "2024-07-12",
+      "n_days": 2
+    }
+  ],
+  "pending_monthly_aggregates_nonzero": [
+    {
+      "window": [
+        "2026-04-28",
+        "2026-05-27"
+      ],
+      "amount_yen_billions": 11734.9,
+      "source_url": "https://www.mof.go.jp/policy/international_policy/reference/feio/data/monthly/20260529.html"
+    }
+  ],
+  "quarterly_daily_sum_check": {
+    "sum_daily_oku": 1103777.0,
+    "sum_quarterly_oku": 1103775.0,
+    "diff_oku": 2.0
+  },
+  "last_quarterly_covered_date": "2026-03-31"
+}

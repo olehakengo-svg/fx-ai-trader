@@ -1,7 +1,7 @@
 # Tier Master — 戦略分類マスタ
 
 **自動生成**: `python3 tools/tier_integrity_check.py --write`
-**最終更新**: 2026-07-21 11:14 UTC
+**最終更新**: 2026-07-24 19:04 UTC
 **Source of Truth**: `modules/demo_trader.py`
 
 ---
@@ -13,7 +13,7 @@
 | # | 戦略名 | 365d BT JPY EV | EUR EV | GBP EV |
 |---|---|---|---|---|
 
-### A-2. PAIR_PROMOTED（19エントリ — 指定ペアのみ通過）
+### A-2. PAIR_PROMOTED（22エントリ — 指定ペアのみ通過）
 
 | # | 戦略名 | ペア | 365d BT EV |
 |---|---|---|---|
@@ -35,7 +35,10 @@
 | 16 | vix_carry_unwind | USD_JPY | +0.506 |
 | 17 | vol_momentum_scalp | EUR_JPY | — |
 | 18 | vsg_jpy_reversal | EUR_JPY | — |
-| 19 | xs_momentum_rsi | USD_JPY | — |
+| 19 | weekend_gap_fade | AUD_USD | — |
+| 20 | weekend_gap_fade | EUR_USD | — |
+| 21 | weekend_gap_fade | USD_JPY | — |
+| 22 | xs_momentum_rsi | USD_JPY | — |
 
 ## B. Shadow戦略（OANDA非通過 — デモのみ記録）
 
@@ -77,7 +80,7 @@
 | 7 | mtf_trend_follow_scalp |
 | 8 | vol_surge_detector |
 
-### B-3. UNIVERSAL_SENTINEL（21戦略 — 全モードSentinel）
+### B-3. UNIVERSAL_SENTINEL（22戦略 — 全モードSentinel）
 
 | # | 戦略名 | PP経由OANDA通過ペア |
 |---|---|---|
@@ -102,6 +105,7 @@
 | 19 | sr_weighted_break | なし |
 | 20 | vix_carry_unwind | USD_JPY |
 | 21 | vol_spike_mr | なし |
+| 22 | weekend_gap_fade | AUD_USD, EUR_USD, USD_JPY |
 
 ### B-4. PAIR_DEMOTED（40エントリ — 特定ペアのみ強制Shadow）
 

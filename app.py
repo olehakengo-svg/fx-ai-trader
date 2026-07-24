@@ -2626,6 +2626,14 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                          ) or (
                              getattr(c, "entry_type", "") == "tokyo_nakane_momentum"
                              and _tnm_v2_enabled
+                         ) or (
+                             # 2026-07-24 weekend_gap_fade: HTF Hard Block 免除
+                             # (pre-reg §2.4 凍結 — 「cap スキップのみが正当な
+                             # 未執行」。gap fade は定義上 counter-HTF になり得る
+                             # ため、この候補段フィルタで silent drop すると
+                             # T8 (sweep×HTF gate 100% drop) と同型の estimand
+                             # 違反になる。口座防御系 gate は demo_trader 側で共有)
+                             getattr(c, "entry_type", "") == "weekend_gap_fade"
                          ) or not (hasattr(c, 'signal') and c.signal == _blocked_dir)]
         _htf_blocked_count = len(_dt_candidates) - len(_htf_filtered)
         if _htf_blocked_count > 0:
@@ -3037,6 +3045,10 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                               # 2026-06-12: sweep は RR1.5 で現行リライト非発動だが、
                               # LATE 薄商い ATR 縮小時の min-SL 介入を防ぐ契約保存
                               "sweep_reversion_eurgbp_late",
+                              # 2026-07-24: weekend_gap_fade — disaster SL 150p +
+                              # sentinel TP は pre-reg §2.3 凍結契約 (SR snap /
+                              # RR1.3 リライト不適用)
+                              "weekend_gap_fade",
                           ))
 
     # 最低SL距離保証: 5.0pips（DT用 — スプレッド+ノイズ余裕）
@@ -3661,6 +3673,10 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         and getattr(_dt_best, "entry_type", "") == "wick_imbalance_reversion"
         and _awi_v2_enabled
     )
+    # weekend_gap_fade: G1 slippage は fill 基準で測る必要がある (pre-reg §5)。
+    # basis のみ entry_fill — rebase_tp_to_current_price は 500p sentinel TP を
+    # 動かすため連動させない (エンジン fallback 経路でも G1 汚染を防ぐ)
+    _wg_fill_basis = _dt_entry_type == "weekend_gap_fade"
 
     return {
         "timestamp": ts_str, "symbol": (symbol.replace("=X","")[:3] + "/" + symbol.replace("=X","")[3:]) if symbol else "USD/JPY", "tf": tf,
@@ -3672,7 +3688,7 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
         "sr_meta": _sr_meta,
         "max_hold_bars": getattr(_dt_best, "max_hold_bars", None) if _dt_best is not None else None,
         "lot_multiplier": getattr(_dt_best, "lot_multiplier", 1.0) if _dt_best is not None else 1.0,
-        "slippage_signal_price_basis": "entry_fill" if _rebase_to_fill else "signal_entry",
+        "slippage_signal_price_basis": "entry_fill" if (_rebase_to_fill or _wg_fill_basis) else "signal_entry",
         "rebase_tp_to_current_price": _rebase_to_fill,
         "shadow_emit_signals": _shadow_emit_payload,
         "live_promote_emit_signals": _live_promote_emit_payload,
@@ -6704,6 +6720,7 @@ def run_daytrade_backtest(symbol: str = "USDJPY=X",
                 "orb_trap",                      # ORB Trap: Opening Range Fakeout Reversal
                 "sweep_reversion_eurgbp_late",   # 2026-06-12 EUR_GBP LATE sweep BUY (12y grid survivor, LIVE via env)
                 "hull_donchian_fade",            # 2026-06-12 EUR_USD M15 compression fade (holdout PF1.19, LIVE via env)
+                "weekend_gap_fade",              # 2026-07-24 週末ギャップfade (pre-reg LOCK, 3ペア固定1000u, OOS armB PASS)
                 "london_close_reversal",         # LCR: London Close Wick Reversal (DISABLED)
                 "london_close_reversal_v2",      # LCR v2 H-2026-04-22-005: UTC 20:30-21:00 push+RSI極値 (Sentinel)
                 "gbp_deep_pullback",             # GBP Deep PB: BB-2σ/EMA50 deep pullback

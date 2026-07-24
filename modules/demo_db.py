@@ -1458,6 +1458,20 @@ class DemoDB:
                     (1 if is_shadow else 0, trade_id))
                 conn.commit()
 
+    def update_trade_slippage(self, trade_id: str, slippage_pips: float):
+        """Overwrite slippage_pips with broker-truth fill slippage.
+
+        2026-07-24 weekend_gap_fade (pre-reg §5 G1): the open-time value is a
+        quote-vs-mid estimate; on OANDA fill confirmation the bridge persists
+        the real fill-vs-signal_price slippage (adverse-positive pips) here.
+        Only called for entry_types that opt in via record_fill_slippage."""
+        with self._lock:
+            with self._safe_conn() as conn:
+                conn.execute(
+                    "UPDATE demo_trades SET slippage_pips=? WHERE trade_id=?",
+                    (float(slippage_pips), trade_id))
+                conn.commit()
+
     def set_oanda_trade_id(self, trade_id: str, oanda_trade_id: str):
         """Link a demo trade to its OANDA trade ID.
 
