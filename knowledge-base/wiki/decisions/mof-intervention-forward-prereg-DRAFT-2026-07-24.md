@@ -35,7 +35,7 @@
 | horizons | h ∈ {**1d, 2d, 5d, 10d**} (東京営業日カウント、同じ 00:00 UTC 境界) |
 | 純移動 | net_h(d) = mid(t0+h) − mid(t0) [pips, 0.01 JPY]。SELL 方向有利 = 負 |
 | MFE/MAE | [t0, t0+h] 内の SELL 方向 MFE/MAE (バー粒度) |
-| swap | h5/h10 は short USDJPY のキャリー純額を控除した net-after-carry を併記 (**判定は gross 符号、swap-net は記述**)。swap 実測値は LOCK 時に OANDA financing / e20_rates_ingest 配管から記録 (E20 配管残置の流用、[[../../..//knowledge-base/wiki/index|E20 S2 棄却]] は estimand 別で非該当) |
+| swap | h5/h10 は short USDJPY のキャリー純額を控除した net-after-carry を併記 (**判定は gross 符号、swap-net は記述**)。swap 実測値は LOCK 時に OANDA financing / e20_rates_ingest 配管から記録 (E20 S2 棄却 (PR #112) は estimand 別で配管残置の流用は可 — MEMORY `project_e20_rate_differential_s2_rejected`) |
 | 識別 rule (E-A 用) | 東京営業日バー T(d) の同日 OHLC のみを使う関数 (real-time 計算可能 = anchor 時点で判定可): **candidate(d) = 1 ⟺ close/open − 1 ≤ −Y% かつ range(d) ≥ X × trailing-20d median range**。X, Y は §4 explore (2022/2024 の 7 日 + その周辺 placebo のみ) で「7 日中 ≥6 を捕捉しつつ周辺 false positive 最小」の最緩値として校正し、LOCK で凍結。**2026 窓を見ながらの rule 反復は禁止** (ラベル未観測でも事前信念の混入を避ける) |
 
 ## 3. 変種の分離 (tradeable / 非 tradeable)
@@ -98,7 +98,7 @@ Q2-2026 四半期開示で 2026-04-28..05-27 窓内に ≥1 日次イベント�
 
 ## 6. 多重検定の扱い (グローバル台帳 family #4)
 
-- 本 pre-reg は [[../syntheses/hypothesis-catalog-2026-07-24|仮説カタログ台帳]] **m=12 の family #4 (mof_intervention)** の confirmatory 段。
+- 本 pre-reg は [[hypothesis-catalog-2026-07-24]] (グローバル多重検定台帳) **m=12 の family #4 (mof_intervention)** の confirmatory 段。
 - **within-family**: 検定エンドポイントは E-A の 1 本のみ (α=0.10 one-shot)。E-B は validity gate、E-C/E-D は検定なし scorecard — within-family 多重性は発生しない。horizon 4 点は E-C の記述にのみ現れ、h* 事前固定で選択自由度を封鎖。
 - **cross-family**: 有効 N=1 エピソードのため、PASS でも「モダリティ実証 (記述級)」であって Bonferroni 級 edge 主張には決してカウントしない。edge 主張・live 経路は stage-2 pre-reg (Rule 1: 365d BT or Live N≥30 + Bonferroni) の責務。台帳には verdict を PASS/FAIL 問わず追記する (台帳運用ルール)。
 

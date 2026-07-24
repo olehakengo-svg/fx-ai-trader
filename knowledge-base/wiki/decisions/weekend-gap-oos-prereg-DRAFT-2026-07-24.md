@@ -69,7 +69,7 @@
 | (a) | **方向性** | net toward-fill mean > 0、one-sided event-block bootstrap。arm A = 4h と 12h の**両方** (arm p 値 = max(p_4h, p_12h) — intersection-union、保守的)。arm B = 4h、weekend-block bootstrap (同一週末クロスペア相関をブロック化) |
 | (b) | **多重性** | **BH-FDR q=0.10、m=2 arms** (arm-level p で: p(1) ≤ 0.05 かつ p(2) ≤ 0.10 なら両通過) |
 | (c) | **stressed friction net EV (主ゲート)** — レビュー指摘③ | **通常 RT の 3 倍**を stressed RT とし (EUR_USD 6.0p / USD_JPY 6.42p / AUD_USD 7.5p)、イベント毎に `net_i − 3×RT_pair(i)` を控除した**平均 > 0** (点推定)。日曜 open の実スプレッドは通常の数倍であり、理論 RT での EV 主張を禁止する趣旨。arm A は等価的に「gross mean > 6.0p」 |
-| (d) | **headroom** | MFE p50 ≥ **10× stressed RT** (= 30× 通常 RT) を primary horizon で充足 (arm A は 4h/12h 両方、arm B は 4h)。⚠️ §10-1 のレビュー論点参照 — explore 水準では算術的に未達 |
+| (d) | **headroom** | MFE p50 ≥ **10× 通常 RT** を primary horizon で充足 (arm A: 4h/12h 両方 ≥20.0p、arm B: 4h ≥ N加重 21.9p)。カタログ凍結入場条件 ([[hypothesis-catalog-2026-07-24]] 運用ルール) と同一。§10-1 裁定 (2026-07-24): 10× stressed 案は棄却 — headroom は「動きの器」の検査であり、friction stress は (c) の EV 検査に一本化 (二重計上を排除)。参考: explore 実測は arm A 4h 23.7p / 12h 34.6p / arm B 26.4p で全て充足水準 |
 | (e) | **N floor** | arm A: **N ≥ 25** / arm B: **N ≥ 60**。導出: explore 発生率 (EUR_USD 7.1 件/年、pooled 21.1 件/年) × OOS 4.49 年 = 期待 N ≈ 32 / 95。Poisson で P(N<25\|λ=32) ≈ 9% に設定 (repo 慣行 N≥30 だと期待値比 94% が床になり、イベント希少性だけで verdict が壊れる確率 ~35% — §10-2 のレビュー論点)。**floor 未達の arm は PASS/FAIL ではなく UNDERPOWERED** と裁定 |
 
 ### 4.1 効果量 shrinkage の事前予測 (凍結記録 — verdict との突合用)
@@ -108,7 +108,7 @@ explore 比 **50% 減衰**を事前予測として記録する (事後選択さ�
 
 1. **メカニズム整合**: PASS arm の fill dynamics が explore と同型か — t-half 中央値 1–2h / full-fill 中央値 ~9–15h / 効果の構成が MFE 優位 (MAE 崩壊による見かけの正値でない) こと。tercile は flat/hump 型 (モノトニシティを新たに主張しない)
 2. **擬似反復**: arm B は weekend-block bootstrap 内蔵 (同一週末のクロスペア相関)。同一週末の複数ペア qualifying 重複件数と、週末レベル net の lag-1 ρ を記録。arm A はイベント (週末) 非重複を assert (4h/12h は次週末と重ならない)
-3. **境界・閾値ナイフエッジ**: (i) **DST 感度** — NY17:00 anchor 再計算 (§2.1) で PASS arm の点推定符号が維持されるか、(ii) **qualify 閾値摂動** — 8× / 12× RT (±20%) で点推定符号が維持されるか。**(i)(ii) いずれかで符号反転 → 当該 arm を FAIL (knife-edge) に格下げ** (事前規定)。全て単一実行内で計算
+3. **境界・閾値ナイフエッジ**: (i) **DST 感度** — NY17:00 anchor 再計算 (§2.1)、(ii) **qualify 閾値摂動** — 8× / 12× RT (±20%)。維持要求は **gross net mean の符号 AND stressed-net mean (ゲート c と同一定義) の符号の両方** (§10-4 裁定 2026-07-24: 厳格側を採用 — T11 教訓「ナイフエッジ pass は kill」)。**(i)(ii) いずれかでどちらかの符号が反転 → 当該 arm を FAIL (knife-edge) に格下げ** (事前規定)。全て単一実行内で計算
 
 ## 8. 執行と監視 (T5 教訓: 監視主体を必ず併設)
 
@@ -127,12 +127,12 @@ explore 比 **50% 減衰**を事前予測として記録する (事後選択さ�
 - **多重性台帳**: 本 confirm は [[hypothesis-catalog-2026-07-24]] **台帳 family #3** の OOS スロットを消費する (m=12 内)。arm 内 m=2 は §4(b) で処理
 - **禁止**: verdict 後の endpoint/arm/閾値変更、OOS 再接触、GBP_USD ロード、news-type 事後サブセット化、explore 窓での閾値再チューニング
 
-## 10. レビュー論点 (LOCK 前に解決必須 — DRAFT 固有セクション)
+## 10. レビュー論点 — **全 4 点裁定済み (2026-07-24、main セッション quant 裁定。LOCK 後不変)**
 
-1. **ゲート (d) の算術的帰結**: 指示どおり「MFE p50 ≥ 10× stressed RT」を凍結すると、必要水準は EUR_USD で **60.0p** (arm B N 加重 65.6p)。explore の実測 MFE p50 は 4h 23.7p (3.95×) / 12h 34.6p (5.8×) / pooled 4h 26.4p (4.0×) — **explore 水準ですら全 arm 未達であり、shrinkage 前提では確定 FAIL に近い**。レビューで択一すること: (i) このまま維持 (= 本 confirm を実質 kill-test として運用する意図的選択と明記)、(ii) headroom は catalog 凍結条件どおり **10× 通常 RT** とし、stressed はゲート (c) の net EV 控除に一本化する (起案者推奨は (ii) — headroom は「動きの器」の検査、friction は EV の検査で役割が異なるため)。**どちらを選んでも LOCK 後は不変**
-2. **N floor 25 vs repo 慣行 30** (arm A): §4(e) の Poisson 導出参照。30 に引き上げる場合、イベント希少性のみで UNDERPOWERED になる確率 ~35% を受容することを明記のこと
-3. **arm A の co-primary (IUT max-p)**: 4h/12h の AND 要求は保守的。OR (どちらか一方) に緩める場合は arm 内多重性 m=2 の補正を追加する必要がある — 現行 AND 案は補正不要で単純
-4. **DST 感度の格下げ規定 (§2.1/§7-3)**: 符号反転のみを格下げ条件とした (効果量の変動は許容)。より厳しく「stressed-net の符号維持」まで要求するかはレビュー判断
+1. **ゲート (d)**: 案 (ii) 採用 — headroom = **10× 通常 RT** (§4(d) に反映済み)。理由: headroom は「動きの器」の検査で friction stress は (c) の EV 検査 — 10× stressed (=30× 通常) は同一リスクの二重計上であり、カタログ凍結入場条件 (10× 通常 RT) とも不整合。explore 水準で全 arm 充足 = ゲートとして識別力を保ちつつ算術的不能を排除
+2. **N floor**: **25/60 採択** (Poisson 導出 §4(e))。repo 慣行 N≥30 は昇格 (R1) 側の要件であり、本スクリーンの検定力床とは役割が異なる。UNDERPOWERED は family CLOSE (保守側) のため FP リスクは増えない
+3. **arm A co-primary**: **AND (IUT max-p) 維持** — 補正不要で最も保守的
+4. **DST/閾値格下げ**: **厳格側採用** — gross 符号 + stressed-net 符号の両方の維持を要求 (§7-3 に反映済み)。T11 教訓との整合
 
 ---
 
