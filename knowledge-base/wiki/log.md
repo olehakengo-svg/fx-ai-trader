@@ -1,6 +1,9 @@
 # Knowledge Base Change Log
 
-## 2026-07-06 (T7 クローズ + T8 forensic #2: engine 再構築による live dedup 無効の発見)
+## 2026-07-24 (エッジ開発 postmortem — 全数検死 + 敵対的検証)
+- **新規**: [[edge-dev-postmortem-2026-07-24]] (syntheses/) — 失敗仮説 54 件 + 生存候補 21 件の全数棚卸し (13-agent workflow、根本原因 4 クレームを敵対的検証×2レンズ)。分析のみ、tier action なし
+- **主結論**: ①「勝てていた時期」は不存在 (Era-1 昇格は BT 測定器の幻影、検証済みサブセット内反転率 100%) ② 検証装置は完成済み (Era-3 以降 FP live 到達 0) ③ 真因は sourcing (OHLCV×intraday×リテール摩擦の空間は edge < 摩擦+認定閾値) ④ 実測フロア摩擦 1.30p/t、摩擦 binding は +1〜3p/t の狭帯のみ ⑤ 処方箋 = modality 単位期待値評価 + headroom≥10x 入場条件 + sweep_reversion_eurgbp/htf_fb recheck の棚卸し回収
+- **同セッション**: 金利差フェアバリュー仮説 (UIP/CIP/yield-spread) を口頭評価で REJECT/HOLD 低優先 (CIP=乖離<摩擦、UIP=anti-carry 負EV、[[hull-donchian-usdchf-ratediff-prereg-2026-06-15]] の falsification と整合)。edges/ ページ未作成 (実装提案なしのため)
 - **T7 CLOSED**: carry dip 0-fire は ceiling 159.50 のレジーム前提崩壊による dormant-by-design (バグ非ず)。QUALBAR print telemetry 本番稼働。[[zero-fire-diagnosis-carrydip-vix-2026-07-02]] §6
 - **T8 forensic #2 = 共通挙動**: hull は guard 実装済みだが `compute_daytrade_signal`/`compute_hourly_signal` が **poll 毎に Engine を再構築**するため全戦略の instance-state dedup/cooldown が live で無効。live の dedup 層は recent_emit のみ。order 層 per-bar dedup タスクを queue 投入、ゲート④ order 層補正 + 再 LOCK は user R1 決裁待ち。[[t8-week1-gate-breach-2026-07-06]]
 ## 2026-07-06 (pre-reg トリガー監視自動化, rule:R3)
