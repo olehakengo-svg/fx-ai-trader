@@ -1,10 +1,10 @@
-# 📝 Pre-registration DRAFT: weekend_gap family #3 — stage-2 執行設計 (rule:R1 step②)
+# 🔒 Pre-registration LOCK: weekend_gap family #3 — stage-2 執行設計 (rule:R1 step②→③ 完了)
 
-> **⚠️ DRAFT — user 最終承認待ち (R1 step③)。live 変更なし。**
-> 本文書は起案のみ — 実装・live パラメータ変更・LOCK 執行は一切行っていない。user 承認 (§7 オプション選択) 後に本文書を LOCKED 化して条項凍結 → 実装 PR (登録は deploy 担当) の順。承認が得られない場合、本 DRAFT は棚上げのまま live 変更ゼロ。
+> **🔒 LOCKED 2026-07-24 — user 最終承認取得済み (R1 step③)。承認オプション = (b) 直接 live MIN lot。**
+> R1 3 段階完了: step① 日曜 spread 12 週末実測 (PASS 保存) → step② 本執行設計 pre-reg → **step③ user 承認 2026-07-24 (本セッション、AskUserQuestion 選択 = 「直接 live MIN lot (Recommended)」)**。以後、執行仕様 (§2)・サイジング (§3)・前向きゲート (§5) の条項変更は禁止 (G3 到達後の lot 増額は別途 R1)。実装 PR (レビュー必須) → CI green → main マージ → Render auto-deploy の順で執行。
 
 **起案日**: 2026-07-24
-**Status**: 📝 **DRAFT** (user 決裁待ち)
+**Status**: 🔒 **LOCKED + user 承認済み (option b)** — 実装 PR 準備中
 **起点**: [[weekend-gap-oos-prereg-2026-07-24]] §11 verdict — **arm B PASS** (pooled {EUR_USD, USD_JPY, AUD_USD} 4h fade、stressed-net +9.04p、knife-edge 4/4 flip なし) → §9 R1 手続き (i) 完了 (`reports/sunday_open_spread-2026-07-24.md`: 実測 RT 置換後も EV +7.90p mean / +3.26p p90 tail で正 EV 保存) → 本文書 = 手続き (ii) 執行設計 pre-reg → 手続き (iii) user 最終承認
 **様式**: [[weekend-gap-oos-prereg-2026-07-24]] 踏襲
 

@@ -126,6 +126,22 @@
    "deadline": "2026-09-30",
    "doc": "knowledge-base/wiki/decisions/mof-intervention-forward-prereg-2026-07-24.md",
    "message": "MoF forward pre-reg (🔒 LOCKED 2026-07-24、台帳 family #4) の verdict 監視 — Q2-2026 四半期日次開示 (~2026-08 推定) 着地から 10 日以内に verdict 実行。backstop 2026-09-30 で未着地なら stale レビュー (設計変更禁止)。P-10: 2026 candidate 日の forward net は開示前計算禁止"
+  },
+  {
+   "id": "weekend-gap-live-g1-slippage",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2026-08-31",
+   "doc": "knowledge-base/wiki/decisions/weekend-gap-stage2-execution-prereg-2026-07-24.md",
+   "message": "weekend_gap live G1 ゲート監視 — live fill の slippage rolling mean > +2.0p で R2 live 停止 (code gate が一次、本エントリは週次監査の見落とし防止)。user 承認 (b) 2026-07-24"
+  },
+  {
+   "id": "weekend-gap-live-g2-cumloss",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2026-12-31",
+   "doc": "knowledge-base/wiki/decisions/weekend-gap-stage2-execution-prereg-2026-07-24.md",
+   "message": "weekend_gap live G2 ゲート監視 — live N=12 到達時に cumulative < −60p なら R2 demote。N=30 で G3 判定 (mean net>0 + WR≥35%) → lot 増額は別 R1。頻度 ~3.3/月 → N=12 は ~2026-11 見込み"
   }
  ]
 }
