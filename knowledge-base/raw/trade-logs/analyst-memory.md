@@ -3040,6 +3040,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 - **結論**: 現在のマーケット環境はシステムの全戦略に対して不利。空振りは「失敗」ではなく「正常なフィルター機能」の可能性が高い。
 | 時間（JST） | 内容 | 注意点 |
 
+### 2026-07-24 (Post-Tokyo Report)
+| PnL | — |
+| WR | — |
+### 推奨戦略配分
+| `scalp_eur` / `scalp_5m_eur` | EUR/USD, EUR/JPY | **待機推奨** | r2_shadow_demoted_cellブロック多発中。レジームも低ATR。エッジ薄 |
+| `rnb_usdjpy` | USD/JPY | **待機推奨** | direction_filterが3件遮断。RANGINGでRnBエッジも不明確 |
+- **Live Rate: 0%（50件全件SKIP）**
+- Block理由: 全件 `shadow_tracking`（= Sentinel追跡中のデモ専用状態）
+- **→ 本番口座への影響ゼロ。DD防御態勢維持中（設計通り）**
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
