@@ -3050,6 +3050,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 - Block理由: 全件 `shadow_tracking`（= Sentinel追跡中のデモ専用状態）
 - **→ 本番口座への影響ゼロ。DD防御態勢維持中（設計通り）**
 
+### 2026-07-24 (Post-London Report)
+| PnL | **0.0 pips** |
+| 勝率（WR） | **N/A** |
+| PnL | — | — |
+| GBP/JPY | TRENDING_UP | 60% | ボラティリティ維持。NY初動でトレンド継続 or 巻き戻しに注意 |
+| GBP/USD | RANGING | 60% | 同上。レンジ上限・下限での反転注意 |
+### 推奨戦略配分
+**⚠️ NO ACTION推奨**
+| 累計PnL | **0.0 pips** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
