@@ -168,3 +168,18 @@ python3 tools/event_modality_explore.py discovery
 6. **成果物**: `e15_phase0_oos_verdict.json` (全統計+trade/event list、~500KB) + `e15_phase0_oos_trades.json` (抽出中間) + pre-reg §5b 凍結表転記 (手続き補完)・§8 発動分岐・§12 判定表 + registry `e15-e7-event-prereg-phase0-verdict` resolve + changelog + pipeline 状態表。
 
 **§10 遵守**: OOS 結合統計の観測は verdict 実行が初回。観測後の再分析・再解釈なし (§12 は事前列挙の切り口のみ)。**残タスク = phase-1 (E7) のみ** (FF gap scrape + データ付録凍結 08-14 → discovery 08-21 → verdict 08-28、registry `e15-e7-event-prereg-phase1-verdict` が監視)。
+
+---
+
+## 🏁 2026-07-24 — phase-1 データ基盤執行: FF カレンダー歴史+gap import 完了 (期日 08-14 の 21 日前倒し)
+
+**§3.3b データ付録 (同日凍結) の執行記録。イベント×リターン結合統計は一切未計算 (§10-1 遵守)。**
+
+1. **ソース確定**: EPSOFT 延長なし (2023-03 で停止、2026-07-24 確認) → **R4F (`robots4forex.com/news/news.php`) を歴史 (2014-01〜) + gap (2023-04〜2026-07-20) の単一ソースに採用**。値整合 = EPSOFT cross-check 歴史 sample 279/279 完全一致 + 2023 Q1 overlap 114/120 (差分は全て EPSOFT 側 end-of-panel)。
+2. **dump 実測特性 2 点を anchor 突合で特定** (E15 canonical NFP 149 + CPI 135): (a) 時刻規約が 2023-08-07 で Europe/London → UTC に切替 (`tools/ff_gap_prepare_r4f.py` が正規化) (b) actual 列が 2023-08 で充填停止 → 判定系列は BLS first print で補完。
+3. **BLS first print 抽出** (`tools/ff_gap_bls_first_prints.py`、Wayback id_ 経由 §3.2b 経路): 75 件抽出 / **較正 9/9 完全一致** (R4F actual 残存区間)。抽出器は「出現位置最早」選択 — kind 順先勝ちの 2 バグ (NFP 後方改定括弧 2 件・CPI 後方 y/y 4 件) を **R4F previous 連鎖との系統突合で検出して修正** (regression test pin 済み)。CPI 2025-12-18 は shutdown 合算値 (「over the 2 months」) のため機械検出で除外。
+4. **本番 import (Render SSH、dry-run → 実行)**: `r4f-2014-2026` = 58,713 insert / 13 kept (go-forward seam) / 0 invalid。`bls-first-print` = 66 actual 補完 / 9 kept / 0 invalid。
+5. **完備性検証 (export API)**: ff_calendar_events = **58,789 行 / actual 35,861**。**判定系列 canonical 突合 = 297/298 完備 (actual+forecast)** — 唯一の欠落 = CPI 2025-12-18 (§3.3b-6 で事前宣言済みの除外、forecast も FF に不存在)。
+6. 成果物: `raw/bt-results/e7/` (import CSV ×2 + manifest + BLS ledger + 意味論検証 json)。生 snapshot (R4F dump 5.5MB + BLS 76 ページ) は data/cache/rates/raw/ (sha256 は manifest/ledger に凍結)。
+
+**残 = phase-1 本体のみ**: discovery+候補凍結 2026-08-21 → OOS verdict 2026-08-28 (registry `e15-e7-event-prereg-phase1-verdict` 監視継続)。データ側の前提は本日で完結。

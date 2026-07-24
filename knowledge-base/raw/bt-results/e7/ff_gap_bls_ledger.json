@@ -1,0 +1,723 @@
+{
+  "tool": "ff_gap_bls_first_prints",
+  "range": [
+    "2023-04-01",
+    "2026-06-30"
+  ],
+  "extracted": 75,
+  "excluded_multi_month": [
+    "CPI 2025-12-18: multi-month combined figure (shutdown gap) — m/m first print ではないため import 除外"
+  ],
+  "calibration_checked": 9,
+  "calibration_mismatches": [],
+  "failures": [],
+  "out_csv": {
+    "path": "knowledge-base/raw/bt-results/e7/ff_gap_bls_first_prints.csv",
+    "sha256": "e90d1fab4f3c73e5151bdeda80e029246061e123286ba5be7803d36b5328a395"
+  },
+  "ledger": [
+    {
+      "series": "NFP",
+      "release_date": "2023-04-07",
+      "event_time_utc": "2023-04-07T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2023-04-07.html (cached)",
+      "sha256": "2bebb5b01bd5d46095a41ea97f8792fddbc93346f88157e9f4efe9e7dd2da802",
+      "first_print": "236K",
+      "evidence": "MPLOYMENT SITUATION -- MARCH 2023 Total nonfarm payroll employment rose by 236,000 in March, and the unemployment rate changed little at 3.5 percent, the U.S. Bureau of Labor Statistics reported today. Employment continued to trend up in leisure and hospitality, government, profess",
+      "r4f_actual": "236K",
+      "calibration_match": true
+    },
+    {
+      "series": "NFP",
+      "release_date": "2023-05-05",
+      "event_time_utc": "2023-05-05T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2023-05-05.html (cached)",
+      "sha256": "e92dcbc27247594d3ba93824314f755481f1abde8b96497b31657ba686d95b06",
+      "first_print": "253K",
+      "evidence": "MPLOYMENT SITUATION -- APRIL 2023 Total nonfarm payroll employment rose by 253,000 in April, and the unemployment rate changed little at 3.4 percent, the U.S. Bureau of Labor Statistics reported today. Employment continued to trend up in professional and business services, health c",
+      "r4f_actual": "253K",
+      "calibration_match": true
+    },
+    {
+      "series": "NFP",
+      "release_date": "2023-06-02",
+      "event_time_utc": "2023-06-02T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2023-06-02.html (cached)",
+      "sha256": "ab5f200011d25a6b87b2b45dab7c799bb8f84998b0b6abfa2865615ac2811f7c",
+      "first_print": "339K",
+      "evidence": "EMPLOYMENT SITUATION -- MAY 2023 Total nonfarm payroll employment increased by 339,000 in May, and the unemployment rate rose by 0.3 percentage point to 3.7 percent, the U.S. Bureau of Labor Statistics reported today. Job gains occurred in professional and business services, government",
+      "r4f_actual": "339K",
+      "calibration_match": true
+    },
+    {
+      "series": "NFP",
+      "release_date": "2023-07-07",
+      "event_time_utc": "2023-07-07T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2023-07-07.html (cached)",
+      "sha256": "8d7ed0e9eef6e88de230726ac9498745f7fd42b52758726f81c2c6e4aaed3eaa",
+      "first_print": "209K",
+      "evidence": "EMPLOYMENT SITUATION -- JUNE 2023 Total nonfarm payroll employment increased by 209,000 in June, and the unemployment rate changed little at 3.6 percent, the U.S. Bureau of Labor Statistics reported today. Employment continued to trend up in government, health care, social assistance, a",
+      "r4f_actual": "209K",
+      "calibration_match": true
+    },
+    {
+      "series": "NFP",
+      "release_date": "2023-08-04",
+      "event_time_utc": "2023-08-04T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2023-08-04.html (cached)",
+      "sha256": "e1584403ea36d85f44df62db7d6a6d13dff66010f80221995287ff9483062fab",
+      "first_print": "187K",
+      "evidence": "EMPLOYMENT SITUATION -- JULY 2023 Total nonfarm payroll employment rose by 187,000 in July, and the unemployment rate changed little at 3.5 percent, the U.S. Bureau of Labor Statistics reported today. Job gains occurred in health care, social assistance, financial activities, and w",
+      "r4f_actual": "187K",
+      "calibration_match": true
+    },
+    {
+      "series": "NFP",
+      "release_date": "2023-09-01",
+      "event_time_utc": "2023-09-01T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2023-09-01.html (cached)",
+      "sha256": "62f85bedff2c30c08204bc53b48fcf014b9a4b0050c59d7fddb36efedbd5ebfd",
+      "first_print": "187K",
+      "evidence": "PLOYMENT SITUATION -- AUGUST 2023 Total nonfarm payroll employment increased by 187,000 in August, and the unemployment rate rose to 3.8 percent, the U.S. Bureau of Labor Statistics reported today. Employment continued to trend up in health care, leisure and hospitality, social assistan"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2023-10-06",
+      "event_time_utc": "2023-10-06T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2023-10-06.html (cached)",
+      "sha256": "42aa999e584f4e4cd74c7e9c9de3c5a561327ad2098763ac5b533f69a6666b7e",
+      "first_print": "336K",
+      "evidence": "YMENT SITUATION -- SEPTEMBER 2023 Total nonfarm payroll employment rose by 336,000 in September, and the unemployment rate was unchanged at 3.8 percent, the U.S. Bureau of Labor Statistics reported today. Job gains occurred in leisure and hospitality; government; health care; profe"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2023-11-03",
+      "event_time_utc": "2023-11-03T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2023-11-03.html (cached)",
+      "sha256": "34a73d5d16e16175c6dddc18ebb21e4fb053e8abee38183dd9edfdf5338c6691",
+      "first_print": "150K",
+      "evidence": "LOYMENT SITUATION -- OCTOBER 2023 Total nonfarm payroll employment increased by 150,000 in October, and the unemployment rate changed little at 3.9 percent, the U.S. Bureau of Labor Statistics reported today. Job gains occurred in health care, government, and social assistance. Employme"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2023-12-08",
+      "event_time_utc": "2023-12-08T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2023-12-08.html (cached)",
+      "sha256": "182720cb6a868b953f64b3fbd97e8e43c992fc83cec5e756393c01b59942594a",
+      "first_print": "199K",
+      "evidence": "OYMENT SITUATION -- NOVEMBER 2023 Total nonfarm payroll employment increased by 199,000 in November, and the unemployment rate edged down to 3.7 percent, the U.S. Bureau of Labor Statistics reported today. Job gains occurred in health care and government. Employment also increased in ma"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2024-01-05",
+      "event_time_utc": "2024-01-05T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2024-01-05.html (cached)",
+      "sha256": "254bf07d63377e78e6906499431496877e98c97c087c26cc2879263efe8f66c7",
+      "first_print": "216K",
+      "evidence": "OYMENT SITUATION -- DECEMBER 2023 Total nonfarm payroll employment increased by 216,000 in December, and the unemployment rate was unchanged at 3.7 percent, the U.S. Bureau of Labor Statistics reported today. Employment continued to trend up in government, health care, social assistance"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2024-02-02",
+      "event_time_utc": "2024-02-02T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2024-02-02.html (cached)",
+      "sha256": "eb7e169bb9a9ef79d306ea98729320e78131fad0d756130918dc053032fb3101",
+      "first_print": "353K",
+      "evidence": "LOYMENT SITUATION -- JANUARY 2024 Total nonfarm payroll employment rose by 353,000 in January, and the unemployment rate remained at 3.7 percent, the U.S. Bureau of Labor Statistics reported today. Job gains occurred in professional and business services, health care, retail trade,"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2024-03-08",
+      "event_time_utc": "2024-03-08T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2024-03-08.html (cached)",
+      "sha256": "ccfbfbd3ca033087632f378ee09b971c5015deead0f565204edab5f7cf27ba2f",
+      "first_print": "275K",
+      "evidence": "OYMENT SITUATION -- FEBRUARY 2024 Total nonfarm payroll employment rose by 275,000 in February, and the unemployment rate increased to 3.9 percent, the U.S. Bureau of Labor Statistics reported today. Job gains occurred in health care, in government, in food services and drinking pl"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2024-04-05",
+      "event_time_utc": "2024-04-05T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2024-04-05.html (cached)",
+      "sha256": "451dea39e0c4bbf449b602ac9822295681d0481a2bafd5a98d786e746facbad0",
+      "first_print": "303K",
+      "evidence": "MPLOYMENT SITUATION -- MARCH 2024 Total nonfarm payroll employment rose by 303,000 in March, and the unemployment rate changed little at 3.8 percent, the U.S. Bureau of Labor Statistics reported today. Job gains occurred in health care, government, and construction. This news relea"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2024-05-03",
+      "event_time_utc": "2024-05-03T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2024-05-03.html (cached)",
+      "sha256": "cc25ea85cf86394b144d5774af960127f0c14facb136b8b7569a61c8b42d6988",
+      "first_print": "175K",
+      "evidence": "MPLOYMENT SITUATION -- APRIL 2024 Total nonfarm payroll employment increased by 175,000 in April, and the unemployment rate changed little at 3.9 percent, the U.S. Bureau of Labor Statistics reported today. Job gains occurred in health care, in social assistance, and in transportation a"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2024-06-07",
+      "event_time_utc": "2024-06-07T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2024-06-07.html (cached)",
+      "sha256": "a4c35404396310b201831ffb6d5fc0113ae74a4a4598339ae2c6b3f1628cb9c8",
+      "first_print": "272K",
+      "evidence": "EMPLOYMENT SITUATION -- MAY 2024 Total nonfarm payroll employment increased by 272,000 in May, and the unemployment rate changed little at 4.0 percent, the U.S. Bureau of Labor Statistics reported today. Employment continued to trend up in several industries, led by health care; govern"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2024-07-05",
+      "event_time_utc": "2024-07-05T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2024-07-05.html (cached)",
+      "sha256": "b351953d340824ec1248edd96d1181b2a7e3363ca37decdb34643954368e0b50",
+      "first_print": "206K",
+      "evidence": "EMPLOYMENT SITUATION -- JUNE 2024 Total nonfarm payroll employment increased by 206,000 in June, and the unemployment rate changed little at 4.1 percent, the U.S. Bureau of Labor Statistics reported today. Job gains occurred in government, health care, social assistance, and constructio"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2024-08-02",
+      "event_time_utc": "2024-08-02T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2024-08-02.html (cached)",
+      "sha256": "3168109daa50e17aaf2a23609fcef39e26abaa401b3d76ac6fc8e1f539a11d3b",
+      "first_print": "114K",
+      "evidence": "t rate rose to 4.3 percent in July, and nonfarm payroll employment edged up by 114,000, the U.S. Bureau of Labor Statistics reported today. Employment continued to trend up in health care, in construction, and in transportation and warehousing, while information lost jobs. This news rel"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2024-09-06",
+      "event_time_utc": "2024-09-06T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2024-09-06.html (cached)",
+      "sha256": "06eeee854af130f5f5202fd33d44a59cb0ac9cadce6e45ef87ae95cb995fb758",
+      "first_print": "142K",
+      "evidence": "PLOYMENT SITUATION -- AUGUST 2024 Total nonfarm payroll employment increased by 142,000 in August, and the unemployment rate changed little at 4.2 percent, the U.S. Bureau of Labor Statistics reported today. Job gains occurred in construction and health care. This news release presents"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2024-10-04",
+      "event_time_utc": "2024-10-04T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2024-10-04.html (cached)",
+      "sha256": "867ee50ca0a2bb98c12116cb51572b8b0b870ab24a00e373808f5bbd13e63fbc",
+      "first_print": "254K",
+      "evidence": "YMENT SITUATION -- SEPTEMBER 2024 Total nonfarm payroll employment increased by 254,000 in September, and the unemployment rate changed little at 4.1 percent, the U.S. Bureau of Labor Statistics reported today. Employment continued to trend up in food services and drinking places, healt"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2024-11-01",
+      "event_time_utc": "2024-11-01T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2024-11-01.html (cached)",
+      "sha256": "8f3e50b7f46520a6fef399cc33d95bb9a0dfe6909fd814babe553199d87256f7",
+      "first_print": "12K",
+      "evidence": "LOYMENT SITUATION -- OCTOBER 2024 Total nonfarm payroll employment was essentially unchanged in October (+12,000), and the unemployment rate was unchanged at 4.1 percent, the U.S. Bureau of Labor Statistics reported today. Employment continued to trend up in health care and government. Temporary help services lo"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2024-12-06",
+      "event_time_utc": "2024-12-06T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2024-12-06.html (cached)",
+      "sha256": "ce3c531cec334c1d63086381dbc9d85bb103df61ba8880c20eacc12538bf7a22",
+      "first_print": "227K",
+      "evidence": "OYMENT SITUATION -- NOVEMBER 2024 Total nonfarm payroll employment rose by 227,000 in November, and the unemployment rate changed little at 4.2 percent, the U.S. Bureau of Labor Statistics reported today. Employment trended up in health care, leisure and hospitality, government, an"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2025-01-10",
+      "event_time_utc": "2025-01-10T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2025-01-10.html (cached)",
+      "sha256": "acb8a76da864ce348e8e509a615565e65264c92470f833c8818772d1a9cbae4b",
+      "first_print": "256K",
+      "evidence": "OYMENT SITUATION -- DECEMBER 2024 Total nonfarm payroll employment increased by 256,000 in December, and the unemployment rate changed little at 4.1 percent, the U.S. Bureau of Labor Statistics reported today. Employment trended up in health care, government, and social assistance. Reta"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2025-02-07",
+      "event_time_utc": "2025-02-07T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2025-02-07.html (cached)",
+      "sha256": "8a993d6720d781c60a553e422d38a2c5151cf1dc68fc6bc188b243801a7a15c7",
+      "first_print": "143K",
+      "evidence": "LOYMENT SITUATION -- JANUARY 2025 Total nonfarm payroll employment rose by 143,000 in January, and the unemployment rate edged down to 4.0 percent, the U.S. Bureau of Labor Statistics reported today. Job gains occurred in health care, retail trade, and social assistance. Employment"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2025-03-07",
+      "event_time_utc": "2025-03-07T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2025-03-07.html (cached)",
+      "sha256": "0c736bba2ed8a7405b79a56ee83bf6c80542adbabec7d8d8d76c1c77c3473574",
+      "first_print": "151K",
+      "evidence": "OYMENT SITUATION -- FEBRUARY 2025 Total nonfarm payroll employment rose by 151,000 in February, and the unemployment rate changed little at 4.1 percent, the U.S. Bureau of Labor Statistics reported today. Employment trended up in health care, financial activities, transportation an"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2025-04-04",
+      "event_time_utc": "2025-04-04T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2025-04-04.html (cached)",
+      "sha256": "f6d2493fdd7eeea99148ac881872b11d59aa3b57e1d135222c215ddca67dd13d",
+      "first_print": "228K",
+      "evidence": "MPLOYMENT SITUATION -- MARCH 2025 Total nonfarm payroll employment rose by 228,000 in March, and the unemployment rate changed little at 4.2 percent, the U.S. Bureau of Labor Statistics reported today. Job gains occurred in health care, in social assistance, and in transportation a"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2025-05-02",
+      "event_time_utc": "2025-05-02T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2025-05-02.html (cached)",
+      "sha256": "44e1992be7ac433f32ae9f02586e70809e4ae4e2d107092f00d0d56c576d3cd0",
+      "first_print": "177K",
+      "evidence": "/cps-corrections-april-2025.htm.) Total nonfarm payroll employment increased by 177,000 in April, and the unemployment rate was unchanged at 4.2 percent, the U.S. Bureau of Labor Statistics reported today. Employment continued to trend up in health care, transportation and warehousing,"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2025-06-06",
+      "event_time_utc": "2025-06-06T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2025-06-06.html (cached)",
+      "sha256": "2a10f67a13d52996ba4084756879748c14292a95f596e0d63d2ab788e5ad4073",
+      "first_print": "139K",
+      "evidence": "EMPLOYMENT SITUATION -- MAY 2025 Total nonfarm payroll employment increased by 139,000 in May, and the unemployment rate was unchanged at 4.2 percent, the U.S. Bureau of Labor Statistics reported today. Employment continued to trend up in health care, leisure and hospitality, and socia"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2025-07-03",
+      "event_time_utc": "2025-07-03T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2025-07-03.html (cached)",
+      "sha256": "940b8d3f853dae3a1131b9b88aded46c65d42516ce2c60e2faa829e4af8a5676",
+      "first_print": "147K",
+      "evidence": "EMPLOYMENT SITUATION -- JUNE 2025 Total nonfarm payroll employment increased by 147,000 in June, and the unemployment rate changed little at 4.1 percent, the U.S. Bureau of Labor Statistics reported today. Job gains occurred in state government and health care. Federal government contin"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2025-08-01",
+      "event_time_utc": "2025-08-01T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2025-08-01.html (cached)",
+      "sha256": "983f22b2f5643736feb9c05e361066829b8d93443d108bc7988f22d2e4e1e91d",
+      "first_print": "73K",
+      "evidence": "EMPLOYMENT SITUATION -- JULY 2025 Total nonfarm payroll employment changed little in July (+73,000) and has shown little change since April, the U.S. Bureau of Labor Statistics (BLS) reported today. The unemployment rate, at 4.2 percent, also changed little in July. Employment continued to trend up"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2025-09-05",
+      "event_time_utc": "2025-09-05T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2025-09-05.html (cached)",
+      "sha256": "a7cb63f82094877971154d0fa5e1f39d40d85a60114d958ab3f715552256c02d",
+      "first_print": "22K",
+      "evidence": "PLOYMENT SITUATION -- AUGUST 2025 Total nonfarm payroll employment changed little in August (+22,000) and has shown little change since April, the U.S. Bureau of Labor Statistics (BLS) reported today. The unemployment rate, at 4.3 percent, also changed little in August. A job gain in health care was"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2025-11-20",
+      "event_time_utc": "2025-11-20T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2025-11-20.html (cached)",
+      "sha256": "ba3236a11ebcfad8e630cac4bacf42b25816a3d7af887efe1609e65f821cafe5",
+      "first_print": "119K",
+      "evidence": "YMENT SITUATION -- SEPTEMBER 2025 Total nonfarm payroll employment edged up by 119,000 in September but has shown little change since April, the U.S. Bureau of Labor Statistics reported today. The unemployment rate, at 4.4 percent, changed little in September. Employment continued to t"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2025-12-16",
+      "event_time_utc": "2025-12-16T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2025-12-16.html (cached)",
+      "sha256": "bdccdb859dc3ea9ea90c3b6bdba6cc2c05e855d5a858adcb3e742390c824ac92",
+      "first_print": "64K",
+      "evidence": "OYMENT SITUATION -- NOVEMBER 2025 Total nonfarm payroll employment changed little in November (+64,000) and has shown little net change since April, the U.S. Bureau of Labor Statistics reported today. In November, the unemployment rate, at 4.6 percent, was little changed from September. Employment rose"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2026-01-09",
+      "event_time_utc": "2026-01-09T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2026-01-09.html (cached)",
+      "sha256": "017ad44cf5a867f4091311692e5b19a8c4be75e25ae5ff124b92f4d77a82e19e",
+      "first_print": "50K",
+      "evidence": "T SITUATION -- DECEMBER 2025 Both total nonfarm payroll employment (+50,000) and the unemployment rate (4.4 percent) changed little in December, the U.S. Bureau of Labor Statistics reported today. Employment continued to trend up in food services and drinking places, health c"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2026-02-11",
+      "event_time_utc": "2026-02-11T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2026-02-11.html (cached)",
+      "sha256": "352a9f393048198555b47e52d73b44d717181c4df6194bfcb379ed60013eccea",
+      "first_print": "130K",
+      "evidence": "LOYMENT SITUATION -- JANUARY 2026 Total nonfarm payroll employment rose by 130,000 in January, and the unemployment rate changed little at 4.3 percent, the U.S. Bureau of Labor Statistics reported today. Job gains occurred in health care, social assistance, and construction, while"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2026-03-06",
+      "event_time_utc": "2026-03-06T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2026-03-06.html (cached)",
+      "sha256": "90e21d73b540aa44c269ac32d73bb78ea0ee6fb5fcc4fa32ed1eafb018c7a900",
+      "first_print": "-92K",
+      "evidence": "OYMENT SITUATION -- FEBRUARY 2026 Total nonfarm payroll employment edged down by 92,000 in February, and the unemployment rate changed little at 4.4 percent, the U.S. Bureau of Labor Statistics reported today. Employment in health care decreased, reflecting strike activity. Employment i"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2026-04-03",
+      "event_time_utc": "2026-04-03T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2026-04-03.html (cached)",
+      "sha256": "6332b3248dac4c869c7255d7390b7ca06e2f9ef69ce3ea8dcff6d5e3b3f6bec9",
+      "first_print": "178K",
+      "evidence": "MPLOYMENT SITUATION -- March 2026 Total nonfarm payroll employment increased by 178,000 in March, and the unemployment rate changed little at 4.3 percent, the U.S. Bureau of Labor Statistics reported today. Job gains occurred in health care, in construction, and in transportation and wa"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2026-05-08",
+      "event_time_utc": "2026-05-08T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2026-05-08.html (cached)",
+      "sha256": "e387bb637bdd0f9ba711ecb516348f2c3398bd71675f09e3271f34142ff1e4f1",
+      "first_print": "115K",
+      "evidence": "MPLOYMENT SITUATION -- APRIL 2026 Total nonfarm payroll employment edged up by 115,000 in April, and the unemployment rate was unchanged at 4.3 percent, the U.S. Bureau of Labor Statistics reported today. Job gains occurred in health care, transportation and warehousing, and retail tra"
+    },
+    {
+      "series": "NFP",
+      "release_date": "2026-06-05",
+      "event_time_utc": "2026-06-05T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/empsit_2026-06-05.html (cached)",
+      "sha256": "1c4c32648b8171d22cf177edb5c0c6b4133dfe9ce4ac5ab1d0573a7407185cd5",
+      "first_print": "172K",
+      "evidence": "E EMPLOYMENT SITUATION - MAY 2026 Total nonfarm payroll employment increased by 172,000 in May, and the unemployment rate was unchanged at 4.3 percent, the U.S. Bureau of Labor Statistics reported today. Job gains occurred in leisure and hospitality, local government, and health care. E"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2023-04-12",
+      "event_time_utc": "2023-04-12T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2023-04-12.html (cached)",
+      "sha256": "713beb8e78c5b64b0b8e9dc4bc560537011c0ed7273d431421a20f4f19e0dfb1",
+      "first_print": "0.1%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) rose 0.1 percent in March on a seasonally adjusted basis, after increasing 0.4 percent in February, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 5.0 perce",
+      "r4f_actual": "0.1%",
+      "calibration_match": true
+    },
+    {
+      "series": "CPI",
+      "release_date": "2023-05-10",
+      "event_time_utc": "2023-05-10T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2023-05-10.html (cached)",
+      "sha256": "bdd7b1bca9da82cfb949adc9e13f86ed6d65305dbd6182da0cb7c1110dad1fd2",
+      "first_print": "0.4%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) rose 0.4 percent in April on a seasonally adjusted basis, after increasing 0.1 percent in March, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 4.9 percent",
+      "r4f_actual": "0.4%",
+      "calibration_match": true
+    },
+    {
+      "series": "CPI",
+      "release_date": "2023-06-13",
+      "event_time_utc": "2023-06-13T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2023-06-13.html (cached)",
+      "sha256": "9b99a2587370da74b6738ec02bc6c51e622c360e8d82a812fd0b017a20139d1d",
+      "first_print": "0.1%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) rose 0.1 percent in May on a seasonally adjusted basis, after increasing 0.4 percent in April, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 4.0 percent be",
+      "r4f_actual": "0.1%",
+      "calibration_match": true
+    },
+    {
+      "series": "CPI",
+      "release_date": "2023-07-12",
+      "event_time_utc": "2023-07-12T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2023-07-12.html (cached)",
+      "sha256": "ee4d0b4cde8b4d6fdefbb8eb385071390b18874d0f74a85c73669eff194ef32d",
+      "first_print": "0.2%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) rose 0.2 percent in June on a seasonally adjusted basis, after increasing 0.1 percent in May, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 3.0 percent bef",
+      "r4f_actual": "0.2%",
+      "calibration_match": true
+    },
+    {
+      "series": "CPI",
+      "release_date": "2023-08-10",
+      "event_time_utc": "2023-08-10T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2023-08-10.html (cached)",
+      "sha256": "fb8250cfe6b57291215e09b0c60285ac4e381e4c8c4d0625d98a7bb399f9943b",
+      "first_print": "0.2%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) rose 0.2 percent in July on a seasonally adjusted basis, the same increase as in June, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 3.2 percent before sea"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2023-09-13",
+      "event_time_utc": "2023-09-13T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2023-09-13.html (cached)",
+      "sha256": "46fb369a0ab090bf3a82a37000828b9a50e668e14d1e7ef4df1c448fba4b5bb2",
+      "first_print": "0.6%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) rose 0.6 percent in August on a seasonally adjusted basis, after increasing 0.2 percent in July, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 3.7 percent"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2023-10-12",
+      "event_time_utc": "2023-10-12T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2023-10-12.html (cached)",
+      "sha256": "e32570e56c76a26f7123f00f11af642631272af7250fd036c7eab2ce9c41d240",
+      "first_print": "0.4%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) rose 0.4 percent in September on a seasonally adjusted basis, after increasing 0.6 percent in August, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 3.7 per"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2023-11-14",
+      "event_time_utc": "2023-11-14T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2023-11-14.html (cached)",
+      "sha256": "17d7c0e7c20333f8fd9ebf09ad0aa95a436d59341ba720b5d6bcc350ff38eb49",
+      "first_print": "0.0%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) was unchanged in October on a seasonally adjusted basis, after increasing 0.4 percent in September, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 3.2 pe"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2023-12-12",
+      "event_time_utc": "2023-12-12T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2023-12-12.html (cached)",
+      "sha256": "19c4fcde6468934ac6da24fdac65e88b2ca064171f40a4c85522950b14d82593",
+      "first_print": "0.1%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.1 percent in November on a seasonally adjusted basis, after being unchanged in October, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 3.1 percent be"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2024-01-11",
+      "event_time_utc": "2024-01-11T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2024-01-11.html (cached)",
+      "sha256": "312d841e40970d4a2b5b3cc0a7624bebba886257caf4e020a33a28e903af3b1b",
+      "first_print": "0.3%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.3 percent in December on a seasonally adjusted basis, after rising 0.1 percent in November, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 3.4 percen"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2024-02-13",
+      "event_time_utc": "2024-02-13T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2024-02-13.html (cached)",
+      "sha256": "fe7358fe3aad58a833450ce50b5f72c38b63cfde8aec85d270c8ed9d694b34e0",
+      "first_print": "0.3%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.3 percent in January on a seasonally adjusted basis, after rising 0.2 percent in December, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 3.1 percent"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2024-03-12",
+      "event_time_utc": "2024-03-12T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2024-03-12.html (cached)",
+      "sha256": "a2be4d687d23a124e1fe76639693c4d64130d47e9219f87449e75799b0fcbf31",
+      "first_print": "0.4%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.4 percent in February on a seasonally adjusted basis, after rising 0.3 percent in January, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 3.2 percent"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2024-04-10",
+      "event_time_utc": "2024-04-10T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2024-04-10.html (cached)",
+      "sha256": "678c461c4b9fb6a0bc57954cd4e9bae5dd277317fdb85caf694aa6abdaa4a98f",
+      "first_print": "0.4%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.4 percent in March on a seasonally adjusted basis, the same increase as in February, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 3.5 percent befor"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2024-05-15",
+      "event_time_utc": "2024-05-15T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2024-05-15.html (cached)",
+      "sha256": "5efe65dc72c0e85032ac44c0d63a0b70c736add4918939dff9b1df3b4a626988",
+      "first_print": "0.3%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.3 percent in April on a seasonally adjusted basis, after rising 0.4 percent in March, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 3.4 percent befo"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2024-06-12",
+      "event_time_utc": "2024-06-12T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2024-06-12.html (cached)",
+      "sha256": "278cef17568c1afb0e25022bcfde4e172012a6f81c30f36eb95e5875ce05345b",
+      "first_print": "0.0%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) was unchanged in May on a seasonally adjusted basis, after rising 0.3 percent in April, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 3.3 percent before"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2024-07-11",
+      "event_time_utc": "2024-07-11T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2024-07-11.html (cached)",
+      "sha256": "acfdce82234af77f2f1a61cf662748ab1415ac4fe9dbaf2ba359d530ef217f5b",
+      "first_print": "-0.1%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) declined 0.1 percent on a seasonally adjusted basis, after being unchanged in May, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 3.0 percent before seasonal ad"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2024-08-14",
+      "event_time_utc": "2024-08-14T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2024-08-14.html (cached)",
+      "sha256": "5546e11914652fb8b504d0ceeee14c59e169d5e10ff656d9ee4a3bf6aaa1dd5f",
+      "first_print": "0.2%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.2 percent on a seasonally adjusted basis, after declining 0.1 percent in June, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 2.9 percent before seas"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2024-09-11",
+      "event_time_utc": "2024-09-11T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2024-09-11.html (cached)",
+      "sha256": "7df0f669f1a8f5c1b3e7a0cd0ab81601a078820d8c8b7cfa9cae42e5f7220a72",
+      "first_print": "0.2%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.2 percent on a seasonally adjusted basis, the same increase as in July, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 2.5 percent before seasonal ad"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2024-10-10",
+      "event_time_utc": "2024-10-10T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2024-10-10.html (cached)",
+      "sha256": "cb4ad6b5b702041c7fd72195cf1818d936a79d1dd4c9373307dbd85186ea612c",
+      "first_print": "0.2%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.2 percent on a seasonally adjusted basis, the same increase as in August and July, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 2.4 percent before"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2024-11-13",
+      "event_time_utc": "2024-11-13T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2024-11-13.html (cached)",
+      "sha256": "98278cd440623bf7c1ef8e687102327d4351a69938d1a5f832d0c9217b1ca5bd",
+      "first_print": "0.2%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.2 percent on a seasonally adjusted basis in October, the same increase as in each of the previous 3 months, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index incr"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2024-12-11",
+      "event_time_utc": "2024-12-11T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2024-12-11.html (cached)",
+      "sha256": "d69f531ce48dc90e350392f042b57f60399276ee8ad20494784bda38c2cc9cb3",
+      "first_print": "0.3%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.3 percent on a seasonally adjusted basis in November, after rising 0.2 percent in each of the previous 4 months, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2025-01-15",
+      "event_time_utc": "2025-01-15T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2025-01-15.html (cached)",
+      "sha256": "ae742622ee3c373dde726c89a38a064d7af1d58a8b7e8df9e31202c02bd54d27",
+      "first_print": "0.4%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.4 percent on a seasonally adjusted basis in December, after rising 0.3 percent in November, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 2.9 percen"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2025-02-12",
+      "event_time_utc": "2025-02-12T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2025-02-12.html (cached)",
+      "sha256": "63b8b820ba4de155eb8157fbe53c7b40dc203531925160864a5bb975ee9739b8",
+      "first_print": "0.5%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.5 percent on a seasonally adjusted basis in January, after rising 0.4 percent in December, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 3.0 percent"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2025-03-12",
+      "event_time_utc": "2025-03-12T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2025-03-12.html (cached)",
+      "sha256": "b64bfd80e046a917207f6cad3341d5c60395ecd0f153f88e428bebb5dcaaec36",
+      "first_print": "0.2%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.2 percent on a seasonally adjusted basis in February, after rising 0.5 percent in January, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 2.8 percent"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2025-04-10",
+      "event_time_utc": "2025-04-10T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2025-04-10.html (cached)",
+      "sha256": "9ebd546a018084309c95d4e41eb5d96743d887de1f044656680ea609ac3e5fb0",
+      "first_print": "-0.1%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) decreased 0.1 percent on a seasonally adjusted basis in March, after rising 0.2 percent in February, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 2.4 percent b"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2025-05-13",
+      "event_time_utc": "2025-05-13T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2025-05-13.html (cached)",
+      "sha256": "7c4afb33b333a87b193130db00f80188f6626e266a7a82695b34e139e151cf17",
+      "first_print": "0.2%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.2 percent on a seasonally adjusted basis in April, after falling 0.1 percent in March, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 2.3 percent bef"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2025-06-11",
+      "event_time_utc": "2025-06-11T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2025-06-11.html (cached)",
+      "sha256": "f94a274efd9ee7c8c1ef88b2cf406d90a4024da4218a72bb0156e881638e7048",
+      "first_print": "0.1%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.1 percent on a seasonally adjusted basis in May, after rising 0.2 percent in April, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 2.4 percent before"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2025-07-15",
+      "event_time_utc": "2025-07-15T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2025-07-15.html (cached)",
+      "sha256": "eebb89a9b0ccbf9101ff8bd4b63216b36614440ae447bb108fb5dad317a4b081",
+      "first_print": "0.3%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.3 percent on a seasonally adjusted basis in June, after rising 0.1 percent in May, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 2.7 percent before"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2025-08-12",
+      "event_time_utc": "2025-08-12T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2025-08-12.html (cached)",
+      "sha256": "95ddbf54a8cf722967bff5f2b5d2c1ac238a8a4d0655c1bf1224ac88ca966bea",
+      "first_print": "0.2%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.2 percent on a seasonally adjusted basis in July, after rising 0.3 percent in June, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 2.7 percent before"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2025-09-11",
+      "event_time_utc": "2025-09-11T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2025-09-11.html (cached)",
+      "sha256": "a030139af832b5c172a0141213e2e822f2a42e57a23cc042fe14ad0ce447df6b",
+      "first_print": "0.4%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.4 percent on a seasonally adjusted basis in August, after rising 0.2 percent in July, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 2.9 percent befo"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2025-10-24",
+      "event_time_utc": "2025-10-24T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2025-10-24.html (cached)",
+      "sha256": "6bf0befbbd2436f97ef07ed93455f4d0863c450f4916993ed7174f9879994c76",
+      "first_print": "0.3%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.3 percent on a seasonally adjusted basis in September, after rising 0.4 percent in August, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 3.0 percent"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2025-12-18",
+      "event_time_utc": "2025-12-18T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2025-12-18.html (cached)",
+      "sha256": "9ab8f9128b9d606389af3516cfaad5d78ca718631005cfccd0816c3eb37a5371",
+      "first_print": "0.2%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.2 percent on a seasonally adjusted basis over the 2 months from September 2025 to November 2025, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 2.7 p",
+      "excluded": "multi-month combined figure (shutdown gap) — m/m first print ではないため import 除外"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2026-01-13",
+      "event_time_utc": "2026-01-13T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2026-01-13.html (cached)",
+      "sha256": "8febf257839e7cc69c7985f86a06b4b514468abde9cfcbef7ca03d1abfda4377",
+      "first_print": "0.3%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.3 percent on a seasonally adjusted basis in December, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 2.7 percent before seasonal adjustment. The inde"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2026-02-13",
+      "event_time_utc": "2026-02-13T13:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2026-02-13.html (cached)",
+      "sha256": "a5d45f9d7aef5b024c3a86e95677c877b40258a60ba7afdfb353c6da5fcbd31b",
+      "first_print": "0.2%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.2 percent on a seasonally adjusted basis in January, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 2.4 percent before seasonal adjustment. The index"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2026-03-11",
+      "event_time_utc": "2026-03-11T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2026-03-11.html (cached)",
+      "sha256": "c1cefb7b4319f8a8b8efd9879f1f1c2bd2d2fa7c7811efbfda31ba77259c552c",
+      "first_print": "0.3%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.3 percent on a seasonally adjusted basis in February, after rising 0.2 percent in January, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 2.4 percent"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2026-04-10",
+      "event_time_utc": "2026-04-10T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2026-04-10.html (cached)",
+      "sha256": "b417feae2ef559ce597a212caba9ad8b5faae3f65c4aeb8233289b594f6b67c7",
+      "first_print": "0.9%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.9 percent on a seasonally adjusted basis in March, after rising 0.3 percent in February, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 3.3 percent b"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2026-05-12",
+      "event_time_utc": "2026-05-12T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2026-05-12.html (cached)",
+      "sha256": "38098f7a95544d163b1f7d303a9522d098918267c1303dfafbad08897fb8292f",
+      "first_print": "0.6%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.6 percent on a seasonally adjusted basis in April, after rising 0.9 percent in March, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 3.8 percent befo"
+    },
+    {
+      "series": "CPI",
+      "release_date": "2026-06-10",
+      "event_time_utc": "2026-06-10T12:30:00Z",
+      "snapshot": "data/cache/rates/raw/bls_releases/cpi_2026-06-10.html (cached)",
+      "sha256": "0177a6fd2cfee76865f266a6fbab01669c539040956881d4d5c51c3e69a74236",
+      "first_print": "0.5%",
+      "evidence": "mer Price Index for All Urban Consumers (CPI-U) increased 0.5 percent on a seasonally adjusted basis in May, after rising 0.6 percent in April, the U.S. Bureau of Labor Statistics reported today. Over the last 12 months, the all items index increased 4.2 percent before"
+    }
+  ]
+}
