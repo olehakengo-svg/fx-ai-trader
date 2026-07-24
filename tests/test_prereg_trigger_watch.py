@@ -299,3 +299,129 @@ def test_ingest_freshness_trigger_wiring(monkeypatch):
          "message": "m", "doc": "x.md"},
         today="2026-07-21", app_base="http://unused.invalid")
     assert res["state"] == w.STATE_WATCHING
+
+
+def test_count_matching_unique_basis_excludes_dedup_violation():
+    """sweep P-S1(a) パケット §1.4 (user 決裁 2026-07-24): shadow_count_decision
+    の計数は unique バー基準 = dedup_violation=1 の 2-mode スレッド重複行を除外。
+    row 基準 (既定) は他 trigger の意味論を変えないため opt-in。"""
+    from tools.prereg_trigger_watch import count_matching
+    trades = [
+        {"entry_type": "sweep_reversion_eurgbp_late", "dedup_violation": 0},
+        {"entry_type": "sweep_reversion_eurgbp_late", "dedup_violation": 1},
+        {"entry_type": "sweep_reversion_eurgbp_late", "dedup_violation": 0},
+        {"entry_type": "sweep_reversion_eurgbp_late"},  # 列欠落 = 0 扱い
+        {"entry_type": "other", "dedup_violation": 0},
+    ]
+    assert count_matching(trades, "sweep_reversion_eurgbp_late") == 4
+    assert count_matching(trades, "sweep_reversion_eurgbp_late",
+                          exclude_dedup_violation=True) == 3
+
+
+def test_paginate_closed_trades_full_walk_and_fail_loud():
+    """2026-07-24 undercount バグの構造修正: 単発 limit は全 mode 合算下で
+    希少戦略の N を 0 に向けて過小計上 (sweep 実測 row N=14 が N=0 報告 →
+    09-30 retire 分岐の誤発動リスク)。pagination は短ページまで全量取得し、
+    max_pages 到達 (全量保証なし) は None = DATA_UNAVAILABLE で fail-loud。"""
+    from tools.prereg_trigger_watch import paginate_closed_trades
+
+    # 3 ページ (500+500+120) を全量取得
+    store = [{"id": i} for i in range(1120)]
+
+    def page(off):
+        return store[off:off + 500]
+
+    rows = paginate_closed_trades(page, page_size=500)
+    assert rows is not None and len(rows) == 1120
+
+    # ちょうどページ境界 (最終ページ = 空) も全量
+    store2 = [{"id": i} for i in range(1000)]
+    rows2 = paginate_closed_trades(lambda off: store2[off:off + 500],
+                                   page_size=500)
+    assert rows2 is not None and len(rows2) == 1000
+
+    # max_pages 到達 = silent truncation にせず None
+    assert paginate_closed_trades(lambda off: [{"id": off}] * 500,
+                                  page_size=500, max_pages=3) is None
+
+    # fetch_page が list 以外 (API 異常) を返したら None
+    assert paginate_closed_trades(lambda off: None, page_size=500) is None
+
+
+def test_registry_t8_sweep_uses_unique_basis_and_mode():
+    """t8-sweep-defer-decision の計数意味論 pin: unique バー基準 + mode 絞り込み
+    (packet §1.4 決裁の registry 反映)。"""
+    from tools.prereg_trigger_watch import load_registry
+    trig = next(t for t in load_registry() if t["id"] == "t8-sweep-defer-decision")
+    assert trig["count_basis"] == "unique"
+    assert trig["mode"] == "daytrade_eurgbp"
+    assert trig["n_decide"] == 10 and trig["n_floor"] == 5
+    assert trig["deadline"] == "2026-09-30"
+
+
+def test_fetch_trades_window_fail_loud_and_dedup(monkeypatch):
+    """Codex review 2026-07-24: open 取得失敗は None (fail-loud、closed だけ
+    数える過小計上を防ぐ)。open/closed 重複は id で 1 回だけ数える。"""
+    import requests as _requests
+    from tools import prereg_trigger_watch as w
+
+    class _Resp:
+        def __init__(self, rows):
+            self._rows = rows
+
+        def raise_for_status(self):
+            if self._rows is None:
+                raise RuntimeError("boom")
+
+        def json(self):
+            return {"trades": self._rows}
+
+    def make_get(closed_rows, open_rows):
+        def _get(url, params=None, timeout=None):
+            if params.get("status") == "open":
+                return _Resp(open_rows)
+            off = params.get("offset", 0)
+            return _Resp(closed_rows[off:off + params["limit"]])
+        return _get
+
+    closed = [{"id": 1, "entry_type": "x"}, {"id": 2, "entry_type": "x"}]
+    # open 取得失敗 → 全体 None
+    monkeypatch.setattr(_requests, "get", make_get(closed, None))
+    assert w.fetch_trades_window("2026-07-03", "http://t") is None
+
+    # open/closed に同一 id → 1 回だけ
+    monkeypatch.setattr(_requests, "get",
+                        make_get(closed, [{"id": 2, "entry_type": "x"},
+                                          {"id": 3, "entry_type": "x"}]))
+    rows = w.fetch_trades_window("2026-07-03", "http://t")
+    assert rows is not None and sorted(r["id"] for r in rows) == [1, 2, 3]
+
+
+def test_evaluate_trigger_wires_mode_and_count_basis(monkeypatch):
+    """Codex review 2026-07-24: registry の mode / count_basis が
+    fetch_shadow_count まで配線されること (t8 = unique + mode、ws3 系 = 既定)。"""
+    from tools import prereg_trigger_watch as w
+
+    seen = {}
+
+    def fake_fetch(entry_type, since, app_base, prefix=False, instrument="",
+                   mode="", exclude_dedup_violation=False):
+        seen[entry_type] = {"mode": mode, "uniq": exclude_dedup_violation}
+        return 3
+
+    monkeypatch.setattr(w, "fetch_shadow_count", fake_fetch)
+    w.evaluate_trigger(
+        {"id": "t8-sweep-defer-decision", "type": "shadow_count_decision",
+         "entry_type": "sweep_reversion_eurgbp_late", "since": "2026-07-03",
+         "mode": "daytrade_eurgbp", "count_basis": "unique",
+         "n_decide": 10, "n_floor": 5, "deadline": "2026-09-30"},
+        today="2026-07-24", app_base="http://t")
+    w.evaluate_trigger(
+        {"id": "ws3-recheck", "type": "shadow_count_decision",
+         "entry_type": "htf_false_breakout", "since": "2026-07-10",
+         "instrument": "AUD_JPY",
+         "n_decide": 100, "n_floor": 100, "deadline": "2027-01-31"},
+        today="2026-07-24", app_base="http://t")
+    assert seen["sweep_reversion_eurgbp_late"] == {
+        "mode": "daytrade_eurgbp", "uniq": True}
+    assert seen["htf_false_breakout"] == {"mode": "", "uniq": False}
