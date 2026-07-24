@@ -1,0 +1,11 @@
+{
+  "name": "rate_diff_breakout_template",
+  "description": "実例 (b) user 仮説の雛形: 金利差方向 × テクニカル breakout entry。外部 series (金利差) は E20 feasibility (別 agent) の結果待ちのため __dummy_e20__ (決定的ダミー ±1、エッジ期待ゼロ) で配管の構造のみ検証する。診断であり判定ではない。",
+  "notes": "E20 通過後の差し替え手順: direction_source.column を実列名に、file に csv パス (date + per-pair 列) を設定するだけで同一配管が動く。lag_days=1 は公表遅延 (look-ahead 構造排除) — 実 series の公表タイミングに合わせて要再設定。",
+  "direction_source": {"kind": "series", "column": "__dummy_e20__", "file": null, "lag_days": 1},
+  "entry_trigger": {"kind": "breakout", "lookback": 20},
+  "pairs": ["USD_JPY", "EUR_USD", "GBP_USD"],
+  "horizons": [16, 96],
+  "holding": {"mode": "first_touch", "tp_sigma": 1.0, "sl_sigma": 1.0},
+  "window": {"start": "2016-01-01", "end": "2023-12-31"}
+}

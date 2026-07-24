@@ -1,0 +1,11 @@
+{
+  "name": "nfp_usd_24h",
+  "description": "実例 (a) 単純系: NFP 後 24h の USD 方向 (uncond USD long、t_e+30m entry)。S2 探索診断の動作実証 — これ自体は診断であり判定ではない。",
+  "notes": "E15 pre-reg の uncond 系 combo と同型の最小仮説。E15 discovery で NFP uncond は凍結候補 0 (2026-07-22) — 本 spec はハーネス実証用であり、S3 起案対象ではない。",
+  "direction_source": {"kind": "event", "event": "NFP", "rule": "uncond_usd_long", "w0_min": 30},
+  "entry_trigger": {"kind": "none"},
+  "pairs": ["USD_JPY", "EUR_USD", "GBP_USD", "AUD_USD", "NZD_USD", "USD_CAD", "USD_CHF"],
+  "horizons": ["h4", "h24"],
+  "holding": {"mode": "bars"},
+  "window": {"start": "2014-01-01", "end": "2023-12-31"}
+}

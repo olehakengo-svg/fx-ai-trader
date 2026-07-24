@@ -23,7 +23,7 @@
 |---|---|---|---|---|
 | **S0 intake** | 仮説源: 月次外部スキャン / 文献 / live・shadow 異常の観察 / 落選候補の条件付き復活 (registry) | — | 常時 | 一言仮説 + 経済機構の仮説 |
 | **S1 feasibility** | hard constraints C1-C6 (データ実在 2y+ or 今から蓄積可 / 摩擦 2.0-4.5p 超え見込み / falsified 6 系統 + 価格 3 周との明確な区別 / 複雑性禁止) | R3 | 1-3 日 | 裁定表 (research/) |
-| **S2 R3 診断** | 探索窓のみで IC/MFE/発火頻度の予備計測。OOS 窓に接触しない | R3 | 数日 | 診断 doc (analyses/) |
+| **S2 R3 診断** | 探索窓のみで IC/MFE/発火頻度の予備計測。OOS 窓に接触しない。**共通ハーネス = `tools/rapid_edge_probe.py`** (spec 1 ファイル → 標準診断 md+json + `--draft-prereg` で S3 スケルトン。OOS 構造遮断・再試行禁止チェックリスト組み込み。使い方: [[rapid-edge-probe-2026-07-22]]) | R3 | 数日 → **数十秒〜数時間** | 診断 doc (analyses/) |
 | **S3 pre-reg LOCK** | 型 A: 観測前 pre-reg 直行 (データが今から発生する場合 — E1 型、最速) / 型 B: discovery→凍結→OOS (歴史データがある場合)。self-LOCK は純研究のみ・user 通知後 | R1 手続き | 起案 1-2 日 | 🔒 LOCKED + registry 期日 |
 | **S4 verdict** | 判定器で一発実行 (ハーネスは LOCK 後・verdict 前に実装し test pin) | — | 期日固定 | PASS / UNDERPOWERED / REJECT (+固定分岐) |
 | **S5 実装 pre-reg** | D4 必須 4 項目 (carve-out / R2 自動降格 / セル単位判定 / parity)。テンプレ = [[d4-implementation-prereg-template-2026-07-16]] | R1 + **user 承認** (D3 SLA 48h) | 1-2 日 | user 承認 |

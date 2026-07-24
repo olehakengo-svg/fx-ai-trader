@@ -1,5 +1,13 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-07-22 — feat(research): S2 共通ハーネス rapid_edge_probe — 仮説スペック 1 ファイル → 探索窓診断 (rule:R3)
+
+- **user 要求「仮説を爆速で実装してテストするフロー」への回答**: [[edge-development-pipeline-2026-07-18]] §2 **S2 (R3 診断) を標準化** — `tools/rapid_edge_probe.py`。YAML/JSON スペック 1 枚 (direction_source: event/series/technical × entry_trigger: none/breakout/pullback × holding: bars/first_touch の小語彙) → ペア×horizon の **IC / 摩擦調整 EV / N / fold 3 分割 / 発火頻度** + S3 起案検討の目安を md+json で自動出力。`--draft-prereg` で S3 pre-reg スケルトン (🔓 DRAFT、LOCK 不能 TODO 付き) も自動 draft。使い方 1 ページ: [[rapid-edge-probe-2026-07-22]]
+- **規律は構造で強制**: OOS 窓 (2024-01-01〜) は bars/calendar の load 直後物理スライスで遮断 (明示 `--unlock-oos` + 警告なしにアクセス不能、test pin)。全レポートに「探索診断 ≠ 判定 / live・tier 判断禁止」ヘッダ + **falsified 6 系統 + 価格モダリティ 3 周の再試行禁止チェックリスト**を自動印字。seed 固定 / silent except 禁止 (skip 全件理由カウント) / モジュールトップ副作用ゼロ
+- **再発明なし**: estimand コアは `event_modality_lib.py` (§3.5 SSOT: σ_h first-touch SL 優先 / NY17時 roll ATR14d / E1 §3.4 凍結摩擦 / coverage gate)、IC 規律は channel_edge_ic_explore 同型、データは 12y 15m parquet 13 ペア + E15 イベントカレンダー
+- **動作実証 2 本 (探索窓のみ — 診断であり判定ではない)**: (a) `nfp_usd_24h` = NFP 後 USD 方向 uncond → pooled EV **−7.4p (h4) / −3.7p (h24)**、fold 不一致 = エッジなし (E15 discovery の NFP uncond 凍結 0 と整合)。(b) `rate_diff_breakout_template` = 金利差方向×breakout の雛形 (外部 series は **E20 feasibility 待ちのためダミー列で構造のみ**) → EV ≈ −摩擦に収束 = 配管正常。`raw/bt-results/rapid_probe_*_2026_07_22.{md,json}`
+- tests +27 (`tests/test_rapid_edge_probe.py`、全オフライン合成 fixture — OOS 遮断 / 語彙 / causal entry / SL 優先 / 決定性 / 規律ヘッダ pin)。全 suite 2328 passed / check.py 9/9 green
+- **評価への影響: なし** — 純研究インフラ。live/shadow/Kelly/tier 不変
 ## 2026-07-22 — data(research): E15 phase-0 OOS verdict — ❌ FAIL 0/6 (全候補 C5、rule:R1 手続き、純研究)
 
 - **判定器実装 + clean OOS 判定を執行** ([[e15-e7-event-modality-prereg-2026-07-18]] §5c/§8、期日 07-31 の 9 日前倒し): `tools/event_modality_oos_verdict.py` (extract/verdict 分離、seed=20260718 固定、B=10,000、estimand は lib SSOT 再利用)。**test pin 26 件を先に green にしてから OOS 接触** (§10-6 — 判定分岐 C1–C5/BH-FDR m固定/bootstrap seed 決定論/IM df/ナイフエッジ/canary 検出能力/OOS 窓ガード/摩擦式/join 契約)
