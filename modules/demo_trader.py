@@ -76,6 +76,28 @@ PRICE_SHOCK_REV_TIER1_PAIRS = frozenset({
 })
 
 PRICE_SHOCK_REV_MIN_UNITS = 1000
+
+# ══════════════════════════════════════════════════════════════════════════════
+# weekend_gap_fade — 週末ギャップ・フェード (pre-reg LOCKED 2026-07-24, rule:R1)
+# ──────────────────────────────────────────────────────────────────────────────
+# user 承認 option (b) 直接 live MIN lot。全凍結値の出典:
+#   knowledge-base/wiki/decisions/weekend-gap-stage2-execution-prereg-2026-07-24.md
+# OOS arm B PASS (N=177 / 112 週末, gross +15.60p, weekend-block p<1e-4,
+# stressed-net +9.04p, 実測 RT 置換後 +7.90p mean / +3.26p p90)。
+# 執行契約: 成行 1 回 (retry なし) / spread cap 10.0p 超過 = live skip + shadow
+# row (分母保存) / exit = +4h horizon のみ / disaster SL 150p / 固定 1000u。
+# G1/G2 は R2 自動停止 (code gate + system_kv 永続 flag、再武装なし —
+# MEMORY project_watchdog_decrement_rearm_bug)。
+# ══════════════════════════════════════════════════════════════════════════════
+WEEKEND_GAP_FADE_ENTRY_TYPE = "weekend_gap_fade"
+WEEKEND_GAP_FADE_UNITS = 1000            # 固定 sentinel (pre-reg §3.1) — lot chain 非適用
+WEEKEND_GAP_MAX_HOLD_SEC = 4 * 3600      # +4h time-exit (pre-reg §2.3, close_reason="horizon")
+WEEKEND_GAP_LIVE_STOP_KV_KEY = "WEEKEND_GAP_LIVE_STOPPED"  # 恒久 R2 stop flag (自動解除なし)
+WEEKEND_GAP_G1_MIN_N = 6                 # G1: live N>=6 rolling
+WEEKEND_GAP_G1_SLIPPAGE_PIPS = 2.0       # G1: rolling mean live slippage > +2.0p → stop
+WEEKEND_GAP_G2_MIN_N = 12                # G2: live N>=12 first look
+WEEKEND_GAP_G2_CUM_NET_PIPS = -60.0      # G2: cumulative net < -60p → stop
+
 LDN_MORNING_SIZE_LEVER_REASON = "ldn_morning_size_lever_0.5x"
 LDN_MORNING_SIZE_LEVER_CELLS = frozenset({"E5", "E7", "E10"})
 LDN_MORNING_SIZE_LEVER_HOURS_UTC = frozenset({7, 8, 9})
@@ -143,6 +165,10 @@ MFE_BE_LOCK_STRATEGY_TRIGGERS = {
     "wick_imbalance_reversion": 3.0,
     # OFF: strategies whose simulation showed ΔEV≈0 (already optimal exits)
     "donchian_momentum_breakout": 0.0,
+    # OFF: weekend_gap_fade — pre-reg §2.3 で BE/Trail/TP 一切禁止 (exit-free
+    # 4h horizon が検証済み estimand。BE/Trail は BT WR を ~20pp 水増しする —
+    # MEMORY project_be_trail_inflates_python_bt_wr)。
+    "weekend_gap_fade": 0.0,
 }
 
 
@@ -526,6 +552,24 @@ MODE_CONFIG = {
         "instrument": "AUD_USD",
         "auto_start": True,    # 2026-05-18: HourlyEngine Shadow ramp activation。v2.1 α 不在判定を _shadow_always 多層防御で再評価。decisions/hourly-engine-shadow-ramp-2026-05-18.md
         "base_sl_pips": 30,
+    },
+    # ── AUD/USD 15m — weekend_gap_fade 専用スロット (pre-reg LOCK 2026-07-24) ──
+    # weekend_gap_only=True: _tick は scoped Sunday runner のみ実行し通常の
+    # compute_daytrade_signal 経路を走らせない (他戦略の挙動を AUD_USD に
+    # 波及させないため)。EUR_USD/USD_JPY は既存 daytrade_eur/daytrade の
+    # runner が scoped runner を兼ねる。
+    "daytrade_audusd": {
+        "interval_sec": 30,
+        "tf": "15m",
+        "period": "5d",
+        "signal_fn": "compute_daytrade_signal",  # 未使用 (weekend_gap_only)
+        "label": "DT AUD/USD (weekend_gap)",
+        "icon": "📊🇦🇺",
+        "symbol": "AUDUSD=X",
+        "instrument": "AUD_USD",
+        "auto_start": True,
+        "base_sl_pips": 15,
+        "weekend_gap_only": True,
     },
     "daytrade_1h_nzdusd": {
         "interval_sec": 60,
@@ -1370,6 +1414,22 @@ class DemoTrader:
                         pass
                 instrument = t.get("instrument", "USD_JPY")
                 entry_type = t.get("entry_type", "")
+                if entry_type == WEEKEND_GAP_FADE_ENTRY_TYPE:
+                    # pre-reg §2.2「1 週末 1 ペア 1 回 (リトライなし)」= 試行は
+                    # 生涯 1 回。補完再送は凍結執行契約をどれも保持できない
+                    # (bridge default units=env 10000u ≠ 固定 1000u §3.1 /
+                    #  500p sentinel TP が実 takeProfitOnFill 化 §2.3 /
+                    #  max_attempts=3 §2.2 / spread cap 10.0p 再チェックなし /
+                    #  record_fill_slippage なし → G1 blind) ため entry_type
+                    # ごと除外する。system_kv latch は当該週末を消費済み扱い
+                    # (review blocker fix 2026-07-25)。
+                    skipped += 1
+                    self._add_log(
+                        f"[WEEKEND_GAP] resend excluded (pre-reg §2.2 "
+                        f"single-attempt contract): trade={t['trade_id']} "
+                        f"{instrument}"
+                    )
+                    continue
                 # P1-6: promote gate 共通ヘルパーを再送直前に再実行 (defense-in-depth)
                 _block = self._resend_promote_gate_block_reason(
                     entry_type, instrument, mode,
@@ -2441,6 +2501,10 @@ class DemoTrader:
             # 2026-06-12: hull_donchian_fade hold<=96bar@15m=24h (holdout p90=11.5h、8h cap は
             # 検証分布の尾を切る)。
             "hull_donchian_fade": 24 * 3600,
+            # 2026-07-24: weekend_gap_fade — pre-reg §2.3 凍結: entry+4h 成行
+            # time-exit のみ (close_reason="horizon")。exact override (max() 合成
+            # 禁止 — mode default 8h に負けると estimand 崩壊)。
+            WEEKEND_GAP_FADE_ENTRY_TYPE: WEEKEND_GAP_MAX_HOLD_SEC,
         }
 
         for trade in open_trades:
@@ -2502,6 +2566,9 @@ class DemoTrader:
             _entry_type_t = trade.get("entry_type", "")
             _SMC_TYPES = {"inducement_ob", "turtle_soup", "trendline_sweep"}
             _is_smc = _entry_type_t in _SMC_TYPES
+            # weekend_gap_fade (pre-reg §2.3): BE/Trail/TP/C1/SIGNAL_REVERSE
+            # 一切なし — exit-free 4h horizon が凍結 estimand。disaster SL のみ。
+            _is_weekend_gap = _entry_type_t == WEEKEND_GAP_FADE_ENTRY_TYPE
 
             if _ba_rt:
                 _spread_amt = _ba_rt["ask"] - _ba_rt["bid"]
@@ -2580,7 +2647,9 @@ class DemoTrader:
                                         f"SL→entry+{_be_floor_pips:.1f}p (id={trade_id[:8]})"
                                     )
 
-            if favorable_move > 0 and tp_dist > 0:
+            # weekend_gap_fade: ATR-BE / SMC-BE / ATR-trail を全スキップ
+            # (pre-reg §2.3 — disaster SL 150p は固定のまま動かさない)
+            if favorable_move > 0 and tp_dist > 0 and not _is_weekend_gap:
                 # ── 共通建値ガード: ATR*0.8 到達で SL→建値 ──
                 # SMC戦略: FX=3pip即BE / XAU=10pip(ノイズ回避)
                 # 通常戦略: ATR*0.8 到達でBE
@@ -2937,15 +3006,20 @@ class DemoTrader:
 
             _is_price_shock_rev = trade.get("entry_type", "") in PRICE_SHOCK_REV_TIER1_TYPES
             if not close_reason and not _should_extend_tp:
+                # weekend_gap_fade: TP なし (pre-reg §2.3) — TP-hit 判定を両方向で
+                # スキップ (price_shock 前例は LONG-only のため BUY 側のみだった)。
+                # SL 発火は disaster SL — estimand 逸脱イベントとして個別 flag
+                # できるよう close_reason="disaster_sl" (G3 ③ 審査対象)。
                 if direction == "BUY":
                     if price <= sl:
-                        close_reason = "sl_2atr" if _is_price_shock_rev else "SL_HIT"
-                    elif not _is_price_shock_rev and price >= tp:
+                        close_reason = ("sl_2atr" if _is_price_shock_rev
+                                        else ("disaster_sl" if _is_weekend_gap else "SL_HIT"))
+                    elif not _is_price_shock_rev and not _is_weekend_gap and price >= tp:
                         close_reason = "TP_HIT"
                 else:
                     if price >= sl:
-                        close_reason = "SL_HIT"
-                    elif price <= tp:
+                        close_reason = "disaster_sl" if _is_weekend_gap else "SL_HIT"
+                    elif not _is_weekend_gap and price <= tp:
                         close_reason = "TP_HIT"
 
             # ── 週末前クローズ（金曜21:45 UTC以降に全ポジ強制クローズ）──
@@ -2964,12 +3038,18 @@ class DemoTrader:
                     # v2.1: per-entry_type override (VWAP MR: 4h hold BT validated)
                     _et_hold = trade.get("entry_type", "")
                     if _et_hold in _ENTRY_TYPE_MAX_HOLD:
-                        if _et_hold in PRICE_SHOCK_REV_TIER1_TYPES:
+                        if (_et_hold in PRICE_SHOCK_REV_TIER1_TYPES
+                                or _et_hold == WEEKEND_GAP_FADE_ENTRY_TYPE):
+                            # exact override (weekend_gap: 4h 凍結 — mode default
+                            # 8h との max() 合成は estimand 破壊のため禁止)
                             max_hold = _ENTRY_TYPE_MAX_HOLD[_et_hold]
                         else:
                             max_hold = max(max_hold, _ENTRY_TYPE_MAX_HOLD[_et_hold])
                     if hold_sec > max_hold:
-                        close_reason = "horizon" if _et_hold in PRICE_SHOCK_REV_TIER1_TYPES else "MAX_HOLD_TIME"
+                        close_reason = ("horizon"
+                                        if (_et_hold in PRICE_SHOCK_REV_TIER1_TYPES
+                                            or _et_hold == WEEKEND_GAP_FADE_ENTRY_TYPE)
+                                        else "MAX_HOLD_TIME")
                 except Exception:
                     pass
 
@@ -2980,7 +3060,12 @@ class DemoTrader:
             # 寄与している)。半分時点の損切りは測定済み分布を破壊する。
             # 2026-06-12 hull_donchian_fade も C1 免除: basis 回帰前の含み損 loser が WR78% に
             # 寄与 (MFE/MAE 構造)。半分時点損切りは holdout 分布を破壊 (ATR2 stop と同型)。
-            if not close_reason and trade.get("entry_type", "") not in PRICE_SHOCK_REV_TIER1_TYPES \
+            # 2026-07-24 weekend_gap_fade も C1 免除 (pre-reg §2.3: 「C1 半分時点
+            # 損切りなし」凍結 — 4h exit-free horizon が検証済み estimand)。
+            # NOTE: 既存タプルは test_hull_donchian_fade の source pin 対象のため
+            # 別条件 (_is_weekend_gap) で除外する。
+            if not close_reason and not _is_weekend_gap \
+                    and trade.get("entry_type", "") not in PRICE_SHOCK_REV_TIER1_TYPES \
                     and trade.get("entry_type", "") not in (
                         "sweep_reversion_eurgbp_late", "hull_donchian_fade"):
                 try:
@@ -3387,10 +3472,221 @@ class DemoTrader:
             return True
         return False
 
+    # ══════════════════════════════════════════════════════════════════════
+    # weekend_gap_fade — scoped Sunday-open runner + system_kv latch +
+    # G1/G2 R2 auto-stop (pre-reg LOCKED 2026-07-24)
+    # ══════════════════════════════════════════════════════════════════════
+
+    @staticmethod
+    def _weekend_gap_latch_kv_key(instrument: str, weekend_key: str) -> str:
+        """per-pair per-weekend latch key (pre-reg §2.5)."""
+        return f"weekend_gap_fade:{instrument}:{weekend_key}"
+
+    def _weekend_gap_latch_get(self, instrument: str, weekend_key: str) -> str:
+        """Return latch value ('' if not latched). DB error = fail-closed
+        (treat as latched — a double market order is worse than a missed one;
+        the shadow denominator is protected by the weekly audit row)."""
+        try:
+            return self._db.get_system_kv(
+                self._weekend_gap_latch_kv_key(instrument, weekend_key), "")
+        except Exception as e:
+            print(f"[WEEKEND_GAP] latch read failed ({instrument}): {e}", flush=True)
+            return "LATCH_READ_ERROR"
+
+    def _weekend_gap_latch_set(self, instrument: str, weekend_key: str,
+                               state: str, trade_id: str = "",
+                               spread_pips: float = 0.0) -> None:
+        """Persist the latch BEFORE any OANDA send (pre-reg §2.5).
+
+        state: 'EXECUTED' | 'SKIPPED_SPREAD'. Deploy-restart safe (system_kv)."""
+        try:
+            self._db.set_system_kv(
+                self._weekend_gap_latch_kv_key(instrument, weekend_key),
+                json.dumps({
+                    "state": state,
+                    "trade_id": trade_id,
+                    "spread_pips": round(float(spread_pips or 0.0), 2),
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                }),
+            )
+        except Exception as e:
+            # 書けない場合は per-pair 1 position 制限が二重防御 (pre-reg §2.5)
+            print(f"[WEEKEND_GAP] latch write failed ({instrument}): {e}", flush=True)
+
+    def _weekend_gap_live_stopped(self) -> bool:
+        """True when the permanent R2 stop flag is set (G1/G2, pre-reg §5).
+
+        Once set the flag is NEVER auto-cleared and nothing in code re-arms
+        live sends (lesson: watchdog DECREMENT re-arm bug / KV disable is not
+        a pin — the *stop* is the fail-safe direction here, and un-stopping
+        requires a manual R1 decision + KV removal outside this code path).
+        DB error = fail-closed (treat as stopped)."""
+        try:
+            return bool(self._db.get_system_kv(WEEKEND_GAP_LIVE_STOP_KV_KEY, ""))
+        except Exception as e:
+            print(f"[WEEKEND_GAP] stop-flag read failed: {e}", flush=True)
+            return True
+
+    def _weekend_gap_set_live_stop(self, reason: str) -> None:
+        """Set the permanent live-stop flag (idempotent — never overwrites,
+        never clears; no re-arm path exists in code)."""
+        try:
+            if self._db.get_system_kv(WEEKEND_GAP_LIVE_STOP_KV_KEY, ""):
+                return  # already stopped — keep the original evidence
+            self._db.set_system_kv(
+                WEEKEND_GAP_LIVE_STOP_KV_KEY,
+                json.dumps({
+                    "reason": reason,
+                    "stopped_at": datetime.now(timezone.utc).isoformat(),
+                }),
+            )
+        except Exception as e:
+            print(f"[WEEKEND_GAP] stop-flag write failed: {e}", flush=True)
+        print(f"[ALERT][WEEKEND_GAP] R2 auto-stop fired: {reason} — live sends "
+              f"halted permanently (kv {WEEKEND_GAP_LIVE_STOP_KV_KEY}); shadow "
+              f"accumulation continues", flush=True)
+        try:
+            self._add_log(
+                f"🔴 [WEEKEND_GAP] R2 auto-stop: {reason} → live 恒久停止 "
+                f"(shadow 継続, 解除は R1 のみ)"
+            )
+        except Exception:
+            print("[WEEKEND_GAP] add_log failed during stop alert", flush=True)
+        try:
+            self._alert_mgr.alert_custom(
+                "WEEKEND_GAP R2 live stop",
+                f"{reason} — weekend_gap_fade live sends permanently halted "
+                f"(pre-reg §5 G1/G2). Shadow continues.",
+            )
+        except Exception as e:
+            print(f"[WEEKEND_GAP] alert_custom failed: {e}", flush=True)
+
+    def _weekend_gap_live_rows(self) -> list:
+        """CLOSED clean-live weekend_gap_fade rows (oanda fill 確認済みのみ =
+        oanda_trade_id != '' AND is_shadow=0), oldest → newest."""
+        try:
+            with self._db._safe_conn() as conn:
+                rows = conn.execute(
+                    "SELECT slippage_pips, pnl_pips FROM demo_trades "
+                    "WHERE entry_type = ? AND is_shadow = 0 "
+                    "AND oanda_trade_id IS NOT NULL AND oanda_trade_id != '' "
+                    "AND status = 'CLOSED' "
+                    "ORDER BY exit_time ASC",
+                    (WEEKEND_GAP_FADE_ENTRY_TYPE,),
+                ).fetchall()
+            return [{"slippage_pips": float(r[0] or 0.0),
+                     "pnl_pips": float(r[1] or 0.0)} for r in rows]
+        except Exception as e:
+            print(f"[WEEKEND_GAP] live-row query failed: {e}", flush=True)
+            return []
+
+    @staticmethod
+    def _weekend_gap_r2_gate_verdict(live_rows: list) -> tuple:
+        """Pure G1/G2 verdict (pre-reg §5) — unit-testable, no I/O.
+
+        G1: live N>=6, rolling (last 6) mean slippage > +2.0p → stop.
+        G2: live N>=12, cumulative net pips < -60p → stop.
+        Returns (stop: bool, reason: str)."""
+        n = len(live_rows)
+        if n >= WEEKEND_GAP_G1_MIN_N:
+            recent = live_rows[-WEEKEND_GAP_G1_MIN_N:]
+            mean_slip = sum(r["slippage_pips"] for r in recent) / len(recent)
+            if mean_slip > WEEKEND_GAP_G1_SLIPPAGE_PIPS:
+                return True, (f"G1_slippage(rolling_mean={mean_slip:+.2f}p>"
+                              f"+{WEEKEND_GAP_G1_SLIPPAGE_PIPS:.1f}p,liveN={n})")
+        if n >= WEEKEND_GAP_G2_MIN_N:
+            cum = sum(r["pnl_pips"] for r in live_rows)
+            if cum < WEEKEND_GAP_G2_CUM_NET_PIPS:
+                return True, (f"G2_first_look(cum_net={cum:+.1f}p<"
+                              f"{WEEKEND_GAP_G2_CUM_NET_PIPS:.0f}p,liveN={n})")
+        return False, ""
+
+    def _weekend_gap_check_r2_gates(self) -> bool:
+        """Evaluate G1/G2 from clean-live history; set the permanent stop flag
+        on breach. Returns True when live sends must be halted. Once the flag
+        exists this returns True without re-evaluating (no re-arm)."""
+        if self._weekend_gap_live_stopped():
+            return True
+        stop, reason = self._weekend_gap_r2_gate_verdict(self._weekend_gap_live_rows())
+        if stop:
+            self._weekend_gap_set_live_stop(reason)
+        return stop
+
+    def _weekend_gap_tick(self, mode: str, cfg: dict) -> None:
+        """Scoped Sunday-open evaluation for weekend_gap_fade (one pair/mode).
+
+        Runs on every tick but exits in O(1) outside the Sunday >=21:00 UTC
+        window or when the per-weekend latch is already set. On signal it
+        feeds the NORMAL _tick_entry guard chain (shared is_shadow/is_promoted
+        checks, daily-loss gate, watchdog etc.) — no separate send path."""
+        from strategies.daytrade.weekend_gap_fade import (
+            WEEKEND_GAP_FADE_PAIRS,
+            build_weekend_gap_sig,
+            detect_weekend_gap_signal,
+            weekend_key_for,
+        )
+        now = datetime.now(timezone.utc)
+        weekend_key = weekend_key_for(now)
+        if weekend_key is None:
+            return
+        instrument = cfg.get("instrument", "")
+        if instrument not in WEEKEND_GAP_FADE_PAIRS:
+            return
+        # cheap pre-checks before any data fetch
+        if self._weekend_gap_latch_get(instrument, weekend_key):
+            return
+        symbol = cfg.get("symbol", "")
+        from app import add_indicators, fetch_ohlcv
+        df = fetch_ohlcv(symbol, period=cfg.get("period", "5d"),
+                         interval=cfg.get("tf", "15m"))
+        if df is None or len(df) < 10:
+            return
+        try:
+            df = add_indicators(df)
+        except Exception as e:
+            print(f"[WEEKEND_GAP] add_indicators failed ({instrument}): {e}",
+                  flush=True)
+        det = detect_weekend_gap_signal(df, instrument, now)
+        if det is None:
+            return
+        _mid = float(df["Close"].iloc[-1])
+        try:
+            _atr = float(df["atr"].iloc[-1])
+            if not _atr or _atr != _atr:
+                raise ValueError("atr nan")
+        except Exception:
+            _atr = 0.07 if "JPY" in instrument else 0.00070
+        sig = build_weekend_gap_sig(det, instrument, _mid, _atr)
+        print(f"[WEEKEND_GAP] {instrument} qualifying event: "
+              f"gap={det['gap_pips']:+.1f}p (>= {det['qualify_pips']:.1f}p) "
+              f"→ {det['direction']} fade, first_bar={det['first_bar_ts']}, "
+              f"weekend={weekend_key} → _tick_entry", flush=True)
+        self._tick_entry(mode, cfg, sig, cfg.get("tf", "15m"), instrument)
+
     def _tick(self, mode: str):
         """One cycle for a specific mode — シグナル計算 + 新規エントリー判定のみ。
         SL/TPチェックは _sltp_loop が2秒間隔で独立実行。"""
         cfg = MODE_CONFIG[mode]
+
+        # ── weekend_gap_fade scoped Sunday runner (pre-reg LOCK 2026-07-24) ──
+        # _is_fx_market_closed() は日曜 22:00 UTC まで True だが、OANDA の週明けは
+        # 夏時間 21:00 UTC open。pre-reg estimand は「日曜 open 初バー確定後の最初の
+        # 評価 tick (21:05±2 / 冬 22:05±2)」を要求するため、market-closed gate より
+        # 前に本 entry_type 専用の評価だけを走らせる。発注経路は通常の _tick_entry
+        # (共有 guard chain) — 別送信経路は作らない。他戦略の評価は一切走らない。
+        try:
+            from strategies.daytrade.weekend_gap_fade import (
+                WEEKEND_GAP_FADE_PAIRS as _WG_PAIRS,
+            )
+            if (cfg.get("instrument") in _WG_PAIRS
+                    and _get_base_mode(mode) == "daytrade"):
+                self._weekend_gap_tick(mode, cfg)
+        except Exception as _wg_err:
+            print(f"[WEEKEND_GAP] tick error ({mode}): {_wg_err}", flush=True)
+        if cfg.get("weekend_gap_only"):
+            # daytrade_audusd: weekend_gap_fade 専用スロット — 通常エンジン経路は
+            # 走らせない (他戦略を AUD_USD 15m に波及させない)
+            return
 
         # FX市場閉場中はスキップ（週末ギャップ回避）
         if self._is_fx_market_closed():
@@ -3956,6 +4252,19 @@ class DemoTrader:
             return tp
         return float(current_price) + tp_dist if signal == "BUY" else float(current_price) - tp_dist
 
+    @staticmethod
+    def _fmt_tp_for_sent_log(tp_oanda, price_dec: int) -> str:
+        """[SENT] 成功ログの TP 表示 — None セーフ必須。
+
+        weekend_gap_fade は OANDA 注文に takeProfit を付けない (pre-reg §2.3
+        → _tp_oanda=None)。f"{None:.5f}" は TypeError となり、fire-and-forget
+        送信後に例外が飛んで caller 側 'sent' audit row / PRIME tag / 最終 IN
+        ログが全て失われる (2026-07-25 review blocker fix)。
+        """
+        if tp_oanda is None:
+            return "none(horizon-only)"
+        return f"{tp_oanda:.{price_dec}f}"
+
     def _tick_entry(self, mode: str, cfg: dict, sig: dict,
                     tf: str, instrument: str):
         """_tickの後半: エントリー判定・実行。例外は呼び出し元でキャッチ。"""
@@ -4180,6 +4489,45 @@ class DemoTrader:
         )
         _entry_time = datetime.now(timezone.utc)
         _v2_regime = self._compute_v2_regime(instrument, _entry_time)
+
+        # ══════════════════════════════════════════════════════════════
+        # ── weekend_gap_fade: allowlist + per-weekend latch + G1/G2 stop ──
+        # (pre-reg LOCKED 2026-07-24)。latch は system_kv 永続 — エンジン毎 tick
+        # 再構築で instance dedup は live 無効 (MEMORY
+        # project_engine_reconstruction_live_dedup_dead)、recent_emit 60-900s
+        # では entry 窓 (~15分) を跨げないため。
+        # ══════════════════════════════════════════════════════════════
+        _wg_entry = entry_type == WEEKEND_GAP_FADE_ENTRY_TYPE
+        _wg_shadow_cause = ""
+        _wg_spread_skipped = False
+        _wg_weekend_key = ""
+        if _wg_entry and signal in ("BUY", "SELL"):
+            from strategies.daytrade.weekend_gap_fade import (
+                WEEKEND_GAP_FADE_PAIRS as _wg_pairs,
+                weekend_key_for as _wg_key_for,
+            )
+            if instrument not in _wg_pairs:
+                # GBP_USD ほか対象外ペアへの拡張は pre-reg §8 で禁止 (code 上も固定)
+                _block(f"weekend_gap_pair_not_allowed({instrument})")
+                return
+            _wg_weekend_key = _wg_key_for(datetime.now(timezone.utc)) or ""
+            if not _wg_weekend_key:
+                _block("weekend_gap_outside_window")
+                return
+            if self._weekend_gap_latch_get(instrument, _wg_weekend_key):
+                _block("weekend_gap_latched")
+                return
+            # G1/G2 R2 auto-stop (pre-reg §5): 送信前に必ず評価。flag は恒久 —
+            # 一度 fire したら以後 live へ再武装しない (shadow は継続 = 分母保存)。
+            if self._weekend_gap_check_r2_gates():
+                if not _is_shadow:
+                    _is_shadow = True
+                _wg_shadow_cause = "weekend_gap_live_stopped(G1/G2 R2 stop)"
+                self._add_log(
+                    f"[WEEKEND_GAP] live stopped (kv {WEEKEND_GAP_LIVE_STOP_KV_KEY}) "
+                    f"→ {instrument} shadow record only"
+                )
+
         if is_shadow_demoted(entry_type, instrument) and not _is_live_tier_exempt:
             _ec_eligible, _ec_id = self._edge_cell_eligible_at_pre_block(
                 entry_type=entry_type,
@@ -4336,6 +4684,10 @@ class DemoTrader:
         if not _is_shadow:
             import os as _os_exp
             _exp_units_est = int(_os_exp.environ.get("OANDA_UNITS", "10000"))
+            if _wg_entry:
+                # 固定 1000u sentinel (pre-reg §3.1) — env 見積 10000u のままだと
+                # 3 ペア同時 qualify (§2.4 で全執行が凍結) が 20k cap に誤衝突する。
+                _exp_units_est = WEEKEND_GAP_FADE_UNITS
             _exp_ok, _exp_reason = self._exposure_mgr.check_new_trade(
                 instrument, signal, _exp_units_est)
             if not _exp_ok:
@@ -4735,6 +5087,12 @@ class DemoTrader:
             # WR78.0% net+1.342p PF1.191 p=0.0005 (spread0.6p込, L/S両side正)。
             # card: strategies/hull_donchian_fade / memory: project_hull_donchian_fade_15m_2026_06_12
             "hull_donchian_fade",            # EUR_USD M15 fade, TP=basis/SL=4xATR/hold<=96bar
+            # 2026-07-24 weekend_gap_fade (rule:R1 pre-reg LOCK, user 承認 option b):
+            # 日曜 open 初バー gap fade、{EUR_USD, USD_JPY, AUD_USD} 固定 1000u、
+            # +4h horizon exit / disaster SL 150p / TP なし / spread cap 10.0p。
+            # OOS arm B PASS N=177 gross+15.60p weekend-block p<1e-4 (凍結統計)。
+            # card: strategies/weekend_gap_fade / decision: weekend-gap-stage2-execution-prereg-2026-07-24
+            "weekend_gap_fade",
         }
 
         # 弱い理由のエントリータイプ（追加条件が必要）
@@ -4887,7 +5245,12 @@ class DemoTrader:
                 else:
                     _block(f"session_pair(EUR_USD_Tokyo,WR=20%)")
                     return
-            if _utc_hour >= 17:  # Late NY
+            # 2026-07-24 weekend_gap_fade 免除: 日曜 open (21:0x / 冬 22:0x UTC)
+            # は定義上 Late-NY 窓内。pre-reg §2.4 は「cap スキップのみが正当な
+            # 未執行」と凍結しており、この静的セッションフィルタで live を
+            # 落とすと estimand 違反 (T8 silent-drop 教訓と同型)。本 gate の
+            # 母集団 (legacy DT 戦略の平日 Late-NY bleed) とも無関係。
+            if _utc_hour >= 17 and entry_type != WEEKEND_GAP_FADE_ENTRY_TYPE:  # Late NY
                 if _is_shadow_eligible_full:
                     _is_shadow = True
                     self._add_log(
@@ -5130,6 +5493,40 @@ class DemoTrader:
         if _ba_entry:
             _is_jpy_scale = _is_jpy or "XAU" in instrument
             _spread_pips = (_ba_entry["ask"] - _ba_entry["bid"]) * (100 if _is_jpy_scale else 10000)
+            # ══════════════════════════════════════════════════════════
+            # ── weekend_gap_fade: E1 置換 — 専用 cap 10.0p (pre-reg §2.2) ──
+            # 標準 E1 (EUR 1.2p / JPY 1.0p / AUD 1.5p) は日曜 open の 4〜15p を
+            # 必ずブロックするため、本 entry_type に限り実測 p90 由来の 10.0p cap
+            # に置換する。**全面バイパスではない**:
+            #   置換 = E1 per-pair limit + 動的 spread_guard (spread/TP 比 —
+            #          本戦略は TP なしのため定義不能) の 2 つのみ。
+            #   共有 = is_shadow/is_promoted チェーン, daily loss gate (bridge),
+            #          watchdog/blacklist, exposure, spike/velocity, dedup,
+            #          agg-Kelly/MC-ruin gate ほか全て。
+            # cap 超過 = live 発注せず shadow row として記録
+            # (block_cause=weekend_gap_spread_cap — 「スキップの闇損失」を
+            # 作らない分母保存, pre-reg §2.2/§4.0)。
+            # ══════════════════════════════════════════════════════════
+            if _wg_entry:
+                from strategies.daytrade.weekend_gap_fade import (
+                    WEEKEND_GAP_SPREAD_CAP_PIPS as _wg_cap,
+                    weekend_gap_spread_cap_skip as _wg_cap_skip,
+                )
+                if _wg_cap_skip(_spread_pips):
+                    _is_shadow = True
+                    _wg_spread_skipped = True
+                    _wg_shadow_cause = (
+                        f"weekend_gap_spread_cap(spread={_spread_pips:.2f}p"
+                        f">{_wg_cap:.1f}p)")
+                    reasons.append(
+                        f"[WEEKEND_GAP_SPREAD_SKIP] quoted spread "
+                        f"{_spread_pips:.2f}p > cap {_wg_cap:.1f}p → live skip, "
+                        f"shadow row (分母保存)")
+                    self._add_log(
+                        f"[WEEKEND_GAP] {instrument} spread cap skip: "
+                        f"{_spread_pips:.2f}p > {_wg_cap:.1f}p → shadow record")
+                    print(f"[WEEKEND_GAP] {instrument} SPREAD_SKIP "
+                          f"{_spread_pips:.2f}p > {_wg_cap:.1f}p", flush=True)
             # ── 通貨ペア別スプレッド閾値 (pips) — 本番乖離解消 ──
             _SPREAD_LIMITS = {
                 "USD_JPY": 1.0,
@@ -5151,7 +5548,9 @@ class DemoTrader:
             # v7.0: Sentinel戦略はspread_wideバイパス — 0.01lotのリスク<データ価値
             # NOTE: _is_shadowは立てない。PAIR_PROMOTED戦略がshadow化されOANDA遮断されるのを防止
             # spread過大エントリーはSpread/SL Gate(line 3212)で最終防御される
-            if _spread_pips > _spread_limit and not _is_shadow_eligible:
+            # weekend_gap_fade は上の専用 cap 10.0p で置換済み (pre-reg §2.2) —
+            # 標準 per-pair limit は適用しない (他 entry_type は従来どおり)。
+            if _spread_pips > _spread_limit and not _is_shadow_eligible and not _wg_entry:
                 _block(f"spread_wide({_spread_pips:.1f}pip>{_spread_limit})")
                 return
 
@@ -5164,7 +5563,9 @@ class DemoTrader:
             _sig_entry = sig.get("entry", current_price)
             _is_jpy_or_xau_sg = _is_jpy or "XAU" in instrument
             _expected_profit_pips = abs(_sig_tp - _sig_entry) * (100 if _is_jpy_or_xau_sg else 10000) if _sig_tp else 0
-            if _expected_profit_pips > 0:
+            # weekend_gap_fade: TP なし (sentinel TP のみ) のため spread/TP 比は
+            # 定義不能 — E1 置換 (専用 cap) の一部としてスキップ (pre-reg §2.2)。
+            if _expected_profit_pips > 0 and not _wg_entry:
                 _spread_cost_ratio = (_spread_pips * 2) / _expected_profit_pips  # 往復スプレッド
                 # DT/1H: 20%閾値 (エリート戦略のエッジ防御), scalp: 30%
                 _base_mode_sg = _get_base_mode(mode)
@@ -5183,6 +5584,22 @@ class DemoTrader:
                     else:
                         _block(f"spread_guard(cost={_spread_pips*2:.1f}pip/profit={_expected_profit_pips:.1f}pip={_spread_cost_ratio:.0%}>{_sg_threshold:.0%})")
                         return
+
+        # weekend_gap_fade: quoted spread が取得できない場合は cap 10.0p を検証
+        # できない → fail-closed で live 送信せず shadow record (分母保存)。
+        # 「スプレッド低下待ち/リトライ」は estimand 逸脱のため行わない (pre-reg §2.2)。
+        if _wg_entry and (_ba_entry is None or _ba is None) and not _wg_spread_skipped:
+            # _ba (早期フェッチ) None は current_price が mid フォールバック =
+            # 約定価格基準が崩れ G1 slippage を汚染するため、こちらも fail-closed
+            _is_shadow = True
+            _wg_spread_skipped = True
+            _wg_shadow_cause = "weekend_gap_spread_cap(spread=unavailable)"
+            reasons.append(
+                "[WEEKEND_GAP_SPREAD_SKIP] quoted spread unavailable — "
+                "cap 検証不能 → fail-closed live skip, shadow row (分母保存)")
+            self._add_log(
+                f"[WEEKEND_GAP] {instrument} spread unavailable → fail-closed "
+                f"shadow record")
 
         # ══════════════════════════════════════════════════════════════
         # ── SL狩り対策A1: 価格スパイク検出 ──
@@ -5275,7 +5692,9 @@ class DemoTrader:
         _mtf_tp_bonus = 1.0
         # スキャルプはMTFバイアス不要（両方向で調整局面も取る）
         # DT/1H/swingのみMTFバイアス適用
-        if _base_mode != "scalp":
+        # weekend_gap_fade 免除: 15m tactical bias による block/conf 減衰/TP 拡大は
+        # いずれも estimand 逸脱 (pre-reg §2.4 — cap スキップのみが正当な未執行)。
+        if _base_mode != "scalp" and not _wg_entry:
             with self._lock:
                 _bias_snapshot = dict(self._15m_tactical_bias.get(instrument, {}))
             if _bias_snapshot.get("direction"):
@@ -5317,6 +5736,9 @@ class DemoTrader:
             # 2026-06-12 hull_donchian_fade: TP=Donchian basis / SL=4×ATR は holdout 忠実度BT
             # (WR78% net+1.342p) の契約。タイト ATR 再計算は train で MR EV を破壊する実測あり。
             "hull_donchian_fade",
+            # 2026-07-24 weekend_gap_fade: disaster SL 150p + sentinel TP 500p は
+            # pre-reg §2.3 凍結契約。SR/ATR 再計算 (~1×ATR) は 150p SL を破壊する。
+            WEEKEND_GAP_FADE_ENTRY_TYPE,
         }
 
         tp = sig.get("tp", 0)  # シグナル関数が算出した技術的ターゲット（固定）
@@ -5492,7 +5914,9 @@ class DemoTrader:
         # ══════════════════════════════════════════════════════════════
         _utc_h = datetime.now(timezone.utc).hour
         _low_liq_hours = {0, 1, 18, 19, 20, 21}  # NY Close + 東京早朝
-        if _utc_h in _low_liq_hours:
+        # weekend_gap_fade 免除 (②③B1): disaster SL 150p は pre-reg §2.3 の凍結値。
+        # SL狩り対策の広げ/ずらしは 150p 距離では無意味かつ凍結値改変になる。
+        if _utc_h in _low_liq_hours and not _wg_entry:
             _liq_buffer = _atr * 0.2  # ATR×0.2追加バッファ
             sl_dist += _liq_buffer
             if signal == "BUY":
@@ -5510,7 +5934,7 @@ class DemoTrader:
                           if h[0] > _fast_sl_cutoff
                           and h[1] == instrument
                           and h[3] < 120]  # hold_sec < 120s = fast SL
-        if _recent_fast_sl:
+        if _recent_fast_sl and not _wg_entry:
             _hunt_buffer = _atr * 0.3  # ATR×0.3追加（SL狩りスパイク回避）
             sl_dist += _hunt_buffer
             if signal == "BUY":
@@ -5545,7 +5969,7 @@ class DemoTrader:
         # 機関はXX.000, XX.500, XX.050等のSLクラスターを狙う
         # SLがラウンドナンバー近傍(2pip以内)なら外側にずらす
         # ══════════════════════════════════════════════════════════════
-        if _is_jpy_or_xau:
+        if _is_jpy_or_xau and not _wg_entry:
             # JPY: 50銭刻み, XAU: $0.50刻み — 同じpip scale
             _sl_frac = sl % 0.500
             if _sl_frac < 0.020 or _sl_frac > 0.480:  # 2pip以内
@@ -5555,7 +5979,7 @@ class DemoTrader:
                 else:
                     sl = round(sl + _nudge, _price_dec)
                 sl_dist = abs(current_price - sl)
-        else:
+        elif not _wg_entry:
             _sl_frac_5 = round((sl * 10000) % 50, 1)  # 50pips刻みからの距離
             if _sl_frac_5 < 2 or _sl_frac_5 > 48:  # 2pip以内
                 _nudge = 0.00025  # 2.5pip外側
@@ -5849,6 +6273,16 @@ class DemoTrader:
             mtf_gate_action=_mtf_gate_action,
         )
 
+        # ── weekend_gap_fade: per-weekend latch を送信前に永続化 (pre-reg §2.5) ──
+        # row 作成直後 / OANDA 送信前に set — restart しても同一週末の再発火なし。
+        if _wg_entry and _wg_weekend_key:
+            self._weekend_gap_latch_set(
+                instrument, _wg_weekend_key,
+                state=("SKIPPED_SPREAD" if _wg_spread_skipped else "EXECUTED"),
+                trade_id=trade_id or "",
+                spread_pips=_spread_entry,
+            )
+
         # ── v9.x (2026-04-22): Alpha158 factor snapshot (post-insert UPDATE) ──
         # 15m 検証済み factor のみ。他 TF は early return で error dict を返すため skip.
         # 失敗時は silently skip — trading path blocker にしない.
@@ -6065,6 +6499,14 @@ class DemoTrader:
             _lot_ratio = _HULL_DONCHIAN_FADE_UNITS / max(_base_units, 1)
             _adjusted_units = _HULL_DONCHIAN_FADE_UNITS
             _sentinel_reason = "HULL_DONCHIAN_FADE_FIXED_LOT_5000"
+        if entry_type == WEEKEND_GAP_FADE_ENTRY_TYPE:
+            # Rule-1 pre-reg LOCK (2026-07-24, user 承認 option b): 固定 1000u
+            # sentinel (price_shock と同型)。lot 3-factor / Kelly / DD lever /
+            # agg-Kelly boost の一切を上書きし、cascade に関係なく MIN lot 固定
+            # (pre-reg §3.1)。lot 増額は G3 通過後の別 R1 のみ。
+            _lot_ratio = WEEKEND_GAP_FADE_UNITS / max(_base_units, 1)
+            _adjusted_units = WEEKEND_GAP_FADE_UNITS
+            _sentinel_reason = "WEEKEND_GAP_FADE_MIN_LOT"
         if _is_sentinel:
             # v7.6: XAU専用Sentinel単位数 — 1unit=1troy oz≈$4800
             # FX 0.01lot=1000u相当をXAUに適用すると 1000oz×$4800=$4.8M → margin拒絶
@@ -6099,6 +6541,8 @@ class DemoTrader:
             # 2026-06-15 rule:R2 (user 決裁): vix_carry_unwind も MIN lot 1000u 契約。
             # FLAT が 1000u→5000u に膨らませる挙動を遮断 (Overlap pilot を 1000u 固定)
             and entry_type != "vix_carry_unwind"
+            # 2026-07-24: weekend_gap_fade は固定 1000u 契約 (pre-reg §3.1) — flat 上書き不可
+            and entry_type != WEEKEND_GAP_FADE_ENTRY_TYPE
             # 2026-06-12 Codex review I-4: hull_donchian_fade は MIN lot 1000u 契約 — flat 上書き不可
             and entry_type != "hull_donchian_fade"
             and _prime_tier not in ("A", "B")
@@ -6384,9 +6828,15 @@ class DemoTrader:
         # Shadow は登録のみ、集計から除外 (OANDA未送信のため実弾リスクなし)。
         # 早期登録すると Q4 gate / Phase0 gate / FORCE_DEMOTED 経由で Shadow 化された
         # トレードが LIVE として計上されてしまい、後続の LIVE を exposure cap で block する。
+        # weekend_gap_fade は固定 1000u sentinel (pre-reg §3.1) — env 10000u の
+        # まま登録すると §2.4 の 3 ペア同時執行 (broad-USD gap) で legs 1-2 が
+        # USD 20k を占有し leg 3 の check_new_trade が 20k cap に誤衝突する
+        # (= pre-reg が禁じる selective non-execution)。incoming-check 側
+        # (_exp_units_est) と同じ実ユニットを登録する (review fix 2026-07-25)。
         self._exposure_mgr.add_position(trade_id, instrument, signal,
                                         _edge_cell_units if _edge_cell_force_live
-                                        else int(_os.environ.get("OANDA_UNITS", "10000")),
+                                        else (WEEKEND_GAP_FADE_UNITS if _wg_entry
+                                              else int(_os.environ.get("OANDA_UNITS", "10000"))),
                                         is_shadow=bool(_is_shadow))
 
         # ── v6.4 SHIELD: EUR_USD DT/1H OANDA遮断 (scalp継続) ──
@@ -6598,6 +7048,11 @@ class DemoTrader:
                         f"[RANGE_EXIT] Quick-Harvest bypassed — "
                         f"BB_mid TP preserved ×1.0 | TP={tp:.{_price_dec}f}"
                     )
+                if entry_type == WEEKEND_GAP_FADE_ENTRY_TYPE:
+                    # pre-reg §2.3: TP なし — OANDA 注文には takeProfit を付けない
+                    # (demo row の TP は 500p sentinel、monitor 側も TP-hit skip)。
+                    # _QUICK_HARVEST_EXEMPT にも登録済みで ×0.85 短縮は非適用。
+                    _tp_oanda = None
                 # ── 実弾実行パス ──
                 # Pass entry_type so the bridge can stamp a strategy-name
                 # 'sent' audit row when it owns that write. skip_sent_audit=True
@@ -6621,6 +7076,12 @@ class DemoTrader:
                     signal_price=_signal_price,
                     entry_type=entry_type,
                     skip_sent_audit=True,
+                    # weekend_gap_fade: 成行 1 回のみ・リトライなし (pre-reg §2.2)
+                    # + 実 fill slippage を demo row に永続化 (G1 gate 入力)
+                    max_attempts=(1 if entry_type == WEEKEND_GAP_FADE_ENTRY_TYPE
+                                  else 3),
+                    record_fill_slippage=(
+                        entry_type == WEEKEND_GAP_FADE_ENTRY_TYPE),
                 )
                 if _send_accepted:
                     _lot_disp_sent = (f"{_adjusted_units}oz" if _is_xau_inst
@@ -6628,7 +7089,8 @@ class DemoTrader:
                     self._add_log(
                         f"🔗 OANDA: [SENT] {signal} {instrument} "
                         f"{_lot_disp_sent} {_lot_tag} "
-                        f"SL={sl:.{_price_dec}f} TP={_tp_oanda:.{_price_dec}f}"
+                        f"SL={sl:.{_price_dec}f} "
+                        f"TP={self._fmt_tp_for_sent_log(_tp_oanda, _price_dec)}"
                     )
                     self._add_oanda_audit(
                         trade_id=trade_id, entry_type=entry_type,
@@ -6686,10 +7148,14 @@ class DemoTrader:
                 # "(" 以降は _block_counts の切り詰め規約と同じで、prefix
                 # "shadow_tracking" は既存 grep/tool 互換 (drift guard は
                 # startswith 対応済み)。
+                # weekend_gap_fade: cap skip / R2 stop は原因を機械可読で永続
+                # (pre-reg §2.2: block_cause=weekend_gap_spread_cap + 実測値保存)
                 _block_reason = _resolve_shadow_audit_block_reason(
                     _is_shadow,
-                    ("shadow_tracking(session_filter_out)"
-                     if _session_gate_blocked else SHADOW_TRACKING_BLOCK_REASON),
+                    (_wg_shadow_cause if (_wg_entry and _wg_shadow_cause)
+                     else ("shadow_tracking(session_filter_out)"
+                           if _session_gate_blocked
+                           else SHADOW_TRACKING_BLOCK_REASON)),
                 )
             elif _strat_mode == "off":
                 _block_reason = "手動停止"
@@ -6813,6 +7279,10 @@ class DemoTrader:
         """
         if sig is None:
             sig = {}
+        # weekend_gap_fade: SIGNAL_REVERSE 対象外 (pre-reg §2.3 凍結 — exit は
+        # +4h horizon と disaster SL のみ。他戦略の逆方向シグナルで切らない)。
+        if trade.get("entry_type", "") == WEEKEND_GAP_FADE_ENTRY_TYPE:
+            return
         cfg = MODE_CONFIG.get(mode, {})
         direction = trade["direction"]
         trade_id = trade["trade_id"]
@@ -8099,6 +8569,14 @@ class DemoTrader:
         # [project_edge_cell_stage3_recovery_phase2_2026_06_07].
         # Re-promote requires Shadow N>=30 + Bonferroni-corrected Wilson_lo>=0.55.
         # ("session_time_bias", "GBP_USD"),    # 2026-06-01 cell-conditional, REMOVED 2026-06-07
+        # 2026-07-24 (rule:R1 pre-reg LOCK, user 承認 option b): weekend_gap_fade
+        # — OOS arm B PASS (N=177/112 週末, gross+15.60p, weekend-block p<1e-4,
+        # stressed-net +9.04p / 実測 RT 置換 +7.90p)。固定 1000u sentinel、
+        # G1/G2 R2 auto-stop 併設。GBP_USD は永久対象外 (§2.1)。
+        # decision: weekend-gap-stage2-execution-prereg-2026-07-24
+        ("weekend_gap_fade", "EUR_USD"),
+        ("weekend_gap_fade", "USD_JPY"),
+        ("weekend_gap_fade", "AUD_USD"),
         ("vsg_jpy_reversal", "EUR_JPY"),       # shadow N=20 EV=+1.82 PF=1.30
         ("bb_squeeze_breakout", "EUR_USD"),    # shadow N=14 EV=+0.01 PF=1.00
         # REMOVED 2026-07-02 (rule:R2) live-bleeder demotion:
@@ -8577,6 +9055,10 @@ class DemoTrader:
         "kalman_d7_po_dn_flip",
         "kalman_d7_ema75_break",
         "kalman_d7_trail_atr",
+        # 2026-07-24 weekend_gap_fade (rule:R1 pre-reg LOCK): 標準登録 idiom。
+        # 3 ペアは _PAIR_PROMOTED が本 sentinel より優先 (tier=PAIR_PROMOTED,
+        # vix_carry_unwind と同型の併存) — allowlist 外ペアは構造上発火しない。
+        "weekend_gap_fade",
     }
 
     # ══════════════════════════════════════════════════════════════
@@ -8654,6 +9136,9 @@ class DemoTrader:
         "sweep_reversion_eurgbp_late",
         "hull_donchian_fade",
         "usdjpy_carry_dip_accumulator",
+        # 2026-07-24 weekend_gap_fade: 診断ログ対象 (silent-drop 観測性)。
+        # gate bypass ではない — block された箇所が [SENTINEL_BLOCK_DIAG] に出る。
+        "weekend_gap_fade",
     })
 
     # 2026-06-02 (rule:R3): Count-gate bypass for LIVE intentional exceptions.
@@ -8898,12 +9383,21 @@ class DemoTrader:
         # 2026-06-12 (rule:R1): hull_donchian_fade LIVE 意図的例外。daytrade_eur は
         # _OANDA_MODE_BLOCKED のため whitelist 不在だと silent drop (ZZ v60 事故 2026-05-31 と同型)。
         "hull_donchian_fade",        # Hull x Donchian FADE EUR_USD M15 (MIN lot 1000u, env gate)
+        # 2026-07-24 weekend_gap_fade: daytrade_eur (EUR_USD 15m) は
+        # _OANDA_MODE_BLOCKED のため whitelist 不在だと EUR_USD leg が silent
+        # drop (ZZ v60 事故 2026-05-31 と同型)。pre-reg LOCK の 3 ペア執行契約。
+        "weekend_gap_fade",
     })
     _QUICK_HARVEST_MULT = 0.85      # v6.8: 0.70→0.85 (DT WIN 7件の19.2pip利益漏出修復)
     _QUICK_HARVEST_EXEMPT = frozenset({
         # 2026-06-12 hull_donchian_fade: TP=Donchian basis は凍結契約 (holdout 忠実度BT)。
         # ×0.85 短縮は TP 意味論を改変するため免除。
         ("hull_donchian_fade", "EUR_USD"),
+        # 2026-07-24 weekend_gap_fade: TP なし (pre-reg §2.3) — OANDA には
+        # takeProfit を付けない (送信直前で _tp_oanda=None)。QH の TP 短縮対象外。
+        ("weekend_gap_fade", "EUR_USD"),
+        ("weekend_gap_fade", "USD_JPY"),
+        ("weekend_gap_fade", "AUD_USD"),
         # 2026-05-04 R2 Tier 1 extension (rule:R2): gbp_deep_pullback × GBP_USD
         # exemption removed. tier downgrade ELITE_LIVE→PAIR_DEMOTED で
         # quick-harvest TP 短縮を適用する側に戻す。
@@ -9177,6 +9671,10 @@ class DemoTrader:
         "vix_carry_unwind",              # Overlap pilot 1000u 固定 (2026-06-15)
         "usdjpy_carry_dip_accumulator",  # MIN lot 1000u 契約 (2026-06-12)
         "sweep_reversion_eurgbp_late",   # MIN lot 1000u 契約 (2026-06-12)
+        # 2026-07-24: weekend_gap_fade — 固定 1000u pre-reg 契約 (§3.1)。
+        # agg-Kelly は恒久負 (固定 cutoff 累積, 2026-07-10 決裁) のため min-lot
+        # bypass 不在だと live 発火が構造的に不能になる。
+        "weekend_gap_fade",
     })
     _AGG_KELLY_GATE_MINLOT_MAX_UNITS = 1000
 

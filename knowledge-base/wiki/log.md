@@ -1,7 +1,19 @@
 # Knowledge Base Change Log
 
+## 2026-07-25 (weekend_gap_fade live 実装 — R1 step③ user 承認 (option b: 直接 live MIN lot) 執行, rule:R1)
+- **user 最終承認 2026-07-24 取得** → [[weekend-gap-stage2-execution-prereg-2026-07-24]] 🔒 LOCKED 化 (DRAFT 改名)。registry に G1/G2 監視 2 本追加
+- **実装** (workflow: implement → 敵対的レビュー 2 周 → fix → verify、blocker/major 残ゼロ): 新 entry_type `weekend_gap_fade` — [[weekend-gap-fade]] 戦略カード新設
+  - シグナル: strategies/daytrade/weekend_gap_fade.py (explore 定義完全複製、凍結 qualify 20.0/21.4/25.0p、BT/live 統一)
+  - 執行: Sunday runner (`_weekend_gap_tick`、市場 closed gate 前に 3 ペアのみ評価 → 通常 _tick_entry ガードチェーンに合流 = 別送信経路なし) + 新 MODE_CONFIG daytrade_audusd。成行 1 回 (bridge max_attempts=1 — 旧コードの timeout 3 回黙示リトライ = 二重約定リスクを封鎖)、spread cap 10.0p 超過/取得不能は fail-closed shadow ([WEEKEND_GAP_SPREAD_SKIP]、分母保存)
+  - exit: +4h horizon (exact override)、TP-hit 両方向 skip、BE/trail/C1/SIGNAL_REVERSE 全非適用、disaster SL 150p (stopLossOnFill)
+  - サイジング: 1000u 固定 sentinel (lot chain/LDN/JPY-cap/Kelly/DD lever 非乗算を検証済)
+  - dedup: system_kv per-pair per-weekend latch (fail-closed)。G1 (slippage rolling6 > +2.0p) / G2 (N=12 cum < −60p) = 恒久 kv flag WEEKEND_GAP_LIVE_STOPPED、再武装経路なし (watchdog 教訓)、AlertManager 通知付き。実 fill slippage を bridge → demo_trades.slippage_pips に記録 (G1 は broker 実測)
+  - 登録 4 点 + 補助 6 点 (SHIELD whitelist / QUICK_HARVEST 免除 / agg-Kelly min-lot bypass / MODE_CONFIG 等) を test pin で固定
+- **レビュー minor 2 件も修正済み**: app.py slippage basis (weekend_gap は entry_fill、TP rebase は非連動) / 早期 _ba None も fail-closed に拡張。tests/test_weekend_gap_fade.py 33 本 green、全 suite green、check.py 9/9
+- **初回 live イベント候補 = 2026-07-26 (日) 21:00 UTC**。PR → CI → main マージ → Render auto-deploy で執行
+
 ## 2026-07-24 (gap R1 step② 完了: stage-2 執行 pre-reg DRAFT — user 最終承認待ち, rule:R1)
-- **新規**: [[weekend-gap-stage2-execution-prereg-DRAFT-2026-07-24]] (decisions/) — 執行仕様凍結案 (Sunday open 初バー成行 1 回 + **spread cap 10.0p** 超過 skip / exit = +4h time-exit のみ、TP/BE/Trail 非適用で estimand 保存 / disaster SL 150p) + 全メカニズムに PRICE_SHOCK_REV 本番前例の実在確認済み
+- **新規**: [[weekend-gap-stage2-execution-prereg-2026-07-24]] (当時 DRAFT、07-25 承認後に LOCKED 改名) (decisions/) — 執行仕様凍結案 (Sunday open 初バー成行 1 回 + **spread cap 10.0p** 超過 skip / exit = +4h time-exit のみ、TP/BE/Trail 非適用で estimand 保存 / disaster SL 150p) + 全メカニズムに PRICE_SHOCK_REV 本番前例の実在確認済み
 - **要実装注意**: E1 スプレッドフィルター (L5134) が日曜 open を必ずブロック → 本 entry_type 限定の専用 cap 置換が必要 (全面バイパスではない、R2 gate 併設)。dedup = per-pair per-weekend latch (system_kv 永続)
 - **サイジング**: 1000u 固定 sentinel。月次期待 +22〜26p / σ≈63p (単月負確率 34%)。M1 寄与 ~11% と正直に明記 — 価値は初 OOS-PASS セルの live 検証 + lot ladder 土台
 - **前向きゲート**: G1 slippage>+2.0p→R2 停止 / G2 N=12<−60p→R2 demote / G3 N=30 で BT/live 乖離判定 → lot 増額は別 R1
