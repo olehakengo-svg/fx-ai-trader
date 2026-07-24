@@ -8,6 +8,14 @@
 - **動作実証 2 本 (探索窓のみ — 診断であり判定ではない)**: (a) `nfp_usd_24h` = NFP 後 USD 方向 uncond → pooled EV **−7.4p (h4) / −3.7p (h24)**、fold 不一致 = エッジなし (E15 discovery の NFP uncond 凍結 0 と整合)。(b) `rate_diff_breakout_template` = 金利差方向×breakout の雛形 (外部 series は **E20 feasibility 待ちのためダミー列で構造のみ**) → EV ≈ −摩擦に収束 = 配管正常。`raw/bt-results/rapid_probe_*_2026_07_22.{md,json}`
 - tests +27 (`tests/test_rapid_edge_probe.py`、全オフライン合成 fixture — OOS 遮断 / 語彙 / causal entry / SL 優先 / 決定性 / 規律ヘッダ pin)。全 suite 2328 passed / check.py 9/9 green
 - **評価への影響: なし** — 純研究インフラ。live/shadow/Kelly/tier 不変
+## 2026-07-22 — data(research): E15 phase-0 OOS verdict — ❌ FAIL 0/6 (全候補 C5、rule:R1 手続き、純研究)
+
+- **判定器実装 + clean OOS 判定を執行** ([[e15-e7-event-modality-prereg-2026-07-18]] §5c/§8、期日 07-31 の 9 日前倒し): `tools/event_modality_oos_verdict.py` (extract/verdict 分離、seed=20260718 固定、B=10,000、estimand は lib SSOT 再利用)。**test pin 26 件を先に green にしてから OOS 接触** (§10-6 — 判定分岐 C1–C5/BH-FDR m固定/bootstrap seed 決定論/IM df/ナイフエッジ/canary 検出能力/OOS 窓ガード/摩擦式/join 契約)
+- **結果: レグ A 全滅** — BH-FDR q=0.05 (m=6) 通過ゼロ (min p_combo=0.214 ≫ rank-1 閾値 0.0083)。4/6 は点 EV 正 (te/ft 両正、最大 CPI/fade/30m/h24 = +9.68p/p) だが event-block 推論 (bootstrap+IM) で有意性なし → **全 6 候補 C5 REJECT**。C3 ゼロ (blocks 20–28 ≥ 15 で B(d) 充足 — §9 modal 予想 C3 は自らの閾値と整合しない予想だった。§8 字義執行・再解釈なし)。**§8 固定分岐 = phase-1 (E7) 予定どおり実行**。Lee & Wang post-sample 検証も negative (fade は探索で不選抜、follow は OOS 非有意)
+- データ整合 green: parquet 台帳再現 13/13 (sha256 凍結) / OOS sanity は CPI 14.3%・FOMC 10.0% >5% だが offset ピーク全種 +0 (時刻正常、explore 窓 user 裁定と同一シグネチャで続行・記録) / リーク canary 実データ 686 件 all clean。collision・週末跨ぎはフラグ記録のみ (§10-3)
+- 成果物: `raw/bt-results/e15_phase0_oos_verdict.json` (全統計+trade/event list) + pre-reg §5b 凍結表転記 (🔒 手続き補完)・§8 発動分岐・§12 判定表 + registry `e15-e7-event-prereg-phase0-verdict` resolve + lib 加法拡張 (TradeOutcome.atr / entry_delay_bars / canary ATR 経路) + sanity 検出器の window 共有化
+- **評価への影響: なし** — 純研究、live/shadow/Kelly/tier 不変更。次 = phase-1 (FF gap scrape + データ付録凍結 08-14 → verdict 08-28、registry `e15-e7-event-prereg-phase1-verdict` 監視継続)
+
 ## 2026-07-22 — docs(research): E20 金利差方向バイアス S1 feasibility — 条件付き採用 (S2 GO) (rule:R3)
 
 - **user 仮説 (2026-07-22)「金利差から計算した方向バイアス × テクニカル entry」を E20 としてパイプライン S1 (C1–C6) で裁定** → [[e20-rate-differential-feasibility-2026-07-22]]。判定 = **条件付き採用 (S2 GO)** — 第 4 モダリティ (rates)、蓄積待ちゼロで BT 即可

@@ -1,6 +1,6 @@
 # Pre-registration: イベントモダリティ・プログラム — E15 (FOMC/NFP/CPI イベント窓プレミア/リバーサル) + E7 (指標サプライズ directional) 単一 family (2026-07-18)
 
-**Status**: 🔓 **DESIGN self-LOCK (2026-07-18)** — 方法論・窓・grid・凍結規則・判定規則・α 会計を**結果観測前に固定**。phase-0 候補凍結時に §5b へ追記して 🔒 (以後変更禁止)。純研究 self-LOCK の根拠 = round-2/3/E1 前例 (純研究・PR で user 通知後・異議なし)。本文書の変更はレビュー必須 PR のみ。
+**Status**: 🔒 **phase-0 FULL LOCK (凍結 2026-07-22、PR #106) → phase-0 OOS verdict ❌ FAIL 0/6 (2026-07-22、§12)** — phase-1 (E7) は §8 固定分岐どおり予定続行。(旧: 🔓 DESIGN self-LOCK 2026-07-18 — 方法論・窓・grid・凍結規則・判定規則・α 会計を結果観測前に固定。純研究 self-LOCK の根拠 = round-2/3/E1 前例。本文書の変更はレビュー必須 PR のみ。)
 **rule**: R1 手続き (新シグナル系統 — pre-reg LOCK が昇格の必要条件)。**純研究 — live/shadow/Kelly/tier 一切不変更**。PASS でも実装は別途 D4 準拠の実装 pre-reg + user 最終承認 (S5、D3 SLA 48h)。
 **owner**: claude (autopilot 自走可 — データ in-house + 無料カレンダーで net 到達可)
 **pipeline 位置**: [[edge-development-pipeline-2026-07-18]] S1 通過 → **本文書 = S2/S3 統合起案** (S2 診断 = §5a discovery を探索窓のみで実行、S3 = 本 LOCK)。型 B (歴史データあり → discovery→凍結→OOS)。
@@ -118,6 +118,19 @@
 - **凍結規則 ([[lesson-freeze-rule-topEV-selects-overfit-2026-07-14]] 準拠)**: 通過 combo を (1) fold 符号一致数 (3/3 > 2/3)、(2) **EV-per-vol** (pooled net 平均 / per-trade SD — regime-amplified な絶対 EV でなくリスク調整後)、(3) イベント種分散 (**各 event type ≤ 3**) の辞書式順で選抜し **m₀ ≤ 8** を凍結。fade と follow は同一 (event, W0, h) の鏡像 — 両方通過した場合は EV-per-vol 上位のみ (重複排除)。
 - 凍結時に本 §5b へ候補表 (combo / 探索 EV_te / EV_ft / blocks / fold) を追記コミット = **🔒 full LOCK**。以後 combo/grid/窓/判定の変更禁止。`raw/bt-results/e15_frozen_candidates.json` に凍結。
 
+#### §5b 凍結表 (🔒 2026-07-22 — discovery PR #106 の `e15_frozen_candidates.json` の転記。m₀=6: FOMC 3 / CPI 3 / NFP 0)
+
+本表は commit e21ea5ff (PR #106、OOS 接触前) で凍結済みの JSON の忠実な転記 (verdict 実行前・2026-07-22 に手続き補完として追記 — §5b 明文の「候補表追記コミット = 🔒」の履行)。
+
+| # | combo (event/rule/W0/h) | 探索 EV_te | EV_ft | N | blocks | fold 符号 | EV-per-vol |
+|---|---|---|---|---|---|---|---|
+| 1 | FOMC / follow / 60m / h12 | +5.99 | +6.04 | 544 | 79 | +,+,+ (3/3) | 0.1362 |
+| 2 | FOMC / follow / 30m / h12 | +3.75 | +3.62 | 545 | 79 | +,−,+ (2/3) | 0.0701 |
+| 3 | CPI / fade / 30m / h12 | +2.05 | +2.21 | 804 | 117 | +,+,− (2/3) | 0.0411 |
+| 4 | FOMC / follow / 60m / h24 | +2.99 | +3.21 | 544 | 79 | +,−,+ (2/3) | 0.0379 |
+| 5 | CPI / fade / 60m / h12 | +1.43 | +0.83 | 804 | 117 | +,+,− (2/3) | 0.0299 |
+| 6 | CPI / fade / 30m / h24 | +1.30 | +3.58 | 804 | 117 | +,+,− (2/3) | 0.0178 |
+
 ### 5c. OOS verdict (LOCK 後、2 レグ + ナイフエッジ)
 
 - **レグ A (方向性、event-block 推論)**: pooled per-trade net return (ATR14d 正規化 — ペア間スケール混在防止。経済条件は raw pips) の **イベント日ブロック bootstrap** (event block = 同一イベントの全ペア・トレードを 1 ブロックとして resample、B=10,000、seed 固定) 片側 p_boot、**併設 Ibragimov–Müller 型検定** (event-block 毎の平均 net return に対する片側 1 標本 t、df = blocks − 1 — OOS blocks 20–30 は bootstrap 単独では反保守になり得るため。E1 §4.1 M10 と同じ処置)。combo p = **max(p_boot, p_IM)**。判定: **BH-FDR q = 0.05 (m = m₀)**。
@@ -156,6 +169,8 @@
 - **UNDERPOWERED (∃C3 ∧ C1 ゼロ)**: cache が **2027-07-01 以降へ延伸**した時点で、C3 combo のみ・同一 spec・1 回限りの再判定 (BH m = |C3|、q は §7 の当該 phase 予算内で消化済みのため再判定は q=0.05 の新規予算を family 外で明示計上 — registry 条件付きエントリ、round-4 と同型)。
 - **DEFERRED**: coverage gate で primary block が 5 ペア未満に縮小、またはカレンダー sanity >5% — user 裁定 (勝手に解釈しない)。
 
+> **✅ 発動分岐 (phase-0、2026-07-22 執行)**: **phase-0 PASS = 0 (全 6 候補 C5 REJECT) → FAIL** — 「phase-1 は予定どおり実行」の分岐に着地。C3 該当ゼロのため UNDERPOWERED 再判定エントリは不発。判定表・全統計は §12。
+
 ## §9 power の正直な開示
 
 - **実効独立単位 = event blocks であり trades ではない** (同一イベントに primary 7 ペアが同時発火 — pooled N はブロック内相関で見かけより小さい)。OOS blocks: FOMC ~20 / NFP ~30 / CPI ~30。イベント合算 combo は grid に無い (event type は combo の一部) ため、**FOMC 系 combo の first look は「符号スクリーン + 大効果検出」の役割に限定される** — modal outcome は C3 (UNDERPOWERED) と今予想し記録する (結果を見た後の言い訳の封鎖、E1 §5 と同じ規律)。
@@ -184,3 +199,42 @@
 - **成果物**: 探索ハーネス `tools/event_modality_explore.py` / 判定器 `tools/event_modality_oos_verdict.py` (--extract/--sim 分離、seed 固定、test pin 先行) / イベントカレンダー `raw/bt-results/e15_e7_event_calendar.json` (ソース URL・取得日・sanity 結果込み) / 凍結候補 + 全統計 JSON を `raw/bt-results/e15_e7_*.{json,md}` / verdict は本文書 §12 (phase-0) / §13 (phase-1) へ追記 + session log + pipeline 状態表更新。
 - E1 (2026-10-15) との排他: 本 family の全成果物・登記は E1 判定に接触しない (別データ・別 family)。
 - FF Actual 補完 ingest job (go-forward) は round-2 infra #1 の別 R3 タスク — 本 pre-reg の判定は歴史側 + gap 一括 scrape で完結する。
+
+---
+
+## §12 phase-0 OOS verdict — ❌ **FAIL (PASS 0/6、全候補 C5 REJECT)** (2026-07-22 執行、期日 07-31 の 9 日前倒し)
+
+**rule:R1 手続き (pre-reg 執行、判定は機械)。純研究 — live/shadow/Kelly/tier 不変更。**
+判定器: `tools/event_modality_oos_verdict.py` (extract/verdict 分離、seed=20260718 固定、B=10,000)。
+artifact (全統計 + trade/event list): `raw/bt-results/e15_phase0_oos_verdict.json` (+ 抽出中間 `e15_phase0_oos_trades.json`)。
+test pin 先行 (§10-6): `tests/test_event_modality_oos_verdict.py` 26 pins (判定分岐 C1–C5 / BH-FDR m 固定 / bootstrap seed 決定論 / IM df / ナイフエッジ / canary 検出能力 / OOS 窓ガード / 摩擦式 / join 契約) — **全て green を確認してから OOS データに接触**。
+
+### 判定表 (§5c レグ A: event-block bootstrap + IM 併設、p = max(p_boot, p_IM)、BH-FDR q=0.05 m=6)
+
+| # | combo | N | blocks | EV_te (p) | EV_ft (p) | EV_norm (σ_ATR) | p_boot | p_IM | p_combo | BH 閾値 (rank) | レグA | 分類 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | FOMC/follow/60m/h12 | 140 | 20 | +4.28 | +2.90 | +0.0432 | 0.2289 | 0.2355 | 0.2355 | 0.0167 (2) | ❌ | **C5** |
+| 2 | FOMC/follow/30m/h12 | 140 | 20 | −7.07 | −4.26 | −0.0795 | 0.7941 | 0.7778 | 0.7941 | 0.05 (6) | ❌ | **C5** |
+| 3 | CPI/fade/30m/h12 | 195 | 28 | +6.22 | +4.78 | +0.0436 | 0.2504 | 0.2532 | 0.2532 | 0.025 (3) | ❌ | **C5** |
+| 4 | FOMC/follow/60m/h24 | 140 | 20 | +4.79 | +4.32 | +0.0305 | 0.4423 | 0.4290 | 0.4423 | 0.0417 (5) | ❌ | **C5** |
+| 5 | CPI/fade/60m/h12 | 195 | 28 | −0.32 | +0.39 | +0.0085 | 0.4407 | 0.4399 | 0.4407 | 0.0333 (4) | ❌ | **C5** |
+| 6 | CPI/fade/30m/h24 | 195 | 28 | +9.68 | +7.32 | +0.0686 | 0.2089 | 0.2140 | 0.2140 | 0.0083 (1) | ❌ | **C5** |
+
+- **レグ A**: 全滅 — 最小 p_combo = 0.214 (#6) ≫ rank-1 BH 閾値 0.0083。BH-FDR q=0.05 (m=6) 通過ゼロ。
+- **レグ B (記録)**: 4/6 が点推定で te>0 ∧ ft>0 (機構整合)、stress 2 種も #1/#3/#4/#6 は正 (#6: s1 +8.67 / s2 +7.69)。**B(d) は全候補充足** (N 140–195 ≥ 30、blocks 20–28 ≥ 15)。
+- **分類**: C2 (sequencing 反転) 該当ゼロ (te>0 の候補は全て ft>0)。**C3 (UNDERPOWERED 適格) 該当ゼロ — §9 の modal 予想 (C3) は不成立**: C3 の要件はレグ B(d) 不達だが、OOS blocks は FOMC 20 / CPI 28 で B(d) 閾値 (≥15) を充足したため、レグ A 不通過 combo は §8 の排他順どおり C5 へ機械着地 (§9 の「FOMC 系は blocks ~20 で C3」という予想記述は B(d)≥15 の自らの閾値設定と整合しない予想だった — 判定は §8 明文の字義執行であり再解釈はしていない)。C4 (レグ A 通過 ∧ EV≤0) 該当ゼロ。
+- **発動分岐 (§8 固定)**: **phase-0 PASS = 0 → phase-1 (E7 サプライズ条件付き) は予定どおり実行** (無条件仮説の FAIL はサプライズ条件付き仮説を falsify しない — §8 に今宣言済み)。UNDERPOWERED 再判定の条件付き registry エントリは C3 ゼロのため**不発**。
+- **文献 standing (Lee & Wang RAPS 2025) の post-sample 検証**: 文献の fade 主張に対し discovery は FOMC **follow** 側を選抜 (探索窓で fade は選抜規則不通過)、その follow も OOS で有意性なし。イベント窓の方向頻度優位が摩擦控除後 EV に変換される証拠は OOS に無い — 文献アンカーの standing も negative。
+
+### データ整合 (判定前の機械ガード、全て green)
+
+- **parquet 台帳再現 13/13**: first 起点・explore coverage・台帳 last 時点行数の完全一致 (末尾余剰 = 台帳スナップショット (07-21 ~05:00 UTC) 後の re-fetch 分 23–24 本のみ、OOS cutoff 2026-06-30 で切詰め = 判定非接触)。per-file sha256 は artifact `data_ledger` に凍結。
+- **OOS 窓カレンダー sanity (§3.2b-7 どおり verdict 時実行)**: flag 率 NFP 3.4% / **CPI 14.3% / FOMC 10.0% (>5%)** — ただし offset ピーク検査は**全 3 種 offset +0** (時刻正常)。explore 窓で user 裁定済み (2026-07-22) の「低インパクトイベント由来・時刻正常」と同一シグネチャのため、同裁定の下で続行し記録 (時刻破損の徴候なし。仮に >5% ∧ offset 異常なら DEFERRED 停止する実装 — 発火せず)。
+- **リーク canary (§5c-3)**: 実データ全 sweep 686 件 (event×pair×rule×W0 重複排除) **all clean** + unit test で「注入リークを False 検出」する能力自体を pin。
+- **collision/週末**: collision フラグ CPI 7 trades / FOMC 0 (除外せず記録、§10-3)。週末跨ぎは CPI 21 trades (Secondary 層別を artifact に記録)。
+
+### 帰結
+
+- E15 (無条件イベント窓プレミア/リバーサル、FOMC/NFP/CPI × M15) は**棄却**。イベントカレンダーの無条件モダリティは供給ラインから外れる。
+- **次**: phase-1 (E7 指標サプライズ directional) を §6/§11 の予定どおり実行 (FF gap scrape + データ付録凍結 2026-08-14 → discovery 08-21 → OOS verdict 08-28、registry `e15-e7-event-prereg-phase1-verdict` 監視継続)。両 phase PASS=0 となった場合のみ §8 の E12 格上げ分岐。
+- §10 遵守の宣言: OOS 結合統計の観測は本 verdict 実行が初回。観測後の再分析・grid 再アンカー・候補変更は行っていない (本 §12 の記述は §5c/§8 に事前列挙された切り口のみ)。

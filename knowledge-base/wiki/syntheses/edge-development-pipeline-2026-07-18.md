@@ -57,7 +57,7 @@ Shadow は UTC 固定で削らない (原則 3) は全ステージ共通。
 | 仮説 | Stage | 期日/条件 | 備考 |
 |---|---|---|---|
 | **E1 positioning contrarian** | S4 待ち | first look **2026-10-15** / second look 2027-01-06 | 🔒 LOCKED、13 ペア蓄積中、判定器完備 |
-| **E15+E7 イベントモダリティ** | **S3 起案済み (🔓 DESIGN self-LOCK 2026-07-18)** | phase-0 (E15): 凍結 07-24 / **verdict 07-31**。phase-1 (E7): verdict 08-28 | [[e15-e7-event-modality-prereg-2026-07-18]] — 単一 family (α = q0.05+0.05)、primary = USD-leg 7 ペア event-block 推論。registry `e15-e7-event-prereg-phase{0,1}-verdict` |
+| **E15+E7 イベントモダリティ** | **phase-0 (E15): S4 完了 → ❌ FAIL 0/6 (2026-07-22、C5×6)。phase-1 (E7): S3 継続** | phase-1: FF gap+データ付録凍結 08-14 / discovery 08-21 / **verdict 08-28** | [[e15-e7-event-modality-prereg-2026-07-18]] §12 — E15 無条件イベント窓は棄却 (BH q=0.05 m=6 通過ゼロ、min p 0.214)。§8 固定分岐で phase-1 は予定続行。registry phase0 = resolved、`e15-e7-event-prereg-phase1-verdict` 監視継続 |
 | **E12 CME 先物 volume flow** | S1 通過 → インフラ先行 | **yfinance 1h は 730d rolling — capture 開始が 1 週遅れる毎に歴史が 1 週消える** | 第 2 モダリティ。週次 1h バー capture job が前提 |
 | E9 通貨 VRP | S1 条件付き | EVZCLS×EURUSD 無料 probe 先行 → 正なら Databento (クレジット 6 ヶ月失効、probe 後にサインアップ) | 第 3 線 |
 | round-4 EUR divergence | S0 (条件付き) | cache 2026-11-15+ 延伸で発火 | registry `ws3-round4-eur-divergence-conditional` |

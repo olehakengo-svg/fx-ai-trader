@@ -2970,6 +2970,76 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 ### 推奨戦略配分
 | `daytrade_gbpusd` | GBP/USD | 🟡 要監視 | VOLATILEレジームでspread_guard発動リスク。GBP/JPYと同方向リスク集中に注意 |
 
+### 2026-07-22 (Post-London Report)
+| PnL | 0.0 pips |
+- **OANDA転送率 0%**（50件中50件がSKIP）
+- **Block主因**: `shadow_tracking`（20件100%） — デモシャドー追跡状態が継続中であり、全シグナルがデモ専用として処理されている
+- **NAV/Balance = None** — OANDA口座情報が取得不能状態。接続はActive=Trueだが実質的な口座参照が機能していない
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+> **⚠️ NO ACTION推奨**
+
+### 2026-07-22 (Pre-Tokyo Briefing)
+**PnL合計: N/A｜トレード数: 0｜全体WR: N/A**
+| 戦略 | N | WR | EV | 判定 |
+> **注**: 集計テーブルにトレード実績なし。N=0のため統計的評価は不可能。昇格基準（N≥30 & EV≥1.0）・降格基準（N≥30 & EV<-0.5）いずれも適用外。
+- **観察継続**: 1日のゼロは異常値ではなく、レジーム起因の自然な不発の可能性が高い。システム介入は不要
+- **GBP_JPYに注目**: 唯一のTRENDING_UP（ATR%ile 59%）。本日DT系のシグナル候補が出るとすれば最有力ペア
+- **OFFモードの状況確認**: daytrade_xau・scalp_xauが継続的にOFFである理由を要確認（意図的停止か障害か）
+| EUR_JPY | RANGING | 33% | +0.00187 | ❌ DT不向き／Scalp狭レンジ注意 |
+| 時間（JST） | イベント | 対象ペア | 注意点 |
+
+### 2026-07-23 (Pre-Tokyo Briefing)
+**PnL合計: N/A | トレード数: 0 | 全体WR: N/A**
+| 戦略 | N | WR | EV | 判定 |
+> **備考**: Cutoff後の有効トレードが皆無のため、統計的評価は不可能。N=0は「傾向なし」ではなく「システムが機能していない」ことを示す。昇格基準（N≥30 & EV≥1.0）・降格基準（N≥30 & EV<-0.5）いずれも適用対象外。
+- `hedge_block`がTOP4のうち3席を占める（合計253件）。これは単一通貨リスク（EUR/GBP系）への偏ったエクスポージャーに対するシステム自己規制が過剰に機能している状態
+- `rnb_usdjpy: direction_filter`の99件は上限カウント（実際はそれ以上の可能性）。RNBモードはUSD/JPY=163.2水準のRANGINGレジームでフィルターが恒常的にOFFになっている可能性が高い
+- `r2_shadow_demoted_cell`（scalp系 79件）は過去のシャドウ評価での降格が執行経路を塞いでいる。Shadow降格セルが累積すると、現行レジームでは回復しない構造的詰まりとなる
+- **hedge_block多発ペア**（EURGBP, EUR, GBPUSD）の現在ポジション状況を確認→ネットポジションがゼロ（実際Open=0）にもかかわらずhedge_blockが発動しているなら、ポジション追跡ロジックの状態が問題
+- **scalp r2_shadow_demoted_cell**：現在のランクで降格セルが何件存在するかを把握し、自然回復を待つか構造的介入が必要かを判断する
+
+### 2026-07-23 (Post-Tokyo Report)
+| PnL | 0.0 pips |
+| WR | N/A |
+- Fidelity Cutoff後のOANDA転送実績 N=50、SENT=0（Live Rate 0%）の状況は継続中。これは `shadow_tracking` による意図的スキップであり、異常ではない
+- 東京セッションのゼロトレードは低ATRパーセンタイル（EUR/JPY・EUR/USD・GBP/USD いずれも33–55%台）によるシグナル品質不足と整合的
+- `r2_shadow_demoted_cell`（daytrade_1h_usdchf・scalp）によるブロックはShadow Tierの降格判定が正常に機能している証拠であり、介入不要
+- DD防御モード（0.2x）が継続中 — この制約下でのパラメータ変更は禁忌
+### 推奨戦略配分
+**NO ACTION推奨（本番エントリー見送り）**
+
+### 2026-07-23 (Post-London Report)
+| セッション内PnL | **0.0 pips** |
+| 勝率（WR） | **N/A** |
+| PnL | 0.0p | 0.0p |
+| WR | N/A | N/A |
+- **EUR/GBP主導ペアのボラティリティ低下**：ロンドンフィックス（UTC 16:00）通過済み。EUR_JPY・EUR_USDのATR%ile=33%は既にフラットを示唆。
+- **USD関連ペアの注目**：NY時間はUSD_JPY（ATR%ile=67%）が最も動きやすい環境だが、RANGING分類でありトレンド戦略の優位性は限定的。
+- **GBP_JPY唯一のTRENDING_UP**：NY序盤の継続性には懐疑的（ロンドン主導トレンドの惰性）。
+### 推奨戦略配分
+
+### 2026-07-23 (Pre-Tokyo Briefing)
+| PnL合計 | **0.0p** |
+| 全体WR | **N/A** |
+| 戦略 | N | WR | EV | 判定 |
+**Cutoff後の有効トレードはゼロ件**。昇格基準（N≥30 & EV≥1.0）・降格基準（N≥30 & EV<-0.5）いずれの評価も不可能。Sentinel N蓄積進捗：**0/30**（全戦略）。
+- トレードゼロが継続する場合、**spread_guardの閾値抵触頻度**を確認すること（コード変更ではなく、現在のスプレッド実測値とガード閾値の乖離幅の把握）
+- NAV/Balance=Noneは**OANDA API認証またはアカウント接続の問題**の可能性があり、監視継続
+| USD_JPY | RANGING | 67%ile | +0.00217 | ATRは高水準だがRANGING。レンジ内ボラが高く、Scalp誤発シグナルに注意。 |
+- 唯一のTRENDING_UPはGBP_JPY（60%ile）。本日最も注目すべきペア。
+
+### 2026-07-24 (Pre-Tokyo Briefing)
+| PnL合計 | 0.0p（トレードなし） |
+| 全体WR | N/A |
+| 戦略 | N | WR | EV | ステータス |
+- **トレンド環境**: GBP/JPYのみ（かつブロック中）
+- **Scalp有利環境**: なし（全ペアRANGING or ボラ不安定）
+- **R&B有利環境**: なし（USD/JPYのレンジが深すぎてdirection_filterに捕捉）
+- **結論**: 現在のマーケット環境はシステムの全戦略に対して不利。空振りは「失敗」ではなく「正常なフィルター機能」の可能性が高い。
+| 時間（JST） | 内容 | 注意点 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象

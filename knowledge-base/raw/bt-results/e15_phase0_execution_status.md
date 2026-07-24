@@ -1,4 +1,4 @@
-# E15 phase-0 execution status — calendar FROZEN + sanity >5% → §8 DEFERRED (user 裁定待ち)
+# E15 phase-0 execution status — ✅ 完了: OOS verdict ❌ FAIL 0/6 (2026-07-22、期日 9 日前倒し)
 
 **日付**: 2026-07-20 machinery / 2026-07-21 price-data run (autopilot) / **2026-07-21 calendar run (本セッション)**
 **pre-reg SSOT**: [[e15-e7-event-modality-prereg-2026-07-18]] (🔓 DESIGN self-LOCK + §3.2b AMENDMENT 2026-07-21)
@@ -153,3 +153,18 @@ python3 tools/event_modality_explore.py discovery
 - **裁定**: user「承認」(2026-07-22、本 session)。問 = 「sanity フラグ率 CPI 43.6% > 5% は時刻誤りではなく低インパクトイベント由来として discovery 続行を承認するか」
 - **裁定根拠 (観測前に凍結済みの材料のみ)**: verify-times 検査で全 3 イベント種が offset +0 に正確な変動ピーク (NFP 3.94× / CPI 2.92× / FOMC 7.95×)、破損行ゼロ。フラグは低インフレ期 (2014-2020) CPI の低インパクト由来 (49/51 が同期間、2023 ゼロ)。低インパクトイベントの包含は「正直な EV」側 — 除外する方が選択バイアス
 - **実行**: `python3 tools/event_modality_explore.py discovery` — 価格 parquet は coverage 台帳検証済みフルセット (calendar worktree からコピー、13/13)。凍結 artifact = `e15_frozen_candidates.json`、期日 2026-07-24 に対し 2 日前倒し
+
+---
+
+## 🏁 2026-07-22 — phase-0 OOS verdict 執行: ❌ **FAIL (PASS 0/6、全候補 C5)** — phase-0 完了
+
+**手順 (§10-6 遵守 — test pin してから OOS 接触)**:
+
+1. **判定器実装**: `tools/event_modality_oos_verdict.py` (§11 指定名、extract/verdict 分離、seed=20260718 固定、B=10,000)。estimand は lib SSOT を再利用 (重複実装なし)。lib へは加法的拡張のみ — `TradeOutcome.atr` 露出 (レグ A の ATR14d 正規化用) / `entry_delay_bars` (ナイフエッジ#3 遅延レグ) / leak_canary の ATR 経路比較 (§5c-3 明文「R0/ATR 経路」の完全化)。sanity 検出器は `event_calendar_build.py` を window 共有関数化 (`range_sanity_scan`/`offset_peak_scan`) して OOS 窓 (§3.2b-7) に適用。
+2. **test pin 26 件** (`tests/test_event_modality_oos_verdict.py`): 判定分岐 C1–C5 排他順 / 全体 PASS·UNDERPOWERED·FAIL / BH-FDR (m=m₀ 固定、None 処理) / event-block bootstrap の seed 決定論・効果弁別 / IM df=blocks−1・退化ケース / p=max(p_boot,p_IM) / ナイフエッジ LOFO·top-block·LOPO·collision / **canary の検出能力** (注入リークを False 検出) / entry+1バー遅延 (R0 不変) / OOS 窓ガード / stress 摩擦式 / gross+摩擦線形適用=lib net の join 契約 — **全 green 確認後に OOS データへ**。
+3. **parquet**: calendar worktree の検証済みフルセット 13 本をコピー → **台帳再現 13/13 green** (first 起点・explore coverage 完全一致・台帳 last 時点行数一致。末尾余剰 23–24 本 = 台帳スナップショット後の re-fetch 分、OOS cutoff 2026-06-30 切詰めで判定非接触。sha256 を artifact に凍結)。
+4. **OOS sanity (§3.2b-7)**: flag 率 NFP 3.4% / CPI 14.3% / FOMC 10.0%。CPI/FOMC >5% だが offset ピーク**全種 +0** (時刻正常) = explore 窓の user 裁定 (2026-07-22、低インパクト由来) と同一シグネチャ → 同裁定下で続行・記録。canary 実データ sweep 686 件 all clean。
+5. **verdict**: 1,005 trades / 6 候補。**レグ A 全滅** (min p_combo=0.214 ≫ BH rank-1 閾値 0.0083、BH-FDR q=0.05 m=6 通過ゼロ) → 全候補 **C5**。C3 ゼロ (blocks 20–28 ≥ 15 で B(d) 充足 — §9 modal 予想 C3 は不成立、§8 字義執行)。**§8 固定分岐 = phase-1 予定どおり実行**。
+6. **成果物**: `e15_phase0_oos_verdict.json` (全統計+trade/event list、~500KB) + `e15_phase0_oos_trades.json` (抽出中間) + pre-reg §5b 凍結表転記 (手続き補完)・§8 発動分岐・§12 判定表 + registry `e15-e7-event-prereg-phase0-verdict` resolve + changelog + pipeline 状態表。
+
+**§10 遵守**: OOS 結合統計の観測は verdict 実行が初回。観測後の再分析・再解釈なし (§12 は事前列挙の切り口のみ)。**残タスク = phase-1 (E7) のみ** (FF gap scrape + データ付録凍結 08-14 → discovery 08-21 → verdict 08-28、registry `e15-e7-event-prereg-phase1-verdict` が監視)。
