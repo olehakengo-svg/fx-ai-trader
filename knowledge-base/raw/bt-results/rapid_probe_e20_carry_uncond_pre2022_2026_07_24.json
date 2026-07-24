@@ -1,0 +1,824 @@
+{
+  "tool": "rapid_edge_probe",
+  "stage": "S2_R3_DIAGNOSTIC",
+  "verdict_authority": "NONE — 探索診断。live/tier 判断禁止。次ステージ = S3 pre-reg 起案のみ",
+  "generated_utc": "2026-07-24T05:46:00.027579+00:00",
+  "seed": 20260722,
+  "spec_name": "e20_carry_uncond_pre2022",
+  "spec_hash": "0635dfd3c4830c54",
+  "spec": {
+    "name": "e20_carry_uncond_pre2022",
+    "description": "E20 (a) regime slice: 収斂期 2014-06〜2021-12 (§6-3 ガード)",
+    "notes": "E20 S1 feasibility (e20-rate-differential-feasibility-2026-07-22) §6 凍結 variant。GBP 2y レグは BOE IADB に 2y ZC が無く IUDSNZC (5y ZC) 代用 (mom variant のみ影響)。lag_days=1 (営業日) で公表 look-ahead を構造排除。診断であり判定ではない。",
+    "direction_source": {
+      "kind": "series",
+      "column": "per_pair",
+      "file": "knowledge-base/raw/bt-results/e20/e20_carry_level.csv",
+      "lag_days": 1
+    },
+    "entry_trigger": {
+      "kind": "none"
+    },
+    "pairs": [
+      "AUD_JPY",
+      "AUD_USD",
+      "EUR_AUD",
+      "EUR_GBP",
+      "EUR_JPY",
+      "EUR_USD",
+      "GBP_JPY",
+      "GBP_USD",
+      "NZD_JPY",
+      "NZD_USD",
+      "USD_CAD",
+      "USD_CHF",
+      "USD_JPY"
+    ],
+    "horizons": [
+      96,
+      480,
+      960
+    ],
+    "holding": {
+      "mode": "bars"
+    },
+    "window": {
+      "start": "2014-06-01",
+      "end": "2021-12-31"
+    }
+  },
+  "window_effective": {
+    "start": "2014-06-01",
+    "end": "2021-12-31"
+  },
+  "oos_locked": true,
+  "oos_boundary": "2024-01-01",
+  "max_entry_ts": "2021-12-29T15:15:00+00:00",
+  "coverage": {
+    "AUD_JPY": {
+      "coverage": 1.0,
+      "included": true
+    },
+    "AUD_USD": {
+      "coverage": 0.9917,
+      "included": true
+    },
+    "EUR_AUD": {
+      "coverage": 1.0,
+      "included": true
+    },
+    "EUR_GBP": {
+      "coverage": 0.9845,
+      "included": true
+    },
+    "EUR_JPY": {
+      "coverage": 1.0,
+      "included": true
+    },
+    "EUR_USD": {
+      "coverage": 0.9832,
+      "included": true
+    },
+    "GBP_JPY": {
+      "coverage": 1.0,
+      "included": true
+    },
+    "GBP_USD": {
+      "coverage": 0.9832,
+      "included": true
+    },
+    "NZD_JPY": {
+      "coverage": 1.0,
+      "included": true
+    },
+    "NZD_USD": {
+      "coverage": 0.963,
+      "included": true
+    },
+    "USD_CAD": {
+      "coverage": 0.9747,
+      "included": true
+    },
+    "USD_CHF": {
+      "coverage": 0.977,
+      "included": true
+    },
+    "USD_JPY": {
+      "coverage": 0.9705,
+      "included": true
+    }
+  },
+  "skips": {
+    "AUD_JPY": {
+      "censored_horizon": 1
+    },
+    "AUD_USD": {
+      "censored_horizon": 2
+    },
+    "EUR_AUD": {
+      "censored_horizon": 249
+    },
+    "EUR_GBP": {
+      "censored_horizon": 1
+    },
+    "EUR_JPY": {
+      "censored_horizon": 2
+    },
+    "EUR_USD": {
+      "censored_horizon": 1
+    },
+    "GBP_JPY": {
+      "censored_horizon": 1
+    },
+    "GBP_USD": {
+      "censored_horizon": 1
+    },
+    "NZD_JPY": {
+      "censored_horizon": 1
+    },
+    "NZD_USD": {
+      "censored_horizon": 1
+    },
+    "USD_CAD": {
+      "censored_horizon": 1
+    },
+    "USD_CHF": {
+      "censored_horizon": 1
+    },
+    "USD_JPY": {
+      "censored_horizon": 96
+    }
+  },
+  "n_events": null,
+  "cells": {
+    "AUD_JPY:h96": {
+      "N": 200,
+      "ev_friction_pips": -5.411869499999881,
+      "median_pips": -3.05204999999944,
+      "wr": 0.475,
+      "std_pips": 53.50023416948817,
+      "ic": -0.09117154682614893,
+      "ic_p": 0.19915792765536214,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 26.37184115523466
+    },
+    "AUD_JPY:h480": {
+      "N": 200,
+      "ev_friction_pips": -7.4756569999999565,
+      "median_pips": 2.4749999999997385,
+      "wr": 0.525,
+      "std_pips": 133.28466944546767,
+      "ic": -0.14414839067701327,
+      "ic_p": 0.04170657267347247,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 26.37184115523466
+    },
+    "AUD_JPY:h960": {
+      "N": 199,
+      "ev_friction_pips": -9.862185929648245,
+      "median_pips": 4.274999999999807,
+      "wr": 0.5175879396984925,
+      "std_pips": 170.509884472387,
+      "ic": -0.10238953542318152,
+      "ic_p": 0.1501312857937128,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 26.239981949458485
+    },
+    "AUD_USD:h96": {
+      "N": 197,
+      "ev_friction_pips": -2.982233502538064,
+      "median_pips": -5.7999999999994145,
+      "wr": 0.4619289340101523,
+      "std_pips": 46.52970895453977,
+      "ic": -0.1229874405434437,
+      "ic_p": 0.0851114952287106,
+      "fold_signs": [
+        -1,
+        1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.97626353790614
+    },
+    "AUD_USD:h480": {
+      "N": 196,
+      "ev_friction_pips": 10.543367346938824,
+      "median_pips": 15.75000000000021,
+      "wr": 0.5714285714285714,
+      "std_pips": 101.93074625796373,
+      "ic": 0.0022574147319860283,
+      "ic_p": 0.9749491878463211,
+      "fold_signs": [
+        -1,
+        1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.844404332129965
+    },
+    "AUD_USD:h960": {
+      "N": 196,
+      "ev_friction_pips": 4.868877551020428,
+      "median_pips": 13.000000000000513,
+      "wr": 0.5408163265306123,
+      "std_pips": 136.854430619809,
+      "ic": -0.013887392834182383,
+      "ic_p": 0.8468107839127132,
+      "fold_signs": [
+        -1,
+        1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.844404332129965
+    },
+    "EUR_AUD:h96": {
+      "N": 198,
+      "ev_friction_pips": 2.4538787878789465,
+      "median_pips": -6.949999999999397,
+      "wr": 0.4797979797979798,
+      "std_pips": 92.00240725346222,
+      "ic": 0.051203583661025155,
+      "ic_p": 0.4737403589591278,
+      "fold_signs": [
+        1,
+        -1,
+        -1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 26.108122743682312
+    },
+    "EUR_AUD:h480": {
+      "N": 198,
+      "ev_friction_pips": 18.632166666666766,
+      "median_pips": 22.299999999999045,
+      "wr": 0.5757575757575758,
+      "std_pips": 198.89103822883428,
+      "ic": -0.04223297276551463,
+      "ic_p": 0.5546734524485537,
+      "fold_signs": [
+        1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 26.108122743682312
+    },
+    "EUR_AUD:h960": {
+      "N": 198,
+      "ev_friction_pips": -9.787974747474662,
+      "median_pips": -5.749999999999307,
+      "wr": 0.494949494949495,
+      "std_pips": 285.9845921374695,
+      "ic": -0.016156474710201648,
+      "ic_p": 0.8212659188092113,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 26.108122743682312
+    },
+    "EUR_GBP:h96": {
+      "N": 195,
+      "ev_friction_pips": -1.402564102564073,
+      "median_pips": 2.999999999999339,
+      "wr": 0.5384615384615384,
+      "std_pips": 45.937252627453624,
+      "ic": -0.07022047978436423,
+      "ic_p": 0.3293241942035876,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.712545126353792
+    },
+    "EUR_GBP:h480": {
+      "N": 195,
+      "ev_friction_pips": -7.823589743589733,
+      "median_pips": -2.7999999999998,
+      "wr": 0.48205128205128206,
+      "std_pips": 108.44742446755137,
+      "ic": -0.14307796434115477,
+      "ic_p": 0.045998422480289056,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.712545126353792
+    },
+    "EUR_GBP:h960": {
+      "N": 194,
+      "ev_friction_pips": -4.752061855670073,
+      "median_pips": 26.349999999999653,
+      "wr": 0.5309278350515464,
+      "std_pips": 151.0455787536057,
+      "ic": -0.044985159968425545,
+      "ic_p": 0.5333916488044546,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.58068592057762
+    },
+    "EUR_JPY:h96": {
+      "N": 161,
+      "ev_friction_pips": 2.445718012422462,
+      "median_pips": 0.5000000000029559,
+      "wr": 0.5031055900621118,
+      "std_pips": 57.685708356974004,
+      "ic": 0.09564052557873326,
+      "ic_p": 0.2274879484921977,
+      "fold_signs": [
+        1,
+        -1,
+        -1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 21.2293321299639
+    },
+    "EUR_JPY:h480": {
+      "N": 160,
+      "ev_friction_pips": 8.751589375000018,
+      "median_pips": -1.3500000000001933,
+      "wr": 0.4875,
+      "std_pips": 137.44787156967092,
+      "ic": 0.19176061677305378,
+      "ic_p": 0.01513341706381274,
+      "fold_signs": [
+        1,
+        1,
+        -1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 21.097472924187727
+    },
+    "EUR_JPY:h960": {
+      "N": 160,
+      "ev_friction_pips": 15.308616875000151,
+      "median_pips": 19.40000000000012,
+      "wr": 0.54375,
+      "std_pips": 186.06897555881815,
+      "ic": 0.09999491358237886,
+      "ic_p": 0.20836096336881385,
+      "fold_signs": [
+        1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 21.097472924187727
+    },
+    "EUR_USD:h96": {
+      "N": 195,
+      "ev_friction_pips": 2.534358974358971,
+      "median_pips": -1.700000000000255,
+      "wr": 0.4717948717948718,
+      "std_pips": 49.3087296904402,
+      "ic": -0.06065953924273999,
+      "ic_p": 0.399567196298386,
+      "fold_signs": [
+        1,
+        1,
+        -1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.712545126353792
+    },
+    "EUR_USD:h480": {
+      "N": 195,
+      "ev_friction_pips": -3.9425641025640394,
+      "median_pips": 4.900000000000794,
+      "wr": 0.517948717948718,
+      "std_pips": 119.93984696629684,
+      "ic": 0.04243174134019305,
+      "ic_p": 0.5558727615509966,
+      "fold_signs": [
+        1,
+        -1,
+        -1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.712545126353792
+    },
+    "EUR_USD:h960": {
+      "N": 194,
+      "ev_friction_pips": 1.8216494845362365,
+      "median_pips": -7.5000000000005045,
+      "wr": 0.4793814432989691,
+      "std_pips": 173.09779962071892,
+      "ic": -0.06222586185274287,
+      "ic_p": 0.38872022928497263,
+      "fold_signs": [
+        1,
+        -1,
+        -1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.58068592057762
+    },
+    "GBP_JPY:h96": {
+      "N": 199,
+      "ev_friction_pips": -2.699768844221042,
+      "median_pips": -6.499999999998181,
+      "wr": 0.46733668341708545,
+      "std_pips": 108.86543150993931,
+      "ic": -0.0819998863045337,
+      "ic_p": 0.24956616936249063,
+      "fold_signs": [
+        1,
+        -1,
+        -1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 26.239981949458485
+    },
+    "GBP_JPY:h480": {
+      "N": 199,
+      "ev_friction_pips": -31.379301507537747,
+      "median_pips": 0.19999999999970441,
+      "wr": 0.5025125628140703,
+      "std_pips": 266.9801130386132,
+      "ic": -0.12593264639274265,
+      "ic_p": 0.0763331475920719,
+      "fold_signs": [
+        -1,
+        -1,
+        -1
+      ],
+      "fold_agreement": 3,
+      "fires_per_year": 26.239981949458485
+    },
+    "GBP_JPY:h960": {
+      "N": 198,
+      "ev_friction_pips": -14.843050505050359,
+      "median_pips": -15.849999999998772,
+      "wr": 0.47474747474747475,
+      "std_pips": 380.4486864799006,
+      "ic": -0.10979559187448117,
+      "ic_p": 0.12359983911786872,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 26.108122743682312
+    },
+    "GBP_USD:h96": {
+      "N": 195,
+      "ev_friction_pips": -4.6284615384615,
+      "median_pips": -6.12999999999938,
+      "wr": 0.4666666666666667,
+      "std_pips": 78.86287229417213,
+      "ic": 0.01836558884789062,
+      "ic_p": 0.798851210432678,
+      "fold_signs": [
+        1,
+        -1,
+        -1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.712545126353792
+    },
+    "GBP_USD:h480": {
+      "N": 195,
+      "ev_friction_pips": -17.47153846153845,
+      "median_pips": -4.630000000000655,
+      "wr": 0.48717948717948717,
+      "std_pips": 205.0218624693582,
+      "ic": 0.05546870275814,
+      "ic_p": 0.44118628639309654,
+      "fold_signs": [
+        -1,
+        1,
+        -1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.712545126353792
+    },
+    "GBP_USD:h960": {
+      "N": 194,
+      "ev_friction_pips": -28.440824742268056,
+      "median_pips": -30.829999999999103,
+      "wr": 0.4381443298969072,
+      "std_pips": 259.2583416325345,
+      "ic": -0.05169275714524368,
+      "ic_p": 0.47410090147152706,
+      "fold_signs": [
+        -1,
+        -1,
+        -1
+      ],
+      "fold_agreement": 3,
+      "fires_per_year": 25.58068592057762
+    },
+    "NZD_JPY:h96": {
+      "N": 199,
+      "ev_friction_pips": -0.09924824120608963,
+      "median_pips": -0.99999999999892,
+      "wr": 0.49246231155778897,
+      "std_pips": 49.53338476233906,
+      "ic": -0.07035480176695315,
+      "ic_p": 0.32342278769918986,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 26.239981949458485
+    },
+    "NZD_JPY:h480": {
+      "N": 199,
+      "ev_friction_pips": -4.7615422110553025,
+      "median_pips": 7.0000000000009095,
+      "wr": 0.5276381909547738,
+      "std_pips": 122.70571521341205,
+      "ic": 0.004664146726763511,
+      "ic_p": 0.9478700535610458,
+      "fold_signs": [
+        -1,
+        -1,
+        -1
+      ],
+      "fold_agreement": 3,
+      "fires_per_year": 26.239981949458485
+    },
+    "NZD_JPY:h960": {
+      "N": 198,
+      "ev_friction_pips": -8.8141166666667,
+      "median_pips": -4.900000000000489,
+      "wr": 0.47474747474747475,
+      "std_pips": 163.93589666394655,
+      "ic": -0.0572780373928898,
+      "ic_p": 0.42282564922430443,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 26.108122743682312
+    },
+    "NZD_USD:h96": {
+      "N": 191,
+      "ev_friction_pips": -3.179057591623018,
+      "median_pips": -3.0,
+      "wr": 0.4869109947643979,
+      "std_pips": 43.20194295279628,
+      "ic": 0.07174865414928402,
+      "ic_p": 0.32396192167623594,
+      "fold_signs": [
+        1,
+        -1,
+        -1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.1851083032491
+    },
+    "NZD_USD:h480": {
+      "N": 191,
+      "ev_friction_pips": 2.0047120418848676,
+      "median_pips": 15.000000000000238,
+      "wr": 0.5497382198952879,
+      "std_pips": 98.80280961696447,
+      "ic": 0.013013952439612798,
+      "ic_p": 0.8581863538730679,
+      "fold_signs": [
+        -1,
+        1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.1851083032491
+    },
+    "NZD_USD:h960": {
+      "N": 190,
+      "ev_friction_pips": -0.24842105263156603,
+      "median_pips": 14.550000000000065,
+      "wr": 0.5105263157894737,
+      "std_pips": 145.89243400218197,
+      "ic": -0.053098319172437576,
+      "ic_p": 0.4668624776205583,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.053249097472925
+    },
+    "USD_CAD:h96": {
+      "N": 193,
+      "ev_friction_pips": -5.700000000000062,
+      "median_pips": -8.500000000000504,
+      "wr": 0.43523316062176165,
+      "std_pips": 65.23866520323665,
+      "ic": -0.09098341578822894,
+      "ic_p": 0.20825336745478912,
+      "fold_signs": [
+        -1,
+        1,
+        -1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.448826714801445
+    },
+    "USD_CAD:h480": {
+      "N": 193,
+      "ev_friction_pips": -0.8290155440415291,
+      "median_pips": 10.900000000000023,
+      "wr": 0.533678756476684,
+      "std_pips": 136.68995249120047,
+      "ic": -0.010902366277203902,
+      "ic_p": 0.8803850716693913,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.448826714801445
+    },
+    "USD_CAD:h960": {
+      "N": 192,
+      "ev_friction_pips": -15.735937500000041,
+      "median_pips": -27.60000000000018,
+      "wr": 0.4479166666666667,
+      "std_pips": 202.44008152412266,
+      "ic": -0.11420966716988355,
+      "ic_p": 0.11471103662797892,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.31696750902527
+    },
+    "USD_CHF:h96": {
+      "N": 179,
+      "ev_friction_pips": -10.501837988826852,
+      "median_pips": -9.500000000000394,
+      "wr": 0.4581005586592179,
+      "std_pips": 48.40532348592434,
+      "ic": -0.019531705117774446,
+      "ic_p": 0.7952414294812843,
+      "fold_signs": [
+        -1,
+        -1,
+        -1
+      ],
+      "fold_agreement": 3,
+      "fires_per_year": 23.602797833935018
+    },
+    "USD_CHF:h480": {
+      "N": 179,
+      "ev_friction_pips": -8.621391061452545,
+      "median_pips": -5.40000000000018,
+      "wr": 0.4692737430167598,
+      "std_pips": 111.70222475565592,
+      "ic": -0.04884478198874402,
+      "ic_p": 0.5161392534740319,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 23.602797833935018
+    },
+    "USD_CHF:h960": {
+      "N": 178,
+      "ev_friction_pips": -6.092134831460673,
+      "median_pips": 1.250000000000087,
+      "wr": 0.5056179775280899,
+      "std_pips": 174.77353444284037,
+      "ic": -0.042135529663671636,
+      "ic_p": 0.5765401226624772,
+      "fold_signs": [
+        1,
+        -1,
+        -1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 23.470938628158844
+    },
+    "USD_JPY:h96": {
+      "N": 192,
+      "ev_friction_pips": -3.606666666666666,
+      "median_pips": -2.7899999999988405,
+      "wr": 0.4635416666666667,
+      "std_pips": 57.57430740009251,
+      "ic": -0.09234427532288379,
+      "ic_p": 0.20268890234828538,
+      "fold_signs": [
+        1,
+        -1,
+        -1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.31696750902527
+    },
+    "USD_JPY:h480": {
+      "N": 192,
+      "ev_friction_pips": 1.0464583333332638,
+      "median_pips": 16.659999999999528,
+      "wr": 0.5572916666666666,
+      "std_pips": 134.33579760150988,
+      "ic": -0.0971419011592314,
+      "ic_p": 0.18010870975134405,
+      "fold_signs": [
+        1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.31696750902527
+    },
+    "USD_JPY:h960": {
+      "N": 192,
+      "ev_friction_pips": 5.4407291666666255,
+      "median_pips": 14.359999999999204,
+      "wr": 0.5364583333333334,
+      "std_pips": 179.0856257616432,
+      "ic": -0.07314780984234144,
+      "ic_p": 0.3133111173584416,
+      "fold_signs": [
+        1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.31696750902527
+    }
+  },
+  "pooled": {
+    "h96": {
+      "N": 2494,
+      "ev_friction_pips": -2.529554410585376,
+      "wr": 0.47674418604651164,
+      "fold_signs": [
+        -1,
+        -1,
+        -1
+      ],
+      "fold_agreement": 3,
+      "pairs_positive": "3/13",
+      "fires_per_year": 328.8568592057762,
+      "s3_consider_hint": false
+    },
+    "h480": {
+      "N": 2492,
+      "ev_friction_pips": -3.3515228731942153,
+      "wr": 0.5228731942215088,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "pairs_positive": "5/13",
+      "fires_per_year": 328.5931407942238,
+      "s3_consider_hint": false
+    },
+    "h960": {
+      "N": 2483,
+      "ev_friction_pips": -5.789502376157838,
+      "wr": 0.4989931534434152,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "pairs_positive": "4/13",
+      "fires_per_year": 327.4064079422383,
+      "s3_consider_hint": false
+    }
+  },
+  "dummy_series": false
+}

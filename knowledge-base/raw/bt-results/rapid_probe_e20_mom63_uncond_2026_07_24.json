@@ -1,0 +1,488 @@
+{
+  "tool": "rapid_edge_probe",
+  "stage": "S2_R3_DIAGNOSTIC",
+  "verdict_authority": "NONE — 探索診断。live/tier 判断禁止。次ステージ = S3 pre-reg 起案のみ",
+  "generated_utc": "2026-07-24T05:45:19.366633+00:00",
+  "seed": 20260722,
+  "spec_name": "e20_mom63_uncond",
+  "spec_hash": "d85336f855deeeb4",
+  "spec": {
+    "name": "e20_mom63_uncond",
+    "description": "E20 variant (b) rates-momentum: sign(Δ63bd 2y 差) 無条件バイアス (trigger なし、bars hold)",
+    "notes": "E20 S1 feasibility (e20-rate-differential-feasibility-2026-07-22) §6 凍結 variant。GBP 2y レグは BOE IADB に 2y ZC が無く IUDSNZC (5y ZC) 代用 (mom variant のみ影響)。lag_days=1 (営業日) で公表 look-ahead を構造排除。診断であり判定ではない。",
+    "direction_source": {
+      "kind": "series",
+      "column": "per_pair",
+      "file": "knowledge-base/raw/bt-results/e20/e20_mom63_2y.csv",
+      "lag_days": 1
+    },
+    "entry_trigger": {
+      "kind": "none"
+    },
+    "pairs": [
+      "EUR_GBP",
+      "EUR_JPY",
+      "EUR_USD",
+      "GBP_JPY",
+      "GBP_USD",
+      "USD_CAD",
+      "USD_JPY"
+    ],
+    "horizons": [
+      96,
+      480,
+      960
+    ],
+    "holding": {
+      "mode": "bars"
+    },
+    "window": {
+      "start": "2014-06-01",
+      "end": "2022-12-31"
+    }
+  },
+  "window_effective": {
+    "start": "2014-06-01",
+    "end": "2022-12-31"
+  },
+  "oos_locked": true,
+  "oos_boundary": "2024-01-01",
+  "max_entry_ts": "2022-12-29T07:15:00+00:00",
+  "coverage": {
+    "EUR_GBP": {
+      "coverage": 0.9885,
+      "included": true
+    },
+    "EUR_JPY": {
+      "coverage": 1.0,
+      "included": true
+    },
+    "EUR_USD": {
+      "coverage": 0.9869,
+      "included": true
+    },
+    "GBP_JPY": {
+      "coverage": 1.0,
+      "included": true
+    },
+    "GBP_USD": {
+      "coverage": 0.9866,
+      "included": true
+    },
+    "USD_CAD": {
+      "coverage": 0.9796,
+      "included": true
+    },
+    "USD_JPY": {
+      "coverage": 0.9754,
+      "included": true
+    }
+  },
+  "skips": {
+    "EUR_GBP": {
+      "censored_horizon": 2
+    },
+    "EUR_JPY": {
+      "censored_horizon": 1
+    },
+    "EUR_USD": {
+      "censored_horizon": 1
+    },
+    "GBP_JPY": {
+      "censored_horizon": 96
+    },
+    "GBP_USD": {
+      "censored_horizon": 1
+    },
+    "USD_CAD": {
+      "censored_horizon": 1
+    },
+    "USD_JPY": {
+      "censored_horizon": 2
+    }
+  },
+  "n_events": null,
+  "cells": {
+    "EUR_GBP:h96": {
+      "N": 222,
+      "ev_friction_pips": -6.526126126126142,
+      "median_pips": -7.2999999999998595,
+      "wr": 0.40540540540540543,
+      "std_pips": 44.16667159689327,
+      "ic": -0.1056652840434198,
+      "ic_p": 0.11644128580465923,
+      "fold_signs": [
+        -1,
+        -1,
+        -1
+      ],
+      "fold_agreement": 3,
+      "fires_per_year": 25.864593301435406
+    },
+    "EUR_GBP:h480": {
+      "N": 221,
+      "ev_friction_pips": -4.731221719456995,
+      "median_pips": -10.00000000000034,
+      "wr": 0.4479638009049774,
+      "std_pips": 105.18174345929518,
+      "ic": -0.05020071558868265,
+      "ic_p": 0.45777021506303717,
+      "fold_signs": [
+        1,
+        -1,
+        -1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.74808612440191
+    },
+    "EUR_GBP:h960": {
+      "N": 221,
+      "ev_friction_pips": -5.196380090497697,
+      "median_pips": -15.900000000000134,
+      "wr": 0.45701357466063347,
+      "std_pips": 146.35880532420182,
+      "ic": -0.04684484766990605,
+      "ic_p": 0.4884162400471158,
+      "fold_signs": [
+        1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.74808612440191
+    },
+    "EUR_JPY:h96": {
+      "N": 229,
+      "ev_friction_pips": -1.2911912663755927,
+      "median_pips": -3.8999999999981583,
+      "wr": 0.4890829694323144,
+      "std_pips": 65.54336400438639,
+      "ic": 0.055328679225057936,
+      "ic_p": 0.4046577345446245,
+      "fold_signs": [
+        -1,
+        1,
+        -1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 26.680143540669853
+    },
+    "EUR_JPY:h480": {
+      "N": 229,
+      "ev_friction_pips": -9.910472489083062,
+      "median_pips": -3.7000000000000455,
+      "wr": 0.49344978165938863,
+      "std_pips": 157.08773860570682,
+      "ic": -0.009530547465625018,
+      "ic_p": 0.8859447624546621,
+      "fold_signs": [
+        -1,
+        1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 26.680143540669853
+    },
+    "EUR_JPY:h960": {
+      "N": 228,
+      "ev_friction_pips": -21.044714035087612,
+      "median_pips": -9.599999999999795,
+      "wr": 0.49122807017543857,
+      "std_pips": 226.0247963384458,
+      "ic": -0.0636772262982951,
+      "ic_p": 0.3384703139090586,
+      "fold_signs": [
+        -1,
+        -1,
+        -1
+      ],
+      "fold_agreement": 3,
+      "fires_per_year": 26.563636363636363
+    },
+    "EUR_USD:h96": {
+      "N": 221,
+      "ev_friction_pips": -0.02579185520360285,
+      "median_pips": -0.4000000000006203,
+      "wr": 0.497737556561086,
+      "std_pips": 51.58844228323841,
+      "ic": -0.013528563713750413,
+      "ic_p": 0.8414921544574188,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.74808612440191
+    },
+    "EUR_USD:h480": {
+      "N": 221,
+      "ev_friction_pips": -3.9398190045249204,
+      "median_pips": 2.1999999999986493,
+      "wr": 0.5113122171945701,
+      "std_pips": 121.90791661952291,
+      "ic": 0.025647917173356245,
+      "ic_p": 0.704551325271989,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.74808612440191
+    },
+    "EUR_USD:h960": {
+      "N": 220,
+      "ev_friction_pips": 7.1013636363635895,
+      "median_pips": 3.9000000000009045,
+      "wr": 0.5136363636363637,
+      "std_pips": 174.33455148902897,
+      "ic": 0.058640458732797,
+      "ic_p": 0.38672666969848823,
+      "fold_signs": [
+        1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.631578947368418
+    },
+    "GBP_JPY:h96": {
+      "N": 229,
+      "ev_friction_pips": 4.486454148471598,
+      "median_pips": 6.400000000000887,
+      "wr": 0.5545851528384279,
+      "std_pips": 110.81427071370538,
+      "ic": 0.14803869082341248,
+      "ic_p": 0.025069434491582523,
+      "fold_signs": [
+        -1,
+        1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 26.680143540669853
+    },
+    "GBP_JPY:h480": {
+      "N": 229,
+      "ev_friction_pips": 26.76268122270739,
+      "median_pips": 2.499999999999318,
+      "wr": 0.5109170305676856,
+      "std_pips": 270.0148404098078,
+      "ic": 0.15255636268979955,
+      "ic_p": 0.020915950248721366,
+      "fold_signs": [
+        1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 26.680143540669853
+    },
+    "GBP_JPY:h960": {
+      "N": 229,
+      "ev_friction_pips": 24.617676855895223,
+      "median_pips": 37.39999999999827,
+      "wr": 0.5327510917030568,
+      "std_pips": 375.48015116098685,
+      "ic": 0.07561891162289218,
+      "ic_p": 0.25441451438364715,
+      "fold_signs": [
+        1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 26.680143540669853
+    },
+    "GBP_USD:h96": {
+      "N": 221,
+      "ev_friction_pips": 7.642850678733033,
+      "median_pips": 0.6700000000007593,
+      "wr": 0.502262443438914,
+      "std_pips": 84.4559610120745,
+      "ic": 0.05912722225313528,
+      "ic_p": 0.38169888729614565,
+      "fold_signs": [
+        1,
+        1,
+        1
+      ],
+      "fold_agreement": 3,
+      "fires_per_year": 25.74808612440191
+    },
+    "GBP_USD:h480": {
+      "N": 221,
+      "ev_friction_pips": 11.777239819004475,
+      "median_pips": 12.570000000001002,
+      "wr": 0.5294117647058824,
+      "std_pips": 205.2716476062467,
+      "ic": 0.0723493326759114,
+      "ic_p": 0.2842347083411423,
+      "fold_signs": [
+        -1,
+        1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.74808612440191
+    },
+    "GBP_USD:h960": {
+      "N": 220,
+      "ev_friction_pips": 14.771363636363564,
+      "median_pips": 20.57000000000012,
+      "wr": 0.5636363636363636,
+      "std_pips": 266.5980663725184,
+      "ic": 0.10526428489117998,
+      "ic_p": 0.11952858634300227,
+      "fold_signs": [
+        1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.631578947368418
+    },
+    "USD_CAD:h96": {
+      "N": 219,
+      "ev_friction_pips": -3.524657534246576,
+      "median_pips": -2.7999999999986898,
+      "wr": 0.4794520547945205,
+      "std_pips": 66.41654095293438,
+      "ic": -0.07036380877667153,
+      "ic_p": 0.29991503598989155,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.515071770334927
+    },
+    "USD_CAD:h480": {
+      "N": 219,
+      "ev_friction_pips": 5.5424657534246835,
+      "median_pips": 1.8999999999987942,
+      "wr": 0.5068493150684932,
+      "std_pips": 142.18227761968632,
+      "ic": -0.04379643914061676,
+      "ic_p": 0.5191031749088919,
+      "fold_signs": [
+        1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.515071770334927
+    },
+    "USD_CAD:h960": {
+      "N": 218,
+      "ev_friction_pips": 14.795412844036694,
+      "median_pips": -5.450000000000507,
+      "wr": 0.4954128440366973,
+      "std_pips": 187.36064038136305,
+      "ic": 0.011687173385353307,
+      "ic_p": 0.8637733596588001,
+      "fold_signs": [
+        1,
+        1,
+        1
+      ],
+      "fold_agreement": 3,
+      "fires_per_year": 25.398564593301433
+    },
+    "USD_JPY:h96": {
+      "N": 219,
+      "ev_friction_pips": -1.5153424657534689,
+      "median_pips": -4.24000000000008,
+      "wr": 0.4703196347031963,
+      "std_pips": 68.77746013225973,
+      "ic": -0.015293438186226183,
+      "ic_p": 0.8219480161363512,
+      "fold_signs": [
+        1,
+        -1,
+        -1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.515071770334927
+    },
+    "USD_JPY:h480": {
+      "N": 218,
+      "ev_friction_pips": 7.734311926605425,
+      "median_pips": 9.30999999999996,
+      "wr": 0.536697247706422,
+      "std_pips": 138.7214823293877,
+      "ic": 0.0483423710512441,
+      "ic_p": 0.47765557303335204,
+      "fold_signs": [
+        1,
+        1,
+        1
+      ],
+      "fold_agreement": 3,
+      "fires_per_year": 25.398564593301433
+    },
+    "USD_JPY:h960": {
+      "N": 218,
+      "ev_friction_pips": 10.57146788990806,
+      "median_pips": 1.5599999999999032,
+      "wr": 0.5045871559633027,
+      "std_pips": 209.65776745242445,
+      "ic": 0.055983165119556415,
+      "ic_p": 0.4108067996264603,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "fires_per_year": 25.398564593301433
+    }
+  },
+  "pooled": {
+    "h96": {
+      "N": 1560,
+      "ev_friction_pips": -0.08812487179488722,
+      "wr": 0.4858974358974359,
+      "fold_signs": [
+        -1,
+        1,
+        1
+      ],
+      "fold_agreement": 2,
+      "pairs_positive": "2/7",
+      "fires_per_year": 181.7511961722488,
+      "s3_consider_hint": false
+    },
+    "h480": {
+      "N": 1558,
+      "ev_friction_pips": 4.778886906290079,
+      "wr": 0.5051347881899871,
+      "fold_signs": [
+        -1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "pairs_positive": "4/7",
+      "fires_per_year": 181.5181818181818,
+      "s3_consider_hint": false
+    },
+    "h960": {
+      "N": 1554,
+      "ev_friction_pips": 6.456134620334601,
+      "wr": 0.5083655083655083,
+      "fold_signs": [
+        1,
+        -1,
+        1
+      ],
+      "fold_agreement": 2,
+      "pairs_positive": "5/7",
+      "fires_per_year": 181.05215311004784,
+      "s3_consider_hint": false
+    }
+  },
+  "dummy_series": false
+}

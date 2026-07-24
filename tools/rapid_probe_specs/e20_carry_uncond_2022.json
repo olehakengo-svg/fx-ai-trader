@@ -1,0 +1,41 @@
+{
+  "name": "e20_carry_uncond_2022",
+  "description": "E20 (a) regime slice: 発散期 2022 (§6-3 ガード)",
+  "notes": "E20 S1 feasibility (e20-rate-differential-feasibility-2026-07-22) §6 凍結 variant。GBP 2y レグは BOE IADB に 2y ZC が無く IUDSNZC (5y ZC) 代用 (mom variant のみ影響)。lag_days=1 (営業日) で公表 look-ahead を構造排除。診断であり判定ではない。",
+  "direction_source": {
+    "kind": "series",
+    "column": "per_pair",
+    "file": "knowledge-base/raw/bt-results/e20/e20_carry_level.csv",
+    "lag_days": 1
+  },
+  "entry_trigger": {
+    "kind": "none"
+  },
+  "pairs": [
+    "AUD_JPY",
+    "AUD_USD",
+    "EUR_AUD",
+    "EUR_GBP",
+    "EUR_JPY",
+    "EUR_USD",
+    "GBP_JPY",
+    "GBP_USD",
+    "NZD_JPY",
+    "NZD_USD",
+    "USD_CAD",
+    "USD_CHF",
+    "USD_JPY"
+  ],
+  "horizons": [
+    96,
+    480,
+    960
+  ],
+  "holding": {
+    "mode": "bars"
+  },
+  "window": {
+    "start": "2022-01-01",
+    "end": "2022-12-31"
+  }
+}
