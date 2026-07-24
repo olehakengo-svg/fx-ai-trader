@@ -64,6 +64,7 @@ env 2 キーは無参照化 (dashboard 削除は cosmetic、BB_RSI 2 キーと�
   1. HTF-rescued shadow N≥10 到達 → その EV/WR/PF で exemption (EV>0) or retire (EV≤0) を判定 (R1、user 決裁)
   2. **2026-09-30 までに shadow N<5** → 発火頻度が 12y 検証時 band を持続的に割っている = live 翻訳失敗として **retire** (R2)
 - 監視主体: pre-reg trigger monitor (2026-07-06 導入、tools/prereg_trigger_watch 参照) に登録
+  - ⚠️ 2026-07-24 判明: この監視は limit=800 truncation で N=0 誤報告中 (実測 unique N=8/row N=14)。修正前は 09-30 retire 分岐を執行しないこと。決裁パケット: [[sweep-reversion-ps1a-decision-packet-DRAFT]] §1.5
 - **復帰の追加前提 (forensic #3, 2026-07-06)**: N≥10 EV>0 でも、再有効化には **order 層での 12-bar min-spacing 実装が必須** — 検証済み N=543 は grid ハーネスが 12-bar dedup を一括執行した estimand であり、本番経路はこれを執行しない (per-bar dedup PR #49 では不足)。spacing なしの再有効化 = 検証と別物の運用
 
 ### ゲート④ 再定義 (🔒 LOCKED — 2026-07-06 発効)
