@@ -1,5 +1,8 @@
 # E20 金利差方向バイアス × テクニカル entry — S1 feasibility 裁定 (2026-07-22)
 
+> **📌 STATUS (2026-07-24 追記)**: S2 診断執行済み → **§7 exit 未達で棄却・クローズ (S3 起案なし)**
+> — carry-level は 3/3 欠け (IC 逆符号有意)、mom63 は単調性 FAIL + fold/regime 不安定。
+> 詳細: [[e20-rate-differential-s2-diagnostic-2026-07-24]]
 > **rule:R3 (S1 feasibility、読み取りのみ)**。live/shadow 不変更。エッジ主張なし。
 > **起点**: user 仮説 (2026-07-22)「金利差から計算した方向バイアス × テクニカル entry」を E20 として
 > [[edge-development-pipeline-2026-07-18]] S1 (hard constraints C1–C6) で裁定する。

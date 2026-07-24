@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-07-24 — data(research): E20 金利差方向バイアス S2 診断 — ❌ §7 exit 未達で棄却・クローズ (rule:R3)
+
+- **rapid_edge_probe の `__dummy_e20__` を実 series に差し替えて S2 執行** ([[e20-rate-differential-s2-diagnostic-2026-07-24]]): `tools/e20_rates_ingest.py` (新規) が S1 §3 台帳の keyless 6 ソース (BIS WS_CBPOL 8/8 政策金利 + 2y = MASSIVE/ECB/MOF/BOE/BoC) から日次パネル→per-pair シグナル CSV を生成 (探索窓保護のため 2022-12-31 で物理切断して commit、sha256 manifest 付き)。GBP は IADB に 2y ZC が無く 5y ZC (IUDSNZC) 代用を明記。価格は **E15 phase-0 凍結 data_ledger と sha256 完全一致の 13 ペア parquet** (main の plain 名は refresh cron 短縮版で研究使用不可 — 部分 parquet 罠の変種を doc §1b/§5-4 に記録)
+- **結果 (探索窓 2014-06〜2022-12 のみ、8 run、全 run OOS 非接触確認)**: **carry-level = §7 exit 3/3 欠け** — pooled IC **−0.047 (p≈0) 機構と逆符号で有意**、quintile **単調逆行** (Q1 +7.3 → Q5 −16.0)、EV_net 全負 (AUD_JPY −4.8)。**mom63 = 1/3 欠け (単調性 Q2 −12.9 中抜け) + 補助不合格 3 点** — IC +0.026 (p=0.003) と EV_net(k=5) +2.6p は通るが、EV 正 horizon の fold が [−,−,+] (fold3 単独駆動)、2022 slice +21.4p 集中 (S1 §5-4 の regime 罠)、cell IC 有意ゼロ (78 cell)。breakout 条件付け (user 仮説の形) は**両 variant で uncond より劣化** = テクニカル entry が価値を引く
+- **→ E20 クローズ (S3 起案なし、§7 既定の棄却分岐)**。再試行禁止 scope = 凍結 2 variant の同型。rates データ配管は残置 (次の rates 系 S1→S2 は数時間で回せる)。OOS 2023+ は未接触温存
+- 成果物: tools 2 本 + spec 8 本 + 診断 raw 17 ファイル + tests +14 (全オフライン)。**評価への影響: なし** — 純研究、live/shadow/Kelly/tier 不変更
+
 ## 2026-07-22 — feat(research): S2 共通ハーネス rapid_edge_probe — 仮説スペック 1 ファイル → 探索窓診断 (rule:R3)
 
 - **user 要求「仮説を爆速で実装してテストするフロー」への回答**: [[edge-development-pipeline-2026-07-18]] §2 **S2 (R3 診断) を標準化** — `tools/rapid_edge_probe.py`。YAML/JSON スペック 1 枚 (direction_source: event/series/technical × entry_trigger: none/breakout/pullback × holding: bars/first_touch の小語彙) → ペア×horizon の **IC / 摩擦調整 EV / N / fold 3 分割 / 発火頻度** + S3 起案検討の目安を md+json で自動出力。`--draft-prereg` で S3 pre-reg スケルトン (🔓 DRAFT、LOCK 不能 TODO 付き) も自動 draft。使い方 1 ページ: [[rapid-edge-probe-2026-07-22]]
