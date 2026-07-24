@@ -3030,6 +3030,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 | USD_JPY | RANGING | 67%ile | +0.00217 | ATRは高水準だがRANGING。レンジ内ボラが高く、Scalp誤発シグナルに注意。 |
 - 唯一のTRENDING_UPはGBP_JPY（60%ile）。本日最も注目すべきペア。
 
+### 2026-07-24 (Pre-Tokyo Briefing)
+| PnL合計 | 0.0p（トレードなし） |
+| 全体WR | N/A |
+| 戦略 | N | WR | EV | ステータス |
+- **トレンド環境**: GBP/JPYのみ（かつブロック中）
+- **Scalp有利環境**: なし（全ペアRANGING or ボラ不安定）
+- **R&B有利環境**: なし（USD/JPYのレンジが深すぎてdirection_filterに捕捉）
+- **結論**: 現在のマーケット環境はシステムの全戦略に対して不利。空振りは「失敗」ではなく「正常なフィルター機能」の可能性が高い。
+| 時間（JST） | 内容 | 注意点 |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
