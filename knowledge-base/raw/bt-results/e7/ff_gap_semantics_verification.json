@@ -1,0 +1,49 @@
+{
+  "tool": "manual appendix verification (session agitated-morse 2026-07-24)",
+  "purpose": "e15-e7-event-modality-prereg §3.3 phase-1 データ付録 — R4F dump の consensus 意味論 spot 突合",
+  "check1_epsoft_overlap": {
+    "window": "2023-01-01..2023-03-31 (EPSOFT パネル末尾 = R4F 重複区間)",
+    "population": "H-impact 全通貨、actual 非空 (R4F 側)",
+    "checked": 120,
+    "exact_match_numeric": 114,
+    "mismatch_signature": "6 件全て 2023-03-28..31 = EPSOFT end-of-panel (actual 未充填 3 件 + 凍結前 forecast 差 3 件)。系統的不一致ゼロ",
+    "epsoft_source": "github.com/EPSOFT/dataset-forexfactory /2023/{1,2,3}\\forex_factory.csv (2026-07-24 取得)",
+    "note": "表記差 (0.20% vs 0.2%) は数値正規化で同値"
+  },
+  "check2_prerelease_forecast": {
+    "mechanism": "Wayback snapshot (nfs.faireconomy.media/ff_calendar_thisweek.json) のうちイベント発表時刻より前・同一週のものと R4F forecast を突合 — snapshot timestamp が「発表前時点」を機械的に証明",
+    "results": [
+      {
+        "event": "NFP 2026-05-08T12:30Z",
+        "wayback_ts": "20260507210058",
+        "snapshot_forecast": "65K",
+        "r4f_forecast": "65K",
+        "match": true
+      },
+      {
+        "event": "NFP 2026-06-05T12:30Z",
+        "wayback_ts": "20260604210029",
+        "snapshot_forecast": "85K",
+        "r4f_forecast": "85K",
+        "match": true
+      },
+      {
+        "event": "CPI 2026-05-12T12:30Z",
+        "wayback_ts": "20260511210050",
+        "snapshot_forecast": "0.6%",
+        "r4f_forecast": "0.6%",
+        "match": true
+      },
+      {
+        "event": "CPI 2026-06-10T12:30Z",
+        "wayback_ts": "20260609210031",
+        "snapshot_forecast": "0.5%",
+        "r4f_forecast": "0.5%",
+        "match": true
+      }
+    ],
+    "matched": "4/4",
+    "bonus": "feed の date 欄 (08:30 -04:00) が canonical UTC 時刻とも一致"
+  },
+  "check3_bls_calibration": "tools/ff_gap_bls_first_prints.py が R4F actual 残存区間 (2023-04..08) で first print 完全一致を要求 — ledger json (ff_gap_bls_ledger.json) 参照"
+}

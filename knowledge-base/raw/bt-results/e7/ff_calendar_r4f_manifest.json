@@ -1,0 +1,43 @@
+{
+  "tool": "ff_gap_prepare_r4f",
+  "source_url": "https://robots4forex.com/news/news.php",
+  "gap_window": [
+    "2014-01-01",
+    "2026-07-20"
+  ],
+  "tz_rule": "date < 2023-08-07: Europe/London local → UTC / それ以降: UTC そのまま",
+  "impact_map": {
+    "H": "High",
+    "M": "Medium",
+    "L": "Low",
+    "N": "Holiday"
+  },
+  "raw_sha256": "2f2b55132358645b954d87df959c186a528b995c7467620bbe5439c31c4a8ed7",
+  "raw_rows_total": 89740,
+  "stats": {
+    "in_window": 58730,
+    "dup_key": 4,
+    "by_year": {
+      "2014": 4457,
+      "2015": 4521,
+      "2016": 4521,
+      "2017": 4610,
+      "2018": 4588,
+      "2019": 4606,
+      "2020": 4720,
+      "2021": 4712,
+      "2022": 4673,
+      "2023": 4699,
+      "2024": 4801,
+      "2025": 4970,
+      "2026": 2852
+    },
+    "actual_filled": 35794,
+    "impact_unknown": 0
+  },
+  "out_csv": {
+    "path": "knowledge-base/raw/bt-results/e7/ff_calendar_r4f_2014_2026.csv",
+    "sha256": "87d3c0af52266c086b671cfd7777e9c362239718b95f9ca970eb90610b763b35",
+    "rows": 58726
+  }
+}
