@@ -59,11 +59,11 @@ london-4pm-fix-conditional-reversal (= london_fix_reversal の再着せ替え) /
 
 | # | family | 状態 | verdict |
 |---|---|---|---|
-| 1 | sweep_reversion 再検証 | wave-0 実行中 (2026-07-24 起動) | — |
-| 2 | price_shock 監査 | wave-0 実行中 (2026-07-24 起動) | — |
-| 3 | weekend_gap | wave-0 background 実行中 | — |
-| 4 | mof_intervention | fetch 中 | — |
-| 5 | cot_spec_extreme | fetch queue | — |
+| 1 | sweep_reversion 再検証 | **explore 完了 2026-07-24** | ✅ **exit-free で生存** — 12h net med +5.10p/mean +7.72p (p<1e-4)、RT3.0p 控除後 +4.72p、11/13 年正。exit-artifact 説を棄却。同一標本の限界 (max-t 選択効果は新データでのみ解消可) → P-S1(a) 決裁パケットへ供給 |
+| 2 | price_shock 監査 | **監査完了 2026-07-24** | ✅ demotion flag 0/5 (クリーニング後も全席 p=0.0001、headroom 6.5-35x)。⚠️ **feed artifact 発見**: 土曜行 + spike-revert 不良プリントが各席トレードの 4-12.8% を汚染、grid ev_pip は過大 (USD_CAD 97.9→42.4p)。⚠️ EUR_AUD/USD_CAD/AUD_JPY は pre-2021 OOS が 0 と分離不能 → regime watch (tier action なし) |
+| 3 | weekend_gap | **explore 完了 → OOS pre-reg 起案中** | ⚠️ **PARTIAL** — multiday 棄却。狭い候補凍結: ≤12h fade、Bonferroni 生存 = EUR_USD 4h/12h (p<1e-4) + pooled 4h (p=2e-4)。GBP_USD は逆符号 (continuation)。モノトニシティなし。OOS 判定は stressed friction (3×RT) 主ゲート |
+| 4 | mof_intervention | **fetch 完了 → forward pre-reg 起案中** | N=383 (1991-2024)、現代円買い 7 日/3 エピソード。**2026 エピソード ¥11.73 兆 (04-28..05-27) の日次内訳が Q2 開示 (~2026-08) まで非公開 = 開示前 LOCK で genuine OOS。LOCK 期限 2026-08-05** |
+| 5 | cot_spec_extreme | **panel 完成、分析 queue** | 5,178 行 × 6 通貨 (2010-2026-07)、検証済 (JPY 2024-04 記録的 net short 再現)。release-lag (+3-4 日) 規律を分析時に必須 |
 | 6 | equity_monthend_conditional | fetch queue (隣接注意) | — |
 | 7 | vix_carry_unwind_continuation | fetch queue (隣接注意) | — |
 | 8 | E1 positioning | LOCKED 走行中 | first look 2026-10-15 |
@@ -71,3 +71,12 @@ london-4pm-fix-conditional-reversal (= london_fix_reversal の再着せ替え) /
 | 10 | E12 volume design | 蓄積待ち | — |
 | 11 | htf_fb recheck | 受動 registry | deadline 2027-01-31 |
 | 12 | sr_anti_hunt N≥30 | 受動 | — |
+
+## wave-0 実行記録 (2026-07-24、全線敵対的レビュー通過 — INVALID ゼロ)
+
+- **成果物**: `tools/{sweep_reversion_exitfree_reverify,price_shock_exitfree_audit,weekend_gap_fill_explore,mof_interventions_fetch,build_cot_panel}.py` / `bt-results/*-2026-07-24.json` ×5 / `reports/*-2026-07-24.md` ×5 / `data/external/{mof_interventions.csv,cot_fx_panel.parquet}`
+- **sweep_reversion**: 凍結トリガの完全再現 (N=543/t=4.46 一致) の上で exit-free 生存を確認。エッジは **~12h 平均回帰** (MFE/MAE 非対称は 4h/12h のみ、≥24h で反転 — 長ホールドへ外挿禁止)。レビュー指摘: bar-time≠wall-clock (週末跨ぎ ~11%)、72h/120h bootstrap は窓重複で過小分散
+- **price_shock**: トリガ忠実度 1.003-1.020 で 5 席再現。**横断発見 = MASSIVE feed の土曜行 + 不良プリント汚染** (BT 全般に影響しうる infra 課題 → chip 化)。pre-2021 pure-OOS が有意なのは EUR_GBP (+6.1p p=4e-4) と NZD_JPY (+9.4p p=1e-3) のみ
+- **weekend_gap**: fill は速く短命 (t-half 中央値 1-2h、full-fill 9-15h、120h fill 率 82-84%)。「爆速で走らせつつ FP を作らない」原則どおり、狭候補のみ OOS へ
+- **MoF**: 開示ラグを利用した観測前 pre-reg 機会は**時限付き** — Q2 開示 (~2026-08) 前に LOCK 必須
+- **横断規律メモ**: 週末境界の DST 問題 (21:00 UTC 固定 vs 実クローズ 22:00 冬時間) は pre-reg で定義凍結必須。bootstrap p の床 (1/(N+1)) は「p<1e-4」表記に統一

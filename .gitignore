@@ -82,3 +82,4 @@ raw/bt-results/**/trades.json
 # de-tracked rolling data cache (cleanup 2026-06-18)
 data/sentiment/*.parquet
 agents/cma/ids.env
+data/external/cot_raw/

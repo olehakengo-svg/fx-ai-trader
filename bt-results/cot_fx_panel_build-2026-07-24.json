@@ -1,0 +1,70 @@
+{
+  "task": "W1-F2",
+  "name": "cot_fx_panel_build",
+  "date": "2026-07-24",
+  "type": "data_ingest_only",
+  "note": "Fetch + panel build ONLY. QUEUED for pre-registered analysis. No edge analysis, no IC computation performed (explore degrees of freedom preserved).",
+  "source": {
+    "provider": "CFTC Commitments of Traders",
+    "format": "legacy, futures only",
+    "url_template": "https://www.cftc.gov/files/dea/history/deacot{year}.zip",
+    "years_fetched": [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026],
+    "years_failed": [],
+    "raw_cache_dir": "data/external/cot_raw/"
+  },
+  "builder_script": "tools/build_cot_panel.py",
+  "output_parquet": "data/external/cot_fx_panel.parquet",
+  "schema": ["report_date", "currency", "noncomm_long", "noncomm_short", "noncomm_net", "open_interest", "net_pct_oi"],
+  "contract_code_map": {
+    "099741": "EUR (EURO FX - CME)",
+    "097741": "JPY (JAPANESE YEN - CME)",
+    "096742": "GBP (BRITISH POUND - CME)",
+    "232741": "AUD (AUSTRALIAN DOLLAR - CME)",
+    "090741": "CAD (CANADIAN DOLLAR - CME)",
+    "092741": "CHF (SWISS FRANC - CME)"
+  },
+  "validation": {
+    "rows_total": 5178,
+    "date_span": ["2010-01-05", "2026-07-14"],
+    "weeks_per_currency": {"AUD": 863, "CAD": 863, "CHF": 863, "EUR": 863, "GBP": 863, "JPY": 863},
+    "net_pct_oi_nan_rows": 0,
+    "duplicate_rows_dropped": 0,
+    "max_gap_days_per_currency": {"AUD": 8, "CAD": 8, "CHF": 8, "EUR": 8, "GBP": 8, "JPY": 8},
+    "gaps_over_14d": 0,
+    "noncomm_net_range": {
+      "AUD": [-107538, 103376],
+      "CAD": [-196263, 111881],
+      "CHF": [-49793, 27640],
+      "EUR": [-226560, 211752],
+      "GBP": [-107844, 142183],
+      "JPY": [-184223, 179212]
+    },
+    "spot_check_jpy_2024_04": {
+      "status": "PASS",
+      "expectation": "JPY record net short area 2024-04: strongly negative noncomm_net and net_pct_oi (< -30%)",
+      "rows": [
+        {"report_date": "2024-04-02", "noncomm_net": -143230, "open_interest": 316809, "net_pct_oi": -45.21},
+        {"report_date": "2024-04-09", "noncomm_net": -162151, "open_interest": 324479, "net_pct_oi": -49.97},
+        {"report_date": "2024-04-16", "noncomm_net": -165619, "open_interest": 331110, "net_pct_oi": -50.02},
+        {"report_date": "2024-04-23", "noncomm_net": -179919, "open_interest": 336167, "net_pct_oi": -53.52},
+        {"report_date": "2024-04-30", "noncomm_net": -168388, "open_interest": 334848, "net_pct_oi": -50.29}
+      ],
+      "min_net_pct_oi": -53.52
+    },
+    "jpy_all_time_record_net_short": {
+      "report_date": "2024-07-02",
+      "noncomm_net": -184223,
+      "net_pct_oi": -52.66
+    },
+    "latest_week": {
+      "report_date": "2026-07-14",
+      "net_pct_oi": {"EUR": -1.58, "JPY": -30.94, "GBP": -26.87, "AUD": -14.73, "CAD": -47.80, "CHF": -34.09}
+    }
+  },
+  "caveats": [
+    "report_date = CFTC 'as of' Tuesday; public release is typically Friday ~15:30 ET (3-day publication lag). Any future analysis MUST lag signals by the release date, not report_date, to avoid lookahead.",
+    "2026 file is partial (through 2026-07-14 report, 28 weeks).",
+    "Legacy format 'futures only' (no options); noncommercial = large-spec proxy.",
+    "net_pct_oi denominator is total open interest (all trader categories)."
+  ]
+}

@@ -1,5 +1,14 @@
 # Knowledge Base Change Log
 
+## 2026-07-24 (wave-0 explore 完了 — 5線 verdict + pre-reg 起案 2 本, rule:R3=分析のみ)
+- **台帳更新** ([[hypothesis-catalog-2026-07-24]] §wave-0 実行記録): 5 線完了・敵対的レビュー INVALID ゼロ
+- **#1 sweep_reversion**: exit-free 12.4y で生存確定 (12h net med +5.10p p<1e-4、11/13 年正) — exit-artifact 説棄却、P-S1(a) 決裁パケットの中核証拠に
+- **#2 price_shock**: demotion flag 0/5 だが **MASSIVE feed artifact 発見** (土曜行+不良プリント、grid ev_pip 過大 USD_CAD 97.9→42.4p) + 3 席 regime watch (EUR_AUD/USD_CAD/AUD_JPY pre-2021 OOS 弱)
+- **#3 weekend_gap**: multiday 棄却、狭候補凍結 (≤12h fade EUR_USD/pooled) → OOS pre-reg DRAFT 起案中
+- **#4 MoF**: 383 events 正規化完了。**時限機会 = 2026 エピソード ¥11.73 兆の日次内訳が Q2 開示前 → LOCK 期限 2026-08-05 の forward pre-reg DRAFT 起案中**
+- **#5 COT**: panel 5,178 行完成 (分析は pre-reg 待ち)
+- chips: sweep P-S1(a) パケット準備 (exit-free 証拠込みに更新) / MASSIVE feed 品質ガード
+
 ## 2026-07-24 (仮説カタログ + 探索最大化起動 — user 指示「爆速・複数本並列・網羅的に」)
 - **新規**: [[hypothesis-catalog-2026-07-24]] (syntheses/) — 7 レンズ × 87 本生成 → 再試行禁止フィルタ (BANNED 2) → triage。**台帳 m=12** (新規 7 ファミリ + 既登録 5)、並列アクティブ上限 3 本、凍結探索プロトコル (explore=2014-2021 / OOS=2022-2026 一発、exit-free h∈{4h..120h}、BH-FDR q=0.10)。Raw 全量: `raw/analysis/hypothesis-catalog-2026-07-24.json`
 - **wave-0 起動 (本日)**: sweep_reversion 再検証 (72) + price_shock 5席監査 (58) + weekend_gap explore (47、background)。**wave-1 fetch 発火**: MoF 介入リスト (66、S4 の data-block 解除) + COT panel (50、fetch のみ)
