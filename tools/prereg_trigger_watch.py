@@ -200,17 +200,42 @@ def fetch_latest_daily_close(symbol: str) -> float | None:
 
 
 def count_matching(trades: list, entry_type: str, prefix: bool = False,
-                   instrument: str = "") -> int:
+                   instrument: str = "",
+                   exclude_dedup_violation: bool = False) -> int:
     """entry_type の一致件数。prefix=True で前方一致 (multi-variant 戦略用、
     例: kalman_d7_* 3 variant 合算)。instrument 指定時はセル (戦略×ペア) 粒度
     (ws3-stage2-underpowered-recheck 用 — ペア無指定だと全ペア合算になり
-    セル判定を過大計上する)。"""
+    セル判定を過大計上する)。exclude_dedup_violation=True で dedup_violation=1
+    の重複行を除外 = unique バー基準 (registry `count_basis: "unique"`、
+    sweep P-S1(a) 決裁パケット §1.4 で確定した estimand 忠実計数)。"""
     if instrument:
         trades = [t for t in trades if t.get("instrument") == instrument]
+    if exclude_dedup_violation:
+        trades = [t for t in trades if (t.get("dedup_violation") or 0) != 1]
     if prefix:
         return sum(1 for t in trades
                    if str(t.get("entry_type") or "").startswith(entry_type))
     return sum(1 for t in trades if t.get("entry_type") == entry_type)
+
+
+def paginate_closed_trades(fetch_page, page_size: int = 500,
+                           max_pages: int = 80) -> list | None:
+    """fetch_page(offset) -> list[dict] を短ページが返るまで offset 反復。
+
+    2026-07-24 実測バグの構造修正: 単発 limit=800 は全 mode 合算の直近行しか
+    見えず、希少戦略の shadow N を 0 に向けて過小計上していた (sweep P-S1(a)
+    パケット §1.5 — 放置すると 09-30 retire 分岐が偽 N=0 で誤発動)。
+    max_pages 到達 = 全量取得の保証がない → None を返して DATA_UNAVAILABLE に
+    する (fail-loud、silent truncation の再発防止)。"""
+    rows: list = []
+    for i in range(max_pages):
+        page = fetch_page(i * page_size)
+        if not isinstance(page, list):
+            return None
+        rows.extend(page)
+        if len(page) < page_size:
+            return rows
+    return None
 
 
 def count_live_matching(trades: list, entry_type: str, instrument: str,
@@ -232,40 +257,72 @@ def count_live_matching(trades: list, entry_type: str, instrument: str,
     return n
 
 
-def fetch_live_count(entry_type: str, instrument: str, direction: str,
-                     since: str, app_base: str) -> int | None:
-    # limit=800 は shadow 大量 emit 下で ~7 日分しか遡れず月次窓を過小計上する
-    # (2026-07-07 実測)。live 行は希少なので月次窓全量が要る → 8000。
+def fetch_trades_window(since: str, app_base: str, mode: str = "") -> list | None:
+    """date_from 以降の全 trades (open + closed 全ページ)。
+
+    /api/demo/trades は status=all だと open 行が毎ページ先頭に再混入するため、
+    closed を offset pagination で全量取得 + open を 1 回取得して id で重複排除。
+    mode 指定でサーバ側絞り込み (希少戦略はページ数が桁で減る)。
+    取得不能・pagination 打ち切りは None (DATA_UNAVAILABLE)。"""
     try:
         import requests
-        r = requests.get(
-            f"{app_base}/api/demo/trades",
-            params={"date_from": since, "limit": 8000, "status": "all"},
-            timeout=60,
-        )
-        r.raise_for_status()
-        d = r.json()
-        trades = d if isinstance(d, list) else d.get("trades", [])
-        return count_live_matching(trades, entry_type, instrument, direction)
+
+        def _get(status: str, offset: int, limit: int) -> list | None:
+            params: dict[str, Any] = {
+                "date_from": since, "limit": limit, "offset": offset,
+                "status": status,
+            }
+            if mode:
+                params["mode"] = mode
+            r = requests.get(f"{app_base}/api/demo/trades",
+                             params=params, timeout=60)
+            r.raise_for_status()
+            d = r.json()
+            rows = d if isinstance(d, list) else d.get("trades", [])
+            return rows if isinstance(rows, list) else None
+
+        closed = paginate_closed_trades(
+            lambda off: _get("closed", off, 500), page_size=500)
+        if closed is None:
+            return None
+        # open 取得失敗も fail-loud (Codex review 2026-07-24: or [] だと
+        # open 行を黙って落として closed だけ数える = 過小計上の再導入)
+        open_rows = _get("open", 0, 500)
+        if open_rows is None:
+            return None
+        seen_ids: set = set()
+        out: list = []
+        for t in open_rows + closed:
+            key = t.get("id") if t.get("id") is not None else t.get("trade_id")
+            if key is not None and key in seen_ids:
+                continue
+            if key is not None:
+                seen_ids.add(key)
+            out.append(t)
+        return out
     except Exception:
         return None
+
+
+def fetch_live_count(entry_type: str, instrument: str, direction: str,
+                     since: str, app_base: str) -> int | None:
+    # 2026-07-24: 単発 limit=8000 (2026-07-07 の暫定拡大) を pagination 全量取得に
+    # 置換 — emit 量が伸びると同じ undercount が再発するため。
+    trades = fetch_trades_window(since, app_base)
+    if trades is None:
+        return None
+    return count_live_matching(trades, entry_type, instrument, direction)
 
 
 def fetch_shadow_count(entry_type: str, since: str, app_base: str,
-                       prefix: bool = False, instrument: str = "") -> int | None:
-    try:
-        import requests
-        r = requests.get(
-            f"{app_base}/api/demo/trades",
-            params={"date_from": since, "limit": 800, "status": "all"},
-            timeout=30,
-        )
-        r.raise_for_status()
-        d = r.json()
-        trades = d if isinstance(d, list) else d.get("trades", [])
-        return count_matching(trades, entry_type, prefix, instrument=instrument)
-    except Exception:
+                       prefix: bool = False, instrument: str = "",
+                       mode: str = "",
+                       exclude_dedup_violation: bool = False) -> int | None:
+    trades = fetch_trades_window(since, app_base, mode=mode)
+    if trades is None:
         return None
+    return count_matching(trades, entry_type, prefix, instrument=instrument,
+                          exclude_dedup_violation=exclude_dedup_violation)
 
 
 def fetch_ingest_health(app_base: str, endpoint: str) -> dict[str, Any] | None:
@@ -299,12 +356,18 @@ def evaluate_trigger(trig: dict[str, Any], *, today: str, app_base: str) -> dict
         res = evaluate_shadow_count_decision(
             fetch_shadow_count(trig["entry_type"], trig["since"], app_base,
                                prefix=trig.get("match") == "prefix",
-                               instrument=trig.get("instrument", "")),
+                               instrument=trig.get("instrument", ""),
+                               mode=trig.get("mode", ""),
+                               exclude_dedup_violation=(
+                                   trig.get("count_basis") == "unique")),
             int(trig["n_decide"]), int(trig["n_floor"]), trig["deadline"], today)
     elif ttype == "shadow_count_info":
         res = evaluate_shadow_count_info(
             fetch_shadow_count(trig["entry_type"], trig["since"], app_base,
-                               prefix=trig.get("match") == "prefix"),
+                               prefix=trig.get("match") == "prefix",
+                               mode=trig.get("mode", ""),
+                               exclude_dedup_violation=(
+                                   trig.get("count_basis") == "unique")),
             trig["since"], float(trig["expected_per_week"]), today)
     elif ttype == "live_count_decision":
         res = evaluate_live_count_decision(

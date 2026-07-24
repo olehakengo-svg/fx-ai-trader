@@ -89,7 +89,9 @@
    "n_floor": 5,
    "deadline": "2026-09-30",
    "doc": "knowledge-base/wiki/decisions/t8-week1-gate-breach-2026-07-06.md",
-   "message": "sweep P-S1(a) DEFER 決定点 — N>=10 で EV 判定 (R1) / 2026-09-30 に N<5 なら retire (R2)"
+   "message": "sweep P-S1(a) DEFER 決定点 — unique バー N>=10 で EV 判定 (条件付き承認済み 2026-07-24、spaced EV>0 で Option B 執行) / 2026-09-30 に N<5 なら retire (R2)。計数 = dedup_violation!=1 (packet §1.4)",
+   "mode": "daytrade_eurgbp",
+   "count_basis": "unique"
   },
   {
    "id": "t8-hull-shadow-freq",

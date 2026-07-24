@@ -1,8 +1,16 @@
 # sweep_reversion_eurgbp_late — P-S1(a) HTF Exemption R1 決裁パケット
 
-**Status: 🟡 DRAFT — トリガ待ち (unique バー N=8/10、2026-07-24 時点)、user 決裁待ち**
-起案: Claude 2026-07-24 (分析・文書のみ、コード変更・live 変更なし) / rule:R1 (live 経路の filter 変更 = Slow & Strict)
+**Status: 🟢 条件付き承認 (user 決裁 2026-07-24) — 執行待ち (unique バー N=8/10、live 変更は未発生)**
+起案: Claude 2026-07-24 / rule:R1 (live 経路の filter 変更 = Slow & Strict)
 決裁トリガ: [[t8-week1-gate-breach-2026-07-06]] Forensic #1 DEFER 裁定の機械的決定点 (rescued shadow N≥10)
+
+> **決裁記録 (2026-07-24)**: 本パケットの推奨アクション提示に対し user 「進めて」。以下を承認として記録:
+> ① **Option B 条件付き承認** — 執行条件 = unique N≥10 到達 ∧ spaced EV>0。到達時は §3.3 の単一 PR
+> (min-spacing + exemption + pin 解除 + 再ゲート、Codex review 必須) で再決裁なしに執行。spaced EV≤0 なら
+> Option C (retire) — T8 DEFER の機械的規定どおり
+> ② **計数意味論 = unique バー基準** (§1.4) — registry `count_basis: "unique"` に反映済み
+> ③ **exit 整合 = 案 (i) 既定** (本番 exit のまま復帰、live N≥10 蓄積後に (ii) を再決裁)
+> ④ **監視修正の実行** — §1.5 の undercount バグは同日修正済み (下記)。修正後実測で N=8/10 正常報告を確認
 
 関連: [[sweep-reversion-eurgbp-late-live-2026-06-12]] (pre-reg LOCK) / [[sweep-hull-live-week1-prereg-2026-06-12]] (初週ゲート) / [[sweep_reversion_eurgbp_late]] (戦略カード) / [[zero-fire-diagnosis-carrydip-vix-2026-07-02]] §3
 
@@ -19,10 +27,10 @@
 
 | 項目 | 状態 |
 |---|---|
-| 決裁トリガ (unique バー N≥10) | **未達 (N=8)** → 本パケットは「トリガ待ち」。N 到達時に §1 の数値更新のみで提示可能 |
-| 同トリガを row 基準で読んだ場合 | **到達済み (N=14)** — T8 裁定は基準を明記していない。→ §1.4 計数意味論の確定を user に求める |
+| 決裁トリガ (unique バー N≥10) | **未達 (N=8)** → 執行待ち。N 到達時は §6 手順で再決裁なしに執行 (条件付き承認済み) |
+| 計数意味論 | **unique バー基準で確定** (user 決裁 2026-07-24、§1.4)。registry `count_basis: "unique"` 反映済み |
 | EV 符号 (3 基準とも) | **正** (+2.13〜+3.14 p/t)。ただし exit estimand 乖離により entry 符号確認まで (§2) |
-| 機械監視 (prereg_trigger_watch) | **故障中** — N=0 と誤報告 (§1.5、修正タスク chip 起票済み)。**09-30 の retire 分岐が偽データで誤発動するリスク** |
+| 機械監視 (prereg_trigger_watch) | **修正済み (2026-07-24)** — undercount バグ解消、N=8/10 正常報告を本番確認 (§1.5) |
 | 追加証拠 (07-24 後着、§2.5) | exit-free 12.4y 再検証: **エッジは exit 設計の産物ではない** (12h net mean +7.72p、boot p<1e-4)。ただし同一標本のため選択効果は未解消 — **rescued shadow が唯一の真 OOS** |
 
 ## 1. 実測: rescued shadow (P-S1(b)、2026-07-03〜2026-07-24)
@@ -90,6 +98,11 @@ row なら既に N=14≥10 = トリガ成立済み。一方 clean live 計数 (`
 - ws3-stage2 / ws3-t11 / t8-hull / t9-kalman の同型カウンタも undercount の疑い
 
 修正タスクは chip 起票済み (コード変更は本タスクのスコープ外)。**exemption/retire いずれの裁定でも、この修正が先行必須。**
+
+**→ 修正済み (2026-07-24、user 承認後に同日実装)**: `fetch_shadow_count`/`fetch_live_count` を offset pagination
+全量取得に置換 (max_pages 到達 = DATA_UNAVAILABLE の fail-loud、silent truncation 再発防止)、`mode` サーバ側
+絞り込みと `count_basis: "unique"` (dedup_violation=1 除外) を registry に追加。修正後実測:
+t8-sweep **N=8/10** (手動集計と一致) / t8-hull N=3 / ws3-t11 N=9 — undercount 解消を本番 API で確認済み。
 
 ## 2. Exit estimand 乖離 — shadow EV の解釈限界
 
@@ -234,6 +247,9 @@ estimand 忠実化は別問題である点に注意)。
 | **C. Retire** | 戦略登録解除 + registry クローズ | ❌ retire 分岐の成立条件は「09-30 に N<5」— 実測 unique N=8 > 5 で非該当。EV 符号も 3 基準とも正。現時点の retire は pre-reg 外の裁量判断になる | 非推奨 (不可逆。12.4y Bonferroni 唯一生存 cell の破棄は、供給枯渇 (内部母集団三重確認済み) の下で回収不能な選択) |
 
 **推奨アクション (2026-07-24)**: B の条件付き決裁 + §1.4 計数意味論の確定 (unique 推奨) + §1.5 監視修正の実行承認 + §3.4 exit 案の選択 (既定 (i))。
+
+**→ 決裁済み (2026-07-24 user「進めて」)**: 上記推奨アクションを全て承認 (冒頭の決裁記録参照)。以後この
+パケットは「執行待ち」— unique N≥10 到達で §6 を執行する。
 
 ## 6. トリガ到達時の更新手順 (このパケットを FINAL 化する手順)
 

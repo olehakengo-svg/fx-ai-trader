@@ -1,6 +1,6 @@
 # sweep_reversion_eurgbp_late
 
-- **Status**: LIVE 停止 (T8 ゲート①抵触 R2 code pin OFF 2026-07-06, demo_trader.py `_SWEEP_REVERSION_EURGBP_LIVE_ENABLE=False`) / shadow rescue 蓄積中 (P-S1(b), 07-03〜)。P-S1(a) HTF exemption の R1 決裁パケット: [[sweep-reversion-ps1a-decision-packet-DRAFT]] (2026-07-24, unique N=8/10 トリガ待ち)。旧: LIVE (rule:R1 意図的例外, user 判断 2026-06-12)
+- **Status**: LIVE 停止 (T8 ゲート①抵触 R2 code pin OFF 2026-07-06, demo_trader.py `_SWEEP_REVERSION_EURGBP_LIVE_ENABLE=False`) / shadow rescue 蓄積中 (P-S1(b), 07-03〜)。P-S1(a) HTF exemption は **条件付き承認済み** (user 決裁 2026-07-24、執行条件 = unique N≥10 ∧ spaced EV>0 → Option B 単一 PR): [[sweep-reversion-ps1a-decision-packet-DRAFT]] (現在 unique N=8/10、監視修正済み)。旧: LIVE (rule:R1 意図的例外, user 判断 2026-06-12)
 - **Mode**: daytrade_eurgbp (15m) / **Pair**: EUR_GBP only / **Direction**: BUY only
 - **Lot**: 1000u 固定 (MIN lot)
 
