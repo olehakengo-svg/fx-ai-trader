@@ -3060,6 +3060,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 **⚠️ NO ACTION推奨**
 | 累計PnL | **0.0 pips** |
 
+### 2026-07-24 (Pre-Tokyo Briefing)
+| PnL合計 | N/A |
+| 全体WR | N/A |
+| 戦略 | N | WR | EV | 判定 |
+- **現時点でできる対処はない**（コード変更禁止、判断のみ）
+- 監視継続：shadow_trackingのSKIP数が増加しているか横ばいかを次回ブリーフィングで確認
+- OANDA NAV/Balanceの取得失敗が接続品質問題か仕様かを状況観察
+| GBP_JPY | TRENDING_UP | 54% | +0.00549 | 218.322 | DT:有利 / Scalp:spread_guard注意 |
+- **GBP_JPY のみ TRENDING_UP（ATR%ile 54%）**：5ペア中唯一のトレンド環境。daytradeモードにとって最も適合的だが、現状エントリーがゼロのため恩恵なし。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
