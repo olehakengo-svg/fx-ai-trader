@@ -1,5 +1,11 @@
 # Knowledge Base Change Log
 
+## 2026-07-24 (MoF 介入 forward pre-reg 🔒 LOCK — 期限 12 日前倒し, rule:R1 stage-1)
+- **LOCK 執行**: [[mof-intervention-forward-prereg-2026-07-24]] — explore 実行 (7日/3エピソード、h*=10d SELL 6/7、band [−319.8,−43.6]p) + 識別 rule (X,Y)=(2.0, 0.25%) 裁量ゼロ校正 (git タイムラインで事前宣言を客観確認) → 敵対的レビュー (必須3+任意5、コア規律・算術は全検算一致) → 全反映 → **即日 LOCK (08-05 期限の 12 日前倒し — LOCK 任意期間の file-drawer 裁量窓を閉鎖)**
+- **凍結の要点**: candidate S={2026-04-30, 05-06} / M=21 / k_eff 規約 (= |D∩母集団|) / anchor はデータ存在営業日 roll / **P-10 attestation: 2026 candidate 日の forward net は誰も未計算、開示前計算禁止**。E-D 予測 (k∈[2,5]) 下の E-A PASS ≒「両候補日とも開示介入日」
+- **訂正 (レビュー)**: FP 除外版 36/717=5.02% (旧 5.06% 転記誤り)、「05-07 欠損は PASS に不利」主張を撤回 (方向不定)、エピソード規約 = gap≥30d で 3 (2022-09↔10 は 29 日差 knife-edge)
+- registry: `mof-forward-prereg-lock-deadline` resolved → `mof-q2-2026-disclosure-verdict` (backstop 09-30) に置換
+
 ## 2026-07-24 (weekend_gap OOS pre-reg 🔒 LOCK, rule:R1 stage-1)
 - **LOCK 執行**: [[weekend-gap-oos-prereg-2026-07-24]] — 起案 → §10 4 論点 quant 裁定 (headroom=10×通常RT / N floor 25/60 / arm A IUT 維持 / DST 格下げ厳格側) → **敵対的レビュー 1 本 (リーク・設計破綻ゼロ、決定境界曖昧性 6 点)** → 必須 6 + 推奨 6 全反映 → LOCK
 - **重要訂正 (レビュー #1)**: arm B の explore 凍結値は GBP 込みプールの誤帰属だった → GBP 除外セット直接再計算 (explore 窓のみ) **+8.92p / weekend-block p<1e-4 / MFE p50 24.6p / N=169**。50% shrinkage 予測 → stressed-net −2.10p (§4.1 の保守的結論は不変)

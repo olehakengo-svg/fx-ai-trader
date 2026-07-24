@@ -109,11 +109,21 @@
   },
   {
    "id": "mof-forward-prereg-lock-deadline",
-   "active": true,
+   "active": false,
    "type": "deadline_info",
    "deadline": "2026-08-05",
-   "doc": "knowledge-base/wiki/decisions/mof-intervention-forward-prereg-DRAFT-2026-07-24.md",
-   "message": "MoF 介入 forward pre-reg (台帳 family #4) の LOCK 期限 — Q2-2026 四半期開示 (~2026-08、¥11.73兆エピソード日次内訳) の前に LOCK しないと genuine OOS 機会を喪失。LOCK 後は本エントリを resolved 化し mof-q2-2026-disclosure-verdict に置換"
+   "doc": "knowledge-base/wiki/decisions/mof-intervention-forward-prereg-2026-07-24.md",
+   "message": "MoF 介入 forward pre-reg (台帳 family #4) の LOCK 期限 — Q2-2026 四半期開示 (~2026-08、¥11.73兆エピソード日次内訳) の前に LOCK しないと genuine OOS 機会を喪失。LOCK 後は本エントリを resolved 化し mof-q2-2026-disclosure-verdict に置換",
+   "resolved": "2026-07-24",
+   "resolution": "LOCK 執行 (期限 08-05 の 12 日前倒し、敵対的レビュー必須3+任意5 全反映、file-drawer 窓閉鎖のため即日)。後継 = mof-q2-2026-disclosure-verdict"
+  },
+  {
+   "id": "mof-q2-2026-disclosure-verdict",
+   "active": true,
+   "type": "deadline_info",
+   "deadline": "2026-09-30",
+   "doc": "knowledge-base/wiki/decisions/mof-intervention-forward-prereg-2026-07-24.md",
+   "message": "MoF forward pre-reg (🔒 LOCKED 2026-07-24、台帳 family #4) の verdict 監視 — Q2-2026 四半期日次開示 (~2026-08 推定) 着地から 10 日以内に verdict 実行。backstop 2026-09-30 で未着地なら stale レビュー (設計変更禁止)。P-10: 2026 candidate 日の forward net は開示前計算禁止"
   }
  ]
 }
