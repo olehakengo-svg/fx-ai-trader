@@ -1,5 +1,11 @@
 # Knowledge Base Change Log
 
+## 2026-07-24 (weekend_gap OOS pre-reg 🔒 LOCK, rule:R1 stage-1)
+- **LOCK 執行**: [[weekend-gap-oos-prereg-2026-07-24]] — 起案 → §10 4 論点 quant 裁定 (headroom=10×通常RT / N floor 25/60 / arm A IUT 維持 / DST 格下げ厳格側) → **敵対的レビュー 1 本 (リーク・設計破綻ゼロ、決定境界曖昧性 6 点)** → 必須 6 + 推奨 6 全反映 → LOCK
+- **重要訂正 (レビュー #1)**: arm B の explore 凍結値は GBP 込みプールの誤帰属だった → GBP 除外セット直接再計算 (explore 窓のみ) **+8.92p / weekend-block p<1e-4 / MFE p50 24.6p / N=169**。50% shrinkage 予測 → stressed-net −2.10p (§4.1 の保守的結論は不変)
+- **新規凍結規則**: BH step-up 完全決定表 / 混合アウトカム優先順位 (検定済み FAIL ≥1 → 永久 CLOSE) / feed-artifact flag → PASS arm 符号反転で knife-edge FAIL / dry-run 検証プロトコル (explore 再現必須) / 階層多重性宣言
+- registry 登録: `weekend-gap-oos-verdict-deadline` (07-31) + `mof-forward-prereg-lock-deadline` (08-05)。verdict 実行は LOCK コミット着地後に開始 (監査整合)
+
 ## 2026-07-24 (wave-0 explore 完了 — 5線 verdict + pre-reg 起案 2 本, rule:R3=分析のみ)
 - **台帳更新** ([[hypothesis-catalog-2026-07-24]] §wave-0 実行記録): 5 線完了・敵対的レビュー INVALID ゼロ
 - **#1 sweep_reversion**: exit-free 12.4y で生存確定 (12h net med +5.10p p<1e-4、11/13 年正) — exit-artifact 説棄却、P-S1(a) 決裁パケットの中核証拠に

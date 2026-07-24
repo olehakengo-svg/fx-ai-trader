@@ -61,7 +61,7 @@ london-4pm-fix-conditional-reversal (= london_fix_reversal の再着せ替え) /
 |---|---|---|---|
 | 1 | sweep_reversion 再検証 | **explore 完了 2026-07-24** | ✅ **exit-free で生存** — 12h net med +5.10p/mean +7.72p (p<1e-4)、RT3.0p 控除後 +4.72p、11/13 年正。exit-artifact 説を棄却。同一標本の限界 (max-t 選択効果は新データでのみ解消可) → P-S1(a) 決裁パケットへ供給 |
 | 2 | price_shock 監査 | **監査完了 2026-07-24** | ✅ demotion flag 0/5 (クリーニング後も全席 p=0.0001、headroom 6.5-35x)。⚠️ **feed artifact 発見**: 土曜行 + spike-revert 不良プリントが各席トレードの 4-12.8% を汚染、grid ev_pip は過大 (USD_CAD 97.9→42.4p)。⚠️ EUR_AUD/USD_CAD/AUD_JPY は pre-2021 OOS が 0 と分離不能 → regime watch (tier action なし) |
-| 3 | weekend_gap | **explore 完了 → OOS pre-reg 起案中** | ⚠️ **PARTIAL** — multiday 棄却。狭い候補凍結: ≤12h fade、Bonferroni 生存 = EUR_USD 4h/12h (p<1e-4) + pooled 4h (p=2e-4)。GBP_USD は逆符号 (continuation)。モノトニシティなし。OOS 判定は stressed friction (3×RT) 主ゲート |
+| 3 | weekend_gap | **OOS pre-reg 🔒 LOCKED (2026-07-24)** — [[weekend-gap-oos-prereg-2026-07-24]]、verdict 期日 07-31 (registry 登録済) | explore ⚠️ PARTIAL — multiday 棄却、狭候補凍結 (arm A: EUR_USD 4h+12h IUT / arm B: pooled exGBP 4h **+8.92p 訂正値**)。敵対的レビュー (ISSUES 6点) 全反映後 LOCK。主ゲート = stressed friction (3×RT) net EV、feed-artifact knife-edge 規則付き |
 | 4 | mof_intervention | **fetch 完了 → forward pre-reg 起案中** | N=383 (1991-2024)、現代円買い 7 日/3 エピソード。**2026 エピソード ¥11.73 兆 (04-28..05-27) の日次内訳が Q2 開示 (~2026-08) まで非公開 = 開示前 LOCK で genuine OOS。LOCK 期限 2026-08-05** |
 | 5 | cot_spec_extreme | **panel 完成、分析 queue** | 5,178 行 × 6 通貨 (2010-2026-07)、検証済 (JPY 2024-04 記録的 net short 再現)。release-lag (+3-4 日) 規律を分析時に必須 |
 | 6 | equity_monthend_conditional | fetch queue (隣接注意) | — |
