@@ -1,6 +1,6 @@
-# Pre-registration DRAFT: WS3 探索2周目 — 方向性非対称の新軸探索 (rule:R1 stage-1 型、純研究)
+# Pre-registration LOCK: WS3 探索2周目 — 方向性非対称の新軸探索 (rule:R1 stage-1 型、純研究)
 
-**起案日**: 2026-07-10。**Status**: 📝 **DRAFT — 候補セル未確定 (§2 の診断実行後に列挙・固定して self-LOCK)**
+**起案日**: 2026-07-10。**Status**: 🔒 **LOCKED (2026-07-10 self-LOCK — §2 診断 + §2(ii) EV スクリーン完了、候補 m=5 を §2b に凍結。純研究・live/shadow 変更なし、user 通知済み決裁パッケージ [[shortest-path-decision-memo-2026-07-10]] 準拠)**。以後の候補/grid/窓/エンドポイント変更禁止、本文書の変更はレビュー必須 PR のみ。**OOS verdict: ❌ FAIL 0/5 確定 (2026-07-10、§8 — 期日 07-17 の 7 日前倒し、registry resolved)**
 **位置づけ**: [[shortest-path-decision-memo-2026-07-10]] トラックB (供給ライン)。stage-2 ([[ws3-stage2-barrier-ev-prereg-2026-07-09]]) の結果に依存せず常時運転する。**純研究 — live/shadow 変更なし**。self-LOCK 根拠 = stage-1 前例 ([[ws3-asymmetry-oos-prereg-2026-07-09]] の承認欄) + user 通知済み・異議なし (2026-07-09 提案 → 07-10「進めて」)
 **タスク票**: `.ai/tasks/queue/20260710-ws3-round2-explore.md` (排他 claim)
 
@@ -23,6 +23,28 @@ round-1 で探索した軸 (entry_type×pair プール方向、h24 主表) の�
 - 診断結果 (候補列挙 + 各候補の探索窓 EV) を本文書 §2b に追記して **self-LOCK (Status 🔒)** → 以後の候補変更禁止
 - **注意**: 探索窓 EV は選抜にのみ使用 (探索標本の消費)。OOS 判定 (§3) では ratio と **OOS first-touch EV の両方**を評価し、確認的根拠は OOS 側のみ
 
+## 2b. 候補セット (診断 + §2(ii) EV スクリーン 2026-07-10 実行済み、m=5 — LOCK 対象、以後変更禁止)
+
+- 1次スクリーン (§2(i)): `raw/bt-results/ws3_round2_scan_2026_07.{json,md}` — 8 セル (選抜規則 N≥30 ∧ (ratio_h24≥1.3 ∪ 持続型)、除外機械適用済み。round-1 checkpoint との窓同一性 0 mismatch 検証済み)
+- 2次スクリーン (§2(ii)): `raw/bt-results/ws3_round2_ev_screen_2026_07.{json,md}` — 探索窓 first-touch EV (stage-2 sim 同形 first_touch 移植、SL 優先 tie-break、per-pair 摩擦控除、ep 復元 616/616 一致検証) で **5/8 通過**。脱落 = turtle_soup×GBP_USD (best +2.24 だが孤立格子点 0/2) / dt_sr_channel_reversal×GBP_USD×SELL (best +0.60、孤立格子点 0/2) / sr_fib_confluence×AUD_JPY×SELL (best EV −1.05 < 0)
+
+| # | cell | 型 (固定) | 探索 ratio (h24→h96) | N | Primary H | 凍結 grid TP/SL | best (探索窓 EV) | 隣接正 |
+|---|---|---|---|---|---|---|---|---|
+| 1 | sr_fib_confluence×GBP_USD×SELL | 持続 | 1.18→1.66 | 95 | h96 | [47,76,111]/[28,62,81] | tp111_sl62 (+8.88) | 3/3 |
+| 2 | vol_spike_mr×USD_JPY×BUY | 減衰 | 1.49→1.38 | 39 | h24 | [29,43,71]/[20,32,63] | tp71_sl63 (+4.30) | 2/2 |
+| 3 | sr_fib_confluence×EUR_USD×SELL | 持続 | 1.36→1.49 | 99 | h96 | [34,53,70]/[23,42,74] | tp53_sl42 (+6.63) | 4/4 |
+| 4 | vsg_jpy_reversal×GBP_JPY×SELL | 減衰 | 1.48→1.23 | 106 | h24 | [35,57,86]/[24,43,64] | tp35_sl64 (+1.17) | 2/2 |
+| 5 | dt_sr_channel_reversal×GBP_JPY×BUY | 持続 | 0.97→1.33 | 77 | h96 | [67,105,127]/[51,83,132] | tp67_sl83 (+13.26) | 3/3 |
+
+- 型・primary horizon・**grid は探索標本で凍結** — OOS での horizon 選び直し・再アンカー禁止 (§3(B))
+- 摩擦 (往復、判定値、凍結): EUR_USD 2.00 / USD_JPY 2.14 / GBP_USD 4.53 / AUD_JPY 3.125 / **GBP_JPY 4.53** (理論テーブル不在のため GBP_USD 同値の保守採用 — a priori 宣言)
+- 探索窓 EV は選抜にのみ使用 (選択バイアス込み — 確認的根拠は OOS §3(B) のみ)
+- **相関クラスタ記録**: sr_fib_confluence×SELL が 2/5 (GBP_USD/EUR_USD)。共通 USD 方向レジームの可能性は OOS で判別。stage-2 移行時は同一戦略クラスタとして barrier 設計を共通化
+- **裁定記録 (親セッション 2026-07-10、EV スクリーン実行前)**: turtle_soup×GBP_USD は falsified 非該当 (探索ハーネス仮説の再試行禁止と既存 entry_type の非対称計測は estimand 相違 — stage-1 の lin_reg_channel 前例と同型) として §2(ii) に投入されたが、EV スクリーンで機械的脱落 — OOS には進まない。dt_bb_rsi_mr 系統の保守的全除外は親承認済み
+- 軸(b) EUR_GBP は BT 最小サンプルガード (<20 trades/365d) で候補到達不能 (診断 md §(i)、構造的必然として記録)
+- OOS 判定 = §3 の 2 レグ (A: ratio BH-FDR **m=5** / B: 凍結 grid の OOS first-touch EV、best 3×3 近傍平均 ≥ +0.5 p/t ∧ 隣接過半 EV>0) + ナイフエッジ3点検査。OOS-1 窓 (2024-07-07〜2025-07-07) の再利用 = 2 回目 (per-cell 未使用のため有効)
+- **薄い通過の事前認識**: vsg_jpy_reversal×GBP_JPY×SELL は best +1.17p vs 摩擦 4.53p で余裕が小さく best が grid 端 (SL=p90)。持続型 3 セルは timeout 率 34-64% と高い — OOS ナイフエッジの EV' (timeout→0) 検査が機構整合を担保する
+
 ## 3. OOS 検証 (LOCK 後)
 
 - **OOS 窓**: 2024-07-07〜2025-07-07 — 候補は全て未判定セルなので本窓は per-cell 未使用 = 有効な OOS。窓の再利用回数を verdict に明記 (3周目以降の独立窓枯渇管理)
@@ -43,3 +65,39 @@ round-1 で探索した軸 (entry_type×pair プール方向、h24 主表) の�
 - stage-2 実行 (zen-mahavira 排他領域) の成果物・結果には接触しない。本 pre-reg の設計は stage-2 の結果を一切参照していない (2026-07-10 時点で未読)
 - 探索窓・OOS 窓の消費履歴: round-1 で explore=2025-26 / OOS-1=2024-25 を候補選抜に消費済み (stage-2 grid 設計にも使用)。本 round-2 は**未判定セルに限る**ことで OOS-1 窓の有効性を保つ
 - BE/Trail は MFE/MAE 計測に関与しない (forward scan) — round-1 と同一エンジン
+
+---
+
+## 8. VERDICT (2026-07-10): ❌ **FAIL — PASS 0/5** (機械判定 + ナイフエッジ検査、期日 07-17 の 7 日前倒し)
+
+**執行記録**: claude 直接実行。OOS 窓 = 2024-07-07〜2025-07-07 (**再利用 2 回目** — per-cell 未使用のため有効、3周目以降は本窓の独立性枯渇に注意)。エントリー抽出 = stage-1 と同方式の切詰め parquet (末尾 2025-07-07T23:45Z、loader tail−365d、`tools/ws3_round2_oos_prep.py`): EUR_USD / USD_JPY セルは stage-1 凍結資産 `ws3_asymmetry_oos_2026_07_entries.json` (N=4,980 全セル) を再利用、GBP_USD / GBP_JPY は新規抽出 (`tools/ws3_mfe_scan.py --split-direction`、GBP_JPY 15m は Massive 遡及取得で 2024-06〜充足)。**N 凍結 (`ws3_round2_oos_entries.json`) → 判定の順序執行** (stage-2 §3 準拠)。ep 復元 = §2(ii) と同一の恒等式復元、**全 428 sim entries 不一致 0**。判定器 = `tools/ws3_round2_oos_verdict.py` (レグA = round-1 判定器 import 流用 B=10,000 seed=20260709 / レグB = §2b 凍結 grid first-touch、再アンカーなし)。
+
+### 8.1 機械判定 (§3 2 レグ + ナイフエッジ)
+
+| cell | H | N | OOS ratio (探索) | p | FDR | best EV (凍結grid) | 近傍平均 | 隣接正 | LOFO | 判定 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| sr_fib_confluence×GBP_USD×SELL | h96 | 123 | 1.205 (1.66) | 0.131 | ✗ | +0.84 (tp111_sl81) | **−0.93** | 0/2 | **−10.8** | FAIL (A:FDR / B:両方 / knife) |
+| vol_spike_mr×USD_JPY×BUY | h24 | **27** | **0.563** (1.49) | 0.859 | ✗ | −4.82 | −8.56 | 0/3 | −8.41 | FAIL (**N<30 機械** + ratio 崩壊) |
+| sr_fib_confluence×EUR_USD×SELL | h96 | 86 | 1.249 (1.487) | 0.194 | ✗ | +5.67 (tp34_sl74) | +1.44 ✓ | **1/2** | +3.78 ✓ | FAIL (A:FDR / B:隣接過半) |
+| vsg_jpy_reversal×GBP_JPY×SELL | h24 | 117 | **0.883** (1.482) | 0.717 | ✗ | −5.41 | −8.14 | 0/2 | −11.5 | FAIL (ratio 崩壊 + EV 全滅) |
+| dt_sr_channel_reversal×GBP_JPY×BUY | h96 | 75 | **0.897** (1.327) | 0.606 | ✗ | +4.37 (tp67_sl83) | −4.69 | 1/3 | **−12.7** | FAIL (ratio 崩壊 + fold 集中) |
+
+### 8.2 ナイフエッジ (stage-2 §5 準拠) — FAIL の質的確認
+
+1. **擬似反復**: 日次ブロックブートストラップ設計内蔵。lag-1 ρ (mfe−mae) = +0.32 / −0.30 / +0.29 / +0.09 / +0.28 — 正の系列相関があるセルは実効 N がさらに小さく、FDR fail は保守的にも覆らない
+2. **孤立格子点**: sr_fib×GBP_USD (0/2)・dt_sr×GBP_JPY (1/3) は best が孤立 — §2(ii) が探索窓で落とした型と同型の failure が OOS でも再現
+3. **fold 集中**: dt_sr_channel×GBP_JPY×BUY の best EV +4.37 は fold [+38.5 / −26.5 / +1.1] の第1фold 集中で LOFO −12.7。sr_fib×GBP_USD も fold [+6.0 / +24.2 / −27.6] / LOFO −10.8 — 期間局所の見かけ EV
+4. **EV' (timeout→0、記録)**: 持続型 3 セル = −2.9 / +10.6 / +3.3。§2b の事前認識どおり sr_fib×GBP_USD は timeout 到達 78.9% で EV が timeout close 依存 — 機構非整合を確認
+
+**最接近セル**: sr_fib_confluence×EUR_USD×SELL のみレグB 3/4 項目 + ratio floor を満たしたが、FDR (p=0.194) と隣接過半 (best が grid 角 tp34_sl74) で不通過。確認的根拠なし — Secondary (記述) としてのみ記録し、**候補の再選抜・grid 調整による再試行は §8 で禁止**
+
+### 8.3 帰結 (§3 の固定分岐)
+
+**PASS = 0 → 本番 shadow 母集団内の軸 (entry_type × pair × 方向 × horizon) は枯渇と判定。外部仮説 (新シグナル系統 — 学術/TV 由来、falsified 6 系統除外) の探索へ転進** (v2.3 WS3 に反映)。
+
+- round-1 (方向プール h24) → stage-1 2/8 PASS → stage-2 EV 化 FAIL、round-2 (方向分割/新ペア/h96 + 探索窓 EV スクリーン) → OOS 0/5。**「現行エンジンのエントリー母集団に、OOS 再現する方向性非対称 + 固定 barrier EV の組は存在しない」が 2 周の探索で一貫**
+- 探索窓 first-touch EV スクリーン (§2(ii)) を通過した 5 セルすら OOS で 4 セル ratio 崩壊/EV 全滅 — 探索窓 EV は選択バイアスの別表現に過ぎなかったことを実証 (§2b の事前認識どおり)
+- **裁定の明記**: turtle_soup×GBP_USD は親裁定 (falsified 非該当 = estimand 相違、stage-1 lin_reg_channel 前例と同型) で §2(ii) に投入されたが、探索窓 EV スクリーンで機械的脱落 — OOS には進んでいない (本 verdict の 5 セルに不含)
+- OOS-1 窓 (2024-07-07〜2025-07-07) 消費履歴: round-1 stage-1 (m=8) + round-2 (m=5) の 2 回。3 周目を行う場合は独立窓 (OOS-2 2022-24 は stage-2 で消費済み) の枯渇管理が必要 — ただし本分岐により shadow 母集団内の 3 周目は行わない
+
+**成果物**: `raw/bt-results/ws3_round2_oos_entries.json` (N 凍結) / `ws3_round2_oos_2026_07.{json,md}` (verdict) / `ws3_mfe_scan_2026_07_round2_oos_gbpjpy.{json,md}` / 判定器 `tools/ws3_round2_oos_verdict.py` / データ準備 `tools/ws3_round2_oos_prep.py`

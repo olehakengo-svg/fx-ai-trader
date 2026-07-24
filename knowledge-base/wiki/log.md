@@ -647,3 +647,11 @@
 - Tier 変更なし → portfolio auto-sync / strategy pages 編集不要 (0 fills のフラット窓、閾値クロス無し)
 - **Lint**: (1) 現状態の数値は index.md 全 state 箇所 (header/System State/Ruin/Aggregate Kelly/last-updated) で 100.8%(held flat)/563(flat)/-552.7/-29.6%/0-fills-0-blocked 一致 ✅ (残る -40.5%/-218.5/272.36 等の参照は全て "vs 07-16's" 比較文 + 07-16/07-14/07-13 履歴行 + trade-log link=履歴として正) (2) [[2026-07-21]] → raw/trade-logs/2026-07-21.md 解決 ✅、[[monthly-target-rederivation-2026-07-10]]/[[shortest-path-decision-memo-2026-07-10]] 全て解決 ✅、新規破損リンク 0件 (3) stale なし — データ 07-21 当日 (Render API 一次ソース)。⚠️ ただし **cadence gap (07-17/07-20)** を検出・記録 (realized book flat のため book 損失なし)
 - ⚠️ 未解決（継続）: `API_AUTH_TOKEN` watchdog gap (agg-kelly gate が現行の稼働中セーフティネット) / sr_anti_hunt_bounce shadow data corruption / main の index.md DD 行 stale (乖離解消は別件、v2.3 は実 NAV(JPY) 基準へ移行予定)
+## 2026-07-06 (T7 クローズ + T8 forensic #2: engine 再構築による live dedup 無効の発見)
+- **T7 CLOSED**: carry dip 0-fire は ceiling 159.50 のレジーム前提崩壊による dormant-by-design (バグ非ず)。QUALBAR print telemetry 本番稼働。[[zero-fire-diagnosis-carrydip-vix-2026-07-02]] §6
+- **T8 forensic #2 = 共通挙動**: hull は guard 実装済みだが `compute_daytrade_signal`/`compute_hourly_signal` が **poll 毎に Engine を再構築**するため全戦略の instance-state dedup/cooldown が live で無効。live の dedup 層は recent_emit のみ。order 層 per-bar dedup タスクを queue 投入、ゲート④ order 層補正 + 再 LOCK は user R1 決裁待ち。[[t8-week1-gate-breach-2026-07-06]]
+## 2026-07-18 wiki-lint (E15+E7 pre-reg 起案セッション)
+
+- **Lint (本コミット変更ファイル限定)**: (1) [[e15-e7-event-modality-prereg-2026-07-18]] / changelog / session log / pipeline 状態表 / queue task の [[wikilink]] 全解決 ✅ (2) prereg-trigger-registry.json valid JSON、active 13 triggers (新規 2: e15-e7-event-prereg-phase{0,1}-verdict) ✅ (3) tier_integrity_check --check pass ✅
+- ⚠️ **`sync_kb_index.py --check` FAIL — index.md KB_PORTFOLIO ブロックが demo_trader.py strategy sets と drift** (最終 auto-sync 2026-07-15、本セッションの変更とは無関係の既存事象)。PAIR_PROMOTED/SHADOW の行数が大幅相違。scope 規律により本 PR に混載せず、別タスク chip (`Fix stale KB index portfolio sync`) として起票済み — `sync_kb_index.py --write` + `tier_integrity_check.py --write` の単独コミットで解消すること
+- ℹ 既知 (継続): app.py の legacy dead inline `strong_sr_breakout` / `tokyo_bb` (30d+ 発火なし、削除候補)

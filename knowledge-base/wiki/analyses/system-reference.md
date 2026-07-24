@@ -209,7 +209,12 @@ PAIR_PROMOTED に**常に先勝ち** (fail-closed)。旧 `_is_promoted` docstrin
 |------|------|----|----------|------------|
 | daytrade_eurjpy | EUR_JPY | 15m | VWAP MR α | True |
 | daytrade_gbpjpy | GBP_JPY | 15m | VWAP MR α | True |
+| daytrade_audjpy | AUD_JPY | 15m | DT 全戦略 (**shadow_only** — OANDA 発注ゼロ) | True |
 | rnb_usdjpy | USD_JPY | — | Round Number Barrier | True |
+
+#### shadow_only モード (2026-07-10 D2)
+- `MODE_CONFIG` の `shadow_only: True` は mode レベルの構造 shadow-only 保証。`_mode_is_shadow_only()` が ①送信ガード最終段 (全 force-live override より後) ②resend gate (`SHADOW_ONLY_MODE_GATE`) ③write-path (`_resolve_is_shadow_for_write`) で強制 shadow 化し、N<10 sentinel minlot / `_SHIELD_EUR_DT_WHITELIST` bypass を含む全経路で live 発火しない
+- 現在の対象: `daytrade_audjpy` (WS3 stage-2 shadow parity 準備 + AUD_JPY 実測摩擦取得、[[changelog]] 2026-07-10)。解除 (Shadow→Live) は Rule 1 手続き必須
 
 ### v8.0-v8.9 (2026-04-10〜13)
 - 詳細は [[changelog]] を参照

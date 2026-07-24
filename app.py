@@ -13529,6 +13529,239 @@ def api_demo_live_enable_flags():
     })
 
 
+# ═══════════════════════════════════════════════════════
+#  E1 positioning ingest — 検証 API (2026-07-14 user GO, read-only)
+#  設計: knowledge-base/wiki/analyses/e1-positioning-ingest-2026-07-14.md
+#  監視: prereg-trigger-registry.json `e1-positioning-ingest-freshness`
+#        (最終 snapshot が 2h 超 stale なら要調査)
+# ═══════════════════════════════════════════════════════
+
+# ── worker heartbeat (2026-07-14 rule:R3 self-heal) ──
+# 本番実証: app.py import 時に起動した thread は gunicorn の process
+# ライフサイクルで request-serving process に生き残らない (started_at は
+# 残るが running:false / poll_cycles:0)。demo_trader が生きているのは
+# get_status() 内 StatusHeal のおかげ。positioning は Render health check
+# が常時届くこの before_request を恒常 heal 経路にする (外部監視非依存)。
+_positioning_heartbeat_last = [0.0]
+_POSITIONING_HEARTBEAT_SEC = 60
+
+
+@app.before_request
+def _positioning_heartbeat():
+    now = _time_mod.time()
+    if now - _positioning_heartbeat_last[0] < _POSITIONING_HEARTBEAT_SEC:
+        return
+    _positioning_heartbeat_last[0] = now
+    try:
+        from modules.positioning_ingest import ensure_worker_running
+        ensure_worker_running()
+    except Exception as e:  # heal 失敗で request を落とさない (fail-loud に記録)
+        print(f"[positioning] heartbeat self-heal failed: "
+              f"{type(e).__name__}: {e}", flush=True)
+    # R3 market-data ingest (2026-07-18) も同じ heartbeat 経路で heal する
+    try:
+        from modules.market_data_ingest import (
+            ensure_worker_running as _mkt_ensure_running)
+        _mkt_ensure_running()
+    except Exception as e:
+        print(f"[market-ingest] heartbeat self-heal failed: "
+              f"{type(e).__name__}: {e}", flush=True)
+
+
+@app.route("/api/positioning/status")
+def api_positioning_status():
+    """ingest worker と DB 蓄積状態の観測 (デプロイ後検証・鮮度監視用)。
+
+    worker 未起動 (POSITIONING_INGEST_ENABLE!=1 / 非 Render 起動 / 起動失敗)
+    でも DB 側の行数・最新 snapshot_time は返す — 「thread 死」と
+    「そもそも起動していない」を外部から区別できるようにする (fail-loud)。
+    """
+    from modules.positioning_ingest import get_worker, db_book_stats
+    worker = get_worker()
+    if worker is not None:
+        return jsonify(worker.status())
+    return jsonify({
+        "enabled": False,
+        "running": False,
+        "reason": ("worker not started — POSITIONING_INGEST_ENABLE!=1, "
+                   "non-Render startup, or startup failure (check logs "
+                   "for [positioning])"),
+        "env_flag": os.environ.get("POSITIONING_INGEST_ENABLE", "1"),
+        "books": db_book_stats(_db_path),
+    })
+
+
+@app.route("/api/positioning/probe")
+def api_positioning_probe():
+    """OANDA book 可用性 probe (read-only 診断) — 401 の帰属を本番 token で確定。
+
+    デフォルトは dry (何も叩かない)。?run=1 で OANDA へ read-only GET 4 回
+    (v3/accounts 統制 + v20 book ×2 + legacy labs)。token / 口座 ID は
+    レスポンスに一切含めない (modules/positioning_ingest.probe_availability
+    の契約、テストで pin)。
+    """
+    import re as _re
+    from modules.positioning_ingest import (PROBE_CHECKS, run_probe,
+                                            run_probe_myfxbook)
+    if request.args.get("run") != "1":
+        return jsonify({
+            "run": False,
+            "checks": list(PROBE_CHECKS),
+            "hint": "?run=1 で実行 (OANDA へ read-only GET 4回。"
+                    "token はレスポンスに含まれない)。"
+                    "?run=1&source=myfxbook で Myfxbook credentials 検証 "
+                    "(login + outlook 1回、rate limit 100req/24h を消費)",
+        })
+    if request.args.get("source", "") == "myfxbook":
+        # E1 ソース転換 (2026-07-15): credentials 投入直後の受け入れ確認
+        return jsonify(run_probe_myfxbook())
+    instrument = request.args.get("instrument", "USD_JPY")
+    if not _re.fullmatch(r"[A-Z0-9]{3}_[A-Z0-9]{3}", instrument):
+        # path injection 防止 (instrument は URL path に埋め込まれる)
+        return jsonify({"error": f"invalid instrument: {instrument!r}"}), 400
+    return jsonify(run_probe(instrument=instrument))
+
+
+@app.route("/api/positioning/export")
+def api_positioning_export():
+    """研究用 export — positioning_snapshots / positioning_health_log を
+    JSON で返す (read-only)。
+
+    Query: instrument= (例 USD_JPY) / book= (position|order) /
+           from= (snapshot_time 下限, RFC3339 prefix 可) / limit= (<=20000)
+           table=health_log で positioning_health_log (E1 pre-reg §2.2 主モードの
+           per-instrument verified 時系列) を export。追加 Query:
+           key= (health key 完全一致) / since_id= (id 増分 export)
+    """
+    from modules.positioning_ingest import export_snapshots
+    table = request.args.get("table", "snapshots")
+    if table not in ("snapshots", "health_log"):
+        return jsonify({"error": f"invalid table: {table!r} "
+                                 "(expected 'snapshots' or 'health_log')"}), 400
+    if table == "health_log":
+        # E1 pre-reg §2.2: verified 時系列の凍結 export 経路 (read-only)
+        from modules.positioning_ingest import export_health_log
+        try:
+            limit = min(int(request.args.get("limit", 20000)), 20000)
+            since_id = int(request.args.get("since_id", 0))
+        except (TypeError, ValueError):
+            return jsonify({"error": "invalid limit/since_id "
+                                     "(integer required)"}), 400
+        try:
+            rows = export_health_log(_db_path, key=request.args.get("key", ""),
+                                     since_id=since_id, limit=limit)
+        except Exception as e:
+            # テーブル未作成/DB 障害は 500 で fail-loud (silent 空配列にしない)
+            return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
+        return jsonify({
+            "count": len(rows),
+            "filters": {"table": table, "key": request.args.get("key", ""),
+                        "since_id": since_id, "limit": limit},
+            "rows": rows,
+        })
+    instrument = request.args.get("instrument", "")
+    book = request.args.get("book", "")
+    since = request.args.get("from", "")
+    if book and book not in ("position", "order", "outlook"):
+        return jsonify({"error": f"invalid book: {book!r} "
+                                 "(expected 'position', 'order' or "
+                                 "'outlook')"}), 400
+    try:
+        limit = min(int(request.args.get("limit", 5000)), 20000)
+    except (TypeError, ValueError):
+        return jsonify({"error": "invalid limit (integer required)"}), 400
+    try:
+        rows = export_snapshots(_db_path, instrument=instrument,
+                                book_type=book, since=since, limit=limit)
+    except Exception as e:
+        # テーブル未作成/DB 障害は 500 で fail-loud (silent 空配列にしない)
+        return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
+    return jsonify({
+        "count": len(rows),
+        "filters": {"instrument": instrument, "book": book,
+                    "from": since, "limit": limit},
+        "rows": rows,
+    })
+
+
+# ═══════════════════════════════════════════════════════
+#  R3 market-data ingest — 検証 API (2026-07-18, read-only)
+#  設計: knowledge-base/wiki/analyses/market-data-ingest-2026-07-18.md
+#  対象: ff_calendar_events (E7) / cme_fx_bars_1h (E12)
+# ═══════════════════════════════════════════════════════
+
+@app.route("/api/marketdata/status")
+def api_marketdata_status():
+    """market-data ingest worker と DB 蓄積状態の観測 (鮮度監視用)。
+
+    worker 未起動でも DB 側のテーブル統計は返す — 「thread 死」と
+    「そもそも起動していない」を外部から区別できるようにする (fail-loud)。
+    """
+    from modules.market_data_ingest import get_worker, db_market_stats
+    worker = get_worker()
+    if worker is not None:
+        return jsonify(worker.status())
+    return jsonify({
+        "enabled": False,
+        "running": False,
+        "reason": ("worker not started — MARKET_INGEST_ENABLE!=1, "
+                   "non-Render startup, or startup failure (check logs "
+                   "for [market-ingest])"),
+        "env_flag": os.environ.get("MARKET_INGEST_ENABLE", "1"),
+        "tables": db_market_stats(_db_path),
+    })
+
+
+@app.route("/api/marketdata/export")
+def api_marketdata_export():
+    """研究用 export (read-only) — ff_events / cme_bars / health_log。
+
+    Query: table=ff_events (default) | cme_bars | health_log
+      ff_events:  country= / impact= / from= / to= / limit= (<=20000)
+      cme_bars:   symbol= / from= / limit=
+      health_log: key= / since_id= / limit=
+    """
+    from modules.market_data_ingest import (export_cme_bars,
+                                            export_ff_events,
+                                            export_health_log)
+    table = request.args.get("table", "ff_events")
+    if table not in ("ff_events", "cme_bars", "health_log"):
+        return jsonify({"error": f"invalid table: {table!r} (expected "
+                                 "'ff_events', 'cme_bars' or "
+                                 "'health_log')"}), 400
+    try:
+        limit = min(int(request.args.get("limit", 20000)), 20000)
+        since_id = int(request.args.get("since_id", 0))
+    except (TypeError, ValueError):
+        return jsonify({"error": "invalid limit/since_id "
+                                 "(integer required)"}), 400
+    try:
+        if table == "cme_bars":
+            rows = export_cme_bars(_db_path,
+                                   symbol=request.args.get("symbol", ""),
+                                   since=request.args.get("from", ""),
+                                   limit=limit)
+        elif table == "health_log":
+            rows = export_health_log(_db_path,
+                                     key=request.args.get("key", ""),
+                                     since_id=since_id, limit=limit)
+        else:
+            rows = export_ff_events(_db_path,
+                                    country=request.args.get("country", ""),
+                                    impact=request.args.get("impact", ""),
+                                    since=request.args.get("from", ""),
+                                    until=request.args.get("to", ""),
+                                    limit=limit)
+    except Exception as e:
+        # テーブル未作成/DB 障害は 500 で fail-loud (silent 空配列にしない)
+        return jsonify({"error": f"{type(e).__name__}: {e}"}), 500
+    return jsonify({
+        "count": len(rows),
+        "filters": {"table": table, "limit": limit},
+        "rows": rows,
+    })
+
+
 @app.route("/api/demo/logs")
 def api_demo_logs():
     """全ログ履歴を返す（過去セッション含む）"""
@@ -15491,6 +15724,32 @@ _legacy_off = (
 if (_is_prod or _force_local) and not _legacy_off:
     _auto_start_thread = _threading_mod.Thread(target=_auto_start_trader, daemon=True)
     _auto_start_thread.start()
+    # ── E1 positioning ingest (2026-07-14 user GO): OANDA position/order book
+    #    の read-only snapshot 蓄積 thread。live 発注経路とは完全独立。
+    #    env flag POSITIONING_INGEST_ENABLE (default "1") で無効化可。
+    #    起動失敗は fail-loud に stdout へ (silent except 禁止) — 検証は
+    #    /api/positioning/status で行う。
+    try:
+        from modules.positioning_ingest import start_positioning_ingest
+        # defer_thread: gunicorn master (import 時) では thread を起動しない。
+        # 起動は serving プロセスの初回 heal (status/heartbeat) — fork 中の
+        # HTTP 実行が socket/ssl lock を locked のまま複製する事故の根治 (§11)
+        start_positioning_ingest(_db_path, defer_thread=True)
+    except Exception as _pos_start_err:
+        print(f"[positioning] ingest startup failed: {_pos_start_err}",
+              flush=True)
+    # ── R3 market-data ingest (2026-07-18): FF カレンダー (E7) + CME FX
+    #    先物 1h volume (E12) の read-only capture。live 発注経路とは完全独立。
+    #    env flag MARKET_INGEST_ENABLE (default "1") で無効化可。
+    #    検証は /api/marketdata/status で行う (fail-loud)。
+    try:
+        from modules.market_data_ingest import start_market_data_ingest
+        # defer_thread: gunicorn master では thread を起動しない (fork-safety
+        # §11、positioning と同一根拠)。起動は serving プロセスの初回 heal。
+        start_market_data_ingest(_db_path, defer_thread=True)
+    except Exception as _mkt_start_err:
+        print(f"[market-ingest] ingest startup failed: {_mkt_start_err}",
+              flush=True)
 else:
     if _legacy_off:
         _why = "BT_MODE/TESTING/NO_AUTOSTART"

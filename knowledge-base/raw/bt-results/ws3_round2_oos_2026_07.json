@@ -1,0 +1,404 @@
+{
+ "task": "20260710-ws3-round2-explore (OOS verdict)",
+ "prereg": "knowledge-base/wiki/decisions/ws3-round2-explore-prereg-2026-07-10.md §3 (LOCK)",
+ "rule": "R1",
+ "generated_utc": "2026-07-10T07:55:03.433014+00:00",
+ "oos_window": "2024-07-07..2025-07-07 (truncated-parquet, lookback 365d)",
+ "oos_window_reuse": "OOS-1 (2024-07-07..2025-07-07) 再利用 2 回目 — per-cell 未使用のため有効 (§3)",
+ "n_boot": 10000,
+ "seed": 20260709,
+ "fdr_q": 0.1,
+ "m": 5,
+ "ratio_floor": 1.2,
+ "min_n": 30,
+ "nb_mean_floor": 0.5,
+ "tie_break": "SL 優先 (両ヒット=LOSS)",
+ "recon_fail_total": 0,
+ "mechanical_verdict": "FAIL",
+ "passing_cells": [],
+ "bh_fdr": {
+  "sr_fib_confluence×GBP_USD×SELL": {
+   "p": 0.130687,
+   "rank": 1,
+   "bh_threshold": 0.02,
+   "survive": false
+  },
+  "sr_fib_confluence×EUR_USD×SELL": {
+   "p": 0.194281,
+   "rank": 2,
+   "bh_threshold": 0.04,
+   "survive": false
+  },
+  "dt_sr_channel_reversal×GBP_JPY×BUY": {
+   "p": 0.605539,
+   "rank": 3,
+   "bh_threshold": 0.06,
+   "survive": false
+  },
+  "vsg_jpy_reversal×GBP_JPY×SELL": {
+   "p": 0.716928,
+   "rank": 4,
+   "bh_threshold": 0.08,
+   "survive": false
+  },
+  "vol_spike_mr×USD_JPY×BUY": {
+   "p": 0.858914,
+   "rank": 5,
+   "bh_threshold": 0.1,
+   "survive": false
+  }
+ },
+ "cells": {
+  "sr_fib_confluence×GBP_USD×SELL": {
+   "cell": "sr_fib_confluence×GBP_USD×SELL",
+   "type": "持続",
+   "primary_h": 96,
+   "explore_ratio": 1.656,
+   "n": 123,
+   "friction": 4.53,
+   "tp_grid": [
+    47,
+    76,
+    111
+   ],
+   "sl_grid": [
+    28,
+    62,
+    81
+   ],
+   "n_days": 85,
+   "mfe_p50": 40.5,
+   "mae_p50": 33.6,
+   "ratio": 1.2054,
+   "boot_p": 0.130687,
+   "boot_ci_lo": 0.928,
+   "lag1_rho": 0.3181,
+   "adjacent_horizon_ratios": {
+    "h12": 1.012,
+    "h24": 1.019,
+    "h48": 1.228,
+    "h96": 1.205
+   },
+   "recon_fail": 0,
+   "ev_leg": {
+    "n_sim": 123,
+    "best_config": "tp111_sl81",
+    "best_ev_adj": 0.843,
+    "nb3x3_mean_ev": -0.925,
+    "adjacent_positive": "0/2",
+    "best_tp_rate": 0.098,
+    "best_sl_rate": 0.114,
+    "best_timeout_rate": 0.789,
+    "fold_ev": [
+     6.004,
+     24.158,
+     -27.632
+    ],
+    "lofo_ev": -10.814,
+    "ev_prime_timeout0": -2.92,
+    "pnl_lag1_rho": 0.3109,
+    "configs": {
+     "tp47_sl28": -5.044,
+     "tp47_sl62": -0.9,
+     "tp47_sl81": -0.129,
+     "tp76_sl28": -6.231,
+     "tp76_sl62": -2.55,
+     "tp76_sl81": -1.258,
+     "tp111_sl28": -4.968,
+     "tp111_sl62": -0.734,
+     "tp111_sl81": 0.843
+    }
+   },
+   "gates": {
+    "A_fdr": false,
+    "A_ratio_floor": true,
+    "A_min_n": true,
+    "B_nb_mean_floor": false,
+    "B_adjacent_majority": false,
+    "knife_fold_lofo": false,
+    "pass": false
+   }
+  },
+  "vol_spike_mr×USD_JPY×BUY": {
+   "cell": "vol_spike_mr×USD_JPY×BUY",
+   "type": "減衰",
+   "primary_h": 24,
+   "explore_ratio": 1.49,
+   "n": 27,
+   "friction": 2.14,
+   "tp_grid": [
+    29,
+    43,
+    71
+   ],
+   "sl_grid": [
+    20,
+    32,
+    63
+   ],
+   "n_days": 23,
+   "mfe_p50": 25.5,
+   "mae_p50": 45.3,
+   "ratio": 0.5629,
+   "boot_p": 0.858914,
+   "boot_ci_lo": 0.294,
+   "lag1_rho": -0.3034,
+   "adjacent_horizon_ratios": {
+    "h12": 0.607,
+    "h24": 0.563,
+    "h48": 0.726,
+    "h96": 0.903
+   },
+   "recon_fail": 0,
+   "ev_leg": {
+    "n_sim": 27,
+    "best_config": "tp71_sl32",
+    "best_ev_adj": -4.821,
+    "nb3x3_mean_ev": -8.555,
+    "adjacent_positive": "0/3",
+    "best_tp_rate": 0.185,
+    "best_sl_rate": 0.63,
+    "best_timeout_rate": 0.185,
+    "fold_ev": [
+     -5.562,
+     -11.251,
+     2.349
+    ],
+    "lofo_ev": -8.407,
+    "ev_prime_timeout0": -9.14,
+    "pnl_lag1_rho": -0.4065,
+    "configs": {
+     "tp29_sl20": -11.251,
+     "tp29_sl32": -11.603,
+     "tp29_sl63": -17.64,
+     "tp43_sl20": -8.14,
+     "tp43_sl32": -6.936,
+     "tp43_sl63": -11.936,
+     "tp71_sl20": -7.67,
+     "tp71_sl32": -4.821,
+     "tp71_sl63": -11.825
+    }
+   },
+   "gates": {
+    "A_fdr": false,
+    "A_ratio_floor": false,
+    "A_min_n": false,
+    "B_nb_mean_floor": false,
+    "B_adjacent_majority": false,
+    "knife_fold_lofo": false,
+    "pass": false
+   }
+  },
+  "sr_fib_confluence×EUR_USD×SELL": {
+   "cell": "sr_fib_confluence×EUR_USD×SELL",
+   "type": "持続",
+   "primary_h": 96,
+   "explore_ratio": 1.487,
+   "n": 86,
+   "friction": 2.0,
+   "tp_grid": [
+    34,
+    53,
+    70
+   ],
+   "sl_grid": [
+    23,
+    42,
+    74
+   ],
+   "n_days": 63,
+   "mfe_p50": 36.85,
+   "mae_p50": 29.5,
+   "ratio": 1.2492,
+   "boot_p": 0.194281,
+   "boot_ci_lo": 0.837,
+   "lag1_rho": 0.2941,
+   "adjacent_horizon_ratios": {
+    "h12": 1.18,
+    "h24": 1.449,
+    "h48": 1.554,
+    "h96": 1.249
+   },
+   "recon_fail": 0,
+   "ev_leg": {
+    "n_sim": 86,
+    "best_config": "tp34_sl74",
+    "best_ev_adj": 5.674,
+    "nb3x3_mean_ev": 1.444,
+    "adjacent_positive": "1/2",
+    "best_tp_rate": 0.547,
+    "best_sl_rate": 0.081,
+    "best_timeout_rate": 0.372,
+    "fold_ev": [
+     -1.503,
+     9.393,
+     9.257
+    ],
+    "lofo_ev": 3.782,
+    "ev_prime_timeout0": 10.558,
+    "pnl_lag1_rho": 0.1901,
+    "configs": {
+     "tp34_sl23": 2.31,
+     "tp34_sl42": 2.734,
+     "tp34_sl74": 5.674,
+     "tp53_sl23": -0.793,
+     "tp53_sl42": -2.166,
+     "tp53_sl74": -0.466,
+     "tp70_sl23": -1.733,
+     "tp70_sl42": -3.029,
+     "tp70_sl74": -1.108
+    }
+   },
+   "gates": {
+    "A_fdr": false,
+    "A_ratio_floor": true,
+    "A_min_n": true,
+    "B_nb_mean_floor": true,
+    "B_adjacent_majority": false,
+    "knife_fold_lofo": true,
+    "pass": false
+   }
+  },
+  "vsg_jpy_reversal×GBP_JPY×SELL": {
+   "cell": "vsg_jpy_reversal×GBP_JPY×SELL",
+   "type": "減衰",
+   "primary_h": 24,
+   "explore_ratio": 1.482,
+   "n": 117,
+   "friction": 4.53,
+   "tp_grid": [
+    35,
+    57,
+    86
+   ],
+   "sl_grid": [
+    24,
+    43,
+    64
+   ],
+   "n_days": 83,
+   "mfe_p50": 44.4,
+   "mae_p50": 50.3,
+   "ratio": 0.8827,
+   "boot_p": 0.716928,
+   "boot_ci_lo": 0.619,
+   "lag1_rho": 0.0923,
+   "adjacent_horizon_ratios": {
+    "h12": 0.706,
+    "h24": 0.883,
+    "h48": 1.182,
+    "h96": 1.266
+   },
+   "recon_fail": 0,
+   "ev_leg": {
+    "n_sim": 117,
+    "best_config": "tp86_sl64",
+    "best_ev_adj": -5.413,
+    "nb3x3_mean_ev": -8.143,
+    "adjacent_positive": "0/2",
+    "best_tp_rate": 0.222,
+    "best_sl_rate": 0.316,
+    "best_timeout_rate": 0.462,
+    "fold_ev": [
+     -6.448,
+     -16.515,
+     6.723
+    ],
+    "lofo_ev": -11.481,
+    "ev_prime_timeout0": -5.658,
+    "pnl_lag1_rho": 0.0424,
+    "configs": {
+     "tp35_sl24": -11.145,
+     "tp35_sl43": -12.574,
+     "tp35_sl64": -11.041,
+     "tp57_sl24": -8.797,
+     "tp57_sl43": -10.878,
+     "tp57_sl64": -6.469,
+     "tp86_sl24": -7.838,
+     "tp86_sl43": -9.813,
+     "tp86_sl64": -5.413
+    }
+   },
+   "gates": {
+    "A_fdr": false,
+    "A_ratio_floor": false,
+    "A_min_n": true,
+    "B_nb_mean_floor": false,
+    "B_adjacent_majority": false,
+    "knife_fold_lofo": false,
+    "pass": false
+   }
+  },
+  "dt_sr_channel_reversal×GBP_JPY×BUY": {
+   "cell": "dt_sr_channel_reversal×GBP_JPY×BUY",
+   "type": "持続",
+   "primary_h": 96,
+   "explore_ratio": 1.327,
+   "n": 75,
+   "friction": 4.53,
+   "tp_grid": [
+    67,
+    105,
+    127
+   ],
+   "sl_grid": [
+    51,
+    83,
+    132
+   ],
+   "n_days": 60,
+   "mfe_p50": 76.6,
+   "mae_p50": 85.4,
+   "ratio": 0.897,
+   "boot_p": 0.605539,
+   "boot_ci_lo": 0.684,
+   "lag1_rho": 0.283,
+   "adjacent_horizon_ratios": {
+    "h12": 0.907,
+    "h24": 0.949,
+    "h48": 0.885,
+    "h96": 0.897
+   },
+   "recon_fail": 0,
+   "ev_leg": {
+    "n_sim": 75,
+    "best_config": "tp67_sl83",
+    "best_ev_adj": 4.367,
+    "nb3x3_mean_ev": -4.691,
+    "adjacent_positive": "1/3",
+    "best_tp_rate": 0.547,
+    "best_sl_rate": 0.347,
+    "best_timeout_rate": 0.107,
+    "fold_ev": [
+     38.47,
+     -26.494,
+     1.126
+    ],
+    "lofo_ev": -12.684,
+    "ev_prime_timeout0": 3.323,
+    "pnl_lag1_rho": 0.1663,
+    "configs": {
+     "tp67_sl51": -7.843,
+     "tp67_sl83": 4.367,
+     "tp67_sl132": 2.803,
+     "tp105_sl51": -16.629,
+     "tp105_sl83": -8.554,
+     "tp105_sl132": -2.291,
+     "tp127_sl51": -15.978,
+     "tp127_sl83": -5.983,
+     "tp127_sl132": 4.253
+    }
+   },
+   "gates": {
+    "A_fdr": false,
+    "A_ratio_floor": false,
+    "A_min_n": true,
+    "B_nb_mean_floor": false,
+    "B_adjacent_majority": false,
+    "knife_fold_lofo": false,
+    "pass": false
+   }
+  }
+ },
+ "pass_composition": "PASS = A(FDR ∧ ratio≥1.2 ∧ N≥30) ∧ B(近傍平均≥0.5 ∧ 隣接過半>0) ∧ knife(LOFO>0)。擬似反復=日次ブロック設計+lag1ρ記録 / 孤立格子点=B隣接過半 / EV'=記録 (Secondary)"
+}

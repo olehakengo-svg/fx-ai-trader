@@ -1,7 +1,7 @@
 # sweep_reversion_eurgbp_late
 
-- **Status**: **R2 STOP (live code pin) + shadow rescue 稼働中** — 2026-07-06 T8 ゲート①抵触で `_SWEEP_REVERSION_EURGBP_LIVE_ENABLE = False` code pin (demo_trader.py:8763、env では覆せない、[[t8-week1-gate-breach-2026-07-06]])。旧 Status「LIVE (R1 意図的例外, 06-12, env=1)」は 07-06 以降 stale だったため 2026-07-24 訂正
-- **復帰条件 (T8 決定書)**: P-S1(a) HTF exemption の user R1 決裁 + order 層 12-bar min-spacing 実装。決裁トリガ = rescued shadow **unique バー N≥10** (2026-07-24 時点 unique N=8 / row N=14、row EV +2.13p / unique EV +2.48p、WR 71-75%)。⚠️ shadow exit は pre-reg estimand (time-stop/±ATR) と乖離 (SIGNAL_REVERSE/BE-trail 痕跡) のため、shadow EV は entry 符号確認まで — 復権判定に無修正流用しない
+- **Status**: LIVE 停止 (T8 ゲート①抵触 R2 code pin OFF 2026-07-06, demo_trader.py `_SWEEP_REVERSION_EURGBP_LIVE_ENABLE=False`、env では覆せない、[[t8-week1-gate-breach-2026-07-06]]) / shadow rescue 蓄積中 (P-S1(b), 07-03〜)。P-S1(a) HTF exemption は **条件付き承認済み** (user 決裁 2026-07-24、執行条件 = unique N≥10 ∧ spaced EV>0 → Option B 単一 PR): [[sweep-reversion-ps1a-decision-packet-DRAFT]] (現在 unique N=8/10、監視修正済み)。旧: LIVE (rule:R1 意図的例外, user 判断 2026-06-12)
+- ⚠️ **判定注意 (2026-07-24 main セッション)**: rescued shadow の exit は pre-reg estimand (time-stop/±ATR) と乖離 (SIGNAL_REVERSE/BE-trail 痕跡) — shadow EV は entry 符号確認まで、復権判定に無修正流用しない。exit-free 12.4y 再検証 (`reports/sweep_reversion_exitfree_reverify-2026-07-24.md`) は 12h net med +5.10p (p<1e-4) で exit-artifact 説を棄却済み
 - **Mode**: daytrade_eurgbp (15m) / **Pair**: EUR_GBP only / **Direction**: BUY only
 - **Lot**: 1000u 固定 (MIN lot)
 

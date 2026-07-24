@@ -276,6 +276,48 @@ class OandaClient:
         path += "?" + "&".join(params)
         return self._request("GET", path, timeout=30)
 
+    # ── Position/Order Book (v20, read-only) ──────────
+    # E1 positioning ingest (2026-07-14 user GO): retail 建玉/注文比率の
+    # 定期 snapshot 用。account_id 不要 (token のみ)。書き込み系ではない。
+
+    def get_position_book(self, instrument: str = "USD_JPY") -> tuple:
+        """Get the latest position book (open-position ratio buckets).
+        GET /v3/instruments/:instrument/positionBook
+        Response: {"positionBook": {"time", "unixTime", "price",
+                   "bucketWidth", "buckets": [{"price",
+                   "longCountPercent", "shortCountPercent"}, ...]}}
+        Snapshot updates roughly every 20 minutes on OANDA's side.
+        """
+        path = f"/v3/instruments/{instrument}/positionBook"
+        return self._request("GET", path, timeout=30)
+
+    def get_order_book(self, instrument: str = "USD_JPY") -> tuple:
+        """Get the latest order book (pending-order ratio buckets).
+        GET /v3/instruments/:instrument/orderBook
+        Same response shape as positionBook (key: "orderBook").
+        """
+        path = f"/v3/instruments/{instrument}/orderBook"
+        return self._request("GET", path, timeout=30)
+
+    def get_accounts(self) -> tuple:
+        """List accounts accessible to the token. GET /v3/accounts (read-only).
+        Availability-probe baseline: 200 here + 401 on books isolates the
+        401 to book-data entitlement, not token validity. Callers must not
+        expose account IDs from the response.
+        """
+        return self._request("GET", "/v3/accounts", timeout=15)
+
+    def get_labs_orderbook_data(self, instrument: str = "EUR_USD",
+                                period: int = 3600) -> tuple:
+        """Legacy fxLabs orderbook endpoint (read-only).
+        GET /labs/v1/orderbook_data?instrument=&period=
+        Availability probe only — determines whether the book-data 401 is
+        v20-specific or division-wide (OANDA Japan entitlement).
+        """
+        path = (f"/labs/v1/orderbook_data?instrument={instrument}"
+                f"&period={int(period)}")
+        return self._request("GET", path, timeout=15)
+
     # ── Transactions (v20) ────────────────────────────
     # Authoritative server-side ledger. Used to detect is_shadow labelling
     # drift (demo_trades.is_shadow=1 yet ORDER_FILL exists) and to source

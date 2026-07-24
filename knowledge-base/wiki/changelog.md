@@ -1,9 +1,209 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-07-24 — data(research): E7 phase-1 FF カレンダー歴史+gap import 完了 — §3.3b データ付録凍結 (期日 08-14 の 21 日前倒し、rule:R3)
+
+- **残タスク「FF gap import」を歴史パネルごと一括完結** ([[e15-e7-event-modality-prereg-2026-07-18]] §3.3b 新設): EPSOFT は 2023-03 停止 (延長なし) → **R4F 公開 CSV (keyless、2007〜現在、日次更新) を 2014-01〜2026-07-20 の単一ソースに採用**。値整合 = EPSOFT cross-check **歴史 sample 279/279 完全一致** + 2023 Q1 overlap 114/120 (差分は全て EPSOFT 側 end-of-panel 劣化)
+- **dump の実測特性 2 点を E15 canonical anchor 突合 (NFP 149 + CPI 135、miss 0) で特定**: (a) **時刻規約が 2023-08-07 で Europe/London → UTC に切替** → `tools/ff_gap_prepare_r4f.py` が正規化 (b) actual 列が 2023-08 で充填停止 → **判定系列 (NFP/CPI) は BLS 一次リリースの first print** (`tools/ff_gap_bls_first_prints.py`、Wayback §3.2b 経路、**較正 9/9 完全一致**) で補完 — previous 逆引き (改定値) を判定系列に使わない
+- **抽出器の kind 順先勝ちバグ 2 種を R4F previous 連鎖との系統突合で検出・修正** (NFP 後方改定括弧 / CPI 後方 y/y — 出現位置最早選択に変更、実文 regression pin 4 本)。shutdown 合算値 (CPI 2025-12-18「over the 2 months」) は機械検出で除外
+- **本番 import 済み (Render SSH、dry-run→実行)**: r4f-2014-2026 = 58,713 insert / bls-first-print = 66 actual 補完 / invalid 0。**判定系列 canonical 突合 297/298 完備** (唯一の欠落 = 事前宣言済み CPI 2025-12-18)。forecast の発表前性は発表前日 Wayback snapshot 4/4 一致で機械証明
+- tests +23 (全オフライン)。**評価への影響: なし** — 純研究データ基盤、live/shadow/Kelly/tier 不変更。残 = phase-1 discovery 08-21 → verdict 08-28
+
+## 2026-07-24 — data(research): E20 金利差方向バイアス S2 診断 — ❌ §7 exit 未達で棄却・クローズ (rule:R3)
+
+- **rapid_edge_probe の `__dummy_e20__` を実 series に差し替えて S2 執行** ([[e20-rate-differential-s2-diagnostic-2026-07-24]]): `tools/e20_rates_ingest.py` (新規) が S1 §3 台帳の keyless 6 ソース (BIS WS_CBPOL 8/8 政策金利 + 2y = MASSIVE/ECB/MOF/BOE/BoC) から日次パネル→per-pair シグナル CSV を生成 (探索窓保護のため 2022-12-31 で物理切断して commit、sha256 manifest 付き)。GBP は IADB に 2y ZC が無く 5y ZC (IUDSNZC) 代用を明記。価格は **E15 phase-0 凍結 data_ledger と sha256 完全一致の 13 ペア parquet** (main の plain 名は refresh cron 短縮版で研究使用不可 — 部分 parquet 罠の変種を doc §1b/§5-4 に記録)
+- **結果 (探索窓 2014-06〜2022-12 のみ、8 run、全 run OOS 非接触確認)**: **carry-level = §7 exit 3/3 欠け** — pooled IC **−0.047 (p≈0) 機構と逆符号で有意**、quintile **単調逆行** (Q1 +7.3 → Q5 −16.0)、EV_net 全負 (AUD_JPY −4.8)。**mom63 = 1/3 欠け (単調性 Q2 −12.9 中抜け) + 補助不合格 3 点** — IC +0.026 (p=0.003) と EV_net(k=5) +2.6p は通るが、EV 正 horizon の fold が [−,−,+] (fold3 単独駆動)、2022 slice +21.4p 集中 (S1 §5-4 の regime 罠)、cell IC 有意ゼロ (78 cell)。breakout 条件付け (user 仮説の形) は**両 variant で uncond より劣化** = テクニカル entry が価値を引く
+- **→ E20 クローズ (S3 起案なし、§7 既定の棄却分岐)**。再試行禁止 scope = 凍結 2 variant の同型。rates データ配管は残置 (次の rates 系 S1→S2 は数時間で回せる)。OOS 2023+ は未接触温存
+- 成果物: tools 2 本 + spec 8 本 + 診断 raw 17 ファイル + tests +14 (全オフライン)。**評価への影響: なし** — 純研究、live/shadow/Kelly/tier 不変更
+
+## 2026-07-22 — feat(research): S2 共通ハーネス rapid_edge_probe — 仮説スペック 1 ファイル → 探索窓診断 (rule:R3)
+
+- **user 要求「仮説を爆速で実装してテストするフロー」への回答**: [[edge-development-pipeline-2026-07-18]] §2 **S2 (R3 診断) を標準化** — `tools/rapid_edge_probe.py`。YAML/JSON スペック 1 枚 (direction_source: event/series/technical × entry_trigger: none/breakout/pullback × holding: bars/first_touch の小語彙) → ペア×horizon の **IC / 摩擦調整 EV / N / fold 3 分割 / 発火頻度** + S3 起案検討の目安を md+json で自動出力。`--draft-prereg` で S3 pre-reg スケルトン (🔓 DRAFT、LOCK 不能 TODO 付き) も自動 draft。使い方 1 ページ: [[rapid-edge-probe-2026-07-22]]
+- **規律は構造で強制**: OOS 窓 (2024-01-01〜) は bars/calendar の load 直後物理スライスで遮断 (明示 `--unlock-oos` + 警告なしにアクセス不能、test pin)。全レポートに「探索診断 ≠ 判定 / live・tier 判断禁止」ヘッダ + **falsified 6 系統 + 価格モダリティ 3 周の再試行禁止チェックリスト**を自動印字。seed 固定 / silent except 禁止 (skip 全件理由カウント) / モジュールトップ副作用ゼロ
+- **再発明なし**: estimand コアは `event_modality_lib.py` (§3.5 SSOT: σ_h first-touch SL 優先 / NY17時 roll ATR14d / E1 §3.4 凍結摩擦 / coverage gate)、IC 規律は channel_edge_ic_explore 同型、データは 12y 15m parquet 13 ペア + E15 イベントカレンダー
+- **動作実証 2 本 (探索窓のみ — 診断であり判定ではない)**: (a) `nfp_usd_24h` = NFP 後 USD 方向 uncond → pooled EV **−7.4p (h4) / −3.7p (h24)**、fold 不一致 = エッジなし (E15 discovery の NFP uncond 凍結 0 と整合)。(b) `rate_diff_breakout_template` = 金利差方向×breakout の雛形 (外部 series は **E20 feasibility 待ちのためダミー列で構造のみ**) → EV ≈ −摩擦に収束 = 配管正常。`raw/bt-results/rapid_probe_*_2026_07_22.{md,json}`
+- tests +27 (`tests/test_rapid_edge_probe.py`、全オフライン合成 fixture — OOS 遮断 / 語彙 / causal entry / SL 優先 / 決定性 / 規律ヘッダ pin)。全 suite 2328 passed / check.py 9/9 green
+- **評価への影響: なし** — 純研究インフラ。live/shadow/Kelly/tier 不変
+## 2026-07-22 — data(research): E15 phase-0 OOS verdict — ❌ FAIL 0/6 (全候補 C5、rule:R1 手続き、純研究)
+
+- **判定器実装 + clean OOS 判定を執行** ([[e15-e7-event-modality-prereg-2026-07-18]] §5c/§8、期日 07-31 の 9 日前倒し): `tools/event_modality_oos_verdict.py` (extract/verdict 分離、seed=20260718 固定、B=10,000、estimand は lib SSOT 再利用)。**test pin 26 件を先に green にしてから OOS 接触** (§10-6 — 判定分岐 C1–C5/BH-FDR m固定/bootstrap seed 決定論/IM df/ナイフエッジ/canary 検出能力/OOS 窓ガード/摩擦式/join 契約)
+- **結果: レグ A 全滅** — BH-FDR q=0.05 (m=6) 通過ゼロ (min p_combo=0.214 ≫ rank-1 閾値 0.0083)。4/6 は点 EV 正 (te/ft 両正、最大 CPI/fade/30m/h24 = +9.68p/p) だが event-block 推論 (bootstrap+IM) で有意性なし → **全 6 候補 C5 REJECT**。C3 ゼロ (blocks 20–28 ≥ 15 で B(d) 充足 — §9 modal 予想 C3 は自らの閾値と整合しない予想だった。§8 字義執行・再解釈なし)。**§8 固定分岐 = phase-1 (E7) 予定どおり実行**。Lee & Wang post-sample 検証も negative (fade は探索で不選抜、follow は OOS 非有意)
+- データ整合 green: parquet 台帳再現 13/13 (sha256 凍結) / OOS sanity は CPI 14.3%・FOMC 10.0% >5% だが offset ピーク全種 +0 (時刻正常、explore 窓 user 裁定と同一シグネチャで続行・記録) / リーク canary 実データ 686 件 all clean。collision・週末跨ぎはフラグ記録のみ (§10-3)
+- 成果物: `raw/bt-results/e15_phase0_oos_verdict.json` (全統計+trade/event list) + pre-reg §5b 凍結表転記 (🔒 手続き補完)・§8 発動分岐・§12 判定表 + registry `e15-e7-event-prereg-phase0-verdict` resolve + lib 加法拡張 (TradeOutcome.atr / entry_delay_bars / canary ATR 経路) + sanity 検出器の window 共有化
+- **評価への影響: なし** — 純研究、live/shadow/Kelly/tier 不変更。次 = phase-1 (FF gap scrape + データ付録凍結 08-14 → verdict 08-28、registry `e15-e7-event-prereg-phase1-verdict` 監視継続)
+
+## 2026-07-22 — docs(research): E20 金利差方向バイアス S1 feasibility — 条件付き採用 (S2 GO) (rule:R3)
+
+- **user 仮説 (2026-07-22)「金利差から計算した方向バイアス × テクニカル entry」を E20 としてパイプライン S1 (C1–C6) で裁定** → [[e20-rate-differential-feasibility-2026-07-22]]。判定 = **条件付き採用 (S2 GO)** — 第 4 モダリティ (rates)、蓄積待ちゼロで BT 即可
+- **falsified 台帳との区別を確定**: round-3 (intraday ZN divergence-reversion) とは データ/頻度/機構/役割 の 4 軸で別仮説。hull-donchian USD_CHF ratediff (FALSIFIED) は claim が逆 (fade ゲート ⇔ 継続バイアス)。D1 TSMOM は price-momentum で family 別 — 3 件の教訓ガード (単調性 / USD-neutrality / regime slice) を S2 必須化。E5 term-structure の C1 棄却は日次粒度で解消 (CIP proxy)
+- **データ実在を一次確認 (実 fetch 証跡付き)**: 政策金利 8/8 = BIS WS_CBPOL 日次 keyless 単一エンドポイント (1999 実取得、鮮度 07-09〜14)。2y 国債利回り = US (MASSIVE in-house 1962+) / EUR (ECB 2004+) / JPY (MOF 1974+) / GBP (BOE 1995+) / CAD (BoC 2001+) 現行、CHF (SNB 1988+) は **2025-07-31 で cube 凍結**、AUD/NZD は WAF 403 → Wayback 歴史のみ (go-forward gap)
+- 条件: claim = 継続バイアス限定 / variant 2 本凍結 / live 段階は AUD/NZD 制限 / 保有 1–10 日は帳簿上限外 (E9 同型 △)。S2 推奨 spec (`tools/rapid_edge_probe_e20.py`) を doc §7 に付す
+- **評価への影響: なし** — 純研究 S1、live/shadow/Kelly/tier 不変更
+
+## 2026-07-22 — data(research): E15 phase-0 discovery 実行 — §8 DEFERRED user 承認 → 6 候補凍結 (rule:R1 手続き)
+
+- **§8 DEFERRED 裁定 = user 承認 (2026-07-22)**: sanity フラグ (CPI 43.6%) は verify-times で時刻正常を立証済み・低インパクトイベント由来と裁定、discovery 続行
+- **discovery (探索窓 2014-2023 のみ): 54/54 combo 計算 → 選抜規則 (§5b 凍結 = fold→EV-per-vol→種分散) で 6 候補凍結** (FOMC 3 / CPI 3 / NFP 0) — `e15_frozen_candidates.json` + 全 combo 台帳 `e15_discovery.json`
+- 価格 parquet は coverage 台帳検証済みフルセット 13/13 を使用 (部分 parquet 罠回避)。OOS 窓 (2024-01-01〜) は未接触 — **次 = clean OOS 判定、verdict 期日 2026-07-31** (registry `e15-e7-event-prereg-phase0-verdict`)。凍結は期日 07-24 の 2 日前倒し
+- **評価への影響: なし** — 純研究、live 変更なし
+## 2026-07-21 — feat(monitor): R3 market-data ingest 鮮度監視を prereg-trigger-registry に配線 (rule:R3)
+
+- **registry `r3-market-data-ingest-freshness` 追加** ([[market-data-ingest-2026-07-18]] §7 宣言の執行、E1 `e1-positioning-ingest-freshness` と同型): `/api/marketdata/status` の health を毎日機械評価 — `verified:ff_calendar` 24h 超 stale / `verified:cme_bars:*` (7 契約) いずれか 72h 超 stale (週末市場閉鎖 ~2.5d を跨いでも誤警報しない) / キー欠落・min_keys 未達 (worker 未稼働・thread 死の fail-loud 検出) で 🔴 TRIGGERED。API 不達/health DB エラーは DATA_UNAVAILABLE に分離
+- 実装 = `tools/prereg_trigger_watch.py` に type=`ingest_freshness` (純関数 `evaluate_ingest_freshness` + fetch 分離、既存パターン準拠)。tests +10 — registry 閾値/契約数がモジュール定数 `STALE_ALERT_*_SEC` / `DEFAULT_CME_SYMBOLS` と乖離したら fail する整合 pin 込み
+- deploy 後検証 (§7 次アクション 1) 完了: running=true、ff + cme 7 契約全 verified (2026-07-21T10:55Z)。CME 深 backfill (§7 次アクション 2) は並行セッションが同日 11:10Z に全 7 契約完了済み (§7 に記録)
+- **評価への影響: なし** — 監視エントリ + watch ツール拡張のみ。live/shadow/Kelly/tier 不変
+
+## 2026-07-21 — feat(research): E15 phase-0 イベントカレンダー凍結 + §3.2b AMENDMENT — sanity >5% 発火で §8 DEFERRED (rule:R1 手続き、純研究)
+
+- **§3.2b AMENDMENT (結果観測前 data-availability、round-3 前例)**: FRED キー self-provision 不能 → NFP 行に **pre-registered 済み fallback「BLS 公式ページ」を発動** (CPI は「同上」の明確化)。アクセスは Wayback snapshot 経由 (BLS 直接 403)。BLS News Release Archive の**アーカイブ発表ファイル名 = actual release date** を一次記録に格上げ。grid/判定規則は不変更、追記時点でイベント×リターン結合統計は未計算。
+- **カレンダー凍結**: `tools/event_calendar_build.py` (politeness 2s/req) → `raw/bt-results/e15_e7_event_calendar.json` + build log。**FOMC 99 / NFP 149 / CPI 149 件** (2014-01〜2026-06、ET→UTC per-date DST)。FOMC は scheduled のみ (unscheduled 4 / cancelled 1 / notation vote 4 除外・記録、monetary20250822a 型の非会合リリースは行内突合で構造排除)。整合性検証 green (explore 窓: NFP 金曜規則・12件/年・欠月ゼロ)、2025 shutdown 異常はフラグのみ (§10-3)。パーサ回帰 pin 15 tests (オフライン fixture)。価格 re-fetch で coverage 台帳 13/13 完全再現。
+- **⚠️ §3.2 sanity 発火 → §8 DEFERRED**: フラグ率 CPI 43.6% / NFP 6.8% / FOMC 2.5% (>5%)。処方どおり discovery 停止・再検証 → **verify-times (オフセットピーク検査) で全種 offset +0 ピーク = 時刻は正しい** (フラグは低インフレ期 CPI / COVID 期高ベースライン由来、破損行ゼロ)。しかし §8 明文「sanity >5% — **user 裁定 (勝手に解釈しない)**」に従い **discovery 未実行・user 裁定待ち**。裁定後は push-button (期日 07-24)。
+- **役割分離**: 本カレンダー = 歴史 (BLS/Fed 一次、BT 判定用) ⇔ PR #102 FF capture = go-forward ingest (E7 Actual 補完)。非重複。
+- **評価への影響なし** — 純研究、live/shadow/Kelly/tier 不変更。**§10-1 遵守: イベント×リターン結合統計は探索窓含め一切未計算** (計算したのはカレンダー件数・整合性・event bar range のみ)。
+
+## 2026-07-21 — feat(research): E15 phase-0 §3.1 価格データ + coverage 凍結 — MASSIVE ブロックは誤り (rule:R1 手続き、純研究)
+
+- **E15 phase-0 の data-run を前進** ([[e15-e7-event-modality-prereg-2026-07-18]] §3.1 執行、runbook `e15_phase0_execution_status.md`)。前回 (07-20) autopilot が「MASSIVE_API_KEY + FRED_API_KEY 双方 credential ブロック」と記録していたが、**MASSIVE 側は事実誤認** (`.env` に実在・稼働)。branch-stale (166 commit 遅れ) を検知し origin/main から再検証 → 自走原則で unblock。
+- **成果**: 13 ペア 15m フル歴史 (days=4650) を MASSIVE 取得 → parquet、explore 窓 (2014-01-01〜2023-12-31) coverage 凍結 → `raw/bt-results/e15_e7_pair_coverage.json`。**13/13 pass gate 0.90 (0.974〜1.000)、primary 7/7、EUR_AUD 1.000** → §3.1 縮小分岐 / §8 DEFERRED(primary<5) リスク解消。ハーネス (`_load_pair`→`event_trade`→`run_combo`) を実 parquet でスモーク検証済。
+- **残ブロッカー = FRED calendar (NFP/CPI) のみ**: `FRED_API_KEY` 不在・self-provision 不能 (FRED 公開ページ WebFetch 403/urllib timeout、firecrawl キー無)。FOMC は key-free だが歴史ページ書式が不統一 → NFP/CPI と同一 keyed パスで一括構築が正 (discovery は 54 combo family 全 event 揃うまで走らせない=§5b)。
+- **§10-1 遵守 (中間 peeking 禁止)**: coverage 件数 + 日付範囲の計上のみ。OOS 窓のイベント×リターン結合統計は一切未計算。**評価への影響なし** — 純研究、live/shadow/Kelly/tier 不変更。期日: 凍結 2026-07-24 / OOS verdict 2026-07-31 (registry `e15-e7-event-prereg-phase0-verdict` 継続監視)。
+
+## 2026-07-18 — docs(prereg): E15+E7 イベントモダリティ・プログラム 単一 family pre-reg 起案 — 🔓 DESIGN self-LOCK (rule:R1 手続き、純研究)
+
+- **[[e15-e7-event-modality-prereg-2026-07-18]]**: round-2 裁定 ([[external-hypothesis-scan-round2-2026-07-18]]) の統合推奨どおり、E15 (FOMC/NFP/CPI イベント窓プレミア/リバーサル、phase-0) + E7 (指標サプライズ directional、phase-1) を**単一 pre-reg family** で起案。方法論 = round-1/2/3 と同一 (discovery diagnostic → 候補固定凍結 → clean OOS、BH-FDR + first-touch EV レグ + ナイフエッジ)、[[edge-development-pipeline-2026-07-18]] S2/S3 統合・型 B
+- 設計の要点: (1) **α 会計 = phase 分割 q=0.05+0.05 ≤ 0.10** (E1 の look 分割と同型、multiplicity 二重取り禁止の実装)、(2) **primary = USD-leg 7 ペア block の combo pooled × event-block 推論** (bootstrap + Ibragimov–Müller 併設。T11「EUR_JPY は USD 露出ゼロ」反証の構造的排除)、(3) **凍結規則は raw EV 単独ランク禁止** — fold 安定性 → EV-per-vol → イベント種分散 ([[lesson-freeze-rule-topEV-selects-overfit-2026-07-14]] 反映)、(4) T11 / WMR fix REJECT / E8 棄却との区別を §2 に明示、発表前 entry は構造的にゼロ、(5) 窓 = discovery 〜2023-12-31 / OOS 2024-01〜2026-06-30 (Lee & Wang RAPS 2025 の post-sample = 文献 standing の検証を兼ねる)
+- 期日: **phase-0 verdict 2026-07-31** (E1 first look 10-15 より 2.5 ヶ月先行 — WIP 原則の戦略的役割) / phase-1 verdict 2026-08-28。registry `e15-e7-event-prereg-phase0-verdict` / `phase1-verdict` 追加、queue `20260718-e15-e7-event-phase0` 起票、pipeline 状態表 S3 反映
+- **評価への影響: なし** — 純研究 pre-reg + 監視エントリのみ。live/shadow/Kelly/tier 一切不変更。PASS でも実装は D4 実装 pre-reg + user 承認 (S5) が別途必要
+
+## 2026-07-18 — docs(process): エッジ開発パイプライン常設化 — 供給ラインの単発プッシュ→常設プロセス転換 (rule:R3)
+
+- **[[edge-development-pipeline-2026-07-18]]**: user 指摘 (07-18) を受け、暗黙だったエッジ開発手続きを S0〜S8 ステージ + **WIP 原則 (S1-S4 に常時 ≥2 仮説、モダリティ分散)** + 月次スキャン cadence として正式化。E1 単一ベット (modal=UNDERPOWERED) の後継不在リスクを構造的に解消する
+- registry: `edge-supply-scan-monthly` (次回 2026-08-18) 追加
+- **[[external-hypothesis-scan-round2-2026-07-18]] (E7-E19 裁定)**: 採用 3 — **E15 (FOMC/NFP/CPI イベント窓、in-house 12y + 無料カレンダーで即 BT 可 = E1 first look より先に verdict 可能な唯一の候補)** / E7 (指標サプライズ、19y 分単位パネル実確認、E15 と単一 pre-reg family) / E12 (CME 先物 volume flow — **yfinance 1h は 730d rolling で capture 開始遅延 = 歴史の不可逆喪失**)。条件付き E9 (VRP、無料 probe 先行)。棄却 6。データ実在は全て一次確認 (5-agent workflow、敵対的検査込み)
+- 今から始めないと不可逆なインフラ 3 件を特定: FF Actual 補完 ingest / CME 1h volume 週次 capture / CME settlement・OI 日次 scrape (§infra 参照)
+- 併走: shadow 蓄積詰まり R3 診断 (別ブランチ)
+- **評価への影響: なし** — プロセス文書 + 研究裁定 + 監視エントリのみ
+
 ## なぜこのページが重要か
 定量評価は「いつからのデータを使うか」で結論が180度変わる。
 各バージョンの変更が**どのトレードに影響するか**をここで追跡する。
 
+## 2026-07-18 — feat(data): R3 market-data ingest — E7 FF カレンダー + E12 CME 1h volume の go-forward capture 開始 (rule:R3)
+
+- **[[market-data-ingest-2026-07-18]]**: [[external-hypothesis-scan-round2-2026-07-18]] infra_needed_now 3 件の実装裁定。(1) FF カレンダー = ✅ 実装 (faireconomy 公式 feed 6h capture + **翌期 previous 逆引き** actual 補完 + `tools/ff_calendar_import.py` gap 合流経路)、(2) CME FX 先物 1h volume = ✅ 実装 (yfinance 7 契約日次 capture、730d rolling 窓対策)、(3) CME settlement/OI scrape = ❌ **不実装 + round-2 前提訂正** (probe が「scraping は CME Data ToU で禁止」明示 403 / Databento は歴史保持 = 不可逆でない → E9/E10/E14 forward は Databento 一本化)
+- 実装 = `modules/market_data_ingest.py` (positioning_ingest パターン準拠: fail-loud / モジュールトップ副作用禁止 / defer_thread fork-safety / health 2 テーブル / content-hash + UNIQUE dedup)。**forecast 凍結を code 強制** (event_time 通過後は feed 側改変を反映しない — E7 surprise estimand の汚染防止)。**形成中 bar 非保存 + 初回 capture 値凍結** (BT 再現性)
+- 検証 API: `/api/marketdata/status` / `/api/marketdata/export?table=ff_events|cme_bars|health_log`。tests +38 (offline/deterministic)。smoke: CME 2 symbol × 155 bars 実 fetch→保存成功、FF は 429 rate-limit 実測 → poll 6h + retry 30 分に設計反映
+- **評価への影響: なし** — read-only 蓄積 + 検証 API + import ツールのみ。live 発注経路・戦略・Kelly・shadow・BT 関数いずれも不変
+
+## 2026-07-18 — docs(analysis): r2_shadow_demoted_cell「構造的詰まり」診断 — analyst フラグ裁定 = 現状維持 (rule:R3)
+
+- **[[analyses/shadow-accumulation-blockage-diagnosis-2026-07-18]]**: analyst report (07-17 pre_tokyo 等) の「scalp 系全般で r2_shadow_demoted_cell が Sentinel N 蓄積を毎日足止め = 構造的詰まり」フラグをコード + 本番実測で裁定
+- **コード実態 = (b)**: gate (`demo_trader.py` L4227-4248 / L3826) は OANDA 送信だけでなく **shadow row の DB 書込み (L5859 `open_trade`) まで完全遮断**。ただし対象は静的 registry (`shadow_demote_registry.py`) の**反証確定済みセルのみ** (retired 5 戦略 N=453〜1,117 + per-cell 5、全て R2 監査根拠つき)
+- **実測で「詰まり」を否定**: 30d shadow rows **3,239 件 (~108/日)、147 セル** 蓄積継続。SCALP_SENTINEL 現役 (vol_surge_detector 90 / ma_regime_switch 115 行) は無傷、gate 起因ゼロは bb_rsi_reversion (T10 KILL 済) のみ。registry セルは demotion commit 日 (06-12/06-18/07-02) 以降の流入が正確にゼロ (leak なし)、per-cell 粒度も機能 (engulfing_bb×EUR_USD 157 行 vs ×USD_JPY 0)
+- **block 件数は tick 再発火ノイズ**: Render logs 実測 37.4 分で 100 件 (ema_trend_scalp×GBP_USD 単独 ≈2.7/分)。in-memory カウンタは deploy 毎リセット — 「失われた N」の推定量にならない
+- **裁定 = 現状維持**: gate は [[lessons/lesson-shadow-always-emit-cleanup-2026-04-28]] が要求した R2 自動 demotion gate の実装そのもので、原則 3 (未解決仮説の検定力保護) と無矛盾。unblock は slot 侵食 (scalp shadow cap 4/pair) で現役セルの蓄積を毀損し統計力を**下げる**。「emit 継続 + 学習除外フラグ」分離案は汚染経路再導入で却下。観測性改善 3 点 (analyst report 注記 / _SCALP_SENTINEL cosmetic 除去 / ログ rate-limit) を別タスク提案
+- **評価への影響: なし** — 診断文書のみ、live/shadow 挙動・コード一切不変
+
+## 2026-07-17 — fix(research): E1 ハーネス敵対的レビュー修正 — fatal 2 系統 (look-2 着地 / health 時系列) + major 6 + minor (rule:R3)
+
+- **[[e1-positioning-contrarian-prereg-2026-07-16]] 判定器への敵対的レビュー (spec/leak/stats 3 レンズ、fatal 3 [実質 2 系統] / major 6 / minor 10) を全件処置**。pre-reg 本文は不変更 (LOCK 遵守)
+- **F1 (look-2 着地違反)**: `overall_verdict()` が look を知らず second look で C3 → 禁止された `UNDERPOWERED` (= 第 3 look 示唆) を返していた → look=2 では **PASS / REJECT-F / REJECT のみ** に写像 (C3/C2/C5→REJECT、C4→REJECT-F、UNDERPOWERED 到達不能化 = α 会計 q₁+q₂≤0.10 の保証回復)。look=2 × C3 → REJECT / 着地集合の pin テスト追加
+- **F2 (health 時系列インフラ、§6-7「estimand を宣言どおりにする運用修理」)**: §2.2 stale cap 主モードが要求する per-instrument verified **時系列**が、本番 `positioning_health` の 1 行 upsert から構造的に得られなかった → (1) `positioning_health_log` append テーブル新設 + `record_health()` が**同一トランザクション**で追記 (~940 行/日)、(2) `/api/positioning/export?table=health_log` read-only export 経路、(3) ハーネス `--verdict-run` は verified 系列欠落で fail-loud 拒否 (明示 `--fallback-mode` でのみ続行)、結果 JSON に `stale_cap_mode: primary|fallback` を必ず記録、fallback 時は §2.2 必須診断 (2h-cap NA の NY 時間帯分布) を併記し**閑散帯集中 → DEFERRED を機械接続** (事前固定分岐、閑散帯 = NY 17:00–03:00 / 総数≥50 / 集中倍率 2.0 を観測前固定)
+- **major**: (a) gate2 点推定を全 6 combo 常時計算 — look=2 でナイフエッジ #2(ii) 隣接 combo 参照が機械 FAIL する偽 REJECT バイアスを修復 (`gate2_all_combos` で透明化)、(b) C1/PASS 経路の end-to-end pin — 埋め込み強 contrarian シグナル合成世界で **verdict=PASS/C1 に実到達**する統合テスト (knife 4 点 / confirmatory / Stage B / Gate1+2) + confirmatory 4 分岐・partial IC・S2 lag・S3 pain 式の単体 pin、(c) canary に rank 窓 (strictly trailing / t 非包含) + mid 経路 (確定 bar 限定) の注入点と rank→IC 貫通の検出感度チェックを追加 (リーク rank 実装が fail することを pin — §6-4 委譲の空洞化を修復)、(d) primary parquet 欠落の無言 family 縮小を封鎖 (`--verdict-run` で 13 ペア完備必須、欠落リスト表示で拒否)
+- **minor**: verified key の book 成分検査 (outlook 限定) / im_test se=0 の符号盲目 p=0 修正 (逆符号→p=1) / CONFIRMATORY_UNTESTED フラグを C1 限定化 (C2〜C5 汚染除去) / 量子化粒度をペア×統計毎 (S1/S2/S3) に記録 / Stage B 実行条件を c1_candidate (Gate1+2 通過) に拡張 / parquet cutoff 切詰めの機械クリップ + 件数記録 (切詰め規約非依存) / LOCF resampler の DST 跨ぎ週 (2026-11-01) unit test / MBB 全ペア同時 day-draw の pin / **day-block「観測日 index」規約の宣言** (Gate 2 の疎 trade 日で暦 5 営業日と乖離 — LOCK 字義の解釈変更を避け、実装ノートとして verdict JSON (`block_basis`) と本 changelog に宣言。変更でなく宣言で処置した唯一の項目)
+- tests 118→160 (E1 96 + ingest 64、全 offline/合成)。**評価への影響: なし** — 判定器 + read-only export 経路 + append テーブルのみ。live 発注経路・戦略・Kelly・shadow 一切不変。verdict 期日 (2026-10-15) の実データ初適用前に修正完了
+
+## 2026-07-17 — feat(research): E1 pre-reg 判定ハーネス実装 — LOCK 後成果物 (rule:R3)
+
+- **[[e1-positioning-contrarian-prereg-2026-07-16]] §7 成果物規定の実装**: 判定器 `tools/e1_positioning_prereg_eval.py` (2,250 行、LOCK 後実装・seed 固定 `SEED_DEFAULT=20261015`)。§7 の規定どおり **LOCF resampler / rank タイ規約 (mid-rank §3.1) / DST 跨ぎ週 (2026-11-01) / ATR (NY17 roll 完結 bar) / OHLCV join 契約 / canary leak test を `tests/test_e1_prereg_eval.py` (58 tests) に pin してから verdict データに触れる**体制を確立
+- 実装範囲 = §2.2 市場時間 (America/New_York DST 追随) + LOCF/stale cap (verified 基準)/cycle 証跡、§2.3 join/前方リターン/ATR14d/censoring、§2.5 品質 gate (coverage/stale gap/family postpone/sanity/jump detector 前方+24h)、§3 シグナル 3 本 × rank/hysteresis/金曜窓/年末窓、§4.1 Gate1 (営業日 MBB L=5 B=10k 全ペア同時 + Ibragimov–Müller df=7、p=max、BH q=0.05 m=6)、§4.2 Gate2 (day-block bootstrap、N<60 は点推定分類)、§4.4 C1〜C5 排他分類 + SIGN-FLIP/CONFOUNDED (partial IC)、§4.5 ナイフエッジ 4 点、§2.4 confirmatory 複製検査、§4.3 Stage B、§4.6 Secondary
+- **構造的強制 (§6-1/6-2)**: 入力 = 凍結 export artifact + parquet のみ (本番 API/DB 経路をコードに含めない)。synthetic 宣言のない artifact は `--verdict-run` フラグなしで拒否。family gate postpone 時は統計段を一切実行しない (look 非消費の機械化)。canary suite green が verdict 実行の前提条件
+- **実データ接触なし — テスト・dry-run は 100% 合成データ** (§6-2「実データへの初適用は verdict 期日 2026-10-15」遵守)。tests 60→118 (58 追加、全 offline/deterministic)。**評価への影響: なし** — 研究ツール + テストのみ、live 発注経路・戦略・Kelly・shadow 一切不変
+
+## 2026-07-16 — feat(research): E1 positioning contrarian pre-reg DRAFT + positioning_health 永続化 + D4 テンプレート (rule:R3)
+
+- **[[e1-positioning-contrarian-prereg-2026-07-16]] (DRAFT)**: 文献駆動・**データ観測前** pre-reg — discovery 2 段階を省き、first look verdict を **2026-10-15** (cutoff = t0+12週) に固定。従来計画 (2-3ヶ月蓄積 → discovery → 凍結 → OOS) 比で **verdict を 1〜2 ヶ月前倒し**。設計 = 8-agent workflow (独立3案 → 統合 → 敵対的レビュー major 11 反映)。階層ゲートキーパー (pooled IC 二重検定 → 摩擦調整 EV conjunction、look 毎 BH q=0.05)、UNDERPOWERED second look (2027-01-06) 事前固定。LOCK 決裁期限 2026-07-17 (registry `e1-prereg-lock-decision-stale`)
+- **positioning_health テーブル (pre-reg §2.2 必須インフラ)**: per-instrument `verified:` 時刻 + `last_cycle_at` heartbeat を DB 永続化 — dedup skip (行を書かない) と fetch 失敗の識別を可能にし、LOCF stale cap の活動条件付けバイアスを排除。status API に `health` 露出。詳細: [[e1-positioning-ingest-2026-07-14]] §13
+- **[[d4-implementation-prereg-template-2026-07-16]]**: survivor 到達時に即起案できる D4 実装 pre-reg 雛形 (carve-out 2 択 / R2 自動降格 / セル単位判定 / parity / 防御解除ラダー) — 直列待ちの前倒し削減
+- tests 56→60。**評価への影響: なし** — read-only 計測基盤 + 文書のみ。live 発注経路・戦略・Kelly・shadow 一切不変
+
+## 2026-07-16 — feat(data): E1 instrument 拡張 6→13 — 将来セル候補の蓄積 clock を前倒し開始 (rule:R3)
+
+- **動機 (最短経路)**: history は今から蓄積する以外に入手不可 (§8c 確定) → 将来ペアの clock は今日始めた分だけ discovery が早まる。outlook は全 symbol 一括 1 リクエスト (probe: n_symbols=186) のため **API 予算コストゼロ**、増分は DB ~940 rows/日のみ
+- **追加 7 ペア**: AUD_USD / NZD_USD / USD_CAD / USD_CHF / NZD_JPY / EUR_AUD / EUR_GBP (engine モード/Phase B-1 slot 既存の取引可能ペア)。ペア別 t0 が異なる点を pre-reg 窓設計の必須参照事項として記録。詳細: [[e1-positioning-ingest-2026-07-14]] §12
+- **評価への影響: なし** — read-only データ収集の対象拡張のみ。live 発注経路・戦略・Kelly・shadow 一切不変
+
+## 2026-07-16 — fix(data): E1 defer_thread — import 時 network thread 起動の廃止 (第2修正, rule:R3)
+
+- **背景**: §10 修正後も serving プロセスの healed thread がハング (master の cycle は成功 = t0 蓄積開始済み)。帰属 = fork 瞬間に master thread が HTTP 実行中 → socket/ssl 内部 lock が locked のまま複製 (Session 再生成では直らない)
+- **根治**: `start_positioning_ingest(defer_thread=True)` — master では thread を起動せず、serving プロセスの初回 heal (§8b) を唯一の起動経路に一本化。status に `current_phase`/`phase_since` 追加 (ハング位置の直接観測)。詳細: [[e1-positioning-ingest-2026-07-14]] §11
+- tests 54→56。**評価への影響: なし**
+
+## 2026-07-16 — fix(data): E1 Myfxbook client 2バグ修正 — session 二重エンコード + fork-unsafe HTTP Session (rule:R3)
+
+- **背景**: user が credentials 投入 (05:54Z) → 初回稼働で "Invalid session." + healed thread ハングを実証
+- **(a)**: Myfxbook session は発行時点で URL-encoded 済み — params= 再エンコードが二重化。`_get` を組立済み query 方式へ (session は raw 付加)。**(b)**: fork 継承 requests.Session の pool lock が locked のまま複製されハング — pid 変化検知で lazy 再生成。詳細: [[e1-positioning-ingest-2026-07-14]] §10
+- 修正版で実 API 検証済み (186 symbols / 対象 6 ペア全取得)。tests 51→54 (回帰 pin 3)
+- **評価への影響: なし** — read-only データ収集の修正のみ
+
+## 2026-07-15 — feat(data): E1 ソース転換 — Myfxbook Community Outlook aggregate 版 (オプション A 採択, rule:R3)
+
+- **決裁**: user 全面委任 (2026-07-15「最短がオーダーなので、やり方は任せる」) の下で §8c オプション A 採択。B (practice) は期待値低で保留、C (有償) はコスト非対称、D (閉鎖) は唯一の主戦線を閉じる理由なし。詳細: [[e1-positioning-ingest-2026-07-14]] §9
+- **何を**: `modules/myfxbook_client.py` (新規、login/session/re-login、secrets 非開示 pin) + `positioning_ingest.py` ソース抽象 (`POSITIONING_SOURCE` 明示 > MYFXBOOK_EMAIL/PASSWORD 自動検出 > oanda default)。book_type=`outlook`、near_imbalance=NULL (bucket 級放棄の明示)、raw payload を buckets_json に JSON object で温存、content-hash dedup (sha256、snapshot_time は fetch 時刻 μs 精度)、poll ≥900s clamp (rate limit 100 req/24h)
+- **受け入れ確認**: `/api/positioning/probe?run=1&source=myfxbook` (login+outlook 1回)。export API は book=outlook を受理
+- **user アクション (E1 稼働の唯一の依存点)**: Myfxbook 無料 account 作成 → Render env に `MYFXBOOK_EMAIL`/`MYFXBOOK_PASSWORD` 投入 (§9 手順)
+- **評価への影響: なし** — live 発注経路・戦略・Kelly・shadow 一切不変。read-only データ収集のソース交換のみ。tests: test_positioning_ingest.py 34→51
+
+## 2026-07-15 — fix(routing): trendline_sweep 全セル shadow-first demote — ELITE_LIVE all-pairs bypass 除去 (pre-reg 2026-07-13 執行, rule:R2)
+
+- **何を**: `_ELITE_LIVE` から trendline_sweep を除去 (最後の member → 空集合化) + `_PAIR_DEMOTED` に EUR_USD / GBP_USD / EUR_GBP の 3 セルを追加 (gbp_deep_pullback 2026-05-04 と同型)。`TRENDLINE_SWEEP_REDESIGN_V2=1` env の live 復活パスも PAIR_DEMOTED 先勝ちで無効化。`HTF_MIXED_LIVE_STOP_CELLS` の GBP_USD mixed cell stop は部分集合として残置
+- **なぜ**: pre-reg `trendline_sweep_gbpusd_pairscope_2026-07-13` (resolved / reviewer=SATISFIED) の terminal action 執行。12y MASSIVE per-cell WF (本番 trigger 無変更) で**全 3 セル FAIL** — netEV: EUR_USD −0.483 (N=3036, WF 1/4) / GBP_USD −3.121 (N=4884, grossEV=−0.095 = 摩擦以前に負) / EUR_GBP −1.449 (N=2829)。BH-FDR (q=0.10, m_eff=4) 生存ゼロ。ELITE_LIVE 根拠の 365d favorable BT (WR 73-81%) は WR 41-44% に崩壊し反証。forward LIVE GBP_USD netEV=−2.35p RR=0.15 が corroborate
+- **shadow 継続**: 3 セルとも emit は止めない — is_shadow=1 で記録継続 (4原則#3)。再LIVE化条件 (R1, cell 単位) = forward shadow N≥20 ∧ Wilson_lo≥0.40 (FDR) ∧ WR≥BE-WR@realized-payoff
+- **評価への影響**: あり — trendline_sweep の live 発火が全ペアで停止 (ELITE_LIVE 便乗 live はこれで消滅、`_ELITE_LIVE` は空集合)。clean live 集計から trendline_sweep の新規 live row が消える。shadow 統計は不変
+- 詳細: [[trendline-sweep]] 判断履歴 / BT: `bt-results/trendline_sweep-12y-pairscope-2026-07-13.json`
+
+## 2026-07-14 — fix(data): E1 positioning worker self-heal + 401 帰属確定 (OANDA book 提供終了) (rule:R3)
+
+- **本番実証 2 問題** ([[e1-positioning-ingest-2026-07-14]] §8): ①全 12 book が HTTP 401 ②worker thread が process ライフサイクルで死ぬ (started_at ありなのに running:false / poll_cycles:0)
+- **401 帰属確定 (§8a)**: 当初仮説「OANDA Japan 区分制限」を**棄却** — OANDA は **2024-09-14 に retail API での book 提供を終了** (公式告知 oanda.jp/info/1193 原文確認 + no-token でも同一 generic 401 の実測 + 非日本ユーザー同時遮断の傍証)。fxlabs `/labs/v1/orderbook_data` は 2020 年廃止 (403 HTML 実測)。**auth 修理では直らない → 代替ソース比較 §8c を user 決裁用に整備 (推奨 = Myfxbook aggregate 版転換)**
+- **self-heal (§8b)**: demo_trader StatusHeal パターン準拠 — `ensure_running()` (started_at あり × thread 死のみ heal、stop 後は復活せず) + `status()` 冒頭 heal + app.py `before_request` heartbeat (60s throttle、Render health check を恒常 heal 経路化)。status に `restarts`/`last_restart_at` 追加
+- **probe API**: `GET /api/positioning/probe?run=1` — v3/accounts 統制付き可用性 probe (read-only ×4)。token/口座 ID 非開示をテストで pin。instrument は whitelist 検証 (path injection 防止)
+- **registry**: `e1-positioning-ingest-freshness` → conditional_info 化 — 蓄積ゼロは既知状態、user 決裁まで stale 調査不要
+- **評価への影響: なし** — live 発注経路・戦略・Kelly・shadow 一切不変。tests: test_positioning_ingest.py 17→34
+
+## 2026-07-14 — feat(data): E1 positioning ingest — OANDA 建玉/注文比率の snapshot 蓄積基盤 (user GO 2026-07-14, rule:R3)
+
+- **何を**: OANDA v20 positionBook/orderBook (read-only) を 20 分毎 + jitter で snapshot し、既存 SQLite に `positioning_snapshots` (UNIQUE(instrument, book_type, snapshot_time)) として蓄積。buckets は mid ±3% trim + 集計列 (pct_long/short_total, near_imbalance)。対象 6 instruments (USD_JPY/EUR_USD/GBP_USD/EUR_JPY/GBP_JPY/AUD_JPY、env override 可)。dedup 3 層 (book.time メモリ / 再起動 DB seed / UNIQUE)
+- **なぜ**: WS3 price-modality 計 3 周 FAIL ([[ws3-round3-crossasset-divergence-prereg-2026-07-13]] §8) → E1 retail-positioning contrarian が主戦線。positioning history は今から蓄積する以外に入手不可 = 稼働開始が最優先。設計: [[e1-positioning-ingest-2026-07-14]]
+- **可観測性 (fail-loud)**: `/api/positioning/status` (行数/最新 snapshot_time/連続失敗/可用性マップ) + `/api/positioning/export` (研究用 JSON)。非対応 instrument は初回 4xx 記録→以後 skip。silent except ゼロ
+- **監視 (T5 教訓)**: registry `e1-positioning-ingest-freshness` (最終 snapshot 2h 超 stale = 要調査)。`prereg_trigger_watch.py` に info/conditional_info type 追加 (UNAVAILABLE ノイズ→watching)
+- **評価への影響: なし** — live 発注経路・戦略・Kelly・shadow 一切不変。read-only データ収集 thread の追加のみ。env `POSITIONING_INGEST_ENABLE=0` で無効化可
+- tests: `tests/test_positioning_ingest.py` (17) + prereg watch (+2)。本番検証手順は KB ページ §5 (ローカル token 失効のためデプロイ後検証)
+
+## 2026-07-10 — data(bt): WS3 探索2周目 OOS verdict — ❌ FAIL 0/5、外部仮説探索へ転進 (rule:R1)
+
+- **OOS 窓**: 2024-07-07〜2025-07-07 (再利用 2 回目)。切詰め parquet (末尾 2025-07-07T23:45Z) + **N 凍結→判定の順序執行** (`ws3_round2_oos_entries.json`)。GBP_JPY 15m は Massive 遡及取得で充足、EUR_USD/USD_JPY は stage-1 凍結資産再利用、ep 復元不一致 0/428
+- **判定** ([[ws3-round2-explore-prereg-2026-07-10]] §8): 2 レグ (ratio BH-FDR m=5 / §2b 凍結 grid first-touch EV) + ナイフエッジ (LOFO) — **全 5 セル FAIL**。vol_spike×USD_JPY N=27<30 機械 FAIL + ratio 崩壊 0.56 / vsg×GBP_JPY 0.88・dt_sr×GBP_JPY 0.90 崩壊 / sr_fib×GBP_USD 1.21 (p=0.13 n.s.) + EV 孤立格子点 / 最接近 sr_fib×EUR_USD 1.25 (p=0.19) + EV 隣接過半 fail
+- **一貫した結論**: round-1→stage-2→round-2 の 2 周で「現行エンジン母集団に OOS 再現の方向性非対称 × 固定 barrier EV の組は無い」。探索窓 EV スクリーン通過 5 セル中 4 セルが OOS で崩壊 = 探索窓 EV は選択バイアスの別表現
+- **分岐 (§3 事前固定)**: shadow 母集団内の軸は枯渇 → **外部仮説 (新シグナル系統 — 学術/TV 由来、falsified 6 系統除外) の探索へ転進** (v2.3 WS3 反映)。registry `ws3-round2-oos-verdict-deadline` resolved
+- **評価への影響**: なし (純研究、live/shadow 変更なし)
+
+## 2026-07-10 — docs(kb): WS3 探索2周目 pre-reg LOCK — 候補 m=5 凍結 (rule:R1 stage-1 型、純研究)
+
+- **診断** (`raw/bt-results/ws3_round2_scan_2026_07`): 方向分割 196 セル + EUR_GBP (entries=0 構造的) + h96 → 1次候補 8 セル。round-1 checkpoint 窓同一性 0 mismatch
+- **§2(ii) 探索窓 first-touch EV スクリーン** (`ws3_round2_ev_screen_2026_07`): **5/8 通過**。脱落 = turtle_soup×GBP_USD / dt_sr_channel×GBP_USD×SELL (孤立格子点) / sr_fib×AUD_JPY×SELL (EV<0)。stage-2 verdict の教訓「非対称 ≠ 固定 barrier で EV 化可能」をスクリーン結果観測前に pre-reg へ反映した a priori 改訂が機能
+- **LOCK**: [[ws3-round2-explore-prereg-2026-07-10]] §2b に m=5 + 凍結 grid + 摩擦判定値を固定。registry `ws3-round2-oos-verdict-deadline` (2026-07-17) 追加
+- **評価への影響**: なし (純研究、live/shadow 変更なし)
+
+## 2026-07-10 — feat(mode): 15m AUD_JPY shadow-only モード `daytrade_audjpy` 新設 (user 承認 D2)
+
+- **目的**: WS3 stage-2 対象セル htf_false_breakout×AUD_JPY の estimand は **15m** だが、本番 AUD_JPY は 1h モード (`daytrade_1h_audjpy`) のみで 15m shadow 発火ゼロだった。stage-2 PASS 時に shadow parity 検証を即開始できる状態 + AUD_JPY 実測摩擦 (spread/slippage) の取得。決裁メモ: [[shortest-path-decision-memo-2026-07-10]] / pre-reg: [[ws3-stage2-barrier-ev-prereg-2026-07-09]]
+- **MODE_CONFIG**: interval 30s / 15m / 60d / compute_daytrade_signal / AUD_JPY / auto_start=True / base_sl_pips=15 (JPY クロス既存値 eurjpy=15 準拠) / **`shadow_only: True`**
+- **shadow-only 構造保証 (新機構 `_mode_is_shadow_only`)**: 既存機構では塞げないことを確認の上で追加 — htf_false_breakout は `_SHIELD_EUR_DT_WHITELIST` 登録済みのため `_OANDA_MODE_BLOCKED` 方式は bypass され、N<10 sentinel は agg-Kelly gate も bypass して live minlot 発注される (テストの control ケースで実証: 同一入力×mode=daytrade は 1000u send に到達)。ガードは 3 経路: ①送信ガード最終段 (PRIME/GRAIL/C1/Kalman/edge-cell force-live の後・OANDA 判定の前で shadow 強制、以降 promote 復帰経路なし) ②`_resend_promote_gate_block_reason` に `SHADOW_ONLY_MODE_GATE` (補完送信) ③`_resolve_is_shadow_for_write` (write-path fail-closed)
+- **htf_false_breakout 発火経路**: `HTF_FALSE_BREAKOUT_REDESIGN_V2` OFF の legacy 経路のまま (コード変更なし、stage-1 と同一母集団)。v6.1 JPY 追加ゲート (RSI div / OB 接触) は本番仕様どおり適用。QUALIFIED_TYPES は既にグローバル登録済みで per-pair 追加不要、live 転送資格の付与は一切なし
+- **テスト**: `tests/test_daytrade_audjpy_shadow_only_mode.py` (9 tests) — 構造 pin / 最悪ケース (N<10 sentinel × strategy_mode=live × bridge active × SHADOW_MODE off) の send ゼロ / control 帰属証明 / resend・write-path gate
+- **影響トレード: なし** (live パラメータ不変・OANDA 発注ゼロ。AUD_JPY 15m shadow 行の新規蓄積が開始される)
+
+## 2026-07-09 — fix(tier): FORCE_DEMOTED > PAIR_PROMOTED precedence 全経路統一 (rule:R3)
 ## 2026-07-10 — docs(kb): 最短経路決裁 (user 承認「進めて」) + 月利目標の段階化 (rule:R3 導出)
 
 - **決裁メモ**: [[shortest-path-decision-memo-2026-07-10]] — 8-agent workflow + 敵対的レビュー3レンズによるゼロベース再検討。**agg-Kelly gate 恒久閉鎖の確定** (固定 cutoff 2026-04-16 累積 −0.2758 → per-cell carve-out なしで正セルも live 発火不能)、D3 決裁 SLA 48h、D4 実装 pre-reg 必須項目 (carve-out + R2 自動降格 + セル単位判定 + parity)

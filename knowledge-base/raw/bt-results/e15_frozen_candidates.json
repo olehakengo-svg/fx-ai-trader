@@ -1,0 +1,124 @@
+{
+  "status": "FROZEN",
+  "prereg": "e15-e7-event-modality-prereg-2026-07-18 \u00a75b",
+  "explore_end": "2023-12-31",
+  "m0": 6,
+  "m_cap": 8,
+  "selection_rule": "(i) EV_te>0 (ii) EV_ft>0 (iii) N>=60 & blocks>=40 (iv) fold sign agreement >=2/3; freeze lexicographic: fold agreement desc -> EV-per-vol desc -> event<=3",
+  "candidates": [
+    {
+      "family": "e15",
+      "event": "FOMC",
+      "rule": "follow",
+      "w0": 60,
+      "h": "h12",
+      "N": 544,
+      "event_blocks": 79,
+      "ev_time_exit": 5.992665441176509,
+      "ev_first_touch": 6.039566796730138,
+      "te_std": 43.99556748214203,
+      "fold_te_signs": [
+        1,
+        1,
+        1
+      ],
+      "fold_sign_agreement": 3,
+      "ev_per_vol": 0.13621066357671044
+    },
+    {
+      "family": "e15",
+      "event": "FOMC",
+      "rule": "follow",
+      "w0": 30,
+      "h": "h12",
+      "N": 545,
+      "event_blocks": 79,
+      "ev_time_exit": 3.7473027522935984,
+      "ev_first_touch": 3.6160445599880044,
+      "te_std": 53.463710237698635,
+      "fold_te_signs": [
+        1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2,
+      "ev_per_vol": 0.07009058547626347
+    },
+    {
+      "family": "e15",
+      "event": "CPI",
+      "rule": "fade",
+      "w0": 30,
+      "h": "h12",
+      "N": 804,
+      "event_blocks": 117,
+      "ev_time_exit": 2.0545982587064304,
+      "ev_first_touch": 2.208698699839178,
+      "te_std": 49.93472738750363,
+      "fold_te_signs": [
+        1,
+        1,
+        -1
+      ],
+      "fold_sign_agreement": 2,
+      "ev_per_vol": 0.04114567889321455
+    },
+    {
+      "family": "e15",
+      "event": "FOMC",
+      "rule": "follow",
+      "w0": 60,
+      "h": "h24",
+      "N": 544,
+      "event_blocks": 79,
+      "ev_time_exit": 2.9939522058823376,
+      "ev_first_touch": 3.2118349310362753,
+      "te_std": 78.9839018565889,
+      "fold_te_signs": [
+        1,
+        -1,
+        1
+      ],
+      "fold_sign_agreement": 2,
+      "ev_per_vol": 0.0379058534145155
+    },
+    {
+      "family": "e15",
+      "event": "CPI",
+      "rule": "fade",
+      "w0": 60,
+      "h": "h12",
+      "N": 804,
+      "event_blocks": 117,
+      "ev_time_exit": 1.4296355721393608,
+      "ev_first_touch": 0.8300133492217318,
+      "te_std": 47.76244447491626,
+      "fold_te_signs": [
+        1,
+        1,
+        -1
+      ],
+      "fold_sign_agreement": 2,
+      "ev_per_vol": 0.029932211130654602
+    },
+    {
+      "family": "e15",
+      "event": "CPI",
+      "rule": "fade",
+      "w0": 30,
+      "h": "h24",
+      "N": 804,
+      "event_blocks": 117,
+      "ev_time_exit": 1.2979477611939996,
+      "ev_first_touch": 3.575006509012643,
+      "te_std": 73.03997152069013,
+      "fold_te_signs": [
+        1,
+        1,
+        -1
+      ],
+      "fold_sign_agreement": 2,
+      "ev_per_vol": 0.017770376058078394
+    }
+  ]
+}

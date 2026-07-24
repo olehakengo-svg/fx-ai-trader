@@ -1,0 +1,245 @@
+{
+  "tool": "e20_s2_guards",
+  "stage": "S2_R3_DIAGNOSTIC",
+  "verdict_authority": "NONE — 探索診断。live/tier 判断禁止",
+  "generated_utc": "2026-07-24T05:46:25.856756+00:00",
+  "window": [
+    "2014-06-01",
+    "2022-12-31"
+  ],
+  "lag_bdays": 1,
+  "fwd_bdays": 5,
+  "markup_pct_per_year": 1.0,
+  "variants": {
+    "carry_level": {
+      "pairs_used": [
+        "AUD_JPY",
+        "AUD_USD",
+        "EUR_AUD",
+        "EUR_GBP",
+        "EUR_JPY",
+        "EUR_USD",
+        "GBP_JPY",
+        "GBP_USD",
+        "NZD_JPY",
+        "NZD_USD",
+        "USD_CAD",
+        "USD_CHF",
+        "USD_JPY"
+      ],
+      "guard1_monotonicity": {
+        "quintile_mean_fwd5d_pips": {
+          "Q1": 7.27,
+          "Q2": 6.89,
+          "Q3": -2.01,
+          "Q4": -2.88,
+          "Q5": -15.98
+        },
+        "monotone_increasing": false,
+        "pooled_spearman_ic": -0.0466,
+        "pooled_spearman_p": 0.0,
+        "n_days_pooled": 24185
+      },
+      "guard2_usd_neutrality": {
+        "mean_abs_net_usd_over_gross": 0.241,
+        "median": 0.231,
+        "n_cross_pairs": 6,
+        "n_pairs": 13,
+        "reference": "D1 TSMOM NULL 解剖: net/gross 54% で実質単一 USD ベット"
+      },
+      "guard3_yearly_slice": {
+        "2014": {
+          "mean_directed_fwd5d_pips": -0.94,
+          "n_pair_days": 1577
+        },
+        "2015": {
+          "mean_directed_fwd5d_pips": -15.75,
+          "n_pair_days": 2691
+        },
+        "2016": {
+          "mean_directed_fwd5d_pips": 0.61,
+          "n_pair_days": 2704
+        },
+        "2017": {
+          "mean_directed_fwd5d_pips": -4.57,
+          "n_pair_days": 2704
+        },
+        "2018": {
+          "mean_directed_fwd5d_pips": -5.88,
+          "n_pair_days": 2692
+        },
+        "2019": {
+          "mean_directed_fwd5d_pips": 0.99,
+          "n_pair_days": 2655
+        },
+        "2020": {
+          "mean_directed_fwd5d_pips": 7.16,
+          "n_pair_days": 2500
+        },
+        "2021": {
+          "mean_directed_fwd5d_pips": 9.7,
+          "n_pair_days": 3348
+        },
+        "2022": {
+          "mean_directed_fwd5d_pips": 4.38,
+          "n_pair_days": 3314
+        }
+      },
+      "financing_overlay": {
+        "AUD_JPY": {
+          "mean_pips_5d_hold": 0.58,
+          "mean_pips_10d_hold": 1.17
+        },
+        "AUD_USD": {
+          "mean_pips_5d_hold": -0.23,
+          "mean_pips_10d_hold": -0.46
+        },
+        "EUR_AUD": {
+          "mean_pips_5d_hold": 0.48,
+          "mean_pips_10d_hold": 0.96
+        },
+        "EUR_GBP": {
+          "mean_pips_5d_hold": -0.87,
+          "mean_pips_10d_hold": -1.75
+        },
+        "EUR_JPY": {
+          "mean_pips_5d_hold": -2.08,
+          "mean_pips_10d_hold": -4.15
+        },
+        "EUR_USD": {
+          "mean_pips_5d_hold": -0.43,
+          "mean_pips_10d_hold": -0.86
+        },
+        "GBP_JPY": {
+          "mean_pips_5d_hold": -1.13,
+          "mean_pips_10d_hold": -2.26
+        },
+        "GBP_USD": {
+          "mean_pips_5d_hold": -1.24,
+          "mean_pips_10d_hold": -2.48
+        },
+        "NZD_JPY": {
+          "mean_pips_5d_hold": 1.33,
+          "mean_pips_10d_hold": 2.66
+        },
+        "NZD_USD": {
+          "mean_pips_5d_hold": 0.18,
+          "mean_pips_10d_hold": 0.36
+        },
+        "USD_CAD": {
+          "mean_pips_5d_hold": -1.7,
+          "mean_pips_10d_hold": -3.39
+        },
+        "USD_CHF": {
+          "mean_pips_5d_hold": 1.02,
+          "mean_pips_10d_hold": 2.05
+        },
+        "USD_JPY": {
+          "mean_pips_5d_hold": -0.03,
+          "mean_pips_10d_hold": -0.06
+        },
+        "_pooled_mean_pips_5d": -0.32
+      }
+    },
+    "mom63_2y": {
+      "pairs_used": [
+        "EUR_GBP",
+        "EUR_JPY",
+        "EUR_USD",
+        "GBP_JPY",
+        "GBP_USD",
+        "USD_CAD",
+        "USD_JPY"
+      ],
+      "guard1_monotonicity": {
+        "quintile_mean_fwd5d_pips": {
+          "Q1": 0.95,
+          "Q2": -12.88,
+          "Q3": -1.04,
+          "Q4": 4.34,
+          "Q5": 4.22
+        },
+        "monotone_increasing": false,
+        "pooled_spearman_ic": 0.0258,
+        "pooled_spearman_p": 0.0032,
+        "n_days_pooled": 13051
+      },
+      "guard2_usd_neutrality": {
+        "mean_abs_net_usd_over_gross": 0.358,
+        "median": 0.286,
+        "n_cross_pairs": 3,
+        "n_pairs": 7,
+        "reference": "D1 TSMOM NULL 解剖: net/gross 54% で実質単一 USD ベット"
+      },
+      "guard3_yearly_slice": {
+        "2014": {
+          "mean_directed_fwd5d_pips": 7.46,
+          "n_pair_days": 849
+        },
+        "2015": {
+          "mean_directed_fwd5d_pips": 4.27,
+          "n_pair_days": 1449
+        },
+        "2016": {
+          "mean_directed_fwd5d_pips": 19.98,
+          "n_pair_days": 1456
+        },
+        "2017": {
+          "mean_directed_fwd5d_pips": -14.57,
+          "n_pair_days": 1456
+        },
+        "2018": {
+          "mean_directed_fwd5d_pips": 7.76,
+          "n_pair_days": 1449
+        },
+        "2019": {
+          "mean_directed_fwd5d_pips": -0.1,
+          "n_pair_days": 1431
+        },
+        "2020": {
+          "mean_directed_fwd5d_pips": -0.39,
+          "n_pair_days": 1359
+        },
+        "2021": {
+          "mean_directed_fwd5d_pips": 6.15,
+          "n_pair_days": 1817
+        },
+        "2022": {
+          "mean_directed_fwd5d_pips": 16.9,
+          "n_pair_days": 1785
+        }
+      },
+      "financing_overlay": {
+        "EUR_GBP": {
+          "mean_pips_5d_hold": -1.74,
+          "mean_pips_10d_hold": -3.47
+        },
+        "EUR_JPY": {
+          "mean_pips_5d_hold": -2.27,
+          "mean_pips_10d_hold": -4.55
+        },
+        "EUR_USD": {
+          "mean_pips_5d_hold": -2.12,
+          "mean_pips_10d_hold": -4.24
+        },
+        "GBP_JPY": {
+          "mean_pips_5d_hold": -2.56,
+          "mean_pips_10d_hold": -5.12
+        },
+        "GBP_USD": {
+          "mean_pips_5d_hold": -2.68,
+          "mean_pips_10d_hold": -5.36
+        },
+        "USD_CAD": {
+          "mean_pips_5d_hold": -2.53,
+          "mean_pips_10d_hold": -5.06
+        },
+        "USD_JPY": {
+          "mean_pips_5d_hold": -1.49,
+          "mean_pips_10d_hold": -2.99
+        },
+        "_pooled_mean_pips_5d": -2.2
+      }
+    }
+  }
+}

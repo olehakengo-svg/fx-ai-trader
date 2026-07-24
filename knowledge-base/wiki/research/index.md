@@ -80,10 +80,19 @@ See [[edge-pipeline]]
 - [x] Options-implied sentiment → Della Corte 2016 (partial)
 - [x] Weekend gap → Yamori & Kurihara 2004 (weak effect)
 
+## External-Hypothesis Transition (2026-07-13)
+WS3 内部母集団探索 2 周 FAIL → 外部仮説転進。スクリーン + 実証 probe: [[external-hypothesis-scan-2026-07-13]]。
+- 律速 = **データモダリティ** (価格 OHLCV 枯渇。Mesfin 2026 arXiv:2605.04004 が外部で同型 falsification)。
+- 採用候補: **E3 cross-asset divergence-reversion** → [[ws3-round3-crossasset-divergence-prereg-2026-07-13]] (self-LOCK)。
+- 保留 (user infra 決定): E1 retail-positioning contrarian (JIFMIM 2025)。
+- 第 2 次スキャン (E7–E19): [[external-hypothesis-scan-round2-2026-07-18]] — E15/E7 イベント + E12 flow 採用。
+- **E20 金利差方向バイアス × テクニカル entry (user 仮説 2026-07-22)**: [[e20-rate-differential-feasibility-2026-07-22]] — **S1 条件付き採用 (S2 GO)**。政策金利差 8/8 (BIS keyless) + 2y 国債差 6/8 現行を実 fetch 確認、第 4 モダリティ (rates)。
+
 ## Still Unexplored
-- [ ] High-frequency lead-lag between FX pairs (Hasbrouck 2003 framework)
-- [ ] FX term structure predictability (forward rate bias decomposition)
-- [ ] Machine learning ensemble for FX (Gu, Kelly & Xiu 2020 framework applied to FX)
+- [x] ~~High-frequency lead-lag between FX pairs (Hasbrouck 2003)~~ → **CLOSED 2026-07-13**: OHLCV 内部 + cross-asset とも ≥1h で裁定消滅 (実証 probe、[[external-hypothesis-scan-2026-07-13]] §3)。naive の有意は Lo-MacKinlay 非同期取引 artifact
+- [~] FX term structure predictability (forward rate bias) → **不能**: spot only、forward/swap curve データなし。**部分的復活 2026-07-22**: CIP proxy (国債利回り差/政策金利差、keyless 実確認) により日次粒度の carry 系構成は C1 解消 → [[e20-rate-differential-feasibility-2026-07-22]]
+- [~] Machine learning ensemble (Gu, Kelly & Xiu 2020) → **原則棄却**: データ蓄積フェーズでの curve-fit + complex-gate-edge-destruction 教訓に反
+- [ ] Cross-asset (equity ES→FX) divergence — E3 の rates 版で PASS≥1 なら equity へ拡張
 
 ## Templates
 - [[edge-hypothesis]] -- エッジ仮説テンプレート

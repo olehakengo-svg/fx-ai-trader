@@ -1,8 +1,6 @@
 {
-  "generated_at": "2026-07-24T17:13:30.893605+00:00",
-  "elite_live": [
-    "trendline_sweep"
-  ],
+  "generated_at": "2026-07-24T19:04:03.275061+00:00",
+  "elite_live": [],
   "force_demoted": [
     "atr_regime_break",
     "ema_cross",
@@ -265,6 +263,18 @@
     [
       "streak_reversal",
       "USD_JPY"
+    ],
+    [
+      "trendline_sweep",
+      "EUR_GBP"
+    ],
+    [
+      "trendline_sweep",
+      "EUR_USD"
+    ],
+    [
+      "trendline_sweep",
+      "GBP_USD"
     ],
     [
       "v_reversal",

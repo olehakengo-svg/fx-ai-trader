@@ -1,0 +1,6248 @@
+{
+ "task": "20260710-ws3-round2-explore (診断スキャン)",
+ "rule": "R3",
+ "prereg": "knowledge-base/wiki/decisions/ws3-round2-explore-prereg-2026-07-10.md (DRAFT, branch research/h4-level-edge)",
+ "generated_utc": "2026-07-10T06:38:07.341880+00:00",
+ "population": {
+  "r1_checkpoint": "knowledge-base/raw/bt-results/.ws3_mfe_scan_checkpoint.json",
+  "r1_entries": 6995,
+  "r1_pairs": [
+   "AUD_JPY",
+   "EUR_JPY",
+   "EUR_USD",
+   "GBP_JPY",
+   "GBP_USD",
+   "USD_JPY"
+  ],
+  "extra_pairs": [],
+  "extra_entries": 0,
+  "explore_window": "2025-07-08〜2026-06-07 (365d baseline, 診断窓 2026-06-07〜 除外)",
+  "oos_window_untouched": "2024-07-07〜2025-07-07"
+ },
+ "selection_rule": {
+  "ratio_def": "median(MFE)/median(MAE)",
+  "rule": "N≥30 ∧ (ratio_h24≥1.3 ∪ 持続型(ratio_h96≥1.3 ∧ h96>h24))",
+  "m_max": 10,
+  "tie_break": "primary ratio 降順"
+ },
+ "n_cells": {
+  "pooled": 105,
+  "split": 196
+ },
+ "candidates": [
+  {
+   "cell": "sr_fib_confluence×GBP_USD×SELL",
+   "entry_type": "sr_fib_confluence",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 95,
+   "h24": {
+    "mfe_p50": 22.0,
+    "mae_p50": 18.7,
+    "ratio": 1.176
+   },
+   "h96": {
+    "mfe_p50": 46.7,
+    "mae_p50": 28.2,
+    "ratio": 1.656
+   },
+   "type": "持続",
+   "primary_horizon": "h96",
+   "primary_ratio": 1.656,
+   "axis": "a (方向分割)"
+  },
+  {
+   "cell": "vol_spike_mr×USD_JPY×BUY",
+   "entry_type": "vol_spike_mr",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 39,
+   "h24": {
+    "mfe_p50": 29.2,
+    "mae_p50": 19.6,
+    "ratio": 1.49
+   },
+   "h96": {
+    "mfe_p50": 54.3,
+    "mae_p50": 39.5,
+    "ratio": 1.375
+   },
+   "type": "減衰",
+   "primary_horizon": "h24",
+   "primary_ratio": 1.49,
+   "axis": "a (方向分割)"
+  },
+  {
+   "cell": "sr_fib_confluence×EUR_USD×SELL",
+   "entry_type": "sr_fib_confluence",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 99,
+   "h24": {
+    "mfe_p50": 18.3,
+    "mae_p50": 13.5,
+    "ratio": 1.356
+   },
+   "h96": {
+    "mfe_p50": 33.6,
+    "mae_p50": 22.6,
+    "ratio": 1.487
+   },
+   "type": "持続",
+   "primary_horizon": "h96",
+   "primary_ratio": 1.487,
+   "axis": "a (方向分割)"
+  },
+  {
+   "cell": "vsg_jpy_reversal×GBP_JPY×SELL",
+   "entry_type": "vsg_jpy_reversal",
+   "pair": "GBP_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 106,
+   "h24": {
+    "mfe_p50": 35.2,
+    "mae_p50": 23.75,
+    "ratio": 1.482
+   },
+   "h96": {
+    "mfe_p50": 71.1,
+    "mae_p50": 57.99,
+    "ratio": 1.226
+   },
+   "type": "減衰",
+   "primary_horizon": "h24",
+   "primary_ratio": 1.482,
+   "axis": "a (方向分割)"
+  },
+  {
+   "cell": "turtle_soup×GBP_USD",
+   "entry_type": "turtle_soup",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 40,
+   "h24": {
+    "mfe_p50": 18.45,
+    "mae_p50": 20.25,
+    "ratio": 0.911
+   },
+   "h96": {
+    "mfe_p50": 44.1,
+    "mae_p50": 31.2,
+    "ratio": 1.413
+   },
+   "type": "持続",
+   "primary_horizon": "h96",
+   "primary_ratio": 1.413,
+   "axis": "c (round-1 pooled 持続型)"
+  },
+  {
+   "cell": "dt_sr_channel_reversal×GBP_USD×SELL",
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 36,
+   "h24": {
+    "mfe_p50": 13.3,
+    "mae_p50": 13.7,
+    "ratio": 0.971
+   },
+   "h96": {
+    "mfe_p50": 46.15,
+    "mae_p50": 32.95,
+    "ratio": 1.401
+   },
+   "type": "持続",
+   "primary_horizon": "h96",
+   "primary_ratio": 1.401,
+   "axis": "a (方向分割)"
+  },
+  {
+   "cell": "dt_sr_channel_reversal×GBP_JPY×BUY",
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "GBP_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 77,
+   "h24": {
+    "mfe_p50": 27.3,
+    "mae_p50": 28.2,
+    "ratio": 0.968
+   },
+   "h96": {
+    "mfe_p50": 67.15,
+    "mae_p50": 50.6,
+    "ratio": 1.327
+   },
+   "type": "持続",
+   "primary_horizon": "h96",
+   "primary_ratio": 1.327,
+   "axis": "a (方向分割)"
+  },
+  {
+   "cell": "sr_fib_confluence×AUD_JPY×SELL",
+   "entry_type": "sr_fib_confluence",
+   "pair": "AUD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 119,
+   "h24": {
+    "mfe_p50": 24.5,
+    "mae_p50": 18.6,
+    "ratio": 1.317
+   },
+   "h96": {
+    "mfe_p50": 43.3,
+    "mae_p50": 36.47,
+    "ratio": 1.187
+   },
+   "type": "減衰",
+   "primary_horizon": "h24",
+   "primary_ratio": 1.317,
+   "axis": "a (方向分割)"
+  }
+ ],
+ "candidates_overflow_cut": [],
+ "exclusion_log": {
+  "stage1_cells": [
+   "htf_false_breakout×EUR_JPY",
+   "trendline_sweep×EUR_USD",
+   "dt_sr_channel_reversal×EUR_USD",
+   "london_fix_reversal×EUR_USD",
+   "htf_false_breakout×AUD_JPY",
+   "lin_reg_channel×EUR_USD",
+   "hull_donchian_fade×EUR_USD",
+   "dt_fib_reversal×USD_JPY"
+  ],
+  "falsified_families": [
+   {
+    "family": "channel (回帰±2σ/swing平行, project-channel-edge-falsified)",
+    "mapped_entry_types": [
+     "lin_reg_channel"
+    ],
+    "present_in_population": [
+     "lin_reg_channel"
+    ],
+    "status": "適用"
+   },
+   {
+    "family": "水平sweep&reclaim (project-sweep-reclaim-horizontal-falsified)",
+    "mapped_entry_types": [
+     "liquidity_sweep"
+    ],
+    "present_in_population": [
+     "liquidity_sweep"
+    ],
+    "status": "適用"
+   },
+   {
+    "family": "bb_rsi (bb_rsi_reversion T10 KILL — 系統パターン掃引。dt_bb_rsi_mr は同系統 (BB+RSI MR) の 15m 版のため保守的に除外。LOCK 前に親判断で復活可",
+    "mapped_entry_types": [
+     "dt_bb_rsi_mr"
+    ],
+    "present_in_population": [
+     "dt_bb_rsi_mr"
+    ],
+    "status": "適用"
+   },
+   {
+    "family": "H4 level (project-h4-level-edge-falsified)",
+    "mapped_entry_types": [],
+    "present_in_population": [],
+    "status": "非該当 (母集団に entry_type 不存在)"
+   },
+   {
+    "family": "mtf_regime_switch SELL (project-mtf-regime-switch-falsified)",
+    "mapped_entry_types": [],
+    "present_in_population": [],
+    "status": "非該当 (母集団に entry_type 不存在)"
+   },
+   {
+    "family": "T11 LDN朝×counter-USD MR (project-t11-ldn-counter-usd-falsified)",
+    "mapped_entry_types": [],
+    "present_in_population": [],
+    "status": "非該当 (母集団に entry_type 不存在)"
+   }
+  ],
+  "excluded_cells_n_ge_10": [
+   {
+    "cell": "dt_bb_rsi_mr×EUR_USD",
+    "entry_type": "dt_bb_rsi_mr",
+    "pair": "EUR_USD",
+    "sig": null,
+    "kind": "pooled",
+    "n": 56,
+    "h24": {
+     "mfe_p50": 19.4,
+     "mae_p50": 18.7,
+     "ratio": 1.037
+    },
+    "h96": {
+     "mfe_p50": 26.7,
+     "mae_p50": 29.8,
+     "ratio": 0.896
+    },
+    "excl_reason": "falsified 系統: bb_rsi (bb_rsi_reversion T10 KILL — 系統パターン掃引。dt_bb_rsi_mr は同系統 (BB+RSI MR) の 15m 版のため保守的に除外。LOCK 前に親判断で復活可"
+   },
+   {
+    "cell": "dt_bb_rsi_mr×GBP_USD",
+    "entry_type": "dt_bb_rsi_mr",
+    "pair": "GBP_USD",
+    "sig": null,
+    "kind": "pooled",
+    "n": 113,
+    "h24": {
+     "mfe_p50": 17.1,
+     "mae_p50": 19.7,
+     "ratio": 0.868
+    },
+    "h96": {
+     "mfe_p50": 36.6,
+     "mae_p50": 36.6,
+     "ratio": 1.0
+    },
+    "excl_reason": "falsified 系統: bb_rsi (bb_rsi_reversion T10 KILL — 系統パターン掃引。dt_bb_rsi_mr は同系統 (BB+RSI MR) の 15m 版のため保守的に除外。LOCK 前に親判断で復活可"
+   },
+   {
+    "cell": "dt_bb_rsi_mr×USD_JPY",
+    "entry_type": "dt_bb_rsi_mr",
+    "pair": "USD_JPY",
+    "sig": null,
+    "kind": "pooled",
+    "n": 134,
+    "h24": {
+     "mfe_p50": 18.1,
+     "mae_p50": 23.2,
+     "ratio": 0.78
+    },
+    "h96": {
+     "mfe_p50": 32.4,
+     "mae_p50": 53.8,
+     "ratio": 0.602
+    },
+    "excl_reason": "falsified 系統: bb_rsi (bb_rsi_reversion T10 KILL — 系統パターン掃引。dt_bb_rsi_mr は同系統 (BB+RSI MR) の 15m 版のため保守的に除外。LOCK 前に親判断で復活可"
+   },
+   {
+    "cell": "dt_fib_reversal×USD_JPY",
+    "entry_type": "dt_fib_reversal",
+    "pair": "USD_JPY",
+    "sig": null,
+    "kind": "pooled",
+    "n": 24,
+    "h24": {
+     "mfe_p50": 23.9,
+     "mae_p50": 18.5,
+     "ratio": 1.292
+    },
+    "h96": {
+     "mfe_p50": 62.85,
+     "mae_p50": 30.7,
+     "ratio": 2.047
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "dt_sr_channel_reversal×EUR_USD",
+    "entry_type": "dt_sr_channel_reversal",
+    "pair": "EUR_USD",
+    "sig": null,
+    "kind": "pooled",
+    "n": 25,
+    "h24": {
+     "mfe_p50": 17.5,
+     "mae_p50": 11.3,
+     "ratio": 1.549
+    },
+    "h96": {
+     "mfe_p50": 33.5,
+     "mae_p50": 28.5,
+     "ratio": 1.175
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "htf_false_breakout×AUD_JPY",
+    "entry_type": "htf_false_breakout",
+    "pair": "AUD_JPY",
+    "sig": null,
+    "kind": "pooled",
+    "n": 27,
+    "h24": {
+     "mfe_p50": 22.1,
+     "mae_p50": 15.9,
+     "ratio": 1.39
+    },
+    "h96": {
+     "mfe_p50": 37.0,
+     "mae_p50": 36.3,
+     "ratio": 1.019
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "htf_false_breakout×EUR_JPY",
+    "entry_type": "htf_false_breakout",
+    "pair": "EUR_JPY",
+    "sig": null,
+    "kind": "pooled",
+    "n": 24,
+    "h24": {
+     "mfe_p50": 28.7,
+     "mae_p50": 15.86,
+     "ratio": 1.81
+    },
+    "h96": {
+     "mfe_p50": 45.65,
+     "mae_p50": 50.65,
+     "ratio": 0.901
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "hull_donchian_fade×EUR_USD",
+    "entry_type": "hull_donchian_fade",
+    "pair": "EUR_USD",
+    "sig": null,
+    "kind": "pooled",
+    "n": 46,
+    "h24": {
+     "mfe_p50": 17.9,
+     "mae_p50": 13.8,
+     "ratio": 1.297
+    },
+    "h96": {
+     "mfe_p50": 25.45,
+     "mae_p50": 26.25,
+     "ratio": 0.97
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "lin_reg_channel×EUR_USD",
+    "entry_type": "lin_reg_channel",
+    "pair": "EUR_USD",
+    "sig": null,
+    "kind": "pooled",
+    "n": 24,
+    "h24": {
+     "mfe_p50": 19.35,
+     "mae_p50": 14.0,
+     "ratio": 1.382
+    },
+    "h96": {
+     "mfe_p50": 34.7,
+     "mae_p50": 17.85,
+     "ratio": 1.944
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "london_fix_reversal×EUR_USD",
+    "entry_type": "london_fix_reversal",
+    "pair": "EUR_USD",
+    "sig": null,
+    "kind": "pooled",
+    "n": 36,
+    "h24": {
+     "mfe_p50": 14.35,
+     "mae_p50": 9.5,
+     "ratio": 1.511
+    },
+    "h96": {
+     "mfe_p50": 31.85,
+     "mae_p50": 25.65,
+     "ratio": 1.242
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "trendline_sweep×EUR_USD",
+    "entry_type": "trendline_sweep",
+    "pair": "EUR_USD",
+    "sig": null,
+    "kind": "pooled",
+    "n": 45,
+    "h24": {
+     "mfe_p50": 20.3,
+     "mae_p50": 12.3,
+     "ratio": 1.65
+    },
+    "h96": {
+     "mfe_p50": 23.8,
+     "mae_p50": 29.1,
+     "ratio": 0.818
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "dt_bb_rsi_mr×EUR_USD×BUY",
+    "entry_type": "dt_bb_rsi_mr",
+    "pair": "EUR_USD",
+    "sig": "BUY",
+    "kind": "split",
+    "n": 30,
+    "h24": {
+     "mfe_p50": 17.8,
+     "mae_p50": 19.65,
+     "ratio": 0.906
+    },
+    "h96": {
+     "mfe_p50": 25.8,
+     "mae_p50": 33.7,
+     "ratio": 0.766
+    },
+    "excl_reason": "falsified 系統: bb_rsi (bb_rsi_reversion T10 KILL — 系統パターン掃引。dt_bb_rsi_mr は同系統 (BB+RSI MR) の 15m 版のため保守的に除外。LOCK 前に親判断で復活可"
+   },
+   {
+    "cell": "dt_bb_rsi_mr×EUR_USD×SELL",
+    "entry_type": "dt_bb_rsi_mr",
+    "pair": "EUR_USD",
+    "sig": "SELL",
+    "kind": "split",
+    "n": 26,
+    "h24": {
+     "mfe_p50": 19.85,
+     "mae_p50": 12.3,
+     "ratio": 1.614
+    },
+    "h96": {
+     "mfe_p50": 28.45,
+     "mae_p50": 27.65,
+     "ratio": 1.029
+    },
+    "excl_reason": "falsified 系統: bb_rsi (bb_rsi_reversion T10 KILL — 系統パターン掃引。dt_bb_rsi_mr は同系統 (BB+RSI MR) の 15m 版のため保守的に除外。LOCK 前に親判断で復活可"
+   },
+   {
+    "cell": "dt_bb_rsi_mr×GBP_USD×BUY",
+    "entry_type": "dt_bb_rsi_mr",
+    "pair": "GBP_USD",
+    "sig": "BUY",
+    "kind": "split",
+    "n": 52,
+    "h24": {
+     "mfe_p50": 15.75,
+     "mae_p50": 26.55,
+     "ratio": 0.593
+    },
+    "h96": {
+     "mfe_p50": 35.9,
+     "mae_p50": 40.8,
+     "ratio": 0.88
+    },
+    "excl_reason": "falsified 系統: bb_rsi (bb_rsi_reversion T10 KILL — 系統パターン掃引。dt_bb_rsi_mr は同系統 (BB+RSI MR) の 15m 版のため保守的に除外。LOCK 前に親判断で復活可"
+   },
+   {
+    "cell": "dt_bb_rsi_mr×GBP_USD×SELL",
+    "entry_type": "dt_bb_rsi_mr",
+    "pair": "GBP_USD",
+    "sig": "SELL",
+    "kind": "split",
+    "n": 61,
+    "h24": {
+     "mfe_p50": 18.5,
+     "mae_p50": 17.8,
+     "ratio": 1.039
+    },
+    "h96": {
+     "mfe_p50": 38.8,
+     "mae_p50": 33.4,
+     "ratio": 1.162
+    },
+    "excl_reason": "falsified 系統: bb_rsi (bb_rsi_reversion T10 KILL — 系統パターン掃引。dt_bb_rsi_mr は同系統 (BB+RSI MR) の 15m 版のため保守的に除外。LOCK 前に親判断で復活可"
+   },
+   {
+    "cell": "dt_bb_rsi_mr×USD_JPY×BUY",
+    "entry_type": "dt_bb_rsi_mr",
+    "pair": "USD_JPY",
+    "sig": "BUY",
+    "kind": "split",
+    "n": 52,
+    "h24": {
+     "mfe_p50": 22.85,
+     "mae_p50": 19.45,
+     "ratio": 1.175
+    },
+    "h96": {
+     "mfe_p50": 46.25,
+     "mae_p50": 38.15,
+     "ratio": 1.212
+    },
+    "excl_reason": "falsified 系統: bb_rsi (bb_rsi_reversion T10 KILL — 系統パターン掃引。dt_bb_rsi_mr は同系統 (BB+RSI MR) の 15m 版のため保守的に除外。LOCK 前に親判断で復活可"
+   },
+   {
+    "cell": "dt_bb_rsi_mr×USD_JPY×SELL",
+    "entry_type": "dt_bb_rsi_mr",
+    "pair": "USD_JPY",
+    "sig": "SELL",
+    "kind": "split",
+    "n": 82,
+    "h24": {
+     "mfe_p50": 16.45,
+     "mae_p50": 25.45,
+     "ratio": 0.646
+    },
+    "h96": {
+     "mfe_p50": 30.85,
+     "mae_p50": 57.5,
+     "ratio": 0.537
+    },
+    "excl_reason": "falsified 系統: bb_rsi (bb_rsi_reversion T10 KILL — 系統パターン掃引。dt_bb_rsi_mr は同系統 (BB+RSI MR) の 15m 版のため保守的に除外。LOCK 前に親判断で復活可"
+   },
+   {
+    "cell": "dt_fib_reversal×USD_JPY×BUY",
+    "entry_type": "dt_fib_reversal",
+    "pair": "USD_JPY",
+    "sig": "BUY",
+    "kind": "split",
+    "n": 16,
+    "h24": {
+     "mfe_p50": 25.6,
+     "mae_p50": 12.6,
+     "ratio": 2.032
+    },
+    "h96": {
+     "mfe_p50": 70.5,
+     "mae_p50": 28.5,
+     "ratio": 2.474
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "dt_sr_channel_reversal×EUR_USD×BUY",
+    "entry_type": "dt_sr_channel_reversal",
+    "pair": "EUR_USD",
+    "sig": "BUY",
+    "kind": "split",
+    "n": 16,
+    "h24": {
+     "mfe_p50": 15.8,
+     "mae_p50": 23.15,
+     "ratio": 0.683
+    },
+    "h96": {
+     "mfe_p50": 26.95,
+     "mae_p50": 38.5,
+     "ratio": 0.7
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "htf_false_breakout×AUD_JPY×BUY",
+    "entry_type": "htf_false_breakout",
+    "pair": "AUD_JPY",
+    "sig": "BUY",
+    "kind": "split",
+    "n": 14,
+    "h24": {
+     "mfe_p50": 28.43,
+     "mae_p50": 29.25,
+     "ratio": 0.972
+    },
+    "h96": {
+     "mfe_p50": 33.45,
+     "mae_p50": 46.15,
+     "ratio": 0.725
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "htf_false_breakout×AUD_JPY×SELL",
+    "entry_type": "htf_false_breakout",
+    "pair": "AUD_JPY",
+    "sig": "SELL",
+    "kind": "split",
+    "n": 13,
+    "h24": {
+     "mfe_p50": 22.1,
+     "mae_p50": 12.1,
+     "ratio": 1.826
+    },
+    "h96": {
+     "mfe_p50": 37.0,
+     "mae_p50": 36.3,
+     "ratio": 1.019
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "htf_false_breakout×EUR_JPY×BUY",
+    "entry_type": "htf_false_breakout",
+    "pair": "EUR_JPY",
+    "sig": "BUY",
+    "kind": "split",
+    "n": 17,
+    "h24": {
+     "mfe_p50": 34.1,
+     "mae_p50": 11.5,
+     "ratio": 2.965
+    },
+    "h96": {
+     "mfe_p50": 47.9,
+     "mae_p50": 46.7,
+     "ratio": 1.026
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "hull_donchian_fade×EUR_USD×BUY",
+    "entry_type": "hull_donchian_fade",
+    "pair": "EUR_USD",
+    "sig": "BUY",
+    "kind": "split",
+    "n": 16,
+    "h24": {
+     "mfe_p50": 17.1,
+     "mae_p50": 12.2,
+     "ratio": 1.402
+    },
+    "h96": {
+     "mfe_p50": 37.2,
+     "mae_p50": 27.15,
+     "ratio": 1.37
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "hull_donchian_fade×EUR_USD×SELL",
+    "entry_type": "hull_donchian_fade",
+    "pair": "EUR_USD",
+    "sig": "SELL",
+    "kind": "split",
+    "n": 30,
+    "h24": {
+     "mfe_p50": 18.4,
+     "mae_p50": 15.7,
+     "ratio": 1.172
+    },
+    "h96": {
+     "mfe_p50": 23.45,
+     "mae_p50": 22.7,
+     "ratio": 1.033
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "lin_reg_channel×EUR_USD×BUY",
+    "entry_type": "lin_reg_channel",
+    "pair": "EUR_USD",
+    "sig": "BUY",
+    "kind": "split",
+    "n": 11,
+    "h24": {
+     "mfe_p50": 29.5,
+     "mae_p50": 8.3,
+     "ratio": 3.554
+    },
+    "h96": {
+     "mfe_p50": 36.2,
+     "mae_p50": 10.8,
+     "ratio": 3.352
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "lin_reg_channel×EUR_USD×SELL",
+    "entry_type": "lin_reg_channel",
+    "pair": "EUR_USD",
+    "sig": "SELL",
+    "kind": "split",
+    "n": 13,
+    "h24": {
+     "mfe_p50": 16.6,
+     "mae_p50": 23.9,
+     "ratio": 0.695
+    },
+    "h96": {
+     "mfe_p50": 20.9,
+     "mae_p50": 34.2,
+     "ratio": 0.611
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "london_fix_reversal×EUR_USD×BUY",
+    "entry_type": "london_fix_reversal",
+    "pair": "EUR_USD",
+    "sig": "BUY",
+    "kind": "split",
+    "n": 20,
+    "h24": {
+     "mfe_p50": 13.2,
+     "mae_p50": 11.1,
+     "ratio": 1.189
+    },
+    "h96": {
+     "mfe_p50": 31.5,
+     "mae_p50": 29.75,
+     "ratio": 1.059
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "london_fix_reversal×EUR_USD×SELL",
+    "entry_type": "london_fix_reversal",
+    "pair": "EUR_USD",
+    "sig": "SELL",
+    "kind": "split",
+    "n": 16,
+    "h24": {
+     "mfe_p50": 14.5,
+     "mae_p50": 8.25,
+     "ratio": 1.758
+    },
+    "h96": {
+     "mfe_p50": 33.3,
+     "mae_p50": 25.4,
+     "ratio": 1.311
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   },
+   {
+    "cell": "trendline_sweep×EUR_USD×SELL",
+    "entry_type": "trendline_sweep",
+    "pair": "EUR_USD",
+    "sig": "SELL",
+    "kind": "split",
+    "n": 45,
+    "h24": {
+     "mfe_p50": 20.3,
+     "mae_p50": 12.3,
+     "ratio": 1.65
+    },
+    "h96": {
+     "mfe_p50": 23.8,
+     "mae_p50": 29.1,
+     "ratio": 0.818
+    },
+    "excl_reason": "stage-1 判定済みセル (ws3-asymmetry-oos-prereg §2)"
+   }
+  ]
+ },
+ "cells_pooled": [
+  {
+   "cell": "adx_trend_continuation×EUR_USD",
+   "entry_type": "adx_trend_continuation",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 12,
+   "h24": {
+    "mfe_p50": 20.3,
+    "mae_p50": 27.15,
+    "ratio": 0.748
+   },
+   "h96": {
+    "mfe_p50": 21.15,
+    "mae_p50": 56.6,
+    "ratio": 0.374
+   }
+  },
+  {
+   "cell": "atr_regime_break×AUD_JPY",
+   "entry_type": "atr_regime_break",
+   "pair": "AUD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 1,
+   "h24": {
+    "mfe_p50": 4.6,
+    "mae_p50": 22.2,
+    "ratio": 0.207
+   },
+   "h96": {
+    "mfe_p50": 43.8,
+    "mae_p50": 73.7,
+    "ratio": 0.594
+   }
+  },
+  {
+   "cell": "atr_regime_break×EUR_JPY",
+   "entry_type": "atr_regime_break",
+   "pair": "EUR_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 1,
+   "h24": {
+    "mfe_p50": 28.67,
+    "mae_p50": 52.2,
+    "ratio": 0.549
+   },
+   "h96": {
+    "mfe_p50": 28.67,
+    "mae_p50": 100.2,
+    "ratio": 0.286
+   }
+  },
+  {
+   "cell": "atr_regime_break×GBP_USD",
+   "entry_type": "atr_regime_break",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 1,
+   "h24": {
+    "mfe_p50": 7.5,
+    "mae_p50": 39.5,
+    "ratio": 0.19
+   },
+   "h96": {
+    "mfe_p50": 24.3,
+    "mae_p50": 39.5,
+    "ratio": 0.615
+   }
+  },
+  {
+   "cell": "doji_breakout×EUR_USD",
+   "entry_type": "doji_breakout",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 4,
+   "h24": {
+    "mfe_p50": 15.0,
+    "mae_p50": 20.9,
+    "ratio": 0.718
+   },
+   "h96": {
+    "mfe_p50": 25.9,
+    "mae_p50": 23.1,
+    "ratio": 1.121
+   }
+  },
+  {
+   "cell": "doji_breakout×GBP_USD",
+   "entry_type": "doji_breakout",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 21,
+   "h24": {
+    "mfe_p50": 20.6,
+    "mae_p50": 28.5,
+    "ratio": 0.723
+   },
+   "h96": {
+    "mfe_p50": 41.9,
+    "mae_p50": 48.6,
+    "ratio": 0.862
+   }
+  },
+  {
+   "cell": "doji_breakout×USD_JPY",
+   "entry_type": "doji_breakout",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 8,
+   "h24": {
+    "mfe_p50": 8.9,
+    "mae_p50": 36.0,
+    "ratio": 0.247
+   },
+   "h96": {
+    "mfe_p50": 26.65,
+    "mae_p50": 41.0,
+    "ratio": 0.65
+   }
+  },
+  {
+   "cell": "dt_fib_reversal×AUD_JPY",
+   "entry_type": "dt_fib_reversal",
+   "pair": "AUD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 61,
+   "h24": {
+    "mfe_p50": 23.0,
+    "mae_p50": 18.9,
+    "ratio": 1.217
+   },
+   "h96": {
+    "mfe_p50": 44.3,
+    "mae_p50": 38.1,
+    "ratio": 1.163
+   }
+  },
+  {
+   "cell": "dt_fib_reversal×EUR_JPY",
+   "entry_type": "dt_fib_reversal",
+   "pair": "EUR_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 59,
+   "h24": {
+    "mfe_p50": 18.9,
+    "mae_p50": 26.8,
+    "ratio": 0.705
+   },
+   "h96": {
+    "mfe_p50": 40.4,
+    "mae_p50": 58.3,
+    "ratio": 0.693
+   }
+  },
+  {
+   "cell": "dt_fib_reversal×EUR_USD",
+   "entry_type": "dt_fib_reversal",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 23,
+   "h24": {
+    "mfe_p50": 14.3,
+    "mae_p50": 21.4,
+    "ratio": 0.668
+   },
+   "h96": {
+    "mfe_p50": 23.7,
+    "mae_p50": 26.8,
+    "ratio": 0.884
+   }
+  },
+  {
+   "cell": "dt_fib_reversal×GBP_JPY",
+   "entry_type": "dt_fib_reversal",
+   "pair": "GBP_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 45,
+   "h24": {
+    "mfe_p50": 32.6,
+    "mae_p50": 28.77,
+    "ratio": 1.133
+   },
+   "h96": {
+    "mfe_p50": 50.2,
+    "mae_p50": 52.9,
+    "ratio": 0.949
+   }
+  },
+  {
+   "cell": "dt_fib_reversal×GBP_USD",
+   "entry_type": "dt_fib_reversal",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 26,
+   "h24": {
+    "mfe_p50": 22.0,
+    "mae_p50": 18.85,
+    "ratio": 1.167
+   },
+   "h96": {
+    "mfe_p50": 42.2,
+    "mae_p50": 39.8,
+    "ratio": 1.06
+   }
+  },
+  {
+   "cell": "dt_sr_channel_reversal×AUD_JPY",
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "AUD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 162,
+   "h24": {
+    "mfe_p50": 19.835,
+    "mae_p50": 23.4,
+    "ratio": 0.848
+   },
+   "h96": {
+    "mfe_p50": 37.3,
+    "mae_p50": 44.8,
+    "ratio": 0.833
+   }
+  },
+  {
+   "cell": "dt_sr_channel_reversal×EUR_JPY",
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "EUR_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 147,
+   "h24": {
+    "mfe_p50": 25.1,
+    "mae_p50": 22.2,
+    "ratio": 1.131
+   },
+   "h96": {
+    "mfe_p50": 41.8,
+    "mae_p50": 48.2,
+    "ratio": 0.867
+   }
+  },
+  {
+   "cell": "dt_sr_channel_reversal×GBP_JPY",
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "GBP_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 132,
+   "h24": {
+    "mfe_p50": 28.1,
+    "mae_p50": 28.65,
+    "ratio": 0.981
+   },
+   "h96": {
+    "mfe_p50": 66.4,
+    "mae_p50": 52.5,
+    "ratio": 1.265
+   }
+  },
+  {
+   "cell": "dt_sr_channel_reversal×GBP_USD",
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 79,
+   "h24": {
+    "mfe_p50": 11.2,
+    "mae_p50": 15.1,
+    "ratio": 0.742
+   },
+   "h96": {
+    "mfe_p50": 40.7,
+    "mae_p50": 34.7,
+    "ratio": 1.173
+   }
+  },
+  {
+   "cell": "dt_sr_channel_reversal×USD_JPY",
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 90,
+   "h24": {
+    "mfe_p50": 18.55,
+    "mae_p50": 27.4,
+    "ratio": 0.677
+   },
+   "h96": {
+    "mfe_p50": 33.85,
+    "mae_p50": 57.9,
+    "ratio": 0.585
+   }
+  },
+  {
+   "cell": "dual_sr_bounce×AUD_JPY",
+   "entry_type": "dual_sr_bounce",
+   "pair": "AUD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 89,
+   "h24": {
+    "mfe_p50": 19.6,
+    "mae_p50": 22.3,
+    "ratio": 0.879
+   },
+   "h96": {
+    "mfe_p50": 41.4,
+    "mae_p50": 46.4,
+    "ratio": 0.892
+   }
+  },
+  {
+   "cell": "dual_sr_bounce×EUR_JPY",
+   "entry_type": "dual_sr_bounce",
+   "pair": "EUR_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 101,
+   "h24": {
+    "mfe_p50": 21.6,
+    "mae_p50": 23.2,
+    "ratio": 0.931
+   },
+   "h96": {
+    "mfe_p50": 47.5,
+    "mae_p50": 43.0,
+    "ratio": 1.105
+   }
+  },
+  {
+   "cell": "dual_sr_bounce×EUR_USD",
+   "entry_type": "dual_sr_bounce",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 27,
+   "h24": {
+    "mfe_p50": 14.8,
+    "mae_p50": 16.9,
+    "ratio": 0.876
+   },
+   "h96": {
+    "mfe_p50": 24.6,
+    "mae_p50": 25.4,
+    "ratio": 0.969
+   }
+  },
+  {
+   "cell": "dual_sr_bounce×GBP_JPY",
+   "entry_type": "dual_sr_bounce",
+   "pair": "GBP_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 97,
+   "h24": {
+    "mfe_p50": 28.9,
+    "mae_p50": 29.6,
+    "ratio": 0.976
+   },
+   "h96": {
+    "mfe_p50": 52.1,
+    "mae_p50": 68.7,
+    "ratio": 0.758
+   }
+  },
+  {
+   "cell": "dual_sr_bounce×GBP_USD",
+   "entry_type": "dual_sr_bounce",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 50,
+   "h24": {
+    "mfe_p50": 18.3,
+    "mae_p50": 22.1,
+    "ratio": 0.828
+   },
+   "h96": {
+    "mfe_p50": 40.1,
+    "mae_p50": 42.2,
+    "ratio": 0.95
+   }
+  },
+  {
+   "cell": "dual_sr_bounce×USD_JPY",
+   "entry_type": "dual_sr_bounce",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 60,
+   "h24": {
+    "mfe_p50": 21.35,
+    "mae_p50": 25.75,
+    "ratio": 0.829
+   },
+   "h96": {
+    "mfe_p50": 46.35,
+    "mae_p50": 41.35,
+    "ratio": 1.121
+   }
+  },
+  {
+   "cell": "ema200_trend_reversal×AUD_JPY",
+   "entry_type": "ema200_trend_reversal",
+   "pair": "AUD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 30,
+   "h24": {
+    "mfe_p50": 22.65,
+    "mae_p50": 20.75,
+    "ratio": 1.092
+   },
+   "h96": {
+    "mfe_p50": 47.3,
+    "mae_p50": 36.6,
+    "ratio": 1.292
+   }
+  },
+  {
+   "cell": "ema200_trend_reversal×EUR_JPY",
+   "entry_type": "ema200_trend_reversal",
+   "pair": "EUR_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 35,
+   "h24": {
+    "mfe_p50": 17.73,
+    "mae_p50": 16.5,
+    "ratio": 1.075
+   },
+   "h96": {
+    "mfe_p50": 43.1,
+    "mae_p50": 50.2,
+    "ratio": 0.859
+   }
+  },
+  {
+   "cell": "ema200_trend_reversal×EUR_USD",
+   "entry_type": "ema200_trend_reversal",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 7,
+   "h24": {
+    "mfe_p50": 15.8,
+    "mae_p50": 20.2,
+    "ratio": 0.782
+   },
+   "h96": {
+    "mfe_p50": 44.1,
+    "mae_p50": 20.2,
+    "ratio": 2.183
+   }
+  },
+  {
+   "cell": "ema200_trend_reversal×GBP_JPY",
+   "entry_type": "ema200_trend_reversal",
+   "pair": "GBP_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 24,
+   "h24": {
+    "mfe_p50": 28.65,
+    "mae_p50": 37.23,
+    "ratio": 0.77
+   },
+   "h96": {
+    "mfe_p50": 35.75,
+    "mae_p50": 52.55,
+    "ratio": 0.68
+   }
+  },
+  {
+   "cell": "ema200_trend_reversal×GBP_USD",
+   "entry_type": "ema200_trend_reversal",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 26,
+   "h24": {
+    "mfe_p50": 12.05,
+    "mae_p50": 20.85,
+    "ratio": 0.578
+   },
+   "h96": {
+    "mfe_p50": 18.65,
+    "mae_p50": 37.75,
+    "ratio": 0.494
+   }
+  },
+  {
+   "cell": "ema200_trend_reversal×USD_JPY",
+   "entry_type": "ema200_trend_reversal",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 16,
+   "h24": {
+    "mfe_p50": 24.05,
+    "mae_p50": 19.4,
+    "ratio": 1.24
+   },
+   "h96": {
+    "mfe_p50": 43.2,
+    "mae_p50": 46.4,
+    "ratio": 0.931
+   }
+  },
+  {
+   "cell": "ema_cross×AUD_JPY",
+   "entry_type": "ema_cross",
+   "pair": "AUD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 23,
+   "h24": {
+    "mfe_p50": 19.8,
+    "mae_p50": 29.2,
+    "ratio": 0.678
+   },
+   "h96": {
+    "mfe_p50": 38.5,
+    "mae_p50": 76.2,
+    "ratio": 0.505
+   }
+  },
+  {
+   "cell": "ema_cross×EUR_JPY",
+   "entry_type": "ema_cross",
+   "pair": "EUR_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 19,
+   "h24": {
+    "mfe_p50": 22.7,
+    "mae_p50": 23.5,
+    "ratio": 0.966
+   },
+   "h96": {
+    "mfe_p50": 50.2,
+    "mae_p50": 44.8,
+    "ratio": 1.121
+   }
+  },
+  {
+   "cell": "ema_cross×EUR_USD",
+   "entry_type": "ema_cross",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 11,
+   "h24": {
+    "mfe_p50": 17.4,
+    "mae_p50": 22.8,
+    "ratio": 0.763
+   },
+   "h96": {
+    "mfe_p50": 36.3,
+    "mae_p50": 40.6,
+    "ratio": 0.894
+   }
+  },
+  {
+   "cell": "ema_cross×GBP_JPY",
+   "entry_type": "ema_cross",
+   "pair": "GBP_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 22,
+   "h24": {
+    "mfe_p50": 31.65,
+    "mae_p50": 25.9,
+    "ratio": 1.222
+   },
+   "h96": {
+    "mfe_p50": 57.95,
+    "mae_p50": 45.05,
+    "ratio": 1.286
+   }
+  },
+  {
+   "cell": "ema_cross×GBP_USD",
+   "entry_type": "ema_cross",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 11,
+   "h24": {
+    "mfe_p50": 6.6,
+    "mae_p50": 41.2,
+    "ratio": 0.16
+   },
+   "h96": {
+    "mfe_p50": 19.3,
+    "mae_p50": 75.5,
+    "ratio": 0.256
+   }
+  },
+  {
+   "cell": "ema_cross×USD_JPY",
+   "entry_type": "ema_cross",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 18,
+   "h24": {
+    "mfe_p50": 20.3,
+    "mae_p50": 20.1,
+    "ratio": 1.01
+   },
+   "h96": {
+    "mfe_p50": 44.85,
+    "mae_p50": 57.45,
+    "ratio": 0.781
+   }
+  },
+  {
+   "cell": "gbp_deep_pullback×GBP_USD",
+   "entry_type": "gbp_deep_pullback",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 56,
+   "h24": {
+    "mfe_p50": 15.9,
+    "mae_p50": 18.65,
+    "ratio": 0.853
+   },
+   "h96": {
+    "mfe_p50": 30.2,
+    "mae_p50": 38.1,
+    "ratio": 0.793
+   }
+  },
+  {
+   "cell": "htf_false_breakout×EUR_USD",
+   "entry_type": "htf_false_breakout",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 12,
+   "h24": {
+    "mfe_p50": 17.1,
+    "mae_p50": 17.6,
+    "ratio": 0.972
+   },
+   "h96": {
+    "mfe_p50": 41.85,
+    "mae_p50": 24.05,
+    "ratio": 1.74
+   }
+  },
+  {
+   "cell": "htf_false_breakout×GBP_JPY",
+   "entry_type": "htf_false_breakout",
+   "pair": "GBP_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 29,
+   "h24": {
+    "mfe_p50": 27.0,
+    "mae_p50": 30.9,
+    "ratio": 0.874
+   },
+   "h96": {
+    "mfe_p50": 54.4,
+    "mae_p50": 77.5,
+    "ratio": 0.702
+   }
+  },
+  {
+   "cell": "htf_false_breakout×GBP_USD",
+   "entry_type": "htf_false_breakout",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 31,
+   "h24": {
+    "mfe_p50": 17.4,
+    "mae_p50": 18.7,
+    "ratio": 0.93
+   },
+   "h96": {
+    "mfe_p50": 40.2,
+    "mae_p50": 44.3,
+    "ratio": 0.907
+   }
+  },
+  {
+   "cell": "htf_false_breakout×USD_JPY",
+   "entry_type": "htf_false_breakout",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 10,
+   "h24": {
+    "mfe_p50": 15.8,
+    "mae_p50": 38.7,
+    "ratio": 0.408
+   },
+   "h96": {
+    "mfe_p50": 27.35,
+    "mae_p50": 74.4,
+    "ratio": 0.368
+   }
+  },
+  {
+   "cell": "inducement_ob×EUR_USD",
+   "entry_type": "inducement_ob",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 4,
+   "h24": {
+    "mfe_p50": 3.3,
+    "mae_p50": 30.1,
+    "ratio": 0.11
+   },
+   "h96": {
+    "mfe_p50": 31.4,
+    "mae_p50": 42.55,
+    "ratio": 0.738
+   }
+  },
+  {
+   "cell": "inducement_ob×GBP_USD",
+   "entry_type": "inducement_ob",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 5,
+   "h24": {
+    "mfe_p50": 1.0,
+    "mae_p50": 40.0,
+    "ratio": 0.025
+   },
+   "h96": {
+    "mfe_p50": 25.3,
+    "mae_p50": 50.0,
+    "ratio": 0.506
+   }
+  },
+  {
+   "cell": "inducement_ob×USD_JPY",
+   "entry_type": "inducement_ob",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 1,
+   "h24": {
+    "mfe_p50": 34.9,
+    "mae_p50": 14.1,
+    "ratio": 2.475
+   },
+   "h96": {
+    "mfe_p50": 74.2,
+    "mae_p50": 14.1,
+    "ratio": 5.262
+   }
+  },
+  {
+   "cell": "intraday_seasonality×AUD_JPY",
+   "entry_type": "intraday_seasonality",
+   "pair": "AUD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 75,
+   "h24": {
+    "mfe_p50": 18.7,
+    "mae_p50": 26.0,
+    "ratio": 0.719
+   },
+   "h96": {
+    "mfe_p50": 36.5,
+    "mae_p50": 60.2,
+    "ratio": 0.606
+   }
+  },
+  {
+   "cell": "intraday_seasonality×EUR_JPY",
+   "entry_type": "intraday_seasonality",
+   "pair": "EUR_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 76,
+   "h24": {
+    "mfe_p50": 23.05,
+    "mae_p50": 22.05,
+    "ratio": 1.045
+   },
+   "h96": {
+    "mfe_p50": 40.1,
+    "mae_p50": 43.35,
+    "ratio": 0.925
+   }
+  },
+  {
+   "cell": "intraday_seasonality×EUR_USD",
+   "entry_type": "intraday_seasonality",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 19,
+   "h24": {
+    "mfe_p50": 21.3,
+    "mae_p50": 20.7,
+    "ratio": 1.029
+   },
+   "h96": {
+    "mfe_p50": 22.9,
+    "mae_p50": 38.7,
+    "ratio": 0.592
+   }
+  },
+  {
+   "cell": "intraday_seasonality×GBP_JPY",
+   "entry_type": "intraday_seasonality",
+   "pair": "GBP_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 82,
+   "h24": {
+    "mfe_p50": 26.45,
+    "mae_p50": 32.15,
+    "ratio": 0.823
+   },
+   "h96": {
+    "mfe_p50": 47.4,
+    "mae_p50": 65.0,
+    "ratio": 0.729
+   }
+  },
+  {
+   "cell": "intraday_seasonality×GBP_USD",
+   "entry_type": "intraday_seasonality",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 42,
+   "h24": {
+    "mfe_p50": 16.3,
+    "mae_p50": 22.95,
+    "ratio": 0.71
+   },
+   "h96": {
+    "mfe_p50": 30.85,
+    "mae_p50": 41.7,
+    "ratio": 0.74
+   }
+  },
+  {
+   "cell": "intraday_seasonality×USD_JPY",
+   "entry_type": "intraday_seasonality",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 57,
+   "h24": {
+    "mfe_p50": 17.4,
+    "mae_p50": 20.9,
+    "ratio": 0.833
+   },
+   "h96": {
+    "mfe_p50": 34.4,
+    "mae_p50": 46.5,
+    "ratio": 0.74
+   }
+  },
+  {
+   "cell": "jpy_basket_trend×EUR_JPY",
+   "entry_type": "jpy_basket_trend",
+   "pair": "EUR_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 15,
+   "h24": {
+    "mfe_p50": 12.7,
+    "mae_p50": 24.7,
+    "ratio": 0.514
+   },
+   "h96": {
+    "mfe_p50": 47.64,
+    "mae_p50": 43.2,
+    "ratio": 1.103
+   }
+  },
+  {
+   "cell": "jpy_basket_trend×USD_JPY",
+   "entry_type": "jpy_basket_trend",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 2,
+   "h24": {
+    "mfe_p50": 13.25,
+    "mae_p50": 16.3,
+    "ratio": 0.813
+   },
+   "h96": {
+    "mfe_p50": 30.65,
+    "mae_p50": 62.45,
+    "ratio": 0.491
+   }
+  },
+  {
+   "cell": "kalman_d7_po_dn_flip×USD_JPY",
+   "entry_type": "kalman_d7_po_dn_flip",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 7,
+   "h24": {
+    "mfe_p50": 13.1,
+    "mae_p50": 28.5,
+    "ratio": 0.46
+   },
+   "h96": {
+    "mfe_p50": 33.5,
+    "mae_p50": 61.0,
+    "ratio": 0.549
+   }
+  },
+  {
+   "cell": "london_fix_reversal×GBP_USD",
+   "entry_type": "london_fix_reversal",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 41,
+   "h24": {
+    "mfe_p50": 13.3,
+    "mae_p50": 17.3,
+    "ratio": 0.769
+   },
+   "h96": {
+    "mfe_p50": 32.2,
+    "mae_p50": 34.3,
+    "ratio": 0.939
+   }
+  },
+  {
+   "cell": "london_fix_reversal×USD_JPY",
+   "entry_type": "london_fix_reversal",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 38,
+   "h24": {
+    "mfe_p50": 14.6,
+    "mae_p50": 18.4,
+    "ratio": 0.793
+   },
+   "h96": {
+    "mfe_p50": 37.25,
+    "mae_p50": 37.4,
+    "ratio": 0.996
+   }
+  },
+  {
+   "cell": "london_ny_swing×EUR_USD",
+   "entry_type": "london_ny_swing",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 10,
+   "h24": {
+    "mfe_p50": 18.05,
+    "mae_p50": 8.25,
+    "ratio": 2.188
+   },
+   "h96": {
+    "mfe_p50": 56.85,
+    "mae_p50": 12.05,
+    "ratio": 4.718
+   }
+  },
+  {
+   "cell": "london_ny_swing×GBP_USD",
+   "entry_type": "london_ny_swing",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 4,
+   "h24": {
+    "mfe_p50": 12.35,
+    "mae_p50": 18.85,
+    "ratio": 0.655
+   },
+   "h96": {
+    "mfe_p50": 40.4,
+    "mae_p50": 34.95,
+    "ratio": 1.156
+   }
+  },
+  {
+   "cell": "macd_rsi_pullback×USD_JPY",
+   "entry_type": "macd_rsi_pullback",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 7,
+   "h24": {
+    "mfe_p50": 26.8,
+    "mae_p50": 28.7,
+    "ratio": 0.934
+   },
+   "h96": {
+    "mfe_p50": 59.3,
+    "mae_p50": 34.9,
+    "ratio": 1.699
+   }
+  },
+  {
+   "cell": "mqe_gbpusd_fix×GBP_USD",
+   "entry_type": "mqe_gbpusd_fix",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 7,
+   "h24": {
+    "mfe_p50": 18.1,
+    "mae_p50": 10.7,
+    "ratio": 1.692
+   },
+   "h96": {
+    "mfe_p50": 27.2,
+    "mae_p50": 46.8,
+    "ratio": 0.581
+   }
+  },
+  {
+   "cell": "orb_trap×EUR_USD",
+   "entry_type": "orb_trap",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 26,
+   "h24": {
+    "mfe_p50": 6.85,
+    "mae_p50": 20.8,
+    "ratio": 0.329
+   },
+   "h96": {
+    "mfe_p50": 10.2,
+    "mae_p50": 38.4,
+    "ratio": 0.266
+   }
+  },
+  {
+   "cell": "orb_trap×GBP_USD",
+   "entry_type": "orb_trap",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 30,
+   "h24": {
+    "mfe_p50": 13.35,
+    "mae_p50": 18.75,
+    "ratio": 0.712
+   },
+   "h96": {
+    "mfe_p50": 29.75,
+    "mae_p50": 31.55,
+    "ratio": 0.943
+   }
+  },
+  {
+   "cell": "orb_trap×USD_JPY",
+   "entry_type": "orb_trap",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 17,
+   "h24": {
+    "mfe_p50": 14.4,
+    "mae_p50": 18.6,
+    "ratio": 0.774
+   },
+   "h96": {
+    "mfe_p50": 33.2,
+    "mae_p50": 48.1,
+    "ratio": 0.69
+   }
+  },
+  {
+   "cell": "pivot_detector_v2_5×EUR_USD",
+   "entry_type": "pivot_detector_v2_5",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 14,
+   "h24": {
+    "mfe_p50": 13.55,
+    "mae_p50": 16.4,
+    "ratio": 0.826
+   },
+   "h96": {
+    "mfe_p50": 27.7,
+    "mae_p50": 21.8,
+    "ratio": 1.271
+   }
+  },
+  {
+   "cell": "post_news_vol×EUR_USD",
+   "entry_type": "post_news_vol",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 18,
+   "h24": {
+    "mfe_p50": 14.35,
+    "mae_p50": 20.45,
+    "ratio": 0.702
+   },
+   "h96": {
+    "mfe_p50": 28.55,
+    "mae_p50": 29.35,
+    "ratio": 0.973
+   }
+  },
+  {
+   "cell": "post_news_vol×GBP_USD",
+   "entry_type": "post_news_vol",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 21,
+   "h24": {
+    "mfe_p50": 27.6,
+    "mae_p50": 23.9,
+    "ratio": 1.155
+   },
+   "h96": {
+    "mfe_p50": 45.1,
+    "mae_p50": 45.6,
+    "ratio": 0.989
+   }
+  },
+  {
+   "cell": "post_news_vol×USD_JPY",
+   "entry_type": "post_news_vol",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 15,
+   "h24": {
+    "mfe_p50": 8.5,
+    "mae_p50": 24.9,
+    "ratio": 0.341
+   },
+   "h96": {
+    "mfe_p50": 64.9,
+    "mae_p50": 37.9,
+    "ratio": 1.712
+   }
+  },
+  {
+   "cell": "rsk_gbpjpy_reversion×GBP_JPY",
+   "entry_type": "rsk_gbpjpy_reversion",
+   "pair": "GBP_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 40,
+   "h24": {
+    "mfe_p50": 28.345,
+    "mae_p50": 39.55,
+    "ratio": 0.717
+   },
+   "h96": {
+    "mfe_p50": 46.785,
+    "mae_p50": 75.0,
+    "ratio": 0.624
+   }
+  },
+  {
+   "cell": "session_time_bias×EUR_USD",
+   "entry_type": "session_time_bias",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 159,
+   "h24": {
+    "mfe_p50": 17.5,
+    "mae_p50": 17.0,
+    "ratio": 1.029
+   },
+   "h96": {
+    "mfe_p50": 28.9,
+    "mae_p50": 26.5,
+    "ratio": 1.091
+   }
+  },
+  {
+   "cell": "session_time_bias×GBP_USD",
+   "entry_type": "session_time_bias",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 185,
+   "h24": {
+    "mfe_p50": 19.8,
+    "mae_p50": 27.6,
+    "ratio": 0.717
+   },
+   "h96": {
+    "mfe_p50": 31.9,
+    "mae_p50": 40.0,
+    "ratio": 0.797
+   }
+  },
+  {
+   "cell": "squeeze_release_momentum×EUR_USD",
+   "entry_type": "squeeze_release_momentum",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 17,
+   "h24": {
+    "mfe_p50": 8.2,
+    "mae_p50": 23.0,
+    "ratio": 0.357
+   },
+   "h96": {
+    "mfe_p50": 9.9,
+    "mae_p50": 37.6,
+    "ratio": 0.263
+   }
+  },
+  {
+   "cell": "squeeze_release_momentum×GBP_USD",
+   "entry_type": "squeeze_release_momentum",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 6,
+   "h24": {
+    "mfe_p50": 12.3,
+    "mae_p50": 16.55,
+    "ratio": 0.743
+   },
+   "h96": {
+    "mfe_p50": 47.15,
+    "mae_p50": 22.95,
+    "ratio": 2.054
+   }
+  },
+  {
+   "cell": "sr_anti_hunt_bounce×EUR_JPY",
+   "entry_type": "sr_anti_hunt_bounce",
+   "pair": "EUR_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 33,
+   "h24": {
+    "mfe_p50": 20.2,
+    "mae_p50": 22.4,
+    "ratio": 0.902
+   },
+   "h96": {
+    "mfe_p50": 35.3,
+    "mae_p50": 46.3,
+    "ratio": 0.762
+   }
+  },
+  {
+   "cell": "sr_anti_hunt_bounce×EUR_USD",
+   "entry_type": "sr_anti_hunt_bounce",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 10,
+   "h24": {
+    "mfe_p50": 11.4,
+    "mae_p50": 19.8,
+    "ratio": 0.576
+   },
+   "h96": {
+    "mfe_p50": 20.35,
+    "mae_p50": 33.4,
+    "ratio": 0.609
+   }
+  },
+  {
+   "cell": "sr_anti_hunt_bounce×GBP_JPY",
+   "entry_type": "sr_anti_hunt_bounce",
+   "pair": "GBP_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 32,
+   "h24": {
+    "mfe_p50": 32.55,
+    "mae_p50": 30.4,
+    "ratio": 1.071
+   },
+   "h96": {
+    "mfe_p50": 34.45,
+    "mae_p50": 64.3,
+    "ratio": 0.536
+   }
+  },
+  {
+   "cell": "sr_anti_hunt_bounce×GBP_USD",
+   "entry_type": "sr_anti_hunt_bounce",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 13,
+   "h24": {
+    "mfe_p50": 4.8,
+    "mae_p50": 31.8,
+    "ratio": 0.151
+   },
+   "h96": {
+    "mfe_p50": 30.0,
+    "mae_p50": 48.4,
+    "ratio": 0.62
+   }
+  },
+  {
+   "cell": "sr_anti_hunt_bounce×USD_JPY",
+   "entry_type": "sr_anti_hunt_bounce",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 19,
+   "h24": {
+    "mfe_p50": 24.3,
+    "mae_p50": 14.2,
+    "ratio": 1.711
+   },
+   "h96": {
+    "mfe_p50": 52.5,
+    "mae_p50": 39.6,
+    "ratio": 1.326
+   }
+  },
+  {
+   "cell": "sr_break_retest×AUD_JPY",
+   "entry_type": "sr_break_retest",
+   "pair": "AUD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 134,
+   "h24": {
+    "mfe_p50": 18.36,
+    "mae_p50": 18.45,
+    "ratio": 0.995
+   },
+   "h96": {
+    "mfe_p50": 39.15,
+    "mae_p50": 48.05,
+    "ratio": 0.815
+   }
+  },
+  {
+   "cell": "sr_break_retest×EUR_JPY",
+   "entry_type": "sr_break_retest",
+   "pair": "EUR_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 131,
+   "h24": {
+    "mfe_p50": 21.0,
+    "mae_p50": 22.4,
+    "ratio": 0.938
+   },
+   "h96": {
+    "mfe_p50": 41.89,
+    "mae_p50": 45.8,
+    "ratio": 0.915
+   }
+  },
+  {
+   "cell": "sr_break_retest×GBP_JPY",
+   "entry_type": "sr_break_retest",
+   "pair": "GBP_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 128,
+   "h24": {
+    "mfe_p50": 24.9,
+    "mae_p50": 32.9,
+    "ratio": 0.757
+   },
+   "h96": {
+    "mfe_p50": 59.0,
+    "mae_p50": 55.45,
+    "ratio": 1.064
+   }
+  },
+  {
+   "cell": "sr_break_retest×GBP_USD",
+   "entry_type": "sr_break_retest",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 32,
+   "h24": {
+    "mfe_p50": 9.05,
+    "mae_p50": 35.1,
+    "ratio": 0.258
+   },
+   "h96": {
+    "mfe_p50": 23.3,
+    "mae_p50": 55.1,
+    "ratio": 0.423
+   }
+  },
+  {
+   "cell": "sr_break_retest×USD_JPY",
+   "entry_type": "sr_break_retest",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 49,
+   "h24": {
+    "mfe_p50": 17.3,
+    "mae_p50": 17.4,
+    "ratio": 0.994
+   },
+   "h96": {
+    "mfe_p50": 39.1,
+    "mae_p50": 40.8,
+    "ratio": 0.958
+   }
+  },
+  {
+   "cell": "sr_fib_confluence×AUD_JPY",
+   "entry_type": "sr_fib_confluence",
+   "pair": "AUD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 219,
+   "h24": {
+    "mfe_p50": 21.1,
+    "mae_p50": 22.4,
+    "ratio": 0.942
+   },
+   "h96": {
+    "mfe_p50": 42.1,
+    "mae_p50": 38.47,
+    "ratio": 1.094
+   }
+  },
+  {
+   "cell": "sr_fib_confluence×EUR_JPY",
+   "entry_type": "sr_fib_confluence",
+   "pair": "EUR_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 177,
+   "h24": {
+    "mfe_p50": 22.13,
+    "mae_p50": 26.5,
+    "ratio": 0.835
+   },
+   "h96": {
+    "mfe_p50": 38.4,
+    "mae_p50": 54.98,
+    "ratio": 0.698
+   }
+  },
+  {
+   "cell": "sr_fib_confluence×EUR_USD",
+   "entry_type": "sr_fib_confluence",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 189,
+   "h24": {
+    "mfe_p50": 15.1,
+    "mae_p50": 19.1,
+    "ratio": 0.791
+   },
+   "h96": {
+    "mfe_p50": 24.8,
+    "mae_p50": 28.4,
+    "ratio": 0.873
+   }
+  },
+  {
+   "cell": "sr_fib_confluence×GBP_JPY",
+   "entry_type": "sr_fib_confluence",
+   "pair": "GBP_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 185,
+   "h24": {
+    "mfe_p50": 31.3,
+    "mae_p50": 31.9,
+    "ratio": 0.981
+   },
+   "h96": {
+    "mfe_p50": 57.5,
+    "mae_p50": 64.0,
+    "ratio": 0.898
+   }
+  },
+  {
+   "cell": "sr_fib_confluence×GBP_USD",
+   "entry_type": "sr_fib_confluence",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 177,
+   "h24": {
+    "mfe_p50": 21.7,
+    "mae_p50": 18.3,
+    "ratio": 1.186
+   },
+   "h96": {
+    "mfe_p50": 44.6,
+    "mae_p50": 35.5,
+    "ratio": 1.256
+   }
+  },
+  {
+   "cell": "sr_fib_confluence×USD_JPY",
+   "entry_type": "sr_fib_confluence",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 108,
+   "h24": {
+    "mfe_p50": 18.65,
+    "mae_p50": 25.65,
+    "ratio": 0.727
+   },
+   "h96": {
+    "mfe_p50": 31.15,
+    "mae_p50": 63.7,
+    "ratio": 0.489
+   }
+  },
+  {
+   "cell": "streak_reversal×USD_JPY",
+   "entry_type": "streak_reversal",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 302,
+   "h24": {
+    "mfe_p50": 21.5,
+    "mae_p50": 22.0,
+    "ratio": 0.977
+   },
+   "h96": {
+    "mfe_p50": 44.35,
+    "mae_p50": 43.1,
+    "ratio": 1.029
+   }
+  },
+  {
+   "cell": "tokyo_range_breakout_up×USD_JPY",
+   "entry_type": "tokyo_range_breakout_up",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 17,
+   "h24": {
+    "mfe_p50": 15.0,
+    "mae_p50": 17.5,
+    "ratio": 0.857
+   },
+   "h96": {
+    "mfe_p50": 35.0,
+    "mae_p50": 33.4,
+    "ratio": 1.048
+   }
+  },
+  {
+   "cell": "trendline_sweep×GBP_USD",
+   "entry_type": "trendline_sweep",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 78,
+   "h24": {
+    "mfe_p50": 18.7,
+    "mae_p50": 23.15,
+    "ratio": 0.808
+   },
+   "h96": {
+    "mfe_p50": 38.0,
+    "mae_p50": 40.45,
+    "ratio": 0.939
+   }
+  },
+  {
+   "cell": "turtle_soup×GBP_USD",
+   "entry_type": "turtle_soup",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 40,
+   "h24": {
+    "mfe_p50": 18.45,
+    "mae_p50": 20.25,
+    "ratio": 0.911
+   },
+   "h96": {
+    "mfe_p50": 44.1,
+    "mae_p50": 31.2,
+    "ratio": 1.413
+   }
+  },
+  {
+   "cell": "vix_carry_unwind×USD_JPY",
+   "entry_type": "vix_carry_unwind",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 77,
+   "h24": {
+    "mfe_p50": 25.9,
+    "mae_p50": 31.9,
+    "ratio": 0.812
+   },
+   "h96": {
+    "mfe_p50": 39.5,
+    "mae_p50": 75.0,
+    "ratio": 0.527
+   }
+  },
+  {
+   "cell": "vol_spike_mr×USD_JPY",
+   "entry_type": "vol_spike_mr",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 63,
+   "h24": {
+    "mfe_p50": 23.9,
+    "mae_p50": 20.0,
+    "ratio": 1.195
+   },
+   "h96": {
+    "mfe_p50": 49.0,
+    "mae_p50": 47.9,
+    "ratio": 1.023
+   }
+  },
+  {
+   "cell": "vsg_jpy_reversal×EUR_JPY",
+   "entry_type": "vsg_jpy_reversal",
+   "pair": "EUR_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 190,
+   "h24": {
+    "mfe_p50": 24.1,
+    "mae_p50": 23.1,
+    "ratio": 1.043
+   },
+   "h96": {
+    "mfe_p50": 47.9,
+    "mae_p50": 45.75,
+    "ratio": 1.047
+   }
+  },
+  {
+   "cell": "vsg_jpy_reversal×GBP_JPY",
+   "entry_type": "vsg_jpy_reversal",
+   "pair": "GBP_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 324,
+   "h24": {
+    "mfe_p50": 30.84,
+    "mae_p50": 28.95,
+    "ratio": 1.065
+   },
+   "h96": {
+    "mfe_p50": 62.3,
+    "mae_p50": 58.4,
+    "ratio": 1.067
+   }
+  },
+  {
+   "cell": "wick_imbalance_reversion×AUD_JPY",
+   "entry_type": "wick_imbalance_reversion",
+   "pair": "AUD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 155,
+   "h24": {
+    "mfe_p50": 18.8,
+    "mae_p50": 18.8,
+    "ratio": 1.0
+   },
+   "h96": {
+    "mfe_p50": 36.5,
+    "mae_p50": 43.8,
+    "ratio": 0.833
+   }
+  },
+  {
+   "cell": "wick_imbalance_reversion×EUR_JPY",
+   "entry_type": "wick_imbalance_reversion",
+   "pair": "EUR_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 64,
+   "h24": {
+    "mfe_p50": 19.5,
+    "mae_p50": 28.75,
+    "ratio": 0.678
+   },
+   "h96": {
+    "mfe_p50": 40.45,
+    "mae_p50": 53.55,
+    "ratio": 0.755
+   }
+  },
+  {
+   "cell": "wick_imbalance_reversion×EUR_USD",
+   "entry_type": "wick_imbalance_reversion",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 17,
+   "h24": {
+    "mfe_p50": 15.0,
+    "mae_p50": 14.9,
+    "ratio": 1.007
+   },
+   "h96": {
+    "mfe_p50": 36.2,
+    "mae_p50": 20.5,
+    "ratio": 1.766
+   }
+  },
+  {
+   "cell": "wick_imbalance_reversion×GBP_JPY",
+   "entry_type": "wick_imbalance_reversion",
+   "pair": "GBP_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 87,
+   "h24": {
+    "mfe_p50": 29.6,
+    "mae_p50": 24.4,
+    "ratio": 1.213
+   },
+   "h96": {
+    "mfe_p50": 59.72,
+    "mae_p50": 54.77,
+    "ratio": 1.09
+   }
+  },
+  {
+   "cell": "wick_imbalance_reversion×GBP_USD",
+   "entry_type": "wick_imbalance_reversion",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 43,
+   "h24": {
+    "mfe_p50": 19.2,
+    "mae_p50": 22.9,
+    "ratio": 0.838
+   },
+   "h96": {
+    "mfe_p50": 34.0,
+    "mae_p50": 27.0,
+    "ratio": 1.259
+   }
+  },
+  {
+   "cell": "wick_imbalance_reversion×USD_JPY",
+   "entry_type": "wick_imbalance_reversion",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 30,
+   "h24": {
+    "mfe_p50": 13.9,
+    "mae_p50": 31.0,
+    "ratio": 0.448
+   },
+   "h96": {
+    "mfe_p50": 25.5,
+    "mae_p50": 55.0,
+    "ratio": 0.464
+   }
+  },
+  {
+   "cell": "xs_momentum×EUR_USD",
+   "entry_type": "xs_momentum",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 203,
+   "h24": {
+    "mfe_p50": 13.4,
+    "mae_p50": 17.0,
+    "ratio": 0.788
+   },
+   "h96": {
+    "mfe_p50": 29.5,
+    "mae_p50": 29.0,
+    "ratio": 1.017
+   }
+  },
+  {
+   "cell": "xs_momentum×GBP_USD",
+   "entry_type": "xs_momentum",
+   "pair": "GBP_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 194,
+   "h24": {
+    "mfe_p50": 14.85,
+    "mae_p50": 20.45,
+    "ratio": 0.726
+   },
+   "h96": {
+    "mfe_p50": 35.3,
+    "mae_p50": 40.25,
+    "ratio": 0.877
+   }
+  },
+  {
+   "cell": "xs_momentum×USD_JPY",
+   "entry_type": "xs_momentum",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 121,
+   "h24": {
+    "mfe_p50": 17.7,
+    "mae_p50": 22.6,
+    "ratio": 0.783
+   },
+   "h96": {
+    "mfe_p50": 36.8,
+    "mae_p50": 45.0,
+    "ratio": 0.818
+   }
+  },
+  {
+   "cell": "xs_momentum_rsi×USD_JPY",
+   "entry_type": "xs_momentum_rsi",
+   "pair": "USD_JPY",
+   "sig": null,
+   "kind": "pooled",
+   "n": 65,
+   "h24": {
+    "mfe_p50": 19.3,
+    "mae_p50": 21.8,
+    "ratio": 0.885
+   },
+   "h96": {
+    "mfe_p50": 42.9,
+    "mae_p50": 56.7,
+    "ratio": 0.757
+   }
+  },
+  {
+   "cell": "zz_pivot_v60_sr×EUR_USD",
+   "entry_type": "zz_pivot_v60_sr",
+   "pair": "EUR_USD",
+   "sig": null,
+   "kind": "pooled",
+   "n": 17,
+   "h24": {
+    "mfe_p50": 14.4,
+    "mae_p50": 22.2,
+    "ratio": 0.649
+   },
+   "h96": {
+    "mfe_p50": 22.8,
+    "mae_p50": 39.5,
+    "ratio": 0.577
+   }
+  }
+ ],
+ "cells_split": [
+  {
+   "cell": "adx_trend_continuation×EUR_USD×BUY",
+   "entry_type": "adx_trend_continuation",
+   "pair": "EUR_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 6,
+   "h24": {
+    "mfe_p50": 20.3,
+    "mae_p50": 25.55,
+    "ratio": 0.795
+   },
+   "h96": {
+    "mfe_p50": 21.9,
+    "mae_p50": 70.85,
+    "ratio": 0.309
+   }
+  },
+  {
+   "cell": "adx_trend_continuation×EUR_USD×SELL",
+   "entry_type": "adx_trend_continuation",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 6,
+   "h24": {
+    "mfe_p50": 18.85,
+    "mae_p50": 30.8,
+    "ratio": 0.612
+   },
+   "h96": {
+    "mfe_p50": 18.85,
+    "mae_p50": 50.55,
+    "ratio": 0.373
+   }
+  },
+  {
+   "cell": "atr_regime_break×AUD_JPY×BUY",
+   "entry_type": "atr_regime_break",
+   "pair": "AUD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 1,
+   "h24": {
+    "mfe_p50": 4.6,
+    "mae_p50": 22.2,
+    "ratio": 0.207
+   },
+   "h96": {
+    "mfe_p50": 43.8,
+    "mae_p50": 73.7,
+    "ratio": 0.594
+   }
+  },
+  {
+   "cell": "atr_regime_break×EUR_JPY×SELL",
+   "entry_type": "atr_regime_break",
+   "pair": "EUR_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 1,
+   "h24": {
+    "mfe_p50": 28.67,
+    "mae_p50": 52.2,
+    "ratio": 0.549
+   },
+   "h96": {
+    "mfe_p50": 28.67,
+    "mae_p50": 100.2,
+    "ratio": 0.286
+   }
+  },
+  {
+   "cell": "atr_regime_break×GBP_USD×BUY",
+   "entry_type": "atr_regime_break",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 1,
+   "h24": {
+    "mfe_p50": 7.5,
+    "mae_p50": 39.5,
+    "ratio": 0.19
+   },
+   "h96": {
+    "mfe_p50": 24.3,
+    "mae_p50": 39.5,
+    "ratio": 0.615
+   }
+  },
+  {
+   "cell": "doji_breakout×EUR_USD×BUY",
+   "entry_type": "doji_breakout",
+   "pair": "EUR_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 3,
+   "h24": {
+    "mfe_p50": 13.5,
+    "mae_p50": 20.7,
+    "ratio": 0.652
+   },
+   "h96": {
+    "mfe_p50": 25.3,
+    "mae_p50": 20.7,
+    "ratio": 1.222
+   }
+  },
+  {
+   "cell": "doji_breakout×EUR_USD×SELL",
+   "entry_type": "doji_breakout",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 1,
+   "h24": {
+    "mfe_p50": 16.5,
+    "mae_p50": 21.1,
+    "ratio": 0.782
+   },
+   "h96": {
+    "mfe_p50": 26.5,
+    "mae_p50": 25.5,
+    "ratio": 1.039
+   }
+  },
+  {
+   "cell": "doji_breakout×GBP_USD×BUY",
+   "entry_type": "doji_breakout",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 11,
+   "h24": {
+    "mfe_p50": 17.3,
+    "mae_p50": 17.7,
+    "ratio": 0.977
+   },
+   "h96": {
+    "mfe_p50": 25.2,
+    "mae_p50": 49.5,
+    "ratio": 0.509
+   }
+  },
+  {
+   "cell": "doji_breakout×GBP_USD×SELL",
+   "entry_type": "doji_breakout",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 10,
+   "h24": {
+    "mfe_p50": 26.05,
+    "mae_p50": 31.35,
+    "ratio": 0.831
+   },
+   "h96": {
+    "mfe_p50": 48.35,
+    "mae_p50": 45.05,
+    "ratio": 1.073
+   }
+  },
+  {
+   "cell": "doji_breakout×USD_JPY×BUY",
+   "entry_type": "doji_breakout",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 5,
+   "h24": {
+    "mfe_p50": 17.5,
+    "mae_p50": 14.5,
+    "ratio": 1.207
+   },
+   "h96": {
+    "mfe_p50": 35.9,
+    "mae_p50": 14.5,
+    "ratio": 2.476
+   }
+  },
+  {
+   "cell": "doji_breakout×USD_JPY×SELL",
+   "entry_type": "doji_breakout",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 3,
+   "h24": {
+    "mfe_p50": 7.9,
+    "mae_p50": 37.0,
+    "ratio": 0.214
+   },
+   "h96": {
+    "mfe_p50": 9.9,
+    "mae_p50": 75.1,
+    "ratio": 0.132
+   }
+  },
+  {
+   "cell": "dt_fib_reversal×AUD_JPY×BUY",
+   "entry_type": "dt_fib_reversal",
+   "pair": "AUD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 45,
+   "h24": {
+    "mfe_p50": 21.4,
+    "mae_p50": 20.4,
+    "ratio": 1.049
+   },
+   "h96": {
+    "mfe_p50": 43.6,
+    "mae_p50": 39.2,
+    "ratio": 1.112
+   }
+  },
+  {
+   "cell": "dt_fib_reversal×AUD_JPY×SELL",
+   "entry_type": "dt_fib_reversal",
+   "pair": "AUD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 16,
+   "h24": {
+    "mfe_p50": 31.2,
+    "mae_p50": 15.8,
+    "ratio": 1.975
+   },
+   "h96": {
+    "mfe_p50": 51.05,
+    "mae_p50": 34.95,
+    "ratio": 1.461
+   }
+  },
+  {
+   "cell": "dt_fib_reversal×EUR_JPY×BUY",
+   "entry_type": "dt_fib_reversal",
+   "pair": "EUR_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 32,
+   "h24": {
+    "mfe_p50": 20.2,
+    "mae_p50": 23.5,
+    "ratio": 0.86
+   },
+   "h96": {
+    "mfe_p50": 41.85,
+    "mae_p50": 53.95,
+    "ratio": 0.776
+   }
+  },
+  {
+   "cell": "dt_fib_reversal×EUR_JPY×SELL",
+   "entry_type": "dt_fib_reversal",
+   "pair": "EUR_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 27,
+   "h24": {
+    "mfe_p50": 15.0,
+    "mae_p50": 28.16,
+    "ratio": 0.533
+   },
+   "h96": {
+    "mfe_p50": 40.4,
+    "mae_p50": 58.3,
+    "ratio": 0.693
+   }
+  },
+  {
+   "cell": "dt_fib_reversal×EUR_USD×BUY",
+   "entry_type": "dt_fib_reversal",
+   "pair": "EUR_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 9,
+   "h24": {
+    "mfe_p50": 16.4,
+    "mae_p50": 17.6,
+    "ratio": 0.932
+   },
+   "h96": {
+    "mfe_p50": 23.7,
+    "mae_p50": 19.9,
+    "ratio": 1.191
+   }
+  },
+  {
+   "cell": "dt_fib_reversal×EUR_USD×SELL",
+   "entry_type": "dt_fib_reversal",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 14,
+   "h24": {
+    "mfe_p50": 13.35,
+    "mae_p50": 33.15,
+    "ratio": 0.403
+   },
+   "h96": {
+    "mfe_p50": 28.85,
+    "mae_p50": 34.35,
+    "ratio": 0.84
+   }
+  },
+  {
+   "cell": "dt_fib_reversal×GBP_JPY×BUY",
+   "entry_type": "dt_fib_reversal",
+   "pair": "GBP_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 33,
+   "h24": {
+    "mfe_p50": 32.63,
+    "mae_p50": 28.5,
+    "ratio": 1.145
+   },
+   "h96": {
+    "mfe_p50": 51.3,
+    "mae_p50": 49.0,
+    "ratio": 1.047
+   }
+  },
+  {
+   "cell": "dt_fib_reversal×GBP_JPY×SELL",
+   "entry_type": "dt_fib_reversal",
+   "pair": "GBP_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 12,
+   "h24": {
+    "mfe_p50": 21.62,
+    "mae_p50": 29.13,
+    "ratio": 0.742
+   },
+   "h96": {
+    "mfe_p50": 21.62,
+    "mae_p50": 89.7,
+    "ratio": 0.241
+   }
+  },
+  {
+   "cell": "dt_fib_reversal×GBP_USD×BUY",
+   "entry_type": "dt_fib_reversal",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 14,
+   "h24": {
+    "mfe_p50": 24.75,
+    "mae_p50": 13.45,
+    "ratio": 1.84
+   },
+   "h96": {
+    "mfe_p50": 42.7,
+    "mae_p50": 39.8,
+    "ratio": 1.073
+   }
+  },
+  {
+   "cell": "dt_fib_reversal×GBP_USD×SELL",
+   "entry_type": "dt_fib_reversal",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 12,
+   "h24": {
+    "mfe_p50": 14.95,
+    "mae_p50": 25.6,
+    "ratio": 0.584
+   },
+   "h96": {
+    "mfe_p50": 33.9,
+    "mae_p50": 40.85,
+    "ratio": 0.83
+   }
+  },
+  {
+   "cell": "dt_sr_channel_reversal×AUD_JPY×BUY",
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "AUD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 100,
+   "h24": {
+    "mfe_p50": 19.835,
+    "mae_p50": 27.2,
+    "ratio": 0.729
+   },
+   "h96": {
+    "mfe_p50": 36.1,
+    "mae_p50": 54.45,
+    "ratio": 0.663
+   }
+  },
+  {
+   "cell": "dt_sr_channel_reversal×AUD_JPY×SELL",
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "AUD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 62,
+   "h24": {
+    "mfe_p50": 20.6,
+    "mae_p50": 18.415,
+    "ratio": 1.119
+   },
+   "h96": {
+    "mfe_p50": 40.5,
+    "mae_p50": 32.25,
+    "ratio": 1.256
+   }
+  },
+  {
+   "cell": "dt_sr_channel_reversal×EUR_JPY×BUY",
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "EUR_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 92,
+   "h24": {
+    "mfe_p50": 26.025,
+    "mae_p50": 21.75,
+    "ratio": 1.197
+   },
+   "h96": {
+    "mfe_p50": 40.05,
+    "mae_p50": 47.15,
+    "ratio": 0.849
+   }
+  },
+  {
+   "cell": "dt_sr_channel_reversal×EUR_JPY×SELL",
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "EUR_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 55,
+   "h24": {
+    "mfe_p50": 24.2,
+    "mae_p50": 26.1,
+    "ratio": 0.927
+   },
+   "h96": {
+    "mfe_p50": 42.4,
+    "mae_p50": 54.0,
+    "ratio": 0.785
+   }
+  },
+  {
+   "cell": "dt_sr_channel_reversal×GBP_JPY×BUY",
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "GBP_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 77,
+   "h24": {
+    "mfe_p50": 27.3,
+    "mae_p50": 28.2,
+    "ratio": 0.968
+   },
+   "h96": {
+    "mfe_p50": 67.15,
+    "mae_p50": 50.6,
+    "ratio": 1.327
+   }
+  },
+  {
+   "cell": "dt_sr_channel_reversal×GBP_JPY×SELL",
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "GBP_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 55,
+   "h24": {
+    "mfe_p50": 32.2,
+    "mae_p50": 29.1,
+    "ratio": 1.107
+   },
+   "h96": {
+    "mfe_p50": 59.2,
+    "mae_p50": 75.2,
+    "ratio": 0.787
+   }
+  },
+  {
+   "cell": "dt_sr_channel_reversal×GBP_USD×BUY",
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 43,
+   "h24": {
+    "mfe_p50": 10.4,
+    "mae_p50": 17.9,
+    "ratio": 0.581
+   },
+   "h96": {
+    "mfe_p50": 35.9,
+    "mae_p50": 35.6,
+    "ratio": 1.008
+   }
+  },
+  {
+   "cell": "dt_sr_channel_reversal×GBP_USD×SELL",
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 36,
+   "h24": {
+    "mfe_p50": 13.3,
+    "mae_p50": 13.7,
+    "ratio": 0.971
+   },
+   "h96": {
+    "mfe_p50": 46.15,
+    "mae_p50": 32.95,
+    "ratio": 1.401
+   }
+  },
+  {
+   "cell": "dt_sr_channel_reversal×USD_JPY×BUY",
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 43,
+   "h24": {
+    "mfe_p50": 13.1,
+    "mae_p50": 28.4,
+    "ratio": 0.461
+   },
+   "h96": {
+    "mfe_p50": 22.5,
+    "mae_p50": 64.8,
+    "ratio": 0.347
+   }
+  },
+  {
+   "cell": "dt_sr_channel_reversal×USD_JPY×SELL",
+   "entry_type": "dt_sr_channel_reversal",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 47,
+   "h24": {
+    "mfe_p50": 26.3,
+    "mae_p50": 20.8,
+    "ratio": 1.264
+   },
+   "h96": {
+    "mfe_p50": 35.6,
+    "mae_p50": 54.2,
+    "ratio": 0.657
+   }
+  },
+  {
+   "cell": "dual_sr_bounce×AUD_JPY×BUY",
+   "entry_type": "dual_sr_bounce",
+   "pair": "AUD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 53,
+   "h24": {
+    "mfe_p50": 15.5,
+    "mae_p50": 30.8,
+    "ratio": 0.503
+   },
+   "h96": {
+    "mfe_p50": 35.4,
+    "mae_p50": 45.4,
+    "ratio": 0.78
+   }
+  },
+  {
+   "cell": "dual_sr_bounce×AUD_JPY×SELL",
+   "entry_type": "dual_sr_bounce",
+   "pair": "AUD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 36,
+   "h24": {
+    "mfe_p50": 22.15,
+    "mae_p50": 17.21,
+    "ratio": 1.287
+   },
+   "h96": {
+    "mfe_p50": 53.15,
+    "mae_p50": 50.7,
+    "ratio": 1.048
+   }
+  },
+  {
+   "cell": "dual_sr_bounce×EUR_JPY×BUY",
+   "entry_type": "dual_sr_bounce",
+   "pair": "EUR_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 57,
+   "h24": {
+    "mfe_p50": 21.6,
+    "mae_p50": 24.3,
+    "ratio": 0.889
+   },
+   "h96": {
+    "mfe_p50": 40.88,
+    "mae_p50": 43.1,
+    "ratio": 0.948
+   }
+  },
+  {
+   "cell": "dual_sr_bounce×EUR_JPY×SELL",
+   "entry_type": "dual_sr_bounce",
+   "pair": "EUR_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 44,
+   "h24": {
+    "mfe_p50": 22.15,
+    "mae_p50": 21.85,
+    "ratio": 1.014
+   },
+   "h96": {
+    "mfe_p50": 49.2,
+    "mae_p50": 42.9,
+    "ratio": 1.147
+   }
+  },
+  {
+   "cell": "dual_sr_bounce×EUR_USD×BUY",
+   "entry_type": "dual_sr_bounce",
+   "pair": "EUR_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 15,
+   "h24": {
+    "mfe_p50": 14.1,
+    "mae_p50": 18.5,
+    "ratio": 0.762
+   },
+   "h96": {
+    "mfe_p50": 24.6,
+    "mae_p50": 33.2,
+    "ratio": 0.741
+   }
+  },
+  {
+   "cell": "dual_sr_bounce×EUR_USD×SELL",
+   "entry_type": "dual_sr_bounce",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 12,
+   "h24": {
+    "mfe_p50": 17.5,
+    "mae_p50": 14.0,
+    "ratio": 1.25
+   },
+   "h96": {
+    "mfe_p50": 27.8,
+    "mae_p50": 17.3,
+    "ratio": 1.607
+   }
+  },
+  {
+   "cell": "dual_sr_bounce×GBP_JPY×BUY",
+   "entry_type": "dual_sr_bounce",
+   "pair": "GBP_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 53,
+   "h24": {
+    "mfe_p50": 31.9,
+    "mae_p50": 26.9,
+    "ratio": 1.186
+   },
+   "h96": {
+    "mfe_p50": 53.3,
+    "mae_p50": 52.8,
+    "ratio": 1.009
+   }
+  },
+  {
+   "cell": "dual_sr_bounce×GBP_JPY×SELL",
+   "entry_type": "dual_sr_bounce",
+   "pair": "GBP_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 44,
+   "h24": {
+    "mfe_p50": 28.75,
+    "mae_p50": 32.9,
+    "ratio": 0.874
+   },
+   "h96": {
+    "mfe_p50": 47.2,
+    "mae_p50": 85.45,
+    "ratio": 0.552
+   }
+  },
+  {
+   "cell": "dual_sr_bounce×GBP_USD×BUY",
+   "entry_type": "dual_sr_bounce",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 29,
+   "h24": {
+    "mfe_p50": 16.6,
+    "mae_p50": 24.0,
+    "ratio": 0.692
+   },
+   "h96": {
+    "mfe_p50": 28.7,
+    "mae_p50": 46.3,
+    "ratio": 0.62
+   }
+  },
+  {
+   "cell": "dual_sr_bounce×GBP_USD×SELL",
+   "entry_type": "dual_sr_bounce",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 21,
+   "h24": {
+    "mfe_p50": 22.4,
+    "mae_p50": 14.0,
+    "ratio": 1.6
+   },
+   "h96": {
+    "mfe_p50": 50.7,
+    "mae_p50": 27.1,
+    "ratio": 1.871
+   }
+  },
+  {
+   "cell": "dual_sr_bounce×USD_JPY×BUY",
+   "entry_type": "dual_sr_bounce",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 28,
+   "h24": {
+    "mfe_p50": 20.25,
+    "mae_p50": 28.3,
+    "ratio": 0.716
+   },
+   "h96": {
+    "mfe_p50": 48.6,
+    "mae_p50": 41.35,
+    "ratio": 1.175
+   }
+  },
+  {
+   "cell": "dual_sr_bounce×USD_JPY×SELL",
+   "entry_type": "dual_sr_bounce",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 32,
+   "h24": {
+    "mfe_p50": 21.65,
+    "mae_p50": 25.75,
+    "ratio": 0.841
+   },
+   "h96": {
+    "mfe_p50": 44.3,
+    "mae_p50": 43.1,
+    "ratio": 1.028
+   }
+  },
+  {
+   "cell": "ema200_trend_reversal×AUD_JPY×BUY",
+   "entry_type": "ema200_trend_reversal",
+   "pair": "AUD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 22,
+   "h24": {
+    "mfe_p50": 19.4,
+    "mae_p50": 23.05,
+    "ratio": 0.842
+   },
+   "h96": {
+    "mfe_p50": 44.35,
+    "mae_p50": 36.6,
+    "ratio": 1.212
+   }
+  },
+  {
+   "cell": "ema200_trend_reversal×AUD_JPY×SELL",
+   "entry_type": "ema200_trend_reversal",
+   "pair": "AUD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 8,
+   "h24": {
+    "mfe_p50": 29.7,
+    "mae_p50": 14.85,
+    "ratio": 2.0
+   },
+   "h96": {
+    "mfe_p50": 62.2,
+    "mae_p50": 30.25,
+    "ratio": 2.056
+   }
+  },
+  {
+   "cell": "ema200_trend_reversal×EUR_JPY×BUY",
+   "entry_type": "ema200_trend_reversal",
+   "pair": "EUR_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 23,
+   "h24": {
+    "mfe_p50": 17.79,
+    "mae_p50": 16.5,
+    "ratio": 1.078
+   },
+   "h96": {
+    "mfe_p50": 44.5,
+    "mae_p50": 47.9,
+    "ratio": 0.929
+   }
+  },
+  {
+   "cell": "ema200_trend_reversal×EUR_JPY×SELL",
+   "entry_type": "ema200_trend_reversal",
+   "pair": "EUR_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 12,
+   "h24": {
+    "mfe_p50": 8.25,
+    "mae_p50": 19.2,
+    "ratio": 0.43
+   },
+   "h96": {
+    "mfe_p50": 22.35,
+    "mae_p50": 50.5,
+    "ratio": 0.443
+   }
+  },
+  {
+   "cell": "ema200_trend_reversal×EUR_USD×BUY",
+   "entry_type": "ema200_trend_reversal",
+   "pair": "EUR_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 5,
+   "h24": {
+    "mfe_p50": 24.0,
+    "mae_p50": 10.6,
+    "ratio": 2.264
+   },
+   "h96": {
+    "mfe_p50": 50.1,
+    "mae_p50": 19.5,
+    "ratio": 2.569
+   }
+  },
+  {
+   "cell": "ema200_trend_reversal×EUR_USD×SELL",
+   "entry_type": "ema200_trend_reversal",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 2,
+   "h24": {
+    "mfe_p50": 4.25,
+    "mae_p50": 23.05,
+    "ratio": 0.184
+   },
+   "h96": {
+    "mfe_p50": 22.4,
+    "mae_p50": 39.15,
+    "ratio": 0.572
+   }
+  },
+  {
+   "cell": "ema200_trend_reversal×GBP_JPY×BUY",
+   "entry_type": "ema200_trend_reversal",
+   "pair": "GBP_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 14,
+   "h24": {
+    "mfe_p50": 30.6,
+    "mae_p50": 35.78,
+    "ratio": 0.855
+   },
+   "h96": {
+    "mfe_p50": 52.1,
+    "mae_p50": 50.05,
+    "ratio": 1.041
+   }
+  },
+  {
+   "cell": "ema200_trend_reversal×GBP_JPY×SELL",
+   "entry_type": "ema200_trend_reversal",
+   "pair": "GBP_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 10,
+   "h24": {
+    "mfe_p50": 23.9,
+    "mae_p50": 39.1,
+    "ratio": 0.611
+   },
+   "h96": {
+    "mfe_p50": 35.55,
+    "mae_p50": 71.5,
+    "ratio": 0.497
+   }
+  },
+  {
+   "cell": "ema200_trend_reversal×GBP_USD×BUY",
+   "entry_type": "ema200_trend_reversal",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 9,
+   "h24": {
+    "mfe_p50": 9.8,
+    "mae_p50": 27.8,
+    "ratio": 0.353
+   },
+   "h96": {
+    "mfe_p50": 12.4,
+    "mae_p50": 45.1,
+    "ratio": 0.275
+   }
+  },
+  {
+   "cell": "ema200_trend_reversal×GBP_USD×SELL",
+   "entry_type": "ema200_trend_reversal",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 17,
+   "h24": {
+    "mfe_p50": 19.1,
+    "mae_p50": 15.9,
+    "ratio": 1.201
+   },
+   "h96": {
+    "mfe_p50": 25.0,
+    "mae_p50": 34.1,
+    "ratio": 0.733
+   }
+  },
+  {
+   "cell": "ema200_trend_reversal×USD_JPY×BUY",
+   "entry_type": "ema200_trend_reversal",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 8,
+   "h24": {
+    "mfe_p50": 28.5,
+    "mae_p50": 9.7,
+    "ratio": 2.938
+   },
+   "h96": {
+    "mfe_p50": 46.15,
+    "mae_p50": 38.45,
+    "ratio": 1.2
+   }
+  },
+  {
+   "cell": "ema200_trend_reversal×USD_JPY×SELL",
+   "entry_type": "ema200_trend_reversal",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 8,
+   "h24": {
+    "mfe_p50": 11.85,
+    "mae_p50": 41.25,
+    "ratio": 0.287
+   },
+   "h96": {
+    "mfe_p50": 31.25,
+    "mae_p50": 57.3,
+    "ratio": 0.545
+   }
+  },
+  {
+   "cell": "ema_cross×AUD_JPY×BUY",
+   "entry_type": "ema_cross",
+   "pair": "AUD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 16,
+   "h24": {
+    "mfe_p50": 15.65,
+    "mae_p50": 42.2,
+    "ratio": 0.371
+   },
+   "h96": {
+    "mfe_p50": 38.95,
+    "mae_p50": 82.45,
+    "ratio": 0.472
+   }
+  },
+  {
+   "cell": "ema_cross×AUD_JPY×SELL",
+   "entry_type": "ema_cross",
+   "pair": "AUD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 7,
+   "h24": {
+    "mfe_p50": 34.1,
+    "mae_p50": 23.8,
+    "ratio": 1.433
+   },
+   "h96": {
+    "mfe_p50": 38.5,
+    "mae_p50": 57.6,
+    "ratio": 0.668
+   }
+  },
+  {
+   "cell": "ema_cross×EUR_JPY×BUY",
+   "entry_type": "ema_cross",
+   "pair": "EUR_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 14,
+   "h24": {
+    "mfe_p50": 22.55,
+    "mae_p50": 19.3,
+    "ratio": 1.168
+   },
+   "h96": {
+    "mfe_p50": 50.45,
+    "mae_p50": 33.3,
+    "ratio": 1.515
+   }
+  },
+  {
+   "cell": "ema_cross×EUR_JPY×SELL",
+   "entry_type": "ema_cross",
+   "pair": "EUR_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 5,
+   "h24": {
+    "mfe_p50": 22.7,
+    "mae_p50": 30.6,
+    "ratio": 0.742
+   },
+   "h96": {
+    "mfe_p50": 23.7,
+    "mae_p50": 73.6,
+    "ratio": 0.322
+   }
+  },
+  {
+   "cell": "ema_cross×EUR_USD×BUY",
+   "entry_type": "ema_cross",
+   "pair": "EUR_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 6,
+   "h24": {
+    "mfe_p50": 21.65,
+    "mae_p50": 29.15,
+    "ratio": 0.743
+   },
+   "h96": {
+    "mfe_p50": 28.6,
+    "mae_p50": 55.3,
+    "ratio": 0.517
+   }
+  },
+  {
+   "cell": "ema_cross×EUR_USD×SELL",
+   "entry_type": "ema_cross",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 5,
+   "h24": {
+    "mfe_p50": 17.4,
+    "mae_p50": 8.6,
+    "ratio": 2.023
+   },
+   "h96": {
+    "mfe_p50": 36.3,
+    "mae_p50": 40.6,
+    "ratio": 0.894
+   }
+  },
+  {
+   "cell": "ema_cross×GBP_JPY×BUY",
+   "entry_type": "ema_cross",
+   "pair": "GBP_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 13,
+   "h24": {
+    "mfe_p50": 33.0,
+    "mae_p50": 23.3,
+    "ratio": 1.416
+   },
+   "h96": {
+    "mfe_p50": 58.5,
+    "mae_p50": 37.9,
+    "ratio": 1.544
+   }
+  },
+  {
+   "cell": "ema_cross×GBP_JPY×SELL",
+   "entry_type": "ema_cross",
+   "pair": "GBP_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 9,
+   "h24": {
+    "mfe_p50": 23.9,
+    "mae_p50": 27.5,
+    "ratio": 0.869
+   },
+   "h96": {
+    "mfe_p50": 38.3,
+    "mae_p50": 62.7,
+    "ratio": 0.611
+   }
+  },
+  {
+   "cell": "ema_cross×GBP_USD×BUY",
+   "entry_type": "ema_cross",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 8,
+   "h24": {
+    "mfe_p50": 10.9,
+    "mae_p50": 51.4,
+    "ratio": 0.212
+   },
+   "h96": {
+    "mfe_p50": 17.25,
+    "mae_p50": 77.9,
+    "ratio": 0.221
+   }
+  },
+  {
+   "cell": "ema_cross×GBP_USD×SELL",
+   "entry_type": "ema_cross",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 3,
+   "h24": {
+    "mfe_p50": -0.6,
+    "mae_p50": 25.1,
+    "ratio": -0.024
+   },
+   "h96": {
+    "mfe_p50": 79.2,
+    "mae_p50": 51.2,
+    "ratio": 1.547
+   }
+  },
+  {
+   "cell": "ema_cross×USD_JPY×BUY",
+   "entry_type": "ema_cross",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 10,
+   "h24": {
+    "mfe_p50": 17.8,
+    "mae_p50": 12.9,
+    "ratio": 1.38
+   },
+   "h96": {
+    "mfe_p50": 44.85,
+    "mae_p50": 20.55,
+    "ratio": 2.182
+   }
+  },
+  {
+   "cell": "ema_cross×USD_JPY×SELL",
+   "entry_type": "ema_cross",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 8,
+   "h24": {
+    "mfe_p50": 24.8,
+    "mae_p50": 22.9,
+    "ratio": 1.083
+   },
+   "h96": {
+    "mfe_p50": 59.25,
+    "mae_p50": 100.2,
+    "ratio": 0.591
+   }
+  },
+  {
+   "cell": "gbp_deep_pullback×GBP_USD×BUY",
+   "entry_type": "gbp_deep_pullback",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 31,
+   "h24": {
+    "mfe_p50": 15.8,
+    "mae_p50": 21.7,
+    "ratio": 0.728
+   },
+   "h96": {
+    "mfe_p50": 27.5,
+    "mae_p50": 31.9,
+    "ratio": 0.862
+   }
+  },
+  {
+   "cell": "gbp_deep_pullback×GBP_USD×SELL",
+   "entry_type": "gbp_deep_pullback",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 25,
+   "h24": {
+    "mfe_p50": 16.0,
+    "mae_p50": 15.8,
+    "ratio": 1.013
+   },
+   "h96": {
+    "mfe_p50": 37.2,
+    "mae_p50": 43.5,
+    "ratio": 0.855
+   }
+  },
+  {
+   "cell": "htf_false_breakout×EUR_USD×BUY",
+   "entry_type": "htf_false_breakout",
+   "pair": "EUR_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 4,
+   "h24": {
+    "mfe_p50": 10.4,
+    "mae_p50": 21.8,
+    "ratio": 0.477
+   },
+   "h96": {
+    "mfe_p50": 72.05,
+    "mae_p50": 35.25,
+    "ratio": 2.044
+   }
+  },
+  {
+   "cell": "htf_false_breakout×EUR_USD×SELL",
+   "entry_type": "htf_false_breakout",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 8,
+   "h24": {
+    "mfe_p50": 17.85,
+    "mae_p50": 11.6,
+    "ratio": 1.539
+   },
+   "h96": {
+    "mfe_p50": 30.5,
+    "mae_p50": 18.95,
+    "ratio": 1.609
+   }
+  },
+  {
+   "cell": "htf_false_breakout×GBP_JPY×BUY",
+   "entry_type": "htf_false_breakout",
+   "pair": "GBP_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 14,
+   "h24": {
+    "mfe_p50": 28.9,
+    "mae_p50": 30.7,
+    "ratio": 0.941
+   },
+   "h96": {
+    "mfe_p50": 52.7,
+    "mae_p50": 75.1,
+    "ratio": 0.702
+   }
+  },
+  {
+   "cell": "htf_false_breakout×GBP_JPY×SELL",
+   "entry_type": "htf_false_breakout",
+   "pair": "GBP_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 15,
+   "h24": {
+    "mfe_p50": 27.0,
+    "mae_p50": 43.1,
+    "ratio": 0.626
+   },
+   "h96": {
+    "mfe_p50": 54.4,
+    "mae_p50": 81.5,
+    "ratio": 0.667
+   }
+  },
+  {
+   "cell": "htf_false_breakout×GBP_USD×BUY",
+   "entry_type": "htf_false_breakout",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 16,
+   "h24": {
+    "mfe_p50": 26.45,
+    "mae_p50": 19.0,
+    "ratio": 1.392
+   },
+   "h96": {
+    "mfe_p50": 35.5,
+    "mae_p50": 35.0,
+    "ratio": 1.014
+   }
+  },
+  {
+   "cell": "htf_false_breakout×GBP_USD×SELL",
+   "entry_type": "htf_false_breakout",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 15,
+   "h24": {
+    "mfe_p50": 14.4,
+    "mae_p50": 16.0,
+    "ratio": 0.9
+   },
+   "h96": {
+    "mfe_p50": 59.4,
+    "mae_p50": 46.5,
+    "ratio": 1.277
+   }
+  },
+  {
+   "cell": "htf_false_breakout×USD_JPY×BUY",
+   "entry_type": "htf_false_breakout",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 6,
+   "h24": {
+    "mfe_p50": 9.9,
+    "mae_p50": 32.85,
+    "ratio": 0.301
+   },
+   "h96": {
+    "mfe_p50": 27.35,
+    "mae_p50": 40.05,
+    "ratio": 0.683
+   }
+  },
+  {
+   "cell": "htf_false_breakout×USD_JPY×SELL",
+   "entry_type": "htf_false_breakout",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 4,
+   "h24": {
+    "mfe_p50": 16.05,
+    "mae_p50": 48.15,
+    "ratio": 0.333
+   },
+   "h96": {
+    "mfe_p50": 28.4,
+    "mae_p50": 124.8,
+    "ratio": 0.228
+   }
+  },
+  {
+   "cell": "inducement_ob×EUR_USD×SELL",
+   "entry_type": "inducement_ob",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 4,
+   "h24": {
+    "mfe_p50": 3.3,
+    "mae_p50": 30.1,
+    "ratio": 0.11
+   },
+   "h96": {
+    "mfe_p50": 31.4,
+    "mae_p50": 42.55,
+    "ratio": 0.738
+   }
+  },
+  {
+   "cell": "inducement_ob×GBP_USD×BUY",
+   "entry_type": "inducement_ob",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 5,
+   "h24": {
+    "mfe_p50": 1.0,
+    "mae_p50": 40.0,
+    "ratio": 0.025
+   },
+   "h96": {
+    "mfe_p50": 25.3,
+    "mae_p50": 50.0,
+    "ratio": 0.506
+   }
+  },
+  {
+   "cell": "inducement_ob×USD_JPY×BUY",
+   "entry_type": "inducement_ob",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 1,
+   "h24": {
+    "mfe_p50": 34.9,
+    "mae_p50": 14.1,
+    "ratio": 2.475
+   },
+   "h96": {
+    "mfe_p50": 74.2,
+    "mae_p50": 14.1,
+    "ratio": 5.262
+   }
+  },
+  {
+   "cell": "intraday_seasonality×AUD_JPY×BUY",
+   "entry_type": "intraday_seasonality",
+   "pair": "AUD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 61,
+   "h24": {
+    "mfe_p50": 19.9,
+    "mae_p50": 26.9,
+    "ratio": 0.74
+   },
+   "h96": {
+    "mfe_p50": 40.1,
+    "mae_p50": 60.7,
+    "ratio": 0.661
+   }
+  },
+  {
+   "cell": "intraday_seasonality×AUD_JPY×SELL",
+   "entry_type": "intraday_seasonality",
+   "pair": "AUD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 14,
+   "h24": {
+    "mfe_p50": 17.4,
+    "mae_p50": 20.9,
+    "ratio": 0.833
+   },
+   "h96": {
+    "mfe_p50": 33.4,
+    "mae_p50": 39.6,
+    "ratio": 0.843
+   }
+  },
+  {
+   "cell": "intraday_seasonality×EUR_JPY×BUY",
+   "entry_type": "intraday_seasonality",
+   "pair": "EUR_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 49,
+   "h24": {
+    "mfe_p50": 19.6,
+    "mae_p50": 24.0,
+    "ratio": 0.817
+   },
+   "h96": {
+    "mfe_p50": 37.3,
+    "mae_p50": 45.6,
+    "ratio": 0.818
+   }
+  },
+  {
+   "cell": "intraday_seasonality×EUR_JPY×SELL",
+   "entry_type": "intraday_seasonality",
+   "pair": "EUR_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 27,
+   "h24": {
+    "mfe_p50": 24.6,
+    "mae_p50": 18.7,
+    "ratio": 1.316
+   },
+   "h96": {
+    "mfe_p50": 51.9,
+    "mae_p50": 38.66,
+    "ratio": 1.342
+   }
+  },
+  {
+   "cell": "intraday_seasonality×EUR_USD×BUY",
+   "entry_type": "intraday_seasonality",
+   "pair": "EUR_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 9,
+   "h24": {
+    "mfe_p50": 22.6,
+    "mae_p50": 20.7,
+    "ratio": 1.092
+   },
+   "h96": {
+    "mfe_p50": 22.9,
+    "mae_p50": 38.7,
+    "ratio": 0.592
+   }
+  },
+  {
+   "cell": "intraday_seasonality×EUR_USD×SELL",
+   "entry_type": "intraday_seasonality",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 10,
+   "h24": {
+    "mfe_p50": 12.3,
+    "mae_p50": 20.9,
+    "ratio": 0.589
+   },
+   "h96": {
+    "mfe_p50": 24.95,
+    "mae_p50": 37.5,
+    "ratio": 0.665
+   }
+  },
+  {
+   "cell": "intraday_seasonality×GBP_JPY×BUY",
+   "entry_type": "intraday_seasonality",
+   "pair": "GBP_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 60,
+   "h24": {
+    "mfe_p50": 24.8,
+    "mae_p50": 30.775,
+    "ratio": 0.806
+   },
+   "h96": {
+    "mfe_p50": 51.8,
+    "mae_p50": 67.2,
+    "ratio": 0.771
+   }
+  },
+  {
+   "cell": "intraday_seasonality×GBP_JPY×SELL",
+   "entry_type": "intraday_seasonality",
+   "pair": "GBP_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 22,
+   "h24": {
+    "mfe_p50": 27.4,
+    "mae_p50": 34.35,
+    "ratio": 0.798
+   },
+   "h96": {
+    "mfe_p50": 43.05,
+    "mae_p50": 60.175,
+    "ratio": 0.715
+   }
+  },
+  {
+   "cell": "intraday_seasonality×GBP_USD×BUY",
+   "entry_type": "intraday_seasonality",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 20,
+   "h24": {
+    "mfe_p50": 18.55,
+    "mae_p50": 18.7,
+    "ratio": 0.992
+   },
+   "h96": {
+    "mfe_p50": 27.85,
+    "mae_p50": 33.75,
+    "ratio": 0.825
+   }
+  },
+  {
+   "cell": "intraday_seasonality×GBP_USD×SELL",
+   "entry_type": "intraday_seasonality",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 22,
+   "h24": {
+    "mfe_p50": 16.2,
+    "mae_p50": 28.2,
+    "ratio": 0.574
+   },
+   "h96": {
+    "mfe_p50": 32.45,
+    "mae_p50": 43.8,
+    "ratio": 0.741
+   }
+  },
+  {
+   "cell": "intraday_seasonality×USD_JPY×BUY",
+   "entry_type": "intraday_seasonality",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 50,
+   "h24": {
+    "mfe_p50": 20.1,
+    "mae_p50": 20.5,
+    "ratio": 0.98
+   },
+   "h96": {
+    "mfe_p50": 37.2,
+    "mae_p50": 44.2,
+    "ratio": 0.842
+   }
+  },
+  {
+   "cell": "intraday_seasonality×USD_JPY×SELL",
+   "entry_type": "intraday_seasonality",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 7,
+   "h24": {
+    "mfe_p50": 15.3,
+    "mae_p50": 31.1,
+    "ratio": 0.492
+   },
+   "h96": {
+    "mfe_p50": 16.2,
+    "mae_p50": 64.9,
+    "ratio": 0.25
+   }
+  },
+  {
+   "cell": "jpy_basket_trend×EUR_JPY×BUY",
+   "entry_type": "jpy_basket_trend",
+   "pair": "EUR_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 9,
+   "h24": {
+    "mfe_p50": 17.9,
+    "mae_p50": 21.0,
+    "ratio": 0.852
+   },
+   "h96": {
+    "mfe_p50": 64.85,
+    "mae_p50": 32.6,
+    "ratio": 1.989
+   }
+  },
+  {
+   "cell": "jpy_basket_trend×EUR_JPY×SELL",
+   "entry_type": "jpy_basket_trend",
+   "pair": "EUR_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 6,
+   "h24": {
+    "mfe_p50": 10.05,
+    "mae_p50": 30.8,
+    "ratio": 0.326
+   },
+   "h96": {
+    "mfe_p50": 20.9,
+    "mae_p50": 54.425,
+    "ratio": 0.384
+   }
+  },
+  {
+   "cell": "jpy_basket_trend×USD_JPY×BUY",
+   "entry_type": "jpy_basket_trend",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 1,
+   "h24": {
+    "mfe_p50": 16.4,
+    "mae_p50": 6.7,
+    "ratio": 2.448
+   },
+   "h96": {
+    "mfe_p50": 46.1,
+    "mae_p50": 27.3,
+    "ratio": 1.689
+   }
+  },
+  {
+   "cell": "jpy_basket_trend×USD_JPY×SELL",
+   "entry_type": "jpy_basket_trend",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 1,
+   "h24": {
+    "mfe_p50": 10.1,
+    "mae_p50": 25.9,
+    "ratio": 0.39
+   },
+   "h96": {
+    "mfe_p50": 15.2,
+    "mae_p50": 97.6,
+    "ratio": 0.156
+   }
+  },
+  {
+   "cell": "kalman_d7_po_dn_flip×USD_JPY×BUY",
+   "entry_type": "kalman_d7_po_dn_flip",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 7,
+   "h24": {
+    "mfe_p50": 13.1,
+    "mae_p50": 28.5,
+    "ratio": 0.46
+   },
+   "h96": {
+    "mfe_p50": 33.5,
+    "mae_p50": 61.0,
+    "ratio": 0.549
+   }
+  },
+  {
+   "cell": "london_fix_reversal×GBP_USD×BUY",
+   "entry_type": "london_fix_reversal",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 24,
+   "h24": {
+    "mfe_p50": 13.3,
+    "mae_p50": 17.0,
+    "ratio": 0.782
+   },
+   "h96": {
+    "mfe_p50": 32.25,
+    "mae_p50": 40.5,
+    "ratio": 0.796
+   }
+  },
+  {
+   "cell": "london_fix_reversal×GBP_USD×SELL",
+   "entry_type": "london_fix_reversal",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 17,
+   "h24": {
+    "mfe_p50": 14.0,
+    "mae_p50": 19.7,
+    "ratio": 0.711
+   },
+   "h96": {
+    "mfe_p50": 32.2,
+    "mae_p50": 31.2,
+    "ratio": 1.032
+   }
+  },
+  {
+   "cell": "london_fix_reversal×USD_JPY×BUY",
+   "entry_type": "london_fix_reversal",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 25,
+   "h24": {
+    "mfe_p50": 15.3,
+    "mae_p50": 17.9,
+    "ratio": 0.855
+   },
+   "h96": {
+    "mfe_p50": 40.0,
+    "mae_p50": 31.9,
+    "ratio": 1.254
+   }
+  },
+  {
+   "cell": "london_fix_reversal×USD_JPY×SELL",
+   "entry_type": "london_fix_reversal",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 13,
+   "h24": {
+    "mfe_p50": 10.2,
+    "mae_p50": 23.4,
+    "ratio": 0.436
+   },
+   "h96": {
+    "mfe_p50": 32.8,
+    "mae_p50": 67.8,
+    "ratio": 0.484
+   }
+  },
+  {
+   "cell": "london_ny_swing×EUR_USD×BUY",
+   "entry_type": "london_ny_swing",
+   "pair": "EUR_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 3,
+   "h24": {
+    "mfe_p50": 37.0,
+    "mae_p50": 10.2,
+    "ratio": 3.627
+   },
+   "h96": {
+    "mfe_p50": 95.0,
+    "mae_p50": 12.3,
+    "ratio": 7.724
+   }
+  },
+  {
+   "cell": "london_ny_swing×EUR_USD×SELL",
+   "entry_type": "london_ny_swing",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 7,
+   "h24": {
+    "mfe_p50": 9.3,
+    "mae_p50": 6.3,
+    "ratio": 1.476
+   },
+   "h96": {
+    "mfe_p50": 46.0,
+    "mae_p50": 11.8,
+    "ratio": 3.898
+   }
+  },
+  {
+   "cell": "london_ny_swing×GBP_USD×BUY",
+   "entry_type": "london_ny_swing",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 2,
+   "h24": {
+    "mfe_p50": 12.85,
+    "mae_p50": 18.85,
+    "ratio": 0.682
+   },
+   "h96": {
+    "mfe_p50": 12.85,
+    "mae_p50": 34.95,
+    "ratio": 0.368
+   }
+  },
+  {
+   "cell": "london_ny_swing×GBP_USD×SELL",
+   "entry_type": "london_ny_swing",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 2,
+   "h24": {
+    "mfe_p50": 12.35,
+    "mae_p50": 29.4,
+    "ratio": 0.42
+   },
+   "h96": {
+    "mfe_p50": 59.15,
+    "mae_p50": 38.25,
+    "ratio": 1.546
+   }
+  },
+  {
+   "cell": "macd_rsi_pullback×USD_JPY×BUY",
+   "entry_type": "macd_rsi_pullback",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 4,
+   "h24": {
+    "mfe_p50": 24.95,
+    "mae_p50": 33.45,
+    "ratio": 0.746
+   },
+   "h96": {
+    "mfe_p50": 52.25,
+    "mae_p50": 33.45,
+    "ratio": 1.562
+   }
+  },
+  {
+   "cell": "macd_rsi_pullback×USD_JPY×SELL",
+   "entry_type": "macd_rsi_pullback",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 3,
+   "h24": {
+    "mfe_p50": 39.2,
+    "mae_p50": 28.7,
+    "ratio": 1.366
+   },
+   "h96": {
+    "mfe_p50": 67.7,
+    "mae_p50": 34.9,
+    "ratio": 1.94
+   }
+  },
+  {
+   "cell": "mqe_gbpusd_fix×GBP_USD×BUY",
+   "entry_type": "mqe_gbpusd_fix",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 4,
+   "h24": {
+    "mfe_p50": 20.15,
+    "mae_p50": 28.0,
+    "ratio": 0.72
+   },
+   "h96": {
+    "mfe_p50": 22.65,
+    "mae_p50": 68.05,
+    "ratio": 0.333
+   }
+  },
+  {
+   "cell": "mqe_gbpusd_fix×GBP_USD×SELL",
+   "entry_type": "mqe_gbpusd_fix",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 3,
+   "h24": {
+    "mfe_p50": 14.3,
+    "mae_p50": 9.7,
+    "ratio": 1.474
+   },
+   "h96": {
+    "mfe_p50": 31.3,
+    "mae_p50": 38.7,
+    "ratio": 0.809
+   }
+  },
+  {
+   "cell": "orb_trap×EUR_USD×BUY",
+   "entry_type": "orb_trap",
+   "pair": "EUR_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 17,
+   "h24": {
+    "mfe_p50": 6.5,
+    "mae_p50": 19.1,
+    "ratio": 0.34
+   },
+   "h96": {
+    "mfe_p50": 7.2,
+    "mae_p50": 39.9,
+    "ratio": 0.18
+   }
+  },
+  {
+   "cell": "orb_trap×EUR_USD×SELL",
+   "entry_type": "orb_trap",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 9,
+   "h24": {
+    "mfe_p50": 9.6,
+    "mae_p50": 22.5,
+    "ratio": 0.427
+   },
+   "h96": {
+    "mfe_p50": 44.5,
+    "mae_p50": 35.9,
+    "ratio": 1.24
+   }
+  },
+  {
+   "cell": "orb_trap×GBP_USD×BUY",
+   "entry_type": "orb_trap",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 22,
+   "h24": {
+    "mfe_p50": 13.35,
+    "mae_p50": 18.75,
+    "ratio": 0.712
+   },
+   "h96": {
+    "mfe_p50": 27.5,
+    "mae_p50": 31.55,
+    "ratio": 0.872
+   }
+  },
+  {
+   "cell": "orb_trap×GBP_USD×SELL",
+   "entry_type": "orb_trap",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 8,
+   "h24": {
+    "mfe_p50": 11.9,
+    "mae_p50": 17.5,
+    "ratio": 0.68
+   },
+   "h96": {
+    "mfe_p50": 33.4,
+    "mae_p50": 36.75,
+    "ratio": 0.909
+   }
+  },
+  {
+   "cell": "orb_trap×USD_JPY×BUY",
+   "entry_type": "orb_trap",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 8,
+   "h24": {
+    "mfe_p50": 13.85,
+    "mae_p50": 12.9,
+    "ratio": 1.074
+   },
+   "h96": {
+    "mfe_p50": 35.8,
+    "mae_p50": 26.4,
+    "ratio": 1.356
+   }
+  },
+  {
+   "cell": "orb_trap×USD_JPY×SELL",
+   "entry_type": "orb_trap",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 9,
+   "h24": {
+    "mfe_p50": 19.1,
+    "mae_p50": 24.2,
+    "ratio": 0.789
+   },
+   "h96": {
+    "mfe_p50": 28.6,
+    "mae_p50": 60.4,
+    "ratio": 0.474
+   }
+  },
+  {
+   "cell": "pivot_detector_v2_5×EUR_USD×BUY",
+   "entry_type": "pivot_detector_v2_5",
+   "pair": "EUR_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 14,
+   "h24": {
+    "mfe_p50": 13.55,
+    "mae_p50": 16.4,
+    "ratio": 0.826
+   },
+   "h96": {
+    "mfe_p50": 27.7,
+    "mae_p50": 21.8,
+    "ratio": 1.271
+   }
+  },
+  {
+   "cell": "post_news_vol×EUR_USD×BUY",
+   "entry_type": "post_news_vol",
+   "pair": "EUR_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 14,
+   "h24": {
+    "mfe_p50": 9.5,
+    "mae_p50": 22.4,
+    "ratio": 0.424
+   },
+   "h96": {
+    "mfe_p50": 18.4,
+    "mae_p50": 34.55,
+    "ratio": 0.533
+   }
+  },
+  {
+   "cell": "post_news_vol×EUR_USD×SELL",
+   "entry_type": "post_news_vol",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 4,
+   "h24": {
+    "mfe_p50": 32.05,
+    "mae_p50": 11.95,
+    "ratio": 2.682
+   },
+   "h96": {
+    "mfe_p50": 46.15,
+    "mae_p50": 11.95,
+    "ratio": 3.862
+   }
+  },
+  {
+   "cell": "post_news_vol×GBP_USD×BUY",
+   "entry_type": "post_news_vol",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 10,
+   "h24": {
+    "mfe_p50": 25.95,
+    "mae_p50": 19.45,
+    "ratio": 1.334
+   },
+   "h96": {
+    "mfe_p50": 43.05,
+    "mae_p50": 42.1,
+    "ratio": 1.023
+   }
+  },
+  {
+   "cell": "post_news_vol×GBP_USD×SELL",
+   "entry_type": "post_news_vol",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 11,
+   "h24": {
+    "mfe_p50": 35.3,
+    "mae_p50": 41.5,
+    "ratio": 0.851
+   },
+   "h96": {
+    "mfe_p50": 49.2,
+    "mae_p50": 46.8,
+    "ratio": 1.051
+   }
+  },
+  {
+   "cell": "post_news_vol×USD_JPY×BUY",
+   "entry_type": "post_news_vol",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 11,
+   "h24": {
+    "mfe_p50": 8.5,
+    "mae_p50": 39.9,
+    "ratio": 0.213
+   },
+   "h96": {
+    "mfe_p50": 48.4,
+    "mae_p50": 50.3,
+    "ratio": 0.962
+   }
+  },
+  {
+   "cell": "post_news_vol×USD_JPY×SELL",
+   "entry_type": "post_news_vol",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 4,
+   "h24": {
+    "mfe_p50": 7.85,
+    "mae_p50": 24.9,
+    "ratio": 0.315
+   },
+   "h96": {
+    "mfe_p50": 81.75,
+    "mae_p50": 32.7,
+    "ratio": 2.5
+   }
+  },
+  {
+   "cell": "rsk_gbpjpy_reversion×GBP_JPY×BUY",
+   "entry_type": "rsk_gbpjpy_reversion",
+   "pair": "GBP_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 26,
+   "h24": {
+    "mfe_p50": 29.995,
+    "mae_p50": 37.1,
+    "ratio": 0.808
+   },
+   "h96": {
+    "mfe_p50": 46.785,
+    "mae_p50": 73.25,
+    "ratio": 0.639
+   }
+  },
+  {
+   "cell": "rsk_gbpjpy_reversion×GBP_JPY×SELL",
+   "entry_type": "rsk_gbpjpy_reversion",
+   "pair": "GBP_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 14,
+   "h24": {
+    "mfe_p50": 24.2,
+    "mae_p50": 47.8,
+    "ratio": 0.506
+   },
+   "h96": {
+    "mfe_p50": 59.255,
+    "mae_p50": 79.75,
+    "ratio": 0.743
+   }
+  },
+  {
+   "cell": "session_time_bias×EUR_USD×SELL",
+   "entry_type": "session_time_bias",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 159,
+   "h24": {
+    "mfe_p50": 17.5,
+    "mae_p50": 17.0,
+    "ratio": 1.029
+   },
+   "h96": {
+    "mfe_p50": 28.9,
+    "mae_p50": 26.5,
+    "ratio": 1.091
+   }
+  },
+  {
+   "cell": "session_time_bias×GBP_USD×SELL",
+   "entry_type": "session_time_bias",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 185,
+   "h24": {
+    "mfe_p50": 19.8,
+    "mae_p50": 27.6,
+    "ratio": 0.717
+   },
+   "h96": {
+    "mfe_p50": 31.9,
+    "mae_p50": 40.0,
+    "ratio": 0.797
+   }
+  },
+  {
+   "cell": "squeeze_release_momentum×EUR_USD×BUY",
+   "entry_type": "squeeze_release_momentum",
+   "pair": "EUR_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 8,
+   "h24": {
+    "mfe_p50": 11.25,
+    "mae_p50": 21.25,
+    "ratio": 0.529
+   },
+   "h96": {
+    "mfe_p50": 12.75,
+    "mae_p50": 34.65,
+    "ratio": 0.368
+   }
+  },
+  {
+   "cell": "squeeze_release_momentum×EUR_USD×SELL",
+   "entry_type": "squeeze_release_momentum",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 9,
+   "h24": {
+    "mfe_p50": 7.4,
+    "mae_p50": 23.0,
+    "ratio": 0.322
+   },
+   "h96": {
+    "mfe_p50": 9.9,
+    "mae_p50": 74.3,
+    "ratio": 0.133
+   }
+  },
+  {
+   "cell": "squeeze_release_momentum×GBP_USD×BUY",
+   "entry_type": "squeeze_release_momentum",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 3,
+   "h24": {
+    "mfe_p50": 9.6,
+    "mae_p50": 26.6,
+    "ratio": 0.361
+   },
+   "h96": {
+    "mfe_p50": 30.8,
+    "mae_p50": 26.6,
+    "ratio": 1.158
+   }
+  },
+  {
+   "cell": "squeeze_release_momentum×GBP_USD×SELL",
+   "entry_type": "squeeze_release_momentum",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 3,
+   "h24": {
+    "mfe_p50": 19.9,
+    "mae_p50": 10.6,
+    "ratio": 1.877
+   },
+   "h96": {
+    "mfe_p50": 57.0,
+    "mae_p50": 19.8,
+    "ratio": 2.879
+   }
+  },
+  {
+   "cell": "sr_anti_hunt_bounce×EUR_JPY×BUY",
+   "entry_type": "sr_anti_hunt_bounce",
+   "pair": "EUR_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 24,
+   "h24": {
+    "mfe_p50": 19.3,
+    "mae_p50": 22.15,
+    "ratio": 0.871
+   },
+   "h96": {
+    "mfe_p50": 45.775,
+    "mae_p50": 38.15,
+    "ratio": 1.2
+   }
+  },
+  {
+   "cell": "sr_anti_hunt_bounce×EUR_JPY×SELL",
+   "entry_type": "sr_anti_hunt_bounce",
+   "pair": "EUR_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 9,
+   "h24": {
+    "mfe_p50": 22.5,
+    "mae_p50": 22.4,
+    "ratio": 1.004
+   },
+   "h96": {
+    "mfe_p50": 29.3,
+    "mae_p50": 79.5,
+    "ratio": 0.369
+   }
+  },
+  {
+   "cell": "sr_anti_hunt_bounce×EUR_USD×BUY",
+   "entry_type": "sr_anti_hunt_bounce",
+   "pair": "EUR_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 6,
+   "h24": {
+    "mfe_p50": 11.5,
+    "mae_p50": 28.5,
+    "ratio": 0.404
+   },
+   "h96": {
+    "mfe_p50": 21.3,
+    "mae_p50": 39.9,
+    "ratio": 0.534
+   }
+  },
+  {
+   "cell": "sr_anti_hunt_bounce×EUR_USD×SELL",
+   "entry_type": "sr_anti_hunt_bounce",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 4,
+   "h24": {
+    "mfe_p50": 11.05,
+    "mae_p50": 8.05,
+    "ratio": 1.373
+   },
+   "h96": {
+    "mfe_p50": 20.35,
+    "mae_p50": 23.85,
+    "ratio": 0.853
+   }
+  },
+  {
+   "cell": "sr_anti_hunt_bounce×GBP_JPY×BUY",
+   "entry_type": "sr_anti_hunt_bounce",
+   "pair": "GBP_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 24,
+   "h24": {
+    "mfe_p50": 33.0,
+    "mae_p50": 33.46,
+    "ratio": 0.986
+   },
+   "h96": {
+    "mfe_p50": 36.95,
+    "mae_p50": 63.6,
+    "ratio": 0.581
+   }
+  },
+  {
+   "cell": "sr_anti_hunt_bounce×GBP_JPY×SELL",
+   "entry_type": "sr_anti_hunt_bounce",
+   "pair": "GBP_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 8,
+   "h24": {
+    "mfe_p50": 25.45,
+    "mae_p50": 22.35,
+    "ratio": 1.139
+   },
+   "h96": {
+    "mfe_p50": 25.45,
+    "mae_p50": 96.5,
+    "ratio": 0.264
+   }
+  },
+  {
+   "cell": "sr_anti_hunt_bounce×GBP_USD×BUY",
+   "entry_type": "sr_anti_hunt_bounce",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 7,
+   "h24": {
+    "mfe_p50": 4.1,
+    "mae_p50": 37.4,
+    "ratio": 0.11
+   },
+   "h96": {
+    "mfe_p50": 10.5,
+    "mae_p50": 63.5,
+    "ratio": 0.165
+   }
+  },
+  {
+   "cell": "sr_anti_hunt_bounce×GBP_USD×SELL",
+   "entry_type": "sr_anti_hunt_bounce",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 6,
+   "h24": {
+    "mfe_p50": 11.35,
+    "mae_p50": 20.15,
+    "ratio": 0.563
+   },
+   "h96": {
+    "mfe_p50": 50.5,
+    "mae_p50": 42.7,
+    "ratio": 1.183
+   }
+  },
+  {
+   "cell": "sr_anti_hunt_bounce×USD_JPY×BUY",
+   "entry_type": "sr_anti_hunt_bounce",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 13,
+   "h24": {
+    "mfe_p50": 25.5,
+    "mae_p50": 12.8,
+    "ratio": 1.992
+   },
+   "h96": {
+    "mfe_p50": 62.9,
+    "mae_p50": 39.6,
+    "ratio": 1.588
+   }
+  },
+  {
+   "cell": "sr_anti_hunt_bounce×USD_JPY×SELL",
+   "entry_type": "sr_anti_hunt_bounce",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 6,
+   "h24": {
+    "mfe_p50": 22.85,
+    "mae_p50": 15.25,
+    "ratio": 1.498
+   },
+   "h96": {
+    "mfe_p50": 22.85,
+    "mae_p50": 30.1,
+    "ratio": 0.759
+   }
+  },
+  {
+   "cell": "sr_break_retest×AUD_JPY×BUY",
+   "entry_type": "sr_break_retest",
+   "pair": "AUD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 94,
+   "h24": {
+    "mfe_p50": 18.2,
+    "mae_p50": 18.6,
+    "ratio": 0.978
+   },
+   "h96": {
+    "mfe_p50": 32.65,
+    "mae_p50": 48.05,
+    "ratio": 0.68
+   }
+  },
+  {
+   "cell": "sr_break_retest×AUD_JPY×SELL",
+   "entry_type": "sr_break_retest",
+   "pair": "AUD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 40,
+   "h24": {
+    "mfe_p50": 22.2,
+    "mae_p50": 18.45,
+    "ratio": 1.203
+   },
+   "h96": {
+    "mfe_p50": 47.55,
+    "mae_p50": 48.7,
+    "ratio": 0.976
+   }
+  },
+  {
+   "cell": "sr_break_retest×EUR_JPY×BUY",
+   "entry_type": "sr_break_retest",
+   "pair": "EUR_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 78,
+   "h24": {
+    "mfe_p50": 20.25,
+    "mae_p50": 19.05,
+    "ratio": 1.063
+   },
+   "h96": {
+    "mfe_p50": 40.325,
+    "mae_p50": 43.2,
+    "ratio": 0.933
+   }
+  },
+  {
+   "cell": "sr_break_retest×EUR_JPY×SELL",
+   "entry_type": "sr_break_retest",
+   "pair": "EUR_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 53,
+   "h24": {
+    "mfe_p50": 21.2,
+    "mae_p50": 27.5,
+    "ratio": 0.771
+   },
+   "h96": {
+    "mfe_p50": 47.4,
+    "mae_p50": 50.4,
+    "ratio": 0.94
+   }
+  },
+  {
+   "cell": "sr_break_retest×GBP_JPY×BUY",
+   "entry_type": "sr_break_retest",
+   "pair": "GBP_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 85,
+   "h24": {
+    "mfe_p50": 24.3,
+    "mae_p50": 31.0,
+    "ratio": 0.784
+   },
+   "h96": {
+    "mfe_p50": 52.1,
+    "mae_p50": 55.0,
+    "ratio": 0.947
+   }
+  },
+  {
+   "cell": "sr_break_retest×GBP_JPY×SELL",
+   "entry_type": "sr_break_retest",
+   "pair": "GBP_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 43,
+   "h24": {
+    "mfe_p50": 32.0,
+    "mae_p50": 36.8,
+    "ratio": 0.87
+   },
+   "h96": {
+    "mfe_p50": 65.3,
+    "mae_p50": 59.3,
+    "ratio": 1.101
+   }
+  },
+  {
+   "cell": "sr_break_retest×GBP_USD×BUY",
+   "entry_type": "sr_break_retest",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 15,
+   "h24": {
+    "mfe_p50": 2.8,
+    "mae_p50": 40.6,
+    "ratio": 0.069
+   },
+   "h96": {
+    "mfe_p50": 18.5,
+    "mae_p50": 54.2,
+    "ratio": 0.341
+   }
+  },
+  {
+   "cell": "sr_break_retest×GBP_USD×SELL",
+   "entry_type": "sr_break_retest",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 17,
+   "h24": {
+    "mfe_p50": 9.3,
+    "mae_p50": 32.0,
+    "ratio": 0.291
+   },
+   "h96": {
+    "mfe_p50": 23.9,
+    "mae_p50": 56.0,
+    "ratio": 0.427
+   }
+  },
+  {
+   "cell": "sr_break_retest×USD_JPY×BUY",
+   "entry_type": "sr_break_retest",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 31,
+   "h24": {
+    "mfe_p50": 15.4,
+    "mae_p50": 16.4,
+    "ratio": 0.939
+   },
+   "h96": {
+    "mfe_p50": 31.8,
+    "mae_p50": 33.2,
+    "ratio": 0.958
+   }
+  },
+  {
+   "cell": "sr_break_retest×USD_JPY×SELL",
+   "entry_type": "sr_break_retest",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 18,
+   "h24": {
+    "mfe_p50": 19.1,
+    "mae_p50": 18.25,
+    "ratio": 1.047
+   },
+   "h96": {
+    "mfe_p50": 50.85,
+    "mae_p50": 56.3,
+    "ratio": 0.903
+   }
+  },
+  {
+   "cell": "sr_fib_confluence×AUD_JPY×BUY",
+   "entry_type": "sr_fib_confluence",
+   "pair": "AUD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 100,
+   "h24": {
+    "mfe_p50": 18.05,
+    "mae_p50": 26.9,
+    "ratio": 0.671
+   },
+   "h96": {
+    "mfe_p50": 38.75,
+    "mae_p50": 42.5,
+    "ratio": 0.912
+   }
+  },
+  {
+   "cell": "sr_fib_confluence×AUD_JPY×SELL",
+   "entry_type": "sr_fib_confluence",
+   "pair": "AUD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 119,
+   "h24": {
+    "mfe_p50": 24.5,
+    "mae_p50": 18.6,
+    "ratio": 1.317
+   },
+   "h96": {
+    "mfe_p50": 43.3,
+    "mae_p50": 36.47,
+    "ratio": 1.187
+   }
+  },
+  {
+   "cell": "sr_fib_confluence×EUR_JPY×BUY",
+   "entry_type": "sr_fib_confluence",
+   "pair": "EUR_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 81,
+   "h24": {
+    "mfe_p50": 20.6,
+    "mae_p50": 25.9,
+    "ratio": 0.795
+   },
+   "h96": {
+    "mfe_p50": 39.9,
+    "mae_p50": 50.2,
+    "ratio": 0.795
+   }
+  },
+  {
+   "cell": "sr_fib_confluence×EUR_JPY×SELL",
+   "entry_type": "sr_fib_confluence",
+   "pair": "EUR_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 96,
+   "h24": {
+    "mfe_p50": 24.4,
+    "mae_p50": 27.6,
+    "ratio": 0.884
+   },
+   "h96": {
+    "mfe_p50": 37.9,
+    "mae_p50": 57.6,
+    "ratio": 0.658
+   }
+  },
+  {
+   "cell": "sr_fib_confluence×EUR_USD×BUY",
+   "entry_type": "sr_fib_confluence",
+   "pair": "EUR_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 90,
+   "h24": {
+    "mfe_p50": 9.2,
+    "mae_p50": 23.4,
+    "ratio": 0.393
+   },
+   "h96": {
+    "mfe_p50": 14.9,
+    "mae_p50": 38.85,
+    "ratio": 0.384
+   }
+  },
+  {
+   "cell": "sr_fib_confluence×EUR_USD×SELL",
+   "entry_type": "sr_fib_confluence",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 99,
+   "h24": {
+    "mfe_p50": 18.3,
+    "mae_p50": 13.5,
+    "ratio": 1.356
+   },
+   "h96": {
+    "mfe_p50": 33.6,
+    "mae_p50": 22.6,
+    "ratio": 1.487
+   }
+  },
+  {
+   "cell": "sr_fib_confluence×GBP_JPY×BUY",
+   "entry_type": "sr_fib_confluence",
+   "pair": "GBP_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 93,
+   "h24": {
+    "mfe_p50": 30.5,
+    "mae_p50": 32.3,
+    "ratio": 0.944
+   },
+   "h96": {
+    "mfe_p50": 60.2,
+    "mae_p50": 56.7,
+    "ratio": 1.062
+   }
+  },
+  {
+   "cell": "sr_fib_confluence×GBP_JPY×SELL",
+   "entry_type": "sr_fib_confluence",
+   "pair": "GBP_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 92,
+   "h24": {
+    "mfe_p50": 31.9,
+    "mae_p50": 31.88,
+    "ratio": 1.001
+   },
+   "h96": {
+    "mfe_p50": 54.1,
+    "mae_p50": 74.355,
+    "ratio": 0.728
+   }
+  },
+  {
+   "cell": "sr_fib_confluence×GBP_USD×BUY",
+   "entry_type": "sr_fib_confluence",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 82,
+   "h24": {
+    "mfe_p50": 20.55,
+    "mae_p50": 16.35,
+    "ratio": 1.257
+   },
+   "h96": {
+    "mfe_p50": 36.0,
+    "mae_p50": 39.0,
+    "ratio": 0.923
+   }
+  },
+  {
+   "cell": "sr_fib_confluence×GBP_USD×SELL",
+   "entry_type": "sr_fib_confluence",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 95,
+   "h24": {
+    "mfe_p50": 22.0,
+    "mae_p50": 18.7,
+    "ratio": 1.176
+   },
+   "h96": {
+    "mfe_p50": 46.7,
+    "mae_p50": 28.2,
+    "ratio": 1.656
+   }
+  },
+  {
+   "cell": "sr_fib_confluence×USD_JPY×BUY",
+   "entry_type": "sr_fib_confluence",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 51,
+   "h24": {
+    "mfe_p50": 18.4,
+    "mae_p50": 31.2,
+    "ratio": 0.59
+   },
+   "h96": {
+    "mfe_p50": 28.5,
+    "mae_p50": 54.9,
+    "ratio": 0.519
+   }
+  },
+  {
+   "cell": "sr_fib_confluence×USD_JPY×SELL",
+   "entry_type": "sr_fib_confluence",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 57,
+   "h24": {
+    "mfe_p50": 18.7,
+    "mae_p50": 20.7,
+    "ratio": 0.903
+   },
+   "h96": {
+    "mfe_p50": 33.0,
+    "mae_p50": 69.1,
+    "ratio": 0.478
+   }
+  },
+  {
+   "cell": "streak_reversal×USD_JPY×BUY",
+   "entry_type": "streak_reversal",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 184,
+   "h24": {
+    "mfe_p50": 21.0,
+    "mae_p50": 20.85,
+    "ratio": 1.007
+   },
+   "h96": {
+    "mfe_p50": 41.0,
+    "mae_p50": 38.4,
+    "ratio": 1.068
+   }
+  },
+  {
+   "cell": "streak_reversal×USD_JPY×SELL",
+   "entry_type": "streak_reversal",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 118,
+   "h24": {
+    "mfe_p50": 22.05,
+    "mae_p50": 24.85,
+    "ratio": 0.887
+   },
+   "h96": {
+    "mfe_p50": 48.0,
+    "mae_p50": 52.05,
+    "ratio": 0.922
+   }
+  },
+  {
+   "cell": "tokyo_range_breakout_up×USD_JPY×BUY",
+   "entry_type": "tokyo_range_breakout_up",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 17,
+   "h24": {
+    "mfe_p50": 15.0,
+    "mae_p50": 17.5,
+    "ratio": 0.857
+   },
+   "h96": {
+    "mfe_p50": 35.0,
+    "mae_p50": 33.4,
+    "ratio": 1.048
+   }
+  },
+  {
+   "cell": "trendline_sweep×GBP_USD×BUY",
+   "entry_type": "trendline_sweep",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 39,
+   "h24": {
+    "mfe_p50": 17.3,
+    "mae_p50": 29.5,
+    "ratio": 0.586
+   },
+   "h96": {
+    "mfe_p50": 32.0,
+    "mae_p50": 40.9,
+    "ratio": 0.782
+   }
+  },
+  {
+   "cell": "trendline_sweep×GBP_USD×SELL",
+   "entry_type": "trendline_sweep",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 39,
+   "h24": {
+    "mfe_p50": 22.5,
+    "mae_p50": 17.5,
+    "ratio": 1.286
+   },
+   "h96": {
+    "mfe_p50": 43.3,
+    "mae_p50": 34.1,
+    "ratio": 1.27
+   }
+  },
+  {
+   "cell": "turtle_soup×GBP_USD×BUY",
+   "entry_type": "turtle_soup",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 17,
+   "h24": {
+    "mfe_p50": 32.5,
+    "mae_p50": 20.1,
+    "ratio": 1.617
+   },
+   "h96": {
+    "mfe_p50": 44.6,
+    "mae_p50": 28.6,
+    "ratio": 1.559
+   }
+  },
+  {
+   "cell": "turtle_soup×GBP_USD×SELL",
+   "entry_type": "turtle_soup",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 23,
+   "h24": {
+    "mfe_p50": 12.8,
+    "mae_p50": 20.4,
+    "ratio": 0.627
+   },
+   "h96": {
+    "mfe_p50": 43.8,
+    "mae_p50": 32.8,
+    "ratio": 1.335
+   }
+  },
+  {
+   "cell": "vix_carry_unwind×USD_JPY×SELL",
+   "entry_type": "vix_carry_unwind",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 77,
+   "h24": {
+    "mfe_p50": 25.9,
+    "mae_p50": 31.9,
+    "ratio": 0.812
+   },
+   "h96": {
+    "mfe_p50": 39.5,
+    "mae_p50": 75.0,
+    "ratio": 0.527
+   }
+  },
+  {
+   "cell": "vol_spike_mr×USD_JPY×BUY",
+   "entry_type": "vol_spike_mr",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 39,
+   "h24": {
+    "mfe_p50": 29.2,
+    "mae_p50": 19.6,
+    "ratio": 1.49
+   },
+   "h96": {
+    "mfe_p50": 54.3,
+    "mae_p50": 39.5,
+    "ratio": 1.375
+   }
+  },
+  {
+   "cell": "vol_spike_mr×USD_JPY×SELL",
+   "entry_type": "vol_spike_mr",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 24,
+   "h24": {
+    "mfe_p50": 21.2,
+    "mae_p50": 25.05,
+    "ratio": 0.846
+   },
+   "h96": {
+    "mfe_p50": 42.75,
+    "mae_p50": 56.95,
+    "ratio": 0.751
+   }
+  },
+  {
+   "cell": "vsg_jpy_reversal×EUR_JPY×BUY",
+   "entry_type": "vsg_jpy_reversal",
+   "pair": "EUR_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 128,
+   "h24": {
+    "mfe_p50": 23.15,
+    "mae_p50": 22.8,
+    "ratio": 1.015
+   },
+   "h96": {
+    "mfe_p50": 51.365,
+    "mae_p50": 44.95,
+    "ratio": 1.143
+   }
+  },
+  {
+   "cell": "vsg_jpy_reversal×EUR_JPY×SELL",
+   "entry_type": "vsg_jpy_reversal",
+   "pair": "EUR_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 62,
+   "h24": {
+    "mfe_p50": 24.55,
+    "mae_p50": 23.65,
+    "ratio": 1.038
+   },
+   "h96": {
+    "mfe_p50": 43.3,
+    "mae_p50": 49.05,
+    "ratio": 0.883
+   }
+  },
+  {
+   "cell": "vsg_jpy_reversal×GBP_JPY×BUY",
+   "entry_type": "vsg_jpy_reversal",
+   "pair": "GBP_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 218,
+   "h24": {
+    "mfe_p50": 30.25,
+    "mae_p50": 31.83,
+    "ratio": 0.95
+   },
+   "h96": {
+    "mfe_p50": 60.25,
+    "mae_p50": 58.75,
+    "ratio": 1.026
+   }
+  },
+  {
+   "cell": "vsg_jpy_reversal×GBP_JPY×SELL",
+   "entry_type": "vsg_jpy_reversal",
+   "pair": "GBP_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 106,
+   "h24": {
+    "mfe_p50": 35.2,
+    "mae_p50": 23.75,
+    "ratio": 1.482
+   },
+   "h96": {
+    "mfe_p50": 71.1,
+    "mae_p50": 57.99,
+    "ratio": 1.226
+   }
+  },
+  {
+   "cell": "wick_imbalance_reversion×AUD_JPY×BUY",
+   "entry_type": "wick_imbalance_reversion",
+   "pair": "AUD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 153,
+   "h24": {
+    "mfe_p50": 18.8,
+    "mae_p50": 18.5,
+    "ratio": 1.016
+   },
+   "h96": {
+    "mfe_p50": 36.5,
+    "mae_p50": 43.6,
+    "ratio": 0.837
+   }
+  },
+  {
+   "cell": "wick_imbalance_reversion×AUD_JPY×SELL",
+   "entry_type": "wick_imbalance_reversion",
+   "pair": "AUD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 2,
+   "h24": {
+    "mfe_p50": 15.7,
+    "mae_p50": 58.42,
+    "ratio": 0.269
+   },
+   "h96": {
+    "mfe_p50": 29.8,
+    "mae_p50": 80.47,
+    "ratio": 0.37
+   }
+  },
+  {
+   "cell": "wick_imbalance_reversion×EUR_JPY×BUY",
+   "entry_type": "wick_imbalance_reversion",
+   "pair": "EUR_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 63,
+   "h24": {
+    "mfe_p50": 20.1,
+    "mae_p50": 28.7,
+    "ratio": 0.7
+   },
+   "h96": {
+    "mfe_p50": 40.8,
+    "mae_p50": 51.3,
+    "ratio": 0.795
+   }
+  },
+  {
+   "cell": "wick_imbalance_reversion×EUR_JPY×SELL",
+   "entry_type": "wick_imbalance_reversion",
+   "pair": "EUR_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 1,
+   "h24": {
+    "mfe_p50": 6.5,
+    "mae_p50": 44.6,
+    "ratio": 0.146
+   },
+   "h96": {
+    "mfe_p50": 6.5,
+    "mae_p50": 56.26,
+    "ratio": 0.116
+   }
+  },
+  {
+   "cell": "wick_imbalance_reversion×EUR_USD×BUY",
+   "entry_type": "wick_imbalance_reversion",
+   "pair": "EUR_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 16,
+   "h24": {
+    "mfe_p50": 15.9,
+    "mae_p50": 15.15,
+    "ratio": 1.05
+   },
+   "h96": {
+    "mfe_p50": 34.5,
+    "mae_p50": 22.05,
+    "ratio": 1.565
+   }
+  },
+  {
+   "cell": "wick_imbalance_reversion×EUR_USD×SELL",
+   "entry_type": "wick_imbalance_reversion",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 1,
+   "h24": {
+    "mfe_p50": 14.3,
+    "mae_p50": 7.2,
+    "ratio": 1.986
+   },
+   "h96": {
+    "mfe_p50": 53.3,
+    "mae_p50": 7.7,
+    "ratio": 6.922
+   }
+  },
+  {
+   "cell": "wick_imbalance_reversion×GBP_JPY×BUY",
+   "entry_type": "wick_imbalance_reversion",
+   "pair": "GBP_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 87,
+   "h24": {
+    "mfe_p50": 29.6,
+    "mae_p50": 24.4,
+    "ratio": 1.213
+   },
+   "h96": {
+    "mfe_p50": 59.72,
+    "mae_p50": 54.77,
+    "ratio": 1.09
+   }
+  },
+  {
+   "cell": "wick_imbalance_reversion×GBP_USD×BUY",
+   "entry_type": "wick_imbalance_reversion",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 43,
+   "h24": {
+    "mfe_p50": 19.2,
+    "mae_p50": 22.9,
+    "ratio": 0.838
+   },
+   "h96": {
+    "mfe_p50": 34.0,
+    "mae_p50": 27.0,
+    "ratio": 1.259
+   }
+  },
+  {
+   "cell": "wick_imbalance_reversion×USD_JPY×BUY",
+   "entry_type": "wick_imbalance_reversion",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 24,
+   "h24": {
+    "mfe_p50": 14.15,
+    "mae_p50": 34.35,
+    "ratio": 0.412
+   },
+   "h96": {
+    "mfe_p50": 25.5,
+    "mae_p50": 49.8,
+    "ratio": 0.512
+   }
+  },
+  {
+   "cell": "wick_imbalance_reversion×USD_JPY×SELL",
+   "entry_type": "wick_imbalance_reversion",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 6,
+   "h24": {
+    "mfe_p50": 12.85,
+    "mae_p50": 21.1,
+    "ratio": 0.609
+   },
+   "h96": {
+    "mfe_p50": 21.7,
+    "mae_p50": 57.15,
+    "ratio": 0.38
+   }
+  },
+  {
+   "cell": "xs_momentum×EUR_USD×BUY",
+   "entry_type": "xs_momentum",
+   "pair": "EUR_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 102,
+   "h24": {
+    "mfe_p50": 15.25,
+    "mae_p50": 17.1,
+    "ratio": 0.892
+   },
+   "h96": {
+    "mfe_p50": 30.25,
+    "mae_p50": 27.85,
+    "ratio": 1.086
+   }
+  },
+  {
+   "cell": "xs_momentum×EUR_USD×SELL",
+   "entry_type": "xs_momentum",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 101,
+   "h24": {
+    "mfe_p50": 12.8,
+    "mae_p50": 16.0,
+    "ratio": 0.8
+   },
+   "h96": {
+    "mfe_p50": 29.2,
+    "mae_p50": 29.1,
+    "ratio": 1.003
+   }
+  },
+  {
+   "cell": "xs_momentum×GBP_USD×BUY",
+   "entry_type": "xs_momentum",
+   "pair": "GBP_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 104,
+   "h24": {
+    "mfe_p50": 14.45,
+    "mae_p50": 22.65,
+    "ratio": 0.638
+   },
+   "h96": {
+    "mfe_p50": 34.8,
+    "mae_p50": 35.7,
+    "ratio": 0.975
+   }
+  },
+  {
+   "cell": "xs_momentum×GBP_USD×SELL",
+   "entry_type": "xs_momentum",
+   "pair": "GBP_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 90,
+   "h24": {
+    "mfe_p50": 15.65,
+    "mae_p50": 18.5,
+    "ratio": 0.846
+   },
+   "h96": {
+    "mfe_p50": 35.3,
+    "mae_p50": 41.4,
+    "ratio": 0.853
+   }
+  },
+  {
+   "cell": "xs_momentum×USD_JPY×BUY",
+   "entry_type": "xs_momentum",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 80,
+   "h24": {
+    "mfe_p50": 16.55,
+    "mae_p50": 22.4,
+    "ratio": 0.739
+   },
+   "h96": {
+    "mfe_p50": 37.8,
+    "mae_p50": 44.1,
+    "ratio": 0.857
+   }
+  },
+  {
+   "cell": "xs_momentum×USD_JPY×SELL",
+   "entry_type": "xs_momentum",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 41,
+   "h24": {
+    "mfe_p50": 23.7,
+    "mae_p50": 23.0,
+    "ratio": 1.03
+   },
+   "h96": {
+    "mfe_p50": 36.4,
+    "mae_p50": 46.8,
+    "ratio": 0.778
+   }
+  },
+  {
+   "cell": "xs_momentum_rsi×USD_JPY×BUY",
+   "entry_type": "xs_momentum_rsi",
+   "pair": "USD_JPY",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 34,
+   "h24": {
+    "mfe_p50": 16.9,
+    "mae_p50": 15.35,
+    "ratio": 1.101
+   },
+   "h96": {
+    "mfe_p50": 38.3,
+    "mae_p50": 39.7,
+    "ratio": 0.965
+   }
+  },
+  {
+   "cell": "xs_momentum_rsi×USD_JPY×SELL",
+   "entry_type": "xs_momentum_rsi",
+   "pair": "USD_JPY",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 31,
+   "h24": {
+    "mfe_p50": 21.9,
+    "mae_p50": 32.9,
+    "ratio": 0.666
+   },
+   "h96": {
+    "mfe_p50": 46.9,
+    "mae_p50": 72.5,
+    "ratio": 0.647
+   }
+  },
+  {
+   "cell": "zz_pivot_v60_sr×EUR_USD×BUY",
+   "entry_type": "zz_pivot_v60_sr",
+   "pair": "EUR_USD",
+   "sig": "BUY",
+   "kind": "split",
+   "n": 4,
+   "h24": {
+    "mfe_p50": 49.9,
+    "mae_p50": 20.6,
+    "ratio": 2.422
+   },
+   "h96": {
+    "mfe_p50": 76.3,
+    "mae_p50": 25.6,
+    "ratio": 2.98
+   }
+  },
+  {
+   "cell": "zz_pivot_v60_sr×EUR_USD×SELL",
+   "entry_type": "zz_pivot_v60_sr",
+   "pair": "EUR_USD",
+   "sig": "SELL",
+   "kind": "split",
+   "n": 13,
+   "h24": {
+    "mfe_p50": 9.7,
+    "mae_p50": 22.2,
+    "ratio": 0.437
+   },
+   "h96": {
+    "mfe_p50": 17.9,
+    "mae_p50": 40.2,
+    "ratio": 0.445
+   }
+  }
+ ]
+}
