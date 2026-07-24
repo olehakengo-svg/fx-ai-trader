@@ -52,13 +52,13 @@ Shadow は UTC 固定で削らない (原則 3) は全ステージ共通。
 | 四半期 | モダリティ棚卸し (falsified 一覧の再確認・「閉鎖」判定の前提が崩れていないか) | 月次スキャンに同乗 (3 回に 1 回) |
 | verdict 毎 | §固定分岐の執行 + パイプライン状態表 (下記 §5) の更新 | 各 pre-reg registry |
 
-## 5. パイプライン状態表 (2026-07-18 時点 — verdict 毎に更新)
+## 5. パイプライン状態表 (2026-07-24 refresh — verdict 毎に更新)
 
 | 仮説 | Stage | 期日/条件 | 備考 |
 |---|---|---|---|
 | **E1 positioning contrarian** | S4 待ち | first look **2026-10-15** / second look 2027-01-06 | 🔒 LOCKED、13 ペア蓄積中、判定器完備 |
 | **E15+E7 イベントモダリティ** | **phase-0 (E15): S4 完了 → ❌ FAIL 0/6 (2026-07-22、C5×6)。phase-1 (E7): S3 継続** | phase-1: FF gap+データ付録凍結 08-14 / discovery 08-21 / **verdict 08-28** | [[e15-e7-event-modality-prereg-2026-07-18]] §12 — E15 無条件イベント窓は棄却 (BH q=0.05 m=6 通過ゼロ、min p 0.214)。§8 固定分岐で phase-1 は予定続行。registry phase0 = resolved、`e15-e7-event-prereg-phase1-verdict` 監視継続 |
-| **E12 CME 先物 volume flow** | S1 通過 → インフラ先行 | **yfinance 1h は 730d rolling — capture 開始が 1 週遅れる毎に歴史が 1 週消える** | 第 2 モダリティ。週次 1h バー capture job が前提 |
+| **E12 CME 先物 volume flow** | S1 通過 → インフラ稼働中 | 730d backfill 完了 (2026-07-21、7 契約 95,069 行) + 1h capture ライブ (2026-07-24 freshness watch: `cme_bars:*` 全 7 契約 fresh ~18h) | 第 2 モダリティ。歴史ロス懸念は capture 稼働で解消 (registry `r3-market-data-ingest-freshness` が CME 72h stale で TRIGGERED) |
 | E9 通貨 VRP | S1 条件付き | EVZCLS×EURUSD 無料 probe 先行 → 正なら Databento (クレジット 6 ヶ月失効、probe 後にサインアップ) | 第 3 線 |
 | round-4 EUR divergence | S0 (条件付き) | cache 2026-11-15+ 延伸で発火 | registry `ws3-round4-eur-divergence-conditional` |
 | htf_fb×AUD_JPY recheck | S4 待ち (non-load-bearing) | shadow N≥100 or 2027-01-31 stale | projected N 14-41 — 計画に算入しない |
