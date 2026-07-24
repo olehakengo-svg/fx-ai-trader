@@ -140,8 +140,38 @@ explore 比 **50% 減衰**を事前予測として記録する (事後選択さ�
 
 ---
 
+## 11. ✅ VERDICT (2026-07-24 — 単一 OOS 実行、§8 成果物として追記。§1–10 は不変)
+
+**実行**: `tools/weekend_gap_fill_oos_confirm.py --oos` (2026-07-24)。dry-run 再現 (凍結 explore 統計 10/10 一致) + 敵対的監査 CLEAN 通過後の**単一実行** — 以降の再実行は禁止 (スクリプトが既存出力検知で拒否)。OOS 窓 2022-01-01〜2026-06-30、seed 20260724、B=10,000。GBP_USD は未ロード (assert 済み — 将来 family 用に清浄維持)。
+
+### arm 結果 (frozen decision table の機械的適用)
+
+| arm | N (floor) | gross mean | boot p | stressed-net | MFE p50 (要求) | (a) | (b) BH | (c) | (d) | (e) | knife-edge | **最終** |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| **A** 4h | 46 (25) | +13.22p | p<1e-4 | +7.22p | 21.6p (20.0) | ✅ | ❌ | ✅ | ✅ | ✅ | flip 0/4 (記録) | **FAIL** |
+| **A** 12h | 46 | +7.38p | **p=0.1189** | +1.38p | 30.3p (20.0) | ↑IUT | ↑ | ↑ | ↑ | ↑ | ↑ | ↑ |
+| **B** 4h | 177 / 112wk (60) | **+15.60p** | **p<1e-4** (weekend-block) | **+9.04p** (−6.56 固定) | 24.8p (21.9 固定) | ✅ | ✅ | ✅ | ✅ | ✅ | **flip 0/4** | **PASS** |
+
+- **ゲート (b) walk-through**: m=2 (両 arm N floor 充足)。arm A p = max(p<1e-4, 0.1189) = 0.1189 (IUT)。p 昇順 p(1)=B (p<1e-4)、p(2)=A (0.1189)。(i) p(2)≤0.10? NO → (ii) p(1)≤0.05? YES → **arm B のみ通過**。arm A は 12h endpoint の p 崩壊が IUT を支配して (b) 落ち — co-primary AND は凍結 (§10-3)、4h 単独への事後変更は §9 で禁止
+- **knife-edge (§2.1/§3.1/§7-3、arm B に拘束適用)**: (i) DST NY17 anchor: N=197、gross +12.53/stressed +5.97 → flip なし。(ii) 8×RT: N=219、+14.71/+8.15 / 12×RT: N=140、+15.50/+8.94 → flip なし。(iii) spike-revert flag 2 件 (EUR_USD 2022-07-29 gap −24.6p / AUD_USD 2022-03-18 gap −64.7p) 除外再計算: N=175、+15.20/+8.64、p<1e-4、全ゲート再計算 PASS → flip なし。**4/4 維持 → 格下げなし**
+- **§4.1 shrinkage 突合**: arm A 4h −7% (増)、arm A 12h **53% 減衰 (予測 50% どおり)**、arm B **−75% (増幅、予測は 50% 減衰で FAIL 圏だった)**。事前予測「PASS 経路は arm A」と逆の結果 — 効果の pair 構成が USD_JPY/AUD_USD 側へシフト (§6 構成シフト宣言の範疇、estimand は凍結どおり)
+- **完全性監査 (§3.1)**: 全 3 ペア 232/234 週末 (missing 0.85% ≪ 10%)、skips = no_friday_close 1 / no_sunday_open 0 / incomplete_120h 1 (窓端、事前明文化どおり)、>1 週欠損区間なし。explore の USD_JPY 穴は OOS 窓に不存在
+- **再掲義務 (§2)**: AUD_USD RT 2.5p は KB friction table 外の理論仮置き (stressed 7.5p / arm B 固定 6.56p に混入) — R1 手続き 1 の実測で置換必須。swap は保有 ≤12h で無視
+
+### family verdict
+
+**§4.2 優先順位規則 1 適用: ≥1 arm PASS → family #3 = PASS 候補**。arm A (EUR_USD 単独 co-primary) は本 verdict で当該 arm クローズ (救済・再集計禁止)。
+
+### 固定分岐アクション (§4.2 → §9)
+
+1. **即 live 禁止** — 純研究 stage-1 の PASS。live パラメータ変更ゼロを維持
+2. **R1 手続き (省略不可、§9)**: (i) OANDA live 日曜 open 実スプレッド ≥8 週末実測 (3× 仮定の検証/置換 + EV 再計算) → (ii) 執行設計 pre-reg stage-2 (entry mechanics / サイジング / time-exit 実装 / 部分 fill) → (iii) user 最終承認
+3. **成果物**: `knowledge-base/raw/bt-results/weekend_gap_oos_confirm-2026-07-24.json` (+ `bt-results/` 同名コピー) / `reports/weekend_gap_oos_confirm-2026-07-24.md` (全ゲート値・walk-through・knife-edge・診断・完全性監査) / [[hypothesis-catalog-2026-07-24]] 台帳 row #3 に verdict 追記要
+4. **禁止の再確認**: OOS 再接触・再実行、endpoint/arm/閾値変更、news-type 事後サブセット化、GBP_USD ロード
+
 ## 参照
 
 - explore: `reports/weekend_gap_fill_multiday-2026-07-24.md` / `bt-results/weekend_gap_fill_multiday-2026-07-24.json` / `tools/weekend_gap_fill_explore.py` (seed 20260724)
 - 台帳: [[hypothesis-catalog-2026-07-24]] (family #3、m=12、凍結探索プロトコル)
 - 様式: [[ws3-asymmetry-oos-prereg-2026-07-09]] / ナイフエッジ検査: T11 教訓 / BE/Trail 教訓: MEMORY `project_be_trail_inflates_python_bt_wr`
+- verdict 実行: `tools/weekend_gap_fill_oos_confirm.py` / OOS JSON: `raw/bt-results/weekend_gap_oos_confirm-2026-07-24.json` / report: `reports/weekend_gap_oos_confirm-2026-07-24.md`

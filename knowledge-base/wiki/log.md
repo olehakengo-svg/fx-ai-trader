@@ -1,5 +1,21 @@
 # Knowledge Base Change Log
 
+## 2026-07-24 (weekend_gap OOS verdict: ✅ family PASS 候補 — プロジェクト初の OOS 確定正セル候補, rule:R1 stage-1)
+- **verdict (期日 7 日前倒し、単一実行)**: [[weekend-gap-oos-prereg-2026-07-24]] §11 — **arm B (pooled exGBP 4h fade) 全ゲート PASS**: N=177/112wk、gross +15.60p (weekend-block p<1e-4)、**stressed-net (3×RT=6.56p) +9.04p**、headroom 24.8≥21.9p、knife-edge 4/4 反転なし (DST 再anchor N=197 +12.53/+5.97、8×/12×RT 摂動、spike-revert flag 2 件除外再計算 +15.20/+8.64)。❌ arm A (EUR_USD IUT 4h+12h) は 12h p=0.1189 で BH 落ち → arm クローズ (4h 単独再採点は禁止 rescue)
+- **shrinkage 予測と逆転**: 事前予測「現実的 PASS 経路 = arm A、arm B は FAIL 圏 (−2.10p)」→ 実際は arm B +75% 増幅・arm A 12h 53% 減衰。効果構成が USD_JPY/AUD_USD へシフト (§6 宣言済み構成シフト範囲内、estimand 不変)
+- **手続き**: 実装 → explore 窓 dry-run 再現 → 敵対的スクリプト監査 CLEAN → OOS 単一接触。完全性監査 232/234 週末、GBP 非ロード assert
+- **次段 (即 live 禁止)**: §9 R1 — (i) 日曜 open 実スプレッド ≥8 週末実測 (AUD_USD RT 2.5p 理論仮置きの置換必須) → (ii) stage-2 執行 pre-reg → (iii) user 最終承認。registry `weekend-gap-oos-verdict-deadline` resolved
+
+## 2026-07-24 (wiki-daily-update 自動実行 — flat book 4窓連続 + roll-worsen edge)
+- **Daily trade log**: `raw/trade-logs/2026-07-24.md` 生成。✅ **cadence 復帰** (07-23 Thu → 07-24 Fri、1-day window、gap なし)。realized book は **flat (0 closed fills、4窓連続 07-16=07-21=07-23=07-24)**。N=**563** 不変 (245W/284L/34BE、全 decided 指標が 07-16 と bit-for-bit 同一: WR 43.5%/decided 46.3%/EV −0.98/PnL −552.7/Wilson 42.1・BF 39.3/avg R 0.12)。shadow_count 10,226→**10,345 (+119、shadow のみ)**。
+- **Risk state**: 🔴🔴🔴 **DD 100.8% held** (07-13 breach からバリア超え継続、NEW HIGH なし・deepening なし、eq −$991.1/peak +$16.9 flat)。ruin 0.0% (0.2× lot cap のみによる)。30d overall edge (risk dash) **−31.7%→−33.03%** (⚠️ worse −1.3pp)。**window-roll のみ** — n 48→47 (effective_date_from → 2026-06-24)、0 new fills で **1件の slightly-positive EUR_JPY (≈+2.4) が窓から脱落** → net −126.8→**−129.2**、Sharpe −0.423→−0.4385、MC tail widened again (worst DD99 209.06→**215.72**、median final eq 841.18→**835.84**、median max DD 160.26→**165.52**)。**07-21/07-23 の mechanical roll の継続で新エッジ損失ではない**。
+- **30d by-instrument (n=47、全4 negative)**: GBP_USD **#1 abs drag −47.1** (mean −3.36, n=14) / USD_JPY −36.2 (n=19) / EUR_JPY −31.1 (n=9、**worst mean −3.46**) / EUR_USD −14.8 (n=5)。per-strategy Kelly は bb_rsi_reversion のみ +edge (+0.158/half-Kelly 0.134)。correlation flags: bb_rsi_reversion↔zz_pivot_v60_sr −0.795 / dt_sr_channel_reversal↔trendline_sweep +0.521。
+- **OANDA audit** (08:02→11:40 UTC): **0 LIVE / 30 shadow_tracking skipped / 0 blocked / 0 false-sent**。⚪ 0 blocks — 本 pull では gate に到達した signal なし (07-23 の 2 blocks と対照、07-13/07-16 の all-shadow パターンに復帰)。firing: session_time_bias(9)/london_breakout(5)/sr_break_retest(5)/wick_imbalance_reversion(3)。instruments: GBP_USD(12) most active/EUR_USD(9)/EUR_GBP(4)。
+- **Learning API**: 新規 adjustment なし (最新 id=92, 07-06 sr_channel_reversal scalp blacklist re-affirm)。current_params 不変。daytrade WR 41.9%/EV −2.31/N93 (RANGE のみ +0.4)、scalp WR 40.4%/EV −0.18/N388。
+- **Strategy pages**: 更新なし (0 fills、by_type table 不変、tier 変更なし)。
+- **index.md 更新**: 目標行 (4窓連続 flat)、System State block (DD/edge/ruin/agg-Kelly/Last-updated)、Session History に 07-24 narrative 追加、Trade Logs リンクに **07-21/07-23/07-24 を backfill** (既存ファイルが未リンクだった orphan を解消)。
+- **Lint**: ✅ WR/PnL/DD 数値は trade-log↔index↔log 間で一貫 (N=563/WR43.5%/PnL−552.7/DD100.8%/edge−33.03%/net−129.2/n47/shadow10,345)。✅ 本 run で追加した wikilink 全て解決 ([[2026-07-21]]/[[2026-07-23]]/[[2026-07-24]] + 2 pre-reg + 2 memo)。✅ データ当日取得、陳腐化なし。⚠️ 既存の破損 wikilink backlog (~170件) は本 run で件数不変 (新規破損なし)、別タスク継続。⚠️ API_AUTH_TOKEN watchdog gap (agg-kelly gate が active safety net)・sr_anti_hunt_bounce corruption・index.md DD-line divergence (v2.3 real-NAV JPY basis 移行) は未解決継続。
+
 ## 2026-07-24 (MoF 介入 forward pre-reg 🔒 LOCK — 期限 12 日前倒し, rule:R1 stage-1)
 - **LOCK 執行**: [[mof-intervention-forward-prereg-2026-07-24]] — explore 実行 (7日/3エピソード、h*=10d SELL 6/7、band [−319.8,−43.6]p) + 識別 rule (X,Y)=(2.0, 0.25%) 裁量ゼロ校正 (git タイムラインで事前宣言を客観確認) → 敵対的レビュー (必須3+任意5、コア規律・算術は全検算一致) → 全反映 → **即日 LOCK (08-05 期限の 12 日前倒し — LOCK 任意期間の file-drawer 裁量窓を閉鎖)**
 - **凍結の要点**: candidate S={2026-04-30, 05-06} / M=21 / k_eff 規約 (= |D∩母集団|) / anchor はデータ存在営業日 roll / **P-10 attestation: 2026 candidate 日の forward net は誰も未計算、開示前計算禁止**。E-D 予測 (k∈[2,5]) 下の E-A PASS ≒「両候補日とも開示介入日」
