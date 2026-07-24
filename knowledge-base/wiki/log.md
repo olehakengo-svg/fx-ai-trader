@@ -1,5 +1,11 @@
 # Knowledge Base Change Log
 
+## 2026-07-24 (仮説カタログ + 探索最大化起動 — user 指示「爆速・複数本並列・網羅的に」)
+- **新規**: [[hypothesis-catalog-2026-07-24]] (syntheses/) — 7 レンズ × 87 本生成 → 再試行禁止フィルタ (BANNED 2) → triage。**台帳 m=12** (新規 7 ファミリ + 既登録 5)、並列アクティブ上限 3 本、凍結探索プロトコル (explore=2014-2021 / OOS=2022-2026 一発、exit-free h∈{4h..120h}、BH-FDR q=0.10)。Raw 全量: `raw/analysis/hypothesis-catalog-2026-07-24.json`
+- **wave-0 起動 (本日)**: sweep_reversion 再検証 (72) + price_shock 5席監査 (58) + weekend_gap explore (47、background)。**wave-1 fetch 発火**: MoF 介入リスト (66、S4 の data-block 解除) + COT panel (50、fetch のみ)
+- **棚卸し資産確認 (analyst 実測)**: sweep_reversion rescued shadow **unique N=8/10** (EV +2.48p、WR 75%) — P-S1(a) R1 決裁トリガまであと 2 イベント、決裁パケット準備 task 起票。htf_fb recheck は実測ペース 0.14 行/日で n_decide=100 に構造的到達不能 (2028 年) → 受動放置確定。**戦略カード Status stale 訂正** ([[sweep_reversion_eurgbp_late]]: 「LIVE env=1」→ R2 STOP code pin + shadow rescue 稼働中)
+- **横断発見**: 同一バー二重記録 (row 14 = unique 8) — shadow_count_decision 型トリガの N は **unique バー基準**で数える規律を標準化提案
+
 ## 2026-07-24 (エッジ開発 postmortem — 全数検死 + 敵対的検証)
 - **新規**: [[edge-dev-postmortem-2026-07-24]] (syntheses/) — 失敗仮説 54 件 + 生存候補 21 件の全数棚卸し (13-agent workflow、根本原因 4 クレームを敵対的検証×2レンズ)。分析のみ、tier action なし
 - **主結論**: ①「勝てていた時期」は不存在 (Era-1 昇格は BT 測定器の幻影、検証済みサブセット内反転率 100%) ② 検証装置は完成済み (Era-3 以降 FP live 到達 0) ③ 真因は sourcing (OHLCV×intraday×リテール摩擦の空間は edge < 摩擦+認定閾値) ④ 実測フロア摩擦 1.30p/t、摩擦 binding は +1〜3p/t の狭帯のみ ⑤ 処方箋 = modality 単位期待値評価 + headroom≥10x 入場条件 + sweep_reversion_eurgbp/htf_fb recheck の棚卸し回収
