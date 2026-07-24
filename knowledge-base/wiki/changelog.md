@@ -1,5 +1,13 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-07-24 — data(research): E7 phase-1 FF カレンダー歴史+gap import 完了 — §3.3b データ付録凍結 (期日 08-14 の 21 日前倒し、rule:R3)
+
+- **残タスク「FF gap import」を歴史パネルごと一括完結** ([[e15-e7-event-modality-prereg-2026-07-18]] §3.3b 新設): EPSOFT は 2023-03 停止 (延長なし) → **R4F 公開 CSV (keyless、2007〜現在、日次更新) を 2014-01〜2026-07-20 の単一ソースに採用**。値整合 = EPSOFT cross-check **歴史 sample 279/279 完全一致** + 2023 Q1 overlap 114/120 (差分は全て EPSOFT 側 end-of-panel 劣化)
+- **dump の実測特性 2 点を E15 canonical anchor 突合 (NFP 149 + CPI 135、miss 0) で特定**: (a) **時刻規約が 2023-08-07 で Europe/London → UTC に切替** → `tools/ff_gap_prepare_r4f.py` が正規化 (b) actual 列が 2023-08 で充填停止 → **判定系列 (NFP/CPI) は BLS 一次リリースの first print** (`tools/ff_gap_bls_first_prints.py`、Wayback §3.2b 経路、**較正 9/9 完全一致**) で補完 — previous 逆引き (改定値) を判定系列に使わない
+- **抽出器の kind 順先勝ちバグ 2 種を R4F previous 連鎖との系統突合で検出・修正** (NFP 後方改定括弧 / CPI 後方 y/y — 出現位置最早選択に変更、実文 regression pin 4 本)。shutdown 合算値 (CPI 2025-12-18「over the 2 months」) は機械検出で除外
+- **本番 import 済み (Render SSH、dry-run→実行)**: r4f-2014-2026 = 58,713 insert / bls-first-print = 66 actual 補完 / invalid 0。**判定系列 canonical 突合 297/298 完備** (唯一の欠落 = 事前宣言済み CPI 2025-12-18)。forecast の発表前性は発表前日 Wayback snapshot 4/4 一致で機械証明
+- tests +23 (全オフライン)。**評価への影響: なし** — 純研究データ基盤、live/shadow/Kelly/tier 不変更。残 = phase-1 discovery 08-21 → verdict 08-28
+
 ## 2026-07-24 — data(research): E20 金利差方向バイアス S2 診断 — ❌ §7 exit 未達で棄却・クローズ (rule:R3)
 
 - **rapid_edge_probe の `__dummy_e20__` を実 series に差し替えて S2 執行** ([[e20-rate-differential-s2-diagnostic-2026-07-24]]): `tools/e20_rates_ingest.py` (新規) が S1 §3 台帳の keyless 6 ソース (BIS WS_CBPOL 8/8 政策金利 + 2y = MASSIVE/ECB/MOF/BOE/BoC) から日次パネル→per-pair シグナル CSV を生成 (探索窓保護のため 2022-12-31 で物理切断して commit、sha256 manifest 付き)。GBP は IADB に 2y ZC が無く 5y ZC (IUDSNZC) 代用を明記。価格は **E15 phase-0 凍結 data_ledger と sha256 完全一致の 13 ペア parquet** (main の plain 名は refresh cron 短縮版で研究使用不可 — 部分 parquet 罠の変種を doc §1b/§5-4 に記録)
