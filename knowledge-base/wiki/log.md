@@ -1,5 +1,10 @@
 # Knowledge Base Change Log
 
+## 2026-07-24 (COT extreme explore: ❌ 全滅 FAIL — healthy kill、pre-reg 起案せず, rule:R3=分析のみ)
+- **台帳 family #5 クローズ**: net_pct_oi 3y percentile 極値 × 週次ホライズン、release-lag +3営業日凍結、lookahead assert 全通過。**BH-FDR 生存 0/36 (primary) + 0/6 (pooled)**。pooled 1w reversion +22.0p は SNB 2015 単一イベントが 63% — 除外で median +0.9p。tercile 単調性 0/6、年次符号振動 = 点推定 incoherent (underpowered ではない)
+- **ban 範囲限定**: 「レベル極値×週次」のみ再試行禁止。Δnet/flow 系・commercial 側は別 estimand として新 family + pre-2022 explore からのみ可
+- 成果物: tools/cot_extreme_explore.py + bt-results/reports。OOS (2022+) の COT×価格ジョイント接触ゼロ (assert ×2)
+
 ## 2026-07-24 (weekend_gap OOS verdict: ✅ family PASS 候補 — プロジェクト初の OOS 確定正セル候補, rule:R1 stage-1)
 - **verdict (期日 7 日前倒し、単一実行)**: [[weekend-gap-oos-prereg-2026-07-24]] §11 — **arm B (pooled exGBP 4h fade) 全ゲート PASS**: N=177/112wk、gross +15.60p (weekend-block p<1e-4)、**stressed-net (3×RT=6.56p) +9.04p**、headroom 24.8≥21.9p、knife-edge 4/4 反転なし (DST 再anchor N=197 +12.53/+5.97、8×/12×RT 摂動、spike-revert flag 2 件除外再計算 +15.20/+8.64)。❌ arm A (EUR_USD IUT 4h+12h) は 12h p=0.1189 で BH 落ち → arm クローズ (4h 単独再採点は禁止 rescue)
 - **shrinkage 予測と逆転**: 事前予測「現実的 PASS 経路 = arm A、arm B は FAIL 圏 (−2.10p)」→ 実際は arm B +75% 増幅・arm A 12h 53% 減衰。効果構成が USD_JPY/AUD_USD へシフト (§6 宣言済み構成シフト範囲内、estimand 不変)
