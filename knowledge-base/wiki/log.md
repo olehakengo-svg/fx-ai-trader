@@ -1,5 +1,11 @@
 # Knowledge Base Change Log
 
+## 2026-07-24 (gap R1 step① 完了: 日曜 open 実スプレッド遡及実測 12 週末 — PASS 方向保存, rule:R3=分析のみ)
+- **OANDA 歴史 BA candle で 12 週末 × 3 ペア = 36/36 遡及取得** (前向き蓄積不要、≥8 週末要件充足)。tools/sunday_open_spread_measure.py + bt-results/reports
+- **3× RT 仮定は一様に保守的ではなかった**: USD_JPY 初バー実測 RT p50 7.55p > 仮定 6.42p (10/12 週超過、OANDA 週明け cap 10p 張り付き)。EUR_USD/AUD_USD は概ね仮定内。ただし**実測 RT で arm B EV 再計算 → +7.90p (mean) / +3.26p (p90 tail) — PASS 方向保存** (verdict +9.04p 比 ~1.1p 劣化)
+- **執行設計の核心 (stage-2 入力)**: spread は減衰でなく **22:01 UTC (Sydney 開始) で段差崩落する二値構造** (初 1h 4-8p 高原 → 即 1.5-2p)。中間遅延は無価値。推奨 primary = 成行 @ 初バー + 発注時 spread cap (~10p) forward ルール、exit (+4h) は通常スプレッド域で stress 不要。AUD_USD 理論 RT 2.5p は保守的 (実測 1.8p)
+- 留保: 12 週末は平穏期 — news-weekend は p90 行 (+3.26p) を参照。slippage 0.5p は通常市場仮定
+
 ## 2026-07-24 (COT extreme explore: ❌ 全滅 FAIL — healthy kill、pre-reg 起案せず, rule:R3=分析のみ)
 - **台帳 family #5 クローズ**: net_pct_oi 3y percentile 極値 × 週次ホライズン、release-lag +3営業日凍結、lookahead assert 全通過。**BH-FDR 生存 0/36 (primary) + 0/6 (pooled)**。pooled 1w reversion +22.0p は SNB 2015 単一イベントが 63% — 除外で median +0.9p。tercile 単調性 0/6、年次符号振動 = 点推定 incoherent (underpowered ではない)
 - **ban 範囲限定**: 「レベル極値×週次」のみ再試行禁止。Δnet/flow 系・commercial 側は別 estimand として新 family + pre-2022 explore からのみ可
