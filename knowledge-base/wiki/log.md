@@ -1,5 +1,12 @@
 # Knowledge Base Change Log
 
+## 2026-07-24 (gap R1 step② 完了: stage-2 執行 pre-reg DRAFT — user 最終承認待ち, rule:R1)
+- **新規**: [[weekend-gap-stage2-execution-prereg-DRAFT-2026-07-24]] (decisions/) — 執行仕様凍結案 (Sunday open 初バー成行 1 回 + **spread cap 10.0p** 超過 skip / exit = +4h time-exit のみ、TP/BE/Trail 非適用で estimand 保存 / disaster SL 150p) + 全メカニズムに PRICE_SHOCK_REV 本番前例の実在確認済み
+- **要実装注意**: E1 スプレッドフィルター (L5134) が日曜 open を必ずブロック → 本 entry_type 限定の専用 cap 置換が必要 (全面バイパスではない、R2 gate 併設)。dedup = per-pair per-weekend latch (system_kv 永続)
+- **サイジング**: 1000u 固定 sentinel。月次期待 +22〜26p / σ≈63p (単月負確率 34%)。M1 寄与 ~11% と正直に明記 — 価値は初 OOS-PASS セルの live 検証 + lot ladder 土台
+- **前向きゲート**: G1 slippage>+2.0p→R2 停止 / G2 N=12<−60p→R2 demote / G3 N=30 で BT/live 乖離判定 → lot 増額は別 R1
+- **user 決裁オプション**: (a) shadow-first / (b) 直接 live MIN lot (起案推奨) / (c) 追加実測待ち / (d) 見送り — **R1 step③ = user 最終承認待ち、live 変更なし**
+
 ## 2026-07-24 (gap R1 step① 完了: 日曜 open 実スプレッド遡及実測 12 週末 — PASS 方向保存, rule:R3=分析のみ)
 - **OANDA 歴史 BA candle で 12 週末 × 3 ペア = 36/36 遡及取得** (前向き蓄積不要、≥8 週末要件充足)。tools/sunday_open_spread_measure.py + bt-results/reports
 - **3× RT 仮定は一様に保守的ではなかった**: USD_JPY 初バー実測 RT p50 7.55p > 仮定 6.42p (10/12 週超過、OANDA 週明け cap 10p 張り付き)。EUR_USD/AUD_USD は概ね仮定内。ただし**実測 RT で arm B EV 再計算 → +7.90p (mean) / +3.26p (p90 tail) — PASS 方向保存** (verdict +9.04p 比 ~1.1p 劣化)
