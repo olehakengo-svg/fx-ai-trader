@@ -23,6 +23,7 @@
 | 同トリガを row 基準で読んだ場合 | **到達済み (N=14)** — T8 裁定は基準を明記していない。→ §1.4 計数意味論の確定を user に求める |
 | EV 符号 (3 基準とも) | **正** (+2.13〜+3.14 p/t)。ただし exit estimand 乖離により entry 符号確認まで (§2) |
 | 機械監視 (prereg_trigger_watch) | **故障中** — N=0 と誤報告 (§1.5、修正タスク chip 起票済み)。**09-30 の retire 分岐が偽データで誤発動するリスク** |
+| 追加証拠 (07-24 後着、§2.5) | exit-free 12.4y 再検証: **エッジは exit 設計の産物ではない** (12h net mean +7.72p、boot p<1e-4)。ただし同一標本のため選択効果は未解消 — **rescued shadow が唯一の真 OOS** |
 
 ## 1. 実測: rescued shadow (P-S1(b)、2026-07-03〜2026-07-24)
 
@@ -103,6 +104,31 @@ hold は中央値 ~21 分 (最長 8.5h)、**time-stop 到達 0 件** — 本番 
   そのまま作用する — 07-06 21:32 の +2.0p (16 分 trail close) は、設計上 12h ホールドすべきトレードだった
 - exemption 承認しても、**exit を整合させない限り live EV は検証と別 estimand の測定になる** → §3.4
 
+## 2.5 追加証拠 — exit-free 12.4y 再検証 (2026-07-24 後着、別セッション wave-0 explore)
+
+**結論: エッジは entry+12h 平均回帰そのものに存在し、BE/trail・TP/SL・time-stop など exit 機構の産物ではない。**
+出典: `reports/sweep_reversion_exitfree_reverify-2026-07-24.md` / `bt-results/sweep_reversion_exitfree_reverify-2026-07-24.json` /
+`tools/sweep_reversion_exitfree_reverify.py` (2026-07-24 時点 branch `research/trendline-sweep-12y-pairscope-2026-07-13` 着地中 —
+本パケット更新時に主要数値を JSON と突合済み)。
+
+- **凍結トリガ完全再現**: N=543 / WR 59.7% / +6.22p / t=4.46 — 登録値 (2026-06-12) と一致
+- **exit-free forward 計測** (exit 設計なし、next-bar open entry からの純粋 forward): 12h net mean **+7.72p** /
+  median **+5.10p** (bootstrap p<1e-4)、RT 3.0p 控除後 **+4.72p**、per-year 11/13 年正
+- **エッジは ~12h 平均回帰に局在**: MFE/MAE p50 非対称は 4h (1.16) / 12h (1.25) のみで、**≥24h で反転**
+  (24h 0.94 / 72h 0.80 / 120h 0.67) — pre-reg の 12h ホールド設計 horizon と整合。**長ホールドへの外挿は禁止**
+- 本パケット §2 との関係: shadow EV 正符号 (entry 符号) と exit-free 正 EV は同じ向きの証拠。ただし §2 の
+  「本番 exit は検証 estimand と別物」という注記は不変 — exit-free 証拠は「どの exit でもエッジが消えるわけではない」
+  ことを示すが、本番 BE/trail の実現 payoff が +4.72p 相当を回収できるかは別問題 (T3 trail 返上の実証あり)
+
+**敵対的レビュー注記 (同セッション指摘、パケット判断に影響)**:
+1. **weekend 跨ぎの estimand 乖離**: BT の H=48 bars は bar-time で、weekend を跨ぐ窓が **~11-13%**
+   (本パケット更新時の独立概算 13.3%、金曜 entry 12.7%)。live の time-stop は 43200s **wall-clock**
+   (`_ENTRY_TYPE_MAX_HOLD`) — 金曜 entry は live では週末中に time-stop 期限が来るのに対し BT は翌週まで
+   48 営業バー保有する。**BT/live の第 3 の estimand 乖離軸** (①HTF gate ②12-bar spacing に続く) → §4 リスク 9
+2. **同一標本の限界**: 再検証は元 grid と同じ parquet (〜2026-05-05) 上であり、m=1,728 max-t 選択効果は
+   未解消。**選択効果を解消できる新データは rescued shadow (07-03〜) のみ** — 本パケットの N≥10 トリガ設計が
+   その役割を担う、という論理構成を再確認 (§1 の unique/spaced 計測の重要性が上がる)
+
 ## 3. 復帰前提条件と設計案 (設計のみ、実装しない)
 
 T8 裁定の復帰前提 = 「N≥10 EV>0 でも、再有効化には **order 層 12-bar min-spacing 実装が必須**」(Forensic #3)。
@@ -162,6 +188,12 @@ T8 裁定の復帰前提 = 「N≥10 EV>0 でも、再有効化には **order �
 「現行母集団の exit 側改善」が否定済みだが、それは負エッジ母集団の話であり、正エッジ検証済み cell の
 estimand 忠実化は別問題である点に注意)。
 
+§2.5 の追加証拠による補強: (a) ≥24h で MFE/MAE が反転するため、**time-stop の執行 (12h で必ず切る) は
+どの案でも死守すべき制約** — 本番の 43200s wall-clock time-stop が実際に発火するかの検証を復帰初週の
+監視項目に含める。(b) 金曜 entry の weekend 跨ぎ (§2.5 注記 1) は (ii) を採る場合の time-stop 定義
+(bar-time vs wall-clock) の明示選択を要求する — 検証 estimand に忠実なのは bar-time (48 営業バー) だが、
+±24h 反転を踏まえると wall-clock の方が安全側。決裁時に指定。
+
 ## 4. リスク列挙
 
 1. **摩擦 — 最大のリスク**。BT 仮定 spread 1.5p / 反証耐性 3.5p に対し、**実測 entry spread は
@@ -189,6 +221,9 @@ estimand 忠実化は別問題である点に注意)。
    ゲート④(改) の文言「DB insert が 2 件以上検出 — 即停止」を literal に読むと抵触に見えるが、
    flag 付き記録は「検出済み・観測可能」であり silent runaway ではない。**「unflagged insert に限る」旨の
    文言明確化を推奨** (LOCKED 変更 = レビュー必須 PR)
+9. **weekend 跨ぎの time-stop estimand 乖離** (§2.5 注記 1)。事象の ~11-13% (金曜 entry) で BT (48 営業バー
+   bar-time) と live (43200s wall-clock) のホールド期間が構造的に異なる。live 復帰後の EV を BT と突合する際、
+   金曜 entry セグメントは別集計すること (教訓「集計値は必ずセグメント分解する」)
 
 ## 5. 判定オプション表
 
@@ -218,3 +253,6 @@ curl -s "https://fx-ai-trader.onrender.com/api/demo/trades?status=all&date_from=
 - row = 全行 / unique = dedup_violation==0 / spaced = unique に 12×15m=3h の min-gap を entry_time 昇順で適用
 - Wilson 95% は z=1.96。EV は pnl_pips 単純平均 (shadow の pnl は entry ask-side 反映と整合的だが、摩擦包含の完全検証は未了 — live 実測で置換されるべき数値)
 - 12 行の raw ペア (dedup_violation=0/1) は同一バーの 2-mode スレッド重複。row 14 = unique 8 + 重複 6
+- §2.5 の exit-free 再検証: `tools/sweep_reversion_exitfree_reverify.py` (決定論、seed=20260724、bootstrap n=10,000)。
+  weekend 跨ぎ ~13.3% は本パケット更新時の独立概算 (トリガ近似再現 N=639 — swing_lo/ATR 定義差により
+  凍結 tool の N=543 と一致しないが、weekday 分布の推定には十分)

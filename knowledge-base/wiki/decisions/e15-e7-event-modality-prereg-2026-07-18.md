@@ -77,6 +77,64 @@
 - **phase-1 データ付録 (観測前凍結の手続きを今宣言)**: 対象系列の正確な指定 (NFP headline = Non-Farm Employment Change / CPI headline m/m、consensus 列の意味論 = 発表前時点の値であることの検証、単位・改定の扱い) は、**イベント×リターン結合統計を一切計算する前に**「phase-1 データ付録」として本文書へ追記コミットし凍結する (round-3 AMENDMENT と同じ「観測前 data-driven 確定」の手続き化)。forecast 列に発表後情報が混入していないことの検証 (公表アーカイブとの spot 突合 ≥10 件) を付録の必須項目とする。
 - FOMC の rate surprise は非ゼロ標本が僅少 (well-telegraphed) のため **E7 の判定対象外・記述のみ**。
 
+#### §3.3b phase-1 データ付録 (2026-07-24 凍結 — §3.3 が宣言した観測前手続きの執行)
+
+**種別**: §3.3 で予告した「phase-1 データ付録」の追記コミット。§3.2b と同じく取得経路・
+ソースの確定のみで、**本追記時点でイベント×リターンの結合統計は一切未計算** (§10-1 遵守。
+本付録の全検証はカレンダー値同士・カレンダー×一次リリースの突合であり価格データに非接触)。
+
+1. **歴史パネル+gap の一括ソース確定 (EPSOFT → R4F への代替)**: EPSOFT は 2023-03 で
+   更新停止 (延長なし、2026-07-24 確認) のため、**Robots4Forex 公開 CSV
+   (`robots4forex.com/news/news.php`、FF 系カレンダー 2007〜現在、keyless、日次更新) を
+   歴史パネル (2014-01〜) + gap (2023-04〜2026-07-20) の単一ソース**として採用する。
+   go-forward (2026-07-21〜) は稼働中の faireconomy capture (PR #102) が担い、seam の
+   重複キーは「既存行を上書きしない」import 規約で保護される。
+   - **値整合の検証 (EPSOFT cross-check)**: 歴史 sample 3 ヶ月 (2016-06 / 2019-03 /
+     2021-09、全通貨 H+M) **279/279 完全一致** + 2023 Q1 overlap 114/120 (不一致 6 は
+     全て 2023-03-28〜31 = EPSOFT 側 end-of-panel の actual 未充填/凍結前 forecast —
+     系統的不一致ゼロ)。証跡: `raw/bt-results/e7/ff_gap_semantics_verification.json`
+   - **時刻規約 (実測で確定)**: R4F の時刻列は **2023-08-07 を境に切替** — それ以前 =
+     Europe/London 現地時刻 (BST 期 +60min)、以後 = UTC。anchor 証跡 = E15 canonical
+     カレンダー (一次ソース由来) との突合で NFP 149 + CPI 135 イベント全一致
+     (2023-08-04 NFP は London / 2023-08-08 Harker 講演 12:15=8:15ET は UTC)。
+     `tools/ff_gap_prepare_r4f.py` が正規化を実装、test pin 済み。
+2. **対象系列の正確な指定**: NFP headline = `country=USD, title="Non-Farm Employment
+   Change"` / CPI headline m/m = `country=USD, title="CPI m/m"`。event_time は E15
+   canonical カレンダーの UTC 時刻をそのまま用いる (import 行のキーが一致することを確認済み)。
+3. **consensus (forecast) 列の意味論 = 発表前時点の値であることの検証 (spot 突合 ≥10)**:
+   3 機構で計 118+ 件 — (a) EPSOFT overlap 114 件 (forecast 列込み完全一致)、
+   (b) **発表前 timestamp 付き**の Wayback snapshot (faireconomy weekly JSON、発表前日
+   21:00Z 保存) × R4F forecast = **4/4 一致** (NFP 2026-05/06、CPI 2026-05/06 —
+   snapshot の保存時刻が「発表前」を機械的に証明)、(c) BLS first print との actual 較正
+   (下記 4)。faireconomy 側の forecast 凍結規約 (event 通過後は更新しない、PR #102) と
+   合わせ、forecast 列に発表後情報が混入する経路は閉じている。
+4. **actual の意味論 — first print (改定値ではない)**: R4F の actual 列は 2023-08 で充填
+   停止 (実測 0/月 以降)。判定対象系列の actual は **BLS 一次リリース (Employment
+   Situation / CPI News Release、`bls.gov/news.release/archives/` を Wayback `id_` raw
+   経由 = §3.2b と同一経路) の headline first print** を `tools/ff_gap_bls_first_prints.py`
+   で抽出して補完する。パーサは R4F actual が残存する重複区間 (2023-04〜08) で**完全一致を
+   要求する較正を内蔵** (結果は `raw/bt-results/e7/ff_gap_bls_ledger.json` に URL /
+   wayback ts / sha256 / 抽出根拠文つきで凍結)。previous 逆引き (=改定値) は**判定系列には
+   使わない**。非判定系列の actual は R4F 充填分のみ (欠落を埋めない — 判定に不使用)。
+5. **単位・改定の扱い**: NFP = 千人 `K` (負値は `-nK`)、CPI = `%` 小数 1 桁 — FF 表示
+   規約に一致させる (較正で強制)。改定値は使用しない (first print のみ)。2025 年秋の
+   政府閉鎖による合同リリースは「当該リリース第一文の headline 値」を採用し、抽出根拠文を
+   ledger に記録 (reference month の曖昧性を残さない)。
+6. **既知の欠落・特殊 (観測前宣言)**: (i) R4F に 2025-12-18 の `CPI m/m` 行が無い
+   (y/y のみ) — BLS import が canonical 時刻で新規行 insert するが **forecast が欠落する
+   ため、本イベントは surprise サンプルから除外** (データ可用性による除外、事後裁量ではない)。
+   (ii) 2025-12-16 に M-impact の重複 NFP 行 (13:29) が存在 — 判定系列は H 行
+   (canonical 時刻一致) のみを使う。(iii) L-impact の同時刻多重掲載 4 件 (CNY CB Leading
+   Index 等) は後勝ち — 判定系列外。
+7. **ソース台帳**: R4F dump sha256 / import CSV sha256 / 行数 / 窓 =
+   `raw/bt-results/e7/ff_calendar_r4f_manifest.json`。BLS 抽出 ledger =
+   `raw/bt-results/e7/ff_gap_bls_ledger.json`。意味論検証 =
+   `raw/bt-results/e7/ff_gap_semantics_verification.json`。import 実行記録 (counters) は
+   実行後に本 doc §12 側でなく runbook (`raw/bt-results/e15_phase0_execution_status.md`)
+   へ追記する。
+8. **本付録で確定しないこと**: z-surprise の正規化窓・discovery grid は §5 の凍結手続き
+   (2026-08-21) のまま — 本付録はデータの来歴と意味論のみを凍結する。
+
 ### 3.4 窓 (calendar 固定、phase 共通)
 
 - **discovery 窓**: per-pair floor (≥2014-01) 〜 **2023-12-31**
