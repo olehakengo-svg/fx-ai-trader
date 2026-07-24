@@ -1,6 +1,7 @@
 # sweep_reversion_eurgbp_late
 
-- **Status**: LIVE (rule:R1 意図的例外, user 判断 2026-06-12, env `SWEEP_REVERSION_EURGBP_LIVE_ENABLE=1`)
+- **Status**: **R2 STOP (live code pin) + shadow rescue 稼働中** — 2026-07-06 T8 ゲート①抵触で `_SWEEP_REVERSION_EURGBP_LIVE_ENABLE = False` code pin (demo_trader.py:8763、env では覆せない、[[t8-week1-gate-breach-2026-07-06]])。旧 Status「LIVE (R1 意図的例外, 06-12, env=1)」は 07-06 以降 stale だったため 2026-07-24 訂正
+- **復帰条件 (T8 決定書)**: P-S1(a) HTF exemption の user R1 決裁 + order 層 12-bar min-spacing 実装。決裁トリガ = rescued shadow **unique バー N≥10** (2026-07-24 時点 unique N=8 / row N=14、row EV +2.13p / unique EV +2.48p、WR 71-75%)。⚠️ shadow exit は pre-reg estimand (time-stop/±ATR) と乖離 (SIGNAL_REVERSE/BE-trail 痕跡) のため、shadow EV は entry 符号確認まで — 復権判定に無修正流用しない
 - **Mode**: daytrade_eurgbp (15m) / **Pair**: EUR_GBP only / **Direction**: BUY only
 - **Lot**: 1000u 固定 (MIN lot)
 
