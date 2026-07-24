@@ -1,0 +1,859 @@
+{
+  "meta": {
+    "script": "tools/mof_intervention_explore.py",
+    "run_date": "2026-07-24",
+    "prereg_doc": "knowledge-base/wiki/decisions/mof-intervention-forward-prereg-DRAFT-2026-07-24.md",
+    "data": "data/cache/massive/USD_JPY_15m_2014_2026.parquet",
+    "data_span": [
+      "2013-12-29 22:00:00+00:00",
+      "2026-07-02 14:45:00+00:00"
+    ],
+    "pip": 0.01,
+    "carry_note": "swap は政策金利差からの推定値。OANDA financing 実測の記録は LOCK 手順 (doc §9 step 3)"
+  },
+  "episodes": [
+    [
+      "2022-09-22",
+      "2022-10-21",
+      "2022-10-24"
+    ],
+    [
+      "2024-04-29",
+      "2024-05-01"
+    ],
+    [
+      "2024-07-11",
+      "2024-07-12"
+    ]
+  ],
+  "per_event_forward": [
+    {
+      "event_day": "2022-09-22",
+      "anchor_day": "2022-09-23",
+      "anchor_ts": "2022-09-23T00:00:00+00:00",
+      "entry_mid": 142.269,
+      "horizons": {
+        "h1": {
+          "end_day": "2022-09-26",
+          "net_pips": 125.3,
+          "mfe_pips": 50.9,
+          "mae_pips": 150.1
+        },
+        "h2": {
+          "end_day": "2022-09-27",
+          "net_pips": 221.0,
+          "mfe_pips": 50.9,
+          "mae_pips": 252.0
+        },
+        "h5": {
+          "end_day": "2022-09-30",
+          "net_pips": 215.9,
+          "mfe_pips": 50.9,
+          "mae_pips": 263.6,
+          "carry_cost_pips_est": 8.7,
+          "net_after_carry_pips_est": 224.6
+        },
+        "h10": {
+          "end_day": "2022-10-07",
+          "net_pips": 277.5,
+          "mfe_pips": 50.9,
+          "mae_pips": 303.7,
+          "carry_cost_pips_est": 17.4,
+          "net_after_carry_pips_est": 294.9
+        }
+      }
+    },
+    {
+      "event_day": "2022-10-21",
+      "anchor_day": "2022-10-24",
+      "anchor_ts": "2022-10-24T00:00:00+00:00",
+      "entry_mid": 147.614,
+      "horizons": {
+        "h1": {
+          "end_day": "2022-10-25",
+          "net_pips": 127.5,
+          "mfe_pips": 25.1,
+          "mae_pips": 184.3
+        },
+        "h2": {
+          "end_day": "2022-10-26",
+          "net_pips": 34.6,
+          "mfe_pips": 25.1,
+          "mae_pips": 184.3
+        },
+        "h5": {
+          "end_day": "2022-10-31",
+          "net_pips": 19.6,
+          "mfe_pips": 251.0,
+          "mae_pips": 184.3,
+          "carry_cost_pips_est": 9.0,
+          "net_after_carry_pips_est": 28.6
+        },
+        "h10": {
+          "end_day": "2022-11-07",
+          "net_pips": -78.0,
+          "mfe_pips": 251.0,
+          "mae_pips": 184.3,
+          "carry_cost_pips_est": 18.0,
+          "net_after_carry_pips_est": -60.0
+        }
+      }
+    },
+    {
+      "event_day": "2022-10-24",
+      "anchor_day": "2022-10-25",
+      "anchor_ts": "2022-10-25T00:00:00+00:00",
+      "entry_mid": 148.889,
+      "horizons": {
+        "h1": {
+          "end_day": "2022-10-26",
+          "net_pips": -92.9,
+          "mfe_pips": 138.0,
+          "mae_pips": 16.9
+        },
+        "h2": {
+          "end_day": "2022-10-27",
+          "net_pips": -280.3,
+          "mfe_pips": 281.0,
+          "mae_pips": 16.9
+        },
+        "h5": {
+          "end_day": "2022-11-01",
+          "net_pips": -15.5,
+          "mfe_pips": 378.5,
+          "mae_pips": 16.9,
+          "carry_cost_pips_est": 9.1,
+          "net_after_carry_pips_est": -6.4
+        },
+        "h10": {
+          "end_day": "2022-11-08",
+          "net_pips": -226.6,
+          "mfe_pips": 378.5,
+          "mae_pips": 16.9,
+          "carry_cost_pips_est": 18.2,
+          "net_after_carry_pips_est": -208.4
+        }
+      }
+    },
+    {
+      "event_day": "2024-04-29",
+      "anchor_day": "2024-04-30",
+      "anchor_ts": "2024-04-30T00:00:00+00:00",
+      "entry_mid": 156.317,
+      "horizons": {
+        "h1": {
+          "end_day": "2024-05-01",
+          "net_pips": 142.2,
+          "mfe_pips": 15.9,
+          "mae_pips": 153.3
+        },
+        "h2": {
+          "end_day": "2024-05-02",
+          "net_pips": -21.3,
+          "mfe_pips": 332.2,
+          "mae_pips": 166.7
+        },
+        "h5": {
+          "end_day": "2024-05-07",
+          "net_pips": -218.3,
+          "mfe_pips": 446.1,
+          "mae_pips": 166.7,
+          "carry_cost_pips_est": 15.9,
+          "net_after_carry_pips_est": -202.4
+        },
+        "h10": {
+          "end_day": "2024-05-14",
+          "net_pips": -9.1,
+          "mfe_pips": 446.1,
+          "mae_pips": 166.7,
+          "carry_cost_pips_est": 31.7,
+          "net_after_carry_pips_est": 22.6
+        }
+      }
+    },
+    {
+      "event_day": "2024-05-01",
+      "anchor_day": "2024-05-02",
+      "anchor_ts": "2024-05-02T02:00:00+00:00",
+      "entry_mid": 156.10399999999998,
+      "horizons": {
+        "h1": {
+          "end_day": "2024-05-03",
+          "net_pips": -297.2,
+          "mfe_pips": 323.4,
+          "mae_pips": 3.7
+        },
+        "h2": {
+          "end_day": "2024-05-06",
+          "net_pips": -244.8,
+          "mfe_pips": 424.8,
+          "mae_pips": 3.7
+        },
+        "h5": {
+          "end_day": "2024-05-09",
+          "net_pips": -73.3,
+          "mfe_pips": 424.8,
+          "mae_pips": 3.7,
+          "carry_cost_pips_est": 15.6,
+          "net_after_carry_pips_est": -57.7
+        },
+        "h10": {
+          "end_day": "2024-05-16",
+          "net_pips": -180.8,
+          "mfe_pips": 424.8,
+          "mae_pips": 66.6,
+          "carry_cost_pips_est": 31.4,
+          "net_after_carry_pips_est": -149.4
+        }
+      }
+    },
+    {
+      "event_day": "2024-07-11",
+      "anchor_day": "2024-07-12",
+      "anchor_ts": "2024-07-12T00:00:00+00:00",
+      "entry_mid": 158.245,
+      "horizons": {
+        "h1": {
+          "end_day": "2024-07-15",
+          "net_pips": 3.5,
+          "mfe_pips": 90.5,
+          "mae_pips": 114.0
+        },
+        "h2": {
+          "end_day": "2024-07-16",
+          "net_pips": -9.7,
+          "mfe_pips": 109.4,
+          "mae_pips": 114.0
+        },
+        "h5": {
+          "end_day": "2024-07-19",
+          "net_pips": -108.8,
+          "mfe_pips": 288.5,
+          "mae_pips": 114.0,
+          "carry_cost_pips_est": 16.0,
+          "net_after_carry_pips_est": -92.8
+        },
+        "h10": {
+          "end_day": "2024-07-26",
+          "net_pips": -454.5,
+          "mfe_pips": 631.5,
+          "mae_pips": 114.0,
+          "carry_cost_pips_est": 32.0,
+          "net_after_carry_pips_est": -422.5
+        }
+      }
+    },
+    {
+      "event_day": "2024-07-12",
+      "anchor_day": "2024-07-15",
+      "anchor_ts": "2024-07-15T00:00:00+00:00",
+      "entry_mid": 158.28,
+      "horizons": {
+        "h1": {
+          "end_day": "2024-07-16",
+          "net_pips": -13.2,
+          "mfe_pips": 112.9,
+          "mae_pips": 8.4
+        },
+        "h2": {
+          "end_day": "2024-07-17",
+          "net_pips": 8.3,
+          "mfe_pips": 112.9,
+          "mae_pips": 58.0
+        },
+        "h5": {
+          "end_day": "2024-07-22",
+          "net_pips": -86.9,
+          "mfe_pips": 292.0,
+          "mae_pips": 58.0,
+          "carry_cost_pips_est": 16.0,
+          "net_after_carry_pips_est": -70.9
+        },
+        "h10": {
+          "end_day": "2024-07-29",
+          "net_pips": -413.0,
+          "mfe_pips": 635.0,
+          "mae_pips": 58.0,
+          "carry_cost_pips_est": 32.1,
+          "net_after_carry_pips_est": -380.9
+        }
+      }
+    }
+  ],
+  "descriptive_by_horizon": {
+    "h1": {
+      "net_median_pips": 3.5,
+      "net_p25_pips": -53.0,
+      "net_p75_pips": 126.4,
+      "net_sign_consistency": "3/7 negative",
+      "n_negative": 3,
+      "mfe_median_pips": 90.5,
+      "mae_median_pips": 114.0,
+      "episode_first_day_nets_pips": [
+        125.3,
+        142.2,
+        3.5
+      ]
+    },
+    "h2": {
+      "net_median_pips": -9.7,
+      "net_p25_pips": -133.1,
+      "net_p75_pips": 21.5,
+      "net_sign_consistency": "4/7 negative",
+      "n_negative": 4,
+      "mfe_median_pips": 112.9,
+      "mae_median_pips": 114.0,
+      "episode_first_day_nets_pips": [
+        221.0,
+        -21.3,
+        -9.7
+      ]
+    },
+    "h5": {
+      "net_median_pips": -73.3,
+      "net_p25_pips": -97.8,
+      "net_p75_pips": 2.1,
+      "net_sign_consistency": "5/7 negative",
+      "n_negative": 5,
+      "mfe_median_pips": 292.0,
+      "mae_median_pips": 114.0,
+      "episode_first_day_nets_pips": [
+        215.9,
+        -218.3,
+        -108.8
+      ]
+    },
+    "h10": {
+      "net_median_pips": -180.8,
+      "net_p25_pips": -319.8,
+      "net_p75_pips": -43.6,
+      "net_sign_consistency": "6/7 negative",
+      "n_negative": 6,
+      "mfe_median_pips": 424.8,
+      "mae_median_pips": 114.0,
+      "episode_first_day_nets_pips": [
+        277.5,
+        -9.1,
+        -454.5
+      ]
+    }
+  },
+  "e_c_prediction": {
+    "h_star": "10d",
+    "h_star_rule": "符号最一貫 (多数派符号日数最大)、tie-break |median| 最大 (doc §5.3)",
+    "predicted_sign": "negative (SELL-favorable)",
+    "median_net_pips": -180.8,
+    "band_p25_p75_pips": [
+      -319.8,
+      -43.6
+    ]
+  },
+  "permutation_null": {
+    "n_perm": 10000,
+    "seed": 20260724,
+    "pools": {
+      "2022-09-22": {
+        "quintile": 3,
+        "weekday": 3,
+        "n_days": 26
+      },
+      "2024-04-29": {
+        "quintile": 0,
+        "weekday": 0,
+        "n_days": 28
+      },
+      "2024-07-11": {
+        "quintile": 0,
+        "weekday": 3,
+        "n_days": 27
+      }
+    },
+    "skipped_placebo_days": [],
+    "by_horizon": {
+      "h1": {
+        "obs_median_of_episode_means_pips": -4.8,
+        "episode_means_pips": [
+          53.3,
+          -77.5,
+          -4.8
+        ],
+        "null_median_pips": 17.1,
+        "null_p05_pips": -53.8,
+        "null_p95_pips": 96.0,
+        "p_one_sided": 0.2416,
+        "one_sided_direction": "le (SELL-favorable)",
+        "p_two_sided": 0.9094
+      },
+      "h2": {
+        "obs_median_of_episode_means_pips": -8.2,
+        "episode_means_pips": [
+          -8.2,
+          -133.1,
+          -0.7
+        ],
+        "null_median_pips": 29.0,
+        "null_p05_pips": -74.3,
+        "null_p95_pips": 111.8,
+        "p_one_sided": 0.2125,
+        "one_sided_direction": "le (SELL-favorable)",
+        "p_two_sided": 0.851
+      },
+      "h5": {
+        "obs_median_of_episode_means_pips": -97.8,
+        "episode_means_pips": [
+          73.3,
+          -145.8,
+          -97.8
+        ],
+        "null_median_pips": 69.4,
+        "null_p05_pips": -153.3,
+        "null_p95_pips": 238.2,
+        "p_one_sided": 0.0777,
+        "one_sided_direction": "le (SELL-favorable)",
+        "p_two_sided": 0.4707
+      },
+      "h10": {
+        "obs_median_of_episode_means_pips": -95.0,
+        "episode_means_pips": [
+          -9.0,
+          -95.0,
+          -433.8
+        ],
+        "null_median_pips": 110.1,
+        "null_p05_pips": -150.9,
+        "null_p95_pips": 364.4,
+        "p_one_sided": 0.0989,
+        "one_sided_direction": "le (SELL-favorable)",
+        "p_two_sided": 0.631
+      }
+    },
+    "caveat": "有効 N≈3 エピソード — 記述統計のみ、検定主張不可 (doc §4)"
+  },
+  "identification_rule_calibration": {
+    "grid_declared": {
+      "y_pct": [
+        0.25,
+        0.5,
+        0.75,
+        1.0,
+        1.25,
+        1.5,
+        1.75,
+        2.0
+      ],
+      "x": [
+        1.5,
+        2.0,
+        2.5,
+        3.0,
+        3.5,
+        4.0
+      ],
+      "selection": "hits>=6 -> min FP -> max hits -> min Y -> min X"
+    },
+    "n_calibration_days": 782,
+    "n_non_event_days": 775,
+    "event_day_stats": [
+      {
+        "date": "2022-09-22",
+        "co_ret_pct": -1.364,
+        "range_pips": 555.2,
+        "med20_range_pips": 118.4,
+        "range_ratio": 4.69
+      },
+      {
+        "date": "2022-10-21",
+        "co_ret_pct": -1.677,
+        "range_pips": 628.7,
+        "med20_range_pips": 89.8,
+        "range_ratio": 7.0
+      },
+      {
+        "date": "2022-10-24",
+        "co_ret_pct": 0.86,
+        "range_pips": 209.4,
+        "med20_range_pips": 89.8,
+        "range_ratio": 2.33
+      },
+      {
+        "date": "2024-04-29",
+        "co_ret_pct": -1.178,
+        "range_pips": 567.0,
+        "med20_range_pips": 62.0,
+        "range_ratio": 9.15
+      },
+      {
+        "date": "2024-05-01",
+        "co_ret_pct": -1.57,
+        "range_pips": 498.9,
+        "med20_range_pips": 71.1,
+        "range_ratio": 7.02
+      },
+      {
+        "date": "2024-07-11",
+        "co_ret_pct": -2.047,
+        "range_pips": 435.2,
+        "med20_range_pips": 83.5,
+        "range_ratio": 5.21
+      },
+      {
+        "date": "2024-07-12",
+        "co_ret_pct": -0.258,
+        "range_pips": 204.5,
+        "med20_range_pips": 94.0,
+        "range_ratio": 2.18
+      }
+    ],
+    "chosen": {
+      "x": 2.0,
+      "y_pct": 0.25,
+      "event_hits": 6,
+      "event_hit_days": [
+        "2022-09-22",
+        "2022-10-21",
+        "2024-04-29",
+        "2024-05-01",
+        "2024-07-11",
+        "2024-07-12"
+      ],
+      "fp_count": 39,
+      "fp_rate": 0.0503,
+      "fp_days": [
+        "2022-01-12",
+        "2022-02-11",
+        "2022-03-29",
+        "2022-03-30",
+        "2022-06-16",
+        "2022-07-22",
+        "2022-08-10",
+        "2022-10-26",
+        "2022-11-10",
+        "2022-11-11",
+        "2022-12-13",
+        "2022-12-20",
+        "2023-01-06",
+        "2023-01-12",
+        "2023-03-10",
+        "2023-03-13",
+        "2023-03-15",
+        "2023-07-07",
+        "2023-07-12",
+        "2023-07-27",
+        "2023-10-03",
+        "2023-11-14",
+        "2023-11-17",
+        "2023-11-20",
+        "2023-12-07",
+        "2023-12-13",
+        "2024-02-29",
+        "2024-03-07",
+        "2024-03-08",
+        "2024-05-02",
+        "2024-05-15",
+        "2024-06-04",
+        "2024-07-17",
+        "2024-07-24",
+        "2024-07-30",
+        "2024-07-31",
+        "2024-08-02",
+        "2024-09-27",
+        "2024-11-15"
+      ],
+      "fp_count_excl10": 36,
+      "fp_rate_excl10": 0.0502
+    },
+    "top5_feasible": [
+      {
+        "x": 2.0,
+        "y_pct": 0.25,
+        "event_hits": 6,
+        "event_hit_days": [
+          "2022-09-22",
+          "2022-10-21",
+          "2024-04-29",
+          "2024-05-01",
+          "2024-07-11",
+          "2024-07-12"
+        ],
+        "fp_count": 39,
+        "fp_rate": 0.0503,
+        "fp_days": [
+          "2022-01-12",
+          "2022-02-11",
+          "2022-03-29",
+          "2022-03-30",
+          "2022-06-16",
+          "2022-07-22",
+          "2022-08-10",
+          "2022-10-26",
+          "2022-11-10",
+          "2022-11-11",
+          "2022-12-13",
+          "2022-12-20",
+          "2023-01-06",
+          "2023-01-12",
+          "2023-03-10",
+          "2023-03-13",
+          "2023-03-15",
+          "2023-07-07",
+          "2023-07-12",
+          "2023-07-27",
+          "2023-10-03",
+          "2023-11-14",
+          "2023-11-17",
+          "2023-11-20",
+          "2023-12-07",
+          "2023-12-13",
+          "2024-02-29",
+          "2024-03-07",
+          "2024-03-08",
+          "2024-05-02",
+          "2024-05-15",
+          "2024-06-04",
+          "2024-07-17",
+          "2024-07-24",
+          "2024-07-30",
+          "2024-07-31",
+          "2024-08-02",
+          "2024-09-27",
+          "2024-11-15"
+        ],
+        "fp_count_excl10": 36,
+        "fp_rate_excl10": 0.0502
+      },
+      {
+        "x": 1.5,
+        "y_pct": 0.25,
+        "event_hits": 6,
+        "event_hit_days": [
+          "2022-09-22",
+          "2022-10-21",
+          "2024-04-29",
+          "2024-05-01",
+          "2024-07-11",
+          "2024-07-12"
+        ],
+        "fp_count": 68,
+        "fp_rate": 0.0877,
+        "fp_days": [
+          "2022-01-10",
+          "2022-01-12",
+          "2022-02-11",
+          "2022-03-29",
+          "2022-03-30",
+          "2022-04-20",
+          "2022-05-04",
+          "2022-05-12",
+          "2022-06-16",
+          "2022-07-21",
+          "2022-07-22",
+          "2022-07-28",
+          "2022-07-29",
+          "2022-08-01",
+          "2022-08-10",
+          "2022-09-09",
+          "2022-09-14",
+          "2022-10-25",
+          "2022-10-26",
+          "2022-11-01",
+          "2022-11-10",
+          "2022-11-11",
+          "2022-11-15",
+          "2022-12-13",
+          "2022-12-20",
+          "2022-12-30",
+          "2023-01-06",
+          "2023-01-12",
+          "2023-03-10",
+          "2023-03-13",
+          "2023-03-15",
+          "2023-03-17",
+          "2023-03-20",
+          "2023-05-03",
+          "2023-05-19",
+          "2023-07-07",
+          "2023-07-10",
+          "2023-07-12",
+          "2023-07-27",
+          "2023-08-29",
+          "2023-10-03",
+          "2023-11-14",
+          "2023-11-16",
+          "2023-11-17",
+          "2023-11-20",
+          "2023-11-28",
+          "2023-12-07",
+          "2023-12-13",
+          "2024-02-29",
+          "2024-03-06",
+          "2024-03-07",
+          "2024-03-08",
+          "2024-05-02",
+          "2024-05-15",
+          "2024-05-30",
+          "2024-06-03",
+          "2024-06-04",
+          "2024-07-17",
+          "2024-07-24",
+          "2024-07-30",
+          "2024-07-31",
+          "2024-08-01",
+          "2024-08-02",
+          "2024-09-27",
+          "2024-10-31",
+          "2024-11-07",
+          "2024-11-15",
+          "2024-11-27"
+        ],
+        "fp_count_excl10": 62,
+        "fp_rate_excl10": 0.0865
+      }
+    ],
+    "perturbation_pm20pct_calibration_only": [
+      {
+        "x": 1.6,
+        "y_pct": 0.2,
+        "event_hits": 6,
+        "fp_count": 62
+      },
+      {
+        "x": 1.6,
+        "y_pct": 0.25,
+        "event_hits": 6,
+        "fp_count": 62
+      },
+      {
+        "x": 1.6,
+        "y_pct": 0.3,
+        "event_hits": 5,
+        "fp_count": 61
+      },
+      {
+        "x": 2.0,
+        "y_pct": 0.2,
+        "event_hits": 6,
+        "fp_count": 39
+      },
+      {
+        "x": 2.0,
+        "y_pct": 0.3,
+        "event_hits": 5,
+        "fp_count": 39
+      },
+      {
+        "x": 2.4,
+        "y_pct": 0.2,
+        "event_hits": 5,
+        "fp_count": 21
+      },
+      {
+        "x": 2.4,
+        "y_pct": 0.25,
+        "event_hits": 5,
+        "fp_count": 21
+      },
+      {
+        "x": 2.4,
+        "y_pct": 0.3,
+        "event_hits": 5,
+        "fp_count": 21
+      }
+    ]
+  },
+  "frozen_rule": {
+    "form": "candidate(d)=1 <=> close/open-1 <= -Y% AND range(d) >= X*trailing20d_median_range",
+    "X": 2.0,
+    "Y_pct": 0.25
+  },
+  "candidate_2026": {
+    "window": [
+      "2026-04-28",
+      "2026-05-27"
+    ],
+    "M_business_days": 21,
+    "business_days": [
+      "2026-04-28",
+      "2026-04-29",
+      "2026-04-30",
+      "2026-05-01",
+      "2026-05-04",
+      "2026-05-05",
+      "2026-05-06",
+      "2026-05-08",
+      "2026-05-11",
+      "2026-05-12",
+      "2026-05-13",
+      "2026-05-14",
+      "2026-05-15",
+      "2026-05-18",
+      "2026-05-19",
+      "2026-05-20",
+      "2026-05-21",
+      "2026-05-22",
+      "2026-05-25",
+      "2026-05-26",
+      "2026-05-27"
+    ],
+    "candidate_list_S": [
+      "2026-04-30",
+      "2026-05-06"
+    ],
+    "S_size": 2,
+    "S_max_constraint": 5,
+    "S_within_constraint": true,
+    "candidate_detail": [
+      {
+        "date": "2026-04-30",
+        "co_ret_pct": -1.993,
+        "range_ratio": 7.7
+      },
+      {
+        "date": "2026-05-06",
+        "co_ret_pct": -0.726,
+        "range_ratio": 3.63
+      }
+    ],
+    "hypergeom_thresholds_alpha_0_10": [
+      {
+        "k": 1,
+        "p_overlap_ge_1": 0.0952,
+        "threshold": {
+          "min_overlap": 1,
+          "p_at_threshold": 0.0952
+        }
+      },
+      {
+        "k": 2,
+        "p_overlap_ge_1": 0.1857,
+        "threshold": {
+          "min_overlap": 2,
+          "p_at_threshold": 0.0048
+        }
+      },
+      {
+        "k": 3,
+        "p_overlap_ge_1": 0.2714,
+        "threshold": {
+          "min_overlap": 2,
+          "p_at_threshold": 0.0143
+        }
+      },
+      {
+        "k": 4,
+        "p_overlap_ge_1": 0.3524,
+        "threshold": {
+          "min_overlap": 2,
+          "p_at_threshold": 0.0286
+        }
+      },
+      {
+        "k": 5,
+        "p_overlap_ge_1": 0.4286,
+        "threshold": {
+          "min_overlap": 2,
+          "p_at_threshold": 0.0476
+        }
+      }
+    ]
+  }
+}
