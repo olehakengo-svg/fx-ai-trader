@@ -280,6 +280,14 @@ def join_sentiment_to_ohlc(pair: str, sentiment: pd.DataFrame, h4: pd.DataFrame)
     sent = sent.sort_values("time_utc")
     ohlc = h4.reset_index().rename(columns={h4.index.name or "index": "bar_close_utc"})
     ohlc["bar_close_utc"] = pd.to_datetime(ohlc["bar_close_utc"], utc=True)
+    # The MASSIVE cache stores some pairs' 1h parquet at datetime64[ms] and others
+    # at datetime64[ns]; the OANDA-Labs sentiment history is ns. pandas>=2.0
+    # merge_asof rejects keys whose datetime units differ ("incompatible merge
+    # keys ... datetime64[ms, UTC] and datetime64[ns, UTC]"), which silently
+    # dropped every ms pair to 0 joined rows (12/14 in prod, 2026-07-25).
+    # Pin both keys to ns so the join is resolution-agnostic.
+    ohlc["bar_close_utc"] = ohlc["bar_close_utc"].dt.as_unit("ns")
+    sent["time_utc"] = pd.to_datetime(sent["time_utc"], utc=True).dt.as_unit("ns")
     # OANDA sentiment timestamps do not always land exactly on MASSIVE H4 closes.
     # merge_asof(direction="backward") forward-fills the latest known sentiment
     # observation to the next available H4 close without peeking into future data.
