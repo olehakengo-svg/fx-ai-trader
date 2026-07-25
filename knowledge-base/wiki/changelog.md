@@ -1,5 +1,14 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-07-25 — fix(research): E1 供給ライン phase1b BT の join dtype バグ修正 — 14 ペア中 12 ペアが silent に 0 join だった構造欠陥 (rule:R3)
+
+- **症状**: `phase1b_oanda_contrarian_bt.py` の日次再走が **verdict=NULL** を出し続けていたが、真因は「エッジ不在」ではなく **pandas merge_asof の datetime-unit 不一致**。MASSIVE cache refresh が 12/14 ペアの `{pair}_1h.parquet` を `datetime64[ms, UTC]` で書き直した一方、OANDA-Labs sentiment 履歴は `datetime64[ns, UTC]` のまま → pandas≥2.0 が `incompatible merge keys [0] datetime64[ms, UTC] and datetime64[ns, UTC]` で join 拒否。EUR_CHF/GBP_CHF (偶然 ns のまま) の **2 ペアだけ**が join されていた
+- **根拠 (実測)**: 本番 parquet で EUR_USD/USD_JPY/GBP_USD/AUD_USD/EUR_JPY/AUD_JPY = ms → 修正前 **join 0 行** / 修正後 **394〜428 行**。EUR_CHF/GBP_CHF (ns) は 397 行で不変。sentiment 側 = ns 14,140 行
+- **修正**: `join_sentiment_to_ohlc` で merge_asof 直前に両キーを `.dt.as_unit("ns")` で ns へ正規化 (resolution-agnostic)。**閾値・grid・holding・survivor gate・verdict ロジックは一切不変** — 純粋に join を成立させるだけの R3 構造 fix (pre-reg LOCK の仮説空間に非接触)
+- **影響**: E1 retail-contrarian 供給ライン (M1 の唯一の load-bearing 供給ライン、first-look verdict 2026-10-15) の日次 BT が **2 ペア → 14 ペア全数**で評価されるようになる。verdict は依然 NULL の可能性があるが、以後は「壊れた 2 ペア artifact」でなく全ペア universe 上の真の判定
+- **教訓**: 外部 cache refresh がデータの dtype/resolution を変えると、silent に下流 join を破壊しうる。「verdict=NULL が続く」= エッジ不在と即断せず、join 行数の per-pair 監査を挟む (silent 失敗が「不発」と「ゼロ件」を区別不能にする系統: [[lesson-silent-except-hides-nameerror]])
+- tests +1 file (`tests/test_phase1b_join_dtype.py`、6 本 — ms/ns/us/s 全 unit で非空 join を pin、全オフライン合成 fixture)。**評価への影響: なし (live/shadow/Kelly/tier 不変更)**
+
 ## 2026-07-24 — data(research): E7 phase-1 FF カレンダー歴史+gap import 完了 — §3.3b データ付録凍結 (期日 08-14 の 21 日前倒し、rule:R3)
 
 - **残タスク「FF gap import」を歴史パネルごと一括完結** ([[e15-e7-event-modality-prereg-2026-07-18]] §3.3b 新設): EPSOFT は 2023-03 停止 (延長なし) → **R4F 公開 CSV (keyless、2007〜現在、日次更新) を 2014-01〜2026-07-20 の単一ソースに採用**。値整合 = EPSOFT cross-check **歴史 sample 279/279 完全一致** + 2023 Q1 overlap 114/120 (差分は全て EPSOFT 側 end-of-panel 劣化)
