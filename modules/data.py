@@ -917,6 +917,11 @@ def fetch_ohlcv(symbol="USDJPY=X", period="5d", interval="1m") -> pd.DataFrame:
     _MASSIVE_SYMBOLS = {
         "USDJPY=X", "JPY=X", "EURUSD=X", "EURJPY=X",
         "GBPUSD=X", "GBPJPY=X", "EURGBP=X",
+        # 2026-07-28 rule:R3: AUD_USD 追加 — weekend_gap_fade 対象 3 ペア中
+        # AUD_USD だけ live が OANDA fallback で BT (Massive parquet) と
+        # ソース不一致だった。凍結統計は Massive ベース = estimand 整合
+        # (BT/live データソース統一原則)。
+        "AUDUSD=X",
     }
     _MASSIVE_INTERVALS = {"1m", "5m", "15m", "30m", "1h", "4h", "1d"}
     if (df is None and

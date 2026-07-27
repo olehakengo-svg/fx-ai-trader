@@ -61,6 +61,18 @@
 - 週次戦略監査 (`raw/audits/`) に weekend_gap 行を追加、月曜 daily report で前週末イベントに言及 (T5 教訓: 執行されない pre-reg を作らない)。
 - 観測点: system_kv `weekend_gap_fade:*` (latch) / `WEEKEND_GAP_LIVE_STOPPED` (stop flag) / oanda_audit `block_reason=weekend_gap_spread_cap*` (cap skip 分母)。
 
+## イベントログ
+
+### 2026-07-26 (日) — 初回 qualifying イベント
+
+| pair | gap | 判定 | 結果 | 備考 |
+|---|---|---|---|---|
+| USD_JPY | qualify | 発火 → row 挿入 + latch 済み | **shadow −22.8p = バグ起因の未送信** | `_is_xau_inst` UnboundLocalError (2026-04-10 から chronic) で OANDA 送信前にクラッシュ。live 執行分母 (G1/G2/G3 の N) には**入れない** — pre-reg 上の正当な未執行ではなくインフラ障害。詳細: [[lesson-preserve-sltp-unboundlocal-2026-07-28]] |
+| EUR_USD | **+19.9p < 20.0p** | no-qualify | 不発 (正常) | 閾値 0.1p 差の near-miss。当時 no-qualify は無音 — 2026-07-28 rule:R3 で週末ごと 1 行の gap 診断ログを追加 (分母保存、行挿入なし)。**閾値は凍結値 — near-miss を理由とした再調整は §8 で禁止** |
+| AUD_USD | no-qualify | — | 不発 (正常) | — |
+
+**フォローアップ (2026-07-28 rule:R3)**: ① `_is_xau_inst` スコープ修正 + regression pin `tests/test_preserve_types_tick_entry.py` (preserve 全型を送信判定直前まで通す統合テスト)、② wg tick error handler に traceback 追加、③ **データソース**: AUD_USD を `_MASSIVE_SYMBOLS` に追加 — 凍結統計は Massive parquet ベースであり **Massive が estimand 正** (従来 AUD_USD だけ live が OANDA fallback でソース不一致だった)。
+
 ## テスト
 
 `tests/test_weekend_gap_fade.py` (29 tests): 検出 (qualify/非qualify/方向/ガード/窓/凍結閾値) / cap 境界とスコープ / latch dedup + fail-closed / G1/G2 発火・境界・**非再武装** / 1000u・horizon・disaster SL・no-TP・登録 4 点 pin。

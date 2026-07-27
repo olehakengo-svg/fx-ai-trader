@@ -131,7 +131,8 @@ def _last_friday_cut(now_utc: datetime) -> datetime:
 
 
 def detect_weekend_gap_signal(df: pd.DataFrame, instrument: str,
-                              now_utc: datetime) -> Optional[dict]:
+                              now_utc: datetime,
+                              diag: Optional[dict] = None) -> Optional[dict]:
     """Detect the weekend-gap fade signal (explore-tool definitions, exactly).
 
     Pure function (no I/O) shared by the live scoped runner, the
@@ -140,6 +141,12 @@ def detect_weekend_gap_signal(df: pd.DataFrame, instrument: str,
     Returns None when no qualifying event is active, else a dict:
       {direction, gap_pips, fri_close, sunday_open, first_bar_ts,
        weekend_key, qualify_pips}
+
+    `diag` (2026-07-28 rule:R3 observability, NO estimand change): optional
+    out-dict. When the gap was measurable but below the frozen qualify
+    threshold (no-qualify), it is populated with
+    {gap_pips, qualify_pips, weekend_key} so callers can log near-misses
+    (07-26 EUR_USD +19.9p near-miss was silent). Thresholds/logic untouched.
     """
     if instrument not in WEEKEND_GAP_FADE_PAIRS:
         return None
@@ -187,6 +194,12 @@ def detect_weekend_gap_signal(df: pd.DataFrame, instrument: str,
 
     qualify = WEEKEND_GAP_QUALIFY_PIPS[instrument]
     if abs(gap_pips) < qualify:
+        if diag is not None:
+            diag.update({
+                "gap_pips": round(gap_pips, 1),
+                "qualify_pips": qualify,
+                "weekend_key": sun_cut.date().isoformat(),
+            })
         return None
 
     # fade toward Friday close
