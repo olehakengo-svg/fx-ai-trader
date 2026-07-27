@@ -3090,6 +3090,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 - GBP_JPY（TRENDING_UP、ATR55%）のみがトレンド環境にあり、DTモードにとって唯一の潜在的エントリー候補通貨であることを本日注視する
 - **USD_JPY**：ATR%ile 66%でRANGINGという不安定状態。ニュース等のトリガーでTRENDING転換の可能性。転換時はDTがエントリー開始するが、初動の偽シグナルリスクに注意
 
+### 2026-07-27 (Post-London Report)
+| PnL | **0.0 pips / 0円** |
+| 勝率（WR） | **N/A** |
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+**⚠️ NO ACTION推奨**
+**NYセッションで注視すべき点（アクション不要だが観察推奨）：**
+- GBP/JPYのhedge_block解除タイミング（TRENDING_UP継続なら最初の執行候補）
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
