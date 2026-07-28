@@ -1,0 +1,215 @@
+{
+  "seed": 20260728,
+  "n_perm": 10000,
+  "primaries": {
+    "H1_monthend_ic_1d": 0.6076392360763924,
+    "H2_vix_short_3d": 0.051094890510948905
+  },
+  "bh_fdr_q0.10": {
+    "H2_vix_short_3d": false,
+    "H1_monthend_ic_1d": false
+  },
+  "h1_equity_monthend_conditional": {
+    "n_events": 96,
+    "pairs": {
+      "EURUSD": {
+        "ic": {
+          "fwd1": 0.1568,
+          "fwd3": -0.0714,
+          "fwd5": -0.2038
+        },
+        "mfe_p50": 79.65,
+        "rt": 2.0,
+        "headroom_x": 39.8,
+        "headroom_pass_10x": true
+      },
+      "GBPUSD": {
+        "ic": {
+          "fwd1": 0.1176,
+          "fwd3": -0.0325,
+          "fwd5": -0.2173
+        },
+        "mfe_p50": 92.92,
+        "rt": 4.53,
+        "headroom_x": 20.5,
+        "headroom_pass_10x": true
+      },
+      "USDJPY": {
+        "ic": {
+          "fwd1": -0.3166,
+          "fwd3": -0.3515,
+          "fwd5": -0.3495
+        },
+        "mfe_p50": 52.23,
+        "rt": 2.14,
+        "headroom_x": 24.4,
+        "headroom_pass_10x": true
+      },
+      "AUDUSD": {
+        "ic": {
+          "fwd1": -0.1718,
+          "fwd3": -0.1711,
+          "fwd5": -0.2279
+        },
+        "mfe_p50": 52.92,
+        "rt": 2.5,
+        "headroom_x": 21.2,
+        "headroom_pass_10x": true
+      },
+      "NZDUSD": {
+        "ic": {
+          "fwd1": -0.0356,
+          "fwd3": -0.2264,
+          "fwd5": -0.2958
+        },
+        "mfe_p50": 47.03,
+        "rt": 3.0,
+        "headroom_x": 15.7,
+        "headroom_pass_10x": true
+      },
+      "USDCAD": {
+        "ic": {
+          "fwd1": -0.1044,
+          "fwd3": -0.184,
+          "fwd5": -0.1788
+        },
+        "mfe_p50": 80.25,
+        "rt": 2.8,
+        "headroom_x": 28.7,
+        "headroom_pass_10x": true
+      }
+    },
+    "horizons": {
+      "fwd1": {
+        "spearman_ic": -0.0524,
+        "p_two_sided": 0.6076392360763924,
+        "uncond_mean_pips": -1.14,
+        "tercile_means": [
+          3.29,
+          -0.73,
+          -5.97
+        ],
+        "cond_half_spread": -4.63,
+        "cond_ge_2x_uncond": true,
+        "monotone": true
+      },
+      "fwd3": {
+        "spearman_ic": -0.2577,
+        "p_two_sided": 0.011898810118988102,
+        "uncond_mean_pips": -1.09,
+        "tercile_means": [
+          24.55,
+          -14.02,
+          -13.8
+        ],
+        "cond_half_spread": -19.18,
+        "cond_ge_2x_uncond": true,
+        "monotone": false
+      },
+      "fwd5": {
+        "spearman_ic": -0.2852,
+        "p_two_sided": 0.0051994800519948,
+        "uncond_mean_pips": 3.6,
+        "tercile_means": [
+          52.34,
+          -20.8,
+          -20.74
+        ],
+        "cond_half_spread": -36.54,
+        "cond_ge_2x_uncond": true,
+        "monotone": false
+      }
+    }
+  },
+  "h2_vix_carry_unwind_continuation": {
+    "n_events": 23,
+    "pairs": {
+      "AUDJPY": {
+        "mean_short_3d": 49.07,
+        "median_short_3d": 20.4,
+        "mfe_p50": 164.8,
+        "rt": 3.0,
+        "headroom_x": 54.9,
+        "headroom_x_floor": 126.8,
+        "headroom_pass_10x": true
+      },
+      "NZDJPY": {
+        "mean_short_3d": 47.15,
+        "median_short_3d": 5.85,
+        "mfe_p50": 124.3,
+        "rt": 3.5,
+        "headroom_x": 35.5,
+        "headroom_x_floor": 95.6,
+        "headroom_pass_10x": true
+      },
+      "GBPJPY": {
+        "mean_short_3d": 72.25,
+        "median_short_3d": 70.25,
+        "mfe_p50": 183.1,
+        "rt": 4.5,
+        "headroom_x": 40.7,
+        "headroom_x_floor": 140.8,
+        "headroom_pass_10x": true
+      },
+      "EURJPY": {
+        "mean_short_3d": 37.16,
+        "median_short_3d": 30.9,
+        "mfe_p50": 112.7,
+        "rt": 2.5,
+        "headroom_x": 45.1,
+        "headroom_x_floor": 86.7,
+        "headroom_pass_10x": true
+      },
+      "CADJPY": {
+        "mean_short_3d": 40.41,
+        "median_short_3d": 39.6,
+        "mfe_p50": 111.5,
+        "rt": 3.5,
+        "headroom_x": 31.9,
+        "headroom_x_floor": 85.8,
+        "headroom_pass_10x": true
+      },
+      "USDJPY": {
+        "mean_short_3d": 30.95,
+        "median_short_3d": -0.0,
+        "mfe_p50": 87.8,
+        "rt": 2.14,
+        "headroom_x": 41.0,
+        "headroom_x_floor": 67.5,
+        "headroom_pass_10x": true
+      }
+    },
+    "horizons": {
+      "fwd1": {
+        "mean_pips": 25.74,
+        "median_pips": 20.83,
+        "win_rate": 0.565,
+        "p_one_sided": 0.11398860113988601,
+        "top_event": "2015-08-21",
+        "top_share_of_sum": 0.631,
+        "loo_mean": 9.93,
+        "loo_p": 0.22077792220777923
+      },
+      "fwd3": {
+        "mean_pips": 46.16,
+        "median_pips": 18.25,
+        "win_rate": 0.609,
+        "p_one_sided": 0.051094890510948905,
+        "top_event": "2015-08-21",
+        "top_share_of_sum": 0.347,
+        "loo_mean": 31.51,
+        "loo_p": 0.09979002099790021
+      },
+      "fwd5": {
+        "mean_pips": 27.01,
+        "median_pips": 47.92,
+        "win_rate": 0.609,
+        "p_one_sided": 0.14308569143085692,
+        "top_event": "2020-02-24",
+        "top_share_of_sum": 0.367,
+        "loo_mean": 17.88,
+        "loo_p": 0.22247775222477753
+      }
+    }
+  }
+}

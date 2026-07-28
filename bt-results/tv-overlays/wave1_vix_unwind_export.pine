@@ -1,0 +1,85 @@
+//@version=5
+// wave-1 H2: vix_carry_unwind_continuation — exit-free event export (frozen 2026-07-28)
+// Protocol: knowledge-base/wiki/analyses/wave1-tv-explore-protocol-freeze-2026-07-28.md
+// Event: TVC:VIX daily close crosses above 25 (prev<=25, now>25), de-cluster 10 FX bars.
+// Export: per-event raw fwd {1,3,5}d close-to-close + 5d upMax/dnMax (pips), explore 2014-2021 only.
+indicator("W1_VIXUW", overlay = false)
+
+var int[]   tArr = array.new<int>()
+var float[] cArr = array.new<float>()
+var float[] hArr = array.new<float>()
+var float[] lArr = array.new<float>()
+var float[] vArr = array.new<float>()
+var int satCount = 0
+
+float vix = request.security("TVC:VIX", "D", close)
+
+if dayofweek(time_close) == dayofweek.saturday
+    satCount += 1
+else
+    array.push(tArr, time_close)
+    array.push(cArr, close)
+    array.push(hArr, high)
+    array.push(lArr, low)
+    array.push(vArr, vix)
+
+plot(vix, "vix")
+
+f_fmt(float x) =>
+    str.tostring(x, "#.##")
+
+if barstate.islast
+    int n = array.size(cArr)
+    float pip = syminfo.mintick * 10
+    int t0 = timestamp("GMT", 2014, 1, 1, 0, 0)
+    int t1 = timestamp("GMT", 2022, 1, 1, 0, 0)
+    int[] evs = array.new<int>()
+    int lastEv = -999
+    for i = 1 to n - 1
+        float v0 = array.get(vArr, i - 1)
+        float v1 = array.get(vArr, i)
+        if not na(v0) and not na(v1) and v0 <= 25.0 and v1 > 25.0 and i - lastEv >= 10
+            array.push(evs, i)
+            lastEv := i
+    int[] rows_ = array.new<int>()
+    if array.size(evs) > 0
+        for k = 0 to array.size(evs) - 1
+            int i = array.get(evs, k)
+            int tt = array.get(tArr, i)
+            if tt >= t0 and tt < t1 and i + 5 < n
+                array.push(rows_, i)
+    int m = array.size(rows_)
+    var table tb = table.new(position.top_right, 8, m + 2, border_width = 1)
+    table.cell(tb, 0, 0, "META")
+    table.cell(tb, 1, 0, syminfo.ticker)
+    table.cell(tb, 2, 0, "first=" + str.format_time(array.get(tArr, 0), "yyyy-MM-dd", "GMT"))
+    table.cell(tb, 3, 0, "bars=" + str.tostring(n))
+    table.cell(tb, 4, 0, "sat=" + str.tostring(satCount))
+    table.cell(tb, 5, 0, "ev_all=" + str.tostring(array.size(evs)))
+    table.cell(tb, 6, 0, "ev_exp=" + str.tostring(m))
+    table.cell(tb, 7, 0, "pip=" + str.tostring(pip))
+    table.cell(tb, 0, 1, "date")
+    table.cell(tb, 1, 1, "vix")
+    table.cell(tb, 2, 1, "fwd1")
+    table.cell(tb, 3, 1, "fwd3")
+    table.cell(tb, 4, 1, "fwd5")
+    table.cell(tb, 5, 1, "upMax")
+    table.cell(tb, 6, 1, "dnMax")
+    table.cell(tb, 7, 1, "i")
+    if m > 0
+        for k = 0 to m - 1
+            int i = array.get(rows_, k)
+            float entry = array.get(cArr, i)
+            float hi = -1.0e18
+            float lo = 1.0e18
+            for j = i + 1 to i + 5
+                hi := math.max(hi, array.get(hArr, j))
+                lo := math.min(lo, array.get(lArr, j))
+            table.cell(tb, 0, k + 2, str.format_time(array.get(tArr, i), "yyyy-MM-dd", "GMT"))
+            table.cell(tb, 1, k + 2, f_fmt(array.get(vArr, i)))
+            table.cell(tb, 2, k + 2, f_fmt((array.get(cArr, i + 1) - entry) / pip))
+            table.cell(tb, 3, k + 2, f_fmt((array.get(cArr, i + 3) - entry) / pip))
+            table.cell(tb, 4, k + 2, f_fmt((array.get(cArr, i + 5) - entry) / pip))
+            table.cell(tb, 5, k + 2, f_fmt((hi - entry) / pip))
+            table.cell(tb, 6, k + 2, f_fmt((entry - lo) / pip))
+            table.cell(tb, 7, k + 2, str.tostring(i))
