@@ -3140,6 +3140,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 | WR | N/A | N/A |
 ### 推奨戦略配分
 
+### 2026-07-28 (Pre-Tokyo Briefing)
+**前日（2026-07-27）：トレード 0件 / PnL N/A / WR N/A**
+| 戦略 | N | WR | EV | ステータス |
+- **主因（Block Counts 上位）**
+- `daytrade_eur:hedge_block` … 6件 ← 最大因子
+- `rnb_usdjpy:direction_filter` … 4件
+- `hedge_block`はヘッジポジション検出による保護的ブロック。EUR系の保有ポジション（またはその認識）がエントリーを阻止している。現在オープン0件との乖離は、**ヘッジ判定ロジックが外部ポジションまたは残留状態を参照している可能性**を示唆。
+- `direction_filter`はrnb_usdjpyのトレンド方向フィルターが非該当と判断。USD/JPYはATR%ile=66%（最高位）だが、SMA20 slope=+0.00265のレンジ圏でシグナルが方向感を掴めていない状態。
+- `hedge_block`の発生源（何のポジションを参照しているか）を本番ログで確認する優先度が高い
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
