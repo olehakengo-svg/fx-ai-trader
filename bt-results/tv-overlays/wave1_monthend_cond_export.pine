@@ -1,0 +1,90 @@
+//@version=5
+// wave-1 H1: equity_monthend_conditional — exit-free event export (frozen 2026-07-28)
+// Protocol: knowledge-base/wiki/analyses/wave1-tv-explore-protocol-freeze-2026-07-28.md
+// Event: D-1 = second-to-last FX trading day of month. Condition: TVC:SPX MTD return
+//        (SPX close at D-1 / SPX close at last FX day of prior month - 1).
+// Export: per-event raw fwd {1,3,5}d close-to-close + 5d upMax/dnMax (pips), explore 2014-2021 only.
+indicator("W1_MECOND", overlay = false)
+
+var int[]   tArr = array.new<int>()
+var float[] cArr = array.new<float>()
+var float[] hArr = array.new<float>()
+var float[] lArr = array.new<float>()
+var float[] sArr = array.new<float>()
+var int satCount = 0
+
+float spx = request.security("TVC:SPX", "D", close)
+
+if dayofweek(time_close) == dayofweek.saturday
+    satCount += 1
+else
+    array.push(tArr, time_close)
+    array.push(cArr, close)
+    array.push(hArr, high)
+    array.push(lArr, low)
+    array.push(sArr, spx)
+
+plot(spx, "spx")
+
+f_fmt(float x) =>
+    str.tostring(x, "#.##")
+
+if barstate.islast
+    int n = array.size(cArr)
+    float pip = syminfo.mintick * 10
+    int t0 = timestamp("GMT", 2014, 1, 1, 0, 0)
+    int t1 = timestamp("GMT", 2022, 1, 1, 0, 0)
+    int[] bnd = array.new<int>()
+    for i = 1 to n - 1
+        if month(array.get(tArr, i)) != month(array.get(tArr, i - 1))
+            array.push(bnd, i)
+    int nb = array.size(bnd)
+    int[] eIdx = array.new<int>()
+    float[] eMtd = array.new<float>()
+    if nb > 1
+        for j = 1 to nb - 1
+            int D = array.get(bnd, j) - 1
+            int e = D - 1
+            int Dprev = array.get(bnd, j - 1) - 1
+            if e > 0 and e > Dprev and e + 5 < n
+                float s1 = array.get(sArr, e)
+                float s0 = array.get(sArr, Dprev)
+                int tt = array.get(tArr, e)
+                if not na(s1) and not na(s0) and s0 != 0 and tt >= t0 and tt < t1
+                    array.push(eIdx, e)
+                    array.push(eMtd, (s1 / s0 - 1) * 100)
+    int m = array.size(eIdx)
+    var table tb = table.new(position.top_right, 8, m + 2, border_width = 1)
+    table.cell(tb, 0, 0, "META")
+    table.cell(tb, 1, 0, syminfo.ticker)
+    table.cell(tb, 2, 0, "first=" + str.format_time(array.get(tArr, 0), "yyyy-MM-dd", "GMT"))
+    table.cell(tb, 3, 0, "bars=" + str.tostring(n))
+    table.cell(tb, 4, 0, "sat=" + str.tostring(satCount))
+    table.cell(tb, 5, 0, "bnd=" + str.tostring(nb))
+    table.cell(tb, 6, 0, "ev_exp=" + str.tostring(m))
+    table.cell(tb, 7, 0, "pip=" + str.tostring(pip))
+    table.cell(tb, 0, 1, "date")
+    table.cell(tb, 1, 1, "mtd%")
+    table.cell(tb, 2, 1, "fwd1")
+    table.cell(tb, 3, 1, "fwd3")
+    table.cell(tb, 4, 1, "fwd5")
+    table.cell(tb, 5, 1, "upMax")
+    table.cell(tb, 6, 1, "dnMax")
+    table.cell(tb, 7, 1, "i")
+    if m > 0
+        for k = 0 to m - 1
+            int i = array.get(eIdx, k)
+            float entry = array.get(cArr, i)
+            float hi = -1.0e18
+            float lo = 1.0e18
+            for j = i + 1 to i + 5
+                hi := math.max(hi, array.get(hArr, j))
+                lo := math.min(lo, array.get(lArr, j))
+            table.cell(tb, 0, k + 2, str.format_time(array.get(tArr, i), "yyyy-MM-dd", "GMT"))
+            table.cell(tb, 1, k + 2, str.tostring(array.get(eMtd, k), "#.###"))
+            table.cell(tb, 2, k + 2, f_fmt((array.get(cArr, i + 1) - entry) / pip))
+            table.cell(tb, 3, k + 2, f_fmt((array.get(cArr, i + 3) - entry) / pip))
+            table.cell(tb, 4, k + 2, f_fmt((array.get(cArr, i + 5) - entry) / pip))
+            table.cell(tb, 5, k + 2, f_fmt((hi - entry) / pip))
+            table.cell(tb, 6, k + 2, f_fmt((entry - lo) / pip))
+            table.cell(tb, 7, k + 2, str.tostring(i))
