@@ -71,7 +71,7 @@ london-4pm-fix-conditional-reversal (= london_fix_reversal の再着せ替え) /
 | 10 | E12 volume design | 蓄積待ち | — |
 | 11 | htf_fb recheck | 受動 registry | deadline 2027-01-31 |
 | 12 | sr_anti_hunt N≥30 | 受動 | — |
-| 13 | gotobi_tokyo_fix_usdjpy | **explore 着手 2026-07-28** — 較正プライマリ + 単一テール cell (m=1)。protocol frozen [[gotobi-calibration-explore-prereg-2026-07-28]]、敵対的検証 GO 通過 | — |
+| 13 | gotobi_tokyo_fix_usdjpy | **explore 完了 2026-07-28 (同日)** — [[gotobi-calibration-explore-prereg-2026-07-28]] | ✅❌ **較正成功 / 昇格 kill** — 規約 B (前営業日繰り) で公表効果を gross 回収 (+1.92p p=0.0032、N=557 vs 1352) = **測定ハーネス正当性を実証** + 規約矛盾解決。ただし効果は sub-friction (+1.9p < RT 2.14p)、P1 テール cell +1.38p p=0.43 → kill rule 機械的適用で family クローズ。OOS 未接触。**gotobi/仲値系の再昇格提案は執行コスト構造の変化なしに不可** (tokyo_nakane_momentum 同 family)。`reports/gotobi-calibration-explore-2026-07-28.md` |
 
 ## wave-2 候補 triage (2026-07-28、敵対的検証済み — `raw/analysis/new-angle-adversarial-verification-2026-07-28.md`)
 
