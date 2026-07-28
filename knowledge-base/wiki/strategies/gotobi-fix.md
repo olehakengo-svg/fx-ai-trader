@@ -46,3 +46,15 @@
 ## Related
 - [[session-effects]]
 - [[research/index]]
+
+## 2026-07-28 explore verdict — ✅較正成功 / ❌昇格クローズ (rule:R1)
+
+台帳 #13 の凍結 explore ([[gotobi-calibration-explore-prereg-2026-07-28]]) で確定:
+- **効果は実在**: fix 窓 (00:00→00:55 UTC) diff-in-means **+1.92p (p=0.0032)** — ただし**繰り越し規約は
+  「前営業日繰り (規約 B)」が正** (翌営業日繰り A では +0.33p n.s.)。本カードの「30 or 月末日」記述と
+  catalog の規約矛盾は B に統一
+- **sub-friction で収益化不能**: +1.9p < USD_JPY RT 2.14p (実測フロア 1.30p でも headroom 1.5x ≪ 10x)。
+  月末 D1 テール cell も +1.38p p=0.43 で kill rule 発動 → **family クローズ、OANDA 昇格経路なし**
+- 本 SENTINEL カードの N 蓄積は継続しても昇格先がない (fix 後反転も n.s.)。
+  **再昇格提案は執行コスト構造の変化 (fix 参加経路等) なしに不可**。tokyo_nakane_momentum は同 family
+- 詳細: `reports/gotobi-calibration-explore-2026-07-28.md`

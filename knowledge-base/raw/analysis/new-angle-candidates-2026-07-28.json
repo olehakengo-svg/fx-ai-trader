@@ -1,0 +1,72 @@
+{
+  "generated": "2026-07-28",
+  "source": "m1-winning-path-audit workflow (wf_f1c7ed60-c19) new-angles agent",
+  "note": "adversarial verification PENDING — 初回 verify は orchestrator 補間バグで payload 未達 (候補ゼロ検証)。本ファイルが再検証の正式 payload。",
+  "candidates": [
+    {
+      "name": "[TOP3-1] ppp_real_fx_gap_reversion (currency value, 4-12w reversion) — catalog #53, 未着手最高prior",
+      "mechanism": "実質為替レート乖離(CPIデフレート済みスポット vs 5y rolling mean)の平均回帰。貿易実需は価格強制的(輸出入企業はレベルに関わらず換金)で、乖離を作ったモメンタム資金がトラップされ解消を強制される。ESTAR型の極値デシルで最強。方向シグナルはレベル・アンカー+週〜月ホールド = postmortem §3 生存形状に完全一致。",
+      "prior_evidence": "FXで最も追試されたファクターの一つ (Menkhoff et al. 2017 'Currency Value' / Asness et al. 'Value and Momentum Everywhere')。McLean-Pontiff 型の公表後減衰 ~50% を織り込んでも existence prior は本カタログ87本中最高 (catalog prior='high' の標準独立系はこれのみ)。",
+      "headroom_estimate": "12w |move| p50 300-500p vs RT 2.0-4.5p = gross 70-150x。ただし 12w ホールドの worst-case 逆スワップ 40-60p 控除で net 5-10x = 条件付き通過 — スワップをEVに純額込み+キャリー整合サイドのみ、を pre-reg ハード条件化 (凍結探索プロトコルの multi-week 規定どおり)。",
+      "data_source": "FX: 12y 1d (main checkout の data/cache/massive、本 worktree は部分parquetのため不可 — 要 main / MASSIVE 再取得)。CPI: FRED/OECD 月次 (public-fetch、45d vintage lag 凍結必須)。tools/e20_rates_ingest.py の fetch 層流用可。TV: FRED: シンボルで CPI 系列は載るが vintage-lag 処理は Python 優位 → 非TV-native (唯一の非TV候補)。",
+      "adjacency_to_banned": "E20 carry/mom63 凍結が最近接 — ただし E20 ban 範囲は「carry-rank / mom63 同型」限定 (MEMORY project_e20_rate_differential_s2_rejected)。本件は金利入力ゼロ・CPI価格レベルのみ・回帰(非キャリー)符号構造で estimand が別。カタログ ban 判定 = ADJACENT-CAUTION: キャリー中立化チェック (z を政策金利差に残差化) を robustness ではなく pre-reg ハード合格条件に格上げ + regime 集中の機構説明義務 (E20 教訓) が入場条件。",
+      "explore_design_sketch": "月次 z = log(realFX) の 5y rolling z-score (45d CPI vintage lag)。7 USDペア。(a) pooled Spearman IC(-z, fwd {21,42,63}d) 非重複窓+stationary block bootstrap、(b) quintile 単調性、(c) |z|>2 極値イベントパネル MFE/MAE vs matched random dates。explore 2014-07〜2021-12 / OOS 2022-01〜2026-06、BH-FDR (3h×7p+pooled)。exit-free、スワップ純額。wave1 教訓「prior 強い家系は単独 wave」該当 → 単独ファミリで走らせ m を割らない。",
+      "score": 55
+    },
+    {
+      "name": "[TOP3-2] holiday_liquidity_state_family (米日祝日クローズ状態、4レグ統合ファミリ) — catalog #43/#44/#52/#83",
+      "mechanism": "市場クローズ状態の流動性真空: (i) 祝日前日のブックフラット化強制 (リスク枠強制)、(ii) 東京不在≥3日クラスタ中のオフショア支配ドリフト→復帰日の滞留実需執行での反転、(iii) 米休場日の薄場ムーブは情報含有が低く翌営業日に反転、(iv) JP祝日×実現|z|>2 Asia オーバーシュートの24h回帰 (復帰ディーラー在庫再価格)。プロジェクト自身の GBP-Asia フラッシュクラッシュ経験が「真空は実在する」ことを負け側で確認済み。",
+      "prior_evidence": "株式ではpre-holiday drift は長期文献あり、FX は薄い (prior low-medium が正直)。ただし KB 全体で祝日フラグを条件にした検定はゼロ (カタログ生成時 grep null で検証済み) = 87本中で唯一の「検証済み未踏」estimand 空間。structural_events.parquet は祝日カラム込みで構築済みなのに一度も使われていない。",
+      "headroom_estimate": "レグ依存: #83 条件付きオーバーシュート回帰 = 30-80p の行き過ぎに対し 20-40p 回帰目標 vs RT 2.14-2.5p = 10-20x 通過。#52 翌営業日反転レグは通常ボラ日測定で ~10-15x。#43 前日ドリフトは sub-friction リスクあり → 5p/day 最小効果ゲートを凍結 (DOW 型の轍を踏まない)。イベント数: 米祝日前夜 ~110 + JP祝日前夜 ~190 + クラスタ ~40 + |z|>2 条件付き ~40-70/pair (12y)。",
+      "data_source": "完全 in-repo: data/calendar/structural_events.parquet (実在確認済み、4,503行、jp/us_business_day・jp_holiday カラムあり、2026-04 までなので3ヶ月refresh要) + 1h/1d parquet (worktree は部分版 → main checkout 必須)。TV: 祝日日付を Pine の配列ハードコードで可 (半TV-native、wave1 の per-event table export パターン流用可)。",
+      "adjacency_to_banned": "banned「session・hourバケット」(session_time_bias 12y 全ペア REJECT、wiki/strategies/session-time-bias.md) が最近接 — 差分: 祝日 = 非再帰的な市場クローズ流動性状態イベントであり、毎日繰り返す時計バケットではない。E15 無条件窓 FAIL との差分: ニュースリリース窓ではなくクローズ状態 + #83 レグは実現ムーブ条件付き。gbp_asia_flash_crash live 負けフィルタは弱体化禁止 (原則3) を pre-reg に明記。4レグを1ファミリ台帳・family-wide BH-FDR で登録 (多重性の二重取りなし)。",
+      "explore_design_sketch": "イベント: (a) 祝日前日D1、(b) JPクラスタ≥3日+復帰2日、(c) 米休場日D1+翌営業日反転 sign=−sign(休場日リターン)、(d) jp_holiday ∧ |Asia 00-06 UTC return| z>2 (trailing 1y、閾値凍結) → fwd 24h 逆符号。全レグ exit-free +24/48h、event-block bootstrap、explore 2014-2020 / OOS 2021-2026、BH-FDR q=0.10 family横断 (~24 cells)。テストコスト ~0.5-1日。",
+      "score": 47
+    },
+    {
+      "name": "[TOP3-3] gotobi_tokyo_fix_usdjpy (五十日仲値、calibration-primary + 単一昇格テールcell) — catalog #0/#51/#78 + wiki/strategies/gotobi-fix.md (SENTINEL N=0)",
+      "mechanism": "日本企業輸入決済が五十日 (5/10/15/20/25/月末、JP営業日繰り)に集中 → fix 銀行が 9:55 JST 仲値の guaranteed-fill をプレヘッジ → gotobi 日の東京 open→fix に系統的 USD_JPY 上昇 + fix 後反転。カウンターパーティは契約決済で日付予測可能な真の強制フロー。",
+      "prior_evidence": "FX フィキシング・アノマリーで最良の学術アンカー (Ito & Yamada 2017 / Bessho et al. 2023 — 既に wiki/strategies/gotobi-fix.md に文献表あり)。ただし 2017 年公表後の減衰が前提リスク。in-house の gotobi_fix は UNIVERSAL_SENTINEL N=0 = コード済み未測定 (falsified ではない — tier-master row 89)。",
+      "headroom_estimate": "正直に: fix 窓 (00:00→00:55 UTC) の文献ドリフト 2-6p vs RT 2.14p = 1-3x で 10x ゲート不合格。D1 ホールド版 (東京open→NY close、日中レンジ p50 ~28p) のみ条件付きドリフト未知で 10x 到達可能性あり。→ 主目的を「ハーネス較正」(既知の実在公表効果を gross で回収できるか = postmortem の測定器故障史への直接の解毒剤) に置き、昇格適格は単一凍結テール cell (gotobi ∧ month_end_jp、Bonferroni m=1) のみ。kill rule: explore D1 ドリフト < 13p (実測フロア1.30p×10) で OOS 前に停止。",
+      "data_source": "完全 in-repo + 完全 TV-native: TV Pine の dayofmonth + JP祝日配列で gotobi flag 構築可 (OANDA USDJPY、~860 イベント/12y)。structural_events.parquet の tokyo_fix_utc / jp_business_day カラムで Python 側も可。単一ペア。wave1 の TV explore パターンで ~15分/一周。",
+      "adjacency_to_banned": "banned「session・hourバケット」との差分が核心: session_time_bias は全日プールの再帰的時計バケット。gotobi は同一時計窓での gotobi vs 非gotobi 営業日の diff-in-means = hour-bucket 効果は両側に共通で差分により相殺、残るのは日付条件付きフローのみ (直交コントラスト)。月末WMR REJECT とも別 fix (東京9:55 vs ロンドン16:00)・別カウンターパーティ (輸入決済 vs 指数リバランス) — 当該 memory が許す「新 pre-reg での re-angle」。in-shadow tokyo_nakane_momentum (同窓・同方向、推定 r>0.7) との統合/台帳区別を pre-reg に必須記載。",
+      "explore_design_sketch": "estimand: gotobi vs 非gotobi 営業日の (a) 00:00→00:55 UTC (較正用、文献値回収チェック) と (b) 00:00→21:00 UTC D1 リターン diff-in-means、exit-free、month-block bootstrap + JPY vol/金利差 tercile を事前宣言 secondary。explore 2014-2020 / OOS 2021-2026。較正が gross で公表効果を回収できなければ測定ハーネス自体を疑う (それ自体が価値)。",
+      "score": 41
+    },
+    {
+      "name": "pre_fomc_fx_transcription (D-3→D0 リスクプレミアム圧縮のJPYクロス転写) — catalog #20",
+      "mechanism": "Lucca-Moench 型 pre-FOMC drift (株式で pre-2011 に ~49bp): ディーラー/レバレッジ勢が決議前にヘッジを外しイベントプレミアムが bleed → FX では risk-on = JPYクロス高として D-3→D0 に転写するはず、という二次仮説。",
+      "prior_evidence": "prior low が正直: 株式効果自体が公表 (JF 2015) 後に大幅減衰、FX 転写の直接証拠は薄い。E8 (発表前 entry) の round-2 棄却は構造的裁定 (スプレッド拡大窓と重なる) であって D-3→D0 日足ドリフト estimand の実証的 falsification ではない — catalog #20 の drop-condition 検査済み。",
+      "headroom_estimate": "カタログ公称 10-20x (AUD_JPY 3d ドリフト 25-45p vs RT 2.5p) だが FX β が株の一部なら正直 4-12x — 本セット中最弱。測定 exit を D0 13:59 ET より前に置くか、発表前スプレッド拡大窓の摩擦を明示会計 (C4 衝突への正面回答が pre-reg 必須)。",
+      "data_source": "FOMC ~99 会合日付は公開・決定論的 (ローカル ff_calendar_events は0行だが Render 本番 FF canonical 297/298 完備 + 日付ハードコード可)。D1 parquet in-repo (main checkout)。TV-native: Pine 日付配列で可。テストコストほぼゼロ、単一仮説 (grid なし)、explore t<1.5 で即 kill。",
+      "adjacency_to_banned": "E15/E7 ファミリ LOCK が「発表前 entry 構造ゼロ (E8 棄却整合)」を設計として encode — 本件はその設計 stance への意図的挑戦であり pre-reg で正面から扱う義務。E7 phase-1 (verdict 08-28) との double-bet: 測定窓が構造的に非交差 (pre-release only vs post-release surprise-signed) なので機構は独立だが、同一イベント供給源 → 推奨: E7 verdict (08-28、~1ヶ月後) を待って LOCK し、台帳のイベント系ファミリ計数を汚さない。",
+      "explore_design_sketch": "無条件 long AUD_JPY (リスクプロキシ)、D-3 open → D0 発表前、matched non-FOMC 3d 窓比較、meeting-block bootstrap。explore 2014-2023 (~80会合) / OOS 2024+ (~20)。単一仮説で多重性最小。post-2015 減衰カーブ (rolling 2y) を必須診断に。",
+      "score": 35
+    },
+    {
+      "name": "move_bondvol_shock_jpy_unwind (MOVE Δショック × JPY、1-3週) — catalog #64、本日 VIX kill の最近接・要厳格差分",
+      "mechanism": "JPY はグローバル・デュレーションレバレッジの funding 通貨 → 債券ボラ (MOVE) ショックで VaR 制約の債券レバ勢がポジション削減+JPY funding 返済 → 1-3週かけた JPY 買い執行。equity-vol (VIX) の carry 勢とは別の levered 母集団。",
+      "prior_evidence": "prior low が正直: 古典的関係は post-2022 に反転 (BoJ divergence 下で債券ボラストレス中も JPY 安 — 2022-23 が反証、2024-08 が支持)。既知の構造ブレークを跨ぐ pooled 12y 推論は危険とカタログ自身が明記。WS3 round-3 の ZN→USD_JPY corpse (explore 陽性が 2024-25 carry-unwind regime 起因で OOS 8/8 反転) が同系譜の前科。",
+      "headroom_estimate": "カタログ中最良級: ショック後 1-3w の JPY クロス 150-400p vs RT 2.14-2.5p = gross 60-150x、short-USD_JPY 逆スワップ 15-40p/hold 控除後も >10x。ただし本日の VIX kill は headroom 32-55x でも power 不足で死んだ — N~50-80 イベントで同じ死型のリスク大。",
+      "data_source": "^MOVE yfinance (public-fetch、12y+)。TV-native: TVC:MOVE が TV に存在 → wave1 TV パターン適用可。FX レグは in-repo 1d。",
+      "adjacency_to_banned": "本日 ban「VIXレベル閾値×JPYクロスshort×固定1-5d」への最近接候補。差分3軸: ゲージ (債券vol≠株vol)、シグナル形 (5bd Δ の trailing-3y 90pct、レベル閾値ではない)、ホライズン (5/10/15bd、1-5dではない) — wave1 verdict の「新データ+隣接差分節」要件は形式上満たす。ただし入場条件を追加: (i) explore 窓での killed-VIX 23イベントとの重複率テーブル開示、重複>50%なら OOS 前に kill、(ii) pre/post-2022 符号一致 MANDATORY ガード (不一致= REGIME-UNSTABLE verdict、都合の良い regime の事後選択禁止)、(iii) WS3 round-3 corpse 引用。stress-spillover 姉妹 (#57/#58) と joint-FDR 家族登録。",
+      "explore_design_sketch": "event: 5bd ΔMOVE > trailing-3y 90th pct、cluster-collapse。fwd {5,10,15}bd USD_JPY/EUR_JPY vs matched non-shock days、event-level permutation。explore 2014-2021 / OOS 2022-2026 LOCK first。順位は最下位 — E7 軸か 2022+ 込み独立 family を待つ方が期待値が高い可能性を明記。",
+      "score": 31
+    },
+    {
+      "name": "vol_state_gates (compression dose-response #68 + RV5/RV21 term-structure #69) — カタログ唯一の ban CLEAR 高prior、ただしホスト依存",
+      "mechanism": "KB で唯一確認済みの頑健 IC (atr_regime→|return| 0.10-0.17 全ペア、H4 falsification が明示的に保存) の収益化: 方向中立の vol 状態を、独立に pre-reg された entry 系のゲート/ブラケットスケーリングとしてのみ使う。RV5>RV21 = fresh shock (継続系有利) / < = decay (回帰系有利)。",
+      "prior_evidence": "prior high (in-house 確認済み IC の再パラメタ化 + HAR-RV 系譜で最も追試された条件付き結果)。ban 判定 CLEAR (falsified set に RV term structure は不在、grep 検証済み — catalog #69)。",
+      "headroom_estimate": "単独では n/a (方向中立)。成功定義 = ホストシグナルの gated MFE/friction ≥ 1.5x ungated、または regime 間 EV 符号反転。",
+      "data_source": "完全 in-repo (1d parquet 7ペア 12.6y)。TV-native 可 (Pine で RV 計算容易)。",
+      "adjacency_to_banned": "CLEAR。ただし構造的ブロッカー: 正 EV ホスト不在 (mafe exit が同じ理由で parked)。weekend_gap arm B の PASS で初の潜在ホストが出現したが、その変更は R1 + LOCK 済み pre-reg の外 — 現時点では htf_fb shadow N≥100 recheck への split 事前登録 (覗き見なし、catalog 記載の設計) のみが合法な適用先。4原則#4 (防御フィルタ積み上げ非優先) との緊張も pre-reg で明示。",
+      "explore_design_sketch": "estimand: ホスト別の RV5/RV21>1 vs <1 での OOS 平均 fwd return 差 (fixed horizon, exit-free)。htf_fb recheck 時に評価する split を今登録 (look 追加なし)。単独の新角度ではなく「将来の PASS ファミリに掛ける乗数」として台帳に置く位置づけ。",
+      "score": 30
+    }
+  ],
+  "rejected_as_banned": [
+    "(c) msci_ftse_index_rebalance_fx — MSCI variant を BANNED 隣接で棄却: MSCI QIR/SAIR の effective date は当該月の最終営業日クローズ = 月末そのもの。本日の wave1 verdict (reports/wave1-tv-explore-monthend-vix-2026-07-28.md)「月末リバランス・フローの FX 転写は探索空間として閉鎖」の内側であり、指数プロバイダのラベルを付け替えた同一 estimand の re-dress = カタログが london-4pm-fix-conditional を BANNED にしたのと同型パターン。FTSE GEIS variant (3月/6月/9月/12月の第3金曜 effective) はカレンダー軸では月末と別だが、(i) 機構が閉鎖済みファミリ (パッシブ・リバランスフローのFX転写) と同一、(ii) 文献で確認される価格効果は個別株/EM組入れ (Kuwait/Saudi/Korea 再分類) であり G10 通貨フローの転写証拠は不在、(iii) 第3金曜は quad-witching/IMM roll と交絡 — G10 での期待痕跡は sub-friction。formally banned ではないが prior×headroom で入場不可、候補登録せず (無理に候補を作らない原則)。",
+    "equity_stress_gauge_jpy_redresses (catalog #26 vix-regime-transition / #28 spx-drawdown-jpy-repatriation / #35 vix-term-structure-inversion / #37 global-riskoff-composite) — 本日の ban「VIXレベル閾値×JPYクロスshort×固定1-5d」により、株式ストレスゲージ×JPY×固定数日ホライズンの形は全て同型再試行圏。#35 (VIX>VIX3M) はシグナル形が違っても同ゲージ・同ペア・ほぼ同一イベント集合 (killed 23 イベントと重複) で差分節が成立しない。#37 composite は VIX を成分に含む時点で不可。再挑戦は wave1 verdict の条件どおり新データ (E7 サプライズ軸) か 2022+ 込みの将来独立ファミリのみ。",
+    "(参考・準棄却) gpif_pension_quarterend / quarter-end-rebalance-d5 (catalog #7/#41) — 形式上は BANNED ではないが本日の kill で大幅格下げ: 四半期末は月末の部分集合であり、本日 FAIL した pooled 96ヶ月末×MTD 条件付き IC (−0.052, p=0.608) の標本に quarter-end 32 個が含まれる。QTD 相対差分シグナル・最終5営業日窓という差分軸は残るが、wave1 の診断ノート (3d/5d 逆符号・非単調 = incoherent) と合わせ、入場には「pooled 月次 IC null が本 estimand を制約しない理由」の定量的正面回答を pre-reg 必須条件とすべき — 現時点では候補リスト非掲載が妥当。"
+  ]
+}
