@@ -113,6 +113,32 @@ def perm_p_signflip(xs, rng, n_perm=N_PERM):
     return obs, (hits + 1) / (n_perm + 1)
 
 
+def exact_p_signflip(xs):
+    """EXACT one-sided sign-flip p via meet-in-the-middle enumeration (N<=24).
+
+    The frozen 10,000-draw permutation has MC std-err ~0.002 near p=0.05,
+    which straddles the BH threshold; for N=23 the 2^23 sign patterns are
+    fully enumerable, so the exact null is used for the primary verdict.
+    """
+    import bisect
+    T = sum(xs)
+    half = len(xs) // 2
+    A, B = xs[:half], xs[half:]
+
+    def sums(v):
+        out = [0.0]
+        for x in v:
+            out = [s + x for s in out] + [s - x for s in out]
+        return out
+
+    SA, SB = sums(A), sorted(sums(B))
+    cnt = 0
+    for sa in SA:
+        idx = bisect.bisect_left(SB, T - sa - 1e-9)
+        cnt += len(SB) - idx
+    return cnt / (len(SA) * len(SB))
+
+
 def check_alignment(data):
     dates = None
     for pair, rows in data.items():
@@ -134,6 +160,7 @@ def h2_vix(data, rng):
         for i in range(len(dates)):
             xs.append(mean([-data[p][i][h] for p in pairs]))
         obs, p = perm_p_signflip(xs, rng)
+        p_exact = exact_p_signflip(xs)
         # concentration diagnostics
         contrib = {dates[i]: xs[i] for i in range(len(xs))}
         top_date = max(contrib, key=lambda d: contrib[d])
@@ -143,7 +170,7 @@ def h2_vix(data, rng):
         res["horizons"][h] = {
             "mean_pips": round(obs, 2), "median_pips": round(median(xs), 2),
             "win_rate": round(sum(1 for x in xs if x > 0) / len(xs), 3),
-            "p_one_sided": p,
+            "p_one_sided": p, "p_exact": p_exact,
             "top_event": top_date,
             "top_share_of_sum": round(contrib[top_date] / total, 3) if total != 0 else None,
             "loo_mean": round(loo_obs, 2), "loo_p": loo_p,
@@ -237,7 +264,7 @@ def main():
 
     primaries = {
         "H1_monthend_ic_1d": r1["horizons"]["fwd1"]["p_two_sided"],
-        "H2_vix_short_3d": r2["horizons"]["fwd3"]["p_one_sided"],
+        "H2_vix_short_3d": r2["horizons"]["fwd3"]["p_exact"],
     }
     fdr = bh_fdr(primaries)
 

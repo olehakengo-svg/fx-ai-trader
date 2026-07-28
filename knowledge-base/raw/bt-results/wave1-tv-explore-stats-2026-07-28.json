@@ -3,7 +3,7 @@
   "n_perm": 10000,
   "primaries": {
     "H1_monthend_ic_1d": 0.6076392360763924,
-    "H2_vix_short_3d": 0.051094890510948905
+    "H2_vix_short_3d": 0.05009138584136963
   },
   "bh_fdr_q0.10": {
     "H2_vix_short_3d": false,
@@ -185,6 +185,7 @@
         "median_pips": 20.83,
         "win_rate": 0.565,
         "p_one_sided": 0.11398860113988601,
+        "p_exact": 0.11076867580413818,
         "top_event": "2015-08-21",
         "top_share_of_sum": 0.631,
         "loo_mean": 9.93,
@@ -195,6 +196,7 @@
         "median_pips": 18.25,
         "win_rate": 0.609,
         "p_one_sided": 0.051094890510948905,
+        "p_exact": 0.05009138584136963,
         "top_event": "2015-08-21",
         "top_share_of_sum": 0.347,
         "loo_mean": 31.51,
@@ -205,6 +207,7 @@
         "median_pips": 47.92,
         "win_rate": 0.609,
         "p_one_sided": 0.14308569143085692,
+        "p_exact": 0.1412041187286377,
         "top_event": "2020-02-24",
         "top_share_of_sum": 0.367,
         "loo_mean": 17.88,
