@@ -37,3 +37,14 @@ related:
 - **テスト**: `tests/test_positioning_ingest.py` 17 本 (fixture book で trim 境界/near 帯/集計、4xx unsupported、429 非永久 skip、token 欠落 fail-loud、API 契約) + `tests/test_prereg_trigger_watch.py` +2 本。
 - **未検証 (構造的)**: OANDA 実レスポンスとの疎通 — ローカル token 失効 (401) のため**本番デプロイ後に** `/api/positioning/status` で検証する (手順: KB ページ §5)。エンドポイント可用性マップも同時に確認。
 - KB: [[e1-positioning-ingest-2026-07-14]] / changelog 2026-07-14 / [[external-hypothesis-scan-2026-07-13]] §6 に決裁追記 / [[shortest-path-decision-memo-2026-07-10]] §7 追記。
+
+## アーカイブ記録 (2026-07-28, claude)
+
+✅ 残検証項目「本番デプロイ後の /api/positioning/status 疎通」を 2026-07-28 に実測完了: 13 ペア outlook book 蓄積中 (~500 rows/pair、鮮度 <35min、consecutive_failures=0、unsupported なし)。registry `e1-positioning-ingest-freshness` も WATCHING 正常。全項目完了につき done/ へアーカイブ。
+
+## Claude Review (2026-07-28)
+
+- **実行者 = claude 本人 (2026-07-14 完遂、同一 PR で claim→完了)** — Codex 実行分ではないため本 Review はアーカイブ時の完了検証を記録する
+- **完了検証 (2026-07-28 実測)**: 残項目だった本番疎通を /api/positioning/status で確認 — 13 ペア outlook book 蓄積中 (~500 rows/pair、鮮度 <35min、consecutive_failures=0、unsupported なし)。設計どおり fail-loud カウンタ露出・dedup 3 層が本番で機能
+- **registry**: `e1-positioning-ingest-freshness` WATCHING 正常 (myfxbook creds 投入待ちの条件付き鮮度監視も仕様どおり)
+- **判定**: 全 6 要求仕様クリアを確認、アーカイブ承認
