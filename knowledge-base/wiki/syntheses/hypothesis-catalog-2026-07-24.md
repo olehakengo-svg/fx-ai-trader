@@ -71,6 +71,16 @@ london-4pm-fix-conditional-reversal (= london_fix_reversal の再着せ替え) /
 | 10 | E12 volume design | 蓄積待ち | — |
 | 11 | htf_fb recheck | 受動 registry | deadline 2027-01-31 |
 | 12 | sr_anti_hunt N≥30 | 受動 | — |
+| 13 | gotobi_tokyo_fix_usdjpy | **explore 着手 2026-07-28** — 較正プライマリ + 単一テール cell (m=1)。protocol frozen [[gotobi-calibration-explore-prereg-2026-07-28]]、敵対的検証 GO 通過 | — |
+
+## wave-2 候補 triage (2026-07-28、敵対的検証済み — `raw/analysis/new-angle-adversarial-verification-2026-07-28.md`)
+
+- **ppp_real_fx_gap_reversion**: GO-WITH-CONDITIONS — **次の単独 wave** (強 prior 家系)。LOCK 前解決必須: 5y rolling z の explore 窓崩壊 (pre-2014 FX ソース or 窓再設計) / スワップ会計一本化 / 極値レグ secondary 降格 / USD 因子ブロック bootstrap / CPI NSA・vintage
+- **holiday_liquidity_state_family**: 2 レグ縮約 (祝日前日 + 米休場翌日反転) の**背景 explore** (スロット非消費、BH 分母独立)。レグ (b)/(d) は power 死の実測反証で削除。祝日カレンダー定義検証 + structural_events refresh 前提
+- **vol_state_gates**: registry 登録のみ — htf_fb N≥100 recheck への split + weekend_gap 将来 recheck への RV5/RV21 forward split (look 追加なし)
+- **pre_fomc_fx_transcription**: ❌ triage KILL (headroom 4-12x < 10x ゲート、power 不能)。再入場 = E7 PASS 後の新 pre-reg のみ
+- **move_bondvol_shock_jpy_unwind**: ❌ triage KILL (killed-VIX とイベント集合重複 + post-2022 反転 + 現行 split で検証不能)。再入場 = 将来の split 再設計 or forward 型のみ
+- rejected_as_banned 3 系統 (MSCI/FTSE リバランス、equity-stress JPY re-dress、GPIF quarter-end) は検証で支持済み
 
 ## wave-0 実行記録 (2026-07-24、全線敵対的レビュー通過 — INVALID ゼロ)
 

@@ -11,10 +11,26 @@ live 発火可能なのは wg×3 + legacy 2 型のみ。
 
 ## 決裁事項 (4 分割 — 個別に承認/却下可能)
 
-### D-a: JPY 台帳の再構成 【R3 測定のみ — 承認不要、実行中】
-clean 期 (04-13〜) live トレードを per-trade units × pip 価値で JPY equity 曲線に再構成し、
-実 NAV DD% を確定する。観測のみ、live 変更ゼロ。`app.py:15299` の分母 1000 ハードコード表示修正も
-同梱予定 (表示バグ修正、挙動変更なし)。**→ 結果は本パケットに追記後、D-b の入力になる**
+### D-a: JPY 台帳の再構成 【R3 測定のみ — ✅ 実測完了 2026-07-28】
+broker 実約定 (oanda_trades.realized_pl、口座通貨 JPY = 換算誤差ゼロ) で clean 期 live N=339 を再構成:
+
+| 指標 | 実測値 |
+|---|---|
+| clean live JPY 累積 (04-13〜07-15) | **−32,632 JPY** (pip 台帳同母集団 −527.0p、加重 61.9 JPY/pip) |
+| **実 DD% (max)** | **9.14%** (対初期資本 359,105 JPY) / 10.35% (対実 clean 開始 NAV) |
+| tier 判定 | **全測定法で 0.20x に一致** — 現時点の defensive posture は数値として正当 |
+| **0.40x 復帰に必要な回復** | JPY 実測 **+4,088 JPY (≈+66p 相当)** vs pip 台帳 **+928.1p** — **14 倍の非対称 = 現行台帳は事実上の恒久ロック** |
+| 100.8% の分解 | 実測 9.1% × 母集団インフレ ~1.9x (KV cum −991p のうち **−335.3p が現 DB から再現不能** = 監査可能性欠損) × 分母過小 5.8x (1000p ≈ 61.9k JPY 相当 vs 実 359k) |
+| 台帳忠実度 | demo vs OANDA pnl_pips \|差\| median 0.20p / p90 1.80p — 良好 |
+
+**D-b の位置づけを訂正**: 目的は「守りを緩める」ではなく **(i) 回復経路を数学的に開通させる**
+(実 NAV 基準なら +4.1k JPY で 0.40x 復帰圏)、**(ii) 監査可能な台帳に置換する** (母集団を
+`oanda_trade_id != ''` broker 実約定に限定 — Live 厳格分離原則と一致)。
+
+**⚠️ D-a で発見された追加決裁事項 (D-e として下記追加)**: post-cutoff の **orphan fills 28 件
+(net −4,792 JPY、うち 2026-07-10/13 の USD_JPY 30000u × 7 件 = preserve 系経路)** が demo 台帳に
+link されず equity ガードの母集団外。30000u は clean live 最大 lot (10000u) の 3 倍 (≈300 JPY/pip) —
+**ガードが見ていない場所に最大の JPY 感応度がある**。
 
 ### D-b: DD defensive の estimand を pip/1000 → NAV 比 (JPY 台帳) へ切替 + 再基準化 【R1】
 - **変えないもの**: DD_LOT_TIERS の段構造 (2/4/6/8% → 0.8/0.6/0.4/0.2x)、MC ruin gate (>0.7 block)
@@ -44,6 +60,13 @@ clean 期 (04-13〜) live トレードを per-trade units × pip 価値で JPY e
   → FORCE_DEMOTED) の存在自体が期待 EV の弱さの自認
 - (iii) FORCE_DEMOTED へ正式降格 (R2)
 - (i) を選ぶ場合は live N=10 auto-demote gate 併設を必須条件とする
+
+### D-e: equity ガード母集団の補修 【R1 — D-a で新発見】
+- 台帳母集団を broker 実約定 (`oanda_trade_id != ''` join) に限定し、遡及 shadow 化・再現不能残差
+  (−335.3p) を構造的に排除
+- **orphan fills (preserve 系 30000u 経路含む) を equity ガード母集団に含めるか明示決裁** —
+  現状 DD 管理の死角。30000u 経路の出所特定 (どの送信経路が demo 台帳を迂回したか) を
+  実装前調査として同梱
 
 ### D-d: 防御解除ラダーの再確認 【宣言のみ】
 aggregate 一括解除の禁止を再確認。解除はセル単位 live N≥30 ∧ Wilson 下限 EV>0 → 2 段
