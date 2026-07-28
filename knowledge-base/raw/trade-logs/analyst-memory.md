@@ -3130,6 +3130,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 - 東京セッションN=0は「システム異常」ではなく「フィルター正常作動」
 - `shadow_tracking`による本番完全ブロックはDD防御方針の反映
 
+### 2026-07-28 (Post-London Report)
+| PnL | **0.0 pips** |
+| 勝率（WR） | **N/A** |
+- `direction_filter`（340件）が最大ブロック源。`rnb_usdjpy`はUSD_JPY=RANGING（ATR%ile 67%）にもかかわらず方向性フィルターが全シグナルを棄却 — **レンジ環境でトレンドフォロー系フィルターが機能不全に陥っている可能性**。
+- `hedge_block`（daytrade系合計 432件超）は同時間帯のオープンポジション保護として作動。ただし本日はOpen Trades=0のため、**ポジション解消後の再エントリー機会も逸している**可能性がある。
+- `r2_shadow_demoted_cell`（scalp系合計 230件）はシャドウ降格セルが依然として大量のシグナルをフィルター中。
+| PnL | 0 | 0 |
+| WR | N/A | N/A |
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
