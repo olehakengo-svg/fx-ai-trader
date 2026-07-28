@@ -237,39 +237,12 @@ def test_preserve_set_matches_frozen_membership():
     )
 
 
-def test_preserve_rearm_pin_blocks_live_and_tags_reason(tmp_path, monkeypatch):
-    """preserve-type live 再武装 pin (2026-07-28, rule:R3): バグ修正で live 送信が
-    復活する price_shock_rev ×5 / donchian×NZD は user 再武装決裁まで shadow 固定。
-    row は挿入される (shadow 蓄積継続) が [PRESERVE_REARM_PIN] タグ付き shadow。"""
+def test_preserve_rearm_pin_reflects_user_decision_2026_07_28():
+    """2026-07-28 user 決裁「7 席全部再武装」の pin: frozenset は空 (全解除)。
+    再 pin する場合は user 決裁 + 本テスト更新が必須 (無断追加/削除の drift 検知)。"""
     from modules.demo_trader import _PRESERVE_REARM_LIVE_PIN
-
-    tested = 0
-    for entry_type in sorted(_PRESERVE_REARM_LIVE_PIN):
-        cfg = TYPE_CONFIG.get(entry_type)
-        if cfg is None or cfg["expect"] != "row":
-            continue
-        tdir = tmp_path / entry_type
-        tdir.mkdir()
-        monkeypatch.setattr(data_mod, "fetch_oanda_bid_ask", lambda _inst: None)
-        monkeypatch.setattr(
-            demo_trader_mod, "datetime", _pinned_datetime(cfg["now"]))
-        trader, _logs = _make_trader(tdir, monkeypatch)
-        trader._tick_entry(
-            "daytrade", {"instrument": cfg["instrument"], "icon": "UT",
-                         "label": "unit-test"},
-            _sig(entry_type, cfg), "1h", cfg["instrument"],
-        )
-        with trader._db._safe_conn() as conn:
-            rows = conn.execute(
-                "SELECT is_shadow, reasons FROM demo_trades").fetchall()
-        assert rows, f"{entry_type}: pin must keep shadow row (分母保存)"
-        is_shadow, reasons_text = rows[0][0], str(rows[0][1])
-        assert is_shadow == 1, f"{entry_type}: pinned type must stay shadow"
-        assert "[PRESERVE_REARM_PIN]" in reasons_text, (
-            f"{entry_type}: pin reason tag missing — silent shadow 化は禁止 "
-            f"(lesson-preserve-sltp-unboundlocal-2026-07-28)")
-        tested += 1
-    assert tested >= 1, "no pinned type had a row-config — TYPE_CONFIG drift?"
+    assert _PRESERVE_REARM_LIVE_PIN == frozenset(), (
+        "_PRESERVE_REARM_LIVE_PIN changed — user 決裁記録と本テストを同時更新すること")
 
 
 def test_weekend_gap_fade_not_rearm_pinned():

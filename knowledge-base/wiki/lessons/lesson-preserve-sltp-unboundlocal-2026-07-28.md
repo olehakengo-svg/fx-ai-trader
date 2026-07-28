@@ -53,7 +53,7 @@ if _is_xau_inst:                                    # ← 無条件参照 (旧 L
 | hull_donchian_fade / sweep_reversion_eurgbp_late | live enable **false (code pin)** | 不変 (本修正で再武装しない、/api/demo/live-enable-flags で実測確認済み) |
 | keltner_squeeze_breakout ほか | Phase0 shadow tier | 不変 |
 
-pin の解除は user 決裁 + frozenset 削除 PR のみ (KV 不可)。price_shock の判断材料 = 昇格根拠 (12.3y BH-FDR m=3744, Wilson_lo≥0.58) + 2026-07-24 exit-free 監査 (全席 p=0.0001 / headroom 6.5-35x、ただし EUR_AUD/USD_CAD/AUD_JPY は pre-2021 OOS が 0 と分離不能 + grid ev_pip artifact 過大)。
+**→ 2026-07-28 user 決裁: 「7 席全部再武装」— pin 全解除 (同日 PR)。**元 R1 承認 (05-18/05-27) に基づく live 復活を明示承認。防衛線 = price_shock auto-demotion watchdog (4h cron) + 1000u 固定 sentinel。pin 機構は将来用に残置 (追加は user 決裁必須)。price_shock の判断材料 = 昇格根拠 (12.3y BH-FDR m=3744, Wilson_lo≥0.58) + 2026-07-24 exit-free 監査 (全席 p=0.0001 / headroom 6.5-35x、ただし EUR_AUD/USD_CAD/AUD_JPY は pre-2021 OOS が 0 と分離不能 + grid ev_pip artifact 過大)。
 
 ## 再発防止ルール
 - **新 entry_type（特に `_1H_PRESERVE_SLTP` 追加時）は `tests/test_preserve_types_tick_entry.py` の `TYPE_CONFIG` に送信経路 config を追加すること**（membership pin `test_preserve_set_matches_frozen_membership` が drift を強制検知）

@@ -109,14 +109,12 @@ WEEKEND_GAP_G2_CUM_NET_PIPS = -60.0      # G2: cumulative net < -60p → stop
 # 解除は user 決裁 + 本 frozenset からの削除 PR のみ (KV では解除不能 —
 # MEMORY project_watchdog_decrement_rearm_bug)。
 # 詳細: knowledge-base/wiki/lessons/lesson-preserve-sltp-unboundlocal-2026-07-28.md
-_PRESERVE_REARM_LIVE_PIN = frozenset({
-    "price_shock_rev_eur_gbp_h1_long",
-    "price_shock_rev_eur_aud_h1_long",
-    "price_shock_rev_usd_cad_h1_long",
-    "price_shock_rev_nzd_jpy_h1_long",
-    "price_shock_rev_aud_jpy_h1_long",
-    "donchian_momentum_breakout",
-})
+# 2026-07-28 user 決裁: 「7 席全部再武装」(price_shock_rev ×5 + donchian×NZD ×2) —
+# 元の R1 承認 (2026-05-18 / 05-27) に基づく live 復活を明示承認。pin 全解除。
+# 防衛線 = price_shock auto-demotion watchdog (4h cron) + prereg_trigger_watch +
+# 1000u 固定 sentinel。機構 (_PRESERVE_REARM_LIVE_PIN + _tick_entry gate) は
+# 将来の同型事象用に残置 — 追加は user 決裁必須。
+_PRESERVE_REARM_LIVE_PIN = frozenset()
 
 LDN_MORNING_SIZE_LEVER_REASON = "ldn_morning_size_lever_0.5x"
 LDN_MORNING_SIZE_LEVER_CELLS = frozenset({"E5", "E7", "E10"})
