@@ -3120,6 +3120,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 - 上記はすべてシステム設計通りの正常動作であり、修正不要と判断
 - `r2_shadow_demoted_cell`の蓄積は、シャドーN蓄積が不十分なセルが多数残存していることを示す。昇格を待つ段階
 
+### 2026-07-28 (Post-Tokyo Report)
+| PnL | — |
+| WR | — |
+| `scalp_5m_eur:r2_shadow_demoted_cell` | 12 | EUR系スキャルプでシャドウ降格セルに該当。セルEVが閾値未満 |
+- **hedge_block（計23件）**: GBP/JPY・AUD/JPY中心。TRENDING系ペアで逆張り/ヘッジシグナルが衝突しやすい市況
+- **r2_shadow_demoted_cell（計24件）**: EUR系スキャルプのセルEVが構造的に閾値未満。WS3/外部仮説転進と整合する「EVゼロ問題」の現れ
+- **order_bar_dedup（計26件）**: 信号は発生しているが同一バー重複として排除。実質的に信号強度よりサンプリング頻度が問題
+- 東京セッションN=0は「システム異常」ではなく「フィルター正常作動」
+- `shadow_tracking`による本番完全ブロックはDD防御方針の反映
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
