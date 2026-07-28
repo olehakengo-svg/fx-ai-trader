@@ -98,6 +98,24 @@ WEEKEND_GAP_G1_SLIPPAGE_PIPS = 2.0       # G1: rolling mean live slippage > +2.0
 WEEKEND_GAP_G2_MIN_N = 12                # G2: live N>=12 first look
 WEEKEND_GAP_G2_CUM_NET_PIPS = -60.0      # G2: cumulative net < -60p → stop
 
+# ══════════════════════════════════════════════════════════════════════════════
+# preserve-type live 再武装 pin (2026-07-28, rule:R3)
+# _is_xau_inst スコープバグ (2026-04-10〜2026-07-28) の修正により、同バグで live
+# 送信がクラッシュし続けていた _1H_PRESERVE_SLTP 型のうち live-tier 該当分
+# (price_shock_rev ×5 [_PAIR_PROMOTED 2026-05-18] / donchian×NZD ×2 [同 05-27])
+# が自動的に実弾送信へ復活してしまう。user が本セッションで live 承認したのは
+# weekend_gap_fade のみのため、下記 entry_type は user 再武装決裁まで live 送信を
+# pin し shadow 固定する (shadow 蓄積は継続 = 4原則#3)。
+# 解除は user 決裁 + 本 frozenset からの削除 PR のみ (KV では解除不能 —
+# MEMORY project_watchdog_decrement_rearm_bug)。
+# 詳細: knowledge-base/wiki/lessons/lesson-preserve-sltp-unboundlocal-2026-07-28.md
+# 2026-07-28 user 決裁: 「7 席全部再武装」(price_shock_rev ×5 + donchian×NZD ×2) —
+# 元の R1 承認 (2026-05-18 / 05-27) に基づく live 復活を明示承認。pin 全解除。
+# 防衛線 = price_shock auto-demotion watchdog (4h cron) + prereg_trigger_watch +
+# 1000u 固定 sentinel。機構 (_PRESERVE_REARM_LIVE_PIN + _tick_entry gate) は
+# 将来の同型事象用に残置 — 追加は user 決裁必須。
+_PRESERVE_REARM_LIVE_PIN = frozenset()
+
 LDN_MORNING_SIZE_LEVER_REASON = "ldn_morning_size_lever_0.5x"
 LDN_MORNING_SIZE_LEVER_CELLS = frozenset({"E5", "E7", "E10"})
 LDN_MORNING_SIZE_LEVER_HOURS_UTC = frozenset({7, 8, 9})
@@ -3690,8 +3708,25 @@ class DemoTrader:
         except Exception as e:
             print(f"[WEEKEND_GAP] add_indicators failed ({instrument}): {e}",
                   flush=True)
-        det = detect_weekend_gap_signal(df, instrument, now)
+        _wg_diag: dict = {}
+        det = detect_weekend_gap_signal(df, instrument, now, diag=_wg_diag)
         if det is None:
+            # 2026-07-28 rule:R3 観測性: no-qualify でも週末ごと 1 行 gap 値を
+            # ログ (07-26 EUR_USD +19.9p near-miss が無音だった欠陥の修正)。
+            # 診断ログのみ — 行挿入なし = 分母保存 (シグナル定義は不変)。
+            if _wg_diag.get("gap_pips") is not None:
+                if not hasattr(self, "_wg_noqualify_logged"):
+                    self._wg_noqualify_logged = set()
+                _nq_key = (instrument, weekend_key)
+                if _nq_key not in self._wg_noqualify_logged:
+                    self._wg_noqualify_logged.add(_nq_key)
+                    print(
+                        f"[WEEKEND_GAP] {instrument} "
+                        f"gap={_wg_diag['gap_pips']:+.1f}p < "
+                        f"{_wg_diag['qualify_pips']:.1f}p no-qualify "
+                        f"(weekend={weekend_key})",
+                        flush=True,
+                    )
             return
         _mid = float(df["Close"].iloc[-1])
         try:
@@ -3726,7 +3761,14 @@ class DemoTrader:
                     and _get_base_mode(mode) == "daytrade"):
                 self._weekend_gap_tick(mode, cfg)
         except Exception as _wg_err:
-            print(f"[WEEKEND_GAP] tick error ({mode}): {_wg_err}", flush=True)
+            # 2026-07-28 rule:R3 観測性: メッセージのみでは診断コスト大 —
+            # full traceback を出力 (UnboundLocalError 3.5ヶ月潜伏の教訓)。
+            import traceback as _wg_tb
+            print(
+                f"[WEEKEND_GAP] tick error ({mode}): {_wg_err}\n"
+                f"{_wg_tb.format_exc()}",
+                flush=True,
+            )
         if cfg.get("weekend_gap_only"):
             # daytrade_audusd: weekend_gap_fade 専用スロット — 通常エンジン経路は
             # 走らせない (他戦略を AUD_USD 15m に波及させない)
@@ -5645,6 +5687,19 @@ class DemoTrader:
                 f"[WEEKEND_GAP] {instrument} spread unavailable → fail-closed "
                 f"shadow record")
 
+        # ── preserve-type live 再武装 pin (2026-07-28, rule:R3) ──
+        # _is_xau_inst バグ修正で live 送信が復活する price_shock_rev ×5 /
+        # donchian×NZD ×2 は user 再武装決裁まで shadow 固定 (定義はモジュール
+        # 定数 _PRESERVE_REARM_LIVE_PIN のコメント参照)。shadow 蓄積は継続。
+        if entry_type in _PRESERVE_REARM_LIVE_PIN and not _is_shadow:
+            _is_shadow = True
+            reasons.append(
+                "[PRESERVE_REARM_PIN] live send pinned pending user re-arm "
+                "decision (lesson-preserve-sltp-unboundlocal-2026-07-28)")
+            self._add_log(
+                f"[PRESERVE_REARM_PIN] {entry_type} {instrument} live→shadow "
+                f"(user 再武装決裁待ち、バグ修正による自動復活の遮断)")
+
         # ══════════════════════════════════════════════════════════════
         # ── SL狩り対策A1: 価格スパイク検出 ──
         # 直近60秒で価格が急変動(>ATR×1.0)→ SL狩りスパイク中のため見送り
@@ -5810,6 +5865,15 @@ class DemoTrader:
         _base_mode = _get_base_mode(mode)  # scalp_eur/scalp_eurjpy -> scalp
         _is_jpy = "JPY" in instrument
         _is_jpy_or_xau = _is_jpy or "XAU" in instrument
+        # 2026-07-28 rule:R3: 無条件スコープで初期化 — 旧位置 (SR/ATR 再計算
+        # ブロック内 = `entry_type not in _1H_PRESERVE_SLTP` 側) では preserve 型
+        # (weekend_gap_fade / hull_donchian_fade / KSB / DMB / price_shock_rev /
+        # sweep_reversion_eurgbp_late) が代入をスキップし、下流の無条件参照
+        # (Sentinel 単位数 / 1000u 丸め / FLAT bypass) で UnboundLocalError →
+        # row 挿入後・OANDA 送信前にクラッシュ (2026-04-10 から chronic)。
+        # 式・値は旧位置と同一 (スコープ修正のみ)。regression pin:
+        # tests/test_preserve_types_tick_entry.py
+        _is_xau_inst = "XAU" in instrument.upper() if instrument else False
         _price_dec = 3 if _is_jpy else 5
         _atr = sig.get("atr", 0.07 if _is_jpy_or_xau else 0.00070)
         _sl_margin = _atr * 0.3  # SR外側バッファ
@@ -5932,7 +5996,7 @@ class DemoTrader:
             # SRベースSLに上限がないため、15m DTで日足SR距離のSLが発生
             # v7.5: XAU専用キャップ追加 (JPY共有の0.200=$0.20はXAU価格帯($4800)に不適)
             # XAU DT ATR≈$12, SL=ATR*1.2≈$14 → 100で外れ値のみキャップ
-            _is_xau_inst = "XAU" in instrument.upper() if instrument else False
+            # (_is_xau_inst は 2026-07-28 rule:R3 で無条件スコープへ移動済み)
             if _is_xau_inst:
                 MAX_SL_DIST = {"scalp": 50.0, "daytrade": 100.0, "daytrade_1h": 200.0}.get(_base_mode, 100.0)
             elif _is_jpy_or_xau:
