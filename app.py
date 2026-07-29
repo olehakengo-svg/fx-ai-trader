@@ -15292,11 +15292,21 @@ def api_risk_dashboard():
         }
 
         # Add current DD status
+        # Track C D-b (2026-07-28): SSOT は JPY 台帳。dd_pct は JPY 台帳が有効なら
+        # 実 NAV 比 (旧 dd/1000 は分母 artifact — 表示 100.8% の出所だった)。
         try:
             eq_peak = float(_demo_db.get_system_kv("eq_peak", "0.0"))
             eq_current = float(_demo_db.get_system_kv("eq_current", "0.0"))
             dd = eq_peak - eq_current
-            dd_pct = dd / max(1000.0, 1.0)
+            eq_peak_jpy = float(_demo_db.get_system_kv("eq_peak_jpy", "0.0"))
+            eq_current_jpy = float(_demo_db.get_system_kv("eq_current_jpy", "0.0"))
+            _base_jpy = float(os.environ.get("OANDA_EQ_BASE_JPY", "359109.0"))
+            if eq_peak_jpy > 0:
+                dd_jpy = eq_peak_jpy - eq_current_jpy
+                dd_pct = dd_jpy / max(_base_jpy, 1.0)
+            else:
+                dd_jpy = None
+                dd_pct = dd / max(1000.0, 1.0)  # legacy fallback
             dashboard["dd_status"] = {
                 "eq_peak": round(eq_peak, 2),
                 "eq_current": round(eq_current, 2),
@@ -15304,6 +15314,13 @@ def api_risk_dashboard():
                 "dd_pct": round(dd_pct, 4),
                 "lot_multiplier": dd_lot_mult,
                 "defensive_mode": dd_lot_mult < 1.0,
+                "jpy_ledger": {
+                    "eq_peak_jpy": round(eq_peak_jpy, 2),
+                    "eq_current_jpy": round(eq_current_jpy, 2),
+                    "dd_jpy": round(dd_jpy, 2) if dd_jpy is not None else None,
+                    "base_capital_jpy": _base_jpy,
+                    "active": eq_peak_jpy > 0,
+                },
             }
         except Exception:
             dashboard["dd_status"] = {"error": "unavailable"}

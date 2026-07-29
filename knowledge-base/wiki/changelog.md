@@ -1,11 +1,19 @@
 # Changelog — バージョン別変更と評価基準日
 
-## 2026-07-28 — fix(live): price_shock_rev ×5 を BE_LOCK OFF (trig 0.0) — LOCK 済み Exit 設計外レバーの live 波及を遮断 (rule:R1)
+## 2026-07-28 — fix(live): price_shock_rev ×5 BE_LOCK OFF — 並行セッションと同時執行 (rule:R1)
 
-- **user 決裁 2026-07-28** ([[preserve-exit-overlay-2026-07-28]] §5 案(a)、決裁パケット提示への「進めて」応答): `MFE_BE_LOCK_STRATEGY_TRIGGERS` に PRICE_SHOCK_REV_TIER1_TYPES 5 種を 0.0 で追加 (donchian / weekend_gap と同じ扱い)
-- **根拠**: (1) LOCK 済み Exit 設計 = 「12-bar horizon or 2×ATR catastrophic SL のみ」で BE_LOCK は設計外 (2) live 再武装初日に group B が MFE+2.0p で勝ちクリップの実射 (row 14318、+2.0p 決済) (3) BE_LOCK 設計自身が live 適用に R1 証拠必須と規定 — 未通過のうえ 55d A/B は ΔEV(B−A) −0.034p/t p=0.855 INCONCLUSIVE (WR+15pp / PF 0.635→0.505 = 勝ちクリップ)
-- **scope 外 (別決裁として保留)**: 案(b) ATR-BE/trail の免除 = horizon-exit counterfactual 定量化 (別セッション実行中) 待ち / BE_LOCK 実験自体の env OFF = A/B 正式 verdict 後
-- tests +1 (`test_price_shock_rev_disabled_returns_zero` — PRICE_SHOCK_REV_TIER1_TYPES 全体をパラメタライズ、family 追加 drift を強制検知)。**評価への影響: price_shock live/shadow の exit 過程から BE_LOCK のみ除去 (ATR-BE/trail は現状維持)。tier/lot/entry 不変更**
+- 本セッション (day-1 監視) 側でも [[preserve-exit-overlay-2026-07-28]] §5 案(a) を user 「進めて」承認で執行 — main には Track C **D-c-1** が先着 (5 エントリ 0.0 は同値、コメント文言のみ相違 → merge で D-c-1 表記に統一)
+- 残存 delta: regression pin `tests/test_mfe_be_lock.py::test_price_shock_rev_disabled_returns_zero` (PRICE_SHOCK_REV_TIER1_TYPES 全体パラメタライズ、family 追加 drift を強制検知) + §5 決裁記録の KB 追記
+
+## 2026-07-28 — feat(risk): Track C 資本配管修復 — ps×5 carve-out + JPY 台帳 SSOT 化 + PYR code pin (rule:R1 user 承認 + R2)
+
+- **決裁**: [[track-c-capital-plumbing-decision-packet-2026-07-28]] を user 承認 (「進めて」= Claude 推奨案採択)。診断: [[track-c-plumbing-audit-2026-07-28]] (全クレーム code 検証 + D-a broker 実測)
+- **D-c-1 (R1)**: `_AGG_KELLY_GATE_MINLOT_BYPASS_TYPES` に price_shock_rev ×5 を追加 (全席 1000u 固定契約、>1000u で自動失効) — **07-28「7席再武装」決裁が carve-out 欠落で code 上無効化されていた** (累積 Kelly −0.22 恒久負 → 次 qualify シグナルで shadow 落ち確定だった) の実効化。同時に `MFE_BE_LOCK_STRATEGY_TRIGGERS` へ ps×5 を 0.0 追加 ([[preserve-exit-overlay-2026-07-28]] §5 案(a) — R1 未通過実験レバーの live 波及遮断、estimand を LOCK 済み horizon-exit に近接)。復帰初週再ゲート registry 登録 (`ps-carveout-firstweek-regate`、08-11)
+- **D-c-2 (R1)**: donchian×NZD ×2 は選択肢(ii) 採択 — bypass 追加せず gate block のまま shadow N 蓄積 (365d BT FAIL CI 全負、小 N 昇格パターン)
+- **D-b (R1)**: DD defensive の SSOT を pip/1000 台帳 → **JPY 台帳** (per-close `pnl_pips × units × pip価値JPY`、母集団 = `oanda_trade_id != ''` broker 実約定 ∧ 非 XAU) に切替。D-a 実測 (実 DD 9.14% / 32,835 JPY) で再基準化 — **切替時 multiplier は 0.20x のまま不変** (現時点の防御は正当)、変わるのは回復経路 (+928p ≈ 57k JPY 相当 → +4.1k JPY で 0.40x 圏 = 恒久ロック解消)。tiers/MC ruin gate は存続、ruin 計量の資本も pip→JPY 整合 (`OANDA_JPY_PER_PIP_AVG`)。`/api/risk/dashboard` dd_status に jpy_ledger 追加・dd_pct の分母 1000 ハードコード修正 (「DD 100.8%」表示 artifact の解消)
+- **R2 (D-e 調査起因)**: `_PYRAMIDING_CODE_PIN_DISABLED = True` — PYR child は demo 台帳に行を作らない構造的 orphan (生涯 N=33 / WR 9.5% / net −5,212 JPY / 同一親 6 連 fill = dedup 不全)。[[track-c-de-orphan-investigation-2026-07-28]] (`raw/analysis/`)。**30000u×7 (07-10/13) は preserve 系ではなく手動/外部クライアントと判定 — user 本人操作か要確認 (否ならトークンローテーション Rule 3)**
+- tests: `tests/test_track_c_plumbing.py` +33 本 (bypass/BE_LOCK/pip_value_jpy/tier 境界/PYR pin)、`test_pyr_attribution.py` は pin monkeypatch で将来 R1 再武装用に温存。全 2,480 green
+- **評価への影響**: live 送信可能セルが wg×3 → **wg×3 + ps×5** に回復 (user 決裁の実効化)。lot は全席 1000u 固定契約のまま — aggregate lot 増はゼロ。dmb×2/legacy は不変
 
 ## 2026-07-25 — fix(research): E1 供給ライン phase1b BT の join dtype バグ修正 — 14 ペア中 12 ペアが silent に 0 join だった構造欠陥 (rule:R3)
 

@@ -5,7 +5,7 @@
 - **Category**: Breakout / TF
 - **Timeframe**: DT 15m
 - **Status**: PAIR_PROMOTED (NZD_JPY / NZD_USD — 2026-05-27 R1-EXCEPTION)、他ペアは Shadow
-- **Active Pairs**: NZD_JPY, NZD_USD (1000u 固定 sentinel)。**2026-07-28 live 再武装** — `_is_xau_inst` バグで昇格以来 live 送信死 (fill N=0) → PR #119 修復 + user 決裁で送信可 ([[lesson-preserve-sltp-unboundlocal-2026-07-28]])
+- **Active Pairs**: NZD_JPY, NZD_USD (1000u 固定 sentinel)。**実効は shadow のまま (Track C D-c-2、2026-07-28 user 決裁)** — `_is_xau_inst` バグ修復 (PR #119) + pin 解除で送信経路は復旧したが、agg-Kelly gate の carve-out を**意図的に追加しない**選択肢(ii) 採択 (365d BT FAIL CI 全負、小 N 昇格パターンのため gate block のまま shadow N 蓄積)。ps×5 と扱いが分かれた点に注意 ([[lesson-preserve-sltp-unboundlocal-2026-07-28]] / changelog 2026-07-28 Track C)
 - **History**: 2026-05-01 audit P0-8 で旧 FD 入り (Live N=3 WR=33.3% PnL=-32.1p) → 2026-05-18 Shadow ramp で FD 解除・shadow-always 移行 (v2.1 alpha absence reevaluation) → 2026-05-27 NZD×2 PAIR_PROMOTED (R1-EXCEPTION) ※本カードの旧記述が 2026-07-28 まで未更新だった (stale)
 - **Exit 挙動 note (2026-07-28)**: BE_LOCK は trig 0.0 で OFF だが、共通 ATR-BE (0.8×ATR→建値) / ATR-trail (1.5×ATR) は適用される — shadow の `SL_HIT` 正値 close (+12.8p 等) は trail 由来。詳細: [[preserve-exit-overlay-2026-07-28]]
 

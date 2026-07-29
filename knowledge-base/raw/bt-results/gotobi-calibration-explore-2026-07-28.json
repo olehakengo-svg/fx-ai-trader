@@ -1,0 +1,50 @@
+{
+  "seed": 20260728,
+  "n_perm": 10000,
+  "counts": {
+    "jp_bdays_with_fx": 1927,
+    "gotobi_A": 559,
+    "gotobi_B": 557,
+    "eom": 94,
+    "eom_calendar_mismatch": []
+  },
+  "C1_fix_convA": {
+    "diff_pips": 0.332,
+    "p": 0.59484,
+    "n_treat": 555,
+    "n_control": 1354,
+    "one_sided": false
+  },
+  "C1_fix_convB_diag": {
+    "diff_pips": 1.924,
+    "p": 0.0032,
+    "n_treat": 557,
+    "n_control": 1352,
+    "one_sided": false
+  },
+  "C2_postfix_convA": {
+    "diff_pips": 0.874,
+    "p": 0.50465,
+    "n_treat": 554,
+    "n_control": 1352,
+    "one_sided": false
+  },
+  "P1_eom_d1": {
+    "diff_pips": 1.375,
+    "p": 0.43006,
+    "n_treat": 89,
+    "n_control": 1807,
+    "one_sided": true
+  },
+  "C1_yearly_diff": {
+    "2014": -4.934,
+    "2015": 0.634,
+    "2016": 3.129,
+    "2017": 1.348,
+    "2018": 0.286,
+    "2019": 1.001,
+    "2020": 3.768,
+    "2021": -2.241
+  },
+  "C1_dow_matched_diff": 1.06
+}
