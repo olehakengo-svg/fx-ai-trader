@@ -3170,6 +3170,15 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 | GBP_JPY | RANGING | 45% | EUR系同様、ロンドン初動でのブレイク試行に注意 |
 ### 推奨戦略配分
 
+### 2026-07-29 (Post-London Report)
+| PnL (pips) | **0.0** |
+| PnL | +0.6 pips | 0.0 pips |
+| WR | 100%（N=1） | N/A |
+### 推奨戦略配分
+【NO ACTION推奨】
+**全体として**: 現在オープントレード0・hedge_block多発状態ではNYセッションも同様のブロック継続が想定される。**特定のブロック解除シグナルが観測されない限り、NY前半はNO ACTION維持が合理的。**
+| 本日累計PnL | **+0.6 pips** |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
