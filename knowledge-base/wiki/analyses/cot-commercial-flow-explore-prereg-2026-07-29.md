@@ -103,3 +103,10 @@ incoherence で死亡、Sanders-Irwin 系の null も公知。FAIL が十分あ�
 `tools/cot_commercial_flow_explore.py` / `tools/build_cot_panel.py` (comm 列拡張) /
 `knowledge-base/raw/bt-results/cot-commercial-flow-explore-2026-07-29.json` /
 `reports/cot-commercial-flow-explore-2026-07-29.md` / 台帳 #16 verdict 追記
+
+## §verdict (2026-07-29 同日執行 — 凍結コミット bc1a3e0a 後に測定)
+
+❌ **family FAIL — クローズ、OOS 未接触保存。** primary IC +0.0186 / 両側 p=0.5652 (gate i ✗、
+knife-edge 帯外) + サイド split 非対称 (gate iv ✗)。鏡像恒等 corr(Δcomm, −Δnoncomm)=+0.93 を実証 —
+条件 4 の独立性減額が正しかった。同型再試行禁止 = COT Δ/flow×週次固定ホライズン全変種 (母集団問わず)。
+詳細: `reports/cot-commercial-flow-explore-2026-07-29.md`
