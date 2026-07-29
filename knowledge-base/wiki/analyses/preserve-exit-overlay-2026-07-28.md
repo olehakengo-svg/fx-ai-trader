@@ -106,6 +106,14 @@ exit オーバーレイは preserve 型にも適用される (`modules/demo_trad
 また BE_LOCK 実験自体の verdict (期日超過) を A/B 設計の基準で正式にクローズすべき — aggregate p=0.855 で
 promotion 不成立が濃厚、その場合 env OFF (全 A 化) が自然な帰結。
 
+### 決裁記録 (2026-07-28)
+
+- **user 決裁: 案 (a) 執行承認** — 本パケット提示 (推奨 = (a) を即時) への「進めて」応答 (2026-07-28)。同時に (b) の判断材料となる
+  horizon-exit counterfactual 分析タスクを user が別セッションで起動済み — 推奨プラン ((a) 即時 + (b) は定量化後) と同構成
+- **執行 (rule:R1)**: `MFE_BE_LOCK_STRATEGY_TRIGGERS` に PRICE_SHOCK_REV_TIER1_TYPES 5 種を 0.0 で追加 + regression pin
+  `tests/test_mfe_be_lock.py::test_price_shock_rev_disabled_returns_zero` (family パラメタライズ、追加 drift を強制検知)
+- **保留 (別決裁)**: (b) ATR-BE/trail 免除 = counterfactual 結果待ち / BE_LOCK 実験の env OFF = A/B 正式 verdict 後
+
 ---
 
 ## 関連

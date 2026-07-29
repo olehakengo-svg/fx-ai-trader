@@ -187,6 +187,17 @@ MFE_BE_LOCK_STRATEGY_TRIGGERS = {
     # 4h horizon が検証済み estimand。BE/Trail は BT WR を ~20pp 水増しする —
     # MEMORY project_be_trail_inflates_python_bt_wr)。
     "weekend_gap_fade": 0.0,
+    # OFF: price_shock_rev ×5 (2026-07-28 user 決裁, rule:R1) — LOCK 済み Exit 設計は
+    # 「12-bar horizon or 2×ATR catastrophic SL のみ」で BE_LOCK は設計外。live 再武装
+    # (PR #119) 初日に group B が MFE+2.0p で勝ちをクリップする実射を確認 (row 14318)。
+    # BE_LOCK 設計自身も live 適用に R1 証拠を要求 (未通過、55d A/B は ΔEV −0.034p/t
+    # p=0.855 INCONCLUSIVE)。決裁パケット: analyses/preserve-exit-overlay-2026-07-28.md §5
+    # 案(a)。ATR-BE/trail の免除 (案(b)) は horizon-exit counterfactual 定量化後の別決裁。
+    "price_shock_rev_eur_gbp_h1_long": 0.0,
+    "price_shock_rev_eur_aud_h1_long": 0.0,
+    "price_shock_rev_usd_cad_h1_long": 0.0,
+    "price_shock_rev_nzd_jpy_h1_long": 0.0,
+    "price_shock_rev_aud_jpy_h1_long": 0.0,
 }
 
 

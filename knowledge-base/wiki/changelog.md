@@ -1,5 +1,12 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-07-28 — fix(live): price_shock_rev ×5 を BE_LOCK OFF (trig 0.0) — LOCK 済み Exit 設計外レバーの live 波及を遮断 (rule:R1)
+
+- **user 決裁 2026-07-28** ([[preserve-exit-overlay-2026-07-28]] §5 案(a)、決裁パケット提示への「進めて」応答): `MFE_BE_LOCK_STRATEGY_TRIGGERS` に PRICE_SHOCK_REV_TIER1_TYPES 5 種を 0.0 で追加 (donchian / weekend_gap と同じ扱い)
+- **根拠**: (1) LOCK 済み Exit 設計 = 「12-bar horizon or 2×ATR catastrophic SL のみ」で BE_LOCK は設計外 (2) live 再武装初日に group B が MFE+2.0p で勝ちクリップの実射 (row 14318、+2.0p 決済) (3) BE_LOCK 設計自身が live 適用に R1 証拠必須と規定 — 未通過のうえ 55d A/B は ΔEV(B−A) −0.034p/t p=0.855 INCONCLUSIVE (WR+15pp / PF 0.635→0.505 = 勝ちクリップ)
+- **scope 外 (別決裁として保留)**: 案(b) ATR-BE/trail の免除 = horizon-exit counterfactual 定量化 (別セッション実行中) 待ち / BE_LOCK 実験自体の env OFF = A/B 正式 verdict 後
+- tests +1 (`test_price_shock_rev_disabled_returns_zero` — PRICE_SHOCK_REV_TIER1_TYPES 全体をパラメタライズ、family 追加 drift を強制検知)。**評価への影響: price_shock live/shadow の exit 過程から BE_LOCK のみ除去 (ATR-BE/trail は現状維持)。tier/lot/entry 不変更**
+
 ## 2026-07-25 — fix(research): E1 供給ライン phase1b BT の join dtype バグ修正 — 14 ペア中 12 ペアが silent に 0 join だった構造欠陥 (rule:R3)
 
 - **症状**: `phase1b_oanda_contrarian_bt.py` の日次再走が **verdict=NULL** を出し続けていたが、真因は「エッジ不在」ではなく **pandas merge_asof の datetime-unit 不一致**。MASSIVE cache refresh が 12/14 ペアの `{pair}_1h.parquet` を `datetime64[ms, UTC]` で書き直した一方、OANDA-Labs sentiment 履歴は `datetime64[ns, UTC]` のまま → pandas≥2.0 が `incompatible merge keys [0] datetime64[ms, UTC] and datetime64[ns, UTC]` で join 拒否。EUR_CHF/GBP_CHF (偶然 ns のまま) の **2 ペアだけ**が join されていた
