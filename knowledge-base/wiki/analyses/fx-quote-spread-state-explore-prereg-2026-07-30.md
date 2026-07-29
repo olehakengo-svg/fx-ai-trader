@@ -125,3 +125,12 @@ composite 48 は wave-3 生成時から誠実。headroom gate は通過したが
 `data/external/quote_spread/*.parquet` /
 `knowledge-base/raw/bt-results/fx-quote-spread-state-explore-2026-07-30.json` /
 `reports/fx-quote-spread-state-explore-2026-07-30.md` / 台帳 #17 verdict 追記
+
+## §verdict (2026-07-30 同日執行 — 凍結コミット 8618409e 後に測定)
+
+❌ **family FAIL — クローズ、OOS 未接触保存。** primary pooled mean −0.237σ (−9.5p) /
+両側 p=0.3228 (gate i ✗、knife-edge 帯外)。gates (ii)-(vi) は全通過 — 方向 (risk-ON) は
+3 ペア・6 年で一貫するが大きさが null と区別不能の弱効果死型 (ppp #14 と同型)。
+副産物: 反実仮想 onset-entry RT 5.9-9.5p = 正常化後の 2-3 倍 — **デスゾーン防御の初の実測正当化**。
+同型再試行禁止 = 実測 BBO スプレッド状態 × 時間固定ホライズン fwd 方向の全変種。
+詳細: `reports/fx-quote-spread-state-explore-2026-07-30.md`
