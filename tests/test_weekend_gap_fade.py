@@ -447,8 +447,10 @@ def test_horizon_exit_and_no_tp_no_be_no_c1_pins():
     assert '"disaster_sl" if _is_weekend_gap else "SL_HIT"' in src
     assert "not _is_weekend_gap and price >= tp" in src
     assert "not _is_weekend_gap and price <= tp" in src
-    # BE/trail block skipped
-    assert "tp_dist > 0 and not _is_weekend_gap" in src
+    # BE/trail block skipped (2026-07-28: price_shock_rev joined the same
+    # exemption — preserve-exit-overlay-2026-07-28 §5(b) — condition is now
+    # multi-line but the weekend_gap guard itself is unchanged)
+    assert "and not _is_weekend_gap and not _is_ps_rev_sltp" in src
     # C1 (half-time exit) exemption
     assert "not close_reason and not _is_weekend_gap" in src
     # MFE BE-lock disabled via per-strategy trigger 0.0

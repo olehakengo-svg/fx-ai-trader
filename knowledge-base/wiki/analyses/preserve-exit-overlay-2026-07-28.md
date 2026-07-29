@@ -113,6 +113,7 @@ promotion 不成立が濃厚、その場合 env OFF (全 A 化) が自然な帰�
 - **執行 (rule:R1)**: `MFE_BE_LOCK_STRATEGY_TRIGGERS` に PRICE_SHOCK_REV_TIER1_TYPES 5 種を 0.0 で追加 + regression pin
   `tests/test_mfe_be_lock.py::test_price_shock_rev_disabled_returns_zero` (family パラメタライズ、追加 drift を強制検知)
 - **保留 (別決裁)**: (b) ATR-BE/trail 免除 = counterfactual 結果待ち / BE_LOCK 実験の env OFF = A/B 正式 verdict 後
+  → **両方とも同日中に解消**: (b) は §6 定量化完了後の user「進めて」決裁で §7 執行、A/B verdict は [[mfe-be-lock-design-2026-06-03]] §8 で FAIL 確定
 - (注) 同一 user 決裁を並行セッションが Track C **D-c-1** として main へ先着実装 (5 エントリ 0.0 は同値)。本セッション分の残存 delta = regression pin + 本決裁記録
 
 → **(b) の counterfactual 定量化は完了 — §6** (2026-07-28、実測 N=14 ≪ 想定 30-40)。
@@ -192,6 +193,42 @@ realized `sl_2atr` ラベル 5 rows (全て正の小 pnl = BE/trail クリップ
 3. **(b) 採用時の追加要件**: ATR-BE/trail 免除だけでは不足 — **SIGNAL_REVERSE 免除も必要** (§6.4)。免除セットは weekend_gap 型 (BE_LOCK trig 0.0 + ATR-BE/trail 免除 + SIGNAL_REVERSE 免除) をそのまま流用するのが code 上最小
 4. **(b) の Cons (系列断絶) の再評価**: 断絶する series の中身は「36% ラベル汚染 + クリップで勝ち側が削られた系列」であり、連続性の価値自体が低い。counterfactual 再採点ハーネス (`tools/price_shock_exit_counterfactual.py`、規約は §6.2) で過去系列を design 尺度に遡及換算できるため、watchdog series は折れても再構成可能
 5. **別件 (要 registry)**: eur_aud / usd_cad の 2 席が 3.5 ヶ月無発火。Q5 vol 分位フィルタ × 1%-tile の同時成立が現実の発火率でどれだけ稀か、席の期待発火率を再見積もりすべき (本 § の範囲外、live 変更なし)
+
+### 6.7 追補 (2026-07-29): id=14318 の horizon 完了 → paired N=14 確定値
+
+§6.3〜6.5 は決裁時 (07-28、id=14318 未確定) の記録としてそのまま保持。07-28 16:00 UTC に horizon 完了し確定:
+
+- **id=14318: cf −7.6p (horizon、SL 非発火) vs realized +2.0p (BE_LOCK clip)** — クリップが design を明確に上回った初の row (13247 の −1.3p を超える)。クリップ 5 rows の foregone は +23.0p → **正味 +13.4p** に更新
+- pooled paired N=14 (primary): realized EV +1.64 (WR 57.1% / PF 1.37) vs cf EV +2.38 (WR 50.0% / PF 1.47)、**ΔEV +0.74 p/t [95% CI −1.76, +3.36]** — 方向は維持、有意性なしの度合いは強まる
+- 感度 (N=14): S1 −2.11 [−6.91, +2.77] / S2 −2.49 [−9.39, +2.38]
+- §6.5 の結論 3 点は不変 (実 catastrophic SL 発火は 14/14 とも 0 のまま)。**§7 執行の根拠は ΔEV の符号ではなく estimand 整合性** (昇格根拠と同じ量を測る) であり、本追補で覆らない — ただし「オーバーレイ除去で EV が改善する」という副次期待は N=14 時点でほぼニュートラルに減衰したことを明記する
+
+---
+
+## 7. 執行記録 (2026-07-28 — rule:R1)
+
+**決裁根拠**: user ミッション委任 (2026-07-08「運用判断は Claude に全面委任」) + 本パケット (§5 + §6 判断材料) 提示後の user「進めて」(2026-07-28)。
+§5 推奨ライン (「(a) を即時、(b) は counterfactual 定量化後に第 2 段として判断」) を §6 完了を受けて執行。
+
+| # | 内容 | 実装 |
+|---|---|---|
+| (a) | price_shock_rev ×5 を BE_LOCK OFF | `MFE_BE_LOCK_STRATEGY_TRIGGERS` に 5 entry_type を 0.0 追加 (code pin — env と独立に恒久化、「KV disable は pin にならない」教訓) |
+| (b) | ATR-BE / SMC-BE / ATR-trail 免除 | `_sltp_loop` の免除条件に `_is_ps_rev_sltp` 追加 (weekend_gap 型) |
+| (b)+ | SIGNAL_REVERSE 免除 (§6.4 の第 4 経路) | `_check_signal_reverse` に PRICE_SHOCK_REV_TIER1_TYPES 早期 return |
+| 併決 | BE_LOCK A/B 実験の正式クローズ | verdict FAIL ([[mfe-be-lock-design-2026-06-03]] §8)。env `SHADOW_BE_LOCK_ENABLE=0` (全 A 化) |
+
+**変更の判断根拠 (BT 検証要件への回答)**: 本変更は「新エッジ」ではなく **BT 検証済み estimand への復帰**。
+- 昇格根拠 BT (horizon-exit で採点、12.3y MASSIVE, BH-FDR m=3744): EUR_GBP N=239 WR=72.8% / EUR_AUD N=262 WR=67.6% / USD_CAD N=247 WR=66.4% / NZD_JPY N=303 WR=64.0% / AUD_JPY N=426 WR=63.8%
+- 2026-07-24 exit-free 監査: 全席 p=0.0001 (同 estimand)
+- §6 counterfactual: 免除で失うもの (クリップ保険) の実発火は 3.5 ヶ月ゼロ、得るもの (foregone 解消) +23p/4 rows。paired ΔEV +1.53 p/t [CI −0.49, +3.90]
+- リスク面: 全席 Sentinel 1000u 固定 + ps watchdog (R2 自動 demotion gate) 併設 — 最小リスク例外にも該当
+- 逆に**オーバーレイ側**は R1 未通過 (BE_LOCK live 適用は設計自身が R1 必須と規定) + A/B 55d INCONCLUSIVE
+
+**残存する既知の逸脱 (スコープ外として維持)**:
+- `WEEKEND_CLOSE` (金曜 21:45 UTC 全ポジ強制クローズ) は price_shock にも適用され続ける。設計 BT は週末跨ぎ保有だが、週末ギャップリスクはポートフォリオ全体のリスクポリシー事項のため本執行に含めない (金曜午後 entry の horizon≤12h のみ影響、§6 の 14108 が該当例)
+- テスト pin: `tests/test_mfe_be_lock.py::TestPriceShockExitEstimandPins` + trigger 0.0 pin、`test_weekend_gap_fade.py` の共有条件 pin 更新
+
+**効果の観測**: 以後の realized 系列 = 設計 estimand (close_reason は horizon / 実 sl_2atr のみ) → ps watchdog / G-gate は昇格根拠と同じ量を測る。§6.6-4 のとおり過去系列は `tools/price_shock_exit_counterfactual.py` で遡及換算可能。
 
 ---
 
