@@ -186,6 +186,33 @@ realized `sl_2atr` ラベル 5 rows (全て正の小 pnl = BE/trail クリップ
 
 ---
 
+## 7. 執行記録 (2026-07-28 — rule:R1)
+
+**決裁根拠**: user ミッション委任 (2026-07-08「運用判断は Claude に全面委任」) + 本パケット (§5 + §6 判断材料) 提示後の user「進めて」(2026-07-28)。
+§5 推奨ライン (「(a) を即時、(b) は counterfactual 定量化後に第 2 段として判断」) を §6 完了を受けて執行。
+
+| # | 内容 | 実装 |
+|---|---|---|
+| (a) | price_shock_rev ×5 を BE_LOCK OFF | `MFE_BE_LOCK_STRATEGY_TRIGGERS` に 5 entry_type を 0.0 追加 (code pin — env と独立に恒久化、「KV disable は pin にならない」教訓) |
+| (b) | ATR-BE / SMC-BE / ATR-trail 免除 | `_sltp_loop` の免除条件に `_is_ps_rev_sltp` 追加 (weekend_gap 型) |
+| (b)+ | SIGNAL_REVERSE 免除 (§6.4 の第 4 経路) | `_check_signal_reverse` に PRICE_SHOCK_REV_TIER1_TYPES 早期 return |
+| 併決 | BE_LOCK A/B 実験の正式クローズ | verdict FAIL ([[mfe-be-lock-design-2026-06-03]] §8)。env `SHADOW_BE_LOCK_ENABLE=0` (全 A 化) |
+
+**変更の判断根拠 (BT 検証要件への回答)**: 本変更は「新エッジ」ではなく **BT 検証済み estimand への復帰**。
+- 昇格根拠 BT (horizon-exit で採点、12.3y MASSIVE, BH-FDR m=3744): EUR_GBP N=239 WR=72.8% / EUR_AUD N=262 WR=67.6% / USD_CAD N=247 WR=66.4% / NZD_JPY N=303 WR=64.0% / AUD_JPY N=426 WR=63.8%
+- 2026-07-24 exit-free 監査: 全席 p=0.0001 (同 estimand)
+- §6 counterfactual: 免除で失うもの (クリップ保険) の実発火は 3.5 ヶ月ゼロ、得るもの (foregone 解消) +23p/4 rows。paired ΔEV +1.53 p/t [CI −0.49, +3.90]
+- リスク面: 全席 Sentinel 1000u 固定 + ps watchdog (R2 自動 demotion gate) 併設 — 最小リスク例外にも該当
+- 逆に**オーバーレイ側**は R1 未通過 (BE_LOCK live 適用は設計自身が R1 必須と規定) + A/B 55d INCONCLUSIVE
+
+**残存する既知の逸脱 (スコープ外として維持)**:
+- `WEEKEND_CLOSE` (金曜 21:45 UTC 全ポジ強制クローズ) は price_shock にも適用され続ける。設計 BT は週末跨ぎ保有だが、週末ギャップリスクはポートフォリオ全体のリスクポリシー事項のため本執行に含めない (金曜午後 entry の horizon≤12h のみ影響、§6 の 14108 が該当例)
+- テスト pin: `tests/test_mfe_be_lock.py::TestPriceShockExitEstimandPins` + trigger 0.0 pin、`test_weekend_gap_fade.py` の共有条件 pin 更新
+
+**効果の観測**: 以後の realized 系列 = 設計 estimand (close_reason は horizon / 実 sl_2atr のみ) → ps watchdog / G-gate は昇格根拠と同じ量を測る。§6.6-4 のとおり過去系列は `tools/price_shock_exit_counterfactual.py` で遡及換算可能。
+
+---
+
 ## 関連
 - [[lesson-preserve-sltp-unboundlocal-2026-07-28]] — 本監視の対象バグ
 - [[price-shock-reversion]] / [[price-shock-rev-live-activation-2026-05-18]] / [[price-shock-rev-promote-criteria-2026-05-18]]

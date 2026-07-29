@@ -187,6 +187,14 @@ MFE_BE_LOCK_STRATEGY_TRIGGERS = {
     # 4h horizon が検証済み estimand。BE/Trail は BT WR を ~20pp 水増しする —
     # MEMORY project_be_trail_inflates_python_bt_wr)。
     "weekend_gap_fade": 0.0,
+    # OFF: price_shock_rev ×5 — LOCK 済み estimand は horizon-exit or 2×ATR
+    # catastrophic SL のみ (preserve-exit-overlay-2026-07-28 §5(a)+§6 決裁執行)。
+    # BE_LOCK live 適用は設計自身が R1 必須と規定 (未通過)。
+    "price_shock_rev_eur_gbp_h1_long": 0.0,
+    "price_shock_rev_eur_aud_h1_long": 0.0,
+    "price_shock_rev_usd_cad_h1_long": 0.0,
+    "price_shock_rev_nzd_jpy_h1_long": 0.0,
+    "price_shock_rev_aud_jpy_h1_long": 0.0,
 }
 
 
@@ -2711,7 +2719,12 @@ class DemoTrader:
 
             # weekend_gap_fade: ATR-BE / SMC-BE / ATR-trail を全スキップ
             # (pre-reg §2.3 — disaster SL 150p は固定のまま動かさない)
-            if favorable_move > 0 and tp_dist > 0 and not _is_weekend_gap:
+            # price_shock_rev ×5 も同免除 — LOCK 済み estimand は horizon-exit or
+            # 2×ATR catastrophic SL のみ (preserve-exit-overlay-2026-07-28 §5(b)+§6:
+            # 3.5mo counterfactual でクリップ 4 rows の foregone +23p、実 SL 発火 0)
+            _is_ps_rev_sltp = _entry_type_t in PRICE_SHOCK_REV_TIER1_TYPES
+            if (favorable_move > 0 and tp_dist > 0
+                    and not _is_weekend_gap and not _is_ps_rev_sltp):
                 # ── 共通建値ガード: ATR*0.8 到達で SL→建値 ──
                 # SMC戦略: FX=3pip即BE / XAU=10pip(ノイズ回避)
                 # 通常戦略: ATR*0.8 到達でBE
@@ -7411,6 +7424,11 @@ class DemoTrader:
         # weekend_gap_fade: SIGNAL_REVERSE 対象外 (pre-reg §2.3 凍結 — exit は
         # +4h horizon と disaster SL のみ。他戦略の逆方向シグナルで切らない)。
         if trade.get("entry_type", "") == WEEKEND_GAP_FADE_ENTRY_TYPE:
+            return
+        # price_shock_rev ×5: SIGNAL_REVERSE 対象外 — LOCK 済み estimand は
+        # horizon-exit or 2×ATR catastrophic SL のみ (preserve-exit-overlay-
+        # 2026-07-28 §5(b)+§6。第 4 の逸脱経路、id=10730 で実射確認)。
+        if trade.get("entry_type", "") in PRICE_SHOCK_REV_TIER1_TYPES:
             return
         cfg = MODE_CONFIG.get(mode, {})
         direction = trade["direction"]

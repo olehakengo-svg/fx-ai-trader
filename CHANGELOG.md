@@ -1,5 +1,22 @@
 # FX AI Trader - Changelog
 
+## 2026-07-28 — feat(exit): price_shock_rev ×5 exit estimand 復元 + BE_LOCK A/B 実験クローズ (rule:R1)
+
+- **決裁執行**: [[preserve-exit-overlay-2026-07-28]] §5 パケット (user 委任 + 「進めて」決裁、
+  §6 counterfactual 判断材料完了後)。(a) BE_LOCK OFF code pin (`MFE_BE_LOCK_STRATEGY_TRIGGERS`
+  に ps ×5 を 0.0) + (b) ATR-BE/SMC-BE/ATR-trail 免除 + SIGNAL_REVERSE 免除 (第 4 逸脱経路、
+  id=10730 実射) — weekend_gap 型。以後 realized 系列 = 昇格根拠と同じ horizon-exit estimand
+  (close_reason ラベル汚染も解消)。WEEKEND_CLOSE のみ既知の残存逸脱 (§7)
+- **BE_LOCK A/B verdict FAIL / 実験クローズ** ([[mfe-be-lock-design-2026-06-03]] §8):
+  55d N≈5.9k で aggregate ΔEV −0.034 p/t、Welch p=0.855 (基準 ΔEV>0 ∧ p<0.01)、PF 悪化
+  0.635→0.505。期日 25 日超過の pre-reg 執行 (T5 前例)。env `SHADOW_BE_LOCK_ENABLE=0` (全 A 化)、
+  code/tests は残置 (再実験は §5 基準 + R1)
+- **根拠**: 変更は「BT 検証済み estimand への復帰」— 昇格 grid (12.3y MASSIVE, BH-FDR m=3744,
+  AUD_JPY N=426 WR=63.8% 他) + 07-24 exit-free 監査 (全席 p=0.0001) + §6 counterfactual
+  (paired N=13, ΔEV +1.53 p/t [−0.49,+3.90]、クリップ foregone +23p、実 SL 発火 0)。
+  全席 Sentinel 1000u + ps watchdog R2 併設
+- tests: pin 追加 (`TestPriceShockExitEstimandPins` + trigger 0.0) / 2450 passed
+
 ## 2026-07-20 — feat(e15): イベントモダリティ phase-0 estimand lib + discovery ハーネス + §10-6 契約 pin (rule:R1 手続き、純研究)
 
 - **E15+E7 phase-0 の機械層を先行実装** ([[e15-e7-event-modality-prereg-2026-07-18]] §3.5/§4/§5a の
