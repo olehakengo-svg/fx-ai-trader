@@ -1,5 +1,10 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-07-29 — docs(KB): 初 live fill 検証記録 + BE_LOCK §8 per-strategy 追補 (rule:R3 文書化、live 変更なし)
+
+- **🎉 3.5 ヶ月ぶりの初 live fill (07-29 04:44 UTC)**: price_shock_rev_aud_jpy×AUD_JPY → OANDA #549235 BUY 1000u @113.466 slip+0.8p。経路検証全クリーン — agg-Kelly BYPASS ログ実射 (D-c-1 carve-out 作動) / broker SL #549237 @112.467 (=2×ATR) + TP 付帯の二層防御 / dedup・slot 正常 / BE_LOCK・ATR-BE 不作動。**§7 免除 deploy (04:22) 後の fill = 完全な LOCK 設計 estimand 下の第 1 号** (戦略カード 現況に記録)。副次観測: broker TP に Quick-Harvest ×0.85 が適用される (988p→840p、horizon 12h では非拘束 — §7 スコープ外として記録)
+- **[[mfe-be-lock-design-2026-06-03]] §8 追補**: per-strategy 詳細表 (57d 再計測、適格 9 戦略 **0/9 pass**、Bonferroni p 全 1.0、aggregate ΔEV −0.006 p=0.975) — §8 verdict FAIL の per-strategy 粒度での確定。**評価への影響: なし (記録のみ)**
+
 ## 2026-07-29 — fix(data): MASSIVE ベンダー欠損 2 区間 (2019-09/2020-10) を OANDA v20 で backfill — 45 ファイル +61,709 行 (rule:R3)
 
 - **holiday カレンダー検証中に発見された USD_JPY の 2 窓 0 行** (2019-09-14〜10-05 / 2020-10-13〜11-14) を全ペア×全 TF に横断展開: 欠損は**ベンダー側の穴** (API 直接プローブでローカルと欠損日リスト完全一致 = キャッシュはミラー、再取得では埋まらない)。重症度はペア依存 — USD_JPY 両窓全欠 / USD_CAD・USD_CHF 2020 窓全欠 / EUR・GBP・NZD 系部分欠 / AUD 系ほぼ完備
