@@ -49,3 +49,16 @@ OOS 未接触。台帳 #13 verdict 追記。**
 
 m=13 verdict 追記 (クローズ)。アクティブ枠 1/3 → 0/3。次の能動線 = ppp (条件解消後、単独 wave) /
 holiday 縮約版 (背景)。受動: E7 (08-28) / E1 (10-15) / MoF (Q2+10d) / P-S1(a) (N=8/10、8 月上-中旬)。
+
+## 追記 (2026-07-29): データ欠損の robustness 注記
+
+holiday カレンダー検証で MASSIVE キャッシュに欠損 2 区間 (2019-09-14〜10-05, 2020-10-13〜11-14、
+5m/1d とも 0 行) が発見された。本 explore への影響評価: 欠損は explore 8 年の ~2% であり、
+gotobi 日と非 gotobi 日の両群を等しく欠くため diff-in-means は不偏 — **C1/P1 の verdict は不変**。
+キャッシュ再取得は chip task_146ae96b で別線化。
+
+---
+
+## Data note (2026-07-29 追記・修理完了)
+
+上記の別線化タスクは同日完了: 欠損は **MASSIVE ベンダー側の穴** で再取得では埋まらないことが判明し、OANDA v20 mid で backfill した ([[massive-vendor-gap-backfill-2026-07-29]]、45 files +61,709 行)。`USD_JPY_5m_2014_2026.parquet` の当該窓は充足済みのため、将来の再走は窓内の五十日イベントを含む — ただし **verdict (規約 B 較正成功 / sub-friction family クローズ) と再試行禁止スコープに変更はない**。

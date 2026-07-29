@@ -71,13 +71,14 @@ london-4pm-fix-conditional-reversal (= london_fix_reversal の再着せ替え) /
 | 10 | E12 volume design | 蓄積待ち | — |
 | 11 | htf_fb recheck | 受動 registry | deadline 2027-01-31 |
 | 12 | sr_anti_hunt N≥30 | 受動 | — |
+| 14 | ppp_real_fx_gap_reversion | **explore 完了 2026-07-29 (同日、単独 wave)** — [[ppp-real-fx-explore-prereg-2026-07-29]] | ❌ **FAIL** — primary IC 42bd +0.113 p=0.129 (符号は回帰方向・年次 7/8 正だが有意水準未達) + quintile 隣接違反 3 (許容 1)。キャリー直交 102% / headroom 79-115× / 年次集中なしは通過 = 「方向は合うが弱い」型。explore 窓は USD 一方的割高 regime (z>2: 96 vs z<−2: 5) で割安側回帰がほぼ観測不能だった。**同型再試行禁止 (5y-z 月次×21-63bd)、再挑戦は実質金利差込みモデル等 + 明示差分 or 2022+ 込み split 再設計のみ**。OOS 未接触保存。`reports/ppp-real-fx-explore-2026-07-29.md` |
 | 13 | gotobi_tokyo_fix_usdjpy | **explore 完了 2026-07-28 (同日)** — [[gotobi-calibration-explore-prereg-2026-07-28]] | ✅❌ **較正成功 / 昇格 kill** — 規約 B (前営業日繰り) で公表効果を gross 回収 (+1.92p p=0.0032、N=557 vs 1352) = **測定ハーネス正当性を実証** + 規約矛盾解決。ただし効果は sub-friction (+1.9p < RT 2.14p)、P1 テール cell +1.38p p=0.43 → kill rule 機械的適用で family クローズ。OOS 未接触。**gotobi/仲値系の再昇格提案は執行コスト構造の変化なしに不可** (tokyo_nakane_momentum 同 family)。`reports/gotobi-calibration-explore-2026-07-28.md` |
 
 ## wave-2 候補 triage (2026-07-28、敵対的検証済み — `raw/analysis/new-angle-adversarial-verification-2026-07-28.md`)
 
 - **ppp_real_fx_gap_reversion**: GO-WITH-CONDITIONS — **次の単独 wave** (強 prior 家系)。LOCK 前解決必須: 5y rolling z の explore 窓崩壊 (pre-2014 FX ソース or 窓再設計) / スワップ会計一本化 / 極値レグ secondary 降格 / USD 因子ブロック bootstrap / CPI NSA・vintage
 - **holiday_liquidity_state_family**: 2 レグ縮約 (祝日前日 + 米休場翌日反転) の**背景 explore** (スロット非消費、BH 分母独立)。レグ (b)/(d) は power 死の実測反証で削除。祝日カレンダー定義検証 + structural_events refresh 前提
-- **vol_state_gates**: registry 登録のみ — htf_fb N≥100 recheck への split + weekend_gap 将来 recheck への RV5/RV21 forward split (look 追加なし)
+- **vol_state_gates**: ✅ **registry 登録済み 2026-07-29** — `volstate-split-htf-fb-recheck` + `volstate-split-weekend-gap-recheck` (観測前 forward split 宣言、look 追加なし、選択に使わない)
 - **pre_fomc_fx_transcription**: ❌ triage KILL (headroom 4-12x < 10x ゲート、power 不能)。再入場 = E7 PASS 後の新 pre-reg のみ
 - **move_bondvol_shock_jpy_unwind**: ❌ triage KILL (killed-VIX とイベント集合重複 + post-2022 反転 + 現行 split で検証不能)。再入場 = 将来の split 再設計 or forward 型のみ
 - rejected_as_banned 3 系統 (MSCI/FTSE リバランス、equity-stress JPY re-dress、GPIF quarter-end) は検証で支持済み

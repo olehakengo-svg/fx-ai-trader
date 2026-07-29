@@ -1,5 +1,13 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-07-29 — fix(data): MASSIVE ベンダー欠損 2 区間 (2019-09/2020-10) を OANDA v20 で backfill — 45 ファイル +61,709 行 (rule:R3)
+
+- **holiday カレンダー検証中に発見された USD_JPY の 2 窓 0 行** (2019-09-14〜10-05 / 2020-10-13〜11-14) を全ペア×全 TF に横断展開: 欠損は**ベンダー側の穴** (API 直接プローブでローカルと欠損日リスト完全一致 = キャッシュはミラー、再取得では埋まらない)。重症度はペア依存 — USD_JPY 両窓全欠 / USD_CAD・USD_CHF 2020 窓全欠 / EUR・GBP・NZD 系部分欠 / AUD 系ほぼ完備
+- **修理** = `tools/massive_gap_backfill.py` (新規): OANDA v20 mid candles (dailyAlignment=0/UTC = MASSIVE alignment 一致) から**欠損バーのみ**補完。era-local (±90d) pattern guard で当時の session 慣行を保存、既存行バイト不変 assert、`.bak-pre-gapfill` バックアップ + `.audit.json` に backfill provenance、冪等。境界連続性 0.003〜0.07% (クロスソース) を検証
+- **凍結物ガード**: plain `{pair}_15m.parquet` 13 本は E15/E7 pre-reg data ledger (rows_at_ledger_last 凍結、phase-1 verdict 08-28) が pin するため **backfill 恒久除外を code pin** (誤適用 6 本は .bak からバイト同一復元済み = net ゼロ)。W3 manifest の sha256 は .bak と一致検証済み。HIP-1 holdout lock (2025-11〜2026-05) は窓外
+- **refresh cron が埋めない理由を確定**: `bt_data_cache.py` 差分更新は「最終バー→現在」のみ + 全量上限 180〜730d — 履歴中間の穴は構造的に対象外 (かつベンダーに無い)。詳細: [[massive-vendor-gap-backfill-2026-07-29]]
+- 影響 explore 注記: gotobi = robustness 評価済み・verdict 不変 (報告書に data note) / holiday family = 凍結前に是正、pre-reg 時は backfill 済みデータで LOCK すること。**評価への影響: なし — live/shadow/Kelly/tier 不変更**
+
 ## 2026-07-28 — fix(live): price_shock_rev ×5 BE_LOCK OFF — 並行セッションと同時執行 (rule:R1)
 
 - 本セッション (day-1 監視) 側でも [[preserve-exit-overlay-2026-07-28]] §5 案(a) を user 「進めて」承認で執行 — main には Track C **D-c-1** が先着 (5 エントリ 0.0 は同値、コメント文言のみ相違 → merge で D-c-1 表記に統一)
