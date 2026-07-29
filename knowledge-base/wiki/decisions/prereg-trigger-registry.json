@@ -260,6 +260,22 @@
    "message": "weekend_gap live G2 ゲート監視 — live N=12 到達時に cumulative < −60p なら R2 demote。N=30 で G3 判定 (mean net>0 + WR≥35%) → lot 増額は別 R1。頻度 ~3.3/月 → N=12 は ~2026-11 見込み"
   },
   {
+   "id": "volstate-split-htf-fb-recheck",
+   "active": true,
+   "type": "conditional_info",
+   "deadline": "2027-01-31",
+   "doc": "knowledge-base/raw/analysis/new-angle-adversarial-verification-2026-07-28.md",
+   "message": "vol_state_gates 観測前 forward split 宣言 (2026-07-29 登録、look 消費なし): htf_fb×AUD_JPY registry recheck (shadow N≥100) が発火した場合、評価に RV5/RV21>1 vs <1 の regime split を事前登録済み分割として併記する (dose-response IC の in-house 確認済み再パラメタ化、ban CLEAR)。split は診断であり選択に使わない"
+  },
+  {
+   "id": "volstate-split-weekend-gap-recheck",
+   "active": true,
+   "type": "conditional_info",
+   "deadline": "2026-12-31",
+   "doc": "knowledge-base/raw/analysis/new-angle-adversarial-verification-2026-07-28.md",
+   "message": "vol_state_gates 観測前 forward split 宣言 (2026-07-29 登録): weekend_gap live N=12/N=30 recheck (G2/G3 判定) 時に、gap 発生週末の RV5/RV21 状態別のサブ集計を事前登録済み分割として併記 (live 挙動・R2 stop には一切触れない観測のみ)。初の PASS 家系への vol-state optionality 確保が目的、選択には使わない"
+  },
+  {
    "id": "ps-carveout-firstweek-regate",
    "active": true,
    "type": "deadline_info",
