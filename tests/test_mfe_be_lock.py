@@ -31,6 +31,19 @@ class TestTriggerLookup:
         # donchian_momentum_breakout has ΔEV=0 in counterfactual → disabled
         assert _mfe_be_lock_trigger_for("donchian_momentum_breakout", 2.0) == 0.0
 
+    def test_price_shock_rev_disabled_returns_zero(self):
+        # 2026-07-28 user 決裁 (rule:R1): LOCK 済み Exit 設計 (horizon or 2×ATR SL
+        # のみ) に BE_LOCK は設計外 — analyses/preserve-exit-overlay-2026-07-28.md §5
+        # 案(a)。PRICE_SHOCK_REV_TIER1_TYPES 全体をパラメタライズし、family 追加時の
+        # drift を強制検知する (test_preserve_types_tick_entry.py と同思想)。
+        from modules.demo_trader import PRICE_SHOCK_REV_TIER1_TYPES
+
+        assert PRICE_SHOCK_REV_TIER1_TYPES, "tier-1 set unexpectedly empty"
+        for strat in PRICE_SHOCK_REV_TIER1_TYPES:
+            assert _mfe_be_lock_trigger_for(strat, 2.0) == 0.0, (
+                f"{strat} not BE_LOCK-disabled — preserve exit contract drift"
+            )
+
     def test_empty_entry_type_returns_default(self):
         assert _mfe_be_lock_trigger_for("", 2.0) == 2.0
         assert _mfe_be_lock_trigger_for(None, 2.0) == 2.0
@@ -50,6 +63,61 @@ class TestTriggerLookup:
             assert strat in MFE_BE_LOCK_STRATEGY_TRIGGERS, (
                 f"{strat} missing from override map — audit drift"
             )
+
+    def test_price_shock_rev_family_disabled(self):
+        # preserve-exit-overlay-2026-07-28 §5(a)+§6: LOCKed estimand is
+        # horizon-exit or 2xATR catastrophic SL only — BE-lock must stay OFF.
+        from modules.demo_trader import PRICE_SHOCK_REV_TIER1_TYPES
+
+        for strat in PRICE_SHOCK_REV_TIER1_TYPES:
+            assert _mfe_be_lock_trigger_for(strat, 2.0) == 0.0, (
+                f"{strat} BE-lock re-enabled — estimand deviation "
+                "(re-enable requires R1 per mfe-be-lock-design §5)"
+            )
+
+
+# ── price_shock_rev estimand exemption pins (2026-07-28 §5(b)) ──────────────
+# The exemption conditions are inline in _sltp_loop / _check_signal_reverse,
+# so pin them via source inspection (same idiom as test_hull_donchian_fade).
+
+class TestPriceShockExitEstimandPins:
+    def _module_source(self):
+        import inspect
+
+        import modules.demo_trader as dt
+
+        return inspect.getsource(dt)
+
+    def test_atr_be_trail_block_exempts_price_shock(self):
+        src = self._module_source()
+        assert "_is_ps_rev_sltp = _entry_type_t in PRICE_SHOCK_REV_TIER1_TYPES" in src, (
+            "price_shock ATR-BE/trail exemption flag removed — estimand deviation"
+        )
+        assert "and not _is_weekend_gap and not _is_ps_rev_sltp" in src, (
+            "ATR-BE/SMC-BE/ATR-trail block no longer skips price_shock_rev"
+        )
+
+    def test_signal_reverse_exempts_price_shock(self):
+        import inspect
+
+        from modules.demo_trader import DemoTrader
+
+        src = inspect.getsource(DemoTrader._check_signal_reverse)
+        assert "PRICE_SHOCK_REV_TIER1_TYPES" in src, (
+            "_check_signal_reverse lost the price_shock_rev exemption "
+            "(4th estimand-deviation path, preserve-exit-overlay §6.4)"
+        )
+
+    def test_ab_experiment_code_closed(self):
+        # A/B verdict FAIL (mfe-be-lock-design-2026-06-03 §8, 2026-07-29):
+        # the master switch is code-closed — env SHADOW_BE_LOCK_ENABLE must
+        # not be able to re-arm the experiment. Re-running it requires an R1
+        # re-proposal that edits this line deliberately.
+        src = self._module_source()
+        assert "_be_lock_enable = False" in src, (
+            "BE_LOCK A/B master switch re-armed — closed experiment "
+            "(verdict FAIL) requires R1 re-proposal, not an env flip"
+        )
 
 
 # ── _mfe_be_lock_group (A/B split) ───────────────────────────────────────────

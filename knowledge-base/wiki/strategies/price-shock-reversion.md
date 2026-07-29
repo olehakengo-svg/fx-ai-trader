@@ -17,7 +17,7 @@ H1 252-bar log return 1%-tile negative shock 後の horizon-exit LONG mean rever
 
 ## 現況
 - **2026-07-28 live 再武装** (PR #119): `_is_xau_inst` バグ (2026-04-10〜) で 3.5 ヶ月 live 送信死 → 修復 + user 決裁「7 席全部再武装」で 5 セル live 送信可 ([[lesson-preserve-sltp-unboundlocal-2026-07-28]])。同日時点 live fill N=0 (次シグナル待ち)
-- ⚠️ **exit オーバーレイ逸脱 (2026-07-28 発見)**: BE_LOCK A/B (trig 2.0p, group B 50%) + ATR-BE/trail が本 family にも適用され、LOCK 済み Exit 設計 (horizon or 2×ATR のみ) と乖離。close_reason=`sl_2atr` は BE/trail 発火を含むラベル汚染あり。決裁パケット: [[preserve-exit-overlay-2026-07-28]] §5 (user 決裁待ち)
+- ✅ **exit オーバーレイ逸脱 → 2 段階で是正完了 (2026-07-28)**: BE_LOCK A/B + ATR-BE/trail + SIGNAL_REVERSE が本 family に適用され LOCK 済み Exit 設計 (horizon or 2×ATR のみ) と乖離していた。第 1 段 = user 決裁 (同日) で **BE_LOCK 5 種 OFF (trig 0.0) 執行** ([[preserve-exit-overlay-2026-07-28]] §5 決裁記録、PR #124/#126)。第 2 段 = horizon-exit counterfactual 定量化 (同 §6) 完了後の user「進めて」決裁で **ATR-BE/trail + SIGNAL_REVERSE も免除 = 案(b) 完全整合** (同 §7 執行記録)。**是正以前の close_reason=`sl_2atr` はクリップ発火を含むラベル汚染あり** (歴史系列の解釈時に注意、遡及換算は `tools/price_shock_exit_counterfactual.py`)。WEEKEND_CLOSE のみ既知の残存逸脱 (§7)
 - 2026-06-08 再監査: 5 戦略とも正常稼働、rare-event (発火 ~0.33%/bar) による Shadow N 蓄積待ち ([[price-shock-promote-readiness-2026-06-08]])
 - SHORT_SHOCK は grid で promote 級エッジ無し (downside-shock asymmetry) — short 側 deploy は正当に不可
 
