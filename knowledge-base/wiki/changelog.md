@@ -1,5 +1,15 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-07-28 — feat(risk): Track C 資本配管修復 — ps×5 carve-out + JPY 台帳 SSOT 化 + PYR code pin (rule:R1 user 承認 + R2)
+
+- **決裁**: [[track-c-capital-plumbing-decision-packet-2026-07-28]] を user 承認 (「進めて」= Claude 推奨案採択)。診断: [[track-c-plumbing-audit-2026-07-28]] (全クレーム code 検証 + D-a broker 実測)
+- **D-c-1 (R1)**: `_AGG_KELLY_GATE_MINLOT_BYPASS_TYPES` に price_shock_rev ×5 を追加 (全席 1000u 固定契約、>1000u で自動失効) — **07-28「7席再武装」決裁が carve-out 欠落で code 上無効化されていた** (累積 Kelly −0.22 恒久負 → 次 qualify シグナルで shadow 落ち確定だった) の実効化。同時に `MFE_BE_LOCK_STRATEGY_TRIGGERS` へ ps×5 を 0.0 追加 ([[preserve-exit-overlay-2026-07-28]] §5 案(a) — R1 未通過実験レバーの live 波及遮断、estimand を LOCK 済み horizon-exit に近接)。復帰初週再ゲート registry 登録 (`ps-carveout-firstweek-regate`、08-11)
+- **D-c-2 (R1)**: donchian×NZD ×2 は選択肢(ii) 採択 — bypass 追加せず gate block のまま shadow N 蓄積 (365d BT FAIL CI 全負、小 N 昇格パターン)
+- **D-b (R1)**: DD defensive の SSOT を pip/1000 台帳 → **JPY 台帳** (per-close `pnl_pips × units × pip価値JPY`、母集団 = `oanda_trade_id != ''` broker 実約定 ∧ 非 XAU) に切替。D-a 実測 (実 DD 9.14% / 32,835 JPY) で再基準化 — **切替時 multiplier は 0.20x のまま不変** (現時点の防御は正当)、変わるのは回復経路 (+928p ≈ 57k JPY 相当 → +4.1k JPY で 0.40x 圏 = 恒久ロック解消)。tiers/MC ruin gate は存続、ruin 計量の資本も pip→JPY 整合 (`OANDA_JPY_PER_PIP_AVG`)。`/api/risk/dashboard` dd_status に jpy_ledger 追加・dd_pct の分母 1000 ハードコード修正 (「DD 100.8%」表示 artifact の解消)
+- **R2 (D-e 調査起因)**: `_PYRAMIDING_CODE_PIN_DISABLED = True` — PYR child は demo 台帳に行を作らない構造的 orphan (生涯 N=33 / WR 9.5% / net −5,212 JPY / 同一親 6 連 fill = dedup 不全)。[[track-c-de-orphan-investigation-2026-07-28]] (`raw/analysis/`)。**30000u×7 (07-10/13) は preserve 系ではなく手動/外部クライアントと判定 — user 本人操作か要確認 (否ならトークンローテーション Rule 3)**
+- tests: `tests/test_track_c_plumbing.py` +33 本 (bypass/BE_LOCK/pip_value_jpy/tier 境界/PYR pin)、`test_pyr_attribution.py` は pin monkeypatch で将来 R1 再武装用に温存。全 2,480 green
+- **評価への影響**: live 送信可能セルが wg×3 → **wg×3 + ps×5** に回復 (user 決裁の実効化)。lot は全席 1000u 固定契約のまま — aggregate lot 増はゼロ。dmb×2/legacy は不変
+
 ## 2026-07-25 — fix(research): E1 供給ライン phase1b BT の join dtype バグ修正 — 14 ペア中 12 ペアが silent に 0 join だった構造欠陥 (rule:R3)
 
 - **症状**: `phase1b_oanda_contrarian_bt.py` の日次再走が **verdict=NULL** を出し続けていたが、真因は「エッジ不在」ではなく **pandas merge_asof の datetime-unit 不一致**。MASSIVE cache refresh が 12/14 ペアの `{pair}_1h.parquet` を `datetime64[ms, UTC]` で書き直した一方、OANDA-Labs sentiment 履歴は `datetime64[ns, UTC]` のまま → pandas≥2.0 が `incompatible merge keys [0] datetime64[ms, UTC] and datetime64[ns, UTC]` で join 拒否。EUR_CHF/GBP_CHF (偶然 ns のまま) の **2 ペアだけ**が join されていた

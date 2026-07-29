@@ -169,6 +169,14 @@ JPY_CAP_EXIT_SIZE_LEVER_STRATEGIES = frozenset({
 MFE_BE_LOCK_DEFAULT_TRIGGER_PIPS = 2.0
 MFE_BE_LOCK_DEFAULT_FLOOR_PIPS = 1.0
 
+# ── R2 code pin (2026-07-28): Risk-Free Pyramiding 恒久停止 ──
+# Track C D-e 調査で確定: PYR child は demo 台帳に行を作らない構造的 orphan
+# (生涯 N=33 fill / WR 9.5% / net −5,212 JPY / 同一親 6 連 fill = in-memory dedup
+# 不全)。equity ガード母集団外で 10000u が無監視だった。env の kill switch は
+# pin にならない (watchdog DECREMENT 教訓) ため code で不可逆化。
+# 再武装は R1 + 「PYR child の demo 台帳行実装 + dedup の永続化」が pre-reg 必須。
+_PYRAMIDING_CODE_PIN_DISABLED = True
+
 # Per-strategy trigger override.
 # 0.0 disables BE-lock for this strategy (e.g. donchian — already exits well).
 # Larger value = wait for bigger MFE before locking (preserves trend runs).
@@ -188,8 +196,10 @@ MFE_BE_LOCK_STRATEGY_TRIGGERS = {
     # MEMORY project_be_trail_inflates_python_bt_wr)。
     "weekend_gap_fade": 0.0,
     # OFF: price_shock_rev ×5 — LOCK 済み estimand は horizon-exit or 2×ATR
-    # catastrophic SL のみ (preserve-exit-overlay-2026-07-28 §5(a)+§6 決裁執行)。
-    # BE_LOCK live 適用は設計自身が R1 必須と規定 (未通過)。
+    # catastrophic SL のみ。Track C D-c-1 と preserve-exit-overlay-2026-07-28
+    # §5(a)+§6 決裁執行が同内容で同時着地 (2026-07-28 user 承認)。BE_LOCK live
+    # 適用は設計自身が R1 必須と規定 (未通過)。案(b) = ATR-BE/trail/
+    # SIGNAL_REVERSE 免除は §6 counterfactual 完了後に同 doc §7 で執行済み。
     "price_shock_rev_eur_gbp_h1_long": 0.0,
     "price_shock_rev_eur_aud_h1_long": 0.0,
     "price_shock_rev_usd_cad_h1_long": 0.0,
@@ -208,6 +218,40 @@ def _mfe_be_lock_trigger_for(entry_type: str, default_trigger: float) -> float:
     if entry_type in MFE_BE_LOCK_STRATEGY_TRIGGERS:
         return MFE_BE_LOCK_STRATEGY_TRIGGERS[entry_type]
     return default_trigger
+
+
+def pip_value_jpy(instrument: str, units, rate_lookup) -> float:
+    """1 トレードの pip 価値 (JPY 建て)。Track C D-b (2026-07-28 user 承認)。
+
+    rate_lookup(pair) -> mid price or None。quote 通貨 → JPY の換算は
+    直接ペア → USD クロス合成の順でフォールバック。lot-blind pip 台帳が
+    DD を最大 1/16 に圧縮していた欠陥 (D-a 実測) の是正。
+    """
+    try:
+        _, quote = instrument.split("_")
+    except ValueError:
+        return 0.0
+    pip = 0.01 if quote == "JPY" else 0.0001
+    u = abs(float(units or 0)) or 1000.0
+    if quote == "JPY":
+        return u * pip
+    rate = rate_lookup(f"{quote}_JPY")
+    if not rate:
+        usdjpy = rate_lookup("USD_JPY")
+        if quote == "USD":
+            rate = usdjpy
+        elif usdjpy:
+            q_usd = rate_lookup(f"{quote}_USD")
+            usd_q = rate_lookup(f"USD_{quote}")
+            if q_usd:
+                rate = q_usd * usdjpy
+            elif usd_q:
+                rate = usdjpy / usd_q
+            else:
+                rate = usdjpy  # quote≈USD オーダー近似 (保守的フォールバック)
+    if not rate:
+        rate = 150.0  # 最終フォールバック定数 (rate 全滅時のみ)
+    return u * pip * rate
 
 
 def _mfe_be_lock_group(trade_id: str, ab_fraction: float) -> str:
@@ -926,6 +970,20 @@ class DemoTrader:
             _os.environ.get("OANDA_EQ_BASE_PIPS", "1000.0")
         )
 
+        # ── Track C D-b (user 承認 2026-07-28): JPY 台帳が DD multiplier の SSOT ──
+        # pip/1000 台帳は (a) 分母が実資本と無関係 (b) lot-blind で JPY 感応度を最大
+        # 1/16 圧縮 (c) 回復非対称 14 倍 (+928p vs +4,088 JPY) の恒久ロック構造だった
+        # (track-c-plumbing-audit-2026-07-28 / D-a broker 実測)。tiers と MC ruin gate は
+        # 存続 — 測り方 (estimand) のみ実 NAV 比 (JPY) に訂正する。
+        # 分母 = clean 期初期資本 (D-a: 入金推定 359,109 JPY)。
+        self._EQ_BASE_CAPITAL_JPY = float(
+            _os.environ.get("OANDA_EQ_BASE_JPY", "359109.0")
+        )
+        # D-a 実測の clean live 加重平均 pip 価値 (ruin 計量の pip→JPY 整合用)
+        self._JPY_PER_PIP_AVG = float(
+            _os.environ.get("OANDA_JPY_PER_PIP_AVG", "61.9")
+        )
+
         # ── v8.9: Equity Reset — クリーンデータ起点 ──
         # v8.4以前のXAU損失(-2,280pip)+pre-cutoffバグデータが永久にDDを汚染していた。
         # v8.4(XAU停止+Shadow除去)以降のFX-onlyデータからequityを再計算する。
@@ -996,6 +1054,49 @@ class DemoTrader:
                 self._dd_lot_mult = 1.0
                 print(f"[v7.0] EquityProtector DB restore failed, defaults: {e}",
                       flush=True)
+
+        # ── Track C D-b: JPY 台帳の初期化/復元 ──
+        # 初回は D-a broker 実測 (2026-07-28、oanda_trades.realized_pl N=339) の値で
+        # 再基準化 (eq_peak 再アンカー)。以後は per-close で JPY 累積。
+        # 母集団 = broker 実約定 (oanda_trade_id != '') ∧ 非 XAU (close path 参照)。
+        _jpy_flag = "eq_jpy_ledger_v1"
+        if self._db.get_system_kv(_jpy_flag, "0") != "1":
+            self._eq_peak_jpy = float(_os.environ.get(
+                "OANDA_EQ_JPY_PEAK_INIT", "359288.47"))   # D-a: clean 期 equity peak
+            self._eq_current_jpy = float(_os.environ.get(
+                "OANDA_EQ_JPY_CURRENT_INIT", "326472.58"))  # D-a: 2026-07-28 実測
+            try:
+                self._db.set_system_kv("eq_peak_jpy", str(round(self._eq_peak_jpy, 2)))
+                self._db.set_system_kv("eq_current_jpy", str(round(self._eq_current_jpy, 2)))
+                self._db.set_system_kv(_jpy_flag, "1")
+            except Exception as _je:
+                print(f"[track-c] JPY ledger anchor persist failed: {_je}", flush=True)
+            print(f"[track-c] JPY ledger anchored (D-a 実測): "
+                  f"peak={self._eq_peak_jpy:.0f} current={self._eq_current_jpy:.0f} "
+                  f"DD={(self._eq_peak_jpy - self._eq_current_jpy) / max(self._EQ_BASE_CAPITAL_JPY, 1.0):.2%}",
+                  flush=True)
+        else:
+            try:
+                self._eq_peak_jpy = float(self._db.get_system_kv("eq_peak_jpy", "0.0"))
+                self._eq_current_jpy = float(self._db.get_system_kv("eq_current_jpy", "0.0"))
+            except Exception:
+                self._eq_peak_jpy = 0.0
+                self._eq_current_jpy = 0.0
+        # JPY 台帳が有効な場合は起動時に multiplier を JPY DD で整合させる
+        if self._eq_peak_jpy > 0:
+            _dd_jpy_pct = (self._eq_peak_jpy - self._eq_current_jpy) / max(
+                self._EQ_BASE_CAPITAL_JPY, 1.0)
+            self._dd_lot_mult = get_dd_lot_multiplier(_dd_jpy_pct)
+            self._defensive_mode = self._dd_lot_mult < 1.0
+            try:
+                self._db.set_system_kv("dd_lot_mult", str(round(self._dd_lot_mult, 2)))
+                self._db.set_system_kv("defensive_mode",
+                                       "1" if self._defensive_mode else "0")
+            except Exception:
+                pass
+            print(f"[track-c] DD multiplier from JPY ledger: "
+                  f"DD={_dd_jpy_pct:.2%} lot_mult={self._dd_lot_mult}", flush=True)
+
         self._trade_high_water = {}     # trade_id -> max favorable price（BE/トレーリング用）
         # ── MAFE (Max Adverse / Favorable Excursion) ──
         # 2026-05-01 audit P0-5: protect read-modify-write sequences on
@@ -2908,7 +3009,8 @@ class DemoTrader:
                 "DISABLE_PYRAMIDING", ""
             ).strip().lower() in ("1", "true", "yes")
             _has_oanda_id = bool(trade.get("oanda_trade_id"))
-            if (not _pyramiding_disabled
+            if (not _PYRAMIDING_CODE_PIN_DISABLED
+                    and not _pyramiding_disabled
                     and trade_id not in self._pyramided_trades
                     and _has_oanda_id
                     and _entry_type_pe in self._PE_50PCT_ELIGIBLE):
@@ -3241,17 +3343,30 @@ class DemoTrader:
                         _fr_str += "⚠️"  # 摩擦がPnL超過
 
                 # ── Equity Curve Protector: 段階的DDロット縮小 v7.0 ──
-                # v8.9: Shadow trades と XAU trades はエクイティ曲線に含めない
+                # Track C D-b (2026-07-28): 母集団 = broker 実約定 (oanda_trade_id) 限定
+                # (遡及 shadow 化・KV 再現不能残差 −335.3p の汚染を構造排除)。
+                # multiplier の SSOT は JPY 台帳。pip 台帳は継続監視用に併記維持。
                 _is_eq_eligible = (
-                    not trade.get("is_shadow", 0)
+                    bool(trade.get("oanda_trade_id"))
+                    and not trade.get("is_shadow", 0)
                     and "XAU" not in (trade.get("instrument", "") or "")
                 )
                 if _is_eq_eligible:
+                    # legacy pip 台帳 (継続監視用 — multiplier には使わない)
                     self._eq_current += pnl
                     if self._eq_current > self._eq_peak:
                         self._eq_peak = self._eq_current
                     _eq_dd = self._eq_peak - self._eq_current
-                    _eq_dd_pct = _eq_dd / max(self._EQ_BASE_CAPITAL_PIPS, 1.0)
+
+                    # JPY 台帳 (SSOT): pnl_pips × units × pip価値(JPY)
+                    _pnl_jpy = pnl * pip_value_jpy(
+                        trade.get("instrument", "") or "",
+                        trade.get("units", 0), self._rate_mid)
+                    self._eq_current_jpy += _pnl_jpy
+                    if self._eq_current_jpy > self._eq_peak_jpy:
+                        self._eq_peak_jpy = self._eq_current_jpy
+                    _eq_dd_jpy = self._eq_peak_jpy - self._eq_current_jpy
+                    _eq_dd_pct = _eq_dd_jpy / max(self._EQ_BASE_CAPITAL_JPY, 1.0)
                     _prev_dd_mult = self._dd_lot_mult
                     _new_dd_mult = get_dd_lot_multiplier(_eq_dd_pct)
                     self._dd_lot_mult = _new_dd_mult
@@ -3260,12 +3375,14 @@ class DemoTrader:
 
                     if _new_dd_mult < _prev_dd_mult:
                         self._add_log(
-                            f"🛡️ DD REDUCTION: DD={_eq_dd:.1f}pip ({_eq_dd_pct:.1%}) "
+                            f"🛡️ DD REDUCTION: DD={_eq_dd_jpy:.0f}JPY ({_eq_dd_pct:.1%}, "
+                            f"pip台帳 {_eq_dd:.1f}p) "
                             f"lot_mult={_prev_dd_mult:.2f}->{_new_dd_mult:.2f}"
                         )
                     elif _new_dd_mult > _prev_dd_mult:
                         self._add_log(
-                            f"🟢 DD RECOVERY: DD={_eq_dd:.1f}pip ({_eq_dd_pct:.1%}) "
+                            f"🟢 DD RECOVERY: DD={_eq_dd_jpy:.0f}JPY ({_eq_dd_pct:.1%}, "
+                            f"pip台帳 {_eq_dd:.1f}p) "
                             f"lot_mult={_prev_dd_mult:.2f}->{_new_dd_mult:.2f}"
                         )
 
@@ -3273,6 +3390,8 @@ class DemoTrader:
                     try:
                         self._db.set_system_kv("eq_peak", str(round(self._eq_peak, 2)))
                         self._db.set_system_kv("eq_current", str(round(self._eq_current, 2)))
+                        self._db.set_system_kv("eq_peak_jpy", str(round(self._eq_peak_jpy, 2)))
+                        self._db.set_system_kv("eq_current_jpy", str(round(self._eq_current_jpy, 2)))
                         self._db.set_system_kv("defensive_mode", "1" if self._defensive_mode else "0")
                         self._db.set_system_kv("dd_lot_mult", str(round(self._dd_lot_mult, 2)))
                     except Exception:
@@ -9871,6 +9990,16 @@ class DemoTrader:
         # agg-Kelly は恒久負 (固定 cutoff 累積, 2026-07-10 決裁) のため min-lot
         # bypass 不在だと live 発火が構造的に不能になる。
         "weekend_gap_fade",
+        # 2026-07-28: price_shock_rev ×5 — Track C D-c-1 (user 承認、
+        # track-c-capital-plumbing-decision-packet-2026-07-28)。全席 1000u 固定契約。
+        # 07-28「7席再武装」決裁の実効化 — carve-out 欠落により code 上無効化されていた
+        # (track-c-plumbing-audit-2026-07-28 発見1)。donchian×NZD ×2 は D-c-2 選択肢(ii)
+        # 採択で意図的に対象外 (365d BT FAIL → gate block のまま shadow N 蓄積)。
+        "price_shock_rev_eur_gbp_h1_long",
+        "price_shock_rev_eur_aud_h1_long",
+        "price_shock_rev_usd_cad_h1_long",
+        "price_shock_rev_nzd_jpy_h1_long",
+        "price_shock_rev_aud_jpy_h1_long",
     })
     _AGG_KELLY_GATE_MINLOT_MAX_UNITS = 1000
 
@@ -9881,6 +10010,11 @@ class DemoTrader:
             and not is_xau
             and 0 < abs(units) <= self._AGG_KELLY_GATE_MINLOT_MAX_UNITS
         )
+
+    def _rate_mid(self, pair: str):
+        """price_history から最新 mid を返す (Track C D-b: JPY 換算用)。"""
+        _ph = self._price_history.get(pair, [])
+        return _ph[-1][1] if _ph else None
 
     def _get_strategy_kelly(self, entry_type: str, instrument: str) -> float:
         """
@@ -10019,9 +10153,15 @@ class DemoTrader:
                 self._ruin_prob_cache = None
                 self._ruin_prob_cache_ts = now
                 return None
+            # Track C D-b: pip 建て MC の資本を実 NAV の pip 換算に整合
+            # (旧 1000.0 ハードコードは DD 分母と同じ artifact 一族)。
+            _ruin_capital_pips = max(
+                self._EQ_BASE_CAPITAL_JPY / max(self._JPY_PER_PIP_AVG, 1.0),
+                1000.0,
+            )
             result = monte_carlo_ruin(
                 pnl_list,
-                initial_capital=1000.0,
+                initial_capital=_ruin_capital_pips,
                 n_simulations=5000,
                 n_trades_forward=300,
             )
