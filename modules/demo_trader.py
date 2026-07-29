@@ -2756,7 +2756,12 @@ class DemoTrader:
             # ATR*0.8 misses gets locked in. Existing BE/trail guarded by
             # `if new_sl > sl: sl = new_sl` so this composes cleanly.
             # ══════════════════════════════════════════════════════════════
-            _be_lock_enable = _os.environ.get("SHADOW_BE_LOCK_ENABLE", "0") == "1"
+            # BE_LOCK A/B 実験は verdict FAIL でクローズ (2026-07-29,
+            # mfe-be-lock-design-2026-06-03 §8: aggregate ΔEV −0.034 p=0.855)。
+            # env SHADOW_BE_LOCK_ENABLE では再武装できない code close —
+            # 再実験は §5 基準 + R1 再起案 + 本行の変更が必要 (env/KV は pin に
+            # ならない教訓の対偶: クローズも code で不可逆化する)。
+            _be_lock_enable = False  # closed; was: _os.environ.get("SHADOW_BE_LOCK_ENABLE", "0") == "1"
             if _be_lock_enable:
                 try:
                     _be_ab_frac = float(_os.environ.get("SHADOW_BE_LOCK_AB_FRACTION", "0.5"))

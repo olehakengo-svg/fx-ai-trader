@@ -215,7 +215,7 @@ realized `sl_2atr` ラベル 5 rows (全て正の小 pnl = BE/trail クリップ
 | (a) | price_shock_rev ×5 を BE_LOCK OFF | `MFE_BE_LOCK_STRATEGY_TRIGGERS` に 5 entry_type を 0.0 追加 (code pin — env と独立に恒久化、「KV disable は pin にならない」教訓) |
 | (b) | ATR-BE / SMC-BE / ATR-trail 免除 | `_sltp_loop` の免除条件に `_is_ps_rev_sltp` 追加 (weekend_gap 型) |
 | (b)+ | SIGNAL_REVERSE 免除 (§6.4 の第 4 経路) | `_check_signal_reverse` に PRICE_SHOCK_REV_TIER1_TYPES 早期 return |
-| 併決 | BE_LOCK A/B 実験の正式クローズ | verdict FAIL ([[mfe-be-lock-design-2026-06-03]] §8)。env `SHADOW_BE_LOCK_ENABLE=0` (全 A 化) |
+| 併決 | BE_LOCK A/B 実験の正式クローズ | verdict FAIL ([[mfe-be-lock-design-2026-06-03]] §8)。執行 = **code close** (`_be_lock_enable = False` + pin テスト) — env 経路より強い不可逆化 (2026-07-29) |
 
 **変更の判断根拠 (BT 検証要件への回答)**: 本変更は「新エッジ」ではなく **BT 検証済み estimand への復帰**。
 - 昇格根拠 BT (horizon-exit で採点、12.3y MASSIVE, BH-FDR m=3744): EUR_GBP N=239 WR=72.8% / EUR_AUD N=262 WR=67.6% / USD_CAD N=247 WR=66.4% / NZD_JPY N=303 WR=64.0% / AUD_JPY N=426 WR=63.8%

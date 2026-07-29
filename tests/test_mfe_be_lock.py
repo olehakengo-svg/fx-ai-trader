@@ -108,6 +108,17 @@ class TestPriceShockExitEstimandPins:
             "(4th estimand-deviation path, preserve-exit-overlay §6.4)"
         )
 
+    def test_ab_experiment_code_closed(self):
+        # A/B verdict FAIL (mfe-be-lock-design-2026-06-03 §8, 2026-07-29):
+        # the master switch is code-closed — env SHADOW_BE_LOCK_ENABLE must
+        # not be able to re-arm the experiment. Re-running it requires an R1
+        # re-proposal that edits this line deliberately.
+        src = self._module_source()
+        assert "_be_lock_enable = False" in src, (
+            "BE_LOCK A/B master switch re-armed — closed experiment "
+            "(verdict FAIL) requires R1 re-proposal, not an env flip"
+        )
+
 
 # ── _mfe_be_lock_group (A/B split) ───────────────────────────────────────────
 
