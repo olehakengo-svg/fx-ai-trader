@@ -1,5 +1,10 @@
 # Changelog — バージョン別変更と評価基準日
 
+## 2026-07-28 — fix(live): price_shock_rev ×5 BE_LOCK OFF — 並行セッションと同時執行 (rule:R1)
+
+- 本セッション (day-1 監視) 側でも [[preserve-exit-overlay-2026-07-28]] §5 案(a) を user 「進めて」承認で執行 — main には Track C **D-c-1** が先着 (5 エントリ 0.0 は同値、コメント文言のみ相違 → merge で D-c-1 表記に統一)
+- 残存 delta: regression pin `tests/test_mfe_be_lock.py::test_price_shock_rev_disabled_returns_zero` (PRICE_SHOCK_REV_TIER1_TYPES 全体パラメタライズ、family 追加 drift を強制検知) + §5 決裁記録の KB 追記
+
 ## 2026-07-28 — feat(risk): Track C 資本配管修復 — ps×5 carve-out + JPY 台帳 SSOT 化 + PYR code pin (rule:R1 user 承認 + R2)
 
 - **決裁**: [[track-c-capital-plumbing-decision-packet-2026-07-28]] を user 承認 (「進めて」= Claude 推奨案採択)。診断: [[track-c-plumbing-audit-2026-07-28]] (全クレーム code 検証 + D-a broker 実測)

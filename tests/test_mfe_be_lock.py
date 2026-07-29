@@ -31,6 +31,19 @@ class TestTriggerLookup:
         # donchian_momentum_breakout has ΔEV=0 in counterfactual → disabled
         assert _mfe_be_lock_trigger_for("donchian_momentum_breakout", 2.0) == 0.0
 
+    def test_price_shock_rev_disabled_returns_zero(self):
+        # 2026-07-28 user 決裁 (rule:R1): LOCK 済み Exit 設計 (horizon or 2×ATR SL
+        # のみ) に BE_LOCK は設計外 — analyses/preserve-exit-overlay-2026-07-28.md §5
+        # 案(a)。PRICE_SHOCK_REV_TIER1_TYPES 全体をパラメタライズし、family 追加時の
+        # drift を強制検知する (test_preserve_types_tick_entry.py と同思想)。
+        from modules.demo_trader import PRICE_SHOCK_REV_TIER1_TYPES
+
+        assert PRICE_SHOCK_REV_TIER1_TYPES, "tier-1 set unexpectedly empty"
+        for strat in PRICE_SHOCK_REV_TIER1_TYPES:
+            assert _mfe_be_lock_trigger_for(strat, 2.0) == 0.0, (
+                f"{strat} not BE_LOCK-disabled — preserve exit contract drift"
+            )
+
     def test_empty_entry_type_returns_default(self):
         assert _mfe_be_lock_trigger_for("", 2.0) == 2.0
         assert _mfe_be_lock_trigger_for(None, 2.0) == 2.0
