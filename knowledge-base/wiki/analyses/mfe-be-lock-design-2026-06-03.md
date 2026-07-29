@@ -218,4 +218,24 @@ correct quantity for the promotion decision.
 - Render dashboard の env `SHADOW_BE_LOCK_ENABLE=1` は dead key 化 (削除は cosmetic — 既存の dashboard 無参照キー削除タスクと同枠)
 - helpers / hook / tests は残置 — 再実験は本設計の §5 基準 + R1 で再起案 + code close 行の意図的変更が条件
 - price_shock_rev ×5 は verdict と独立に `MFE_BE_LOCK_STRATEGY_TRIGGERS` 0.0 で恒久 code pin ([[preserve-exit-overlay-2026-07-28]] §7 — env 再有効化でも estimand を汚染しない)
+
+### §8 追補: per-strategy 詳細表 (2026-07-29 再計測、deploy から 57 日)
+
+上記「Per-strategy 全戦略不成立」の実証。本番 API 20,000 rows / shadow 非XAU closed / group = crc32(trade_id)%1000<500 /
+適格 = 両群 N≥100 (§5 基準)、m=9 で Bonferroni:
+
+| strategy | N_A | N_B | mean_A | mean_B | ΔEV(B−A) | p (Welch) | p_Bonf | pass |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| dt_sr_channel_reversal | 237 | 239 | −1.45 | −1.98 | −0.53 | 0.396 | 1.0 | ❌ |
+| dual_sr_bounce | 140 | 148 | −2.18 | −2.73 | −0.55 | 0.540 | 1.0 | ❌ |
+| engulfing_bb | 214 | 172 | −0.82 | −1.23 | −0.41 | 0.349 | 1.0 | ❌ |
+| london_breakout | 129 | 137 | −1.00 | −1.06 | −0.06 | 0.926 | 1.0 | ❌ |
+| session_time_bias | 222 | 253 | −1.44 | −0.68 | +0.76 | 0.249 | 1.0 | ❌ |
+| sr_break_retest | 301 | 300 | −2.20 | −1.37 | +0.83 | 0.178 | 1.0 | ❌ |
+| vol_momentum_scalp | 100 | 126 | −0.51 | −1.60 | −1.09 | 0.142 | 1.0 | ❌ |
+| wick_imbalance_reversion | 123 | 128 | −2.91 | −2.14 | +0.77 | 0.481 | 1.0 | ❌ |
+| xs_momentum | 185 | 195 | −1.31 | −1.81 | −0.50 | 0.578 | 1.0 | ❌ |
+| **AGGREGATE (全型 pool)** | **2,962** | **3,061** | | | **−0.006** | **0.975** | | ❌ |
+
+**0/9 pass**。両群 N≈3,000 で underpowered ではない — クリーンな null であり、§8 verdict (FAIL / code close) を per-strategy 粒度でも確定させる。ΔEV 正の 4 戦略も Bonferroni はおろか raw p<0.05 にすら届かない。
 - §6 caveat「idealized simulation」は §3 counterfactual (+1.55 ΔEV 予測) に対し実測 −0.034 で確定的に反証 — snapshot counterfactual の楽観バイアス事例として [[lesson-snapshot-survivorship-bias-2026-06-03]] に連なる
