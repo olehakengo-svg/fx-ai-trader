@@ -1,0 +1,7151 @@
+{
+ "meta": {
+  "family": "ppp_real_fx_gap_reversion",
+  "stage": "explore (frozen pre-reg 2026-07-29) — measurement only, no verdict",
+  "frozen_spec": "knowledge-base/wiki/analyses/ppp-real-fx-explore-prereg-2026-07-29.md",
+  "generated_by": "tools/ppp_real_fx_explore.py",
+  "seed": 20260729,
+  "n_boot": 10000,
+  "z_window_bd": 1260,
+  "explore_signal_window": [
+   "2014-01-31",
+   "2021-12-31"
+  ],
+  "oos_touched": false,
+  "signal_orientation_resolution": "凍結式 q=log(S)+log(CPI_f/CPI_US) は S=FC/USD 宣言と『q 上昇=USD 実質高』『高 z→USD 減価』『IC=Spearman(−z,fwd)』に対し価格比の向きが不整合 (PPP アンカー S*=CPI_f/CPI_US)。内部整合読み q_usd=log(S_fc/USD)−log(CPI_f/CPI_US) (= 凍結式を S=USD/FC 向きで verbatim に取り (d) の −z を適用したものと同値) を primary に採用。IC=Spearman(z_usd, fwd FC return vs USD)、回帰方向 ⇒ IC>0。literal-mix は diagnostics_not_for_selection のみ。",
+  "fwd_return_definition": "r_fc(t,h) = log(S_t/S_{t+h}), S=FC per USD ffilled (= 外貨の対 USD log リターン、USD 減価 = 正)",
+  "cpi_vintage_rule": "利用可能日 = 参照期間末 (月次=月末 / AU・NZ 四半期=四半期末) +45 暦日、以後前方埋め step (FRED 期間初日スタンプは期間末に変換)",
+  "bootstrap_null": "半期 (6m) ブロック 16 × 全ペア同時。シグナル側/リターン側ブロック列を独立復元抽出しスロット対合 → z-r リンクのみ破壊 (si==ri 一致は保守側)",
+  "assertions_passed": [
+   "lookahead (CPI avail ≤ signal date, 両脚, 全 672 obs)",
+   "z 完全窓 1260bd (全シグナル日 non-NaN, grid 位置 ≥ 1259)",
+   "explore 窓外シグナル日ゼロ (2014-01-31〜2021-12-31)",
+   "n=672 (96 月末 × 7 ペア), 6m ブロック 16 × 42"
+  ],
+  "data_files": {
+   "data/external/ppp/bis_cpi_JP_WS_LONG_CPI_M_JP_628.csv": {
+    "sha256": "beea87b95ac8c5c402434476428e298f998d1fea67e86183342a20fd4056e617"
+   },
+   "data/external/ppp/fred_cpi_AU_AUSCPIALLQINMEI.csv": {
+    "sha256": "3916df52d2fc21b48444b618208e23a5af9f377f977e91e309d4049befe5e596"
+   },
+   "data/external/ppp/fred_cpi_CA_CANCPIALLMINMEI.csv": {
+    "sha256": "e1b335f40b26951c317d71c5cdcbf4d45b3fd25dca96504d3b5e1c6f489440af"
+   },
+   "data/external/ppp/fred_cpi_CH_CHECPIALLMINMEI.csv": {
+    "sha256": "9d2ac3f117a746514ff3e7541085b9b9b6e9f27c4aec834d124bf43faf4226a3"
+   },
+   "data/external/ppp/fred_cpi_EA_CP0000EZ19M086NEST.csv": {
+    "sha256": "4c2a53324e86d4a59cc6516d04a00d9562ecd38c63cdc6df58e0fb99f5c7159e"
+   },
+   "data/external/ppp/fred_cpi_GB_GBRCPIALLMINMEI.csv": {
+    "sha256": "85264051dbf9bff3bd7ef0d16d6af4ab149210e1327456ffba1458f942e3cfaf"
+   },
+   "data/external/ppp/fred_cpi_JP_JPNCPIALLMINMEI.csv": {
+    "sha256": "167660d509d313636df25e654bacb9918eda08d2933a50386973a238925d8c7f"
+   },
+   "data/external/ppp/fred_cpi_NZ_NZLCPIALLQINMEI.csv": {
+    "sha256": "9952c8c84a86653cc1d7d26c47e78dee19f8fcf1781cc4684e1a33e8922da228"
+   },
+   "data/external/ppp/fred_cpi_US_CPIAUCNS.csv": {
+    "sha256": "3d61f656df56ff3b738a066ce87fb086945bd7d19f6fedd2c0d16e352273440d"
+   },
+   "data/external/ppp/fred_h10_AUDUSD.csv": {
+    "sha256": "0c123888687d7ebc24c4f1112420a27064c169da3eb13782f8f1024448fc5174"
+   },
+   "data/external/ppp/fred_h10_EURUSD.csv": {
+    "sha256": "afe119d2107503e521c7e25a86c76725803da28743606cdbfbf13d932d6bf326"
+   },
+   "data/external/ppp/fred_h10_GBPUSD.csv": {
+    "sha256": "bcf0e04655aab42c08c1513fd081690356c95e9ab1196c492c702a12c680ed06"
+   },
+   "data/external/ppp/fred_h10_NZDUSD.csv": {
+    "sha256": "7e41b534f836ba92262018302d861cf012998577a280cac5441c09582e11703f"
+   },
+   "data/external/ppp/fred_h10_USDCAD.csv": {
+    "sha256": "f0b6c5af9a6e7fb9a03fc6a4b47de0d7739d4eaf679039dfd14a3405724af68e"
+   },
+   "data/external/ppp/fred_h10_USDCHF.csv": {
+    "sha256": "99f6d8ec2481e496576c8af8caf4b003e641cdbb53cee65c4348afe7830fb17c"
+   },
+   "data/external/ppp/fred_h10_USDJPY.csv": {
+    "sha256": "05324741c3ccdada177157b74bf6d2dc23aaa16b71ed10f7a9d6bc8f571da7da"
+   },
+   "knowledge-base/raw/bt-results/e20/e20_carry_level.csv": {
+    "sha256": "0b03ea58606ee4f43d3a0cef5a85f8556071f8caefccd0a2475a75431c6378a4"
+   }
+  },
+  "data_quality": {
+   "EUR_USD": {
+    "fx_missing_on_signal_dates_ffilled": 2,
+    "foreign_cpi_staleness_days_at_signal": {
+     "max": 62,
+     "median": 61.0
+    }
+   },
+   "USD_JPY": {
+    "fx_missing_on_signal_dates_ffilled": 2,
+    "foreign_cpi_staleness_days_at_signal": {
+     "max": 62,
+     "median": 61.0
+    }
+   },
+   "GBP_USD": {
+    "fx_missing_on_signal_dates_ffilled": 2,
+    "foreign_cpi_staleness_days_at_signal": {
+     "max": 62,
+     "median": 61.0
+    }
+   },
+   "AUD_USD": {
+    "fx_missing_on_signal_dates_ffilled": 2,
+    "foreign_cpi_staleness_days_at_signal": {
+     "max": 123,
+     "median": 91.0
+    }
+   },
+   "NZD_USD": {
+    "fx_missing_on_signal_dates_ffilled": 2,
+    "foreign_cpi_staleness_days_at_signal": {
+     "max": 123,
+     "median": 91.0
+    }
+   },
+   "USD_CAD": {
+    "fx_missing_on_signal_dates_ffilled": 2,
+    "foreign_cpi_staleness_days_at_signal": {
+     "max": 62,
+     "median": 61.0
+    }
+   },
+   "USD_CHF": {
+    "fx_missing_on_signal_dates_ffilled": 2,
+    "foreign_cpi_staleness_days_at_signal": {
+     "max": 62,
+     "median": 61.0
+    }
+   }
+  }
+ },
+ "pass_condition_inputs": {
+  "i_primary_ic": {
+   "horizon_bd": 42,
+   "ic": 0.113032,
+   "p_two_sided_block_bootstrap": 0.129187,
+   "n_obs": 672,
+   "reversion_direction_sign": "+1 (z_usd 向き: 高 z=USD 実質割高 → FC return 正)",
+   "sign_matches_reversion": true
+  },
+  "ii_quintile_monotonicity": {
+   "orientation": "Q1=lowest z_usd (USD real cheap) → Q5=highest (USD real rich); prediction = mean fwd FC return increases with quintile",
+   "means_r42": [
+    -0.006665,
+    -0.012008,
+    0.002487,
+    0.001324,
+    -0.003626
+   ],
+   "counts": [
+    135,
+    134,
+    134,
+    134,
+    135
+   ],
+   "adjacent_violations_vs_increasing": 3,
+   "spread_q5_minus_q1": 0.003039,
+   "spread_q1_minus_q5": -0.003039
+  },
+  "iii_carry_neutralization": {
+   "rates_source": "knowledge-base/raw/bt-results/e20/e20_carry_level.csv (e20_rates_ingest 残置パネル: BIS CBPOL 政策金利差, %pt, 日次 ffill)",
+   "regression": "pooled OLS (クロスセクション+時系列一括, 672 obs): z ~ a + b*rd_fc",
+   "alpha": 0.892259,
+   "beta": 0.079702,
+   "r2": 0.007815,
+   "ic_resid_h42": 0.11574,
+   "ratio_to_primary_ic": 1.023954,
+   "sign_unchanged": true
+  },
+  "iv_headroom": {
+   "swap_haircut_25pct_on_earn": false,
+   "pooled_median_abs_net_pips_over_rt": {
+    "q5_long_fc": 115.1255,
+    "q1_short_fc": 79.0,
+    "combined": 87.3791
+   },
+   "threshold_ratio": 10.0,
+   "per_pair": {
+    "AUD_USD": {
+     "n_q5": 25,
+     "n_q1": 11,
+     "median_abs_net_pips_q5": 179.2813,
+     "median_abs_net_pips_q1": 212.4685,
+     "median_abs_net_pips_combined": 195.8749,
+     "rt_pips": 2.5,
+     "threshold_10x_rt_pips": 25.0
+    },
+    "EUR_USD": {
+     "n_q5": 19,
+     "n_q1": 23,
+     "median_abs_net_pips_q5": 336.1771,
+     "median_abs_net_pips_q1": 287.6744,
+     "median_abs_net_pips_combined": 323.6382,
+     "rt_pips": 2.0,
+     "threshold_10x_rt_pips": 20.0
+    },
+    "GBP_USD": {
+     "n_q5": 15,
+     "n_q1": 25,
+     "median_abs_net_pips_q5": 379.4109,
+     "median_abs_net_pips_q1": 181.1283,
+     "median_abs_net_pips_combined": 357.4913,
+     "rt_pips": 4.53,
+     "threshold_10x_rt_pips": 45.3
+    },
+    "NZD_USD": {
+     "n_q5": 17,
+     "n_q1": 19,
+     "median_abs_net_pips_q5": 269.6334,
+     "median_abs_net_pips_q1": 203.7519,
+     "median_abs_net_pips_combined": 209.2756,
+     "rt_pips": 3.0,
+     "threshold_10x_rt_pips": 30.0
+    },
+    "USD_CAD": {
+     "n_q5": 25,
+     "n_q1": 16,
+     "median_abs_net_pips_q5": 546.2256,
+     "median_abs_net_pips_q1": 242.5261,
+     "median_abs_net_pips_combined": 389.4847,
+     "rt_pips": 2.8,
+     "threshold_10x_rt_pips": 28.0
+    },
+    "USD_CHF": {
+     "n_q5": 10,
+     "n_q1": 18,
+     "median_abs_net_pips_q5": 210.9309,
+     "median_abs_net_pips_q1": 185.3383,
+     "median_abs_net_pips_combined": 192.9945,
+     "rt_pips": 3.0,
+     "threshold_10x_rt_pips": 30.0
+    },
+    "USD_JPY": {
+     "n_q5": 24,
+     "n_q1": 23,
+     "median_abs_net_pips_q5": 234.6384,
+     "median_abs_net_pips_q1": 168.0611,
+     "median_abs_net_pips_combined": 184.9846,
+     "rt_pips": 2.14,
+     "threshold_10x_rt_pips": 21.4
+    }
+   }
+  },
+  "v_regime_concentration": {
+   "annual_ic_h42": {
+    "2014": -0.141156,
+    "2015": 0.067126,
+    "2016": 0.199312,
+    "2017": 0.337572,
+    "2018": 0.439992,
+    "2019": 0.298775,
+    "2020": 0.27725,
+    "2021": 0.105032
+   },
+   "annual_n": 84,
+   "leave_one_year_out_ic_h42": {
+    "2014": 0.143552,
+    "2015": 0.160055,
+    "2016": 0.099731,
+    "2017": 0.092862,
+    "2018": 0.079933,
+    "2019": 0.09428,
+    "2020": 0.142021,
+    "2021": 0.10497
+   },
+   "loyo_share_of_pooled_ic": {
+    "2014": -0.270013,
+    "2015": -0.416014,
+    "2016": 0.117675,
+    "2017": 0.178447,
+    "2018": 0.292826,
+    "2019": 0.165898,
+    "2020": -0.256467,
+    "2021": 0.071328
+   },
+   "loyo_share_definition": "(IC_pooled − IC_without_year) / IC_pooled"
+  }
+ },
+ "supporting_diagnostics": {
+  "ic_by_horizon": {
+   "21": {
+    "ic": 0.080778,
+    "p_two_sided": 0.157984,
+    "n": 672
+   },
+   "42": {
+    "ic": 0.113032,
+    "p_two_sided": 0.129187,
+    "n": 672
+   },
+   "63": {
+    "ic": 0.131463,
+    "p_two_sided": 0.127087,
+    "n": 672
+   }
+  },
+  "per_pair_ic": {
+   "AUD_USD": {
+    "ic_h42": 0.098535,
+    "ic_h63": 0.124593,
+    "n": 96
+   },
+   "EUR_USD": {
+    "ic_h42": 0.088646,
+    "ic_h63": 0.141549,
+    "n": 96
+   },
+   "GBP_USD": {
+    "ic_h42": 0.102713,
+    "ic_h63": 0.144438,
+    "n": 96
+   },
+   "NZD_USD": {
+    "ic_h42": 0.25959,
+    "ic_h63": 0.313931,
+    "n": 96
+   },
+   "USD_CAD": {
+    "ic_h42": 0.085214,
+    "ic_h63": 0.042458,
+    "n": 96
+   },
+   "USD_CHF": {
+    "ic_h42": 0.29182,
+    "ic_h63": 0.312181,
+    "n": 96
+   },
+   "USD_JPY": {
+    "ic_h42": -0.026791,
+    "ic_h63": -0.051384,
+    "n": 96
+   }
+  },
+  "confirmatory_nonoverlapping": {
+   "n": 224,
+   "ic_h63": 0.125773,
+   "p_two_sided": 0.191881,
+   "note": "四半期末 × 63bd = 実質非重複窓 (診断、選択に使わない)"
+  },
+  "z_abs_gt_2_descriptive": {
+   "n_z_gt_2": 96,
+   "n_z_lt_-2": 5,
+   "mean_r42_z_gt_2": -0.004333,
+   "mean_r42_z_lt_-2": -0.012945,
+   "mean_r63_z_gt_2": -0.004016,
+   "mean_r63_z_lt_-2": -0.022243
+  },
+  "headroom_swap_sensitivity_haircut25": {
+   "swap_haircut_25pct_on_earn": true,
+   "pooled_median_abs_net_pips_over_rt": {
+    "q5_long_fc": 115.1255,
+    "q1_short_fc": 79.0,
+    "combined": 86.8994
+   },
+   "threshold_ratio": 10.0,
+   "per_pair": {
+    "AUD_USD": {
+     "n_q5": 25,
+     "n_q1": 11,
+     "median_abs_net_pips_q5": 178.2431,
+     "median_abs_net_pips_q1": 212.3514,
+     "median_abs_net_pips_combined": 195.2972,
+     "rt_pips": 2.5,
+     "threshold_10x_rt_pips": 25.0
+    },
+    "EUR_USD": {
+     "n_q5": 19,
+     "n_q1": 23,
+     "median_abs_net_pips_q5": 336.1771,
+     "median_abs_net_pips_q1": 298.0058,
+     "median_abs_net_pips_combined": 323.6382,
+     "rt_pips": 2.0,
+     "threshold_10x_rt_pips": 20.0
+    },
+    "GBP_USD": {
+     "n_q5": 15,
+     "n_q1": 25,
+     "median_abs_net_pips_q5": 379.4109,
+     "median_abs_net_pips_q1": 181.3462,
+     "median_abs_net_pips_combined": 357.4913,
+     "rt_pips": 4.53,
+     "threshold_10x_rt_pips": 45.3
+    },
+    "NZD_USD": {
+     "n_q5": 17,
+     "n_q1": 19,
+     "median_abs_net_pips_q5": 258.2251,
+     "median_abs_net_pips_q1": 203.7519,
+     "median_abs_net_pips_combined": 210.249,
+     "rt_pips": 3.0,
+     "threshold_10x_rt_pips": 30.0
+    },
+    "USD_CAD": {
+     "n_q5": 25,
+     "n_q1": 16,
+     "median_abs_net_pips_q5": 545.1692,
+     "median_abs_net_pips_q1": 242.5261,
+     "median_abs_net_pips_combined": 395.6135,
+     "rt_pips": 2.8,
+     "threshold_10x_rt_pips": 28.0
+    },
+    "USD_CHF": {
+     "n_q5": 10,
+     "n_q1": 18,
+     "median_abs_net_pips_q5": 210.9309,
+     "median_abs_net_pips_q1": 182.8787,
+     "median_abs_net_pips_combined": 190.535,
+     "rt_pips": 3.0,
+     "threshold_10x_rt_pips": 30.0
+    },
+    "USD_JPY": {
+     "n_q5": 24,
+     "n_q1": 23,
+     "median_abs_net_pips_q5": 234.6384,
+     "median_abs_net_pips_q1": 169.5458,
+     "median_abs_net_pips_combined": 186.4885,
+     "rt_pips": 2.14,
+     "threshold_10x_rt_pips": 21.4
+    }
+   }
+  }
+ },
+ "diagnostics_not_for_selection": {
+  "literal_mix_variant": {
+   "definition": "q_lit = log(S_fc/USD) + log(CPI_f/CPI_US) — 凍結式の字面を S=FC/USD のまま適用した内部不整合構成 (spec 監査用)",
+   "ic_h42": 0.084046,
+   "p_two_sided": 0.268273
+  }
+ },
+ "per_obs": [
+  {
+   "date": "2014-01-31",
+   "pair": "AUD_USD",
+   "z": 0.7948,
+   "quintile": 3,
+   "r21": 0.021051,
+   "r42": 0.056586,
+   "r63": 0.059824,
+   "rd_fc_pct": 2.375
+  },
+  {
+   "date": "2014-01-31",
+   "pair": "EUR_USD",
+   "z": -0.0937,
+   "quintile": 1,
+   "r21": 0.019294,
+   "r42": 0.022269,
+   "r63": 0.027039,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2014-01-31",
+   "pair": "GBP_USD",
+   "z": -1.849,
+   "quintile": 1,
+   "r21": 0.015802,
+   "r42": 0.011424,
+   "r63": 0.025982,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2014-01-31",
+   "pair": "NZD_USD",
+   "z": -0.6475,
+   "quintile": 1,
+   "r21": 0.034145,
+   "r42": 0.06924,
+   "r63": 0.061715,
+   "rd_fc_pct": 2.375
+  },
+  {
+   "date": "2014-01-31",
+   "pair": "USD_CAD",
+   "z": 1.9344,
+   "quintile": 5,
+   "r21": 0.002342,
+   "r42": 0.008129,
+   "r63": 0.014498,
+   "rd_fc_pct": 0.875
+  },
+  {
+   "date": "2014-01-31",
+   "pair": "USD_CHF",
+   "z": -0.2665,
+   "quintile": 1,
+   "r21": 0.027098,
+   "r42": 0.025397,
+   "r63": 0.028234,
+   "rd_fc_pct": -0.0
+  },
+  {
+   "date": "2014-01-31",
+   "pair": "USD_JPY",
+   "z": 1.977,
+   "quintile": 5,
+   "r21": 0.009036,
+   "r42": -0.012051,
+   "r63": 0.00137,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2014-02-28",
+   "pair": "AUD_USD",
+   "z": 0.5742,
+   "quintile": 2,
+   "r21": 0.03757,
+   "r42": 0.0366,
+   "r63": 0.032382,
+   "rd_fc_pct": 2.375
+  },
+  {
+   "date": "2014-02-28",
+   "pair": "EUR_USD",
+   "z": -0.6318,
+   "quintile": 1,
+   "r21": -0.002103,
+   "r42": 0.000145,
+   "r63": -0.015328,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2014-02-28",
+   "pair": "GBP_USD",
+   "z": -2.511,
+   "quintile": 1,
+   "r21": -0.004488,
+   "r42": 0.004705,
+   "r63": -0.002451,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2014-02-28",
+   "pair": "NZD_USD",
+   "z": -1.0875,
+   "quintile": 1,
+   "r21": 0.034442,
+   "r42": 0.018189,
+   "r63": 0.012084,
+   "rd_fc_pct": 2.375
+  },
+  {
+   "date": "2014-02-28",
+   "pair": "USD_CAD",
+   "z": 2.1101,
+   "quintile": 5,
+   "r21": 0.001988,
+   "r42": 0.010164,
+   "r63": 0.01896,
+   "rd_fc_pct": 0.875
+  },
+  {
+   "date": "2014-02-28",
+   "pair": "USD_CHF",
+   "z": -0.6205,
+   "quintile": 1,
+   "r21": -0.003399,
+   "r42": -0.003965,
+   "r63": -0.019335,
+   "rd_fc_pct": -0.0
+  },
+  {
+   "date": "2014-02-28",
+   "pair": "USD_JPY",
+   "z": 1.8742,
+   "quintile": 5,
+   "r21": -0.008778,
+   "r42": -0.004789,
+   "r63": 0.002943,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2014-03-31",
+   "pair": "AUD_USD",
+   "z": 0.2388,
+   "quintile": 2,
+   "r21": -0.000971,
+   "r42": -0.005189,
+   "r63": 0.013919,
+   "rd_fc_pct": 2.375
+  },
+  {
+   "date": "2014-03-31",
+   "pair": "EUR_USD",
+   "z": -0.2729,
+   "quintile": 1,
+   "r21": 0.002248,
+   "r42": -0.013225,
+   "r63": -0.012196,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2014-03-31",
+   "pair": "GBP_USD",
+   "z": -1.9963,
+   "quintile": 1,
+   "r21": 0.009193,
+   "r42": 0.002037,
+   "r63": 0.020361,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2014-03-31",
+   "pair": "NZD_USD",
+   "z": -1.4878,
+   "quintile": 1,
+   "r21": -0.016253,
+   "r42": -0.022358,
+   "r63": 0.00917,
+   "rd_fc_pct": 2.625
+  },
+  {
+   "date": "2014-03-31",
+   "pair": "USD_CAD",
+   "z": 2.1111,
+   "quintile": 5,
+   "r21": 0.008176,
+   "r42": 0.016971,
+   "r63": 0.031898,
+   "rd_fc_pct": 0.875
+  },
+  {
+   "date": "2014-03-31",
+   "pair": "USD_CHF",
+   "z": -0.4411,
+   "quintile": 1,
+   "r21": -0.000565,
+   "r42": -0.015936,
+   "r63": -0.010465,
+   "rd_fc_pct": -0.0
+  },
+  {
+   "date": "2014-03-31",
+   "pair": "USD_JPY",
+   "z": 1.9282,
+   "quintile": 5,
+   "r21": 0.003989,
+   "r42": 0.011721,
+   "r63": 0.012901,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2014-04-30",
+   "pair": "AUD_USD",
+   "z": 0.3294,
+   "quintile": 2,
+   "r21": 0.000754,
+   "r42": 0.014015,
+   "r63": 0.013696,
+   "rd_fc_pct": 2.375
+  },
+  {
+   "date": "2014-04-30",
+   "pair": "EUR_USD",
+   "z": -0.4182,
+   "quintile": 1,
+   "r21": -0.01907,
+   "r42": -0.017382,
+   "r63": -0.031493,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2014-04-30",
+   "pair": "GBP_USD",
+   "z": -2.2831,
+   "quintile": 1,
+   "r21": -0.009761,
+   "r42": 0.007847,
+   "r63": 0.006377,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2014-04-30",
+   "pair": "NZD_USD",
+   "z": -1.3138,
+   "quintile": 1,
+   "r21": -0.016522,
+   "r42": 0.018423,
+   "r63": -0.006412,
+   "rd_fc_pct": 2.875
+  },
+  {
+   "date": "2014-04-30",
+   "pair": "USD_CAD",
+   "z": 1.815,
+   "quintile": 5,
+   "r21": 0.010921,
+   "r42": 0.025889,
+   "r63": 0.014341,
+   "rd_fc_pct": 0.875
+  },
+  {
+   "date": "2014-04-30",
+   "pair": "USD_CHF",
+   "z": -0.4463,
+   "quintile": 1,
+   "r21": -0.019134,
+   "r42": -0.013432,
+   "r63": -0.026576,
+   "rd_fc_pct": -0.0
+  },
+  {
+   "date": "2014-04-30",
+   "pair": "USD_JPY",
+   "z": 1.8038,
+   "quintile": 5,
+   "r21": 0.005498,
+   "r42": 0.00737,
+   "r63": 0.003138,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2014-05-30",
+   "pair": "AUD_USD",
+   "z": 0.3782,
+   "quintile": 2,
+   "r21": 0.013779,
+   "r42": 0.008567,
+   "r63": 0.003971,
+   "rd_fc_pct": 2.375
+  },
+  {
+   "date": "2014-05-30",
+   "pair": "EUR_USD",
+   "z": -0.141,
+   "quintile": 1,
+   "r21": 0.003659,
+   "r42": -0.017006,
+   "r63": -0.033396,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2014-05-30",
+   "pair": "GBP_USD",
+   "z": -1.8453,
+   "quintile": 1,
+   "r21": 0.020137,
+   "r42": 0.010385,
+   "r63": -0.011459,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2014-05-30",
+   "pair": "NZD_USD",
+   "z": -1.0684,
+   "quintile": 1,
+   "r21": 0.031325,
+   "r42": 0.001413,
+   "r63": -0.013765,
+   "rd_fc_pct": 2.875
+  },
+  {
+   "date": "2014-05-30",
+   "pair": "USD_CAD",
+   "z": 1.6679,
+   "quintile": 4,
+   "r21": 0.017732,
+   "r42": 0.001473,
+   "r63": -0.002114,
+   "rd_fc_pct": 0.875
+  },
+  {
+   "date": "2014-05-30",
+   "pair": "USD_CHF",
+   "z": -0.119,
+   "quintile": 1,
+   "r21": 0.008534,
+   "r42": -0.013769,
+   "r63": -0.022552,
+   "rd_fc_pct": -0.0
+  },
+  {
+   "date": "2014-05-30",
+   "pair": "USD_JPY",
+   "z": 1.7341,
+   "quintile": 5,
+   "r21": 0.004826,
+   "r42": -0.003433,
+   "r63": -0.021483,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2014-06-30",
+   "pair": "AUD_USD",
+   "z": 0.2807,
+   "quintile": 2,
+   "r21": -0.005211,
+   "r42": -0.009807,
+   "r63": -0.069281,
+   "rd_fc_pct": 2.375
+  },
+  {
+   "date": "2014-06-30",
+   "pair": "EUR_USD",
+   "z": -0.2062,
+   "quintile": 1,
+   "r21": -0.020665,
+   "r42": -0.037055,
+   "r63": -0.071291,
+   "rd_fc_pct": 0.025
+  },
+  {
+   "date": "2014-06-30",
+   "pair": "GBP_USD",
+   "z": -2.3263,
+   "quintile": 1,
+   "r21": -0.009752,
+   "r42": -0.031596,
+   "r63": -0.047408,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2014-06-30",
+   "pair": "NZD_USD",
+   "z": -1.4597,
+   "quintile": 1,
+   "r21": -0.029912,
+   "r42": -0.045091,
+   "r63": -0.09872,
+   "rd_fc_pct": 3.125
+  },
+  {
+   "date": "2014-06-30",
+   "pair": "USD_CAD",
+   "z": 1.2065,
+   "quintile": 4,
+   "r21": -0.016259,
+   "r42": -0.019847,
+   "r63": -0.039397,
+   "rd_fc_pct": 0.875
+  },
+  {
+   "date": "2014-06-30",
+   "pair": "USD_CHF",
+   "z": -0.1963,
+   "quintile": 1,
+   "r21": -0.022302,
+   "r42": -0.031086,
+   "r63": -0.065363,
+   "rd_fc_pct": -0.0
+  },
+  {
+   "date": "2014-06-30",
+   "pair": "USD_JPY",
+   "z": 1.4716,
+   "quintile": 4,
+   "r21": -0.00826,
+   "r42": -0.02631,
+   "r63": -0.070703,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2014-07-31",
+   "pair": "AUD_USD",
+   "z": 0.5739,
+   "quintile": 2,
+   "r21": 0.004613,
+   "r42": -0.062441,
+   "r63": -0.04993,
+   "rd_fc_pct": 2.375
+  },
+  {
+   "date": "2014-07-31",
+   "pair": "EUR_USD",
+   "z": 0.355,
+   "quintile": 2,
+   "r21": -0.018086,
+   "r42": -0.05267,
+   "r63": -0.049212,
+   "rd_fc_pct": 0.025
+  },
+  {
+   "date": "2014-07-31",
+   "pair": "GBP_USD",
+   "z": -1.7617,
+   "quintile": 1,
+   "r21": -0.018164,
+   "r42": -0.037831,
+   "r63": -0.044309,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2014-07-31",
+   "pair": "NZD_USD",
+   "z": -0.908,
+   "quintile": 1,
+   "r21": -0.014594,
+   "r42": -0.086305,
+   "r63": -0.068362,
+   "rd_fc_pct": 3.375
+  },
+  {
+   "date": "2014-07-31",
+   "pair": "USD_CAD",
+   "z": 1.6764,
+   "quintile": 4,
+   "r21": 0.002851,
+   "r42": -0.022969,
+   "r63": -0.026016,
+   "rd_fc_pct": 0.875
+  },
+  {
+   "date": "2014-07-31",
+   "pair": "USD_CHF",
+   "z": 0.2262,
+   "quintile": 2,
+   "r21": -0.009639,
+   "r42": -0.044346,
+   "r63": -0.040655,
+   "rd_fc_pct": -0.0
+  },
+  {
+   "date": "2014-07-31",
+   "pair": "USD_JPY",
+   "z": 1.5358,
+   "quintile": 4,
+   "r21": -0.012092,
+   "r42": -0.062163,
+   "r63": -0.049832,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2014-08-29",
+   "pair": "AUD_USD",
+   "z": 0.4827,
+   "quintile": 2,
+   "r21": -0.067053,
+   "r42": -0.054543,
+   "r63": -0.090676,
+   "rd_fc_pct": 2.375
+  },
+  {
+   "date": "2014-08-29",
+   "pair": "EUR_USD",
+   "z": 0.7607,
+   "quintile": 3,
+   "r21": -0.034584,
+   "r42": -0.031126,
+   "r63": -0.050453,
+   "rd_fc_pct": 0.025
+  },
+  {
+   "date": "2014-08-29",
+   "pair": "GBP_USD",
+   "z": -1.2322,
+   "quintile": 1,
+   "r21": -0.019668,
+   "r42": -0.026145,
+   "r63": -0.049312,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2014-08-29",
+   "pair": "NZD_USD",
+   "z": -0.6683,
+   "quintile": 1,
+   "r21": -0.071711,
+   "r42": -0.053768,
+   "r63": -0.059841,
+   "rd_fc_pct": 3.375
+  },
+  {
+   "date": "2014-08-29",
+   "pair": "USD_CAD",
+   "z": 1.5793,
+   "quintile": 4,
+   "r21": -0.02582,
+   "r42": -0.028866,
+   "r63": -0.034221,
+   "rd_fc_pct": 0.875
+  },
+  {
+   "date": "2014-08-29",
+   "pair": "USD_CHF",
+   "z": 0.434,
+   "quintile": 2,
+   "r21": -0.034708,
+   "r42": -0.031016,
+   "r63": -0.046847,
+   "rd_fc_pct": -0.0
+  },
+  {
+   "date": "2014-08-29",
+   "pair": "USD_JPY",
+   "z": 1.6071,
+   "quintile": 4,
+   "r21": -0.050071,
+   "r42": -0.03774,
+   "r63": -0.122898,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2014-09-30",
+   "pair": "AUD_USD",
+   "z": 1.4936,
+   "quintile": 4,
+   "r21": 0.018934,
+   "r42": -0.023509,
+   "r63": -0.074592,
+   "rd_fc_pct": 2.375
+  },
+  {
+   "date": "2014-09-30",
+   "pair": "EUR_USD",
+   "z": 1.8545,
+   "quintile": 5,
+   "r21": 0.010555,
+   "r42": -0.009948,
+   "r63": -0.035465,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2014-09-30",
+   "pair": "GBP_USD",
+   "z": -0.596,
+   "quintile": 1,
+   "r21": -0.004387,
+   "r42": -0.027058,
+   "r63": -0.042249,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2014-09-30",
+   "pair": "NZD_USD",
+   "z": 0.4529,
+   "quintile": 2,
+   "r21": 0.022473,
+   "r42": 0.011871,
+   "r63": -0.00864,
+   "rd_fc_pct": 3.375
+  },
+  {
+   "date": "2014-09-30",
+   "pair": "USD_CAD",
+   "z": 2.3171,
+   "quintile": 5,
+   "r21": 0.006445,
+   "r42": -0.002584,
+   "r63": -0.036275,
+   "rd_fc_pct": 0.875
+  },
+  {
+   "date": "2014-09-30",
+   "pair": "USD_CHF",
+   "z": 1.1483,
+   "quintile": 4,
+   "r21": 0.010734,
+   "r42": -0.00626,
+   "r63": -0.032033,
+   "rd_fc_pct": -0.0
+  },
+  {
+   "date": "2014-09-30",
+   "pair": "USD_JPY",
+   "z": 1.9604,
+   "quintile": 5,
+   "r21": 0.014328,
+   "r42": -0.069904,
+   "r63": -0.09385,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2014-10-31",
+   "pair": "AUD_USD",
+   "z": 1.3759,
+   "quintile": 4,
+   "r21": -0.031195,
+   "r42": -0.069716,
+   "r63": -0.097668,
+   "rd_fc_pct": 2.375
+  },
+  {
+   "date": "2014-10-31",
+   "pair": "EUR_USD",
+   "z": 1.9289,
+   "quintile": 5,
+   "r21": -0.003197,
+   "r42": -0.028823,
+   "r63": -0.099613,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2014-10-31",
+   "pair": "GBP_USD",
+   "z": -0.3478,
+   "quintile": 1,
+   "r21": -0.01613,
+   "r42": -0.026988,
+   "r63": -0.053536,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2014-10-31",
+   "pair": "NZD_USD",
+   "z": 0.4782,
+   "quintile": 2,
+   "r21": 0.01518,
+   "r42": 0.008575,
+   "r63": -0.043208,
+   "rd_fc_pct": 3.375
+  },
+  {
+   "date": "2014-10-31",
+   "pair": "USD_CAD",
+   "z": 2.2901,
+   "quintile": 5,
+   "r21": -0.006279,
+   "r42": -0.028425,
+   "r63": -0.099559,
+   "rd_fc_pct": 0.875
+  },
+  {
+   "date": "2014-10-31",
+   "pair": "USD_CHF",
+   "z": 1.2317,
+   "quintile": 4,
+   "r21": -0.000831,
+   "r42": -0.026356,
+   "r63": 0.060839,
+   "rd_fc_pct": -0.0
+  },
+  {
+   "date": "2014-10-31",
+   "pair": "USD_JPY",
+   "z": 2.0193,
+   "quintile": 5,
+   "r21": -0.052568,
+   "r42": -0.062674,
+   "r63": -0.049177,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2014-11-28",
+   "pair": "AUD_USD",
+   "z": 1.7593,
+   "quintile": 5,
+   "r21": -0.045359,
+   "r42": -0.071098,
+   "r63": -0.076276,
+   "rd_fc_pct": 2.375
+  },
+  {
+   "date": "2014-11-28",
+   "pair": "EUR_USD",
+   "z": 1.9468,
+   "quintile": 5,
+   "r21": -0.021043,
+   "r42": -0.089778,
+   "r63": -0.090394,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2014-11-28",
+   "pair": "GBP_USD",
+   "z": 0.2507,
+   "quintile": 2,
+   "r21": -0.007317,
+   "r42": -0.028672,
+   "r63": -0.008928,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2014-11-28",
+   "pair": "NZD_USD",
+   "z": 0.3382,
+   "quintile": 2,
+   "r21": -0.006655,
+   "r42": -0.049549,
+   "r63": -0.037956,
+   "rd_fc_pct": 3.375
+  },
+  {
+   "date": "2014-11-28",
+   "pair": "USD_CAD",
+   "z": 2.468,
+   "quintile": 5,
+   "r21": -0.017782,
+   "r42": -0.081966,
+   "r63": -0.083256,
+   "rd_fc_pct": 0.875
+  },
+  {
+   "date": "2014-11-28",
+   "pair": "USD_CHF",
+   "z": 1.2621,
+   "quintile": 4,
+   "r21": -0.022523,
+   "r42": 0.065906,
+   "r63": 0.016916,
+   "rd_fc_pct": -0.0
+  },
+  {
+   "date": "2014-11-28",
+   "pair": "USD_JPY",
+   "z": 2.344,
+   "quintile": 5,
+   "r21": -0.015631,
+   "r42": 0.00914,
+   "r63": -0.001515,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2014-12-31",
+   "pair": "AUD_USD",
+   "z": 2.2842,
+   "quintile": 5,
+   "r21": -0.052111,
+   "r42": -0.045431,
+   "r63": -0.066784,
+   "rd_fc_pct": 2.375
+  },
+  {
+   "date": "2014-12-31",
+   "pair": "EUR_USD",
+   "z": 2.4277,
+   "quintile": 5,
+   "r21": -0.067778,
+   "r42": -0.077642,
+   "r63": -0.112077,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2014-12-31",
+   "pair": "GBP_USD",
+   "z": 0.2773,
+   "quintile": 2,
+   "r21": -0.034947,
+   "r42": -0.008963,
+   "r63": -0.051773,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2014-12-31",
+   "pair": "NZD_USD",
+   "z": 0.4371,
+   "quintile": 2,
+   "r21": -0.071369,
+   "r42": -0.031136,
+   "r63": -0.036843,
+   "rd_fc_pct": 3.375
+  },
+  {
+   "date": "2014-12-31",
+   "pair": "USD_CAD",
+   "z": 2.5455,
+   "quintile": 5,
+   "r21": -0.086091,
+   "r42": -0.075117,
+   "r63": -0.089487,
+   "rd_fc_pct": 0.875
+  },
+  {
+   "date": "2014-12-31",
+   "pair": "USD_CHF",
+   "z": 1.6725,
+   "quintile": 4,
+   "r21": 0.073938,
+   "r42": 0.043304,
+   "r63": 0.026108,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2014-12-31",
+   "pair": "USD_JPY",
+   "z": 2.2639,
+   "quintile": 5,
+   "r21": 0.012933,
+   "r42": 0.001085,
+   "r63": -0.002167,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-01-30",
+   "pair": "AUD_USD",
+   "z": 2.8208,
+   "quintile": 5,
+   "r21": 0.002316,
+   "r42": -0.017808,
+   "r63": 0.038294,
+   "rd_fc_pct": 2.375
+  },
+  {
+   "date": "2015-01-30",
+   "pair": "EUR_USD",
+   "z": 3.5834,
+   "quintile": 5,
+   "r21": -0.008897,
+   "r42": -0.049849,
+   "r63": -0.010328,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-01-30",
+   "pair": "GBP_USD",
+   "z": 1.1947,
+   "quintile": 4,
+   "r21": 0.022701,
+   "r42": -0.011782,
+   "r63": 0.03009,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2015-01-30",
+   "pair": "NZD_USD",
+   "z": 1.6526,
+   "quintile": 4,
+   "r21": 0.037239,
+   "r42": 0.032175,
+   "r63": 0.065288,
+   "rd_fc_pct": 3.375
+  },
+  {
+   "date": "2015-01-30",
+   "pair": "USD_CAD",
+   "z": 4.0059,
+   "quintile": 5,
+   "r21": 0.014336,
+   "r42": 0.002756,
+   "r63": 0.061711,
+   "rd_fc_pct": 0.625
+  },
+  {
+   "date": "2015-01-30",
+   "pair": "USD_CHF",
+   "z": 0.3765,
+   "quintile": 2,
+   "r21": -0.036565,
+   "r42": -0.053072,
+   "r63": -0.015942,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2015-01-30",
+   "pair": "USD_JPY",
+   "z": 1.976,
+   "quintile": 5,
+   "r21": -0.022064,
+   "r42": -0.021231,
+   "r63": -0.011766,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-02-27",
+   "pair": "AUD_USD",
+   "z": 2.4717,
+   "quintile": 5,
+   "r21": -0.021353,
+   "r42": 0.026159,
+   "r63": -0.012627,
+   "rd_fc_pct": 2.125
+  },
+  {
+   "date": "2015-02-27",
+   "pair": "EUR_USD",
+   "z": 3.3145,
+   "quintile": 5,
+   "r21": -0.034434,
+   "r42": -0.019662,
+   "r63": -0.027985,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-02-27",
+   "pair": "GBP_USD",
+   "z": 0.3149,
+   "quintile": 2,
+   "r21": -0.04281,
+   "r42": -0.007216,
+   "r63": -0.007477,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2015-02-27",
+   "pair": "NZD_USD",
+   "z": 0.8923,
+   "quintile": 3,
+   "r21": -0.005706,
+   "r42": 0.023023,
+   "r63": -0.044512,
+   "rd_fc_pct": 3.375
+  },
+  {
+   "date": "2015-02-27",
+   "pair": "USD_CAD",
+   "z": 3.321,
+   "quintile": 5,
+   "r21": -0.014369,
+   "r42": 0.039553,
+   "r63": 0.001841,
+   "rd_fc_pct": 0.625
+  },
+  {
+   "date": "2015-02-27",
+   "pair": "USD_CHF",
+   "z": 0.9082,
+   "quintile": 3,
+   "r21": -0.017196,
+   "r42": -0.002625,
+   "r63": 0.000526,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2015-02-27",
+   "pair": "USD_JPY",
+   "z": 1.9776,
+   "quintile": 5,
+   "r21": -0.003252,
+   "r42": 0.007714,
+   "r63": -0.033189,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-03-31",
+   "pair": "AUD_USD",
+   "z": 2.6219,
+   "quintile": 5,
+   "r21": 0.056101,
+   "r42": 0.000787,
+   "r63": 0.003273,
+   "rd_fc_pct": 2.125
+  },
+  {
+   "date": "2015-03-31",
+   "pair": "EUR_USD",
+   "z": 3.8117,
+   "quintile": 5,
+   "r21": 0.039521,
+   "r42": 0.015978,
+   "r63": 0.037909,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-03-31",
+   "pair": "GBP_USD",
+   "z": 1.573,
+   "quintile": 4,
+   "r21": 0.041872,
+   "r42": 0.029265,
+   "r63": 0.058142,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2015-03-31",
+   "pair": "NZD_USD",
+   "z": 1.0569,
+   "quintile": 3,
+   "r21": 0.033113,
+   "r42": -0.045789,
+   "r63": -0.09143,
+   "rd_fc_pct": 3.375
+  },
+  {
+   "date": "2015-03-31",
+   "pair": "USD_CAD",
+   "z": 3.1461,
+   "quintile": 5,
+   "r21": 0.058955,
+   "r42": 0.016458,
+   "r63": 0.025801,
+   "rd_fc_pct": 0.625
+  },
+  {
+   "date": "2015-03-31",
+   "pair": "USD_CHF",
+   "z": 1.2946,
+   "quintile": 4,
+   "r21": 0.037131,
+   "r42": 0.026501,
+   "r63": 0.037879,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2015-03-31",
+   "pair": "USD_JPY",
+   "z": 1.8649,
+   "quintile": 5,
+   "r21": 0.009464,
+   "r42": -0.034574,
+   "r63": -0.032478,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-04-30",
+   "pair": "AUD_USD",
+   "z": 2.2028,
+   "quintile": 5,
+   "r21": -0.026795,
+   "r42": -0.024448,
+   "r63": -0.071384,
+   "rd_fc_pct": 2.125
+  },
+  {
+   "date": "2015-04-30",
+   "pair": "EUR_USD",
+   "z": 2.7894,
+   "quintile": 5,
+   "r21": -0.015165,
+   "r42": 0.001611,
+   "r63": -0.009632,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-04-30",
+   "pair": "GBP_USD",
+   "z": 0.7334,
+   "quintile": 3,
+   "r21": -0.002744,
+   "r42": 0.028048,
+   "r63": 0.018679,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2015-04-30",
+   "pair": "NZD_USD",
+   "z": 0.9757,
+   "quintile": 3,
+   "r21": -0.06532,
+   "r42": -0.102131,
+   "r63": -0.126648,
+   "rd_fc_pct": 3.375
+  },
+  {
+   "date": "2015-04-30",
+   "pair": "USD_CAD",
+   "z": 2.1689,
+   "quintile": 5,
+   "r21": -0.028478,
+   "r42": -0.021555,
+   "r63": -0.065255,
+   "rd_fc_pct": 0.625
+  },
+  {
+   "date": "2015-04-30",
+   "pair": "USD_CHF",
+   "z": 0.9277,
+   "quintile": 3,
+   "r21": 0.000638,
+   "r42": 0.013911,
+   "r63": -0.023941,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2015-04-30",
+   "pair": "USD_JPY",
+   "z": 1.8131,
+   "quintile": 5,
+   "r21": -0.033796,
+   "r42": -0.021787,
+   "r63": -0.030079,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-05-29",
+   "pair": "AUD_USD",
+   "z": 2.5126,
+   "quintile": 5,
+   "r21": 0.002347,
+   "r42": -0.044588,
+   "r63": -0.077619,
+   "rd_fc_pct": 1.875
+  },
+  {
+   "date": "2015-05-29",
+   "pair": "EUR_USD",
+   "z": 2.7378,
+   "quintile": 5,
+   "r21": 0.016777,
+   "r42": 0.005533,
+   "r63": 0.035386,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-05-29",
+   "pair": "GBP_USD",
+   "z": 1.0058,
+   "quintile": 3,
+   "r21": 0.030791,
+   "r42": 0.021423,
+   "r63": 0.013451,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2015-05-29",
+   "pair": "NZD_USD",
+   "z": 2.5313,
+   "quintile": 5,
+   "r21": -0.03681,
+   "r42": -0.061328,
+   "r63": -0.101602,
+   "rd_fc_pct": 3.375
+  },
+  {
+   "date": "2015-05-29",
+   "pair": "USD_CAD",
+   "z": 2.4437,
+   "quintile": 5,
+   "r21": 0.006923,
+   "r42": -0.036777,
+   "r63": -0.064834,
+   "rd_fc_pct": 0.625
+  },
+  {
+   "date": "2015-05-29",
+   "pair": "USD_CHF",
+   "z": 0.975,
+   "quintile": 3,
+   "r21": 0.013274,
+   "r42": -0.024578,
+   "r63": -0.007205,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2015-05-29",
+   "pair": "USD_JPY",
+   "z": 1.9643,
+   "quintile": 5,
+   "r21": 0.012009,
+   "r42": 0.003717,
+   "r63": 0.040409,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-06-30",
+   "pair": "AUD_USD",
+   "z": 2.3383,
+   "quintile": 5,
+   "r21": -0.052907,
+   "r42": -0.07058,
+   "r63": -0.093832,
+   "rd_fc_pct": 1.875
+  },
+  {
+   "date": "2015-06-30",
+   "pair": "EUR_USD",
+   "z": 2.3352,
+   "quintile": 5,
+   "r21": -0.011542,
+   "r42": 0.007592,
+   "r63": 0.003401,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-06-30",
+   "pair": "GBP_USD",
+   "z": 0.0924,
+   "quintile": 2,
+   "r21": -0.006571,
+   "r42": -0.020297,
+   "r63": -0.035927,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2015-06-30",
+   "pair": "NZD_USD",
+   "z": 3.4932,
+   "quintile": 5,
+   "r21": -0.014265,
+   "r42": -0.04527,
+   "r63": -0.06224,
+   "rd_fc_pct": 3.125
+  },
+  {
+   "date": "2015-06-30",
+   "pair": "USD_CAD",
+   "z": 2.3424,
+   "quintile": 5,
+   "r21": -0.033118,
+   "r42": -0.05612,
+   "r63": -0.06585,
+   "rd_fc_pct": 0.625
+  },
+  {
+   "date": "2015-06-30",
+   "pair": "USD_CHF",
+   "z": 0.9384,
+   "quintile": 3,
+   "r21": -0.029935,
+   "r42": -0.030039,
+   "r63": -0.043344,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2015-06-30",
+   "pair": "USD_JPY",
+   "z": 1.7528,
+   "quintile": 5,
+   "r21": -0.014312,
+   "r42": 0.009959,
+   "r63": 0.011201,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-07-31",
+   "pair": "AUD_USD",
+   "z": 2.7474,
+   "quintile": 5,
+   "r21": -0.032154,
+   "r42": -0.045339,
+   "r63": -0.026115,
+   "rd_fc_pct": 1.875
+  },
+  {
+   "date": "2015-07-31",
+   "pair": "EUR_USD",
+   "z": 2.3519,
+   "quintile": 5,
+   "r21": 0.01494,
+   "r42": 0.019575,
+   "r63": 0.00344,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-07-31",
+   "pair": "GBP_USD",
+   "z": 0.3898,
+   "quintile": 2,
+   "r21": -0.017486,
+   "r42": -0.03026,
+   "r63": -0.020354,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2015-07-31",
+   "pair": "NZD_USD",
+   "z": 3.6688,
+   "quintile": 5,
+   "r21": -0.042553,
+   "r42": -0.039565,
+   "r63": 0.014387,
+   "rd_fc_pct": 2.875
+  },
+  {
+   "date": "2015-07-31",
+   "pair": "USD_CAD",
+   "z": 2.7284,
+   "quintile": 5,
+   "r21": -0.0134,
+   "r42": -0.027741,
+   "r63": -0.007787,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2015-07-31",
+   "pair": "USD_CHF",
+   "z": 1.4844,
+   "quintile": 4,
+   "r21": -0.004659,
+   "r42": -0.00765,
+   "r63": -0.021762,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2015-07-31",
+   "pair": "USD_JPY",
+   "z": 1.7712,
+   "quintile": 5,
+   "r21": 0.021861,
+   "r42": 0.034308,
+   "r63": 0.02765,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-08-31",
+   "pair": "AUD_USD",
+   "z": 2.8438,
+   "quintile": 5,
+   "r21": -0.013185,
+   "r42": 0.006038,
+   "r63": 0.020355,
+   "rd_fc_pct": 1.875
+  },
+  {
+   "date": "2015-08-31",
+   "pair": "EUR_USD",
+   "z": 2.072,
+   "quintile": 5,
+   "r21": 0.004635,
+   "r42": -0.011501,
+   "r63": -0.053016,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-08-31",
+   "pair": "GBP_USD",
+   "z": 1.0533,
+   "quintile": 3,
+   "r21": -0.012774,
+   "r42": -0.002868,
+   "r63": -0.016671,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2015-08-31",
+   "pair": "NZD_USD",
+   "z": 3.9791,
+   "quintile": 5,
+   "r21": 0.002988,
+   "r42": 0.05694,
+   "r63": 0.034673,
+   "rd_fc_pct": 2.875
+  },
+  {
+   "date": "2015-08-31",
+   "pair": "USD_CAD",
+   "z": 2.6969,
+   "quintile": 5,
+   "r21": -0.014341,
+   "r42": 0.005612,
+   "r63": -0.005656,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2015-08-31",
+   "pair": "USD_CHF",
+   "z": 1.5526,
+   "quintile": 4,
+   "r21": -0.002991,
+   "r42": -0.017103,
+   "r63": -0.054181,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2015-08-31",
+   "pair": "USD_JPY",
+   "z": 1.6063,
+   "quintile": 4,
+   "r21": 0.012447,
+   "r42": 0.005789,
+   "r63": -0.011805,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-09-30",
+   "pair": "AUD_USD",
+   "z": 2.7174,
+   "quintile": 5,
+   "r21": 0.008652,
+   "r42": 0.024206,
+   "r63": 0.033892,
+   "rd_fc_pct": 1.875
+  },
+  {
+   "date": "2015-09-30",
+   "pair": "EUR_USD",
+   "z": 2.0776,
+   "quintile": 5,
+   "r21": -0.017989,
+   "r42": -0.052039,
+   "r63": -0.016167,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-09-30",
+   "pair": "GBP_USD",
+   "z": 1.5722,
+   "quintile": 4,
+   "r21": 0.011838,
+   "r42": -0.00504,
+   "r63": -0.015534,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2015-09-30",
+   "pair": "NZD_USD",
+   "z": 3.3825,
+   "quintile": 5,
+   "r21": 0.044384,
+   "r42": 0.022591,
+   "r63": 0.069952,
+   "rd_fc_pct": 2.625
+  },
+  {
+   "date": "2015-09-30",
+   "pair": "USD_CAD",
+   "z": 2.6356,
+   "quintile": 5,
+   "r21": 0.017091,
+   "r42": 0.002691,
+   "r63": -0.036429,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2015-09-30",
+   "pair": "USD_CHF",
+   "z": 1.7505,
+   "quintile": 5,
+   "r21": -0.014425,
+   "r42": -0.053006,
+   "r63": -0.010687,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2015-09-30",
+   "pair": "USD_JPY",
+   "z": 1.4791,
+   "quintile": 4,
+   "r21": -0.01104,
+   "r42": -0.024976,
+   "r63": -0.004081,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-10-30",
+   "pair": "AUD_USD",
+   "z": 2.3824,
+   "quintile": 5,
+   "r21": 0.014198,
+   "r42": 0.022183,
+   "r63": -0.008306,
+   "rd_fc_pct": 1.875
+  },
+  {
+   "date": "2015-10-30",
+   "pair": "EUR_USD",
+   "z": 2.0895,
+   "quintile": 5,
+   "r21": -0.044444,
+   "r42": -0.011477,
+   "r63": -0.015976,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-10-30",
+   "pair": "GBP_USD",
+   "z": 0.756,
+   "quintile": 3,
+   "r21": -0.026306,
+   "r42": -0.043064,
+   "r63": -0.079757,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2015-10-30",
+   "pair": "NZD_USD",
+   "z": 2.3483,
+   "quintile": 5,
+   "r21": -0.028788,
+   "r42": 0.015545,
+   "r63": -0.035963,
+   "rd_fc_pct": 2.625
+  },
+  {
+   "date": "2015-10-30",
+   "pair": "USD_CAD",
+   "z": 2.2003,
+   "quintile": 5,
+   "r21": -0.01893,
+   "r42": -0.056904,
+   "r63": -0.070673,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2015-10-30",
+   "pair": "USD_CHF",
+   "z": 1.8271,
+   "quintile": 5,
+   "r21": -0.042111,
+   "r42": -0.006673,
+   "r63": -0.031749,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2015-10-30",
+   "pair": "USD_JPY",
+   "z": 1.4518,
+   "quintile": 4,
+   "r21": -0.020663,
+   "r42": 0.002156,
+   "r63": 0.015025,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-11-30",
+   "pair": "AUD_USD",
+   "z": 2.0606,
+   "quintile": 5,
+   "r21": 0.007985,
+   "r42": -0.022504,
+   "r63": -0.003739,
+   "rd_fc_pct": 1.875
+  },
+  {
+   "date": "2015-11-30",
+   "pair": "EUR_USD",
+   "z": 2.4357,
+   "quintile": 5,
+   "r21": 0.032967,
+   "r42": 0.028468,
+   "r63": 0.042993,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-11-30",
+   "pair": "GBP_USD",
+   "z": 1.5367,
+   "quintile": 4,
+   "r21": -0.016758,
+   "r42": -0.053451,
+   "r63": -0.076432,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2015-11-30",
+   "pair": "NZD_USD",
+   "z": 2.4991,
+   "quintile": 5,
+   "r21": 0.044333,
+   "r42": -0.007175,
+   "r63": 0.018836,
+   "rd_fc_pct": 2.625
+  },
+  {
+   "date": "2015-11-30",
+   "pair": "USD_CAD",
+   "z": 2.2719,
+   "quintile": 5,
+   "r21": -0.037974,
+   "r42": -0.051743,
+   "r63": -0.017842,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2015-11-30",
+   "pair": "USD_CHF",
+   "z": 2.3368,
+   "quintile": 5,
+   "r21": 0.035439,
+   "r42": 0.010363,
+   "r63": 0.038466,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2015-11-30",
+   "pair": "USD_JPY",
+   "z": 1.5017,
+   "quintile": 4,
+   "r21": 0.02282,
+   "r42": 0.035689,
+   "r63": 0.089242,
+   "rd_fc_pct": -0.075
+  },
+  {
+   "date": "2015-12-31",
+   "pair": "AUD_USD",
+   "z": 1.8837,
+   "quintile": 5,
+   "r21": -0.029953,
+   "r42": -0.018563,
+   "r63": 0.037842,
+   "rd_fc_pct": 1.625
+  },
+  {
+   "date": "2015-12-31",
+   "pair": "EUR_USD",
+   "z": 1.975,
+   "quintile": 5,
+   "r21": -0.00249,
+   "r42": 0.000828,
+   "r63": 0.031277,
+   "rd_fc_pct": -0.325
+  },
+  {
+   "date": "2015-12-31",
+   "pair": "GBP_USD",
+   "z": 2.0311,
+   "quintile": 5,
+   "r21": -0.038857,
+   "r42": -0.057214,
+   "r63": -0.032042,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2015-12-31",
+   "pair": "NZD_USD",
+   "z": 1.8559,
+   "quintile": 5,
+   "r21": -0.056059,
+   "r42": -0.035859,
+   "r63": -0.005716,
+   "rd_fc_pct": 2.125
+  },
+  {
+   "date": "2015-12-31",
+   "pair": "USD_CAD",
+   "z": 2.4764,
+   "quintile": 5,
+   "r21": -0.016838,
+   "r42": 0.023173,
+   "r63": 0.050841,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2015-12-31",
+   "pair": "USD_CHF",
+   "z": 1.8198,
+   "quintile": 5,
+   "r21": -0.02065,
+   "r42": 0.005707,
+   "r63": 0.027632,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2015-12-31",
+   "pair": "USD_JPY",
+   "z": 1.3026,
+   "quintile": 4,
+   "r21": -0.006464,
+   "r42": 0.063237,
+   "r63": 0.059435,
+   "rd_fc_pct": -0.325
+  },
+  {
+   "date": "2016-01-29",
+   "pair": "AUD_USD",
+   "z": 2.006,
+   "quintile": 5,
+   "r21": 0.01139,
+   "r42": 0.067795,
+   "r63": 0.071357,
+   "rd_fc_pct": 1.625
+  },
+  {
+   "date": "2016-01-29",
+   "pair": "EUR_USD",
+   "z": 1.936,
+   "quintile": 5,
+   "r21": 0.003318,
+   "r42": 0.033766,
+   "r63": 0.044243,
+   "rd_fc_pct": -0.325
+  },
+  {
+   "date": "2016-01-29",
+   "pair": "GBP_USD",
+   "z": 2.9282,
+   "quintile": 5,
+   "r21": -0.018357,
+   "r42": 0.006815,
+   "r63": 0.025751,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2016-01-29",
+   "pair": "NZD_USD",
+   "z": 2.4067,
+   "quintile": 5,
+   "r21": 0.0202,
+   "r42": 0.050342,
+   "r63": 0.057373,
+   "rd_fc_pct": 2.125
+  },
+  {
+   "date": "2016-01-29",
+   "pair": "USD_CAD",
+   "z": 2.4516,
+   "quintile": 5,
+   "r21": 0.040011,
+   "r42": 0.067679,
+   "r63": 0.1077,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2016-01-29",
+   "pair": "USD_CHF",
+   "z": 2.0246,
+   "quintile": 5,
+   "r21": 0.026356,
+   "r42": 0.048282,
+   "r63": 0.051777,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2016-01-29",
+   "pair": "USD_JPY",
+   "z": 1.312,
+   "quintile": 4,
+   "r21": 0.069701,
+   "r42": 0.0659,
+   "r63": 0.084334,
+   "rd_fc_pct": -0.325
+  },
+  {
+   "date": "2016-02-29",
+   "pair": "AUD_USD",
+   "z": 1.7685,
+   "quintile": 5,
+   "r21": 0.056405,
+   "r42": 0.059966,
+   "r63": 0.010432,
+   "rd_fc_pct": 1.625
+  },
+  {
+   "date": "2016-02-29",
+   "pair": "EUR_USD",
+   "z": 1.8005,
+   "quintile": 5,
+   "r21": 0.030448,
+   "r42": 0.040925,
+   "r63": 0.028661,
+   "rd_fc_pct": -0.325
+  },
+  {
+   "date": "2016-02-29",
+   "pair": "GBP_USD",
+   "z": 3.1168,
+   "quintile": 5,
+   "r21": 0.025172,
+   "r42": 0.044108,
+   "r63": 0.052251,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2016-02-29",
+   "pair": "NZD_USD",
+   "z": 2.0668,
+   "quintile": 5,
+   "r21": 0.030143,
+   "r42": 0.037173,
+   "r63": 0.022618,
+   "rd_fc_pct": 2.125
+  },
+  {
+   "date": "2016-02-29",
+   "pair": "USD_CAD",
+   "z": 1.9611,
+   "quintile": 5,
+   "r21": 0.027668,
+   "r42": 0.067689,
+   "r63": 0.040908,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2016-02-29",
+   "pair": "USD_CHF",
+   "z": 1.5876,
+   "quintile": 4,
+   "r21": 0.021925,
+   "r42": 0.025421,
+   "r63": 0.006244,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2016-02-29",
+   "pair": "USD_JPY",
+   "z": 0.8529,
+   "quintile": 3,
+   "r21": -0.003801,
+   "r42": 0.014633,
+   "r63": 0.028389,
+   "rd_fc_pct": -0.325
+  },
+  {
+   "date": "2016-03-31",
+   "pair": "AUD_USD",
+   "z": 1.1519,
+   "quintile": 4,
+   "r21": -0.008503,
+   "r42": -0.063454,
+   "r63": -0.04312,
+   "rd_fc_pct": 1.625
+  },
+  {
+   "date": "2016-03-31",
+   "pair": "EUR_USD",
+   "z": 1.3975,
+   "quintile": 4,
+   "r21": 0.004468,
+   "r42": -0.022194,
+   "r63": -0.029943,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2016-03-31",
+   "pair": "GBP_USD",
+   "z": 2.2379,
+   "quintile": 5,
+   "r21": 0.016825,
+   "r42": 0.018123,
+   "r63": -0.078595,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2016-03-31",
+   "pair": "NZD_USD",
+   "z": 1.4383,
+   "quintile": 4,
+   "r21": 0.008339,
+   "r42": -0.028856,
+   "r63": 0.015046,
+   "rd_fc_pct": 1.875
+  },
+  {
+   "date": "2016-03-31",
+   "pair": "USD_CAD",
+   "z": 1.4826,
+   "quintile": 4,
+   "r21": 0.032921,
+   "r42": -0.002464,
+   "r63": -0.008981,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2016-03-31",
+   "pair": "USD_CHF",
+   "z": 1.0512,
+   "quintile": 3,
+   "r21": -0.001564,
+   "r42": -0.034159,
+   "r63": -0.023615,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2016-03-31",
+   "pair": "USD_JPY",
+   "z": 0.8295,
+   "quintile": 3,
+   "r21": 0.050348,
+   "r42": 0.023035,
+   "r63": 0.090332,
+   "rd_fc_pct": -0.325
+  },
+  {
+   "date": "2016-04-29",
+   "pair": "AUD_USD",
+   "z": 1.1894,
+   "quintile": 4,
+   "r21": -0.054951,
+   "r42": -0.034618,
+   "r63": -0.020171,
+   "rd_fc_pct": 1.625
+  },
+  {
+   "date": "2016-04-29",
+   "pair": "EUR_USD",
+   "z": 1.2927,
+   "quintile": 4,
+   "r21": -0.026661,
+   "r42": -0.034411,
+   "r63": -0.0404,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2016-04-29",
+   "pair": "GBP_USD",
+   "z": 1.6536,
+   "quintile": 4,
+   "r21": 0.001298,
+   "r42": -0.09542,
+   "r63": -0.110578,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2016-04-29",
+   "pair": "NZD_USD",
+   "z": 1.2974,
+   "quintile": 4,
+   "r21": -0.037195,
+   "r42": 0.006707,
+   "r63": 0.00827,
+   "rd_fc_pct": 1.875
+  },
+  {
+   "date": "2016-04-29",
+   "pair": "USD_CAD",
+   "z": 1.1123,
+   "quintile": 4,
+   "r21": -0.035385,
+   "r42": -0.041902,
+   "r63": -0.052165,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2016-04-29",
+   "pair": "USD_CHF",
+   "z": 1.0404,
+   "quintile": 3,
+   "r21": -0.032595,
+   "r42": -0.022051,
+   "r63": -0.03461,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2016-04-29",
+   "pair": "USD_JPY",
+   "z": 0.5043,
+   "quintile": 2,
+   "r21": -0.027313,
+   "r42": 0.039984,
+   "r63": 0.011762,
+   "rd_fc_pct": -0.325
+  },
+  {
+   "date": "2016-05-31",
+   "pair": "AUD_USD",
+   "z": 1.5863,
+   "quintile": 4,
+   "r21": 0.027511,
+   "r42": 0.036471,
+   "r63": 0.050091,
+   "rd_fc_pct": 1.375
+  },
+  {
+   "date": "2016-05-31",
+   "pair": "EUR_USD",
+   "z": 1.4596,
+   "quintile": 4,
+   "r21": -0.001618,
+   "r42": -0.003689,
+   "r63": 0.009119,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2016-05-31",
+   "pair": "GBP_USD",
+   "z": 1.7628,
+   "quintile": 5,
+   "r21": -0.072785,
+   "r42": -0.099718,
+   "r63": -0.098426,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2016-05-31",
+   "pair": "NZD_USD",
+   "z": 1.6156,
+   "quintile": 4,
+   "r21": 0.050695,
+   "r42": 0.044214,
+   "r63": 0.075795,
+   "rd_fc_pct": 1.875
+  },
+  {
+   "date": "2016-05-31",
+   "pair": "USD_CAD",
+   "z": 1.4475,
+   "quintile": 4,
+   "r21": 0.008203,
+   "r42": -0.005558,
+   "r63": 0.011751,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2016-05-31",
+   "pair": "USD_CHF",
+   "z": 1.6254,
+   "quintile": 4,
+   "r21": 0.014193,
+   "r42": 0.012969,
+   "r63": 0.021983,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2016-05-31",
+   "pair": "USD_JPY",
+   "z": 0.7094,
+   "quintile": 3,
+   "r21": 0.075658,
+   "r42": 0.054649,
+   "r63": 0.090177,
+   "rd_fc_pct": -0.325
+  },
+  {
+   "date": "2016-06-30",
+   "pair": "AUD_USD",
+   "z": 1.3624,
+   "quintile": 4,
+   "r21": 0.022222,
+   "r42": 0.01919,
+   "r63": 0.029956,
+   "rd_fc_pct": 1.375
+  },
+  {
+   "date": "2016-06-30",
+   "pair": "EUR_USD",
+   "z": 1.5491,
+   "quintile": 4,
+   "r21": 0.012252,
+   "r42": 0.013505,
+   "r63": 0.015828,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2016-06-30",
+   "pair": "GBP_USD",
+   "z": 3.8429,
+   "quintile": 5,
+   "r21": 0.002112,
+   "r42": -0.011621,
+   "r63": -0.01806,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2016-06-30",
+   "pair": "NZD_USD",
+   "z": 1.0609,
+   "quintile": 3,
+   "r21": 0.013393,
+   "r42": 0.018645,
+   "r63": 0.024144,
+   "rd_fc_pct": 1.875
+  },
+  {
+   "date": "2016-06-30",
+   "pair": "USD_CAD",
+   "z": 1.3536,
+   "quintile": 4,
+   "r21": -0.002303,
+   "r42": -0.000615,
+   "r63": -0.018053,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2016-06-30",
+   "pair": "USD_CHF",
+   "z": 1.5157,
+   "quintile": 4,
+   "r21": 0.010471,
+   "r42": 0.001226,
+   "r63": 0.007586,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2016-06-30",
+   "pair": "USD_JPY",
+   "z": 0.2438,
+   "quintile": 2,
+   "r21": 0.004388,
+   "r42": 0.006247,
+   "r63": 0.02373,
+   "rd_fc_pct": -0.325
+  },
+  {
+   "date": "2016-07-29",
+   "pair": "AUD_USD",
+   "z": 1.1734,
+   "quintile": 4,
+   "r21": -0.003031,
+   "r42": 0.007734,
+   "r63": 0.007604,
+   "rd_fc_pct": 1.375
+  },
+  {
+   "date": "2016-07-29",
+   "pair": "EUR_USD",
+   "z": 1.3553,
+   "quintile": 4,
+   "r21": 0.001253,
+   "r42": 0.003575,
+   "r63": -0.022823,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2016-07-29",
+   "pair": "GBP_USD",
+   "z": 3.3544,
+   "quintile": 5,
+   "r21": -0.013734,
+   "r42": -0.020172,
+   "r63": -0.081287,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2016-07-29",
+   "pair": "NZD_USD",
+   "z": 0.924,
+   "quintile": 3,
+   "r21": 0.005252,
+   "r42": 0.010751,
+   "r63": -0.00835,
+   "rd_fc_pct": 1.875
+  },
+  {
+   "date": "2016-07-29",
+   "pair": "USD_CAD",
+   "z": 1.3283,
+   "quintile": 4,
+   "r21": 0.001689,
+   "r42": -0.01575,
+   "r63": -0.024318,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2016-07-29",
+   "pair": "USD_CHF",
+   "z": 1.3356,
+   "quintile": 4,
+   "r21": -0.009245,
+   "r42": -0.002885,
+   "r63": -0.024164,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2016-07-29",
+   "pair": "USD_JPY",
+   "z": 0.2065,
+   "quintile": 2,
+   "r21": 0.001859,
+   "r42": 0.019341,
+   "r63": -0.020316,
+   "rd_fc_pct": -0.325
+  },
+  {
+   "date": "2016-08-31",
+   "pair": "AUD_USD",
+   "z": 1.2137,
+   "quintile": 4,
+   "r21": 0.020665,
+   "r42": 0.007816,
+   "r63": -0.005468,
+   "rd_fc_pct": 1.125
+  },
+  {
+   "date": "2016-08-31",
+   "pair": "EUR_USD",
+   "z": 1.3441,
+   "quintile": 4,
+   "r21": 0.008754,
+   "r42": -0.019203,
+   "r63": -0.052493,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2016-08-31",
+   "pair": "GBP_USD",
+   "z": 3.1805,
+   "quintile": 5,
+   "r21": -0.010567,
+   "r42": -0.077083,
+   "r63": -0.05624,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2016-08-31",
+   "pair": "NZD_USD",
+   "z": 0.8245,
+   "quintile": 3,
+   "r21": 0.003851,
+   "r42": -0.015694,
+   "r63": -0.027097,
+   "rd_fc_pct": 1.625
+  },
+  {
+   "date": "2016-08-31",
+   "pair": "USD_CAD",
+   "z": 1.3455,
+   "quintile": 4,
+   "r21": 0.001602,
+   "r42": -0.019695,
+   "r63": -0.021039,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2016-08-31",
+   "pair": "USD_CHF",
+   "z": 1.6162,
+   "quintile": 4,
+   "r21": 0.017963,
+   "r42": -0.010323,
+   "r63": -0.032823,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2016-08-31",
+   "pair": "USD_JPY",
+   "z": 0.2719,
+   "quintile": 2,
+   "r21": 0.01855,
+   "r42": -0.019351,
+   "r63": -0.083296,
+   "rd_fc_pct": -0.325
+  },
+  {
+   "date": "2016-09-30",
+   "pair": "AUD_USD",
+   "z": 1.0065,
+   "quintile": 3,
+   "r21": -0.007331,
+   "r42": -0.026164,
+   "r63": -0.06493,
+   "rd_fc_pct": 1.125
+  },
+  {
+   "date": "2016-09-30",
+   "pair": "EUR_USD",
+   "z": 1.2421,
+   "quintile": 4,
+   "r21": -0.024866,
+   "r42": -0.055997,
+   "r63": -0.078553,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2016-09-30",
+   "pair": "GBP_USD",
+   "z": 3.0267,
+   "quintile": 5,
+   "r21": -0.063683,
+   "r42": -0.039974,
+   "r63": -0.062865,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2016-09-30",
+   "pair": "NZD_USD",
+   "z": 0.7397,
+   "quintile": 3,
+   "r21": -0.018552,
+   "r42": -0.023736,
+   "r63": -0.053534,
+   "rd_fc_pct": 1.625
+  },
+  {
+   "date": "2016-09-30",
+   "pair": "USD_CAD",
+   "z": 1.291,
+   "quintile": 4,
+   "r21": -0.021722,
+   "r42": -0.024107,
+   "r63": -0.032999,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2016-09-30",
+   "pair": "USD_CHF",
+   "z": 1.3465,
+   "quintile": 4,
+   "r21": -0.020017,
+   "r42": -0.044192,
+   "r63": -0.061898,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2016-09-30",
+   "pair": "USD_JPY",
+   "z": 0.1053,
+   "quintile": 2,
+   "r21": -0.037429,
+   "r42": -0.108241,
+   "r63": -0.150602,
+   "rd_fc_pct": -0.475
+  },
+  {
+   "date": "2016-10-31",
+   "pair": "AUD_USD",
+   "z": 1.0371,
+   "quintile": 3,
+   "r21": -0.018833,
+   "r42": -0.057599,
+   "r63": -0.010567,
+   "rd_fc_pct": 1.125
+  },
+  {
+   "date": "2016-10-31",
+   "pair": "EUR_USD",
+   "z": 1.4651,
+   "quintile": 4,
+   "r21": -0.031131,
+   "r42": -0.053687,
+   "r63": -0.026999,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2016-10-31",
+   "pair": "GBP_USD",
+   "z": 3.5859,
+   "quintile": 5,
+   "r21": 0.023709,
+   "r42": 0.000819,
+   "r63": 0.02961,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2016-10-31",
+   "pair": "NZD_USD",
+   "z": 0.9287,
+   "quintile": 3,
+   "r21": -0.005184,
+   "r42": -0.034982,
+   "r63": 0.010564,
+   "rd_fc_pct": 1.625
+  },
+  {
+   "date": "2016-10-31",
+   "pair": "USD_CAD",
+   "z": 1.4615,
+   "quintile": 4,
+   "r21": -0.002385,
+   "r42": -0.011277,
+   "r63": 0.022561,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2016-10-31",
+   "pair": "USD_CHF",
+   "z": 1.7104,
+   "quintile": 5,
+   "r21": -0.024175,
+   "r42": -0.041881,
+   "r63": -0.01216,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2016-10-31",
+   "pair": "USD_JPY",
+   "z": 0.3366,
+   "quintile": 2,
+   "r21": -0.070812,
+   "r42": -0.113172,
+   "r63": -0.087693,
+   "rd_fc_pct": -0.475
+  },
+  {
+   "date": "2016-11-30",
+   "pair": "AUD_USD",
+   "z": 1.1992,
+   "quintile": 4,
+   "r21": -0.022867,
+   "r42": 0.021693,
+   "r63": 0.040589,
+   "rd_fc_pct": 1.125
+  },
+  {
+   "date": "2016-11-30",
+   "pair": "EUR_USD",
+   "z": 1.7653,
+   "quintile": 5,
+   "r21": -0.008735,
+   "r42": 0.010532,
+   "r63": 0.004339,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2016-11-30",
+   "pair": "GBP_USD",
+   "z": 2.9252,
+   "quintile": 5,
+   "r21": -0.019743,
+   "r42": 0.003998,
+   "r63": -0.000641,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2016-11-30",
+   "pair": "NZD_USD",
+   "z": 1.0027,
+   "quintile": 3,
+   "r21": -0.017523,
+   "r42": 0.024551,
+   "r63": 0.019994,
+   "rd_fc_pct": 1.375
+  },
+  {
+   "date": "2016-11-30",
+   "pair": "USD_CAD",
+   "z": 1.4344,
+   "quintile": 4,
+   "r21": -0.004682,
+   "r42": 0.023896,
+   "r63": 0.024506,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2016-11-30",
+   "pair": "USD_CHF",
+   "z": 2.2265,
+   "quintile": 5,
+   "r21": -0.004212,
+   "r42": 0.019328,
+   "r63": 0.01344,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2016-11-30",
+   "pair": "USD_JPY",
+   "z": 0.9153,
+   "quintile": 3,
+   "r21": -0.017169,
+   "r42": -0.007146,
+   "r63": 0.020588,
+   "rd_fc_pct": -0.475
+  },
+  {
+   "date": "2016-12-30",
+   "pair": "AUD_USD",
+   "z": 1.3434,
+   "quintile": 4,
+   "r21": 0.044103,
+   "r42": 0.061161,
+   "r63": 0.057773,
+   "rd_fc_pct": 0.875
+  },
+  {
+   "date": "2016-12-30",
+   "pair": "EUR_USD",
+   "z": 1.6997,
+   "quintile": 4,
+   "r21": 0.012151,
+   "r42": 0.006235,
+   "r63": 0.019148,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2016-12-30",
+   "pair": "GBP_USD",
+   "z": 2.8342,
+   "quintile": 5,
+   "r21": 0.011364,
+   "r42": 0.007269,
+   "r63": 0.00598,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2016-12-30",
+   "pair": "NZD_USD",
+   "z": 1.1685,
+   "quintile": 4,
+   "r21": 0.045376,
+   "r42": 0.038209,
+   "r63": 0.009583,
+   "rd_fc_pct": 1.125
+  },
+  {
+   "date": "2016-12-30",
+   "pair": "USD_CAD",
+   "z": 1.3769,
+   "quintile": 4,
+   "r21": 0.025192,
+   "r42": 0.013422,
+   "r63": 0.00403,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2016-12-30",
+   "pair": "USD_CHF",
+   "z": 2.0789,
+   "quintile": 5,
+   "r21": 0.018276,
+   "r42": 0.013676,
+   "r63": 0.019279,
+   "rd_fc_pct": -1.375
+  },
+  {
+   "date": "2016-12-30",
+   "pair": "USD_JPY",
+   "z": 1.006,
+   "quintile": 3,
+   "r21": 0.025322,
+   "r42": 0.041257,
+   "r63": 0.050311,
+   "rd_fc_pct": -0.725
+  },
+  {
+   "date": "2017-01-31",
+   "pair": "AUD_USD",
+   "z": 0.9117,
+   "quintile": 3,
+   "r21": 0.010757,
+   "r42": 0.011018,
+   "r63": -0.014213,
+   "rd_fc_pct": 0.875
+  },
+  {
+   "date": "2017-01-31",
+   "pair": "EUR_USD",
+   "z": 1.417,
+   "quintile": 4,
+   "r21": -0.021538,
+   "r42": -0.00632,
+   "r63": 0.009314,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2017-01-31",
+   "pair": "GBP_USD",
+   "z": 2.3245,
+   "quintile": 5,
+   "r21": -0.021444,
+   "r42": -0.007657,
+   "r63": 0.027663,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2017-01-31",
+   "pair": "NZD_USD",
+   "z": 0.5573,
+   "quintile": 2,
+   "r21": -0.027388,
+   "r42": -0.042649,
+   "r63": -0.066132,
+   "rd_fc_pct": 1.125
+  },
+  {
+   "date": "2017-01-31",
+   "pair": "USD_CAD",
+   "z": 1.0871,
+   "quintile": 3,
+   "r21": -0.023887,
+   "r42": -0.018854,
+   "r63": -0.047876,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2017-01-31",
+   "pair": "USD_CHF",
+   "z": 1.5,
+   "quintile": 4,
+   "r21": -0.018437,
+   "r42": -0.008158,
+   "r63": -0.005647,
+   "rd_fc_pct": -1.375
+  },
+  {
+   "date": "2017-01-31",
+   "pair": "USD_JPY",
+   "z": 0.704,
+   "quintile": 3,
+   "r21": -0.008305,
+   "r42": 0.012139,
+   "r63": 0.011421,
+   "rd_fc_pct": -0.725
+  },
+  {
+   "date": "2017-02-28",
+   "pair": "AUD_USD",
+   "z": 0.7322,
+   "quintile": 3,
+   "r21": -0.003389,
+   "r42": -0.030918,
+   "r63": -0.03253,
+   "rd_fc_pct": 0.875
+  },
+  {
+   "date": "2017-02-28",
+   "pair": "EUR_USD",
+   "z": 1.4804,
+   "quintile": 4,
+   "r21": 0.012913,
+   "r42": 0.022904,
+   "r63": 0.050681,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2017-02-28",
+   "pair": "GBP_USD",
+   "z": 2.2949,
+   "quintile": 5,
+   "r21": -0.001288,
+   "r42": 0.036503,
+   "r63": 0.029183,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2017-02-28",
+   "pair": "NZD_USD",
+   "z": 0.6424,
+   "quintile": 2,
+   "r21": -0.028625,
+   "r42": -0.053268,
+   "r63": -0.024364,
+   "rd_fc_pct": 1.125
+  },
+  {
+   "date": "2017-02-28",
+   "pair": "USD_CAD",
+   "z": 1.219,
+   "quintile": 4,
+   "r21": -0.009392,
+   "r42": -0.030994,
+   "r63": -0.015505,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2017-02-28",
+   "pair": "USD_CHF",
+   "z": 1.7074,
+   "quintile": 5,
+   "r21": 0.005603,
+   "r42": 0.007411,
+   "r63": 0.027208,
+   "rd_fc_pct": -1.375
+  },
+  {
+   "date": "2017-02-28",
+   "pair": "USD_JPY",
+   "z": 0.6528,
+   "quintile": 2,
+   "r21": 0.009054,
+   "r42": 0.008334,
+   "r63": 0.006805,
+   "rd_fc_pct": -0.725
+  },
+  {
+   "date": "2017-03-31",
+   "pair": "AUD_USD",
+   "z": 0.8011,
+   "quintile": 3,
+   "r21": -0.01371,
+   "r42": -0.02291,
+   "r63": 0.0,
+   "rd_fc_pct": 0.625
+  },
+  {
+   "date": "2017-03-31",
+   "pair": "EUR_USD",
+   "z": 1.4893,
+   "quintile": 4,
+   "r21": 0.019806,
+   "r42": 0.044338,
+   "r63": 0.060394,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2017-03-31",
+   "pair": "GBP_USD",
+   "z": 2.1481,
+   "quintile": 5,
+   "r21": 0.02986,
+   "r42": 0.025282,
+   "r63": 0.03133,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2017-03-31",
+   "pair": "NZD_USD",
+   "z": 1.0234,
+   "quintile": 3,
+   "r21": -0.012505,
+   "r42": 0.013337,
+   "r63": 0.042917,
+   "rd_fc_pct": 0.875
+  },
+  {
+   "date": "2017-03-31",
+   "pair": "USD_CAD",
+   "z": 1.1978,
+   "quintile": 4,
+   "r21": -0.024618,
+   "r42": -0.010529,
+   "r63": 0.02109,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2017-03-31",
+   "pair": "USD_CHF",
+   "z": 1.6967,
+   "quintile": 4,
+   "r21": 0.00431,
+   "r42": 0.025733,
+   "r63": 0.039789,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2017-03-31",
+   "pair": "USD_JPY",
+   "z": 0.6405,
+   "quintile": 2,
+   "r21": -0.003316,
+   "r42": 0.006574,
+   "r63": -0.006888,
+   "rd_fc_pct": -0.975
+  },
+  {
+   "date": "2017-04-28",
+   "pair": "AUD_USD",
+   "z": 0.976,
+   "quintile": 3,
+   "r21": -0.004693,
+   "r42": 0.015004,
+   "r63": 0.05808,
+   "rd_fc_pct": 0.625
+  },
+  {
+   "date": "2017-04-28",
+   "pair": "EUR_USD",
+   "z": 1.2495,
+   "quintile": 4,
+   "r21": 0.024928,
+   "r42": 0.036499,
+   "r63": 0.065456,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2017-04-28",
+   "pair": "GBP_USD",
+   "z": 1.6733,
+   "quintile": 4,
+   "r21": -0.011114,
+   "r42": -0.011427,
+   "r63": 0.008466,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2017-04-28",
+   "pair": "NZD_USD",
+   "z": 1.2438,
+   "quintile": 4,
+   "r21": 0.028029,
+   "r42": 0.059149,
+   "r63": 0.079953,
+   "rd_fc_pct": 0.875
+  },
+  {
+   "date": "2017-04-28",
+   "pair": "USD_CAD",
+   "z": 1.4038,
+   "quintile": 4,
+   "r21": 0.015854,
+   "r42": 0.036734,
+   "r63": 0.088922,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2017-04-28",
+   "pair": "USD_CHF",
+   "z": 1.5037,
+   "quintile": 4,
+   "r21": 0.019394,
+   "r42": 0.031256,
+   "r63": 0.037292,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2017-04-28",
+   "pair": "USD_JPY",
+   "z": 0.6571,
+   "quintile": 3,
+   "r21": 0.001257,
+   "r42": -0.008756,
+   "r63": -0.005905,
+   "rd_fc_pct": -0.975
+  },
+  {
+   "date": "2017-05-31",
+   "pair": "AUD_USD",
+   "z": 0.9527,
+   "quintile": 3,
+   "r21": 0.032152,
+   "r42": 0.071848,
+   "r63": 0.067459,
+   "rd_fc_pct": 0.625
+  },
+  {
+   "date": "2017-05-31",
+   "pair": "EUR_USD",
+   "z": 0.8368,
+   "quintile": 3,
+   "r21": 0.016243,
+   "r42": 0.045071,
+   "r63": 0.063531,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2017-05-31",
+   "pair": "GBP_USD",
+   "z": 1.6041,
+   "quintile": 4,
+   "r21": 0.006103,
+   "r42": 0.016828,
+   "r63": 0.001703,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2017-05-31",
+   "pair": "NZD_USD",
+   "z": 0.7457,
+   "quintile": 3,
+   "r21": 0.026409,
+   "r42": 0.055608,
+   "r63": 0.020769,
+   "rd_fc_pct": 0.875
+  },
+  {
+   "date": "2017-05-31",
+   "pair": "USD_CAD",
+   "z": 1.2348,
+   "quintile": 4,
+   "r21": 0.036823,
+   "r42": 0.081946,
+   "r63": 0.077453,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2017-05-31",
+   "pair": "USD_CHF",
+   "z": 0.9684,
+   "quintile": 3,
+   "r21": 0.011946,
+   "r42": -0.000103,
+   "r63": 0.013515,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2017-05-31",
+   "pair": "USD_JPY",
+   "z": 0.5821,
+   "quintile": 2,
+   "r21": -0.014438,
+   "r42": -0.001444,
+   "r63": 0.01355,
+   "rd_fc_pct": -0.975
+  },
+  {
+   "date": "2017-06-30",
+   "pair": "AUD_USD",
+   "z": 0.6827,
+   "quintile": 3,
+   "r21": 0.039842,
+   "r42": 0.037962,
+   "r63": 0.024451,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2017-06-30",
+   "pair": "EUR_USD",
+   "z": 0.6356,
+   "quintile": 2,
+   "r21": 0.035723,
+   "r42": 0.05241,
+   "r63": 0.02902,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2017-06-30",
+   "pair": "GBP_USD",
+   "z": 1.4416,
+   "quintile": 4,
+   "r21": 0.015349,
+   "r42": -0.004473,
+   "r63": 0.030765,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2017-06-30",
+   "pair": "NZD_USD",
+   "z": 0.4284,
+   "quintile": 2,
+   "r21": 0.024419,
+   "r42": -0.00699,
+   "r63": -0.014306,
+   "rd_fc_pct": 0.625
+  },
+  {
+   "date": "2017-06-30",
+   "pair": "USD_CAD",
+   "z": 0.8388,
+   "quintile": 3,
+   "r21": 0.038635,
+   "r42": 0.036476,
+   "r63": 0.045706,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2017-06-30",
+   "pair": "USD_CHF",
+   "z": 0.7792,
+   "quintile": 3,
+   "r21": -0.006654,
+   "r42": 0.011119,
+   "r63": -0.016451,
+   "rd_fc_pct": -1.875
+  },
+  {
+   "date": "2017-06-30",
+   "pair": "USD_JPY",
+   "z": 0.6904,
+   "quintile": 3,
+   "r21": 0.018135,
+   "r42": 0.030533,
+   "r63": -0.003198,
+   "rd_fc_pct": -1.225
+  },
+  {
+   "date": "2017-07-31",
+   "pair": "AUD_USD",
+   "z": 0.3216,
+   "quintile": 2,
+   "r21": -0.00188,
+   "r42": -0.015391,
+   "r63": -0.03828,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2017-07-31",
+   "pair": "EUR_USD",
+   "z": 0.2812,
+   "quintile": 2,
+   "r21": 0.016687,
+   "r42": -0.006703,
+   "r63": -0.010712,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2017-07-31",
+   "pair": "GBP_USD",
+   "z": 1.2096,
+   "quintile": 4,
+   "r21": -0.019822,
+   "r42": 0.015416,
+   "r63": -0.001137,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2017-07-31",
+   "pair": "NZD_USD",
+   "z": 0.1567,
+   "quintile": 2,
+   "r21": -0.031409,
+   "r42": -0.038725,
+   "r63": -0.089595,
+   "rd_fc_pct": 0.625
+  },
+  {
+   "date": "2017-07-31",
+   "pair": "USD_CAD",
+   "z": 0.4588,
+   "quintile": 2,
+   "r21": -0.002159,
+   "r42": 0.007071,
+   "r63": -0.026156,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2017-07-31",
+   "pair": "USD_CHF",
+   "z": 0.8502,
+   "quintile": 3,
+   "r21": 0.017774,
+   "r42": -0.009796,
+   "r63": -0.030615,
+   "rd_fc_pct": -1.875
+  },
+  {
+   "date": "2017-07-31",
+   "pair": "USD_JPY",
+   "z": 0.4948,
+   "quintile": 2,
+   "r21": 0.012398,
+   "r42": -0.021333,
+   "r63": -0.02981,
+   "rd_fc_pct": -1.225
+  },
+  {
+   "date": "2017-08-31",
+   "pair": "AUD_USD",
+   "z": 0.3463,
+   "quintile": 2,
+   "r21": -0.011666,
+   "r42": -0.032546,
+   "r63": -0.040523,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2017-08-31",
+   "pair": "EUR_USD",
+   "z": 0.2059,
+   "quintile": 2,
+   "r21": -0.006833,
+   "r42": -0.02279,
+   "r63": -0.001346,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2017-08-31",
+   "pair": "GBP_USD",
+   "z": 1.4059,
+   "quintile": 4,
+   "r21": 0.039107,
+   "r42": 0.023541,
+   "r63": 0.026266,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2017-08-31",
+   "pair": "NZD_USD",
+   "z": 0.6309,
+   "quintile": 2,
+   "r21": 0.007642,
+   "r42": -0.042887,
+   "r63": -0.033757,
+   "rd_fc_pct": 0.625
+  },
+  {
+   "date": "2017-08-31",
+   "pair": "USD_CAD",
+   "z": 0.4634,
+   "quintile": 2,
+   "r21": 0.00048,
+   "r42": -0.025248,
+   "r63": -0.02283,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2017-08-31",
+   "pair": "USD_CHF",
+   "z": 0.7864,
+   "quintile": 3,
+   "r21": -0.008084,
+   "r42": -0.036676,
+   "r63": -0.022736,
+   "rd_fc_pct": -1.875
+  },
+  {
+   "date": "2017-08-31",
+   "pair": "USD_JPY",
+   "z": 0.4618,
+   "quintile": 2,
+   "r21": -0.023171,
+   "r42": -0.02866,
+   "r63": -0.009675,
+   "rd_fc_pct": -1.225
+  },
+  {
+   "date": "2017-09-29",
+   "pair": "AUD_USD",
+   "z": 0.4202,
+   "quintile": 2,
+   "r21": -0.02088,
+   "r42": -0.028856,
+   "r63": -0.008711,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2017-09-29",
+   "pair": "EUR_USD",
+   "z": 0.2964,
+   "quintile": 2,
+   "r21": -0.015957,
+   "r42": 0.005487,
+   "r63": 0.007506,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2017-09-29",
+   "pair": "GBP_USD",
+   "z": 0.9667,
+   "quintile": 3,
+   "r21": -0.015566,
+   "r42": -0.012841,
+   "r63": 7.5e-05,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2017-09-29",
+   "pair": "NZD_USD",
+   "z": 0.5202,
+   "quintile": 2,
+   "r21": -0.050529,
+   "r42": -0.041399,
+   "r63": -0.021828,
+   "rd_fc_pct": 0.625
+  },
+  {
+   "date": "2017-09-29",
+   "pair": "USD_CAD",
+   "z": 0.43,
+   "quintile": 2,
+   "r21": -0.025727,
+   "r42": -0.023309,
+   "r63": -0.010813,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2017-09-29",
+   "pair": "USD_CHF",
+   "z": 0.9415,
+   "quintile": 3,
+   "r21": -0.028592,
+   "r42": -0.014653,
+   "r63": -0.018612,
+   "rd_fc_pct": -1.875
+  },
+  {
+   "date": "2017-09-29",
+   "pair": "USD_JPY",
+   "z": 0.7294,
+   "quintile": 3,
+   "r21": -0.005489,
+   "r42": 0.013496,
+   "r63": -0.005666,
+   "rd_fc_pct": -1.225
+  },
+  {
+   "date": "2017-10-31",
+   "pair": "AUD_USD",
+   "z": 0.6275,
+   "quintile": 2,
+   "r21": -0.012599,
+   "r42": 0.01617,
+   "r63": 0.055425,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2017-10-31",
+   "pair": "EUR_USD",
+   "z": 0.4184,
+   "quintile": 2,
+   "r21": 0.017868,
+   "r42": 0.025764,
+   "r63": 0.064335,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2017-10-31",
+   "pair": "GBP_USD",
+   "z": 1.0019,
+   "quintile": 3,
+   "r21": 0.011603,
+   "r42": 0.012645,
+   "r63": 0.065428,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2017-10-31",
+   "pair": "NZD_USD",
+   "z": 1.102,
+   "quintile": 4,
+   "r21": 0.006983,
+   "r42": 0.034296,
+   "r63": 0.07018,
+   "rd_fc_pct": 0.625
+  },
+  {
+   "date": "2017-10-31",
+   "pair": "USD_CAD",
+   "z": 0.7257,
+   "quintile": 3,
+   "r21": 0.003418,
+   "r42": 0.024177,
+   "r63": 0.045538,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2017-10-31",
+   "pair": "USD_CHF",
+   "z": 1.4407,
+   "quintile": 4,
+   "r21": 0.013229,
+   "r42": 0.019654,
+   "r63": 0.06486,
+   "rd_fc_pct": -1.875
+  },
+  {
+   "date": "2017-10-31",
+   "pair": "USD_JPY",
+   "z": 0.8452,
+   "quintile": 3,
+   "r21": 0.016683,
+   "r42": 0.006888,
+   "r63": 0.047304,
+   "rd_fc_pct": -1.225
+  },
+  {
+   "date": "2017-11-30",
+   "pair": "AUD_USD",
+   "z": 0.7144,
+   "quintile": 3,
+   "r21": 0.031588,
+   "r42": 0.066048,
+   "r63": 0.030179,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2017-11-30",
+   "pair": "EUR_USD",
+   "z": 0.1938,
+   "quintile": 2,
+   "r21": 0.010368,
+   "r42": 0.037448,
+   "r63": 0.028257,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2017-11-30",
+   "pair": "GBP_USD",
+   "z": 0.8214,
+   "quintile": 3,
+   "r21": 0.001701,
+   "r42": 0.038919,
+   "r63": 0.029186,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2017-11-30",
+   "pair": "NZD_USD",
+   "z": 1.0717,
+   "quintile": 3,
+   "r21": 0.035846,
+   "r42": 0.064721,
+   "r63": 0.055787,
+   "rd_fc_pct": 0.625
+  },
+  {
+   "date": "2017-11-30",
+   "pair": "USD_CAD",
+   "z": 0.7242,
+   "quintile": 3,
+   "r21": 0.028899,
+   "r42": 0.043221,
+   "r63": 0.010612,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2017-11-30",
+   "pair": "USD_CHF",
+   "z": 1.2129,
+   "quintile": 4,
+   "r21": 0.010217,
+   "r42": 0.047673,
+   "r63": 0.045756,
+   "rd_fc_pct": -1.875
+  },
+  {
+   "date": "2017-11-30",
+   "pair": "USD_JPY",
+   "z": 0.7026,
+   "quintile": 3,
+   "r21": -0.003467,
+   "r42": 0.028726,
+   "r63": 0.043962,
+   "rd_fc_pct": -1.225
+  },
+  {
+   "date": "2017-12-29",
+   "pair": "AUD_USD",
+   "z": 0.3664,
+   "quintile": 2,
+   "r21": 0.03446,
+   "r42": -0.001409,
+   "r63": -0.017295,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2017-12-29",
+   "pair": "EUR_USD",
+   "z": 0.052,
+   "quintile": 1,
+   "r21": 0.02708,
+   "r42": 0.017889,
+   "r63": 0.026999,
+   "rd_fc_pct": -1.375
+  },
+  {
+   "date": "2017-12-29",
+   "pair": "GBP_USD",
+   "z": 0.7617,
+   "quintile": 3,
+   "r21": 0.037217,
+   "r42": 0.027485,
+   "r63": 0.042048,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2017-12-29",
+   "pair": "NZD_USD",
+   "z": 0.6413,
+   "quintile": 2,
+   "r21": 0.028875,
+   "r42": 0.019941,
+   "r63": 0.019941,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2017-12-29",
+   "pair": "USD_CAD",
+   "z": 0.3824,
+   "quintile": 2,
+   "r21": 0.014323,
+   "r42": -0.018287,
+   "r63": -0.029054,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2017-12-29",
+   "pair": "USD_CHF",
+   "z": 0.974,
+   "quintile": 3,
+   "r21": 0.037456,
+   "r42": 0.035539,
+   "r63": 0.020752,
+   "rd_fc_pct": -2.125
+  },
+  {
+   "date": "2017-12-29",
+   "pair": "USD_JPY",
+   "z": 0.7181,
+   "quintile": 3,
+   "r21": 0.032192,
+   "r42": 0.047429,
+   "r63": 0.058375,
+   "rd_fc_pct": -1.475
+  },
+  {
+   "date": "2018-01-31",
+   "pair": "AUD_USD",
+   "z": -0.0048,
+   "quintile": 1,
+   "r21": -0.03879,
+   "r42": -0.048109,
+   "r63": -0.06741,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2018-01-31",
+   "pair": "EUR_USD",
+   "z": -0.287,
+   "quintile": 1,
+   "r21": -0.017205,
+   "r42": -0.008728,
+   "r63": -0.028898,
+   "rd_fc_pct": -1.375
+  },
+  {
+   "date": "2018-01-31",
+   "pair": "GBP_USD",
+   "z": 0.2405,
+   "quintile": 2,
+   "r21": -0.031135,
+   "r42": -0.011553,
+   "r63": -0.031426,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2018-01-31",
+   "pair": "NZD_USD",
+   "z": 0.1983,
+   "quintile": 2,
+   "r21": -0.016688,
+   "r42": -0.018206,
+   "r63": -0.045655,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2018-01-31",
+   "pair": "USD_CAD",
+   "z": 0.1279,
+   "quintile": 2,
+   "r21": -0.043535,
+   "r42": -0.047499,
+   "r63": -0.04182,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2018-01-31",
+   "pair": "USD_CHF",
+   "z": 0.2006,
+   "quintile": 2,
+   "r21": -0.014908,
+   "r42": -0.022385,
+   "r63": -0.061375,
+   "rd_fc_pct": -2.125
+  },
+  {
+   "date": "2018-01-31",
+   "pair": "USD_JPY",
+   "z": 0.2055,
+   "quintile": 2,
+   "r21": 0.022201,
+   "r42": 0.028864,
+   "r63": 0.000274,
+   "rd_fc_pct": -1.475
+  },
+  {
+   "date": "2018-02-28",
+   "pair": "AUD_USD",
+   "z": 0.254,
+   "quintile": 2,
+   "r21": -0.016675,
+   "r42": -0.030587,
+   "r63": -0.031645,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2018-02-28",
+   "pair": "EUR_USD",
+   "z": -0.1615,
+   "quintile": 1,
+   "r21": 0.007018,
+   "r42": -0.008471,
+   "r63": -0.045659,
+   "rd_fc_pct": -1.375
+  },
+  {
+   "date": "2018-02-28",
+   "pair": "GBP_USD",
+   "z": 0.4755,
+   "quintile": 2,
+   "r21": 0.016893,
+   "r42": -0.000653,
+   "r63": -0.034892,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2018-02-28",
+   "pair": "NZD_USD",
+   "z": 0.3804,
+   "quintile": 2,
+   "r21": -0.000969,
+   "r42": -0.021964,
+   "r63": -0.043119,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2018-02-28",
+   "pair": "USD_CAD",
+   "z": 0.5841,
+   "quintile": 2,
+   "r21": -0.007391,
+   "r42": -0.004363,
+   "r63": -0.012879,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2018-02-28",
+   "pair": "USD_CHF",
+   "z": 0.3802,
+   "quintile": 2,
+   "r21": -0.013692,
+   "r42": -0.047021,
+   "r63": -0.04985,
+   "rd_fc_pct": -2.125
+  },
+  {
+   "date": "2018-02-28",
+   "pair": "USD_JPY",
+   "z": -0.2432,
+   "quintile": 1,
+   "r21": 0.003288,
+   "r42": -0.023177,
+   "r63": -0.025283,
+   "rd_fc_pct": -1.475
+  },
+  {
+   "date": "2018-03-30",
+   "pair": "AUD_USD",
+   "z": 0.4518,
+   "quintile": 2,
+   "r21": -0.019301,
+   "r42": -0.023153,
+   "r63": -0.042096,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2018-03-30",
+   "pair": "EUR_USD",
+   "z": -0.1188,
+   "quintile": 1,
+   "r21": -0.02017,
+   "r42": -0.064452,
+   "r63": -0.061254,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2018-03-30",
+   "pair": "GBP_USD",
+   "z": 0.3964,
+   "quintile": 2,
+   "r21": -0.019872,
+   "r42": -0.056383,
+   "r63": -0.065399,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2018-03-30",
+   "pair": "NZD_USD",
+   "z": 0.4012,
+   "quintile": 2,
+   "r21": -0.027449,
+   "r42": -0.04579,
+   "r63": -0.062266,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2018-03-30",
+   "pair": "USD_CAD",
+   "z": 0.6142,
+   "quintile": 2,
+   "r21": 0.005679,
+   "r42": -0.010495,
+   "r63": -0.031235,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2018-03-30",
+   "pair": "USD_CHF",
+   "z": 0.6676,
+   "quintile": 3,
+   "r21": -0.038991,
+   "r42": -0.040302,
+   "r63": -0.044123,
+   "rd_fc_pct": -2.375
+  },
+  {
+   "date": "2018-03-30",
+   "pair": "USD_JPY",
+   "z": -0.2527,
+   "quintile": 1,
+   "r21": -0.028589,
+   "r42": -0.022531,
+   "r63": -0.038242,
+   "rd_fc_pct": -1.725
+  },
+  {
+   "date": "2018-04-30",
+   "pair": "AUD_USD",
+   "z": 0.7101,
+   "quintile": 3,
+   "r21": -0.003852,
+   "r42": -0.022795,
+   "r63": -0.021304,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2018-04-30",
+   "pair": "EUR_USD",
+   "z": 0.1,
+   "quintile": 2,
+   "r21": -0.044282,
+   "r42": -0.041084,
+   "r63": -0.035405,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2018-04-30",
+   "pair": "GBP_USD",
+   "z": 0.5872,
+   "quintile": 2,
+   "r21": -0.03651,
+   "r42": -0.045527,
+   "r63": -0.04705,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2018-04-30",
+   "pair": "NZD_USD",
+   "z": 0.7532,
+   "quintile": 3,
+   "r21": -0.018341,
+   "r42": -0.034818,
+   "r63": -0.036436,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2018-04-30",
+   "pair": "USD_CAD",
+   "z": 0.5076,
+   "quintile": 2,
+   "r21": -0.016174,
+   "r42": -0.036914,
+   "r63": -0.020234,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2018-04-30",
+   "pair": "USD_CHF",
+   "z": 1.3317,
+   "quintile": 4,
+   "r21": -0.001311,
+   "r42": -0.005133,
+   "r63": -0.002721,
+   "rd_fc_pct": -2.375
+  },
+  {
+   "date": "2018-04-30",
+   "pair": "USD_JPY",
+   "z": 0.227,
+   "quintile": 2,
+   "r21": 0.006058,
+   "r42": -0.009653,
+   "r63": -0.017417,
+   "rd_fc_pct": -1.725
+  },
+  {
+   "date": "2018-05-31",
+   "pair": "AUD_USD",
+   "z": 0.6114,
+   "quintile": 2,
+   "r21": -0.022848,
+   "r42": -0.021633,
+   "r63": -0.029221,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2018-05-31",
+   "pair": "EUR_USD",
+   "z": 0.3472,
+   "quintile": 2,
+   "r21": 0.0006,
+   "r42": 0.004105,
+   "r63": 0.004275,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2018-05-31",
+   "pair": "GBP_USD",
+   "z": 0.9067,
+   "quintile": 3,
+   "r21": -0.006947,
+   "r42": -0.011276,
+   "r63": -0.030795,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2018-05-31",
+   "pair": "NZD_USD",
+   "z": 0.7552,
+   "quintile": 3,
+   "r21": -0.033537,
+   "r42": -0.025303,
+   "r63": -0.041542,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2018-05-31",
+   "pair": "USD_CAD",
+   "z": 0.6116,
+   "quintile": 2,
+   "r21": -0.013022,
+   "r42": -0.00331,
+   "r63": 0.003476,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2018-05-31",
+   "pair": "USD_CHF",
+   "z": 1.1328,
+   "quintile": 4,
+   "r21": -0.007892,
+   "r42": -0.004156,
+   "r63": 0.00939,
+   "rd_fc_pct": -2.375
+  },
+  {
+   "date": "2018-05-31",
+   "pair": "USD_JPY",
+   "z": 0.2018,
+   "quintile": 2,
+   "r21": -0.018046,
+   "r42": -0.020482,
+   "r63": -0.021023,
+   "rd_fc_pct": -1.725
+  },
+  {
+   "date": "2018-06-29",
+   "pair": "AUD_USD",
+   "z": 0.9097,
+   "quintile": 3,
+   "r21": 0.001216,
+   "r42": -0.006372,
+   "r63": -0.018965,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2018-06-29",
+   "pair": "EUR_USD",
+   "z": 0.3158,
+   "quintile": 2,
+   "r21": 0.003505,
+   "r42": 0.003676,
+   "r63": 0.006913,
+   "rd_fc_pct": -1.875
+  },
+  {
+   "date": "2018-06-29",
+   "pair": "GBP_USD",
+   "z": 0.949,
+   "quintile": 3,
+   "r21": -0.004329,
+   "r42": -0.023848,
+   "r63": -0.001137,
+   "rd_fc_pct": -1.375
+  },
+  {
+   "date": "2018-06-29",
+   "pair": "NZD_USD",
+   "z": 1.1602,
+   "quintile": 4,
+   "r21": 0.008234,
+   "r42": -0.008005,
+   "r63": -0.017275,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2018-06-29",
+   "pair": "USD_CAD",
+   "z": 0.7567,
+   "quintile": 3,
+   "r21": 0.009712,
+   "r42": 0.016498,
+   "r63": 0.013562,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2018-06-29",
+   "pair": "USD_CHF",
+   "z": 1.2609,
+   "quintile": 4,
+   "r21": 0.003736,
+   "r42": 0.017282,
+   "r63": 0.024589,
+   "rd_fc_pct": -2.625
+  },
+  {
+   "date": "2018-06-29",
+   "pair": "USD_JPY",
+   "z": 0.5449,
+   "quintile": 2,
+   "r21": -0.002436,
+   "r42": -0.002976,
+   "r63": -0.019765,
+   "rd_fc_pct": -1.975
+  },
+  {
+   "date": "2018-07-31",
+   "pair": "AUD_USD",
+   "z": 0.866,
+   "quintile": 3,
+   "r21": -0.019824,
+   "r42": -0.030024,
+   "r63": -0.048199,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2018-07-31",
+   "pair": "EUR_USD",
+   "z": 0.2386,
+   "quintile": 2,
+   "r21": -0.000598,
+   "r42": -0.00308,
+   "r63": -0.027541,
+   "rd_fc_pct": -1.875
+  },
+  {
+   "date": "2018-07-31",
+   "pair": "GBP_USD",
+   "z": 0.9736,
+   "quintile": 3,
+   "r21": -0.009108,
+   "r42": -0.001601,
+   "r63": -0.023044,
+   "rd_fc_pct": -1.375
+  },
+  {
+   "date": "2018-07-31",
+   "pair": "NZD_USD",
+   "z": 1.1028,
+   "quintile": 4,
+   "r21": -0.016429,
+   "r42": -0.027986,
+   "r63": -0.043811,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2018-07-31",
+   "pair": "USD_CAD",
+   "z": 0.6548,
+   "quintile": 3,
+   "r21": 0.005856,
+   "r42": -0.001459,
+   "r63": -0.006356,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2018-07-31",
+   "pair": "USD_CHF",
+   "z": 1.1752,
+   "quintile": 4,
+   "r21": 0.01661,
+   "r42": 0.012099,
+   "r63": -0.008554,
+   "rd_fc_pct": -2.625
+  },
+  {
+   "date": "2018-07-31",
+   "pair": "USD_JPY",
+   "z": 0.726,
+   "quintile": 3,
+   "r21": 0.000715,
+   "r42": -0.013318,
+   "r63": 0.002058,
+   "rd_fc_pct": -1.975
+  },
+  {
+   "date": "2018-08-31",
+   "pair": "AUD_USD",
+   "z": 1.2374,
+   "quintile": 4,
+   "r21": 0.004301,
+   "r42": -0.011186,
+   "r63": 0.005685,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2018-08-31",
+   "pair": "EUR_USD",
+   "z": 0.3199,
+   "quintile": 2,
+   "r21": -0.002504,
+   "r42": -0.02021,
+   "r63": -0.027097,
+   "rd_fc_pct": -1.875
+  },
+  {
+   "date": "2018-08-31",
+   "pair": "GBP_USD",
+   "z": 1.0693,
+   "quintile": 3,
+   "r21": 0.005232,
+   "r42": -0.018136,
+   "r63": -0.015391,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2018-08-31",
+   "pair": "NZD_USD",
+   "z": 1.3732,
+   "quintile": 4,
+   "r21": -0.000151,
+   "r42": -0.007893,
+   "r63": 0.027293,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2018-08-31",
+   "pair": "USD_CAD",
+   "z": 0.6866,
+   "quintile": 3,
+   "r21": 0.021105,
+   "r42": -0.004656,
+   "r63": -0.019395,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2018-08-31",
+   "pair": "USD_CHF",
+   "z": 0.8139,
+   "quintile": 3,
+   "r21": -0.014536,
+   "r42": -0.035255,
+   "r63": -0.030065,
+   "rd_fc_pct": -2.625
+  },
+  {
+   "date": "2018-08-31",
+   "pair": "USD_JPY",
+   "z": 0.608,
+   "quintile": 2,
+   "r21": -0.026498,
+   "r42": -0.015912,
+   "r63": -0.026498,
+   "rd_fc_pct": -1.975
+  },
+  {
+   "date": "2018-09-28",
+   "pair": "AUD_USD",
+   "z": 1.1279,
+   "quintile": 4,
+   "r21": -0.022919,
+   "r42": -0.004431,
+   "r63": -0.023484,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2018-09-28",
+   "pair": "EUR_USD",
+   "z": 0.2956,
+   "quintile": 2,
+   "r21": -0.020164,
+   "r42": -0.02978,
+   "r63": -0.018585,
+   "rd_fc_pct": -2.125
+  },
+  {
+   "date": "2018-09-28",
+   "pair": "GBP_USD",
+   "z": 0.9713,
+   "quintile": 3,
+   "r21": -0.019026,
+   "r42": -0.025135,
+   "r63": -0.029308,
+   "rd_fc_pct": -1.375
+  },
+  {
+   "date": "2018-09-28",
+   "pair": "NZD_USD",
+   "z": 1.295,
+   "quintile": 4,
+   "r21": -0.015799,
+   "r42": 0.021176,
+   "r63": 0.016443,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2018-09-28",
+   "pair": "USD_CAD",
+   "z": 0.4336,
+   "quintile": 2,
+   "r21": -0.015892,
+   "r42": -0.02981,
+   "r63": -0.049372,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2018-09-28",
+   "pair": "USD_CHF",
+   "z": 0.9394,
+   "quintile": 3,
+   "r21": -0.025097,
+   "r42": -0.024298,
+   "r63": -0.015255,
+   "rd_fc_pct": -2.875
+  },
+  {
+   "date": "2018-09-28",
+   "pair": "USD_JPY",
+   "z": 0.9745,
+   "quintile": 3,
+   "r21": 0.008762,
+   "r42": -0.003167,
+   "r63": 0.027064,
+   "rd_fc_pct": -2.225
+  },
+  {
+   "date": "2018-10-31",
+   "pair": "AUD_USD",
+   "z": 1.3585,
+   "quintile": 4,
+   "r21": 0.031105,
+   "r42": -0.006509,
+   "r63": 0.010662,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2018-10-31",
+   "pair": "EUR_USD",
+   "z": 0.5627,
+   "quintile": 2,
+   "r21": 0.004403,
+   "r42": 0.009922,
+   "r63": 0.009311,
+   "rd_fc_pct": -2.125
+  },
+  {
+   "date": "2018-10-31",
+   "pair": "GBP_USD",
+   "z": 1.0983,
+   "quintile": 3,
+   "r21": 0.000782,
+   "r42": -0.00628,
+   "r63": 0.029227,
+   "rd_fc_pct": -1.375
+  },
+  {
+   "date": "2018-10-31",
+   "pair": "NZD_USD",
+   "z": 1.4371,
+   "quintile": 4,
+   "r21": 0.048863,
+   "r42": 0.026297,
+   "r63": 0.045503,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2018-10-31",
+   "pair": "USD_CAD",
+   "z": 0.6512,
+   "quintile": 2,
+   "r21": -0.011285,
+   "r42": -0.037376,
+   "r63": -0.010607,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2018-10-31",
+   "pair": "USD_CHF",
+   "z": 1.4622,
+   "quintile": 4,
+   "r21": 0.00909,
+   "r42": 0.022016,
+   "r63": 0.014725,
+   "rd_fc_pct": -2.875
+  },
+  {
+   "date": "2018-10-31",
+   "pair": "USD_JPY",
+   "z": 0.7503,
+   "quintile": 3,
+   "r21": -0.00495,
+   "r42": 0.022582,
+   "r63": 0.032967,
+   "rd_fc_pct": -2.225
+  },
+  {
+   "date": "2018-11-30",
+   "pair": "AUD_USD",
+   "z": 0.8808,
+   "quintile": 3,
+   "r21": -0.03692,
+   "r42": -0.022408,
+   "r63": -0.024508,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2018-11-30",
+   "pair": "EUR_USD",
+   "z": 0.512,
+   "quintile": 2,
+   "r21": 0.011678,
+   "r42": 0.00888,
+   "r63": 0.004142,
+   "rd_fc_pct": -2.125
+  },
+  {
+   "date": "2018-11-30",
+   "pair": "GBP_USD",
+   "z": 1.0745,
+   "quintile": 3,
+   "r21": -0.000705,
+   "r42": 0.028862,
+   "r63": 0.041861,
+   "rd_fc_pct": -1.375
+  },
+  {
+   "date": "2018-11-30",
+   "pair": "NZD_USD",
+   "z": 0.7023,
+   "quintile": 3,
+   "r21": -0.024871,
+   "r42": -0.007294,
+   "r63": -0.005685,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2018-11-30",
+   "pair": "USD_CAD",
+   "z": 0.8677,
+   "quintile": 3,
+   "r21": -0.02689,
+   "r42": 0.001356,
+   "r63": 0.010368,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2018-11-30",
+   "pair": "USD_CHF",
+   "z": 1.3101,
+   "quintile": 4,
+   "r21": 0.015642,
+   "r42": 0.003712,
+   "r63": -0.001601,
+   "rd_fc_pct": -2.875
+  },
+  {
+   "date": "2018-11-30",
+   "pair": "USD_JPY",
+   "z": 0.8313,
+   "quintile": 3,
+   "r21": 0.034406,
+   "r42": 0.03751,
+   "r63": 0.023346,
+   "rd_fc_pct": -2.225
+  },
+  {
+   "date": "2018-12-31",
+   "pair": "AUD_USD",
+   "z": 1.3645,
+   "quintile": 4,
+   "r21": 0.014512,
+   "r42": 0.012412,
+   "r63": 0.004673,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2018-12-31",
+   "pair": "EUR_USD",
+   "z": 0.32,
+   "quintile": 2,
+   "r21": -0.002797,
+   "r42": -0.007535,
+   "r63": -0.019391,
+   "rd_fc_pct": -2.375
+  },
+  {
+   "date": "2018-12-31",
+   "pair": "GBP_USD",
+   "z": 1.0562,
+   "quintile": 3,
+   "r21": 0.029567,
+   "r42": 0.042566,
+   "r63": 0.025145,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2018-12-31",
+   "pair": "NZD_USD",
+   "z": 0.9994,
+   "quintile": 3,
+   "r21": 0.017577,
+   "r42": 0.019186,
+   "r63": 0.012292,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2018-12-31",
+   "pair": "USD_CAD",
+   "z": 1.2275,
+   "quintile": 4,
+   "r21": 0.028246,
+   "r42": 0.037258,
+   "r63": 0.016256,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2018-12-31",
+   "pair": "USD_CHF",
+   "z": 0.9955,
+   "quintile": 3,
+   "r21": -0.01193,
+   "r42": -0.017243,
+   "r63": -0.012131,
+   "rd_fc_pct": -3.125
+  },
+  {
+   "date": "2018-12-31",
+   "pair": "USD_JPY",
+   "z": 0.1537,
+   "quintile": 2,
+   "r21": 0.003104,
+   "r42": -0.01106,
+   "r63": -0.007628,
+   "rd_fc_pct": -2.475
+  },
+  {
+   "date": "2019-01-31",
+   "pair": "AUD_USD",
+   "z": 0.8441,
+   "quintile": 3,
+   "r21": -0.028132,
+   "r42": -0.022919,
+   "r63": -0.033797,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2019-01-31",
+   "pair": "EUR_USD",
+   "z": 0.3182,
+   "quintile": 2,
+   "r21": -0.006833,
+   "r42": -0.021533,
+   "r63": -0.022336,
+   "rd_fc_pct": -2.375
+  },
+  {
+   "date": "2019-01-31",
+   "pair": "GBP_USD",
+   "z": 0.6742,
+   "quintile": 3,
+   "r21": 0.006602,
+   "r42": 0.000685,
+   "r63": -0.008026,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2019-01-31",
+   "pair": "NZD_USD",
+   "z": 0.5446,
+   "quintile": 2,
+   "r21": -0.017045,
+   "r42": -0.016017,
+   "r63": -0.037229,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2019-01-31",
+   "pair": "USD_CAD",
+   "z": 0.6385,
+   "quintile": 2,
+   "r21": -0.010372,
+   "r42": -0.015406,
+   "r63": -0.021607,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2019-01-31",
+   "pair": "USD_CHF",
+   "z": 1.1772,
+   "quintile": 4,
+   "r21": -0.004918,
+   "r42": -0.005019,
+   "r63": -0.026022,
+   "rd_fc_pct": -3.125
+  },
+  {
+   "date": "2019-01-31",
+   "pair": "USD_JPY",
+   "z": -0.0487,
+   "quintile": 1,
+   "r21": -0.027637,
+   "r42": -0.02226,
+   "r63": -0.023248,
+   "rd_fc_pct": -2.475
+  },
+  {
+   "date": "2019-02-28",
+   "pair": "AUD_USD",
+   "z": 1.0675,
+   "quintile": 3,
+   "r21": 0.000704,
+   "r42": -0.006359,
+   "r63": -0.024094,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2019-02-28",
+   "pair": "EUR_USD",
+   "z": 0.345,
+   "quintile": 2,
+   "r21": -0.013359,
+   "r42": -0.018896,
+   "r63": -0.017911,
+   "rd_fc_pct": -2.375
+  },
+  {
+   "date": "2019-02-28",
+   "pair": "GBP_USD",
+   "z": 0.4819,
+   "quintile": 2,
+   "r21": -0.018399,
+   "r42": -0.026721,
+   "r63": -0.046728,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2019-02-28",
+   "pair": "NZD_USD",
+   "z": 0.6872,
+   "quintile": 3,
+   "r21": 0.001761,
+   "r42": -0.021228,
+   "r63": -0.038786,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2019-02-28",
+   "pair": "USD_CAD",
+   "z": 0.6064,
+   "quintile": 2,
+   "r21": -0.014627,
+   "r42": -0.021193,
+   "r63": -0.02305,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2019-02-28",
+   "pair": "USD_CHF",
+   "z": 1.2268,
+   "quintile": 4,
+   "r21": 0.001204,
+   "r42": -0.022504,
+   "r63": -0.011167,
+   "rd_fc_pct": -3.125
+  },
+  {
+   "date": "2019-02-28",
+   "pair": "USD_JPY",
+   "z": 0.3624,
+   "quintile": 2,
+   "r21": 0.006305,
+   "r42": -0.003764,
+   "r63": 0.017115,
+   "rd_fc_pct": -2.475
+  },
+  {
+   "date": "2019-03-29",
+   "pair": "AUD_USD",
+   "z": 1.0749,
+   "quintile": 3,
+   "r21": -0.007063,
+   "r42": -0.024798,
+   "r63": -0.016177,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2019-03-29",
+   "pair": "EUR_USD",
+   "z": 0.7382,
+   "quintile": 3,
+   "r21": -0.005537,
+   "r42": -0.004553,
+   "r63": 0.014325,
+   "rd_fc_pct": -2.375
+  },
+  {
+   "date": "2019-03-29",
+   "pair": "GBP_USD",
+   "z": 0.7481,
+   "quintile": 3,
+   "r21": -0.008322,
+   "r42": -0.028329,
+   "r63": -0.026042,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2019-03-29",
+   "pair": "NZD_USD",
+   "z": 0.6723,
+   "quintile": 3,
+   "r21": -0.02299,
+   "r42": -0.040547,
+   "r63": -0.018947,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2019-03-29",
+   "pair": "USD_CAD",
+   "z": 0.8311,
+   "quintile": 3,
+   "r21": -0.006565,
+   "r42": -0.008423,
+   "r63": 0.018966,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2019-03-29",
+   "pair": "USD_CHF",
+   "z": 1.287,
+   "quintile": 4,
+   "r21": -0.023708,
+   "r42": -0.01237,
+   "r63": 0.020485,
+   "rd_fc_pct": -3.125
+  },
+  {
+   "date": "2019-03-29",
+   "pair": "USD_JPY",
+   "z": 0.2478,
+   "quintile": 2,
+   "r21": -0.010068,
+   "r42": 0.01081,
+   "r63": 0.027851,
+   "rd_fc_pct": -2.475
+  },
+  {
+   "date": "2019-04-30",
+   "pair": "AUD_USD",
+   "z": 1.2908,
+   "quintile": 4,
+   "r21": -0.018349,
+   "r42": -0.005984,
+   "r63": -0.018928,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2019-04-30",
+   "pair": "EUR_USD",
+   "z": 0.7924,
+   "quintile": 3,
+   "r21": -0.00582,
+   "r42": 0.015151,
+   "r63": -0.007168,
+   "rd_fc_pct": -2.375
+  },
+  {
+   "date": "2019-04-30",
+   "pair": "GBP_USD",
+   "z": 0.7305,
+   "quintile": 3,
+   "r21": -0.0311,
+   "r42": -0.027702,
+   "r63": -0.050607,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2019-04-30",
+   "pair": "NZD_USD",
+   "z": 1.0498,
+   "quintile": 3,
+   "r21": -0.024127,
+   "r42": 0.004338,
+   "r63": -0.005713,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2019-04-30",
+   "pair": "USD_CAD",
+   "z": 0.8633,
+   "quintile": 3,
+   "r21": -0.007864,
+   "r42": 0.023511,
+   "r63": 0.018036,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2019-04-30",
+   "pair": "USD_CHF",
+   "z": 1.8083,
+   "quintile": 5,
+   "r21": 0.013224,
+   "r42": 0.043481,
+   "r63": 0.026525,
+   "rd_fc_pct": -3.125
+  },
+  {
+   "date": "2019-04-30",
+   "pair": "USD_JPY",
+   "z": 0.4336,
+   "quintile": 2,
+   "r21": 0.01958,
+   "r42": 0.033499,
+   "r63": 0.024628,
+   "rd_fc_pct": -2.475
+  },
+  {
+   "date": "2019-05-31",
+   "pair": "AUD_USD",
+   "z": 1.6692,
+   "quintile": 4,
+   "r21": 0.004751,
+   "r42": -0.008405,
+   "r63": -0.02691,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2019-05-31",
+   "pair": "EUR_USD",
+   "z": 0.7978,
+   "quintile": 3,
+   "r21": 0.014072,
+   "r42": -9e-05,
+   "r63": -0.005847,
+   "rd_fc_pct": -2.375
+  },
+  {
+   "date": "2019-05-31",
+   "pair": "GBP_USD",
+   "z": 1.1251,
+   "quintile": 4,
+   "r21": 0.0019,
+   "r42": -0.038118,
+   "r63": -0.02992,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2019-05-31",
+   "pair": "NZD_USD",
+   "z": 1.4858,
+   "quintile": 4,
+   "r21": 0.022728,
+   "r42": 0.012791,
+   "r63": -0.029235,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2019-05-31",
+   "pair": "USD_CAD",
+   "z": 0.9805,
+   "quintile": 3,
+   "r21": 0.029949,
+   "r42": 0.026526,
+   "r63": 0.016703,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2019-05-31",
+   "pair": "USD_CHF",
+   "z": 1.4255,
+   "quintile": 4,
+   "r21": 0.017088,
+   "r42": 0.012637,
+   "r63": 0.022883,
+   "rd_fc_pct": -3.125
+  },
+  {
+   "date": "2019-05-31",
+   "pair": "USD_JPY",
+   "z": -0.0131,
+   "quintile": 1,
+   "r21": 0.002211,
+   "r42": 0.0,
+   "r63": 0.026106,
+   "rd_fc_pct": -2.475
+  },
+  {
+   "date": "2019-06-28",
+   "pair": "AUD_USD",
+   "z": 1.5936,
+   "quintile": 4,
+   "r21": -0.014515,
+   "r42": -0.036468,
+   "r63": -0.037653,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2019-06-28",
+   "pair": "EUR_USD",
+   "z": 0.3301,
+   "quintile": 2,
+   "r21": -0.020608,
+   "r42": -0.024926,
+   "r63": -0.038082,
+   "rd_fc_pct": -2.375
+  },
+  {
+   "date": "2019-06-28",
+   "pair": "GBP_USD",
+   "z": 1.0211,
+   "quintile": 3,
+   "r21": -0.037534,
+   "r42": -0.033294,
+   "r63": -0.027209,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2019-06-28",
+   "pair": "NZD_USD",
+   "z": 1.1078,
+   "quintile": 4,
+   "r21": -0.011842,
+   "r42": -0.052777,
+   "r63": -0.067174,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2019-06-28",
+   "pair": "USD_CAD",
+   "z": 0.3304,
+   "quintile": 2,
+   "r21": -0.004573,
+   "r42": -0.013882,
+   "r63": -0.014259,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2019-06-28",
+   "pair": "USD_CHF",
+   "z": 0.8201,
+   "quintile": 3,
+   "r21": -0.016062,
+   "r42": -0.005824,
+   "r63": -0.015356,
+   "rd_fc_pct": -3.125
+  },
+  {
+   "date": "2019-06-28",
+   "pair": "USD_JPY",
+   "z": -0.1699,
+   "quintile": 1,
+   "r21": -0.009414,
+   "r42": 0.019098,
+   "r63": 0.000557,
+   "rd_fc_pct": -2.475
+  },
+  {
+   "date": "2019-07-31",
+   "pair": "AUD_USD",
+   "z": 2.0082,
+   "quintile": 5,
+   "r21": -0.022611,
+   "r42": -0.018166,
+   "r63": -0.007139,
+   "rd_fc_pct": -1.375
+  },
+  {
+   "date": "2019-07-31",
+   "pair": "EUR_USD",
+   "z": 0.8193,
+   "quintile": 3,
+   "r21": -0.0064,
+   "r42": -0.017036,
+   "r63": -0.00324,
+   "rd_fc_pct": -2.375
+  },
+  {
+   "date": "2019-07-31",
+   "pair": "GBP_USD",
+   "z": 1.4615,
+   "quintile": 4,
+   "r21": -0.001884,
+   "r42": 0.0075,
+   "r63": 0.051048,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2019-07-31",
+   "pair": "NZD_USD",
+   "z": 1.4448,
+   "quintile": 4,
+   "r21": -0.043364,
+   "r42": -0.046852,
+   "r63": -0.039099,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2019-07-31",
+   "pair": "USD_CAD",
+   "z": 0.3348,
+   "quintile": 2,
+   "r21": -0.0118,
+   "r42": -0.008108,
+   "r63": 0.006105,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2019-07-31",
+   "pair": "USD_CHF",
+   "z": 1.1294,
+   "quintile": 4,
+   "r21": 0.004961,
+   "r42": -0.001715,
+   "r63": -0.00584,
+   "rd_fc_pct": -3.125
+  },
+  {
+   "date": "2019-07-31",
+   "pair": "USD_JPY",
+   "z": 0.0096,
+   "quintile": 1,
+   "r21": 0.019342,
+   "r42": 0.004893,
+   "r63": -0.004044,
+   "rd_fc_pct": -2.475
+  },
+  {
+   "date": "2019-08-30",
+   "pair": "AUD_USD",
+   "z": 2.3347,
+   "quintile": 5,
+   "r21": 0.002375,
+   "r42": 0.019424,
+   "r63": 0.007402,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2019-08-30",
+   "pair": "EUR_USD",
+   "z": 1.0944,
+   "quintile": 3,
+   "r21": -0.007673,
+   "r42": 0.011581,
+   "r63": 0.001182,
+   "rd_fc_pct": -2.125
+  },
+  {
+   "date": "2019-08-30",
+   "pair": "GBP_USD",
+   "z": 1.4786,
+   "quintile": 4,
+   "r21": 0.011361,
+   "r42": 0.05897,
+   "r63": 0.057108,
+   "rd_fc_pct": -1.375
+  },
+  {
+   "date": "2019-08-30",
+   "pair": "NZD_USD",
+   "z": 2.1532,
+   "quintile": 5,
+   "r21": -0.005891,
+   "r42": 0.009323,
+   "r63": 0.020428,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2019-08-30",
+   "pair": "USD_CAD",
+   "z": 0.6412,
+   "quintile": 2,
+   "r21": 0.003543,
+   "r42": 0.01608,
+   "r63": 0.000452,
+   "rd_fc_pct": -0.375
+  },
+  {
+   "date": "2019-08-30",
+   "pair": "USD_CHF",
+   "z": 1.1089,
+   "quintile": 4,
+   "r21": -0.007949,
+   "r42": -0.003731,
+   "r63": -0.009751,
+   "rd_fc_pct": -2.875
+  },
+  {
+   "date": "2019-08-30",
+   "pair": "USD_JPY",
+   "z": -0.4563,
+   "quintile": 1,
+   "r21": -0.016884,
+   "r42": -0.023522,
+   "r63": -0.028563,
+   "rd_fc_pct": -2.225
+  },
+  {
+   "date": "2019-09-30",
+   "pair": "AUD_USD",
+   "z": 2.305,
+   "quintile": 5,
+   "r21": 0.017049,
+   "r42": 0.005027,
+   "r63": 0.028208,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2019-09-30",
+   "pair": "EUR_USD",
+   "z": 1.4594,
+   "quintile": 4,
+   "r21": 0.019254,
+   "r42": 0.008856,
+   "r63": 0.017904,
+   "rd_fc_pct": -1.875
+  },
+  {
+   "date": "2019-09-30",
+   "pair": "GBP_USD",
+   "z": 1.3114,
+   "quintile": 4,
+   "r21": 0.047609,
+   "r42": 0.045748,
+   "r63": 0.055482,
+   "rd_fc_pct": -1.125
+  },
+  {
+   "date": "2019-09-30",
+   "pair": "NZD_USD",
+   "z": 2.2451,
+   "quintile": 5,
+   "r21": 0.015214,
+   "r42": 0.026319,
+   "r63": 0.06252,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2019-09-30",
+   "pair": "USD_CAD",
+   "z": 0.4409,
+   "quintile": 2,
+   "r21": 0.012538,
+   "r42": -0.003091,
+   "r63": 0.009026,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2019-09-30",
+   "pair": "USD_CHF",
+   "z": 1.4483,
+   "quintile": 4,
+   "r21": 0.004218,
+   "r42": -0.001802,
+   "r63": 0.017184,
+   "rd_fc_pct": -2.625
+  },
+  {
+   "date": "2019-09-30",
+   "pair": "USD_JPY",
+   "z": -0.0103,
+   "quintile": 1,
+   "r21": -0.006638,
+   "r42": -0.011679,
+   "r63": -0.014327,
+   "rd_fc_pct": -1.975
+  },
+  {
+   "date": "2019-10-31",
+   "pair": "AUD_USD",
+   "z": 1.7781,
+   "quintile": 5,
+   "r21": -0.018462,
+   "r42": 0.016701,
+   "r63": -0.019794,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2019-10-31",
+   "pair": "EUR_USD",
+   "z": 0.7934,
+   "quintile": 3,
+   "r21": -0.012267,
+   "r42": 0.005543,
+   "r63": -0.013266,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2019-10-31",
+   "pair": "GBP_USD",
+   "z": 0.5941,
+   "quintile": 2,
+   "r21": 0.0,
+   "r42": 0.015415,
+   "r63": 0.004396,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2019-10-31",
+   "pair": "NZD_USD",
+   "z": 1.7339,
+   "quintile": 5,
+   "r21": 0.000779,
+   "r42": 0.048983,
+   "r63": 0.018536,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2019-10-31",
+   "pair": "USD_CAD",
+   "z": 0.2271,
+   "quintile": 2,
+   "r21": -0.011122,
+   "r42": 0.006564,
+   "r63": -0.00228,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2019-10-31",
+   "pair": "USD_CHF",
+   "z": 1.1166,
+   "quintile": 4,
+   "r21": -0.013388,
+   "r42": 0.019545,
+   "r63": 0.013261,
+   "rd_fc_pct": -2.375
+  },
+  {
+   "date": "2019-10-31",
+   "pair": "USD_JPY",
+   "z": -0.0467,
+   "quintile": 1,
+   "r21": -0.012686,
+   "r42": -0.007007,
+   "r63": -0.009942,
+   "rd_fc_pct": -1.725
+  },
+  {
+   "date": "2019-11-29",
+   "pair": "AUD_USD",
+   "z": 2.006,
+   "quintile": 5,
+   "r21": 0.035163,
+   "r42": -0.001332,
+   "r63": -0.030938,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2019-11-29",
+   "pair": "EUR_USD",
+   "z": 1.065,
+   "quintile": 3,
+   "r21": 0.017809,
+   "r42": -0.000999,
+   "r63": -0.012052,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2019-11-29",
+   "pair": "GBP_USD",
+   "z": 0.5655,
+   "quintile": 2,
+   "r21": 0.015415,
+   "r42": 0.004396,
+   "r63": -0.001392,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2019-11-29",
+   "pair": "NZD_USD",
+   "z": 1.5654,
+   "quintile": 4,
+   "r21": 0.048204,
+   "r42": 0.017757,
+   "r63": -0.018871,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2019-11-29",
+   "pair": "USD_CAD",
+   "z": 0.7226,
+   "quintile": 3,
+   "r21": 0.017686,
+   "r42": 0.008842,
+   "r63": -0.002255,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2019-11-29",
+   "pair": "USD_CHF",
+   "z": 1.5343,
+   "quintile": 4,
+   "r21": 0.032933,
+   "r42": 0.026649,
+   "r63": 0.024495,
+   "rd_fc_pct": -2.375
+  },
+  {
+   "date": "2019-11-29",
+   "pair": "USD_JPY",
+   "z": 0.2601,
+   "quintile": 2,
+   "r21": 0.00568,
+   "r42": 0.002744,
+   "r63": -0.008097,
+   "rd_fc_pct": -1.725
+  },
+  {
+   "date": "2019-12-31",
+   "pair": "AUD_USD",
+   "z": 1.1737,
+   "quintile": 4,
+   "r21": -0.041533,
+   "r42": -0.065848,
+   "r63": -0.137645,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2019-12-31",
+   "pair": "EUR_USD",
+   "z": 0.539,
+   "quintile": 2,
+   "r21": -0.020063,
+   "r42": -0.022519,
+   "r63": -0.015077,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2019-12-31",
+   "pair": "GBP_USD",
+   "z": 0.2414,
+   "quintile": 2,
+   "r21": -0.019558,
+   "r42": -0.030065,
+   "r63": -0.070965,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2019-12-31",
+   "pair": "NZD_USD",
+   "z": 0.6176,
+   "quintile": 2,
+   "r21": -0.033467,
+   "r42": -0.065241,
+   "r63": -0.113382,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2019-12-31",
+   "pair": "USD_CAD",
+   "z": -0.1494,
+   "quintile": 1,
+   "r21": -0.018271,
+   "r42": -0.029944,
+   "r63": -0.082378,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2019-12-31",
+   "pair": "USD_CHF",
+   "z": 0.7382,
+   "quintile": 3,
+   "r21": -0.007208,
+   "r42": -0.004228,
+   "r63": 0.012373,
+   "rd_fc_pct": -2.375
+  },
+  {
+   "date": "2019-12-31",
+   "pair": "USD_JPY",
+   "z": 0.0768,
+   "quintile": 1,
+   "r21": -0.004407,
+   "r42": -0.013527,
+   "r63": 0.004704,
+   "rd_fc_pct": -1.725
+  },
+  {
+   "date": "2020-01-31",
+   "pair": "AUD_USD",
+   "z": 2.0878,
+   "quintile": 5,
+   "r21": -0.026471,
+   "r42": -0.087296,
+   "r63": -0.024633,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2020-01-31",
+   "pair": "EUR_USD",
+   "z": 0.9755,
+   "quintile": 3,
+   "r21": 0.007372,
+   "r42": -0.005973,
+   "r63": -0.020881,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2020-01-31",
+   "pair": "GBP_USD",
+   "z": 0.2556,
+   "quintile": 2,
+   "r21": -0.031096,
+   "r42": -0.057796,
+   "r63": -0.059806,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2020-01-31",
+   "pair": "NZD_USD",
+   "z": 1.4262,
+   "quintile": 4,
+   "r21": -0.033496,
+   "r42": -0.081655,
+   "r63": -0.057613,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2020-01-31",
+   "pair": "USD_CAD",
+   "z": 0.5173,
+   "quintile": 2,
+   "r21": -0.008586,
+   "r42": -0.066074,
+   "r63": -0.052745,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-01-31",
+   "pair": "USD_CHF",
+   "z": 0.6366,
+   "quintile": 2,
+   "r21": 0.007075,
+   "r42": 0.001868,
+   "r63": -0.010622,
+   "rd_fc_pct": -2.375
+  },
+  {
+   "date": "2020-01-31",
+   "pair": "USD_JPY",
+   "z": 0.015,
+   "quintile": 1,
+   "r21": 0.004434,
+   "r42": 0.00898,
+   "r63": 0.01701,
+   "rd_fc_pct": -1.725
+  },
+  {
+   "date": "2020-02-28",
+   "pair": "AUD_USD",
+   "z": 2.4579,
+   "quintile": 5,
+   "r21": -0.055394,
+   "r42": 0.000616,
+   "r63": 0.014521,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2020-02-28",
+   "pair": "EUR_USD",
+   "z": 1.049,
+   "quintile": 3,
+   "r21": 0.001544,
+   "r42": -0.015112,
+   "r63": -0.002913,
+   "rd_fc_pct": -1.625
+  },
+  {
+   "date": "2020-02-28",
+   "pair": "GBP_USD",
+   "z": 0.6702,
+   "quintile": 3,
+   "r21": -0.030674,
+   "r42": -0.026969,
+   "r63": -0.043751,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2020-02-28",
+   "pair": "NZD_USD",
+   "z": 2.0583,
+   "quintile": 5,
+   "r21": -0.039439,
+   "r42": -0.027493,
+   "r63": -0.010647,
+   "rd_fc_pct": -0.625
+  },
+  {
+   "date": "2020-02-28",
+   "pair": "USD_CAD",
+   "z": 0.9578,
+   "quintile": 3,
+   "r21": -0.054981,
+   "r42": -0.04241,
+   "r63": -0.027578,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-02-28",
+   "pair": "USD_CHF",
+   "z": 0.6489,
+   "quintile": 2,
+   "r21": 0.006744,
+   "r42": -0.007417,
+   "r63": -0.002582,
+   "rd_fc_pct": -2.375
+  },
+  {
+   "date": "2020-02-28",
+   "pair": "USD_JPY",
+   "z": -0.0847,
+   "quintile": 1,
+   "r21": 0.000555,
+   "r42": 0.012003,
+   "r63": 0.003057,
+   "rd_fc_pct": -1.725
+  },
+  {
+   "date": "2020-03-31",
+   "pair": "AUD_USD",
+   "z": 3.3096,
+   "quintile": 5,
+   "r21": 0.062663,
+   "r42": 0.082058,
+   "r63": 0.111191,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-03-31",
+   "pair": "EUR_USD",
+   "z": 1.3604,
+   "quintile": 4,
+   "r21": -0.014907,
+   "r42": 0.0048,
+   "r63": 0.017903,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2020-03-31",
+   "pair": "GBP_USD",
+   "z": 1.0852,
+   "quintile": 3,
+   "r21": -0.002009,
+   "r42": -0.010412,
+   "r63": -0.009439,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2020-03-31",
+   "pair": "NZD_USD",
+   "z": 2.8939,
+   "quintile": 5,
+   "r21": 0.024042,
+   "r42": 0.043349,
+   "r63": 0.074204,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-03-31",
+   "pair": "USD_CAD",
+   "z": 2.7177,
+   "quintile": 5,
+   "r21": 0.013329,
+   "r42": 0.025821,
+   "r63": 0.030774,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-03-31",
+   "pair": "USD_CHF",
+   "z": 0.68,
+   "quintile": 3,
+   "r21": -0.01249,
+   "r42": -0.001557,
+   "r63": 0.015387,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2020-03-31",
+   "pair": "USD_JPY",
+   "z": -0.1007,
+   "quintile": 1,
+   "r21": 0.00803,
+   "r42": -0.001301,
+   "r63": 0.003167,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2020-04-30",
+   "pair": "AUD_USD",
+   "z": 2.0468,
+   "quintile": 5,
+   "r21": 0.018079,
+   "r42": 0.04906,
+   "r63": 0.093315,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-04-30",
+   "pair": "EUR_USD",
+   "z": 1.5158,
+   "quintile": 4,
+   "r21": 0.015698,
+   "r42": 0.027335,
+   "r63": 0.070528,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2020-04-30",
+   "pair": "GBP_USD",
+   "z": 0.8861,
+   "quintile": 3,
+   "r21": -0.022632,
+   "r42": -0.025965,
+   "r63": 0.02724,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2020-04-30",
+   "pair": "NZD_USD",
+   "z": 2.1292,
+   "quintile": 5,
+   "r21": 0.005998,
+   "r42": 0.041095,
+   "r63": 0.080118,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-04-30",
+   "pair": "USD_CAD",
+   "z": 2.0292,
+   "quintile": 5,
+   "r21": 0.007359,
+   "r42": 0.016306,
+   "r63": 0.040115,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-04-30",
+   "pair": "USD_CHF",
+   "z": 0.8568,
+   "quintile": 3,
+   "r21": 0.005289,
+   "r42": 0.017212,
+   "r63": 0.053097,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2020-04-30",
+   "pair": "USD_JPY",
+   "z": -0.0921,
+   "quintile": 1,
+   "r21": -0.007731,
+   "r42": -0.007175,
+   "r63": 0.018022,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2020-05-29",
+   "pair": "AUD_USD",
+   "z": 1.5446,
+   "quintile": 4,
+   "r21": 0.030982,
+   "r42": 0.075237,
+   "r63": 0.083719,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-05-29",
+   "pair": "EUR_USD",
+   "z": 0.8539,
+   "quintile": 3,
+   "r21": 0.011636,
+   "r42": 0.05483,
+   "r63": 0.061625,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2020-05-29",
+   "pair": "GBP_USD",
+   "z": 1.1773,
+   "quintile": 4,
+   "r21": -0.003333,
+   "r42": 0.049872,
+   "r63": 0.067932,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2020-05-29",
+   "pair": "NZD_USD",
+   "z": 1.7271,
+   "quintile": 5,
+   "r21": 0.035097,
+   "r42": 0.07412,
+   "r63": 0.064619,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-05-29",
+   "pair": "USD_CAD",
+   "z": 1.7892,
+   "quintile": 5,
+   "r21": 0.008947,
+   "r42": 0.032756,
+   "r63": 0.049279,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-05-29",
+   "pair": "USD_CHF",
+   "z": 0.5471,
+   "quintile": 2,
+   "r21": 0.011924,
+   "r42": 0.047808,
+   "r63": 0.056902,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2020-05-29",
+   "pair": "USD_JPY",
+   "z": 0.081,
+   "quintile": 1,
+   "r21": 0.000557,
+   "r42": 0.025753,
+   "r63": 0.015335,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2020-06-30",
+   "pair": "AUD_USD",
+   "z": 0.7824,
+   "quintile": 3,
+   "r21": 0.03912,
+   "r42": 0.051873,
+   "r63": 0.017117,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-06-30",
+   "pair": "EUR_USD",
+   "z": 0.2843,
+   "quintile": 2,
+   "r21": 0.046342,
+   "r42": 0.050919,
+   "r63": 0.033344,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2020-06-30",
+   "pair": "GBP_USD",
+   "z": 1.0013,
+   "quintile": 3,
+   "r21": 0.047754,
+   "r42": 0.067218,
+   "r63": 0.026881,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2020-06-30",
+   "pair": "NZD_USD",
+   "z": 0.8417,
+   "quintile": 3,
+   "r21": 0.031909,
+   "r42": 0.029803,
+   "r63": 0.01463,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-06-30",
+   "pair": "USD_CAD",
+   "z": 1.2739,
+   "quintile": 4,
+   "r21": 0.018085,
+   "r42": 0.037647,
+   "r63": 0.015173,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-06-30",
+   "pair": "USD_CHF",
+   "z": -0.1553,
+   "quintile": 1,
+   "r21": 0.035042,
+   "r42": 0.042068,
+   "r63": 0.018766,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2020-06-30",
+   "pair": "USD_JPY",
+   "z": -0.0351,
+   "quintile": 1,
+   "r21": 0.025468,
+   "r42": 0.012606,
+   "r63": 0.020436,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2020-07-31",
+   "pair": "AUD_USD",
+   "z": 0.1454,
+   "quintile": 2,
+   "r21": 0.031487,
+   "r42": -0.007009,
+   "r63": -0.012934,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-07-31",
+   "pair": "EUR_USD",
+   "z": -1.0242,
+   "quintile": 1,
+   "r21": 0.010769,
+   "r42": -0.008921,
+   "r63": -0.006024,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2020-07-31",
+   "pair": "GBP_USD",
+   "z": -0.0418,
+   "quintile": 1,
+   "r21": 0.018259,
+   "r42": -0.022018,
+   "r63": -0.01041,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2020-07-31",
+   "pair": "NZD_USD",
+   "z": 0.3041,
+   "quintile": 2,
+   "r21": 0.016273,
+   "r42": -0.009376,
+   "r63": 0.002405,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-07-31",
+   "pair": "USD_CAD",
+   "z": 0.595,
+   "quintile": 2,
+   "r21": 0.026499,
+   "r42": -0.002015,
+   "r63": 0.004718,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-07-31",
+   "pair": "USD_CHF",
+   "z": -1.5934,
+   "quintile": 1,
+   "r21": 0.011145,
+   "r42": -0.011131,
+   "r63": 0.001757,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2020-07-31",
+   "pair": "USD_JPY",
+   "z": -0.486,
+   "quintile": 1,
+   "r21": -0.000567,
+   "r42": 0.000946,
+   "r63": 0.013803,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2020-08-31",
+   "pair": "AUD_USD",
+   "z": 0.0252,
+   "quintile": 1,
+   "r21": -0.038495,
+   "r42": -0.044421,
+   "r63": -0.003797,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-08-31",
+   "pair": "EUR_USD",
+   "z": -1.2318,
+   "quintile": 1,
+   "r21": -0.01969,
+   "r42": -0.016793,
+   "r63": -0.003521,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2020-08-31",
+   "pair": "GBP_USD",
+   "z": -0.3607,
+   "quintile": 1,
+   "r21": -0.040277,
+   "r42": -0.028669,
+   "r63": 0.000224,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2020-08-31",
+   "pair": "NZD_USD",
+   "z": 0.1842,
+   "quintile": 2,
+   "r21": -0.025648,
+   "r42": -0.013867,
+   "r63": 0.036923,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-08-31",
+   "pair": "USD_CAD",
+   "z": -0.3691,
+   "quintile": 1,
+   "r21": -0.028514,
+   "r42": -0.02178,
+   "r63": 0.003074,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-08-31",
+   "pair": "USD_CHF",
+   "z": -1.8217,
+   "quintile": 1,
+   "r21": -0.022276,
+   "r42": -0.009388,
+   "r63": -0.008618,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2020-08-31",
+   "pair": "USD_JPY",
+   "z": -0.2408,
+   "quintile": 1,
+   "r21": 0.001513,
+   "r42": 0.01437,
+   "r63": 0.013795,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2020-09-30",
+   "pair": "AUD_USD",
+   "z": 0.6352,
+   "quintile": 2,
+   "r21": -0.021743,
+   "r42": 0.02755,
+   "r63": 0.055419,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-09-30",
+   "pair": "EUR_USD",
+   "z": -0.479,
+   "quintile": 1,
+   "r21": -0.00556,
+   "r42": 0.015658,
+   "r63": 0.040948,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2020-09-30",
+   "pair": "GBP_USD",
+   "z": 0.2686,
+   "quintile": 2,
+   "r21": -0.002402,
+   "r42": 0.034758,
+   "r63": 0.039902,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2020-09-30",
+   "pair": "NZD_USD",
+   "z": 0.6778,
+   "quintile": 3,
+   "r21": -0.00106,
+   "r42": 0.058629,
+   "r63": 0.070827,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-09-30",
+   "pair": "USD_CAD",
+   "z": 0.5153,
+   "quintile": 2,
+   "r21": -0.003147,
+   "r42": 0.025004,
+   "r63": 0.034515,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-09-30",
+   "pair": "USD_CHF",
+   "z": -0.8323,
+   "quintile": 1,
+   "r21": 0.001852,
+   "r42": 0.010723,
+   "r63": 0.032072,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2020-09-30",
+   "pair": "USD_JPY",
+   "z": -0.1624,
+   "quintile": 1,
+   "r21": 0.008465,
+   "r42": 0.011335,
+   "r63": 0.016618,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2020-10-30",
+   "pair": "AUD_USD",
+   "z": 0.9961,
+   "quintile": 3,
+   "r21": 0.045646,
+   "r42": 0.08198,
+   "r63": 0.089429,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-10-30",
+   "pair": "EUR_USD",
+   "z": -0.1015,
+   "quintile": 1,
+   "r21": 0.025515,
+   "r42": 0.050641,
+   "r63": 0.038239,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2020-10-30",
+   "pair": "GBP_USD",
+   "z": 0.3567,
+   "quintile": 2,
+   "r21": 0.030835,
+   "r42": 0.043796,
+   "r63": 0.056737,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2020-10-30",
+   "pair": "NZD_USD",
+   "z": 0.7148,
+   "quintile": 3,
+   "r21": 0.059752,
+   "r42": 0.080206,
+   "r63": 0.082576,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-10-30",
+   "pair": "USD_CAD",
+   "z": 0.7148,
+   "quintile": 3,
+   "r21": 0.026603,
+   "r42": 0.041191,
+   "r63": 0.042129,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-10-30",
+   "pair": "USD_CHF",
+   "z": -0.8203,
+   "quintile": 1,
+   "r21": 0.011523,
+   "r42": 0.036331,
+   "r63": 0.030465,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2020-10-30",
+   "pair": "USD_JPY",
+   "z": -0.3624,
+   "quintile": 1,
+   "r21": 0.001532,
+   "r42": 0.009998,
+   "r63": 0.004314,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2020-11-30",
+   "pair": "AUD_USD",
+   "z": -0.0058,
+   "quintile": 1,
+   "r21": 0.036334,
+   "r42": 0.043783,
+   "r63": 0.078713,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2020-11-30",
+   "pair": "EUR_USD",
+   "z": -0.7351,
+   "quintile": 1,
+   "r21": 0.025125,
+   "r42": 0.012724,
+   "r63": 0.023246,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2020-11-30",
+   "pair": "GBP_USD",
+   "z": -0.3849,
+   "quintile": 1,
+   "r21": 0.012961,
+   "r42": 0.025902,
+   "r63": 0.055912,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2020-11-30",
+   "pair": "NZD_USD",
+   "z": -0.4741,
+   "quintile": 1,
+   "r21": 0.020453,
+   "r42": 0.022824,
+   "r63": 0.057055,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-11-30",
+   "pair": "USD_CAD",
+   "z": -0.0651,
+   "quintile": 1,
+   "r21": 0.014587,
+   "r42": 0.015526,
+   "r63": 0.035598,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-11-30",
+   "pair": "USD_CHF",
+   "z": -1.1557,
+   "quintile": 1,
+   "r21": 0.024809,
+   "r42": 0.018942,
+   "r63": 0.002985,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2020-11-30",
+   "pair": "USD_JPY",
+   "z": -0.2846,
+   "quintile": 1,
+   "r21": 0.008466,
+   "r42": 0.002782,
+   "r63": -0.017474,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2020-12-31",
+   "pair": "AUD_USD",
+   "z": -0.7885,
+   "quintile": 1,
+   "r21": -0.006246,
+   "r42": 0.008654,
+   "r63": -0.01332,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2020-12-31",
+   "pair": "EUR_USD",
+   "z": -1.3431,
+   "quintile": 1,
+   "r21": -0.007798,
+   "r42": -0.014495,
+   "r63": -0.042254,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2020-12-31",
+   "pair": "GBP_USD",
+   "z": -0.9629,
+   "quintile": 1,
+   "r21": 0.004455,
+   "r42": 0.020001,
+   "r63": 0.004892,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2020-12-31",
+   "pair": "NZD_USD",
+   "z": -0.9071,
+   "quintile": 1,
+   "r21": 0.000834,
+   "r42": 0.010922,
+   "r63": -0.029053,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-12-31",
+   "pair": "USD_CAD",
+   "z": -0.8024,
+   "quintile": 1,
+   "r21": -0.001802,
+   "r42": 0.007951,
+   "r63": 0.010008,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2020-12-31",
+   "pair": "USD_CHF",
+   "z": -1.9725,
+   "quintile": 1,
+   "r21": -0.007213,
+   "r42": -0.033042,
+   "r63": -0.064178,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2020-12-31",
+   "pair": "USD_JPY",
+   "z": -0.58,
+   "quintile": 1,
+   "r21": -0.013954,
+   "r42": -0.033262,
+   "r63": -0.065634,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2021-01-29",
+   "pair": "AUD_USD",
+   "z": -0.6949,
+   "quintile": 1,
+   "r21": 0.0149,
+   "r42": -0.007074,
+   "r63": 0.01387,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-01-29",
+   "pair": "EUR_USD",
+   "z": -1.0362,
+   "quintile": 1,
+   "r21": -0.006697,
+   "r42": -0.034456,
+   "r63": -0.003054,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2021-01-29",
+   "pair": "GBP_USD",
+   "z": -1.1128,
+   "quintile": 1,
+   "r21": 0.015546,
+   "r42": 0.000437,
+   "r63": 0.014038,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-01-29",
+   "pair": "NZD_USD",
+   "z": -0.9148,
+   "quintile": 1,
+   "r21": 0.010088,
+   "r42": -0.029887,
+   "r63": 0.005816,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-01-29",
+   "pair": "USD_CAD",
+   "z": -0.793,
+   "quintile": 1,
+   "r21": 0.009753,
+   "r42": 0.01181,
+   "r63": 0.033589,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-01-29",
+   "pair": "USD_CHF",
+   "z": -1.6174,
+   "quintile": 1,
+   "r21": -0.025829,
+   "r42": -0.056965,
+   "r63": -0.024295,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2021-01-29",
+   "pair": "USD_JPY",
+   "z": -0.0802,
+   "quintile": 1,
+   "r21": -0.019308,
+   "r42": -0.05168,
+   "r63": -0.039077,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2021-02-26",
+   "pair": "AUD_USD",
+   "z": -0.9561,
+   "quintile": 1,
+   "r21": -0.010024,
+   "r42": 0.007099,
+   "r63": 0.002975,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-02-26",
+   "pair": "EUR_USD",
+   "z": -0.9876,
+   "quintile": 1,
+   "r21": -0.026308,
+   "r42": -0.001158,
+   "r63": 0.009137,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2021-02-26",
+   "pair": "GBP_USD",
+   "z": -1.5896,
+   "quintile": 1,
+   "r21": -0.011103,
+   "r42": -0.0028,
+   "r63": 0.012965,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-02-26",
+   "pair": "NZD_USD",
+   "z": -1.0897,
+   "quintile": 1,
+   "r21": -0.032813,
+   "r42": -0.004979,
+   "r63": 0.005914,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-02-26",
+   "pair": "USD_CAD",
+   "z": -0.9066,
+   "quintile": 1,
+   "r21": 0.008383,
+   "r42": 0.024071,
+   "r63": 0.04733,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-02-26",
+   "pair": "USD_CHF",
+   "z": -0.8345,
+   "quintile": 1,
+   "r21": -0.031291,
+   "r42": -0.004609,
+   "r63": 0.013175,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2021-02-26",
+   "pair": "USD_JPY",
+   "z": 0.5699,
+   "quintile": 2,
+   "r21": -0.028564,
+   "r42": -0.017844,
+   "r63": -0.022806,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2021-03-31",
+   "pair": "AUD_USD",
+   "z": -0.6337,
+   "quintile": 1,
+   "r21": 0.018996,
+   "r42": 0.012142,
+   "r63": -0.005136,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-03-31",
+   "pair": "EUR_USD",
+   "z": -0.17,
+   "quintile": 1,
+   "r21": 0.030774,
+   "r42": 0.037687,
+   "r63": 0.016469,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2021-03-31",
+   "pair": "GBP_USD",
+   "z": -1.2888,
+   "quintile": 1,
+   "r21": 0.011603,
+   "r42": 0.02809,
+   "r63": 0.007223,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-03-31",
+   "pair": "NZD_USD",
+   "z": -0.3384,
+   "quintile": 1,
+   "r21": 0.03404,
+   "r42": 0.03694,
+   "r63": 0.009257,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-03-31",
+   "pair": "USD_CAD",
+   "z": -1.2987,
+   "quintile": 1,
+   "r21": 0.0222,
+   "r42": 0.039262,
+   "r63": 0.019763,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-03-31",
+   "pair": "USD_CHF",
+   "z": 0.529,
+   "quintile": 2,
+   "r21": 0.034458,
+   "r42": 0.045954,
+   "r63": 0.02516,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2021-03-31",
+   "pair": "USD_JPY",
+   "z": 1.6258,
+   "quintile": 4,
+   "r21": 0.015213,
+   "r42": 0.007077,
+   "r63": 0.000995,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2021-04-30",
+   "pair": "AUD_USD",
+   "z": -0.7573,
+   "quintile": 1,
+   "r21": -0.001297,
+   "r42": -0.026129,
+   "r63": -0.048732,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-04-30",
+   "pair": "EUR_USD",
+   "z": -0.6846,
+   "quintile": 1,
+   "r21": 0.01354,
+   "r42": -0.010445,
+   "r63": -0.018542,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2021-04-30",
+   "pair": "GBP_USD",
+   "z": -1.3075,
+   "quintile": 1,
+   "r21": 0.024978,
+   "r42": 0.000506,
+   "r63": 0.003319,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-04-30",
+   "pair": "NZD_USD",
+   "z": -0.7008,
+   "quintile": 1,
+   "r21": 0.011511,
+   "r42": -0.024571,
+   "r63": -0.033474,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-04-30",
+   "pair": "USD_CAD",
+   "z": -2.0449,
+   "quintile": 1,
+   "r21": 0.016737,
+   "r42": -0.007053,
+   "r63": -0.021889,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-04-30",
+   "pair": "USD_CHF",
+   "z": -0.4935,
+   "quintile": 1,
+   "r21": 0.014568,
+   "r42": -0.008075,
+   "r63": -0.000767,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2021-04-30",
+   "pair": "USD_JPY",
+   "z": 1.4218,
+   "quintile": 4,
+   "r21": -0.004563,
+   "r42": -0.010916,
+   "r63": -0.006655,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2021-05-31",
+   "pair": "AUD_USD",
+   "z": -0.7103,
+   "quintile": 1,
+   "r21": -0.024832,
+   "r42": -0.047435,
+   "r63": -0.061274,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-05-31",
+   "pair": "EUR_USD",
+   "z": -1.0555,
+   "quintile": 1,
+   "r21": -0.023986,
+   "r42": -0.032082,
+   "r63": -0.036155,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2021-05-31",
+   "pair": "GBP_USD",
+   "z": -1.7796,
+   "quintile": 1,
+   "r21": -0.024472,
+   "r42": -0.021659,
+   "r63": -0.034125,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-05-31",
+   "pair": "NZD_USD",
+   "z": -0.9343,
+   "quintile": 1,
+   "r21": -0.036082,
+   "r42": -0.044985,
+   "r63": -0.041529,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-05-31",
+   "pair": "USD_CAD",
+   "z": -2.408,
+   "quintile": 1,
+   "r21": -0.02379,
+   "r42": -0.038625,
+   "r63": -0.045843,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-05-31",
+   "pair": "USD_CHF",
+   "z": -0.8964,
+   "quintile": 1,
+   "r21": -0.022643,
+   "r42": -0.015335,
+   "r63": -0.019705,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2021-05-31",
+   "pair": "USD_JPY",
+   "z": 1.7659,
+   "quintile": 5,
+   "r21": -0.006353,
+   "r42": -0.002092,
+   "r63": -0.002364,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2021-06-30",
+   "pair": "AUD_USD",
+   "z": -0.1201,
+   "quintile": 1,
+   "r21": -0.01289,
+   "r42": -0.025263,
+   "r63": -0.028689,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-06-30",
+   "pair": "EUR_USD",
+   "z": -0.2546,
+   "quintile": 1,
+   "r21": 0.003202,
+   "r42": -0.004568,
+   "r63": -0.012399,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2021-06-30",
+   "pair": "GBP_USD",
+   "z": -0.9948,
+   "quintile": 1,
+   "r21": 0.011523,
+   "r42": -0.002684,
+   "r63": -0.006832,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-06-30",
+   "pair": "NZD_USD",
+   "z": -0.1031,
+   "quintile": 1,
+   "r21": 0.005288,
+   "r42": 0.004861,
+   "r63": 0.004575,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-06-30",
+   "pair": "USD_CAD",
+   "z": -1.3744,
+   "quintile": 1,
+   "r21": -0.002818,
+   "r42": -0.016709,
+   "r63": -0.019085,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-06-30",
+   "pair": "USD_CHF",
+   "z": 0.3544,
+   "quintile": 2,
+   "r21": 0.020858,
+   "r42": 0.014259,
+   "r63": -0.000324,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2021-06-30",
+   "pair": "USD_JPY",
+   "z": 2.7758,
+   "quintile": 5,
+   "r21": 0.013782,
+   "r42": 0.010956,
+   "r63": 0.000721,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2021-07-30",
+   "pair": "AUD_USD",
+   "z": 0.3254,
+   "quintile": 2,
+   "r21": -0.007647,
+   "r42": -0.01563,
+   "r63": 0.022065,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-07-30",
+   "pair": "EUR_USD",
+   "z": -0.1502,
+   "quintile": 1,
+   "r21": -0.005833,
+   "r42": -0.015545,
+   "r63": -0.022504,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2021-07-30",
+   "pair": "GBP_USD",
+   "z": -1.101,
+   "quintile": 1,
+   "r21": -0.011203,
+   "r42": -0.027397,
+   "r63": -0.012585,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-07-30",
+   "pair": "NZD_USD",
+   "z": 0.0094,
+   "quintile": 1,
+   "r21": 0.00286,
+   "r42": -0.003731,
+   "r63": 0.027407,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-07-30",
+   "pair": "USD_CAD",
+   "z": -1.0943,
+   "quintile": 1,
+   "r21": -0.011168,
+   "r42": -0.017967,
+   "r63": 0.010402,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-07-30",
+   "pair": "USD_CHF",
+   "z": -0.252,
+   "quintile": 1,
+   "r21": -0.012176,
+   "r42": -0.024098,
+   "r63": -0.013374,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2021-07-30",
+   "pair": "USD_JPY",
+   "z": 2.5667,
+   "quintile": 5,
+   "r21": -0.001912,
+   "r42": -0.014749,
+   "r63": -0.036254,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2021-08-31",
+   "pair": "AUD_USD",
+   "z": 0.4337,
+   "quintile": 2,
+   "r21": -0.016142,
+   "r42": 0.032317,
+   "r63": -0.025363,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-08-31",
+   "pair": "EUR_USD",
+   "z": 0.1588,
+   "quintile": 2,
+   "r21": -0.01606,
+   "r42": -0.009794,
+   "r63": -0.04312,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2021-08-31",
+   "pair": "GBP_USD",
+   "z": -0.6319,
+   "quintile": 1,
+   "r21": -0.02266,
+   "r42": 0.004138,
+   "r63": -0.031404,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-08-31",
+   "pair": "NZD_USD",
+   "z": -0.237,
+   "quintile": 1,
+   "r21": -0.024583,
+   "r42": 0.023299,
+   "r63": -0.0313,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-08-31",
+   "pair": "USD_CAD",
+   "z": -0.4587,
+   "quintile": 1,
+   "r21": -0.009536,
+   "r42": 0.022502,
+   "r63": -0.010006,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-08-31",
+   "pair": "USD_CHF",
+   "z": 0.4663,
+   "quintile": 2,
+   "r21": -0.018815,
+   "r42": 0.004157,
+   "r63": -0.007937,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2021-08-31",
+   "pair": "USD_JPY",
+   "z": 2.9767,
+   "quintile": 5,
+   "r21": -0.016045,
+   "r42": -0.02981,
+   "r63": -0.030516,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2021-09-30",
+   "pair": "AUD_USD",
+   "z": 0.6791,
+   "quintile": 3,
+   "r21": 0.038273,
+   "r42": -0.015195,
+   "r63": 0.000692,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-09-30",
+   "pair": "EUR_USD",
+   "z": 0.8071,
+   "quintile": 3,
+   "r21": -0.002162,
+   "r42": -0.027675,
+   "r63": -0.022979,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2021-09-30",
+   "pair": "GBP_USD",
+   "z": 0.034,
+   "quintile": 1,
+   "r21": 0.015908,
+   "r42": -0.013378,
+   "r63": -0.002825,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-09-30",
+   "pair": "NZD_USD",
+   "z": 0.2236,
+   "quintile": 2,
+   "r21": 0.036854,
+   "r42": -0.015926,
+   "r63": -0.014454,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-09-30",
+   "pair": "USD_CAD",
+   "z": -0.3791,
+   "quintile": 1,
+   "r21": 0.022019,
+   "r42": -0.009346,
+   "r63": -0.011065,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-09-30",
+   "pair": "USD_CHF",
+   "z": 1.3835,
+   "quintile": 4,
+   "r21": 0.018807,
+   "r42": 0.009576,
+   "r63": 0.018589,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2021-09-30",
+   "pair": "USD_JPY",
+   "z": 3.3721,
+   "quintile": 5,
+   "r21": -0.022437,
+   "r42": -0.019978,
+   "r63": -0.028731,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2021-10-29",
+   "pair": "AUD_USD",
+   "z": 0.0621,
+   "quintile": 1,
+   "r21": -0.053468,
+   "r42": -0.037582,
+   "r63": -0.046748,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-10-29",
+   "pair": "EUR_USD",
+   "z": 0.8618,
+   "quintile": 3,
+   "r21": -0.025513,
+   "r42": -0.020818,
+   "r63": -0.023916,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2021-10-29",
+   "pair": "GBP_USD",
+   "z": -0.4562,
+   "quintile": 1,
+   "r21": -0.029286,
+   "r42": -0.018733,
+   "r63": -0.012499,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-10-29",
+   "pair": "NZD_USD",
+   "z": -0.44,
+   "quintile": 1,
+   "r21": -0.05278,
+   "r42": -0.051308,
+   "r63": -0.067916,
+   "rd_fc_pct": 0.375
+  },
+  {
+   "date": "2021-10-29",
+   "pair": "USD_CAD",
+   "z": -1.0525,
+   "quintile": 1,
+   "r21": -0.031365,
+   "r42": -0.033084,
+   "r63": -0.016004,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-10-29",
+   "pair": "USD_CHF",
+   "z": 0.6569,
+   "quintile": 3,
+   "r21": -0.009232,
+   "r42": -0.000218,
+   "r63": -0.005224,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2021-10-29",
+   "pair": "USD_JPY",
+   "z": 3.8003,
+   "quintile": 5,
+   "r21": 0.002459,
+   "r42": -0.006294,
+   "r63": -0.002627,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2021-11-30",
+   "pair": "AUD_USD",
+   "z": 0.9356,
+   "quintile": 3,
+   "r21": 0.021356,
+   "r42": -0.006227,
+   "r63": 0.018175,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-11-30",
+   "pair": "EUR_USD",
+   "z": 1.4328,
+   "quintile": 4,
+   "r21": 0.00442,
+   "r42": -0.01302,
+   "r63": -0.002306,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2021-11-30",
+   "pair": "GBP_USD",
+   "z": 0.4118,
+   "quintile": 2,
+   "r21": 0.016688,
+   "r42": 0.009986,
+   "r63": 0.011628,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-11-30",
+   "pair": "NZD_USD",
+   "z": 0.1682,
+   "quintile": 2,
+   "r21": 0.004552,
+   "r42": -0.030785,
+   "r63": -0.008276,
+   "rd_fc_pct": 0.625
+  },
+  {
+   "date": "2021-11-30",
+   "pair": "USD_CAD",
+   "z": 0.0262,
+   "quintile": 1,
+   "r21": 0.000156,
+   "r42": 0.008072,
+   "r63": 0.005636,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-11-30",
+   "pair": "USD_CHF",
+   "z": 0.9467,
+   "quintile": 3,
+   "r21": 0.007405,
+   "r42": -0.010898,
+   "r63": -0.006165,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2021-11-30",
+   "pair": "USD_JPY",
+   "z": 3.102,
+   "quintile": 5,
+   "r21": -0.015338,
+   "r42": -0.019678,
+   "r63": -0.020976,
+   "rd_fc_pct": -0.225
+  },
+  {
+   "date": "2021-12-31",
+   "pair": "AUD_USD",
+   "z": 0.6398,
+   "quintile": 2,
+   "r21": -0.027368,
+   "r42": -0.001654,
+   "r63": 0.033589,
+   "rd_fc_pct": -0.025
+  },
+  {
+   "date": "2021-12-31",
+   "pair": "EUR_USD",
+   "z": 1.363,
+   "quintile": 4,
+   "r21": -0.00941,
+   "r42": -0.019179,
+   "r63": -0.01379,
+   "rd_fc_pct": -0.125
+  },
+  {
+   "date": "2021-12-31",
+   "pair": "GBP_USD",
+   "z": -0.0764,
+   "quintile": 1,
+   "r21": -0.004529,
+   "r42": -0.013573,
+   "r63": -0.026344,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-12-31",
+   "pair": "NZD_USD",
+   "z": 0.1777,
+   "quintile": 2,
+   "r21": -0.038759,
+   "r42": -0.012063,
+   "r63": 0.019978,
+   "rd_fc_pct": 0.625
+  },
+  {
+   "date": "2021-12-31",
+   "pair": "USD_CAD",
+   "z": -0.0167,
+   "quintile": 1,
+   "r21": 0.006517,
+   "r42": 0.005336,
+   "r63": 0.022318,
+   "rd_fc_pct": 0.125
+  },
+  {
+   "date": "2021-12-31",
+   "pair": "USD_CHF",
+   "z": 0.8304,
+   "quintile": 3,
+   "r21": -0.01702,
+   "r42": -0.004364,
+   "r63": -0.009467,
+   "rd_fc_pct": -0.875
+  },
+  {
+   "date": "2021-12-31",
+   "pair": "USD_JPY",
+   "z": 3.5032,
+   "quintile": 5,
+   "r21": -0.000434,
+   "r42": 0.002608,
+   "r63": -0.057366,
+   "rd_fc_pct": -0.225
+  }
+ ]
+}
