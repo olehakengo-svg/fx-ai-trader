@@ -78,7 +78,7 @@ london-4pm-fix-conditional-reversal (= london_fix_reversal の再着せ替え) /
 
 - **ppp_real_fx_gap_reversion**: GO-WITH-CONDITIONS — **次の単独 wave** (強 prior 家系)。LOCK 前解決必須: 5y rolling z の explore 窓崩壊 (pre-2014 FX ソース or 窓再設計) / スワップ会計一本化 / 極値レグ secondary 降格 / USD 因子ブロック bootstrap / CPI NSA・vintage
 - **holiday_liquidity_state_family**: 2 レグ縮約 (祝日前日 + 米休場翌日反転) の**背景 explore** (スロット非消費、BH 分母独立)。レグ (b)/(d) は power 死の実測反証で削除。祝日カレンダー定義検証 + structural_events refresh 前提
-- **vol_state_gates**: registry 登録のみ — htf_fb N≥100 recheck への split + weekend_gap 将来 recheck への RV5/RV21 forward split (look 追加なし)
+- **vol_state_gates**: ✅ **registry 登録済み 2026-07-29** — `volstate-split-htf-fb-recheck` + `volstate-split-weekend-gap-recheck` (観測前 forward split 宣言、look 追加なし、選択に使わない)
 - **pre_fomc_fx_transcription**: ❌ triage KILL (headroom 4-12x < 10x ゲート、power 不能)。再入場 = E7 PASS 後の新 pre-reg のみ
 - **move_bondvol_shock_jpy_unwind**: ❌ triage KILL (killed-VIX とイベント集合重複 + post-2022 反転 + 現行 split で検証不能)。再入場 = 将来の split 再設計 or forward 型のみ
 - rejected_as_banned 3 系統 (MSCI/FTSE リバランス、equity-stress JPY re-dress、GPIF quarter-end) は検証で支持済み
