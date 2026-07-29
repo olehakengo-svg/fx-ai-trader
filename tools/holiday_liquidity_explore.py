@@ -257,7 +257,7 @@ def analyze_leg(name, rows, rng, two_sided, fixed_dir=None):
     import numpy as np
     if fixed_dir is not None:
         rows = [dict(r, signed=fixed_dir * r["signed"]) for r in rows]
-    blocks = [(r["day"].year, r["day"].month) for r in rows]
+    blocks = [r["day"].year * 100 + r["day"].month for r in rows]
     signed = [r["signed"] for r in rows]
     obs, p = perm_pvalue(signed, blocks, rng, two_sided)
 

@@ -135,3 +135,11 @@ healthy kill を許容する。5p 最小効果ゲートと headroom≥10x は su
 
 `tools/holiday_liquidity_explore.py` / `knowledge-base/raw/bt-results/holiday-liquidity-explore-2026-07-29.json` /
 `reports/holiday-liquidity-explore-2026-07-29.md` / 台帳 #15 verdict 追記
+
+## §verdict (2026-07-29 同日執行 — 凍結コミット 3ad0cb18 後に測定)
+
+❌ **family FAIL — クローズ。** レグ (c) は explore で符号逆 (反転ではなく継続 −7.61p、p=0.973) の
+機械 kill。レグ (a) は explore PASS (+7.89p、p=0.0163、headroom 11.24、LOYO 7/7) → **OOS 単一接触で
+FAIL** (+2.06p、p=0.3145、最小効果未達、LOYO 2025 除外で符号反転)。同型再試行禁止スコープ =
+「祝日/休場カレンダーフラグ × 日次 D1-D2 exit-free」全変種 (継続方向への事後反転を含む)。
+詳細: `reports/holiday-liquidity-explore-2026-07-29.md`
