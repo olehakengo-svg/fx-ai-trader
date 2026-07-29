@@ -35,6 +35,12 @@ class _FakeOanda:
 
 
 def test_pyr_child_uses_parent_strategy_and_marks_inflight_before_open(monkeypatch):
+    # 2026-07-28 Track C R2: PYR は code pin で恒久停止 (test_track_c_plumbing.py)。
+    # 本テストは attribution ロジック自体の回帰検証として、将来の R1 再武装
+    # (pre-reg 必須: child の demo 台帳行 + dedup 永続化) に備え pin を外して実行する。
+    monkeypatch.setattr(
+        "modules.demo_trader._PYRAMIDING_CODE_PIN_DISABLED", False
+    )
     trade = {
         "trade_id": "parent-1",
         "direction": "BUY",

@@ -1,6 +1,13 @@
-# Track C 資本配管修復 決裁パケット — DRAFT (rule:R1、user 最終承認待ち)
+# Track C 資本配管修復 決裁パケット — ✅ 承認・執行 (rule:R1)
 
-**Status**: DRAFT 2026-07-28。SLA: D3 準拠 48h。
+**Status**: ✅ **user 承認 2026-07-28 (「進めて」— Claude 推奨案の採択)。同日実装・執行。**
+実装 PR: D-c-1 (ps×5 carve-out + BE_LOCK OFF) / D-c-2 選択肢(ii) (dmb は bypass 対象外) /
+D-b (JPY 台帳 SSOT 化 + D-a 実測値で再基準化 + ruin 計量整合 + dd_status 表示修正) /
+R2 併行: PYR code pin (D-e 調査起因、下記)。
+**D-e 調査で前提訂正あり**: 30000u×7 は preserve 系ではなく**手動/外部クライアント**
+([[track-c-de-orphan-investigation-2026-07-28]] = `raw/analysis/`)。残 21 件は PYR child の
+構造的台帳欠落 → R2 code pin 執行済み。**user 未確認事項 = 30000u×7 が本人操作か**
+(本人操作でなければトークンローテーション即時 = Rule 3 緊急度)。
 **診断**: [[track-c-plumbing-audit-2026-07-28]] (全クレーム code 検証済み)
 **位置づけ**: [[shortest-path-decision-memo-2026-07-10]] トラック C (D4 carve-out 設計 + 防御解除ラダー) の執行。
 **最重要事実**: user 決裁 07-28「7 席全部再武装」は agg-Kelly gate の carve-out 欠落により
