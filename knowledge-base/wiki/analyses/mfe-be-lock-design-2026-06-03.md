@@ -213,7 +213,9 @@ correct quantity for the promotion decision.
 | 補助観測 | WR A 45.4% → B 60.5% (+15pp) / **PF A 0.635 → B 0.505 (悪化)** | 勝ちクリップの実 live 版 (MEMORY `project_be_trail_inflates_python_bt_wr` と同型) |
 
 - 30-day 判定期日 (~2026-07-03) を **25 日超過**しての執行 (pre-reg 執行規律、T5 前例)。発見経緯: [[preserve-exit-overlay-2026-07-28]] §3.2
-- **Verdict: Live promotion 不成立 → 実験クローズ、env OFF (`SHADOW_BE_LOCK_ENABLE=0` = 全 A 化)**
-- code (helpers / hook / tests) は残置 — 再実験は本設計の §5 基準 + R1 で再起案が条件
+- **Verdict: Live promotion 不成立 → 実験クローズ (全 A 化)**。執行形態 = **code close** (`_be_lock_enable = False` 恒久化 + pin テスト
+  `test_ab_experiment_code_closed`) — env OFF より強い形。「env/KV disable は pin にならない」教訓の対偶で、クローズ側も env で再武装できない不可逆化とした
+- Render dashboard の env `SHADOW_BE_LOCK_ENABLE=1` は dead key 化 (削除は cosmetic — 既存の dashboard 無参照キー削除タスクと同枠)
+- helpers / hook / tests は残置 — 再実験は本設計の §5 基準 + R1 で再起案 + code close 行の意図的変更が条件
 - price_shock_rev ×5 は verdict と独立に `MFE_BE_LOCK_STRATEGY_TRIGGERS` 0.0 で恒久 code pin ([[preserve-exit-overlay-2026-07-28]] §7 — env 再有効化でも estimand を汚染しない)
 - §6 caveat「idealized simulation」は §3 counterfactual (+1.55 ΔEV 予測) に対し実測 −0.034 で確定的に反証 — snapshot counterfactual の楽観バイアス事例として [[lesson-snapshot-survivorship-bias-2026-06-03]] に連なる

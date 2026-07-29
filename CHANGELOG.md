@@ -9,8 +9,9 @@
   (close_reason ラベル汚染も解消)。WEEKEND_CLOSE のみ既知の残存逸脱 (§7)
 - **BE_LOCK A/B verdict FAIL / 実験クローズ** ([[mfe-be-lock-design-2026-06-03]] §8):
   55d N≈5.9k で aggregate ΔEV −0.034 p/t、Welch p=0.855 (基準 ΔEV>0 ∧ p<0.01)、PF 悪化
-  0.635→0.505。期日 25 日超過の pre-reg 執行 (T5 前例)。env `SHADOW_BE_LOCK_ENABLE=0` (全 A 化)、
-  code/tests は残置 (再実験は §5 基準 + R1)
+  0.635→0.505。期日 25 日超過の pre-reg 執行 (T5 前例)。執行 = **code close**
+  (`_be_lock_enable = False` + pin テスト、env では再武装不能)。helpers/tests は残置
+  (再実験は §5 基準 + R1 + code close 行の意図的変更)
 - **根拠**: 変更は「BT 検証済み estimand への復帰」— 昇格 grid (12.3y MASSIVE, BH-FDR m=3744,
   AUD_JPY N=426 WR=63.8% 他) + 07-24 exit-free 監査 (全席 p=0.0001) + §6 counterfactual
   (paired N=13, ΔEV +1.53 p/t [−0.49,+3.90]、クリップ foregone +23p、実 SL 発火 0)。
