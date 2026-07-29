@@ -72,6 +72,7 @@ london-4pm-fix-conditional-reversal (= london_fix_reversal の再着せ替え) /
 | 11 | htf_fb recheck | 受動 registry | deadline 2027-01-31 |
 | 12 | sr_anti_hunt N≥30 | 受動 | — |
 | 14 | ppp_real_fx_gap_reversion | **explore 完了 2026-07-29 (同日、単独 wave)** — [[ppp-real-fx-explore-prereg-2026-07-29]] | ❌ **FAIL** — primary IC 42bd +0.113 p=0.129 (符号は回帰方向・年次 7/8 正だが有意水準未達) + quintile 隣接違反 3 (許容 1)。キャリー直交 102% / headroom 79-115× / 年次集中なしは通過 = 「方向は合うが弱い」型。explore 窓は USD 一方的割高 regime (z>2: 96 vs z<−2: 5) で割安側回帰がほぼ観測不能だった。**同型再試行禁止 (5y-z 月次×21-63bd)、再挑戦は実質金利差込みモデル等 + 明示差分 or 2022+ 込み split 再設計のみ**。OOS 未接触保存。`reports/ppp-real-fx-explore-2026-07-29.md` |
+| 15 | holiday_liquidity_state (縮約 a+c) | **凍結 explore 走行 2026-07-29** — [[holiday-liquidity-explore-prereg-2026-07-29]] (背景線、BH 分母は family 内 m=2 で独立。レグ b/d は wave-2 検証で削除済み) | 走行中 — カレンダー定義は観測フリー再現済み (US eve 63 / JP eve 84 / overlap 8 / レグ c N=52)、欠損 2 窓 backfill 実測確認 |
 | 13 | gotobi_tokyo_fix_usdjpy | **explore 完了 2026-07-28 (同日)** — [[gotobi-calibration-explore-prereg-2026-07-28]] | ✅❌ **較正成功 / 昇格 kill** — 規約 B (前営業日繰り) で公表効果を gross 回収 (+1.92p p=0.0032、N=557 vs 1352) = **測定ハーネス正当性を実証** + 規約矛盾解決。ただし効果は sub-friction (+1.9p < RT 2.14p)、P1 テール cell +1.38p p=0.43 → kill rule 機械的適用で family クローズ。OOS 未接触。**gotobi/仲値系の再昇格提案は執行コスト構造の変化なしに不可** (tokyo_nakane_momentum 同 family)。`reports/gotobi-calibration-explore-2026-07-28.md` |
 
 ## wave-2 候補 triage (2026-07-28、敵対的検証済み — `raw/analysis/new-angle-adversarial-verification-2026-07-28.md`)
