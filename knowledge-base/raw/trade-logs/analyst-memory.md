@@ -3160,6 +3160,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 - **東京セッション（JST 08:00〜15:00）**: USD/JPY・GBP/JPYのATR%ileが高め。アジア時間は`gbp_asia_flash_crash`ブロックが活性化しやすい。GBP系への注視が必要
 - **ロンドンフィックス前後（JST 23:00〜00:00）**: WS3 OOS検証で`london_fix_reversal×EUR_USD`がBH-FDR通過済み（ratio 1.43, p=0.0115）。ただし現在はlive実装禁止フェーズであり、観察のみ
 
+### 2026-07-29 (Post-Tokyo Report)
+| PnL | — |
+| WR | — |
+- 東京セッションN=0。統計的根拠皆無。調整トリガーを満たさない
+- ブロック理由はいずれも設計通りのフィルター動作であり、誤作動の証拠なし
+- `hedge_block`が複数戦略で発動 → 既存ポジション（OANDA Open Trades: 1件）との方向性衝突による正常防御
+- DD防御モード継続中（KB記録: DD=100.01%バリア圏、defensiveモード）— 追加リスクテイクの根拠なし
+| GBP_JPY | RANGING | 45% | EUR系同様、ロンドン初動でのブレイク試行に注意 |
+### 推奨戦略配分
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
