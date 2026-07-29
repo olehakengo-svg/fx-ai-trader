@@ -56,3 +56,9 @@ holiday カレンダー検証で MASSIVE キャッシュに欠損 2 区間 (2019
 5m/1d とも 0 行) が発見された。本 explore への影響評価: 欠損は explore 8 年の ~2% であり、
 gotobi 日と非 gotobi 日の両群を等しく欠くため diff-in-means は不偏 — **C1/P1 の verdict は不変**。
 キャッシュ再取得は chip task_146ae96b で別線化。
+
+---
+
+## Data note (2026-07-29 追記・修理完了)
+
+上記の別線化タスクは同日完了: 欠損は **MASSIVE ベンダー側の穴** で再取得では埋まらないことが判明し、OANDA v20 mid で backfill した ([[massive-vendor-gap-backfill-2026-07-29]]、45 files +61,709 行)。`USD_JPY_5m_2014_2026.parquet` の当該窓は充足済みのため、将来の再走は窓内の五十日イベントを含む — ただし **verdict (規約 B 較正成功 / sub-friction family クローズ) と再試行禁止スコープに変更はない**。

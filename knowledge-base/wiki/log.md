@@ -665,3 +665,6 @@
 - **Lint (本コミット変更ファイル限定)**: (1) [[e15-e7-event-modality-prereg-2026-07-18]] / changelog / session log / pipeline 状態表 / queue task の [[wikilink]] 全解決 ✅ (2) prereg-trigger-registry.json valid JSON、active 13 triggers (新規 2: e15-e7-event-prereg-phase{0,1}-verdict) ✅ (3) tier_integrity_check --check pass ✅
 - ⚠️ **`sync_kb_index.py --check` FAIL — index.md KB_PORTFOLIO ブロックが demo_trader.py strategy sets と drift** (最終 auto-sync 2026-07-15、本セッションの変更とは無関係の既存事象)。PAIR_PROMOTED/SHADOW の行数が大幅相違。scope 規律により本 PR に混載せず、別タスク chip (`Fix stale KB index portfolio sync`) として起票済み — `sync_kb_index.py --write` + `tier_integrity_check.py --write` の単独コミットで解消すること
 - ℹ 既知 (継続): app.py の legacy dead inline `strong_sr_breakout` / `tokyo_bb` (30d+ 発火なし、削除候補)
+
+## 2026-07-29 wiki-lint (massive-gap-backfill 変更分)
+- ⚠️ [[holiday-calendar-verification-2026-07-29]] は意図的な前方参照 — 発見元 doc は branch `claude/hopeful-kapitsa-417e40` (未マージ) 上。同 branch land 後に解消。他のリンク・参照ファイルは全て解決済み
