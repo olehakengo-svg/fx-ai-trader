@@ -39,7 +39,7 @@
 | 41 | **vix_riskoff_carry_unwind_jpy_crosses** | VIX スパイク → キャリー強制解消の continuation。E20 凍結 (carry-rank/mom63) とは別 estimand だが pre-reg 時に隣接性の敵対的チェック必須 |
 
 ### wave-2-accumulating (蓄積待ち・受動)
-E7 phase-1 (verdict 08-28) / E1 (first look 10-15) / E12 volume (~3ヶ月) / htf_fb recheck (受動、実測ペースでは deadline 2027-01-31 に N≈15-30 で stale クローズ公算) / sr_anti_hunt N≥30 (受動)
+E7 phase-1 (verdict 08-28) / E1 (first look 10-15) / E12 volume (forward pre-reg 🔒 LOCKED 2026-07-29、first look 2027-02-05 — 「~3ヶ月」目安は [[e12-volume-forward-prereg-2026-07-29]] §6 で置換) / htf_fb recheck (受動、実測ペースでは deadline 2027-01-31 に N≈15-30 で stale クローズ公算) / sr_anti_hunt N≥30 (受動)
 
 ### parked (台帳外)
 oanda_labs_h4 fade (**E1 と同一メカニズムの double-bet — E1 校正入力専用**) / fred_cpi surprise (E7 重複) / tsmom weekly (E20 隣接) / mafe exit 復活 (正 EV ホスト不在) / yield_spread 残差 (07-24 口頭評価 HOLD) / sub-friction gross 構造 / E15 型無条件イベント窓
@@ -68,7 +68,7 @@ london-4pm-fix-conditional-reversal (= london_fix_reversal の再着せ替え) /
 | 7 | vix_carry_unwind_continuation | **explore 完了 2026-07-28 (TV)** — 同上 | ❌ **FAIL (knife-edge)** — pooled short 3d +46.2p/event、**厳密 p=0.050091** (2²³ 全列挙、シード非依存) > BH 閾値 0.05 (m=2)。9e-5 差だが凍結ルールどおり kill、事後に閾値を動かさない。headroom 32-55× は全ペア通過 (power 不足型 FAIL)。**同型再試行 (VIXレベル閾値×JPYクロスshort×固定1-5d) 禁止**、再挑戦は新データ + 隣接差分節必須。OOS 2022+ 未接触保存 |
 | 8 | E1 positioning | LOCKED 走行中 | first look 2026-10-15 |
 | 9 | E7 surprise phase-1 | LOCKED 走行中 | verdict 2026-08-28 |
-| 10 | E12 volume design | 蓄積待ち | — |
+| 10 | E12 volume design | **forward pre-reg 🔒 LOCKED 2026-07-29 (W3-3 登録アクション、BH/wave スロット非消費・測定ゼロ)** — [[e12-volume-forward-prereg-2026-07-29]]。役割 split 凍結: backfill 2024-02-27〜2026-07-29 = explore / go-forward ≥2026-07-30 = OOS (first_bar は DB 実測で全 7 契約 2024-02-27T05:00Z 確定)。S1 設計無変更凍結 = unsigned abnormal volume primary + 対価格 momentum **増分 IC 必須検定** (BVC-signed は非 claimable secondary) | 未測定 — first look **2027-02-05** (cutoff 2027-01-31、registry `e12-volume-first-look-deadline`。wave-2 の「~3ヶ月」目安は検定力根拠付きで置換)、陳腐化 review 2026-11-30。**E13 再入場余地 = E12 unsigned primary PASS 時のみ MASSIVE tick volume 12y 拡張を新 family/R1 で可、FAIL 時は E13 ban 継続** (敵対的検証 [W3-3] 注記)。歴史 unlock (Databento) は user 決裁事項として記録のみ |
 | 11 | htf_fb recheck | 受動 registry | deadline 2027-01-31 |
 | 12 | sr_anti_hunt N≥30 | 受動 | — |
 | 14 | ppp_real_fx_gap_reversion | **explore 完了 2026-07-29 (同日、単独 wave)** — [[ppp-real-fx-explore-prereg-2026-07-29]] | ❌ **FAIL** — primary IC 42bd +0.113 p=0.129 (符号は回帰方向・年次 7/8 正だが有意水準未達) + quintile 隣接違反 3 (許容 1)。キャリー直交 102% / headroom 79-115× / 年次集中なしは通過 = 「方向は合うが弱い」型。explore 窓は USD 一方的割高 regime (z>2: 96 vs z<−2: 5) で割安側回帰がほぼ観測不能だった。**同型再試行禁止 (5y-z 月次×21-63bd)、再挑戦は実質金利差込みモデル等 + 明示差分 or 2022+ 込み split 再設計のみ**。OOS 未接触保存。`reports/ppp-real-fx-explore-2026-07-29.md` |
