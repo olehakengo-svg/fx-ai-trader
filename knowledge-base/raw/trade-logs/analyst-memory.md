@@ -3170,6 +3170,35 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 | GBP_JPY | RANGING | 45% | EUR系同様、ロンドン初動でのブレイク試行に注意 |
 ### 推奨戦略配分
 
+### 2026-07-29 (Post-London Report)
+| PnL (pips) | **0.0** |
+| PnL | +0.6 pips | 0.0 pips |
+| WR | 100%（N=1） | N/A |
+### 推奨戦略配分
+【NO ACTION推奨】
+**全体として**: 現在オープントレード0・hedge_block多発状態ではNYセッションも同様のブロック継続が想定される。**特定のブロック解除シグナルが観測されない限り、NY前半はNO ACTION維持が合理的。**
+| 本日累計PnL | **+0.6 pips** |
+
+### 2026-07-29 (Pre-Tokyo Briefing)
+前日（2026-07-29）のPnL・トレード数・WRは本APIからは取得不能。ただし、KBの直近文脈（DD=100.01%、defensive mode継続中）と照合すると、**システムは引き続き「ドローダウン防御0.2x縮退モード」下にある**と推定される。新高値更新なし。
+| 戦略 | N（Cutoff後） | WR | EV | 判定 |
+| 摩擦調整EV | **全セル負**（T2 exit-repair FAIL確定） |
+→ N=93は「判断可能」水準だが、EV構造は依然として負。**昇格候補ゼロの状態が継続している可能性が高い。**
+| 3 | **DD=100.01%バリア突破後の防御継続** | 新高値なし。defensive mode（0.2x）が続いており、EV回収の機会が構造的に制限されている |
+- **新規ポジションに対する積極的判断は保留** — データが見えない状態での追加リスクテイクは禁忌
+- **外部仮説スクリーン（KB: external-hypothesis-scan-2026-07-13の後続フェーズ）の進捗確認を優先**
+- APIが復旧次第、Cutoff後のN・EV・block_countsを即時確認する
+
+### 2026-07-30 (Pre-Tokyo Briefing)
+前日（2026-07-29）の約定は **1件のみ**。`price_shock_rev_aud_jpy_h1_long` / AUD_JPY BUY → WIN / PnL **+0.6pip**。
+システム全体WR = 100%（N=1）、PnL合計 = **+0.6pip**。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- hedge_blockの多発は相場構造（後述のRANGING環境）に起因する可能性が高く、今日も継続する蓋然性が高い。同条件での約定は引き続き困難と見込む
+- r2_shadow_demoted_cellブロックについては、対象セルが「本当に死んでいるか」の定期レビューが必要だが、N蓄積がないため現時点では静観が妥当
+- **デイトレード戦略**：トレンドフォロー型の要素を持つため、RANGING環境では誤シグナルが増加しhedge_blockが多発する正のフィードバックループが形成されている
+- **スキャルプ戦略**：spread_guardが機能しやすい環境だが、r2_shadow_demoted_cellブロックにより供給自体が枯渇
+- **rnb_usdjpy**：direction_filterで85件ブロック。USD_JPYのATR%ile=67%は高いが、SMAスロープが明確なトレンドを示さず、方向判定が定まらない状態
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象

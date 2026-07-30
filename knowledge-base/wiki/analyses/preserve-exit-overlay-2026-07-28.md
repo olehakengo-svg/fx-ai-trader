@@ -193,6 +193,7 @@ realized `sl_2atr` ラベル 5 rows (全て正の小 pnl = BE/trail クリップ
 3. **(b) 採用時の追加要件**: ATR-BE/trail 免除だけでは不足 — **SIGNAL_REVERSE 免除も必要** (§6.4)。免除セットは weekend_gap 型 (BE_LOCK trig 0.0 + ATR-BE/trail 免除 + SIGNAL_REVERSE 免除) をそのまま流用するのが code 上最小
 4. **(b) の Cons (系列断絶) の再評価**: 断絶する series の中身は「36% ラベル汚染 + クリップで勝ち側が削られた系列」であり、連続性の価値自体が低い。counterfactual 再採点ハーネス (`tools/price_shock_exit_counterfactual.py`、規約は §6.2) で過去系列を design 尺度に遡及換算できるため、watchdog series は折れても再構成可能
 5. **別件 (要 registry)**: eur_aud / usd_cad の 2 席が 3.5 ヶ月無発火。Q5 vol 分位フィルタ × 1%-tile の同時成立が現実の発火率でどれだけ稀か、席の期待発火率を再見積もりすべき (本 § の範囲外、live 変更なし)
+   → **監査完了 (2026-07-29)**: 稀ではなく構造バグ — HourlyEngine winner-take-all × score 非対称 (DMB 5.0+ vs ps 1.0) で family 供給が design の ~31% に絞られていた。root cause / 決裁パケット = [[price-shock-seat-supply-audit-2026-07-29]]
 
 ### 6.7 追補 (2026-07-29): id=14318 の horizon 完了 → paired N=14 確定値
 
