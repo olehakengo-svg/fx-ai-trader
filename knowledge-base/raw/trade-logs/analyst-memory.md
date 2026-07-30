@@ -3209,6 +3209,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 - block_countsはすべてシステム設計内の保護ロジック（hedge_block、direction_filter、shadow demote）が正常作動した結果であり、誤作動ではない。
 - OANDA転送率0%は「約定ゼロ」の結果であって、Bridge自体の異常ではない（shadow_tracking 19件 + agg_kelly=-0.343<0 の1件のみ）。
 
+### 2026-07-30 (Post-London Report)
+| WR | 0.0% |
+| PnL | **-30.1 pips** |
+本日累計データ（N=1, WR=0.0%, PnL=-30.1）がそのままロンドンセッション値と一致していることから、**東京セッションはゼロトレード**だったと判断される。
+| WR | — | 0.0% |
+| PnL | 0 | -30.1 |
+### 推奨戦略配分
+**NO ACTION推奨（条件付き）**
+| 累計WR | 0.0% |
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
