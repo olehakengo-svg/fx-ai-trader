@@ -3199,6 +3199,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 - **スキャルプ戦略**：spread_guardが機能しやすい環境だが、r2_shadow_demoted_cellブロックにより供給自体が枯渇
 - **rnb_usdjpy**：direction_filterで85件ブロック。USD_JPYのATR%ile=67%は高いが、SMAスロープが明確なトレンドを示さず、方向判定が定まらない状態
 
+### 2026-07-30 (Post-Tokyo Report)
+| PnL | 0 pips |
+| WR | N/A |
+- **hedge_block が東京セッション最大の約定阻止要因（42件/TOP15合計=89件の47%）**。GBP_USD（17件）・EUR_JPY（13件）・GBP_JPY（12件）の3ペアに集中しており、これらペアでヘッジ方向のシグナルが逆張り的に連発したことを示す。
+- **direction_filter（rnb_usdjpy 16件）** は、USD_JPY ATR%ile=67%・SMA Slope+0.00248 というRANGING-Upper Bandの環境下でRnBロジックが方向を絞り込めていない状態を反映。
+- **r2_shadow_demoted_cell（16件）** はshadow tracking中のセルが本番昇格未完のまま信号を出し続けていることを示す。
+- 本日セッションN=0 のため統計的判断の基礎なし。
+- block_countsはすべてシステム設計内の保護ロジック（hedge_block、direction_filter、shadow demote）が正常作動した結果であり、誤作動ではない。
+- OANDA転送率0%は「約定ゼロ」の結果であって、Bridge自体の異常ではない（shadow_tracking 19件 + agg_kelly=-0.343<0 の1件のみ）。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
