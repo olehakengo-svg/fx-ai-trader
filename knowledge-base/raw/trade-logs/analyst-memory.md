@@ -3219,6 +3219,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 **NO ACTION推奨（条件付き）**
 | 累計WR | 0.0% |
 
+### 2026-07-30 (Pre-Tokyo Briefing)
+前日（2026-07-29）は**トレード1件、PnL +0.6pip、WR 100%**。
+`price_shock_rev_aud_jpy_h1_long / AUD_JPY / BUY / WIN`。Cutoff後累計はN=2、PnL=-29.5pip（前日の`vix_carry_unwind`による-30.1pipの損失が残存）。実質的にはほぼ無活動日。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- 前々日（または当日初動）の`vix_carry_unwind / USD_JPY`が-30.1pipを記録。
+- これが`daily_loss_limit(-30.1pip <= -20.0pip)`トリガーとなり、**3件のBridgeブロックが連鎖発生**。
+- 本日の注視点：daily_loss_limitはリセットされたか（UTC 00:00リセット想定）。**本日は新日付での制限下でトレード可能なはず**。
+- Cutoff後N=2は28日以上経過していると仮定すると、**1日あたり平均0.07件**。
+- 全27モードが稼働しているにもかかわらずシグナルがほぼ発火していない。
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
