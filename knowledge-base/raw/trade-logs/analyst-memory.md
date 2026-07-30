@@ -3189,6 +3189,16 @@ shadow_trackingによる100% SKIPは、「本番に上げられるシグナル�
 - **外部仮説スクリーン（KB: external-hypothesis-scan-2026-07-13の後続フェーズ）の進捗確認を優先**
 - APIが復旧次第、Cutoff後のN・EV・block_countsを即時確認する
 
+### 2026-07-30 (Pre-Tokyo Briefing)
+前日（2026-07-29）の約定は **1件のみ**。`price_shock_rev_aud_jpy_h1_long` / AUD_JPY BUY → WIN / PnL **+0.6pip**。
+システム全体WR = 100%（N=1）、PnL合計 = **+0.6pip**。
+| Strategy | Pair | N | WR% | EV | PnL | 判定 |
+- hedge_blockの多発は相場構造（後述のRANGING環境）に起因する可能性が高く、今日も継続する蓋然性が高い。同条件での約定は引き続き困難と見込む
+- r2_shadow_demoted_cellブロックについては、対象セルが「本当に死んでいるか」の定期レビューが必要だが、N蓄積がないため現時点では静観が妥当
+- **デイトレード戦略**：トレンドフォロー型の要素を持つため、RANGING環境では誤シグナルが増加しhedge_blockが多発する正のフィードバックループが形成されている
+- **スキャルプ戦略**：spread_guardが機能しやすい環境だが、r2_shadow_demoted_cellブロックにより供給自体が枯渇
+- **rnb_usdjpy**：direction_filterで85件ブロック。USD_JPYのATR%ile=67%は高いが、SMAスロープが明確なトレンドを示さず、方向判定が定まらない状態
+
 ## Related
 - [[index]] — 戦略Tier分類
 - [[bb-rsi-reversion]] — 主要分析対象
