@@ -86,15 +86,27 @@ def mof_explore_assert():
 
 
 def parse_rows(blob, n_fields):
+    """TV table reader は同一視覚行のセルを ' | ' で連結して返す (複数カラム折返し)。
+    セル内部の区切りはスペース無しの '|' なので ' | ' split で正確に分離できる。"""
     out, problems = {}, []
     for pair, blk in blob["pairs"].items():
-        meta = parse_meta(blk["meta"])
-        problems += qa_asserts(meta, pair)
-        rows = []
+        cells = []
         for r in blk["rows"]:
-            f = [x.strip() for x in r.split("|")]
+            cells += [c.strip() for c in r.split(" | ")]
+        metas = [c for c in cells if c.startswith("META|")]
+        if len(metas) != 1:
+            problems.append(f"{pair}: META cell count {len(metas)} != 1")
+            continue
+        meta = parse_meta(metas[0])
+        problems += qa_asserts(meta, pair)
+        ev_cells = [c for c in cells if c and not c.startswith("META|")]
+        if int(meta.get("events", "-1")) != len(ev_cells):
+            problems.append(f"{pair}: META events={meta.get('events')} != parsed {len(ev_cells)}")
+        rows = []
+        for c in ev_cells:
+            f = [x.strip() for x in c.split("|")]
             if len(f) != n_fields:
-                problems.append(f"{pair}: malformed row ({len(f)} fields): {r[:60]}")
+                problems.append(f"{pair}: malformed cell ({len(f)} fields): {c[:60]}")
                 continue
             rows.append(f)
         out[pair] = rows
