@@ -348,15 +348,31 @@ def test_paginate_closed_trades_full_walk_and_fail_loud():
     assert paginate_closed_trades(lambda off: None, page_size=500) is None
 
 
-def test_registry_t8_sweep_uses_unique_basis_and_mode():
-    """t8-sweep-defer-decision の計数意味論 pin: unique バー基準 + mode 絞り込み
-    (packet §1.4 決裁の registry 反映)。"""
-    from tools.prereg_trigger_watch import load_registry
-    trig = next(t for t in load_registry() if t["id"] == "t8-sweep-defer-decision")
-    assert trig["count_basis"] == "unique"
-    assert trig["mode"] == "daytrade_eurgbp"
-    assert trig["n_decide"] == 10 and trig["n_floor"] == 5
-    assert trig["deadline"] == "2026-09-30"
+def test_registry_t8_sweep_defer_resolved_and_withdrawal_watch_active():
+    """P-S1(a) Option B 執行後の registry pin (packet §3.3-4 の置換)。
+
+    - t8-sweep-defer-decision は resolved (active=false) — load_registry から消える
+    - 後継 ps1a-sweep-live-withdrawal-watch が LOCK Withdrawal trigger 1
+      (live N>=10 EV 判定) を cell 粒度で機械監視する
+    """
+    import json as _json
+    from pathlib import Path as _Path
+    from tools.prereg_trigger_watch import REGISTRY_PATH, load_registry
+
+    raw = {t["id"]: t for t in _json.loads(
+        _Path(REGISTRY_PATH).read_text(encoding="utf-8"))["triggers"]}
+    old = raw["t8-sweep-defer-decision"]
+    assert old["active"] is False
+    assert old["count_basis"] == "unique"     # §1.4 決裁の記録は保持
+    assert "resolution" in old
+
+    trig = next(t for t in load_registry()
+                if t["id"] == "ps1a-sweep-live-withdrawal-watch")
+    assert trig["type"] == "live_count_decision"
+    assert trig["entry_type"] == "sweep_reversion_eurgbp_late"
+    assert trig["instrument"] == "EUR_GBP"
+    assert trig["direction"] == "BUY"
+    assert trig["n_decide"] == 10
 
 
 def test_fetch_trades_window_fail_loud_and_dedup(monkeypatch):

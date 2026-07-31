@@ -81,7 +81,7 @@
   },
   {
    "id": "t8-sweep-defer-decision",
-   "active": true,
+   "active": false,
    "type": "shadow_count_decision",
    "entry_type": "sweep_reversion_eurgbp_late",
    "since": "2026-07-03",
@@ -91,7 +91,22 @@
    "doc": "knowledge-base/wiki/decisions/t8-week1-gate-breach-2026-07-06.md",
    "message": "sweep P-S1(a) DEFER 決定点 — unique バー N>=10 で EV 判定 (条件付き承認済み 2026-07-24、spaced EV>0 で Option B 執行) / 2026-09-30 に N<5 なら retire (R2)。計数 = dedup_violation!=1 (packet §1.4)",
    "mode": "daytrade_eurgbp",
-   "count_basis": "unique"
+   "count_basis": "unique",
+   "resolved": "EXECUTION-DATE-TBD",
+   "resolution": "unique N>=10 ∧ spaced EV>0 成立 → Option B 執行 (P-S1(a) 単一 PR、runbook 手順)。後継 = ps1a-sweep-live-withdrawal-watch。⚠️ merge 時に resolved を執行日へ更新すること"
+  },
+  {
+   "id": "ps1a-sweep-live-withdrawal-watch",
+   "active": true,
+   "type": "live_count_decision",
+   "entry_type": "sweep_reversion_eurgbp_late",
+   "instrument": "EUR_GBP",
+   "direction": "BUY",
+   "since": "2026-07-03",
+   "n_decide": 10,
+   "deadline": "2026-12-31",
+   "doc": "knowledge-base/wiki/decisions/sweep-reversion-ps1a-decision-packet-DRAFT.md",
+   "message": "P-S1(a) live 復帰後の LOCK Withdrawal trigger 監視 — live N>=10 で EV (実 spread/swap 込み) を判定、EV<0 なら撤退 (trigger 1 = R2)。N>=20 WR<42% / 累積 live DD>100p / 30日 fire 0 → forensic は週次監査で併読 (手順書: sweep-reversion-ps1a-execution-runbook-2026-07-31 §5)。since=2026-07-03 は rescue 窓起点 — 執行前の live fill は存在しないため merge 日更新は任意"
   },
   {
    "id": "t8-hull-shadow-freq",

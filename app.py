@@ -2634,6 +2634,16 @@ def compute_daytrade_signal(df: pd.DataFrame, tf: str, sr_levels: list,
                              # T8 (sweep×HTF gate 100% drop) と同型の estimand
                              # 違反になる。口座防御系 gate は demo_trader 側で共有)
                              getattr(c, "entry_type", "") == "weekend_gap_fade"
+                         ) or (
+                             # P-S1(a) Option B: cell-scoped exemption
+                             # (sweep_reversion_eurgbp_late × EUR_GBP)。12y grid
+                             # pre-reg に HTF gate は存在せず、逆張り BUY は構造的
+                             # に htf=bear で発火する — BT/本番統一の回復。免除
+                             # 候補は blocked にならないため rescue を経由せず
+                             # live 経路へ進む。user 条件付き承認 2026-07-24、
+                             # 決裁: decisions/sweep-reversion-ps1a-decision-packet §3.2
+                             _dt_engine.htf_hard_block_exempt(
+                                 getattr(c, "entry_type", ""), symbol)
                          ) or not (hasattr(c, 'signal') and c.signal == _blocked_dir)]
         _htf_blocked_count = len(_dt_candidates) - len(_htf_filtered)
         if _htf_blocked_count > 0:

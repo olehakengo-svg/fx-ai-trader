@@ -562,6 +562,23 @@ class DaytradeEngine:
             rescued.append(c)
         return rescued
 
+    # ── P-S1(a) HTF Hard Block cell-scoped exemption (user 条件付き承認 2026-07-24) ──
+    # 12y grid pre-reg (research_sweep_reversion_grid_12y) に HTF gate は存在しない。
+    # 逆張り BUY は発火瞬間が構造的に htf=bear のため、gate 維持 = 発火 0 の恒久化
+    # (T8 で 24 日間実証)。本 exemption は新フィルタの付与ではなく BT/本番統一の回復。
+    # env ではなく code 定数 (lesson: KV/env は pin にならない)。他 cell は不変。
+    # 免除候補は blocked にならないため HTF_BLOCK_SHADOW_RESCUE を構造的に経由しない
+    # (rescue 機構自体は他戦略/将来用に残置)。
+    # 決裁: knowledge-base/wiki/decisions/sweep-reversion-ps1a-decision-packet-DRAFT.md §3.2
+    HTF_HARD_BLOCK_EXEMPT_CELLS = frozenset({
+        ("sweep_reversion_eurgbp_late", "EUR_GBP"),
+    })
+
+    @classmethod
+    def htf_hard_block_exempt(cls, entry_type: str, symbol: str) -> bool:
+        """True なら v9.1 HTF Hard Block の候補段フィルタから cell 単位で免除。"""
+        return (entry_type, symbol) in cls.HTF_HARD_BLOCK_EXEMPT_CELLS
+
     # 2026-07-07 (rule:R2): HTF mixed (4H+1D 不一致) 時に live 転送を停止する
     # 戦略×ペア セル。close_analysis タグ「⚖️ 4H+1D 不一致 → シグナル抑制中」は
     # 診断のみで、v9.1 HTF Hard Block は bull/bear 時しか候補を除外しない

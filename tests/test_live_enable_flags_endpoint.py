@@ -23,10 +23,11 @@ def test_live_enable_flags_shape(flask_client):
 
 
 def test_code_pins_report_false(flask_client):
-    """T8 R2 STOP の code pin (hull/sweep) は False 固定で報告される。"""
+    """T8 R2 STOP の code pin 報告: hull は False 固定のまま、sweep は
+    P-S1(a) Option B (user 条件付き承認 2026-07-24) で True へ解除。"""
     body = json.loads(flask_client.get("/api/demo/live-enable-flags").data)
     assert body["code_pins"]["HULL_DONCHIAN_FADE_LIVE_ENABLE"] is False
-    assert body["code_pins"]["SWEEP_REVERSION_EURGBP_LIVE_ENABLE"] is False
+    assert body["code_pins"]["SWEEP_REVERSION_EURGBP_LIVE_ENABLE"] is True
 
 
 def test_removed_bb_rsi_levers_are_dead_in_app_source():

@@ -958,6 +958,23 @@ class DemoTrader:
         except Exception as _he:
             print(f"[startup/dedup_hydrate] skipped: {_he}", flush=True)
 
+        # ── P-S1(a) §3.1: order min-spacing 状態の再起動耐性 hydration ──
+        # 既存 1h 窓では 12x15m=3h spacing に不足するため、対象戦略のみ拡張窓で
+        # 別途再水和する (シードは entry_time = block 側に保守的)。
+        self._order_min_spacing_last_accept = {}
+        try:
+            _sp_window = self._order_min_spacing_hydrate_window_sec()
+            _sp_hydrated = self._db.get_recent_signal_emits(window_sec=_sp_window) or {}
+            _sp_n = self._hydrate_order_min_spacing(_sp_hydrated)
+            if _sp_n:
+                print(
+                    f"[startup/min_spacing_hydrate] restored {_sp_n} keys "
+                    f"from last {_sp_window}s DB rows",
+                    flush=True,
+                )
+        except Exception as _se:
+            print(f"[startup/min_spacing_hydrate] skipped: {_se}", flush=True)
+
         # ── Equity Curve Protector: 段階的DDロット縮小 v7.0 ──
         # v7.0: binary ON/OFF -> graduated reduction (risk_analytics.DD_LOT_TIERS)
         #   DD >= 2%: lot * 0.80 | DD >= 4%: lot * 0.60
@@ -1299,6 +1316,104 @@ class DemoTrader:
             self._order_bar_signal_emits = {
                 k: v for k, v in self._order_bar_signal_emits.items() if v > stale_cutoff
             }
+        return None
+
+    # ── P-S1(a) order 層 12-bar min-spacing (T8 forensic #3 必須条件) ──
+    # 検証済み estimand の一部: 12y grid (research_sweep_reversion_grid_12y) は
+    # dedup_indices(gap=12) を bar 配列全体へ一括適用しており、per-bar dedup
+    # だけでは live が別 estimand になる (t8-week1-gate-breach forensic #3)。
+    # 戦略別 opt-in — 登録外の戦略は挙動不変。
+    # 決裁: decisions/sweep-reversion-ps1a-decision-packet-DRAFT.md §3.1
+    # (user 条件付き承認 2026-07-24)
+    _ORDER_MIN_SPACING_BARS = {
+        "sweep_reversion_eurgbp_late": 12,
+    }
+
+    @classmethod
+    def _order_min_spacing_sec(cls, entry_type, tf):
+        bars = cls._ORDER_MIN_SPACING_BARS.get(entry_type, 0)
+        return bars * cls._tf_to_window_sec(tf) if bars else 0
+
+    @classmethod
+    def _order_min_spacing_hydrate_window_sec(cls):
+        # 再起動耐性: 1h の既存 dedup hydration では 12x15m=3h に不足する
+        # (§3.1 — 怠ると deploy 直後に spacing が素通り)。登録戦略は現状 15m のみ。
+        # 15m 以外の戦略を登録する場合はここを tf-aware にすること。
+        max_bars = max(cls._ORDER_MIN_SPACING_BARS.values(), default=0)
+        return max(3600, max_bars * cls._tf_to_window_sec("15m"))
+
+    def _record_order_min_spacing_block(self, *, mode: str, entry_type: str) -> None:
+        if not hasattr(self, "_block_counts") or not isinstance(self._block_counts, dict):
+            self._block_counts = {}
+        if (
+            not hasattr(self, "_block_counts_per_strategy")
+            or not isinstance(self._block_counts_per_strategy, dict)
+        ):
+            self._block_counts_per_strategy = {}
+        # 専用 reason key — order_bar_dedup と区別して観測可能に (§3.1)
+        reason_key = "order_min_spacing"
+        mode_key = f"{mode}:{reason_key}"
+        strat_key = f"{entry_type}:{reason_key}"
+        self._block_counts[mode_key] = self._block_counts.get(mode_key, 0) + 1
+        self._block_counts_per_strategy[strat_key] = (
+            self._block_counts_per_strategy.get(strat_key, 0) + 1
+        )
+
+    def _hydrate_order_min_spacing(self, hydrated) -> int:
+        """DB 直近 emit から spacing 状態を再水和 (restart 耐性、§3.1)。
+
+        hydrated = {(entry_type, instrument, direction): last_emit_dt}。
+        シード値は emit の entry_time (bar open より遅い) = block 側に保守的。
+        戻り値は seed した key 数。
+        """
+        if not isinstance(getattr(self, "_order_min_spacing_last_accept", None), dict):
+            self._order_min_spacing_last_accept = {}
+        n = 0
+        for key, ts in (hydrated or {}).items():
+            try:
+                entry_type = key[0]
+            except (TypeError, IndexError):
+                continue
+            if entry_type not in self._ORDER_MIN_SPACING_BARS:
+                continue
+            if not isinstance(ts, datetime):
+                continue
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            prev = self._order_min_spacing_last_accept.get(key)
+            if prev is None or ts > prev:
+                self._order_min_spacing_last_accept[key] = ts
+                n += 1
+        return n
+
+    def _maybe_reserve_order_min_spacing(self, entry_type, instrument, signal,
+                                         bar_ts, *, tf, mode):
+        """live 受理点の per-strategy 12-bar min-spacing 予約。
+
+        受理 (None 返し) 時のみ状態を進める — research grid dedup_indices と
+        同じく、落とした emit はポインタを進めない。違反時は (key, last_accept)
+        を返し、呼び出し側が live 送信を shadow に降格する (shadow 行の記録は
+        継続 = 4原則#3)。shadow emit 経路 (_open_shadow_emit_trade) はこの gate
+        を共有しない — spacing は live 送信の受理にのみ執行する (§3.1 スコープ)。
+        """
+        spacing_sec = self._order_min_spacing_sec(entry_type, tf)
+        if not spacing_sec:
+            return None
+        norm = self._normalize_order_bar_ts(bar_ts)
+        try:
+            event_ts = (datetime.fromisoformat(norm) if norm
+                        else datetime.now(timezone.utc))
+        except ValueError:
+            event_ts = datetime.now(timezone.utc)
+        key = (entry_type, instrument, signal)
+        with self._lock:
+            if not isinstance(getattr(self, "_order_min_spacing_last_accept", None), dict):
+                self._order_min_spacing_last_accept = {}
+            last = self._order_min_spacing_last_accept.get(key)
+            if last is not None and (event_ts - last).total_seconds() < spacing_sec:
+                self._record_order_min_spacing_block(mode=mode, entry_type=entry_type)
+                return (key, last)
+            self._order_min_spacing_last_accept[key] = event_ts
         return None
 
     def _open_shadow_emit_trade(self, *, direction: str, entry_price: float,
@@ -5088,6 +5203,20 @@ class DemoTrader:
                 f"{signal}: bar_ts={_bar_dedup_key[3]}"
             )
             return
+        # ── P-S1(a) order 層 12-bar min-spacing (T8 forensic #3) ──
+        # 12y grid dedup_indices(gap=12) と同じ spacing を live 受理点で執行。
+        # 違反 emit は live 送信せず shadow 降格で記録は継続 (4原則#3)。
+        # 専用 reason key `order_min_spacing` で order_bar_dedup と区別。
+        _spacing_block = self._maybe_reserve_order_min_spacing(
+            entry_type, instrument, signal, _signal_bar_ts, tf=tf, mode=mode)
+        if _spacing_block is not None:
+            if not _is_shadow:
+                self._add_log(
+                    f"[ORDER_MIN_SPACING] {entry_type} {instrument} {signal}: "
+                    f"within {self._ORDER_MIN_SPACING_BARS.get(entry_type)} bars "
+                    f"of last accepted emit → live 降格 (shadow 記録は継続)"
+                )
+            _is_shadow = True
         _dedup_age = self._maybe_reserve_signal_emit(
             entry_type, instrument, signal,
             window_sec=_primary_window, _path="primary",
@@ -9557,9 +9686,14 @@ class DemoTrader:
     # 12y grid 唯一の Bonferroni 生存 cell (N=543 t=4.46)。MIN lot 1000u 固定済。
     # pre-reg LOCK: knowledge-base/wiki/decisions/sweep-reversion-eurgbp-late-live-2026-06-12.md
     # 2026-07-06 T8 R2 STOP (code pin): 初週 pre-reg ゲート①抵触 (24日 live fill 0、
-    # HTF hard gate が emit を 100% silent drop)。復帰 = P-S1(a) HTF exemption の R1 user
-    # 決裁 or retire 判断後の PR のみ。decisions/t8-week1-gate-breach-2026-07-06.md
-    _SWEEP_REVERSION_EURGBP_LIVE_ENABLE = False  # was: env SWEEP_REVERSION_EURGBP_LIVE_ENABLE
+    # HTF hard gate が emit を 100% silent drop)。decisions/t8-week1-gate-breach-2026-07-06.md
+    # P-S1(a) Option B 執行 (pin 解除): user 条件付き承認 2026-07-24 — 執行条件
+    # unique N>=10 ∧ spaced EV>0 の成立を tools/ps1a_execution_check.py で確認の上、
+    # min-spacing (_ORDER_MIN_SPACING_BARS) + HTF exemption
+    # (DaytradeEngine.HTF_HARD_BLOCK_EXEMPT_CELLS) と同一 PR でのみ merge 可。
+    # 決裁: decisions/sweep-reversion-ps1a-decision-packet-DRAFT.md /
+    # 手順: decisions/sweep-reversion-ps1a-execution-runbook-2026-07-31.md
+    _SWEEP_REVERSION_EURGBP_LIVE_ENABLE = True  # env ではなく code 定数 (pin 対称性)
     _SWEEP_REVERSION_EURGBP_INSTRUMENT = "EUR_GBP"
 
     @classmethod
