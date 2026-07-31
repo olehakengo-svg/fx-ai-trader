@@ -49,6 +49,11 @@ postmortem 成功形状 3/3 (低頻度・レベルアンカー・長ホールド
 - **coverage assert (測定前必須)**: per-pair D1 first bar ≤ 2014-01-01。不通過ペア = **data-blocked**
   (「取れたところまでで走る」への事後緩和禁止 — W3-2 横断警告の無変更継承)。
 - **feed QA**: 土曜 bar 除外 (wave-1 凍結事項継承)、bars/week assert (§2)。
+  **QA 修正記録 (2026-07-31、fwd-return look ゼロ時点)**: 初回 META 読み (USDCAD pass-1) で凍結 assert が
+  wknd=1257 を検出 — OANDA D1 の Monday bar は UTC open が日曜 21/22 時のため、UTC open-time ラベルでは
+  全 Monday bar が「日曜」に誤分類され event 検出から除外されていた (実週末 stub は存在せず bars/week≈4.97)。
+  測定器を trading-day ラベル (= bar close 日、America/New_York) に修正。定義・閾値の変更ではなく
+  ラベリング実装の修正であり、凍結 QA が設計どおり作動した記録。
 - **cross-check**: main checkout `data/cache/massive/*_1d*.parquet` (AUD_JPY のみ `AUD_JPY_1h` の D1
   resample) で**イベント数 + pooled 符号**を照合。乖離時は測定停止・原因究明。**worktree parquet は
   部分版につき使用禁止**。

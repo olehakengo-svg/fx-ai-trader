@@ -16,7 +16,11 @@ int EXPLORE_END = timestamp("UTC", 2021, 12, 31, 23, 59)
 
 float pip = syminfo.mintick * 10
 
-int dow = dayofweek(time, "UTC")
+// trading-day label = bar CLOSE day in NY tz (OANDA D1 opens Sun 21/22:00 UTC
+// for the Monday bar — UTC open-time labeling marks every Monday as Sunday.
+// Frozen QA assert (bars/week=5, wknd=0) caught this on first META read 2026-07-31;
+// corrected BEFORE any forward-return look. True weekend stubs close Sat/Sun NY.)
+int dow = dayofweek(time_close, "America/New_York")
 bool isWknd = dow == dayofweek.saturday or dow == dayofweek.sunday
 var int wkndCount = 0
 if isWknd
